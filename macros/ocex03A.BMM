@@ -1,0 +1,48 @@
+@$ A step Calculation
+
+set echo
+
+read t steel1
+set c t=1200 p=1e5 n(fe)=.834 n(c)=.05 n(cr)=.05, n(mo)=.05 n(si)=.006 n(v)=.01
+
+l c
+c e
+
+l,,,,
+
+@$ A comment: trying to make this calculation with N=1 
+@$ and mole fractions or mass fractions fails at present.
+@$ Condtions like N(A)=fix are the most stable.
+@$------------------------------------------------------
+@&
+
+set c t=800
+
+c e
+
+set axis
+T
+800 
+1800 
+10
+
+step normal
+
+
+@$------------------------------------------
+@&
+
+plot
+
+
+
+
+
+plot
+x%(*,cr)
+
+
+
+
+set inter
+

@@ -1,0 +1,101 @@
+@$ Calculating solidification and melting point in the binary Cr-Fe
+
+set echo
+
+read t crfe
+
+@$ 1. Calculate equilibrium at 3000 K
+set c t=3000 p=1e5 N=1 X(CR)=.2
+
+set num 20 ,,,
+
+c e
+
+l,,,,
+
+@$ Correct result:
+@$ Component Moles      Mole-fr  Chem.pot/RT  Activities  Ref.st
+@$ CR        2.0000E-01  0.20000 -9.9126E+00  4.9546E-05  SER
+@$ FE        8.0000E-01  0.80000 -9.9089E+00  4.9731E-05  SER 
+@$---------------------------------------------------------------
+@$ 2. Calculate solidification temperature
+@&
+
+
+l st
+t
+p
+
+
+set c t=none
+
+l st
+t
+p
+
+set status phase bcc
+fix
+0
+
+l c
+
+c e
+
+l,,,,,,
+
+@$ Correct result:
+@$ T=   1788.34 K (  1515.19 C), P=  1.0000E+05 Pa, V=  0.0000E+00 m3
+@$ N=   1.0000E+00 moles, B=   5.5077E-02 kg, RT=   1.4869E+04 J/mol
+@$ G= -1.0981E+05 J, G/N= -1.0981E+05 J/mol, H=  6.9570E+04 J, S=  1.0031E+02
+@$ 
+@$ Some component data ........................................:
+@$ Component Moles      Mole-fr  Chem.pot/RT  Activities  Ref.st
+@$ CR        2.0000E-01  0.20000 -7.4984E+00  5.5396E-04  SER 
+@$ FE        8.0000E-01  0.80000 -7.3570E+00  6.3814E-04  SER 
+@$ -----------------------------------------------------------
+@$ 3. Calculate an equilibrium at 1200 K
+@&
+
+set c t=1200
+
+set stat ph bcc
+e
+1
+
+
+c e
+
+l,,,,
+
+@$ Correct result:
+@$ Component Moles      Mole-fr  Chem.pot/RT  Activities  Ref.st.
+@$ CR        2.0000E-01  0.20000 -5.8698E+00  2.8235E-03  SER 
+@$ FE        8.0000E-01  0.80000 -5.8620E+00  2.8456E-03  SER 
+@$ ---------------------------------------------------------------
+@$ 4. Calculate melting temperature
+@&
+
+set c t=none
+
+set stat ph liq
+fix
+0
+
+c e
+
+l,,,,,
+
+@$ Correct result:
+@$ T=   1788.15 K (  1515.00 C), P=  1.0000E+05 Pa, V=  0.0000E+00 m3
+@$ N=   1.0000E+00 moles, B=   5.5077E-02 kg, RT=   1.4868E+04 J/mol
+@$ G= -1.0979E+05 J, G/N= -1.0979E+05 J/mol, H=  5.9572E+04 J, S=  9.4716E+01
+@$ 
+@$ Some component data ........................................:
+@$ Component Moles      Mole-fr  Chem.pot/RT  Activities  Ref.st.
+@$ CR        2.0000E-01  0.20000 -7.5146E+00  5.4506E-04  SER 
+@$ FE        8.0000E-01  0.80000 -7.3523E+00  6.4109E-04  SER 
+
+@$ The melting is almost congruently, less than 0.2 degrees difference
+
+set inter
+

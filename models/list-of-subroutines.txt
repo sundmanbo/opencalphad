@@ -1,0 +1,238 @@
+Subroutines in pmod25 files: (functions not included)
+
+pmod25A
+
+ subroutine init_gtp
+ integer function noel()
+ integer function nosp()
+ integer function noph()
+ integer function noofcs(iph)
+ integer function noconst(iph,ics,ceq)
+ integer function nosvf()
+ integer function noeq()
+ subroutine find_element_by_name(name,iel)
+ subroutine find_component_by_name(name,icomp,ceq)
+ subroutine find_species_by_name(name,isp)
+ subroutine find_species_record(name,loksp)
+ subroutine find_species_record_noabbr(name,loksp)
+ subroutine find_species_record_exact(name,loksp)
+ subroutine find_phase_by_name(name,iph,ics)
+ subroutine find_phase_by_name_exact(name,iph,ics)
+ subroutine find_constituent(iph,spname,mass,icon)
+ subroutine findeq(name,ieq)
+ subroutine selecteq(ieq,ceq)
+ subroutine get_phase_record(iph,lokph)
+ subroutine get_phase_variance(iph,nv)
+ subroutine get_phase_compset(iph,ics,lokph,lokcs)
+ subroutine get_constituent_name(iph,iseq,spname,mass)
+ subroutine get_phase_constituent_name(iph,icon,name)
+ subroutine get_element_data(iel,elsym,elname,refstat,mass,h298,s298)
+ subroutine get_component_name(icomp,name,ceq)
+ subroutine get_species_name(isp,spsym)
+ subroutine get_species_data(loksp,nspel,ielno,stoi,smass,qsp)
+ subroutine get_phase_name(iph,ics,name)
+ subroutine get_phase_data(iph,ics,nsl,nkl,knr,yarr,sites,qq,ceq)
+ subroutine get_condition(nterm,istv,indices,iref,iunit,pcond)
+ subroutine set_start_constitution(iph,ics,ceq) redundant??
+ subroutine set_constitution(iph,ics,yfra,qq,ceq)
+
+pmod25B:
+
+ subroutine calcg(iph,ics,moded,lokres,ceq)
+ subroutine calcg_internal(lokph,moded,cps,ceq)
+ subroutine setendmemarr(lokph,ceq)
+ subroutine tabder(iph,ics,ceq)
+ subroutine cgint(lokpty,moded,vals,dvals,d2vals,gz,ceq)
+ subroutine config_entropy(moded,nsl,nkl,phvar,tval)
+ subroutine push_pyval(pystack,intrec,pmq,pyq,dpyq,d2pyq,moded,iz)
+ subroutine pop_pyval(pystack,intrec,pmq,pyq,dpyq,d2pyq,moded,iz)
+ subroutine calc_disfrac(lokph,lokcs,ceq)
+ subroutine disordery(phvar,ceq)
+ subroutine scale_phase_amounts(antot,ceq)
+ subroutine set_driving_force(iph,ics,dgm,ceq)
+ subroutine extract_massbalcond(tpval,xknown,antot,ceq)
+
+pmod25C:
+
+ subroutine get_state_var_value(statevar,value,encoded,ceq)
+ subroutine get_many_svar(statevar,values,mjj,kjj,encoded,ceq)
+ subroutine decode_state_variable(statevar,istv,indices,iref,iunit,ceq)
+ subroutine calc_phase_molmass(iph,ics,xmol,wmass,totmol,totmass,amount,ceq)
+ subroutine calc_phase_mol(iph,xmol,ceq)
+ subroutine calc_molmass(xmol,wmass,totmol,totmass,ceq)
+ subroutine sumprops(props,ceq)
+ subroutine encode_state_variable(text,ip,istv,indices,iunit,iref,ceq)
+ subroutine state_variable_val(istv,indices,iref,iunit,value,ceq)
+ subroutine state_var_value_derivative(istv,indices,iref,iunit,&
+
+pmod25D:
+
+ subroutine store_putfun(name,lrot,nsymb,&
+ subroutine list_svfun(text,ipos,lrot,ceq)
+ subroutine list_all_svfun(kou,ceq)
+ subroutine evaluate_all_svfun(kou,ceq)
+ double precision function evaluate_svfun(lrot,actual_arg,mode,ceq)
+ subroutine ask_phase_constitution(cline,last,iph,ics,lokcs,ceq)
+ subroutine enter_parameter_interactivly(cline,ip)
+ subroutine amend_global_data(cline,ipos)
+ subroutine enter_reference_interactivly(cline,last,mode,iref)
+ subroutine set_condition(cline,ip,ceq)
+ subroutine enter_svfun(cline,last,ceq)
+ subroutine amend_components(cline,last,ceq)
+ subroutine ask_default_constitution(cline,last,iph,ics,ceq)
+ subroutine set_input_amounts(cline,lpos,ceq)
+
+pmod25E:
+
+ subroutine list_all_elements(unit)
+ subroutine list_all_components(unit,ceq)
+ subroutine list_element_data(text,ipos,elno)
+ subroutine list_species_data(text,ipos,spno)
+ subroutine list_all_species(unit)
+ subroutine list_all_phases(unit,ceq)
+ subroutine list_global_results(lut,ceq)
+ subroutine list_components_result(lut,mode,ceq)
+ subroutine list_phases_with_positive_dgm(mode,lut,ceq)
+ subroutine list_phase_results(iph,jcs,mode,lut,ceq)
+ subroutine scent(lokph,lokcs,ceq)
+ subroutine format_phase_composition(mode,nv,consts,vals,lut)
+ subroutine list_phase_model(iph,ics,lut,ceq)
+ subroutine list_phase_data(iph,lut)
+ subroutine subrefstates(funexpr,jp,lokph,parlist,endm)
+ subroutine encode_stoik(text,ipos,spno)
+ subroutine decode_stoik(name,noelx,elsyms,stoik)
+ subroutine encode_constarr(constarr,nsl,endm,nint,lint,ideg)
+ subroutine decode_constarr(constarr,nsl,endm,nint,lint,ideg)
+ subroutine list_references(lut)
+ subroutine list_conditions(kou,ceq)
+ subroutine get_all_conditions(text,mode,ceq)
+ subroutine list_defined_properties(lut)
+ subroutine find_defined_property(symbol,mode,typty,iph,ics)
+
+pmod25F:
+
+ subroutine gtpsave(filename,str)
+ subroutine gtpsaveu(filename)
+ subroutine savephase(lut,form,jph)
+ subroutine saveequil(lut,form,ceq)
+ subroutine gtpread(filename,str)
+ subroutine readphase(lut)
+ subroutine readendmem(lut,nsl,emrec,nop,noi,nem)
+ subroutine readproprec(lut,proprec,nox)
+ subroutine readintrec(lut,intrec,noi,nup,nop)
+ subroutine readequil(lut,ceq)
+ subroutine new_gtp
+ subroutine svfunsave(lut,form,ceq)
+ subroutine refsave(lut,form)
+ subroutine svfunread(lut)
+ subroutine refread(lut)
+ subroutine readtdb(filename)       <<< the only one working
+ subroutine gtpsavetm(filename,str)
+
+pmode25G:
+
+ subroutine new_element(symb,name,refstate,mass,h298,s298)
+ subroutine new_species(symb,noelx,ellist,stoik)
+ subroutine new_phase(name,nsl,knr,const,sites,model,phtype)
+ subroutine add_composition_set(iph,prefix,suffix,icsno,ceq)
+ subroutine remove_composition_set(iph,ics)
+ subroutine enter_parameter(lokph,typty,fractyp,nsl,endm,nint,lint,ideg,&
+ subroutine fccpermuts(lokph,nsl,iord,noperm,elinks,nint,jord,intperm,intlinks)
+ subroutine fccip2A(lokph,jord,intperm,intlinks)
+ subroutine fccip2B(lq,lokph,lshift,jord,intperm,intlinks)
+ subroutine fccint31(jord,lshift,intperm,intlinks)
+ subroutine fccint22(jord,lshift,intperm,intlinks)
+ subroutine fccint211(a211,jord,lshift,intperm,intlinks)
+ subroutine fccpe211(l1,elinks,nsl,lshift,iord)
+ subroutine fccpe1111(elinks,nsl,lshift,iord)
+ subroutine bccpermuts(lokph,nsl,iord,noperm,elinks,nint,jord,intperm,intlinks)
+ subroutine findconst(lokph,ll,spix,constix)
+ subroutine tdbrefs(refid,line,mode,iref)
+ subroutine enter_equilibrium(name,number)
+ logical function check_minimal_ford(lokph)
+
+pmode25H:
+
+ subroutine change_element_status(elname,nystat,ceq)
+ logical function testelstat(iel,status)
+ subroutine change_species_status(spname,nystat,ceq)
+ logical function testspstat(isp,status)
+ integer function get_phase_status(iph,ics,text,ip,val,ceq)
+ integer function test_phase_status(iph,ics,val,ceq)
+ subroutine set_phase_status_bit(lokph,bit)
+ subroutine unset_phase_status_bit(lokph,bit)
+ subroutine change_phase_status(qph,ics,nystat,val,ceq)
+ logical function phase_bit(iph,ibit)
+ subroutine set_reference_state(comp,phase,tpval,ceq)
+ subroutine set_unit(property,unit)
+ subroutine save_results(lut,iph,ics,long)
+ subroutine dump_phase_results(lut)
+ subroutine set_constituent_reference_state(iph,icon,asum)
+ subroutine elements2components(nspel,stoi,ncmp,cmpstoi,ceq)
+ subroutine alphaelorder
+ subroutine alphasporder
+ subroutine alphaphorder
+ subroutine check_alphaindex
+ subroutine create_constitlist(constitlist,nc,klist)
+ subroutine create_parrecords(lokcs,nsl,nc,nprop,iva,ceq)
+ subroutine create_interaction(intrec,mint,lint,intperm,intlinks)
+ subroutine create_endmember(lokph,newem,noperm,nsl,endm,elinks)
+ subroutine create_proprec(proprec,proptype,degree,lfun,refx)
+ subroutine extend_proprec(current,degree,lfun)
+ subroutine new_phase_varres_record(iph,phvar,ceq)
+ subroutine new_disordered_phase_variable_record(lokdis,phvar,phdis,ceq)
+ subroutine add_fraction_set(iph,id,ndl,totdis)
+ subroutine copy_fracset_record(lokcs,disrec,ceq)
+ subroutine suspend_species_implicitly(ceq)
+ subroutine suspend_phases_implicitly(ceq)
+ subroutine restore_species_implicitly_suspended
+ subroutine restore_phases_implicitly_suspended
+ subroutine add_to_reference_phase(loksp)
+
+pmode25I:
+
+ subroutine addition_selector(addrec,moded,phres,lokph,mc,ceq)
+ subroutine add_addrecord(iph,addtyp)
+ subroutine add_magrec_inden(lokph,addtyp,aff)
+ subroutine create_magrec_inden(addrec,aff)
+ subroutine calc_magnetic_inden(moded,phres,lokadd,lokph,mc,ceq)
+ subroutine create_weimagnetic(addrec,bcc)
+ subroutine calc_weimagnetic(moded,phres,lokadd,lokph,mc,ceq)
+ subroutine create_elastic_model_a(newadd)
+ subroutine calc_elastica(moded,phres,addrec,lokph,mc,ceq)
+ subroutine set_lattice_parameters(iph,ics,xxx,ceq)
+ subroutine create_einsteincp(newadd)
+ subroutine calc_einsteincp(moded,phres,addrec,lokph,mc,ceq)
+ subroutine create_glas_transition_modela(newadd)
+ subroutine need_propertyid(id,typty)
+ subroutine create_debyecp(addrec)
+ subroutine calc_debyecp(moded,phres,lokadd,lokph,mc,ceq)
+ subroutine list_addition(unit,lokph,lokadd)
+
+pmod25J:
+
+ subroutine global_gridmin(what,tp,xknown,nvsph,iphl,icsl,aphl,&
+ subroutine generate_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,ceq)
+ subroutine generate_grid_old(mode,iph,ngg,nrel,xarr,garr,ny,yarr,ceq)
+ subroutine calc_gridpoint(iph,yfra,nrel,xarr,gval,ceq)
+ subroutine calcg_endmember(iph,endmember,gval,ceq)
+ subroutine find_gridmin(kp,nrel,xarr,garr,xknown,jgrid,phfrac,cmu,trace)
+ subroutine merge_gridpoints(nv,iphl,aphl,nyphl,yphl,trace,nrel,xsol,cmu,ceq)
+ subroutine set_metastable_constitutions(ngg,nrel,kphl,ngrid,xarr,garr,&
+ subroutine gridmin_check(nystph,kp,nrel,xarr,garr,xknown,ngrid,pph,&
+ integer function phvarlok(lokph)
+ subroutine palmtree(lokph)
+ logical function allowenter(mode)
+ logical function proper_symbol_name(name,typ)
+ subroutine list_free_lists(kou)
+ subroutine sumofphcs(npx,ceq)
+ subroutine enter_default_constitution(iph,ics,mmyfr,ceq)
+ subroutine set_phase_amounts(jph,ics,val,ceq)
+ subroutine set_default_constitution(jph,ics,all,ceq)
+ subroutine todo_before(mode,ceq)
+ subroutine todo_after_found_equilibrium(mode,ceq)
+ subroutine rearrange_stable_composition_sets(nvsph,iphl,icsl,ceq)
+ subroutine select_composition_set(iph,ics,yarr,ceq)
+
+That's all
+
