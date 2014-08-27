@@ -1,0 +1,43 @@
+@$ Calculate some equilibria in a gas
+
+set echo
+
+r t hogas
+
+set c t=3000 p=1e5 
+set inp n(h2O)=1
+
+c e
+
+l,,,,
+
+@$ Note there is not only H2O molcules at this temperature
+@$--------------------------------------------------
+@&
+
+set c t=1000
+
+c e
+
+l,,,,,
+
+@$ Sometimes calculations fail, then just try to continue using c n
+@&
+
+c n
+
+l,,,,,,
+
+l sh
+@$--------------------------------------------------------
+@&
+@$ Changing composition
+
+set c n(o)=3
+
+c e
+
+l,,,,,
+
+set inter
+

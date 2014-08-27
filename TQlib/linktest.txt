@@ -1,0 +1,2 @@
+gfortran -o test1 testtq.F90 tqlib.o oclib.a
+

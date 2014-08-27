@@ -1,0 +1,488 @@
+\documentclass[12pt]{article}
+\usepackage[latin1]{inputenc}
+\topmargin -1mm
+\oddsidemargin -1mm
+\evensidemargin -1mm
+\textwidth 155mm
+\textheight 220mm
+\parskip 2mm
+\parindent 3mm
+%\pagestyle{empty}
+
+\begin{document}
+
+\begin{center}
+
+{\large \bf TP function Package (TPF)}
+
+Bo Sundman, \today
+
+\end{center}
+
+This is a very preliminary description of the data structure used in
+the utility package TPF written in Fortran08.
+
+The TP function package is used by the General Thermodynamic Pacakage
+(GTP) to handle expressions dependent on $T$ and $P$.  It calculates
+the value of the function and the first and second derivates thereof.
+
+All real numbers are double precision unless specifically noted.
+
+This documententation is neither complete nor up to date with the most
+resent version.  The whole structure (and depending subroutines)
+should be revised when all major parts have been implemented and
+tested.
+
+\vspace{5mm}
+
+{\bf Documentation updating software}
+
+One very difficult thing with software that is alive and changing is
+to update the documention.  So my feeling for documentation is that
+once a software is documented it is dead as it is almost impossible to
+update source code and documentation in parallell.
+
+To avoid this I have now written a simple documentation update
+software that uses a basic documentation written as a LaTeX file
+together with the source code to extract verbatim sections.  When
+running this update software with the current documentation file and a
+new source code it compares the existing verbatim sections with those
+it can find in the new source code and flaggs all differences.  This
+is an easy method to find what has changed in the source code since
+last time I worked on the documentation.
+
+The verbatim sections in the source code is enclosed by\\
+\verb/!\begin{verbatim}/\\
+\verb/extract from source code /\\
+\verb/!\end{verbatim} /\\
+These can be inserted anywhere.  Normally they enclose important
+sections like data structure definitions and declarations of
+subroutines and functions.  New verbatim sections are also flagged as
+well as verbatim sections that has disappeared.  The update software
+writes a new LaTeX documentation file which require some editing but
+at least is correct.
+
+With this software I hope to be able to keep the software documented
+also during the development stage.
+
+This document is an example of this software.  I assume there are
+already many similar software but this one suits my style of
+programming.
+
+\newpage
+
+\tableofcontents
+
+\newpage
+
+\section{TP functions}
+
+TP functions are a subpackage inside GTP.  These can store simple
+expressions depending on T and P including unary functions LN and EXP
+(and maybe some more).  They can return a function value and the first
+and second derivative with respect to T and P.  There are three
+datatypes associated with these functions.
+
+\subsection{Data structures}
+
+Several data structures are used inside the TP package and some of
+them also in programs dependent on this.
+
+\subsubsection{Structure to store expressions of TP functions}
+
+This is the error code
+
+\begin{verbatim}
+ TYPE gtp_parerr
+! This record contains the global error code.  In parallell processing each
+! parallell processes has its own error code copied to this if nonzero
+! it should be replaced by gtperr for separate errors in treads
+    INTEGER :: bmperr
+ END TYPE gtp_parerr
+ TYPE(gtp_parerr) :: gx
+\end{verbatim}
+
+\subsubsection{Structure to store expressions of TP functions}
+
+In this record the coefficients and powers of T and P and possible
+unary functions used is stored.  There is a simple parser that can
+read a simple TP function similar to what TC has.  My idea has been to
+extend this a bit by allowing parenthesis in a more flexible way but
+that is not yet implemented.  A TP function can refer to another TP
+function using the link array.  This means a recursive evaluation of
+TP functions must be implemented.
+
+This information must not be changed during parallell processing.
+During assessments one may calculate each experimental equilibria in
+parallell and as the coefficients of TP functions are varied by the
+assessment procedure one may think that this array must also be
+separate for each parallell process.  But changes of coefficients are
+not done during the parallell execution so there is no problem.
+
+\begin{verbatim}
+  TYPE tpfun_expression
+! Coefficients, T and P powers, unary functions and links to other functions
+     integer noofcoeffs,nextfrex
+     double precision, dimension(:), pointer :: coeffs
+! each coefficient kan have powers of T and P/V and links to other TPFUNS
+! and be multiplied with a following LOG or EXP term.
+     integer, dimension(:), pointer :: tpow
+     integer, dimension(:), pointer :: ppow
+     integer, dimension(:), pointer :: wpow
+     integer, dimension(:), pointer :: plevel
+     integer, dimension(:), pointer :: link
+  END TYPE tpfun_expression
+! These records are allocated when needed, not stored in arrays
+\end{verbatim}
+
+\subsubsection{Function root record type}
+
+In this record a name of the function is stored and the number of
+temperature ranges.  For each range a low temperature limit and a link
+to a tpfun\_expression record is stored.  There is also a high
+temperature limit.  As the number of ranges can vary the arrays are
+allocatable (declared as pointers).  At the same time as a root record
+is reserved to store a TP function one also reservs a tpfun\_parres
+record and in this the last calculated result of the function is
+stored.  Saving the last calculated values speeds up calculation
+because the same function is often used in many parameters and needed
+many times for the same values of T and P.  But in parallell
+processing the values of T and P can be different in each processor
+and thus the results mut be separate in each.
+
+\begin{verbatim}
+  TYPE tpfun_root
+! Root of a TP function including name with links to coefficients and codes
+! and results.  Note that during calculations which can be parallellized
+! the results can be different for each parallell process
+     character*(lenfnsym) symbol
+! limits is the low temperature limit for each range
+! funlinks links to expression records for each range
+! each range can have its own function, status indicate if T and P or T and V
+     integer noofranges,nextfree,status
+     double precision, dimension(:), pointer :: limits
+     TYPE(tpfun_expression), dimension(:), pointer :: funlinks
+     double precision hightlimit
+  END TYPE tpfun_root
+! These records are stored in arrays as the actual function is global but each
+! equilibrium has its own result array (tpfun_parres) depending on the local
+! values of T and P/V.  The same indiex is used in the global and local arrays.
+! allocated in init_gtp
+  TYPE(tpfun_root), private, dimension(:), pointer :: tpfuns
+\end{verbatim}
+
+\subsubsection{Structure for calculated results of TP functions}
+
+This record contains the last values of T and P used for calculation
+the TP function and the results including first and second derivatives
+of T and P.  These are ordered as F, F.T, F.P, F.T.T, F.T.P and F.P.P.
+The reason to have this as a separate array is that in parallell
+processing the values of T and P may be different in each process and
+thus the results also, whereas the values of the coefficients are the
+same.  The size of all the function records are allocated dynamically
+by the tpfun\_init subroutine.
+
+\begin{verbatim}
+  TYPE tpfun_parres
+! Contains a TP results, 6 double for results and 2 doubles for T and P
+! values used to calculate the results
+! Note that during calculations which can be parallellized the final
+! results can be different for each parallell process
+     double precision, dimension(2) :: tpused
+     double precision, dimension(6) :: results
+  END TYPE tpfun_parres
+! This array is local to the gtp_equilibrium_data record
+\end{verbatim}
+
+\subsection{Subroutines}
+
+\subsubsection{Initialization}
+
+\begin{verbatim}
+ SUBROUTINE tpfun_init(nf,tpres)
+! allocate tpfuns and create a free list inside the tpfuns
+   implicit double precision (a-h,o-z)
+! use tpres declared externally for parallel processing
+  TYPE(tpfun_parres), dimension(:), pointer :: tpres
+\end{verbatim}
+
+\subsubsection{Number of function}
+
+\begin{verbatim}
+ integer function notpf()
+! number of tpfunctions because freetpfun is private
+\end{verbatim}
+
+\subsubsection{Find function}
+
+\begin{verbatim}
+  SUBROUTINE find_tpfun_by_name(name,lrot)
+! returns the location of a TP function
+    character name*(*),name1*16
+\end{verbatim}
+
+\subsubsection{Evaluate function}
+
+\begin{verbatim}
+ subroutine eval_tpfun(lrot,tpval,result,tpres)
+!    subroutine eval_tpfun(lrot,tpval,symval,result)
+! evaluate a TP function with several T ranges
+   implicit double precision (a-h,o-z)
+   dimension tpval(2),result(6)
+   TYPE(tpfun_parres), dimension(:), pointer :: tpres
+\end{verbatim}
+
+\subsubsection{List function}
+
+\begin{verbatim}
+ subroutine list_tpfun(lrot,nosym,str)
+! lists a TP function with several ranges into string str
+   implicit double precision (a-h,o-z)
+   character str*(*)
+   integer nosym
+\end{verbatim}
+
+\subsubsection{List all functions}
+
+\begin{verbatim}
+ subroutine list_all_funs(lut)
+! list all functions except those starting with _ (parameters)
+\end{verbatim}
+
+\subsubsection{Compile function expression}
+
+\begin{verbatim}
+ SUBROUTINE ct1xfn(string,ip,nc,coeff,koder)
+!...compiles an expression in string from position ip
+!     it can refer to T and P or symbols in fnsym
+!     compiled expression returned in coeff and koder
+!
+! >>> this is very messy
+!
+!...algorithm for function extraction
+! 10*T**2 -5*T*LOG(T) +4*EXP(-5*T**(-1))
+!
+! AT LABEL 100 start of expression or after (
+! sign=1
+! -, sign=-1                              goto 200
+! +, skip
+!
+! AT LABEL 200 after sign
+! if A-Z                                  goto 300
+! if 0-9, extract number                  goto 400
+! (                                       goto 100
+! ;                                       END or ERROR
+! empty                                   END or ERROR
+! anything else                           ERROR
+!
+! AT LABEL 300 symbol
+! if T or P, extract power if any incl () goto 400
+! unary fkn? extract (                    goto 100
+! symbol                                  goto 400
+!
+! AT LABEL 400 after factor
+! -, sign=-1                              goto 200
+! sign=1
+! +, skip                                 goto 200
+! )                                       goto 400
+! ** or ^ extract and store power incl () goto 400
+! *                                       goto 200
+! empty                                   goto 900
+!
+! for TDB compatibility skip #
+! 900 END
+! check consistency
+\end{verbatim}
+
+\subsubsection{Extract a symbol while compiling}
+
+\begin{verbatim}
+ subroutine ct1getsym(string,ip,symbol)
+!...extracts an symbol
+   implicit double precision (a-h,o-z)
+   PARAMETER (lenfnsym=16)
+   character string*(*),ch1*1,chs*1,symbol*(*),localsym*(lenfnsym)
+\end{verbatim}
+
+\subsubsection{Extract an integer power while compiling}
+
+\begin{verbatim}
+ subroutine ct1power(string,ip,ipower)
+!...extracts an integer power possibly surrounded by ( )
+\end{verbatim}
+
+\subsubsection{Create a root record for the function}
+
+\begin{verbatim}
+ subroutine ct1mfn(symbol,nranges,tlimits,lokexpr,lrot)
+!...creates a root record with name symbol and temperature ranges
+! highest T limit is in tlimits(nranges+1)
+   implicit double precision (a-h,o-z)
+   character*(*) symbol,name*16
+   TYPE(tpfun_expression), dimension(*) :: lokexpr
+   real tlimits(*)
+\end{verbatim}
+
+\subsubsection{Create a data structure of the function}
+
+\begin{verbatim}
+ subroutine ct1mexpr(nc,coeff,koder,lrot)
+!...makes a datastructure of an expression. root is returned in lrot
+   implicit double precision (a-h,o-z)
+   TYPE(tpfun_expression), pointer :: lrot
+   TYPE(tpfun_expression), pointer :: noexpr
+   dimension coeff(*),koder(5,*)
+\end{verbatim}
+
+\subsubsection{Create a data structure of the function}
+
+\begin{verbatim}
+ subroutine ct1efn(inrot,tpval,val,tpres)
+!...evaluates a datastructure of an expression. Value returned in val
+!     inrot is root expression tpfunction record
+!     tpval is valuse of T and P, symval is values of symbols
+! first and second derivatives of T and P also calculated and returned
+! in order F, F.T, F.P, F.T.T, F.T.P, F.P.P
+!
+! if function already calculated one should never enter this subroutine
+!
+! It can call "itself" by reference to another TP function and for
+! that case one must store results in levels.
+\end{verbatim}
+
+\subsubsection{Write an expression to a character}
+
+\begin{verbatim}
+ subroutine ct1wfn(exprot,tps,string,ip)
+!...writes an expression into string starting at ip
+!     lrot is an index to an tpexpr record
+   implicit double precision (a-h,o-z)
+   parameter (levl=5,nunary=4)
+   TYPE(tpfun_expression), pointer :: exprot
+   PARAMETER (lenfnsym=16)
+   dimension coeff(levl),koder(5,levl)
+   character tps(2)*(*),ch1*1,cht*1
+   character string*(*),extsym*(lenfnsym),unary(nunary)*4
+   DATA unary/'LOG ','LN  ','EXP ','ERF '/
+\end{verbatim}
+
+\subsubsection{Write an power to a character}
+
+\begin{verbatim}
+ subroutine ct1wpow(string,ip,tps,mult,npow)
+!...writes "ips" with a power if needed and a * before or after
+   implicit double precision (a-h,o-z)
+   character string*(*),tps*(*)
+\end{verbatim}
+
+\subsubsection{Interactivite input of a function}
+
+\begin{verbatim}
+ subroutine enter_tpfun_interactivly(cline,ip,longline,jp)
+! interactive input of a TP expression
+   implicit double precision (a-h,o-z)
+   character cline*(*),longline*(*),line*80,ch1*1
+\end{verbatim}
+
+\subsubsection{Deallocate a function}
+
+\begin{verbatim}
+ subroutine tpfun_deallocate
+! deallocates all arrays associated with a TP function
+\end{verbatim}
+
+\subsubsection{Enter an expression}
+
+\begin{verbatim}
+ subroutine enter_tpfun(symbol,text,lrot)
+! creates a data structure for a TP function called symbol with several ranges
+! text is whole expression
+! default low temperature limit is 298.16; high 6000
+   implicit double precision (a-h,o-z)
+! max number of ranges, max number of coefficents in each range
+   parameter (mrange=20,mc=15)
+   real tlim(mrange)
+   dimension coeff(mc),koder(5,mc)
+   TYPE(tpfun_expression) :: links(mrange)
+   TYPE(tpfun_expression), pointer :: ltpexpr
+   character*(*) text,symbol
+   character ch1*1
+! check if function already entered, there are freetpfun-1 of them
+! ignore functions that start with a "_" as they are parameters
+\end{verbatim}
+
+\subsubsection{Called when calculated a nested TP function}
+
+\begin{verbatim}
+ subroutine nested_tpfun(lrot,tpval,nyrot)
+! called from ct1efn when a it calls another TP function that must be
+! evaluated.  nyrot is the link to the ct1efn in the correct range
+   implicit double precision (a-h,o-z)
+   dimension tpval(2)
+   TYPE(tpfun_expression), pointer :: nyrot
+! use lowest range for all T values lower than first upper limit
+! and highest range for all T values higher than the next highest limit
+! one should signal if T is lower than lowest limit or higher than highest
+! used  saved reults if same T and P
+\end{verbatim}
+
+\subsubsection{Compare names allowing abbreviations}
+
+\begin{verbatim}
+ logical function compare_abbrev(name1,name2)
+! returns TRUE if name1 is an abbreviation of name2
+! termintaes when a space is found in name1
+! each part between _ or - can be abbreviated from the left
+! case insensitive. Only 36 first characters compared
+\end{verbatim}
+
+\subsubsection{Called when writing an expression to a file}
+
+\begin{verbatim}
+ subroutine tpfunlim(i1,i2)
+! used when saving TP funs to files in GTP as highexpr and freexpr are private
+! and they are saved at several places in the file (but that can be changed)
+\end{verbatim}
+
+\subsubsection{Write TP functions to a file}
+
+\begin{verbatim}
+ subroutine tpfunsave(lut,form)
+! save tpfundata on a file, unfinished
+   implicit double precision (a-h,o-z)
+   TYPE(tpfun_expression), pointer :: exprot
+\end{verbatim}
+
+\subsubsection{Write a TP function to a file}
+
+\begin{verbatim}
+ subroutine save1tpfun(lut,form,jfun)
+! save one tpfun (a parameter) with index jfun on a file
+\end{verbatim}
+
+\subsubsection{Read a TP function from a file}
+
+\begin{verbatim}
+ subroutine read1tpfun(lut,jfun)
+! read one unformatted tpfun (a parameter) with index jfun
+\end{verbatim}
+
+\subsubsection{Read all TP functions from a file}
+
+\begin{verbatim}
+ subroutine tpfunread(lut)
+! read tpfundata from a file
+\end{verbatim}
+
+\section{Conclusions}
+
+Thats all!
+
+\begin{thebibliography}{77Zzz}
+\bibitem[07Luk]{07Luk} Lukas, Fries and Sundman
+\end{thebibliography}
+
+\end{document}
+\end{document}
+\end{document}
+\end{document}
