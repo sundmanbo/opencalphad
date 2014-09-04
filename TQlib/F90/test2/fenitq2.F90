@@ -4,16 +4,16 @@ program octq1
   implicit none
 ! maxel and maxph defined in pmod package
 !  integer, parameter :: maxel=10,maxph=20
-  integer n,nel,n1,n2,n3,n4,nph,ics,ip,cnum(maxel+3),mm,m2
-  character filename*60,elnames(maxel)*2,phnames(maxph)*24
+  integer n,nel,n1,n2,n3,n4,nph,ics,ip,cnum(maxel+3),mm,m2,phstable
+  character filename*60,cmpname(maxel)*24,phnames(maxph)*24
   character condition*60,line*80,statevar*60,quest*60,ch1*1
   character target*60
-  double precision value,dummy,tp(2),mel(maxel)
-  double precision xf(maxel),pxf(10*maxph),npf(maxph)
+  double precision value,dummy,tp(2),mel(maxel),mf(maxel),volume
+  double precision xf(maxel),pxf(10*maxph),npf(maxph),mu(maxel)
   type(gtp_equilibrium_data), pointer :: ceq
 ! set some defaults
   n=0
-  filename='crfe '
+  filename='feni '
 ! initiate
   call tqini(n,ceq)
   if(gx%bmperr.ne.0) goto 1000
@@ -22,7 +22,7 @@ program octq1
   if(gx%bmperr.ne.0) goto 1000
 ! find out about the system:
 ! number of elements and their names
-  call tqgcom(nel,elnames,ceq)
+  call tqgcom(nel,cmpname,ceq)
   if(gx%bmperr.ne.0) goto 1000
 ! number of phases and their names
   call tqgnp(nph,ceq)
@@ -32,7 +32,7 @@ program octq1
      if(gx%bmperr.ne.0) goto 1000
   enddo
 ! -------------------------------------
-  write(*,10)nel,(elnames(n),n=1,nel)
+  write(*,10)nel,(cmpname(n)(1:2),n=1,nel)
 10 format(/'System with ',i2,' elements: ',10(a,', '))
   write(*,20)nph,(phnames(n)(1:len_trim(phnames(n))),n=1,nph)
 20 format('and ',i3,' phases: ',10(a,', '))
@@ -63,7 +63,7 @@ program octq1
      tp(2)=1.0D0
   endif
   do n=1,nel-1
-     quest='Mole fraction of '//elnames(n)(1:len_trim(elnames(n)))//':'
+     quest='Mole fraction of '//cmpname(n)(1:len_trim(cmpname(n)))//':'
      dummy=xf(n)
      call gparrd(quest,line,ip,xf(n),dummy,nohelp)
      if(buperr.ne.0) goto 1000
@@ -96,9 +96,14 @@ program octq1
   n1=0
   n2=0
   call tqce(target,n1,n2,value,ceq)
-  if(gx%bmperr.ne.0) goto 1000
-  write(*,300)
-300 format(/'Successful calculation')
+  if(gx%bmperr.ne.0) then
+     write(*,310)gx%bmperr,bmperrmess(gx%bmperr)
+310  format('Calculation failed, error code: ',i5/a)
+     gx%bmperr=0; goto 600
+  else
+     write(*,320)
+320  format(/'Successful calculation')
+  endif
 !--------------------------------------
 ! list some results
 ! amount of all phases
@@ -115,7 +120,8 @@ program octq1
      icsloop: do ics=1,noofcs(n)
         mm=mm+1
         if(npf(mm).gt.zero) then
-! the phase is stable if it has a positive amount
+! the phase is stable if it has a positive amount ... it can be stable with 0
+           phstable=10*n+ics
            if(ics.gt.1) then
               write(*,510)phnames(n)(1:len_trim(phnames(n))),ics,npf(mm)
            else
@@ -131,13 +137,49 @@ program octq1
 ! Use extended phase index: 10*phase number + compset number ...
            n4=size(pxf)
            call tqgetv(statevar,10*n+ics,n2,n4,pxf,ceq)
-           write(*,520)(elnames(m2),pxf(m2),m2=1,n4)
+           if(gx%bmperr.ne.0) goto 1000
+           write(*,520)(cmpname(m2)(1:2),pxf(m2),m2=1,n4)
 520        format(3(a,': ',F9.6,',  '))
         endif
      enddo icsloop
   enddo phloop
+! volume
+  statevar='V'
+  n2=0
+  n4=size(pxf)
+! first index is phase+compset, second is component, third is ??
+  call tqgetv(statevar,n,n2,n4,pxf,ceq)
+  if(gx%bmperr.ne.0) goto 1000
+  write(*,522)pxf(1)
+522 format('Volume: ',1pe12.4)
+! fractions, chemical potentials and mobilities
+  write(*,525)
+525 format(/'Component, mole fraction, chemical potential and mobility')
+  do n=1,nel
+     statevar='MU'
+     n2=0
+     n4=size(pxf)
+! first index is phase+compset, second is component, third is ??
+     call tqgetv(statevar,n,n2,n4,pxf,ceq)
+     if(gx%bmperr.ne.0) goto 1000
+     mu(n)=pxf(1)
+! mole fraction
+     statevar='X'
+     call tqgetv(statevar,n,n2,n4,pxf,ceq)
+     if(gx%bmperr.ne.0) goto 1000
+     mf(n)=pxf(1)
+! mobility
+     statevar='MQ&'//cmpname(n)(1:len_trim(cmpname(n)))
+!     write(*,*)'mobility: ',statevar
+! phstable is 10*(phase index)+composition set number
+     call tqgetv(statevar,phstable,n,n4,pxf,ceq)
+     if(gx%bmperr.ne.0) goto 1000
+     write(*,530)cmpname(n)(1:2),mf(n),mu(n),exp(pxf(1))
+530  format(a,10x,F10.6,10x,2(1PE14.6))
+  enddo
 !--------------------------------------
 ! loop
+600 continue
   write(*,*)
   ip=len(line)
   call gparcd('Any more calculations?',line,ip,1,ch1,'N',nohelp)

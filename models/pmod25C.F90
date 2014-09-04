@@ -10,23 +10,53 @@
 ! called with a state varaiable character
    implicit none
    TYPE(gtp_equilibrium_data), pointer :: ceq
-   character statevar*(*),encoded*(*)
+   character statevar*(*),encoded*(*),name*16
    double precision value
 !\end{verbatim}
    integer indices(4)
-   integer iunit,istv,iref,ip,jl
+   integer iunit,istv,iref,ip,jl,lrot,mode
+   type(gtp_state_variable), pointer :: svr
+   character actual_arg(2)*16
+!
    iunit=0
-   call decode_state_variable(statevar,istv,indices,iref,iunit,ceq)
-!   write(*,20)istv,indices,iref
-!20  format('gsvv 1: ',i5,4i4,i7)
-   if(gx%bmperr.ne.0) goto 1000
-   call state_variable_val(istv,indices,iref,iunit,value,ceq)
-   if(gx%bmperr.ne.0) goto 1000
-   ip=1
-   call encode_state_variable(encoded,ip,istv,indices,iunit,iref,ceq)
+   call decode_state_variable(statevar,svr,ceq)
+!   write(*,20)statevar(1:len_trim(statevar)),svr%oldstv,svr%norm,&
+!        svr%argtyp,svr%component
+20  format('25C gsvv 1: ',a,' : ',4i3)
    if(gx%bmperr.ne.0) then
-      write(*,*)'encode error: ',gx%bmperr
-      gx%bmperr=0; encoded='dummy'
+!      goto 1000
+! it can be a state variable symbol ...
+!
+! Possible problem ... this can cause nesting as a state variable will
+! normally evaluate some state variables or other state variable functions
+!
+      gx%bmperr=0
+      name=statevar
+      call capson(name)
+      call find_svfun(name,lrot,ceq)
+      if(gx%bmperr.ne.0) then
+         write(*,*)'Neither state variable or symbol'
+         gx%bmperr=8888; goto 1000
+      else
+! get the value of the symbol, may involve other symbols and state variablse
+! The actual_arg is a facility not yet implemented and not allowed here
+! if mode=0 the stored value may be used, mode=1 always evaluate
+         actual_arg=' '
+         mode=1
+! this is OK as no derivative
+         value=evaluate_svfun_old(lrot,actual_arg,mode,ceq)
+         encoded=name
+      endif
+   else
+! it is a real state variable
+      call state_variable_val(svr,value,ceq)
+      if(gx%bmperr.ne.0) goto 1000
+      ip=1
+      call encode_state_variable(encoded,ip,svr,ceq)
+      if(gx%bmperr.ne.0) then
+         write(*,*)'encode error: ',gx%bmperr
+         gx%bmperr=0; encoded='dummy'
+      endif
    endif
 1000 continue
    return
@@ -54,6 +84,7 @@
    integer indices(4),modind(4)
    double precision xnan,xxx
    integer jj,lokph,lokcs,k1,k2,k3,iref,jl,iunit,istv
+   type(gtp_state_variable), pointer :: svr
 ! calculate the NaN bit pattern
    xnan=0.0d0
 !   xnan=0.0d0/xnan
@@ -65,11 +96,37 @@
    modind=0
 ! called from minimizer for testing
 !   write(*,*)'gmv 1: ',statevar(1:20)
-   call decode_state_variable(statevar,istv,indices,iref,iunit,ceq)
+!   call decode_state_variable(statevar,istv,indices,iref,iunit,svr,ceq)
+   call decode_state_variable(statevar,svr,ceq)
    if(gx%bmperr.ne.0) then
-      write(*,*)'failed here'
+      write(*,*)'Failed decode statevar in get_many_svar',gx%bmperr
       goto 1000
    endif
+! translate svr data to old indices etc
+   istv=svr%oldstv
+   iref=svr%phref
+   iunit=svr%unit
+! svr%argtyp specifies values in indices:
+! svr%argtyp: 0=no arguments; 1=comp; 2=ph+cs; 3=ph+cs+comp; 4=ph+cs+const
+   indices=0
+   if(svr%argtyp.eq.1) then
+      indices(1)=svr%component
+   elseif(svr%argtyp.eq.2) then
+      indices(1)=svr%phase
+      indices(2)=svr%compset
+   elseif(svr%argtyp.eq.3) then
+      indices(1)=svr%phase
+      indices(2)=svr%compset
+      indices(3)=svr%component
+   elseif(svr%argtyp.eq.4) then
+      indices(1)=svr%phase
+      indices(2)=svr%compset
+      indices(3)=svr%constituent
+!   else
+!      write(*,*)'state variable has illegal argtyp: ',svr%argtyp
+!      gx%bmperr=7775; goto 1000
+   endif
+!
 !   write(*,20)istv,indices,iref,gx%bmperr
 20 format('gmsvar 1: ',i5,4i4,3i7)
 ! -----------------------------------------
@@ -90,7 +147,7 @@
 ! all indices given, a single value
             jj=jj+1
             if(jj.gt.mjj) goto 1100
-            call state_variable_val(istv,indices,iref,&
+            call state_variable_val3(istv,indices,iref,&
                  iunit,values(jj),ceq)
             if(gx%bmperr.ne.0) goto 1000
          elseif(indices(3).eq.-1) then
@@ -99,7 +156,7 @@
                indices(3)=k3
                jj=jj+1
                if(jj.gt.mjj) goto 1100
-               call state_variable_val(istv,indices,iref,&
+               call state_variable_val3(istv,indices,iref,&
                     iunit,values(jj),ceq)
                if(gx%bmperr.ne.0) goto 1000
             enddo
@@ -110,7 +167,7 @@
                indices(3)=k3
                jj=jj+1
                if(jj.gt.mjj) goto 1100
-               call state_variable_val(istv,indices,iref,&
+               call state_variable_val3(istv,indices,iref,&
                     iunit,values(jj),ceq)
                if(gx%bmperr.ne.0) goto 1000
             enddo
@@ -130,16 +187,25 @@
                jj=jj+1
                if(jj.gt.mjj) goto 1100
                call get_phase_compset(indices(2),indices(3),lokph,lokcs)
-! if composition not stable so return NaN
-               if(test_phase_status(indices(2),indices(3),xxx,ceq).ge.2) then
+! if composition set not stable so return NaN
+!               if(test_phase_status(indices(2),indices(3),xxx,ceq).ge.2) then
+               if(test_phase_status(indices(2),indices(3),xxx,ceq).le. &
+                    PHENTUNST) then
                   values(jj)=xnan
-               elseif(.not.btest(ceq%phase_varres(lokcs)%status2,&
-                    CSSTABLE)) then
+!               elseif(.not.btest(ceq%phase_varres(lokcs)%status2,&
+!                    CSSTABLE)) then
+!                  values(jj)=xnan
+               elseif(ceq%phase_varres(lokcs)%dgm.lt.zero) then
+! the phase must not have negative driving force
                   values(jj)=xnan
                else
-                  call state_variable_val(istv,indices,iref,&
+! problem that get_many returns values for unstable phases
+                  call state_variable_val3(istv,indices,iref,&
                        iunit,values(jj),ceq)
                   if(gx%bmperr.ne.0) goto 1000
+!                  write(*,23)'25C many 1: ',indices,values(jj),&
+!                       ceq%phase_varres(lokcs)%dgm
+23                format(a,2i3,2(1pe14.6))
                endif
             enddo
          enddo
@@ -155,7 +221,7 @@
             indices(1)=k1
             jj=jj+1
             if(jj.gt.mjj) goto 1100
-            call state_variable_val(istv,indices,iref,&
+            call state_variable_val3(istv,indices,iref,&
                  iunit,values(jj),ceq)
             if(gx%bmperr.ne.0) goto 1000
          enddo
@@ -172,16 +238,21 @@
                   if(jj.gt.mjj) goto 1100
                   call get_phase_compset(indices(2),indices(3),lokph,lokcs)
 ! if composition not stable so return NaN
-                  if(test_phase_status(indices(2),indices(3),&
-                       xxx,ceq).ge.2) then
+                  if(test_phase_status(indices(2),indices(3),xxx,ceq).le. &
+                       PHENTSTAB) then
                      values(jj)=xnan
-                  elseif(.not.btest(ceq%phase_varres(lokcs)%status2,&
-                       CSSTABLE)) then
+!                  elseif(.not.btest(ceq%phase_varres(lokcs)%status2,&
+!                       CSSTABLE)) then
+!                     values(jj)=xnan
+                  elseif(ceq%phase_varres(lokcs)%dgm.lt.zero) then
+! the phase must not have negative driving force
                      values(jj)=xnan
                   else
-                     call state_variable_val(istv,indices,iref,&
+                     call state_variable_val3(istv,indices,iref,&
                           iunit,values(jj),ceq)
                      if(gx%bmperr.ne.0) goto 1000
+!                     write(*,23)'25C many 2: ',indices(1),indices(2),&
+!                          values(jj),ceq%phase_varres(lokcs)%dgm
                   endif
                enddo
             enddo
@@ -214,7 +285,8 @@
 !               write(*,19)'error 2',modind,gx%bmperr
                goto 1000
             endif
-            if(test_phase_status(modind(1),modind(2),xxx,ceq).ge.2) then
+            if(test_phase_status(modind(1),modind(2),xxx,ceq).le. &
+                 PHENTUNST) then
 ! if phase not entered or fix return NaN
                values(jj)=xnan
             else
@@ -223,29 +295,39 @@
                   modind(3)=indices(3)
 !                  write(*,16)16,(modind(i),i=1,4),gx%bmperr
 !16                format('bug: ',i3,4i5,i7)
-                  call state_variable_val(istv,modind,iref,&
+                  call state_variable_val3(istv,modind,iref,&
                        iunit,values(jj),ceq)
 !                  write(*,*)'get_many NP(*): 2',gx%bmperr
                   if(gx%bmperr.ne.0) goto 1000
-               elseif(.not.btest(ceq%phase_varres(lokcs)%status2,&
-                    CSSTABLE)) then
+               elseif(ceq%phase_varres(lokcs)%phstate.lt.PHENTSTAB) then
+!               elseif(.not.btest(ceq%phase_varres(lokcs)%status2,&
+!                    CSSTABLE)) then
 ! if wildcard for index 3 the phase must be stable
-!                  write(*,*)'Not stable: ',modind(1),modind(2)
+!                  write(*,*)'Not stable: ',modind(1),modind(2),&
+!                       ceq%phase_varres(lokcs)%phstate
                   values(jj)=xnan
                elseif(indices(3).gt.0) then
 ! This is typically listing of w(*,cr), only in stable range of phases
                   modind(3)=indices(3)
 !                  write(*,16)16,(modind(i),i=1,4),gx%bmperr
 !16                format('bug: ',i3,4i5,i7)
-                  call state_variable_val(istv,modind,iref,&
-                       iunit,values(jj),ceq)
-!                  write(*,*)'get_many NP(*): 2',gx%bmperr
+                  call get_phase_compset(modind(1),modind(2),lokph,lokcs)
+                  if(gx%bmperr.ne.0) goto 1000
+!                  write(*,23)'25C many 3: ',modind(1),modind(2),values(jj),&
+!                       ceq%phase_varres(lokcs)%dgm
+                  if(ceq%phase_varres(lokcs)%dgm.lt.zero) then
+! the phase must not have negative driving force
+                     values(jj)=xnan
+                  else
+                     call state_variable_val3(istv,modind,iref,&
+                          iunit,values(jj),ceq)
+                  endif
                   if(gx%bmperr.ne.0) goto 1000
                elseif(indices(3).eq.-1) then
 ! loop for components of all phases
                   do k3=1,noofel
                      modind(3)=k3
-                     call state_variable_val(istv,modind,iref,&
+                     call state_variable_val3(istv,modind,iref,&
                           iunit,values(jj),ceq)
                      if(gx%bmperr.ne.0) goto 1000
                   enddo
@@ -253,7 +335,7 @@
 ! loop for constituents of all phases
                   do k3=1,phlista(lokph)%tnooffr
                      modind(3)=k3
-                     call state_variable_val(istv,modind,iref,&
+                     call state_variable_val3(istv,modind,iref,&
                           iunit,values(jj),ceq)
                      if(gx%bmperr.ne.0) goto 1000
                   enddo
@@ -291,10 +373,27 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine decode_state_variable(statevar,istv,indices,iref,iunit,ceq)
+ subroutine decode_state_variable(statevar,svr,ceq)
+! converts a state variable character to state variable record
+   character statevar*(*)
+   type(gtp_state_variable), pointer :: svr
+   type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim} %+
+!   type(gtp_state_variable) :: svrec   
+   integer istv,indices(4),iref,iunit
+   call decode_state_variable3(statevar,istv,indices,iref,iunit,svr,ceq)
+1000 continue
+   return
+ end subroutine decode_state_variable
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim} %-
+ subroutine decode_state_variable3(statevar,istv,indices,iref,iunit,svr,ceq)
 ! converts a state variable character to indices
 ! Typically: T, x(fe), x(fcc,fe), np(fcc), y(fcc,c#2), ac(h2,bcc), ac(fe)
 ! NOTE! model properties like TC(FCC),MQ&FE(FCC,CR) must be detected
+! NOTE: added storing information in a gtp_state_variable record svrec !!
 !
 ! this routine became as messy as I tried to avoid
 ! but I leave it to someone else to clean it up ...
@@ -338,16 +437,42 @@
        ['T   ','P   ','MU  ','AC  ','LNAC','U   ','S   ','V   ',&
         'H   ','A   ','G   ','NP  ','BP  ','DG  ','Q   ','N   ',&
         'X   ','B   ','W   ','Y   ']
+!        1      2      3      4      4      6      7      8         
    character statevar*(*)
    integer istv,iref,iunit
    integer, dimension(4) :: indices
    type(gtp_equilibrium_data), pointer :: ceq
+! I shall try to use this record type instead of separate arguments: !!
+!   type(gtp_state_variable), pointer :: svrec
+   type(gtp_state_variable), pointer :: svr
 !\end{verbatim}
+!   type(gtp_state_variable), allocatable, target :: svr
    integer is,jp,kp,iph,ics,icon,icomp,norm,narg,icc
    double precision cmass,asum
 !
    character argument*60,arg1*24,arg2*24,ch1*1,lstate*60,ixsym(4)*30,propsym*60
-   integer typty
+   integer typty,i
+   logical deblist
+! initiate svr internal variables
+   deblist=.FALSE.
+!   deblist=.TRUE.
+   if(ocv()) deblist=.TRUE.
+   if(deblist) write(*,*)'25C entering decode_statevariable: ',&
+        statevar(1:len_trim(statevar))
+!   write(*,*)'25C svr allocated'
+   allocate(svr)
+!   write(*,*)'25C svr assignment start'
+   svr%oldstv=0
+   svr%norm=0
+   svr%unit=0
+! svr%argtyp: 0=no arguments; 1=comp; 2=ph+cs; 3=ph+cs+comp; 4=ph+cs+const
+   svr%argtyp=0
+   svr%phref=0
+   svr%phase=0
+   svr%compset=0
+   svr%component=0
+   svr%constituent=0
+!   write(*,*)'25C svr assignment end'
 !
 ! For wildcard argument "*" return:
 ! -1 for element or component
@@ -360,10 +485,11 @@
    iunit=0
    iph=0
    ics=0
+   norm=0
 ! local character for state variable
    lstate=statevar
    call capson(lstate)
-!   write(*,*)'decode_state_var 1: ',lstate(1:20)
+   if(deblist) write(*,*)'25C decode_state_var 1: ',lstate(1:20)
 ! compare first character
    ch1=lstate(1:1)
    do is=1,noos
@@ -373,18 +499,18 @@
    goto 600
 !------------------------------------------------------------
 50 continue
-!    write(*,*)'dsv 1: ',is,lstate(1:30)
+   if(deblist) write(*,*)'25C dsv 1: ',is,lstate(1:30)
    if(is.eq.1) then
       if(lstate(2:2).ne.' ') then
 ! it must be a property like TC or THET
          goto 600
       endif
 ! T
-      istv=1; goto 1000
+      istv=1; svr%oldstv=1; svr%statevarid=1; goto 1000
    elseif(is.eq.2) then
 ! P
       if(lstate(2:2).ne.' ') goto 600
-      istv=2; goto 1000
+      istv=2; svr%oldstv=2; svr%statevarid=2; goto 1000
    elseif(is.gt.5) then
       goto 100
    endif
@@ -415,6 +541,7 @@
       jp=jp+1
    endif
 ! extract the argument, can be one or two indices
+   svr%oldstv=istv; svr%statevarid=istv
    if(lstate(jp:jp).ne.'(') goto 1130
    kp=index(lstate,')')
    if(kp.lt.jp) goto 1140
@@ -443,6 +570,10 @@
 ! composition set irrelevant as chempot depend only on species stoichiometry
       indices(1)=iph
       indices(2)=icon
+      svr%phase=iph
+      svr%compset=1
+      svr%constituent=icon
+      svr%argtyp=4
    else
       if(argument(1:2).eq.'* ') then
          icomp=-1
@@ -451,16 +582,17 @@
          if(gx%bmperr.ne.0) goto 1170
       endif
       indices(1)=icomp
+      svr%component=icomp
+      svr%argtyp=1
    endif
    goto 1000
 !=================================================================
 ! extensive variable, is=6..20 or a model property
 100 continue
-   norm=0
    jp=2
-! check second letter for some state variable
-!    write(*,105)is,norm,jp
-105 format('dsv 4: ',3i4)
+! check second letter for some state variables
+   if(deblist) write(*,105)is,norm,jp
+105 format('25C dsv 4: ',3i4)
    letter2: if(is.eq.12 .and. lstate(jp:jp).ne.'P') then
 ! This is for Nx or a property
       is=16
@@ -476,10 +608,6 @@
 ! this is for Dx, can be a property
 !      gx%bmperr=4107; goto 1000
       goto 600
-!   elseif(is.eq.21 .and. lstate(jp-1:jp).ne.'TC') then
-! this is for TC
-!      gx%bmperr=4108; goto 1000
-!   elseif(is.eq.12 .or. is.eq.14 .or. is.eq.21) then
    elseif(is.eq.12 .or. is.eq.14) then
 ! This is NP or DG, increment jp to check the second character
       jp=jp+1
@@ -488,51 +616,23 @@
       if(lstate(jp:jp).eq.'%') then
          iunit=100
          jp=jp+1
+         svr%unit=iunit
       endif
-   else
-!   elseif(is.eq.23) then
-! MQ& must have an element after & and a phase within ()
-!      kp1=index(lstate,'(')
-!      kp2=index(lstate,')')
-!      if(kp1.le.0 .or. kp2.le.kp1) then
-!         gx%bmperr=4120; goto 1000
-!      endif
-!      arg1=lstate(4:kp1-1)
-!      arg2=lstate(kp1+1:kp2-1)
-!      if(arg1(1:2).eq.'* ') then
-!         iel=-1
-!      else
-!         call find_element_by_name(arg1,iel)
-!         if(gx%bmperr.ne.0) goto 1000
-!      endif
-!      if(arg2(1:2).eq.'* ') then
-!         iph=-3
-!         ics=-4
-!      else
-!         call find_phase_by_name(arg2,iph,ics)
-!         if(gx%bmperr.ne.0) goto 1000
-!      endif
-!      indices(1)=iel
-!      indices(2)=iph
-!      indices(3)=ics
-!       write(*,*)'decode stv 4: ',loksp,iph,ics
-! no more needed ....
-!      goto 500
    endif letter2
 !---------------------------------------------------------------------
 ! If we come here the first (and sometimes second) letter must have been:
-!             A,  B, BP,  D,  G, H,  N, NP,  Q, S, U,  W,  Y
-! and is is  10, 18, 13, 14, 11, 9, 16, 12, 15, 7, 6, 19, 20
+!               A,  B, BP,  D,  G, H,  N, NP,  Q, S, U,  W,  X,  Y
+! and "is" is  10, 18, 13, 14, 11, 9, 16, 12, 15, 7, 6, 19, 17, 20
 ! NOTE: for N and B the second character has been checked and jp incremented
 !       if equal to P.  The third (for NP and BP forth) character must 
-!       be a space or a (, otherwise it is a property
-!   write(*,*)'lstate: ',lstate(1:20)
+!       be normallizing (MWVF), a space or a (, otherwise it is a property
+   if(deblist) write(*,*)'25C lstate: ',lstate(1:20)
 ! these have no normalizing: Q, X, W, Y
    nomalize: if(is.le.14 .or. is.eq.16 .or. is.eq.18) then
 ! ZM      x1   (phase)                             per mole components
 ! ZW      x2   (phase)                             per kg
 ! ZV      x3   (phase)                             per m3
-! ZF      x4   (phase)                             per formula unit
+! ZF      x4   phase must be specified             per formula unit
       ch1=lstate(jp:jp)
       jp=jp+1
       if(ch1.eq.'M') then
@@ -544,20 +644,23 @@
       elseif(ch1.eq.'F') then
          norm=4
       else
-! no or default normalization
+! no or default normalization, backspace
          jp=jp-1
       endif
-!      write(*,*)'Normalize 1: ',is,jp,ch1,norm
+      svr%norm=norm
+      if(deblist) write(*,*)'25C Normalize 1: ',is,jp,ch1,norm
    endif nomalize
 !---------------------------------------------------------------------
 ! extract arguments if any. If arguments then lstate(jp:jp) should be (
 ! Typically G(fcc#2), N(Cr), BP(fcc), Y(sigma#2,cr#3), TC(BCC#2)
 !300 continue
+   if(deblist) write(*,*)'25C args: ',jp,lstate(1:jp+10)
    narg=0
    args: if(lstate(jp:jp).eq.'(') then
       kp=index(lstate,')')
       if(kp.le.0) then
-!          write(*,110)'dsv 5: ',is,jp,kp,lstate(1:20)
+         if(deblist) write(*,110)'25C dsv 5: ',is,jp,kp,lstate(1:20)
+110      format(a,3i3,a)
          gx%bmperr=4103; goto 1000
       endif
       argument=lstate(jp+1:kp-1)
@@ -595,6 +698,9 @@
          endif
          indices(1)=iph
          indices(2)=ics
+         svr%phase=iph
+         svr%compset=ics
+         svr%argtyp=2
       elseif(is.eq.20) then
 ! state variable Y must have 2 arguments
          gx%bmperr=4098; goto 1000
@@ -607,6 +713,8 @@
             if(gx%bmperr.ne.0) goto 1000
          endif
          indices(1)=icomp
+         svr%component=icomp
+         svr%argtyp=1
       endif
    elseif(narg.eq.2) then
 ! two arguments only for is=16-20, first phase, second component or constit
@@ -622,6 +730,8 @@
       endif
       indices(1)=iph
       indices(2)=ics
+      svr%phase=iph
+      svr%compset=ics
       if(is.eq.20) then
          if(arg2(1:2).eq.'* ') then
             icc=-2
@@ -629,6 +739,8 @@
             call find_constituent(iph,arg2,cmass,icc)
             if(gx%bmperr.ne.0) goto 1000
          endif
+         svr%constituent=icc
+         svr%argtyp=4
       else
          if(arg2(1:2).eq.'* ') then
             icc=-1
@@ -636,6 +748,8 @@
             call find_component_by_name(arg2,icc,ceq)
             if(gx%bmperr.ne.0) goto 1000
          endif
+         svr%component=icc
+         svr%argtyp=3
       endif
 ! note indices(4) never used as icc is constituent index, arg2 must have
 ! a #sublattice to find the correct, otherwise always the first occurence
@@ -648,6 +762,12 @@
 ! there must be a phase specification for a quantity per formula unit
       gx%bmperr=4115; goto 1000
    endif
+!   if(is.eq.17 .or. is.eq.19) then
+!      is=is-1
+!      svr%norm=1
+   if(is.eq.16) svr%norm=1
+   if(is.eq.18) svr%norm=2
+!   endif
 !-----------------------
 500 continue
 !-----------------------------------------------------------------------
@@ -666,7 +786,8 @@
 ! Y       11    phase,constituent#sublattice       constituent fraction >>18
 ! Q       12                                       Internal stability   >>19
 ! DG      13x                                      Driving force
-! TC, BM, MQ& etc
+! TC, BM, MQ& etc (model variables)
+   svr%statevarid=is
    extensive: if(is.eq.6) then
 ! U       1x   (phase)                             Internal energy (J)
       istv=10+norm
@@ -720,6 +841,7 @@
       istv=130
    else
 ! the symbol may be a property
+      if(deblist) write(*,*)'maybe a property ',is
       goto 600
    endif extensive
    goto 1000
@@ -727,30 +849,46 @@
 ! handling of properties like TC, BMAGN, MQ etc
 600 continue
 ! the symbol may be a property symbol
-!   write(*,602)'25C: Property symbol 1: ',is,indices(1),indices(2),iph,ics
-602 format(a,10i5)
    propsym=statevar
 ! second argument 0 means a symbol
    call find_defined_property(propsym,0,typty,iph,ics)
-   if(gx%bmperr.ne.0) goto 1000
+   if(deblist) write(*,*)'25C at 600: ',propsym(1:len_trim(propsym)),typty
+   if(gx%bmperr.ne.0) then
+      svr%oldstv=-1; goto 1000
+   endif
    indices(1)=iph
    indices(2)=ics
+   svr%phase=iph
+   svr%compset=ics
+!----------------------------- unfinished ?????
    if(typty.gt.100) then
+! typty: third argument is constituent (or component??)
       istv=-typty/100
       indices(3)=typty+100*istv
+      svr%argtyp=4
    elseif(typty.gt.1) then
       istv=-typty
+      svr%argtyp=3
+      svr%argtyp=2
    else
 ! unknown propery
       write(*,*)'Unknown state variable or property',typty
       gx%bmperr=7777; goto 1000
    endif
-!   write(*,611)'Property: ',is,istv,typty,indices
-!611 format(a,10i4)
+   svr%oldstv=istv
+   svr%statevarid=istv
+   svr%constituent=indices(3)
+   if(deblist) write(*,611)'Property: ',is,istv,typty,indices
+611 format(a,10i4)
 !------------------------------------------------
 1000 continue
-!    write(*,1001)'exiting decode ',istv,(indices(i),i=1,4),norm,iref
-!1001 format(a,i5,4i3,2i5)
+! accept the current istv as svr%oldstv
+   svr%oldstv=istv
+   if(deblist) write(*,1001)'25C exit decode: ',istv,(indices(is),is=1,4),&
+        norm,iref,iunit,svr%oldstv,svr%phase,svr%compset,svr%component,&
+        svr%constituent,svr%norm,svr%phref,svr%unit,svr%argtyp,&
+        svr%statevarid,gx%bmperr
+1001 format(a,i5,4i3,2x,3i5/17x,i5,4i3,2x,6i5)
    return
 !---------------- errors -------------------------------
 ! Wrong first character of state variable
@@ -777,7 +915,7 @@
 ! No such component
 1170 continue
    gx%bmperr=4106; goto 1000
- end subroutine decode_state_variable
+ end subroutine decode_state_variable3
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -793,7 +931,7 @@
    double precision, dimension(*) :: xmol,wmass
    double precision amount,totmol,totmass
 !\end{verbatim}
-   integer ic,jc,lokph,lokcs,ll,isq,iel,lokel,ie,kk,loksp
+   integer ic,jc,lokph,lokcs,ll,isq,iel,lokel,ie,kk,loksp,iq
    double precision as,yz,xsum,wsum
    double precision, dimension(maxel) :: x2mol,w2mass
 !
@@ -808,6 +946,8 @@
 ! ceq%phase_varres(lokcs)%abnorm(1) is moldes atoms per formula unit
 ! Amount is number of moles per formula unit of the phase.
    amount=ceq%phase_varres(lokcs)%amfu
+!   write(*,299)'25C amfu: ',iph,ics,amount
+299 format(a,2i3,6(1pe12.4))
    allsubl: do ll=1,phlista(lokph)%noofsubl
       as=ceq%phase_varres(lokcs)%sites(ll)
       allcons: do kk=1,phlista(lokph)%nooffr(ll)
@@ -828,16 +968,18 @@
                endif
             enddo
 !            if(ie.gt.0) then
-!               write(*,711)ic,loksp,isq,ie,yz,xmol(ie)
+!               write(*,711)ic,loksp,isq,lokel,ie,yz,xmol(ie)
 !            else
-!               write(*,711)ic,loksp,isq,ie,yz
+!               write(*,711)ic,loksp,isq,lokel,ie,yz
 !            endif
-!711         format('cpmm: ',4i3,2F7.4)
+!711         format('cpmm: ',5i9,2F7.4)
          endif
       enddo allcons
    enddo allsubl
-! normallize
-800 continue
+! normallize, All ok here
+!   write(*,713)'A',noofel,(xmol(iq),iq=1,noofel)
+713 format('25c x:',a,i2,10f7.4)
+!800 continue
    xsum=zero
    wsum=zero
 ! here xmol(i) is equal to the number of moles of element i per formula unit
@@ -847,6 +989,7 @@
       xsum=xsum+xmol(ic)
       wsum=wsum+wmass(ic)
    enddo
+!   write(*,713)'F',noofel,xsum,(xmol(iq),iq=1,noofel)
    do ic=1,noofel
       xmol(ic)=xmol(ic)/xsum
       wmass(ic)=wmass(ic)/wsum
@@ -855,7 +998,10 @@
 ! I do not understand this???
    totmol=amount*xsum
    totmass=amount*wsum
+!   write(*,713)'G',noofel,totmol,totmass,amount
 ! but all seems OK here
+!   write(*,811)xsum,ceq%phase_varres(lokcs)%abnorm(1),&
+!        wsum,ceq%phase_varres(lokcs)%abnorm(2),amount,totmass
 !   write(*,811)xsum,ceq%phase_varres(lokcs)%abnorm(1),&
 !        wsum,ceq%phase_varres(lokcs)%abnorm(2),amount,totmass
 811 format('cphmm: ',6(1pe12.4))
@@ -872,6 +1018,10 @@
 !   enddo
 76 format(a,10F7.4)
 78 format(a,2i3,3(1PE12.4))
+!   do ic=1,noofel
+!      write(*,298)(ceq%invcompstoi(jc,ic),jc=1,noofel)
+!   enddo
+!298 format('25C: ',6(1pe12.4))
    x2mol=zero
    w2mass=zero
    do ic=1,noofel
@@ -881,11 +1031,17 @@
          w2mass(ic)=w2mass(ic)+ceq%invcompstoi(ic,jc)*wmass(jc)
       enddo
    enddo
+!   do ic=1,noofel
+!      write(*,99)'ci: ',(ceq%invcompstoi(jc,ic),jc=1,noofel)
+!   enddo
+99 format(a,7e11.3)
 !   write(*,76)'cmm2: ',(x2mol(ic),ic=1,noofel)
    do ic=1,noofel
       xmol(ic)=x2mol(ic)
       wmass(ic)=w2mass(ic)
    enddo
+! something wrong between writing label 713 above and here !!!!!!!!!!!!!
+!   write(*,713)'B',noofel,(xmol(iq),iq=1,noofel)
 1000 continue
    return
  end subroutine calc_phase_molmass
@@ -995,9 +1151,12 @@
       do ic=1,noofel
          xmol(ic)=xmol(ic)/xsum
       enddo
-   else
-!      write(*,*)'25C: calc_molmass: No mole fractions !!'
-      gx%bmperr=4185; goto 1000
+!   else
+! this is not an error if no calculation has been made
+!      write(*,28)'25C: calc_molmass: No mole fractions',totmol,totmass,xsum,&
+!           (xmol(ic),ic=1,noofel)
+28    format(a,3(1pe12.4)/'25C. ',10f7.4)
+!      gx%bmperr=4185; goto 1000
    endif
    wsum=zero
    do ic=1,noofel
@@ -1007,9 +1166,11 @@
 !           ellista(elements(ic))%mass,wsum,totmass
 44    format(a,i3,6(1pe12.4))
    enddo
-   do ic=1,noofel
-      wmass(ic)=wmass(ic)/wsum
-   enddo
+   if(wsum.gt.zero) then
+      do ic=1,noofel
+         wmass(ic)=wmass(ic)/wsum
+      enddo
+   endif
 1000 continue
    return
  end subroutine calc_molmass
@@ -1029,6 +1190,7 @@
    if(gx%bmperr.ne.0) write(*,*)'error entering sumprops ',gx%bmperr
    props=zero
    allph: do lokph=1,noofph
+!      write(*,*)'25c sumprops: ',lokph
       if(.not.btest(phlista(lokph)%status1,phhid)) then
 !         lokcs=phlista(lokph)%cslink
          allcs: do ics=1,phlista(lokph)%noofcs
@@ -1038,6 +1200,7 @@
             lokcs=phlista(lokph)%linktocs(ics)
             am=ceq%phase_varres(lokcs)%amfu*&
                  ceq%phase_varres(lokcs)%abnorm(1)
+!            write(*,*)'25c sumprops: ',lokph,am
             if(am.gt.zero) then
 ! properties are G, G.T=-S, G.P=V and moles and mass of real atoms
 ! Note gval(*,1) is per mole formula unit and ceq%phase_varres(lokcs)%abnorm(1)
@@ -1049,15 +1212,17 @@
                props(3)=props(3)+am*ceq%phase_varres(lokcs)%gval(3,1)/&
                     ceq%phase_varres(lokcs)%abnorm(1)
                props(4)=props(4)+am
-! ceq%phase_varres(lokcs)%abnorm(2) should be the mass per formula unit
+! ceq%phase_varres(lokcs)%abnorm(2) should be the current mass
 ! but I am not sure it is updated for the current composition
-               props(5)=props(5)+am*ceq%phase_varres(lokcs)%abnorm(2)/&
-                    ceq%phase_varres(lokcs)%abnorm(1)
-!               props(4)=props(4)+am*ceq%phase_varres(lokcs)%abnorm(1)
-!               props(5)=props(5)+am*ceq%phase_varres(lokcs)%abnorm(2)
+!               props(5)=props(5)+am*ceq%phase_varres(lokcs)%abnorm(2)/&
+!                    ceq%phase_varres(lokcs)%abnorm(1)
+! I think abnorm(2) is actual mass
+               props(5)=props(5)+ceq%phase_varres(lokcs)%abnorm(2)
+!               write(*,11)'25C sumprops: ',lokcs,props(1),props(4),props(5),&
+!                    ceq%phase_varres(lokcs)%abnorm(2)
 !               write(*,11)'sumprops ',lokcs,am,props(4),&
 !                    ceq%phase_varres(lokcs)%abnorm(1)
-!11             format(a,i4,3(1pe12.4))
+11             format(a,i4,6(1pe12.4))
             endif
          enddo allcs
       endif
@@ -1070,10 +1235,56 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine encode_state_variable(text,ip,istv,indices,iunit,iref,ceq)
+ subroutine encode_state_variable(text,ip,svr,ceq)
+! writes a state variable in text form position ip.  ip is updated
+   character text*(*)
+   integer ip
+   type(gtp_state_variable), pointer :: svr
+   type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim} %+
+   integer istv,indices(4),iunit,iref
+   iref=svr%phref
+   iunit=svr%unit
+! if svr%oldstv>=10 then istv should be 10*(svr%oldstv-5)+svr%norm
+!   if(svr%oldstv.ge.10) then
+!      istv=10*(svr%oldstv-5)+svr%norm
+!      write(*,*)'25C encode: ',svr%oldstv,svr%norm,istv
+!   else
+      istv=svr%oldstv
+!   endif
+! svr%argtyp specifies values in indices:
+! svr%argtyp: 0=no arguments; 1=comp; 2=ph+cs; 3=ph+cs+comp; 4=ph+cs+const
+   indices=0
+   if(svr%argtyp.eq.1) then
+      indices(1)=svr%component
+   elseif(svr%argtyp.eq.2) then
+      indices(1)=svr%phase
+      indices(2)=svr%compset
+   elseif(svr%argtyp.eq.3) then
+      indices(1)=svr%phase
+      indices(2)=svr%compset
+      indices(3)=svr%component
+   elseif(svr%argtyp.eq.4) then
+      indices(1)=svr%phase
+      indices(2)=svr%compset
+      indices(3)=svr%constituent
+!   else
+!      write(*,*)'state variable has illegal argtyp: ',svr%argtyp
+!      gx%bmperr=7775; goto 1000
+   endif
+   call encode_state_variable3(text,ip,istv,indices,iunit,iref,ceq)
+1000 continue
+   return
+ end subroutine encode_state_variable
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim} %-
+ subroutine encode_state_variable3(text,ip,istv,indices,iunit,iref,ceq)
 ! writes a state variable in text form position ip.  ip is updated
 ! the internal coding provides in istv, indices, iunit and iref
-! >>>> unfinished as iunit and iref not cared for
+! ceq is needed as compopnents can be different in different equilibria ??
+! >>>> unfinished as iunit and iref not really cared for
    implicit none
    integer, parameter :: noos=20
    character*4, dimension(noos), parameter :: svid = &
@@ -1083,12 +1294,236 @@
    character*(*) text
    integer, dimension(4) :: indices
    integer istv,ip,iunit,iref
+   type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
    integer jp,ics,kstv,iph,norm
-   type(gtp_equilibrium_data), pointer :: ceq
 !
    character stsymb*60
    character*1, dimension(4), parameter :: cnorm=['M','W','V','F']
+!
+   if(istv.le.0) then
+! this is a parameter property symbol: TC (-2), BM (-3), MQ&FE(FCC) (-4) etc
+! translate to 21, 22, 23 ...
+      kstv=19-istv
+      goto 200
+!      gx%bmperr=4116; goto 1000
+   endif
+! T or P
+   if(istv.le.2) then
+      text(ip:ip)=svid(istv)
+      ip=ip+1
+      goto 1000
+   endif
+   stsymb=' '
+!   potential: if(istv.le.6) then
+   potential: if(istv.le.5) then
+! Potential, MU, AC or LNAC, possible suffix 'S' for SER
+      stsymb=svid(istv)
+      jp=len_trim(stsymb)+1
+      if(iref.ne.0) then
+         stsymb(jp:jp)='S'
+         jp=jp+1
+      endif
+      stsymb(jp:jp)='('
+      jp=jp+1
+      if(indices(2).eq.0) then
+! problem ... component names different in different equilibria ....
+         call get_component_name(indices(1),stsymb(jp:),ceq)
+         if(gx%bmperr.ne.0) goto 1000
+         jp=len_trim(stsymb)+1
+      else
+! always use composition set 1
+         ics=1
+         call get_phase_name(indices(1),ics,stsymb(jp:))
+         if(gx%bmperr.ne.0) goto 1000
+         jp=len_trim(stsymb)+1
+         stsymb(jp:jp)=','; jp=jp+1
+         call get_phase_constituent_name(indices(1),indices(2),stsymb(jp:))
+         if(gx%bmperr.ne.0) goto 1000
+         jp=len_trim(stsymb)+1
+      endif
+      stsymb(jp:jp)=')'
+      goto 800
+   endif potential
+   if(istv.lt.10) then
+!      write(*,*)'unknown potential'
+      gx%bmperr=4158; goto 1000
+   endif
+! Extensive property has istv>=10
+   norm=mod(istv,10)
+   kstv=(istv+1)/10+5
+!    write(*,3)'encode 3: ',kstv,indices
+!3   format(a,5i5)
+   if(kstv.eq.16 .and. norm.eq.1) then
+! NM should be X
+      if(indices(1).ne.0) kstv=17
+   elseif(kstv.eq.17) then
+! BW should be W
+      if(norm.eq.2 .and. indices(1).ne.0) then
+         kstv=19
+      else
+         kstv=18
+      endif
+   elseif(kstv.ge.18) then
+! Y
+!      kstv=kstv+2
+      kstv=20
+   endif
+!   write(*,11)'esv 7: ',istv,kstv,indices
+11 format(a,10i4)
+   stsymb=svid(kstv)
+   jp=len_trim(stsymb)+1
+!   write(*,*)'25C norm 1A: ',kstv,norm
+   if(kstv.le.16 .or. kstv.eq.18) then
+      if(norm.gt.0 .and. norm.le.4) then
+!         write(*,*)'25C norm 1B: ',kstv,norm
+         stsymb(jp:jp)=cnorm(norm)
+         jp=jp+1
+      elseif(norm.ne.0) then
+!         write(*,*)'25C norm 1C: ',kstv,norm
+         gx%bmperr=4118; goto 1000
+      endif
+   endif
+   goto 500
+!----------------- 
+! parameter property symbols
+200 continue
+   iph=indices(1)
+   ics=indices(2)
+   if(indices(3).ne.0) then
+      kstv=-100*istv+indices(3)
+   else
+      kstv=-istv
+   endif
+! this call creates the symbol or gives an error
+   call find_defined_property(stsymb,1,kstv,iph,ics)
+   if(gx%bmperr.ne.0) goto 1000
+   jp=len_trim(stsymb)+1
+   goto 800
+!------------------
+! handle indices
+500 continue
+   noind: if(indices(3).gt.0) then
+! 3 indices, phase, comp.set and constituent allowed for Y
+! or phase, comp.set and component, allowed for N, X, B and W
+! or phase, comp.set and constituent allowed for MQ&
+      if(kstv.eq.20) then
+! this is Y
+         stsymb(jp:jp)='('
+         jp=jp+1
+         call get_phase_name(indices(1),indices(2),stsymb(jp:))
+         if(gx%bmperr.ne.0) goto 1000
+         jp=len_trim(stsymb)+1
+         stsymb(jp:jp)=','
+         jp=jp+1
+         call get_phase_constituent_name(indices(1),indices(3),stsymb(jp:))
+         if(gx%bmperr.ne.0) goto 1000
+         jp=len_trim(stsymb)+1
+         stsymb(jp:jp)=')'
+         jp=jp+1
+      elseif(kstv.ge.16 .and. kstv.le.19) then
+! allow for percent or %
+         if(iunit.eq.100) then
+            stsymb(jp:jp+1)='%('
+            jp=jp+2
+         else
+            stsymb(jp:jp)='('
+            jp=jp+1
+         endif
+         call get_phase_name(indices(1),indices(2),stsymb(jp:))
+         if(gx%bmperr.ne.0) goto 1000
+         jp=len_trim(stsymb)+1
+         stsymb(jp:jp)=','
+         jp=jp+1
+         call get_component_name(indices(3),stsymb(jp:),ceq)
+         if(gx%bmperr.ne.0) goto 1000
+         jp=len_trim(stsymb)+1
+         stsymb(jp:jp)=')'
+         jp=jp+1
+      else
+         gx%bmperr=4117; goto 1000
+      endif
+   elseif(indices(2).gt.0) then
+! 2 indices, can only be phase and comp.set
+         stsymb(jp:jp)='('
+         jp=jp+1
+         call get_phase_name(indices(1),indices(2),stsymb(jp:))
+         if(gx%bmperr.ne.0) goto 1000
+         jp=len_trim(stsymb)+1
+         stsymb(jp:jp)=')'
+         jp=jp+1
+   elseif(indices(1).gt.0) then
+! 1 index, can only be component
+! allow for percent or %
+         if(iunit.eq.100) then
+            stsymb(jp:jp+1)='%('
+            jp=jp+2
+         else
+            stsymb(jp:jp)='('
+            jp=jp+1
+         endif
+         call get_component_name(indices(1),stsymb(jp:),ceq)
+         if(gx%bmperr.ne.0) goto 1000
+         jp=len_trim(stsymb)+1
+         stsymb(jp:jp)=')'
+         jp=jp+1
+! >>>> unfinished
+   endif noind
+!
+800 continue
+   text(ip:ip+jp-1)=stsymb
+   ip=ip+jp
+   if(text(ip:ip).eq.' ') then
+! remove a trailing space occuring in some cases
+      ip=ip-1
+   endif
+1000 continue
+   return
+ end subroutine encode_state_variable3
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine encode_state_variable_record(text,ip,svr,ceq)
+! writes a state variable in text form position ip.  ip is updated
+! the svr record provide istv, indices, iunit and iref
+! ceq is needed as compopnents can be different in different equilibria ??
+! >>>> unfinished as iunit and iref not really cared for
+   implicit none
+   integer, parameter :: noos=20
+   character*4, dimension(noos), parameter :: svid = &
+       ['T   ','P   ','MU  ','AC  ','LNAC','U   ','S   ','V   ',&
+        'H   ','A   ','G   ','NP  ','BP  ','DG  ','Q   ','N   ',&
+        'X   ','B   ','W   ','Y   ']
+   character*(*) text
+   type(gtp_state_variable) :: svr
+   type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   integer jp,ics,kstv,iph,norm
+   integer, dimension(4) :: indices
+   integer istv,ip,iunit,iref
+!
+   character stsymb*60
+   character*1, dimension(4), parameter :: cnorm=['M','W','V','F']
+!
+   istv=svr%oldstv
+   norm=svr%norm
+   iunit=svr%unit
+   indices=0
+   if(svr%argtyp.eq.1) then
+      indices(1)=svr%component
+   elseif(svr%argtyp.eq.2) then
+      indices(1)=svr%phref
+      indices(2)=svr%compset
+   elseif(svr%argtyp.eq.3) then
+      indices(1)=svr%phref
+      indices(2)=svr%compset
+      indices(3)=svr%component
+   elseif(svr%argtyp.eq.4) then
+      indices(1)=svr%phref
+      indices(2)=svr%compset
+      indices(3)=svr%constituent
+   endif
 !
    if(istv.le.0) then
 ! this is a parameter property symbol: TC (-2), BM (-3), MQ&FE(FCC) (-4) etc
@@ -1162,6 +1597,7 @@
 11  format(a,10i4)
    stsymb=svid(kstv)
    jp=len_trim(stsymb)+1
+   write(*,*)'25C norm 2: ',kstv,norm
    if(kstv.le.16 .or. kstv.eq.18) then
       if(norm.gt.0 .and. norm.le.4) then
          stsymb(jp:jp)=cnorm(norm)
@@ -1265,12 +1701,64 @@
    endif
 1000 continue
    return
- end subroutine encode_state_variable
+ end subroutine encode_state_variable_record
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine state_variable_val(istv,indices,iref,iunit,value,ceq)
+ subroutine state_variable_val(svr,value,ceq)
+! calculate the value of a state variable in equilibrium record ceq
+! It transforms svr data to old format and calls state_variable_val3
+   type(gtp_state_variable), pointer :: svr
+   double precision value
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim} %+
+   integer istv, indices(4),iref,iunit
+!
+   iref=svr%phref
+   iunit=svr%unit
+!   if(svr%oldstv.gt.10) then
+!      istv=10*(svr%oldstv-5)+svr%norm
+!   else
+      istv=svr%oldstv
+!   endif
+! svr%argtyp specifies values in indices:
+! svr%argtyp: 0=no arguments; 1=comp; 2=ph+cs; 3=ph+cs+comp; 4=ph+cs+const
+   indices=0
+   if(svr%argtyp.eq.1) then
+      indices(1)=svr%component
+   elseif(svr%argtyp.eq.2) then
+      indices(1)=svr%phase
+      indices(2)=svr%compset
+   elseif(svr%argtyp.eq.3) then
+      indices(1)=svr%phase
+      indices(2)=svr%compset
+      indices(3)=svr%component
+   elseif(svr%argtyp.eq.4) then
+      indices(1)=svr%phase
+      indices(2)=svr%compset
+      indices(3)=svr%constituent
+   elseif(svr%argtyp.ne.0) then
+      write(*,*)'25C state variable has illegal argtyp: ',svr%argtyp
+      gx%bmperr=7775; goto 1000
+   endif
+!   write(*,910)'25C svv: ',istv,indices,iref,iunit,value
+910 format(a,i3,2x,4i3,2i3,1pe14.6)
+   call state_variable_val3(istv,indices,iref,iunit,value,ceq)
+   if(gx%bmperr.ne.0) then
+      write(*,920)'25C error: ',gx%bmperr,istv,svr%oldstv,svr%argtyp
+920   format(a,i5,2x,2i4,i2)
+!   else
+!      write(*,*)'25C value: ',value
+   endif
+1000 continue
+   return
+ end subroutine state_variable_val
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim} %-
+ subroutine state_variable_val3(istv,indices,iref,iunit,value,ceq)
 ! calculate the value of a state variable in equilibrium record ceq
 ! istv is state variable type (integer)
 ! indices are possible specifiers
@@ -1287,11 +1775,11 @@
    double precision props(5),xmol(maxel),wmass(maxel),stoi(10),cmpstoi(10)
    double precision vt,vp,amult,vg,vs,vv,div,aref,vn,bmult,tmass,tmol
    double precision qsp,gref,spmass
-   integer kstv,norm,lokph,lokcs,icx,jp,ncmp,ic,iprop,loksp,nspel
+   integer kstv,norm,lokph,lokcs,icx,jp,ncmp,ic,iprop,loksp,nspel,iq
    integer endmember(maxsubl),ielno(maxspel)
    value=zero
-!   write(*,10)'svval: ',istv,indices,iref,iunit,gx%bmperr,value
-10 format(a,i4,4i3,3i5,1PE17.6)
+!   write(*,10)'25C svval: ',istv,indices,iref,iunit,gx%bmperr,value
+10 format(a,i4,4i4,3i5,1PE17.6)
    potentials: if(istv.lt.0) then
 ! negative istv indicate parameter property symbols
       kstv=-istv
@@ -1315,13 +1803,13 @@
          goto 500
       endif
 ! wrong or state variable not implemented
-      write(*,10)'not impl: ',istv,indices,iref,iunit,value
+      write(*,10)'25C not impl: ',istv,indices,iref,iunit,gx%bmperr,value
       goto 1100
    endif potentials
 ! normal return
    goto 1000
 !----------------------------------------------------------
-! extensive variable or model variable (TC, BMAG)
+! extensive variable (N, X, G ...) or model variable (TC, BMAG)
 50  continue
    norm=mod(istv,10)
    kstv=istv/10
@@ -1330,14 +1818,16 @@
 ! props(4) is amount of moles of components, props(5) is mass of components
    call sumprops(props,ceq)
    if(gx%bmperr.ne.0) goto 1000
-!   write(*,51)'stv A: ',props
+! if verbose on
+   if(ocv()) write(*,51)'25C stv A: ',props
 51 format(a,5(1PE12.3))
 ! kstv can be 1 to 15 for different properties
 ! norm can be 1, 2, 3 or 4 for normalizing. 0 for not normallizing
 !             M  W  V    F
 ! iref can be 0 or 1 for reference state
    le10: if(kstv.le.10) then
-! kstv=1..10 is U, S, V, H, A, G, NP, BP, DG and Q
+! kstv=       1  2  3  4  5  6  7   8   9     10
+! state var;  U, S, V, H, A, G, NP, BP, DG and Q
       vt=ceq%tpval(1)
       vp=ceq%tpval(2)
       ceq%rtn=globaldata%rgas*ceq%tpval(1)
@@ -1442,8 +1932,12 @@
    endif le10
 !----------------------------------------------------------------------
 ! here with kstv>10
+! kstv=       11  12  13 
+! state var:   N   B   Y   
    le12: if(kstv.le.12) then
 ! normallizing for N (kstv=11) and B (kstv=12)
+!      write(*,88)'25c svv 12: ',indices(1),norm,props(5)
+88    format(a,2i3,6(1pe12.4))
       if(indices(1).eq.0) then
 ! no first index means the sum over all phases
 ! props(4) is amount of moles of components, props(5) is mass of components
@@ -1468,7 +1962,8 @@
             div=one
          endif
 ! This is N or B without index but normallized
-!         write(*,*)'state_variable_val: N or B: ',vn,div
+!         write(*,89)'25C svv, N or B: ',vn,div
+89       format(a,5(1pe12.4))
          value=vn/div
       else
 ! one or two indices, overall of phase specific component amount
@@ -1476,6 +1971,9 @@
 ! one index is component specific, N(comp.), B(CR) etc. Sum over all phases
 ! props(4) is amount of moles of components, props(5) is mass of components
             call calc_molmass(xmol,wmass,tmol,tmass,ceq)
+            if(gx%bmperr.ne.0) goto 1000
+            if(ocv()) write(*,93)(xmol(icx),icx=1,noofel)
+93          format('25C: xmol: ',9F7.4)
             icx=1
             if(kstv.eq.11) then
                bmult=props(4)
@@ -1489,6 +1987,8 @@
             icx=3
          endif
          if(gx%bmperr.ne.0) goto 1000
+!         write(*,13)'gsvv 19: ',norm,(xmol(iq),iq=1,noofel)
+777      format('gsvv 77: ',10(f7.4))
          if(kstv.eq.11) then
 ! total moles of component
             vn=xmol(indices(icx))
@@ -1500,14 +2000,16 @@
             vn=wmass(indices(icx))
             amult=tmass
          endif
-!          write(*,13)'gsvv 8: ',norm,vn,amult,bmult,tmol,tmass
-13        format(a,i3,7(1PE10.2))
+!         write(*,13)'gsvv 8: ',norm,vn,amult,bmult,tmol,tmass
+13       format(a,i3,7(1PE10.2))
          norm3: if(norm.eq.1) then
 ! NM or X
             if(tmol.ne.zero) then
                value=amult*vn/tmol
             else
-               value=zero
+! problem at x(phase,component) was zero when phase fix with zero amount
+!               value=zero
+               value=vn
             endif
 ! percent %
 !            write(*,*)'x%: ',iunit,value
@@ -1558,6 +2060,7 @@
 !-----------------------------------------------------------------
 ! values of parameter property symbols
 ! >>> this can easily be generallized ... next time around ...
+! here with state variable <0, syetm and user defined properties
 200   continue
    select case(kstv)
    case default
@@ -1592,7 +2095,7 @@
       enddo find1
 !.......................................
    case(6,8) 
-! 6: IBM Individual Bohr magneton number
+! 6: IBM& Individual Bohr magneton number
 ! 8: MQ& mobility value
       call get_phase_compset(indices(1),indices(2),lokph,lokcs)
       if(gx%bmperr.ne.0) goto 1000
@@ -1677,13 +2180,15 @@
    gx%bmperr=4078
 !   write(*,*)'State variable value not implemented yet'
    goto 1000
- end subroutine state_variable_val
+ end subroutine state_variable_val3
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine state_var_value_derivative(istv,indices,iref,iunit,&
-      istv2,indices2,iref2,iunit2,value,ceq)
+ subroutine state_var_value_derivative_old(svr1,svr2,value,ceq)
+! THIS SUBROUTINE MOVED TO MINIMIZER
+! subroutine state_var_value_derivative(istv,indices,iref,iunit,&
+!      istv2,indices2,iref2,iunit2,value,ceq)
 ! calculates a state variable value derivative NOT IMPLEMENTED YET
 ! istv and istv2 are state variable type (integer)
 ! indices and indices2 are possible specifiers
@@ -1692,18 +2197,24 @@
 ! value is calculated value
 ! ceq is current equilibrium
    implicit none
+   TYPE(gtp_state_variable), pointer :: svr1,svr2
    TYPE(gtp_equilibrium_data) :: ceq
-   integer :: istv,iref,iunit,istv2,iref2,iunit2
-   integer, dimension(4) :: indices,indices2
+!   integer :: istv,iref,iunit,istv2,iref2,iunit2
+!   integer, dimension(4) :: indices,indices2
    double precision value
 !\end{verbatim}
    double precision, dimension(5) :: props
    double precision, dimension(maxel) :: xmol,wmass
+!
    value=zero
+   write(*,17)svr1%statevarid,svr1%argtyp,svr2%statevarid,svr2%argtyp
+17 format('25C: state_var_value_derivative: ',10i4)
+! this must be calculated in the minimizer
+!   call meq_state_var_value_derivative(svr1,svr2,value,ceq)
    gx%bmperr=4078
 1000 continue
    return
- end subroutine state_var_value_derivative
+ end subroutine state_var_value_derivative_old
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

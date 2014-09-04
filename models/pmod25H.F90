@@ -104,7 +104,7 @@
    integer isp,status
 !\end{verbatim}
    integer loksp
-   if(isp.gt.0 .and. isp.lt.noofel) then
+   if(isp.gt.0 .and. isp.lt.noofsp) then
       loksp=species(isp)
       if(btest(splista(loksp)%status,status)) then
 ! btest(iword,bit) .true. if bit set in iword
@@ -115,7 +115,7 @@
          testspstat=.false.
       endif
    else
-      gx%bmperr=4042
+      gx%bmperr=4051
    endif
  end function testspstat
 
@@ -132,40 +132,71 @@
    TYPE(gtp_equilibrium_data), pointer :: ceq
    double precision val
 !\end{verbatim} %+
-   integer ists,lokph,lokcs
+   integer ists,lokph,lokcs,j
 ! write current status
    ists=0
    val=-one
    if(iph.gt.0 .and. iph.le.noph()) then
       call get_phase_compset(iph,ics,lokph,lokcs)
-      if(btest(phlista(lokph)%status1,phhid)) then
-         text='HIDDEN'; ip=6
-         ists=5
-      elseif(btest(ceq%phase_varres(lokcs)%status2,CSSUS)) then
+!old      if(btest(phlista(lokph)%status1,phhid)) then
+!old         text='HIDDEN'; ip=6
+!old         ists=5
+!old      elseif(btest(ceq%phase_varres(lokcs)%status2,CSSUS)) then
 !              entered,   fix,   suspended,   dormant
 ! bit setting: 00         01   , 10           11
-           if(btest(ceq%phase_varres(lokcs)%status2,CSFIXDORM)) then
-              text='DORMANT'; ip=7
-              ists=3
-           else
-              text='SUSPENDED'; ip=9
-              ists=4
-           endif
-      elseif(btest(ceq%phase_varres(lokcs)%status2,CSFIXDORM)) then
-         text='FIXED'; ip=5
+!old           if(btest(ceq%phase_varres(lokcs)%status2,CSFIXDORM)) then
+!old              text='DORMANT'; ip=7
+!old              ists=3
+!old           else
+!old              text='SUSPENDED'; ip=9
+!old              ists=4
+!old           endif
+!old      elseif(btest(ceq%phase_varres(lokcs)%status2,CSFIXDORM)) then
+!old         text='FIXED'; ip=5
 !         val=ceq%phase_varres(lokcs)%amount(1)
+!old         val=ceq%phase_varres(lokcs)%amfu
+!old         ists=2
+!old      else
+!old         text='ENTERED'; ip=7
+!old         val=ceq%phase_varres(lokcs)%amfu
+!old         ists=1
+!old      endif
+! new way, test PHSTATE
+      j=ceq%phase_varres(lokcs)%phstate
+      select case(ceq%phase_varres(lokcs)%phstate)
+      case default
+         write(*,16)'PHSTATE not correct: ',iph,ics,j
+16       format(a,2i3,z16)
+         gx%bmperr=7777
+      case(phfixed) ! fix
+         text='FIXED'
+         ip=5
          val=ceq%phase_varres(lokcs)%amfu
-         ists=2
-      else
-         text='ENTERED'; ip=7
+         ists=phfixed
+      case(-1,0,1) ! entered (unstable, unknown, stable)
+         text='ENTERED'
+         ip=7
          val=ceq%phase_varres(lokcs)%amfu
-         ists=1
-      endif
+         ists=phentered
+      case(phdorm) ! dormant
+         text='DORMANT'
+         ip=7
+         ists=phdorm
+      case(phsus) ! suspended
+         text='SUSPENDED'
+         ip=9
+         ists=phsus
+      case(phhidden) ! hidden
+         text='HIDDEN'
+         ip=6
+         ists=phhidden
+      end select
    else
 !      write(*,*)'No such phase'
       gx%bmperr=4050; goto 1000
    endif
    get_phase_status=ists
+!   write(*,*)'25H: PHSTAT value: ',ists
 !   write(*,*)'25H: gps: ',ip
 1000 continue
    return
@@ -183,9 +214,13 @@
    integer iph,ics
    double precision val
 !\end{verbatim}
-   integer ists,lokph,lokcs
+   integer ists,lokph,lokcs,j,ip
+   character text*24
    ists=0
    val=-one
+   ists=get_phase_status(iph,ics,text,ip,val,ceq)
+   goto 900
+!------------------
    if(iph.gt.0 .and. iph.le.noph()) then
       call get_phase_compset(iph,ics,lokph,lokcs)
 ! biet set means false ....
@@ -207,10 +242,27 @@
          ists=1
          val=ceq%phase_varres(lokcs)%amfu
       endif
+! new way, test PHSTATE
+      j=ceq%phase_varres(lokcs)%phstate
+      select case(ceq%phase_varres(lokcs)%phstate)
+      case default
+         write(*,*)'PHSTAT outside range -4:2: ',j
+      case(phfixed) ! fix +2
+         if(ists.ne.2) write(*,*)'wrong PHSTAT',ists,j
+      case(-1,0,1) ! entered (unstable, unknown, stable)
+         if(ists.ne.1) write(*,*)'wrong PHSTAT',ists,j
+      case(phdorm) ! dormant -2
+         if(ists.ne.3) write(*,*)'wrong PHSTAT',ists,j
+      case(phsus) ! suspended -3
+         if(ists.ne.4) write(*,*)'wrong PHSTAT',ists,j
+      case(phhidden) ! hidden -4
+         if(ists.ne.5) write(*,*)'wrong PHSTAT',ists,j
+      end select
    else
 !      write(*,*)'No such phase'
       gx%bmperr=4050; goto 1000
    endif
+900 continue
    test_phase_status=ists
 1000 continue
    return
@@ -225,7 +277,8 @@
 ! These bits do not depend on the composition set
    implicit none
    integer lokph,bit
-!\end{verbatim}
+!\end{verbatim} %+
+   integer lokcs,j
    if(bit.lt.0 .or. bit.gt.31) then
       write(*,*)'Illegal phase bit number'
       gx%bmperr=7777; goto 1000
@@ -236,34 +289,80 @@
 !   write(*,99)'sphs1bit: ',lokph,bit,phlista(lokph)%status1
 99 format(a,2i3,z8)
    phlista(lokph)%status1=ibset(phlista(lokph)%status1,bit)
+   if(bit.eq.PHHID) then
+! if bit is PHHID, i.e. hidden, set PHSTATE in all phase_varres record to -4
+      do j=1,phlista(lokph)%noofcs
+         lokcs=phlista(lokph)%linktocs(j)
+! eventually, this must be set in all equilibrium records now just firsteq ??
+         firsteq%phase_varres(lokcs)%phstate=-4
+      enddo
+   endif
 1000 continue
    return
  end subroutine set_phase_status_bit
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim}
- subroutine unset_phase_status_bit(lokph,bit)
+!\begin{verbatim} %-
+ subroutine clear_phase_status_bit(lokph,bit)
 ! clear the status bit "bit" in status1, cannot be done outside this module
 ! as the phlista is private
    implicit none
    integer lokph,bit
-!\end{verbatim}
+!\end{verbatim} %+
+   integer lokcs,j
    if(bit.lt.0 .or. bit.gt.31) then
       write(*,*)'Illegal phase bit number'
       gx%bmperr=7777; goto 1000
    endif
    phlista(lokph)%status1=ibclr(phlista(lokph)%status1,bit)
+   if(bit.eq.PHHID) then
+      write(*,*)'clear_bit: Not implemented to change PHSTATE'
+! if bit is PHHID, i.e. hidden, set PHSTATE in all phase_varres record to 0
+      do j=1,phlista(lokph)%noofcs
+         lokcs=phlista(lokph)%linktocs(j)
+! eventually, this must be set in all equilibrium records now just firsteq ??
+         firsteq%phase_varres(lokcs)%phstate=phentered
+      enddo
+   endif
 1000 continue
    return
- end subroutine unset_phase_status_bit
+ end subroutine clear_phase_status_bit
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim} %-
+ logical function test_phase_status_bit(iph,ibit)
+! return TRUE is status bit ibit for  phase iph, is set
+! because phlista is private.  Needed to test for gas, ideal etc, 
+! DOES NOT TEST STATUS like entered/fixed/dormant/suspended
+   implicit none
+   integer iph,ibit
+!\end{verbatim}
+   integer lokph
+   if(iph.gt.0 .and. iph.le.noofph) then
+      lokph=phases(iph)
+   else
+      gx%bmperr=4050; goto 1000
+   endif
+   if(btest(phlista(lokph)%status1,ibit)) then
+      test_phase_status_bit=.true.
+   else
+      test_phase_status_bit=.false.
+   endif
+1000 continue
+   return
+ end function test_phase_status_bit
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim}
  subroutine change_phase_status(qph,ics,nystat,val,ceq)
 ! change the status of a phase. Also used when setting phase fix etc.
-! nystat:0=entered, 1=suspended, 2=dormant, 3=fix, 4=hidden,5=not hidden
+! old: 0=entered, 1=suspended, 2=dormant, 3=fix, 4=hidden,5=not hidden
+! nystat:-4 hidden, -3 suspended, -2 dormant, -1,0,1 entered, 2 fix
+! qph can be -1 meaning all or a specifix phase index. ics compset
+! 
    implicit none
    integer qph,ics,nystat
    double precision val
@@ -271,6 +370,8 @@
 !\end{verbatim}
    integer lokph,lokcs,iph,ip,mcs
    character line*80,phname*32
+!   write(*,11)'25H in change_phase_status: ',qph,ics,nystat,val
+11 format(a,3i5,1pe14.6)
    if(qph.eq.-1) then
 ! this means all phases. All phases cannot be set fix
       if(nystat.eq.3) then
@@ -286,40 +387,33 @@
 100 continue
    call get_phase_compset(iph,ics,lokph,lokcs)
    if(gx%bmperr.ne.0) goto 1000
-!   write(*,*)'Phase: ',iph
-   if(btest(ceq%phase_varres(lokcs)%status2,CSFIXDORM) .and. &
-        .not.btest(ceq%phase_varres(lokcs)%status2,CSSUS)) then
+!   write(*,*)'25H: Phase and status: ',iph,ceq%phase_varres(lokcs)%phstate
+   if(ceq%phase_varres(lokcs)%phstate.eq.phfixed) then
 ! this phase and composition set is fix, remove condition
 ! unless the new status is also FIX
-      if(nystat.ne.3) then
+      if(nystat.ne.phfixed) then
          call get_phase_name(iph,ics,phname)
          line=' NOFIX='//phname(1:len_trim(phname))
          ip=1
          call set_condition(line,ip,ceq)
       endif
    endif
-   bigif: if(btest(phlista(lokph)%status1,phhid)) then
-! phase already hidden, quit if it should be hidden again
-      if(nystat.eq.4) goto 900
-      if(nystat.eq.5) then
-         phlista(lokph)%status1=ibclr(phlista(lokph)%status1,phhid)
-! >>> maybe also clear all statusbits in composition sets ...
-      else
-! if phase hidden nystat 0-4 are meaningless
-         gx%bmperr=4095; goto 900
-      endif
-   elseif(nystat.eq.4) then
+   bigif: if(ceq%phase_varres(lokcs)%phstate.eq.phhidden) then
+! phase is hidden, quit if it should be hidden again
+!   bigif: if(btest(phlista(lokph)%status1,phhid)) then
+      if(nystat.eq.phhidden) goto 900
+!      phlista(lokph)%status1=ibclr(phlista(lokph)%status1,phhid)
+!??? this phase must be added in phlista ??? no it is already there ???
+      write(*,*)'Unifished handling of hide/not hide ...'
+      gx%bmperr=4095; goto 900
+   elseif(nystat.eq.phhidden) then
 ! phase is not hidden but should be set as hidden,
 ! Always applies to all composition sets
 ! clear all entered/suspended/dormant/fix for all composition sets
       phlista(lokph)%status1=ibset(phlista(lokph)%status1,phhid)
-!      lokcs=phlista(lokph)%cslink
       do mcs=1,phlista(lokph)%noofcs
          lokcs=phlista(lokph)%linktocs(mcs)
-         ceq%phase_varres(lokcs)%status2=&
-              ibclr(ceq%phase_varres(lokcs)%status2,CSSUS)
-         ceq%phase_varres(lokcs)%status2=&
-              ibclr(ceq%phase_varres(lokcs)%status2,CSFIXDORM)
+         ceq%phase_varres(lokcs)%phstate=phhidden         
 ! also set amounts and dgm to zero
          ceq%phase_varres(lokcs)%amfu=zero
          ceq%phase_varres(lokcs)%netcharge=zero
@@ -329,17 +423,12 @@
 ! changing FIX/ENTERED/SUSPENDED/DORMANT for a composition set
 !      lokcs=phlista(lokph)%cslink
       lokcs=phlista(lokph)%linktocs(ics)
-!      do jcs=2,ics
-!         lokcs=ceq%phase_varres(lokcs)%next
-!         if(lokcs.le.0) then
-!            write(*,*)'change_phase_status error 4072'
-!            gx%bmperr=4072; goto 1000
-!         endif
-!      enddo
 ! input nystat:0=entered, 3=fix, 1=suspended, 2=dormant
 ! bit setting: 00         01   , 10           11
-      if(nystat.eq.0) then
+!      write(*,*)'25H new status: ',nystat
+      if(nystat.eq.phentered) then
 ! set enterered with amount val and dgm zero
+         ceq%phase_varres(lokcs)%phstate=phentered
          ceq%phase_varres(lokcs)%status2=&
               ibclr(ceq%phase_varres(lokcs)%status2,CSSUS)
          ceq%phase_varres(lokcs)%status2=&
@@ -348,8 +437,9 @@
          ceq%phase_varres(lokcs)%amfu=val
          ceq%phase_varres(lokcs)%netcharge=val
          ceq%phase_varres(lokcs)%dgm=zero
-      elseif(nystat.eq.1) then
+      elseif(nystat.eq.phsus) then
 ! set suspended with amount and dgm zero
+         ceq%phase_varres(lokcs)%phstate=phsus
          ceq%phase_varres(lokcs)%status2=&
               ibset(ceq%phase_varres(lokcs)%status2,CSSUS)
          ceq%phase_varres(lokcs)%status2=&
@@ -360,8 +450,9 @@
          ceq%phase_varres(lokcs)%amfu=zero
          ceq%phase_varres(lokcs)%netcharge=zero
          ceq%phase_varres(lokcs)%dgm=zero
-      elseif(nystat.eq.2) then
+      elseif(nystat.eq.phdorm) then
 ! set dormant with amount and dgm zero
+         ceq%phase_varres(lokcs)%phstate=phdorm
          ceq%phase_varres(lokcs)%status2=&
               ibset(ceq%phase_varres(lokcs)%status2,CSSUS)
          ceq%phase_varres(lokcs)%status2=&
@@ -371,8 +462,9 @@
          ceq%phase_varres(lokcs)%amfu=zero
          ceq%phase_varres(lokcs)%netcharge=zero
          ceq%phase_varres(lokcs)%dgm=zero
-      elseif(nystat.eq.3) then
+      elseif(nystat.eq.phfixed) then
 ! set fix with amount val
+         ceq%phase_varres(lokcs)%phstate=phfixed
          ceq%phase_varres(lokcs)%status2=&
               ibclr(ceq%phase_varres(lokcs)%status2,CSSUS)
          ceq%phase_varres(lokcs)%status2=&
@@ -411,31 +503,6 @@
  end subroutine change_phase_status
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\begin{verbatim}
- logical function phase_bit(iph,ibit)
-! return TRUE is status bit ibit for  phase iph, is set
-! because phlista is private.  Needed to test for gas, ideal etc, 
-! DOES NOT TEST STATUS liske entered/fixed/dormant/suspended
-   implicit none
-   integer iph,ibit
-!\end{verbatim}
-   integer lokph
-   if(iph.gt.0 .and. iph.le.noofph) then
-      lokph=phases(iph)
-   else
-      gx%bmperr=4050; goto 1000
-   endif
-   if(btest(phlista(lokph)%status1,ibit)) then
-      phase_bit=.true.
-   else
-      phase_bit=.false.
-   endif
-1000 continue
-   return
- end function phase_bit
-
-!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 !>     14. Unfinished things
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -627,15 +694,17 @@
    double precision asum
 !\end{verbatim}
    type(gtp_endmember), pointer :: endmemrec
-   integer lokph,nsl,ll,jcon,loksp,loksp2
+   integer lokph,nsl,ll,jcon,loksp,loksp2,lokcs
 !
    lokph=phases(iph)
    loksp=phlista(lokph)%constitlist(icon)
    nsl=phlista(lokph)%noofsubl
    endmemrec=>phlista(lokph)%ordered
    asum=one
+   lokcs=phlista(lokph)%linktocs(1)
    if(nsl.eq.1) then
-      asum=phlista(lokph)%sites(1)
+!      asum=phlista(lokph)%sites(1)
+      asum=firsteq%phase_varres(lokcs)%sites(1)
       emlist1: do while(associated(endmemrec))
          if(endmemrec%fraclinks(ll,1).eq.icon) goto 300
          endmemrec=>endmemrec%nextem
@@ -650,13 +719,15 @@
                loksp2=phlista(lokph)%constitlist(jcon)
                if(loksp2.eq.loksp) then
 ! same species in this sublattice, add sites to asum
-                  asum=asum+phlista(lokph)%sites(ll)
+!                  asum=asum+phlista(lokph)%sites(ll)
+                  asum=asum+firsteq%phase_varres(lokcs)%sites(ll)
                elseif(.not.btest(splista(loksp2)%status,spva)) then
 ! other species (not vacancies) in this sublattice, skip this end member
                   goto 200
                endif
             else
-               asum=asum+phlista(lokph)%sites(ll)
+!               asum=asum+phlista(lokph)%sites(ll)
+               asum=asum+firsteq%phase_varres(lokcs)%sites(ll)
             endif
          enddo
 ! this endmember OK
@@ -842,6 +913,15 @@
    phases(iph)=noofph
    phlista(noofph)%alphaindex=iph
 !  write(6,*)'alphaphorder 3: ',iph,(phases(k),k=1,noofph)
+! update phasetuple array
+   do j=nooftuples,iph,-1
+      phasetuple(j+1)%phase=phasetuple(j)%phase
+      phasetuple(j+1)%compset=phasetuple(j)%compset
+   enddo
+! insert first compset of new phase in phasetuple position nph
+   phasetuple(iph)%phase=noofph
+   phasetuple(iph)%compset=1
+   nooftuples=nooftuples+1
    return
  END subroutine alphaphorder
 
@@ -897,7 +977,7 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine create_parrecords(lokcs,nsl,nc,nprop,iva,ceq)
+ subroutine create_parrecords(lokph,lokcs,nsl,nc,nprop,iva,ceq)
 ! fractions and results arrays for a phase for parallell calculations
 ! location is returned in lokcs
 ! nsl is sublattices, nc number of constituents, nprop max number if propert,
@@ -911,7 +991,7 @@
    implicit none
    TYPE(gtp_equilibrium_data), pointer :: ceq
    integer, dimension(*) :: iva
-   integer lokcs, nsl, nc, nprop
+   integer lokph,lokcs, nsl, nc, nprop
 !\end{verbatim}
    integer ic,nnc
 ! find free record, free list maintained in FIRSTEQ
@@ -947,13 +1027,12 @@
 ! abnorm initiated to unity to avoid trouble at first calculation
    ceq%phase_varres(lokcs)%abnorm=one
    allocate(ceq%phase_varres(lokcs)%sites(nsl))
-!   write(*,*)'Allocated sites: ',nsl,nprop
-! sites will be set from sublattice record or calculated for ionic liquid
-! when entering constitution, initiate to phlista(lokph)%sites
-!    ceq%phase_varres(lokcs)%sites=zero
-! if ionic liquid
-!    allocate(ceq%phase_varres(lokcs)%dsitesdy(2,nc))
-!    allocate(ceq%phase_varres(lokcs)%d2sitesdy2(2,nc*(nc+1)/2))
+!
+   if(btest(phlista(lokph)%status1,PHIONLIQ)) then
+! for ionic liquid the sites may depend on composition
+      allocate(ceq%phase_varres(lokcs)%dpqdy(nc))
+      allocate(ceq%phase_varres(lokcs)%d2pqdvay(nc))
+   endif
 !
 ! result arrays for a phase for use in parallell processing
    ceq%phase_varres(lokcs)%nprop=nprop
@@ -1400,7 +1479,6 @@
    if(phlista(lokph)%noofcs.gt.1) then
       gx%bmperr=4029; goto 1000
    else
-!      lokcs=phlista(lokph)%cslink
       lokcs=phlista(lokph)%linktocs(1)
       if(btest(firsteq%phase_varres(lokcs)%status2,CSCONSUS)) then
          gx%bmperr=4030; goto 1000
@@ -1480,6 +1558,10 @@
    enddo subloop
 !   write(*,53)'add_fraction_set 2: ',(jy2x(i),i=1,ii)
 53 format(a,20i3)
+! added fsites to handle the case when reading sigma etc from a TDB file
+! as the TDB file format assumes 1 site.  Default is 1.0, changed externally
+   fsdata%fsites=one
+!   write(*,*)'Set fsites: ',fsdata%fsites
 !
 !   write(*,53)'add_fraction_set 3: ',nrj1,nrj2,nrj3,nrj4
    fsdata%latd=ndl
@@ -1560,13 +1642,15 @@
    is=0
    sum=zero
    do ll=1,ndl
-      sum=sum+phlista(lokph)%sites(ll)
+!      sum=sum+phlista(lokph)%sites(ll)
+      sum=sum+firsteq%phase_varres(lokcs)%sites(ll)
    enddo
    fsdata%dsites(1)=sum
    if(ndl.lt.nsl) then
       sum=zero
       do ll=ndl+1,nsl
-         sum=sum+phlista(lokph)%sites(ll)
+!         sum=sum+phlista(lokph)%sites(ll)
+         sum=sum+firsteq%phase_varres(lokcs)%sites(ll)
       enddo
       fsdata%dsites(2)=sum
    endif
@@ -1575,7 +1659,8 @@
    sum=fsdata%dsites(1)
    do ll=1,nsl
       if(ll.gt.ndl) sum=fsdata%dsites(2)
-      div=phlista(lokph)%sites(ll)/sum
+!      div=phlista(lokph)%sites(ll)/sum
+      div=firsteq%phase_varres(lokcs)%sites(ll)/sum
 !       write(*,78)'add_fs 5A ',div,phlista(lokph)%sites(ll),sum
 !78     format(a,6F10.7)
       do k=1,phlista(lokph)%nooffr(ll)
@@ -1592,7 +1677,7 @@
 !  ... det gäller att hålla tungan rätt i mun ...
 !   nprop=10
 !   call create_parrecords(nyttcs,nnn,mmm,nprop,iva,firsteq)
-   call create_parrecords(nyttcs,nnn,mmm,maxcalcprop,iva,firsteq)
+   call create_parrecords(lokph,nyttcs,nnn,mmm,maxcalcprop,iva,firsteq)
    if(gx%bmperr.ne.0) goto 1000
    fsdata%varreslink=nyttcs
 ! note ceq is firsteq but declared target
@@ -1617,7 +1702,7 @@
       lokcs=phlista(lokph)%linktocs(ijcs)
 ! one must also create parrecords for these !!!
 !      call create_parrecords(nydis,nnn,mmm,nprop,iva,firsteq)
-      call create_parrecords(nydis,nnn,mmm,maxcalcprop,iva,firsteq)
+      call create_parrecords(lokph,nydis,nnn,mmm,maxcalcprop,iva,firsteq)
       if(gx%bmperr.ne.0) goto 1000
       fsdata%varreslink=nydis
 ! set pointer also
@@ -1661,6 +1746,7 @@
 !\end{verbatim}
    TYPE(gtp_fraction_set) :: discopy
 ! the hard way ??
+   discopy%fsites=disrec%fsites
    discopy%latd=disrec%latd
    discopy%ndd=disrec%ndd
    discopy%tnoofxfr=disrec%tnoofxfr
@@ -1891,4 +1977,17 @@
 1000 continue
    return
  end subroutine add_to_reference_phase
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatiom}
+ logical function ocv()
+! returns TRUE if GSVERBOSE bit is set
+!\end{verbatim}
+! typical use:  if(ocv()) write(*,*)....
+   ocv=btest(globaldata%status,GSVERBOSE)
+   return
+ end function ocv
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

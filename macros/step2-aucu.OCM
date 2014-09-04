@@ -1,0 +1,79 @@
+@$ Calculating Gibbs energy curve for Ag-Cu
+
+set echo
+
+r t agcu
+
+set c t=800 p=1e5 n=1 x(cu)=.2
+
+c e
+
+l r 1
+
+@&
+
+set axis 1 x(cu) 0 1 0.01
+
+l ax
+
+@&
+
+step
+
+
+
+
+
+@&
+
+l line
+
+@&
+
+l eq
+
+
+@&
+
+plot
+X(CU)
+GM(*)
+
+
+
+
+set stat ph * sus
+set stat ph fcc ent 1
+
+step
+NORMAL
+Y
+
+
+plot
+x(cu)
+G
+
+
+
+
+@@
+
+set stat ph fcc sus
+set stat ph liq ent 1
+
+c n
+
+step
+NORMAL
+N
+
+
+plot
+
+
+
+
+
+set inter
+

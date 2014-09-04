@@ -1,0 +1,47 @@
+@$ mapping a high speed steel
+
+set echo
+
+r t steel1
+fe c cr mo v
+
+set c t=1200 p=1e5 n=1 x(c)=.05 x(cr)=.05, x(mo)=.05 x(v)=.01
+
+c e
+
+l r 1
+
+@&
+
+set axis 1 x(c) 0 0.06 ,,,
+set axis 2 T 800 1800 25
+
+l ax
+
+@&
+
+set c t=1700
+
+c n
+
+l r 1
+
+
+@&
+
+
+map
+
+
+
+
+
+plot
+
+
+
+
+
+
+set inter
+

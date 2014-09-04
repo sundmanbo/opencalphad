@@ -3,16 +3,21 @@ PROGRAM pmain1
 ! main program for testing the free thermodynamic system
 !************************************
 !
-  use oc_cmon1
+  use cmon1oc
 !
   implicit none
 !
   character*12 linkdate
   TYPE(gtp_equilibrium_data), pointer :: ceq
+! these will be used later for dimensioning things and efaults
+  integer intvar(10)
+  double precision dblvar(10)
 !
 ! the next line overwritten with current linkdate by linkocdate
   linkdate='01-01-2012'
-  call init_gtp
+! intvar(1) must not be negative
+  intvar(1)=20
+  call init_gtp(intvar,dblvar)
   if(gx%bmperr.ne.0) then
      stop 'Error initiating GTP data structures'
   endif

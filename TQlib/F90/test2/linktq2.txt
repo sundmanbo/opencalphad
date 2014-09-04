@@ -1,0 +1,4 @@
+gfortran -c tqlib.F90
+
+gfortran -o tq2 fenitq.F90 tqlib.o oceqlib.a
+

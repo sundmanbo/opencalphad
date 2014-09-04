@@ -1,4 +1,3 @@
-!
 ! included in pmod25
 !
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
@@ -21,7 +20,7 @@
    CHARACTER symb2*2,symb24*24
    integer knr(1),jl,jjj,kkk,nsl,loksp,lokph,nycomp
    double precision stoik(1)
-   character ch1*1,model*10,phname*24,const(1)*24
+   character ch1*1,model*24,phname*24,const(1)*24
    if(.not.allowenter(1)) then
       gx%bmperr=4125
       goto 1000
@@ -247,7 +246,6 @@
          if(ellist(jl).eq.ellista(jk)%symbol) goto 200
       enddo loopel
 ! an unknown element
-      write(6,*)'new_species 1B: ',symb,jl,ellist(jl)
       gx%bmperr=4046
       goto 1000
 200    continue
@@ -326,9 +324,11 @@
    character ch1*1
    double precision formalunits
    integer kconlok(maxconst),kalpha(maxconst),iord(maxconst),klok(maxconst)
-   integer iva(maxconst)
+   integer iva(maxconst),anion(maxconst)
    logical externalchargebalance
-   integer iph,kkk,lokph,ll,nk,jl,jk,mm,lokcs,nkk,nyfas,loksp
+   integer iph,kkk,lokph,ll,nk,jl,jk,mm,lokcs,nkk,nyfas,loksp,ionva,byte
+   integer afteranions
+!   write(*,*)'enter new_phase: ',model(1:len_trim(model))
    if(.not.allowenter(2)) then
       gx%bmperr=4125
       goto 1000
@@ -338,8 +338,7 @@
 !   if(.not.ucletter(name)) then
    if(.not.proper_symbol_name(name,0)) then
       write(*,*)'Error for phase name: ',name(1:min(24,len(name)))
-!      gx%bmperr=4053
-      goto 1000
+      gx%bmperr=4053; goto 1000
    endif
 ! name unique?
    call find_phase_by_name_exact(name,iph,kkk)
@@ -355,11 +354,6 @@
    else
       gx%bmperr=0
    endif
-   if(model(1:9).eq.'IONIC_LIQ') then
-! >>> some different tests for ionic liquid ... not implemented
-      gx%bmperr=4055
-      goto 1000
-   endif
    if(nsl.lt.1 .or. nsl.gt.maxsubl) then
       gx%bmperr=4056
       goto 1000
@@ -374,13 +368,11 @@
    nk=0
    knrtest: do ll=1,nsl
       if(knr(ll).lt.1 .or. knr(ll).gt.maxconst) then
-         write(*,*)'new phase :',ll,knr(ll),maxconst
-         gx%bmperr=4058
-         goto 1000
+         write(*,*)'new phase error:',ll,knr(ll),maxconst
+         gx%bmperr=4058; goto 1000
       endif
       if(ll.ge.2 .and. knr(ll).gt.maxcons2) then
-         gx%bmperr=4059
-         goto 1000
+         gx%bmperr=4059; goto 1000
       endif
       nk=nk+knr(ll)
    enddo knrtest
@@ -389,17 +381,25 @@
 ! check constituents exists as species
    externalchargebalance=.false.
    constest: do jl=1,nkk
+      if(jl.eq.1 .and. model(1:13).eq.'IONIC_LIQUID ') then
+! in this case * is allowed on first sublattice!!
+         if(const(1)(1:2).eq.'* ') then
+            kalpha(jl)=-99
+            kconlok(jl)=-99
+            cycle constest
+         endif
+      endif
       call capson(const(jl))
-!       write(6,297)' new_phase constituent: ',jl,const(jl),nkk
+!      write(6,297)' new_phase constituent: ',jl,const(jl),nkk
       findspecies: do jk=1,noofsp
          if(const(jl).eq.splista(jk)%symbol) then
-!             write(*,*)'at new 300: ',noofsp,jk,const(jl)
+!            write(*,*)'at new 300: ',noofsp,jk,const(jl)
             goto 300
          endif
       enddo findspecies
-!       write(6,297)' new_phase constituent error: ',jl,const(jl),jk,nkk
+!      write(6,297)' new_phase constituent error: ',jl,const(jl),jk,nkk
 297 format(a,i3,'>',A,'<',2i3)
-      write(*,*)'in enter new phase: ',const(jl)
+!      write(*,*)'in enter new phase: ',const(jl)
       gx%bmperr=4051
       goto 1000
 ! found species, check for duplicates (not done yet) ?????
@@ -413,37 +413,6 @@
          externalchargebalance=.true.
       endif
    enddo constest
-! sort the constituents in each sublattice according to alphaspindex
-!  write(6,70)5,(kalpha(i),i=1,nkk)
-!  write(6,70)5,(kconlok(i),i=1,nkk)
-70  format('new_phase ',I2,': ',20I3)
-   nk=1
-   sort1: do ll=1,nsl
-      call sortin(kalpha(nk),knr(ll),iord(nk))
-      if(buperr.ne.0) then
-         gx%bmperr=buperr
-         goto 1000
-      endif
-! iord(nk+1:nk+knr(ll)) has numbers 1..knr(ll), add on nk-1 to these
-! to be in parity with index of kalpha(nk+1:nk+knr(ll))
-      adjust: do mm=0,knr(ll)-1
-         iord(nk+mm)=iord(nk+mm)+nk-1
-      enddo adjust
-      nk=nk+knr(ll)
-   enddo sort1
-!  write(6,70)6,(kalpha(i),i=1,nkk)
-!  write(6,70)6,(kconlok(iord(i)),i=1,nkk)
-! in constituent record store kconlok(iord(i))
-! verify we can find species name ...
-!  test7: do kk=1,nkk
-!    write(6,71)kk,iord(kk),kconlok(iord(kk)),splista(kconlok(iord(kk)))%symbol
-!71 format('new_phase 7: ',3I3,1x,A)
-!  enddo test7
-   do jl=1,nkk
-      klok(jl)=kconlok(iord(jl))
-   enddo
-!  write(6,79)8,name,(klok(kk),kk=1,nkk)
-79  format('new_phase ',I2,': ',A6,10I3)
 ! reserve a new phase record and store data there and in other records
 ! the first phase entered is the reference phase created by init_gtp
    if(noofph.eq.0 .and. phtype(1:1).eq.'Z') then
@@ -457,6 +426,55 @@
    endif
    phlista(nyfas)%name=name
    phlista(nyfas)%status1=0
+   ionliq: if(model(1:13).eq.'IONIC_LIQUID ') then
+! the external charge balance set above, not needed
+!      write(*,*)' *** ionic liquid entered!!!'
+      externalchargebalance=.FALSE.
+! ionic liquid may have phtype='Y', change that to L
+      if(phtype(1:1).eq.'Y') phtype(1:1)='L'
+      if(nsl.ne.2) then
+! if entered with only on sublattice then no cations and only neutrals!!
+         write(*,*)'Ionic liquid must have 2 sublattices'
+         gx%bmperr=7777; goto 1000
+      endif
+      phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHIONLIQ)
+! constituents in ionic liquid must be sorted in a special way
+      call sort_ionliqconst(lokph,0,knr,kconlok,klok)
+      if(gx%bmperr.ne.0) goto 1000
+   else ! else link is for all other phases except ionic liquid
+! sort the constituents in each sublattice according to alphaspindex
+!  write(6,70)5,(kalpha(i),i=1,nkk)
+!  write(6,70)5,(kconlok(i),i=1,nkk)
+!70    format('new_phase ',I2,': ',20I3)
+      nk=1
+      sort1: do ll=1,nsl
+         call sortin(kalpha(nk),knr(ll),iord(nk))
+         if(buperr.ne.0) then
+            gx%bmperr=buperr
+            goto 1000
+         endif
+! iord(nk+1:nk+knr(ll)) has numbers 1..knr(ll), add on nk-1 to these
+! to be in parity with index of kalpha(nk+1:nk+knr(ll))
+         adjust: do mm=0,knr(ll)-1
+            iord(nk+mm)=iord(nk+mm)+nk-1
+         enddo adjust
+         nk=nk+knr(ll)
+      enddo sort1
+!  write(6,70)6,(kalpha(i),i=1,nkk)
+!  write(6,70)6,(kconlok(iord(i)),i=1,nkk)
+! in constituent record store kconlok(iord(i))
+! verify we can find species name ...
+!  test7: do kk=1,nkk
+!    write(6,71)kk,iord(kk),kconlok(iord(kk)),splista(kconlok(iord(kk)))%symbol
+!71 format('new_phase 7: ',3I3,1x,A)
+!  enddo test7
+      do jl=1,nkk
+         klok(jl)=kconlok(iord(jl))
+      enddo
+   endif ionliq
+!----------------------------------------
+!  write(6,79)8,name,(klok(kk),kk=1,nkk)
+79    format('new_phase ',I2,': ',A6,10I3)
    ch1=phtype(1:1)
    call capson(ch1)
 ! sort the phase in alphabetical but order but first gas, then liquid etc
@@ -478,11 +496,12 @@
    endif
    phlista(nyfas)%noofsubl=nsl
    allocate(phlista(nyfas)%nooffr(nsl))
-   allocate(phlista(nyfas)%sites(nsl))
+! sites stored in phase_varres
+!   allocate(phlista(nyfas)%sites(nsl))
    formalunits=zero
    do ll=1,nsl
       phlista(nyfas)%nooffr(ll)=knr(ll)
-      phlista(nyfas)%sites(ll)=sites(ll)
+!      phlista(nyfas)%sites(ll)=sites(ll)
       formalunits=formalunits+sites(ll)
    enddo
 !  write(*,*)'new_phase 8x: ',nyfas,nkk
@@ -494,7 +513,10 @@
    valoop: do jl=1,nkk
       iva(jl)=0
       loksp=phlista(nyfas)%constitlist(jl)
-      if(btest(splista(loksp)%status,SPVA)) iva(jl)=ibset(iva(jl),CONVA)
+      if(loksp.gt.0) then
+! ionic liquid can have a wildcard */-99 as constituent in first sublattice
+         if(btest(splista(loksp)%status,SPVA)) iva(jl)=ibset(iva(jl),CONVA)
+      endif
    enddo valoop
 !    write(*,32)'new_ph 14A: ',nyfas,(phlista(nyfas)%constitlist(iz),iz=1,nkk)
 32  format(a,i3,50(i3))
@@ -502,7 +524,7 @@
 !33 format('new_phase 14B: ',i3,2x,10i3)
 !   nprop=10
 !   write(*,*)'new_phase: ',lokcs,name
-   call create_parrecords(lokcs,nsl,nkk,maxcalcprop,iva,firsteq)
+   call create_parrecords(nyfas,lokcs,nsl,nkk,maxcalcprop,iva,firsteq)
 !   write(*,*)'new_phase 15: ',nyfas,lokcs
    if(gx%bmperr.ne.0) goto 1000
 ! zero array of pointer to phase_varres record, then set first
@@ -514,9 +536,11 @@
    firsteq%phase_varres(lokcs)%suffix=' '
    firsteq%phase_varres(lokcs)%abnorm(1)=formalunits
    firsteq%phase_varres%ncc=nkk
-! sites must be copied to phase_varres
+! zero the phstate
+   firsteq%phase_varres(lokcs)%phstate=0
+! sites must be stored in phase_varres
    do ll=1,nsl
-      firsteq%phase_varres(lokcs)%sites(ll)=phlista(nyfas)%sites(ll)
+      firsteq%phase_varres(lokcs)%sites(ll)=sites(ll)
    enddo
 ! make sure status word and some other links are set to zero
    firsteq%phase_varres(lokcs)%status2=0
@@ -529,7 +553,6 @@
    if(nsl.eq.1) then
 ! if no sublattices set ideal bit.  Will be cleared if excess parameter entered
       phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHID)
-!      write(*,*)'Setting ideal bit'
    endif
    if(nkk.eq.nsl) then
 ! as many constiuents as sublattice
@@ -539,22 +562,220 @@
    nullify(phlista(nyfas)%additions)
    nullify(phlista(nyfas)%ordered)
    nullify(phlista(nyfas)%disordered)
-! initiate phcs, the phase composition set counter for nyfas 
-! (not for reference phase 0)
-   if(nyfas.gt.0) phcs(nyfas)=1
+! initiate phcs, the phase composition set counter for nyfas redundant ??
+! (not for reference phase 0) 
+!   if(nyfas.gt.0) phcs(nyfas)=1
    if(noofph.gt.0) then
 ! clear the nophase bit
       globaldata%status=ibclr(globaldata%status,GSNOPHASE)
    endif
 1000 continue
-!   write(*,*)'end new_phase'
+!   write(*,*)'end new_phase' disfra
    return
  END subroutine new_phase
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine add_composition_set(iph,prefix,suffix,icsno,ceq)
+ subroutine sort_ionliqconst(lokph,mode,knr,kconlok,klok)
+! sorts constituents in ionic liquid, both when entering phase
+! and decoding parameter constituents
+! order: 1st sublattice only cations
+! 2nd: anions, VA, neutrals
+! mode=0 at enter phase, wildcard ok in 1st sublattice if neiher anions nor Va
+! mode=1 at enter parameter (wildcard allowed, i.e. some kconlok(i)=-1)
+! some  parameters not allowed, L(ion,A+:B,C), must be L(ion,*:B,C), check!
+   implicit none
+   integer lokph,knr(*),kconlok(*),klok(*),mode
+!\end{verbatim}
+   integer nk,jl,jk,mm,kkk,ionva,byte
+   integer, dimension(:), allocatable :: kalpha,iord,iva,anion
+!
+   allocate(kalpha(knr(1)+knr(2)))
+   allocate(iord(knr(1)+knr(2)))
+   allocate(iva(knr(1)+knr(2)))
+   allocate(anion(knr(1)+knr(2)))
+! check1: constituents in sublattice 1 must all have positive charge
+!   if(mode.eq.1) then
+!      write(*,17)'sl2: ',knr(1),knr(2),(kconlok(mm),mm=1,knr(1)+knr(2))
+!17    format(a,2i3,2x,10i3)
+!   endif
+   do nk=1,knr(1)
+      if(kconlok(nk).lt.0) then
+! wildcard give index -99. If mode=0 more checks later
+         kalpha(nk)=-99
+      elseif(splista(kconlok(nk))%charge.le.zero) then
+         write(*,*)'In ionic_liquid only cations on first sublattice'
+         gx%bmperr=7777; goto 1000
+      else
+         kalpha(nk)=splista(kconlok(nk))%alphaindex
+      endif
+   enddo
+!   write(*,69)'In 1: ',knr(1),(kconlok(mm),mm=1,knr(1))
+   if(knr(1).gt.1) then
+      call sortin(kalpha,knr(1),iord)
+      if(buperr.ne.0) then
+         gx%bmperr=buperr
+         goto 1000
+      endif
+      if(mode.eq.0 .and. kalpha(1).lt.0) then
+! when entering phase a single wildcard allowed in first sublattice
+         write(*,*)'Illegal parameter with wildcard mixed with cations'
+         gx%bmperr=7777; goto 1000
+      endif
+      do jl=1,knr(1)
+         klok(jl)=kconlok(iord(jl))
+      enddo
+   else
+      klok(1)=kconlok(1)
+   endif
+!   write(*,69)'1st:  ',knr(1),(kalpha(mm),mm=1,knr(1))
+! check2: constituents in sublattice 1 must be ANIONS, VA and NEUTRALS
+! in that order
+   kkk=knr(1)
+   jl=0
+   jk=0
+   ionva=0
+   do nk=1,knr(2)
+      if(mode.eq.0 .and. kconlok(nk+kkk).lt.0) then
+! when entering phase no wildcards allowed in second sublattice
+         write(*,*)'You cannot enter phase with wildcard on 2nd sublattice'
+         gx%bmperr=7777; goto 1000
+      elseif(kconlok(nk+kkk).lt.0) then
+! wildcard, treat as anion ?? DO NOT ALLOW, what stoichiometry??
+         write(*,*)'Ionic_liq parameter with wildcard on 2nd sublat. illegal'
+         gx%bmperr=7777; goto 1000
+!         jk=jk+1
+!         anion(jk)=nk
+      elseif(splista(kconlok(nk+kkk))%charge.gt.zero) then
+         write(*,*)'No cations allowed on second sublattice'
+         gx%bmperr=7777; goto 1000
+      elseif(btest(splista(kconlok(nk+kkk))%status,SPVA)) then
+! this is the hypothetical vacancy
+         ionva=nk
+      elseif(splista(kconlok(nk+kkk))%charge.eq.zero) then
+! neutral species allowed, use iva, must be sorted after all anions and Va
+         jl=jl+1
+         iva(jl)=nk
+      else
+! anion
+         jk=jk+1
+         anion(jk)=nk
+      endif
+   enddo
+!   write(*,88)'at 1:  ',knr(2),(kconlok(knr(1)+mm),mm=1,knr(2))
+88 format(a,i4,2x,20i3)
+! There are jl neutrals and jk anions, if vacancies set it as jk+1
+! if wildcard on first sublattice neither ainons nor Va allowed on 2nd
+   if(klok(1).lt.0 .and. (jk.gt.0 .or. ionva.ne.0)) then
+      write(*,*)'Only neutrals on second sublattice if wildcard on first'
+      gx%bmperr=7777; goto 1000
+   endif
+   do nk=1,jk
+      if(anion(nk).gt.nk) then
+! shift the anion to position nk, kconlok must be updated
+         if(ionva.eq.nk) then
+            byte=kconlok(kkk+nk)
+            kconlok(kkk+nk)=kconlok(kkk+anion(nk))
+            ionva=anion(nk)
+            kconlok(kkk+ionva)=byte
+!            write(*,88)'byt 1: ',knr(2),(kconlok(knr(1)+mm),mm=1,knr(2))
+         else
+            do mm=1,jl
+               if(iva(mm).eq.nk) exit
+            enddo
+            if(mm.gt.jl) stop 'big bug'
+            byte=kconlok(kkk+nk)
+            kconlok(kkk+nk)=kconlok(kkk+anion(nk))
+            iva(mm)=anion(nk)
+            kconlok(kkk+iva(mm))=byte
+!            write(*,88)'byt 2: ',knr(2),(kconlok(knr(1)+mm),mm=1,knr(2))
+         endif
+         anion(nk)=nk
+      endif
+   enddo
+!   write(*,88)'at 2:  ',knr(2),(kconlok(knr(1)+mm),mm=1,knr(2))
+! now all ions should be in positions 1..jk.  Fix position of vacancy
+! by moving neiutrals
+   if(ionva.gt.jk+1) then
+      byte=kconlok(kkk+jk+1)
+      kconlok(kkk+jk+1)=kconlok(kkk+ionva)
+      kconlok(kkk+ionva)=byte
+      iva(ionva)=ionva
+      ionva=jk+1
+   endif
+!   write(*,88)'at 3:  ',knr(2),(kconlok(knr(1)+mm),mm=1,knr(2))
+!   write(*,69)'2nda: ',jk,&
+!        (splista(kconlok(kkk+anion(mm)))%alphaindex,mm=1,jk)
+!   if(ionva.gt.0) &
+!        write(*,69)'2ndv: ',1,splista(kconlok(kkk+ionva))%alphaindex
+!   write(*,69)'2ndn: ',jl,&
+!        (splista(kconlok(kkk+iva(mm)))%alphaindex,mm=1,jl)
+69 format(a,i3,2x,10i3,i5,10i3)
+   do mm=1,knr(2)
+      if(kconlok(kkk+mm).lt.0) then
+         kalpha(mm+kkk)=-99
+      else
+         kalpha(mm+kkk)=splista(kconlok(kkk+mm))%alphaindex
+      endif
+   enddo
+   kkk=knr(1)+1
+!   write(*,69)'2ndx: ',knr(2),(kalpha(mm+kkk-1),mm=1,knr(2))
+   if(jk.gt.1) then
+!      write(*,69)'kalpha: ',jk,(kalpha(kkk+mm-1),mm=1,jk)
+      call sortin(kalpha(kkk),jk,iord)
+      if(buperr.ne.0) then
+         gx%bmperr=buperr; goto 1000
+      endif
+!      write(*,69)'sort jk: ',jk,(iord(kkk+mm-1),mm=1,jk)
+      do mm=1,jk
+         klok(kkk+mm-1)=kconlok(kkk+iord(mm)-1)
+      enddo
+   elseif(jk.gt.0) then
+      klok(kkk)=kconlok(kkk)
+   endif
+   kkk=kkk+jk
+   if(ionva.gt.0) then
+      klok(kkk)=kconlok(kkk)
+      kkk=kkk+1
+   endif
+   if(jl.gt.1) then
+      call sortin(kalpha(kkk),jl,iord)
+      if(buperr.ne.0) then
+         gx%bmperr=buperr; goto 1000
+      endif
+      do mm=1,jl
+         klok(kkk+mm-1)=kconlok(kkk+iord(mm)-1)
+      enddo
+   elseif(jl.gt.0) then
+      klok(kkk)=kconlok(kkk)
+   endif
+   if(mode.eq.1) then
+! final check for parameters:
+! if only neutrals on sublatice 2 no interaction allowed on sublattice 1
+      if(jk.eq.0 .and. ionva.eq.0) then
+         if(knr(1).gt.1) then
+            write(*,*)'Illegal interaction parameter'
+            gx%bmperr=7777; goto 1000
+         else
+! replace whatever constituent specified in sublattice 1 by wildcard
+            klok(1)=-99
+         endif
+      endif
+   endif
+!   write(*,69)'al1: ',knr(1)+knr(2),&
+!        (klok(mm),mm=1,knr(1)+knr(2))
+!   write(*,69)'al2: ',knr(1)+knr(2),&
+!        (splista(klok(mm))%alphaindex,mm=1,knr(1)+knr(2))
+!----------------------------------------------------------
+1000 continue
+   return
+ end subroutine sort_ionliqconst
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine add_composition_set(iph,prefix,suffix,icsno)
 ! adds a composition set to a phase.
 ! iph: integer, phase index
 ! prefix: character*4, optional prefix to original phase name
@@ -568,10 +789,12 @@
    implicit none
    integer iph,icsno
    character*(*) prefix,suffix
-   TYPE(gtp_equilibrium_data), pointer :: ceq
+!   TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
+! also update phasetuple array !!
+   TYPE(gtp_equilibrium_data), pointer :: ceq
    integer lokph,ncs,nsl,nkk,lokcs,lokcs1,nprop,lastcs,jl,nyttcs
-   integer leq,nydis,ll
+   integer leq,nydis,ll,tuple,nz
    character*4 pfix,sfix
    integer iva(maxconst)
    TYPE(gtp_phase_varres), pointer :: peq,neq,pdeq,ndeq
@@ -585,6 +808,7 @@
 ! max 9 composition sets
       gx%bmperr=4092; goto 1000
    endif
+   ceq=>firsteq
    icsno=ncs+1
 ! collect some data needed
    nsl=phlista(lokph)%noofsubl
@@ -603,34 +827,87 @@
       write(*,*)'Prefix of composition set must start with a letter'
       gx%bmperr=4167; goto 1000
    endif
+   if(biglet(suffix(1:1)).ne.' ' .and. &
+        (biglet(suffix(1:1)).lt.'A' .or. biglet(suffix(1:1)).gt.'Z')) then
+      write(*,*)'Suffix of composition set must start with a letter'
+      gx%bmperr=4167; goto 1000
+   endif
 !------------------------------------------------------------------
 ! begin threadprotected code >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 ! composition sets must be created in all equilibria
 ! note that indices to phase_varres same in all equilibria
-!   write(*,*)'add_cs: trying to create parrecords: ',nyttcs
 ! >>> beware not tested created composition sets with several equilibria 
-!   call create_parrecords(nyttcs,nsl,nkk,nprop,iva,ceq)
-   call create_parrecords(nyttcs,nsl,nkk,maxcalcprop,iva,ceq)
+! maybe this call can be replaced by a simple assignment????
+!   call create_parrecords(lokph,nyttcs,nsl,nkk,maxcalcprop,iva,ceq)
+!   call create_parrecords(lokph,nyttcs,nsl,nkk,maxcalcprop,iva,firsteq)
+   call create_parrecords(lokph,nyttcs,nsl,nkk,maxcalcprop,iva,firsteq)
    if(gx%bmperr.ne.0) goto 1000
 !   write(*,*)'add_cs: ',nyttcs
+! add new tuple at the end
+   tuple=nooftuples+1
+   phasetuple(tuple)%phase=iph
+   phasetuple(tuple)%compset=icsno
+   nooftuples=tuple
+!   peq=>eqlista(1)%phase_varres(lastcs)
+   peq=>firsteq%phase_varres(lastcs)
+!   write(*,*)'25G add compset: ',iph,icsno,noeq()
    alleq: do leq=1,noeq()
-! lastcs is the previously last composition set, nyttcs is the new
-      peq=>eqlista(leq)%phase_varres(lastcs)
+! LOOP for all equilibria records to add this composition set to phase lokph
+! lastcs is the previously last composition set, nyttcs is the new,
+! same in all equilibria!!
       neq=>eqlista(leq)%phase_varres(nyttcs)
+!      write(*,19)leq,eqlista(leq)%eqno
+19    format('Equilibra: ',10i4)
       phlista(lokph)%linktocs(icsno)=nyttcs
       neq%phlink=lokph
-! prefix and suffix
+! prefix and suffix, only letters and digits allowed but not checked ...
       pfix=prefix; sfix=suffix; call capson(pfix); call capson(sfix)
       neq%prefix=pfix
       neq%suffix=sfix
-! increment composition set counter
-      phlista(lokph)%noofcs=phlista(lokph)%noofcs+1
-! increment phcs for this phase
-      phcs(iph)=phcs(iph)+1
-! sites must be copied from phlista to phase_varres
-      do ll=1,nsl
-         neq%sites(ll)=phlista(lokph)%sites(ll)
-      enddo
+! initiate the phstate as entered (value 0)
+      neq%phstate=PHENTERED
+! increment composition set counter when leq=1, phlista same in all equilibria
+      if(leq.eq.1) then
+         phlista(lokph)%noofcs=phlista(lokph)%noofcs+1
+      endif
+!      write(*,311)'25G sites: ',leq,iph,icsno,neq%sites
+! sites, abnorm and amount formula units 
+      if(.not.allocated(neq%sites)) allocate(neq%sites(nsl))
+      neq%sites=peq%sites
+      neq%abnorm=peq%abnorm
+      neq%amfu=zero
+!      write(*,311)'25G amfu: ',leq,iph,icsno,neq%amfu,neq%abnorm,peq%abnorm
+311   format(a,3i3,6(1pe12.4))
+! NOTE: these allocations below because create_parrecords does not work ...
+! fractions and related
+      nz=size(peq%yfr)
+      if(.not.allocated(neq%yfr)) then
+         allocate(neq%yfr(nz))
+         neq%yfr=peq%yfr
+      endif
+      if(.not.allocated(neq%mmyfr)) then
+         allocate(neq%mmyfr(nz))
+         neq%mmyfr=peq%mmyfr
+      endif
+      if(.not.allocated(neq%constat)) then
+! important!! constat has identification of the vacancy constituent !!
+         allocate(neq%constat(nz))
+         neq%constat=peq%constat
+      endif
+      neq%status2=peq%status2
+      if(.not.allocated(neq%gval)) then
+! result arrays should have been allocated in create_parrecords ...
+! but I do not call create_parrecords !!
+!         write(*,83)'25G gval: ',leq,lokph,nyttcs,nprop,nz
+83       format(a,10i4)
+         allocate(neq%gval(6,nprop))
+         allocate(neq%dgval(3,nz,nprop))
+         allocate(neq%d2gval(nz*(nz+1)/2,nprop))
+         allocate(neq%listprop(nprop))
+      endif
+!--------------------
+!      write(*,88)'25G cs: ',nz,neq%status2,neq%constat
+88    format(a,i2,2x,Z16,2x,10(1x,i3))
 ! if there is a disordered fraction set one must copy the fraction set record
 ! and add a new parrecords to this. lokcs1 is first composition set
       disordered: if(btest(phlista(lokph)%status1,phmfs)) then
@@ -648,28 +925,26 @@
             iva(jl)=ceq%phase_varres(lokcs1)%constat(jl)
          enddo
          if(leq.eq.1) then
-! allocate a parrecord for first equilibrium. Then use the same index, nydis,
-! for all other equilibria.
-!            call create_parrecords(nydis,nsl,nkk,nprop,iva,firsteq)
-            call create_parrecords(nydis,nsl,nkk,maxcalcprop,iva,firsteq)
+! allocate a parrecord for disordered fraction set for first equilibrium.
+! Then use the same index: nydis, for all other equilibria.
+! Maybe this can be made by a simple assignement????
+            call create_parrecords(lokph,nydis,nsl,nkk,maxcalcprop,iva,firsteq)
             if(gx%bmperr.ne.0) goto 1000
          else
-            write(*,*)'Using the same: ',lokcs1,nydis
+            write(*,*)'Using the same: ',leq,lokcs1,nydis
          endif
          ndeq=>eqlista(leq)%phase_varres(nydis)
          ndeq%phlink=lokph
          ndeq%prefix=' '
          ndeq%suffix=' '
-! sites must be copied to phase_varres
-         ndeq%sites=peq%disfra%dsites
-! status bit must be set
+! sites must be copied to disordered phase_varres
+!         write(*,*)'25G dsites: ',size(neq%disfra%dsites),size(neq%sites)
+         ndeq%disfra%dsites=peq%disfra%dsites
+! some status bits must be set
          ndeq%status2=ibset(ndeq%status2,CSDFS)
+         neq%status2=ibset(neq%status2,CSDLNK)
 ! set the link from ordered disfra record to the disordered phase_varres record
          neq%disfra%varreslink=nydis
-! finally copy the fraction set from lokcs1 and link to nyttcs
-          neq%disfra%varreslink=nydis
-! set the status bit for disordered fraction record
-         neq%status2=ibset(neq%status2,CSDLNK)
       endif disordered
    enddo alleq
 ! end threadprotected code <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -690,7 +965,7 @@
 ! the last composition set is deleted
 !
 ! >>>>>>>>>>>>>>>>>>>>>>>>>>>> NOTE <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< !
-! Safe to remove composition sets only when there is just one equilibrium  !
+! Not safe to remove composition sets when more than one equilibrium       !
 ! >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>><<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< !
 !
 ! If force is TRUE delete anyway ... very dangerous ...
@@ -699,7 +974,7 @@
 !
 ! BEWARE must be for all equilibria but maybe not allowed when threaded
 !
-   integer iph
+   integer iph,jl,tuple
    logical force
 !\end{verbatim}
    TYPE(gtp_phase_varres), pointer :: varres,disvarres
@@ -711,9 +986,11 @@
    endif
    lokph=phases(iph)
    ncs=phlista(lokph)%noofcs
-   if(ics.le.0 .or. ics.gt.ncs) then
+   if(ics.eq.1) then
 ! cannot remove composition set 1 or a nonexisting one
       gx%bmperr=4093; goto 1000
+   else
+      ics=ncs
    endif
    if(noeq().gt.1) then
       if(force) then
@@ -723,36 +1000,39 @@
          gx%bmperr=7777; goto 1000
       endif
    endif
+! find this tuple
+   do jl=1,nooftuples
+      if(phasetuple(jl)%phase.eq.iph) tuple=jl
+   enddo
 ! collect some data
    nsl=phlista(lokph)%noofsubl
    nkk=phlista(lokph)%tnooffr
    lokcs=phlista(lokph)%linktocs(ics)
    lastcs=lokcs
    nprop=firsteq%phase_varres(lokcs)%nprop
+   write(*,*)'25G Deleting: ',lastcs
 !-------------------------------------
-! delete compset ics, shift higher down
-!-------------------------------------
-! deallocate data in lokcs and return records to free list
 ! begin threadprotected code to remove lastcs >>>>>>>>>>>>>>>>>>>
+! delete compset ics, shift higher down (not necessary)
+! deallocate data in lokcs and return records to free list
+!-------------------------------------
 ! note that the index to phase_varres is the same in all equilibria!!!!
    alleq: do leq=1,noeq()
       varres=>eqlista(leq)%phase_varres(lastcs)
+      deallocate(varres%constat)
       deallocate(varres%yfr)
       deallocate(varres%mmyfr)
       deallocate(varres%sites)
 ! these may not be allocated ...
 !      write(*,*)'delete varres dsitesdy: ',leq,lokcs,size(varres%dsitesdy)
-      if(size(varres%dsitesdy).gt.1) deallocate(varres%dsitesdy)
-      if(size(varres%d2sitesdy2).gt.1) deallocate(varres%d2sitesdy2)
+!      if(size(varres%dsitesdy).gt.1) deallocate(varres%dsitesdy)
+!      if(size(varres%d2sitesdy2).gt.1) deallocate(varres%d2sitesdy2)
       deallocate(varres%listprop)
       deallocate(varres%gval)
       deallocate(varres%dgval)
       deallocate(varres%d2gval)
-!      write(*,*)'Allocated anything in disfra? ',size(varres%disfra%dsites)
-!      disordered: if(allocated(varres%disfra%dsites)) then
 ! There is a disordered fraction record .... more to deallocate
-      disordered: if(size(varres%disfra%dxidyj).gt.1) then
-         write(*,*)'Deallocating arrays in disfra '
+      disordered: if(allocated(varres%disfra%y2x)) then
          deallocate(varres%disfra%dsites)
          deallocate(varres%disfra%nooffr)
          deallocate(varres%disfra%splink)
@@ -766,9 +1046,9 @@
          deallocate(varres%mmyfr)
          deallocate(disvarres%sites)
 ! these may not be allocated ...
-         write(*,*)'delete cs dsitesdy: ',leq,size(disvarres%dsitesdy)
-         if(size(disvarres%dsitesdy).gt.1) deallocate(disvarres%dsitesdy)
-         if(size(disvarres%d2sitesdy2).gt.1) deallocate(disvarres%d2sitesdy2)
+!         write(*,*)'delete cs dsitesdy: ',leq,size(disvarres%dsitesdy)
+!         if(size(disvarres%dsitesdy).gt.1) deallocate(disvarres%dsitesdy)
+!         if(size(disvarres%d2sitesdy2).gt.1) deallocate(disvarres%d2sitesdy2)
          deallocate(disvarres%listprop)
          deallocate(disvarres%gval)
          deallocate(disvarres%dgval)
@@ -808,8 +1088,14 @@
 ! and zero the last pointer to composition set.
    phlista(lokph)%linktocs(phlista(lokph)%noofcs+1)=0
 !   write(*,*)'Free list 1: ',csfree,lokcs
-! decrement phcs for this phase
-      phcs(iph)=phcs(iph)-1
+! update phasetuple array, overwrite tuple.  This means tuples may change phase
+! NOTE the first tuple for a phase+compset will never change position.  Only
+! those created later may be shifter ... but that may be complicated enough ...
+      do jl=tuple,nooftuples-1
+         phasetuple(jl)%phase=phasetuple(jl+1)%phase
+         phasetuple(jl)%compset=phasetuple(jl+1)%compset
+      enddo
+      nooftuples=nooftuples-1
 ! end threadprotected code <<<<<<<<<<<<<<<<<<<<<<<<
 !-------------------------
 1000 continue
@@ -836,6 +1122,7 @@
 ! if this is a phase with permutations all interactions should be in
 ! the first or the first two identical sublattices (except interstitals)
 ! a value in endm can be negative to indicate wildcard
+! for ionic liquid constituents must be sorted specially
    implicit none
    integer, dimension(*) :: endm
    character refx*(*)
@@ -844,8 +1131,8 @@
 !\end{verbatim}
    character ch1*1,notext*20
    integer iord(maxsubl),jord(2,maxsubl)
-   integer again,kkk,ll,kk1,mint,kk,lokint,iz,it,kint,ib,jl
-   integer lj,i1,i2,newint,ifri,lokcs,noperm
+   integer again,kkk,ll,kk1,mint,kk,lokint,iz,it,kint,ib,jl,zz
+   integer lj,i1,i2,newint,ifri,lokcs,noperm,ii,firstint
    integer, dimension(24) :: intperm
    integer, dimension(:,:), allocatable :: elinks
    integer, dimension(:,:), allocatable :: intlinks
@@ -854,9 +1141,10 @@
 !   type(gtp_interaction), allocatable, target :: newintrec
    type(gtp_property), pointer :: proprec,lastprop
    TYPE(gtp_fraction_set) :: disfra
+   logical ionliq
 !
    if(gx%bmperr.ne.0) then
-      write(*,*)'error ',gx%bmperr,' already set entering enter_parameter!'
+      write(*,*)'Error ',gx%bmperr,' already set entering enter_parameter!'
       gx%bmperr=0
    endif
    if(fractyp.eq.2) goto 50
@@ -871,8 +1159,8 @@
    sublloop: do ll=1,nsl
       emloop: do kk=1,phlista(lokph)%nooffr(ll)
          kk1=kkk+kk
-!       write(*,12)lokph,nsl,ll,endm(ll),kk1,phlista(lokph)%constitlist(kk1)
-12        format('enter_parameter 2A: '4I4,5x,2i5)
+!         write(*,12)lokph,nsl,ll,endm(ll),kk1,phlista(lokph)%constitlist(kk1)
+!12       format('enter_parameter 2A: '4I4,5x,2i5)
          if(endm(ll).eq.phlista(lokph)%constitlist(kk1)) then
             iord(ll)=kk1
             goto 17
@@ -888,7 +1176,7 @@
 17     continue
       kkk=kkk+phlista(lokph)%nooffr(ll)
    enddo sublloop
-!   write(*,*)'enter_parameter 2B: ',(iord(j),j=1,nsl)
+!   write(*,*)'enter_parameter 2B: ',(iord(ll),ll=1,nsl)
 !  if(nint.eq.2) write(*,*)'enter_parameter 2C: ************************ '
 ! end member constituents found, check interaction
 ! interactions are in sublattice order in lint
@@ -901,7 +1189,7 @@
          if(lint(1,mint).eq.ll) then
             intloop: do kk=1,phlista(lokph)%nooffr(ll)
                kkk=kkk+1
-!           write(*,15)mint,lint(2,mint),kkk,phlista(lokph)%constitlist(kkk)
+!              write(*,15)mint,lint(2,mint),kkk,phlista(lokph)%constitlist(kkk)
                if(lint(2,mint).eq.phlista(lokph)%constitlist(kkk)) then
 ! write(*,*)'enter_parameter jord: ',mint,ll,kkk
 !                  write(*,*)'Int no, subl, const: ',mint,ll,kkk
@@ -940,7 +1228,6 @@
 ! there are no disordered fraction sets for this phase
       gx%bmperr=4068; goto 1000
    endif
-!   lokcs=phlista(lokph)%cslink
    lokcs=phlista(lokph)%linktocs(1)
    disfra=firsteq%phase_varres(lokcs)%disfra
 ! number of sublattices in the disordered set
@@ -1003,8 +1290,8 @@
 ! try to keep end member records in some order of constituents ...
 90 continue
 !   if(fractyp.eq.2) then
-!      write(*,92)'25G: endmembers: ',(iord(i),i=1,nsl)
-!      write(*,92)'25G: interactions: ',(jord(2,i),i=1,nint)
+!   write(*,92)'25G: endmembers: ',(iord(ii),ii=1,nsl)
+!   write(*,92)'25G: interactions: ',(jord(2,ii),ii=1,nint)
 !   endif
    nullify(lastem)
 ! check that interactions are in sublattice and alphabetical order!!
@@ -1042,8 +1329,14 @@
 ! ll is the sublattice with interaction
       ll=jord(1,kint)
       placeib: if(jord(2,kint).eq.iord(ll)) then
-         write(*,*)'Illegal with interaction with same constituent'
-         gx%bmperr=7777; goto 1000
+!         write(*,*)'pmod25G: Illegal with interaction with same constituent'
+! subroutine enter_parameter(lokph,typty,fractyp,nsl,endm,nint,lint,ideg,&
+!      lfun,refx)
+         write(*,97)lokph,typty,fractyp,nsl,(endm(zz),zz=1,nsl),&
+              ideg,nint,(lint(1,zz),lint(2,zz),zz=1,nint)
+97       format('pmod25G: Illegal with interaction with same constituent:'/&
+              3i3,i4,2x,15(i5))
+        gx%bmperr=7777; goto 1000
       elseif(jord(2,kint).lt.iord(ll)) then
 ! constituent in iord higher than that in jord, exchange jord and iord.  
          ib=iord(ll)
@@ -1119,25 +1412,64 @@
    else
       endmemrec=>phlista(lokph)%disordered
    endif
-!   write(*,91)'enter_param 90: ',fractyp,nsl,(iord(i),i=1,nsl)
+!   write(*,91)'enter_param 90: ',fractyp,nsl,(iord(ii),ii=1,nsl)
 91 format(a,i2,i3,10i4)
+   ionliq=btest(phlista(lokph)%status1,PHIONLIQ)
    findem: do while(associated(endmemrec))
-      lika:do lj=1,nsl
+      if(.NOT.ionliq) then
+         lika:do lj=1,nsl
 ! iord(lj) can be negative for wildcard.  Wildcard endmedmemers at the end
-         i1=iord(lj)
-         i2=endmemrec%fraclinks(lj,1)
-         if((i1.gt.0 .and. i1.gt.i2) .or. &
-            (i1.lt.0 .and. i2.gt.0)) then
-! continue searching for the end member or place to create it
-            lastem=>endmemrec
-            endmemrec=>endmemrec%nextem
-            cycle findem
-         elseif(i1.gt.0 .and. i1.lt.i2) then
+            i1=iord(lj)
+            i2=endmemrec%fraclinks(lj,1)
+            if(i1.gt.0) then
+               if(i2.lt.0 .or. i1.lt.i2) then
 ! The new end member record should be inserted before this record
-            goto 100
-         endif
-      enddo lika
-! found end member record
+                  goto 100
+               elseif(i1.gt.i2) then
+! continue searching for the end member or place to create it
+                  lastem=>endmemrec
+                  endmemrec=>endmemrec%nextem
+                  cycle findem
+               endif
+! here i1<0
+            elseif(i2.gt.0) then
+! continue searching for the end member or place to create it
+               lastem=>endmemrec
+               endmemrec=>endmemrec%nextem
+               cycle findem
+            endif
+! It is the same "wildcard" value if both i1 and i2 are negative
+         enddo lika
+      else
+! for ionic liquids insert endmembers in order of second sublattice ...
+! This is important as we want to calculate all parameters with anions
+! before we come to vacancy and neutrals which should be multiplied with Q
+         illika:do lj=nsl,1,-1
+! iord(lj) can be negative for wildcard.  Wildcard endmedmemers at the end
+            i1=iord(lj)
+            i2=endmemrec%fraclinks(lj,1)
+            if(i1.gt.0) then
+               if(i2.lt.0 .or. i1.lt.i2) then
+! The new end member record should be inserted before this record
+                  goto 100
+               elseif(i1.gt.i2) then
+! continue searching for the end member or place to create it
+                  lastem=>endmemrec
+                  endmemrec=>endmemrec%nextem
+                  cycle findem
+               endif
+! here i1<0
+            elseif(i2.gt.0) then
+! continue searching for the end member or place to create it
+               lastem=>endmemrec
+               endmemrec=>endmemrec%nextem
+               cycle findem
+            endif
+! It is the same "wildcard" value if both i1 and i2 are negative
+         enddo illika
+      endif
+!-------------------------------------------------
+! found end member record with same constituents
       goto 200
    enddo findem
 !
@@ -1193,6 +1525,7 @@
       else
 !         write(*,*)'existing interaction: ',intrec%status
          newint=0
+         firstint=0
       endif
 300   continue
 !      write(*,303)' at 300A: ',lokph,newint,nint,mint,intrec%status
@@ -1223,10 +1556,14 @@
             endif
 ! we must store interactions in sublattice order and in order of constituent
 ! in jord(2,mint) otherwise we will never be able to find a permutation. 
-            if(intrec%sublattice(1).gt.jord(1,mint)) exit findint
+            if(intrec%sublattice(1).gt.jord(1,mint)) then
+!               write(*,*)'insering interaction before existing'
+               exit findint
+            endif
             lastint=>intrec
             intrec=>intrec%nextlink
             if(.not.associated(intrec)) exit findint
+            firstint=1
 ! more records on this interaction level ?
 ! this worked for permutations but gave other errors, see above
 !            newint=0
@@ -1236,8 +1573,9 @@
 ! we must create at least one interactionrecord, newint=0 if same level
 ! If intrec is associated the nextint link should be set to this
 310    continue
+!      write(*,*)'At 310',mint,nint
       if(mint.le.nint) then
-!         write(*,303)' Linking after interaction 310:',mint,nint,newint
+!         write(*,303)' Linking at 310:',mint,nint,newint,firstint
          call create_interaction(newintrec,mint,jord,intperm,intlinks)
          if(gx%bmperr.ne.0) goto 1000
          if(newint.eq.1) then
@@ -1246,11 +1584,15 @@
          elseif(associated(intrec)) then
 !            write(*,*)'Linking as previous'
             newintrec%nextlink=>intrec
+!            write(*,*)'Ho ho said the sixth'
             if(associated(lastint)) then
                lastint%nextlink=>newintrec
             else
+! this should be linked from the endmember or lower order interaction
+!               write(*,*)'No previous interaction on this level'
                endmemrec%intpointer=>newintrec
             endif
+!            write(*,*)'Ho ho said the sixth'
          else
 !            write(*,*)'Linking as next'
             lastint%nextlink=>newintrec
@@ -2928,13 +3270,15 @@
    endif
    if(refid(ip:ip).eq.' ') goto 10
    if(ip.gt.1) refid=refid(ip:)
+! make it upper case
+   call capson(refid)
 ! look if refid already exist
    do iref=1,reffree-1
-      if(refid.eq.reflista(iref)%reference) then
+      if(refid.eq.bibrefs(iref)%reference) then
          if(mode.eq.1) then
-!            write(*,70)i,refid,reflista(i)%refspec
+!            write(*,70)i,refid,bibrefs(i)%refspec
 !70          format('tdbrefs: ',i4,a,a)
-            deallocate(reflista(iref)%refspec)
+            deallocate(bibrefs(iref)%refspec)
             goto 200
          else
 ! reference already exist and no changes needed
@@ -2942,21 +3286,25 @@
          endif
       endif
    enddo
-! create new reference record
+! if bibliographic reference does not exist do not create
+   if(mode.eq.1) goto 1000
    iref=reffree
    reffree=reffree+1
-   reflista(iref)%reference=refid
+   bibrefs(iref)%reference=refid
 200 continue
    ml=len_trim(line)
    nr=(ml+63)/64
-   allocate(reflista(iref)%refspec(nr))
+   allocate(bibrefs(iref)%refspec(nr))
    mc=1
    nc=0
+!   write(*,202)'25G newref: ',iref,refid,nr,line(1:min(32,len_trim(line)))
+!202 format(a,i4,1x,a,i3,1x,a)
    do jl=1,nr
 ! 1-64       mc=1, nc=64
 ! 65-122
+      bibrefs(iref)%refspec(jl)=' '
       nc=nc+min(ml,64)
-      reflista(iref)%refspec(jl)=line(mc:nc)
+      bibrefs(iref)%refspec(jl)=line(mc:nc)
       mc=nc+1
       ml=ml-64
    enddo
@@ -2985,7 +3333,8 @@
    endif
    name2=name
    call capson(name2)
-!   write(*,*)'25G Entering equilibria: ',name
+   if(ocv()) write(*,*)'25G In routine to enter equilibria: ',&
+        name,noofph,eqfree
    if(.not.proper_symbol_name(name2,0)) then
 ! the name must start with a letter A-Z and contain letters, numbers and _
       gx%bmperr=4122
@@ -3005,25 +3354,37 @@
       eqfree=eqfree+1
    endif
    number=ieq
-!   write(*,*)'create eq',eqfree,maxeq,ieq
+   if(ocv()) write(*,*)'25G create eq',eqfree,maxeq,ieq
 ! allocate data arrayes in equilibrium record
    eqlista(ieq)%next=0
    eqlista(ieq)%eqname=name2
    eqlista(ieq)%eqno=ieq
 ! component list and matrix, if second or higher equilibrium copy content
+   if(ocv()) write(*,*)'25G: entereq 1: ',maxel,ieq,noofel
    if(ieq.eq.1) then
       allocate(eqlista(ieq)%complist(maxel))
       allocate(eqlista(ieq)%compstoi(maxel,maxel))
       allocate(eqlista(ieq)%invcompstoi(maxel,maxel))
+      allocate(eqlista(ieq)%cmuval(maxel))
+! this is a bit meaningless but skipping it has given raise to strange errors
+      eqlista(ieq)%compstoi=zero
+      eqlista(ieq)%invcompstoi=zero
+      do jl=1,maxel
+         eqlista(ieq)%compstoi(jl,jl)=one
+         eqlista(ieq)%invcompstoi(jl,jl)=one
+      enddo
    else
       allocate(eqlista(ieq)%complist(noofel))
       allocate(eqlista(ieq)%compstoi(noofel,noofel))
       allocate(eqlista(ieq)%invcompstoi(noofel,noofel))
+      allocate(eqlista(ieq)%cmuval(noofel))
+      eqlista(ieq)%cmuval=zero
+      if(ocv()) write(*,*)'25G: entereq 1B: '
       do jl=1,noofel
          eqlista(ieq)%complist(jl)%splink=firsteq%complist(jl)%splink
          eqlista(ieq)%complist(jl)%phlink=firsteq%complist(jl)%phlink
          eqlista(ieq)%complist(jl)%status=firsteq%complist(jl)%status
-         if(firsteq%complist(jl)%phlink.gt.0) then
+!         if(firsteq%complist(jl)%phlink.gt.0) then
 ! only if there is a defined reference state
             eqlista(ieq)%complist(jl)%refstate=firsteq%complist(jl)%refstate
             eqlista(ieq)%complist(jl)%tpref=firsteq%complist(jl)%tpref
@@ -3032,30 +3393,36 @@
                eqlista(ieq)%compstoi(jl,jk)=firsteq%compstoi(jl,jk)
                eqlista(ieq)%invcompstoi(jl,jk)=firsteq%invcompstoi(jl,jk)
             enddo
-            iz=size(firsteq%complist(jl)%endmember)
-            allocate(eqlista(ieq)%complist(jl)%endmember(iz))
-            eqlista(ieq)%complist(jl)%endmember=firsteq%complist(jl)%endmember
-!            do jk=1,iz
-!               eqlista(ieq)%complist(jl)%endmember(jk)=&
-!                    firsteq%complist(jl)%endmember(jk)
-!            enddo
-         endif
+            if(allocated(firsteq%complist(jl)%endmember)) then
+               iz=size(firsteq%complist(jl)%endmember)
+               if(ocv()) write(*,*)'25G: entereq 1E: ',iz
+               allocate(eqlista(ieq)%complist(jl)%endmember(iz))
+               eqlista(ieq)%complist(jl)%endmember=&
+                    firsteq%complist(jl)%endmember
+            endif
+!         endif
       enddo
    endif
 ! these records keep calculated values of G and derivatives for each phase
 ! For phase lokph the index to phase_varres is in phlista(lokph)%cslink
 ! For phase lokph the index to phase_varres is in phlista(lokph)%linktocs(ics)
+   if(ocv()) write(*,*)'25G: entereq 2: ',maxph
    if(ieq.eq.1) then
+! %multiuse is used for axis and direction of a start equilibrium
       allocate(eqlista(ieq)%phase_varres(2*maxph))
       firsteq=>eqlista(ieq)
+      firsteq%multiuse=0
       goto 900
    else
 ! for ieq>1 allocate the current number of phase_varres records plus 10
 ! for extra composition sets added later
+      eqlista(ieq)%multiuse=0
       novarres=csfree-1
       iz=noofph
-      allocate(eqlista(ieq)%phase_varres(iz+10))
-! now copy the content of firsteq%phase_varres to this .... that may be tough
+!      allocate(eqlista(ieq)%phase_varres(iz+10))
+      allocate(eqlista(ieq)%phase_varres(2*maxph))
+      if(ocv()) write(*,*)'25G varres: ',ieq,size(eqlista(ieq)%phase_varres)
+! now copy the current content of firsteq%phase_varres to this equilibrium
 ! note, the SELECT_ELEMENT_REFERENCE phase has phase number 0
 ! and phase_varres index 1, the number of phase_varres records is not the
 ! same as number of phases ....
@@ -3065,9 +3432,6 @@
          cpv=>eqlista(ieq)%phase_varres(ipv)
          cpv%nextfree=cp1%nextfree
          cpv%phlink=cp1%phlink
-!         write(*,*)'ceq 1B: ',iz,novarres,ieq,ipv
-!         write(*,*)'ceq 1B: ',cp1%next,cpv%next
-!         write(*,*)'ceq 1B: ',cp1%phlink,phlista(cp1%phlink)%name
          cpv%status2=cp1%status2
          cpv%abnorm=cp1%abnorm
          cpv%prefix=cp1%prefix
@@ -3075,25 +3439,29 @@
 ! allocate and copy arrays
          nc=size(cp1%yfr)
 ! note SIZE gives rubbish unless array is allocated
-!         write(*,*)'copy yfr 1: ',nc,size(cpv%yfr)
+         if(ocv()) write(*,*)'copy yfr 1: ',nc
          allocate(cpv%yfr(nc))
          cpv%yfr=cp1%yfr
-!         write(*,*)'copy yfr 2: ',nc,size(cpv%yfr)
-!
-         jz=size(cp1%constat)
-!         write(*,*)'copy constat: ',jz,size(cpv%constat)
-         allocate(cpv%constat(jz))
+! problems with phase_varres in equilibrium 2 ...
+!         write(*,46)'1: ',cp1%yfr
+!         write(*,46)'v: ',cpv%yfr
+46       format('yfr ',a,10(F7.3))
+         allocate(cpv%constat(nc))
          cpv%constat=cp1%constat
-!         write(*,*)'copy constat: ',jz,size(cpv%constat)
-         jz=size(cp1%mmyfr)
-         allocate(cpv%mmyfr(jz))
-!         write(*,*)'copy mmyfr: ',jz,size(cpv%mmyfr)
-         cpv%mmyfr=cp1%mmyfr
+         if(allocated(cp1%mmyfr)) then
+! problem with mmyfr???  .... no
+!            if(ocv()) write(*,*)'25G mmyfr 1: ',ipv,cpv%phlink,nc
+            allocate(cpv%mmyfr(nc))
+            cpv%mmyfr=cp1%mmyfr
+!            write(*,34)'25G mmyfr 2: ',(cpv%mmyfr(jz),jz=1,nc)
+34          format(1x,a,10(F7.3))
+!         else
+!            write(*,*)'25G mmyfr not allocated'
+         endif
          jz=size(cp1%sites)
          allocate(cpv%sites(jz))
-!         write(*,*)'copy sites: ',jz,size(cpv%sites)
          cpv%sites=cp1%sites
-! these are currently not allocated (ionic liquid model)
+! these are currently not allocated (ionic liquid model) Maybe not needed??
 !          jz=size(cp1%dsitesdy)
 !          allocate(cpv%dsitesdy(jz))
 !          cpv%dsitesdy=cp1%dsitesdy
@@ -3107,8 +3475,9 @@
          allocate(cpv%dgval(3,nc,cp1%nprop))
          allocate(cpv%d2gval(nc*(nc+1)/2,cp1%nprop))
          cpv%listprop=0
-!         cpv%amount=zero
          cpv%amfu=zero
+         cpv%dgm=zero
+         cpv%phstate=PHENTERED
          cpv%netcharge=zero
          cpv%gval=zero
          cpv%dgval=zero
@@ -3134,26 +3503,319 @@
    endif
 ! From here also for first equilibria
 900 continue
-! nullify condition links, otherwise "associated(..)" does not work
-!         write(*,*)'25G nullify',ieq
-   nullify(eqlista(ieq)%lastcondition,eqlista(ieq)%lastexperiment)
-!   write(*,*)'25G set T and P',ieq
+   if(ocv()) write(*,*)'25G: entereq 3: '
+! nullify condition links, otherwise "if(associated(..)" does not work
+   nullify(eqlista(ieq)%lastcondition)
+   nullify(eqlista(ieq)%lastexperiment)
+   if(ocv()) write(*,*)'25G set T and P',ieq
 ! also set default local values of T and P (not conditions)
    eqlista(ieq)%tpval(1)=1.0D3; eqlista(ieq)%tpval(2)=1.0D5
 ! allocate and copy tpfun result array also for first equilibria
-   jz=size(firsteq%eq_tpres)
+!   jz=size(firsteq%eq_tpres)
+   jz=maxtpf
+   if(ocv()) write(*,*)'25G: entereq 4: ',jz,maxsvfun
 !    write(*,*)'create equil tpres size ',jz,notpf()
    allocate(eqlista(ieq)%eq_tpres(jz))
 ! allocate result array for state variable functions (svfunres)
-!   write(*,*)'25G maxsvfun: ',ieq,maxsvfun,jz
+   if(ocv()) write(*,*)'25G maxsvfun: ',ieq,maxsvfun,jz
    allocate(eqlista(ieq)%svfunres(maxsvfun))
 ! convergence criteria
    eqlista(ieq)%xconv=firsteq%xconv
    eqlista(ieq)%maxiter=firsteq%maxiter
 1000 continue
-!    write(*,*)'create eq return',ieq
+   if(ocv()) write(*,*)'25G finished enter equilibrium',ieq
    return
  end subroutine enter_equilibrium
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
+ subroutine delete_equilibria(name,ceq)
+! deletes an equilibrium (needed when repeated step/map)
+! name can be an abbreviation line "_MAP*"
+! deallocates all data.  Minimal checks ... one cannot delete "ceq"
+   implicit none
+   character name*(*)
+   type(gtp_equilibrium_data), pointer ::neweq,ceq
+!\end{verbatim}
+   type(gtp_condition), pointer :: lastcond,pcond,qcond
+   integer cureq,ieq,ik,novarres,ipv
+   character eqname*24
+!
+   cureq=ceq%eqno
+   ik=index(name,'*')-1
+   if(ik.lt.0) ik=min(24,len(name))
+   do ieq=eqfree-1,1,-1
+! we cannot have "holes" in the free list??  Delete from the end...
+      if(ieq.eq.cureq) exit 
+      if(eqlista(ieq)%eqname(1:ik).ne.name(1:ik)) exit
+      if(ocv()) write(*,*)'Deleting: ',eqlista(ieq)%eqname,ieq
+      eqlista(ieq)%eqname=' '
+      deallocate(eqlista(ieq)%complist)
+      deallocate(eqlista(ieq)%compstoi)
+      deallocate(eqlista(ieq)%invcompstoi)
+      deallocate(eqlista(ieq)%cmuval)
+!
+      novarres=csfree-1
+!      write(*,*)'deallocationg phase_varres'
+      do ipv=1,novarres
+         deallocate(eqlista(ieq)%phase_varres(ipv)%yfr)
+         deallocate(eqlista(ieq)%phase_varres(ipv)%constat)
+         if(allocated(eqlista(ieq)%phase_varres(ipv)%mmyfr)) &
+              deallocate(eqlista(ieq)%phase_varres(ipv)%mmyfr)
+         deallocate(eqlista(ieq)%phase_varres(ipv)%sites)
+         deallocate(eqlista(ieq)%phase_varres(ipv)%listprop)
+         deallocate(eqlista(ieq)%phase_varres(ipv)%gval)
+         deallocate(eqlista(ieq)%phase_varres(ipv)%dgval)
+         deallocate(eqlista(ieq)%phase_varres(ipv)%d2gval)
+! do not deallocate explicitly disfra as it is another phase_varres record ...
+      enddo
+      deallocate(eqlista(ieq)%phase_varres)
+! condition list
+!      write(*,*)'deleting conditions'
+      lastcond=>eqlista(ieq)%lastcondition
+      if(associated(lastcond)) then
+         pcond=>lastcond%next
+         do while(.not.associated(pcond,lastcond))
+            qcond=>pcond
+            pcond=>pcond%next
+            deallocate(qcond)
+         enddo
+      endif
+!
+      deallocate(eqlista(ieq)%eq_tpres)
+      deallocate(eqlista(ieq)%svfunres)
+   enddo
+! we have deleted all equilibria until ieq+1
+   if(ocv()) write(*,900)ieq+1,eqfree-1
+900 format('Deleted equilibra from ',i3,' to ',i3)
+   eqfree=ieq+1
+1000 continue
+   return
+ end subroutine delete_equilibria
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
+ subroutine copy_equilibrium(neweq,name,ceq)
+! creates a new equilibrium which is a copy of ceq.  
+! Allocates arrayes for conditions,
+! components, phase data and results etc. from equilibrium ceq
+! returns a pointer to the new equilibrium record
+! THIS CAN PROBABLY BE SIMPLIFIED, especially phase_varres array can be
+! copied as a whole, not each record structure separately ... ???
+   implicit none
+   character name*(*)
+   integer number
+   type(gtp_equilibrium_data), pointer ::neweq,ceq
+!\end{verbatim}
+   TYPE(gtp_phase_varres), pointer :: cpv,cp1
+   type(gtp_condition), pointer :: oldcond,lastcond
+   type(gtp_condition), pointer :: newcond1,newcond2
+   type(gtp_condition), pointer :: condcopy
+   type(gtp_condition), pointer :: buglast,bugcond
+   type(gtp_fraction_set) :: fscopy,dummy
+   character name2*64
+   integer ieq,ipv,nc,jz,iz,jl,jk,novarres,oldeq,zz
+   logical okname
+!
+   nullify(neweq)
+   if(.not.allowenter(3)) then
+      gx%bmperr=4153; goto 1000
+   endif
+! not allowed to enter equilibria if there are no phases
+!   if(btest(globaldata%status,GSNOPHASE)) then
+!      write(*,*)'Meaningless to copy equilibria with no phase data'
+!      gx%bmperr=7777; goto 1000
+!   endif
+! equilibrium names starting with _ are automatically created by mapping
+! and in some other cases.
+   if(name(1:1).eq.'_') then
+      name2=name(2:)
+      jk=1
+   else
+      name2=name
+      jk=0
+   endif
+   call capson(name2)
+!   write(*,*)'25G Entering copy equilibria: ',name2,jk
+! program crashed with this construction
+!   if(.not.proper_symbol_name(name2,0)) then
+   okname=proper_symbol_name(name2,0)
+   if(.not.okname) then
+! the name must start with a letter A-Z and contain letters, numbers and _
+      gx%bmperr=4122
+      goto 1000
+   endif
+!   write(*,*)'25G name check ok: ',jk
+! remove initial "_" used for automatically created equilibria
+   if(jk.eq.1) then
+      name2='_'//name2
+   endif
+! check if name already used
+!   write(*,*)'25G check if name unique: ',name2
+   call findeq(name2,ieq)
+   if(gx%bmperr.eq.0) then
+      gx%bmperr=4123
+      goto 1000
+   else
+! reset error code
+      gx%bmperr=0
+   endif
+!   write(*,*)'25G check if name unique: ',eqfree
+   if(eqfree.le.maxeq) then
+      ieq=eqfree
+      eqfree=eqfree+1
+   else
+      write(*,*)'Too many equilibrium required, increase dimension',eqfree
+      gx%bmperr=9999; goto 1000
+   endif
+   number=ieq
+   if(ieq.eq.1) then
+      write(*,*)'Cannot copy to default equilibria'
+      gx%bmperr=7777; goto 1000
+   endif
+!   write(*,*)'copy eq',eqfree,maxeq,ieq
+! allocate data arrayes in equilibrium record
+   eqlista(ieq)%next=0
+   eqlista(ieq)%eqname=name2
+   eqlista(ieq)%eqno=ieq
+! component list and matrix, if second or higher equilibrium copy content
+!   write(*,*)'25G: entereq 1A: ',maxel,noofel
+   allocate(eqlista(ieq)%complist(noofel))
+   allocate(eqlista(ieq)%compstoi(noofel,noofel))
+   allocate(eqlista(ieq)%invcompstoi(noofel,noofel))
+   allocate(eqlista(ieq)%cmuval(noofel))
+!   write(*,*)'25G: entereq 1B: ',noofel
+! careful here because FIRSTEQ has other dimensions than the other
+   do jl=1,noofel
+      eqlista(ieq)%complist(jl)=ceq%complist(jl)
+      eqlista(ieq)%cmuval(jl)=ceq%cmuval(jl)
+      do jk=1,noofel
+         eqlista(ieq)%compstoi(jk,jl)=ceq%compstoi(jk,jl)
+         eqlista(ieq)%invcompstoi(jk,jl)=ceq%invcompstoi(jk,jl)
+      enddo
+   enddo
+   oldeq=ceq%eqno
+!   write(*,*)'25G: entereq 2: ',noofel
+   do jl=1,noofel
+      eqlista(ieq)%complist(jl)%splink=eqlista(oldeq)%complist(jl)%splink
+      eqlista(ieq)%complist(jl)%phlink=firsteq%complist(jl)%phlink
+      eqlista(ieq)%complist(jl)%status=firsteq%complist(jl)%status
+      if(firsteq%complist(jl)%phlink.gt.0) then
+! only if there is a defined reference state
+         eqlista(ieq)%complist(jl)%refstate=firsteq%complist(jl)%refstate
+         eqlista(ieq)%complist(jl)%tpref=firsteq%complist(jl)%tpref
+         eqlista(ieq)%complist(jl)%chempot=zero
+         do jk=1,noofel
+            eqlista(ieq)%compstoi(jl,jk)=firsteq%compstoi(jl,jk)
+            eqlista(ieq)%invcompstoi(jl,jk)=firsteq%invcompstoi(jl,jk)
+         enddo
+         iz=size(firsteq%complist(jl)%endmember)
+         allocate(eqlista(ieq)%complist(jl)%endmember(iz))
+         eqlista(ieq)%complist(jl)%endmember=firsteq%complist(jl)%endmember
+      else
+         eqlista(ieq)%complist(jl)%refstate=firsteq%complist(jl)%refstate
+      endif
+   enddo
+! these records keep calculated values of G and derivatives for each phase
+! For phase lokph the index to phase_varres is in phlista(lokph)%cslink
+! For phase lokph the index to phase_varres is in phlista(lokph)%linktocs(ics)
+! for ieq>1 allocate the current number of phase_varres records plus 10
+! for extra composition sets added later
+   novarres=csfree-1
+!   write(*,*)'25G: entereq 3: ',novarres
+! BEWARE: allocation: calculating with one phase with 8 composition sets
+! and disordered fractions sets !!!
+   iz=max(noofph,novarres)
+   allocate(eqlista(ieq)%phase_varres(2*iz))
+!   write(*,*)'25G eqlista%phase_varres: ',size(eqlista(ieq)%phase_varres)
+! now copy the current content of ceq%phase_varres to this equilibrium
+! note, the SELECT_ELEMENT_REFERENCE phase has phase number 0
+! and phase_varres index 1, the number of phase_varres records is not the
+! same as number of phases ....
+!
+! strange error here running STEP on bigfcc4: crash with message:
+! Index "3" of dimension 1 of array "eqlista" above upper bound of 2
+!   write(*,*)'25G 3737:',novarres,ieq,oldeq,size(eqlista(oldeq)%phase_varres)
+! Ahhhh, there are 2 phase_varres records for each phase because of 
+! disordered fraction set, one for the ordered with 33 y-fractions, one for
+! the disordered with 8 y-fractions.  
+! A simple dimensioning problem: 1 phase, 8 compsets, disordered fracset
+! requires 17 phase_varres.  Before the "max" above I had dimensioned for 2
+   copypv: do ipv=1,novarres
+      eqlista(ieq)%phase_varres(ipv)=eqlista(oldeq)%phase_varres(ipv)
+   enddo copypv
+900 continue
+!   write(*,*)'To copy conditions:'
+! copy conditions (and experiments) !!!
+   lastcond=>eqlista(oldeq)%lastcondition
+   if(associated(lastcond)) then
+      jz=1
+      call copy_condition(eqlista(ieq)%lastcondition,lastcond)
+!      write(*,770)'25G cc1: ',jz,lastcond%prescribed,&
+!           eqlista(ieq)%lastcondition%prescribed
+      newcond1=>eqlista(ieq)%lastcondition
+      bugcond=>newcond1
+      oldcond=>lastcond%next
+      do while(.not.associated(oldcond,lastcond))
+         jz=jz+1
+         newcond2=>newcond1
+         call copy_condition(newcond1%next,oldcond)
+         newcond1=>newcond1%next
+!         write(*,770)'25G cc2: ',jz,oldcond%prescribed,newcond1%prescribed
+770      format(a,i2,6(1pe12.4))
+         newcond1%previous=>newcond2
+         oldcond=>oldcond%next
+      enddo
+      newcond1%next=>bugcond
+!      write(*,*)'Copied all condition',jz
+   else
+      nullify(eqlista(ieq)%lastcondition)
+   endif
+! copy experiments) ... later
+!
+   nullify(eqlista(ieq)%lastexperiment)
+!
+! copy TPfuns and symbols and current values
+!   write(*,*)'Copy tpval arrays'
+   eqlista(ieq)%tpval=ceq%tpval
+   allocate(eqlista(ieq)%eq_tpres(maxtpf))
+!   write(*,*)'allocated tpres arrays'
+   eqlista(ieq)%eq_tpres=ceq%eq_tpres
+   allocate(eqlista(ieq)%svfunres(maxsvfun))
+!   write(*,*)'allocated svfunres arrays'
+   eqlista(ieq)%svfunres=ceq%svfunres
+! copy convergence criteria
+   eqlista(ieq)%xconv=ceq%xconv
+   eqlista(ieq)%maxiter=ceq%maxiter
+!   write(*,*)'finished copy equilibrium',ieq
+   eqlista(ieq)%eqno=ieq
+   neweq=>eqlista(ieq)
+!   write(*,*)'Assigned pointer to new equilibrium',neweq%eqno
+1000 continue
+!   write(*,*)'exit copy_equilibrium'
+   return
+ end subroutine copy_equilibrium
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
+ subroutine copy_condition(newrec,oldrec)
+! Creates a copy of the condition record "oldrec" and returns a link
+! to the copy in newrec.  The links to "next/previous" are nullified
+   implicit none
+   type(gtp_condition), pointer :: oldrec
+   type(gtp_condition), pointer :: newrec
+!\end{verbatim}
+!   write(*,*)' *** In copy_condition:         ',oldrec%prescribed
+   allocate(newrec)
+!   write(*,*)' *** Allocated'
+   newrec=oldrec
+!   write(*,*)' *** Copied old condition to new',newrec%prescribed
+1000 continue
+   return
+ end subroutine copy_condition
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
@@ -3164,7 +3826,7 @@
    implicit none
    integer lokph
 !\end{verbatim}
-   integer nsl,nc,jl,ll,j2,loksp
+   integer nsl,nc,jl,ll,j2,loksp,lokcs
    logical notallowed
    integer, dimension(:), allocatable :: const
    double precision ss
@@ -3180,7 +3842,9 @@
       goto 1000
    else
 ! ordering assumed in first 4 sublattices, that is not really necessary
-      ss=phlista(lokph)%sites(1)
+!      ss=phlista(lokph)%sites(1)
+      lokcs=phlista(lokph)%linktocs(1)
+      ss=firsteq%phase_varres(lokcs)%sites(1)
       nc=phlista(lokph)%nooffr(1)
       allocate(const(nc))
       do jl=1,nc
@@ -3189,7 +3853,8 @@
       enddo
       jl=nc
       do ll=2,4
-         if(abs(phlista(lokph)%sites(ll)-ss).gt.1.0D-12) then
+!         if(abs(phlista(lokph)%sites(ll)-ss).gt.1.0D-12) then
+         if(abs(firsteq%phase_varres(lokcs)%sites(ll)-ss).gt.1.0D-12) then
             write(kou,12)
 12          format(' Permutation requires the same number of',&
                  ' sites in first 4 sublattices')

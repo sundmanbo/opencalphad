@@ -3,7 +3,7 @@
 !
 MODULE METLIB
 !
-! Copyright 1980-2013, Bo Sundman and others, bo.sundman@gmail.com 
+! Copyright 1980-2014, Bo Sundman and others, bo.sundman@gmail.com 
 ! 
 !    This program is free software; you can redistribute it and/or modify
 !    it under the terms of the GNU General Public License as published by
@@ -87,7 +87,8 @@ MODULE METLIB
 !    COMMON/TCMACRO/IUL,IUN(5),MACEXT
     integer, private :: IUL,IUN(5)
     character MACEXT*3
-    parameter (MACEXT='BMM')
+    parameter (MACEXT='OCM')
+!    parameter (MACEXT='BMM')
 !
 !vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
     integer, parameter :: maxhelplevel=15
@@ -149,6 +150,7 @@ CONTAINS
 ! GPS      extract a signed number
 ! GPN      extract an unsigned number
 ! WRINUM   writes a double into a text
+! WRIINT   writes an integer into a text
 ! BIGLET   converts a letter to upper case
 ! EOLCH    TRUE if text is empty
 ! GETNAME  extracts a name with characters
@@ -751,6 +753,34 @@ CONTAINS
     RETURN
   END SUBROUTINE WRINUM
 
+  subroutine wriint(text,ipos,int)
+! write an integer in text from position ipos (left adjusted)
+    implicit none
+    character text*(*),number*16
+    integer ipos,int,jp
+    if(int.lt.0) then
+       buperr=1200; text(ipos:ipos)='*'; ipos=ipos+1
+    elseif(int.eq.0) then
+       text(ipos:ipos)='0'; ipos=ipos+1
+    else
+       write(number,20)int
+20     format(i16)
+       jp=1
+       if(eolch(number,jp)) then
+          buperr=1201; goto 1000
+       else
+          text(ipos:)=number(jp:)
+!          write(*,22)'wriint: ',jp,number(jp:),text(ipos:ipos+16-jp)
+22        format(a,i3,'>',a,'< >',a,'<')
+          ipos=ipos+17-jp
+!          write(*,30)'wriint: ',ipos,jp,' >'//text(1:ipos+5)//'<'
+30        format(a,2i3,a)
+       endif
+    endif
+1000 continue
+    return
+  end subroutine wriint
+
   CHARACTER FUNCTION BIGLET(CHA)
 !...CONVERTS ONE CHARACTER FROM LOWER TO UPPER CASE
     CHARACTER*1 CHA,CHLAST
@@ -781,12 +811,13 @@ CONTAINS
   subroutine getname(text,ip,name,mode,ch1)
 ! this should be incorporated in metlib
     character text*(*),name*(*),ch1*1
-! mode=0 is normal
-! mode=1 used for species names with / + and - allowed
+! Always a letter A-Z as first character
+! mode=0 is normal, letters, numbers, "." and "_" allowed
+! mode=1 used for species names with "/", "+" and "-" allowed also
     ch1=biglet(text(ip:ip))
     if(ch1.lt.'A' .or. ch1.gt.'Z') then
-       write(*,17)ichar(ch1),ch1,text(1:24)
-17     format('getname error: ',i5,' "',a,'" in "',a,'"')
+       write(*,17)ichar(ch1),ch1,text(1:24),ip
+17     format('getname error: ',i5,' "',a,'" in "',a,'" at ',i4)
        buperr=1101; goto 1000
     endif
     jp=ip
@@ -838,6 +869,7 @@ CONTAINS
 ! writes str on unit lut with left margin largl1 for first line, margl2 for all
 ! following lines, max length maxl characters (assuming typewriter font)
 ! lbreak>0 for writing math expression, with stricter linebreak rules
+! lbreak<0 for breaking only at space
     character str*(*),margx*40
     nend=len_trim(str)
     margx=' '
@@ -881,6 +913,7 @@ CONTAINS
 ! find a possible place for a newline in str going back from lend
 ! but not bypassing lbeg.  str is a numerical expression.
 ! lbreak>0 means stricter rules (mathematical expression)
+! lbreak<0 means break only at space
     character str*(*),ch1*1,ch2*1
 ! lbreak=0 means
 ! newline possible at space, ;, +, - (but not sign in exponents like E+02)
@@ -889,14 +922,14 @@ CONTAINS
        if(ch1.eq.' ' .or. ch1.eq.';') then
           lend=ip
           goto 1000
-       elseif(ch1.eq.'+' .or. ch1.eq.'-') then
+       elseif(lbreak.ge.0 .and. (ch1.eq.'+' .or. ch1.eq.'-')) then
           ch2=str(ip-1:ip-1)
 !          write(*,*)'cwriceend 3: ',ch2,ch1
           if(ch2.eq.'e' .or. ch2.eq.'E' .or. ch2.eq.'d' .or. ch2.eq.'D' .or. &
                ch2.eq.'(' ) then
              continue
           else
-! break the line here
+! we cannot find a good breakpoint, break the line here
              lend=ip-1
              goto 1000
           endif
@@ -1812,7 +1845,8 @@ CONTAINS
 9   CONTINUE
 ! check if promt already in path, otherwise increase level
     do iqq=2,helprec%level
-       if(promt.eq.helprec%cpath(iqq)) then
+       kxy=min(len_trim(promt),12)
+       if(promt(1:kxy).eq.helprec%cpath(iqq)(1:kxy)) then
           helprec%level=iqq
           goto 991
        endif
@@ -1820,6 +1854,7 @@ CONTAINS
     if(helprec%level.lt.maxhelplevel) then
        helprec%level=helprec%level+1
        helprec%cpath(helprec%level)=promt
+!       write(*,*)'Help level increased to: ',helprec%level
     else
 !       write(*,*)'Warning, too many levels in help path'
 ! This can happen when asking for constitution including the constituent
@@ -1848,7 +1883,9 @@ CONTAINS
                 CALL WRINUM(PPROMT,JJP,10,0,X)
              ENDIF
           ELSEIF(ITYP.EQ.3) THEN
-             IF(RDEF.NE.RNONE) CALL WRINUM(PPROMT,JJP,10,0,RDEF)
+!             IF(RDEF.NE.RNONE) CALL WRINUM(PPROMT,JJP,10,0,RDEF)
+! to avoid getting values as 0.0250000004  rather than 0.025 ...
+             IF(RDEF.NE.RNONE) CALL WRINUM(PPROMT,JJP,8,0,RDEF)
           ELSE
              PPROMT(JJP:)=CDEF
              I=LEN_TRIM(CDEF)
@@ -2684,12 +2721,12 @@ CONTAINS
 !    LOGICAL TESTB
 !...BOS 00.10.12: add a possibility to pause if characters are @&
     IF(SVAR(1:2).EQ.'@&') THEN
-       write(*,*)'calling testb from gqxenv'
-       IF(.NOT.TESTB(1,IOX(8))) THEN
+!       write(*,*)'calling testb from gqxenv'
+!       IF(.NOT.TESTB(1,IOX(8))) THEN
           WRITE(KOUD,*)'Hit RETURN to continue'
           READ(KIUD,310)CH1
 310       FORMAT(A1)
-       ENDIF
+!       ENDIF
     ENDIF
 100 K=INDEX(SVAR,'##')
     IF(K.GT.0) THEN
@@ -2738,7 +2775,6 @@ CONTAINS
     IF(FIRST) THEN
        FIRST=.FALSE.
        IUL=0
-!       macext='BMM'
     ENDIF
     MACFIL=' '
     useext=macext
@@ -2900,7 +2936,7 @@ CONTAINS
     DIMENSION LOKV(*)
 !    type(putfun_symlink) :: symlist
     LOGICAL NOTPP
-    TYPE(putfun_node), pointer :: LROT,NYNOD,NONOD,DUMMY
+    TYPE(putfun_node), pointer :: LROT,NYNOD,NONOD,DUMMY,dummy2
 ! ENTRY:
 !      STRING CHARACTER WITH EXPRESSION
 !      L     POSITION WHERE THE EXPRESSION STARTS
@@ -2951,7 +2987,7 @@ CONTAINS
     LAB=1
     nullify(topnod); nullify(datanod); nullify(lastopnod); nullify(nonod)
 !...initiate external symbolik links
-!    write(*,*)'putfun ',maxs
+!    write(*,*)'putfun: ',maxs
     do i=1,abs(maxs)
        LOKV(i)=0
     enddo
@@ -2965,7 +3001,10 @@ CONTAINS
 !..IF FIRST CHARACTER ; THEN EXIT with function zero
     IF(STRING(L:L).EQ.';') GOTO 800
     L=L-1
-10  GOTO(100,100,200),LAB
+10  continue
+!    write(*,*)'PUTFUN: ',lab,l
+    GOTO(100,100,200),LAB
+!    if(lab.gt.0) goto 200
 ! ******* Expecting variable ********* > Expecting next
 !      Allowed characters
 !      ?                               > Give hekptext
@@ -3004,19 +3043,20 @@ CONTAINS
        buperr=0
 ! not a number, it must be a symbol or unary operator
        L=LQ
-!       CALL NYVAR(STRING,L,IOPUNI,negmark,MAXS,SYMBOL,LOKV,symlist)
-       CALL NYVAR(STRING,L,IOPUNI,negmark,MAXS,SYMBOL,LOKV)
+!       write(*,*)'PUTFUN buperror: ',l
+       CALL NYVAR(STRING,L,IOPUNI,negmark,MAXS,SYMBOL,LOKV,dummy2)
        IF(pfnerr.ne.0) GOTO 900
-!       write(*,*)'After nyvar: ',iopuni
+!       write(*,*)'After nyvar: ',iopuni,symbol(1)
        IF(IOPUNI.GT.0) THEN
           CALL NYUNI(IOPUNI,negmark,NYNOD,IPN,NOTPP)
           GOTO 100
        ENDIF
+!       write(*,*)'PUTFUN buperror: nyvar return iopuni=0, look for operator'
     ELSE
+! we have found a symbol
        CALL NYDAT(0,VAL,dummy,negmark)
        if(pfnerr.ne.0) goto 900
        L=L-1
-!       write(*,*)'putfun 150: ',l,val
     ENDIF
     LAB=3
 ! ****** Expecting binary operator **** > Expected next
@@ -3055,6 +3095,7 @@ CONTAINS
     GOTO 100
 ! we have evaluated the expression, IPN is parenthesis level
 800 L=L+1
+!    write(*,*)'PUTFUN: label 800'
     IF(IPN.NE.0) THEN
        pfnerr=1050; GOTO 900
     endif
@@ -3075,12 +3116,18 @@ CONTAINS
        endif
     else
 ! there is no topnod
+!       write(*,*)'PUTFUN: no topnode'
        if(associated(datanod)) then
           if(datanod%value.eq.zero) then
+!             write(*,*)'PUTFUN: datanode with zero'
              nullify(lrot)
           else
+!             write(*,*)'PUTFUN: datanode with non-zero'
              lrot=>datanod
           endif
+!       else
+! no topnode and no datanode, empty function
+!          write(*,*)'PUTFUN: no datanode'
        endif
     endif
 880 continue
@@ -3171,6 +3218,8 @@ CONTAINS
     IMPLICIT DOUBLE PRECISION (A-H,O-Z)
     TYPE(putfun_node), pointer :: UNINOD
     LOGICAL NOTPP
+    parameter (one=1.0D0)
+!
     allocate(uninod)
     debuginc=debuginc+1
     uninod%debug=debuginc
@@ -3280,7 +3329,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-  SUBROUTINE NYVAR(TEXT,L,IOPUNI,negmark,MAXS,SYMBOL,LOKV)
+  SUBROUTINE NYVAR(TEXT,L,IOPUNI,negmark,MAXS,SYMBOL,LOKV,dummy2)
 !  SUBROUTINE NYVAR(TEXT,L,IOPUNI,negmark,MAXS,SYMBOL,LOKV,symlist)
 ! insert a symbol
     IMPLICIT DOUBLE PRECISION (A-H,O-Z)
@@ -3289,7 +3338,8 @@ CONTAINS
     PARAMETER (ZERO=0.0D0)
     LOGICAL DEL2
     DIMENSION LOKV(*)
-    type(putfun_node), pointer :: dummy
+    type(putfun_node), pointer :: dummy2
+    parameter (one=1.0d0)
 !    type(putfun_symlink) :: symlist
     character*6, dimension(noper) :: OPER=&
         ['SQRT  ','EXP   ','LOG   ','LOG10 ','SIN   ','COS   ','ATAN  ',&
@@ -3344,9 +3394,9 @@ CONTAINS
 224 continue
     I=PUTFUNVAR
 225 continue
-    CALL NYDAT(I,ONE,dummy,negmark)
-!    write(*,*)'nyvar assigning symnod: ',dummy%debug,dummy%links
-!    symlist%symnod(i)=>dummy
+    CALL NYDAT(I,one,dummy2,negmark)
+!    write(*,*)'nyvar assigning symnod: ',dummy2%debug,dummy2%value
+!    symlist%symnod(i)=>dummy2
     GOTO 800
 !..Known symbol, with index I
 !  If LOKV(I)=0 it is a predefined symbol without node and one must created
@@ -4572,7 +4622,8 @@ CONTAINS
     helprec%filename=file
     goto 1000
 900 continue
-    write(*,*)'Error ',jerr,' opening help file, no on-line help'
+    write(*,910)file(1:len_trim(file))
+910 format('Warning, cannot open ',a,' no on-line help')
     helprec%okinit=0
     helprec%filename=' '
 1000 continue

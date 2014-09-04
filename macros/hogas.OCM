@@ -1,0 +1,59 @@
+
+set echo
+
+r t hogas
+
+
+set c t=4000 p=1e5 n(h)=2 n(o)=1
+
+c e
+
+l
+
+
+
+@&
+
+enter sym cp=h.t;
+
+
+l sym
+
+
+c sym
+
+
+@&
+
+
+set ax 1 T
+1000
+6000
+25
+
+
+step
+
+
+
+@&
+
+plot
+T
+y(gas,*),,,,,,,,
+
+
+
+plot
+T
+H,,,,,,,,,,,,,,,,,,
+
+
+plot
+T
+cp,,,,,,,,,,,,,,,,
+
+
+
+set inter
+

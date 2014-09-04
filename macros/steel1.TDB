@@ -17,6 +17,7 @@ $ From database: SSOL2
  SPECIES C5                          C5!
  SPECIES C6                          C6!
  SPECIES C7                          C7!
+ SPECIES V1C1                        V1C1!
  
  FUNCTION GHSERCC    2.98150E+02  -17368.441+170.73*T-24.3*T*LN(T)
      -4.723E-04*T**2+2562600*T**(-1)-2.643E+08*T**(-2)+1.2E+10*T**(-3);   

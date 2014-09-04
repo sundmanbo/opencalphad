@@ -10,7 +10,7 @@
 ! lists elements
    implicit none
    integer unit
-!\end{verbatim}
+!\end{verbatim} %+
    integer jl,ipos
    character line*80
    line=' '
@@ -28,6 +28,26 @@
 1000 continue
    return
  END subroutine list_all_elements
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim} %-
+ subroutine list_all_elements2(unit)
+! lists elements
+   implicit none
+   integer unit
+!\end{verbatim}
+   integer jl,ipos
+   character line*80
+   line=' '
+   loop1: do jl=-1,noofel
+      write(unit,100) ellista(jl)%symbol,ellista(jl)%ref_state,&
+           ellista(jl)%mass,ellista(jl)%h298_h0,ellista(jl)%s298
+   enddo loop1
+100 format('ELEMENT ',A,'  ',A,3(1pe12.4),' !')
+1000 continue
+   return
+ END subroutine list_all_elements2
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -94,6 +114,45 @@
    implicit none
    character text*(*)
    integer ipos,spno
+!\end{verbatim} %+
+   character tal*10,dummy*48
+   integer jpos
+   if(spno.lt.1 .or. spno.gt.noofsp) then
+!       write(*,*)'in list_species_data'
+      gx%bmperr=4051
+      goto 1000
+   endif
+   if(ipos.lt.1 .or. ipos.ge.len(text)) then
+      gx%bmperr=4043
+      goto 1000
+   endif
+   text(ipos:ipos+24)=splista(spno)%symbol
+   text(ipos+25:ipos+25)=' '
+   dummy=' '
+   call encode_stoik(dummy,jpos,spno)
+   text(ipos+26:ipos+48)=dummy(1:min(23,jpos))
+   if(jpos.gt.23) text(ipos+46:ipos+48)='<.>'
+   text(ipos+49:ipos+49)=' '
+   write(text(ipos+50:ipos+59),100)splista(spno)%mass
+   write(text(ipos+60:ipos+65),105)splista(spno)%charge
+100 format(F10.3)
+105 format(F6.1)
+   text(ipos+66:)=' '
+!    write(*,120)splista(spno)%status
+   write(text(ipos+66:ipos+73),120)splista(spno)%status
+120 format(Z8)
+   ipos=ipos+73
+1000 continue
+   return
+ END subroutine list_species_data
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim} %-
+ subroutine list_species_data2(text,ipos,spno)
+   implicit none
+   character text*(*)
+   integer ipos,spno
 !\end{verbatim}
    character tal*10,dummy*24
    integer jpos
@@ -111,19 +170,19 @@
    dummy=' '
    call encode_stoik(dummy,jpos,spno)
    text(ipos+26:ipos+48)=dummy(1:jpos)
-   text(ipos+49:ipos+49)=' '
-   write(text(ipos+50:ipos+59),100)splista(spno)%mass
-   write(text(ipos+60:ipos+65),105)splista(spno)%charge
+!   text(ipos+49:ipos+49)=' '
+!   write(text(ipos+50:ipos+59),100)splista(spno)%mass
+!   write(text(ipos+60:ipos+65),105)splista(spno)%charge
 100 format(F10.3)
 105 format(F6.1)
-   text(ipos+66:)=' '
+!   text(ipos+66:)=' '
 !    write(*,120)splista(spno)%status
-   write(text(ipos+66:ipos+73),120)splista(spno)%status
+!   write(text(ipos+66:ipos+73),120)splista(spno)%status
 120 format(Z8)
-   ipos=ipos+73
+!   ipos=ipos+73
 1000 continue
    return
- END subroutine list_species_data
+ END subroutine list_species_data2
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -198,19 +257,24 @@
          if(jl.gt.24) then
             csname=csname(1:12)//'..'//csname(jl-9:jl)
          endif
-!         if( csrec%amount(1).ne.zero) then
-         if( csrec%amfu.ne.zero) then
-            write(unit,110)jk,ics,csname, &
-                 csrec%amfu*csrec%abnorm(1),&
-                 csrec%abnorm(1),csrec%dgm,&
-                 phlista(lokph)%status1,ceq%phase_varres(lokcs)%status2
-110         format(2i4,1x,a24,1PE10.2,1x,0PF9.2,1PE10.2,2(0p,z8))
+         if(csrec%amfu.ne.zero) then
+            if(csrec%dgm.eq.zero) then
+               write(unit,110)jk,ics,csname, &
+                    csrec%amfu*csrec%abnorm(1),&
+                    csrec%abnorm(1),&
+                    phlista(lokph)%status1,ceq%phase_varres(lokcs)%status2
+110            format(2i4,1x,a24,1PE10.2,1x,0PF9.2,'       0.0',2(0p,z8))
+            else
+               write(unit,112)jk,ics,csname, &
+                    csrec%amfu*csrec%abnorm(1),&
+                    csrec%abnorm(1),csrec%dgm,&
+                    phlista(lokph)%status1,ceq%phase_varres(lokcs)%status2
+112            format(2i4,1x,a24,1PE10.2,1x,0PF9.2,1PE10.2,2(0p,z8))
+            endif
          else
             write(unit,111)jk,ics,csname, &
                  csrec%abnorm(1),csrec%dgm,&
                  phlista(lokph)%status1,ceq%phase_varres(lokcs)%status2
-!111         format(2i4,1x,a24,F10.2,0PF10.2,1PE10.2,2(0p,z8))
-!111         format(2i4,1x,a24,'  0.0     ',0PF10.2,1PE10.2,2(0p,z8))
 111         format(2i4,1x,a24,'       0.0',1x0PF9.2,1PE10.2,2(0p,z8))
          endif
       enddo csloop
@@ -271,7 +335,7 @@
    if(mode.eq.1) then
       write(lut,7)
 !7     format('Component name',11x,'Moles',7x,'Mole-fracs  Chem.potent. ',&
-7     format('Component name',4x,'Moles',6x,'Mole-fr  Chem.pot/RT  ',&
+7     format('Component name',4x,'Moles',6x,'Mol.cont Chem.pot/RT  ',&
            'Activities  Ref.state')
    elseif(mode.eq.2) then
       write(lut,9)
@@ -332,15 +396,20 @@
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
    character name*24
-   character*10, dimension(4) :: status=&
-        ['Entered   ','Fix       ','Dormant   ','Suspended ']
+!   character*10, dimension(-3:2) :: status=&
+!        ['SuspendedEntered   ','Fix       ','Dormant   ','Suspended ']
    integer once,iph,lokph,ics,lokcs,kkz
    double precision xxx
    once=0
    do iph=1,noofph
       lokph=phases(iph)
-      do ics=1,phlista(lokph)%noofcs
+      csloop: do ics=1,phlista(lokph)%noofcs
          lokcs=phlista(lokph)%linktocs(ics)
+         if(ceq%phase_varres(lokcs)%phstate.lt.PHDORM) cycle csloop
+         if(abs(ceq%phase_varres(lokcs)%netcharge).gt.1.0d-6) then
+!            write(*,*)'ignoring phase with net charge: ',iph,ics
+            cycle csloop
+         endif
          if(ceq%phase_varres(lokcs)%dgm.gt.1.0D-12) then
             if(once.eq.0) then
                once=1
@@ -349,12 +418,17 @@
             endif
             call get_phase_name(iph,ics,name)
             kkz=test_phase_status(iph,ics,xxx,ceq)
-            if(kkz.le.3) then
-               write(lut,120)name,status(kkz),ceq%phase_varres(lokcs)%dgm
-120            format('Phase: ',a,' Status: ',a,' Driving force: ',1pe12.4)
+!            write(*,*)'25E: error: ',name,lokcs,kkz
+! old kkz.le.2 means entered or fixed
+!            if(kkz.le.3) then
+! now: kkz= -3,    -2,         -1,         0,           1,         2 
+! means SUSPEND, DORMANT, ENTENTED/UNST, ENTERED, ENTERD/STABLE, FIXED
+            if(kkz.ge.PHDORM) then
+               write(lut,120)name,phstate(kkz),ceq%phase_varres(lokcs)%dgm
+120            format('Phase: ',a,' Status: ',a,' Driving force:',1pe12.4)
             endif
          endif
-      enddo
+      enddo csloop
    enddo
 1000 continue
    return
@@ -377,9 +451,11 @@
    character name*24,text*256,phname*24,status*10
    character (len=24), dimension(:), allocatable :: consts
 !    character*24, allocatable (:) :: consts
-   double precision xmol(maxel),wmass(maxel),totmol,totmass,amount,abv
+   double precision xmol(maxel),wmass(maxel),totmol,totmass,amount,abv,mindgm
    double precision, dimension(:), allocatable :: ymol
    integer lokph,lokcs,kode,nz,jl,nk,ll,ip,kstat
+   mindgm=1.0D-10
+   if(ocv()) write(*,*)'mode: ',mode
    if(iph.lt.1 .or. iph.gt.noofph) then
 !       write(*,*)'lpr ',iph,jcs,mode
       gx%bmperr=4050; goto 1000
@@ -405,33 +481,40 @@
 !   write(*,11)'Phase name: ',iph,jcs,phname
 !11 format(a,2i3,'"',a,'"')
    if(mode.ge.1000) then
-! if mode>=1000 list stable phases only (dgm<0)
+! if mode>=1000 list stable phases only (dgm<0 )
 !      if(ceq%phase_varres(lokcs)%amount(1).eq.zero) then
+      if(abs(ceq%phase_varres(lokcs)%netcharge).gt.1.0d-6) goto 1000
       if(ceq%phase_varres(lokcs)%amfu.eq.zero) then
-         if(ceq%phase_varres(lokcs)%dgm.lt.zero) goto 1000
+! skip phases with zero amount unless fixed or positive dgm
+         if(ceq%phase_varres(lokcs)%dgm.eq.zero) then
+            if(ceq%phase_varres(lokcs)%phstate.ne.PHFIXED) goto 1000
+         elseif(ceq%phase_varres(lokcs)%dgm.lt.mindgm) then
+            goto 1000
+         endif
       endif
    endif
-! phase status (except hidden) .... use get_phase_status instead
-   if(btest(ceq%phase_varres(lokcs)%status2,cssus)) then
-      if(btest(ceq%phase_varres(lokcs)%status2,csfixdorm)) then
-         status='Dormant'
-         kstat=4
+! phase status (except hidden) .... use get_phase_status instead ???
+!   if(btest(ceq%phase_varres(lokcs)%status2,cssus)) then
+!      if(btest(ceq%phase_varres(lokcs)%status2,csfixdorm)) then
+   if(ceq%phase_varres(lokcs)%phstate.eq.PHDORM) then
+      status='Dormant'
+      kstat=4
 ! skip dormant phases unless positive driving force
-         if(ceq%phase_varres(lokcs)%dgm.le.zero) goto 1000
-      else
-         status='Suspended'
-         goto 1000
-      endif
+      if(ceq%phase_varres(lokcs)%dgm.le.mindgm) goto 1000
+   elseif(ceq%phase_varres(lokcs)%phstate.eq.PHSUS) then
+      status='Suspended'
+      goto 1000
+!      if(btest(ceq%phase_varres(lokcs)%status2,csfixdorm)) then
+   elseif(ceq%phase_varres(lokcs)%phstate.eq.PHFIXED) then
+      status='Fixed'
+      kstat=2
    else
-      if(btest(ceq%phase_varres(lokcs)%status2,csfixdorm)) then
-         status='Fixed'
-         kstat=2
-      else
-         status='Entered'
-         kstat=1
+      status='Entered'
+      kstat=1
+! skip phase with net charge
+!      if(abs(ceq%phase_varres(lokcs)%netcharge).gt.1.0D-6) goto 1000
 ! skip entered phases that have positive driving force, why??
-!         if(ceq%phase_varres(lokcs)%dgm.gt.zero) goto 1000
-      endif
+!      if(ceq%phase_varres(lokcs)%dgm.gt.zero) goto 1000
    endif
    if(phname(1:1).lt.'A' .or. phname(1:1).gt.'Z') then
 ! in some cases unprintable phase names appears!!
@@ -441,29 +524,40 @@
    write(lut,20)phname,status,ceq%phase_varres(lokcs)%dgm
 20  format(/'Phase: ',A,' Status: 'A,' Driving force: ',1PE12.4)
 !------------------------
+!   xmol=zero
+!   wmass=zero
    call calc_phase_molmass(iph,jcs,xmol,wmass,totmol,totmass,amount,ceq)
    if(gx%bmperr.ne.0) then
       write(*,*)'Error: ',gx%bmperr; goto 1000
    endif
+!   write(*,99)'xmol: ',xmol
+!99 format(a,6(1pe12.4))
    kode=mod(mode,10)
 !   write(*,*)'lpr: ',mode,kode
    abv=ceq%phase_varres(lokcs)%abnorm(1)
-   write(lut,21)ceq%phase_varres(lokcs)%amfu,abv
-21 format('Formula units: ',1pe12.4,', Moles of atoms/formula unit: ',1pe12.4)
-! totmol = abv*amount
-!   write(*,22)'why? ',amount,totmol
-22 format(a,5(1pe12.4))
    if(kode.eq.0) then
-      write(lut,25)totmol,totmass*0.001, &
-           amount*ceq%rtn*ceq%phase_varres(lokcs)%gval(3,1)
+! The volume value here is WRONG: ceq%phase_varres(lokcs)%gval(3,1) !!! ???
+      if(abs(ceq%phase_varres(lokcs)%netcharge).gt.1.0D-6) then
+         write(lut,28)totmol,totmass*0.001, &
+              amount*ceq%rtn*ceq%phase_varres(lokcs)%gval(3,1),&
+              ceq%phase_varres(lokcs)%netcharge
+      else
+         write(lut,25)totmol,totmass*0.001, &
+              amount*ceq%rtn*ceq%phase_varres(lokcs)%gval(3,1)
+      endif
+      write(lut,21)ceq%phase_varres(lokcs)%amfu,abv
+21    format('Formula Units: ',1pe12.4,', Moles of atoms/FU: ',1pe12.4,&
+           ', Molar content:')
    else
-      write(lut,26)totmol,totmass*0.001,&
+      write(lut,25)totmol,totmass*0.001,&
            amount*ceq%rtn*ceq%phase_varres(lokcs)%gval(3,1)
+      write(lut,22)ceq%phase_varres(lokcs)%amfu,abv
+22    format('Formula Units: ',1pe12.4,', Moles of atoms/FU: ',1pe12.4,&
+           ', Mass fractions:')
    endif
-25  format('Moles',1PE12.4,', Mass',1PE12.4,' kg, Volume',1PE12.4,&
-        ' m3, Mole fractions:')
-26  format('Moles',1PE12.4,', Mass',1PE12.4,' kg, Volume',1PE12.4,&
-        ' m3, Mass fractions:')
+25  format('Moles',1PE12.4,', Mass',1PE12.4,' kg, Volume',1PE12.4,' m3')
+28  format('Moles',1PE12.4,', Mass',1PE12.4,' kg, Volume',1PE12.4,' m3',&
+         ' Charge: ',1pe10.2)
 ! composition
    nz=noofel
    allocate(consts(nz))
@@ -493,14 +587,17 @@
    sublatloop: do ll=1,phlista(lokph)%noofsubl
       nz=phlista(lokph)%nooffr(ll)
       if(phlista(lokph)%noofsubl.gt.1) then
-         write(lut,320)ll,nz,phlista(lokph)%sites(ll)
+!         write(lut,320)ll,nz,phlista(lokph)%sites(ll)
+         write(lut,320)ll,nz,ceq%phase_varres(lokcs)%sites(ll)
 320      format('Sublattice ',i2,' with ',i5,' constituents and ',&
               F12.6,' sites')
-      elseif(phlista(lokph)%sites(ll).eq.one) then
+!      elseif(phlista(lokph)%sites(ll).eq.one) then
+      elseif(ceq%phase_varres(lokcs)%sites(ll).eq.one) then
          write(lut,321)nz
 321      format('There are ',i5,' constituents:')
       else
-         write(lut,322)nz,phlista(lokph)%sites(ll)
+!         write(lut,322)nz,phlista(lokph)%sites(ll)
+         write(lut,322)nz,ceq%phase_varres(lokcs)%sites(ll)
 322      format('Single lattice with ',i5,' constituents and ',&
               F12.6,' sites')
       endif
@@ -511,7 +608,11 @@
       do jl=1,nz
 !         jcons=splista(phlista(lokph)%constitlist(nk+jl))%alphaindex
          consts(jl)=' '
-         consts(jl)=splista(phlista(lokph)%constitlist(nk+jl))%symbol
+         if(phlista(lokph)%constitlist(nk+jl).gt.0) then
+            consts(jl)=splista(phlista(lokph)%constitlist(nk+jl))%symbol
+         else
+            consts(jl)='*'
+         endif
          ymol(jl)=ceq%phase_varres(lokcs)%yfr(nk+jl)
       enddo
       call format_phase_composition(mode,nz,consts,ymol,lut)
@@ -686,6 +787,80 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
+ subroutine list_many_formats(ftyp,unit)
+! lists all data in different formats
+! unfinished
+   implicit none
+   integer unit,ftyp
+!\end{verbatim}
+   integer iph,ipos
+   character text*64, text2*2000
+   select case(ftyp) 
+   case default
+      write(kou,*)'No such format'
+!----------------------------------------------------------
+   case(1) ! ftyp=1 SCREEN format
+      call list_all_elements(kou)
+      if(gx%bmperr.ne.0) goto 1000
+      call list_all_species(kou)
+      if(gx%bmperr.ne.0) goto 1000
+      call list_all_funs(kou)
+      if(gx%bmperr.ne.0) goto 1000
+      do iph=1,noph()
+         call list_phase_data(iph,kou)
+         if(gx%bmperr.ne.0) goto 1000
+      enddo
+! list reference phase last
+      iph=0
+      call list_phase_data(0,kou)
+! finally list data references
+      write(kou,*)
+      call list_bibliography(kou)
+!--------------------------------------------------------------
+   case(2) ! ftyp=2 TDB format
+      call list_all_elements2(kou)
+      write(kou,*)
+      do iph=1, nosp()
+         ipos=1
+         call list_species_data2(text,ipos,iph)
+         write(kou,110)text
+110      format('SPECIES ',A,' !')     
+      end do
+      write(kou,*)
+      do iph=1, notpf()! freetpfun-1
+         text2='FUNCTION '
+         call list_tpfun(iph,0,text2(10:))
+!         write(kou,120)text2
+120      format(A,' !')
+         ipos=len_trim(text2)
+         text2(ipos+1:)=' !'
+         call  wrice2(kou,0,8,78,1,text2)
+      end do
+      write(kou,130)
+130   format(/'TYPE_DEFINITION % SEQ !'/ &
+          ' DEFINE_SYSTEM_DEFAULT ELEMENT 2 !'/ &
+          'DEFAULT_COMMAND DEF_SYS_ELEMENT  VA /- !'/)
+      do iph=1, noph()
+         call list_phase_data2(iph,kou)
+      end do
+      write(kou,140)
+140   format(/' LIST_OF_REFERENCES'/ ' NUMBER  SOURCE')
+      call list_bibliography(kou)
+!--------------------------------------------------------------
+   case(3) ! ftyp=3 MACRO format
+      write(kou,*)'Not implemented yet'
+!--------------------------------------------------------------
+   case(4) ! ftyp=2 LATEX format
+      write(kou,*)'Not implemented yet'
+   end select
+!--------------------------------------------------------------
+1000 continue
+   return
+ end subroutine list_many_formats
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
  subroutine list_phase_model(iph,ics,lut,ceq)
 ! list model (no parameters) for a phase on lut
    implicit none
@@ -713,13 +888,6 @@
       ics=1
    endif
    lokcs=phlista(lokph)%linktocs(ics)
-!   lokcs=phlista(lokph)%cslink
-!   ncs=0
-!70 ncs=ncs+1
-!   if(ncs.lt.ics) then
-!      lokcs=ceq%phase_varres(lokcs)%next
-!      goto 70
-!   endif
    call get_phase_name(iph,ics,phname)
    write(lut,110)phname,phlista(lokph)%models(1:40),&
         phlista(lokph)%noofsubl,phlista(lokph)%status1,&
@@ -743,12 +911,17 @@
       l78='Subl. '; ip=7
       call wrinum(l78,ip,2,0,rl)
       l78(ip:)=', sites: '; ip=ip+9
-      call wrinum(l78,ip,6,0,phlista(lokph)%sites(ll))
+!      call wrinum(l78,ip,6,0,phlista(lokph)%sites(ll))
+      call wrinum(l78,ip,6,0,ceq%phase_varres(lokcs)%sites(ll))
       l78(ip:)=', const.: '; ip=ip+10
 ! return here for each new constituent in this sublattice
 320    continue
       knr=knr+1
-      l78(ip:)=splista(phlista(lokph)%constitlist(knr))%symbol
+      if(phlista(lokph)%constitlist(knr).gt.0) then
+         l78(ip:)=splista(phlista(lokph)%constitlist(knr))%symbol
+      else
+         l78(ip:)='*'
+      endif
       ip=len_trim(l78)+2
       l78(ip-1:ip-1)='='
 ! The fractions for normal sublattice done by list result or list phase-const
@@ -825,15 +998,15 @@
 ! list parameter data for a phase on unit lut
    implicit none
    integer iph,lut
-!\end{verbatim}
+!\end{verbatim} %+
    integer typty,parlist,typspec,lokph,nsl,nk,ip,ll,jnr,ics,lokcs
    integer nint,ideg,ij,kk,iel,ncsum,kkx,kkk,jdeg,iqnext,iqhigh,lqq,nz,ik
    integer intpq,linkcon
-   character name*24,text*1024,phname*24,prop*32,funexpr*256,csname*32
+   character name*24,text*1024,phname*24,prop*32,funexpr*512,csname*32
    character special*8
    integer, dimension(2,3) :: lint
    integer, dimension(maxsubl) :: endm,ilist,knr
-   logical subref
+   logical subref,noelin1
    type(gtp_fraction_set), pointer :: disfrap
 ! a smart way to have an array of pointers
    TYPE intrecarray 
@@ -858,6 +1031,7 @@
    else
       lokph=0
    endif
+   ics=1
    phname=phlista(lokph)%name
    nsl=phlista(lokph)%noofsubl
    special=' '
@@ -865,9 +1039,14 @@
    if(btest(phlista(lokph)%status1,PHFORD)) special(1:1)='F'
    if(btest(phlista(lokph)%status1,PHBORD)) special(1:1)='B'
    if(btest(phlista(lokph)%status1,PHSORD)) special(1:1)='S'
+   if(btest(phlista(lokph)%status1,PHIONLIQ)) special(1:1)='I'
    if(btest(phlista(lokph)%status1,PHMFS)) special(2:2)='D'
+! This subroutine is independent of current equilibrium, use firsteq
+!   write(lut,10)phname,phlista(lokph)%status1,special,&
+!        nsl,(phlista(lokph)%sites(ll),ll=1,nsl)
+   lokcs=phlista(lokph)%linktocs(ics)
    write(lut,10)phname,phlista(lokph)%status1,special,&
-        nsl,(phlista(lokph)%sites(ll),ll=1,nsl)
+        nsl,(firsteq%phase_varres(lokcs)%sites(ll),ll=1,nsl)
 10  format(/'Phase: ',A,', Status: ',Z8,2x,a/'  Subl:',I3,10(1x,F7.3))
    nk=0
    text='Constituents: '
@@ -876,15 +1055,20 @@
       constloop: do ik=1,phlista(lokph)%nooffr(ll)
          nk=nk+1
          jnr=phlista(lokph)%constitlist(nk)
-         text(ip:)=splista(jnr)%symbol
+         if(jnr.gt.0) then
+            text(ip:)=splista(jnr)%symbol
+         else
+            text(ip:)='*'
+         endif
          ip=len_trim(text)+1
-         text(ip:ip)=','
+!         text(ip:ip)=','
+         text(ip:ip)=' '
          ip=ip+1
       enddo constloop
-      text(ip-1:ip)=';  '
+      text(ip-1:ip)=':  '
       ip=ip+1
    enddo sublatloop
-   call wrice2(lut,2,4,78,1,text)
+   call wrice2(lut,2,4,78,-1,text)
 !    write(lut,17)text(1:ip)
 !17  format(A)
 ! additions
@@ -893,9 +1077,6 @@
       call list_addition(lut,lokph,addrec)
       addrec=>addrec%nextadd
    enddo lastadd
-   ics=1
-   lokcs=phlista(lokph)%linktocs(ics)
-!   lokcs=phlista(lokph)%cslink
 60 continue
 ! parameters for end members using site fractions
    if(btest(phlista(lokph)%status1,PHMFS)) then
@@ -904,11 +1085,14 @@
       subref=.TRUE.
    endif
    parlist=1
+!--------------------------------------------------
+! return here to list disordered parameters
 100 continue
 ! parlist changed below for disordered fraction set
    if(parlist.eq.1) then
       endmemrec=>phlista(lokph)%ordered
    else
+      if(ocv()) write(*,*)'Listing disordred parameters ',nsl
       endmemrec=>phlista(lokph)%disordered
       disfrap=>firsteq%phase_varres(lokcs)%disfra
    endif
@@ -978,6 +1162,10 @@
                      goto 120
                   else
                      linkcon=phlista(lokph)%constitlist(iel)
+                     if(linkcon.le.0) then
+                        write(*,*)'Illegal use of wildcard 1'
+                        gx%bmperr=7777; goto 1000
+                     endif
                      prop=prop(1:len_trim(prop))//'&'&
                           //splista(linkcon)%symbol
 ! also add the sublattice number ...
@@ -1015,14 +1203,24 @@
          ip=len_trim(funexpr)+1
 ! subtract reference states
          if(subref .and. typty.eq.1) then
-            call subrefstates(funexpr,ip,lokph,parlist,endm)
+            call subrefstates(funexpr,ip,lokph,parlist,endm,noelin1)
+            if(noelin1) then
+! this can happen for ionic liquids with just neutrals in sublattice 2
+! replace the constituent in sublattice 1 with "*" !!!
+!               write(*,*)'before: ',funexpr(1:ip)
+               kk=index(funexpr,',')
+               ik=index(funexpr,':')
+               funexpr(kk+1:)='*'//funexpr(ik:)
+               ip=len_trim(funexpr)+2
+!               write(*,*)'after:  ',funexpr(1:ip)
+            endif
          endif
 ! this writes the expression
          call list_tpfun(proprec%degreelink(0),1,funexpr(ip:))
          ip=len_trim(funexpr)
          funexpr(ip+1:)=' '//proprec%reference
          ip=len_trim(funexpr)
-! nice output over several lines if needed
+! nice output over several lines if needed with indentation 12 spaces
          call wrice2(lut,2,12,78,1,funexpr(1:ip))
          proprec=>proprec%nextpr
       enddo ptyloop
@@ -1123,6 +1321,10 @@
                         goto 220
                      else
                         linkcon=phlista(lokph)%constitlist(iel)
+                        if(linkcon.le.0) then
+                           write(*,*)'Illegal use of wildcard 2'
+                           gx%bmperr=7777; goto 1000
+                        endif
                         prop=prop(1:len_trim(prop))//'&'&
                              //splista(linkcon)%symbol
 ! also add the sublattice number ...
@@ -1211,6 +1413,447 @@
 !   parlist=parlist+1, hm parlist can only be 1 or 2
 !   write(*,*)'checking for disordered parameters'
    if(parlist.eq.1 .and. associated(phlista(lokph)%disordered)) then
+      subref=.TRUE.
+!      lokcs=phlista(lokph)%cslink
+      lokcs=phlista(lokph)%linktocs(ics)
+! does this make a copy?  Maybe it should be a pointer
+      disfra=firsteq%phase_varres(lokcs)%disfra
+      write(lut,810)disfra%fsites
+810    format('Disordered fraction parameters: ',F10.4,2x,20('-'))
+      nsl=disfra%ndd
+      parlist=2
+      if(ocv()) write(*,*)'Jump back to list disordered',nsl,parlist
+      goto 100
+   endif
+1000 continue
+   return
+ END subroutine list_phase_data
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim} %-
+ subroutine list_phase_data2(iph,lut)
+! list parameter data for a phase on unit lut in TDB format
+   implicit none
+   integer iph,lut
+!\end{verbatim}
+   integer typty,parlist,typspec,lokph,nsl,nk,ip,ll,jnr,ics,lokcs
+   integer nint,ideg,ij,kk,iel,ncsum,kkx,kkk,jdeg,iqnext,iqhigh,lqq,nz,ik
+   integer intpq,linkcon
+   character name*24,text*1024,phname*24,prop*32,funexpr*512,csname*32
+   character special*8
+   integer, dimension(2,3) :: lint
+   integer, dimension(maxsubl) :: endm,ilist,knr
+   logical subref,noelin1
+   type(gtp_fraction_set), pointer :: disfrap
+! a smart way to have an array of pointers
+   TYPE intrecarray 
+      type(gtp_interaction), pointer :: p1
+   end TYPE intrecarray
+   type(intrecarray), dimension(20) :: intrecstack
+   type(gtp_property), pointer :: proprec
+   type(gtp_interaction), pointer :: intrec
+   type(gtp_endmember), pointer :: endmemrec
+   TYPE(gtp_fraction_set) :: disfra
+   TYPE(gtp_phase_add), pointer :: addrec
+!
+   if(iph.lt.0 .or. iph.gt.noofph) then
+      gx%bmperr=4050; goto 1000
+   elseif(noofel.eq.0) then
+! this needed as there is a reference phase with iph=0 when there are elements
+      goto 1000
+   endif
+!   write(*,*)'lpd 1:',iph,phases(iph)
+   if(iph.gt.0) then
+      lokph=phases(iph)
+   else
+      lokph=0
+   endif
+   ics=1
+   phname=phlista(lokph)%name
+   nsl=phlista(lokph)%noofsubl
+   special=' '
+! indicate some status bit specially
+   if(btest(phlista(lokph)%status1,PHFORD)) special(1:1)='F'
+   if(btest(phlista(lokph)%status1,PHBORD)) special(1:1)='B'
+   if(btest(phlista(lokph)%status1,PHSORD)) special(1:1)='S'
+   if(btest(phlista(lokph)%status1,PHIONLIQ)) special(1:1)='I'
+   if(btest(phlista(lokph)%status1,PHMFS)) special(2:2)='D'
+! This subroutine is independent of current equilibrium, use firsteq
+!   write(lut,10)phname,phlista(lokph)%status1,special,&
+!        nsl,(phlista(lokph)%sites(ll),ll=1,nsl)
+   lokcs=phlista(lokph)%linktocs(ics)
+   write(lut,10)phname,&
+        nsl,(firsteq%phase_varres(lokcs)%sites(ll),ll=1,nsl)
+10  format(/'PHASE ',A,' %',I3,10(1x,F7.3))
+   nk=0
+   text='   CONSTITUENT '//phname//' :'
+   ip=len_trim(text)+1
+   sublatloop: do ll=1,nsl
+      constloop: do ik=1,phlista(lokph)%nooffr(ll)
+         nk=nk+1
+         jnr=phlista(lokph)%constitlist(nk)
+         if(jnr.gt.0) then
+            text(ip:)=splista(jnr)%symbol
+         else
+            text(ip:)='*'
+         endif
+         ip=len_trim(text)+1
+!         text(ip:ip)=','
+         text(ip:ip)=' '
+         ip=ip+1
+      enddo constloop
+      text(ip-1:ip)=':  '
+      ip=ip+1
+   enddo sublatloop
+   text(ip-2:)=':!'
+   call wrice2(lut,2,4,78,-1,text)
+!    write(lut,17)text(1:ip)
+!17  format(A)
+! additions
+   addrec=>phlista(lokph)%additions
+   lastadd: do while(associated(addrec))
+      call list_addition(lut,lokph,addrec)
+      addrec=>addrec%nextadd
+   enddo lastadd
+60 continue
+! parameters for end members using site fractions
+   if(btest(phlista(lokph)%status1,PHMFS)) then
+      subref=.FALSE.
+   else
+      subref=.TRUE.
+   endif
+   parlist=1
+!--------------------------------------------------
+! return here to list disordered parameters
+100 continue
+! parlist changed below for disordered fraction set
+   if(parlist.eq.1) then
+      endmemrec=>phlista(lokph)%ordered
+   else
+      if(ocv()) write(*,*)'Listing disordred parameters ',nsl
+      endmemrec=>phlista(lokph)%disordered
+      disfrap=>firsteq%phase_varres(lokcs)%disfra
+   endif
+   endmemberlist: do while(associated(endmemrec))
+      do ll=1,nsl
+!         ilist(ll)=emlista(lokem)%fraclinks(ll,1)
+         ilist(ll)=endmemrec%fraclinks(ll,1)
+         if(ilist(ll).gt.0) then
+            if(parlist.eq.2) then
+! what is disfra here??!!
+               endm(ll)=disfra%splink(ilist(ll))
+            else
+               endm(ll)=phlista(lokph)%constitlist(ilist(ll))
+            endif
+         else
+! wildcard, write '*'
+            endm(ll)=-99
+         endif
+      enddo
+      nint=0
+      ideg=0
+      call encode_constarr(text,nsl,endm,nint,lint,ideg)
+      if(gx%bmperr.ne.0) goto 1000
+      proprec=>endmemrec%propointer
+      ptyloop: do while(associated(proprec))
+         ij=proprec%proptype
+         if(ij.ge.100) then
+            typty=ij/100
+            typspec=mod(ij,100)
+         else
+            typty=ij
+         endif
+         if(typty.gt.0 .and. typty.le.ndefprop) then
+            prop=propid(typty)%symbol
+            if(parlist.eq.2) then
+! disordered endmember parameter
+               kk=len_trim(prop)+1
+               prop(kk:kk)='D'
+            endif
+            if(btest(propid(typty)%status,IDELSUFFIX)) then
+! property like ZZ&<element>(phase,constituent array)
+! the element index should be in typsepc
+               iel=typspec
+               if(iel.ge.0 .and. iel.le.noofel) then
+!                  prop=propid(typty)%symbol
+                  prop=prop(1:len_trim(prop))//'&'&
+                       //ellista(elements(iel))%symbol
+               else
+                  gx%bmperr=4082; goto 1000
+               endif
+            elseif(btest(propid(typty)%status,IDCONSUFFIX)) then
+! property like mobility, MQ&<constituent#sublat>(phase,constituent array)
+! the suffix is a constituent
+               iel=typspec
+               if(iel.gt.0 .and. iel.le.phlista(lokph)%tnooffr) then
+                  if(parlist.eq.2) then
+! we must consider parlist, take disordered constituent list
+! we have no current equilibrium record but can use firsteq!!
+!                     lokcs=phlista(lokph)%linktocs(1)
+!                     write(*,*)'25E: endmember typspec 1: ',iel
+                     linkcon=disfrap%splink(iel)
+!                     write(*,*)'25E: endmember typspec 2: ',linkcon
+                     ll=1
+                     if(linkcon.gt.disfrap%nooffr(1)) ll=2
+                     prop=prop(1:len_trim(prop))//'&'&
+                          //splista(linkcon)%symbol
+                     goto 120
+                  else
+                     linkcon=phlista(lokph)%constitlist(iel)
+                     if(linkcon.le.0) then
+                        write(*,*)'Illegal use of wildcard 1'
+                        gx%bmperr=7777; goto 1000
+                     endif
+                     prop=prop(1:len_trim(prop))//'&'&
+                          //splista(linkcon)%symbol
+! also add the sublattice number ...
+                     ncsum=0
+                     do ll=1,phlista(lokph)%noofsubl
+                        ncsum=ncsum+phlista(lokph)%nooffr(ll)
+                        if(iel.le.ncsum) goto 120
+                     enddo
+                  endif
+! error if sublattice not found
+                  write(kou,*)'Error in constituent depended parameter id'
+                  gx%bmperr=7777; goto 1000
+! jump here to append sublattice
+120               continue
+!                  write(*,*)'property 1: ',prop(1:10),ll
+                  prop=prop(1:len_trim(prop))//'#'//char(ll+ichar('0'))
+               else
+                  write(kou,*)'lpd 7B: ',iel,typty
+                  gx%bmperr=4082; goto 1000
+               endif
+            endif
+         else
+! unknown property ...
+            write(*,*)'unknown property type xx: ',ij,typty,typspec
+            prop='ZZ'
+         endif
+! if disordered fraction set add D, already done above
+!         if(parlist.eq.2) then
+!            prop=prop(1:len_trim(prop))//'D'
+!         endif
+! note changes here must be repeated for interaction parameters below
+         write(funexpr,200)prop(1:len_trim(prop)),&
+              phname(1:len_trim(phname)),text(1:len_trim(text))
+200      format('   PARAMETER ',A,'(',A,',',A,') ')
+         ip=len_trim(funexpr)+1
+! subtract reference states
+         if(subref .and. typty.eq.1) then
+            call subrefstates(funexpr,ip,lokph,parlist,endm,noelin1)
+            if(noelin1) then
+! this can happen for ionic liquids with just neutrals in sublattice 2
+! replace the constituent in sublattice 1 with "*" !!!
+!               write(*,*)'before: ',funexpr(1:ip)
+               kk=index(funexpr,',')
+               ik=index(funexpr,':')
+               funexpr(kk+1:)='*'//funexpr(ik:)
+               ip=len_trim(funexpr)+2
+!               write(*,*)'after:  ',funexpr(1:ip)
+            endif
+         endif
+! this writes the expression
+         call list_tpfun(proprec%degreelink(0),1,funexpr(ip:))
+         ip=len_trim(funexpr)
+         funexpr(ip+1:)=' '//proprec%reference
+         ip=len_trim(funexpr)
+         funexpr(ip+1:)=' !'
+! nice output over several lines if needed with indentation 12 spaces
+         call wrice2(lut,2,12,78,1,funexpr(1:ip+2))
+         proprec=>proprec%nextpr
+      enddo ptyloop
+      if(endmemrec%noofpermut.gt.1) then
+         intpq=0
+         if(associated(endmemrec%intpointer)) then
+            intpq=endmemrec%intpointer%antalint
+         endif
+!         write(kou,207)endmemrec%antalem,endmemrec%noofpermut,intpq
+207      format('@$ Endmember, permutations, interaction: ',3i5)
+      endif
+      endmemrec=>endmemrec%nextem
+   enddo endmemberlist
+!-----------------------------------------------------------------------
+! parameters for interactions using site fractions
+   if(parlist.eq.1) then
+      endmemrec=>phlista(lokph)%ordered
+   else
+      endmemrec=>phlista(lokph)%disordered
+   endif
+   intlist1: do while(associated(endmemrec))
+      intrec=>endmemrec%intpointer
+      if(associated(intrec)) then
+!         write(*,*)'intlist 1B: ',intrec%status
+         do ll=1,nsl
+            kkx=endmemrec%fraclinks(ll,1)
+            if(kkx.eq.-99) then
+! wildcard
+               endm(ll)=-99
+            elseif(parlist.eq.2) then
+               endm(ll)=disfra%splink(kkx)
+            else
+               endm(ll)=phlista(lokph)%constitlist(kkx)
+            endif
+         enddo
+      endif
+      nint=0
+      intlist2: do while(associated(intrec))
+         nint=nint+1
+         intrecstack(nint)%p1=>intrec
+         lint(1,nint)=intrec%sublattice(1)
+         kkk=intrec%fraclink(1)
+         if(parlist.eq.2) then
+            lint(2,nint)=disfra%splink(kkk)
+         else
+            lint(2,nint)=phlista(lokph)%constitlist(kkk)
+         endif
+         proprec=>intrec%propointer
+         ptyloop2: do while(associated(proprec))
+!            typty=proprec%proptype
+            ij=proprec%proptype
+            if(ij.ge.100) then
+               typty=ij/100
+               typspec=mod(ij,100)
+            else
+               typty=ij
+            endif
+!            typspec=proprec%proptype
+!            if(typspec.gt.100) then
+!               typty=typspec/100
+!               typspec=mod(typty,100)
+!            else
+!               typty=typspec
+!            endif
+            if(typty.gt.0 .and. typty.le.ndefprop) then
+               prop=propid(typty)%symbol
+               if(parlist.eq.2) then
+! disordered interaction parameter
+                  kk=len_trim(prop)+1
+                  prop(kk:kk)='D'
+               endif
+               if(btest(propid(typty)%status,IDELSUFFIX)) then
+! property like ZZ&<element>(phase,constituent array)
+! the element index should be in typsepc
+                  iel=typspec
+                  if(iel.ge.0 .and. iel.le.noofel) then
+                     prop=prop(1:len_trim(prop))//'&'&
+                          //ellista(elements(iel))%symbol
+                  else
+!                          write(*,*)'lpd 7: ',iel,typty
+                     gx%bmperr=4082; goto 1000
+                  endif
+               elseif(btest(propid(typty)%status,IDCONSUFFIX)) then
+! property like mobility MQ&<constiutent#sublatt>(phase,constituent array)
+! the suffix is a constituent
+                  iel=typspec
+                  if(iel.gt.0 .and. iel.le.phlista(lokph)%tnooffr) then
+                     if(parlist.eq.2) then
+! we must consider parlist, take disordered constituent list
+! we have no current equilibrium record but can use firsteq!!
+!                        write(*,*)'25E: typspec: 3 ',typty,iel,prop(1:10)
+                        linkcon=disfrap%splink(iel)
+!                        write(*,*)'25E: typspec: 4 ',typty,linkcon,prop(1:10)
+                        ll=1
+                        if(iel.gt.disfrap%nooffr(1)) ll=2
+                        prop=prop(1:len_trim(prop))//'&'&
+                             //splista(linkcon)%symbol
+                        goto 220
+                     else
+                        linkcon=phlista(lokph)%constitlist(iel)
+                        if(linkcon.le.0) then
+                           write(*,*)'Illegal use of wildcard 2'
+                           gx%bmperr=7777; goto 1000
+                        endif
+                        prop=prop(1:len_trim(prop))//'&'&
+                             //splista(linkcon)%symbol
+! also add the sublattice number ...
+                        ncsum=0
+                        do ll=1,phlista(lokph)%noofsubl
+                           ncsum=ncsum+phlista(lokph)%nooffr(ll)
+                           if(iel.le.ncsum) goto 220
+                        enddo
+                     endif
+! there cannot be any errors here ....
+                     write(*,*)'Never never error 2'
+                     gx%bmperr=7777; goto 1000
+220                  continue
+!                     write(*,*)'property 2: ',prop(1:10),ll
+                     prop=prop(1:len_trim(prop))//'#'//char(ll+ichar('0'))
+                  else
+!                          write(*,*)'lpd 7: ',iel,typty
+                     gx%bmperr=4082; goto 1000
+                  endif
+               endif
+            else
+! unknown property ...
+               write(*,*)'unknown property type yy: ',typty
+               prop='ZZ'
+            endif
+! if disordered fraction set add D, already set above ??!!
+!         if(parlist.eq.2) then
+!            prop=prop(1:len_trim(prop))//'D'
+!         endif
+! note changes here must be repeated for endmember parameters above
+            do jdeg=0,proprec%degree
+               call encode_constarr(text,nsl,endm,nint,lint,jdeg)
+               write(funexpr,300)prop(1:len_trim(prop)), &
+                    phname(1:len_trim(phname)),text(1:len_trim(text))
+300            format('PARAMETER ',A,'(',A,',',A,') ')
+               ip=len_trim(funexpr)+1
+               call list_tpfun(proprec%degreelink(jdeg),1,funexpr(ip:))
+               ip=len_trim(funexpr)
+               funexpr(ip+1:)=' '//proprec%reference
+               ip=len_trim(funexpr)
+               funexpr(ip+1:)=' !'
+               call wrice2(lut,4,12,78,1,funexpr(1:ip+2))
+            enddo
+            proprec=>proprec%nextpr
+         enddo ptyloop2
+! list temporarily the number of permutations
+         if(intrec%noofip(1).gt.1 .or. intrec%noofip(2).gt.1) then
+            if(nint.eq.1) then
+               nz=intrec%noofip(2)
+            else
+               nz=size(intrec%sublattice)
+               lqq=intrec%noofip(size(intrec%noofip))
+               if(lqq.ne.nz) then
+                  write(*,*)'Not same: ',intrec%antalint,nz,lqq
+               endif
+!               write(*,301)nz,intrec%noofip
+301            format('noofip: ',10i3)
+!               nz=intrec%noofip(intrec%noofip(1)+2)
+            endif
+            iqnext=0
+            iqhigh=0
+            if(associated(intrec%highlink)) then
+               iqhigh=intrec%highlink%antalint
+            endif
+            if(associated(intrec%nextlink)) then
+               iqnext=intrec%nextlink%antalint
+            endif
+            write(*,302)intrec%antalint,nz,nint,iqhigh,iqnext
+302         format('@$ Interaction, permutations, level, high, next: ',5i5)
+         endif
+         intrec=>intrec%highlink
+         empty: do while(.not.associated(intrec))
+            if(nint.gt.0) then
+! restore pointers in same clumsy way
+               intrec=>intrecstack(nint)%p1
+               intrec=>intrec%nextlink
+!               write(*,*)'poping a pointer from intrecstack',ninit
+               nint=nint-1
+            else
+               exit intlist2
+            endif
+         enddo empty
+      enddo intlist2
+      endmemrec=>endmemrec%nextem
+   enddo intlist1
+! check if there are other fraction lists
+!   parlist=parlist+1, hm parlist can only be 1 or 2
+!   write(*,*)'checking for disordered parameters'
+   if(parlist.eq.1 .and. associated(phlista(lokph)%disordered)) then
       write(lut,810)
 810    format('Disordered fraction parameters:',20('-'))
       subref=.TRUE.
@@ -1220,31 +1863,38 @@
       disfra=firsteq%phase_varres(lokcs)%disfra
       nsl=disfra%ndd
       parlist=2
+      if(ocv()) write(*,*)'Jump back to list disordered',nsl,parlist
       goto 100
    endif
 1000 continue
    return
- END subroutine list_phase_data
+ END subroutine list_phase_data2
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine subrefstates(funexpr,jp,lokph,parlist,endm)
+ subroutine subrefstates(funexpr,jp,lokph,parlist,endm,noelin1)
 ! list a sum of reference states for a G parameter
+! like "-H298(BCC_A2,FE)-3*H298(GRAPITE,C)"
    implicit none
    integer jp,lokph,parlist,endm(*)
    character funexpr*(*)
+   logical noelin1
 !\end{verbatim}
+! special care for ionic liquid as sites varies ...
    character text*80,els*2
    integer element(maxel),lokel
-   double precision coef(maxel),xx
+   double precision coef(maxel),xx,pqval(2)
    TYPE(gtp_fraction_set) :: disfra
    integer nsl,lokcs,ie,ll,jsp,nrel,ik,je,more,is,ip
+!
+   noelin1=.FALSE.
+   lokcs=phlista(lokph)%linktocs(1)
+   if(btest(phlista(lokph)%status1,PHIONLIQ)) goto 210
    if(parlist.eq.1) then
       nsl=phlista(lokph)%noofsubl
    else
-      lokcs=phlista(lokph)%linktocs(1)
-! should disfra be a pointer??
+! should disfra be a pointer?? It seems to work like this ....
       disfra=firsteq%phase_varres(lokcs)%disfra
       nsl=disfra%ndd
    endif
@@ -1258,7 +1908,9 @@
                if(splista(jsp)%ellinks(ik).eq.element(je)) then
                   if(parlist.eq.1) then
                      coef(je)=coef(je)+&
-                     phlista(lokph)%sites(ll)*splista(jsp)%stoichiometry(ik)
+                     firsteq%phase_varres(lokcs)%sites(ll)*&
+                     splista(jsp)%stoichiometry(ik)
+!                     phlista(lokph)%sites(ll)*splista(jsp)%stoichiometry(ik)
                   else
                      coef(je)=coef(je)+&
                      disfra%dsites(ll)*splista(jsp)%stoichiometry(ik)
@@ -1273,7 +1925,9 @@
             element(ie)=splista(jsp)%ellinks(ik)
             if(parlist.eq.1) then
                coef(ie)=&
-                    phlista(lokph)%sites(ll)*splista(jsp)%stoichiometry(ik)
+                    firsteq%phase_varres(lokcs)%sites(ll)*&
+                    splista(jsp)%stoichiometry(ik)
+!                    phlista(lokph)%sites(ll)*splista(jsp)%stoichiometry(ik)
             else
                coef(ie)=disfra%dsites(ll)*splista(jsp)%stoichiometry(ik)
             endif
@@ -1284,7 +1938,55 @@
          continue
       endif
    enddo sublat
-!    write(*,*)'subrefstate 1:',ie,(element(i),i=1,ie)
+   goto 300
+!------------------------------------------------------------
+! ionic liquid special, 2 sublattices but sites varies with charges
+210 continue
+   ie=0
+   jsp=endm(1)
+   if(jsp.gt.0) then
+      pqval(2)=splista(jsp)%charge
+   else
+      pqval(2)=one
+   endif
+   jsp=endm(2)
+   if(jsp.gt.0) then
+      if(btest(splista(jsp)%status,SPVA)) then
+         pqval(1)=one
+      else
+         pqval(1)=-splista(jsp)%charge
+         if(pqval(1).eq.zero) then
+            noelin1=.TRUE.
+            pqval(2)=one
+         endif
+      endif
+   else
+      write(*,*)'Illegal with wildcards in 2nd sublattice'
+      gx%bmperr=7777; goto 1000
+   endif
+   ionsl: do ll=1,2
+      jsp=endm(ll)
+      if(jsp.lt.0) cycle
+      nrel=splista(jsp)%noofel
+      ionel: do ik=1,nrel
+         do je=1,ie
+            if(splista(jsp)%ellinks(ik).eq.element(je)) then
+               coef(je)=coef(je)+&
+                    pqval(ll)*splista(jsp)%stoichiometry(ik)
+               cycle ionel
+            endif
+         enddo
+! new element, increment ie and initiate coef
+! ignore the element VA with element index 0
+         if(splista(jsp)%ellinks(ik).ne.0) then
+            ie=ie+1
+            element(ie)=splista(jsp)%ellinks(ik)
+            coef(ie)=&
+                 pqval(ll)*splista(jsp)%stoichiometry(ik)
+            endif
+      enddo ionel
+   enddo ionsl
+!------------------------------------------------------------
 ! sort the elements
 300 continue
    more=0
@@ -1300,7 +2002,7 @@
       endif
    enddo
    if(more.gt.0) goto 300
-! list the elemsnts as -10*H298(element)
+! list the elemsnts as -10*H298(SER,element)
 !    write(*,*)'subrefstate 2:',ie,(element(i),i=1,ie)
    ip=1
    text=' '
@@ -1315,9 +2017,9 @@
       lokel=element(je)
       els=ellista(lokel)%symbol
       if(ellista(lokel)%refstatesymbol.eq.0) then
-         text(ip:)='H298('//els(1:len_trim(els))//')'
+         text(ip:)='H298(SER,'//els(1:len_trim(els))//')'
       else
-         text(ip:)='G('//els(1:len_trim(els))//')'
+         text(ip:)='G(SER,'//els(1:len_trim(els))//')'
       endif
       ip=len_trim(text)+1
    enddo
@@ -1384,7 +2086,7 @@
       else
 ! stoichiometry is a non-integer value
          jpos=ipos
-         call wrinum(ltext,ipos,12,0,stoi)
+         call wrinum(ltext,ipos,8,0,stoi)
          if(buperr.ne.0) then
             gx%bmperr=buperr; goto 1000
          endif
@@ -1426,7 +2128,7 @@
 !\end{verbatim}
    character lname*72,ch1*1,ch2*2
    double precision xx
-   integer ip
+   integer ip,jp
    lname=name
    call capson(lname)
    noelx=0
@@ -1439,6 +2141,7 @@
 !    write(*,*)'decode_stoik 1: ',lname
 100 continue
    ch2=lname(ip:ip+1)
+!   write(*,*)'Looking for element: ',ip,ch2
    if(ch2(2:2).ge.'A' .and. ch2(2:2).le.'Z') then
       noelx=noelx+1
       elsyms(noelx)=ch2
@@ -1450,15 +2153,18 @@
    elseif(ch2(1:1).eq.'/') then
 ! electron is always /-, if /+ is given change sign in lname
       noelx=noelx+1
-      elsyms(noelx)=ch2(1:1)//'-'
+      elsyms(noelx)='/-'
       if(ch2(2:2).eq.'+') then
          lname(ip+1:ip+1)='-'
          ip=ip+1
-      else
+      elseif(ch2(2:2).eq.'-') then
          ip=ip+2
+      else
+! do not accept Fe/2 for Fe/+2, always require + or -
+         write(*,*)'Charge must always be given as /+ or /-'
+         gx%bmperr=7777; goto 1000
       endif
-!    elseif(ch2(1:1).eq.' ') then
-!       goto 900
+!      write(*,*)'Found charge: ',ip,noelx,'>',lname(ip:ip+5),'<'
    else
       goto 900
    endif
@@ -1468,17 +2174,40 @@
    if(lname(ip:ip).eq.' ') then
       stoik(noelx)=one
    else
+      jp=ip
       call getrel(lname,ip,xx)
-!       write(*,*)'decode_stoik 3: ',ip,buperr,xx
+!      write(*,*)'decode_stoik 3: ',jp,ip,buperr,xx
       if(buperr.eq.0) then
          stoik(noelx)=xx
       else
 ! accept missing stoichiometry value as 1, it is accepted to write cao as cao
          stoik(noelx)=one
-         buperr=0
+!         buperr=0
+! the error can be due to another element follows directly, restore ip an check
+!         ip=jp
+!         goto 100
       endif
 ! in one case of missing stoichiometry ip exceeded length of lname
 !       write(*,*)'decode_stoik 4: ',stoik(noelx)
+      fraction: if(buperr.eq.0 .and. lname(ip:ip).eq.'/') then
+! a stoichiometric factor followed by / without sign will be interpreted
+! as a fraction like AL2/3O.  Note AL2/+3 means AL2 with charge +3
+         jp=ip+1
+         if(.not.(lname(jp:jp).eq.'+' .or. lname(jp:jp).eq.'-')) then
+            call getrel(lname,jp,xx)
+!            write(*,*)'decode_stoik 4: ',ip,jp,buperr,xx
+            if(buperr.eq.0) then
+               stoik(noelx)=stoik(noelx)/xx
+               ip=jp
+            else
+               buperr=0
+            endif
+!         else
+!            write(*,*)'Interpret / as charge!'
+         endif
+      else
+         buperr=0
+      endif fraction
       if(ip.lt.len(lname)) goto 100
    endif
 900 continue
@@ -1539,16 +2268,17 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine decode_constarr(constarr,nsl,endm,nint,lint,ideg)
+ subroutine decode_constarr(lokph,constarr,nsl,endm,nint,lint,ideg)
 ! deconde a text string with a constituent array
 ! a constituent array has <species> separated by , or : and ; before degree
    implicit none
    character constarr*(*)
    integer endm(*),lint(2,*)
-   integer nsl,nint,ideg
+   integer nsl,nint,ideg,lokph,lord
 !\end{verbatim}
    character const*24,ch1*1
    integer ll,ip,jp,isep,loksp,mord,isp,jsp,nord
+   integer constlist(5),klok(5),knr(2)
 !
    nint=0; ideg=0; ll=1
    endm(ll)=0
@@ -1581,7 +2311,7 @@
             if(.not.((ch1.ge.'0' .and. ch1.le.'9') .or. &
                  ch1.eq.'_' .or. ch1.eq.'.' .or. &
                  ch1.eq.'/' .or. ch1.eq.'+' .or. ch1.eq.'-')) then
-               write(*,24)'decode constarr 24B: "',ch1
+!               write(*,24)'25E: decode constarr 24B: "',ch1
 24             format(a,a,'"')
                gx%bmperr=4062; goto 1000
             endif
@@ -1638,14 +2368,87 @@
    enddo loop
 ! number of sublattices
    nsl=ll
-! make sure the constituents are in alphabetcal order for each
-! sublattice. (not for ionic liquid but that is handelled elsewhere
+! make sure the constituents are in alphabetcal order for each sublattice.
+!--------------------------------------------------------
+! Special order of constituents for ionic liquid ....
+   if(btest(phlista(lokph)%status1,PHIONLIQ)) then
+      constlist(1)=endm(1)
+      if(nsl.ne.2) then
+         if(nsl.eq.1) then
+! when ionic liquid parameters entered from TDB-TC files parameters
+! with just neutrals may have only one sublattice.  Error cleared by
+! the readtdb subroutine.  
+! BUT we must sort constituents on the sublattice, must be only neutrals ...
+! I hope that will be chacked later ...
+            do jsp=1,nint
+               constlist(1+jsp)=lint(2,jsp)
+            enddo
+! simple bubble sort of constlist
+44          continue
+            do jsp=1,nint
+               if(constlist(jsp+1).lt.constlist(jsp)) then
+                  lord=constlist(jsp)
+                  constlist(jsp)=constlist(jsp+1)
+                  constlist(jsp+1)=lord
+                  goto 44
+               endif
+            enddo
+         endif
+         endm(1)=constlist(1)
+         do jsp=1,nint
+            lint(2,jsp)=constlist(1+jsp)
+         enddo
+         if(ocv()) write(*,*)'Ionic liquid has always 2 sublattices'
+         gx%bmperr=7777; goto 1000
+      endif
+      lord=1
+      do jsp=1,nint
+         if(lint(1,jsp).eq.1) then
+            lord=lord+1
+            constlist(lord)=lint(2,jsp)
+         endif
+      enddo
+      knr(1)=lord
+      lord=lord+1
+      constlist(lord)=endm(2)
+      do jsp=1,nint
+         if(lint(1,jsp).eq.2) then
+            lord=lord+1
+            constlist(lord)=lint(2,jsp)
+         endif
+      enddo
+      knr(2)=lord-knr(1)
+      call sort_ionliqconst(lokph,1,knr,constlist,klok)
+      if(gx%bmperr.ne.0) then
+         write(*,*)'Error return from sort_ionliqconst ',gx%bmperr
+         goto 1000
+      endif
+!      write(*,65)lord,(klok(ll),ll=1,lord)
+65    format('from sort: ',i5,5x,5i3)
+      lord=0
+      endm(1)=klok(1)
+      do jsp=2,knr(1)
+         lord=lord+1
+         lint(1,lord)=1
+         lint(2,lord)=klok(lord+1)
+      enddo
+      endm(2)=klok(lord+2)
+      do jsp=2,knr(2)
+         lord=lord+1
+         lint(1,lord)=2
+         lint(2,lord)=klok(lord+2)
+      enddo
+!      write(*,66)endm(1),endm(2),(lint(1,ll),lint(2,ll),ll=1,nint)
+66    format('decode: ',2i5,5x,3(2i3,2x))
+      goto 1000
+   endif
+!--------------------------------------------------------
 ! first the endmember must be in order of the constituents, except wildcard
    order1: do mord=1,nint
       ll=lint(1,mord)
       isp=lint(2,mord)
       jsp=endm(ll)
-! we can have isp or jsp or both negative if wildcard, wildcard always in endm
+! we can have isp or jsp or both negative if wildcard, WILDCARD ALWAYS IN ENDM
       if(isp.lt.0 .and. jsp.lt.0) then
 ! only one wildcard in each sublattice
          gx%bmperr=4032; goto 1000
@@ -1688,24 +2491,25 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine list_references(lut)
-! list references
+! changed from list_references(lut)
+ subroutine list_bibliography(lut)
+! list bibliographic references
    implicit none
    integer lut
 !\end{verbatim}
    character longline*2048
    integer ir,jp,nl,ll
    write(lut,10)reffree-1
-10  format('There are ',i5,' references')
+10  format('There are ',i5,' bibliographic references')
    do ir=1,reffree-1
-      longline=reflista(ir)%reference
+      longline=bibrefs(ir)%reference
       jp=17
-      nl=size(reflista(ir)%refspec)
-!       write(*,11)nl,reflista(ir)%reference
+      nl=size(bibrefs(ir)%refspec)
+!       write(*,11)nl,bibrefs(ir)%reference
 !11     format('refslist 1: ',i2,1x,a)
       do ll=1,nl
-         longline(jp:)=reflista(ir)%refspec(ll)
-!          write(*,12)ll,reflista(ir)%refspec(ll)
+         longline(jp:)=bibrefs(ir)%refspec(ll)
+!          write(*,12)ll,bibrefs(ir)%refspec(ll)
 !12        format('refslist 2: ',i2,1x,a)
          jp=jp+64
       enddo
@@ -1714,7 +2518,7 @@
    enddo
 1000 continue
    return
- end subroutine list_references
+ end subroutine list_bibliography
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -1743,6 +2547,83 @@
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim}
+ subroutine get_one_condition(ip,text,seqz,ceq)
+! list the condition with the index seqz into text
+! It lists also fix phases and conditions that are not active
+   implicit none
+   integer ip,seqz
+   character text*(*)
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   integer jl,iterm,indx(4)
+   TYPE(gtp_condition), pointer :: last,current
+   type(gtp_state_variable), pointer :: svrrec
+   double precision wone
+!
+   if(ip.le.0) ip=1
+   text(ip:)=' '
+   if(.not.associated(ceq%lastcondition)) then
+      write(*,*)'No conditions at all'
+      gx%bmperr=8887; goto 1000
+   endif
+   last=>ceq%lastcondition
+   current=>last
+70 continue
+      if(current%seqz.eq.seqz) goto 100
+      current=>current%next
+      if(.not.associated(current,last)) goto 70
+! no condition with this index found
+      gx%bmperr=4131; goto 1000
+!
+100 continue
+   iterm=1
+! return here for each term if several
+150 continue
+   do jl=1,4
+      indx(jl)=current%indices(jl,iterm)
+   enddo
+   if(abs(current%condcoeff(iterm)-one).gt.1.0D-10) then
+      wone=current%condcoeff(iterm)+one
+      if(abs(wone).lt.1.0D-10) then
+         text(ip:ip)='-'
+         ip=ip+1
+      else
+! not +1 or -1, write number
+         call wrinum(text,ip,8,1,current%condcoeff(iterm))
+         text(ip:ip)='*'
+         ip=ip+1
+      endif
+   elseif(iterm.gt.1) then
+! must be a + in front of second and later terms
+      text(ip:ip)='+'
+      ip=ip+1
+   endif
+! why is ceq needed?? BECAUSE COMPONENTS CAN BE DIFFERENT   ... hm?? !! 
+!   call encode_state_variable2(text,ip,current%statev,indx,&
+!        current%iunit,current%iref,ceq)
+   svrrec=>current%statvar(1)
+   call encode_state_variable(text,ip,svrrec,ceq)
+   if(iterm.lt.current%noofterms) then
+      iterm=iterm+1; goto 150
+   endif
+! write = followed by the value 
+   if(text(ip:ip).ne.' ') ip=ip+1
+   text(ip:)='='
+   ip=ip+1
+   if(current%symlink1.gt.0) then
+! the value is a symbol
+      text(ip:)=svflista(current%symlink1)%name
+      ip=len_trim(text)+1
+   else
+      call wrinum(text,ip,10,0,current%prescribed)
+   endif
+1000 continue
+   return
+ end subroutine get_one_condition
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
  subroutine get_all_conditions(text,mode,ceq)
 ! list all conditions if mode=0, experiments if mode=1
    implicit none
@@ -1751,6 +2632,7 @@
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
    TYPE(gtp_condition), pointer :: last,current,first
+   type(gtp_state_variable), pointer :: svrrec
    character phname*32
    integer ntot,nc,ip,iterm,iph,ics,jl
    double precision value,wone
@@ -1783,7 +2665,8 @@
 ! if active is nonzero the condition is not active
       goto 200
    endif
-   call wrinum(text,ip,3,0,dble(nc))
+!   call wrinum(text,ip,3,0,dble(nc))
+   call wriint(text,ip,nc)
 ! number the conditions
    text(ip:)=':'
    ip=ip+2
@@ -1807,7 +2690,7 @@
       call wrinum(text,ip,4,0,value)
       goto 190
    endif
-! return here if several terms
+! return here for each term if several
 150 continue
    do jl=1,4
       indx(jl)=current%indices(jl,iterm)
@@ -1829,8 +2712,12 @@
       text(ip:ip)='+'
       ip=ip+1
    endif
-   call encode_state_variable(text,ip,current%statev,indx,&
-        current%iunit,current%iref,ceq)
+! why is ceq needed?? BECAUSE COMPONENTS CAN BE DIFFERENT   ... hm?? !! 
+!   write(*,*)'25E encode: ',current%statev,indx
+!   call encode_state_variable2(text,ip,current%statev,indx,&
+!        current%iunit,current%iref,ceq)
+   svrrec=>current%statvar(1)
+   call encode_state_variable(text,ip,svrrec,ceq)
    if(iterm.lt.current%noofterms) then
       iterm=iterm+1; goto 150
    endif
@@ -2000,6 +2887,10 @@
                do jj=1,phlista(lokph)%nooffr(ll)
                   kk=kk+1
                   splink=phlista(lokph)%constitlist(kk)
+                  if(splink.le.0) then
+                     write(*,*)'Illegal use of woildcard 3'
+                     gx%bmperr=7777; goto 1000
+                  endif
                   if(specid.eq.splista(splink)%symbol .and. &
                        (lattice.eq.0 .or. lattice.eq.ll)) then
                      typty=100*ityp+kk
@@ -2064,6 +2955,10 @@
                kk=kk+1
                if(kk.eq.jtyp) then
                   splink=phlista(lokph)%constitlist(kk)
+                  if(splink.le.0) then
+                     write(*,*)'Illegal use of woildcard 4'
+                     gx%bmperr=7777; goto 1000
+                  endif
                   specid=splista(splink)%symbol
                   if(ll.gt.1) then
                      specid=specid(1:len_trim(specid))//&
@@ -2096,6 +2991,43 @@
 1000 continue
    return
  end subroutine find_defined_property
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
+ subroutine list_equilibria_details(mode,teq)
+   implicit none
+   TYPE(gtp_equilibrium_data), pointer :: teq
+   integer mode
+!\end{verbatim}
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+   TYPE(gtp_phase_varres) :: varres
+   integer ieq,iy,noofeq,iph,lokph,lokcs
+   noofeq=noeq()
+   select case(mode)
+   case default
+      write(*,*)'No such mode: ',mode
+!--------------------------------------------------
+   case(1) ! list equilibria and some general data
+      write(*,10)noofeq
+10    format('Number of equilibria: ',i3)
+      do ieq=1,noofeq
+         ceq=>eqlista(ieq)
+         write(*,11)ceq%eqno,ceq%eqname
+11       format('Equilibrium ',i3,', ',a)
+      enddo
+!--------------------------------------------------
+   case(100:199) ! list phase varres data for phase mod(mode,100)
+      iph=mod(mode,100)
+      if(iph.eq.0) then
+         write(*,*)'all phases'
+      else
+         write(*,*)'phase ',iph
+      endif
+   end select
+1000 continue
+   return
+ end subroutine list_equilibria_details
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 

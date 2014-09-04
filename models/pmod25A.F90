@@ -10,16 +10,21 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine init_gtp
+ subroutine init_gtp(intvar,dblvar)
 ! initiate the data structure
 ! create element and species record for electrons and vacancies
 ! the allocation of many arrays should be provided calling this routne
-!\end{verbatim}
+! these will eventually be used for allocations and defaults
    implicit none
+   integer intvar(*)
+   double precision dblvar(*)
+!\end{verbatim}
    character tpname*16,tpfun*80
    integer jl,ieq,ip,lrot,npid
 !
-   noofel=0; noofsp=0; noofph=0
+   noofel=0; noofsp=0; noofph=0; nooftuples=0
+!   write(*,3)'In init_gtp',maxel,maxsp,maxph
+3  format(a,10i5)
 ! allocate records for elements
    allocate(ellista(-1:maxel))
    allocate(elements(-1:maxel))
@@ -29,6 +34,7 @@
 ! allocate records for phases
    allocate(phlista(0:maxph))
    allocate(phases(0:maxph))
+   allocate(phasetuple(0:2*maxph))
 ! phases(0) is refrence phase, evidently this index is never set
    phases(0)=0
 !---------------------------
@@ -74,7 +80,8 @@
    species(1)=1
 ! link from element Va to species Va
    ellista(0)%splink=1
-   allocate(reflista(maxrefs))
+!   write(*,3)'more allocate: ',maxrefs,maxprop,maxeq,maxtpf,maxsvfun
+   allocate(bibrefs(maxrefs))
    allocate(propid(maxprop))
 ! first free data reference record (static)
    reffree=1
@@ -106,14 +113,14 @@
       firsteq%phase_varres(jl)%nextfree=jl+1
    enddo
    firsteq%phase_varres(2*maxph)%nextfree=-1
+! csfree is not declared ... how can that be?? where is it declared ??
    csfree=1
-! initiate phcs, the array with phase composition sets counters
-   phcs=0
-! convergence criteria for constituent fractions
-! 1e-6 works most often
+! convergence criteria for constituent fractions, 1e-6 works most often
+! But one should take care to equilibrate fractions smaller than xconv!!!
    firsteq%xconv=1.0D-6
-   firsteq%maxiter=100
+   firsteq%maxiter=500
 ! initiate tp functions
+!   write(*,*)'init_gtp: initiate TP fuctions'
    jl=maxtpf
    call tpfun_init(jl,firsteq%eq_tpres)
 !------------------------------------
@@ -127,7 +134,7 @@
    propid(npid)%note='Energy '
    propid(npid)%status=0
 !============================================================
-! VERY IMPORTANT: The properties diefined below must not be equal to state
+! VERY IMPORTANT: The properties defined below must not be equal to state
 ! variables, if so they cannot be listed and other errors may occur
 !
 ! ANY CHANGES HERE MUST BE MADE ALSO IN SUBROUTINE state_variable_val, pmod25c
@@ -271,7 +278,7 @@
 !.......................................
 ! IMPORTRANT: When adding more parameter identifiers one should never
 ! use a name ending in D as that would be taken as a "disordered"
-! number of defined properties, should be less than maxprop
+! The number of defined properties, should be less than maxprop
 ! IMPORTANT: In the addition records one must use the parameter identifier
 ! to extract the calculated composition dependent values
    ndefprop=npid
@@ -289,17 +296,20 @@
    globaldata%rgas=8.31451D0
 ! more recent value
 !   globaldata%rgas=8.3144621D0
+! old value of gas constant
    globaldata%rgasuser=8.31451D0
    globaldata%pnorm=one
+!   write(*,*)'init_gtp: enter R and RTLNP'
 ! enter R as TP function
    tpname='R'
-   write(tpfun,777)' 10 8.31451; 20000 N '
-777 format(a)
-   call enter_tpfun(tpname,tpfun,lrot)
+!   write(tpfun,777)' 10 8.31451; 20000 N '
+!777 format(a)
+!   call enter_tpfun(tpname,tpfun,lrot,.FALSE.)
+   call enter_tpconstant(tpname,globaldata%rgas)
    if(gx%bmperr.ne.0) goto 1000
    tpname='RTLNP'
    tpfun=' 10 R*T*LN(1.0D-5*P); 20000 N '
-   call enter_tpfun(tpname,tpfun,lrot)
+   call enter_tpfun(tpname,tpfun,lrot,.FALSE.)
    if(gx%bmperr.ne.0) goto 1000
 ! default minimum fraction
    bmpymin=ymind
@@ -307,6 +317,7 @@
    pfnerr=0
 !------------------------------------
 ! allocate array for state variable function
+!   write(*,*)'init_gtp: allocate array for state variable functions'
    allocate(svflista(maxsvfun))
 ! number of state variable function
    nsvfun=0
@@ -315,6 +326,7 @@
 ! enter some useful state variable function
    tpfun=' R=8.31451;'
    ip=1
+!   write(*,*)'init_gtp: entering function R'
    call enter_svfun(tpfun,ip,firsteq)
 !   if(gx%bmperr.ne.0) then
 !      write(*,*)'Error entering R',gx%bmperr
@@ -323,6 +335,7 @@
 !   write(*,*)'Entered symbol R'
    tpfun=' RT=R*T;'
    ip=1
+!   write(*,*)'init_gtp: entering function RT'
    call enter_svfun(tpfun,ip,firsteq)
 !   if(gx%bmperr.ne.0) then
 !      write(*,*)'Error entering symbol RT'
@@ -331,6 +344,7 @@
 !   write(*,*)'Entered symbol RT'
    tpfun=' T_C=T-273.15;'
    ip=1
+!   write(*,*)'init_gtp: entering function T_C'
    call enter_svfun(tpfun,ip,firsteq)
 !   if(gx%bmperr.ne.0) then
 !      write(*,*)'Error entering symbol T_C'
@@ -338,6 +352,7 @@
 !   endif
 ! finished initiating
 1000 continue
+!   write(*,*)'exit from init_gtp'
    return
  END subroutine init_gtp
 
@@ -653,9 +668,9 @@
       endif
 ! if there are composition sets check name including prefix/suffix
 !      write(*,*)'find_phase 5: ',lokph,phlista(lokph)%noofcs
-      do jcs=2,phlista(lokph)%noofcs
+      csno: do jcs=2,phlista(lokph)%noofcs
          lokcs=phlista(lokph)%linktocs(jcs)
-!         write(*,*)'find phase: ',jcs,lokcs
+!         write(*,*)'25A: find phase: ',jcs,lokcs,phlista(lokph)%noofcs
          csrec=>firsteq%phase_varres(lokcs)
          kp=len_trim(csrec%prefix)
          if(kp.gt.0) then
@@ -667,13 +682,22 @@
          kp=len_trim(csrec%suffix)
          if(kp.gt.0) csname=csname(1:len_trim(csname))//'_'//&
               csrec%suffix(1:kp)
+!         write(*,244)ics,kcs,jcs,kp,name1(1:len_trim(name1)),&
+!              csname(1:len_trim(csname))
+244      format('25A: find_phase: ',4i3,'<',a,'>=?=<',a,'>')
          if(compare_abbrev(name1,csname)) then
 ! if user has provided both #<digit> and pre/suffix these must be consistent
-            if(kcs.gt.0 .and. kcs.ne.jcs) goto 1100
+            if(kcs.gt.0 .and. kcs.ne.jcs) then
+! automatically created composition sets all have the suffix _AUTO but
+! can have several numbers
+!               write(*,*)'25A: mix? ',jcs,phlista(lokph)%noofcs
+               if(jcs.eq.phlista(lokph)%noofcs) goto 1100
+               cycle csno
+            endif
             ics=jcs
             goto 300
          endif
-      enddo
+      enddo csno
    enddo loop1
 ! no phase found
    gx%bmperr=4050
@@ -749,15 +773,18 @@
       endif
    enddo loop1
 !    write(*,*)'find_phase ',iphfound
-   if(iphfound.le.0) then
+   if(iphfound.lt.0) then
 ! several phases found
       gx%bmperr=4121; goto 1000
+   elseif(iphfound.le.0) then
+! no phase found
+      gx%bmperr=4050; goto 1000
    else
       lokph=iphfound
       goto 300
    endif
 ! if there are composition sets check name including prefix/suffix
-!       write(*,*)'find_phase 5: ',lokph,phlista(lokph)%noofcs
+   write(*,*)'find_phase 5: ',lokph,phlista(lokph)%noofcs
    do jcs=2,phlista(lokph)%noofcs
       lokcs=phlista(lokph)%linktocs(jcs)
       csrec=>firsteq%phase_varres(lokcs)
@@ -841,6 +868,7 @@
 !\begin{verbatim}
  subroutine findeq(name,ieq)
 ! finds the equilibrium with name "name" and returns its index
+! ieq should be the current equilibrium
    implicit none
    character name*(*)
    integer ieq
@@ -849,6 +877,13 @@
    integer jeq
    name2=name
    call capson(name2)
+! Accept abbreviations of PREVIOUS and FIRST (DEFAULT is the same as the first)
+!   write(*,*)'25A equil: ',name2(1:20),ieq
+   if(compare_abbrev(name2,'PREVIOUS ')) then
+      jeq=max(1,ieq-1); goto 200
+   elseif(compare_abbrev(name2,'FIRST ')) then
+      jeq=1; goto 200
+   endif
    jeq=0
 100 jeq=jeq+1
 !    write(*,*)'findeq 2: ',jeq,name2
@@ -859,6 +894,7 @@
 !    write(*,*)'findeq 3: ',jeq,eqlista(jeq)%eqname
    if(.not.compare_abbrev(name2,eqlista(jeq)%eqname)) goto 100
 !    if(eqlista(jeq)%eqname.ne.name2) goto 100
+200 continue
    ieq=jeq
 1000 continue
  end subroutine findeq
@@ -912,6 +948,19 @@
    nv=phlista(lokph)%tnooffr-phlista(lokph)%noofsubl
    return
  end subroutine get_phase_variance
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim} %-
+ subroutine get_constituent_location(lokph,cno,loksp)
+! returns the location of the species record of a constituent
+! requred for ionic liquids as phlista is private
+   implicit none
+   integer lokph,loksp,cno
+!\end{verbatim} %+
+   loksp=phlista(lokph)%constitlist(cno)
+   return
+ end subroutine get_constituent_location
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -1112,6 +1161,22 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
+ subroutine phase_name(phtuple,name)
+! Given the phase tuple this subroutine returns the name with pre- and suffix
+! for composition sets added and also a \# followed by a digit 2-9 for
+! composition sets higher than 1.
+   implicit none
+   character name*(*)
+   type(gtp_phasetuple) :: phtuple
+!\end{verbatim} %+
+   call get_phase_name(phtuple%phase,phtuple%compset,name)
+1000 continue
+   return
+ end subroutine phase_name
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim} %-
  subroutine get_phase_name(iph,ics,name)
 ! Given the phase index and composition set number this subroutine returns
 ! the name with pre- and suffix for composition sets added and also 
@@ -1154,6 +1219,7 @@
 ! nkl: integer array, number of constituents in each sublattice
 ! knr: integer array, species location (not index) of constituents (all subl)
 ! yarr: double array, fraction of constituents (in all sublattices)
+! sites: double array, number of sites in each sublattice
 ! qq: double array, (must be dimensioned at least 5) although only 2 used:
 ! qq(1) is number of real atoms per formula unit for current constitution
 ! qq(2) is net charge of phase for current constitution
@@ -1197,8 +1263,8 @@
       sublat: do ll=1,nsl
          nkl(ll)=phlista(lokph)%nooffr(ll)
 ! For ionic liquid one must use this but at present values are not set
-!         sites(ll)=ceq%phase_varres(lokcs)%sites(ll)
-         sites(ll)=phlista(lokph)%sites(ll)
+         sites(ll)=ceq%phase_varres(lokcs)%sites(ll)
+!         sites(ll)=phlista(lokph)%sites(ll)
 !         write(*,*)'get_phase_data 7:',lokcs,ll,sites(ll)
          ql=zero
          vl=zero
@@ -1208,9 +1274,12 @@
             knr(kkk)=loksp
             yz=ceq%phase_varres(lokcs)%yfr(kkk)
             yarr(kkk)=yz
-            ql=ql+yz*splista(loksp)%charge
-            if(btest(splista(loksp)%status,SPVA)) then
-               vl=yz
+            if(loksp.gt.0) then
+! loksp is -99 for wildcards.  ionic liquid can have that in first sublattice
+               ql=ql+yz*splista(loksp)%charge
+               if(btest(splista(loksp)%status,SPVA)) then
+                  vl=yz
+               endif
             endif
          enddo const
          vsum=vsum+sites(ll)*(one-vl)
@@ -1231,24 +1300,27 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim}
- subroutine get_condition(nterm,istv,indices,iref,iunit,pcond)
-! finds a condition record with the given state variable expression
+!\begin{verbatim} %-
+ subroutine extract_stvr_of_condition(pcond,nterm,coeffs,statevar)
+! finds a condition record with the given state variable record
+! returns it as a state variable record !!!
 ! nterm: integer, number of terms in the condition expression
-! istv: integer, state variable used in the condition
-! indices: 2D integer array, state variable indices used in the condition
-! iref: integer, reference state of the condition (if applicable)
-! iunit: integer, unit of the condition value
 ! pcond: pointer, to a gtp_condition record
    implicit none
    TYPE(gtp_condition), pointer :: pcond
-   integer, dimension(4,*) :: indices
-   integer nterm,istv,iref,iunit
+! ONE CANNOT HAVE ARRAYS OF POINTERS!!! STUPID
+!   TYPE(gtp_state_variable), dimension(*), pointer :: statevar
+   TYPE(gtp_state_variable), dimension(*) :: statevar
+   integer nterm
+   double precision coeffs(*)
 !\end{verbatim}
    TYPE(gtp_condition), pointer :: last,current,first
    integer, dimension(4) :: indx
-   integer ncc,nac,j1,j2
-!   write(*,*)'looking for condition'
+   integer ncc,nac,j1,j2,istv,iref,iunit
+!
+   write(*,*)'not implemented!!'
+   gx%bmperr=7777; goto 1000
+!--------------------------------------------------------
    if(.not.associated(pcond)) goto 900
    first=>pcond%next
    current=>first
@@ -1280,9 +1352,9 @@
    if(current%noofterms.ne.nterm .or. current%statev.ne.istv .or. &
         current%iref.ne.iref .or. current%iunit.ne.iunit) goto 200
    do j1=1,nterm
-      do j2=1,4
-         if(current%indices(j2,j1).ne.indices(j2,j1)) goto 200
-      enddo
+!      do j2=1,4
+!         if(current%indices(j2,j1).ne.indices(j2,j1)) goto 200
+!      enddo
    enddo
 150 continue
 ! found condition
@@ -1298,46 +1370,46 @@
    gx%bmperr=4131; goto 1000
 1000 continue
    return
- end subroutine get_condition
+ end subroutine extract_stvr_of_condition
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 !>     5. Set things
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\begin{verbatim}
- subroutine set_start_constitution(iph,ics,ceq)
+!
+!-\begin{verbatim}
+! subroutine set_mean_constitution(iph,ics,ceq)
 ! sets a start constitution 1/ns in all sublattices where ns is the number
-! of constituents in the sublattice.  Redundant?
-   implicit none
-   integer iph,ics
-   TYPE(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim}
-   integer, dimension(maxsubl) :: knl
-   double precision, dimension(maxsubl) :: sites
-   integer, dimension(maxconst) :: knr
-   double precision, dimension(maxconst) :: yarr
-   double precision, dimension(5) :: qq
-   double precision df
-   integer nsl,kkk,ll,jl
-   call get_phase_data(iph,ics,nsl,knl,knr,yarr,sites,qq,ceq)
-   if(gx%bmperr.ne.0) goto 1000
-   kkk=0
-   do ll=1,nsl
-      if(knl(ll).gt.1) then
-         df=one/dble(knl(ll))
-         do jl=1,knl(ll)
-            kkk=kkk+1
-            yarr(kkk)=df
-         enddo
-      endif
-   enddo
+! of constituents in the sublattice.
+!   implicit none
+!   integer iph,ics
+!   TYPE(gtp_equilibrium_data), pointer :: ceq
+!-\end{verbatim}
+!   integer, dimension(maxsubl) :: knl
+!   double precision, dimension(maxsubl) :: sites
+!   integer, dimension(maxconst) :: knr
+!   double precision, dimension(maxconst) :: yarr
+!   double precision, dimension(5) :: qq
+!   double precision df
+!   integer nsl,kkk,ll,jl
+!   call get_phase_data(iph,ics,nsl,knl,knr,yarr,sites,qq,ceq)
+!   if(gx%bmperr.ne.0) goto 1000
+!   kkk=0
+!   do ll=1,nsl
+!      if(knl(ll).gt.1) then
+!         df=one/dble(knl(ll))
+!         do jl=1,knl(ll)
+!            kkk=kkk+1
+!            yarr(kkk)=df
+!         enddo
+!      endif
+!   enddo
 !   write(*,17)iph,ics,(yarr(j),j=1,kkk)
-17 format('Default cons: ',2i3,5(1pe12.4))
-   call set_constitution(iph,ics,yarr,qq,ceq)
-1000 continue
-   return
- end subroutine set_start_constitution
-
+!17 format('Default cons: ',2i3,5(1pe12.4))
+!   call set_constitution(iph,ics,yarr,qq,ceq)
+!1000 continue
+!   return
+! end subroutine set_mean_constitution
+!
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
@@ -1345,14 +1417,18 @@
 ! set the constituent fractions of a phase and composition set and the
 ! number of real moles and mass per formula unit of phase
 ! returns number of real atoms in qq(1), charge in qq(2) and mass in qq(3)
+! for ionic liquids sets the number of sites in the sublattices
    implicit none
    double precision, dimension(*) :: yfra,qq
    integer iph,ics
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-   integer lokph,lokcs,nzz,ll,ml,ic,loksp,jl,nsl
+   integer lokph,lokcs,ll,ml,ic,loksp,jl,nsl,locva
    double precision charge,spat,asite,bsite,badd,yz,yva,sumat,asum,bsum
+!   double precision charge1,bion1,ionsites(2)
+   double precision charge1,bion1
    TYPE(gtp_fraction_set), pointer :: disrec
+   logical ionicliq
    if(iph.le.0 .or. iph.gt.noofph) then
       gx%bmperr=4050; goto 1000
    endif
@@ -1363,115 +1439,188 @@
       ics=1
    endif
    lokcs=phlista(lokph)%linktocs(ics)
+   ionicliq=btest(phlista(lokph)%status1,PHIONLIQ)
+   if(ionicliq) then
+! default values of i2slx
+      phlista(lokph)%i2slx(1)=phlista(lokph)%tnooffr+1
+      phlista(lokph)%i2slx(2)=phlista(lokph)%tnooffr+1
+      yva=zero
+      locva=0
+   endif
 !----
-!   lokcs=phlista(lokph)%cslink
-!   jcs=ics-1
-!   do while(jcs.gt.0)
-!      lokcs=ceq%phase_varres(lokcs)%next
-!      if(lokcs.le.0) then
-!         gx%bmperr=4072; goto 1000
-!      endif
-!      jcs=jcs-1
-!   enddo
-!   write(*,17)'set_cons 1: ',iph,(yfra(j),j=1,phlista(lokph)%tnooffr)
-17 format(a,i3,5(1pe12.4))
-   nzz=phlista(lokph)%tnooffr
-   nosuscon: if(.not.btest(ceq%phase_varres(lokcs)%status2,CSCONSUS)) then
+   if(ocv()) write(*,8)'25Ay:',iph,ics,&
+        (yfra(ic),ic=1,phlista(lokph)%tnooffr)
+8  format(a,2i2,6(1pe11.3))
+   nosuscon: if(btest(ceq%phase_varres(lokcs)%status2,CSCONSUS)) then
+! >>>> unfinished: handle the case when some constituents are suspended
+!      write(*,*)'set_constitution with suspended constituents not implemented'
+      write(*,*)'suspended const in: ',lokph,lokcs
+      gx%bmperr=4080; goto 1000
+   else
 ! no suspended constituents
-      ll=1; ml=0; asum=zero; bsum=zero
-      charge=zero
-      asite=phlista(lokph)%sites(ll); spat=zero
+! As the application program may have errors first make sure than
+! the constituents fractions are correct:
+! - no negative fractions
+! - sum of fractions in each sublattice unity
+!      if(ocv()) write(*,*)'25A 2: ',ionicliq
+      ic=0
+      do ll=1,phlista(lokph)%noofsubl
+!         write(*,*)'25A sumy 2: ',ll,ic,phlista(lokph)%noofsubl
+         asite=zero
+         do ml=1,phlista(lokph)%nooffr(ll)
+            yz=yfra(ic+ml)
+            if(yz.lt.bmpymin) yz=bmpymin
+            ceq%phase_varres(lokcs)%yfr(ic+ml)=yz
+            asite=asite+yz
+         enddo
+! make sure sum of fractions is unity in each sublattice
+         do ml=1,phlista(lokph)%nooffr(ll)
+            ceq%phase_varres(lokcs)%yfr(ic+ml)=&
+                 ceq%phase_varres(lokcs)%yfr(ic+ml)/asite
+         enddo
+!         write(*,13)'25A y: ',ll,ic,asite,bmpymin,&
+!              (ceq%phase_varres(lokcs)%yfr(ic+ml),&
+!              ml=1,phlista(lokph)%nooffr(ll))
+13       format(a,2i2,2(1pe12.4),1x,4(1pe12.4))
+         ic=ic+phlista(lokph)%nooffr(ll)
+      enddo
+!--------
+      ll=1; ml=0; asum=zero; bsum=zero; charge=zero
+      if(ionicliq) then
+! For ionic liquid we do not know the number of sites
+         asite=one
+         bion1=zero
+      else
+         asite=ceq%phase_varres(lokcs)%sites(ll)
+      endif
+! what is bsite used for???
       bsite=asite; badd=zero
-      do ic=1,phlista(lokph)%tnooffr
-         yz=yfra(ic)
-         if(yz.lt.bmpymin) then
-            yz=bmpymin
-         elseif(yz.gt.one) then
-            yz=one
-         endif
-         ceq%phase_varres(lokcs)%yfr(ic)=yz
-         if(btest(ceq%phase_varres(lokcs)%constat(ic),conva)) then
-! save fraction of vacancies for use when ionic liquid
+      spat=zero
+      allcon: do ic=1,phlista(lokph)%tnooffr
+         yz=ceq%phase_varres(lokcs)%yfr(ic)
+!         if(ocv()) write(*,*)'25A 3: ',ic,yz
+         notva: if(btest(ceq%phase_varres(lokcs)%constat(ic),CONVA)) then
+! i2slx(1) should be set to the index of vacancies (if any)
+            if(ionicliq) phlista(lokph)%i2slx(1)=ic
+            locva=ic
             yva=yz
          else
+! sum charge and for constituents with several atoms spat sum number of atoms
             loksp=phlista(lokph)%constitlist(ic)
             charge=charge+bsite*yz*splista(loksp)%charge
+! derivates of sites for ionic liquid model
+!            if(ocv()) write(*,*)'25A 4: ',loksp,charge
+            if(ionicliq) then
+               ceq%phase_varres(lokcs)%dpqdy(ic)=abs(splista(loksp)%charge)
+!               if(ocv()) write(*,*)'25A dpqdy:     ',&
+!                    ic,abs(splista(loksp)%charge)
+! i2slx(2) should be set to the index of the first neutral (if any)
+               if(splista(loksp)%charge.eq.zero .and.&
+                    phlista(lokph)%i2slx(2).gt.ic) &
+                    phlista(lokph)%i2slx(2)=ic
+            endif
             badd=badd+bsite*yz*splista(loksp)%mass
 !            write(*,56)'setcon: ',iph,loksp,splista(loksp)%mass,yz,badd
 56          format(a,2i3,3(1pe12.4))
-! for constituents with several atoms spat adds up number of atoms
             sumat=zero
+! This is not adopted for other components than the elements
             do jl=1,splista(loksp)%noofel
                sumat=sumat+splista(loksp)%stoichiometry(jl)
             enddo
             spat=spat+yz*sumat
-            if(sumat.gt.1) then
+! check sum number of atoms for ionic liquid
+!            if(sumat.gt.1) then
 !               write(*,7)'spat: ',lokph,splista(loksp)%noofel,sumat,yz,spat
-7              format(a,2i3,3F10.4)
-            endif
+!7              format(a,2i3,3F10.4)
+!            endif
 !             write(*,11)loksp,yz,splista(loksp)%mass,badd,bsum
 11           format('set_const 3: ',i3,4(1PE15.7))
-         endif
+         endif notva
+! ml is constituent number in this sublattice, ic for all sublattices
          ml=ml+1
-         if(ml.ge.phlista(lokph)%nooffr(ll)) then
-! new sublattice
+!         if(ocv()) write(*,*)'25A 5: ',ml
+         newsubl: if(ml.ge.phlista(lokph)%nooffr(ll)) then
+! next sublattice
+            ionliq: if(ionicliq) then
+! for ioniq liquids the number of sites is the charge on opposite sublattice
+               if(ll.eq.1) then
+! Q=\sum_i v_i y_i = charge
+!                  write(*,88)'ionliq: ',ll,badd,bion1
+88                format(a,i3,6(1pe12.4))
+                  ceq%phase_varres(lokcs)%sites(2)=charge
+!                  write(*,*)'Ionic 2: ',ceq%phase_varres(lokcs)%sites(2)
+!                  bsite=one
+                  charge1=charge
+                  charge=zero
+! initiate vacancy and neutral indices beyond last index (already done??)
+                  phlista(lokph)%i2slx=phlista(lokph)%tnooffr+1
+               elseif(ll.eq.2) then
+! P=\sum_j (-v_j)y_j + Qy_Va. Note charge is total charge and valences 
+! on 2nd sublattice is negative
+! Now we know number of sites on sublattice 1, update asum and bsum
+                  sumat=-charge+charge1*yva
+                  ceq%phase_varres(lokcs)%sites(1)=sumat
+!                  write(*,*)'Ionic 1: ',ceq%phase_varres(lokcs)%sites(1)
+                  asum=asum*sumat
+                  bsum=bion1*sumat
+                  charge=zero
+!                  write(*,88)'ionliq: ',ll,badd,bion1,bsum,sumat,yva
+               else
+                  write(*,*)'Ionic liquid must have two sublattices'
+                  gx%bmperr=7777; goto 1000
+               endif
+            endif ionliq
+! note: for ionic liquid previous values of asum and bsum are updated 
+! when fractions in sublattice 2 have been set
             asum=asum+asite*spat
             bsum=bsum+badd
+!            write(*,33)'25A g:',lokcs,ll,asum,asite,spat
+33          format(a,2i2,6(1pe12.4))
 !            write(*,39)'set_con: ',ll,ml,asum,asite,spat
-39          format(a,2i5,3(1pe12.4))
+!39          format(a,2i5,3(1pe12.4))
 !            write(*,12)'set_const 12: ',ll,asum,asite,bsum,badd
-12          format(a,i3,4(1pe12.4))
+!12          format(a,i3,4(1pe12.4))
             if(ll.lt.phlista(lokph)%noofsubl) then
                ll=ll+1; ml=0
-               asite=phlista(lokph)%sites(ll); spat=zero
-               bsite=asite; badd=zero
+!               asite=phlista(lokph)%sites(ll); spat=zero
+               asite=ceq%phase_varres(lokcs)%sites(ll)
+               spat=zero; bion1=badd; badd=zero
+! if ionic liquid bsite must be 1.0 when summing second sublattice. Why???
+               if(.not.ionicliq) bsite=asite
             endif
-         endif
-      enddo
-!   write(*,18)'set_const 2: ',lokcs,(ceq%phase_varres(lokcs)%yfr(jj),jj=1,nzz)
-!         ceq%phase_varres(lokcs)%yfr(2),ceq%phase_varres(lokcs)%yfr(3),bsum
-18  format(a,i4,4(1PE15.6))
-      if(btest(phlista(lokph)%status1,PHIONLIQ)) then
-! >>> for ionic liquid calculate sites and derivatives of sites
-!         write(*,*)'cannot set_constitituon for ionic liquids'
-         gx%bmperr=4079; goto 1000
-      endif
-      nsl=phlista(lokph)%noofsubl
-      do ll=1,nsl
-         ceq%phase_varres(lokcs)%sites(ll)=phlista(lokph)%sites(ll)
-      enddo
-   else
-! >>>> unfinished: handle the case when some constituents are suspended
-!      write(*,*)'set_constitution with suspended constituents does not work'
-      gx%bmperr=4080; goto 1000
+         endif newsubl
+      enddo allcon
+!      write(*,33)'25A h:',lokcs,ll,asum,asite,spat
    endif nosuscon
-! save calculated amount and mass of real atoms
+! save charge, number of moles and mass of real atoms per formula unit
+!   write(*,33)'25A i:',lokcs,0,asum,asite,spat
+   ceq%phase_varres(lokcs)%netcharge=charge
    ceq%phase_varres(lokcs)%abnorm(1)=asum
    ceq%phase_varres(lokcs)%abnorm(2)=bsum
-!   write(*,301)'setcon: ',iph,asum,bsum
-301 format(a,i3,2(1pe12.4))
+   if(ionicliq .and. locva.gt.0) then
+! the ionic liquid vacancy charge is the number of sites on second subl.
+      ceq%phase_varres(lokcs)%dpqdy(locva)=ceq%phase_varres(lokcs)%sites(2)
+!      if(ocv()) write(*,*)'25A dpqdy(va): ',&
+!           locva,ceq%phase_varres(lokcs)%sites(2)
+   endif
+!   if(ionicliq) then
+!      write(*,301)'25A xsc:',lokcs,asum,bsum,ceq%phase_varres(lokcs)%sites,&
+!           charge1
+!301 format(a,i3,6(1pe12.4))
+!      write(*,301)'25A y:  ',ic,ceq%phase_varres(lokcs)%yfr
+!   endif
    qq(1)=asum
    qq(2)=charge
    qq(3)=bsum
-! save value of qq in phase_varres
-   ceq%phase_varres(lokcs)%qqsave(1)=qq(1)
-   ceq%phase_varres(lokcs)%qqsave(2)=qq(2)
-   ceq%phase_varres(lokcs)%qqsave(3)=qq(3)
-! >>>> compiler problem:
-! gfortran on LINUX did not like allocated here but accepted associated ...
-! gfortran on Windows 7 do not like associated ... SUCK
-!    if(allocated(phase_varres(lokcs)%disfra%dsites)) then
-!    if(associated(phase_varres(lokcs)%disfra%dsites)) then
-! use this test instead ...
+! set disordered fractions if any
    if(btest(phlista(lokph)%status1,phmfs)) then
 !now set disordered fractions if any
-!      call calc_disfrac(lokph,ceq%phase_varres(lokcs),ceq)
-!      write(*,*)'Setting disordered fractions ',lokph,lokcs
       call calc_disfrac(lokph,lokcs,ceq)
       if(gx%bmperr.ne.0) goto 1000
    endif
 314 format(a,8F8.3)
 1000 continue
+!   if(ionicliq) write(*,*)'25A s_c: ',phlista(lokph)%i2slx
    return
  end subroutine set_constitution
 

@@ -17,6 +17,10 @@
    integer iph,ics,moded,lokres
 !\end{verbatim}
    integer jcs,lokcs,lokph
+   if(gx%bmperr.ne.0) then
+      write(*,*)'Error code set when calling calcg: ',gx%bmperr
+      goto 1000
+   endif
    if(iph.le.0 .or. iph.gt.noofph) then
 ! the selected_element_reference phase with iph=0 is calculated separtely
       gx%bmperr=4050; goto 1000
@@ -74,6 +78,7 @@
 ! ceq is the equilibrium record, cps is the phase_varres record for lokph
 ! moded is type of calculation, 0=only G, 1 G and first derivatives
 !    2=G and all second derivatives
+! Can also handle the ionic liquid model now ....
    implicit none
    integer lokph,moded
    TYPE(gtp_equilibrium_data), pointer :: ceq
@@ -113,17 +118,17 @@
    double precision, dimension(:,:), allocatable :: saved2g
    double precision, dimension(:,:), allocatable :: tmpd2g
 ! added when implicit none
-   double precision rt,pyq,ymult,add1,sum
+   double precision rtg,pyq,ymult,add1,sum,yionva,fsites
    integer nofc2,nprop,nsl,msl,iprop,lokdiseq,ll,id,id1,id2,lm,jl
    integer lokfun,itp,nz,intlat,ic,jd,noprop,jk,ic1,jpr,ipy,i1,j1
-   integer i2,j2,ider,is,kk,ioff,norfc,iw,iw1,iw2,lprop
+   integer i2,j2,ider,is,kk,ioff,norfc,iw,iw1,iw2,lprop,jonva
 ! to handle parameters with wildcard constituent
-   logical wildc,nevertwice,first,mcs,chkperm
-! debugging
-   integer clist(4)
+   logical wildc,nevertwice,first,mcs,chkperm,ionicliq,iliqsave,iliqva
+! debugging for partitioning and ordering
+!   integer clist(4)
 ! calculate RT to normalize all Gibbs energies, ceq is current equilibrium
-   rt=globaldata%rgas*ceq%tpval(1)
-   ceq%rtn=rt
+   rtg=globaldata%rgas*ceq%tpval(1)
+   ceq%rtn=rtg
 !-----------------------
    chkperm=.false.
    if(btest(phlista(lokph)%status1,PHFORD) .or. &
@@ -134,15 +139,18 @@
       call palmtree(lokph)
       if(gx%bmperr.ne.0) goto 1000
    endif
+!   if(ocv()) write(*,*)'in gcalc_internal: ',lokph
 !-----------------------------------------------------------------
 50  continue
 ! local work arrays for products of Y and calculated parameters are allocated
    gz%nofc=phlista(lokph)%tnooffr
    nofc2=gz%nofc*(gz%nofc+1)/2
-!   write(*,17)'calcg, ',lokph,gz%nofc,cps%yfr(1)
-17 format(a,2i4,1pe15.6)
+!   write(*,17)'calcg, ',lokph,gz%nofc,nofc2,size(cps%d2gval),cps%nprop,&
+!        cps%yfr(1)
+!17 format(a,5i4,1pe15.6)
 ! for disordered fraction sets gz%nofc must be from disordered fraction record
 ! maybe these should not be allocated for moded=0 and 1
+!   if(ocv()) write(*,*)'First allocate: ',gz%nofc,nofc2
    allocate(dpyq(gz%nofc))
    allocate(d2pyq(nofc2))
 ! these return values from excess parameters that may depend on constitution
@@ -177,9 +185,27 @@
    first=.true.
 !-------------------------------------------------------------------
 ! calculate configurational entropy.
-! NOTE: This is done for ordered original (site) fraction set only
    nsl=phlista(lokph)%noofsubl
-   call config_entropy(moded,nsl,phlista(lokph)%nooffr,phres,gz%tpv(1))
+   ionicliq=.FALSE.
+   if(btest(phlista(lokph)%status1,PHIONLIQ)) then
+      call config_entropy_i2sl(moded,nsl,phlista(lokph)%nooffr,phres,&
+           phlista(lokph)%i2slx,gz%tpv(1))
+      ionicliq=.TRUE.
+      iliqsave=.FALSE.
+      iliqva=.FALSE.
+      jonva=0
+!      write(*,*)'Config G 1: ',phres%gval(1,1)*rtg
+!      if(phlista(lokph)%i2slx(1).gt.phlista(lokph)%tnooffr .and. &
+!           phlista(lokph)%i2slx(2).gt.phlista(lokph)%tnooffr) then
+!         onlyanions=.TRUE.
+!      else
+!         onlyanions=.FALSE.
+!      endif
+   else
+! NOTE: for phases with disordered fraction set this is calculated
+! for the ordered original constituent fraction set only
+      call config_entropy(moded,nsl,phlista(lokph)%nooffr,phres,gz%tpv(1))
+   endif
    if(gx%bmperr.ne.0) goto 1000
 !-------------------------------------------------------------------
 ! start BIG LOOP for all fraction variables and parameters
@@ -189,6 +215,8 @@
 ! found (each phase may have different) and in listprop the original type
 ! of property is stored.  listprop will always be associated with phmain
 100 continue
+   yionva=zero
+! yionva is used as indicator below if there are Va or just neutrals ...
    nevertwice=.true.
    lprop=2
    phmain%listprop(1)=1
@@ -200,7 +228,7 @@
    fractyp: do while(fractype.lt.phlista(lokph)%nooffs)
 105 continue
       fractype=fractype+1
-! return here for cxalculating with disordered fractions for same fraction type
+! return here for calculating with disordered fractions for same fraction type
 110 continue
 ! gz%nofc is number of fraction variables, msl is number of sublattices
 ! for this set of fractions!!! Ordering in FCC may have 5 sublattices with
@@ -208,12 +236,12 @@
 ! set may have 2 sublattices, 1 for the 4 ordering and one interstitial
       fracset=phmain%disfra
       ftype: if(fractype.eq.1) then
-!---------------------------------------------- ordered fraction set
-         if(btest(phlista(lokph)%status1,phmfs)) then
+!---------------------------------------------- ordered (or only) fraction set
+         if(btest(phlista(lokph)%status1,PHMFS)) then
 ! there is a disordered fractions set, we need fracset later
             if(fracset%totdis.ne.0) then
 ! the phase can totally disorder, if disordered skip ordered part
-               if(btest(phmain%status2,csorder)) then
+               if(btest(phmain%status2,CSORDER)) then
 ! the phase is ordered, we have to calculate this part twice
                   nevertwice=.false.
               else
@@ -244,17 +272,19 @@
          deallocate(d2pyq)
          allocate(dpyq(gz%nofc))
          allocate(d2pyq(nofc2))
+!         if(ocv()) write(*,*)'Allocated dpyq 2'
          dpyq=zero
          deallocate(dvals)
          deallocate(d2vals)
          allocate(dvals(3,gz%nofc))
          allocate(d2vals(nofc2))
+         if(ocv()) write(*,*)'Allocated vals 2'
 ! the results will be stored in result arrays indicated by phres
 ! for the disordered fraction set phres must be set here and the arrays zeroed
          dislink=cps%disfra
-!         write(*,*)'Calc internal disordred part 1A'
+!         write(*,*)'Calc internal disordred part 1A',dislink%fsites
          lokdiseq=dislink%varreslink
-!         write(*,*)'Calc internal disordred part 1B',lokdiseq
+!         write(*,*)'Calc internal disordred part 1B'
          phres=>ceq%phase_varres(lokdiseq)
          phres%gval=zero
 !         write(*,*)'Calc internal disordred part 1c'
@@ -313,14 +343,18 @@
 ! during calculation of all permutations of the same endmember and interactions
 ! big loop for all permutation of fractions (ordering option F and B)
 ! including all interaction parameters linked from this endmember
+!
+!      write(*,*)'Config G 2: ',phres%gval(1,1)*rtg
       endmemloop: do while(associated(endmemrec))
-! The arrsy maxpmq is used for interaction permutations.  It must be
+!
+! The array maxpmq is used for interaction permutations.  It must be
 ! initialized to zero at the first endmember permutation.  It is set to
 ! limits for the interacton permutations for all interaction records.
          maxpmq=0
          maxprec=0
          epermut=0
          sameint=0
+!         write(*,*)'25B: start endmember list'
          empermut: do while(epermut.lt.endmemrec%noofpermut)
             epermut=epermut+1
 ! calculate py, calculate parameter, calculate contribution to G etc
@@ -337,8 +371,7 @@
             pyqloop: do ll=1,msl
                id=endmemrec%fraclinks(ll,epermut)
 ! remove next line when all fixed
-               if(ll.lt.5) clist(ll)=id
-!               id=emlista(lokem)%fraclinks(ll,epermut)
+!               if(ll.lt.5) clist(ll)=id
 ! id negative means wildcard, independent of the fraction in this sublattice
                if(id.lt.0) then
                   gz%yfrem(ll)=one
@@ -350,22 +383,91 @@
 ! gz%endcon is used for interaction parameters below
                gz%endcon(ll)=id
                pyq=pyq*gz%yfrem(ll)
+               if(ionicliq .and. ll.eq.2) then
+! For ionic liquid we must check when Va or neutral in second sublattice
+! i2slx(1) is index of vacancy, i2slx(2) is first neutral
+                  if(id.eq.phlista(lokph)%i2slx(1) .and. yionva.eq.zero) then
+                     iliqva=.TRUE.
+                     yionva=gz%yfrem(ll)
+                     jonva=phlista(lokph)%i2slx(1)
+! We found Va.  Save all calculated values as the follwing terms should all
+! be multiplied with Q (done after finishing calculation)
+                     nprop=phmain%nprop
+                     allocate(saveg(6,nprop))
+                     saveg=phres%gval
+!                     if(ocv()) write(*,*)'saveg allocated 1A: ',size(saveg),&
+!                          gz%nofc,nofc2,nprop,moded
+                     if(moded.gt.0) then
+! only allocate if needed, some "out of memory" problems here calculating grid
+! with just ionic liquid phase
+                        allocate(savedg(3,gz%nofc,nprop))
+                        allocate(saved2g(nofc2,nprop))
+                        savedg=phres%dgval
+                        saved2g=phres%d2gval
+                     endif
+!                     if(ocv()) write(*,*)'saveg allocated 1B: '
+!                     write(*,*)'Config G 3A: ',phres%gval(1,1)*rtg
+                     phres%gval=zero
+                     phres%dgval=zero
+                     phres%d2gval=zero
+!                     write(*,*)'Config G 3B: ',phres%gval(1,1)*rtg
+                     iliqsave=.TRUE.
+!                     write(*,117)'Saved ionliq G at Va id: ',&
+!                          id,yionva,saveg(1,1)
+117                  format(a,i3,6(1pe12.4))
+                  elseif(id.eq.phlista(lokph)%i2slx(2)) then
+! we have a neutral in second sublattice
+                     iliqva=.FALSE.
+                     yionva=-one
+                     jonva=0
+                     if(.not.iliqsave) then
+! We may have model without Va, for exampel (Ca+2)p(O-2,SiO4-4,SiO2)q, if so
+! we must save all calculated values as the rest should be multiplied with Q
+                        nprop=phmain%nprop
+                        allocate(saveg(6,nprop))
+                        allocate(savedg(3,gz%nofc,nprop))
+                        allocate(saved2g(nofc2,nprop))
+!                        if(ocv()) write(*,*)'saveg allocated 2: ',size(saveg)
+                        saveg=phres%gval
+                        savedg=phres%dgval
+                        saved2g=phres%d2gval
+                        phres%gval=zero
+                        phres%dgval=zero
+                        phres%d2gval=zero
+                        iliqsave=.TRUE.
+!                        write(*,117)'Saved ionliq G at neutral id: ',&
+!                           id,yionva,saveg(1,1)
+                     endif
+                  endif
+               endif
             enddo pyqloop
-!----------------------------------------------------
             if(moded.eq.0) goto 150
+!---------------------------------------------------- first derivatives
             dpyqloop: do ll=1,msl
 ! here pyq is known, same loop as above to calculate dpyq(i)=pyq/y_i
                id=endmemrec%fraclinks(ll,epermut)
                if(id.gt.0) then
+! pyq was multiplied with gz%yfrem(11) above, now divide with it
                   dpyq(id)=pyq/gz%yfrem(ll)
-               else
+!                  write(*,*)'25B dpq/dy: ',ll,id,dpyq(id)
+               elseif(.not.ionicliq) then
+! wildcard in the sublattice and NOT ionic liquid
                   do iw=incffr(ll-1)+1,incffr(ll)
                      dpyq(iw)=pyq
                   enddo
+               elseif(ll.ne.1) then
+! wildcard in second subl of ionic liquid, same as for CEF
+                  do iw=incffr(ll-1)+1,incffr(ll)
+                     dpyq(iw)=pyq
+                  enddo
+!               else
+! wildcard in first subl of ionic liquid then just ignore first derivatives
+! with respect to constituents in first sublattice
+!                  continue
                endif
             enddo dpyqloop
-!----------------------------------------------------
             if(moded.le.1) goto 150
+!---------------------------------------------------- second derivatives
             d2pyqloop1: do ll=1,msl
                id1=endmemrec%fraclinks(ll,epermut)
                d2pyloop2: do lm=ll+1,msl
@@ -396,8 +498,9 @@
                   endif
                enddo d2pyloop2
             enddo d2pyqloop1
-!---- jump here if moder is 0 or 1
+!---- jump here if moded is 0 or 1
 150         continue
+!            write(*,*)'Config G 4A: ',phres%gval(1,1)*rtg
 !            write(*,154)'endmember permutation: ',epermut,(clist(i),i=1,4)
 154         format(a,i5,4i4,'--------------------------------')
 155         format(a,i5,10i4)
@@ -435,12 +538,13 @@
                if(gx%bmperr.ne.0) goto 1000
                prop1: if(ipy.eq.1) then
 ! property 1 i.e. Gibbs energy, should be divided by RT
-                  vals=vals/rt
+                  vals=vals/rtg
                endif prop1
 ! debug
 !   write(*,173)'endmember: ',endmemrec%antalem,pyq,vals(1)
 !173 format(a,i3,4(1pe12.4))
 ! multiply with py and derivatives. vals is composition independent
+!               write(*,*)'Config G 4B: ',vals(1)*rtg
                noderz2: if(moded.gt.0) then
                   derloopz2: do id=1,gz%nofc
                      do itp=1,3
@@ -460,6 +564,7 @@
                   phres%gval(itp,ipy)=phres%gval(itp,ipy)+pyq*vals(itp)
                enddo
                proprec=>proprec%nextpr
+!               write(*,*)'Config G 4C: ',phres%gval(1,1)*rtg
             enddo emprop
 !------------------------------------------------------------------
 ! take link to interaction records, use push and pop to save pyq etc
@@ -469,15 +574,14 @@
             gz%intlevel=0
             pmq=1
 ! pmq is initiated by palmtree above in the interaction records
+!            write(*,*)'Config G 4D: ',phres%gval(1,1)*rtg
             interloop: do while(associated(intrec))
 !----------------------------------------------------------------
 ! come back here an interaction at a higher level or a poped next that must
 ! be pushed 
 200            continue
+!               write(*,*)'Config G 4E: ',phres%gval(1,1)*rtg,gz%intlevel
                gz%intlevel=gz%intlevel+1
-!---------------------------------------------
-! come back here for another interaction on same level ... not used??
-210            continue
                call push_pyval(pystack,intrec,pmq,&
                     pyq,dpyq,d2pyq,moded,gz%nofc)
 ! intrec%order is initiated by palmtree to set a sequential number
@@ -518,7 +622,20 @@
                            else
 ! This is more complicated, different number of permutations each time
 ! Example: noofip=(3,2,1,0,12) means there are 3 different permutations
-! first time 2, second time 1, last time none; 12 is total number of perms
+! first time; 2 the second time; 1 the last time none;
+! 12 is the total number of permutationss (including first order)
+! Example 1: end member (A:A:A:A), no permutation
+! first int B in 1 with perms:  2nd int C in 2 with perms: (3,3,3,3,12)
+! (AB:A:A:A)                   (AB:AC:A:A) (AB:A:AC:A) (AB:A:A:AC)
+! (A:AB:A:A)                   (AC:AB:A:A) (A:AB:AC:A) (A:AB:A:AC)
+! (A:A:AB:A)                   (AC:A:AB:A) (A:AC:AB:A) (A:A:AB:AC)
+! (A:A:A:AB)                   (AC:A:A:AB) (A:AC:A:AB) (A:A:AC:AB)
+! Example 2: end member (A:A:A:A), no permutation
+! first int B in 1 with perms:  2nd int B in 2 with perms: (3,2,1,0,6)
+! (AB:A:A:A)                   (AB:AB:A:A) (AB:A:AB:A) (AB:A:A:AB)
+! (A:AB:A:A)                   (A:AB:AB:A) (A:AB:A:AB)
+! (A:A:AB:A)                   (A:A:AB:AB)
+! (A:A:A:AB)                   none
 ! If mod(ipermut,noofip(1)) is 0 one should start from index 2
                               nz=intrec%noofip(1)
 !                              write(*,155)'noofip: ',ipermut,pmq,maxpmq(pmq),&
@@ -561,9 +678,8 @@
                            endif
 ! Take the link to higher as no more permutations here
                            goto 290
-!                           goto 200
                         endif
-!-------------------------------
+!..............................
 ! No higher level, if we cannot pop we must return to endmember
                         if(gz%intlevel.eq.0) exit interloop
 ! we must pop lower order interaction records here to get correct permutation
@@ -571,7 +687,7 @@
                              pyq,dpyq,d2pyq,moded,gz%nofc)
                         gz%intlevel=gz%intlevel-1
                         pmq=intrec%order
-!-----------------------------------------------------------
+!.................................
 ! intrec must not be associated in the popint: do-loop
                         nullify(intrec)
                         goto 295
@@ -585,13 +701,23 @@
                else
                   ipermut=1
                endif bford
+!-------------------------------------------------------------------
 ! Code below until label 290 the same with and without permutations
 ! extract  sublattice, constituent and fraction of interacting constituent
+! NOTE "ic" used several times below, do not manipulate it!!!
                intlat=intrec%sublattice(ipermut)
                ic=intrec%fraclink(ipermut)
                gz%intlat(gz%intlevel)=intlat
                gz%intcon(gz%intlevel)=ic
                gz%yfrint(gz%intlevel)=phres%yfr(ic)
+               if(ionicliq .and. iliqsave) then
+                  if(intlat.eq.1 .and. yionva.gt.zero) then
+! iliqsave is TRUE for ionic_liquid and for excess parameters without anions
+! For cation interactions multiply with yionva.  If no vacancies yionva=-1.0
+                     gz%yfrint(gz%intlevel)=phres%yfr(ic)*yionva
+!                     write(*,*)'25B *yionva: ',yionva,gz%yfrint(gz%intlevel)
+                  endif
+               endif
 ! calculate new PY incl derivatives. Moded to avoid unrequested derivatives
 ! IF interaction endmember is WILDCARD then the interaction is special,
 ! L(*,A) is y_A *(1-y_A) where 1-y_A is the sum of all fractions except A
@@ -602,20 +728,64 @@
                   wildc=.FALSE.
                   ymult=gz%yfrint(gz%intlevel)
                else
+                  if(iliqsave) then
+! I sincerely hope wildcards are never used in 2nd subl of ionic liquids ...
+     write(*,*)'Wildcard in second sublattice is not allowed for ionic liquids'
+                     gx%bmperr=7777; goto 1000
+                  endif
                   wildc=.TRUE.
+                  write(*,*)'wildcard found!'
                   ymult=gz%yfrint(gz%intlevel)*(one-gz%yfrint(gz%intlevel))
                endif
-               noder3: if(moded.gt.0) then
+               noder3A: if(moded.gt.0) then
+! ...................................... loop for first derivatives
                   iloop1: do id=1,gz%nofc
                      if(moded.gt.1) then
+! ...................................... second derivatives
                         iloop2: do jd=id+1,gz%nofc
-                           d2pyq(ixsym(id,jd))=d2pyq(ixsym(id,jd))*ymult
+                           if(iliqsave .and. intlat.eq.1) then
+! For ionic liquids interaction parameters that are multiplied with yionva
+! should also be multiplied with the power of yionva which is gz%intlevel+1
+                              d2pyq(ixsym(id,jd))=&
+                                   (gz%intlevel+1)*d2pyq(ixsym(id,jd))*ymult
+                           else
+! For all other models it is simply ...
+                              d2pyq(ixsym(id,jd))=d2pyq(ixsym(id,jd))*ymult
+                           endif
                         enddo iloop2
-                        d2pyq(ixsym(id,ic))=dpyq(id)
+! NOTE "ic" has been set above as the interacting constituent
+                        if(iliqsave) then
+                           if(intlat.eq.1 .and. yionva.gt.zero) then
+! For ionic liquid model the 2nd derivatives must be multipled with yionva
+                              if(id.eq.phlista(lokph)%i2slx(1)) then
+! This is the vacancy, all 2nd derivatives multiplied with a factor
+                                 d2pyq(ixsym(id,ic))=&
+                                      (gz%intlevel+1)*d2pyq(ixsym(id,ic))
+                              endif
+                           else
+                              d2pyq(ixsym(id,ic))=dpyq(id)*yionva
+                           endif
+                        else
+                           d2pyq(ixsym(id,ic))=dpyq(id)
+                        endif
                      endif
+! ................................. this is the first derivative, must be exact
+! very messy for the ionic liquid here ...
                      dpyq(id)=dpyq(id)*ymult
+                     if(ionicliq .and. iliqsave) then
+!                        write(*,*)'Extra va power: ',id,gz%intlevel,&
+!                             gz%intlat(gz%intlevel)
+                        if(id.eq.phlista(lokph)%i2slx(1) .and. &
+                             gz%intlat(gz%intlevel).eq.1) then
+! for vacancies there is an additional factor if interaction in first subl
+                           dpyq(id)=(gz%intlevel+1)*dpyq(id)
+!                           write(*,197)gz%intlevel,gz%intcon(gz%intlevel)
+197                        format('25B: inter: ',5i3)
+                        endif
+                     endif
                   enddo iloop1
-! we must check if any endmember is wildcard like L(A,B:*)
+! we must check if any endmember is wildcard like L(*:A,B)
+! Hopefully this works also for ionic liquid interaction between neutrals
                   do ll=1,msl
                      if(ll.ne.intlat) then
                         if(gz%endcon(ll).lt.0) then
@@ -625,8 +795,10 @@
                         endif
                      endif
                   enddo
-                  if(wildc) then
-! wildcard contribution to second derivate from all fractions in intlat
+                  wildcard: if(wildc) then
+! The interacting constituent is a wildcard ... calculate the contribution
+! to second derivate from all fractions in intlat, remember incffr(0)=0.
+! Ionic liquids should never have wildcards as intercations ... ?
                      do iw=incffr(intlat-1)+1,incffr(intlat)
                         if(iw.ne.ic) then
                            d2pyq(ixsym(iw,ic))=dpyq(iw)
@@ -639,23 +811,33 @@
 213                  format(a,10i5)
                      dpyq(ic)=pyq*(one-gz%yfrint(gz%intlevel))
                   else
+! this is the normal first derivative of pyq*y(ic) with respect to y(ic)=ymult
                      dpyq(ic)=pyq
-                  endif
-               endif noder3
+                     if(ionicliq) then
+!                        write(*,214)'Multiply with y_va: ',&
+!                             iliqsave,ic,intlat,yionva,pyq
+214                     format(a,l,2i3,4(1pe12.4))
+                        if(iliqsave .and. intlat.eq.1.and.yionva.gt.zero) then
+! for compatibility with substitutional liquids, multiply interactions 
+! of cations (in 1st subl) when vacancies in 2nd with the vacancy fraction
+                           dpyq(ic)=pyq*yionva
+                        endif
+                     endif
+                  endif wildcard
+!                  write(*,228)'25B: dpyq: ',(dpyq(ll),ll=1,4)
+!228               format(a,6(1pe12.4))
+               endif noder3A
 ! pyq calculated identically for wildcards as ymult set differently above
+! It should work for ionic liquids as ymult has been multiplied with yionva
                pyq=pyq*ymult
+!               write(*,*)'25B pyq: ',ymult,pyq
                proprec=>intrec%propointer
-! this was just for debugging
-!               noprop=0
-!               if(associated(proprec)) then
-!                  noprop=1
-!               endif
 !..............................
                intprop: do while(associated(proprec))
 ! calculate interaction parameter, can depend on composition
-                  call cgint(proprec,moded,vals,dvals,d2vals,gz,ceq)
+                  call cgint(lokph,proprec,moded,vals,dvals,d2vals,gz,ceq)
                   if(gx%bmperr.ne.0) goto 1000
-! G parameters are divided by RT inside cgint
+! G parameters (ipy=1) are divided by RT inside cgint
                   typty=proprec%proptype
                   if(typty.ne.1) then
 ! other properties than 1 (G) must be stored in different gval(*,ipy) etc
@@ -668,10 +850,12 @@
                      lprop=lprop+1
                      phmain%listprop(1)=lprop
 250                  continue
+! here the value of ipy is set, 1 means G
                      ipy=jl
                   else
                      ipy=1
                   endif
+! note: adding to phres%gval at the end of noder4: if(....)
                   noder4: if(moded.gt.0) then
                      iloop3: do id=1,gz%nofc
                         if(moded.gt.1) then
@@ -687,6 +871,12 @@
                                 dpyq(id)*vals(itp)
                         enddo
                      enddo iloop3
+!                     write(*,211)'Interactions: ',gz%iq,jonva
+211                     format(a,5i3,5x,i3)
+!                     if(jonva.gt.0) then
+!                        write(*,212)jonva,phres%dgval(1,jonva,1)*rtg
+!212                     format('with va: ',i3,6(1pe12.4))
+!                     endif
 !...............................
 ! below contribution to derivatives from composition dependent parameters
 ! the values of gz%iq represent interacting constituents and are set in cgint
@@ -695,15 +885,27 @@
                         gx%bmperr=4086; goto 1000
                      elseif(gz%iq(4).gt.0) then
 !...............................
-! composition dependent reciprocal parameter, not implemented yet ...
-                        gx%bmperr=4086; goto 1000
+! composition dependent reciprocal parameter
+! for ionic liquid one must consider extra vacancy fraction ...
+! contribution to second derivatives ignored ...
+! remember ipy is property type for this parameter, set above
+                        if(moded.gt.0) then
+                           do jk=1,4
+                              do itp=1,3
+                                 phres%dgval(itp,gz%iq(jk),ipy)=&
+                                      phres%dgval(itp,gz%iq(jk),ipy)+&
+                                      pyq*dvals(1,gz%iq(jk))
+                              enddo
+                           enddo
+                        endif
                      elseif(gz%iq(3).gt.0) then !cedex1
-!...............................
 ! composition dependent ternary interaction in same sublattice, Mats model
 ! PROBABLY ERRORS HERE as no consideration of derivatives wrt other endmember
 ! constituents, only to the 3 interacting
-                        if(moded.gt.1) then
-                        noindent1: do jk=1,3
+! ALSO used to indicate derivatives wrt vacancies in ionic liquid model ???
+!...<<<<<<<...... indentation back 2 levels
+                  if(moded.gt.1) then
+                     noindent1: do jk=1,3
                         do jl=jk+1,3
 ! the second derivative for jk=jl calculated below as it is simpler
                            phres%d2gval(ixsym(gz%iq(jk),gz%iq(jl)),ipy)=&
@@ -711,20 +913,20 @@
                                 dpyq(gz%iq(jk))*dvals(1,gz%iq(jl))+&
                                 dpyq(gz%iq(jl))*dvals(1,gz%iq(jk))
                         enddo
-                        enddo noindent1
-                        endif
-                        do jk=1,3
-                           do itp=1,3
-                              phres%dgval(itp,gz%iq(jk),ipy)=&
-                                   phres%dgval(itp,gz%iq(jk),ipy)&
-                                   +pyq*dvals(itp,gz%iq(jk))
-                           enddo
-                           phres%d2gval(ixsym(gz%iq(jk),gz%iq(jk)),ipy)=&
-                                phres%d2gval(ixsym(gz%iq(jk),gz%iq(jk)),ipy)+&
-                                2.0D0*dpyq(gz%iq(jk))*dvals(1,gz%iq(jk))
-                        enddo
+                     enddo noindent1
+                  endif
+                  do jk=1,3
+                     do itp=1,3
+                        phres%dgval(itp,gz%iq(jk),ipy)=&
+                             phres%dgval(itp,gz%iq(jk),ipy)&
+                             +pyq*dvals(itp,gz%iq(jk))
+                     enddo
+                     phres%d2gval(ixsym(gz%iq(jk),gz%iq(jk)),ipy)=&
+                          phres%d2gval(ixsym(gz%iq(jk),gz%iq(jk)),ipy)+&
+                          2.0D0*dpyq(gz%iq(jk))*dvals(1,gz%iq(jk))
+                  enddo
+!...>>>>>>...........indentation back
                      elseif(gz%iq(2).gt.0) then !cedex1
-!............................
 ! gz%iq(2) nonzero means composition dependent binary interaction parameter,
 ! only RK yet.
                         noder3B: if(moded.gt.1) then
@@ -743,8 +945,8 @@
                                  add1=dpyq(ic1)*dvals(1,gz%iq(2))+&
                                       dpyq(gz%iq(2))*dvals(1,ic1)+&
                                       pyq*d2vals(ixsym(ic1,gz%iq(2)))
-                                 phres%d2gval(ixsym(ic1,gz%iq(2)),ipy)=&
-                                 phres%d2gval(ixsym(ic1,gz%iq(2)),ipy)+add1
+                                 phres%d2gval(ixsym(ic1,gz%iq(2)),ipy)=add1+&
+                                      phres%d2gval(ixsym(ic1,gz%iq(2)),ipy)
                               endif
                            enddo
                         endif noder3B
@@ -755,6 +957,21 @@
                            phres%dgval(itp,gz%iq(2),ipy)=&
                                 phres%dgval(itp,gz%iq(2),ipy)&
                                 +pyq*dvals(itp,gz%iq(2))
+                           if(ionicliq) then
+! for ionic liquid when interactions involve cations there is a contribution
+! due to the vacancy fraction multiplied with the cations yc1*yc2*yva**2
+! we are dealing with binary RK interactions, gz%intlevel=1, check if 
+! interaction is in first sublattice (between cations) and vacancy in second
+                              if(iliqva .and. gz%intlat(1).eq.1 &
+                                   .and. jonva.gt.0) then
+! add pyq multipled with the derivative with respect to vacancy fraction
+! This should be done for d2gval also but I skip that at present ...
+                                 phres%dgval(itp,jonva,ipy)=&
+                                      phres%dgval(itp,jonva,ipy)+&
+                                      pyq*dvals(itp,jonva)
+!                                 write(*,*)'jonva: ',jonva,pyq,dvals(1,jonva)
+                              endif
+                           endif
                         enddo
                      endif cdex1
 ! end contribution to derivates from composition dependent parameters
@@ -762,30 +979,16 @@
                   endif noder4
 ! finally add the contribution to G, G.T etc
                   iloop6: do itp=1,6
-                     phres%gval(itp,ipy)=phres%gval(itp,ipy)+&
-                          pyq*vals(itp)
+                     phres%gval(itp,ipy)=phres%gval(itp,ipy)+pyq*vals(itp)
                   enddo iloop6
                   proprec=>proprec%nextpr
-! check for strange bug in CrFeMo
-!                     write(*,144)gz%iq(1),gz%iq(2),pyq,vals(1),&
-!                          (dpyq(i),i=1,3),(dvals(1,i),i=1,3)
-!144 format('Interaction: ',2i3,2(1pe12.4)/3(1pe12.4),2x,3(1pe12.4))
                enddo intprop
-!               if(chkperm) then
-! debugg output
-!                  if(noprop.eq.0) then
-!                     xyz=0.0D0; pdone='no  '
-!                  else
-!                     xyz=vals(1); pdone='yes '
-!                  endif
-!                  write(*,211)pdone,xyz,gz%intlevel,intrec%antalint,&
-!                       pmq,maxpmq(pmq),ipermut,intlat,ic
-!211               format('int permut: ',a,1PE12.2,10i4)
-!               endif
+!               write(*,*)'Config G 4F: ',phres%gval(1,1)*rtg
 ! finished one interaction (or permutation on this level), go to higher level
 ! note that ipermut is saved in lastpmq(pmq).  If there are more
 ! permutations on this level they will be calculated later also including 
 ! higher order parameters.  
+!------------------------------------------------------------------
 ! Take link to higher level records for current permutation
 290            continue
                intrec=>intrec%highlink
@@ -822,6 +1025,7 @@
 ! a lower order record with a next link
             enddo interloop
 298         continue
+!            write(*,*)'Config G 4X: ',phres%gval(1,1)*rtg
 ! take next permutation of the end member fractions
          enddo empermut
 300      continue
@@ -829,6 +1033,7 @@
 !         write(*,155)'endmem: ',epermut,endmemrec%noofpermut,endmemrec%antalem
          endmemrec=>endmemrec%nextem
       enddo endmemloop
+!      write(*,*)'Config G 5: ',phres%gval(1,1)*rtg
 !------------------------------------------------------------------------
 ! end loop for this fraction type, initiation for next in the beginning of loop
 ! but we may have to calculate once again with same fraction type but
@@ -853,6 +1058,7 @@
             allocate(saveg(6,nprop))
             allocate(savedg(3,gz%nofc,nprop))
             allocate(saved2g(nofc2,nprop))
+!            write(*,*)'saveg allocated 3: ',size(saveg)
             saveg=phres%gval
             savedg=phres%dgval
             saved2g=phres%d2gval
@@ -871,7 +1077,7 @@
                nz=fracset%tnoofxfr
                allocate(tmpd2g(nz*(nz+1)/2,nprop))
                tmpd2g=zero
-               do ipy=1,lprop
+               do ipy=1,lprop-1
                   do i1=1,gz%nofc
                      j1=fracset%y2x(i1)
                      do i2=i1,gz%nofc
@@ -881,7 +1087,7 @@
                      enddo
                   enddo
                enddo
-               do ipy=1,lprop
+               do ipy=1,lprop-1
                   do i1=1,gz%nofc
                      j1=fracset%y2x(i1)
                      do i2=i1,gz%nofc
@@ -899,7 +1105,7 @@
 !---------------------
 ! sum all partial derivates to first sublattice,
             noder6B: if(moded.gt.0) then
-               do ipy=1,lprop
+               do ipy=1,lprop-1
                   do ider=1,3
                      do is=1,fracset%nooffr(1)
                         sum=zero
@@ -929,20 +1135,22 @@
                   enddo
                enddo
 !-------------------------
-               do ipy=1,lprop
+               if(moded.gt.0) then
+                  do ipy=1,lprop-1
 ! loop in negative direction avoid destroy the values in phres%dgval first subl
-                  do i1=gz%nofc,1,-1
+                     do i1=gz%nofc,1,-1
 ! all derivatives wrt same element from all sublattices is in first sublattice
-                     do ider=1,3
+                        do ider=1,3
 ! Finally subtract this contribution from saved values
-                        j1=fracset%y2x(i1)
-                        phres%dgval(ider,i1,ipy)=savedg(ider,i1,ipy)-&
-                             phres%dgval(ider,j1,ipy)*fracset%dxidyj(i1)
+                           j1=fracset%y2x(i1)
+                           phres%dgval(ider,i1,ipy)=savedg(ider,i1,ipy)-&
+                                phres%dgval(ider,j1,ipy)*fracset%dxidyj(i1)
+                        enddo
                      enddo
                   enddo
-               enddo
+               endif
             endif noder6B
-            do ipy=1,lprop
+            do ipy=1,lprop-1
                do ider=1,6
                   phres%gval(ider,ipy)=saveg(ider,ipy)-&
                        phres%gval(ider,ipy)
@@ -950,7 +1158,12 @@
             enddo
 ! restore ordered fractions and deallocate save arrays
             phres%yfr=savey
+            savey=zero
+            saveg=zero
+            savedg=zero
+            saved2g=zero
             deallocate(savey)
+!            if(ocv()) write(*,*)'saveg DE-allocated 1: ',size(saveg)
             deallocate(saveg)
             deallocate(savedg)
             deallocate(saved2g)
@@ -962,22 +1175,28 @@
 ! finished loops for all fractypes, now add together G and delta-G(ord-disord)
 410 continue
 ! cheking for properties
-!   write(*,411)lprop,(phmain%listprop(j),j=1,lprop)
-!   write(*,412)(phmain%gval(1,j),j=1,lprop-1)
-!411 format('Properties: ',i3,': ',10i4)
-!412 format('Val: ',(6E12.4))
+!   if(ocv()) then
+!      write(*,411)lprop-1,(phmain%listprop(j1),j1=2,lprop)
+!      write(*,412)'Val: ',(phmain%gval(1,j1),j1=1,lprop-1)
+!411   format('Properties: ',i3,': ',10i4)
+412   format(a,(6E12.4))
+!   endif
+   norfc=phlista(lokph)%tnooffr
    fractionsets: if(btest(phlista(lokph)%status1,phmfs)) then
 !----------------------------------------------------------------
+! for disordered part of sigma we may have to multiply the disordered
+! part with fsites to have correct formula unit
+!      write(*,*)'fsites 1: ',phmain%disfra%fsites
+      fsites=phmain%disfra%fsites
 ! add together contributions from different fractypes
 ! phres is last calculated part, set phpart to ordered part (phmain)
       phpart=>phmain
-      norfc=phlista(lokph)%tnooffr
-! loop for all second and frist derivatives using chain rule
+! loop for all second and first derivatives using chain rule
 ! and coefficients from fracset%dxidyj
 ! d2f1/dyidyj = d2f2/dxkdxl*dxk/dyi*dxl/dyj
 ! gz%nofc are number of disordered constituents
 ! norfc are number of ordered constituents
-! lprop is number of properties to be summed
+! lprop-1 is number of properties to be summed
 ! G(tot)    = GD(x)+(GO(y)-GO(y=x))
 ! G(tot).yj = dGD(x).dxi*dxdyj + (GO(y).yj - GO(y=x).yj)
 ! configurational entropy calculated only for GO(y)
@@ -989,54 +1208,154 @@
                do i2=i1,norfc
 ! add the contributions from the disordered part
                   j2=fracset%y2x(i2)
-                  do ipy=1,lprop
+                  do ipy=1,lprop-1
                      phpart%d2gval(ixsym(i1,i2),ipy)=&
                           phpart%d2gval(ixsym(i1,i2),ipy)+&
-                          phres%d2gval(ixsym(j1,j2),ipy)*&
+                          fsites*phres%d2gval(ixsym(j1,j2),ipy)*&
                           fracset%dxidyj(i1)*fracset%dxidyj(i2)
                   enddo
                enddo
             endif noder7B
 ! first derivatives
-            do ipy=1,lprop
+            do ipy=1,lprop-1
+!               add1=phpart%dgval(1,i1,ipy)
                do ider=1,3
                   phpart%dgval(ider,i1,ipy)=phpart%dgval(ider,i1,ipy)+&
-                    phres%dgval(ider,j1,ipy)*fracset%dxidyj(i1)
+                    fsites*phres%dgval(ider,j1,ipy)*fracset%dxidyj(i1)
                enddo
+! phres have the disordred contribution
+!               if(ocv()) write(*,413)'25B dG:',ipy,i1,j1,&
+!                    phpart%dgval(1,i1,ipy),add1,phres%dgval(1,j1,ipy),&
+!                    fracset%dxidyj(i1)
             enddo
          enddo
       endif noder7A
+413   format(a,3i3,6(1pe12.4))
 ! Integral values
-      do ipy=1,lprop
+      do ipy=1,lprop-1
+!         add1=phpart%gval(1,ipy)
          do ider=1,6
-            phpart%gval(ider,ipy)=phres%gval(ider,ipy)+phpart%gval(ider,ipy)
+            phpart%gval(ider,ipy)=phpart%gval(ider,ipy)+&
+                 fsites*phres%gval(ider,ipy)
+                 
          enddo
+!         if(ocv()) write(*,413)'25B G:',ipy,0,0,&
+!         write(*,413)'25B G:',ipy,0,0,&
+!              phpart%gval(1,ipy),add1,phres%gval(1,ipy)
       enddo
    endif fractionsets
 ! now set phres to ordered results and forget phpart
    phres=>phmain
+!................................
+!   write(*,*)'25B: ioliq+saved: ',ionicliq,iliqsave,phres%gval(1,1)
+   ionliqsum: if(ionicliq .and. iliqsave) then
+! For ionic liquid we may have to add gsave+Q*gval (with chain rule ...)
+! G = saveg + Q*phres%gval with 1st and 2nd derivatives
+! NOT FINISHED !!! interaction parameters above with VA must be treated
+!
+!vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+! BEWHARE: FOR IONIC_LIQUID Thermo-Calc calculates G = Q G_M 
+! if there are no end-member parameters (G_M is the Gibbs energy per
+! formula unit and Q is the number of sites in second sublattice), 
+! This is wrong but all endmember parameters are never zero for a real liquid.
+!^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+!
+!      write(*,*)'Config G 6: ',phres%gval(1,1)*rtg
+      if(moded.eq.0) goto 490
+!      write(*,491)'25B ionliq: ',phlista(lokph)%i2slx,phlista(lokph)%nooffr
+491   format(a,2i3,5x,2i3)
+      firstd: do i1=1,norfc
+         secondd: do i2=i1,norfc
+            do ipy=1,lprop-1
+!               write(*,497)'adding: ',i1,i2,ixsym(i1,i2),ipy
+497            format(a,10i3)
+               phres%d2gval(ixsym(i1,i2),ipy)=saved2g(ixsym(i1,i2),ipy)+&
+                    phres%sites(2)*phres%d2gval(ixsym(i1,i2),ipy)
+               add1=zero
+! IMPORTANT note dpqdy(i1) the the charge of iq, do not confuse with dpyq ...
+               if(i1.le.phlista(lokph)%nooffr(1)) then
+                  add1=phres%dpqdy(i1)*phres%dgval(1,i2,ipy)
+               endif
+               if(i2.le.phlista(lokph)%nooffr(1)) then
+                  add1=add1+phres%dpqdy(i2)*phres%dgval(1,i1,ipy)
+               endif
+               phres%d2gval(ixsym(i1,i2),ipy)=phres%d2gval(ixsym(i1,i2),ipy)+&
+                    add1
+            enddo
+         enddo secondd
+! hm, when debugging here phres%dgval(1,*,1)=0 so ...
+         add1=savedg(1,i1,1)
+         sum=phres%dgval(1,i1,1)
+         if(phres%dpqdy(i1).lt.1.0D-60) phres%dpqdy(i1)=zero
+         do ipy=1,lprop-1
+            do ider=1,3
+! this calculates the proper ionic liquid model, not Q times
+               phres%dgval(ider,i1,ipy)=&
+                    savedg(ider,i1,ipy)+&
+                    phres%sites(2)*phres%dgval(ider,i1,ipy)
+! The contribution from the derivative of Q = \sum_i nu_i y_i, dQ/dy_i = nu_i
+! G = G1 + Q G2 where
+! G1 = \sum_i \sum_j y_i y_j G_ij + config.entropy
+! G2 = y_va\sum_i y_i G_i + Q\sum_k y_k G_k
+! Above were added:               dG/dy_i = dG1/dy_i + + Q dG2/dy_i 
+! For cations we must add also    dG/dy_i = dG/dy_i + nu_i G2 
+               if(i1.le.phlista(lokph)%nooffr(1)) then
+! nooffr(1) is the number of constituents in first sublattice
+                  phres%dgval(ider,i1,ipy)=phres%dgval(ider,i1,ipy)+&
+                       phres%dpqdy(i1)*phres%gval(ider,ipy)
+               endif
+            enddo
+         enddo
+!        write(*,747)'suming: ',i1,savedg(1,i1,1)*rtg,phres%dgval(1,i1,1)*rtg,&
+!              phres%dpqdy(i1),phres%gval(1,1)
+!         write(*,747)'25Bx:',i1,add1,sum,phres%dgval(1,i1,1),phres%dpqdy(i1),&
+!              phres%sites(2),savedg(1,i1,1)
+747      format(a,i2,6(1pe12.4))
+      enddo firstd
+!      write(*,*)'summed: ',savedg(1,1,1)*rtg,phres%dgval(1,1,1)*rtg
+! Integral values: G = saveg + Q*phres%gval with T and P derivatives
+490   continue
+!      write(*,492)'ionsum: ',saveg(1,1),phres%gval(1,1),&
+!           (saveg(1,1)+phres%gval(1,1))*rtg*phres%sites(2)
+492   format(a,6(1pe12.4))
+!      write(*,*)'Config G 7A: ',phres%gval(1,1)*rtg
+      do ipy=1,lprop-1
+         do ider=1,6
+            phres%gval(ider,ipy)=saveg(ider,ipy)+&
+                 phres%sites(2)*phres%gval(ider,ipy)
+         enddo
+      enddo
+!      write(*,*)'Config G 7B: ',phres%gval(1,1)*rtg,saveg(1,1)*rtg
+! strange bug which changes the results for a calculation with only C1
+! if the ionic liquid has been non-suspended at some previous calculation ...
+      saveg=zero
+!      if(ocv()) write(*,*)'De-allocated saveg 2: ',size(saveg)
+! no need to set them zero if they will be deallocated??
+!      savedg=zero
+!      saved2g=zero
+      deallocate(saveg)
+      if(moded.gt.0) then
+         deallocate(savedg)
+         deallocate(saved2g)
+      endif
+!499   continue
+   endif ionliqsum
+!................................
 ! calculate additions like magetic contributions etc and add to G
    addrec=>phlista(lokph)%additions
    additions: do while(associated(addrec))
 !      if(addlista(lokadd)%type.eq.1) then
+! Note for phases with a disordered fraction set, gz%nofc is equal to
+! the disordered number of fractions here 
+!      i1=gz%nofc
+      gz%nofc=phlista(lokph)%tnooffr
+!      write(*,*)'25B gz%nofc: ',i1,gz%nofc
+! moded is 0, 1 or 2 if derivatives should be calculated, phres is pointer
+! to result arrays, lokadd is the addition record, listprop is needed to
+! find where TC and BM are stored, gz%nofc are number of constituents
       call addition_selector(addrec,moded,phres,lokph,gz%nofc,ceq)
       if(gx%bmperr.ne.0) goto 1000
-!z      if(addrec%type.eq.1) then
-! moded is 0, 1 or 2 if derivatives should be calculated, phres is pointer
-! to result arrays, lokadd is the addition record, listprop is needed to
-! find where TC and BM are stored, gz%nofc are number of constituents
-!z         call calc_magnetic_inden(moded,phres,addrec,lokph,gz%nofc,ceq)
-!z         if(gx%bmperr.ne.0) goto 1000
-!z      elseif(addrec%type.eq.2) then
-! moded is 0, 1 or 2 if derivatives should be calculated, phres is pointer
-! to result arrays, lokadd is the addition record, listprop is needed to
-! find where TC and BM are stored, gz%nofc are number of constituents
-!z         call calc_debye_mauro(moded,phres,addrec,lokph,gz%nofc,ceq)
-!z         if(gx%bmperr.ne.0) goto 1000
-!z      else
-!         write(*,*)'Unknown addition type ',addlista(lokadd)%type
-!z         gx%bmperr=4145; goto 1000
-!z      endif
+! there are actually no other additions defined ...
       addrec=>addrec%nextadd
    enddo additions
 ! there are some special properties like mobilities and similar which
@@ -1049,8 +1368,13 @@
 ! wait for checking for errors ....
 !      write(*,*)'Press return'
 !      read(*,297)ch1
-297   format(a)
+!297   format(a)
    endif
+! running out of memory??
+   deallocate(dpyq)
+   deallocate(d2pyq)
+   deallocate(dvals)
+   deallocate(d2vals)
 !    write(*,1001)gx%bmperr,(phres%gval(i,1),i=1,4)
 !    write(*,1002)(phres%dgval(1,i,1),i=1,3)
 !    write(*,1003)(phres%d2gval(i,1),i=1,6)
@@ -1123,7 +1447,7 @@
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
    character name*24,blaj*70
-   double precision kappa,napfu,t,p,rt,g,v,s,h,u,f,cp,alpha
+   double precision kappa,napfu,t,p,rtg,g,v,s,h,u,f,cp,alpha
    integer tnk,lokph,nsl,lokres,lokcs,ll,ll2,kk1,kk2,kk3,kk4,loksp
 !
    lokph=phases(iph)
@@ -1137,31 +1461,31 @@
    napfu=ceq%phase_varres(lokres)%abnorm(1)
    T=ceq%tpval(1)
    P=ceq%tpval(2)
-   rt=globaldata%rgas*T
+   rtg=globaldata%rgas*T
    lokcs=lokres
 ! returned values: G, G.T=-S, G.P=V, G.T.T=-Cp/T G.T.P=V*alpha, G.P.P=-V*kappa
 ! all divided by RT and per mole formula unit of phase
 ! G=H-TS, F=U-TS, H=U+PV, S=-G.T, V=G.P
 ! H=G+TS=G-T*G.T, U=H-PV=(G-T*G.T)-P*G.P, CP=-T*G.T.T
 ! alpha= 1/V*V.T = G.T.P/V, kappa = -1/V*V.P = -G.P.P/V
-   G=rt*ceq%phase_varres(lokcs)%gval(1,1)
-!    write(*,5)'tabder 2: ',rt,G
-   S=-rt*ceq%phase_varres(lokcs)%gval(2,1)
-   V=rt*ceq%phase_varres(lokcs)%gval(3,1)
+   G=rtg*ceq%phase_varres(lokcs)%gval(1,1)
+!    write(*,5)'tabder 2: ',rtg,G
+   S=-rtg*ceq%phase_varres(lokcs)%gval(2,1)
+   V=rtg*ceq%phase_varres(lokcs)%gval(3,1)
    H=G+T*S
    U=H-P*V
    F=U-T*S
-   CP=-T*rt*ceq%phase_varres(lokcs)%gval(4,1)
+   CP=-T*rtg*ceq%phase_varres(lokcs)%gval(4,1)
    if(V.ne.zero) then
-      alpha=rt*ceq%phase_varres(lokcs)%gval(5,1)/V
-      kappa=rt*ceq%phase_varres(lokcs)%gval(6,1)/V
+      alpha=rtg*ceq%phase_varres(lokcs)%gval(5,1)/V
+      kappa=rtg*ceq%phase_varres(lokcs)%gval(6,1)/V
    else
       alpha=zero
       kappa=zero
    endif
    write(kou,100)napfu,T,P,G
 100 format(/'Per mole FORMULA UNIT of the phase, ',1pe12.4,' atoms'/&
-         'at T= ',F8.2,' K and P= ',1PE13.6,' Pa',/ &
+         'at T= ',0pF8.2,' K and P= ',1PE13.6,' Pa',/ &
          'Gibbs energy J/mol ',28('.'),1Pe16.8)
    write(kou,102)F,H,U,S,V,CP,alpha,kappa
 102 format('Helmholtz energy J/mol ',24('.'),1PE16.8 &
@@ -1197,11 +1521,11 @@
       write(kou,110)name(1:len_trim(name)),ll
 110 format('First partial derivative with respect to ',a,&
         ' in sublattice ',i2,' of')
-      write(kou,120)rt*ceq%phase_varres(lokcs)%dgval(1,kk1,1),&
-           rt*(ceq%phase_varres(lokcs)%dgval(1,kk1,1)-&
+      write(kou,120)rtg*ceq%phase_varres(lokcs)%dgval(1,kk1,1),&
+           rtg*(ceq%phase_varres(lokcs)%dgval(1,kk1,1)-&
            T*ceq%phase_varres(lokcs)%dgval(2,kk1,1)),&
-           rt*ceq%phase_varres(lokcs)%dgval(2,kk1,1),&
-           rt*ceq%phase_varres(lokcs)%dgval(3,kk1,1)
+           rtg*ceq%phase_varres(lokcs)%dgval(2,kk1,1),&
+           rtg*ceq%phase_varres(lokcs)%dgval(3,kk1,1)
 120    format(5x,'G ',40('.'),1PE16.8, &
            /5x,'H ',40('.'),1PE16.8, &
            /5x,'G.T ',38('.'),1PE16.8, &
@@ -1213,9 +1537,10 @@
 150 format(5x,'Second partial derivative of Gibbs energy with respect to also')
       dy2loop: do while(kk3.le.tnk)
          if(phlista(lokph)%nooffr(ll2).gt.1) then
-            write(kou,160)name(1:len_trim(name)),ll2, &
-                 rt*ceq%phase_varres(lokcs)%d2gval(ixsym(kk1,kk3),1)
-160          format(10x,a,' in sublattice ',i2,18('.'),1PE16.8)
+!            write(kou,160)name(1:len_trim(name)),ll2, &
+            write(kou,160)name,ll2, &
+                 rtg*ceq%phase_varres(lokcs)%d2gval(ixsym(kk1,kk3),1)
+160          format(10x,a,'   in ',i2,5('.'),1PE16.8)
          endif
          kk3=kk3+1
          if(kk3.le.tnk) then
@@ -1232,7 +1557,7 @@
    enddo dy1loop
 900 continue
 !    write(*,*)'tabder 7B: ',kk2
-!    write(*,*)'tabder: ',rt,rt*phase_varres(lokcs)%gval(1,1)
+!    write(*,*)'tabder: ',rtg,rtg*phase_varres(lokcs)%gval(1,1)
 1000 continue
    return
  end subroutine tabder
@@ -1240,14 +1565,14 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine cgint(lokpty,moded,vals,dvals,d2vals,gz,ceq)
+ subroutine cgint(lokph,lokpty,moded,vals,dvals,d2vals,gz,ceq)
 ! calculates an excess parameter that can be composition dependent
 ! gz%yfrem are the site fractions in the end member record
 ! gz%yfrint are the site fractions in the interaction record(s)
-! lokpty is the property index
+! lokpty is the property index, lokph is the phase record
 ! moded=0 means only G, =1 G and dG/dy, =2 all
    implicit none
-   integer moded
+   integer moded,lokph
    TYPE(gtp_property), pointer :: lokpty
    TYPE(gtp_parcalc) :: gz
    double precision vals(6),dvals(3,gz%nofc)
@@ -1256,15 +1581,16 @@
 ! temporary data like gz%intlevel, gz%nofc etc
    double precision d2vals(gz%nofc*(gz%nofc+1)/2),valtp(6)
    double precision vv(0:2),fvv(0:2)
-   integer lfun,jdeg,jint,jl
-   double precision rt,dx0,dx,dx1,dx2,ct,fvs
+   integer lfun,jdeg,jint,jl,ivax
+   double precision rtg,dx0,dx,dx1,dx2,ct,fvs,dvax0,dvax,dvax1,dvax2,yionva
    double precision, parameter :: onethird=one/3.0D0,two=2.0D0
-! zeroing 5 iq, and various vals, dvals and d2vals
+   logical ionicliq,iliqva,iliqneut
+! zeroing 5 iq, and vals, dvals and d2vals
    gz%iq=0
    vals=0
    dvals=0
    d2vals=0
-   rt=gz%rgast
+   rtg=gz%rgast
    if(lokpty%degree.eq.0) then
 !----------------------------------------------------------------------
 ! no composition dependence
@@ -1272,45 +1598,104 @@
       call eval_tpfun(lfun,gz%tpv,vals,ceq%eq_tpres)
       if(gx%bmperr.ne.0) goto 1000
       if(lokpty%proptype.eq.1) then
-         vals=vals/rt
+         vals=vals/rtg
       endif
       goto 1000
+   endif
+! set default variables for ionic liquid
+   ionicliq=.FALSE.
+   iliqva=.FALSE.
+   iliqneut=.FALSE.
+   yionva=zero
+   if(btest(phlista(lokph)%status1,PHIONLIQ)) then
+!      write(*,17)'25B RK: ',phlista(lokph)%i2slx(1),gz%endcon(gz%intlat(1))
+17    format(a,5i3)
+!      write(*,*)'ionicliq set true'
+!      write(*,*)'Const in subl: ',gz%intlat(1),gz%endcon(gz%intlat(1))
+      ionicliq=.TRUE.
+      if(gz%endcon(2).eq.phlista(lokph)%i2slx(1)) then
+! VA endmember in the 2nd sublattice, this is the complicated case
+         yionva=gz%yfrem(2)
+         ivax=phlista(lokph)%i2slx(1)
+         if(gz%intlat(1).eq.1) then
+! interaction in sublattice 1 between two cations same as substituional L_A,B
+! with each cation fraction multiplied with vacancy 
+! Also set TRUE for reciprocal interactions (gz%intlevel=2)
+            iliqva=.TRUE.
+         else
+! interaction in sublattice 2 between Va and neutral (i.e. cation and neutral)
+! same as substitutional L_A,B with cation fraction multiplied with vacancy
+            iliqneut=.TRUE.
+         endif
+      endif
    endif
    intlev: if(gz%intlevel.eq.1) then
 !----------------------------------------------------------------------
 ! plain binary Redlich Kister. gz%endcon can be wildcard, i.e. negative
 ! but for the moment give error message in that case
-! A binary wildcard excess means y_A ( 1 - y_A) * L_A*
+! A binary wildcard excess parameter means y_A ( 1 - y_A) * L_A*
 ! most naturally gz%intcon(1) would be negative
       gz%iq(1)=gz%endcon(gz%intlat(1))
       gz%iq(2)=gz%intcon(1)
-      if(gz%iq(1).lt.0 .or.gz%iq(2).lt.0) then
+      if(gz%iq(1).lt.0 .or. gz%iq(2).lt.0) then
 ! composition dependent wildcard interaction not implemented
 ! y(1-y) ( L0 + (2y-1) L1 + (2y-1)**2 L2 + ....)
          gx%bmperr=4031; goto 1000
       endif
+! endmember fraction minus interaction fraction
       dx0=gz%yfrem(gz%intlat(1))-gz%yfrint(1)
+      if(ionicliq) then
+         if(iliqva) then
+! interaction between cations with vacancy on second sublattice
+! NOTE intraction fraction alreay multiplied with yionva!!!
+            dx0=gz%yfrem(gz%intlat(1))-gz%yfrint(1)/yionva
+            dvax0=dx0
+            dx0=yionva*dx0
+!            write(*,*)'Cation interaction with vacancies on 2nd: ',dvax0,dx0,&
+!                 gz%yfrem(gz%intlat(1)),gz%yfrint(1),gz%iq(2),gz%intlat(1)
+         elseif(iliqneut) then
+! interaction between vacancy and neutral in second sublattice
+            dvax0=gz%yfrem(gz%intlat(1))
+            dx0=gz%yfrem(gz%intlat(1))*yionva-gz%yfrint(1)
+         endif
+      endif
       vals=zero
       dx=one
       dx1=zero
       dx2=zero
+      dvax2=zero
+      dvax1=zero
+!      write(*,*)'25B c1bug: ',ionicliq,iliqva,iliqneut
+! special for ionic liquid: when two cation interacts with Va in second
+! sublattice the vacancy fraction is raised by power 2
       RK: do jdeg=0,lokpty%degree
          lfun=lokpty%degreelink(jdeg)
          call eval_tpfun(lfun,gz%tpv,valtp,ceq%eq_tpres)
          if(gx%bmperr.ne.0) goto 1000
          if(lokpty%proptype.eq.1) then
 ! property type 1 is G and should be normalized by RT
-            valtp=valtp/rt
+            valtp=valtp/rtg
          endif
-! no composition derivative.  if moded=0 only G, =1 G+G.Y, =2 all
          vals=vals+dx*valtp
+!         write(*,11)'25B dx:     ',gz%iq(1),gz%iq(2),jdeg,dx0,dx,dx1
+11       format(a,3i2,6(1pe12.4))
+! no composition derivative.  if moded=0 only G, =1 G+G.Y, =2 all
          noder5: if(moded.gt.0) then
-! first derivatives
+! first derivatives, jl=1: dG/dyA dG/dyB; jl=2: d2G/dTdy; jl=3: d3G/dPdy
+! for iliqneut there should not be same -dx1 ... gz%iq(2) is neutral
             do jl=1,3
                dvals(jl,gz%iq(1))=dvals(jl,gz%iq(1))+dx1*valtp(jl)
                dvals(jl,gz%iq(2))=dvals(jl,gz%iq(2))-dx1*valtp(jl)
+               if(iliqva) then
+! derivative with respect to vacancy fraction for (yc1-yc2)*yva: yc1-yc2
+                  dvals(jl,ivax)=dvals(jl,ivax)+dvax1*valtp(jl)
+!                  if(jl.eq.1) write(*,11)'25B iliqva: ',0,0,ivax,dvax1
+              elseif(iliqneut) then
+! derivative with respect to vacancy fraction for (yc1*yva-yn): yc1
+                  dvals(jl,ivax)=dvals(jl,ivax)+dvax1*valtp(jl)
+               endif
             enddo
-! second derivatives
+! second derivatives, d2G/dyAdyA d2G/dyAdyB d2G/dyBdyB
             if(moded.gt.1) then
                d2vals(ixsym(gz%iq(1),gz%iq(1)))=&
                     d2vals(ixsym(gz%iq(1),gz%iq(1)))+dx2*valtp(1)
@@ -1318,19 +1703,82 @@
                     d2vals(ixsym(gz%iq(1),gz%iq(2)))-dx2*valtp(1)
                d2vals(ixsym(gz%iq(2),gz%iq(2)))=&
                     d2vals(ixsym(gz%iq(2),gz%iq(2)))+dx2*valtp(1)
+!               if(iliqva) then
+! unfinished d2G/dyvdyv d2G/dyvdyA d2G/dyvdyB 
+!                  d2vals(ixsym(ivax,ivax))=&
+!                       d2vals(ixsym(ivax,ivax))+dvax2*valtp(1)
+!               elseif(iliqneut) then
+!                  continue
+!               endif
             endif
          endif noder5
 ! next power of dx
-         dx2=(jdeg+1)*dx1
-         dx1=(jdeg+1)*dx
-         dx=dx*dx0
+         if(iliqva) then
+! interaction between two cations, dx0=y_va*(y_c1 - y_c2)
+            dx2=(jdeg+1)*dx1
+            dvax2=(jdeg+1)*dvax1
+            if(jdeg.eq.0) then
+               dx1=yionva
+               dvax1=dvax0
+            else
+               dx1=(jdeg+1)*dx1*dx0
+               dvax1=(jdeg+1)*dvax1*dx0
+            endif
+            dx=dx*dx0
+!            write(*,23)'25B iliqvb: ',jdeg,dx,dx1,dx2,dvax0,dvax1,dvax2
+23          format(a,i2,6(1pe12.4))
+         elseif(iliqneut) then
+! interaction between Va and neutral a bit more complicated ... NOT TESTED
+            dx2=(jdeg+1)*dx1
+            dvax2=(jdeg+1)*dvax1
+            if(jdeg.eq.0) then
+               dx1=yionva
+               dvax1=dvax0
+            else
+               dx1=(jdeg+1)*dx1*dx0
+               dvax1=(jdeg+1)*dvax1*dx0
+            endif
+            dx=dx*dx0
+         else
+! normal CEF model
+            dx2=(jdeg+1)*dx1
+            dx1=(jdeg+1)*dx
+            dx=dx*dx0
+         endif
       enddo RK
    elseif(gz%intlevel.eq.2) then !intlev
 !----------------------------------------------------------------------
-! ternary interaction
+! important to set ivax=0 here as tested below if not zero
+      ivax=0
+      if(ionicliq) then
+!         write(*,*)'Comp.dep ternary ionic liquid parameter',iliqva
+         if(iliqva) then
+            if(gz%intlat(1).eq.1 .and. gz%intlat(2).eq.1) then
+! we have 3 cations interacting in first sublattice and Va in second
+! require treatment of extra vacancy fraction
+               write(*,*)'3 interacting cations not implemented'
+               gx%bmperr=7777; goto 1000
+            elseif(gz%intlat(1).eq.1 .and. gz%intlat(2).eq.2) then
+! we have 2 cations interacting in 1st sublattice and Va and neutral in 2nd
+! require treatment of extra vacancy fraction
+!               write(*,*)'Reciprocal with neutrals not implemented'
+!               gx%bmperr=7777; goto 1000
+! yionva set above!
+               ivax=gz%endcon(2)
+            endif
+         elseif(gz%intcon(2).eq.phlista(lokph)%i2slx(1)) then
+! vacancy is the intarction constituent
+            ivax=gz%intcon(2)
+            yionva=gz%yfrint(2)
+         endif
+! other ternary parameters in ionic liquid OK, no extra vacancy fraction
+      endif
+!................................................................
+! ternary composition dependent interaction
       ternary: if(gz%intlat(1).eq.gz%intlat(2)) then
 ! Ternary composition dependent interaction in same sublattice, Hillert form.
-! The idea is that the sum of vv is always unity even in higher order systems.
+! The idea is that the sum of vv is always unity even in higher order systems
+! whereas the sum of the constituent frations are not
 ! If wildcard then any of the gz%iq would be negative, not allowed
          gz%iq(1)=gz%endcon(gz%intlat(1))
          gz%iq(2)=gz%intcon(1)
@@ -1351,7 +1799,7 @@
             lfun=lokpty%degreelink(jint)
             call eval_tpfun(lfun,gz%tpv,valtp,ceq%eq_tpres)
             if(lokpty%proptype.eq.1) then
-               valtp=valtp/rt
+               valtp=valtp/rtg
             endif
 ! function value
             vals=vals+vv(jint)*valtp
@@ -1370,17 +1818,91 @@
             fvv(0)=fvs
          enddo terloop
       else
-!----------------------------------------------------------------------
-! composition dependent reciprocal interactions here
-!         write(*,32)gz%intlevel
-!32       format('Property record at intlevel ',i3/&
-!              'Composition dependent reciprocal interaction not implemented')
-         gx%bmperr=4078; goto 1000
+!.........................................................
+! composition dependent reciprocal interactions here only degree 1 and 2
+         if(lokpty%degree.gt.2) then
+            write(*,*)'Composition dependent reciprocal degree max 2'
+            gx%bmperr=4078; goto 1000
+         else
+!            write(*,32)lokph,lokpty%degree,gz%intlat(1),gz%intlat(2),&
+!                 gz%iq(1),gz%iq(2),gz%iq(3),gz%iq(4)
+32          format('Comp.dep. rec. param: ',i3,2x,i1,2x,2i2,4i5)
+         endif
+! Note the composition dependence is defined that 
+! L = y'_Ay'_By"_y"_D (0L + (y"_C-y"_D)*1L + (y'_A-y'_D)*2L)
+! it is a bit strange that 2nd sublattice is 1L ... but that is the definition
+         gz%iq(1)=gz%endcon(1)
+         gz%iq(2)=gz%intcon(1)
+         gz%iq(3)=gz%endcon(2)
+         gz%iq(4)=gz%intcon(2)
+! degree 0 not composition dependent, vals multiplied with pyq after return
+         lfun=lokpty%degreelink(0)
+         if(lfun.gt.0) then
+            call eval_tpfun(lfun,gz%tpv,valtp,ceq%eq_tpres)
+            if(gx%bmperr.ne.0) goto 1000
+            if(lokpty%proptype.eq.1) then
+               valtp=valtp/rtg
+            endif
+            vals=vals+valtp
+         endif
+! lokpty%degree must be 1 or 2 otherwise we would not be here
+         lfun=lokpty%degreelink(1)
+         recip1: if(lfun.gt.0) then
+! degree 2 can be empty, otherwise multiplied with gz%iq(3)-gz%iq(4)
+! no problem with ionic liquid except there may be values in dvals
+            call eval_tpfun(lfun,gz%tpv,valtp,ceq%eq_tpres)
+            if(gx%bmperr.ne.0) goto 1000
+            if(lokpty%proptype.eq.1) then
+               valtp=valtp/rtg
+            endif
+            vals=vals+(gz%yfrem(gz%intlat(2))-gz%yfrint(2))*valtp
+! one dvals(*,ivax) could have been assigned a value above (for ionic liquid)
+            do jl=1,3
+               dvals(jl,gz%iq(3))=dvals(jl,gz%iq(3))+valtp(jl)
+               dvals(jl,gz%iq(4))=dvals(jl,gz%iq(4))-valtp(jl)
+            enddo
+         endif recip1
+! degree 2 can be empty, otherwise multiplied with y(gz%iq(1))-y(gz%iq(2))
+         recip2: if(lokpty%degree.gt.1) then 
+            lfun=lokpty%degreelink(2)
+            if(lfun.gt.0) then
+               call eval_tpfun(lfun,gz%tpv,valtp,ceq%eq_tpres)
+               if(gx%bmperr.ne.0) goto 1000
+               if(lokpty%proptype.eq.1) then
+                  valtp=valtp/rtg
+               endif
+               if(ivax.gt.0) then
+                  write(*,67)ivax,gz%iq(1),gz%iq(2),gz%iq(3),gz%iq(4),yionva
+67                format('ion liq recip: ',i3,2x,4i3,1pe12.4)
+! interaction in ionic liquid with vacancy as one constituent in 2nd subl.
+                  vals=vals+yionva*(gz%yfrem(gz%intlat(1))-gz%yfrint(1))*valtp
+                  do jl=1,3
+                     dvals(jl,gz%iq(1))=+yionva*valtp(jl)
+                     dvals(jl,gz%iq(2))=-yionva*valtp(jl)
+                  enddo
+! we have to take into account extra derivatives wrt vacancies if vacancy
+! is a constituent in second sublattice
+                  do jl=1,3
+                     dvals(jl,ivax)=&
+                          (gz%yfrem(gz%intlat(1))-gz%yfrint(1))*valtp(jl)
+                  enddo
+               else
+! not ionic liquid .... puuuh
+                  vals=vals+(gz%yfrem(gz%intlat(1))-gz%yfrint(1))*valtp
+                  do jl=1,3
+                     dvals(jl,gz%iq(1))=+valtp(jl)
+                     dvals(jl,gz%iq(2))=-valtp(jl)
+                  enddo
+               endif
+            endif
+         endif recip2
       endif ternary
-   else !intlev
 !----------------------------------------------------------------------
-! much more to be implemented here .... ionic liquids, quasichem ....
-      write(*,*)'cgint 99 not implemented: ',gz%intlevel,lokpty%degree
+   elseif(gz%intlevel.ge.3) then !intlev
+! higher interaction levels have no composition dependence
+      write(*,999)
+999   format('Composition dependence for parameters with >2 interacting ',&
+           'constituents'/'not implemented!')
       gx%bmperr=4078; goto 1000
    endif intlev
 !----------------------------------------------------------------------
@@ -1394,7 +1916,6 @@
 !\begin{verbatim}
  subroutine config_entropy(moded,nsl,nkl,phvar,tval)
 ! calculates configurational entropy/R for phase lokph
-! uses information about sublattices etc in phlista(lokph)
    implicit none
    integer moded,nsl
    integer, dimension(nsl) :: nkl
@@ -1441,6 +1962,176 @@
 1000 continue
    return
  end subroutine config_entropy
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine config_entropy_i2sl(moded,nsl,nkl,phvar,i2slx,tval)
+! calculates configurational entropy/R for ionic liquid model
+! Always 2 sublattices, the sites depend on composition
+! P = \sum_j (-v_j) y_j + Q y_Va
+! Q = \sum_i v_i y_i
+! where v is the charge on the ions. P and Q calculated by set_constitution
+   implicit none
+   integer moded,nsl,i2slx(2)
+   integer, dimension(nsl) :: nkl
+   TYPE(gtp_phase_varres), pointer :: phvar
+!\end{verbatim}
+   integer ll,kk,kall,nk,j1,j2,localmoded
+   double precision tval,ss,yfra,ylog,yva,spart(2)
+   ll=0
+   kall=0
+   spart=zero
+   yva=zero
+   sublatticeloop: do while (ll.lt.nsl)
+      ll=ll+1
+      nk=nkl(ll)
+      kk=0
+      ss=zero
+      fractionloop: do while (kk.lt.nk)
+         kk=kk+1
+         kall=kall+1
+! no cycle as we may need values of spart and yva ...
+!         if(nk.eq.1) cycle sublatticeloop
+         yfra=phvar%yfr(kall)
+         if(yfra.lt.bmpymin) yfra=bmpymin
+         if(yfra.gt.one) yfra=one
+! save current value of vacancy fraction
+         if(kall.eq.i2slx(1)) yva=yfra
+!         write(*,2)'yva: ',kall,i2slx(1),yva,yfra
+!2        format(a,2i3,6(1pe12.4))
+         ylog=log(yfra)
+! gval(1:6,1) are G and derivator wrt T and P
+! dgval(1,1:N,1) are derivatives of G wrt fraction 1:N
+! dgval(2,1:N,1) are derivatives of G wrt fraction 1:N and T
+! dgval(3,1:N,1) are derivatives of G wrt fraction 1:N and P
+! d2dval(ixsym(N*(N+1)/2),1) are derivatives of G wrt fractions N and M
+! this is a symmetric matrix and index givem by ixsym(M,N)
+         ss=ss+yfra*ylog
+         if(moded.gt.0) then
+            phvar%dgval(1,kall,1)=phvar%sites(ll)*(one+ylog)
+            phvar%d2gval(ixsym(kall,kall),1)=phvar%sites(ll)/yfra
+         endif
+      enddo fractionloop
+      phvar%gval(1,1)=phvar%gval(1,1)+phvar%sites(ll)*ss
+      if(ll.eq.1) then
+         spart(1)=ss
+      else
+         spart(2)=ss
+      endif
+   enddo sublatticeloop
+   if(moded.eq.0) goto 900
+! convergence problem with ionic liquid, skip contribution to 2nd derivatuves
+!   localmoded=moded
+!   if(moded.eq.2) localmoded=1
+!   write(*,*)'ionic config_entropy: ',i2slx,kall
+! additional derivatives as sublattice sites depend on composition
+! -------------------------- derivatives of config entropy
+! S = P*S1 + Q*S2
+! S1 = \sum_i y_i*ln(y_i)
+! S2 = \sum_j y_j*ln(y_j)+y_Va*ln(y_Va)+\sum_k y_k*ln(Y_k))
+! P = \sum_j (-v_j)*y_j + Q*y_Va
+! Q = \sum_i v_i*y_i
+! term within [...] already calculated as part of normal config.entropy
+! dS/dy_i        = +v_i*S2 + v_i*y_Va*S1 + [P*(1+ln(y_i)]   ..cation   OK
+! dS/dy_j        = -v_j*S1 +               [Q*(1+ln(y_j))]  ..anion    OK
+! dS/dy_Va       = Q*S1 +                  [Q*(1+ln(y_Va))] ..Va       OK
+! dS/dy_k        =                         [Q*(1+ln(y_k)]   ..neutral  OK
+! d2S/dy_i1dy_i2 = v_i1*y_Va*(1+ln(y_i2) + v_i2*y_Va*(1+ln(y_i1) + 
+!                  [P*(1/y_i1**2)]            ..last term zero unless i1=i2  OK
+! d2S/dy_idy_j   = v_i*(1+ln(y_j)) + (-v_j)*(1+ln(y_i))                      OK
+! d2S/dy_idy_Va  = v_i*(1+ln(y_Va)) + v_i*S1 + Q*(1+ln(y_i))                 OK
+! d2S/dy_idy_k   = v_i*(1+ln(y_k))                                           OK
+! d2S/dy_j1d_j2  = [only Q/y**2 if j1=j2]                                    OK
+! d2S/dy_jdy_Va  = zero                                                      OK
+! d2S/dy_jdy_k   = zero                                                      OK
+! d2S/dy_Va2     = [only Q/y_Va**2]                                          OK
+! d2S/dy_Vady_k  = zero                                                      OK
+! d2S/dy_k1dy_k2 = [only Q/y_k1**2 if k1=k2]                                 OK
+! ----------------------
+! the coding is not optimal for speed, all the 1/y**2 term calculated above
+! i2slx(1) is index of vacancy, i2slx(2) is index of first neutral
+! if either (or both) are missing their index is higher than last constituent
+!   write(*,102)'va+neutral: ',i2slx
+!102 format(a,10i3)
+! dpqdy is calculated in pmod25A: set_constitution ??
+!   write(*,108)'25B dpqdy: ',(phvar%dpqdy(j1),j1=1,nkl(1)+nkl(2))
+108 format(a,10F7.3)
+   cation: do j1=1,nkl(1)
+! this was an attempt to improve convergence ... it did but not enough
+!      if(localmoded.eq.1) goto 109
+      cation2: do j2=j1,nkl(1)
+! d2S/dy_i1dy_i2 = v_i1*y_Va*(1+ln(y_i2) + v_i2*y_Va*(1+ln(y_i1) + 
+!                  [P*(1/y_i1**2)]         ..last term already calculated  OK
+!         write(*,103)'ij: ',j1,j2,ixsym(j1,j2),yva,&
+!              phvar%d2gval(ixsym(j1,j2),1),&
+!              phvar%dpqdy(j1),phvar%dpqdy(j2),&
+!              phvar%dgval(1,j1,1),phvar%dgval(1,j2,1)
+!103      format(a,3i3,6(1pe11.3))
+         phvar%d2gval(ixsym(j1,j2),1)=phvar%d2gval(ixsym(j1,j2),1)+&
+              (phvar%dpqdy(j1)*phvar%dgval(1,j2,1)+&
+               phvar%dpqdy(j2)*phvar%dgval(1,j1,1))*yva/phvar%sites(1)
+      enddo cation2
+      anion2: do kk=1,nkl(2)
+         j2=nkl(1)+kk
+         if(j2.lt.min(i2slx(1),i2slx(2))) then
+! d2S/dy_idy_j   = v_i*(1+ln(y_j)) + (-v_j)*(1+ln(y_i))    ...cation+anion OK
+            phvar%d2gval(ixsym(j1,j2),1)=&
+                 phvar%dpqdy(j1)*phvar%dgval(1,j2,1)/phvar%sites(2)+&
+                 phvar%dpqdy(j2)*phvar%dgval(1,j1,1)/phvar%sites(1)
+         elseif(j2.eq.i2slx(1)) then
+! d2S/dy_idy_Va  = v_i*(1+ln(y_Va)) + v_i*S1 + Q*(1+ln(y_i))   ...cation+Va OK
+            phvar%d2gval(ixsym(j1,j2),1)=&
+                 phvar%dpqdy(j1)*phvar%dgval(1,j2,1)/phvar%sites(2)+&
+                 phvar%dpqdy(j1)*spart(1)+&
+                 phvar%sites(2)*phvar%dgval(1,j1,1)/phvar%sites(1)
+         else
+! d2S/dy_idy_k   = v_i*(1+ln(y_k))                        ...cation+neutral OK
+!            write(*,107)'i,va: ',j1,j2,phvar%dpqdy(j1),phvar%dgval(1,j2,1),&
+!                 phvar%sites(2)
+!107         format(a,2i2,6(1pe12.4))
+            phvar%d2gval(ixsym(j1,j2),1)=&
+                 phvar%dpqdy(j1)*phvar%dgval(1,j2,1)/phvar%sites(2)
+         endif
+      enddo anion2
+109   continue
+! this done at the end as original dgval(1,j1,1)=P*(1+ln(y_j1))/P used above
+! dS/dy_i        = +v_i*S2 + v_i*y_Va*S1 + [P*(1+ln(y_i)]   ..cation   OK
+!      write(*,19)'c: ',j1,phvar%dgval(1,j1,1),&
+!           phvar%dpqdy(j1),spart(2),phvar%dpqdy(j1),yva,spart(1)
+!19    format(a,i3,6(1pe12.4))
+      phvar%dgval(1,j1,1)=phvar%dgval(1,j1,1)+&
+           phvar%dpqdy(j1)*spart(2)+phvar%dpqdy(j1)*yva*spart(1)
+   enddo cation
+! this done separately as original dgval(1,j2,1)=Q*(1+ln(y_j2))/Q used above
+! kall here should be total number of constituents
+   anion1: do j2=nkl(1)+1,min(i2slx(1),kall)
+      if(j2.lt.min(i2slx(1),i2slx(2))) then
+! dS/dy_j        = -v_j*S1 +               [Q*(1+ln(y_j))]  ..anion    OK
+!         write(*,*)'anion1 A: ',j2
+         phvar%dgval(1,j2,1)=phvar%dgval(1,j2,1)+phvar%dpqdy(j2)*spart(1)
+      elseif(j2.eq.i2slx(1)) then
+! dS/dy_Va       = Q*S1 +                  [Q*(1+ln(y_Va))] ..Va       OK
+!         write(*,*)'anion1 B: ',j2
+         phvar%dgval(1,j2,1)=phvar%dgval(1,j2,1)+phvar%sites(2)*spart(1)
+!      else
+! dS/dy_k        = nothing +               [Q*(1+ln(y_k)]   ..neutral  OK
+      endif
+!      write(*,*)'anion1 C: ',j2
+   enddo anion1
+! set temperature derivative of dG/dy
+   do j1=1,kall
+      phvar%dgval(2,j1,1)=phvar%dgval(1,j1,1)/tval
+   enddo
+900 continue
+!  phvar%gval(1,1)=phvar%gval(1,1)+phvar%sites(ll)*ss
+!   write(*,905)'parts: ',phvar%gval(1,1),phvar%sites,spart
+!905 format(a,6(1pe12.4))
+! set temperature derivative of G
+   phvar%gval(2,1)=phvar%gval(1,1)/tval
+1000 continue
+   return
+ end subroutine config_entropy_i2sl
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -1646,35 +2337,6 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine scale_phase_amounts(antot,ceq)
-! multiply all phase amounts in moles by antot.  Probably redundant
-! NOTE: MASS updated with same factor, is that correct?
-! is this routine used? needed?
-   implicit none
-   double precision antot
-   type(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim}
-   integer iph,lokph,ics,lokcs
-   do iph=1,noofph
-      lokph=phases(iph)
-      do ics=1,phlista(lokph)%noofcs
-!         lokcs=phlista(iph)%cslink
-         lokcs=phlista(iph)%linktocs(ics)
-         if(ceq%phase_varres(lokcs)%amfu.gt.zero) then
-            ceq%phase_varres(lokcs)%amfu=&
-                 ceq%phase_varres(lokcs)%amfu*antot
-            ceq%phase_varres(lokcs)%netcharge=&
-                 ceq%phase_varres(lokcs)%netcharge*antot
-         endif
-      enddo
-   enddo
-1000 continue
-   return
- end subroutine scale_phase_amounts
-
-!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
-
-!\begin{verbatim}
  subroutine set_driving_force(iph,ics,dgm,ceq)
 ! set the driving force of a phase explicitly
    implicit none
@@ -1716,10 +2378,12 @@
    anisum=zero; abisum=zero
    nox=0; now=0
 !
+!   write(*,*)"in extract massbalace 1"
    last=>ceq%lastcondition
    if(.not.associated(last)) then
       gx%bmperr=4143; goto 1000
    endif
+!   write(*,*)"in extract massbalace 2"
    current=>last
    nc=0
    allmassbal=.TRUE.
@@ -1742,7 +2406,9 @@
       if(current%symlink1.gt.0) then
 ! the value is a symbol, the node to the expression is in
 ! svflista(current%symlink1)%linkpnode
-         xxx=evaluate_svfun(current%symlink1,actual_arg,1,ceq)
+! NOTE THIS IS NOT THE SAME AS meq_evaluate_svfun but OK as no derivative
+!         xxx=meq_evaluate_svfun(current%symlink1,actual_arg,1,ceq)
+         xxx=evaluate_svfun_old(current%symlink1,actual_arg,1,ceq)
       else
          xxx=current%prescribed
       endif
@@ -1808,6 +2474,8 @@
       endif
 ! take next condition if we have not done all
 300   continue
+      if(ocv()) write(*,310)'25B massbal: ',current%prescribed,last%prescribed
+310   format(a,6(1pe12.4))
       if(.not.associated(current,last)) goto 100
 !--------------------------------------
 ! check if correct number of conditions found

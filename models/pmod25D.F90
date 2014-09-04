@@ -6,7 +6,52 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine store_putfun(name,lrot,nsymb,&
+ subroutine store_putfun(name,lrot,nsymb,iarr)
+! enter an expression of state variables with name name with address lrot
+! nsymb is number of formal arguments
+! iarr identifies these
+! idot if derivative
+   implicit none
+   character name*(*)
+   type(putfun_node), pointer :: lrot
+   integer nsymb,idot
+   integer iarr(10,*)
+!\end{verbatim} %+
+   integer jf,jg
+!   write(*,*)'25D: store_putfun ',nsvfun
+   nsvfun=nsvfun+1
+   if(nsymb.gt.0) then
+      allocate(svflista(nsvfun)%formal_arguments(10,nsymb))
+      idot=10
+! dot derivatives have two consequtive symbols for the variable before/after
+      do jf=1,nsymb
+! the order is: 1: state variable (negative means index to another symbol)
+! 2-5: norm, unit, phref, argtyp, 
+! 6-10: phase, compset, component, constituent, derivative
+         do jg=1,idot
+            svflista(nsvfun)%formal_arguments(jg,jf)=iarr(jg,jf)
+         enddo
+!         write(*,77)(iarr(jg,jf),jg=1,idot)
+77       format('25F: store_putfun: ',20i3)
+      enddo
+   endif
+   svflista(nsvfun)%name=name
+   svflista(nsvfun)%linkpnode=>lrot
+   svflista(nsvfun)%status=0
+   svflista(nsvfun)%narg=nsymb
+! this is the number of actual argument needed (like @P, @C and @S)
+   svflista(nsvfun)%nactarg=0
+! eqnoval indicate which equilibrium to use to get its value.
+! default is 0 meaning current equilibria, can be changed by AMEND SYMBOL
+   svflista(nsvfun)%eqnoval=0
+1000 continue
+   return
+ end subroutine store_putfun
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim} %-
+ subroutine store_putfun_old(name,lrot,nsymb,&
        istv,indstv,iref,iunit,idot)
 ! enter an expression of state variables
 ! name: character, name of state variable function
@@ -27,7 +72,7 @@
 !    write(*,*)'store_putfun ',nsvfun
    nsvfun=nsvfun+1
    if(nsymb.gt.0) then
-      allocate(svflista(nsvfun)%formal_arguments(8,nsymb))
+      allocate(svflista(nsvfun)%formal_arguments(10,nsymb))
       do jf=1,nsymb
          svflista(nsvfun)%formal_arguments(1,jf)=istv(jf)
          svflista(nsvfun)%formal_arguments(2,jf)=indstv(1,jf)
@@ -50,7 +95,30 @@
    svflista(nsvfun)%eqnoval=0
 1000 continue
    return
- end subroutine store_putfun
+ end subroutine store_putfun_old
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
+ subroutine find_svfun(name,lrot,ceq)
+! finds a state variable function called name (no abbreviations)
+   implicit none
+   character name*(*)
+   integer lrot
+   type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+! name must be in UPPER CASE and exact match required
+   do lrot=1,nsvfun
+      if(name.eq.svflista(lrot)%name) goto 500
+   enddo
+   write(*,*)'No such symbol: ',name
+   gx%bmperr=8888; goto 1000
+!
+500 continue
+! nothing more to do!
+1000 continue
+   return
+ end subroutine find_svfun
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
@@ -64,6 +132,7 @@
 !\end{verbatim}
 ! copied svflista(lrot)%formal_arguments(2..5,jt) to indices as gfortran error
    integer indstv(4),indices(4)
+   type(gtp_state_variable), pointer :: svr
    character symbols(20)*32,afterdot*32
    integer js,jt,ip,istv,ii,kl
 !    write(*,*)'list_svfun 1:',svflista(lrot)%narg
@@ -83,24 +152,21 @@
 ! function refer to another function
          symbols(js)=svflista(-istv)%name
       else
-         do ii=1,4
-            indices(ii)=svflista(lrot)%formal_arguments(1+ii,jt)
-         enddo
-         call encode_state_variable(symbols(js),ip,istv,indices,&
-              svflista(lrot)%formal_arguments(6,jt), &
-              svflista(lrot)%formal_arguments(7,jt),ceq)
-         if(svflista(lrot)%formal_arguments(8,jt).ne.0) then
+! the 1:10 was a new bug discovered in GNU fortran 4.7 and later
+         call make_stvrec(svr,svflista(lrot)%formal_arguments(1:10,jt))
+         call encode_state_variable(symbols(js),ip,svr,ceq)
+         if(svflista(lrot)%formal_arguments(10,jt).ne.0) then
 ! a derivative!!!
+!            write(*,111)'A dot derivative of ',js,jt,symbols(js)
+111         format(a,2i3,': ',a)
             jt=jt+1
-!             write(*,*)'dot derivative: ',jt,&
-!                  svflista(lrot)%formal_arguments(1,jt)
             afterdot=' '
             ip=1
-            call encode_state_variable(afterdot,ip,&
-                 svflista(lrot)%formal_arguments(1,jt),indices,&
-                 svflista(lrot)%formal_arguments(6,jt), &
-                 svflista(lrot)%formal_arguments(7,jt),ceq)
+            call make_stvrec(svr,svflista(lrot)%formal_arguments(1:10,jt))
+            call encode_state_variable(afterdot,ip,svr,ceq)
+!            write(*,111)'wrt state variable  ',js,jt,afterdot
             symbols(js)=symbols(js)(1:len_trim(symbols(js)))//'.'//afterdot
+!            write(*,111)'alltogether ',js,jt,symbols(js)
          endif
       endif
       if(jt.lt.svflista(lrot)%narg) goto 100
@@ -119,6 +185,52 @@
 1000 continue
    return
  end subroutine list_svfun
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
+ subroutine make_stvrec(svr,iarr)
+! stores appropriate values from a formal argument list to a state variable
+! function in a state variable record
+   implicit none
+   type(gtp_state_variable), pointer :: svr
+   integer iarr(10)
+!\end{verbatim}
+   integer jt,norm
+!
+   allocate(svr)
+   if(iarr(1).lt.10) then
+! This is T, P, MU, AC, LNAC
+!         1  2  3   4   5
+      svr%statevarid=iarr(1)
+   else
+! This is U, S, V, H, A,  G,  NP, BP, DG, Q,   N,  X,  B,  W,  Y   symbol
+!         6  7  8  9  10, 11, 12, 13, 14, 15,  16, 17, 18, 19. 20   new code
+!         10 20 30 40 50  60  70  80  90  100  110 111 120 122 130  old code
+! dvs iarr()=10 means U etc.
+      jt=iarr(1)/10+5
+      norm=mod(iarr(1),10)
+! special for x and w, note norm is set to normallizing
+      if(jt.eq.16 .and. norm.eq.1) jt=17
+      if(jt.eq.18 .and. norm.eq.2) jt=19
+      svr%statevarid=jt
+!      write(*,*)'25D make: ',iarr(1),jt
+   endif
+!   write(*,11)iarr
+11 format('Arguments: ',10i5)
+! Not implemented handling of property symbols like TC, BMAGN etc
+   svr%oldstv=iarr(1)
+   svr%norm=iarr(2)
+   svr%unit=iarr(3)
+   svr%phref=iarr(4)
+   svr%argtyp=iarr(5)
+   svr%phase=iarr(6)
+   svr%compset=iarr(7)
+   svr%component=iarr(8)
+   svr%constituent=iarr(9)
+1000 continue
+   return
+ end subroutine make_stvrec
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
@@ -149,8 +261,9 @@
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim}
- subroutine evaluate_all_svfun(kou,ceq)
-! evaluate and list all functions
+ subroutine evaluate_all_svfun_old(kou,ceq)
+! THIS SUBROUTINE MOVED TO MINIMIZER
+! evaluate and list values of all functions
    implicit none
    integer kou
    TYPE(gtp_equilibrium_data), pointer :: ceq
@@ -162,19 +275,21 @@
 75 format('No  Name ',12x,'Value')
    do kf=1,nsvfun
 ! actual arguments needed if svflista(kf)%nactarg>0
-      val=evaluate_svfun(kf,actual_arg,0,ceq)
+      val=evaluate_svfun_old(kf,actual_arg,0,ceq)
       if(gx%bmperr.ne.0) goto 1000
       write(kou,77)kf,svflista(kf)%name,val
 77    format(i3,1x,a,1x,1PE15.8)
    enddo
 1000 continue
    return
- end subroutine evaluate_all_svfun
+ end subroutine evaluate_all_svfun_old
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim}
- double precision function evaluate_svfun(lrot,actual_arg,mode,ceq)
+ double precision function evaluate_svfun_old(lrot,actual_arg,mode,ceq)
+! THIS SUBROUTINE MOVED TO MINIMIZER
+! but needed in some cases in this module ... ???
 ! envaluate all funtions as they may depend on each other
 ! actual_arg are names of phases, components or species as @Pi, @Ci and @Si
 ! needed in some deferred formal parameters  (NOT IMPLEMENTED YET)
@@ -185,6 +300,7 @@
 !\end{verbatim}
    integer indices1(4),indices2(4)
    double precision argval(20)
+   type(gtp_state_variable), pointer :: svr,svr2
    integer jv,jt,istv,ieq,ii
    double precision value
    argval=zero
@@ -210,27 +326,23 @@
          endif
 !          write(*,*)'evaluate_svfun symbol',ieq,value
       else
-         do ii=1,4
-            indices1(ii)=svflista(lrot)%formal_arguments(1+ii,jt)
-         enddo
-         if(svflista(lrot)%formal_arguments(8,jt).eq.0) then
+! the 1:10 was a new bug discovered in GNU fortran 4.7 and later
+         call make_stvrec(svr,svflista(lrot)%formal_arguments(1:10,jt))
+         if(gx%bmperr.ne.0) goto 1000
+         if(svflista(lrot)%formal_arguments(10,jt).eq.0) then
 ! get state variable value
-            call state_variable_val(istv,indices1,&
-                 svflista(lrot)%formal_arguments(6,jt), &
-                 svflista(lrot)%formal_arguments(7,jt),value,ceq)
+            call state_variable_val(svr,value,ceq)
          else
-! calculate a derivative!!! need 2 state variables
-            do ii=1,4
-               indices2(ii)=svflista(lrot)%formal_arguments(1+ii,jt+1)
-            enddo
-            call state_var_value_derivative(istv,indices1, &
-                 svflista(lrot)%formal_arguments(6,jt), &
-                 svflista(lrot)%formal_arguments(7,jt), &
-                 svflista(lrot)%formal_arguments(1,jt+1),indices2,&
-                 svflista(lrot)%formal_arguments(6,jt+1), &
-                 svflista(lrot)%formal_arguments(7,jt+1),value,ceq)
-            jt=jt+1
+! state variable derivative, error code here should be handelled by calling
+! routine and use meq_evaluate_evaluate
+!            write(*,*)'In evaluate_svfun_old!!!'
+!            write(*,*)'Use "calculate symbol" for state variable derivatives!'
+            gx%bmperr=8888
+!            call make_stvrec(svr2,svflista(lrot)%formal_arguments(1:10,jt))
+!            call state_var_value_derivative(svr,svr2,value,ceq)
+!            call meq_state_var_value_derivative(svr,svr2,value,ceq)
          endif
+         if(gx%bmperr.ne.0) goto 1000
       endif
       jv=jv+1
       argval(jv)=value
@@ -272,10 +384,10 @@
 ! save value in current equilibrium
 !   write(*,*)'25D eval_svfun: ',lrot,value,size(ceq%svfunres)
    ceq%svfunres(lrot)=value
-   evaluate_svfun=value
+   evaluate_svfun_old=value
 1000 continue
    return
- end function evaluate_svfun
+ end function evaluate_svfun_old
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 !>     9. Interactive things
@@ -289,7 +401,7 @@
    character cline*(*)
 !\end{verbatim}
    character name1*24,quest*32
-   double precision yarr(maxcons2),sites(maxsubl),qq(5),yyy,xxx,sss
+   double precision yarr(maxcons2),sites(maxsubl),qq(5),yyy,xxx,sss,ydef
    integer knl(maxsubl),knr(maxcons2)
    character line*64,ch1*1
    character*1 :: chd='Y'
@@ -314,8 +426,10 @@
 100 continue
 !   write(*,*)'spc 1',qph,iph,ics,name1
 ! skip hidden and suspended phases, test_phase_status return
-! 1=entered, 2=fix, 3=dormant, 4=suspended, 5=hidden
-   if(qph.lt.0 .and. test_phase_status(iph,ics,xxx,ceq).gt.3) goto 200
+! old 1=entered, 2=fix, 3=dormant, 4=suspended, 5=hidden
+!   if(qph.lt.0 .and. test_phase_status(iph,ics,xxx,ceq).gt.3) goto 200
+! -4 hidden, -3 suspend, -2 dormant, -1,0, entered, 2 fixed
+   if(qph.lt.0 .and. test_phase_status(iph,ics,xxx,ceq).le.PHDORM) goto 200
 !   if(qph.lt.0 .and. (phase_status(iph,ics,PHHID,ceq) .or.&
 !        phase_status(iph,ics,PHIMHID,ceq) .or.&
 !        (phase_status(iph,ics,CSSUS,ceq) .and. &
@@ -334,7 +448,7 @@
       buperr=0; goto 1000
    endif
    ceq%phase_varres(lokcs)%amfu=xxx
-! ask if default
+! ask if default constitution
    call gparcd('Default constitution?',cline,last,1,ch1,chd,q1help)
    if(ch1.eq.'Y' .or. ch1.eq.'y') then
       call set_default_constitution(iph,ics,0,ceq)
@@ -348,10 +462,11 @@
    kkk=0
    nylat: do ll=1,nsl
       sss=one
+      ydef=one
       nycon: do nr=1,knl(ll)-1
          kkk=kkk+1
          loksp=phlista(lokph)%constitlist(kkk)
-         line=splista(loksp)%symbol
+         line='Fraction of '//splista(loksp)%symbol
          ip=len_trim(line)+1
          if(ll.gt.1) then
             line(ip:)='#'//char(ll+ichar('0'))
@@ -359,7 +474,8 @@
          endif
          once=.true.
 20        continue
-         call gparrd(line(1:ip+2),cline,last,xxx,yarr(kkk),q1help)
+         ydef=min(yarr(kkk),ydef)
+         call gparrd(line(1:ip+2),cline,last,xxx,ydef,q1help)
          if(xxx.lt.zero) then
             if(once) then
                write(*,*)'A Fraction must be greater than zero'
@@ -372,16 +488,21 @@
          endif
          sss=sss-xxx
          if(sss.lt.zero) then
-            write(*,*)'Sum of fractions larger than unity'
-            sss=sss+xxx
-            yarr(kkk)=sss-1.0D-12*(knl(ll)-nr)
-!            goto 20
+            xxx=max(sss+xxx,1.0D-12)
+            sss=-1.0D12
+            write(*,21)'Sum of fractions larger 1.0, fraction set to: ',xxx
+21          format(a,1pe12.4)
+            ydef=1.0D-12
+         else
+            ydef=sss
          endif
-         yarr(kkk)=max(xxx,1.0D-12)
+!         write(*,*)'ydef: ',ydef,sss
+         yarr(kkk)=xxx
       enddo nycon
 ! the last constituent is set to the rest
       kkk=kkk+1
       yarr(kkk)=max(sss,1.0D-12)
+      write(*,21)'Last fraction set to: ',yarr(kkk)
    enddo nylat
 ! set the new constitution
    call set_constitution(iph,ics,yarr,qq,ceq)
@@ -569,9 +690,9 @@
 ! this removes the final )
    name3(lp1:)=' '
 !
-   call decode_constarr(name3,nsl,endm,nint,lint,ideg)
+   call decode_constarr(lokph,name3,nsl,endm,nint,lint,ideg)
    if(gx%bmperr.ne.0) goto 1000
-!   write(*,83)'hej: ',name3(1:lp1),nint,(lint(2,i),i=1,nint)
+!   write(*,83)'after d_c: ',name3(1:lp1),nint,(lint(2,kp),kp=1,nint)
 83 format(a,a,i5,2x,5i4)
 ! finally remove all non-alphabetical characters in the function name by _
    kp=0
@@ -671,9 +792,9 @@
 !
    call capson(longline(1:jp))
 !   write(*,*)'epi: ',longline(1:jp)
-   call enter_tpfun(parname,longline,lfun)
+   call enter_tpfun(parname,longline,lfun,.FALSE.)
    if(gx%bmperr.ne.0) goto 1000
-!    write(*,290)'enter_par 7: ',lokph,nsl,nint,ideg,lfun,refx
+!   write(*,290)'enter_par 7: ',lokph,nsl,nint,ideg,lfun,refx
 290 format(a,5i4,1x,a)
 !
    call enter_parameter(lokph,typty,fractyp,nsl,endm,nint,lint,ideg,lfun,refx)
@@ -788,7 +909,7 @@
    call capson(refid)
 ! check if unique, if mode=0 illegal
    do jl=1,reffree-1
-      if(refid.eq.reflista(jl)%reference) then
+      if(refid.eq.bibrefs(jl)%reference) then
          if(mode.eq.0) then
 !            write(kou,*)'Reference identifier not unique'
             gx%bmperr=4156;goto 1000
@@ -830,8 +951,8 @@
 ! the expression should be terminated with an = or value supplied on next line
 ! like "T=1000", "x(liq,s)-x(pyrrh,s)=0", "2*mu(cr)-3*mu(o)=muval"
 ! It can also be a "NOFIX=<phase>" or "FIX=<phase> value"
-! The routine should accept conditions identified with the <number>:
-! preceeding each condition in a list_condition
+! The routine should also accept conditions identified with the "<number>:"
+! where <number> is that preceeding each condition in a list_condition
 ! It should also accept changing conditions by <number>:=new_value
    implicit none
    integer ip
@@ -842,12 +963,15 @@
    integer linkix,norem,ics,kstv,iph,nidfirst,nidlast,nidpre,qp
    character stvexp*80,stv*16,stvrest*80,textval*32,c4*4
    character svtext*60,encoded*60,defval*18
-   integer indices(4),allterms(4,10),condno
+   integer indices(4),allterms(4,10),condno,seqz
    double precision coeffs(10),xxx,value
    logical inactivate
+   type(gtp_state_variable), pointer :: svr
+   type(gtp_state_variable), dimension(10), target :: svrarr
    TYPE(gtp_condition), pointer :: previous,temp,new
 50 continue
 ! extract symbol like T, X(FCC,CR), MU(C) etc up to space, +, - or = sign
+   stvexp=' '
    call gparcd('State variable: ',cline,ip,ichar('='),stvexp,'T',q1help)
 ! can there be any error return??
    if(buperr.ne.0) goto 1000
@@ -934,10 +1058,40 @@
       endif
    endif
 ! decode state variable expression
-!    write(*,*)'calling decode ',stvexp(1:20)
-   call decode_state_variable(stvexp,istv,indices,iref,iunit,ceq)
+!    write(*,*)'25D, calling decode ',stvexp(1:20)
+!   call decode_state_variable(stvexp,istv,indices,iref,iunit,svr,ceq)
+   call decode_state_variable(stvexp,svr,ceq)
    if(gx%bmperr.ne.0) goto 1000
    svtext=stvexp
+! convert to old format
+!   if(svr%oldstv.ge.10) then
+!      istv=10*(svr%oldstv-5)+svr%norm
+!   else
+      istv=svr%oldstv
+!   endif
+   iref=svr%phref
+   iunit=svr%unit
+! svr%argtyp specifies values in indices:
+! svr%argtyp: 0=no arguments; 1=comp; 2=ph+cs; 3=ph+cs+comp; 4=ph+cs+const
+   indices=0
+   if(svr%argtyp.eq.1) then
+      indices(1)=svr%component
+   elseif(svr%argtyp.eq.2) then
+      indices(1)=svr%phase
+      indices(2)=svr%compset
+   elseif(svr%argtyp.eq.3) then
+      indices(1)=svr%phase
+      indices(2)=svr%compset
+      indices(3)=svr%component
+   elseif(svr%argtyp.eq.4) then
+      indices(1)=svr%phase
+      indices(2)=svr%compset
+      indices(3)=svr%constituent
+!   else
+!      write(*,*)'state variable has illegal argtyp: ',svr%argtyp
+!      gx%bmperr=7775; goto 1000
+   endif
+!
    if(istv.lt.0) then
 ! istv < 0 means it is a parameter property symbol like TC, illegal as cond
       gx%bmperr=4127; goto 1000
@@ -970,6 +1124,8 @@
       junit=iunit
    endif
    nterm=nterm+1
+! save svr record if several terms
+   svrarr(nterm)=svr
    coeffs(nterm)=xxx
    do jl=1,4
       allterms(jl,nterm)=indices(jl)
@@ -991,8 +1147,10 @@
 !           'Setting default value to zero')
       gx%bmperr=0; xxx=zero
    endif
+! jump here if we have found a : specifying a condition number
 155 continue
    qp=1
+   defval=' '
    call wrinum(defval,qp,10,0,xxx)
    if(buperr.ne.0) then
       buperr=0; defval=' '
@@ -1039,7 +1197,8 @@
 ! check if condition already exists.  If condno>0 it must exist or error
    temp=>ceq%lastcondition
    if(condno.eq.0) then
-      call get_condition(nterm,jstv,allterms,iref,iunit,temp)
+!      call get_condition(nterm,coeffs,jstv,allterms,iref,iunit,temp)
+      call get_condition(nterm,svr,temp)
    elseif(condno.lt.0) then
       if(inactivate) then
 ! user has given *=NONE, remove all conditions except phase status FIX
@@ -1047,7 +1206,8 @@
          norem=1
 210      continue
          temp=>ceq%lastcondition
-         call get_condition(0,norem,allterms,iref,iunit,temp)
+!         call get_condition(0,coeffs,norem,allterms,iref,iunit,temp)
+         call get_condition(nterm,svr,temp)
          if(gx%bmperr.ne.0) then
             gx%bmperr=0; goto 1000
          endif
@@ -1056,11 +1216,12 @@
             temp%active=1
          endif
          goto 210
-! no else patth needed
+! no else path needed
       endif
    else
 ! user has given "5:= ..." and condition 5 must exist, otherwise error
-      call get_condition(0,condno,allterms,iref,iunit,temp)
+!      call get_condition(0,coeffs,condno,allterms,iref,iunit,temp)
+      call get_condition(0,svr,temp)
       if(gx%bmperr.ne.0) goto 1000
    endif
 277 continue
@@ -1094,10 +1255,11 @@
       goto 900
    endif newcond
    goto 500
+!-----------------------------------------------------------------
 ! handle fix/nofix of a phase, a condition should be set inactive.
 300 continue
    ip=ip+1
-!   write(*,*)'fix phase: ',ip,cline(ip:40)
+!   write(*,*)'25D fix phase: ',ip,cline(ip:40)
    call find_phase_by_name(cline(ip:),iph,ics)
    if(gx%bmperr.ne.0) goto 1000
    nterm=1
@@ -1109,8 +1271,23 @@
    do jl=1,4
       allterms(jl,1)=0
    enddo
+! convert to state variable
+!   write(*,*)'25D Setting svrarr(1) values'
+   svrarr(1)%statevarid=jstv
+   svrarr(1)%oldstv=jstv
+   svrarr(1)%phase=ics
+   svrarr(1)%unit=0
+   svrarr(1)%argtyp=0
+   svrarr(1)%phase=iph
+   svrarr(1)%compset=ics
+   svrarr(1)%component=0
+   svrarr(1)%constituent=0
+!
    temp=>ceq%lastcondition    
-   call get_condition(nterm,jstv,allterms,iref,iunit,temp)
+!   write(*,*)'25D calling get_condtion'
+   svr=>svrarr(1)
+   call get_condition(nterm,svr,temp)
+!   write(*,*)'25D Back from get_condition ',gx%bmperr
    if(gx%bmperr.eq.0) then
       if(inactivate) then
 ! inactivate condition
@@ -1137,6 +1314,7 @@
       endif
       gx%bmperr=0
    endif
+! Here we create a new condition !!!
 ! get the value for the new condition
    ip=index(cline,'==')+2
    call getrel(cline,ip,value)
@@ -1144,11 +1322,17 @@
       write(*,*)'error setting fix amount ',ip,cline(1:40)
       gx%bmperr=4100; goto 1000
    endif
-!   write(*,*)'Set fix phase amount: ',value
-! create new condition record for this equilibrium
+!   write(*,*)'25D Set fix phase amount: ',value
+!-----------------------------------------------
+! create a new condition record for this equilibrium (can be the first)
 500 continue
+   if(associated(ceq%lastcondition)) then
+      seqz=ceq%lastcondition%seqz+1
+   else
+      seqz=1
+   endif
    temp=>ceq%lastcondition    
-!   write(*,*)'allocating condition'
+!   write(*,*)'25D allocating condition',seqz
    allocate(ceq%lastcondition)
    new=>ceq%lastcondition
    new%noofterms=nterm
@@ -1156,6 +1340,7 @@
    new%iunit=iunit
    new%iref=iref
    new%active=0
+   new%seqz=seqz
 !    write(*,*)'allocating terms',nterm
    allocate(new%condcoeff(nterm))
    allocate(new%indices(4,nterm))
@@ -1179,6 +1364,11 @@
    else
       new%symlink1=linkix
    endif
+! store the state variable record in the condition
+   allocate(new%statvar(nterm))
+   do jl=1,nterm
+      new%statvar(jl)=svrarr(jl)
+   enddo
 ! link the new record into the condition list
 !    write(*,*)'linking condition'
    if(associated(temp)) then
@@ -1223,15 +1413,146 @@
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim}
- subroutine apply_condition_value(current,what,type,value,cmix,ceq)
+ subroutine get_condition(nterm,svr,pcond)
+! finds a condition record with the given state variable expression
+   implicit none
+   integer nterm
+   type(gtp_state_variable), pointer :: svr
+! NOTE: pcond must have been set to ceq%lastcondition  before calling this
+! pcond: pointer, to a gtp_condition record for this equilibrium
+   type(gtp_condition), pointer :: pcond
+!\end{verbatim} %+
+   type(gtp_condition), pointer :: last
+   type(gtp_state_variable), pointer :: condvar
+   integer j1,num
+   if(.not.associated(pcond)) goto 900
+!   write(*,*)'25D get_condition 1: ',svr%statevarid,svr%oldstv,svr%argtyp
+   last=>pcond
+   num=0
+100 continue
+      if(pcond%noofterms.eq.nterm) then
+         num=num+1
+         do j1=1,nterm
+            condvar=>pcond%statvar(j1)
+!           write(*,*)'25D get_condition 2: ',num,condvar%oldstv,condvar%argtyp
+! dissapointment, one cannot compare two structures ... unless pointers same
+!            if(condvar.ne.svr) goto 200
+            if(condvar%oldstv.ne.svr%oldstv) goto 200
+            if(condvar%norm.ne.svr%norm) goto 200
+            if(condvar%unit.ne.svr%unit) goto 200
+            if(condvar%argtyp.ne.svr%argtyp) goto 200
+            if(condvar%phase.ne.svr%phase) goto 200
+            if(condvar%compset.ne.svr%compset) goto 200
+            if(condvar%component.ne.svr%component) goto 200
+            if(condvar%constituent.ne.svr%constituent) goto 200
+         enddo
+! we have found a condition with these state variables
+!         write(*,*)'25D Found condition',pcond%active
+         goto 1000
+      endif
+200   continue
+      pcond=>pcond%next
+      if(.not.associated(pcond,last)) goto 100
+900 continue
+!   write(*,*)'25D get_condition: No such condition'
+   gx%bmperr=7779; goto 1000
+1000 continue
+ return
+end subroutine get_condition
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim} %-
+ subroutine get_condition2(nterm,coeffs,istv,indices,iref,iunit,pcond)
+! finds a condition record with the given state variable expression
+! nterm: integer, number of terms in the condition expression
+! istv: integer, state variable used in the condition
+! indices: 2D integer array, state variable indices used in the condition
+! iref: integer, reference state of the condition (if applicable)
+! iunit: integer, unit of the condition value
+! NOTE: pcond must have been set to ceq%lastcond before calling this routine!!!
+! pcond: pointer, to a gtp_condition record for this equilibrium
+! NOTE: conditions like expressions x(mg)-2*x(si)=0 not implemeneted
+! fix phases as conditions have negative condition variable
+   implicit none
+   TYPE(gtp_condition), pointer :: pcond
+   integer, dimension(4,*) :: indices
+   integer nterm,istv,iref,iunit
+   double precision coeffs(*)
+!\end{verbatim} %+
+   TYPE(gtp_condition), pointer :: last,current,first
+   integer, dimension(4) :: indx
+   integer ncc,nac,j1,j2
+!   write(*,*)'looking for condition'
+! pcond must have been set to ceq%lastcond before calling this routine!!!
+   if(.not.associated(pcond)) goto 900
+   first=>pcond%next
+   current=>first
+!   write(*,*)'get_condition start: ',current%statev,current%active
+   ncc=1
+   nac=0
+   if(ocv()) write(*,98)'new:',0,nterm,istv,(indices(j1,1),j1=1,4),iref,iunit
+98 format(a,2x,i2,5x,2i4,5x,4i4,5x,2i3)
+100 continue
+   if(ocv()) write(*,98)'old:' ,current%nid,current%noofterms,current%statev,&
+        (current%indices(j1,1),j1=1,4),current%iref,current%iunit
+   if(nterm.eq.0) then
+! why nterm=0?  Check!!!
+      if(ocv()) write(*,*)'get_condition: ',istv,ncc,nac
+      if(current%active.eq.0) then
+! this call just looks for active condition istv
+         nac=nac+1
+! why should fix phase conditions have istv=nac?? Check!!
+         if(nac.eq.istv) then
+! a condition specified like this must not be a phase status change
+            if(current%statev.lt.0) then
+            write(kou,*)'You must use "set phase status" to change fix status'
+            else
+               goto 150
+            endif
+         endif
+      endif
+      goto 200
+   endif
+   if(ocv()) write(*,103)'Checking terms, istv, iref and unit ',&
+        nac,ncc,nterm,current%noofterms
+103 format(a,6i5)
+   if(current%noofterms.ne.nterm .or. current%statev.ne.istv .or. &
+        current%iref.ne.iref .or. current%iunit.ne.iunit) goto 200
+   if(ocv()) write(*,*)'Checking indices'
+   do j1=1,nterm
+      do j2=1,4
+         if(current%indices(j2,j1).ne.indices(j2,j1)) goto 200
+      enddo
+   enddo
+150 continue
+! found condition
+   pcond=>current
+!   write(*,*)'Found condition: ',pcond%nid,ncc
+   goto 1000
+200 continue
+   current=>current%next
+   ncc=ncc+1
+   if(.not. associated(current,first)) goto 100
+900 continue
+! no such condition
+   gx%bmperr=4131; goto 1000
+1000 continue
+   return
+ end subroutine get_condition2
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
+ subroutine apply_condition_value(current,what,value,cmix,ceq)
 ! This is called when calculating an equilibrium.
-! It returns one condition at each call, at first current must be nullified
+! It returns a condition at each call, at first call current must be nullified
 ! When all conditions done the current is nullified again
 ! If what=-1 then return degrees of freedoms and maybe something more
 ! what=0 means calculate current values of conditions
 ! calculate the value of a condition, used in minimizing G
    implicit none
-   integer what,type,cmix(*)
+   integer what,cmix(*)
    double precision value
    TYPE(gtp_equilibrium_data), pointer :: ceq    
    TYPE(gtp_condition), pointer :: current
@@ -1252,7 +1573,7 @@
 ! and fix phases
    cmix(1)=0
    if(current%noofterms.gt.1) then
-! ignore conditions with several terms
+! cannot hanlde conditions with several terms
       write(*,*)'Found condition with several terms'
       gx%bmperr=7777; goto 900
    endif
@@ -1347,9 +1668,60 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
+ subroutine locate_condition(seqz,pcond,ceq)
+! locate a condition using a sequential number
+   implicit none
+   integer seqz
+   type(gtp_condition), pointer :: pcond
+   type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   integer ij
+   pcond=>ceq%lastcondition
+   do ij=1,seqz
+      pcond=>pcond%next
+      if(seqz.gt.ij .and. associated(pcond,ceq%lastcondition)) then
+         write(*,*)'Locate condition called with too high index: ',seqz
+         gx%bmperr=7777; goto 1000
+      endif
+   enddo
+1000 continue
+   return
+ end subroutine locate_condition
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine condition_value(mode,pcond,value,ceq)
+! set (mode=0) or get (mode=1) a new value of a condition.  Used in mapping
+   implicit none
+   integer mode
+   type(gtp_condition), pointer :: pcond
+   type(gtp_equilibrium_data), pointer :: ceq
+   double precision value
+!\end{verbatim}
+   if(mode.eq.0) then
+! set the value
+      pcond%prescribed=value
+! special for T and P
+      if(pcond%statev.eq.1) then
+         ceq%tpval(1)=value
+      elseif(pcond%statev.eq.2) then
+         ceq%tpval(2)=value
+      endif
+   elseif(mode.eq.1) then
+      value=pcond%prescribed
+   else
+      write(*,*)'Condition value called with illegal mode'
+   endif
+1000 continue
+   return
+ end subroutine condition_value
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
  subroutine enter_svfun(cline,last,ceq)
 ! enter a state variable function
-! no check that the name is unique!!!
    implicit none
    integer last
    character cline*(*)
@@ -1357,8 +1729,10 @@
 !\end{verbatim}
    integer, parameter :: npfs=20
    integer ks,maxsym,ipos,jt,js,kdot,nsymb
-   character name2*16,pfsym(npfs)*60,string*128,pfsymdot*60
-   integer istv(npfs),indstv(4,npfs),iref(npfs),iunit(npfs),lokv(npfs)
+   character name2*16,pfsym(npfs)*60,string*128,pfsymdenom*60
+!   integer istv(npfs),indstv(4,npfs),iref(npfs),iunit(npfs),lokv(npfs)
+   integer iarr(10,npfs),lokv(npfs)
+   type(gtp_state_variable), pointer :: svr
    type(putfun_node), pointer :: lrot
 !    
 ! maxsym is negative to allow the user to enter abs(maxs) symbols
@@ -1387,51 +1761,92 @@
    if(pfnerr.ne.0) then
       pfnerr=0; gx%bmperr=4134; goto 1000
    endif
+! on return nsymb is the number of external symbols used in the function
+! these can be other functions or state variables or used defined identifiers
+! like Curie temperature etc.  The symbols are in pfsym(1..nsymb)
 !
+!   write(*,11)nsymb,(pfsym(js)(1:len_trim(pfsym(js))),js=1,nsymb)
+11 format('25D: args ',i2,': ',10(1x,a,','))
 ! identify symbols as state variables, if derivative there is a dot
+   iarr=0
    jt=0
    do js=1,nsymb
-      jt=jt+1
-      lokv(jt)=0
       kdot=index(pfsym(js),'.')
       if(kdot.gt.0) then
 ! derivatives must be stored as two state variables
-!          write(*,*)'Cannot handle: ',pfsym(js),kdot
-!          goto 1000
-         lokv(jt)=1
-         pfsymdot=pfsym(js)(kdot+1:)
+!         write(*,*)'Found dot derivative: ',kdot,pfsym(js)
+! Only allow a single symbol in this case!!!
+         if(nsymb.gt.1) then
+            write(*,*)'Only a single symbol allowed!'
+            gx%bmperr=7777; goto 1000
+         endif
+         jt=1
+! denominator, variable after . for with the derivative is taken
+         pfsymdenom=pfsym(js)(kdot+1:)
          pfsym(js)(kdot:)=' '
-!          write(*,*)'dot ',pfsym(js)(1:20),pfsymdot(1:20)
-         call decode_state_variable(pfsym(js),istv(jt),indstv(1,jt),&
-              iref(jt),iunit(jt),ceq)
+         call decode_state_variable(pfsym(js),svr,ceq)
          if(gx%bmperr.ne.0) goto 1000
-         jt=jt+1
-         call decode_state_variable(pfsymdot,istv(jt),indstv(1,jt),&
-              iref(jt),iunit(jt),ceq)
+! store in the old way in iarr for two state variables
+         iarr(1,js)=svr%oldstv
+         iarr(2,js)=svr%norm
+         iarr(3,js)=svr%unit
+         iarr(4,js)=svr%phref
+         iarr(5,js)=svr%argtyp
+         iarr(6,js)=svr%phase
+         iarr(7,js)=svr%compset
+         iarr(8,js)=svr%component
+         iarr(9,js)=svr%constituent
+         iarr(10,js)=jt
+         call decode_state_variable(pfsymdenom,svr,ceq)
          if(gx%bmperr.ne.0) goto 1000
-!          write(*,*)'enter_svfun ',istv(jt-1),istv(jt)
+! store in the old way in iarr for two state variables
+         iarr(1,js+1)=svr%oldstv
+         iarr(2,js+1)=svr%norm
+         iarr(3,js+1)=svr%unit
+         iarr(4,js+1)=svr%phref
+         iarr(5,js+1)=svr%argtyp
+         iarr(6,js+1)=svr%phase
+         iarr(7,js+1)=svr%compset
+         iarr(8,js+1)=svr%component
+         iarr(9,js+1)=svr%constituent
       else
-         call decode_state_variable(pfsym(js),istv(jt),indstv(1,jt),&
-              iref(jt),iunit(jt),ceq)
+         call decode_state_variable(pfsym(js),svr,ceq)
          if(gx%bmperr.ne.0) then
 ! symbol not a state variable, may be another function
-!            write(*,*)'error: "',pfsym(js),'"'
+!            write(*,*)'25D not state variable: ',gx%bmperr,' "',&
+!                 pfsym(js)(1:len_trim(pfsym(js))),'"'
             gx%bmperr=0
             do ks=1,nsvfun
                if(pfsym(js).eq.svflista(ks)%name) then
-                  istv(jt)=-ks
+!                  write(*,*)'25D found other function: ',&
+!                       pfsym(js)(1:len_trim(pfsym(js)))
+                  iarr(1,js)=-ks
                   goto 390
                endif
             enddo
+            write(*,*)'25D not a function: "',&
+                 pfsym(js)(1:len_trim(pfsym(js))),'"'
             gx%bmperr=4135; goto 1000
+         else
+!            write(*,*)'25D decoded 1: ',pfsym(js)
+!            write(*,*)'25D decoded 2: ',svr%statev
+! Store in the old way in iarr
+            iarr(1,js)=svr%oldstv
+            iarr(2,js)=svr%norm
+            iarr(3,js)=svr%unit
+            iarr(4,js)=svr%phref
+            iarr(5,js)=svr%argtyp
+            iarr(6,js)=svr%phase
+            iarr(7,js)=svr%compset
+            iarr(8,js)=svr%component
+            iarr(9,js)=svr%constituent
          endif
       endif
 390   continue
    enddo
-! store name, all arguments and function, not if derivatives nt>nsymb
-!    write(*,*)'enter_svfun ',jt,nsymb
-   call store_putfun(name2,lrot,jt,istv,indstv,&
-        iref,iunit,lokv)
+! for derivatives two iarr arrays
+! Found bug in store_putfun if just a variable entered, coefficient set to 0.0
+   call store_putfun(name2,lrot,nsymb+jt,iarr)
 1000 continue
    return
  end subroutine enter_svfun
@@ -1524,9 +1939,9 @@
    integer last,iph,ics
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-   integer lokph,lokcs,ky,ll,iy
+   integer lokph,lokcs,ky,ll,iy,jy,is
    real mmyfr(maxconst)
-   character quest*32,name*24
+   character quest*32,name*24,vdef*4,fdef*8
    double precision xxx
    call get_phase_compset(iph,ics,lokph,lokcs)
    if(gx%bmperr.ne.0) goto 1000
@@ -1538,23 +1953,49 @@
    name=' '
    ky=0
    do ll=1,phlista(lokph)%noofsubl
-      do iy=1,phlista(lokph)%nooffr(ll)
-         ky=ky+1
+      if(phlista(lokph)%nooffr(ll).gt.1) then
+! more than one constituent
+         do iy=1,phlista(lokph)%nooffr(ll)
+            ky=ky+1
 !         call get_species_name(phlista(lokph)%constitlist(ky),name)
-         call get_phase_constituent_name(iph,ky,name)
-         if(gx%bmperr.ne.0) then
-            write(*,*)'default: ',iph,ky,iy
-            goto 1000
-         endif
-         quest='Default for '//name(1:len_trim(name))//&
-              '#'//char(ichar('0')+ll)
+            call get_phase_constituent_name(iph,ky,name)
+            if(gx%bmperr.ne.0) then
+               write(*,*)'default: ',iph,ky,iy
+               goto 1000
+            endif
+            quest='Default for '//name(1:len_trim(name))//&
+                 '#'//char(ichar('0')+ll)
 !         call gparrd(quest,cline,last,xxx,-1.0D-3,q1help)
-         call gparrd(quest,cline,last,xxx,0.5D0,q1help)
-         if(xxx.gt.one) xxx=one
-         mmyfr(ky)=xxx
-      enddo
+!         call gparrd(quest,cline,last,xxx,0.5D0,q1help)
+            vdef='<0.1'
+            call gparcd(quest,cline,last,1,fdef,vdef,q1help)
+            jy=1
+            if(eolch(fdef,jy)) then
+               xxx=-1.0D-1
+            else
+               is=1
+               if(fdef(jy:jy).eq.'<') then
+                  is=-1
+                  jy=jy+1
+               elseif(fdef(jy:jy).eq.'>') then
+                  jy=jy+1
+               endif
+!            write(*,*)'25D def1: ',fdef,jy
+               call getrel(fdef,jy,xxx)
+               if(is.lt.0) xxx=-xxx
+            endif
+            if(abs(xxx).gt.one) xxx=sign(xxx,one)
+!         write(*,*)'25D default: ',xxx
+            mmyfr(ky)=real(xxx)
+         enddo
+      else
+! a single constituent
+         mmyfr(ky)=1.0
+      endif
    enddo
    call enter_default_constitution(iph,ics,mmyfr,ceq)
+   write(*,99)(mmyfr(jy),jy=1,ky)
+99 format(10(f7.3))
 1000 continue
    return
  end subroutine ask_default_constitution
@@ -1571,6 +2012,7 @@
    character cline*(*)
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
+   TYPE(gtp_state_variable), pointer :: svr
    TYPE(gtp_condition), pointer :: current,first,last
    character species*32,cval*16,statevar*4,condline*32
    integer ielno(10),indices(4)
@@ -1623,7 +2065,13 @@
       goto 1000
    endif
 ! this return the internal code for N
-   call decode_state_variable('N ',istv,indices,iref,iunit,ceq)
+!   call decode_state_variable('N ',istv,indices,iref,iunit,svr,ceq)
+   call decode_state_variable('N ',svr,ceq)
+   if(gx%bmperr.ne.0) then
+      write(*,*)'Error decoding N in set_input_amounts'
+      goto 1000
+   endif
+   istv=svr%oldstv
 ! if B convert to N: moles of species = input_mass/mass_of_species
 ! moles of element = stoiciometry_of_element/total_number_of_elements
    if(statevar(1:1).eq.'B') then
@@ -1655,7 +2103,7 @@
          if(current%indices(1,1).eq.ielno(jel) .and. &
               current%indices(2,1).eq.0) then
 ! we have found an identical contition, add the new amount
-! if condition not active then activate and zero prescibed amount
+! if condition not active (active=/=0) then activate and zero prescibed amount
             if(current%active.ne.0) then
                current%active=0
                current%prescribed=zero
@@ -1695,5 +2143,120 @@
    return
  end subroutine set_input_amounts
 
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
+ subroutine get_parameter_typty(name1,lokph,typty,fractyp)
+! interpret parameter identifiers like MQ&C#2 in MQ&C#2(FCC_A1,FE:C) ...
+! find the property associated with this symbol
+   integer typty,fractyp,lokph
+   character name1*(*)
+!\end{verbatim}
+   integer nr,typty1,iel,isp,kel,loksp,lk3,kq,k4,kk,ll
+   character elnam*24
+! It can be a mobility with a & inside
+   kel=index(name1,'&')
+   if(kel.gt.0) then
+! note that elnam may contain sublattice specification like Fe+2#2
+      elnam=name1(kel+1:)
+      name1=name1(1:kel-1)
+   endif
+   kq=len_trim(name1)
+!   write(*,*)'25D: fractyp: ',kq,name1(1:kq)
+   if(name1(kq:kq).eq.'D') then
+! A final "D" on the paramer symbol indicates fractyp=2
+      name1(kq:kq)=' '
+      fractyp=2
+   else
+      fractyp=1
+   endif
+!----------------------
+!      write(*,*)'Property symbol: "',propid(nr)%symbol,'" >',name1(1:4),'<'
+   do nr=1,ndefprop
+      if(name1(1:4).eq.propid(nr)%symbol) then
+         goto 70
+      endif
+   enddo
+! no matching symbol
+   gx%bmperr=7777; goto 1000
+!
+70 continue
+   typty=nr
+   typty1=nr
+   iel=0; isp=0
+   if(kel.gt.0) then
+! there is a specifier, check if correct element or species
+      kel=index(elnam,'#')
+      if(kel.gt.0) then
+! extract sublattice number 1-9 specification
+         lk3=ichar(elnam(kel+1:kel+1))-ichar('0')
+!         write(*,73)elnam(kel+1:kel+1),kel,elnam,lk3
+!73       format('25D sublattice: "',a,'" position: ',i3,' in ',a,' : ',i3)
+         elnam(kel:)=' '
+      else
+         lk3=0
+      endif
+      if(btest(propid(typty)%status,IDELSUFFIX)) then
+!         write(*,*)'25D: elnam: ',kel,lk3,typty,elnam
+         call find_element_by_name(elnam,iel)
+         if(gx%bmperr.ne.0) then
+            write(kou,*)'Unknown element ',elnam,&
+                 ' in parameter type MQ, please reenter'
+            gx%bmperr=0; goto 1000
+         endif
+         typty=100*typty+iel
+      elseif(btest(propid(typty)%status,IDCONSUFFIX)) then
+! to know the constituents we must know the phase but as we do not know 
+! the phase name yet but check the species exists !!!
+         call find_species_by_name(elnam,isp)
+         if(gx%bmperr.ne.0) then
+            write(kou,*)'Unknown species ',elnam,&
+                 ' in parameter type MQ, please reenter',gx%bmperr
+            gx%bmperr=0; goto 1000
+         endif
+! convert from index to location, loksp
+         loksp=species(isp)
+!         write(*,69)'25D: conname: ',kel,lk3,typty,isp,loksp,elnam
+69       format(a,5i4,a)
+! extract sublattice after #
+      else
+!         write(kou,*)'This property has no specifier'
+         gx%bmperr=4168; goto 1000
+      endif
+! this is the property type stored in property record
+   else
+! check if there should be a specifier !!
+      if(btest(propid(typty)%status,IDELSUFFIX) .or. &
+           btest(propid(typty)%status,IDCONSUFFIX)) then
+         write(*,*)'Parameter specifier missing'
+         gx%bmperr=4169; goto 1000
+      endif
+   endif
+! if the parameter symbol has a constituent specification check that now
+   if(isp.gt.0) then
+      k4=0
+      do ll=1,phlista(lokph)%noofsubl
+         if(lk3.eq.0 .or. lk3.eq.ll) then
+            do kk=1,phlista(lokph)%nooffr(ll)
+               k4=k4+1
+               if(phlista(lokph)%constitlist(k4).eq.loksp) goto 80
+            enddo
+         elseif(ll.lt.lk3) then
+            k4=k4+phlista(lokph)%nooffr(ll)
+         endif
+      enddo
+! constituent not found
+      write(kou,*)'No such constituent'
+      gx%bmperr=4066; goto 1000
+! constituent found in right sublattice
+80    continue
+      typty=100*typty+k4
+!      write(*,81)'25D: found: ',typty1,typty,lk3,k4,loksp
+81    format(a,10i4)
+   endif
+1000 continue
+   return
+ end subroutine get_parameter_typty
+!
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 

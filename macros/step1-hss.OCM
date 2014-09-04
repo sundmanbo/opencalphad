@@ -1,0 +1,78 @@
+@$ Calculating a single equilibrium
+
+set echo
+
+r t steel1
+
+set c t=1200 p=1e5 n=1 x(c)=.04 x(cr)=.05, x(mo)=.06 x(si)=.003 x(v)=.01
+
+c e
+
+l r 1
+
+@&
+
+set axis 1 T 800 1800 10
+
+l ax
+
+@&
+
+step
+
+
+
+
+
+@&
+
+l line
+
+@&
+
+l eq
+
+
+plot
+
+
+,,,,,,,,
+
+
+
+plot
+T
+w(*,cr)
+ocgnu
+plot ,,,,,,,,,,,,,,
+
+
+
+
+@&
+
+ent sym cp=h.t;
+
+
+plot
+T
+cp 
+ocgnu
+plot ,,,,,,,,,,,,,
+
+
+
+plot
+T
+cp
+ocgnu
+yr
+n
+0
+200
+
+
+
+
+set inter
+

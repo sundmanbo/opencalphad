@@ -109,7 +109,7 @@
    end select addition
    if(gx%bmperr.ne.0) goto 1000
 ! check if there are other additions 
-   write(*,*)'25I: adding addition: ',newadd%type,addtyp
+!   write(*,*)'25I: adding addition: ',newadd%type,addtyp
    if(.not.associated(phlista(lokph)%additions)) then
       phlista(lokph)%additions=>newadd
 !      write(*,*)'25I: added as first addition: ',newadd%type
@@ -221,7 +221,7 @@
 !       write(*,*)'emm 1: ',text(1:len_trim(text))
       ip=1
       nc=ncc
-      call ct1xfn(text,ip,nc,coeff,koder)
+      call ct1xfn(text,ip,nc,coeff,koder,.FALSE.)
 !       write(*,17)'emm 1B:',nc,(coeff(i),i=1,nc)
 17     format(a,i3,5(1PE11.3))
       if(gx%bmperr.ne.0) goto 1000
@@ -233,7 +233,7 @@
 !       write(*,*)'emm 2: ',text(1:len_trim(text))
       ip=1
       nc=ncc
-      call ct1xfn(text,ip,nc,coeff,koder)
+      call ct1xfn(text,ip,nc,coeff,koder,.FALSE.)
       if(gx%bmperr.ne.0) goto 1000
       call ct1mexpr(nc,coeff,koder,lhigh)
       if(gx%bmperr.ne.0) goto 1000
@@ -245,7 +245,7 @@
            '-.0017449124*T**15 ; '
       ip=1
       nc=ncc
-      call ct1xfn(text,ip,nc,coeff,koder)
+      call ct1xfn(text,ip,nc,coeff,koder,.FALSE.)
       if(gx%bmperr.ne.0) goto 1000
       call ct1mexpr(nc,coeff,koder,llow)
       if(gx%bmperr.ne.0) goto 1000
@@ -254,7 +254,7 @@
            '-2.84601512E-04*T**(-25) ; '
       ip=1
       nc=ncc
-      call ct1xfn(text,ip,nc,coeff,koder)
+      call ct1xfn(text,ip,nc,coeff,koder,.FALSE.)
       if(gx%bmperr.ne.0) goto 1000
       call ct1mexpr(nc,coeff,koder,lhigh)
       if(gx%bmperr.ne.0) goto 1000
@@ -328,7 +328,7 @@
 !
    noprop=phres%listprop(1)-1
    itc=0; ibm=0
-!    write(*,*)'cmi 2: ',noprop,(phres%listprop(i),i=1,noprop)
+!   write(*,*)'25I cmi 2: ',mc,noprop,(phres%listprop(j),j=1,noprop)
 ! Inden magnetic need properties in need_property(1..2)
    findix: do jl=2,noprop
       if(phres%listprop(jl).eq.lokadd%need_property(1)) then
@@ -366,6 +366,8 @@
       enddo
       tc=phres%gval(1,itc)
 !      write(*,*)'Inden 1: ',tc,iafftc
+   else
+      iafftc=zero
    endif
 ! avoid diving with zero, tc is a temperature so 0.01 degree is small
    if(tc.lt.one) tc=1.0D-2
@@ -405,9 +407,11 @@
    logb1=log(beta+one)
    invb1=one/(beta+one)
    gmagn=rt*ftao(1)*logb1
-!    write(*,98)'cm 97: ',tc,beta,ftao(1),logb1,rt
-!    write(*,98)'cm 98: ',rt*gmagn,rt*(gmagn+phres%gval(1,1)),tcx,iafftc
-!98  format(a,5(1PE14.6))
+!   if(ocv()) then
+!      write(*,98)'25I m1: ',tc,beta,ftao(1),logb1,rt
+!      write(*,98)'25I m2: ',rt*gmagn,rt*(gmagn+phres%gval(1,1)),iafftc
+!98    format(a,5(1PE14.6))
+!   endif
 !
    dtaodt=one/tc
    dtaodp=-tao/tc*phres%gval(3,itc)
@@ -498,21 +502,24 @@
 !57 format('mag2y: ',6(1PE12.4))
       enddo
    enddo
-! now add all to the total G
+! now add all to the total G and its derivatives
+! something wrong here, j should go from 1 to 9 in my fenix case ...
    do j=1,mc
+!      write(*,99)'magadd 1: ',1,j,phres%dgval(1,j,1),daddgval(1,j)/rt
       do k=1,3
-!          write(*,99)'magadd 1: ',k,j,rt*phres%dgval(k,j,1),daddgval(k,j)
+! first derivatives
          phres%dgval(k,j,1)=phres%dgval(k,j,1)+daddgval(k,j)/rt
       enddo
-!99 format(a,2i3,2(1pe16.8))
+99    format(a,2i3,2(1pe16.8))
       do k=j,mc
-!          write(*,99)'magadd 2: ',k,j,rt*phres%d2gval(ixsym(j,k),1),&
-!               d2addgval(ixsym(j,k))
+! second derivatives
+!         write(*,99)'magadd 2: ',k,j,rt*phres%d2gval(ixsym(j,k),1),&
+!              d2addgval(ixsym(j,k))
          phres%d2gval(ixsym(j,k),1)=phres%d2gval(ixsym(j,k),1)+&
               d2addgval(ixsym(j,k))/rt
       enddo
    enddo
-!    write(*,*)'cm 7: ',rt*phres%gval(1,1),addgval(1)
+!   write(*,*)'cm 7: ',phres%gval(1,1),addgval(1)/rt
 ! note phres%gval(1..3,1) already calculated above
    do j=4,6
       phres%gval(j,1)=phres%gval(j,1)+addgval(j)/rt
@@ -548,7 +555,7 @@
 !       write(*,*)'emm 1: ',text(1:len_trim(text))
       ip=1
       nc=ncc
-      call ct1xfn(text,ip,nc,coeff,koder)
+      call ct1xfn(text,ip,nc,coeff,koder,.FALSE.)
 !       write(*,17)'emm 1B:',nc,(coeff(i),i=1,nc)
 17     format(a,i3,5(1PE11.3))
       if(gx%bmperr.ne.0) goto 1000
@@ -560,7 +567,7 @@
 !       write(*,*)'emm 2: ',text(1:len_trim(text))
       ip=1
       nc=ncc
-      call ct1xfn(text,ip,nc,coeff,koder)
+      call ct1xfn(text,ip,nc,coeff,koder,.FALSE.)
       if(gx%bmperr.ne.0) goto 1000
       call ct1mexpr(nc,coeff,koder,lhigh)
       if(gx%bmperr.ne.0) goto 1000
@@ -572,7 +579,7 @@
            '-.0017449124*T**15 ; '
       ip=1
       nc=ncc
-      call ct1xfn(text,ip,nc,coeff,koder)
+      call ct1xfn(text,ip,nc,coeff,koder,.FALSE.)
       if(gx%bmperr.ne.0) goto 1000
       call ct1mexpr(nc,coeff,koder,llow)
       if(gx%bmperr.ne.0) goto 1000
@@ -581,7 +588,7 @@
            '-2.84601512E-04*T**(-25) ; '
       ip=1
       nc=ncc
-      call ct1xfn(text,ip,nc,coeff,koder)
+      call ct1xfn(text,ip,nc,coeff,koder,.FALSE.)
       if(gx%bmperr.ne.0) goto 1000
       call ct1mexpr(nc,coeff,koder,lhigh)
       if(gx%bmperr.ne.0) goto 1000

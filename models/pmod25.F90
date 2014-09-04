@@ -4,7 +4,7 @@
 !
 MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !
-! Copyright 2011-2013, Bo Sundman, France
+! Copyright 2011-2014, Bo Sundman, France
 !
 !    This program is free software; you can redistribute it and/or modify
 !    it under the terms of the GNU General Public License as published by
@@ -127,155 +127,38 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !--------------------------------------------------------------------------
 !
 ! To be added or fixed (in no special order, * means priority):
-!  1 reference states for G, H, MU etc
-!  2* ionic liquid model (incl normal quasichemical)
-!  3 IRSID slag model (not by me)
-!  4 volume model
-!  5* parameter permutations for ordering (option B, done for F)
-!  6 consistent units conversion between user/software (C/F/K,cal/BTU/eV/J etc)
-!  7 reciprocal composition dependent parameters
-!  8* HSS corrected quasichemical liquid model
-!  9 FACT modified quasichemical liquid model
-! 10 multicomponent CVM tetrahedron fcc model
-! 11 dynamic components? components for each phase? The 2H2+O2=2H2O case
-! 12* wildcards in state variables (like show x(*), partially done)
-! 13 Implement SER phase data.  When calculating with the SER phase one must
+!  - *reference states for G, H, MU etc
+!  - volume model
+!  - parameter permutations for ordering (option B, done for F)
+!  - *dot derivatives
+!  - consistent units conversion between user/software (C/F/K,cal/BTU/eV/J etc)
+!  - reciprocal composition dependent parameters
+!  - HSS corrected quasichemical liquid model
+!  - multicomponent CVM tetrahedron fcc model
+!  - *other components than the elements
+!  - wildcards in state variables (like show x(*), partially done)
+!  - Implement SER phase data.  When calculating with the SER phase one must
 !    have different magnetic models for different elements !!
-! 14 amend_data for elements, species, phases, symbols
-! 15 more symbols (variables, value-functions, PUTFUN functions, coefficients)
-! 16 Find the reason for the difference with TC for the magnetic enthalpy
-! 17 New magnetic model (Wei)
-! 18 New heat capacity models for low T (from Mauro)
-! 19 Enable that state variables functions can call TP functions
-! 20 Improve the grid for gridminimization
-! 21* fix the error code for parallel processing
-! 22 save/read of data
-! 23 parallellisation
-! 24 Modify gcalc so one can calcule just a single property like the mobility
+!  - amend_data for elements, species, phases, symbols
+!  - more symbols (variables, value-functions, PUTFUN functions, coefficients)
+!  - New magnetic model (Wei)
+!  - New heat capacity models (from 0 K)
+!  - Enable that state variables functions can call TP functions
+!  - Improve the grid for gridminimization
+!  - *find out how to handle the error code in parallel processing
+!  - *save/read of data using random access file
+!  - parallellisation
+!  - Modify gcalc so one can calcule just a single property like the mobility
+!  - write TDB files
 !
 !-------------------------------------------------------------------------
 !
-! Outside this package
-! 1 Decide output format for plotting (gnuplot/excell)
-! 2 Step procedure
-! 3 TQ interface
-! 4 Map procedure
-! 5 Assessment procedure
-! 6 Retire
-!
-!---------------------------------------------------------------------------
-! Currently working on
-! TQ interface
-! 
-!---------------------------------------------------------------------------
-! To be fixed
-! - Phase status number and type, not same when changing and getting
-! - Composition sets with same name (but different from the original) do
-!   not require a #digit to be unique, that is wrong
-!
-!---------------------------------------------------------------------------
-!
 ! Done so far
-!  1 enter elements, species, phases, TP-functions, parameters
-!  2 Calculate G for CEF phase with binary RK parameters and tabulate data
-!  3 calculate with ternary composition dependent parameters
-!  4 separation of data for parallell processing
-!  5 read a TDB file (except a few things and with some restrictions)
-!  6 Save/read data on file with new format, formatted and unformatted
-!  7 TC and BM parameters calculated separately
-!  8 magnetic model implemented.
-!  9 primitive user i/f
-! 10 more types of parameters (incl mobilities) possible
-! 11 composition sets
-! 12 some status bits (suspended/fix etc)
-! 13 some status changes implemented
-! 14 entering data in PMLFKT arrays while reading from a TDB file
-! 15 routines to extract a value of a state variable including summed over all
-!    phases for use in conditions, show and assessments
-! 17 A special reference phase (SER) with index 0 that is the default reference
-!    for all elements. (It must be a phase and not just a tpfun as magnetism)
-!    All entered elements can have a set of parameters there.
-! 18 wildcard parameters like G(fcc,*), L(fcc,a,b:*), L(fcc,*,a:b)
-! 19 enter parameters for disordered fraction sets
-! 20 calculations with several fraction sets in each phase (ordering)
-!    both for sigma and fcc
-! 21 references for parameters fixed
-! 22 expanded primitive user i/f
-! 23 Gridminimization part 1 done
-! 24 Found a bug in TC for wildcard parameters (second derivatives)
-! 25 Found a bug in TC for partitioned phases (second derivatives)
-! 26 Added an array for max/min constituent fractions in phase_varres record
-!    this will be used to select which composition set sould be used for a
-!    given constitution.  A negative value means a min value, positive a max
-! 27 Global gridminimization done (MISSING: do not find and store the 
-!    best constitution of metastable phases)
-! 28 Managed parallel gridminimization calculating each phase 
-!    in separate threads for fixed T and P and one equilibrium record.
-! 29 Created equilibrium record and made the PHASE_VARRES record part of
-!    this.  A pointer CEQ (Current EQuilibrium) is passed to those subroutines
-!    that need to know which equilibrium record data to operate on.
-! 30 Moved TPFUN to a separate module so it is easier to rewrite
-! 31 tpfun_parres array is made part of the equilibrium record. 
-! 32 Entering, listing and finding conditions including expressions.
-!    Using the condition for gridminimization
-! 33 Added state variable functions (PUTEXP) like in TC POLY.
-!    Some of these functions can be associated to a specific equilibrium
-!    so one can transfer values between equilibria (using AMEND command).
-! 34 Modified PD_LEVER/_INIT so it can understand some conditions set by GTP
-! 35 Transform some conditions to PMLFKT format
-! 36 Creating new equilibria seems to work.  Must handle disordered
-!    fraction sets also with several equilibrium records and in parallel ...
-! 37 Can handle new composition sets when two or more equilibria
-! 38 FIX phase status now added to conditions
-! 39 Extended the use of parameter references and corrected some errors
-! 40 TPFUN and PUTFUN allocate dynamically their internal structures.
-! 41 the components list moved to the equilibrium record and
-!    user defined components possible (for each equilibrium)
-! 42 replaced arrays and free lists for property, interaction and endmember
-!    records with dynamic lists.  Keept arrays for elements, species, phases,
-!    sublattices, phase_varres, tpfuns and statevar symbols.
-! 43 Allow using condition number when changing or removing it, like 
-!    set cond 1:=none. Allow set cond *=none (does not change phase 
-!    conditions of fix phases)
-! 44 Save/read unformatted implemented again (with some bugs)
-! 45 Equilibrium results copied to gtp results arrays.  
-! 46 Metastable phases from a gridcalculation have DGM and their 
-!    best composition calculated and stored in GTP result arrays.
-! 47 Made easier to extend the number of property parameter (G, TC, BM etc)
-!    and for additions which properties they need (magnetism need TC, BM)
-! 48 PD_LEVER now tests all phases to find the stable phase set (buggy)
-! 49 Fixed constituent related property parameter types like mobilities
-! 50 Some parameters like TC, BMAGN etc can be constants of just depend on
-!    P or just on T.  This can be specified as bits.
-! 51 Composition sets can be created when necesssary after a gridgridmin
-!    Other threads must not use EQCALC when a composition set is created
-! 52 eqcalc2 can now calculate equilibria with massbalance conditions but
-!    need gridminimizer for good start values.  It needs fine-tuning for many
-!    cases and fixing default start constitutions.
-! 53 Changed most arrays declared as pointers to be declared allocatable.
-! 54 Step with T axis works.
-! 55 Plot with gnuplot works.
-! 56 Default start constitutions, upper/lower limits of fractions
-! 57 Wildcards for state variables for plotting
-! 58 included sublattice structure inside phase structure, no SUBLISTA array
-! 59 Added set-input-amounts
-! 60 Changed grid generation in grid minimmizer, still not very good
-! 61 Chnaged to IMPLICIT NONE
-! 62 Fixed bug in state variable for amounts like N(FE)
-! 63 Moved some status bits from globaldata to gtp_equilibrium_data
-! 64 Added an array LINKTOCS in gtp_phase with links to all compsets. The NEXT
-!    link in phase_varres removed.  This should simplify use of compsets.
-! 65 Fixed so all parameter property symbols can be accessed as state variables
-! 66 Most permutations for FCC done for entering and calculations (puh)
-! 67 Added a lot ot parameter property symbols
-! 68 Added a rudimentary on-line help facility
-! 69 The phase status/bit setting/checking improved
-! 70 Added a sequential number in all endmember and interaction records.
-! 71 Split the error message data not to excees max 256 continuation
+! date       item
+! 2013.03.01 Release version 1
 !
 !=================================================================
 !
-!  IMPLICIT DOUBLE PRECISION (A-H,O-Z)
   IMPLICIT NONE
 !
 !-----------------------------------------------------------------
@@ -286,7 +169,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   data bmperrmess(4000:4199)&
       /'Too many coefficients in a TP function.                         ',&
        'Illegal character in a TP function, digit expected.             ',&
-       'Unkown symbol in TP function                                    ',&
+       'Unknown symbol in TP function                                   ',&
        'Expected ( after unary function                                 ',&
        'Too many ) in a TP function                                     ',&
        'Illegal character in a TP function                              ',&
@@ -381,7 +264,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'Excess model not implemented yet                                ',&
        'Bad name for a symbol                                           ',&
        'Too deeply nested TP functions                                  ',&
-       'Reading unkown addition type from file                          ',&
+       'Reading unknown addition type from file                         ',&
 ! 4090
        'Addition already entered                                        ',&
        'No more addition records                                        ',&
@@ -488,7 +371,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'Two mass balance conditions for same element                    ',&
        'Cannot handle conditions on both N and B                        ',&
        'No mole fractions when summing composition                      ',&
-       '                                                                ',&
+       'Error in TDB file, missing function                             ',&
        '                                                                ',&
        '                                                                ',&
        '                                                                ',&
@@ -511,12 +394,12 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'Error solving system matrix                                     ',&
        'Too many iterations                                             ',&
        'Phase matrix singular                                           ',&
-       'Cannot handle models without analythical second derivativatives ',&
+       'Cannot handle models without analytical second derivativatives  ',&
        'Ionic liquid model not implemented yet                          ',&
        '                                                                ',&
        '                                                                ',&
 ! 4210
-       '                                                                ',&
+       'Phase change not allowed due to step/map constraints            ',&
        '                                                                ',&
        '                                                                ',&
        '                                                                ',&
@@ -539,17 +422,20 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! NOPHASE: no phase in system, NOACS: no automatic creation of composition set
 ! NOREMCS: do not remove any redundant unstable composition sets
 ! NOSAVE: data changed after last save command
-! >>>> som of these should be moved to the gtp_equilibrium_data record
+! VERBOSE: maximum of listing
+! SETVERB: explicit setting of verbose
+! >>>> some of these should be moved to the gtp_equilibrium_data record
   integer, parameter :: &
-       GSBEG=0,     GSOCC=1,     GSADV=2,     GSNOGLOB=3, &
-       GSNOMERGE=4, GSNODATA=5,  GSNOPHASE=6, GSNOACS=7, &
-       GSNOREMCS=8, GSNOSAVE=9
+       GSBEG=0,     GSOCC=1,     GSADV=2,      GSNOGLOB=3, &
+       GSNOMERGE=4, GSNODATA=5,  GSNOPHASE=6,  GSNOACS=7, &
+       GSNOREMCS=8, GSNOSAVE=9,  GSVERBOSE=10, GSSETVERB=11,&
+       GSSILENT=12
 !-Bits in element record
   integer, parameter :: &
        ELSUS=0
 !-Bits in species record
 ! Suspended, implicitly suspended, species is element, species is vacancy
-! species have charge, species is component
+! species have charge, species is (system) component
   integer, parameter :: &
        SPSUS=0, SPIMSUS=1, SPEL=2, SPVA=3, &
        SPION=4, SPSYS=5
@@ -585,7 +471,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! CSSTABLE: set if phase is stable after an equilibrium calculation
 ! CSAUTO set if composition set created during calculations
 ! CSDEFCON set if there is a default constitution
-! NOTE phase_status ENTERED means both CSSUS and CSFIXDORM are not set
+! NOTE phase_status ENTERED means both CSSUS and CSFIXDORM are sero (not set)
    integer, parameter :: &
         CSDFS=0,    CSDLNK=1,  CSSUS=2,    CSFIXDORM=3, &
         CSCONSUS=4, CSORDER=5, CSSTABLE=6, CSAUTO=7, &
@@ -604,6 +490,12 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! EQNOTHREAD set if equilibrium must be calculated before threading 
 ! (in assessment) for example if a symbol must be evaluated in this 
 ! equilibrium before used in another like H(T)-H298
+! EQNOGLOB set if no global minimization
+! EQNOEQCAL set if no successful equilibrium calculation made
+! EQINCON set if current conditions inconsistent with last calculation
+! EQFAIL set if last calculation failed
+! EQNOACS set if no automatic composition sets ?? not used !! see GSNOACS
+! EQGRIDTEST set if grid minimizer should be used after equilibrium
    integer, parameter :: &
         EQNOTHREAD=0, EQNOGLOB=1, EQNOEQCAL=2, EQINCON=3, &
         EQFAIL=4,     EQNOACS=5,  EQGRIDTEST=6
@@ -624,31 +516,48 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !----------------------------------------------------------------------
 !
 !\begin{verbatim}
+! some constants, phase status
+  integer, parameter :: phhidden=-4
+  integer, parameter :: phsus=-3
+  integer, parameter :: phdorm=-2
+  integer, parameter :: phentunst=-1
+  integer, parameter :: phentered=0
+  integer, parameter :: phentstab=1
+  integer, parameter :: phfixed=2
+  character (len=12), dimension(-4:2), parameter :: phstate=&
+       (/'HIDDEN      ','SUSPENDED   ','DORMANT     ','ENTERED UNST',&
+         'ENTERED     ','ENTERED STBL','FIXED       '/)
+!\end{verbatim}
+!
+!----------------------------------------------------------------------
+!
+!\begin{verbatim}
 ! Parameters defining the size of arrays etc.
 ! max elements, species, phases, sublattices, constituents (ideal phase)
- integer, parameter :: maxel=20,maxsp=1000,maxph=200,maxsubl=10,maxconst=1000
+  integer, parameter :: maxel=100,maxsp=1000,maxph=400,maxsubl=10,maxconst=1000
 ! maximum number of consitutents in non-ideal phase
- integer, parameter :: maxcons2=100
+  integer, parameter :: maxcons2=100
 ! maximum number of elsements in a species
- integer, parameter :: maxspel=10
+  integer, parameter :: maxspel=10
 ! maximum number of references
- integer, private, parameter :: maxrefs=1000
+  integer, private, parameter :: maxrefs=1000
 ! maximum number of equilibria
- integer, private, parameter :: maxeq=100
+  integer, private, parameter :: maxeq=500
 ! some dp values, default precision of Y and default minimum value of Y
 ! zero and one set in tpfun
- double precision, private, parameter :: YPRECD=1.0D-6,YMIND=1.0D-30
+  double precision, private, parameter :: YPRECD=1.0D-6,YMIND=1.0D-30
 ! dimension for push/pop in calcg, max composition dependent interaction
- integer, private, parameter :: maxpp=1000,maxinter=3
-! max number of symbols
- integer, private, parameter :: maxtpf=10*maxph
+  integer, private, parameter :: maxpp=1000,maxinter=3
+! max number of TP symbols
+  integer, private, parameter :: maxtpf=20*maxph
 ! max number of properties (G, TC, BMAG MQ%(...) etc)
- integer, private, parameter :: maxprop=50
+  integer, private, parameter :: maxprop=50
 ! max number of state variable functions
- integer, private, parameter :: maxsvfun=500
+  integer, private, parameter :: maxsvfun=500
 ! version number
 ! changes in last 2 digits means no change in SAVE/READ format
- character*8, parameter :: gtpversion='GTP-1.00'
+  character*8, parameter :: gtpversion='GTP-2.00'
+  character*8, parameter ::   savefile='OCF-2.00'
 !\end{verbatim}
 !=================================================================
 !\begin{verbatim}
@@ -656,12 +565,12 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! This is a way to try to organize them.  Each addtion has a unique
 ! number identifying it when created, listed or calculated.  These
 ! numbers are defined here
- integer, public, parameter :: indenmagnetic=1
- integer, public, parameter :: debyecp=2
- integer, public, parameter :: weimagnetic=3
- integer, public, parameter :: einsteincp=4
- integer, public, parameter :: elasticmodela=5
- integer, public, parameter :: glastransmodela=6
+  integer, public, parameter :: indenmagnetic=1
+  integer, public, parameter :: debyecp=2
+  integer, public, parameter :: weimagnetic=3
+  integer, public, parameter :: einsteincp=4
+  integer, public, parameter :: elasticmodela=5
+  integer, public, parameter :: glastransmodela=6
 ! Note that additions often use parameters like Curie or Debye temperatures
 ! defined by parameter identifiers stored in gtp_propid
 !\end{verbatim}
@@ -671,14 +580,14 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !
 !=================================================================
 !\begin{verbatim}
- TYPE gtp_global_data
+  TYPE gtp_global_data
 ! status should contain bits how advanced the user is and other defaults
 ! it also contain bits if new data can be entered (if more than one equilib)
-    integer status
-    character name*24
-    double precision rgas,rgasuser,pnorm
- END TYPE gtp_global_data
- TYPE(gtp_global_data) :: globaldata
+     integer status
+     character name*24
+     double precision rgas,rgasuser,pnorm
+  END TYPE gtp_global_data
+  TYPE(gtp_global_data) :: globaldata
 !\end{verbatim}
 !=================================================================
 !
@@ -687,43 +596,49 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !=================================================================
 !
 !\begin{verbatim}
- TYPE gtp_element
+! this constant must be incremented whenever a change is made in gtp_element
+  INTEGER, parameter :: gtp_element_version=1
+  TYPE gtp_element
 ! data for each element: symbol, name, reference state, mass, h298-h0, s298
-    character :: symbol*2,name*12,ref_state*24
-    double precision :: mass,h298_h0,s298
+     character :: symbol*2,name*12,ref_state*24
+     double precision :: mass,h298_h0,s298
 ! splink: index of corresponing species in array splink
 ! Status bits are stored in the integer status
 ! alphaindex: the alphabetical order of this elements
 ! refstatesymbol: indicates H0 (1), H298 (0, default) or G (2) for endmembers
-    integer :: splink,status,alphaindex,refstatesymbol
- END TYPE gtp_element
+     integer :: splink,status,alphaindex,refstatesymbol
+  END TYPE gtp_element
 ! allocated in init_gtp
- TYPE(gtp_element), private, allocatable :: ellista(:)
- INTEGER, private, allocatable :: ELEMENTS(:)
+  TYPE(gtp_element), private, allocatable :: ellista(:)
+  INTEGER, private, allocatable :: ELEMENTS(:)
 !\end{verbatim}
 !-----------------------------------------------------------------
 !\begin{verbatim}
- TYPE gtp_species
+! this constant must be incremented whenever a change is made in gtp_species
+  INTEGER, parameter :: gtp_species_version=1
+  TYPE gtp_species
 ! data for each species: symnol, mass, charge, status
 ! mass is in principle redundant as calculated from element mass
-    character :: symbol*24
-    double precision :: mass,charge
+     character :: symbol*24
+     double precision :: mass,charge
 ! alphaindex: the alphabetical order of this species
 ! noofel: number of elements
-    integer :: noofel,status,alphaindex
+     integer :: noofel,status,alphaindex
 ! Use an integer array ellinks to indicate the elements in the species
 ! The corresponing stoichiometry is in the array stochiometry
 ! ???? these should not be pointers, changed to allocatable ????
-    integer, dimension(:), allocatable :: ellinks
-    double precision, dimension(:), allocatable :: stoichiometry
- END TYPE gtp_species
+     integer, dimension(:), allocatable :: ellinks
+     double precision, dimension(:), allocatable :: stoichiometry
+  END TYPE gtp_species
 ! allocated in init_gtp
- TYPE(gtp_species), private, allocatable :: splista(:)
- INTEGER, private, allocatable :: SPECIES(:)
+  TYPE(gtp_species), private, allocatable :: splista(:)
+  INTEGER, private, allocatable :: SPECIES(:)
 !\end{verbatim}
 !-----------------------------------------------------------------
 !\begin{verbatim}
- TYPE gtp_components
+! this constant must be incremented whenever a change is made in gtp_component
+  INTEGER, parameter :: gtp_component_version=1
+  TYPE gtp_components
 ! The components are simply an array of indices to species records
 ! the components must be "orthogonal".  There is always a "systems components"
 ! that by default is the elements.
@@ -734,18 +649,20 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! the endmember array is for the reference phase to calculate GREF
 ! The last calculated values of the chemical potentials (for user defined
 ! and default reference states) should be stored here.
-    integer :: splink,phlink,status
-    character*16 :: refstate
-    integer, dimension(:), allocatable :: endmember
-    double precision, dimension(2) :: tpref
-    double precision, dimension(2) :: chempot
-    double precision mass
- END TYPE gtp_components
+     integer :: splink,phlink,status
+     character*16 :: refstate
+     integer, dimension(:), allocatable :: endmember
+     double precision, dimension(2) :: tpref
+     double precision, dimension(2) :: chempot
+     double precision mass
+  END TYPE gtp_components
 ! allocated in gtp_equilibrium_data
 !\end{verbatim}
 !-----------------------------------------------------------------
 !\begin{verbatim}
- TYPE gtp_endmember
+! this constant must be incremented whenever a change is made in gtp_endmember
+  INTEGER, parameter :: gtp_endmember_version=1
+  TYPE gtp_endmember
 ! end member parameter record, note ordered phases can have
 ! several permutations of fraction pointers like for B2: (Al:Fe) and (Fe:Al).
 ! There are links (i.e. indices) to next end member and to the interactio tree
@@ -760,10 +677,10 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! nextem: link to next endmember
 ! intponter: root of interaction tree of parameters
 ! fraclinks: indices of fractions to be multiplied with the parameter
-    integer :: noofpermut,phaselink,antalem
-    TYPE(gtp_property), pointer :: propointer
-    TYPE(gtp_endmember), pointer :: nextem
-    TYPE(gtp_interaction), pointer :: intpointer
+     integer :: noofpermut,phaselink,antalem
+     TYPE(gtp_property), pointer :: propointer
+     TYPE(gtp_endmember), pointer :: nextem
+     TYPE(gtp_interaction), pointer :: intpointer
 ! there is at least one fraclinks per sublattice
 ! the second index of fraclinks is the permutation (normally only one)
 ! the first indec of fraclinks points to a fraction for each sublattice.
@@ -773,24 +690,26 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! This means these values can be used as index to the array with fractions.
 ! The actual species can be found via the sublattice record
 !    integer, dimension(:,:), pointer :: fraclinks
-    integer, dimension(:,:), allocatable :: fraclinks
- END TYPE gtp_endmember
+     integer, dimension(:,:), allocatable :: fraclinks
+  END TYPE gtp_endmember
 ! dynamically allocated when entering a parameter
 !\end{verbatim}
 !-----------------------------------------------------------------
 !\begin{verbatim}
- TYPE gtp_interaction
+! this constant must be incremented when a change is made in gtp_interaction
+  INTEGER, parameter :: gtp_interaction_version=1
+  TYPE gtp_interaction
 ! this record constitutes the parameter tree. There are links to NEXT
 ! interaction on the same level (i.e. replace current fraction) and
 ! to HIGHER interactions (i.e. includes current interaction)
 ! There can be several permutations of the interactions (both sublattice
 ! and fraction permuted, like interaction in B2 (Al:Al,Fe) and (Al,Fe:Al))
 ! The number of permutations of interactions can be the same, more or fewer
-! comparaed to the lower order parameter (endmember or other interaction).
+! comparared to the lower order parameter (endmember or other interaction).
 ! The necessary information is stored in noofip.  It is not easy to keep
 ! track of permutations during calculations, the smart way to store the last
 ! permutation calculated is in this record ... but that will not work for
-! parallell calsulations ...
+! parallell calculations as this record is static ...
 ! status: may be useful eventually
 ! antalint: sequential number of interaction record, to follow the structure
 ! order: for permutations one must have a sequential number in each node
@@ -800,16 +719,18 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! sublattice: (array of) sublattices with interaction fraction
 ! fraclink: (array of) index of fraction to be multiplied with this parameter
 ! noofip: (array of) number of permutations, see above.
-    integer status,antalint,order
-    TYPE(gtp_property), pointer :: propointer
-    TYPE(gtp_interaction), pointer :: nextlink,highlink
-    integer, dimension(:), allocatable :: sublattice,fraclink,noofip
- END TYPE gtp_interaction
+     integer status,antalint,order
+     TYPE(gtp_property), pointer :: propointer
+     TYPE(gtp_interaction), pointer :: nextlink,highlink
+     integer, dimension(:), allocatable :: sublattice,fraclink,noofip
+  END TYPE gtp_interaction
 ! allocated dynamically and linked from endmember records
 !\end{verbatim}
 !-----------------------------------------------------------------
 !\begin{verbatim}
- TYPE gtp_property
+! this constant must be incremented when a change is made in gtp_property
+  INTEGER, parameter :: gtp_property_version=1
+  TYPE gtp_property
 ! This is the property record.  The end member and interaction records
 ! have pointer to this.  Severall different properties can be linked
 ! from a parameter record like G, TC, BMAGN, VA, MQ etc.
@@ -825,30 +746,35 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! degreelink: indices of TP functions for different degrees (0-9)
 ! protect: can be used to prevent listing of the parameter
 ! antalprop: probably redundant (from the time of arrays of propery records)
-    character*16 reference
-    TYPE(gtp_property), pointer :: nextpr
-    integer proptype,degree,extra,protect,refix,antalprop
-    integer, dimension(:), allocatable :: degreelink
- END TYPE gtp_property
+     character*16 reference
+     TYPE(gtp_property), pointer :: nextpr
+     integer proptype,degree,extra,protect,refix,antalprop
+     integer, dimension(:), allocatable :: degreelink
+  END TYPE gtp_property
 ! property records, linked from endmember and interaction records, allocated
 ! when needed.  Each propery like G, TC, has a property record linking
 ! a TPFUN record (by index to tpfun_parres)
 !\end{verbatim}
 !-----------------------------------------------------------------
 !\begin{verbatim}
- TYPE gtp_datareference
+! this constant must be incremented when a change is made in gtp_biblioref
+! old name gtp_datareference
+  INTEGER, parameter :: gtp_biblioref_version=1
+  TYPE gtp_biblioref
 ! store data references
 ! reference: can be used for search of reference
 ! refspec: free text
-    character*16 reference
-    character*64, dimension(:), allocatable :: refspec
- END TYPE gtp_datareference
+     character*16 reference
+     character*64, dimension(:), allocatable :: refspec
+  END TYPE gtp_biblioref
 ! allocated in init_gtp
- TYPE(gtp_datareference), private, allocatable :: reflista(:)
+  TYPE(gtp_biblioref), private, allocatable :: bibrefs(:)
 !\end{verbatim}
 !-----------------------------------------------------------------
 !\begin{verbatim}
- TYPE gtp_propid
+! this constant must be incremented when a change is made in gtp_propid
+  INTEGER, parameter :: gtp_propid_version=1
+  TYPE gtp_propid
 ! this identifies different properties that can depend on composition
 ! Property 1 is the Gibbs energy and the others are usually used in
 ! some function to contribute to the Gibbs energy like TC or BMAGN
@@ -857,57 +783,74 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! symbol: property identifier like G for Gibbs energy
 ! note: short description for listings
 ! prop_elsymb: additional for element dependent properties like mobilities
-    character symbol*4,note*16,prop_elsymb*2
+     character symbol*4,note*16,prop_elsymb*2
 ! Each property has a unique value of idprop.  Status can state if a property
 ! has a constituent specifier or if it can depend on T or P
-    integer status
+     integer status
 ! this can be a constituent specification for Bohr mangetons or mobilities
 ! such specification is stored in the property record, not here
 !    integer prop_spec,listid
 ! >>> added "listid" as a conection to the "state variable" listing here.
 ! This replaces TC, BMAG, MQ etc included as "state variables" in order to
 ! list their values.  In this way all propids become available
- end TYPE gtp_propid
+  end TYPE gtp_propid
 ! the value TYPTY stored in property records is "idprop" or
 ! if IDELSUFFIX set then 100*"idprop"+ellista index of element
 ! if IDCONSUFFIX set then 100*"idprop"+constituent index
 ! When the parameter is read the suffix symbol is translated to the
 ! current element or constituent index
- TYPE(gtp_propid), dimension(:), private, allocatable :: propid
+  TYPE(gtp_propid), dimension(:), private, allocatable :: propid
 !\end{verbatim}
 !-----------------------------------------------------------------
 !\begin{verbatim}
- TYPE gtp_phase_add
+! this constant must be incremented when a change is made in gtp_phase_add
+  INTEGER, parameter :: gtp_phase_add_version=1
+  TYPE gtp_phase_add
 ! record for additions to the Gibbs energy for a phase like magnetism
 ! addrecno: ?
 ! aff: antiferomagnetic factor (Inden model)
 ! need_property: depend on these properties (like Curie T)
 ! explink: function to calculate with the properties it need
 ! nextadd: link to another addition
-    integer type,addrecno,aff
-    integer, dimension(:), allocatable :: need_property
-    TYPE(tpfun_expression), dimension(:), pointer :: explink
-    TYPE(gtp_phase_add), pointer :: nextadd
-    type(gtp_elastic_modela), pointer :: elastica
- END TYPE gtp_phase_add
+     integer type,addrecno,aff
+     integer, dimension(:), allocatable :: need_property
+     TYPE(tpfun_expression), dimension(:), pointer :: explink
+     TYPE(gtp_phase_add), pointer :: nextadd
+     type(gtp_elastic_modela), pointer :: elastica
+  END TYPE gtp_phase_add
 ! allocated when needed and linked from phase record
 !\end{verbatim}
 !-----------------------------------------------------------------
 !\begin{verbatim}
 ! addition record to calculate the elastic energy contribution
 ! declared as allocatable in gtp_phase_add
- TYPE gtp_elastic_modela
+! this constant must be incremented when a change is made in gtp_elastic_modela
+  INTEGER, parameter :: gtp_elastic_modela_version=1
+  TYPE gtp_elastic_modela
 ! lattice parameters (configuration) in 3 dimensions
-    double precision, dimension(3,3) :: latticepar
+     double precision, dimension(3,3) :: latticepar
 ! epsilon in Voigt notation
-    double precision, dimension(6) :: epsa
+     double precision, dimension(6) :: epsa
 ! elastic constant matrix in Voigt notation
-    double precision, dimension(6,6) :: cmat
+     double precision, dimension(6,6) :: cmat
 ! calculated elastic energy addition (with derivative to T and P?)
-    double precision, dimension(6) :: eeadd
+     double precision, dimension(6) :: eeadd
 ! maybe more
- end TYPE gtp_elastic_modela
+  end TYPE gtp_elastic_modela
 !\end{verbatim}
+!-----------------------------------------------------------------
+!\begin{verbatim}
+! this constant must be incremented when a change is made in gtp_phasetuple
+  INTEGER, parameter :: gtp_phasetuple_version=1
+  TYPE gtp_phasetuple
+! for handling a single array with phases and composition sets
+! first index is phase index, second index is composition set
+! A tuplet index always refer to the same phase+compset.  New tuples with
+! the same phase and other compsets are added at the end.
+     integer phase,compset
+  end TYPE gtp_phasetuple
+!\end{verbatim}
+! declared globally
 !-----------------------------------------------------------------
 ! NOTE: if one wants to model bond energies beteween sites in a phase
 ! like in a 3 sublattice sigma one can enter parameters like G(sigma,A:B:*)
@@ -917,15 +860,18 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !-----------------------------------------------------------------
 !\begin{verbatim}
 ! a smart way to have an array of pointers used in gtp_phase
- TYPE endmemrecarray 
-    type(gtp_endmember), pointer :: p1
- end TYPE endmemrecarray
-!
- TYPE gtp_phase
+  TYPE endmemrecarray 
+     type(gtp_endmember), pointer :: p1
+  end TYPE endmemrecarray
+!\end{verbatim}
+!-----------------------------------------------------------------
+!\begin{verbatim}
+! this constant must be incremented when a change is made in gtp_phase
+  INTEGER, parameter :: gtp_phase_version=1
+  TYPE gtp_phaserecord
 ! this is the record for phase model data. It points to many other records.
 ! Phases are stored in order of creation in phlista(i) and can be found
 ! in alphabetical order through the array phases(i)
-! For TC freaks: Treat index to phlista(i) as LOKPH in iws
 ! sublista is now removed and all data included in phlista
 ! sublattice and constituent data (they should be merged)
 ! The constitent link is the index to the splista(i), same function
@@ -939,21 +885,21 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! model: free text
 ! phletter: G for gas, L for liquid
 ! alphaindex: the alphabetcal order of the phase (excluding gas and liquids)
-    character name*24,models*72,phletter*1
-    integer status1,alphaindex
+     character name*24,models*72,phletter*1
+     integer status1,alphaindex
 ! noofcs: number of composition sets, 
 ! nooffs: number of fraction sets (replaces partitioned phases in TC)
-    integer noofcs,nooffs
+     integer noofcs,nooffs
 ! additions: link to addition record list
 ! ordered: link to endmember record list
 ! disordered: link to endmember list for disordered fractions (if any)
-    TYPE(gtp_phase_add), pointer :: additions
-    TYPE(gtp_endmember), pointer :: ordered,disordered
+     TYPE(gtp_phase_add), pointer :: additions
+     TYPE(gtp_endmember), pointer :: ordered,disordered
 ! To allow parallel processing of endmembers, store a pointer to each here
-    integer noemr,ndemr
-    TYPE(endmemrecarray), dimension(:), allocatable :: oendmemarr,dendmemarr
+     integer noemr,ndemr
+     TYPE(endmemrecarray), dimension(:), allocatable :: oendmemarr,dendmemarr
 !-----------------------------------------------------------------
-! this used to be sublista but is now incorporated in gtp_phase !!!
+! this used to be sublista but is now incorporated in gtp_phaserecord !!!
 ! static data, contains pointers to constituent record and sites
 ! noofsubl: number if sublattices
 ! cslink: is index to first composition set (deleted)
@@ -962,18 +908,23 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! nooffr: array with number of constituents in each sublattice
 ! sites: array with site rations (? dynamic for ionic liquid)
 ! constitlist: indices of species that are constituents (in all soblattices)
-    integer noofsubl,tnooffr
-    integer, dimension(9) :: linktocs
-    integer, dimension(:), allocatable :: nooffr
-    double precision, dimension(:), allocatable :: sites
-    integer, dimension(:), allocatable :: constitlist
+     integer noofsubl,tnooffr
+     integer, dimension(9) :: linktocs
+     integer, dimension(:), allocatable :: nooffr
+! number of sites in phase_varres record as it can vary with composition
+!    double precision, dimension(:), allocatable :: sites
+     integer, dimension(:), allocatable :: constitlist
+! used in ionic liquid:
+! i2slx(1) is index of Va, i2slx(2) is index if last anion (both can be zero)
+     integer, dimension(2) :: i2slx
 ! allocated in init_gtp.
- END TYPE gtp_phase
+  END TYPE gtp_phaserecord
 ! NOTE phase with index 0 is the reference phase for the elements
 ! The array sublista is now merged into phlista
 ! allocated in init_gtp
- TYPE(gtp_phase), private, allocatable :: phlista(:)
- INTEGER, private, allocatable :: PHASES(:)
+  TYPE(gtp_phaserecord), private, allocatable :: phlista(:)
+  INTEGER, private, allocatable :: PHASES(:)
+  TYPE(gtp_phasetuple), allocatable :: PHASETUPLE(:)
 !\end{verbatim}
 !-----------------------------------------------------------------
 !
@@ -985,7 +936,41 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !
 !-----------------------------------------------------------------
 !\begin{verbatim}
- TYPE gtp_condition
+! this constant must be incremented when a change is made in gtp_state_variable
+  INTEGER, parameter :: gtp_state_variable_version=2
+  TYPE gtp_state_variable
+! this is to specify a formal or real argument to a function of state variables
+! statev/istv: state variable index
+! phref/iref: if a specified reference state (for chemical potentials)
+! unit/iunit: 100 for percent, no other defined at present
+! argtyp together with the next 4 integers represent the indices(4), only 0-4
+! argtyp=0: no indices (T or P)
+! argtyp=1: component
+! argtyp=2: phase and compset
+! argtyp=3: phase and compset and component
+! argtyp=4: phase and compset and constituent
+     integer statevarid,norm,unit,phref,argtyp
+! these integers represent the previous indices(4)
+     integer phase,compset,component,constituent
+! a state variable can be part of an expression with coefficients
+! the coefficient can be stored here.  Default value is unity.
+! In many cases it is ignored
+     double precision coeff
+! NOTE this is also used to store a condition of a fix phase
+! In such a case statev is negative and the absolute value of statev
+! is the phase index.  The phase and compset indices are also stored in
+! "phase" and "compset" ??
+! This is a temporary storage of the old state variable identifier
+     integer oldstv
+  end TYPE gtp_state_variable
+! used for state variables/properties in various subroutines
+!\end{verbatim}
+!-----------------------------------------------------------------
+!\begin{verbatim}
+! this constant must be incremented when a change is made in gtp_condition
+! NOTE on unformatted SAVE files the conditions are written as texts
+  INTEGER, parameter :: gtp_condition_version=1
+  TYPE gtp_condition
 ! these records form a circular list linked from gtp_equilibrium_data records
 ! each record contains a condition to be used for calculation
 ! it is a state variable equation or a phase to be fixed
@@ -1000,37 +985,30 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! nid: identification sequential number (in order of creation), redundant
 ! iref: part of the state variable (iref can be comp.set number)
 ! iunit: ? confused with unit?
+! seqz is a sequential index of conditions, used for axis variables
 ! symlink: index of symbol for prescribed value (1) and uncertainity (2)
 ! condcoeff: there is a coefficient and set of indices for each term
 ! prescribed: the prescribed value
 ! NOTE: if there is a symlink value that is the prescribed value
 ! current: the current value (not used?)
 ! uncertainity: the uncertainity (for experiments)
-    integer :: noofterms,statev,active,unit,nid,iref,iunit
+     integer :: noofterms,statev,active,iunit,nid,iref,seqz
 !    TYPE(putfun_node), pointer :: symlink1,symlink2
 ! better to let condition symbol be index in svflista array
-    integer symlink1,symlink2
-    integer, dimension(:,:), allocatable :: indices
-    double precision, dimension(:), allocatable :: condcoeff
-    double precision prescribed, current, uncertainity
-    TYPE(gtp_condition), pointer :: next, previous
- end TYPE gtp_condition
+     integer symlink1,symlink2
+     integer, dimension(:,:), allocatable :: indices
+     double precision, dimension(:), allocatable :: condcoeff
+     double precision prescribed, current, uncertainity
+! currently this is not used but it will be
+     TYPE(gtp_state_variable), dimension(:), allocatable :: statvar
+     TYPE(gtp_condition), pointer :: next, previous
+  end TYPE gtp_condition
 ! declared inside the gtp_equilibrium_data record
 !\end{verbatim}
 !-----------------------------------------------------------------
 !\begin{verbatim}
- TYPE gtp_state_variable
-! this is to specify a formal or real argument to a function of state variables
-! istv: state variable index
-! indices: additional specifiers like phase, component, etc.
-! iref: if a specified reference state (for chemical potentials)
-! iunit: 100 for percent
-    integer istv,indices(4),iref,iunit
- end TYPE gtp_state_variable
-! declared inside gtp_function
-!\end{verbatim}
-!-----------------------------------------------------------------
-!\begin{verbatim}
+! this constant must be incremented when a change is made in gtp_putfun_lista
+  INTEGER, parameter :: gtp_putfun_lista_version=1
   TYPE gtp_putfun_lista
 ! these are records for state variable functions.  The function itself
 ! is handelled by the putfun package.
@@ -1053,12 +1031,14 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   TYPE(gtp_putfun_lista), dimension(:), allocatable :: svflista
 ! NOTE the value of a function is stored locally in each equilibrium record
 ! in array svfunres.
-! The number of entered state variable functions. Used to store a new one
+! The number of entered state variable functions. Used when a new one stored
   integer, private :: nsvfun
 !\end{verbatim}
 !-----------------------------------------------------------------
 !\begin{verbatim}
- TYPE gtp_fraction_set
+! this constant must be incremented when a change is made in gtp_fraction_set
+  INTEGER, parameter :: gtp_fraction_set_version=1
+  TYPE gtp_fraction_set
 ! info about disordred fractions for some phases like ordered fcc, sigma etc
 ! latd: the number of sublattices added to first disordred sublattice
 ! ndd: sublattices for this fraction set, 
@@ -1080,60 +1060,64 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! disordered fractions stored in the phase_varres record with index varreslink
 !    (also pointed to by phdapointer).  Maybe phdapointer is redundant??
 ! arrays originally declared as pointers now changed to allocatable
-    integer latd,ndd,tnoofxfr,tnoofyfr,varreslink,totdis
-    character*1 id
-    double precision, dimension(:), allocatable :: dsites
-    integer, dimension(:), allocatable :: nooffr
-    integer, dimension(:), allocatable :: splink
-    integer, dimension(:), allocatable :: y2x
-    double precision, dimension(:), allocatable :: dxidyj
+     integer latd,ndd,tnoofxfr,tnoofyfr,varreslink,totdis
+     character*1 id
+     double precision, dimension(:), allocatable :: dsites
+     integer, dimension(:), allocatable :: nooffr
+     integer, dimension(:), allocatable :: splink
+     integer, dimension(:), allocatable :: y2x
+     double precision, dimension(:), allocatable :: dxidyj
+! factor needed when reading from TDB file for sigma etc.
+     double precision fsites
 ! in parallel processing the disordered phase_varres record is linked
 ! by this pointer,  used in parcalcg and calcg_internal
-    TYPE(gtp_phase_varres), pointer :: phdapointer
- END TYPE gtp_fraction_set
+     TYPE(gtp_phase_varres), pointer :: phdapointer
+  END TYPE gtp_fraction_set
 ! these records are declared in the phase_varres record as DISFRA for 
 ! each composition set and linked from the phase_varres record
 !\end{verbatim}
 !-----------------------------------------------------------------
 !\begin{verbatim}
- TYPE gtp_phase_varres
+! this constant must be incremented when a change is made in gtp_phase_varres
+  INTEGER, parameter :: gtp_phase_varres_version=1
+  TYPE gtp_phase_varres
 ! Data here must be different in equilibria representing different experiments
 ! or calculated in parallel or results saved from step or map.
 ! nextfree: In unused phase_varres record it is the index to next free record
 !    The global integer csfree is the index of the first free record
 ! phlink: is index of phase record for this phase_varres record
 ! status2: has phase status bits like ENT/FIX/SUS/DORM
+! phstate: indicate state: fix/stable/entered/unknown/dormant/suspended/hidden
+!                           2   1      0        -1      -2      -3       -4
 ! constat: array with status word for each constituent, any can be suspended
 ! yfr: the site fraction array
 ! mmyfr: min/max fractions
 ! abnorm(1): amount moles of atoms for a formula unit of the composition set
-! abnorm(2): amount in mass of the formula unit (both set by set_constitution)
+! abnorm(2): mass/formula unit (both set by call to set_constitution)
 ! sites: site ratios (which can vary for ionic liquids)
 ! prefix and suffix are added to the name for composition sets 2 and higher
 ! disfra: a structure describing the disordered fraction set (if any)
-    integer nextfree,phlink,status2
-    double precision, dimension(2) :: abnorm
-    character*4 prefix,suffix
-! for ionic liquid derivatives of sites wrt fractions
-!    double precision, dimension(:,:), pointer :: dsitesdy
-!    double precision, dimension(:,:), pointer :: d2sitesdy2
+     integer nextfree,phlink,status2,phstate
+     double precision, dimension(2) :: abnorm
+     character*4 prefix,suffix
 ! changed to allocatable
-    integer, dimension(:), allocatable :: constat
-    double precision, dimension(:), allocatable :: yfr
-    real, dimension(:), allocatable :: mmyfr
-    double precision, dimension(:), allocatable :: sites
-! for ionic liquid derivatives of sites wrt fractions
-    double precision, dimension(:,:), allocatable :: dsitesdy
-    double precision, dimension(:,:), allocatable :: d2sitesdy2
+     integer, dimension(:), allocatable :: constat
+     double precision, dimension(:), allocatable :: yfr
+     real, dimension(:), allocatable :: mmyfr
+     double precision, dimension(:), allocatable :: sites
+! for ionic liquid derivatives of sites wrt fractions (it is the charge), 
+! 2nd derivates only when one constituent is vacancy
+! 1st sublattice P=\sum_j (-v_j)*y_j + Qy_Va
+! 2nd sublattice Q=\sum_i v_i*y_i
+     double precision, dimension(:), allocatable :: dpqdy
+     double precision, dimension(:), allocatable :: d2pqdvay
 ! for extra fraction sets, better to go via phase record index above
 ! this TYPE(gtp_fraction_set) variable is a bit messy.  Declaring it in this
 ! way means the record is stored inside this record.
-    type(gtp_fraction_set) :: disfra
+     type(gtp_fraction_set) :: disfra
 ! It seems difficult to get the phdapointer in disfra record to work
 ! ---
 ! arrays for storing calculated results for each phase (composition set)
-! old: amount(1): is amount formula units of the composition set
-! old: amount(2): is net charge of phase
 ! amfu: is amount formula units of the composition set (calculated result)
 ! netcharge: is net charge of phase
 ! dgm: driving force (calculated result)
@@ -1141,37 +1125,41 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! damount: set to last change of phase amount in equilibrium calculations
 ! qqsave: values of qq calculated in set_constitution
 !    double precision amount(2),dgm,amcom,damount,qqsave(3)
-    double precision amfu,netcharge,dgm,amcom,damount,qqsave(3)
+!    double precision amfu,netcharge,dgm,amcom,damount,qqsave(3)
+     double precision amfu,netcharge,dgm,amcom,damount
 ! Other properties may be that: gval(*,2) is TC, (*,3) is BMAG, see listprop
 ! nprop: the number of different properties (set in allocate)
 ! ncc: total number of site fractions (redundant but used in some subroutines)
+! BEWHARE: ncc seems to be wrong using TQ test program fenitq.F90 ???
 ! listprop(1): is number of calculated properties
 ! listprop(2:listprop(1)): identifies the property stored in gval(1,ipy) etc
 !   2=TC, 3=BMAG. Properties defined in the gtp_propid record
-    integer nprop,ncc
-    integer, dimension(:), allocatable :: listprop
+     integer nprop,ncc
+     integer, dimension(:), allocatable :: listprop
 ! gval etc are for all composition dependent properties, gval(*,1) for G
 ! gval(*,1): is G, G.T, G.P, G.T.T, G.T.P and G.P.P
 ! dgval(1,j,1): is first derivatives of G wrt fractions j
 ! dgval(2,j,1): is second derivatives of G wrt fractions j and T
 ! dgval(3,j,1): is second derivatives of G wrt fractions j and P
 ! d2gval(ixsym(i,j),1): is second derivatives of G wrt fractions i and j
-    double precision, dimension(:,:), allocatable :: gval
-    double precision, dimension(:,:,:), allocatable :: dgval
-    double precision, dimension(:,:), allocatable :: d2gval
+     double precision, dimension(:,:), allocatable :: gval
+     double precision, dimension(:,:,:), allocatable :: dgval
+     double precision, dimension(:,:), allocatable :: d2gval
 ! added for strain/stress, current values of lattice parameters
-    double precision, dimension(3,3) :: curlat
+     double precision, dimension(3,3) :: curlat
 ! saved values from last equilibrium calculation
 !    double precision, dimension(:), allocatable :: dsf
-    double precision, dimension(:,:), allocatable :: cinvy
-    double precision, dimension(:), allocatable :: cxmol
-    double precision, dimension(:,:), allocatable :: cdxmol
- END TYPE gtp_phase_varres
+     double precision, dimension(:,:), allocatable :: cinvy
+     double precision, dimension(:), allocatable :: cxmol
+     double precision, dimension(:,:), allocatable :: cdxmol
+  END TYPE gtp_phase_varres
 ! this record is created inside the gtp_equilibrium record
 !\end{verbatim}
 !-----------------------------------------------------------------
 !\begin{verbatim}
- TYPE gtp_equilibrium_data
+! this must be incremented when a change is made in gtp_equilibrium_data
+  INTEGER, parameter :: gtp_equilibrium_data_version=2
+  TYPE gtp_equilibrium_data
 ! this contains all data specific to an equilibrium like conditions,
 ! status, constitution and calculated values of all phases etc
 ! Several equilibria may be calculated simultaneously in parallell threads
@@ -1184,51 +1172,59 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! lists of element, species, phases and thermodynamic parameters are global
 ! tpval(1) is T, tpval(2) is P, rgas is R, rtn is R*T
 ! status: not used yet?
-! gtperr: local errr code (not used yet)
+! multiuse: used for various things like direction in start equilibria
 ! eqno: sequential number assigned when created
-! next: ?
+! next: index of next equilibrium in a sequence during step/map calculation.
 ! eqname: name of equilibrium
 ! tpval: value of T and P
 ! rtn: value of R*T
-    integer status,gtperr,eqno,next
-    character eqname*24
-    double precision tpval(2),rtn
-! this array has the local results of the state variable functions
-! svfunres: the values of state variable functions for this equilibrium
-    double precision, dimension(:), allocatable :: svfunres
+     integer status,multiuse,eqno,next
+     character eqname*24
+     double precision tpval(2),rtn
+! svfunres: the values of state variable functions valid for this equilibrium
+     double precision, dimension(:), allocatable :: svfunres
 ! the experiments are used in assessments and stored like conditions 
 ! lastcondition: link to condition list
 ! lastexperiment: link to experiment list
-    TYPE(gtp_condition), pointer :: lastcondition,lastexperiment
+     TYPE(gtp_condition), pointer :: lastcondition,lastexperiment
 ! components and conversion matrix from components to elements
 ! complist: array with components
 ! compstoi: stoichiometric matrix of compoents relative to elements
 ! invcompstoi: inverted stoichiometric matrix
-    TYPE(gtp_components), dimension(:), allocatable :: complist
-    double precision, dimension(:,:), allocatable :: compstoi
-    double precision, dimension(:,:), allocatable :: invcompstoi
-! one record for each phase that can be calculated
-! index in this array is the same as in sublat record
-! phase_varres: here all data for the phase is stored
-    TYPE(gtp_phase_varres), dimension(:), allocatable :: phase_varres
+     TYPE(gtp_components), dimension(:), allocatable :: complist
+     double precision, dimension(:,:), allocatable :: compstoi
+     double precision, dimension(:,:), allocatable :: invcompstoi
+! one record for each phase+composition set that can be calculated
+! phase_varres: here all calculated data for the phase is stored
+     TYPE(gtp_phase_varres), dimension(:), allocatable :: phase_varres
 ! index to the tpfun_parres array is the same as in the global array tpres 
-! eq_tpres: here calculated values of TP functions are stored
-    TYPE(tpfun_parres), dimension(:), pointer :: eq_tpres
-! current values of chemical potentials stored in component record
+! eq_tpres: here local calculated values of TP functions are stored
+     TYPE(tpfun_parres), dimension(:), pointer :: eq_tpres
+! current values of chemical potentials stored in component record but
+! duplicated here for easy acces by application software
+     double precision, dimension(:), allocatable :: cmuval
 ! xconc: convergence criteria for constituent fractions and other things
-    double precision xconv
+     double precision xconv
 ! delta-G value for merging gridpoints in grid minimizer
 ! smaller value creates problem for test step3.BMM, MC and austenite merged
-    double precision :: gmindif=-5.0D-2
-! maxiter: maximum mnumber of iterations allowed
-    integer maxiter
- END TYPE gtp_equilibrium_data
+     double precision :: gmindif=-5.0D-2
+! maxiter: maximum number of iterations allowed
+     integer maxiter
+! this is to save a copy of the last calculated system matrix, needed
+! to calculate dot derivatives, initiate to zero
+     integer :: sysmatdim=0,nfixmu=0,nfixph=0
+     integer, allocatable :: fixmu(:)
+     integer, allocatable :: fixph(:,:)
+     double precision, allocatable :: savesysmat(:,:)
+  END TYPE gtp_equilibrium_data
 ! The primary copy of this structures is declared globally as FIRSTEQ here
 ! Others may be created when needed for storing experimental data or
 ! for parallel processing. A global array of these are
-! TYPE(gtp_equilibrium_data), dimension(:), allocatable, target :: eqlista
- TYPE(gtp_equilibrium_data), dimension(:), allocatable, target :: eqlista
- TYPE(gtp_equilibrium_data), pointer :: firsteq
+  TYPE(gtp_equilibrium_data), dimension(:), allocatable, target :: eqlista
+  TYPE(gtp_equilibrium_data), pointer :: firsteq
+! This array of equilibrium records are used for storing results during
+! STEP and MAP calculations.
+  TYPE(gtp_equilibrium_data), dimension(:), allocatable :: eqlines
 !\end{verbatim}
 !-----------------------------------------------------------------
 !\begin{verbatim}
@@ -1237,7 +1233,9 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! It is not possible to push the value on pystack as one must remember
 ! them when changing the endmember permutation
 ! integer, parameter :: permstacklimit=150
- TYPE gtp_parcalc
+! this constant must be incremented when a change is made in gtp_parcalc
+  INTEGER, parameter :: gtp_parcalc_version=1
+  TYPE gtp_parcalc
 ! This record contains temporary data that must be separate in different
 ! parallell processes when calculating G and derivatives for any phase.
 ! There is nothing here that need to be saved after the calculation is finished
@@ -1245,10 +1243,10 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! sublattice with interaction, interacting constituent, endmember constituents
 ! PRIVATE inside this structure not liked by some compilers....
 ! endcon must have maxsubl dimension as it is used for all phases
-    integer :: intlat(maxinter),intcon(maxinter),endcon(maxsubl)
+     integer :: intlat(maxinter),intcon(maxinter),endcon(maxsubl)
 ! interaction level and number of fraction variables
-    integer :: intlevel,nofc
-! explained above, used for FCC and BCC permutations
+     integer :: intlevel,nofc
+! explained above, to be used for FCC and BCC permutations ??
 !    integer, dimension(permstacklimit) :: lastperm,permlimit
 ! interacting constituents (max 4) for composition dependent interaction
 ! iq(j) indicate interacting constituents
@@ -1256,18 +1254,20 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! for ternary Muggianu in same sublattice iq(4)=iq(5)=0
 ! for reciprocal composition dependent iq(5)=0
 ! for Toop, Kohler and simular iq(5) non-zero (not implemented)
-    integer :: iq(5)
+     integer :: iq(5)
 ! fraction variables in endmember (why +2?) and interaction
-    double precision :: yfrem(maxsubl+2),yfrint(maxinter)
+     double precision :: yfrem(maxsubl+2),yfrint(maxinter)
 ! local copy of T, P and RT for this equilibrium
-    double precision :: tpv(2),rgast
+     double precision :: tpv(2),rgast
 !    double precision :: ymin=1.0D-30
- end TYPE gtp_parcalc
+  end TYPE gtp_parcalc
 ! this record is declared locally in subroutine calcg_nocheck
 !\end{verbatim}
 !-------------------------------------------------------------------
 !\begin{verbatim}
-   TYPE gtp_pystack
+! this constant must be incremented when a change is made in gtp_pystack
+  INTEGER, parameter :: gtp_pystack_version=1
+  TYPE gtp_pystack
 ! records created inside the subroutine push/pop_pystack
 ! data stored during calculations when entering an interaction record
 ! previous: link to previous record in stack
@@ -1276,20 +1276,86 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! pysave: saved value of product of all constituent fractions
 ! dpysave: saved value of product of all derivatives of constituent fractions
 ! d2pysave: saved value of product of all 2nd derivatives of constit fractions
-      TYPE(gtp_pystack), pointer :: previous
-      integer :: pmqsave
-      TYPE(gtp_interaction), pointer :: intrecsave
-      double precision :: pysave
-      double precision, dimension(:), allocatable :: dpysave
-      double precision, dimension(:), allocatable :: d2pysave
-   end TYPE gtp_pystack
+     TYPE(gtp_pystack), pointer :: previous
+     integer :: pmqsave
+     TYPE(gtp_interaction), pointer :: intrecsave
+     double precision :: pysave
+     double precision, dimension(:), allocatable :: dpysave
+     double precision, dimension(:), allocatable :: d2pysave
+  end TYPE gtp_pystack
 ! declared inside the calcg_internal subroutine
+!\end{verbatim}
+!-----------------------------------------------------------------
+!
+!===================================================================
+!
+! below here are data structures for various applications
+! They indicate data that may need to be saved together with
+! the thermodynamic data.  Exactly how this will be handelled
+! will have to be solved later
+!
+!===================================================================
+!
+!-----------------------------------------------------------------
+!\begin{verbatim}
+  INTEGER, parameter :: gtp_eqnode_version=1
+  TYPE gtp_eqnode
+! This record is to arrange calculated equilibria, for example results
+! from a STEP or MAP calculation, in an ordered way.  The equilibrium records
+! linked from an eqnode record should normally represent one or more lines
+! in a diagram but may be used for other purposes.
+! ident is to be able to find a specific node
+! nodedtype is to specify invariant, middle, end etc.
+! status can be used to supress a line
+! color can be used to sepecify color or linetypes (dotted, thick ... etc)
+! exits are the number of lines that should exit from the node
+! done are the number of calculated lines currently exiting from the node
+     integer ident,nodetype,status,color,exits,done
+! this node can be in a multilayerd list of eqnodes
+     type(gtp_eqnode), pointer :: top,up,down,next,prev
+! nodeq is a pointer to the equilibrium record at the node
+     type(gtp_equilibrium_data), pointer :: nodeq
+! eqlista are pointers to line of equilibria starting or ending at the node
+! The equilibrium records are linked with a pointer inside themselves
+     type(gtp_equilibrium_data), dimension(:), pointer :: eqlista
+! axis is the independent axis variable for the line, negative means decrement
+! noeqs gives the number of equilibria in each eqlista, a negative value
+! indicates that the node is an endpoint (each line normally has a
+! start point and an end point)
+     integer, dimension(:), allocatable :: axis,noeqs
+! This is a possibility to specify a status for each equilibria in each line
+!    integer, dimension(:,:), allocatable :: eqstatus
+  end TYPE gtp_eqnode
+! can be allocated in a gtp_applicationhead record
+!\end{verbatim}
+!------------------------------------------------------------------
+!\begin{verbatim}
+  INTEGER, parameter :: gtp_applicationhead_version=1
+  TYPE gtp_applicationhead
+! This record should summarize the essential information about an application
+! using GTP.  How it should link to other information is not clear.  
+! The character variables should be used to indicate that.
+     integer apptyp,status
+     character*64 general,special
+! These can be used to define axis and other things
+     integer, dimension(:), allocatable :: ivals
+     double precision, dimension(:), allocatable :: rvals
+     character*64, dimension(:), allocatable :: cvals
+     type(gtp_applicationhead), pointer :: nextapp,prevapp
+! The headnode can be the start of a structure of eqnodes with lines
+     type(gtp_eqnode) :: headnode
+! this is the start of a list of nodes with calculated lines or
+! single equilibria that belong to the application.
+     type(gtp_eqnode), dimension(:), allocatable :: nodlista
+  end TYPE gtp_applicationhead
+! this record is allocated when necessary
+  type(gtp_applicationhead), pointer :: firstapp,lastapp
 !\end{verbatim}
 !-----------------------------------------------------------------
 !
 ! a global array to provide information about composition sets
 ! phcs(nph) is the composition set counter for phase nph
-  integer, dimension(maxph) :: phcs
+!  integer, dimension(maxph) :: phcs ----- removed as redundant ??
 !
 !===================================================================
 !
@@ -1301,23 +1367,25 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !
 !\begin{verbatim}
 ! counters for elements, species and phases initiated to zero
- integer, private :: noofel=0,noofsp=0,noofph=0
+  integer, private :: noofel=0,noofsp=0,noofph=0
+! counter for phase tuples (combination of phase+compset)
+  integer :: nooftuples=0
 ! counters for property and interaction records, just for fun
- integer, private :: noofprop,noofint,noofem
+  integer, private :: noofprop,noofint,noofem
 ! free lists in phase_varres records and addition records
- integer, private :: csfree,addrecs
+  integer, private :: csfree,addrecs
 ! free list of references and equilibria
- integer, private :: reffree,eqfree
+  integer, private :: reffree,eqfree
 ! maximum number of properties calculated for a phase
- integer, private :: maxcalcprop=20
+  integer, private :: maxcalcprop=20
 ! highest used phase_varres record (for saving on file)
- integer, private :: highcs
+  integer, private :: highcs
 ! Trace for debugging (not used)
- logical, private :: ttrace
+  logical, private :: ttrace
 ! minimum constituent fraction
- double precision :: bmpymin
+  double precision :: bmpymin
 ! number of defined property types like TC, BMAG etc
- integer, private :: ndefprop
+  integer, private :: ndefprop
 !\end{verbatim}
 
 CONTAINS

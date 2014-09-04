@@ -1,0 +1,51 @@
+set echo
+
+r t agcu
+
+
+set cond t=1000 p=1e5 n=1 x(cu)=.2
+
+c e
+
+l r 1
+
+@&
+
+set ax 1 x(cu) 0 1 ,,,
+set ax 2 t 800 1500 10
+
+l ax
+
+l sh
+
+
+set num 50,,,
+
+@&
+
+map
+
+@&
+
+plot
+x(*,cu)
+T
+ocgnu
+plot
+
+
+@&
+
+plot
+x(*,cu)
+T
+ocgnu
+xr
+N
+0
+0.2
+plot
+
+
+
+set inter

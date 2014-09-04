@@ -33,7 +33,6 @@ pmod25A
  subroutine get_phase_name(iph,ics,name)
  subroutine get_phase_data(iph,ics,nsl,nkl,knr,yarr,sites,qq,ceq)
  subroutine get_condition(nterm,istv,indices,iref,iunit,pcond)
- subroutine set_start_constitution(iph,ics,ceq) redundant??
  subroutine set_constitution(iph,ics,yfra,qq,ceq)
 
 pmod25B:
@@ -77,6 +76,7 @@ pmod25D:
  subroutine amend_global_data(cline,ipos)
  subroutine enter_reference_interactivly(cline,last,mode,iref)
  subroutine set_condition(cline,ip,ceq)
+ subroutine apply_condition(...)
  subroutine enter_svfun(cline,last,ceq)
  subroutine amend_components(cline,last,ceq)
  subroutine ask_default_constitution(cline,last,iph,ics,ceq)
@@ -129,7 +129,7 @@ pmod25F:
  subroutine readtdb(filename)       <<< the only one working
  subroutine gtpsavetm(filename,str)
 
-pmode25G:
+pmod25G:
 
  subroutine new_element(symb,name,refstate,mass,h298,s298)
  subroutine new_species(symb,noelx,ellist,stoik)
@@ -151,7 +151,7 @@ pmode25G:
  subroutine enter_equilibrium(name,number)
  logical function check_minimal_ford(lokph)
 
-pmode25H:
+pmod25H:
 
  subroutine change_element_status(elname,nystat,ceq)
  logical function testelstat(iel,status)
@@ -189,7 +189,7 @@ pmode25H:
  subroutine restore_phases_implicitly_suspended
  subroutine add_to_reference_phase(loksp)
 
-pmode25I:
+pmod25I:
 
  subroutine addition_selector(addrec,moded,phres,lokph,mc,ceq)
  subroutine add_addrecord(iph,addtyp)
