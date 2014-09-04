@@ -1,0 +1,9 @@
+*.o
+*.a
+*.mod
+*.pdf
+*.zip
+oc1A
+oc2A
+linkoc
+pmain1.F90
