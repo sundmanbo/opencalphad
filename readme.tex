@@ -13,7 +13,7 @@
 \begin{document}
 \begin{center}
 {\Large \bf Some important facts about this beta test release of the
-OC software.}
+  OC software, version 2.}
 
 Bo Sundman, \today
 
@@ -34,104 +34,128 @@ are missing in your favourite software.
 \section{Getting started}
 
 \begin{itemize}
-\item The code is written in the new Fortran standard and requires 
-a compiler like GNU fortran 4.4 or similar.
+\item The code is written in the new Fortran standard and requires a
+  compiler like GNU fortran 4.8 or similar.
 
 \item The make command will compile and generate the executable file
-from the source code.  If you are using Windows and have not installed
-the make utility the file ``linkmake.txt'' can be used coped to a cmd
-file to compile and link the code.
+  from the source code.  If you are using Windows and have not
+  installed the make utility the file ``linkmake.txt'' can be used
+  coped to a cmd file to compile and link the code.
 
-\item The documentation of the source code is in the directory
-``documentationupdate''.  A very rudimentary user guide (also
-available on line in the file ``ochelp.hlp'') is the ``manual''directory).
-The ``macro'' directory has examples for a variety of calculations.
+\item The present documentation of the source code is in the directory
+  ``documentationupdate''.  A very rudimentary user guide is in the
+  file ``ochelp.tex''.  If you make a copy of this file with the
+  extention HLP on the same directory as the program it can also be
+  used for on line help typing ?
+
+  The ``macro'' directory has examples for a variety of calculations.
 
 \item There is a website, http:://www.opencalphad.com, for
-information, questions and discussions on the software and databases.
+  information, questions and discussions on the software and
+  databases.
 
-\item Contributions of new and improved source code are welcome.
-Contact Bo Sundman if you want to know how.
+\item The source code is also available on a repository at Github with
+  the name opencalphad.  Contributions of new and improved source code
+  are welcome.  Contact Bo Sundman if you want to know things to do.
 
-\item Contributions of new source code are welcome.  Contact Bo
-Sundman if you want to know how.
+\item The command line interface has a ``VAX/VMS'' flavour which
+  reflects the age of the developer.  It means the commands are
+  ``verbs'' like {\em set, list, calculate, enter etc.}.  After the
+  verb several objects are usually possible.  There is some redundancy
+  so the same effect can be achieved by different combinations of
+  verbs and objects.
 
-\item The command line interface has a ``VAX/VMS'' flavour which reflects the
-age of the developer.  It means the commands are ``verbs'' like {\em
-set, list, calculate, enter etc.}.  After the verb several objects are
-usually possible.  There is some redundancy so the same effect can be
-achieved by different combinations of verbs and objects.
-
-If you are burning to develop another user interface you are welcome
-to do so.
+  If you are burning to develop another user interface please do not
+  hesitate.
 
 \item Thermodynamic data can be read from a (unencrypted) TDB file
-{\em read tdb ``filename''} or entered interactively.  Beware, there is
-no way to save data you have entered interactively except in a log file
-{\em set log ``filename''} and then use the log file as a macro.
+  {\em read tdb ``filename''} or entered interactively.  Beware, there
+  is no safe way to save data you have entered interactively except in
+  a log file {\em set log ``filename''} and then use the log file as a
+  macro.
 
-In this version you cannot select the elements from the tdb file, all
-elements are entered.  You must edit the tdb file in advance to select
-the elements (normally it is enough to remove the elements you do not
-want in the beginning of the file).  In the next release it will be
-possible to select elements and phases from the tdb file also inside
-the OC software.
+  In this version you can select the elements from the tdb file, but
+  all phases are included.  You can use the SET PHASE phase-name
+  STATUS SUSPEND to remove phases you do not want.
+
+\item You can save an UNFORMATTED file with the default equilibrium
+  read it back as UNFORMATTED but this is fragile and the file
+  structure will probably be changed several times before it is
+  reliable.  There is no way to save results from STEP or MAP
+  commands on a file.
 
 \item Setting conditions is very similar to the Thermo-Calc software.
-The command is {\em set cond ``state variable'' = ``value''}.  The
-safest conditions for calculating an equilibrium, i.e. which has most
-chance to converge, is to set values on T, P and N(element), i.e. the
-total amount of each element.  The table at the end gives a list of
-state variable symbols and their meaning.
+  The command is {\em set cond ``state variable'' = ``value''}.  The
+  safest conditions for calculating an equilibrium, i.e. which has
+  most chance to converge, is to set values on T, P and N(element),
+  i.e. the total amount of each element.  The table at the end gives a
+  list of state variable symbols and their meaning.
 
-The intention is that you should be able to combine any set of
-conditions to calculate the equilibrium, i.e. you can combine
-conditions on mole fractions, mass fractions, fix phases, chemical
-potentials etc.  In the next release one will be able to give
-expressions of conditions, not just a single state variable.
+  The intention is that you should be able to combine any set of
+  conditions to calculate the equilibrium, i.e. you can combine
+  conditions on mole fractions, mass fractions, fix phases, chemical
+  potentials etc.  You can also prescribe phases as stable.  In a
+  future release one will be able to give expressions of conditions,
+  not just a single state variable.
+
+  Conditions on V, H, S etc are not yet implemented.
 
 \item The command {\em calculate equilibrium (c e)} tries to calculate
-the equilibrium.  As the minimizer needs a guess of stable phases and
-their start constitution it always tries first to invoke a global grid
-minimizer.  If you want to provide a guess of the set of stable phases
-yourself use the command {\em calculate no\_global (c n)}.  To set an
-initial stable phase use the command {\em set phase const}.
+  the equilibrium.  As the minimizer needs a guess of stable phases
+  and their start constitution it always tries first to invoke a
+  global grid minimizer.  If you want to provide a guess of the set of
+  stable phases yourself use the command {\em calculate no\_global (c
+    n)}.  To set an initial stable phase use the command {\em set
+    phase const}.
 
 \item The grid minimizer that calculates start points for the general
-minimizer is very primitive.  If you have ideas how to improve it you
-are welcome to provide advice or code.
+  minimizer is very primitive.  If you have ideas how to improve it
+  you are welcome to provide advice or code.
 
 \item You will frequently have problems with convergence, many times
-there will be error messages and sometimes the software may converge
-to the wrong equilibrium.  In this beta test version you should always
-check the result with you favourite thermodynamic software.
+  there will be error messages and sometimes the software may converge
+  to the wrong equilibrium.  In this beta test version you should
+  always check the result with you favourite thermodynamic software.
 
-If the calculation does not converge try to use the command {\em ``c
-n''} two or three times to continue to iterate from the set of phases
-you have.  The {\em ``c e''} command starts the grid minimiser and,
-therefore, will give the same result each time.  
+  If the calculation does not converge try to use the command {\em ``c
+    n''} two or three times to continue to iterate from the set of
+  phases you have.  The {\em ``c e''} command starts the grid
+  minimiser and, therefore, will give the same result each time.
 
-You can also try to increase the number of iterations {\em set num 500
-,,,,}.  Or you can manually set the phases you think are stable {\em
-set phase const} followed by {\em ``c n''}.  Or you can try to
-simplify the conditions for a first calculation and then change them
-to those you are interested in and for each change calculate using
-{\em ``c n''}.  Calculations at temperatures and compositions where
-the system is single phase have a higher chance of success.  The
-algorithm to change the set of stable phases is fragile and has not
-been fine tuned.
+  You can also try to increase the number of iterations {\em set num
+    500 ,,,,}.  Or you can manually set the phases you think are
+  stable {\em set phase const} followed by {\em ``c n''}.  Or you can
+  try to simplify the conditions for a first calculation and then
+  change them to those you are interested in and for each change
+  calculate using {\em ``c n''}.  Calculations at temperatures and
+  compositions where the system is single phase have a higher chance
+  of success.  The algorithm to change the set of stable phases is
+  fragile and has not been fine tuned.
 
-\item There is a simple step procedure to calculate property diagrams.
-It uses gnuplot to handle the graphics.  If you are interested in this
-feature there will be a discussion group on the future design of the
-step and map (of phase diagrams) commands and graphical output.
+\item In version 2 the step and map procedures are implenebted but
+  full if bugs.  It uses gnuplot to handle the graphics.  
+
+\item The ``dot derivative'' facility has been implemented for a
+  limited set of cases of derivatives with respect to $T$ and $P$,
+  like ``H,T'' for the heat capacity.  
+
+\item The partitioning of phases with an ordered and disordered part
+  has been implemented slightly simpler than in Thermo-Calc.  See the
+  documentation of the model package.
+
+\item The code is very messy, I had hoped to have time to clean it up
+  before the release but that will be for the next one.
+
+\item The big thing to do now is to develop an assessment module.
+  Anyone with ideas are welcome to contribute.
 
 \item To report errors and problems please attach a macro file that
-reproduces the problem.  To create a macro file run the command
-interface with a log file and edit the log file to be a macro.  Both
-the macro file and the model parameters (preferably in a tdb file)
-must be submitted.  Try to find the simplest case that reproduces the
-error.
+  reproduces the problem.  To create a macro file run the command
+  interface with a log file and edit the log file to be a macro.  Both
+  the macro file and the model parameters (preferably in a tdb file)
+  must be submitted.  Try to find the simplest case that reproduces
+  the error.
+
 \end{itemize}
 
 \section{A summary of state variables.}
@@ -204,8 +228,8 @@ added together to make up the overall composition.
 The OC software is provided with a GNU license which means that you
 have the source code and can use it and modify it as you wish as long
 as you do not try to make money of it.  If you want to include the OC
-software in a commercial program you must contact the copyright
-owners.
+software (or part of it) in a commercial program you must contact the
+copyright owners.
 
 There is a fairly extensive documentation of the source code in the
 directory ``documentationupdate'' and if you look at the code itself
@@ -216,10 +240,8 @@ introduced during the development that eventually will be removed.
 The set of subroutines is less structured and one problem has been
 that this code was my first attempt to use the new Fortran standard so
 there are probably many things that can be made simpler.  You are
-welcome to point out where this can be done.  The hope is to have a
-new release before the end of 2013 with an improved version of this
-part of the code and some more thermodynamic models and facilities for
-conditions and generating diagrams will be available.
+welcome to point out where this can be done.  The hope is to release
+this code before the end of 2014.
 
 As I have understood the data structures (TYPE) in the new Fortran
 standard is more or less identical to those used in C++ so it should
@@ -240,36 +262,39 @@ you miss some routines please contact the OC software group.
 
 \section{Examples}
 
-To help you get started calculating a number of examples is
-provided in the ``macro'' directory.
+To help you get started calculating a number of examples is provided
+in the ``macro'' directory.  There is a separate set of macros for
+version 1 that you may also be interested in, you find them with the
+source code for version 1.  Note that the extention of macro file is
+now OCM, with version 1 it was BMM.
+
+The examples for version 2 mainly concern mapping and stepping.  They
+show that there are still issues to solve.
 
 \begin{enumerate}
-\item Entering data manually for an ideallized system (Al-Ni) with
-ordering, setting ordering options and conditions and calculating an
-equilibrium, ocex01A.
+\item Mapping the binary phase diagram for Ag-Cu and setting ranges
+  for plotting.
 
-\item Combining reading a TDB file and entering data manually in a
-ternary system (Al-Cr-Ni), with fcc and bcc ordering.  Setting
-ordering options and conditions and calculating some equilibria,
-ocex01B.
+\item Mapping the Cr-Mo binary diagram with a miscibility gap.
 
-\item Entering some parameters for various physical models for a
-fictive binary system.  Checking how they vary with composition,
-ocex01C.
+\item Mapping the binary C-Fe phase diagram.
 
-\item Reading a TDB file for a binary system (Cr-Fe), setting
-conditions and calculating several equilibria for different
-conditions, ocex02A.
+\item Mapping the binary Fe-Mo phase diagram.  Several start points
+  needed.
 
-\item Reading a TDB file for a ternary system (C-Cr-Fe), and calculate
-several equilibrium for different conditions, ocex02B.
+\item Mapping the isopleth for CrFeMo.  Missing lines at low T.
 
-\item Reading a TDB file for a binary gas system (H-O), setting 
-various conditions and calculating equilibria, ocex02C.
+\item Mapping a high speed steel.  The liquidus is missing.
 
-\item Reading a TDB file for a multcomponent steel, setting conditions
-and calculating an equilibrium.  Setting an axis, stepping and
-plotting some curves, ocex03A.
+\item Stepping the high speed steel vs T.  Plotting phase amount,
+mass percent of Cr in verious phases, enthalpy and heat capacity.
+The last an example of a dot derivative.
+
+\item Stepping G curves for Ag-Cu vs composition.
+
+\item Stepping an ideal gas with H and O vs T plotting speciation,
+enthalpy and heat capacity.
+
 \end{enumerate}
 
 {\large \bf Have fun and make OC grow!}

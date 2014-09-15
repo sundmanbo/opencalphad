@@ -1359,7 +1359,7 @@
 !
 ! DELETES ALL DATA so a new TDB file can be read
 !
-! this is needed before reading a new informatted file (or same file again)
+! this is needed before reading a new unformatted file (or same file again)
 ! we must go through all records and delete and deallocate each
 ! separately.  Very similar to gtpread
    implicit none 
@@ -1791,6 +1791,7 @@
                goto 112
             endif
 !            write(*,*)'25F Entering function 1: ',name1,len_trim(longline)
+!            lrot=0
             call enter_tpfun(name1,longline,lrot,.TRUE.)
             if(gx%bmperr.ne.0) then
 ! one may have error here if function calls other functions not entered, 4002
@@ -2438,6 +2439,7 @@
          goto 412
       endif
 !      write(*,*)'25F Entering function 2: ',funname,len_trim(longline)
+!      lrot=0
       call enter_tpfun(funname,longline,lrot,.TRUE.)
 !          write(*,17)lokph,typty,nsl,lrot,(endm(i),i=1,nsl)
 17 format('readtdb 17: '4i3,5x,10i3)
@@ -2683,6 +2685,7 @@
 !            write(*,*)'Entering function: ',name1
 ! entering a function may add new unentered functions ... last argument TRUE
 !            write(*,*)'25F Entering function 3: ',name1,len_trim(longline)
+!            lrot=0
             call enter_tpfun(name1,longline,lrot,.TRUE.)
             if(gx%bmperr.ne.0) then
 ! one may have error here

@@ -51,6 +51,17 @@ plot ,,,,,,,,,,,,,,
 
 @&
 
+@$ plot enthalpy
+
+plot
+T 
+H
+ocgnu
+plot ,,,,,,,,,,,,,,,
+
+
+@$ plot heat capacity
+
 ent sym cp=h.t;
 
 

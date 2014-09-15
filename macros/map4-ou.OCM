@@ -3,6 +3,7 @@ set echo
 r t ou
 
 
+@$ start in the miscibility gap
 set c t=3200 p=1e5 n=1 x(o)=.5
 
 c e
@@ -27,30 +28,9 @@ plot
 
 
 
-@&
-
-set c t=2900 x(o)=.63
-
-c e
-
-l r 2
 
 @&
-
-@$ set ax 1 x(o) 0.6 0.8 0.001
-
-@$ set ax 2 t 500 3800 25
-
-map
-N
-
-plot
-
-
-
-
-
-@&
+@$ the high O side missing
 
 set c t=2500 x(o)=.7
 
