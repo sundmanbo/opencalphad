@@ -94,7 +94,7 @@ MODULE METLIB
     integer, parameter :: maxhelplevel=15
 ! A help structure used in new on-line help system
     TYPE help_str
-       integer okinit
+       integer :: okinit=0
        character*128 filename
        character*8 type
        integer level
@@ -4684,6 +4684,10 @@ CONTAINS
 !    enddo
 !10  format(i3,': ',a)
 !
+    if(helprec%okinit.eq.0) then
+       write(kou,*)'Sorry no help file'
+       goto 1000
+    endif
     open(31,file=helprec%filename,status='old',access='sequential')
     nl=0
     level=3

@@ -133,6 +133,7 @@ MODULE TPFUNLIB
      double precision, dimension(6) :: results
   END TYPE tpfun_parres
 ! This array is local to the gtp_equilibrium_data record
+! index the same as the function
 !\end{verbatim}
 
 !-----------------------------------------------------------------
@@ -1769,7 +1770,7 @@ CONTAINS
 120 continue
    longline(jp:)=line
    jp=len_trim(longline)+1
-   write(*,*)'tpfun: ',longline(1:jp)
+!   write(*,*)'tpfun: ',longline(1:jp)
 ! lsc is position after the ";" in any previous range
    if(index(longline(lsc:),';').le.0) then
       call gparc('&',cline,ip,6,line,';',nohelp)
@@ -1780,7 +1781,7 @@ CONTAINS
    endif
 150 continue
 ! make sure there is a ; at the end of each expression
-   write(*,*)'tpfun add ;'
+!   write(*,*)'tpfun add ;'
    kkp=index(longline(nexpr:),';')
    if(kkp.le.0) then
       kkp=len_trim(longline)
@@ -1867,7 +1868,8 @@ CONTAINS
  subroutine enter_tpfun(symbol,text,lrot,fromtdb)
 ! creates a data structure for a TP function called symbol with several ranges
 ! text is whole expression
-! lrot is returned as index
+! lrot is returned as index.  If fromtdb is FALSE and lrot<0 it is a new
+!                             expression for an old symbol
 ! if fromtdb is TRUE references to unknown functions are allowed
 ! default low temperature limit is 298.16; high 6000
    implicit none
@@ -1887,7 +1889,7 @@ CONTAINS
    logical already
 ! check if function already entered, there are freetpfun-1 of them
 ! ignore functions that start with a "_" as they are parameters
-   lrot=0
+!   lrot=0
    already=.FALSE.
    if(symbol(1:1).ne.'_') then
       lsym=symbol
@@ -1897,14 +1899,30 @@ CONTAINS
 17       format('enter_tpfun: ',i5,' >,'a,'=',a,'?')
          if(lsym.eq.tpfuns(jss)%symbol) then
             if(btest(tpfuns(jss)%status,TPNOTENT)) then
-! function name already eneterd, now enter expression
+! function name already eneterd, now enter expression, this is from TDB files
                lrot=jss; already=.TRUE.; goto 18
             else
-               gx%bmperr=4026; goto 1000
+!               write(*,*)'amend tpfun: ',fromtdb,lrot
+               if(.NOT.fromtdb .and. lrot.lt.0) then
+! this is an AMEND TPFUN, delete old expression to be able to store a new
+                  lrot=jss; already=.TRUE.
+                  nrange=tpfuns(lrot)%noofranges
+!                  write(*,*)'Deallocating: ',lrot,nrange
+                  deallocate(tpfuns(lrot)%limits)
+                  deallocate(tpfuns(lrot)%funlinks)
+                  tpfuns(lrot)%noofranges=0
+                  tpfuns(lrot)%status=ibset(tpfuns(lrot)%status,TPNOTENT)
+! we have to clear the stored values! But those are stored in equil.rec
+                  nrange=0; goto 18
+               else
+                  gx%bmperr=4026; goto 1000
+               endif
             endif
          endif
       enddo
    endif
+!
+   lrot=0
 18 continue
 ! low T limit
    ip=1

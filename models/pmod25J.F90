@@ -297,13 +297,14 @@
 !   if(what.eq.0) goto 1000
    if(what.le.0) goto 1000
 !------------------------------------------------------------
-! prepare for storing result: zero all phase amounts.
+! prepare for storing result: zero all phase amounts and driving forces
    do iph=1,nrph
       lokph=phases(iph)
 !      lokcs=phlista(lokph)%cslink
       do ics=1,phlista(lokph)%noofcs
          lokcs=phlista(lokph)%linktocs(ics)
 !         ceq%phase_varres(lokcs)%amount=zero
+         ceq%phase_varres(lokcs)%dgm=zero
          ceq%phase_varres(lokcs)%amfu=zero
          ceq%phase_varres(lokcs)%netcharge=zero
       enddo
@@ -2683,26 +2684,31 @@
    implicit none
    integer mode
 !\end{verbatim}
-   allowenter=.FALSE.
-   if(mode.le.0) goto 1000
+!   write(*,*)'In allowenter: ',mode
+   logical yesorno
+   yesorno=.FALSE.
+   if(mode.le.0 .or. mode.gt.3) goto 1000
    if(mode.eq.1) then
 ! enter element of species not allowed after entering first phase
       if(noofph.gt.1) goto 1000
-      allowenter=.TRUE.
+      yesorno=.TRUE.
    elseif(mode.eq.2) then
 ! enter phases of a disordred fraction set not allowed
 ! if there are no elements or after entering a second equilibrium
-!      write(*,*)'allowenter ',mode,noofel,eqfree,noofph
+!      write(*,*)'25J allowenter ',mode,noofel,eqfree,noofph
       if(noofel.eq.0) goto 1000
       if(eqfree.gt.2) goto 1000
-      allowenter=.TRUE.
+      yesorno=.TRUE.
    elseif(mode.eq.3) then
 ! there must be at lease one phase before entering a second equilibrium
 ! Note this is tested also for entering the default equilibrium
+!      write(*,*)'25J mode 3: ',eqfree,noofph
       if(eqfree.ge.2 .and. noofph.eq.0) goto 1000
-      allowenter=.TRUE.
+      yesorno=.TRUE.
    endif
 1000 continue
+   allowenter=yesorno
+!   write(*,*)'25J: allowenter:',yesorno,mode
    return
  end function allowenter
 

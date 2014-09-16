@@ -71,9 +71,7 @@ contains
 ! cpu time measurements
     double precision ending,starting
 !>>>> has to be reorganized ------------------------------------
-! axis variables and limits >>>> axvar, axval, axvalod redundant
-!    character axvar(5)*24
-!    double precision axval(3,5),axvalold(3,5)
+! axis variables and limits
 ! default values used for axis variables
     double precision dinc,dmin,dmax
 ! plot ranges, texts and defaults
@@ -85,9 +83,6 @@ contains
 ! for map results
     type(map_node), pointer :: maptop,mapnode,maptopsave
     type(map_line) :: mapline
-!    type(gtp_equilibrium_data), pointer :: savedceq
-! this is linked from maptop
-!    type(map_ceqresults), pointer :: mapresults
     integer noofaxis,noofstarteq
 ! this should be removed
 !    TYPE(ssm_node), pointer :: resultlist
@@ -146,6 +141,8 @@ contains
 !
     character actual_arg(2)*16
     character cline*128,option*80,aline*128,plotfile*64,eqname*24
+!----------------------------------------------------------------
+! here are all commands and subcommands
 !    character (len=64), dimension(6) :: oplist
     integer, parameter :: ncbas=27,nclist=15,ncalc=9,ncent=15,ncread=6
     integer, parameter :: ncam1=12,ncset=18,ncadv=3,ncstat=6,ncdebug=6
@@ -180,10 +177,10 @@ contains
         ['DATA            ','SHORT           ','PHASE           ',&
          'STATE_VARIABLES ','BIBLIOGRAPHY    ','PARAMETER_IDENTI',&
          'AXIS            ','TPFUN_SYMBOLS   ','QUIT            ',&
-         'VALUE_OF_PARA_ID','EQUILIBRIA      ','RESULTS         ',&
+         '                ','EQUILIBRIA      ','RESULTS         ',&
          'CONDITIONS      ','SYMBOLS         ','LINES           ']
 !-------------------
-! subsubcommands to LIST FORMAT
+! subsubcommands to LIST DATA
     character (len=16), dimension(nlform) :: llform=&
         ['SCREEN          ','TDB             ','MACRO           ',&
          'LATEX           ','                ','                ']
@@ -209,7 +206,7 @@ contains
          'PHASE           ','PARAMETER       ','BIBLIOGRAPHY    ',&
          'CONSTITUTION    ','EXPERIMENT      ','QUIT            ',&
          'EQUILIBRIUM     ','SYMBOL          ','OPTIMIZE_COEFF  ',&
-         'COPY_OR_EQUILIB ','                ','                ']
+         'COPY_OF_EQUILIB ','                ','                ']
 !-------------------
 ! subcommands to READ
     character (len=16), dimension(ncread) :: cread=&
@@ -251,12 +248,12 @@ contains
 !        123456789.123456---123456789.123456---123456789.123456
 ! subsubcommands to SET ADVANCED
     character (len=16), dimension(ncadv) :: cadv=&
-         ['TRANSFER_EQUILIB','                ','                ']
+         ['EQUILIB_TRANSF  ','QUIT            ','                ']
 !         123456789.123456---123456789.123456---123456789.123456
 ! subsubcommands to SET PHASE
     character (len=16), dimension(nsetph) :: csetph=&
-        ['                ','STATUS          ','DEFAULT_CONSTITU',&
-         'AMOUNT          ','BITS            ','                ']
+         ['QUIT            ','STATUS          ','DEFAULT_CONSTITU',&
+          'AMOUNT          ','BITS            ','                ']
 !         123456789.123456---123456789.123456---123456789.123456
 !-------------------
 ! subsubsubcommands to SET PHASE BITS
@@ -281,7 +278,7 @@ contains
 ! subcommands to DELETE
     character (len=16), dimension(nrej) :: crej=&
          ['ELEMENTS        ','SPECIES         ','PHASE           ',&
-         'QUIT            ','COMPOSITION_SET ','EQUILIBRIA      ']
+          'QUIT            ','COMPOSITION_SET ','EQUILIBRIUM     ']
 !-------------------
 ! subcommands to PLOT OPTIONS
     character (len=16), dimension(nplt) :: cplot=&
@@ -292,6 +289,7 @@ contains
 ! minimizers
     character (len=16), dimension(2) :: minimizers=&
          ['LUKAS_HILLERT   ','SUNDMAN_HILLERT ']
+!------------------------------------------------------------------------
 !
 ! some defaults
     language=1
@@ -595,7 +593,31 @@ contains
           call enter_reference_interactivly(cline,last,1,jl)
 !-------------------------
        case(7) ! amend TPFUN symbol
-          write(kou,*)'Not implemented yet'
+          write(kou,*)' *** Dangerous if you have several equilibria!'
+          call gparc('TP-fun symbol: ',cline,last,1,name1,' ',q1help)
+          call find_tpsymbol(name1,idef,xxx)
+          if(gx%bmperr.ne.0) then
+             write(*,*)'Ambiguouos or unknown symbol'; goto 990
+          endif
+          if(idef.eq.0) then
+! it is a function , this call just read the function starting with low T etc.
+             call enter_tpfun_interactivly(cline,last,string,jp)
+! this stores the tpfun, lrot<0 means the symbol already exists
+             lrot=-1
+             call enter_tpfun(name1,string,lrot,.FALSE.)
+             if(gx%bmperr.ne.0) goto 990
+! mark functions not calculated.  This should be done in all ceq ...
+             ceq%eq_tpres(lrot)%tpused(1)=-one
+             ceq%eq_tpres(lrot)%tpused(2)=-one
+          elseif(idef.eq.2) then
+             write(*,*)'You cannot change optimizing coefficients'
+             goto 100
+          else
+! it is a constant, you can change if
+             call gparrd('Value: ',cline,last,xxy,xxx,q1help)
+             call capson(name1)
+             call enter_tpconstant(name1,xxy)
+          endif
 !-------------------------
        case(8) ! amend constitution (also as ENTER CONST and SET PHASE )
           call ask_phase_constitution(cline,last,iph,ics,lokcs,ceq)
@@ -871,8 +893,9 @@ contains
           CASE DEFAULT
              write(kou,*)'Set advanced subcommand error'
 !.................................................................
-! SET ADVANCED TRANSFER_EQUILIB
+! SET ADVANCED EQUILIB_TRANSFER
 ! transfer a ceq record from map results%savedceq to eqlista
+! so it can be used interactivly
           case(1)
              if(.not.associated(maptop)) then
                 write(kou,*)'There are no results from map or step'
@@ -904,8 +927,8 @@ contains
 ! set bit that data bay be inconsistent
              eqlista(i1)%status=ibset(eqlista(i1)%status,EQINCON)
 !.................................................................
-          case(2) ! nothing yet
-             write(*,*)'Not implemented yet'
+          case(2) ! quit
+             continue
 !.................................................................
           case(3) ! nothing yet
              write(*,*)'Not implemented yet'
@@ -914,6 +937,7 @@ contains
        case(4) ! set LEVEL
           write(kou,*)'Not implemented yet'
 !-----------------------------------------------------------
+! end of macro excution (can be nested)
        case(5) ! set INTERACTIVE
           call macend(cline,last,logok)  
 !-----------------------------------------------------------
@@ -981,24 +1005,11 @@ contains
              write(kou,*)'Set phase status subcommand error'
              goto 100
 !............................................................
-          case(1) ! SET PHASE CONSTITUTION <name> <comp.set> ....
-! no longer used
-!             write(*,*)'Use ENTER CONSTITUTION <phase>!'
-!             call ask_phase_constitution(cline,last,iph,ics,lokcs,ceq)
-!             if(gx%bmperr.ne.0) goto 990
+          case(1) ! quit
+             continue
 !............................................................
 ! copied from 3045
           case(2) ! SET PHASE STATUS <phase> <status>
-!             call gparc('Phase name: ',cline,last,1,name1,' ',q1help)
-!             call find_phase_by_name(name1,iph,ics)
-!             if(gx%bmperr.ne.0) then
-!                if(name1(1:2).eq.'* ') then
-!                   iph=-1
-!                   gx%bmperr=0
-!                else
-!                   goto 990
-!                endif
-!             else
              if(iph.gt.0) then
                 jl=get_phase_status(iph,ics,text,i1,xxx,ceq)
                 if(gx%bmperr.ne.0) goto 100
@@ -1044,16 +1055,6 @@ contains
 ! end copied from 3045
 !............................................................
           case(3:4) !set phase default constitution wildcard allod, also AMOUNT
-!             call gparc('Phase name: ',cline,last,1,name1,' ',q1help)
-!             call find_phase_by_name(name1,iph,ics)
-!             if(gx%bmperr.ne.0) then
-!                if(name1(1:2).eq.'* ') then
-!                   iph=-1
-!                   gx%bmperr=0
-!                else
-!                   goto 990
-!                endif
-!             endif
              if(kom3.eq.3) then
 ! set phase default constituntion
                 call set_default_constitution(iph,ics,0,ceq)
@@ -1065,9 +1066,6 @@ contains
 !............................................................
 ! subsubsub command
           case(5) ! set phase bits
-!             call gparc('Phase name: ',cline,last,1,name1,' ',q1help)
-!             call find_phase_by_name(name1,iph,ics)
-!             if(gx%bmperr.ne.0) goto 990
              if(iph.lt.0) then
                 write(kou,*)'Wildcard not allowed'
                 goto 100
@@ -1177,19 +1175,7 @@ contains
 ! this means remove an axis, shift higher axis down
              do i2=iax,noofaxis
                 axarr(i2)=axarr(i2+1)
-!                axvar(i2)=axvar(i2+1)
-!                do ll=1,3
-!                   axval(ll,i2)=axval(ll,i2+1)
-!                enddo
              enddo
-! set defaults of removed axis
-!             axvar(noofaxis)=' '
-!             axval(1,noofaxis)=zero
-!             axval(2,noofaxis)=one
-!             axval(3,noofaxis)=2.5D-2
-!             axvalold(1,noofaxis)=zero
-!             axvalold(2,noofaxis)=one
-!             axvalold(3,noofaxis)=2.5D-2
              noofaxis=noofaxis-1
              write(kou,*)'One axis removed'
              goto 100
@@ -1224,9 +1210,6 @@ contains
                 if(pcond%statev.lt.0) then
                    write(*,*)'Cannot set fix phase as axis'
                    goto 100
-!                elseif(pcond%active.ne.0) then
-!                   write(*,*)'Condition is not active'
-!                   goto 100
                 endif
 ! copy the state variable record to the axis record redundant??
                 axarr(iax)%nterm=pcond%noofterms
@@ -1301,10 +1284,6 @@ contains
           call gparrd('Increment:',cline,last,xxx,dinc,q1help)
           if(buperr.ne.0) goto 100
           axarr(iax)%axinc=xxx
-!          axval(3,iax)=xxx
-!          axvalold(1,iax)=axval(1,iax)
-!          axvalold(2,iax)=axval(2,iax)
-!          axvalold(3,iax)=axval(3,iax)
 ! iax can be smaller than noofaxis if an existing axis has been changed
           if(iax.gt.noofaxis) noofaxis=iax
 !  write(*,3602)(axval(i,iax),i=1,3)
@@ -1378,8 +1357,11 @@ contains
              if(buperr.ne.0) goto 990
              call capson(name2)
              if(compare_abbrev(name2,'FUNCTION ')) then
+! this call just read the function
                 call enter_tpfun_interactivly(cline,last,string,jp)
                 if(gx%bmperr.ne.0) goto 990
+! here the function is stored
+                lrot=0
                 call enter_tpfun(name1,string,lrot,.FALSE.)
                 if(gx%bmperr.ne.0) goto 990
              elseif(compare_abbrev(name2,'CONSTANT ')) then
@@ -1397,7 +1379,7 @@ contains
                 write(kou,*)'Use AMEND to change existing TP function'
              elseif(idef.eq.2) then
                 write(kou,*)'You cannot change values of optimizing ',&
-                     'coefficints this way'
+                     'coefficients this way'
              else
 ! Values of constants can be changed here
                 call gparrd('Value: ',cline,last,xxy,xxx,q1help)
@@ -1566,6 +1548,7 @@ contains
           if(buperr.ne.0) goto 100
           call copy_equilibrium(neweq,text,ceq)
 !          write(*,*)'Back from copy equilibrium'
+          if(gx%bmperr.ne.0) goto 990
           write(kou,*)'New equilibrium no: ',neweq%eqno
 !---------------------------------------------------------------
 ! enter not used
@@ -1645,7 +1628,7 @@ contains
              call list_phase_model(iph,ics,kou,ceq)
           END SELECT
 !------------------------------
-       case(4,10)  ! list state variable or parameter identifier value, loop.
+       case(4)  ! list state variable or parameter identifier value, loop.
 6099      continue
           if(btest(ceq%status,EQNOEQCAL) .or. btest(ceq%status,EQFAIL)) then
              write(kou,6101)
@@ -1736,15 +1719,13 @@ contains
           else
              call list_all_funs(kou)
           endif
-! variables
-!        call list_all_values(kou)
 !------------------------------------------------------------
        case(9) ! list quit
 !------------------------------------------------------------
-!     case(10) ! list parameter identifiers, same as state_variables
-!        goto 100
+       case(10) ! unused list subcommand
+        continue
 !-----------------------------------------------------------
-       case(11) ! list equilibria
+       case(11) ! list equilibria (not result)
           do iel=1,noeq()
              if(associated(ceq,eqlista(iel))) then
                 write(kou,6202)iel,eqlista(iel)%eqname
@@ -1791,7 +1772,7 @@ contains
           call list_components_result(kou,jl,ceq)
           write(kou,6303)'Some Phase data ....'
 ! mode >1000 lists stable phases only
-          if(listresopt.eq.1) then
+          if(listresopt.le.1) then
 ! stable phases with mole fractions
              mode=1000
           elseif(listresopt.eq.2) then
@@ -1814,10 +1795,10 @@ contains
              mode=1
           elseif(listresopt.eq.8) then
 ! all phases with mole fractions and constitution
-             mode=10
+             mode=110
           elseif(listresopt.eq.9) then
 ! all phases with mole fractions and constitution in alphabetical order
-             mode=110
+             mode=10
           else
 ! all phase with with mole fractions
              mode=0
@@ -2312,7 +2293,7 @@ contains
           write(kou,18010)
           write(kou,*)'Not implemented yet'
 !-----------------------------------------------------------
-!quit
+! quit
        case(4)
           goto 100
 !-----------------------------------------------------------
@@ -2325,7 +2306,7 @@ contains
           call remove_composition_set(iph,.FALSE.)
           if(gx%bmperr.ne.0) goto 990
 !-----------------------------------------------------------
-! delete equilibria
+! delete equilibrium
        case(6)
           call gparcd('Equilibrium name: ',cline,last,1,name1,'_MAP* ',q1help)
           if(buperr.ne.0) goto 990
@@ -2344,19 +2325,16 @@ contains
        call gparcd('Option?',cline,last,1,text,'NORMAL ',q1help)
 !       if(associated(resultlist)) then
        if(associated(maptop)) then
-          write(kou,*)'There are some results already form step or map'
-          call gparcd('Reinitiate?',cline,last,1,ch1,'Y',q1help)
+          write(kou,*)'There are some results already from step or map'
+          call gparcd('Delete them?',cline,last,1,ch1,'Y',q1help)
           if(ch1.eq.'y' .or. ch1.eq.'Y') then
-! one has to do a more careful deallocation to free memory
+! there should be a more careful deallocation to free memory
              deallocate(maptop%saveceq)
              nullify(maptop)
              nullify(maptopsave)
           else
              maptopsave=>maptop
              nullify(maptop)
-! It should be possible!!
-!             write(*,*)'Sorry not possible overlay steps'
-!             goto 100
           endif
 ! this should preferably be done directly after map/step, but kept for debug
           call delete_equilibria('_MAP*',ceq)
@@ -2370,8 +2348,17 @@ contains
        call map_setup(maptop,noofaxis,axarr,starteq)
 ! mark that interactive listing of conditions and results may be inconsistent
        ceq%status=ibset(ceq%status,EQINCON)
+       if(.not.associated(maptop)) then
+! if one has errors in map_setup maptop may not be initiated, if one
+! has saved previous calculations in maptopsave restore those
+          if(associated(maptopsave)) then
+             write(kou,*)'Restoring previous map results'
+             maptop=>maptopsave
+          endif
+       endif
 ! remove start equilibria
        nullify(starteq)
+       if(gx%bmperr.ne.0) goto 990
 !=================================================================
 ! map
     case(20)
@@ -2391,8 +2378,6 @@ contains
           else
              maptopsave=>maptop
              nullify(maptop)
-!             write(*,*)'Sorry, not possible to overlay maps'
-!             goto 100
           endif
 ! this should preferably be done directly after map/step, but kept for debug
           call delete_equilibria('_MAP*',ceq)
@@ -2404,6 +2389,16 @@ contains
           starteq=>ceq
        endif
        call map_setup(maptop,noofaxis,axarr,starteq)
+       if(.not.associated(maptop)) then
+! if one has errors in map_setup maptop may not be initiated, if one
+! has saved previous calculations in maptopsave restore those
+          if(associated(maptopsave)) then
+             write(kou,*)'Restoring previous map results'
+             maptop=>maptopsave
+          endif
+       endif
+! mark that interactive listing of conditions and results may be inconsistent
+       ceq%status=ibset(ceq%status,EQINCON)
        if(gx%bmperr.ne.0) goto 990
 !=================================================================
 ! plot
@@ -2428,7 +2423,7 @@ contains
                 jp=index(text,'=')
                 text(jp:)=' '
                 if(maptop%tieline_inplane.eq.1) then
-! if tie-lines in the plane is 1 and calculating axis was x(cu)
+! if tie-lines in the plane is 1 and calculating axis was x(A)
 ! then plot axis should be x(*,cu) 
                    jp=index(text,'(')
                    if(jp.gt.0) then 
@@ -2466,6 +2461,10 @@ contains
                 wildcard=.TRUE.
              endif
           endif
+          if(axplotdef(iax).ne.axplot(iax)) then
+! if not same axis variable remove any ranges defined !!!
+             graphopt%rangedefaults(iax)=0
+          endif
 ! remember axis as default
           axplotdef(iax)=axplot(iax)
        enddo
@@ -2476,12 +2475,14 @@ contains
        if(associated(maptopsave)) then
           write(*,*)'We link to maptopsave'
           maptop%plotlink=>maptopsave
-       else
-          write(*,*)'There is no maptopsave'
+!       else
+!          write(*,*)'There is no maptopsave'
        endif
 !-----------------------------------------------------------
 ! plot options subcommand, default is PLOT, NONE does not work ...
 2103   continue
+! give an empty line as a sublte alert for plot options
+       write(kou,*)
        kom2=submenu('Options?',cline,last,cplot,nplt,1)
        SELECT CASE(kom2)
 !-----------------------------------------------------------
@@ -2566,7 +2567,7 @@ contains
 !-----------------------------------------------------------
 ! PLOT LABEL
        case(6)
-          call gparcd('Plot label',cline,last,5,line,'DEFAULT',q1help)
+          call gparcd('Plot title',cline,last,5,line,'DEFAULT',q1help)
           if(line(1:8).eq.'DEFAULT ') then
              graphopt%labeldefaults(1)=0
           else
@@ -2591,7 +2592,7 @@ contains
        call hpcalc
        buperr=0
 !=================================================================
-! FIN, do not ask, the French always know what they do ...
+! FIN, do not ask if sure, the French always know what they do ...
     case(23)
        if(logfil.gt.0) then
           write(logfil,*)'set interactive'
@@ -2601,45 +2602,13 @@ contains
 !     if(ch1.eq.'y' .or. ch1.eq.'Y') then
        stop 'Au revoir'
 !=================================================================
-! no subcommand defined yet
+! no command defined yet
     case(24)
        write(kou,*)'Not implemented yet'
 !=================================================================
-! no subcommand defined yet
+! no command defined yet
     case(25)
        write(kou,*)'Not implemented yet'
-! TRANSFER a ceq record from map results%savedceq to eqlista
-! transfer now part of SET ADVANCED
-!       if(.not.associated(maptop)) then
-!          write(kou,*)'There are no results from map or step'
-!          goto 100
-!       else
-!          write(kou,*)'mapresults is associated 1'
-!          write(kou,2500)maptop%saveceq%free-1
-!2500      format('Saved ceq records from 1 to ',i3) 
-!       endif
-!       write(kou,*)'To transfer CEQ from result area to current'
-!       call gparid('Saved ceq number',cline,last,icon,1,q1help)
-!       if(icon.gt.0 .and. icon.lt.maptop%saveceq%free) then
-!          name1='COPIED_RESULTS_'
-!          i2=len_trim(name1)+1
-!          call wriint(name1,i2,icon)
-!          write(*,*)'Equilibrium name: ',i2,': ',name1
-!          call enter_equilibrium(name1,i1)
-!          if(gx%bmperr.ne.0) goto 990
-!          write(*,*)'Created equilibrium ',i1
-! note... this will overwrite the name ...
-!          eqlista(i1)=maptop%saveceq%savedceq(icon)
-! maybe not possible, eqlista is maybe protected ... no it is not
-!          write(*,*)'Trying to change name ...'
-!          eqlista(i1)%eqname=name1
-!          call selecteq(i1,ceq)
-!2510      format(a,i3,a)
-!       else
-!          write(kou,*)'No such saved equilibrium'
-!       endif
-! set bit that data bay be inconsistent
-!       eqlista(i1)%status=ibset(eqlista(i1)%status,EQINCON)
 !=================================================================
 ! unused
     case(26)

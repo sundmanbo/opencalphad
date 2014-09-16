@@ -118,11 +118,11 @@
    double precision, dimension(:,:), allocatable :: saved2g
    double precision, dimension(:,:), allocatable :: tmpd2g
 ! added when implicit none
-   double precision rtg,pyq,ymult,add1,sum,yionva,fsites
+   double precision rtg,pyq,ymult,add1,sum,yionva,fsites,xxx
    integer nofc2,nprop,nsl,msl,iprop,lokdiseq,ll,id,id1,id2,lm,jl
    integer lokfun,itp,nz,intlat,ic,jd,noprop,jk,ic1,jpr,ipy,i1,j1
    integer i2,j2,ider,is,kk,ioff,norfc,iw,iw1,iw2,lprop,jonva
-! to handle parameters with wildcard constituent
+! to handle parameters with wildcard constituent and other things
    logical wildc,nevertwice,first,mcs,chkperm,ionicliq,iliqsave,iliqva
 ! debugging for partitioning and ordering
 !   integer clist(4)
@@ -215,8 +215,9 @@
 ! found (each phase may have different) and in listprop the original type
 ! of property is stored.  listprop will always be associated with phmain
 100 continue
-   yionva=zero
 ! yionva is used as indicator below if there are Va or just neutrals ...
+   yionva=zero
+! this nevertwice is probably redundant
    nevertwice=.true.
    lprop=2
    phmain%listprop(1)=1
@@ -237,19 +238,21 @@
       fracset=phmain%disfra
       ftype: if(fractype.eq.1) then
 !---------------------------------------------- ordered (or only) fraction set
-         if(btest(phlista(lokph)%status1,PHMFS)) then
+!         if(btest(phlista(lokph)%status1,PHMFS)) then
 ! there is a disordered fractions set, we need fracset later
-            if(fracset%totdis.ne.0) then
+!            if(fracset%totdis.ne.0) then
 ! the phase can totally disorder, if disordered skip ordered part
-               if(btest(phmain%status2,CSORDER)) then
+!               if(btest(phmain%status2,CSORDER)) then
 ! the phase is ordered, we have to calculate this part twice
-                  nevertwice=.false.
-              else
+!                  nevertwice=.false.
+! independent if ordered or disordered always calculate first fraction set
+! nevertwice probably redundant
+!              else
 ! the phase is disordered, skip ordered part and just calculate disordered
-                  goto 105
-               endif
-            endif
-         endif
+!                  goto 105
+!               endif
+!            endif
+!         endif
          gz%nofc=phlista(lokph)%tnooffr
          msl=nsl
          incffr(0)=0
@@ -1038,16 +1041,29 @@
 ! end loop for this fraction type, initiation for next in the beginning of loop
 ! but we may have to calculate once again with same fraction type but
 ! with the fractions as disordered fractions
-      if(nevertwice) then
-         goto 400
-      endif
+!      write(*,*)' **** 25B Warning: This code should never be executed ',&
+!           nevertwice
+!      if(nevertwice) then
+!         goto 400
+!      endif
+      goto 400
+!------------------------------------------------
+! the code from disord: if ... endif is redundant 
       disord: if(fractype.eq.1 .and. btest(phlista(lokph)%status1,phmfs) &
            .and. btest(phmain%status2,csorder)) then
 ! Handle additions of several fraction set ?? Additions calculated
 ! after both ordered and disordered fraction set calculated
+!         write(*,611)'25B ftyp:',fractype,btest(phlista(lokph)%status1,phmfs),&
+!              btest(phmain%status2,csorder),first,lokph
+!611      format(a,i3,3(1x,L),2i3)
          if(first) then
-! prepare to calculate again with all fractions as disordered
+! calculate with next fraction type
+! no need to calculate with all fractions as disordered
             first=.false.
+            write(*,*)'25B: next fraction type'
+            goto 400
+! this is no longer needed as we just add the disordered part
+! but do not delete yet ... wait until I know it works ...
             allocate(savey(gz%nofc))
             savey=phres%yfr
 !            write(*,*)'cg: ',phmain%phlink,phmain%disfra%varreslink
@@ -1067,16 +1083,28 @@
             phres%d2gval=zero
             goto 110
          else
+! We have now calculated the 4SL model with both as original and disordered
+! We should now subreact the disordered from the ordered
+! this is debug output
+!            do i1=1,gz%nofc
+!               write(*,602)'25B Gx: ',i1,phres%dgval(1,i1,1),savedg(1,i1,1)
+!            enddo
+!602         format(a,i3,6(1pe14.6))
 ! Ordered part calculated with disordered fractions, subtract this
 ! from the first, restore fractions and deallocate
 ! THIS IS TRICKY
 ! NOTE all sublattices are identical in this case with the same number 
 ! of constituents
-! First sum all second derivatives into tmpd2g
+! First sum all second derivatives into tmpd2g, moded=1 means only 1st deriv
             noder6A: if(moded.gt.1) then
                nz=fracset%tnoofxfr
                allocate(tmpd2g(nz*(nz+1)/2,nprop))
                tmpd2g=zero
+! DEBUG, problem with partitioning 4 sublattice FeNi: 
+!               write(*,613)'25B sub: ',nz,gz%nofc,fracset%latd,fracset%y2x
+!613            format(a,3i3,2x,20i3)
+!               write(*,614)'25B dxi/dyj: ',fracset%dxidyj
+!614            format(a,(10f7.4))
                do ipy=1,lprop-1
                   do i1=1,gz%nofc
                      j1=fracset%y2x(i1)
@@ -1087,6 +1115,9 @@
                      enddo
                   enddo
                enddo
+! tmpd2g is now d2G/dxidxj calculated with disordered fractions
+! subract that from saved d2G/dyidyj saved in saved2g taking into account
+! the derivatives dxi/dyj (in fracset%dxidyj)
                do ipy=1,lprop-1
                   do i1=1,gz%nofc
                      j1=fracset%y2x(i1)
@@ -1103,8 +1134,9 @@
                deallocate(tmpd2g)
             endif noder6A
 !---------------------
-! sum all partial derivates to first sublattice,
+! sum all first partial derivates to first sublattice
             noder6B: if(moded.gt.0) then
+!               write(*,613)'25B dG/dx: ',fracset%ndd,fracset%nooffr
                do ipy=1,lprop-1
                   do ider=1,3
                      do is=1,fracset%nooffr(1)
@@ -1112,8 +1144,8 @@
                         kk=is
                         do ll=1,fracset%latd
                            sum=sum+phres%dgval(ider,kk,ipy)
-! it is not really necessary to put phres%dgval it to zero, just for cleanness
-                           phres%dgval(ider,kk,ipy)=zero
+! it is not really necessary to put phres%dgval it to zero, just for prudence
+!                           phres%dgval(ider,kk,ipy)=zero
                            kk=kk+fracset%nooffr(1)
                         enddo
                         phres%dgval(ider,is,ipy)=sum
@@ -1140,11 +1172,17 @@
 ! loop in negative direction avoid destroy the values in phres%dgval first subl
                      do i1=gz%nofc,1,-1
 ! all derivatives wrt same element from all sublattices is in first sublattice
+                        j1=fracset%y2x(i1)
                         do ider=1,3
 ! Finally subtract this contribution from saved values
-                           j1=fracset%y2x(i1)
-                           phres%dgval(ider,i1,ipy)=savedg(ider,i1,ipy)-&
+!                           phres%dgval(ider,i1,ipy)=savedg(ider,i1,ipy)-&
+                           xxx=savedg(ider,i1,ipy)-&
                                 phres%dgval(ider,j1,ipy)*fracset%dxidyj(i1)
+!                           write(*,615)'25B Gy-Gx: ',ider,i1,ipy,j1,&
+!                                savedg(ider,i1,ipy),phres%dgval(ider,j1,ipy),&
+!                                fracset%dxidyj(i1),xxx
+!615                        format(a,4i3,4(1pe14.6))
+                           phres%dgval(ider,i1,ipy)=xxx
                         enddo
                      enddo
                   enddo
@@ -1157,13 +1195,17 @@
                enddo
             enddo
 ! restore ordered fractions and deallocate save arrays
+!            write(*,612)'25B yd: ',phres%yfr
             phres%yfr=savey
-            savey=zero
-            saveg=zero
-            savedg=zero
-            saved2g=zero
-            deallocate(savey)
+!            write(*,612)'25B yo: ',phres%yfr
+612         format(a,6(1pe11.3),(7x,6e11.3))
+! why set to zero if I deallocate ??
+!            savey=zero
+!            saveg=zero
+!            savedg=zero
+!            saved2g=zero
 !            if(ocv()) write(*,*)'saveg DE-allocated 1: ',size(saveg)
+            deallocate(savey)
             deallocate(saveg)
             deallocate(savedg)
             deallocate(saved2g)
@@ -1172,7 +1214,8 @@
 400 continue
    enddo fractyp
 !--------------------------------------------------------------
-! finished loops for all fractypes, now add together G and delta-G(ord-disord)
+! finished loops for all fractypes, now add together G and all
+! partial derivatives for all fractypes
 410 continue
 ! cheking for properties
 !   if(ocv()) then
@@ -1186,7 +1229,7 @@
 !----------------------------------------------------------------
 ! for disordered part of sigma we may have to multiply the disordered
 ! part with fsites to have correct formula unit
-!      write(*,*)'fsites 1: ',phmain%disfra%fsites
+!      write(*,*)'25B fsites 1: ',phmain%disfra%fsites
       fsites=phmain%disfra%fsites
 ! add together contributions from different fractypes
 ! phres is last calculated part, set phpart to ordered part (phmain)
@@ -1220,17 +1263,19 @@
             do ipy=1,lprop-1
 !               add1=phpart%dgval(1,i1,ipy)
                do ider=1,3
-                  phpart%dgval(ider,i1,ipy)=phpart%dgval(ider,i1,ipy)+&
+!                  phpart%dgval(ider,i1,ipy)=phpart%dgval(ider,i1,ipy)+&
+                  xxx=phpart%dgval(ider,i1,ipy)+&
                     fsites*phres%dgval(ider,j1,ipy)*fracset%dxidyj(i1)
-               enddo
 ! phres have the disordred contribution
-!               if(ocv()) write(*,413)'25B dG:',ipy,i1,j1,&
-!                    phpart%dgval(1,i1,ipy),add1,phres%dgval(1,j1,ipy),&
-!                    fracset%dxidyj(i1)
+!                  write(*,413)'25B Gd+Go:',ider,i1,j1,&
+!                       phpart%dgval(ider,i1,ipy),fsites,&
+!                       phres%dgval(ider,j1,ipy),fracset%dxidyj(i1),xxx
+                  phpart%dgval(ider,i1,ipy)=xxx
+               enddo
             enddo
          enddo
       endif noder7A
-413   format(a,3i3,6(1pe12.4))
+!413   format(a,3i3,6(1pe12.4))
 ! Integral values
       do ipy=1,lprop-1
 !         add1=phpart%gval(1,ipy)

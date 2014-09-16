@@ -36,10 +36,13 @@ MODULE ocsmp
 ! There are a special use of map_node records when the node has as many stable
 ! phases as the line and it has only two lines connected:
 ! - when starting following a line from a start point
-! - when the array of calculated equilibria must be on a file a map_node record
-! is created for each unifinished line.  The map_node and map_line records
-! must be saved on the random file also and initiated for the next.  All
-! map_node records with unfinished lines must be kept for the next.
+! - when the array of calculated equilibria must be saved on a file a map_node
+! record is created for each unifinished line.  The map_node and map_line
+! records must be saved on the random file also and initiated for the next.
+! All map_node records must be kept for the next block.  It is possible that
+! a line is being calculated leading to a node with no exits.  If that node 
+! is removed it will be created again and all already calculated lines exiting
+! will be calculated again ...
 !
 ! MAP_LINE records are created for each line followed during the step/map.  It 
 ! contains links to stored gtp_equilibrium_data records and some
@@ -191,7 +194,7 @@ MODULE ocsmp
 !
 !\begin{verbatim}
   TYPE graphics_options
-! setting options for the plotting, replace most arguments in the call
+! setting options for the plotting, this replaces most arguments in the call
 ! to ocplot2(ndx,pltax,filename,maptop,axarr,form)
 ! ndx is mumber of plot axis, pltax is text with plotaxis variables
 ! filename is intermediary file (maybe not needed)
@@ -203,6 +206,7 @@ MODULE ocsmp
      integer labeldefaults(3)
 ! label 1 is heading, 2 is x-axis text, 3 is y-axis text 
      character*64, dimension(3) :: plotlabels
+! many more options can easily be added when desired, linetypes etc
   end TYPE graphics_options
 !\end{verbatim}
 !
@@ -3000,8 +3004,9 @@ CONTAINS
 ! invariants for isopleths, number of stable phases equal to components+1
 ! number of adjacent regions with "components" stable phases is "components+1"
 ! number of exit lines are 2*(components+1)
-! each line has a fix phase and a phase not stable.  The rest are entered
-! each phase is fix for two lines and not stable for two.
+! each line has a fix phase and one of the phases stable at the invariant
+! as not stable.  The remaining phases  are entered.
+! Each phase is fix for two lines and not stable for two others
 ! This is the way to generate the exit lines:
 ! - loop for all phases to set a phase fix (for two lines)
 ! - loop for the next two phases to set one phase not stable
@@ -3617,7 +3622,7 @@ CONTAINS
 ! we may have empty lines due to bugs ...
 !       write(*,*)'Axis with wildcard and not: ',anpax,notanp
 !200    continue
-       do while(nr.gt.0)
+       plot1: do while(nr.gt.0)
           nv=nv+1
           if(nv.ge.maxval) then
              write(*,*)'Too many points to plot',maxval
@@ -3630,7 +3635,13 @@ CONTAINS
           statevar=pltax(notanp)
 !          call get_state_var_value(statevar,value,encoded,curceq)
           call meq_get_state_varorfun_value(statevar,value,encoded,curceq)
-          if(gx%bmperr.ne.0) goto 1000
+          if(gx%bmperr.ne.0) then
+! this error should not prevent plotting the other points
+             write(*,212)'Skipping this point 1: ',statevar(1:10),&
+                  curceq%tpval(1),nv,nr
+212          format(a,a,f10.2,2i5)
+             nv=nv-1; goto 215
+          endif
           xax(nv)=value
 !          write(*,201)'at 202: ',nr,nv,curceq%tpval(1),value
 !          xax(nv)=curceq%tpval(1)
@@ -3640,8 +3651,9 @@ CONTAINS
 ! second axis
           statevar=pltax(anpax)
           if(wildcard) then
-!             write(*,*)'Getting a wildcard value at ceq: ',nr,statevar(1:20)
+!             write(*,*)'Getting a wildcard value 1: ',nr,statevar(1:20)
              call get_many_svar(statevar,yyy,nzp,np,encoded,curceq)
+!             write(*,*)'Values: ',np,(yyy(i),i=1,np)
              if(gx%bmperr.ne.0) then
 !                write(*,*)'yaxis error: "',statevar(1:20),'"'
                 goto 1000
@@ -3665,7 +3677,12 @@ CONTAINS
 !             write(*,*)'Single state variable value: ',statevar(1:20),nr
 !             call get_state_var_value(statevar,value,encoded,curceq)
              call meq_get_state_varorfun_value(statevar,value,encoded,curceq)
-             if(gx%bmperr.ne.0) goto 1000
+             if(gx%bmperr.ne.0) then
+                write(*,212)'Skipping this point 2: ',statevar(1:10),&
+                     curceq%tpval(1),nv,nr
+                nv=nv-1; goto 215
+             endif
+!             if(gx%bmperr.ne.0) goto 1000
              anp(1,nv)=value
 !             write(*,201)'at 19: ',nr,nv,curceq%tpval(1),value
 !             write(*,19)'Bug: ',nr,nv,seqx,xax(nv),anp(1,nv)
@@ -3675,11 +3692,12 @@ CONTAINS
           endif
           if(anpmin.lt.ymin) ymin=anpmin
           if(anpmax.gt.ymax) ymax=anpmax
+215       continue
           nr=curceq%next
 !          write(*,*)'Next equilibrium: ',nr,nv,xax(nv)
 !          read(*,17)ch1
 17           format(a)
-       enddo
+       enddo plot1
 220    continue
 ! finished one line
        if(nax.gt.1) then
@@ -3704,7 +3722,12 @@ CONTAINS
 !                   call get_state_var_value(statevar,value,encoded,curceq)
                    call meq_get_state_varorfun_value(statevar,value,&
                         encoded,curceq)
-                   if(gx%bmperr.ne.0) goto 1000
+                   if(gx%bmperr.ne.0) then
+                      write(*,212)'Skipping this point 3: ',statevar,&
+                           curceq%tpval(1),nv,0
+                      goto 222
+                   endif
+!                   if(gx%bmperr.ne.0) goto 1000
                    nv=nv+3
                    if(nv.ge.maxval) then
                       write(*,*)'Too many points to plot 2',maxval
@@ -3716,9 +3739,11 @@ CONTAINS
 ! axis with possible wildcard
                    statevar=pltax(anpax)
                    if(wildcard) then
+! this cannot be a state variable derivative
+!                    write(*,*)'Getting a wildcard value 2: ',nr,statevar(1:20)
                       call get_many_svar(statevar,yyy,nzp,np,encoded,curceq)
                       if(gx%bmperr.ne.0) goto 1000
-                      if(ocv()) write(*,*)'Line with ',np,' state variables'
+!                      write(*,*)'Line with ',np,' state variables'
 ! save one non-zero value per line, 3 lines
                       ic=0
                       do jj=1,np
@@ -3738,10 +3763,14 @@ CONTAINS
 ! if no wildcard there is no invariant line
                       goto 225
                       np=1
-!                      call get_state_var_value(statevar,value,encoded,curceq)
                       call meq_get_state_varorfun_value(statevar,&
                            value,encoded,curceq)
-                      if(gx%bmperr.ne.0) goto 1000
+                      if(gx%bmperr.ne.0) then
+                         write(*,212)'Skipping point 4: ',statevar(1:10),&
+                              curceq%tpval(1),nv,0
+                         nv=nv-1; goto 222
+                      endif
+!                      if(gx%bmperr.ne.0) goto 1000
                       anp(1,nv)=value
 !                      write(*,201)'at 225: ',nr,nv,curceq%tpval(1),value
                    endif
@@ -3750,6 +3779,8 @@ CONTAINS
                    linesep(nlinesep)=nv
 !                   write(*,*)'adding empty line 1',nlinesep,linesep(nlinesep)
                 endif inv
+! exit here if error and skip point
+222             continue
              endif
           endif map1
 ! jump here if no wildcard
@@ -3893,8 +3924,6 @@ CONTAINS
     write(21,810)(i,i=1,np+1)
 810 format('# gnuplot output'/'#',i7,(1000i14))
 ! if anpax=1 then we must put the first colum after the colon in gnuplot
-!    write(*,613)(linesep(ksep),ksep=1,nlinesep)
-613 format('sep: ',20i4)
     ksep=2
     do nv=1,nrv
        write(21,820)nv,xax(nv),(anp(jj,nv),jj=1,np)
@@ -3916,6 +3945,7 @@ CONTAINS
 ! the linetype 16 (lt 16) was the most black I could find ....
 ! but now I plot all lines with broad black lines (should be lt 7 ...)
 ! 'set linetype 1 lc rgb "black" lw 2 pt 11'
+! these format statements are comments written at the end of the dat file
 830 format('# plot "ocg.dat" using 2:3 with lines lt 1,',&
          ' "ocg.dat" using 2:4 with lines lt 1, ...'/'# set term postscript'/&
          '# set output "ocg.ps"'/'# plot ... '/'# ps2pdf ocg.ps')
@@ -3934,10 +3964,13 @@ CONTAINS
     open(21,file=pfc,access='sequential',status='unknown')
     if(form(1:1).eq.'P') then
        pfh=filename(1:kk)//'.'//'ps '
-       write(21,866)pfh(1:len_trim(pfh))
-866    format('set terminal postscript'/'set output "',a,'"')
+       write(21,850)pfh(1:len_trim(pfh))
+850    format('set terminal postscript'/'set output "',a,'"')
     endif
+!----------------------
     if(anpax.eq.2) then
+! anpax=2 means the single valued axis is colum 2 and possibly multiple
+! values in column 3 and higher
        write(21,870)title(1:len_trim(title)),pltax(1)(1:len_trim(pltax(1))),&
             pltax(2)(1:len_trim(pltax(2)))
 870    format('set title "',a,'"'/&
@@ -3945,47 +3978,77 @@ CONTAINS
             'set linetype 1 lc rgb "black" lw 1 pt 11')
        if(graphopt%rangedefaults(1).ne.0) then
 ! user defined ranges for x axis
-          write(21,760)'x',graphopt%plotmin(1),graphopt%plotmax(1)
+          write(21,930)'x',graphopt%plotmin(1),graphopt%plotmax(1)
        endif
        if(graphopt%rangedefaults(2).ne.0) then
 ! user defined ranges for y axis
-          write(21,760)'y',graphopt%plotmin(2),graphopt%plotmax(2)
+          write(21,930)'y',graphopt%plotmin(2),graphopt%plotmax(2)
        endif
-       write(21,874,advance='no')(pfd(1:kkk),i,i=3,np+2)
-874    format('plot "',a,'" using 2:',i3,' with lines lt 1,',&
-            999('"',a,'" using 2:',i3,' with lines lt 1,'))
-       write(21,873)
+! this is the multiple plot, file name only given once!!
+! last line tuple on a separate format statement, if np>2
+       if(np.eq.2) then
+          write(21,892)pfd(1:kkk)
+892       format('plot "',a,'" using 2:3 with lines lt 1,',&
+               '"" using 2:4 with lines lt 1')
+       else
+          write(21,890,advance='no')pfd(1:kkk),(i,i=3,np+1)
+          write(21,891,advance='no')np+2
+890       format('plot "',a,'" using 2:',i3,' with lines lt 1',&
+               999(',"" using 2:',i3,' with lines lt 1'))
+891       format(i3,' with lines lt 1,'/)
+!       write(21,970)
+! this is the first attempt with file name given for each line pair
+!       write(21,890,advance='no')(pfd(1:kkk),i,i=3,np+2)
+!890    format('plot "',a,'" using 2:',i3,' with lines lt 1,',&
+!            999('"',a,'" using 2:',i3,' with lines lt 1,'))
+!       write(21,970)
+       endif
     else
 ! possible bug in GNUPLOT: the format 870 above is OK to finish with ' lines,"'
 ! but not with the same format using ..',i3,':1.. rather than ..1:',i3,'...
 ! If I finish with 'lines' without a "," then OK.  
 ! If I add a ; on same line OK, trying the latter
-       write(21,871)title,pltax(2)(1:len_trim(pltax(2))),&
+       write(21,910)title(1:len_trim(title)),pltax(2)(1:len_trim(pltax(2))),&
             pltax(1)(1:len_trim(pltax(1)))
 ! Note the xrange/yrange commands are comments
-871    format('set title "',a,'"'/&
+910    format('set title "',a,'"'/&
             'set ylabel "',a,'"'/'set xlabel "',a,'"'/&
             'set linetype 1 lc rgb "black" lw 1 pt 11'/&
             '# set xrange [0:1]'/'# set yrange [300:3000]')
        if(graphopt%rangedefaults(1).ne.0) then
 ! user defined ranges for x axis
-          write(21,760)'x',graphopt%plotmin(1),graphopt%plotmax(1)
-760       format('set ',a1,'range [',1pe12.4,':',1pe12.4,'] ')
+          write(21,930)'x',graphopt%plotmin(1),graphopt%plotmax(1)
+930       format('set ',a1,'range [',1pe12.4,':',1pe12.4,'] ')
        endif
        if(graphopt%rangedefaults(2).ne.0) then
 ! user defined ranges for y axis
-          write(21,760)'y',graphopt%plotmin(2),graphopt%plotmax(2)
+          write(21,930)'y',graphopt%plotmin(2),graphopt%plotmax(2)
        endif
-       write(21,872,advance='no')(pfd(1:kkk),i,i=3,np+2)
-872    format('plot "',a,'" using ',i3,':2 with lines lt 1,',&
-            999('"',a,'" using ',i3,':2 with lines lt 1,'))
-       write(21,873)
-873    format(';')
+! this writes the file name only once and last line separate if np>2
+       if(np.eq.2) then
+          write(21,952)pfd(1:kkk)
+952       format('plot "',a,'" using 3:2 with lines lt 1,',&
+               '"" using 4:2 with lines lt 1')
+       else
+          write(21,950,advance='no')pfd(1:kkk),(i,i=3,np+1)
+          write(21,951,advance='no')np+2
+950       format('plot "',a,'" using ',i3,':2 with lines lt 1',&
+               999(',"" using ',i3,':2 with lines lt 1'))
+951       format(i3,':2 with lines lt 1'/)
+!       write(21,970)
+!970    format(';')
+! this was the old way of writing the file name for each line
+!       write(21,950,advance='no')(pfd(1:kkk),i,i=3,np+2)
+!950    format('plot "',a,'" using ',i3,':2 with lines lt 1,',&
+!            999('"',a,'" using ',i3,':2 with lines lt 1,'))
+!       write(21,970)
+!970    format(';')
+       endif
     endif
     if(form(1:1).eq.' ') then
 ! if not hardcopy pause gnuplot
-       write(21,880)
-880    format('pause -1')
+       write(21,990)
+990    format('pause -1')
     endif
     close(21)
 !-------------------------------------------------------------------

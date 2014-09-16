@@ -500,8 +500,9 @@
       status='Dormant'
       kstat=4
 ! skip dormant phases unless positive driving force
-      if(ceq%phase_varres(lokcs)%dgm.le.mindgm) goto 1000
+!      if(ceq%phase_varres(lokcs)%dgm.le.mindgm) goto 1000
    elseif(ceq%phase_varres(lokcs)%phstate.eq.PHSUS) then
+! skip suspended phases
       status='Suspended'
       goto 1000
 !      if(btest(ceq%phase_varres(lokcs)%status2,csfixdorm)) then
