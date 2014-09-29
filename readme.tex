@@ -15,7 +15,7 @@
 {\Large \bf Some important facts about this beta test release of the
   OC software, version 2.}
 
-Bo Sundman, \today
+Bo Sundman, 15 September 2014
 
 http://www.opencalphad.org
 
@@ -132,8 +132,8 @@ are missing in your favourite software.
   of success.  The algorithm to change the set of stable phases is
   fragile and has not been fine tuned.
 
-\item In version 2 the step and map procedures are implenebted but
-  full if bugs.  It uses gnuplot to handle the graphics.  
+\item In version 2 the step and map procedures are implemented but
+  full if bugs.  It uses GNUPLOT to handle the graphics.  
 
 \item The ``dot derivative'' facility has been implemented for a
   limited set of cases of derivatives with respect to $T$ and $P$,
@@ -144,7 +144,7 @@ are missing in your favourite software.
   documentation of the model package.
 
 \item The code is very messy, I had hoped to have time to clean it up
-  before the release but that will be for the next one.
+  before this release but that will be for the next one.
 
 \item The big thing to do now is to develop an assessment module.
   Anyone with ideas are welcome to contribute.
@@ -229,7 +229,7 @@ The OC software is provided with a GNU license which means that you
 have the source code and can use it and modify it as you wish as long
 as you do not try to make money of it.  If you want to include the OC
 software (or part of it) in a commercial program you must contact the
-copyright owners.
+copyright owners to have another license.
 
 There is a fairly extensive documentation of the source code in the
 directory ``documentationupdate'' and if you look at the code itself
@@ -243,7 +243,7 @@ there are probably many things that can be made simpler.  You are
 welcome to point out where this can be done.  The hope is to release
 this code before the end of 2014.
 
-As I have understood the data structures (TYPE) in the new Fortran
+As I have understood the data structure (TYPE) in the new Fortran
 standard is more or less identical to those used in C++ so it should
 not be too difficult to combine code written in these languages.
 
@@ -275,9 +275,12 @@ show that there are still issues to solve.
 \item Mapping the binary phase diagram for Ag-Cu and setting ranges
   for plotting.
 
-\item Mapping the Cr-Mo binary diagram with a miscibility gap.
+\item Mapping the Cr-Mo binary diagram with a miscibility gap.  Does
+  not close.
 
-\item Mapping the binary C-Fe phase diagram.
+\item Mapping the binary C-Fe phase diagram.  Does not extend to pure Fe.
+
+\item Mapping the binary U-O phase diagram.  Several start points needed.
 
 \item Mapping the binary Fe-Mo phase diagram.  Several start points
   needed.
@@ -287,7 +290,7 @@ show that there are still issues to solve.
 \item Mapping a high speed steel.  The liquidus is missing.
 
 \item Stepping the high speed steel vs T.  Plotting phase amount,
-mass percent of Cr in verious phases, enthalpy and heat capacity.
+mass percent of Cr in various phases, enthalpy and heat capacity.
 The last an example of a dot derivative.
 
 \item Stepping G curves for Ag-Cu vs composition.
@@ -297,7 +300,7 @@ enthalpy and heat capacity.
 
 \end{enumerate}
 
-{\large \bf Have fun and make OC grow!}
+{\large \bf Have fun and make OC better!}
 
 \end{document}
 

@@ -10,13 +10,13 @@
 ! called with a state varaiable character
    implicit none
    TYPE(gtp_equilibrium_data), pointer :: ceq
-   character statevar*(*),encoded*(*),name*16
+   character statevar*(*),encoded*(*)
    double precision value
 !\end{verbatim}
    integer indices(4)
    integer iunit,istv,iref,ip,jl,lrot,mode
    type(gtp_state_variable), pointer :: svr
-   character actual_arg(2)*16
+   character actual_arg(2)*16,name*16
 !
    iunit=0
    call decode_state_variable(statevar,svr,ceq)
@@ -172,7 +172,7 @@
                if(gx%bmperr.ne.0) goto 1000
             enddo
          else
-! indices(3) must be -2, -1 or >=0 so if here there is an error
+! indices(3) must be -2, -1 or >=0 so if we are here there is an error
             write(*,17)'Illegal set of indices 1',(indices(jl),jl=1,4)
 17          format(a,4i4)
             gx%bmperr=7777; goto 1000
@@ -266,6 +266,7 @@
 ! loop for phase+compset as indices(1+2)
 ! here we must be careful not to destroy original indices, use modind
 !      write(*,*)'get_many NP(*) 1: ',gx%bmperr,indices(3)
+!      write(*,*)'Loop for many phases',indices(1)
       do k1=1,noofph
          modind(1)=k1
          modind(2)=0
@@ -378,6 +379,7 @@
    character statevar*(*)
    type(gtp_state_variable), pointer :: svr
    type(gtp_equilibrium_data), pointer :: ceq
+! this subroutine using state variable records is a front end of the next:
 !\end{verbatim} %+
 !   type(gtp_state_variable) :: svrec   
    integer istv,indices(4),iref,iunit
@@ -390,7 +392,7 @@
 
 !\begin{verbatim} %-
  subroutine decode_state_variable3(statevar,istv,indices,iref,iunit,svr,ceq)
-! converts a state variable character to indices
+! converts an old state variable character to indices 
 ! Typically: T, x(fe), x(fcc,fe), np(fcc), y(fcc,c#2), ac(h2,bcc), ac(fe)
 ! NOTE! model properties like TC(FCC),MQ&FE(FCC,CR) must be detected
 ! NOTE: added storing information in a gtp_state_variable record svrec !!
@@ -537,7 +539,12 @@
    endif chemp
 ! MU, AC and LNAC can have a suffix 'S', reference state, iref=0 is default
    if(lstate(jp:jp).eq.'S') then
-      iref=1
+! This iref has not been treated correctly so far.  The idea is now that
+! iref=0 means user defined reference state, if the user has not defined any
+! reference state it means SER.  If the user specifies a suffix S it means
+! always SER even if the user has defined another reference state.
+! Maybe iref>0 will have some other meaing in the future ...
+      iref=-1
       jp=jp+1
    endif
 ! extract the argument, can be one or two indices
@@ -882,8 +889,9 @@
 611 format(a,10i4)
 !------------------------------------------------
 1000 continue
-! accept the current istv as svr%oldstv
+! accept the current istv as svr%oldstv, store a suffix S on MU as phref<0
    svr%oldstv=istv
+   svr%phref=iref
    if(deblist) write(*,1001)'25C exit decode: ',istv,(indices(is),is=1,4),&
         norm,iref,iunit,svr%oldstv,svr%phase,svr%compset,svr%component,&
         svr%constituent,svr%norm,svr%phref,svr%unit,svr%argtyp,&
@@ -1320,7 +1328,9 @@
 ! Potential, MU, AC or LNAC, possible suffix 'S' for SER
       stsymb=svid(istv)
       jp=len_trim(stsymb)+1
-      if(iref.ne.0) then
+!      if(iref.ne.0) then
+      if(iref.lt.0) then
+! New use of svr%phref and iref, <0 means use SER as reference state
          stsymb(jp:jp)='S'
          jp=jp+1
       endif
@@ -1513,17 +1523,24 @@
    if(svr%argtyp.eq.1) then
       indices(1)=svr%component
    elseif(svr%argtyp.eq.2) then
-      indices(1)=svr%phref
+      indices(1)=svr%phase
       indices(2)=svr%compset
    elseif(svr%argtyp.eq.3) then
-      indices(1)=svr%phref
+      indices(1)=svr%phase
       indices(2)=svr%compset
       indices(3)=svr%component
    elseif(svr%argtyp.eq.4) then
-      indices(1)=svr%phref
+      indices(1)=svr%phase
       indices(2)=svr%compset
       indices(3)=svr%constituent
    endif
+! there is some cloudy thinking here.  If the user has defined his own
+! reference state that should be used.  The information is stored in the
+! component record (ceq%complist(i)%phlink
+! But if the user specifies MUS(i) one should use SER ... how to transfer that
+! information to the calculating routines?
+! By default svr%phref=0, then use user defined.  If phref<0 use SER ??
+   iref=svr%phref
 !
    if(istv.le.0) then
 ! this is a parameter property symbol: TC (-2), BM (-3), MQ&FE(FCC) (-4) etc
@@ -1544,14 +1561,16 @@
 ! Potential, MU, AC or LNAC, possible suffix 'S' for SER
       stsymb=svid(istv)
       jp=len_trim(stsymb)+1
-      if(iref.ne.0) then
+!      if(iref.ne.0) then
+      if(iref.lt.0) then
+! new use of phref and iref, <0 means use SER and suffix S
          stsymb(jp:jp)='S'
          jp=jp+1
       endif
       stsymb(jp:jp)='('
       jp=jp+1
       if(indices(2).eq.0) then
-! problem ... component names different in different equilibria ....
+! problem ... component names can be different in different equilibria ....
          call get_component_name(indices(1),stsymb(jp:),ceq)
          if(gx%bmperr.ne.0) goto 1000
          jp=len_trim(stsymb)+1
@@ -1762,7 +1781,7 @@
 ! calculate the value of a state variable in equilibrium record ceq
 ! istv is state variable type (integer)
 ! indices are possible specifiers
-! iref idicates use of possible reference state
+! iref indicates use of possible reference state
 ! iunit is unit, (K, oC, J, cal etc). For % it is 100
 ! value is the calculated values. for state variables with wildcards use
 ! get_many_svar
@@ -1774,10 +1793,11 @@
 !\end{verbatim}
    double precision props(5),xmol(maxel),wmass(maxel),stoi(10),cmpstoi(10)
    double precision vt,vp,amult,vg,vs,vv,div,aref,vn,bmult,tmass,tmol
-   double precision qsp,gref,spmass
+   double precision qsp,gref,spmass,rmult
    integer kstv,norm,lokph,lokcs,icx,jp,ncmp,ic,iprop,loksp,nspel,iq
    integer endmember(maxsubl),ielno(maxspel)
    value=zero
+   ceq%rtn=globaldata%rgas*ceq%tpval(1)
 !   write(*,10)'25C svval: ',istv,indices,iref,iunit,gx%bmperr,value
 10 format(a,i4,4i4,3i5,1PE17.6)
    potentials: if(istv.lt.0) then
@@ -1824,13 +1844,15 @@
 ! kstv can be 1 to 15 for different properties
 ! norm can be 1, 2, 3 or 4 for normalizing. 0 for not normallizing
 !             M  W  V    F
-! iref can be 0 or 1 for reference state
+! OLD: iref can be 0 or 1 for reference state
+! iref can be 0 for using current referennce state
+! iref <0 for default reference state (SER)
    le10: if(kstv.le.10) then
 ! kstv=       1  2  3  4  5  6  7   8   9     10
 ! state var;  U, S, V, H, A, G, NP, BP, DG and Q
       vt=ceq%tpval(1)
       vp=ceq%tpval(2)
-      ceq%rtn=globaldata%rgas*ceq%tpval(1)
+!      ceq%rtn=globaldata%rgas*ceq%tpval(1)
       amult=ceq%rtn
 !      write(*,*)'stv B: ',vt,vp,amult
       if(indices(1).eq.0) then
@@ -1852,6 +1874,9 @@
          else
             div=one
          endif
+! for phase specific the aref should be independent of amult and div ??
+! for system wide these are unity
+         rmult=one
       else
 ! phase specific, indices are phase and composition set
          call get_phase_compset(indices(1),indices(2),lokph,lokcs)
@@ -1861,31 +1886,49 @@
          vv=ceq%phase_varres(lokcs)%gval(3,1)
          if(norm.eq.1) then
             div=ceq%phase_varres(lokcs)%abnorm(1)
+            rmult=div
          elseif(norm.eq.2) then
 ! abnorm(2) should be the mass per formulat unit
             div=ceq%phase_varres(lokcs)%abnorm(2)
+            rmult=div
          elseif(norm.eq.3) then
             div=ceq%phase_varres(lokcs)%gval(3,1)
             if(div.eq.zero) then
                gx%bmperr=4114; goto 1000
             endif
+            rmult=div
          elseif(norm.eq.4) then
 ! per formula unit
             div=one
+            rmult=div
          else
-! no normalizing for a specific phase, value per mole formula unit
+! no normalizing for a specific phase, value for current amount
+! NOTE amult is alreadt RT
             amult=amult*ceq%phase_varres(lokcs)%amfu
+            rmult=ceq%phase_varres(lokcs)%amfu
             div=one
 !             div=ceq%phase_varres(lokcs)%abnorm(1)
          endif
+! for phase specific the aref is for one mole of atoms and should 
+! be independent of amult and div ??
+!         if(amult.eq.zero) then
+!            rmult=zero
+!         else
+!            rmult=div/amult
+!         endif
       endif
 ! here the reference state should be considered
-      aref=zero
-      if(iref.ne.0) then
+!      aref=zero
+      if(iref.eq.0) then
 ! >>>> unfinished
-         write(*,*)'Reference state not implemented'
+!         write(*,*)'Reference state not implemented'
+         call calculate_reference_state(kstv,indices(1),indices(2),aref,ceq)
+         if(gx%bmperr.ne.0) goto 1000
+      else
          aref=zero
       endif
+! if phase specific the scaling for phase specific must be compensated
+      aref=rmult*aref
 !      write(*,53)'at kstv1: ',kstv,props,aref,div
 53    format(a,i3,5(1PE12.3))
       kstv1: if(kstv.eq.1) then
@@ -1901,12 +1944,15 @@
          value=amult*(vv-aref)/div
       elseif(kstv.eq.4) then
 ! 4: H = G + TS = G - T*G.T
+!         write(*,177)'25C H:',vg+vt*vs,aref,amult,div,rmult
+177      format(a,6(1pe12.4))
          value=amult*(vg+vt*vs-aref)/div
       elseif(kstv.eq.5) then
 ! 5: A = G - PV = G - P*G.P
          value=amult*(vg-vp*vv-aref)/div
       elseif(kstv.eq.6) then
 ! 6: G
+!         write(*,177)'25C G:',vg,aref,amult,div
          value=amult*(vg-aref)/div
       elseif(kstv.eq.7) then
 ! 7: NP
@@ -1923,7 +1969,7 @@
 202      format(a,i5,2(1pe12.4))
          value=ceq%phase_varres(lokcs)%dgm/div
       elseif(kstv.eq.10) then
-! 10: Q (stability, thermodynamic factor)
+! 10: Q (stability, thermodynamic factor), not implemented
          gx%bmperr=4081; goto 1000
 !      else
 !         write(*,*)'svval after 10:',kstv
@@ -1952,6 +1998,7 @@
          elseif(norm.eq.2) then
             div=props(5)
          elseif(norm.eq.3) then
+! we may not have any volume data ...
             div=props(3)
             if(div.eq.zero) then
                gx%bmperr=4114; goto 1000
@@ -1961,7 +2008,7 @@
          else
             div=one
          endif
-! This is N or B without index but normallized
+! This is N or B without index but possibly normallized
 !         write(*,89)'25C svv, N or B: ',vn,div
 89       format(a,5(1pe12.4))
          value=vn/div
@@ -2114,6 +2161,7 @@
 ! chemical potentials, activites etc, istv is 3, 4 or 5 for MU, AC and LNAC
 ! there can be a reference state
 500 continue
+!   ceq%rtn=globaldata%rgas*ceq%tpval(1)
 ! if one argument that is a component, if two these are phase and constituent
    if(indices(2).ne.0) then
       lokph=phases(indices(1))
@@ -2137,8 +2185,11 @@
 ! just this constituent
       endmember(1)=indices(2)
       call calcg_endmember(indices(1),endmember,gref,ceq)
-      value=value-gref
-! convert to AC or LNAC
+      if(gx%bmperr.ne.0) goto 1000
+      value=value-gref*ceq%rtn
+!      write(*,511)'25C refstate: ',endmember(1),indices(1),gref,value
+511   format(a,2i3,6(1pe14.6))
+! possibly convert to AC or LNAC
       goto 700
    else
 ! MU(i) should be in position i, not indexed by splink ??
@@ -2148,15 +2199,37 @@
 !              ceq%complist(ic)%chempot(1)
 !         if(indices(1).eq.ceq%complist(ic)%splink) then
       if(indices(1).le.0 .or. indices(1).gt.noofel) then
-         write(*,*)'Asking for nonexisting chemical potential'
+!         write(*,*)'Asking for nonexisting chemical potential'
          gx%bmperr=4171; goto 1000
       endif
-! hm ??, iref=1 should mean MU and 0 MUS but it seems to be the opposite ...
-      if(iref.eq.1) then
-         value=ceq%complist(indices(1))%chempot(1)
+! iref=0 is default i.e. mean MU and iref<0 should mean MUS
+! If a component has a defined reference state that is in complist(indices(1))
+!      write(*,*)'25C Reference state: ',iref,ceq%complist(indices(1))%phlink
+      if(iref.eq.0 .and. ceq%complist(indices(1))%phlink.ne.0) then
+!      if(iref.eq.1) then
+! phlink is phase, endmember is enmember, tpref<0 means current T
+! we should also have a stoichiometry factor ??
+         endmember(1)=indices(2)
+         aref=ceq%tpval(1)
+         if(ceq%complist(indices(1))%tpref(1).gt.zero) then
+! reference state is at a fixed T, negative tpref(1) means current T
+            ceq%tpval(1)=ceq%complist(indices(1))%tpref(1)
+         endif
+!         write(*,*)'25C calling calcg_endmember: ',&
+!              ceq%complist(indices(1))%phlink,&
+!              ceq%complist(indices(1))%endmember
+         call calcg_endmember(ceq%complist(indices(1))%phlink,&
+              ceq%complist(indices(1))%endmember,gref,ceq)
+         if(gx%bmperr.ne.0) goto 1000
+         ceq%tpval(1)=aref
+         aref=ceq%complist(indices(1))%chempot(1)
+         value=ceq%complist(indices(1))%chempot(1)-gref*ceq%rtn
+!         write(*,513)'25C gref: ',indices(1),value,aref,gref*ceq%rtn
+513      format(a,i3,5(1pe14.6))
       else
-! this value is referred to the user defined reference state
-         value=ceq%complist(indices(1))%chempot(2)
+! this value should always be referenced to SER
+! the value in chempot(2) is probably redundant after this change
+         value=ceq%complist(indices(1))%chempot(1)
       endif
 !      write(*,*)'25C chempot: ',indices(1),&
 !           ceq%complist(indices(1))%chempot(1),&
@@ -2165,7 +2238,7 @@
    endif
 ! convert from MU to AC or LNAC if necessary
 700 continue
-   ceq%rtn=globaldata%rgas*ceq%tpval(1)
+!   ceq%rtn=globaldata%rgas*ceq%tpval(1)
    if(istv.eq.4) then
 ! AC = exp(mu/RT)
       value=exp(value/ceq%rtn)
@@ -2184,7 +2257,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim}
+!-\begin{verbatim}
  subroutine state_var_value_derivative_old(svr1,svr2,value,ceq)
 ! THIS SUBROUTINE MOVED TO MINIMIZER
 ! subroutine state_var_value_derivative(istv,indices,iref,iunit,&
@@ -2202,7 +2275,7 @@
 !   integer :: istv,iref,iunit,istv2,iref2,iunit2
 !   integer, dimension(4) :: indices,indices2
    double precision value
-!\end{verbatim}
+!-\end{verbatim}
    double precision, dimension(5) :: props
    double precision, dimension(maxel) :: xmol,wmass
 !
@@ -2215,6 +2288,88 @@
 1000 continue
    return
  end subroutine state_var_value_derivative_old
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine calculate_reference_state(kstv,iph,ics,aref,ceq)
+! Calculate the user defined reference state for extensive properties
+! kstv is the typde of property: 1 U, 2 S, 3 V, 4 H, 5 A, 6 G
+! It can be phase specific (iph.ne.0) or global (iph=0)
+   implicit none
+   integer kstv,iph,ics
+   double precision aref
+   type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+! kstv=1  2  3  4  5  6 other values cared for elsewhere
+!      U  S  V  H  A  G
+   integer iel,phref,ij
+   double precision gref(6),bref(6),xmol(maxel),wmass(maxel),xxx(6)
+   double precision tmol,tmass,bmult
+!
+!   write(*,*)'Reference states not implemented yet'; goto 1000
+!   write(*,*)'25C reference state:',kstv,iph,ics
+   if(kstv.lt.1 .or. kstv.gt.6) then
+!      write(*,*)'No reference state for kstv: ',kstv
+      goto 1000
+   endif
+! loop for all components to extract the value of their reference states
+! Multiply that with the overall composition (iph=0) or the phase composition
+   xmol=zero
+   do iel=1,noofel
+! this is the reference phase for component iel
+      phref=ceq%complist(iel)%phlink
+      if(phref.gt.0) then
+! special endmember call that returns G, G.T, G.P, G.T.T, G.T.P and G.P.P
+!         write(*,73)'25C R state: ',iel,phref,&
+!              ceq%complist(iel)%endmember
+73       format(a,2i3,2x,10i4)
+         call calcg_endmember6(phref,ceq%complist(iel)%endmember,gref,ceq)
+         if(gx%bmperr.ne.0) goto 1000
+         if(iph.gt.0) then
+! multiply with mole fractions of phase iph,ics
+            call calc_phase_molmass(iph,ics,xmol,wmass,tmol,tmass,bmult,ceq)
+         else
+! multiply with overall mole fractions
+            call calc_molmass(xmol,wmass,tmol,tmass,ceq)
+         endif
+         xxx=bref+xmol(iel)*gref
+!         write(*,70)'25Crs: ',bref,gref,xxx,(xmol(ij),ij=1,noofel)
+70       format(a,6(1pe12.4)/,2(7x,6e12.4/),8(0pF8.4))
+         bref=xxx
+      else
+         gref=zero
+      endif
+   enddo
+! calculate the correct correction depending on kstv
+   if(kstv.eq.1) then
+! U = G - T*G.T - P*G.P
+      aref=bref(1)-ceq%tpval(1)*bref(2)-ceq%tpval(2)*bref(3)
+   elseif(kstv.eq.2) then
+! S = - G.T
+      aref=-bref(2)
+      
+   elseif(kstv.eq.3) then
+! V
+      aref=bref(3)
+      
+   elseif(kstv.eq.4) then
+! H = G - T*G.T
+      aref=bref(1)-ceq%tpval(1)*bref(2)
+      
+   elseif(kstv.eq.5) then
+! A = G - P*G.P
+      aref=bref(1)-ceq%tpval(2)*bref(3)
+      
+   elseif(kstv.eq.6) then
+! G
+      aref=bref(1)
+   endif
+!   write(*,75)aref
+75 format('25Cref:',6(1pe12.4))
+1000 continue
+   return
+ end subroutine calculate_reference_state
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

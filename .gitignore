@@ -3,6 +3,9 @@
 *.mod
 *.pdf
 *.zip
+*.exe
+*.em
+*.cmd
 oc1A
 oc2A
 linkoc

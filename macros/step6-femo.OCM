@@ -1,0 +1,47 @@
+@$ step separate for Fe-Mo
+
+set echo
+
+r t steel1
+fe mo
+
+
+set c t=1400 p=1e5 n=1 x(mo)=.2
+
+c e
+
+l r 1
+
+@&
+
+set axis 1 x(mo) 0 1 .01
+
+@&
+
+set ref fe bcc ,,,,,,,
+set ref mo bcc ,,,,,,,
+
+@&
+
+step
+sep
+
+
+
+plot ,,,,,,,,,,,
+
+
+
+plot
+x(mo)
+gm(*)
+ocgnu
+yr
+N
+-5000
+1000
+
+
+
+set inter
+

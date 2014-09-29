@@ -3329,6 +3329,7 @@
    character name2*64
    integer ieq,ipv,nc,jz,iz,jl,jk,novarres
    if(.not.allowenter(3)) then
+      write(*,*)'25G: not allowed enter equilibrium: ',name
       gx%bmperr=4153; goto 1000
    endif
    name2=name
@@ -3619,10 +3620,13 @@
    integer ieq,ipv,nc,jz,iz,jl,jk,novarres,oldeq,zz
    logical okname
 !
+!   write(*,*)'In copy_equilibrium',len_trim(name)
    nullify(neweq)
    if(.not.allowenter(3)) then
+!      write(*,*)'Not allowed enter a copy'
       gx%bmperr=4153; goto 1000
    endif
+!   write(*,*)'allow enter OK'
 ! not allowed to enter equilibria if there are no phases
 !   if(btest(globaldata%status,GSNOPHASE)) then
 !      write(*,*)'Meaningless to copy equilibria with no phase data'
@@ -3633,6 +3637,9 @@
    if(name(1:1).eq.'_') then
       name2=name(2:)
       jk=1
+   elseif(name(1:1).eq.' ') then
+      write(*,*)'A name must start with a letter'
+      gx%bmperr=8888; goto 1000
    else
       name2=name
       jk=0
@@ -3650,7 +3657,9 @@
 !   write(*,*)'25G name check ok: ',jk
 ! remove initial "_" used for automatically created equilibria
    if(jk.eq.1) then
+! changing this cause a lot of trouble ... but I do not understand
       name2='_'//name2
+!      name2=name2(2:)
    endif
 ! check if name already used
 !   write(*,*)'25G check if name unique: ',name2
@@ -3711,9 +3720,11 @@
             eqlista(ieq)%compstoi(jl,jk)=firsteq%compstoi(jl,jk)
             eqlista(ieq)%invcompstoi(jl,jk)=firsteq%invcompstoi(jl,jk)
          enddo
-         iz=size(firsteq%complist(jl)%endmember)
-         allocate(eqlista(ieq)%complist(jl)%endmember(iz))
-         eqlista(ieq)%complist(jl)%endmember=firsteq%complist(jl)%endmember
+         if(.not.allocated(eqlista(ieq)%complist(jl)%endmember)) then
+            iz=size(firsteq%complist(jl)%endmember)
+            allocate(eqlista(ieq)%complist(jl)%endmember(iz))
+            eqlista(ieq)%complist(jl)%endmember=firsteq%complist(jl)%endmember
+         endif
       else
          eqlista(ieq)%complist(jl)%refstate=firsteq%complist(jl)%refstate
       endif

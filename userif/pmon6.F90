@@ -122,7 +122,7 @@ contains
 ! passed as date when program was linked
     character linkdate*(*)
 ! for macro and logfile and repeating questions
-    logical logok,stop_on_error,once,wildcard
+    logical logok,stop_on_error,once,wildcard,twice
 ! unit for logfile input, 0 means no logfile
     integer logfil
 ! remember default for calculate phase
@@ -148,7 +148,7 @@ contains
     integer, parameter :: ncam1=12,ncset=18,ncadv=3,ncstat=6,ncdebug=6
     integer, parameter :: nselect=6,nlform=6
     integer, parameter :: ncamph=12,nclph=6,nccph=3,nrej=6,nsetph=6
-    integer, parameter :: nsetphbits=15,ncsave=6,nplt=6
+    integer, parameter :: nsetphbits=15,ncsave=6,nplt=6,nstepop=6
 ! basic commands
     character (len=16), dimension(ncbas), parameter :: cbas=&
        ['AMEND           ','CALCULATE       ','SET             ',&
@@ -178,7 +178,7 @@ contains
          'STATE_VARIABLES ','BIBLIOGRAPHY    ','PARAMETER_IDENTI',&
          'AXIS            ','TPFUN_SYMBOLS   ','QUIT            ',&
          '                ','EQUILIBRIA      ','RESULTS         ',&
-         'CONDITIONS      ','SYMBOLS         ','LINES           ']
+         'CONDITIONS      ','SYMBOLS         ','LINE_EQUILIBRIA ']
 !-------------------
 ! subsubcommands to LIST DATA
     character (len=16), dimension(nlform) :: llform=&
@@ -265,6 +265,12 @@ contains
          '                ','                ','                ']
 !         123456789.123456---123456789.123456---123456789.123456
 !-------------------
+! subcommands to STEP
+    character (len=16), dimension(nstepop) :: cstepop=&
+         ['NORMAL          ','SEPARATE        ','QUIT            ',&
+          'CONDITIONAL     ','                ','                ']
+!         123456789.123456---123456789.123456---123456789.123456
+!-------------------
 ! subcommands to DEBUG
     character (len=16), dimension(ncdebug) :: cdebug=&
          ['FREE_LISTS      ','STOP_ON_ERROR   ','ELASTICITY      ',&
@@ -313,7 +319,9 @@ contains
     graphopt%rangedefaults=0
     graphopt%labeldefaults=0
     graphopt%plotmin=zero
+    graphopt%dfltmin=zero
     graphopt%plotmax=one
+    graphopt%dfltmax=one
 ! initiate on-line help
     call init_help('ochelp.hlp ')
 ! set default minimizer
@@ -344,6 +352,7 @@ contains
     nullify(mapnode)
     nullify(maptopsave)
 ! entered start equilibria
+    nullify(starteq)
     noofstarteq=0
 ! set default fractions when entering composition
     xknown=one
@@ -948,32 +957,32 @@ contains
           if(gx%bmperr.ne.0) goto 100
           call gparc('Reference phase: ',cline,last,1,name1,' ',q1help)
           if(name1(1:4).eq.'SER ') then
-! this means no reference phase
+! this means no reference phase, SER is at 298.15K and 1 bar
              iph=-1
           else
              call find_phase_by_name(name1,iph,ics)
              if(gx%bmperr.ne.0) goto 100
-          endif
 ! temperature * means always to use current temperature
-          call gparr('Temperature: /*/: ',cline,last,xxx,zero,q1help)
-          if(xxx.le.zero) then
-             tpa(1)=-one
-          else
-             tpa(1)=xxx
-          endif
-          xxy=1.0D5
-          call gparrd('Pressure: ',cline,last,xxx,xxy,q1help)
-          if(xxx.le.zero) then
-             tpa(2)=xxy
-          else
-             tpa(2)=xxx
+             call gparr('Temperature: /*/: ',cline,last,xxx,zero,q1help)
+             if(xxx.le.zero) then
+                tpa(1)=-one
+             else
+                tpa(1)=xxx
+             endif
+             xxy=1.0D5
+             call gparrd('Pressure: ',cline,last,xxx,xxy,q1help)
+             if(xxx.le.zero) then
+                tpa(2)=xxy
+             else
+                tpa(2)=xxx
+             endif
           endif
           call set_reference_state(iel,iph,tpa,ceq)
           if(gx%bmperr.eq.0) then
              write(kou,3104)
-3104         format(' You must make a new calculation before the',&
+3104         format(' You may have to make a new calculation before the',&
                   ' correct values'/&
-                  ' of chemical potentials or energy properties are shown.')
+                  ' of chemical potentials or other properties are shown.')
           endif
 !-----------------------------------------------------------
        case(7) ! quit
@@ -1057,7 +1066,7 @@ contains
           case(3:4) !set phase default constitution wildcard allod, also AMOUNT
              if(kom3.eq.3) then
 ! set phase default constituntion
-                call set_default_constitution(iph,ics,0,ceq)
+                call set_default_constitution(iph,ics,ceq)
              else
 ! set phase amount
                 call gparrd('Amount: ',cline,last,xxx,zero,q1help)
@@ -1151,7 +1160,7 @@ contains
           call gparid('Axis number',cline,last,iax,i1,q1help)
           if(iax.lt.1 .or. iax.gt.maxax) then
              write(kou,3300)maxax
-3300         format('Axis number must be between 0 and ',i1)
+3300         format('Axis number must be between 1 and ',i1)
              goto 100
           endif
 ! by giving a value of iax lesser than noofaxis one can change an already
@@ -1160,26 +1169,45 @@ contains
              iax=i1
              write(kou,*)'Axis must be set in sequential order',&
                   ', axis number set to ',iax
-          elseif(iax.lt.i1) then
-! deallocate axarr
-             deallocate(axarr(iax)%indices)
-             deallocate(axarr(iax)%coeffs)
+!          elseif(iax.lt.i1) then
+! replacing an existing axis, get the current as defualt
+!             call encode(...)
+! deallocate axarr ?? redundant ??
+!             deallocate(axarr(iax)%indices)
+!             deallocate(axarr(iax)%coeffs)
           endif
 ! as condition one may give a condition number followed by :
 ! or a single state variable like T, x(o) etc.
-          call gparc('Condition varying along axis: ',cline,last,1,&
-               text,' ',q1help)
+          if(iax.lt.i1) then
+! set the current condition as default answer
+             jp=1
+             call get_one_condition(jp,name1,axarr(iax)%seqz,ceq)
+             if(gx%bmperr.ne.0) goto 990
+             jp=index(name1,'=')
+             name1(jp:)=' '
+! set current axis limits as default
+             dmin=axarr(iax)%axmin
+             dmax=axarr(iax)%axmax
+          else
+! new axis, defaults 0 and 1
+             name1=' '
+             dmin=zero
+             dmax=one
+          endif
+          call gparcd('Condition varying along axis: ',cline,last,1,&
+               text,name1,q1help)
           call capson(text)
-          if(text(1:1).eq.' ') goto 100
-          removeaxis: if(text(1:4).eq.'NONE') then
-! this means remove an axis, shift higher axis down
+!          if(text(1:1).eq.' ') goto 100
+          removeaxis: if(text(1:1).eq.' ' .or. text(1:4).eq.'NONE') then
+! this means remove an axis, shift any higher axis down
+             if(iax.lt.noofaxis) write(kou,*)'Shifting axis down'
              do i2=iax,noofaxis
                 axarr(i2)=axarr(i2+1)
              enddo
              noofaxis=noofaxis-1
              write(kou,*)'One axis removed'
              goto 100
-          else ! add axis
+          else ! add or change axis variable
              i1=len_trim(text)
              if(text(i1:i1).eq.':') then
 ! condition given as an index in the condition list terminated by :
@@ -1206,28 +1234,28 @@ contains
                    gx%bmperr=4131; goto 990
                 endif
 ! pcond points to condition record for axis, save in (map_axis) :: axarr
-! chack that it is not a fix phase condition (istv negative)
+! check that it is not a fix phase condition (istv negative)
                 if(pcond%statev.lt.0) then
                    write(*,*)'Cannot set fix phase as axis'
                    goto 100
                 endif
 ! copy the state variable record to the axis record redundant??
-                axarr(iax)%nterm=pcond%noofterms
-                axarr(iax)%istv=pcond%statev
-                axarr(iax)%iref=pcond%iref
-                axarr(iax)%iunit=pcond%iunit
+!                axarr(iax)%nterm=pcond%noofterms
+!                axarr(iax)%istv=pcond%statev
+!                axarr(iax)%iref=pcond%iref
+!                axarr(iax)%iunit=pcond%iunit
                 allocate(axarr(iax)%axcond(1))
                 axarr(iax)%axcond(1)=pcond%statvar(1)
-                jp=size(pcond%condcoeff)
+!                jp=size(pcond%condcoeff)
 !                write(*,*)'axis indices size: ',jp
-                allocate(axarr(iax)%indices(4,jp))
-                axarr(iax)%indices=pcond%indices
-                allocate(axarr(iax)%coeffs(jp))
-                axarr(iax)%coeffs=pcond%condcoeff
+!                allocate(axarr(iax)%indices(4,jp))
+!                axarr(iax)%indices=pcond%indices
+!                allocate(axarr(iax)%coeffs(jp))
+!                axarr(iax)%coeffs=pcond%condcoeff
 ! This is probably the only reference needed for the axis condition
                 axarr(iax)%seqz=pcond%seqz
                 axarr(iax)%more=0
-             else
+             else ! a condition given as text
 ! check if axis variable is a condition, maybe create it if allowed
 !                write(*,*)'decoding axis condition: ',text(1:20)
 !                call decode_state_variable2(text,istv,indices,iref,unit,&
@@ -1241,7 +1269,8 @@ contains
                 call get_condition(i1,stvr,pcond)
                 if(gx%bmperr.ne.0) then
 ! if new conditions are allowed then maybe enter this as condition
-                   write(*,*)'Use set_conditions before setting it as axis'
+                   write(*,*)'You must set the variable as a condition',&
+                        ' before setting it as axis'
                    goto 990
                 endif
                 axarr(iax)%nterm=pcond%noofterms
@@ -1253,28 +1282,41 @@ contains
                    allocate(axarr(iax)%axcond(1))
                 endif
                 axarr(iax)%axcond(1)=pcond%statvar(1)
-                jp=size(pcond%condcoeff)
-!                write(*,*)'axis indices size: ',jp
 ! These are now redundant ...
-                allocate(axarr(iax)%indices(4,jp))
-                axarr(iax)%indices=pcond%indices
-                allocate(axarr(iax)%coeffs(jp))
-                axarr(iax)%coeffs=pcond%condcoeff
+!                jp=size(pcond%condcoeff)
+!                write(*,*)'axis indices size: ',jp
+!                allocate(axarr(iax)%indices(4,jp))
+!                axarr(iax)%indices=pcond%indices
+!                allocate(axarr(iax)%coeffs(jp))
+!                axarr(iax)%coeffs=pcond%condcoeff
+!
                 axarr(iax)%seqz=pcond%seqz
 !                write(*,*)'Condition sequential index: ',axarr(iax)%seqz
                 axarr(iax)%more=0
              endif
           endif removeaxis
 !          dmin=axvalold(1,iax)
-          dmin=zero
+!          dmin=zero
+          once=.TRUE.
+3570      continue
           call gparrd('Minimal value:',cline,last,xxx,dmin,q1help)
           if(buperr.ne.0) goto 100
           axarr(iax)%axmin=xxx
 !          axval(1,iax)=xxx
 !          dmax=axvalold(2,iax)
-          dmax=one
+!          dmax=one
           call gparrd('Maximal value:',cline,last,xxx,dmax,q1help)
           if(buperr.ne.0) goto 100
+          if(xxx.le.axarr(iax)%axmin) then
+             write(kou,*)'Maximal value must be higher than minimal'
+             if(once) then
+                once=.FALSE.
+                goto 3570
+             else
+                write(kou,*)'Return to command level'
+                goto 100
+             endif
+          endif
           axarr(iax)%axmax=xxx
 !          axval(2,iax)=xxx
 ! default step 1/40
@@ -1324,6 +1366,8 @@ contains
              starteq%next=neweq%eqno
           else
              starteq=>neweq
+             starteq%next=0
+             write(*,*)'Starteq next',starteq%next
           endif
           write(*,*)'A copy of current equilibrium linked as start eqilibrium'
 !-------------------------
@@ -1383,6 +1427,7 @@ contains
              else
 ! Values of constants can be changed here
                 call gparrd('Value: ',cline,last,xxy,xxx,q1help)
+                if(buperr.ne.0) goto 990
                 call capson(name1)
                 call enter_tpconstant(name1,xxy)
              endif
@@ -1397,8 +1442,11 @@ contains
           call gparc('Element full name: ',cline,last,1,name1,' ',q1help)
           call gparc('Element reference phase: ',cline,last,1,name2,' ',q1help)
           call gparrd('Element mass (g/mol): ',cline,last,mass,one,q1help)
+          if(buperr.ne.0) goto 990
           call gparr('Element H298-H0: ',cline,last,h298,zero,q1help)
+          if(buperr.ne.0) goto 990
           call gparr('Element S298: ',cline,last,s298,one,q1help)
+          if(buperr.ne.0) goto 990
           call new_element(elsym,name1,name2,mass,h298,s298)
           if(gx%bmperr.ne.0) goto 990
 !---------------------------------------------------------------
@@ -1655,19 +1703,24 @@ contains
 ! generate many values
 ! i1 values are resturned in yarr with dimension maxconst. "model" not used
              call get_many_svar(line,yarr,maxconst,i1,model,ceq)
-             if(gx%bmperr.ne.0) goto 990
-             write(kou,6107)(yarr(i2),i2=1,i1)
-6107         format('Values: ',5(1pe14.6)/(8x,5(1pe14.6)))
+             if(gx%bmperr.eq.0) then
+                write(kou,6107)(yarr(i2),i2=1,i1)
+6107            format('Values: ',5(1pe14.6)/(8x,5(1pe14.6)))
+             endif
           else
 ! in model the state variable is returned as generated by the program
              call get_state_var_value(line,xxx,model,ceq)
-             if(gx%bmperr.ne.0) then
-                write(kou,*)'Error code ',gx%bmperr
-                gx%bmperr=0; goto 6099
+             if(gx%bmperr.eq.0) then
+                write(kou,6108)model(1:len_trim(model)),xxx
+6108            format(1x,a,'=',1PE15.7)
              endif
-             write(kou,6108)model(1:len_trim(model)),xxx
-6108         format(1x,a,'=',1PE15.7)
           endif
+          if(gx%bmperr.ge.4000 .and. gx%bmperr.le.nooferm) then
+             write(kou,*)bmperrmess(gx%bmperr)
+          elseif(gx%bmperr.ne.0) then
+             write(kou,*)'Error code ',gx%bmperr
+          endif
+          gx%bmperr=0
           goto 6105
 !-----------------------------------------------------------
        case(5) ! list data bibliography
@@ -2154,6 +2207,9 @@ contains
 !=================================================================
 ! debug subcommands
     case(16)
+!       write(*,*)'Calculating equilibrium record size'
+       kom2=ceqsize(ceq)
+       write(kou,*)'Equilibrium record size: ',kom2
        kom2=submenu(cbas(kom),cline,last,cdebug,ncdebug,0)
        SELECT CASE (kom2)
 !------------------------------
@@ -2321,9 +2377,7 @@ contains
                ' for a step calculation.'
           goto 100
        endif
-! STEP NORMAL
-       call gparcd('Option?',cline,last,1,text,'NORMAL ',q1help)
-!       if(associated(resultlist)) then
+! check if adding results
        if(associated(maptop)) then
           write(kou,*)'There are some results already from step or map'
           call gparcd('Delete them?',cline,last,1,ch1,'Y',q1help)
@@ -2333,32 +2387,82 @@ contains
              nullify(maptop)
              nullify(maptopsave)
           else
+             write(kou,*)'Results removed'
              maptopsave=>maptop
              nullify(maptop)
           endif
 ! this should preferably be done directly after map/step, but kept for debug
           call delete_equilibria('_MAP*',ceq)
        endif
+       kom2=submenu('Options?',cline,last,cstepop,nstepop,1)
+       SELECT CASE(kom2)
+!-----------------------------------------------------------
+       CASE DEFAULT
+          write(kou,*)'No such plot option'
+!-----------------------------------------------------------
+! STEP NORMAL
+       case(1)
+!       call gparcd('Option?',cline,last,1,text,'NORMAL ',q1help)
+!       if(associated(resultlist)) then
 ! maptop is returned as main map/step record for results
 ! noofaxis is current number of axis, axarr is array with axis data
 ! starteq is start, equilibria, if empty set it to ceq
-       if(.not.associated(starteq)) then
-          starteq=>ceq
-       endif
-       call map_setup(maptop,noofaxis,axarr,starteq)
+          if(.not.associated(starteq)) then
+             starteq=>ceq
+          endif
+          call map_setup(maptop,noofaxis,axarr,starteq)
 ! mark that interactive listing of conditions and results may be inconsistent
-       ceq%status=ibset(ceq%status,EQINCON)
-       if(.not.associated(maptop)) then
+          ceq%status=ibset(ceq%status,EQINCON)
+          if(.not.associated(maptop)) then
 ! if one has errors in map_setup maptop may not be initiated, if one
 ! has saved previous calculations in maptopsave restore those
-          if(associated(maptopsave)) then
-             write(kou,*)'Restoring previous map results'
-             maptop=>maptopsave
+             if(associated(maptopsave)) then
+                write(kou,*)'Restoring previous map results'
+                maptop=>maptopsave
+                nullify(maptopsave)
+             endif
           endif
-       endif
 ! remove start equilibria
-       nullify(starteq)
-       if(gx%bmperr.ne.0) goto 990
+          nullify(starteq)
+          if(gx%bmperr.ne.0) goto 990
+!-----------------------------------------------------------
+! STEP SEPARATE
+       case(2) ! calculate for each entered phase separately
+          starteq=>ceq
+          call step_separate(maptop,noofaxis,axarr,starteq)
+! mark that interactive listing of conditions and results may be inconsistent
+          ceq%status=ibset(ceq%status,EQINCON)
+          if(.not.associated(maptop)) then
+! if one has errors in map_setup maptop may not be initiated, if one
+! has saved previous calculations in maptopsave restore those
+             if(associated(maptopsave)) then
+                write(kou,*)'Restoring previous map results'
+                maptop=>maptopsave
+                nullify(maptopsave)
+             endif
+          endif
+! set default yaxis as GM(*)
+          if(axplotdef(2)(1:1).eq.' ') then
+             axplotdef(2)='GM(*)'
+          endif
+! remove start equilibria
+          nullify(starteq)
+!-----------------------------------------------------------
+! STEP QUIT
+       case(3)
+!-----------------------------------------------------------
+! STEP CONDITIONAL
+       case(4)
+          write(kou,*)'Not implemented yet'
+!-----------------------------------------------------------
+! STEP unused
+       case(5)
+          write(kou,*)'Not implemented yet'
+!-----------------------------------------------------------
+! STEP unused
+       case(6)
+          write(kou,*)'Not implemented yet'
+       end SELECT
 !=================================================================
 ! map
     case(20)
@@ -2366,6 +2470,9 @@ contains
           write(kou,*)'You must set two axis with independent variables'
           goto 100
        endif
+       write(kou,2014)
+2014   format('The map command is fragile, please send problematic diagrams',&
+            ' to the',/'OC development team'/)
        if(associated(maptop)) then
           write(kou,*)'There are some results already form step or map'
           call gparcd('Reinitiate?',cline,last,1,ch1,'Y',q1help)
@@ -2375,6 +2482,10 @@ contains
              nullify(maptopsave)
 ! this should preferably be done directly after map/step, but kept for debug
              call delete_equilibria('_MAP*',ceq)
+             if(gx%bmperr.ne.0) then
+                write(kou,*)'Error removing old MAP equilibria'
+                goto 990
+             endif
           else
              maptopsave=>maptop
              nullify(maptop)
@@ -2387,6 +2498,7 @@ contains
 ! starteq is start equilibria, if empty set it to ceq
        if(.not.associated(starteq)) then
           starteq=>ceq
+          starteq%next=0
        endif
        call map_setup(maptop,noofaxis,axarr,starteq)
        if(.not.associated(maptop)) then
@@ -2395,8 +2507,11 @@ contains
           if(associated(maptopsave)) then
              write(kou,*)'Restoring previous map results'
              maptop=>maptopsave
+             nullify(maptopsave)
           endif
        endif
+! remove start equilibria
+       nullify(starteq)
 ! mark that interactive listing of conditions and results may be inconsistent
        ceq%status=ibset(ceq%status,EQINCON)
        if(gx%bmperr.ne.0) goto 990
@@ -2499,6 +2614,7 @@ contains
              graphopt%rangedefaults(1)=0
           else
              graphopt%rangedefaults(1)=1
+             twice=.FALSE.
 2104         continue
              call gparrd('Low limit',cline,last,xxx,graphopt%dfltmin(1),q1help)
              graphopt%plotmin(1)=xxx
@@ -2511,8 +2627,12 @@ contains
                 if(once) then
                    write(kou,*)'Think before typing'
                    once=.FALSE.
+                elseif(twice) then
+                   write(kou,*)'Back to command level'
+                   goto 100
                 else
                    write(kou,*)'Please give the low limit again!'
+                   twice=.TRUE.
                    goto 2104
                 endif
                 write(kou,2106)graphopt%plotmin(1)
@@ -2531,6 +2651,7 @@ contains
              graphopt%rangedefaults(2)=0
           else
              graphopt%rangedefaults(2)=1
+             twice=.FALSE.
 2107         continue
              call gparrd('Low limit',cline,last,xxx,graphopt%dfltmin(2),q1help)
              graphopt%plotmin(2)=xxx
@@ -2543,8 +2664,12 @@ contains
                 if(once) then
                    write(*,*)'Think before typing'
                    once=.FALSE.
+                elseif(twice) then
+                   write(kou,*)'Back to command level'
+                   goto 100
                 else
                    write(kou,*)'Please give the low limit again!'
+                   twice=.TRUE.
                    goto 2107
                 endif
                 write(kou,2106)graphopt%plotmin(2)

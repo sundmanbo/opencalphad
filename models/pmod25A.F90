@@ -467,6 +467,38 @@
  end function noeq
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
+ integer function totalphcs(ceq)
+! returns the total number of unhidden and unsuspended phases+composition sets
+! in the system.  Used for dimensioning work arrays and in loops
+   implicit none
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   integer tphic,iph,ics,lokph
+   double precision xxx
+   tphic=0
+   do iph=1,noofph
+      lokph=phases(iph)
+      ics=1
+!      if(test_phase_status(iph,ics,xxx,ceq).eq.5) goto 500
+      if(test_phase_status(iph,ics,xxx,ceq).eq.PHHIDDEN) goto 500
+! phase is not hidden
+      do ics=1,phlista(lokph)%noofcs
+!         if(test_phase_status(iph,ics,xxx,ceq).eq.4) goto 400
+         if(test_phase_status(iph,ics,xxx,ceq).eq.PHSUS) goto 400
+! composition set not suspended
+         tphic=tphic+1
+400      continue
+      enddo
+500   continue
+   enddo
+1000 continue
+   totalphcs=tphic
+   return
+ end function totalphcs
+ 
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 !>     3. Find things
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -1299,80 +1331,6 @@
  end subroutine get_phase_data
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\begin{verbatim} %-
- subroutine extract_stvr_of_condition(pcond,nterm,coeffs,statevar)
-! finds a condition record with the given state variable record
-! returns it as a state variable record !!!
-! nterm: integer, number of terms in the condition expression
-! pcond: pointer, to a gtp_condition record
-   implicit none
-   TYPE(gtp_condition), pointer :: pcond
-! ONE CANNOT HAVE ARRAYS OF POINTERS!!! STUPID
-!   TYPE(gtp_state_variable), dimension(*), pointer :: statevar
-   TYPE(gtp_state_variable), dimension(*) :: statevar
-   integer nterm
-   double precision coeffs(*)
-!\end{verbatim}
-   TYPE(gtp_condition), pointer :: last,current,first
-   integer, dimension(4) :: indx
-   integer ncc,nac,j1,j2,istv,iref,iunit
-!
-   write(*,*)'not implemented!!'
-   gx%bmperr=7777; goto 1000
-!--------------------------------------------------------
-   if(.not.associated(pcond)) goto 900
-   first=>pcond%next
-   current=>first
-!   write(*,*)'get_condition start: ',current%statev,current%active
-   ncc=1
-   nac=0
-!   write(*,98)'new:',0,nterm,istv,(indices(i,1),i=1,4),iref,iunit
-98 format(a,2x,i2,5x,2i4,5x,4i4,5x,2i3)
-100 continue
-!   write(*,98)'old:' ,current%nid,current%noofterms,current%statev,&
-!        (current%indices(i,1),i=1,4),current%iref,current%iunit
-   if(nterm.eq.0) then
-!      write(*,*)'get_condition: ',istv,ncc,nac
-      if(current%active.eq.0) then
-! this call just looks for active condition istv
-         nac=nac+1
-! why should fix phase conditions have istv=nac?? Check!!
-         if(nac.eq.istv) then
-! a condition specified like this must not be a phase status change
-            if(current%statev.lt.0) then
-            write(kou,*)'You must use "set phase status" to change fix status'
-            else
-               goto 150
-            endif
-         endif
-      endif
-      goto 200
-   endif
-   if(current%noofterms.ne.nterm .or. current%statev.ne.istv .or. &
-        current%iref.ne.iref .or. current%iunit.ne.iunit) goto 200
-   do j1=1,nterm
-!      do j2=1,4
-!         if(current%indices(j2,j1).ne.indices(j2,j1)) goto 200
-!      enddo
-   enddo
-150 continue
-! found condition
-   pcond=>current
-!   write(*,*)'Found condition: ',pcond%nid,ncc
-   goto 1000
-200 continue
-   current=>current%next
-   ncc=ncc+1
-   if(.not. associated(current,first)) goto 100
-900 continue
-! no such condition
-   gx%bmperr=4131; goto 1000
-1000 continue
-   return
- end subroutine extract_stvr_of_condition
-
-!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 !>     5. Set things
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 !

@@ -6,6 +6,139 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
+ subroutine enter_svfun(cline,last,ceq)
+! enter a state variable function
+   implicit none
+   integer last
+   character cline*(*)
+   type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim} %+
+   integer, parameter :: npfs=20
+   integer ks,maxsym,ipos,jt,js,kdot,nsymb
+   character name2*16,pfsym(npfs)*60,string*128,pfsymdenom*60
+!   integer istv(npfs),indstv(4,npfs),iref(npfs),iunit(npfs),lokv(npfs)
+   integer iarr(10,npfs),lokv(npfs)
+   type(gtp_state_variable), pointer :: svr
+   type(putfun_node), pointer :: lrot
+!    
+! maxsym is negative to allow the user to enter abs(maxs) symbols
+! pfsym are the entered symbols
+! lokv is only internal strage in putfun
+! lrot is the root node of expression
+! nsymb is the number of user entered symbols
+!    write(kou,17)'enter svgun ',last,cline(1:20),nsvfun
+17 format(a,i3,2x,a,i3)
+   call gparc('Symbol name: ',cline,last,ichar('='),name2,' ',q1help)
+   call capson(name2)
+!   write(*,*)'enter_svfun: ',last,name2,':',cline(1:10)
+   if(.not.proper_symbol_name(name2,0)) goto 1000
+   do ks=1,nsvfun
+      if(name2.eq.svflista(ks)%name) then
+         gx%bmperr=4136; goto 1000
+      endif
+   enddo
+! TO BE IMPLEMENTED: enter symbols with dummy arguments like CP(@P1)=HM(@P1).T
+! where @Pi is a phase, @Ci is a component and @Si is a species
+! these dummy variables must be defined in symbol name ?? why ?? maybe not
+   call gparc('Expression, end with ";" :',cline,last,6,string,';',q1help)
+   maxsym=-npfs
+   ipos=1
+   call putfun(string,ipos,maxsym,pfsym,lokv,lrot,nsymb)
+   if(pfnerr.ne.0) then
+      pfnerr=0; gx%bmperr=4134; goto 1000
+   endif
+! on return nsymb is the number of external symbols used in the function
+! these can be other functions or state variables or used defined identifiers
+! like Curie temperature etc.  The symbols are in pfsym(1..nsymb)
+!
+!   write(*,11)nsymb,(pfsym(js)(1:len_trim(pfsym(js))),js=1,nsymb)
+11 format('25D: args ',i2,': ',10(1x,a,','))
+! identify symbols as state variables, if derivative there is a dot
+   iarr=0
+   jt=0
+   do js=1,nsymb
+      kdot=index(pfsym(js),'.')
+      if(kdot.gt.0) then
+! derivatives must be stored as two state variables
+!         write(*,*)'Found dot derivative: ',kdot,pfsym(js)
+! Only allow a single symbol in this case!!!
+         if(nsymb.gt.1) then
+            write(*,*)'Only a single symbol allowed!'
+            gx%bmperr=7777; goto 1000
+         endif
+         jt=1
+! denominator, variable after . for with the derivative is taken
+         pfsymdenom=pfsym(js)(kdot+1:)
+         pfsym(js)(kdot:)=' '
+         call decode_state_variable(pfsym(js),svr,ceq)
+         if(gx%bmperr.ne.0) goto 1000
+! store in the old way in iarr for two state variables
+         iarr(1,js)=svr%oldstv
+         iarr(2,js)=svr%norm
+         iarr(3,js)=svr%unit
+         iarr(4,js)=svr%phref
+         iarr(5,js)=svr%argtyp
+         iarr(6,js)=svr%phase
+         iarr(7,js)=svr%compset
+         iarr(8,js)=svr%component
+         iarr(9,js)=svr%constituent
+         iarr(10,js)=jt
+         call decode_state_variable(pfsymdenom,svr,ceq)
+         if(gx%bmperr.ne.0) goto 1000
+! store in the old way in iarr for two state variables
+         iarr(1,js+1)=svr%oldstv
+         iarr(2,js+1)=svr%norm
+         iarr(3,js+1)=svr%unit
+         iarr(4,js+1)=svr%phref
+         iarr(5,js+1)=svr%argtyp
+         iarr(6,js+1)=svr%phase
+         iarr(7,js+1)=svr%compset
+         iarr(8,js+1)=svr%component
+         iarr(9,js+1)=svr%constituent
+      else
+         call decode_state_variable(pfsym(js),svr,ceq)
+         if(gx%bmperr.ne.0) then
+! symbol not a state variable, may be another function
+!            write(*,*)'25D not state variable: ',gx%bmperr,' "',&
+!                 pfsym(js)(1:len_trim(pfsym(js))),'"'
+            gx%bmperr=0
+            do ks=1,nsvfun
+               if(pfsym(js).eq.svflista(ks)%name) then
+!                  write(*,*)'25D found other function: ',&
+!                       pfsym(js)(1:len_trim(pfsym(js)))
+                  iarr(1,js)=-ks
+                  goto 390
+               endif
+            enddo
+            write(*,*)'25D not a function: "',&
+                 pfsym(js)(1:len_trim(pfsym(js))),'"'
+            gx%bmperr=4135; goto 1000
+         else
+!            write(*,*)'25D decoded 1: ',pfsym(js)
+!            write(*,*)'25D decoded 2: ',svr%statev
+! Store in the old way in iarr
+            iarr(1,js)=svr%oldstv
+            iarr(2,js)=svr%norm
+            iarr(3,js)=svr%unit
+            iarr(4,js)=svr%phref
+            iarr(5,js)=svr%argtyp
+            iarr(6,js)=svr%phase
+            iarr(7,js)=svr%compset
+            iarr(8,js)=svr%component
+            iarr(9,js)=svr%constituent
+         endif
+      endif
+390   continue
+   enddo
+! for derivatives two iarr arrays
+! Found bug in store_putfun if just a variable entered, coefficient set to 0.0
+   call store_putfun(name2,lrot,nsymb+jt,iarr)
+1000 continue
+   return
+ end subroutine enter_svfun
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+!\begin{verbatim} %-
  subroutine store_putfun(name,lrot,nsymb,iarr)
 ! enter an expression of state variables with name name with address lrot
 ! nsymb is number of formal arguments
@@ -106,7 +239,7 @@
    character name*(*)
    integer lrot
    type(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim}
+!\end{verbatim} %+
 ! name must be in UPPER CASE and exact match required
    do lrot=1,nsvfun
       if(name.eq.svflista(lrot)%name) goto 500
@@ -122,7 +255,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
-!\begin{verbatim}
+!\begin{verbatim} %-
  subroutine list_svfun(text,ipos,lrot,ceq)
 ! list a state variable function
    implicit none
@@ -267,7 +400,7 @@
    implicit none
    integer kou
    TYPE(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim}
+!\end{verbatim} %+
    character actual_arg(10)*24
    integer kf
    double precision val
@@ -286,7 +419,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
-!\begin{verbatim}
+!\begin{verbatim} %-
  double precision function evaluate_svfun_old(lrot,actual_arg,mode,ceq)
 ! THIS SUBROUTINE MOVED TO MINIMIZER
 ! but needed in some cases in this module ... ???
@@ -448,10 +581,10 @@
       buperr=0; goto 1000
    endif
    ceq%phase_varres(lokcs)%amfu=xxx
-! ask if default constitution
+! ask if we should set the default constitution
    call gparcd('Default constitution?',cline,last,1,ch1,chd,q1help)
    if(ch1.eq.'Y' .or. ch1.eq.'y') then
-      call set_default_constitution(iph,ics,0,ceq)
+      call set_default_constitution(iph,ics,ceq)
       if(gx%bmperr.ne.0) goto 1000
       chd='Y'
       goto 200
@@ -1331,7 +1464,7 @@
    else
       seqz=1
    endif
-   temp=>ceq%lastcondition    
+   temp=>ceq%lastcondition
 !   write(*,*)'25D allocating condition',seqz
    allocate(ceq%lastcondition)
    new=>ceq%lastcondition
@@ -1418,7 +1551,7 @@
    implicit none
    integer nterm
    type(gtp_state_variable), pointer :: svr
-! NOTE: pcond must have been set to ceq%lastcondition  before calling this
+! NOTE: pcond must have been set to ceq%lastcondition before calling this
 ! pcond: pointer, to a gtp_condition record for this equilibrium
    type(gtp_condition), pointer :: pcond
 !\end{verbatim} %+
@@ -1543,6 +1676,103 @@ end subroutine get_condition
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\begin{verbatim} %-
+ subroutine extract_stvr_of_condition(pcond,nterm,coeffs,statevar)
+! finds a condition record with the given state variable record
+! returns it as a state variable record !!!
+! nterm: integer, number of terms in the condition expression
+! pcond: pointer, to a gtp_condition record
+   implicit none
+   TYPE(gtp_condition), pointer :: pcond
+! ONE CANNOT HAVE ARRAYS OF POINTERS!!! STUPID
+!   TYPE(gtp_state_variable), dimension(*), pointer :: statevar
+   TYPE(gtp_state_variable), dimension(*) :: statevar
+   integer nterm
+   double precision coeffs(*)
+!\end{verbatim}
+   TYPE(gtp_condition), pointer :: last,current,first
+   integer, dimension(4) :: indx
+   integer ncc,nac,j1,j2,istv,iref,iunit
+!
+   write(*,*)'not implemented!!'
+   gx%bmperr=7777; goto 1000
+!--------------------------------------------------------
+   if(.not.associated(pcond)) goto 900
+   first=>pcond%next
+   current=>first
+!   write(*,*)'get_condition start: ',current%statev,current%active
+   ncc=1
+   nac=0
+!   write(*,98)'new:',0,nterm,istv,(indices(i,1),i=1,4),iref,iunit
+98 format(a,2x,i2,5x,2i4,5x,4i4,5x,2i3)
+100 continue
+!   write(*,98)'old:' ,current%nid,current%noofterms,current%statev,&
+!        (current%indices(i,1),i=1,4),current%iref,current%iunit
+   if(nterm.eq.0) then
+!      write(*,*)'get_condition: ',istv,ncc,nac
+      if(current%active.eq.0) then
+! this call just looks for active condition istv
+         nac=nac+1
+! why should fix phase conditions have istv=nac?? Check!!
+         if(nac.eq.istv) then
+! a condition specified like this must not be a phase status change
+            if(current%statev.lt.0) then
+            write(kou,*)'You must use "set phase status" to change fix status'
+            else
+               goto 150
+            endif
+         endif
+      endif
+      goto 200
+   endif
+   if(current%noofterms.ne.nterm .or. current%statev.ne.istv .or. &
+        current%iref.ne.iref .or. current%iunit.ne.iunit) goto 200
+   do j1=1,nterm
+!      do j2=1,4
+!         if(current%indices(j2,j1).ne.indices(j2,j1)) goto 200
+!      enddo
+   enddo
+150 continue
+! found condition
+   pcond=>current
+!   write(*,*)'Found condition: ',pcond%nid,ncc
+   goto 1000
+200 continue
+   current=>current%next
+   ncc=ncc+1
+   if(.not. associated(current,first)) goto 100
+900 continue
+! no such condition
+   gx%bmperr=4131; goto 1000
+1000 continue
+   return
+ end subroutine extract_stvr_of_condition
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
+ subroutine locate_condition(seqz,pcond,ceq)
+! locate a condition using a sequential number
+   implicit none
+   integer seqz
+   type(gtp_condition), pointer :: pcond
+   type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   integer ij
+   pcond=>ceq%lastcondition
+   do ij=1,seqz
+      pcond=>pcond%next
+      if(seqz.gt.ij .and. associated(pcond,ceq%lastcondition)) then
+         write(*,*)'Locate condition called with too high index: ',seqz
+         gx%bmperr=7777; goto 1000
+      endif
+   enddo
+1000 continue
+   return
+ end subroutine locate_condition
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
 !\begin{verbatim}
  subroutine apply_condition_value(current,what,value,cmix,ceq)
 ! This is called when calculating an equilibrium.
@@ -1556,7 +1786,7 @@ end subroutine get_condition
    double precision value
    TYPE(gtp_equilibrium_data), pointer :: ceq    
    TYPE(gtp_condition), pointer :: current
-!\end{verbatim}
+!\end{verbatim} %+
    integer, dimension(4) :: indices
    integer iref,iunit,degfree,jl,istv,ip
    double precision xxx
@@ -1667,30 +1897,7 @@ end subroutine get_condition
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim}
- subroutine locate_condition(seqz,pcond,ceq)
-! locate a condition using a sequential number
-   implicit none
-   integer seqz
-   type(gtp_condition), pointer :: pcond
-   type(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim}
-   integer ij
-   pcond=>ceq%lastcondition
-   do ij=1,seqz
-      pcond=>pcond%next
-      if(seqz.gt.ij .and. associated(pcond,ceq%lastcondition)) then
-         write(*,*)'Locate condition called with too high index: ',seqz
-         gx%bmperr=7777; goto 1000
-      endif
-   enddo
-1000 continue
-   return
- end subroutine locate_condition
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\begin{verbatim}
+!\begin{verbatim} %-
  subroutine condition_value(mode,pcond,value,ceq)
 ! set (mode=0) or get (mode=1) a new value of a condition.  Used in mapping
    implicit none
@@ -1719,139 +1926,6 @@ end subroutine get_condition
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim}
- subroutine enter_svfun(cline,last,ceq)
-! enter a state variable function
-   implicit none
-   integer last
-   character cline*(*)
-   type(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim}
-   integer, parameter :: npfs=20
-   integer ks,maxsym,ipos,jt,js,kdot,nsymb
-   character name2*16,pfsym(npfs)*60,string*128,pfsymdenom*60
-!   integer istv(npfs),indstv(4,npfs),iref(npfs),iunit(npfs),lokv(npfs)
-   integer iarr(10,npfs),lokv(npfs)
-   type(gtp_state_variable), pointer :: svr
-   type(putfun_node), pointer :: lrot
-!    
-! maxsym is negative to allow the user to enter abs(maxs) symbols
-! pfsym are the entered symbols
-! lokv is only internal strage in putfun
-! lrot is the root node of expression
-! nsymb is the number of user entered symbols
-!    write(kou,17)'enter svgun ',last,cline(1:20),nsvfun
-17 format(a,i3,2x,a,i3)
-   call gparc('Symbol name: ',cline,last,ichar('='),name2,' ',q1help)
-   call capson(name2)
-!   write(*,*)'enter_svfun: ',last,name2,':',cline(1:10)
-   if(.not.proper_symbol_name(name2,0)) goto 1000
-   do ks=1,nsvfun
-      if(name2.eq.svflista(ks)%name) then
-         gx%bmperr=4136; goto 1000
-      endif
-   enddo
-! TO BE IMPLEMENTED: enter symbols with dummy arguments like CP(@P1)=HM(@P1).T
-! where @Pi is a phase, @Ci is a component and @Si is a species
-! these dummy variables must be defined in symbol name ?? why ?? maybe not
-   call gparc('Expression, end with ";" :',cline,last,6,string,';',q1help)
-   maxsym=-npfs
-   ipos=1
-   call putfun(string,ipos,maxsym,pfsym,lokv,lrot,nsymb)
-   if(pfnerr.ne.0) then
-      pfnerr=0; gx%bmperr=4134; goto 1000
-   endif
-! on return nsymb is the number of external symbols used in the function
-! these can be other functions or state variables or used defined identifiers
-! like Curie temperature etc.  The symbols are in pfsym(1..nsymb)
-!
-!   write(*,11)nsymb,(pfsym(js)(1:len_trim(pfsym(js))),js=1,nsymb)
-11 format('25D: args ',i2,': ',10(1x,a,','))
-! identify symbols as state variables, if derivative there is a dot
-   iarr=0
-   jt=0
-   do js=1,nsymb
-      kdot=index(pfsym(js),'.')
-      if(kdot.gt.0) then
-! derivatives must be stored as two state variables
-!         write(*,*)'Found dot derivative: ',kdot,pfsym(js)
-! Only allow a single symbol in this case!!!
-         if(nsymb.gt.1) then
-            write(*,*)'Only a single symbol allowed!'
-            gx%bmperr=7777; goto 1000
-         endif
-         jt=1
-! denominator, variable after . for with the derivative is taken
-         pfsymdenom=pfsym(js)(kdot+1:)
-         pfsym(js)(kdot:)=' '
-         call decode_state_variable(pfsym(js),svr,ceq)
-         if(gx%bmperr.ne.0) goto 1000
-! store in the old way in iarr for two state variables
-         iarr(1,js)=svr%oldstv
-         iarr(2,js)=svr%norm
-         iarr(3,js)=svr%unit
-         iarr(4,js)=svr%phref
-         iarr(5,js)=svr%argtyp
-         iarr(6,js)=svr%phase
-         iarr(7,js)=svr%compset
-         iarr(8,js)=svr%component
-         iarr(9,js)=svr%constituent
-         iarr(10,js)=jt
-         call decode_state_variable(pfsymdenom,svr,ceq)
-         if(gx%bmperr.ne.0) goto 1000
-! store in the old way in iarr for two state variables
-         iarr(1,js+1)=svr%oldstv
-         iarr(2,js+1)=svr%norm
-         iarr(3,js+1)=svr%unit
-         iarr(4,js+1)=svr%phref
-         iarr(5,js+1)=svr%argtyp
-         iarr(6,js+1)=svr%phase
-         iarr(7,js+1)=svr%compset
-         iarr(8,js+1)=svr%component
-         iarr(9,js+1)=svr%constituent
-      else
-         call decode_state_variable(pfsym(js),svr,ceq)
-         if(gx%bmperr.ne.0) then
-! symbol not a state variable, may be another function
-!            write(*,*)'25D not state variable: ',gx%bmperr,' "',&
-!                 pfsym(js)(1:len_trim(pfsym(js))),'"'
-            gx%bmperr=0
-            do ks=1,nsvfun
-               if(pfsym(js).eq.svflista(ks)%name) then
-!                  write(*,*)'25D found other function: ',&
-!                       pfsym(js)(1:len_trim(pfsym(js)))
-                  iarr(1,js)=-ks
-                  goto 390
-               endif
-            enddo
-            write(*,*)'25D not a function: "',&
-                 pfsym(js)(1:len_trim(pfsym(js))),'"'
-            gx%bmperr=4135; goto 1000
-         else
-!            write(*,*)'25D decoded 1: ',pfsym(js)
-!            write(*,*)'25D decoded 2: ',svr%statev
-! Store in the old way in iarr
-            iarr(1,js)=svr%oldstv
-            iarr(2,js)=svr%norm
-            iarr(3,js)=svr%unit
-            iarr(4,js)=svr%phref
-            iarr(5,js)=svr%argtyp
-            iarr(6,js)=svr%phase
-            iarr(7,js)=svr%compset
-            iarr(8,js)=svr%component
-            iarr(9,js)=svr%constituent
-         endif
-      endif
-390   continue
-   enddo
-! for derivatives two iarr arrays
-! Found bug in store_putfun if just a variable entered, coefficient set to 0.0
-   call store_putfun(name2,lrot,nsymb+jt,iarr)
-1000 continue
-   return
- end subroutine enter_svfun
-
-!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim}
  subroutine amend_components(cline,last,ceq)
