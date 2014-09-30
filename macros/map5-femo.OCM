@@ -31,7 +31,7 @@ l r 1
 
 @&
 
-set ax 1 x(mo) 0 1 0.01
+set ax 1 x(mo) 0 1 ,,
 set ax 2 t 300 3000 25
 
 l ax
@@ -45,28 +45,6 @@ map
 
 
 @&
-
-plot
-x(*,mo)
-T
-ocgnu
-plot
-
-
-@&
-
-set c t=1800 x(mo)=.1
-
-c e
-
-l r 2
-
-@&
-
-map
-N
-
-
 
 plot
 x(*,mo)
@@ -93,18 +71,11 @@ plot
 x(*,mo)
 T
 ocgnu
-plot
+plot ,,,,,,,,,,,,,,,,,,,,,,,,,,
 
 
 
-plot
 
-
-ocgnu
-yrange
-N
-1600
-1900
 
 
 set inter
