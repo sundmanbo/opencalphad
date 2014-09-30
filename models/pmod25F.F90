@@ -341,7 +341,8 @@
       isp=ceq%complist(i)%splink
       write(lut)isp
       write(lut)ceq%complist(i)%phlink,ceq%complist(i)%status,&
-           ceq%complist(i)%refstate,ceq%complist(i)%tpref
+           ceq%complist(i)%refstate,ceq%complist(i)%tpref,&
+           ceq%complist(i)%mass
    enddo
    do i=1,noofel
       if(ocv()) write(*,99)'comp.matrix: ',(ceq%invcompstoi(j,i),j=1,noofel)
@@ -1093,7 +1094,14 @@
       ceq%complist(i)%splink=isp
       read(lin)ceq%complist(i)%phlink,&
            ceq%complist(i)%status,&
-           ceq%complist(i)%refstate,ceq%complist(i)%tpref
+           ceq%complist(i)%refstate,ceq%complist(i)%tpref,ceq%complist(1)%mass
+      if(isp.gt.0) then
+! user defined reference state only allocated if necessary
+         read(lin)j
+         allocate(ceq%complist(i)%endmember(j))
+         read(lin)ceq%complist(i)%endmember
+         read(lin)ceq%complist(i)%molat
+      endif
    enddo
 ! stoichiometry conversion matrix, already allocated?? where??
    ceq%compstoi=zero
@@ -1715,12 +1723,18 @@
 ! disparttc and dispartph to handle phases with disordered parts
    integer nofunent,disparttc,dodis,jl,nd1,thisdis
    character*24 dispartph(5),ordpartph(5)
+! set to TRUE if element present in database
+   logical, allocatable :: present(:)
 !
    if(ocv()) write(*,*)'reading a TDB file'
    if(.not.(index(filename,'.tdb').gt.0 &
        .or. index(filename,'.TDB').gt.0)) then
 ! no extention provided
       filename(len_trim(filename)+1:)='.TDB'
+   endif
+   if(nel.gt.0) then
+      allocate(present(nel))
+      present=.FALSE.
    endif
 ! disparttc counts the number of disordered phases to read, the
 ! phase names are in dispartph(1..disparttc)
@@ -1894,7 +1908,11 @@
 !         write(*,*)'Select: ',nel,(selel(jt),jt=1,nel)
          goto 100
       endif
+! mark we found a selected element
 76    continue
+      if(allocated(present)) then
+         present(jt)=.TRUE.
+      endif
       ip=ip+len_trim(elsym)
       if(eolch(longline,ip)) then
          name1='DUMMY'
@@ -1980,6 +1998,22 @@
 ! PHASE LIQUID:L %  1  1.0  !
       if(nophase) then
          nophase=.false.
+! give a warning if any selected element is not present
+         if(allocated(present)) then
+            funname=' '
+            kkk=1
+            do jt=1,nel
+               if(.not.present(jt)) then
+                  funname(kkk:)=selel(jt)
+                  kkk=len_trim(funname)+2
+               endif
+            enddo
+            if(kkk.gt.1) then
+               write(kou,68)funname(1:kkk)
+68             format(/' *** Warning, elements not present in database: ',a/)
+            endif
+            deallocate(present)
+         endif
       else
          write(*,*)'Error, a PHASE keyword must be followed by its CONSTIT'
          gx%bmperr=7777; goto 1000

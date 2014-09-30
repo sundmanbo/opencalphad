@@ -1405,6 +1405,7 @@
 ! calculates G for one mole of real atoms for a single end member
 ! used for reference states. Restores current composition (but not G or deriv)
 ! endmember contains indices in the constituent array, not species index
+! one for each sublattice
    implicit none
    integer iph
    double precision gval
@@ -1418,13 +1419,18 @@
    call get_phase_data(iph,1,nsl,nkl,knr,savey,sites,qq,ceq)
    if(gx%bmperr.ne.0) goto 1100
 ! set constitution to be just the endmember
+! It is difficult to make this simpler as one can have magnetic contributions
+! to G, this it is not suffiecient jyst to calculate the G function, one must
+! calculate TC etc.
    yfra=zero
    kk0=0
    do ll=1,nsl
-      if(endmember(ll).gt.kk0 .and. endmember(ll).le.nkl(ll)) then
+      if(endmember(ll).gt.kk0 .and. endmember(ll).le.kk0+nkl(ll)) then
          yfra(endmember(ll))=one
       else
-!         write(*,*)'endmember index outside range',ll,endmember(ll),nkl(ll)
+!         write(*,16)'25J endmember index outside range',ll,endmember(ll),&
+!              kk0,nkl(ll)
+16       format(a,10i5)
          gx%bmperr=4160; goto 1100
       endif
       kk0=kk0+nkl(ll)
@@ -1462,11 +1468,101 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
+ subroutine calcg_endmember6(iph,endmember,gval,ceq)
+! calculates G and all derivatevs wrt T and P for one mole of real atoms
+! for a single end member, used for reference states. 
+! Restores current composition (but not G or deriv)
+! endmember contains indices in the constituent array, not species index
+! one for each sublattice
+   implicit none
+   integer iph
+   double precision gval(6)
+   integer endmember(maxsubl)
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   integer ierr,kk0,ll,lokres,lokph,nsl
+   integer nkl(maxsubl),knr(maxconst),ics
+   double precision savey(maxconst),sites(maxsubl),qq(5),yfra(maxconst)
+   double precision saveg(6)
+!
+   call get_phase_data(iph,1,nsl,nkl,knr,savey,sites,qq,ceq)
+   if(gx%bmperr.ne.0) goto 1100
+! set constitution to be just the endmember
+! It is difficult to make this simpler as one can have magnetic contributions
+! to G, this it is not suffiecient jyst to calculate the G function, one must
+! calculate TC etc.
+   yfra=zero
+   kk0=0
+   do ll=1,nsl
+      if(endmember(ll).gt.kk0 .and. endmember(ll).le.kk0+nkl(ll)) then
+         yfra(endmember(ll))=one
+      else
+!         write(*,16)'25J endmember index outside range',ll,endmember(ll),&
+!              kk0,nkl(ll)
+16       format(a,10i5)
+         gx%bmperr=4160; goto 1100
+      endif
+      kk0=kk0+nkl(ll)
+   enddo
+!   write(*,17)'set: ',kk0,(yfra(i),i=1,kk0)
+17 format(a,i3,5(1pe12.4))
+   call set_constitution(iph,1,yfra,qq,ceq)
+   if(gx%bmperr.ne.0) goto 1000
+! we do not know lokres here !!
+   ics=1
+   call get_phase_compset(iph,ics,lokph,lokres)
+   if(gx%bmperr.ne.0) goto 1000
+   do ll=1,6
+      saveg(ll)=ceq%phase_varres(lokres)%gval(ll,1)/qq(1)
+   enddo
+!   write(*,432)saveg
+432 format('25J::',6(1pe12.4))
+! third argument to calcg is 2 to calculate all derivatives
+   call calcg(iph,1,2,lokres,ceq)
+   if(gx%bmperr.ne.0) goto 1000
+   if(qq(1).ge.1.0D-2) then
+! avoid calculating endmembers with too many vacancies. gval is divided by RT
+! gval(1..6,1) are G, G.T, G.P, G.T.T, G.T.P and G.P.P
+      do ll=1,6
+         gval(ll)=ceq%phase_varres(lokres)%gval(ll,1)/qq(1)
+      enddo
+!      write(*,*)'gval: ',gval,qq(1)
+   else
+!      write(*,*)'End member has no atoms'
+      gx%bmperr=4161; goto 1000
+   endif
+! we do not restore values of other properties like TC BMAGN etc
+   do ll=1,6
+      ceq%phase_varres(lokres)%gval(ll,1)=saveg(ll)
+   enddo
+1000 continue
+   ierr=gx%bmperr
+   if(gx%bmperr.ne.0) gx%bmperr=0
+! restore constitution
+!   write(*,17)'res: ',kk0,(savey(i),i=1,kk0)
+   call set_constitution(iph,1,savey,qq,ceq)
+   if(gx%bmperr.ne.0) then
+      if(ierr.ne.0) then
+         write(*,*)'Double errors in calcg_endmember: ',ierr,gx%bmperr
+      endif
+   endif
+! return first error if any
+   if(ierr.ne.0) gx%bmperr=ierr
+1100 continue
+   return
+ end subroutine calcg_endmember6
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
 !-\begin{verbatim}
  subroutine calcg_endmember2(lokph,endmember,tpref,gval,ceq)
 ! calculates G for one mole of real atoms for a single end member
 ! used for reference states. Restores current composition (but not G or deriv)
 ! endmember contains indices in the constituent array, not species index
+! THIS ONE NOT USED
    implicit none
    integer lokph
    double precision gval,tpref(2)
@@ -1487,7 +1583,8 @@
       if(endmember(ll).gt.kk0 .and. endmember(ll).le.nkl(ll)) then
          yfra(endmember(ll))=one
       else
-!         write(*,*)'endmember index outside range',ll,endmember(ll),nkl(ll)
+         write(*,11)'25J endmember index outside range',ll,endmember(ll),nkl(ll)
+11       format(a,10i4)
          gx%bmperr=4160; goto 1100
       endif
       kk0=kk0+nkl(ll)
@@ -2809,41 +2906,8 @@
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim}
- subroutine sumofphcs(npx,ceq)
-! returns the total number of unhidden and unsuspended phases+composition sets
-! in the system.  Used for dimensioning work arrays and in loops
-   implicit none
-   TYPE(gtp_equilibrium_data), pointer :: ceq
-   integer npx
-!\end{verbatim}
-   integer tphic,iph,ics,lokph
-   double precision xxx
-   tphic=0
-   do iph=1,noofph
-      lokph=phases(iph)
-      ics=1
-!      if(test_phase_status(iph,ics,xxx,ceq).eq.5) goto 500
-      if(test_phase_status(iph,ics,xxx,ceq).eq.PHHIDDEN) goto 500
-! phase is not hidden
-      do ics=1,phlista(lokph)%noofcs
-!         if(test_phase_status(iph,ics,xxx,ceq).eq.4) goto 400
-         if(test_phase_status(iph,ics,xxx,ceq).eq.PHSUS) goto 400
-! composition set not suspended
-         tphic=tphic+1
-400      continue
-      enddo
-500   continue
-   enddo
-1000 continue
-   npx=tphic
-   return
- end subroutine sumofphcs
- 
-!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
-
-!\begin{verbatim}
  subroutine enter_default_constitution(iph,ics,mmyfr,ceq)
-! set values of default constitution
+! user specification of default constitution for a composition set
    implicit none
    TYPE(gtp_equilibrium_data), pointer :: ceq
    integer iph,ics
@@ -2916,7 +2980,7 @@
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim}
- subroutine set_default_constitution(jph,ics,all,ceq)
+ subroutine set_as_default_constitution(jph,ics,all,ceq)
 ! set the current constitution of jph to its default constitution
 ! jph can be -1 meaning all phases, all composition sets
 ! if all=-1 then change constitution of all phases, else just those not stable
@@ -2924,7 +2988,7 @@
    implicit none
    integer all,jph,ics
    TYPE(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim}
+!\end{verbatim} %+
 ! This has been changed so it calls set_constitution !!!!
    integer iph,lokph,lokcs,ky,kz,ll,n1,n2,n3,jl
    double precision kvot1,kvot2,amount,rest,qq(5)
@@ -3041,6 +3105,82 @@
 1000 continue
    if(allocated(yy)) deallocate(yy)
    return
+ end subroutine set_as_default_constitution
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
+ subroutine set_default_constitution(iph,ics,ceq)
+! set the constitution of iph composition set ics to its default constitution
+! do not change the amounts of the phases
+   implicit none
+   integer iph,ics
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   integer lokph,lokcs,ll,jj,kk,kk0
+   type(gtp_phase_varres), pointer :: cset
+   type(gtp_phaserecord), pointer :: phase
+   double precision, allocatable :: yarr(:)
+   double precision sum, qq(5)
+!
+   call get_phase_compset(iph,ics,lokph,lokcs)
+   if(gx%bmperr.ne.0) goto 1000
+   cset=>ceq%phase_varres(lokcs)
+! we must use set_constitution at the end to update various internal variables
+   allocate(yarr(phlista(lokph)%tnooffr))
+   if(allocated(cset%mmyfr)) then
+! there is a preset default constitution
+      kk=0
+      subl1: do ll=1,phlista(lokph)%noofsubl
+         kk0=kk
+         sum=zero
+         if(phlista(lokph)%nooffr(ll).gt.1) then
+            do jj=1,phlista(lokph)%nooffr(ll)
+! mmy(kk) is negative for small fractions with a maxium, set to 0.01
+               kk=kk+1
+               if(cset%mmyfr(kk).lt.0.0E0) then
+                  yarr(kk)=0.01D0
+               else
+                  yarr(kk)=one
+               endif
+               sum=sum+yarr(kk)
+            enddo
+            kk=kk0
+! the sum of fractions should be unity, hm done in set_constitution also ...
+            do jj=1,phlista(lokph)%nooffr(ll)
+! mmy(kk) is negative for small fractions with a maxium, set to 0.01
+               kk=kk+1
+               yarr(kk)=yarr(kk)/sum
+            enddo
+         else
+! a single constituent, just increment kk and leave fraction as unity
+            kk=kk+1
+            yarr(kk)=one
+         endif
+      enddo subl1
+   else
+      kk=0
+      subl2: do ll=1,phlista(lokph)%noofsubl
+         if(phlista(lokph)%nooffr(ll).gt.1) then
+! set equal amount of all fractions
+            sum=one/real(phlista(lokph)%nooffr(ll))
+            do jj=1,phlista(lokph)%nooffr(ll)
+               kk=kk+1
+               yarr(kk)=sum
+            enddo
+         else
+! a single constituent, just increment kk and leave fraction as unity
+            kk=kk+1
+            yarr(kk)=one
+         endif
+      enddo subl2
+   endif
+!   write(*,411)yarr
+411 format('25J set_def_const: ',8F7.4,(10f7.4))
+! make the sum of fractions in each sublattice unity
+   call set_constitution(iph,ics,yarr,qq,ceq)
+1000 continue
+   return
  end subroutine set_default_constitution
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
@@ -3048,7 +3188,7 @@
 !\begin{verbatim}
  subroutine todo_before(mode,ceq)
 ! this could be called before an equilibrium calculation
-! It removes any phase amounts and clears CSSTABLE
+! It should remove any phase amounts and clears CSSTABLE
 ! DUMMY
 !
    implicit none

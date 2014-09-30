@@ -12,7 +12,7 @@ l r 2
 
 @&
 
-set ax 1 x(o) 0 1 .002
+set ax 1 x(o) 0 1 ,,
 
 set ax 2 t 500 3500 25
 

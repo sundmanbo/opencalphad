@@ -649,12 +649,13 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! the endmember array is for the reference phase to calculate GREF
 ! The last calculated values of the chemical potentials (for user defined
 ! and default reference states) should be stored here.
+! molat is the number of moles of components in the defined reference state
      integer :: splink,phlink,status
      character*16 :: refstate
      integer, dimension(:), allocatable :: endmember
      double precision, dimension(2) :: tpref
      double precision, dimension(2) :: chempot
-     double precision mass
+     double precision mass,molat
   END TYPE gtp_components
 ! allocated in gtp_equilibrium_data
 !\end{verbatim}
@@ -863,9 +864,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   TYPE endmemrecarray 
      type(gtp_endmember), pointer :: p1
   end TYPE endmemrecarray
-!\end{verbatim}
 !-----------------------------------------------------------------
-!\begin{verbatim}
 ! this constant must be incremented when a change is made in gtp_phase
   INTEGER, parameter :: gtp_phase_version=1
   TYPE gtp_phaserecord

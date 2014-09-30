@@ -1058,10 +1058,11 @@
 !611      format(a,i3,3(1x,L),2i3)
          if(first) then
 ! calculate with next fraction type
-! no need to calculate with all fractions as disordered
+! NEW METHOD: no need to calculate with all fractions as disordered
             first=.false.
             write(*,*)'25B: next fraction type'
             goto 400
+!------------ code below redundant until ^^^^^^^^^^^^^^^^^^^^^^^^^
 ! this is no longer needed as we just add the disordered part
 ! but do not delete yet ... wait until I know it works ...
             allocate(savey(gz%nofc))
@@ -1210,6 +1211,7 @@
             deallocate(savedg)
             deallocate(saved2g)
          endif
+! ----------------- code above redundant ^^^^^^^^^^^^^^^^^^^^^^^^
       endif disord
 400 continue
    enddo fractyp
@@ -1270,12 +1272,15 @@
 !                  write(*,413)'25B Gd+Go:',ider,i1,j1,&
 !                       phpart%dgval(ider,i1,ipy),fsites,&
 !                       phres%dgval(ider,j1,ipy),fracset%dxidyj(i1),xxx
+!                  write(*,413)'25X Gd+Go:',ider,i1,j1,&
+!                       phmain%dgval(ider,i1,ipy),fsites,&
+!                       phres%dgval(ider,j1,ipy),fracset%dxidyj(i1),xxx
                   phpart%dgval(ider,i1,ipy)=xxx
                enddo
             enddo
          enddo
       endif noder7A
-!413   format(a,3i3,6(1pe12.4))
+413   format(a,3i3,6(1pe12.4))
 ! Integral values
       do ipy=1,lprop-1
 !         add1=phpart%gval(1,ipy)
@@ -1289,7 +1294,7 @@
 !              phpart%gval(1,ipy),add1,phres%gval(1,ipy)
       enddo
    endif fractionsets
-! now set phres to ordered results and forget phpart
+! now set phres to ordered+disorded results and forget phpart
    phres=>phmain
 !................................
 !   write(*,*)'25B: ioliq+saved: ',ionicliq,iliqsave,phres%gval(1,1)

@@ -125,7 +125,7 @@
  integer function get_phase_status(iph,ics,text,ip,val,ceq)
 ! return phase status as text and amount formula units in val
 ! for entered and fix phases also phase amounts.
-! Function value: 1=entered, 2=fix, 3=dormant, 4=suspended, 5=hidden
+! OLD Function value: 1=entered, 2=fix, 3=dormant, 4=suspended, 5=hidden
    implicit none
    character text*(*)
    integer iph,ics,ip
@@ -163,12 +163,36 @@
 !old      endif
 ! new way, test PHSTATE
       j=ceq%phase_varres(lokcs)%phstate
-      select case(ceq%phase_varres(lokcs)%phstate)
+      if(j.lt.-4 .or. j.gt.2) then
+! I had an erroor here when plotting map2 macro because after the second
+! map command I had 2 liquid compsets and during the first mapping I had
+! only one liquid so I think
+         ip=j
+         j=0
+         if(btest(ceq%phase_varres(lokcs)%status2,CSSUS)) then
+            if(btest(ceq%phase_varres(lokcs)%status2,CSFIXDORM)) then
+               j=-2
+            else ! suspended
+               j=3
+            endif
+         elseif(btest(ceq%phase_varres(lokcs)%status2,CSFIXDORM)) then
+! fix
+            j=2
+         else ! entered
+            j=0
+         endif
+! save this status .... ???
+         write(*,16)'25H PHSTATE wrong, fixing ...',iph,ics,j,ip,&
+              ceq%phase_varres(lokcs)%status2
+         ceq%phase_varres(lokcs)%phstate=j
+      endif
+      select case(j)
       case default
-         write(*,16)'PHSTATE not correct: ',iph,ics,j
-16       format(a,2i3,z16)
+         write(*,16)'25H: PHSTATE not correct: ',iph,ics,j,ip,&
+              ceq%phase_varres(lokcs)%status2
+16       format(a,4i3,2x,z16)
          gx%bmperr=7777
-      case(phfixed) ! fix
+      case(phfixed) ! fix 2
          text='FIXED'
          ip=5
          val=ceq%phase_varres(lokcs)%amfu
@@ -178,15 +202,15 @@
          ip=7
          val=ceq%phase_varres(lokcs)%amfu
          ists=phentered
-      case(phdorm) ! dormant
+      case(phdorm) ! dormant -2
          text='DORMANT'
          ip=7
          ists=phdorm
-      case(phsus) ! suspended
+      case(phsus) ! suspended -3
          text='SUSPENDED'
          ip=9
          ists=phsus
-      case(phhidden) ! hidden
+      case(phhidden) ! hidden -4
          text='HIDDEN'
          ip=6
          ists=phhidden
@@ -207,7 +231,8 @@
 !\begin{verbatim}
  integer function test_phase_status(iph,ics,val,ceq)
 ! Almost same as get_..., returns phase status as function value but no text
-! 1=entered, 2=fix, 3=dormant, 4=suspended, 5=hidden
+! old: 1=entered, 2=fix, 3=dormant, 4=suspended, 5=hidden
+! nystat:-4 hidden, -3 suspended, -2 dormant, -1,0,1 entered, 2 fix
 ! this is different from in change_phase .... one has to make up one's mind
    implicit none
    TYPE(gtp_equilibrium_data), pointer :: ceq
@@ -216,7 +241,15 @@
 !\end{verbatim}
    integer ists,lokph,lokcs,j,ip
    character text*24
+! new code
+   call get_phase_compset(iph,ics,lokph,lokcs)
+   if(gx%bmperr.ne.0) goto 1000
+   ists=ceq%phase_varres(lokcs)%phstate
+   val=ceq%phase_varres(lokcs)%amfu
+   goto 900
+!=============================================
    ists=0
+   ip=1
    val=-one
    ists=get_phase_status(iph,ics,text,ip,val,ceq)
    goto 900
@@ -367,7 +400,7 @@
    integer qph,ics,nystat
    double precision val
    TYPE(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim}
+!\end{verbatim} %+
    integer lokph,lokcs,iph,ip,mcs
    character line*80,phname*32
 !   write(*,11)'25H in change_phase_status: ',qph,ics,nystat,val
@@ -421,11 +454,11 @@
       enddo
    else !bigif
 ! changing FIX/ENTERED/SUSPENDED/DORMANT for a composition set
-!      lokcs=phlista(lokph)%cslink
       lokcs=phlista(lokph)%linktocs(ics)
 ! input nystat:0=entered, 3=fix, 1=suspended, 2=dormant
 ! bit setting: 00         01   , 10           11
-!      write(*,*)'25H new status: ',nystat
+!      write(*,71)'25H new status: ',iph,ics,lokph,lokcs,nystat,phentered,val
+71    format(a,6i5,1pe14.6)
       if(nystat.eq.phentered) then
 ! set enterered with amount val and dgm zero
          ceq%phase_varres(lokcs)%phstate=phentered
@@ -435,7 +468,7 @@
               ibclr(ceq%phase_varres(lokcs)%status2,CSFIXDORM)
 !         ceq%phase_varres(lokcs)%amount=val
          ceq%phase_varres(lokcs)%amfu=val
-         ceq%phase_varres(lokcs)%netcharge=val
+         ceq%phase_varres(lokcs)%netcharge=zero
          ceq%phase_varres(lokcs)%dgm=zero
       elseif(nystat.eq.phsus) then
 ! set suspended with amount and dgm zero
@@ -470,7 +503,7 @@
          ceq%phase_varres(lokcs)%status2=&
               ibset(ceq%phase_varres(lokcs)%status2,CSFIXDORM)
          ceq%phase_varres(lokcs)%amfu=val
-         ceq%phase_varres(lokcs)%netcharge=val
+         ceq%phase_varres(lokcs)%netcharge=zero
          ceq%phase_varres(lokcs)%dgm=zero
 ! also set as condition
          call get_phase_name(iph,ics,phname)
@@ -502,6 +535,42 @@
    return
  end subroutine change_phase_status
 
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim} &-
+ subroutine mark_stable_phase(iph,ics,ceq)
+! change the status of a phase. Does not change fix status
+! called from meq_sameset to indicate stable phases (nystat=1)
+! nystat:-4 hidden, -3 suspended, -2 dormant, -1,0,1 entered, 2 fix
+! 
+   implicit none
+   integer qph,ics,nystat
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   integer lokph,lokcs,iph,ip,mcs
+   character line*80,phname*32
+!   write(*,11)'25H mark as stable: ',iph,ics,phentstab
+11 format(a,3i5,1pe14.6)
+   call get_phase_compset(iph,ics,lokph,lokcs)
+   if(gx%bmperr.ne.0) goto 1000
+!   write(*,*)'25H: Phase and status: ',iph,ceq%phase_varres(lokcs)%phstate
+   if(ceq%phase_varres(lokcs)%phstate.eq.phhidden) then
+      write(*,*)'Error calling mark_stable for hidden phase'
+      gx%bmperr=4095; goto 1000
+   elseif(ceq%phase_varres(lokcs)%phstate.le.phdorm) then
+      write(*,*)'Cannot make suspended or doremant phases as stable'
+      gx%bmperr=4095; goto 1000
+   elseif(ceq%phase_varres(lokcs)%phstate.eq.phfixed) then
+! do nothing
+      goto 1000
+   else
+      ceq%phase_varres(lokcs)%phstate=phentstab
+   endif
+1000 continue
+!   write(*,*)'error code: ',gx%bmperr
+   return
+ end subroutine mark_stable_phase
+
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 !>     14. Unfinished things
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
@@ -515,11 +584,11 @@
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
    integer nsl,nkl(maxsubl),knr(maxconst),splink,j1,ie,isp,elink
-   integer ll,jj,nrel,lokph,noendm,jerr,lokres,ny
+   integer ll,jj,nrel,lokph,noendm,jerr,lokres,ny,endmemx,endmemxy,ics
    double precision sites(maxsubl),qq(5),yarrsave(maxconst),xsum,gmin,gval
    double precision, dimension(:), allocatable :: yarr,xcomp,xmol
-   integer, dimension(:), allocatable :: sumc,jend,jendsave
-   double precision tpsave(2)
+   integer, dimension(:), allocatable :: maxjj,jend,jendsave
+   double precision tpsave(2),molat,saveg(6)
 ! iph negative means remove current reference state
    if(iph.lt.0) then
       ceq%complist(icomp)%phlink=0
@@ -544,20 +613,20 @@
       xcomp(ie)=xcomp(ie)/xsum
    enddo
 !   write(*,17)'srs x: ',(xcomp(ie),ie=1,nrel)
-!17 format(a,15(f5.2))
+17 format(a,15(f5.2))
 ! find suitable endmember with correct composition and minimal G
    call get_phase_data(iph,1,nsl,nkl,knr,yarrsave,sites,qq,ceq)
    if(gx%bmperr.ne.0) goto 1000
-   allocate(sumc(0:nsl))
+   allocate(maxjj(0:nsl))
    allocate(jend(1:nsl))
    allocate(jendsave(1:nsl))
 ! generate all endmembers, maybe there is a better way ...
 ! and set unity fraction in yarr and check composition
    ny=0
-   sumc(0)=1
+   maxjj(0)=1
    do ll=1,nsl
       ny=ny+nkl(ll)
-      sumc(ll)=ny
+      maxjj(ll)=ny
    enddo
    allocate(yarr(ny))
    yarr=zero
@@ -568,7 +637,10 @@
       jj=jj+nkl(ll)
    enddo
    allocate(xmol(nrel))
-   lokph=phases(iph)
+!   lokph=phases(iph)
+! we must save the gval for lokres (composition set 1)
+   call get_phase_compset(iph,ics,lokph,lokres)
+   if(gx%bmperr.ne.0) goto 1000
    gmin=1.0D5
    noendm=0
    tpsave=ceq%tpval
@@ -577,20 +649,29 @@
       ceq%tpval(1)=tpval(1)
    endif
    ceq%tpval(2)=tpval(2)
+   do ie=1,6
+      saveg(ie)=ceq%phase_varres(lokres)%gval(ie,1)
+   enddo
+!   write(*,912)'25H Saved G: ',lokres,ceq%phase_varres(lokres)%gval(1,1),&
+!        saveg(1)
 !----------------------------------------------
 ! return here for each endmember
+   endmemx=0
 200 continue
-!   write(*,17)'srs y: ',(yarr(jj),jj=1,ny)
+!   write(*,*)'25H endm: ',(jend(jj),jj=1,nsl)
+!   write(*,17)'25H srs y: ',(yarr(jj),jj=1,ny)
    call set_constitution(iph,1,yarr,qq,ceq)
    if(gx%bmperr.ne.0) goto 900
 ! this subroutine converts site fractions in phase iph, compset 1
 ! to mole fractions of components (or elements ??? )
+   endmemx=endmemx+1
    call calc_phase_mol(iph,xmol,ceq)
    if(gx%bmperr.ne.0) goto 900
-!   write(*,17)'srs xem: ',(xmol(ie),ie=1,nrel)
+!   write(*,17)'25H srs xem: ',(xmol(ie),ie=1,nrel)
    do jj=1,nrel
       if(abs(xmol(jj)-xcomp(jj)).gt.1.0D-12) goto 250
    enddo
+!--------------------------------------------------
 ! we have an endmember with the correct composition
    call calcg(iph,1,0,lokres,ceq)
    if(gx%bmperr.ne.0) goto 900
@@ -598,19 +679,25 @@
 !   write(*,222)'25H, srs gval: ',qq(1),gval,gmin
 222 format(a,F10.3,2(1pe12.4))
    if(gval.lt.gmin) then
+! we should check i electrically neutral ??
       noendm=noendm+1
       gmin=gval
       jendsave=jend
+      molat=qq(1)
+      endmemxy=endmemx
+!      write(*,229)'25H min: ',gmin,jendsave
+229   format(a,1pe12.4,10i4)
    endif
 250 continue
 ! change constitution .... quit when all endmembers done
    ll=nsl
 260 continue
+! jend is the current endmember
    jj=jend(ll)
    yarr(jj)=zero
    jj=jj+1
-   if(jj.gt.sumc(ll)) then
-      jend(ll)=sumc(ll-1)
+   if(jj.gt.maxjj(ll)) then
+      jend(ll)=maxjj(ll-1)+1
       yarr(jend(ll))=one
       ll=ll-1
 ! if ll becomes zero here all endmemebrs have been generated (?)
@@ -626,11 +713,21 @@
       write(*,*)'This phase cannot be reference state for for this component'
       gx%bmperr=7777; goto 900
    endif
+! endmemx and endmemxy redundant
+!   write(*,808)'25H reference state endmember',lokph,endmemxy,jendsave
+808 format(a,i3,2x,10i3)
 ! If all OK then save phase name, endmember array, T and P
    ceq%complist(icomp)%phlink=lokph
-   allocate(ceq%complist(icomp)%endmember(nsl))
+   if(.not.allocated(ceq%complist(icomp)%endmember)) then
+! if the user changes reference state do not allocate again
+      allocate(ceq%complist(icomp)%endmember(nsl))
+   endif
    ceq%complist(icomp)%endmember=jendsave
-! Note tpval(1) can be nagative indicating current T
+!   allocate(ceq%complist(icomp)%endmember(1))
+!   ceq%complist(icomp)%endmember=endmemxy
+! molat is probably redundant as calcg_endmember returns for one mole component
+   ceq%complist(icomp)%molat=molat
+! Note tpval(1) can be negative indicating current T
    ceq%complist(icomp)%tpref=tpval
    ceq%complist(icomp)%refstate=phlista(lokph)%name
 ! restore original constitution of compset 1
@@ -641,6 +738,13 @@
    if(jerr.ne.0) then
       gx%bmperr=jerr
    endif
+! restore original vales of G and derivatives
+   do ie=1,6
+      ceq%phase_varres(lokres)%gval(ie,1)=saveg(ie)
+   enddo
+!   write(*,912)'25H Restored G: ',lokres,ceq%phase_varres(lokres)%gval(1,1),&
+!        saveg(1)
+912 format(a,i5,6(1pe12.4))
 1000 continue
    return
  end subroutine set_reference_state
@@ -703,10 +807,9 @@
    asum=one
    lokcs=phlista(lokph)%linktocs(1)
    if(nsl.eq.1) then
-!      asum=phlista(lokph)%sites(1)
       asum=firsteq%phase_varres(lokcs)%sites(1)
       emlist1: do while(associated(endmemrec))
-         if(endmemrec%fraclinks(ll,1).eq.icon) goto 300
+         if(endmemrec%fraclinks(nsl,1).eq.icon) goto 300
          endmemrec=>endmemrec%nextem
       enddo emlist1
    else
@@ -719,14 +822,12 @@
                loksp2=phlista(lokph)%constitlist(jcon)
                if(loksp2.eq.loksp) then
 ! same species in this sublattice, add sites to asum
-!                  asum=asum+phlista(lokph)%sites(ll)
                   asum=asum+firsteq%phase_varres(lokcs)%sites(ll)
                elseif(.not.btest(splista(loksp2)%status,spva)) then
 ! other species (not vacancies) in this sublattice, skip this end member
                   goto 200
                endif
             else
-!               asum=asum+phlista(lokph)%sites(ll)
                asum=asum+firsteq%phase_varres(lokcs)%sites(ll)
             endif
          enddo
@@ -1988,6 +2089,180 @@
    ocv=btest(globaldata%status,GSVERBOSE)
    return
  end function ocv
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!-\begin{verbatim}
+ integer function vssize(varres)
+! calculates the size in words (4 bytes) of a phase_varres record
+   implicit none
+   type(gtp_phase_varres) :: varres
+!-\end{verbatim}
+   integer sum
+!   write(*,*)'In vssize 1'
+!     integer nextfree,phlink,status2,phstate
+!     double precision, dimension(2) :: abnorm
+!     character*4 prefix,suffix
+   sum=10
+! changed to allocatable
+!     integer, dimension(:), allocatable :: constat
+!     double precision, dimension(:), allocatable :: yfr
+!     real, dimension(:), allocatable :: mmyfr
+!     double precision, dimension(:), allocatable :: sites
+   if(allocated(varres%constat)) sum=sum+size(varres%constat)
+   if(allocated(varres%yfr)) sum=sum+3*size(varres%yfr)
+!   write(*,*)'In vssize 2',sum
+! for ionic liquid derivatives of sites wrt fractions (it is the charge), 
+! 2nd derivates only when one constituent is vacancy
+! 1st sublattice P=\sum_j (-v_j)*y_j + Qy_Va
+! 2nd sublattice Q=\sum_i v_i*y_i
+!     double precision, dimension(:), allocatable :: dpqdy
+!     double precision, dimension(:), allocatable :: d2pqdvay
+   if(allocated(varres%dpqdy)) sum=sum+size(varres%dpqdy)
+   if(allocated(varres%d2pqdvay)) sum=sum+size(varres%d2pqdvay)
+!   write(*,*)'In vssize 3',sum
+! for extra fraction sets, better to go via phase record index above
+! this TYPE(gtp_fraction_set) variable is a bit messy.  Declaring it in this
+! way means the record is stored inside this record.
+!     type(gtp_fraction_set) :: disfra
+! size of disfra record??
+   sum=sum+10
+   if(allocated(varres%disfra%dsites)) sum=sum+size(varres%disfra%dsites)
+   if(allocated(varres%disfra%nooffr)) sum=sum+size(varres%disfra%nooffr)
+   if(allocated(varres%disfra%splink)) sum=sum+size(varres%disfra%splink)
+   if(allocated(varres%disfra%y2x)) sum=sum+size(varres%disfra%y2x)
+   if(allocated(varres%disfra%dxidyj)) sum=sum+size(varres%disfra%dxidyj)
+!   write(*,*)'In vssize 4',sum
+! It seems difficult to get the phdapointer in disfra record to work
+! ---
+! arrays for storing calculated results for each phase (composition set)
+! amfu: is amount formula units of the composition set (calculated result)
+! netcharge: is net charge of phase
+! dgm: driving force (calculated result)
+! amcom: not used
+! damount: set to last change of phase amount in equilibrium calculations
+! qqsave: values of qq calculated in set_constitution
+!    double precision amount(2),dgm,amcom,damount,qqsave(3)
+!    double precision amfu,netcharge,dgm,amcom,damount,qqsave(3)
+!     double precision amfu,netcharge,dgm,amcom,damount
+   sum=sum+10
+! Other properties may be that: gval(*,2) is TC, (*,3) is BMAG, see listprop
+! nprop: the number of different properties (set in allocate)
+! ncc: total number of site fractions (redundant but used in some subroutines)
+! BEWHARE: ncc seems to be wrong using TQ test program fenitq.F90 ???
+! listprop(1): is number of calculated properties
+! listprop(2:listprop(1)): identifies the property stored in gval(1,ipy) etc
+!   2=TC, 3=BMAG. Properties defined in the gtp_propid record
+!     integer nprop,ncc
+!     integer, dimension(:), allocatable :: listprop
+   if(allocated(varres%listprop)) sum=sum+2+size(varres%listprop)
+!   write(*,*)'In vssize 5',sum
+! gval etc are for all composition dependent properties, gval(*,1) for G
+! gval(*,1): is G, G.T, G.P, G.T.T, G.T.P and G.P.P
+! dgval(1,j,1): is first derivatives of G wrt fractions j
+! dgval(2,j,1): is second derivatives of G wrt fractions j and T
+! dgval(3,j,1): is second derivatives of G wrt fractions j and P
+! d2gval(ixsym(i,j),1): is second derivatives of G wrt fractions i and j
+!     double precision, dimension(:,:), allocatable :: gval
+!     double precision, dimension(:,:,:), allocatable :: dgval
+!     double precision, dimension(:,:), allocatable :: d2gval
+   if(allocated(varres%gval)) sum=sum+2*size(varres%gval)
+   if(allocated(varres%dgval)) sum=sum+2*size(varres%dgval)
+   if(allocated(varres%d2gval)) sum=sum+2*size(varres%d2gval)
+!   write(*,*)'In vssize 6',sum
+! added for strain/stress, current values of lattice parameters
+!     double precision, dimension(3,3) :: curlat
+! saved values from last equilibrium calculation
+!     double precision, dimension(:,:), allocatable :: cinvy
+!     double precision, dimension(:), allocatable :: cxmol
+!     double precision, dimension(:,:), allocatable :: cdxmol
+   if(allocated(varres%cinvy)) sum=sum+18+2*size(varres%cinvy)
+   if(allocated(varres%cxmol)) sum=sum+18+2*size(varres%cxmol)
+   if(allocated(varres%cdxmol)) sum=sum+18+2*size(varres%cdxmol)
+!
+1000 continue
+   vssize=sum
+   return
+ end function vssize
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!-\begin{verbatim}
+ integer function ceqsize(ceq)
+! calculates the size in words (4 bytes) of an equilibrium record
+   implicit none
+   type(gtp_equilibrium_data), pointer :: ceq
+!-\end{verbatim}
+   integer sum,vsum,ivs,vss
+!   write(*,*)'In ceqsize 1'
+!
+!     integer status,multiuse,eqno,next
+!     character eqname*24
+!     double precision tpval(2),rtn
+! svfunres: the values of state variable functions valid for this equilibrium
+!     double precision, dimension(:), allocatable :: svfunres
+   sum=18+2*size(ceq%svfunres)
+!   write(*,*)'In ceqsize 2',sum
+! the experiments are used in assessments and stored like conditions 
+! lastcondition: link to condition list
+! lastexperiment: link to experiment list
+!     TYPE(gtp_condition), pointer :: lastcondition,lastexperiment
+! assuming a pointer is 4 bytes (2 words)
+   sum=sum+4
+! components and conversion matrix from components to elements
+! complist: array with components
+! compstoi: stoichiometric matrix of compoents relative to elements
+! invcompstoi: inverted stoichiometric matrix
+!     TYPE(gtp_components), dimension(:), allocatable :: complist
+!     double precision, dimension(:,:), allocatable :: compstoi
+!     double precision, dimension(:,:), allocatable :: invcompstoi
+! a gtp_component record is about 20 words, invcompstoi same as compsoti
+   if(allocated(ceq%complist)) sum=sum+20*size(ceq%complist)+&
+        4*size(ceq%compstoi)
+!   write(*,*)'In ceqsize 3',sum
+! one record for each phase+composition set that can be calculated
+! phase_varres: here all calculated data for the phase is stored
+!     TYPE(gtp_phase_varres), dimension(:), allocatable :: phase_varres
+! each phase_varres record is different for each phase
+   vsum=0
+! csfree is first free phase_varres record
+   do ivs=1,csfree
+      vss=vssize(ceq%phase_varres(ivs))
+!      write(*,*)'Phase varres: ',ivs,vss
+      vsum=vsum+vss
+   enddo
+   sum=sum+vsum
+!   write(*,*)'In ceqsize 4',sum
+! index to the tpfun_parres array is the same as in the global array tpres 
+! eq_tpres: here local calculated values of TP functions are stored
+!     TYPE(tpfun_parres), dimension(:), pointer :: eq_tpres
+! each tpfun_parres record is 8 double
+   sum=sum+16*size(ceq%eq_tpres)
+! current values of chemical potentials stored in component record but
+! duplicated here for easy acces by application software
+!     double precision, dimension(:), allocatable :: cmuval
+   if(allocated(ceq%cmuval)) sum=sum+2*size(ceq%cmuval)
+! xconc: convergence criteria for constituent fractions and other things
+!     double precision xconv
+! delta-G value for merging gridpoints in grid minimizer
+! smaller value creates problem for test step3.BMM, MC and austenite merged
+!     double precision :: gmindif=-5.0D-2
+! maxiter: maximum number of iterations allowed
+!     integer maxiter
+   sum=sum+5
+! this is to save a copy of the last calculated system matrix, needed
+! to calculate dot derivatives, initiate to zero
+!     integer :: sysmatdim=0,nfixmu=0,nfixph=0
+!     integer, allocatable :: fixmu(:)
+!     integer, allocatable :: fixph(:,:)
+!     double precision, allocatable :: savesysmat(:,:)
+   sum=sum+3+size(ceq%fixmu)+size(ceq%fixph)+size(ceq%savesysmat)
+! these are normally not used any more
+!   sum=sum+size(ceq%fixmu)+size(ceq%fixph)+size(ceq%savesysmat)
+   ceqsize=sum
+1000 continue
+   return
+ end function ceqsize
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
