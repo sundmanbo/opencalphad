@@ -193,7 +193,7 @@ contains
 ! subcommands to CALCULATE
     character (len=16), dimension(ncalc) :: ccalc=&
          ['TPFUN_SYMBOLS   ','PHASE           ','NO_GLOBAL       ',&
-         '                ','QUIT            ','GLOBAL_GRIDMIN  ',&
+         'TRANSITION      ','QUIT            ','GLOBAL_GRIDMIN  ',&
          'SYMBOL          ','EQUILIBRIUM     ','ALL_EQUILIBRIA  ']
 !-------------------
 ! subcommands to CALCULATE PHASE
@@ -726,7 +726,13 @@ contains
 !           write(*,*)'inverted y: ',ceq%phase_varres(2)%cinvy(1,1)
           endif
 !----------------------------------
-       case(4) ! calculate ?
+       case(4) ! calculate transition
+! set a phase fix and remove one condition.  One must have calculated an
+! equilibrium
+          write(kou,2090)
+2090      format('To calculate when a phase will appear/dissapear',&
+               ' by releasing a condition.')
+          write(*,*)'Not implemented yet'
           goto 100
 !----------------------------------
        case(5) ! quit
@@ -910,8 +916,8 @@ contains
                 write(kou,*)'There are no results from map or step'
                 goto 100
              else
-                write(kou,2500)maptop%saveceq%free-1
-2500            format('Saved ceq records from 1 to ',i3) 
+                write(kou,3100)maptop%saveceq%free-1
+3100            format('Saved ceq records from 1 to ',i3) 
              endif
              write(kou,*)'To transfer CEQ from result area to current'
              call gparid('Saved ceq number',cline,last,icon,1,q1help)
@@ -929,7 +935,6 @@ contains
                 write(*,*)'Trying to change name ...'
                 eqlista(i1)%eqname=name1
                 call selecteq(i1,ceq)
-2510            format(a,i3,a)
              else
                 write(kou,*)'No such saved equilibrium'
              endif
@@ -1672,7 +1677,8 @@ contains
              if(gx%bmperr.ne.0) goto 990
 !...............................................................
           case(3) ! list phase model (including disordered fractions)
-             write(kou,1244)'For ',ceq%eqno,ceq%eqname
+             write(kou,6070)'For ',ceq%eqno,ceq%eqname
+6070      format(a,'equilibrium: ',i3,', ',a)
              call list_phase_model(iph,ics,kou,ceq)
           END SELECT
 !------------------------------
@@ -1884,8 +1890,7 @@ contains
           endif
 !------------------------------
        case(13) ! list conditions
-          write(kou,1244)'Conditions for ',ceq%eqno,ceq%eqname
-1244      format(a,'equilibrium: ',i3,', ',a)
+          write(kou,6070)'Conditions for ',ceq%eqno,ceq%eqname
           call list_conditions(kou,ceq)
 !------------------------------
        case(14) ! list symbols (state variable functions, not TP funs)
@@ -2470,8 +2475,8 @@ contains
           write(kou,*)'You must set two axis with independent variables'
           goto 100
        endif
-       write(kou,2014)
-2014   format('The map command is fragile, please send problematic diagrams',&
+       write(kou,20014)
+20014   format('The map command is fragile, please send problematic diagrams',&
             ' to the',/'OC development team'/)
        if(associated(maptop)) then
           write(kou,*)'There are some results already form step or map'
@@ -2559,7 +2564,8 @@ contains
 !      6 TEXT UP TO AND INCLUDING ";"
 !      7 TEXT TERMINATED BY SPACE OR "," BUT IGNORING SUCH INSIDE ( )
 !    >31, THE CHAR(JTYP) IS USED AS TERMINATING CHARACTER
-2100      continue
+!2100      continue
+21000      continue
           if(iax.eq.1) then
              call gparcd('Horizontal axis variable',&
                   cline,last,7,axplot(iax),axplotdef(iax),q1help)
@@ -2571,7 +2577,7 @@ contains
           if(index(axplot(iax),'*').gt.0) then
              if(wildcard) then
                 write(*,*)'Wildcards allowed for one axis only'
-                goto 2100
+                goto 21000
              else
                 wildcard=.TRUE.
              endif
@@ -2595,7 +2601,7 @@ contains
        endif
 !-----------------------------------------------------------
 ! plot options subcommand, default is PLOT, NONE does not work ...
-2103   continue
+21100   continue
 ! give an empty line as a sublte alert for plot options
        write(kou,*)
        kom2=submenu('Options?',cline,last,cplot,nplt,1)
@@ -2615,12 +2621,12 @@ contains
           else
              graphopt%rangedefaults(1)=1
              twice=.FALSE.
-2104         continue
+21104        continue
              call gparrd('Low limit',cline,last,xxx,graphopt%dfltmin(1),q1help)
              graphopt%plotmin(1)=xxx
              graphopt%dfltmin(1)=xxx
              once=.TRUE.
-2105         continue
+21105        continue
              call gparrd('High limit',cline,last,xxx,&
                   graphopt%dfltmax(1),q1help)
              if(xxx.le.graphopt%plotmin(1)) then
@@ -2633,16 +2639,16 @@ contains
                 else
                    write(kou,*)'Please give the low limit again!'
                    twice=.TRUE.
-                   goto 2104
+                   goto 21104
                 endif
-                write(kou,2106)graphopt%plotmin(1)
-2106            format('High limit must be higher than low: ',1pe14.6)
-                goto 2105
+                write(kou,21106)graphopt%plotmin(1)
+21106           format('High limit must be higher than low: ',1pe14.6)
+                goto 21105
              endif
              graphopt%plotmax(1)=xxx
              graphopt%dfltmax(1)=xxx
           endif
-          goto 2103
+          goto 21100
 !-----------------------------------------------------------
 ! YRANGE
        case(3)
@@ -2652,12 +2658,12 @@ contains
           else
              graphopt%rangedefaults(2)=1
              twice=.FALSE.
-2107         continue
+21107        continue
              call gparrd('Low limit',cline,last,xxx,graphopt%dfltmin(2),q1help)
              graphopt%plotmin(2)=xxx
              graphopt%dfltmin(2)=xxx
              once=.TRUE.
-2108         continue
+21108        continue
              call gparrd('High limit',cline,last,xxx,&
                   graphopt%dfltmax(2),q1help)
              if(xxx.le.graphopt%plotmin(2)) then
@@ -2670,25 +2676,25 @@ contains
                 else
                    write(kou,*)'Please give the low limit again!'
                    twice=.TRUE.
-                   goto 2107
+                   goto 21107
                 endif
-                write(kou,2106)graphopt%plotmin(2)
-                goto 2108
+                write(kou,21106)graphopt%plotmin(2)
+                goto 21108
              endif
              graphopt%plotmax(2)=xxx
              graphopt%dfltmax(2)=xxx
           endif
-          goto 2103
+          goto 21100
 !-----------------------------------------------------------
 ! XTEXT
        case(4)
           write(*,*)'Not implemented yet'
-          goto 2103
+          goto 21100
 !-----------------------------------------------------------
 ! YTEXT
        case(5)
           write(*,*)'Not implemented yet'
-          goto 2103
+          goto 21100
 !-----------------------------------------------------------
 ! PLOT LABEL
        case(6)

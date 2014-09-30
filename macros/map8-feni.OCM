@@ -113,7 +113,7 @@ l r 2
 set ax 1 x(ni) 0 1 ,,,,
 
 @$ we have to take very small T steps
-set ax 2 t 10 1000 5
+set ax 2 t 10 1000 10
 
 map
 
