@@ -1864,9 +1864,8 @@
    ie=ie+1
    if(ie.gt.nrel) then
 ! tried to change all coumns but no solution, error
-      write(*,301)'Failed to include gridpoint in solution: ',nyp,inerr,&
-           dgmin,(xarr(i,nyp),i=1,nrel)
-301   format(a,i5,i3/1x,1pe12.4,2x,6(1pe12.4))
+      write(*,301)'Failed gridpoint: ',nyp,inerr,dgmin,(xarr(i,nyp),i=1,nrel)
+301   format(a,i7,i3,1pe12.4,2x,6(0pF7.4))
 ! listing restored solution ......
 !      xtx=zero
 !      do jjq=1,nrel

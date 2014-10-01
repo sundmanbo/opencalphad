@@ -2237,15 +2237,19 @@
               dispartph(thisdis)(1:3).eq.'A2_' .or. &
               dispartph(thisdis)(1:3).eq.'A3_') then
 ! if disordred phase is FCC, BCC or HCP then set jl=1 and nd1 to 2 or 4
-            write(kou,397)ordpartph(thisdis)(1:len_trim(ordpartph(thisdis)))
-397         format('The phase ',a,&
-                 ' set to have an order/disorder partition model.')
-            jl=1
             if(phlista(lokph)%noofsubl.le.5) nd1=4
             if(phlista(lokph)%noofsubl.le.3) nd1=2
+            write(kou,397)ordpartph(thisdis)(1:len_trim(ordpartph(thisdis))),&
+                 nd1
+397         format('The phase ',a,&
+                 ' set to have an order/disorder partition model summing ',i2)
+            jl=1
          else
 ! disordered part of sigma, mu etc.
             jl=0; nd1=phlista(lokph)%noofsubl
+            write(kou,398)'Phase assumed to be NODT',nd1,&
+                 ordpartph(thisdis)(1:len_trim(ordpartph(thisdis)))
+398         format(a,i3,2x,a)
          endif
 ! add DIS_PART from TDB
          call add_fraction_set(iph,ch1,nd1,jl)
@@ -2297,6 +2301,7 @@
          write(*,*)'Empty line after PARAMETER'
          gx%bmperr=7777; goto 1000
       endif
+!      if(dodis.eq.1) write(*,*)'Reading disordered parameters'
       ip=nextc
       funname=longline(ip:)
       kp=index(funname,' ')
@@ -2326,7 +2331,7 @@
          endif
 !         write(*,*)'psym2: ',typty,fractyp
       endif
-! only fractyp 1 on TDB files untill I implemented disordered part
+! only fractyp 1 on TDB files until I implemented disordered part
       fractyp=1
 !       write(*,*)'readtdb: PAR',name1,typty
 ! extract phase name and constituent array
@@ -2344,7 +2349,8 @@
          goto 100
 !-----------------------
 710      continue
-!         write(*,*)'Entering disordered parameter to: ',ordpartph(thisdis)
+         write(*,*)'Entering disordered parameter to: ',ordpartph(thisdis)
+         write(*,*)'> ',longline(1:len_trim(longline))
          name2=ordpartph(jl)
          fractyp=2
       endif dispar
@@ -2403,6 +2409,7 @@
       endif
 305    format(a,5i4)
 !---------------- encode function
+!      if(dodis.eq.1) write(*,*)'We are here 1'
       ip=0
       jp=0
 400    continue
@@ -2484,16 +2491,20 @@
               funname(1:len_trim(funname)),' around line: ',nl
          goto 1000
       else
+!         if(dodis.eq.1) write(*,*)'We are here 2'
          call enter_parameter(lokph,typty,fractyp,nsl,endm,nint,lint,ideg,&
               lrot,refx)
          if(ocv()) write(*,407)'Entered parameter: ',lokph,typty,gx%bmperr
 407      format(a,3i5)
          if(gx%bmperr.ne.0) then
+            if(dodis.eq.1) write(*,*)'error ',gx%bmperr
             if(.not.(gx%bmperr.ne.4096 .or. gx%bmperr.ne.4066)) goto 1000
 ! ignore error 4096 meaning "no such constituent" or "... in a sublattice"
 !            write(*,*)'readtdb entparerr: ',gx%bmperr,' >',&
 !                 funname(1:len_trim(funname))
             gx%bmperr=0
+         elseif(dodis.eq.1) then
+            write(*,*)'Disordered parameter should be entered ok'
          endif
       endif
       if(gx%bmperr.ne.0) write(*,*)'25F errorcode 1: ',gx%bmperr

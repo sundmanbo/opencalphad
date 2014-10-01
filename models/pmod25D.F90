@@ -1149,7 +1149,7 @@
       goto 300
    elseif(stvexp(1:5).eq.'NOFIX') then
       inactivate=.TRUE.
-!      write(*,*)'Inactivate phase condition'
+!      write(*,*)'25D Inactivate phase fix condition'
       goto 300
    endif
 ! check if it is an expression with + or -
@@ -1417,7 +1417,7 @@
    svrarr(1)%constituent=0
 !
    temp=>ceq%lastcondition    
-!   write(*,*)'25D calling get_condtion'
+!   write(*,*)'25D calling get_condition'
    svr=>svrarr(1)
    call get_condition(nterm,svr,temp)
 !   write(*,*)'25D Back from get_condition ',gx%bmperr
@@ -1557,9 +1557,9 @@
 !\end{verbatim} %+
    type(gtp_condition), pointer :: last
    type(gtp_state_variable), pointer :: condvar
-   integer j1,num
+   integer j1,num,j2
    if(.not.associated(pcond)) goto 900
-!   write(*,*)'25D get_condition 1: ',svr%statevarid,svr%oldstv,svr%argtyp
+!   write(*,*)'25D in get_condition: ',svr%statevarid,svr%oldstv,svr%argtyp
    last=>pcond
    num=0
 100 continue
@@ -1567,23 +1567,34 @@
          num=num+1
          do j1=1,nterm
             condvar=>pcond%statvar(j1)
-!           write(*,*)'25D get_condition 2: ',num,condvar%oldstv,condvar%argtyp
+!            write(*,*)'25D get_condition: ',num,condvar%oldstv,condvar%argtyp
 ! dissapointment, one cannot compare two structures ... unless pointers same
 !            if(condvar.ne.svr) goto 200
+!            j2=1
             if(condvar%oldstv.ne.svr%oldstv) goto 200
-            if(condvar%norm.ne.svr%norm) goto 200
-            if(condvar%unit.ne.svr%unit) goto 200
+!            j2=2
             if(condvar%argtyp.ne.svr%argtyp) goto 200
+!            j2=3
             if(condvar%phase.ne.svr%phase) goto 200
+!            j2=4
             if(condvar%compset.ne.svr%compset) goto 200
+            if(condvar%statevarid.lt.0) goto 1000
+! for fix phase the remaining have no importance
+!            j2=5
             if(condvar%component.ne.svr%component) goto 200
+!            j2=6
             if(condvar%constituent.ne.svr%constituent) goto 200
+!            j2=7
+            if(condvar%norm.ne.svr%norm) goto 200
+!            j2=8
+            if(condvar%unit.ne.svr%unit) goto 200
          enddo
 ! we have found a condition with these state variables
 !         write(*,*)'25D Found condition',pcond%active
          goto 1000
       endif
 200   continue
+!      write(*,*)'Failed at argument: ',j2
       pcond=>pcond%next
       if(.not.associated(pcond,last)) goto 100
 900 continue

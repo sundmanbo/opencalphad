@@ -732,7 +732,58 @@ contains
           write(kou,2090)
 2090      format('To calculate when a phase will appear/dissapear',&
                ' by releasing a condition.')
-          write(*,*)'Not implemented yet'
+          if(btest(ceq%status,EQNOEQCAL)) then
+             write(kou,2095)
+2095         format('You must make an equilibrium calculation before using',&
+                  ' this command.')
+             goto 100
+          endif
+          call gparc('Phase name: ',cline,last,1,name1,' ',q1help)
+          call find_phase_by_name(name1,iph,ics)
+          if(gx%bmperr.ne.0) goto 990
+          jl=test_phase_status(iph,ics,xxx,ceq)
+          if(jl.eq.PHFIXED) then
+             write(kou,*)'Phase status already fixed'
+             goto 100
+          endif
+          call list_conditions(kou,ceq)
+          write(kou,2097)
+2097      format('You must release one condition, give its number')
+          call gparid('Condition number',cline,last,jl,1,q1help)
+          if(jl.le.0 .or. jl.gt.noel()+2) then
+             write(kou,*)'No such condition'
+             goto 100
+          endif
+! this finds condition with given number
+          call locate_condition(jl,pcond,ceq)
+          if(gx%bmperr.ne.0) goto 990
+          if(pcond%active.eq.0) then
+! the condition is active, deactivate it!
+             pcond%active=1
+          else
+             write(kou,*)'This condition is not active!'
+             goto 100
+          endif
+! Condition released, now set the phase as fix with zero moles
+          call change_phase_status(iph,ics,PHFIXED,xxx,ceq)
+          if(gx%bmperr.ne.0) goto 990
+! Calculate equilibrium
+          call calceq2(1,ceq)
+          if(gx%bmperr.ne.0) goto 990
+! get the value of the released condition and set it to the new value
+          stvr=>pcond%statvar(1)
+          call state_variable_val(stvr,xxx,ceq)
+          if(gx%bmperr.ne.0) goto 990
+          write(kou,2099)xxx
+2099      format('The transition occurs at ',1pe16.8/'Now set as condition')
+          pcond%prescribed=xxx
+          pcond%active=0
+! set phase back as entered and stable
+          write(*,*)'Set phase back as entered'
+          call change_phase_status(iph,ics,PHENTSTAB,zero,ceq)
+          if(gx%bmperr.ne.0) goto 990
+!
+!          write(*,*)'Not implemented yet'
           goto 100
 !----------------------------------
        case(5) ! quit
@@ -1244,19 +1295,9 @@ contains
                    write(*,*)'Cannot set fix phase as axis'
                    goto 100
                 endif
-! copy the state variable record to the axis record redundant??
-!                axarr(iax)%nterm=pcond%noofterms
-!                axarr(iax)%istv=pcond%statev
-!                axarr(iax)%iref=pcond%iref
-!                axarr(iax)%iunit=pcond%iunit
+! copy the state variable to the axis record
                 allocate(axarr(iax)%axcond(1))
                 axarr(iax)%axcond(1)=pcond%statvar(1)
-!                jp=size(pcond%condcoeff)
-!                write(*,*)'axis indices size: ',jp
-!                allocate(axarr(iax)%indices(4,jp))
-!                axarr(iax)%indices=pcond%indices
-!                allocate(axarr(iax)%coeffs(jp))
-!                axarr(iax)%coeffs=pcond%condcoeff
 ! This is probably the only reference needed for the axis condition
                 axarr(iax)%seqz=pcond%seqz
                 axarr(iax)%more=0
@@ -1741,7 +1782,8 @@ contains
              goto 100
           endif
           write(kou,6131)
-6131      format(4x,'Axis variable',12x,'Start',7x,'Final',7x,'Increment')
+6131      format(4x,'Axis variable',12x,'Min',9x,'Max',9x,'Max increment')
+!6131      format(4x,'Axis variable',12x,'Start',7x,'Final',7x,'Increment')
           do iax=1,noofaxis
              jp=1
              call get_one_condition(jp,text,axarr(iax)%seqz,ceq)
