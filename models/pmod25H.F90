@@ -428,7 +428,12 @@
          call get_phase_name(iph,ics,phname)
          line=' NOFIX='//phname(1:len_trim(phname))
          ip=1
+!         write(*,*)'Remove fix phase: ',line(1:len_trim(line))
          call set_condition(line,ip,ceq)
+         if(gx%bmperr.ne.0) then
+!            write(*,*)'Failed to remove fix phase as condition'
+            goto 1000
+         endif
       endif
    endif
    bigif: if(ceq%phase_varres(lokcs)%phstate.eq.phhidden) then
@@ -453,15 +458,18 @@
          ceq%phase_varres(lokcs)%dgm=zero
       enddo
    else !bigif
-! changing FIX/ENTERED/SUSPENDED/DORMANT for a composition set
       lokcs=phlista(lokph)%linktocs(ics)
+! changing FIX/ENTERED/SUSPENDED/DORMANT for a composition set
 ! input nystat:0=entered, 3=fix, 1=suspended, 2=dormant
 ! bit setting: 00         01   , 10           11
 !      write(*,71)'25H new status: ',iph,ics,lokph,lokcs,nystat,phentered,val
 71    format(a,6i5,1pe14.6)
-      if(nystat.eq.phentered) then
+      if(nystat.eq.phentered .or. nystat.eq.phentunst .or. &
+           nystat.eq.phentstab) then
 ! set enterered with amount val and dgm zero
-         ceq%phase_varres(lokcs)%phstate=phentered
+!         write(*,*)'Setting phase as entered',nystat
+!         ceq%phase_varres(lokcs)%phstate=phentered
+         ceq%phase_varres(lokcs)%phstate=nystat
          ceq%phase_varres(lokcs)%status2=&
               ibclr(ceq%phase_varres(lokcs)%status2,CSSUS)
          ceq%phase_varres(lokcs)%status2=&
@@ -497,6 +505,7 @@
          ceq%phase_varres(lokcs)%dgm=zero
       elseif(nystat.eq.phfixed) then
 ! set fix with amount val
+!         write(*,*)'Setting phase as fix'
          ceq%phase_varres(lokcs)%phstate=phfixed
          ceq%phase_varres(lokcs)%status2=&
               ibclr(ceq%phase_varres(lokcs)%status2,CSSUS)
