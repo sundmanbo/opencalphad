@@ -306,8 +306,8 @@
    call get_state_var_value('N ',xn,encoded,ceq)
    call get_state_var_value('B ',x2,encoded,ceq)
    if(gx%bmperr.ne.0) goto 1000
-   write(lut,11)xn,0.001*x2,rtn
-11 format('N= ',1pe12.4,' moles, B= ',1pe12.4,' kg, RT= ',1pe12.4,' J/mol')
+   write(lut,11)xn,x2,rtn
+11 format('N= ',1pe12.4,' moles, B= ',1pe12.4,' g, RT= ',1pe12.4,' J/mol')
    call get_state_var_value('G ',x1,encoded,ceq)
    call get_state_var_value('H ',x2,encoded,ceq)
    call get_state_var_value('S ',x3,encoded,ceq)
@@ -323,7 +323,7 @@
 
 !\begin{verbatim}
  subroutine list_components_result(lut,mode,ceq)
-! list one line per component (name, fraction, x/w, chem.pot. reference state
+! list one line per component (name, moles, x/w-frac, chem.pot. reference state
 ! mode 1=mole fractions, 2=mass fractions
    implicit none
    integer lut,mode
@@ -335,7 +335,7 @@
    if(mode.eq.1) then
       write(lut,7)
 !7     format('Component name',11x,'Moles',7x,'Mole-fracs  Chem.potent. ',&
-7     format('Component name',4x,'Moles',6x,'Mol.cont Chem.pot/RT  ',&
+7     format('Component name',4x,'Moles',6x,'Mole-fr  Chem.pot/RT  ',&
            'Activities  Ref.state')
    elseif(mode.eq.2) then
       write(lut,9)
@@ -487,7 +487,8 @@
       if(ceq%phase_varres(lokcs)%amfu.eq.zero) then
 ! skip phases with zero amount unless fixed or positive dgm
          if(ceq%phase_varres(lokcs)%dgm.eq.zero) then
-            if(ceq%phase_varres(lokcs)%phstate.ne.PHFIXED) goto 1000
+!            if(ceq%phase_varres(lokcs)%phstate.ne.PHFIXED) goto 1000
+            if(ceq%phase_varres(lokcs)%phstate.lt.PHENTSTAB) goto 1000
          elseif(ceq%phase_varres(lokcs)%dgm.lt.mindgm) then
             goto 1000
          endif

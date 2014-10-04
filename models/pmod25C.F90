@@ -950,12 +950,7 @@
    call get_phase_compset(iph,ics,lokph,lokcs)
    if(gx%bmperr.ne.0) goto 1000
    ic=0
-! This should be number of formula unit of the phase
-! ceq%phase_varres(lokcs)%abnorm(1) is moldes atoms per formula unit
-! Amount is number of moles per formula unit of the phase.
-   amount=ceq%phase_varres(lokcs)%amfu
-!   write(*,299)'25C amfu: ',iph,ics,amount
-299 format(a,2i3,6(1pe12.4))
+!
    allsubl: do ll=1,phlista(lokph)%noofsubl
       as=ceq%phase_varres(lokcs)%sites(ll)
       allcons: do kk=1,phlista(lokph)%nooffr(ll)
@@ -991,7 +986,7 @@
    xsum=zero
    wsum=zero
 ! here xmol(i) is equal to the number of moles of element i per formula unit
-! set wmass(i) to the mass of of element i per mole formula unit
+! set wmass(i) to the mass of of element i per mole formula unit and sum
    do ic=1,noofel
       wmass(ic)=xmol(ic)*ellista(elements(ic))%mass
       xsum=xsum+xmol(ic)
@@ -1001,13 +996,15 @@
    do ic=1,noofel
       xmol(ic)=xmol(ic)/xsum
       wmass(ic)=wmass(ic)/wsum
-!       write(*,*)wmass(ic),wsum
    enddo
-! I do not understand this???
+! This is the current number of formula unit of the phase, zero if not stable
+   amount=ceq%phase_varres(lokcs)%amfu
+! ceq%phase_varres(lokcs)%abnorm(1) is moles atoms for one formula unit
+! ceq%phase_varres(lokcs)%abnorm(2) is mass for one formula unit
    totmol=amount*xsum
    totmass=amount*wsum
 !   write(*,713)'G',noofel,totmol,totmass,amount
-! but all seems OK here
+! all seems OK here
 !   write(*,811)xsum,ceq%phase_varres(lokcs)%abnorm(1),&
 !        wsum,ceq%phase_varres(lokcs)%abnorm(2),amount,totmass
 !   write(*,811)xsum,ceq%phase_varres(lokcs)%abnorm(1),&
@@ -1015,21 +1012,16 @@
 811 format('cphmm: ',6(1pe12.4))
 !   write(*,*)'cpmm: ',totmol,totmass
 ! all calculation so far in elements, convert to current components
-! skip conversion to current components
 ! NOTE: sum of mole fractions can be zero or negative with other 
 ! components than elements
-! >>>> probably wrong conversion here
-!   goto 1000
-!   write(*,76)'cmm1: ',(xmol(ic),ic=1,noofel)
-!   do ic=1,noofel
-!      write(*,76)'matrix: ',(ceq%invcompstoi(ic,jc),jc=1,noofel)
-!   enddo
 76 format(a,10F7.4)
 78 format(a,2i3,3(1PE12.4))
 !   do ic=1,noofel
 !      write(*,298)(ceq%invcompstoi(jc,ic),jc=1,noofel)
 !   enddo
 !298 format('25C: ',6(1pe12.4))
+   goto 1000
+! what is this ... converting to user defined components ... (not implemented)
    x2mol=zero
    w2mass=zero
    do ic=1,noofel
@@ -1128,57 +1120,71 @@
       lokph=phases(iph)
       if(.not.btest(phlista(lokph)%status1,phhid)) then
          allcs: do ics=1,phlista(lokph)%noofcs
-! ceq%phase_varres(lokcs)%amfu is number of formula units
-! ceq%phase_varres(lokcs)%abnorm(1) is number of real atoms per formula unit
             lokcs=phlista(lokph)%linktocs(ics)
+! ceq%phase_varres(lokcs)%amfu is current number of formula units
+! ceq%phase_varres(lokcs)%abnorm(1) is number of real atoms in a formula unit
             am=ceq%phase_varres(lokcs)%amfu*&
                  ceq%phase_varres(lokcs)%abnorm(1)
             if(am.gt.zero) then
                call calc_phase_molmass(iph,ics,xph,wph,tmol,tmass,amult,ceq)
+               if(gx%bmperr.ne.0) goto 1000
+!               write(*,17)'25c amult:',iph,ics,am,amult,tmol,tmass
+!               write(*,18)'25c x0: ',(xph(ic),ic=1,noofel)
+!               write(*,18)'25c w0: ',(wph(ic),ic=1,noofel)
+17             format(a,2i4,6(1pe14.6))
+18             format(a,8(F9.5))
                do ic=1,noofel
                   xmol(ic)=xmol(ic)+am*xph(ic)
-!                  wmass(ic)=wmass(ic)+am*wph(ic)
-!                   write(*,11)'calc_molmass 7: ',am,wmass(ic),wph(ic)
-!11                 format(a,3(1PE15.7))
-!                  write(*,12)iph,ics,am,ic,xph(ic),xmol(ic)
-!12                format('calc_molmass 8: ',2i3,1pe12.4,i3,2(1pe12.4))
+                  wmass(ic)=wmass(ic)+tmass*wph(ic)
                enddo
                totmass=totmass+tmass
                totmol=totmol+tmol
-!               write(*,18)am,totmol,tmol,totmass,tmass,amult
-18             format('cmm3: ',6(1pe12.4))
             endif
          enddo allcs
       endif
    enddo allph
-   xsum=zero
-   do ic=1,noofel
-      xsum=xsum+xmol(ic)
-   enddo
-   if(xsum.gt.zero) then
+! we have summed the number of moles and mass of all elements in all phases
+!   xsum=zero
+!   wsum=zero
+!   do ic=1,noofel
+!      xsum=xsum+xmol(ic)
+!      wsum=wsum+wmass(ic)
+!   enddo
+!   write(*,21)'25C x1: ',xsum,totmol,(xmol(ic),ic=1,noofel)
+!   write(*,21)'25C w2: ',wsum,totmass,(wmass(ic),ic=1,noofel)
+!21 format(a,2(1pe12.4),10(0pF9.4))
+   if(totmass.gt.zero) then
       do ic=1,noofel
-         xmol(ic)=xmol(ic)/xsum
+         xmol(ic)=xmol(ic)/totmol
+         wmass(ic)=wmass(ic)/totmass
       enddo
+!   else
+!      write(*,*)'There is no mass at all in the system!'
+!      gx%bmperr=4185; goto 1000
+   endif
+!   write(*,21)'25C x1: ',totmol,(xmol(ic),ic=1,noofel)
+!   write(*,21)'25C w1: ',totmass,(wmass(ic),ic=1,noofel)
+21 format(a,1pe12.4,8(0pF9.5))
 !   else
 ! this is not an error if no calculation has been made
 !      write(*,28)'25C: calc_molmass: No mole fractions',totmol,totmass,xsum,&
 !           (xmol(ic),ic=1,noofel)
 28    format(a,3(1pe12.4)/'25C. ',10f7.4)
 !      gx%bmperr=4185; goto 1000
-   endif
-   wsum=zero
-   do ic=1,noofel
-      wmass(ic)=xmol(ic)*ellista(elements(ic))%mass
-      wsum=wsum+wmass(ic)
+!   endif
+!   wsum=zero
+!   do ic=1,noofel
+!      wmass(ic)=xmol(ic)*ellista(elements(ic))%mass
+!      wsum=wsum+wmass(ic)
 !      write(*,44)'cmm4: ',ic,xmol(ic),wmass(ic),&
 !           ellista(elements(ic))%mass,wsum,totmass
 44    format(a,i3,6(1pe12.4))
-   enddo
-   if(wsum.gt.zero) then
-      do ic=1,noofel
-         wmass(ic)=wmass(ic)/wsum
-      enddo
-   endif
+!   enddo
+!   if(wsum.gt.zero) then
+!      do ic=1,noofel
+!         wmass(ic)=wmass(ic)/wsum
+!      enddo
+!   endif
 1000 continue
    return
  end subroutine calc_molmass
@@ -1225,7 +1231,8 @@
 !               props(5)=props(5)+am*ceq%phase_varres(lokcs)%abnorm(2)/&
 !                    ceq%phase_varres(lokcs)%abnorm(1)
 ! I think abnorm(2) is actual mass
-               props(5)=props(5)+ceq%phase_varres(lokcs)%abnorm(2)
+!               props(5)=props(5)+ceq%phase_varres(lokcs)%abnorm(2)
+               props(5)=props(5)+am*ceq%phase_varres(lokcs)%abnorm(2)
 !               write(*,11)'25C sumprops: ',lokcs,props(1),props(4),props(5),&
 !                    ceq%phase_varres(lokcs)%abnorm(2)
 !               write(*,11)'sumprops ',lokcs,am,props(4),&
@@ -2019,8 +2026,10 @@
 ! props(4) is amount of moles of components, props(5) is mass of components
             call calc_molmass(xmol,wmass,tmol,tmass,ceq)
             if(gx%bmperr.ne.0) goto 1000
-            if(ocv()) write(*,93)(xmol(icx),icx=1,noofel)
-93          format('25C: xmol: ',9F7.4)
+!            write(*,89)'25c mm: ',tmol,tmass
+!            write(*,93)'25c x: ',(xmol(icx),icx=1,noofel)
+!            write(*,93)'25c w: ',(wmass(icx),icx=1,noofel)
+93          format(a,9F7.4)
             icx=1
             if(kstv.eq.11) then
                bmult=props(4)

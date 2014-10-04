@@ -1,16 +1,23 @@
 @$ Stainless steel isopleth
 
+set echo
+
 r t saf2507
 cr fe ni
  
-set c t=1000 p=1e5 n=1 x(cr)=.18 x(ni)=.08
+set c t=2000 p=1e5 w(cr)=.2 w(ni)=.08 n=1
+
 c e
-l,,,,
+l
+
+4
 
 @&
 
-set ax 1 x(cr) 0 1 ,,,
-set ax 2 t 800 2000 25
+set ax 1 w(cr) 0 1 ,,,
+set ax 2 t 800 2200 25
+
+
 
 map
 
@@ -18,49 +25,31 @@ map
 @&
 
 pl
-X(CR)
+w(CR)
 T
 ocgnu
 PLOT
  
+ 
 @&
 
-l c
-set c t=2000 x(cr)=.7
-
-@&
+set c t=2000 p=1e5 w(cr)=.6 w(ni)=.08 n=1
 
 c e
 
-l,,,,,
-
-@&
 
 map
 N
 
+
+@&
+
+
 pl
-X(CR)
+w(CR)
 T
 ocgnu
 PLOT
  
-
-set c t=2000 x(cr)=.8
-
-c e
-
-l,,,,,
-
-@&
-
-map
-N
-
-pl
-X(CR)
-T
-ocgnu
-PLOT
  
  set interactive

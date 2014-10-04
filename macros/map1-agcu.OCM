@@ -1,25 +1,60 @@
+@$ This macro shows the calculation of the phase diagram of Ag-Cu
+@$ a simple eustectic diagram with a miscibility gap 
+@$
+@$ We first read a database, 
+@$ then set conditions for a single equilibrium
+@$ then set axis for the phase diagram and give the map command
+@$ and finally plot the diagrams in different ways
+
+@$ Setting echo means the commands will be echoed on the screen
+
 set echo
 
+@$ reading all elements from the agcu database file
 r t agcu
 
+@$ list the thermodynamic data on the screen
+l d
 
+
+@$ This command on the macro will stop execution until user types return
+@&
+
+@$ In a binary system we have 4 degrees of freedom.
+@$ We set conditions for T, P, total amount of moles and the mole fraction Cu
+@$ This means we have a closed system and the equilibrium is given by a
+@$ minimum in Gibbs energy.
+@$
+@$ The temperature value means we will calculate an equilibrium inside the
+@$ miscibility gap for fcc and automatically create two composition sets
+@$ of the fcc phase
 set cond t=1000 p=1e5 n=1 x(cu)=.2
 
+@$ compute the equilibrium and list results
 c e
 
 l r 1
 
 @&
 
+@$ set reference state to be fcc at current temperature, default is at 298 K
+set ref ag fcc 
+
+
+
+set ref cu fcc
+
+
+
+
+@$ setting the axis for the mapping
 set ax 1 x(cu) 0 1 ,,,
 set ax 2 t 800 1500 10
 
 l ax
 
+@$ a short listing of elements, species and phases
 l sh
-
-
-set num 50,,,
 
 @&
 
@@ -27,24 +62,44 @@ map
 
 @&
 
+@$ By default the plitting will use the cu composition of the stable
+@$ phases on the x-axis and the temperature on the y-axis
+@$ By default the plotting will be saved on the file ocgnu
+@$ but if you want to save it you can give another name
 plot
 x(*,cu)
 T
 ocgnu
 plot
+
+
+@$ we can rotate it 90 degrees
+plot
+T
+x(*,cu),,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 
 
 @&
+@$ We can set manual range for a zoom of the x-axis
 
 plot
 x(*,cu)
 T
 ocgnu
-xr
+xrange
 N
 0
 0.2
 plot
+
+
+@&
+@$ We can plot the activity of Cu as x axis
+@$ this requires we set the reference state before mapping
+
+plot
+ac(cu)
+T,,,,,,,,,,,,,,,,,,,
 
 
 

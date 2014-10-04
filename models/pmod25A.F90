@@ -1387,6 +1387,7 @@
    double precision charge1,bion1
    TYPE(gtp_fraction_set), pointer :: disrec
    logical ionicliq
+!   write(*,*)'In set_constitution ...'
    if(iph.le.0 .or. iph.gt.noofph) then
       gx%bmperr=4050; goto 1000
    endif
@@ -1551,7 +1552,7 @@
 !      write(*,33)'25A h:',lokcs,ll,asum,asite,spat
    endif nosuscon
 ! save charge, number of moles and mass of real atoms per formula unit
-!   write(*,33)'25A i:',lokcs,0,asum,asite,spat
+!   write(*,33)'25A i:',lokcs,0,charge,asum,bsum,asite,spat
    ceq%phase_varres(lokcs)%netcharge=charge
    ceq%phase_varres(lokcs)%abnorm(1)=asum
    ceq%phase_varres(lokcs)%abnorm(2)=bsum

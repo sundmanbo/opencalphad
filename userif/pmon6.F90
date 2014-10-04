@@ -2212,9 +2212,9 @@ contains
        endif
 !----- deallocate local axis records
        do jp=1,noofaxis
-          deallocate(axarr(jp)%axcond)
-          deallocate(axarr(jp)%indices)
-          deallocate(axarr(jp)%coeffs)
+          if(allocated(axarr(jp)%axcond)) deallocate(axarr(jp)%axcond)
+!          deallocate(axarr(jp)%indices)
+!          deallocate(axarr(jp)%coeffs)
        enddo
        noofaxis=0
        if(associated(maptop)) then
@@ -2750,14 +2750,15 @@ contains
 !-----------------------------------------------------------
        end SELECT
 !-----------------------------------------------------------
+! added ceq in the call to handle change of reference states
 2190   continue
-       call ocplot2(jp,axplot,plotfile,maptop,axarr,graphopt,form)
+       call ocplot2(jp,axplot,plotfile,maptop,axarr,graphopt,form,ceq)
        if(gx%bmperr.ne.0) goto 990
        call gparc('Hardcopy (P for postscript)?',&
             cline,last,1,form,'none',q1help)
        if(form.ne.'none') then
           call capson(form)
-          call ocplot2(jp,axplot,plotfile,maptop,axarr,graphopt,form)
+          call ocplot2(jp,axplot,plotfile,maptop,axarr,graphopt,form,ceq)
        endif
 !=================================================================
 ! HPCALC
