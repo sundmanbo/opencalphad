@@ -422,8 +422,11 @@ CONTAINS
 ! skip global gridminimizer if bit set
     if(ocv()) write(*,*)'checked conditions'
     if(mode2.eq.0 .or. btest(globaldata%status,GSNOGLOB)) goto 110
-! skip global gridminimizer if one component
-    if(meqrec%nrel.eq.1) goto 110
+! skip global gridminimizer if one component but make sure one phase
+! has positive amount
+    if(meqrec%nrel.eq.1) then
+       goto 110
+    endif
 ! Try global gridminimization.  Returned values are:
 ! nv is number of stable phase, iphl, icsl list of stable  phases, aphl amounts
 ! nyphl(j) is number of constituent fractions in phase j, yarr are the 
@@ -463,7 +466,7 @@ CONTAINS
 !    write(*,*)'starting without gridmin'
     meqrec%nv=0
 ! at least one phase must be stable
-    mostcon=0
+    mostcon=-1
     mph=0
     jph=0
     do iph=1,noph()
@@ -492,6 +495,7 @@ CONTAINS
        endif
 115    continue
     enddo
+!    write(*,*)'Phase selected ',meqrec%nv,jph
     if(meqrec%nv.eq.0) then
 ! no phase with positive amount, set phase with most constituents as stable
        if(jph.gt.0) then
@@ -678,7 +682,10 @@ CONTAINS
     double precision, parameter :: addedphase_amount=1.0D-2
     double precision xxx
     integer iremsave,zz
+! replace always FALSE except when we must replace a phase as we have max stable
+    logical replace
 ! number of iterations without adding or removing a phase
+    replace=.FALSE.
     minadd=4
     minrem=4
 ! minum number if iterations between any change of stable phase set
@@ -866,7 +873,7 @@ CONTAINS
        if(formap) then
 ! when called during mapping the set of phases must not change!
           if(ocv()) write(*,*)'Phase change not allowed',ceq%tpval(1)
-! Phase change not allowed due to step/map constrainte
+! Phase change not allowed due to step/map constraints
 ! step/map should handle this by creating node points
           gx%bmperr=4210; goto 1000
        endif
@@ -877,9 +884,16 @@ CONTAINS
        if(ocv()) write(*,223)'Phase to be removed: ',meqrec%phr(irem)%iph,&
             meqrec%phr(irem)%ics,meqrec%phr(irem)%curd%amfu,meqrec%noofits
        if(meqrec%nstph.eq.1) then
-          write(*,*)'Attempt to remove the only stable phase!!!'
+          if(.not.REPLACE) then
+! we must be able to REPLACE the only stable phase for a unary system
+             write(*,*)'Attempt to remove the only stable phase!!!'
 !          gx%bmperr=7777; goto 1000
-          goto 200
+             goto 200
+          endif
+!          write(*,*)'We are replacing one stable phase with another',irem,iadd
+       else
+! make sure replace is false unless explitly set below
+          replace=.FALSE.
        endif
        if(meqrec%noofits-meqrec%phr(irem)%itadd.lt.minrem) then
 ! if phase was just added do not remove before minrem iterations
@@ -952,9 +966,10 @@ CONTAINS
                 endif
                 krem=jrem
                 irem=jrem
-                if(ocv()) write(*,240)irem,iadd,meqrec%noofits
+!                write(*,240)irem,iadd,meqrec%noofits
 240             format('Too many phases stable, replacing ',i3,' by ',i3,&
                      ' at iteration ',i4) 
+                replace=.TRUE.
                 goto 222             
              else
                 write(*,*)'Error setting too many phases stable',meqrec%maxsph
@@ -962,8 +977,8 @@ CONTAINS
              endif
           else
 ! try ignore adding 3 times
-             write(*,*)'Ignoring attempt to set too many phases stable',&
-                  meqrec%maxsph,toomanystable
+!             write(*,*)'Ignoring attempt to set too many phases stable',&
+!                  meqrec%maxsph,toomanystable
              toomanystable=toomanystable+1
              goto 200
           endif
@@ -1425,8 +1440,8 @@ CONTAINS
 !          write(*,*)'Fixed phase: ',jj,phf
        else
 ! phase is dormant or suspended, must not be stable!!!!
-          write(*,*)'A dormant or suspended phase stable!!!',kkz
-          write(*,*)phr(jj)%iph,phr(jj)%ics
+          write(*,373)phr(jj)%iph,phr(jj)%ics,kkz
+373       format('This phase must not be stable:',3i7)
           gx%bmperr=7777; goto 1000
        endif
 ! problem with Fe-O-U-Zr convergence, all phases disappear ??
@@ -1517,7 +1532,6 @@ CONTAINS
           gsurf=gsurf/summ
 ! calculte G_m plus any deltat and deltap terms
           dgm=phr(jj)%curd%gval(1,1)
-!          write(*,33)'surf: ',jj,gsurf,summ,phr(jj)%curd%abnorm(1),dgm
 33        format(a,i3,6(1pe12.4))
           if(meqrec%tpindep(1)) then
              dgm=dgm+phr(jj)%curd%gval(2,1)*deltat
@@ -1532,6 +1546,7 @@ CONTAINS
           endif
 ! scale dgm per mole atoms
           dgm=gsurf-dgm/phr(jj)%curd%abnorm(1)
+!          write(*,33)'surf: ',jj,gsurf,summ,phr(jj)%curd%abnorm(1),dgm
           if(dgm.gt.dgmmax) then
              if(phr(jj)%phasestatus.ge.PHENTUNST .and. &
                 phr(jj)%phasestatus.le.PHENTERED) then
@@ -2211,9 +2226,9 @@ CONTAINS
           xcol=zero
           totam=zero
 ! notf keeps track on entered non-fixed phases with variable amount
-             notf=0
+          notf=0
 ! THE CALCULATION FOR N= and N(A)= seems OK
-         nallph: do jph=1,meqrec%nstph
+          nallph: do jph=1,meqrec%nstph
 ! sum over all stable phases
              jj=meqrec%stphl(jph)
              pmi=>phr(jj)
@@ -2269,8 +2284,7 @@ CONTAINS
                 endif
 ! last columns on lhs are amounts of element ie for all stable non-fix phases
 ! dncol should indicate last column with potential, can be different for
-! derivative, notf is
-!                kjj=jj
+! derivative, notf is set above
                 if(pmi%phasestatus.ne.PHFIXED) then
 ! notf indicates the column for amount of a component in stable nonfixed phase
                    if(sel.gt.0 .and. sel.eq.ie) then
@@ -2305,6 +2319,8 @@ CONTAINS
 ! add N^prescribed - N^current to rhs (right hand side)
           xxx=smat(nrow,nz2)
           smat(nrow,nz2)=smat(nrow,nz2)-cvalue+totam
+!          write(*,363)'RHSN: ',nrow,nz2,0,smat(nrow,nz2),xxx,cvalue,totam,&
+!               cvalue-totam
           deallocate(xcol)
 ! check for convergence
           if(abs(totam-cvalue).gt.ceq%xconv) then
@@ -2385,7 +2401,7 @@ CONTAINS
                      mamu,mag,mat,map,pmi,ceq%cmuval,meqrec%noofits)
                 if(gx%bmperr.ne.0) goto 1000
                 ncol=1
-                nloop2: do je=1,meqrec%nrel
+                xloop2: do je=1,meqrec%nrel
 ! Calculate one column for each component to be multiplied with chem.pot.
 ! components with fix chemical potential added to rhs, do not increment ncol!!!
                    do ke=1,meqrec%nfixmu
@@ -2393,10 +2409,11 @@ CONTAINS
                       if(meqrec%mufixel(ke).eq.je) then
                          xcol(nz2)=xcol(nz2)+pham*mamu(je)*meqrec%mufixval(ke)
                          if(sel.eq.je) then
+! negative sign as it is on the RHS
                             zcol(nz2)=zcol(nz2)-&
                                  pham*mamu(je)*meqrec%mufixval(ke)
                          endif
-                         cycle nloop2
+                         cycle xloop2
                       endif
                    enddo
 ! mamu(B) = \sum_i \sum_j dM^a_B/dy_i dM^a_A z^a_ij
@@ -2407,7 +2424,7 @@ CONTAINS
                       zcol(ncol)=zcol(ncol)-pham*mamu(je)
                    endif
                    ncol=ncol+1
-                enddo nloop2
+                enddo xloop2
 ! If T or P are variable, mat is \sum_i d2G/dy_idT, map is \sum_i d2G/dy_idP
                 if(tcol.gt.0) then
                    xcol(tcol)=xcol(tcol)+pham*mat
@@ -2432,7 +2449,6 @@ CONTAINS
 ! right hand side (rhs) contribution is (normallized below)
 ! - NP(phase)*\sum_i \sum_j dM(ie)/dy_i * dG/dy_j * z_ij 
                    xcol(nz2)=xcol(nz2)-pham*mag
-! the rhs sum the amount of component ie ... hm, different sign??
                    if(sel.eq.ie) then
                       zcol(nz2)=zcol(nz2)-pham*mag
                    endif
@@ -2440,8 +2456,7 @@ CONTAINS
              enddo xallel
              totam=totam+pham*pmi%sumxmol
 ! UNFINISHED: if sph=/=0 next line must be changed and just be for sph
-             xxx=zval+pham*pmi%xmol(sel)
-             zval=xxx
+             zval=zval+pham*pmi%xmol(sel)
           enddo xallph
 ! in xcol is dN and in zcol dN(A) summed over all phases and components
 ! calculate the normallized values now
@@ -2472,9 +2487,7 @@ CONTAINS
 !------------------------------------------------------------------
     case(12) ! B or W
 ! Amount of component in mass, can have indices and normallization
-! code copied from the case(11) for N and X and modified
-! >>>>>>>>>>>>> THERE ARE SOMETIMES PROBLEMS TO USE B OR W
-! THE CODE HERE IS NOT UPDATED FOR THE PHASE LOOP 2014.09.30
+! code copied from the case(11) for N and X and modified for mass
        if(stvnorm.eq.0) then
           if(cmix(3).eq.0) then
 ! condition is B=fix
@@ -2497,15 +2510,21 @@ CONTAINS
           allocate(xcol(nz2))
           xcol=zero
           totam=zero
-          zval=zero
+! notf keeps track on entered non-fixed phases with variable amount
+          notf=0
+! not used          zval=zero
           ballph: do jph=1,meqrec%nstph
 ! sum over all stable phases
              jj=meqrec%stphl(jph)
              pmi=>phr(jj)
-! amount of phase, amfu is moles formula units
-! abnorm(1) is amount real atoms, abnorm(2) is mass
-!             pham=pmi%curd%amount(1)
+! if phase is not fixed there is a column in xcol for variable amount
+             if(pmi%phasestatus.ne.PHFIXED) notf=notf+1
+! amount of phase, amfu is moles formula units, abnorm(2) is mass per form.un
              pham=pmi%curd%amfu
+!             pham=pmi%curd%amfu*pmi%curd%abnorm(2)
+!             write(*,202)'amounts: ',jj,pmi%curd%amfu,pmi%curd%abnorm(1),&
+!                  pmi%curd%abnorm(2)
+202          format(a,i3,6(1pe14.6))
              ballel: do ie=1,meqrec%nrel
 ! if sel=/=0 then skip all components except sel
                 if(sel.gt.0 .and. ie.ne.sel) cycle
@@ -2540,67 +2559,65 @@ CONTAINS
                 enddo bloop1
 ! If T or P are variable
                 if(tcol.gt.0) then
-                   xxx=xcol(tcol)
+!                   xxx=xcol(tcol)
                    xcol(tcol)=xcol(tcol)+pham*mat*mass_of(ie,ceq)
-                   write(*,363)'d2G/dTdy 4: ',nrow-1,ie,tcol,&
-                        xxx,xcol(tcol),pham,mat
+!                   write(*,363)'d2G/dTdy 4: ',nrow-1,ie,tcol,&
+!                        xxx,xcol(tcol),pham,mat
                 endif
                 if(pcol.gt.0) then
-                   xxx=xcol(pcol)
+!                   xxx=xcol(pcol)
                    xcol(pcol)=xcol(pcol)+pham*map*mass_of(ie,ceq)
 !                   write(*,363)'d2G/dPdy: ',nrow-1,ie,pcol,&
 !                        xxx,xcol(pcol),pham,mat
                 endif
 ! last columns are amounts of element ie for all stable non-fix phases
-                notf=1
-                do kph=1,meqrec%nstph
-                   kjj=meqrec%stphl(kph)
+!                notf=1
+!                do kph=1,meqrec%nstph
+!                   kjj=meqrec%stphl(kph)
 !                   if(phr(kjj)%phasestatus.eq.PHENTERED) then
-                   if(phr(kjj)%phasestatus.ge.PHENTERED .and.&
-                      phr(kjj)%phasestatus.lt.PHFIXED) then
-                      zval=zval+phr(kjj)%xmol(ie)*mass_of(ie,ceq)
-                      if(sel.gt.0 .and. sel.eq.ie) then
-                         xcol(dncol+notf)=&
-                              phr(kjj)%xmol(ie)*mass_of(ie,ceq)
-                      else
-                         xcol(dncol+notf)=xcol(dncol+notf)+&
-                              pham*phr(kjj)%xmol(ie)*mass_of(ie,ceq)
-                      endif
-!                      write(*,363)'xcolb: ',dncol+notf,ie,kjj,&
-!                           xcol(dncol+notf),pham,phr(kjj)%xmol(ie),&
-!                           mass_of(ie,ceq)
-                      notf=notf+1
-!                   elseif(phr(jj)%phasestatus.eq.PHFIXED) then
-!                      write(*,*)'Fixed phase 3: ',kjj
+!                   if(phr(kjj)%phasestatus.ge.PHENTERED .and.&
+!                      phr(kjj)%phasestatus.lt.PHFIXED) then
+! for all stable (non fixed) phases we have the mass multiplied with deltaaleph
+                if(pmi%phasestatus.ne.PHFIXED) then
+! ??                    zval=zval+pmi%xmol(ie)*mass_of(ie,ceq)
+                   if(sel.gt.0 .and. sel.eq.ie) then
+                      xcol(dncol+notf)=&
+                           pmi%xmol(ie)*mass_of(ie,ceq)
+!                     write(*,363)'xcola: ',ncol,ie,0,xcol(ncol),mass_of(ie,ceq)
+                   else
+                      xcol(dncol+notf)=xcol(dncol+notf)+&
+                           pham*pmi%xmol(ie)*mass_of(ie,ceq)
                    endif
-                enddo
 ! right hand side (rhs) contribution is
 ! - BP(phase)*\sum_i \sum_j dM(ie)/dy_i * dG/dy_j * z_ij
-                xcol(nz2)=xcol(nz2)-pham*mag*mass_of(ie,ceq)
+                   xcol(nz2)=xcol(nz2)-pham*mag*mass_of(ie,ceq)
+                endif
              enddo ballel
 ! sum of mass in phase will be multiplied with delta-phase_amount
+!             write(*,202)'sumxmol mm:  ',sel,pham,pmi%sumxmol,pmi%sumwmol
              if(sel.gt.0) then
                 totam=totam+pham*pmi%xmol(sel)*mass_of(sel,ceq)
-!                write(*,228)'totam 3: ',totam,pham,pmi%xmol(sel),&
-!                     mass_of(sel,ceq)
              else
-! sumwmol includes masses
                 totam=totam+pham*pmi%sumwmol
-!                totam=totam+pham*pmi%sumbmol
-!                write(*,228)'totam 4: ',totam,pham,pmi%sumwmol,pmi%sumxmol,&
-!                     pmi%sumbmol,zval
              endif
-!             totam=zval
-!             write(*,363)'363: ',jph,dncol,ncol,pham,totam,&
-!                  (mamu(je),je=1,2),(xcol(k1),k1=1,nz2)
           enddo ballph
+!......debug
+          if(.not.allocated(xxmm)) then
+! this call returns the current fractions and total amounts.  We need
+! to do it only once inside this subroutine. xxmm are deallocated at exit
+             allocate(xxmm(meqrec%nrel))
+             allocate(wwnn(meqrec%nrel))
+             call calc_molmass(xxmm,wwnn,totalmol,totalmass,ceq)
+             if(gx%bmperr.ne.0) goto 1000
+          endif
+!          if(sel.eq.0) write(*,*)'totalmass: ',totalmass,totam
 !
 ! in xcol are values summed over all phases and components
 ! copy summed columns to smat nrow
           nrow=nrow+1
           if(nrow.gt.nz1) then
              write(*,*)'too many equations 12A',nrow
-             stop
+             gx%bmperr=6543; goto 1000
           endif
           do ncol=1,nz2
              smat(nrow,ncol)=xcol(ncol)
@@ -2608,13 +2625,13 @@ CONTAINS
 ! add B^prescribed - B^current to rhs (right hand side)
           xxx=smat(nrow,nz2)
           smat(nrow,nz2)=smat(nrow,nz2)-cvalue+totam
-!          write(*,363)'RHS: ',nrow,nz2,0,smat(nrow,nz2),xxx,cvalue,totam,&
+!          write(*,363)'RHSB: ',nrow,nz2,0,smat(nrow,nz2),xxx,cvalue,totam,&
 !               cvalue-totam
           deallocate(xcol)
+! check convergence
           if(abs(totam-cvalue).gt.ceq%xconv) then
-!             write(*,266)'Unconverged condition N(A): ',sel,&
+!             write(*,266)'Unconverged condition B(A): ',sel,&
 !                  cvalue,zval
-!266       format(a,i3,2(1pe15.7))
              if(converged.lt.5) converged=5
           endif
           if(vbug) then
@@ -2649,6 +2666,16 @@ CONTAINS
 !             gx%bmperr=9898; goto 1000
              sel=cmix(5); sph=cmix(3); scs=cmix(4)
           endif
+          if(.not.allocated(xxmm)) then
+! this call returns the current fractions and total amounts.  We need
+! to do it only once inside this subroutine. xxmm are deallocated at exit
+             allocate(xxmm(meqrec%nrel))
+             allocate(wwnn(meqrec%nrel))
+             call calc_molmass(xxmm,wwnn,totalmol,totalmass,ceq)
+             if(gx%bmperr.ne.0) goto 1000
+          endif
+!          write(*,267)'wwnn: ',(wwnn(ncol),ncol=1,noel())
+!          write(*,267)'xxmm: ',(xxmm(ncol),ncol=1,noel())
 ! two summations, zcol sums the term dN(A); xcol sums dN (as above)
           allocate(xcol(nz2))
           allocate(zcol(nz2))
@@ -2657,6 +2684,7 @@ CONTAINS
           totam=zero
           zval=zero
           xval=zero
+          notf=0
 !          wallph: do jph=1,meqrec%nstph
 !             jj=meqrec%stphl(jph)
 ! sum over all phases to handle conditions like x(phase#set,A)=fix
@@ -2670,9 +2698,10 @@ CONTAINS
                      phr(jj)%ics.ne.scs) cycle wallph
              endif
              pmi=>phr(jj)
-! mass of phase
-!             pham=pmi%curd%amount(1)
-             pham=pmi%curd%abnorm(2)
+! amount formula units of phase
+             pham=pmi%curd%amfu
+             if(pmi%phasestatus.ne.PHFIXED) notf=notf+1
+!             pham=pmi%curd%abnorm(2)
              wallel: do ie=1,meqrec%nrel
 ! calculate a term for each column to be multiplied with chemical potential
 ! we must sum xcol for all elemenets and add to zcol for element sel
@@ -2682,21 +2711,20 @@ CONTAINS
                 if(gx%bmperr.ne.0) goto 1000
 !                write(*,*)'Calculated dgdyterms 4: ',mat
                 ncol=1
-                bloop2: do je=1,meqrec%nrel
+                wloop2: do je=1,meqrec%nrel
 ! Calculate one column for each component to be multiplied with chem.pot.
 ! components with fix chemical potential added to rhs, do not increment ncol!!!
                    do ke=1,meqrec%nfixmu
                       if(meqrec%mufixel(ke).eq.je) then
-! different sign ???     xcol(nz2)=xcol(nz2)-pham*mamu(je)*meqrec%mufixval(ke)
                          xcol(nz2)=xcol(nz2)+&
-                              pham*mamu(je)*meqrec%mufixval(ke)*mass_of(ie,ceq)
+                              pham*mamu(je)*meqrec%mufixval(ke)*mass_of(je,ceq)
                          if(sel.eq.je) then
-! different sign ???
+! negative sign as it is on the RHS
                             zcol(nz2)=zcol(nz2)-&
                                  pham*mamu(je)*meqrec%mufixval(ke)*&
-                                 mass_of(ie,ceq)
+                                 mass_of(je,ceq)
                          endif
-                         cycle bloop2
+                         cycle wloop2
                       endif
                    enddo
 ! mamu(B) = \sum_i \sum_j dM^a_B/dy_i dM^a_A z^a_ij
@@ -2705,15 +2733,15 @@ CONTAINS
                       zcol(ncol)=zcol(ncol)-pham*mamu(je)*mass_of(ie,ceq)
                    endif
                    ncol=ncol+1
-                enddo bloop2
+                enddo wloop2
 ! If T or P are variable
                 if(tcol.gt.0) then
                    xcol(tcol)=xcol(tcol)+pham*mat*mass_of(ie,ceq)
                    if(sel.eq.ie) then
                       zcol(tcol)=zcol(tcol)+pham*mat*mass_of(ie,ceq)
                    endif
-                   write(*,363)'d2G/dTdy 5: ',nrow-1,ie,tcol,&
-                        xxx,xcol(tcol),pham,mat
+!                   write(*,363)'d2G/dTdy 5: ',nrow-1,ie,tcol,&
+!                        xxx,xcol(tcol),pham,mat
                 endif
                 if(pcol.gt.0) then
                    xcol(pcol)=xcol(pcol)+pham*map*mass_of(ie,ceq)
@@ -2722,62 +2750,63 @@ CONTAINS
                    endif
                 endif
 ! last columns are amounts of element ie for all stable non-fix phase,
-                notf=1
-                do kph=1,meqrec%nstph
-                   kjj=meqrec%stphl(kph)
+!                notf=1
+!                do kph=1,meqrec%nstph
+!                   kjj=meqrec%stphl(kph)
 !                   if(phr(kjj)%phasestatus.eq.PHENTERED) then
-                   if(phr(kjj)%phasestatus.ge.PHENTERED .and.&
-                        phr(kjj)%phasestatus.lt.PHFIXED) then
-! phasestatus=0 for phases with variable amount, sum over all components
-                      xcol(dncol+notf)=xcol(dncol+notf)+&
-                           phr(kjj)%xmol(ie)*&
-                           mass_of(ie,ceq)
-                      if(ie.eq.sel) then
-                         zcol(dncol+notf)=phr(kjj)%xmol(ie)*&
-                              mass_of(ie,ceq)
-                      endif
-                      notf=notf+1
-!                   elseif(phr(jj)%phasestatus.eq.PHFIXED) then
-!                      write(*,*)'Fixed phase 4: ',kjj
+!                   if(phr(kjj)%phasestatus.ge.PHENTERED .and.&
+!                        phr(kjj)%phasestatus.lt.PHFIXED) then
+                if(pmi%phasestatus.ne.PHFIXED) then
+! all phases with variable amount, sum over all components
+                   xcol(dncol+notf)=xcol(dncol+notf)+&
+                        pmi%xmol(ie)*mass_of(ie,ceq)
+                   if(ie.eq.sel) then
+                      zcol(dncol+notf)=zcol(dncol+notf)+&
+                           pmi%xmol(ie)*mass_of(ie,ceq)
                    endif
-                enddo
+!                      notf=notf+1
 ! right hand side (rhs) contribution is
 ! - NP(phase)*\sum_i \sum_j dM(ie)/dy_i * dG/dy_j * z_ij * mass_ie
-                xcol(nz2)=xcol(nz2)-pham*mag*mass_of(ie,ceq)
-! the rhs sum the amount of component ie ... hm, different sign??
-                if(sel.eq.ie) then
-! different sign here and 2 lines above, why??
-                   zcol(nz2)=zcol(nz2)-pham*mag*mass_of(ie,ceq)
+                   xcol(nz2)=xcol(nz2)-pham*mag*mass_of(ie,ceq)
+                   if(sel.eq.ie) then
+                      zcol(nz2)=zcol(nz2)-pham*mag*mass_of(ie,ceq)
+                   endif
                 endif
              enddo wallel
              totam=totam+pham*pmi%sumwmol
-! if sph=/=0 next line must be changed
-             zval=zval+pham*pmi%xmol(sel)*mass_of(sel,ceq)
+! UNFINISHED: if sph=/=0 next line must be changed
+!             zval=zval+pham*pmi%xmol(sel)*mass_of(sel,ceq)
           enddo wallph
 ! in xcol is dB and in zcol dB(A) summed over all phases and components
 ! calculate the normallized values now
 ! xmat=dB(A)/B - B(A)*dB/B**2
           nrow=nrow+1
-          if(nrow.gt.nz1) stop 'too many equations 12B'
-! this was the missing statement!!
-          zval=zval/totam
+          if(nrow.gt.nz1) then
+             write(*,*)'too many equations 12B';
+             gx%bmperr=3333; goto 1000
+          endif
+! copy to smat row nrow
           do ncol=1,nz2
-             smat(nrow,ncol)=(zcol(ncol)-xcol(ncol)*zval)/totam
+             smat(nrow,ncol)=(zcol(ncol)-xcol(ncol)*wwnn(sel))/totalmass
           enddo
 ! add W^prescribed - W^current to rhs (right hand side)
-          smat(nrow,nz2)=smat(nrow,nz2)-cvalue+zval
+          smat(nrow,nz2)=smat(nrow,nz2)-cvalue+wwnn(sel)
           deallocate(xcol)
           deallocate(zcol)
 ! check on convergence
-          if(abs(zval-cvalue).gt.ceq%xconv) then
-!             write(*,266)'Unconverged condition x(A): ',sel,&
-!                  cvalue,zval
-!266       format(a,i3,2(1pe15.7))
+!          write(*,266)'massbalance condition w(A): ',sel,cvalue,wwnn(sel)
+          if(abs(wwnn(sel)-cvalue).gt.ceq%xconv) then
              if(converged.lt.5) converged=5
+!             write(*,266)'Unconverged condition w(A): ',sel,cvalue,wwnn(sel)
+266          format(a,i3,2(1pe12.4))
+!             write(*,267)'wwnn: ',(wwnn(ncol),ncol=1,noel())
+!             write(*,267)'xxmm: ',(xxmm(ncol),ncol=1,noel())
+267          format(a,8F9.5)
           endif
 !          if(sph.eq.0) then
-!             write(*,363)'Condition w(A)=fix',sel,0,0,cvalue,zval
+!             write(*,363)'Condition w(A)=fix',sel,0,0,cvalue,wwnn(sel)
 !          else
+! this is not implemented yet
 !             write(*,363)'Condition w(phase#set,A)=fix',sph,sel,0,cvalue,zval
 !          endif
        endif
@@ -2934,6 +2963,8 @@ CONTAINS
 ! pmi%xmol and save it for all future iterations
 ! It must also be saved in curd%abnorm(1) ?? done in set_constitution ??
        if(pmi%xdone.eq.1) goto 90
+! we must call set_constitution once to have correct abnorm etc
+       call set_constitution(iph,ics,yarr,qq,ceq)
        pmi%xmol=zero
        pmi%dxmol=zero
        pmi%sumxmol=zero
@@ -3720,6 +3751,7 @@ CONTAINS
     type(meq_phase), pointer :: pmi
 !\end{verbatim}
 ! these are to be multiplied with mu(ib), nothing, deltaT, deltaP
+! I am not sure if this is used ...
     integer jy,ky,ib,ie,my
     double precision sum,cig,cit,cip,cib
     double precision morr,morr1,morr2,stoi(10),spmass,qsp

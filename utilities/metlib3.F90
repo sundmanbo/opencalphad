@@ -2702,6 +2702,7 @@ CONTAINS
        call system(slin(2:))
     ENDIF
 900 RETURN
+!
 910 WRITE(LER,911)LABEL
 911 FORMAT('No label ',A,' terminating macro')
     SVAR='set interactive '
@@ -2770,11 +2771,12 @@ CONTAINS
 !    character*128 terfil(3)
 !    EXTERNAL FILHLP
 !    INCLUDE 'metlib.inc'
-    SAVE FIRST
+    SAVE FIRST,LUN
     DATA FIRST/.TRUE./
     IF(FIRST) THEN
        FIRST=.FALSE.
        IUL=0
+       lun=50
     ENDIF
     MACFIL=' '
     useext=macext
@@ -2789,7 +2791,8 @@ CONTAINS
     CALL FXDFLT(FIL,MACEXT)
 !    if (LEN_TRIM(fil).gt.0) call tcgffn(fil)
     IF(BUPERR.NE.0) GOTO 910
-    LUN=50
+!    write(*,*)'open macro: ',iul
+!    LUN=50
     OPEN(LUN,FILE=FIL,ACCESS='SEQUENTIAL',STATUS='OLD', &
          FORM='FORMATTED',IOSTAT=IERR,ERR=910)
     IF(IUL.LT.5) THEN
@@ -2813,15 +2816,20 @@ CONTAINS
     GOTO 900
 !
     ENTRY MACEND(LINE,LAST,OK)
+! set interactive gives back control to calling macro if any
     IF(KIU.NE.KIUD) THEN
        IF(KIU.NE.0) CLOSE(KIU)
+!       write(*,*)'end of macro: ',kiu,kiud,iul
        IF(IUL.GT.0) THEN
+!          write(*,*)'calling macro: ',iun(iul)
           KIU=IUN(IUL)
           IUL=IUL-1
        ELSE
+!          write(*,*)'terminal: ',kiud
           KIU=KIUD
        ENDIF
     ENDIF
+!    write(*,*)'Output: ',kou,koud
     IF(KOU.NE.KOUD) THEN
        IF(KOU.NE.0) CLOSE(KOU)
        KOU=KOUD

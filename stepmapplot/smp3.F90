@@ -442,7 +442,12 @@ CONTAINS
        endif
        mapline%problems=0
        call map_store(mapline,axarr,nax,maptop%saveceq)
-       if(gx%bmperr.ne.0) goto 1000
+       if(gx%bmperr.ne.0) then
+! can be running out of memory or that a line has a too big jump
+! terminate line any error code will be cleared inside map_lineend.
+          call map_lineend(mapline,axarr(abs(mapline%axandir))%lastaxval,ceq)
+          goto 300
+       endif
 ! check which axis variable changes most rapidly, maybe change step axis
 ! (for tie-lines in plane check axis values for all phases)
 ! and take a step in this axis variable making sure it inside the limits
@@ -539,8 +544,8 @@ CONTAINS
              if(ocv()) write(*,*)'Restoring T 4: ',tsave,axvalok
              ceq%tpval(1)=tsave
           endif
-          write(*,*)'repeated error 8, try to change axis',&
-               gx%bmperr,ceq%tpval(1),axvalok
+          if(ocv()) write(*,557)gx%bmperr,ceq%tpval(1),axvalok
+557       format('Repeated error 8, try to change axis',i5,F8.2,1pe14.6)
           gx%bmperr=0
           bytaxis=1
           call map_force_changeaxis(maptop,mapline,mapline%meqrec,nax,axarr,ceq)
@@ -574,7 +579,8 @@ CONTAINS
                ceq%tpval(1)
           iadd=0; irem=0
 ! set the phase dormant and decrease step
-          write(*,*)'Phase set dormant ',mapline%phfixstart,axvalok
+          write(*,559)mapline%phfixstart,axvalok
+559       format('Phase set dormant ',i5,1pe14.6)
           meqrec%phr(mapline%phfixstart)%phasestatus=PHDORM
           call map_halfstep(halfstep,axvalok,mapline,axarr,ceq)
           if(gx%bmperr.eq.0) then
@@ -586,8 +592,7 @@ CONTAINS
                 if(ocv()) write(*,*)'Restoring T 7: ',tsave,axvalok
                 ceq%tpval(1)=tsave
              endif
-             write(*,*)'repeated error 8, try to change axis',&
-                  gx%bmperr,ceq%tpval(1),axvalok
+             write(*,557)gx%bmperr,ceq%tpval(1),axvalok
              gx%bmperr=0
              bytaxis=1
              call map_force_changeaxis(maptop,mapline,mapline%meqrec,&
@@ -3752,7 +3757,7 @@ CONTAINS
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
-  subroutine ocplot2(ndx,pltax,filename,maptop,axarr,graphopt,form)
+  subroutine ocplot2(ndx,pltax,filename,maptop,axarr,graphopt,form,ceq)
 ! ndx is mumber of plot axis, pltax is text with plotaxis variables
 ! filename is intermediary file (maybe not needed)
 ! maptop is map_node record with all results
@@ -3826,6 +3831,8 @@ CONTAINS
     allocate(xax(nrv))
 ! to insert MOVE at axis terminations
     nlinesep=1
+    phaseline(1)=' '
+    phaseline(2)=' '
     nv=0
 ! min and max not used by gnuplot but may be useful if plotpackage change
 ! or for manual scaling.
@@ -4043,10 +4050,12 @@ CONTAINS
 ! we should never have several linesep for the same value of nv!
                 nlinesep=nlinesep+1
                 linesep(nlinesep)=nv
+! phaseline(nlinesep) is already filled with spaces
+                phaseline(nlinesep+1)=' '
 !                write(*,*)'adding empty line 1',nlinesep,linesep(nlinesep)
                 inv: if(localtop%tieline_inplane.gt.0 .and. &
                      associated(mapline%end)) then
-!                  write(*,*)'Tie-lines in plane, maybe an invariant line here'
+!                   write(*,*)'Tie-lines in plane, maybe an invariant line here'
 ! extract values for invariant equilibrium
                    invar=>mapline%end
                    if(ocv()) write(*,*)'Invariant eq: ',&
@@ -4055,7 +4064,6 @@ CONTAINS
 !-------------------
 ! get the names of stable phases
                    kk=1
-!                   write(*,*)'In ocplot2, looking for segmentation fault 4H'
                    do jj=1,noph()
                       do ic=1,noofcs(jj)
                          k3=test_phase_status(jj,ic,value,curceq)
@@ -4079,7 +4087,6 @@ CONTAINS
                            curceq%tpval(1),nv,0
                       goto 222
                    endif
-!                   if(gx%bmperr.ne.0) goto 1000
                    nv=nv+3
                    if(nv.ge.maxval) then
                       write(*,*)'Too many points to plot 2',maxval
@@ -4088,8 +4095,9 @@ CONTAINS
                    xax(nv-2)=value
                    xax(nv-1)=value
                    xax(nv)=value
+!                   write(*,335)'New line: ',nlinesep,statevar(1:5),value
+335                format(a,i3,' <',a,'> ',3(1pe14.6))
 ! axis with possible wildcard
-!                   write(*,*)'In ocplot2, looking for segmentation fault 4J'
                    statevar=pltax(anpax)
                    if(wildcard) then
 ! this cannot be a state variable derivative
@@ -4114,7 +4122,10 @@ CONTAINS
                       enddo
                    else
 ! if no wildcard there is no invariant line
+!                      write(*,*)'It can be an invariant point here!!'
+                      nv=nv-3
                       goto 225
+!----------------------------------
                       np=1
                       call meq_get_state_varorfun_value(statevar,&
                            value,encoded,curceq)
@@ -4300,9 +4311,22 @@ CONTAINS
 820    format(i4,1000(1pe14.6))
        if(nv.eq.linesep(ksep)) then
 ! an empty line in the dat file means a MOVE to the next point.
-          write(21,819)ksep,phaseline(ksep)(1:len_trim(phaseline(ksep)))
-819       format('# end of line '//'# Line ',i5,&
-               ', with these stable phases:'/'# ',a)
+          jj=len_trim(phaseline(ksep))
+          if(nv.lt.nrv) then
+             if(jj.gt.1) then
+                write(21,819)ksep,phaseline(ksep)(1:jj)
+819             format('# end of line '//'# Line ',i5,&
+                     ', with these stable phases:'/'# ',a)
+             else
+                write(21,822)ksep
+822             format('# end of line '//'# Line ',i5,&
+                     ', with unknown phases')
+             endif
+          else
+! try to avoid rubbish
+             write(21,821)
+821          format('# end of line '//)
+          endif
           ksep=ksep+1
        endif
     enddo
@@ -4317,12 +4341,12 @@ CONTAINS
 ! the linetype 16 (lt 16) was the most black I could find ....
 ! 'set linetype 1 lc rgb "black" lw 2 pt 11'
 ! these format statements are comments written at the end of the dat file
-830 format('# plot "ocg.dat" using 2:3 with lines lt 1,',&
-         ' "ocg.dat" using 2:4 with lines lt 1, ...'/'# set term postscript'/&
+830 format('# plot "ocgnu.dat" using 2:3 with lines lt 1,',&
+         ' "" using 2:4 with lines lt 1, ...'/'# set term postscript'/&
          '# set output "ocg.ps"'/'# plot ... '/'# ps2pdf ocg.ps')
 !
-831 format('# plot "ocg.dat" using 2:1 with lines lt 1,',&
-         ' "ocg.dat" using 3:1 with lines lt 1, ...'/'# set term postscript'/&
+831 format('# plot "ocgnu.dat" using 2:1 with lines lt 1,',&
+         ' "" using 3:1 with lines lt 1, ...'/'# set term postscript'/&
          '# set output "ocg.ps"'/'# plot ... '/'# ps2pdf ocg.ps')
     close(21)
     write(*,*)'Gnuplot data file   : ',pfd(1:kk+4)

@@ -1,7 +1,7 @@
 @$
 @$
 @$ 
-@$ Calculate Cp for the ordered FCC FeNi3
+@$ Calculate y and Cp as function of T for the ordered FCC FeNi3
 @$
 
 set echo
@@ -120,6 +120,16 @@ y(part#2,*),,,,,,,,,,,,,
 plot
 T
 cp ,,,,,,,,,,,,,,,,
+
+
+plot
+T
+cp
+
+yr
+N
+0
+10
 
 
 

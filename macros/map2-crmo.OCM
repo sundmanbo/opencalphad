@@ -4,7 +4,7 @@ r t steel1
 cr mo
 
 
-set cond t=1150 p=1e5 n=1 x(mo)=.5
+set cond t=800 p=1e5 n=1 x(mo)=.5
 
 c e
 
@@ -12,15 +12,12 @@ l r 1
 
 @&
 
-set ax 1 x(mo) 0 1 0.005
-set ax 2 t 500 3000 25
+set ax 1 x(mo) 0 1 0.002
+set ax 2 t 300 3000 25
 
 l ax
 
 l sh
-
-set num 
-500
 
 @&
 
