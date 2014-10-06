@@ -1,4 +1,5 @@
 @$ Stainless steel isopleth
+@&
 
 set echo
 
@@ -31,8 +32,6 @@ ocgnu
 PLOT
  
  
-@&
-
 set c t=2000 p=1e5 w(cr)=.6 w(ni)=.08 n=1
 
 c e
@@ -41,8 +40,6 @@ c e
 map
 N
 
-
-@&
 
 
 pl

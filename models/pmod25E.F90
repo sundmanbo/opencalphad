@@ -216,15 +216,23 @@
    integer unit
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-   integer jl,jk,ics,lokph,lokcs,kp
+! separate entered/fixed form suspended/dormant
+   integer jl,jk,ics,lokph,lokcs,kp,ndorm
    character line*80,phname*24,trailer*28,chs*1,csname*36
+!   type(gtp_phasetuple), allocatable :: dormant
    TYPE(gtp_phase_varres), pointer :: csrec
    write(unit,10)
-10  format(/'List of phases'/ &
+10  format(/'List of entered phases'/ &
         '  No set Name',22x,'Mol.comp.  At/F.U.  dGm/RT   Status1 Status2')
    jl=0
    trailer=' '
 !   write(*,*)'In list_all_phases',noofph
+!   allocate(dormant(noofph))
+!   dormant=0
+   ndorm=0
+! come back here with dormant listing
+20 continue
+!
    phloop: do jk=1,noofph
       line=' '
 ! list in alphabetical order except gas and liquid first
@@ -233,6 +241,16 @@
          lokcs=phlista(lokph)%linktocs(ics)
          csrec=>ceq%phase_varres(lokcs)
 !         write(*,*)'lpd: 69: ',jk,ics,lokph,lokcs
+         if(ndorm.ge.0) then
+            if(csrec%phstate.le.PHDORM) then
+               ndorm=ndorm+1
+!               dormant%phase=jk
+!               dormant%compset=ics
+               cycle
+            endif
+         elseif(csrec%phstate.gt.PHDORM) then
+            cycle
+         endif
          phname=phlista(lokph)%name
          jl=jl+1
 !         write(*,70)'lpd: 70:',phname,phlista(lokph)%noofcs
@@ -279,6 +297,13 @@
          endif
       enddo csloop
    enddo phloop
+   if(ndorm.le.0) goto 1000
+   write(unit,200)
+200 format(/'List of dormant/suspended phases'/ &
+         '  No set Name',22x,'Mol.comp.  At/F.U.  dGm/RT   Status1 Status2')
+   ndorm=-1
+   goto 20
+
 1000 continue
    return
  END subroutine list_all_phases
@@ -485,7 +510,7 @@
 !      if(ceq%phase_varres(lokcs)%amount(1).eq.zero) then
       if(abs(ceq%phase_varres(lokcs)%netcharge).gt.1.0d-6) goto 1000
       if(ceq%phase_varres(lokcs)%amfu.eq.zero) then
-! skip phases with zero amount unless fixed or positive dgm
+! skip phases with zero amount unless expcitly stable or positive dgm
          if(ceq%phase_varres(lokcs)%dgm.eq.zero) then
 !            if(ceq%phase_varres(lokcs)%phstate.ne.PHFIXED) goto 1000
             if(ceq%phase_varres(lokcs)%phstate.lt.PHENTSTAB) goto 1000

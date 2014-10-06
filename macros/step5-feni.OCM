@@ -1,8 +1,7 @@
-@$
-@$
 @$ 
 @$ Calculate y and Cp as function of T for the ordered FCC FeNi3
 @$
+@&
 
 set echo
 
@@ -122,6 +121,7 @@ T
 cp ,,,,,,,,,,,,,,,,
 
 
+@$ set range on y axis
 plot
 T
 cp
@@ -129,10 +129,7 @@ cp
 yr
 N
 0
-10
-
-
-
+20
 
 
 set inter

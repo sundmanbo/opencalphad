@@ -4441,9 +4441,11 @@ CONTAINS
        endif
     endif
     if(form(1:1).eq.' ') then
-! if not hardcopy pause gnuplot
+! if not hardcopy pause gnuplot.  Mouse means clicking in the graphics window
+! will close it. I would like to have an option to keep the graphics window...
        write(21,990)
-990    format('pause -1')
+990    format('pause mouse')
+!990    format('pause -1')
     endif
     close(21)
 !-------------------------------------------------------------------

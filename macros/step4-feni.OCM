@@ -1,8 +1,7 @@
-@$
-@$
 @$ 
 @$ Calculate G curves in the ordered FCC in the Fe-Ni system
 @$
+@&
 
 set echo
 
@@ -129,14 +128,11 @@ GM(*)
 
 
 
-@&
 @$ the constitution of FeNi3
 
 plot
 x(ni)
 y(part#4,*)
-
-
 
 
 

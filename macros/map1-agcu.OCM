@@ -5,6 +5,7 @@
 @$ then set conditions for a single equilibrium
 @$ then set axis for the phase diagram and give the map command
 @$ and finally plot the diagrams in different ways
+@&
 
 @$ Setting echo means the commands will be echoed on the screen
 
@@ -17,9 +18,16 @@ r t agcu
 l d
 
 
-@$ This command on the macro will stop execution until user types return
+@$ This command on the macro "@&" will stop execution until user types return
 @&
 
+@$ We set reference state for the elements to be at current T
+set ref ag fcc 
+,,,,,,,,,
+set ref cu fcc
+,,,,,,,,
+
+@&
 @$ In a binary system we have 4 degrees of freedom.
 @$ We set conditions for T, P, total amount of moles and the mole fraction Cu
 @$ This means we have a closed system and the equilibrium is given by a
@@ -36,16 +44,6 @@ c e
 l r 1
 
 @&
-
-@$ set reference state to be fcc at current temperature, default is at 298 K
-set ref ag fcc 
-
-
-
-set ref cu fcc
-
-
-
 
 @$ setting the axis for the mapping
 set ax 1 x(cu) 0 1 ,,,
@@ -73,13 +71,6 @@ ocgnu
 plot
 
 
-@$ we can rotate it 90 degrees
-plot
-T
-x(*,cu),,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
-
-
-@&
 @$ We can set manual range for a zoom of the x-axis
 
 plot
@@ -93,14 +84,15 @@ N
 plot
 
 
-@&
-@$ We can plot the activity of Cu as x axis
-@$ this requires we set the reference state before mapping
+@$ we can rotate it 90 degrees
+plot
+T
+x(*,cu),,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 
+
+@$ We can plot the activities the x axis
 plot
 ac(cu)
-T,,,,,,,,,,,,,,,,,,,
-
-
+T,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
 
 set inter

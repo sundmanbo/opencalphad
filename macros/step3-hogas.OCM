@@ -1,15 +1,15 @@
+@$ Calculation speciation in a gas with H and O and its enthalpy and Cp
+@&
 
 set echo
 
 r t hogas
 
-
 set c t=4000 p=1e5 n(h)=2 n(o)=1
 
 c e
 
-l
-
+l,,,,,,
 
 
 @&

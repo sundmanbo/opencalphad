@@ -1,4 +1,5 @@
 @$ Calculating Gibbs energy curve for Ag-Cu
+@&
 
 set echo
 
@@ -12,17 +13,17 @@ l r 1
 
 @&
 
+set ref ag fcc,,,,,,
+
+set ref cu fcc,,,,,,
+
 set axis 1 x(cu) 0 1 0.01
 
 l ax
 
-set ref ag fcc ,,,,,,
-
-set ref cu fcc ,,,,,,
-
 @&
 
-step sep
+step separate
 
 
 
@@ -44,6 +45,7 @@ GM(*)
 
 
 
-
 set inter
+
+
 

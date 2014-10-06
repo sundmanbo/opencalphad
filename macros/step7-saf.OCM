@@ -1,12 +1,10 @@
-@$ SAF2507
+@$ Calculate diagrams for SAF2507
 
 set echo
 
 r t saf2507
 
-@$set c t=1273.15 p=1e5 n=1 W(cr)=.25 w(ni)=.07, w(mo)=.03 w(mn)=.015 w(n)=.002
-
-set c t=1273 p=1e5 n=1 x(cr)=.266 x(ni)=.066, x(mo)=.017 x(mn)=.015 x(n)=.008
+set c t=1273.15 p=1e5 n=1 w(cr)=.25 w(ni)=.07, w(mo)=.03 w(mn)=.015 w(n)=.002
 
 c e
 
@@ -22,7 +20,10 @@ step
 
 
 
-plot,,,,,,,,,,,,,,,,,,
+plot
+T
+NP(*)
+,,,,,,,,,,,,,,,,,,
 
 
 @&
@@ -40,27 +41,26 @@ l,,,,,
 
 @&
 
-set ax 1 x(n) 0 .01
+set ax 1 w(n) 0 .005
 
 step
 
 
 plot
-x(n)
+w(n)
 np(*)
 
 
-@&
+
 
 
 plot
-x(n)
+w(n)
 prefcc,,,,,,,,,,,,,,,,,,,,
 
 plot
-x(n)
-prebcc,,,,,,,,,,,,,,,,,
-
+w(n)
+prebcc,,,,,,,,,,
 
 
 set inter
