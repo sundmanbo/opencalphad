@@ -10,6 +10,8 @@
 \setcounter{secnumdepth}{5}
 %\pagestyle{empty}
 
+% look for this to continue update
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% current place
 %
 % This is a file used for a printable PDF version of the user guide
 % AND as on-line help, either directly or processed to remove LaTeX specials
@@ -30,7 +32,7 @@
 % questions after the commands and subcommands as they are normally
 % not part of the command monitor.
 %
-% The _ used in many commands must be replaced by \_
+% The _ used in many commands must be replaced by \_ or just -
 %
 %---------------------------------------------------
 %
@@ -38,7 +40,7 @@
 % as answer to a question.  It will search for the help text starting by
 % the main command, any subcommand and finally question texts.
 % The quesntion text may be difficult to update as already mentioned. 
-% Any text found in this file between will
+% Any text found in this file between the start of a question and the next will
 % be written on the screen and then the question will be asked again.
 %
 %---------------------------------------------------
@@ -51,17 +53,17 @@
 
 Open Calphad software package
 
-version 1.0
+version 2.0
 
 }
 
-VERY VERY PRELIMINARY
+VERY PRELIMINARY
 
 Bo Sundman, \today
 
 \end{center}
 
-This is a first very preliminary version
+This is a very preliminary version for version 2
 
 \section{Introduction}
 
@@ -91,17 +93,17 @@ symbols are also used:
 \item /- is used to denote the electron. /+ can be used for a psoitiv charge.
 \item \# are used to identify composition sets after a phase name or
 sublattice after a constituent name.
-\item \& are used in parameter identifiers to specify the constituent
-for the parameter.
+\item \& are used in some parameter identifiers to specify the
+  constituent for the parameter, mobilites.
 \end{itemize}
 
 \subsection{Parameters}
 
-All data is organized on the base of a phase and the phase is
-identified by a name.  Each phase can have a different model for the
-composition dependence but the way to enter model parameters is the
-same for all models.  However, the meaning of a model parameter may
-depend on the model of the phase.
+All data is organized relative to a phase and the phase is identified
+by a name.  Each phase can have a different model for the composition
+dependence but the way to enter model parameters is the same for all
+models.  However, the meaning of a model parameter may depend on the
+model of the phase.
 
 Many types of data can be stored as explained in the section on
 parameter identifiers.  The parameter also has a constituent
@@ -125,8 +127,7 @@ on the Gibbs energy (like the Curie temperature) or a diffusion
 coefficient (like the mobility) the necessary code to calculate this
 must be added also.
 
-The list here is tentative.  Case should be used not to use the
-same symbol name for different things ...
+The list here is tentative.  Insensitive to case.
 
 \begin{itemize}
 \item G, the Gibbs energy or an interaction parameter.
@@ -165,11 +166,11 @@ sublattice.  A constituent must be entered as a species with fixed
 stoichiometry.  Between constituents in different sublattices one must
 give a colon, ":", between interacting constituents in the same
 sublattice one must give a comma, ",".  A constituent array with
-exactly one constituent in each sublattice is also called an endmember
-as it give the value for a ``compound'' with fixed stoichiometry.
-Constituent arrays with one or more interaction describe the
-composition dependence of the property, without such parameter the
-property will vary liearly between the endmembers.
+exactly one constituent in each sublattice is also called an
+``endmember'' as it give the value for a ``compound'' with fixed
+stoichiometry.  Constituent arrays with one or more interaction
+describe the composition dependence of the property, without such
+parameter the property will vary liearly between the endmembers.
 
 If there are no sublattices, like in the gas, one just give the phase
 and the constituent
@@ -234,10 +235,15 @@ case an omitted degree is interpreted as zero.
 %F ! subcommands to LIST
 %F   character (len=16), dimension(nclist) :: clist=&
 %F        ['DATA            ','SHORT           ','PHASE           ',&
-%F         'STATE_VARIABLES ','REFERENCES      ','PARAMETER_IDENTI',&
+%F         'STATE_VARIABLES ','BIBLIOGRAPHY    ','PARAMETER_IDENTI',&
 %F         'AXIS            ','TPFUN_SYMBOLS   ','QUIT            ',&
 %F         '                ','EQUILIBRIA      ','RESULTS         ',&
-%F         'CONDITIONS      ','SYMBOLS         ','                ']
+%F         'CONDITIONS      ','SYMBOLS         ','LINE_EQULIBRIA  '] <<<
+%F!-------------------
+%F! subsubcommands to LIST DATA
+%F    character (len=16), dimension(nlform) :: llform=&
+%F        ['SCREEN          ','TDB             ','MACRO           ',&
+%F         'LATEX           ','                ','                ']
 %F !-------------------
 %F ! subsubcommands to LIST PHASE
 %F   character (len=16), dimension(nclph) :: clph=&
@@ -247,7 +253,7 @@ case an omitted degree is interpreted as zero.
 %F ! subcommands to CALCULATE
 %F   character (len=16), dimension(ncalc) :: ccalc=&
 %F        ['TPFUN_SYMBOLS   ','PHASE           ','NO_GLOBAL       ',&
-%F         '                ','QUIT            ','GLOBAL_GRIDMIN  ',&
+%F         'TRANSITION      ','QUIT            ','GLOBAL_GRIDMIN  ',& <<
 %F         'SYMBOL          ','EQUILIBRIUM     ','ALL_EQUILIBRIA  ']
 %F !-------------------
 %F ! subcommands to CALCULATE PHASE
@@ -257,19 +263,26 @@ case an omitted degree is interpreted as zero.
 %F ! subcommands to ENTER
 %F   character (len=16), dimension(ncent) :: center=&
 %F        ['TPFUN_SYMBOL    ','ELEMENT         ','SPECIES         ',&
-%F         'PHASE           ','PARAMETER       ','REFERENCE       ',&
+%F         'PHASE           ','PARAMETER       ','BIBLIOGRAPY     ',&
 %F         'CONSTITUTION    ','EXPERIMENT      ','QUIT            ',&
-%F         'EQUILIBRIUM     ','SYMBOL          ','                ']
+%F         'EQUILIBRIUM     ','SYMBOL          ','OPTIMIZE_COEFF  ',&
+%F         'COPY_OF_EQUILIB ','                ','                ']
 %F !-------------------
 %F ! subcommands to READ
 %F   character (len=16), dimension(ncread) :: cread=&
-%F        ['UNFORMATTED     ','TDB             ','QUIT            ']
+%F        ['UNFORMATTED     ','TDB             ','QUIT            ',&
+%F         'DIRECT          ','                ','                ']
+%F!-------------------
+%F! subcommands to SAVE
+%F    character (len=16), dimension(ncsave) :: csave=&
+%F         ['UNFORMATTED     ','TDB             ','MACRO           ',&
+%F         'DIRECT          ','LATEX           ','QUIT            ']
 %F !-------------------
-%F ! subcommands to AMEND first level
+%F ! subcommands to AMEND first level (very few implemented)
 %F ! many of these should be subcommands to PHASE
 %F   character (len=16), dimension(ncam1) :: cam1=&
 %F        ['SYMBOL          ','ELEMENT         ','SPECIES         ',&
-%F         'PHASE           ','PARAMETER       ','REFERENCE       ',&
+%F         'PHASE           ','PARAMETER       ','BIBLIOGRAPHY    ',&
 %F         'TPFUN_SYMBOL    ','CONSTITUTION    ','QUIT            ',&
 %F         'COMPONENTS      ','GENERAL         ','DEBYE_MODEL     ']
 %F !-------------------
@@ -277,7 +290,8 @@ case an omitted degree is interpreted as zero.
 %F   character (len=16), dimension(ncamph) :: camph=&
 %F        ['MAGNETIC_CONTRIB','COMPOSITION_SET ','DISORDERED_FRACS',&
 %F         'GLAS_TRANSITION ','QUIT            ','DEFAULT_CONSTIT ',&
-%F         'DEBYE_MODEL     ','                ','                ']
+%F         'DEBYE_MODEL     ','EINSTEIN_CP_MDL ','INDEN_WEI_MAGMOD',&
+%F         'ELASTIC_MODEL_A ','                ','                ']
 %F !-------------------
 %F ! subcommands to SET.  
 %F   character (len=16), dimension(ncset) :: cset=&
@@ -286,7 +300,7 @@ case an omitted degree is interpreted as zero.
 %F         'QUIT            ','ECHO            ','PHASE           ',&
 %F         'UNITS           ','LOG_FILE        ','WEIGHT          ',&
 %F         'NUMERIC_OPTIONS ','AXIS            ','INPUT_AMOUNTS   ',&
-%F         '                ','                ','                ']
+%F         'VERBOSE         ','AS_START_EQUILIB','                ']
 %F ! subsubcommands to SET STATUS
 %F   character (len=16), dimension(ncstat) :: cstatus=&
 %F        ['ELEMENT         ','SPECIES         ','PHASE           ',&
@@ -294,11 +308,11 @@ case an omitted degree is interpreted as zero.
 %F !        123456789.123456---123456789.123456---123456789.123456
 %F ! subsubcommands to SET ADVANCED
 %F   character (len=16), dimension(ncadv) :: cadv=&
-%F        ['LEVEL           ','                ','                ']
+%F        ['EQUILIB_TRANSF  ','QUIT            ','                ']
 %F !        123456789.123456---123456789.123456---123456789.123456
 %F ! subsubcommands to SET PHASE
 %F   character (len=16), dimension(nsetph) :: csetph=&
-%F        ['CONSTITUTION    ','STATUS          ','DEFAULT_CONSTITU',&
+%F        ['QUIT            ','STATUS          ','DEFAULT_CONSTITU',&
 %F         'AMOUNT          ','BITS            ','                ']
 %F !        123456789.123456---123456789.123456---123456789.123456
 %F !-------------------
@@ -306,14 +320,20 @@ case an omitted degree is interpreted as zero.
 %F   character (len=16), dimension(nsetphbits) :: csetphbits=&
 %F        ['FCC_PERMUTATIONS','BCC_PERMUTATIONS','IONIC_LIQUID_MDL',&
 %F         'AQUEOUS_MODEL   ','QUASICHEMICAL   ','FCC_CVM_TETRADRN',&
-%F         'FACT_QUASICHEMCL','NO_AUTO_COMP_SET','ELASTIC_MODEL_A ',&
+%F         'FACT_QUASICHEMCL','NO_AUTO_COMP_SET','                ',&
 %F         '                ','                ','                ',&
 %F         '                ','                ','                ']
 %F !        123456789.123456---123456789.123456---123456789.123456
+%F!-------------------
+%F! subcommands to STEP                                              <<<
+%F    character (len=16), dimension(nstepop) :: cstepop=&
+%F         ['NORMAL          ','SEPARATE        ','QUIT            ',&
+%F          'CONDITIONAL     ','                ','                ']
+%F!         123456789.123456---123456789.123456---123456789.123456
 %F !-------------------
 %F ! subcommands to DEBUG
 %F   character (len=16), dimension(ncdebug) :: cdebug=&
-%F        ['FREE_LISTS      ','STOP_ON_ERROR   ','                ',&
+%F        ['FREE_LISTS      ','STOP_ON_ERROR   ','ELASTICITY      ',&
 %F         '                ','                ','                ']
 %F !-------------------
 %F ! subcommands to SELECT, maybe some should be CUSTOMMIZE ??
@@ -324,7 +344,12 @@ case an omitted degree is interpreted as zero.
 %F ! subcommands to DELETE
 %F   character (len=16), dimension(nrej) :: crej=&
 %F        ['ELEMENTS        ','SPECIES         ','PHASE           ',&
-%F         'QUIT            ','                ','                ']
+%F         'QUIT            ','COMPOSITION_SET ','EQUILIBRIUM     ']
+%F !-------------------
+%F ! subcommands to PLOT OPTIONS
+%F   character (len=16), dimension(nplt) :: cplot=&
+%F         ['PLOT            ','XRANGE          ','YRANGE          ',&
+%F         'XTEXT           ','YTEXT           ','TITLE           ']
 %F !-------------------
 %F
 %
@@ -353,7 +378,7 @@ the same line if one knows the order, using a comma, ``,'' to select
 the default.
 
 There some options that can be set for the whole session or for just a
-single command.  The optins are idenfified by a - in front like
+single command.  The options are idenfified by a - in front like
 -output=myfile.dat.
 
 \subsection{Option}
@@ -417,10 +442,10 @@ may affect the behaviour of the program.
 
 \item If global minimization is allowed or not.
 
-\item If gridpoints should be merged after global minimization
-(sometimes set for debugging).
+\item If gridpoints should be merged after global minimization.  By
+default not.
 
-\item Forbid automatic creation or deletion of composition sets.
+\item  Automatic creation or deletion of composition sets not allowed.
 \end{itemize}
 
 %--------------------------------
@@ -428,7 +453,7 @@ may affect the behaviour of the program.
 
 The possible parameters are defined by the model of the phase.  By
 specifying a parameter the user can change its expression.  See the
-ENTER PARAMETER command.
+ENTER PARAMETER command.  Not implemented yet.
 
 %--------------------------------
 \subsection{Phase}
@@ -444,17 +469,17 @@ by this command.
 %.........................
 \subsubsection{Composition\_Set}
 
-More composition sets of a phase can be created.  Phases with
-miscibility gaps or which can exist with different chemical ordering
-like A2 and B2 must be treated as different composition sets.  The
-user can specify a prefix and suffix for the composition set.  The
+More composition sets of a phase can be created or deleted.  Phases
+with miscibility gaps or which can exist with different chemical
+ordering like A2 and B2 must be treated as different composition sets.
+The user can specify a prefix and suffix for the composition set.  The
 composition set will always habe a suffix \#digit where digiit is a
 number between 1 and 9.  One cannot have more than 9 composition sets.
 
 Composition sets can also be created automatically by the software.  In
 such a case the composition set will have the suffix \_AUTO,
 
-In some cases it may be interesting to create metastable states inside
+In some cases it may be interesting to calculate metastable states inside
 miscibility gaps and one can prevent automatic creation of composition
 sets by {\rm AMEND GENERAL} or for an individual phase by {\em SET
 PHASE BIT {\em phase} NO\_AUTO\_COMP\_SET}
@@ -463,10 +488,10 @@ PHASE BIT {\em phase} NO\_AUTO\_COMP\_SET}
 \subsubsection{Default\_Constit}
 
 The default constitution of a phase can be set.  This will be used
-when the first calculation with the phase is made.  Depending on the
-minimizing software used the initial consititution can be important to
-find the correct quilibrium if the phase has ordering or a miscibility
-gap.
+when the first calculation with the phase is made and sometimes if
+there are convergence probems.  Depending on the minimizing software
+used the initial consititution can be important to find the correct
+quilibrium if the phase has ordering or a miscibility gap.
 
 %.........................
 \subsubsection{Disordered\_Fracs}
@@ -495,9 +520,9 @@ Do not amend anything for the phase.
 Do not amend anything.
 
 %--------------------------------
-\subsection{Reference}
+\subsection{Bibliography}
 
-The reference for a parameter can be amended.
+The bibliographic reference for a parameter can be amended.
 
 %--------------------------------
 \subsection{Species}
@@ -512,12 +537,20 @@ Not implemented yet.
 %--------------------------------
 \subsection{Tpfun\_Symbol}
 
-Not implemented yet.
+You can replace a TP function with a new expression.
+
+This is somewhat dangerous if you have several equilibria because each
+equilibria has its own list of most recently calculated values of the
+function and they may not be aware of a change of the function and go
+on using the already calculated value unless you change $T$ or $P$, in
+eqch equilibrium, which will force recalculation.  I am thinking of a
+way to handle this.
 
 %===================================================================
 \section{Back }
 
-Return back from the command monitor to the application program.
+Return back from the command monitor to the application program.  In
+the OC software itself it means terminate the program.
 
 %===================================================================
 \section{Calculate }
@@ -542,7 +575,7 @@ is not allowed.
 %--------------------------------
 \subsection{Global\_Gridmin}
 
-Calculate with the global grid minimizer without using ths result as a
+Calculate with the global grid minimizer without using this result as a
 start point for the general minimizer.  Used to debug the grid
 minimizer.
 
@@ -550,7 +583,10 @@ minimizer.
 \subsection{No\_Global}
 
 Calculate the equilibrium with the current minimizer without using a
-global gid minimizer to generate start constitutions.
+global gid minimizer to generate start constitutions.  The current
+equilibrium is used as start point.  Can be quicker when just a small
+change of conditions made since previous calculation.  It means no
+check of new miscibility gaps.
 
 %--------------------------------
 \subsection{Phase}
@@ -580,13 +616,16 @@ Quit calculating.
 %--------------------------------
 \subsection{Symbol}
 
-A state variable symbol is calculated using the results from the
-last equilibrium or grid minimizer calculation.
+A state variable symbol or function is calculated using the results
+from the last equilibrium or grid minimizer calculation.  It is used
+in particular for calculation of ``dot derivatives'' like H.T for the
+heat capacity.
 
 %--------------------------------
 \subsection{Tpfun\_Symbols}
 
-A specific TPFUN symbol is calculated for current values of T and P.
+All or a specific TPFUN symbol is calculated for current values of T
+and P.
 
 %===================================================================
 \section{Debug }
@@ -607,7 +646,7 @@ easier to use macro files to find errors.
 
 Not implemented yet and may never be, it is not so easy to allow
 deleting things when the data structure is so involved, it may be
-better to enter the data again without the thing that should be
+better to enter the data again without the data that should be
 deleted.
 
 \section{Exit }
@@ -634,10 +673,10 @@ parameters.
 Each parameter of a phase is entered separately.  One may use
 TPFUN symbols which are already entered.
 
-At present the multicomponent CEF model is the only one implemented.
-This includes the gas phase, regular solutions with Redlich-Kister
-Muggianu model and phases with up to 10 sublattices and magnetic
-contributions.
+At present the multicomponent CEF model and the ionic 2-sublattice
+liquid model are the only one implemented.  This includes the gas
+phase, regular solutions with Redlich-Kister Muggianu model and phases
+with up to 10 sublattices and magnetic contributions.
 
 %--------------------------------
 \subsection{Constitution}
@@ -661,7 +700,10 @@ One can have several equilibria each with a unique set of conditions
 incuding phase status (dormant, suspended, fix or entered).  This is
 useful for compare different states, to simulate transformations and
 to assess model parameters as each experimental or theoretical
-information represented as an equilibrium.
+information represented as an equilibrium.  
+
+Each equilibrium is independent and they can be calculated in
+parallel.
 
 %--------------------------------
 \subsection{Experiment}
@@ -671,10 +713,10 @@ This is for assessment, not implemented yet.
 %--------------------------------
 \subsection{Parameter}
 
-A parameter is definde by its identifier, the phase and constituent
+A parameter is definded by its identifier, the phase and constituent
 array.  A parameter can be a constant or depend on T and P.  The
 parameter will be multiplied with the fractions of the constituents
-given by the constituent array.
+given by its constituent array.
 
 For example G(LIQUID,CR) is the Gibbs energy of liquid Cr relative to
 its reference state, normally the stable state of Cr at 298.15 K and 1
@@ -714,7 +756,7 @@ are given in the introduction.  Here is a short list.
 \item EC44A, the elastic constrant C44
 \end{itemize}
 
-The actual list is given by LIST PARAMETER\_ID.
+The current list can be obtained by the command LIST PARAMETER\_ID.
 
 %--------------------------------
 \subsection{Phase}
@@ -738,7 +780,7 @@ the {\bf amend} or {\bf set phase bit} commands.
 Quit entering things.
 
 %--------------------------------
-\subsection{Reference}
+\subsection{Bibligraphy}
 
 Each parameter must have a reference.  When entering a parameter a
 reference symbol is given and with this command one can give a full
@@ -768,9 +810,9 @@ element names have by default the stoichiometric factor 1.
 \item enter species carbondioxide c1o2
 \end{itemize}
 
-The species name is important as it is name, not the stoichiometry,
-that is used when referring to the species elsewhere like as
-constituent.
+The species name is important as it is the name, not the
+stoichiometry, that is used when referring to the species elsewhere
+like as constituent.
 
 %--------------------------------
 \subsection{Symbol}
@@ -786,15 +828,18 @@ enter symbol K = X(LIQUID,CR)/X(BCC,CR);
 where K is set to the partition of the Cr mole fractions between
 liquid and bcc.
 
-It is intended to implement ``dot'' derivatives like CP=H.T which is
-the temperature derivative of the enthalpy for the given set of
-conditions in order to calculate heat capacities.
+The symbols also include ``dot derivatives'' like H.T which is the
+temperature derivative of the enthalpy for the current system at the
+given set of conditions, i.e. the heat capacity.
 
 %--------------------------------
 \subsection{Tpfun\_Symbol}
 
 This symbol is an expression depending on T and P that can be used
 when entering parameters.  A TPfun can refer to another TPfun.
+
+TPFUNS have a strict syntax because the software must be able to
+calculate first and second derivatives with respect to $T$ and $P$.
 
 %===================================================================
 \section{Exit}
@@ -830,12 +875,12 @@ is redirected by the -output option.
 %--------------------------------
 \subsection{Axis}
 
-Lists the axis set.
+Lists the axis set by the user.
 
 %--------------------------------
 \subsection{Conditions}
 
-Lists the conditions set.
+Lists the conditions set by the user.
 
 %--------------------------------
 \subsection{Data}
@@ -865,7 +910,7 @@ List the constitution of the phase.
 %...................
 \subsubsection{Model}
 
-List some model data for axample if there is a disordered fraction set.
+List some model data for example if there is a disordered fraction set.
 
 %--------------------------------
 \subsection{Quit}
@@ -873,14 +918,51 @@ List some model data for axample if there is a disordered fraction set.
 You did not really want to list anyting.
 
 %--------------------------------
-\subsection{References}
+\subsection{Bibliography}
 
-List the references for data.
+List the bibliographic references for the data.
 
 %--------------------------------
 \subsection{Results}
 
-List the results of an equilibrium calculation.
+List the results of an equilibrium calculation.  This is the most
+frequent list command.  The listing will contain the current set of
+conditions, a table with global data, a table with component specific
+data and then a list of stable phases with amounts, compositions and
+possibly constitutions.  It is possible to list also unstable phases.
+
+There are 9 options for the formatting:
+\begin{enumerate}
+\item Output in mole fractions, phase constituents in value order
+  (constituent with highest fraction first)
+\item As 1 but include also the phase constitution (sublattices and
+  their fractions)
+\item As 1 with the phase composition in alphabetical order (do not work)
+\item As 1 with mass fractions
+\item As 4 with the phase composition in alphabetical order (do not work)
+\item As 4 and also include the phase constitutions
+\item All phases will be listed with composition in mass fractions and
+  in alphabetical order of the elements.  A negative driving force for
+  a phase means the phase is not stable.
+\item All phases will be listed with composition in mole fraction in
+  value order and driving force, negative driving force means the
+  phase is not stable.
+\item All phases will be listed with composition and constitutions in
+  alphabetical order of the elements and the driving force.
+\end{enumerate}
+
+For each phase the name, status and driving force (in dimensionless
+units) is given on the first line.  
+
+The second line has the amount of the phase in moles and mass of
+components (zero if not stable) and its volume (zero if no pressure
+data).  
+
+The third line has the number of formula units of the phase (zero if
+not stable) and the moles of atoms per formula unit.  The first value
+on the third line multiplied with the second will be the first value
+on the second line.  The gas phase and phases with interstitials have
+a varying amount of moles of atoms per formula units.
 
 %--------------------------------
 \subsection{Short}
@@ -898,7 +980,7 @@ they are calculated by the CALCULATE SYMBOL command.
 %--------------------------------
 \subsection{Symbols}
 
-All state variable sysmbols listed but not their values, they are
+All state variable symbols listed but not their values, they are
 calculated by the CALCULATE SYMBOL command.
 
 %--------------------------------
@@ -910,25 +992,33 @@ All TPFUN symbols listed.
 \section{Macro }
 
 By specifying a file name commands will be read from that file.  The
-default extention is BMM.  A macro file can open another macro file
+default extention is OCM.  A macro file can open another macro file
 (max 5 levels).  When a mcro file finish with SET INTERACTIVE the
 calling macro file will continue.
 
 %===================================================================
 \section{Map }
 
-For phase diagram calculations.  Not implemented yet.
+For phase diagram calculations.  One must first ste two axis with
+state variables also set as conditions.
+
+If one gives several MAP commands one can erase or keep the previous
+results.
+
+During mapping each calculated equilibria is saved and then different
+kinds of state vaiables can be used for plotting.
 
 %===================================================================
 \section{New }
 
-To remove all data so a new system can be entered.  Not implemented.
+To remove all data so a new system can be entered.  Fragile
 
 %===================================================================
 \section{Plot }
 
 Plot the result from a STEP or MAP calculation.  A simple interface to
-gnuplot has been implemented for step calculations.
+gnuplot has been implemented.  One can select state variables for the
+plot axis and some options like range and title.
 
 %===================================================================
 \section{Quit }
@@ -938,8 +1028,8 @@ Terminate the OC software in Swedish.
 %===================================================================
 \section{Read }
 
-At present there is no SAVE command implemented in OC as it is
-difficult to do that before the datastructure is well defined.
+At present there a very limited SAVE command implemented in OC as it
+is difficult to do that before the datastructure is well defined.
 
 It is possible to read a (non-encrypted) TDB file but it should be not
 too different from what is generated by the LIST\_DATA command in TC.
@@ -947,7 +1037,7 @@ too different from what is generated by the LIST\_DATA command in TC.
 %--------------------------------
 \subsection{Quit}
 
-Yuo did not really want to read anything.
+You did not really want to read anything.
 
 %--------------------------------
 \subsection{TDB}
@@ -958,12 +1048,53 @@ must not deviate very much from the output of Thermo-Calc.
 %--------------------------------
 \subsection{Unformatted}
 
-For use when a SAVE command is implemeneted in OC.
+For use to read a file created with a SAVE UNFORMATTED command.  It
+will not always work as the datastructure is not fixed.
 
 %===================================================================
 \section{Save }
 
-Not implemented yet.
+There are several forms of save, three forms write a text file that
+can be read and modified with a normal editor.  Two forms are
+unformatted, either on a sequential file or a direct (random access)
+file.
+
+%--------------------------------
+\subsection{Direct}
+
+It will eventually be possible to save the result of STEP and MAP
+commands on a random access file for later processing.
+
+%--------------------------------
+\subsection{LaTeX}
+
+The thermodynatic data will be formatted according to LaTeX for later
+inclusion in publications.  Not implemented.
+
+%--------------------------------
+\subsection{Macro}
+
+The thermodynamic data will be written as a macro file that can later
+be read back into the OC software.  Not implemented.
+
+%--------------------------------
+\subsection{Quit}
+
+You did not want to save.
+
+%--------------------------------
+\subsection{TDB}
+
+The thermodynamic data will be written in a text form that can be later
+read by OC or other software.  Not implemented.
+
+%--------------------------------
+\subsection{Unformatted}
+
+The intention is that one will be able to save the current status of
+the calculations on a file and then reassume the calculations by
+reading this file.  A tentative version is implemented.
+
 
 %===================================================================
 \section{Select }
@@ -982,8 +1113,7 @@ Not implemented yet.
 %--------------------------------
 \subsection{Minimizer}
 
-There are two minimizers implemented, LUKAS and SUNDMAN\_HILLERT and
-both have their limitations at present.
+Not implemented yet
 
 %===================================================================
 \section{Set }
@@ -1158,8 +1288,7 @@ You did not really want to set anything
 
 For each component (also when not the elements) one should be able to
 specify a phase at a given temperature and pressure as reference
-state.  The phase must exist for the pure component.  Not implemented
-yet.
+state.  The phase must exist for the pure component.
 
 %--------------------------------
 \subsection{Status}
@@ -1167,7 +1296,7 @@ yet.
 %....................
 \subsection{Constituent}
 
-A constituent of a phase can be suspended.  But not yet implemented.
+A constituent of a phase can be suspended.  Not yet implemented.
 
 %....................
 \subsection{Element}

@@ -1,3 +1,6 @@
+@$ Calculate the O-U phase diagram
+@&
+
 set echo
 
 r t ou
@@ -12,7 +15,7 @@ l r 2
 
 @&
 
-set ax 1 x(o) 0 1 ,,
+set ax 1 x(o) 0 1 .002
 
 set ax 2 t 500 3500 25
 
@@ -26,15 +29,17 @@ plot
 
 
 
-
-
-
-@&
 @$ the high O side missing
 
-set c t=2500 x(o)=.7
+set c t=2500 x(o)=.8
 
 c e
+
+c n
+
+l,,,,,
+
+@&
 
 map
 N
@@ -42,8 +47,14 @@ N
 
 
 plot
-
-
+x(*,O)
+T
+ocgnu
+yr
+N
+500
+3500
+,,,,,,,,,,,,,
 
 
 

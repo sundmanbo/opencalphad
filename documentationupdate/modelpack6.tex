@@ -26,8 +26,8 @@ This is a preliminary description of the data structure used in
 the thermodynamic model package GTP written in Fortran08.
 
 The reason to use Fortran is that it is specially designed for
-numerical calculations and there are many numeical libraries
-available. It is also inteded for use in massive parallell processing.
+numerical calculations and there are many numerical libraries
+available. It is also intended for use in massive parallell processing.
 Extensive use is made of the datatyping available in Fortran08.
 
 All real numbers are double precision unless specifically noted.
@@ -59,12 +59,13 @@ The verbatim sections in the source code is enclosed by\\
 \verb/!\begin{verbatim}/\\
 \verb/extract from source code /\\
 \verb/!\end{verbatim} /\\
+
 These can be inserted anywhere.  Normally they enclose important
 sections like data structure definitions and declarations of
 subroutines and functions.  New verbatim sections are also flagged as
 well as verbatim sections that has disappeared.  The update software
-writes a new LaTeX documentation file which require some editing but
-at least is correct.
+writes a new LaTeX documentation file which require editing but at
+least is correct.
 
 With this software I hope to be able to keep the software documented
 also during the development stage.
@@ -83,14 +84,15 @@ programming.
 
 In a thermodynamic system one has elements, species (stoichiometric
 combination of elements) and phases.  The thermodynamic properties of
-the system are modeled by models for the Gibbs energy which can be
+the system are described by models for the Gibbs energy which can be
 different for each phase.  The Gibbs energy for a phase depend on the
 temperature, $T$, pressure, $P$ and amounts of the constituents of the
-phase.  But with suitable transformations it can be used to find the
-equilibrium of a system for other conditions.  The model function can
-also be used to extraplation to non-equilibrium states.  Some thought
-has been spent on special physical properties like ferromagnetism and
-additional external variables as stress or electromagnetic fields.
+phase.  With suitable transformations the Gibbs energy can be used to
+find the equilibrium of a system for any other set of conditions.  The
+model function can also be used to extraplate to non-equilibrium
+states.  Some thought has been spent on special physical properties
+like ferromagnetism and additional external variables as stress or
+mability data that also depend on $T, P$ and the constitution.
 
 The method of storing composition dependant properties used for the
 Gibbs energy parameters is also suitable for other properties like
@@ -98,7 +100,8 @@ mobilities, elastic constants, resistivity etc and there are
 provisions to include such data.
 
 The use of this model package to calculate equilibria in
-multicomponent systems is explained in a separate document.
+multicomponent systems and for calculation of property and phase
+diagrams is explained in a separate document.
 
 \subsection{New features in version 2}
 
@@ -109,22 +112,23 @@ model.  This does not really change much in this documentation, the
 code for handling the variable ratio of sublattices has been
 integrated in the existing subroutines.
 
-The main feature of version 2 is instead implementing derivatives of
-state variables, ``dot derivatives'', some improvements of the
-minimization procedure and the step and map procedures which are
-documented separately.
+The main feature of version 2 is instead the step and map procedures
+which are documented separately and implementing derivatives of state
+variables, ``dot derivatives'', and some improvements of the
+minimization procedure.
 
 \subsection{The Gibbs energy function}
 
 The model package provides the possibility to calculate the Gibbs
 energy, $G$, for a phase using the models implemented for any value of
-$T, P$ and its constitution.  In addition the first and second
-derivatives of $G$ with respect to $T, P$ and the constitution.  These
-values can be used directly or within a minimization package developed
-in parallel, to handle equilibrium calculations in multicomponent
-system with several phases for various external conditions.  The basic
-formula for the Gibbs energy of a phase, independent of the model, is
-taken from the book by Lukas, Fries and Sundman\cite{07Luk}.
+$T, P$ and its constitution.  In addition it can calculte the first
+and second derivatives of $G$ with respect to $T, P$ and the
+constitution.  These values can be used directly or within a
+minimization package developed in parallel, to handle equilibrium
+calculations in multicomponent system with several phases for various
+external conditions.  The basic formula for the Gibbs energy of a
+phase, independent of the model, is taken from the book by Lukas,
+Fries and Sundman\cite{07Luk}.
 
 \begin{eqnarray}
 G_M = ~^{\rm srf}G_M - T~^{\rm cfg}S_M + ~^{E}G_M + ~^{\rm phys}G_M\label{eq:gm}
@@ -184,13 +188,14 @@ is also c1o2 in the system.
 The electron and vacancy are entered as element -1 and 0 respectivly
 but they are not really treated as elements except that they can be
 included in species.  The electron has the symbol /- but one can also
-use /+ to denote a positive charge.  Vacancies are denoted ``Va'' and
-have no fixed amount and will always have zero chemical potential at
-equilibrium.  They will thus not affect the Gibbs phase rule.
+use /+ to denote a positive charge (or /--1).  Vacancies are denoted
+``Va'' and have no fixed amount and will always have zero chemical
+potential at equilibrium.  They will thus not affect the Gibbs phase
+rule.
 
 An element can be be suspended, that means it can be hidden from
 application programs.  If an element is suspended then all species
-that imclude this element are also suspended (implicitly) and also any
+that include this element are also suspended (implicitly) and also any
 phases which cannot exist unless the species is present as
 constituent, i.e. the species in the only constituent in a sublattice.
 
@@ -199,8 +204,8 @@ constituent, i.e. the species in the only constituent in a sublattice.
 The species are stoichiometric combinations of elements.  They have a
 symbol and a stoichiometric formula.  The elements, including the
 vacancy, are the simplest species.  The stoichiometry can be
-non-integer like a species ALO$_1.5$.  The symbol must start with a
-letter A-Z and can contain letters (only upper case), digits, the
+non-integer like a species ALO$_{1.5}$.  The symbol must start with a
+letter A-Z and can contain letters (case insensitive), digits, the
 period~``.'', the underscore character~``\_'', the slash~``/'', the
 minus sign~``-'' and the plus sign~``+''.  No other special characters
 are allowed, for example parenthesis are not allowed.
@@ -208,7 +213,7 @@ are allowed, for example parenthesis are not allowed.
 The symbol of the species is often the same as the stoichiometric
 formula but it is not necessary.  For example the molecule
 C$_2$H$_2$Cl$_2$ exists in 2 configurations either with CL on the same
-side or oposite.  These can be idetified by giving these the names
+side or oposite.  These can be identified by giving these the names
 C2H2CL2\_CIS and C2H2CL2\_TRANS.
 
 In addition the mass is stored but this is redundant as it is
@@ -228,13 +233,13 @@ composition.
 When entering the stoichiometric formula for a species one may need to
 use stoichiometric numbers to separate one letter elements as OC is
 case insenitive.  For example to distinguish CO as cobalt from C1O1 as
-carbon monoxide the number 1 must be used after the element letter C.
+carbon monoxide the digit 1 can be used after the element letter C.
 But otherwise the stoichiometric number 1 is not needed if the element
 have a two letter symbol, for example CAO can be used for a species
 with one atom of CA and one atom of O.  One cannot use parenthesis in
 species symbols or when entering stoichiometries, the stoichiometry of
-Ca(OH)$_2$ must be entered as CAO2H2 (or O1CAO1H2 or any way giving
-the same stoichiometry).
+Ca(OH)$_2$ must be entered as CAO2H2 (or O1CAO1H2 or any other way
+giving the same stoichiometry).
 
 The fact that a species has a symbol which is independent of its
 stoichiometry can be used to simplify complicated chemical
@@ -251,16 +256,17 @@ part of a phase.  The Gibbs energy of the phase is modelled as a
 function of temperature (T), pressure (P) and the constitution of the
 phase (Y) as given by eq.~\ref{eq:gm}.  Many different thermodynamic
 models can be used and each phase can have a unique model and also
-several different ``additions'' to this model, like magnetism.  But
-all phases are accessed from outside the model package in the same
-way.  Thus the minimiser which is used to find the equilibrium state
-of a system does not depend on any particular model feature.
+several different ``additions'' to this model, like magnetic and
+pressure models.  But all phases are accessed from outside the model
+package in the same way.  Thus the minimiser which is used to find the
+equilibrium state of a system does not depend on any particular model
+feature.
 
-From ouside the model package one can obtain information of the
+From outside the model package one can obtain information of the
 constitution of the phase, i.e. which constituents and their fractions
 (Y).  The constituents are species (with fixed stoichiometry).  As the
 compound energy formalism (CEF) is a very general and flexible model
-framework this has been the first implemnted.  In version 2 of OC the
+framework this has been the first implemented.  In version 2 of OC the
 ionic liquid model is also implemented.  There is no special
 documentation of that model in this text as it is well described in
 the book by the book by Lukas, Fries and Sundman~\cite{07Luk}.
@@ -288,9 +294,9 @@ for the given external conditions.
 There are some models (not implemented in OC) which allow a variable
 stoichiometry of the constituents of the phase.  Such models must be
 implemented as a two-level minimisation where the model from outside
-the model package seem to depend only the mole fractions of the
-elements or some other set of components.  It may also be necessary to
-have some special way of entering parameters for such a model.
+the model package depend only the mole fractions of the elements or
+some other set of components.  It may also be necessary to have some
+special way of entering parameters for such a model.
 
 \subsubsection{Phase specification}
 
@@ -302,7 +308,7 @@ have the vacancy as the only constituent.
 
 The term "endmember" refers to a combination of one constituent in
 each sublattice.  This defines a compound and this is the origin of
-the name ``compound energy formalism''. When writing the endmember the
+the name ``compound energy formalism''. When writing an endmember the
 constituents are separated by a colon.
 
 The thermodynamic model parameters are entered for the endmembers and
@@ -2560,6 +2566,20 @@ allocated equilibrium records.
 \end{verbatim}
 }
 
+\subsubsection{Total number of phases and composition sets}
+
+This is used when dimensioning arrays for phases for calculations.
+
+{\small
+\begin{verbatim}
+ integer function totalphcs(ceq)
+! returns the total number of unhidden and unsuspended phases+composition sets
+! in the system.  Used for dimensioning work arrays and in loops
+   implicit none
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+\end{verbatim}
+}
+
 \subsection{Find things}
 
 These subroutines translate from name to index or location of data or
@@ -3868,7 +3888,7 @@ This subroutine is not implemented yet.
 \end{verbatim}
 }
 
-\subsubsection{Ask for default constitution}
+\subsubsection{Ask for default phase constitution}
 
 The user can enter a default constitution for a phase.  A negtive
 value means a maximum value, a positive means a minimum value.
@@ -6152,21 +6172,6 @@ This subroutine checks this.
 \end{verbatim}
 }
 
-\subsubsection{Total number of phases and composition sets}
-
-This is used when dimensioning arrays for calculations.
-
-{\small
-\begin{verbatim}
- subroutine sumofphcs(npx,ceq)
-! returns the total number of unhidden and unsuspended phases+composition sets
-! in the system.  Used for dimensioning work arrays and in loops
-   implicit none
-   TYPE(gtp_equilibrium_data), pointer :: ceq
-   integer npx
-\end{verbatim}
-}
-
 \subsubsection{Set default constitution}
 
 The constitution of a phase is set to its default constitution
@@ -6198,7 +6203,7 @@ I am not sure when this is used or needed.
 \end{verbatim}
 }
 
-\subsubsection{Create a default constitution}
+\subsubsection{Set the default constitution of a phase}
 
 I am not sure when this is used and if it is needed.
 

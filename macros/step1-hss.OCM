@@ -1,4 +1,5 @@
-@$ Calculating a single equilibrium
+@$ Calculating a HSS for varying temperature
+@&
 
 set echo
 
@@ -33,13 +34,11 @@ l line
 l eq
 
 
-plot
-
-
-,,,,,,,,
+plot,,,,,,,,,,,
 
 
 
+@$ plot cr content in stable phases
 plot
 T
 w(*,cr)
@@ -48,8 +47,6 @@ plot ,,,,,,,,,,,,,,
 
 
 
-
-@&
 
 @$ plot enthalpy
 
@@ -72,7 +69,7 @@ ocgnu
 plot ,,,,,,,,,,,,,
 
 
-
+@$ Set range for y axis
 plot
 T
 cp
@@ -81,7 +78,6 @@ yr
 n
 0
 200
-
 
 
 

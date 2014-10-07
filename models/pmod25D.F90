@@ -1835,7 +1835,7 @@ end subroutine get_condition
       cmix(2)=-current%statev
       cmix(3)=current%iref
       value=current%prescribed
-!      write(*,*)'Fix phase: ',-current%statev,current%iref
+!      write(*,*)'25D Fix phase: ',-current%statev,current%iref,value
    elseif(current%statev.eq.1) then
 ! temperature
       cmix(1)=1

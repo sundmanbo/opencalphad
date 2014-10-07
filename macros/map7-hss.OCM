@@ -1,12 +1,12 @@
 @$ mapping a high speed steel
-@$ not good and crashes
+@&
 
 set echo
 
 r t steel1
-fe c cr mo v si
+fe c cr mo v
 
-set c t=1200 p=1e5 n=1 w(c)=.008 w(cr)=.05, w(mo)=.08 w(v)=.01 w(si)=.003
+set c t=1200 p=1e5 n=1 w(c)=.008 w(cr)=.045, w(mo)=.08 w(v)=.01 w(si)=.003
 
 c e
 
@@ -21,24 +21,35 @@ l ax
 
 @&
 
+set c t=1700
+
+c n
+
+l r 1
+
+
+@&
+
 
 map
 
 
 
-plot,,,,,,,,,,,,,,,,
+plot ,,,,,,,,,,
 
 
-set c t=1700 w(c)=.02
+
+set c t=1400 w(cr)=.015
+
 c e
 
 map N
 
 
 
-plot,,,,,,,,,,,,,,,,,,
+@$ it sometimes crashes here ...
 
-
+plot,,,,,,,,,,,,,,,,,
 
 
 set inter

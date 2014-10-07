@@ -1,5 +1,5 @@
 @$ Calculating a single equilibrium and a melting temperature
-
+@&
 set echo
 
 r t steel1
@@ -18,5 +18,6 @@ liq
 
 list,,,,,
 
+@&
 set inter
 

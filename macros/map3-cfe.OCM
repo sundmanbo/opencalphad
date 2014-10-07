@@ -1,3 +1,6 @@
+@$ Calculate the stable C-Fe system
+@&
+
 set echo
 
 r t steel1
@@ -28,17 +31,13 @@ map
 @&
 
 plot
-
 x(*,c)
 T
 ocgnu
 plot
 
 
-@&
-
 plot
-
 x(*,c)
 T
 ocgnu

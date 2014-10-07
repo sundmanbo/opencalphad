@@ -792,7 +792,14 @@ CONTAINS
                    krem=krem+1
 !                   write(*,*)'aphl for fix phase: ',krem,mph,&
 !                        meqrec%fixpham(krem)
-                   meqrec%phr(mph)%curd%amfu=zero
+                   if(meqrec%phr(mph)%curd%phstate.ne.PHFIXED) then
+! this is a phase set fix by mapping, set amount to zero
+                      meqrec%phr(mph)%curd%amfu=zero
+!                   else
+! phases set fix by user have their amount in meqrec%phr(mph)%curd%amfu 
+!                      write(*,*)'User set fixed phase:',mph,&
+!                           meqrec%phr(mph)%curd%amfu
+                   endif
                 else
                    meqrec%phr(mph)%curd%amfu=meqrec%aphl(meqrec%nstph)
                 endif
@@ -2225,6 +2232,15 @@ CONTAINS
           allocate(xcol(nz2))
           xcol=zero
           totam=zero
+!          if(.not.allocated(xxmm)) then
+! just for debugging, not needed for N= or N(A)=
+! this call returns the current fractions and total amounts.  We need
+! to do it only once inside this subroutine. xxmm are deallocated at exit
+!             allocate(xxmm(meqrec%nrel))
+!             allocate(wwnn(meqrec%nrel))
+!             call calc_molmass(xxmm,wwnn,totalmol,totalmass,ceq)
+!             if(gx%bmperr.ne.0) goto 1000
+!          endif
 ! notf keeps track on entered non-fixed phases with variable amount
           notf=0
 ! THE CALCULATION FOR N= and N(A)= seems OK
@@ -2233,6 +2249,7 @@ CONTAINS
              jj=meqrec%stphl(jph)
              pmi=>phr(jj)
 ! if phase is not fixed there is a column in xcol for variable amount
+! This has to be done before loop of elements
              if(pmi%phasestatus.ne.PHFIXED) notf=notf+1
 ! moles formulat unit of phase
              pham=pmi%curd%amfu
@@ -2287,6 +2304,7 @@ CONTAINS
 ! derivative, notf is set above
                 if(pmi%phasestatus.ne.PHFIXED) then
 ! notf indicates the column for amount of a component in stable nonfixed phase
+! sum of moles in phase will be multiplied with delta-phase_amount
                    if(sel.gt.0 .and. sel.eq.ie) then
                       xcol(dncol+notf)=pmi%xmol(ie)
                    else
@@ -2294,10 +2312,14 @@ CONTAINS
                    endif
 ! right hand side (rhs) contribution is
 ! - NP(phase)*\sum_i \sum_j dM(ie)/dy_i * dG/dy_j * z_ij
-                   xcol(nz2)=xcol(nz2)-pham*mag
+!                   xcol(nz2)=xcol(nz2)-pham*mag
                 endif
+! Maybe this should be included also for fixed phases ....?? YES
+! right hand side (rhs) contribution is
+! - NP(phase)*\sum_i \sum_j dM(ie)/dy_i * dG/dy_j * z_ij
+                xcol(nz2)=xcol(nz2)-pham*mag
              enddo nallel
-! sum of moles in phase will be multiplied with delta-phase_amount
+! this is to used on the RHS for compare with prescribed value
              if(sel.gt.0) then
                 totam=totam+pham*pmi%xmol(sel)
              else
@@ -2317,16 +2339,24 @@ CONTAINS
           enddo
 367       format(a,2i3,6(1pe12.4))
 ! add N^prescribed - N^current to rhs (right hand side)
-          xxx=smat(nrow,nz2)
+!          xxx=smat(nrow,nz2)
+! convergence problems using condition fix phase with amount >0, change sign ...
           smat(nrow,nz2)=smat(nrow,nz2)-cvalue+totam
+! then it does not converge at all .... line blelow is BAD
+!          smat(nrow,nz2)=smat(nrow,nz2)+cvalue-totam
 !          write(*,363)'RHSN: ',nrow,nz2,0,smat(nrow,nz2),xxx,cvalue,totam,&
 !               cvalue-totam
           deallocate(xcol)
 ! check for convergence
           if(abs(totam-cvalue).gt.ceq%xconv) then
-!             write(*,266)'Unconverged condition N(A): ',sel,&
-!                  cvalue,zval
-!266       format(a,i3,2(1pe15.7))
+!             if(sel.eq.0) then
+!                write(*,266)'Unconverged condition N or N(A): ',sel,&
+!                     cvalue,totam,totalmol
+!             else
+! value of xxmm(sel) only reasonable of N=1 or N(A)+.. = 1
+!                write(*,266)'Unconverged condition N or N(A): ',sel,&
+!                     cvalue,totam,xxmm(sel)
+!             endif
              if(converged.lt.5) converged=5
           endif
 !----------------------------------------------------------
@@ -2446,12 +2476,12 @@ CONTAINS
                    if(ie.eq.sel) then
                       zcol(dncol+notf)=zcol(dncol+notf)+pmi%xmol(ie)
                    endif
+                endif
 ! right hand side (rhs) contribution is (normallized below)
 ! - NP(phase)*\sum_i \sum_j dM(ie)/dy_i * dG/dy_j * z_ij 
-                   xcol(nz2)=xcol(nz2)-pham*mag
-                   if(sel.eq.ie) then
-                      zcol(nz2)=zcol(nz2)-pham*mag
-                   endif
+                xcol(nz2)=xcol(nz2)-pham*mag
+                if(sel.eq.ie) then
+                   zcol(nz2)=zcol(nz2)-pham*mag
                 endif
              enddo xallel
              totam=totam+pham*pmi%sumxmol
@@ -2478,8 +2508,7 @@ CONTAINS
 ! check on convergence
           if(abs(xxmm(sel)-cvalue).gt.ceq%xconv) then
 !             write(*,266)'Unconverged condition x(A): ',sel,&
-!                  cvalue,zval
-!266       format(a,i3,2(1pe15.7))
+!                  cvalue,xxmm(sel)
              if(converged.lt.5) converged=5
           endif
        endif
@@ -2571,12 +2600,6 @@ CONTAINS
 !                        xxx,xcol(pcol),pham,mat
                 endif
 ! last columns are amounts of element ie for all stable non-fix phases
-!                notf=1
-!                do kph=1,meqrec%nstph
-!                   kjj=meqrec%stphl(kph)
-!                   if(phr(kjj)%phasestatus.eq.PHENTERED) then
-!                   if(phr(kjj)%phasestatus.ge.PHENTERED .and.&
-!                      phr(kjj)%phasestatus.lt.PHFIXED) then
 ! for all stable (non fixed) phases we have the mass multiplied with deltaaleph
                 if(pmi%phasestatus.ne.PHFIXED) then
 ! ??                    zval=zval+pmi%xmol(ie)*mass_of(ie,ceq)
@@ -2588,10 +2611,10 @@ CONTAINS
                       xcol(dncol+notf)=xcol(dncol+notf)+&
                            pham*pmi%xmol(ie)*mass_of(ie,ceq)
                    endif
+                endif
 ! right hand side (rhs) contribution is
 ! - BP(phase)*\sum_i \sum_j dM(ie)/dy_i * dG/dy_j * z_ij
-                   xcol(nz2)=xcol(nz2)-pham*mag*mass_of(ie,ceq)
-                endif
+                xcol(nz2)=xcol(nz2)-pham*mag*mass_of(ie,ceq)
              enddo ballel
 ! sum of mass in phase will be multiplied with delta-phase_amount
 !             write(*,202)'sumxmol mm:  ',sel,pham,pmi%sumxmol,pmi%sumwmol
@@ -2750,12 +2773,6 @@ CONTAINS
                    endif
                 endif
 ! last columns are amounts of element ie for all stable non-fix phase,
-!                notf=1
-!                do kph=1,meqrec%nstph
-!                   kjj=meqrec%stphl(kph)
-!                   if(phr(kjj)%phasestatus.eq.PHENTERED) then
-!                   if(phr(kjj)%phasestatus.ge.PHENTERED .and.&
-!                        phr(kjj)%phasestatus.lt.PHFIXED) then
                 if(pmi%phasestatus.ne.PHFIXED) then
 ! all phases with variable amount, sum over all components
                    xcol(dncol+notf)=xcol(dncol+notf)+&
@@ -2764,13 +2781,12 @@ CONTAINS
                       zcol(dncol+notf)=zcol(dncol+notf)+&
                            pmi%xmol(ie)*mass_of(ie,ceq)
                    endif
-!                      notf=notf+1
+                endif
 ! right hand side (rhs) contribution is
 ! - NP(phase)*\sum_i \sum_j dM(ie)/dy_i * dG/dy_j * z_ij * mass_ie
-                   xcol(nz2)=xcol(nz2)-pham*mag*mass_of(ie,ceq)
-                   if(sel.eq.ie) then
-                      zcol(nz2)=zcol(nz2)-pham*mag*mass_of(ie,ceq)
-                   endif
+                xcol(nz2)=xcol(nz2)-pham*mag*mass_of(ie,ceq)
+                if(sel.eq.ie) then
+                   zcol(nz2)=zcol(nz2)-pham*mag*mass_of(ie,ceq)
                 endif
              enddo wallel
              totam=totam+pham*pmi%sumwmol
@@ -2798,7 +2814,7 @@ CONTAINS
           if(abs(wwnn(sel)-cvalue).gt.ceq%xconv) then
              if(converged.lt.5) converged=5
 !             write(*,266)'Unconverged condition w(A): ',sel,cvalue,wwnn(sel)
-266          format(a,i3,2(1pe12.4))
+266          format(a,i3,3(1pe14.6))
 !             write(*,267)'wwnn: ',(wwnn(ncol),ncol=1,noel())
 !             write(*,267)'xxmm: ',(xxmm(ncol),ncol=1,noel())
 267          format(a,8F9.5)
