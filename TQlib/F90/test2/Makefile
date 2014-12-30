@@ -1,9 +1,9 @@
-OBJS=fenitq2.o
+OBJS=TQ2-feni.o
 INCLUDE=-I../../ -I../../../
 
 all: $(OBJS)
-	gfortran $(INCLUDE) -o tq2 fenitq2.o ../../liboctq.o ../../../liboceq.a
+	gfortran $(INCLUDE) -o tq2 TQ2-feni.o ../../liboctq.o ../../../liboceq.a
 
-fenitq2.o: fenitq2.F90
-	gfortran $(INCLUDE) -c -fbounds-check -finit-local-zero fenitq2.F90
+TQ2-feni.o: TQ2-feni.F90
+	gfortran $(INCLUDE) -c -fbounds-check -finit-local-zero TQ2-feni.F90
 	

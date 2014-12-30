@@ -2,6 +2,7 @@ module cstr
 contains
 function c_to_f_string(s) result(str)
   use iso_c_binding
+  implicit none
   character(kind=c_char,len=1), intent(in) :: s(*)
   character(len=:), allocatable :: str
   integer i, nchars
@@ -14,53 +15,35 @@ function c_to_f_string(s) result(str)
   allocate(character(len=nchars) :: str)
   str = transfer(s(1:nchars), str)
 end function c_to_f_string
+
+subroutine f_to_c_string(fstring, cstr)
+    use iso_c_binding
+    implicit none
+    character(len=24) :: fstring
+    character(kind=c_char, len=1), intent(out) :: cstr(*)
+    integer i
+    do i = 1, len(fstring)
+        cstr(i) = fstring(i:i)
+        cstr(i+1) = c_null_char
+    end do
+end subroutine f_to_c_string 
+        
 end module cstr
 
-
-MODULE c_f_string_ptr
-  IMPLICIT NONE
-  PRIVATE
-  PUBLIC :: C_F_STRING
-CONTAINS
-  FUNCTION C_F_STRING(c_str) RESULT(f_str)
-    USE, INTRINSIC :: ISO_C_BINDING, ONLY: C_PTR, C_F_POINTER, C_CHAR
-    TYPE(C_PTR), INTENT(IN) :: c_str
-    CHARACTER(:,KIND=C_CHAR), POINTER :: f_str
-    CHARACTER(KIND=C_CHAR), POINTER :: arr(:)
-    INTERFACE
-      ! Steal std C library function rather than writing our own.
-      FUNCTION strlen(s) BIND(C, NAME='strlen')
-        USE, INTRINSIC :: ISO_C_BINDING, ONLY: C_PTR, C_SIZE_T
-        IMPLICIT NONE
-        !----
-        TYPE(C_PTR), INTENT(IN), VALUE :: s
-        INTEGER(C_SIZE_T) :: strlen
-      END FUNCTION strlen
-    END INTERFACE
-    !****
-    CALL C_F_POINTER(c_str, arr, [strlen(c_str)])
-   
-    CALL get_scalar_pointer(SIZE(arr), arr, f_str)
-    
-  END FUNCTION C_F_STRING
-  SUBROUTINE get_scalar_pointer(scalar_len, scalar, ptr)
-    USE, INTRINSIC :: ISO_C_BINDING, ONLY: C_CHAR
-    INTEGER, INTENT(IN) :: scalar_len
-    CHARACTER(KIND=C_CHAR,LEN=scalar_len), INTENT(IN), TARGET :: scalar(1)
-    CHARACTER(:,KIND=C_CHAR), INTENT(OUT), POINTER :: ptr
-    !***
-    ptr => scalar(1)
-  END SUBROUTINE get_scalar_pointer
-END MODULE c_f_string_ptr
-
 module test
-        use iso_c_binding
-        use cstr
-        use liboctq
-        use general_thermodynamic_package
-        implicit none
+    use iso_c_binding
+    use cstr
+    use liboctq
+    use general_thermodynamic_package
+    implicit none
 
-        TYPE, bind(c) :: c_gtp_equilibrium_data 
+    integer(c_int), bind(c) :: c_nel
+    integer(c_int), bind(c) :: c_maxc=20, c_maxp=100
+    type(c_ptr), bind(c), dimension(maxc) :: c_cnam
+    character(len=25), dimension(maxc), target :: cnames
+    integer(c_int), bind(c) :: c_ntup
+   
+    TYPE, bind(c) :: c_gtp_equilibrium_data 
 ! this contains all data specific to an equilibrium like conditions,
 ! status, constitution and calculated values of all phases etc
 ! Several equilibria may be calculated simultaneously in parallell threads
@@ -166,10 +149,19 @@ contains
     type(gtp_equilibrium_data), pointer :: ceq
     type(c_ptr), intent(inout) :: c_ceq
 !\end{verbatim}
+    integer :: i,j,l
+    character(kind=c_char, len=1),dimension(24), target :: f_pointers
 ! convert type(c_ptr) to fptr
     call c_f_pointer(c_ceq, ceq)
     fstring = c_to_f_string(filename)
     call tqrfil(fstring, ceq)
+! after tqrfil ntup variable is defined
+    c_ntup = ntup
+    c_nel = nel
+    do i = 1, nel
+        cnames(i) = trim(cnam(i)) // c_null_char
+        c_cnam(i) = c_loc(cnames(i))
+    end do
     c_ceq = c_loc(ceq)
   end subroutine c_tqrfil
   
@@ -238,7 +230,7 @@ contains
 ! get name of phase n,
 ! NOTE: n is phase number, not extended phase index
     integer(c_int), intent(in), value :: n
-    character(len=1), intent(inout) :: phasename(24)
+    character(kind=c_char, len=1), intent(inout) :: phasename(24)
     type(c_ptr), intent(inout) :: c_ceq
 !\end{verbatim}
     type(gtp_equilibrium_data), pointer :: ceq
@@ -247,8 +239,10 @@ contains
     call c_f_pointer(c_ceq, ceq)
     !fstring = c_to_f_string(phasename)
     call tqgpn(n, fstring, ceq)
-    do i=1,len(fstring)
+! copy the f-string to c-string and end with '\0'
+    do i=1,len(trim(fstring))
         phasename(i)(1:1) = fstring(i:i)
+        phasename(i+1)(1:1) = c_null_char
     end do
     c_ceq = c_loc(ceq)
   end subroutine c_tqgpn 

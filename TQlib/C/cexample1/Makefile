@@ -1,4 +1,4 @@
-OBJ = liboctqc.o fenitq2c.o liboctqisoc.o liboctq.o
+OBJ = fenitq2c.o liboctqisoc.o liboctq.o
 INCLUDE = -I../../ -I../../../
 FFLAGS = -g
 GF=gfortran

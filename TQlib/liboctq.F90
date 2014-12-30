@@ -38,16 +38,17 @@ module liboctq
 !
 ! access to main OC library for equilibrium calculations and models
   use liboceq
+  use iso_c_binding
 !
   implicit none
 !
   integer, parameter :: maxc=20,maxp=100
 !
 ! This is for storage and use of components
-  integer nel
+  integer(c_int), bind(c) :: nel
   character, dimension(maxc) :: cnam*24
 ! This is for storage and use of phase+composition tuples
-  integer ntup
+  integer(c_int), bind(c) :: ntup
   type(gtp_phasetuple), dimension(maxp) :: phcs
 !
 contains

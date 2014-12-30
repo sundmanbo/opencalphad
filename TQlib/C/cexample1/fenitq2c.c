@@ -13,12 +13,14 @@ extern void	c_tqgnp(int *, void **);
 extern void	c_tqgpn(int, char *, void **);
 extern void	c_tqgetv(char *, int, int, int *, double *, void **);
 extern void	examine_gtp_equilibrium_data(void *);
+extern int      c_ntup,c_nel,c_maxc;
+extern char     *c_cnam[];
 //extern void	c_tqgnp(int, gtp_equilibrium_data **);
 
 int
 main(int argc, char **argv)
 {
-	int		i         , k, n1, n2, n3, n4, nel = 2, nph, mm, ics, ip, phstable,
+	int		i         , k, n1, n2, n3, n4, nph, mm, ics, ip, phstable,
 			cnum          [MAXEL + 3];
 	void           *ceq = 0;
 	//char		**cmpname   ;
@@ -46,16 +48,14 @@ main(int argc, char **argv)
 
 	//find out about the system
 	// number of elements and their names
-	c_tqgcom(&nel, cmpname, &ceq);
-	printf("System with %i elements: ", nel);
-	for (i = 0; i < nel; i++)
-		printf("%s, ",cmpname[i]);
-	
+	//c_tqgcom(&nel, cmpname, &ceq);
+	printf("System with %i elements: ", c_nel);
+	for (i = 0; i < c_nel; i++)
+         	printf("%s, ",c_cnam[i]);
 	// number of phases and their names
-	c_tqgnp(&nph, &ceq);
-
-	printf("and %i phases: ", nph);
-	for (i = 1; i <= nph; i++) {
+	//c_tqgnp(&nph, &ceq);
+	printf("\nand %i phases: ",c_ntup);
+	for (i = 1; i <= c_ntup; i++) {
 		c_tqgpn(i, phnames[i], &ceq);
 		printf(" %s,", phnames[i]);
 	}
@@ -63,8 +63,8 @@ main(int argc, char **argv)
 	tp[0] = 1.0e3;
 	tp[1] = 1.0e5;
 
-	for (i = 1; i <= nel; i++)
-		xf[i] = 1.0 / (double)nel;
+	for (i = 1; i <= c_nel; i++)
+		xf[i] = 1.0 / (double)c_nel;
 
 	//ask for conditions
 	printf("\nGive conditions: \n");
@@ -79,7 +79,7 @@ main(int argc, char **argv)
 		printf("Pressure must be larger than 1Pa\n");
 		tp[1] = 1.0;
 	}
-	for (i = 1; i <= nel - 1; i++) {
+	for (i = 1; i <= c_nel - 1; i++) {
 		sprintf(quest, "Mole fraction of %s:", cmpname[i]);
 		dummy = xf[i];
 		//call gparrd
@@ -97,7 +97,7 @@ main(int argc, char **argv)
 	c_tqsetc(condition, n1, n2, tp[1], &(cnum[2]), &ceq);
 	strcpy(condition, "N");
 	c_tqsetc(condition, n1, n2, one, &(cnum[3]), &ceq);
-	for (i = 1; i <= nel - 1; i++) {
+	for (i = 1; i <= c_nel - 1; i++) {
 		strcpy(condition, "X");
 		c_tqsetc(condition, i, n2, xf[i], &(cnum[3 + i]), &ceq);
 	}
@@ -118,28 +118,21 @@ main(int argc, char **argv)
 	for (i = 0; i < n3; i++)
 		printf("%lf ", npf[i]);
 
-	mm = 0;
-	for (i = 1; i <= nph; i++) {
-		for (ics = 1; ics <= c_noofcs(i); ics++) {
-			if (npf[mm] > 0.0) {
+	mm     = 0;
+	for (i = 1; i <= c_ntup; i++) {
+		if (npf[i] > 0.0) {
 				//the phase is stable if it
 				//has a positive amount...it can be stable with 0
-				phstable = 10 * i + ics;
-				if (ics > 1)
-					printf("\nStable phase: %s#%i, amount: %lf", phnames[i], ics, npf[mm]);
-				else
-					printf("\nStable phase: %s, amount: %lf", phnames[i], npf[mm]);
+				printf("\nStable phase: %s, amount: %lf", phnames[i], npf[i]);
 				//composition of stable phase n2 = -1 means all fractions
 				strcpy(statevar, "X");
 				n2 = -1;
-				//Use extended phase index:10 * phase number + compset number
+				//Use phase tupe index: i
 				n4 = sizeof(pxf)/sizeof(pxf[0]);
-				c_tqgetv(statevar, 10 * i + ics, n2, &n4, pxf, &ceq);
+				c_tqgetv(statevar, i, n2, &n4, pxf, &ceq);
 				printf(" mole fractions:\n"); 
 				for (k = 0; k < n4; k++)
-					printf(" %s : %lf , ", cmpname[k], pxf[k]);
-			}
-			mm++;
+					printf(" %s : %lf , ", c_cnam[k], pxf[k]);
 		}
 	}
 
