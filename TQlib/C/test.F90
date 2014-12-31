@@ -142,6 +142,7 @@ contains
      write(*,*) ceq%sysmatdim, ceq%nfixmu, ceq%nfixph
      write(*,*) ceq%fixmu, ceq%fixph, ceq%savesysmat
   end subroutine examine_gtp_equilibrium_data
+
 !\begin{verbatim}
   subroutine c_tqini(n, c_ceq) bind(c, name='c_tqini')
     integer(c_int), intent(in) :: n
@@ -200,6 +201,7 @@ contains
     call tqrpfil(fstring, nel,selel,ceq)
     c_ceq = c_loc(ceq)
   end subroutine c_tqrpfil
+
 !\begin{verbatim}
   subroutine c_tqgcom(n,components,c_ceq) bind(c, name='c_tqgcom')
 ! get system components
@@ -231,6 +233,7 @@ contains
     write(*,*) 'c_ceq location'
     write(*,*) 'End of tqgcom'
     end subroutine c_tqgcom  
+
 !\begin{verbatim}
   subroutine c_tqgnp(n, c_ceq) bind(c, name='c_tqgnp')
     integer(c_int), intent(inout) :: n
@@ -241,6 +244,7 @@ contains
     call tqgnp(n, ceq)
     c_ceq = c_loc(ceq)
   end subroutine c_tqgnp
+
 !\begin{verbatim}
   subroutine c_tqgpn(n,phasename, c_ceq) bind(c, name='c_tqgpn')
 ! get name of phase n,
@@ -262,4 +266,198 @@ contains
     c_ceq = c_loc(ceq)
   end subroutine c_tqgpn 
 
-end module test
+!\begin{verbatim}
+  subroutine c_tqgpi(n,phasename,c_ceq) bind(c, name='c_tqgpi')
+! get index of phase phasename
+    integer(c_int), intent(out) : n
+    character(c_char, len=1), intent(in) :: phasename(24)
+    type(c_ptr), intent(inout) :: c_ceq
+!\end{verbatim}
+    type(gtp_equilibrium_data), pointer :: ceq
+    character(len=24) :: fstring
+    call c_f_pointer(c_ceq, ceq)
+    fstring = c_to_f_string(phasename)
+    call tqgpi(n, fstring, ceq)
+    c_ceq = c_loc(ceq)
+  end subroutine c_tqgpi
+
+!\begin{verbatim}
+  subroutine c_tqgpcn(n, c, constituentname, c_ceq) bind(c, name='c_tqgpcn')
+! get name of constitutent c in phase n
+    integer(c_int), intent(in) :: n  ! phase number
+    integer(c_int), intent(in) :: c  ! extended constituent index: 10*species_number + sublattice
+    character(c_char, len=1), intent(out) :: constituentname(24)
+    type(c_ptr), intent(inout) :: c_ceq
+!\end{verbatim}
+    write(*,*) 'tqgpcn not implemented yet'
+  end subroutine c_tqgpcn
+
+!\begin{verbatim}
+  subroutine c_tqgpci(n,c, constituentname, c_ceq) bind(c, name='c_tqgpci')
+! get index of constituent with name in phase n
+    integer(c_int), intent(in) :: n 
+    integer(c_int), intent(out) :: c ! exit: extended constituent index: 10*species_number+sublattice
+    character(c_char, len=1), intent(in) :: constituentname(24)
+    type(c_ptr), intent(inout) :: c_ceq
+!\end{verbatim}
+    type(gtp_equilibrium_data), pointer :: ceq
+    character(len=24) :: fstring
+    fstring = c_to_f_string(constituentname)
+    call c_f_pointer(c_ceq, ceq)
+    tqgpci(n, c, fstring, ceq)
+    c_ceq = c_loc(ceq)
+  end subroutine c_tqgpci
+
+!\begin{verbatim}
+  subroutine c_tqgpcs(n, c, stoi, mass, c_ceq) bind(c, name='c_tqgpcs')
+!get stoichiometry of constituent c in phase n
+!? missing argument number of elements????
+    integer(c_int), intent(in) :: n
+    integer(c_int), intent(in) :: c ! in: extended constituent index: 10*species_number + sublattice
+    real(c_double), intent(out) :: stoi(*) ! exit: stoichiometry of elements
+    read(c_double), intent(ou) :: mass     ! exit: total mass
+    type(c_ptr), intent(inout) :: c_ceq 
+!\end{verbatim}
+    type(gtp_equilibrium_type), pointer :: ceq
+    call c_f_pointer(c_ceq, ceq)
+    call tqgpcs(n,c,stoi,mass,ceq)
+    c_ceq=c_loc(ceq)
+  end subroutine c_tqgpcs
+
+!\begin{verbatim}
+  subroutine c_tqgccf(n1,n2,elnames,stoi,mass,c_ceq)
+! get stoichiometry of component n1
+! n2 is number of elements ( dimension of elements and stoi )
+    integer(c_int), intent(in) :: n1  ! in: component number
+    integer(c_int), intent(out) :: n2 ! exit: number of elements in component
+    character(c_char, len=1), intent(out) :: elnames(2) ! exit: element symbols
+    real(c_double), intent(out) :: stoi(*) ! exit: element stoichiometry
+    real(c_double), intent(out) :: mass    ! exit: component mass (sum of element mass)
+    type(c_ptr), intent(inout) :: c_ceq  
+!\end{verbatim}
+    type(gtp_equilibrium_data), pointer :: ceq
+    call c_f_pointer(c_ceq, ceq)
+    call tqgccf(n1,n2,elnames,stoi, mass, ceq)
+    c_ceq = c_loc(ceq)
+  end subroutine c_tqgccf
+
+!\begin{verbatim}
+  subroutine c_tqgnpc(n,c,c_ceq) bind(c, name='c_tqgnpc')
+! get number of constituents of phase n
+    integer(c_int), intent(in) :: n ! in: phase number 
+    integer(c_int), intent(out) :: c ! exit: number of constituents
+    type(c_ptr), intent(inout) :: c_ceq
+!\end{verbatim}
+    type(gtp_equilibrium_data), pointer :: ceq
+    call c_f_pointer(c_ceq,ceq)
+    call tqgnpc(n,c,ceq)
+    c_ceq = c_loc(ceq)
+  end subroutine c_tqgnpc
+
+!\begin{verbatim}
+  subroutine c_tqsetc(statvar, n1, n2, value, cnum, c_ceq) bind(c, name='c_tqsetc')
+! set condition
+! stavar is state variable as text
+! n1 and n2 are auxilliary indices
+! value is the value of the condition
+! cnum is returned as an index of the condition.
+! to remove a condition the value sould be equial to RNONE ????
+! when a phase indesx is needed it should be 10*nph + ics
+! SEE TQGETV for doucumentation of stavar etc.
+    integer(c_int), intent(in) :: n1 !in: 0 or extended phase index: 10*phase_number+comp.set
+                                     ! or component set
+    integer(c_int), intent(in) :: n2 !
+    integer(c_int), intent(out) :: cnum !exit: sequential number of this condition
+    character(c_char, len=1), intent(in) :: stavar !in: character with state variable symbol
+    real(c_double), intent(in) :: value  !in: value of condition
+    type(gtp_equilibrium_data), pointer :: ceq
+    type(c_ctr), intent(inout) :: c_ceq ! in: current equilibrium
+!\end{verbatim}
+    call c_f_pointer(c_ceq, ceq)
+    call tqsetc(statvar, n1, n2, value, cnum, ceq)
+    ceq = c_loc(c_ceq)
+  end subroutine c_tqsetc
+
+!\begin{verbatim}
+  subroutine c_tqce(target,n1,n2,value,c_ceq) bind(c,name='c_tqce')
+! calculate equilibrium with possible target
+! Target can be empty or a state variable with indicies n1 and n2
+! value is the calculated value of target
+    integer(c_int), intent(in) :: n1
+    integer(c_int), intent(in) :: n2
+    type(c_ptr), intent(inout) :: c_ceq
+    character(c_char, len=1), intent(inout) :: target  
+    real(c_double), intent(inout) :: value
+    type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+    call c_f_pointer(c_ceq,ceq)
+    call tqce(target,n1,n2,value,ceq)
+    c_ceq = c_loc(ceq)
+  end subroutine c_tqce
+
+!\begin{verbatim}
+  subroutine c_tqgetv(statvar,n1,n2,n3,values,c_ceq) bind(c,name='c_tqgetv')
+! get equilibrium results using state variables
+! stavar is the state variable IN CAPITAL LETTERS with indices n1 and n2 
+! n3 at the call is the dimension of values, changed to number of values
+! value is the calculated value, it can be an array with n3 values.
+    implicit none
+    integer(c_int) ::  n1,n2,n3
+    character(c_char, len=1) :: stavar*(*)
+    real(c_double), intent(out) :: values(*)
+    type(c_ptr), pointer :: c_ceq  !IN: current equilibrium
+!========================================================
+! stavar must be a symbol listed below
+! IMPORTANT: some terms explained after the table
+! Symbol  index1,index2                     Meaning (unit)
+!.... potentials
+! T     0,0                                             Temperature (K)
+! P     0,0                                             Pressure (Pa)
+! MU    component,0 or ext.phase.index*1,constituent*2  Chemical potential (J)
+! AC    component,0 or ext.phase.index,constituent      Activity = EXP(MU/RT)
+! LNAC  component,0 or ext.phase.index,constituent      LN(activity) = MU/RT
+!...... extensive variables
+! U     0,0 or ext.phase.index,0   Internal energy (J) whole system or phase
+! UM    0,0 or ext.phase.index,0       same per mole components
+! UW    0,0 or ext.phase.index,0       same per kg
+! UV    0,0 or ext.phase.index,0       same per m3
+! UF    ext.phase.index,0              same per formula unit of phase
+! S*3   0,0 or ext.phase.index,0   Entropy (J/K) 
+! V     0,0 or ext.phase.index,0   Volume (m3)
+! H     0,0 or ext.phase.index,0   Enthalpy (J)
+! A     0,0 or ext.phase.index,0   Helmholtz energy (J)
+! G     0,0 or ext.phase.index,0   Gibbs energy (J)
+! ..... some extra state variables
+! NP    ext.phase.index,0          Moles of phase
+! BP    ext.phase.index,0          Mass of moles (kg)
+! Q     ext.phase.index,0          Internal stability/RT (dimensionless)
+! DG    ext.phase.index,0          Driving force/RT (dimensionless)
+!....... amounts of components
+! N     0,0 or component,0 or ext.phase.index,component    Moles of component
+! X     component,0 or ext.phase.index,component   Mole fraction of component
+! B     0,0 or component,0 or ext.phase.index,component     Mass of component
+! W     component,0 or ext.phase.index,component   Mass fraction of component
+! Y     ext.phase.index,constituent*1                    Constituent fraction
+!........ some parameter identifiers
+! TC    ext.phase.index,0                Magnetic ordering temperature
+! BMAG  ext.phase.index,0                Aver. Bohr magneton number
+! MQ&   ext.phase.index,constituent    Mobility
+! THET  ext.phase.index,0                Debye temperature
+! LNX   ext.phase.index,0                Lattice parameter
+! EC11  ext.phase.index,0                Elastic constant C11
+! EC12  ext.phase.index,0                Elastic constant C12
+! EC44  ext.phase.index,0                Elastic constant C44
+!........ NOTES:
+! *1 The ext.phase.index is   10*phase_number+comp.set_number
+! *2 The constituent index is 10*species_number + sublattice_number
+! *3 S, V, H, A, G, NP, BP, N, B and DG can have suffixes M, W, V, F also
+!--------------------------------------------------------------------
+! special addition for TQ interface: d2G/dyidyj
+! D2G + extended phase index
+!------------------------------------
+    call c_f_pointer(c_ceq, ceq)
+    call tqgetv(statvar, n1, n2, n3, values, c_ceq)
+    c_ceq = c_loc(ceq)
+  end subroutine c_tqgetv
+
+  end module test
