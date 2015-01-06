@@ -1741,6 +1741,7 @@
 ! dodis is nonzero only when reading the disordered part of phases.
    disparttc=0
    dodis=0
+!   write(*,*) 'Reading filename: ', filename
    open(21,file=filename,access='sequential',form='formatted',&
         err=1010,iostat=gx%bmperr,status='old')
    onlyfun=.FALSE.
@@ -2670,7 +2671,7 @@
          goto 780
       else
          if(line(ip:ip).eq.'!') then
-            write(*,*)'Found VERSION keyword but no specification'
+            write(*,*)'Found VERSION nkeyword but no specification'
          else
             if(line(ip:ip+3).eq.'OC1 ') tdbv=2
          endif
@@ -2781,7 +2782,7 @@
           3(i4,'/',i4,1x)/)
    return
 1010 continue
-   write(*,*)'I/O error opening file: ',gx%bmperr
+   write(*,*)'I/O error opening file : ',gx%bmperr
    return
 !-----------------------------------------------------
 ! end of file found, act differently if reading functions

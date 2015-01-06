@@ -117,6 +117,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! must be an error code specific to each equilibrium.  Or can one declare
 ! the error code as "local" to the thread?
 !
+  use iso_c_binding
 ! routines for inverting matrix etc
   use lukasnum
 ! TP functions, tpfunlib makes USE of metlib
@@ -1181,7 +1182,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
      character eqname*24
      double precision tpval(2),rtn
 ! svfunres: the values of state variable functions valid for this equilibrium
-     double precision, dimension(:), allocatable :: svfunres
+     real(c_double), dimension(:), allocatable :: svfunres
 ! the experiments are used in assessments and stored like conditions 
 ! lastcondition: link to condition list
 ! lastexperiment: link to experiment list

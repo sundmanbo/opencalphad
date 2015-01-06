@@ -1,6 +1,6 @@
 ! first test program of OC-TQ
 program octq1
-  use octq
+  use liboctq
   implicit none
 ! maxel and maxph defined in pmod package
 !  integer, parameter :: maxel=10,maxph=20

@@ -52,10 +52,12 @@ contains
     character*(*) filename  ! IN: database filename
     character ellista(10)*2  ! dummy
     type(gtp_equilibrium_data), pointer :: ceq !IN: current equilibrium
+    integer :: i2
 !\end{verbatim}
 ! second argument 0 means ellista is ignored, all element read
     call readtdb(filename,0,ellista)
     ceq=>firsteq
+    i2 = transfer(firsteq,i2)
 1000 continue
     return
   end subroutine tqrfil
