@@ -1741,7 +1741,7 @@
 ! dodis is nonzero only when reading the disordered part of phases.
    disparttc=0
    dodis=0
-   write(*,*) 'Reading filename', filename
+!   write(*,*) 'Reading filename: ', filename
    open(21,file=filename,access='sequential',form='formatted',&
         err=1010,iostat=gx%bmperr,status='old')
    onlyfun=.FALSE.

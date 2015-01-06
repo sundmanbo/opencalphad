@@ -1086,15 +1086,12 @@
    integer lokel
    if(iel.le.noofel) then
       lokel=elements(iel)
-      write(*,*) "local element: ", lokel
       elsym=ellista(lokel)%symbol
-      write(*,*) "local symbol: ",elsym
       elname=ellista(lokel)%name
       refstat=ellista(lokel)%ref_state
       mass=ellista(lokel)%mass
       h298=ellista(lokel)%h298_h0
       s298=ellista(lokel)%s298
-      write(*,*) "s298:",s298 
    else
       gx%bmperr=4042
    endif

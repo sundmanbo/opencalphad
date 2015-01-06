@@ -1,10 +1,10 @@
-OBJ = liboctqc.o fenitq2c.o test.o liboctq.o
+OBJ = liboctqc.o fenitq2c.o liboctqisoc.o liboctq.o
 INCLUDE = -I../../ -I../../../
 FFLAGS = -g
 GF=gfortran
 
 all: $(OBJ)
-	gcc -o test fenitq2c.o test.o liboctq.o ../../../liboceq.a -lgfortran  
+	gcc -o test fenitq2c.o liboctqisoc.o liboctq.o ../../../liboceq.a -lgfortran  
     
 clean:
 	rm *.o 
@@ -16,7 +16,7 @@ liboctqc.o: ../liboctqc.F90
 fenitq2c.o: fenitq2c.c
 	gcc $(FFLAGS) $(INCLUDE) -c fenitq2c.c
 
-test.o: ../test.F90
-	$(GF) $(FFLAGS) $(INCLUDE) -c ../test.F90
+liboctqisoc.o: ../liboctqisoc.F90
+	$(GF) $(FFLAGS) $(INCLUDE) -c ../liboctqisoc.F90
 
 

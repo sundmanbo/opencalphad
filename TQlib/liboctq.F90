@@ -55,13 +55,9 @@ contains
     integer :: i2
 !\end{verbatim}
 ! second argument 0 means ellista is ignored, all element read
-    print *, "Filename readtdb: ", filename
     call readtdb(filename,0,ellista)
-    print *, "read database finished"
     ceq=>firsteq
     i2 = transfer(firsteq,i2)
-    print *, "firsteq", i2
-    print *, "ceq%gmindif", ceq%gmindif
 1000 continue
     return
   end subroutine tqrfil
@@ -97,12 +93,9 @@ contains
     character elname*24,refs*24
     double precision a1,a2,a3
     n=noel()
-    print *,"Number of system components", n
     do iz=1,n
        components(iz)=' '
-       write(*,*) 'components(',iz,')=',components(iz)
        call get_element_data(iz,components(iz),elname,refs,a1,a2,a3)
-       write(*,*) "Components: ",components(iz)
     enddo
 1000 continue
     return
@@ -306,15 +299,12 @@ contains
     type(gtp_equilibrium_data), pointer :: ceq  !IN: current equilibrium
 !\end{verbatim}
 ! mode=1 means start values using global gridminimization
-    print *, "Indices n1 and n2 : ", n1, n2
-    print *, "Passed target: ", target
     mode=1
     if(n1.lt.0) then
 ! this means calculate without grid minimuzer
        write(*,*)'No grid minimizer'
        mode=0
     endif
-    print *, "Mode : ", mode
     call calceq2(mode,ceq)
 1000 continue
     return
