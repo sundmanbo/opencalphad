@@ -48,7 +48,7 @@
 !\end{verbatim}
 !
    character id*40,comment*72,endoffile*16,mark*8
-   integer freetpfun,i,isp,jph,kontroll,lenc,lokph,lut
+   integer i,isp,jph,kontroll,lokph,lut
 !
    if(index(filename,'.').eq.0) then
       filename(len_trim(filename)+1:)='.ocu'
@@ -327,7 +327,7 @@
    integer lut
    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-   character text*512,text16*16
+   character text*512
    type(gtp_phase_varres), pointer :: firstvarres
    TYPE(gtp_fraction_set), pointer :: fslink
 !   TYPE(gtp_condition), pointer :: condrec
@@ -459,8 +459,7 @@
    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
    character text*512,symbols(20)*32,afterdot*32
-   integer indstv(4),indices(4)
-   integer ii,ip,ipos,istv,js,jt,kl,ks,lrot
+   integer ip,ipos,istv,js,jt,kl,ks,lrot
    type(gtp_state_variable), pointer :: svrrec
    write(lut)nsvfun
    do lrot=1,nsvfun
@@ -566,10 +565,8 @@
    implicit none
    character*(*) filename,str
 !\end{verbatim}
-   character id*40,start*8,endoffile*16,version*8,comment*72,mark*8
-   integer highexpr,freexpr,freetpfun,i,i1,i2,i3,&
-        isp,jph,kontroll,lenc,nel,ivers,lin,verbose
-   TYPE(gtp_phase_varres) :: firstvarres
+   character id*40,endoffile*16,version*8,comment*72,mark*8
+   integer i,i1,i2,i3,isp,jph,kontroll,nel,ivers,lin
 10  format(i8)
    if(index(filename,'.').eq.0) then
       filename(len_trim(filename)+1:)='.ocu'
@@ -806,7 +803,7 @@
    implicit none
    integer lin,jdum
 !\end{verbatim}
-   integer firstendmem,i,i1,i2,i3,i4,jph,level,nem,noi,nop,nox,nup,nsl,mult
+   integer firstendmem,i,i1,i2,i3,jph,level,nem,noi,nop,nox,nup,nsl,mult
    type(gtp_endmember), pointer :: emrec
    type(gtp_interaction), pointer :: intrec
    type(gtp_property), pointer :: proprec
@@ -981,8 +978,7 @@
    integer lin,nsl,nop,noi,nem
    type(gtp_endmember), pointer :: emrec
 !\end{verbatim}
-   integer i,j,i1,i2,i3,i4,jph
-   integer level,nox,nup
+   integer i,j
    allocate(emrec)
 !   write(*,*)'Going to read endmember record'
 !>>>>> 7D: actually reading ....
@@ -1037,7 +1033,6 @@
 !\begin{verbatim}
  subroutine readintrec(lin,intrec,mult,noi,nup,nop)
 ! allocates and reads an interaction record UNFINISHED
-   integer none
    integer lin,mult,noi,nup,nop
    type(gtp_interaction), pointer :: intrec
 !\end{verbatim}
@@ -1079,7 +1074,7 @@
    character text*512,dum16*16
    type(gtp_phase_varres), pointer :: firstvarres
    TYPE(gtp_fraction_set) :: fslink
-   integer i,ic,ierr,ip,isp,ivar,j,jp,k,lokcs,lokph,mc,mc2,nprop,nsl,kp
+   integer i,ierr,ip,isp,ivar,j,jp,k,lokcs,lokph,mc,mc2,nprop,nsl,kp
    double precision, dimension(:,:), allocatable :: ca,ci
 ! containing conditions, components and phase varres records for wach compset
 !>>>>> 50:
@@ -1372,10 +1367,10 @@
 ! separately.  Very similar to gtpread
    implicit none 
 !\end{verbatim}
-   integer isp,j,lokcs,lokph,mc,mc2,nel,nsl,intv(10)
+   integer isp,j,nel,intv(10)
    double precision dblv(10)
    TYPE(gtp_equilibrium_data), pointer :: ceq
-   TYPE(gtp_fraction_set) :: fslink
+!   TYPE(gtp_fraction_set) :: fslink
    if(ocv()) write(*,*)'Removing current data'
 !---------- elementlist, no need to delete, just deallocate below
 !>>>>> 2:
@@ -1479,7 +1474,7 @@
    implicit none
    integer lokph
 !\end{verbatim}
-   integer i,j,level,lokcs,nem,noi,nop,nox,nsl,nup,noendm,fipsize
+   integer level,nsl,noendm
    type(gtp_endmember), pointer :: emrec,nextem
    type(gtp_interaction), pointer :: intrec,nextint
    type(gtp_property), pointer :: proprec,nextprop
@@ -1599,12 +1594,12 @@
 ! but the keyword and abbreviation must be surrounded by spaces
 ! nextc set to space character in text after the (abbreviated) keyword
    implicit none
-   character text*(*),keyword*(*)
+   character text*(*),keyword*(*),key*64
    integer nextc
 !\end{verbatim}
-   character word*64,key*64
+   character word*64
    logical ok
-   integer k,kl,ks,kt
+   integer kl,ks,kt
 ! extract the first word of text
    ks=1
    if(eolch(text,ks)) then
@@ -1658,8 +1653,8 @@
          'ADD_REFERENCES      ','ASSESSED_SYSTEMS    ',&
          'DATABASE_INFORMATION','VERSION             ']
 !   
-   character word*64,key*64
-   integer j,k,ks,kt
+   character word*64
+   integer j,ks,kt
 ! extract the first word of text
    ks=1
    if(eolch(text,ks)) then
@@ -1712,14 +1707,14 @@
    integer, dimension(20) :: typedefaction
    integer, dimension(5) :: addphasetypedef
    double precision mass,h298,s298
-   integer, dimension(10) :: elidx,knr,endm
+   integer, dimension(10) :: knr,endm
 ! lint(1,*) is sublattice, lint(2,*) is species
    double precision stoik(10),xsl,xxx
    integer lint(2,3),noofphasetype,nytypedef,nextc,keyw,tdbv
-   integer typty,fractyp,lp1,lp2,ipnewref,ix,jph,kkk,lcs,nint,noelx
+   integer typty,fractyp,lp1,lp2,ix,jph,kkk,lcs,nint,noelx
    logical onlyfun,nophase,ionliq,notent
    integer norew,newfun,nfail,nooftypedefs,nl,ipp,jp,jss,lrot,ip,jt
-   integer nsl,ll,kp,nr,nrr,mode,lokph,lokcs,ip1,km,nrefs,ideg,iph,ics
+   integer nsl,ll,kp,nr,nrr,mode,lokph,lokcs,km,nrefs,ideg,iph,ics
 ! disparttc and dispartph to handle phases with disordered parts
    integer nofunent,disparttc,dodis,jl,nd1,thisdis
    character*24 dispartph(5),ordpartph(5)
@@ -2222,8 +2217,8 @@
             write(*,396)thisdis,ordpartph(thisdis)
 396         format('25F Cannot find ordered phase: ',i3,'"',a,'"')
             goto 1000
-!         else
-!            write(*,*)'Adding disordered fraction set: ',ordpartph(thisdis)
+         else
+            write(*,*)'Adding disordered fraction set: ',ordpartph(thisdis)
          endif
 ! we are creating the phase, only one composition set
          call get_phase_compset(iph,1,lokph,lokcs)
@@ -2233,6 +2228,10 @@
 ! jl=0 if NDM (sigma)
 ! jl=1 if phase can be totally disordered (but can have interstitials)
 ! nd1 is the number of sublattices to sum into disordered set
+         write(*,399)
+399      format('Phase names for disordered parts of FCC, BCC and HCP must',&
+              ' start with:'/'  A1_ , A2_ and A3_ respectivly!'/&
+              ' and have an interstitial sublattice')
          if(dispartph(thisdis)(1:3).eq.'A1_' .or. &
               dispartph(thisdis)(1:3).eq.'A2_' .or. &
               dispartph(thisdis)(1:3).eq.'A3_') then
@@ -2553,8 +2552,9 @@
                km=index(dispartph(disparttc),',')
                if(km.lt.ip) ip=km
                dispartph(disparttc)(ip:)=' '
-!               write(*,82)disparttc,ordpartph(disparttc),dispartph(disparttc)
+               write(*,82)disparttc,ordpartph(disparttc),dispartph(disparttc)
 !                    longline(1:len_trim(longline))
+!82             format('Found a type_def DIS_PART:',a,' : ',a)
 82             format('Found a type_def DIS_PART:',i2,1x,a,1x,a)
 ! if the disordered part phase already entered give advice
                call find_phase_by_name(dispartph(disparttc),iph,ics)
@@ -2830,6 +2830,64 @@
    gx%bmperr=7777
    goto 1000
  end subroutine readtdb
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
+ subroutine checktdb(filename,nel,selel)
+! checking a TDB file exists and return the elements
+!-------------------------------------------------------
+! Not all TYPE_DEFS implemented
+!-------------------------------------------------------
+   implicit none
+   integer nel
+   character filename*(*),selel(*)*2
+!\end{verbatim}
+   character line*256
+   integer ipp,nl,kk
+!
+   if(.not.(index(filename,'.tdb').gt.0 &
+       .or. index(filename,'.TDB').gt.0)) then
+! no extention provided
+      filename(len_trim(filename)+1:)='.TDB'
+   endif
+   open(21,file=filename,access='sequential',form='formatted',&
+        err=1010,iostat=gx%bmperr,status='old')
+! just check for ELEMENT keywords
+! return here to look for a new keyword, end-of-file OK here
+   nl=0
+   nel=0
+100 continue
+   read(21,110,end=2000)line
+110 format(a)
+   nl=nl+1
+! One should remove TAB characters !! ??
+   ipp=1
+   if(eolch(line,ipp)) goto 100
+   if(line(ipp:ipp).eq.'$') goto 100
+! look for ELEMENT keyword, ipp=1
+   ipp=istdbkeyword(line,kk)
+   if(ipp.ne.1) goto 100
+!
+! ignore /- and VA
+   if(line(kk+1:kk+2).eq.'/-' .or. line(kk+1:kk+2).eq.'VA') goto 100
+   nel=nel+1
+   selel(nel)=line(kk+1:kk+2)
+!      write(*,111)nl,line(1:20)
+!111   format('Read line ',i5,': ',a)
+   goto 100
+!---------
+1000 continue
+   return
+! error
+1010 continue
+   goto 1000
+! end of file
+2000 continue
+   close(21)
+   goto 1000
+   return
+ end subroutine checktdb
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

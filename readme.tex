@@ -12,19 +12,21 @@
 
 \begin{document}
 \begin{center}
-{\Large \bf Some important facts about this beta test release of the
+{\Large \bf Some important facts about this release of the
   OC software, version 2.}
 
-Bo Sundman, 15 September 2014
+Bo Sundman,  7 January 2015
+
+bo.sundman@gmail.com
 
 http://www.opencalphad.org
 
-bo.sundman@gmail.com
+opencalphad repository at https://www.github.com
+
 \end{center}
 
-{\large \bf Please be aware that this software is a beta test version.
-Your feedback about problems and errors is important to make it
-better.}
+This software is free and under development.  Your feedback about
+problems and errors is important to make it better.
 
 OC cannot replace your favourite thermodynamic software today or
 tomorrow but the main advantage is that you have access to the source
@@ -37,26 +39,35 @@ are missing in your favourite software.
 \item The code is written in the new Fortran standard and requires a
   compiler like GNU fortran 4.8 or similar.
 
+\item On windows copy the linkmake.txt file to a file linkmake.cmd and
+  it will compile and link the code.
+
 \item The make command will compile and generate the executable file
   from the source code.  If you are using Windows and have not
   installed the make utility the file ``linkmake.txt'' can be used
   coped to a cmd file to compile and link the code.
 
+\item There is a oc-news.pdf file with the new things in this version
+  relative to version 1.
+
 \item The present documentation of the source code is in the directory
-  ``documentationupdate''.  A very rudimentary user guide is in the
-  file ``ochelp.tex''.  If you make a copy of this file with the
-  extention HLP on the same directory as the program it can also be
-  used for on line help typing ?
+  ``documentationupdate''.  
+
+  A very rudimentary user guide is in the file ``ochelp.tex''.  You
+  can make a PDF of this using pdflatex.  
+
+  If you make a copy of ochelp.tex to ochelp.hlp in the same directory
+  as the program it can also be used for on line help typing ?
 
   The ``macro'' directory has examples for a variety of calculations.
 
-\item There is a website, http:://www.opencalphad.com, for
-  information, questions and discussions on the software and
-  databases.
+\item The source code is also available on a repository at Github,
+  https://www.github.com, with the name opencalphad.  Contributions of
+  new and improved source code are welcome.  Contact Bo Sundman if you
+  want to know things to do.
 
-\item The source code is also available on a repository at Github with
-  the name opencalphad.  Contributions of new and improved source code
-  are welcome.  Contact Bo Sundman if you want to know things to do.
+\item There is a wiki at the opencalphad repository, use this for
+  information, questions and discussions on the software.
 
 \item The command line interface has a ``VAX/VMS'' flavour which
   reflects the age of the developer.  It means the commands are
@@ -75,14 +86,15 @@ are missing in your favourite software.
   macro.
 
   In this version you can select the elements from the tdb file, but
-  all phases are included.  You can use the SET PHASE phase-name
-  STATUS SUSPEND to remove phases you do not want.
+  all phases with at least one of the selected elements are included.
+  You can use the SET PHASE phase-name STATUS SUSPEND to remove phases
+  you do not want.
 
 \item You can save an UNFORMATTED file with the default equilibrium
   read it back as UNFORMATTED but this is fragile and the file
   structure will probably be changed several times before it is
-  reliable.  There is no way to save results from STEP or MAP
-  commands on a file.
+  reliable so the file may not be used in a later version.  There is
+  no way to save results from STEP or MAP commands on a file.
 
 \item Setting conditions is very similar to the Thermo-Calc software.
   The command is {\em set cond ``state variable'' = ``value''}.  The
@@ -94,9 +106,9 @@ are missing in your favourite software.
   The intention is that you should be able to combine any set of
   conditions to calculate the equilibrium, i.e. you can combine
   conditions on mole fractions, mass fractions, fix phases, chemical
-  potentials etc.  You can also prescribe phases as stable.  In a
-  future release one will be able to give expressions of conditions,
-  not just a single state variable.
+  potentials etc.  You can also prescribe phases as stable (fix).  In
+  a future release one will be able to give expressions of conditions,
+  not just a value of a single state variable.
 
   Conditions on V, H, S etc are not yet implemented.
 
@@ -151,10 +163,10 @@ are missing in your favourite software.
 
 \item To report errors and problems please attach a macro file that
   reproduces the problem.  To create a macro file run the command
-  interface with a log file and edit the log file to be a macro.  Both
-  the macro file and the model parameters (preferably in a tdb file)
-  must be submitted.  Try to find the simplest case that reproduces
-  the error.
+  interface with a log file and edit the log file to become a macro.
+  Both the macro file and the model parameters (preferably in a tdb
+  file) must be submitted.  Try to find the simplest case that
+  reproduces the error.
 
 \end{itemize}
 
@@ -244,23 +256,25 @@ welcome to point out where this can be done.  The hope is to release
 this code before the end of 2014.
 
 As I have understood the data structure (TYPE) in the new Fortran
-standard is more or less identical to those used in C++ so it should
-not be too difficult to combine code written in these languages.
+standard is more or less identical to the structures used in C++ so it
+should not be too difficult to combine code written in these
+languages.
 
 \section{Application software library}
 
 There are some routines provided that makes it possible to integrate
 the OC software in application programs.  Those can be found in the
-directory ``TQlib'' together with a sample test program.  To compile
-and run this the OClib.a file and some of the ``mod'' files must be
-copied to this directory.
+directory ``TQlib'' together with some sample test program.  The
+source library is liboctq.F90.  To make an object file of this it must
+be compiled together with the liboceq.mod file.  To link the test
+programs you must also use the liboceq.a library.
 
 Use only subroutines in this library to access the OC software, do not
 call directly subroutines inside the OC code as they may not be
 available or have different functionallity in a future release.  If
-you miss some routines please contact the OC software group.
+you miss some routines please put a request at the GITHUB wiki.
 
-\section{Examples}
+\section{Macro examples}
 
 To help you get started calculating a number of examples is provided
 in the ``macro'' directory.  There is a separate set of macros for
@@ -275,28 +289,41 @@ show that there are still issues to solve.
 \item Mapping the binary phase diagram for Ag-Cu and setting ranges
   for plotting.
 
-\item Mapping the Cr-Mo binary diagram with a miscibility gap.  Does
-  not close.
+\item Mapping the Cr-Mo binary diagram with a miscibility gap.  The
+  curves for the miscibility gap does not close.
 
 \item Mapping the binary C-Fe phase diagram.  Does not extend to pure Fe.
 
 \item Mapping the binary U-O phase diagram.  Several start points needed.
 
-\item Mapping the binary Fe-Mo phase diagram.  Several start points
+\item Mapping the binary Fe-Mo phase diagram.  Two start points
   needed.
 
 \item Mapping the isopleth for CrFeMo.  Missing lines at low T.
 
-\item Mapping a high speed steel.  The liquidus is missing.
+\item Mapping a high speed steel.  Many lines are missing or wrong.
 
-\item Stepping the high speed steel vs T.  Plotting phase amount,
-mass percent of Cr in various phases, enthalpy and heat capacity.
-The last an example of a dot derivative.
+\item Mapping the low temperature ordering in Fe-Ni.
+
+\item Mapping the DFT calculated Re-W phase diagram (without liquid).
+  Also some property diagrams for varying composition.
+
+\item Property (step) diagram for a high speed steel vs T.  Plotting
+  phase amount, mass percent of Cr in various phases, enthalpy and
+  heat capacity.  The last an example of a dot derivative.
 
 \item Stepping G curves for Ag-Cu vs composition.
 
 \item Stepping an ideal gas with H and O vs T plotting speciation,
 enthalpy and heat capacity.
+
+\item Stepping property diagram for low temperature Fe-Ni system
+
+\item Calculate and plot the heat capacity for the FeNi3 ordered phase.
+
+\item Step the G curves for Fe-Mo at 1400 K.
+
+\item Calculate varions properties for a SAF2507 duplex stainless steel.
 
 \end{enumerate}
 

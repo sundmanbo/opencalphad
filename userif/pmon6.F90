@@ -1,7 +1,7 @@
 !
 MODULE cmon1oc
 !
-! Copyright 2012-2014, Bo Sundman, France
+! Copyright 2012-2015, Bo Sundman, France
 !
 !    This program is free software; you can redistribute it and/or modify
 !    it under the terms of the GNU General Public License as published by
@@ -39,7 +39,7 @@ MODULE cmon1oc
 !
 contains
 !
-  subroutine oc_command_monitor(linkdate)
+  subroutine oc_command_monitor(version,linkdate)
 ! command monitor
     implicit none
 !
@@ -49,9 +49,9 @@ contains
 ! element symbol and array of element symbols
     character elsym*2,ellist(20)*2
 ! more texts for various purposes
-    character text*72,string*256,chc*3,phtype*1,ch1*1,defansw*16
+    character text*72,string*256,chc*3,phtype*1,ch1*1,defansw*16,selection*27
     character axplot(3)*24,axplotdef(3)*24
-    character xquest*24,form*32,longstring*2048
+    character xquest*24,plotform*32,longstring*2048
 ! separate file names for remembering and providing a default
     character ocmfile*64,ocufile*64,tdbfile*64,ocdfile*64,texfile*64
 ! prefix and suffix for composition sets
@@ -120,7 +120,7 @@ contains
 ! array with constituents in sublattices when entering a phase
     character, dimension(maxconst) :: const*24
 ! passed as date when program was linked
-    character linkdate*(*)
+    character linkdate*(*),version*(*)
 ! for macro and logfile and repeating questions
     logical logok,stop_on_error,once,wildcard,twice
 ! unit for logfile input, 0 means no logfile
@@ -148,7 +148,7 @@ contains
     integer, parameter :: ncam1=12,ncset=18,ncadv=3,ncstat=6,ncdebug=6
     integer, parameter :: nselect=6,nlform=6
     integer, parameter :: ncamph=12,nclph=6,nccph=3,nrej=6,nsetph=6
-    integer, parameter :: nsetphbits=15,ncsave=6,nplt=6,nstepop=6
+    integer, parameter :: nsetphbits=15,ncsave=6,nplt=12,nstepop=6
 ! basic commands
     character (len=16), dimension(ncbas), parameter :: cbas=&
        ['AMEND           ','CALCULATE       ','SET             ',&
@@ -240,7 +240,7 @@ contains
          'QUIT            ','ECHO            ','PHASE           ',&
          'UNITS           ','LOG_FILE        ','WEIGHT          ',&
          'NUMERIC_OPTIONS ','AXIS            ','INPUT_AMOUNTS   ',&
-         'VERBOSE         ','AS_START_EQUILIB','                ']
+         'VERBOSE         ','AS_START_EQUILIB','BIT             ']
 ! subsubcommands to SET STATUS
     character (len=16), dimension(ncstat) :: cstatus=&
          ['ELEMENT         ','SPECIES         ','PHASE           ',&
@@ -289,7 +289,9 @@ contains
 ! subcommands to PLOT OPTIONS
     character (len=16), dimension(nplt) :: cplot=&
          ['PLOT            ','XRANGE          ','YRANGE          ',&
-         'XTEXT           ','YTEXT           ','TITLE           ']
+         'XTEXT           ','YTEXT           ','TITLE           ',&
+         'TERMINAL_FORMAT ','OUTPUT_FILE     ','GIBBS_TRIANGLE  ',&
+         'QUIT            ','                ','                ']
 !-------------------
 !        123456789.123456---123456789.123456---123456789.123456
 ! minimizers
@@ -302,26 +304,29 @@ contains
     logfil=0
     defcp=1
 !
-    write(kou,10)linkdate(1:len_trim(linkdate)),ocmonversion,&
+    write(kou,10)version,linkdate(1:len_trim(linkdate)),ocmonversion,&
          gtpversion,hmsversion,smpversion
-10  format(/' Open Calphad (OC) software linked ',a,&
-         ' with command line monitor ',i2//&
-         ' This program is available with a GNU General Public License.'/&
-         ' It includes the General Thermodynamic Package, version ',A/&
-         " and Hillert's equilibrium calculation algorithm version ",A/&
-         ' and step/map/plot software version ',A/)
+10  format(/'Open Calphad (OC) software version ',a,' linked ',a,/&
+         'with command line monitor ',i2//&
+         'This program is available with a GNU General Public License.'/&
+         'It includes the General Thermodynamic Package, version ',A/&
+         "and Hillert's equilibrium calculation algorithm version ",A/&
+         'and step/map/plot software version ',A/)
 !
 ! jump here after NEW to reinitiallize all local variables also
 20  continue
 ! clear file names
     ocmfile=' '; ocufile=' '; tdbfile=' '
 ! plot ranges and their defaults
+    graphopt%gibbstriangle=.FALSE.
     graphopt%rangedefaults=0
     graphopt%labeldefaults=0
     graphopt%plotmin=zero
     graphopt%dfltmin=zero
     graphopt%plotmax=one
     graphopt%dfltmax=one
+    plotfile='ocgnu'
+    plotform=' '
 ! initiate on-line help
     call init_help('ochelp.hlp ')
 ! set default minimizer
@@ -989,7 +994,7 @@ contains
              else
                 write(kou,*)'No such saved equilibrium'
              endif
-! set bit that data bay be inconsistent
+! set bit that data may be inconsistent
              eqlista(i1)%status=ibset(eqlista(i1)%status,EQINCON)
 !.................................................................
           case(2) ! quit
@@ -1417,8 +1422,17 @@ contains
           endif
           write(*,*)'A copy of current equilibrium linked as start eqilibrium'
 !-------------------------
-       case(18)
-          write(kou,*)'Not implemented yet'
+       case(18) ! SET BIT (all kinds of bits) just global implemented
+          write(*,*)'Only global status bits can be set'
+          call gpari('Bit (from 0):',cline,last,ll,-1,q1help)
+          if(ll.lt.0 .or. ll.gt.31) goto 100
+          if(testb(globaldata%status,ll)) then
+             globaldata%status=ibclr(globaldata%status,ll)
+             write(*,*)'Bit cleared'
+          else
+             globaldata%status=ibset(globaldata%status,ll)
+             write(*,*)'Bit set'
+          endif
        END SELECT
 !=================================================================
 ! enter subcommand for element, species etc
@@ -2003,18 +2017,30 @@ contains
           else
              call gparc('File name: ',cline,last,1,tdbfile,' ',q1help)
           endif
-          write(kou,8202)
-8202      format('Give the elements to select, finish with empty line')
+! this call checks the file exists and returns the elements
+          call checktdb(tdbfile,jp,ellist)
+          if(gx%bmperr.ne.0) then
+             write(kou,*)'No database with this name'
+             goto 990
+          elseif(jp.eq.0) then
+             write(Kou,*)'No elements in the database'
+          endif
+          write(kou,8203)jp,(ellist(kl),kl=1,jp)
+8203      format('Database has ',i2,' elements: ',20(a,1x))
+          write(kou,8205)
+8205      format('Give the elements to select, finish with empty line')
           jp=1
+          selection='Select elements /all/:'
 8210      continue
-          call gparc('Select elements/all/: ',&
-               cline,last,1,ellist(jp),' ',q1help)
+!          call gparc('Select elements/all/: ',&
+          call gparc(selection,cline,last,1,ellist(jp),' ',q1help)
           if(ellist(jp).ne.'  ') then
              call capson(ellist(jp))
              jp=jp+1
              if(jp.gt.size(ellist)) then
                 write(kou,*)'Max number of elements selected: ',size(ellist)
              else
+                selection='Select elements /no more/:'
                 goto 8210
              endif
           else
@@ -2631,8 +2657,8 @@ contains
 ! remember axis as default
           axplotdef(iax)=axplot(iax)
        enddo
-       call gparcd('GNUPLOT file name',cline,last,1,plotfile,'ocgnu',q1help)
-       form=' '
+!       call gparcd('GNUPLOT file name',cline,last,1,plotfile,'ocgnu',q1help)
+!       form=' '
 ! first argument is the number of plot axis, always 2 at present
        jp=2
        if(associated(maptopsave)) then
@@ -2654,6 +2680,18 @@ contains
 !-----------------------------------------------------------
 ! no more options, just PLOT!
        case(1)
+! added ceq in the call to make it possible to handle change of reference states
+!2190      continue
+          call ocplot2(jp,axplot,plotfile,maptop,axarr,graphopt,plotform,ceq)
+          if(gx%bmperr.ne.0) goto 990
+! always restore default plot file name!!
+          plotfile='ocgnu'
+!          call gparc('Hardcopy (P for postscript)?',&
+!               cline,last,1,form,'none',q1help)
+!          if(form.ne.'none') then
+!             call capson(form)
+!             call ocplot2(jp,axplot,plotfile,maptop,axarr,graphopt,form,ceq)
+!          endif
 !-----------------------------------------------------------
 ! XRANGE
        case(2)
@@ -2738,7 +2776,7 @@ contains
           write(*,*)'Not implemented yet'
           goto 21100
 !-----------------------------------------------------------
-! PLOT LABEL
+! PLOT TITLE
        case(6)
           call gparcd('Plot title',cline,last,5,line,'DEFAULT',q1help)
           if(line(1:8).eq.'DEFAULT ') then
@@ -2747,19 +2785,48 @@ contains
              graphopt%plotlabels(1)=line
              graphopt%labeldefaults(1)=len_trim(graphopt%plotlabels(1))
           endif
+          goto 21100
+!-----------------------------------------------------------
+! PLOT TERMINAL_FORMAT
+! for terminal format always also ask for plot file
+       case(7,8)
+          if(kom2.eq.7) then
+             call gparcd('Plot terminal',cline,last,1,ch1,'SCREEN',q1help)
+             if(ch1.eq.'p' .or. ch1.eq.'P') then
+                plotform='P'
+             else
+                plotform=' '
+             endif
+          endif
+!-----------------------------------------------------------
+! PLOT OUTPUT_FILE
+          call gparcd('Plot file',cline,last,1,plotfile,'ocgnu',q1help)
+          goto 21100
+!-----------------------------------------------------------
+! PLOT GIBBS_TRIANGLE
+       case(9)
+          write(*,*)'Not implemented yet'
+!          call gparcd('Triangular diagram?',cline,last,5,ch1,'NO',q1help)
+!          if(ch1.eq.'y') then
+!             graphopt%gibbstriangle=.TRUE.
+!          else
+             graphopt%gibbstriangle=.FALSE.
+!          endif
+          goto 21100
+!-----------------------------------------------------------
+! PLOT QUIT
+       case(10)
+!return to command level
+!-----------------------------------------------------------
+! PLOT not used
+       case(11)
+          goto 21100
+!-----------------------------------------------------------
+! PLOT not used
+       case(12)
+          goto 21100
 !-----------------------------------------------------------
        end SELECT
-!-----------------------------------------------------------
-! added ceq in the call to handle change of reference states
-2190   continue
-       call ocplot2(jp,axplot,plotfile,maptop,axarr,graphopt,form,ceq)
-       if(gx%bmperr.ne.0) goto 990
-       call gparc('Hardcopy (P for postscript)?',&
-            cline,last,1,form,'none',q1help)
-       if(form.ne.'none') then
-          call capson(form)
-          call ocplot2(jp,axplot,plotfile,maptop,axarr,graphopt,form,ceq)
-       endif
 !=================================================================
 ! HPCALC
     case(22)

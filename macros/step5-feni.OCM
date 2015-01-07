@@ -1,4 +1,3 @@
-@$ 
 @$ Calculate y and Cp as function of T for the ordered FCC FeNi3
 @$
 @&
@@ -121,15 +120,16 @@ T
 cp ,,,,,,,,,,,,,,,,
 
 
-@$ set range on y axis
 plot
 T
 cp
-
 yr
 N
 0
-20
+30,,,,,,,,,,,,,,,,
+
+
+
 
 
 set inter

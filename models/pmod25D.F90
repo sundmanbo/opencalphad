@@ -264,10 +264,10 @@
    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
 ! copied svflista(lrot)%formal_arguments(2..5,jt) to indices as gfortran error
-   integer indstv(4),indices(4)
+!   integer indstv(4)
    type(gtp_state_variable), pointer :: svr
    character symbols(20)*32,afterdot*32
-   integer js,jt,ip,istv,ii,kl
+   integer js,jt,ip,istv,kl
 !    write(*,*)'list_svfun 1:',svflista(lrot)%narg
    if(lrot.le.0 .or. lrot.gt.nsvfun) then
       gx%bmperr=4140; goto 1000
@@ -431,10 +431,9 @@
    character actual_arg(*)*(*)
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-   integer indices1(4),indices2(4)
    double precision argval(20)
    type(gtp_state_variable), pointer :: svr,svr2
-   integer jv,jt,istv,ieq,ii
+   integer jv,jt,istv,ieq
    double precision value
    argval=zero
 !    write(*,*)'evaluate_svfun ',lrot,svflista(lrot)%narg,svflista(lrot)%name
@@ -1094,14 +1093,14 @@
 !\end{verbatim}
    integer nterm,kolon,iqz,krp,jp,istv,iref,iunit,jstv,jref,junit,jl,ks
    integer linkix,norem,ics,kstv,iph,nidfirst,nidlast,nidpre,qp
-   character stvexp*80,stv*16,stvrest*80,textval*32,c4*4
+   character stvexp*80,stvrest*80,textval*32,c4*4
    character svtext*60,encoded*60,defval*18
    integer indices(4),allterms(4,10),condno,seqz
    double precision coeffs(10),xxx,value
    logical inactivate
    type(gtp_state_variable), pointer :: svr
    type(gtp_state_variable), dimension(10), target :: svrarr
-   TYPE(gtp_condition), pointer :: previous,temp,new
+   TYPE(gtp_condition), pointer :: temp,new
 50 continue
 ! extract symbol like T, X(FCC,CR), MU(C) etc up to space, +, - or = sign
    stvexp=' '
@@ -1132,8 +1131,11 @@
             gx%bmperr=buperr; goto 1000
          endif
          condno=int(xxx)
-!         write(*,*)'25D: Found condition: ',condno
-         goto 155
+!         write(*,*)'25D: Found condition number: ',condno,ip
+! We cannot provide any default value
+         defval=' '
+         goto 157
+!         goto 155
 !      endif
    endif
    if(stvexp(1:1).eq.'*') then
@@ -1281,7 +1283,9 @@
       gx%bmperr=0; xxx=zero
    endif
 ! jump here if we have found a : specifying a condition number
+! Do not expect any = sign
 155 continue
+!   write(*,*)'25D we are here',ip
    qp=1
    defval=' '
    call wrinum(defval,qp,10,0,xxx)
@@ -1289,6 +1293,7 @@
       buperr=0; defval=' '
    endif
 157 continue
+!   write(*,*)'25D we are here: ',defval
    call gparcd('Value: ',cline,ip,1,textval,defval,q1help)
 !   if(buperr.ne.0) then
 !      gx%bmperr=4129; buperr=0; goto 1000
@@ -1329,6 +1334,7 @@
    endif
 ! check if condition already exists.  If condno>0 it must exist or error
    temp=>ceq%lastcondition
+!   write(*,*)'25D condno: ',condno,value,buperr
    if(condno.eq.0) then
 !      call get_condition(nterm,coeffs,jstv,allterms,iref,iunit,temp)
       call get_condition(nterm,svr,temp)
@@ -1354,8 +1360,13 @@
    else
 ! user has given "5:= ..." and condition 5 must exist, otherwise error
 !      call get_condition(0,coeffs,condno,allterms,iref,iunit,temp)
-      call get_condition(0,svr,temp)
-      if(gx%bmperr.ne.0) goto 1000
+      qp=-condno
+!      write(*,*)'25D calling get_condition ',qp
+      call get_condition(qp,svr,temp)
+      if(gx%bmperr.ne.0) then
+         write(*,*)'Condition number error ',gx%bmperr
+         goto 1000
+      endif
    endif
 277 continue
 !   write(*,*)'At label 277: ',gx%bmperr
@@ -1548,6 +1559,7 @@
 !\begin{verbatim}
  subroutine get_condition(nterm,svr,pcond)
 ! finds a condition record with the given state variable expression
+! If nterm<0 the absolute value of nterm is condition number, svr is irrelevant
    implicit none
    integer nterm
    type(gtp_state_variable), pointer :: svr
@@ -1557,14 +1569,17 @@
 !\end{verbatim} %+
    type(gtp_condition), pointer :: last
    type(gtp_state_variable), pointer :: condvar
-   integer j1,num,j2
+   integer j1,num
    if(.not.associated(pcond)) goto 900
 !   write(*,*)'25D in get_condition: ',svr%statevarid,svr%oldstv,svr%argtyp
+!   if(nterm.lt.0) write(*,*)'25D Condition number: ',-nterm
    last=>pcond
    num=0
 100 continue
+! search for condition abs(nterm)
+      if(nterm.lt.0 .and. num+nterm.eq.0) goto 1000
+      num=num+1
       if(pcond%noofterms.eq.nterm) then
-         num=num+1
          do j1=1,nterm
             condvar=>pcond%statvar(j1)
 !            write(*,*)'25D get_condition: ',num,condvar%oldstv,condvar%argtyp
@@ -1624,8 +1639,8 @@ end subroutine get_condition
    integer nterm,istv,iref,iunit
    double precision coeffs(*)
 !\end{verbatim} %+
-   TYPE(gtp_condition), pointer :: last,current,first
-   integer, dimension(4) :: indx
+   TYPE(gtp_condition), pointer :: current,first
+!   integer, dimension(4) :: indx
    integer ncc,nac,j1,j2
 !   write(*,*)'looking for condition'
 ! pcond must have been set to ceq%lastcond before calling this routine!!!
@@ -1701,9 +1716,9 @@ end subroutine get_condition
    integer nterm
    double precision coeffs(*)
 !\end{verbatim}
-   TYPE(gtp_condition), pointer :: last,current,first
-   integer, dimension(4) :: indx
-   integer ncc,nac,j1,j2,istv,iref,iunit
+   TYPE(gtp_condition), pointer :: current,first
+!   integer, dimension(4) :: indx
+   integer ncc,nac,j1,istv,iref,iunit
 !
    write(*,*)'not implemented!!'
    gx%bmperr=7777; goto 1000
@@ -1787,7 +1802,7 @@ end subroutine get_condition
 !\begin{verbatim}
  subroutine apply_condition_value(current,what,value,cmix,ceq)
 ! This is called when calculating an equilibrium.
-! It returns a condition at each call, at first call current must be nullified
+! It returns a condition at each call, at first call current must be nullified?
 ! When all conditions done the current is nullified again
 ! If what=-1 then return degrees of freedoms and maybe something more
 ! what=0 means calculate current values of conditions
@@ -1798,9 +1813,9 @@ end subroutine get_condition
    TYPE(gtp_equilibrium_data), pointer :: ceq    
    TYPE(gtp_condition), pointer :: current
 !\end{verbatim} %+
+! ceq is actually redundant as current is a pointer to condition list in ceq
    integer, dimension(4) :: indices
-   integer iref,iunit,degfree,jl,istv,ip
-   double precision xxx
+   integer iref,iunit,jl,istv,ip
    character encoded*60,actual_arg*60
 !
 100 continue
@@ -2024,7 +2039,7 @@ end subroutine get_condition
    integer last,iph,ics
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-   integer lokph,lokcs,ky,ll,iy,jy,is
+   integer lokph,lokcs,ky,ll,iy,jy,is,ip,abel
    real mmyfr(maxconst)
    character quest*32,name*24,vdef*4,fdef*8
    double precision xxx
@@ -2033,8 +2048,8 @@ end subroutine get_condition
 ! if PHNOCV set the composition is fixed
    if(btest(phlista(lokph)%status1,PHNOCV)) goto 1000
    write(*,10)
-10 format('Give min or max fraction values (max as negative value)',&
-        ' or zero for no default')
+10 format('Give min or max fractions (< or negative value as max)',&
+        ' or NONE for no default')
    name=' '
    ky=0
    do ll=1,phlista(lokph)%noofsubl
@@ -2050,12 +2065,31 @@ end subroutine get_condition
             endif
             quest='Default for '//name(1:len_trim(name))//&
                  '#'//char(ichar('0')+ll)
-!         call gparrd(quest,cline,last,xxx,-1.0D-3,q1help)
-!         call gparrd(quest,cline,last,xxx,0.5D0,q1help)
-            vdef='<0.1'
+! use current value as default if nonzero
+            vdef=' '
+            abel=10*abs(ceq%phase_varres(lokcs)%mmyfr(ky))
+!            write(*,*)'25D abel:',ky,abel,ceq%phase_varres(lokcs)%mmyfr(ky)
+            if(abel.ge.10) then
+               vdef=' 1.0'
+            elseif(abel.le.0) then
+               vdef=' 0.1'
+            else
+               vdef=' 0.'//char(ichar('0')+abel)
+            endif
+            if(ceq%phase_varres(lokcs)%mmyfr(ky).lt.0.0) then
+               vdef(1:1)='<'
+            elseif(ceq%phase_varres(lokcs)%mmyfr(ky).gt.0.0) then
+               vdef(1:1)='>'
+            else
+               vdef='NONE'
+            endif
+!
             call gparcd(quest,cline,last,1,fdef,vdef,q1help)
             jy=1
-            if(eolch(fdef,jy)) then
+            if(fdef.eq.'NONE') then
+               xxx=0
+               is=1
+            elseif(eolch(fdef,jy)) then
                xxx=-1.0D-1
             else
                is=1
@@ -2074,13 +2108,14 @@ end subroutine get_condition
             mmyfr(ky)=real(xxx)
          enddo
       else
-! a single constituent
+! a single constituent, we must increment ky as there may be more
+         ky=ky+1
          mmyfr(ky)=1.0
       endif
    enddo
    call enter_default_constitution(iph,ics,mmyfr,ceq)
    write(*,99)(mmyfr(jy),jy=1,ky)
-99 format(10(f7.3))
+99 format('25D: ',15(f5.1))
 1000 continue
    return
  end subroutine ask_default_constitution
@@ -2100,9 +2135,9 @@ end subroutine get_condition
    TYPE(gtp_state_variable), pointer :: svr
    TYPE(gtp_condition), pointer :: current,first,last
    character species*32,cval*16,statevar*4,condline*32
-   integer ielno(10),indices(4)
+   integer ielno(10)
    double precision addval(maxel)
-   integer k,loksp,istv,jel,ip,iref,iunit
+   integer k,loksp,istv,jel,ip
    double precision xval,sumstoi,xmols
 ! repeat reading until empty line
 100 continue

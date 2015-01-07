@@ -37,7 +37,7 @@
    implicit none
    integer unit
 !\end{verbatim}
-   integer jl,ipos
+   integer jl
    character line*80
    line=' '
    loop1: do jl=-1,noofel
@@ -86,7 +86,6 @@
    character text*(*)
    integer ipos,elno
 !\end{verbatim}
-   character tal*10
    if(elno.lt.-1 .or. elno.gt.noofel) then
       gx%bmperr=4042
       goto 1000
@@ -115,7 +114,7 @@
    character text*(*)
    integer ipos,spno
 !\end{verbatim} %+
-   character tal*10,dummy*48
+   character dummy*48
    integer jpos
    if(spno.lt.1 .or. spno.gt.noofsp) then
 !       write(*,*)'in list_species_data'
@@ -154,7 +153,7 @@
    character text*(*)
    integer ipos,spno
 !\end{verbatim}
-   character tal*10,dummy*24
+   character dummy*24
    integer jpos
    if(spno.lt.1 .or. spno.gt.noofsp) then
 !       write(*,*)'in list_species_data'
@@ -211,7 +210,7 @@
 
 !\begin{verbatim}
  subroutine list_all_phases(unit,ceq)
-! list one line for each phase
+! short list with one line for each phase
    implicit none
    integer unit
    TYPE(gtp_equilibrium_data), pointer :: ceq
@@ -223,7 +222,7 @@
    TYPE(gtp_phase_varres), pointer :: csrec
    write(unit,10)
 10  format(/'List of entered phases'/ &
-        '  No set Name',22x,'Mol.comp.  At/F.U.  dGm/RT   Status1 Status2')
+        '  No tup Name',22x,'Mol.comp.  At/F.U.  dGm/RT   Status1 Status2')
    jl=0
    trailer=' '
 !   write(*,*)'In list_all_phases',noofph
@@ -277,20 +276,23 @@
          endif
          if(csrec%amfu.ne.zero) then
             if(csrec%dgm.eq.zero) then
-               write(unit,110)jk,ics,csname, &
+!               write(unit,110)jk,ics,csname, &
+               write(unit,110)jk,csrec%phtupx,csname, &
                     csrec%amfu*csrec%abnorm(1),&
                     csrec%abnorm(1),&
                     phlista(lokph)%status1,ceq%phase_varres(lokcs)%status2
 110            format(2i4,1x,a24,1PE10.2,1x,0PF9.2,'       0.0',2(0p,z8))
             else
-               write(unit,112)jk,ics,csname, &
+!               write(unit,112)jk,ics,csname, &
+               write(unit,112)jk,csrec%phtupx,csname, &
                     csrec%amfu*csrec%abnorm(1),&
                     csrec%abnorm(1),csrec%dgm,&
                     phlista(lokph)%status1,ceq%phase_varres(lokcs)%status2
 112            format(2i4,1x,a24,1PE10.2,1x,0PF9.2,1PE10.2,2(0p,z8))
             endif
          else
-            write(unit,111)jk,ics,csname, &
+!            write(unit,111)jk,ics,csname, &
+            write(unit,111)jk,csrec%phtupx,csname, &
                  csrec%abnorm(1),csrec%dgm,&
                  phlista(lokph)%status1,ceq%phase_varres(lokcs)%status2
 111         format(2i4,1x,a24,'       0.0',1x0PF9.2,1PE10.2,2(0p,z8))
@@ -300,11 +302,19 @@
    if(ndorm.le.0) goto 1000
    write(unit,200)
 200 format(/'List of dormant/suspended phases'/ &
-         '  No set Name',22x,'Mol.comp.  At/F.U.  dGm/RT   Status1 Status2')
+         '  No tup Name',22x,'Mol.comp.  At/F.U.  dGm/RT   Status1 Status2')
    ndorm=-1
    goto 20
 
 1000 continue
+! temporary list all phase tuples
+!   do jl=1,nooftuples
+!      lokph=phases(phasetuple(jl)%phase)
+!      lokcs=phlista(lokph)%linktocs(phasetuple(jl)%compset)
+!      write(*,600)jl,phasetuple(jl)%phase,phasetuple(jl)%compset,lokcs,&
+!           firsteq%phase_varres(lokcs)%phtupx
+!600   format('Phase tuple: ',3i4,' backlink: ',5i4)
+!   enddo
    return
  END subroutine list_all_phases
 
@@ -473,7 +483,7 @@
    integer iph,jcs,mode,lut
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-   character name*24,text*256,phname*24,status*10
+   character text*256,phname*24,status*10
    character (len=24), dimension(:), allocatable :: consts
 !    character*24, allocatable (:) :: consts
    double precision xmol(maxel),wmass(maxel),totmol,totmass,amount,abv,mindgm
@@ -894,8 +904,8 @@
    integer iph,ics,lut
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-   character name*24,text*256,phname*24,prop*5,csname*32,l78*78
-   integer, dimension(maxsubl) :: endm,ilist
+   character phname*24,l78*78
+!   integer, dimension(maxsubl) :: endm,ilist
    integer lokcs,knr,kmr,ll,ip,lokph
    TYPE(gtp_fraction_set) :: disfra
    type(gtp_phase_add), pointer :: addrec
@@ -1029,10 +1039,10 @@
    integer typty,parlist,typspec,lokph,nsl,nk,ip,ll,jnr,ics,lokcs
    integer nint,ideg,ij,kk,iel,ncsum,kkx,kkk,jdeg,iqnext,iqhigh,lqq,nz,ik
    integer intpq,linkcon
-   character name*24,text*1024,phname*24,prop*32,funexpr*512,csname*32
+   character text*1024,phname*24,prop*32,funexpr*512
    character special*8
    integer, dimension(2,3) :: lint
-   integer, dimension(maxsubl) :: endm,ilist,knr
+   integer, dimension(maxsubl) :: endm,ilist
    logical subref,noelin1
    type(gtp_fraction_set), pointer :: disfrap
 ! a smart way to have an array of pointers
@@ -1467,10 +1477,10 @@
    integer typty,parlist,typspec,lokph,nsl,nk,ip,ll,jnr,ics,lokcs
    integer nint,ideg,ij,kk,iel,ncsum,kkx,kkk,jdeg,iqnext,iqhigh,lqq,nz,ik
    integer intpq,linkcon
-   character name*24,text*1024,phname*24,prop*32,funexpr*512,csname*32
+   character text*1024,phname*24,prop*32,funexpr*512
    character special*8
    integer, dimension(2,3) :: lint
-   integer, dimension(maxsubl) :: endm,ilist,knr
+   integer, dimension(maxsubl) :: endm,ilist
    logical subref,noelin1
    type(gtp_fraction_set), pointer :: disfrap
 ! a smart way to have an array of pointers
@@ -2153,7 +2163,7 @@
    double precision stoik(*)
    integer noelx
 !\end{verbatim}
-   character lname*72,ch1*1,ch2*2
+   character lname*72,ch2*2
    double precision xx
    integer ip,jp
    lname=name
@@ -2696,7 +2706,9 @@
    call wriint(text,ip,nc)
 ! number the conditions
    text(ip:)=':'
-   ip=ip+2
+!   ip=ip+2
+! No space after :
+   ip=ip+1
    iterm=1
    if(current%statev.lt.0) then
 ! handle FIX phases
@@ -2837,7 +2849,7 @@
    integer mode,typty,iph,ics
    character symbol*(*)
 !\end{verbatim}
-   character psym*36,phsym*24,specid*24,nude*4
+   character phsym*24,specid*24,nude*4
    integer splink,k1,k2,lattice,lokph,ityp,iel,kk,ll,jj
    integer jtyp
 !   write(*,7)'25E fdp 1: ',symbol(1:5),mode,typty,iph,ics
@@ -3028,8 +3040,8 @@
    integer mode
 !\end{verbatim}
    TYPE(gtp_equilibrium_data), pointer :: ceq
-   TYPE(gtp_phase_varres) :: varres
-   integer ieq,iy,noofeq,iph,lokph,lokcs
+!   TYPE(gtp_phase_varres) :: varres
+   integer ieq,noofeq,iph
    noofeq=noeq()
    select case(mode)
    case default
