@@ -1,11 +1,12 @@
-@$ Calculating Gibbs energy curve for Ag-Cu
+@$ Calculating G curves for the phases in Ag-Cu
 @&
 
 set echo
 
 r t agcu
 
-set c t=800 p=1e5 n=1 x(cu)=.2
+
+set cond t=1000 p=1e5 n=1 x(cu)=.2
 
 c e
 
@@ -13,39 +14,51 @@ l r 1
 
 @&
 
-set ref ag fcc,,,,,,
-
+set ref ag fcc,,,,,
 set ref cu fcc,,,,,,
 
-set axis 1 x(cu) 0 1 0.01
+set ax 1 x(cu) 0 1 ,,,
 
 l ax
 
-@&
-
-step separate
-
+l sh
 
 
 @&
 
-l line
-
-@&
-
-l eq
-
+step 
+sep
 
 @&
 
 plot
-X(CU)
-GM(*)
+x(cu)
+G(*),,,,,,,,,,
+
+
+@$ now for the bugs ....
+
+l,,,,,
+
+@&
+
+c e
+
+
+l,,,,,,,
+
+@&
+@$ giving a plot command it crashes in pmod25C line 1884
+
+@$ plot 
+
+
+
+
+
+
 
 
 
 
 set inter
-
-
-

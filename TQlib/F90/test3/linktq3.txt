@@ -1,0 +1,2 @@
+gfortran -o tqex3 TQ3-OU.F90 liboctq.o liboceq.a
+

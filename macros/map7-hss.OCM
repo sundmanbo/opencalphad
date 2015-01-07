@@ -1,12 +1,13 @@
-@$ mapping a high speed steel
+@$ Calculate an (incomplete) isopleth for a HSS
 @&
 
 set echo
 
 r t steel1
-fe c cr mo v
 
-set c t=1200 p=1e5 n=1 w(c)=.008 w(cr)=.045, w(mo)=.08 w(v)=.01 w(si)=.003
+@& calculate at 1200 to create two fcc phases
+
+set c t=1200 p=1e5 n=1 w(c)=.008 w(cr)=.05, w(mo)=.08 w(v)=.01 w(si)=.003
 
 c e
 
@@ -21,35 +22,22 @@ l ax
 
 @&
 
-set c t=1700
-
-c n
-
-l r 1
-
-
-@&
-
-
 map
 
 
 
-plot ,,,,,,,,,,
+
+
+l l
+
+@&
+
+l eq
 
 
 
-set c t=1400 w(cr)=.015
+plot,,,,,,,,
 
-c e
-
-map N
-
-
-
-@$ it sometimes crashes here ...
-
-plot,,,,,,,,,,,,,,,,,
 
 
 set inter

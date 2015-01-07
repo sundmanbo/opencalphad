@@ -4,7 +4,7 @@
 !
 MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !
-! Copyright 2011-2014, Bo Sundman, France
+! Copyright 2011-2015, Bo Sundman, France
 !
 !    This program is free software; you can redistribute it and/or modify
 !    it under the terms of the GNU General Public License as published by
@@ -424,12 +424,14 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! NOSAVE: data changed after last save command
 ! VERBOSE: maximum of listing
 ! SETVERB: explicit setting of verbose
+! SETSILENT: as little aoutput as possible
+! NOAFTEREQ: no manipulations of results after equilirum calculation
 ! >>>> some of these should be moved to the gtp_equilibrium_data record
   integer, parameter :: &
        GSBEG=0,     GSOCC=1,     GSADV=2,      GSNOGLOB=3, &
        GSNOMERGE=4, GSNODATA=5,  GSNOPHASE=6,  GSNOACS=7, &
        GSNOREMCS=8, GSNOSAVE=9,  GSVERBOSE=10, GSSETVERB=11,&
-       GSSILENT=12
+       GSSILENT=12, GSNOAFTEREQ=13
 !-Bits in element record
   integer, parameter :: &
        ELSUS=0
@@ -462,8 +464,9 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! CSDFS is set if record is for disordred fraction set, then one must use
 !     sublattices from fraction_set record
 ! CSDLNK: a disordred fraction set in this phase_varres record
-! CSSUS: set if comp. set if must not be stable, 
-! CSFIXDORM: set if fix or dormant, 
+! CSSUS and CSFIXDORM replaced by the integer PHSTATE
+!- CSSUS: set if comp. set if must not be stable, 
+!- CSFIXDORM: set if fix or dormant, 
 ! CSCONSUS set if one or more constituents suspended (status array constat
 !     specify constituent status)
 ! CSORDER: set if fractions are ordered (only used for BCC/FCC ordering
@@ -473,7 +476,8 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! CSDEFCON set if there is a default constitution
 ! NOTE phase_status ENTERED means both CSSUS and CSFIXDORM are sero (not set)
    integer, parameter :: &
-        CSDFS=0,    CSDLNK=1,  CSSUS=2,    CSFIXDORM=3, &
+!        CSDFS=0,    CSDLNK=1,  CSSUS=2,    CSFIXDORM=3, &
+        CSDFS=0,    CSDLNK=1,  CSDUM2=2,    CSDUM3=3, &
         CSCONSUS=4, CSORDER=5, CSSTABLE=6, CSAUTO=7, &
         CSDEFCON=8
 !\end{verbatim}
@@ -517,13 +521,13 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !
 !\begin{verbatim}
 ! some constants, phase status
-  integer, parameter :: phhidden=-4
-  integer, parameter :: phsus=-3
-  integer, parameter :: phdorm=-2
-  integer, parameter :: phentunst=-1
-  integer, parameter :: phentered=0
-  integer, parameter :: phentstab=1
-  integer, parameter :: phfixed=2
+  integer, parameter :: PHHIDDEN=-4
+  integer, parameter :: PHSUS=-3
+  integer, parameter :: PHDORM=-2
+  integer, parameter :: PHENTUNST=-1
+  integer, parameter :: PHENTERED=0
+  integer, parameter :: PHENTSTAB=1
+  integer, parameter :: PHFIXED=2
   character (len=12), dimension(-4:2), parameter :: phstate=&
        (/'HIDDEN      ','SUSPENDED   ','DORMANT     ','ENTERED UNST',&
          'ENTERED     ','ENTERED STBL','FIXED       '/)
@@ -1088,15 +1092,16 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! status2: has phase status bits like ENT/FIX/SUS/DORM
 ! phstate: indicate state: fix/stable/entered/unknown/dormant/suspended/hidden
 !                           2   1      0        -1      -2      -3       -4
+! phtupx: phase tuple index
 ! constat: array with status word for each constituent, any can be suspended
 ! yfr: the site fraction array
-! mmyfr: min/max fractions
+! mmyfr: min/max fractions, negative is a minumum
 ! abnorm(1): amount moles of atoms for a formula unit of the composition set
 ! abnorm(2): mass/formula unit (both set by call to set_constitution)
 ! sites: site ratios (which can vary for ionic liquids)
 ! prefix and suffix are added to the name for composition sets 2 and higher
 ! disfra: a structure describing the disordered fraction set (if any)
-     integer nextfree,phlink,status2,phstate
+     integer nextfree,phlink,status2,phstate,phtupx
      double precision, dimension(2) :: abnorm
      character*4 prefix,suffix
 ! changed to allocatable

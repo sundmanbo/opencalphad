@@ -1,4 +1,4 @@
-@$ Calculate the Fe-Mo phase diagram
+@$ Calculate the phase diagram for Fe-Mo
 @&
 
 set echo
@@ -52,11 +52,10 @@ map
 plot
 x(*,mo)
 T
-ocgnu
-plot
+plot,,,,,,,,,,,,,,,,
 
 
-@$ The gamma loop is separate
+@$ we must calculate the gamma loop separately
 
 set c t=1400 x(mo)=.02
 
@@ -73,20 +72,16 @@ N
 plot
 x(*,mo)
 T
-ocgnu
-plot,,,,,,,,,,,,,
+plot,,,,,,,,,,,,,,,,,,,
 
 
 
-@$ Magnify the middle
 plot
 x(*,mo)
 T
-ocgnu
-yrange
-N
+yr
 1600
-1900
-plot,,,,,,,,,,,,,,
+1800
+plot,,,,,,
 
 set inter

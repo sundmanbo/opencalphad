@@ -1,4 +1,4 @@
-@$ Calculate the stable C-Fe system
+@$ Calculate the stable C-Fe phase diagram
 @&
 
 set echo
@@ -33,19 +33,18 @@ map
 plot
 x(*,c)
 T
-ocgnu
-plot
+plot,,,,,,,,,,,,,,
+
 
 
 plot
 x(*,c)
 T
-ocgnu
 xr
 n
 0
 .2
-plot
+plot,,,,,,,,,,,,,,,,,,
 
 
 

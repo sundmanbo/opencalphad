@@ -1030,7 +1030,7 @@
    double precision, dimension(3,3) :: xxx
    type(gtp_equilibrium_data) :: ceq
 !\end{verbatim}
-   integer lokph,lokcs,i1
+   integer lokph,lokcs
    call get_phase_compset(iph,ics,lokph,lokcs)
    if(gx%bmperr.ne.0) goto 1000
    ceq%phase_varres(lokcs)%curlat=xxx
@@ -1051,9 +1051,7 @@
    type(gtp_phase_add), pointer :: newadd
 !\end{verbatim} %+
    integer, parameter :: ncc=6
-   character*80 line
-   integer typty,lokfun,ip,koder(5,ncc)
-   double precision coeff(ncc)
+   integer typty
 !
 ! G/RT = 3*ln( 1 - exp( THET/T ) ) 
 ! No need to use TPFUN
@@ -1179,7 +1177,7 @@
    TYPE(gtp_phase_add), pointer :: lokadd
    TYPE(gtp_phase_varres) :: phres
 !\end{verbatim}
-   integer ith,itc,ibm,jl,noprop
+   integer ith,noprop
 ! value of THET and derivatives have type ??
    noprop=phres%listprop(1)-1
 !    write(*,*)'cmi 2: ',noprop,(phres%listprop(i),i=1,noprop)

@@ -91,11 +91,11 @@
    integer fractype,epermut,ipermut,typty,pmq,maxprec
    integer sameint(5)
    integer, dimension(permstacklimit) :: lastpmq,maxpmq
-   character bug*60,ch1*1,pdone*4
+!   character bug*60
 !   dimension sites(maxsubl),pushpop(maxpp)
    double precision, dimension(:), allocatable :: dpyq(:),d2pyq(:),d2vals(:)
    double precision, dimension(:,:), allocatable :: dvals(:,:)
-   double precision vals(6),dummy(6),sum3(3)
+   double precision vals(6)
    integer incffr(0:maxsubl)
 ! in local gz: gz%intlevel level of interaction, gz%intcon and gz%intlat are
 ! used also in cgint when calculating interactions.
@@ -119,11 +119,11 @@
    double precision, dimension(:,:), allocatable :: tmpd2g
 ! added when implicit none
    double precision rtg,pyq,ymult,add1,sum,yionva,fsites,xxx
-   integer nofc2,nprop,nsl,msl,iprop,lokdiseq,ll,id,id1,id2,lm,jl
-   integer lokfun,itp,nz,intlat,ic,jd,noprop,jk,ic1,jpr,ipy,i1,j1
+   integer nofc2,nprop,nsl,msl,lokdiseq,ll,id,id1,id2,lm,jl
+   integer lokfun,itp,nz,intlat,ic,jd,jk,ic1,jpr,ipy,i1,j1
    integer i2,j2,ider,is,kk,ioff,norfc,iw,iw1,iw2,lprop,jonva
 ! to handle parameters with wildcard constituent and other things
-   logical wildc,nevertwice,first,mcs,chkperm,ionicliq,iliqsave,iliqva
+   logical wildc,nevertwice,first,chkperm,ionicliq,iliqsave,iliqva
 ! debugging for partitioning and ordering
 !   integer clist(4)
 ! calculate RT to normalize all Gibbs energies, ceq is current equilibrium
@@ -1391,7 +1391,7 @@
 !499   continue
    endif ionliqsum
 !................................
-! calculate additions like magetic contributions etc and add to G
+! calculate additions like magnetic contributions etc and add to G
    addrec=>phlista(lokph)%additions
    additions: do while(associated(addrec))
 !      if(addlista(lokadd)%type.eq.1) then
@@ -1496,7 +1496,7 @@
    integer iph,ics
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-   character name*24,blaj*70
+   character name*24
    double precision kappa,napfu,t,p,rtg,g,v,s,h,u,f,cp,alpha
    integer tnk,lokph,nsl,lokres,lokcs,ll,ll2,kk1,kk2,kk3,kk4,loksp
 !
@@ -1632,7 +1632,7 @@
    double precision d2vals(gz%nofc*(gz%nofc+1)/2),valtp(6)
    double precision vv(0:2),fvv(0:2)
    integer lfun,jdeg,jint,jl,ivax
-   double precision rtg,dx0,dx,dx1,dx2,ct,fvs,dvax0,dvax,dvax1,dvax2,yionva
+   double precision rtg,dx0,dx,dx1,dx2,ct,fvs,dvax0,dvax1,dvax2,yionva
    double precision, parameter :: onethird=one/3.0D0,two=2.0D0
    logical ionicliq,iliqva,iliqneut
 ! zeroing 5 iq, and vals, dvals and d2vals
@@ -2027,7 +2027,7 @@
    integer, dimension(nsl) :: nkl
    TYPE(gtp_phase_varres), pointer :: phvar
 !\end{verbatim}
-   integer ll,kk,kall,nk,j1,j2,localmoded
+   integer ll,kk,kall,nk,j1,j2
    double precision tval,ss,yfra,ylog,yva,spart(2)
    ll=0
    kall=0
@@ -2275,7 +2275,7 @@
    logical ordered
 ! minimum difference in site fraction to be set as ordered
    double precision, parameter :: yminord=1.0D-10
-   integer lokdis,is,kk
+   integer lokdis,is
 !
 !   write(*,*)'entering calc_disfrac'
 !   disrec=phord%disfra
@@ -2415,7 +2415,7 @@
 !\end{verbatim}
    integer, dimension(4) :: indices
    double precision, dimension(maxel) :: ani,abi,xset,wset
-   double precision btot,bni(maxel),mass,h298,s298,xxx,xsum,wsum
+   double precision mass,h298,s298,xxx,xsum,wsum
    double precision sumwdivm,anisum,abisum,restmass,divisor,dividend,abtot
    TYPE(gtp_condition), pointer :: current,last
    character encoded*16,actual_arg(1)*16,elsym*2,elname*16,refstat*16
@@ -2669,3 +2669,67 @@
 !
  end subroutine extract_massbalcond
 
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
+ subroutine save_constitutions(ceq,copyofconst)
+! copy the current phase amounts and constituitions to be restored
+! if calculations fails during step/map
+! DANGEROUS IF NEW COMPOSITION SETS CREATED
+   implicit none
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+   double precision, allocatable, dimension(:) :: copyofconst
+!\end{verbatim}
+   integer varresx,nz,ij,syfr
+! calculate dimension of copyofconst
+   nz=0
+! skippa varres with index 1, that is the reference phase
+   do varresx=2,csfree-1
+      syfr=size(ceq%phase_varres(varresx)%yfr)
+      nz=nz+1+syfr
+   enddo
+   allocate(copyofconst(nz))
+   nz=1
+   do varresx=2,csfree-1
+! save 1+sfr values for each composition set
+      copyofconst(nz)=ceq%phase_varres(varresx)%amfu
+      syfr=size(ceq%phase_varres(varresx)%yfr)
+      do ij=1,syfr
+         copyofconst(nz+ij)=ceq%phase_varres(varresx)%yfr(ij)
+      enddo
+!      write(*,17)varresx,nz,syfr,(copyofconst(ij),ij=nz,nz+syfr)
+17    format('25Bs:',i2,2i3,6(1pe12.4))
+      nz=nz+1+syfr
+   enddo
+1000 continue
+   return
+ end subroutine save_constitutions
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
+ subroutine restore_constitutions(ceq,copyofconst)
+! restore the phase amounts and constituitions from copyofconst
+! if calculations fails during step/map
+! DANGEROUS IF NEW COMPOSITION SETS CREATED
+   implicit none
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+   double precision copyofconst(*)
+!\end{verbatim}
+   integer nz,varresx,ij,syfr
+   nz=1
+! skippa varres with index 1, that is the reference phase
+   do varresx=2,csfree-1
+      ceq%phase_varres(varresx)%amfu=copyofconst(nz)
+      syfr=size(ceq%phase_varres(varresx)%yfr)
+      do ij=1,syfr
+         ceq%phase_varres(varresx)%yfr(ij)=copyofconst(nz+ij)
+      enddo
+!      write(*,17)varresx,nz,syfr,ceq%phase_varres(varresx)%amfu,&
+!           (ceq%phase_varres(varresx)%yfr(ij),ij=1,syfr)
+17    format('25Br:',i2,2i3,6(1pe12.4))
+      nz=nz+1+size(ceq%phase_varres(varresx)%yfr)
+   enddo
+1000 continue
+   return
+ end subroutine restore_constitutions

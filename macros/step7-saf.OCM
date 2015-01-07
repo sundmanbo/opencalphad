@@ -1,10 +1,13 @@
-@$ Calculate diagrams for SAF2507
+@$ Calculate phass fractions and other property diagrams for SAF2507
+@&
 
 set echo
 
 r t saf2507
 
-set c t=1273.15 p=1e5 n=1 w(cr)=.25 w(ni)=.07, w(mo)=.03 w(mn)=.015 w(n)=.002
+set c t=1273.15 p=1e5 n=1 W(cr)=.25 w(ni)=.07, w(mo)=.03 w(mn)=.015 w(n)=.002
+
+@$ set c t=1273 p=1e5 n=1 x(cr)=.266 x(ni)=.066, x(mo)=.017 x(mn)=.015 x(n)=.008
 
 c e
 
@@ -20,13 +23,8 @@ step
 
 
 
-plot
-T
-NP(*)
-,,,,,,,,,,,,,,,,,,
+plot,,,,,,,,,,,,,,,,,,
 
-
-@&
 
 ent sym prefcc=100*w(fcc,cr)+300*w(fcc,mo)+1600*w(fcc,n);
 
@@ -48,11 +46,7 @@ step
 
 plot
 w(n)
-np(*)
-
-
-
-
+np(*),,,,,,,,,,,,,,,
 
 plot
 w(n)
@@ -60,7 +54,29 @@ prefcc,,,,,,,,,,,,,,,,,,,,
 
 plot
 w(n)
-prebcc,,,,,,,,,,
+prebcc,,,,,,,,,,,,,,,,,
+
+
+@$ step with 50% ferrite
+
+set stat ph bcc
+fix
+.5
+
+set c t=none
+
+l c
+
+@&
+
+c e
+
+step
+
+
+plot
+w(n)
+T,,,,,,,,,,,,,,,
 
 
 set inter

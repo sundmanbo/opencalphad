@@ -324,10 +324,9 @@
    character ch1*1
    double precision formalunits
    integer kconlok(maxconst),kalpha(maxconst),iord(maxconst),klok(maxconst)
-   integer iva(maxconst),anion(maxconst)
+   integer iva(maxconst)
    logical externalchargebalance
-   integer iph,kkk,lokph,ll,nk,jl,jk,mm,lokcs,nkk,nyfas,loksp,ionva,byte
-   integer afteranions
+   integer iph,kkk,lokph,ll,nk,jl,jk,mm,lokcs,nkk,nyfas,loksp,tuple
 !   write(*,*)'enter new_phase: ',model(1:len_trim(model))
    if(.not.allowenter(2)) then
       gx%bmperr=4125
@@ -491,7 +490,7 @@
    if(nyfas.eq.0) then
       continue
    else
-      call alphaphorder
+      call alphaphorder(tuple)
       phlista(nyfas)%nooffs=1
    endif
    phlista(nyfas)%noofsubl=nsl
@@ -544,6 +543,13 @@
    enddo
 ! make sure status word and some other links are set to zero
    firsteq%phase_varres(lokcs)%status2=0
+! Setting of phase tuple is done in alphaphorder
+!   tuple=nooftuples+1
+!   phasetuple(tuple)%phase=nyfas
+!   phasetuple(tuple)%compset=1
+!   nooftuples=tuple
+   firsteq%phase_varres(lokcs)%phtupx=tuple
+!   write(*,*)'25G new phase tuple: ',nyfas,lokcs,tuple
 ! If one has made NEW the links are not always zero
 ! set some phase bits (PHGAS and PHLIQ set above)
 ! external charge balance etc.
@@ -794,10 +800,10 @@
 ! also update phasetuple array !!
    TYPE(gtp_equilibrium_data), pointer :: ceq
    integer lokph,ncs,nsl,nkk,lokcs,lokcs1,nprop,lastcs,jl,nyttcs
-   integer leq,nydis,ll,tuple,nz
+   integer leq,nydis,tuple,nz
    character*4 pfix,sfix
    integer iva(maxconst)
-   TYPE(gtp_phase_varres), pointer :: peq,neq,pdeq,ndeq
+   TYPE(gtp_phase_varres), pointer :: peq,neq,ndeq
 !
    if(iph.le.0 .or. iph.gt.noofph) then
       gx%bmperr=4050; goto 1000
@@ -843,14 +849,18 @@
    call create_parrecords(lokph,nyttcs,nsl,nkk,maxcalcprop,iva,firsteq)
    if(gx%bmperr.ne.0) goto 1000
 !   write(*,*)'add_cs: ',nyttcs
-! add new tuple at the end
+! add new tuple at the end and save tuple index
    tuple=nooftuples+1
    phasetuple(tuple)%phase=iph
    phasetuple(tuple)%compset=icsno
    nooftuples=tuple
+!   write(*,*)'25G Adding phase tuple: ',tuple,lastcs,nyttcs
+! save index of tuple in new phase_varres record
+   firsteq%phase_varres(nyttcs)%phtupx=tuple
+!   firsteq%phase_varres(lastcs)%phtupx=tuple
 !   peq=>eqlista(1)%phase_varres(lastcs)
    peq=>firsteq%phase_varres(lastcs)
-!   write(*,*)'25G add compset: ',iph,icsno,noeq()
+!   write(*,*)'25G added compset: ',iph,icsno,noeq()
    alleq: do leq=1,noeq()
 ! LOOP for all equilibria records to add this composition set to phase lokph
 ! lastcs is the previously last composition set, nyttcs is the new,
@@ -864,6 +874,8 @@
       pfix=prefix; sfix=suffix; call capson(pfix); call capson(sfix)
       neq%prefix=pfix
       neq%suffix=sfix
+! tuple index
+      neq%phtupx=tuple
 ! initiate the phstate as entered (value 0)
       neq%phstate=PHENTERED
 ! increment composition set counter when leq=1, phlista same in all equilibria
@@ -894,7 +906,10 @@
          allocate(neq%constat(nz))
          neq%constat=peq%constat
       endif
+! copy status word but clear some bits CSDEFCON means default constitution
       neq%status2=peq%status2
+      neq%status2=ibclr(neq%status2,CSDEFCON)
+!
       if(.not.allocated(neq%gval)) then
 ! result arrays should have been allocated in create_parrecords ...
 ! but I do not call create_parrecords !!
@@ -956,6 +971,7 @@
 !        ' to disordered ',ceq%phase_varres(next)%disfra%varreslink
 1000 continue
    return
+! %status2
  end subroutine add_composition_set
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
@@ -979,14 +995,13 @@
 !\end{verbatim}
    TYPE(gtp_phase_varres), pointer :: varres,disvarres
    integer ics,lokph,lokcs,ncs,nsl,nkk,lastcs,nprop,idisvarres,kcs,leq
-   TYPE(gtp_equilibrium_data), pointer :: peq
 !
    if(iph.le.0 .or. iph.gt.noofph) then
       gx%bmperr=4050; goto 1000
    endif
    lokph=phases(iph)
    ncs=phlista(lokph)%noofcs
-   if(ics.eq.1) then
+   if(ncs.eq.1) then
 ! cannot remove composition set 1 or a nonexisting one
       gx%bmperr=4093; goto 1000
    else
@@ -1010,7 +1025,7 @@
    lokcs=phlista(lokph)%linktocs(ics)
    lastcs=lokcs
    nprop=firsteq%phase_varres(lokcs)%nprop
-   write(*,*)'25G Deleting: ',lastcs
+!   write(*,*)'25G Removing varres record: ',lastcs
 !-------------------------------------
 ! begin threadprotected code to remove lastcs >>>>>>>>>>>>>>>>>>>
 ! delete compset ics, shift higher down (not necessary)
@@ -1041,9 +1056,9 @@
 ! now deallocate and release the phase_varres record with disordered fractions
          idisvarres=varres%disfra%varreslink
          disvarres=>eqlista(leq)%phase_varres(idisvarres)
-         write(*,*)'Deallocationg disordered varres record ',idisvarres
+!         write(*,*)'25 GDeallocationg disordered varres record ',idisvarres
          deallocate(disvarres%yfr)
-         deallocate(varres%mmyfr)
+         if(allocated(varres%mmyfr)) deallocate(varres%mmyfr)
          deallocate(disvarres%sites)
 ! these may not be allocated ...
 !         write(*,*)'delete cs dsitesdy: ',leq,size(disvarres%dsitesdy)
@@ -1053,16 +1068,15 @@
          deallocate(disvarres%gval)
          deallocate(disvarres%dgval)
          deallocate(disvarres%d2gval)
-         if(size(disvarres%disfra%dsites).gt.0) then
-            write(*,*)'ERROR, only one level of disordering allowed'
-            stop
-         endif
+! BOS 1401227: I do not think this is an error, just ignore ...
+!         if(size(disvarres%disfra%dsites).gt.0) then
+!            write(*,*)'ERROR, only one level of disordering allowed',leq,&
+!                 size(disvarres%disfra%dsites)
+!            stop
+!         endif
       else
          idisvarres=0
       endif disordered
-! finally remove the link from the phase_varres before this
-!      write(*,*)'Remove link ',leq,savecs
-!      eqlista(leq)%phase_varres(savecs)%next=0
    enddo alleq
 !   write(*,*)'Done all equilibrium records'
 ! decrement the composition set counter for this phase
@@ -1072,12 +1086,12 @@
 ! maintained in firsteq only
    if(idisvarres.ne.0) then
 ! there was a disordered phase_varres record, link it into free list
-!      write(*,*)'Free list 2: ',csfree,idisvarres
+!      write(*,*)'25G Free list 2: ',csfree,idisvarres
       firsteq%phase_varres(idisvarres)%nextfree=csfree
       csfree=idisvarres
    endif
 ! link the free phase_varres into the free list
-!   write(*,*)'Free list 1: ',csfree,lastcs
+!   write(*,*)'25G Free list 1: ',csfree,lastcs
    firsteq%phase_varres(lastcs)%nextfree=csfree
    csfree=lastcs
 ! finally shift all composition sets in phlista(lokph)%linktocs
@@ -1090,12 +1104,22 @@
 !   write(*,*)'Free list 1: ',csfree,lokcs
 ! update phasetuple array, overwrite tuple.  This means tuples may change phase
 ! NOTE the first tuple for a phase+compset will never change position.  Only
-! those created later may be shifter ... but that may be complicated enough ...
-      do jl=tuple,nooftuples-1
-         phasetuple(jl)%phase=phasetuple(jl+1)%phase
-         phasetuple(jl)%compset=phasetuple(jl+1)%compset
+! those created later may be shifted ... but that may be complicated enough ...
+!   write(*,*)'Shifting phase tuples above deleted: ',tuple
+      do jl=tuple+1,nooftuples
+         phasetuple(jl-1)%phase=phasetuple(jl)%phase
+         phasetuple(jl-1)%compset=phasetuple(jl)%compset
+! we must change the link in the phase_varres record also!!
+         lokph=phases(phasetuple(jl-1)%phase)
+         lokcs=phlista(lokph)%linktocs(phasetuple(jl-1)%compset)
+!         write(*,*)'25G Shifting down ',jl
+! in all equilibrium records, luckily the phase_varres record the same!!
+         do leq=1,noeq()
+            eqlista(leq)%phase_varres(lokcs)%phtupx=jl-1
+         enddo
       enddo
       nooftuples=nooftuples-1
+!      write(*,*)'25G Warning: phase tuples may have changed phase ...'
 ! end threadprotected code <<<<<<<<<<<<<<<<<<<<<<<<
 !-------------------------
 1000 continue
@@ -1129,10 +1153,10 @@
    integer lokph,fractyp,typty,nsl,nint,ideg,lfun
    integer, dimension(2,*) :: lint
 !\end{verbatim}
-   character ch1*1,notext*20
+   character notext*20
    integer iord(maxsubl),jord(2,maxsubl)
    integer again,kkk,ll,kk1,mint,kk,lokint,iz,it,kint,ib,jl,zz
-   integer lj,i1,i2,newint,ifri,lokcs,noperm,ii,firstint
+   integer lj,i1,i2,newint,ifri,lokcs,noperm,firstint
    integer, dimension(24) :: intperm
    integer, dimension(:,:), allocatable :: elinks
    integer, dimension(:,:), allocatable :: intlinks
@@ -1678,7 +1702,7 @@
    integer, dimension(2,*) :: jord
    integer lokph,nsl,noperm,nint
 !\end{verbatim} %+
-   integer ns1,ns2,l2,ll,ib,again,clink,lshift,mshift,a211
+   integer l2,ll,ib,again,clink,lshift,mshift,a211
    integer odd,inz,ip,iqq1,iqq2,isp,jb,jp,jsp,l3,level1,level2
    integer level2perm,lj,loksp,lsp,niqq1,nl1,nl2,nll,np,nq,nz
    integer, dimension(4) :: elal,esame
@@ -3537,11 +3561,10 @@
 ! deallocates all data.  Minimal checks ... one cannot delete "ceq"
    implicit none
    character name*(*)
-   type(gtp_equilibrium_data), pointer ::neweq,ceq
+   type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
    type(gtp_condition), pointer :: lastcond,pcond,qcond
    integer cureq,ieq,ik,novarres,ipv
-   character eqname*24
 !
    cureq=ceq%eqno
    ik=index(name,'*')-1
@@ -3610,14 +3633,11 @@
    integer number
    type(gtp_equilibrium_data), pointer ::neweq,ceq
 !\end{verbatim}
-   TYPE(gtp_phase_varres), pointer :: cpv,cp1
    type(gtp_condition), pointer :: oldcond,lastcond
    type(gtp_condition), pointer :: newcond1,newcond2
-   type(gtp_condition), pointer :: condcopy
-   type(gtp_condition), pointer :: buglast,bugcond
-   type(gtp_fraction_set) :: fscopy,dummy
+   type(gtp_condition), pointer :: bugcond
    character name2*64
-   integer ieq,ipv,nc,jz,iz,jl,jk,novarres,oldeq,zz
+   integer ieq,ipv,jz,iz,jl,jk,novarres,oldeq
    logical okname
 !
 !   write(*,*)'In copy_equilibrium',len_trim(name)
