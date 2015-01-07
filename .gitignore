@@ -6,6 +6,11 @@
 *.exe
 *.em
 *.cmd
+*.aux
+*.dvi
+*.log
+*.dat
+*.plt
 oc1A
 oc2A
 linkoc
