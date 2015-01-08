@@ -10,8 +10,8 @@ clean:
 	rm *.o 
 liboctq.o:  ../../liboctq.F90
 	$(GF) $(FFLAGS) -I../../../ -c ../../liboctq.F90
-liboctqc.o: ../liboctqc.F90
-	$(GF) $(FFLAGS) $(INCLUDE) -c ../liboctqc.F90
+#liboctqc.o: ../liboctqc.F90
+#	$(GF) $(FFLAGS) $(INCLUDE) -c ../liboctqc.F90
     
 fenitq2c.o: fenitq2c.c
 	gcc $(FFLAGS) $(INCLUDE) -c fenitq2c.c

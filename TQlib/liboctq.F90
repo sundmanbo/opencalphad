@@ -86,9 +86,6 @@ contains
 ! second argument 0 means ellista is ignored, all element read
     call readtdb(filename,0,ellista)
     ceq=>firsteq
-<<<<<<< HEAD
-    i2 = transfer(firsteq,i2)
-=======
     nel=noel()
     do iz=1,nel
 ! store element name in module array components
@@ -97,7 +94,6 @@ contains
     enddo
 ! store phase tuples and indices
     ntup=get_phtuplearray(phcs)
->>>>>>> 45f3d32cd7bd9dc0c4597577f5607df55a832531
 1000 continue
     return
   end subroutine tqrfil
