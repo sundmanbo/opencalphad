@@ -1,0 +1,75 @@
+@$ Tentative parameters for various properties
+@&
+
+set echo
+
+enter element MA  Matrix   BCC          50 0 0 0
+enter element CF  Solute   INTERSTITIAL 10 0 0 0
+ 
+enter phase FCC 2 1 MA; 1 VA CF; 
+
+@$ These are tentative lattice parameters for the endmembers, unit is meter
+enter param LPX(FCC,MA:VA)  2.98150E+02  0.01; 6000 N REF0
+enter param LPX(FCC,MA:CF)  2.98150E+02  0.011; 6000 N REF0
+
+l data
+
+@&
+
+@$ These are tentative elastic constants for the endmembers, unit is N/m2
+enter param EC11(FCC,MA:VA)  2.98150E+02  2E10; 6000 N REF0
+enter param EC11(FCC,MA:CF)  2.98150E+02  3E10; 6000 N REF0
+enter param EC12(FCC,MA:VA)  2.98150E+02  3E10; 6000 N REF0
+enter param EC12(FCC,MA:CF)  2.98150E+02  1E10; 6000 N REF0
+enter param EC44(FCC,MA:VA)  2.98150E+02  4E10; 6000 N REF0
+enter param EC44(FCC,MA:CF)  2.98150E+02  2E10; 6000 N REF0
+
+l data
+
+@&
+
+@$ These are individual Bohr magneton numbers, dimensionless
+@$ This is the individual Bohr magneton number for MA in pure MA
+enter param IBM&MA(FCC,MA:VA)  2.98150E+02  0.7; 6000 N REF0
+@$ This is the individual Bohr magneton number for MA when all interstitial
+@$ sites are filled with CF
+enter param IBM&MA(FCC,MA:CF)  2.98150E+02  0; 6000 N REF0
+@$ This is an excess parameter describing the composition dependence of
+@$ the individual Bohr magneton number for MA
+enter param IBM&MA(FCC,MA:VA,CF)  2.98150E+02  -0.6; 6000 N REF0
+
+l data
+
+@&
+
+@$ These are mobilities, unit is m2/s ??
+@$ This is the LN(mobility) of CF in pure FCC MA (infinite dilution)
+enter param MQ&CF#2(FCC,MA:VA)  2.98150E+02  100000*T**(-1); 6000 N REF0
+@$ This is the LN(mobility) of CF in FCC when all substitutional sites
+@$ are filled with MA and all interstitial sites are filled with CF
+enter param MQ&CF#2(FCC,MA:CF)   2.98150E+02  120000*T**(-1); 6000 N REF0
+
+l data
+
+@&
+
+set c t=1000 p=1e5 n=1 x(cf)=.3
+
+c n
+
+l , 2
+
+@&
+
+l st
+x(fcc,cf)
+y(fcc,cf)
+lpx(fcc)
+ec11(fcc)
+IBM&MA(fcc)
+MQ&CF#2(fcc)
+
+
+
+ set interactive
+ 

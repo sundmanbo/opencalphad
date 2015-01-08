@@ -7,14 +7,14 @@
 
 !\begin{verbatim}
  subroutine get_state_var_value(statevar,value,encoded,ceq)
-! called with a state varaiable character
+! called with a state variable character
    implicit none
    TYPE(gtp_equilibrium_data), pointer :: ceq
    character statevar*(*),encoded*(*)
    double precision value
 !\end{verbatim}
-   integer indices(4)
-   integer iunit,istv,iref,ip,jl,lrot,mode
+!   integer indices(4)
+   integer iunit,ip,lrot,mode
    type(gtp_state_variable), pointer :: svr
    character actual_arg(2)*16,name*16
 !
@@ -66,9 +66,9 @@
 
 !\begin{verbatim}
  subroutine get_many_svar(statevar,values,mjj,kjj,encoded,ceq)
-! called with a state varaiable name with woldcards allowed like X(*,CR)
+! called with a state variable name with woldcards allowed like NP(*), X(*,CR)
 ! mjj is dimension of values, kjj is number of values returned
-! encoded not used yet
+! encoded used to specify if phase data in phasetuple order ('Z')
 ! >>>> BIG problem: How to do with phases that are note stable?
 ! If I ask for w(*,Cr) I only want the fraction in stable phases
 ! but whenthis is used for GNUPLOT the values are written in a matix
@@ -85,6 +85,7 @@
    double precision xnan,xxx
    integer jj,lokph,lokcs,k1,k2,k3,iref,jl,iunit,istv
    type(gtp_state_variable), pointer :: svr
+!   logical phtupord
 ! calculate the NaN bit pattern
    xnan=0.0d0
 !   xnan=0.0d0/xnan
@@ -94,6 +95,11 @@
 !------------------------
    iunit=0
    modind=0
+!   phtupord=.FALSE.
+!   if(encoded(1:1).eq.'Z') then
+! when called from TQ interface the phase order should be as for phase tuples
+!      phtupord=.TRUE.
+!   endif
 ! called from minimizer for testing
 !   write(*,*)'gmv 1: ',statevar(1:20)
 !   call decode_state_variable(statevar,istv,indices,iref,iunit,svr,ceq)
@@ -452,8 +458,8 @@
    integer is,jp,kp,iph,ics,icon,icomp,norm,narg,icc
    double precision cmass,asum
 !
-   character argument*60,arg1*24,arg2*24,ch1*1,lstate*60,ixsym(4)*30,propsym*60
-   integer typty,i
+   character argument*60,arg1*24,arg2*24,ch1*1,lstate*60,propsym*60
+   integer typty
    logical deblist
 ! initiate svr internal variables
    deblist=.FALSE.
@@ -939,7 +945,7 @@
    double precision, dimension(*) :: xmol,wmass
    double precision amount,totmol,totmass
 !\end{verbatim}
-   integer ic,jc,lokph,lokcs,ll,isq,iel,lokel,ie,kk,loksp,iq
+   integer ic,jc,lokph,lokcs,ll,iel,lokel,ie,kk,loksp
    double precision as,yz,xsum,wsum
    double precision, dimension(maxel) :: x2mol,w2mass
 !
@@ -951,6 +957,9 @@
    if(gx%bmperr.ne.0) goto 1000
    ic=0
 !
+! bug here when calculating Cr-Fe because we create new composition set ...
+   if(ocv()) write(*,14)'25c cpm: ',iph,ics,lokph,lokcs
+14 format(a,10i5)
    allsubl: do ll=1,phlista(lokph)%noofsubl
       as=ceq%phase_varres(lokcs)%sites(ll)
       allcons: do kk=1,phlista(lokph)%nooffr(ll)
@@ -1107,7 +1116,7 @@
    double precision totmol,totmass
    TYPE(gtp_equilibrium_data) :: ceq
 !\end{verbatim}
-   double precision mass,am,xsum,wsum,amult,tmol,tmass
+   double precision am,amult,tmol,tmass
    double precision, dimension(maxel) :: xph,wph
    integer ic,iph,lokph,ics,lokcs
    do ic=1,noofel
@@ -1788,7 +1797,7 @@
 ! calculate the value of a state variable in equilibrium record ceq
 ! istv is state variable type (integer)
 ! indices are possible specifiers
-! iref indicates use of possible reference state
+! iref indicates use of possible reference state, 0 current, -1 SER
 ! iunit is unit, (K, oC, J, cal etc). For % it is 100
 ! value is the calculated values. for state variables with wildcards use
 ! get_many_svar
@@ -1801,7 +1810,7 @@
    double precision props(5),xmol(maxel),wmass(maxel),stoi(10),cmpstoi(10)
    double precision vt,vp,amult,vg,vs,vv,div,aref,vn,bmult,tmass,tmol
    double precision qsp,gref,spmass,rmult
-   integer kstv,norm,lokph,lokcs,icx,jp,ncmp,ic,iprop,loksp,nspel,iq
+   integer kstv,norm,lokph,lokcs,icx,jp,ncmp,ic,iprop,loksp,nspel
    integer endmember(maxsubl),ielno(maxspel)
    value=zero
    ceq%rtn=globaldata%rgas*ceq%tpval(1)
@@ -1928,10 +1937,13 @@
 !      aref=zero
       if(iref.eq.0) then
 ! >>>> unfinished
-!         write(*,*)'Reference state not implemented'
          call calculate_reference_state(kstv,indices(1),indices(2),aref,ceq)
          if(gx%bmperr.ne.0) goto 1000
+!         write(*,53)'25 C Reference state:',iref,aref,rmult
+      elseif(iref.lt.0) then
+         aref=zero
       else
+         write(*,*)'25C Reference state undefined',iref
          aref=zero
       endif
 ! if phase specific the scaling for phase specific must be compensated
@@ -1951,7 +1963,7 @@
          value=amult*(vv-aref)/div
       elseif(kstv.eq.4) then
 ! 4: H = G + TS = G - T*G.T
-!         write(*,177)'25C H:',vg+vt*vs,aref,amult,div,rmult
+         if(ocv()) write(*,177)'25C H:',vg+vt*vs,aref,amult,div,rmult
 177      format(a,6(1pe12.4))
          value=amult*(vg+vt*vs-aref)/div
       elseif(kstv.eq.5) then
@@ -2285,8 +2297,6 @@
 !   integer, dimension(4) :: indices,indices2
    double precision value
 !-\end{verbatim}
-   double precision, dimension(5) :: props
-   double precision, dimension(maxel) :: xmol,wmass
 !
    value=zero
    write(*,17)svr1%statevarid,svr1%argtyp,svr2%statevarid,svr2%argtyp
@@ -2312,7 +2322,7 @@
 !\end{verbatim}
 ! kstv=1  2  3  4  5  6 other values cared for elsewhere
 !      U  S  V  H  A  G
-   integer iel,phref,ij
+   integer iel,phref
    double precision gref(6),bref(6),xmol(maxel),wmass(maxel),xxx(6)
    double precision tmol,tmass,bmult
 !
@@ -2322,6 +2332,10 @@
 !      write(*,*)'No reference state for kstv: ',kstv
       goto 1000
    endif
+   aref=zero
+   bref=zero
+   gref=zero
+   xxx=zero
 ! loop for all components to extract the value of their reference states
 ! Multiply that with the overall composition (iph=0) or the phase composition
    xmol=zero
@@ -2330,8 +2344,7 @@
       phref=ceq%complist(iel)%phlink
       if(phref.gt.0) then
 ! special endmember call that returns G, G.T, G.P, G.T.T, G.T.P and G.P.P
-!         write(*,73)'25C R state: ',iel,phref,&
-!              ceq%complist(iel)%endmember
+!         write(*,73)'25C R state: ',iel,phref,ceq%complist(iel)%endmember
 73       format(a,2i3,2x,10i4)
          call calcg_endmember6(phref,ceq%complist(iel)%endmember,gref,ceq)
          if(gx%bmperr.ne.0) goto 1000
@@ -2342,11 +2355,13 @@
 ! multiply with overall mole fractions
             call calc_molmass(xmol,wmass,tmol,tmass,ceq)
          endif
+! note xxx, bref and gref are arrays
          xxx=bref+xmol(iel)*gref
 !         write(*,70)'25Crs: ',bref,gref,xxx,(xmol(ij),ij=1,noofel)
 70       format(a,6(1pe12.4)/,2(7x,6e12.4/),8(0pF8.4))
          bref=xxx
       else
+! this is not really needed, it is bref that is used below
          gref=zero
       endif
    enddo
@@ -2374,11 +2389,47 @@
 ! G
       aref=bref(1)
    endif
-!   write(*,75)aref
-75 format('25Cref:',6(1pe12.4))
+!   write(*,75)kstv,aref
+75 format('25C ref:',i3,6(1pe12.4))
 1000 continue
    return
  end subroutine calculate_reference_state
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+ subroutine sortinphtup(n,m,xx)
+! subroutine to sort the values in xx which are in phase and compset order
+! in phase tuple order.  This is needed by the TQ interface
+! The number of values belonging to the phase is m (for example composition)
+   integer n,m
+   double precision xx(n*m)
+!
+   integer iz,jz,kz,lz,lokph,aha
+   double precision, dimension(:), allocatable :: dum
+! I assume the values are NP(*), maybe there are other cases ...
+   allocate(dum(n*m))
+   kz=0
+   do iz=1,noofph
+      lokph=phases(iz)
+      do jz=1,noofcs(lokph)
+! in xx the values are sequentially for all composition sets for this phase
+! But they should be stored in tuple order and compset 2 etc comes at the end
+! the index to the tuple is in %phtups
+! phlista(lokph)%linktocs(jz) is index of phase_varres record for compset
+! firsteq%phase_varres(..)%phtupx is index of phase tuple for compset
+! There can be m values (for example compositions) for each phase
+         aha=(firsteq%phase_varres(phlista(lokph)%linktocs(jz))%phtupx-1)*m
+         do lz=1,m
+            dum(aha+lz)=xx(kz+lz)
+         enddo
+         kz=kz+m
+      enddo
+   enddo
+   xx=dum
+   deallocate(dum)
+1000 continue
+   return
+ end subroutine sortinphtup
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

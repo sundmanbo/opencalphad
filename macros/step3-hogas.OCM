@@ -1,57 +1,44 @@
-@$ Calculation speciation in a gas with H and O and its enthalpy and Cp
+@$
+@$ Calculating speciation in a gas phase and plot y, H and Cp
 @&
 
 set echo
 
 r t hogas
 
-set c t=4000 p=1e5 n(h)=2 n(o)=1
+l d,,,,,
+
+
+set c t=3000 p=1e5 n(h)=2 n(o)=1
 
 c e
 
-l,,,,,,
+l,,,,,
 
-
-@&
-
-enter sym cp=h.t;
-
-
-l sym
-
-
-c sym
-
-
-@&
-
-
-set ax 1 T
-1000
-6000
-25
-
+set ax 1 t 1000 6000 25
 
 step
 
 
-
 @&
 
 plot
 T
-y(gas,*),,,,,,,,
-
-
-
-plot
-T
-H,,,,,,,,,,,,,,,,,,
+y(gas,*),,,,,,,,,,,,,,,
 
 
 plot
 T
-cp,,,,,,,,,,,,,,,,
+H,,,,,,,,,,,,,,,,,,,,,,,
+
+
+ent symb cp=h.t;
+
+plot
+T
+cp,,,,,,,,,,,,,,,,,,,
+
+
 
 
 

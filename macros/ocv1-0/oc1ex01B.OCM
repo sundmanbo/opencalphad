@@ -1,0 +1,103 @@
+@$ test calculation with ordering permutations and disordered parts
+@$ Only option F (for FCC and HCP) implemented
+
+set echo
+
+@$ this example excluded as the contribution from the disordered part
+@$ is treated differently from Thermo-Calc.  See the documentation
+
+set inter
+
+@&
+@$ ----------------------------------------------------------------
+@$ Add disordered fraction set to bcc_b2
+@$ disordered part and parameters must be entered interactivly
+amend phase bcc_b2 dis 2 Y
+
+list ph bcc_b2 mod
+
+@$ these are the parameters of the disordered BCC
+@$ NOTE BMAGN must be entered without T limits!!!!
+@$ Not TC as it can depend on P (not very logical but ...)
+ent para GD(BCC_B2,AL:VA;0) 298.15 +GBCCAL; 6000 N REF3 
+ent para GD(BCC_B2,CR:VA;0) 298.15 +GHSERCR+GPCRBCC; 6000 N REF3 
+ent para TCD(BCC_B2,CR:VA;0) 298.15 -311.5; 6000 N REF2 
+ent para BMAGD(BCC_B2,CR:VA;0)  -.008; REF2 
+ent para GD(BCC_B2,NI:VA;0) 298.15 +GBCCNI; 6000 N REF3 
+ent para TCD(BCC_B2,NI:VA;0) 298.15 575; 6000 N REF2 
+ent para BMAGD(BCC_B2,NI:VA;0)  .85;  REF2 
+ent para GD(BCC_B2,AL,VA:VA;0) 298.15 +B2ALVA+LB2ALVA; 6000 N REF8 
+ent para GD(BCC_B2,AL,CR:VA;0) 298.15 -54900+10*T; 6000  N REF5 
+ent para GD(BCC_B2,AL,CR,NI:VA;0) 298.15 42500; 6000 N REF9 
+ent para GD(BCC_B2,AL,NI:VA;0) 298.15 +B2ALNI+LB2ALNI; 6000 N REF8 
+ent para GD(BCC_B2,CR,VA:VA;0) 298.15 100000; 6000 N REF9 
+ent para GD(BCC_B2,CR,NI:VA;0) 298.15 +17170-11.8199*T; 6000 N REF4 
+ent para GD(BCC_B2,CR,NI:VA;1) 298.15 +34418-11.8577*T; 6000 N REF4 
+ent para TCD(BCC_B2,CR,NI:VA;0) 298.15 2373; 6000 N REF1 
+ent para TCD(BCC_B2,CR,NI:VA;1) 298.15 617; 6000 N REF1 
+ent para BMAGD(BCC_B2,CR,NI:VA;0) 4; REF1 
+ent para GD(BCC_B2,NI,VA:VA;0) 298.15 +B2NIVA+LB2NIVA; 6000 N REF8 
+
+@&
+
+list ph bcc_b2 data
+
+@&
+@$ ----------------------------------------------------------------
+@$ Add disordered fraction set to fcc_l12
+amend phase fcc_l12 dis 2 Y
+
+@$ disordered parameters in FCC
+ent para GD(FCC_L12,AL:VA;0) 298.15 +GHSERAL; 6000 N REF3 
+ent para GD(FCC_L12,CR:VA;0) 298.15 +GFCCCR+GPCRBCC; 6000 N REF2 
+ent para TCD(FCC_L12,CR:VA;0) 298.15 -1109; 6000 N REF2 
+ent para BMAGD(FCC_L12,CR:VA;0) -2.46; REF2 
+ent para GD(FCC_L12,NI:VA;0) 298.15 +GHSERNI; 6000 N REF3 
+ent para TCD(FCC_L12,NI:VA;0) 298.15 633; 6000 N REF2 
+ent para BMAGD(FCC_L12,NI:VA;0) .52; REF2 
+ent para GD(FCC_L12,AL,CR:VA;0) 298.15 -45900+6*T; 6000 N REF5 
+ent para GD(FCC_L12,AL,CR,NI:VA;0) 298.15 30300; 6000 N REF9 
+ent para TCD(FCC_L12,AL,NI:VA;0) 298.15 -1112; 6000 N REF7 
+ent para TCD(FCC_L12,AL,NI:VA;1) 298.15 1745; 6000 N REF7 
+ent para GD(FCC_L12,AL,NI:VA;0) 298.15 -162407.75+16.212965*T; 6000 N REF7 
+ent para GD(FCC_L12,AL,NI:VA;1) 298.15 +73417.798-34.914168*T; 6000 N REF7 
+ent para GD(FCC_L12,AL,NI:VA;2) 298.15 +33471.014-9.8373558*T; 6000 N REF7 
+ent para GD(FCC_L12,AL,NI:VA;3) 298.15 -30758.01+10.25267*T; 6000 N REF7 
+ent para GD(FCC_L12,CR,NI:VA;0) 298.15 +8030-12.8801*T; 6000 N REF4 
+ent para GD(FCC_L12,CR,NI:VA;1) 298.15 +33080-16.0362*T; 6000 N REF4 
+ent para TCD(FCC_L12,CR,NI:VA;0) 298.15 -3605; 6000 N REF1 
+ent para BMAGD(FCC_L12,CR,NI:VA;0) -1.91; REF1 
+
+@&
+
+l ph fcc_l12 data
+
+@&
+@$ ----------------------------------------------------------------
+@$ Conditions for A1/B2/L1_2
+set c t=1500 p=1e5 n=1 x(cr)=.1 x(al)=.2
+
+c e
+
+l , 2
+
+@&
+@$ ----------------------------------------------------------------
+@$ Calculate L1_2
+set c t=1200
+
+c e
+
+l,,,,,
+
+@&
+@$ ----------------------------------------------------------------
+@$ Calculate A1/L1_2
+set c x(al)=.15
+
+c e
+
+l,,,,,
+
+set inter
+

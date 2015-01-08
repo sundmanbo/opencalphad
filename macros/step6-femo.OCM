@@ -1,4 +1,4 @@
-@$ Gibbs energy curves for Fe-Mo at 1400 K
+@$ Calculate G curves for Fe-Mo at 1400K
 @&
 
 set echo
@@ -33,16 +33,14 @@ plot ,,,,,,,,,,,
 
 
 
-@$ set range on y axis
 plot
 x(mo)
 gm(*)
-ocgnu
 yr
 N
 -5000
 1000
-
+,,,,,,,,,,,,,,,,,,,,
 
 
 set inter

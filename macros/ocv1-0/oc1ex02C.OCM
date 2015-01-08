@@ -1,0 +1,47 @@
+@$ Calculate some equilibria in a gas
+@&
+
+set echo
+
+r t hogas
+
+set c t=3000 p=1e5 
+set inp n(h2O)=1
+
+c e
+
+l,,,,
+
+@$ Note there is not only H2O molcules at this temperature
+@$--------------------------------------------------
+@&
+
+set c t=1000
+
+c n
+
+l,,,,,
+
+@$ Sometimes calculations fail, then just try to continue using "c n"
+@$ Do not use "c e" as that will start with the grid minimizer and give
+@$ a bad start guess.  With "c n" we use the current constitution as start.
+@&
+
+c n
+
+l,,,,,,
+
+l sh
+
+@$--------------------------------------------------------
+@&
+@$ Changing composition
+
+set c n(o)=3
+
+c e
+
+l,,,,,
+
+set inter
+

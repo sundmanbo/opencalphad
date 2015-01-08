@@ -3,7 +3,7 @@
 !
 MODULE liboceq
 !
-! Copyright 2012-2014, Bo Sundman, France
+! Copyright 2012-2015, Bo Sundman, France
 !
 !    This program is free software; you can redistribute it and/or modify
 !    it under the terms of the GNU General Public License as published by
@@ -33,6 +33,8 @@ MODULE liboceq
 ! - assessment module
 ! 
   use general_thermodynamic_package
+!
+  use omp_lib
 !
   implicit none
   character*8, parameter :: hmsversion='HMS-2.00'
@@ -110,7 +112,7 @@ MODULE liboceq
      integer iphl(maxel+2),icsl(maxel+2)
      double precision aphl(maxel+2)
 ! this is because I tried to scale the total amount of phases during iterations
-     double precision antot
+!     double precision antot
 ! stphl: current list of stable phases, value is index in phr array
      integer, dimension(maxel+2) :: stphl
 ! current values of chemical potentials stored in gtp_equilibrium_data
@@ -211,14 +213,14 @@ CONTAINS
     double precision, dimension(2) :: tpval
     double precision, dimension(maxel) :: xknown,vmu
     double precision xxx,antot,cvalue
-    logical alltid,gridtest,formap
+    logical gridtest,formap
 ! for global minimization (change maybe to allocate dynamically)
     integer, dimension(maxph) :: nyphl
     double precision, dimension(maxconst) :: yarr
-    integer np,iph,ics,jph,lokph,lokcs,mode2,ierr
-    integer mostcon,mph,nph,nvf
+    integer np,iph,ics,jph,lokph,lokcs,mode2
+    integer mostcon,mph,nvf
     integer, parameter :: mmu=5
-    integer what,mjj,ij,kjj,cmix(10),cmode,mufixel(mmu),mufixref(mmu)
+    integer what,mjj,ij,cmix(10),cmode,mufixel(mmu),mufixref(mmu)
     integer fixph(2,maxel),oldorder(mmu),kst
     double precision fixpham(maxel)
     character statevar*40,encoded*60,name*24
@@ -248,15 +250,15 @@ CONTAINS
 ! 4151 not only massbalance conditions
 !       if(gx%bmperr.eq.4151) goto 1000
           if(gx%bmperr.eq.4143 .or. gx%bmperr.eq.4144) then
-             write(*,*)'Error ',gx%bmperr
+             write(*,*)'Degrees of freedom not zero',gx%bmperr
              goto 1000
           endif
-          write(*,*)'Warning, gridminimizer cannot be used ',gx%bmperr
+          write(*,*)' *** Warning, conditions prevent using gridminimizer'
           gx%bmperr=0
           gridtest=.true.
           meqrec%typesofcond=2
        else
-          meqrec%antot=antot
+!          meqrec%antot=antot
 ! no need for final grid minimizer as we will do one as start
           gridtest=.false.
           meqrec%typesofcond=1
@@ -422,7 +424,7 @@ CONTAINS
 ! skip global gridminimizer if bit set
     if(ocv()) write(*,*)'checked conditions'
     if(mode2.eq.0 .or. btest(globaldata%status,GSNOGLOB)) goto 110
-! skip global gridminimizer if one component but make sure one phase
+! skip global gridminimizer if only one component but make sure one phase
 ! has positive amount
     if(meqrec%nrel.eq.1) then
        goto 110
@@ -450,10 +452,6 @@ CONTAINS
 ! no initial gridmin, make a gridtest at the end
           gridtest=.true.
           gx%bmperr=0; goto 110
-!       else
-!          write(*,*)'Done grid minimization, ',meqrec%nv,' stable phase(s):'
-!          write(*,107)(meqrec%iphl(mjj),meqrec%icsl(mjj),mjj=1,meqrec%nv)
-107       format(15(i3,i2))
        endif
        goto 200
     endif
@@ -472,14 +470,11 @@ CONTAINS
     do iph=1,noph()
        do ics=1,noofcs(iph)
           kst=test_phase_status(iph,ics,xxx,ceq)
-!          write(*,*)'phase loop: ',iph,ics,kst,meqrec%nv
           if(gx%bmperr.ne.0) goto 1000
 ! new: -4 hidden, -3 suspended, -2 dormant, -1,0,1 entered, 2 fix
 !          if(kst.le.PHDORM) goto 115
           if(kst.le.PHDORM) cycle
           call get_phase_compset(iph,ics,lokph,lokcs)
-!          write(*,113)'Amount of phase: ',iph,ics,ceq%phase_varres(lokcs)%amfu
-113       format(a,2i2,1pe12.4)
           if(ceq%phase_varres(lokcs)%amfu.gt.zero) then
              meqrec%nv=meqrec%nv+1
              meqrec%iphl(meqrec%nv)=iph
@@ -493,7 +488,6 @@ CONTAINS
           mostcon=nvf
           jph=iph
        endif
-115    continue
     enddo
 !    write(*,*)'Phase selected ',meqrec%nv,jph
     if(meqrec%nv.eq.0) then
@@ -557,13 +551,8 @@ CONTAINS
        meqrec%aphl(meqrec%nv)=meqrec%fixpham(mjj)
     enddo addfixph
 !------------------------------- special for mapping
-! maybe not needed, just make sure the phase list in ceq has the correct
-! phases as sntered with positive amounts and the meqrec%nfixph fixed 
-! phases are in the array meqrec%fixph
-! I do not know why do they not simple have the PHFIXED status?
     if(associated(mapfix)) then
-! here we add fix/stable phase set during mapping to replace axis conditions
-! remove phases already set stable ...
+! the stable and fix phases copied from mapfix record.
        do ij=1,meqrec%nv
 !          write(*,64)'Removing already stable phase: ',ij,meqrec%iphl(ij),&
 !               meqrec%icsl(ij)
@@ -583,7 +572,6 @@ CONTAINS
           meqrec%iphl(meqrec%nv)=mapfix%fixph(ij)%phase
           meqrec%icsl(meqrec%nv)=mapfix%fixph(ij)%compset
        enddo
-!--------------------------------------------
 !       write(*,64)'MM: Number of stable phase from mapfix: ',mapfix%nstabph
        do ij=1,mapfix%nstabph
           meqrec%nv=meqrec%nv+1
@@ -598,9 +586,10 @@ CONTAINS
 !    call calc_phase_mol(1,yarr,ceq)
 !    write(*,83)'at 200: ',cmix(1),(yarr(mjj),mjj=1,noel())
 ! zero start of link to phases set temporarily dormant ....
-! >>>> why does this not work!!!, has to be set to zero inside meq_phaseset
     meqrec%dormlink=0
+!
 !-------------------------------
+! Now we calculate the equilibrium
 200 continue
 !
 ! this routine varies the set of phases and the phase constitutions
@@ -610,6 +599,8 @@ CONTAINS
     if(gx%bmperr.ne.0) goto 1000
     gridtest=.false.
 !------------------------------------------------------
+!
+! When we come here the equilibrium is calculated or calculation failed
 !   gridtest value should have been set to .true. if no gridmin done initially
     gridcheck: if(gridtest .and. btest(ceq%status,EQGRIDTEST)) then
 ! if conditions are not massbalance apply gridtest as we now know the
@@ -634,8 +625,6 @@ CONTAINS
              goto 1000
           endif
        enddo
-!       write(*,667)'mu: ',mjj,(vmu(ij),ij=1,mjj)
-667    format(a,i2,7(1pe11.3))
        tpval(1)=ceq%tpval(1)
        tpval(2)=ceq%tpval(2)
 ! with what=-1 this is a test, what is changed if new phase should be stable.
@@ -666,22 +655,18 @@ CONTAINS
   subroutine meq_phaseset(meqrec,formap,ceq)
 ! this subroutine can change the set of stable phase and their amounts
 ! and constitutions until equilibrium is found for the current conditions.
-! nv is the number of stable phases initially, iphl, icsl and aphl are the
-! phase number, compset number and amount.
     implicit none
     TYPE(meq_setup) :: meqrec
     TYPE(gtp_equilibrium_data), pointer :: ceq
     logical formap
 !\end{verbatim}
-! this is the initial set of stable phases
-    character ch1*1
 ! should one use meqrec as pointer here???
     integer ok,iadd,iph,ics,irem,jj,jph,kk,lastchange,lokph,lokcs,minadd
-    integer kph,minrem,mph,nip,ierr,nochange,zap,toomanystable,jrem,krem
+    integer kph,minrem,mph,nip,nochange,zap,toomanystable,jrem,krem
     double precision, parameter :: ylow=1.0D-3
     double precision, parameter :: addedphase_amount=1.0D-2
     double precision xxx
-    integer iremsave,zz
+    integer iremsave,zz,tupadd,tuprem
 ! replace always FALSE except when we must replace a phase as we have max stable
     logical replace
 ! number of iterations without adding or removing a phase
@@ -697,7 +682,8 @@ CONTAINS
 ! nphase is set to total number of phases (phase+compset) to be calculated
 ! >>> parallellization ALERT, nphase may change when composition sets created
 !    call sumofphcs(meqrec%nphase,ceq)
-    meqrec%nphase=totalphcs(ceq)
+!    meqrec%nphase=totalphcs(ceq)
+    meqrec%nphase=nonsusphcs(ceq)
     if(gx%bmperr.ne.0) goto 1000
     allocate(meqrec%phr(meqrec%nphase))
 ! order the inital set of stable phases in ascending order
@@ -740,7 +726,7 @@ CONTAINS
 !-----------------------------
     mph=0
     nip=1
-    krem=0
+!    krem=0
     meqrec%nstph=0
     do iph=1,noph()
        do ics=1,noofcs(iph)
@@ -764,15 +750,13 @@ CONTAINS
              if(formap) then
 ! when mapping fix phases are used to replace axis conditions.  The
 ! fix phases are in the meqrec%fixph array
-! They do not return PHFIXED for test_phase_status
+! They do not return PHFIXED for test_phase_status !!!
                 do zz=1,meqrec%nfixph
                    if(iph.eq.meqrec%fixph(1,zz) .and. &
                         ics.eq.meqrec%fixph(2,zz)) then
                       meqrec%phr(mph)%phasestatus=PHFIXED
                    endif
                 enddo
-!                write(*,19)'formap: ',zz,mph,iph,ics
-19              format(a,10i4)
              endif
              meqrec%phr(mph)%ionliq=-1
              meqrec%phr(mph)%i2sly=0
@@ -789,7 +773,7 @@ CONTAINS
 ! Rather confused here ...
 ! fixed phases as conditions have an amount in meqrec%fixpham
 ! fixed phases during mapping should have zero amount
-                   krem=krem+1
+!                   krem=krem+1
 !                   write(*,*)'aphl for fix phase: ',krem,mph,&
 !                        meqrec%fixpham(krem)
                    if(meqrec%phr(mph)%curd%phstate.ne.PHFIXED) then
@@ -813,29 +797,28 @@ CONTAINS
                 meqrec%phr(mph)%prevam=zero
                 meqrec%phr(mph)%prevdg=-one
                 meqrec%phr(mph)%curd%amfu=zero
-!                phr(mph)%curd%amount(1)=zero
              endif
 ! mark that no data arrays allocated for this phase
              meqrec%phr(mph)%idim=0
 ! initiate link to another phase temporarily set dormant zero
              meqrec%phr(mph)%dormlink=0
           else
-! we are here for phases that are suspended
+! we are here for phases that are suspended, test_phase_status return -3
 ! make sure stable bit is cleared in phases not included in calculation
 ! maybe the whole status word should be zeroed?
              call get_phase_compset(iph,ics,lokph,lokcs)
              ceq%phase_varres(lokcs)%status2=&
                   ibclr(ceq%phase_varres(lokcs)%status2,CSSTABLE)
 ! check if suspended phase bits CSSUS set
-             if(btest(ceq%phase_varres(lokcs)%status2,CSSUS)) then
+!z             if(btest(ceq%phase_varres(lokcs)%status2,CSSUS)) then
 !                write(*,*)'MM Suspended bit set',lokph,lokcs
 !             else
 ! This should not be necessary but it fixes the problem using c n with
 ! suspended phases.  The CSSUS bit should no longer be used???
 !                write(*,*)'MM warning, suspended bit NOT set',lokph,lokcs
-                ceq%phase_varres(lokcs)%status2=&
-                     ibset(ceq%phase_varres(lokcs)%status2,CSSUS)
-             endif
+!z                ceq%phase_varres(lokcs)%status2=&
+!z                     ibset(ceq%phase_varres(lokcs)%status2,CSSUS)
+!z             endif
           endif
        enddo
     enddo
@@ -848,13 +831,15 @@ CONTAINS
     iremsave=0
 ! code above executed only intially
 !----------------------------------------------------------------
-! return here after change of set of stable phase
+!
+! meq_sameset calculate the equilibrium for a given set of stable phases
+! if phase set change one return to this routine to take some action and
+! then call meq_sameset again
 ! irem nonzero if phase irem should be removed
 ! iadd nonzero if phase iadd should be added
-! meqrec%noofits is iteration counter
-! nphase is dimension of meqrec%phr (redundant)
-! nstph is number of stable phases
-! meqrec%stphl is indices in meqrec% of stable phases
+! meqrec has the general information needed
+! meqrec%phr is the array with phases
+! ceq is the connection to the model package data
 200 continue
 !    iadd=-1 ! iadd =-1 turns on verbose in meq_sameset
     iadd=0
@@ -875,8 +860,23 @@ CONTAINS
 221       format(a,10i4)
           goto 200
        endif
-       write(*,221)'Phase change: its/add/remove: ',&
-            meqrec%noofits,iadd,irem
+       if(iadd.gt.0) then
+! check if phase to be added is already stable as another composition set
+! This check should maybe be above as maybe another phase want to be stable??
+! The last argument is not used
+          if(same_composition(iadd,meqrec%phr,meqrec,ceq,zero)) then
+             write(*,*)'Ignoring the same phase twice: ',iadd
+             goto 200
+          endif
+       endif
+       tupadd=0
+       tuprem=0
+       xxx=0.0D0
+       if(iadd.gt.0) tupadd=meqrec%phr(iadd)%curd%phtupx
+       if(irem.gt.0) tuprem=meqrec%phr(irem)%curd%phtupx
+       write(*,219)'Phase change: its/add/remove: ',&
+            meqrec%noofits,tupadd,tuprem
+219    format(a,3i5,1pe12.4)
        if(formap) then
 ! when called during mapping the set of phases must not change!
           if(ocv()) write(*,*)'Phase change not allowed',ceq%tpval(1)
@@ -942,8 +942,6 @@ CONTAINS
        if(ocv()) write(*,223)'Phase to be added:   ',meqrec%phr(iadd)%iph,&
             meqrec%phr(iadd)%ics,meqrec%phr(iadd)%curd%dgm,meqrec%noofits
 223    format(a,2x,2i4,1pe15.4,i7)
-!       write(*,228)meqrec%noofits,meqrec%phr(iadd)%itrem,minadd,iremsave
-228    format('Check if add allowed: ',5i3)
        if(meqrec%noofits-meqrec%phr(iadd)%itrem.lt.minadd) then
 ! if phase was just removed do not add it before minadd iterations
           write(*,224)'Too soon to add phase: ',minadd,&
@@ -973,7 +971,7 @@ CONTAINS
                 endif
                 krem=jrem
                 irem=jrem
-!                write(*,240)irem,iadd,meqrec%noofits
+                if(ocv()) write(*,240)irem,iadd,meqrec%noofits
 240             format('Too many phases stable, replacing ',i3,' by ',i3,&
                      ' at iteration ',i4) 
                 replace=.TRUE.
@@ -1121,37 +1119,36 @@ CONTAINS
     TYPE(meq_phase), dimension(*), target :: phr
     TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-    integer increase,ioff,im,jd,ik,jk,jj,jph,ie,ierr,jmaxy
-    integer k1,k2,kk,kkz,level3,mph,negam,ncol,negamph,nj,nk,nl,nrow
+    integer increase,ioff,ik,jj,jph,ie,ierr,jmaxy
+    integer kk,kkz,level3,mph,negam,negamph,nj,nk,nl
     integer nz1,nz2
-    TYPE(gtp_condition), pointer :: condition,lastcond
     TYPE(meq_phase), pointer :: pmi
-    character ch1*1
-    double precision, dimension(maxel) :: ccm,xknown,xxmol,wmass,xfrac,pccm
-    double precision, dimension(maxel) :: sccm
+!    character ch1*1
+!    double precision, dimension(maxel) :: ccm
+!    double precision, dimension(maxel) :: sccm
     double precision, dimension(5) :: qq
-    double precision, dimension(2) :: tpvalz
+!    double precision, dimension(2) :: tpvalz
 !    double precision, dimension(maxel+2) :: ycormax
     double precision, dimension(maxconst) :: ycormax
-    double precision phfrac(maxel),xpfrac(maxel,maxel)
+!    double precision phfrac(maxel)
     double precision, dimension(:,:), allocatable :: smat
     double precision, dimension(:), allocatable :: svar
 ! these arrays should maybe be allocated ....
-    double precision, dimension(maxconst) :: ycorr,yarr,addont,addonp
-    integer converged,jz,cmix(10),cmode
-    double precision molescomp,amsum,antot,chargefact,chargerr,clhs,cvalue
-    double precision dgm,summ,dgmmax,gsurf,pclhs,pfsum,phf,phscale,phs
-    double precision prevmaxycorr,pv,sclhs,signerr,summol,tmass,tmol
-    double precision xall,xmax,xxx,ycormax2,yprev,ys,ysmm,ysmt,yss,yst
+    double precision, dimension(maxconst) :: ycorr,yarr
+    integer converged,jz
+    double precision chargefact,chargerr
+    double precision dgm,summ,dgmmax,gsurf,phf,phs
+    double precision prevmaxycorr,pv,signerr
+    double precision xxx,ycormax2,yprev,ys,ysmm,ysmt,yss,yst
     double precision, parameter :: ylow=1.0D-3,ymin=1.0D-12,ymingas=1.0D-30
-    double precision mamu(maxel),mag,mat,map,totam,pham,zval,xval,maxphch
-    double precision sum,ymagic
-    double precision, dimension(:), allocatable :: xcol,zcol
+    double precision maxphch
+    double precision sum
+!    double precision, dimension(:), allocatable :: xcol
     double precision, dimension(:), allocatable :: cit
-    double precision, dimension(:,:), allocatable :: cpmat
+!    double precision, dimension(:,:), allocatable :: cpmat
     double precision deltat,deltap,deltaam,yfact
-    integer je,ke,iz,iz0,iz1,stvix,stvnorm,tcol,pcol,sel,sph,scs
-    integer notf,kph,kjj,dncol,iy,jy,nmagic,iremsave,phasechangeok
+    integer iz,tcol,pcol
+    integer notf,dncol,iy,jy,iremsave,phasechangeok
     double precision, dimension(:), allocatable :: lastdeltaam
     logical vbug
 !
@@ -1200,16 +1197,11 @@ CONTAINS
 !    if(mod(nmagic,5).eq.0) ymagic=0.5*ymagic
 !    if(mod(nmagic,25).eq.0) ymagic=one
 ! end of magic
-101 format(a)
+!101 format(a)
 !    write(*,*)'Iteration: ',meqrec%noofits,' ----------------------------- '
     if(ocv()) write(*,199)meqrec%noofits,ceq%tpval(1),meqrec%nstph,&
          (meqrec%stphl(jz),jz=1,meqrec%nstph)
 199 format(/'Equil iter: ',i3,f8.2', stable phases: ',i3,2x,10i3)
-!    write(*,102)(phr(meqrec%stphl(jz))%iph,phr(meqrec%stphl(jz))%ics,&
-!         jz=1,meqrec%nstph)
-102 format('Phases: ',10(i3,i2))
-!    write(*,103)(phr(meqrec%stphl(jz))%curd%amfu,jz=1,meqrec%nstph)
-103 format('amounts: ',6(1pe12.4))
     if(meqrec%noofits.gt.ceq%maxiter) goto 1200
     converged=0
     if(vbug) write(*,*)'Iteration: ',meqrec%noofits,converged
@@ -1218,11 +1210,12 @@ CONTAINS
 !
 ! >>>>>>>>>>>> here we can parallelize 
 !
+!$omp parallel do private(pmi) shared(meqrec)
     parallel: do mph=1,meqrec%nphase
        pmi=>phr(mph)
 ! this routine calculates the phase matrix and inverts it.
 ! it also calculates the amounts of moles of components in the phase
-       if(vbug) write(*,*)'Inverting phase matrix: ',mph
+!-$     write(*,*)'Phase and tread: ',mph,omp_get_thread_num()
        call meq_onephase(meqrec,pmi,ceq)
        if(gx%bmperr.ne.0) then
           if(pmi%stable.eq.0) then
@@ -1234,12 +1227,13 @@ CONTAINS
           else
 ! Inversion error for stable phase is fatal, error code already set
 !             write(*,*)'Matrix inversion error for stable phase',pmi%iph
-             goto 1000
+             stop
           endif
        endif
 !107       format(a,6(1pe12.3))
 ! end of pmi% scope
     enddo parallel
+!$omp end parallel do
 !
 !=======================================================================
 ! step 2: calculation of equil matrix
@@ -1260,15 +1254,15 @@ CONTAINS
 !=====================================================================
 ! debug output of equil matrix, last column is right hand side
 380 continue
-!    if(vbug) then
+    if(vbug) then
 !
 ! when problem output the smat here and (and svar below) and study!!!
 !
-!       do iz=1,nz1
-!          write(*,228)'smat1:',(smat(iz,jz),jz=1,nz2)
-!       enddo
-!    endif
-228 format(a,6(1pe12.4),6(8x,1pe12.4))
+       do iz=1,nz1
+          write(*,228)'smat1:',(smat(iz,jz),jz=1,nz2)
+       enddo
+    endif
+228 format(a,6(1pe12.4),(8x,6e12.4))
     call lingld(nz1,nz2,smat,svar,nz1,ierr)
     if(ierr.ne.0) then
        if(vbug) write(*,*)'Error solving equil matrix',meqrec%noofits,ierr
@@ -1292,7 +1286,7 @@ CONTAINS
        gx%bmperr=4203; goto 1000
     endif
 ! when problems output svar here !! (and smat above)
-!    write(*,228)'svar1:',(svar(jz),jz=1,nz1)
+    if(vbug) write(*,228)'svar1:',(svar(jz),jz=1,nz1)
 !
 ! if no error at first calculation after phase set change iremsave=0
     iremsave=0
@@ -1326,7 +1320,6 @@ CONTAINS
     if(meqrec%tpindep(1)) then
        xxx=ceq%tpval(1)
 ! limit changes in T to +/-half its current value
-!       write(*,*)'Tcol column check: ',tcol,ioff
        if(abs(svar(ioff)/ceq%tpval(1)).gt.0.2D0) then
           svar(ioff)=sign(0.2D0*ceq%tpval(1),svar(ioff))
        endif
@@ -1339,8 +1332,8 @@ CONTAINS
 386       format(a,3(1pe12.4))
        endif
        ceq%tpval(1)=ceq%tpval(1)+deltat
-!       write(*,388)'New T: ',tcol,ioff,ceq%tpval(1),xxx,deltat
-388    format(a,2i3,3(1pe12.4))
+! problems here when -finit-local0zero is removed
+!       write(*,*)'T and deltaT:',ceq%tpval(1),deltat
        if(ceq%tpval(1).le.zero) then
           write(*,*)'Attempt to set temperature negative!!!'
           gx%bmperr=9996; goto 1000
@@ -1349,6 +1342,16 @@ CONTAINS
     endif
     if(meqrec%tpindep(2)) then
        xxx=ceq%tpval(2)
+       if(abs(svar(ioff)/ceq%tpval(2)).gt.0.2D0) then
+          svar(ioff)=sign(0.2D0*ceq%tpval(2),svar(ioff))
+       endif
+       deltap=svar(ioff)
+! limit the changes in P
+       if(abs(deltap).gt.meqrec%tpmaxdelta(2)) then
+          deltap=sign(meqrec%tpmaxdelta(2),deltap)
+          if(ocv()) write(*,386)'limit the change in P: ',&
+               ceq%tpval(2),deltap,svar(ioff)
+       endif
        ceq%tpval(2)=ceq%tpval(2)+svar(ioff)
        if(ceq%tpval(2).le.zero) then
           write(*,*)'Pressure set negative!!!'
@@ -1386,8 +1389,6 @@ CONTAINS
        phr(jj)%curd%damount=zero
 !       kkz=test_phase_status(phr(jj)%iph,phr(jj)%ics,xxx,ceq)
        kkz=phr(jj)%phasestatus
-!       write(*,379)'phase status: ',jj,phr(jj)%iph,phr(jj)%ics,kkz,dncol
-379    format(a,i3,5x,2i3,5i5)
 ! new -4=hidden, -3 suspended, -2 dormant, -1,0,1 entered, 2 fixed
        if(kkz.ge.PHENTUNST .and. kkz.le.PHENTSTAB) then
 ! phase is entered so its amount can change, -svar(ioff) is the change
@@ -1433,8 +1434,6 @@ CONTAINS
 ! total amount of components.
              deltaam=-one
           endif
-!          write(*,383)'phase am: ',jj,maxphch,phr(jj)%curd%amfu,-deltaam
-383       format(a,i3,4(1pe12.4))
           phf=phr(jj)%curd%amfu-deltaam
           if(vbug) write(*,363)'Stable phase: ',jj,phr(jj)%iph,&
                phr(jj)%ics,phf,phs,deltaam
@@ -1454,14 +1453,15 @@ CONTAINS
 ! problem with Fe-O-U-Zr convergence, all phases disappear ??
 !       write(*,364)'Stable phase: ',meqrec%noofits,jj,phr(jj)%iph,&
 !       phr(jj)%ics,phf,phs,phr(jj)%prevam
-364    format(a,4i3,6(1pe12.4))
+!364    format(a,4i3,6(1pe12.4))
 ! make sure the driving force of stable phases to zero
        phr(jj)%curd%dgm=zero
        if(phf.lt.zero) then
 ! phase has negative amount, NOT ALLOWED if it is the only stable phase 
           if(meqrec%nstph-meqrec%nfixph.eq.1) then
-             write(*,*)'Trying to remove the only stable phase ',&
+             write(*,367)'Trying to remove the only stable phase ',jj,&
                   phr(jj)%curd%amfu
+367          format(a,i3,1pe14.6)
              phf=0.5D0*phr(jj)%curd%amfu
              gx%bmperr=7867; goto 1000
           else
@@ -1471,7 +1471,7 @@ CONTAINS
              if(phr(jj)%prevam.lt.zero) then
 ! remove this phase if negative amount previous iteration also
                 irem=jj
-! jumping to 1000 here means constitutions not changed
+! jumping to 1000 here means constitutions not changed in this iteration
                 goto 1000
              else
 ! mark this phase had negative amount this iteration
@@ -1537,31 +1537,19 @@ CONTAINS
              summ=summ+phr(jj)%xmol(ie)
           enddo
           gsurf=gsurf/summ
-! calculte G_m plus any deltat and deltap terms
+! calculate G_m plus any deltat and deltap terms
           dgm=phr(jj)%curd%gval(1,1)
-33        format(a,i3,6(1pe12.4))
           if(meqrec%tpindep(1)) then
              dgm=dgm+phr(jj)%curd%gval(2,1)*deltat
-!             write(*,13)'Delta_T: ',jj,&
-!                  dgm,phr(jj)%curd%gval(2,1),deltat
-13           format(a,i3,6(1pe12.4))
           endif
           if(meqrec%tpindep(2)) then
              dgm=dgm+phr(jj)%curd%gval(3,1)*deltap
-             write(*,13)'Delta_P: ',jj,&
-                  dgm,phr(jj)%curd%gval(3,1),deltap
           endif
 ! scale dgm per mole atoms
           dgm=gsurf-dgm/phr(jj)%curd%abnorm(1)
-!          write(*,33)'surf: ',jj,gsurf,summ,phr(jj)%curd%abnorm(1),dgm
           if(dgm.gt.dgmmax) then
              if(phr(jj)%phasestatus.ge.PHENTUNST .and. &
                 phr(jj)%phasestatus.le.PHENTERED) then
-!             if(phr(jj)%phasestatus.eq.PHENTERED) then
-!             if(phr(jj)%phasestatus.ge.PHENTERED) then
-!                write(*,34)'newph: ',meqrec%noofits,iadd,jj,phr(jj)%iph,&
-!                     gsurf,phr(jj)%curd%abnorm(1),dgm
-34              format(a,4i3,6(1pe12.4))
 ! phase is entered, can have status changed
 ! if this is another constitution set of an already stable phase then check
 ! below if the constitution of this phase is very similar to the stable one
@@ -1610,10 +1598,6 @@ CONTAINS
              enddo
              pv=pv-phr(jj)%curd%dgval(1,nk,1)
              ys=ys+phr(jj)%invmat(nj,nk)*pv
-!             write(*,37)jj,nj,nk,pv,ys,&
-!                  phr(jj)%curd%dgval(1,nk,1),&
-!                  phr(jj)%invmat(nj,nk)
-37           format('dy: ',3i2,2(1pe12.4),2x,2(1pe12.4))
           enddo
           if(phr(jj)%chargebal.eq.1) then
 ! For charged phases add a term 
@@ -1629,14 +1613,8 @@ CONTAINS
                 signerr=phr(jj)%charge
              endif
 !             write(*,*)'Charge: ',jj,phr(jj)%charge
-!             write(*,262)nj,phr(jj)%idim,ys,ysss,&
-!                    phr(jj)%invmat(nj,phr(jj)%idim),&
-!                    phr(jj)%charge
           endif
           ycorr(nj)=ys+cit(nj)
-!          write(*,51)'at 1A: ',jj,nj,phr(jj)%iph,phr(jj)%ics,&
-!               phr(jj)%stable,ys,cit(nj),phr(jj)%curd%yfr(nj)
-51        format(a,5i4,6(1pe12.4))
           if(abs(ycorr(nj)).gt.ycormax2) then
              ycormax2=ycorr(nj)
           endif
@@ -1693,7 +1671,7 @@ CONTAINS
 !             write(*,57)'MM y&dy ',phr(jj)%iph,phr(jj)%ics,&
 !                  phr(jj)%stable,nj,&
 !                  ys,cit(nj),phr(jj)%curd%yfr(nj),yarr(nj),ycorr(nj)
-57           format(a,3i2,i3,5(1pe12.4))
+!57           format(a,3i2,i3,5(1pe12.4))
 !          endif
           if(yarr(nj).lt.ymin) then
 ! this added to avoid too drastic jumps in small fractions
@@ -1726,7 +1704,7 @@ CONTAINS
 !---------------------------------
 !       write(*,263)'yarr3: ',jj,&
 !            (phr(jj)%curd%yfr(jz),jz=1,phr(jj)%ncc)
-263    format(a,i3,6(1pe12.4))
+!263    format(a,i3,6(1pe12.4))
 !       write(*,*)'phase: ',phr(jj)%iph,phr(jj)%ics
 !       write(*,107)'ycorr: ',(ycorr(jz),jz=1,phr(jj)%ncc)
 !       write(*,107)'yarr: ',(yarr(i),i=1,phr(jj)%ncc)
@@ -1734,7 +1712,7 @@ CONTAINS
 ! updating for each new constitition so better use the subroutine below
 !       write(*,263)'mm yarr4: ',jj,(yarr(jz),jz=1,phr(jj)%ncc)
 !       write(*,71)'v1: ',jj,(ycorr(nj),nj=1,phr(jj)%ncc)
-71     format(a,i2,6(1pe12.4))
+!71     format(a,i2,6(1pe12.4))
 !       goto 78
 !-----------------------------------------
 ! Limit change in fractions .... all ycorr(nj) multiplied with same factor
@@ -1780,7 +1758,6 @@ CONTAINS
 !                write(*,*)'Applying fraction change limitation'
                 yarr(nj)=0.9*ylow
              elseif(test_phase_status_bit(phr(jj)%iph,PHGAS)) then
-!             elseif(test_phase_status_bit(phr(jj)%iph,PHGAS,ceq)) then
 ! for gas phase one must allow smaller constituent fractions
                 if(yarr(nj).lt.ymingas) then
                    yarr(nj)=ymingas
@@ -1794,14 +1771,10 @@ CONTAINS
           endif
        enddo moody2 ! end loop for all constituents nj in phase jj
 !
-78     continue
        ycormax(jj)=ycormax2
 ! >>>>>>>>>>>>>>>>>> HERE the new constitution is set <<<<<<<<<<<<<<<<<<<<<
        call set_constitution(phr(jj)%iph,phr(jj)%ics,yarr,qq,ceq)
        if(gx%bmperr.ne.0) goto 1000
-!       write(*,533)'y:  ',jj,(yarr(nj),nj=1,phr(jj)%ncc)
-533    format(a,i2,6(1pe12.4))
-534    format(6(1pe12.4))
        deallocate(cit)
     enddo lap
 ! finished correction of all constituent fractions in all phases
@@ -1811,7 +1784,7 @@ CONTAINS
 !       write(*,393)'Stable phase: ',phr(jj)%iph,phr(jj)%ics,&
 !            phr(jj)%curd%amfu
 !    enddo
-393 format(a,2i4,6(1pe12.4))
+!393 format(a,2i4,6(1pe12.4))
 ! check if fraction corrections in stable phases increases
 ! it solved a problem in ReV when fractions initially changed very little
 ! but the change increased each iteration
@@ -1891,22 +1864,6 @@ CONTAINS
 !------------------------------------------------------
 ! do not save system matrix but save -dimension for use with derivatives
     ceq%sysmatdim=-nz1
-!    if(allocated(ceq%savesysmat)) deallocate(ceq%savesysmat)
-!    allocate(ceq%savesysmat(nz1,nz2))
-!    write(*,*)'Saving equil matrix in ceq: ',nz1
-!    do jj=1,nz1
-!       write(*,804)(smat(jj,jph),jph=1,nz2)
-!    enddo
-804 format(6(1pe14.6))
-!    ceq%savesysmat=smat
-!    write(*,*)'equil matrix'
-!    do jj=1,nz1
-!       write(*,804)(smat(jj,ie),ie=1,nz2)
-!    enddo  
-!    write(*,*)'saved equil matrix'
-!    do jj=1,nz1
-!       write(*,804)(ceq%savesysmat(jj,ie),ie=1,nz2)
-!    enddo  
 ! but save components with fix mu and fix phases
     ceq%nfixmu=meqrec%nfixmu
     if(allocated(ceq%fixmu)) deallocate(ceq%fixmu)
@@ -2008,8 +1965,8 @@ CONTAINS
 !\end{verbatim}
     TYPE(gtp_condition), pointer :: condition,lastcond
     TYPE(meq_phase), pointer :: pmi
-    integer jz,cmix(10),cmode,stvix,stvnorm,sel,sph,scs,jph,jj,ie,je,ke,ncol
-    integer notf,kph,kjj,nz2,nrow
+    integer cmix(10),cmode,stvix,stvnorm,sel,sph,scs,jph,jj,ie,je,ke,ncol
+    integer notf,nz2,nrow
     double precision cvalue,totam,pham,mag,mat,map,xxx,zval,xval
 ! the next line of values are a desperate search for a solution
     double precision totalmol,totalmass
@@ -2056,13 +2013,17 @@ CONTAINS
 ! zero all values in equil matrix, dimension (nz1)x(nz1)
     nz2=nz1+1
     smat=zero
-    dncol=0
+!    dncol=0
 !    write(*,*)'in setup_equil: ',converged,nz1,meqrec%tpindep
     if(converged.ge.0) then
 ! converged < 0 means called from dot derivative, then tcol or pcol set
 ! otherwise set them to zero
        tcol=0
        pcol=0
+       dncol=0
+!    else
+!       write(*,11)meqrec%nstph,dncol
+!11     format('setup: ',10i5)
     endif
 !-----------------------------------------------------------
 ! step 2.1 the Gibbs energies for the stable phases (incl fixed)
@@ -2084,15 +2045,13 @@ CONTAINS
                 xxx=smat(jph,nz2)
                 smat(jph,nz2)=smat(jph,nz2)-&
                      phr(jj)%xmol(je)*meqrec%mufixval(ie)
-                write(*,312)'fix mu: ',jj,je,ie,xxx,smat(jph,nz2),&
-                     phr(jj)%xmol(je),meqrec%mufixval(ie)
+!                write(*,312)'fix mu: ',jj,je,ie,xxx,smat(jph,nz2),&
+!                     phr(jj)%xmol(je),meqrec%mufixval(ie)
 312             format(a,3i3,6(1pe12.4))
                 cycle gloop
              endif
           enddo
           smat(jph,ncol)=phr(jj)%xmol(je)
-!          write(*,313)'amount of comp:',jj,je,jph,ncol,smat(jph,ncol)
-313       format(a,4i3,6(1pe14.6))
           ncol=ncol+1
        enddo gloop
        
@@ -2104,10 +2063,6 @@ CONTAINS
              ncol=ncol+1
           endif
           smat(jph,tcol)=-phr(jj)%curd%gval(2,1)
-!          smat(jph,ncol)=+phr(jj)%curd%gval(2,1)
-!          write(*,353)'dG/dT 1: ',jph,tcol,phr(jj)%curd%gval(2,1)
-353       format(a,2i3,1pe12.4)
-!          ncol=ncol+1
        endif
        if(meqrec%tpindep(2)) then
 ! column for variable P, value is +dG/dP ??
@@ -2117,9 +2072,6 @@ CONTAINS
              ncol=ncol+1
           endif
           smat(jph,pcol)=-phr(jj)%curd%gval(3,1)
-!          smat(jph,ncol)=+phr(jj)%curd%gval(3,1)
-!          write(*,353)'dG/dP: ',jph,pcol,phr(jj)%curd%gval(2,1)
-!          ncol=ncol+1
        endif
     enddo allstableph
 ! we have generated meqrec%nstph rows with ncol columns and rhs in column nz2
@@ -2129,7 +2081,7 @@ CONTAINS
 !    do iz=1,dncol
 !       write(*,228)'smat 1: ',(smat(iz,jz),jz=1,nz2)
 !    enddo
-228    format(a,6(1pe12.4))
+!228    format(a,6(1pe12.4))
 !    nrow=meqrec%nstph
 !-------------------------------------------------------------------
 ! step 2.2 equations due to user conditions on extensive/normalizzed properties
@@ -2182,7 +2134,6 @@ CONTAINS
 !----- model variables <<<< these now treated differently
     stvix=cmix(2)/10
     stvnorm=mod(cmix(2),10)
-110 format(a,3i4,6(1pe14.6))
     select case(stvix)
     case default
        write(*,*)'not a condition:',stvix,stvnorm,cmix(1),cmix(2),cmix(3)
@@ -2253,8 +2204,6 @@ CONTAINS
              if(pmi%phasestatus.ne.PHFIXED) notf=notf+1
 ! moles formulat unit of phase
              pham=pmi%curd%amfu
-!             write(*,311)'pham: ',pmi%iph,pmi%ics,pham
-311          format(a,2i2,6(1pe12.4))
              nallel: do ie=1,meqrec%nrel
 ! if sel=/=0 then skip all components except sel
                 if(sel.gt.0 .and. ie.ne.sel) cycle nallel
@@ -2268,8 +2217,6 @@ CONTAINS
 ! mat_A             = \sum_i \sum_j d2M^a_A/dTdy_i z^a_ij d2G/dTdy_j
 ! map_A             = \sum_i \sum_j d2M^a_A/dPdy_i z^a_ij d2G/dPdy_j
                 ncol=1
-!                write(*,359)'c_dgdy: ',ie,nz2,(mamu(ke),ke=1,nz2),mag
-359             format(a,2i3,6(1pe12.4))
 ! calculate a term for each column to be multiplied with chemical potential
 ! if the potential is fixed add the term to the rhs
                 nloop1: do je=1,meqrec%nrel
@@ -2281,8 +2228,6 @@ CONTAINS
                       endif
                    enddo
 ! mamu(B) = \sum_i \sum_j \sum_A dM^a_B/dy_i dM^a_A z^a_ij
-!                   write(*,130)'sysmat: ',nrow,ncol,xcol(ncol),pham,mamu(je)
-130                format(a,2i3,6(1pe14.6))
                    xcol(ncol)=xcol(ncol)-pham*mamu(je)
                    ncol=ncol+1
                 enddo nloop1
@@ -2337,13 +2282,10 @@ CONTAINS
           do ncol=1,nz2
              smat(nrow,ncol)=xcol(ncol)
           enddo
-367       format(a,2i3,6(1pe12.4))
 ! add N^prescribed - N^current to rhs (right hand side)
 !          xxx=smat(nrow,nz2)
 ! convergence problems using condition fix phase with amount >0, change sign ...
           smat(nrow,nz2)=smat(nrow,nz2)-cvalue+totam
-! then it does not converge at all .... line blelow is BAD
-!          smat(nrow,nz2)=smat(nrow,nz2)+cvalue-totam
 !          write(*,363)'RHSN: ',nrow,nz2,0,smat(nrow,nz2),xxx,cvalue,totam,&
 !               cvalue-totam
           deallocate(xcol)
@@ -2550,10 +2492,6 @@ CONTAINS
              if(pmi%phasestatus.ne.PHFIXED) notf=notf+1
 ! amount of phase, amfu is moles formula units, abnorm(2) is mass per form.un
              pham=pmi%curd%amfu
-!             pham=pmi%curd%amfu*pmi%curd%abnorm(2)
-!             write(*,202)'amounts: ',jj,pmi%curd%amfu,pmi%curd%abnorm(1),&
-!                  pmi%curd%abnorm(2)
-202          format(a,i3,6(1pe14.6))
              ballel: do ie=1,meqrec%nrel
 ! if sel=/=0 then skip all components except sel
                 if(sel.gt.0 .and. ie.ne.sel) cycle
@@ -2798,7 +2736,7 @@ CONTAINS
 ! xmat=dB(A)/B - B(A)*dB/B**2
           nrow=nrow+1
           if(nrow.gt.nz1) then
-             write(*,*)'too many equations 12B';
+             write(*,*)'too many equations 12B',nrow,nz1
              gx%bmperr=3333; goto 1000
           endif
 ! copy to smat row nrow
@@ -2814,10 +2752,10 @@ CONTAINS
           if(abs(wwnn(sel)-cvalue).gt.ceq%xconv) then
              if(converged.lt.5) converged=5
 !             write(*,266)'Unconverged condition w(A): ',sel,cvalue,wwnn(sel)
-266          format(a,i3,3(1pe14.6))
+!266          format(a,i3,3(1pe14.6))
 !             write(*,267)'wwnn: ',(wwnn(ncol),ncol=1,noel())
 !             write(*,267)'xxmm: ',(xxmm(ncol),ncol=1,noel())
-267          format(a,8F9.5)
+!267          format(a,8F9.5)
           endif
 !          if(sph.eq.0) then
 !             write(*,363)'Condition w(A)=fix',sel,0,0,cvalue,wwnn(sel)
@@ -2845,7 +2783,7 @@ CONTAINS
 !    do jz=1,nz1
 !       write(*,390)jz,(smat(jz,kjj),kjj=1,nz2)
 !    enddo
-390 format('#:',i2,6(1pe12.4),6(4x,1pe12.4))
+!390 format('#:',i2,6(1pe12.4),6(4x,1pe12.4))
 1000 continue
     return
   end subroutine setup_equilmatrix
@@ -2864,8 +2802,8 @@ CONTAINS
     TYPE(meq_setup) :: meqrec
 !\end{verbatim}
     integer nrel,i2sly(2)
-    integer mph,ik,iph,ics,jz,iz,jk,ierr,kk,kkk,ll,lokcs,ncc,loksp,ncl
-    integer nd1,nd2,neq,nochange,nsl,nspel,nv,ncon,ie,icon
+    integer ik,iph,ics,jz,iz,jk,ierr,kk,kkk,ll,lokcs,ncc,loksp,ncl
+    integer nd1,nd2,neq,nochange,nsl,nspel,nv,ncon,icon
 ! needed for call to get_phase_data
     integer, dimension(maxsubl) ::  nkl
     integer, dimension(maxconst) :: knr
@@ -2882,7 +2820,7 @@ CONTAINS
     double precision, dimension(maxconst) :: yarr,dqsum
 ! phase matrix, its inverse is returned as part of pmi
     double precision, dimension(:,:), allocatable :: pmat
-    double precision qsp,sumsit,ykvot,ysum,qsum,spmass,yva,morr
+    double precision qsp,sumsit,ykvot,ysum,qsum,spmass,yva
     double precision, dimension(:,:), allocatable :: sumion
 !
 !    write(*,*)'in meq_onephase: '
@@ -2893,7 +2831,7 @@ CONTAINS
 !    write(*,*)'calling get_phase_data: ',iph
     call get_phase_data(iph,ics,nsl,nkl,knr,yarr,sites,qq,ceq)
     if(gx%bmperr.ne.0) then
-       write(*,*)'get_phase_data error in meq_onephase',iph,gx%bmperr
+       write(*,*)'get_phase_data error in meq_onephase',iph,ics,gx%bmperr
        goto 1000
     endif
 ! make sure all fractions >ymin and sums in alll sublattices equail to unity
@@ -2934,11 +2872,6 @@ CONTAINS
           goto 1000
        endif
     endif
-!    if(pmi%stable.eq.1) then
-!       write(*,12)iph,ics,(yarr(i),i=1,ncc)
-12     format('Const: ',2i3,6(1pe10.3))
-!    endif
-!    write(*,17)'curd: ',pmi%curd%amfu,pmi%curd%netcharge,pmi%curd%abnorm
     if(test_phase_status_bit(iph,PHEXCB)) then
 ! If external charge balance phase matrix has one more line+column
        pmi%chargebal=1
@@ -3011,8 +2944,6 @@ CONTAINS
                 endif
              enddo
           enddo allconst
-!          write(*,88)pmi%iph,ll,(pmi%xmol(jz),jz=1,noel())
-88        format('MM 88: ',2i2,6(1pe12.4))
        enddo sublatt
 ! meqrec is not available in this routine
        do iz=1,nrel
@@ -3020,11 +2951,6 @@ CONTAINS
           pmi%sumwmol=pmi%sumwmol+pmi%xmol(iz)*mass_of(iz,ceq)
        enddo
 ! some stoichiometric phases have wrong number of moles like Cr2VC2 ...
-!       write(*,92)'onephase 1: ',pmi%iph,nsl,pmi%xdone,pmi%sumxmol,&
-!            pmi%sumnmol,qq(1)
-92     format(a,3i3,6(1pe12.4))
-!       write(*,88)pmi%iph,pmi%ics,(pmi%xmol(jz),jz=1,noel())
-!       write(*,*)'stoik: ',pmi%curd%abnorm(1),pmi%sumxmol
 ! phase_varres(lokcs)%abnorm already set by set_constitution
        pmi%xdone=1
 !
@@ -3079,10 +3005,6 @@ CONTAINS
 !          write(*,*)'sumwmol 2: ',pmi%xmol(ik),mass_of(ik,ceq)
           pmi%sumwmol=pmi%sumwmol+pmi%xmol(ik)*mass_of(ik,ceq)
        enddo
-!       do ik=1,noel()
-!          write(*,17)'dmx: ',(pmi%dxmol(ik,jk),jk=1,nkl(1))
-!       enddo
-17     format(a,6(1pe12.3))
 ! now calculate G and all 1st and 2nd derivatives
 ! This can be speeded up as all 2nd derivatives of constituents are RT/y
 ! The calculated values are used also in other parts of the code 
@@ -3126,11 +3048,6 @@ CONTAINS
              pmat(neq,jk)=dqsum(jk)
           enddo
        endif
-!       do jk=1,neq
-!          write(*,18)'pm: ',(pmat(ik,jk),ik=1,neq)
-!       enddo
-18     format(a,6(1pe12.4))
-!       write(*,*)'Phase matrix: ',nd1,neq,pmi%chargebal
 ! invert the phase matrix (faster routine should be used) IDEAL PHASE
        call mdinv(nd1,nd2,pmat,pmi%invmat,neq,ierr)
        if(ierr.eq.0) then
@@ -3229,29 +3146,16 @@ CONTAINS
        pmi%yva=yva
 ! zero matrix
        pmat=zero
-!       do ik=1,nrel
-!          write(*,211)'dMA1:',ik,ncon,(pmi%dxmol(ik,jk),jk=1,ncc)
-!       enddo
-211    format(a,2i3,6(1pe12.4))
 !...........................................
 !       goto 261
 ! now handle that site ratios depend on constituent fractions
 ! (maybe also that the formula unit depend on composition)
 ! phlista(lokph)%i2slx; lokph=pmi%curd%phlink
 ! BUT: phlista is private ....
-!       write(*,*)'Va and neutral: ',i2sly
-!       do jk=1,nrel
-!          write(*,217)'MA: ',jk,pmi%xmol(jk),&
-!               sites(1)*sumion(jk,1)+sites(2)*sumion(jk,2),&
-!               sites(1),sites(2),sumion(jk,1),sumion(jk,2)
-217       format(a,i2,6(1pe12.4))
-!       enddo
 ! M_A = P*M'_A + Q*M"_A           M'_A and M"_A are in sumion(A,1:2))
 ! P=\sum_j (-v_j)y_j + Qy_Va      j is anion
 ! Q=\sum_i v_iy_i                 i is cation
        icon=0
-!       write(*,653)'M: ',(sumion(ik,1),ik=1,3),(sumion(ik,2),ik=1,3)
-653    format(a,6(1pe12.4))
        do ik=1,nkl(1)
           icon=icon+1
           do jk=1,nrel
@@ -3259,8 +3163,6 @@ CONTAINS
              qsp=pmi%curd%dpqdy(icon)*(yva*sumion(jk,1)+sumion(jk,2))
 ! note dxmol(jk,icon) has been multiplied with sites(1) above ....
              pmi%dxmol(jk,icon)=pmi%dxmol(jk,icon)+qsp
-!             write(*,654)'Extra term katjon: ',jk,icon,pmi%dxmol(jk,icon),qsp
-654          format(a,2i3,2(1pe12.4))
           enddo
        enddo
 ! i2sly(1) is index of vacancy, i2sly(2) index of first neutral
@@ -3296,7 +3198,7 @@ CONTAINS
 ! ncon is the total number of constituents
        icon=ncon
 !......................................... end handling P and Q variation
-261    continue
+!261    continue
 ! meqrec is not available in this routine
        do ik=1,nrel
           pmi%sumxmol=pmi%sumxmol+pmi%xmol(ik)
@@ -3319,9 +3221,6 @@ CONTAINS
        neq=icon
        do ik=1,icon
           do jk=ik,icon
-!             write(*,219)'cc: ',ik,jk,pmat(ik,jk),&
-!                  ceq%phase_varres(lokcs)%d2gval(ixsym(ik,jk),1)
-219          format(a,2i3,4(1pe12.4))
              pmat(ik,jk)=pmat(ik,jk)+&
                   ceq%phase_varres(lokcs)%d2gval(ixsym(ik,jk),1)
 ! remove next line when using a routine inverting a symmetric matrix
@@ -3506,7 +3405,7 @@ CONTAINS
 ! Derivate wrt to another cation m:
 ! d2N_A/dy_kdy_m = y_Va v_m b_Ak + y_Va v_k b_Am
 ! 
-    integer i1,i2,icon,jcon,kcon,loksp,nspel,ielno(10),el,allions
+    integer i1,i2,icon,jcon,loksp,nspel,ielno(10),el,allions
     double precision stoi(10),spmass,qsp,qsp1,add1,add2,add3
 !
     allions=min(pmi%i2sly(1),pmi%i2sly(2))
@@ -3585,7 +3484,7 @@ CONTAINS
     TYPE(meq_setup) :: meqrec
     TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-    integer jp,jy,j
+    integer jp,jy
 ! If the difference is larger than xdiff then the compositions are not the same
 !    double precision, parameter :: xdiff=0.01D0
 ! FINETUNING: a large value of xdiff may mean you miss a miscibility gap
@@ -3593,22 +3492,19 @@ CONTAINS
     double precision, parameter :: xdiff=0.05D0
     double precision, dimension(maxel) :: xmol1,xmol2,wmass
     double precision amount,totmol,totmass,xdiffm,xdiffc
-! check if any phase with lower index than jj is the same phase
-!    write(*,17)'testing if same_composition: ',phr(jj)%iph,phr(jj)%ics,dgm
-17  format(a,i3,i2,5(1pe12.4))
+! check if any other compset of the phase stable with same composition
     call calc_phase_molmass(phr(jj)%iph,phr(jj)%ics,xmol1,wmass,&
          totmol,totmass,amount,ceq)
     if(gx%bmperr.ne.0) goto 1000
     xdiffm=one
-    do jp=jj-1,1,-1
+! ?? strange loop limits ??
+!    do jp=jj-1,1,-1
+    do jp=1,meqrec%nphase
        if(phr(jp)%iph.eq.phr(jj)%iph) then
           if(phr(jp)%stable.eq.1) then
              call calc_phase_molmass(phr(jp)%iph,phr(jp)%ics,xmol2,wmass,&
                   totmol,totmass,amount,ceq)
              if(gx%bmperr.ne.0) goto 1000
-!             write(*,118)phr(jj)%ics,dgm,(xmol1(j),j=1,noel())
-!             write(*,118)phr(jp)%ics,zero,(xmol2(j),j=1,noel())
-118          format('xtest: ',i2,1e12.4,8F9.6)
              do jy=1,meqrec%nrel
                 xdiffc=abs(xmol1(jy)-xmol2(jy))
                 if(xdiffc.lt.xdiffm) then
@@ -3620,31 +3516,33 @@ CONTAINS
 ! we have found another stable composition set with same composition
              goto 300
           endif
+       elseif(phr(jp)%iph.lt.phr(jj)%iph) then
+          cycle
        else
           exit
        endif
 110    continue
     enddo
 ! check if any with higher index is same phase as jj
-    do jp=jj+1,meqrec%nphase
-       if(phr(jp)%iph.eq.phr(jj)%iph) then
-          if(phr(jp)%stable.eq.1) then
-             call calc_phase_molmass(phr(jp)%iph,phr(jp)%ics,xmol2,wmass,&
-                  totmol,totmass,amount,ceq)
-             if(gx%bmperr.ne.0) goto 1000
+!    do jp=jj+1,meqrec%nphase
+!       if(phr(jp)%iph.eq.phr(jj)%iph) then
+!          if(phr(jp)%stable.eq.1) then
+!             call calc_phase_molmass(phr(jp)%iph,phr(jp)%ics,xmol2,wmass,&
+!                  totmol,totmass,amount,ceq)
+!             if(gx%bmperr.ne.0) goto 1000
 !             write(*,118)phr(jj)%ics,dgm,(xmol1(j),j=1,noel())
 !             write(*,118)phr(jp)%ics,zero,(xmol2(j),j=1,noel())
-             do jy=1,meqrec%nrel
-                if(abs(xmol1(jy)-xmol2(jy)).gt.xdiff) goto 120
-             enddo
+!             do jy=1,meqrec%nrel
+!                if(abs(xmol1(jy)-xmol2(jy)).gt.xdiff) goto 120
+!             enddo
 ! we have found another stable composition set with same composition
-             goto 300
-          endif
-       else
-          exit
-       endif
-120    continue
-    enddo
+!             goto 300
+!          endif
+!       else
+!          exit
+!       endif
+!120    continue
+!    enddo
 ! no composition set of same phase with same constitution
     same_composition=.FALSE.
     goto 1000
@@ -3691,10 +3589,9 @@ CONTAINS
 !\end{verbatim} %+
 ! THIS IS THE ONE CURRENTLY USED IN THE MINIMIZATIONS
 ! these are to be multiplied with mu(ib), nothing, deltaT, deltaP
-    integer iy,jy,ky,ib,ie,my
+    integer iy,jy,ib
     double precision sum,cig,cit,cip,cib
-    double precision morr,morr1,morr2,stoi(10),spmass,qsp,curmu(maxel)
-    integer loksp,nspel,ielno(10)
+    double precision morr,curmu(maxel)
 !
 !    write(*,*)'entering calc_dgdyterms: ',ia
     mag=zero
@@ -3707,10 +3604,6 @@ CONTAINS
              cib=cib+pmi%invmat(iy,jy)*pmi%dxmol(ib,iy)
           enddo
           sum=sum+cib*pmi%dxmol(ia,jy)
-!          write(*,8)'mamu: ',ib,pmi%dxmol(ia,jy),&
-!               (pmi%dxmol(ib,iy),iy=1,pmi%ncc)
-!          write(*,8)'invm: ',jy,cib,(pmi%invmat(iy,jy),iy=1,pmi%ncc)
-8         format(a,i2,1pe12.4,2x,5(e12.4))
        enddo
        mamu(ib)=sum
     enddo
@@ -3724,33 +3617,24 @@ CONTAINS
 !    endif
 !-----------
 ! \sum_i \sum_j e_ij*dM_A/dy_i dG/dy_j
-!    write(*,16)'dgdy: ',pmi%ionliq,pmi%i2sly,curmu(1),curmu(2)
-16  format(a,3i3,4(1pe12.4))
     mag=zero
     mat=zero
     map=zero
     do iy=1,pmi%ncc
-!       write(*,9)'im: ',iy,(pmi%invmat(jy,iy),jy=1,pmi%ncc)
-9      format(a,i2,6(1pe12.4))
        cig=zero
        cit=zero
        cip=zero
        do jy=1,pmi%ncc
-! I inversted order of iy, jy, does it still converge??
+! I inversed order of iy, jy, does it still converge??
           cig=cig+pmi%invmat(jy,iy)*pmi%curd%dgval(1,jy,1)
-!          cig=cig+pmi%invmat(iy,jy)*pmi%curd%dgval(1,jy,1)
 ! always calculate cit because cp debug!!
-980       format(a,3(1pe14.6))
           if(tpindep(1)) cit=cit+pmi%invmat(jy,iy)*pmi%curd%dgval(2,jy,1)
           if(tpindep(2)) cip=cip+pmi%invmat(jy,iy)*pmi%curd%dgval(3,jy,1)
-!          write(*,980)'cit: ',cit,pmi%invmat(jy,iy),pmi%curd%dgval(2,jy,1)
        enddo
        morr=pmi%dxmol(ia,iy)
        mag=mag+morr*cig
        mat=mat+morr*cit
        map=map+morr*cip
-!       write(*,990)'mat 2: ',ia,iy,jy,morr,mat,cit
-990    format(a,3i3,6(1pe12.4))
     enddo
 1000 continue
     return
@@ -3768,9 +3652,8 @@ CONTAINS
 !\end{verbatim}
 ! these are to be multiplied with mu(ib), nothing, deltaT, deltaP
 ! I am not sure if this is used ...
-    integer jy,ky,ib,ie,my
-    double precision sum,cig,cit,cip,cib
-    double precision morr,morr1,morr2,stoi(10),spmass,qsp
+    integer jy,ib
+    double precision sum,cig,cit,cip
 !
 !    write(*,*)'entering calc_dgdyterms2: ',ia,nrel
     mag=zero
@@ -3778,8 +3661,6 @@ CONTAINS
        sum=zero
        do jy=1,pmi%ncc
           sum=sum+pmi%invmat(iy,jy)*pmi%dxmol(ib,jy)
-!          write(*,8)'mamu: ',ib,jy,pmi%invmat(iy,jy),pmi%dxmol(ib,jy),sum
-8         format(a,2i2,5(1pe14.6))
        enddo
        mamu(ib)=sum
     enddo
@@ -3793,14 +3674,6 @@ CONTAINS
 !    endif
 !-----------
 ! \sum_i \sum_j e_ij*dM_A/dy_i dG/dy_j
-!    write(*,16)'dgdy: ',pmi%ionliq,pmi%i2sly,curmu(1),curmu(2)
-16  format(a,3i3,4(1pe12.4))
-!    mag=zero
-!    mat=zero
-!    map=zero
-!    do iy=1,pmi%ncc
-!       write(*,9)'im: ',iy,(pmi%invmat(jy,iy),jy=1,pmi%ncc)
-9      format(a,i2,6(1pe12.4))
     cig=zero
     cit=zero
     cip=zero
@@ -3809,21 +3682,6 @@ CONTAINS
        cit=cit+pmi%invmat(jy,iy)*pmi%curd%dgval(2,jy,1)
        cip=cip+pmi%invmat(jy,iy)*pmi%curd%dgval(3,jy,1)
     enddo
-!       morr=pmi%dxmol(ia,iy)
-!       if(abs(morr).gt.zero .and. abs(morr).lt.1.0D-30) then
-! While searching for a NaN bug in steel1
-!          write(*,287)'Setting morr to zero: ',ia,iy,pmi%iph,pmi%ics,morr
-287       format(a,4i3,6(1pe12.4))
-!          morr=zero
-!       endif
-!       mag=mag+morr*cig
-!       mat=mat+morr*cit
-!       map=map+morr*cip
-!       if(abs(mag).gt.zero .and. abs(mag).lt.1.0D-30) then
-!          if(ocv()) write(*,990)'c_dgsy2: ',iy,pmi%iph,pmi%ics,mag,morr,cig
-!990       format(a,3i3,6(1pe12.4))
-!       endif
-!    enddo
     mag=cig
     mat=cit
     map=cip
@@ -3889,8 +3747,6 @@ CONTAINS
          mode=1
          actual_arg=' '
          value=meq_evaluate_svfun(lrot,actual_arg,mode,ceq)
-!         write(*,77)'called meq_evaluate_svfun: ',ceq%tpval(1),value
-77       format(a,F8.2,1pe14.6)
       endif
    else
       dummy=encoded
@@ -3914,17 +3770,13 @@ CONTAINS
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
 ! THIS SUBROUTINE MOVED FROM pmod25D
-   integer indices1(4),indices2(4)
    double precision argval(20)
    type(gtp_state_variable), pointer :: svr,svr2
-   integer jv,jt,istv,ieq,ii,nsvfun
+   integer jv,jt,istv,ieq,nsvfun
    double precision value
 !
    argval=zero
    nsvfun=nosvf()
-!   write(*,3)'in meq_evaluate_svfun ',lrot,svflista(lrot)%narg,&
-!        svflista(lrot)%name,ceq%tpval(1)
-3  format(a,2i4,1x,a,F8.2)
 ! locate function
    if(lrot.le.0 .or. lrot.gt.nsvfun) then
       gx%bmperr=4140; goto 1000
@@ -3949,9 +3801,6 @@ CONTAINS
 ! the 1:10 was a new bug discovered in GNU fortran 4.7 and later
          call make_stvrec(svr,svflista(lrot)%formal_arguments(1:10,jt))
          if(gx%bmperr.ne.0) goto 1000
-!         write(*,77)'meq_eval: ',&
-!              (svflista(lrot)%formal_arguments(ii,jt),ii=1,10)
-77       format(a,20i3)
          if(svflista(lrot)%formal_arguments(10,jt).eq.0) then
 ! get state variable value
             call state_variable_val(svr,value,ceq)
@@ -3971,10 +3820,6 @@ CONTAINS
       if(jt.lt.svflista(lrot)%narg) goto 100
 ! all arguments evaluated (or no arguments needed)
 300 continue
-!    write(*,333)'evaluate_svfun ',svflista(lrot)%name,argval(1),argval(2)
-!333 format(a,a,2(1PE15.6))
-!   write(*,340)'evaluate svfun 1: ',mode,lrot
-340 format(a,5i4)
    modeval: if(mode.eq.0 .and. btest(svflista(lrot)%status,SVFVAL)) then
 ! If mode=0 and SVFVAL set return the stored value
       value=ceq%svfunres(lrot)
@@ -3993,8 +3838,6 @@ CONTAINS
       else
          value=eqlista(ieq)%svfunres(lrot)
       endif
-!      write(*,350)'evaluate svfun 4: ',ieq,lrot,value
-350 format(a,2i3,1pe12.4)
    else
 ! if mode=1 always evaluate
       value=evalf(svflista(lrot)%linkpnode,argval)
@@ -4004,8 +3847,6 @@ CONTAINS
       endif
    endif modeval
 ! save value in current equilibrium
-!   write(*,360)'meq_evaluate_svfun: ',lrot,ceq%tpval(1),value
-360 format(a,i7,F8.2,1pe14.6)
    ceq%svfunres(lrot)=value
    meq_evaluate_svfun=value
 1000 continue
@@ -4026,7 +3867,7 @@ CONTAINS
 !\end{verbatim}
     TYPE(meq_phase), pointer :: pmi
     integer iph,ics,kst,ie,mph,lokph,lokcs,nz1,tcol,pcol,dncol,converged
-    integer ierr,nz2,jel,je,jj,jph,ncol
+    integer ierr,nz2,jel
     double precision, allocatable :: smat(:,:)
     double precision xxx
 !
@@ -4054,7 +3895,8 @@ CONTAINS
     meqrec%nfixmu=ceq%nfixmu
 ! this returns total number of phases including composition sets
 !    call sumofphcs(meqrec%nphase,ceq)
-    meqrec%nphase=totalphcs(ceq)
+!    meqrec%nphase=totalphcs(ceq)
+    meqrec%nphase=nonsusphcs(ceq)
     if(gx%bmperr.ne.0) goto 1000
     allocate(meqrec%phr(meqrec%nphase))
 ! this means T and P are fixed (not independent)
@@ -4079,7 +3921,8 @@ CONTAINS
 ! set link to calculated values of G etc.
              call get_phase_compset(iph,ics,lokph,lokcs)
              meqrec%phr(mph)%curd=>ceq%phase_varres(lokcs)
-             if(btest(ceq%phase_varres(lokcs)%status2,CSSTABLE)) then
+!             if(btest(ceq%phase_varres(lokcs)%status2,CSSTABLE)) then
+             if(kst.ge.PHENTSTAB) then
 ! this phase has the stable bit set
                 meqrec%phr(mph)%stable=1
                 meqrec%nstph=meqrec%nstph+1
@@ -4093,8 +3936,6 @@ CONTAINS
 !          else
 ! nothing to do for suspended or hidden phase
           endif
-!          write(*,63)'meqrec phase: ',mph,iph,ics,kst
-63        format(a,10i4)
        enddo
     enddo
     meqrec%nphase=mph
@@ -4148,7 +3989,7 @@ CONTAINS
 !    do jel=1,nz1
 !       write(*,86)(smat(jel,nz2),nz2=1,nz1+1)
 !    enddo
-86  format(6(1pe12.4))
+!86  format(6(1pe12.4))
     tcol=0
     pcol=0
 ! dncol is number of variable potentials (including T or P if variable)
@@ -4165,6 +4006,8 @@ CONTAINS
        gx%bmperr=8888; goto 1000
     endif
 !-------------------------------------------------------------------
+!    write(*,854)'dncol mm: ',tcol,pcol,dncol,converged,nz1
+854 format(a,10i5)
     call setup_equilmatrix(meqrec,meqrec%phr,nz1,smat,tcol,pcol,&
          dncol,converged,ceq)
 ! set all terms in the RHS to zero
@@ -4178,10 +4021,7 @@ CONTAINS
     do mph=1,meqrec%nstph
        jel=meqrec%stphl(mph)
        smat(mph,nz1)=-meqrec%phr(jel)%curd%gval(2,1)
-!       write(*,97)'dG/dT: ',mph,meqrec%phr(jel)%iph,&
-!            meqrec%phr(jel)%curd%gval(2,1)
     enddo
-97  format(a,2i3,1pe14.6)
 ! this is the line for Delta T or Delta P, all terms zero except last
     
     smat(nz1,nz1)=one
@@ -4191,7 +4031,7 @@ CONTAINS
 !    do jel=1,nz1
 !       write(*,89)jel,(smat(jel,nz2),nz2=1,nz1+1)
 !    enddo
-89  format(i2,6(1pe12.4))
+89  format('q ',i2,6(1pe12.4))
 ! solve equil matrix 
     call lingld(nz1,nz1+1,smat,svar,nz1,ierr)
     if(ierr.ne.0) then
@@ -4201,8 +4041,8 @@ CONTAINS
 !       enddo
        gx%bmperr=8888; goto 1000
 !    else
-!       write(*,89)0,(svar(jel),jel=1,nz1)
     endif
+!    write(*,89)0,(svar(jel),jel=1,nz1)
 1000 continue
     return
   end subroutine initiate_meqrec
@@ -4260,13 +4100,16 @@ CONTAINS
 !    write(*,17)'minimzer: meq_state_var_value_derivative: ',&
 !         svr1%statevarid,svr1%oldstv,svr1%argtyp,&
 !         svr2%statevarid,svr2%oldstv,svr2%argtyp
-17 format(a,10i4)
+!17 format(a,10i4)
 ! meqrec creates the data structure for the equilibrium data
 ! this routine also calculated Delta-amount of phases and delta-mu
     call initiate_meqrec(svr2,svar,meqrec,ceq)
     if(gx%bmperr.ne.0) goto 1000
+    iel=size(svar)
+!    write(*,18)(svar(jj),jj=1,iel)
+18  format('svar: ',6(1pe12.4)(6x,6e12.4))
 !---------------
-100 continue
+!100 continue
 ! if no phase specified loop over all stable phases
 !    write(*,*)'We have initiad meqrec: ',svr1%statevarid
 !    if(svr1%statevarid.eq.9) then
@@ -4284,12 +4127,12 @@ CONTAINS
                   svar,jj,xxx,ceq)
              if(gx%bmperr.ne.0) goto 1000
              jj=jj+1
+!             write(*,69)'MM der: ',mph,ceq%tpval(1),value,xxx
+69           format(a,i3,6(1pe14.6))
           else
              xxx=zero
           endif
           value=value+xxx
-!          write(*,76)'Summing CP: ',mph,meqrec%phr(mph)%curd%amfu,xxx,value
-76        format(a,i3,6(1pe14.6))
        enddo
     elseif(svr1%statevarid.eq.17) then
 ! This should be x(phase,element).T
@@ -4337,10 +4180,9 @@ CONTAINS
 !\end{verbatim}
 ! variables needed to calculate phase inverse
     TYPE(meq_phase), pointer :: pmi
-    integer ie,mph,jy,jel,nz1,nz2,ierr,jz
+    integer jy,jel,jz
     double precision x1,x2,x3
-    double precision mag,mat,map,msum,dmsum,dpham,dhdy,musum,dy,hconfig
-    double precision, allocatable :: smat(:,:)
+    double precision mag,mat,map,dmsum,dpham,dhdy,musum,dy,hconfig
     double precision, allocatable :: mamu(:)
 !
 ! THE MASTER VERSION OF THIS TABLE in PMOD25C.F90
@@ -4387,7 +4229,7 @@ CONTAINS
              write(*,*)'Dot derivatives and potential condition not implemented'
              goto 1000
           endif
-! sum the contribution for the poitentials
+! sum the contribution for the potentials
           do jel=1,meqrec%nrel
              jz=jz+1
              dy=dy+mamu(jel)*svar(jel)
@@ -4403,7 +4245,7 @@ CONTAINS
              write(*,*)'Illegal state variable id:',svr1%statevarid
              gx%bmperr=8888; goto 1000
           case(6) !U = G + TS - PV = G - T G.T - P G.P
-             write(*,*)'Not implemeneted yet: ',svr1%statevarid
+             write(*,*)'Not implemented yet: ',svr1%statevarid
           case(7) !S = -G.T
              hconfig=-pmi%curd%dgval(2,jy,1)
           case(8) !V = G.P
@@ -4411,23 +4253,23 @@ CONTAINS
           case(9) !H = G + TS = G - T G.T
              hconfig=pmi%curd%dgval(1,jy,1)-ceq%tpval(1)*pmi%curd%dgval(2,jy,1)
           case(10) !A = G - PV = G - P G.P
-             write(*,*)'Not implemeneted yet: ',svr1%statevarid
+             write(*,*)'Not implemented yet: ',svr1%statevarid
           case(11) !G itself, dG/dy
              hconfig=pmi%curd%dgval(1,jy,1)
           case(12) !NP phase amount
-             write(*,*)'Not implemeneted yet: ',svr1%statevarid
+             write(*,*)'Not implemented yet: ',svr1%statevarid
           case(13) !BP phase mass
-             write(*,*)'Not implemeneted yet: ',svr1%statevarid
+             write(*,*)'Not implemented yet: ',svr1%statevarid
           case(16) !N
-             write(*,*)'Not implemeneted yet: ',svr1%statevarid
+             write(*,*)'Not implemented yet: ',svr1%statevarid
           case(17) !X
-             write(*,*)'Not implemeneted yet: ',svr1%statevarid
+             write(*,*)'Not implemented yet: ',svr1%statevarid
           case(18) !B
              write(*,*)'Not implemeneted yet: ',svr1%statevarid
           case(19) !W
-             write(*,*)'Not implemeneted yet: ',svr1%statevarid
+             write(*,*)'Not implemented yet: ',svr1%statevarid
           case(20) !Y
-             write(*,*)'Not implemeneted yet: ',svr1%statevarid
+             write(*,*)'Not implemented yet: ',svr1%statevarid
           end select
 !          if(svr1%statevarid.eq.9) then
 !             hconfig=pmi%curd%dgval(1,jy,1)-ceq%tpval(1)*pmi%curd%dgval(2,jy,1)
@@ -4436,12 +4278,14 @@ CONTAINS
 !          write(*,*)'musum: ',musum,dy
        enddo
        x3=ceq%rtn*pmi%curd%amfu*musum
+!       write(*,765)'x3= ',ceq%rtn,pmi%curd%amfu,musum
 ! we have to take care of fixed chemical potentials, the number of
 ! elements+1-(#fixed mu) should be the index of dpham
 ! The way of indexing with jj is dangerous ...
        dpham=svar(meqrec%nrel+jj)
-!       write(*,666)'dpham and musum: ',dpham,x3
-666    format(a,6(1pe14.6))
+!       write(*,665)'dpham: ',meqrec%nrel,jj,svar(meqrec%nrel+jj-1),&
+!            svar(meqrec%nrel+jj)
+665    format(a,2i3,6(1pe14.6))
 ! here we check which state variable we take derivative of
        select case(svr1%statevarid)
        case default
@@ -4459,6 +4303,8 @@ CONTAINS
        case(9) !H = G + TS = G - T G.T
 ! x1 is change in phase amount times H
           x1=-ceq%rtn*dpham*(pmi%curd%gval(1,1)-ceq%tpval(1)*pmi%curd%gval(2,1))
+!          write(*,666)'x1: ',ceq%rtn,dpham,pmi%curd%gval(1,1),&
+!               ceq%tpval(1)*pmi%curd%gval(2,1),x1
 ! x2 is phase_amount * dH/dT = .. -T*d2G/dT2 = -T
           x2=-ceq%rtn*pmi%curd%amfu*ceq%tpval(1)*pmi%curd%gval(4,1)
        case(10) !A = G - PV
@@ -4491,6 +4337,7 @@ CONTAINS
 ! x3 is phase amount times change in configuration
 !       x3=ceq%rtn*pmi%curd%amfu*musum
 !       write(*,666)'CP= ',x1,x2,x3,x1+x2+x3,dpham
+666    format(a,6(1pe14.6))
 ! just to show the error
 !       value=x2
        value=x1+x2+x3
@@ -4515,7 +4362,7 @@ CONTAINS
     double precision value
     integer mph
 !-\end{verbatim}
-    TYPE(meq_phase), pointer :: pmi
+!    TYPE(meq_phase), pointer :: pmi
     integer nsl,nkl(10),knr(maxconst)
     double precision yarr(maxconst),sites(10),qq(5)
 !    

@@ -14,7 +14,7 @@
 ! initiate the data structure
 ! create element and species record for electrons and vacancies
 ! the allocation of many arrays should be provided calling this routne
-! these will eventually be used for allocations and defaults
+! intvar and dblvar will eventually be used for allocations and defaults
    implicit none
    integer intvar(*)
    double precision dblvar(*)
@@ -112,6 +112,7 @@
    do jl=1,2*maxph-1
       firsteq%phase_varres(jl)%nextfree=jl+1
    enddo
+! NOTE last phase_varres record used for copy in shiftcompsets
    firsteq%phase_varres(2*maxph)%nextfree=-1
 ! csfree is not declared ... how can that be?? where is it declared ??
    csfree=1
@@ -469,8 +470,9 @@
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim}
- integer function totalphcs(ceq)
-! returns the total number of unhidden and unsuspended phases+composition sets
+ integer function nonsusphcs(ceq)
+! integer function totalphcs(ceq)
+! returns the total number of unhidden phases+composition sets
 ! in the system.  Used for dimensioning work arrays and in loops
    implicit none
    TYPE(gtp_equilibrium_data), pointer :: ceq
@@ -481,22 +483,24 @@
    do iph=1,noofph
       lokph=phases(iph)
       ics=1
-!      if(test_phase_status(iph,ics,xxx,ceq).eq.5) goto 500
-      if(test_phase_status(iph,ics,xxx,ceq).eq.PHHIDDEN) goto 500
+      if(test_phase_status(iph,ics,xxx,ceq).ne.PHHIDDEN) then
 ! phase is not hidden
-      do ics=1,phlista(lokph)%noofcs
+         do ics=1,phlista(lokph)%noofcs
 !         if(test_phase_status(iph,ics,xxx,ceq).eq.4) goto 400
-         if(test_phase_status(iph,ics,xxx,ceq).eq.PHSUS) goto 400
+            if(test_phase_status(iph,ics,xxx,ceq).ne.PHSUS) then
+               tphic=tphic+1
+            endif
 ! composition set not suspended
-         tphic=tphic+1
-400      continue
-      enddo
-500   continue
+!         tphic=tphic+phlista(lokph)%noofcs
+         enddo
+      endif
    enddo
 1000 continue
-   totalphcs=tphic
+!   write(*,*)'25 A nonsusphcs: ',tphic
+!   totalphcs=tphic
+   nonsusphcs=tphic
    return
- end function totalphcs
+ end function nonsusphcs
  
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 !>     3. Find things
@@ -654,13 +658,47 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim} %-
+ subroutine find_phasetuple_by_name(name,phcsx)
+! finds a phase with name "name", returns phase tuple index
+! handles composition sets either with prefix/suffix or #digit
+! When no pre/suffix nor # always return first composition set
+   implicit none
+   character name*(*)
+   integer phcsx
+!\end{verbatim} %+
+   integer iph,ics
+   call find_phasex_by_name(name,phcsx,iph,ics)
+1000 continue
+   return
+ end subroutine find_phasetuple_by_name
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim} %-
  subroutine find_phase_by_name(name,iph,ics)
 ! finds a phase with name "name", returns address of phase, first fit accepted
 ! handles composition sets either with prefix/suffix or #digit
-! no pre/suffix nor # gives first composition set
+! When no pre/suffix nor # always return first composition set
    implicit none
    character name*(*)
    integer iph,ics
+!\end{verbatim} %+
+   integer phcsx
+   call find_phasex_by_name(name,phcsx,iph,ics)
+1000 continue
+   return
+ end subroutine find_phase_by_name
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim} %-
+ subroutine find_phasex_by_name(name,phcsx,iph,ics)
+! finds a phase with name "name", returns address of phase, first fit accepted
+! handles composition sets either with prefix/suffix or #digit
+! When no pre/suffix nor # always return first composition set
+   implicit none
+   character name*(*)
+   integer phcsx,iph,ics
 !\end{verbatim} %+
    character name1*36,csname*36,name2*24
    TYPE(gtp_phase_varres), pointer :: csrec
@@ -736,13 +774,14 @@
    goto 1000
 300 continue
    iph=phlista(lokph)%alphaindex
+   phcsx=firsteq%phase_varres(phlista(lokph)%linktocs(ics))%phtupx
    gx%bmperr=0
 1000 continue
    return
 1100 continue
    gx%bmperr=4073
    goto 1000
- END subroutine find_phase_by_name
+ END subroutine find_phasex_by_name
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -1331,6 +1370,23 @@
  end subroutine get_phase_data
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ integer function get_phtuplearray(phcs)
+! copies the internal phase tuple array to external software
+! function value set to number of tuples
+   type(gtp_phasetuple), dimension(*) :: phcs
+!\end{verbatim}
+   integer iz
+   do iz=1,nooftuples
+      phcs(iz)=phasetuple(iz)
+   enddo
+1000 continue
+   get_phtuplearray=nooftuples
+   return
+ end function get_phtuplearray
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 !>     5. Set things
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 !
@@ -1381,11 +1437,11 @@
    integer iph,ics
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-   integer lokph,lokcs,ll,ml,ic,loksp,jl,nsl,locva
+   integer lokph,lokcs,ll,ml,ic,loksp,jl,locva
    double precision charge,spat,asite,bsite,badd,yz,yva,sumat,asum,bsum
 !   double precision charge1,bion1,ionsites(2)
    double precision charge1,bion1
-   TYPE(gtp_fraction_set), pointer :: disrec
+!   TYPE(gtp_fraction_set), pointer :: disrec
    logical ionicliq
 !   write(*,*)'In set_constitution ...'
    if(iph.le.0 .or. iph.gt.noofph) then

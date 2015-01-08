@@ -1,15 +1,49 @@
-@$ Calculating a HSS for varying temperature
+@$ Calculating property diagrams for a High Speed Steel (HSS)
 @&
 
 set echo
 
 r t steel1
 
-set c t=1200 p=1e5 n=1 x(c)=.04 x(cr)=.05, x(mo)=.06 x(si)=.003 x(v)=.01
+set c t=1200 p=1e5 n=1 w(c)=.009 w(cr)=.045, w(mo)=.1 w(si)=.001 w(v)=.009
+
+@$ Enter a composition set for the MC carbide (FCC)
+amend phase fcc comp_set y MC ,
+NONE
+<.1
+NONE
+<.1
+NONE
+>.5
+<.2
+
+@$ Set the default constitution for the FCC to be austenite
+amend phase fcc default
+<.2
+NONE
+<.2
+<.1
+<.2
+<.2
+>.5
+
+@$ Enter a composition set for the M2C carbide (HCP)
+amend phase hcp comp_set y M2C ,
+NONE
+NONE
+NONE
+NONE
+NONE
+>.5
+<.2
 
 c e
 
 l r 1
+
+@&
+
+l r 4
 
 @&
 
@@ -33,49 +67,39 @@ l line
 
 l eq
 
-
-plot,,,,,,,,,,,
-
+plot,,,,,,,,,,,,
 
 
-@$ plot cr content in stable phases
+
 plot
 T
-w(*,cr)
-ocgnu
-plot ,,,,,,,,,,,,,,
+w(*,cr),,,,,,,,,,,,,,,,,,,
 
 
-
-
-@$ plot enthalpy
 
 plot
-T 
+T
 H
-ocgnu
-plot ,,,,,,,,,,,,,,,
+plot,,,,,,,,,,,,,,,,,,
 
 
-@$ plot heat capacity
+ent sym cp=hm.t;
 
-ent sym cp=h.t;
 
 
 plot
 T
-cp 
-ocgnu
-plot ,,,,,,,,,,,,,
+cp,,,,,,,,,,,,,,,,,,
 
 
-@$ Set range for y axis
+
+@$ scaling of y axis
+
 plot
 T
 cp
-ocgnu
 yr
-n
+N
 0
 200
 

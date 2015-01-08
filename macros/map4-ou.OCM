@@ -1,4 +1,4 @@
-@$ Calculate the O-U phase diagram
+@$ Calculate the phase diagram for O-U
 @&
 
 set echo
@@ -6,7 +6,6 @@ set echo
 r t ou
 
 
-@$ start in the miscibility gap
 set c t=3200 p=1e5 n=1 x(o)=.5
 
 c e
@@ -15,7 +14,7 @@ l r 2
 
 @&
 
-set ax 1 x(o) 0 1 .002
+set ax 1 x(o) 0 1 ,,
 
 set ax 2 t 500 3500 25
 
@@ -24,37 +23,22 @@ map
 plot
 x(*,o)
 T
-ocgnu
-plot
+plot,,,,,,,,,,,,,,,,,
 
 
 
-@$ the high O side missing
-
-set c t=2500 x(o)=.8
+set c t=2000 x(o)=.8
 
 c e
-
-c n
-
-l,,,,,
-
-@&
 
 map
 N
 
 
 
-plot
-x(*,O)
-T
-ocgnu
-yr
-N
-500
-3500
-,,,,,,,,,,,,,
+plot,,,,,,,,,,,,,,,,,
+
+
 
 
 

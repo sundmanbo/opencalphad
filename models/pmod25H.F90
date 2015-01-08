@@ -163,29 +163,29 @@
 !old      endif
 ! new way, test PHSTATE
       j=ceq%phase_varres(lokcs)%phstate
-      if(j.lt.-4 .or. j.gt.2) then
+!z      if(j.lt.-4 .or. j.gt.2) then
 ! I had an erroor here when plotting map2 macro because after the second
 ! map command I had 2 liquid compsets and during the first mapping I had
 ! only one liquid so I think
-         ip=j
-         j=0
-         if(btest(ceq%phase_varres(lokcs)%status2,CSSUS)) then
-            if(btest(ceq%phase_varres(lokcs)%status2,CSFIXDORM)) then
-               j=-2
-            else ! suspended
-               j=3
-            endif
-         elseif(btest(ceq%phase_varres(lokcs)%status2,CSFIXDORM)) then
+!z         ip=j
+!z         j=0
+!z         if(btest(ceq%phase_varres(lokcs)%status2,CSSUS)) then
+!z            if(btest(ceq%phase_varres(lokcs)%status2,CSFIXDORM)) then
+!z               j=-2
+!z            else ! suspended
+!z               j=3
+!z            endif
+!z         elseif(btest(ceq%phase_varres(lokcs)%status2,CSFIXDORM)) then
 ! fix
-            j=2
-         else ! entered
-            j=0
-         endif
+!z            j=2
+!z         else ! entered
+!z            j=0
+!z         endif
 ! save this status .... ???
-         write(*,16)'25H PHSTATE wrong, fixing ...',iph,ics,j,ip,&
-              ceq%phase_varres(lokcs)%status2
-         ceq%phase_varres(lokcs)%phstate=j
-      endif
+!z         write(*,16)'25H PHSTATE wrong, fixing ...',iph,ics,j,ip,&
+!z              ceq%phase_varres(lokcs)%status2
+!z         ceq%phase_varres(lokcs)%phstate=j
+!z      endif
       select case(j)
       case default
          write(*,16)'25H: PHSTATE not correct: ',iph,ics,j,ip,&
@@ -257,24 +257,24 @@
    if(iph.gt.0 .and. iph.le.noph()) then
       call get_phase_compset(iph,ics,lokph,lokcs)
 ! biet set means false ....
-      if(btest(phlista(lokph)%status1,phhid)) then
+!z      if(btest(phlista(lokph)%status1,phhid)) then
 ! hidden
-         ists=5
-      elseif(btest(ceq%phase_varres(lokcs)%status2,CSSUS)) then
+!z         ists=5
+!z      elseif(btest(ceq%phase_varres(lokcs)%status2,CSSUS)) then
 !              entered,   fix,   suspended,   dormant
 ! bit setting: 00         01   , 10           11
-           if(btest(ceq%phase_varres(lokcs)%status2,CSFIXDORM)) then
-              ists=3
-           else
-              ists=4
-           endif
-      elseif(btest(ceq%phase_varres(lokcs)%status2,CSFIXDORM)) then
-         val=ceq%phase_varres(lokcs)%amfu
-         ists=2
-      else
-         ists=1
-         val=ceq%phase_varres(lokcs)%amfu
-      endif
+!z           if(btest(ceq%phase_varres(lokcs)%status2,CSFIXDORM)) then
+!z              ists=3
+!z           else
+!z              ists=4
+!z           endif
+!z      elseif(btest(ceq%phase_varres(lokcs)%status2,CSFIXDORM)) then
+!z         val=ceq%phase_varres(lokcs)%amfu
+!z         ists=2
+!z      else
+!z         ists=1
+!z         val=ceq%phase_varres(lokcs)%amfu
+!z      endif
 ! new way, test PHSTATE
       j=ceq%phase_varres(lokcs)%phstate
       select case(ceq%phase_varres(lokcs)%phstate)
@@ -470,10 +470,11 @@
 !         write(*,*)'Setting phase as entered',nystat
 !         ceq%phase_varres(lokcs)%phstate=phentered
          ceq%phase_varres(lokcs)%phstate=nystat
-         ceq%phase_varres(lokcs)%status2=&
-              ibclr(ceq%phase_varres(lokcs)%status2,CSSUS)
-         ceq%phase_varres(lokcs)%status2=&
-              ibclr(ceq%phase_varres(lokcs)%status2,CSFIXDORM)
+! remove use of status bits
+!z         ceq%phase_varres(lokcs)%status2=&
+!z              ibclr(ceq%phase_varres(lokcs)%status2,CSSUS)
+!z         ceq%phase_varres(lokcs)%status2=&
+!z              ibclr(ceq%phase_varres(lokcs)%status2,CSFIXDORM)
 !         ceq%phase_varres(lokcs)%amount=val
          ceq%phase_varres(lokcs)%amfu=val
          ceq%phase_varres(lokcs)%netcharge=zero
@@ -481,12 +482,12 @@
       elseif(nystat.eq.phsus) then
 ! set suspended with amount and dgm zero
          ceq%phase_varres(lokcs)%phstate=phsus
-         ceq%phase_varres(lokcs)%status2=&
-              ibset(ceq%phase_varres(lokcs)%status2,CSSUS)
-         ceq%phase_varres(lokcs)%status2=&
-              ibclr(ceq%phase_varres(lokcs)%status2,CSFIXDORM)
-         ceq%phase_varres(lokcs)%status2=&
-              ibclr(ceq%phase_varres(lokcs)%status2,CSSTABLE)
+!z         ceq%phase_varres(lokcs)%status2=&
+!z              ibset(ceq%phase_varres(lokcs)%status2,CSSUS)
+!z         ceq%phase_varres(lokcs)%status2=&
+!z              ibclr(ceq%phase_varres(lokcs)%status2,CSFIXDORM)
+!z         ceq%phase_varres(lokcs)%status2=&
+!z              ibclr(ceq%phase_varres(lokcs)%status2,CSSTABLE)
 !         ceq%phase_varres(lokcs)%amount=zero
          ceq%phase_varres(lokcs)%amfu=zero
          ceq%phase_varres(lokcs)%netcharge=zero
@@ -494,12 +495,12 @@
       elseif(nystat.eq.phdorm) then
 ! set dormant with amount and dgm zero
          ceq%phase_varres(lokcs)%phstate=phdorm
-         ceq%phase_varres(lokcs)%status2=&
-              ibset(ceq%phase_varres(lokcs)%status2,CSSUS)
-         ceq%phase_varres(lokcs)%status2=&
-              ibset(ceq%phase_varres(lokcs)%status2,CSFIXDORM)
-         ceq%phase_varres(lokcs)%status2=&
-              ibclr(ceq%phase_varres(lokcs)%status2,CSSTABLE)
+!z         ceq%phase_varres(lokcs)%status2=&
+!z              ibset(ceq%phase_varres(lokcs)%status2,CSSUS)
+!z         ceq%phase_varres(lokcs)%status2=&
+!z              ibset(ceq%phase_varres(lokcs)%status2,CSFIXDORM)
+!z         ceq%phase_varres(lokcs)%status2=&
+!z              ibclr(ceq%phase_varres(lokcs)%status2,CSSTABLE)
          ceq%phase_varres(lokcs)%amfu=zero
          ceq%phase_varres(lokcs)%netcharge=zero
          ceq%phase_varres(lokcs)%dgm=zero
@@ -507,10 +508,10 @@
 ! set fix with amount val
 !         write(*,*)'Setting phase as fix'
          ceq%phase_varres(lokcs)%phstate=phfixed
-         ceq%phase_varres(lokcs)%status2=&
-              ibclr(ceq%phase_varres(lokcs)%status2,CSSUS)
-         ceq%phase_varres(lokcs)%status2=&
-              ibset(ceq%phase_varres(lokcs)%status2,CSFIXDORM)
+!z         ceq%phase_varres(lokcs)%status2=&
+!z              ibclr(ceq%phase_varres(lokcs)%status2,CSSUS)
+!z         ceq%phase_varres(lokcs)%status2=&
+!z              ibset(ceq%phase_varres(lokcs)%status2,CSFIXDORM)
          ceq%phase_varres(lokcs)%amfu=val
          ceq%phase_varres(lokcs)%netcharge=zero
          ceq%phase_varres(lokcs)%dgm=zero
@@ -553,11 +554,10 @@
 ! nystat:-4 hidden, -3 suspended, -2 dormant, -1,0,1 entered, 2 fix
 ! 
    implicit none
-   integer qph,ics,nystat
+   integer iph,ics
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-   integer lokph,lokcs,iph,ip,mcs
-   character line*80,phname*32
+   integer lokph,lokcs
 !   write(*,11)'25H mark as stable: ',iph,ics,phentstab
 11 format(a,3i5,1pe14.6)
    call get_phase_compset(iph,ics,lokph,lokcs)
@@ -592,7 +592,7 @@
    double precision, dimension(2) :: tpval
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-   integer nsl,nkl(maxsubl),knr(maxconst),splink,j1,ie,isp,elink
+   integer nsl,nkl(maxsubl),knr(maxconst),splink,j1,ie,elink
    integer ll,jj,nrel,lokph,noendm,jerr,lokres,ny,endmemx,endmemxy,ics
    double precision sites(maxsubl),qq(5),yarrsave(maxconst),xsum,gmin,gval
    double precision, dimension(:), allocatable :: yarr,xcomp,xmol
@@ -648,6 +648,7 @@
    allocate(xmol(nrel))
 !   lokph=phases(iph)
 ! we must save the gval for lokres (composition set 1)
+   ics=1
    call get_phase_compset(iph,ics,lokph,lokres)
    if(gx%bmperr.ne.0) goto 1000
    gmin=1.0D5
@@ -700,6 +701,8 @@
 250 continue
 ! change constitution .... quit when all endmembers done
    ll=nsl
+! should this always be 0?
+   maxjj(0)=0
 260 continue
 ! jend is the current endmember
    jj=jend(ll)
@@ -912,7 +915,7 @@
 ! also make alphaindex give alphabetical order
    implicit none
 !\end{verbatim} %+
-   character symb1*2,symb2*2
+   character symb1*2
    integer i,j
    symb1=ellista(noofel)%symbol
 !  write(6,*)'alphaelorder 1: ',symb1,noofel
@@ -939,7 +942,7 @@
 ! also make alphaindex give alphabetical order
    implicit none
 !\end{verbatim} %+
-   character symb1*24,symb2*24
+   character symb1*24
    integer i,j
    symb1=splista(noofsp)%symbol
 !  write(6,*)'alphasporder 1: ',symb1(1:6),noofsp
@@ -962,14 +965,17 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine alphaphorder
+ subroutine alphaphorder(tuple)
 ! arrange last added phase in alphabetical order
 ! also make alphaindex give alphabetical order
 ! phletter G and L and I have priority
+! tuple is returned as position in phase tuple
    implicit none
+   integer tuple
 !\end{verbatim}
-   character symb1*24,symb2*24,ch1*1,ch2*1
-   integer iph,lokph,j
+   character symb1*24,ch1*1,ch2*1
+   integer iph,lokph,j,lokcs
+!
    symb1=phlista(noofph)%name
    ch1=phlista(noofph)%phletter
 ! one more phase in "phases" array
@@ -1007,8 +1013,10 @@
 200    continue
    enddo loop1
 ! exit loop, add new phase last
-   lokph=phases(noofph)
+!   lokph=phases(noofph)
+   iph=phases(noofph)
 300 continue
+!   write(*,*)'25H new phase position: ',iph
 !  write(6,77)'alphaphorder 2C: ',iph,lokph,phlista(lokph)%name
 !77 format(A,2I3,1X,A)
 ! insert phase here at iph, shift down trailing phase indices
@@ -1024,14 +1032,26 @@
    phlista(noofph)%alphaindex=iph
 !  write(6,*)'alphaphorder 3: ',iph,(phases(k),k=1,noofph)
 ! update phasetuple array
+!   write(*,*)'25H New phase alphabetic order: ',iph
    do j=nooftuples,iph,-1
       phasetuple(j+1)%phase=phasetuple(j)%phase
       phasetuple(j+1)%compset=phasetuple(j)%compset
+! we must also change the tuple index in phase_varres!!
+      lokcs=phlista(phasetuple(j)%phase)%linktocs(1)
+      firsteq%phase_varres(lokcs)%phtupx=j+1
+!      write(*,777)'25H shifted phase in phasetuple',&
+!           phasetuple(j)%phase,lokcs,j+1
    enddo
-! insert first compset of new phase in phasetuple position nph
+! insert the first compset of new phase in phasetuple position iph
    phasetuple(iph)%phase=noofph
    phasetuple(iph)%compset=1
    nooftuples=nooftuples+1
+   tuple=iph
+!   write(*,771)(phasetuple(j)%phase,phasetuple(j)%compset,j=1,nooftuples)
+771 format('25H: ',10(2i3,1x))
+! link to first compset set when phase_varres record connected
+!   write(*,777)'25H phase tuple position: ',iph,noofph,lokph,lokcs,tuple
+777 format(a,10i5)
    return
  END subroutine alphaphorder
 
@@ -1342,7 +1362,7 @@
    integer proptype,degree,lfun
    character refx*(*)
 !\end{verbatim}
-   integer next,j,iref
+   integer j,iref
    character notext*32
    if(degree.lt.0 .or. degree.gt.9) then
       gx%bmperr=4063; goto 1000
@@ -2072,7 +2092,7 @@
    deallocate(firsteq%phase_varres(lokcs)%mmyfr)
 !   write(*,*)'Allocate constat 5: ',noc
    allocate(firsteq%phase_varres(lokcs)%constat(noc))
-   firsteq%phase_varres(lokcs)%constat(noc)=zero
+   firsteq%phase_varres(lokcs)%constat(noc)=0
    allocate(firsteq%phase_varres(lokcs)%yfr(noc))
    allocate(firsteq%phase_varres(lokcs)%mmyfr(noc))
    firsteq%phase_varres(lokcs)%yfr=one

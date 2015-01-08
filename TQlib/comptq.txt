@@ -1,1 +1,0 @@
-gfortran -I../ -c -fbounds-check -finit-local-zero liboctq.F90

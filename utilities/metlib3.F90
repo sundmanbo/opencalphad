@@ -3,7 +3,7 @@
 !
 MODULE METLIB
 !
-! Copyright 1980-2014, Bo Sundman and others, bo.sundman@gmail.com 
+! Copyright 1980-2015, Bo Sundman and others, bo.sundman@gmail.com 
 ! 
 !    This program is free software; you can redistribute it and/or modify
 !    it under the terms of the GNU General Public License as published by
@@ -4112,15 +4112,15 @@ CONTAINS
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
 
    SUBROUTINE GZRFUN(PROMT,LINE,NEXT,STRING,FUNHLP)
-!$     GZRFUN(PROMT,LINE,NEXT,STRING,FUNHLP)
-!$..INTERACTIVE INPUT OF A FUNCTION FROM THE TERMINAL
-!$ENTRY: PROMT   STRING WITH QUESTION
-!$       LINE    STRING READ FROM TERMINAL
-!$       NEXT    FIRST CHARACTER TO SCAN
-!$       FUNHLP  HELP ROUTINE
-!$EXIT:  NEXT    UPDATED TO FUNCTION TERMINATOR (;)
-!$       STRING  FUNCTION
-!$
+!x     GZRFUN(PROMT,LINE,NEXT,STRING,FUNHLP)
+!x..INTERACTIVE INPUT OF A FUNCTION FROM THE TERMINAL
+!xENTRY: PROMT   STRING WITH QUESTION
+!x       LINE    STRING READ FROM TERMINAL
+!x       NEXT    FIRST CHARACTER TO SCAN
+!x       FUNHLP  HELP ROUTINE
+!xEXIT:  NEXT    UPDATED TO FUNCTION TERMINATOR (;)
+!x       STRING  FUNCTION
+!x
     EXTERNAL FUNHLP
     CHARACTER PROMT*(*),LINE*(*),STRING*(*),LINE2*300
     IP=1
@@ -4680,7 +4680,8 @@ CONTAINS
 ! when the user types a ?
 ! prompt is never used ...
     character*(*) prompt,line
-    character hline*80,section*32
+    character hline*80
+    character subsec(3)*9
 !
 !    write(*,*)'called on-line help',helprec%okinit
 !    if(helprec%okinit.ne.0) then
@@ -4692,46 +4693,87 @@ CONTAINS
 !    enddo
 !10  format(i3,': ',a)
 !
+    subsec(1)='\section{'
+    subsec(2)='\subsecti'
+    subsec(3)='\subsubse'
     if(helprec%okinit.eq.0) then
        write(kou,*)'Sorry no help file'
        goto 1000
     endif
+! list current search path:
+!    do nl=1,helprec%level
+!       write(*,17)'Search for: ',nl,helprec%cpath(nl)(1:24)
+!17     format(a,i3,2x,a)
+!    enddo
+!
     open(31,file=helprec%filename,status='old',access='sequential')
     nl=0
     level=3
     np1=0
+    nsub=1
     if(helprec%type.eq.'latex   ') then
-! plain LaTeX file, search for \section{'
-       section='section{'
+! plain LaTeX file, search for \section{' with command
 100    continue
+       if(level.gt.helprec%level) then
+          level=level-1
+       endif
        l2=len_trim(helprec%cpath(level))
+!       write(*,107)level,l2,helprec%cpath(level)(1:l2)
+107    format('Command/question: ',2i3,': ',a)
 110    continue
        read(31,120,end=700)hline
 120    format(a)
        nl=nl+1
 ! skip comment lines
        if(hline(1:1).eq.'%') goto 110
-       kk=index(hline,'section{')
+       kk=index(hline,subsec(nsub))
+       if(nsub.gt.1) then
+          izz=index(hline,subsec(nsub-1))
+       else
+          izz=0
+       endif
        if(kk.gt.0) then
-!          write(*,*)'found: ',hline(1:30)
+!          write(*,*)'found section: ',hline(1:30)
           call capson(hline)
-          kk=kk+8
+!          kk=kk+8
+          kk=index(hline,'SECTION{')+8
+          if(kk.le.8) then
+             write(*,*)'Help file error, not correct LaTeX',kk
+             np1=0
+             goto 700
+          endif
+! remove everything from }
+          jj=index(hline,'}')-1
+          hline(jj+1:)=' '
+!          write(*,*)'Command: ',kk,jj,' >',hline(kk:jj),'< '
 ! NOTE that in LaTeX files the underscore _ is replaced by \_
 ! this means one will not find commands with underscore ....
-!          write(*,130)hline(kk:kk+l2-1),helprec%cpath(level)(1:l2)
-130       format('comparing: ',a,' and ',a)
+!          write(*,130)level,hline(kk:jj),helprec%cpath(level)(1:l2)
+130       format('comparing: ',i3,': ',a,' with ',a)
           if(hline(kk:kk+l2-1).eq.helprec%cpath(level)(1:l2)) then
 ! found one level, save line number for first line
              np1=nl
              np2=0
              level=level+1
-!             write(*,*)'Line 1: ',np1,hline(kk:kk+l2-1)
+             if(index(helprec%cpath(level),' what? ').gt.0) then
+! if next "command/question" finishes with "what?" skip that
+! because it is a submenu question
+                level=level+1
+             endif
+             if(nsub.lt.3) nsub=nsub+1
              goto 100
-          elseif(np1.gt.0 .and. np2.eq.0) then
+          elseif(level.eq.helprec%level .and. np1.gt.0 .and. np2.eq.0) then
 ! save end of text
              np2=nl-1
-!             write(*,*)'Line 2: ',np2,hline(kk:kk+l2-1)
+             goto 700
+          else
+! continue searching
+             goto 100
           endif
+       elseif(izz.gt.0) then
+! we have found the start of a higher order section, finish searching
+          np2=nl-1
+          goto 700
        endif
        goto 110
     else
