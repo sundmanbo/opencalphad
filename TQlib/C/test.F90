@@ -121,6 +121,12 @@ module test
      real(c_double) :: savesysmat
   END TYPE c_gtp_equilibrium_data
 contains
+  ! functions
+  integer function c_noofcs(iph) bind(c, name='c_noofcs')
+    integer(c_int) :: iph
+    c_noofcs = noofcs(iph)
+    return 
+  end function c_noofcs 
   subroutine examine_gtp_equilibrium_data(c_ceq) bind(c, name='examine_gtp_equilibrium_data')
      type(c_ptr), intent(in), value :: c_ceq
      type(gtp_equilibrium_data), pointer :: ceq
@@ -269,8 +275,8 @@ contains
 !\begin{verbatim}
   subroutine c_tqgpi(n,phasename,c_ceq) bind(c, name='c_tqgpi')
 ! get index of phase phasename
-    integer(c_int), intent(out) : n
-    character(c_char, len=1), intent(in) :: phasename(24)
+    integer(c_int), intent(out) :: n
+    character(c_char), intent(in) :: phasename(24)
     type(c_ptr), intent(inout) :: c_ceq
 !\end{verbatim}
     type(gtp_equilibrium_data), pointer :: ceq
@@ -286,7 +292,7 @@ contains
 ! get name of constitutent c in phase n
     integer(c_int), intent(in) :: n  ! phase number
     integer(c_int), intent(in) :: c  ! extended constituent index: 10*species_number + sublattice
-    character(c_char, len=1), intent(out) :: constituentname(24)
+    character(c_char), intent(out) :: constituentname(24)
     type(c_ptr), intent(inout) :: c_ceq
 !\end{verbatim}
     write(*,*) 'tqgpcn not implemented yet'
@@ -297,14 +303,14 @@ contains
 ! get index of constituent with name in phase n
     integer(c_int), intent(in) :: n 
     integer(c_int), intent(out) :: c ! exit: extended constituent index: 10*species_number+sublattice
-    character(c_char, len=1), intent(in) :: constituentname(24)
+    character(c_char), intent(in) :: constituentname(24)
     type(c_ptr), intent(inout) :: c_ceq
 !\end{verbatim}
     type(gtp_equilibrium_data), pointer :: ceq
     character(len=24) :: fstring
     fstring = c_to_f_string(constituentname)
     call c_f_pointer(c_ceq, ceq)
-    tqgpci(n, c, fstring, ceq)
+    call tqgpci(n, c, fstring, ceq)
     c_ceq = c_loc(ceq)
   end subroutine c_tqgpci
 
@@ -315,10 +321,10 @@ contains
     integer(c_int), intent(in) :: n
     integer(c_int), intent(in) :: c ! in: extended constituent index: 10*species_number + sublattice
     real(c_double), intent(out) :: stoi(*) ! exit: stoichiometry of elements
-    read(c_double), intent(ou) :: mass     ! exit: total mass
+    real(c_double), intent(out) :: mass     ! exit: total mass
     type(c_ptr), intent(inout) :: c_ceq 
 !\end{verbatim}
-    type(gtp_equilibrium_type), pointer :: ceq
+    type(gtp_equilibrium_data), pointer :: ceq
     call c_f_pointer(c_ceq, ceq)
     call tqgpcs(n,c,stoi,mass,ceq)
     c_ceq=c_loc(ceq)
@@ -330,7 +336,7 @@ contains
 ! n2 is number of elements ( dimension of elements and stoi )
     integer(c_int), intent(in) :: n1  ! in: component number
     integer(c_int), intent(out) :: n2 ! exit: number of elements in component
-    character(c_char, len=1), intent(out) :: elnames(2) ! exit: element symbols
+    character(c_char), intent(out) :: elnames(2) ! exit: element symbols
     real(c_double), intent(out) :: stoi(*) ! exit: element stoichiometry
     real(c_double), intent(out) :: mass    ! exit: component mass (sum of element mass)
     type(c_ptr), intent(inout) :: c_ceq  
@@ -355,7 +361,7 @@ contains
   end subroutine c_tqgnpc
 
 !\begin{verbatim}
-  subroutine c_tqsetc(statvar, n1, n2, value, cnum, c_ceq) bind(c, name='c_tqsetc')
+  subroutine c_tqsetc(statvar, n1, n2, mvalue, cnum, c_ceq) bind(c, name='c_tqsetc')
 ! set condition
 ! stavar is state variable as text
 ! n1 and n2 are auxilliary indices
@@ -364,34 +370,43 @@ contains
 ! to remove a condition the value sould be equial to RNONE ????
 ! when a phase indesx is needed it should be 10*nph + ics
 ! SEE TQGETV for doucumentation of stavar etc.
-    integer(c_int), intent(in) :: n1 !in: 0 or extended phase index: 10*phase_number+comp.set
+    integer(c_int), intent(in),value :: n1 !in: 0 or extended phase index: 10*phase_number+comp.set
                                      ! or component set
-    integer(c_int), intent(in) :: n2 !
+    integer(c_int), intent(in),value :: n2 !
     integer(c_int), intent(out) :: cnum !exit: sequential number of this condition
-    character(c_char, len=1), intent(in) :: stavar !in: character with state variable symbol
-    real(c_double), intent(in) :: value  !in: value of condition
+    character(c_char), intent(in) :: statvar !in: character with state variable symbol
+    real(c_double), intent(in), value :: mvalue  !in: value of condition
     type(gtp_equilibrium_data), pointer :: ceq
-    type(c_ctr), intent(inout) :: c_ceq ! in: current equilibrium
+    type(c_ptr), intent(inout) :: c_ceq ! in: current equilibrium
 !\end{verbatim}
     call c_f_pointer(c_ceq, ceq)
-    call tqsetc(statvar, n1, n2, value, cnum, ceq)
-    ceq = c_loc(c_ceq)
+    print *, "State variable is: ", statvar
+    print *, "Phase index 1 and 2: ", n1, n2
+    print *, "Value of condition: ", mvalue
+    call tqsetc(statvar, n1, n2, mvalue, cnum, ceq)
+    c_ceq = c_loc(ceq)
   end subroutine c_tqsetc
 
 !\begin{verbatim}
-  subroutine c_tqce(target,n1,n2,value,c_ceq) bind(c,name='c_tqce')
+  subroutine c_tqce(mtarget,n1,n2,mvalue,c_ceq) bind(c,name='c_tqce')
 ! calculate equilibrium with possible target
 ! Target can be empty or a state variable with indicies n1 and n2
 ! value is the calculated value of target
-    integer(c_int), intent(in) :: n1
-    integer(c_int), intent(in) :: n2
+    integer(c_int), intent(in),value :: n1
+    integer(c_int), intent(in),value :: n2
     type(c_ptr), intent(inout) :: c_ceq
-    character(c_char, len=1), intent(inout) :: target  
-    real(c_double), intent(inout) :: value
+    character(c_char), intent(inout) :: mtarget  
+    real(c_double), intent(inout) :: mvalue
     type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
+    character(len=24) :: fstring
     call c_f_pointer(c_ceq,ceq)
-    call tqce(target,n1,n2,value,ceq)
+    print *, "Phase index 1 and 2: ",n1,n2
+    print *, "Value : ", mvalue
+    print *, "Target : ", mtarget
+    fstring = c_to_f_string(mtarget)
+    call tqce(fstring,n1,n2,mvalue,ceq)
+    print *, "Target after :", mtarget
     c_ceq = c_loc(ceq)
   end subroutine c_tqce
 
@@ -403,9 +418,9 @@ contains
 ! value is the calculated value, it can be an array with n3 values.
     implicit none
     integer(c_int) ::  n1,n2,n3
-    character(c_char, len=1) :: stavar*(*)
+    character(c_char), intent(in) :: statvar
     real(c_double), intent(out) :: values(*)
-    type(c_ptr), pointer :: c_ceq  !IN: current equilibrium
+    type(c_ptr), intent(inout) :: c_ceq  !IN: current equilibrium
 !========================================================
 ! stavar must be a symbol listed below
 ! IMPORTANT: some terms explained after the table
@@ -455,8 +470,9 @@ contains
 ! special addition for TQ interface: d2G/dyidyj
 ! D2G + extended phase index
 !------------------------------------
+    type(gtp_equilibrium_data), pointer :: ceq
     call c_f_pointer(c_ceq, ceq)
-    call tqgetv(statvar, n1, n2, n3, values, c_ceq)
+    call tqgetv(statvar, n1, n2, n3, values, ceq)
     c_ceq = c_loc(ceq)
   end subroutine c_tqgetv
 
