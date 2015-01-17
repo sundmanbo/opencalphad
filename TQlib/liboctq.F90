@@ -395,8 +395,6 @@ contains
     type(gtp_equilibrium_data), pointer :: ceq  !IN: current equilibrium
 !\end{verbatim}
 ! mode=1 means start values using global gridminimization
-    print *, "Indices n1 and n2 : ", n1, n2
-    print *, "Passed target: ", target
     mode=1
     if(n1.lt.0) then
 ! this means calculate without grid minimuzer

@@ -442,6 +442,7 @@ contains
     type(gtp_equilibrium_data), pointer :: ceq
     character(len=24) :: fstring
     integer :: n
+    integer :: i
     call c_f_pointer(c_ceq, ceq)
     fstring = c_to_f_string(statvar)
     call tqgetv(fstring, n1, n2, n3, values, ceq)
