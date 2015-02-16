@@ -1,4 +1,4 @@
-OBJS=metlib3.o tpfun4.o lukasnum.o pmod25.o matsmin.o smp3.o pmon6.o
+OBJS=metlib3.o tpfun4.o lukasnum.o pmod25.o matsmin.o smp1.o pmon6.o
 EXE=oc2A
 
 all:
