@@ -1,5 +1,5 @@
 $ Database file written 2015-03-10 Modified for OpenCALPHAD from Database compiled by Ursula R. Kattner(1999)
-$ From database: SSOL2                   
+$ From database: USER                  
  ELEMENT /-   ELECTRON_GAS           0.0000E+00  0.0000E+00  0.0000E+00 !
  ELEMENT VA   VACUUM                 0.0000E+00  0.0000E+00  0.0000E+00 !
  ELEMENT AG   FCC_A1                 1.0787E+02  5.7446E+03  4.2551E+01 !
