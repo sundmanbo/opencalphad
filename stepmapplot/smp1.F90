@@ -3643,7 +3643,7 @@ CONTAINS
 
 !\begin{verbatim}
   integer function invariant_equilibrium(lines,mapnode)
-! Only called for tieöines not in plane.  If tie-lines in plane then all
+! Only called for tie-lines not in plane.  If tie-lines in plane then all
 ! nodes are invariants.
     integer lines
     type(map_node), pointer :: mapnode
