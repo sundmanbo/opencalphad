@@ -17,11 +17,11 @@ PROGRAM pmain1
   double precision dblvar(10)
 !
 ! the next line overwritten with current linkdate by linkocdate
-  linkdate='01-01-2012'
+  linkdate='01-01-2015'
 ! this is the overall version identifier
-  version=' 2.0'
+  version=' 3.0'
 ! intvar and dblvar will eventually be used for allocations and defaults
-  intvar(1)=20
+  intvar(1)=30
   call init_gtp(intvar,dblvar)
   if(gx%bmperr.ne.0) then
      stop 'Error initiating GTP data structures'

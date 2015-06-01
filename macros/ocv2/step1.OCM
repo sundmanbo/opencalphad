@@ -1,0 +1,109 @@
+@$ Calculating property diagrams for a High Speed Steel (HSS)
+@&
+
+set echo
+
+r t steel1
+
+set c t=1200 p=1e5 n=1 w(c)=.009 w(cr)=.045, w(mo)=.1 w(si)=.001 w(v)=.009
+
+@$ Enter a composition set for the MC carbide (FCC)
+amend phase fcc comp_set y MC ,
+NONE
+<.1
+NONE
+<.1
+NONE
+>.5
+<.2
+
+@$ Set the default constitution for the FCC to be austenite
+amend phase fcc default
+<.2
+NONE
+<.2
+<.1
+<.2
+<.2
+>.5
+
+@$ Enter a composition set for the M2C carbide (HCP)
+amend phase hcp comp_set y M2C ,
+NONE
+NONE
+NONE
+NONE
+NONE
+>.5
+<.2
+
+c e
+
+l r 1
+
+@&
+
+l r 4
+
+@&
+
+set axis 1 T 800 1800 10
+
+l ax
+
+@&
+
+step
+
+
+
+
+
+@&
+
+l line
+
+@&
+
+l eq
+
+plot,,,,,,,,,,,,
+
+
+
+plot
+T
+w(*,cr),,,,,,,,,,,,,,,,,,,
+
+
+
+plot
+T
+H
+plot,,,,,,,,,,,,,,,,,,
+
+
+ent sym cp=hm.t;
+
+
+
+plot
+T
+cp,,,,,,,,,,,,,,,,,,
+
+
+
+@$ scaling of y axis
+
+plot
+T
+cp
+yr
+N
+0
+200
+
+
+
+set inter
+

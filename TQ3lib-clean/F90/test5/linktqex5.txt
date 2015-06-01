@@ -1,0 +1,2 @@
+gfortran -o tqex5 TQ5-crfemob.F90 liboctq.o liboceq.a
+

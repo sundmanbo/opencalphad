@@ -1,0 +1,57 @@
+@$ Calculate the phase diagram for Ag-Cu
+@&
+
+set echo
+
+r t agcu
+
+
+set cond t=1000 p=1e5 n=1 x(cu)=.2
+
+c e
+
+l r 1
+
+@&
+
+set ax 1 x(cu) 0 1 ,,,
+set ax 2 t 800 1500 10
+
+l ax
+
+l sh
+
+set ref ag fcc,,,,,
+set ref cu fcc,,,,,
+
+@&
+
+map
+
+@&
+
+plot
+x(*,cu)
+T
+plot
+
+
+plot
+x(*,cu)
+T
+xr
+N
+0
+0.2
+plot
+
+
+plot
+T
+x(*,cu),,,,,,,,,,,
+plot
+ac(cu)
+T,,,,,,,,,,,,,,,,
+
+
+set inter

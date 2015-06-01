@@ -1,0 +1,24 @@
+@$ Calculating a multicomponent single equilibrium
+@$ Including the melting point of the alloy
+@&
+
+set echo
+
+r t steel1
+
+set c t=1200 p=1e5 n=1 x(c)=.01 x(cr)=.05, x(mo)=.05 x(si)=.003 x(v)=.01
+
+c e
+
+l ,,,,
+
+@&
+
+c tran
+liq
+1
+
+list,,,,,
+
+set inter
+

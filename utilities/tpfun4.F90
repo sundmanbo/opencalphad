@@ -407,24 +407,24 @@ CONTAINS
 ! nosym=0 means the local symbol name is included in the listing
    once=.TRUE.
    nosym=0
-   write(kou,10)
+   write(lut,10)
 10 format(/'List of all symbols used in phase parameters (TP-functions):'/ &
         ' Predefined symbols:'/&
         ' BELOW(TB) = EXP(20*(1-T/TB))/(1+EXP(20*(1-T/TB)));'/&
         ' ABOVE(TB) = 1-EXP(20*(1-T/TB))/(1+EXP(20*(1-T/TB)));'/&
         ' Nr Name',8x,'T-low  expression; T-high Y/N')
-20  format(I3,1x,A)
+20  format(I4,1x,A)
    do ifun=1,freetpfun-1
       write(str,20)ifun
-      call list_tpfun(ifun,nosym,str(5:))
-      if(str(5:9).eq.'_A00 ') then
+      call list_tpfun(ifun,nosym,str(6:))
+      if(str(6:9).eq.'_A00 ') then
          if(once) then
             write(lut,30)
 30          format(' *** Not listing optimizing coefficents that are zero')
             once=.FALSE.
          endif
       else
-         if(str(5:5).ne.'_') call wrice2(lut,0,12,78,1,str)
+         if(str(6:6).ne.'_') call wrice2(lut,0,12,78,1,str)
       endif
    enddo
    return
@@ -819,7 +819,10 @@ CONTAINS
         (jp.gt.0 .and. ch1.eq.'_') .or. &
         (jp.gt.0 .and. (ch1.ge.'0' .and. ch1.le.'9'))) then
       jp=jp+1
-      localsym(jp:jp)=ch1
+! ignore characters after length of localsym
+      if(jp.le.len(localsym)) then
+         localsym(jp:jp)=ch1
+      endif
       ip=ip+1
       goto 100
    endif
@@ -1551,6 +1554,7 @@ CONTAINS
    ic=0
    level=1
    lpar=0
+!   write(*,*)'in ct1wfn',nc
 200 ic=ic+1
    if(ic.gt.nc) goto 1000
    coeff(level)=exprot%coeffs(ic)
@@ -1571,6 +1575,8 @@ CONTAINS
 !
 71    format(A,I5,1PE15.6,5I5)
    is=koder(5,level)
+!   write(*,202)'ct1wfn: ',ic,ip,is,koder(1,level),string(1:ip)
+!202 format(a,4i4,a)
    symbol: if(is.ne.0) then
 !...reference to symbol or unary function, write coefficient only if not one
       if(abs(coeff(level)).ne.one) then
@@ -1609,6 +1615,7 @@ CONTAINS
          string(ip:)=unary(-is)(1:kk)//'('
          ip=ip+kk+1
          lpar=koder(4,level)
+!         write(*,*)'lpar: ',string(1:ip),' ',lpar
       else
 ! an external symbol, possibly a sign and power
          if(nos.eq.1) then
@@ -1658,6 +1665,8 @@ CONTAINS
          call ct1wpow(string,ip,tps(1),-1,koder(1,level))
          call ct1wpow(string,ip,tps(2),-1,koder(2,level))
 ! fixing missing ) after unary function of symbol like exp(s1)
+!         write(*,*)'problem here??:',string(1:ip),' ',lpar
+! We got one extra ) as lpar not reset below
          if(lpar.gt.0) then
             string(ip:ip)=')'
             ip=ip+1
@@ -1673,10 +1682,20 @@ CONTAINS
    else
 ! in the case of a single value exactly 1 without unary or T or P power
 ! the number was never written
+!      write(*,203)'ct1wfn2: ',(koder(i,level),i=1,4),coeff(level)
+203   format(a,4i4,1pe12.4)
       do i=1,4
-         if(koder(i,level).ne.0) goto 220
+         if(koder(i,level).ne.0) goto 219
       enddo
+! without this the Inden magnetic function will miss its initial 1.0
       call wrinum(string,ip,2,0,coeff(level))
+      goto 220
+219   continue
+! missing coefficient discovered by Mauro, as the coefficient is unity
+! it is not written.  Check with -1 maybe sign problems?
+!      call wrinum(string,ip,2,1,coeff(level))
+      string(ip:ip)='+'
+      ip=ip+1
 220   continue
       mult=0
    endif
@@ -1686,6 +1705,10 @@ CONTAINS
    if(koder(4,level).eq.1) then
       string(ip:ip)=')'
       ip=ip+1
+! lpar was not reset here causing an extra ) later in expression ...
+      lpar=0
+!      write(*,*)'lpar not reset?:',string(1:ip)
+!      write(*,*)lpar,koder(4,level)
    endif
    goto 200
 1000 return
@@ -2004,6 +2027,7 @@ CONTAINS
          write(*,*)'nested constant: ',nr,lrot
       else
          write(*,*)'A never never error evaluation a TP function',lrot
+         write(*,*)'Function name: ',tpfuns(lrot)%symbol
          gx%bmperr=6666; goto 1000
       endif
    elseif(nr.eq.1) then

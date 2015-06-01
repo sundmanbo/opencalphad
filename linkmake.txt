@@ -11,9 +11,9 @@ copy numlib\lukasnum.F90 .
 gfortran -c -fbounds-check -finit-local-zero lukasnum.F90
 del lukasnum.F90
 
-copy models\pmod25*.F90 .
-gfortran -c -fbounds-check -finit-local-zero pmod25.F90
-del pmod25*.F90
+copy models\gtp3*.F90 .
+gfortran -c -fbounds-check -finit-local-zero gtp3.F90
+del gtp3*.F90
 
 copy minimizer\matsmin.F90 .
 gfortran -c -fbounds-check -finit-local-zero matsmin.F90
@@ -30,8 +30,8 @@ del pmon6.F90
 gfortran -o linkoc linkocdate.F90
 linkoc
 
-ar sq liboceq.a metlib3.o tpfun4.o lukasnum.o pmod25.o matsmin.o
+ar sq liboceq.a metlib3.o tpfun4.o lukasnum.o gtp3.o matsmin.o
 
-gfortran -o oc2A -fbounds-check  pmain1.F90 pmon6.o smp1.o liboceq.a
+gfortran -o oc3A -fbounds-check  pmain1.F90 pmon6.o smp1.o liboceq.a
 
 

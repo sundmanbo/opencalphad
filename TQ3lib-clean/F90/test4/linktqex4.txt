@@ -1,0 +1,2 @@
+gfortran -o tqex4 TQ4-crfe.F90 liboctq.o liboceq.a
+

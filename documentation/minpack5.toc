@@ -1,0 +1,65 @@
+\contentsline {section}{\numberline {1}Introduction}{4}
+\contentsline {section}{\numberline {2}The thermodynamic model}{4}
+\contentsline {subsection}{\numberline {2.1}The formula unit of a phase}{5}
+\contentsline {subsection}{\numberline {2.2}Differentials}{6}
+\contentsline {subsection}{\numberline {2.3}Examples}{6}
+\contentsline {subsubsection}{\numberline {2.3.1}A gas phase with H and O}{6}
+\contentsline {subsubsection}{\numberline {2.3.2}A crystalline phase with substitutional and interstitial constituents}{7}
+\contentsline {subsubsection}{\numberline {2.3.3}A crystalline phase with long range ordering}{7}
+\contentsline {subsection}{\numberline {2.4}End-members of models}{8}
+\contentsline {section}{\numberline {3}The Gibbs energy}{8}
+\contentsline {subsection}{\numberline {3.1}The differential of the Gibbs energy}{9}
+\contentsline {subsection}{\numberline {3.2}The partial Gibbs energy with for an end-member}{9}
+\contentsline {subsection}{\numberline {3.3}The Gibbs-Duhem relation}{10}
+\contentsline {section}{\numberline {4}Minimization with constraints}{11}
+\contentsline {subsection}{\numberline {4.1}The constraints}{11}
+\contentsline {subsection}{\numberline {4.2}The Lagrangian equation}{11}
+\contentsline {subsection}{\numberline {4.3}The derivative of the Lagrangian with respect to phase amounts}{12}
+\contentsline {subsection}{\numberline {4.4}The derivative of the Lagrangian with respect to constituent fractions}{12}
+\contentsline {section}{\numberline {5}Calculating the equilibrium}{13}
+\contentsline {subsection}{\numberline {5.1}Step 0, Obtaining start values by grid minimizer}{13}
+\contentsline {subsection}{\numberline {5.2}Step 1, the phase matrix}{15}
+\contentsline {subsubsection}{\numberline {5.2.1}The phase matrix for a binary system}{16}
+\contentsline {subsubsection}{\numberline {5.2.2}The general equation for the correction of constituent fractions}{17}
+\contentsline {subsection}{\numberline {5.3}Charge balance}{17}
+\contentsline {subsection}{\numberline {5.4}Step 2, the external conditions}{18}
+\contentsline {subsubsection}{\numberline {5.4.1}Condition on the amount of the components}{18}
+\contentsline {subsubsection}{\numberline {5.4.2}Example: a binary system with a single stable phasse}{19}
+\contentsline {subsubsection}{\numberline {5.4.3}Example: a binary system with two stable phases}{20}
+\contentsline {subsubsection}{\numberline {5.4.4}Example: a binary system with unknown $T$ and one stable phase prescribed.}{20}
+\contentsline {subsubsection}{\numberline {5.4.5}Example: a binary system with one condition of a chemical potential}{21}
+\contentsline {subsection}{\numberline {5.5}Condition on volume}{21}
+\contentsline {subsection}{\numberline {5.6}Constant Gibbs energy or entropy}{22}
+\contentsline {subsection}{\numberline {5.7}Heat balance calculation}{24}
+\contentsline {subsection}{\numberline {5.8}Normallized state variables as conditions}{25}
+\contentsline {subsection}{\numberline {5.9}Changing the set of stable phases}{28}
+\contentsline {subsection}{\numberline {5.10}Potentials as conditions}{29}
+\contentsline {subsection}{\numberline {5.11}Generallizing the equilibrium matrix}{29}
+\contentsline {subsection}{\numberline {5.12}Special treatment of the ionic liquid model}{29}
+\contentsline {section}{\numberline {6}Calculating derivatives using the result of an equilibrium calculation, the dot derivative}{30}
+\contentsline {subsection}{\numberline {6.1}Calculating heat capacity}{30}
+\contentsline {subsection}{\numberline {6.2}The liquidus slope}{33}
+\contentsline {section}{\numberline {7}Software documentation}{34}
+\contentsline {subsection}{\numberline {7.1}Data structures}{34}
+\contentsline {subsubsection}{\numberline {7.1.1}Data for each phase}{34}
+\contentsline {subsubsection}{\numberline {7.1.2}Data for the system}{35}
+\contentsline {subsubsection}{\numberline {7.1.3}Data needed for applications like STEP and MAP}{36}
+\contentsline {subsection}{\numberline {7.2}Top level calculation routines}{36}
+\contentsline {subsubsection}{\numberline {7.2.1}The simplest one, for single equilibrium calculation}{36}
+\contentsline {subsubsection}{\numberline {7.2.2}Equilibrium calculatins during step/map calculations}{36}
+\contentsline {subsection}{\numberline {7.3}Subroutine to change the set of stable phases}{37}
+\contentsline {subsection}{\numberline {7.4}Iterations with same set of stable phases}{37}
+\contentsline {subsection}{\numberline {7.5}Formulating the equilibrium matrix}{38}
+\contentsline {subsection}{\numberline {7.6}Routine to calculate the inverse phase matrix}{38}
+\contentsline {subsection}{\numberline {7.7}Some utility routines}{38}
+\contentsline {subsubsection}{\numberline {7.7.1}Correction of of second derivatives for the ionic liquid model}{38}
+\contentsline {subsubsection}{\numberline {7.7.2}Test of same composition}{39}
+\contentsline {subsection}{\numberline {7.8}The coefficients in the $\Delta y$ equation}{39}
+\contentsline {subsection}{\numberline {7.9}The remaining subroutines deals with state variable function and in particular dot derivatives}{40}
+\contentsline {subsubsection}{\numberline {7.9.1}Evaluate all state variable functions}{40}
+\contentsline {subsubsection}{\numberline {7.9.2}Get the value of one or more state variable or function}{40}
+\contentsline {subsubsection}{\numberline {7.9.3}Evaluate a state variable function}{41}
+\contentsline {subsubsection}{\numberline {7.9.4}Initiate the equilibrium matrix for a derivative calculation}{41}
+\contentsline {subsubsection}{\numberline {7.9.5}Calculate the value of a state variable derivative}{41}
+\contentsline {subsubsection}{\numberline {7.9.6}Calculate the value of a state variable derivative for a single phase}{42}
+\contentsline {section}{\numberline {8}Summary}{42}

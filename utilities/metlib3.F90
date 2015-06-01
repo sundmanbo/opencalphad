@@ -101,7 +101,7 @@ MODULE METLIB
        character*32, dimension(maxhelplevel) :: cpath
     END TYPE help_str
 ! this record is used to file the appropriate help text
-    type(help_str) :: helprec
+    type(help_str), save :: helprec
 !vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 ! Data structures for putfun below
 
@@ -4825,8 +4825,9 @@ CONTAINS
 ! To avoid storing "COMMAND" in the helprec%cpath
 !    if(helprec%level.gt.2) helprec%level=helprec%level-1 !.. HELP HELP not OK
     if(helprec%level.gt.3) helprec%level=helprec%level-1
-!    write(*,*)'Asking for command:'
+!    write(*,*)'q3help: asking for command for help:',line(1:2),last
     CALL GPARC('COMMAND: ',LINE,LAST,1,CMD,'*',tophlp)
+!    write(*,*)'q3help: command:',cmd
     IF(CMD(1:1).EQ.'*') THEN
 !...LIST ALL COMMANDS IN UNIX ALPHABETICAL ORDER
        NKPL=80/(LEN(COMM(1))+1)

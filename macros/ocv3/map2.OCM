@@ -1,0 +1,51 @@
+@$ Calculate the miscibility gap and liquidus for Cr-Mo
+@&
+
+set echo
+
+r t steel1
+cr mo
+
+set cond t=800 p=1e5 n=1 x(mo)=.5
+
+c e
+
+l r 1
+
+@&
+
+set ax 1 x(mo) 0 1 ,,
+set ax 2 t 500 3000 25
+
+l ax
+
+l sh
+
+@&
+
+map 
+
+
+@&
+
+plot
+x(*,cr)
+T
+title map 2 fig 1
+render
+
+set cond t=2500 x(mo)=.4
+c e
+
+map
+N
+
+
+plot
+
+
+title map 2 fig 2
+
+
+
+set inter

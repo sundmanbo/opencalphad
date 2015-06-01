@@ -1,0 +1,4 @@
+
+gcc -o feni-tqiso feni-tqiso.c liboctqisoc.o liboctq.o liboceq.a -lgfortran  
+    
+

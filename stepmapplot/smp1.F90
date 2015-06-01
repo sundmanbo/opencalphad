@@ -201,7 +201,7 @@ MODULE ocsmp
 ! ndx is mumber of plot axis, pltax is text with plotaxis variables
 ! filename is intermediary file (maybe not needed)
 ! maptop is map_node record with all results
-! form is type of output (screen or postscript)
+! form is type of output (screen or postscript or jpeg)
      integer rangedefaults(3)
      double precision, dimension(3) :: plotmin,plotmax
      double precision, dimension(3) :: dfltmin,dfltmax
@@ -211,6 +211,10 @@ MODULE ocsmp
 ! label 1 is heading, 2 is x-axis text, 3 is y-axis text 
      character*64, dimension(3) :: plotlabels
      logical gibbstriangle
+! the set key command in GNUPLOT specifies where the line id is written
+! it can be on/off, placed inside/outside, left/right/center, top/bottom/center,
+! and some more options that may be implemented later ...
+     character labelkey*24
 ! many more options can easily be added when desired, linetypes etc
   end TYPE graphics_options
 !\end{verbatim}
@@ -377,7 +381,7 @@ CONTAINS
 !          xxx=zzz+mapline%axandir*yyy
           xxx=zzz
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-! restore constitutions, not a good idea ...
+! restore constitutions, not a good idea ?? ...
           write(*,*)'Restore constitutions 1'
           call restore_constitutions(ceq,copyofconst)
 !
@@ -554,7 +558,7 @@ CONTAINS
 ! calculate with half the step 5 times. If axvalok=0 no previous axis value
        write(*,*)'Phases want to appear/disappear: ',iadd,irem
 ! restore constitutions
-       write(*,*)'Restore constitutions 3'
+       write(*,*)'Restore constitutions 3',axvalok,ceq%tpval(1)
        call restore_constitutions(ceq,copyofconst)
        call map_halfstep(halfstep,axvalok,mapline,axarr,ceq)
        if(gx%bmperr.eq.0) then
@@ -1518,8 +1522,9 @@ CONTAINS
     double precision value
 ! pointer to last calculated (can be zero) and last free
 ! store last calulated axis values in axarr(iax)%lastaxval
-!    write(*,*)'In map_store'
-    do jj=1,mapline%start%number_ofaxis
+!    write(*,*)'In map_store',mapline%start%number_ofaxis,nax
+!    do jj=1,mapline%start%number_ofaxis
+    do jj=1,nax
        axstv1=axarr(jj)%axcond(1)
        axstv=>axstv1
        call state_variable_val(axstv,value,mapline%lineceq)
@@ -2352,7 +2357,7 @@ CONTAINS
     endif
 !--------------
 ! mark that the phase is fix, we have to be careful not to exceed size
-! Sigh, the fixed phases must be in sequential order ... not done here 
+! Sigh, the fixed phases must be in sequential order ??? ... not done here
 ! ... maybe not needed ??
     meqrec%nfixph=meqrec%nfixph+1
     if(meqrec%nfixph.gt.size(meqrec%fixpham)) then
@@ -2374,12 +2379,12 @@ CONTAINS
 ! If there is a phase change (iadd or irem nonzeri) or error it exits 
 200 continue
     iadd=0; irem=0
-!    write(*,*)'In map_calcnode calling sameset for new node: ',&
-!         meqrec%nstph,meqrec%nfixph
+    write(*,*)'In map_calcnode calling sameset for new node: ',&
+         meqrec%nstph,meqrec%nfixph
 !
     call meq_sameset(irem,iadd,meqrec,meqrec%phr,ceq)
 !
-!    write(*,202)'Calculated with fix phase: ',gx%bmperr,irem,iadd,ceq%tpval
+    write(*,202)'Calculated with fix phase: ',gx%bmperr,irem,iadd,ceq%tpval
 202 format(a,3i4,2(1pe12.4))
 !-------------------------------------------------
 ! trouble if error or another phase wants to be stable/dissapear
@@ -2399,6 +2404,7 @@ CONTAINS
     endif
 ! Problems, the simplest is to go back and try a smaller step
 ! But we must first remove the fix phase and restore the axis condition
+    write(*,*)'Error calculating node point, take shorter step'
     if(ocv()) write(*,*)'Error calculating node point, take shorter step'
     pcond%active=0
     pcond%prescribed=axval
@@ -2740,6 +2746,7 @@ CONTAINS
 ! correct value of lines will be set later
     newnode%lines=0
     newnode%tieline_inplane=maptop%tieline_inplane
+! this seems to be wrong, maptop%number_ofaxis is zero when step separate
     newnode%number_ofaxis=maptop%number_ofaxis
 ! save index of the phase set fix at the node
 !    write(*,*)'Saving index of fix phase: ',phfix
@@ -3342,7 +3349,8 @@ CONTAINS
     integer nyline,jp,seqy,iph,ics,lokph,lokcs,ip
     double precision finc
     character eqname*24
-    character phaseset*72
+! sometimes there are many phases with long names ...
+    character phaseset*512
     mapnode=>maptop
 ! for the moment skip this for tie-lines not in the plane
 !    write(*,*)'In map_findline: ',mapnode%tieline_inplane
@@ -3441,7 +3449,7 @@ CONTAINS
 !       write(*,*)'Findline: Tie-lines not in plane: ',nyline,ip
 ! create a heading text for the line
        phaseset=' '
-       call phase_name(mapfix%fixph(1),phaseset)
+       call get_phasetup_name(mapfix%fixph(1),phaseset)
        if(gx%bmperr.ne.0) goto 1000
        ip=len_trim(phaseset)+4
        phaseset(ip-2:ip-2)='+'
@@ -3458,7 +3466,7 @@ CONTAINS
        do jp=1,mapfix%nstabph
 ! this is stored only for "real" nodes
           mapfix%stableph(jp)=mapnode%linehead(nyline)%stableph(jp)
-          call phase_name(mapfix%stableph(jp),phaseset(ip:))
+          call get_phasetup_name(mapfix%stableph(jp),phaseset(ip:))
           if(gx%bmperr.ne.0) goto 1000
 ! this values hould perhaps be in linehead??
 !          mapfix%stablepham(jp)=mapnode%linehead(nyline)%stablepham(jp)
@@ -3497,7 +3505,7 @@ CONTAINS
        mapfix%fixph=mapline%linefixph(1)
 ! create a heading text for the line
        phaseset=' '
-       call phase_name(mapfix%fixph(1),phaseset)
+       call get_phasetup_name(mapfix%fixph(1),phaseset)
        if(gx%bmperr.ne.0) goto 1000
        ip=len_trim(phaseset)+4
        phaseset(ip-2:ip-2)='+'
@@ -3507,7 +3515,7 @@ CONTAINS
 ! this is stored only for "real" nodes
           mapfix%nstabph=1
           mapfix%stableph(1)=mapnode%linehead(nyline)%stableph(1)
-          call phase_name(mapfix%stableph(1),phaseset(ip:))
+          call get_phasetup_name(mapfix%stableph(1),phaseset(ip:))
           if(gx%bmperr.ne.0) goto 1000
 ! set positive amount both in mapfix and in phase_varres ...
 !          mapfix%stablepham(1)=mapnode%linehead(nyline)%stablepham(1)
@@ -3548,7 +3556,7 @@ CONTAINS
        phaseset=' '
        ip=1
        do jp=1,mapnode%linehead(1)%nstabph
-          call phase_name(mapnode%linehead(1)%stableph(jp),phaseset(ip:))
+          call get_phasetup_name(mapnode%linehead(1)%stableph(jp),phaseset(ip:))
           if(gx%bmperr.ne.0) goto 1000
           ip=len_trim(phaseset)+2
        enddo
@@ -3642,7 +3650,7 @@ CONTAINS
 
 !\begin{verbatim}
   integer function invariant_equilibrium(lines,mapnode)
-! Only called for tieöines not in plane.  If tie-lines in plane then all
+! Only called for tie-lines not in plane.  If tie-lines in plane then all
 ! nodes are invariants.
     integer lines
     type(map_node), pointer :: mapnode
@@ -3676,8 +3684,8 @@ CONTAINS
     character ch1*1
     integer oldaxis
     write(*,7)'In map_problem: ',typ,mapline%problems,mapline%axandir,&
-         mapline%nodfixph,xxx
-7   format(a,4i4,6(1pe14.6))
+         mapline%nodfixph,maptop%number_ofaxis,xxx
+7   format(a,5i4,6(1pe14.6))
 ! we can list the current conditions here, 
 ! note fix phases for mapping not included as condition!!
 !    call list_conditions(kou,mapline%lineceq)
@@ -3694,12 +3702,28 @@ CONTAINS
        endif
        gx%bmperr=9876; goto 1000
     endif
+! list current conditions
+    call list_conditions(kou,mapline%lineceq)
+    if(maptop%number_ofaxis.eq.1) then
+! for step only take smaller steps or calculate with grid minimizer
+       if(typ.eq.1) then
+! take a smaller step
+! current axis condition value is xxx, mapline%firstinc is the step taken
+          xxx=xxx-0.999*mapline%firstinc
+       else
+          write(*,*)'Unknown problem ',typ
+          gx%bmperr=3333
+       endif
+       goto 1000
+    endif
+!=======================================================
+! two or more axis
     select case(typ)
     case default
        write(*,*)'Unknown problem ',typ
        gx%bmperr=3333
 !------------------------------------------------------
-    case(1) ! error at first step
+    case(1) ! error at first step, for map opposite direction
 ! current axis condition value is xxx, mapline%firstinc is the step taken
        yyy=xxx
 !       write(*,*)'First increment: ',mapline%axandir,mapline%firstinc
@@ -3715,8 +3739,6 @@ CONTAINS
 !>>        xxx=yyy+0.02D0*mapline%firstinc         best tested value
           xxx=yyy+0.02D0*mapline%firstinc
           mapline%axandir=-mapline%axandir
-! list current conditions
-!          call list_conditions(kou,mapline%lineceq)
        elseif(mapline%problems.eq.3) then
 ! third time take small step in other axis
 !          write(*,*)'Changing active axis'
@@ -3821,14 +3843,14 @@ CONTAINS
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
-  subroutine ocplot2(ndx,pltax,filename,maptop,axarr,graphopt,form,ceq)
+  subroutine ocplot2(ndx,pltax,filename,maptop,axarr,graphopt,pform,ceq)
 ! ndx is mumber of plot axis, pltax is text with plotaxis variables
 ! filename is intermediary file (maybe not needed)
 ! maptop is map_node record with all results
-! form is type of output (screen or postscript)
+! pform is type of output (screen or postscript or jpeg)
     implicit none
     integer ndx
-    character pltax(*)*(*),filename*(*),form*(*)
+    character pltax(*)*(*),filename*(*),pform*(*)
     type(map_axis), dimension(*) :: axarr
     type(map_node), pointer :: maptop
     type(graphics_options) :: graphopt
@@ -3846,22 +3868,32 @@ CONTAINS
     integer, parameter :: maxval=10000
     integer, dimension(:), allocatable :: nonzero,linzero,linesep
 !    integer, dimension(:), allocatable :: linesep
-    character statevar*64,encoded*64
+! encoded2 stores returned text from get_many ... 2048 is too short ...
+    character statevar*64,encoded1*64,encoded2*4096
     character*64, dimension(:), allocatable :: phaseline
     integer i,ic,jj,k3,kk,kkk,lokcs,nnp,np,nrv,nv,nzp,ip,nstep,nnv
     integer nr,line,next,seqx,nlinesep,ksep,iax,anpax,notanp
     double precision xmax,xmin,ymax,ymin,value,anpmin,anpmax
-    integer giveup,nax,ikol,maxanp
-    character date*8,mdate*12,title*80
+! lhpos is last used position in lineheader
+    integer giveup,nax,ikol,maxanp,lcolor,lhpos
+    character date*8,mdate*12,title*128,backslash*2,lineheader*1024
+    character deftitle*64
     logical overflow,first,last
+! line identification (title)
+    character*16, dimension(:), allocatable :: lid
+!    logical nolid
 !
 !    write(*,*)'In ocplot2, looking for segmentation fault 1'
     call date_and_time(date)
     mdate=" "//date(1:4)//'-'//date(5:6)//'-'//date(7:8)//" "
+    deftitle='Open Calphad 3.0'//mdate//': with GNUPLOT'
     if(graphopt%labeldefaults(1).eq.0) then
-       title='Open Calphad 2.0 with Gnuplot '//mdate
+       title=deftitle
     else
-       title=graphopt%plotlabels(1)(1:graphopt%labeldefaults(1))//' '//mdate
+! alwas inlcude open calphad and date, add user title at the end
+!       123456789.123456789.123456789
+!      'Open Calphad 3.0 2015-03-16 : with GNUPLOT'
+       title=deftitle(1:30)//graphopt%plotlabels(1)
     endif
 !
     if(.not.associated(maptop)) then
@@ -4002,13 +4034,11 @@ CONTAINS
              do jj=1,noph()
                 do ic=1,noofcs(jj)
                    k3=test_phase_status(jj,ic,value,curceq)
-!                   write(*,*)'In ocplot2, looking for segmentation fault 4B'
                    if(k3.gt.0) then
 ! this phase is stable or fix
                       call get_phase_name(jj,ic,dummy)
                       phaseline(nlinesep)(kk:)=dummy
                       kk=len_trim(phaseline(nlinesep))+2
-!                      write(*,*)'In ocplot2, looking for segmentation fault 4C'
                    endif
                 enddo
              enddo
@@ -4017,11 +4047,9 @@ CONTAINS
 ! the segmentation fault was that linzero not always allocated ....
              if(allocated(linzero)) linzero=0
           endif
-!          write(*,*)'In ocplot2, looking for segmentation fault 4G'
-! no wildcards allowed on one axis
+! no wildcards allowed on this axis
           statevar=pltax(notanp)
-!          call get_state_var_value(statevar,value,encoded,curceq)
-          call meq_get_state_varorfun_value(statevar,value,encoded,curceq)
+          call meq_get_state_varorfun_value(statevar,value,encoded1,curceq)
           if(gx%bmperr.ne.0) then
 ! this error should not prevent plotting the other points
              write(*,212)'Skipping this point 1: ',statevar(1:10),&
@@ -4040,16 +4068,18 @@ CONTAINS
           statevar=pltax(anpax)
           if(wildcard) then
 !             write(*,*)'Getting a wildcard value 1: ',nr,statevar(1:20)
-             call get_many_svar(statevar,yyy,nzp,np,encoded,curceq)
+             call get_many_svar(statevar,yyy,nzp,np,encoded2,curceq)
 !             write(*,*)'Values: ',np,(yyy(i),i=1,np)
              if(gx%bmperr.ne.0) then
 !                write(*,*)'yaxis error: "',statevar(1:20),'"'
                 goto 1000
              endif
+!             write(*,111)encoded2(1:len_trim(encoded2)),(yyy(ic),ic=1,np)
 !             write(*,16)'val: ',kp,nr,gx%bmperr,(yyy(i),i=1,np)
 16           format(a,2i3,i5,6(1pe11.3))
              anpmin=1.0D20
              anpmax=-1.0D20
+             lcolor=0
              do jj=1,np
                 if(last) then
                    if(linzero(jj).ne.0) then
@@ -4067,14 +4097,29 @@ CONTAINS
                       if(ikol.eq.0) ikol=jj
                       if(anp(jj,nv).gt.anpmax) anpmax=anp(jj,nv)
                       if(anp(jj,nv).lt.anpmin) anpmin=anp(jj,nv)
+! extract state variable jj
+                      if(.not.allocated(lid)) then
+                         allocate(lid(np))
+!                         write(*,*)'Allocate lid: ',np
+                      endif
+! getext( , ,2, , , ) returns next text item up to a space
+                      call getext(encoded2,lcolor,2,encoded1,'x',lhpos)
+                      lid(jj)=encoded1
+                      kk=len_trim(encoded1)
+                      if(kk.gt.len(lid(jj))) then
+                         lid(jj)(7:)='..'//encoded1(kk-6:kk)
+                      else
+                      endif
+                   else
+! skip state variable
+                      call getext(encoded2,lcolor,2,encoded1,'x ',lhpos)
                    endif
                 endif
              enddo
 !             write(*,*)'OK Point: ',nr,nv,xax(nv)
           else
-!             write(*,*)'Single state variable value: ',statevar(1:20),nr
-!             call get_state_var_value(statevar,value,encoded,curceq)
-             call meq_get_state_varorfun_value(statevar,value,encoded,curceq)
+! More than one state variable or function value
+             call meq_get_state_varorfun_value(statevar,value,encoded1,curceq)
              if(gx%bmperr.ne.0) then
                 write(*,212)'Skipping this point 2: ',statevar(1:10),&
                      curceq%tpval(1),nv,nr
@@ -4105,7 +4150,6 @@ CONTAINS
        enddo plot1
 220    continue
 ! finished one line
-!       write(*,*)'In ocplot2, looking for segmentation fault 4K'
        if(nax.gt.1) then
 !------------------ special for invariant lines
 ! for phase diagram always move to the new line 
@@ -4147,9 +4191,8 @@ CONTAINS
 !-------------------
 ! axis without wildcard
                    statevar=pltax(notanp)
-!                   call get_state_var_value(statevar,value,encoded,curceq)
                    call meq_get_state_varorfun_value(statevar,value,&
-                        encoded,curceq)
+                        encoded1,curceq)
                    if(gx%bmperr.ne.0) then
                       write(*,212)'Skipping this point 3: ',statevar,&
                            curceq%tpval(1),nv,0
@@ -4170,9 +4213,8 @@ CONTAINS
                    if(wildcard) then
 ! this cannot be a state variable derivative
 !                    write(*,*)'Getting a wildcard value 2: ',nr,statevar(1:20)
-                      call get_many_svar(statevar,yyy,nzp,np,encoded,curceq)
+                      call get_many_svar(statevar,yyy,nzp,np,encoded2,curceq)
                       if(gx%bmperr.ne.0) goto 1000
-!                      write(*,*)'Line with ',np,' state variables'
 ! save one non-zero value per line, 3 lines
                       ic=0
                       do jj=1,np
@@ -4196,7 +4238,7 @@ CONTAINS
 !----------------------------------
                       np=1
                       call meq_get_state_varorfun_value(statevar,&
-                           value,encoded,curceq)
+                           value,encoded1,curceq)
                       if(gx%bmperr.ne.0) then
                          write(*,212)'Skipping point 4: ',statevar(1:10),&
                               curceq%tpval(1),nv,0
@@ -4311,6 +4353,7 @@ CONTAINS
 !          write(*,*)'Extracted values: ',nrv
           goto 800
        endif
+!============================================================
 ! remove columns that are only zeroes
 !       write(*,*)'Now remove colums with just zeros',nv,nrv
 !       read(*,17)ch1
@@ -4337,6 +4380,8 @@ CONTAINS
                    anp(jj,nnv)=anp(jj+1,nnv)
                 enddo
                 nonzero(jj)=nonzero(jj+1)
+! also shift label
+                lid(jj)=lid(jj+1)
              enddo
              nnp=nnp-1
              goto 660
@@ -4353,13 +4398,34 @@ CONTAINS
        goto 800
 !============================================
 800 continue
-!    write(*,*)'In ocplot2, looking for segmentation fault 6'
     write(*,808)np,nv,maxanp,maxval
 808 format('plot data used: ',2i7,' out of ',2i7)
     if(np.eq.0) then
        write(kou,*)'No data to plot'
        gx%bmperr=7777
        goto 1000
+    endif
+!------------------------------------------------------------
+! copy from lineheader to lid, each item separated by a space
+!    allocate(lid(np))
+! at present I have no idea what is in the lines ... just set numbers
+!    kk=1
+!    do i=1,np
+!       call wriint(lineheader,kk,i)
+!       kk=kk+1
+!    enddo
+!    kk=0
+!    do i=1,np
+!       call getext(lineheader,kk,1,lid(i),'x ',lhpos)
+!    enddo
+    if(.not.allocated(lid)) then
+       if(np.gt.1) then
+! lid should always be allocated if np>1, but ... one never knows 
+          allocate(lid(np))
+          do i=1,np
+             lid(i)='unknown '
+          enddo
+       endif
     endif
 !------------------------------------------------------------
 ! gnuplot output, first the data file
@@ -4370,10 +4436,19 @@ CONTAINS
     kk=len_trim(filename)
     pfd=filename(1:kk)//'.'//'dat '
     open(21,file=pfd,access='sequential',status='unknown')
-    write(21,810)(i,i=1,np+1)
-810 format('# Open Calphad output for GNUPLOT'/'#',i7,(1000i14))
+    if(np.gt.1) then
+       write(21,810)(lid(i)(1:12),i=1,np)
+810    format('# Open Calphad output for GNUPLOT'/'# Indx Indep.var.  ',&
+         1000(a12,2x))
+    else
+       write(21,810)'Depend. var.'
+    endif
+!-------------
+! NOTE OC does not generate a new line for phase changes that are not
+! invariant equilibria.  Maybe that should be changed.  The list of
+! stable phase is not correct
     write(21,811)phaseline(1)(1:len_trim(phaseline(1)))
-811       format('# Line      1, with these stable phase:'/'# ',a)
+811       format('# Line      1, with these stable phases at the end:'/'# ',a)
 ! if anpax=1 then we must put the first colum after the colon in gnuplot
     ksep=2
     do nv=1,nrv
@@ -4401,24 +4476,22 @@ CONTAINS
        endif
     enddo
 ! finish the data file with some comments how to plot it manually
-! anpax=1 specifies the single value axis after the colon
     if(anpax.eq.2) then
+! anpax=2 specifies the single value axis before the colon
        write(21,830)
+830    format('# plot "ocgnu.dat" using 2:3 with lines lt 1,',&
+            ' "" using 2:4 with lines lt 1, ...'/'# set term postscript'/&
+            '# set output "ocg.ps"'/'# plot ... '/'# ps2pdf ocg.ps')
     else
+! anpax=1 specifies the single value axis after the colon
        write(21,831)
+831    format('# plot "ocgnu.dat" using 2:1 with lines lt 1,',&
+            ' "" using 3:1 with lines lt 1, ...'/'# set term postscript'/&
+            '# set output "ocg.ps"'/'# plot ... '/'# ps2pdf ocg.ps')
     endif
 ! now I plot all lines with broad black lines (should be lt 7 ...)
-! the linetype 16 (lt 16) was the most black I could find ....
-! 'set linetype 1 lc rgb "black" lw 2 pt 11'
-! This caused trouble on GNUPLOT 4.0 ....
 ! these format statements are comments written at the end of the dat file
-830 format('# plot "ocgnu.dat" using 2:3 with lines lt 1,',&
-         ' "" using 2:4 with lines lt 1, ...'/'# set term postscript'/&
-         '# set output "ocg.ps"'/'# plot ... '/'# ps2pdf ocg.ps')
 !
-831 format('# plot "ocgnu.dat" using 2:1 with lines lt 1,',&
-         ' "" using 3:1 with lines lt 1, ...'/'# set term postscript'/&
-         '# set output "ocg.ps"'/'# plot ... '/'# ps2pdf ocg.ps')
     close(21)
     write(*,*)'Gnuplot data file   : ',pfd(1:kk+4)
 !----------------------------------------------------------------------
@@ -4428,89 +4501,94 @@ CONTAINS
     pfc=filename(1:kk)//'.'//'plt '
     kkk=kk+4
     open(21,file=pfc,access='sequential',status='unknown')
-    if(form(1:1).eq.'P') then
+    if(pform(1:1).eq.'P') then
        pfh=filename(1:kk)//'.'//'ps '
        write(21,850)pfh(1:len_trim(pfh))
 850    format('set terminal postscript'/'set output "',a,'"')
+    elseif(pform(1:1).eq.'G') then
+       pfh=filename(1:kk)//'.'//'gif '
+       write(21,851)pfh(1:len_trim(pfh))
+851    format('set terminal gif'/'set output "',a,'"')
+    endif
+! this part is independent of which axis is a single value
+!------------------ some GNUPLOT colors:
+! colors are black: #000000, red: #ff000, web-green: #00C000, web-blue: #0080FF
+! dark-yellow: #C8C800, royal-blue: #4169E1, steel-blue #306080,
+! gray: #C0C0C0, cyan: #00FFFF, orchid4: #804080, chartreuse: 7CFF40
+    write(21,860)title(1:len_trim(title)),pltax(1)(1:len_trim(pltax(1))),&
+         pltax(2)(1:len_trim(pltax(2))),graphopt%labelkey
+860 format('set title "',a,'"'/&
+            'set xlabel "',a,'"'/'set ylabel "',a,'"'/&
+            'set key ',a/&
+            'set style line 1 lt 2 lc rgb "#000000" lw 2'/&
+            'set style line 2 lt 2 lc rgb "#FF0000" lw 2'/&
+            'set style line 3 lt 2 lc rgb "#00C000" lw 2'/&
+            'set style line 4 lt 2 lc rgb "#0080FF" lw 2'/&
+            'set style line 5 lt 2 lc rgb "#C8C800" lw 2'/&
+            'set style line 6 lt 2 lc rgb "#4169E1" lw 2'/&
+            'set style line 7 lt 2 lc rgb "#C0C0C0" lw 2'/&
+            'set style line 8 lt 2 lc rgb "#00FFFF" lw 2'/&
+            'set style line 9 lt 2 lc rgb "#804080" lw 2'/&
+            'set style line 10 lt 2 lc rgb "#7CFF40" lw 2')
+!
+    if(graphopt%rangedefaults(1).ne.0) then
+! user defined ranges for x axis
+       write(21,870)'x',graphopt%plotmin(1),graphopt%plotmax(1)
+870    format('set ',a1,'range [',1pe12.4,':',1pe12.4,'] ')
+    endif
+    if(graphopt%rangedefaults(2).ne.0) then
+! user defined ranges for y axis
+       write(21,870)'y',graphopt%plotmin(2),graphopt%plotmax(2)
     endif
 !----------------------
+    backslash=',\'
+    lcolor=1
+!    write(*,*)'backslash "',backslash,'" '
     if(anpax.eq.2) then
 ! anpax=2 means the single valued axis is colum 2 and possibly multiple
 ! values in column 3 and higher
-       write(21,870)title(1:len_trim(title)),pltax(1)(1:len_trim(pltax(1))),&
-            pltax(2)(1:len_trim(pltax(2)))
-870    format('set title "',a,'"'/&
-            'set xlabel "',a,'"'/'set ylabel "',a,'"'/&
-            'set linetype 1 lc rgb "black" lw 1 pt 11')
-       if(graphopt%rangedefaults(1).ne.0) then
-! user defined ranges for x axis
-          write(21,930)'x',graphopt%plotmin(1),graphopt%plotmax(1)
-       endif
-       if(graphopt%rangedefaults(2).ne.0) then
-! user defined ranges for y axis
-          write(21,930)'y',graphopt%plotmin(2),graphopt%plotmax(2)
-       endif
 ! this is the multiple plot, file name only given once!!
 ! last line tuple on a separate format statement, if np>2
-       if(np.eq.2) then
-          write(21,892)pfd(1:kkk)
-892       format('plot "',a,'" using 2:3 with lines lt 1,',&
-               '"" using 2:4 with lines lt 1')
+! np is number of columns
+       if(np.eq.1) then
+          write(21,880)pfd(1:kkk),lcolor,' ',' '
        else
-          write(21,890,advance='no')pfd(1:kkk),(i,i=3,np+1)
-          write(21,891,advance='no')np+2
-890       format('plot "',a,'" using 2:',i3,' with lines lt 1',&
-               999(',"" using 2:',i3,' with lines lt 1'))
-891       format(i3,' with lines lt 1'/)
-!       write(21,970)
-! this is the first attempt with file name given for each line pair
-!       write(21,890,advance='no')(pfd(1:kkk),i,i=3,np+2)
-!890    format('plot "',a,'" using 2:',i3,' with lines lt 1,',&
-!            999('"',a,'" using 2:',i3,' with lines lt 1,'))
-!       write(21,970)
+          write(21,880)pfd(1:kkk),lcolor,lid(1)(1:len_trim(lid(1))),backslash
+880       format('plot "',a,'" using 2:3 with lines ls ',i2,' title "'a,'"',a)
        endif
+       do i=2,np-1
+          lcolor=lcolor+1
+          if(lcolor.gt.10) lcolor=1
+          write(21,882)i+2,lcolor,lid(i)(1:len_trim(lid(i))),backslash
+882       format('"" using 2:',i3,' with lines ls ',i2,' title "'a,'"',a)
+       enddo
+       lcolor=lcolor+1
+       if(lcolor.gt.10) lcolor=1
+       if(np.ge.2) write(21,882)np+2,lcolor,lid(np)(1:len_trim(lid(np))),' '
+! old plot format
+!890       format('plot "',a,'" using 2:',i3,' with lines ls ',2,&
+!               ' title ",a,'" ',&
+!               999(',"" using 2:',i3,' with lines ls ',i2,' title ",a,'" ')
     else
-! If I finish with 'lines' without a "," then OK.  
-! If I add a ; on same line OK, trying the latter
-       write(21,910)title(1:len_trim(title)),pltax(2)(1:len_trim(pltax(2))),&
-            pltax(1)(1:len_trim(pltax(1)))
-! Note the xrange/yrange commands are comments
-910    format('set title "',a,'"'/&
-            'set ylabel "',a,'"'/'set xlabel "',a,'"'/&
-            'set linetype 1 lc rgb "black" lw 1 pt 11'/&
-            '# set xrange [0:1]'/'# set yrange [300:3000]')
-       if(graphopt%rangedefaults(1).ne.0) then
-! user defined ranges for x axis
-          write(21,930)'x',graphopt%plotmin(1),graphopt%plotmax(1)
-930       format('set ',a1,'range [',1pe12.4,':',1pe12.4,'] ')
-       endif
-       if(graphopt%rangedefaults(2).ne.0) then
-! user defined ranges for y axis
-          write(21,930)'y',graphopt%plotmin(2),graphopt%plotmax(2)
-       endif
+! anpax=2 means the single valued axis is colum 2
 ! this writes the file name only once and last line separate if np>2
-       if(np.eq.2) then
-          write(21,952)pfd(1:kkk)
-952       format('plot "',a,'" using 3:2 with lines lt 1,',&
-               '"" using 4:2 with lines lt 1')
+       if(np.eq.1) then
+          write(21,890)pfd(1:kkk),lcolor,' ',' '
        else
-          write(21,950,advance='no')pfd(1:kkk),(i,i=3,np+1)
-          write(21,951,advance='no')np+2
-950       format('plot "',a,'" using ',i3,':2 with lines lt 1',&
-               999(',"" using ',i3,':2 with lines lt 1'))
-951       format(i3,':2 with lines lt 1'/)
-!       write(21,970)
-!970    format(';')
-! this was the old way of writing the file name for each line
-!       write(21,950,advance='no')(pfd(1:kkk),i,i=3,np+2)
-!950    format('plot "',a,'" using ',i3,':2 with lines lt 1,',&
-!            999('"',a,'" using ',i3,':2 with lines lt 1,'))
-!       write(21,970)
-!970    format(';')
+          write(21,890)pfd(1:kkk),lcolor,lid(1)(1:len_trim(lid(1))),backslash
+890       format('plot "',a,'" using 3:2 with lines ls ',i2,' title "',a,'"',a)
        endif
+       lcolor=2
+       do i=2,np-1
+          write(21,892)i+2,lcolor,lid(i)(1:len_trim(lid(i))),backslash
+892       format('"" using ',i3,':2 with lines ls ',i2,' title "'a,'"',a)
+          lcolor=lcolor+1
+          if(lcolor.gt.10) lcolor=1
+       enddo
+       if(np.ge.2) write(21,892)np+2,lcolor,lid(np)(1:len_trim(lid(np))),' '
     endif
-    if(form(1:1).ne.'P') then
-!    if(form(1:1).eq.' ') then
+!    if(pform(1:1).ne.'P') then
+    if(pform(1:1).eq.' ') then
 ! if not hardcopy pause gnuplot.  Mouse means clicking in the graphics window
 ! will close it. I would like to have an option to keep the graphics window...
        write(21,990)
@@ -4522,13 +4600,15 @@ CONTAINS
 ! execute the GNUPLOT command file
 !
     gnuplotline='gnuplot '//pfc(1:kkk)//' '
+! if gnuplot cannot be started with gnuplot give normal path ...
+!    gnuplotline='"c:\program files\gnuplot\bin\wgnuplot.exe" '//pfc(1:kkk)//' '
     k3=len_trim(gnuplotline)+1
     write(*,*)'Gnuplot command file: ',pfc(1:kk+4)
-    if(form(1:1).eq.'P') then
-       write(*,*)'Gnuplot postscript file: ',pfh(1:kk+4)
+    if(pform(1:1).ne.' ') then
+       write(*,*)'Graphics output file: ',pfh(1:kk+4)
     endif
     call system(gnuplotline(1:k3))
-! deallocate
+! deallocate, not really needed for local arrays
     deallocate(anp)
     deallocate(xax)
     deallocate(linesep)
@@ -4637,7 +4717,7 @@ CONTAINS
 ! this call calculates the value of the axis condition with default composition
              call state_variable_val(svr,val,ceq)
              if(gx%bmperr.ne.0) goto 500
-             call phase_name(entphcs(itup),name)
+             call get_phasetup_name(entphcs(itup),name)
 ! axis variable is composition, skip hases with no variance
              call get_phase_variance(entphcs(itup)%phase,nv)
              if(nv.eq.0) then
@@ -4702,6 +4782,15 @@ CONTAINS
 ! We can add/subtract a small amount of axis condition if error at first step
                 write(*,*)'Error at first equilibrium: ',gx%bmperr,&
                      mapline%axandir
+             endif
+! if step turn on grid minimizer
+             write(*,*)'Turn on grid minimizer'
+             if(maptop%number_ofaxis.eq.1) then
+                call calceq7(mode,meqrec,mapfix,ceq)
+                if(gx%bmperr.ne.0) then
+                   write(kou,*)'Failed calling grid minimizer',gx%bmperr
+                   gx%bmperr=0
+                endif
              endif
 ! reset error code and take another line
              write(*,*)'Generating mapline%meqrec failed: ',gx%bmperr

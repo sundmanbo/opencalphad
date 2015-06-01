@@ -1,0 +1,2 @@
+gfortran -o tqex2 TQ2-feni.F90 liboctq.o liboceq.a
+
