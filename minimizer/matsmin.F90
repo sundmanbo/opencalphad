@@ -1,7 +1,7 @@
 ! Hillert's Minimizer as implemented by Sundman (HMS)
 ! Based on Mats Hillert paper in Physica 1981 and Bo Janssons thesis 1984
 ! Details of this implementation in Computational Materials Science, vol 101,
-! (2015) pp 127-137
+! (2015) pp 127-137  Why does GIT refuse to update this file on the reposotory?
 !
 MODULE liboceq
 !
