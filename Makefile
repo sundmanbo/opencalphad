@@ -6,6 +6,14 @@ all:
 	./linkoc
 	make $(EXE)
 
+examples:
+	make -C ./TQ3lib-clean
+
+clean:
+	rm -f *.o *.mod $(EXE)
+
+examplesclean:
+	make -C ./TQ3lib-clean clean
 
 metlib3.o:	utilities/metlib3.F90
 	gfortran -c -fbounds-check  -finit-local-zero utilities/metlib3.F90
