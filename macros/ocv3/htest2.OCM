@@ -1,0 +1,76 @@
+@$ Calculating a multicomponent steel with enthalpy condition
+@&
+
+set echo
+
+r t steel1
+
+
+set c t=2000 p=1e5 n=1 w(c)=.01 w(cr)=.05 w(mo)=.1 w(si)=.003 w(v)=.01
+
+c e
+
+l,,,,
+
+@&
+
+@$ enthalpy should be 77660
+
+set c h
+
+set c t=none
+
+l c
+@&
+
+c e
+
+l,,,,
+
+@$ This is the same equilibrium but with different conditions
+@&
+
+set c h=90000
+
+c e
+
+l,,,,,
+@$ OK to increase enthalpy in single phase region
+@&
+
+set c h=70000
+
+c e
+
+l,,,,,
+
+@&
+
+set c h=30000
+
+c e
+
+l,,,,,
+
+@&
+
+set c h=20000
+
+c e
+
+l,,,,,
+
+@&
+
+set c t
+
+set c h=none
+
+c e
+
+l,,,,,
+
+
+set inter
+
+

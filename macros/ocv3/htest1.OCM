@@ -1,0 +1,46 @@
+@$ Calculating pure Fe with enthalpy condition
+@&
+
+set echo
+
+r t steel1
+fe
+
+set c t=2000 p=1e5 n=1
+
+c e
+
+l,,,,
+
+@&
+
+set c h
+
+set c t=none
+
+l c
+
+@&
+
+c e
+
+l,,,,
+
+@&
+
+set c h=80000
+
+c e
+
+l,,,,,
+
+@&
+
+set c h=30000
+
+c e
+
+l,,,,
+
+set inter
+
