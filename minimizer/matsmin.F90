@@ -1,7 +1,7 @@
 ! Hillert's Minimizer as implemented by Sundman (HMS)
 ! Based on Mats Hillert paper in Physica 1981 and Bo Janssons thesis 1984
-! Details of this implementation in Computational Materials Science, vol 101,
-! (2015) pp 127-137  Why does GIT refuse to update this file on the reposotory?
+! Details of this implementation published in Computational Materials Science,
+!  vol 101, (2015) pp 127-137
 !
 MODULE liboceq
 !
@@ -276,9 +276,7 @@ CONTAINS
     meqrec%nfixmu=0
     meqrec%tpindep=.TRUE.
 ! limit change in T and P.  For P it should be a factor ...
-!    meqrec%tpmaxdelta(1)=2.0D2
-! T limit decreased t0 100 after problem with condition on H (htest2.OCM)
-    meqrec%tpmaxdelta(1)=1.0D2
+    meqrec%tpmaxdelta(1)=2.0D2
     meqrec%tpmaxdelta(2)=1.0D2
 ! now we calculate maxsph, nfixmu and maybe other things for later
     lastcond=>ceq%lastcondition
@@ -861,7 +859,6 @@ CONTAINS
 !    iadd=-1 ! iadd =-1 turns on verbose in meq_sameset
     iadd=0
     irem=iremsave
-!    write(*,*)'Calling meq_sameset',meqrec%noofits
 ! meq_sameset varies amounts of stable phases and constitutions of all phases
 ! If there is a phase change (iadd or irem nonzeri) or error it exits 
     call meq_sameset(irem,iadd,meqrec,meqrec%phr,ceq)
@@ -1330,13 +1327,11 @@ CONTAINS
           endif
        endif
        if(abs(svar(iz)-ceq%cmuval(ik)).gt.ceq%xconv) then
-!          write(*,387)'Unconverged pot: ',iz,ik,svar(iz),&
           if(vbug) write(*,387)'Unconverged pot: ',iz,ik,svar(iz),&
-               ceq%cmuval(ik),svar(iz)-ceq%cmuval(ik),ceq%xconv
+               ceq%cmuval(ik),abs(svar(iz)-ceq%cmuval(ik)),ceq%xconv
 387       format(a,2i3,2(1pe14.6),2(1pe12.4))
           converged=7
        endif
-! new chemical potential
        ceq%cmuval(ik)=svar(iz)
        iz=iz+1
     enddo setmu
@@ -1345,8 +1340,7 @@ CONTAINS
 ! update T and P if variable
     if(meqrec%tpindep(1)) then
        xxx=ceq%tpval(1)
-! limit changes in T to +/- 0.2 of its current value
-       write(*,*)'Change in T 1: ',svar(ioff)
+! limit changes in T to +/-half its current value
        if(abs(svar(ioff)/ceq%tpval(1)).gt.0.2D0) then
           svar(ioff)=sign(0.2D0*ceq%tpval(1),svar(ioff))
        endif
@@ -1358,16 +1352,11 @@ CONTAINS
                ceq%tpval(1),deltat,svar(ioff)
 386       format(a,3(1pe12.4))
        endif
-! desperately trying to fix problems with convergence with H condition ...
-! There must be a scaling error in calculating the coefficient for Delta T
-! in the equilibrium matrix
-       deltat=2.0D1*deltat
-       write(*,*)'Change in T 2: ',deltat
        ceq%tpval(1)=ceq%tpval(1)+deltat
-! problems here when -finit-local0zero is removed
-!       write(*,*)'T and deltaT:',ceq%tpval(1),deltat
+! problems here when -finit-local-zero is removed
+       if(vbug) write(*,*)'T and deltaT:',ceq%tpval(1),deltat
        if(ceq%tpval(1).le.0.1D0) then
-          write(*,*)'Attempt to set temperature less than 0.1 K'
+          write(*,*)'Attempt to set temperature less than 0.1 K !!!'
           gx%bmperr=4187; goto 1000
        endif
        ioff=ioff+1
@@ -1887,6 +1876,7 @@ CONTAINS
 !    write(*,*)'Iterations and convergence: ',meqrec%noofits,converged
     if(vbug) write(*,*)'Convergence criteria: ',converged
 ! converged=1 or 2 means constituent fraction in metastable phase not converged
+!    write(*,*)'Convergence criteria: ',converged
     if(converged.gt.3) goto 100
 ! converged 3 means large change conts. fraction of unstable phase change a lot
     if(converged.eq.3 .and. level3.lt.4) goto 100
@@ -2015,7 +2005,7 @@ CONTAINS
     integer notf,nz2,nrow
     double precision cvalue,totam,pham,mag,mat,map,xxx,zval,xval
 ! the next line of values are a desperate search for a solution
-    double precision totalmol,totalmass,check1,check2,unconv
+    double precision totalmol,totalmass,check1,check2
     double precision, allocatable :: xcol(:),mamu(:),zcol(:)
     double precision, allocatable :: xxmm(:),wwnn(:),hval(:)
     logical :: vbug=.FALSE.
@@ -2207,7 +2197,8 @@ CONTAINS
              gx%bmperr=4207; goto 1000
              sph=cmix(3); scs=cmix(4)
           endif
-! dH=\sum_alpha FU(alpha)(dG/y_i-Td2G/dTdy_i)c_iA\mu_A + (dG/dT-Td2G/dT2)dT+..
+! dH=\sum_alpha FU(alpha)(dG/y_i-Td2G/dTdy_i)c_iA\mu_A + 
+!   (-Td2G/dT2 + \sum_i (dG/dy_i - Td2G/dTdY_i)c_iT)dT + ...
 !   +\sum_alpha (G-TdG/dT)\delta FU(alpha) =
 !    \sum_alpha FU(alpha)\sum_i(dG/dy_i-Td2G/dTdy_i)c_iG + H-\tilde H
 !          write(*,*)'Condition on H: ',pmi%ncc,dncol
@@ -2233,14 +2224,14 @@ CONTAINS
                      ceq%tpval(1)*pmi%curd%dgval(2,ie,1)
              enddo
 !             write(*,75)'hval: ',hval
-!             write(*,75)'cmuval: ',(ceq%cmuval(ie),ie=1,meqrec%nrel)
+!             write(*,75)'cmuvamanyl: ',(ceq%cmuval(ie),ie=1,meqrec%nrel)
 ! calculate the terms to be multiplied with the unknown mu(ie)
              hallel: do ie=1,meqrec%nrel
 ! multiply terms with the inverse phase matrix and hval
                 call calc_dgdytermsh(meqrec%nrel,ie,meqrec%tpindep,hval,&
                      mamu,mag,mat,map,pmi,ceq%cmuval,meqrec%noofits)
                 if(gx%bmperr.ne.0) goto 1000
-!                write(*,99)'hfix: ',mag,mat,map,mamu
+!                write(*,99)'hfix: ',ceq%tpval(1),mag,mat,map,mamu
 99              format(a,6(1pe12.4))
                 ncol=ie
 ! calculate a term for each column to be multiplied with chemical potential
@@ -2248,15 +2239,15 @@ CONTAINS
                 do ke=1,meqrec%nfixmu
                    if(meqrec%mufixel(ke).eq.ie) then
 ! components with fix chemical potential added to rhs, do not increment ncol!!!
-                      xcol(nz2)=xcol(nz2) - pham*meqrec%mufixval(ke)*mamu(ie)
-!                      xcol(nz2)=xcol(nz2) + pham*meqrec%mufixval(ke)*mamu(ie)
+!                      xcol(nz2)=xcol(nz2) - pham*meqrec%mufixval(ke)*mamu(ie)
+                      xcol(nz2)=xcol(nz2) + pham*meqrec%mufixval(ke)*mamu(ie)
                    endif
                    cycle hallel
                 enddo
 ! mamu(ie) = \sum_i hval(i) \sum_j \sum_B dM^a_B/dy_j z^a_ij
 ! sign here may be wrong, should be opposite to that for xcol(nz2) 7 lines up
-                xcol(ncol)=xcol(ncol) + pham*mamu(ie)
-!                xcol(ncol)=xcol(ncol) - pham*mamu(ie)
+!                xcol(ncol)=xcol(ncol) + pham*mamu(ie)
+                xcol(ncol)=xcol(ncol) - pham*mamu(ie)
                 ncol=ncol+1
                 check1=check1-pham*mamu(ie)*ceq%cmuval(ie)
 !                write(*,76)'check1: ',ie,check1,pham*mamu(ie)*ceq%cmuval(ie)
@@ -2268,18 +2259,22 @@ CONTAINS
              if(tcol.gt.0) then
                 xxx=xcol(tcol)
 ! gval(2,1) is dG/dT, gval(4,1) is d2G/dT2, sign????
-!                xcol(tcol)=xcol(tcol)-pham*(mat-&
-                xcol(tcol)=xcol(tcol)+pham*(mat-&
-                     pmi%curd%gval(2,1) + ceq%tpval(1)*pmi%curd%gval(4,1))
+!                xcol(tcol)=xcol(tcol)+pham*(mat-&
+!                     ceq%tpval(1)*pmi%curd%gval(4,1))
+                xcol(tcol)=xcol(tcol)-pham*(mat-&
+                     ceq%tpval(1)*pmi%curd%gval(4,1))
+!>>                xcol(tcol)=xcol(tcol)-pham*(mat-&
+!                   pmi%curd%gval(2,1) + ceq%tpval(1)*pmi%curd%gval(4,1))
 !                write(*,363)'d2G/dTdy H: ',nrow+1,ie,tcol,&
 !                     xxx,xcol(tcol),pham,mat
              endif
              if(pcol.gt.0) then
                 xxx=xcol(pcol)
 ! gval(3,1) is dG/dP, gval(5,1) is d2G/dTdP, sign???
-!                   xcol(pcol)=xcol(pcol)+pham*(map-&
-                xcol(pcol)=xcol(pcol)-pham*(map-&
-                     pmi%curd%gval(3,1)+ceq%tpval(1)*pmi%curd%gval(5,1))
+                   xcol(pcol)=xcol(pcol)+pham*(map-&
+                     pmi%curd%gval(3,1)-ceq%tpval(1)*pmi%curd%gval(5,1))
+!>>                xcol(pcol)=xcol(pcol)-pham*(map-&
+!                     pmi%curd%gval(3,1)+ceq%tpval(1)*pmi%curd%gval(5,1))
 !                write(*,363)'d2G/dPdy: H',nrow+1,ie,pcol,&
 !                     xxx,xcol(pcol),pham,mat
              endif
@@ -2295,10 +2290,7 @@ CONTAINS
              endif
 ! term to the RHS, sign???
 !             xcol(nz2)=xcol(nz2)-pham*mag
-!             check2=check2-pham*mag
              xcol(nz2)=xcol(nz2)+pham*mag
-!             xcol(nz2)=xcol(nz2)-pham*mag
-             check2=check2+pham*mag
 !             write(*,76)'Check2: ',jj,pham,mag,pham*mag
 !             deallocate(hval)
           enddo hallph
@@ -2306,22 +2298,21 @@ CONTAINS
 !          write(*,74)'Enthalpy: ',nrow+1,ceq%tpval(1),ceq%rtn,&
 !               xcol(nz2),totam,cvalue/ceq%rtn
           xcol(nz2)=xcol(nz2)+totam-cvalue/ceq%rtn
-! test if condition converged, use relative error
-          unconv=abs(totam-cvalue/ceq%rtn)
-          if(unconv.gt.abs(ceq%xconv*totam)) then
-             write(*,6121)'Unconv enthalpy: ',ceq%tpval(1),&
-                  totam,cvalue/ceq%rtn,unconv,ceq%xconv*totam
-6121         format(a,F7.2,2(1pe14.6),4(1pe12.4))
+! test if condition converged, use relative error 
+          if(abs(totam-cvalue/ceq%rtn).gt.ceq%xconv*abs(cvalue)) then
+             if(vbug) write(*,75)'Unconverged enthalpy: ',ceq%tpval(1),&
+                  totam,cvalue/ceq%rtn,totam-cvalue/ceq%rtn
              if(converged.lt.5) converged=5
           endif
-! we have added one more equation to the equilibrium matrix
+! we have one more equation to add to the equilibrium matrix
           nrow=nrow+1
           if(nrow.gt.nz1) stop 'too many equations 7A'
           do ncol=1,nz2
              smat(nrow,ncol)=xcol(ncol)
           enddo
+!          write(*,*)'H conv: ',ceq%tpval(1)
 !          write(*,74)'hline: ',nrow,xcol
-75        format(a,6(1pe14.6))
+75        format(a,6(1pe12.4))
 74        format(a,i2,6(1pe11.3))
 ! check1 and check2 should be equal if we set H as current value and release T
 !          write(*,75)'Check: ',check1,check2
@@ -2356,7 +2347,7 @@ CONTAINS
              smat(nrow,ncol)=xcol(ncol)
           enddo
 ! set rhs to G^prescribed - G^current 
-          smat(nrow,nz2)=cvalue
+!          smat(nrow,nz2)=cvalue
           deallocate(xcol)
        else
 ! normallizing can be M (per mole, 1), W (per mass, 2) or V (per volume, 3?)
@@ -2514,17 +2505,19 @@ CONTAINS
 !          write(*,363)'RHSN: ',nrow,nz2,0,smat(nrow,nz2),xxx,cvalue,totam,&
 !               cvalue-totam
           deallocate(xcol)
-! check for convergence
-          if(abs(totam-cvalue).gt.ceq%xconv) then
-!             if(sel.eq.0) then
-!                write(*,266)'Unconverged condition N or N(A): ',sel,&
-!                     cvalue,totam,totalmol
-!             else
-! value of xxmm(sel) only reasonable of N=1 or N(A)+.. = 1
-!                write(*,266)'Unconverged condition N or N(A): ',sel,&
-!                     cvalue,totam,xxmm(sel)
-!             endif
+! relative check for convergence if cvalue>1.0
+          if(abs(totam-cvalue).gt.ceq%xconv*max(1.0d0,abs(cvalue))) then
              if(converged.lt.5) converged=5
+             if(vbug) then
+                if(sel.eq.0) then
+                   write(*,266)'Unconverged condition N or N(A): ',sel,&
+                        cvalue,totam,totalmol
+                else
+! value of xxmm(sel) only reasonable of N=1 or N(A)+.. = 1
+                   write(*,266)'Unconverged condition N or N(A): ',sel,&
+                        cvalue,totam
+                endif
+             endif
           endif
 !----------------------------------------------------------
        elseif(stvnorm.gt.1) then
@@ -2674,9 +2667,9 @@ CONTAINS
           deallocate(zcol)
 ! check on convergence
           if(abs(xxmm(sel)-cvalue).gt.ceq%xconv) then
-!             write(*,266)'Unconverged condition x(A): ',sel,&
-!                  cvalue,xxmm(sel)
              if(converged.lt.5) converged=5
+             if(vbug) write(*,266)'Unconverged condition x(A): ',sel,&
+                  cvalue,xxmm(sel)
           endif
        endif
 !
@@ -2816,7 +2809,7 @@ CONTAINS
           deallocate(xcol)
 ! check convergence
           if(abs(totam-cvalue).gt.ceq%xconv) then
-!             write(*,266)'Unconverged condition B(A): ',sel,&
+!            write(*,266)'Unconverged condition B(A): ',sel,&
 !                  cvalue,zval
              if(converged.lt.5) converged=5
           endif
@@ -2977,7 +2970,7 @@ CONTAINS
           if(abs(wwnn(sel)-cvalue).gt.ceq%xconv) then
              if(converged.lt.5) converged=5
 !             write(*,266)'Unconverged condition w(A): ',sel,cvalue,wwnn(sel)
-!266          format(a,i3,3(1pe14.6))
+266          format(a,i3,3(1pe14.6))
 !             write(*,267)'wwnn: ',(wwnn(ncol),ncol=1,noel())
 !             write(*,267)'xxmm: ',(xxmm(ncol),ncol=1,noel())
 !267          format(a,8F9.5)
@@ -4222,17 +4215,16 @@ CONTAINS
        cip=zero
        do jy=1,pmi%ncc
 ! I inversed order of iy, jy, does it still converge??
-          cig=cig+pmi%invmat(jy,iy)*pmi%curd%dgval(1,jy,1)
+          cig=cig-pmi%invmat(jy,iy)*pmi%curd%dgval(1,jy,1)
 !          write(*,11)'termsh g: ',ia,iy,jy,pmi%invmat(jy,iy),&
 !               pmi%curd%dgval(1,jy,1),cig
 ! always calculate cit because cp debug!!
 ! hval(j)=dG/dy_j-Td2G/dTdy_j or something similar
           if(tpindep(1)) then
-             cit=cit+pmi%invmat(jy,iy)*pmi%curd%dgval(2,jy,1)
+             cit=cit-pmi%invmat(jy,iy)*pmi%curd%dgval(2,jy,1)
 !             write(*,11)'termsh t: ',ia,iy,jy,pmi%curd%dgval(2,jy,1),cit
           endif
-          if(tpindep(2)) cip=cip+&
-               pmi%invmat(jy,iy)*pmi%curd%dgval(3,jy,1)
+          if(tpindep(2)) cip=cip-pmi%invmat(jy,iy)*pmi%curd%dgval(3,jy,1)
        enddo
 !       morr=pmi%dxmol(ia,iy)
        morr=hval(iy)
