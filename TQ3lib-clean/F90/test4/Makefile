@@ -1,18 +1,15 @@
-OBJS=liboctq.o
 EXE=tqex4
 FLAGS=-fbounds-check -finit-local-zero
+LIBS=../../..
 
 .PHONY : all clean
 
 all:
+	make -C $(LIBS) tq
 	make $(EXE)
 
 clean:
 	rm -f *.o *.mod $(EXE)
 
-liboctq.o:	../../liboctq.F90
-	gfortran -c $(FLAGS) -I../../.. ../../liboctq.F90
-
 $(EXE):
-	make $(OBJS)
-	gfortran -o $(EXE) TQ4-crfe.F90 liboctq.o ../../../liboceq.a
+	gfortran -o $(EXE) TQ4-crfe.F90 -I$(LIBS) $(LIBS)/liboctq-f90.a
