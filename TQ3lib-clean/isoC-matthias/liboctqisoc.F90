@@ -361,6 +361,21 @@ contains
   end subroutine c_tqgnpc
 
 !\begin{verbatim}
+  subroutine c_tqphsts(tup, newstat, val, c_ceq) &
+       bind(c, name='c_tqphsts')
+! set status of phase tuple, 
+    integer(c_int), intent(in),value :: tup
+    integer(c_int), intent(in),value :: newstat
+    real(c_double), intent(in),value :: val
+    type(gtp_equilibrium_data), pointer :: ceq
+    type(c_ptr), intent(inout) :: c_ceq ! in: current equilibrium
+!\end{verbatim}
+    call c_f_pointer(c_ceq, ceq)
+    call tqphsts(tup, newstat, val, ceq)
+    c_ceq = c_loc(ceq)
+  end subroutine c_tqphsts
+
+!\begin{verbatim}
   subroutine c_tqsetc(statvar, n1, n2, mvalue, cnum, c_ceq) &
        bind(c, name='c_tqsetc')
 ! set condition
