@@ -1,7 +1,6 @@
 *.o
 *.a
 *.mod
-*.pdf
 *.zip
 *.exe
 *.em
@@ -11,6 +10,7 @@
 *.log
 *.dat
 *.plt
+*.toc
 oc1A
 oc2A
 linkoc
