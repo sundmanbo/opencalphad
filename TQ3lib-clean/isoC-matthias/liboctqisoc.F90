@@ -285,14 +285,20 @@ contains
 
 !\begin{verbatim}
   subroutine c_tqgpcn(n, c, constituentname, c_ceq) bind(c, name='c_tqgpcn')
-! get name of constitutent c in phase n
-    integer(c_int), intent(in) :: n  ! phase number
-    integer(c_int), intent(in) :: c  ! extended constituent index: 
-!                                      10*species_number + sublattice
-    character(c_char), intent(out) :: constituentname(24)
+! get name of consitutent c in phase n
+    implicit none
+    integer(c_int), intent(in), value :: n  ! phase number
+    integer(c_int), intent(in), value :: c  !IN: constituent index sequentially from first sublattice
+    character(c_char), intent(out) :: constituentname(24) !EXIT: costituent name
     type(c_ptr), intent(inout) :: c_ceq
 !\end{verbatim}
-    write(*,*) 'tqgpcn not implemented yet'
+    type(gtp_equilibrium_data), pointer :: ceq !IN: current equilibrium
+    character fstring*(24) !EXIT: costituent name
+    double precision mass
+    call c_f_pointer(c_ceq, ceq)
+    call get_constituent_name(n,c,fstring,mass)
+    call f_to_c_string(fstring, constituentname)
+    c_ceq = c_loc(ceq)
   end subroutine c_tqgpcn
 
 !\begin{verbatim}

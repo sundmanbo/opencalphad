@@ -255,15 +255,15 @@ contains
 
 !\begin{verbatim}
   subroutine tqgpci(n,c,constituentname,ceq)
-! get index of constituent with name in phase n
+! get name of consitutent c in phase n
     implicit none
-    integer n !IN: phase index
-    integer c !EXIT: extended constituent index: 10*species_number+sublattice
-    character constituentname*(*)
-    type(gtp_equilibrium_data), pointer :: ceq  !IN: current equilibrium
+    integer n !IN: phase number (not phase tuple index)
+    integer c !IN: constituent index sequentially from first sublattice
+    character constituentname*(24) !EXIT: costituent name
+    type(gtp_equilibrium_data), pointer :: ceq !IN: current equilibrium
 !\end{verbatim}
-    write(*,*)'tqgpci not implemented yet'
-    gx%bmperr=8888
+    double precision mass
+    call get_constituent_name(n,c,constituentname,mass)
 1000 continue
     return
   end subroutine tqgpci
@@ -588,7 +588,7 @@ contains
 !       write(*,*)'tqgetv: ',n1,n2,n3
        if(n2.eq.0) then
           if(n1.lt.0) then
-! mole ´fraction of all components, no phase specification
+! mole \B4fraction of all components, no phase specification
              statevar=stavar(1:1)//'(*) '
 !             write(*,*)'tqgetv 3: ',mjj,statevar(1:len_trim(statevar))
              call get_many_svar(statevar,values,mjj,n3,encoded,ceq)
@@ -794,7 +794,7 @@ contains
 ! This subroutine returns the sublattices and constitution of a phase
 ! n1 is phase tuple index
 ! nsub is the number of sublattices (1 if no sublattices)
-! cinsub is an array with the number of constítuents in each sublattice
+! cinsub is an array with the number of const\EDtuents in each sublattice
 ! spix is an array with the species index of the constituents in all sublattices
 ! sites is an array of the site ratios for all sublattices.  
 ! yfrac is the constituent fractions in same order as in spix
