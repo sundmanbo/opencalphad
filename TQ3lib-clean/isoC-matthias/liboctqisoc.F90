@@ -119,6 +119,11 @@ contains
     return 
   end function c_noofcs
 
+  integer function c_ierr() bind(c, name='c_ierr')
+    c_ierr=gx%bmperr
+    return
+  end function c_ierr
+
   subroutine examine_gtp_equilibrium_data(c_ceq) &
        bind(c, name='examine_gtp_equilibrium_data')
     type(c_ptr), intent(in), value :: c_ceq
@@ -153,6 +158,19 @@ contains
     call tqini(n, ceq)
     c_ceq = c_loc(ceq)
   end subroutine c_tqini
+
+!\begin{verbatim}
+  subroutine c_tqrphn(nph,c_ceq) bind(c, name='c_tqrphn')
+  !Get number of phase tuples!
+    integer(c_int), intent(out) :: nph
+    type(gtp_equilibrium_data), pointer :: ceq
+    type(c_ptr), intent(inout) :: c_ceq
+!\end{verbatim}
+    call c_f_pointer(c_ceq, ceq)
+    !type(gtp_phasetuple), dimension(maxp) :: phcs
+    nph=get_phtuplearray(phcs)
+    c_ceq = c_loc(ceq)
+  end subroutine c_tqrphn
 
 !\begin{verbatim}
   subroutine c_tqrfil(filename,c_ceq) bind(c, name='c_tqrfil')
@@ -209,30 +227,27 @@ contains
   end subroutine c_tqrpfil
 
 !\begin{verbatim}
-  subroutine c_tqgcom(n,components,c_ceq) bind(c, name='c_tqgcom')
+  subroutine c_tqgcom(n,c_components,c_ceq) bind(c, name='c_tqgcom')
 ! get system components
-    integer(c_int), intent(inout) :: n
-    !character(kind=c_char, len=24), dimension(24), intent(out) :: c_components
+    integer(c_int), intent(out) :: n
+    character (kind=c_char, len=1), dimension (24,24), intent (inout) :: c_components
     type(c_ptr), intent(inout) :: c_ceq  
 !\end{verbatim}
-    integer, target :: nc
     character(len=24) :: fcomponents(maxel)
-    character(kind=c_char, len=1), dimension(maxel*24) :: components
     type(gtp_equilibrium_data), pointer :: ceq  
     integer :: i,j,l
     call c_f_pointer(c_ceq, ceq)
-    call tqgcom(nc, fcomponents, ceq)
+    call tqgcom(n, fcomponents, ceq)
 ! convert the F components strings to C 
-    l = len(fcomponents(1))
-    do i = 1, nc
-       do j = 1, l
-          components((i-1)*l+j)(1:1) = fcomponents(i)(j:j)
-       end do
+    do i = 1, n
+        l = scan(fcomponents(i), ' ')
+        do j = 1, l
+            c_components(j:j,i) = fcomponents(i)(j:j)
+        end do
 ! null termination
-       components(i*l) = c_null_char 
-    end do
+        c_components(l,i) = c_null_char
+    enddo
     c_ceq = c_loc(ceq)
-    n = nc
   end subroutine c_tqgcom
 
 !\begin{verbatim}

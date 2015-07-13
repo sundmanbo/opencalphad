@@ -69,8 +69,8 @@ module liboctq
 ! access to main OC library for equilibrium calculations and models
   use liboceq
 !
-  implicit none
-!
+  !implicit none
+  public
   integer, parameter :: maxc=20,maxp=100
 !
 ! This is for storage and use of components
@@ -173,7 +173,8 @@ contains
     integer iz
     character elname*24,refs*24
     double precision a1,a2,a3
-    do iz=1,nel
+    n = nel
+    do iz=1,n
        compnames(iz)=' '
        call get_element_data(iz,compnames(iz),elname,refs,a1,a2,a3)
 ! store name in module array components also (already done when reading TDB)
