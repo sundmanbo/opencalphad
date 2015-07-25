@@ -1,5 +1,5 @@
-EXE=tqintf
-LIBS=../..
+EXE=tqexc1
+LIBS=../../..
 
 .PHONY : all clean
 
@@ -11,4 +11,5 @@ clean:
 	rm -f *.o *.mod $(EXE)
 
 $(EXE):
-	g++ -o $(EXE) -lstdc++ $(EXE).cpp -L$(LIBS) -loctq-isoc -lgfortran -lm
+	gcc -c tqexc1.c
+	gfortran -o $(EXE) tqexc1.o -L$(LIBS) -loctq-c

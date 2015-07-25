@@ -1,4 +1,4 @@
-EXE=tqintf
+EXE=feni-tqiso
 LIBS=../..
 
 .PHONY : all clean
@@ -11,4 +11,4 @@ clean:
 	rm -f *.o *.mod $(EXE)
 
 $(EXE):
-	g++ -o $(EXE) -lstdc++ $(EXE).cpp -L$(LIBS) -loctq-isoc -lgfortran -lm
+	gcc -o $(EXE) feni-tqiso.c -L$(LIBS) -loctq-isoc -lgfortran -lm./
