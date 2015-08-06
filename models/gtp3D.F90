@@ -569,7 +569,99 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
+ subroutine enter_experiment(cline,ip,ceq)
+! enters an experiment, almost the same as set_condition   
+   implicit none
+   character cline*(*)
+   integer ip
+   type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbation}
+! New is set to the new condition or experiment
+! in set_condition new is not used for anything.
+! in this subroutine the new variable is removed from the condition list
+! and instead added to the experimenal list
+   type(gtp_condition), pointer :: new,temp
+!   integer nidlast,nidfirst,nidpre
+   double precision xxx,yyy
+!   write(*,*)'experiments not iumplemented yet'
+   call set_cond_or_exp(cline,ip,new,1,ceq)
+   if(gx%bmperr.ne.0) goto 1000
+!   write(*,*)'3D Back in enter_experiment'
+!   write(*,*)'3D Values: ',new%active,new%prescribed
+!   write(*,*)'3D Segmentation fault before this line means a problem with new'
+   if(new%active.ne.1) then
+! the experiment is removed (inactivated) if activate is 1
+! otherwise read the current uncertainty
+      if(new%uncertainty.gt.zero) yyy=1.0D-1*abs(new%prescribed)
+      call gparrd('Uncertainty: ',cline,ip,xxx,yyy,q1help)
+      if(gx%bmperr.ne.0) then
+         xxx=0.1*new%prescribed
+      endif
+      new%symlink2=0
+      new%uncertainty=abs(xxx)
+! if weight is sero set to unity
+      if(ceq%weight.eq.zero) then
+         ceq%weight=one
+      endif
+   endif
+1000 continue
+ end subroutine enter_experiment
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
  subroutine set_condition(cline,ip,ceq)
+! enters an experiment, almost the same as set_condition   
+   implicit none
+   character cline*(*)
+   integer ip
+   type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbation}
+! New is set to the new condition or experiment
+! in this subroutine new is not used for anything.
+! in enter_experiment the new variable is removed from the condition list
+! and instead added to the experimenal list
+   type(gtp_condition), pointer :: new
+   call set_cond_or_exp(cline,ip,new,0,ceq)
+1000 continue
+ end subroutine set_condition
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ logical function same_statevariable(svr1,svr2)
+! returns TRUE if the state variable records are identical
+   type(gtp_state_variable), pointer :: svr1,svr2
+!end{verbatim}
+   logical same
+   same=.FALSE.
+   if(svr1%statevarid.ne.svr2%statevarid) goto 1000
+   if(svr1%unit.ne.svr2%unit) goto 1000
+   if(svr1%phref.ne.svr2%phref) goto 1000
+   if(svr1%argtyp.ne.svr2%argtyp) goto 1000
+   if(svr1%argtyp.gt.0) then
+      if(svr1%phase.ne.svr2%phase) goto 1000
+      if(svr1%argtyp.gt.1) then
+         if(svr1%compset.ne.svr2%compset) goto 1000
+         if(svr1%argtyp.gt.2) then
+            if(svr1%component.ne.svr2%component) goto 1000
+            if(svr1%argtyp.gt.3) then
+               if(svr1%constituent.ne.svr2%constituent) goto 1000
+            endif
+         endif
+      endif
+   endif
+! they are the same !!!
+   same=.TRUE.
+1000 continue
+   same_statevariable=same
+   return
+ end function same_statevariable
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine set_cond_or_exp(cline,ip,new,notcond,ceq)
 ! decode an equilibrium condition, can be an expression with + and -
 ! the expression should be terminated with an = or value supplied on next line
 ! like "T=1000", "x(liq,s)-x(pyrrh,s)=0", "2*mu(cr)-3*mu(o)=muval"
@@ -577,10 +669,13 @@
 ! The routine should also accept conditions identified with the "<number>:"
 ! where <number> is that preceeding each condition in a list_condition
 ! It should also accept changing conditions by <number>:=new_value
+! The pointer to the (most recent) condition is returned in new
+! notcond is 0 if a condition should be created, otherwise an experiment
    implicit none
-   integer ip
+   integer ip,notcond
    character cline*(*)
    TYPE(gtp_equilibrium_data), pointer :: ceq
+   TYPE(gtp_condition), pointer :: new
 !\end{verbatim}
    integer nterm,kolon,iqz,krp,jp,istv,iref,iunit,jstv,jref,junit,jl,ks
    integer linkix,norem,ics,kstv,iph,nidfirst,nidlast,nidpre,qp
@@ -589,24 +684,25 @@
    integer indices(4),allterms(4,10),condno,seqz
    double precision coeffs(10),xxx,value
    logical inactivate
-   type(gtp_state_variable), pointer :: svr
+   type(gtp_state_variable), pointer :: svr,svr2
    type(gtp_state_variable), dimension(10), target :: svrarr
-   TYPE(gtp_condition), pointer :: temp,new
+   TYPE(gtp_condition), pointer :: temp
+!   TYPE(gtp_condition), pointer :: temp,new
 50 continue
 ! extract symbol like T, X(FCC,CR), MU(C) etc up to space, +, - or = sign
    stvexp=' '
    call gparcd('State variable: ',cline,ip,ichar('='),stvexp,'T',q1help)
 ! can there be any error return??
    if(buperr.ne.0) goto 1000
-!   write(*,*)'in set_condition: ',ip,stvexp(1:20)
+!   write(*,*)'3D in set_condition: ',ip,stvexp(1:20)
 ! is the line empty?
    if(stvexp(1:1).eq.' ') then
       gx%bmperr=4126; goto 1000
    endif
-!   write(*,*)'set_cond 0: ',stvexp(1:20)
+!   write(*,*)'3D set_cond 0: ',stvexp(1:20)
    nterm=0
 ! check if there is a ":" in stvexp
-!   write(*,*)'set_condition: ',stvexp(1:40),ip
+!   write(*,*)'3D set_condition: ',stvexp(1:40),ip
    condno=0
    kolon=index(stvexp,':')
    if(kolon.gt.0) then
@@ -693,7 +789,7 @@
 !   if(svr%oldstv.ge.10) then
 !      istv=10*(svr%oldstv-5)+svr%norm
 !   else
-      istv=svr%oldstv
+   istv=svr%oldstv
 !   endif
    iref=svr%phref
    iunit=svr%unit
@@ -714,7 +810,7 @@
       indices(2)=svr%compset
       indices(3)=svr%constituent
 !   else
-!      write(*,*)'state variable has illegal argtyp: ',svr%argtyp
+!      write(*,*)'3D state variable has illegal argtyp: ',svr%argtyp
 !      gx%bmperr=7775; goto 1000
    endif
 !
@@ -724,7 +820,7 @@
    endif
 ! Use  kstv=(istv+1)/10+5 as check
    kstv=(istv+1)/10+5
-!   write(*,*)'condition code: ',istv,kstv
+!   write(*,*)'3D condition code: ',istv,kstv
 !   if(kstv.eq.14 .or. kstv.eq.15 .or. kstv.ge.19) then
    if(kstv.eq.14 .or. kstv.eq.15) then
 ! the state variables Q and DG are illegal as conditions 
@@ -757,26 +853,51 @@
       allterms(jl,nterm)=indices(jl)
    enddo
    stvexp=stvrest
-!    write(*,*)'set_cond rest "',stvrest(1:20),'"'
+!    write(*,*)'3D set_cond rest "',stvrest(1:20),'"'
    jp=1
    if(.not.eolch(stvexp,jp)) goto 100
 !---------------
 150 continue
+!   write(*,*)'3D at 150',notcond
 ! the expression (or single variable) is decoded, get value after = sign
-! provide the current value as default
-   encoded=' '
-   call get_state_var_value(svtext,xxx,encoded,ceq)
-   if(gx%bmperr.ne.0) then
+! for conditions provide the current value as default
+! for experiments provide the old value if any ???
+   if(notcond.eq.0) then
+      encoded=' '
+      call get_state_var_value(svtext,xxx,encoded,ceq)
+      if(gx%bmperr.ne.0) then
 ! This error occurs when setting the first compositions before any calculations
 !      write(*,152)gx%bmperr,svtext(1:len_trim(svtext))
-!152   format('Cannot get current value of: ',a,', error: ',i5/&
+!152   format('3D Cannot get current value of: ',a,', error: ',i5/&
 !           'Setting default value to zero')
-      gx%bmperr=0; xxx=zero
+         gx%bmperr=0; xxx=zero
+      endif
+   else
+! search for experimental value
+!      write(*,*)'3D Check if old or current value',svr%statevarid
+      nullify(new)
+      temp=>ceq%lastexperiment
+      if(.not.associated(temp)) then
+         xxx=zero
+      else
+! loop for all conditions
+151      continue
+         temp=>temp%next
+         svr2=>temp%statvar(1)
+!         write(*,*)'3D we have an old experiment ',svr2%statevarid
+         if(same_statevariable(svr,svr2)) then
+            xxx=temp%prescribed
+!            write(*,*)'3D We have found an old experiment',svr2%statevarid
+            new=>temp
+         else
+            if(.not.associated(temp,ceq%lastexperiment)) goto 151
+         endif
+      endif
    endif
 ! jump here if we have found a : specifying a condition number
 ! Do not expect any = sign
 155 continue
-!   write(*,*)'3D we are here',ip
+!   write(*,*)'3D we are here',notcond,xxx
    qp=1
    defval=' '
    call wrinum(defval,qp,10,0,xxx)
@@ -786,51 +907,96 @@
 157 continue
 !   write(*,*)'3D we are here: ',defval
    call gparcd('Value: ',cline,ip,1,textval,defval,q1help)
+!   write(*,*)'3D extract value: ',cline(1:ip),textval(1:len_trim(textval)),ip
 !   if(buperr.ne.0) then
 !      gx%bmperr=4129; buperr=0; goto 1000
 !   endif
 ! value can be a symbol or a numeric value.  Symbols not allowed yet
-!    write(*,*)'set_condition value ',textval(1:20)
+!   write(*,*)'3D set cond/enter exper value: ',textval(1:20),notcond
    inactivate=.false.
    jp=1
    c4=textval(jp:jp+3)
    call capson(c4)
-   if(c4.eq.'NONE') then
+   inactive: if(c4.eq.'NONE') then
 ! value NONE means inactivate
 ! Problem when setting T=NONE, ceq%tpval(1) could have any value afterwards
       inactivate=.true.
 !      write(*,*)'Inactivate condition: ',condno,value,xxx
       value=xxx
+!      write(*,*)'3D inactivate'
    else
-!      write(*,*)'gtp3D textval: ',textval
-      call getrel(textval,jp,value)
-      if(buperr.ne.0) then
-! here one should look for a symbol
-         buperr=0
-         call capson(textval)
-         do ks=1,nsvfun
-            if(textval(1:16).eq.svflista(ks)%name) then
-! found symbol, insert link
-               linkix=ks
-               goto 170
-            endif
-         enddo
-! neither numeric value nor symbol, give error
-! Some symbols must not be allowed for values .....
-         gx%bmperr=4129; buperr=0; goto 1000
-      else
+! It is not inactivate............
+      if(notcond.ne.0) then
+! If we have an experiment check if there is a : in textval
+         call getrel(textval,jp,value)
+         if(buperr.ne.0) then
+! not a numeric value, error as symbols not allowed
+            gx%bmperr=buperr; goto 1000
+         endif
          linkix=-1
+         ks=index(textval,':')
+         if(ks.gt.0) then
+! backspace to make ip point at the :
+            ip=ip-(len_trim(textval)-ks)-1
+!            write(*,*)'3D backspace: ',cline(1:ip),ip
+         endif
+!      endif
+      else
+! problem that the : for uncertainties is swollowed 
+!         write(*,*)'gtp3D textval 1: ',textval(1:jp),jp
+         call getrel(textval,jp,value)
+!         write(*,*)'gtp3D textval 2: ',textval(1:jp),jp,buperr
+         if(buperr.ne.0) then
+! here one should look for a symbol
+            buperr=0
+            call capson(textval)
+            do ks=1,nsvfun
+               if(textval(1:16).eq.svflista(ks)%name) then
+! found symbol, insert link
+                  linkix=ks
+                  goto 170
+               endif
+            enddo
+! neither numeric value nor symbol, give error
+! Some symbols are allowed for values .....
+            gx%bmperr=4129; buperr=0; goto 1000
+         else
+            linkix=-1
+         endif
       endif
 170   continue
 !      write(*,*)'gtp3D value: ',value
+   endif inactive
+! check if condition/experiment already exists. 
+! If condno>0 it must exist or error
+!   write(*,*)'3D we are here'
+   if(notcond.eq.0) then
+      temp=>ceq%lastcondition
+   else
+      if(associated(new)) then
+!         write(*,*)'3D we have found the old experiment, just return',&
+!              inactivate,new%active
+! if experiment should be inactivated set that, else activate
+         if(inactivate) then
+            new%active=1
+         else
+            new%active=0
+            new%prescribed=value
+         endif
+         goto 1000
+      else
+         temp=>ceq%lastexperiment
+      endif
    endif
-! check if condition already exists.  If condno>0 it must exist or error
-   temp=>ceq%lastcondition
-!   write(*,*)'3D condno: ',condno,value,buperr
+!   write(*,*)'3D condno: ',condno,notcond,value,buperr
    if(condno.eq.0) then
 !      call get_condition(nterm,coeffs,jstv,allterms,iref,iunit,temp)
       call get_condition(nterm,svr,temp)
    elseif(condno.lt.0) then
+      if(notcond.eq.0) then
+         write(*,*)'3D Illegal to set all experiments to NONE'
+         gx%bmperr=7766; goto 1000
+      endif
       if(inactivate) then
 ! user has given *=NONE, remove all conditions except phase status FIX
 ! as inactive conditions are ignored just remove first acive until error
@@ -843,7 +1009,7 @@
             gx%bmperr=0; goto 1000
          endif
          if(temp%statev.gt.0) then
-!            write(*,*)'inactivate ',norem,temp%statev
+!            write(*,*)'3D inactivate ',norem,temp%statev
             temp%active=1
          endif
          goto 210
@@ -856,12 +1022,12 @@
 !      write(*,*)'3D calling get_condition ',qp
       call get_condition(qp,svr,temp)
       if(gx%bmperr.ne.0) then
-         write(*,*)'Condition number error ',gx%bmperr
+         write(*,*)'3D Condition number error ',gx%bmperr
          goto 1000
       endif
    endif
 277 continue
-!   write(*,*)'At label 277: ',gx%bmperr
+!   write(*,*)'3D At label 277: ',gx%bmperr,linkix
    newcond: if(gx%bmperr.ne.0) then
 ! condition does not exist, but if set equal to NONE just ignore it
       gx%bmperr=0
@@ -909,6 +1075,10 @@
 ! handle fix/nofix of a phase, a condition should be set inactive.
 300 continue
    ip=ip+1
+   if(notcond.ne.0) then
+      write(kou,*)'Illegal to set a fix phase as experiment'
+      gx%bmperr=7677; goto 1000
+   endif
 !   write(*,*)'3D fix phase: ',ip,cline(ip:40)
    call find_phase_by_name(cline(ip:),iph,ics)
    if(gx%bmperr.ne.0) goto 1000
@@ -933,7 +1103,11 @@
    svrarr(1)%component=0
    svrarr(1)%constituent=0
 !
-   temp=>ceq%lastcondition    
+   if(notcond.eq.0) then
+      temp=>ceq%lastcondition    
+   else
+      temp=>ceq%lastexperiment
+   endif
 !   write(*,*)'3D calling get_condition'
    svr=>svrarr(1)
    call get_condition(nterm,svr,temp)
@@ -951,6 +1125,7 @@
 !            write(*,*)'error setting fix amount old cond',ip,cline(1:40)
             gx%bmperr=4100; goto 1000
          endif
+! value set explict,, not a symbol
          temp%prescribed=value
          temp%symlink1=-1
       endif
@@ -959,7 +1134,7 @@
 ! if inactivate it is an error not finding the condition
 !      write(*,*)'Finding condition error ',gx%bmperr
       if(inactivate) then
-         write(*,*)'We should have found a condition ',gx%bmperr
+         write(*,*)'3D We should have found a condition ',gx%bmperr
          goto 1000
       endif
       gx%bmperr=0
@@ -969,7 +1144,7 @@
    ip=index(cline,'==')+2
    call getrel(cline,ip,value)
    if(buperr.ne.0) then
-      write(*,*)'error setting fix amount ',ip,cline(1:40)
+      write(*,*)'3D error setting fix amount ',ip,cline(1:40)
       gx%bmperr=4100; goto 1000
    endif
 !   write(*,*)'3D Set fix phase amount: ',value
@@ -982,15 +1157,30 @@
          gx%bmperr=4187; goto 1000
       endif
    endif
-   if(associated(ceq%lastcondition)) then
-      seqz=ceq%lastcondition%seqz+1
+   if(notcond.eq.0) then
+      if(associated(ceq%lastcondition)) then
+         seqz=ceq%lastcondition%seqz+1
+      else
+         seqz=1
+      endif
+      temp=>ceq%lastcondition
+      allocate(ceq%lastcondition)
+      new=>ceq%lastcondition
    else
-      seqz=1
+! it is an experiment
+!      write(*,*)'3D We are after label 500',value,linkix
+      if(associated(ceq%lastexperiment)) then
+         seqz=ceq%lastexperiment%seqz+1
+      else
+         seqz=1
+      endif
+      temp=>ceq%lastexperiment
+      allocate(ceq%lastexperiment)
+      new=>ceq%lastexperiment
    endif
-   temp=>ceq%lastcondition
-!   write(*,*)'3D allocating condition',seqz
-   allocate(ceq%lastcondition)
-   new=>ceq%lastcondition
+!   write(*,*)'3D allocating condition',seqz  
+!   allocate(ceq%lastcondition)
+!   new=>ceq%lastcondition
    new%noofterms=nterm
    new%statev=jstv
    new%iunit=iunit
@@ -1000,7 +1190,7 @@
 !    write(*,*)'allocating terms',nterm
    allocate(new%condcoeff(nterm))
    allocate(new%indices(4,nterm))
-!    write(*,*)'allocations ok'
+!   write(*,*)'3D allocations ok',linkix,value
    do jl=1,nterm
       new%condcoeff(jl)=coeffs(jl)
       do ks=1,4
@@ -1011,7 +1201,7 @@
       new%prescribed=value
       new%symlink1=-1
 ! special for T and P, change the local value
-!      write(*,*)'set condition ',istv,jstv,value
+!      write(*,*)'set condition/enter experiment ',istv,jstv,value
       if(istv.eq.1) then
          ceq%tpval(1)=value
       elseif(istv.eq.2) then
@@ -1043,6 +1233,11 @@
       new%next=>new
       new%previous=>new
    endif
+   if(notcond.ne.0) then
+! we are actually entering an experiment, terminate here
+!      write(*,*)'3D Finished creating condition record for an experiment ...'
+      goto 1000
+   endif
 900 continue
    if(.not.eolch(cline,ip)) then
 ! look for more conditions.  Note that gparc increment ip by 1 at start
@@ -1064,7 +1259,7 @@
 1000 continue
 !   write(*,*)'exit set_condition, T= ',ceq%tpval(1)
    return
- end subroutine set_condition
+ end subroutine set_cond_or_exp
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
@@ -1215,7 +1410,8 @@ end subroutine get_condition
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim} %-
- subroutine extract_stvr_of_condition(pcond,nterm,coeffs,statevar)
+ subroutine extract_stvr_of_condition(pcond,nterm)
+! subroutine extract_stvr_of_condition(pcond,nterm,coeffs,statevar)
 ! finds a condition record with the given state variable record
 ! returns it as a state variable record !!!
 ! nterm: integer, number of terms in the condition expression
@@ -1224,9 +1420,9 @@ end subroutine get_condition
    TYPE(gtp_condition), pointer :: pcond
 ! ONE CANNOT HAVE ARRAYS OF POINTERS!!! STUPID
 !   TYPE(gtp_state_variable), dimension(*), pointer :: statevar
-   TYPE(gtp_state_variable), dimension(*) :: statevar
+!   TYPE(gtp_state_variable), dimension(*) :: statevar
    integer nterm
-   double precision coeffs(*)
+!   double precision coeffs(*)
 !\end{verbatim}
    TYPE(gtp_condition), pointer :: current,first
 !   integer, dimension(4) :: indx
@@ -1312,7 +1508,7 @@ end subroutine get_condition
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine apply_condition_value(current,what,value,cmix,ceq)
+ subroutine apply_condition_value(current,what,value,cmix)
 ! This is called when calculating an equilibrium.
 ! It returns a condition at each call, at first call current must be nullified?
 ! When all conditions done the current is nullified again
@@ -1322,7 +1518,7 @@ end subroutine get_condition
    implicit none
    integer what,cmix(*)
    double precision value
-   TYPE(gtp_equilibrium_data), pointer :: ceq    
+!   TYPE(gtp_equilibrium_data), pointer :: ceq    
    TYPE(gtp_condition), pointer :: current
 !\end{verbatim} %+
 ! ceq is actually redundant as current is a pointer to condition list in ceq

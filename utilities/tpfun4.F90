@@ -323,6 +323,7 @@ CONTAINS
       str=' =0; N '
       goto 1000
    elseif(btest(tpfuns(lrot)%status,TPCONST)) then
+! UNFINISHED temporarily list all optimizing variables
       if(btest(tpfuns(lrot)%status,TPOPTCON)) then
          if(tpfuns(lrot)%limits(1).eq.zero) then
 ! this is a clumsy way to suppress listing optimizing coeff that are zero
@@ -412,15 +413,16 @@ CONTAINS
         ' Predefined symbols:'/&
         ' BELOW(TB) = EXP(20*(1-T/TB))/(1+EXP(20*(1-T/TB)));'/&
         ' ABOVE(TB) = 1-EXP(20*(1-T/TB))/(1+EXP(20*(1-T/TB)));'/&
-        ' Nr Name',8x,'T-low  expression; T-high Y/N')
+        ' Nr  Name =     T-low  expression; T-high Y/N')
 20  format(I4,1x,A)
+!   write(*,*)'First free index: ',freetpfun
    do ifun=1,freetpfun-1
       write(str,20)ifun
       call list_tpfun(ifun,nosym,str(6:))
       if(str(6:9).eq.'_A00 ') then
          if(once) then
             write(lut,30)
-30          format(' *** Not listing optimizing coefficents that are zero')
+30          format(' *** Optimizing coefficents that are zero are not listed')
             once=.FALSE.
          endif
       else
@@ -2509,9 +2511,10 @@ CONTAINS
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine enter_optvars
+ subroutine enter_optvars(firstindex)
 ! enter variables for optimization A00-A99
    implicit none
+   integer firstindex
 !\end{verbatim}
    character symbol*(lenfnsym)
    integer jss,symix,lrot
@@ -2523,8 +2526,9 @@ CONTAINS
          goto 1000
       endif
    enddo
+   firstindex=freetpfun
    do jss=1,100
-! create TPfun symbols with names A00 to A99
+! create TPfun symbols with names A00 to A99 with value 0.0D0
       lrot=freetpfun
       if(lrot.eq.0) then
          gx%bmperr=4104; goto 1000
@@ -2548,6 +2552,7 @@ CONTAINS
       else
          symbol(3:3)=char(ichar(symbol(3:3))+1)
       endif
+!      write(*,*)'Next symbol created: ',symbol(1:4),lrot
    enddo
 1000 continue
    return
@@ -2645,11 +2650,11 @@ CONTAINS
    double precision value
 !\end{verbatim}
    if(lrot.le.0 .or. lrot.ge.freetpfun-1) then
-      write(*,*)'Attempt to change non-existing coefficent'
+      write(*,*)'Attempt to change non-existing constant',lrot
       gx%bmperr=7777; goto 1000
    endif
    if(.not.btest(tpfuns(lrot)%status,TPOPTCON)) then
-      write(*,*)'Attempt to change non-existing coefficent'
+      write(*,*)'Attempt to change non-existing coefficent',lrot
       gx%bmperr=7777; goto 1000
    endif
    tpfuns(lrot)%limits(1)=value
@@ -2660,16 +2665,37 @@ CONTAINS
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine get_value_of_constant(symbol,lrot,value)
+ subroutine get_value_of_constant_name(symbol,lrot,value)
 ! get value (and index) of a TP constant.  lrot is index
    implicit none
    integer lrot
    character symbol*(*)
    double precision value
 !\end{verbatim}
+   write(*,*)'get_value_of_constant_name not implemented yet'
+!   value=tpfuns(lrot)%limits(1)
 1000 continue
    return
- end subroutine get_value_of_constant
+ end subroutine get_value_of_constant_name
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine get_value_of_constant_index(lrot,value)
+! get value of a TP constant at known lrot
+   implicit none
+   integer lrot
+   double precision value
+!\end{verbatim}
+   if(lrot.le.0 .or. lrot.gt.freetpfun-1) then
+      write(kou,*)'Constant index outside limits',lrot
+   else
+! unifished: check if it is really a constant ...
+      value=tpfuns(lrot)%limits(1)
+   endif
+1000 continue
+   return
+ end subroutine get_value_of_constant_index
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -2689,8 +2715,8 @@ CONTAINS
  subroutine delete_all_tpfuns
 ! delete all TPFUNs.  No error if some are already deleted ...   
 ! note: tpres is deallocated when deleting equilibrium record
-   implicit none
 !\end{verbatim}
+   implicit none
    integer lrot,nrex
    TYPE(tpfun_expression), pointer :: expr
 !   write(*,*)'In delete_all_tpfuns'

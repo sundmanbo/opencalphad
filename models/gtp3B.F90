@@ -3464,6 +3464,7 @@
    eqlista(ieq)%next=0
    eqlista(ieq)%eqname=name2
    eqlista(ieq)%eqno=ieq
+   eqlista(ieq)%weight=zero
 ! component list and matrix, if second or higher equilibrium copy content
    if(ocv()) write(*,*)'3B: entereq 1: ',maxel,ieq,noofel
    if(ieq.eq.1) then
@@ -3541,6 +3542,7 @@
          cpv%abnorm=cp1%abnorm
          cpv%prefix=cp1%prefix
          cpv%suffix=cp1%suffix
+         cpv%phtupx=cp1%phtupx
 ! allocate and copy arrays
          nc=size(cp1%yfr)
 ! note SIZE gives rubbish unless array is allocated
@@ -3624,7 +3626,7 @@
 ! allocate result array for state variable functions (svfunres)
    if(ocv()) write(*,*)'3B maxsvfun: ',ieq,maxsvfun,jz
    allocate(eqlista(ieq)%svfunres(maxsvfun))
-! convergence criteria
+! convergence criteria PHTUPX
    eqlista(ieq)%xconv=firsteq%xconv
    eqlista(ieq)%maxiter=firsteq%maxiter
 1000 continue

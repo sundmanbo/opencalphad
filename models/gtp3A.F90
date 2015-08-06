@@ -355,11 +355,30 @@
 ! we evaluate all symbols to avoid some problems ... no output
 !   call meq_evaluate_all_svfun(-1,ceq) cannot be used as in minimizer ...
    call evaluate_all_svfun_old(-1,firsteq)
+! assment initiallizing
+!   write(*,*)'3A Initiallizing firstash'
+   call assessmenthead(firstash)
+   firstash%status=0
+!   write(*,*)'firstash allocated: ',firstash%status
+   nullify(firstash%prevash)
+   nullify(firstash%nextash)
 ! finished initiating
 1000 continue
 !   write(*,*)'exit from init_gtp'
    return
  END subroutine init_gtp
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+ subroutine assessmenthead(ash)
+!\begin{verbatim}
+! create an assessment head record
+   type(gtp_assessmenthead), pointer :: ash
+!\end{verbatim}
+   allocate(ash)
+   ash%status=0
+   return
+ end subroutine assessmenthead
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 !>     2. Number of things
@@ -1095,61 +1114,6 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine find_constituent(iph,spname,mass,icon)
-! find the constituent "spname" of a phase. spname can have a sublattice #digit
-! Return the index of the constituent in icon.  Additionally the mass
-! of the species is returned.
-   implicit none
-   character*(*) spname
-   double precision mass
-   integer iph,icon
-!\end{verbatim}
-   character spname1*24
-   integer lokph,kp,ll,kk,loksp,ls,first
-   lokph=phases(iph)
-   kp=index(spname,'#')
-   if(kp.gt.0) then
-      ls=ichar(spname(kp+1:kp+1))-ichar('0')
-      spname1=spname(1:kp-1)
-   else
-      ls=0
-      spname1=spname
-   endif
-   call capson(spname1)
-   icon=0
-   first=0
-   lloop: do ll=1,phlista(lokph)%noofsubl
-      sploop: do kk=1,phlista(lokph)%nooffr(ll)
-         icon=icon+1
-         if(ls.eq.0 .or. ls.eq.ll) then
-            loksp=phlista(lokph)%constitlist(icon)
-! constituent icon is the requested one
-!             write(*,55)ll,kk,icon,spname1(1:3),splista(loksp)%symbol(1:3)
-!55           format('find_const 7: ',3i3,1x,a,2x,a)
-            if(compare_abbrev(spname1,splista(loksp)%symbol)) then
-               if(first.eq.0) then
-                  first=loksp
-               else
-                  gx%bmperr=4121
-                  goto 1000
-               endif
-               goto 1000
-            endif
-         endif
-      enddo sploop
-   enddo lloop
-   if(first.eq.0) then
-      gx%bmperr=4096
-   else
-      mass=splista(first)%mass
-   endif
-1000 continue
-   return
- end subroutine find_constituent
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\begin{verbatim}
  subroutine findeq(name,ieq)
 ! finds the equilibrium with name "name" and returns its index
 ! ieq should be the current equilibrium
@@ -1269,6 +1233,61 @@
 1000 continue
    return
  end subroutine get_phase_compset
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine find_constituent(iph,spname,mass,icon)
+! find the constituent "spname" of a phase. spname can have a sublattice #digit
+! Return the index of the constituent in icon.  Additionally the mass
+! of the species is returned.
+   implicit none
+   character*(*) spname
+   double precision mass
+   integer iph,icon
+!\end{verbatim}
+   character spname1*24
+   integer lokph,kp,ll,kk,loksp,ls,first
+   lokph=phases(iph)
+   kp=index(spname,'#')
+   if(kp.gt.0) then
+      ls=ichar(spname(kp+1:kp+1))-ichar('0')
+      spname1=spname(1:kp-1)
+   else
+      ls=0
+      spname1=spname
+   endif
+   call capson(spname1)
+   icon=0
+   first=0
+   lloop: do ll=1,phlista(lokph)%noofsubl
+      sploop: do kk=1,phlista(lokph)%nooffr(ll)
+         icon=icon+1
+         if(ls.eq.0 .or. ls.eq.ll) then
+            loksp=phlista(lokph)%constitlist(icon)
+! constituent icon is the requested one
+!             write(*,55)ll,kk,icon,spname1(1:3),splista(loksp)%symbol(1:3)
+!55           format('find_const 7: ',3i3,1x,a,2x,a)
+            if(compare_abbrev(spname1,splista(loksp)%symbol)) then
+               if(first.eq.0) then
+                  first=loksp
+               else
+                  gx%bmperr=4121
+                  goto 1000
+               endif
+               goto 1000
+            endif
+         endif
+      enddo sploop
+   enddo lloop
+   if(first.eq.0) then
+      gx%bmperr=4096
+   else
+      mass=splista(first)%mass
+   endif
+1000 continue
+   return
+ end subroutine find_constituent
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

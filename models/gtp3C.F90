@@ -737,8 +737,8 @@
          ics=phasetuple(phtupx(isort(jd)))%compset
          call get_phase_compset(iph,ics,lokph,lokcs)
          if(gx%bmperr.ne.0) goto 1000
-         write(*,117)jd,isort(jd),iph,ics,lokcs,phtupx(isort(jd)),&
-              ceq%phase_varres(lokcs)%dgm
+!         write(*,117)jd,isort(jd),iph,ics,lokcs,phtupx(isort(jd)),&
+!              ceq%phase_varres(lokcs)%dgm
 117      format('3C Phase: ',2i3,2i5,2i7,1pe10.2)
 !         call get_phasetup_name(phasetuple(isort(jd)),name)
 !         kkz=test_phase_status(iph,ics,xxx,ceq)
@@ -2890,11 +2890,11 @@
       knr(2)=lord-knr(1)
       call sort_ionliqconst(lokph,1,knr,constlist,klok)
       if(gx%bmperr.ne.0) then
-         write(*,*)'Error return from sort_ionliqconst ',gx%bmperr
+         write(*,*)'3C Error return from sort_ionliqconst ',gx%bmperr
          goto 1000
       endif
 !      write(*,65)lord,(klok(ll),ll=1,lord)
-65    format('from sort: ',i5,5x,5i3)
+65    format('3C from sort: ',i5,5x,5i3)
       lord=0
       endm(1)=klok(1)
       do jsp=2,knr(1)
@@ -3038,7 +3038,7 @@
    if(ip.le.0) ip=1
    text(ip:)=' '
    if(.not.associated(ceq%lastcondition)) then
-      write(*,*)'No conditions at all'
+      write(*,*)'3C No conditions at all'
       gx%bmperr=8887; goto 1000
    endif
    last=>ceq%lastcondition
@@ -3099,6 +3099,140 @@
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim}
+ subroutine list_experiments(lut,ceq)
+! list all experiments into text
+   implicit none
+   integer lut
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   integer seqz,ip
+   character text*72
+   seqz=0
+100 continue
+      seqz=seqz+1
+      ip=1
+      text=' '
+      call get_one_experiment(ip,text,seqz,ceq)
+      if(gx%bmperr.ne.0) then
+!         write(*,*)'3C error ',gx%bmperr,text(1:ip)
+! speciel error code meaning experiment is not active
+         if(gx%bmperr.eq.7654) then
+            gx%bmperr=0; goto 100
+         endif
+         gx%bmperr=0; goto 1000
+      endif
+      write(lut,120)text(1:ip)
+120   format('Experiment ',a)
+      goto 100
+!------------
+1000 continue
+   gx%bmperr=0
+   return
+ end subroutine list_experiments
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
+ subroutine get_one_experiment(ip,text,seqz,ceq)
+! list the experiment with the index seqz into text
+! It lists also experiments that are not active ??
+! UNFINISHED current value should be appended
+   implicit none
+   integer ip,seqz
+   character text*(*)
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   integer jl,iterm,indx(4)
+   TYPE(gtp_condition), pointer :: last,current
+   type(gtp_state_variable), pointer :: svrrec
+   double precision wone,xxx
+!
+   if(ip.le.0) ip=1
+   text(ip:)=' '
+   if(.not.associated(ceq%lastexperiment)) then
+!      write(*,*)'3C No experiments'
+      gx%bmperr=8887; goto 1000
+   endif
+   last=>ceq%lastexperiment
+   current=>last
+70 continue
+!      write(*,*)'3C experiment number: ',seqz,current%seqz
+   if(current%seqz.eq.seqz) goto 100
+   current=>current%next
+   if(.not.associated(current,last)) goto 70
+! no experiment with this index found or is inactivated
+   gx%bmperr=4131; goto 1000
+!
+100 continue
+   if(current%active.eq.1) then
+!      write(*,*)'3C Experiment not active '
+      gx%bmperr=7654; goto 1000
+   endif
+   iterm=1
+! return here for each term if several
+150 continue
+   do jl=1,4
+      indx(jl)=current%indices(jl,iterm)
+   enddo
+   if(abs(current%condcoeff(iterm)-one).gt.1.0D-10) then
+      wone=current%condcoeff(iterm)+one
+      if(abs(wone).lt.1.0D-10) then
+         text(ip:ip)='-'
+         ip=ip+1
+      else
+! not +1 or -1, write number
+         call wrinum(text,ip,8,1,current%condcoeff(iterm))
+         text(ip:ip)='*'
+         ip=ip+1
+      endif
+   elseif(iterm.gt.1) then
+! must be a + in front of second and later terms
+      text(ip:ip)='+'
+      ip=ip+1
+   endif
+! why is ceq needed?? BECAUSE COMPONENTS CAN BE DIFFERENT   ... hm?? !! 
+!   call encode_state_variable2(text,ip,current%statev,indx,&
+!        current%iunit,current%iref,ceq)
+   svrrec=>current%statvar(1)
+   call encode_state_variable(text,ip,svrrec,ceq)
+   if(iterm.lt.current%noofterms) then
+      iterm=iterm+1; goto 150
+   endif
+! write = followed by the value 
+   if(text(ip:ip).ne.' ') ip=ip+1
+   text(ip:)='='
+   ip=ip+1
+   if(current%symlink1.gt.0) then
+! the value is a symbol
+      text(ip:)=svflista(current%symlink1)%name
+      ip=len_trim(text)+1
+   else
+      call wrinum(text,ip,10,0,current%prescribed)
+   endif
+! uncertainty can also be a symbol
+   text(ip:ip)=':'
+   ip=ip+1
+   if(current%symlink2.gt.0) then
+! the value is a symbol
+      text(ip:)=svflista(current%symlink1)%name
+      ip=len_trim(text)+1
+   else
+      call wrinum(text,ip,10,0,current%uncertainty)
+   endif
+! current value of the experiment
+   call state_variable_val(svrrec,xxx,ceq)
+   if(gx%bmperr.ne.0) goto 1000
+!   write(*,*)'3C experimental state variable value: ',xxx
+   text(ip:)=' $'
+   ip=ip+3
+   call wrinum(text,ip,12,0,xxx)
+1000 continue
+   return
+ end subroutine get_one_experiment
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
  subroutine get_all_conditions(text,mode,ceq)
 ! list all conditions if mode=0, experiments if mode=1
    implicit none
@@ -3154,7 +3288,7 @@
       ics=current%iref
       call get_phase_name(iph,ics,phname)
       if(gx%bmperr.ne.0) then
-         write(*,*)'list condition error for phase ',iph,ics
+         write(*,*)'3C list condition error for phase ',iph,ics
          gx%bmperr=4178; goto 1000
       endif
       text(ip:)='<'//phname
@@ -3179,7 +3313,7 @@
          ip=ip+1
       else
 ! not +1 or -1, write number
-!         write(*,*)'list cond: ',current%condcoeff(iterm),one,wone
+!         write(*,*)'3C list cond: ',current%condcoeff(iterm),one,wone
          call wrinum(text,ip,8,1,current%condcoeff(iterm))
          text(ip:ip)='*'
          ip=ip+1
@@ -3311,7 +3445,7 @@
          else
             lattice=ichar(symbol(k2+1:k2+1))-ichar('0')
             if(lattice.le.0 .or. lattice.gt.9) then
-               write(*,*)'Sublattice outside range in property symbol'
+               write(*,*)'3C Sublattice outside range in property symbol'
                gx%bmperr=7777; goto 1000
             endif
          endif
@@ -3345,27 +3479,27 @@
 ! constituent symbol, lattice is sublattice number
 ! skip index 1 as G is a state variable
       call capson(nude)
-!      write(*,*)'fdp 2: ',iph,ics,nude
+!      write(*,*)'3C fdp 2: ',iph,ics,nude
       do ityp=2,ndefprop
-!         write(*,*)'fdp 3: ',ityp,nude,propid(ityp)%symbol
+!         write(*,*)'3C fdp 3: ',ityp,nude,propid(ityp)%symbol
          if(propid(ityp)%symbol.ne.nude) cycle
          if(btest(propid(ityp)%status,IDELSUFFIX)) then
 ! element specifier, IBM&CR(BCC) (when we have element specific Bohr magnetons)
-!            write(*,*)'fdp 4: element: ',specid
+!            write(*,*)'3C fdp 4: element: ',specid
             call find_element_by_name(specid,iel)
             if(gx%bmperr.ne.0) goto 1000
             typty=100*ityp+iel
             goto 200
          elseif(btest(propid(ityp)%status,IDCONSUFFIX)) then
 ! constituent specifier, for example: MQ&FE#3(SIGMA)
-!            write(*,*)'fdp 5: constituent: ',specid
+!            write(*,*)'3C fdp 5: constituent: ',specid
             kk=0
             do ll=1,phlista(lokph)%noofsubl
                do jj=1,phlista(lokph)%nooffr(ll)
                   kk=kk+1
                   splink=phlista(lokph)%constitlist(kk)
                   if(splink.le.0) then
-                     write(*,*)'Illegal use of woildcard 3'
+                     write(*,*)'3C Illegal use of woildcard 3'
                      gx%bmperr=7777; goto 1000
                   endif
                   if(specid.eq.splista(splink)%symbol .and. &
@@ -3394,7 +3528,7 @@
 ! indices given, typty, iph and ics, construct the symbol
 ! if typty>100 there is also an element or constituent specifier
       lokph=phases(iph)
-!      write(*,*)'fdp 10: ',typty,iph,ics,lokph
+!      write(*,*)'3C fdp 10: ',typty,iph,ics,lokph
       ityp=typty
       jtyp=-1
       if(ityp.gt.100) then
@@ -3402,28 +3536,28 @@
          jtyp=typty-100*ityp
       endif
       if(ityp.le.1 .or. ityp.gt.ndefprop) then
-         write(*,*)'Property number outside range ',typty
+         write(*,*)'3C Property number outside range ',typty
          gx%bmperr=7777; goto 1000
       endif
       symbol=propid(ityp)%symbol
       if(btest(propid(ityp)%status,IDELSUFFIX)) then
 ! could one have /- as specifier??? NO !! But maye Va
          if(jtyp.lt.0) then
-            write(*,*)'Missing element index in property symbol'
+            write(*,*)'3C Missing element index in property symbol'
             gx%bmperr=7777; goto 1000
          endif
          if(jtyp.lt.0 .or. jtyp.gt.noofel) then
-            write(*,*)'Too high element index in property symbol'
+            write(*,*)'3C Too high element index in property symbol'
             gx%bmperr=7777; goto 1000
          endif
          symbol=symbol(1:len_trim(symbol))//'&'//ellista(jtyp)%symbol
       elseif(btest(propid(ityp)%status,IDCONSUFFIX)) then
          if(jtyp.lt.0) then
-            write(*,*)'Missing constituent index in property symbol'
+            write(*,*)'3C Missing constituent index in property symbol'
             gx%bmperr=7777; goto 1000
          endif
          if(iph.le.0 .or. iph.gt.noofph) then
-            write(*,*)'Illegal phase location in property symbol'
+            write(*,*)'3C Illegal phase location in property symbol'
             gx%bmperr=7777; goto 1000
          endif
          kk=0
@@ -3433,7 +3567,7 @@
                if(kk.eq.jtyp) then
                   splink=phlista(lokph)%constitlist(kk)
                   if(splink.le.0) then
-                     write(*,*)'Illegal use of woildcard 4'
+                     write(*,*)'3C Illegal use of woildcard 4'
                      gx%bmperr=7777; goto 1000
                   endif
                   specid=splista(splink)%symbol
@@ -3446,24 +3580,24 @@
             enddo
          enddo
 ! we come here is we failed to find the constituent
-         write(*,*)'Illegal constituent index in property symbol'
+         write(*,*)'3C Illegal constituent index in property symbol'
          gx%bmperr=7777; goto 1000
 400      continue
          symbol=symbol(1:len_trim(symbol))//'&'//specid
       elseif(jtyp.gt.0) then
-         write(*,*)'This property has no specifier'
+         write(*,*)'3C This property has no specifier'
          gx%bmperr=7777; goto 1000
       endif
 ! add the phase
-!      write(*,*)'fdp 11: ',lokph,ics
+!      write(*,*)'3C fdp 11: ',lokph,ics
       symbol=symbol(1:len_trim(symbol))//'('//phlista(lokph)%name
       if(ics.lt.0 .or. ics.gt.phlista(lokph)%noofcs) then
-         write(*,*)'No such composition set'
+         write(*,*)'3C No such composition set'
          gx%bmperr=7777; goto 1000
       endif
       if(ics.gt.1) symbol=symbol(1:len_trim(symbol))//'#'//char(ichar('0')+ics)
       symbol=symbol(1:len_trim(symbol))//')'
-!      write(*,*)'fdp 12: ',symbol(1:20)
+!      write(*,*)'3C fdp 12: ',symbol(1:20)
    endif
 1000 continue
    return
@@ -3484,23 +3618,23 @@
    noofeq=noeq()
    select case(mode)
    case default
-      write(*,*)'No such mode: ',mode
+      write(*,*)'3C No such mode: ',mode
 !--------------------------------------------------
    case(1) ! list equilibria and some general data
       write(*,10)noofeq
-10    format('Number of equilibria: ',i3)
+10    format('3C Number of equilibria: ',i3)
       do ieq=1,noofeq
          ceq=>eqlista(ieq)
          write(*,11)ceq%eqno,ceq%eqname
-11       format('Equilibrium ',i3,', ',a)
+11       format('3C Equilibrium ',i3,', ',a)
       enddo
 !--------------------------------------------------
    case(100:199) ! list phase varres data for phase mod(mode,100)
       iph=mod(mode,100)
       if(iph.eq.0) then
-         write(*,*)'all phases'
+         write(*,*)'3C all phases'
       else
-         write(*,*)'phase ',iph
+         write(*,*)'3C phase ',iph
       endif
    end select
 1000 continue
@@ -3525,7 +3659,7 @@
 10       format(' *** Error ',i5/a)
       elseif(gx%bmperr.ne.0) then
          write(*,20)gx%bmperr
-20       format('Error without message: ',i7)
+20       format('3C Error without message: ',i7)
       endif
       if(reset.eq.0) then
 ! if reset zero reset error code

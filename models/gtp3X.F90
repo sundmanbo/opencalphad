@@ -503,6 +503,7 @@
             enddo d2pyqloop1
 !---- jump here if moded is 0 or 1
 150         continue
+!            write(*,228)'3X d2pyq 0:',d2pyq
 !            write(*,*)'Config G 4A: ',phres%gval(1,1)*rtg
 !            write(*,154)'endmember permutation: ',epermut,(clist(i),i=1,4)
 154         format(a,i5,4i4,'--------------------------------')
@@ -577,14 +578,14 @@
             gz%intlevel=0
             pmq=1
 ! pmq is initiated by palmtree above in the interaction records
-!            write(*,*)'Config G 4D: ',phres%gval(1,1)*rtg
+!            write(*,*)'3X excess 0: ',associated(intrec),phres%gval(1,1)*rtg
             interloop: do while(associated(intrec))
 !----------------------------------------------------------------
 ! come back here an interaction at a higher level or a poped next that must
 ! be pushed 
 200            continue
-!               write(*,*)'Config G 4E: ',phres%gval(1,1)*rtg,gz%intlevel
                gz%intlevel=gz%intlevel+1
+!               write(*,*)'3X excess 1: ',gz%intlevel,phres%gval(1,1)*rtg
                call push_pyval(pystack,intrec,pmq,&
                     pyq,dpyq,d2pyq,moded,gz%nofc)
 ! intrec%order is initiated by palmtree to set a sequential number
@@ -702,6 +703,7 @@
                   lastpmq(pmq)=ipermut
 ! Without permutations just set ipermut=1
                else
+!                  write(*,*)'3X no permutations'
                   ipermut=1
                endif bford
 !-------------------------------------------------------------------
@@ -713,6 +715,7 @@
                gz%intlat(gz%intlevel)=intlat
                gz%intcon(gz%intlevel)=ic
                gz%yfrint(gz%intlevel)=phres%yfr(ic)
+!               write(*,*)'3X excess 2: ',ionicliq,iliqsave
                if(ionicliq .and. iliqsave) then
                   if(intlat.eq.1 .and. yionva.gt.zero) then
 ! iliqsave is TRUE for ionic_liquid and for excess parameters without anions
@@ -722,11 +725,12 @@
                   endif
                endif
 ! calculate new PY incl derivatives. Moded to avoid unrequested derivatives
+!
 ! IF interaction endmember is WILDCARD then the interaction is special,
 ! L(*,A) is y_A *(1-y_A) where 1-y_A is the sum of all fractions except A
 ! pyq = pyq * y_ic * (y_ix + y_iy + ... ) (all_other_in_same_sublattice))
 ! derivatives are calculated for all constituents in intlat
-! note one can also have wildcards in other sublattices
+! note one can also have wildcards in other sublattices ....
                if(gz%endcon(intlat).gt.0) then
                   wildc=.FALSE.
                   ymult=gz%yfrint(gz%intlevel)
@@ -740,33 +744,90 @@
                   write(*,*)'wildcard found!'
                   ymult=gz%yfrint(gz%intlevel)*(one-gz%yfrint(gz%intlevel))
                endif
+!               write(*,228)'3X d2pyq 1:',d2pyq
+!---------------------------------
                noder3A: if(moded.gt.0) then
 ! ...................................... loop for first derivatives
+!                  write(*,228)'3X pyq  0:',pyq
+!                  write(*,228)'3X dpyq 1:',dpyq
+!                  write(*,228)'3X divers:',ymult,yionva,gz%yfrem(1)
                   iloop1: do id=1,gz%nofc
                      if(moded.gt.1) then
 ! ...................................... second derivatives
-                        iloop2: do jd=id+1,gz%nofc
-                           if(iliqsave .and. intlat.eq.1) then
-! For ionic liquids interaction parameters that are multiplied with yionva
-! should also be multiplied with the power of yionva which is gz%intlevel+1
-                              d2pyq(ixsym(id,jd))=&
-                                   (gz%intlevel+1)*d2pyq(ixsym(id,jd))*ymult
-                           else
-! For all other models it is simply ...
-                              d2pyq(ixsym(id,jd))=d2pyq(ixsym(id,jd))*ymult
+                        if(iliqsave .and. intlat.eq.1) then
+! This IF loop is only executed when Va in second sublattice, i.e. when cation
+! interactions which should also be multiplied with the power of yionva
+! which is gz%intlevel+1
+! jonva=phlista(lokph)%i2slx(1) is index of vacancy, i2slx(2) is first neutral
+                           if(jonva.le.0) then
+                              write(*,*)'3X illegal interaction'
+                              gx%bmperr=7777; goto 1000
                            endif
-                        enddo iloop2
+!                           iloop2A: do jd=id,gz%nofc
+! for ionic liquids pyq can contain powers of Va, for such a case jd must loop
+! from id, not id+1.
+!                              d2pyq(ixsym(id,jd))=&
+!                                   (gz%intlevel+1)*d2pyq(ixsym(id,jd))*ymult
+!                              write(*,209)'3X d2pyq 2: ',id,jd,ixsym(id,jd),&
+!                                   gz%intlevel+1,d2pyq(ixsym(id,jd)),ymult
+209                           format(a,4i3,6(1pe12.4))
+! code above wrong
+! CODE BELOW IS UNCERTAIN
+                           if(id.eq.ic) then
+! derivative wrt new interaction, ic, and Va
+                              d2pyq(ixsym(ic,jonva))=&
+                                   (gz%intlevel+1)*gz%yfrem(1)*yionva
+!                              write(*,209)'3X d2pyq A: ',ic,jonva,&
+!                                   ixsym(ic,jonva),gz%intlevel+1,&
+!                                   d2pyq(ixsym(ic,jonva)),gz%yfrem(1),yionva
+                           elseif(id.eq.jonva) then
+! double derivative wrt Va
+                              d2pyq(ixsym(jonva,jonva))=&
+                 (gz%intlevel+1)*dpyq(jonva)*gz%yfrint(gz%intlevel)/yionva
+!                              write(*,209)'3X d2pyq B: ',jonva,jonva,&
+!                                   ixsym(jonva,jonva),gz%intlevel+1,&
+!                                   d2pyq(ixsym(jonva,jonva)),dpyq(jonva),&
+!                                   gz%yfrint(gz%intlevel),yionva
+!                           elseif(id.lt.jonva) then
+                           elseif(id.le.phlista(lokph)%nooffr(1)) then
+! two derivatives for all other anions ...
+                              d2pyq(ixsym(id,ic))=dpyq(id)*yionva
+!                              write(*,209)'3X d2pyq C: ',id,ic,&
+!                                   ixsym(id,ic),0,&
+!                                   d2pyq(ixsym(id,ic)),dpyq(id),&
+!                                   yionva
+                              d2pyq(ixsym(id,jonva))=(gz%intlevel+1)*ymult
+!                              write(*,209)'3X d2pyq D: ',id,jonva,&
+!                                   ixsym(id,jonva),gz%intlevel+1,&
+!                                   d2pyq(ixsym(id,jonva)),ymult
+! no 2nd derivatves wrt neutrals
+                           endif
+!                           write(*,228)'3X d2pyq 7:',d2pyq
+!                           enddo iloop2A
+! END VERY UNCERTAIN CODE, the rest seems to work ...
+                        else
+! For all other models and cases it is simply ...
+                           iloop2B: do jd=id+1,gz%nofc
+                              d2pyq(ixsym(id,jd))=d2pyq(ixsym(id,jd))*ymult
+                           enddo iloop2B
+                        endif
 ! NOTE "ic" has been set above as the interacting constituent
                         if(iliqsave) then
                            if(intlat.eq.1 .and. yionva.gt.zero) then
+                              continue
+! This already done ...
 ! For ionic liquid model the 2nd derivatives must be multipled with yionva
-                              if(id.eq.phlista(lokph)%i2slx(1)) then
+!                              if(id.eq.phlista(lokph)%i2slx(1)) then
 ! This is the vacancy, all 2nd derivatives multiplied with a factor
-                                 d2pyq(ixsym(id,ic))=&
-                                      (gz%intlevel+1)*d2pyq(ixsym(id,ic))
-                              endif
+!                                 d2pyq(ixsym(id,ic))=&
+!                                      (gz%intlevel+1)*d2pyq(ixsym(id,ic))
+!                               write(*,209)'3X d2pyq 3: ',id,ic,ixsym(id,ic),&
+!                                      gz%intlevel+1,d2pyq(ixsym(id,ic))
+!                              endif
                            else
                               d2pyq(ixsym(id,ic))=dpyq(id)*yionva
+!                              write(*,209)'3X d2pyq 4: ',id,ic,ixsym(id,ic),&
+!                                   0,d2pyq(ixsym(id,ic)),yionva
                            endif
                         else
                            d2pyq(ixsym(id,ic))=dpyq(id)
@@ -776,14 +837,15 @@
 ! very messy for the ionic liquid here ...
                      dpyq(id)=dpyq(id)*ymult
                      if(ionicliq .and. iliqsave) then
-!                        write(*,*)'Extra va power: ',id,gz%intlevel,&
-!                             gz%intlat(gz%intlevel)
+!                        write(*,202)'3X Extra va power: ',id,gz%intlevel,&
+!                             gz%intlat(gz%intlevel),dpyq(id)
+202                     format(a,3i3,4(1pe12.4))
                         if(id.eq.phlista(lokph)%i2slx(1) .and. &
                              gz%intlat(gz%intlevel).eq.1) then
 ! for vacancies there is an additional factor if interaction in first subl
                            dpyq(id)=(gz%intlevel+1)*dpyq(id)
 !                           write(*,197)gz%intlevel,gz%intcon(gz%intlevel)
-197                        format('3X: inter: ',5i3)
+197                        format('3X: Va inter: ',5i3)
                         endif
                      endif
                   enddo iloop1
@@ -817,7 +879,7 @@
 ! this is the normal first derivative of pyq*y(ic) with respect to y(ic)=ymult
                      dpyq(ic)=pyq
                      if(ionicliq) then
-!                        write(*,214)'Multiply with y_va: ',&
+!                        write(*,214)'3X Multiply with y_va: ',&
 !                             iliqsave,ic,intlat,yionva,pyq
 214                     format(a,l,2i3,4(1pe12.4))
                         if(iliqsave .and. intlat.eq.1.and.yionva.gt.zero) then
@@ -827,14 +889,27 @@
                         endif
                      endif
                   endif wildcard
-!                  write(*,228)'3X: dpyq: ',(dpyq(ll),ll=1,4)
-!228               format(a,6(1pe12.4))
+!                  write(*,228)'3X dpyq: ',(dpyq(ll),ll=1,4)
+228               format(a,6(1pe12.4))
                endif noder3A
 ! pyq calculated identically for wildcards as ymult set differently above
 ! It should work for ionic liquids as ymult has been multiplied with yionva
                pyq=pyq*ymult
-!               write(*,*)'3X pyq: ',ymult,pyq
                proprec=>intrec%propointer
+!               write(*,218)'3X pyq: ',associated(proprec),ymult,pyq
+218            format(a,l,2(1pe12.4))
+! list values of pyq, dpyg, d2pyg
+!               write(*,228)'3X pyq  :',pyq
+!               write(*,228)'3X dpyq :',dpyq
+!               write(*,228)'3X d2pyq 5:',d2pyq
+219            format(a,6(1pe12.4))
+! test, set correct d2pyq for test case ... hbug6.OCM
+!               d2pyq=zero
+!               d2pyq(2)=0.04
+!               d2pyq(7)=0.16
+!               d2pyq(8)=0.24
+!               d2pyq(10)=0.48
+!               write(*,228)'3X d2pyq 6:',d2pyq
 !..............................
                intprop: do while(associated(proprec))
 ! calculate interaction parameter, can depend on composition
@@ -862,10 +937,16 @@
                   noder4: if(moded.gt.0) then
                      iloop3: do id=1,gz%nofc
                         if(moded.gt.1) then
-                           iloop4: do jd=id+1,gz%nofc
+!                           iloop4: do jd=id+1,gz%nofc
+! This loop was constructed for normal cases when pyq has each fraction once
+! in ionic liquids Va can have a power so loop for all!
+                           iloop4: do jd=id,gz%nofc
                               phres%d2gval(ixsym(id,jd),ipy)= &
                                    phres%d2gval(ixsym(id,jd),ipy)+ &
                                    d2pyq(ixsym(id,jd))*vals(1)
+!                              write(*,251)'3X G:',id,jd,ixsym(id,jd),&
+!                                   d2pyq(ixsym(id,jd)),vals(1)
+251                           format(a,3i3,4(1pe12.4))
                            enddo iloop4
                         endif
                         do itp=1,3
@@ -874,12 +955,12 @@
                                 dpyq(id)*vals(itp)
                         enddo
                      enddo iloop3
-!                     write(*,211)'Interactions: ',gz%iq,jonva
-211                     format(a,5i3,5x,i3)
-!                     if(jonva.gt.0) then
+!                     write(*,211)'3X Interactions: ',gz%iq,jonva
+211                  format(a,5i3,5x,i3)
+                     if(jonva.gt.0) then
 !                        write(*,212)jonva,phres%dgval(1,jonva,1)*rtg
-!212                     format('with va: ',i3,6(1pe12.4))
-!                     endif
+212                     format('3X with va: ',i3,6(1pe12.4))
+                     endif
 !...............................
 ! below contribution to derivatives from composition dependent parameters
 ! the values of gz%iq represent interacting constituents and are set in cgint
@@ -889,17 +970,28 @@
                      elseif(gz%iq(4).gt.0) then
 !...............................
 ! composition dependent reciprocal parameter
-! for ionic liquid one must consider extra vacancy fraction ...
-! contribution to second derivatives ignored ...
+! for ionic liquid one must consider extra vacancy fractions ...
 ! remember ipy is property type for this parameter, set above
 !                        write(*,333)'3X comp dep reciprocal:',gz%iq,pyq,vals(1)
 333                     format(a,5i4,4(1pe14.6))
                         if(moded.gt.0) then
                            do jk=1,4
+                           if(moded.gt.1) then
+! contribution to second derivatives with respect to 2 const previously ignored
+! No second derivatives calculated in cgint for this case
+                           do jl=jk,4
+                              phres%d2gval(ixsym(gz%iq(jk),gz%iq(jl)),ipy)=&
+                                  phres%d2gval(ixsym(gz%iq(jk),gz%iq(jl)),ipy)+&
+                                  dpyq(gz%iq(jk))*dvals(1,gz%iq(jl))+&
+                                  dpyq(gz%iq(jl))*dvals(1,gz%iq(jk))
+                           enddo
+                           endif
+! first derivatives, including 2nd wrt T and P
                               do itp=1,3
+! itp=1 for 1st derivative, =2 for 2nd derivative also with T, =3 also with P
                                  phres%dgval(itp,gz%iq(jk),ipy)=&
                                       phres%dgval(itp,gz%iq(jk),ipy)+&
-                                      pyq*dvals(1,gz%iq(jk))
+                                      pyq*dvals(itp,gz%iq(jk))
                               enddo
                            enddo
                         endif
@@ -1643,6 +1735,7 @@
    dvals=0
    d2vals=0
    rtg=gz%rgast
+!   write(*,*)'3X in cgint',lokph
    if(lokpty%degree.eq.0) then
 !----------------------------------------------------------------------
 ! no composition dependence
@@ -1654,21 +1747,26 @@
       endif
       goto 1000
    endif
-! set default variables for ionic liquid
+!----------------------------------------------------------------------
+! for composition dependent param set default variables for ionic liquid
    ionicliq=.FALSE.
    iliqva=.FALSE.
    iliqneut=.FALSE.
    yionva=zero
    if(btest(phlista(lokph)%status1,PHIONLIQ)) then
+! prepare for ionic liquid interactions
 !      write(*,17)'3X RK: ',phlista(lokph)%i2slx(1),gz%endcon(gz%intlat(1))
-17    format(a,5i3)
+17    format(a,10i4)
 !      write(*,*)'ionicliq set true'
-!      write(*,*)'Const in subl: ',gz%intlat(1),gz%endcon(gz%intlat(1))
+!      write(*,17)'3X Const in subl: ',gz%intlat(1),gz%endcon(gz%intlat(1)),&
+!           gz%endcon(2),phlista(lokph)%i2slx(1),gz%intlevel
       ionicliq=.TRUE.
       if(gz%endcon(2).eq.phlista(lokph)%i2slx(1)) then
 ! VA endmember in the 2nd sublattice, this is the complicated case
          yionva=gz%yfrem(2)
          ivax=phlista(lokph)%i2slx(1)
+!         write(*,64)'3X iliq with Va: ',ivax,yionva
+64       format(a,i3,6(1pe12.4))
          if(gz%intlat(1).eq.1) then
 ! interaction in sublattice 1 between two cations same as substituional L_A,B
 ! with each cation fraction multiplied with vacancy 
@@ -1677,8 +1775,13 @@
          else
 ! interaction in sublattice 2 between Va and neutral (i.e. cation and neutral)
 ! same as substitutional L_A,B with cation fraction multiplied with vacancy
+! Hm, I am not sure interactions are ordered so all interactions in first
+! sublattice comes before any in second sublattice ??
             iliqneut=.TRUE.
          endif
+!      else
+! constituent in second sublattice is not vacancy, no particular action ??
+!         write(*,17)'3X 2nd sublattice constituent not Va: ',gz%endcon(2)
       endif
    endif
    intlev: if(gz%intlevel.eq.1) then
@@ -1703,8 +1806,9 @@
             dx0=gz%yfrem(gz%intlat(1))-gz%yfrint(1)/yionva
             dvax0=dx0
             dx0=yionva*dx0
-!            write(*,*)'Cation interaction with vacancies on 2nd: ',dvax0,dx0,&
-!                 gz%yfrem(gz%intlat(1)),gz%yfrint(1),gz%iq(2),gz%intlat(1)
+!            write(*,65)'3X Va on 2nd: ',gz%iq(2),gz%intlat(1),dvax0,dx0,&
+!                 gz%yfrem(gz%intlat(1)),gz%yfrint(1)
+65          format(a,2i3,6(1pe12.4))
          elseif(iliqneut) then
 ! interaction between vacancy and neutral in second sublattice
             dvax0=gz%yfrem(gz%intlat(1))
@@ -1803,8 +1907,9 @@
 ! important to set ivax=0 here as tested below if not zero
       ivax=0
       if(ionicliq) then
-!         write(*,*)'Comp.dep ternary ionic liquid parameter',iliqva
+!         write(*,*)'3X Comp.dep ternary ionic liquid parameter: ',iliqva
          if(iliqva) then
+! the endmember constituent in second sublattice is Va, no anions!!
             if(gz%intlat(1).eq.1 .and. gz%intlat(2).eq.1) then
 ! we have 3 cations interacting in first sublattice and Va in second
 ! require treatment of extra vacancy fraction
@@ -1819,9 +1924,14 @@
                ivax=gz%endcon(2)
             endif
          elseif(gz%intcon(2).eq.phlista(lokph)%i2slx(1)) then
-! vacancy is the intarction constituent
+! reciprocal interaction between anion and vacancy is the second sublattice
+! with 2 cations in first sublattice
+!            write(*,*)'3X reciprocal with 2 cations and anion and Va'
             ivax=gz%intcon(2)
             yionva=gz%yfrint(2)
+         else
+            write(*,*)'3X: parameter not implemented'
+            gx%bmperr=7777; goto 1000
          endif
 ! other ternary parameters in ionic liquid OK, no extra vacancy fraction
       endif
@@ -1881,7 +1991,7 @@
 32          format('Comp.dep. rec. param: ',i3,2x,i1,2x,2i2,4i5)
          endif
 ! Note the composition dependence is defined that 
-! L = y'_Ay'_By"_y"_D (0L + (y"_C-y"_D)*1L + (y'_A-y'_D)*2L)
+! L = y'_Ay'_By"_Cy"_D (0L + (y"_C-y"_D)*1L + (y'_A-y'_B)*2L)
 ! it is a bit strange that 2nd sublattice is 1L ... but that is the definition
          gz%iq(1)=gz%endcon(1)
          gz%iq(2)=gz%intcon(1)
@@ -1898,21 +2008,31 @@
             vals=vals+valtp
          endif
 ! lokpty%degree must be 1 or 2 otherwise we would not be here
+!         write(*,17)'3X composition dependent reciprocal',ivax
          lfun=lokpty%degreelink(1)
          recip1: if(lfun.gt.0) then
 ! degree 2 can be empty, otherwise multiplied with gz%iq(3)-gz%iq(4)
 ! no problem with ionic liquid except there may be values in dvals
             call eval_tpfun(lfun,gz%tpv,valtp,ceq%eq_tpres)
             if(gx%bmperr.ne.0) goto 1000
+!            write(*,62)'3X rp: ',valtp(1),valtp(2)
+62          format(a,6(1pe12.4))
             if(lokpty%proptype.eq.1) then
                valtp=valtp/rtg
             endif
             vals=vals+(gz%yfrem(gz%intlat(2))-gz%yfrint(2))*valtp
+! dvals(1,const) is the 1st derivative of the fun wrt const
+! dvals(2,const) is the 2nd derivative of the fun wrt const and T
+! dvals(3,const) is the 2nd derivative of the fun wrt const and P
 ! one dvals(*,ivax) could have been assigned a value above (for ionic liquid)
             do jl=1,3
+!      write(*,63)'3X dvals: ',jl,gz%iq(3),dvals(jl,gz%iq(3)),&
+!           dvals(jl,gz%iq(4)),valtp(jl)
                dvals(jl,gz%iq(3))=dvals(jl,gz%iq(3))+valtp(jl)
                dvals(jl,gz%iq(4))=dvals(jl,gz%iq(4))-valtp(jl)
+!      write(*,63)'3X dvals: ',jl,gz%iq(4),dvals(jl,gz%iq(3)),dvals(jl,gz%iq(4))
             enddo
+63          format(a,2i3,6(1pe12.4))
          endif recip1
 ! degree 2 can be empty, otherwise multiplied with y(gz%iq(1))-y(gz%iq(2))
          recip2: if(lokpty%degree.gt.1) then 

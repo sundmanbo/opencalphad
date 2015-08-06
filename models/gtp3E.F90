@@ -1449,10 +1449,12 @@
 ! separately.  Very similar to gtpread
    implicit none 
 !\end{verbatim}
-   integer isp,j,nel,intv(10)
+   integer isp,j,nel,intv(10),k
    double precision dblv(10)
    TYPE(gtp_equilibrium_data), pointer :: ceq
+   type(gtp_phase_varres), pointer :: phdyn
 !   TYPE(gtp_fraction_set) :: fslink
+!   write(*,*)'3E Testing segmentation error in new_gtp'
    if(ocv()) write(*,*)'Removing current data'
 !---------- elementlist, no need to delete, just deallocate below
 !>>>>> 2:
@@ -1468,6 +1470,7 @@
       gx%bmperr=7777; goto 1000
    endif
    ceq=>firsteq
+!   write(*,*)'3E No segmentation error A'
    do isp=1,noofsp
       nel=splista(isp)%noofel
       deallocate(splista(isp)%ellinks)
@@ -1475,6 +1478,7 @@
    enddo
 !---------- phases, many records, here we travese all endmembers etc
 !>>>>> 4
+!   write(*,*)'3E No segmentation error B'
    if(gtp_phase_version.ne.1) then
       if(ocv()) write(*,17)'Phase',1,gtp_phase_version
       gx%bmperr=7777; goto 1000
@@ -1495,6 +1499,7 @@
       call delphase(j)
       if(gx%bmperr.ne.0) goto 1000
    enddo
+!   write(*,*)'3E No segmentation error C1'
 !----------- jump here if no thermodynamic data
 600 continue
 !---------- equilibrium records
@@ -1506,10 +1511,31 @@
    do j=1,eqfree-1
       ceq=>eqlista(j)
       deallocate(ceq%svfunres)
+!      write(*,*)'3E No segmentation error C2',j
       deallocate(ceq%eq_tpres)
+!      write(*,*)'3E No segmentation error C3',j
+      deallocate(ceq%complist)
+!      write(*,*)'3E No segmentation error C4',j
+      deallocate(ceq%compstoi)
+!      write(*,*)'3E No segmentation error C5',j
+      deallocate(ceq%invcompstoi)
+!      write(*,*)'3E No segmentation error C6',j
+      do k=1,size(ceq%phase_varres)
+         phdyn=>ceq%phase_varres(k)
+         if(allocated(phdyn%gval)) then
+            deallocate(phdyn%gval)
+            deallocate(phdyn%dgval)
+            deallocate(phdyn%d2gval)
+!            write(*,*)'3E No segmentation error C7',j,k
+         endif
+      enddo
+!      write(*,*)'3E No segmentation error C8',j
+!      deallocate(ceq%phase_varres)
    enddo
+!   write(*,*)'3E No segmentation error D1'
 ! I am not sure if this really releases all memory, how to check .... ???
-      deallocate(eqlista)
+   deallocate(eqlista)
+!   write(*,*)'3E No segmentation error D2'
 !------- deallocate elements, species and phases, will be allocated in init_gtp
    deallocate(ellista)
    deallocate(elements)
@@ -1518,6 +1544,7 @@
    deallocate(phlista)
    deallocate(phases)
    deallocate(phasetuple)
+!   write(*,*)'3E No segmentation error E'
 !------ tpfunction expressions and other lists
 !>>>>> 20: delete tpfuns
 !   write(*,*)'Delete TP funs, just deallocate??'
@@ -1526,6 +1553,7 @@
 !------ tpfunction expressions and other lists
 !>>>>> 30: delete state variable functions
    deallocate(svflista)
+!   write(*,*)'3E No segmentation error F'
 !   call delete_svfuns
 !---------- delete bibliographic references
 !>>>>> 40: references
@@ -1533,12 +1561,14 @@
 !   call delete_biblio
 !------ parameter property records
    deallocate(propid)
+!   write(*,*)'3E No segmentation error G'
 !    deallocate( .... any more ???
 !---------------------------
 ! now initiate all lists and a little more
    if(ocv()) write(*,*)'All data structures will be reinitiated'
 ! intv(1) negative means reinititate with same values as before
    intv(1)=-1
+!   write(*,*)'3E No segmentation error H'
    call init_gtp(intv,dblv)
 ! after return firsteq must ve initiated ... maybe it should be done here ??
 !
@@ -2932,11 +2962,16 @@
 !--------------------------------------------------------
 1000 continue
    if(warning) then
+1001  continue
       write(kou,1003)
-1003  format(/'There were warnings, continue?/Y/')
+1003  format(/'There were warnings, continue? Y/N')
       read(kiu,1004)ch1
 1004  format(a)
       if(ch1.eq.'N') stop 'warnings reading database'
+      if(ch1.ne.'Y') then
+         write(kou,*)'Please answer Y or N'
+         goto 1001
+      endif
    endif
 !   write(*,*)'3E At label 1000'
    if(buperr.ne.0 .or. gx%bmperr.ne.0) then

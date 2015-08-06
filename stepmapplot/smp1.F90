@@ -20,7 +20,7 @@ MODULE ocsmp
 !
 !------------------------------
 !
-  use liboceq
+  use liboceqplus
 !
   implicit none
   character*8, parameter :: smpversion='SMP-1.10'

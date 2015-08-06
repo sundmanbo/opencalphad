@@ -500,6 +500,11 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! phase means the condition is a fix phase
   integer, parameter :: &
        ACTIVE=0,SINGLEVAR=1,SINGLEVALUE=2,PHASE=3
+!----------------------------------------------------------------
+!- Bits in assessment head record status
+! ahcoef means coefficients enetered
+  integer, parameter :: &
+       AHCOEF=0
 !
 ! >>> Bits for symbols and TP functions missing ???
 !\end{verbatim}
@@ -936,6 +941,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! argtyp=2: phase and compset
 ! argtyp=3: phase and compset and component
 ! argtyp=4: phase and compset and constituent
+! ?? what is norm ??
      integer statevarid,norm,unit,phref,argtyp
 ! these integers represent the previous indices(4)
      integer phase,compset,component,constituent
@@ -973,19 +979,19 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! iref: part of the state variable (iref can be comp.set number)
 ! iunit: ? confused with unit?
 ! seqz is a sequential index of conditions, used for axis variables
-! symlink: index of symbol for prescribed value (1) and uncertainity (2)
+! symlink: index of symbol for prescribed value (1) and uncertainty (2)
 ! condcoeff: there is a coefficient and set of indices for each term
 ! prescribed: the prescribed value
 ! NOTE: if there is a symlink value that is the prescribed value
 ! current: the current value (not used?)
-! uncertainity: the uncertainity (for experiments)
+! uncertainty: the uncertainty (for experiments)
      integer :: noofterms,statev,active,iunit,nid,iref,seqz
 !    TYPE(putfun_node), pointer :: symlink1,symlink2
 ! better to let condition symbol be index in svflista array
      integer symlink1,symlink2
      integer, dimension(:,:), allocatable :: indices
      double precision, dimension(:), allocatable :: condcoeff
-     double precision prescribed, current, uncertainity
+     double precision prescribed, current, uncertainty
 ! currently this is not used but it will be
      TYPE(gtp_state_variable), dimension(:), allocatable :: statvar
      TYPE(gtp_condition), pointer :: next, previous
@@ -1161,9 +1167,11 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! eqname: name of equilibrium
 ! tpval(1) is T, tpval(2) is P, rgas is R, rtn is R*T
 ! rtn: value of R*T
+! weight: weight value for this experiment, default unity
      integer status,multiuse,eqno,next
      character eqname*24
      double precision tpval(2),rtn
+     double precision :: weight=one
 ! svfunres: the values of state variable functions valid for this equilibrium
      double precision, dimension(:), allocatable :: svfunres
 ! the experiments are used in assessments and stored like conditions 
@@ -1311,6 +1319,44 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !\end{verbatim}
 !------------------------------------------------------------------
 !\begin{verbatim}
+! a smart way to have an array of pointers used in gtp_assessmenthead
+  TYPE equilibrium_array
+     type(gtp_equilibrium_data), pointer :: p1
+  end TYPE equilibrium_array
+  INTEGER, parameter :: gtp_assessment_version=1
+  TYPE gtp_assessmenthead
+! This record should summarize the essential information about assessment data
+! using GTP.  How it should link to other information is not clear.  
+! status is status word, AHCOEF is used
+! varcoef is the number of variable coefficients
+! firstexpeq is the first equilibrium with experimental data
+     integer status,varcoef,firstexpeq
+     character*64 general,special
+     type(gtp_assessmenthead), pointer :: nextash,prevash
+! This is list of pointers to equilibria to be used in the assessnent
+! size(eqlista) is the number of equilibria with experimental data
+     type(equilibrium_array), dimension(:), allocatable :: eqlista
+! These are the coefficients values that are optimized,
+! current values, scaling, start values and optionally min and max
+     double precision, dimension(:), allocatable :: coeffvalues
+     double precision, dimension(:), allocatable :: coeffscale
+     double precision, dimension(:), allocatable :: coeffstart
+     double precision, dimension(:), allocatable :: coeffmin
+     double precision, dimension(:), allocatable :: coeffmax
+! These are the corresponding TP-function constants indices
+     integer, dimension(:), allocatable :: coeffindex
+! This array indicate currently optimized variables:
+!  0=fix, 1=fix with min, 2=fix with max, 3=fix with min and max
+!  10=optimized, 11=opt with min, 12=opt with max, 13=opt with min and max
+     integer, dimension(:), allocatable :: coeffstate
+! Work arrays ...
+     double precision, dimension(:), allocatable :: wopt
+  end TYPE gtp_assessmenthead
+! this record is allocated when necessary
+  type(gtp_assessmenthead), pointer :: firstash,lastash
+!\end{verbatim}
+!------------------------------------------------------------------
+!\begin{verbatim}
   INTEGER, parameter :: gtp_applicationhead_version=1
   TYPE gtp_applicationhead
 ! This record should summarize the essential information about an application
@@ -1400,6 +1446,9 @@ include "gtp3X.F90"
 
 ! 17-18: Grid minimizer and miscellaneous
 include "gtp3Y.F90"
+
+! 19: Assessment subroutine 
+include "gtp3Z.F90"
 
 
 END MODULE GENERAL_THERMODYNAMIC_PACKAGE

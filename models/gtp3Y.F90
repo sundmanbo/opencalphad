@@ -653,7 +653,6 @@
 ! this phase has 4 sublattice fcc/hcp tetrahedral ordering,
 ! this reduces the number of gridpoints
       call generate_fccord_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,ceq)
-! not implemented so ignore at present
 !      goto 1000
    endif
    if(mode.eq.0) then
@@ -1135,7 +1134,7 @@
    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
    integer nkl(maxsubl),knr(maxconst),inkl(0:maxsubl)
-   double precision, dimension(:), allocatable :: yfra
+!   double precision, dimension(:), allocatable :: yfra
    double precision sites(maxsubl),ydum(maxconst),qq(5)
    integer nend,ll,nsl,i1,i2,i3,loksp,mm,lokph,lokcs,np,nm,nn,ncc,iz,loopf
    integer, dimension(:,:), allocatable :: neutral
@@ -1164,8 +1163,8 @@
    type(gtp_charged_endmem), dimension(:), allocatable :: endmem
 ! this should be saved or passed as argument
    save savengg
-! here we will be able to select 5 or 3 gripoints
-   ncf=ncf5
+! we will select 5 or 3 gripoints below
+!   ncf=ncf5
    if(.not.allocated(savengg)) then
       allocate(savengg(noofph))
       savengg=0
@@ -1273,8 +1272,15 @@
          nn=nn+1
       endif
    enddo emloop
-!   write(*,22)'3Y endmem: ',iph,np,nm,nn
-22 format(a,i3,10i4)
+   mm=nn*nn+np*nm*(nn+np+nm)
+   write(*,22)'3Y endmem: ',iph,mode,nend,np,nm,nn,mm
+22 format(a,i3,i6,i5,3i4,5i6)
+! select the number of gridpoints here
+   if(mm.gt.2000) then
+      ncf=ncf3
+   else
+      ncf=ncf5
+   endif
 !      write(*,10)'3Y endmem: ',i2,endmem(i2)%charge,&
 !           (splista(knr(endmem(i2)%constit(ll)))%alphaindex,ll=1,nsl)
 !   enddo

@@ -26,15 +26,19 @@ MODULE liboceq
 ! To be implemented
 ! - calculating dot derivatives (Cp, thermal expansion etc) PARTIALLY DONE
 ! - stability check (eigenvalues)
-! - fix bug with mass and mass fractions
-! - conditions for properties H, V, S etc.
+! - fix bug with mass and mass fractions (done)
+! - conditions for properties H, V, S etc. (partially done)
 ! - expressions as conditions
+! - calculate gridminimizer after equilibrium 
 !
 ! To be done later outside this module:
 ! - step, map and plot (gnuplot) PARTIALLY DONE
 ! - assessment module
 ! 
   use general_thermodynamic_package
+!
+! This contains the general thermoynamic package and other things
+!  use hsl_for_oc
 !
 ! For parallellization, also use in gtp3.F90
 !  use omp_lib
@@ -195,6 +199,50 @@ CONTAINS
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
+  subroutine calceq3(mode,confirm,ceq)
+! calculates the equilibrium for the given set of conditions
+! mode=0 means no global minimization
+! ceq is a datastructure with all relevant thermodynamic data
+    implicit none
+    integer mode
+    logical confirm
+    TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+    TYPE(meq_setup), pointer :: meqrec
+    type(map_fixph), pointer :: mapfix
+    double precision starting,finish2
+    integer starttid,endoftime,ij
+!--------------------------------
+    allocate(meqrec)
+    nullify(mapfix)
+    call cpu_time(starting)
+    call system_clock(count=starttid)
+    call calceq7(mode,meqrec,mapfix,ceq)
+    call system_clock(count=endoftime)
+    call cpu_time(finish2)
+1000 continue
+    if(gx%bmperr.eq.0) then
+! Here we have now an equilibrium calculated.  Do a cleanup of the structure
+! for phases with several compsets the call below shifts the stable one
+! to the lowest compset number unless the default constitution fits another
+! For example to ensure a fcc-carbonitrides is always the same compset.
+       ij=1
+       call todo_after_found_equilibrium(ij,ceq)
+       if(confirm) then
+          write(*,1010)meqrec%noofits,finish2-starting,endoftime-starttid
+1010      format('Equilibrium calculation ',i4', its, ',&
+               1pe12.4,' s and ',i7,' clockcycles')
+       endif
+    else
+       write(*,1020)gx%bmperr
+1020   format('Error return from equilibrium calculation ',i5)
+    endif
+    return
+  end subroutine calceq3
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
   subroutine calceq7(mode,meqrec,mapfix,ceq)
 ! calculates the equilibrium for the given set of conditions
 ! mode=0 means no global minimization
@@ -302,7 +350,7 @@ CONTAINS
        condition=>condition%next
        mjj=mjj+1
        if(ocv()) write(*,*)'check condition'
-       call apply_condition_value(condition,cmode,cvalue,cmix,ceq)
+       call apply_condition_value(condition,cmode,cvalue,cmix)
        if(gx%bmperr.ne.0) goto 1000
 ! cmix(1)=0 for inactive conditions
 ! cmix(1)=1 fix T, =2, fix P, =3 fix MU/AC/LNAC, =4 fix phase, =5 anything else
@@ -883,6 +931,12 @@ CONTAINS
              write(*,*)'Ignoring the same phase twice: ',iadd
              goto 200
           endif
+! do not add phases with net charge
+          if(meqrec%phr(iadd)%curd%netcharge.gt.1.0D-8) then
+             write(*,218)'Adding phase with net charge: ',iadd,&
+                  meqrec%phr(iadd)%curd%phtupx,meqrec%phr(iadd)%curd%netcharge
+218          format(a,2i3,1pe14.6)
+          endif
        endif
        tupadd=0
        tuprem=0
@@ -1273,15 +1327,15 @@ CONTAINS
     call setup_equilmatrix(meqrec,phr,nz1,smat,tcol,pcol,&
          dncol,converged,ceq)
     if(gx%bmperr.ne.0) goto 1000
-!    write(*,*)'Back from setup_equilmatrix'
+!    write(*,*)'Back from setup_equilmatrix',tcol
 !=====================================================================
 ! debug output of equil matrix, last column is right hand side
 380 continue
     if(vbug) then
 ! when problem output the smat here and (and svar below) and study!!!
-       do iz=1,nz1
-          write(*,228)'smat1:',(smat(iz,jz),jz=1,nz2)
-       enddo
+!       do iz=1,nz1
+!          write(*,228)'smat1:',(smat(iz,jz),jz=1,nz2)
+!       enddo
     endif
 228 format(a,6(1pe12.4),(8x,6e12.4))
     call lingld(nz1,nz2,smat,svar,nz1,ierr)
@@ -1308,6 +1362,7 @@ CONTAINS
     endif
 ! when problems output svar here !! (and smat above)
     if(vbug) write(*,228)'svar1:',(svar(jz),jz=1,nz1)
+!    write(*,228)'svar1:',(svar(jz),jz=1,nz1)
 !
 ! if no error at first calculation after phase set change iremsave=0
     iremsave=0
@@ -2136,7 +2191,7 @@ CONTAINS
     cmix=0
     condition=>condition%next
 ! This is the prescribed value of the condition
-    call apply_condition_value(condition,cmode,cvalue,cmix,ceq)
+    call apply_condition_value(condition,cmode,cvalue,cmix)
     if(gx%bmperr.ne.0) goto 1000
 ! Only cmix(1)=5 is interesting here
     if(cmix(1).ne.5) then
@@ -3096,7 +3151,7 @@ CONTAINS
        nd1=ncc+1
 !       pmi%charge=qq(2)
        pmi%curd%netcharge=qq(2)
-!       write(*,*)'Calculated qq(2): ',iph,ics,qq(2)
+!       if(qq(2).gt.1.0D-8) write(*,*)'Charge: ',iph,ics,qq(2)
     else
        pmi%chargebal=0
        nd1=ncc
@@ -3546,7 +3601,7 @@ CONTAINS
 !          write(*,17)'dxm: ',(pmi%dxmol(i,j),j=1,ncon)
 !       enddo
 ! now calculate G and all 1st and 2nd derivatives
-! The calculated values are used also in other parts of the code 
+! The calculated values are stored and used also in other parts of the code 
     call calcg(iph,ics,2,lokcs,ceq)
     if(gx%bmperr.ne.0) then
        write(*,*)'Error calculating G'
@@ -3608,6 +3663,13 @@ CONTAINS
     goto 900
 !-------------------------------------------
 900 continue
+! We must include the inverted phase matrix for  phases with charges
+!    if(pmi%chargebal.eq.1) then
+!       write(*,911)'eiq: ',iph,ics,neq,pmi%ncc,pmi%curd%netcharge,&
+!            (pmi%invmat(neq,jk),jk=1,neq)
+911    format(a,4i4,1pe14.6,/6(1pe12.4))
+!    endif
+!
     goto 1000
 !
 1000 continue
@@ -4177,11 +4239,13 @@ CONTAINS
 !\end{verbatim}
 ! THIS IS MODIFIED FOR CONDITIONS ON H and related properties
 ! these are to be multiplied with mu(ib), nothing, deltaT, deltaP
-    integer iy,jy,ib
-    double precision sum,cig,cit,cip,cib
-    double precision morr,curmu(maxel)
+! CHARRGE BALANCE TERM ADDED 150610!!!
+    integer iy,jy,ib,neq
+    double precision sum,cig,cit,cip,cib,qscale
+    double precision morr,curmu(maxel),maq
 !
-!    write(*,11)'in termsh: ',ia,0,0,pmi%invmat
+!    write(*,9)'in calc_dgdytermsh: ',ia,0,0,pmi%chargebal
+9   format(a,4i3,6(1pe12.4))
     mag=zero
     do ib=1,nrel
        sum=zero
@@ -4205,7 +4269,11 @@ CONTAINS
     enddo
 !    endif
 !-----------
-! \sum_i \sum_j e_ij*dM_A/dy_i dG/dy_j
+! \sum_i \sum_j e_ij*dM_A/dy_i dG/dy_j and other terms
+! for phases with extrenal chargebalance we have one more row with index
+! number of constituents+sublattices+1
+    if(pmi%chargebal.eq.1) neq=pmi%ncc+size(pmi%curd%sites)+1
+    maq=zero
     mag=zero
     mat=zero
     map=zero
@@ -4231,7 +4299,25 @@ CONTAINS
        mag=mag+morr*cig
        mat=mat+morr*cit
        map=map+morr*cip
+!       if(pmi%chargebal.eq.1) maq=maq+morr*pmi%invmat(neq,iy)
+       if(pmi%chargebal.eq.1) maq=maq+morr*pmi%invmat(iy,neq)
     enddo
+!    if(pmi%chargebal.eq.1) then
+! Looking for the reason of bad convergence with enthalpy condition this
+! was investigated but the correction is so small it is ignored.
+! For phases with external charge balance there is one more term, e_ig*Q
+! number of equations are constituents+sublattices+1
+!       neq=pmi%ncc+size(pmi%curd%sites)+1
+!       qscale=one
+!       qscale=1.0D12
+!       maq=maq*pmi%curd%netcharge*qscale
+!       write(*,911)'eiq> ',pmi%curd%phtupx,pmi%chargebal,neq,pmi%ncc,&
+!            pmi%curd%netcharge,mag,maq,(pmi%invmat(jy,neq),jy=1,neq)
+!            pmi%curd%netcharge,mag,maq,(pmi%invmat(neq,jy),jy=1,neq)
+911    format(a,4i4,3(1pe12.4),/6(1pe12.4))
+! The contribution \sum_i e_iq*Q should be added (or subtracted) from mag
+!       mag=mag+maq
+!    endif
 !    write(*,11)'termsh: ',ia,0,0,mag,mat,map,(mamu(jy),jy=1,nrel)
 1000 continue
     return
@@ -4508,6 +4594,7 @@ CONTAINS
        ceq%cmuval(ie)=ceq%complist(ie)%chempot(1)/ceq%rtn
     enddo
     meqrec%dormlink=0
+! This can be done in PARALLEL for all phases
     do mph=1,meqrec%nphase
 ! loop to calculte and invert the phase matrices
        pmi=>meqrec%phr(mph)
@@ -4936,6 +5023,122 @@ CONTAINS
 1000 continue
     return
   end subroutine meq_slope
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+  subroutine assessment_calfun(nexp,nvcoeff,f,x)
+!  subroutine assessment_calfun(nexp,nvcoeff,f,x,ash)
+! nexp is number of experiments, nvcoeff number of coefficients
+! f is the differences between experiments and value calculated by model
+! returned by this subroutine
+! x are the current model parameter values set by VA05AD
+    implicit none
+    integer nexp,nvcoeff
+    double precision F(*),X(*)
+!    type(gtp_assessmenthead), pointer :: ash
+!\end{verbatim}
+! firstash is the data structure for assessment head (globally declared) 
+   integer i1,i2,iexp
+    double precision xxx
+    type(gtp_equilibrium_data), pointer :: equil
+    type(gtp_condition), pointer :: experiment
+    type(gtp_state_variable), pointer :: svrrec
+!
+!    write(*,*)'MM in assessment_calfun',nexp,nvcoeff
+!    write(*,*)'MM In assessment_calfun',size(ash%eqlista)
+!    write(*,*)'MM In assessment_calfun',size(ash%coeffstate)
+!    write(*,*)'MM coeffstate: ',ash%coeffstate
+!    write(*,*)'firstash: ',size(firstash%eqlista)
+! 1. copy values of X to the TP coefficinets, loop through all
+    i2=1
+    do i1=0,size(firstash%coeffstate)-1
+!       write(*,*)'MM2 Testing value of firstash%coeffstate',i1
+       if(firstash%coeffstate(i1).ge.10) then
+!          write(*,*)'MM3 coefficient ',i1,i2,x(i2)
+          xxx=x(i2)*firstash%coeffscale(i1)
+!          write(*,16)i2,i1,xxx,x(i2),firstash%coeffscale(i1)
+16        format('MM4 Opt coeff ',2i4,' set to ',3(1pe12.4))
+          call change_optcoeff(firstash%coeffindex(i1),xxx)
+          if(gx%bmperr.ne.0) goto 1000
+          i2=i2+1
+!       else
+!          write(*,*)'MM5 coefficient not variable',i1
+       endif
+    enddo
+! 2. calculate all differences, skipping equilibria with weight zero
+! the array firstash%eqlista contain pointers to equilibria with experiments
+    if(.not.allocated(firstash%eqlista)) then
+       write(kou,*)' *** Warning: no experimental data!'
+       do i1=1,nexp
+          f(i1)=zero
+       enddo
+       goto 1000
+    else
+!       write(*,*)'MM6 First equilibrium number: ',firstash%firstexpeq
+!       write(*,17)size(firstash%eqlista),firstash%firstexpeq
+17     format('MM Number of equilibra with experiments: ',i5,', first is ',i3)
+!       do i1=1,size(firstash%eqlista)
+!          write(*,21)i1,firstash%eqlista(i1)%p1%eqname
+!21        format('MM Equilibrium number ',i3,' and name: ',a)
+!       enddo
+    endif
+! loop through all equilibria with experiments
+! each can be calculated in parallel
+    iexp=0
+    eqloop: do i1=1,size(firstash%eqlista)
+       if(firstash%eqlista(i1)%p1%weight.eq.zero) then
+!          write(*,29)i1,firstash%eqlista(i1)%p1%eqname
+29     format('MM Skipping equilibrium number ',i3,' and name: ',a)
+          cycle eqloop
+       endif
+!       write(*,30)i1,firstash%eqlista(i1)%p1%eqname
+30     format('MM Equilibrium number ',i3,' and name: ',a)
+       equil=>firstash%eqlista(i1)%p1
+! Force recalculation of all TP functions and parameters by changing saved T
+       equil%eq_tpres%tpused(1)=equil%tpval(1)+one
+! calculate the equilibria without grid minimizer
+       call calceq3(0,.FALSE.,equil)
+       if(gx%bmperr.ne.0) then
+          write(kou,*)' *** Error calculating: ',equil%eqname,gx%bmperr
+          gx%bmperr=0
+          cycle
+!       else
+!          write(*,*)'Equilibrium calculated for ',equil%eqname
+       endif
+! loop through all experiments, pointer set to first
+       experiment=>equil%lastexperiment%next
+! current value of the experiment
+500       continue
+          iexp=iexp+1
+!          write(*,*)'MM Setting pointer to experiment ',iexp
+          svrrec=>experiment%statvar(1)
+!          write(*,*)'MM new_assessment_calfun Calculate value of experiment'
+          call state_variable_val(svrrec,xxx,equil)
+          if(gx%bmperr.ne.0) then
+             write(kou,*)' *** Error calculating experiment ',&
+                  equil%eqname,gx%bmperr
+             gx%bmperr=0
+             f(iexp)=zero
+             goto 590
+          endif
+! take the difference between prescribed value
+!          write(*,510)'MM f',iexp,experiment%prescribed,xxx,&
+!               experiment%uncertainty,equil%weight
+510       format(a,i4,6(1pe12.4))
+          f(iexp)=(experiment%prescribed-xxx)/experiment%uncertainty*&
+               equil%weight
+590       if(.not.associated(experiment,equil%lastexperiment)) then
+             experiment=>experiment%next
+             goto 500
+          endif
+! done all experiments for this equilibrium
+    enddo eqloop
+!    write(*,*)'MM experiments: ',iexp,nexp
+
+1000 continue
+    return
+  end subroutine assessment_calfun
 
 end MODULE liboceq
 
