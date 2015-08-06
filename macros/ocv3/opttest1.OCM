@@ -1,0 +1,174 @@
+@$ setup file for simple assessment
+
+set echo
+
+@$ step 1: enter binary data a phase
+
+enter element A A  FCC 10. 0. 0. 
+enter element B B  FCC 10. 0. 0. 
+ 
+enter phase FCC   1  1.0  A B
+
+@$ enter 100 optimizing coefficients
+
+enter opt 100
+
+@$ parameter to be optimized
+
+enter parameter G(FCC,A,B) 298.15 A10+A11*T; 6000 N myref
+
+l d
+
+@&
+@$ amend the bibliographic reference
+amend bib
+myref
+current assessment;
+
+l d
+
+@$----------------------------------------------------
+@$ step 2: optimizing coefficients
+
+set 
+variable 
+10 
+10000
+
+set fix 11 -2
+
+@&
+@$ list the optimizing variables
+list opt short
+
+@&
+@$ The coefficienta are TP constants 
+l tp
+
+
+@&
+@$----------------------------------------------------
+@$ step 3: experiments, enter equilibrium automatically select the new
+@$ first experimental equilibrium, will be equil 2
+
+enter equil FCC1_ZA Y
+set c t=1000 p=1e5 n=1 x(b)=.6
+
+c n
+l,,,,,
+@&
+
+enter experiment h=10000:200
+c n
+l,,,,,
+
+@$ enter a second experiment
+enter experiment s=6.1
+0.2
+c n
+l,,,,
+
+l equil
+@$ second experiment ........................................ 3
+enter equil FCC2_ZA Y
+set c t=1000 p=1e5 n=1 x(b)=.5
+enter experiment h=15000:100
+
+l equil
+@$ third experiment ........................................ 4
+enter equil FCC3_ZB Y
+set c t=800 p=1e5 n=1 x(b)=.5
+enter experiment h=17000:100
+
+l equil
+
+@$ This command tells OC which equilibria has experiments
+set range_exp_equil
+2
+4
+
+@$ Calculate all xperimental equilibria
+
+c all
+
+@&
+@$ List optimization to check the coefficients
+list opt,,
+
+@&
+@$ Now optimize, sometimes segmentation fault ...
+opt
+100
+
+@&
+@$ Now we can also see the experimental data and the errors
+list opt,,
+
+@&
+@$ List the data again
+l data
+
+@$
+@$ Remove equilibria with "za" in their name and list all equilibria
+set wei 0 za
+
+l eq
+
+@$ Calculate all xperimental equilibria
+
+c all
+
+@&
+@$ Optimize with new set of experiments
+opt,,
+
+l opt,,
+
+@&
+@$ Rescale the parameters, creates trouble here ???
+
+amend all
+y
+
+l opt
+
+@&
+@$ List data just to remember
+l data
+
+@&
+@$ Set back the equilibria "za" with low weight
+set we 0.1 za
+
+l eq
+
+l opt,,
+
+@&
+@$ Optimize again
+opt ,
+
+l opt,,
+
+@&
+@$ Rescale the parameters, creates no trouble here ???
+
+amend all
+y
+
+l opt,,
+
+
+@&
+opt 100
+
+l opt,,
+
+@&
+@$ Now test removing all data, this often cause segmentation error
+
+new Y
+
+set inter
+
+ 
