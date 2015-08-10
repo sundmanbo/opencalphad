@@ -14,15 +14,9 @@
 
 \begin{center}
 
-{\Large \bf The implementation  of an algorithm to
-
-calculate the thermodynamic equilibrium for
-
-multi-component systems with
-
-many different models for non-ideal phases.
-
-}
+{\Large \bf Documentation of the implementation of an algorithm to
+  calculate thermodynamic equilibria in multi-component systems for
+  flexible sets of conditions.}
 
 \bigskip
 
@@ -62,13 +56,15 @@ transitions.}
 
 \bigskip
 
-{\em This is part of the documentation of the Open Calphad initiative.
-There is also documentation available for the model package, General
-Thermodynamic Package (GTP) and there is ongoing work to develop and
-document the step/map/plot procedures.
+This is part of the documentation of the Open Calphad (OC) initiative.
+There is also documentation available for the model package~\cite{gtp}
+and there is ongoing work to develop and document the step/map/plot
+procedures.  There is also development of an application software
+interface called TQOC.  Finally there is a user guide to the command
+oriented user interface to OC~\cite{OCui}.
 
-There is also development of an application software interface and
-attemps to develop an assessment module.}
+The current release of the OC software and its documentation is
+available at \cite{opencalphad} and the last update at~\cite{github}.
 
 \newpage
 
@@ -81,12 +77,12 @@ attemps to develop an assessment module.}
 The algorithm presented here was derived and explained in slightly
 different forms by Gunnar Erikssom~\cite{75Eri}, Mats
 Hillert~\cite{81Hil} and in the thesis by Bo Jansson~\cite{84Jan} and
-in a paper by Lukas~\cite{82Luk}.  These papers give the theoretical
-background of the algorithm but they are very dense and difficult to
-understand.  In this paper the algorithm and its implementation is
-explained in more detail, see also Sundman et al.\cite{15Sun2}.  Some
-corrections and extentions comparated to the published version are
-included in this text.
+in a paper by Leo Lukas~\cite{82Luk}.  These papers give the
+theoretical background of the algorithm but they are very dense and
+difficult to understand.  In a recent paper the algorithm and its
+implementation is explained in more detail by Bo
+Sundmanal.\cite{15Sun2}.  Some corrections and extentions comparated
+to the published version are included in this documentation.
 
 The implementation is done as part of the Open Calphad
 initiative~\cite{15Sun1} to provide a free software for thermodynamic
@@ -575,14 +571,14 @@ phase set we can calculate the derivative:
 This means that the driving force, $\gamma^{\psi}$, for an unstable
 phase will be calculated as part of the minimization.  An unstable
 phase may become stable during the iterations for the equilibrium and
-that is indicated by $\gamma^{\psi}$ becomming positive.  
+that is indicated by $\gamma^{\psi}$ becomming positive.
 
 On the other hand, if $\aleph^{\alpha}$ for a stable phase $\alpha$
 becomes negative it means this phase has become unstable and should be
 removed from the stable set.  In both cases we must change the set of
 stable phases as will be discussed in section~\ref{sc:changeps}.
 
-\subsection{The derivative of the Lagrangian with respect to 
+\subsection{The derivative of the Lagrangian with respect to
 constituent fractions}
 
 The partial derivative of $L$ with respect to a constituent fraction
@@ -902,13 +898,13 @@ $e_{11}$ & $e_{12}$ & $e_{13}$ \\
 $e_{21}$ & $e_{22}$ & $e_{23}$ \\
 $e_{31}$ & $e_{32}$ & $e_{33}$ \\
 \end{tabular}
-\right) 
+\right)
 =
 \left(
 \begin{tabular}{c}
 $\frac{\partial^2 G_M}{\partial y_i\partial y_j}$
 \end{tabular}
-\right)^{-1} 
+\right)^{-1}
 \]
 
 Only a part of this matrix is important because we are not interested
@@ -1257,7 +1253,7 @@ $\Delta \aleph^{\beta}$
 $G_M^{\alpha}$\\
 $G_M^{\beta}$\\
 $\sum_{\varphi}\aleph^{\varphi} \sum_i \frac{\partial M^{\varphi}_{\rm A}}{\partial y_i^{\varphi}} c^{\varphi}_{iG}+N_{\rm A}-\tilde N_{\rm A}$\\
-$\sum_{\varphi}\aleph^{\varphi} \sum_i 
+$\sum_{\varphi}\aleph^{\varphi} \sum_i
 \frac{\partial M^{\varphi}_{\rm B}}{\partial y_i^{\varphi}} c^{\varphi}_{iG}+N_{\rm B}-\tilde N_{\rm B}$\\
 \end{tabular}
 \right)
@@ -1410,10 +1406,10 @@ phases with different molar volumes or having a condition on a
 chemical potential which can change the amount of material in the
 system.  We expand the differential of $dV = \Delta V$ as:
 \begin{eqnarray}
-\Delta V &=& \sum_{\alpha} \aleph^{\alpha} \left(\frac{\partial^2 G^{\alpha}_M}{\partial P\partial T} \Delta T + 
-\frac{\partial^2 G^{\alpha}_M}{\partial P^2} \Delta P + 
+\Delta V &=& \sum_{\alpha} \aleph^{\alpha} \left(\frac{\partial^2 G^{\alpha}_M}{\partial P\partial T} \Delta T +
+\frac{\partial^2 G^{\alpha}_M}{\partial P^2} \Delta P +
 \sum_i\frac{\partial^2 G^{\alpha}_M}{\partial P\partial y^{\alpha}_{i}} \Delta y^{\alpha}_i\right) +
-\sum_{\alpha} \frac{\partial G^{\alpha}_M}{\partial P} \Delta\aleph^{\alpha}\nonumber\\&=& 
+\sum_{\alpha} \frac{\partial G^{\alpha}_M}{\partial P} \Delta\aleph^{\alpha}\nonumber\\&=&
 \sum_{\alpha} \aleph^{\alpha} \left(
 \sum_{\rm A}\sum_i\frac{\partial^2 G^{\alpha}_M}{\partial P\partial y^{\alpha}_{i}}c_{iA}\mu_{\rm A}+
 \left[\frac{\partial^2 G^{\alpha}_M}{\partial P\partial T}+
@@ -1473,7 +1469,7 @@ dS &=& S-\tilde S = 0
 where
 \begin{eqnarray}
 S &=& \sum_{\alpha} \aleph^{\alpha} S_M^{\alpha}\\
-S^{\alpha}_M &=& -\left(\frac{\partial G^{\alpha}_M}{\partial T}\right)_{P,Y} = 
+S^{\alpha}_M &=& -\left(\frac{\partial G^{\alpha}_M}{\partial T}\right)_{P,Y} =
 -\frac{\partial }{\partial T}\left(\sum_{\rm A} M^{\alpha}_{\rm A} \mu_{\rm A}\right)=
 -\sum_{\rm A} M^{\alpha}_{\rm A} \frac{\partial \mu_{\rm A}}{\partial T}\\
 dS^{\alpha}_M &=& -\sum_{\rm A} dM^{\alpha}_{\rm A} \frac{\partial \mu_{\rm A}}{\partial T}
@@ -1489,8 +1485,8 @@ dS_M^{\alpha} = -\frac{\partial^2 G^{\alpha}_M}{\partial T^2}\Delta T-
 and we can formulate an equation as we did for the volume in
 eq.~\ref{eq:vcond}:
 \begin{eqnarray}
-dS &=& -\sum_{\alpha} \aleph^{\alpha} \left(\frac{\partial^2 G^{\alpha}_M}{\partial T^2} \Delta T + 
-\frac{\partial^2 G^{\alpha}_M}{\partial T\partial P} \Delta P + 
+dS &=& -\sum_{\alpha} \aleph^{\alpha} \left(\frac{\partial^2 G^{\alpha}_M}{\partial T^2} \Delta T +
+\frac{\partial^2 G^{\alpha}_M}{\partial T\partial P} \Delta P +
 \sum_i\frac{\partial^2 G^{\alpha}_M}{\partial T\partial y_{i}} \Delta y_i\right) -
 \sum_{\alpha} \frac{\partial G^{\alpha}_M}{\partial T} \Delta\aleph^{\alpha}
 \nonumber\\&=& S - \tilde S = 0\label{eq:scond}
@@ -1498,29 +1494,29 @@ dS &=& -\sum_{\alpha} \aleph^{\alpha} \left(\frac{\partial^2 G^{\alpha}_M}{\part
 where $\Delta y_i$ can be expressed as a function of $\Delta T, \Delta
 P$ and $\mu_{\rm A}$ using equation \ref{eq:deltay}.
 \begin{eqnarray}
--\sum_{\alpha} \aleph^{\alpha} 
+-\sum_{\alpha} \aleph^{\alpha}
 \frac{\partial^2 G^{\alpha}_M}{\partial T^2} \Delta T
--\sum_{\alpha} \aleph^{\alpha} 
-\frac{\partial^2 G^{\alpha}_M}{\partial T\partial P} \Delta P 
--\sum_{\alpha} \aleph^{\alpha} 
+-\sum_{\alpha} \aleph^{\alpha}
+\frac{\partial^2 G^{\alpha}_M}{\partial T\partial P} \Delta P
+-\sum_{\alpha} \aleph^{\alpha}
 \sum_i\frac{\partial^2 G^{\alpha}_M}{\partial T\partial y_{i}} \Delta y_i -
 \sum_{\alpha} \frac{\partial G^{\alpha}_M}{\partial T} \Delta\aleph^{\alpha}
 &=& S - \tilde S\nonumber\\
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
--\sum_{\alpha} \aleph^{\alpha} 
+-\sum_{\alpha} \aleph^{\alpha}
 \frac{\partial^2 G^{\alpha}_M}{\partial T^2} \Delta T
--\sum_{\alpha} \aleph^{\alpha} 
+-\sum_{\alpha} \aleph^{\alpha}
 \frac{\partial^2 G^{\alpha}_M}{\partial T\partial P} \Delta P
 -\sum_{\alpha} \frac{\partial G^{\alpha}_M}{\partial T} \Delta\aleph^{\alpha} \nonumber\\
--\sum_{\alpha} \aleph^{\alpha} 
-\sum_i\frac{\partial^2 G^{\alpha}_M}{\partial T\partial y_{i}} 
+-\sum_{\alpha} \aleph^{\alpha}
+\sum_i\frac{\partial^2 G^{\alpha}_M}{\partial T\partial y_{i}}
 \left(\sum_{\rm A}c_{i\rm A}\mu_{\rm A}+c_{iT}\Delta T+c_{iP}\Delta P+c_{iG}\right)
 &=& S - \tilde S\nonumber\\
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
--\sum_{\alpha} \aleph^{\alpha} 
+-\sum_{\alpha} \aleph^{\alpha}
 (\frac{\partial^2 G^{\alpha}_M}{\partial T^2}+
 \sum_i\frac{\partial^2 G^{\alpha}_M}{\partial T\partial y_{i}} c_{iT})\Delta T
--\sum_{\alpha} \aleph^{\alpha} 
+-\sum_{\alpha} \aleph^{\alpha}
 (\frac{\partial^2 G^{\alpha}_M}{\partial T\partial P}+
 \sum_i\frac{\partial^2 G^{\alpha}_M}{\partial T\partial y_{i}} c_{iP})\Delta P \nonumber\\
 -\sum_{\alpha} \aleph^{\alpha}
@@ -1534,18 +1530,18 @@ P$ and $\mu_{\rm A}$ using equation \ref{eq:deltay}.
 This means we should not use eq.~\ref{eq:gcond1} for a condition on G,
 but write such an equation as:
 \begin{eqnarray}
-dG &=& \sum_{\alpha} \aleph^{\alpha} (\frac{\partial G^{\alpha}_M}{\partial T} \Delta T + 
-\frac{\partial G^{\alpha}_M}{\partial P} \Delta P + 
+dG &=& \sum_{\alpha} \aleph^{\alpha} (\frac{\partial G^{\alpha}_M}{\partial T} \Delta T +
+\frac{\partial G^{\alpha}_M}{\partial P} \Delta P +
 \sum_i\frac{\partial G^{\alpha}_M}{\partial y_{i}} \Delta y_i) +
 \sum_{\alpha} G^{\alpha}_M \Delta\aleph^{\alpha}\nonumber\\&=& G - \tilde G = 0\label{eq:gcond2}
 \end{eqnarray}
 or written as an equation of the variables $\Delta \aleph, \Delta T,
 \Delta P$ and $\mu$:
 \begin{eqnarray}
-\sum_{\alpha} \aleph^{\alpha} 
+\sum_{\alpha} \aleph^{\alpha}
 (\frac{\partial G^{\alpha}_M}{\partial T}+
 \sum_i\frac{\partial G^{\alpha}_M}{\partial y_{i}} c_{iT})\Delta T
-+\sum_{\alpha} \aleph^{\alpha} 
++\sum_{\alpha} \aleph^{\alpha}
 (\frac{\partial G^{\alpha}_M}{\partial P}+
 \sum_i\frac{\partial G^{\alpha}_M}{\partial y_{i}} c_{iP})\Delta P \nonumber\\
 +\sum_{\alpha} \aleph^{\alpha}
@@ -1587,34 +1583,44 @@ dH &=& H - \tilde H = 0
 where
 \begin{eqnarray}
 H &=& \sum_{\alpha}\aleph^{\alpha} H^{\alpha}_M\\
+dH &=& \sum_{\alpha} \aleph^{\alpha}dH_M^{\alpha} + \sum_{\alpha}H_M^{\alpha}d\aleph^{\alpha}\\
 H^{\alpha}_M &=&G^{\alpha}_M + TS^{\alpha}_M\\
-dH^{\alpha}_M &=&dG^{\alpha}_M + TdS^{\alpha}_M \label{eq:deltah1}
+dH^{\alpha}_M &=&dG^{\alpha}_M + TdS^{\alpha}_M + S^{\alpha}_M dT \label{eq:deltah1}
 \end{eqnarray}
 
-Thermodynamics is confusing, maybe we should use?
+Thermodynamics is confusing, maybe we should use:
 \begin{eqnarray}
-dH^{\alpha}_M &=&dG^{\alpha}_M + TdS^{\alpha}_M + S^{\alpha}_M dT \label{eq:deltah2}
+dH^{\alpha}_M &=&dG^{\alpha}_M + TdS^{\alpha}_M \label{eq:deltah2}
 \end{eqnarray}
-but this cannot be correct. Why?  Because $H=H(S,P)$ is a function
-of $S$ but of $T$?
+as we use such an equation together with $\Delta G=0$ when we have a
+phase transformation to obtain $\Delta H=T\Delta S$.  But this
+relation is only valid at fixed $T$, i.e. $dT=0$.  In the general case
+we must also include $dT$.
 
 In eq.~\ref{eq:deltah1} the differentials for $G_M$ and $S_M$ are
-given by eqs~\ref{eq:gcond2} and \ref{eq:scond} respectivly.
-Combining there we have:
+given by eqs~\ref{eq:gcond2} and \ref{eq:scond} respectivly for a
+single phase.  Combining there we have:
 \begin{eqnarray}
-dH &=& \sum_{\alpha}\aleph^{\alpha}\left[
-\left(\frac{\partial G_M}{\partial T}-T\frac{\partial^2 G_M}{\partial T^2}\right)\Delta T+ 
-\left(\frac{\partial G_M}{\partial P}-T\frac{\partial^2 G_M}{\partial T\partial P}\right)\Delta P+ 
-\sum_i\left(\frac{\partial G_M}{\partial y_i}-T\frac{\partial^2 G_M}{\partial T\partial y_i}\right)\Delta y_i\right]+\nonumber\\&&
-\sum_{\alpha}\left(G_M - T \frac{\partial G_M}{\partial T}\right) \Delta\aleph^{\alpha} = H - \tilde H = 0 \label{eq:hcond}
+dH^{\alpha}_M &=& \sum_{\alpha}\aleph^{\alpha}\left[
+\left(\frac{\partial G_M}{\partial T}-T\frac{\partial^2 G_M}{\partial T^2}\right)\Delta T+
+\left(\frac{\partial G_M}{\partial P}-T\frac{\partial^2 G_M}{\partial T\partial P}\right)\Delta P+
+\sum_i\left(\frac{\partial G_M}{\partial y_i}-T\frac{\partial^2 G_M}{\partial T\partial y_i}\right)\Delta y_i\right]-\nonumber\\&&
+\sum_{\alpha} \aleph^{\alpha}\frac{\partial G_M}{\partial T}\Delta T +\sum_{\alpha}\left(G_M - T \frac{\partial G_M}{\partial T}\right) \Delta\aleph^{\alpha} = H - \tilde H = 0 \label{eq:hcond}
 \end{eqnarray}
+where we calculate the partial derivatives with the appropriate
+variables $T, P$ and $y_i$ kept fixed.  We can do this for a single
+phase as we have already separated out the change in the amount of the
+phases, $\Delta \aleph^{\alpha}$.
 
-This must be the equation!  If we insert eq.~\ref{eq:deltay} we get
+If we insert the expression for $\Delta y_i$ from eq.~\ref{eq:deltay}
+we get
 \begin{eqnarray}
 \sum_{\alpha}\aleph^{\alpha}\left[
-\left(\frac{\partial G_M}{\partial T}-T\frac{\partial^2 G_M}{\partial T^2}\right)\Delta T+ 
+\left(-T\frac{\partial^2 G_M}{\partial T^2}\right)\Delta T+
 \left(\frac{\partial G_M}{\partial P}-T\frac{\partial^2 G_M}{\partial T\partial P}\right)\Delta P+ \right.\nonumber&&\\
 \left.\sum_i\left(\frac{\partial G_M}{\partial y_i}-T\frac{\partial^2 G_M}{\partial T\partial y_i}\right)(c_{iG} + c_{iT}\Delta T + c_{iP}\Delta P + \sum_{\rm A}c_{iA}\mu_{\rm A})\right]+\nonumber&&\\
+% \sum_{\alpha}\left(G_M - T \frac{\partial G_M}{\partial T}\right) \Delta\aleph^{\alpha} +
+% \Delta T\sum_{\alpha} \aleph^{\alpha}\frac{\partial G_M}{\partial T}+
 \sum_{\alpha}\left(G_M - T \frac{\partial G_M}{\partial T}\right) \Delta\aleph^{\alpha} &=& H - \tilde H \nonumber\\\label{eq:hcond2}
 \end{eqnarray}
 
@@ -1623,7 +1629,7 @@ for the independent variables $\Delta T, \Delta P, \mu_{\rm A}$ and
 $\Delta \aleph^{\alpha}$ in the equation for fixed $H$:
 \begin{eqnarray}
 \sum_{\alpha}\aleph^{\alpha}
-\left(\frac{\partial G_M}{\partial T}-T\frac{\partial^2 G_M}{\partial T^2}+
+\left(-T\frac{\partial^2 G_M}{\partial T^2}+
 \sum_i(\frac{\partial G_M}{\partial y_i}-T\frac{\partial^2 G_M}{\partial T\partial y_i}) c_{iT}\right)\Delta T&+&\nonumber\\
 \sum_{\alpha}\aleph^{\alpha}
 \left(\frac{\partial G_M}{\partial P}-T\frac{\partial^2 G_M}{\partial T\partial P}+
@@ -1637,8 +1643,9 @@ $\Delta \aleph^{\alpha}$ in the equation for fixed $H$:
 
 We see again how useful it is to have expressed $\Delta y_i$ as a
 function of the potentials and that all second derivatives are
-calculated analytically in the model package.  See
-section~\ref{sc:norm} how to handle normallized state variables as
+calculated analytically in the model package.  It makes it easy to set
+up equations for each equation independent of all other conditions.
+See section~\ref{sc:norm} how to handle normallized state variables as
 conditions.
 
 
@@ -1668,7 +1675,7 @@ z^{\alpha} = \frac{Z^{\alpha}_M}{K_M^{\alpha}}
 If the prescribed value is $\widetilde z^{\alpha}$ we have
 
 \begin{equation}
-\Delta z^{\alpha} = 
+\Delta z^{\alpha} =
 \frac{\Delta Z^{\alpha}_M - z^{\alpha} \Delta K^{\alpha}_M}{K^{\alpha}_M}
 = z^{\alpha} - \tilde z^{\alpha} = 0
 \end{equation}
@@ -1956,7 +1963,7 @@ N_i^{\alpha} &=& \sum_s a_s^{\alpha} \sum_j b_{ij} y_{js}^{\alpha}
 \end{eqnarray}
 where $N_i$ is the amount in moles of component $i$, $\aleph^{\alpha}$
 is the amount of formula units of phase $\alpha$ and $G_M^{\alpha}$ is
-the Gibbs energy of $\alpha$ for one formula unit.  
+the Gibbs energy of $\alpha$ for one formula unit.
 
 The constitution of the $\alpha$ phase is modelled using constituent
 fractions $y_{js}$ for fraction of constituent $j$ on sublattice $s$,
@@ -1972,12 +1979,12 @@ H &=& G - T\left(\frac{\partial G}{\partial T}\right)_{P,N_i}
 From the model we cannot calculate a derivative with respect to
 constant $N_i$ so the derivative of $G$ must be expanded as:
 \begin{eqnarray}
-\left(\frac{\partial G}{\partial T}\right)_{P,N_i} &=& 
+\left(\frac{\partial G}{\partial T}\right)_{P,N_i} &=&
 \sum_{\alpha}\frac{\partial \aleph^{\alpha}}{\partial T} G_M^{\alpha}+
 \sum_{\alpha}\aleph^{\alpha}\left(\frac{\partial G_M^{\alpha}}{\partial T}\right)_{P,N_i}\nonumber\\&=&
 \sum_{\alpha}\frac{\partial \aleph^{\alpha}}{\partial T} G_M^{\alpha}+
 \sum_{\alpha}\aleph^{\alpha}\left[\left(\frac{\partial G_M^{\alpha}}{\partial T}\right)_{P,y_{js}}+
-\sum_{js} \left(\frac{\partial G_M^{\alpha}}{\partial y_{js}}\right)_{P,y_{kt\ne js}} \frac{\partial y_{js}}{\partial T}\right]
+\sum_{js} \left(\frac{\partial G_M^{\alpha}}{\partial y_{js}}\right)_{P,y_{kt\ne js}} \frac{\partial y_{js}}{\partial T}\right]\nonumber\\
 \end{eqnarray}
 
 The last equation comes from the fact that the equilibrium is
@@ -1992,7 +1999,7 @@ The heat capacity finally is defined and calculated as
 
 \begin{eqnarray}
 C_P &=& \left(\frac{\partial H}{\partial T} \right)_{P,N_i}\\
-\left(\frac{\partial H}{\partial T}\right)_{P,N_i} &=& 
+\left(\frac{\partial H}{\partial T}\right)_{P,N_i} &=&
 \sum_{\alpha}\frac{\partial \aleph^{\alpha}}{\partial T} H_M^{\alpha}+
 \sum_{\alpha}\aleph^{\alpha}\left(\frac{\partial H_M^{\alpha}}{\partial T}\right)_{P,N_i}
 \end{eqnarray}
@@ -2000,7 +2007,7 @@ C_P &=& \left(\frac{\partial H}{\partial T} \right)_{P,N_i}\\
 Again changing the derivative from constant $N_i$ to constant $y_{is}$
 and replacing $H$ by $G$ gives:
 \begin{eqnarray}
-\left(\frac{\partial H}{\partial T}\right)_{P,N_i} &=& 
+\left(\frac{\partial H}{\partial T}\right)_{P,N_i} &=&
 \sum_{\alpha}\frac{\partial \aleph^{\alpha}}{\partial T} H_M^{\alpha}+
 \sum_{\alpha}\aleph^{\alpha}\frac{\partial }{\partial T}
 \left[G_M^{\alpha}-T\left(\frac{\partial G_M^{\alpha}}{\partial T}\right)_{P,N_I}\right]\nonumber\\&=&
@@ -2022,7 +2029,7 @@ For a small change in $T$, we replace the derivatives of $\aleph$ and
 $y_{js}$ by finite differences.  We also drop the subscript $s$ as the
 summation over $j$ is for all constituents.
 \begin{eqnarray}
-\left(\frac{\partial H}{\partial T}\right)_{P,N_i} &=& 
+\left(\frac{\partial H}{\partial T}\right)_{P,N_i} &=&
 \sum_{\alpha}\Delta\aleph^{\alpha} H_M^{\alpha}-T
 \sum_{\alpha}\aleph^{\alpha}
 \left[\left(\frac{\partial^2 G_M^{\alpha}}{\partial T^2}\right)_{P,y_{j}}+
@@ -2113,22 +2120,49 @@ is the slope of the solubility lines.  In order to calculate the slope
 of for example the liquidus versus $T$ in the direction of a component
 A we can set the appropriate conditions together with specifying a
 solid phase as fix, and no condition on the temperature, and calculate
-the equilibrium.  
+the equilibrium.
 
-\begin{thebibliography}{77Zzz}
-\bibitem[09Flo]{09Flo} C A Floudas and C E Gounaris, J of Global Optimization
-{\bf 45} (2009) 3-38
-\bibitem[75Eri]{75Eri} G Eriksson (1974)
-\bibitem[81Sun]{81Sun} B Sundman and J ï¿½gren (1981)
-\bibitem[81Hil]{81Hil} M Hillert, Physica (1981)
-\bibitem[82Luk]{82Luk} H L Lukas et al, Calphad (1982)
-\bibitem[84Jan]{84Jan} B Jansson, Thesis, KTH (1984)
-\bibitem[84Hil]{84Hil} M Hillert et al, Ionic liquid model (1984)
-\bibitem[01Hil]{01Hil} M Hillert, CEF
-\bibitem[15Sun1]{15Sun1} B Sundman, U R Kattner, M Palumbo, S G Fries,
-IMMI journal (2015) 4:1
-\bibitem[15Sun2]{15Sun2} B Sundman, X-G Lu, H Ohtani, Comp Mat. Sci (2015)
-\end{thebibliography}
+\section{Assessment of model parameters}
+
+This package also contain a subroutine used for assessment of model
+parametrs using experimental and theoretical data.  In an assessment
+the difference between experimental data for various thermodynamic
+properties like enthalpies, heat capacities, phase diagram data etc.
+and the corresponding properites obtained from an equilibrium
+calculation using different sets of model parameters are minimimzed
+using model parameters varied by a least square fitting routine.
+
+\begin{eqnarray}
+F(q_j)=\sum_i\left(\frac{x_i^{\rm experimental} - x_i^{\rm model}(q_j)}{\rho_i}w_i\right)^2 \label{eq:sumofsquares}
+\end{eqnarray}
+where the summation is over all experiments, $q_j$ are the $j$ model
+parameters, $x_i^{\rm experimental}$ are the $i$ experimental data for
+the thermodynamic properties, $x_i^{\rm model}(q_i)$ the same properties
+extracted from an equilibrium calculation using the model parameters
+$q_i$.  $\rho_i$ is the experimental uncertainty and $w_i$ is a weight
+assigned to this information by the assessor.
+
+The least square routine provides the subroutine with a set of
+variables, $q_j$ and these are transferred by the subroutine to model
+coefficents in the thermodynamic model package, GTP.  The experimental
+data have been obtained at an equilibrium state and thus the
+subroutine must make several equilibrium calculations to obtain the
+same data from the thermodynamic models.  The information about the
+conditions for these equilibria is transferred to the subroutine by a
+structured datatype defined in GTP.  The individually calculated
+values are returned to the least square routine:
+
+\begin{eqnarray}
+F_i (q_j) = (x_i^{\rm experimental} - x_i^{\rm model}(q_j))\frac{w_i}{\rho_i}
+\end{eqnarray}
+
+Inside the least square routine various nummerical techniques are used
+to minimize the sum of squares in eq.~\ref{eq:sumofsquares} by varying
+the variables $q_j$.
+
+It is possibly to use inequalities for the experimental data also,
+i.e.  that a property should be larger or smaller that a certain
+value.  Finally one may also prescribe limits of the model parameters.
 
 \newpage
 
@@ -2139,7 +2173,7 @@ subroutines in the HMS package is given here.
 
 \subsection{Data structures}
 
-For each equilibrium calculation a structure called meqrec is created
+eFor each equilibrium calculation a structure called meqrec is created
 of the type meq\_data explained below.  In meqrec there is an array
 with record type meq\_phase for each phase to hold intermediate
 values.
@@ -2180,7 +2214,7 @@ For each phase in the system a structure with these data is created
 ! chargebal is 1 if external charge balance needed, ionliq<0 unless
 ! ionic liquid when it is equal to nkl(1)=number of cations
      integer chargebal,ionliq,i2sly(2)
-     double precision charge,yva
+     double precision iliqcharge,yva
 ! end specific ionic liquids
   end TYPE meq_phase
 \end{verbatim}
@@ -2224,8 +2258,6 @@ array.
 ! aphl: initial guess of amount of each stable phase
      integer iphl(maxel+2),icsl(maxel+2)
      double precision aphl(maxel+2)
-! this is because I tried to scale the total amount of phases during iterations
-     double precision antot
 ! stphl: current list of stable phases, value is index in phr array
      integer, dimension(maxel+2) :: stphl
 ! current values of chemical potentials stored in gtp_equilibrium_data
@@ -2278,6 +2310,9 @@ If mode is nonzero it will call a grid minimizer if possible to find a
 set of stable phases.  It does some clean up and copy of results at
 the end if the calculation is successful.
 
+The difference between calceq2 and 3 are that the latter does not
+write anything, except possible error messages.
+
 {\small
 \begin{verbatim}
   subroutine calceq2(mode,ceq)
@@ -2286,6 +2321,14 @@ the end if the calculation is successful.
 ! ceq is a datastructure with all relevant thermodynamic data
     implicit none
     integer mode
+    TYPE(gtp_equilibrium_data), pointer :: ceq
+  subroutine calceq3(mode,confirm,ceq)
+! calculates the equilibrium for the given set of conditions
+! mode=0 means no global minimization
+! ceq is a datastructure with all relevant thermodynamic data
+    implicit none
+    integer mode
+    logical confirm
     TYPE(gtp_equilibrium_data), pointer :: ceq
 \end{verbatim}
 }
@@ -2326,8 +2369,6 @@ force to be added.
   subroutine meq_phaseset(meqrec,formap,ceq)
 ! this subroutine can change the set of stable phase and their amounts
 ! and constitutions until equilibrium is found for the current conditions.
-! nv is the number of stable phases initially, iphl, icsl and aphl are the
-! phase number, compset number and amount.
     implicit none
     TYPE(meq_setup) :: meqrec
     TYPE(gtp_equilibrium_data), pointer :: ceq
@@ -2411,15 +2452,15 @@ constitution.
 
 {\small
 \begin{verbatim}
-  subroutine corriliq_d2gdyidyj(nkl,knr,curmu,pmi,ncc,pmat,ceq)
+  subroutine corriliq_d2gdyidyj(nkl,knr,curmu,pmi,ncc,nd1,pmat,ceq)
 ! correction of d2G/dy1dy2 for ionic liquid because the formula unit is
 ! not fixed.  This contributes ONLY to the second derivaties of G and
 ! is not really part of the model itself, only needed when minimizing G
     implicit none
     type(gtp_equilibrium_data), pointer :: ceq
     TYPE(meq_phase), pointer :: pmi
-    integer ncc,nkl(*),knr(*)
-    double precision curmu(*),pmat(ncc,*)
+    integer ncc,nd1,nkl(*),knr(*)
+    double precision curmu(*),pmat(nd1,*)
 \end{verbatim}
 }
 
@@ -2455,11 +2496,14 @@ These subroutines returnes the terms in the $\Delta y$ expression,
 eq.~\ref{eq:deltay}.  The first one is used during the equilibrium
 calculation, the second is used when calculating ``dot derivatives''.
 
+The calc\_dgdytemsh is the most recent needed to handle conditions on
+enthalpy.  It is more flexible and the others should no longer be used.
+
 {\small
 \begin{verbatim}
   subroutine calc_dgdyterms1(nrel,ia,tpindep,mamu,mag,mat,map,pmi,&
        curmux,noofits)
-! any change must also be made in subroutine calc_dyterms2
+! any change must also be made in subroutine calc_dyterms2 and calc_dgdytermsh
 ! calculate the terms in the deltay expression for amounts of component ia
 !
 ! DM_A = \sum_B mu_B*MAMU(B) - MAG - MAT*dt - MAP*dp
@@ -2478,10 +2522,34 @@ calculation, the second is used when calculating ``dot derivatives''.
 ! pmi is the phase data record for this phase
     type(meq_phase), pointer :: pmi
   subroutine calc_dgdyterms2(iy,nrel,mamu,mag,mat,map,pmi)
-! it should be similare to calc_dgdyterms1
+! it should be similar to calc_dgdyterms1
     implicit none
     integer iy,nrel
     double precision mag,mat,map,mamu(*)
+    type(meq_phase), pointer :: pmi
+  subroutine calc_dgdytermsh(nrel,ia,tpindep,hval,mamu,mag,mat,map,pmi,&
+       curmux,noofits)
+! This is a variant of dgdyterms1 including a term multiplied with each
+! term (hval) in the summation over the comstituents as needed when calculating
+! an equation for fix V or H.  If hval(i)=1.0 it should give the same
+! results as dgdyterms1
+!
+! calculate the terms in the deltay expression for amounts of component ia
+!
+! DM_A = \sum_B mu_B*MAMU(B) - MAG - MAT*dt - MAP*dp
+!
+! where MAMU=\sum_i dM_A/dy_i*\sum_j invmat(i,j)*dM_B/dy_j
+!       c_iB=\sum_j invmat(i,j)*dM_B/dy_j etc etc
+!
+! it may not be very efficient but first get it right ....
+! tpindep(1) is TRUE if T variable, tpindep(2) is TRUE if P are variable
+    implicit none
+    integer ia,nrel,noofits
+    logical tpindep(2)
+    double precision, dimension(*) :: hval,mamu
+    double precision mag,mat,map
+    double precision curmux(*)
+! pmi is the phase data record for this phase
     type(meq_phase), pointer :: pmi
 \end{verbatim}
 }
@@ -2605,7 +2673,7 @@ phase in the system.
        svar,jj,value,ceq)
 ! Calculate contribution for one phase, one or all elements
 ! svr1 and svr2 identifies the state variables in (dstv1/dstv2)
-! value is calculated value
+! value is calculated value returned
 ! iph and iel indicate possible phase or element
 ! svar is solution to equil matrix, potentials and phase amounts
 ! jj is an attempt to index phases in svar, starting with 1
@@ -2622,9 +2690,57 @@ phase in the system.
 \end{verbatim}
 }
 
+\section{Subroutine called in assessments}
+
+This subroutine calculates the difference between the experimental
+data and the same property calculated from the model.
+
+The subroutine makes use of the data structure firstash declared in
+the GTP package and which must have vaules for all relevant
+coefficients and data.  The values of X must be transferred to the
+relevant TPfun constants and F must be calculated for all experiments.
+
+\begin{verbatim}
+  subroutine assessment_calfun(nexp,nvcoeff,f,x)
+! nexp is number of experiments, nvcoeff number of coefficients
+! f is the differences between experiments and value calculated by model
+! returned by this subroutine
+! x are the current model parameter values set by VA05AD
+    implicit none
+    integer nexp,nvcoeff
+    double precision F(*),X(*)
+!    type(gtp_assessmenthead), pointer :: ash
+\end{verbatim}
+
 \section{Summary}
 
 That's all.
+
+\begin{thebibliography}{opencalphad}
+\bibitem[GTP]{gtp} The General Thermodynamic Package, part of the OC
+  software documentation, available at the opencalphad website.
+\bibitem[OC-UI]{OCui} The User Interface to the Open Calphad software,
+  part of the OC software documentation, available at the opencalphad
+  website.
+\bibitem[opencalphad]{opencalphad} http://www.opencalphad.org
+\bibitem[github]{github} opencalphad repository at http://www.github.com
+\bibitem[09Flo]{09Flo} C A Floudas and C E Gounaris, J of Global Optimization
+{\bf 45} (2009) 3-38
+\bibitem[75Eri]{75Eri} G Eriksson and E Ros\'en, Chem Scripta {\bf 4}
+  (1973) 193
+\bibitem[81Sun]{81Sun} B Sundman and J Ågren, J Chem Phys {\bf 42} (1981) 297
+\bibitem[81Hil]{81Hil} M Hillert, Physica B, {\bf 103B} (1981) 31
+\bibitem[82Luk]{82Luk} H L Lukas, J Weiss and E-Th Henig, Calphad {\bf
+  6} (1982) 229
+\bibitem[84Jan]{84Jan} B Jansson, Ph D thesis, KTH, Stockholm (1984)
+\bibitem[84Hil]{84Hil} M Hillert, B Jansson, B Sundman and J Ågren
+Metall Trans A {\bf 16A} (1985) 261
+\bibitem[01Hil]{01Hil} M Hillert, J Alloys Compd {\bf 320} (2001) 161
+\bibitem[15Sun1]{15Sun1} B Sundman, U R Kattner, M Palumbo, S G Fries,
+IMMI journal (2015) 4:1
+\bibitem[15Sun2]{15Sun2} B Sundman, X-G Lu, H Ohtani, Comp Mat. Sci
+  {\bf 101}(2015) 127
+\end{thebibliography}
 
 \end{document}
 
@@ -2645,3 +2761,4 @@ additional term $-\sum_{\alpha}\aleph^{\alpha}\frac{\partial
 \sum_i\left(\frac{\partial G_M}{\partial y_i}-T\frac{\partial^2 G_M}{\partial T\partial y_i}\right)c_{iG}+ H - \tilde H \label{eq:hcond4}
 \end{eqnarray}
 
+\end{document}

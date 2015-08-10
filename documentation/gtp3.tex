@@ -22,20 +22,21 @@ Bo Sundman, \today
 
 \end{center}
 
-This is a preliminary description of the data structure used in
-the thermodynamic model package GTP written in Fortran08.
-
-The reason to use Fortran is that it is specially designed for
-numerical calculations and there are many numerical libraries
-available. It is also intended for use in massive parallell processing.
-Extensive use is made of the datatyping available in Fortran08.
-
-All real numbers are double precision unless specifically noted.
+This is a preliminary description of the data structure and
+subroutines in the thermodynamic model package GTP.  A recent paper
+describing this initiative to develop a free thermodynamic software
+can be found in\cite{15Sun1}.
 
 This documentation is neither complete nor up to date with the most
 resent version.  The whole structure (and depending subroutines)
-should be revised when all major parts have been implemented and
+will be revised when all major parts have been implemented and
 tested.
+
+The software is written in the new Fortran standard and the reason to
+use Fortran is that it is specially designed for numerical
+calculations and there are many numerical libraries available. It is
+also useful for massive parallell processing.  Extensive use is made
+of the datatyping available in Fortran08.
 
 \bigskip
 
@@ -46,33 +47,27 @@ to update the documention.  So my feeling for documentation is that
 once a software is documented it is dead as it is almost impossible to
 update source code and documentation in parallell.
 
-To avoid this I have now written a simple documentation update
-software that uses a basic documentation written as a LaTeX file
-together with the source code to extract verbatim sections.  When
-running this update software with the current documentation file and a
-new source code it compares the existing verbatim sections with those
-it can find in the new source code and flaggs all differences.  This
-is a simple method to find what has changed in the source code since
-last time I worked on the documentation.
+To handle this I have written a simple documentation update software
+that uses a basic documentation written as a LaTeX file together with
+the source code to extract verbatim sections.  When running this
+software with the current documentation file and a new source
+code it compares the existing verbatim sections with those it can find
+in the new source code and flaggs all differences.  This is a simple
+method to find what has changed in the source code.
 
 The verbatim sections in the source code is enclosed by\\
 \verb/!\begin{verbatim}/\\
 \verb/extract from source code /\\
 \verb/!\end{verbatim} /\\
 
-These can be inserted anywhere.  Normally they enclose important
-sections like data structure definitions and declarations of
-subroutines and functions.  New verbatim sections are also flagged as
-well as verbatim sections that has disappeared.  The update software
-writes a new LaTeX documentation file which require editing but at
-least is correct.
-
-With this software I hope to be able to keep the software documented
-also during the development stage.
-
-This document is an example of this software.  I assume there are
-already many similar software but this one suits my style of
-programming.
+These can be inserted anywhere in the source code.  Normally they
+enclose important sections like data structure definitions and
+declarations of subroutines and functions.  The documentation software
+finds new or changed verbatim sections as well as verbatim sections
+that has disappeared and writes a new LaTeX documentation file which
+require editing to describe the changes and to add crossreferences.
+Using this software I hope to keep the software documented also during
+the development stage.  This document is an example of this software.
 
 \newpage
 
@@ -82,49 +77,71 @@ programming.
 
 \section{The Gibbs energy function}
 
-In a thermodynamic system one has elements, species (stoichiometric
-combination of elements) and phases.  The thermodynamic properties of
-the system are described by models for the Gibbs energy which can be
-different for each phase.  The Gibbs energy for a phase depend on the
-temperature, $T$, pressure, $P$ and amounts of the constituents of the
-phase.  With suitable transformations the Gibbs energy can be used to
-find the equilibrium of a system for any other set of conditions.  The
-model function can also be used to extraplate to non-equilibrium
-states.  Some thought has been spent on special physical properties
-like ferromagnetism and additional external variables as stress or
-mability data that also depend on $T, P$ and the constitution.
+In a thermodynamic system one has elements, species (combination of
+elements with fixed stoichiometric ratios and a possible charge) and
+phases.  The thermodynamic properties of the system are described by
+models for the Gibbs energy which can be different for each phase.
+The Gibbs energy for a phase depend on the temperature, $T$, pressure,
+$P$ and amounts of the constituents of the phase.  The constituents
+are a subset of the species.  
+
+At equilibrium at constant $T, P$ and composition the Gibbs energy of
+a system is at a minimum.  With suitable transformations the Gibbs
+energy can be used to find the equilibrium of a system for any other
+set of conditions.  The model function can also be used to extraplate
+to non-equilibrium states.  Some thought has been spent on modelling
+special physical properties like ferromagnetism and additional
+external variables like Curie Temperature as elastic constants can be
+included in the modelling.
 
 The method of storing composition dependant properties used for the
-Gibbs energy parameters is also suitable for other properties like
-mobilities, elastic constants, resistivity etc and there are
-provisions to include such data.
+Gibbs energy parameters is suitable also for other properties like
+mobilities, resistivity, viscosities etc and there are provisions to
+include such data also in the database format.
 
 The use of this model package to calculate equilibria in
 multicomponent systems and for calculation of property and phase
 diagrams is explained in a separate document.
 
-\subsection{New features in version 2}
+\subsection{New features in current and previous versions}
 
-The release of version 2 of OC was scheduled for June 2014 but has of
-course been delayed.  The new release date is expected in January 2015.
-The main change in the GTP module is implementing the ionic liquid
-model.  This does not really change much in this documentation, the
-code for handling the variable ratio of sublattices has been
-integrated in the existing subroutines.
+The release of version 3 of OC is scheduled to the end of 2015.  It
+includes several improvements in the already exisiting software but
+most important a new assessment proccedure to fit model parameters to
+experimental and theoretical data.  This has added a few new data
+structures to the GTP package.
 
-The main feature of version 2 is instead the step and map procedures
-which are documented separately and implementing derivatives of state
+The previous version 2 of OC was released in February 2015 and the
+main new feature of this version was the step and map procedures which
+are documented separately.  It also included derivatives of state
 variables, ``dot derivatives'', and some improvements of the
-minimization procedure.
+minimization procedure and main change in the GTP module was
+implementing the ionic liquid model.  This did not really change much
+in this documentation, the code for handling the variable ratio of
+sublattices was been integrated in the existing subroutines.
+
+\subsection{Features to be added in future versions}
+
+A software is never finished but each version has to be tested and
+debugged before new features can be added.  A feature that is still
+missing in the GTP package is the possibility to save the data
+structures and calculated results on a random access file that can be
+later read back and used for further calculations.  
+
+In the GTP package several new models for phases will be implemented
+in future versions including models for high pressure.  Models related
+to describing heat capacities down to zero Kelvin, for the glass
+transition are also on the list.  As this software is free it is
+possible for any interested scientist to contribute.
 
 \subsection{The Gibbs energy function}
 
 The model package provides the possibility to calculate the Gibbs
-energy, $G$, for a phase using the models implemented for any value of
-$T, P$ and its constitution.  In addition it can calculte the first
-and second derivatives of $G$ with respect to $T, P$ and the
-constitution.  These values can be used directly or within a
-minimization package developed in parallel, to handle equilibrium
+energy, $G$, for many phases for any value of $T, P$ and its
+constitution using the models implemented.  In addition it can
+calculte the first and second derivatives of $G$ with respect to $T,
+P$ and the constitution.  These values can be used directly or within
+a minimization package developed in parallel, to handle equilibrium
 calculations in multicomponent system with several phases for various
 external conditions.  The basic formula for the Gibbs energy of a
 phase, independent of the model, is taken from the book by Lukas,
@@ -375,7 +392,7 @@ all parameters are identified by
 \item the phase name,
 \item the constituent array (specifying the constituents in each
 sublattice, the fraction of which are multiplied with the parameter), and
-\item a degree with a value 0-9
+\item a degree with a value 0 to 9,
 \end{itemize}
 
 for example G(FCC,FE), G(SIGMA,FE:CR:CR), G(LAVES,FE,MO:MO;2),
@@ -628,7 +645,7 @@ function ``nocs(iph)'' for each phase ``iph''.  Inside the OC package
 the phase number and composition set number are usually given
 separately.  A phase must have at least one composition set and the
 maximum number is 9.  The composition sets larger than 1 is normally
-suffixed after the phase name separated by a \# like bcc\#2.  If
+suffixed after the phase name separated by a \# like BCC\#2.  If
 omitted composition set 1 is assumed.
 
 If there are several composition sets of a phase there is a separate
@@ -640,8 +657,8 @@ constituents.
 
 Fraction set records have no array or free list, they exist only
 inside the phase\_varres records.  (This created some extra headache
-when creating them as a simple assignemnt of a record to another did
-not create any new record in Fortran08).
+when implementing them as a simple assignemnt of a record to another
+did not create any new record in Fortran08).
 
 \subsection{State variables}
 
@@ -716,7 +733,7 @@ THET   & - & phase\#set & - & - & Debye temperature\\\hline
 \end{tabular}
 \end{table}
 
-\section{Fortran Data Structures}
+\section{Fortran data structures}
 
 A number of arrays must be dimensioned, this is done by defining some
 constants (called PARAMETER in Fortran) and then using these to dimension
@@ -925,6 +942,11 @@ component specifier (like the mobility).
 ! phase means the condition is a fix phase
   integer, parameter :: &
        ACTIVE=0,SINGLEVAR=1,SINGLEVALUE=2,PHASE=3
+!----------------------------------------------------------------
+!- Bits in assessment head record status
+! ahcoef means coefficients enetered
+  integer, parameter :: &
+       AHCOEF=0
 !
 ! >>> Bits for symbols and TP functions missing ???
 \end{verbatim}
@@ -1024,7 +1046,7 @@ identified.  This is an attempt to do that with those already available.
 \end{verbatim}
 }
 
-\section{Data structures declared in GTP}
+\section{Basic thermodynamic data structures}
 
 Below the data types in GTP will be explained and in some cases also
 how they are declared as arrays or inside other data types.  Many of
@@ -1840,7 +1862,7 @@ in the same array.  A phase cannot have more than 9 composition sets.
 ! name: phase name, note composition sets can have pre and suffixes
 ! model: free text
 ! phletter: G for gas, L for liquid
-! alphaindex: the alphabetcal order of the phase (excluding gas and liquids)
+! alphaindex: the alphabetcal order of the phase (gas and liquids first)
      character name*24,models*72,phletter*1
      integer status1,alphaindex
 ! noofcs: number of composition sets,
@@ -1875,7 +1897,6 @@ in the same array.  A phase cannot have more than 9 composition sets.
 ! allocated in init_gtp
   TYPE(gtp_phaserecord), private, allocatable :: phlista(:)
   INTEGER, private, allocatable :: PHASES(:)
-  TYPE(gtp_phasetuple), allocatable :: PHASETUPLE(:)
 \end{verbatim}
 }
 
@@ -1905,6 +1926,7 @@ variable is a fraction or a percent.
 ! argtyp=2: phase and compset
 ! argtyp=3: phase and compset and component
 ! argtyp=4: phase and compset and constituent
+! ?? what is norm ??
      integer statevarid,norm,unit,phref,argtyp
 ! these integers represent the previous indices(4)
      integer phase,compset,component,constituent
@@ -1923,7 +1945,14 @@ variable is a fraction or a percent.
 \end{verbatim}
 }
 
-\section{Error handling}
+\section{Use of the thermodynamic data structures}
+
+This section describes how the basic thermodynamic data structures are
+used in various applications like calculating the Gibbs energy,
+handling errors, step for property diagrams, mapping of phase diagram,
+assessments etc.
+
+\subsection{Error handling}
 
 There is a global error code defined as part of the tpfunlib module.
 It is accessed as gx\%bmperr.
@@ -1942,7 +1971,7 @@ error code belonging to the gtp\_equilibrium\_data record as the error
 code can be set in subroutines that are declared before this record is
 defined.
 
-\section{Calculations}
+\subsection{Calculations}
 
 So far we have decribed how to handle the data describing the
 properties of a phase.  In order to calculate an equilibrium many
@@ -1952,7 +1981,7 @@ handle several separate equilibria, either as threads in parallell
 computing or as experimental data in assessments.  Each of these
 separate datasets are stored in a gtp\_equilibrium\_data record.
 
-\subsection{Conditions}
+\subsubsection{Conditions}
 
 We must also handle conditions set by the user.  Typically a condition
 is a state variable equal to a value like T=1273 or w(c)=0.01.  At
@@ -1983,19 +2012,19 @@ w(liq,b)=waver.
 ! iref: part of the state variable (iref can be comp.set number)
 ! iunit: ? confused with unit?
 ! seqz is a sequential index of conditions, used for axis variables
-! symlink: index of symbol for prescribed value (1) and uncertainity (2)
+! symlink: index of symbol for prescribed value (1) and uncertainty (2)
 ! condcoeff: there is a coefficient and set of indices for each term
 ! prescribed: the prescribed value
 ! NOTE: if there is a symlink value that is the prescribed value
 ! current: the current value (not used?)
-! uncertainity: the uncertainity (for experiments)
+! uncertainty: the uncertainty (for experiments)
      integer :: noofterms,statev,active,iunit,nid,iref,seqz
 !    TYPE(putfun_node), pointer :: symlink1,symlink2
 ! better to let condition symbol be index in svflista array
      integer symlink1,symlink2
      integer, dimension(:,:), allocatable :: indices
      double precision, dimension(:), allocatable :: condcoeff
-     double precision prescribed, current, uncertainity
+     double precision prescribed, current, uncertainty
 ! currently this is not used but it will be
      TYPE(gtp_state_variable), dimension(:), allocatable :: statvar
      TYPE(gtp_condition), pointer :: next, previous
@@ -2004,7 +2033,7 @@ w(liq,b)=waver.
 \end{verbatim}
 }
 
-\subsection{State variable functions}
+\subsubsection{State variable functions}
 
 In this record the description of a state variable funtion is stored.
 The actual expression is stored using the PUTFUN subroutine in the
@@ -2047,7 +2076,7 @@ implemented.
 \end{verbatim}
 }
 
-\subsection{Fraction sets}
+\subsubsection{Fraction sets}
 
 A phase can have several composition sets, meaning that it can be
 stable with two or more different compositions.  A phase can also have
@@ -2097,7 +2126,7 @@ two fraction sets, explained in more detail in \ref{sec:fracsets}.
 \end{verbatim}
 }
 
-\subsection{The phase\_varres record for composition sets}
+\subsubsection{The phase\_varres record for composition sets}
 
 Each composition set of a phase has a record as described below.  It
 contains all data that can vary during calculations like the
@@ -2145,6 +2174,9 @@ to by the global variable FIRSTEQ.
 ! 2nd derivates only when one constituent is vacancy
 ! 1st sublattice P=\sum_j (-v_j)*y_j + Qy_Va
 ! 2nd sublattice Q=\sum_i v_i*y_i
+! dpqdy is the abs(valency) of the species, set in set_constitution
+! for the vacancy it is the same as the number of sites on second subl.
+! used in the minimizer and maybe elsewhere
      double precision, dimension(:), allocatable :: dpqdy
      double precision, dimension(:), allocatable :: d2pqdvay
 ! disfra: a structure describing the disordered fraction set (if any)
@@ -2160,12 +2192,13 @@ to by the global variable FIRSTEQ.
      double precision amfu,netcharge,dgm
 ! Other properties may be that: gval(*,2) is TC, (*,3) is BMAG, see listprop
 ! nprop: the number of different properties (set in allocate)
-! ncc: total number of site fractions (redundant but used in some subroutines)
+!- ncc: total number of site fractions (redundant but used in some subroutines)
 ! BEWHARE: ncc seems to be wrong using TQ test program fenitq.F90 ???
 ! listprop(1): is number of calculated properties
 ! listprop(2:listprop(1)): identifies the property stored in gval(1,ipy) etc
 !   2=TC, 3=BMAG. Properties defined in the gtp_propid record
-     integer nprop,ncc
+!-     integer nprop,ncc
+     integer nprop
      integer, dimension(:), allocatable :: listprop
 ! gval etc are for all composition dependent properties, gval(*,1) for G
 ! gval(*,1): is G, G.T, G.P, G.T.T, G.T.P and G.P.P
@@ -2187,7 +2220,7 @@ to by the global variable FIRSTEQ.
 \end{verbatim}
 }
 
-\subsection{The equilibrium record}\label{sec:equilibriumrec}
+\subsubsection{The equilibrium record}\label{sec:equilibriumrec}
 
 The equilibrium record has all data that may change dynamically during
 a calculation.  One may have several equilibrium records and during
@@ -2217,9 +2250,11 @@ record as it has its unique set of conditions.
 ! eqname: name of equilibrium
 ! tpval(1) is T, tpval(2) is P, rgas is R, rtn is R*T
 ! rtn: value of R*T
+! weight: weight value for this experiment, default unity
      integer status,multiuse,eqno,next
      character eqname*24
      double precision tpval(2),rtn
+     double precision :: weight=one
 ! svfunres: the values of state variable functions valid for this equilibrium
      double precision, dimension(:), allocatable :: svfunres
 ! the experiments are used in assessments and stored like conditions
@@ -2267,14 +2302,14 @@ record as it has its unique set of conditions.
 \end{verbatim}
 }
 
-\section{Records with data shared by several subroutines}
+\subsection{Records with data shared by several subroutines}
 
 The records below have no global variables but are used in some of the
 calculating subroutines to store complex temporary data, almost like
 an oldfashioned COMMON area but it is declared inside a subroutine and
 passed as an argument to the different subroutines.
 
-\subsection{Parsing data}
+\subsubsection{Parsing data}
 
 The data in this record is used parsing the endmember lista and the
 binary interaction tree.
@@ -2316,7 +2351,7 @@ binary interaction tree.
 \end{verbatim}
 }
 
-\subsection{Fraction product stack}
+\subsubsection{Fraction product stack}
 
 The product of the constituent fractions and their derivatives must be
 saved now and again during the parsing.  The record below is used for
@@ -2392,12 +2427,124 @@ and to two or more lines of calculated equilibria.
 \end{verbatim}
 }
 
-\subsubsection{The head record}
+\subsection{Assessments}
 
-This is the head record for the list of nodes for a STEP or MAP
-calculation.
+Multicomponent thermodynamic databases are created by assessments of
+many binary and ternary systems starting from the pure elements.  In
+an assessment experimental and theoretical data are fitted by model
+parameters for the individual phases.  In order to create large
+databases and extrapolate to multicomponent systems the data and
+models used for the lower order systems, in particular the pure
+elements, must be identical.
 
-{\small
+The assessment of a phase requires that one can include experimental
+data in the data structure and by using an optimizing software that
+can vary some of the model parameters.  The necessary data structure
+for this is provided in the GTP package.
+
+The setup of an assessment will include the commands (note the
+commands listed below may change in later versions of the user
+interface):
+
+\begin{enumerate}
+\item ENTER elements, species, phases etc. usually from a macro file.
+
+\item ENTER OPT to enter the coefficients to be optimized.  Part of
+  the TPfun package.
+
+\item ENTER PARAMETERS with coefficients to be optimized.
+
+\item ENTER EQUILIBRIA with experimental data (possibly from a file).
+  The experimental data for each equilibrium added with ENTER
+  EXPERIMENT command, see section~\ref{sc:enter_exp}
+
+\item SET RANGE\_EXP\_EQUIL to specify the equilibria with
+  experiments.
+
+\item SET VARIABLE\_COEFF to specify coefficients to be optimized.
+
+\item OPTIMIZE to make a least square fit.
+
+\item LIST OPTIMIZATION to list the result
+
+\item SAVE TDB to create a TDB file with the results (need editing).
+
+\item and other commands as necessry
+
+\end{enumerate}
+
+\subsubsection{The assessment head record}
+
+This is the record organizing an assessment.  It has the all the
+values related to the optimizing coefficients and has a list of
+pointers to the equilibria with experimental data.  An instance of
+this is created when starting the software and thus accessable in all
+packages that use GTP, the arrays declared inside the record can be
+uppdated by such packages.  There is a possibility to create a linked
+list of these records to save temporary versions of an assessment.
+This is not yet implemented and some of the other variables in this
+recored are not yet used.
+
+The status word has just a single bit defined, AHCOEF, set if the
+optimizing coefficinets have been entered by the command ENTER
+OPTIMIZE\_COEFF.  The assessment coefficinets are TP function
+constants named A00 to A99.  These TP constants can be used entering
+other TP functions and phase parameters that should be optimized.
+There are also subroutines to change the values of these variables
+from an optimizing software.  In order to control the optimization the
+user can also provide a scaling factor, a minimum and a maximum of a
+coefficient.
+
+The eqlista array contain pointers to the equilibria with experimental
+data to be used in the assessment.  This is set by a command in the
+user interface, SET RANGE\_EXP\_EQUIL.  The equilibria with
+experiments are simply entered with an ENTER EQUILIBRIUM command and
+for each equilibrium the associated experimental data is entered with
+the command ENTER EXPERIMENT.
+
+\begin{verbatim}
+! a smart way to have an array of pointers used in gtp_assessmenthead
+  TYPE equilibrium_array
+     type(gtp_equilibrium_data), pointer :: p1
+  end TYPE equilibrium_array
+  INTEGER, parameter :: gtp_assessment_version=1
+  TYPE gtp_assessmenthead
+! This record should summarize the essential information about assessment data
+! using GTP.  How it should link to other information is not clear.
+! status is status word, AHCOEF is used
+! varcoef is the number of variable coefficients
+! firstexpeq is the first equilibrium with experimental data
+     integer status,varcoef,firstexpeq
+     character*64 general,special
+     type(gtp_assessmenthead), pointer :: nextash,prevash
+! This is list of pointers to equilibria to be used in the assessnent
+! size(eqlista) is the number of equilibria with experimental data
+     type(equilibrium_array), dimension(:), allocatable :: eqlista
+! These are the coefficients values that are optimized,
+! current values, scaling, start values and optionally min and max
+     double precision, dimension(:), allocatable :: coeffvalues
+     double precision, dimension(:), allocatable :: coeffscale
+     double precision, dimension(:), allocatable :: coeffstart
+     double precision, dimension(:), allocatable :: coeffmin
+     double precision, dimension(:), allocatable :: coeffmax
+! These are the corresponding TP-function constants indices
+     integer, dimension(:), allocatable :: coeffindex
+! This array indicate currently optimized variables:
+!  0=fix, 1=fix with min, 2=fix with max, 3=fix with min and max
+!  10=optimized, 11=opt with min, 12=opt with max, 13=opt with min and max
+     integer, dimension(:), allocatable :: coeffstate
+! Work arrays ...
+     double precision, dimension(:), allocatable :: wopt
+  end TYPE gtp_assessmenthead
+! this record is allocated when necessary
+  type(gtp_assessmenthead), pointer :: firstash,lastash
+\end{verbatim}
+
+\subsection{Other application head record}
+
+This is a template for other applications that need access to the
+internal data of OC.
+
 \begin{verbatim}
   INTEGER, parameter :: gtp_applicationhead_version=1
   TYPE gtp_applicationhead
@@ -2420,7 +2567,6 @@ calculation.
 ! this record is allocated when necessary
   type(gtp_applicationhead), pointer :: firstapp,lastapp
 \end{verbatim}
-}
 
 \section{Global variables}
 
@@ -2505,6 +2651,16 @@ arrays and provide default values.
 \end{verbatim}
 }
 
+\subsubsection{Initiallize the assessment}
+
+This is maybe redundant.
+
+\begin{verbatim}
+ subroutine assessmenthead(ash)
+! create an assessment head record
+   type(gtp_assessmenthead), pointer :: ash
+\end{verbatim}
+
 \subsection{Functions to know how many}
 
 The counters for elements etc are private so external software
@@ -2585,7 +2741,7 @@ things like find\_gridmin described in \ref{sec:findgridmin}.
 {\small
 \begin{verbatim}
  subroutine find_element_by_name(name,iel)
-! find an element index by its name
+! find an element index by its name, exact fit required
    implicit none
    character name*(*)
    integer iel
@@ -2597,7 +2753,8 @@ things like find\_gridmin described in \ref{sec:findgridmin}.
    integer icomp
    TYPE(gtp_equilibrium_data), pointer :: ceq
  subroutine find_species_by_name(name,isp)
-! locates a species index from its name
+! locates a species index from its name, unique abbreviation
+! or exact match needed
    implicit none
    character name*(*)
    integer isp
@@ -2632,9 +2789,10 @@ things like find\_gridmin described in \ref{sec:findgridmin}.
    character name*(*)
    integer iph,ics
  subroutine find_phasex_by_name(name,phcsx,iph,ics)
-! finds a phase with name "name", returns address of phase, first fit accepted
-! handles composition sets either with prefix/suffix or #digit
-! no pre/suffix nor # always return first composition set
+! finds a phase with name "name", returns index and tuplet of phase.
+! All phases checked and error return if name is ambiguous
+! handles composition sets either with prefix/suffix or #digit or both
+! if no # check all composition sets for prefix/suffix
    implicit none
    character name*(*)
    integer phcsx,iph,ics
@@ -2645,26 +2803,6 @@ things like find\_gridmin described in \ref{sec:findgridmin}.
    implicit none
    character name*(*)
    integer iph,ics
-\end{verbatim}
-}
-
-\subsubsection{Find constituent name}
-
-This subroutine returns the index and mass of a constituent in a
-specific phase.  If the same constituent can occur on several
-sublattices the sublattice must be specified by a \# followed by a
-digit 1 to 9.
-
-{\small
-\begin{verbatim}
- subroutine find_constituent(iph,spname,mass,icon)
-! find the constituent "spname" of a phase. spname can have a sublattice #digit
-! Return the index of the constituent in icon.  Additionally the mass
-! of the species is returned.
-   implicit none
-   character*(*) spname
-   double precision mass
-   integer iph,icon
 \end{verbatim}
 }
 
@@ -2721,6 +2859,25 @@ described together with the type of data you want to get.
 ! Checks that ics and ics are not outside bounds.
    implicit none
    integer iph,ics,lokph,lokcs
+ subroutine find_constituent(iph,spname,mass,icon)
+! find the constituent "spname" of a phase. spname can have a sublattice #digit
+! Return the index of the constituent in icon.  Additionally the mass
+! of the species is returned.
+   implicit none
+   character*(*) spname
+   double precision mass
+   integer iph,icon
+\end{verbatim}
+}
+
+\subsubsection{Get phase constituent name}
+
+By supplying a phase index and and the sequential index (counted overa
+ll sublattices, this routine returnes the name and mass of the
+constituent.
+
+{\small
+\begin{verbatim}
  subroutine get_constituent_name(iph,iseq,spname,mass)
 ! find the constituent with sequential index iseq in phase iph
 ! return name in "spname" and mass in mass
@@ -2728,22 +2885,6 @@ described together with the type of data you want to get.
    character*(*) spname
    integer iph,iseq
    double precision mass
-\end{verbatim}
-}
-
-\subsubsection{Get phase constituent name}
-
-This subroutine is redundant, the get\_constituent\_name should be
-used instead.
-
-{\small
-\begin{verbatim}
- subroutine get_phase_constituent_name(iph,icon,name)
-! return the name of constituent icon of phase iph
-! redundant?
-   implicit none
-   character*(*) name
-   integer iph,icon
 \end{verbatim}
 }
 
@@ -2839,7 +2980,7 @@ phase tuples, the other integer variables as arguments.
 
 {\small
 \begin{verbatim}
- subroutine phase_name(phtuple,name)
+ subroutine get_phasetup_name(phtuple,name)
 ! Given the phase tuple this subroutine returns the name with pre- and suffix
 ! for composition sets added and also a \# followed by a digit 2-9 for
 ! composition sets higher than 1.
@@ -2855,7 +2996,6 @@ phase tuples, the other integer variables as arguments.
    integer iph,ics
 \end{verbatim}
 }
-
 
 \subsubsection{Get phase data}\label{sec:getphasedata}
 
@@ -3303,15 +3443,15 @@ Not implemented yet
 
 \subsubsection{Enter equilibrium}\label{sc:entereq}
 
-The equilibrium record as explained in
+The equilibrium record, as explained in
 section~\ref{sec:equilibriumrec} has all data necessary for specifying
 an equilibrium: conditions, compoenets, phases etc.  One may have
-several equilibria with different sets of conditions but normally they
-have the same set of phases (the set of stable phases may differ).
-This can be used to interactivly compare different states or used in
-parallel processing where each thread is connected with an equilibrium
-record.  When assessing model parameter each experimental datum can be
-described by an equilibrium record.
+several equilibria with different sets of conditions but they have the
+same set of phases (the phase status and set of stable phases may
+differ).  This can be used to assess many different experiments or
+used in simulations where each gridpoint is connected to an
+equilibrium record.  This simplifies parallel processing as each
+thread can work independently on the data in the equilibrium record.
 
 {\small
 \begin{verbatim}
@@ -3334,7 +3474,7 @@ equilibria along the lines are saved as equilibrium records.
 
 {\small
 \begin{verbatim}
- subroutine delete_equilibria(name,ceq)
+ subroutine delete_equilibrium(name,ceq)
 ! deletes an equilibrium (needed when repeated step/map)
 ! name can be an abbreviation line "_MAP*"
 ! deallocates all data.  Minimal checks ... one cannot delete "ceq"
@@ -3463,10 +3603,11 @@ position ipos.  The second version is suitable for TDB files.
    implicit none
    character text*(*)
    integer ipos,spno
- subroutine list_species_data2(text,ipos,spno)
+ subroutine list_species_data2(text,ipos,loksp)
+! loksp is species record ...
    implicit none
    character text*(*)
-   integer ipos,spno
+   integer ipos,loksp
 \end{verbatim}
 }
 
@@ -3482,6 +3623,23 @@ One line for each species is listed on device unit.
 \end{verbatim}
 }
 
+\subsubsection{List sorted phases}
+
+The phases are listed with one line each, first the stable phases,
+then the entered but unstable in decreasing order of satbility.  If
+more than 10 phases the remaining are merged into a single line.
+
+\begin{verbatim}
+ subroutine list_sorted_phases(unit,ceq)
+! short list with one line for each phase
+! suspended phases merged into one line
+! stable first, then entered ordered in driving force order, then dormat
+! also in driving force order.  Only 10 of each, the others lumped together
+   implicit none
+   integer unit
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+\end{verbatim}
+
 \subsubsection{List a little data for all phases}
 
 One line for each phase is listed on device unit for equilibrium ceq.
@@ -3490,6 +3648,7 @@ One line for each phase is listed on device unit for equilibrium ceq.
 \begin{verbatim}
  subroutine list_all_phases(unit,ceq)
 ! short list with one line for each phase
+! suspended phases merged into one line
    implicit none
    integer unit
    TYPE(gtp_equilibrium_data), pointer :: ceq
@@ -3587,15 +3746,18 @@ nice columns trying to use as few lines as possible.
 
 \subsubsection{List data on SCREEN or TDB, LaTeX or macro format}
 
-This subroutines output all model parameters in different formats.
+This subroutines list the model parameters for all phases in a selected
+format.  Only SCREEN and TDB are implemented.
 
 {\small
 \begin{verbatim}
- subroutine list_many_formats(ftyp,unit)
-! lists all data in different formats
+ subroutine list_many_formats(cline,last,ftyp,unit1)
+! lists all data in different formats: SCREEN/TDB/MACRO/LaTeX/ODB
+!                                         1    2    3     4    5
 ! unfinished
    implicit none
-   integer unit,ftyp
+   character cline*(*)
+   integer last,unit1,ftyp
 \end{verbatim}
 }
 
@@ -3629,10 +3791,11 @@ The second version is suitable for TDB files.
 ! list parameter data for a phase on unit lut
    implicit none
    integer iph,lut
- subroutine list_phase_data2(iph,lut)
-! list parameter data for a phase on unit lut in TDB format
+ subroutine list_phase_data2(iph,ftyp,ch1,lut)
+! list parameter data for a phase on unit lut in ftyp format, ftyp=2 is TDB
    implicit none
-   integer iph,lut
+   integer iph,lut,ftyp
+   character ch1*1
 \end{verbatim}
 }
 
@@ -3724,15 +3887,16 @@ array is generated.
 
 \subsubsection{List parameter data references}
 
-This subroutine lists the bibliographic references for the parameters.
+This subroutine lists the source of one or several bibliographic
+references for the parameters.
 
 {\small
 \begin{verbatim}
-! changed from list_references(lut)
- subroutine list_bibliography(lut)
+ subroutine list_bibliography(bibid,lut)
 ! list bibliographic references
    implicit none
    integer lut
+   character bibid*(*)
 \end{verbatim}
 }
 
@@ -3765,6 +3929,28 @@ A single condition is written in a character variable
    TYPE(gtp_equilibrium_data), pointer :: ceq
 \end{verbatim}
 }
+
+\subsubsection{List experiments}
+
+All experimental information associated with the equilibrium ceq is
+listed on unit lut.  The get\_one\_experiment routine returns the
+text.
+
+\begin{verbatim}
+ subroutine list_experiments(lut,ceq)
+! list all experiments into text
+   implicit none
+   integer lut
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+ subroutine get_one_experiment(ip,text,seqz,ceq)
+! list the experiment with the index seqz into text
+! It lists also experiments that are not active ??
+! UNFINISHED current value should be appended
+   implicit none
+   integer ip,seqz
+   character text*(*)
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+\end{verbatim}
 
 \subsubsection{List condition in character variable}
 
@@ -3830,12 +4016,32 @@ the properties defined in the gtp\_propid structure.
 
 \subsubsection{List some odd details}
 
+I do not remember what this is used for.
+
 {\small
 \begin{verbatim}
  subroutine list_equilibria_details(mode,teq)
+! not used yet ...
    implicit none
    TYPE(gtp_equilibrium_data), pointer :: teq
    integer mode
+\end{verbatim}
+}
+
+\subsubsection{List an error message if any}
+
+I do not remember what this is used for.
+
+{\small
+\begin{verbatim}
+ logical function gtp_error_message(reset)
+! tests the error code and writes the error message (if any)
+! and reset error code if reset=0
+! if reset >0 that is set as new error message
+! if reset <0 the error code is not changed
+! return TRUE if error code set, FALSE if error code is zero
+   implicit none
+   integer reset
 \end{verbatim}
 }
 
@@ -3856,7 +4062,7 @@ specificly for a phase and composition set.
 {\small
 \begin{verbatim}
  subroutine ask_phase_constitution(cline,last,iph,ics,lokcs,ceq)
-! interactive input constitution of phase iph
+! interactive input of a constitution of phase iph
    implicit none
    integer last,iph,ics,lokcs
    character cline*(*)
@@ -3869,11 +4075,13 @@ The user can enter a model parameter with this subroutine.
 
 {\small
 \begin{verbatim}
- subroutine enter_parameter_interactivly(cline,ip)
+ subroutine enter_parameter_interactivly(cline,ip,mode)
 ! enter a parameter from terminal or macro
 ! NOTE both for ordered and disordered fraction set !!
+! mode = 0 for entering
+!        1 for listing on screen (kou)
    implicit none
-   integer ip
+   integer ip,mode
    character cline*(*)
 \end{verbatim}
 }
@@ -3909,6 +4117,30 @@ routine it is possible to enter such a reference separately.
 \end{verbatim}
 }
 
+\subsubsection{Enter an experiment}\label{sc:enter_exp}
+
+With this subroutine the state variable for an experiment, its value
+and uncertainty is given for equilibrium ceq. The experiment can also
+be changed or removed (set equal to NONE).
+
+The logical function is used to check if two state variable records
+represent the same state variable (because associated would only be
+true if they were the same record).
+
+{\small
+\begin{verbatim}
+ subroutine enter_experiment(cline,ip,ceq)
+! enters an experiment, almost the same as set_condition
+   implicit none
+   character cline*(*)
+   integer ip
+   type(gtp_equilibrium_data), pointer :: ceq
+ logical function same_statevariable(svr1,svr2)
+! returns TRUE if the state variable records are identical
+   type(gtp_state_variable), pointer :: svr1,svr2
+\end{verbatim}
+}
+
 \subsubsection{Set a condition}\label{sec:setcondition}
 
 This is the central routine to set a condition for an equilibrium
@@ -3919,6 +4151,12 @@ automatically to add this as condition.
 {\small
 \begin{verbatim}
  subroutine set_condition(cline,ip,ceq)
+! to set a condition
+   implicit none
+   character cline*(*)
+   integer ip
+   type(gtp_equilibrium_data), pointer :: ceq
+ subroutine set_cond_or_exp(cline,ip,new,notcond,ceq)
 ! decode an equilibrium condition, can be an expression with + and -
 ! the expression should be terminated with an = or value supplied on next line
 ! like "T=1000", "x(liq,s)-x(pyrrh,s)=0", "2*mu(cr)-3*mu(o)=muval"
@@ -3926,10 +4164,13 @@ automatically to add this as condition.
 ! The routine should also accept conditions identified with the "<number>:"
 ! where <number> is that preceeding each condition in a list_condition
 ! It should also accept changing conditions by <number>:=new_value
+! The pointer to the (most recent) condition or experiment is returned in new
+! notcond is 0 if a condition should be created, otherwise an experiment
    implicit none
-   integer ip
+   integer ip,notcond
    character cline*(*)
    TYPE(gtp_equilibrium_data), pointer :: ceq
+   TYPE(gtp_condition), pointer :: new
 \end{verbatim}
 }
 
@@ -3991,18 +4232,14 @@ The subroutine to set conditions is decribed in
    integer, dimension(4,*) :: indices
    integer nterm,istv,iref,iunit
    double precision coeffs(*)
- subroutine extract_stvr_of_condition(pcond,nterm,coeffs,statevar)
+ subroutine extract_stvr_of_condition(pcond,nterm)
 ! finds a condition record with the given state variable record
 ! returns it as a state variable record !!!
 ! nterm: integer, number of terms in the condition expression
 ! pcond: pointer, to a gtp_condition record
    implicit none
    TYPE(gtp_condition), pointer :: pcond
-! ONE CANNOT HAVE ARRAYS OF POINTERS!!! STUPID
-!   TYPE(gtp_state_variable), dimension(*), pointer :: statevar
-   TYPE(gtp_state_variable), dimension(*) :: statevar
    integer nterm
-   double precision coeffs(*)
 \end{verbatim}
 }
 
@@ -4028,9 +4265,12 @@ calculation to formulate the system matrix containing the
 external conditions.  It is still very rudimentary and can
 be improved.
 
+We do not need to pass the pointer to ceq as that is found via the
+condition record.
+
 {\small
 \begin{verbatim}
- subroutine apply_condition_value(current,what,value,cmix,ceq)
+ subroutine apply_condition_value(current,what,value,cmix)
 ! This is called when calculating an equilibrium.
 ! It returns a condition at each call, at first call current must be nullified?
 ! When all conditions done the current is nullified again
@@ -4040,7 +4280,7 @@ be improved.
    implicit none
    integer what,cmix(*)
    double precision value
-   TYPE(gtp_equilibrium_data), pointer :: ceq
+!   TYPE(gtp_equilibrium_data), pointer :: ceq
    TYPE(gtp_condition), pointer :: current
  subroutine condition_value(mode,pcond,value,ceq)
 ! set (mode=0) or get (mode=1) a new value of a condition.  Used in mapping
@@ -4167,7 +4407,57 @@ Not implemented yet.
 \end{verbatim}
 }
 
+\subsubsection{Save data in LaTeX and other formats}
+
+This is just a dream.
+
+{\small
+\begin{verbatim}
+ subroutine gtpsavelatex(filename,specification)
+! save all data on LaTeX format on a file (for publishing)
+! header
+! element list
+! species list
+! phase list with sublattices, endmembers, interactions and parameters etc
+! tpfuns
+! state variable functions
+! references
+! equilibrium record(s) with conditions, componenets, phase_varres records etc
+! anything else?
+   implicit none
+   character*(*) filename,specification
+ subroutine gtpsavedir(filename,specification)
+! save all data on a direct file (random access)
+! header
+! element list
+! species list
+! phase list with sublattices, endmembers, interactions and parameters etc
+! tpfuns
+! state variable functions
+! references
+! equilibrium record(s) with conditions, componenets, phase_varres records etc
+! anything else?
+   implicit none
+   character*(*) filename,specification
+ subroutine gtpsavetdb(filename,specification)
+! save all data in TDB format on an file
+! header
+! element list
+! species list
+! phase list with sublattices, endmembers, interactions and parameters etc
+! tpfuns
+! state variable functions
+! references
+! equilibrium record(s) with conditions, componenets, phase_varres records etc
+! anything else?
+   implicit none
+   character*(*) filename,specification
+\end{verbatim}
+}
+
 \subsubsection{Save all data again}
+
+This is complicated.
 
 {\small
 \begin{verbatim}
@@ -4389,7 +4679,9 @@ This is necessary before reading a new saved file. Not implemented yet.
 \end{verbatim}
 }
 
-\subsubsection{And another utility routine}
+\subsubsection{And some more utility routines}
+
+Detects a TDB keyword and replaces TAB character by a space.
 
 {\small
 \begin{verbatim}
@@ -4400,6 +4692,11 @@ This is necessary before reading a new saved file. Not implemented yet.
    implicit none
    character text*(*)
    integer nextc
+ subroutine replacetab(line,nl)
+! replaces TAB by space in line
+   implicit none
+   character line*(*)
+   integer nl
 \end{verbatim}
 }
 
@@ -4902,7 +5199,8 @@ minimizer package.
 
 \begin{verbatim}
  subroutine evaluate_all_svfun_old(kou,ceq)
-! THIS SUBROUTINE MOVED TO MINIMIZER
+! THIS SUBROUTINE MOVED TO MINIMIZER but kept for initiallizing
+! cannot be used for state variable functions that are derivatives ...
 ! evaluate and list values of all functions
    implicit none
    integer kou
@@ -5051,12 +5349,24 @@ It does not test if ENTERED/FIXED/DORMANT or SUSPENDED.
 
 \subsubsection{Change status for phase}
 
-Changes status bits for a phase or all if qph negative Note NYSTAT
-values are different from this in GET and TEST above.  Same values
-should be used.
+Several subroutines to change the status bits for one or more
+phases. Note NYSTAT values are different from this in GET and TEST
+above.  Same values should be used.
 
 {\small
 \begin{verbatim}
+ subroutine change_many_phase_status(phnames,nystat,val,ceq)
+! change the status of many phases.
+! nystat:-4 hidden, -3 suspended, -2 dormant, -1,0,1 entered, 2 fix
+! phnames is a list of phase names or *S (all suspeded) *D (all dormant) or
+! *E (all entered (stable, unknown, unstable), *U all unstable
+! If just * then change_phase_status is called directly
+! It calls change_phase_status for each phase
+   implicit none
+   character phnames*(*)
+   integer nystat
+   double precision val
+   TYPE(gtp_equilibrium_data), pointer :: ceq
  subroutine change_phase_status(qph,ics,nystat,val,ceq)
 ! change the status of a phase. Also used when setting phase fix etc.
 ! old: 0=entered, 1=suspended, 2=dormant, 3=fix, 4=hidden,5=not hidden
@@ -5686,10 +5996,11 @@ must be listed also for additions.
 
 {\small
 \begin{verbatim}
- subroutine list_addition(unit,lokph,lokadd)
+ subroutine list_addition(unit,ch1,phname,ftyp,lokadd)
 ! list description of an addition for a phase on unit
    implicit none
-   integer unit,lokph
+   integer unit,ftyp
+   character ch1*1,phname*(*)
    TYPE(gtp_phase_add), pointer :: lokadd
 \end{verbatim}
 }
@@ -6010,9 +6321,10 @@ are any phases below the calculated G hypersurface.
       nyphl,yphl,cmu,ceq)
 !
 ! finds a set of phases that is a global start point for an equilibrium
-! calculation at T and P values in tp and known mole fraction in xknown
+! calculation at T and P values in tp, total amount of atoms in totan
+! and known mole fraction in xknown
 ! It is intentional that this routine is independent of current conditions
-! returns: nvsph stable phases, list of phases in iphl, amounts in aphl,
+! It returns: nvsph stable phases, list of phases in iphl, amounts in aphl,
 ! constitution in yphl (compact after each other, nyphl(i) is number of
 ! fractions in phase i), cmu are element chemical potentials of solution
 ! WHAT determine what to do with the results, 0=just return solution,
@@ -6040,7 +6352,7 @@ This is a very rudimentary grid generator.
  subroutine generate_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,ceq)
 ! Different action depending of the value of mode,
 ! for mode<0:
-!    return the number of gridpoints that will be generated for phase iph
+!    return the number of gridpoints that will be generated for phase iph in ngg
 ! for mode=0:
 !    return garr(i) gibbs energy and xarr(1,i) the compositions of gridpoint i
 ! for mode>0:
@@ -6079,6 +6391,38 @@ composition.
    TYPE(gtp_equilibrium_data), pointer :: ceq
 \end{verbatim}
 }
+
+\subsubsection{Calculate gridpoints for some special phase models}
+
+The ordered fcc, bcc and hcp with 4 sublattice model can have
+significantly reduced number of gripoints.  This is not yet
+implemented.
+
+The same when a phase have charged constituents with many anemembers
+that have net charge.  This is implemented but not optimized.
+
+\begin{verbatim}
+ subroutine generate_fccord_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,ceq)
+! This generates grid for a phase with 4 sublattice fcc/hcp ordering
+! mode<0 just number of gridpoints in ngg, needed for allocations
+! mode=0 calculate mole fraction and G for all gridpoints
+! mode>0 return constitution for gridpoint mode in yarr
+   implicit none
+   integer mode,iph,ngg,nrel,ny
+   real xarr(nrel,*),garr(*)
+   double precision yarr(*)
+   type(gtp_equilibrium_data), pointer :: ceq
+ subroutine generate_charged_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,ceq)
+! This generates grid for a phase with charged constituents
+! mode<0 just number of gridpoints in ngg, needed for allocations
+! mode=0 calculate mole fraction and G for all gridpoints
+! mode>0 return constitution for gridpoint mode in yarr
+   implicit none
+   integer mode,iph,ngg,nrel,ny
+   real xarr(nrel,*),garr(*)
+   double precision yarr(*)
+   type(gtp_equilibrium_data), pointer :: ceq
+\end{verbatim}
 
 \subsubsection{Calculate endmember}
 
@@ -6321,17 +6665,9 @@ I am not sure when this is used and if it is needed.
 
 {\small
 \begin{verbatim}
- subroutine set_as_default_constitution(jph,ics,all,ceq)
-! set the current constitution of jph to its default constitution
-! jph can be -1 meaning all phases, all composition sets
-! if all=-1 then change constitution of all phases, else just those not stable
-! do not change the amounts of the phases
-   implicit none
-   integer all,jph,ics
-   TYPE(gtp_equilibrium_data), pointer :: ceq
  subroutine set_default_constitution(iph,ics,ceq)
 ! set the current constitution of iph composition set ics to its
-!  default constitution.  Do not change the amounts of the phases
+!  default constitution (if any).  Do not change the amounts of the phases
    implicit none
    integer iph,ics
    TYPE(gtp_equilibrium_data), pointer :: ceq
@@ -6450,10 +6786,48 @@ fcc\#1 is not stable.
 \end{verbatim}
 }
 
+\subsubsection{Create a name for optimization variables A00 to A99}
+
+Just a simple routine.
+
+\begin{verbatim}
+  subroutine makeoptvname(name,indx)
+    implicit none
+    character name*(*)
+    integer indx
+\end{verbatim}
+
+%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!
+%! Section with unreferenced verbatim  2715 2734 2723
+\subsubsection{Find constituent name}
+
+This subroutine returns the index and mass of a constituent in a
+specific phase.  If the same constituent can occur on several
+sublattices the sublattice must be specified by a \# followed by a
+digit 1 to 9.
+
+{\small
+\begin{verbatim}
+ subroutine find_constituent(iph,spname,mass,icon)
+! find the constituent "spname" of a phase. spname can have a sublattice #digit
+! Return the index of the constituent in icon.  Additionally the mass
+! of the species is returned.
+   implicit none
+   character*(*) spname
+   double precision mass
+   integer iph,icon
+\end{verbatim}
+}
+
+%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!
+%! Section with unreferenced verbatim  6726 6777 6762
 \subsection{Unfinished things}
 
 There are many unfinished parts among the other sections, in
 particular the save/read section.
+
+%!> here starts gtp3Z.F90 --------------------------------------------
+
 
 %!> this in the tpfun.F90 file  --------------------------------------------
 
@@ -6464,6 +6838,8 @@ expressions depending on T and P including unary functions LN and EXP
 (and maybe more).  They can return a function value and the first and
 second derivative with respect to T and P.  There are three datatypes
 associated with these functions.
+
+NOTE The documentation for this package is not up to date!
 
 \subsection{Function root record type}
 
@@ -6497,6 +6873,8 @@ and thus the results mut be separate in each.
 \end{verbatim}
 }
 
+%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!
+%! Section with unreferenced verbatim  6778 6814 6796
 \subsection{Structure to store expressions of TP functions}
 
 In this record the coefficients and powers of T and P and possible
@@ -6534,6 +6912,8 @@ not done during the parallell execution so there is no problem.
 \end{verbatim}
 }
 
+%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!
+%! Section with unreferenced verbatim  6815 6839 6827
 \subsection{Structure for calculated results of TP functions}
 
 This record contains the last values of T and P used for calculation
@@ -6559,23 +6939,22 @@ by the tpfun\_init subroutine.
 \end{verbatim}
 }
 
+%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!
+%! Section with unreferenced verbatim  6840 6850 6850
 \section{Summary}
 
 Thats all!
 
 \begin{thebibliography}{77Zzz}
 \bibitem[07Luk]{07Luk} H L Lukas, S G Fries and B Sundman, {\em
-Computational Thermodynamics, the Calphad method}, Cambridge univ
-press (2007)
+  Computational Thermodynamics, the Calphad method}, Cambridge univ
+  press (2007)
+\bibitem[15Sun1]{15Sun1} B Sundman, U Kattner, M Palumbo and S G
+  Fries, OpenCalphad - a free thermodynamic software, Integrating
+  Materials and Manufacturing Innovation, {\bf 4}:1 (2015), open
+  access
+
 \end{thebibliography}
 
-\end{document}
-\end{document}
-\end{document}
-\end{document}
-\end{document}
-\end{document}
-\end{document}
-\end{document}
 \end{document}
 \end{document}
