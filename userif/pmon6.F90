@@ -1262,6 +1262,10 @@ contains
           endif
 !-------------------------------------------------------------
        case(12) ! set weight
+          if(.not.allocated(firstash%eqlista)) then
+             write(kou,*)'There are no experimental equilibria'
+             goto 100
+          endif
           call gparrd('Weight ',cline,last,xxx,one,q1help)
           if(buperr.ne.0) goto 100
           call gparcd('Equilibria (abbrev name) ',cline,last,&
@@ -1657,7 +1661,7 @@ contains
           else
              firstash%coeffstate(i1)=1
           endif
-          write(*,*)'Fix coefficient: ',i1,nvcoeff,firstash%coeffstate(i1)
+!          write(*,*)'Fix coefficient: ',i1,nvcoeff,firstash%coeffstate(i1)
 !-------------------------
        case(24) !
           write(*,*)'Not implemeneted yet'
@@ -3175,7 +3179,7 @@ contains
        endif continue
 ! Initiate arrays when new optimization
        ient=0
-       if(size(firstash%eqlista).eq.0) then
+       if(.not.allocated(firstash%eqlista)) then
           write(kou,*)'There are no equilibria with experiments!'
           goto 100
        endif
@@ -3201,7 +3205,7 @@ contains
              write(*,*)'No experiment in equilibrium ',i1
           endif
        enddo
-       write(*,*)'Number of experiments: ',mexp
+!       write(*,*)'Number of experiments: ',mexp
        allocate(errs(mexp))
 ! copy the variable coefficients to coefs
        if(nvcoeff.le.0) then
@@ -3235,38 +3239,29 @@ contains
        nwc=mexp*nvcoeff+(mexp+nvcoeff)*nvcoeff+nvcoeff
 !               +M   +N      +N*N            +N+M+N
        j1=nwc+mexp+nvcoeff+nvcoeff*nvcoeff+2*nvcoeff+mexp
-       write(*,*)'workspace for VA05AD needed and dimensioned',j1,maxw
 !       allocate(www(j1))
-       if(maxw.lt.j1) stop 'Too big problem, increase maxw'
+       if(maxw.lt.j1) then
+          write(*,*)'Too big problem, increase maxw, current value',maxw
+          goto 100
+       endif
 ! JUMP HERE IF CONTINUE optimization
 987    continue
-! nex Number of experiments
-! nco Number of coefficients
+! nex     Number of experiments
+! nvcoeff Number of coefficients
 ! errs Array with differences with experiments and calculated values
 ! coefs Array with coefficinets
 ! VA05AD variables: dstep, dmax2, acc, iterations, output unit, workspace
-!                   entry mode, exit mode, pointer passed to calfun
-
+!                   entry mode, exit mode
+       write(*,558)mexp,nvcoeff,maxw
+558    format(/'>>>   Start of optimization   >>>'/&
+            'Experiments, coefficients and workspace: ',3(1x,i5))
 !
        iprint=1
-       write(kou,*)
-!       write(*,*)'Size of coeffstate: ',size(firstash%coeffstate)
-!       write(*,*)'Content of coeffstate: ',firstash%coeffstate
-!       call va05ad(mexp,nvcoeff,errs,coefs,dstep,dmax2,acc,nopt,iprint,www,&
-!            ient,iexit,firstash,assessment_calfun)
-!       call va05ad(mexp,nvcoeff,errs,coefs,dstep,dmax2,acc,nopt,iprint,www,&
-!            ient,iexit,firstash)
-!       call va05ad(mexp,nvcoeff,errs,coefs,dstep,dmax2,acc,nopt,iprint,www,&
-!            ient,iexit)
-!       call va05ad(mexp,nvcoeff,errs,coefs,dstep,dmax2,acc,nopt,iprint,www,&
-!            ient,iexit,firstash,new_assessment_calfun)
-!       call va05ad(mexp,nvcoeff,errs,coefs,dstep,dmax2,acc,nopt,iprint,www,&
-!            ient,iexit,firstash)
-! removed firstash as arument as it is directly accessable in CALFUN
+! There is a va05ad emulator called lmdif ...
        call va05ad(mexp,nvcoeff,errs,coefs,dstep,dmax2,acc,nopt,iprint,www,&
             ient,iexit)
 !       write(kou,559)iprint,iexit
-!559    format(/'Back from Va05AD',10i3/)
+!559    format(/'Back from optimization',10i3/)
 ! we must copy the current scaled coefficients back to firstash%coeffvalues
        i2=1
        do i1=0,size(firstash%coeffstate)-1
@@ -3823,8 +3818,8 @@ contains
     experim: do i1=1,size(firstash%eqlista)
 ! skip equilibria with zero weight
        neweq=>firstash%eqlista(i1)%p1
-       name1=neweq%eqname(1:12)
        if(neweq%weight.eq.zero) cycle experim
+       name1=neweq%eqname(1:12)
        if(associated(neweq%lastexperiment)) then
           i2=neweq%lastexperiment%seqz
           do j2=1,i2
