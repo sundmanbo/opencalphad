@@ -656,7 +656,7 @@
       x3=x3/rtn
       x4=exp(x3)
       if(gx%bmperr.ne.0) then
-         write(*,*)'3C Error: ',gx%bmperr
+         write(*,*)'3C Error line 659: ',svtext(1:20),gx%bmperr
          gx%bmperr=0; x3=1.0D36
       endif
 ! reference state, by default "SER (default)" take from component record
@@ -710,9 +710,9 @@
             if(once.eq.1) write(lut,109)
 109         format(/' *** Phases which would like to be stable')
             phtupx(once)=ceq%phase_varres(lokcs)%phtupx
-            write(*,98)once,phtupx(once),phasetuple(phtupx(once))%phase,iph,&
-                 lokcs,ceq%phase_varres(lokcs)%dgm,&
-                 ceq%phase_varres(lokcs)%netcharge
+!            write(*,98)once,phtupx(once),phasetuple(phtupx(once))%phase,iph,&
+!                 lokcs,ceq%phase_varres(lokcs)%dgm,&
+!                 ceq%phase_varres(lokcs)%netcharge
 98          format('3C dgm: ',5i4,2(1pe12.4))
          endif
       enddo csloop
@@ -3057,6 +3057,7 @@
    do jl=1,4
       indx(jl)=current%indices(jl,iterm)
    enddo
+!   write(*,*)'3C g1c: ',indx
    if(abs(current%condcoeff(iterm)-one).gt.1.0D-10) then
       wone=current%condcoeff(iterm)+one
       if(abs(wone).lt.1.0D-10) then
@@ -3104,7 +3105,7 @@
    implicit none
    integer lut
    TYPE(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim}
+!\end{verbatim} %+
    integer seqz,ip
    character text*72
    seqz=0
@@ -3114,15 +3115,17 @@
       text=' '
       call get_one_experiment(ip,text,seqz,ceq)
       if(gx%bmperr.ne.0) then
-!         write(*,*)'3C error ',gx%bmperr,text(1:ip)
+! error code for no more experiments or inactive experiment
+!         write(*,*)'3C error line 3117: ',gx%bmperr,seqz,text(1:ip)
 ! speciel error code meaning experiment is not active
          if(gx%bmperr.eq.7654) then
             gx%bmperr=0; goto 100
          endif
          gx%bmperr=0; goto 1000
+      else
+         write(lut,120)text(1:ip)
+120      format('Experiment ',a)
       endif
-      write(lut,120)text(1:ip)
-120   format('Experiment ',a)
       goto 100
 !------------
 1000 continue
@@ -3132,7 +3135,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
-!\begin{verbatim}
+!\begin{verbatim} %-
  subroutine get_one_experiment(ip,text,seqz,ceq)
 ! list the experiment with the index seqz into text
 ! It lists also experiments that are not active ??
@@ -3169,7 +3172,7 @@
       gx%bmperr=7654; goto 1000
    endif
    iterm=1
-! return here for each term if several
+! UNFINISHED return here for each term if several ... NOT EXPERIMENTS
 150 continue
    do jl=1,4
       indx(jl)=current%indices(jl,iterm)
@@ -3198,10 +3201,20 @@
    if(iterm.lt.current%noofterms) then
       iterm=iterm+1; goto 150
    endif
+   if(current%experimenttype.eq.0 .or. current%experimenttype.eq.100) then
 ! write = followed by the value 
-   if(text(ip:ip).ne.' ') ip=ip+1
-   text(ip:)='='
-   ip=ip+1
+!      if(text(ip:ip).ne.' ') ip=ip+1
+      text(ip:)='='
+      ip=ip+1
+   elseif(current%experimenttype.eq.-1) then
+!      if(text(ip:ip).ne.' ') ip=ip+1
+      text(ip:)='<'
+      ip=ip+1
+   elseif(current%experimenttype.eq.1) then
+!      if(text(ip:ip).ne.' ') ip=ip+1
+      text(ip:)='>'
+      ip=ip+1
+   endif
    if(current%symlink1.gt.0) then
 ! the value is a symbol
       text(ip:)=svflista(current%symlink1)%name
@@ -3219,7 +3232,11 @@
    else
       call wrinum(text,ip,10,0,current%uncertainty)
    endif
-! current value of the experiment
+   if(current%experimenttype.eq.100) then
+      text(ip:ip)='%'
+      ip=ip+1
+   endif
+! add the current value of the experiment after a $ sign
    call state_variable_val(svrrec,xxx,ceq)
    if(gx%bmperr.ne.0) goto 1000
 !   write(*,*)'3C experimental state variable value: ',xxx
@@ -3306,6 +3323,8 @@
    do jl=1,4
       indx(jl)=current%indices(jl,iterm)
    enddo
+!   if(iterm.gt.1) write(*,152)'3C 150: ',iterm,indx,current%condcoeff(iterm)
+152 format(a,5i4,1pe12.4)
    if(abs(current%condcoeff(iterm)-one).gt.1.0D-10) then
       wone=current%condcoeff(iterm)+one
       if(abs(wone).lt.1.0D-10) then
@@ -3319,7 +3338,7 @@
          ip=ip+1
       endif
    elseif(iterm.gt.1) then
-! must be a + in front of second and later terms
+! must be a + or - in front of second and later terms
       text(ip:ip)='+'
       ip=ip+1
    endif
@@ -3327,7 +3346,12 @@
 !   write(*,*)'3C encode: ',current%statev,indx
 !   call encode_state_variable2(text,ip,current%statev,indx,&
 !        current%iunit,current%iref,ceq)
-   svrrec=>current%statvar(1)
+!   svrrec=>current%statvar(1)
+   svrrec=>current%statvar(iterm)
+   if(svrrec%argtyp.eq.3) then
+!      write(*,153)svrrec%argtyp,svrrec%phase,svrrec%compset,svrrec%component
+153 format('3C gac 2: ',4i4)
+   endif
    call encode_state_variable(text,ip,svrrec,ceq)
    if(iterm.lt.current%noofterms) then
       iterm=iterm+1; goto 150

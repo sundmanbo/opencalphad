@@ -3464,7 +3464,8 @@
    eqlista(ieq)%next=0
    eqlista(ieq)%eqname=name2
    eqlista(ieq)%eqno=ieq
-   eqlista(ieq)%weight=zero
+   eqlista(ieq)%weight=-one
+   eqlista(ieq)%comment=' '
 ! component list and matrix, if second or higher equilibrium copy content
    if(ocv()) write(*,*)'3B: entereq 1: ',maxel,ieq,noofel
    if(ieq.eq.1) then
@@ -3791,6 +3792,8 @@
    eqlista(ieq)%next=0
    eqlista(ieq)%eqname=name2
    eqlista(ieq)%eqno=ieq
+! do not copy comment but set it to blanks
+   eqlista(ieq)%comment=' '
 ! component list and matrix, if second or higher equilibrium copy content
 !   write(*,*)'3B: entereq 1A: ',maxel,noofel
    allocate(eqlista(ieq)%complist(noofel))
@@ -3808,6 +3811,9 @@
       enddo
    enddo
    oldeq=ceq%eqno
+! what about the weight?
+   eqlista(ieq)%weight=ceq%weight
+!   write(*,*)'3B copyeq 1: ',ceq%weight,eqlista(ieq)%weight
 !   write(*,*)'3B: entereq 2: ',noofel
    do jl=1,noofel
       eqlista(ieq)%complist(jl)%splink=eqlista(oldeq)%complist(jl)%splink
@@ -3858,6 +3864,8 @@
 ! requires 17 phase_varres.  Before the "max" above I had dimensioned for 2
    copypv: do ipv=1,novarres
       eqlista(ieq)%phase_varres(ipv)=eqlista(oldeq)%phase_varres(ipv)
+! in matsmin nprop seemed suddenly to be zero in copied equilibria ....
+!      write(*,*)'3B copyeq 2: ',ieq,ipv,eqlista(ieq)%phase_varres(ipv)%nprop
    enddo copypv
 900 continue
 !   write(*,*)'To copy conditions:'

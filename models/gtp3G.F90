@@ -1,4 +1,4 @@
-! 
+!
 ! gtp3G included in gtp3.F90
 !
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
@@ -821,6 +821,75 @@
 !>     13. Internal stuff
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
  
+!\begin{verbatim}
+ subroutine termterm(string,ich,kpos,value)
+! search for first occurance of + - = > or <
+! if + or - then also extract possible value after sign
+   implicit none
+   character string*(*)
+   integer kpos,ich
+   double precision value
+!\end{verbatim}
+   integer ipos,jpos,i1
+   character (len=1), dimension(6), parameter :: chterm=&
+        ['+','-','=','<','>',':']
+!
+   ipos=len_trim(string)
+   ich=0
+   do i1=1,6
+      jpos=index(string,chterm(i1))
+      if(jpos.gt.0 .and. jpos.lt.ipos) then
+!         write(*,*)'3G tt: ',ipos,ich,jpos,i1
+         ipos=jpos; ich=i1
+      endif
+   enddo
+! different actions depending on ich
+   select case(ich)
+   case default
+      write(*,*)'3G ich case is wrong: ',ich
+   case(0)
+! no terminator, just return with position pointer after the text
+      continue
+      kpos=ipos+1
+   case(1,2)
+! there is a - or + sign, collect value in front of next term
+      kpos=ipos+1
+      call getrel(string,kpos,value)
+      if(buperr.ne.0) then
+! a sign not followed by number means unity
+         buperr=0; value=one
+         if(ich.eq.2) value=-value
+      else
+! a number must be followed by a "*"
+         if(string(kpos:kpos).ne.'*') then
+            write(*,*)'3G syntax error missing *: ',string(1:kpos+5),kpos
+         else
+            kpos=kpos+1
+         endif
+! if there is a * do not care, it will be swollowed by next gparcd ...
+      endif
+   case(3)
+! there is an = sign, just set back the pointer
+      kpos=ipos
+   case(4)
+! there is an < sign, just set back the pointer
+      kpos=ipos
+   case(5)
+! there is an > sign, just set back the pointer
+      kpos=ipos
+   case(6)
+! there is an : sign, meaning a condition number, must be followed by =
+      if(string(ipos+1:ipos+1).ne.'=') then
+         gx%bmperr=7656; goto 1000
+      endif
+      kpos=ipos+1
+   end select
+1000 continue
+   return
+ end subroutine termterm
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
 !\begin{verbatim}
  subroutine alphaelorder
 ! arrange new element in alphabetical order

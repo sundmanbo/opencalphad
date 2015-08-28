@@ -102,6 +102,8 @@ contains
 ! integers used for elements, phases, composition sets, equilibria, defaults
     integer iel,iph,ics,ieq,idef
 !-------------------
+! selection of minimizer and optimizer
+    integer minimizer,optimizer
 ! temporary integer variables in loops etc
     integer i1,i2,j1,iax
 ! more temporary integers
@@ -109,7 +111,7 @@ contains
 ! and more temporary integers
     integer ll,lokcs,lokph,lokres,loksp,lrot,maxax
 ! and more temporary integers
-    integer minimizer,mode,ndl,neqdef,noelx,nofc,nopl,nops,nv,nystat
+    integer mode,ndl,neqdef,noelx,nofc,nopl,nops,nv,nystat
 ! temporary matrix
 !    double precision latpos(3,3)
 !-------------------
@@ -152,7 +154,7 @@ contains
 !----------------------------------------------------------------
 ! here are all commands and subcommands
 !    character (len=64), dimension(6) :: oplist
-    integer, parameter :: ncbas=30,nclist=18,ncalc=9,ncent=15,ncread=6
+    integer, parameter :: ncbas=30,nclist=18,ncalc=9,ncent=18,ncread=6
     integer, parameter :: ncam1=15,ncset=24,ncadv=3,ncstat=6,ncdebug=6
     integer, parameter :: nselect=6,nlform=6,noptopt=6
     integer, parameter :: ncamph=12,nclph=6,nccph=6,nrej=6,nsetph=6
@@ -222,7 +224,8 @@ contains
          'PHASE           ','PARAMETER       ','BIBLIOGRAPHY    ',&
          'CONSTITUTION    ','EXPERIMENT      ','QUIT            ',&
          'EQUILIBRIUM     ','SYMBOL          ','OPTIMIZE_COEFF  ',&
-         'COPY_OF_EQUILIB ','                ','                ']
+         'COPY_OF_EQUILIB ','COMMENT         ','MANY_EQILIBRIA  ',&
+         '                ','                ','                ']
 !-------------------
 ! subcommands to READ
     character (len=16), dimension(ncread) :: cread=&
@@ -260,7 +263,7 @@ contains
          'NUMERIC_OPTIONS ','AXIS            ','INPUT_AMOUNTS   ',&
          'VERBOSE         ','AS_START_EQUILIB','BIT             ',&
          'VARIABLE_COEFF  ','SCALED_COEFF    ','OPTIMIZING_COND ',&
-         'RANGE_EXP_EQUIL ','FIXED_COEFF     ','                ']
+         'RANGE_EXP_EQUIL ','FIXED_COEFF     ','GRAPHICS_OUPUT  ']
 ! subsubcommands to SET STATUS
     character (len=16), dimension(ncstat) :: cstatus=&
          ['ELEMENT         ','SPECIES         ','PHASE           ',&
@@ -299,7 +302,7 @@ contains
 ! subcommands to SELECT, maybe some should be CUSTOMMIZE ??
     character (len=16), dimension(nselect) :: cselect=&
          ['EQUILIBRIUM     ','MINIMIZER       ','GRAPHICS        ',&
-         'LANGUAGE        ','                ','                ']
+         'LANGUAGE        ','OPTIMIZER       ','                ']
 !-------------------
 ! subcommands to DELETE
     character (len=16), dimension(nrej) :: crej=&
@@ -318,15 +321,18 @@ contains
     character (len=16), dimension(2) :: minimizers=&
          ['LUKAS_HILLERT   ','SUNDMAN_HILLERT ']
 !------------------------------------------------------------------------
+! optimizers
+    character (len=16), dimension(2) :: optimizers=&
+         ['LMDIF           ','VA05AD          ']
+!------------------------------------------------------------------------
 !
 ! some defaults
     language=1
     logfil=0
     defcp=1
-! defaults for optimizer, iexit(2)=1 means listing scaled coefficients
+! defaults for optimizer, iexit(2)=1 means listing scaled coefficients (Va05AD)
     nvcoeff=0
     iexit=0
-
     iexit(2)=1
 !
     write(kou,10)version,linkdate(1:len_trim(linkdate)),ocmonversion,&
@@ -361,6 +367,8 @@ contains
     call init_help('ochelp.hlp ')
 ! set default minimizer, 2 is matsmin, 1 does not work ...
     minimizer=2
+! set default optimimzer, 1 is LMDIF, 2 is VA05AD
+    optimizer=1
 ! by default no stop on error and no logfile
     stop_on_error=.false.
     logfil=0
@@ -875,14 +883,29 @@ contains
 663          format('Calculating ',i3,&
                   ' experimental equilibria without grid minimizer')
 ! TEST THIS IN PARALLEL !!!
+             call cpu_time(xxx)
+             call system_clock(count=j1)
              do i1=1,size(firstash%eqlista)
                 neweq=>firstash%eqlista(i1)%p1
                 if(neweq%weight.eq.zero) then
-                   write(kou,*)'Equilibrium has zero weight'
+                   write(kou,*)'Equilibrium ',neweq%eqname,' has zero weight'
                 else
-                   call calceq2(0,neweq)
+!                   call calceq2(0,neweq)
+! calceq3 gives no output
+                   call calceq3(0,.FALSE.,neweq)
+                   if(gx%bmperr.ne.0) then
+                      write(kou,*)'Equilibrium ',neweq%eqname,&
+                           ' *** error code ',gx%bmperr,' reset'
+                      gx%bmperr=0
+                   else
+                      write(kou,*)'Equilibrium ',neweq%eqname,' calculated'
+                   endif
                 endif
              enddo
+             call system_clock(count=i2)
+             call cpu_time(xxy)
+             write(kou,664)xxy-xxx,i2-j1
+664          format('Total time: ',1pe12.4,' s and ',i7,' clockcycles')
           else
              write(kou,*)'You have no experimenal equilibria'
           endif
@@ -1663,7 +1686,8 @@ contains
           endif
 !          write(*,*)'Fix coefficient: ',i1,nvcoeff,firstash%coeffstate(i1)
 !-------------------------
-       case(24) !
+       case(24) ! GRAPHICS_OUTPUT
+! for experimental data
           write(*,*)'Not implemeneted yet'
        END SELECT
 !=================================================================
@@ -1672,7 +1696,8 @@ contains
 !         'PHASE           ','PARAMETER       ','BIBLIOGRAPHY    ',&
 !         'CONSTITUTION    ','EXPERIMENT      ','QUIT            ',&
 !         'EQUILIBRIUM     ','SYMBOL          ','OPTIMIZE_COEFF  ',&
-!         'COPY_OF_EQUILIB ','                ','                ']
+!         'COPY_OF_EQUILIB ','COMMENT         ','MANY_EQUILIBRIA ',&
+!         '                ','                ','                ']
     CASE(4)
 ! disable continue optimization
        iexit=0
@@ -1868,12 +1893,24 @@ contains
           if(gx%bmperr.ne.0) goto 990
           write(kou,*)'New equilibrium no: ',neweq%eqno
 !---------------------------------------------------------------
-! enter not used
+! enter COMMENT for current equilibrium
        case(14)
+          write(*,*)'Current equilibrium name: ',ceq%eqname
+          call gparc('One line text: ',cline,last,5,text,' ',q1help)
+          ceq%comment=text
+!---------------------------------------------------------------
+! enter MANY_EQUILIBRIA
+       case(15)
+          write(*,*)'Not implemented yet'
 !---------------------------------------------------------------
 ! enter not used
-       case(15)
-          goto 100
+       case(16)
+!---------------------------------------------------------------
+! enter not used
+       case(17)
+!---------------------------------------------------------------
+! enter not used
+       case(18)
        END SELECT
 !=================================================================
 ! exit
@@ -2096,14 +2133,19 @@ contains
              else
                 name1=' '
              endif
-             if(eqlista(iel)%weight.eq.zero) then
+             if(eqlista(iel)%weight.le.zero) then
                 write(lut,6202)iel,name1(1:2),eqlista(iel)%eqname,&
                      eqlista(iel)%tpval(1)
 6202            format(i5,2x,a2,2x,a,' T=',F8.2)
              else
                 write(lut,6203)iel,name1(1:2),eqlista(iel)%eqname,&
                      eqlista(iel)%tpval(1),eqlista(iel)%weight
-6203            format(i5,2x,a2,2x,a,' T=',F8.2,' Weight=',F6.2)
+6203            format(i5,2x,a2,2x,a,' T=',F8.2,', weight=',F6.2)
+             endif
+             j1=len_trim(eqlista(iel)%comment)
+             if(j1.gt.1) then
+                write(lut,6204)eqlista(iel)%comment(1:j1)
+6204            format(7x,a)
              endif
           enddo
 !------------------------------
@@ -2655,26 +2697,41 @@ contains
           write(kou,*)'Current equilibrium ',ceq%eqname
 !-----------------------------------------------------------
        CASE(2) ! select minimizer
-          call gparcd('Give name of minimizer?',&
-               cline,last,1,text,'LUKAS ',q1help)
-          call capson(text)
-          j1=len_trim(text)
+          write(kou,*)'Sorry, only one available: ',minimizers(2)
+!          call gparcd('Give name of minimizer?',&
+!               cline,last,1,text,'LUKAS ',q1help)
+!          call capson(text)
+!          j1=len_trim(text)
 !  write(*,*)'input: ',text(1:16),j1
-          if((text(1:j1).eq.minimizers(1)(1:j1))) then
-             minimizer=1
-          else
-             minimizer=2
-          endif
+!          if((text(1:j1).eq.minimizers(1)(1:j1))) then
+!             minimizer=1
+!          else
+!             minimizer=2
+!          endif
           write(kou,*)'Selected minimizer: ',minimizers(minimizer)
 !-----------------------------------------------------------
        case(3) ! select graphics
           write(kou,*)'Not implemented yet'
 !-----------------------------------------------------------
-       case(4) ! select languegae, at present only 1 English and 2 French
+       case(4) ! select language, at present only 1 English and 2 French
           write(kou,*)'Not implemented yet'
 !-----------------------------------------------------------
-       case(5)
-          goto 100
+       case(5) ! select optimizer
+          write(kou,845)optimizers(optimizer)
+          write(kou,844)optimizers
+844       format('Available optimizers: '/,(2x,a,2x,a,2x,a))
+845       format('Current optimizer is: '/,2x,a)
+          call gparcd('Do you want to use LMDIF?',cline,last,1,ch1,'Y',q1help)
+          if(ch1.eq.'Y') then
+             optimizer=1
+          else
+             call gparcd('Do you want to use VA05AD?',&
+                  cline,last,1,ch1,'Y',q1help)
+             if(ch1.eq.'Y') then
+                optimizer=2
+             endif
+          endif
+          write(kou,*)'You have selected ',optimizers(optimizer)
 !-----------------------------------------------------------
        case(6)
           goto 100
@@ -3161,13 +3218,15 @@ contains
 !     if(ch1.eq.'y' .or. ch1.eq.'Y') then
        stop 'Au revoir'
 !=================================================================
-! OPTIMIZE and CONTINUE
+! OPTIMIZE and CONTINUE.  Current optimizer is optimizers(optimizer)
     case(24)
        call gparid('Number of iterations: ',cline,last,i1,nopt,q1help)
        if(buperr.ne.0) goto 100
        nopt=i1
 !       write(*,606)'dead 1',mexp,nvcoeff,iexit
 606    format(a,10i4)
+! some optimires have no CONTINUE
+       if(optimizer.eq.1) iexit(4)=0
        continue: if(mexp.gt.0 .and. iexit(4).eq.2) then
 ! iexit(4) from previous optimize allows continue with same Jacobian
           call gparcd('Continue with same Jacobian? ',cline,last,1,&

@@ -29,12 +29,12 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim}
+!-\begin{verbatim}
   subroutine dummy(apphead)
 !
     implicit none
     TYPE(gtp_applicationhead), pointer :: apphead
-!\end{verbatim}
+!-\end{verbatim}
 !   
 1000 continue
     return

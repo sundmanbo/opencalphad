@@ -345,10 +345,10 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'No phases and no gridpoints in call to grid minimization        ',&
        'Grid minimizer want to create composition set but is not allowed',&
        'Non-existing fix phase                                          ',&
-       'State variable N or B cannot have two indices for grid minimizer',&
+       'N, X, B or W cannot have two indices for use of grid minimizer  ',&
 ! 4180
        'Condition on B is not allowed for grid minimizer                ',&
-       'Element has no composition in grid minimizer                    ',&
+       'An element has no composition in grid minimizer                 ',&
        'Too complicated mass balance conditions                         ',&
        'Two mass balance conditions for same element                    ',&
        'Cannot handle conditions on both N and B                        ',&
@@ -979,13 +979,14 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! iref: part of the state variable (iref can be comp.set number)
 ! iunit: ? confused with unit?
 ! seqz is a sequential index of conditions, used for axis variables
+! experimettype: inequality (< 0 or > 0) and/or percentage (-101, 100 or 101)
 ! symlink: index of symbol for prescribed value (1) and uncertainty (2)
 ! condcoeff: there is a coefficient and set of indices for each term
 ! prescribed: the prescribed value
 ! NOTE: if there is a symlink value that is the prescribed value
 ! current: the current value (not used?)
 ! uncertainty: the uncertainty (for experiments)
-     integer :: noofterms,statev,active,iunit,nid,iref,seqz
+     integer :: noofterms,statev,active,iunit,nid,iref,seqz,experimenttype
 !    TYPE(putfun_node), pointer :: symlink1,symlink2
 ! better to let condition symbol be index in svflista array
      integer symlink1,symlink2
@@ -1165,11 +1166,12 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! eqno: sequential number assigned when created
 ! next: index of next equilibrium in a sequence during step/map calculation.
 ! eqname: name of equilibrium
+! comment: a free text, for example reference for experimental data.
 ! tpval(1) is T, tpval(2) is P, rgas is R, rtn is R*T
 ! rtn: value of R*T
 ! weight: weight value for this experiment, default unity
      integer status,multiuse,eqno,next
-     character eqname*24
+     character eqname*24,comment*72
      double precision tpval(2),rtn
      double precision :: weight=one
 ! svfunres: the values of state variable functions valid for this equilibrium

@@ -51,14 +51,14 @@
 ! anything else?
    implicit none
    character*(*) filename,specification
-!\end{verbatim}
+!\end{verbatim} %+
 1000 continue
    return
  end subroutine gtpsavelatex
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim}
+!\begin{verbatim} %-
  subroutine gtpsavedir(filename,specification)
 ! save all data on a direct file (random access)
 ! header
@@ -72,14 +72,14 @@
 ! anything else?
    implicit none
    character*(*) filename,specification
-!\end{verbatim}
+!\end{verbatim} %+
 1000 continue
    return
  end subroutine gtpsavedir
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim}
+!\begin{verbatim} %-
  subroutine gtpsavetdb(filename,specification)
 ! save all data in TDB format on an file
 ! header
@@ -1754,7 +1754,7 @@
    implicit none
    character text*(*)
    integer nextc
-!\end{verbatim}
+!\end{verbatim} %+
 ! only those currently implemented ... rest ignored
    integer, parameter :: kwl=20
    integer, parameter :: nkw=12
@@ -1804,7 +1804,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
-!\begin{verbatim}
+!\begin{verbatim} %-
  subroutine replacetab(line,nl)
 ! replaces TAB by space in line
    implicit none

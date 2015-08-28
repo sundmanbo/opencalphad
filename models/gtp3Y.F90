@@ -1112,7 +1112,7 @@
    real xarr(nrel,*),garr(*)
    double precision yarr(*)
    type(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim}
+!\end{verbatim} %+
 ! NOTHING IMPLEMENTED YET
    write(*,*)'FCC/HCP tetraherdal ordering not handelled gracefully'
 1000 continue
@@ -1121,7 +1121,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
-!\begin{verbatim}
+!\begin{verbatim} %-
  subroutine generate_charged_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,ceq)
 ! This generates grid for a phase with charged constituents
 ! mode<0 just number of gridpoints in ngg, needed for allocations
@@ -3375,136 +3375,6 @@
 1000 continue
    return
  end subroutine set_phase_amounts
-
-!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
-
-!\begin{verbatim}
- subroutine old_set_default_constitution(jph,ics,all,ceq)
-! set the current constitution of jph to its default constitution
-! jph can be -1 meaning all phases, all composition sets
-! if all=-1 then change constitution of all phases, else just those not stable
-! do not change the amounts of the phases
-   implicit none
-   integer all,jph,ics
-   TYPE(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim} %+
-! This has been changed so it calls set_constitution !!!!
-   integer iph,lokph,lokcs,ky,kz,ll,n1,n2,n3,jl
-   double precision kvot1,kvot2,amount,rest,qq(5)
-   double precision, dimension(:), allocatable :: yy
-!
-   if(jph.lt.0) then
-      iph=1; ics=1
-   else
-      iph=jph
-   endif
-   call get_phase_compset(iph,ics,lokph,lokcs)
-   if(gx%bmperr.ne.0) goto 1000
-100 continue
-   if(test_phase_status(iph,ics,amount,ceq).gt.3) goto 700
-! do not change the constitution of stable phases ??
-!   if(ceq%phase_varres(lokcs)%amount(1).gt.zero .and. all.ge.0) goto 700
-   if(ceq%phase_varres(lokcs)%amfu.gt.zero .and. all.ge.0) goto 700
-! mmyfr defines min or max default values of each constituent
-! if negative it is a min value, positive is a max value, zero means no default
-! It is also used to select the composition set that should be used
-! when a new composition set is needed during a calculation, for example
-! if an FCC phase that could be an austenite (low carbon content) or a 
-! cubic carbo-nitride (high carbon or nitrogen content)
-   allocate(yy(phlista(lokph)%tnooffr))
-   ky=0
-   subl: do ll=1,phlista(lokph)%noofsubl
-      kz=ky
-      n1=0
-      n2=0
-      n3=0
-      rest=zero
-      do jl=1,phlista(lokph)%nooffr(ll)
-         ky=ky+1
-         yy(ky)=zero
-!         ceq%phase_varres(lokcs)%yfr(ky)=zero
-         if(ceq%phase_varres(lokcs)%mmyfr(ky).lt.zero) then
-! if mmyfr(kk) is negative the value is a maximal value (normal -1.0D-3)
-! Set fraction 1/10 of this
-            yy(ky)=0.1D0*abs(ceq%phase_varres(lokcs)%mmyfr(ky))
-!            ceq%phase_varres(lokcs)%yfr(ky)=0.1D0*&
-!                 abs(ceq%phase_varres(lokcs)%mmyfr(ky))
-            n1=n1+1
-         elseif(ceq%phase_varres(lokcs)%mmyfr(ky).gt.zero) then
-! if mmyfr(kk) is positive the value is a minimal value (normal 0.5)
-! Note that several constituents can have a minimal value and the total
-! of these can be larger than unity
-!            ceq%phase_varres(lokcs)%yfr(ky)=one
-            yy(ky)=one
-            n2=n2+1
-         else
-!            ceq%phase_varres(lokcs)%yfr(ky)=one
-            yy(ky)=one
-            n3=n3+1
-         endif
-      enddo
-!      write(*,117)'yt: ',ky-kz,(ceq%phase_varres(lokcs)%yfr(j),j=kz+1,ky)
-117   format(a,i2,9(F8.4))
-! for normallizing.  The idea is that sum of fractions with min should be 0.9
-! and sum of fractions with max should be summin and constituents with
-! no default should be 1-0.9*summax-summin
-      kvot1=one
-      if(n1.gt.0) then
-         kvot1=one/dble(n1)
-      endif
-      kvot2=one
-      rest=one
-      if(n2.gt.0) then
-         if(n3.gt.0) then
-            kvot2=0.9D0/dble(n2)
-            rest=0.1D0/dble(n3)
-         else
-            kvot2=one/dble(n2)
-         endif
-      elseif(n3.gt.0) then
-         rest=one/dble(n3)
-      endif
-!      write(*,17)'sums: ',ky-kz,kvot1,kvot2,rest
-17    format(a,i3,6(1pe12.4))
-! It is not necessary that the sum of fractions is unity, it will be
-! normallized before used in a calculation.
-      do jl=1,phlista(lokph)%nooffr(ll)
-         kz=kz+1
-         if(ceq%phase_varres(lokcs)%mmyfr(kz).lt.zero) then
-!            ceq%phase_varres(lokcs)%yfr(kz)=kvot1*&
-!                 ceq%phase_varres(lokcs)%yfr(kz)
-            yy(kz)=kvot1*yy(kz)
-         elseif(ceq%phase_varres(lokcs)%mmyfr(kz).gt.zero) then
-!            ceq%phase_varres(lokcs)%yfr(kz)=kvot2*&
-!                 ceq%phase_varres(lokcs)%yfr(kz)
-            yy(kz)=kvot2*yy(kz)
-         else
-            yy(kz)=rest
-         endif
-      enddo
-   enddo subl
-!   write(*,117)'mm: ',kz,(ceq%phase_varres(lokcs)%mmyfr(j),j=1,kz)
-!   write(*,117)'yd: ',kz,yy(j),j=1,kz)
-   call set_constitution(iph,ics,yy,qq,ceq)
-   if(gx%bmperr.ne.0) goto 1000
-! jump here if phase skipped
-700 continue
-   if(jph.lt.0) then
-      ics=ics+1
-710   continue
-      call get_phase_compset(iph,ics,lokph,lokcs)
-      if(gx%bmperr.ne.0) then
-         gx%bmperr=0;
-         iph=iph+1
-         if(iph.gt.noofph) goto 1000
-         ics=1; goto 710
-      endif
-      goto 100
-   endif
-1000 continue
-   if(allocated(yy)) deallocate(yy)
-   return
- end subroutine old_set_default_constitution
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 

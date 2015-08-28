@@ -353,7 +353,7 @@
 !      goto 1000
 !   endif
 ! we evaluate all symbols to avoid some problems ... no output
-!   call meq_evaluate_all_svfun(-1,ceq) cannot be used as in minimizer ...
+!  call meq_evaluate_all_svfun(-1,ceq) cannot be used as it is in minimizer ...
    call evaluate_all_svfun_old(-1,firsteq)
 ! assment initiallizing
 !   write(*,*)'3A Initiallizing firstash'
@@ -370,8 +370,8 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
- subroutine assessmenthead(ash)
 !\begin{verbatim}
+ subroutine assessmenthead(ash)
 ! create an assessment head record
    type(gtp_assessmenthead), pointer :: ash
 !\end{verbatim}
@@ -889,125 +889,6 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim} %-
- subroutine find_phasex_by_name_old(name,phcsx,iph,ics)
-! finds a phase with name "name", returns address of phase, first fit accepted
-! handles composition sets either with prefix/suffix or #digit
-! no pre/suffix nor # always return first composition set
-   implicit none
-   character name*(*)
-   integer phcsx,iph,ics
-!\end{verbatim} %+
-! THIS SHOULD BE REWRITTEN ...
-   character name1*36,csname*36,name2*24,name3*24
-   TYPE(gtp_phase_varres), pointer :: csrec
-   integer kp,kcs,lokph,jcs,lokcs,first1,first2
-! convert to upper case locally
-   name1=name
-   call capson(name1)
-!   write(*,*)'find phase: ',name1
-! composition set as #digit
-   kp=index(name1,'#')
-   if(kp.gt.0) then
-      ics=ichar(name1(kp+1:kp+1))-ichar('0')
-! negative ics should give error, 0 should be the same as 1
-      if(ics.eq.0) ics=1
-      if(ics.lt.1 .or. ics.gt.9) then
-         gx%bmperr=4093; goto 1000
-      endif
-      name1(kp:)=' '
-      kcs=ics
-   else
-      ics=1
-      kcs=0
-   endif
-   write(*,17)ics,kcs,kp
-17 format('3A find_phase 3: ',10i4)
-   first1=0
-   first2=0
-   loop1: do lokph=1,noofph
-      name2=phlista(lokph)%name
-!      write(*,*)'find_phase 2: ',name1,name2
-      if(compare_abbrev(name1,name2)) then
-         if(ics.le.phlista(lokph)%noofcs) then
-!            goto 300
-            if(first1.eq.0) then
-               first1=lokph
-            else
-! phase name is ambiguous
-               gx%bmperr=4121
-               goto 1000
-            endif
-         else
-!            write(*,18)ics,phlista(lokph)%noofcs
-!18  format('find_phase 4: ',2i4)
-            gx%bmperr=4072; goto 1000
-         endif
-      endif
-! if there are composition sets check name including prefix/suffix
-!      write(*,*)'find_phase 5: ',lokph,phlista(lokph)%noofcs
-      csno: do jcs=2,phlista(lokph)%noofcs
-         lokcs=phlista(lokph)%linktocs(jcs)
-!         write(*,*)'3A: find phase: ',jcs,lokcs,phlista(lokph)%noofcs
-         csrec=>firsteq%phase_varres(lokcs)
-         kp=len_trim(csrec%prefix)
-         if(kp.gt.0) then
-            csname=csrec%prefix(1:kp)//'_'//name2
-         else
-            csname=name2
-         endif
-!         write(*,*)'find phase: ',kp
-         kp=len_trim(csrec%suffix)
-         if(kp.gt.0) csname=csname(1:len_trim(csname))//'_'//&
-              csrec%suffix(1:kp)
-!         write(*,244)ics,kcs,jcs,kp,name1(1:len_trim(name1)),&
-!              csname(1:len_trim(csname))
-244      format('3A: find_phase: ',4i3,'<',a,'>=?=<',a,'>')
-         if(compare_abbrev(name1,csname)) then
-            if(first2.eq.0) then
-! if user has provided both #<digit> and pre/suffix these must be consistent
-               if(kcs.gt.0 .and. kcs.ne.jcs) then
-! automatically created composition sets all have the suffix _AUTO but
-! can have several numbers
-!               write(*,*)'3A: mix? ',jcs,phlista(lokph)%noofcs
-                  if(jcs.eq.phlista(lokph)%noofcs) goto 1100
-                  cycle csno
-               endif
-               first2=jcs
-            else
-! ambiguous phase name
-               gx%bmperr=4121; goto 1000
-            endif
-!            ics=jcs
-!            goto 300
-         endif
-      enddo csno
-   enddo loop1
-   if(first1.eq.0) then
-! no phase found
-      gx%bmperr=4050
-      goto 1000
-   endif
-300 continue
-   if(first2.eq.0) then
-      ics=1
-   else
-      ics=first2
-   endif
-!   iph=phlista(lokph)%alphaindex
-!   phcsx=firsteq%phase_varres(phlista(lokph)%linktocs(ics))%phtupx
-   iph=phlista(first1)%alphaindex
-   phcsx=firsteq%phase_varres(phlista(first1)%linktocs(ics))%phtupx
-   gx%bmperr=0
-1000 continue
-   return
-1100 continue
-   gx%bmperr=4073
-   goto 1000
- END subroutine find_phasex_by_name_old
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\begin{verbatim} %-
  subroutine find_phase_by_name_exact(name,iph,ics)
 ! finds a phase with name "name", returns address of phase. exact match req.
 ! handles composition sets either with prefix/suffix or #digit
@@ -1322,38 +1203,6 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine get_phase_constituent_name(iph,icon,name,sublat)
-! return the name of constituent icon of phase iph
-! redundant?
-   implicit none
-   character*(*) name
-   integer iph,icon,sublat
-!\end{verbatim}
-   integer lokph,sumc
-   if(iph.le.0 .or. iph.gt.noofph) then
-      gx%bmperr=4050; goto 1000
-   endif
-   lokph=phases(iph)
-   if(icon.le.0 .or. icon.gt.phlista(lokph)%tnooffr) then
-      gx%bmperr=4096; goto 1000
-   endif
-!   loksp=phlista(lokph)%constitlist(icon)
-!   name=splista(loksp)%symbol
-   name=splista(phlista(lokph)%constitlist(icon))%symbol
-! sublattice
-   sublat=1
-   sumc=phlista(lokph)%nooffr(sublat)
-   do while(icon.gt.sumc)
-      sublat=sublat+1
-      sumc=sumc+phlista(lokph)%nooffr(sublat)
-   enddo
-1000 continue
-   return
- end subroutine get_phase_constituent_name
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\begin{verbatim}
  subroutine get_element_data(iel,elsym,elname,refstat,mass,h298,s298)
 ! return element data as that is stored as private in GTP
    implicit none
@@ -1638,42 +1487,6 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 !>     5. Set things
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-!
-!-\begin{verbatim}
-! subroutine set_mean_constitution(iph,ics,ceq)
-! sets a start constitution 1/ns in all sublattices where ns is the number
-! of constituents in the sublattice.
-!   implicit none
-!   integer iph,ics
-!   TYPE(gtp_equilibrium_data), pointer :: ceq
-!-\end{verbatim}
-!   integer, dimension(maxsubl) :: knl
-!   double precision, dimension(maxsubl) :: sites
-!   integer, dimension(maxconst) :: knr
-!   double precision, dimension(maxconst) :: yarr
-!   double precision, dimension(5) :: qq
-!   double precision df
-!   integer nsl,kkk,ll,jl
-!   call get_phase_data(iph,ics,nsl,knl,knr,yarr,sites,qq,ceq)
-!   if(gx%bmperr.ne.0) goto 1000
-!   kkk=0
-!   do ll=1,nsl
-!      if(knl(ll).gt.1) then
-!         df=one/dble(knl(ll))
-!         do jl=1,knl(ll)
-!            kkk=kkk+1
-!            yarr(kkk)=df
-!         enddo
-!      endif
-!   enddo
-!   write(*,17)iph,ics,(yarr(j),j=1,kkk)
-!17 format('Default cons: ',2i3,5(1pe12.4))
-!   call set_constitution(iph,ics,yarr,qq,ceq)
-!1000 continue
-!   return
-! end subroutine set_mean_constitution
-!
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}

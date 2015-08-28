@@ -18,7 +18,8 @@ contains
     dimension iwa(lwa),wa(lwa)
     tol=acc
     info=maxfun
-!    write(*,*)'Calling lmdif1',info
+    write(*,17)
+17  format(/25x,'Starting optimization using LMDIF')
     call lmdif1(m,n,x,f,tol,info,iwa,wa,lwa)
     return
   end subroutine va05ad

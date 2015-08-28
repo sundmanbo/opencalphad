@@ -27,9 +27,14 @@ title map 4 fig 1
 render
 
 
-set c t=2000 x(o)=.8
+@$ calculate the high O side
+set c t=2500 x(o)=.8
 
 c e
+
+l,,,,
+
+@&
 
 map
 N
@@ -42,12 +47,25 @@ plot
 title map4 fig 2
 render
 
+@$ set the line definitions outside
 plot
 
 
 position outside right
+title map4 fig 3
 render
 
+
+@$ scale the x axis
+plot
+
+
+xrange 
+N 
+.58 
+.78
+title map4 fig 4
+render
 
 set interactive
 

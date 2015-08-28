@@ -1,5 +1,5 @@
-! 
-! gtp3E included in gtp3.F90 
+!
+! gtp3E included in gtp3.F90
 !
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 !>     10. State variable manipulations
@@ -1016,7 +1016,7 @@
    enddo allsubl
 ! normallize, All ok here
 !   write(*,713)'A',noofel,(xmol(iq),iq=1,noofel)
-713 format('3F x:',a,i2,10f7.4)
+713 format('3F x:',a,i2,10f8.4)
 !800 continue
    xsum=zero
    wsum=zero
@@ -1027,11 +1027,12 @@
       xsum=xsum+xmol(ic)
       wsum=wsum+wmass(ic)
    enddo
-!   write(*,713)'F',noofel,xsum,(xmol(iq),iq=1,noofel)
+!   write(*,713)'3F cpmm: ',noofel,xsum,(xmol(ic),ic=1,noofel)
    do ic=1,noofel
       xmol(ic)=xmol(ic)/xsum
       wmass(ic)=wmass(ic)/wsum
    enddo
+!   write(*,713)'3F cpmm: ',noofel,xsum,(xmol(ic),ic=1,noofel)
 ! This is the current number of formula unit of the phase, zero if not stable
    amount=ceq%phase_varres(lokcs)%amfu
 ! ceq%phase_varres(lokcs)%abnorm(1) is moles atoms for one formula unit
@@ -1354,6 +1355,7 @@
    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
    integer jp,ics,kstv,iph,norm,sublat
+   double precision mass
 !
    character stsymb*60
    character*1, dimension(4), parameter :: cnorm=['M','W','V','F']
@@ -1398,8 +1400,12 @@
          if(gx%bmperr.ne.0) goto 1000
          jp=len_trim(stsymb)+1
          stsymb(jp:jp)=','; jp=jp+1
-         call get_phase_constituent_name(indices(1),indices(2),&
-              stsymb(jp:),sublat)
+!         call get_phase_constituent_name(indices(1),indices(2),&
+!              stsymb(jp:),sublat)
+! I am not sure if indices(2) is constituent numbered for each sublattice
+! or numbered from the beginning, assume the latter !!
+         call get_constituent_name(indices(1),indices(2),&
+              stsymb(jp:),mass)
          if(gx%bmperr.ne.0) goto 1000
          jp=len_trim(stsymb)+1
          if(sublat.gt.1) then
@@ -1483,8 +1489,10 @@
          jp=len_trim(stsymb)+1
          stsymb(jp:jp)=','
          jp=jp+1
-         call get_phase_constituent_name(indices(1),indices(3),&
-              stsymb(jp:),sublat)
+!         call get_phase_constituent_name(indices(1),indices(3),&
+!              stsymb(jp:),sublat)
+         call get_constituent_name(indices(1),indices(3),&
+              stsymb(jp:),mass)
          if(gx%bmperr.ne.0) goto 1000
 ! sublattice is the last argument
          jp=len_trim(stsymb)+1
@@ -1576,6 +1584,7 @@
    integer jp,ics,kstv,iph,norm,sublat
    integer, dimension(4) :: indices
    integer istv,ip,iunit,iref
+   double precision mass
 !
    character stsymb*60
    character*1, dimension(4), parameter :: cnorm=['M','W','V','F']
@@ -1645,8 +1654,10 @@
          if(gx%bmperr.ne.0) goto 1000
          jp=len_trim(stsymb)+1
          stsymb(jp:jp)=','; jp=jp+1
-         call get_phase_constituent_name(indices(1),indices(2),&
-              stsymb(jp:),sublat)
+!         call get_phase_constituent_name(indices(1),indices(2),&
+!              stsymb(jp:),sublat)
+         call get_constituent_name(indices(1),indices(2),&
+              stsymb(jp:),mass)
          if(gx%bmperr.ne.0) goto 1000
          jp=len_trim(stsymb)+1
          if(sublat.gt.1) then
@@ -1729,8 +1740,10 @@
          jp=len_trim(stsymb)+1
          stsymb(jp:jp)=','
          jp=jp+1
-         call get_phase_constituent_name(indices(1),indices(3),&
-              stsymb(jp:),sublat)
+!         call get_phase_constituent_name(indices(1),indices(3),&
+!              stsymb(jp:),sublat)
+         call get_constituent_name(indices(1),indices(3),&
+              stsymb(jp:),mass)
          if(gx%bmperr.ne.0) goto 1000
          jp=len_trim(stsymb)+1
          if(sublat.gt.1) then
@@ -1872,7 +1885,7 @@
    double precision props(5),xmol(maxel),wmass(maxel),stoi(10),cmpstoi(10)
    double precision vt,vp,amult,vg,vs,vv,div,aref,vn,bmult,tmass,tmol
    double precision qsp,gref,spmass,rmult,tsave,rtn
-   integer kstv,norm,lokph,lokcs,icx,jp,ncmp,ic,iprop,loksp,nspel
+   integer kstv,norm,lokph,lokcs,icx,jp,ncmp,ic,iprop,loksp,nspel,iq
    integer endmember(maxsubl),ielno(maxspel)
    value=zero
    ceq%rtn=globaldata%rgas*ceq%tpval(1)
@@ -2120,6 +2133,7 @@
             call calc_phase_molmass(indices(1),indices(2),&
                  xmol,wmass,tmol,tmass,bmult,ceq)
             icx=3
+!            write(*,*)'3F cpmm: ',tmol,tmass,bmult
          endif
          if(gx%bmperr.ne.0) goto 1000
 !         write(*,13)'3F gsvv 19: ',norm,(xmol(iq),iq=1,noofel)
@@ -2128,12 +2142,16 @@
 ! total moles of component
             vn=xmol(indices(icx))
             amult=tmol
+! added next line 2015-08-20 to get correct N(sigma,mo)
+            bmult=tmol
 !            write(*,777)kstv,icx,indices(icx),norm,vn,amult,bmult
 !777         format('3F N(i): ',4i4,3(1pe12.4))
          else
 ! total mass of component
             vn=wmass(indices(icx))
             amult=tmass
+! added next line 2015-08-20 to get correct N(sigma,mo)
+            bmult=tmass
          endif
 !         write(*,13)'3F gsvv 8: ',norm,vn,amult,bmult,tmol,tmass
 13       format(a,i3,7(1PE10.2))

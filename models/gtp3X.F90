@@ -1,5 +1,5 @@
 !
-! gtp3X included in gtp3.F90
+! gtp3X included in gtp3.F9029
 !
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 !>     15. Calculate things
@@ -395,7 +395,8 @@
                      jonva=phlista(lokph)%i2slx(1)
 ! We found Va.  Save all calculated values as the follwing terms should all
 ! be multiplied with Q (done after finishing calculation)
-                     nprop=phmain%nprop
+!                     nprop=phmain%nprop
+! we have already extracted nprop above .... 
                      allocate(saveg(6,nprop))
                      saveg=phres%gval
 !                     if(ocv()) write(*,*)'saveg allocated 1A: ',size(saveg),&
@@ -426,7 +427,8 @@
                      if(.not.iliqsave) then
 ! We may have model without Va, for exampel (Ca+2)p(O-2,SiO4-4,SiO2)q, if so
 ! we must save all calculated values as the rest should be multiplied with Q
-                        nprop=phmain%nprop
+!                        nprop=phmain%nprop
+! we already know nprop from above
                         allocate(saveg(6,nprop))
                         allocate(savedg(3,gz%nofc,nprop))
                         allocate(saved2g(nofc2,nprop))
@@ -522,10 +524,20 @@
 ! actually used in the model of the phase.
                   jl=lprop
                   phmain%listprop(jl)=typty
-                  if(lprop.ge.nprop) then
-                     write(*,*)'Too many parameter properties ',&
-                          lprop,nprop,typty
-                     gx%bmperr=7777; goto 1000
+                  if(allocated(phmain%listprop)) then
+!                  if(lprop.ge.nprop) then
+! VERY STRANGE ERROR, nprop is suddenly zero ....
+                     if(lprop.ge.size(phmain%listprop)) then
+                        write(*,169)'3X Too many parameter properties ',&
+                             lprop,nprop,typty,lokph,&
+                             size(phmain%listprop),phlista(lokph)%name
+169                     format(a,3i3,2x,2i3,2x,a)
+                        gx%bmperr=7777; goto 1000
+                     endif
+                  else
+                     write(*,*)'Internal error, listprop not allocated',&
+                          lokph,phlista(lokph)%name
+                     gx%bmperr=7766; goto 1000
                   endif
                   lprop=lprop+1
                   phmain%listprop(1)=lprop
@@ -1165,7 +1177,8 @@
 ! ??? very uncertain how to call disordery .....
 !            call disordery(phmain,phmain%disfra%varreslink,ceq)
             call disordery(phmain,ceq)
-            nprop=phmain%nprop
+!            nprop=phmain%nprop
+! we already know nprop
             allocate(saveg(6,nprop))
             allocate(savedg(3,gz%nofc,nprop))
             allocate(saved2g(nofc2,nprop))
@@ -2563,8 +2576,11 @@
       current=>current%next
 ! ignore inactive conditions
       if(current%active.ne.0) goto 300
-! ignore conditions with several terms
-      if(current%noofterms.gt.1) goto 300
+! if a conditions has several terms we cannot calculate x
+      if(current%noofterms.gt.1) then
+         write(*,*)'Grid minimizer cannot be used with expressions'
+         gx%bmperr=4179; goto 1000
+      endif
 ! for debugging
       istv=current%statev
       do jl=1,4
@@ -2611,6 +2627,9 @@
          endif
          nc=nc+1
       elseif(current%statev.eq.111) then
+         if(indices(2).gt.0) then
+            gx%bmperr=4179; goto 1000
+         endif
 ! this is X(index1)=value, CHECK UNIT if %!!!
          if(iunit.eq.100) xxx=1.0D-2*xxx
          xset(current%indices(1,1))=xxx
@@ -2633,6 +2652,9 @@
          endif
          nc=nc+1
       elseif(current%statev.eq.122) then
+         if(indices(2).gt.0) then
+            gx%bmperr=4179; goto 1000
+         endif
 ! this is W(index1)=value, CHECK UNIT if %!!!
          if(iunit.eq.100) xxx=1.0D-2*xxx
          wset(current%indices(1,1))=xxx
@@ -2706,7 +2728,8 @@
          elseif(ani(ie).eq.zero) then
             if(numberest.gt.0) then
                write(*,*)'Missing condition for two elements.'
-               gx%bmperr=0; goto 1000
+! ??               gx%bmperr=0; goto 1000
+               gx%bmperr=4151; goto 1000
             endif
             restmass=mass
             numberest=ie
