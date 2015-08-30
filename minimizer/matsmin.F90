@@ -726,7 +726,7 @@ CONTAINS
 !\end{verbatim}
 ! should one use meqrec as pointer here???
     integer ok,iadd,iph,ics,irem,jj,jph,kk,lastchange,lokph,lokcs,minadd
-    integer kph,minrem,mph,nip,nochange,zap,toomanystable,jrem,krem
+    integer kph,minrem,mph,nip,nochange,zap,toomanystable,jrem,krem,inmap
     double precision, parameter :: ylow=1.0D-3
     double precision, parameter :: addedphase_amount=1.0D-2
     double precision xxx
@@ -821,6 +821,10 @@ CONTAINS
                       meqrec%phr(mph)%phasestatus=PHFIXED
                    endif
                 enddo
+! inmap=1 turns off converge control of T
+                inmap=1
+             else
+                inmap=0
              endif
              meqrec%phr(mph)%ionliq=-1
              meqrec%phr(mph)%i2sly=0
@@ -910,7 +914,7 @@ CONTAINS
     irem=iremsave
 ! meq_sameset varies amounts of stable phases and constitutions of all phases
 ! If there is a phase change (iadd or irem nonzeri) or error it exits 
-    call meq_sameset(irem,iadd,meqrec,meqrec%phr,ceq)
+    call meq_sameset(irem,iadd,meqrec,meqrec%phr,inmap,ceq)
     if(ocv()) write(*,*)'Back from sameset ',irem,iadd,meqrec%noofits
     if(gx%bmperr.ne.0) goto 1000
 !
@@ -1180,11 +1184,11 @@ CONTAINS
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
-  subroutine meq_sameset(irem,iadd,meqrec,phr,ceq)
+  subroutine meq_sameset(irem,iadd,meqrec,phr,inmap,ceq)
 ! iterate until phase set change, converged or error (incl too many its)
 ! iadd = -1 indicates called from calculating a sequence of equilibria
     implicit none
-    integer irem,iadd
+    integer irem,iadd,inmap
     TYPE(meq_setup) :: meqrec
     TYPE(meq_phase), dimension(*), target :: phr
     TYPE(gtp_equilibrium_data), pointer :: ceq
@@ -1396,6 +1400,14 @@ CONTAINS
 ! update T and P if variable
     if(meqrec%tpindep(1)) then
        xxx=ceq%tpval(1)
+! check convergence
+!       write(*,*)'Delta T: ',svar(ioff),1.0D2*ceq%xconv
+!       if(abs(svar(ioff)).gt.1.0D2*ceq%xconv) then
+! this convergece criteria needed for the CHO-gas calculation!!!
+! but causes problem calculating phase diagrams ... inmap=1 for step/map
+      if(inmap.eq.0 .and. abs(svar(ioff)).gt.1.0D1*ceq%xconv) then
+          converged=8
+       endif
 ! limit changes in T to +/-half its current value
        if(abs(svar(ioff)/ceq%tpval(1)).gt.0.2D0) then
           svar(ioff)=sign(0.2D0*ceq%tpval(1),svar(ioff))
@@ -1419,6 +1431,10 @@ CONTAINS
     endif
     if(meqrec%tpindep(2)) then
        xxx=ceq%tpval(2)
+! check convergence
+       if(abs(svar(ioff)).gt.1.0D4*ceq%xconv) then
+          converged=8
+       endif
        if(abs(svar(ioff)/ceq%tpval(2)).gt.0.2D0) then
           svar(ioff)=sign(0.2D0*ceq%tpval(2),svar(ioff))
        endif
@@ -1906,7 +1922,7 @@ CONTAINS
 !            increase,yss,yst
        level3=level3+1
     elseif(converged.eq.4) then
-! this meas large fraction variations in stable phases
+! this means large fraction variations in stable phases
 !       write(*,267)'End of iteration: ',meqrec%noofits,converged,&
 !            increase,yss,yst
 !267    format(a,3i4,2(1pe12.4))
@@ -1940,6 +1956,7 @@ CONTAINS
 ! converged=5 means a condition not fullfilled
 ! converged=6 means charge balance not converged or large phase fraction change
 ! converged=7 means large change in chemical potentials
+! converged=8 means large change T or P
 ! always force 4 iterations, there is a minimum above forcing 9 iterations.
     if(meqrec%noofits.lt.4) goto 100
     if(increase.ne.0) then
@@ -1948,6 +1965,7 @@ CONTAINS
     endif
 !------------------------
 ! equilibrium calculation converged, do some common thing
+!    write(*,*)'Converged: ',converged
     goto 800
 !
 !==============================================================

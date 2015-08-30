@@ -1,6 +1,6 @@
 @$ Calculation for pure Fe
 @$ Just to check it can change stable phase 
-@$ P-T diagram does not work
+@$ step in T and P-T diagram does not work
 @&
 
 set echo
@@ -37,5 +37,38 @@ l,,,,
 set c b=1
 c e
 l,,,,
+
+@$ some strange problem with combining condition on B and H, use N
+@$ I will look at that later ....
+@$ The same equilibria just changing the size
+set c n=1
+set c b=none
+c e
+
+l,,,,
+@&
+
+@$ set condition in H
+
+set c h
+
+l c
+
+set c t=none
+
+c e
+
+l,,,,
+@&
+@$ Calculate an equilibria at lower H
+
+set c h
+50000
+
+c e
+
+l,,,,
+
+@$ We have then FCC stable at 1615 K !!
 
 set inter

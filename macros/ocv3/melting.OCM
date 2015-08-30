@@ -20,5 +20,48 @@ liq
 
 list,,,,,
 
+@&
+@$ Test setting a condition on w(fcc,c)
+
+set c x(fcc,c)
+.02
+
+set c x(c)=none
+
+c e
+l,,,,
+
+@$ The total carbon content is now lower and the liquid is no longer stable
+@&
+@$ Calculate the new melting T
+set ph liq 
+status fix 0
+
+set c t=none
+
+c e
+
+l,,,,
+
+@&
+@$ Now set condition on current H and remove condition on N
+
+set c H
+
+set c N=none
+
+c e
+l,,,,,
+
+@$ We have the same quilibrium, now decrease H a little
+@&
+set c H=50000
+c e
+
+l,,,,
+
+@$ Note the size of the system has changed, N=0.98966 !!
+
+
 set inter
 

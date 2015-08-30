@@ -251,6 +251,8 @@ CONTAINS
 ! inactive are indices of axis conditions inactivated by phases set fixed
 ! inactive not used ...
     integer iadd,irem,isp,seqx,seqy,mode,halfstep,jj,ij,inactive(4),bytaxis
+! inmap=1 turns off converge control of T
+    integer, parameter :: inmap=1
     type(map_ceqresults), pointer :: saveceq
     character ch1*1
     logical firststep
@@ -437,7 +439,7 @@ CONTAINS
     mapline%meqrec%noofits=0
 !    write(*,*)'Calling meq_sameset: ',mapline%number_of_equilibria,&
 !         ceq%tpval(1)
-    call meq_sameset(irem,iadd,mapline%meqrec,mapline%meqrec%phr,ceq)
+    call meq_sameset(irem,iadd,mapline%meqrec,mapline%meqrec%phr,inmap,ceq)
 !    write(*,323)'Calc line: ',gx%bmperr,irem,iadd,mapline%axandir,&
     if(ocv())write(*,323)'Calc line: ',gx%bmperr,irem,iadd,mapline%axandir,&
          mapline%meqrec%noofits,mapline%meqrec%nstph,ceq%tpval(1)
@@ -1110,6 +1112,8 @@ CONTAINS
     double precision aval,avalm
     type(gtp_condition), pointer :: pcond
     integer, dimension(:), allocatable :: axis_withnocond
+! turns off converge control for T
+    integer, parameter :: inmap=1
 !
     tip=tieline_inplane(nax,axarr,ceq)
     if(gx%bmperr.ne.0) goto 1000
@@ -1203,7 +1207,7 @@ CONTAINS
 ! calculate the equilibrium with the new set of conditions
           if(ocv()) write(*,*)'Calling meq_sameset inside  map_replaceaxis'
           irem=0; iadd=0;
-          call meq_sameset(irem,iadd,meqrec,meqrec%phr,ceq)
+          call meq_sameset(irem,iadd,meqrec,meqrec%phr,inmap,ceq)
           if(gx%bmperr.ne.0) then
              write(*,*)'Error calling meq_sameset in startpoint: ',gx%bmperr
              goto 1000
@@ -1296,6 +1300,8 @@ CONTAINS
     integer, parameter :: nstabphdim=20
     double precision curval,startval
     type(gtp_condition), pointer :: pcond
+! turns off converge control for T
+    integer, parameter :: inmap=1
 !
 !    write(*,*)'In map_startline, find a phase to set fix'
 ! start in negative direction unless direction given
@@ -1333,7 +1339,7 @@ CONTAINS
        call condition_value(0,pcond,curval,ceq)
        if(gx%bmperr.ne.0) goto 1000
        irem=0; iadd=0; meqrec%noofits=0
-       call meq_sameset(irem,iadd,meqrec,meqrec%phr,ceq)
+       call meq_sameset(irem,iadd,meqrec,meqrec%phr,inmap,ceq)
 !       if(ocv()) write(*,110)'Search for phase change: ',&
 !       write(*,110)'Search for phase change: ',&
 !            idir*jax,gx%bmperr,irem,iadd,ceq%tpval(1),curval
@@ -1436,7 +1442,7 @@ CONTAINS
     endif
 ! calling meq_sameset with iadd=-1 turn on verbose
     irem=0; iadd=0
-    call meq_sameset(irem,iadd,meqrec,meqrec%phr,ceq)
+    call meq_sameset(irem,iadd,meqrec,meqrec%phr,inmap,ceq)
 !    if(ocv()) write(*,110)'meq_sameset calculated: ',&
     if(gx%bmperr.gt.0) then
        write(*,*)'Filed to calculate with fix phase',gx%bmperr
@@ -1646,6 +1652,8 @@ CONTAINS
     type(gtp_state_variable), pointer :: axcondrec
     integer jax,iadd,irem
     double precision value
+! turns off converge control for T
+    integer, parameter :: inmap=1
 ! look for the condition record for new axis
 !    write(*,*)'In map_changeaxis: ',nyax,axval
     call locate_condition(axarr(nyax)%seqz,pcond,ceq)
@@ -1711,7 +1719,7 @@ CONTAINS
 ! add=-1 turn on verbose in meq_sameset
 !    iadd=-1
     if(ocv()) write(*,*)'Map_changeaxis call meq_sameset, T=',ceq%tpval(1)
-    call meq_sameset(irem,iadd,mapline%meqrec,mapline%meqrec%phr,ceq)
+    call meq_sameset(irem,iadd,mapline%meqrec,mapline%meqrec%phr,inmap,ceq)
     if(gx%bmperr.ne.0) then
        if(ocv()) write(*,*)'Something really wrong ...',gx%bmperr,ceq%tpval(1)
 !       stop
@@ -2233,6 +2241,8 @@ CONTAINS
     double precision, parameter :: addedphase_amount=1.0D-2
     double precision value,axval,axvalsave
     type(gtp_state_variable), pointer :: svrrec
+! turns off converge control for T
+    integer, parameter :: inmap=1
 !
 !    write(*,*)'In map_calcnode phase change add/remove: ',iadd,irem
 ! we have already called same_composition(iadd...)
@@ -2382,7 +2392,7 @@ CONTAINS
     write(*,*)'In map_calcnode calling sameset for new node: ',&
          meqrec%nstph,meqrec%nfixph
 !
-    call meq_sameset(irem,iadd,meqrec,meqrec%phr,ceq)
+    call meq_sameset(irem,iadd,meqrec,meqrec%phr,inmap,ceq)
 !
     write(*,202)'Calculated with fix phase: ',gx%bmperr,irem,iadd,ceq%tpval
 202 format(a,3i4,2(1pe12.4))
@@ -4647,6 +4657,8 @@ CONTAINS
     double precision val,xxx,yyy,axvalok
     logical firstline
     character name*24
+! turns off convergence control for T
+    integer, parameter :: inmap=1
 !
 !    write(*,*)'In step_separate'
     if(noofaxis.ne.1) then
@@ -4801,7 +4813,8 @@ CONTAINS
 380          continue
              iadd=0
              irem=0
-             call meq_sameset(irem,iadd,mapline%meqrec,mapline%meqrec%phr,ceq)
+             call meq_sameset(irem,iadd,mapline%meqrec,&
+                  mapline%meqrec%phr,inmap,ceq)
              if(gx%bmperr.ne.0) then
 !                write(*,*)'Error calling meq_sameset',gx%bmperr
                 goto 333

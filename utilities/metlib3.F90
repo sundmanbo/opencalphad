@@ -4679,9 +4679,12 @@ CONTAINS
 ! This routine is called from all gparx routines 
 ! when the user types a ?
 ! prompt is never used ...
+    implicit none
     character*(*) prompt,line
-    character hline*80
-    character subsec(3)*9
+    character hline*80,mtxt*80
+    character subsec(4)*10,saved(4)*16
+    integer nsaved(4)
+    integer izz,jj,kk,kkk,level,nl,l2,np1,np2,nsub
 !
 !    write(*,*)'called on-line help',helprec%okinit
 !    if(helprec%okinit.ne.0) then
@@ -4693,16 +4696,17 @@ CONTAINS
 !    enddo
 !10  format(i3,': ',a)
 !
-    subsec(1)='\section{'
-    subsec(2)='\subsecti'
-    subsec(3)='\subsubse'
+    subsec(1)='%\section{'
+    subsec(2)='%\subsecti'
+    subsec(3)='%\subsubse'
+    subsec(4)='%\subsubsu'
     if(helprec%okinit.eq.0) then
        write(kou,*)'Sorry no help file'
        goto 1000
     endif
-! list current search path:
+! for debugging list current search path:
 !    do nl=1,helprec%level
-!       write(*,17)'Search for: ',nl,helprec%cpath(nl)(1:24)
+!       write(*,17)'Search levels: ',nl,helprec%cpath(nl)(1:24)
 !17     format(a,i3,2x,a)
 !    enddo
 !
@@ -4712,7 +4716,7 @@ CONTAINS
     np1=0
     nsub=1
     if(helprec%type.eq.'latex   ') then
-! plain LaTeX file, search for \section{' with command
+! plain LaTeX file, search for "%\section{" with command
 100    continue
        if(level.gt.helprec%level) then
           level=level-1
@@ -4724,8 +4728,6 @@ CONTAINS
        read(31,120,end=700)hline
 120    format(a)
        nl=nl+1
-! skip comment lines
-       if(hline(1:1).eq.'%') goto 110
        kk=index(hline,subsec(nsub))
        if(nsub.gt.1) then
           izz=index(hline,subsec(nsub-1))
@@ -4733,7 +4735,7 @@ CONTAINS
           izz=0
        endif
        if(kk.gt.0) then
-!          write(*,*)'found section: ',hline(1:30)
+!          write(*,*)'found section: ',hline(1:30),nl
           call capson(hline)
 !          kk=kk+8
           kk=index(hline,'SECTION{')+8
@@ -4742,23 +4744,57 @@ CONTAINS
              np1=0
              goto 700
           endif
-! remove everything from }
+! remove everything after and including } in the help file
           jj=index(hline,'}')-1
           hline(jj+1:)=' '
-!          write(*,*)'Command: ',kk,jj,' >',hline(kk:jj),'< '
+          mtxt=hline(kk:jj)
+!127       kkk=index(mtxt,'-')
+!          if(kkk.gt.0) then
 ! NOTE that in LaTeX files the underscore _ is replaced by \_
 ! this means one will not find commands with underscore ....
-!          write(*,130)level,hline(kk:jj),helprec%cpath(level)(1:l2)
-130       format('comparing: ',i3,': ',a,' with ',a)
-          if(hline(kk:kk+l2-1).eq.helprec%cpath(level)(1:l2)) then
+!             mtxt(kkk:kkk)='_'
+!             goto 127
+!          endif
+!          write(*,*)'found mtxt: ',mtxt
+          do jj=1,4
+             if(level.gt.jj) then
+! remove previous command if any from the search text
+                kkk=nsaved(jj)
+                if(mtxt(1:kkk+1) .eq. saved(jj)(1:kkk+1)) then
+!                   write(*,*)'Removing ',mtxt(1:kkk)
+                   mtxt=mtxt(kkk+2:)
+                endif
+             endif
+          enddo
+!          write(*,130)level,mtxt(1:12),helprec%cpath(level)(1:l2),nl
+!          write(*,130)level,hline(kk:jj),helprec%cpath(level)(1:l2),nl
+130       format('comparing: ',i3,': ',a,' with ',a,' line ',i4)
+!          if(hline(kk:kk+l2-1).eq.helprec%cpath(level)(1:l2)) then
+          if(mtxt(1:12).eq.helprec%cpath(level)(1:l2)) then
 ! found one level, save line number for first line
              np1=nl
+!             write(*,*)'We found one level at line: ',np1
+             saved(level)=helprec%cpath(level)
+             nsaved(level)=len_trim(saved(level))
              np2=0
              level=level+1
-             if(index(helprec%cpath(level),' what? ').gt.0) then
-! if next "command/question" finishes with "what?" skip that
-! because it is a submenu question
+             if(level.gt.helprec%level) then
+! we have no more input from user, list the text to next %\section or %\sub...
+                level=level-1
+                goto 100
+             endif
+! look for start line of next level
+!             write(*,133)level,helprec%cpath(level)
+133          format('Next cpath: ',i3,': ',a)
+             if(index(helprec%cpath(level),'COMMAND: ').gt.0 .or. &
+                  index(helprec%cpath(level),' what? ').gt.0) then
+! if next "command/question" starts with COMMAND. or finishes with "what?" 
+! skip that because it is a submenu question and if this is
+! the last command line then just return as user interface will help
+!                write(*,*)'level and helprec%level',level,helprec%level,nsub
+                if(level.ge.helprec%level) goto 900
                 level=level+1
+                goto 100
              endif
              if(nsub.lt.3) nsub=nsub+1
              goto 100
@@ -4784,14 +4820,20 @@ CONTAINS
 ! we should write lines from np1 to np2 from help file
 700 continue
     if(np1.gt.0) then
+       if(np2.lt.np1) then
+          write(*,*)'Help text range error: ',np1,np2
+          goto 900
+       endif
 ! HERE ONE SHOULD OPEN A NEW WINDOW TO DISPLAY THE HELP TEXT BELOW, FOR EXAMPLE
 !       call displayhelp(helprec%filename,np1,np2)
+! write a blank line
+       write(kou,*)
 ! OR IF A HELP WINDOW IS ALREADY OPEN ONE SHOULD FOCUS THE TEXT IN THAT WINDOW
 ! ON LINES NP1 to NP2.
 ! IN THE HELP WINDOW THE USER SHOULD BE ABLE TO SCROLL THE WHOLE HELP TEXT
 ! AND MAYBE MAKE NEW SEACHES.  THE USER CAN CLOSE THE WINDOW WHEN HE WANTS
-       write(*,798)'OPEN HELP WINDOW TO DISPLAY HELP TEXT: ',np1,np2
-798    format(a,2i5)
+       write(*,798)np1,np2
+798    format(' >>> We should open a help window to display text: ',2i5)
        rewind(31)
        nl=0
 800    continue
@@ -4800,7 +4842,10 @@ CONTAINS
        if(nl.ge.np2) then
           goto 900
        elseif(nl.ge.np1) then
-          write(*,120)hline(1:len_trim(hline))
+! do not write lines starting with \ (ascii 92), they are LaTeX commands
+          if(ichar(hline(1:1)).ne.92) then
+             write(*,120)hline(1:len_trim(hline))
+          endif
        endif
        goto 800
     else

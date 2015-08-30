@@ -9,7 +9,7 @@ MODULE liboceqplus
 !
 ! problems as assessment_calfun is defined in matsmin
 ! I did not manage to pass the subroutine name as argument
-use liboceq
+  use liboceq
 !
 CONTAINS
 

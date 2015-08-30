@@ -1,0 +1,103 @@
+@$ Abiabatic flame temoperature
+
+set echo
+
+r t CHO-gas
+
+@$ A pure C3H8 gas has enthalpy content -99288 J at 300 K
+
+@$ adding 7 moles of O with T=300K gives an adiabatic flame T of 3071 K
+
+@$ remove H2O_L as its data above 700K are bad
+
+set ph h2o1_l stat sus
+
+set c t=300 p=1e5 n(c)=3 n(o)=8 n(h)=8 n(o)=1e-8
+
+c e
+
+l,,,,
+
+@&
+
+@$ This is the enthalpy content of C3H8 (11 atoms) at 300 K
+set c H=-99288
+set c t=none
+@$ at 3.5 moles of O2 with T=300 (enthalpy content 0)
+set c n(o)=7
+
+c e
+
+l,,,,
+
+@$ The adiabatic flame temperature is 3107 K, same as TC
+@$ Check how it varies with N(O)
+
+set ax 1
+n(o)
+5
+15
+
+
+
+step
+
+
+plot
+n(o)
+T
+title step 8 fig 1
+
+
+@$ This plot is not really useful ....
+plot
+n(o)
+y(gas,*)
+title step 8 fig 2
+
+
+
+@$ At present we can only plot constiton species one by one (or all)
+plot
+n(o)
+y(gas,h2o1)
+title step 8 fig 3
+
+
+
+plot
+n(o)
+y(gas,c1o1)
+title step 8 fig 4
+
+
+plot
+n(o)
+y(gas,c1o2)
+title step 8 fig 5
+
+
+
+
+plot
+n(o)
+y(gas,o2)
+title step 8 fig 6
+
+
+
+
+plot
+n(o)
+y(gas,h2)
+title step 8 fig 7
+
+
+plot
+T
+y(gas,h2o1)
+title step 8 fig 8
+
+
+set inter
+
