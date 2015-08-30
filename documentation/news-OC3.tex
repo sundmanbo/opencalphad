@@ -1,0 +1,1153 @@
+\documentclass[12pt]{article}
+\usepackage[latin1]{inputenc}
+\usepackage{graphicx,subfigure}
+\topmargin -1mm
+\oddsidemargin -1mm
+\evensidemargin -1mm
+\textwidth 165mm
+\textheight 220mm
+\parskip 2mm
+\parindent 3mm
+%\pagestyle{empty}
+
+\begin{document}
+
+\begin{center}
+{\Large \bf Summary of features in OC version 3 
+
+including assessments and some older stuff
+
+}
+
+\bigskip
+
+Bo Sundman \today
+
+\end{center}
+
+\section{Background}
+
+The Open Calphad (OC) initiative started in 2010 when a group of
+scientists decided that there was a need of a high quality open source
+software to gain wider acceptance of computational thermodynamics (CT)
+as a useful tool in materials science.  The use of thermodynamic
+calculations in many applications is severely restricted by the cost
+as well as the hardware and software limitations imposed by most
+proprietary thermodynamic software.  Providing a free software would
+simplify such implementations and open a much larger market also for
+the high quality databases provided by the commercial vendors.
+
+Another aim was to support the scientific interest in new
+thermodynamic models and improved algorithms for multicomponent
+thermodynamic calculations and a better software for thermodynamic
+assessments as decrsibed in the book by Lukas et al.\cite{07Luk}.  At
+present such developments can only be done by scientists who are
+affiliated to the commercial software companies.
+
+The current OC software is available on~\cite{ocweb}.  For software
+collaborations there is also a repository called opencalphad
+at~\cite{github}.
+
+The OC software in its present state is mainly of interest for
+researchers, scientists and students with programming skills.  In a
+few years it may be as stable as the commercial software and can be
+used also for teaching computational thermodynamics.  There are two
+recently published papers describing OC \cite{15Sun1,15Sun2}.
+
+This summary includes also the essential parts of the new features of
+the previous versions.
+
+\section{Structure of the OC software}
+
+The software is divided into packages.  There are well defined
+software interfaces between the packages that makes it possible to
+extend and change them independently.
+
+\begin{itemize}
+\item The General Thermodynamic Package. (GTP) which has data
+  structures for storing model parameters, conditions and calculated
+  results and code to calculate the Gibbs energy and its first and
+  second derivatives of phase when the $T, P$ and constitution of the
+  phase is known.
+
+  As this was the first package developed it includes a number of
+  general untility facilities needed also by the other packages:
+
+\begin{itemize}
+\item The TP function package for storing and calculating functions
+  that depend on $T$ and $P$, including first and second derivatives.
+\item The METLIB utility package mainly for use by the interactive
+  user interface. Originally written in Fortran 77 and modified to the
+  new Fortran standard but it includes features that are depreciated
+  like ENTRY.
+\item The command line user interface with a VAX/VMS flavour is part
+  of the METLIB package.
+\item The numlib routines for inverting a matrix and solving a system
+  of linear equations.  Currently very old and stable but rather
+  inefficient routines are used.
+\end{itemize}
+
+\item The HMS minimizer implementing the algorithm by
+  Hillert\cite{81Hil} for finding the equilibrium state in a
+  multicomponent system for many different kinds of external
+  conditions.  It makes use of GTP for calculating the Gibbs energy
+  and derivatives for each phase.
+
+\item The step/map/plot (SMP) package for calculating and plotting
+  diagrams.  It uses HMS for calculating equilibria for conditions
+  varying along the axis and the free software GNUPLOT for plotting on
+  various devices.
+
+\item The OC-TQ software interface to integrate OC in general
+  application software for various simulations.  This has now been
+  equipped with an iso-C binding which makes the data structures
+  defined in the Fortran package available to programs in C++, java,
+  phyton and other software langauges.
+
+\end{itemize}
+
+\section{Features in version 1}
+
+The version 1 release of OC in 2013 could calculate multicomponent
+equilibra using Hillert's algorithm\cite{81Hil} for models based on
+the Compound Energy Formalism (CEF)\cite{01Hil,07Luk}. It included a
+possibility to read unencrypted TDB files and a simple command
+interface with macro facilities to set conditions, calculate
+equilibria and list results.  It had a grid minimizer to ensure
+finding the global minimum and detect miscibility gaps.  There was
+also a limited application software interface called OC-TQ.
+
+A compiler for Fortran 95 like GNU gfortran 4.8 or later is required.
+
+\section{Features in version 2}
+
+The most important new facilities since version 1 was generating
+property and phase diagrams.  However, these and many of the other
+features are still incomplete and fragile and may not work properly in
+some cases.  Feedback from users (providing the data and a macro file
+reproducing the problem) is the best way to obtain a more stable and
+error free software.
+
+A new documentation of the code, a user guide and additional examples
+as macro files was also provded.  However, as a complete revision of
+both data structures and subroutines are planned for version 3 the
+docummentation is not yet fully up to date.  Some of the new features
+are summarized below:
+
+\begin{enumerate}
+\item The STEP procedure for property diagram.  Such diagrams are
+  calculated with a single axis variable and the user can calculate
+  and plot how various state variables or model properties depend on
+  the axis variable.  A primitive version of the step procedure was
+  available also in version 1 but in the new version the exact value
+  of the change of the set of stable phases is calculated.
+
+  There is also a ``step separate'' option for Gibbs energy curves and
+  similar things when each phase is calculated separately along the
+  axis.
+
+  There is a problem with the STEP procedure in a binary system using
+  a composition as axis.  The STEP will stop at a phase boundary and
+  it does not take into accound that nothing changes in a two-phase
+  region except the amount of the phases.
+
+\item The MAP procedure for phase diagrams.  This calculates lines
+  where the set of stable phases changes for different values of the
+  axis variables.  At present only two axis are allowed but in a
+  future release up to 5 axis will be implemented.
+
+  As the mapping has some problems to calculate all lines it is
+  possible to execute several map commands and append to the previous
+  results.  As an emergency one can remove lines that are wrong by
+  editing the input file to GNUPLOT.
+
+  Mapping of binary systems is fairly stable although there are
+  problems at the top of miscibility gaps and crossing congruent
+  transformations.  This can usually be handelled by several start
+  points.
+
+  Mapping of multicomponent system is possible but in general many
+  lines are missing.  There is an unresolved problem to exit from
+  certain node points.  Invariant equilibria in ternary or higher
+  order systems are not implemented.
+
+  The present version of mapping will not discover miscibility gaps.
+  The phase diagram for Cr-Fe looks horrible.  Things like that will
+  be taken care of in a future release.
+
+  During both MAP and STEP all calculated equilibria are saved and it
+  is possible to plot various properties.  All node points are saved
+  as equilibria which can be inspected individually and it is also
+  possible to copy equilibria along a line to a current equilibria and
+  extract values.
+
+  The results from a STEP or MAP command can only be saved
+  graphically.  It is not possible to save the results on a file for
+  later use but we are working on that.  The user should create MACRO
+  files for calculations he would like to repeat.
+
+\item GNUPLOT version 4.6 or later is needed to generate the graphics.
+  In the user interface of OC some additional graphics options, like a
+  title and ranges of the x and y axis, has been added.  It is also
+  possible to edit the output files from OC to take advantage of all
+  the graphics facilities of GNUPLOT.
+
+%  GNUPLOT does not support triangular diagrams.
+
+\item The ``dot derivative'' method to calculate derivatives of state
+  variables has been implemented.  This allows calculation of
+  properties like the heat capacity without resorting to numerical
+  derivation.  It makes use of the analytical first and second
+  derivatives of the Gibbs energy for $T, P$ and all constituent
+  fractions implemented in the model package.
+
+  The implementation is not complete but derivatives of several state
+  variables with respect to $T$ are available.
+
+\item The ionic two-sublattice liquid model (I2SL) which can handle
+  liquids with and without short range ordering is implemented.
+
+\item For the OC-TQ interface a new method has been introduced to
+  identify phases called ``phase tuples''.  A phase tuple is a Fortran
+  95 structure (TYPE) with two integer values, one for the phase and
+  the other for the composition set.  The user interface of OC also
+  use phase tuples when listing phases and composition sets.
+
+  When a phase is entered it has one composition set with number 1 and
+  a phase tuple is created with the same index as the phase and the
+  composition set index equal to 1.  When a new composition set is
+  entered for a phase, either by the user or by the software itself,
+  for example the grid minimizer, the phase tuple index for the new
+  composition set will be higher than any of the phases and have as
+  values the phase number and a composition set number 2 or higher.
+
+  There is an example calling the OC-TQ interface from C++.
+
+\item Minor things
+\begin{itemize}
+\item The user can select the reference state of the elements for the
+  thermodynamic properties.  This should be done before any MAP or
+  STEP command.
+
+\item The partitioning of the Gibbs energy for phases with
+  order/disorder transformations has been revised and simplified.
+
+\item The grid minimizer for global equilibria has been improved
+  handling phases with ions.
+
+\item The user can enter several equilibria for the same system and
+  have different conditions in each and calculate them separately and
+  transfer data between them.  This facility is used for storing
+  step/map results and is a preparation for the software to assess
+  model parameters from experimental data.  Each equilibrium is
+  independent and they be calculated in parallel.
+
+\item OC has a flexible way to handle properties like mobilities,
+  elastic constants etc that may depend on the phase, $T, P$ and the
+  phase constitution.  Some properties are predefined but a skilled
+  programmer can easily add a specific property and a model to use it
+  in a calculation.  The values of such properties can be obtained
+  interactivly or by application software in the same way as
+  thermodynamic state variables.
+
+\item Reading TDB files is now less strict and it is possible to
+  specify the elements to be selected from the database.  With some
+  editing of the TDB file it is also possible to read data for ordered
+  phases modelled with the Thermo-Calc partitioned method.
+
+\item It is possible to write parameter files in a TDB format but it
+  may require editing to be read by other software.
+
+\item Parallelization has been tested for the grid minimizer and for
+  the calculation of the inverse phase matrices.  It has been
+  indicated in the code where it can be useful to speed up other parts
+  of the calculations.  A simple test of the parallelization of
+  calulating and inverting of the phase matrices at each iteration
+  reduced the time for some calculations by 25\%.
+
+\item Composition sets created automatically by the grid minimizer
+  should normally be removed if they are not needed after the full
+  equilibrium has been calculated.  
+
+  If the user has created composition sets for phases that may appear
+  with specific constitutions, like the cubic MC carbide as a
+  composition set of the FCC phase, the OC software will try to assign
+  the correct composition to the approriate composition set.
+
+\item Phases with order/disorder transformations like FCC (L1$_2$ and
+  L1$_0$) modelled with 4 sublattices can have an ``FCC\_PERMUTATION''
+  bit set to simplify entering the parameters.  With this bit set the
+  user needs to enter each unique parameter only once, not all the
+  permutations.  All kinds of interaction parameters can be entered up
+  to second order.  For the BCC ordering permutations are more
+  complicated and has not yet been implemented.
+
+\item Phases with LRO ordering (including phases with LRO that never
+  disorder like $\sigma, \mu$ and Laves) one can have a disordered
+  fraction set for parameters that depend on the overall composition
+  of the phase but are independent of the phase constitution.
+\end{itemize}
+
+\end{enumerate}
+
+\subsection{Known bugs and problems and missing features}\label{sc:bugs}
+
+Some things are problemnatic and from the long list of things we wanted
+to implement but did not manage this time, these are a few:
+
+\begin{itemize}
+\item Ternary isothermal sections are difficult to calculate and
+  cannot be plotted (even in a square diagram).
+
+\item Redefinition of the components to other species than the
+  elements is still not possible.
+
+\item Conditions on some state variables like $V, HM$ etc are not yet
+  implemented.  In version 3 one can set condition on $H$ for a
+  system.
+
+\item Conditions which are expressions are not implemented.
+
+\item The corrected quasichemical model for liquids is not
+  implemented.
+
+\item There is no check on miscibility gaps during a step or map
+  command.
+
+\item Saving results from step and map on a file is not possible
+  except graphically with GNUPLOT.
+
+\item The mapping is very fragile, lines are frequently missing or
+  incomplete.
+
+\item Conditions are not restored after finished step/map.
+
+\item There is no plot of tie-lines.
+
+\item The Scheil-Gulliver solidification model is not implemented.
+
+\end{itemize}
+
+As OC is open source anyone who is interested to implement a
+particular feature is welcome to start working on it.
+
+\section{New features in version 3}
+
+The main new feature in version 3 is that OC now has an assessment
+facility to determine model parameters.  The hope is to release this
+version before the end of 2015 but as this is less than a year after
+version 2 was released many things on the wish list from the previous
+release have still not been implemented.  Many bugs has been removed
+and minor features has been improved.
+
+\begin{itemize}
+\item The assessment procedure is a strightforward least square fit of
+  experimental data to the same data calculated by the model.  In fact
+  very little had to be done in the OC software for this purpose as we
+  use as a free optimizing subroutine called LMDIF from the MINPACK
+  software developed at Argonne National Lab 1980.  In OC a subroutine
+  was added to allow this subroutine to change model parameters in the
+  GTP package and to calculate the difference between the experimental
+  data provided by the user and the same property calculated from the
+  models of the phases.
+
+  A number of new commands had to be added for the user to set up and
+  control the assessment process, these are described in
+  section~\ref{sc:ass}.
+
+  The current assessment procedure requires skill and experience to be
+  used and the ambition is to provide a lot of help for beginners
+  using the OC assessment software.  We would also like to develop
+  additional statistical analysis of the results like estimating
+  uncertainties using the assessment results for extrapolations.
+
+\item A full Fortran/C++ application software interface including the
+  use of compatible data structures has been implemented using the
+  isoC binding.  This means such software can directly access results
+  form an Oc calculation without using calls to subroutines.
+
+\item It took a very long time to implemenent calculations using a
+  condition on the enthalpy, $H$, of a system.  This was partly due to
+  some shortcuts made in the earlier versions of OC when calculating
+  second derivatives of the Gibbs energy.  After implementing these
+  derivatives correctly it is now possible to obtain with a single
+  calculation for example the adiabatic flame temperature or the
+  change in $T$ adding a certain amount of heat to a system.
+
+\item Very little has been done for improving STEP and MAP and for
+  many ot the other items in the list in section~\ref{sc:bugs}.  This
+  will be the main task in the next update.
+
+\end{itemize}
+
+\section{Long term goals for the OC software}
+
+The long term software goals with the OC initiative has now been
+reached 
+\begin{itemize}
+\item A model package open for implementation of new models.
+\item A minimizer calculating equilibria for a flexible set of conditions.
+\item Calculation of property and phase diagrams with graphics output.
+\item An assessment package for fitting model parameters.  
+\item A software interface to applications packages.
+\end{itemize}
+All of this in an open software free for non-commercial applications.
+But there are still many bugs and features missing or not fully
+implemented.  This opens a rich field for testing new thermodynamic
+models for anyone interested.  It will also be interesting to
+implement several minimizers and optimizers and improve the graphics.
+
+\section{Short description of all commands}
+
+See the ochelp3 file for a more extensive documentation.  There is
+also a descrciption of the procedure and commands needed to perform an
+assessments in section~\ref{sc:ass}
+
+\subsection{All top level commands}
+
+\begin{tabular}{llll}
+ ABOUT        &   ENTER        &   LIST        &     QUIT\\
+ AMEND        &   EXIT         &   MACRO       &     READ\\
+ BACK         &   FIN          &   MAP         &     SAVE\\
+ CALCULATE    &   HELP         &   NEW         &     SELECT\\
+ DEBUG        &   HPCALC       &   OPTIMIZE    &     SET\\
+ DELETE       &   INFORMATION  &   PLOT        &     STEP\\
+\end{tabular}
+
+One restriction I have applied to commands and subcommands is that one
+should not need to type more than 3 characters to have a unique
+abbreviation.
+
+Directly after the top level command the user can give some options
+preceeded by a slash like /output=filename or /append=filename.  The
+output that would normally appear on the screen will instead be listed
+on this file with extention DAT.  The output option will delete any
+previous content on the file but the append will add the new output at
+the end of the file.  The output is reset to the screen after the
+command.
+
+A frequent Thermo-Calc user must disable his tendency to put hyphens
+or underscore characters between the command and subcommand.
+
+\subsection{Commands without subcommands}
+
+\begin{itemize}
+\item ABOUT the software
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
+\item BACK to calling software (or exit) after confirmation
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
+\item EXIT, terminate the software (in Swedish) after confirmation
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
+\item FIN, terminate the software (in French) without confirmation
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
+\item HELP gives explanations about a (few) commands from the user guide
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
+\item HPCALC starts the inverse polish calculator
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
+\item INFORMATION is not implemented yet
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
+\item MACRO asks for name of macro file and exectutes it.  A macro
+  file can call another macro five levels deeply.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
+\item MAP a phase diagram with 2 or more independent axis.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
+\item NEW asks for confirmation and if so removes all data.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
+\item OPTIMIZE asks for the maxmimum number of iterations and then use
+  a least square routine to obtain the best fit to experimental data
+  by varying the set of model parameters specified by the user.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
+\item QUIT terminates the software (in Enlish) after confirmation
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
+\end{itemize}
+
+\subsection{Commands with subcommands}
+
+Many subcommands are not implemented, I have indicated some but not
+all.
+
+\begin{itemize}
+\item AMEND should change something already entered or set.  But
+  sometimes it creates something so one should be careful if it should
+  be an ENTER or SET command.
+  \begin{itemize}
+  \item ALL\_OPTIM\_COEFF means you can rescale or recover previous
+    set of the optimizing coefficients.
+%============================================
+  \item BIBLIOGRAPHY asks for a bibliographic id and amends its text.
+%============================================
+  \item COMPONENTS changes the set of components (not implemented).
+%============================================
+  \item CONSTITUTION asks for a phase and the user can amend the
+    amount and current constitution of a phase.  I have put this here
+    and not as part of AMEND PHASE to avoid confusion with adding a
+    composition set.
+%============================================
+  \item CP\_MODEL not implemented and probably redundant.
+%============================================
+  \item ELEMENT amends data for an element (not implemented).
+%============================================
+  \item EQUILIBRIUM is not implemented yet.
+%============================================
+  \item GENERAL can name of current equilibrium, the user can specify
+    if he is a beginner (the software can provide more help (not
+    implemented)), or expert, if global gridminimizer should be used
+    and if it can merge composition sets, if composition sets can be
+    created automatically and if redundant composition set can be
+    deleted after an equilibrium calculation. The latter questions are
+    mainly interesting for debugging.
+%============================================
+  \item PARAMETER amends a parameter expression for a phase (not
+    implemented, use ENTER PARAMETER to change it.
+%============================================
+  \item PHASE (default) asks for phase name and amends data for this
+    phase like:
+    \begin{itemize}
+    \item COMPOSITION\_SET (default) adds or deletes a composition
+      set.  Composition sets are needed for miscibility gaps when a
+      phase can be stable with two or more compositions.  A
+      composition set can be identified with a hash symbol ``\#''
+      followed by a number or by a user specified prefix or suffix.
+  
+      Deleting a set will always be the one with the highest number.
+      When adding a set the user can provide a prefix and suffix and
+      the default constitution for this set.
+%--------------------------------------------
+    \item MAGNETIC\_CONTRIB adds an Inden-Hillert magnetic model.
+%--------------------------------------------
+    \item DISORDERED\_FRACS adds a disordered fraction set for an
+      ordered phase.  This replaces AMEND ... DISORDERED\_PART in
+      Thermo-Calc.
+%--------------------------------------------
+    \item GLAS\_TRANSITION adds a glas transition model (not
+      implemented).
+%--------------------------------------------
+    \item QUIT You did not want to amend anything for the phase
+%--------------------------------------------
+    \item DEFAULT\_CONSTIT amends the default constitution for a
+      composition set of the phase.  Same as SET PHASE ``name''
+      DEFAULT\_CONSTITU.
+%--------------------------------------------
+    \item DEBYE\_CP\_MODEL adds a Debye Cp model (not implemented).
+%--------------------------------------------
+    \item EINSTEIN\_CP\_MDL adds a Einstein Cp model (not implemented).
+%--------------------------------------------
+    \item INDEN\_WEI\_MAGMOD adds a magnetic model according to Wei
+      (not implemented).
+%--------------------------------------------
+    \item ELASTIC\_MODEL\_A adds an elastic model (not implemented).
+      Note the LIST MODEL\_PARAM\_ID how to enter $T, P$ and composition
+      dependent elasic constants and lattice parameters.
+    \end{itemize}
+%============================================
+  \item QUIT you did not want to amend anything.
+%============================================
+  \item SPECIES amends data for a species (not implemented).
+%============================================
+  \item SYMBOL the user can specify if the symbol can only be
+    calculated when explicitly named (usually all symbols are
+    evaluated when any symbol is evaluated as they can depend on each
+    other).  This is needed for symbols used as conditions.  The user
+    can also specify that a symbol should be local to a specific
+    equilibrium.  In this way one can store the value of a symbol from
+    one quilibrium and calculate differences with respect to other
+    equilibria.
+%============================================
+  \item TPFUN\_SYMBOL amends a TPfun expression.
+  \end{itemize}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
+\item CALCULATE various things like:
+  \begin{itemize}
+  \item ALL\_EQUILIBRIA all equilibria within the range set for
+    experimental equilibria with non-zero weight are calculated.  This
+    is useful for testing if there are any problems before optimizing.
+%------------------------------
+  \item EQUILIBRIUM (default) is the normal equilibrium calculation
+    command which first calls the grid minimizer (if the conditions
+    allow) and then the iterative minimizer.
+%------------------------------
+  \item GLOBAL\_GRIDMIN Only the grid minimizer is called to find the
+    gridpoints that reperesent the lowest Gibbs energy.  These are
+    normally used by the iterative minimizer to find the real
+    equilibrium.  If followed by COMPUTE NO\_GRDMIN one will have the
+    same result as COMPUTE EQUILIBRIUM.
+%------------------------------
+  \item NO\_GLOBAL calculates the equilibrium for the current set of
+    conditions starting from the current set of stable phases and
+    their constitutions.  No grid minimizer called.
+%------------------------------
+  \item PHASE ask for phase name, amount and constitution and at
+    current $T$ and $P$ calculates either:
+    \begin{itemize}
+    \item ONLY\_G Gibbs energy and first and second derivatives with
+      respect to $T$ and $P$.
+%................
+    \item G\_AND\_DGDY calculates also all first derivatives with
+      respect to the phase constituents.
+%................
+    \item ALL\_DERIVATIVES Also all second derivatives with respect to
+      the phase constituents.
+%................
+    \item CONSTITUTION\_ADJUST will calculate G and all derivatives
+      after adjusting the constitution of the phase to have the
+      minimum Gibbs energy for the same overall composition as the
+      original constitution.  It is only interesting when one or more
+      components are parts of several constituents (not implemented).
+    \end{itemize}
+%------------------------------
+  \item QUIT if you did not really want to calculate anything.
+%------------------------------
+  \item SYMBOL Calculate the value of one or all symbols at the current
+    equilibrium.
+%------------------------------
+  \item TPFUN\_SYMBOLS all TP functions values and their first and
+    second derivatives with respect to T and P (6 values).
+%------------------------------
+  \item TRANSITION asks for a phase to be stable with zero amount and
+    a condition to be released to calculates the equilibrium.  The
+    phase must not have the FIX status.  After the calculation the
+    phase is set to be entered and the released condition set to the
+    calculated value.  If calculation fails the status is not reset
+    (sorry I have not had time to do all).  No grid minimizer called.
+  \end{itemize}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
+\item DEBUG           Nothing of this works
+  \begin{itemize}
+  \item FREE\_LISTS      
+%------------------------------
+  \item STOP\_ON\_ERROR   
+%------------------------------
+  \item ELASTICITY 
+  \end{itemize}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
+\item DELETE Only composition sets and equilibria can be deleted.  To
+  delete a parameter you can amend its expression to be zero.
+  \begin{itemize}
+  \item PHASE (default) but not allowed
+%------------------------------
+  \item ELEMENTS        not allowed
+%------------------------------
+  \item SPECIES         not allowed
+%------------------------------
+  \item QUIT            you did not want to delete anything
+%------------------------------
+  \item COMPOSITION\_SET The highest set is deleted (one cannot delete
+    all).  Must be used with great care.
+%------------------------------
+  \item EQUILIBRIUM must be used with great care.
+  \end{itemize}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
+\item ENTER is the main command to enter data interactivly.  Note that
+  in most cases data are read from a TDB file.
+  \begin{itemize}
+  \item BIBLIOGRAPHY enter a bibligraphic reference id and text.
+%------------------------------
+  \item CONSTITUTION to enter the constitution of a phase (same as AMEND
+    CONSTITUTION).
+%------------------------------
+  \item COPY\_OF\_EQUILIB the current equilibrium is coped to a new one
+    with a name specified by the user.
+%------------------------------
+  \item ELEMENT an element with data.
+%------------------------------
+  \item EQUILIBRIUM an equilibrium record with the specified name is
+    created.  Each equilibrium record has an independent set of
+    conditions.  Will be used for assessments and is already used to
+    store node points during step and map.
+%------------------------------
+  \item EXPERIMENT data for assessments.
+%------------------------------
+  \item OPTIMIZE\_COEFF the coefficinets for use in assessments are
+    entered.
+%------------------------------
+  \item PARAMETER the expression of a parameter of a phase.  The phase,
+    the constituent array and degree must be specified.
+%------------------------------
+  \item PHASE a phase with sublattices, site ratios and constituents.
+    The parameters are entered individually with ENTER PARAMETER.
+%------------------------------
+  \item QUIT you did not want to enter anything.
+%------------------------------
+  \item SPECIES a species with name and stochiometry.  Its name must be
+    unique but one can have several with the same stoichiometry.
+%------------------------------
+  \item SYMBOL (default) name and expression of a state variable
+    function.
+%------------------------------
+  \item TPFUN\_SYMBOL The name and expression of a function of T and P
+    that can be used in parameters.
+  \end{itemize}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
+\item LIST of many things ...  
+
+  Note the possibility to direct output to a file using
+  /output=filename or /append=filename directly after the command, as
+  mentioned in the beginning.
+  \begin{itemize}
+  \item AXIS lists current axis set by the user.
+%=======================================================                
+  \item BIBLIOGRAPHY lists bibliographic text for specific id or all.
+%=======================================================                
+  \item CONDITIONS lists all conditions in current equilibrium.
+%=======================================================                
+  \item DATA lists all parameters on different devices and ways:
+    \begin{itemize}
+    \item SCREEN (default) Writes all parameters for all phases on the
+      screen including the bibliographic information.
+%-------------------------------------------------------
+    \item TDB Writes all parameters on file in TDB format.
+%-------------------------------------------------------
+    \item MACRO Writes all parameters on file as a macro file (not
+      implemented).
+%-------------------------------------------------------
+    \item LATEX Writes all parameters on file as a LaTeX file (not
+      implemented).
+    \end{itemize}
+%=======================================================
+  \item EQUILIBRIA lists all entered equilibria with name and number (no
+    results).
+%=======================================================                
+  \item LINE\_EQUILIBRIA lists all equilibra stored during STEP or MAP.
+    With the SET ADVANCED command one can copy one of these to the
+    current equilibrium.
+%=======================================================                
+  \item MODEL\_PARAM\_ID lists all implemented model parameter
+    identifiers like G, TC, BMAGN, elastic constants etc. that can
+    depend on $T, P$ and constitution of a phase.  The use of such
+    parameters require implementation of the model in the software.
+%=======================================================                
+  \item OPTIMIZATION the result of an optimization is listed.
+%=======================================================                
+  \item PARAMETER lists the expression for a single parameter.
+%=======================================================                
+  \item PHASE asks for phase name and then lists for option
+    \begin{itemize}
+    \item CONSTITUTION (DEFAULT) lists constitution for this phase.
+%-------------------------------------------------------
+    \item DATA lists parameter for this phase (no bibliography).
+%-------------------------------------------------------
+    \item MODEL lists some model information for this phase.
+    \end{itemize}
+%=======================================================                
+  \item QUIT You do not want to list anything.
+%=======================================================                
+  \item RESULTS (default) from an equilibrium calculation.  the program
+    asks for a number how to format the phase information.  
+    \begin{enumerate}
+    \item means stable phases and composition in mole fractions in value order
+    \item means stable phases and composition in mole fractions and constitution
+    \item means stable phases and composition in mole fractions and
+      alphabetical order??
+    \item means stable phases and composition in mass fractions in value order
+    \item means stable phases and composition in mass fractions in
+      alphabetical order??
+    \item means stable phases and composition in mole fractions and constitution
+    \item means all phases and composition in mass fractions
+    \item means all phases and composition in mole fractions and constitutions
+    \item means all phases and composition in mole fractions and
+      alphabetical order
+    \end{enumerate}
+    The conditions are listed first, then some global properties, then
+    some data for each component and then the stable phases with
+    amount and composition.
+%=======================================================                
+  \item SHORT
+    \begin{itemize}
+    \item A writes one line for all elements, species and
+      phases.
+    \item P writes one line for all phases sorted with stable first,
+      then max 10 entered phases in decreasing stability, finally the
+      dormant in decreasing stability.
+    \end{itemize}
+%=======================================================                
+  \item STATE\_VARIABLES asks for state variable symbol and lists it
+    value.  Can also be used for the current value of model parameters
+    as Curie temperature, TC(BCC), MQ\&FE(FCC), etc.
+
+    {\bf I will try to merge list state\_variables and compute symbol
+      to a SHOW command}
+%=======================================================                
+  \item SYMBOLS lists all entered state variable symbols (same in all
+    equilibria).
+%=======================================================                
+  \item TPFUN\_SYMBOLS lists one or all TP function symbols and
+    expressions (same in all equilibria).
+  \end{itemize}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
+\item PLOT asks for state variables or symbols for x and y axis and
+  after that the user can plot directly or change anything in the
+  submenu below.  
+
+  OC generates a command file for GNUPLOT and a data file with the
+  values to plot and then executes this in a separate shell.  The user
+  can edit the command file to add options and execute it again inside
+  gnuplot.  But beware not to overwrite the files you want to edit.
+  There are 10 colors for the lines to plot.  If more than 10 lines to
+  plot the colors are repeated cyclically.
+
+  OC keeps the previous values set of all options set (except the
+  scaling of an axis with a new variable and the output file which is
+  always reset to the default ``ocgnu'') unless changed explicitly.
+
+  I have no idea how to overlay a calculated result with for example
+  experimental data.  Hopefully some GNUPLOT expert will tell me how
+  to do that.
+
+  \begin{itemize}
+  \item RENDER (default) finally plot when all options set.
+%=======================================================                
+  \item XRANGE set plot range on x axis.
+%=======================================================                
+  \item YRANGE set plot range on y axis.
+%=======================================================                
+  \item XTEXT set text on x axis.
+%=======================================================                
+  \item YTEXT set text on y axis.
+%=======================================================                
+  \item TITLE set title of plot.
+%=======================================================                
+  \item POSITION\_OF\_KEYS select position of the labels
+    (identification) of the lines in the plot.  The lables can be
+    placed inside/outside of the plot, to the left/center/right and
+    top/bottom.  See the explanation of ``set key'' in GNUPLOT.
+%=======================================================                
+  \item GRAPHICS\_FORMAT set type of terminal (P for postscript, G for
+    gif).  You will also be asked for output file.
+%=======================================================
+  \item OUTPUT\_FILE set name of plot file (default is ocgnu.dat).
+%=======================================================
+  \item GIBBS\_TRIANGLE set diagram to be a Gibbs triangle (not implemented).
+%=======================================================                
+  \item QUIT you do not want to plot.
+
+    {\bf More options will be added when I understand GNUPLOT better}
+
+  \end{itemize}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
+\item READ At present only TDB and UNFORMATTED implemented.
+  \begin{itemize}
+  \item TDB (default) an unencrypted TDB file can be read.  Many
+    TYPE\_DEFS are not handelled correctly and warning are given.  For
+    partitioned phases you may have to edit the parameters.  The user
+    can select which elements he wants to read.
+%=======================================================                
+  \item UNFORMATTED an unformatted file with model parameters and
+    results for a single equilibrium calculation.  This is very fragile
+    as any change in the data structure may make it impossible to read.
+%=======================================================                
+  \item QUIT you did not want to read anything.
+%=======================================================                
+  \item DIRECT will save results from STEP and MAP on a random acess
+    file (not implemented).
+  \end{itemize}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
+\item SAVE The only save option (partially) implemented is
+  unformatted.
+  \begin{itemize}
+  \item UNFORMATTED (default) A file is written with unformatted data
+    for all thermodynamic data and conditions and results for a single
+    equilibrium.  There is no guarantee an unformatted file will be
+    readable in a later version of OC.
+%=======================================================                
+  \item DIRECT not implemeted yet (for STEP and MAP results).
+%=======================================================                
+  \item QUIT do not save anything.
+  \end{itemize}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
+\item SELECT a few things.
+  \begin{itemize}
+  \item EQUILIBRIUM (default) change the current equilibrium to the
+    selected one (number or name or next or previous).
+%=======================================================                
+  \item MINIMIZER there is only one.       
+%=======================================================                
+  \item OPTIMIZER there is only one.       
+%=======================================================                
+  \item GRAPHICS there is only one.
+%=======================================================                
+  \item LANGUAGE there is only one (English).
+\end{itemize}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
+\item SET can be used for many things.  The most important is
+  conditions.
+  \begin{itemize}
+  \item ADVANCED This command for very special things.
+    \begin{itemize}
+    \item EQUILIB\_TRANSF  transfer an equilibrium calculated along a line
+      in STEP or MAP to current equilibrium.
+
+      {\bf this is probably the most awkward command of all.  But I do not
+        want to have a TRANSFER or COPY command on the top level as that
+        will certainly be misunderstood and misused}
+
+    \item QUIT you did not want to set anything advanced.
+    \end{itemize}
+%================================================
+  \item AS\_START\_EQUILIB use current equilibrium as start for step
+    or map.  Not necessary if there is only one start equilibrium.
+%================================================
+  \item AXIS axis ``number'' to an independent variable (must be a
+    condition).
+%================================================
+  \item BIT some global bits can be set
+%================================================
+  \item CONDITION (default) the state variable and value of a condition.
+    Only single values are allowed, expressions not yet implemented.
+%================================================
+  \item ECHO echo of the input from macro files on the screen.
+%================================================
+  \item FIXED\_COEFF to set an optimizing coefficient to a fixed value.
+%================================================
+  \item INPUT\_AMOUNTS amount of species.  These will be added
+    together and used for conditions of the components.
+%================================================
+  \item INTERACTIVE at the end of macro files.
+%================================================
+  \item LEVEL I am not sure what this was intended for.
+%================================================
+  \item LOG\_FILE the name of a file with a copy of all input and
+    defaults.
+%================================================
+  \item NUMERIC\_OPTIONS maximum number of iterations (default 500)
+    and convergence limit (default 10$^{-6}$).
+%================================================
+  \item OPTIMIZING\_COND depending on the optimizer used for
+    assessment some conditions can be set.
+%================================================
+  \item PHASE the user must specify a phase name and can then ...
+    \begin{itemize}
+    \item STATUS (default) the status of a single phase, or all using
+      an asterisk ``*'', can be set.  See also SET STATUS PHASE
+      with a more flexible way to specify phases.
+%------------------------------------------------
+    \item DEFAULT\_CONSTITU the default constitution of the phase can be
+      set.  Same as AMEND PHASE name DEFAULT\_CONSTITU.
+%------------------------------------------------
+    \item AMOUNT the amount of the phase (redundant).
+%------------------------------------------------
+    \item QUIT nothing is set for the phase.
+%------------------------------------------------
+    \item BITS some special bits for a phase can be set.  At present
+      there is no way to ``UNSET'' these bits ... so be careful.
+      \begin{itemize}
+      \item QUIT (default) no bit is changed.
+%.....................................
+      \item FCC\_PERMUTATIONS to indicate 4 sublattice fcc or hcp
+        permutations.  Only one parameter stored for each unique
+        permutatation.  Must be set before any parameters are entered.
+%.....................................
+      \item BCC\_PERMUTATIONS to indicate 4 sublattice bcc
+        permutations.  Must be set before any parameters are entered
+        (when implemented).
+%.....................................
+      \item IONIC\_LIQUID\_MDL to indicate ionic liquid model.  A
+        phase with the ionic liquid model that is entered interactivly
+        must currently have the name ionic\_liquid and this bit is
+        automatically set.  If read from a TDB file the :Y after the
+        phase name assignes this model.  Setting this bit interactivly
+        has no function at present.
+%.....................................
+      \item AQUEOUS\_MODEL to indicate aqueus model (not impemented).
+%.....................................
+      \item QUASICHEMICAL to indicate quasichemical model (not implemented).
+%.....................................
+      \item FCC\_CVM\_TETRADRN to indicate CVM fcc tetrahedon model (not
+        implemented).
+%.....................................
+      \item FACT\_QUASICHEMCL to indicate FACT quasichemicval model (not
+        implemented).
+%.....................................
+      \item NO\_AUTO\_COMP\_SET to prevent automatic creations of
+        composition sets for this phase.  One can forbid creating
+        automatic composition sets (by the grid minimizer) for all
+        phases with the AMEND GENERAL command.
+      \end{itemize}
+%================================================
+  \item QUIT nothing is set.
+%================================================
+  \item RANGE\_EXP\_EQUIL the first and last equilibrium included in
+    the assessment must be specified.
+%================================================
+  \item REFERENCE\_STATE the reference state of a component.  The phase,
+    $T$ and $P$ must be specified.  The phase must exist with the
+    component as its only component.  When the phase can exist with the
+    component in different ways, like O in a gas can be O, O$_2$ or
+    O$_3$ the most stable is selected.
+%================================================
+  \item SCALED\_COEFF can be used to set a coefficient to be optimized
+    with a specified scaling factor and popssibly a min and max value.
+%================================================
+  \item STATUS          
+    \begin{itemize}
+    \item PHASE (default) one or more phases can be set as suspended,
+      dormant, entered or fixed.  You can use * to mean all phases, *S
+      for all suspended, *D for all dormant and *E for all entered and
+      *U for all entered and unstable.  The list of phases is
+      terminated by an equal sign ``='' or an empty line.
+
+      If the new status is not already given after the equal sign it
+      is asked for.  If the new status is entered or fixed the amount
+      is asked for.
+%------------------------------------------------
+    \item ELEMENT an element can be entered or suspended.
+%------------------------------------------------
+    \item SPECIES a species can be entered or suspended.
+%------------------------------------------------
+    \item CONSTITUENT not implemented.
+    \end{itemize}
+%================================================
+    \end{itemize}
+%================================================
+  \item UNITS like energy Joule/cal or mass kg/lb ... but not implemented yet.
+%================================================
+  \item VARIABLE\_COEFF an optimizing parameter is specfied.
+%================================================
+  \item VERBOSE the software will write extra output.
+%================================================
+  \item WEIGHT to be used for assessments.
+  \end{itemize}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
+\item STEP is used to calculate along a single independent axis
+  variable.
+  \begin{itemize}
+  \item NORMAL follow the axis variable from low to high limit.
+%================================================
+  \item SEPARATE calculate each phase separately.
+%================================================
+  \item QUIT do nothing.
+%================================================
+  \item CONDITIONAL follow the axis variable and update s symbol after
+    each step (to be used for Scheil-Gulliver simulations, not yet
+    implemented).
+  \end{itemize}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%5
+
+\end{itemize}
+
+\section{The assessments procedure in OC}\label{sc:ass}
+
+The normal procedure for an assessment would roughly be performed
+in the following steps.
+
+\begin{enumerate}
+\item On a  macro file file you have the commands to:
+  \begin{itemize}
+  \item ENTER elements, species, phases etc. from a macro file.
+  \item ENTER OPT to enter the coefficients to be optimized, A00 to A99.
+  \item ENTER PARAMETERS with coefficients to be optimized using the
+    symbols A00 to A99.
+    \end{itemize}
+
+\item on the same or on another macro file you have the experimental
+  data.
+  \begin{itemize}
+  \item The data is entered by ENTER EQUILIBRIA command for each
+    experiment and in addition to the necessary conditions you use
+    ENTER EXPERIMENT to specify the experimental data.
+  \item With the command SET RANGE\_EXP\_EQUIL you specify the range of
+    equilibria with experimental data.
+  \end{itemize}
+
+\item The rest of the assessment is done interactivly and the set of
+  commands are used as needed.  Thses must normally be reiterated many
+  many times using different weights of the equilibria and optimizing
+  variables.
+  \begin{itemize}
+  \item You SET VARIABLE\_COEFF to specify a coefficient to be optimized.
+  \item You OPTIMIZE to make a least square fit.  
+  \item You LIST OPTIMIZATION to list the current result.
+  \item You may SET WEIGHT on the different equilibria.
+  \item You may AMEND ALL\_OPTIM\_COEFF to rescale or recover
+    parameters and use many other commands.
+  \end{itemize}
+
+\item When you finished you SAVE TDB to create a TDB file with the
+  results (need editing).
+\end{enumerate}
+
+\subsection{Special commands for an assessment}
+
+The special commands for performing an assessment is described a
+little more in detail here.  Many of the other commands in OC are also
+needed.
+
+\begin{description}
+\item{\bf ENTER OPTIMIZE\_COEFF} enters up to 100 coefficients to be
+  optimized.  They are called A00 to Aij (default A99).  This must be
+  done before any assessment.  The symbols Aij can be used when
+  entering TP functions or parameters.
+
+\item{\bf ENTER EQUILIBRIUM ``name''} experimental data are related to
+  an equilibrium.  This commands enters the necessary data structure
+  to set to conditions for an experiment and to add experimental data.
+
+\item{\bf ENTER EXPERIMENT} for each equilibria the
+  experimental state variable, value and uncertainity is added with
+  this command.
+
+\item{\bf AMEND ALL\_OPTIM\_COEFF} to rescale or recover their values.
+
+\item{\bf LIST OPTIMIZATION} lists results of the optimization in
+  various ways.  Only the SHORT option implemented.
+
+\item{\bf OPTIMIZE} calls the optimizer to obtain a least square fit
+  of the values calculated from the model parameters to the
+  experimental data.
+
+\item{\bf READ EXPERIMENT\_DATA} reads a file with equilibria
+  definitions together with experimental data (POP file).  Not
+  implemented yet, such data can also be read from a macro file.
+
+\item{\bf SET RANGE\_EXP\_EQUIL ``first'' ``last''} must be given to
+  specify the equilibria with experimental data.  They must have been
+  entered sequentially.  An AMEND RANGE will be added.
+
+\item{\bf SET OPTIMIZING\_COND} to set some parameters for the
+  optimizer.
+
+\item{\bf SET VARIABLE\_COEFF ``index'' ``start value''} set a start
+  vaule of a coefficient ij to be optimized.
+
+\item{\bf SET SCALED\_COEFF} ``index'' ``start value'' additionally
+  asks for scaling factor, a min and max value for a coefficient.  Not
+  yet implemented.
+
+\item{\bf SET FIXED\_COEFF ``index ``value''} to set an optimizing
+  coefficent ij to a fixed value (usually its current value)
+
+\item{\bf SET WEIGHT ``value'' ``range''} assigns a value to the
+  weight (default unity) to equilibria with names fitting the
+  ``range''.  If the weight is set to zero the experiments from these
+  equilibria will be ignored.
+
+\item{\bf SELECT EQUILIBRIUM ``name/number''} to select an equilibrium
+  to perform some changes.
+
+\end{description}
+
+There is no special ``edit'' module as in Thermo-Calc for modifying
+the equilibria with experiments, this can be done using the {\bf
+  select\_equilibrium} command. The first equilibrium (DEFAULT) cannot
+be used for experimental data.  Using {\bf step} and {\bf map} will
+also create new equilibria for node points, they may interfere with
+the experimental equilibria, I do not know.  I have to implement some
+nice way to get rid of redundant equilibria, the {\bf delete
+  equilibria} is a bit dangerous.  There is no way yet to save results
+like on a PAR file in Thermo-Calc.
+
+\begin{thebibliography}{77Zzz}
+\bibitem[81Hil]{81Hil} M Hillert, Physica, {\bf 103B} (1981) 31
+\bibitem[01Hil]{01Hil} M Hillert, J of Alloys and Comp {\bf 320} (2001) 161
+\bibitem[07Luk]{07Luk} H L Lukas, S G Fries and B Sundman, {\em Computational
+Thermodynamics}, Cambridge Univ Press (2007)
+\bibitem[http://www.opencalphad.org]{ocweb} http://www.opencalphad.org
+\bibitem[http://github.com]{github} opencalphad at http://github.com.  
+\bibitem[15Sun1]{15Sun1} B Sundman, U Kattner, M Palumbo and S G
+  Fries, OpenCalphad - a free thermodynamic software, Integrating
+  Materials and Manufacturing Innovation, {\bf 4}:1 (2015), open
+  access
+\bibitem[15Sun2]{15Sun2} B Sundman, X-G Lu, H Ohtani, Comp Mat. Sci
+  {\bf 101}(2015) 127
+\end{thebibliography}
+
+\end{document}
