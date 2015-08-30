@@ -4727,6 +4727,7 @@ CONTAINS
 110    continue
        read(31,120,end=700)hline
 120    format(a)
+121    format('- ',a)
        nl=nl+1
        kk=index(hline,subsec(nsub))
        if(nsub.gt.1) then
@@ -4842,9 +4843,12 @@ CONTAINS
        if(nl.ge.np2) then
           goto 900
        elseif(nl.ge.np1) then
-! do not write lines starting with \ (ascii 92), they are LaTeX commands
+! do not write lines starting with \ (backslash, ascii 92),
+! they are LaTeX commands.  Ignore all except \item
           if(ichar(hline(1:1)).ne.92) then
              write(*,120)hline(1:len_trim(hline))
+          elseif(hline(2:5).eq.'item') then
+             write(*,121)hline(6:len_trim(hline))
           endif
        endif
        goto 800
