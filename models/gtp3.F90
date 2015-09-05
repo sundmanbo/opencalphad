@@ -128,8 +128,9 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   use lukasnum
 ! TP functions, tpfunlib makes USE of metlib
   use tpfunlib
+!
 ! for parallel processing
-!  use OMP_LIB
+  use OMP_LIB
 !
 !--------------------------------------------------------------------------
 !

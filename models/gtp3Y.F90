@@ -64,7 +64,7 @@
    endif
    call cpu_time(starting)
    ngrid=0
-! Trace turn on output of grid on a file
+! Trace turn on output of grid on a file ocgrid.dat
 !   trace=.true.
    trace=.FALSE.
    if(trace) write(*,*)'Trace set TRUE'
@@ -160,6 +160,13 @@
 ! we must know before this loop how many gridpoints that each phase will
 ! need.  That is a function of the number of gridpoints.
    kp=1
+!
+! we may write the grid on a file
+   if(trace) then
+      write(*,*)'Opening gridgen.dat'
+      open(33,file='gridgen.dat ',access='sequential')
+   endif
+!
    call system_clock(count=starttid)
 !   write(*,*)'Start calculate gridvalues'
 ! OpenMP parallellization START
@@ -207,6 +214,11 @@
 !      read(*,74)ch1
 !74    format(a)
    enddo phloop
+! we may have open a file
+   if(trace) then
+      write(*,*)'Closing gridgen.dat'
+      close(33)
+   endif
 ! set how many points in 
 !-$omp end parallel do
 ! OpenMP parallellization END
@@ -314,7 +326,7 @@
       endif
    enddo solloop
    if(trace) then
-      write(*,*)'Closing grid file'
+      write(*,*)'Closing ocgrid.dat file'
       close(31)
    endif
 ! there must be as many phases in the solution as there are elements
@@ -661,16 +673,16 @@
 !      trace=.TRUE.
       trace=.FALSE.
       if(iph.eq.1 .and. trace) then
-         open(31,file='gridgen.dat ',access='sequential')
+! unit 33 is opened before calling this routine
          sumngg=0
-         write(31,43)
+         write(33,43)
 43       format('The constituent fractions, y, enclosed within parentheses',&
               'for each sublattice'/'Mole fractions after x:, Gibbs energies',&
               ' after G:'/)
       endif
       if(trace) then
          call get_phase_record(iph,nend)
-         write(31,44)iph,phlista(nend)%name
+         write(33,44)iph,phlista(nend)%name
 44       format('Endmembers (EM) and gridpoints (GP) for phase: ',i3,1x,a)
       endif
    else
@@ -781,7 +793,7 @@
 120 continue
 !   if(trace) then
 !      do i=1,nend
-!         write(31,125)i,(endm(ls,i),ls=1,nsl)
+!         write(33,125)i,(endm(ls,i),ls=1,nsl)
 !125      format('endmem: ',i4,2x,10i3)
 !      enddo
 !   endif
@@ -820,22 +832,24 @@
 !         endif
          if(trace) then
             if(isendmem) then
-               write(31,153,advance='no')sumngg+ngg
+               write(33,153,advance='no')sumngg+ngg
 153            format('EM:',i4,' y: ')
             else
-               write(31,154,advance='no')sumngg+ngg
+               write(33,154,advance='no')sumngg+ngg
 154            format('GP:',i4,' y: ')
             endif
             jbas=0
             do ls=1,nsl
-               write(31,155,advance='no')(yfra(jbas+is),is=1,nkl(ls)-1)
+               write(33,155,advance='no')(yfra(jbas+is),is=1,nkl(ls)-1)
 155            format('(',10(F4.2,','))
-               write(31,156,advance='no')yfra(jbas+nkl(ls))
+               write(33,156,advance='no')yfra(jbas+nkl(ls))
 156            format(F4.2,')')
                jbas=jbas+nkl(ls)
             enddo
-            write(31,157)(xarr(is,ngg),is=1,nrel),garr(ngg)
-157         format(' x:',3f8.5,' G:',1pe12.4)
+            write(33,157,advance='no')(xarr(is,ngg),is=1,nrel)
+157         format(' x:',8(f8.5))
+            write(33,158)garr(ngg)
+158         format(' G:',1pe12.4)
          endif
          isendmem=.FALSE.
       endif
@@ -2019,12 +2033,12 @@
    logical checkremoved
 ! if trace then open file to write grid
    if(trace) then
-      write(*,*)'Writing grid solution on file ocgrid.dat'
+      write(*,*)'Opening ocgrid.dat to write grid solution'
       open(31,file='ocgrid.dat ',access='sequential')
       write(31,700)nrel,kp,(xknown(inuse),inuse=1,nrel)
 700   format('Output from OC gridmin'/' Elements: ',i2,', gridpoints: 'i5,&
            ', composition: '/6(F7.4))
-      write(31,*)' Gridpoints: '
+      write(31,*)' Gridpoints in use: '
       do inuse=1,kp
          write(31,710)inuse,(xarr(inerr,inuse),inerr=1,nrel),garr(inuse)
 710      format(i6,6(1pe12.4))
@@ -2885,7 +2899,7 @@
 ! ceq   equilibrium record
 ! called by global_gridmin
    implicit none
-   integer ngg,nrel,nr
+   integer ngg,nrel,nr,kp,i
    integer, dimension(*) :: kphl,ngrid,iphl
    double precision, dimension(*) :: cmu
    real garr(*),xarr(nrel,*)
@@ -2894,17 +2908,23 @@
    integer ig1,ign,ip,iph,ics,jph,lokcs,lokph,mode,ny,ie,ig
    double precision yarr(maxconst),qq(5),xxx,dgmin
    real dg,gplan
-   if(ocv()) write(*,*)'Entering set_metastable'
+!   write(*,*)'Entering set_metastable'
 ! loop through the gridpoints for all unstable phases and insert the
-! stable constitution that is closest to be stable
+! constitution that is closest to be stable
 !   write(*,7)'set_meta: ',kp,nrel,nr,(iphl(i),i=1,nr)
-!7  format(a,i9,2i4,2x,10i3)
-!   do i=1,noofph
-!      write(*,*)'grid: ',i,kphl(i),ngrid(i)
+7  format(a,i9,2i4,2x,10i3)
+!
+! WOW kphl and ngrid must be incremented by 1 ???? why BUG??
+!
+!   do ig=1,noofph
+!      write(*,*)'phase grid: ',ig,kphl(ig+1),ngrid(ig+1)
 !   enddo
    phloop: do iph=1,noofph
       do jph=1,nr
-         if(iph.eq.iphl(jph)) goto 500
+         if(iph.eq.iphl(jph)) then
+!            write(*,*)'Phase is stable',iph
+            cycle phloop
+         endif
       enddo
       call get_phase_record(iph,lokph)
       if(gx%bmperr.ne.0) goto 1000
@@ -2915,15 +2935,20 @@
 ! new -4 hidden, -3 susp, -2 dorm, -1,0,1 entered, 2 fixed
          if(test_phase_status(iph,ics,xxx,ceq).ge.PHENTUNST) goto 60
       enddo
-      cycle
+      cycle phloop
 ! this phase is not suspended and not stable, find gridpoints
 60    continue
-      ig1=kphl(iph)
-      ign=ngrid(iph)
-      if(ocv()) write(*,69)'Searching gridpoints for: ',iph,ics,ig1,ign
+! these are the grid points belonging to phase iph
+! NOTE add 1 to phase index!!
+      ig1=kphl(iph+1)
+      ign=ngrid(iph+1)
+!      if(ocv()) write(*,69)'Searching gridpoints for: ',iph,ics,ig1,ign
 69    format(a,2(i3,1x),2x,3(i6,1x))
+!      write(*,68)'Chempot: ',(cmu(ie),ie=1,nrel)
+68    format(a,6(1pe12.4))
 ! if ig1=0 there are no gridpoints for this phase, it is suspended or dormant
-      if(ig1.le.0) cycle
+      if(ig1.le.0) cycle phloop
+! if ign=ig1 there is a single gridpoint, just stet dgm
       dgmin=-1.0d12
       ip=0
 ! search for gripoint closeset to stable plane
@@ -2933,13 +2958,19 @@
             gplan=gplan+xarr(ie,ig)*cmu(ie)
          enddo
          dg=gplan-garr(ig)
-!         write(*,74)'dgx: ',ig,dg,dgmin,(xarr(i,ig),i=1,nrel)
-!74       format(a,i5,2(1pe12.4),2x,6(0pf7.4))
-         if(dg.gt.dgmin) then
+!         write(*,74)'dgx: ',ig,gplan,garr(ig),dg,dgmin,(xarr(i,ig),i=1,nrel)
+74       format(a,i5,2(1pe10.2),2x,6(0pf5.2))
+         if(ign.eq.ig1) then
+!            write(*,*)'Single gridpoint, dgm: ',dg
+            dgmin=dg
+            call set_driving_force(iph,1,dgmin,ceq)
+            cycle phloop
+         endif
+         if(abs(dg).lt.abs(dgmin)) then
             ip=ig
             dgmin=dg
-!            write(*,77)'lower: ',ig,gplan,garr(ig),dg,dgmin
-!77          format(a,i7,4(1pe12.4))
+!            write(*,77)'low: ',ig,gplan,garr(ig),dg,dgmin
+77          format(a,i5,4(1pe12.4))
          endif
       enddo
       if(ocv()) write(*,79)'Least unstable gridpoint: ',iph,ics,ig1,ign,dgmin
@@ -2953,7 +2984,7 @@
 ! mode is the gridpoint in the phase, subtract ig1-1
       mode=ip-ig1+1
 ! 
-      if(ocv()) write(*,78)'calling gengrid: ',iph,ig1,ip,ign,mode,dgmin
+!      if(ocv()) write(*,78)'calling gengrid: ',iph,ig1,ip,ign,mode,dgmin
 78    format(a,5i7,1pe12.4)
 ! find the constitution of this gridpoint
       call generate_grid(mode,iph,ign,nrel,xarr,garr,ny,yarr,ceq)
@@ -2969,7 +3000,7 @@
 500   continue
    enddo phloop
 1000 continue
-   if(ocv()) write(*,*)'Finished set_metastable'
+!   write(*,*)'Finished set_metastable'
    return
  end subroutine set_metastable_constitutions
  

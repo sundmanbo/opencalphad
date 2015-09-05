@@ -72,8 +72,13 @@ Computer Materials Science, {\bf 101} (2015) 127-137.
   If you are using a UNIX system there is a Makefile to compile and link
   the program.
 
-  In both cases the program will be called ``ocj'' where j is the
-  version number.
+  In both cases the program will be called ``oc3B''.
+
+\item If you have access to several CPU you can test OC with
+  parallelization using Open MP.  In that case you should use the
+  linkfile ``linkpara.txt'' (after renaming it to linkpara.cmd on
+  Windows.  On Linux you have to figure out how to change the Makefile
+  yourself.  The executable will be called oc3P.exe.
 
 \item For the graphics you must download and install the GNUPLOT
   software.  That is freely available from the web.
@@ -87,22 +92,24 @@ Computer Materials Science, {\bf 101} (2015) 127-137.
 
 \item The documentation of the source code is in the directory
   ``documentation'' in two PDF files ``gtp3'' and ``minpack5'' for the
-  model and minimizer package.  There is also a very rudimentary user
-  guide ``ochelp''.  More informal guides are ``news-OC2'' and
+  model and minimizer package.
+More informal guides are ``news-OC2'' and
   ``OC3-commands''.
 
-\item The user guide is also available in the file ``ochelp.hlp'' in
-  LaTeX format used for the on line help.  The user guide has not been
-  updated since version 1.
+\item There is also a very rudimentary user guide ``ochelp'' in the
+  manual directory.  The user guide is also available in the file
+  ``ochelp.hlp'' in LaTeX format used for the on line help.  The user
+  guide is still very primitive as many commands are changing.
 
 \item The ``macro'' directory has examples for a variety of
   calculations.  There are subdirectories created for testing
   different versions but as the command interface changes those
-  provided with this version will normally not work with previous
+  provided with previous versions will normally not work with a later
   versions.
 
 \item The TQ3lib directory has examples for using the software
-  interface for Fortran and C/C++.
+  interface for Fortran and C/C++.  An attempt to implement isoC
+  binding to C++ has been made.
 
 \item Contributions of new and improved source code are welcome.  You
   can do this using the github repository.  Contact Bo Sundman if you
@@ -112,18 +119,19 @@ Computer Materials Science, {\bf 101} (2015) 127-137.
   reflects the age of the developer.  It means the commands are
   ``verbs'' like {\em set, list, calculate, enter} etc.  After the
   verb several objects are usually possible like {\em
-    set~condition/status} etc.  There is some redundancy so the same
+    set ~condition/status} etc.  There is some redundancy so the same
   effect can sometimes be achieved by different combinations of verbs
   and objects.
 
-  Each command and subcommand can be abbreviated.
+  Each command and subcommand can be abbreviated, never more than 3
+  characters are needed.
 
 \end{itemize}
 
 \section{Some short hints to the user interface}
 
 See also news-OC2 and OC3-commands.  The information in these (as well
-as this) file is not always up-to-date.  You are welcome to inform me
+as this) files are not always up-to-date.  You are welcome to inform me
 about errors an inconsitencies.  If you do not like the current user
 interface you are welcome to implement your own.
 
@@ -156,7 +164,7 @@ get aquantied to OC.
 \item You can save the thermodynamic data and results from a
   calculation on an unformatted file {\em save~UNFORM~``filename''}
   and this can be read back into the program {\em
-    read~UNFORM~``filename''}.  This is fragile.  The DIRECT (random
+    read~UNFORM~``filename''}.  THIS IS FRAGILE.  The DIRECT (random
   access) format is not yet implemented.
 
 \item You can save the thermodynamic data using the TDB format by a
@@ -204,13 +212,17 @@ get aquantied to OC.
 \item The intention is that you should be able to combine any set of
   conditions to calculate the equilibrium, i.e. you should be able to
   combine conditions on mole fractions, mass fractions, fix phases,
-  chemical potentials, enthalpy, volume etc.  In a future release the
-  plan is to allow expressions of conditions, not just a single state
-  variable.
+  chemical potentials etc.  In a future release the plan is to allow
+  expressions of conditions, not just a single state variable.
+
+\item Recently I added condition on the total enthalpy, $H$ of the
+  system.  This is shown in the step8 macro and some others.  It is
+  also possible to set condition on the composition of a phase but
+  there is as yet no macro to show that.
 
 \item For FactSage users there is a command {\em set~input\_amount}
   which allows the user to set the overall composition by specifying
-  the amount of different species in the system.
+  the amount of moles of different species in the system.
 
 \end{itemize}
 
@@ -552,6 +564,22 @@ not call directly subroutines inside the OC code as they may not be
 available or have different functionallity in a future release.  If
 you miss some routines please sent a message or discuss this on the
 github wiki.
+
+\section{Parallelization}
+
+The code has been developed with parallelization in mind and I have
+now started to test this code and surprisingly it seems to work quite
+well.  There is a macro parallel1.OCM showing a calculation of 21
+different equilibria in a 6 component alloy.  They need to be
+initiallized which makes me a bit suspicious but testing changing some
+and calculate again seems to work.  I tested on a PC with 8 CPU and
+the calculation time was about 3 times faster than when calculated
+sequentially.
+
+Parallization can be implemented in several levels in OC, for example
+the grid minimizer, but the ability to calculate many separate
+equilibria in parallel is a key feature to implement full
+thermodynamic calculations in simulations.
 
 \bigskip
 

@@ -767,7 +767,7 @@
 ! unit digit:   0=mole fraction,      othewise mass fractions
 ! 10th digit:   0=only composition,   10=also constitution
 ! 100th digit:  0=value order,        100=alphabetical order
-! 1000th digit: 0=only stable phases, 1000=all phases
+! 1000th digit: 0=all phases,         1000=only stable phases
    implicit none
    integer iph,jcs,mode,lut
    TYPE(gtp_equilibrium_data), pointer :: ceq

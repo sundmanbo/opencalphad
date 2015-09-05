@@ -41,7 +41,7 @@ MODULE liboceq
 !  use hsl_for_oc
 !
 ! For parallellization, also use in gtp3.F90
-!  use omp_lib
+  use omp_lib
 !
   implicit none
   character*8, parameter :: hmsversion='HMS-2.00'
@@ -1486,6 +1486,12 @@ CONTAINS
        if(kkz.ge.PHENTUNST .and. kkz.le.PHENTSTAB) then
 ! phase is entered so its amount can change, -svar(ioff) is the change
           phs=phr(jj)%curd%amfu
+          if(ioff.gt.size(svar)) then
+! error here calculating Fe-Si-C with 2 phases set fix zero
+! setting w(si)=w(c)=none and fix T; should have w(si) fix and T=none
+             write(*,*)'Too many phases with variable fraction',ioff,size(svar)
+             gx%bmperr=7777; goto 1000
+          endif
           deltaam=svar(ioff)
 ! limit change in amount of phase
           if(abs(deltaam).gt.ceq%xconv) then
@@ -3051,6 +3057,8 @@ CONTAINS
                    if(sel.eq.ie) then
                       zcol(ncol)=zcol(ncol)-pham*mamu(je)*mass_of(ie,ceq)
                    endif
+! problem that this reurn whatever for 2nd and higher equilibria
+!                   write(*,*)'mass of: ',ie,mass_of(ie,ceq)
                    ncol=ncol+1
                 enddo wloop2
 ! If T or P are variable
@@ -3230,7 +3238,9 @@ CONTAINS
 !       write(*,*)'mm Calling set_constitution'
        call set_constitution(iph,ics,yarr,qq,ceq)
        if(gx%bmperr.ne.0) then
-          write(*,*)'never never error 17'
+          write(*,*)'MM never error 17',iph,ics
+! output if compiled with OpenMP
+!$        write(*,*)'Thread :',ceq%eqname,omp_get_thread_num(),gx%bmperr
           goto 1000
        endif
     endif

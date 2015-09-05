@@ -3482,9 +3482,20 @@
       enddo
    else
       allocate(eqlista(ieq)%complist(noofel))
+! copy mass of components, maybe other components?
+      do jl=1,noofel
+         eqlista(ieq)%complist(jl)%mass=firsteq%complist(jl)%mass
+      enddo
       allocate(eqlista(ieq)%compstoi(noofel,noofel))
       allocate(eqlista(ieq)%invcompstoi(noofel,noofel))
       allocate(eqlista(ieq)%cmuval(noofel))
+! this is a bit meaningless but skipping it has given raise to strange errors
+      eqlista(ieq)%compstoi=zero
+      eqlista(ieq)%invcompstoi=zero
+      do jl=1,noofel
+         eqlista(ieq)%compstoi(jl,jl)=one
+         eqlista(ieq)%invcompstoi(jl,jl)=one
+      enddo
       eqlista(ieq)%cmuval=zero
       if(ocv()) write(*,*)'3B: entereq 1B: '
       do jl=1,noofel

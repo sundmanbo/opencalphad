@@ -27,6 +27,9 @@ MODULE cmon1oc
 !
   use ocsmp
 !  use liboceq
+! 
+! parallel processing, set in gtp3.F90
+!  use omp_lib
 !
   implicit none
 !
@@ -885,11 +888,27 @@ contains
 ! TEST THIS IN PARALLEL !!!
              call cpu_time(xxx)
              call system_clock(count=j1)
+! OPENMP parallel start
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+! for parallelizing:
+! YOU MUST UNCOMMENT USE OMP_LIB IN GTP3.F90 or PMON6.F90
+! YOU MUST USE THE SWICH -fopenmp FOR COMPILATION AND WHEN LINKING
+!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+!-$omp parallel do private(ng,iv,iph),schedule(dynamic)
+!--$omp parallel do private(ng,iv),schedule(dynamic)
+!--$omp parallel do 
+!        !$OMP for an OMP directive
+!        !$ as sentinel
+!- $OMP parallel do private(gx%bmperr,neweq)
+!$OMP parallel do private(neweq)
              do i1=1,size(firstash%eqlista)
                 neweq=>firstash%eqlista(i1)%p1
+!$                write(*,*)'Loop/equil/thread: ',i1,neweq%eqname,&
+!$                omp_get_thread_num()
                 if(neweq%weight.eq.zero) then
                    write(kou,*)'Equilibrium ',neweq%eqname,' has zero weight'
                 else
+! calculate without grid minimizer
 !                   call calceq2(0,neweq)
 ! calceq3 gives no output
                    call calceq3(0,.FALSE.,neweq)
@@ -902,12 +921,14 @@ contains
                    endif
                 endif
              enddo
+!- $OMP end parallel do not needed???
+! OPENMP parallel end loop
              call system_clock(count=i2)
              call cpu_time(xxy)
              write(kou,664)xxy-xxx,i2-j1
 664          format('Total time: ',1pe12.4,' s and ',i7,' clockcycles')
           else
-             write(kou,*)'You have no experimenal equilibria'
+             write(kou,*)'You must first SET RANGE of experimental equilibria'
           endif
        END SELECT
 !=================================================================
@@ -1820,7 +1841,7 @@ contains
 !---------------------------------------------------------------
        case(10) ! enter equilibrium is always allowed if there are phases
           if(.not.allowenter(3)) then
-             write(kou,*)'There must be at least one phase'
+             write(kou,*)'You must have entered your system first'
              goto 100
           endif
           call gparc('Name: ',cline,last,1,text,' ',q1help)
@@ -2180,6 +2201,7 @@ contains
           write(lut,6303)'Some component data ....................'
           j1=1
           if(listresopt.ge.4 .and. listresopt.le.7) then
+! j1=2 means mass fractions
              j1=2
           endif
           call list_components_result(lut,j1,ceq)
@@ -2207,11 +2229,11 @@ contains
 ! all phases with mass fractions
              mode=1
           elseif(listresopt.eq.8) then
-! all phases with mole fractions and constitution
+! all phases with mole fractions and constitution in value order
              mode=110
           elseif(listresopt.eq.9) then
-! all phases with mole fractions and constitution in alphabetical order
-             mode=10
+! all phases with mole fractions in alphabetical order
+             mode=100
           else
 ! all phase with with mole fractions
              mode=0
