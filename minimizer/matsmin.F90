@@ -1038,14 +1038,16 @@ CONTAINS
 ! the code below does not work ...
              if(jrem.eq.0) then
 ! try to remove a stable phase ... which? make it simple, last or first one
-                if(krem.eq.jrem) then
-                   jrem=meqrec%stphl(meqrec%nstph)
-                else
+! jrem and krem are always zero ... ???
+!                if(krem.eq.jrem) then
+!                   jrem=meqrec%stphl(meqrec%nstph)
+!                else
                    jrem=meqrec%stphl(1)
-                endif
+!                endif
                 krem=jrem
                 irem=jrem
-                if(ocv()) write(*,240)irem,iadd,meqrec%noofits
+!                if(ocv()) write(*,240)irem,iadd,meqrec%noofits
+                write(*,240)irem,iadd,meqrec%noofits
 240             format('Too many phases stable, replacing ',i3,' by ',i3,&
                      ' at iteration ',i4) 
                 replace=.TRUE.
@@ -1723,6 +1725,9 @@ CONTAINS
           if(abs(ycorr(nj)).gt.ycormax2) then
              ycormax2=ycorr(nj)
           endif
+! Sigli converge problem, fixed by changing stable phases in different order
+!          write(*,111)converged,jj,nj,ys
+111       format('Y corr: cc/ph/cons/y: ',i2,2i4,1pe12.4)
           if(abs(ys).gt.ceq%xconv) then
 ! if the change in any constituent fraction larger than xconv continue iterate
 !             write(*,*)'Convergence criteria, phase/const: ',jj,nk

@@ -28,7 +28,11 @@ render
 
 
 @$ calculate the high O side
-set c t=2500 x(o)=.8
+@$ SELECTION OF START POINT IS VERY SENSITIVE ...
+
+set c t=2400 x(o)=.8
+
+c e
 
 c e
 

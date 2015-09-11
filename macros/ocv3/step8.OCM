@@ -31,6 +31,7 @@ c e
 l,,,,
 
 @$ The adiabatic flame temperature is 3107 K, same as TC
+@&
 @$ Check how it varies with N(O)
 
 set ax 1
