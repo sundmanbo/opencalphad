@@ -67,7 +67,7 @@
 module liboctq
 !
 ! access to main OC library for equilibrium calculations and models
-  use liboceq
+  use liboceqplus
 !
   implicit none
 !
@@ -239,6 +239,7 @@ contains
 !\begin{verbatim}
   subroutine tqgpcn(n,c,constituentname,ceq)
 ! get name of consitutent c in phase n
+! NOTE An identical routine with different constituent index is tqgpcn2
     implicit none
     integer n !IN: phase number
     integer c !IN: extended constituent index: 10*species_number+sublattice
@@ -250,6 +251,26 @@ contains
 1000 continue
     return
   end subroutine tqgpcn
+
+!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
+
+!\begin{verbatim}
+  subroutine tqgpcn2(n,c,constituentname,ceq)
+! get name of consitutent c in phase n
+! NOTE An identical routine with different constituent index is tqgpcn
+    implicit none
+    integer n !IN: phase number (not phase tuple)
+    integer c !IN: constituent index sequentially over all sublattices
+    character constituentname*(24) !EXIT: costituent name
+    type(gtp_equilibrium_data), pointer :: ceq !IN: current equilibrium
+!\end{verbatim}
+    double precision mass
+    call get_constituent_name(n,c,constituentname,mass)
+!    write(*,*)'tqgpcn not implemented yet'
+!    gx%bmperr=8888
+1000 continue
+    return
+  end subroutine tqgpcn2
 
 !\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
 
