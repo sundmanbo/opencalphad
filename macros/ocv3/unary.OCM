@@ -8,15 +8,30 @@ set echo
 r t steel1
 fe
 
+@&
+@$ -------------------------------------------------------------------
+@$ list the data
+l data
+
+@&
+@$ -------------------------------------------------------------------
+@$ Set condition to calculate an equilibrium
+
 set c t=1000 p=1e5 n=1
 
 c e
 
-l sh
-
 l,,,,
 
 @&
+@$ -------------------------------------------------------------------
+@$ A short list
+
+l sh
+
+@&
+@$ -------------------------------------------------------------------
+@$ Change condition to total mass
 
 set c b
 
@@ -24,31 +39,19 @@ set c n=none
 
 c e
 
-
 l,,,,
 
+@&
+@$ -------------------------------------------------------------------
+@$ Change T to ensure we can change stable phase
 
 set c t=2000
 c e
 l,,,,
 
 @&
-
-set c b=1
-c e
-l,,,,
-
-@$ some strange problem with combining condition on B and H, use N
-@$ I will look at that later ....
-@$ The same equilibria just changing the size
-set c n=1
-set c b=none
-c e
-
-l,,,,
-@&
-
-@$ set condition in H
+@$ -------------------------------------------------------------------
+@$ set condition of H and remove condition on T
 
 set c h
 
@@ -60,7 +63,11 @@ c e
 
 l,,,,
 @&
-@$ Calculate an equilibria at lower H
+@$ Problem combining condition on B and H, restore condition on N
+set c N=1
+set c B=none
+@$ -------------------------------------------------------------------
+@$ Change value of H and calculate the equilibrium
 
 set c h
 50000
@@ -69,6 +76,6 @@ c e
 
 l,,,,
 
-@$ We have then FCC stable at 1615 K !!
+@$ We have now FCC stable at 1615 K with this value of H
 
 set inter

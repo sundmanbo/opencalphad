@@ -6,6 +6,65 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
+ subroutine get_stable_state_var_value(statevar,value,encoded,ceq)
+! called with a state variable character
+! If the state variable includes a phase it checks if the phase is stable ...
+   implicit none
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+   character statevar*(*),encoded*(*)
+   double precision value
+!\end{verbatim}
+   integer lokcs,ics,ip
+   type(gtp_state_variable), pointer :: svr
+   character modstatevar*28
+!
+   call decode_state_variable(statevar,svr,ceq)
+   if(gx%bmperr.ne.0) goto 1000
+! check if state variable inclused a phase
+! argtyp=0: no arguments
+! argtyp=1: component
+! argtyp=2: phase+compset
+! argtyp=3: phase+compset+component
+! argtyp=4: phase+compset+constituent
+   modstatevar=statevar
+!   write(*,*)'3F stable: ',modstatevar,svr%argtyp,phlista(svr%phase)%noofcs
+   if(svr%argtyp.eq.2) then
+! if compset > 1 specified do nothing
+      if(svr%compset.ne.1) goto 1000
+!      svr%phase,svr%compset
+      lokcs=phlista(svr%phase)%linktocs(svr%compset)
+!      write(*,*)'3F phase: ',svr%compset,phlista(svr%phase)%noofcs,&
+!           ceq%phase_varres(lokcs)%phstate,PHENTSTAB
+      if(ceq%phase_varres(lokcs)%phstate.ne.PHENTSTAB) then
+! phase+compset is not stable, chek if there is other stable compset
+         loop: do ics=1,phlista(svr%phase)%noofcs
+            lokcs=phlista(svr%phase)%linktocs(ics)
+!            write(*,*)'3F looping: ',ics,lokcs,ceq%phase_varres(lokcs)%phstate
+            if(ceq%phase_varres(lokcs)%phstate.eq.PHENTSTAB) then
+! add a composition set index after phase name
+               ip=index(modstatevar,',')
+               if(ip.eq.0) ip=index(modstatevar,')')
+! maybe there is a #1 ??
+               if(modstatevar(ip-2:ip-2).eq.'#') then
+                  modstatevar(ip-1:ip-1)=char(ics+ichar('0'))
+               else
+                  modstatevar(ip:)='#'//char(ics+ichar('0'))
+                  modstatevar(ip+2:)=statevar(ip:)
+               endif
+!               write(*,*)'3F Modfied statevar: ',modstatevar
+               exit loop
+            endif
+         enddo loop
+      endif
+   endif
+   call get_state_var_value(modstatevar,value,encoded,ceq)
+1000 continue
+   return
+ end subroutine get_stable_state_var_value
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
  subroutine get_state_var_value(statevar,value,encoded,ceq)
 ! called with a state variable character
    implicit none

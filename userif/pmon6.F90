@@ -227,7 +227,7 @@ contains
          'PHASE           ','PARAMETER       ','BIBLIOGRAPHY    ',&
          'CONSTITUTION    ','EXPERIMENT      ','QUIT            ',&
          'EQUILIBRIUM     ','SYMBOL          ','OPTIMIZE_COEFF  ',&
-         'COPY_OF_EQUILIB ','COMMENT         ','MANY_EQILIBRIA  ',&
+         'COPY_OF_EQUILIB ','COMMENT         ','MANY_EQUILIBRIA ',&
          '                ','                ','                ']
 !-------------------
 ! subcommands to READ
@@ -287,7 +287,7 @@ contains
          ['FCC_PERMUTATIONS','BCC_PERMUTATIONS','IONIC_LIQUID_MDL',&
          'AQUEOUS_MODEL   ','QUASICHEMICAL   ','FCC_CVM_TETRADRN',&
          'FACT_QUASICHEMCL','NO_AUTO_COMP_SET','QUIT            ',&
-         '                ','                ','                ',&
+         'EXTRA_DENSE_GRID','                ','                ',&
          '                ','                ','                ']
 !         123456789.123456---123456789.123456---123456789.123456
 !-------------------
@@ -346,6 +346,9 @@ contains
          'It includes the General Thermodynamic Package, version ',A/&
          "and Hillert's equilibrium calculation algorithm version ",A/&
          'and step/map/plot software version ',A/)
+!
+!$    write(kou,11)
+11  format('Linked with OpenMp for parallel execution')
 !
 ! jump here after NEW to reinitiallize all local variables also
 20  continue
@@ -881,10 +884,18 @@ contains
           if(gx%bmperr.ne.0) goto 990
 !---------------------------------------------------------------
        case(9) ! calculate all equilibria
+! rather complex to handle both parallel on non-parallel and with/without 
+! griminimizer ...
           if(allocated(firstash%eqlista)) then
-             write(kou,663)size(firstash%eqlista)
-663          format('Calculating ',i3,&
-                  ' experimental equilibria without grid minimizer')
+             call gparcd('With gridminimizer? ',cline,last,1,ch1,'N',q1help)
+! mode=0 is without grid minimizer 
+             mode=1
+             if(ch1.eq.'N') mode=0
+! allow output file
+             lut=optionsset%lut
+!
+! if compiled with parallel and gridminimizser set then calculate
+! sequentially to create composition sets
 ! TEST THIS IN PARALLEL !!!
              call cpu_time(xxx)
              call system_clock(count=j1)
@@ -894,35 +905,81 @@ contains
 ! YOU MUST UNCOMMENT USE OMP_LIB IN GTP3.F90 or PMON6.F90
 ! YOU MUST USE THE SWICH -fopenmp FOR COMPILATION AND WHEN LINKING
 !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+             gridmin: if(mode.eq.1) then
+! if we use grid minimizer do not use parallel even if compiled with OpenMP
+                do i1=1,size(firstash%eqlista)
+                   neweq=>firstash%eqlista(i1)%p1
+                   if(neweq%weight.eq.zero) then
+                      write(kou,2050)neweq%eqname
+2050                  format('Equilibrium ',a,' has zero weight')
+                   else
+                      call calceq3(mode,.FALSE.,neweq)
+                      if(gx%bmperr.ne.0) then
+                         write(kou,2051)gx%bmperr,neweq%eqname
+2051                     format(' *** Error code ',i5,' for equilibrium ',&
+                              a,' reset')
+                         gx%bmperr=0
+                      else
+                         write(lut,2052)neweq%eqname(1:len_trim(neweq%eqname)),&
+                              neweq%tpval(1)
+2052                     format('Calculeted equilibrium ',a,', T=',F8.2)
+                      endif
+                   endif
+! extra symbol calculations ....
+                   call list_equilibrium_extra(lut,neweq)
+                   if(gx%bmperr.ne.0) then
+                      write(kou,*)'Error ',gx%bmperr,' reset'
+                      gx%bmperr=0
+                   endif
+                enddo
+             else
+! We calculate without grid minimizer, if parallel we must turn off
+! creationg/removing composition sets!! not safe!!
+!$             globaldata%status=ibset(globaldata%status,GSNOACS)
+!$             globaldata%status=ibset(globaldata%status,GSNOREMCS)
 !-$omp parallel do private(ng,iv,iph),schedule(dynamic)
 !--$omp parallel do private(ng,iv),schedule(dynamic)
 !--$omp parallel do 
 !        !$OMP for an OMP directive
 !        !$ as sentinel
-!- $OMP parallel do private(gx%bmperr,neweq)
-!$OMP parallel do private(neweq)
-             do i1=1,size(firstash%eqlista)
-                neweq=>firstash%eqlista(i1)%p1
-!$                write(*,*)'Loop/equil/thread: ',i1,neweq%eqname,&
-!$                omp_get_thread_num()
-                if(neweq%weight.eq.zero) then
-                   write(kou,*)'Equilibrium ',neweq%eqname,' has zero weight'
-                else
-! calculate without grid minimizer
-!                   call calceq2(0,neweq)
-! calceq3 gives no output
-                   call calceq3(0,.FALSE.,neweq)
-                   if(gx%bmperr.ne.0) then
-                      write(kou,*)'Equilibrium ',neweq%eqname,&
-                           ' *** error code ',gx%bmperr,' reset'
-                      gx%bmperr=0
+!--!$OMP parallel do private(gx%bmperr,neweq) 
+!--!$OMP parallel do private(neweq)
+!$OMP parallel do private(gx,neweq)
+                do i1=1,size(firstash%eqlista)
+                   neweq=>firstash%eqlista(i1)%p1
+                   if(neweq%weight.eq.zero) then
+                      write(kou,2050)neweq%eqname
                    else
-                      write(kou,*)'Equilibrium ',neweq%eqname,' calculated'
+!$                     if(.TRUE.) then
+!$                        write(*,*)'Loop/equil/thread: ',i1,neweq%eqname,&
+!$                             omp_get_thread_num()
+! calceq3 gives no output and does not use grid minimizer ???
+!$                        call calceq3(mode,.FALSE.,neweq)
+!$                     else
+! note first argument nonzero means use grid minimizer (if possible)
+                          call calceq3(mode,.FALSE.,neweq)
+!$                     endif
+                      if(gx%bmperr.ne.0) then
+                         write(kou,2051)gx%bmperr,neweq%eqname
+                         gx%bmperr=0
+                      else
+                         write(lut,2052)neweq%eqname(1:len_trim(neweq%eqname)),&
+                              neweq%tpval(1)
+                      endif
                    endif
-                endif
-             enddo
+                   call list_equilibrium_extra(lut,neweq)
+                   if(gx%bmperr.ne.0) then
+                      write(kou,*)'*** Error ',gx%bmperr,' reset'
+                      gx%bmperr=0
+                   endif
+                enddo
 !- $OMP end parallel do not needed???
 ! OPENMP parallel end loop
+! allow composition sets to be created again
+!$             globaldata%status=ibclr(globaldata%status,GSNOACS)
+!$             globaldata%status=ibclr(globaldata%status,GSNOREMCS)
+             endif gridmin
+! extra symbol calculations ....
              call system_clock(count=i2)
              call cpu_time(xxy)
              write(kou,664)xxy-xxx,i2-j1
@@ -1241,7 +1298,7 @@ contains
 ! subsubsub command
           case(5) ! set phase bits
              if(iph.lt.0) then
-                write(kou,*)'Wildcard not allowed'
+                write(kou,*)'Wildcards not allowed in this case'
                 goto 100
              endif
              call get_phase_record(iph,lokph)
@@ -1260,7 +1317,8 @@ contains
                 call set_phase_status_bit(lokph,PHBORD)
              case(3) ! IONIC_LIQUID_MDL this may require tests and 
 ! other bits changed ..
-                call set_phase_status_bit(lokph,PHIONLIQ)
+                write(kou,*)'Cannot be set interactivly yet, only from TDB'
+!                call set_phase_status_bit(lokph,PHIONLIQ)
              case(4) ! AQUEOUS_MODEL   
                 write(*,*)'Not implemented yet'
 !                call set_phase_status_bit(lokph,PHAQ1)
@@ -1273,15 +1331,21 @@ contains
              case(7) ! FACT_QUASICHEMCL
                 write(*,*)'Not implemented yet'
 !                call set_phase_status_bit(lokph,PHFACTCE)
-             case(8) ! NO_AUTO_COMP_SET, not allod to create compsets automatic
+             case(8) ! NO_AUTO_COMP_SET, do not create compsets automatically
                 call set_phase_status_bit(lokph,PHNOCS)
              case(9) ! QUIT
-! just quit
-                write(kou,*)'No bit changed'
-                continue
+                write(kou,*)'No other bits changed'
+             case(10) ! EXTRA_DENSE_GRID, this can be toggled ...
+                if(test_phase_status_bit(lokph,PHXGRID)) then
+                   write(kou,*)'Bit already set, is cleared'
+                   call clear_phase_status_bit(lokph,PHXGRID)
+                else
+                   write(kou,*)'Extra gridpoints for this phase.'
+                   call set_phase_status_bit(lokph,PHXGRID)
+                endif
              end SELECT
 !............................................................
-          case(6)
+       case(6)
              write(kou,*)'Not implemented yet'
           END SELECT
 !-------------------------------------------------------------
@@ -1922,7 +1986,8 @@ contains
 !---------------------------------------------------------------
 ! enter MANY_EQUILIBRIA
        case(15)
-          write(*,*)'Not implemented yet'
+          call enter_many_equil(cline,last)
+!          write(*,*)'Not implemented yet'
 !---------------------------------------------------------------
 ! enter not used
        case(16)
@@ -2695,6 +2760,21 @@ contains
           call capson(text)
           if(compare_abbrev(text,'NEXT ')) then
              i1=ceq%eqno+1
+             call selecteq(i1,ceq)
+             if(gx%bmperr.ne.0) goto 990
+             neqdef=i1
+          elseif(compare_abbrev(text,'PREVIOUS ')) then
+             i1=max(ceq%eqno-1,1)
+             call selecteq(i1,ceq)
+             if(gx%bmperr.ne.0) goto 990
+             neqdef=i1
+          elseif(compare_abbrev(text,'LAST ')) then
+             i1=noeq()
+             call selecteq(i1,ceq)
+             if(gx%bmperr.ne.0) goto 990
+             neqdef=i1
+          elseif(compare_abbrev(text,'FIRST ')) then
+             i1=1
              call selecteq(i1,ceq)
              if(gx%bmperr.ne.0) goto 990
              neqdef=i1
@@ -3806,7 +3886,7 @@ contains
           icon=icon+1
           const(icon)=name3
           knr(ll)=knr(ll)+1
-          write(*,66)'constituent: ',knr(ll),icon,jp,const(icon)
+!          write(*,66)'constituent: ',knr(ll),icon,jp,const(icon)
 66        format(a,3i3,a)
 ! increment jp to bypass a separating , 
           jp=jp+1

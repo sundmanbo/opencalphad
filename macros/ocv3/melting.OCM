@@ -6,6 +6,8 @@ set echo
 
 r t steel1
 
+@&
+@$ -------------------------------------------------------------------
 set c t=1200 p=1e5 n=1 x(c)=.01 x(cr)=.05, x(mo)=.05 x(si)=.003 x(v)=.01
 
 c e
@@ -13,7 +15,8 @@ c e
 l ,,,,
 
 @&
-
+@$ -------------------------------------------------------------------
+@$ Calculate the melting T by setting liquid fix and remove condition on T
 c tran
 liq
 1
@@ -21,6 +24,7 @@ liq
 list,,,,,
 
 @&
+@$ -------------------------------------------------------------------
 @$ Test setting a condition on w(fcc,c)
 
 set c x(fcc,c)
@@ -33,6 +37,7 @@ l,,,,
 
 @$ The total carbon content is now lower and the liquid is no longer stable
 @&
+@$ -------------------------------------------------------------------
 @$ Calculate the new melting T
 set ph liq 
 status fix 0
@@ -44,6 +49,7 @@ c e
 l,,,,
 
 @&
+@$ -------------------------------------------------------------------
 @$ Now set condition on current H and remove condition on N
 
 set c H
@@ -53,15 +59,16 @@ set c N=none
 c e
 l,,,,,
 
-@$ We have the same quilibrium, now decrease H a little
+@$ We have the same quilibrium with different conditions
 @&
+@$ -------------------------------------------------------------------
+@$ Now decrease H a little
 set c H=50000
 c e
 
 l,,,,
 
 @$ Note the size of the system has changed, N=0.98966 !!
-
 
 set inter
 

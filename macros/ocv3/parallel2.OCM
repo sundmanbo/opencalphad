@@ -1,0 +1,105 @@
+@$ testing enter many equilibria and calculate in parallel
+@&
+@$ The calculate all command using the grid minimizer does not calculate
+@$ in parallel as I get problems creating composition sets ...
+@$ Calculating without grid minimizer with oc3P will use parallel calculation
+@$
+@$ I also allow the user to output extra data for each equlibrium
+@$ according to a suggestion by Andre
+set echo
+
+r t steel1
+
+
+set cond t=1000 p=1e5 n=1 w(c)=0.01 w(cr)=.05 w(mo)=.08 w(si)=.003 w(v)=0.01
+
+c e
+
+l,,,,,
+@&
+
+enter symbol cp=h.t;
+
+calc symb cp
+
+l state 
+x(bcc,c)
+tc(bcc)
+
+@&
+
+enter many_equil
+@$ set all phases as entered (no amount allowed)
+entered *
+@$ set conditions and refer some values to table columns
+condition t=@1 p=1e5 n=1 w(c)=@2 w(cr)=.05 w(mo)=.08 w(si)=.003 w(v)=0.01
+@$ add a (predefined) symbol to be calculated at each equilibrium
+calc cp
+@$ add a list of (state) variables to be listed at each equilibrium
+list x(fcc,c) tc(bcc)
+@$ Here starts to table values
+table_start
+@$ comment line NOTE first value (coulmn 0) on each line is equilibrium name!!
+@$ equilibrium names like FIRST, NEXT, PREVIOUS, DEFAULT, LAST forbidden
+@$     T is column 1, x(c) is column 2 (Preferably no TAB characters)
+ettan     800 0.008
+tvaan     800 0.009
+equil_3   800 0.010
+equil_4   800 0.011
+equil_5   800 0.012
+equil_6  1000 0.008
+equil_7  1000 0.009
+equil_8  1000 0.010
+equil_9  1000 0.011
+equil_10 1000 0.012
+equil_11 1200 0.008
+equil_12 1200 0.009
+equil_13 1200 0.010
+equil_14 1200 0.011
+equil_15 1200 0.012
+equil_16 1400 0.008
+equil_17 1400 0.009
+equil_18 1400 0.010
+equil_19 1400 0.011
+equil_20 1400 0.012
+equil_21 1600 0.008
+equil_22 1600 0.009
+equil_23 1600 0.010
+equil_24 1600 0.011
+equil_25 1600 0.012
+table_end
+
+@&
+@$ Just list the equilibria
+l eq
+
+@&
+@$ Set range so they can be calculated by the "calculate all" command
+set range 2 26
+
+@&
+@$ Calculate once with gridminimizer, we may create composition sets
+@$ Calculate with gridminimizer disables parallel calculation
+@$ Note the composition of x(fcc,c) is in most cases the cubic carbide,
+@$ it is difficult to specify the austenite.  Evidently redundant composition
+@$ sets are not removed after the equilibrium calculation.  
+@$ There are also problems to make sure user defined composition sets
+@$ have the most similar stable composition.
+@$ Some work is needed with the grid minimizer and the cleanup process.
+@$ I have added that if the phase specified for a state variable is not stable
+@$ the program searches for another stable composition set, 
+@$ thus TC(BCC) is sometimes TC(BCC#2)
+calc all Y
+
+@&
+@$ Calculate without gridminimizer, note the speed
+@$ When calculated in parallel even more ...
+calc all N
+
+@&
+@$ write the output on a file
+calc /out=parallel2 all N
+
+set inter
+
+ 

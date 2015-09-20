@@ -141,10 +141,19 @@ mac opttest1
 
 @$ *********************************************************
 @$ Calculating 21 equilibria in parallel
+@$ Can be used to test parallel calculations
 @& *********************************************************
 
 new Y
 mac parallel1
+
+@$ *********************************************************
+@$ enter a table with many equilibria and calculate all
+@$ Can be used to test parallel calculations
+@& *********************************************************
+
+new Y
+mac parallel2
 
 @$ *********************************************************
 @$ that is all

@@ -5265,5 +5265,90 @@ CONTAINS
     return
   end subroutine assessment_calfun
 
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine list_equilibrium_extra(lut,ceq)
+! list the extra character variabled for calculate symboles and
+! list characters (if any),  It is used in pmon and part of matsmin
+! because it calls subroutines which need access to calculated results
+   implicit none
+   integer lut
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   integer mode,istv,ip,slen
+   character tval*24,symbol*24
+   double precision xxx
+!   write(*,*)'MM calc/list extra: ',ceq%eqname
+   tval=' '
+   symbol=' '
+   extra: if(allocated(ceq%eqextra)) then
+      calcs: if(ceq%eqextra(1)(1:1).ne.' ') then
+! this line contains symbols to be calculated
+!         write(*,*)'MM calc extra: ',ceq%eqextra(1)(1:30)
+         ip=0
+100      continue
+! Third argument 2 means terminate at a space, not at a comma ","
+         call getext(ceq%eqextra(1),ip,2,tval,' ',slen)
+         if(tval(1:1).ne.' ') then
+! This is for a symbol that is not a dot derivative ...
+!            call find_svfun(tval,istv,ceq)
+            call meq_get_state_varorfun_value(tval,xxx,symbol,ceq)
+!            mode=1
+!            call meq_evaluate_svfun(tval,'  ',mode,ceq)
+            if(gx%bmperr.ne.0) then
+               write(*,*)'MM Cannot find symbol: ',tval,' Error reset'
+               gx%bmperr=0
+            else
+!            mode=1
+! meq_evaluate_svfun is declared in matsmin
+!            xxx=meq_evaluate_svfun(istv,'  ',mode,ceq)
+!            xxx=evaluate_svfun_old(istv,'  ',mode,ceq)
+!            if(gx%bmperr.ne.0) then
+!               write(*,*)'MM Cannot calculate symbol: ',tval,' Error reset'
+!               gx%bmperr=0; goto 100
+!            endif
+! symbol empty??
+!               write(lut,110)symbol(1:len_trim(symbol)),xxx
+               write(lut,110)tval(1:len_trim(tval)),xxx
+110            format(3x,a,'=',1pe16.8)
+            endif
+            goto 100
+         endif
+      endif calcs
+      lists: if(ceq%eqextra(2)(1:1).ne.' ') then
+! this line contains state variables and related things to be listed
+!         write(*,*)'MM list extra: ',ceq%eqextra(2)(1:30)
+         ip=0
+200      continue
+! Third argument 2 means terminate at a space, not at a comma ","
+         call getext(ceq%eqextra(2),ip,2,tval,' ',slen)
+!         write(*,*)'MM variable: ',tval,slen
+         if(tval(1:1).ne.' ') then
+            if(index(tval,'*').gt.0) then
+               write(*,*)'MM Not implemented wildcards'
+!            call get_many_svar(tval,...
+            else
+               symbol=' '
+!               call get_state_var_value(tval,xxx,symbol,ceq)
+! This checks that the phase is stable ...
+               call get_stable_state_var_value(tval,xxx,symbol,ceq)
+               if(gx%bmperr.ne.0) then
+                  write(*,*)'MM Cannot list variable: ',tval,' Error reset'
+                  gx%bmperr=0
+               else
+                  write(lut,110)symbol(1:len_trim(symbol)),xxx
+               endif
+            endif
+            goto 200
+         endif
+      endif lists
+   endif extra
+1000 continue
+ end subroutine list_equilibrium_extra
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+
 end MODULE liboceq
 

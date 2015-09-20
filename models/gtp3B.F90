@@ -3445,13 +3445,13 @@
       gx%bmperr=4122
       goto 1000
    endif
-! check if name already used
    call findeq(name2,ieq)
    if(gx%bmperr.eq.0) then
+! error as equilibrium with this name already exists
       gx%bmperr=4123
       goto 1000
    else
-! reset error code
+! OK to reset error code as we are creating a new equilibrium
       gx%bmperr=0
    endif
    if(eqfree.le.maxeq) then
@@ -4016,6 +4016,284 @@
    check_minimal_ford=notallowed
    return
  end function check_minimal_ford
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
+ subroutine enter_many_equil(cline,last)
+! executes an enter many_equilibria command
+! and creates many similar equilibria from a table
+   implicit none
+   character*(*) cline
+   integer last
+!\end{verbatim}
+! enter many_equilibria
+! by default all phases suspended
+! 1 entered phases <list>
+! 2 fixed phases <list>
+! 3 dormant phases <list>
+! 4 conditions ....
+! 5 experiments ....
+! 6 calculate symbols <list>
+! 7 list state_variables <list> 
+! 8 table_start
+! <equil name> values in columns ...
+! 9 table_end
+!
+! values required by @<column> will appear in table in column order
+! EXAMPLE:
+! enter many_equilibria
+! fixed liquid=1 @1=1
+! condition T=1000 p=1e5
+! experiment x(liq,cr)=@2:@3 x(@1,cr)=@4:10%
+! table_start
+! <equil name> bcc 0.15 0.02 0.20
+! ...
+! table_end
+! expandex:
+! experiment x(liq,cr)=0.15:0.02 x(bcc,cr)=0.20:10%
+!
+   integer, parameter :: ncom=8,ncol=9
+   character (len=12), dimension(ncom), parameter :: commands(8)=&
+!        123456789.12...123456789.12...123456789.12...123456789.12
+       ['FIXED       ','ENTERED     ','DORMANT     ','CONDITIONS  ',&
+        'EXPERIMENTS ','CALCULATE   ','LIST        ','TABLE_START ']
+   character*128 rowtext(ncom-1),text*128,dummy*128,tval*24
+   character*128 eqlin(ncom-1),eqname*24
+   integer dcom,kom,done(ncom),ip,jp,kp,ival,jval,neq,slen,shift,ieq,nystat
+   type(gtp_equilibrium_data), pointer ::ceq
+   double precision xxx
+! This is to know where to store column values from a row
+   TYPE gtp_row
+      integer column,position
+   end type gtp_row
+   type(gtp_row), dimension(ncom-1,ncol) :: colvar,coleq 
+!
+   done=0
+   do ip=1,ncom-1
+      colvar(ip,1)%column=0
+      rowtext(ip)=' '
+   enddo
+   jval=0
+   dcom=1
+100 continue
+   call gparcd('Table head: ',cline,last,5,text,commands(dcom),q1help)
+   kom=ncomp(text,commands,ncom,last)
+! increase the default rowtext
+   if(dcom.lt.8) dcom=dcom+1
+   if(kom.le.0) then
+      write(kou,110)text(1:len_trim(text))
+110   format('Error in subcommand to enter many: ',a)
+      gx%bmperr=6660; goto 1000
+   endif
+   if(done(kom).ne.0) then
+      write(kou,*)'Command ',commands(kom),' occures twice'
+      gx%bmperr=6661; goto 1000
+   endif
+   if(kom.lt.8) then
+! skip trailing space after command
+      rowtext(kom)=text(last+1:)
+      done(kom)=1
+! seach for column indicators @digit (max 9 columns)
+      ip=1
+200   continue
+!      write(*,*)'3B at 200: ',rowtext(kom)(ip:len_trim(rowtext(kom))),ip
+      jp=index(rowtext(kom)(ip:),'@')
+      if(jp.gt.0) then
+! only a single digit allowed!!
+         ival=ichar(rowtext(kom)(ip+jp:ip+jp))-ichar('0')
+         if(ival.gt.jval) jval=ival
+         if(ival.le.0 .or. ival.gt.9) then
+! column 0 is name of equilibrium, not a value
+            write(kou,*)ival,rowtext(kom)(1:jp+1)
+210         format('Illegal column for variable: ',i3,': ',a)
+         else
+            do kp=1,ncol
+               if(colvar(kom,kp)%column.eq.0) then
+                  if(kp.lt.ncol) colvar(kom,kp+1)%column=0
+                  colvar(kom,kp)%column=ival
+                  colvar(kom,kp)%position=ip+jp-1
+!                  write(*,235)'3B column: ',kom,kp,ival,ip+jp+1,&
+!                       colvar(kom,kp)%column
+235               format(a,10i4)
+                  goto 250
+               endif
+            enddo
+            write(kou,240)ncol,kom,rowtext(kom)(1:len_trim(rowtext(kom)))
+240         format('More than ',i2,' column variables used in row ',i3/a)
+            gx%bmperr=6664; goto 1000
+! no problem, continue
+250         continue
+         endif
+         ip=ip+jp
+         if(ip.lt.len_trim(rowtext(kom))) then
+            goto 200
+         endif
+      endif
+! force reading next command line from file or keyboard
+      last=len(cline)
+      goto 100
+   endif
+!
+!------------------------------------------------------------
+! Now start generating one equilibrium per line in table
+   neq=0
+300 continue
+! we must not destroy the values in colvar and rowtext!!
+   coleq=colvar
+   eqlin=rowtext
+!   write(*,*)'Output of equilibria head:'
+!   rows7: do ip=1,ncom-1
+!      write(*,302)ip,rowtext(ip)(1:len_trim(rowtext(ip)))
+!302 format('3B at 302: ',i2,': ',a)
+!      do jp=1,ncol
+!         if(coleq(ip,jp)%column.gt.0) then
+!            write(*,303)ip,jp,coleq(ip,jp)%column,coleq(ip,jp)%position
+!303         format('3B coleq: ',2i4,2x,2i4)
+!         else
+!            cycle rows7
+!         endif
+!      enddo
+!   enddo rows7
+   call gparc('Table row: ',cline,last,5,text,' ',q1help)
+   call capson(text)
+!   write(*,*)'3B 300: ',cline(1:len_trim(cline)),' >',text(1:len_trim(text))
+   if(text(1:5).eq.'TABLE') then
+! finish if first word on line is "TABLE" meaning TABLE_END
+      write(kou,310)neq
+310   format('Created ',i5,' equilibria')
+      goto 1000
+   endif
+! values are in column order,the digit after @
+   ip=0
+   values: do ival=0,jval
+! value in column ival should replace all @digit in all lines
+      call getext(text,ip,1,tval,' ',slen)
+!      write(*,*)'3B tval: ',tval,slen,ival
+      if(slen.le.0) then
+         write(kou,*)'Missing column value ',ival
+         gx%bmperr=6667; goto 1000
+      endif
+! first value, in column 0, is equilibrium name
+      if(ival.eq.0) then
+         eqname=tval; cycle values
+      endif
+! the column value can be used in several places, also in the same row
+      com2: do jp=1,ncom-1
+         shift=0
+         com3: do kp=1,ncol
+            if(coleq(jp,kp)%column.gt.0) then
+!               write(*,330)'3B replace: ',jp,kp,coleq(jp,kp)%column,ival,&
+!                    shift,tval
+330            format(a,2i3,i14,2i4,': ',a)
+               if(coleq(jp,kp)%column.eq.ival) then
+! insert column value at coleq(jp,kp)%position
+                  dummy=eqlin(jp)(coleq(jp,kp)%position+2:)
+                  eqlin(jp)(coleq(jp,kp)%position:)=tval
+                  eqlin(jp)(coleq(jp,kp)%position+slen:)=dummy
+!                  write(*,*)'3B eqlin: ',eqlin(jp)(1:len_trim(eqlin(jp)))
+                  shift=shift+slen-2
+               else
+! we must update all following positions in coleq(jp,...)
+!                  write(*,332)'3B shifting: ',jp,kp,coleq(jp,kp)%position,shift
+332               format(a,2i3,2x,2i4)
+                  coleq(jp,kp)%position=coleq(jp,kp)%position+shift
+               endif
+            else
+               cycle com2
+            endif
+         enddo com3
+      enddo com2
+   enddo values
+! check the final equilibrium description
+   neq=neq+1
+!   write(*,*)'3B New equilibrium: ',eqname
+   do kom=1,ncom-1
+      if(eqlin(kom)(1:2).ne.'  ') then
+!         write(kou,510)neq,kom,eqlin(kom)(1:len_trim(eqlin(kom)))
+510      format('3B ',2i3,' :',a)
+      endif
+   enddo
+! create equilibria
+!   write(*,*)'3B enter equilibrium: ',eqname,ieq
+   call enter_equilibrium(eqname,ieq)
+   if(gx%bmperr.ne.0) goto 1000
+!   write(*,*)'3B entered equilibrium: ',eqname
+   call selecteq(ieq,ceq)
+!   write(kou,515)eqname,ieq
+515 format('3B Entered equilibrium: ',a,' with number ',i4)
+! by default set all phases suspended
+   ip=-1; jp=1; nystat=PHSUS; xxx=zero
+!   write(*,*)'3B suspending all phases'
+   call change_phase_status(ip,jp,nystat,xxx,ceq)
+!   call change_many_phase_status(tval,nystat,xxx,ceq)
+   if(gx%bmperr.ne.0) goto 1000
+   if(eqlin(1)(1:1).ne.' ') then
+! fix phases, amount??
+!      write(*,*)'3B setting fixed phases: ',eqlin(1)(1:len_trim(eqlin(1)))
+      nystat=PHFIXED; xxx=one
+      call change_many_phase_status(eqlin(1),nystat,xxx,ceq)
+      if(gx%bmperr.ne.0) goto 1000
+   endif
+   if(eqlin(2)(1:1).ne.' ') then
+! entered phases, amount??
+!      write(*,*)'3B setting entered phases: ',eqlin(2)(1:len_trim(eqlin(2)))
+      nystat=PHENTERED; xxx=zero
+      call change_many_phase_status(eqlin(2),nystat,xxx,ceq)
+      if(gx%bmperr.ne.0) goto 1000
+   endif
+   if(eqlin(3)(1:1).ne.' ') then 
+! dormant phases
+!      write(*,*)'3B setting dormant phases: ',eqlin(3)(1:len_trim(eqlin(3)))
+      nystat=PHDORM; xxx=zero
+      call change_many_phase_status(eqlin(3),nystat,xxx,ceq)
+      if(gx%bmperr.ne.0) goto 1000
+   endif
+   if(eqlin(4)(1:1).ne.' ') then 
+! conditions
+!      write(*,*)'3B setting conditions: ',eqlin(4)(1:len_trim(eqlin(4)))
+      ip=0
+      call set_condition(eqlin(4),ip,ceq)
+      if(gx%bmperr.ne.0) goto 1000
+   endif
+   if(eqlin(5)(1:1).ne.' ') then 
+! experiments
+!      write(*,*)'3B setting experiments: ',eqlin(5)(1:len_trim(eqlin(5)))
+      ip=0
+      call enter_experiment(eqlin(5),ip,ceq)
+      if(gx%bmperr.ne.0) goto 1000
+   endif
+   if(eqlin(6)(1:1).ne.' ') then 
+! calculate
+      allocate(ceq%eqextra(2))
+      ceq%eqextra(1)=eqlin(6)
+      ceq%eqextra(2)=' '
+!      write(*,*)'3B allocating: ',ceq%eqextra(1)(1:len_trim(ceq%eqextra(1)))
+!      mode=1
+!      tval=' '
+!      xxx=meq_evaluate_svfun(istv,tval,mode,ceq)
+!      if(gx%bmperr.ne.0) goto 990
+!      write(*,*)'3B not implemented calculate'
+   endif
+   if(eqlin(7)(1:1).ne.' ') then 
+! list state variables
+!      write(*,*)'3B allocating list line: ',eqlin(7)(1:len_trim(eqlin(7)))
+      if(.not.allocated(ceq%eqextra)) then
+         allocate(ceq%eqextra(2))
+         ceq%eqextra(1)=' '
+      endif
+      ceq%eqextra(2)=eqlin(7)
+!      write(*,*)'3B allocating: ',ceq%eqextra(2)(1:len_trim(ceq%eqextra(2)))
+!      call get_state_var_value(eqlin(7),xxx,dummy,ceq)
+!      if(gx%bmperr.eq.0) then
+!      write(*,*)'3B not implemented list state variables'
+   endif
+! read next line with values
+   goto 300
+!
+1000 continue
+   return
+ end subroutine enter_many_equil
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 

@@ -5,6 +5,8 @@ set echo
 
 r t steel1
 
+@&
+@$------------------------------------------------------
 set c t=1200 p=1e5 n=1 w(c)=.009 w(cr)=.045, w(mo)=.1 w(si)=.001 w(v)=.009
 
 @$ Enter a composition set for the MC carbide (FCC)
@@ -17,6 +19,8 @@ NONE
 >.5
 <.2
 
+@&
+@$------------------------------------------------------
 @$ Set the default constitution for the FCC to be austenite
 amend phase fcc default
 <.2
@@ -37,21 +41,29 @@ NONE
 >.5
 <.2
 
+@$ Finally calculate the equilibrium
+
 c e
 
 l r 1
 
 @&
+@$------------------------------------------------------
+@$ List with mass fractions
 
 l r 4
 
 @&
+@$------------------------------------------------------
+@$ Set an axis for a propery diagram
 
 set axis 1 T 800 1800 10
 
 l ax
 
 @&
+@$------------------------------------------------------
+@$ Calculate equilibria along the axis
 
 step
 
@@ -60,12 +72,20 @@ step
 
 
 @&
+@$------------------------------------------------------
+@$ list the stored equilibria
 
 l line
 
 @&
+@$------------------------------------------------------
+@$ list the node points with phase changes
 
 l eq
+
+@&
+@$------------------------------------------------------
+@$ Plot a phase fraction diagram
 
 plot
 T
@@ -84,19 +104,21 @@ position outside right
 title step 1 fig 2
 render
 
+@$ Plot the Cr content in the stable phases
 plot
 T
 w(*,cr)
 title step 1 fig 3
 render
 
+@$ Plot the enthalpy content
 plot
 T
 H
 title step 1 fig 4
 render
 
-
+@$ Enter a function for the heat capacity and plot it
 ent sym cp=hm.t;
 
 
@@ -107,7 +129,8 @@ cp
 title step 1 fig 5
 render
 
-@$ scaling of y axis
+@$ The Cp is negative as I do not save the endpoint equilibria correctly
+@$ change the range (scaling) of y axis
 
 plot
 T

@@ -1007,13 +1007,16 @@
    name2=name
    call capson(name2)
 ! Accept abbreviations of PREVIOUS and FIRST (DEFAULT is the same as the first)
-!   write(*,*)'3A equil: ',name2(1:20),ieq
+   jeq=0
    if(compare_abbrev(name2,'PREVIOUS ')) then
       jeq=max(1,ieq-1); goto 200
    elseif(compare_abbrev(name2,'FIRST ')) then
       jeq=1; goto 200
+   elseif(compare_abbrev(name2,'DEFAULT ')) then
+      jeq=1; goto 200
+!   elseif(compare_abbrev(name2,'LAST ')) then
+!      jeq=1; goto 200
    endif
-   jeq=0
 100 jeq=jeq+1
 !    write(*,*)'findeq 2: ',jeq,name2
    if(jeq.ge.eqfree) then

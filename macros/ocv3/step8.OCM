@@ -1,13 +1,13 @@
-@$ Abiabatic flame temoperature
+@$ Abiabatic flame temoperature for propane
 
 set echo
 
 r t CHO-gas
 
+@&
+@$-------------------------------------------------------------------
 @$ A pure C3H8 gas has enthalpy content -99288 J at 300 K
-
 @$ adding 7 moles of O with T=300K gives an adiabatic flame T of 3071 K
-
 @$ remove H2O_L as its data above 700K are bad
 
 set ph h2o1_l stat sus
@@ -19,10 +19,12 @@ c e
 l,,,,
 
 @&
-
+@$-------------------------------------------------------------------
 @$ This is the enthalpy content of C3H8 (11 atoms) at 300 K
+
 set c H=-99288
 set c t=none
+
 @$ at 3.5 moles of O2 with T=300 (enthalpy content 0)
 set c n(o)=7
 
@@ -32,6 +34,7 @@ l,,,,
 
 @$ The adiabatic flame temperature is 3107 K, same as TC
 @&
+@$-------------------------------------------------------------------
 @$ Check how it varies with N(O)
 
 set ax 1
@@ -41,6 +44,8 @@ n(o)
 
 
 
+@&
+@$-------------------------------------------------------------------
 step
 
 
@@ -78,14 +83,10 @@ y(gas,c1o2)
 title step 8 fig 5
 
 
-
-
 plot
 n(o)
 y(gas,o2)
 title step 8 fig 6
-
-
 
 
 plot
@@ -94,6 +95,7 @@ y(gas,h2)
 title step 8 fig 7
 
 
+@$ How the H2O1 content depend on T
 plot
 T
 y(gas,h2o1)

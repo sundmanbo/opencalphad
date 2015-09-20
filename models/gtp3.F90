@@ -398,6 +398,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !
 !=================================================================
 !
+! Bits are numbered 0-31
 !\begin{verbatim}
 !-Bits in global status word (GS) in globaldata record
 ! level of user: beginner, occational, advanced; NOGLOB: no global gridmin calc
@@ -437,14 +438,15 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! aqueous, dilute config. entropy (DILCE), quasichemical (QCE), CVM,
 ! FACT,  not create comp. sets (NOCS), Helmholz energy model (HELM),
 ! Model without 2nd derivatives (PHNODGDY2), Elastic model A,
-! explicit charge balance needed (XCB),
+! explicit charge balance needed (XCB), extra dense grid (XGRID)
+! 
   integer, parameter :: &
        PHHID=0,     PHIMHID=1,  PHID=2,    PHNOCV=3, &     ! 1 2 4 8
        PHHASP=4,    PHFORD=5,   PHBORD=6,  PHSORD=7, &
        PHMFS=8,     PHGAS=9,    PHLIQ=10,  PHIONLIQ=11, &   
        PHAQ1=12,    PHDILCE=13, PHQCE=14,  PHCVMCE=15,&
        PHFACTCE=16, PHNOCS=17,  PHHELM=18, PHNODGDY2=19,&
-       PHELMA=20,   PHEXCB=21
+       PHELMA=20,   PHEXCB=21,  PHXGRID=22
 ! 
 !----------------------------------------------------------------
 !-Bits in constituent fraction (phase_varres) record STATUS2
@@ -536,7 +538,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   integer, parameter :: maxel=100,maxsp=1000,maxph=800,maxsubl=10,maxconst=1000
 ! maximum number of consitutents in non-ideal phase
   integer, parameter :: maxcons2=100
-! maximum number of elsements in a species
+! maximum number of elements in a species
   integer, parameter :: maxspel=10
 ! maximum number of references
   integer, private, parameter :: maxrefs=1000
@@ -1150,7 +1152,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !-----------------------------------------------------------------
 !\begin{verbatim}
 ! this must be incremented when a change is made in gtp_equilibrium_data
-  INTEGER, parameter :: gtp_equilibrium_data_version=2
+  INTEGER, parameter :: gtp_equilibrium_data_version=3
   TYPE gtp_equilibrium_data
 ! this contains all data specific to an equilibrium like conditions,
 ! status, constitution and calculated values of all phases etc
@@ -1204,6 +1206,9 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
      double precision :: gmindif=-5.0D-2
 ! maxiter: maximum number of iterations allowed
      integer maxiter
+! This is to store additional things not really invented yet ...
+! It may be used in ENTER MANY_EQUIL for things to calculate and list
+     character (len=80), dimension(:), allocatable :: eqextra
 ! this is to save a copy of the last calculated system matrix, needed
 ! to calculate dot derivatives, initiate to zero
      integer :: sysmatdim=0,nfixmu=0,nfixph=0

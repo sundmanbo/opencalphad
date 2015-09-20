@@ -1,6 +1,7 @@
 @$ testing parallelization
-@$ If you run this macro without having compiled the oc3P version it
+@$ If you run this macro without using oc3P version it
 @$ will be executed sequentially.
+@&
 @$
 @$ This macro should work but unless I calculate the equilibria one by one
 @$ when I enter them I get problems.  There are probably some errors ...
