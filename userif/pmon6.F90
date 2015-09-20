@@ -915,9 +915,9 @@ contains
                    else
                       call calceq3(mode,.FALSE.,neweq)
                       if(gx%bmperr.ne.0) then
-                         write(kou,2051)gx%bmperr,neweq%eqname
+                         write(kou,2051)gx%bmperr,neweq%eqname,mode
 2051                     format(' *** Error code ',i5,' for equilibrium ',&
-                              a,' reset')
+                              a,' reset',i2)
                          gx%bmperr=0
                       else
                          write(lut,2052)neweq%eqname(1:len_trim(neweq%eqname)),&
@@ -946,13 +946,15 @@ contains
 !--!$OMP parallel do private(neweq)
 !$OMP parallel do private(gx,neweq)
                 do i1=1,size(firstash%eqlista)
+! the error code must be set to zero for each thread ?? !!
+                   gx%bmperr=0
                    neweq=>firstash%eqlista(i1)%p1
                    if(neweq%weight.eq.zero) then
                       write(kou,2050)neweq%eqname
                    else
 !$                     if(.TRUE.) then
 !$                        write(*,*)'Loop/equil/thread: ',i1,neweq%eqname,&
-!$                             omp_get_thread_num()
+!$                             omp_get_thread_num(),gx%bmperr
 ! calceq3 gives no output and does not use grid minimizer ???
 !$                        call calceq3(mode,.FALSE.,neweq)
 !$                     else
@@ -960,7 +962,8 @@ contains
                           call calceq3(mode,.FALSE.,neweq)
 !$                     endif
                       if(gx%bmperr.ne.0) then
-                         write(kou,2051)gx%bmperr,neweq%eqname
+                         write(kou,2051)gx%bmperr,neweq%eqname,mode
+                         write(*,*)'Error: ',gx%bmperr
                          gx%bmperr=0
                       else
                          write(lut,2052)neweq%eqname(1:len_trim(neweq%eqname)),&
