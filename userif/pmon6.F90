@@ -1641,22 +1641,31 @@ contains
           write(*,*)'A copy of current equilibrium linked as start eqilibrium'
 !-------------------------
        case(18) ! SET BIT (all kinds of bits) just global implemented
-          write(kou,3710)globaldata%status
-3710      format('Toggles global status word ',z8,' (only for experts): '/&
-               'Bit Used for'/' 0  set if user is a beginner'/&
-               ' 1  set if occational user'/' 2  set if expert'/&
-               ' 3  set if gridminimizer not allowed'/&
-               ' 4  set if gridminimizer is not allowed to merge comp.sets.'/&
-               ' 5  set if these is no data'/' 6  set if there is no phases'/&
-               ' 7  set if not allowed to create comp.sets automatically'/&
-               ' 8  set if not allowed to delete comp.sets automatically'/&
-               ' 9  set if data changed since last save'/&
-               '10  set if verbose'/'11  explicit setting of verbose'/&
-               '12  set if very silent'/&
-               '13  set if no cleanup after an equilibrium calculation'/&
-               '14  set if dense grid in grid minimizer')
+!          call gparid('Toggle bit (from 0-31, -1 quits):',&
+!               cline,last,ll,-1,q1help)
+3708      continue
+! subroutine TOPHLP forces return with ? in position cline(last:last)
           call gparid('Toggle bit (from 0-31, -1 quits):',&
-               cline,last,ll,-1,q1help)
+               cline,last,ll,-1,tophlp)
+!          write(*,*)'Cline: ',cline(1:last+10),last
+          if(cline(last:last).eq.'?') then
+             write(kou,3710)globaldata%status
+3710         format('Toggles global status word ',z8,' (only for experts): '/&
+                  'Bit Used for'/' 0  set if user is a beginner'/&
+                  ' 1  set if occational user'/' 2  set if expert'/&
+                  ' 3  set if gridminimizer not allowed'/&
+                  ' 4  set if gridminimizer must not merge comp.sets.'/&
+                  ' 5  set if these is no data'/&
+                  ' 6  set if there is no phases'/&
+                  ' 7  set if not allowed to create comp.sets automatically'/&
+                  ' 8  set if not allowed to delete comp.sets automatically'/&
+                  ' 9  set if data changed since last save'/&
+                  '10  set if verbose'/'11  set if explicit verbose'/&
+                  '12  set if very silent'/&
+                  '13  set if no cleanup after an equilibrium calculation'/&
+                  '14  set if dense grid in grid minimizer')
+             goto 3708
+          endif
           if(ll.lt.0 .or. ll.gt.31) then
              write(kou,*)'No bit changed'
           elseif(btest(globaldata%status,2) .or. ll.le.2) then

@@ -120,7 +120,6 @@
          kphl(pph)=kp
          iphx(pph)=iph
 ! ionic/fcc/dense grid is delected inside generate_grid
-!         call generate_dense_grid(-1,iph,ng,nrel,xarr,garr,ny,yphl,ceq)
          call generate_grid(-1,iph,ng,nrel,xarr,garr,ny,yphl,ceq)
          if(gx%bmperr.ne.0) goto 1000
          kp=kp+ng
@@ -667,10 +666,10 @@
 ! this reduces the number of gridpoints
       call generate_fccord_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,ceq)
 !      goto 1000
-   elseif(btest(globaldata%status,GSXGRID) .or.&
-        test_phase_status_bit(iph,PHXGRID)) then
-        
-! Generate extra gridpoints
+   elseif( (btest(globaldata%status,GSXGRID) .or. & 
+            test_phase_status_bit(iph,PHXGRID)) .and. &
+        .not.(test_phase_status_bit(iph,PHGAS))) then
+! Generate extra gridpoints (never for gas)
       call generate_dense_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,ceq)
       goto 1000
    endif
@@ -1141,7 +1140,7 @@
    save sumngg
    character ch1*1
 !
-   write(*,17)mode,iph,ngg
+!   write(*,17)mode,iph,ngg
 17 format('entering generate_dense_grid: ',i2,i3,i10)
    if(mode.eq.0) then
 !      write(*,*)'Generating grid for phase: ',iph
@@ -1164,7 +1163,7 @@
    else
       trace=.FALSE.
    endif
-   write(*,*)'Getting phase data',mode
+!   write(*,*)'Getting phase data',mode
    call get_phase_data(iph,1,nsl,nkl,knr,ydum,sites,qq,ceq)
    if(gx%bmperr.ne.0) goto 1000
 ! calculate the number of endmembers and index of first constituent in subl ll
@@ -1183,7 +1182,7 @@
       ngdim=ngg
       ngg=nend
       lokph=phases(iph)
-      write(*,*)'nend 1: ',mode,ngg
+!      write(*,*)'nend 1: ',mode,ngg
       if(nend.eq.1 .or. nend.gt.50 .or. &
            btest(phlista(lokph)%status1,PHID)) then
 ! >50 or 1 endmember or ideal phase: only endmembers
@@ -1212,7 +1211,7 @@
 !      read(*,11)ch1
 11    format(a)
       ny=nend
-      write(*,*)'nend 2: ',mode,ngg
+!      write(*,*)'nend 2: ',mode,ngg
       goto 1001
    endif negmode
 !------------------------------------------------------------
@@ -1278,7 +1277,7 @@
       ngg=ngg+1
       if(mode.eq.0) then
 ! this is fór a single endmember
-         write(*,201)'end: ',ngg,(yfra(is),is=1,inkl(nsl))
+!         write(*,201)'end: ',ngg,(yfra(is),is=1,inkl(nsl))
          call calc_gridpoint(iph,yfra,nrel,xarr(1,ngg),garr(ngg),ceq)
          if(gx%bmperr.ne.0) goto 1000
 201      format(a,i5,20(F5.2))
@@ -1368,7 +1367,7 @@
 !   call get_phase_data(iph,1,nsl,nkl,knr,ydum,sites,qq,ceq)
    errsave=gx%bmperr
    gx%bmperr=0
-   write(*,1010)'Restore ',iph,(ydum(i),i=1,ny)
+!   write(*,1010)'Restore ',iph,(ydum(i),i=1,ny)
 1010 format(a,'const for ',i3,10(f6.3))
    call set_constitution(iph,1,ydum,qq,ceq)
    if(gx%bmperr.ne.0) then
