@@ -1491,7 +1491,7 @@ CONTAINS
           if(ioff.gt.size(svar)) then
 ! error here calculating Fe-Si-C with 2 phases set fix zero
 ! setting w(si)=w(c)=none and fix T; should have w(si) fix and T=none
-             write(*,*)'Too many phases with variable fraction',ioff,size(svar)
+             write(*,*)'Too many phases with variable amount',ioff,size(svar)
              gx%bmperr=7777; goto 1000
           endif
           deltaam=svar(ioff)

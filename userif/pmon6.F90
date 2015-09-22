@@ -922,7 +922,7 @@ contains
                       else
                          write(lut,2052)neweq%eqname(1:len_trim(neweq%eqname)),&
                               neweq%tpval(1)
-2052                     format('Calculeted equilibrium ',a,', T=',F8.2)
+2052                     format('Calculated equilibrium ',a,', T=',F8.2)
                       endif
                    endif
 ! extra symbol calculations ....
@@ -934,7 +934,7 @@ contains
                 enddo
              else
 ! We calculate without grid minimizer, if parallel we must turn off
-! creationg/removing composition sets!! not safe!!
+! creationg/removing composition sets!! not safe to do that!!
 !$             globaldata%status=ibset(globaldata%status,GSNOACS)
 !$             globaldata%status=ibset(globaldata%status,GSNOREMCS)
 !-$omp parallel do private(ng,iv,iph),schedule(dynamic)
@@ -1653,7 +1653,8 @@ contains
                ' 9  set if data changed since last save'/&
                '10  set if verbose'/'11  explicit setting of verbose'/&
                '12  set if very silent'/&
-               '13  set if no cleanup after an equilibrium calculation')
+               '13  set if no cleanup after an equilibrium calculation'/&
+               '14  set if dense grid in grid minimizer')
           call gparid('Toggle bit (from 0-31, -1 quits):',&
                cline,last,ll,-1,q1help)
           if(ll.lt.0 .or. ll.gt.31) then
@@ -1663,7 +1664,7 @@ contains
              if(btest(globaldata%status,ll)) then
                 globaldata%status=ibclr(globaldata%status,ll)
                 write(*,3711)'cleared',globaldata%status
-3711            format('Bit ',a,', new value: ',z8)
+3711            format('Bit ',a,', new value of status word: ',z8)
              else
                 globaldata%status=ibset(globaldata%status,ll)
                 write(*,3711)'set',globaldata%status

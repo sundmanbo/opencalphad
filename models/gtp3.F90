@@ -410,12 +410,13 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! SETVERB: explicit setting of verbose
 ! SILENT: as little output as possible
 ! NOAFTEREQ: no manipulations of results after equilirum calculation
+! XGRID: extra dense grid for all phases
 ! >>>> some of these should be moved to the gtp_equilibrium_data record
   integer, parameter :: &
        GSBEG=0,     GSOCC=1,     GSADV=2,      GSNOGLOB=3, &
        GSNOMERGE=4, GSNODATA=5,  GSNOPHASE=6,  GSNOACS=7, &
        GSNOREMCS=8, GSNOSAVE=9,  GSVERBOSE=10, GSSETVERB=11,&
-       GSSILENT=12, GSNOAFTEREQ=13
+       GSSILENT=12, GSNOAFTEREQ=13, GSXGRID=14
 !----------------------------------------------------------------
 !-Bits in element record
   integer, parameter :: &

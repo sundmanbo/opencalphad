@@ -405,7 +405,9 @@
 !\end{verbatim} %+
    integer qph,ics,oldstat,ipos,slen,lokph,lokcs
    character name*24
+!   write(*,*)'3B phnames: ',phnames(1:30)
    if(phnames(1:1).eq.'*') then
+!      write(*,*)'3G star'
       if(phnames(2:2).eq.'S') then
          oldstat=-3
       elseif(phnames(2:2).eq.'D') then
@@ -418,10 +420,11 @@
          oldstat=1
       elseif(phnames(2:2).eq.' ') then
          qph=-1
+!         write(*,*)'3G star',qph,ics,nystat,val
          call change_phase_status(qph,ics,nystat,val,ceq)
          goto 1000
       else
-         write(*,*)'No such selection of phase status after *'
+         write(*,*)'Illegal selection of old phase status after *'
          gx%bmperr=7222; goto 1000
       endif
 ! loop for all phases to find those with correct old status

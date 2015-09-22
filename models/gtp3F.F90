@@ -2563,12 +2563,17 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\begin{verbatim}
  subroutine sortinphtup(n,m,xx)
+! subroutine sortinphtup(n,m,xx,ceq)
 ! subroutine to sort the values in xx which are in phase and compset order
 ! in phase tuple order.  This is needed by the TQ interface
 ! The number of values belonging to the phase is m (for example composition)
+! argument ceq added as new composition sets can be created ...
    integer n,m
    double precision xx(n*m)
+!   type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
 !
    integer iz,jz,kz,lz,lokph,aha
    double precision, dimension(:), allocatable :: dum
@@ -2585,6 +2590,7 @@
 ! firsteq%phase_varres(..)%phtupx is index of phase tuple for compset
 ! There can be m values (for example compositions) for each phase
          aha=(firsteq%phase_varres(phlista(lokph)%linktocs(jz))%phtupx-1)*m
+!         aha=(ceq%phase_varres(phlista(lokph)%linktocs(jz))%phtupx-1)*m
          do lz=1,m
             dum(aha+lz)=xx(kz+lz)
          enddo

@@ -1,4 +1,7 @@
 
+del *.o
+del *.mod
+
 copy utilities\metlib3.F90 .
 gfortran -c -fbounds-check -finit-local-zero metlib3.F90
 del metlib3.F90
@@ -40,6 +43,4 @@ ar sq liboceq.a metlib3.o tpfun4.o lukasnum.o gtp3.o matsmin.o lmdif1lib.o
 
 gfortran -o oc3B -fbounds-check pmain1.F90 pmon6.o smp1.o liboceq.a
 
-del *.o
-del *.mod
 
