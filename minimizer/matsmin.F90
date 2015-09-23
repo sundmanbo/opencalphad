@@ -1635,6 +1635,8 @@ CONTAINS
           jph=0
           gsurf=zero; summ=zero
           do ie=1,meqrec%nrel
+! fatal parallel execution error once here
+! index '1' of dimension 1 of array 'phr' above upper bound of 0
              gsurf=gsurf+phr(jj)%xmol(ie)*ceq%cmuval(ie)
              summ=summ+phr(jj)%xmol(ie)
           enddo
@@ -3206,7 +3208,16 @@ CONTAINS
 !    write(*,*)'calling get_phase_data: ',iph
     call get_phase_data(iph,ics,nsl,nkl,knr,yarr,sites,qq,ceq)
     if(gx%bmperr.ne.0) then
-       write(*,*)'get_phase_data error in meq_onephase',iph,ics,gx%bmperr
+! handling of parallel by openMP
+!$       if(.TRUE.) then
+! this is written if parallel
+!$          write(*,7)'get_phase_data error in meq_onephase: ',iph,ics,&
+!$               omp_get_thread_num(),gx%bmperr
+!$       else
+! this is written if not parallel
+          write(*,7)'get_phase_data error in meq_onephase: ',iph,ics,gx%bmperr
+!$       endif
+7      format(a,2i3,2x,2i5)
        goto 1000
     endif
 ! make sure all fractions >ymin and sums in all sublattices are equal to unity
@@ -3335,6 +3346,7 @@ CONTAINS
        pmi%xdone=1
 !
 90     continue
+! lokcs is set inside this subroutine
        call calcg(iph,ics,2,lokcs,ceq)
        if (gx%bmperr.ne.0) then
           write(*,*),'calcg error in meq_onephase ',iph,gx%bmperr
@@ -3708,15 +3720,27 @@ CONTAINS
 ! The calculated values are stored and used also in other parts of the code 
     call calcg(iph,ics,2,lokcs,ceq)
     if(gx%bmperr.ne.0) then
-       write(*,*)'MM Error calculating G 2: ',iph,ics,lokcs
+       write(*,11)'MM Error calculating G 2: ',iph,ics,lokcs,gx%bmperr
+11     format(a,5i5)
        goto 1000
     endif
-! calculate phase matrix elements, first second derivatives
+! calculate phase matrix elements, first and second derivatives
     pmat=zero
     neq=ncon
     do ik=1,ncon
        do jk=ik,ncon
-          pmat(ik,jk)=ceq%phase_varres(lokcs)%d2gval(ixsym(ik,jk),1)
+! fatal parallel executoon fequently here ... why?? Error message:
+! index '0' of dimension 1 of array 'ceq' below lower bound of 1
+!          pmat(ik,jk)=ceq%phase_varres(lokcs)%d2gval(ixsym(ik,jk),1)
+! modified code:
+          ll=ixsym(ik,jk)
+! attempt to avoid a crash
+!$          if(lokcs.le.0 .or. ll.le.0) then
+!$             write(*,491)'meq_onephase error: ',lokcs,ll,omp_get_thread_num()
+491          format(' *** ',a,4i5)
+!$             goto 1000
+!$          endif
+          pmat(ik,jk)=ceq%phase_varres(lokcs)%d2gval(ll,1)
 ! remove next line when using an inversion for symmetric matrix
           if(jk.gt.ik) pmat(jk,ik)=pmat(ik,jk)
        enddo

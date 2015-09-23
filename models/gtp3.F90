@@ -411,12 +411,13 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! SILENT: as little output as possible
 ! NOAFTEREQ: no manipulations of results after equilirum calculation
 ! XGRID: extra dense grid for all phases
+! NOPAR: do not run in parallel
 ! >>>> some of these should be moved to the gtp_equilibrium_data record
   integer, parameter :: &
        GSBEG=0,     GSOCC=1,     GSADV=2,      GSNOGLOB=3, &
        GSNOMERGE=4, GSNODATA=5,  GSNOPHASE=6,  GSNOACS=7, &
        GSNOREMCS=8, GSNOSAVE=9,  GSVERBOSE=10, GSSETVERB=11,&
-       GSSILENT=12, GSNOAFTEREQ=13, GSXGRID=14
+       GSSILENT=12, GSNOAFTEREQ=13, GSXGRID=14,GSNOPAR=15
 !----------------------------------------------------------------
 !-Bits in element record
   integer, parameter :: &
@@ -876,7 +877,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! in alphabetical order through the array phases(i)
 ! sublista is now removed and all data included in phlista
 ! sublattice and constituent data (they should be merged)
-! The constitent link is the index to the splista(i), same function
+! The constituent link is the index to the splista(i), same function
 ! as LOKSP in iws.  Species in alphabetcal order is in species(i)
 ! One can allocate a dynamic array for the constituent list, done
 ! by subroutine create_constitlist.

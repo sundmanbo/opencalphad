@@ -848,6 +848,7 @@
    integer iva(maxconst)
    TYPE(gtp_phase_varres), pointer :: peq,neq,ndeq
 !
+!   write(*,*)'3B in enter_composition set',iph,phases(iph),nooftuples
    if(iph.le.0 .or. iph.gt.noofph) then
       gx%bmperr=4050; goto 1000
    endif
@@ -873,12 +874,12 @@
 ! check that prefix is empty or start with a letter
    if(biglet(prefix(1:1)).ne.' ' .and. &
         (biglet(prefix(1:1)).lt.'A' .or. biglet(prefix(1:1)).gt.'Z')) then
-      write(*,*)'Prefix of composition set must start with a letter'
+      write(kou,*)'Prefix of composition set must start with a letter'
       gx%bmperr=4167; goto 1000
    endif
    if(biglet(suffix(1:1)).ne.' ' .and. &
         (biglet(suffix(1:1)).lt.'A' .or. biglet(suffix(1:1)).gt.'Z')) then
-      write(*,*)'Suffix of composition set must start with a letter'
+      write(kou,*)'Suffix of composition set must start with a letter'
       gx%bmperr=4167; goto 1000
    endif
 !------------------------------------------------------------------
@@ -904,15 +905,20 @@
 !   peq=>eqlista(1)%phase_varres(lastcs)
    peq=>firsteq%phase_varres(lastcs)
 !   write(*,*)'3B added compset: ',iph,icsno,noeq()
+!-------------------------------------------------------------------
+! loop for all equilibria
    alleq: do leq=1,noeq()
 ! LOOP for all equilibria records to add this composition set to phase lokph
 ! lastcs is the previously last composition set, nyttcs is the new,
-! same in all equilibria!!
+! same in all equilibria, also for firsteq (eqlista(1))!!
       neq=>eqlista(leq)%phase_varres(nyttcs)
-!      write(*,19)leq,eqlista(leq)%eqno
-19    format('Equilibra: ',10i4)
-      phlista(lokph)%linktocs(icsno)=nyttcs
+!      write(*,19)'3B equil loop 1: ',leq,eqlista(leq)%eqno,lokph,icsno,&
+!           phlista(lokph)%linktocs(icsno),nyttcs,tuple,neq%phlink
+19    format(a,10i4)
+! why is phlista updated here? It is outside the equilibrium record ...
+!      phlista(lokph)%linktocs(icsno)=nyttcs
       neq%phlink=lokph
+!      write(*,19)'3B equil loop 2: ',phlista(lokph)%linktocs(icsno),neq%phlink
 ! prefix and suffix, only letters and digits allowed but not checked ...
       pfix=prefix; sfix=suffix; call capson(pfix); call capson(sfix)
       neq%prefix=pfix
@@ -923,8 +929,12 @@
       neq%phstate=PHENTERED
 ! increment composition set counter when leq=1, phlista same in all equilibria
       if(leq.eq.1) then
+         phlista(lokph)%linktocs(icsno)=nyttcs
          phlista(lokph)%noofcs=phlista(lokph)%noofcs+1
       endif
+!      write(*,19)'3B add tupple: ',leq,nooftuples,tuple,neq%phtupx,icsno,&
+!           nyttcs,phlista(lokph)%linktocs(icsno),&
+!           firsteq%phase_varres(nyttcs)%phtupx
 !      write(*,311)'3B sites: ',leq,iph,icsno,neq%sites
 ! sites, abnorm and amount formula units 
       if(.not.allocated(neq%sites)) allocate(neq%sites(nsl))
@@ -989,7 +999,7 @@
             call create_parrecords(lokph,nydis,nsl,nkk,maxcalcprop,iva,firsteq)
             if(gx%bmperr.ne.0) goto 1000
          else
-            write(*,*)'Using the same: ',leq,lokcs1,nydis
+            write(kou,*)'Using the same: ',leq,lokcs1,nydis
          endif
          ndeq=>eqlista(leq)%phase_varres(nydis)
          ndeq%phlink=lokph

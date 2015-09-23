@@ -905,7 +905,9 @@ contains
 ! YOU MUST UNCOMMENT USE OMP_LIB IN GTP3.F90 or PMON6.F90
 ! YOU MUST USE THE SWICH -fopenmp FOR COMPILATION AND WHEN LINKING
 !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-             gridmin: if(mode.eq.1) then
+!             gridmin: if(mode.eq.1) then
+             gridmin: if(mode.eq.1 .or. &
+                  btest(globaldata%status,GSNOPAR)) then
 ! if we use grid minimizer do not use parallel even if compiled with OpenMP
                 do i1=1,size(firstash%eqlista)
                    neweq=>firstash%eqlista(i1)%p1
@@ -953,12 +955,13 @@ contains
                       write(kou,2050)neweq%eqname
                    else
 !$                     if(.TRUE.) then
-!$                        write(*,*)'Loop/equil/thread: ',i1,neweq%eqname,&
-!$                             omp_get_thread_num(),gx%bmperr
-! calceq3 gives no output and does not use grid minimizer ???
+!$                      write(*,663)'Equil/loop/thread/error: ',neweq%eqname,&
+!$                           i1,omp_get_thread_num(),gx%bmperr
+663                   format(a,a,3i5)
+! calceq3 gives no output
 !$                        call calceq3(mode,.FALSE.,neweq)
 !$                     else
-! note first argument nonzero means use grid minimizer (if possible)
+! note first argument zero means do not use grid minimizer
                           call calceq3(mode,.FALSE.,neweq)
 !$                     endif
                       if(gx%bmperr.ne.0) then
@@ -1645,10 +1648,11 @@ contains
 !               cline,last,ll,-1,q1help)
 3708      continue
 ! subroutine TOPHLP forces return with ? in position cline(last:last)
-          call gparid('Toggle bit (from 0-31, -1 quits):',&
+          write(kou,3709)globaldata%status
+3709      format('Current global status word: ',z8)
+          call gparid('Toggle global status bit (from 0-31, -1 quits):',&
                cline,last,ll,-1,tophlp)
-!          write(*,*)'Cline: ',cline(1:last+10),last
-          if(cline(last:last).eq.'?') then
+          if(cline(1:1).eq.'?') then
              write(kou,3710)globaldata%status
 3710         format('Toggles global status word ',z8,' (only for experts): '/&
                   'Bit Used for'/' 0  set if user is a beginner'/&
@@ -1663,7 +1667,8 @@ contains
                   '10  set if verbose'/'11  set if explicit verbose'/&
                   '12  set if very silent'/&
                   '13  set if no cleanup after an equilibrium calculation'/&
-                  '14  set if dense grid in grid minimizer')
+                  '14  set if dense grid in grid minimizer'/&
+                  '15  set if parallel execution not allowed')
              goto 3708
           endif
           if(ll.lt.0 .or. ll.gt.31) then

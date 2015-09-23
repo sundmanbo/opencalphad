@@ -87,9 +87,9 @@ set range_exp_equil
 2
 4
 
-@$ Calculate all xperimental equilibria
+@$ Calculate all xperimental equilibria with grid minimizer
 
-c all
+c all y
 
 @&
 @$ List optimization to check the coefficients
@@ -114,9 +114,9 @@ set wei 0 za
 
 l eq
 
-@$ Calculate all xperimental equilibria
+@$ Calculate all xperimental equilibria without gridminimizer
 
-c all
+c all N
 
 @&
 @$ Optimize with new set of experiments
@@ -165,9 +165,6 @@ opt 100
 l opt,,
 
 @&
-@$ Now test removing all data, this often cause segmentation error
-
-new Y
 
 set inter
 

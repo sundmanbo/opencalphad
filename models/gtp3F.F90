@@ -2582,15 +2582,18 @@
    kz=0
    do iz=1,noofph
       lokph=phases(iz)
-      do jz=1,noofcs(lokph)
+! difficult bug to find ... should be noofcs(iz) or directly use %noofcs ...
+!      do jz=1,noofs(lokph)
+      do jz=1,phlista(lokph)%noofcs
 ! in xx the values are sequentially for all composition sets for this phase
 ! But they should be stored in tuple order and compset 2 etc comes at the end
 ! the index to the tuple is in %phtups
 ! phlista(lokph)%linktocs(jz) is index of phase_varres record for compset
 ! firsteq%phase_varres(..)%phtupx is index of phase tuple for compset
 ! There can be m values (for example compositions) for each phase
+! BUG FIXED: Sigli example gives hard error here
+! index '0' of array 'firsteq' below lower boundary of 1
          aha=(firsteq%phase_varres(phlista(lokph)%linktocs(jz))%phtupx-1)*m
-!         aha=(ceq%phase_varres(phlista(lokph)%linktocs(jz))%phtupx-1)*m
          do lz=1,m
             dum(aha+lz)=xx(kz+lz)
          enddo
