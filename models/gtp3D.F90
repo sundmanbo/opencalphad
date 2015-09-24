@@ -1690,8 +1690,9 @@ end subroutine get_condition
    if(gx%bmperr.ne.0) goto 1000
 ! if PHNOCV set the composition is fixed
    if(btest(phlista(lokph)%status1,PHNOCV)) goto 1000
-   write(*,10)
-10 format('Give min or max fractions (< or negative value as max)',&
+   write(*,10)ics
+10 format('Give min or max fractions for composition set ',i2/&
+        ' use < or negative value for max, > or positive for min',&
         ' or NONE for no default')
    name=' '
    ky=0
@@ -1762,10 +1763,46 @@ end subroutine get_condition
    enddo
    call enter_default_constitution(iph,ics,mmyfr,ceq)
 !   write(*,99)(mmyfr(jy),jy=1,ky)
-99 format('3D: ',15(f5.1))
+99 format('3D defy: ',15(f5.1))
 1000 continue
    return
  end subroutine ask_default_constitution
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
+ subroutine enter_default_constitution(iph,ics,mmyfr,ceq)
+! user specification of default constitution for a composition set
+   implicit none
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+   integer iph,ics
+   real mmyfr(*)
+!\end{verbatim}
+   integer lokph,lokcs,jl,jk
+!   write(*,*)'3D In enter_default_constitution ',iph,ics
+   call get_phase_compset(iph,ics,lokph,lokcs)
+   if(gx%bmperr.ne.0) goto 1000
+   jk=size(ceq%phase_varres(lokcs)%yfr)
+!   write(*,909)lokph,lokcs,phlista(lokph)%tnooffr,ceq%eqno,&
+!        size(ceq%phase_varres),size(ceq%phase_varres(lokcs)%mmyfr),jk
+909 format('3D 2699: ',10i4)
+!   write(*,46)'3D y: ',(ceq%phase_varres(lokcs)%yfr(jl),jl=1,jk)
+46 format(a,10(F7.3))
+   do jl=1,phlista(lokph)%tnooffr
+      ceq%phase_varres(lokcs)%mmyfr(jl)=mmyfr(jl)
+!      write(*,47)'3D jl: ',jl,mmyfr(jl),&
+!           firsteq%phase_varres(lokcs)%mmyfr(jl),&
+!           ceq%phase_varres(lokcs)%mmyfr(jl)
+   enddo
+47 format(a,i2,10F7.3)
+! set bit indicating that this composition set has a default constitution
+!   write(*,*)'3D enter_default_constitution?? ',lokcs,&
+!        ceq%phase_varres(lokcs)%mmyfr(phlista(lokph)%tnooffr)
+   ceq%phase_varres(lokcs)%status2=&
+        ibset(ceq%phase_varres(lokcs)%status2,CSDEFCON)
+1000 continue
+   return
+ end subroutine enter_default_constitution
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 

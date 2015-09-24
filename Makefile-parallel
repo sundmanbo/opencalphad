@@ -11,7 +11,7 @@ metlib3.o:	utilities/metlib3.F90
 	gfortran -c -fbounds-check  -finit-local-zero utilities/metlib3.F90
 
 tpfun4.o:	utilities/tpfun4.F90
-	gfortran -c -fbounds-check  -finit-local-zero utilities/tpfun4.F90
+	gfortran -c -fopenmp -fbounds-check  -finit-local-zero utilities/tpfun4.F90
 
 lukasnum.o:	numlib/lukasnum.F90
 	gfortran -c -fbounds-check  -finit-local-zero numlib/lukasnum.F90

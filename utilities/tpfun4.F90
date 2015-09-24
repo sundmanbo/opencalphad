@@ -72,6 +72,8 @@ MODULE TPFUNLIB
      INTEGER :: bmperr
   END TYPE gtp_parerr
   TYPE(gtp_parerr) :: gx
+! needed to have error code as private in threads
+!$OMP  threadprivate(gx)
 !\end{verbatim}
 !-----------------------------------------------------------------
 !\begin{verbatim}

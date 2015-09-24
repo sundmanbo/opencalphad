@@ -3451,7 +3451,7 @@
       nystph=10*iph+ics
    else
 ! no new phase found, just to see some values
-      write(*,*)'DG at least unstable gridpoint: ',gdmin
+      write(*,*)'3Y DG at least unstable gridpoint: ',gdmin
    endif
 1000 continue
    return
@@ -3661,40 +3661,6 @@
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim}
- subroutine enter_default_constitution(iph,ics,mmyfr,ceq)
-! user specification of default constitution for a composition set
-   implicit none
-   TYPE(gtp_equilibrium_data), pointer :: ceq
-   integer iph,ics
-   real mmyfr(*)
-!\end{verbatim}
-   integer lokph,lokcs,jl,jk
-   call get_phase_compset(iph,ics,lokph,lokcs)
-   if(gx%bmperr.ne.0) goto 1000
-   jk=size(ceq%phase_varres(lokcs)%yfr)
-!   write(*,909)lokph,lokcs,phlista(lokph)%tnooffr,ceq%eqno,&
-!        size(ceq%phase_varres),size(ceq%phase_varres(lokcs)%mmyfr),jk
-909 format('3Y 2699: ',10i4)
-!   write(*,46)'3Y y: ',(ceq%phase_varres(lokcs)%yfr(jl),jl=1,jk)
-46 format(a,10(F7.3))
-   do jl=1,phlista(lokph)%tnooffr
-      ceq%phase_varres(lokcs)%mmyfr(jl)=mmyfr(jl)
-!      write(*,47)'3Y jl: ',jl,mmyfr(jl),&
-!           firsteq%phase_varres(lokcs)%mmyfr(jl),&
-!           ceq%phase_varres(lokcs)%mmyfr(jl)
-   enddo
-47 format(a,i2,10F7.3)
-! set bit indicating that this composition set has a default constitution
-!   write(*,*)'3Y enter_default_constitution?? ',lokcs
-   ceq%phase_varres(lokcs)%status2=&
-        ibset(ceq%phase_varres(lokcs)%status2,CSDEFCON)
-1000 continue
-   return
- end subroutine enter_default_constitution
-
-!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
-
-!\begin{verbatim}
  subroutine set_phase_amounts(jph,ics,val,ceq)
 ! set the amount formula units of a phase. Called from user i/f
 ! iph can be -1 meaning all phases, all composition sets
@@ -3849,8 +3815,8 @@
  subroutine todo_after_found_equilibrium(mode,ceq)
 ! this is called after an equilibrium calculation
 ! It marks stable phase (set CSSTABLE and remove any CSAUTO)
-! remove redundant unstable composition sets created automatically
-! (CSAUTO set).  It will also shift stable composition sets to loweest 
+! It removes redundant unstable composition sets created automatically
+! (CSAUTO set).  It will also shifts stable composition sets to loweest 
 ! possible (it will take into account if there are default constituent 
 ! fractions, CSDEFCON set).
 ! mode determine some of the actions
@@ -3887,20 +3853,17 @@
 ! This comp.set is stable, check if a lower compset is unstable
             csloop2: do jcs=1,ics-1
                lokjcs=phlista(lokph)%linktocs(jcs)
-! hidden=-4, suspended=-3, dormant=-1, unstable=-1, unknown=0, stable=1, fix=2
                if(ceq%phase_varres(lokjcs)%phstate.le.PHENTERED) then
-                  if(btest(ceq%phase_varres(lokjcs)%status2,CSDEFCON)) then
-! check if composition of lokics fits defaults in lokjcs
-                     if(.not.checkdefcon(lokics,lokjcs,fit,ceq)) cycle csloop2
-                  endif
-!                  write(*,*)'3Y Moving comp.set ',ics,' down to ',jcs
+! do not bother if composition of lokics fits defaults in lokjcs
+!                  if(.not.checkdefcon(lokics,lokjcs,fit,ceq)) cycle csloop2
+!                  write(*,*)'3Y Moving stable comp.set ',ics,' down to ',jcs
                   goto 500
                elseif(jcs.eq.ics-1) then
                   if(fit.gt.2) then
 ! No lower unstable comp.set, or no one which almost fit default const,
 ! lokics must remain stable, remove CSAUTO bit
 ! Do not remove the suffix _AUTO
-!                     write(*,*)'3Y Keeping AUTO comp.set ',ics,lokics
+                     write(*,*)'3Y Keeping AUTO comp.set ',ics,lokics
                      ceq%phase_varres(lokics)%status2=&
                           ibclr(ceq%phase_varres(lokics)%status2,CSAUTO)
                      exit csloop2
@@ -3909,23 +3872,10 @@
                   cycle csloop2
                endif
 ! Accept a default consitution which almost fits the default
-!               write(*,*)'3Y Imperfect fit to default: ',fit,lokics,lokjcs
+               write(*,*)'3Y Accept fit to default: ',fit,lokics,lokjcs
 500            continue
 ! move STABLE lokics to UNSTABLE lokjcs
-!                  write(*,381)'3Y Before copy',&
-!                       lokics,ceq%phase_varres(lokics)%status2,&
-!                       ceq%phase_varres(lokics)%phtupx,&
-!                       ceq%phase_varres(lokics)%suffix,&
-!                       lokjcs,ceq%phase_varres(lokjcs)%status2,&
-!                       ceq%phase_varres(lokjcs)%phtupx,&
-!                       ceq%phase_varres(lokjcs)%suffix
-381               format(a,3i4,' "',a,'" ' ,3i4,' "',a,'"')
-! list the records to switch, note default constitution??
-!               write(*,380)'3Y Stable and free: ',ics,lokics,jcs,lokjcs,&
-!                    ceq%phase_varres(lokics)%phtupx,&
-!                    ceq%phase_varres(lokjcs)%phtupx
-380               format(a,10i5)
-!                  exit csloop2
+!               copycompsets(... ???
 ! save some jcs values of amount, dgm, status, pre&suffix and tuple index
                   xj1=ceq%phase_varres(lokjcs)%amfu
                   xj2=ceq%phase_varres(lokjcs)%dgm
@@ -3934,7 +3884,12 @@
                   jpre=ceq%phase_varres(lokjcs)%prefix
                   jsuf=ceq%phase_varres(lokjcs)%suffix
                   phs=ceq%phase_varres(lokjcs)%phstate
+!                  write(*,501)lokics,ceq%phase_varres(lokics)%mmyfr
+!                  write(*,501)lokjcs,ceq%phase_varres(lokjcs)%mmyfr
+501               format('3Y 501: ',i5,10F5.1)
 ! copy main content of the phase_varres(lokics) record to phase_varres(lokjcs)
+! BEWARE mmyfr must be kept!
+                  ceq%phase_varres(lokics)%mmyfr=ceq%phase_varres(lokjcs)%mmyfr
                   ceq%phase_varres(lokjcs)=ceq%phase_varres(lokics)
 ! Some content in jcs must be set or restorted separately
                   ceq%phase_varres(lokjcs)%phtupx=jtup
@@ -3944,6 +3899,8 @@
                   ceq%phase_varres(lokjcs)%phstate=PHENTSTAB
                   ceq%phase_varres(lokjcs)%status2=&
                        ibset(ceq%phase_varres(lokjcs)%status2,CSSTABLE)
+!                  write(*,501)lokics,ceq%phase_varres(lokics)%mmyfr
+!                  write(*,501)lokjcs,ceq%phase_varres(lokjcs)%mmyfr
 ! maybe CSAUTO bit set, always remove it!
 !                  write(*,*)'3Y Ensure CSAUTO cleared in ',jcs
                   ceq%phase_varres(lokjcs)%status2=&
@@ -3952,19 +3909,13 @@
                   ceq%phase_varres(lokics)%amfu=xj1
                   ceq%phase_varres(lokics)%dgm=xj2
                   ceq%phase_varres(lokics)%phstate=phs
-! clear the stable bit
+! clear the stable bit and set AUTO of ics ??
                   ceq%phase_varres(lokics)%status2=&
                        ibclr(ceq%phase_varres(lokics)%status2,CSSTABLE)
-! check things again
-!                  write(*,381)'3Y After copy ',&
-!                       lokics,ceq%phase_varres(lokics)%status2,&
-!                       ceq%phase_varres(lokics)%phtupx,&
-!                       ceq%phase_varres(lokics)%suffix,&
-!                       lokjcs,ceq%phase_varres(lokjcs)%status2,&
-!                       ceq%phase_varres(lokjcs)%phtupx,&
-!                       ceq%phase_varres(lokjcs)%suffix
-!                  write(*,380)'After copy',(phlista(lokph)%linktocs(qq),&
-!                       qq=1,phlista(lokph)%noofcs)
+!                  if(btest(ceq%phase_varres(lokics)%status2,CSAUTO)) &
+!                       write(*,*)'3Y AUTO bit already set in ',ics
+                  ceq%phase_varres(lokics)%status2=&
+                       ibset(ceq%phase_varres(lokics)%status2,CSAUTO)
                   exit csloop2
             enddo csloop2
          endif
@@ -3972,12 +3923,10 @@
    enddo phloop1
 ! Here we may try to ensure that the stable comp.sets fits the
 ! default constitutions of their current set
-!   write(*,*)'3Y Try to shift to match default and current constitution'
+!   write(*,*)'3Y Try to shift stable comp.sets. to match default const.'
    call shiftcompsets(ceq)
 !
 ! upto now is safe ... now remove CSAUTO comp.sets if allowed
-!   write(*,*)'3Y Now maybe remove redundant compsets.'
-!   goto 1000
 ! check if allowed to remove
    if(btest(globaldata%status,GSNOREMCS)) goto 1000
 !
@@ -3995,11 +3944,33 @@
             if(ceq%phase_varres(lokics)%phstate.le.PHENTERED) then
 ! comp.set was created automatically but is not stable, it can be removed
                if(noeq().eq.1) then
-! we have just one equilibrium, OK to remove
-!                  write(*,*)'3Y Trying to remove phase tuple ',&
+! we have just one equilibrium, OK to remove even in parallel ...
+!                  write(*,*)'3Y removing phase tuple ',&
 !                       ceq%phase_varres(lokics)%phtupx
                   call remove_composition_set(iph,.FALSE.)
-                  if(gx%bmperr.ne.0) goto 1000
+                  if(gx%bmperr.ne.0) then
+                     write(*,*)'3Y failed to remove ',&
+                          ceq%phase_varres(lokics)%phtupx
+                     goto 1000
+                  endif
+! attempt to handle parallel ... we have not implemented deleting compsets
+!$               elseif(.TRUE.) then
+! check if parallel, then do not delete unless remove_composition_set protected
+!$                  write(kou,112)
+112  format('3Y cannot delete comp.sets. in parallel if many equil.')
+! problem to have continuation lines in formats using sentinels??
+!$                  ceq%phase_varres(lokics)%status2=&
+!$                       ibclr(ceq%phase_varres(lokics)%status2,CSAUTO)
+!               else
+! this needs further testing also in sequental execution
+!                  write(*,*)'3Y Force removing phase tuple ',&
+!                       ceq%phase_varres(lokics)%phtupx,' even with many equil'
+!                  call remove_composition_set(iph,.TRUE.)
+!                  if(gx%bmperr.ne.0) then
+!                     write(*,*)'3Y failed to remove ',&
+!                          ceq%phase_varres(lokics)%phtupx
+!                     goto 1000
+!                  endif
                else
 ! if we cannot remove the comp.set remove the CSAUTO bit
                   ceq%phase_varres(lokics)%status2=&
@@ -4024,42 +3995,45 @@
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim}
- logical function checkdefcon(lokics,lokjcs,fit,ceq)
+ subroutine checkdefcon(lokics,lokjcs,fit,ceq)
 ! check if composition of lokics fits default constitution in lokjcs
-! return TRUE if lokics moved to lokjcs
-! If not moved fit returns a value how close the constitition is
-! If 1 very close, 2 less etc.
+! return TRUE if lokics fits default in lokjcs
+! NOTE lokics and lokjcs can be the same!!
    integer lokics,lokjcs,fit
    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim} %+
    integer kk
-   logical tobeshifted
-   tobeshifted=.FALSE.
-! A fraction with a maximum set (mmyfr<0) must be below that value
-! A fraction with a minimum set (mmyfr>0) should be above that value
-!   write(*,*)'3Y testing defaults',lokics,lokjcs
-   fit=0
-   do kk=1,size(ceq%phase_varres(lokjcs)%yfr)
-      if(ceq%phase_varres(lokjcs)%mmyfr(kk).lt.0.0D0) then
-! A fraction with a maximum set (mmyfr>0) must be below mmyfr(kk)
-         if(ceq%phase_varres(lokics)%yfr(kk).gt.&
-              abs(ceq%phase_varres(lokjcs)%mmyfr(kk))) fit=fit+5
-! A fraction with a minimum set (mmyfr<0) should be above mmyfr(kk)
-      elseif(ceq%phase_varres(lokjcs)%mmyfr(kk).gt.0.0D0) then
-         if(ceq%phase_varres(lokics)%yfr(kk).lt.&
-              abs(ceq%phase_varres(lokjcs)%mmyfr(kk))) fit=fit+1
-      endif
-! if mmyfr(kk)=0 there is no min/max for that fraction
-!      write(*,77)'3Y Constitution: ',kk,ceq%phase_varres(lokjcs)%mmyfr(kk),&
-!           ceq%phase_varres(lokics)%yfr(kk),fit
-77    format(a,i3,2(1pe12.4),i5)
-   enddo
-   if(fit.eq.0) tobeshifted=.TRUE.
-!   write(*,*)'3Y checkdefcon: ',lokics,lokjcs,fit
+   real xdef
+!   write(*,*)'3Y in checkdefcon: ',lokics,lokjcs
+   if(btest(ceq%phase_varres(lokjcs)%status2,CSDEFCON)) then
+!      write(*,9)(ceq%phase_varres(lokjcs)%mmyfr(fit),&
+!           fit=1,size(ceq%phase_varres(lokjcs)%yfr))
+9     format('3Y default: ',10F6.2)
+      fit=1
+      do kk=1,size(ceq%phase_varres(lokjcs)%yfr)
+         xdef=ceq%phase_varres(lokjcs)%mmyfr(kk)
+         if(xdef.eq.0) then
+! no default for this constitution
+            fit=fit+1
+         elseif(xdef.lt.0.0) then
+! A fraction with a maximum set (mmyfr<0) must be below mmyfr(kk)
+            if(ceq%phase_varres(lokics)%yfr(kk).lt.abs(xdef)) fit=fit+1
+!            write(*,11)ceq%phase_varres(lokics)%yfr(kk),' < ',xdef,kk,fit
+11          format('If ',F10.6,a,F10.6,' increment ',2i3)
+         else
+! A fraction with a minimum set (mmyfr>0) should be above mmyfr(kk)
+            if(ceq%phase_varres(lokics)%yfr(kk).gt.xdef) fit=fit+1
+!            write(*,11)ceq%phase_varres(lokics)%yfr(kk),' > ',xdef,kk,fit
+         endif
+      enddo
+!      write(*,*)'3Y checkdefcon fit: ',fit,kk
+   else
+! no default constitution, perfect fit!!
+      kk=size(ceq%phase_varres(lokjcs)%yfr)
+   endif
 1000 continue
-   checkdefcon=tobeshifted
    return
- end function checkdefcon
+ end subroutine checkdefcon
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
@@ -4067,127 +4041,61 @@
  subroutine shiftcompsets(ceq)
 ! check phase with several composition sets if they should be shifted
 ! to fit the default constitution better
+! IGNORE UNSTABLE COMP.SETS
    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim} %+
-   integer lokph,iph,ics,lokics,jcs,lokjcs,fit1,fit2,shifts
+   integer lokph,iph,ics,lokics,jcs,lokjcs,bestfit(9,9),jj,kk,kki,kkj
+   integer moveto(9)
    character ch1*1
+!   write(*,*)'3Y in shiftcompsets'
    phloop: do iph=1,noofph
       lokph=phases(iph)
-      if(phlista(lokph)%noofcs.gt.1) then
-         shifts=0
-100      continue
-         shifts=shifts+1
-         if(shifts.gt.2) cycle phloop
+      manycs: if(phlista(lokph)%noofcs.gt.1) then
+! seach all compset which default constitution that fits best a stable one
+         bestfit=0
          csloop1: do ics=1,phlista(lokph)%noofcs
             lokics=phlista(lokph)%linktocs(ics)
-            if(ceq%phase_varres(lokics)%phstate.eq.PHENTSTAB) then
-               if(btest(ceq%phase_varres(lokics)%status2,CSDEFCON)) then
-! if TRUE then the composition fits default constitution
-                  if(checkdefcon(lokics,lokics,fit1,ceq)) cycle csloop1
-               else
-                  fit1=-100
-               endif
-            else
-               fit1=500
-            endif
-! The values of fit1:
-! -100 there is no default constitution of ics    
-! >0 the degree of fit of the current constitution of ics
-! 500 ics is not stable
-! We come here to check if some other compset fits better
-!            write(*,*)'3Y ics fit in ics: ',ics,fit1
+! ignore UNSTABLE compsets with CSAUTO set ??
+            if(ceq%phase_varres(lokics)%phstate.le.PHENTERED) cycle csloop1
+            call checkdefcon(lokics,lokics,kk,ceq)
+!            write(*,*)'3Y fit 1: ',kk,phlista(lokph)%tnooffr
+            bestfit(ics,ics)=kk
+            if(kk.eq.phlista(lokph)%tnooffr) cycle csloop1
+! if no default or not perfect fit compare with other compsets
+!            write(*,*)'3Y compare with next compset'
             csloop2: do jcs=1,phlista(lokph)%noofcs
                if(jcs.eq.ics) cycle csloop2
                lokjcs=phlista(lokph)%linktocs(jcs)
-               if(ceq%phase_varres(lokjcs)%phstate.eq.PHENTSTAB) then
-                  if(btest(ceq%phase_varres(lokjcs)%status2,CSDEFCON)) then
-! if this call returns TRUE then the jcs composition fits default constitution
-                     if(checkdefcon(lokjcs,lokjcs,fit2,ceq)) then
-                        cycle csloop2
-                     endif
-                  else
-! there is no default constitution in jcs
-                     fit2=-100
-!                     write(*,*)'3Y no default const: ',jcs,fit2
-                  endif
-               else
-! jcs is not stable
-                  fit2=500
-               endif
-! fit2:
-! -100  jcs has no default constitution
-! >0     the current fit to default constitution
-! 500  jcs is not stable
-!               write(*,*)'3Y jcs fit in jcs: ',jcs,fit2
-               if(fit1.eq.500) then
-! If neither ics nor jcs are stable increment jcs
-                  if(fit2.eq.500) cycle csloop2
-! ics is unstable, but if it has a default constitution, check if jcs fits
-                  if(btest(ceq%phase_varres(lokics)%status2,CSDEFCON)) then
-                     if(checkdefcon(lokjcs,lokics,fit2,ceq)) continue
-                     fit2=-fit2
-                  else
-                     fit2=fit1+1
-                  endif
-               else
-! ics is stable, check if jcs has a default constitution that fits better
-                  if(btest(ceq%phase_varres(lokjcs)%status2,CSDEFCON)) then
-                     if(checkdefcon(lokics,lokjcs,fit2,ceq)) continue
-                  else
-                     fit2=fit1+1
-                  endif
-               endif
-! fit2:
-! <=fit1  shift jcs and ics
-! >fit1 do nothing
-!               write(*,*)'3Y jcs fit in ics: ',jcs,fit2
-               if(fit2.le.fit1) then
-! The comp.set ics fits the default constitution of jcs better than its current
-!                  write(*,*)'3Y shifting compsets: ',ics,jcs,fit1,fit2
-                  call copycompsets2(lokph,ics,jcs,ceq)
-! shift composition sets! Copy all via a dummy record (last phase_varres)
-! That is hopefully unused ...
-!                  ceq%phase_varres(2*maxph)=ceq%phase_varres(lokics)
-!                  ceq%phase_varres(lokics)=ceq%phase_varres(lokjcs)
-!                  ceq%phase_varres(lokjcs)=ceq%phase_varres(2*maxph)
-! restore phtupx, pre/suffix and status word for jcs
-!                  ceq%phase_varres(lokjcs)%phtupx=&
-!                       ceq%phase_varres(lokics)%phtupx
-!                  ceq%phase_varres(lokjcs)%status2=&
-!                       ceq%phase_varres(lokics)%status2
-!                  ceq%phase_varres(lokjcs)%prefix=&
-!                       ceq%phase_varres(lokics)%prefix
-!                  ceq%phase_varres(lokjcs)%suffix=&
-!                       ceq%phase_varres(lokics)%suffix
-! restore phtupx, pre/suffix and status word for ics
-!                  ceq%phase_varres(lokics)%phtupx=&
-!                       ceq%phase_varres(2*maxph)%phtupx
-!                  ceq%phase_varres(lokjcs)%status2=&
-!                       ceq%phase_varres(2*maxph)%status2
-!                  ceq%phase_varres(lokics)%prefix=&
-!                       ceq%phase_varres(2*maxph)%prefix
-!                  ceq%phase_varres(lokics)%suffix=&
-!                       ceq%phase_varres(2*maxph)%suffix
-! restore the "end" link in last record
-!                  ceq%phase_varres(2*maxph)%nextfree=-1
-! update fit1, fit2 will be updated automatically
-!                  if(ceq%phase_varres(lokics)%phstate.eq.PHENTSTAB) then
-!                     if(btest(ceq%phase_varres(lokics)%status2,CSDEFCON)) then
-!                        if(checkdefcon(lokics,lokics,fit1,ceq)) continue
-!                     else
-!                        fit1=-100
-!                     endif
-!                     fit1=500
-!                  write(*,*)'3Y Switched compsets: ',ics,jcs,fit1,fit2
-!                  read(*,99)ch1
-!99                format(a)
-! start again from first comp.set
-                  goto 100
-               endif
+               if(ceq%phase_varres(lokjcs)%phstate.le.PHENTERED) cycle csloop2
+               call checkdefcon(lokics,lokjcs,kk,ceq)
+!               write(*,*)'3Y fit 2: ',kk,phlista(lokph)%tnooffr
+               bestfit(jcs,ics)=kk
             enddo csloop2
          enddo csloop1
-      endif
+!         do ics=1,phlista(lokph)%noofcs
+!            write(*,17)(bestfit(jcs,ics),jcs=1,phlista(lokph)%noofcs)
+!         enddo
+17       format('3Y bestfit: ',9i5)
+! when we are here whe can use bestfit to shift constitutions
+         moveto=0
+         shiftfrom: do ics=1,phlista(lokph)%noofcs
+            kk=bestfit(ics,ics)
+            if(kk.eq.phlista(lokph)%tnooffr) cycle shiftfrom
+            shiftto: do jcs=2,phlista(lokph)%noofcs
+               if(bestfit(jcs,ics).gt.kk) then
+                  kk=bestfit(jcs,ics)
+                  write(*,*)'3Y shifting: ',ics,jcs
+                  call copycompsets2(lokph,ics,jcs,ceq)
+               endif
+            enddo shiftto
+         enddo shiftfrom
+! just check do nothing for the moment ....
+! if moveto(ics) is zero do not move.  otherwise moveto moveto(ics)
+! but if moveto(moveto(ics)) is zero look for a moveto() that is negative ...
+!         call copycompsets2(lokph,ics,jcs,ceq)
+      endif manycs
    enddo phloop
+! 
 1000 continue
    return
  end subroutine shiftcompsets
@@ -4224,6 +4132,7 @@
    double precision, dimension(:,:,:), allocatable :: dgval
    double precision qq(5),xdum
 !
+   write(*,*)'In copycompsets ',lokph,ics1,ics2
    lokcs1=phlista(lokph)%linktocs(ics1)
    lokcs2=phlista(lokph)%linktocs(ics2)
 ! save current constitution of lokcs1 in val

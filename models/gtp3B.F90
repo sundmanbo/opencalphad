@@ -860,6 +860,13 @@
    endif
    ceq=>firsteq
    icsno=ncs+1
+! test if mmy is correct in all existing compsets
+! OK here
+!   do jl=1,ncs
+!      lokcs=phlista(lokph)%linktocs(jl)
+!      write(*,7)lokcs,firsteq%phase_varres(lokcs)%mmyfr
+!7     format('3B mmy: ',i4,10F5.1)
+!   enddo
 ! collect some data needed
    nsl=phlista(lokph)%noofsubl
    nkk=phlista(lokph)%tnooffr
@@ -1023,8 +1030,13 @@
 !   write(*,*)'Link from ordred ',next,&
 !        ' to disordered ',ceq%phase_varres(next)%disfra%varreslink
 1000 continue
+! test if mmy is correct in all existing compsets
+! OK here also ...
+!   do jl=1,icsno
+!      lokcs=phlista(lokph)%linktocs(jl)
+!      write(*,7)lokcs,firsteq%phase_varres(lokcs)%mmyfr
+!   enddo
    return
-! %status2
  end subroutine enter_composition_set
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
@@ -1061,13 +1073,24 @@
       ics=ncs
    endif
    if(noeq().gt.1) then
+! the deletion of composition sets when many equilibia not allowed until
+! further testing
+      write(*,*)' Warning, attempt to delete composition set',&
+           ' with many equilibria ignored'
+      goto 1000
       if(force) then
-         write(*,*)' *** WARNING: deleting composition sets may cause errors'
+         write(*,*)' *** WARNING: deleting composition sets',&
+              ' in many equilibria may cause errors'
       else
-         write(*,*)'Cannot delete composition sets when several equilibria'
-         gx%bmperr=7777; goto 1000
+         write(*,*)'Attempt to delete composition sets when many equilibria'
+         gx%bmperr=4211; goto 1000
       endif
    endif
+!$   if(.TRUE.) then
+!$      write(*,*)'Deleteing composition sets illegal when running parallel'
+!$      write(*,*)'This subroutine must be executed in sequential'
+!$      goto 1000
+!$   endif
 ! find this tuple
    do jl=1,nooftuples
       if(phasetuple(jl)%phase.eq.iph) tuple=jl

@@ -433,8 +433,8 @@
    TYPE(gtp_phase_varres), pointer :: csrec
    susph=' '
    nsusp=1
-   write(unit,10)
-10  format(/'List of entered phases'/ &
+   write(unit,10)nooftuples
+10  format(/'List of ',i3,' phases'/ &
          '  No tup Name',22x,'Mol.comp. At/F.U.   dGm/RT  Status1  Status2')
 !        '  No tup Name',22x,'Mol.comp.  At/F.U.  dGm/RT   Status1 Status2')
    jl=0

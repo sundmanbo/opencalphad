@@ -87,9 +87,10 @@ set range_exp_equil
 2
 4
 
-@$ Calculate all xperimental equilibria with grid minimizer
+@$ Calculate all xperimental equilibria without gridminimizer
+@$ That avoids creating composition sets
 
-c all y
+c all N
 
 @&
 @$ List optimization to check the coefficients
@@ -114,7 +115,7 @@ set wei 0 za
 
 l eq
 
-@$ Calculate all xperimental equilibria without gridminimizer
+@$ Calculate all xperimental equilibria without grid minimizer
 
 c all N
 
@@ -165,6 +166,8 @@ opt 100
 l opt,,
 
 @&
+@$ Removing all data sometimes cause segmentation error
+@$ new Y
 
 set inter
 

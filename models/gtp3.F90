@@ -383,7 +383,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'Error setting up system matrix, too many equations              ',&
 ! 4210
        'Phase change not allowed due to step/map constraints            ',&
-       '                                                                ',&
+       'Attempt to delete composition sets when many equilibria         ',&
        '                                                                ',&
        '                                                                ',&
        '                                                                ',&

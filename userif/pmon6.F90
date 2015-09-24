@@ -627,6 +627,7 @@ contains
              goto 100
 !....................................................
           case(6) ! amend phase <name> default_constitution
+! to change default constitution of any composition set give #comp.set.
              call ask_default_constitution(cline,last,iph,ics,ceq)
 !....................................................
           case(7) ! amend phase <name> Debye model
@@ -890,7 +891,7 @@ contains
              call gparcd('With gridminimizer? ',cline,last,1,ch1,'N',q1help)
 ! mode=0 is without grid minimizer 
              mode=1
-             if(ch1.eq.'N') mode=0
+             if(ch1.eq.'N' .or. ch1.eq.'n') mode=0
 ! allow output file
              lut=optionsset%lut
 !
@@ -946,7 +947,8 @@ contains
 !        !$ as sentinel
 !--!$OMP parallel do private(gx%bmperr,neweq) 
 !--!$OMP parallel do private(neweq)
-!$OMP parallel do private(gx,neweq)
+!       NOTE: $OMP  threadprivate(gx) declared in TPFUN4.F90 ??
+!$OMP parallel do private(neweq)
                 do i1=1,size(firstash%eqlista)
 ! the error code must be set to zero for each thread ?? !!
                    gx%bmperr=0
@@ -2375,7 +2377,10 @@ contains
           endif
           call date_and_time(optres,name1)
           kom2=submenu('List ',cline,last,optopt,noptopt,1)
-          write(*,600)optres(1:4),optres(5:6),optres(7:8),name1(1:2),name1(3:4)
+! allow output file
+          lut=optionsset%lut
+          write(lut,600)optres(1:4),optres(5:6),optres(7:8),&
+               name1(1:2),name1(3:4)
 600       format(/'Listing of optimization results: date ',a4,'.',a2,'.',a2,&
                ' : ',a2,'h',a2)
           SELECT CASE(kom2)
@@ -2384,7 +2389,7 @@ contains
                 write(kou,*)'No such option'
 !...........................................................
              case(1) ! short
-               call listoptshort(mexp,errs)
+               call listoptshort(lut,mexp,errs)
 !...........................................................
              case(2) ! long
                 write(*,*)'Not implemented yet'
@@ -3928,9 +3933,9 @@ contains
 !\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
 !\begin{verbatim}
-  subroutine listoptshort(mexp,errs)
+  subroutine listoptshort(lut,mexp,errs)
 ! short listing of optimizing variables and result
-    integer mexp
+    integer lut,mexp
     double precision errs(*)
 !    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
@@ -3939,7 +3944,7 @@ contains
     character name1*24,line*80
     double precision xxx
 !
-    write(kou,610)
+    write(lut,610)
 610 format(/'List of coefficents with non-zero values'/&
          'Name  Current value   Start value    Scaling factor',&
          ' RSD')
@@ -3951,44 +3956,44 @@ contains
 ! optimized variable, read from TP constant array
           call get_value_of_constant_index(firstash%coeffindex(i1),xxx)
           call makeoptvname(name1,i1)
-          write(kou,615)name1(1:3),xxx,&
+          write(lut,615)name1(1:3),xxx,&
                firstash%coeffstart(i1),firstash%coeffscale(i1),zero
 615       format(a,2x,4(1pe15.6))
           if(firstash%coeffstate(i1).eq.11) then
 ! there is a prescribed minimum
-             write(kou,616)' minimum ',firstash%coeffmin(i1)
+             write(lut,616)' minimum ',firstash%coeffmin(i1)
 616          format(6x,'Prescribed ',a,': ',1pe12.4)
           elseif(firstash%coeffstate(i1).eq.12) then
 ! there is a prescribed minimum
-             write(kou,616)' maximum ',firstash%coeffmax(i1)
+             write(lut,616)' maximum ',firstash%coeffmax(i1)
           elseif(firstash%coeffstate(i1).eq.13) then
 ! there is a prescribed minimum
-             write(kou,617)firstash%coeffmin(i1),firstash%coeffmax(i1)
+             write(lut,617)firstash%coeffmin(i1),firstash%coeffmax(i1)
 617          format(6x,'Prescribed min and max: ',2(1pe12.4))
           elseif(firstash%coeffstate(i1).gt.13) then
-             write(kou,*)'Wrong coefficent state, set to 10'
+             write(lut,*)'Wrong coefficent state, set to 10'
              firstash%coeffstate(i2)=10
           endif
        elseif(firstash%coeffstate(i1).gt.0) then
 ! fix variable status
           call get_value_of_constant_index(firstash%coeffindex(i1),xxx)
           call makeoptvname(name1,i1)
-          write(kou,615)name1(1:3),xxx
+          write(lut,615)name1(1:3),xxx
        elseif(firstash%coeffscale(i1).ne.0) then
 ! coefficient with negative status, status set to 1
           call get_value_of_constant_index(firstash%coeffindex(i1),xxx)
-          write(kou,619)i1,firstash%coeffscale(i1),xxx,zero
+          write(lut,619)i1,firstash%coeffscale(i1),xxx,zero
 619       format('Wrong state for coefficient ',i3,4(1pe12.4))
           firstash%coeffstate(i1)=1
        endif coeffstate
     enddo
 ! list all experiments, only possible after first optimize
     if(mexp.eq.0) then
-       write(kou,666)
+       write(lut,666)
 666    format(/'No optimization so no results'/)
        goto 1000
     endif
-    write(kou,620)size(firstash%eqlista),mexp
+    write(lut,620)size(firstash%eqlista),mexp
 620 format(/'List of ',i5,' equilibria with ',i5,&
          ' experimental data values'/&
          'Equil name    Weight Experiment $ calculated',24x,&
@@ -4007,7 +4012,7 @@ contains
 ! this subroutine reurns experiment and calculated value: "H=1000:200 $ 5000"
              call get_one_experiment(j1,line,j2,neweq)
              j3=j3+1
-             write(kou,622)name1(1:12),neweq%weight,line(1:45),&
+             write(lut,622)name1(1:12),neweq%weight,line(1:45),&
                   errs(j3)
 622          format(a,2x,F5.2,2x,a,1x,1pe12.4)
 ! list the equilibrium name just for the first (or only) experiment
