@@ -444,7 +444,7 @@
                      write(*,*)'Global minimization with fix phase not allowed'
                      gx%bmperr=7777; goto 1000
                   elseif(kkz.lt.PHENTUNST) then
-                     write(*,*)' *** Warning, changing status for phase ',name1
+                     write(*,*)'Changing status for phase ',name1
                   endif
 ! this means status entered PHSTATE
 !                  ceq%phase_varres(lokcs)%status2=&
@@ -3712,7 +3712,7 @@
    integer lokph,lokcs,ll,jj,kk,kk0
    type(gtp_phase_varres), pointer :: cset
    double precision, allocatable :: yarr(:)
-   double precision sum, qq(5)
+   double precision sum, qq(5),var
 !
    call get_phase_compset(iph,ics,lokph,lokcs)
    if(gx%bmperr.ne.0) goto 1000
@@ -3727,7 +3727,7 @@
          sum=zero
          if(phlista(lokph)%nooffr(ll).gt.1) then
             do jj=1,phlista(lokph)%nooffr(ll)
-! mmy(kk) is negative for small fractions with a maxium, set to 0.01
+! negative mmy(kk) means < , a maximum, set a small value
                kk=kk+1
                if(cset%mmyfr(kk).lt.0.0E0) then
                   yarr(kk)=0.01D0
@@ -3754,11 +3754,13 @@
       kk=0
       subl2: do ll=1,phlista(lokph)%noofsubl
          if(phlista(lokph)%nooffr(ll).gt.1) then
-! set equal amount of all fractions
+! set equal amount of all fractions with periodic variation
             sum=one/real(phlista(lokph)%nooffr(ll))
+            var=0.1D0
             do jj=1,phlista(lokph)%nooffr(ll)
                kk=kk+1
-               yarr(kk)=sum
+               yarr(kk)=sum+var
+               var=-var
             enddo
          else
 ! a single constituent, just increment kk and leave fraction as unity
@@ -3800,8 +3802,8 @@
          lokcs=phlista(lokph)%linktocs(ics)
 !         ceq%phase_varres(lokcs)%amount(1)=zero
          ceq%phase_varres(lokcs)%amfu=zero
-         ceq%phase_varres(lokcs)%status2=&
-              ibclr(ceq%phase_varres(lokcs)%status2,CSSTABLE)
+!         ceq%phase_varres(lokcs)%status2=&
+!              ibclr(ceq%phase_varres(lokcs)%status2,CSSTABLE)
       enddo csloop
    enddo phloop
 !
@@ -3838,6 +3840,7 @@
    double precision val,xj1,xj2
    logical notok,noremove
    character jpre*4,jsuf*4
+   real, dimension(:), allocatable :: tmmyfr
 !
    if(btest(globaldata%status,GSNOAFTEREQ)) goto 1000
 !   write(*,*)'3Y in todo_after'
@@ -3847,8 +3850,13 @@
       if(btest(phlista(lokph)%status1,PHHID)) cycle
       csloop1: do ics=2,phlista(lokph)%noofcs
          lokics=phlista(lokph)%linktocs(ics)
+!         write(*,*)'3Y shift down: ',ics,lokics,&
+!              ceq%phase_varres(lokics)%phstate,&
+!              btest(ceq%phase_varres(lokics)%status2,CSAUTO),&
+!              btest(ceq%phase_varres(lokics)%status2,CSTEMPAR)
          if(ceq%phase_varres(lokics)%phstate.eq.PHENTSTAB .and. &
-              btest(ceq%phase_varres(lokics)%status2,CSAUTO)) then
+              btest(ceq%phase_varres(lokics)%status2,CSTEMPAR)) then
+!              btest(ceq%phase_varres(lokics)%status2,CSAUTO)) then
             fit=100
 ! This comp.set is stable, check if a lower compset is unstable
             csloop2: do jcs=1,ics-1
@@ -3863,7 +3871,7 @@
 ! No lower unstable comp.set, or no one which almost fit default const,
 ! lokics must remain stable, remove CSAUTO bit
 ! Do not remove the suffix _AUTO
-                     write(*,*)'3Y Keeping AUTO comp.set ',ics,lokics
+!                     write(*,*)'3Y Keeping AUTO comp.set ',ics,lokics
                      ceq%phase_varres(lokics)%status2=&
                           ibclr(ceq%phase_varres(lokics)%status2,CSAUTO)
                      exit csloop2
@@ -3889,7 +3897,11 @@
 501               format('3Y 501: ',i5,10F5.1)
 ! copy main content of the phase_varres(lokics) record to phase_varres(lokjcs)
 ! BEWARE mmyfr must be kept!
-                  ceq%phase_varres(lokics)%mmyfr=ceq%phase_varres(lokjcs)%mmyfr
+                  allocate(tmmyfr(size(ceq%phase_varres(lokjcs)%mmyfr)))
+                  tmmyfr=ceq%phase_varres(lokjcs)%mmyfr
+                  ceq%phase_varres(lokjcs)=ceq%phase_varres(lokics)
+                  ceq%phase_varres(lokics)%mmyfr=tmmyfr
+                  deallocate(tmmyfr)
                   ceq%phase_varres(lokjcs)=ceq%phase_varres(lokics)
 ! Some content in jcs must be set or restorted separately
                   ceq%phase_varres(lokjcs)%phtupx=jtup
@@ -3897,8 +3909,8 @@
                   ceq%phase_varres(lokjcs)%prefix=jpre
                   ceq%phase_varres(lokjcs)%suffix=jsuf
                   ceq%phase_varres(lokjcs)%phstate=PHENTSTAB
-                  ceq%phase_varres(lokjcs)%status2=&
-                       ibset(ceq%phase_varres(lokjcs)%status2,CSSTABLE)
+!                  ceq%phase_varres(lokjcs)%status2=&
+!                       ibset(ceq%phase_varres(lokjcs)%status2,CSSTABLE)
 !                  write(*,501)lokics,ceq%phase_varres(lokics)%mmyfr
 !                  write(*,501)lokjcs,ceq%phase_varres(lokjcs)%mmyfr
 ! maybe CSAUTO bit set, always remove it!
@@ -3910,8 +3922,8 @@
                   ceq%phase_varres(lokics)%dgm=xj2
                   ceq%phase_varres(lokics)%phstate=phs
 ! clear the stable bit and set AUTO of ics ??
-                  ceq%phase_varres(lokics)%status2=&
-                       ibclr(ceq%phase_varres(lokics)%status2,CSSTABLE)
+!                  ceq%phase_varres(lokics)%status2=&
+!                       ibclr(ceq%phase_varres(lokics)%status2,CSSTABLE)
 !                  if(btest(ceq%phase_varres(lokics)%status2,CSAUTO)) &
 !                       write(*,*)'3Y AUTO bit already set in ',ics
                   ceq%phase_varres(lokics)%status2=&
@@ -3930,7 +3942,7 @@
 ! check if allowed to remove
    if(btest(globaldata%status,GSNOREMCS)) goto 1000
 !
-! Now try to remove unstable composition sets with CSAUTO set
+! Now try to remove unstable composition sets with CSTEMPAR bit set
    phloop: do iph=1,noph()
       noremove=.FALSE.
       lokph=phases(iph)
@@ -3940,7 +3952,8 @@
       csloopdown: do ics=lastset,2,-1
          lokics=phlista(lokph)%linktocs(ics)
 !         write(*,*)'Checking comp.set ',ics
-         auto: if(btest(ceq%phase_varres(lokics)%status2,CSAUTO)) then
+!         auto: if(btest(ceq%phase_varres(lokics)%status2,CSAUTO)) then
+         auto: if(btest(ceq%phase_varres(lokics)%status2,CSTEMPAR)) then
             if(ceq%phase_varres(lokics)%phstate.le.PHENTERED) then
 ! comp.set was created automatically but is not stable, it can be removed
                if(noeq().eq.1) then
@@ -3956,11 +3969,12 @@
 ! attempt to handle parallel ... we have not implemented deleting compsets
 !$               elseif(.TRUE.) then
 ! check if parallel, then do not delete unless remove_composition_set protected
-!$                  write(kou,112)
-112  format('3Y cannot delete comp.sets. in parallel if many equil.')
+!                  write(kou,112)
+!112  format('3Y cannot delete comp.sets. in parallel if many equil.')
 ! problem to have continuation lines in formats using sentinels??
-!$                  ceq%phase_varres(lokics)%status2=&
-!$                       ibclr(ceq%phase_varres(lokics)%status2,CSAUTO)
+!                  ceq%phase_varres(lokics)%status2=&
+!                       ibclr(ceq%phase_varres(lokics)%status2,CSAUTO)
+!$                  call suspend_composition_set(iph,.TRUE.,ceq)
 !               else
 ! this needs further testing also in sequental execution
 !                  write(*,*)'3Y Force removing phase tuple ',&
@@ -3972,9 +3986,10 @@
 !                     goto 1000
 !                  endif
                else
-! if we cannot remove the comp.set remove the CSAUTO bit
-                  ceq%phase_varres(lokics)%status2=&
-                       ibclr(ceq%phase_varres(lokics)%status2,CSAUTO)
+! if we cannot remove the comp.set then suspend it in this equilibrium
+                  call suspend_composition_set(iph,.FALSE.,ceq)
+!                  ceq%phase_varres(lokics)%status2=&
+!                       ibclr(ceq%phase_varres(lokics)%status2,CSAUTO)
                endif
             else
 ! the comp.set is stable, remove the CSAUTO bit
@@ -4132,7 +4147,7 @@
    double precision, dimension(:,:,:), allocatable :: dgval
    double precision qq(5),xdum
 !
-   write(*,*)'In copycompsets ',lokph,ics1,ics2
+!   write(*,*)'In copycompsets ',lokph,ics1,ics2
    lokcs1=phlista(lokph)%linktocs(ics1)
    lokcs2=phlista(lokph)%linktocs(ics2)
 ! save current constitution of lokcs1 in val

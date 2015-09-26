@@ -4447,6 +4447,16 @@ CONTAINS
     pfd=filename(1:kk)//'.'//'dat '
     open(21,file=pfd,access='sequential',status='unknown')
     if(np.gt.1) then
+       do i=1,np
+! lid may contain phase names with _
+! replace _ by - in lid because _ is interpreted as subscript (as LaTeX)
+798       continue
+          nv=index(lid(i),'_')
+          if(nv.gt.0) then
+             lid(i)(nv:nv)='-'
+             goto 798
+          endif
+       enddo
        write(21,810)(lid(i)(1:12),i=1,np)
 810    format('# Open Calphad output for GNUPLOT'/'# Indx Indep.var.  ',&
          1000(a12,2x))

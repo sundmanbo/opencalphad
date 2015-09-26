@@ -460,13 +460,16 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !     specify constituent status)
 ! CSORDER: set if fractions are ordered (only used for BCC/FCC ordering
 !     with a disordered fraction set).
-! CSSTABLE: set if phase is stable after an equilibrium calculation
+! CSSTABLE: set if phase is stable after an equilibrium calculation ?? needed
+! CSABLE: set if phase is stable after an equilibrium calculation ?? needed
 ! CSAUTO set if composition set created during calculations
 ! CSDEFCON set if there is a default constitution
+! CSTEMPAR set if created by grid minimizer and can be suspended afterwards
+!       when running parallel
    integer, parameter :: &
         CSDFS=0,    CSDLNK=1,  CSDUM2=2,    CSDUM3=3, &
-        CSCONSUS=4, CSORDER=5, CSSTABLE=6, CSAUTO=7, &
-        CSDEFCON=8
+        CSCONSUS=4, CSORDER=5, CSABLE=6,    CSAUTO=7, &
+        CSDEFCON=8, CSTEMPAR=9
 !\end{verbatim}
 !----------------------------------------------------------------
 !\begin{verbatim}

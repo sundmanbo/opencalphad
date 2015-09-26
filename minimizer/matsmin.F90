@@ -486,7 +486,7 @@ CONTAINS
 ! nyphl(j) is number of constituent fractions in phase j, yarr are the 
 ! constituent fractions, vmu the chemical potentials
 ! THIS CALL MAY CREATE NEW COMPOSITION SETS unless GSNOACS set.
-! loop through all phases and set amount=0 and CSSTABLE off
+! loop through all phases and set amount=0 and CSABLE off
     ij=1
     call todo_before(ij,ceq)
     if(gx%bmperr.ne.0) goto 1000
@@ -876,7 +876,7 @@ CONTAINS
 ! maybe the whole status word should be zeroed?
              call get_phase_compset(iph,ics,lokph,lokcs)
              ceq%phase_varres(lokcs)%status2=&
-                  ibclr(ceq%phase_varres(lokcs)%status2,CSSTABLE)
+                  ibclr(ceq%phase_varres(lokcs)%status2,CSABLE)
 ! check if suspended phase bits CSSUS set
 !z             if(btest(ceq%phase_varres(lokcs)%status2,CSSUS)) then
 !                write(*,*)'MM Suspended bit set',lokph,lokcs
@@ -1124,12 +1124,12 @@ CONTAINS
        do jj=1,mph
           if(jj.eq.meqrec%stphl(kk)) then
              meqrec%phr(jj)%curd%status2=&
-                  ibset(meqrec%phr(jj)%curd%status2,CSSTABLE)
+                  ibset(meqrec%phr(jj)%curd%status2,CSABLE)
 ! the stable phase list should be ordered in increasing phase number
              kk=kk+1
           else
              meqrec%phr(jj)%curd%status2=&
-                  ibclr(meqrec%phr(jj)%curd%status2,CSSTABLE)
+                  ibclr(meqrec%phr(jj)%curd%status2,CSABLE)
           endif
        enddo
 !-----------------------
@@ -4699,7 +4699,6 @@ CONTAINS
 ! set link to calculated values of G etc.
              call get_phase_compset(iph,ics,lokph,lokcs)
              meqrec%phr(mph)%curd=>ceq%phase_varres(lokcs)
-!             if(btest(ceq%phase_varres(lokcs)%status2,CSSTABLE)) then
              if(kst.ge.PHENTSTAB) then
 ! this phase has the stable bit set
                 meqrec%phr(mph)%stable=1

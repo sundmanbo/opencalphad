@@ -969,6 +969,13 @@
 ! copy status word but clear some bits CSDEFCON means default constitution
       neq%status2=peq%status2
       neq%status2=ibclr(neq%status2,CSDEFCON)
+! set duplicate bit for auto in all equilibria
+      if(len(suffix).ge.4) then
+         if(suffix.eq.'AUTO') then
+!            write(*,*)'3B setting bit CSTEMPAR in ',leq,nyttcs
+            neq%status2=ibset(neq%status2,CSTEMPAR)
+         endif
+      endif
 !
       if(.not.allocated(neq%gval)) then
 ! result arrays should have been allocated in create_parrecords ...
@@ -1042,6 +1049,53 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
+ subroutine suspend_composition_set(iph,parallel,ceq)
+! the last composition set is deleted in all equilibria
+!
+! If parallel is TRUE then execution is not in parallel (threaded)
+!
+   implicit none
+   integer iph
+   logical parallel
+   type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   TYPE(gtp_phase_varres), pointer :: varres,disvarres
+   integer ics,lokph,lokcs,ncs,nsl,nkk,lastcs,nprop,idisvarres,kcs,leq
+   lokph=phases(iph)
+   ncs=phlista(lokph)%noofcs
+! cannot remove composition set 1 or a nonexisting one
+   if(ncs.le.1) goto 1000
+   lokcs=phlista(lokph)%linktocs(ncs)
+!   write(*,*)'3B suspend compset ',parallel
+   if(parallel) then
+! we have to stop all threads to do anyting with other equilibria, skip that
+! just suspend the last composition set of iph in ceq
+!      if(btest(ceq%phase_varres(lokcs)%status2,CSAUTO)) then
+      if(btest(ceq%phase_varres(lokcs)%status2,CSTEMPAR)) then
+         ceq%phase_varres(lokcs)%phstate=PHSUS
+      endif
+      goto 1000
+   endif
+! we have many equilibria but is not running parallel
+! suspend last composition set of iph in all equilibria where it is not stable
+   do leq=1,noeq()
+!      write(*,*)'3B suspend ',iph,ncs,&
+!           eqlista(leq)%phase_varres(lokcs)%phstate,&
+!           btest(eqlista(leq)%phase_varres(lokcs)%status2,CSAUTO),&
+!           btest(eqlista(leq)%phase_varres(lokcs)%status2,CSTEMPAR)
+      if(btest(eqlista(leq)%phase_varres(lokcs)%status2,CSTEMPAR) .and. &
+           eqlista(leq)%phase_varres(lokcs)%phstate.le.PHENTERED) then
+         eqlista(leq)%phase_varres(lokcs)%phstate=PHSUS
+      endif
+   enddo
+!      
+1000 continue
+ end subroutine suspend_composition_set
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!
+!\begin{verbatim}
  subroutine remove_composition_set(iph,force)
 ! the last composition set is deleted
 !
@@ -1087,8 +1141,8 @@
       endif
    endif
 !$   if(.TRUE.) then
-!$      write(*,*)'Deleteing composition sets illegal when running parallel'
-!$      write(*,*)'This subroutine must be executed in sequential'
+!$      write(*,*)'Deleting composition sets impossible when running parallel'
+!       write(*,*)'This subroutine must be executed in sequential'
 !$      goto 1000
 !$   endif
 ! find this tuple

@@ -1936,7 +1936,7 @@ contains
           write(kou,303)ieq
 303       format('Equilibrium number is ',i3)
           call gparcd('Select this equilibrium: ',cline,last,1,ch1,'Y',q1help)
-          if(ch1.eq.'Y') then
+          if(ch1.eq.'Y' .or. ch1.eq.'y') then
              call selecteq(ieq,ceq)
           endif
 !---------------------------------------------------------------
