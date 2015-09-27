@@ -940,6 +940,7 @@ contains
 ! creationg/removing composition sets!! not safe to do that!!
 !$             globaldata%status=ibset(globaldata%status,GSNOACS)
 !$             globaldata%status=ibset(globaldata%status,GSNOREMCS)
+!-$             write(*,*)'Sequential: ',omp_get_num_threads()
 !-$omp parallel do private(ng,iv,iph),schedule(dynamic)
 !--$omp parallel do private(ng,iv),schedule(dynamic)
 !--$omp parallel do 
@@ -958,8 +959,9 @@ contains
                    else
 !$                     if(.TRUE.) then
 !$                      write(*,663)'Equil/loop/thread/error: ',neweq%eqname,&
-!$                           i1,omp_get_thread_num(),gx%bmperr
-663                   format(a,a,3i5)
+!$                           i1,omp_get_thread_num(),gx%bmperr,&
+!$                           omp_get_num_threads()
+663                   format(a,a,5i5)
 ! calceq3 gives no output
 !$                        call calceq3(mode,.FALSE.,neweq)
 !$                     else

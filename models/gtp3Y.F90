@@ -3966,39 +3966,20 @@
                           ceq%phase_varres(lokics)%phtupx
                      goto 1000
                   endif
-! attempt to handle parallel ... we have not implemented deleting compsets
-!$               elseif(.TRUE.) then
-! check if parallel, then do not delete unless remove_composition_set protected
-!                  write(kou,112)
-!112  format('3Y cannot delete comp.sets. in parallel if many equil.')
-! problem to have continuation lines in formats using sentinels??
-!                  ceq%phase_varres(lokics)%status2=&
-!                       ibclr(ceq%phase_varres(lokics)%status2,CSAUTO)
+!$               elseif(omp_get_num_threads().gt.1) then
+! we are running with several threads, just suspend the compset for the
+! equilibrium in this thread
 !$                  call suspend_composition_set(iph,.TRUE.,ceq)
-!               else
-! this needs further testing also in sequental execution
-!                  write(*,*)'3Y Force removing phase tuple ',&
-!                       ceq%phase_varres(lokics)%phtupx,' even with many equil'
-!                  call remove_composition_set(iph,.TRUE.)
-!                  if(gx%bmperr.ne.0) then
-!                     write(*,*)'3Y failed to remove ',&
-!                          ceq%phase_varres(lokics)%phtupx
-!                     goto 1000
-!                  endif
                else
-! if we cannot remove the comp.set then suspend it in this equilibrium
+! when more than one equilibria in sequential eexecution suspend the compset
+! in all equilibria where it is not stable
                   call suspend_composition_set(iph,.FALSE.,ceq)
-!                  ceq%phase_varres(lokics)%status2=&
-!                       ibclr(ceq%phase_varres(lokics)%status2,CSAUTO)
                endif
             else
 ! the comp.set is stable, remove the CSAUTO bit
-!               write(*,*)'Removing CSAUTO bit',ics
                ceq%phase_varres(lokics)%status2=&
                     ibclr(ceq%phase_varres(lokics)%status2,CSAUTO)
             endif
-!         else
-! anything to be done with any other phase?
          endif auto
       enddo csloopdown
    enddo phloop

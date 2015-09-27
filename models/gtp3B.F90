@@ -1068,12 +1068,17 @@
    lokcs=phlista(lokph)%linktocs(ncs)
 !   write(*,*)'3B suspend compset ',parallel
    if(parallel) then
-! we have to stop all threads to do anyting with other equilibria, skip that
-! just suspend the last composition set of iph in ceq
-!      if(btest(ceq%phase_varres(lokcs)%status2,CSAUTO)) then
-      if(btest(ceq%phase_varres(lokcs)%status2,CSTEMPAR)) then
-         ceq%phase_varres(lokcs)%phstate=PHSUS
-      endif
+! we have to stop all threads to do anyting with other equilibria, to
+! suspend composition sets in other threads, skip that just suspend the
+! last composition set of iph in this equilibrium, ceq
+!$      if(omp_get_num_threads().eq.1) then
+!$         write(*,*)'3B suspend ',iph,ncs
+!$         if(btest(ceq%phase_varres(lokcs)%status2,CSTEMPAR)) then
+!$            ceq%phase_varres(lokcs)%phstate=PHSUS
+!$         endif
+!$      else
+        write(*,*)' *** Illegal call to suspend_composition_set in parallel'
+!$      endif
       goto 1000
    endif
 ! we have many equilibria but is not running parallel
@@ -1141,7 +1146,7 @@
       endif
    endif
 !$   if(.TRUE.) then
-!$      write(*,*)'Deleting composition sets impossible when running parallel'
+!      write(*,*)'Deleting composition sets impossible when running parallel'
 !       write(*,*)'This subroutine must be executed in sequential'
 !$      goto 1000
 !$   endif
