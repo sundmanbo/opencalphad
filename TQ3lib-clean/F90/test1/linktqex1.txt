@@ -1,2 +1,10 @@
+copy ..\..\..\liboceq.a .
+
+copy ..\..\..\liboceqplus.mod .
+
+copy ..\..\liboctq.F90 .
+
+gfortran -c liboctq.F90
+
 gfortran -o tqex1 TQ1-crfe.F90 liboctq.o liboceq.a
 

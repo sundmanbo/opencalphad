@@ -10,7 +10,7 @@ program octq2
   character filename*60,phnames(maxph)*24
   character condition*60,line*80,statevar*60,quest*60,ch1*1
   character target*60,selel(2)*2,phcsname*36
-  double precision value,dummy,tp(2),mel(maxel),mf(maxel),volume
+  double precision value,temp,tp(2),mel(maxel),mf(maxel),volume
   double precision xf(maxel),pxf(10*maxph),npf(maxph),mu(maxel)
   type(gtp_equilibrium_data), pointer :: ceq
 ! set some defaults
@@ -53,15 +53,15 @@ program octq2
   write(*,105)
 105 format(/'Give conditions:')
   ip=len(line)
-  dummy=tp(1)
-  call gparrd('Temperature: ',line,ip,tp(1),dummy,nohelp)
+  temp=tp(1)
+  call gparrd('Temperature: ',line,ip,tp(1),temp,nohelp)
   if(buperr.ne.0) goto 1000
   if(tp(1).lt.1.0d0) then
      write(*,*)'Temperature must be larger than 1 K'
      tp(1)=1.0D0
   endif
-  dummy=tp(2)
-  call gparrd('Pressure: ',line,ip,tp(2),dummy,nohelp)
+  temp=tp(2)
+  call gparrd('Pressure: ',line,ip,tp(2),temp,nohelp)
   if(buperr.ne.0) goto 1000
   if(tp(2).lt.1.0d0) then
      write(*,*)'Pressure must be larger than 1 Pa'
@@ -69,8 +69,8 @@ program octq2
   endif
   do n=1,nel-1
      quest='Mole fraction of '//cnam(n)(1:len_trim(cnam(n)))//':'
-     dummy=xf(n)
-     call gparrd(quest,line,ip,xf(n),dummy,nohelp)
+     temp=xf(n)
+     call gparrd(quest,line,ip,xf(n),temp,nohelp)
      if(buperr.ne.0) goto 1000
      if(xf(n).lt.1.0d-6) then
         write(*,*)'Fraction must be larger than 1.0D-6'
