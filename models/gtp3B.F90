@@ -1076,8 +1076,8 @@
 !$         if(btest(ceq%phase_varres(lokcs)%status2,CSTEMPAR)) then
 !$            ceq%phase_varres(lokcs)%phstate=PHSUS
 !$         endif
-!$      else
-        write(*,*)' *** Illegal call to suspend_composition_set in parallel'
+!-$      else
+!-$        write(*,*)' *** Cannot suspend_composition_set in parallel'
 !$      endif
       goto 1000
    endif

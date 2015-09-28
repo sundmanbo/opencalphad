@@ -1,6 +1,6 @@
 //define PARALLEL 0 no loop with parallelization
 //define PARALLEL 1 declared loops with parallelization
-#define PARALLEL 0
+#define PARALLEL 1
 #define MAXEL 20
 #define MAXPH 400
 #define PHFIXED 2

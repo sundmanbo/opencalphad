@@ -49,6 +49,10 @@ MODULE liboceq
 !-------------------------------------------------------
 ! for single equilibrium
 !
+! BITS in meqrec status word
+! quiet means no output for the equilibrium calculation
+  integer, parameter :: quiet=0
+!
 !\begin{verbatim}
   TYPE meq_phase
 ! parts of the data in this structure should be in the gtp_equilibrium_data
@@ -97,11 +101,12 @@ MODULE liboceq
 ! nstph: current number of stable phases
 ! dormlink: is start of list of phases temporarily set dormant
 ! noofits current number of iterations
+! status for various things
 ! nrel number of elements (omponents)
 ! typesofcond: types of conditions, =1 only massbal, =2 any conditions
 ! nfixmu number of fixed chemical potentials
 ! nfixph number of conditions representing fix phases
-     integer nv,nphase,nstph,dormlink,noofits
+     integer nv,nphase,nstph,dormlink,noofits,status
      integer nrel,typesofcond,maxsph,nfixmu,nfixph
 ! component numbers of fixed potentials, reference and value 
      integer, dimension(:), allocatable :: mufixel
@@ -172,6 +177,7 @@ CONTAINS
     integer starttid,endoftime,ij
 !--------------------------------
     allocate(meqrec)
+    meqrec%status=0
     nullify(mapfix)
     call cpu_time(starting)
     call system_clock(count=starttid)
@@ -215,6 +221,8 @@ CONTAINS
     integer starttid,endoftime,ij
 !--------------------------------
     allocate(meqrec)
+    meqrec%status=0
+    if(.not.confirm) meqrec%status=ibset(meqrec%status,QUIET)
     nullify(mapfix)
     call cpu_time(starting)
     call system_clock(count=starttid)
@@ -270,7 +278,7 @@ CONTAINS
     integer, dimension(maxph) :: nyphl
     double precision, dimension(maxconst) :: yarr
     integer np,iph,ics,jph,lokph,lokcs,mode2
-    integer mostcon,mph,nvf
+    integer mostcon,mph,nvf,mostconph(2,maxel),icc,jcc
     integer, parameter :: mmu=5
     integer what,mjj,ij,cmix(10),cmode,mufixel(mmu),mufixref(mmu)
     integer fixph(2,maxel),oldorder(mmu),kst
@@ -280,7 +288,13 @@ CONTAINS
     if(ocv()) write(*,*)"Entering calceq7",mode
     if(gx%bmperr.ne.0) then
        write(*,*)'Error code set before calling grid minimizer',gx%bmperr
-       goto 1000
+       if(gx%bmperr.eq.4203 .or. gx%bmperr.eq.4204) then
+! this means system matrix error and too many iterations respectivly
+          write(*,*)'Error code reset'
+          gx%bmperr=0
+       else
+          goto 1000
+       endif
     endif
     if(mode.ge.0) then
        mode2=mode
@@ -526,7 +540,8 @@ CONTAINS
 !    write(*,*)'starting without gridmin'
     meqrec%nv=0
 ! at least one phase must be stable
-    mostcon=-1
+    mostcon=0
+    mostconph=0
     mph=0
     jph=0
     do iph=1,noph()
@@ -544,33 +559,59 @@ CONTAINS
              meqrec%aphl(meqrec%nv)=ceq%phase_varres(lokcs)%amfu
           endif
        enddo
-! select phase with most constituents
+! select the phases with most constituents
        call get_phase_variance(iph,nvf)
-       if(nvf.gt.mostcon) then
-          mostcon=nvf
-          jph=iph
+       if(mostcon.eq.0) then
+          mostcon=mostcon+1
+          mostconph(1,1)=nvf
+          mostconph(2,1)=iph
+       else
+! very very clumsy
+          do icc=1,mostcon
+             if(nvf.le.mostconph(1,icc)) then
+                if(icc.gt.1) then
+! store this phase as a start phase if not in first position
+! otherwise ignore it
+                   if(mostcon.lt.noel()-meqrec%nfixmu) then
+                      mostcon=mostcon+1
+                      do jcc=icc+1,mostcon
+                         mostconph(1,jcc)=mostconph(1,jcc-1)
+                         mostconph(2,jcc)=mostconph(2,jcc-1)
+                      enddo
+                      mostconph(1,icc)=nvf
+                      mostconph(2,icc)=iph
+                   else
+                      mostconph(1,icc-1)=nvf
+                      mostconph(2,icc-1)=iph
+                   endif
+                endif
+             endif
+          enddo
        endif
     enddo
-!    write(*,*)'Phase selected ',meqrec%nv,jph
     if(meqrec%nv.eq.0) then
-! no phase with positive amount, set phase with most constituents as stable
-       if(jph.gt.0) then
-          call get_phase_compset(jph,1,lokph,lokcs)
-          ceq%phase_varres(lokcs)%amfu=one
-          meqrec%nv=1
-          meqrec%iphl(1)=jph
-          meqrec%icsl(1)=1
-          meqrec%aphl(1)=one
-          if(ocv()) write(*,*)'No gridminimization, selecting phase ',&
-               jph,' as stable'
-! this sets the default constitution 
-          call set_default_constitution(jph,1,ceq)
-       else
+! no phase with positive amount, set the noel()-meqrec%nfixmu-1 phases stable
+! starting with those with highest number of constituents
+       if(mostcon.eq.0) then
 !          write(*,*)'No phase to set stable'
           gx%bmperr=4200; goto 1000
        endif
+!       write(*,55)'Intial phase set stable: ',mostcon,&
+!            (mostconph(1,icc),mostconph(2,icc),icc=1,mostcon)
+55     format(a,i3,10(2i3,2x))
+       meqrec%nv=mostcon
+       do icc=1,mostcon
+          call get_phase_compset(mostconph(2,icc),1,lokph,lokcs)
+          ceq%phase_varres(lokcs)%amfu=one
+          meqrec%iphl(icc)=mostconph(2,icc)
+          meqrec%icsl(icc)=1
+          meqrec%aphl(icc)=one
+! this sets a default constitution 
+          call set_default_constitution(mostconph(2,icc),1,ceq)
+       enddo
     else
 ! hopefully set_constitution has been called ...
+!       write(*,*)'No gridminimization, using current phase set',meqrec%nv
        if(ocv()) write(*,*)'No gridminimization, using current phase set',&
             meqrec%nv
     endif
@@ -948,9 +989,9 @@ CONTAINS
        xxx=0.0D0
        if(iadd.gt.0) tupadd=meqrec%phr(iadd)%curd%phtupx
        if(irem.gt.0) tuprem=meqrec%phr(irem)%curd%phtupx
-       write(*,219)'Phase change: its/add/remove: ',&
-            meqrec%noofits,tupadd,tuprem
-219    format(a,3i5,1pe12.4)
+       if(.not.btest(meqrec%status,QUIET)) &
+            write(*,219)meqrec%noofits,tupadd,tuprem
+219    format('Phase change: its/add/remove: ',3i5,1pe12.4)
        if(formap) then
 ! when called during mapping the set of phases must not change!
           if(ocv()) write(*,*)'Phase change not allowed',ceq%tpval(1)
@@ -1018,10 +1059,10 @@ CONTAINS
 223    format(a,2x,2i4,1pe15.4,i7)
        if(meqrec%noofits-meqrec%phr(iadd)%itrem.lt.minadd) then
 ! if phase was just removed do not add it before minadd iterations
-          write(*,224)'Too soon to add phase: ',minadd,&
-               meqrec%phr(iadd)%iph,&
-               meqrec%phr(iadd)%ics,meqrec%noofits,meqrec%phr(iadd)%itrem
-224       format(a,i3,2x,2i4,5i5)
+          if(.not.btest(meqrec%status,QUIET))write(*,224)minadd,&
+               meqrec%phr(iadd)%iph,meqrec%phr(iadd)%ics,&
+               meqrec%noofits,meqrec%phr(iadd)%itrem
+224       format('Too soon to add phase: ',i3,2x,2i4,5i5)
           goto 200
        endif
 ! make sure iremsave is set to zero
