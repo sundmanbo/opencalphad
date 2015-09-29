@@ -1612,6 +1612,10 @@
    endif noind
 !
 800 continue
+   if(ip+jp.gt.len(text)) then
+      write(*,*)'State variable value output exceed character variable length'
+      gx%bmperr=4999; goto 1000
+   endif
    text(ip:ip+jp-1)=stsymb
    ip=ip+jp
    if(text(ip:ip).eq.' ') then

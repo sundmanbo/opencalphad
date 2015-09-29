@@ -2053,7 +2053,8 @@
       if(allocated(present)) then
          present(jt)=.TRUE.
       endif
-      ip=ip+len_trim(elsym)
+! we seem to miss the first letter of the reference state below ??
+      ip=ip+len_trim(elsym)-1
       if(eolch(longline,ip)) then
          name1='DUMMY'
          mass=one
@@ -2064,6 +2065,8 @@
 ! ix is the length of the reference phase (irrelevant here)
 ! ip is updated to character after the name extracted
          call getext(longline,ip,1,name1,' ',ix)
+!         write(*,*)'3E longline: ',ip,longline(1:ip+10)
+!         write(*,*)'3E element ref: ',name1
 !         name1=longline(ip:)
 !         ip=ip+len_trim(name1)
 ! after the name should be mass, H298-H0 and S298, ignore errors

@@ -382,18 +382,23 @@
    enddo
    nocsets=0
 !   write(*,*)'before loop1: ',nvsph,ceq%eqname
+! loop for all gripoints to store them in composition sets
    loop1: do j1=1,nvsph
+!      write(*,31)'3Y storing gripoints in compsets: ',j1,iphl(j1),icsl(j1),&
+!           gx%bmperr
       if(icsl(j1).eq.0) then
-! if non-zero a composition set has already been assigned 
+! if non-zero a composition set has already been assigned in loop2
          icsl(j1)=1
          icsx=1
          loop2: do j2=j1+1,nvsph
-            if(iphl(j1).eq.iphl(j2)) then
+            nextgridp: if(iphl(j1).eq.iphl(j2)) then
 ! one more composition set needed, does it exist?
                icsx=icsx+1
                ics2=icsx
+!               write(*,31)'3Y compset needed for phase ',j1,j2,iphl(j1),ics2
+31             format(a,10i4)
                call get_phase_compset(iphl(j1),ics2,lokph,lokcs)
-               if(gx%bmperr.ne.0) then
+               newset: if(gx%bmperr.ne.0) then
 ! there is no such composition set, is automatic creation allowed?
 ! NOTE: there is a EQNOACS bit also???
                   if(btest(globaldata%status,GSNOACS)) then
@@ -404,16 +409,31 @@
 ! >>>>>>>>>>>>>>>>>>><
 ! BEWARE >>> not only must this be done in all threads at the same time
 ! one must also avoid that it is done when some thread is working on a set
-! of phase+composition sets trandformed to EQCALC arrays.  If so the
+! of phase+composition sets transformed to EQCALC arrays.  If so the
 ! indices to lokcs etc will be incorrect ... ???
 ! I think OMP has "secure" points where the treads can be stopped to wait
 ! <<<<<<<<<<<<<<<<<<<<<<
                   kph=iphl(j1)
-!                  write(*,*)'3Y new composition set for phase: ',j2,kph
+!                  write(*,*)'3Y extra composition set for phase: ',kph,j1,j2
 ! It must be done in all equilibrium records, no equilibrium record needed!!!
 ! one must be careful with the status word when creating comp.sets
                   call enter_composition_set(kph,'    ','AUTO',icsno)
-                  if(gx%bmperr.ne.0) goto 1000
+                  if(gx%bmperr.ne.0) then
+!                     write(*,*)'Error entering composition set ',j1,gx%bmperr
+                     if(gx%bmperr.eq.4092) then
+! skip entering this set, it may work anyway ...
+                        write(*,298)iphl(j1)
+298             format('Cannot enter enough composition sets for phase',i4,&
+                     ' but gridmin struggles on')
+                        gx%bmperr=0
+! to avoid later trouble we should mark there is no compset for this gridp!!
+                        iphl(j2)=-kph
+                        icsl(j2)=-1
+                        exit newset
+                     else
+                        goto 1000
+                     endif
+                  endif
                   call get_phase_compset(kph,icsno,lokph,lokcs)
                   if(gx%bmperr.ne.0) goto 1000
                   ceq%phase_varres(lokcs)%status2=&
@@ -452,10 +472,12 @@
 !                  ceq%phase_varres(lokcs)%status2=&
 !                       ibclr(ceq%phase_varres(lokcs)%status2,CSFIXDORM)
                   ceq%phase_varres(lokcs)%phstate=0
-               endif
-            endif
+               endif newset
+            endif nextgridp
          enddo loop2
       endif
+!313   continue
+!      write(*,*)'3Y enter next gridpoint: ',j1,j2,gx%bmperr
    enddo loop1
 !   write(*,*)'after loop1: ',phlista(1)%noofcs
    if(nocsets.gt.0) write(*,*)'Composition set(s) created: ',nocsets
@@ -465,29 +487,71 @@
 ! finally store stable phase amounts and constitutions into ceq%phase_varres
    j1=1
    ceqstore: do iph=1,nvsph
-!      write(*,*)'ggm: ',iph,iphl(iph),icsl(iph),j1
-      call set_constitution(iphl(iph),icsl(iph),yphl(j1),qq,ceq)
-      if(gx%bmperr.ne.0) goto 1000
-!      write(*,1788)'gg: ',iph,iphl(iph),icsl(iph),aphl(iph),&
-!           (yphl(j1+ie),ie=0,3),qq(1)
+      if(iphl(iph).lt.0) then
+! this gripoint has no composition set!!!
+!         write(*,*)'Gridpoint ',iph,' not entered as composition set'
+         continue
+      else
+         call set_constitution(iphl(iph),icsl(iph),yphl(j1),qq,ceq)
+         if(gx%bmperr.ne.0) goto 1000
+!         write(*,1788)'gg: ',iph,iphl(iph),icsl(iph),aphl(iph),&
+!              (yphl(j1+ie),ie=0,3),qq(1)
 1788  format(a,3i3,f8.4,2x,4f8.4,1pe10.2)
 ! aphl(iph) is amount of phase per mole component
-      call get_phase_compset(iphl(iph),icsl(iph),lokph,lokcs)
+         call get_phase_compset(iphl(iph),icsl(iph),lokph,lokcs)
 ! Here aphl is divided with the number of mole of atoms in the phase
 !      if(ceq%phase_varres(lokcs)%abnorm(1).ge.one) then
 !         aphl(iph)=aphl(iph)/ceq%phase_varres(lokcs)%abnorm(1)
 !      endif
 !      write(*,1812)iph,lokcs,aphl(iph),ceq%phase_varres(lokcs)%abnorm(1)
-1812  format('aphl: ',2i3,6(1pe12.4))
-      aphl(iph)=aphl(iph)/ceq%phase_varres(lokcs)%abnorm(1)
+01812  format('aphl: ',2i3,6(1pe12.4))
+         aphl(iph)=aphl(iph)/ceq%phase_varres(lokcs)%abnorm(1)
 !      write(*,1789)'aphl: ',iph,lokcs,aphl(iph),&
 !           ceq%phase_varres(lokcs)%abnorm(1)
-1789  format(a,2i3,2(1pe12.4))
-      ceq%phase_varres(lokcs)%amfu=aphl(iph)
-      ceq%phase_varres(lokcs)%phstate=PHENTSTAB
+1789     format(a,2i3,2(1pe12.4))
+         ceq%phase_varres(lokcs)%amfu=aphl(iph)
+         ceq%phase_varres(lokcs)%phstate=PHENTSTAB
 !      write(*,*)'3Y gridmin stable: ',lokcs,ceq%phase_varres(lokcs)%phtupx
-      j1=j1+nyphl(iph)
+         j1=j1+nyphl(iph)
+      endif
    enddo ceqstore
+!-----------------------------------------------------------------------
+! iv is total number of constituent fractions
+   iv=j1
+! For safty, if any iphl is negative shift all values down for all gridpoints
+! I do not think yphl is used any more but ...
+   j1=1
+   iph=1
+870 continue
+      if(iphl(iph).lt.0) then
+!         write(*,*)'Missing compset for phase ',-iphl(iph),&
+!              ' shifting all values down',iph,iv
+!         write(*,880)'Before: ',(iphl(j2),j2=1,nvsph)
+880      format(a,(20i4))
+         do kph=iph,nvsph-1
+            iphl(kph)=iphl(kph+1)
+            icsl(kph)=icsl(kph+1)
+            aphl(kph)=aphl(kph+1)
+            kkz=nyphl(kph)
+            nyphl(kph)=nyphl(kph+1)
+         enddo
+         iphl(nvsph)=-9
+!         write(*,880)'After:  ',(iphl(j2),j2=1,nvsph)
+         if(kph.lt.nvsph) then
+            do j2=j1,iv
+               yphl(j2)=yphl(j2+kkz)
+            enddo
+            iv=iv-kkz
+         endif
+! we shifted all down, fewer gridpoints and do not increment iph below
+         iph=iph-1
+         nvsph=nvsph-1
+      endif
+      j1=j1+nyphl(iph)
+      iph=iph+1
+      if(iph.le.nvsph) goto 870
+!---------------------------------------
+!   write(*,*)'3Y gridpoints: ',nvsph,iph
 1000 continue
 !   write(*,*)'at 1000: ',phlista(1)%noofcs
 ! restore tpval in ceq

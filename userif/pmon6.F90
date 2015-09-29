@@ -278,8 +278,8 @@ contains
 !         123456789.123456---123456789.123456---123456789.123456
 ! subsubcommands to SET PHASE
     character (len=16), dimension(nsetph) :: csetph=&
-         ['QUIT            ','STATUS          ','DEFAULT_CONSTITU',&
-          'AMOUNT          ','BITS            ','                ']
+         ['QUIT            ','STATUS          ','DEFAULT_CONSTIT ',&
+          'AMOUNT          ','BITS            ','NEW_CONSTITUTI  ']
 !         123456789.123456---123456789.123456---123456789.123456
 !-------------------
 ! subsubsubcommands to SET PHASE BITS
@@ -847,7 +847,7 @@ contains
                aphl,nyphl,yarr,cmu,ceq)
           if(gx%bmperr.ne.0) goto 990
           write(kou,2102)nv,(iphl(j1),icsl(j1),j1=1,nv)
-2102      format('Stable ',i2,': ',11(i4,i2))
+2102      format('Number of stable phases ',i2/13(i4,i2))
 ! we must multiply the amount of the stable phases with totam
           do j1=1,nv
              call get_phase_compset(iphl(j1),icsl(j1),lokph,lokcs)
@@ -1355,9 +1355,9 @@ contains
                 endif
              end SELECT
 !............................................................
-       case(6)
-             write(kou,*)'Not implemented yet'
-          END SELECT
+       case(6) ! SET PHASE ... NEW_CONSTITUTION
+          call ask_phase_new_constitution(cline,last,iph,ics,lokcs,ceq)
+       END SELECT
 !-------------------------------------------------------------
        case(10) ! set UNIT (for state variables)
           write(kou,*)'Not implemented yet'

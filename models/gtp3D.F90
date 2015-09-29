@@ -11,7 +11,7 @@
    implicit none
    integer last,iph,ics,lokcs
    character cline*(*)
-!\end{verbatim}
+!\end{verbatim} %+
    character name1*24,quest*32
    double precision yarr(maxcons2),sites(maxsubl),qq(5),yyy,xxx,sss,ydef
    integer knl(maxsubl),knr(maxcons2)
@@ -139,6 +139,143 @@
    if(qph.lt.0) iph=-1
    return
  end subroutine ask_phase_constitution
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine ask_phase_new_constitution(cline,last,iph,ics,lokcs,ceq)
+! interactive input of a constitution of phase iph
+   implicit none
+   integer last,iph,ics,lokcs
+   character cline*(*)
+!\end{verbatim}
+   character name1*24,quest*32
+   double precision yarr(maxcons2),sites(maxsubl),qq(5),yyy,xxx,sss,ydef
+   integer knl(maxsubl),knr(maxcons2)
+   character line*64,ch1*1
+   character*1 :: chd='Y'
+   integer qph,lokph,nsl,kkk,loksp,ip,ll,nr
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+   logical once
+! save here to use the same default as last time
+   save chd
+   call gparc('Phase name: ',cline,last,1,name1,' ',q1help)
+   if(name1(1:2).eq.'* ') then
+! this means all phases and composition sets
+      qph=-1
+      iph=1
+      ics=1
+      call get_phase_name(iph,ics,name1)
+      if(gx%bmperr.ne.0) goto 1000
+   else
+      qph=0
+      call find_phase_by_name(name1,iph,ics)
+      if(gx%bmperr.ne.0) goto 1000
+   endif
+100 continue
+!   write(*,*)'spc 1',qph,iph,ics,name1
+! skip hidden and suspended phases, test_phase_status return
+! -4 hidden, -3 suspend, -2 dormant, -1,0, entered, 2 fixed
+   if(qph.lt.0 .and. test_phase_status(iph,ics,xxx,ceq).le.PHDORM) goto 200
+!   if(qph.lt.0 .and. (phase_status(iph,ics,PHHID,ceq) .or.&
+!        phase_status(iph,ics,PHIMHID,ceq) .or.&
+!        (phase_status(iph,ics,CSSUS,ceq) .and. &
+!        .not.phase_status(iph,ics,CSFIXDORM,ceq)))) goto 200
+!   lokph=phases(iph)
+   call get_phase_compset(iph,ics,lokph,lokcs)
+   if(gx%bmperr.ne.0) goto 1000
+   call get_phase_data(iph,ics,nsl,knl,knr,yarr,sites,qq,ceq)
+   if(gx%bmperr.ne.0) goto 1000
+! ask for amount of formula units, default is current amount
+   yyy=ceq%phase_varres(lokcs)%amfu
+   quest='Amount of '//name1
+   call gparrd(quest,cline,last,xxx,yyy,q1help)
+! if input error quit asking more
+   if(buperr.ne.0) then
+      buperr=0; goto 1000
+   endif
+   ceq%phase_varres(lokcs)%amfu=xxx
+! ask if we should set the default constitution
+   call gparcd('Default constitution?',cline,last,1,ch1,chd,q1help)
+   if(ch1.eq.'Y' .or. ch1.eq.'y') then
+      call set_default_constitution(iph,ics,ceq)
+      if(gx%bmperr.ne.0) goto 1000
+      chd='Y'
+      goto 200
+   else
+      chd='N'
+   endif
+! ask for constitution
+   kkk=0
+   nylat: do ll=1,nsl
+      sss=one
+      ydef=one
+      nycon: do nr=1,knl(ll)-1
+         kkk=kkk+1
+         loksp=phlista(lokph)%constitlist(kkk)
+         line='Fraction of '//splista(loksp)%symbol
+         ip=len_trim(line)+1
+         if(ll.gt.1) then
+            line(ip:)='#'//char(ll+ichar('0'))
+            ip=ip+2
+         endif
+         once=.true.
+20        continue
+         ydef=min(yarr(kkk),ydef)
+         call gparrd(line(1:ip+2),cline,last,xxx,ydef,q1help)
+         if(xxx.lt.zero) then
+            if(once) then
+               write(*,*)'A fraction must be greater than zero'
+               yarr(kkk)=1.0D-12
+               once=.false.
+               goto 20
+            else
+               gx%bmperr=4146; goto 1000
+            endif
+         endif
+         sss=sss-xxx
+         if(sss.lt.zero) then
+            xxx=max(sss+xxx,1.0D-12)
+            sss=-1.0D12
+            write(*,21)'Sum of fractions larger 1.0, fraction set to: ',xxx
+21          format(a,1pe12.4)
+            ydef=1.0D-12
+         else
+            ydef=sss
+         endif
+!         write(*,*)'ydef: ',ydef,sss
+         yarr(kkk)=xxx
+      enddo nycon
+! the last constituent is set to the rest
+      kkk=kkk+1
+      yarr(kkk)=max(sss,1.0D-12)
+      write(*,21)'Last fraction set to: ',yarr(kkk)
+   enddo nylat
+! set the new constitution
+   call set_constitution(iph,ics,yarr,qq,ceq)
+! if all phases loop
+200 continue
+   if(qph.lt.0) then
+      if(gx%bmperr.eq.4050) then
+! error no such phase, quit
+         gx%bmperr=0; goto 1000
+      elseif(gx%bmperr.eq.4072) then
+! error no such composition set, take next phase
+         gx%bmperr=0
+         iph=iph+1
+         ics=1
+      else
+         ics=ics+1
+      endif
+      call get_phase_name(iph,ics,name1)
+      if(gx%bmperr.ne.0) goto 200
+      goto 100
+   endif
+1000 continue
+! return -1 as phase number of loop for all phases made
+   if(qph.lt.0) iph=-1
+   return
+ end subroutine ask_phase_new_constitution
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
