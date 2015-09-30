@@ -531,7 +531,7 @@ contains
 !--------------------------------------------------------------------
 !\end{verbatim}
     integer ics,mjj,nph,ki,kj,lp,lokph,lokcs
-    character statevar*60,encoded*1024,name*24,selvar*4,norm*4
+    character statevar*60,encoded*2048,name*24,selvar*4,norm*4
 ! mjj should be the dimension of the array values ...
     mjj=n3
     selvar=stavar
