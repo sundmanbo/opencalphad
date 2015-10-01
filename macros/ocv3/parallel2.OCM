@@ -39,7 +39,7 @@ calc cp
 list x(fcc,c) tc(bcc)
 @$ Here starts to table values
 table_start
-@$ comment line NOTE first value (coulmn 0) on each line is equilibrium name!!
+@$ comment line NOTE first value (column 0) on each line is equilibrium name!!
 @$ equilibrium names like FIRST, NEXT, PREVIOUS, DEFAULT, LAST forbidden
 @$     T is column 1, x(c) is column 2 (Preferably no TAB characters)
 ettan     800 0.008
@@ -67,6 +67,400 @@ equil_22 1600 0.009
 equil_23 1600 0.010
 equil_24 1600 0.011
 equil_25 1600 0.012
+@$
+equil_26  800 0.008
+equil_27  800 0.009
+equil_28  800 0.010
+equil_29  800 0.011
+equil_30  800 0.012
+equil_31 1000 0.008
+equil_32 1000 0.009
+equil_33 1000 0.010
+equil_34 1000 0.011
+equil_35 1000 0.012
+equil_36 1200 0.008
+equil_37 1200 0.009
+equil_38 1200 0.010
+equil_39 1200 0.011
+equil_40 1200 0.012
+equil_41 1400 0.008
+equil_42 1400 0.009
+equil_43 1400 0.010
+equil_44 1400 0.011
+equil_45 1400 0.012
+@$
+equil_46  800 0.008
+equil_47  800 0.009
+equil_48  800 0.010
+equil_49  800 0.011
+equil_50  800 0.012
+equil_51 1000 0.008
+equil_52 1000 0.009
+equil_53 1000 0.010
+equil_54 1000 0.011
+equil_55 1000 0.012
+equil_56 1200 0.008
+equil_57 1200 0.009
+equil_58 1200 0.010
+equil_59 1200 0.011
+equil_60 1200 0.012
+equil_61 1400 0.008
+equil_62 1400 0.009
+equil_63 1400 0.010
+equil_64 1400 0.011
+equil_65 1400 0.012
+@$
+equil_66  800 0.008
+equil_67  800 0.009
+equil_68  800 0.010
+equil_69  800 0.011
+equil_70  800 0.012
+equil_71 1000 0.008
+equil_72 1000 0.009
+equil_73 1000 0.010
+equil_74 1000 0.011
+equil_75 1000 0.012
+equil_76 1200 0.008
+equil_77 1200 0.009
+equil_78 1200 0.010
+equil_79 1200 0.011
+equil_80 1200 0.012
+equil_81 1400 0.008
+equil_82 1400 0.009
+equil_83 1400 0.010
+equil_84 1400 0.011
+equil_85 1400 0.012
+@$
+equil_86  800 0.008
+equil_87  800 0.009
+equil_88  800 0.010
+equil_89  800 0.011
+equil_90  800 0.012
+equil_91 1000 0.008
+equil_92 1000 0.009
+equil_93 1000 0.010
+equil_94 1000 0.011
+equil_95 1000 0.012
+equil_96 1200 0.008
+equil_97 1200 0.009
+equil_98 1200 0.010
+equil_99 1200 0.011
+@$
+equil_100  800 0.008
+equil_101  800 0.008
+equil_102  800 0.009
+equil_103  800 0.010
+equil_104  800 0.011
+equil_105  800 0.012
+equil_106 1000 0.008
+equil_107 1000 0.009
+equil_108 1000 0.010
+equil_109 1000 0.011
+equiL_110 1000 0.012
+equiL_111 1200 0.008
+equiL_112 1200 0.009
+equiL_113 1200 0.010
+equiL_114 1200 0.011
+equiL_115 1200 0.012
+equiL_116 1400 0.008
+equiL_117 1400 0.009
+equiL_118 1400 0.010
+equiL_119 1400 0.011
+equiL_120 1400 0.012
+equiL_121 1600 0.008
+equiL_122 1600 0.009
+equiL_123 1600 0.010
+equiL_124 1600 0.011
+equiL_125 1600 0.012
+@$
+equiL_126  800 0.008
+equiL_127  800 0.009
+equiL_128  800 0.010
+equiL_129  800 0.011
+equiL_130  800 0.012
+equiL_131 1000 0.008
+equiL_132 1000 0.009
+equiL_133 1000 0.010
+equiL_134 1000 0.011
+equiL_135 1000 0.012
+equiL_136 1200 0.008
+equiL_137 1200 0.009
+equiL_138 1200 0.010
+equiL_139 1200 0.011
+equiL_140 1200 0.012
+equiL_141 1400 0.008
+equiL_142 1400 0.009
+equiL_143 1400 0.010
+equiL_144 1400 0.011
+equiL_145 1400 0.012
+@$
+equiL_146  800 0.008
+equiL_147  800 0.009
+equiL_148  800 0.010
+equiL_149  800 0.011
+equiL_150  800 0.012
+equiL_151 1000 0.008
+equiL_152 1000 0.009
+equiL_153 1000 0.010
+equiL_154 1000 0.011
+equiL_155 1000 0.012
+equiL_156 1200 0.008
+equiL_157 1200 0.009
+equiL_158 1200 0.010
+equiL_159 1200 0.011
+equiL_160 1200 0.012
+equiL_161 1400 0.008
+equiL_162 1400 0.009
+equiL_163 1400 0.010
+equiL_164 1400 0.011
+equiL_165 1400 0.012
+@$
+equiL_166  800 0.008
+equiL_167  800 0.009
+equiL_168  800 0.010
+equiL_169  800 0.011
+equiL_170  800 0.012
+equiL_171 1000 0.008
+equiL_172 1000 0.009
+equiL_173 1000 0.010
+equiL_174 1000 0.011
+equiL_175 1000 0.012
+equiL_176 1200 0.008
+equiL_177 1200 0.009
+equiL_178 1200 0.010
+equiL_179 1200 0.011
+equiL_180 1200 0.012
+equiL_181 1400 0.008
+equiL_182 1400 0.009
+equiL_183 1400 0.010
+equiL_184 1400 0.011
+equiL_185 1400 0.012
+@$
+equiL_186  800 0.008
+equiL_187  800 0.009
+equiL_188  800 0.010
+equiL_189  800 0.011
+equiL_190  800 0.012
+equiL_191 1000 0.008
+equiL_192 1000 0.009
+equiL_193 1000 0.010
+equiL_194 1000 0.011
+equiL_195 1000 0.012
+equiL_196 1200 0.008
+equiL_197 1200 0.009
+equiL_198 1200 0.010
+equiL_199 1200 0.011
+@$
+equil_200  800 0.008
+equil_201  800 0.008
+equil_202  800 0.009
+equil_203  800 0.010
+equil_204  800 0.011
+equil_205  800 0.012
+equil_206 1000 0.008
+equil_207 1000 0.009
+equil_208 1000 0.010
+equil_209 1000 0.011
+equiL_210 1000 0.012
+equiL_211 1200 0.008
+equiL_212 1200 0.009
+equiL_213 1200 0.010
+equiL_214 1200 0.011
+equiL_215 1200 0.012
+equiL_216 1400 0.008
+equiL_217 1400 0.009
+equiL_218 1400 0.010
+equiL_219 1400 0.011
+equiL_220 1400 0.012
+equiL_221 1600 0.008
+equiL_222 1600 0.009
+equiL_223 1600 0.010
+equiL_224 1600 0.011
+equiL_225 1600 0.012
+@$
+equiL_226  800 0.008
+equiL_227  800 0.009
+equiL_228  800 0.010
+equiL_229  800 0.011
+equiL_230  800 0.012
+equiL_231 1000 0.008
+equiL_232 1000 0.009
+equiL_233 1000 0.010
+equiL_234 1000 0.011
+equiL_235 1000 0.012
+equiL_236 1200 0.008
+equiL_237 1200 0.009
+equiL_238 1200 0.010
+equiL_239 1200 0.011
+equiL_240 1200 0.012
+equiL_241 1400 0.008
+equiL_242 1400 0.009
+equiL_243 1400 0.010
+equiL_244 1400 0.011
+equiL_245 1400 0.012
+@$
+equiL_246  800 0.008
+equiL_247  800 0.009
+equiL_248  800 0.010
+equiL_249  800 0.011
+equiL_250  800 0.012
+equiL_251 1000 0.008
+equiL_252 1000 0.009
+equiL_253 1000 0.010
+equiL_254 1000 0.011
+equiL_255 1000 0.012
+equiL_256 1200 0.008
+equiL_257 1200 0.009
+equiL_258 1200 0.010
+equiL_259 1200 0.011
+equiL_260 1200 0.012
+equiL_261 1400 0.008
+equiL_262 1400 0.009
+equiL_263 1400 0.010
+equiL_264 1400 0.011
+equiL_265 1400 0.012
+@$
+equiL_266  800 0.008
+equiL_267  800 0.009
+equiL_268  800 0.010
+equiL_269  800 0.011
+equiL_270  800 0.012
+equiL_271 1000 0.008
+equiL_272 1000 0.009
+equiL_273 1000 0.010
+equiL_274 1000 0.011
+equiL_275 1000 0.012
+equiL_276 1200 0.008
+equiL_277 1200 0.009
+equiL_278 1200 0.010
+equiL_279 1200 0.011
+equiL_280 1200 0.012
+equiL_281 1400 0.008
+equiL_282 1400 0.009
+equiL_283 1400 0.010
+equiL_284 1400 0.011
+equiL_285 1400 0.012
+@$
+equiL_286  800 0.008
+equiL_287  800 0.009
+equiL_288  800 0.010
+equiL_289  800 0.011
+equiL_290  800 0.012
+equiL_291 1000 0.008
+equiL_292 1000 0.009
+equiL_293 1000 0.010
+equiL_294 1000 0.011
+equiL_295 1000 0.012
+equiL_296 1200 0.008
+equiL_297 1200 0.009
+equiL_298 1200 0.010
+equiL_299 1200 0.011
+@$
+equil_300  800 0.008
+equil_301  800 0.008
+equil_302  800 0.009
+equil_303  800 0.010
+equil_304  800 0.011
+equil_305  800 0.012
+equil_306 1000 0.008
+equil_307 1000 0.009
+equil_308 1000 0.010
+equil_309 1000 0.011
+equiL_310 1000 0.012
+equiL_311 1200 0.008
+equiL_312 1200 0.009
+equiL_313 1200 0.010
+equiL_314 1200 0.011
+equiL_315 1200 0.012
+equiL_316 1400 0.008
+equiL_317 1400 0.009
+equiL_318 1400 0.010
+equiL_319 1400 0.011
+equiL_320 1400 0.012
+equiL_321 1600 0.008
+equiL_322 1600 0.009
+equiL_323 1600 0.010
+equiL_324 1600 0.011
+equiL_325 1600 0.012
+@$
+equiL_326  800 0.008
+equiL_327  800 0.009
+equiL_328  800 0.010
+equiL_329  800 0.011
+equiL_330  800 0.012
+equiL_331 1000 0.008
+equiL_332 1000 0.009
+equiL_333 1000 0.010
+equiL_334 1000 0.011
+equiL_335 1000 0.012
+equiL_336 1200 0.008
+equiL_337 1200 0.009
+equiL_338 1200 0.010
+equiL_339 1200 0.011
+equiL_340 1200 0.012
+equiL_341 1400 0.008
+equiL_342 1400 0.009
+equiL_343 1400 0.010
+equiL_344 1400 0.011
+equiL_345 1400 0.012
+@$
+equiL_346  800 0.008
+equiL_347  800 0.009
+equiL_348  800 0.010
+equiL_349  800 0.011
+equiL_350  800 0.012
+equiL_351 1000 0.008
+equiL_352 1000 0.009
+equiL_353 1000 0.010
+equiL_354 1000 0.011
+equiL_355 1000 0.012
+equiL_356 1200 0.008
+equiL_357 1200 0.009
+equiL_358 1200 0.010
+equiL_359 1200 0.011
+equiL_360 1200 0.012
+equiL_361 1400 0.008
+equiL_362 1400 0.009
+equiL_363 1400 0.010
+equiL_364 1400 0.011
+equiL_365 1400 0.012
+@$
+equiL_366  800 0.008
+equiL_367  800 0.009
+equiL_368  800 0.010
+equiL_369  800 0.011
+equiL_370  800 0.012
+equiL_371 1000 0.008
+equiL_372 1000 0.009
+equiL_373 1000 0.010
+equiL_374 1000 0.011
+equiL_375 1000 0.012
+equiL_376 1200 0.008
+equiL_377 1200 0.009
+equiL_378 1200 0.010
+equiL_379 1200 0.011
+equiL_380 1200 0.012
+equiL_381 1400 0.008
+equiL_382 1400 0.009
+equiL_383 1400 0.010
+equiL_384 1400 0.011
+equiL_385 1400 0.012
+@$
+equiL_386  800 0.008
+equiL_387  800 0.009
+equiL_388  800 0.010
+equiL_389  800 0.011
+equiL_390  800 0.012
+equiL_391 1000 0.008
+equiL_392 1000 0.009
+equiL_393 1000 0.010
+equiL_394 1000 0.011
+equiL_395 1000 0.012
+equiL_396 1200 0.008
+equiL_397 1200 0.009
+equiL_398 1200 0.010
+equiL_399 1200 0.011
+equiL_400 1200 0.011
 table_end
 
 @&
@@ -75,7 +469,7 @@ l eq
 
 @&
 @$ Set range so they can be calculated by the "calculate all" command
-set range 2 26
+set range 2 400
 
 @&
 @$ Calculate once with gridminimizer, we may create composition sets
@@ -97,11 +491,11 @@ calc all Y
 calc all N
 
 @&
-@$ write the output on a file
+@$ calculate and write the output on a file
 calc /out=parallel2 all N
 
 @&
-@$ Run without parallel for comparison
+@$ Run without parallel with output on file for comparison
 @$ Bit 2 makes me an expert, bit 15 turns off parallel
 set bit 2
 set bit 15
@@ -111,4 +505,8 @@ calc /out=sequential all N
 
 set inter
 
- 
+2378
+
+8320
+
+
