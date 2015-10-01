@@ -79,14 +79,14 @@ if (general_case){
 	//read composition for all the elements of the database
 	Read_Composition(eldatabase,Compo_all_el,el_ref);
 }else{
-    //Compo_all_el[0]=0.7e-2;//Ag
-	Compo_all_el[3]=5e-2;//Cu
-	Compo_all_el[4]=0.04e-2;//Fe
-	//Compo_all_el[5]=2e-2;//Li
-	Compo_all_el[6]=0.35e-2;//Mg
-	Compo_all_el[7]=0.35e-2;//Mn
-	Compo_all_el[8]=0.1e-2;//Sc
-	Compo_all_el[9]=0.02e-2;//Si
+     Compo_all_el[0]=0.7e-2;//Ag
+	Compo_all_el[3]=2e-2;//Cu
+	Compo_all_el[4]=0.08e-2;//Fe
+ 	Compo_all_el[5]=2e-2;//Li
+	Compo_all_el[6]=2e-2;//Mg
+ 	Compo_all_el[7]=0.35e-2;//Mn
+ 	Compo_all_el[8]=0.1e-2;//Sc
+	Compo_all_el[9]=0.04e-2;//Si
 	Compo_all_el[10]=0.005e-2;//Ti
 	Compo_all_el[12]=0.6e-2;//Zn
 	Compo_all_el[13]=0.14e-2;//Zr
@@ -137,12 +137,14 @@ if (general_case){
 	//---------------------Compute Equilibrium----------------------------
 	int i_error=0;
 	List_Conditions(&ceq);
-	CalculateEquilibrium(&ceq,GRID,i_error);  // option GRID
-	//CalculateEquilibrium(&ceq,GRID,i_error);// option GRID
-	//CalculateEquilibrium(&ceq,NOGRID,i_error);// option NOGRID
+	Change_Phase_Status("LIQUID",PHENTERED,1.0,&ceq);// 
+	
+	CalculateEquilibrium(&ceq,NOGRID,i_error);  // option GRID
+	
 	if (i_error==0){
 		Write_Results_Equilibrium(el_reduced_names,phnames,phfract,elfract,ceq,2);
 	}
+	
 	
 	
 	/*	
@@ -182,8 +184,8 @@ if (general_case){
 
 	gettimeofday(&start1, NULL);// get the present time
 	
-	double TK_start=1500.15;
-	double step_TK=-100;//number of steps is predefined and equal to 10
+	double TK_start=1500;
+	double step_TK=-250;//number of steps is predefined and equal to 10
 	
 	double required_accuracy_on_TK=1e-2;
 	

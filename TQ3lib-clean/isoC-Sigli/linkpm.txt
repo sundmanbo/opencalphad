@@ -6,5 +6,5 @@ gfortran -c liboctq.F90
 
 gfortran -c liboctqisoc.F90
 
-g++ -o sigli -fopenmp -lstdc++ tqintf.cpp liboctqisoc.o liboctq.o liboceq.a -lgfortran -lm
+g++ -o psigli -fopenmp -lstdc++ tqintf.cpp liboctqisoc.o liboctq.o liboceq.a -lgfortran -lm
 

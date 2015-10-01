@@ -726,10 +726,10 @@ contains
   
 !\end{verbatim}
     
-	globaldata%status=ibclr(globaldata%status,GSADV)
+	!globaldata%status=ibclr(globaldata%status,GSADV)
 	!globaldata%status=ibclr(globaldata%status,GSNOPAR)
-	globaldata%status=ibclr(globaldata%status,GSXGRID)
-	globaldata%status=ibclr(globaldata%status,GSNOACS)
+	!globaldata%status=ibclr(globaldata%status,GSXGRID)
+	!globaldata%status=ibclr(globaldata%status,GSNOACS)
 	
     return
   end subroutine c_set_status_globaldata

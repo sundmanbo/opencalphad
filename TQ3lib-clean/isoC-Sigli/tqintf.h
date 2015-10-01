@@ -7,9 +7,10 @@
 #define PHENTERED 0
 #define PHSUS -3
 #define TCtoTK 273.15
-#define NSTEP 10
+#define NSTEP 4
 #define GRID 0
 #define NOGRID -1
+#define NCPU 5
 
 
 
@@ -21,6 +22,8 @@
 #include <cstring>
 #include <vector>
 #include <sstream>
+#include <omp.h>
+
 
 extern"C"
 {
@@ -320,6 +323,7 @@ void CalculateEquilibrium(void *ceq, int n1, int &i_error)
 	do{
 		if (not (i_error==0)) {
 			cout<<" !!!! Equilibrium not converged & trying again"<<endl;
+			List_Conditions(ceq);
 		}
 		
 		iter+=1;
@@ -642,7 +646,7 @@ string answer;
 // iceq=Create_New_Ceq_and_Return_ID(Ceq_Name); iceq is the index in the equilibrium vector eqlista of OC3  
 // Store_Equilibria.push_back(iceq); all the indexes are stored in the vector Store_Equilibria
 // here you scan the temperature and we create a vector of the different temperatures that will be used in the parallel calculation
-void Find_Transitions(const string &root, const double &TK_start,const int &nceq,const double &step_TK,const vector<double> &W, const vector<string> &phnames,vector<double> &Transitions,const vector<string> &el_reduced_names, void *ceq, const bool last_iteration, const bool first_iteration, vector<int> &Store_Equilibria){				  
+void Find_Transitions( const double &TK_start,const int &nceq,const double &step_TK,const vector<double> &W, const vector<string> &phnames,vector<double> &Transitions,const vector<string> &el_reduced_names,  const bool last_iteration, vector<int> &Store_Equilibria,vector< string > &Phase_transitions_mixture, void *ceq,const double required_accuracy_on_TK){				  
 	
 	int iceq=0;
 	vector<double> phfract;
@@ -653,7 +657,7 @@ void Find_Transitions(const string &root, const double &TK_start,const int &nceq
 	
 	
 	
-	string Ceq_Name=root;
+	
 	
 	vector<double> TKCE;
 	vector< vector<double> > CeqFract;
@@ -663,13 +667,6 @@ void Find_Transitions(const string &root, const double &TK_start,const int &nceq
 	double TK_end=TK_start+(nceq-1)*step_TK;
 	double TK=TK_start;
 	for (int i=0; i<=nceq;i++){
-		if ((PARALLEL>0)&&(first_iteration)) {// if parallel and first loop we need to enter nceq equilibria
-			Ceq_Name=root+IntToString(i);//in order to have a different name for each equilibrium
-			iceq=Create_New_Ceq_and_Return_ID(Ceq_Name);// iceq is the index in the equilibrium vector eqlista of OC3  
-//			cout<<i <<" "<<Ceq_Name<<" "<<iceq<<endl;
-			Store_Equilibria.push_back(iceq);//all the indexes are stored in the vector Store_Equilibria
-		}
-		
 		TKCE.push_back(TK);//here you scan the temperature and we create a vector of the different temperatures that will be used in the parallel calculation
 		TK+=step_TK;
 	}
@@ -678,27 +675,32 @@ void Find_Transitions(const string &root, const double &TK_start,const int &nceq
  
 	size_t max_number_of_phase=0;
 // the three lines below trigger parallelism for the nex for {....} loop if PARALLEL is not 0
+    omp_set_num_threads(NCPU);
 #if PARALLEL>0
-#pragma omp parallel for
+#pragma omp parallel for schedule(dynamic)
 #endif
 	for (int i=0; i<TKCE.size();i++){
 		void *ceqi= NULL;
 		if ((PARALLEL>0)) {
-			c_selecteq(Store_Equilibria[i], &ceqi);// retrieve the pointer with index stored in Store_Equilibria
-			if (first_iteration){// after entering the equilibrium we need to set the conditions
-				SetPressure(1.0E5, &ceqi);// Set Pressure when ceqi is created (for the first loop of Global_Find_Transitions)
-				SetMoles(1.0, &ceqi); // Set Number of moles when ceqi is created
-				SetComposition(W, &ceqi);// Set the composition  when ceqi is created
-			}
-		}else{
-			ceqi=ceq;// if no parallelization use STANDART EQUILIBRIUM
-		}
 		
+			c_selecteq(Store_Equilibria[i], &ceqi);// retrieve the pointer with index stored in Store_Equilibria
+			
+		}else{
+	//		ceqi=ceq;// if no parallelization use STANDART EQUILIBRIUM
+			c_selecteq(1, &ceqi);
+		}
+		Change_Phase_Status("LIQUID",PHENTERED,0.001,&ceqi);// 
+//		Change_Phase_Status("FCC_A1",PHENTERED,0.4,&ceqi);//
+//		cout<<"T="<<TKCE[i]<<endl;
 		SetTemperature(TKCE[i], &ceqi); // set temperature for specific equilibrium
 //		List_Conditions(&ceqi);
         int i_error=0;
 //		List_Conditions(&ceqi);
-		CalculateEquilibrium(&ceqi,NOGRID,i_error); // perform an equilibrium calculation
+		if (PARALLEL>0){
+			CalculateEquilibrium(&ceqi,NOGRID,i_error); // perform an equilibrium calculation
+		}else{
+			CalculateEquilibrium(&ceqi,NOGRID,i_error); // perform an equilibrium calculation
+		}
 		if (not(i_error==0)){
 			cout<<" equilibrium calculation not converged in transition subroutine"<<endl;
 			exit(EXIT_FAILURE);
@@ -726,15 +728,34 @@ void Find_Transitions(const string &root, const double &TK_start,const int &nceq
 			if ((!(CeqFract[i][j]<1e-8)&&(CeqFract[i+1][j]<1e-8))||(!(CeqFract[i][j]>1e-8)&&(CeqFract[i+1][j]>1e-8)))
 			{
   //            a transition has been detected			
- //				cout<<"********transition at: "<<TKCE[i]<<endl;
+  //			cout<<"********transition at: "<<TKCE[i]<<endl;
  //				cout<<"phase:"<<phnames[j]<<" "<<CeqFract[i][j]<<" "<<CeqFract[i+1][j]<<endl;
+				int i_value;	
 				if (! last_iteration) {
+					Transitions.push_back((TKCE[i]+required_accuracy_on_TK/10.0));
+				}else
+				{
+					if (Transitions.size()==0) {
 						Transitions.push_back(TKCE[i]);
-					}else
-					{
-						if (Transitions.size()==0) Transitions.push_back(TKCE[i]);
-						Transitions.push_back(TKCE[i+1]);
+						Phase_transitions_mixture.push_back("");
+						for (size_t k=0; k<phnames.size(); k++){
+							if (CeqFract[i][k]>0) {
+								Phase_transitions_mixture.back()+=phnames[k];
+								Phase_transitions_mixture.back()+=" + ";
+							}
+						}
 					}
+					
+					Transitions.push_back(TKCE[i+1]);
+					Phase_transitions_mixture.push_back("");
+					for (size_t k=0; k<phnames.size(); k++){
+						if (CeqFract[i+1][k]>0) {
+							Phase_transitions_mixture.back()+=phnames[k];
+							Phase_transitions_mixture.back()+=" + ";
+						}
+					}
+				}
+				
 				j=phnames.size()+1;// exit the loop 
 			}
 		}
@@ -755,7 +776,8 @@ void Find_Transitions(const string &root, const double &TK_start,const int &nceq
 // see Find_Transitions for comments on parallelization
 
 void Global_Find_Transitions(double &TK_start,const int &n_step,double &step_TK,const double required_accuracy_on_TK, const vector<double> &W, const vector<string> &phnames,const vector<string> &el_reduced_names, void *ceq){				  
-	int number_of_loops=(int)( log10( fabs(step_TK)/required_accuracy_on_TK)+1);
+	
+	int number_of_loops=(int)( log10( fabs(step_TK)/required_accuracy_on_TK)/log10(n_step)+1);
 
 	cout<<"number of loops"<<number_of_loops<<endl;
 	
@@ -771,8 +793,35 @@ void Global_Find_Transitions(double &TK_start,const int &n_step,double &step_TK,
 	string root;
 	Transitions1.push_back(TK_start);
 	
+	
 	//c_no_ph_creation();
-	bool first_iteration=true;
+	root= "CEQ_";
+	string Ceq_Name=root;
+	
+	if (PARALLEL>0) {
+	int iceq;
+		for (int i=0; i<=n_step;i++){
+			void *ceqi= NULL;
+			Ceq_Name=root+IntToString(i);//in order to have a different name for each equilibrium
+			iceq=Create_New_Ceq_and_Return_ID(Ceq_Name);// iceq is the index in the equilibrium vector eqlista of OC3 
+			cout<<Ceq_Name<<" "<<iceq<<endl;	
+			Store_Equilibria.push_back(iceq);//all the indexes are stored in the vector Store_Equilibria
+			c_selecteq(iceq, &ceqi);
+//			Change_Phase_Status("LIQUID",PHENTERED,1.0,&ceqi);// 
+			SetPressure(1.0E5, &ceqi);// Set Pressure when ceqi is created (for the first loop of Global_Find_Transitions)
+			SetMoles(1.0, &ceqi); // Set Number of moles when ceqi is created
+			SetComposition(W, &ceqi);// Set the composition  when ceqi is created
+			SetTemperature(1500, &ceqi);
+			c_set_status_globaldata();
+		//---------------------Compute Equilibrium----------------------------
+			int i_error=0;
+			Change_Phase_Status("LIQUID",PHENTERED,1.0,&ceqi);// 
+			CalculateEquilibrium(&ceqi,NOGRID,i_error);  // option GRID
+			
+		}
+	}
+	
+	vector< string > Phase_transitions_mixture;
 	for (size_t k=0; k<number_of_loops;k++){
 		cout<<"===================================================="<<endl;
 		cout<<"         loop n:"<<k+1<<" increment of T="<< step_TK<<endl;
@@ -786,19 +835,21 @@ void Global_Find_Transitions(double &TK_start,const int &n_step,double &step_TK,
 		bool last_iteration=false;
 		if (k==number_of_loops-1) last_iteration=true;
 		
-		if (k>0) first_iteration=false;
+		
 		for (size_t i=0; i<Transitions0.size();i++){
 			cout<<"treating transition : "<<Transitions0[i]<<endl;
 			TK_start=Transitions0[i];
-			if (first_iteration) root="CEQ_"+IntToString(k)+"_"+IntToString(i)+"_";
-			Find_Transitions(root,TK_start,n_step,step_TK,W,phnames,Transitions1,el_reduced_names,ceq,last_iteration,first_iteration,Store_Equilibria );
+			
+			Find_Transitions(TK_start,n_step,step_TK,W,phnames,Transitions1,el_reduced_names,last_iteration,Store_Equilibria,Phase_transitions_mixture, ceq,required_accuracy_on_TK);
 		}
 		
 		double old_step_TK=step_TK;
 		step_TK=step_TK/n_step;
 	}
-	vector< string > Phase_transitions_mixture;
-	Phase_transitions_mixture.resize(Transitions1.size(),"");
+	
+	
+	cout<<"===================================================="<<endl;
+	cout<<" Parallel: "<<PARALLEL<<" number of threads: "<<NCPU<<endl;
 	cout<<"===================================================="<<endl;
 	cout<<"                     composition                    "<<endl;
 	cout<<" -------------------------------------------------- "<<endl;
@@ -806,25 +857,6 @@ void Global_Find_Transitions(double &TK_start,const int &n_step,double &step_TK,
 		cout<<el_reduced_names[i]<<" (w%): "<<W[i]<<endl;
 	}
 	cout<<" -------------------------------------------------- "<<endl;
-	for (size_t i=0;i<Transitions1.size();i++) {
-		
-		SetTemperature(Transitions1[i], &ceq);
-		int i_error=0;
-		CalculateEquilibrium(&ceq,NOGRID, i_error);
-		if (not(i_error==0)){
-			cout<<" equilibrium calculation not converged in transition subroutine"<<endl;
-			exit (EXIT_FAILURE);
-		}
-		ReadPhaseFractions(phnames, phfract, &ceq);
-		for (size_t j=0; j<phnames.size(); j++){
-			if (phfract[j]>0) {
-				Phase_transitions_mixture[i]+=phnames[j];
-				Phase_transitions_mixture[i]+=" + ";
-				}
-		}
-		
-		
-	}
 	for (size_t i=0;i<Transitions1.size();i++) {
 		cout<<i<<" "<<Transitions1[i]-TCtoTK<<" "<<Phase_transitions_mixture[i]<<endl;
 	}
