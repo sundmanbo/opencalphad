@@ -59,6 +59,7 @@
    endif
    ceq%phase_varres(lokcs)%amfu=xxx
 ! ask if we should set the default constitution
+!   write(*,*)'3D we are here!'
    call gparcd('Default constitution?',cline,last,1,ch1,chd,q1help)
    if(ch1.eq.'Y' .or. ch1.eq.'y') then
       call set_default_constitution(iph,ics,ceq)
@@ -159,24 +160,24 @@
    logical once
 ! save here to use the same default as last time
    save chd
-   call gparc('Phase name: ',cline,last,1,name1,' ',q1help)
-   if(name1(1:2).eq.'* ') then
+!   call gparc('Phase name: ',cline,last,1,name1,' ',q1help)
+!   if(name1(1:2).eq.'* ') then
 ! this means all phases and composition sets
-      qph=-1
-      iph=1
-      ics=1
-      call get_phase_name(iph,ics,name1)
-      if(gx%bmperr.ne.0) goto 1000
-   else
-      qph=0
-      call find_phase_by_name(name1,iph,ics)
-      if(gx%bmperr.ne.0) goto 1000
-   endif
+!      qph=-1
+!      iph=1
+!      ics=1
+!      call get_phase_name(iph,ics,name1)
+!      if(gx%bmperr.ne.0) goto 1000
+!   else
+!      qph=0
+!      call find_phase_by_name(name1,iph,ics)
+!      if(gx%bmperr.ne.0) goto 1000
+!   endif
 100 continue
 !   write(*,*)'spc 1',qph,iph,ics,name1
 ! skip hidden and suspended phases, test_phase_status return
 ! -4 hidden, -3 suspend, -2 dormant, -1,0, entered, 2 fixed
-   if(qph.lt.0 .and. test_phase_status(iph,ics,xxx,ceq).le.PHDORM) goto 200
+!   if(qph.lt.0 .and. test_phase_status(iph,ics,xxx,ceq).le.PHDORM) goto 200
 !   if(qph.lt.0 .and. (phase_status(iph,ics,PHHID,ceq) .or.&
 !        phase_status(iph,ics,PHIMHID,ceq) .or.&
 !        (phase_status(iph,ics,CSSUS,ceq) .and. &
@@ -190,12 +191,13 @@
    yyy=ceq%phase_varres(lokcs)%amfu
    quest='Amount of '//name1
    call gparrd(quest,cline,last,xxx,yyy,q1help)
-! if input error quit asking more
+!   if input error quit asking more
    if(buperr.ne.0) then
       buperr=0; goto 1000
    endif
-   ceq%phase_varres(lokcs)%amfu=xxx
+   ceq%phase_varres(lokcs)%amfu=abs(xxx)
 ! ask if we should set the default constitution
+!   write(*,*)'3D we are really here?'
    call gparcd('Default constitution?',cline,last,1,ch1,chd,q1help)
    if(ch1.eq.'Y' .or. ch1.eq.'y') then
       call set_default_constitution(iph,ics,ceq)
@@ -255,22 +257,22 @@
    call set_constitution(iph,ics,yarr,qq,ceq)
 ! if all phases loop
 200 continue
-   if(qph.lt.0) then
-      if(gx%bmperr.eq.4050) then
+!   if(qph.lt.0) then
+!      if(gx%bmperr.eq.4050) then
 ! error no such phase, quit
-         gx%bmperr=0; goto 1000
-      elseif(gx%bmperr.eq.4072) then
+!         gx%bmperr=0; goto 1000
+!      elseif(gx%bmperr.eq.4072) then
 ! error no such composition set, take next phase
-         gx%bmperr=0
-         iph=iph+1
-         ics=1
-      else
-         ics=ics+1
-      endif
-      call get_phase_name(iph,ics,name1)
-      if(gx%bmperr.ne.0) goto 200
-      goto 100
-   endif
+!         gx%bmperr=0
+!         iph=iph+1
+!         ics=1
+!      else
+!         ics=ics+1
+!      endif
+!      call get_phase_name(iph,ics,name1)
+!      if(gx%bmperr.ne.0) goto 200
+!      goto 100
+!   endif
 1000 continue
 ! return -1 as phase number of loop for all phases made
    if(qph.lt.0) iph=-1

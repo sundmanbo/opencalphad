@@ -264,6 +264,7 @@ CONTAINS
     call system_clock(count=starttid)
     inactive=0
 !
+!    write(*,*)'Entering map_setup',nax
     if(ocv()) write(*,*)'Entering map_setup',nax
 ! loop to change all start equilibria to start points
 ! Store the start points in map_node records started from maptop
@@ -283,11 +284,11 @@ CONTAINS
           write(*,*)'Cound not find a single start equilibria'
           gx%bmperr=9666; goto 1000
        endif
-!    write(*,*)'There is a MAPTOP record ...'
+!       write(*,*)'There is a MAPTOP record ...'
 ! create array of equilibrium records for saving results
-    seqy=8000
-    call create_saveceq(maptop%saveceq,seqy)
-    if(gx%bmperr.ne.0) goto 1000
+       seqy=8000
+       call create_saveceq(maptop%saveceq,seqy)
+       if(gx%bmperr.ne.0) goto 1000
 ! initiate line counter
     maptop%seqy=0
 !    write(*,*)'savesize: ',size(maptop%saveceq%savedceq)
@@ -303,10 +304,12 @@ CONTAINS
     firststep=.TRUE.
 ! THREADPROTECTED CALL the map_findline will copy the ceq from mapnode
     if(ocv()) write(*,*)'Looking for a line to calculate'
+!    write(*,*)'Looking for a line to calculate'
     call map_findline(maptop,axarr,mapfix,mapline)
     if(gx%bmperr.ne.0) goto 1000
 ! if no line we are finished!
     if(ocv()) write(*,*)'Back from map_findline'
+! segmentation fault crash later ...
     if(.not.associated(mapline)) goto 900
 !    write(*,*)'We will start calculate line: ',mapline%lineid,mapline%axandir
     if(maptop%tieline_inplane.ne.0) then
@@ -337,7 +340,10 @@ CONTAINS
     bytdir=0
 ! the save constitutions may be useful if problems ... ???
     if(allocated(copyofconst)) deallocate(copyofconst)
+! segmentation fault in this subroutine ...
+! because I checked only size(..) and not if it was allocated ...
     call save_constitutions(ceq,copyofconst)
+! segmentation fault before this output ...
 !    write(*,*)'Stored: ',size(copyofconst)
 305 continue
 ! to be able to handle problems copy the constitutions!!
@@ -346,6 +352,7 @@ CONTAINS
 !    endif
 !    write(*,*)'Calling calceq7 with T=',ceq%tpval(1),mapline%axandir
     call calceq7(mode,meqrec,mapfix,ceq)
+!    write(*,*)'Back from calceq7 ',gx%bmperr
     if(gx%bmperr.ne.0) then
        if(mapline%number_of_equilibria.eq.0) then
 ! We can add/subtract a small amount of axis condition if error at first step

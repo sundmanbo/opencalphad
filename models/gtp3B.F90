@@ -957,9 +957,13 @@
          allocate(neq%yfr(nz))
          neq%yfr=peq%yfr
       endif
-      if(.not.allocated(neq%mmyfr)) then
-         allocate(neq%mmyfr(nz))
-         neq%mmyfr=peq%mmyfr
+! mmyfr is allocated here ...
+!      write(*,*)'3B enter_compset: ',allocated(peq%mmyfr)
+      if(allocated(peq%mmyfr)) then
+         if(.not.allocated(neq%mmyfr)) then
+            allocate(neq%mmyfr(nz))
+            neq%mmyfr=peq%mmyfr
+         endif
       endif
       if(.not.allocated(neq%constat)) then
 ! important!! constat has identification of the vacancy constituent !!

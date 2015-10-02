@@ -2830,20 +2830,41 @@
    nz=0
 ! skippa varres with index 1, that is the reference phase
    do varresx=2,csfree-1
-      syfr=size(ceq%phase_varres(varresx)%yfr)
+      if(allocated(ceq%phase_varres(varresx)%yfr)) then
+! NOTE size( ... ) can return reasonable value even if not allocated !!!
+! BUT why is phas_varres(varresx)%yfr it not allocated ???
+! evidently the composition set for varresx is created ... maybe removed??
+         syfr=size(ceq%phase_varres(varresx)%yfr)
+      else
+         syfr=0
+      endif
+!      write(*,12)'Varres record and size: ',varresx,1+syfr,nz
+12    format(a,3i5)
       nz=nz+1+syfr
    enddo
+!   write(*,*)'In save_constitution',nz,csfree-1
    allocate(copyofconst(nz))
    nz=1
    do varresx=2,csfree-1
 ! save 1+sfr values for each composition set
+! segmentation fault in this loop for stepbug (20 elements COST507)
+! crash happends when higher composition sets are stored ...
       copyofconst(nz)=ceq%phase_varres(varresx)%amfu
-      syfr=size(ceq%phase_varres(varresx)%yfr)
+      if(allocated(ceq%phase_varres(varresx)%yfr)) then
+         syfr=size(ceq%phase_varres(varresx)%yfr)
+      else
+         syfr=0
+      endif
+!      write(*,16)'Storing varres record: ',varresx,syfr,size(copyofconst),nz
+16    format(a,5i5)
+! the segmentation fault seems not to be the allocation of copyofconst but
+! rather that we cannot access the yfr in ceq%phase_varres(varresx)
+! for the extra composition sets created by gridmin
       do ij=1,syfr
          copyofconst(nz+ij)=ceq%phase_varres(varresx)%yfr(ij)
       enddo
-!      write(*,17)varresx,nz,syfr,(copyofconst(ij),ij=nz,nz+syfr)
-17    format('3Xs:',i2,2i3,6(1pe12.4))
+!      write(*,17)varresx,nz,1+syfr,(copyofconst(ij),ij=nz,nz+syfr)
+17    format('3Xs:',3i4,10(F6.3))
       nz=nz+1+syfr
    enddo
 1000 continue
@@ -2866,7 +2887,11 @@
 ! skippa varres with index 1, that is the reference phase
    do varresx=2,csfree-1
       ceq%phase_varres(varresx)%amfu=copyofconst(nz)
-      syfr=size(ceq%phase_varres(varresx)%yfr)
+      if(allocated(ceq%phase_varres(varresx)%yfr)) then
+         syfr=size(ceq%phase_varres(varresx)%yfr)
+      else
+         syfr=0
+      endif
       do ij=1,syfr
          ceq%phase_varres(varresx)%yfr(ij)=copyofconst(nz+ij)
       enddo

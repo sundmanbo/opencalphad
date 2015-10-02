@@ -279,7 +279,7 @@ contains
 ! subsubcommands to SET PHASE
     character (len=16), dimension(nsetph) :: csetph=&
          ['QUIT            ','STATUS          ','DEFAULT_CONSTIT ',&
-          'AMOUNT          ','BITS            ','NEW_CONSTITUTI  ']
+          'AMOUNT          ','BITS            ','CONSTITUTION    ']
 !         123456789.123456---123456789.123456---123456789.123456
 !-------------------
 ! subsubsubcommands to SET PHASE BITS
@@ -1355,8 +1355,8 @@ contains
                 endif
              end SELECT
 !............................................................
-       case(6) ! SET PHASE ... NEW_CONSTITUTION
-          call ask_phase_new_constitution(cline,last,iph,ics,lokcs,ceq)
+          case(6) ! SET PHASE ... CONSTITUTION iph and ics set above
+             call ask_phase_new_constitution(cline,last,iph,ics,lokcs,ceq)
        END SELECT
 !-------------------------------------------------------------
        case(10) ! set UNIT (for state variables)

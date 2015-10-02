@@ -280,19 +280,22 @@ CONTAINS
     integer np,iph,ics,jph,lokph,lokcs,mode2
     integer mostcon,mph,nvf,mostconph(2,maxel),icc,jcc
     integer, parameter :: mmu=5
-    integer what,mjj,ij,cmix(10),cmode,mufixel(mmu),mufixref(mmu)
+    integer what,mjj,ij,cmix(10),cmode,mufixel(mmu),mufixref(mmu),errout
     integer fixph(2,maxel),oldorder(mmu),kst
     double precision fixpham(maxel)
     character statevar*40,encoded*60,name*24
 !
     if(ocv()) write(*,*)"Entering calceq7",mode
+    errout=0
     if(gx%bmperr.ne.0) then
-       write(*,*)'Error code set before calling grid minimizer',gx%bmperr
        if(gx%bmperr.eq.4203 .or. gx%bmperr.eq.4204) then
 ! this means system matrix error and too many iterations respectivly
-          write(*,*)'Error code reset'
+          write(kou,3)gx%bmperr
+3         format('Error code ',i5,' reset before calling grid minimizer')
           gx%bmperr=0
+          errout=kou
        else
+          write(kou,*)'Error code ',gx%bmperr,' prevents using grid minimizer'
           goto 1000
        endif
     endif
@@ -487,9 +490,12 @@ CONTAINS
     endif
 !----------------------------
 !    call list_conditions(kou,ceq)
-! skip global gridminimizer if bit set
-    if(ocv()) write(*,*)'checked conditions'
-    if(mode2.eq.0 .or. btest(globaldata%status,GSNOGLOB)) goto 110
+! skip if mode2=0 or global gridminimizer if bit set
+    if(mode2.eq.0 .or. btest(globaldata%status,GSNOGLOB)) then
+! if errout set then grimin probably called to handel bad start point
+      if(errout.eq.0) goto 110
+!       write(*,*)'errout 2: ',errout
+    endif
 ! skip global gridminimizer if only one component but make sure one phase
 ! has positive amount
     if(meqrec%nrel.eq.1) then
@@ -529,15 +535,16 @@ CONTAINS
              ceq%phase_varres(lokcs)%amfu=antot*ceq%phase_varres(lokcs)%amfu
           enddo
        endif
+       if(ocv() .or. errout.gt.0) &
+            write(*,103)(meqrec%iphl(mjj),meqrec%icsl(mjj),meqrec%aphl(mjj),&
+            mjj=1,meqrec%nv)
+103    format('Phases: ',12(i3,i2,F5.2))
        goto 200
     endif
-    if(ocv()) write(*,103)(meqrec%iphl(mjj),meqrec%icsl(mjj),meqrec%aphl(mjj),&
-         mjj=1,meqrec%nv)
-103 format('Phases: ',6(i3,i2,1pe12.4))
 !--------------------
 ! no global gridmin or we come here if gridtest finds a new stable phase
 110 continue
-!    write(*,*)'starting without gridmin'
+!    write(*,*)'starting without gridmin',errout
     meqrec%nv=0
 ! at least one phase must be stable
     mostcon=0
@@ -1259,6 +1266,7 @@ CONTAINS
     double precision prevmaxycorr,pv,signerr
     double precision xxx,ycormax2,yprev,ys,ysmm,ysmt,yss,yst
     double precision, parameter :: ylow=1.0D-3,ymin=1.0D-12,ymingas=1.0D-30
+    double precision yvar1,yvar2
     double precision maxphch
     double precision sum
 !    double precision, dimension(:), allocatable :: xcol
@@ -1380,7 +1388,9 @@ CONTAINS
 ! debug output of equil matrix, last column is right hand side
 380 continue
     if(vbug) then
+!    if(meqrec%noofits.le.2) then
 ! when problem output the smat here and (and svar below) and study!!!
+       call list_conditions(kou,ceq)
        do iz=1,nz1
           write(*,228)'smat1:',(smat(iz,jz),jz=1,nz2)
        enddo
@@ -1403,6 +1413,9 @@ CONTAINS
              write(*,228)'smat2:',(smat(iz,jz),jz=1,nz2)
           enddo
        endif
+! debug output ...
+!       write(*,229)'ce:',meqrec%noofits
+!       call list_conditions(kou,ceq)
 !       do iz=1,nz1
 !          write(*,228)'smat2:',(smat(iz,jz),jz=1,nz2)
 !       enddo
@@ -1410,7 +1423,6 @@ CONTAINS
     endif
 ! when problems output svar here !! (and smat above)
     if(vbug) write(*,228)'svar1:',(svar(jz),jz=1,nz1)
-!+    write(*,228)'svar1:',(svar(jz),jz=1,nz1)
 !
 ! if no error at first calculation after phase set change iremsave=0
     iremsave=0
@@ -1536,6 +1548,16 @@ CONTAINS
              gx%bmperr=7777; goto 1000
           endif
           deltaam=svar(ioff)
+! Sigli convergence problem, bad guess of start amount of phases??
+!          write(*,43)'Deltaam: ',meqrec%noofits,jj,deltaam,lastdeltaam(jph),&
+!               phr(jj)%curd%amfu
+!43        format(a,2i3,6(1pe12.4))
+! avoid too large changes in phase amount, just made things worse
+!          if(meqrec%noofits.lt.3 .and. &
+!               abs(deltaam).gt.0.5D0*phr(jj)%curd%amfu) then
+!             deltaam=sign(0.1D0*phr(jj)%curd%amfu,deltaam)
+!             write(*,43)'Modified: ',meqrec%noofits,jj,deltaam
+!          endif
 ! limit change in amount of phase
           if(abs(deltaam).gt.ceq%xconv) then
 ! For the equil O-U with conditions on N(O) and N(U) there is no problem
@@ -1571,14 +1593,23 @@ CONTAINS
                 deltaam=phr(jj)%curd%amfu-1.0D-2
              endif
           endif
-          if(-deltaam.gt.one) then
-! try to prevent too large increase in phase amounts.  Should be related to
-! total amount of components.
-             deltaam=-one
+!          if(-deltaam.gt.one) then
+          if(abs(deltaam).gt.one) then
+! try to prevent too large increase/decrease in phase amounts. 
+! Should be related to total amount of components.
+             write(*,*)'Large change in phase amount: ',deltaam
+!             deltaam=-one
+             deltaam=sign(0.5D0,deltaam)
           endif
           phf=phr(jj)%curd%amfu-deltaam
-          if(vbug) write(*,363)'Stable phase: ',jj,phr(jj)%iph,&
-               phr(jj)%ics,phf,phs,deltaam
+          if(phs.gt.0.2D0 .and. phf.le.zero) then
+! violent change of phase fractions in Silis case, liquid change from 1 to 0
+! Prevent changes larger than 0.5 if value larger than 0.5
+! old value of amfu in phs
+             phf=0.1D0
+          endif
+!          write(*,363)' >>>> Stable phase: ',jj,phr(jj)%iph,&
+!               phr(jj)%ics,phf,phs,deltaam,sum
 363          format(a,3i3,6(1pe12.4))
 !          phr(jj)%curd%damount=deltaam
           ioff=ioff+1
@@ -1661,15 +1692,22 @@ CONTAINS
 ! we have made at least 3 iterations with the current phase set
     if(irem.gt.0 .and. meqrec%noofits-phasechangeok.gt.3) goto 1000
 !--------------------------
+! These are needed to avoid several phases have exactly the same fracions
+! if the strat guess is very bad and limitations are used
+       yvar1=1.0D-4
+       yvar2=1.0D-13
+!-----------------------------------------
     lap: do jj=1,meqrec%nphase
 ! The current chemical potentials are in ceq%cmuval(i)
 !       if(vbug) write(*,*)'Phase: ',phr(jj)%iph,phr(jj)%ics,&
 !              phr(jj)%curd%amfu
        if(jj.eq.meqrec%stphl(kk)) then
 ! jj is stable, increment kk but do not make it larger than meqrec%nstph
-! save index in meqrec%stphl in jph
+! save index in meqrec%stphl in jph !!!!!!!!!!! kk never used !!!!!!!!!
           jph=kk
           kk=min(kk+1,meqrec%nstph)
+!          if(meqrec%noofits.le.2) write(*,83)'dy1: ',jj,jph,kk
+83        format(a,3i3,6(1pe12.4))
        else ! phase is not stable
 ! calculate driving force for unstable phases. First calculate the sum
 ! of the current phase composition and the calculated chemical potentials
@@ -1730,6 +1768,9 @@ CONTAINS
 !               phr(jj)%ncc
 ! missing code for correction due to variable P?????
        endif
+! These are used to introduce some variation in fractions when the values
+! exceed limits.  Otherwise one can as Sigli found have two stable phases
+! with exactly the same fractions and have a crash
 !
        moody: do nj=1,phr(jj)%ncc
           ys=zero
@@ -1830,20 +1871,27 @@ CONTAINS
 ! this added to avoid too drastic jumps in small fractions
 ! The test case ccrfe1.BMM needs this
              if(yprev.gt.ylow) then
-!                write(*,*)'Applying fraction change limitation'
+!                write(*,*)'Applying fraction change limitation 1',jj
                 yarr(nj)=0.9*ylow
              elseif(test_phase_status_bit(phr(jj)%iph,PHGAS)) then
-!             elseif(test_phase_status_bit(phr(jj)%iph,PHGAS,ceq)) then
 ! for gas phase one must allow smaller constituent fractions
                 if(yarr(nj).lt.ymingas) then
                    yarr(nj)=ymingas
                 endif
              else
-                yarr(nj)=ymin
+! set limit fraction with a variable variation
+!                write(*,*)'Applying fraction change limitation 2',jj
+                yarr(nj)=ymin+yvar2
+                yvar2=2.0D0*yvar2
+                if(yvar2.gt.1.0D-11) yvar2=1.0D-13
              endif
           endif
+! Sigli bug: Aha, fractions exceed limit, then FCC and LIQ get the same!!!
           if(yarr(nj).gt.one) then
-             yarr(nj)=one
+!             write(*,*)'Applying fraction change limitation 3',jj
+             yarr(nj)=one-yvar1
+             yvar1=2.0D0*yvar1
+             if(yvar1.gt.1.0D-3) yvar1=1.0D-4
           endif
 !          if(phr(jj)%stable.eq.1) then
 !            write(*,51)'at 5A: ',jj,nj,phr(jj)%iph,phr(jj)%ics,&
@@ -1855,6 +1903,8 @@ CONTAINS
        enddo moody
 ! end of correction of y fractions
 !---------------------------------
+!       if(meqrec%noofits.le.2) write(*,83)'ypr: ',jj,phr(jj)%iph,0,&
+!            (phr(jj)%curd%yfr(nj),nj=1,phr(jj)%ncc)
 !       write(*,263)'yarr3: ',jj,&
 !            (phr(jj)%curd%yfr(jz),jz=1,phr(jj)%ncc)
 !263    format(a,i3,6(1pe12.4))
@@ -1915,7 +1965,7 @@ CONTAINS
 ! this added to avoid too drastic jumps in small fractions
 ! The test case ccrfe1.BMM needs this
              if(yprev.gt.ylow) then
-!                write(*,*)'Applying fraction change limitation'
+!                write(*,*)'Applying fraction change limitation 4 ',jj
                 yarr(nj)=0.9*ylow
              elseif(test_phase_status_bit(phr(jj)%iph,PHGAS)) then
 ! for gas phase one must allow smaller constituent fractions
@@ -1923,18 +1973,27 @@ CONTAINS
                    yarr(nj)=ymingas
                 endif
              else
-                yarr(nj)=ymin
+!                write(*,*)'Applying fraction change limitation 5 ',jj
+                yarr(nj)=ymin+yvar2
+                yvar2=2.0D0*yvar2
+                if(yvar2.gt.1.0D-11) yvar2=1.0D-13
              endif
           endif
           if(yarr(nj).gt.one) then
-             yarr(nj)=one
+!             write(*,*)'Applying fraction change limitation 6 ',jj
+             yarr(nj)=one-yvar1
+             yvar1=2.0D0*yvar1
+             if(yvar1.gt.1.0D-3) yvar1=1.0D-4
           endif
        enddo moody2 ! end loop for all constituents nj in phase jj
 !
        ycormax(jj)=ycormax2
 ! >>>>>>>>>>>>>>>>>> HERE the new constitution is set <<<<<<<<<<<<<<<<<<<<<
+!       if(meqrec%noofits.le.2) write(*,83)'dy2: ',jj,phr(jj)%iph,kk,&
+!            (yarr(nj),nj=1,phr(jj)%ncc)
        call set_constitution(phr(jj)%iph,phr(jj)%ics,yarr,qq,ceq)
        if(gx%bmperr.ne.0) goto 1000
+!  >>>>>>>>>>>>>>>>>> for all phases <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
        deallocate(cit)
     enddo lap
 ! finished correction of all constituent fractions in all phases
@@ -2193,7 +2252,11 @@ CONTAINS
 ! step 2.1 the Gibbs energies for the stable phases (incl fixed)
     allstableph: do jph=1,meqrec%nstph
        jj=meqrec%stphl(jph)
-!       write(*,*)'Stable phase: ',phr(jj)%iph,phr(jj)%ics,phr(jj)%curd%amfu
+!       if(meqrec%noofits.le.2) &
+!            write(*,12)'pha: ',jph,meqrec%nstph,jj,&
+!            phr(jj)%iph,phr(jj)%ics,&
+!            phr(jj)%curd%amfu,phr(jj)%curd%gval(1,1)
+12     format(a,5i3,6(1pe12.4))
 ! column nz2 is the right hand side of the equation, to molar G
        smat(jph,nz2)=phr(jj)%curd%gval(1,1)
 !       write(*,313)'Gm: ',0,0,jph,nz2,smat(jph,nz2),ceq%tpval(1)
@@ -2238,6 +2301,9 @@ CONTAINS
           endif
           smat(jph,pcol)=-phr(jj)%curd%gval(3,1)
        endif
+!       if(meqrec%noofits.le.2) &
+!            write(*,13)'Row: ',jph,jj,(smat(jph,je),je=1,nz2)
+13     format(a,2i2,7(1pe10.2))
     enddo allstableph
 ! we have generated meqrec%nstph rows with ncol columns and rhs in column nz2
 ! The columns for delta_phase-amounts should be zero
@@ -2268,8 +2334,8 @@ CONTAINS
 ! cmode and cmix contain information how to calculate its currebt value
     call apply_condition_value(condition,cmode,cvalue,cmix)
     if(gx%bmperr.ne.0) goto 1000
-!    write(*,351)cmode,cmix,cvalue
-351 format('cmix: ',i3,2x,10i4,1pe12.4)
+!    write(*,351)nrow,cmode,cmix,cvalue
+351 format('cmix: ',2i3,2x,10i4,1pe12.4)
 ! Only cmix(1)=5 is interesting here. potentials already cared for
     if(cmix(1).ne.5) then
 ! loop if not the last condition

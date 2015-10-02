@@ -1857,7 +1857,7 @@
    logical warning
 ! set to TRUE if element present in database
    logical, allocatable :: present(:)
-!
+!  mmyfr
 ! if warning is true at the end pause before listing bibliography
    warning=.FALSE.
    if(ocv()) write(*,*)'reading a TDB file'

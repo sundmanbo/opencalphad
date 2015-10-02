@@ -95,8 +95,8 @@
       call capson(name)
       call find_svfun(name,lrot,ceq)
       if(gx%bmperr.ne.0) then
-         write(*,*)'3F Neither state variable or symbol'
-         gx%bmperr=8888; goto 1000
+!         write(*,*)'3F Neither state variable or symbol'
+         goto 1000
       else
 ! get the value of the symbol, may involve other symbols and state variablse
 ! The actual_arg is a facility not yet implemented and not allowed here
@@ -2852,7 +2852,7 @@
    do lrot=1,nsvfun
       if(name.eq.svflista(lrot)%name) goto 500
    enddo
-   write(*,*)'3F No such symbol: ',name
+!   write(*,*)'3F No such symbol: ',name
    gx%bmperr=8888; goto 1000
 !
 500 continue
