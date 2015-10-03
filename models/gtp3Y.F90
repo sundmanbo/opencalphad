@@ -564,9 +564,10 @@
    elseif(what.eq.-1) then
       if(nystph.gt.0) what=nystph
    else
-      write(*,1010)noofgridpoints,finish2-starting,endoftime-starttid
-1010  format(' Grid minimization: ',i7,' gridpoints ',1pe12.4,' s and ',&
-           i7,' clockcycles')
+      write(*,1010)noofgridpoints,finish2-starting,&
+           endoftime-starttid,ceq%tpval(1)
+1010  format('Gridminn: ',i7,' points ',1pe10.2,' s and ',&
+           i7,' clockcycles, T=',F8.2)
 ! set the global bit that this is not a full equilibrium
       ceq%status=ibset(ceq%status,EQNOEQCAL)
    endif

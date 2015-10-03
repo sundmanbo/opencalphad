@@ -119,6 +119,10 @@ set c x(ni)=.9
 
 c e
 
+l ,,,,
+
+@&
+
 map
 N
 
@@ -132,7 +136,7 @@ title map 8 fig 1
 render
 
 
-set c t=300 x(ni)=.4
+set c t=350 x(ni)=.4
 
 c e
 

@@ -1077,27 +1077,28 @@ CONTAINS
        if(meqrec%nstph.eq.meqrec%maxsph) then
 ! No more phases allowed, we must see if  some other phase may be removed
           if(toomanystable.ge.3) then
-             write(*,*)'Attempt to set too many phases stable',meqrec%maxsph
+!             write(*,*)'Attempt to set too many phases stable',meqrec%maxsph
 !             gx%bmperr=4201; goto 1000
 ! During mapping do not replace phases ...
              if(formap) then
                 gx%bmperr=4201; goto 1000
              endif
-! the code below does not work ...
+! UNFINISHED code below
              if(jrem.eq.0) then
-! try to remove a stable phase ... which? make it simple, last or first one
-! jrem and krem are always zero ... ???
-!                if(krem.eq.jrem) then
-!                   jrem=meqrec%stphl(meqrec%nstph)
-!                else
-                   jrem=meqrec%stphl(1)
-!                endif
+! try to remove a stable phase ... which? Replace the one that does not
+! disturb the order of phases in meqrec%stphl by adding iadd
+                do iph=1,meqrec%nstph
+                   if(iadd.gt.meqrec%stphl(iph)) cycle
+                   jrem=meqrec%stphl(iph); exit
+                enddo
+! if jrem zero here replace the last
+                if(jrem.eq.0) jrem=meqrec%stphl(meqrec%nstph)
                 krem=jrem
                 irem=jrem
-!                if(ocv()) write(*,240)irem,iadd,meqrec%noofits
-                write(*,240)irem,iadd,meqrec%noofits
-240             format('Too many phases stable, replacing ',i3,' by ',i3,&
-                     ' at iteration ',i4) 
+                write(*,240)meqrec%noofits,irem,iadd,ceq%tpval(1),&
+                     (meqrec%stphl(iph),iph=1,meqrec%nstph)
+240             format('Too many stable phases at iter ',i3,', phase ',i3,&
+                     ' replaced by ',i3,', T= ',F8.2/3x,15(i3))
                 replace=.TRUE.
                 goto 222             
              else
@@ -1404,7 +1405,7 @@ CONTAINS
 ! This can be caused by having no phase with solubility of an element
 ! (happened in Fe-O-U-Zr calculation with just C1_MO2 stable and C1 does not
 ! dissolve Fe).  Try to set back the last phase removed!!
-          write(*,*)'Emergency fix: ',iremsave
+          write(*,*)'Error, restoring previously removed phase: ',iremsave
           iadd=iremsave
           goto 1100
        endif
