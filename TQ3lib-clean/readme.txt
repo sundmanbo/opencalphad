@@ -1,8 +1,11 @@
-The TQ library is to access Open Calphad from application software
+The Open Calphad Applicatiopn Software Interface (OCASI)
+
+Based on the TQ standard for interfacing thermodynamic software
 
 Bo Sundman 27 September 2015
 
-There is a Fortran version and a tentative iso-C version
+There is a Fortran version and a tentative iso-C version.  It may be
+possible to merge these.
 
 If you are not familiar with compiling and linking software and do not
 understand the intructions here please ask someone close to you for

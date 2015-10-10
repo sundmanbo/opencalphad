@@ -329,13 +329,13 @@
       write(*,*)'Closing ocgrid.dat file'
       close(31)
    endif
-! there must be as many phases in the solution as there are elements
+! there must be as many gridpoints (phases) as there are elements
    nvsph=nrel
    nr=nvsph
-   if(.not.btest(globaldata%status,GSNOMERGE)) then
+!   if(.not.btest(globaldata%status,GSNOMERGE)) then
       call merge_gridpoints(nr,iphl,aphl,nyphl,yphl,trace,nrel,xsol,cmu,ceq)
       if(gx%bmperr.ne.0) goto 1000
-   endif
+!   endif
 ! number of gridpoints, nr, may have changed
 !   write(*,*)'After merge_gripoints: ',nr,nvsph
    nvsph=nr
@@ -566,8 +566,8 @@
    else
       write(*,1010)noofgridpoints,finish2-starting,&
            endoftime-starttid,ceq%tpval(1)
-1010  format('Gridminn: ',i7,' points ',1pe10.2,' s and ',&
-           i7,' clockcycles, T=',F8.2)
+1010  format('Gridmin: ',i7,' points ',1pe10.2,' s and ',&
+           i7,' clockcycles, T=',0pF8.2)
 ! set the global bit that this is not a full equilibrium
       ceq%status=ibset(ceq%status,EQNOEQCAL)
    endif
@@ -2712,7 +2712,7 @@
 !    enddo
    call lingld(nrel,nrel1,qmat,phfrac,nrel,ierr)
    if(ierr.ne.0) then
-! error may occur and are not fatal, just try to replace next column
+! error may occur and is not fatal, just try to replace next column
 !       write(*,*)'non-fatal error from lingld: ',ierr,nyp
       qmat=qmatsave
       do i=1,nrel
@@ -2859,8 +2859,10 @@
 !==============================================
 900 continue
    if(gpfail.gt.0) then
+! NOTE is a H-O gas with N(H)=2 N(O)=1 it fails to find H2O because then
+! there is just one gridpoint stable!
       write(*,906)gpfail
-906   format('Failed using ',i7,' gridpoints')
+906   format('Gridmin failed using ',i7,' gridpoint(s)')
    endif
 !   write(*,*)'Gridmin has found a solution'
 !   write(*,316)'fm9A: ',(jgrid(i),i=1,nrel)
@@ -2965,144 +2967,177 @@
 !\end{verbatim}
    integer i,ip,iph,jp,jump,kk,klast,kp,lokres,nm,jj,mj,lokph,j
    integer notuse(nv),incy(nv)
-   double precision ycheck(maxconst),qq(5),xerr(maxel)
+   double precision ycheck(maxconst),qq(5),xerr(maxel),xfromy(maxel)
    double precision summu,sumam
    logical igen
    real xmix(maxel)
-   double precision a1,a2,gdf,gval1,gval2,gval3,gmindif
+   double precision a1,a2,gdf,gval1,gval2,gval3,gval4,gval5,gmindif
 !
 ! gmindif is the value to accept to merge two gridpoints
 ! It should be a variable that can be set by the user for finetuning
 !   write(*,*)'Now we try to merge gridpoints in the same phase'
 !   write(*,7)'Merge_gridpoints is dissabled for the moment',nv
 !7  format(a,i3)
-! NOTE, merging gripoints in ideal phases like gas
+! NOTE, always merge gripoints in ideal phases like gas
    goto 1100
-   if(ocv()) write(*,*)'Entering merge_gridpoints'
+! UNFINISHED
+!   write(*,*)'3Y Entering merge_gridpoints',nv,ceq%gmindif
 !---------------------
    gmindif=ceq%gmindif
    notuse=0
    nm=0
+   write(*,67)'3Y yl: ',(aphl(i),nyphl(i),i=1,nv)
+67 format(a,20(F7.3,i4))
    incy(1)=1
    do i=2,nv
       incy(i)=incy(i-1)+nyphl(i-1)
    enddo
+! start points of fractions for all gridpoints
+   write(*,68)'3Y ys: ',(incy(i),i=1,nv)
+68 format(a,20i5)
    summu=zero
    xerr=zero
+! constitution of solution gridpoints
+   do jp=1,nv
+      write(*,69)'3Y y:',(yphl(incy(jp)+i-1),i=1,nyphl(jp))
+   enddo
+69 format(a,(12F6.2))
+! this calculate the overall composition from gridpoints
    do jp=1,nv
       summu=summu+aphl(jp)
       do i=1,nrel
          xerr(i)=xerr(i)+aphl(jp)*xsol(i,jp)
       enddo
    enddo
-   write(*,73)'in: ',summu,(xerr(i),i=1,nrel)
+   write(*,73)'3Y in: ',summu,(xerr(i),i=1,nrel)
 73 format(a,F5.2,2x,10f7.4)
 !----------------------------------------------
 100 continue
    igen=.false.
    firstgp: do jp=1,nv-1
-      write(*,*)'notuse: ',notuse(jp)
+      write(*,*)'3Y notuse: ',jp,notuse(jp)
       if(notuse(jp).ne.0) cycle firstgp
       secondgp: do kp=jp+1,nv
+         write(*,*)'3Y notuse: ',kp,notuse(kp)
          if(notuse(kp).ne.0) cycle secondgp
          sameph: if(iphl(jp).eq.iphl(kp)) then
             iph=iphl(jp)
-! calculate G at the middle of the Y fractions, not middle composition
+            lokph=phases(iph)
+            if(btest(phlista(lokph)%status1,PHID)) then
+! always merge gridpoints in ideal gas
+               goto 200
+            endif
+! do not merge gridpoints in other phases
+            if(btest(globaldata%status,GSNOMERGE)) cycle secondgp
+! calculate G at 0 and 1 and  0.25, 0.5, 0.75 mix of gridpoints
+! if any of these abouve the line between any two others do not merge
+! as merged gridpoints are below the initial common tahnegt plane we cannot
+! use that as reference
             call set_constitution(iph,1,yphl(incy(jp)),qq,ceq)
             if(gx%bmperr.ne.0) goto 1000
             call calcg(iph,1,0,lokres,ceq)
             if(gx%bmperr.ne.0) goto 1000
             gval1=ceq%phase_varres(lokres)%gval(1,1)/qq(1)
-! debug
-            call calc_phase_mol(iph,xerr,ceq)
-!            write(*,79)'Y0: ',(yphl(incy(jp)+i-1),i=1,nyphl(jp))
-!            write(*,79)'X1: ',(xerr(i),i=1,nrel)
-!            write(*,79)'X2: ',(xsol(i,jp),i=1,nrel)
-!79          format(a,12(F6.3))
-! Subtract the solution, the result should be zero ??
-! The mole fractions of the gridpoints in solution is in xsol(1,jgrid(i))
-            summu=zero
-            do jj=1,nrel
-               summu=summu+xsol(jj,jp)*cmu(jj)
-            enddo
-            gval1=gval1-summu
-! debug output gridpoint 1
-            mj=nyphl(jp)-1
-            write(*,820)'GP1:',gval1,summu,aphl(jp),(yphl(incy(jp)+jj),jj=0,mj)
-820         format(a,3(1pe10.2),10(0pF5.2))
+! second point
             call set_constitution(iph,1,yphl(incy(kp)),qq,ceq)
             if(gx%bmperr.ne.0) goto 1000
             call calcg(iph,1,0,lokres,ceq)
             if(gx%bmperr.ne.0) goto 1000
-            gval2=ceq%phase_varres(lokres)%gval(1,1)/qq(1)
-! Subtract the solution
-! The mole fractions of the gridpoints in solution is in xsol(1,jgrid(i))
-            summu=zero
-            do jj=1,nrel
-               summu=summu+xsol(jj,kp)*cmu(jj)
-            enddo
-            gval2=gval2-summu
-! debug output gridpoint 2
-!           write(*,820)'GP2:',gval2,summu,aphl(kp),(yphl(incy(kp)+jj),jj=0,mj)
-! select the middle point
-! Not very good weight by phase amounts if one has 95% FCC_A1 and 5 % MC_FCC
-! take weighted sum of composition in the middle Y
+            gval5=ceq%phase_varres(lokres)%gval(1,1)/qq(1)
+! take middle point
             a1=5.0D-01
             a2=5.0D-01
-!            sumam=aphl(jp)+aphl(kp)
-!            a1=aphl(jp)/sumam
-!            a2=aphl(kp)/sumam
-! SURPRISE: adding together constituent fractions does not reproduce
-! the molefractions in the middle if the constituents are molecules ....
             do i=0,nyphl(jp)-1
-               ycheck(i)=a1*yphl(incy(jp)+i)+a2*yphl(incy(kp)+i)
+               ycheck(i+1)=a1*yphl(incy(jp)+i)+a2*yphl(incy(kp)+i)
             enddo
             call set_constitution(iph,1,ycheck,qq,ceq)
             if(gx%bmperr.ne.0) goto 1000
             call calcg(iph,1,0,lokres,ceq)
             if(gx%bmperr.ne.0) goto 1000
             gval3=ceq%phase_varres(lokres)%gval(1,1)/qq(1)
-! Check if this is below the current tangent plane
-! The mole fractions of the gridpoints in solution is in xsol(1,jgrid(i))
-            summu=zero
-            do jj=1,nrel
-               xmix(jj)=a1*xsol(jj,jp)+a2*xsol(jj,kp)
-               summu=summu+xmix(jj)*cmu(jj)
-            enddo
-!            write(*,21)'summu: ',a1,a2,qq(1),gval3,summu,gmindif
-            gval3=gval3-summu
-21          format(a,6(1pe12.4))
-            write(*,22)'dg: ',gval3,gval1,gval2,0.5*gval1+0.5*gval2
-22          format(a,6(1pe12.4))
-! debug output mix
-            write(*,820)'GPY:',gval3,summu,qq(1),(ycheck(jj+1),jj=0,mj)
-            write(*,820)'GPX:',gval3,summu,qq(1),(xmix(jj),jj=1,nrel)
-            gdf=gval3-a1*gval1-a2*gval2
-!            gdf=gval3
+! Check if this is above the mean of gval1 and gval5, if so quit merge
+            gdf=gval3-a1*gval1-a2*gval5
 ! merge require that difference is less than gmindif or phase ideal
-! allways merge ideal phase as it never has miscibility gaps !!!
-            lokph=phases(iph)
             if(gdf.gt.gmindif) then
-! middle is higher, no merge
+! middle is higher, no merge 1-3-5
                write(*,830)'not merged: ',jp,kp,gdf,iphl(jp),gmindif
                cycle secondgp
-            elseif(.not.btest(phlista(lokph)%status1,PHID)) then
-! if middle is lower compare middle with points shifted less
-! calculate two gridpoints slightly closer
-               cycle secondgp
             endif
+! calculate G at 0.25
+            a1=7.5D-01
+            a2=2.5D-01
+            do i=0,nyphl(jp)-1
+               ycheck(i+1)=a1*yphl(incy(jp)+i)+a2*yphl(incy(kp)+i)
+            enddo
+            call set_constitution(iph,1,ycheck,qq,ceq)
+            if(gx%bmperr.ne.0) goto 1000
+            call calcg(iph,1,0,lokres,ceq)
+            if(gx%bmperr.ne.0) goto 1000
+            gval2=ceq%phase_varres(lokres)%gval(1,1)/qq(1)
+! Check if this is above the mean of gval1 and gval5, if so quit merge
+            gdf=gval2-a1*gval1-a2*gval5
+            if(gdf.gt.gmindif) then
+! middle is higher, no merge 1-2-5
+               write(*,830)'not merged: ',jp,kp,gdf,iphl(jp),gmindif
+               cycle secondgp
+            else
+! also compare between gval1 and gval3
+               gdf=gval2-a1*gval1-a2*gval3
+               if(gdf.gt.gmindif) then
+! gval2 is s higher, no merge 1-2-3
+                  write(*,830)'not merged: ',jp,kp,gdf,iphl(jp),gmindif
+                  cycle secondgp
+               endif
+            endif
+! finally calculate at 0.75
+! calculate G at 0.25
+            a1=2.5D-01
+            a2=7.5D-01
+            do i=0,nyphl(jp)-1
+               ycheck(i+1)=a1*yphl(incy(jp)+i)+a2*yphl(incy(kp)+i)
+            enddo
+            call set_constitution(iph,1,ycheck,qq,ceq)
+            if(gx%bmperr.ne.0) goto 1000
+            call calcg(iph,1,0,lokres,ceq)
+            if(gx%bmperr.ne.0) goto 1000
+            gval4=ceq%phase_varres(lokres)%gval(1,1)/qq(1)
+! Check if this is above the mean of gval1 and gval5, if so quit merge
+            gdf=gval4-a1*gval1-a2*gval5
+            if(gdf.gt.gmindif) then
+! gval4 is higer mo merge 1-4-5
+               write(*,830)'not merged ',jp,kp,gdf,iphl(jp),gmindif
+               cycle secondgp
+            else
+               gdf=gval4-a1*gval1-a2*gval5
+               if(gdf.gt.gmindif) then
+! gval4 is higer mo merge 1-4-5
+                  write(*,830)'not merged ',jp,kp,gdf,iphl(jp),gmindif
+                  cycle secondgp
+               endif
+               gdf=gval4-a1*gval1-a2*gval5
+               if(gdf.gt.gmindif) then
+! gval4 is higer mo merge 1-4-5
+                  write(*,830)'not merged ',jp,kp,gdf,iphl(jp),gmindif
+                  cycle secondgp
+               endif
+            endif
+! compared 1-3-5, 1-2-5, 1-2-3, 1-4-5, 3-4-5, 2-3-5               
+! in no case the middle point was above, that means merge
 !--------------------------------------------- here we merge !!
+200         continue
 ! gridpoint in ideal phase or point in between has lower G, merge
-            write(*,830)'merged:     ',jp,kp,gdf,iphl(jp),&
-                 aphl(jp)+aphl(kp)
-830         format('GridP ',a,2i3,1pe15.4,' in phase ',i3,1pe12.4)
+            write(*,830)'3Y merging:  ',jp,kp,gdf,iphl(jp),&
+                 aphl(jp),aphl(kp)
+830         format('3Y GridP ',a,2i3,1pe12.4,' in phase ',i3,2(e12.4))
 ! If merging use correct phase amounts
             a1=aphl(jp)/(aphl(jp)+aphl(kp))
             a2=aphl(kp)/(aphl(jp)+aphl(kp))
-            write(*,162)'p2:',a2,(yphl(incy(kp)+j),j=0,nyphl(kp)-1)
+            write(*,162)'3Y p1:',a2,(yphl(incy(jp)+j),j=0,nyphl(jp)-1)
+            write(*,162)'3Y p2:',a2,(yphl(incy(kp)+j),j=0,nyphl(kp)-1)
+162         format(a,1pe12.4,12(0pF5.2))
 ! The gridpoint jp has new amount, composition and constitution
 ! SURPRISE: adding together constituent fractions does not reproduce
-! the correct molefractions if the constituents are molecules ....
+! the correct molefractions if the constituents are molecules .... ????
             aphl(jp)=aphl(jp)+aphl(kp)
             do i=0,nyphl(jp)-1
                yphl(incy(jp)+i)=a1*yphl(incy(jp)+i)+a2*yphl(incy(kp)+i)
@@ -3110,19 +3145,21 @@
             call set_constitution(iph,1,yphl(incy(jp)),qq,ceq)
             if(gx%bmperr.ne.0) goto 1000
 ! extract correct mole fractions
-            call calc_phase_mol(iph,xerr,ceq)
+            call calc_phase_mol(iph,xfromy,ceq)
             write(*,162)'ym:',0.0D0,(yphl(incy(jp)+i),i=0,nyphl(jp)-1)
-            write(*,162)'xj:',0.0D0,(xsol(jj,jp),jj=1,nrel)
-            write(*,162)'xk:',0.0D0,(xsol(jj,kp),jj=1,nrel)
-            write(*,162)'xy:',0.0D0,(xerr(i),i=1,nrel)
-162         format(a,1pe12.4,12(F5.2))
+            write(*,162)'3Y xy:',0.0D0,(xfromy(i),i=1,nrel)
+! calculate mole fractions from xsol to compare!!
+            do i=1,nrel
+               xerr(i)=a1*xsol(jp,i)+a2*xsol(kp,i)
+            enddo
+            write(*,162)'xj+xk:',0.0D0,(xerr(i),i=1,nrel)
             do i=1,nrel
                xsol(i,jp)=xerr(i)
             enddo
             igen=.true.
             nm=nm+1
-            iphl(kp)=-iphl(kp)
 ! Mark the gripoint that has disappeared
+            iphl(kp)=-iphl(kp)
             notuse(kp)=1
 ! check overall composition of solution ...
             summu=zero
@@ -3130,12 +3167,12 @@
             do i=1,nrel
                if(iphl(i).lt.0) cycle
                summu=summu+aphl(i)
-               write(*,*)'point: ',i,aphl(i)
+               write(*,*)'3Y point: ',i,aphl(i)
                do jj=1,nrel
                   xerr(jj)=xerr(jj)+aphl(i)*xsol(jj,i)
                enddo
             enddo
-            write(*,73)'nu: ',summu,(xerr(jj),jj=1,nrel)
+            write(*,73)'3Y nu: ',summu,(xerr(jj),jj=1,nrel)
 ! the chemical potentials has changed but how?  Approximate the change by
 ! making gmindif more negative for each merge (does not affect ideal phases)
             gmindif=2.0D0*gmindif
@@ -3149,7 +3186,7 @@
 !----------------------------------------
 ! shift fractions for the removed phases
 450 continue
-!   write(*,*)'at label 450: ',nm
+   write(*,*)'3Y at label 450: ',nm
    klast=0
    do jp=1,nv
       klast=klast+nyphl(jp)
@@ -3193,7 +3230,18 @@
 500   continue
    enddo
    if(iphl(nv).lt.0) nv=nv-1
-!
+   write(*,*)'3Y final number of gridpoints: ',nv
+! list overall composition with merged gridpoints
+   summu=zero
+   xerr=zero
+! this calculate the overall composition from gridpoints
+   do jp=1,nv
+      summu=summu+aphl(jp)
+      do i=1,nrel
+         xerr(i)=xerr(i)+aphl(jp)*xsol(i,jp)
+      enddo
+   enddo
+   write(*,73)'3Y in: ',summu,(xerr(i),i=1,nrel)
 ! uncomment here if problems shifting fractions
 !    write(*,502)nv,(iphl(i),i=1,nv)
 !    write(*,502)0,(incy(i),i=1,nv)
@@ -3213,7 +3261,7 @@
    if(ocv()) write(*,*)'At return from merge_gridpoints: ',nv
    return
 !------------------------------------------
-! emergency fix to avoid creating several composition sets in ideal phases
+! temporary fix to avoid creating several composition sets in ideal gas
 1100 continue
    nm=0
    notuse=0
@@ -3626,11 +3674,12 @@
 ! A proper name must start with a letter A-Z
 ! for typ=0 it must contain only letters, digits and underscore
 ! for typ=1 it may contain also +, - maybe ?
+! It must not be equal to s state variable
    implicit none
    integer typ
    character name*(*)
 !\end{verbatim}
-   character name2*64,ch1*1
+   character name2*64,ch1*1,chx*1
    integer jl
    logical korrekt
 !   write(*,*)'3Y entering proper_symbol_name: ',name,typ
@@ -3646,11 +3695,33 @@
       gx%bmperr=4137; goto 1000
    endif
    jl=1
+!   write(*,*)'3Y check name: ',name2
 100 continue
    jl=jl+1
    ch1=name2(jl:jl)
-! always finish when fining a space
+! always finish when fining a space 
    if(ch1.eq.' ') then
+! any symbol with at least 3 characters OK
+      if(jl.le.2) then
+! A single letter must be a state variable
+         if(name2(1:1).eq.'A' .or. name2(1:1).eq.'B' .or. &
+              name2(1:1).eq.'G' .or. name2(1:1).eq.'H' .or. &
+              name2(1:1).eq.'M' .or. name2(1:1).eq.'N' .or.&
+              name2(1:1).eq.'P' .or. name2(1:1).eq.'Q' .or. &
+              name2(1:1).eq.'S' .or. &
+              name2(1:1).eq.'T' .or. name2(1:1).eq.'U' .or.&
+              name2(1:1).eq.'V' .or. name2(1:1).eq.'W' .or. &
+              name2(1:1).eq.'X' .or. name2(1:1).eq.'Y') then
+            if(jl.eq.2) then
+               gx%bmperr=4137; goto 1000
+            elseif(name2(2:2).eq.'F' .or. name2(2:2).eq.'M' .or. &
+                 name2(2:2).eq.'P' .or. name2(2:2).eq.'U' .or. &
+                 name2(2:2).eq.'V' .or. name2(2:2).eq.'W') then
+! A two letter name must not have certain second letter
+               gx%bmperr=4137; goto 1000
+            endif
+         endif
+      endif
       korrekt=.TRUE.
       name(jl:)=' '
       goto 1000
@@ -3667,6 +3738,7 @@
 !
 1000 continue
 !
+   if(.not.korrekt) write(*,*)'Illegal name: ',name2,jl
    proper_symbol_name=korrekt
    return
  end function proper_symbol_name
@@ -3681,7 +3753,7 @@
 !-\end{verbatim}
    integer lok,last
    write(lut,1007)noofel,noofsp,noofph,noofem,noofint,noofprop,&
-        notpf(),csfree-1,eqfree-1,nsvfun,reffree-1,addrecs
+        notpf(),highcs,eqfree-1,nsvfun,reffree-1,addrecs
 1007 format('Records for elements, species, phases:           ',3i5/&
             'end members, interactions, properties:           ',3i5/&
             'TP-funs, composition sets, equilibria:           ',3i5/&
@@ -3691,6 +3763,8 @@
 600 continue
    write(lut,610)csfree,highcs
 610 format('Phase_varres free list: ',2i5)
+! NOTE csfree can be higher than highcs ... after deletion pointers can go back
+! UNFINISHED
    if(csfree.lt.highcs) then
       lok=csfree
 620   continue

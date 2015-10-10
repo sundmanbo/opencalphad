@@ -282,7 +282,7 @@ CONTAINS
     integer, parameter :: mmu=5
     integer what,mjj,ij,cmix(10),cmode,mufixel(mmu),mufixref(mmu),errout
     integer fixph(2,maxel),oldorder(mmu),kst
-    double precision fixpham(maxel)
+    double precision fixpham(maxel),sumnp
     character statevar*40,encoded*60,name*24
 !
     if(ocv()) write(*,*)"Entering calceq7",mode
@@ -551,6 +551,7 @@ CONTAINS
     mostconph=0
     mph=0
     jph=0
+    sumnp=zero
     do iph=1,noph()
        do ics=1,noofcs(iph)
           kst=test_phase_status(iph,ics,xxx,ceq)
@@ -564,6 +565,7 @@ CONTAINS
              meqrec%iphl(meqrec%nv)=iph
              meqrec%icsl(meqrec%nv)=ics
              meqrec%aphl(meqrec%nv)=ceq%phase_varres(lokcs)%amfu
+             sumnp=sumnp+ceq%phase_varres(lokcs)%amfu
           endif
        enddo
 ! select the phases with most constituents
@@ -603,13 +605,15 @@ CONTAINS
 !          write(*,*)'No phase to set stable'
           gx%bmperr=4200; goto 1000
        endif
-!       write(*,55)'Intial phase set stable: ',mostcon,&
+!       write(*,55)'Intial phases set stable: ',mostcon,&
 !            (mostconph(1,icc),mostconph(2,icc),icc=1,mostcon)
 55     format(a,i3,10(2i3,2x))
        meqrec%nv=mostcon
+!       write(*,56)(mostconph(1,icc),icc=1,mostcon)
+56     format('Setting start phases: ',20(i3))
        do icc=1,mostcon
           call get_phase_compset(mostconph(2,icc),1,lokph,lokcs)
-          ceq%phase_varres(lokcs)%amfu=one
+          ceq%phase_varres(lokcs)%amfu=one/mostcon
           meqrec%iphl(icc)=mostconph(2,icc)
           meqrec%icsl(icc)=1
           meqrec%aphl(icc)=one
@@ -618,7 +622,16 @@ CONTAINS
        enddo
     else
 ! hopefully set_constitution has been called ...
-!       write(*,*)'No gridminimization, using current phase set',meqrec%nv
+! normallize the sum of phase amounts assuming N=1 ... this did not help ...
+!       if(sumnp.gt.one) then
+!          sumnp=one/sumnp
+!          do icc=1,meqrec%nv
+!             meqrec%aphl(icc)=meqrec%aphl(icc)*sumnp
+!          enddo
+!       endif
+!       write(*,57)(meqrec%iphl(icc),meqrec%icsl(icc),meqrec%aphl(icc),&
+!            icc=1,meqrec%nv)
+57     format('Start phase set: ',10(i3,i2,F6.2))
        if(ocv()) write(*,*)'No gridminimization, using current phase set',&
             meqrec%nv
     endif
@@ -1095,8 +1108,11 @@ CONTAINS
                 if(jrem.eq.0) jrem=meqrec%stphl(meqrec%nstph)
                 krem=jrem
                 irem=jrem
-                write(*,240)meqrec%noofits,irem,iadd,ceq%tpval(1),&
-                     (meqrec%stphl(iph),iph=1,meqrec%nstph)
+                write(*,240)meqrec%noofits,irem,iadd,ceq%tpval(1)
+241             format('Too many stable phases at iter ',i3,', phase ',i3,&
+                     ' replaced by ',i3,', T= ',F8.2)
+!                write(*,240)meqrec%noofits,irem,iadd,ceq%tpval(1),&
+!                     (meqrec%stphl(iph),iph=1,meqrec%nstph)
 240             format('Too many stable phases at iter ',i3,', phase ',i3,&
                      ' replaced by ',i3,', T= ',F8.2/3x,15(i3))
                 replace=.TRUE.

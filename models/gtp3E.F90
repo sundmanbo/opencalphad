@@ -423,7 +423,7 @@
 !---- varres records, one for each composition set
 !>>>>> 54:
    write(lut)highcs
-   compset: do j=1,highcs-1
+   compset: do j=1,highcs
 ! loop for all composition sets
       firstvarres=>ceq%phase_varres(j)
       if(btest(firstvarres%status2,CSDFS)) then
@@ -1206,10 +1206,10 @@
 !>>>>> 54:
    read(lin)highcs
    if(ocv()) then
-      write(*,*)'Number of phase_varres records: ',highcs-1
+      write(*,*)'Number of phase_varres records: ',highcs
       write(*,*)'phase_varres size: ',size(ceq%phase_varres)
    endif
-   do j=1,highcs-1
+   do j=1,highcs
 !      write(*,*)'reading phase_varres ',j
 !------------------------------------------
 ! DEBUGPROBLEM BEWARE, using = instead of => below took 2 days to find
@@ -1361,7 +1361,9 @@
    if(.not.allocated(ceq%cmuval)) allocate(ceq%cmuval(noofel))
    ceq%cmuval=zero
 !
-   csfree=highcs
+   write(*,*)'UNIFINSHED reading of equilibria ...',highcs
+! what about the free list ....??? there can be free records below highcs ...
+   csfree=highcs+1
 1000 continue
    return
  end subroutine readequil
@@ -2998,13 +3000,13 @@
 ! state variable functions, references, additions
    if(ocv()) write(*,1007)noofel,maxel,noofsp,maxsp,noofph,maxph,&
         noofem,100000,noofint,100000,noofprop,100000,&
-        notpf(),maxtpf,csfree-1,2*maxph,eqfree-1,maxeq,&
-        nsvfun,maxsvfun,reffree-1,maxrefs,addrecs,100000
+        notpf(),maxtpf,highcs,2*maxph,eqfree-1,maxeq,&
+        nsvfun,maxsvfun,reffree-1,maxrefs,addrecs,csfree-1
 1007 format('Created records for elements, species, phases: ',2x,&
           3(i4,'/',i4,1x)/&
           'end members, interactions, properties: ',10x,&
           3(i4,'/',i4,1x)/&
-          'TP-funs, composition sets, equilibria: ',10x,&
+          'TP-funs, max and free composition sets, equilibria: ',10x,&
           3(i4,'/',i4,1x)/&
           'state variable functions, references, additions: ',&
           3(i4,'/',i4,1x)/)

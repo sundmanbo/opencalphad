@@ -188,14 +188,15 @@
    call get_phase_data(iph,ics,nsl,knl,knr,yarr,sites,qq,ceq)
    if(gx%bmperr.ne.0) goto 1000
 ! ask for amount of formula units, default is current amount
-   yyy=ceq%phase_varres(lokcs)%amfu
-   quest='Amount of '//name1
-   call gparrd(quest,cline,last,xxx,yyy,q1help)
+!   yyy=ceq%phase_varres(lokcs)%amfu
+!   quest='Amount of '//name1
+! NOTE name is not set!
+!   call gparrd(quest,cline,last,xxx,yyy,q1help)
 !   if input error quit asking more
-   if(buperr.ne.0) then
-      buperr=0; goto 1000
-   endif
-   ceq%phase_varres(lokcs)%amfu=abs(xxx)
+!   if(buperr.ne.0) then
+!      buperr=0; goto 1000
+!   endif
+!   ceq%phase_varres(lokcs)%amfu=abs(xxx)
 ! ask if we should set the default constitution
 !   write(*,*)'3D we are really here?'
    call gparcd('Default constitution?',cline,last,1,ch1,chd,q1help)
@@ -722,6 +723,7 @@
    type(gtp_condition), pointer :: new,temp
 !   integer nidlast,nidfirst,nidpre
    double precision xxx,yyy
+! inside here things are done
    call set_cond_or_exp(cline,ip,new,1,ceq)
    if(gx%bmperr.ne.0) goto 1000
 !   write(*,*)'3D Back in enter_experiment'
@@ -839,9 +841,9 @@
    integer nterm,kolon,iqz,krp,jp,istv,iref,iunit,jstv,jref,junit,jl,ks
    integer linkix,norem,ics,kstv,iph,nidfirst,nidlast,nidpre,qp
    character stvexp*80,stvrest*80,textval*32,c5*5
-   character svtext*128,encoded*60,defval*18
+   character svtext*128,encoded*60,defval*18,actual_arg*24,svfuname*16
    integer indices(4),allterms(4,10),seqz,experimenttype
-   integer ich,back
+   integer ich,back,condvalsym,symsym
    double precision coeffs(10),xxx,value,ccc
    logical inactivate
    type(gtp_state_variable), pointer :: svr,svr2
@@ -851,6 +853,7 @@
 !   call set_cond_or_exp_old(cline,ip,new,notcond,ceq)
 !   return
 !=========================================================================
+   nullify(temp)
 ! return here to deconde another condition on the same line
 50 continue
    nterm=0
@@ -933,9 +936,29 @@
 !---------------------------------
 ! check it is a legal state variable
    svtext=stvexp(1:ip-1)
+   symsym=0
 !   write(*,*)'3D calling decode with: ',ip,': ',svtext(1:ip)
    call decode_state_variable(svtext,svr,ceq)
-   if(gx%bmperr.ne.0) goto 1000
+   if(gx%bmperr.ne.0) then
+! Experiments can be symbols
+      if(notcond.ne.0) then
+         gx%bmperr=0
+         svfuname=svtext
+         call capson(svfuname)
+!         write(*,*)'3D Searching for symbol: ',svfuname
+         call find_svfun(svfuname,symsym,ceq)
+         if(gx%bmperr.ne.0) then
+            write(*,*)'Experimental symbol neither state variable nor symbol'
+            goto 1000
+         endif
+!         write(*,*)'3D experiment is symbol ',symsym
+! we do not have a state variable ... bypass some checks
+         nullify(svr)
+         goto 77
+      else
+         goto 1000
+      endif
+   endif
 ! convert to old state variable format
 !   write(*,12)svr%argtyp,svr%phase,svr%compset,svr%component,svr%constituent
 12 format('Decoded: '5i5)
@@ -960,6 +983,8 @@
 !   enddo
 !   write(*,*)'3D newcond: ',svtext(1:20),ip
 !----------------------------------------------------
+77 continue
+!   write(*,*)'3D error search ',notcond,ich,associated(temp)
 ! check that we we have a legal state variable for conditions
    if(notcond.eq.0) then
 ! check if allowed as condition
@@ -990,6 +1015,7 @@
       endif
    else
 ! search for old experimental value if experiment already entered
+!      write(*,*)'3D segfault search 1',notcond,ich
       if(ich.eq.4) then
          experimenttype=-1
       elseif(ich.eq.5) then
@@ -999,64 +1025,73 @@
       if(.not.associated(temp)) then
          xxx=zero
       else
+! new is nullified, temp set above for search of conditions or experiments, 
 88       continue
          temp=>temp%next
-         svr2=>temp%statvar(1)
-         if(same_statevariable(svr,svr2) .and. &
-              experimenttype.eq.temp%experimenttype) then
-            xxx=temp%prescribed
-! save link to old experiment in new
-            new=>temp
-         else
+         if(symsym.eq.0) then
+! new experiment is a state variable, what about temp?
+!            write(*,*)'3D oldexp 1: ',symsym,temp%statev
+            if(temp%statev.eq.0) then
+               svr2=>temp%statvar(1)
+               if(same_statevariable(svr,svr2) .and. &
+                    experimenttype.eq.temp%experimenttype) then
+                  xxx=temp%prescribed
+! found experimental record, save link in new
+                  new=>temp
+               endif
+            endif
             if(.not.associated(temp,ceq%lastexperiment)) goto 88
+         else
+! experiment is a symbol compare with other experiments for symbols
+!            write(*,*)'3D oldexp 2: ',symsym,temp%statev
+            if(symsym.eq.temp%statev .and. &
+                 experimenttype.eq.temp%experimenttype) then
+               xxx=temp%prescribed
+! we have found a record for this experiment
+               new=>temp
+            else
+               if(.not.associated(temp,ceq%lastexperiment)) goto 88
+            endif
          endif
       endif
    endif
+!   write(*,*)'3D segfault search 2A',nterm,associated(svr),notcond
+!   if(associated(svr)) then
+   if(notcond.eq.0) then
 !----------------------------------------------------------------
-! save current term if several
-   nterm=nterm+1
-   svrarr(nterm)=svr
+! save current term if several (only for conditions)
+      nterm=nterm+1
+!      write(*,*)'3D segfault search 2B',nterm
+      svrarr(nterm)=svr
+!      write(*,*)'3D segfault search 3',nterm
 ! convert to old format, currently we need to store both formats ....
 !   istv=svr%oldstv
-   iref=svr%phref
-   iunit=svr%unit
-! svr%argtyp specifies values in indices:
-! svr%argtyp: 0=no arguments; 1=comp; 2=ph+cs; 3=ph+cs+comp; 4=ph+cs+const
-!   indices=0
-!   write(*,87)'3D argtyp: ',istv,svr%argtyp,svr%component
-87 format(a,10i4)
-! this moved earlier
-!   if(svr%argtyp.eq.1) then
-!      indices(1)=svr%component
-!   elseif(svr%argtyp.eq.2) then
-!      indices(1)=svr%phase
-!      indices(2)=svr%compset
-!   elseif(svr%argtyp.eq.3) then
-!      indices(1)=svr%phase
-!      indices(2)=svr%compset
-!      indices(3)=svr%component
-!   elseif(svr%argtyp.eq.4) then
-!      indices(1)=svr%phase
-!      indices(2)=svr%compset
-!      indices(3)=svr%constituent
-!   endif
-   do ks=1,4
-      allterms(ks,nterm)=indices(ks)
-   enddo
+      iref=svr%phref
+      iunit=svr%unit
+      do ks=1,4
+         allterms(ks,nterm)=indices(ks)
+      enddo
+!      write(*,*)'3D segfault search 4',nterm,ich
 !   write(*,*)'3D old indices:',nterm,indices
-   if(ich.eq.1 .or. ich.eq.2) then
+      if(ich.eq.1 .or. ich.eq.2) then
 ! terminator + or - means state variable expression with several terms
-      if(nterm.gt.1) then
+         if(nterm.gt.1) then
 ! UNFINISHED check the second or later state variable of same type as first
-         continue
-      endif
+            continue
+         endif
 ! multiterm expression, jump back to 55 ... not yet implemented
-      write(*,86)ich,ip,nterm,stvexp(1:25),ccc
-86    format('Expression: ',3i3,' "',a,'" ',1pe12.4)
+         write(*,86)ich,ip,nterm,stvexp(1:25),ccc
+86       format('Expression: ',3i3,' "',a,'" ',1pe12.4)
 !      gx%bmperr=9998; goto 1000
-      coeffs(nterm+1)=ccc
-      cline=stvexp(ip-1:); ip=1
-      goto 55
+         coeffs(nterm+1)=ccc
+         cline=stvexp(ip-1:); ip=1
+         goto 55
+      endif
+   else
+! we have only one term for experiments
+      nterm=1
+!      write(*,*)'3D segfault search 2C',nterm,associated(svr),notcond
+      if(associated(svr)) svrarr(nterm)=svr
    endif
 ! jump here for qp:= or if several terms are terminated with empty line
 67 continue
@@ -1096,12 +1131,21 @@
       call getrel(textval,jp,value)
       if(buperr.ne.0) then
 ! UNFINISHED it can be a symbol
-         gx%bmperr=7777; goto 1000
+         buperr=0
+         svfuname=textval
+         call capson(svfuname)
+         call find_svfun(svfuname,condvalsym,ceq)
+!         write(*,*)'3D Symbol link: ',textval(1:10),condvalsym,gx%bmperr
+         if(gx%bmperr.ne.0) then
+            write(*,*)'Condition value must be a symnol or numeric'
+         endif
+         linkix=condvalsym
       endif
    endif none
    findrecord: if(notcond.eq.0) then
       if(.not.associated(new)) then
 ! search if condition already exist
+!         write(*,*)'3D searching for condition'
          temp=>ceq%lastcondition
          call get_condition(nterm,svr,temp)
          if(gx%bmperr.ne.0 .and. inactivate) then
@@ -1112,13 +1156,19 @@
       endif
    else
       if(.not.associated(new)) then
-! search for an experiment with state variable svr
-         temp=>ceq%lastcondition
+! search for an experiment with state variable svr or symbol symsym
+         temp=>ceq%lastexperiment
 142      continue
-         call get_condition(nterm,svr,temp)
-         if(gx%bmperr.eq.0) then
-! we must also test eperimenttype
-            if(temp%experimenttype.eq.experimenttype) goto 142
+!         write(*,*)'3D searching for experiment'
+         if(symsym.eq.0) then
+            istv=symsym
+            call get_condition(nterm,svr,temp)
+            if(gx%bmperr.eq.0) then
+! we must also test eperimenttype, if not same continue search
+               if(temp%experimenttype.eq.experimenttype) goto 142
+            endif
+         else
+            call get_experiment_with_symbol(symsym,experimenttype,temp)
          endif
 !      else
 !         write(*,*)'We have a condition record in new', gx%bmperr
@@ -1137,9 +1187,11 @@
          new%active=1
 !         write(*,*)'Inactivating condition',new%prescribed,new%active
       else
-! set the new value in the old condition/experiment
+! set the new value in the old condition/experiment  remove previous link!!
          new%active=0
          new%prescribed=value
+!         write(*,*)'3D Changing value of condition',linkix,new%symlink1
+         new%symlink1=linkix
 ! the uncertainty for experiments will be asked for later
       endif
    else
@@ -1148,12 +1200,6 @@
 !           allterms(1,1),value
 113   format('Creating condition record',l2,2x,7i4,1pe12.4)
       gx%bmperr=0
-! first test if condition on P or T is larger than 0.1
-      if(istv.eq.1 .or. istv.eq.2) then
-         if(value.lt.0.1D0) then
-            gx%bmperr=4187; goto 1000
-         endif
-      endif
       if(notcond.eq.0) then
          if(associated(ceq%lastcondition)) then
             seqz=ceq%lastcondition%seqz+1
@@ -1163,6 +1209,7 @@
          temp=>ceq%lastcondition
          allocate(ceq%lastcondition)
          new=>ceq%lastcondition
+!         write(*,*)'3D new condition ',istv,symsym
       else
 ! it is an experiment
 !      write(*,*)'3D We are after label 500',value,linkix
@@ -1174,6 +1221,8 @@
          temp=>ceq%lastexperiment
          allocate(ceq%lastexperiment)
          new=>ceq%lastexperiment
+!         write(*,*)'3D new experiment 2',istv,symsym
+         istv=symsym
       endif
 ! for new conditions and experiments
       new%noofterms=nterm
@@ -1182,39 +1231,58 @@
       new%iref=iref
       new%active=0
       new%seqz=seqz
-!   write(*,*)'3D experimenttype',experimenttype
+!      write(*,*)'3D experimenttype: ',experimenttype,symsym,nterm
       new%experimenttype=experimenttype
-!    write(*,*)'allocating terms',nterm
-      allocate(new%condcoeff(nterm))
-      allocate(new%indices(4,nterm))
+      if(symsym.eq.0) then
+! DO NOT allocate terms for condcoeff and indices if symbol
+         allocate(new%condcoeff(nterm))
+         allocate(new%indices(4,nterm))
 !   write(*,*)'3D allocations ok',linkix,value
-      do jl=1,nterm
-         new%condcoeff(jl)=coeffs(jl)
+         do jl=1,nterm
+            new%condcoeff(jl)=coeffs(jl)
 !         write(*,111)'3D allterms:  ',istv,jl,(allterms(ks,jl),ks=1,4)
-         do ks=1,4
-            new%indices(ks,jl)=allterms(ks,jl)
-         enddo
+            do ks=1,4
+               new%indices(ks,jl)=allterms(ks,jl)
+            enddo
 !         write(*,111)'3D in record: ',istv,jl,(new%indices(ks,jl),ks=1,4)
 111      format(a,i3,i5,2x,4i4)
-      enddo
+         enddo
+      endif
+!      write(*,*)'3D storing value: ',value,linkix
       if(linkix.lt.0) then
          new%prescribed=value
          new%symlink1=-1
-! special for T and P, change the local value
-!      write(*,*)'set condition/enter experiment ',istv,istv,value
-         if(istv.eq.1) then
-            ceq%tpval(1)=value
-         elseif(istv.eq.2) then
-            ceq%tpval(2)=value
-         endif
       else
          new%symlink1=linkix
+         value=evaluate_svfun_old(linkix,actual_arg,1,ceq)
+!         write(*,*)'3D evaluating condition sysmbol ',linkix,value
+         if(gx%bmperr.ne.0) then
+            goto 1000
+         endif
+         new%prescribed=value
+!         write(*,*)'3D  prescribed condition value: ',new%prescribed
       endif
-! store the state variable record in the condition
-      allocate(new%statvar(nterm))
-      do jl=1,nterm
-         new%statvar(jl)=svrarr(jl)
-      enddo
+! first test if condition on P or T is larger than 0.1
+      if(istv.eq.1 .or. istv.eq.2) then
+         if(value.lt.0.1D0) then
+            gx%bmperr=4187; goto 1000
+         endif
+      endif
+! special for T and P, change the local value
+!      write(*,*)'set condition/enter experiment ',istv,istv,value
+      if(istv.eq.1) then
+         ceq%tpval(1)=value
+      elseif(istv.eq.2) then
+         ceq%tpval(2)=value
+      endif
+!      write(*,*)'3D allocation of statvar ',symsym,istv,nterm
+      if(symsym.eq.0) then
+! store the state variable record in the condition, if symbol do not allocate
+         allocate(new%statvar(nterm))
+         do jl=1,nterm
+            new%statvar(jl)=svrarr(jl)
+         enddo
+      endif
 ! link the new record into the condition list
 !    write(*,*)'linking condition'
       if(associated(temp)) then
@@ -1328,7 +1396,35 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
-!\begin{verbatim}
+!\begin{verbatim} %-
+ subroutine get_experiment_with_symbol(symsym,experimenttype,temp)
+! finds an experiment with s symbol index symsym and exp.type
+   implicit none
+   integer symsym,experimenttype
+   type(gtp_condition), pointer :: temp
+! NOTE: temp must have been set to ceq%lastcondition before calling this
+!\end{verbatim} %+
+! pcond: pointer, to a gtp_condition record for this equilibrium
+   type(gtp_condition), pointer :: pcond,last
+   last=>temp
+100 continue
+   if(temp%statev.eq.symsym .and. temp%experimenttype.eq.experimenttype) then
+! the index of the symbol is stored in statev, we have found the experiment
+      goto 1000
+   else
+      temp=temp%next
+! this is true unless we have circulated the whole list
+      if(.not.associated(temp,last)) goto 100
+   endif
+! we have not found this experiment
+   gx%bmperr=4131
+1000 continue
+   return
+ end subroutine get_experiment_with_symbol
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim} %-
  subroutine get_condition(nterm,svr,pcond)
 ! finds a condition record with the given state variable expression
 ! If nterm<0 svr is irrelevant, the absolute value of nterm is the sequential

@@ -23,9 +23,6 @@
 ! with a 2-dimensional array with first index phase number and second
 ! the comp.set number.
 !
-! For constituents an EXTENDED CONSTITUENT INDEX is sometimes used 
-! and equal to 10*species_number + sublattice
-!
 ! 150520 BOS added a few subroutines for single phase data and calculations
 ! 141210 BOS changed to use phase tuples
 ! 140128 BOS added D2G and phase specific V and G
@@ -242,7 +239,8 @@ contains
 ! NOTE An identical routine with different constituent index is tqgpcn2
     implicit none
     integer n !IN: phase number
-    integer c !IN: extended constituent index: 10*species_number+sublattice
+!NO  integer c !IN: extended constituent index: 10*species_number+sublattice
+    integer c !IN: sequantial constituent index over all sublattices
     character constituentname*(24) !EXIT: costituent name
     type(gtp_equilibrium_data), pointer :: ceq !IN: current equilibrium
 !\end{verbatim}
@@ -279,7 +277,8 @@ contains
 ! get index of constituent with name in phase n
     implicit none
     integer n !IN: phase index
-    integer c !EXIT: extended constituent index: 10*species_number+sublattice
+!NO  integer c !IN: extended constituent index: 10*species_number+sublattice
+    integer c !IN: sequantial constituent index over all sublattices
     character constituentname*(*)
     type(gtp_equilibrium_data), pointer :: ceq  !IN: current equilibrium
 !\end{verbatim}
@@ -297,7 +296,8 @@ contains
 !? missing argument number of elements????
     implicit none
     integer n !IN: phase number
-    integer c !IN: extended constituent index: 10*species_number+sublattice
+!NO  integer c !IN: extended constituent index: 10*species_number+sublattice
+    integer c !IN: sequantial constituent index over all sublattices
     double precision stoi(*) !EXIT: stoichiometry of elements 
     double precision mass    !EXIT: total mass
     type(gtp_equilibrium_data), pointer :: ceq  !IN: current equilibrium
@@ -524,11 +524,11 @@ contains
 ! *3 S, V, H, A, G, NP, BP, N, B and DG can have suffixes M, W, V, F also
 !--------------------------------------------------------------------
 ! special addition for TQ interface: d2G/dyidyj
-! D2G + extended phase index
+! D2G + phase tuple
 !--------------------------------------------------------------------
 !\end{verbatim}
     integer ics,mjj,nph,ki,kj,lp,lokph,lokcs
-    character statevar*60,encoded*1024,name*24,selvar*4,norm*4
+    character statevar*60,encoded*2048,name*24,selvar*4,norm*4
 ! mjj should be the dimension of the array values ...
     mjj=n3
     selvar=stavar
@@ -589,14 +589,6 @@ contains
 ! it can be for example compositions, then it should be number of components
           call sortinphtup(n3,1,values)
        else
-! NOTE in this case n1 is a phase tuple index
-!          ics=mod(n1,10)
-!          nph=n1/10
-!          if(nph.eq.0 .or. ics.eq.0) then
-!             write(*,*)'You must use extended phase index'
-!             gx%bmperr=8887; goto 1000
-!          endif
-!          call get_phase_name(nph,ics,name)
           call get_phase_name(phcs(n1)%phase,phcs(n1)%compset,name)
           if(gx%bmperr.ne.0) goto 1000
           statevar='NP('//name(1:len_trim(name))//') '
@@ -661,15 +653,6 @@ contains
           endif
        elseif(n2.lt.0) then
 ! this means all components in one phase
-! NOTE in this case n1 is a phasetuple index
-!          ics=mod(n1,10)
-!          nph=n1/10
-!          if(nph.eq.0 .or. ics.eq.0) then
-!             write(*,*)'You must use extended phase index'
-!             gx%bmperr=8887; goto 1000
-!          endif
-!          call get_phase_name(nph,ics,name)
-!          write(*,*)'Phase: ',phcs(n1)%phase,phcs(n1)%compset
           call get_phase_name(phcs(n1)%phase,phcs(n1)%compset,name)
           if(gx%bmperr.ne.0) goto 1000
 ! added for composition sets
@@ -681,14 +664,6 @@ contains
           call get_many_svar(statevar,values,mjj,n3,encoded,ceq)
        else
 ! one component (n2) of one phase (n1)
-! NOTE in this case n1 is 10*phase number + composition set number
-!          ics=mod(n1,10)
-!          nph=n1/10
-!          if(nph.eq.0 .or. ics.eq.0) then
-!             write(*,*)'You must use extended phase index'
-!             gx%bmperr=8887; goto 1000
-!          endif
-!          call get_phase_name(nph,ics,name)
           call get_phase_name(phcs(n1)%phase,phcs(n1)%compset,name)
           if(gx%bmperr.ne.0) goto 1000
           statevar=stavar(1:1)//'('//name(1:len_trim(name))//','
@@ -710,14 +685,6 @@ contains
        endif
        if(n1.gt.0) then
 ! Volume for a specific phase
-! NOTE in this case n1 is 10*phase number + composition set number
-!          ics=mod(n1,10)
-!          nph=n1/10
-!          if(nph.eq.0 .or. ics.eq.0) then
-!             write(*,*)'You must use extended phase index'
-!             gx%bmperr=8887; goto 1000
-!          endif
-!          call get_phase_name(nph,ics,name)
           call get_phase_name(phcs(n1)%phase,phcs(n1)%compset,name)
           if(gx%bmperr.ne.0) goto 1000
           statevar=statevar(1:ki)//'('//name(1:len_trim(name))//') '
@@ -743,15 +710,6 @@ contains
 !       write(*,*)'tqgetv 1: ',n1,ki
        if(n1.gt.0) then
 ! Gibbs energy for a specific phase
-! NOTE in this case n1 is 10*phase number + composition set number
-!          ics=mod(n1,10)
-!          nph=n1/10
-!          if(nph.eq.0 .or. ics.eq.0) then
-!             write(*,*)'You must use extended phase index'
-!             gx%bmperr=8887; goto 1000
-!          endif
-!          write(*,*)'tqgetv 2: ',nph,ics
-!          call get_phase_name(nph,ics,name)
           call get_phase_name(phcs(n1)%phase,phcs(n1)%compset,name)
           if(gx%bmperr.ne.0) goto 1000
           statevar=statevar(1:ki)//'('//name(1:len_trim(name))//') '
@@ -766,13 +724,6 @@ contains
 !--------------------------------------------------------------------
 ! Mobilities
     case('MQ   ')
-!       ics=mod(n1,10)
-!       nph=n1/10
-!       if(nph.eq.0 .or. ics.eq.0) then
-!          write(*,*)'You must use extended phase index: 10*phase+compset'
-!          gx%bmperr=8887; goto 1000
-!       endif
-!       call get_phase_name(nph,ics,name)
        call get_phase_name(phcs(n1)%phase,phcs(n1)%compset,name)
        if(gx%bmperr.ne.0) goto 1000
        statevar=stavar(1:len_trim(stavar))//'('//name(1:len_trim(name))//')'
@@ -781,14 +732,6 @@ contains
 !--------------------------------------------------------------------
 ! Second derivatives of the Gibbs energy of a phase
     case('D2G   ')
-!       ics=mod(n1,10)
-!       nph=n1/10
-!       if(nph.eq.0 .or. ics.eq.0) then
-!          write(*,*)'You must use extended phase index: 10*phase+compset'
-!          gx%bmperr=8887; goto 1000
-!       endif
-!       write(*,*)'D2G 1: ',nph,ics
-!       call get_phase_compset(nph,ics,lokph,lokcs)
        call get_phase_compset(phcs(n1)%phase,phcs(n1)%compset,lokph,lokcs)
        if(gx%bmperr.ne.0) goto 1000
 !       write(*,*)'D2G 2: ',lokph,lokcs

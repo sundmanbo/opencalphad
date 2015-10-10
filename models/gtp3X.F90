@@ -2829,7 +2829,8 @@
 ! calculate dimension of copyofconst
    nz=0
 ! skippa varres with index 1, that is the reference phase
-   do varresx=2,csfree-1
+!   do varresx=2,csfree-1
+   do varresx=2,highcs
       if(allocated(ceq%phase_varres(varresx)%yfr)) then
 ! NOTE size( ... ) can return reasonable value even if not allocated !!!
 ! BUT why is phas_varres(varresx)%yfr it not allocated ???
@@ -2842,10 +2843,11 @@
 12    format(a,3i5)
       nz=nz+1+syfr
    enddo
-!   write(*,*)'In save_constitution',nz,csfree-1
+!   write(*,*)'In save_constitution',nz,highcs
    allocate(copyofconst(nz))
    nz=1
-   do varresx=2,csfree-1
+!   do varresx=2,csfree-1
+   do varresx=2,highcs
 ! save 1+sfr values for each composition set
 ! segmentation fault in this loop for stepbug (20 elements COST507)
 ! crash happends when higher composition sets are stored ...
@@ -2885,7 +2887,8 @@
    integer nz,varresx,ij,syfr
    nz=1
 ! skippa varres with index 1, that is the reference phase
-   do varresx=2,csfree-1
+!   do varresx=2,csfree-1
+   do varresx=2,highcs
       ceq%phase_varres(varresx)%amfu=copyofconst(nz)
       if(allocated(ceq%phase_varres(varresx)%yfr)) then
          syfr=size(ceq%phase_varres(varresx)%yfr)

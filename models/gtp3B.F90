@@ -840,7 +840,7 @@
    character*(*) prefix,suffix
 !   TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-! also update phasetuple array !!
+! also update phasetuple array !! csfree,highcs
    TYPE(gtp_equilibrium_data), pointer :: ceq
    integer lokph,ncs,nsl,nkk,lokcs,lokcs1,nprop,lastcs,jl,nyttcs
    integer leq,nydis,tuple,nz
@@ -895,6 +895,7 @@
 ! note that indices to phase_varres same in all equilibria
 ! >>> beware not tested created composition sets with several equilibria 
 ! maybe this call can be replaced by a simple assignment????
+! create_parrecord in GTP3G.F90 update csfree etc 
 !   call create_parrecords(lokph,nyttcs,nsl,nkk,maxcalcprop,iva,ceq)
 !   call create_parrecords(lokph,nyttcs,nsl,nkk,maxcalcprop,iva,firsteq)
    call create_parrecords(lokph,nyttcs,nsl,nkk,maxcalcprop,iva,firsteq)
@@ -1106,7 +1107,7 @@
 !
 !\begin{verbatim}
  subroutine remove_composition_set(iph,force)
-! the last composition set is deleted
+! the last composition set is deleted, update  csfree and highcs
 !
 ! >>>>>>>>>>>>>>>>>>>>>>>>>>>> NOTE <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< !
 ! Not safe to remove composition sets when more than one equilibrium       !
@@ -1226,15 +1227,32 @@
 ! maintained in firsteq only
    if(idisvarres.ne.0) then
 ! there was a disordered phase_varres record, link it into free list
-! BUT WE HAVE NOT DEALLOCATED ANYTHING ....
 !      write(*,*)'3B Free list 2: ',csfree,idisvarres
       firsteq%phase_varres(idisvarres)%nextfree=csfree
       csfree=idisvarres
+! make used but released
+      firsteq%phase_varres(idisvarres)%status2=&
+           ibset(firsteq%phase_varres(idisvarres)%status2,CSDEL)
+! UNFINISHED this is not correct ....
+      idisvarres=newhighcs(.false.)
+      if(idisvarres.eq.highcs) highcs=idisvarres-1
    endif
 ! link the free phase_varres into the free list
+!vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+! UNFINISHED: the free list for phase_varres is not updated correctly
+! The use of csfree is DANGEROUS, there can be unallocated varres recored
+! before the record indiceted by csfree
+! and allocated after!!!
 !   write(*,*)'3B Free list 1: ',csfree,lastcs
    firsteq%phase_varres(lastcs)%nextfree=csfree
    csfree=lastcs
+! mark this record used but deleted
+   firsteq%phase_varres(lastcs)%status2=&
+        ibset(firsteq%phase_varres(lastcs)%status2,CSDEL)
+! UNFINISHED this is not correct
+   idisvarres=newhighcs(.false.)
+   if(highcs.eq.lastcs) highcs=lastcs-1
+!^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 ! finally shift all composition sets in phlista(lokph)%linktocs
 ! if last deleted then ics>phlista(lokph)%noofcs
    do kcs=ics,phlista(lokph)%noofcs
@@ -1242,7 +1260,7 @@
    enddo
 ! and zero the last pointer to composition set.
    phlista(lokph)%linktocs(phlista(lokph)%noofcs+1)=0
-!   write(*,*)'Free list 1: ',csfree,lokcs
+!   write(*,*)'Free list 1: ',csfree,highcs,lokcs
 ! update phasetuple array, overwrite tuple.  This means tuples may change phase
 ! NOTE the first tuple for a phase+compset will never change position.  Only
 ! those created later may be shifted ... but that may be complicated enough ...
@@ -3516,7 +3534,7 @@
 
 !\begin{verbatim}
  subroutine enter_equilibrium(name,number)
-! creates a new equilibrium.  Allocates arrayes for conditions,
+! creates a new equilibrium.  Allocates arrayes for conditions, csfree
 ! components, phase data and results etc.
 ! returns index to new equilibrium record
 ! THIS CAN PROBABLY BE SIMPLIFIED, especially phase_varres array can be
@@ -3617,6 +3635,7 @@
 !         endif
       enddo
    endif
+!   write(*,*)'3B enter_eq 2, after this segmentation fault'
 ! these records keep calculated values of G and derivatives for each phase
 ! For phase lokph the index to phase_varres is in phlista(lokph)%cslink
 ! For phase lokph the index to phase_varres is in phlista(lokph)%linktocs(ics)
@@ -3631,10 +3650,21 @@
 ! for ieq>1 allocate the current number of phase_varres records plus 10
 ! for extra composition sets added later
       eqlista(ieq)%multiuse=0
+! UNFINISHED vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+! this is not good, csfree is not the last used phase_varres
+! there may be allocated records after and unallocated before !!
+      if(highcs.ne.csfree-1) then
+         write(*,*)'3B Beware, problems with varres records!',csfree,highcs
+      endif
+      novarres=highcs
+! the next line should be removed when highcs correctly implemented
       novarres=csfree-1
       iz=noofph
+!^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 !      allocate(eqlista(ieq)%phase_varres(iz+10))
       allocate(eqlista(ieq)%phase_varres(2*maxph))
+!      write(*,*)'3B enter_eq 2B, after this segmentation fault'
+!      write(*,*)'3B varres: ',ieq,size(eqlista(ieq)%phase_varres),iz
       if(ocv()) write(*,*)'3B varres: ',ieq,size(eqlista(ieq)%phase_varres)
 ! now copy the current content of firsteq%phase_varres to this equilibrium
 ! note, the SELECT_ELEMENT_REFERENCE phase has phase number 0
@@ -3642,6 +3672,12 @@
 ! same as number of phases ....
       copypv: do ipv=1,novarres
 ! note eqlista(1) is identical to firsteq
+         if(.not.allocated(firsteq%phase_varres(ipv)%yfr)) then
+! UNFINISHED this handels unallocated records below novarres
+!            write(*,*)'3B error creating varres record',ipv
+! BUT what about allocated after !!! no problem so far but .............
+            cycle copypv
+         endif
          cp1=>eqlista(1)%phase_varres(ipv)
          cpv=>eqlista(ieq)%phase_varres(ipv)
          cpv%nextfree=cp1%nextfree
@@ -3663,6 +3699,7 @@
 46       format('yfr ',a,10(F7.3))
          allocate(cpv%constat(nc))
          cpv%constat=cp1%constat
+!         write(*,*)'3B enter_eq 2C, after this segmentation fault'
          if(allocated(cp1%mmyfr)) then
 ! problem with mmyfr???  .... no
 !            if(ocv()) write(*,*)'3B mmyfr 1: ',ipv,cpv%phlink,nc
@@ -3684,6 +3721,7 @@
 !          allocate(cpv%d2sitesdy2(jz))
 !          cpv%d2sitesdy2=cp1%d2sitesdy2
 ! the values in the following arrays are irrelevant, just allocate and zero
+!         write(*,*)'3B enter_eq 2D, after this segmentation fault',ipv,novarres
          cpv%nprop=cp1%nprop
          allocate(cpv%listprop(cp1%nprop))
          allocate(cpv%gval(6,cp1%nprop))
@@ -3715,9 +3753,11 @@
 !            continue
 !         endif disordered
       enddo copypv
+!      write(*,*)'3B enter_eq 2E, after this segmentation fault'
    endif
 ! From here also for first equilibria
 900 continue
+!   write(*,*)'3B enter_eq 3'
    if(ocv()) write(*,*)'3B: entereq 3: '
 ! nullify condition links, otherwise "if(associated(..)" does not work
    nullify(eqlista(ieq)%lastcondition)
@@ -3728,6 +3768,7 @@
 ! allocate and copy tpfun result array also for first equilibria
 !   jz=size(firsteq%eq_tpres)
    jz=maxtpf
+!   write(*,*)'3B enter_eq 4',jz,maxsvfun
    if(ocv()) write(*,*)'3B: entereq 4: ',jz,maxsvfun
 !    write(*,*)'create equil tpres size ',jz,notpf()
    allocate(eqlista(ieq)%eq_tpres(jz))
@@ -3770,6 +3811,8 @@
       deallocate(eqlista(ieq)%invcompstoi)
       deallocate(eqlista(ieq)%cmuval)
 !
+      novarres=highcs
+! the next line should be removed when highcs implemented
       novarres=csfree-1
 !      write(*,*)'deallocationg phase_varres'
       do ipv=1,novarres
@@ -3949,8 +3992,10 @@
 ! For phase lokph the index to phase_varres is in phlista(lokph)%linktocs(ics)
 ! for ieq>1 allocate the current number of phase_varres records plus 10
 ! for extra composition sets added later
+   novarres=highcs
+! the next line should be deleted when highcs implemented
    novarres=csfree-1
-!   write(*,*)'3B: entereq 3: ',novarres
+!   write(*,*)'3B: entereq 3: ',highcs,novarres
 ! BEWARE: allocation: calculating with one phase with 8 composition sets
 ! and disordered fractions sets !!!
    iz=max(noofph,novarres)
@@ -4149,11 +4194,13 @@
 ! expandex:
 ! experiment x(liq,cr)=0.15:0.02 x(bcc,cr)=0.20:10%
 !
-   integer, parameter :: ncom=8,ncol=9
-   character (len=12), dimension(ncom), parameter :: commands(8)=&
+! ncom is numbor of command, ncol is max number of columns in tables
+   integer, parameter :: ncom=12,ncol=9
+   character (len=12), dimension(ncom), parameter :: commands=&
 !        123456789.12...123456789.12...123456789.12...123456789.12
        ['FIXED       ','ENTERED     ','DORMANT     ','CONDITIONS  ',&
-        'EXPERIMENTS ','CALCULATE   ','LIST        ','TABLE_START ']
+        'EXPERIMENTS ','CALCULATE   ','LIST        ','TABLE_START ',&
+        'COMMENT     ','            ','            ','            ']
    character*128 rowtext(ncom-1),text*128,dummy*128,tval*24
    character*128 eqlin(ncom-1),eqname*24
    integer dcom,kom,done(ncom),ip,jp,kp,ival,jval,neq,slen,shift,ieq,nystat
@@ -4186,7 +4233,10 @@
       write(kou,*)'Command ',commands(kom),' occures twice'
       gx%bmperr=6661; goto 1000
    endif
-   if(kom.lt.8) then
+   if(kom.eq.9) then
+! this is the comment ignore at present
+      write(*,*)'Comment not yet implemeneted in tables'
+   elseif(kom.lt.8) then
 ! skip trailing space after command
       rowtext(kom)=text(last+1:)
       done(kom)=1
@@ -4304,12 +4354,12 @@
 ! check the final equilibrium description
    neq=neq+1
 !   write(*,*)'3B New equilibrium: ',eqname
-   do kom=1,ncom-1
-      if(eqlin(kom)(1:2).ne.'  ') then
+!   do kom=1,ncom-1
+!      if(eqlin(kom)(1:2).ne.'  ') then
 !         write(kou,510)neq,kom,eqlin(kom)(1:len_trim(eqlin(kom)))
-510      format('3B ',2i3,' :',a)
-      endif
-   enddo
+510      format('3B cc',2i3,' :',a)
+!      endif
+!   enddo
 ! create equilibria
 !   write(*,*)'3B enter equilibrium: ',eqname,ieq
    call enter_equilibrium(eqname,ieq)
@@ -4325,7 +4375,7 @@
 !   call change_many_phase_status(tval,nystat,xxx,ceq)
    if(gx%bmperr.ne.0) goto 1000
    if(eqlin(1)(1:1).ne.' ') then
-! fix phases, amount??
+! fix phases, amount?? always 1
 !      write(*,*)'3B setting fixed phases: ',eqlin(1)(1:len_trim(eqlin(1)))
       nystat=PHFIXED; xxx=one
       call change_many_phase_status(eqlin(1),nystat,xxx,ceq)
@@ -4351,6 +4401,7 @@
       ip=0
       call set_condition(eqlin(4),ip,ceq)
       if(gx%bmperr.ne.0) goto 1000
+!      write(*,*)'conditions OK'
    endif
    if(eqlin(5)(1:1).ne.' ') then 
 ! experiments
@@ -4358,6 +4409,7 @@
       ip=0
       call enter_experiment(eqlin(5),ip,ceq)
       if(gx%bmperr.ne.0) goto 1000
+!      write(*,*)'experiments OK'
    endif
    if(eqlin(6)(1:1).ne.' ') then 
 ! calculate
@@ -4390,6 +4442,43 @@
 1000 continue
    return
  end subroutine enter_many_equil
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
+ integer function newhighcs(reserved)
+! updates highcd and arranges csfree to be in sequential order
+! highcs is the higest used varres record before the last reservation
+! or release of a record.  release is TRUE if a record has been released 
+! csfree is the beginning of the free list of varres records.
+   implicit none
+   logical reserved
+!\end{verbatim}
+   integer high,lok,free,prev
+! Do not be smart, go through the whole array
+! in all used varres record the %nextfree is zero
+   high=0
+   free=0
+   do lok=1,size(firsteq%phase_varres)
+      if(firsteq%phase_varres(lok)%nextfree.eq.0) then
+         high=lok
+      elseif(free.eq.0) then
+! we have the first record belonging to the free list
+         free=lok
+         prev=lok
+      else
+         firsteq%phase_varres(prev)%nextfree=lok
+         prev=lok
+      endif
+   enddo
+! verification
+   prev=2*noofph+2
+!   write(*,*)'3B high and free: ',high,free,reserved,highcs,csfree
+!   write(*,110)(firsteq%phase_varres(lok)%nextfree,lok=free,prev)
+110 format(12(i6))   
+   newhighcs=high
+1000 continue
+ end function newhighcs
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 

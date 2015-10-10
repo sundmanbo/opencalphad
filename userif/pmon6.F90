@@ -520,6 +520,14 @@ contains
           write(kou,*)'No such symbol'
           goto 100
 1020      continue
+          if(btest(svflista(svss)%status,SVCONST)) then
+! if symbol is just a numeric constant we can change its value
+             actual_arg=' '
+             xxx=evaluate_svfun_old(svss,actual_arg,1,ceq)
+             call gparrd('Give new value; ',cline,last,xxy,xxx,q1help)
+             call set_putfun_constant(svss,xxy)
+             goto 100
+          endif
 ! If the user answers anything but y or Y the bits are cleared
 ! symbol can be evaluated only explicitly (like variables in TC)
           call gparcd('Should the symbol only be evaluated explicitly?',&
@@ -543,7 +551,7 @@ contains
           else
              svflista(svss)%status=ibclr(svflista(svss)%status,SVFEXT)
              svflista(svss)%eqnoval=0
-! this cannot be cleared here, there may be other
+! this cannot be cleared, there may be other threadprotected symbols
 !           ceq%status=ibclr(ceq%status,EQNOTHREAD)
           endif
 !-------------------------
@@ -958,9 +966,9 @@ contains
                       write(kou,2050)neweq%eqname
                    else
 !$                     if(.TRUE.) then
-!$                      write(*,663)'Equil/loop/thread/error: ',neweq%eqname,&
-!$                           i1,omp_get_thread_num(),gx%bmperr,&
-!$                           omp_get_num_threads()
+!$                      write(*,663)'Equil/loop/thread/maxth/error: ',&
+!$                             neweq%eqname,i1,omp_get_thread_num(),&
+!$                             omp_get_num_threads(),gx%bmperr
 663                   format(a,a,5i5)
 ! calceq3 gives no output
 !$                        call calceq3(mode,.FALSE.,neweq)
@@ -2301,8 +2309,8 @@ contains
 ! stable phases with mole fractions and constitution
              mode=1010
           elseif(listresopt.eq.3) then
-! stable phases with mole fractions in alphabetical order
-             mode=1100
+! stable phases with mole fractions and constitution in alphabetical order
+             mode=1110
           elseif(listresopt.eq.4) then
 ! stable phases with mass fractions
              mode=1001

@@ -1108,7 +1108,7 @@
    integer lokph,lokcs, nsl, nc, nprop
 !\end{verbatim}
    integer ic,nnc
-! find free record, free list maintained in FIRSTEQ
+! find free record, free list csfree maintained in FIRSTEQ only!
 !   write(*,*)'3G maxcalcprop: ',nprop
    lokcs=csfree
    if(csfree.le.0) then
@@ -1118,15 +1118,24 @@
       gx%bmperr=4094; goto 1000
    endif
 ! the free list of phase_varres record only maintained in firsteq
-! all equilibria have identical allocation of phase_varres records
+! but all equilibria have identical allocation of phase_varres records
+! the free list is created when starting OC, each record points to the next
+! After composition sets has been entered and deleted it may be different
+! highcs should always be the index of the highest used record
 !   write(*,*)'3G allocating varres record ',lokcs
    csfree=firsteq%phase_varres(lokcs)%nextfree
-   if(csfree.gt.highcs) highcs=csfree
+! wrong ...   if(csfree.gt.highcs) highcs=csfree
+! The record used is lokcs
    firsteq%phase_varres(lokcs)%nextfree=0
    firsteq%phase_varres(lokcs)%status2=0
+   ic=newhighcs(.true.)
+   if(lokcs.gt.highcs) highcs=lokcs
 ! added integer status array constat. Set CONVA bit from iva array
 !   write(*,*)'Allocate constat 2: ',nc,lokcs
    if(.not.allocated(ceq%phase_varres(lokcs)%constat)) then
+! remove CSDEL if set
+   firsteq%phase_varres(lokcs)%status2=&
+        ibclr(firsteq%phase_varres(lokcs)%status2,CSDEL)
 ! already allocated error for the Al-Ni case, why?
 ! Maybe if composition set has been deleted without releasing allocated arrays?
       allocate(ceq%phase_varres(lokcs)%constat(nc))
@@ -2246,8 +2255,8 @@
 !     TYPE(gtp_phase_varres), dimension(:), allocatable :: phase_varres
 ! each phase_varres record is different for each phase
    vsum=0
-! csfree is first free phase_varres record
-   do ivs=1,csfree
+! highcs is highest used free phase_varres record
+   do ivs=1,highcs
       vss=vssize(ceq%phase_varres(ivs))
 !      write(*,*)'Phase varres: ',ivs,vss
       vsum=vsum+vss

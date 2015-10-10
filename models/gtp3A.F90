@@ -114,8 +114,8 @@
    enddo
 ! NOTE last phase_varres record used for copy in shiftcompsets
    firsteq%phase_varres(2*maxph)%nextfree=-1
-! csfree is not declared ... how can that be?? where is it declared ??
-   csfree=1
+! csfree and highcs are declared in gtp3.F90
+   csfree=1; highcs=0
 ! convergence criteria for constituent fractions, 1e-6 works most often
 ! But one should take care to equilibrate fractions smaller than xconv!!!
    firsteq%xconv=1.0D-6
@@ -284,7 +284,6 @@
 ! to extract the calculated composition dependent values
    ndefprop=npid
 !-------------------------------------------------
-   highcs=0
 ! globaldata record; set gas constant mm
    globaldata%status=0
 ! set beginner, no data, no phase, no equilibrium calculated
@@ -293,10 +292,12 @@
    globaldata%status=ibset(globaldata%status,GSNODATA)
    globaldata%status=ibset(globaldata%status,GSNOPHASE)
    firsteq%status=ibset(firsteq%status,EQNOEQCAL)
+! set that dense grid is used by default
+!   globaldata%status=ibset(globaldata%status,GSXGRID)
 ! set gas constant and some default values
    globaldata%name='current'
    globaldata%rgas=8.31451D0
-! more recent value
+! more recent value not used as all TDB file used the old
 !   globaldata%rgas=8.3144621D0
 ! old value of gas constant
    globaldata%rgasuser=8.31451D0
@@ -362,6 +363,9 @@
 !   write(*,*)'firstash allocated: ',firstash%status
    nullify(firstash%prevash)
    nullify(firstash%nextash)
+! set that dense grid used by default
+!   globaldata%status=ibset(globaldata%status,GSXGRID)
+! removed line above as that caused crash in parallel2 WHY????
 ! finished initiating
 1000 continue
 !   write(*,*)'exit from init_gtp'

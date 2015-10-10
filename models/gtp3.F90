@@ -300,7 +300,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'Error in function expression (putfun)                           ',&
        'Unknown symbol used in function                                 ',&
        'Symbol with this name already entered                           ',&
-       'Symbol name must start with letter A-Z                          ',&
+       'Symbol name must start with letter A-Z and not be reserved      ',&
        'Illegal character in symbol name                                ',&
        'Cannot check name of unknown kind of symbol                     ',&
 ! 4140
@@ -466,10 +466,11 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! CSDEFCON set if there is a default constitution
 ! CSTEMPAR set if created by grid minimizer and can be suspended afterwards
 !       when running parallel
+! CSDEL set if record is not used but has been and then deleted (by gridmin)
    integer, parameter :: &
         CSDFS=0,    CSDLNK=1,  CSDUM2=2,    CSDUM3=3, &
         CSCONSUS=4, CSORDER=5, CSABLE=6,    CSAUTO=7, &
-        CSDEFCON=8, CSTEMPAR=9
+        CSDEFCON=8, CSTEMPAR=9,CSDEL=10
 !\end{verbatim}
 !----------------------------------------------------------------
 !\begin{verbatim}
@@ -480,8 +481,10 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !----------------------------------------------------------------
 !-Bits in state variable functions (svflista)
 ! SVFVAL symbol evaluated only explicitly (mode=1 in call)
+! SVFEXT symbol external ???
+! SVCONST symbol is a constant (can be changed)
    integer, parameter :: &
-        SVFVAL=0,SVFEXT=1
+        SVFVAL=0, SVFEXT=1, SVCONST=2
 !----------------------------------------------------------------
 !-Bits in gtp_equilibrium_data record
 ! EQNOTHREAD set if equilibrium must be calculated before threading 
@@ -1020,12 +1023,14 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !   (like @P, @C and @S
 ! status: can be used for various things
 ! status bit SVFVAL=0 means value evaluated only when called with mode=1
+! SVCONST bit if symbol is just a constant value (linknode is zero)
 ! eqnoval: used to specify the equilibrium the value should be taken from
 !    (for handling what is called "variables" in TC)
 ! name: name of symbol
      integer narg,nactarg,status,eqnoval
      type(putfun_node), pointer :: linkpnode
      character name*16
+     double precision value
 ! this array has identification of state variable (and other function) symbols 
      integer, dimension(:,:), pointer :: formal_arguments
   end TYPE gtp_putfun_lista
@@ -1087,6 +1092,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! or calculated in parallel or results saved from step or map.
 ! nextfree: In unused phase_varres record it is the index to next free record
 !    The global integer csfree is the index of the first free record
+!    The global integer highcs is the higest varres index used
 ! phlink: is index of phase record for this phase_varres record
 ! status2: has phase status bits like ENT/FIX/SUS/DORM
 ! phstate: indicate state: fix/stable/entered/unknown/dormant/suspended/hidden
@@ -1418,7 +1424,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   integer, private :: reffree,eqfree
 ! maximum number of properties calculated for a phase
   integer, private :: maxcalcprop=20
-! highest used phase_varres record (for saving on file)
+! highcs is highest used phase_varres record (for copy equil etc)
   integer, private :: highcs
 ! Trace for debugging (not used)
   logical, private :: ttrace

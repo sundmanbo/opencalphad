@@ -2627,7 +2627,7 @@
 !   integer istv(npfs),indstv(4,npfs),iref(npfs),iunit(npfs),lokv(npfs)
    integer iarr(10,npfs),lokv(npfs)
    type(gtp_state_variable), pointer :: svr
-   type(putfun_node), pointer :: lrot
+   type(putfun_node), pointer :: lrot,datanod
 !    
 ! maxsym is negative to allow the user to enter abs(maxs) symbols
 ! pfsym are the entered symbols
@@ -2741,11 +2741,45 @@
 ! for derivatives two iarr arrays
 ! Found bug in store_putfun if just a variable entered, coefficient set to 0.0
    call store_putfun(name2,lrot,nsymb+jt,iarr)
+   if(nsymb.eq.0) then
+! this is just a constant numeric value ... store it locally
+      if(.not.associated(lrot%left) .and. .not.associated(lrot%left)) then
+!         write(*,*)'3F just a constant!!'
+! set bit to allow change the value but do not allow R to be changed
+         if(nsvfun.gt.3) then
+            svflista(nsvfun)%status=ibset(svflista(nsvfun)%status,SVCONST)
+         endif
+      endif
+   endif
 1000 continue
    return
  end subroutine enter_svfun
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim} %-
+ subroutine set_putfun_constant(svfix,value)
+! changes the value of a putfun constant
+! svfix is index, value is new value
+   implicit none
+   integer svfix
+   double precision value
+!\end{verbatim} %+
+   type(putfun_node), pointer :: lrot
+   if(.not.btest(svflista(svfix)%status,SVCONST)) then
+      write(*,*)'Symbol is not a constant'
+      gx%bmperr=6666
+   else
+      lrot=>svflista(svfix)%linkpnode
+      write(*,*)'3F current and new: ',lrot%value,value
+      lrot%value=value
+   endif
+1000 continue
+   return
+ end subroutine set_putfun_constant
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
 !\begin{verbatim} %-
  subroutine store_putfun(name,lrot,nsymb,iarr)
 ! enter an expression of state variables with name name with address lrot
@@ -2755,10 +2789,10 @@
    implicit none
    character name*(*)
    type(putfun_node), pointer :: lrot
-   integer nsymb,idot
+   integer nsymb
    integer iarr(10,*)
 !\end{verbatim} %+
-   integer jf,jg
+   integer jf,jg,idot
 !   write(*,*)'3F: store_putfun ',nsvfun
    nsvfun=nsvfun+1
    if(nsymb.gt.0) then
@@ -2850,9 +2884,10 @@
 !\end{verbatim} %+
 ! name must be in UPPER CASE and exact match required
    do lrot=1,nsvfun
+!      write(*,*)'3F find_svfun: ',name,svflista(lrot)%name,lrot
       if(name.eq.svflista(lrot)%name) goto 500
    enddo
-!   write(*,*)'3F No such symbol: ',name
+   write(*,*)'3F No such symbol: ',name
    gx%bmperr=8888; goto 1000
 !
 500 continue

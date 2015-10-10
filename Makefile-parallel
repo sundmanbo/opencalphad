@@ -8,16 +8,16 @@ all:
 
 
 metlib3.o:	utilities/metlib3.F90
-	gfortran -c -fbounds-check  -finit-local-zero utilities/metlib3.F90
+	gfortran -c -finit-local-zero utilities/metlib3.F90
 
 tpfun4.o:	utilities/tpfun4.F90
-	gfortran -c -fopenmp -fbounds-check  -finit-local-zero utilities/tpfun4.F90
+	gfortran -c -fopenmp -finit-local-zero utilities/tpfun4.F90
 
 lukasnum.o:	numlib/lukasnum.F90
-	gfortran -c -fbounds-check  -finit-local-zero numlib/lukasnum.F90
+	gfortran -c -finit-local-zero numlib/lukasnum.F90
 
 lmdif1lib.o:      numlib/lmdif1lib.F90
-	gfortran -c -fbounds-check  -finit-local-zero numlib/lmdif1lib.F90  
+	gfortran -c -finit-local-zero numlib/lmdif1lib.F90  
 
 gtp3.o:	models/gtp3.F90
 	gfortran -c -fopenmp -finit-local-zero models/gtp3.F90
@@ -26,10 +26,10 @@ matsmin.o:	minimizer/matsmin.F90
 	gfortran -c -fopenmp -finit-local-zero minimizer/matsmin.F90
 
 smp1.o:		stepmapplot/smp1.F90
-	gfortran -c -fbounds-check  -finit-local-zero stepmapplot/smp1.F90
+	gfortran -c -finit-local-zero stepmapplot/smp1.F90
 
 pmon6.o:	userif/pmon6.F90
-	gfortran -c -fbounds-check  -finit-local-zero userif/pmon6.F90
+	gfortran -c -finit-local-zero userif/pmon6.F90
 
  
 

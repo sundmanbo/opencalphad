@@ -964,8 +964,8 @@
  subroutine format_phase_composition(mode,nv,consts,vals,lut)
 ! list composition/constitution in alphabetical or value order
 ! entalsiffra 0 mole fraction, 1 mass fraction, 3 mole percent, 4 mass percent
-! tiotalsiffra ?
-! mode >100 else alphanetical order
+! tiotalsiffra alphabetical order ... ??
+! mode >100 else alphabetical order
 ! nv is number of components/constitunents (in alphabetical order in consts)
 ! components/constituents in consts, fractions in vals
    implicit none
@@ -1005,8 +1005,10 @@
    nrow2=(nv+ncol-1)/ncol
 ! always use isort for the order, if alphabetical isort(i)=i
    allocate(isort(nv+4))
-   if(mode.ge.100) then
-! value order if mode >100, sort vals and use isort to find component name
+!   if(mode.ge.100) then
+!   write(*,*)'3C mode: ',mode,mod(mode,100),mode-100*mod(mode,100)
+   if(mod(mode,100).eq.0) then
+! value order
       call sortrdd(vals,nv,isort)
       if(buperr.ne.0) then
          write(*,*)'Error sorting fractions',buperr
@@ -3086,6 +3088,7 @@
    if(text(ip:ip).ne.' ') ip=ip+1
    text(ip:)='='
    ip=ip+1
+!   write(*,*)'3C symlink: ',current%symlink1,current%prescribed
    if(current%symlink1.gt.0) then
 ! the value is a symbol
       text(ip:)=svflista(current%symlink1)%name
@@ -3114,6 +3117,7 @@
       ip=1
       text=' '
       call get_one_experiment(ip,text,seqz,ceq)
+!      write(*,*)'3C Back from get_one'
       if(gx%bmperr.ne.0) then
 ! error code for no more experiments or inactive experiment
 !         write(*,*)'3C error line 3117: ',gx%bmperr,seqz,text(1:ip)
@@ -3145,10 +3149,11 @@
    character text*(*)
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-   integer jl,iterm,indx(4)
+   integer jl,iterm,indx(4),symsym
    TYPE(gtp_condition), pointer :: last,current
    type(gtp_state_variable), pointer :: svrrec
    double precision wone,xxx
+   character actual_arg*16
 !
    if(ip.le.0) ip=1
    text(ip:)=' '
@@ -3174,33 +3179,51 @@
    iterm=1
 ! UNFINISHED return here for each term if several ... NOT EXPERIMENTS
 150 continue
-   do jl=1,4
-      indx(jl)=current%indices(jl,iterm)
-   enddo
-   if(abs(current%condcoeff(iterm)-one).gt.1.0D-10) then
-      wone=current%condcoeff(iterm)+one
-      if(abs(wone).lt.1.0D-10) then
-         text(ip:ip)='-'
-         ip=ip+1
-      else
+!   write(*,*)'3C Testing is symbol or state variable record',&
+!        allocated(current%statvar)
+   nostv: if(.not.allocated(current%statvar)) then
+! an experiment is a symbol!!! Then statvar is not allocated
+      symsym=current%statev
+!      write(*,*)'3C A symbol, not a state variable for this experiment',symsym
+! get the symbol name
+      text=svflista(symsym)%name
+      ip=len_trim(text)+1
+!      text(ip-1:ip-1)='='
+!      write(*,*)'3C experiment: ',text(1:ip),ip
+   else
+!      write(*,*)'3C This experiment has a state variable record',&
+!           allocated(current%statvar),allocated(current%indices),iterm
+      symsym=0
+! these are not needed??
+!      do jl=1,4
+!         indx(jl)=current%indices(jl,iterm)
+!      enddo
+!      if(abs(current%condcoeff(iterm)-one).gt.1.0D-10) then
+!         wone=current%condcoeff(iterm)+one
+!         if(abs(wone).lt.1.0D-10) then
+!            text(ip:ip)='-'
+!            ip=ip+1
+!         else
 ! not +1 or -1, write number
-         call wrinum(text,ip,8,1,current%condcoeff(iterm))
-         text(ip:ip)='*'
-         ip=ip+1
-      endif
-   elseif(iterm.gt.1) then
+!            call wrinum(text,ip,8,1,current%condcoeff(iterm))
+!            text(ip:ip)='*'
+!            ip=ip+1
+!         endif
+!      elseif(iterm.gt.1) then
 ! must be a + in front of second and later terms
-      text(ip:ip)='+'
-      ip=ip+1
-   endif
+!         text(ip:ip)='+'
+!         ip=ip+1
+!      endif
 ! why is ceq needed?? BECAUSE COMPONENTS CAN BE DIFFERENT   ... hm?? !! 
 !   call encode_state_variable2(text,ip,current%statev,indx,&
 !        current%iunit,current%iref,ceq)
-   svrrec=>current%statvar(1)
-   call encode_state_variable(text,ip,svrrec,ceq)
-   if(iterm.lt.current%noofterms) then
-      iterm=iterm+1; goto 150
-   endif
+      svrrec=>current%statvar(1)
+      call encode_state_variable(text,ip,svrrec,ceq)
+      if(iterm.lt.current%noofterms) then
+         iterm=iterm+1; goto 150
+      endif
+   endif nostv
+!   write(*,*)'3C ok here',symsym
    if(current%experimenttype.eq.0 .or. current%experimenttype.eq.100) then
 ! write = followed by the value 
 !      if(text(ip:ip).ne.' ') ip=ip+1
@@ -3215,6 +3238,7 @@
       text(ip:)='>'
       ip=ip+1
    endif
+!   write(*,*)'3C experiment line 2: ',text(1:ip),ip
    if(current%symlink1.gt.0) then
 ! the value is a symbol
       text(ip:)=svflista(current%symlink1)%name
@@ -3225,6 +3249,7 @@
 ! uncertainty can also be a symbol
    text(ip:ip)=':'
    ip=ip+1
+!   write(*,*)'3C experiment line 3: ',text(1:ip),ip
    if(current%symlink2.gt.0) then
 ! the value is a symbol
       text(ip:)=svflista(current%symlink1)%name
@@ -3232,18 +3257,35 @@
    else
       call wrinum(text,ip,10,0,current%uncertainty)
    endif
+!   write(*,*)'3C ok here 2',symsym,text(1:ip)
+!   write(*,*)'3C experiment line 2: ',text(1:ip),ip
    if(current%experimenttype.eq.100) then
       text(ip:ip)='%'
       ip=ip+1
    endif
+!   write(*,*)'3C ok here 3',symsym
 ! add the current value of the experiment after a $ sign
-   call state_variable_val(svrrec,xxx,ceq)
-   if(gx%bmperr.ne.0) goto 1000
+   if(symsym.eq.0) then
+      call state_variable_val(svrrec,xxx,ceq)
+   else
+!      write(*,*)'3C ok here 4'
+      actual_arg=' '
+      xxx=evaluate_svfun_old(symsym,actual_arg,1,ceq)
+   endif
+   if(gx%bmperr.ne.0) then
+      text(ip:)=' $ ?? '
+      ip=ip+5
+      gx%bmperr=0
+   else
 !   write(*,*)'3C experimental state variable value: ',xxx
-   text(ip:)=' $'
-   ip=ip+3
-   call wrinum(text,ip,12,0,xxx)
+      text(ip:)=' $'
+      ip=ip+3
+      call wrinum(text,ip,12,0,xxx)
+!      write(*,*)'3C experiment line 3: ',text(1:ip),ip
+   endif
+!   write(*,*)'3C ok here 5'
 1000 continue
+!   write(*,*)'3C experiment line 4: ',text(1:ip),ip,gx%bmperr
    return
  end subroutine get_one_experiment
 
@@ -3358,12 +3400,13 @@
    endif
 ! problem with current position ... LNAC(CR) had the last ) overwritten ...
 !   write(*,157)ip,text(1:ip)
-!157 format('3C gc: ',i2,'"',a,'"')
+157 format('3C gc: ',i2,'"',a,'"')
    if(text(ip:ip).ne.' ') ip=ip+1
    text(ip:)='='
    ip=ip+1
    if(current%symlink1.gt.0) then
 ! the value is a symbol
+!      write(*,*)'3C value is a symbol: ',current%symlink1
       text(ip:)=svflista(current%symlink1)%name
       ip=len_trim(text)+1
    else
