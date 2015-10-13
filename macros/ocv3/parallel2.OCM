@@ -30,7 +30,7 @@ tc(bcc)
 
 enter many_equil
 @$ set all phases as entered (no amount allowed)
-entered *
+entered 1 *
 @$ set conditions and refer some values to table columns
 condition t=@1 p=1e5 n=1 w(c)=@2 w(cr)=.05 w(mo)=.08 w(si)=.003 w(v)=0.01
 @$ add a (predefined) symbol to be calculated at each equilibrium

@@ -1740,8 +1740,15 @@
    double precision tpsave(2),molat,saveg(6)
 ! iph negative means remove current reference state
    if(iph.lt.0) then
+      if(allocated(ceq%complist(icomp)%endmember)) then
+! I do not understand the code here any longer but this gave error
+! as unallocated when I tried to ser reference state back to SER
+         deallocate(ceq%complist(icomp)%endmember)
+      else
+!         write(*,4)icomp,ceq%complist(icomp)%phlink
+4        format('3A This component has no previous reference state: ',2i4)
+      endif
       ceq%complist(icomp)%phlink=0
-      deallocate(ceq%complist(icomp)%endmember)
       ceq%complist(icomp)%tpref=zero
       ceq%complist(icomp)%refstate='SER (default)'
       goto 1000
@@ -1873,6 +1880,7 @@
    ceq%complist(icomp)%phlink=lokph
    if(.not.allocated(ceq%complist(icomp)%endmember)) then
 ! if the user changes reference state do not allocate again
+!      write(*,*)'3A Allocating endmember for this reference state'
       allocate(ceq%complist(icomp)%endmember(nsl))
    endif
    ceq%complist(icomp)%endmember=jendsave

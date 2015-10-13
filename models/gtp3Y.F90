@@ -2170,7 +2170,7 @@
 !\begin{verbatim}
  subroutine calcg_endmember(iph,endmember,gval,ceq)
 ! calculates G for one mole of real atoms for a single end member
-! used for reference states. Restores current composition (but not G or deriv)
+! used for reference states. Restores current composition and G (but not deriv)
 ! endmember contains indices in the constituent array, not species index
 ! one for each sublattice
    implicit none
@@ -2179,9 +2179,10 @@
    integer endmember(maxsubl)
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim} %+
-   integer ierr,kk0,ll,lokres,nsl
+   integer ierr,kk0,ll,lokres,nsl,lokph
    integer nkl(maxsubl),knr(maxconst)
    double precision savey(maxconst),sites(maxsubl),qq(5),yfra(maxconst)
+   double precision saveg(6)
 !
    call get_phase_data(iph,1,nsl,nkl,knr,savey,sites,qq,ceq)
    if(gx%bmperr.ne.0) goto 1100
@@ -2206,6 +2207,15 @@
 17 format(a,i3,5(1pe12.4))
    call set_constitution(iph,1,yfra,qq,ceq)
    if(gx%bmperr.ne.0) goto 1000
+! this was necessary using this routine when reference states are
+! defined for components
+! The calcg below returns lokres but we need it to save here!!!
+   call get_phase_compset(iph,1,lokph,lokres)
+   if(gx%bmperr.ne.0) goto 1000
+!   write(*,*)'3Y saving gval: ',lokres,iph
+   do ll=1,6
+      saveg(ll)=ceq%phase_varres(lokres)%gval(ll,1)
+   enddo
    call calcg(iph,1,0,lokres,ceq)
    if(gx%bmperr.ne.0) goto 1000
    if(qq(1).ge.1.0D-3) then
@@ -2216,10 +2226,14 @@
 !      write(*,*)'End member has no atoms'
       gx%bmperr=4161; goto 1000
    endif
+! restore gval
+   do ll=1,6
+      ceq%phase_varres(lokres)%gval(ll,1)=saveg(ll)
+   enddo
 1000 continue
    ierr=gx%bmperr
    if(gx%bmperr.ne.0) gx%bmperr=0
-! restore constitution
+! restore constitution and gval!!!
 !   write(*,17)'res: ',kk0,(savey(i),i=1,kk0)
    call set_constitution(iph,1,savey,qq,ceq)
    if(gx%bmperr.ne.0) then

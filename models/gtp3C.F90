@@ -3265,6 +3265,7 @@
    endif
 !   write(*,*)'3C ok here 3',symsym
 ! add the current value of the experiment after a $ sign
+! TROUBLE GETTING WRONG VALUE HERE WHEN USER DEFINED REFERENCE STATES
    if(symsym.eq.0) then
       call state_variable_val(svrrec,xxx,ceq)
    else

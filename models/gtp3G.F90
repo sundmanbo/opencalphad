@@ -405,7 +405,7 @@
 !\end{verbatim} %+
    integer qph,ics,oldstat,ipos,slen,lokph,lokcs
    character name*24
-!   write(*,*)'3B phnames: ',phnames(1:30)
+!   write(*,*)'3G phnames: ',phnames(1:30),' >',phnames(1:1),'<'
    if(phnames(1:1).eq.'*') then
 !      write(*,*)'3G star'
       if(phnames(2:2).eq.'S') then

@@ -723,6 +723,7 @@
    type(gtp_condition), pointer :: new,temp
 !   integer nidlast,nidfirst,nidpre
    double precision xxx,yyy
+!
 ! inside here things are done
    call set_cond_or_exp(cline,ip,new,1,ceq)
    if(gx%bmperr.ne.0) goto 1000
@@ -1156,6 +1157,7 @@
       endif
    else
       if(.not.associated(new)) then
+!         write(*,*)'3D First exmperiment: ',associated(temp)
 ! search for an experiment with state variable svr or symbol symsym
          temp=>ceq%lastexperiment
 142      continue
@@ -1166,8 +1168,13 @@
             if(gx%bmperr.eq.0) then
 ! we must also test eperimenttype, if not same continue search
                if(temp%experimenttype.eq.experimenttype) goto 142
+            else
+! ensure temp is OK
+               temp=>ceq%lastexperiment
+!               write(*,*)'3D We are here',associated(temp),gx%bmperr
             endif
          else
+!            write(*,*)'3D searching for experiment with symbol'
             call get_experiment_with_symbol(symsym,experimenttype,temp)
          endif
 !      else
@@ -1406,6 +1413,7 @@
 !\end{verbatim} %+
 ! pcond: pointer, to a gtp_condition record for this equilibrium
    type(gtp_condition), pointer :: pcond,last
+   if(.not.associated(temp)) goto 900
    last=>temp
 100 continue
    if(temp%statev.eq.symsym .and. temp%experimenttype.eq.experimenttype) then
@@ -1417,6 +1425,7 @@
       if(.not.associated(temp,last)) goto 100
    endif
 ! we have not found this experiment
+900 continue
    gx%bmperr=4131
 1000 continue
    return

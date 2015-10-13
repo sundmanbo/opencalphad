@@ -551,7 +551,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! maximum number of references
   integer, private, parameter :: maxrefs=1000
 ! maximum number of equilibria
-  integer, private, parameter :: maxeq=500
+  integer, private, parameter :: maxeq=900
 ! some dp values, default precision of Y and default minimum value of Y
 ! zero and one set in tpfun
   double precision, private, parameter :: YPRECD=1.0D-6,YMIND=1.0D-30

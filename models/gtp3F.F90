@@ -1322,6 +1322,9 @@
 ! is the number of real atoms per formula unit
                props(1)=props(1)+am*ceq%phase_varres(lokcs)%gval(1,1)/&
                     ceq%phase_varres(lokcs)%abnorm(1)
+!               write(*,10)props(1),am,ceq%phase_varres(lokcs)%gval(1,1),&
+!                    ceq%phase_varres(lokcs)%abnorm(1)
+10             format('3F props: ',6(1pe12.4))
                props(2)=props(2)+am*ceq%phase_varres(lokcs)%gval(2,1)/&
                     ceq%phase_varres(lokcs)%abnorm(1)
                props(3)=props(3)+am*ceq%phase_varres(lokcs)%gval(3,1)/&
@@ -1890,6 +1893,8 @@
 !
    iref=svr%phref
    iunit=svr%unit
+! searching for experimental bug
+!   write(*,*)'3F state_variable_val: ',iref,iunit
 !   if(svr%oldstv.gt.10) then
 !      istv=10*(svr%oldstv-5)+svr%norm
 !   else
@@ -1952,7 +1957,7 @@
    integer endmember(maxsubl),ielno(maxspel)
    value=zero
    ceq%rtn=globaldata%rgas*ceq%tpval(1)
-!   write(*,10)'3F svval: ',istv,indices,iref,iunit,gx%bmperr,value
+!   write(*,10)'3F svval3: ',istv,indices,iref,iunit,gx%bmperr,value
 10 format(a,i4,4i4,3i5,1PE17.6)
    potentials: if(istv.lt.0) then
 ! negative istv indicate parameter property symbols
@@ -2012,6 +2017,7 @@
       amult=ceq%rtn
 !      write(*,*)'3F stv B: ',vt,vp,amult
       if(indices(1).eq.0) then
+! global value for the whole system
          vg=props(1)
          vs=-props(2)
          vv=props(3)
@@ -2033,6 +2039,8 @@
 ! for phase specific the aref should be independent of amult and div ??
 ! for system wide these are unity
          rmult=one
+!         write(*,555)'3F pp: ',vg,props
+555      format(a,6(1pe12.4))
       else
 ! phase specific, indices are phase and composition set
          call get_phase_compset(indices(1),indices(2),lokph,lokcs)
@@ -2081,6 +2089,7 @@
 52       format(a,4i4,1pe12.4)
          call calculate_reference_state(kstv,indices(1),indices(2),aref,ceq)
          if(gx%bmperr.ne.0) goto 1000
+! value here seems OK
 !         write(*,53)'3F Reference state:',iref,aref,rmult
       elseif(iref.lt.0) then
          aref=zero
@@ -2106,6 +2115,7 @@
          value=amult*(vv-aref)/div
       elseif(kstv.eq.4) then
 ! 4: H = G + TS = G - T*G.T
+! Problem with vg here when reference state is set
          if(ocv()) write(*,177)'3F H:',vg+vt*vs,aref,amult,div,rmult
 177      format(a,6(1pe12.4))
          value=amult*(vg+vt*vs-aref)/div
@@ -2399,6 +2409,7 @@
 !         ic=phlista(indices(1))%alphaindex
          ic=phlista(ic)%alphaindex
 ! the first index should be phase index, not location
+! We may have to restore gval after this!!!
          call calcg_endmember(ic,ceq%complist(indices(1))%endmember,gref,ceq)
          if(gx%bmperr.ne.0) then
             write(*,*)'3F Error calculating refstate for chemical pot'

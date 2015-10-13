@@ -902,6 +902,8 @@ contains
              if(ch1.eq.'N' .or. ch1.eq.'n') mode=0
 ! allow output file
              lut=optionsset%lut
+             jp=0
+             i2=0
 !
 ! if compiled with parallel and gridminimizser set then calculate
 ! sequentially to create composition sets
@@ -920,10 +922,12 @@ contains
 ! if we use grid minimizer do not use parallel even if compiled with OpenMP
                 do i1=1,size(firstash%eqlista)
                    neweq=>firstash%eqlista(i1)%p1
+                   jp=jp+1
                    if(neweq%weight.eq.zero) then
-                      write(kou,2050)neweq%eqname
-2050                  format('Equilibrium ',a,' has zero weight')
+                      write(kou,2050)neweq%eqno,neweq%eqname
+2050                  format('Zero weight equilibrium ',i4,2x,a)
                    else
+                      i2=i2+1
                       call calceq3(mode,.FALSE.,neweq)
                       if(gx%bmperr.ne.0) then
                          write(kou,2051)gx%bmperr,neweq%eqname,mode
@@ -931,9 +935,10 @@ contains
                               a,' reset',i2)
                          gx%bmperr=0
                       else
-                         write(lut,2052)neweq%eqname(1:len_trim(neweq%eqname)),&
+                         write(lut,2052)neweq%eqno,&
+                              neweq%eqname(1:len_trim(neweq%eqname)),&
                               neweq%tpval(1)
-2052                     format('Calculated equilibrium ',a,', T=',F8.2)
+2052                     format('Calculated equilibrium ',i5,2x,a,', T=',F8.2)
                       endif
                    endif
 ! extra symbol calculations ....
@@ -960,10 +965,11 @@ contains
 !$OMP parallel do private(neweq)
                 do i1=1,size(firstash%eqlista)
 ! the error code must be set to zero for each thread ?? !!
+                   jp=jp+1
                    gx%bmperr=0
                    neweq=>firstash%eqlista(i1)%p1
                    if(neweq%weight.eq.zero) then
-                      write(kou,2050)neweq%eqname
+                      write(kou,2050)neweq%eqno,neweq%eqname
                    else
 !$                     if(.TRUE.) then
 !$                      write(*,663)'Equil/loop/thread/maxth/error: ',&
@@ -976,12 +982,14 @@ contains
 ! note first argument zero means do not use grid minimizer
                           call calceq3(mode,.FALSE.,neweq)
 !$                     endif
+                      i2=i2+1
                       if(gx%bmperr.ne.0) then
                          write(kou,2051)gx%bmperr,neweq%eqname,mode
                          write(*,*)'Error: ',gx%bmperr
                          gx%bmperr=0
                       else
-                         write(lut,2052)neweq%eqname(1:len_trim(neweq%eqname)),&
+                         write(lut,2052)neweq%eqno,&
+                              neweq%eqname(1:len_trim(neweq%eqname)),&
                               neweq%tpval(1)
                       endif
                    endif
@@ -998,10 +1006,11 @@ contains
 !$             globaldata%status=ibclr(globaldata%status,GSNOREMCS)
              endif gridmin
 ! extra symbol calculations ....
-             call system_clock(count=i2)
+             call system_clock(count=ll)
              call cpu_time(xxy)
-             write(kou,664)xxy-xxx,i2-j1
-664          format('Total time: ',1pe12.4,' s and ',i7,' clockcycles')
+             write(kou,664)i2,jp,xxy-xxx,ll-j1
+664          format('Calculated ',i4,' equilibria out of ',i4/&
+                  'Total time: ',1pe12.4,' s and ',i7,' clockcycles')
           else
              write(kou,*)'You must first SET RANGE of experimental equilibria'
           endif
@@ -1195,8 +1204,12 @@ contains
              call find_phase_by_name(name1,iph,ics)
              if(gx%bmperr.ne.0) goto 100
 ! temperature * means always to use current temperature
-             call gparr('Temperature: /*/: ',cline,last,xxx,zero,q1help)
-             if(xxx.le.zero) then
+             xxy=-one
+             call gparr('Temperature: /*/: ',cline,last,xxx,xxy,q1help)
+             if(buperr.ne.0) then
+                buperr=0
+                tpa(1)=-one
+             elseif(xxx.le.zero) then
                 tpa(1)=-one
              else
                 tpa(1)=xxx
@@ -1211,7 +1224,7 @@ contains
           endif
           call set_reference_state(iel,iph,tpa,ceq)
           if(gx%bmperr.eq.0) then
-             write(kou,3104)
+!             write(kou,3104)
 3104         format(' You may have to make a new calculation before the',&
                   ' correct values'/&
                   ' of chemical potentials or other properties are shown.')
@@ -1404,6 +1417,14 @@ contains
 ! mark that list optimize may not work
                 mexp=0
              endif
+          elseif(name1(1:1).eq.'*') then
+! set this weight for all
+             i2=0
+             do i1=1,size(firstash%eqlista)
+                firstash%eqlista(i1)%p1%weight=xxx
+                i2=i2+1
+             enddo
+             write(kou,*)'Changed weight for ',i2,' equilibria'
           else
 ! set this weight to all equilibria with name abbriviations fitting name1
              call capson(name1)
@@ -2249,19 +2270,19 @@ contains
              else
                 name1=' '
              endif
-             if(eqlista(iel)%weight.le.zero) then
-                write(lut,6202)iel,name1(1:2),eqlista(iel)%eqname,&
-                     eqlista(iel)%tpval(1)
-6202            format(i5,2x,a2,2x,a,' T=',F8.2)
-             else
+!             if(eqlista(iel)%weight.le.zero) then
+!                write(lut,6202)iel,name1(1:2),eqlista(iel)%eqname,&
+!                     eqlista(iel)%tpval(1)
+!6202            format(i5,2x,a2,2x,a,' T=',F8.2)
+!             else
                 write(lut,6203)iel,name1(1:2),eqlista(iel)%eqname,&
                      eqlista(iel)%tpval(1),eqlista(iel)%weight
 6203            format(i5,2x,a2,2x,a,' T=',F8.2,', weight=',F6.2)
-             endif
+!             endif
              j1=len_trim(eqlista(iel)%comment)
              if(j1.gt.1) then
                 write(lut,6204)eqlista(iel)%comment(1:j1)
-6204            format(7x,a)
+6204            format(12x,a)
              endif
           enddo
 !------------------------------
