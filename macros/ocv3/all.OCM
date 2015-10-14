@@ -133,20 +133,24 @@ new Y
 mac map7
 
 @$ *********************************************************
-@$ Assessment of fictitious binary experimental data
+@$ Calculation for 20 elements and 191 phases using COST507
 @& *********************************************************
 
 new Y
-mac opttest1
+mac allcost
 
 @$ *********************************************************
 @$ Calculating 21 equilibria in parallel
-@$ Can be used to test parallel calculations
+@$ First test of parallel calculations
 @& *********************************************************
 
 new Y
 mac parallel1
 
+@$ *********************************************************
+@$ USUALLY the computer runs out of memory at the next example
+@$ Quit and continue run the all2.OCM macro
+@&
 @$ *********************************************************
 @$ enter a table with many equilibria and calculate all
 @$ Can be used to test parallel calculations
@@ -156,11 +160,18 @@ new Y
 mac parallel2
 
 @$ *********************************************************
-@$ A calculation for 20 elements and 191 phases
+@$ Assessment of fictitious binary experimental data
 @& *********************************************************
 
 new Y
-mac allcost
+mac opttest1
+
+@$ *********************************************************
+@$ Assessment start of the Cu-Mg case
+@& *********************************************************
+
+new Y
+mac opttest2
 
 @$ *********************************************************
 @$ that is all

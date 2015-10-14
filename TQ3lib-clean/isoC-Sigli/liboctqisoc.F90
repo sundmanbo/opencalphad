@@ -149,7 +149,7 @@ contains
 !\end{verbatim}  
     type(gtp_equilibrium_data), pointer :: ceq
     integer :: i1,i2
-    
+   
     call tqini(n, ceq)
     c_ceq = c_loc(ceq)
 	
@@ -742,6 +742,12 @@ contains
 	endif
 	return
 	end function c_errors_number
-	
+  
+  
+	subroutine c_new_gtp() bind(c, name='c_new_gtp') 
+     call new_gtp
+   end subroutine c_new_gtp
+  
+  
 	
 end module liboctqisoc

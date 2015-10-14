@@ -1,0 +1,34 @@
+@$ running more test macros
+set echo
+
+@$ Resuming the test macros
+
+@$ *********************************************************
+@$ enter a table with many equilibria and calculate all
+@$ Can be used to test parallel calculations
+@& *********************************************************
+
+new Y
+mac parallel2
+
+@$ *********************************************************
+@$ Assessment of fictitious binary experimental data
+@& *********************************************************
+
+new Y
+mac opttest1
+
+@$ *********************************************************
+@$ Assessment start of the Cu-Mg case
+@& *********************************************************
+
+new Y
+mac opttest2
+
+@$ *********************************************************
+@$ that is all
+@& *********************************************************
+
+
+set inter
+

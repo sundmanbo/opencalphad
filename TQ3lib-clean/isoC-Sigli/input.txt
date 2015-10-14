@@ -1,0 +1,10 @@
+TDB_FILE_NAME<cost507R>                               	     name of the TDB file without "*.TDB"
+DEFINE_REF_ELEMENT<AL>                                           generally the solvant 
+DEFINE_UNIT_COMPO_INPUT<W%>                                       W W% X X%
+DEFINE_UNIT_TEMP_INPUT<C>                                        C or K
+DEFINE_COMPOSITION<CU=2.2/MG=2.2/ZN=6>                           example<CU=2.2/MG=2.2/Zn=6.8/FE=0.04/Si=0.02> all composition below this line will need to have the same elements
+_LIQUIDUS<>                                                      a "_" before deactivate the command
+_SOLIDUS<>
+COMPUTE_TRANSITION_TEMPERATURES<1000/350/0.001/50>               highest temperature / lowest temperature / desired temperature accuracy / number of steps
+_COMPUTE_RANDOM_EQUILIBRIA<400/800/40000>                        lowest temperature / highest temperature / total number of random equi_libria
+COMPUTE_EQUILIBRIUM<521/1>                                       temperature of equilibrium in units defined above / level of detail of output 0 or 1 or 2, 2 is max detail
