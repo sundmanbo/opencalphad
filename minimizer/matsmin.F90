@@ -994,7 +994,7 @@ CONTAINS
 ! This check should maybe be above as maybe another phase want to be stable??
 ! The last argument is not used
           if(same_composition(iadd,meqrec%phr,meqrec,ceq,zero)) then
-             write(*,*)'Ignoring the same phase twice: ',iadd
+!             write(*,*)'Ignoring the same phase twice: ',iadd
              goto 200
           endif
 ! do not add phases with net charge
@@ -1108,7 +1108,8 @@ CONTAINS
                 if(jrem.eq.0) jrem=meqrec%stphl(meqrec%nstph)
                 krem=jrem
                 irem=jrem
-                write(*,240)meqrec%noofits,irem,iadd,ceq%tpval(1)
+                if(.not.btest(meqrec%status,QUIET)) &
+                     write(*,240)meqrec%noofits,irem,iadd,ceq%tpval(1)
 241             format('Too many stable phases at iter ',i3,', phase ',i3,&
                      ' replaced by ',i3,', T= ',F8.2)
 !                write(*,240)meqrec%noofits,irem,iadd,ceq%tpval(1),&
@@ -1227,7 +1228,8 @@ CONTAINS
     jj=meqrec%dormlink
 1200 continue
     if(jj.ne.0) then
-       write(*,*)'Restore from dormant: ',jj,meqrec%phr(jj)%iph,&
+       if(.not.btest(meqrec%status,QUIET)) &
+            write(*,*)'Restore from dormant: ',jj,meqrec%phr(jj)%iph,&
             meqrec%phr(jj)%ics
        meqrec%phr(jj)%phasestatus=PHENTUNST
        jj=meqrec%phr(jj)%dormlink
@@ -1421,7 +1423,8 @@ CONTAINS
 ! This can be caused by having no phase with solubility of an element
 ! (happened in Fe-O-U-Zr calculation with just C1_MO2 stable and C1 does not
 ! dissolve Fe).  Try to set back the last phase removed!!
-          write(*,*)'Error, restoring previously removed phase: ',iremsave
+          if(.not.btest(meqrec%status,QUIET)) &
+               write(*,*)'Error, restoring previously removed phase: ',iremsave
           iadd=iremsave
           goto 1100
        endif
@@ -1614,7 +1617,8 @@ CONTAINS
           if(abs(deltaam).gt.one) then
 ! try to prevent too large increase/decrease in phase amounts. 
 ! Should be related to total amount of components.
-             write(*,*)'Large change in phase amount: ',deltaam
+             if(.not.btest(meqrec%status,QUIET)) &
+                  write(*,*)'Large change in phase amount: ',deltaam
 !             deltaam=-one
              deltaam=sign(0.5D0,deltaam)
           endif
