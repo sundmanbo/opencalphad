@@ -345,7 +345,8 @@ contains
          'This program is available with a GNU General Public License.'/&
          'It includes the General Thermodynamic Package, version ',A/&
          "and Hillert's equilibrium calculation algorithm version ",A/&
-         'and step/map/plot software version ',A/)
+         'and step/map/plot software version ',A/&
+         'and LMDIF (1980) from Argonne is used by the assessment procedure'/)
 !
 !$    write(kou,11)
 11  format('Linked with OpenMp for parallel execution')
@@ -2270,15 +2271,15 @@ contains
              else
                 name1=' '
              endif
-!             if(eqlista(iel)%weight.le.zero) then
-!                write(lut,6202)iel,name1(1:2),eqlista(iel)%eqname,&
-!                     eqlista(iel)%tpval(1)
-!6202            format(i5,2x,a2,2x,a,' T=',F8.2)
-!             else
+             if(eqlista(iel)%weight.le.zero) then
+                write(lut,6202)iel,name1(1:2),eqlista(iel)%eqname,&
+                     eqlista(iel)%tpval(1)
+6202            format(i5,2x,a2,2x,a,' T=',F8.2)
+             else
                 write(lut,6203)iel,name1(1:2),eqlista(iel)%eqname,&
                      eqlista(iel)%tpval(1),eqlista(iel)%weight
 6203            format(i5,2x,a2,2x,a,' T=',F8.2,', weight=',F6.2)
-!             endif
+             endif
              j1=len_trim(eqlista(iel)%comment)
              if(j1.gt.1) then
                 write(lut,6204)eqlista(iel)%comment(1:j1)
@@ -2733,15 +2734,16 @@ contains
        write(kou,15010)linkdate
 15010  format(/'This is Open Calphad (OC), a free software for ',&
             'thermodynamic calculations'/&
-            'described in the open access journal:'/&
-            'Integrating Materials and Manufacturing Innovation (2015) 4:1'/&
-            'It is available for download at http://www.opencalphad.com'//&
+            'described by B Sundman, U R Kattner, M Palumbo and S G Fries,'/&
+            'Integrating Materials and Manufacturing Innovation (2015) 4:1'//&
+            'It is available for download at http://www.opencalphad.org or'/&
+            'the opencalphad repository at http://www.github.com'//&
             'This software is protected by the GNU General Public License'/&
             'You may freely distribute copies as long as you also provide ',&
             'the source code.'/'The software is provided "as is" without ',&
-            'any warranty of any kind, either'/'expressed or implied.'/&
-            'The full license text is provided with the software or can be ',&
-            'obtained from'/'the Free Software Foundation ',&
+            'any warranty of any kind, either'/'expressed or implied.  ',&
+            'The full license text is provided with the software'/&
+            'or can be obtained from the Free Software Foundation ',&
             'http://www.fsf.org'//&
             'Copyright 2010-2015, several persons.'/&
             'Contact person Bo Sundman, bo.sundman@gmail.com'/&

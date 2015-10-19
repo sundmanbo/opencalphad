@@ -2170,7 +2170,7 @@
 !\begin{verbatim}
  subroutine calcg_endmember(iph,endmember,gval,ceq)
 ! calculates G for one mole of real atoms for a single end member
-! used for reference states. Restores current composition and G (but not deriv)
+! used for reference states. Restores current composition (but not G or deriv)
 ! endmember contains indices in the constituent array, not species index
 ! one for each sublattice
    implicit none
@@ -2253,7 +2253,7 @@
  subroutine calcg_endmember6(iph,endmember,gval,ceq)
 ! calculates G and all derivatevs wrt T and P for one mole of real atoms
 ! for a single end member, used for reference states. 
-! Restores current composition (but not G or deriv)
+! Restores current composition and G (but not deriv)
 ! endmember contains indices in the constituent array, not species index
 ! one for each sublattice
    implicit none
@@ -2965,7 +2965,7 @@
 !
 ! BEWARE not adopted for parallel processing
 !
-! if the same phase have several gridpoints check if they are really separate
+! if the same phase has several gridpoints check if they are really separate
 ! (miscibility gaps) or if they can be murged.  Compare them two by two
 ! nv is the number of phases, iphl(i) is the index of phase i, aphl(i) is the
 ! amount of phase i, nyphl is the number of site fractions for phase i, 
@@ -3328,7 +3328,6 @@
 ! after a global minimization and sets the constituion to the most
 ! favourable one.  Later care should be taken that composition set 2 
 ! and higher are not set identical or equal to the stable
-! kp    total number of gridpoints
 ! nrel  number of components
 ! ngg   number of gridpoints
 ! kphl  array with first points calculated for phase(i) in garr
@@ -3341,13 +3340,13 @@
 ! ceq   equilibrium record
 ! called by global_gridmin
    implicit none
-   integer ngg,nrel,nr,kp,i
+   integer ngg,nrel,nr
    integer, dimension(*) :: kphl,ngrid,iphl
    double precision, dimension(*) :: cmu
    real garr(*),xarr(nrel,*)
    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-   integer ig1,ign,ip,iph,ics,jph,lokcs,lokph,mode,ny,ie,ig
+   integer ig1,ign,ip,iph,ics,jph,lokcs,lokph,mode,ny,ie,ig,kp,i
    double precision yarr(maxconst),qq(5),xxx,dgmin
    real dg,gplan
 !   write(*,*)'Entering set_metastable'
@@ -3688,7 +3687,7 @@
 ! A proper name must start with a letter A-Z
 ! for typ=0 it must contain only letters, digits and underscore
 ! for typ=1 it may contain also +, - maybe ?
-! It must not be equal to s state variable
+! It must not be equal to a state variable
    implicit none
    integer typ
    character name*(*)
@@ -3962,7 +3961,7 @@
 ! this is called after an equilibrium calculation
 ! It marks stable phase (set CSSTABLE and remove any CSAUTO)
 ! It removes redundant unstable composition sets created automatically
-! (CSAUTO set).  It will also shifts stable composition sets to loweest 
+! (CSAUTO set).  It will also shift stable composition sets to loweest 
 ! possible (it will take into account if there are default constituent 
 ! fractions, CSDEFCON set).
 ! mode determine some of the actions

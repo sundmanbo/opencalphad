@@ -13,7 +13,7 @@
    TYPE(gtp_equilibrium_data), pointer :: ceq
    character statevar*(*),encoded*(*)
    double precision value
-!\end{verbatim}
+!\end{verbatim} %+
    integer lokcs,ics,ip
    type(gtp_state_variable), pointer :: svr
    character modstatevar*28
@@ -64,7 +64,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim}
+!\begin{verbatim} %-
  subroutine get_state_var_value(statevar,value,encoded,ceq)
 ! called with a state variable character
    implicit none

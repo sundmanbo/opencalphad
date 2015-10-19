@@ -71,6 +71,14 @@ the development stage.  This document is an example of this software.
 
 \newpage
 
+The subroutines are documented in the order they appear in the source
+code.  That order is not always logical and a major restructuring will
+be made for the next release (I hope at least).  I woould also like to
+add a table with the subroutines in alphabetical order.  But one thing
+at a time.
+
+\newpage
+
 \tableofcontents
 
 \newpage
@@ -83,7 +91,7 @@ phases.  The thermodynamic properties of the system are described by
 models for the Gibbs energy which can be different for each phase.
 The Gibbs energy for a phase depend on the temperature, $T$, pressure,
 $P$ and amounts of the constituents of the phase.  The constituents
-are a subset of the species.  
+are a subset of the species.
 
 At equilibrium at constant $T, P$ and composition the Gibbs energy of
 a system is at a minimum.  With suitable transformations the Gibbs
@@ -109,7 +117,9 @@ The release of version 3 of OC is scheduled to the end of 2015.  It
 includes several improvements in the already exisiting software but
 most important a new assessment proccedure to fit model parameters to
 experimental and theoretical data.  This has added a few new data
-structures to the GTP package.
+structures and commands to the GTP package.  Version 3 can also be
+used for parallel calculations of several equilibria using the OpenMP
+package.  A significan increase in speed has been noted.
 
 The previous version 2 of OC was released in February 2015 and the
 main new feature of this version was the step and map procedures which
@@ -126,7 +136,7 @@ A software is never finished but each version has to be tested and
 debugged before new features can be added.  A feature that is still
 missing in the GTP package is the possibility to save the data
 structures and calculated results on a random access file that can be
-later read back and used for further calculations.  
+later read back and used for further calculations.
 
 In the GTP package several new models for phases will be implemented
 in future versions including models for high pressure.  Models related
@@ -822,12 +832,14 @@ The use of each bit is explained in the text from the source code.
 ! SETVERB: explicit setting of verbose
 ! SILENT: as little output as possible
 ! NOAFTEREQ: no manipulations of results after equilirum calculation
+! XGRID: extra dense grid for all phases
+! NOPAR: do not run in parallel
 ! >>>> some of these should be moved to the gtp_equilibrium_data record
   integer, parameter :: &
        GSBEG=0,     GSOCC=1,     GSADV=2,      GSNOGLOB=3, &
        GSNOMERGE=4, GSNODATA=5,  GSNOPHASE=6,  GSNOACS=7, &
        GSNOREMCS=8, GSNOSAVE=9,  GSVERBOSE=10, GSSETVERB=11,&
-       GSSILENT=12, GSNOAFTEREQ=13
+       GSSILENT=12, GSNOAFTEREQ=13, GSXGRID=14,GSNOPAR=15
 !----------------------------------------------------------------
 !-Bits in element record
   integer, parameter :: &
@@ -865,14 +877,14 @@ calculation.
 ! aqueous, dilute config. entropy (DILCE), quasichemical (QCE), CVM,
 ! FACT,  not create comp. sets (NOCS), Helmholz energy model (HELM),
 ! Model without 2nd derivatives (PHNODGDY2), Elastic model A,
-! explicit charge balance needed (XCB),
+! explicit charge balance needed (XCB), extra dense grid (XGRID)
   integer, parameter :: &
        PHHID=0,     PHIMHID=1,  PHID=2,    PHNOCV=3, &     ! 1 2 4 8
        PHHASP=4,    PHFORD=5,   PHBORD=6,  PHSORD=7, &
        PHMFS=8,     PHGAS=9,    PHLIQ=10,  PHIONLIQ=11, &
        PHAQ1=12,    PHDILCE=13, PHQCE=14,  PHCVMCE=15,&
        PHFACTCE=16, PHNOCS=17,  PHHELM=18, PHNODGDY2=19,&
-       PHELMA=20,   PHEXCB=21
+       PHELMA=20,   PHEXCB=21,  PHXGRID=22
 !
 !----------------------------------------------------------------
 !-Bits in constituent fraction (phase_varres) record STATUS2
@@ -884,13 +896,16 @@ calculation.
 !     specify constituent status)
 ! CSORDER: set if fractions are ordered (only used for BCC/FCC ordering
 !     with a disordered fraction set).
-! CSSTABLE: set if phase is stable after an equilibrium calculation
+! CSABLE: set if phase is stable after an equilibrium calculation ?? needed
 ! CSAUTO set if composition set created during calculations
 ! CSDEFCON set if there is a default constitution
+! CSTEMPAR set if created by grid minimizer and can be suspended afterwards
+!       when running parallel
+! CSDEL set if record is not used but has been and then deleted (by gridmin)
    integer, parameter :: &
         CSDFS=0,    CSDLNK=1,  CSDUM2=2,    CSDUM3=3, &
-        CSCONSUS=4, CSORDER=5, CSSTABLE=6, CSAUTO=7, &
-        CSDEFCON=8
+        CSCONSUS=4, CSORDER=5, CSABLE=6,    CSAUTO=7, &
+        CSDEFCON=8, CSTEMPAR=9,CSDEL=10
 \end{verbatim}
 }
 
@@ -914,8 +929,10 @@ component specifier (like the mobility).
 !----------------------------------------------------------------
 !-Bits in state variable functions (svflista)
 ! SVFVAL symbol evaluated only explicitly (mode=1 in call)
+! SVFEXT symbol external ???
+! SVCONST symbol is a constant (can be changed with AMEND)
    integer, parameter :: &
-        SVFVAL=0,SVFEXT=1
+        SVFVAL=0, SVFEXT=1, SVCONST=2
 !----------------------------------------------------------------
 !-Bits in gtp_equilibrium_data record
 ! EQNOTHREAD set if equilibrium must be calculated before threading
@@ -1000,12 +1017,12 @@ temporary arrays are needed inside some other subroutines.
   integer, parameter :: maxel=100,maxsp=1000,maxph=800,maxsubl=10,maxconst=1000
 ! maximum number of consitutents in non-ideal phase
   integer, parameter :: maxcons2=100
-! maximum number of elsements in a species
+! maximum number of elements in a species
   integer, parameter :: maxspel=10
 ! maximum number of references
   integer, private, parameter :: maxrefs=1000
 ! maximum number of equilibria
-  integer, private, parameter :: maxeq=500
+  integer, private, parameter :: maxeq=900
 ! some dp values, default precision of Y and default minimum value of Y
 ! zero and one set in tpfun
   double precision, private, parameter :: YPRECD=1.0D-6,YMIND=1.0D-30
@@ -1045,6 +1062,159 @@ identified.  This is an attempt to do that with those already available.
 ! temperatures defined by parameter identifiers stored in gtp_propid
 \end{verbatim}
 }
+
+\subsection{The global error code}
+
+The error code is the only member of the gtp\_parerr record.  In
+parallel execution each thread must have its own value and it is thus
+declared threadprivate.
+
+{\small
+\begin{verbatim}
+  TYPE gtp_parerr
+! This record contains the global error code.  In parallell processing each
+! parallell processes has its own error code copied to this if nonzero
+! it should be replaced by gtperr for separate errors in treads
+     INTEGER :: bmperr
+  END TYPE gtp_parerr
+  TYPE(gtp_parerr) :: gx
+! needed to have error code as private in threads
+!$OMP  threadprivate(gx)
+\end{verbatim}
+}
+
+\section{Data structures for the TP-fun routines}\label{sc:tpfundata}
+
+The TP functions are used to enter model parameters and other
+functions that depend on T and P.  They have a limited sytax as the
+software must be able to calculate their first and second derivatives
+with respect to T and P.
+
+The expressions are stored only once but the calculated values of the
+functions are stored separately for each equilibria as each equilibria
+can have different values of T and P.
+
+\subsection{Structure to store expressions of TP functions}
+
+In this record the coefficients and powers of T and P and possible
+unary functions used is stored.  There is a simple parser that can
+read a simple TP function similar to what TC has.  My idea has been to
+extend this a bit by allowing parenthesis in a more flexible way but
+that is not yet implemented.  A TP function can refer to another TP
+function using the link array.  This means a recursive evaluation of
+TP functions must be implemented.
+
+This information must not be changed during parallell processing.
+During assessments one may calculate each experimental equilibria in
+parallell and as the coefficients of TP functions are varied by the
+assessment procedure one may think that this array must also be
+separate for each parallell process.  But changes of coefficients are
+not done during the parallell execution so there is no problem.
+
+{\small
+\begin{verbatim}
+  integer, parameter :: tpfun_expression_version=1
+  TYPE tpfun_expression
+! Coefficients, T and P powers, unary functions and links to other functions
+     integer noofcoeffs,nextfrex
+     double precision, dimension(:), pointer :: coeffs
+! each coefficient kan have powers of T and P/V and links to other TPFUNS
+! and be multiplied with a following LOG or EXP term.
+     integer, dimension(:), pointer :: tpow
+     integer, dimension(:), pointer :: ppow
+     integer, dimension(:), pointer :: wpow
+     integer, dimension(:), pointer :: plevel
+     integer, dimension(:), pointer :: link
+  END TYPE tpfun_expression
+! These records are allocated when needed, not stored in arrays
+\end{verbatim}
+}
+
+\subsection{Bits used in TP function status}
+
+These bits are used for different purposes
+
+{\small
+\begin{verbatim}
+! BITS in TPFUN
+! TPCONST     set if a constant value
+! TPOPTCON    set if optimizing value
+! TPNOTENT    set if referenced but not entered (when reading TDB files)
+! TPVALUE     set if evaluated only explicitly (keeping its value)
+  integer, parameter :: &
+       TPCONST=0,    TPOPTCON=1,   TPNOTENT=2,    TPVALUE=3
+\end{verbatim}
+}
+
+\subsection{Function root record type}
+
+In this record a name of the function is stored and the number of
+temperature ranges.  For each range a low temperature limit and a link
+to a tpfun\_expression record is stored.  There is also a high
+temperature limit.  As the number of ranges can vary the arrays are
+allocatable (declared as pointers).  At the same time as a root record
+is reserved to store a TP function one also reservs a tpfun\_parres
+record and in this the last calculated result of the function is
+stored.  Saving the last calculated values speeds up calculation
+because the same function is often used in many parameters and needed
+many times for the same values of T and P.  But in parallell
+processing the values of T and P can be different in each processor
+and thus the results mut be separate in each.
+
+{\small
+\begin{verbatim}
+  integer, parameter :: tpfun_root_version=1
+  TYPE tpfun_root
+! Root of a TP function including name with links to coefficients and codes
+! and results.  Note that during calculations which can be parallellized
+! the results can be different for each parallell process
+     character*(lenfnsym) symbol
+! limits are the low temperature limit for each range
+! funlinks links to expression records for each range
+! each range can have its own function, status indicate if T and P or T and V
+     integer noofranges,nextfree,status
+     double precision, dimension(:), pointer :: limits
+     TYPE(tpfun_expression), dimension(:), pointer :: funlinks
+     double precision hightlimit
+  END TYPE tpfun_root
+! These records are stored in arrays as the actual function is global but each
+! equilibrium has its own result array (tpfun_parres) depending on the local
+! values of T and P/V.  The same indiex is used in the global and local arrays.
+! allocated in init_gtp
+  TYPE(tpfun_root), private, dimension(:), pointer :: tpfuns
+\end{verbatim}
+}
+
+\subsection{Structure for calculated results of TP functions}
+
+This record contains the last values of T and P used for calculation
+the TP function and the results including first and second derivatives
+of T and P.  These are ordered as F, F.T, F.P, F.T.T, F.T.P and F.P.P.
+The reason to have this as a separate array is that in parallell
+processing the values of T and P may be different in each process and
+thus the results also, whereas the values of the coefficients are the
+same.  The size of all the function records are allocated dynamically
+by the tpfun\_init subroutine.
+
+{\small
+\begin{verbatim}
+  integer, parameter :: tpfun_parres_version=1
+  TYPE tpfun_parres
+! Contains a TP results, 6 double for results and 2 doubles for T and P
+! values used to calculate the results
+! Note that during calculations which can be parallellized the final
+! results can be different for each parallell process
+     double precision, dimension(2) :: tpused
+     double precision, dimension(6) :: results
+  END TYPE tpfun_parres
+! This array is local to the gtp_equilibrium_data record
+! index the same as the function
+\end{verbatim}
+}
+
+>>>>>>>>>>>>>>>>>>> unfinished from here
+
+
 
 \section{Basic thermodynamic data structures}
 
@@ -1852,7 +2022,7 @@ in the same array.  A phase cannot have more than 9 composition sets.
 ! in alphabetical order through the array phases(i)
 ! sublista is now removed and all data included in phlista
 ! sublattice and constituent data (they should be merged)
-! The constitent link is the index to the splista(i), same function
+! The constituent link is the index to the splista(i), same function
 ! as LOKSP in iws.  Species in alphabetcal order is in species(i)
 ! One can allocate a dynamic array for the constituent list, done
 ! by subroutine create_constitlist.
@@ -2012,13 +2182,14 @@ w(liq,b)=waver.
 ! iref: part of the state variable (iref can be comp.set number)
 ! iunit: ? confused with unit?
 ! seqz is a sequential index of conditions, used for axis variables
+! experimettype: inequality (< 0 or > 0) and/or percentage (-101, 100 or 101)
 ! symlink: index of symbol for prescribed value (1) and uncertainty (2)
 ! condcoeff: there is a coefficient and set of indices for each term
 ! prescribed: the prescribed value
 ! NOTE: if there is a symlink value that is the prescribed value
 ! current: the current value (not used?)
 ! uncertainty: the uncertainty (for experiments)
-     integer :: noofterms,statev,active,iunit,nid,iref,seqz
+     integer :: noofterms,statev,active,iunit,nid,iref,seqz,experimenttype
 !    TYPE(putfun_node), pointer :: symlink1,symlink2
 ! better to let condition symbol be index in svflista array
      integer symlink1,symlink2
@@ -2058,12 +2229,14 @@ implemented.
 !   (like @P, @C and @S
 ! status: can be used for various things
 ! status bit SVFVAL=0 means value evaluated only when called with mode=1
+! SVCONST bit set if symbol is just a constant value (linknode is zero)
 ! eqnoval: used to specify the equilibrium the value should be taken from
 !    (for handling what is called "variables" in TC)
 ! name: name of symbol
      integer narg,nactarg,status,eqnoval
      type(putfun_node), pointer :: linkpnode
      character name*16
+     double precision value
 ! this array has identification of state variable (and other function) symbols
      integer, dimension(:,:), pointer :: formal_arguments
   end TYPE gtp_putfun_lista
@@ -2151,6 +2324,7 @@ to by the global variable FIRSTEQ.
 ! or calculated in parallel or results saved from step or map.
 ! nextfree: In unused phase_varres record it is the index to next free record
 !    The global integer csfree is the index of the first free record
+!    The global integer highcs is the higest varres index used
 ! phlink: is index of phase record for this phase_varres record
 ! status2: has phase status bits like ENT/FIX/SUS/DORM
 ! phstate: indicate state: fix/stable/entered/unknown/dormant/suspended/hidden
@@ -2231,7 +2405,7 @@ record as it has its unique set of conditions.
 {\small
 \begin{verbatim}
 ! this must be incremented when a change is made in gtp_equilibrium_data
-  INTEGER, parameter :: gtp_equilibrium_data_version=2
+  INTEGER, parameter :: gtp_equilibrium_data_version=3
   TYPE gtp_equilibrium_data
 ! this contains all data specific to an equilibrium like conditions,
 ! status, constitution and calculated values of all phases etc
@@ -2248,11 +2422,12 @@ record as it has its unique set of conditions.
 ! eqno: sequential number assigned when created
 ! next: index of next equilibrium in a sequence during step/map calculation.
 ! eqname: name of equilibrium
+! comment: a free text, for example reference for experimental data.
 ! tpval(1) is T, tpval(2) is P, rgas is R, rtn is R*T
 ! rtn: value of R*T
 ! weight: weight value for this experiment, default unity
      integer status,multiuse,eqno,next
-     character eqname*24
+     character eqname*24,comment*72
      double precision tpval(2),rtn
      double precision :: weight=one
 ! svfunres: the values of state variable functions valid for this equilibrium
@@ -2284,7 +2459,10 @@ record as it has its unique set of conditions.
      double precision :: gmindif=-5.0D-2
 ! maxiter: maximum number of iterations allowed
      integer maxiter
-! this is to save a copy of the last calculated system matrix, needed
+! This is to store additional things not really invented yet ...
+! It may be used in ENTER MANY_EQUIL for things to calculate and list
+     character (len=80), dimension(:), allocatable :: eqextra
+! this is to save a copy of the last calculated system matrix, needed ??
 ! to calculate dot derivatives, initiate to zero
      integer :: sysmatdim=0,nfixmu=0,nfixph=0
      integer, allocatable :: fixmu(:)
@@ -2502,6 +2680,7 @@ experiments are simply entered with an ENTER EQUILIBRIUM command and
 for each equilibrium the associated experimental data is entered with
 the command ENTER EXPERIMENT.
 
+{\small
 \begin{verbatim}
 ! a smart way to have an array of pointers used in gtp_assessmenthead
   TYPE equilibrium_array
@@ -2539,12 +2718,14 @@ the command ENTER EXPERIMENT.
 ! this record is allocated when necessary
   type(gtp_assessmenthead), pointer :: firstash,lastash
 \end{verbatim}
+}
 
 \subsection{Other application head record}
 
 This is a template for other applications that need access to the
 internal data of OC.
 
+{\small
 \begin{verbatim}
   INTEGER, parameter :: gtp_applicationhead_version=1
   TYPE gtp_applicationhead
@@ -2567,6 +2748,7 @@ internal data of OC.
 ! this record is allocated when necessary
   type(gtp_applicationhead), pointer :: firstapp,lastapp
 \end{verbatim}
+}
 
 \section{Global variables}
 
@@ -2588,7 +2770,7 @@ are declared as privste arrays to protect them somewhat.
   integer, private :: reffree,eqfree
 ! maximum number of properties calculated for a phase
   integer, private :: maxcalcprop=20
-! highest used phase_varres record (for saving on file)
+! highcs is highest used phase_varres record (for copy equil etc)
   integer, private :: highcs
 ! Trace for debugging (not used)
   logical, private :: ttrace
@@ -2655,11 +2837,13 @@ arrays and provide default values.
 
 This is maybe redundant.
 
+{\small
 \begin{verbatim}
  subroutine assessmenthead(ash)
 ! create an assessment head record
    type(gtp_assessmenthead), pointer :: ash
 \end{verbatim}
+}
 
 \subsection{Functions to know how many}
 
@@ -3044,13 +3228,14 @@ all phase tuples.  A phase tuple is an two dimentional record with the
 first index \%phase is the phase number and the second \%compset the
 composition set number, , see section~\ref{sc:phtup}.
 
+{\small
 \begin{verbatim}
  integer function get_phtuplearray(phcs)
 ! copies the internal phase tuple array to external software
 ! function value set to number of tuples
    type(gtp_phasetuple), dimension(*) :: phcs
 \end{verbatim}
-
+}
 
 \subsection{Set things}
 
@@ -3245,15 +3430,26 @@ creates a new composition set for a phase.
 \end{verbatim}
 }
 
-\subsubsection{Remove composition set}
+\subsubsection{Remove or suspend composition set}
 
-Sometimes the grid minimizer creates too many composition sets and
-the furter calculations may be easier if these are removed.
+Sometimes the grid minimizer creates too many composition sets and the
+furter calculations may be easier if these are removed.  But sometimes
+it is not possible to delete or remove them (when running in parallel)
+and then they may be suspended.
 
 {\small
 \begin{verbatim}
+ subroutine suspend_composition_set(iph,parallel,ceq)
+! the last composition set is suspended in all equilibria
+!
+! If parallel is TRUE then execution is not in parallel (threaded)
+!
+   implicit none
+   integer iph
+   logical parallel
+   type(gtp_equilibrium_data), pointer :: ceq
  subroutine remove_composition_set(iph,force)
-! the last composition set is deleted
+! the last composition set is deleted, update csfree and highcs
 !
 ! >>>>>>>>>>>>>>>>>>>>>>>>>>>> NOTE <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< !
 ! Not safe to remove composition sets when more than one equilibrium       !
@@ -3456,7 +3652,7 @@ thread can work independently on the data in the equilibrium record.
 {\small
 \begin{verbatim}
  subroutine enter_equilibrium(name,number)
-! creates a new equilibrium.  Allocates arrayes for conditions,
+! creates a new equilibrium.  Allocates arrayes for conditions
 ! components, phase data and results etc.
 ! returns index to new equilibrium record
 ! THIS CAN PROBABLY BE SIMPLIFIED, especially phase_varres array can be
@@ -3464,6 +3660,47 @@ thread can work independently on the data in the equilibrium record.
    implicit none
    character name*(*)
    integer number
+\end{verbatim}
+}
+
+\subsubsection{Enter many equilibria}\label{sc:entermanyeq}
+
+This command is specially designed for entering table of experimental
+data where most conditions are the same but only some values are
+different.  It will ask for a table head which must contain all
+information needed to calculate the equilibrium.  By default all
+phases are suspended so first give the set of phases to be considered
+(entered, fixed or dormant).  The line with the phase status start
+with the status, for fix and entered followed by a number and then a
+list of phases.  An asterisk, *, can be used for all phases.
+
+The conditions can be set after just the word ``conditions'' and
+experiments after the word ``experiment''.  It is also possible to set
+reference states and to demand that some symbols are calculated or
+values of state variables and parameter identifieres listed.
+
+Each line may refer to colums in the table to follow after the head.
+The columns are specied with teh ``@'' character followed by the
+column.  Max 9 columns allowed.
+
+The head is finished by the command ``table\_start'' and then on each
+line the column values must be given.  But first on each line there
+must be a name of the equilibrium (this is not counted as a column, or
+as column zero).
+
+The lines with values is terminated by a ``table\_end''.
+
+All equilibria in a table can be calculated with the ``calculate all''
+command if the range of equilibria is set by the ``set range'' command.
+
+{\small
+\begin{verbatim}
+ subroutine enter_many_equil(cline,last)
+! executes an enter many_equilibria command
+! and creates many similar equilibria from a table
+   implicit none
+   character*(*) cline
+   integer last
 \end{verbatim}
 }
 
@@ -3531,6 +3768,25 @@ Some minimal checks made.
 ! The function returns FALSE if the user may set the FORD or BORD bit of lokph
    implicit none
    integer lokph
+\end{verbatim}
+}
+
+\subsubsection{Calculate new highcs when a composition set is created
+ or deleted}
+
+Highcs is used when saving the allocated phase\_varres records and in
+some other cases.  Note that there can be unused phase\_varres records
+below highcs.
+
+{\small
+\begin{verbatim}
+ integer function newhighcs(reserved)
+! updates highcd and arranges csfree to be in sequential order
+! highcs is the higest used varres record before the last reservation
+! or release of a record.  release is TRUE if a record has been released
+! csfree is the beginning of the free list of varres records.
+   implicit none
+   logical reserved
 \end{verbatim}
 }
 
@@ -3629,6 +3885,7 @@ The phases are listed with one line each, first the stable phases,
 then the entered but unstable in decreasing order of satbility.  If
 more than 10 phases the remaining are merged into a single line.
 
+{\small
 \begin{verbatim}
  subroutine list_sorted_phases(unit,ceq)
 ! short list with one line for each phase
@@ -3639,6 +3896,7 @@ more than 10 phases the remaining are merged into a single line.
    integer unit
    TYPE(gtp_equilibrium_data), pointer :: ceq
 \end{verbatim}
+}
 
 \subsubsection{List a little data for all phases}
 
@@ -3716,7 +3974,7 @@ changed.
 ! unit digit:   0=mole fraction,      othewise mass fractions
 ! 10th digit:   0=only composition,   10=also constitution
 ! 100th digit:  0=value order,        100=alphabetical order
-! 1000th digit: 0=only stable phases, 1000=all phases
+! 1000th digit: 0=all phases,         1000=only stable phases
    implicit none
    integer iph,jcs,mode,lut
    TYPE(gtp_equilibrium_data), pointer :: ceq
@@ -3733,8 +3991,8 @@ nice columns trying to use as few lines as possible.
  subroutine format_phase_composition(mode,nv,consts,vals,lut)
 ! list composition/constitution in alphabetical or value order
 ! entalsiffra 0 mole fraction, 1 mass fraction, 3 mole percent, 4 mass percent
-! tiotalsiffra ?
-! mode >100 else alphanetical order
+! tiotalsiffra alphabetical order ... ??
+! mode >100 else alphabetical order
 ! nv is number of components/constitunents (in alphabetical order in consts)
 ! components/constituents in consts, fractions in vals
    implicit none
@@ -3936,6 +4194,7 @@ All experimental information associated with the equilibrium ceq is
 listed on unit lut.  The get\_one\_experiment routine returns the
 text.
 
+{\small
 \begin{verbatim}
  subroutine list_experiments(lut,ceq)
 ! list all experiments into text
@@ -3951,6 +4210,7 @@ text.
    character text*(*)
    TYPE(gtp_equilibrium_data), pointer :: ceq
 \end{verbatim}
+}
 
 \subsubsection{List condition in character variable}
 
@@ -4066,6 +4326,11 @@ specificly for a phase and composition set.
    implicit none
    integer last,iph,ics,lokcs
    character cline*(*)
+ subroutine ask_phase_new_constitution(cline,last,iph,ics,lokcs,ceq)
+! interactive input of a constitution of phase iph
+   implicit none
+   integer last,iph,ics,lokcs
+   character cline*(*)
 \end{verbatim}
 }
 
@@ -4159,7 +4424,8 @@ automatically to add this as condition.
  subroutine set_cond_or_exp(cline,ip,new,notcond,ceq)
 ! decode an equilibrium condition, can be an expression with + and -
 ! the expression should be terminated with an = or value supplied on next line
-! like "T=1000", "x(liq,s)-x(pyrrh,s)=0", "2*mu(cr)-3*mu(o)=muval"
+! like "T=1000", "x(liq,s)-x(pyrrh,s)=0", "mu(cr)-1.5*mu(o)=muval"
+! Illegal with number before first state variable !!!
 ! It can also be a "NOFIX=<phase>" or "FIX=<phase> value"
 ! The routine should also accept conditions identified with the "<number>:"
 ! where <number> is that preceeding each condition in a list_condition
@@ -4171,6 +4437,12 @@ automatically to add this as condition.
    character cline*(*)
    TYPE(gtp_equilibrium_data), pointer :: ceq
    TYPE(gtp_condition), pointer :: new
+ subroutine get_experiment_with_symbol(symsym,experimenttype,temp)
+! finds an experiment with s symbol index symsym and exp.type
+   implicit none
+   integer symsym,experimenttype
+   type(gtp_condition), pointer :: temp
+! NOTE: temp must have been set to ceq%lastcondition before calling this
 \end{verbatim}
 }
 
@@ -4209,7 +4481,8 @@ The subroutine to set conditions is decribed in
 \begin{verbatim}
  subroutine get_condition(nterm,svr,pcond)
 ! finds a condition record with the given state variable expression
-! If nterm<0 the absolute value of nterm is condition number, svr is irrelevant
+! If nterm<0 svr is irrelevant, the absolute value of nterm is the sequential
+! number of the ACTIVE conditions
    implicit none
    integer nterm
    type(gtp_state_variable), pointer :: svr
@@ -4334,6 +4607,21 @@ value means a maximum value, a positive means a minimum value.
    character cline*(*)
    integer last,iph,ics
    TYPE(gtp_equilibrium_data), pointer :: ceq
+\end{verbatim}
+}
+
+\subsubsection{Set default constitution}
+
+The constitution of a phase is set to its default constitution
+
+{\small
+\begin{verbatim}
+ subroutine enter_default_constitution(iph,ics,mmyfr,ceq)
+! user specification of default constitution for a composition set
+   implicit none
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+   integer iph,ics
+   real mmyfr(*)
 \end{verbatim}
 }
 
@@ -4725,6 +5013,7 @@ this has been implemented differently in GTP.
 This is used to check a user typed a correct TDB file name and
 extracts the elements so the user can select which he wants.
 
+{\small
 \begin{verbatim}
  subroutine checktdb(filename,nel,selel)
 ! checking a TDB file exists and return the elements
@@ -4732,6 +5021,7 @@ extracts the elements so the user can select which he wants.
    integer nel
    character filename*(*),selel(*)*2
 \end{verbatim}
+}
 
 %!> here starts gtp3F.F90 -------------------------------------------------
 
@@ -4760,8 +5050,17 @@ By providing a state variable as a character variable like $T$ or
 $x({\rm liquid,cr})$ this routine returns its current value.
 Wildcards, ``*'', are not allowed, see \ref{sec:getmany}.
 
+A variant checks if a specified phase is stable.
+
 {\small
 \begin{verbatim}
+ subroutine get_stable_state_var_value(statevar,value,encoded,ceq)
+! called with a state variable character
+! If the state variable includes a phase it checks if the phase is stable ...
+   implicit none
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+   character statevar*(*),encoded*(*)
+   double precision value
  subroutine get_state_var_value(statevar,value,encoded,ceq)
 ! called with a state variable character
    implicit none
@@ -5056,7 +5355,8 @@ must be as returned from decode\_state\_variable, see
 \end{verbatim}
 }
 
-\subsubsection{The value of the user defined reference state}\label{sc:calrefstate}
+\subsubsection{The value of the user defined reference
+state}\label{sc:calrefstate}
 
 The value of many state variables depend on the selected reference
 state.  By default that is the value at 298.15~K and 1 bar for the
@@ -5065,6 +5365,7 @@ defines another reference state this subroutine calculates that value.
 The reference state is set calling the routine in
 section~\ref{sc:setrefstate}.
 
+{\small
 \begin{verbatim}
  subroutine calculate_reference_state(kstv,iph,ics,aref,ceq)
 ! Calculate the user defined reference state for extensive properties
@@ -5075,6 +5376,23 @@ section~\ref{sc:setrefstate}.
    double precision aref
    type(gtp_equilibrium_data), pointer :: ceq
 \end{verbatim}
+}
+
+\subsubsection{A utility ... sort phase in phase tuple order}
+
+{\small
+\begin{verbatim}
+ subroutine sortinphtup(n,m,xx)
+! subroutine sortinphtup(n,m,xx,ceq)
+! subroutine to sort the values in xx which are in phase and compset order
+! in phase tuple order.  This is needed by the TQ interface
+! The number of values belonging to the phase is m (for example composition)
+! argument ceq added as new composition sets can be created ...
+   integer n,m
+   double precision xx(n*m)
+!   type(gtp_equilibrium_data), pointer :: ceq
+\end{verbatim}
+}
 
 \subsection{State variable functions}
 
@@ -5111,6 +5429,12 @@ dissapear.
    integer last
    character cline*(*)
    type(gtp_equilibrium_data), pointer :: ceq
+ subroutine set_putfun_constant(svfix,value)
+! changes the value of a putfun constant
+! svfix is index, value is new value
+   implicit none
+   integer svfix
+   double precision value
  subroutine store_putfun(name,lrot,nsymb,iarr)
 ! enter an expression of state variables with name name with address lrot
 ! nsymb is number of formal arguments
@@ -5119,7 +5443,7 @@ dissapear.
    implicit none
    character name*(*)
    type(putfun_node), pointer :: lrot
-   integer nsymb,idot
+   integer nsymb
    integer iarr(10,*)
  subroutine store_putfun_old(name,lrot,nsymb,&
        istv,indstv,iref,iunit,idot)
@@ -5197,6 +5521,7 @@ The double precision function
 evaluate\_svfun\_old(lrot,actual\_arg,mode,ceq) is now in the
 minimizer package.
 
+{\small
 \begin{verbatim}
  subroutine evaluate_all_svfun_old(kou,ceq)
 ! THIS SUBROUTINE MOVED TO MINIMIZER but kept for initiallizing
@@ -5216,6 +5541,7 @@ minimizer package.
    character actual_arg(*)*(*)
    TYPE(gtp_equilibrium_data), pointer :: ceq
 \end{verbatim}
+}
 
 %!> here starts gtp3G.F90 --------------------------------------------
 
@@ -5448,6 +5774,23 @@ This is not yet implemented.
 The subroutines in this section are internal and not to be used by
 calls from outside GTP.
 
+\subsubsection{Indicate the type of an experiment}
+
+An experiment can specify an equal value, =, a larger than limit, $>$
+or a lesser than limit, $<$.  This return the type.
+
+{\small
+\begin{verbatim}
+ subroutine termterm(string,ich,kpos,value)
+! search for first occurance of + - = > or <
+! if + or - then also extract possible value after sign
+   implicit none
+   character string*(*)
+   integer kpos,ich
+   double precision value
+\end{verbatim}
+}
+
 \subsubsection{Alphabetical ordering}
 
 The elements, species and phases are stored in the arrays ELLISTA,
@@ -5491,6 +5834,7 @@ Just for testing.
 
 Not much to discuss.
 
+{\small
 \begin{verbatim}
  subroutine create_constitlist(constitlist,nc,klist)
 ! creates a constituent list ...
@@ -5499,11 +5843,13 @@ Not much to discuss.
    integer, dimension(:), allocatable :: constitlist
    integer nc
 \end{verbatim}
+}
 
 \subsubsection{Creates a new parrecord for a phase}
 
 Not much to discuss.
 
+{\small
 \begin{verbatim}
  subroutine create_parrecords(lokph,lokcs,nsl,nc,nprop,iva,ceq)
 ! fractions and results arrays for a phase for parallell calculations
@@ -5521,6 +5867,7 @@ Not much to discuss.
    integer, dimension(*) :: iva
    integer lokph,lokcs, nsl, nc, nprop
 \end{verbatim}
+}
 
 \subsubsection{Create interaction record}
 
@@ -6267,6 +6614,7 @@ returned.
 
 These are used during step and map to help handling convergence problems
 
+{\small
 \begin{verbatim}
  subroutine save_constitutions(ceq,copyofconst)
 ! copy the current phase amounts and constituitions to be restored
@@ -6283,7 +6631,7 @@ These are used during step and map to help handling convergence problems
    TYPE(gtp_equilibrium_data), pointer :: ceq
    double precision copyofconst(*)
 \end{verbatim}
-
+}
 
 %!> here starts gtp3Y.F90 --------------------------------------------
 
@@ -6370,6 +6718,28 @@ This is a very rudimentary grid generator.
    integer mode,iph,ngg,nrel,ny
    real xarr(nrel,*),garr(*)
    double precision yarr(*)
+ subroutine generate_dense_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,ceq)
+! generates more gridpoints than default generate_grid
+! Different action depending of the value of mode,
+! for mode<0:
+!    return the number of gridpoints that will be generated for phase iph in ngg
+! for mode=0:
+!    return garr(i) gibbs energy and xarr(1,i) the compositions of gridpoint i
+! for mode>0:
+!    return site fractions of gridpoint mode in yarr, number of fractions in ny
+!    iph is phase number, ngg is number of gridpoints, nrel number of elements,
+! if mode=0:
+!    return xarr mole fractions of gridpoints, garr Gibbs energy of gridpoints,
+!    ngg is dimension of garr
+! if mode>0:
+!   "mode" is a gridpoint of this phase in solution, return number of
+!   constituent fractions in ny and fractions in yarr for this gridpoint
+! The current constitution is restored at the end of the subroutine
+   implicit none
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+   integer mode,iph,ngg,nrel,ny
+   real xarr(nrel,*),garr(*)
+   double precision yarr(*)
 \end{verbatim}
 }
 
@@ -6401,6 +6771,7 @@ implemented.
 The same when a phase have charged constituents with many anemembers
 that have net charge.  This is implemented but not optimized.
 
+{\small
 \begin{verbatim}
  subroutine generate_fccord_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,ceq)
 ! This generates grid for a phase with 4 sublattice fcc/hcp ordering
@@ -6423,6 +6794,7 @@ that have net charge.  This is implemented but not optimized.
    double precision yarr(*)
    type(gtp_equilibrium_data), pointer :: ceq
 \end{verbatim}
+}
 
 \subsubsection{Calculate endmember}
 
@@ -6443,7 +6815,7 @@ This is used by the calc\_gridpoint routine.
  subroutine calcg_endmember6(iph,endmember,gval,ceq)
 ! calculates G and all derivatevs wrt T and P for one mole of real atoms
 ! for a single end member, used for reference states.
-! Restores current composition (but not G or deriv)
+! Restores current composition and G (but not deriv)
 ! endmember contains indices in the constituent array, not species index
 ! one for each sublattice
    implicit none
@@ -6504,7 +6876,7 @@ that).
 !
 ! BEWARE not adopted for parallel processing
 !
-! if the same phase occurs several times check if they are really separate
+! if the same phase has several gridpoints check if they are really separate
 ! (miscibility gaps) or if they can be murged.  Compare them two by two
 ! nv is the number of phases, iphl(i) is the index of phase i, aphl(i) is the
 ! amount of phase i, nyphl is the number of site fractions for phase i,
@@ -6533,7 +6905,6 @@ to a gridpoint that is closeset to the final hyperplane.
 ! after a global minimization and sets the constituion to the most
 ! favourable one.  Later care should be taken that composition set 2
 ! and higher are not set identical or equal to the stable
-! kp    total number of gridpoints
 ! nrel  number of components
 ! ngg   number of gridpoints
 ! kphl  array with first points calculated for phase(i) in garr
@@ -6622,24 +6993,10 @@ This subroutine checks this.
 ! A proper name must start with a letter A-Z
 ! for typ=0 it must contain only letters, digits and underscore
 ! for typ=1 it may contain also +, - maybe ?
+! It must not be equal to a state variable
    implicit none
    integer typ
    character name*(*)
-\end{verbatim}
-}
-
-\subsubsection{Set default constitution}
-
-The constitution of a phase is set to its default constitution
-
-{\small
-\begin{verbatim}
- subroutine enter_default_constitution(iph,ics,mmyfr,ceq)
-! user specification of default constitution for a composition set
-   implicit none
-   TYPE(gtp_equilibrium_data), pointer :: ceq
-   integer iph,ics
-   real mmyfr(*)
 \end{verbatim}
 }
 
@@ -6666,8 +7023,8 @@ I am not sure when this is used and if it is needed.
 {\small
 \begin{verbatim}
  subroutine set_default_constitution(iph,ics,ceq)
-! set the current constitution of iph composition set ics to its
-!  default constitution (if any).  Do not change the amounts of the phases
+! the current constitution of (iph#ics) is set to its default constitution
+!  (if any), otherwise a random value.  The amount of the phase not changed
    implicit none
    integer iph,ics
    TYPE(gtp_equilibrium_data), pointer :: ceq
@@ -6710,7 +7067,7 @@ cleared.
  subroutine todo_after_found_equilibrium(mode,ceq)
 ! this is called after an equilibrium calculation
 ! It marks stable phase (set CSSTABLE and remove any CSAUTO)
-! remove redundant unstable composition sets created automatically
+! It removes redundant unstable composition sets created automatically
 ! (CSAUTO set).  It will also shift stable composition sets to loweest
 ! possible (it will take into account if there are default constituent
 ! fractions, CSDEFCON set).
@@ -6743,16 +7100,16 @@ fcc\#1 is not stable.
 
 {\small
 \begin{verbatim}
- logical function checkdefcon(lokics,lokjcs,fit,ceq)
+ subroutine checkdefcon(lokics,lokjcs,fit,ceq)
 ! check if composition of lokics fits default constitution in lokjcs
-! return TRUE if lokics moved to lokjcs
-! If not moved fit returns a value how close the constitition is
-! If 1 very close, 2 less etc.
+! return TRUE if lokics fits default in lokjcs
+! NOTE lokics and lokjcs can be the same!!
    integer lokics,lokjcs,fit
    type(gtp_equilibrium_data), pointer :: ceq
  subroutine shiftcompsets(ceq)
 ! check phase with several composition sets if they should be shifted
 ! to fit the default constitution better
+! IGNORE UNSTABLE COMP.SETS
    type(gtp_equilibrium_data), pointer :: ceq
  subroutine copycompsets(iph,ics1,ics2,ceq)
 ! copy constitution and results from ic2 to ic1 and vice versa
@@ -6768,9 +7125,11 @@ fcc\#1 is not stable.
    integer lokph
    type(gtp_equilibrium_data), pointer :: ceq
 \end{verbatim}
+}
 
 \subsubsection{Select composition set for stable phase, maybe not used}
 
+{\small
 \begin{verbatim}
  subroutine select_composition_set(iph,ics,yarr,ceq)
 ! if phase iph wants to become stable and there are several composition sets
@@ -6786,41 +7145,6 @@ fcc\#1 is not stable.
 \end{verbatim}
 }
 
-\subsubsection{Create a name for optimization variables A00 to A99}
-
-Just a simple routine.
-
-\begin{verbatim}
-  subroutine makeoptvname(name,indx)
-    implicit none
-    character name*(*)
-    integer indx
-\end{verbatim}
-
-%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!
-%! Section with unreferenced verbatim  2715 2734 2723
-\subsubsection{Find constituent name}
-
-This subroutine returns the index and mass of a constituent in a
-specific phase.  If the same constituent can occur on several
-sublattices the sublattice must be specified by a \# followed by a
-digit 1 to 9.
-
-{\small
-\begin{verbatim}
- subroutine find_constituent(iph,spname,mass,icon)
-! find the constituent "spname" of a phase. spname can have a sublattice #digit
-! Return the index of the constituent in icon.  Additionally the mass
-! of the species is returned.
-   implicit none
-   character*(*) spname
-   double precision mass
-   integer iph,icon
-\end{verbatim}
-}
-
-%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!
-%! Section with unreferenced verbatim  6726 6777 6762
 \subsection{Unfinished things}
 
 There are many unfinished parts among the other sections, in
@@ -6829,118 +7153,403 @@ particular the save/read section.
 %!> here starts gtp3Z.F90 --------------------------------------------
 
 
-%!> this in the tpfun.F90 file  --------------------------------------------
-
-\section{TP functions}
+\subsection{TP functions}
 
 TP functions are a subpackage inside GTP.  These can store simple
 expressions depending on T and P including unary functions LN and EXP
 (and maybe more).  They can return a function value and the first and
 second derivative with respect to T and P.  There are three datatypes
-associated with these functions.
+associated with these functions described in
+section~\ref{sc:tpfundata}.
 
-NOTE The documentation for this package is not up to date!
-
-\subsection{Function root record type}
-
-In this record a name of the function is stored and the number of
-temperature ranges.  For each range a low temperature limit and a link
-to a tpfun\_expression record is stored.  There is also a high
-temperature limit.  As the number of ranges can vary the arrays are
-allocatable (declared as pointers).  At the same time as a root record
-is reserved to store a TP function one also reservs a tpfun\_parres
-record and in this the last calculated result of the function is
-stored.  Saving the last calculated values speeds up calculation
-because the same function is often used in many parameters and needed
-many times for the same values of T and P.  But in parallell
-processing the values of T and P can be different in each processor
-and thus the results mut be separate in each.
+\subsubsection{Initiate the TP fun package}
 
 {\small
 \begin{verbatim}
-  TYPE tpfun_root
-! Root of a TP function including name with links to coefficients and codes
-! and results.  Note that during calculations which can be parallellized
-! the results can be different in each parallell process
-     character*(lenfnsym) symbol
-! limit is the low T limit of each range
-! funlinks links to expression records for each range
-     integer noofranges
-     real, dimension(:), pointer :: limits
-     integer, dimension(:), pointer :: funlinks
-     real hightlimit
-  END TYPE tpfun_root
+ SUBROUTINE tpfun_init(nf,tpres)
+! allocate tpfuns and create a free list inside the tpfuns
+   implicit none
+   integer nf
+! use tpres declared externally for parallel processing
+  TYPE(tpfun_parres), dimension(:), pointer :: tpres
 \end{verbatim}
 }
 
-%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!
-%! Section with unreferenced verbatim  6778 6814 6796
-\subsection{Structure to store expressions of TP functions}
+\subsubsection{Utilities}
 
-In this record the coefficients and powers of T and P and possible
-unary functions used is stored.  There is a simple parser that can
-read a simple TP function similar to what TC has.  My idea has been to
-extend this a bit by allowing parenthesis in a more flexible way but
-that is not yet implemented.  A TP function can refer to another TP
-function using the link array.  This means a recursive evaluation of
-TP functions must be implemented.
-
-This information must not be changed during parallell processing.
-During assessments one may calculate each experimental equilibria in
-parallell and as the coefficients of TP functions are varied by the
-assessment procedure one may think that this array must also be
-separate for each parallell process.  But changes of coefficients are
-not done during the parallell execution so there is no problem.
+Because freetpfun is private.
 
 {\small
 \begin{verbatim}
-  TYPE tpfun_expression
-! Coefficients, T and P powers, unary functions and links to other functions
-     integer noofcoeffs
-     double precision, dimension(:), pointer :: coeffs
-! For each coefficient one may have a power of T, power of P,
-! power of any symbol (not implemented)
-! parenthesis level (not implemented)
-! link to a symbol (i.e. another TP function)
-     integer, dimension(:), pointer :: tpow
-     integer, dimension(:), pointer :: ppow
-     integer, dimension(:), pointer :: wpow
-     integer, dimension(:), pointer :: plevel
-     integer, dimension(:), pointer :: link
-  END TYPE tpfun_expression
-  TYPE(tpfun_expression), dimension(:), pointer :: tpexpr
+ integer function notpf()
+! number of tpfunctions because freetpfun is private
+   implicit none
 \end{verbatim}
 }
 
-%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!
-%! Section with unreferenced verbatim  6815 6839 6827
-\subsection{Structure for calculated results of TP functions}
-
-This record contains the last values of T and P used for calculation
-the TP function and the results including first and second derivatives
-of T and P.  These are ordered as F, F.T, F.P, F.T.T, F.T.P and F.P.P.
-The reason to have this as a separate array is that in parallell
-processing the values of T and P may be different in each process and
-thus the results also, whereas the values of the coefficients are the
-same.  The size of all the function records are allocated dynamically
-by the tpfun\_init subroutine.
+\subsubsection{Find a TP function}
 
 {\small
 \begin{verbatim}
-  TYPE tpfun_parres
-! Contains a TP results, 6 double for results and  2 double for T and P
-! values used to calculate the results
-! Note that during calculations which can be parallellized the final
-! results can be different for each parallell process
-     double precision, dimension(2) :: tpused
-     double precision, dimension(6) :: results
-  END TYPE tpfun_parres
-  TYPE(tpfun_parres), dimension(:), allocatable :: tpres
+  SUBROUTINE find_tpfun_by_name(name,lrot)
+! returns the location of a TP function
+! if lrot>0 then start after lrot, this is to allow finding with wildcard *
+    implicit none
+    integer lrot
+    character name*(*)
+  SUBROUTINE find_tpfun_by_name_exact(name,lrot,notent)
+! returns the location of a TP function, notent TRUE if not entered
+    implicit none
+    integer lrot
+    logical notent
+    character name*(*)
 \end{verbatim}
 }
 
-%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!%!
-%! Section with unreferenced verbatim  6840 6850 6850
+\subsubsection{Evaluate a TP function}
+
+Calculate the value and first and second derivatives.
+
+{\small
+\begin{verbatim}
+ subroutine eval_tpfun(lrot,tpval,result,tpres)
+!    subroutine eval_tpfun(lrot,tpval,symval,result)
+! evaluate a TP function with several T ranges
+!   implicit double precision (a-h,o-z)
+   implicit none
+   integer lrot
+   double precision tpval(2),result(6)
+   TYPE(tpfun_parres), dimension(:), pointer :: tpres
+\end{verbatim}
+}
+
+\subsubsection{List the expression of a TP function}
+
+{\small
+\begin{verbatim}
+ subroutine list_tpfun(lrot,nosym,str)
+! lists a TP symbols with several ranges into string str
+! lrot is index of function, if nosym=0 the function name is copied to str
+   implicit none
+   character str*(*)
+   integer nosym,lrot
+ subroutine list_all_funs(lut)
+! list all functions except those starting with _ (parameters)
+   implicit none
+   integer lut
+\end{verbatim}
+}
+
+\subsubsection{List unentered  TP functions}
+
+For use when reading from a TDB file.
+
+{\small
+\begin{verbatim}
+ subroutine list_unentered_funs(lut,nr)
+! counts and list functions with TPNOTENT bit set if lut>0
+   implicit none
+   integer lut,nr
+\end{verbatim}
+}
+
+\subsubsection{Compiles a text string as  a TP function}
+
+Verry messy
+
+{\small
+\begin{verbatim}
+ SUBROUTINE ct1xfn(string,ip,nc,coeff,koder,fromtdb)
+!...compiles an expression in string from position ip
+!     it can refer to T and P or symbols in fnsym
+!     compiled expression returned in coeff and koder
+!
+! >>> this is very messy
+!
+!...algorithm for function extraction
+! 10*T**2 -5*T*LOG(T) +4*EXP(-5*T**(-1))
+!
+! AT LABEL 100 start of expression or after (
+! sign=1
+! -, sign=-1                              goto 200
+! +, skip
+!
+! AT LABEL 200 after sign
+! if A-Z                                  goto 300
+! if 0-9, extract number                  goto 400
+! (                                       goto 100
+! ;                                       END or ERROR
+! empty                                   END or ERROR
+! anything else                           ERROR
+!
+! AT LABEL 300 symbol
+! if T or P, extract power if any incl () goto 400
+! unary fkn? extract (                    goto 100
+! symbol                                  goto 400
+!
+! AT LABEL 400 after factor
+! -, sign=-1                              goto 200
+! sign=1
+! +, skip                                 goto 200
+! )                                       goto 400
+! ** or ^ extract and store power incl () goto 400
+! *                                       goto 200
+! empty                                   goto 900
+!
+! for TDB compatibility skip #
+!
+! allow unary functions ABOVE(TB) and BELOW(TB) where TB= is the break temp
+! check consistency
+   implicit none
+   integer ip,nc,koder(5,*)
+   character string*(*)
+   double precision coeff(*)
+   logical fromtdb
+ subroutine ct1getsym(string,ip,symbol)
+!...extracts an symbol
+!   implicit double precision (a-h,o-z)
+   implicit none
+   integer ip
+   character string*(*),symbol*(*)
+ subroutine ct1power(string,ip,ipower)
+!...extracts an integer power possibly surrounded by ( )
+   implicit none
+   integer ip,ipower
+   character string*(*)
+ subroutine ct1mfn(symbol,nranges,tlimits,lokexpr,lrot)
+!...creates a root record with name symbol and temperature ranges
+! highest T limit is in tlimits(nranges+1)
+!   implicit double precision (a-h,o-z)
+   implicit none
+   integer nranges,lrot
+   character*(*) symbol
+   TYPE(tpfun_expression), dimension(*) :: lokexpr
+   real tlimits(*)
+ subroutine ct2mfn(symbol,nranges,tlimits,lokexpr,lrot)
+!...stores a TPfun in an existing lrot record with name symbol
+! and temperature ranges, highest T limit is in tlimits(nranges+1)
+   implicit none
+   integer nranges,lrot
+   character*(*) symbol
+   TYPE(tpfun_expression), dimension(*) :: lokexpr
+   real tlimits(*)
+ subroutine ct1mexpr(nc,coeff,koder,lrot)
+!...makes a datastructure of an expression. root is returned in lrot
+!   implicit double precision (a-h,o-z)
+   implicit none
+   integer nc,koder(5,*)
+   TYPE(tpfun_expression), pointer :: lrot
+   TYPE(tpfun_expression), pointer :: noexpr
+   double precision coeff(*)
+ subroutine ct1efn(inrot,tpval,val,tpres)
+!...evaluates a datastructure of an expression. Value returned in val
+!     inrot is root expression tpfunction record
+!     tpval is valuse of T and P, symval is values of symbols
+! first and second derivatives of T and P also calculated and returned
+! in order F, F.T, F.P, F.T.T, F.T.P, F.P.P
+!
+! if function already calculated one should never enter this subroutine
+!
+! It can call "itself" by reference to another TP function and for
+! that case one must store results in levels.
+   implicit none
+   double precision val(6),tpval(*)
+   TYPE(tpfun_expression), pointer :: inrot
+   TYPE(tpfun_parres), dimension(:), pointer :: tpres
+\end{verbatim}
+}
+
+\subsubsection{Utility to list a TP function}
+
+{\small
+\begin{verbatim}
+ subroutine ct1wfn(exprot,tps,string,ip)
+!...writes an expression into string starting at ip
+!     lrot is an index to an tpexpr record
+!   implicit double precision (a-h,o-z)
+   implicit none
+   character tps(2)*(*)
+   character string*(*)
+ subroutine ct1wpow(string,ip,tps,mult,npow)
+!...writes "ips" with a power if needed and a * before or after
+!   implicit double precision (a-h,o-z)
+   implicit none
+   integer ip,mult,npow
+   character string*(*),tps*(*)
+\end{verbatim}
+}
+
+\subsubsection{Enter a TP function interactivly}
+
+{\small
+\begin{verbatim}
+ subroutine enter_tpfun_interactivly(cline,ip,longline,jp)
+! interactive input of a TP expression
+!   implicit double precision (a-h,o-z)
+   implicit none
+   integer ip,jp
+   character cline*(*),longline*(*)
+\end{verbatim}
+}
+
+\subsubsection{Enter a dummy TP funtion}
+
+{\small
+\begin{verbatim}
+ subroutine enter_tpfun_dummy(symbol)
+! creates a dummy entry for a TP function called symbol, used when entering
+! TPfuns from a TDB file where they are not in order
+   implicit none
+   character*(*) symbol
+\end{verbatim}
+}
+
+\subsubsection{Enter a TP function}
+
+{\small
+\begin{verbatim}
+ subroutine enter_tpfun(symbol,text,lrot,fromtdb)
+! creates a data structure for a TP function called symbol with several ranges
+! text is whole expression
+! lrot is returned as index.  If fromtdb is FALSE and lrot<0 it is a new
+!                             expression for an old symbol
+! if fromtdb is TRUE references to unknown functions are allowed
+! default low temperature limit is 298.16; high 6000
+   implicit none
+   integer lrot
+   character*(*) text,symbol
+   logical fromtdb
+\end{verbatim}
+}
+
+\subsubsection{Some more utilities for TP function}
+
+One handles nested TP function, other abbreviated names.
+
+{\small
+\begin{verbatim}
+ subroutine nested_tpfun(lrot,tpval,nyrot)
+! called from ct1efn when a it calls another TP function that must be
+! evaluated.  nyrot is the link to the ct1efn in the correct range
+!   implicit double precision (a-h,o-z)
+   implicit none
+   integer lrot
+   double precision tpval(2)
+   TYPE(tpfun_expression), pointer :: nyrot
+! use lowest range for all T values lower than first upper limit
+! and highest range for all T values higher than the next highest limit
+! one should signal if T is lower than lowest limit or higher than highest
+! used  saved reults if same T and P
+ logical function compare_abbrev(name1,name2)
+! returns TRUE if name1 is an abbreviation of name2
+! termintaes when a space is found in name1
+! each part between _ or - can be abbreviated from the left
+! case insensitive. Only 36 first characters compared
+   implicit none
+   character*(*) name1,name2
+ subroutine below_t0_calc(t0,tpval,fun)
+! calculates exp(20(1-t/t0))/(1+exp(20(1-t/t0))
+! At t<<t0 K function is unity, at t>>t0 function is zero
+   implicit none
+   double precision t0,tpval(2),fun(6)
+ subroutine above_t0_calc(t0,tpval,fun)
+! calculates exp(20(1-t/t0))/(1+exp(20(1-t/t0))-1, at t>>t0 it is unity
+   implicit none
+   double precision t0,tpval(2),fun(6)
+\end{verbatim}
+}
+
+\subsubsection{Routines for optimizing coefficients and some other thins}
+
+{\small
+\begin{verbatim}
+ subroutine enter_optvars(firstindex)
+! enter variables for optimization A00-A99
+   implicit none
+   integer firstindex
+ subroutine find_tpsymbol(name,type,value)
+! enter variables
+   implicit none
+! type=0 if function, 1 if variable, 2 if optimizing variable
+   integer type
+   character name*(lenfnsym)
+   double precision value
+ subroutine enter_tpconstant(symbol,value)
+! enter variables
+   implicit none
+   character symbol*(lenfnsym)
+   double precision value
+ subroutine change_optcoeff(lrot,value)
+! change value of optimizing coefficient.  lrot is index
+   implicit none
+   integer lrot
+   double precision value
+ subroutine get_value_of_constant_name(symbol,lrot,value)
+! get value (and index) of a TP constant.  lrot is index
+   implicit none
+   integer lrot
+   character symbol*(*)
+   double precision value
+ subroutine get_value_of_constant_index(lrot,value)
+! get value of a TP constant at known lrot
+   implicit none
+   integer lrot
+   double precision value
+ subroutine get_all_opt_coeff(values)
+! get values of all optimizing coefficients
+   implicit none
+   double precision values(*)
+ subroutine delete_all_tpfuns
+! delete all TPFUNs.  No error if some are already deleted ...
+! note: tpres is deallocated when deleting equilibrium record
+\end{verbatim}
+}
+
+\subsubsection{Saving and reading unformatted TP funs}
+
+These are attempst to save and read TP functions from an unformatted
+file.
+
+{\small
+\begin{verbatim}
+ subroutine tpfunsave(lut,form)
+! save tpfundata on a file, unfinished
+!   implicit double precision (a-h,o-z)
+   implicit none
+   integer lut
+   logical form
+ subroutine save1tpfun(lut,form,jfun)
+! save one tpfun (a parameter) with index jfun on a file
+!   implicit double precision (a-h,o-z)
+   implicit none
+   integer lut,jfun
+   logical form
+ subroutine read1tpfun(lut,jfun)
+! read one unformatted tpfun (a parameter) with index jfun
+!   implicit double precision (a-h,o-z)
+   implicit none
+   integer lut,jfun
+ subroutine tpfunread(lin,skip)
+! read tpfundata from a file, if skip TRUE ignore if function already entered
+   implicit none
+   integer lin
+   logical skip
+\end{verbatim}
+}
+
+\subsubsection{Create a name for optimization variables A00 to A99}
+
+Just a simple routine.
+
+{\small
+\begin{verbatim}
+  subroutine makeoptvname(name,indx)
+    implicit none
+    character name*(*)
+    integer indx
+\end{verbatim}
+}
+
 \section{Summary}
 
 Thats all!
@@ -6956,5 +7565,6 @@ Thats all!
 
 \end{thebibliography}
 
+\end{document}
 \end{document}
 \end{document}

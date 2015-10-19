@@ -6,7 +6,7 @@
 !***************************************************************
 ! library with TP functions used by general thermodynamic package
 !
-! the declarations below are all moved to gtp3.F90
+! the declarations below are all moved to gtp3Z.F90
 !
 ! MODULE TPFUNLIB
 !
@@ -189,7 +189,7 @@
     implicit none
     integer lrot
     character name*(*)
-!\end{verbatim}
+!\end{verbatim} %+
     character name1*16
     integer i,j
     name1=name
@@ -212,7 +212,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim}
+!\begin{verbatim} %-
   SUBROUTINE find_tpfun_by_name_exact(name,lrot,notent)
 ! returns the location of a TP function, notent TRUE if not entered
     implicit none
@@ -323,7 +323,7 @@
    implicit none
    character str*(*)
    integer nosym,lrot
-!\end{verbatim}
+!\end{verbatim} %+
    integer ip,nr
    character line*2048,tps(2)*1
    TYPE(tpfun_expression), pointer :: exprot
@@ -404,7 +404,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim}
+!\begin{verbatim} %-
  subroutine list_all_funs(lut)
 ! list all functions except those starting with _ (parameters)
    implicit none
@@ -512,7 +512,7 @@
    character string*(*)
    double precision coeff(*)
    logical fromtdb
-!\end{verbatim}
+!\end{verbatim} %+
 !   implicit double precision (a-h,o-z)
    integer, parameter :: nunary=6
    integer, parameter :: lenfnsym=16
@@ -808,14 +808,14 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim}
+!\begin{verbatim} %-
  subroutine ct1getsym(string,ip,symbol)
 !...extracts an symbol
 !   implicit double precision (a-h,o-z)
    implicit none
    integer ip
    character string*(*),symbol*(*)
-!\end{verbatim}
+!\end{verbatim} %+
    integer, parameter :: lenfnsym=16
    integer jp
    character ch1*1,chs*1,localsym*(lenfnsym)
@@ -843,13 +843,13 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim}
+!\begin{verbatim} %-
  subroutine ct1power(string,ip,ipower)
 !...extracts an integer power possibly surrounded by ( )
    implicit none
    integer ip,ipower
    character string*(*)
-!\end{verbatim}
+!\end{verbatim} %+
    integer ich,isig,lp,jp
    character ch1*1,chs*1
    lp=0
@@ -911,7 +911,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim}
+!\begin{verbatim} %-
  subroutine ct1mfn(symbol,nranges,tlimits,lokexpr,lrot)
 !...creates a root record with name symbol and temperature ranges
 ! highest T limit is in tlimits(nranges+1)
@@ -921,7 +921,7 @@
    character*(*) symbol
    TYPE(tpfun_expression), dimension(*) :: lokexpr
    real tlimits(*)
-!\end{verbatim}
+!\end{verbatim} %+
    integer ir
    character name*16
    lrot=freetpfun
@@ -954,7 +954,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim}
+!\begin{verbatim} %-
  subroutine ct2mfn(symbol,nranges,tlimits,lokexpr,lrot)
 !...stores a TPfun in an existing lrot record with name symbol
 ! and temperature ranges, highest T limit is in tlimits(nranges+1)
@@ -963,7 +963,7 @@
    character*(*) symbol
    TYPE(tpfun_expression), dimension(*) :: lokexpr
    real tlimits(*)
-!\end{verbatim}
+!\end{verbatim} %+
    integer ir
    character name*16
    if(lrot.gt.0 .and. lrot.lt.freetpfun .and. &
@@ -998,7 +998,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim}
+!\begin{verbatim} %-
  subroutine ct1mexpr(nc,coeff,koder,lrot)
 !...makes a datastructure of an expression. root is returned in lrot
 !   implicit double precision (a-h,o-z)
@@ -1007,7 +1007,7 @@
    TYPE(tpfun_expression), pointer :: lrot
    TYPE(tpfun_expression), pointer :: noexpr
    double precision coeff(*)
-!\end{verbatim}
+!\end{verbatim} %+
    integer i
    if(nc.le.0) then
       nullify(lrot)
@@ -1036,7 +1036,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim}
+!\begin{verbatim} %-
  subroutine ct1efn(inrot,tpval,val,tpres)
 !...evaluates a datastructure of an expression. Value returned in val
 !     inrot is root expression tpfunction record
@@ -1547,7 +1547,7 @@
    implicit none
    character tps(2)*(*)
    character string*(*)
-!\end{verbatim}
+!\end{verbatim} %+
    integer, parameter :: levl=5,nunary=6
    integer, parameter :: lenfnsym=16
    integer koder(5,levl),ip,jus,is,kk,kpow,level,lpar,mult,nc,nos,i,ic
@@ -1727,7 +1727,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim}
+!\begin{verbatim} %-
  subroutine ct1wpow(string,ip,tps,mult,npow)
 !...writes "ips" with a power if needed and a * before or after
 !   implicit double precision (a-h,o-z)
@@ -1848,10 +1848,10 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim}
+!-\begin{verbatim}
 ! subroutine tpfun_deallocate
 ! deallocates all arrays associated with a TP function
-!\end{verbatim}
+!-\end{verbatim}
 !   implicit double precision (a-h,o-z)
 !   implicit none
 !   integer j,nr
@@ -2027,7 +2027,7 @@
 ! and highest range for all T values higher than the next highest limit
 ! one should signal if T is lower than lowest limit or higher than highest
 ! used  saved reults if same T and P
-!\end{verbatim}
+!\end{verbatim} %+
    integer nr,ns
    nullify(nyrot)
    if(lrot.le.0) goto 1000
@@ -2061,7 +2061,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim}
+!\begin{verbatim} %-
  logical function compare_abbrev(name1,name2)
 ! returns TRUE if name1 is an abbreviation of name2
 ! termintaes when a space is found in name1
@@ -2069,7 +2069,7 @@
 ! case insensitive. Only 36 first characters compared
    implicit none
    character*(*) name1,name2   
-!\end{verbatim}
+!\end{verbatim} %+
    integer, parameter :: maxl=36
    integer jp,ip,noabbr
    character ch1*1
@@ -2106,6 +2106,307 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\begin{verbatim} %-
+ subroutine below_t0_calc(t0,tpval,fun)
+! calculates exp(20(1-t/t0))/(1+exp(20(1-t/t0))
+! At t<<t0 K function is unity, at t>>t0 function is zero
+   implicit none
+   double precision t0,tpval(2),fun(6)
+!\end{verbatim} %+
+   double precision arg,expa
+   double precision, parameter :: ffix=2.0D1
+   if(t0.le.zero) then
+      write(*,*)'temperature breakpoint below zero'
+      goto 1000
+   endif
+   arg=ffix*(one-tpval(1)/t0)
+   expa=exp(arg)
+! F, F.T, T.P, F.T.T, F.T.P, F.P.P
+!   fun(1)=-t0/ffix*log(1+expa)
+!   fun(2)=expa/(one+expa)
+!   fun(4)=-ffix*expa/(t0*(one+expa)**2)
+   fun(1)=expa/(one+expa)
+   fun(2)=-ffix*expa/(t0*(one+expa)**2)
+   fun(4)=(ffix/t0)**3*expa*(one-expa)/(one+expa)**3
+   fun(3)=zero
+   fun(5)=zero
+   fun(6)=zero
+1000 continue
+   return
+ end subroutine below_t0_calc
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim} %-
+ subroutine above_t0_calc(t0,tpval,fun)
+! calculates exp(20(1-t/t0))/(1+exp(20(1-t/t0))-1, at t>>t0 it is unity
+   implicit none
+   double precision t0,tpval(2),fun(6)
+!\end{verbatim}
+   call below_t0_calc(t0,tpval,fun)
+   fun(1)=one-fun(1)
+   fun(2)=-fun(2)
+   fun(4)=-fun(4)
+1000 continue
+   return
+ end subroutine above_t0_calc
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine enter_optvars(firstindex)
+! enter variables for optimization A00-A99
+   implicit none
+   integer firstindex
+!\end{verbatim} %+
+   character symbol*(lenfnsym)
+   integer jss,symix,lrot
+   symbol='A00 '
+! check if any TP fun with name A00 already entered
+   do jss=1,freetpfun-1
+      if(symbol.eq.tpfuns(jss)%symbol) then
+         write(kou,*)'Optimizing symbols already entered'
+         goto 1000
+      endif
+   enddo
+   firstindex=freetpfun
+   do jss=1,100
+! create TPfun symbols with names A00 to A99 with value 0.0D0
+      lrot=freetpfun
+      if(lrot.eq.0) then
+         gx%bmperr=4104; goto 1000
+      else
+         freetpfun=tpfuns(lrot)%nextfree
+         tpfuns(lrot)%nextfree=0
+      endif
+      allocate(tpfuns(lrot)%limits(1))
+      allocate(tpfuns(lrot)%funlinks(1))
+      tpfuns(lrot)%symbol=symbol
+      tpfuns(lrot)%limits(1)=zero
+! mark this is a single value and can be optimized
+      tpfuns(lrot)%status=ibset(tpfuns(lrot)%status,TPCONST)
+      tpfuns(lrot)%status=ibset(tpfuns(lrot)%status,TPOPTCON)
+! increment symbol
+      symix=ichar(symbol(3:3))-ichar('0')
+      symix=symix+1
+      if(symix.eq.10) then
+         symbol(3:3)='0'
+         symbol(2:2)=char(ichar(symbol(2:2))+1)
+      else
+         symbol(3:3)=char(ichar(symbol(3:3))+1)
+      endif
+!      write(*,*)'Next symbol created: ',symbol(1:4),lrot
+   enddo
+1000 continue
+   return
+ end subroutine enter_optvars
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim} %-
+ subroutine find_tpsymbol(name,type,value)
+! enter variables 
+   implicit none
+! type=0 if function, 1 if variable, 2 if optimizing variable
+   integer type
+   character name*(lenfnsym)
+   double precision value
+!\end{verbatim} %+
+   integer jss,symix,lrot
+   character symbol*(lenfnsym)
+   symbol=name
+   call capson(symbol)
+! check if any TP fun with name symbol exists
+   type=0
+   do jss=1,freetpfun-1
+      if(symbol.eq.tpfuns(jss)%symbol) then
+! found symbol
+         if(btest(tpfuns(jss)%status,TPCONST)) then
+            value=tpfuns(jss)%limits(1)
+            if(btest(tpfuns(jss)%status,TPOPTCON)) then
+               type=2
+            else
+               type=1
+            endif
+         endif
+         goto 200
+      endif
+   enddo
+! no such symbol
+   gx%bmperr=7777
+   type=-1
+200 continue
+1000 continue
+   return
+ end subroutine find_tpsymbol
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim} %-
+ subroutine enter_tpconstant(symbol,value)
+! enter variables 
+   implicit none
+   character symbol*(lenfnsym)
+   double precision value
+!\end{verbatim} %+
+   integer jss,symix,lrot
+! check if any TP fun with name symbol already entered
+   do jss=1,freetpfun-1
+      if(symbol.eq.tpfuns(jss)%symbol) then
+! symbol already exist, just change value unless it is an optimizing coeff.
+         if(btest(tpfuns(jss)%status,TPOPTCON)) then
+            write(*,*)'Not allowed to change optimizing coefficents'
+            goto 1000
+         else
+            lrot=jss
+            goto 200
+         endif
+      endif
+   enddo
+! create TPfun symbols with name symbol and value value
+   lrot=freetpfun
+   if(lrot.eq.0) then
+      gx%bmperr=4104; goto 1000
+   else
+      freetpfun=tpfuns(lrot)%nextfree
+      tpfuns(lrot)%nextfree=0
+   endif
+   allocate(tpfuns(lrot)%limits(1))
+   allocate(tpfuns(lrot)%funlinks(1))
+   call capson(symbol)
+   tpfuns(lrot)%symbol=symbol
+! mark this is a single value
+   tpfuns(lrot)%status=ibset(tpfuns(lrot)%status,TPCONST)
+200 continue
+   tpfuns(lrot)%limits(1)=value
+1000 continue
+   return
+ end subroutine enter_tpconstant
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim} %-
+ subroutine change_optcoeff(lrot,value)
+! change value of optimizing coefficient.  lrot is index
+   implicit none
+   integer lrot
+   double precision value
+!\end{verbatim} %+
+   if(lrot.le.0 .or. lrot.ge.freetpfun-1) then
+      write(*,*)'Attempt to change non-existing constant',lrot
+      gx%bmperr=7777; goto 1000
+   endif
+   if(.not.btest(tpfuns(lrot)%status,TPOPTCON)) then
+      write(*,*)'Attempt to change non-existing coefficent',lrot
+      gx%bmperr=7777; goto 1000
+   endif
+   tpfuns(lrot)%limits(1)=value
+1000 continue
+   return
+ end subroutine change_optcoeff
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim} %-
+ subroutine get_value_of_constant_name(symbol,lrot,value)
+! get value (and index) of a TP constant.  lrot is index
+   implicit none
+   integer lrot
+   character symbol*(*)
+   double precision value
+!\end{verbatim} %+
+   write(*,*)'get_value_of_constant_name not implemented yet'
+!   value=tpfuns(lrot)%limits(1)
+1000 continue
+   return
+ end subroutine get_value_of_constant_name
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim} %-
+ subroutine get_value_of_constant_index(lrot,value)
+! get value of a TP constant at known lrot
+   implicit none
+   integer lrot
+   double precision value
+!\end{verbatim} %+
+   if(lrot.le.0 .or. lrot.gt.freetpfun-1) then
+      write(kou,*)'Constant index outside limits',lrot
+   else
+! unifished: check if it is really a constant ...
+      value=tpfuns(lrot)%limits(1)
+   endif
+1000 continue
+   return
+ end subroutine get_value_of_constant_index
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim} %-
+ subroutine get_all_opt_coeff(values)
+! get values of all optimizing coefficients
+   implicit none
+   double precision values(*)
+!\end{verbatim} %+
+   write(*,*)'Not yet implemeneted'
+1000 continue
+   return
+ end subroutine get_all_opt_coeff
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim} %-
+ subroutine delete_all_tpfuns
+! delete all TPFUNs.  No error if some are already deleted ...   
+! note: tpres is deallocated when deleting equilibrium record
+!\end{verbatim}
+   implicit none
+   integer lrot,nrex
+   TYPE(tpfun_expression), pointer :: expr
+!   write(*,*)'In delete_all_tpfuns'
+   deallocate(tpfuns)
+   goto 1000
+! code below skipped as it created a lot of memory errors ...
+   if(tpfun_expression_version.ne.1 .or. tpfun_root_version.ne.1 .or. &
+        tpfun_parres_version.ne.1) then
+      write(*,*)'Data structure error when deleting tpfuns',&
+           tpfun_expression_version,tpfun_root_version,&
+           tpfun_parres_version
+      gx%bmperr=7777; goto 1000
+   endif
+   funloop: do lrot=1,freetpfun-1
+      write(*,*)'TP Deleting TP function: ',lrot
+!      if(tpfuns(lrot)%noofranges.eq.0) cycle
+      if(tpfuns(lrot)%noofranges.eq.0) goto 200
+      write(*,*)'TP deleting ranges 1-',tpfuns(lrot)%noofranges
+      range: do nrex=1,tpfuns(lrot)%noofranges
+         expr=>tpfuns(lrot)%funlinks(nrex)
+         if(associated(expr)) then
+            deallocate(expr%coeffs)
+            deallocate(expr%tpow)
+            deallocate(expr%ppow)
+            deallocate(expr%wpow)
+            deallocate(expr%plevel)
+            deallocate(expr%link)
+            deallocate(expr)
+         else
+            write(*,*)'TP delete; no expression? ',lrot,nrex
+         endif
+      enddo range
+200   continue
+      write(*,*)'TP deleting limits ',size(tpfuns(lrot)%limits)
+      deallocate(tpfuns(lrot)%limits)
+      write(*,*)'TP deleting funlinks ',size(tpfuns(lrot)%funlinks)
+      deallocate(tpfuns(lrot)%funlinks)
+   enddo funloop
+   write(*,*)'TP finally deleting roots'
+   deallocate(tpfuns)
+1000 continue
+   return
+ end subroutine delete_all_tpfuns
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
 !-\begin{verbatim}
 ! subroutine tpfunlim(i1,i2)
 ! used when saving TP funs to files in GTP as highexpr and freexpr are private
@@ -2127,7 +2428,7 @@
    implicit none
    integer lut
    logical form
-!\end{verbatim}
+!\end{verbatim} %+
    integer i,j,kx,nc,nr
    TYPE(tpfun_expression), pointer :: exprot
 ! save the number of functions to read
@@ -2210,14 +2511,14 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim}
+!\begin{verbatim} %-
  subroutine save1tpfun(lut,form,jfun)
 ! save one tpfun (a parameter) with index jfun on a file
 !   implicit double precision (a-h,o-z)
    implicit none
    integer lut,jfun
    logical form
-!\end{verbatim}
+!\end{verbatim} %+
    integer nr,i,kx,nc
    TYPE(tpfun_expression), pointer :: exprot
    double precision dummy
@@ -2289,13 +2590,13 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim}
+!\begin{verbatim} %-
  subroutine read1tpfun(lut,jfun)
 ! read one unformatted tpfun (a parameter) with index jfun
 !   implicit double precision (a-h,o-z)
    implicit none
    integer lut,jfun
-!\end{verbatim}
+!\end{verbatim} %+
    integer i,i2,kx,nc,nr
    TYPE(tpfun_expression), pointer :: exprot
    character*16 symbol
@@ -2347,7 +2648,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim}
+!\begin{verbatim} %-
  subroutine tpfunread(lin,skip)
 ! read tpfundata from a file, if skip TRUE ignore if function already entered
    implicit none
@@ -2472,310 +2773,10 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim}
- subroutine below_t0_calc(t0,tpval,fun)
-! calculates exp(20(1-t/t0))/(1+exp(20(1-t/t0))
-! At t<<t0 K function is unity, at t>>t0 function is zero
-   implicit none
-   double precision t0,tpval(2),fun(6)
-!\end{verbatim}
-   double precision arg,expa
-   double precision, parameter :: ffix=2.0D1
-   if(t0.le.zero) then
-      write(*,*)'temperature breakpoint below zero'
-      goto 1000
-   endif
-   arg=ffix*(one-tpval(1)/t0)
-   expa=exp(arg)
-! F, F.T, T.P, F.T.T, F.T.P, F.P.P
-!   fun(1)=-t0/ffix*log(1+expa)
-!   fun(2)=expa/(one+expa)
-!   fun(4)=-ffix*expa/(t0*(one+expa)**2)
-   fun(1)=expa/(one+expa)
-   fun(2)=-ffix*expa/(t0*(one+expa)**2)
-   fun(4)=(ffix/t0)**3*expa*(one-expa)/(one+expa)**3
-   fun(3)=zero
-   fun(5)=zero
-   fun(6)=zero
-1000 continue
-   return
- end subroutine below_t0_calc
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\begin{verbatim}
- subroutine above_t0_calc(t0,tpval,fun)
-! calculates exp(20(1-t/t0))/(1+exp(20(1-t/t0))-1, at t>>t0 it is unity
-   implicit none
-   double precision t0,tpval(2),fun(6)
-!\end{verbatim}
-   call below_t0_calc(t0,tpval,fun)
-   fun(1)=one-fun(1)
-   fun(2)=-fun(2)
-   fun(4)=-fun(4)
-1000 continue
-   return
- end subroutine above_t0_calc
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\begin{verbatim}
- subroutine enter_optvars(firstindex)
-! enter variables for optimization A00-A99
-   implicit none
-   integer firstindex
-!\end{verbatim}
-   character symbol*(lenfnsym)
-   integer jss,symix,lrot
-   symbol='A00 '
-! check if any TP fun with name A00 already entered
-   do jss=1,freetpfun-1
-      if(symbol.eq.tpfuns(jss)%symbol) then
-         write(kou,*)'Optimizing symbols already entered'
-         goto 1000
-      endif
-   enddo
-   firstindex=freetpfun
-   do jss=1,100
-! create TPfun symbols with names A00 to A99 with value 0.0D0
-      lrot=freetpfun
-      if(lrot.eq.0) then
-         gx%bmperr=4104; goto 1000
-      else
-         freetpfun=tpfuns(lrot)%nextfree
-         tpfuns(lrot)%nextfree=0
-      endif
-      allocate(tpfuns(lrot)%limits(1))
-      allocate(tpfuns(lrot)%funlinks(1))
-      tpfuns(lrot)%symbol=symbol
-      tpfuns(lrot)%limits(1)=zero
-! mark this is a single value and can be optimized
-      tpfuns(lrot)%status=ibset(tpfuns(lrot)%status,TPCONST)
-      tpfuns(lrot)%status=ibset(tpfuns(lrot)%status,TPOPTCON)
-! increment symbol
-      symix=ichar(symbol(3:3))-ichar('0')
-      symix=symix+1
-      if(symix.eq.10) then
-         symbol(3:3)='0'
-         symbol(2:2)=char(ichar(symbol(2:2))+1)
-      else
-         symbol(3:3)=char(ichar(symbol(3:3))+1)
-      endif
-!      write(*,*)'Next symbol created: ',symbol(1:4),lrot
-   enddo
-1000 continue
-   return
- end subroutine enter_optvars
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\begin{verbatim}
- subroutine find_tpsymbol(name,type,value)
-! enter variables 
-   implicit none
-! type=0 if function, 1 if variable, 2 if optimizing variable
-   integer type
-   character name*(lenfnsym)
-   double precision value
-!\end{verbatim}
-   integer jss,symix,lrot
-   character symbol*(lenfnsym)
-   symbol=name
-   call capson(symbol)
-! check if any TP fun with name symbol exists
-   type=0
-   do jss=1,freetpfun-1
-      if(symbol.eq.tpfuns(jss)%symbol) then
-! found symbol
-         if(btest(tpfuns(jss)%status,TPCONST)) then
-            value=tpfuns(jss)%limits(1)
-            if(btest(tpfuns(jss)%status,TPOPTCON)) then
-               type=2
-            else
-               type=1
-            endif
-         endif
-         goto 200
-      endif
-   enddo
-! no such symbol
-   gx%bmperr=7777
-   type=-1
-200 continue
-1000 continue
-   return
- end subroutine find_tpsymbol
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\begin{verbatim}
- subroutine enter_tpconstant(symbol,value)
-! enter variables 
-   implicit none
-   character symbol*(lenfnsym)
-   double precision value
-!\end{verbatim}
-   integer jss,symix,lrot
-! check if any TP fun with name symbol already entered
-   do jss=1,freetpfun-1
-      if(symbol.eq.tpfuns(jss)%symbol) then
-! symbol already exist, just change value unless it is an optimizing coeff.
-         if(btest(tpfuns(jss)%status,TPOPTCON)) then
-            write(*,*)'Not allowed to change optimizing coefficents'
-            goto 1000
-         else
-            lrot=jss
-            goto 200
-         endif
-      endif
-   enddo
-! create TPfun symbols with name symbol and value value
-   lrot=freetpfun
-   if(lrot.eq.0) then
-      gx%bmperr=4104; goto 1000
-   else
-      freetpfun=tpfuns(lrot)%nextfree
-      tpfuns(lrot)%nextfree=0
-   endif
-   allocate(tpfuns(lrot)%limits(1))
-   allocate(tpfuns(lrot)%funlinks(1))
-   call capson(symbol)
-   tpfuns(lrot)%symbol=symbol
-! mark this is a single value
-   tpfuns(lrot)%status=ibset(tpfuns(lrot)%status,TPCONST)
-200 continue
-   tpfuns(lrot)%limits(1)=value
-1000 continue
-   return
- end subroutine enter_tpconstant
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\begin{verbatim}
- subroutine change_optcoeff(lrot,value)
-! change value of optimizing coefficient.  lrot is index
-   implicit none
-   integer lrot
-   double precision value
-!\end{verbatim}
-   if(lrot.le.0 .or. lrot.ge.freetpfun-1) then
-      write(*,*)'Attempt to change non-existing constant',lrot
-      gx%bmperr=7777; goto 1000
-   endif
-   if(.not.btest(tpfuns(lrot)%status,TPOPTCON)) then
-      write(*,*)'Attempt to change non-existing coefficent',lrot
-      gx%bmperr=7777; goto 1000
-   endif
-   tpfuns(lrot)%limits(1)=value
-1000 continue
-   return
- end subroutine change_optcoeff
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\begin{verbatim}
- subroutine get_value_of_constant_name(symbol,lrot,value)
-! get value (and index) of a TP constant.  lrot is index
-   implicit none
-   integer lrot
-   character symbol*(*)
-   double precision value
-!\end{verbatim}
-   write(*,*)'get_value_of_constant_name not implemented yet'
-!   value=tpfuns(lrot)%limits(1)
-1000 continue
-   return
- end subroutine get_value_of_constant_name
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\begin{verbatim}
- subroutine get_value_of_constant_index(lrot,value)
-! get value of a TP constant at known lrot
-   implicit none
-   integer lrot
-   double precision value
-!\end{verbatim}
-   if(lrot.le.0 .or. lrot.gt.freetpfun-1) then
-      write(kou,*)'Constant index outside limits',lrot
-   else
-! unifished: check if it is really a constant ...
-      value=tpfuns(lrot)%limits(1)
-   endif
-1000 continue
-   return
- end subroutine get_value_of_constant_index
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\begin{verbatim}
- subroutine get_all_opt_coeff(values)
-! get values of all optimizing coefficients
-   implicit none
-   double precision values(*)
-!\end{verbatim}
-1000 continue
-   return
- end subroutine get_all_opt_coeff
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\begin{verbatim}
- subroutine delete_all_tpfuns
-! delete all TPFUNs.  No error if some are already deleted ...   
-! note: tpres is deallocated when deleting equilibrium record
-!\end{verbatim}
-   implicit none
-   integer lrot,nrex
-   TYPE(tpfun_expression), pointer :: expr
-!   write(*,*)'In delete_all_tpfuns'
-   deallocate(tpfuns)
-   goto 1000
-! code below skipped as it created a lot of memory errors ...
-   if(tpfun_expression_version.ne.1 .or. tpfun_root_version.ne.1 .or. &
-        tpfun_parres_version.ne.1) then
-      write(*,*)'Data structure error when deleting tpfuns',&
-           tpfun_expression_version,tpfun_root_version,&
-           tpfun_parres_version
-      gx%bmperr=7777; goto 1000
-   endif
-   funloop: do lrot=1,freetpfun-1
-      write(*,*)'TP Deleting TP function: ',lrot
-!      if(tpfuns(lrot)%noofranges.eq.0) cycle
-      if(tpfuns(lrot)%noofranges.eq.0) goto 200
-      write(*,*)'TP deleting ranges 1-',tpfuns(lrot)%noofranges
-      range: do nrex=1,tpfuns(lrot)%noofranges
-         expr=>tpfuns(lrot)%funlinks(nrex)
-         if(associated(expr)) then
-            deallocate(expr%coeffs)
-            deallocate(expr%tpow)
-            deallocate(expr%ppow)
-            deallocate(expr%wpow)
-            deallocate(expr%plevel)
-            deallocate(expr%link)
-            deallocate(expr)
-         else
-            write(*,*)'TP delete; no expression? ',lrot,nrex
-         endif
-      enddo range
-200   continue
-      write(*,*)'TP deleting limits ',size(tpfuns(lrot)%limits)
-      deallocate(tpfuns(lrot)%limits)
-      write(*,*)'TP deleting funlinks ',size(tpfuns(lrot)%funlinks)
-      deallocate(tpfuns(lrot)%funlinks)
-   enddo funloop
-   write(*,*)'TP finally deleting roots'
-   deallocate(tpfuns)
-1000 continue
-   return
- end subroutine delete_all_tpfuns
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
 ! END MODULE TPFUNLIB
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-!>      20. Subrotines used by applications
+!>      20. Subroutines used by applications
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}

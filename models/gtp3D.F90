@@ -143,7 +143,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim}
+!\begin{verbatim} %-
  subroutine ask_phase_new_constitution(cline,last,iph,ics,lokcs,ceq)
 ! interactive input of a constitution of phase iph
    implicit none
@@ -838,7 +838,7 @@
    character cline*(*)
    TYPE(gtp_equilibrium_data), pointer :: ceq
    TYPE(gtp_condition), pointer :: new
-!\end{verbatim}
+!\end{verbatim} %+
    integer nterm,kolon,iqz,krp,jp,istv,iref,iunit,jstv,jref,junit,jl,ks
    integer linkix,norem,ics,kstv,iph,nidfirst,nidlast,nidpre,qp
    character stvexp*80,stvrest*80,textval*32,c5*5
@@ -1410,7 +1410,7 @@
    integer symsym,experimenttype
    type(gtp_condition), pointer :: temp
 ! NOTE: temp must have been set to ceq%lastcondition before calling this
-!\end{verbatim} %+
+!\end{verbatim}
 ! pcond: pointer, to a gtp_condition record for this equilibrium
    type(gtp_condition), pointer :: pcond,last
    if(.not.associated(temp)) goto 900
@@ -1433,7 +1433,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
-!\begin{verbatim} %-
+!\begin{verbatim}
  subroutine get_condition(nterm,svr,pcond)
 ! finds a condition record with the given state variable expression
 ! If nterm<0 svr is irrelevant, the absolute value of nterm is the sequential

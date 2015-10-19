@@ -401,87 +401,6 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! last used error codes above
 !
 !=================================================================
-! VARIABLES and STRUCTURES originally in TPFUN
-! length of a function symbol
-  integer, parameter :: lenfnsym=16
-  integer, private :: freetpfun
-  double precision, parameter :: zero=0.0D0,one=1.0D0
-!
-!\begin{verbatim}
-  TYPE gtp_parerr
-! This record contains the global error code.  In parallell processing each
-! parallell processes has its own error code copied to this if nonzero
-! it should be replaced by gtperr for separate errors in treads
-     INTEGER :: bmperr
-  END TYPE gtp_parerr
-  TYPE(gtp_parerr) :: gx
-! needed to have error code as private in threads
-!$OMP  threadprivate(gx)
-!\end{verbatim}
-!-----------------------------------------------------------------
-!\begin{verbatim}
-  integer, parameter :: tpfun_expression_version=1
-  TYPE tpfun_expression
-! Coefficients, T and P powers, unary functions and links to other functions
-     integer noofcoeffs,nextfrex
-     double precision, dimension(:), pointer :: coeffs
-! each coefficient kan have powers of T and P/V and links to other TPFUNS
-! and be multiplied with a following LOG or EXP term. 
-     integer, dimension(:), pointer :: tpow
-     integer, dimension(:), pointer :: ppow
-     integer, dimension(:), pointer :: wpow
-     integer, dimension(:), pointer :: plevel
-     integer, dimension(:), pointer :: link
-  END TYPE tpfun_expression
-! These records are allocated when needed, not stored in arrays
-!\end{verbatim}
-!-----------------------------------------------------------------
-! BITS in TPFUN
-! TPCONST     set if a constant value
-! TPOPTCON    set if optimizing value
-! TPNOTENT    set if referenced but not entered (when reading TDB files)
-! TPVALUE     set if evaluated only explicitly (keeping its value)
-  integer, parameter :: &
-       TPCONST=0,    TPOPTCON=1,   TPNOTENT=2,    TPVALUE=3
-!-----------------------------------------------------------------
-!\begin{verbatim}
-  integer, parameter :: tpfun_root_version=1
-  TYPE tpfun_root
-! Root of a TP function including name with links to coefficients and codes
-! and results.  Note that during calculations which can be parallellized
-! the results can be different for each parallell process
-     character*(lenfnsym) symbol
-! limits is the low temperature limit for each range
-! funlinks links to expression records for each range
-! each range can have its own function, status indicate if T and P or T and V
-     integer noofranges,nextfree,status
-     double precision, dimension(:), pointer :: limits
-     TYPE(tpfun_expression), dimension(:), pointer :: funlinks
-     double precision hightlimit
-  END TYPE tpfun_root
-! These records are stored in arrays as the actual function is global but each
-! equilibrium has its own result array (tpfun_parres) depending on the local
-! values of T and P/V.  The same indiex is used in the global and local arrays.
-! allocated in init_gtp
-  TYPE(tpfun_root), private, dimension(:), pointer :: tpfuns
-!\end{verbatim}
-
-!-----------------------------------------------------------------
-!\begin{verbatim}
-  integer, parameter :: tpfun_parres_version=1
-  TYPE tpfun_parres
-! Contains a TP results, 6 double for results and 2 doubles for T and P 
-! values used to calculate the results
-! Note that during calculations which can be parallellized the final
-! results can be different for each parallell process
-     double precision, dimension(2) :: tpused
-     double precision, dimension(6) :: results
-  END TYPE tpfun_parres
-! This array is local to the gtp_equilibrium_data record
-! index the same as the function
-!\end{verbatim}
-
-!=================================================================
 !
 ! Bits are numbered 0-31
 !\begin{verbatim}
@@ -526,7 +445,6 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! FACT,  not create comp. sets (NOCS), Helmholz energy model (HELM),
 ! Model without 2nd derivatives (PHNODGDY2), Elastic model A,
 ! explicit charge balance needed (XCB), extra dense grid (XGRID)
-! 
   integer, parameter :: &
        PHHID=0,     PHIMHID=1,  PHID=2,    PHNOCV=3, &     ! 1 2 4 8
        PHHASP=4,    PHFORD=5,   PHBORD=6,  PHSORD=7, &
@@ -545,7 +463,6 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !     specify constituent status)
 ! CSORDER: set if fractions are ordered (only used for BCC/FCC ordering
 !     with a disordered fraction set).
-! CSSTABLE: set if phase is stable after an equilibrium calculation ?? needed
 ! CSABLE: set if phase is stable after an equilibrium calculation ?? needed
 ! CSAUTO set if composition set created during calculations
 ! CSDEFCON set if there is a default constitution
@@ -567,7 +484,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !-Bits in state variable functions (svflista)
 ! SVFVAL symbol evaluated only explicitly (mode=1 in call)
 ! SVFEXT symbol external ???
-! SVCONST symbol is a constant (can be changed)
+! SVCONST symbol is a constant (can be changed with AMEND)
    integer, parameter :: &
         SVFVAL=0, SVFEXT=1, SVCONST=2
 !----------------------------------------------------------------
@@ -672,7 +589,93 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !
 ! below here are data structures and global data in this module
 !
+! First those belonging to the TPFUN package
+!
 !=================================================================
+! VARIABLES and STRUCTURES originally in TPFUN
+! length of a function symbol
+  integer, parameter :: lenfnsym=16
+  integer, private :: freetpfun
+  double precision, parameter :: zero=0.0D0,one=1.0D0
+!
+!\begin{verbatim}
+  TYPE gtp_parerr
+! This record contains the global error code.  In parallell processing each
+! parallell processes has its own error code copied to this if nonzero
+! it should be replaced by gtperr for separate errors in treads
+     INTEGER :: bmperr
+  END TYPE gtp_parerr
+  TYPE(gtp_parerr) :: gx
+! needed to have error code as private in threads
+!$OMP  threadprivate(gx)
+!\end{verbatim}
+!-----------------------------------------------------------------
+!\begin{verbatim}
+  integer, parameter :: tpfun_expression_version=1
+  TYPE tpfun_expression
+! Coefficients, T and P powers, unary functions and links to other functions
+     integer noofcoeffs,nextfrex
+     double precision, dimension(:), pointer :: coeffs
+! each coefficient kan have powers of T and P/V and links to other TPFUNS
+! and be multiplied with a following LOG or EXP term. 
+     integer, dimension(:), pointer :: tpow
+     integer, dimension(:), pointer :: ppow
+     integer, dimension(:), pointer :: wpow
+     integer, dimension(:), pointer :: plevel
+     integer, dimension(:), pointer :: link
+  END TYPE tpfun_expression
+! These records are allocated when needed, not stored in arrays
+!\end{verbatim}
+!-----------------------------------------------------------------
+!\begin{verbatim}
+! BITS in TPFUN
+! TPCONST     set if a constant value
+! TPOPTCON    set if optimizing value
+! TPNOTENT    set if referenced but not entered (when reading TDB files)
+! TPVALUE     set if evaluated only explicitly (keeping its value)
+  integer, parameter :: &
+       TPCONST=0,    TPOPTCON=1,   TPNOTENT=2,    TPVALUE=3
+!\end{verbatim}
+!-----------------------------------------------------------------
+!\begin{verbatim}
+  integer, parameter :: tpfun_root_version=1
+  TYPE tpfun_root
+! Root of a TP function including name with links to coefficients and codes
+! and results.  Note that during calculations which can be parallellized
+! the results can be different for each parallell process
+     character*(lenfnsym) symbol
+! limits are the low temperature limit for each range
+! funlinks links to expression records for each range
+! each range can have its own function, status indicate if T and P or T and V
+     integer noofranges,nextfree,status
+     double precision, dimension(:), pointer :: limits
+     TYPE(tpfun_expression), dimension(:), pointer :: funlinks
+     double precision hightlimit
+  END TYPE tpfun_root
+! These records are stored in arrays as the actual function is global but each
+! equilibrium has its own result array (tpfun_parres) depending on the local
+! values of T and P/V.  The same indiex is used in the global and local arrays.
+! allocated in init_gtp
+  TYPE(tpfun_root), private, dimension(:), pointer :: tpfuns
+!\end{verbatim}
+
+!-----------------------------------------------------------------
+!\begin{verbatim}
+  integer, parameter :: tpfun_parres_version=1
+  TYPE tpfun_parres
+! Contains a TP results, 6 double for results and 2 doubles for T and P 
+! values used to calculate the results
+! Note that during calculations which can be parallellized the final
+! results can be different for each parallell process
+     double precision, dimension(2) :: tpused
+     double precision, dimension(6) :: results
+  END TYPE tpfun_parres
+! This array is local to the gtp_equilibrium_data record
+! index the same as the function
+!\end{verbatim}
+!
+! =============================== end of TPFUN data structures
+!
 !\begin{verbatim}
   TYPE gtp_global_data
 ! status should contain bits how advanced the user is and other defaults
@@ -1108,7 +1111,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !   (like @P, @C and @S
 ! status: can be used for various things
 ! status bit SVFVAL=0 means value evaluated only when called with mode=1
-! SVCONST bit if symbol is just a constant value (linknode is zero)
+! SVCONST bit set if symbol is just a constant value (linknode is zero)
 ! eqnoval: used to specify the equilibrium the value should be taken from
 !    (for handling what is called "variables" in TC)
 ! name: name of symbol
@@ -1305,7 +1308,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! This is to store additional things not really invented yet ...
 ! It may be used in ENTER MANY_EQUIL for things to calculate and list
      character (len=80), dimension(:), allocatable :: eqextra
-! this is to save a copy of the last calculated system matrix, needed
+! this is to save a copy of the last calculated system matrix, needed ??
 ! to calculate dot derivatives, initiate to zero
      integer :: sysmatdim=0,nfixmu=0,nfixph=0
      integer, allocatable :: fixmu(:)
