@@ -322,7 +322,8 @@ CONTAINS
              write(*,*)'Degrees of freedom not zero',gx%bmperr
              goto 1000
           endif
-          write(*,*)' *** Warning, conditions prevent using gridminimizer'
+          if(.not.btest(meqrec%status,QUIET)) &
+               write(*,*)' *** Warning, conditions prevent using gridminimizer'
           gx%bmperr=0
           gridtest=.true.
           meqrec%typesofcond=2
@@ -5324,7 +5325,8 @@ CONTAINS
 ! 2. calculate all differences, skipping equilibria with weight zero
 ! the array firstash%eqlista contain pointers to equilibria with experiments
     if(.not.allocated(firstash%eqlista)) then
-       write(kou,*)' *** Warning: no experimental data!'
+!       if(.not.btest(meqrec%status,QUIET)) &
+            write(kou,*)' *** Warning: no experimental data!'
        do i1=1,nexp
           f(i1)=zero
        enddo

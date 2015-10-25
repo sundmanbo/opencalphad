@@ -1,7 +1,7 @@
 @$ running more test macros
 set echo
 
-@$ Resuming the test macros
+@$ Resuming the test macros from parallel2
 
 @$ *********************************************************
 @$ enter a table with many equilibria and calculate all

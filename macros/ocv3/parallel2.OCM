@@ -453,7 +453,7 @@ l eq
 
 @&
 @$ Set range so they can be calculated by the "calculate all" command
-set range 2 400
+set range 2 401
 
 @&
 @$ Calculate once with gridminimizer, we may create composition sets

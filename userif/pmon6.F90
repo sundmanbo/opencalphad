@@ -110,7 +110,7 @@ contains
 ! temporary integer variables in loops etc
     integer i1,i2,j1,iax
 ! more temporary integers
-    integer jp,kl,svss,language,last
+    integer jp,kl,svss,language,last,leak
 ! and more temporary integers
     integer ll,lokcs,lokph,lokres,loksp,lrot,maxax
 ! and more temporary integers
@@ -901,11 +901,12 @@ contains
 ! mode=0 is without grid minimizer 
              mode=1
              if(ch1.eq.'N' .or. ch1.eq.'n') mode=0
+! Seach for memory leaks
+             call gparid('How many times? ',cline,last,leak,1,q1help)
 ! allow output file
              lut=optionsset%lut
              jp=0
              i2=0
-!
 ! if compiled with parallel and gridminimizser set then calculate
 ! sequentially to create composition sets
 ! TEST THIS IN PARALLEL !!!
@@ -918,6 +919,9 @@ contains
 ! YOU MUST USE THE SWICH -fopenmp FOR COMPILATION AND WHEN LINKING
 !<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 !             gridmin: if(mode.eq.1) then
+!
+! return here until leak is zero, a negative leak will never stop
+2060         continue
              gridmin: if(mode.eq.1 .or. &
                   btest(globaldata%status,GSNOPAR)) then
 ! if we use grid minimizer do not use parallel even if compiled with OpenMP
@@ -1006,6 +1010,10 @@ contains
 !$             globaldata%status=ibclr(globaldata%status,GSNOACS)
 !$             globaldata%status=ibclr(globaldata%status,GSNOREMCS)
              endif gridmin
+! repeat this until leak is zero, if leak negative never stop.
+             leak=leak-1
+             if(leak.ne.0) goto 2060
+!
 ! extra symbol calculations ....
              call system_clock(count=ll)
              call cpu_time(xxy)
