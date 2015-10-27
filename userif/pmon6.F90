@@ -145,6 +145,7 @@ contains
 ! for state variables as conditions
     integer istv
     double precision coeffs(10)
+    TYPE(gtp_state_variable), target :: stvrvar
     TYPE(gtp_state_variable), pointer :: stvr
 !    TYPE(gtp_state_variable), dimension(10) :: stvarr
     TYPE(gtp_condition), pointer :: pcond,firstc
@@ -1563,8 +1564,7 @@ contains
              else ! a condition given as text
 ! check if axis variable is a condition, maybe create it if allowed
 !                write(*,*)'decoding axis condition: ',text(1:20)
-!                call decode_state_variable2(text,istv,indices,iref,unit,&
-!                     stvr,ceq)
+                stvr=>stvrvar
                 call decode_state_variable(text,stvr,ceq)
                 if(gx%bmperr.ne.0) goto 990
 !                write(*,*)'check if this state variable is a condition'

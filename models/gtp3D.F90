@@ -817,6 +817,7 @@
    type(gtp_condition), pointer :: new
    call set_cond_or_exp(cline,ip,new,0,ceq)
 1000 continue
+   nullify(new)
  end subroutine set_condition
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
@@ -847,6 +848,8 @@
    integer ich,back,condvalsym,symsym
    double precision coeffs(10),xxx,value,ccc
    logical inactivate
+! memory leak
+   type(gtp_state_variable), target :: svrvar
    type(gtp_state_variable), pointer :: svr,svr2
    type(gtp_state_variable), dimension(10), target :: svrarr
    TYPE(gtp_condition), pointer :: temp
@@ -939,6 +942,8 @@
    svtext=stvexp(1:ip-1)
    symsym=0
 !   write(*,*)'3D calling decode with: ',ip,': ',svtext(1:ip)
+! memory leak
+   svr=>svrvar
    call decode_state_variable(svtext,svr,ceq)
    if(gx%bmperr.ne.0) then
 ! Experiments can be symbols

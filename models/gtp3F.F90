@@ -15,9 +15,13 @@
    double precision value
 !\end{verbatim} %+
    integer lokcs,ics,ip
+!   type(gtp_state_variable), pointer :: svr
+   type(gtp_state_variable), target :: svrvar
    type(gtp_state_variable), pointer :: svr
    character modstatevar*28
 !
+! memory leak fix
+   svr=>svrvar
    call decode_state_variable(statevar,svr,ceq)
    if(gx%bmperr.ne.0) goto 1000
 ! check if state variable inclused a phase
@@ -76,11 +80,14 @@
 !\end{verbatim}
 !   integer indices(4)
    integer iunit,ip,lrot,mode
+! memory leak
+   type(gtp_state_variable), target :: svrvar
    type(gtp_state_variable), pointer :: svr
    character actual_arg(2)*16,name*16
 !
 !   write(*,*)'3F In state_variable_value: ',statevar
    iunit=0
+   svr=>svrvar
    call decode_state_variable(statevar,svr,ceq)
 !   write(*,20)statevar(1:len_trim(statevar)),svr%oldstv,svr%norm,&
 !        svr%argtyp,svr%component
@@ -151,6 +158,8 @@
    integer indices(4),modind(4)
    double precision xnan,xxx
    integer jj,lokph,lokcs,k1,k2,k3,iref,jl,iunit,istv,enpos
+! memory leak
+   type(gtp_state_variable), target :: svrvar
    type(gtp_state_variable), pointer :: svr
 !   logical phtupord
 ! calculate the NaN bit pattern
@@ -171,6 +180,7 @@
 !   endif
 ! called from minimizer for testing
 !   write(*,*)'gmv 1: ',statevar(1:20)
+   svr=>svrvar
    call decode_state_variable(statevar,svr,ceq)
    if(gx%bmperr.ne.0) then
       write(*,*)'3F Failed decode statevar in get_many_svar',gx%bmperr
@@ -549,7 +559,8 @@
    if(deblist) write(*,*)'3F entering decode_statevariable: ',&
         statevar(1:len_trim(statevar))
 !   write(*,*)'3F svr allocated'
-   allocate(svr)
+! memory leak
+!   allocate(svr)
 !   write(*,*)'3F svr assignment start'
    svr%oldstv=0
    svr%norm=0
@@ -2642,6 +2653,8 @@
    character name2*16,pfsym(npfs)*60,string*128,pfsymdenom*60
 !   integer istv(npfs),indstv(4,npfs),iref(npfs),iunit(npfs),lokv(npfs)
    integer iarr(10,npfs),lokv(npfs)
+! memory leak
+   type(gtp_state_variable), target :: svrvar
    type(gtp_state_variable), pointer :: svr
    type(putfun_node), pointer :: lrot,datanod
 !    
@@ -2680,6 +2693,7 @@
 ! identify symbols as state variables, if derivative there is a dot
    iarr=0
    jt=0
+   svr=>svrvar
    do js=1,nsymb
       kdot=index(pfsym(js),'.')
       if(kdot.gt.0) then
