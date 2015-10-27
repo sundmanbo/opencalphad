@@ -168,8 +168,10 @@ l eq
 set range 2 22
 
 @&
+@$ Calculate all without gridmin
 
-c a
+c a N 1
+
 
 set inter
 

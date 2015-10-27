@@ -59,6 +59,8 @@
    endif
    call get_state_var_value(modstatevar,value,encoded,ceq)
 1000 continue
+! possible memory leak
+   nullify(svr)
    return
  end subroutine get_stable_state_var_value
 
@@ -122,6 +124,8 @@
       endif
    endif
 1000 continue
+! possible memory leak
+   nullify(svr)
    return
  end subroutine get_state_var_value
 
@@ -167,7 +171,6 @@
 !   endif
 ! called from minimizer for testing
 !   write(*,*)'gmv 1: ',statevar(1:20)
-!   call decode_state_variable(statevar,istv,indices,iref,iunit,svr,ceq)
    call decode_state_variable(statevar,svr,ceq)
    if(gx%bmperr.ne.0) then
       write(*,*)'3F Failed decode statevar in get_many_svar',gx%bmperr
@@ -446,6 +449,8 @@
       gx%bmperr=7777; goto 1000
    endif
 1000 continue
+! possible memory leak
+   nullify(svr)
    kjj=jj
    return
 1100 continue
@@ -1014,7 +1019,7 @@
 ! No such component
 1170 continue
    gx%bmperr=4106; goto 1000
- end subroutine decode_state_variable3
+ end subroutine decode_state_variable3 !allocate
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -2763,6 +2768,8 @@
       endif
    endif
 1000 continue
+! possible memory leak
+   nullify(svr)
    return
  end subroutine enter_svfun
 

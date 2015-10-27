@@ -165,6 +165,7 @@
    do ifri=1,nf-1
       tpfuns(ifri)%nextfree=ifri+1
       tpfuns(ifri)%noofranges=0
+      tpfuns(ifri)%status=0
    enddo
    tpfuns(nf)%nextfree=-1
    return

@@ -3543,6 +3543,7 @@
    character name*(*)
    integer number
 !\end{verbatim}
+! allocate
    TYPE(gtp_phase_varres), pointer :: cpv,cp1
    character name2*64
    integer ieq,ipv,nc,jz,iz,jl,jk,novarres
@@ -3640,15 +3641,14 @@
 ! For phase lokph the index to phase_varres is in phlista(lokph)%cslink
 ! For phase lokph the index to phase_varres is in phlista(lokph)%linktocs(ics)
    if(ocv()) write(*,*)'3B: entereq 2: ',maxph
-   if(ieq.eq.1) then
+   alleq: if(ieq.eq.1) then
 ! %multiuse is used for axis and direction of a start equilibrium
       allocate(eqlista(ieq)%phase_varres(2*maxph))
       firsteq=>eqlista(ieq)
       firsteq%multiuse=0
-      goto 900
+! endif is at label 900, no need for goto
+!      goto 900
    else
-! for ieq>1 allocate the current number of phase_varres records plus 10
-! for extra composition sets added later
       eqlista(ieq)%multiuse=0
 ! UNFINISHED vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 ! this is not good, csfree is not the last used phase_varres
@@ -3661,6 +3661,8 @@
       novarres=csfree-1
       iz=noofph
 !^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+! for ieq>1 allocate the current number of phase_varres records plus 10
+! for extra composition sets added later
 !      allocate(eqlista(ieq)%phase_varres(iz+10))
       allocate(eqlista(ieq)%phase_varres(2*maxph))
 !      write(*,*)'3B enter_eq 2B, after this segmentation fault'
@@ -3754,7 +3756,7 @@
 !         endif disordered
       enddo copypv
 !      write(*,*)'3B enter_eq 2E, after this segmentation fault'
-   endif
+   endif alleq
 ! From here also for first equilibria
 900 continue
 !   write(*,*)'3B enter_eq 3'
@@ -3781,7 +3783,7 @@
 1000 continue
    if(ocv()) write(*,*)'3B finished enter equilibrium',ieq
    return
- end subroutine enter_equilibrium
+ end subroutine enter_equilibrium !allocate
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 

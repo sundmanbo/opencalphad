@@ -1398,8 +1398,13 @@
    ceq%status=ibset(ceq%status,EQINCON)
 1000 continue
 !   write(*,*)'exit set_condition, T= ',ceq%tpval(1)
+! possible memory leaks
+   nullify(svr)
+   nullify(svr2)
+!   nullify(svrarr)
+   nullify(temp)
    return
- end subroutine set_cond_or_exp
+ end subroutine set_cond_or_exp !svr
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
@@ -2114,7 +2119,6 @@ end subroutine get_condition
       goto 1000
    endif
 ! this return the internal code for N
-!   call decode_state_variable('N ',istv,indices,iref,iunit,svr,ceq)
    call decode_state_variable('N ',svr,ceq)
    if(gx%bmperr.ne.0) then
       write(*,*)'Error decoding N in set_input_amounts'
@@ -2190,6 +2194,8 @@ end subroutine get_condition
    if(.not.eolch(cline,lpos)) goto 100
 !
 1000 continue
+! possible memory leaks.  Maybe also current, last
+   nullify(svr)
    return
  end subroutine set_input_amounts
 
