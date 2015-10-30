@@ -26,7 +26,7 @@ smp1.o:		stepmapplot/smp1.F90
 	gfortran -c -finit-local-zero stepmapplot/smp1.F90
 
 pmon6.o:	userif/pmon6.F90
-	gfortran -c -finit-local-zero userif/pmon6.F90
+	gfortran -c -fopenmp -finit-local-zero userif/pmon6.F90
 
  
 
