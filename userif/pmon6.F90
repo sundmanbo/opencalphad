@@ -948,6 +948,7 @@ contains
                       endif
                    endif
 ! extra symbol calculations ....
+!                   write(*,*)'Listing extra'
                    call list_equilibrium_extra(lut,neweq)
                    if(gx%bmperr.ne.0) then
                       write(kou,*)'Error ',gx%bmperr,' reset'
@@ -999,6 +1000,7 @@ contains
                               neweq%tpval(1)
                       endif
                    endif
+!                   write(*,*)'Listing extra'
                    call list_equilibrium_extra(lut,neweq)
                    if(gx%bmperr.ne.0) then
                       write(kou,*)'*** Error ',gx%bmperr,' reset'
@@ -1013,9 +1015,14 @@ contains
              endif gridmin
 ! repeat this until leak is zero, if leak negative never stop.
              leak=leak-1
-             if(leak.ne.0) goto 2060
+             if(leak.ne.0) then
+                call system_clock(count=ll)
+                xxy=ll-j1; xxy=xxy/i2
+                write(*,669)i2,ll-j1,xxy
+669             format(/' *** Number of equlibria calculated ',2i10,F8.3/)
+                goto 2060
+             endif
 !
-! extra symbol calculations ....
              call system_clock(count=ll)
              call cpu_time(xxy)
              write(kou,664)i2,jp,xxy-xxx,ll-j1
@@ -2379,13 +2386,21 @@ contains
           enddo
 ! list experiments if any
           if(associated(ceq%lastexperiment)) then
-             write(*,491)ceq%weight
+             write(lut,491)ceq%weight
 491          format(/'Weight ',F6.2)
 ! list all experiments ........................................
              call list_experiments(lut,ceq)
              write(*,*)
 !          else
 !             write(*,*)'No experiments found'
+          endif
+! list if anyting should be calculated or listed separately
+          if(allocated(ceq%eqextra)) then
+             write(lut,492)ceq%eqextra(1)(1:len_trim(ceq%eqextra(1))),&
+                  ceq%eqextra(2)(1:len_trim(ceq%eqextra(2)))
+492          format('Calculate: ',a/'List: ',a)
+          else
+             write(*,*)'No extra lines'
           endif
 ! make sure phases with positive DGM listed
           call list_phases_with_positive_dgm(mode,lut,ceq)

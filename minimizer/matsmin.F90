@@ -199,6 +199,8 @@ CONTAINS
        write(*,1020)gx%bmperr
 1020   format('Error return from equilibrium calculation ',i5)
     endif
+! memory leak 2
+    deallocate(meqrec)
     return
   end subroutine calceq2
 
@@ -246,6 +248,8 @@ CONTAINS
        write(*,1020)gx%bmperr
 1020   format('Error return from equilibrium calculation ',i5)
     endif
+! memory leak 2
+    deallocate(meqrec)
     return
   end subroutine calceq3
 
@@ -5436,12 +5440,16 @@ CONTAINS
    tval=' '
    symbol=' '
    extra: if(allocated(ceq%eqextra)) then
-      calcs: if(ceq%eqextra(1)(1:1).ne.' ') then
+      ip=1
+      if(eolch(ceq%eqextra(1),ip)) goto 190
+!      write(*,*)'calc "',ceq%eqextra(1)(ip:len_trim(ceq%eqextra(1))),'"',lut
+      calcs: if(ceq%eqextra(1)(ip:ip).ne.' ') then
 ! this line contains symbols to be calculated
-!         write(*,*)'MM calc extra: ',ceq%eqextra(1)(1:30)
-         ip=0
+!         write(*,*)'MM calc extra: ',ceq%eqextra(1)(1:len_trim(ceq%eqextra(1)))
+         ip=ip-1
 100      continue
 ! Third argument 2 means terminate at a space, not at a comma ","
+! because some symbols may contain a comma
          call getext(ceq%eqextra(1),ip,2,tval,' ',slen)
          if(tval(1:1).ne.' ') then
 ! This is for a symbol that is not a dot derivative ...
@@ -5467,14 +5475,20 @@ CONTAINS
 110            format(3x,a,'=',1pe16.8)
             endif
             goto 100
+!         else
+!            write(*,*)'Found a space at position',ip
          endif
       endif calcs
-      lists: if(ceq%eqextra(2)(1:1).ne.' ') then
+190   continue
+      ip=1
+      if(eolch(ceq%eqextra(2),ip)) goto 290
+      lists: if(ceq%eqextra(2)(ip:ip).ne.' ') then
 ! this line contains state variables and related things to be listed
 !         write(*,*)'MM list extra: ',ceq%eqextra(2)(1:30)
-         ip=0
+         ip=ip-1
 200      continue
 ! Third argument 2 means terminate at a space, not at a comma ","
+! because some symbols contains a comma.
          call getext(ceq%eqextra(2),ip,2,tval,' ',slen)
 !         write(*,*)'MM variable: ',tval,slen
          if(tval(1:1).ne.' ') then
@@ -5496,7 +5510,10 @@ CONTAINS
             goto 200
          endif
       endif lists
+!   else
+!      write(*,*)'No extra lines found'
    endif extra
+290 continue
 1000 continue
  end subroutine list_equilibrium_extra
 
