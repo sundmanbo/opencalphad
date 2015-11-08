@@ -2390,17 +2390,17 @@ contains
 491          format(/'Weight ',F6.2)
 ! list all experiments ........................................
              call list_experiments(lut,ceq)
-             write(*,*)
+             write(lut,*)
 !          else
 !             write(*,*)'No experiments found'
           endif
-! list if anyting should be calculated or listed separately
+! list if anyting should be calculated or listed separately (not their values)
           if(allocated(ceq%eqextra)) then
              write(lut,492)ceq%eqextra(1)(1:len_trim(ceq%eqextra(1))),&
                   ceq%eqextra(2)(1:len_trim(ceq%eqextra(2)))
 492          format('Calculate: ',a/'List: ',a)
-          else
-             write(*,*)'No extra lines'
+!          else
+!             write(*,*)'No extra lines'
           endif
 ! make sure phases with positive DGM listed
           call list_phases_with_positive_dgm(mode,lut,ceq)

@@ -76,6 +76,7 @@ module liboctq
 ! This is for storage and use of components
   integer nel
   character, dimension(maxc) :: cnam*24
+  double precision cmass(maxc)
 ! This is for storage and use of phase+composition tuples
   integer ntup
   type(gtp_phasetuple), dimension(maxp) :: phcs
@@ -98,7 +99,7 @@ contains
     ceq=>firsteq
 	if(allocated(firstash%eqlista)) deallocate(firstash%eqlista)
 
-    write(*,*)'tqini created: ',ceq%eqname
+!    write(*,*)'tqini created: ',ceq%eqname
 1000 continue
     return
   end subroutine tqini
@@ -115,15 +116,17 @@ contains
 !\end{verbatim}
     integer iz
     character elname*2,name*24,refs*24
-    double precision a1,a2,a3
+    double precision mass,h298,s298
 ! second argument 0 means ellista is ignored, all element read
     call readtdb(filename,0,ellista)
 !    ceq=>firsteq
     nel=noel()
     do iz=1,nel
 ! store element name in module array components
-       call get_element_data(iz,elname,name,refs,a1,a2,a3)
+       call get_element_data(iz,elname,name,refs,mass,h298,s298)
        cnam(iz)=elname
+	   cmass(iz)=mass
+	   write(*,*) iz,mass
     enddo
 ! store phase tuples and indices
     ntup=get_phtuplearray(phcs)
@@ -144,7 +147,7 @@ contains
 !\end{verbatim}
     integer iz
     character elname*2,name*24,refs*24
-    double precision a1,a2,a3
+     double precision mass,h298,s298
 !
     call readtdb(filename,nsel,selel)
     if(gx%bmperr.ne.0) goto 1000
@@ -153,8 +156,9 @@ contains
     nel=noel()
     do iz=1,nel
 ! store element name in module array components
-       call get_element_data(iz,elname,name,refs,a1,a2,a3)
+       call get_element_data(iz,elname,name,refs,mass,h298,s298)
        cnam(iz)=elname
+	   cmass(iz)=mass
     enddo
 ! store phase tuples and indices
     ntup=get_phtuplearray(phcs)
@@ -376,7 +380,7 @@ contains
 !\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
   
 !\begin{verbatim}
-  subroutine tqsetc(stavar,n1,n2,value,cnum,ceq)
+  subroutine tqsetc(stavar,n1,n2,myvalue,cnum,ceq)
 ! set condition
 ! stavar is state variable as text
 ! n1 and n2 are auxilliary indices
@@ -390,7 +394,7 @@ contains
     integer n2             ! IN: 0 or component number
     integer cnum           ! EXIT: sequential number of this condition
     character stavar*(*)   ! IN: character with state variable symbol
-    double precision value ! IN: value of condition
+    double precision myvalue ! IN: value of condition
     type(gtp_equilibrium_data), pointer :: ceq  ! IN: current equilibrium
 !\end{verbatim}
     integer ip
@@ -407,24 +411,24 @@ contains
        gx%bmperr=8888; goto 1000
 ! Potentials T and P
     case('T   ','P   ')
-       write(cline,110)selvar(1:1),value
+       write(cline,110)selvar(1:1),myvalue
 110    format(' ',a,'=',E15.8)
 ! Total amount or amount of a component in moles
     case('N   ')
        if(n1.gt.0) then
 !          call get_component_name(n1,name,ceq)
 !          if(gx%bmperr.ne.0) goto 1000
-          write(cline,112)selvar(1:1),cnam(n1)(1:len_trim(cnam(n1))),value
+          write(cline,112)selvar(1:1),cnam(n1)(1:len_trim(cnam(n1))),myvalue
 112       format(' ',a,'(',a,')=',E15.8)
        else
-          write(cline,110)selvar(1:1),value
+          write(cline,110)selvar(1:1),myvalue
        endif
 ! Overall fraction of a component 
     case('X   ','W   ')
 ! ?? fraction of phase component not implemented, n1 must be component number
 !       call get_component_name(n1,cnam,ceq)
 !       if(gx%bmperr.ne.0) goto 1000
-       write(cline,120)selvar(1:1),cnam(n1)(1:len_trim(cnam(n1))),value
+       write(cline,120)selvar(1:1),cnam(n1)(1:len_trim(cnam(n1))),myvalue
 120    format(1x,a,'(',a,')=',1pE15.8)
 ! ?? MORE CONDITIONS WILL BE ADDED ...
     end select
@@ -438,14 +442,14 @@ contains
 !\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
 
 !\begin{verbatim}
-  subroutine tqce(target,n1,n2,value,ceq)
+  subroutine tqce(target,n1,n2,myvalue,ceq)
 ! calculate quilibrium with possible target
 ! Target can be empty or a state variable with indices n1 and n2
 ! value is the calculated value of target
     implicit none
     integer n1,n2,mode
     character target*(*)
-    double precision value
+    double precision myvalue
     type(gtp_equilibrium_data), pointer :: ceq  !IN: current equilibrium
 !\end{verbatim}
 ! mode=1 means start values using global gridminimization
@@ -474,7 +478,7 @@ contains
 ! n1 can be a phase tuple index, n2 a component index
 ! n3 at the call is the dimension of the array values, 
 ! changed to number of values on exit
-! value is an array with the calculated value(s), n3 set to number of values.
+! myvalue is an array with the calculated myvalue(s), n3 set to number of values.
     implicit none
     integer n1,n2,n3
     character stavar*(*)
@@ -575,7 +579,7 @@ contains
 !       if(gx%bmperr.ne.0) goto 1000
        statevar=stavar(1:2)//'('//cnam(n1)(1:len_trim(cnam(n1)))//') '
 !       write(*,*)'tqgetv 4: ',statevar(1:len_trim(statevar))
-! we must use index value(1) as the subroutine expect a single variable
+! we must use index myvalue(1) as the subroutine expect a single variable
        call get_state_var_value(statevar,values(1),encoded,ceq)
 !--------------------------------------------------------------------
 ! Amount of moles of components in a phaase
@@ -592,7 +596,7 @@ contains
 ! but here we want them in phase tuple order
 ! the second argument is the number of values for each phase, here is 1 but
 ! it can be for example compositions, then it should be number of components
- ! corrected by CS
+
         call sortinphtup(n3,1,values)
 		    
        else
@@ -811,7 +815,7 @@ contains
        call get_phase_compset(phcs(n1)%phase,phcs(n1)%compset,lokph,lokcs)
        if(gx%bmperr.ne.0) goto 1000
 !       write(*,*)'D2G 2: ',lokph,lokcs
-! this gives wrong value!!
+! this gives wrong myvalue!!
 !       n3=ceq%phase_varres(lokcs)%ncc
        n3=size(ceq%phase_varres(lokcs)%yfr)
 !       write(*,*)'D2G 3: ',n3
@@ -1076,20 +1080,23 @@ contains
 
 !\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
 
-!\begin{verbatim}
-  subroutine reset_condition_T(ceq)
+  
+ !\begin{verbatim} 
+  subroutine reset_conditions(cline,ceq)
 !reset any condition on temperature  
     implicit none
+	character cline*24
     type(gtp_equilibrium_data), pointer :: ceq 
 !\end{verbatim}	
-    character cline*60
+ 
     integer ip
-    cline=' T = none '
-	ip=1
+  
+	ip=0
+!	write(*,*) cline
     call set_condition(cline,ip,ceq)
 1000 continue	
 	return
-  end subroutine reset_condition_T
+  end subroutine reset_conditions
  
 !\begin{verbatim}
   subroutine Change_Status_Phase(myname,nystat,myval,ceq)

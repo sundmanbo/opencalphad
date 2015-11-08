@@ -1,7 +1,7 @@
 //define PARALLEL 0 no loop with parallelization
 //define PARALLEL 1 declared loops with parallelization
 #define PARALLEL 1
-#define NCPU 12
+#define OCVERSION "Open Calphad TQ v3.0 beta"
 #define MAXEL 20
 #define MAXPH 400
 #define PHFIXED 2
@@ -10,6 +10,8 @@
 #define GRID 0
 #define NOGRID -1
 #define TCtoTK 273.15
+#define TAB "\t"
+#define R 8.31451
 
 
 
@@ -23,7 +25,11 @@
 #include <sstream>
 #include <omp.h>
 #include <string> 
-
+#include <fstream>
+#include <ctime>
+#include <algorithm>
+#include<iomanip>
+#include <fstream>
 
 extern"C"
 {
@@ -34,9 +40,9 @@ extern"C"
     //void c_tqgnp(int *, void **);                                             // get total number of phases and composition sets
     void c_tqgpi(int *, char *, void *);                                        // get index of phase phasename
 	void c_tqgpn(int, char *, void *);                                          // get name of phase+compset tuple with index phcsx
-    void c_tqgetv(char *, int, int, int *, double *, void *);                   // get equilibrium results using state variables
-    void c_tqsetc(char *, int, int, double, int *, void *);                     // set condition
-    void c_tqce(char *, int, int, double *, void *);                            // calculate quilibrium with possible target
+    void c_tqgetv(char *, int *, int *, int *, double *, void *);                   // get equilibrium results using state variables
+    void c_tqsetc(char *, int *, int *,const double *, int *, void *);                     // set condition
+    void c_tqce(char *, const int *, int *, double *, void *);                            // calculate quilibrium with possible target
     //void c_tqgnp(int, gtp_equilibrium_data **);                               // get total number of phases and composition sets
     void examine_gtp_equilibrium_data(void *);                                  //
     //void c_getG(int, void *);
@@ -45,8 +51,7 @@ extern"C"
                                                                         void *);
     void c_tqsphc1(int, double *, double *, void *);
     void c_tqcph1(int, int, int *, double *, double *, double *, double *, double *, void *);
-	void c_reset_condition_T( void *);
-	void c_Change_Status_Phase(char *, int,double,void *);
+	void c_Change_Status_Phase(char *, const int *,const double *,void *);
 	void c_List_Conditions(void *);
 	void c_checktdb(char *);
 	void c_newEquilibrium(char *,int *);
@@ -55,6 +60,7 @@ extern"C"
 	void c_set_status_globaldata();
 	int c_errors_number();
 	void c_new_gtp();
+	void c_reset_conditions(char *,void *);
 }
 
 extern"C" int  c_ntup;                                                          //
@@ -63,9 +69,12 @@ extern"C" int  c_maxc;                                                          
 extern"C" char *c_cnam[MAXEL];                                                     // character array with all element names
 extern"C" double c_gval[24];
 extern"C" int c_noofcs(int);
+extern"C" double c_mass[24];
 
 using namespace std;
-void Get_Ceq(const int iceq,void *ceq){
+
+
+void Get_Ceq(const int &iceq,void *ceq){
 	c_selecteq(iceq,ceq);
 	//cout << "-> Adress of ceq-Storage: [" << ceq << "]" <<endl;
 }
@@ -84,8 +93,10 @@ void Initialize(void *ceq)
 
 int Create_New_Ceq_and_Return_ID(const string &Ceq_Name){
 	int ieq;
-	char *filename = strcpy((char*)malloc(Ceq_Name.length()+1), Ceq_Name.c_str());
+	char *buffer=(char*)malloc(Ceq_Name.length()+1);
+	char *filename = strcpy(buffer , Ceq_Name.c_str());
 	c_newEquilibrium(filename,&ieq);
+	free (buffer);
 	return ieq;
 }
 void Get_Ceq_pointer(const int &ieq, void *ceq){
@@ -95,18 +106,22 @@ void Get_Ceq_pointer(const int &ieq, void *ceq){
 
 
 void GetAllElementsFromDatabase(string tdbfilename){
-	 char *filename = strcpy((char*)malloc(tdbfilename.length()+1), tdbfilename.c_str());
+	char *buffer=(char*)malloc(tdbfilename.length()+1);
+	char *filename = strcpy(buffer , tdbfilename.c_str());
 	 c_checktdb(filename);
+	 free (buffer);
+	
 }
 
 void ReadDatabase(string tdbfilename, void *ceq)
 {
-    char *filename = strcpy((char*)malloc(tdbfilename.length()+1), tdbfilename.c_str());
+	char *buffer=(char*)malloc(tdbfilename.length()+1);
+    char *filename = strcpy(buffer, tdbfilename.c_str());
 
     //======================
     c_tqrfil(filename, ceq);
     //======================
-
+	free (buffer);
     /*cout << "-> Element Data: [";
     for(int i = 0; i < c_nel; i++)
     {
@@ -120,17 +135,19 @@ void ReadDatabase(string tdbfilename, void *ceq)
 	*/
 };
 
-void ReadDatabaseLimited(string tdbfilename, vector<string> elnames, void *ceq)
+void ReadDatabaseLimited(string &tdbfilename, vector<string> &elnames, void *ceq)
 {
-    char *filename = strcpy((char*)malloc(tdbfilename.length()+1), tdbfilename.c_str());
+	char *buffer=(char*)malloc(tdbfilename.length()+1);
+    char *filename = strcpy(buffer, tdbfilename.c_str());
     char *selel[elnames.size()];
     for(size_t i = 0; i < elnames.size(); i++)
     {
+		char *buffer=(char*)malloc(elnames[i].length()+1);
         char *tempchar
-             = strcpy((char*)malloc(elnames[i].length()+1), elnames[i].c_str());
+             = strcpy(buffer, elnames[i].c_str());
         selel[i] = tempchar;
     }
-
+	
     //==============================================
     c_tqrpfil(filename, elnames.size(), selel, ceq);
     //==============================================
@@ -147,7 +164,7 @@ void ReadDatabaseLimited(string tdbfilename, vector<string> elnames, void *ceq)
     cout << "]" << " [" << &ceq << "]" <<
     endl;
 */
-
+	free (buffer);
 };
 
 void ReadPhases(vector<string> &phnames, void *ceq)
@@ -167,7 +184,9 @@ void ReadPhases(vector<string> &phnames, void *ceq)
         
 		int index;
 		c_tqgpi(&index,phn,ceq);
-		phnames[index-1]=phn;
+		string myname(phn);
+		transform(myname.begin(), myname.end(), myname.begin(), ::toupper);// to have it in CAPITAL LETTERS
+		phnames[index-1]=myname;
     }
 /*
     cout << "-> Phase Data: [";
@@ -184,14 +203,43 @@ void ReadPhases(vector<string> &phnames, void *ceq)
 */	
 };
 void ResetTemperature(void *ceq){
-	c_reset_condition_T(ceq);
+	string mystring("T=none");
+	char *buffer=(char*)malloc(mystring.length()+1);
+	char *conditions = strcpy(buffer, mystring.c_str());
+	c_reset_conditions(conditions,ceq);
+	free (buffer);
 }
-void Change_Phase_Status(string name,int nystat,double val,void *ceq){
+
+void ResetAllConditionsButPandN(void *ceq, const vector<string> &el_reduced_names,const int &i_ref, const string &compo_unit){
+	{
+		string mystring("T=none");
+		char *buffer=(char*)malloc(mystring.length()+1);
+		char *conditions = strcpy(buffer, mystring.c_str());
+		c_reset_conditions(conditions,ceq);
+		free (buffer);
+	}
+	string mystring="";
+	for (int i=1;i<el_reduced_names.size();i++){
+		if (not (i==i_ref)) {
+			mystring=compo_unit;
+			mystring=mystring+"("+el_reduced_names[i]+")=none";
+			char *buffer=(char*)malloc(mystring.length()+1);
+			char *conditions = strcpy(buffer, mystring.c_str());
+			c_reset_conditions(conditions,ceq);
+			free (buffer);
+		}
+	}
+	
+	
+	
+}
+void Change_Phase_Status(const string &name,const int &nystat,const double &val,void *ceq){
 //nystat=0 :Entered
 //nystat=2 :Fixed
-	char *phasename = strcpy((char*)malloc(name.length()+1), name.c_str());
-	c_Change_Status_Phase(phasename,nystat,val,ceq);
-	
+	char *buffer=(char*)malloc(name.length()+1);
+	char *phasename = strcpy(buffer, name.c_str());
+	c_Change_Status_Phase(phasename,&nystat,&val,ceq);
+	free (buffer);
 }
 void SetTemperature(const double &T, void *ceq)
 {
@@ -202,11 +250,13 @@ void SetTemperature(const double &T, void *ceq)
   //  if (T < 1.0) T = 1.0;
 
     //=========================================
-    c_tqsetc(par, n1, n2, T, &cnum, ceq);
+    c_tqsetc(par, &n1, &n2, &T, &cnum, ceq);
     //=========================================
 
    // cout << "-> Set Temperature to: [" << T << "]" << " [" << &ceq << "]" <<
    // endl;
+   
+  
 };
 
 void SetPressure(const double &P, void *ceq)
@@ -218,14 +268,14 @@ void SetPressure(const double &P, void *ceq)
    // if (P < 1.0) P = 1.0;
 
     //=========================================
-    c_tqsetc(par, n1, n2, P, &cnum, ceq);
+    c_tqsetc(par, &n1, &n2, &P, &cnum, ceq);
     //=========================================
 
 //    cout << "-> Set Pressure to: [" << P << "]" << " [" << &ceq << "]" <<
 //    endl;
 };
 
-void SetMoles(double N, void *ceq)
+void SetMoles(const double &N, void *ceq)
 {
     int cnum;
     int n1 = 0;
@@ -233,7 +283,7 @@ void SetMoles(double N, void *ceq)
     char par[60] = "N";
 
     //=========================================
-    c_tqsetc(par, n1, n2, N, &cnum, ceq);
+    c_tqsetc(par, &n1, &n2, &N, &cnum, ceq);
     //=========================================
 
  //   cout << "-> Set Moles to: [" << N << "]" << " [" << &ceq << "]" <<
@@ -251,14 +301,16 @@ void SetComposition(vector<double>& X, void *ceq, const int &i_ref,string &compo
     char par[60];
     strcpy(par,compo_unit.c_str());
     
-    for (size_t i = 0; i < c_nel; i++)
+    for (int i = 0; i < c_nel; i++)
     {
        if (X[i] < 1.0e-8) X[i] = 1.0e-8;                                       // Check and fix, if composition is below treshold
 
         if(not (i == i_ref))
-        {                                                                       // Set and print composition, if element 'i' is not the reference/(last) element
+        {            
+			int j=i+1;
+			double value= X[i];// Set and print composition, if element 'i' is not the reference/(last) element
             //==================================================
-            c_tqsetc(par, i+1, n2, X[i], &cnum, ceq);
+            c_tqsetc(par, &j, &n2,&value, &cnum, ceq);
             //==================================================
 
  //           cout << "-> Set Composition of " << c_cnam[i] << " to: [" <<
@@ -314,10 +366,10 @@ void SelectSinglePhase(int PhIdx, void *ceq)
 void List_Conditions(void *ceq){
 	c_List_Conditions(ceq);
 }
-void CalculateEquilibrium(void *ceq, int n1, int &i_error)
+void CalculateEquilibrium(void *ceq, const int &n1, int &i_error, const vector < string > &Suspended_phase_list)
 {
 	
-	
+	for (int i=0;i<Suspended_phase_list.size();i++) Change_Phase_Status(Suspended_phase_list[i],PHSUS,0.0,ceq);
 	
 	i_error=0;
     char target[60] = " ";
@@ -335,7 +387,7 @@ void CalculateEquilibrium(void *ceq, int n1, int &i_error)
 		iter+=1;
 		
 		//======================================
-		c_tqce(target, n1, n2, &val, ceq);
+		c_tqce(target, &n1, &n2, &val, ceq);
 		//======================================
 		i_error=c_errors_number();
 	}while((not(i_error==0))and(iter<1));
@@ -414,17 +466,18 @@ void GetGibbsData(int phidx, void *ceq)
     cout << "]" << endl;
 };
 
-void ReadPhaseFractions(vector<string> phnames, vector<double>& phfract,
+void ReadPhaseFractions(const vector<string> &phnames, vector<double>& phfract,
                                                                       void *ceq)
 {
     double npf[MAXPH];
     char statevar[60] = "NP";
+	
     int n1 =  -1;//-1
     int n2 =  0;
     int n3 = MAXPH;//sizeof(npf) / sizeof(npf[0]);
 
     //========================================
-    c_tqgetv(statevar, n1, n2, &n3, npf, ceq);
+    c_tqgetv(statevar, &n1, &n2, &n3, npf, ceq);
     //========================================
 	
     for(int i = 0; i < phnames.size(); i++){
@@ -447,6 +500,25 @@ void ReadPhaseFractions(vector<string> phnames, vector<double>& phfract,
 
     
 };
+void ReadMU(void *ceq, vector < double > &MU)
+{
+    double npf[1];
+    char statevar[60] = "MU";
+   
+	 for (int i = 1; i < c_nel+1; i++)
+    {
+		int n1 = i;
+		int n2 = 0;
+		int n3 = 1;
+		//========================================
+		c_tqgetv(statevar, &n1, &n2, &n3, npf, ceq);
+		//========================================
+
+		
+		MU[i-1]=npf[0];
+		
+	}
+};
 double ReadTemperature(void *ceq)
 {
     double npf[1];
@@ -457,15 +529,15 @@ double ReadTemperature(void *ceq)
 	double TK;
 
     //========================================
-    c_tqgetv(statevar, n1, n2, &n3, npf, ceq);
+    c_tqgetv(statevar, &n1, &n2, &n3, npf, ceq);
     //========================================
 
     
     TK=npf[0];
 	return(TK);
 };
-void ReadConstituentFractions(vector<string> phnames, vector<double> phfract,
-                                     vector< vector<double> > &elfract, void *ceq)
+void ReadConstituentFractions(const vector<string> &phnames, const vector<double> &phfract,
+                                     vector< vector<double> > &elfract, void *ceq, const string &compo_unit)
 {
    
     
@@ -483,15 +555,16 @@ void ReadConstituentFractions(vector<string> phnames, vector<double> phfract,
 				break;
 			}
 		}
-        if (phfract[index] > 1e-10)
+        //if (phfract[index] > 1e-10)
         {
             char statevar[60] =  "X";
+			strcpy(statevar,compo_unit.c_str());
 
             int n2 = -1;                                                        //composition of stable phase n2 = -1 means all fractions
             int n4 = sizeof(pxf)/sizeof(pxf[0]);
 
             //=======================================
-            c_tqgetv(statevar, i, n2, &n4, pxf, ceq);
+            c_tqgetv(statevar, &i, &n2, &n4, pxf, ceq);
             //=======================================
 			
             for (int k = 0; k < n4; k++)
@@ -568,38 +641,64 @@ std::string IntToString ( int number )
 // mode: 1 write only atomic fractions of phases after equilibrium
 // mode: 1 write atomic fractions + compositions of phases after equilibrium
 
-void Write_Results_Equilibrium(const vector<string> &el_reduced_names, const vector<string> &phnames, vector<double> &phfract, 
-						  vector< vector<double> > &elfract, void *ceqh,const int &mode){
+void Write_Results_Equilibrium(ofstream& file, const vector<string> &el_reduced_names, const vector<string> &phnames, vector<double> &phfract, 
+						  vector< vector<double> > &elfract, void *ceqh,const int &mode,const string &compo_unit, vector<double> &MU){
 	
 	//-------------------------------List Results-------------------------------
 	
 	ReadPhaseFractions(phnames, phfract, &ceqh);                                 // Read the amount of stable phases
 	
-	if (mode >1)  ReadConstituentFractions(phnames, phfract, elfract, &ceqh);                  // Read the composition of each stable phase
+	if (mode >1)  ReadConstituentFractions(phnames, phfract, elfract, &ceqh, compo_unit);                  // Read the composition of each stable phase
 	
 	double TC=ReadTemperature(&ceqh)-TCtoTK;
 	
 	cout<<endl;
-	cout<<" ===================================== "<<endl;
-	cout<<"    New Equilibrium at : "<<TC<<" C"<<endl;
-	List_Conditions(&ceqh);
-	cout<<" --------------------------------------- "<<endl;	
+	cout<<" Equilibrium at: "<<TC<<" C fat%";
+	
+	
+	file<<" Equilibrium at: "<<TC<<" C fat%";
+	
+	
 	for (size_t i=0; i<phnames.size(); i++){
 		if (phfract[i]>0){
-			if (mode >1) cout<<" --------------------------------------- "<<endl;
-			cout<<"         "<<phnames[i]<<" fat%= "<<phfract[i]*100<<endl;
-			if (mode >1) {
-				
+			cout<<"  "<<phnames[i]<<"="<<phfract[i]*100;
+			file<<TAB<<phnames[i]<<"="<<TAB<<phfract[i]*100;
+			}
+	}
+	cout<<endl;
+	cout.precision(6);
+	file<<endl;
+	file.precision(6);
+	if (mode >2)  {
+		ReadMU(&ceqh, MU);
+		for (size_t j=0; j<el_reduced_names.size();j++){
+			cout<<setw(10)<<"MU("<<el_reduced_names[j]<<")= "<<MU[j]<<endl;
+			file<<setw(10)<<"MU("<<el_reduced_names[j]<<")= "<<MU[j]<<endl;
+		}
+		
+	}
+	if (mode >1) {
+		for (size_t i=0; i<phnames.size(); i++){
+			if (phfract[i]>0){		
+			
 				cout<<" --------------------------------------- "<<endl;
+				cout<<"            "<<phnames[i]<<endl;
+				cout<<" --------------------------------------- "<<endl;
+				
+				file<<" --------------------------------------- "<<endl;
+				file<<"            "<<phnames[i]<<endl;
+				file<<" --------------------------------------- "<<endl;
 				
 				
 				for (size_t j=0; j<el_reduced_names.size();j++){
-					if (elfract[i][j]>1e-10) cout<<"        "<<el_reduced_names[j]<<" = "<<elfract[i][j]*100<<" (at%)"<<endl;
+					if (elfract[i][j]>1e-10) cout<<"        "<<el_reduced_names[j]<<" = "<<setw(10)<<elfract[i][j]*100<<" ("<<compo_unit<<"%)"<<endl;
+					if (elfract[i][j]>1e-10) file<<TAB<<"        "<<el_reduced_names[j]<<" = "<<TAB<<setw(10)<<elfract[i][j]*100<<TAB<<" ("<<compo_unit<<"%)"<<endl;
 				}
 			}
 			
 		}
 	}
+	file<<endl;
 	
 }
 
@@ -616,7 +715,7 @@ void Write_Results_Equilibrium(const vector<string> &el_reduced_names, const vec
 // iceq=Create_New_Ceq_and_Return_ID(Ceq_Name); iceq is the index in the equilibrium vector eqlista of OC3  
 // Store_Equilibria.push_back(iceq); all the indexes are stored in the vector Store_Equilibria
 // here you scan the temperature and we create a vector of the different temperatures that will be used in the parallel calculation
-void Find_Transitions( const double &TK_start,const int &nstep,const double &step_TK,vector<double> &W, const vector<string> &phnames,vector<double> &Transitions,const vector<string> &el_reduced_names,const bool first_iteration,  const bool last_iteration, vector<int> &Store_Equilibria,vector< string > &Phase_transitions_mixture, void *ceq,const double required_accuracy_on_TK){				  
+void Find_Transitions( const double &TK_start,const int &nstep,const double &step_TK,vector<double> &W, const vector<string> &phnames,vector<double> &Transitions,const vector<string> &el_reduced_names,const bool first_iteration,  const bool last_iteration, vector<int> &Store_Equilibria,vector< string > &Phase_transitions_mixture, void *ceq,const double required_accuracy_on_TK, const vector< string > &Suspended_phase_list){				  
 	
 	int iceq=0;
 	vector<double> phfract;
@@ -647,10 +746,10 @@ void Find_Transitions( const double &TK_start,const int &nstep,const double &ste
  
 	size_t max_number_of_phase=0;
 // the three lines below trigger parallelism for the nex for {....} loop if PARALLEL is not 0
-    omp_set_num_threads(NCPU);
+   
 //	cout<<"number of threads detected:"<<omp_get_num_procs()<<endl;
 #if PARALLEL>0
-#pragma omp parallel for default(none), schedule(dynamic), shared(TKCE,W,Store_Equilibria, el_reduced_names,phnames,phfract,CeqFract)
+#pragma omp parallel for default(none), schedule(dynamic), shared(TKCE,W,Store_Equilibria, el_reduced_names,phnames,phfract,CeqFract,Suspended_phase_list)
 #endif	    
 	for (int i=0; i<TKCE.size();i++){
 		
@@ -663,19 +762,19 @@ void Find_Transitions( const double &TK_start,const int &nstep,const double &ste
 	//		ceqi=ceq;// if no parallelization use STANDART EQUILIBRIUM
 			c_selecteq(1, &ceqi);
 		}
-		for (int k=0;k<phnames.size();k++) Change_Phase_Status(phnames[k],PHENTERED,0.0,&ceqi);
+		
+		for (int k=0;k<phnames.size();k++) Change_Phase_Status(phnames[k],PHENTERED,0.,&ceqi);
+		
 		Change_Phase_Status("LIQUID",PHENTERED,1.0,&ceqi);// 
- //		Change_Phase_Status("FCC_A1",PHENTERED,0.1,&ceqi);//
+ 
 //		cout<<"T="<<TKCE[i]<<endl;
 		SetTemperature(TKCE[i], &ceqi); // set temperature for specific equilibrium
 //		List_Conditions(&ceqi);
         int i_error=0;
 //		List_Conditions(&ceqi);
-		if (PARALLEL>0){
-			CalculateEquilibrium(&ceqi,NOGRID,i_error); // perform an equilibrium calculation
-		}else{
-			CalculateEquilibrium(&ceqi,NOGRID,i_error); // perform an equilibrium calculation
-		}
+		
+		CalculateEquilibrium(&ceqi,NOGRID,i_error,Suspended_phase_list);
+		
 		
 		if (not(i_error==0)){
 			/*cout<<" equilibrium calculation not converged in transition subroutine for the following conditions"<<endl;
@@ -735,10 +834,12 @@ void Find_Transitions( const double &TK_start,const int &nstep,const double &ste
 					
 					Transitions.push_back(TKCE[i+1]);
 					Phase_transitions_mixture.push_back("");
+					bool first_phase=true;
 					for (size_t k=0; k<phnames.size(); k++){
 						if (CeqFract[i+1][k]>0) {
+							if (not first_phase) Phase_transitions_mixture.back()+=" + ";;
 							Phase_transitions_mixture.back()+=phnames[k];
-							Phase_transitions_mixture.back()+=" + ";
+							first_phase=false;
 						}
 					}
 				}
@@ -762,7 +863,7 @@ void Find_Transitions( const double &TK_start,const int &nstep,const double &ste
 // parallelization option is in Find_Transitions
 // see Find_Transitions for comments on parallelization
 
-void Global_Find_Transitions(double &TK_start,const int &n_step,double &TK_end,const double required_accuracy_on_TK, vector<double> &W, const vector<string> &phnames,const vector<string> &el_reduced_names, void *ceq, const int &i_ref, const string &compo_unit){				  
+void Global_Find_Transitions(ofstream& file,double &TK_start,const int &n_step,double &TK_end,const double required_accuracy_on_TK, vector<double> &W, const vector<string> &phnames,const vector<string> &el_reduced_names, void *ceq, const int &i_ref, const string &compo_unit, const int &ncpu, vector<int> &Store_Equilibria, vector< string > &Store_Equilibria_compo_unit, const vector< string > &Suspended_phase_list){				  
 	string mycompo_unit=compo_unit;
 	double TK_end_ini, TK_start_ini;
 	TK_start_ini=TK_start;
@@ -772,13 +873,12 @@ void Global_Find_Transitions(double &TK_start,const int &n_step,double &TK_end,c
 	double old_step_TK=TK_end-TK_start;
 	int number_of_loops=(int)( log10( fabs(step_TK)/required_accuracy_on_TK)/log10(n_step)+1);
 
-	cout<<"number of loops"<<number_of_loops<<endl;
+	//cout<<"number of loops"<<number_of_loops<<endl;
 	
 	vector<double> phfract;
 	vector<double> Transitions1;
 	vector<double> Transitions0;
-	vector<int> Store_Equilibria;
-	Store_Equilibria.resize(0);
+	
 	phfract.resize(phnames.size(),0.);
 	string root;
 	Transitions1.push_back(TK_start);
@@ -790,24 +890,31 @@ void Global_Find_Transitions(double &TK_start,const int &n_step,double &TK_end,c
 	
 	if (PARALLEL>0) {
 	int iceq;
-		for (int i=0; i<n_step+1;i++){
+		
+		for (int i=Store_Equilibria.size(); i<n_step+1;i++){
 			void *ceqi= NULL;
 			Ceq_Name=root+IntToString(i);//in order to have a different name for each equilibrium
 			iceq=Create_New_Ceq_and_Return_ID(Ceq_Name);// iceq is the index in the equilibrium vector eqlista of OC3 
 //			cout<<Ceq_Name<<" "<<iceq<<endl;	
 			Store_Equilibria.push_back(iceq);//all the indexes are stored in the vector Store_Equilibria
+			string compo_unit("W");
+			Store_Equilibria_compo_unit.push_back(compo_unit);
 			c_selecteq(iceq, &ceqi);
 //			Change_Phase_Status("LIQUID",PHENTERED,1.0,&ceqi);// 
-			SetPressure(1.0E5, &ceqi);// Set Pressure when ceqi is created (for the first loop of Global_Find_Transitions)
+			
+			SetPressure(1e5, &ceqi);// Set Pressure when ceqi is created (for the first loop of Global_Find_Transitions)
+			
 			SetMoles(1.0, &ceqi); // Set Number of moles when ceqi is created
 			SetComposition(W, &ceqi,i_ref,mycompo_unit);// Set the composition  when ceqi is created
-			SetTemperature(1200, &ceqi);
+			double TK=1200;
+			SetTemperature(TK, &ceqi);
 			c_set_status_globaldata();
 		//---------------------Compute Equilibrium----------------------------
 			int i_error=0;
-            for (int k=0;k<phnames.size();k++) Change_Phase_Status(phnames[k],PHENTERED,0.0,&ceqi);
+			
+            for (int k=0;k<phnames.size();k++) Change_Phase_Status(phnames[k],PHENTERED,0.,&ceqi);
 			Change_Phase_Status("LIQUID",PHENTERED,1.0,&ceqi);// 
-			CalculateEquilibrium(&ceqi,NOGRID,i_error);  // option GRID
+			CalculateEquilibrium(&ceqi,NOGRID,i_error,Suspended_phase_list);
 			
 		}
 	}
@@ -815,7 +922,7 @@ void Global_Find_Transitions(double &TK_start,const int &n_step,double &TK_end,c
 	vector< string > Phase_transitions_mixture;
 	for (size_t k=0; k<number_of_loops;k++){
 		
-		cout<<"         loop n:"<<k+1<<" increment of T="<< step_TK<<endl;
+//		cout<<"         loop n:"<<k+1<<" increment of T="<< step_TK<<endl;
 		
 		if (k>0) first_iteration=false;
 		Transitions0.resize(0);
@@ -832,44 +939,60 @@ void Global_Find_Transitions(double &TK_start,const int &n_step,double &TK_end,c
 //			cout<<"treating transition : "<<Transitions0[i]<<endl;
 			TK_start=Transitions0[i];
 			
-			Find_Transitions(TK_start,n_step,step_TK,W,phnames,Transitions1,el_reduced_names,first_iteration,last_iteration,Store_Equilibria,Phase_transitions_mixture, ceq,required_accuracy_on_TK);
+			Find_Transitions(TK_start,n_step,step_TK,W,phnames,Transitions1,el_reduced_names,first_iteration,last_iteration,Store_Equilibria,Phase_transitions_mixture, ceq,required_accuracy_on_TK,Suspended_phase_list );
 		}
 		
 		double old_step_TK=step_TK;
 		step_TK=step_TK/n_step;
 	}
-	cout<<endl;
-	cout<<endl;
-	cout<<"===================================================="<<endl;
+	
+	file<<endl;
+	file<<"********************************************"<<endl;
+	
+	file<<" Here are the transition temperatures that have been found "<<endl;
+	if (PARALLEL>0) file<<" using a parallel calculation with "<<ncpu<<" cpus"<<endl; 
+	file<<" in the temperature range ["<<TK_end_ini-TCtoTK<<","<<TK_start_ini-TCtoTK<<"] C"<<endl;
+	file<<"[Equilibrium sequence of phases]"<<endl;
+	file <<" "<<setw(4)<<"i"<<TAB<<setw(10)<<"TC"<<TAB<<"mixture of phase"<<endl;
+	for (size_t i=0;i<Transitions1.size();i++) {
+		file<<" "<<setw(4)<<i<<TAB<<setw(10)<<Transitions1[i]-TCtoTK<<TAB<<Phase_transitions_mixture[i]<<endl;
+	}
+	file<<endl;
+	
+		cout<<"======================================================================"<<endl;
 	cout<<" TQ Parallel: ";
 	if (PARALLEL==0) {
 		cout<<"N0";
 	}
 	else{
 		cout<<"Yes";
-		cout<<" / number of threads: "<<NCPU;
+		cout<<" / number of threads: "<<ncpu;
 	}
-	
 	cout<<endl;
-	cout<<"=========================================================="<<endl;
 	cout<<" Here are the transition temperatures that have been found "<<endl;
 	cout<<" in the temperature range ["<<TK_end_ini-TCtoTK<<","<<TK_start_ini-TCtoTK<<"] C"<<endl;
 	cout<<" for the following composition:                    "<<endl;
+	/*
 	cout<<endl;
 	for (size_t i=0;i<el_reduced_names.size();i++) {
 		cout<<"      "<<el_reduced_names[i]<<" ("<<mycompo_unit<<"): "<<W[i]<<endl;
 	}
 	cout<<" -------------------------------------------------------- "<<endl;
+	*/
+	
 	for (size_t i=0;i<Transitions1.size();i++) {
-		cout<<" "<<i<<" "<<Transitions1[i]-TCtoTK<<" C  "<<Phase_transitions_mixture[i]<<endl;
+		cout<<" "<<setw(4)<<i<<" "<<setw(10)<<Transitions1[i]-TCtoTK<<" "<<Phase_transitions_mixture[i]<<endl;
 	}
+	cout<<endl;
+	
+	TK_start=Transitions1[0];
 }
 //************************************************************************************************************************************************************************
 
 
 //************************************************************************************************************************************************************************
 
-void Random_Equilibrium_Loop(double &TK_min,double &TK_max, vector<double> &W_ini, const vector<string> &phnames,const vector<string> &el_reduced_names, const void *ceq, const int i_ref, const string &compo_unit, const int &total_number_of_loops){	
+void Random_Equilibrium_Loop(double &TK_min,double &TK_max, vector<double> &W_ini, const vector<string> &phnames,const vector<string> &el_reduced_names, void *ceq, const int i_ref, const string &compo_unit, const int &total_number_of_loops, const int &ncpu,vector<int> &Store_Equilibria , vector< string > &Store_Equilibria_compo_unit, const vector< string > &Suspended_phase_list){	
 	
 	string mycompo_unit=compo_unit;	
 	vector<  vector< double> > LISTCOMPO;
@@ -877,17 +1000,19 @@ void Random_Equilibrium_Loop(double &TK_min,double &TK_max, vector<double> &W_in
 	vector<double> Wrand;
 	Wrand.resize(W_ini.size(),0.);
 	int total_number_of_errors=0;
-	string root= "CEQ_rand_";
+	string root= "CEQ_";
 	string Ceq_Name=root;
-	vector<int> Store_Equilibria;
-	Store_Equilibria.resize(0);
-	int number_of_loops=NCPU*20;
+	
+	
+	int number_of_loops=64;
 	int jter_print=0;
+	
+
 //	if (PARALLEL==0) number_of_loops=1;
 	
 	LISTCOMPO.resize(number_of_loops,vector<double>(W_ini.size(),0.));
 	LISTTK.resize(number_of_loops,0.);
-	omp_set_num_threads(NCPU);
+
 	cout<<"number of threads detected:"<<omp_get_num_procs()<<endl;
 	string parallel_mode=" TQ Parallel: ";
 	
@@ -896,32 +1021,36 @@ void Random_Equilibrium_Loop(double &TK_min,double &TK_max, vector<double> &W_in
 		}
 		else{
 			parallel_mode+="Yes";
-			parallel_mode+=" / number of threads: "+IntToString(NCPU)+"  ";
+			parallel_mode+=" / number of threads: "+IntToString(ncpu)+"  ";
 		}
 	
 	if (PARALLEL>0) {
 		int iceq;
-		for (int i=0; i<number_of_loops;i++){
+		for (int i=Store_Equilibria.size(); i<number_of_loops;i++){
 			void *ceqi= NULL;
 			Ceq_Name=root+IntToString(i);//in order to have a different name for each equilibrium
 			iceq=Create_New_Ceq_and_Return_ID(Ceq_Name);// iceq is the index in the equilibrium vector eqlista of OC3 
 		//cout<<Ceq_Name<<" "<<iceq<<endl;	
 			Store_Equilibria.push_back(iceq);//all the indexes are stored in the vector Store_Equilibria
 			c_selecteq(iceq, &ceqi);
-			for (int k=0;k<phnames.size();k++) Change_Phase_Status(phnames[k],PHENTERED,0.0,&ceqi);
+			
+			for (int k=0;k<phnames.size();k++) Change_Phase_Status(phnames[k],PHENTERED,0.,&ceqi);
+			string compo_unit("W");
+			Store_Equilibria_compo_unit.push_back(compo_unit);
  		    Change_Phase_Status("LIQUID",PHENTERED,0.5,&ceqi);// 
-			Change_Phase_Status("LIQUID",PHENTERED,0.5,&ceqi);// 
-			SetPressure(1.0E5, &ceqi);// Set Pressure when ceqi is created (for the first loop of Global_Find_Transitions)
+			Change_Phase_Status("FCC_A1",PHENTERED,0.5,&ceqi);// 
+			
+			SetPressure(1e5, &ceqi);// Set Pressure when ceqi is created (for the first loop of Global_Find_Transitions)
+			
 			SetMoles(1.0, &ceqi); // Set Number of moles when ceqi is created
 			SetComposition(W_ini, &ceqi,i_ref,mycompo_unit);// Set the composition  when ceqi is created
-			SetTemperature(2000., &ceqi);
+			double TK=2000;
+			SetTemperature(TK, &ceqi);
 			
 		//---------------------Compute Equilibrium----------------------------
 			int i_error=0;
-//			for (int k=0;k<phnames.size();k++) Change_Phase_Status(phnames[k],PHENTERED,0.0,&ceqi);
-//			Change_Phase_Status("LIQUID",PHENTERED,0.5,&ceqi);// 
-//			Change_Phase_Status("FCC_A1",PHENTERED,0.5,&ceqi);// 
-			CalculateEquilibrium(&ceqi,NOGRID,i_error);  // option GRID
+
+			CalculateEquilibrium(&ceqi,NOGRID,i_error,Suspended_phase_list);
 		}
 	}
 	
@@ -932,14 +1061,7 @@ void Random_Equilibrium_Loop(double &TK_min,double &TK_max, vector<double> &W_in
 
 		for (int k=0; k<number_of_loops;k++){
 			
-			void *ceqi= NULL;
-			if ((PARALLEL>0)) {
-				c_selecteq(Store_Equilibria[k], &ceqi);// retrieve the pointer with index stored in Store_Equilibria
-				
-			}else{
-		//		ceqi=ceq;// if no parallelization use STANDART EQUILIBRIUM
-				c_selecteq(1, &ceqi);
-			}
+		
 			
 			
 	 //		Change_Phase_Status("FCC_A1",PHENTERED,0.1,&ceqi);//
@@ -967,18 +1089,29 @@ void Random_Equilibrium_Loop(double &TK_min,double &TK_max, vector<double> &W_in
 				LISTCOMPO[k][i]=Wrand[i];
 			}
 			
-			for (int i=0;i<phnames.size();i++) Change_Phase_Status(phnames[i],PHENTERED,0.0,&ceqi);
-			Change_Phase_Status("LIQUID",PHENTERED,1.0,&ceqi);// 
- // 			Change_Phase_Status("FCC_A1",PHENTERED,0.5,&ceqi);// 
-			SetComposition(Wrand, &ceqi, i_ref,mycompo_unit);// Set the composition  when ceqi is created
-			SetTemperature(TK, &ceqi); // set temperature for specific equilibrium
 			
-	}
+		}
+#if PARALLEL>0
+#pragma omp parallel for 
+#endif
+		for (int k=0; k<number_of_loops;k++){
+			void *ceqi= NULL;
+			if ((PARALLEL>0)) {
+				c_selecteq(Store_Equilibria[k], &ceqi);// retrieve the pointer with index stored in Store_Equilibria
+				
+			}else{
+		//		ceqi=ceq;// if no parallelization use STANDART EQUILIBRIUM
+				c_selecteq(1, &ceqi);
+			}
+			SetComposition(LISTCOMPO[k], &ceqi, i_ref,mycompo_unit);// Set the composition  when ceqi is created
+			
+			
+		}
 /*
 #if PARALLEL>0
 #pragma omp parallel for 
 #endif
-	for (int k=0; k<number_of_loops;k++){
+		for (int k=0; k<number_of_loops;k++){
 			
 			void *ceqi= NULL;
 			if ((PARALLEL>0)) {
@@ -991,7 +1124,7 @@ void Random_Equilibrium_Loop(double &TK_min,double &TK_max, vector<double> &W_in
 			
 	
 			int i_error=0;	
-			CalculateEquilibrium(&ceqi,NOGRID,i_error);
+			CalculateEquilibrium(&ceqi,NOGRID,i_error,Suspended_phase_list);
 			if (not(i_error==0)){
 				cout<<" equilibrium calculation not converged in transition subroutine for the following conditions"<<endl;
 				cout<<" TK="<<LISTTK[k]<<endl;
@@ -1003,7 +1136,7 @@ void Random_Equilibrium_Loop(double &TK_min,double &TK_max, vector<double> &W_in
 			
 			}
 }
-	for (int k=0; k<number_of_loops;k++){
+		for (int k=0; k<number_of_loops;k++){
 				void *ceqi= NULL;
 			if ((PARALLEL>0)) {
 				c_selecteq(Store_Equilibria[k], &ceqi);// retrieve the pointer with index stored in Store_Equilibria
@@ -1020,11 +1153,11 @@ void Random_Equilibrium_Loop(double &TK_min,double &TK_max, vector<double> &W_in
 
 */
 
-
+/*
 #if PARALLEL>0
 #pragma omp parallel for default(none),schedule(dynamic), private (k,i_error), shared(LISTTK,LISTCOMPO,Store_Equilibria, total_number_of_errors, jter_print,number_of_loops,el_reduced_names)
 #endif	    
-	for (int k=0; k<number_of_loops;k++){
+		for (int k=0; k<number_of_loops;k++){
 			
 			void *ceqi= NULL;
 			if ((PARALLEL>0)) {
@@ -1040,19 +1173,14 @@ void Random_Equilibrium_Loop(double &TK_min,double &TK_max, vector<double> &W_in
 			
 			
 			
-			CalculateEquilibrium(&ceqi,NOGRID,i_error); // perform an equilibrium calculation
+			CalculateEquilibrium(&ceqi,NOGRID,i_error,Suspended_phase_list); // perform an equilibrium calculation
 			
 			
 			if (not(i_error==0)){
-				/*cout<<" equilibrium calculation not converged in transition subroutine for the following conditions"<<endl;
-				cout<<" TK="<<LISTTK[k]<<endl;
-				cout<<" composition:"<<endl;
-				for (int i=0;i<el_reduced_names.size();i++) {
-					cout<<el_reduced_names[i]<<" (w%): "<<LISTCOMPO[k][i]<<endl;
-				}
-				*/
-				SetTemperature(LISTTK[k]-1, &ceqi); // set temperature for specific equilibrium
-				CalculateEquilibrium(&ceqi,GRID,i_error); // perform an equilibrium calculation
+				
+				double TK=LISTTK[k]-1;
+				SetTemperature(TK, &ceqi); // set temperature for specific equilibrium
+				CalculateEquilibrium(&ceqi,GRID,i_error,Suspended_phase_list); // perform an equilibrium calculation
 				if (i_error==0) {
 					//cout<<" case fixed"<<endl;
 				}else{
@@ -1064,7 +1192,7 @@ void Random_Equilibrium_Loop(double &TK_min,double &TK_max, vector<double> &W_in
 			}
 																	  
 		}
-		
+		*/
 		jter_print+=number_of_loops;
 		if (jter_print>199) {
 			cout<<parallel_mode<<" ====>total number of random tests:"<<iter*number_of_loops<<"  number of errors : "<<total_number_of_errors<<endl;
@@ -1073,7 +1201,277 @@ void Random_Equilibrium_Loop(double &TK_min,double &TK_max, vector<double> &W_in
 
 	}while((iter*number_of_loops)<total_number_of_loops);
 	cout<<parallel_mode<<" ====>total number of random tests:"<<iter*number_of_loops<<"  number of errors : "<<total_number_of_errors<<endl;	
-}		  
-
+}	
+  
+void scheil_solidif(const string &strLIQUID, const string &strSOLIDSOLUTION,ofstream& file, const vector<string> &el_reduced_names, const vector<string> &phnames, void *ceq,vector<double> &W,const double &target_delta_f_liq,
+					const double &delta_T_min,const double &delta_T_max,  double &TK_liquidus,const int &i_ref,const string &compo_unit,const vector<string> &Suspended_phase_list)
+{
 	
+	vector< vector<double> > elfract;
+	vector<double> phfract_old;
+	vector<double> phfract;
+	elfract.resize(phnames.size(),vector<double>(el_reduced_names.size(),0.));
+	phfract_old.resize(phnames.size(),0.);
+	phfract.resize(phnames.size(),0.);
+	vector<double> TransitionsT;
+	vector<double> TransitionsFl;
+	vector<string> Phase_transitions_mixture;	
+	string my_compo_unit("X");
+	char tab = '\t';
+	vector<double> XLiq;
+	XLiq.resize(el_reduced_names.size(),0.);
+	double fLiq=1.0;
+	double d_T=delta_T_min;
+	int iLiq=0;
+	int iSol=0;
+	int i_error=0;
+	bool phase_found=false;
+	for (int i=0;i<phnames.size() and not phase_found;i++){
+		if (phnames[i]==strLIQUID){
+			phase_found=true;
+			iLiq=i;
+		}
+	}
+	if (not phase_found){
+		cout<<" problem i was assuming that the name of the liquid phase is (according to the input file:"<<strLIQUID<<endl;
+		exit(EXIT_FAILURE);
+	}
+	
+	phase_found=false;
+	for (int i=0;i<phnames.size() and not phase_found;i++){
+		if (phnames[i]==strSOLIDSOLUTION){
+			phase_found=true;
+			iSol=i;
+		}
+	}
+	if (not phase_found){
+		cout<<" problem i was assuming that the name of the Solid Solution is:"<<strSOLIDSOLUTION<<endl;
+		exit(EXIT_FAILURE);
+	}
+	double TK=TK_liquidus+0.01;
+	SetTemperature(TK, &ceq); 
+	
+	CalculateEquilibrium(&ceq,NOGRID,i_error,Suspended_phase_list);
+	ReadPhaseFractions(phnames, phfract, &ceq);                                 // Read the amount of stable phases
+	ReadConstituentFractions(phnames, phfract, elfract, &ceq, "X");                  // Read the composition of each stable phase
+	for (int i=0;i<el_reduced_names.size();i++){
+		XLiq[i]=elfract[iLiq][i];
+	}
+	ResetAllConditionsButPandN(&ceq, el_reduced_names,i_ref, compo_unit);
 
+	TK=TK_liquidus-1*delta_T_min;
+	SetTemperature(TK, &ceq); 
+	
+	SetComposition(XLiq,&ceq,i_ref,my_compo_unit);
+    
+	CalculateEquilibrium(&ceq,NOGRID,i_error,Suspended_phase_list);
+	if (phfract[iLiq]<0.999){
+		cout<<"scheil solifification aborted at begining because the initial liquid fraction is too low and equal: "<<phfract[iLiq]<<endl;
+		exit(EXIT_FAILURE);
+	}
+	
+	//************************************************************************************
+	// main solidification loop starts here
+	//************************************************************************************
+	file<<"********************************************"<<endl;
+	file<<"          [Scheil Solidification]"<<endl; 
+	file<<"********************************************"<<endl;
+	file<<" "<<setw(15)<<"[TC]"<<tab<<setw(15)<<"[sol f(at)]";
+	for (int i=0;i<el_reduced_names.size();i++){
+		if (not i==i_ref) file<<tab<<setw(8)<<el_reduced_names[i]<<" (at)";
+	}
+	file<<endl;
+	int j_error=0;
+	while ((fLiq>5e-4)and(j_error<10)){
+		for (int i=0;i<phfract_old.size();i++) phfract_old[i]=phfract[i];
+		TK-=d_T;
+		SetTemperature(TK, &ceq);
+		SetComposition(XLiq,&ceq,i_ref,my_compo_unit);
+		for (int i=0;i<phnames.size();i++) Change_Phase_Status(phnames[i],PHENTERED,0.0,&ceq);
+		//Change_Phase_Status(strSOLIDSOLUTION,PHENTERED,0.5,&ceq);//
+		Change_Phase_Status(strLIQUID,PHENTERED,1.0,&ceq);//
+		/*
+		cout<<"TK= "<<TK<<endl;
+		for (int i=0;i<el_reduced_names.size();i++){
+			cout<<el_reduced_names[i] <<" = "<<XLiq[i]<<endl;;
+		}
+		*/
+		CalculateEquilibrium(&ceq,NOGRID,i_error,Suspended_phase_list);
+		
+		if (i_error>0){
+			d_T=delta_T_min;
+		
+			j_error+=1;
+			//cout<<"TK="<<TK<<" Fl="<<fLiq<<" j_error="<<j_error<<endl;
+			
+		}
+		
+		//		
+		
+		if (i_error==0){
+			j_error=0;
+			ReadPhaseFractions(phnames, phfract, &ceq);                                 // Read the amount of stable phases
+			ReadConstituentFractions(phnames, phfract, elfract, &ceq, "X");                  // Read the composition of each stable phase
+			if (phfract[iLiq]<0.99999){
+				
+				
+				fLiq*=phfract[iLiq];
+				//cout<<TK-TCtoTK<<"  fl=  "<<fLiq<<"  "<<phfract[iLiq]<<" "<<d_T<<endl;
+				
+					file<<" "<<setw(15)<<TK-TCtoTK<<tab<<setw(15)<<1.0-fLiq;
+					for (int i=0;i<el_reduced_names.size();i++){
+						if (not i==i_ref) {
+							double value=(XLiq[i]-phfract[iLiq]*elfract[iLiq][i])/(1.0-phfract[iLiq]);
+							if (value<1e-8) value=1e-8;
+							file<<tab<<setw(15)<<value;
+						}
+					}
+					file<<endl;
+				
+				
+				
+				
+				for (int i=0;i<el_reduced_names.size();i++){
+					XLiq[i]=elfract[iLiq][i];
+				}
+				
+			}
+			bool transition_detected=false;
+			for (size_t j=0; j<phnames.size() and not transition_detected; j++){
+			
+				if ((!(phfract_old[j]<1e-8)&&(phfract[j]<1e-8))||(!(phfract_old[j]>1e-8)&&(phfract[j]>1e-8))){
+	  //            a transition has been detected			
+	  //			cout<<"********transition at: "<<TKCE[i]<<endl;
+	 //				cout<<"phase:"<<phnames[j]<<" "<<CeqFract[i][j]<<" "<<CeqFract[i+1][j]<<endl;
+						
+					TransitionsFl.push_back(fLiq);
+					TransitionsT.push_back(TK-TCtoTK);
+					transition_detected=true;
+					Phase_transitions_mixture.push_back("");
+					bool first_phase=true;
+					for (size_t k=0; k<phnames.size(); k++){
+						if (phfract[k]>0) {
+							if (not first_phase) Phase_transitions_mixture.back()+=" + ";;
+							Phase_transitions_mixture.back()+=phnames[k];
+							first_phase=false;
+						}
+					}				
+				}
+			}
+			if (phfract[iLiq]>target_delta_f_liq) {
+				d_T*=1.15;
+				if (d_T>delta_T_max) d_T=delta_T_max;
+			}
+			if (phfract[iLiq]<target_delta_f_liq) {
+				d_T/=1.15;
+				if (d_T<delta_T_min) d_T=delta_T_min;
+			}
+		
+		}else{
+			//exit(EXIT_FAILURE);
+		}
+	}
+	file<<endl;
+	file<<"********************************************"<<endl;
+	file<<"[Scheil sequence of phases]"<<endl;
+	cout<<"======================================================================"<<endl;
+	cout<<" Here are the transition temperatures that have been found "<<endl;
+	cout<<"     during a Scheil solidification simulation"<<endl;
+	
+	/*
+	cout<<endl;
+	for (size_t i=0;i<el_reduced_names.size();i++) {
+		cout<<"      "<<el_reduced_names[i]<<" ("<<compo_unit<<"%): "<<W[i]*100.0<<endl;
+	}
+	cout<<" -------------------------------------------------------- "<<endl;
+	*/
+	file <<" "<<setw(4)<<"i"<<tab<<setw(10)<<"TC"<<tab<<setw(10)<<"solid f(at)"<<tab<<"mixture of phase"<<endl;
+	cout.precision(6);
+	for (size_t i=0;i<TransitionsT.size();i++) {
+		cout <<" "<<setw(4)<<i<<" "<<setw(10)<<TransitionsT[i]<<" C  FL="<<setw(10)<<TransitionsFl[i]<<" "<<Phase_transitions_mixture[i]<<endl;
+		file <<" "<<setw(4)<<i<<tab<<setw(10)<<TransitionsT[i]<<tab<<setw(10)<<1.0-TransitionsFl[i]<<tab<<Phase_transitions_mixture[i]<<endl;
+		
+	}
+	cout<<" end of solidification: "<<TK-TCtoTK<<endl;
+	file<<" [end of solidification]: "<<TAB<<TK-TCtoTK<<endl;
+	cout<<endl;
+	file<<endl;
+	file<<"********************************************"<<endl;
+	ResetAllConditionsButPandN(&ceq, el_reduced_names,i_ref,my_compo_unit);
+	
+	my_compo_unit=compo_unit;
+	SetComposition(W,&ceq,i_ref,my_compo_unit);
+	SetTemperature(TK_liquidus, &ceq);
+
+}
+	
+void All_Capital_Letters(string &mystring){
+	transform(mystring.begin(), mystring.end(), mystring.begin(), ::toupper);// to have it in CAPITAL LETTERS
+}
+
+void find_TK_for_a_given_Liquid_fraction(double &TK, int &i_error, const string &strLIQUID,const string &strSOLIDSOLUTION, const double &targeted_fraction, const double &temperature_accuracy, void *ceq, const vector<string> &phnames,const vector<string> &Suspended_phase_list){
+	bool phase_found=false;
+	int i_LIQ=0;
+	vector< double > phfract;
+	phfract.resize(phnames.size(),0.);
+	TK=0;
+	
+	for (int i=0;i<phnames.size() and not phase_found;i++){
+		if (phnames[i]==strLIQUID){
+			phase_found=true;
+			i_LIQ=i;
+		}
+	}
+	if (not phase_found){
+		cout<<" problem i was assuming that the name of the liquid phase is (according to the input file:"<<strLIQUID<<endl;
+		exit(EXIT_FAILURE);
+	}
+	
+	double Fl=0.;
+	double step_T=20.;
+	
+	int iter_max=1000;
+	
+	SetTemperature(1200., &ceq); 
+	
+	CalculateEquilibrium(&ceq,NOGRID,i_error,Suspended_phase_list);
+
+	for (int i=0;i<phnames.size();i++) {
+		Change_Phase_Status(phnames[i],PHENTERED,0.,&ceq);
+	}
+
+	Change_Phase_Status(strSOLIDSOLUTION,PHENTERED,0.5,&ceq);
+	Change_Phase_Status(strLIQUID,PHENTERED,0.5,&ceq);
+	
+	double valueT=673.15;
+	int iter=0;
+	i_error=0;
+	while ((fabs(step_T)>temperature_accuracy)and (iter<=iter_max)){
+		
+		valueT+=step_T;
+		SetTemperature(valueT, &ceq);
+		CalculateEquilibrium(&ceq,NOGRID,i_error,Suspended_phase_list); 
+		if (i_error==0){	
+			ReadPhaseFractions(phnames, phfract, &ceq);
+			Fl=phfract[i_LIQ];
+			
+		}
+		else{
+			iter=iter_max+1;
+		}
+		
+		if ((Fl>targeted_fraction) and (step_T>0)) step_T=-fabs(step_T)/2.;
+		if ((Fl<targeted_fraction) and (step_T<0)) step_T=+fabs(step_T)/2.;
+		//cout<<valueT<<" "<<step_T<<" "<<" "<<Fl<<" "<<i_error<<endl;
+		iter+=1;
+	}
+	if (iter>iter_max) i_error=1000;
+	
+	if (i_error==0){
+		TK=valueT;
+	}
+	else{
+		cout<<"not converged"<<endl;
+	}
+
+}

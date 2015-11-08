@@ -1,17 +1,21 @@
 This is an example using OC and the OC application software interface
 
-Provided by Christophe Sigli October 2015
+Provided by Christophe Sigli November 2015
 
 The example calculates liquidus/solidus/transformation temperatures
-using a database for aluminium.  For that purpose the COST507 database
-is provided.
+and a Scheil solidification simulation using the COST507 database for
+aluminium.
 
-NOTE THAT THE COST507 database is not validated for multicomponent
-alloys.  The results must not be taken as accurate.
+NOTE THAT THE COST507 DATABASE IS NOT VALIDATED FOR MULTICOMPONENT ALLOYS.
+The results must not be taken as accurate.
 
-The main program Example_TQ requires an input file, here the input.txt
+To compile the program (on Windows) change the linkpm.txt file to a
+cmd file.  On UNIX change it to a Makefile.  It uses the compiled
+versions of liboceq.a from the main OC directory.
+
+The main program sigli.exe requires an input file, here the input.txt
 is provied.  If you want to change alloy or what the program should
 calculate you must change this input file.
 
-The calculated results are tabulated on the screen.
+The calculated results are listed on the screen and in the output.txt file
 
