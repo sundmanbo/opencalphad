@@ -873,6 +873,7 @@
       coeffs(1)=one
    endif
    indices=0
+! the list of experiments changes ???
 ! NOTE we can have several conditions on the same line!!
 ! argument 4 equal to 5 means extract the whole line
    stvexp=' '
@@ -947,6 +948,7 @@
    call decode_state_variable(svtext,svr,ceq)
    if(gx%bmperr.ne.0) then
 ! Experiments can be symbols
+!      write(*,*)'3D not a state variable: ',svtext(1:5),gx%bmperr,notcond
       if(notcond.ne.0) then
          gx%bmperr=0
          svfuname=svtext
@@ -1020,7 +1022,7 @@
          gx%bmperr=0; xxx=zero
       endif
    else
-! search for old experimental value if experiment already entered
+! It is an experiment, search for old value if experiment already entered
 !      write(*,*)'3D segfault search 1',notcond,ich
       if(ich.eq.4) then
          experimenttype=-1
@@ -1065,7 +1067,7 @@
 !   if(associated(svr)) then
    if(notcond.eq.0) then
 !----------------------------------------------------------------
-! save current term if several (only for conditions)
+! Only for conditions: save current term if several
       nterm=nterm+1
 !      write(*,*)'3D segfault search 2B',nterm
       svrarr(nterm)=svr
@@ -1086,8 +1088,8 @@
             continue
          endif
 ! multiterm expression, jump back to 55 ... not yet implemented
-         write(*,86)ich,ip,nterm,stvexp(1:25),ccc
-86       format('Expression: ',3i3,' "',a,'" ',1pe12.4)
+!         write(*,86)ich,ip,nterm,stvexp(1:25),ccc
+!86       format('Expression: ',3i3,' "',a,'" ',1pe12.4)
 !      gx%bmperr=9998; goto 1000
          coeffs(nterm+1)=ccc
          cline=stvexp(ip-1:); ip=1
@@ -1097,7 +1099,11 @@
 ! we have only one term for experiments
       nterm=1
 !      write(*,*)'3D segfault search 2C',nterm,associated(svr),notcond
-      if(associated(svr)) svrarr(nterm)=svr
+      if(associated(svr)) then
+         svrarr(nterm)=svr
+!      else
+!         write(*,*)'3D svr not associated, experiment is a symbol'
+      endif
    endif
 ! jump here for qp:= or if several terms are terminated with empty line
 67 continue
@@ -1143,7 +1149,7 @@
          call find_svfun(svfuname,condvalsym,ceq)
 !         write(*,*)'3D Symbol link: ',textval(1:10),condvalsym,gx%bmperr
          if(gx%bmperr.ne.0) then
-            write(*,*)'Condition value must be a symnol or numeric'
+            write(*,*)'Condition value must be numeric or a symbol'; goto 1000
          endif
          linkix=condvalsym
       endif
@@ -1180,7 +1186,10 @@
             endif
          else
 !            write(*,*)'3D searching for experiment with symbol'
-            call get_experiment_with_symbol(symsym,experimenttype,temp)
+! temp is changed inside !!
+            new=>temp
+!            call get_experiment_with_symbol(symsym,experimenttype,temp)
+            call get_experiment_with_symbol(symsym,experimenttype,new)
          endif
 !      else
 !         write(*,*)'We have a condition record in new', gx%bmperr
@@ -1224,7 +1233,7 @@
 !         write(*,*)'3D new condition ',istv,symsym
       else
 ! it is an experiment
-!      write(*,*)'3D We are after label 500',value,linkix
+!         write(*,*)'3D Creating a new experiment record: ',symsym,value,linkix
          if(associated(ceq%lastexperiment)) then
             seqz=ceq%lastexperiment%seqz+1
          else
@@ -1233,7 +1242,7 @@
          temp=>ceq%lastexperiment
          allocate(ceq%lastexperiment)
          new=>ceq%lastexperiment
-!         write(*,*)'3D new experiment 2',istv,symsym
+!         write(*,*)'3D new experiment 2',istv,symsym,seqz
          istv=symsym
       endif
 ! for new conditions and experiments
@@ -1259,6 +1268,8 @@
 !         write(*,111)'3D in record: ',istv,jl,(new%indices(ks,jl),ks=1,4)
 111      format(a,i3,i5,2x,4i4)
          enddo
+      else
+! Only experiments can be symbols, what to do next?
       endif
 !      write(*,*)'3D storing value: ',value,linkix
       if(linkix.lt.0) then
@@ -1294,6 +1305,9 @@
          do jl=1,nterm
             new%statvar(jl)=svrarr(jl)
          enddo
+!      else
+! experiment is a symbol, no statvar record !!
+!         write(*,*)'3D experiment is a symbol 2',istv,symsym
       endif
 ! link the new record into the condition list
 !    write(*,*)'linking condition'
@@ -1425,14 +1439,16 @@
    type(gtp_condition), pointer :: pcond,last
    if(.not.associated(temp)) goto 900
    last=>temp
+   pcond=>last
 100 continue
-   if(temp%statev.eq.symsym .and. temp%experimenttype.eq.experimenttype) then
+   if(pcond%statev.eq.symsym .and. pcond%experimenttype.eq.experimenttype) then
 ! the index of the symbol is stored in statev, we have found the experiment
       goto 1000
    else
-      temp=temp%next
+! Wow = here instead of => created a lot of problems!!!
+      pcond=>pcond%next
 ! this is true unless we have circulated the whole list
-      if(.not.associated(temp,last)) goto 100
+      if(.not.associated(pcond,last)) goto 100
    endif
 ! we have not found this experiment
 900 continue
@@ -1445,7 +1461,7 @@
 
 !\begin{verbatim}
  subroutine get_condition(nterm,svr,pcond)
-! finds a condition record with the given state variable expression
+! finds a condition/experiment record with the given state variable expression
 ! If nterm<0 svr is irrelevant, the absolute value of nterm is the sequential
 ! number of the ACTIVE conditions
    implicit none
@@ -1460,7 +1476,7 @@
    integer j1,num,iact
    if(.not.associated(pcond)) goto 900
 !   write(*,*)'3D in get_condition: ',svr%statevarid,svr%oldstv,svr%argtyp
-!   if(nterm.lt.0) write(*,*)'3D Condition number: ',-nterm
+   if(nterm.lt.0) write(*,*)'3D Condition number: ',-nterm
 !   last=>pcond
 ! start from first equilibrium in circular list
    pcond=>pcond%next
@@ -1468,9 +1484,8 @@
    num=0
    iact=0
 100 continue
-! search for condition abs(nterm)
-!      if(nterm.lt.0 .and. num+nterm.eq.0) goto 1000
       num=num+1
+! iact is incremented with the active conditions
       if(pcond%active.eq.0) iact=iact+1
       if(nterm.lt.0) then
 ! we have found the active condition with number -nterm
@@ -1478,7 +1493,17 @@
 !102      format(a,4i3,1pe12.4)
 ! pcond starts with the last equilibria, not the first ...
          if(iact+nterm.eq.0) goto 1000
+      elseif(.not.allocated(pcond%condcoeff)) then
+! no coefficients allocated, it must be an experiment with a symbol as variable
+         write(*,*)'3D experiment as symbol',pcond%statev,pcond%seqz
+! we must transfer the symbol index ...
+!         if(pcond%statev.eq. )then
+!            goto 1000
+!         endif
+         goto 200
       elseif(pcond%noofterms.eq.nterm) then
+!         write(*,*)'3D nterm: ',nterm,pcond%noofterms
+! experiments that are symbols have not allocated any coefficent record
          do j1=1,nterm
             condvar=>pcond%statvar(j1)
 !            write(*,*)'3D get_condition: ',num,condvar%oldstv,condvar%argtyp
@@ -1508,6 +1533,9 @@
 ! we have found a condition with these state variables
 !         write(*,*)'3D Found condition',pcond%active
          goto 1000
+!      else
+!         write(*,*)'3D ignoring condition with wrong number of terms',&
+!              nterm,pcond%noofterms
       endif
 200   continue
 !      write(*,*)'Failed at argument: ',j2
@@ -1697,23 +1725,25 @@ end subroutine get_condition
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine apply_condition_value(current,what,value,cmix)
+ subroutine apply_condition_value(current,what,value,cmix,ccf,ceq)
 ! This is called when calculating an equilibrium.
 ! It returns a condition at each call, at first call current must be nullified?
 ! When all conditions done the current is nullified again
 ! If what=-1 then return degrees of freedoms and maybe something more
 ! what=0 means calculate current values of conditions
 ! calculate the value of a condition, used in minimizing G
+! ccf are the coefficients for conditions with several terms
    implicit none
    integer what,cmix(*)
-   double precision value
-!   TYPE(gtp_equilibrium_data), pointer :: ceq    
+   double precision value,ccf(*)
+   TYPE(gtp_equilibrium_data), pointer :: ceq    
    TYPE(gtp_condition), pointer :: current
 !\end{verbatim} %+
 ! ceq is actually redundant as current is a pointer to condition list in ceq
    integer, dimension(4) :: indices
-   integer iref,iunit,jl,istv,ip
+   integer iref,iunit,jl,istv,ip,linkix,nterms
    character encoded*60,actual_arg*60
+   double precision xxx
 !
 100 continue
    if(current%active.ne.0) then 
@@ -1726,9 +1756,27 @@ end subroutine get_condition
 ! and fix phases
    cmix(1)=0
    if(current%noofterms.gt.1) then
-! cannot hanlde conditions with several terms
-      write(*,*)'Found condition with several terms'
-      gx%bmperr=7777; goto 900
+      if(current%statev.eq.111) then
+! allow mole fractions!!
+!         write(*,69)'3D in apply: ',current%statev,current%noofterms,&
+!              ((current%indices(jl,nterms),jl=1,4),nterms=1,current%noofterms)
+69       format(a,i4,i2,3(2x,4i5))
+!         gx%bmperr=7777; goto 900
+         nterms=current%noofterms
+         do jl=1,nterms
+            ccf(jl)=current%condcoeff(jl)
+         enddo
+!         write(*,68)nterms,(ccf(jl),jl=1,nterms)
+!68       format('3D coeff: ',i2,6(1pe12.4))
+      else
+! cannot handle other conditions with several terms
+         write(*,*)'3D Illegal condition with several terms',current%statev
+         gx%bmperr=7777; goto 900
+      endif
+   else
+! one term with coefficient one
+      ccf(1)=one
+      nterms=1
    endif
 ! for debugging
    istv=current%statev
@@ -1740,9 +1788,21 @@ end subroutine get_condition
    ip=1
    encoded=' '
    actual_arg=' '
+! fetch value of symbol link if any
+   if(current%symlink1.gt.0) then
+      linkix=current%symlink1
+      actual_arg=' '
+! no pointer to equilibrim record ... use firsteq ??
+      xxx=evaluate_svfun_old(linkix,actual_arg,1,ceq)
+      if(gx%bmperr.ne.0) then
+         write(*,*)'3D error evaluate symbolic link as condition',linkix,xxx
+         goto 1000
+      endif
+      current%prescribed=xxx
+   endif
 !------------------
    if(current%statev.lt.0) then
-! a fix phase cpndition has state variable equal to -iph, ics is stored in iref
+! a FIX PHASE condition has state variable equal to -iph, ics is stored in iref
       cmix(1)=4
       cmix(2)=-current%statev
       cmix(3)=current%iref
@@ -1752,25 +1812,25 @@ end subroutine get_condition
 ! temperature
       cmix(1)=1
       value=current%prescribed
-!      write(*,*)'conditon on T'
+!      write(*,*)'3D conditon on T'
    elseif(current%statev.eq.2) then
 ! pressure
       cmix(1)=2
       value=current%prescribed
-!      write(*,*)'conditon on P'
+!      write(*,*)'3D conditon on P'
    elseif(current%statev.le.5) then
 ! potentials has statev=1..5 (T, P, MU, AC, LNAC)
       cmix(1)=3
       cmix(2)=current%statev
       cmix(3)=current%indices(1,1)
       value=current%prescribed
-!      write(*,*)'condition on MU/AC/LNAC'
+!      write(*,*)'3D condition on MU/AC/LNAC'
    elseif(current%statev.ge.10) then
 ! other condition must be on extensive properties (N, X, H etc)
       cmix(1)=5
-!      write(*,*)'Extensive condition: ',current%statev
+!      write(*,*)'3D Extensive condition: ',current%statev
    else
-      write(*,*)'Illegal condition',current%statev
+      write(*,*)'3D Illegal condition',current%statev
       gx%bmperr=7777; goto 1000
    endif
    goto 900
@@ -1778,11 +1838,11 @@ end subroutine get_condition
 ! Here we should return extensive condition, maybe calculate value
 200 if(what.ne.0) goto 300
    cmix(1)=0
-   if(current%noofterms.gt.1) then
+!   if(current%noofterms.gt.1) then
 ! ignore conditions with several terms
-      write(*,*)'Found condition with several terms'
-      gx%bmperr=8888; goto 1000
-   endif
+!      write(*,*)'Found condition with several terms',current%noofterms
+!      gx%bmperr=8888; goto 1000
+!   endif
 ! for debugging
    istv=current%statev
    do jl=1,4
@@ -1803,6 +1863,25 @@ end subroutine get_condition
    cmix(4)=current%indices(2,1)
    cmix(5)=current%indices(3,1)
    cmix(6)=current%indices(4,1)
+! for one term set coefficient to one
+   ccf(1)=one
+! more than one term ...
+   if(current%noofterms.eq.2) then
+      nterms=current%noofterms
+      cmix(7)=current%indices(1,2)
+      cmix(8)=current%indices(2,2)
+      cmix(9)=current%indices(3,2)
+      cmix(10)=current%indices(4,2)
+      do jl=1,nterms
+         ccf(jl)=current%condcoeff(jl)
+      enddo
+!      write(*,211)'3D Two terms: ',(cmix(jl),jl=1,10),(ccf(jl),jl=1,nterms)
+211   format(a,2i4,2x,4i3,2x,4i3,3(1pe12.4))
+   endif
+   if(current%noofterms.gt.2) then
+      write(*,*)'3D Found condition more than 2 terms',current%noofterms
+      gx%bmperr=8888; goto 1000
+   endif
    value=current%prescribed
    goto 900
 !--------------------------------------

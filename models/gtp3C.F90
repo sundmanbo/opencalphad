@@ -3127,8 +3127,8 @@
          endif
          gx%bmperr=0; goto 1000
       else
-         write(lut,120)text(1:ip)
-120      format('Experiment ',a)
+         write(lut,120)seqz,text(1:ip)
+120      format('Experiment ',i2,2x,a)
       endif
       goto 100
 !------------
@@ -3163,12 +3163,13 @@
    endif
    last=>ceq%lastexperiment
    current=>last
+!   write(*,*)'3C index of last experiment: ',current%seqz
 70 continue
-!      write(*,*)'3C experiment number: ',seqz,current%seqz
+!   write(*,*)'3C experiment number: ',seqz,current%seqz
    if(current%seqz.eq.seqz) goto 100
    current=>current%next
    if(.not.associated(current,last)) goto 70
-! no experiment with this index found or is inactivated
+! no experiment with this index found or it is inactivated
    gx%bmperr=4131; goto 1000
 !
 100 continue
@@ -3177,7 +3178,6 @@
       gx%bmperr=7654; goto 1000
    endif
    iterm=1
-! UNFINISHED return here for each term if several ... NOT EXPERIMENTS
 150 continue
 !   write(*,*)'3C Testing is symbol or state variable record',&
 !        allocated(current%statvar)
@@ -3604,7 +3604,7 @@
          jtyp=typty-100*ityp
       endif
       if(ityp.le.1 .or. ityp.gt.ndefprop) then
-         write(*,*)'3C Property number outside range ',typty
+         write(*,*)'3C Property number outside range ',ityp,typty
          gx%bmperr=7777; goto 1000
       endif
       symbol=propid(ityp)%symbol

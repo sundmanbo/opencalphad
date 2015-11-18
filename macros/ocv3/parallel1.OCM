@@ -168,7 +168,18 @@ l eq
 set range 2 22
 
 @&
-@$ Calculate all without gridmin
+
+@$ calculate all with grid minimizer
+c a Y 
+1
+
+@$ calculate all without grid minimmizer (and in parallel if oc3P)
+c a N 1
+
+
+@$ Turn off parallel (if on)
+set bit 2 
+set bit 15
 
 c a N 1
 

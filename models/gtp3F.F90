@@ -1940,8 +1940,8 @@
 910 format(a,i3,2x,4i3,2i3,1pe14.6)
    call state_variable_val3(istv,indices,iref,iunit,value,ceq)
    if(gx%bmperr.ne.0) then
-      write(*,920)'3F error: ',gx%bmperr,istv,svr%oldstv,svr%argtyp
-920   format(a,i5,2x,2i4,i2)
+      write(*,920)'3F error 7: ',gx%bmperr,istv,svr%oldstv,svr%argtyp
+920   format(a,i5,2x,2i15,i2)
 !   else
 !      write(*,*)'3F value: ',value
    endif

@@ -29,21 +29,23 @@ tc(bcc)
 @&
 
 enter many_equil
-@$ set all phases as entered (no amount allowed)
-entered 1 *
+@$ set all phases as entered
+entered 0 *
 @$ set conditions and refer some values to table columns
 condition t=@1 p=1e5 n=1 w(c)=@2 w(cr)=.05 w(mo)=.08 w(si)=.003 w(v)=0.01
 @$ add a (predefined) symbol to be calculated at each equilibrium
 calc cp
 @$ add a list of (state) variables to be listed at each equilibrium
 list x(fcc,c) tc(bcc)
-@$ Here starts to table values
+@$ Now starts the table values
+@&
 table_start
 @$ comment line NOTE first value (column 0) on each line is equilibrium name!!
 @$ equilibrium names like FIRST, NEXT, PREVIOUS, DEFAULT, LAST forbidden
 @$     T is column 1, x(c) is column 2 (Preferably no TAB characters)
 ettan     800 0.008
 tvaan     800 0.009
+@&
 equil_3   800 0.010
 equil_4   800 0.011
 equil_5   800 0.012

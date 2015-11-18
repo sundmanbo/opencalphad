@@ -276,7 +276,7 @@ CONTAINS
     double precision, dimension(maxel) :: xknown,vmu
 ! antot is total number of moles of atoms.  Needed to scale results from
 ! gridmin which assumes 1 mole of atoms
-    double precision xxx,antot,cvalue
+    double precision xxx,antot,cvalue,ccf(5)
     logical gridtest,formap
 ! for global minimization (change maybe to allocate dynamically)
     integer, dimension(maxph) :: nyphl
@@ -367,13 +367,13 @@ CONTAINS
     ceq%rtn=globaldata%rgas*tpval(1)
 !---------------- loop
 ! loop through all conditions, end when the pointer condition is empty
-! loop to investigate conditions, apply_condition:value in pmod25D.F90
+! loop to investigate conditions, apply_condition:value in gtp3D.F90
 70  continue
        cmode=-1
        condition=>condition%next
        mjj=mjj+1
        if(ocv()) write(*,*)'check condition'
-       call apply_condition_value(condition,cmode,cvalue,cmix)
+       call apply_condition_value(condition,cmode,cvalue,cmix,ccf,ceq)
        if(gx%bmperr.ne.0) goto 1000
 ! cmix(1)=0 for inactive conditions
 ! cmix(1)=1 fix T, =2, fix P, =3 fix MU/AC/LNAC, =4 fix phase, =5 anything else
@@ -2214,12 +2214,13 @@ CONTAINS
 !\end{verbatim}
     TYPE(gtp_condition), pointer :: condition,lastcond
     TYPE(meq_phase), pointer :: pmi
+! cmix dimensioned for 2 terms ...
     integer cmix(10),cmode,stvix,stvnorm,sel,sph,scs,jph,jj,ie,je,ke,ncol
-    integer notf,nz2,nrow
-    double precision cvalue,totam,pham,mag,mat,map,xxx,zval,xval
+    integer notf,nz2,nrow,nterms,mterms,moffs
+    double precision cvalue,totam,pham,mag,mat,map,xxx,zval,xval,ccf(5),evalue
 ! the next line of values are a desperate search for a solution
     double precision totalmol,totalmass,check1,check2,amount
-    double precision, allocatable :: xcol(:),mamu(:),zcol(:)
+    double precision, allocatable :: xcol(:),mamu(:),zcol(:),qmat(:)
     double precision, allocatable :: xxmm(:),wwnn(:),hval(:)
     logical :: vbug=.FALSE.,calcmolmass
 
@@ -2357,11 +2358,12 @@ CONTAINS
     cmix=0
     condition=>condition%next
 ! This is the condition, cvalue is the prescibed value
-! cmode and cmix contain information how to calculate its currebt value
-    call apply_condition_value(condition,cmode,cvalue,cmix)
+! cmode and cmix contain information how to calculate its current value
+!    write(*,*)'MM calling apply',condition%noofterms
+    call apply_condition_value(condition,cmode,cvalue,cmix,ccf,ceq)
     if(gx%bmperr.ne.0) goto 1000
-!    write(*,351)nrow,cmode,cmix,cvalue
-351 format('cmix: ',2i3,2x,10i4,1pe12.4)
+!    if(condition%noofterms.gt.1) write(*,351)nrow,cmode,cmix,nterms,cvalue,&
+!         (ccf(jj),jj=1,condition%noofterms)
 ! Only cmix(1)=5 is interesting here. potentials already cared for
     if(cmix(1).ne.5) then
 ! loop if not the last condition
@@ -2369,6 +2371,14 @@ CONTAINS
        if(.not.associated(condition,lastcond)) goto 350
        goto 380
     endif
+! check if several terms
+    mterms=1
+    nterms=condition%noofterms
+!    if(nterms.gt.1) then
+!       write(*,351)nrow,cmode,cmix,nterms,cvalue,(ccf(jj),jj=1,nterms)
+!351    format('MM cmix: ',2i3,2x,10i4,'; ',i2,6(1pe12.4))
+!       gx%bmperr=7777; goto 1000
+!    endif
 ! do something with the condition ... it can be N=1, x(A)=.1, VM(GAS)=1e-6 etc.
 ! THE MASTER VERSION OF THIS TABLE in PMOD25C.F90
 ! symb cmix(2) indices                   irrelevant Property
@@ -2597,6 +2607,7 @@ CONTAINS
 ! 9 and 10 (DG and Q) not allowed as conditions
 !------------------------------------------------------------------
     case(11) ! N or X with or without indices and normalization
+1100   continue
        if(stvnorm.eq.0) then
           if(cmix(3).eq.0) then
 ! condition is N=fix
@@ -2768,6 +2779,9 @@ CONTAINS
           gx%bmperr=4208; goto 1000
        else
 !------------------------------------------------------------
+! return here if several terms, value of xxmm ???
+          moffs=0
+1120      continue
 ! x(A)=fix and x(phase#set,A)=fix conditions. x(A)=N(A)/N; x(ph,A)=N(ph,A)/N(ph)
 ! above N=fix and N(A)=fix are treated as they have a "simple" summation, 
 ! We must sum over all phases and constituents for the normallizing factor
@@ -2775,18 +2789,18 @@ CONTAINS
 ! derivative: dX(A)=dN(A)/N - N(A)/N**2 *dN
 ! sum dN(A) and dN at the same time and multiply the sums with 1/N 
 ! and -N(A)/N**2 in the end.
-          if(cmix(3).eq.0) then
+          if(cmix(3+moffs).eq.0) then
              write(*,*)'Condition NM=fix is illegal'
              gx%bmperr=4208; goto 1000
-          elseif(cmix(4).eq.0) then
+          elseif(cmix(4+moffs).eq.0) then
 ! condition is x(A)=fix
-             sel=cmix(3); sph=0
+             sel=cmix(3+moffs); sph=0
           else
 ! condition is x(phase#set,A)=fix
 !             write(*,33)cmix
 33           format('Condition x(phase#set,A)=fix?',10i4)
 !             gx%bmperr=9898; goto 1000
-             sel=cmix(5); sph=cmix(3); scs=cmix(4)
+             sel=cmix(5+moffs); sph=cmix(3+moffs); scs=cmix(4+moffs)
           endif
           if(.not.allocated(xxmm)) then
 ! this call returns the current fractions and total amounts.  We need
@@ -2918,32 +2932,82 @@ CONTAINS
 !             sel=cmix(5); sph=cmix(3); scs=cmix(4)
 !             write(*,*)'MM x(p,c): ',sph,scs,sel,zval
           enddo xallph
+!-------------- now code begin
+! UNFINISHED conditions using several terms
+! handle the case of several terms like x(liquid,S)-x(pyrrh,S)=0
+!                                       x(Mg)-2*x(Si)=0
+          if(mterms.lt.nterms) then
+! this branch if 2 or more terms
+             if(mterms.eq.1) then
+! allocate array for saving intermediate results
+                if(.not.allocated(qmat)) allocate(qmat(nz2))
+                qmat=zero
+                evalue=zero
+             endif
+! save zcol and xcol then go back and calculate next term
+             do ncol=1,nz2
+                qmat(ncol)=qmat(ncol)+(zcol(ncol)-xcol(ncol)*xxmm(sel))/totalmol
+             enddo
+             evalue=evalue+ccf(mterms)*xxmm(sel)
+! prepare for next term by incrementing mterms and moffs
+             mterms=mterms+1
+             moffs=moffs+4
+!             write(*,1117)'MM 2nd indices: ',moffs,(cmix(jj+moffs),jj=3,6)
+!1117         format(a,i3,2x,4i3)
+!             write(*,1118)'MM xxmm:',mterms,sel,xxmm(sel)
+             deallocate(xcol)
+             deallocate(zcol)
+             goto 1120
+          elseif(nterms.gt.1) then
+             nrow=nrow+1
+             if(nrow.gt.nz1) then
+                write(*,*)'too many equations 11B: ',nrow,nz1,meqrec%nfixph
+                gx%bmperr=4209; goto 1000
+             endif
+! insert results in smat
+!             write(*,1118)'MM endofexp:',mterms,sel,evalue,xxmm(sel)
+1118         format(a,2i3,6(1pe12.4))
+             do ncol=1,nz2
+                smat(nrow,ncol)=qmat(ncol)+&
+                     (zcol(ncol)-xcol(ncol)*xxmm(sel))/totalmol
+             enddo
+             evalue=evalue+ccf(mterms)*xxmm(sel)
+! add x^prescribed - x^current to rhs (right hand side)
+             smat(nrow,nz2)=smat(nrow,nz2)-cvalue+evalue
+!             gx%bmperr=7777; goto 1000
+!------------------new code end
+! use this else brash when nterms=1
+          else
+             nrow=nrow+1
+             if(nrow.gt.nz1) then
+                write(*,*)'too many equations 11B: ',nrow,nz1,meqrec%nfixph
+                gx%bmperr=4209; goto 1000
+             endif
 ! in xcol is dN and in zcol dN(A) summed over all phases and components
 ! calculate the normallized values now
 ! xmat=dN(A)/N - N(A)*dN/N**2
-          nrow=nrow+1
-          if(nrow.gt.nz1) then
-             write(*,*)'too many equations 11B: ',nrow,nz1,meqrec%nfixph
-             gx%bmperr=4209; goto 1000
-          endif
 ! sum zcol and xcol to nrow in smat multiplying xcol with current amount
 ! and normallizing with total amount, including the RHS (column nz2)
-          do ncol=1,nz2
-             smat(nrow,ncol)=(zcol(ncol)-xcol(ncol)*xxmm(sel))/totalmol
-          enddo
+             do ncol=1,nz2
+                smat(nrow,ncol)=(zcol(ncol)-xcol(ncol)*xxmm(sel))/totalmol
+             enddo
 ! add x^prescribed - x^current to rhs (right hand side)
-          smat(nrow,nz2)=smat(nrow,nz2)-cvalue+xxmm(sel)
+             smat(nrow,nz2)=smat(nrow,nz2)-cvalue+xxmm(sel)
+             evalue=xxmm(sel)
+          endif
           deallocate(xcol)
           deallocate(zcol)
 ! phase composition problem
 !          write(*,355)'MM X: ',cvalue,xxmm(sel),totalmol,pham,&
 !               (smat(nrow,jj),jj=1,nz2)
 ! check on convergence
-          if(abs(xxmm(sel)-cvalue).gt.ceq%xconv) then
+!          if(abs(xxmm(sel)-cvalue).gt.ceq%xconv) then
+          if(abs(evalue-cvalue).gt.ceq%xconv) then
              if(converged.lt.5) converged=5
 !             write(*,266)'Unconverged condition x(A): ',sel,&
+!                  cvalue,evalue
              if(vbug) write(*,266)'Unconverged condition x(A): ',sel,&
-                  cvalue,xxmm(sel)
+                  cvalue,evalue
           endif
        endif
 !
@@ -2951,6 +3015,7 @@ CONTAINS
     case(12) ! B or W
 ! Amount of component in mass, can have indices and normallization
 ! code copied from the case(11) for N and X and modified for mass
+1200   continue
        if(stvnorm.eq.0) then
           if(cmix(3).eq.0) then
 ! condition is B=fix

@@ -166,6 +166,7 @@
       tpfuns(ifri)%nextfree=ifri+1
       tpfuns(ifri)%noofranges=0
       tpfuns(ifri)%status=0
+      tpfuns(ifri)%forcenewcalc=0
    enddo
    tpfuns(nf)%nextfree=-1
    return
@@ -267,17 +268,24 @@
       result=zero
       goto 1000
    elseif(btest(tpfuns(lrot)%status,TPCONST)) then
-! TP symbol is a constant
+! TP symbol is a constant, value stored in tpfuns
       result=zero
       result(1)=tpfuns(lrot)%limits(1)
       goto 1000
    else
 ! check if previous values can be used
-      if(abs(tpres(lrot)%tpused(1)-tpval(1)).le.mini*tpres(lrot)%tpused(1) &
- .and.(abs(tpres(lrot)%tpused(2)-tpval(2)).le.mini*tpres(lrot)%tpused(2))) &
-           then
-         result=tpres(lrot)%results
-         goto 1000
+      if(abs(tpres(lrot)%tpused(1)-tpval(1)).le.&
+           mini*tpres(lrot)%tpused(1) .and. &
+           (abs(tpres(lrot)%tpused(2)-tpval(2)).le.&
+           mini*tpres(lrot)%tpused(2))) then
+         if(tpres(lrot)%forcenewcalc.eq.tpfuns(lrot)%forcenewcalc) then
+            result=tpres(lrot)%results
+            goto 1000
+         else
+! new calculation forced by changing optimizing coefficents for example
+            tpres(lrot)%forcenewcalc=tpfuns(lrot)%forcenewcalc
+            result=zero
+         endif
       else
          result=zero
       endif
@@ -2293,6 +2301,7 @@
    integer lrot
    double precision value
 !\end{verbatim} %+
+   integer mrot
    if(lrot.le.0 .or. lrot.ge.freetpfun-1) then
       write(*,*)'Attempt to change non-existing constant',lrot
       gx%bmperr=7777; goto 1000
@@ -2302,6 +2311,12 @@
       gx%bmperr=7777; goto 1000
    endif
    tpfuns(lrot)%limits(1)=value
+! force recalculation of all functions. HOW?
+! by incrementing an integer in tpfuns because this may affect many equilibria
+   do mrot=1,freetpfun-1
+      tpfuns(mrot)%forcenewcalc=tpfuns(mrot)%forcenewcalc+1
+   enddo
+!   write(*,*)'3Z forcenewcalc: ',tpfuns(1)%forcenewcalc+1
 1000 continue
    return
  end subroutine change_optcoeff

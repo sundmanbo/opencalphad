@@ -647,7 +647,8 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! limits are the low temperature limit for each range
 ! funlinks links to expression records for each range
 ! each range can have its own function, status indicate if T and P or T and V
-     integer noofranges,nextfree,status
+! forcenewcalc force new calculation when optimizing variable changed
+     integer noofranges,nextfree,status,forcenewcalc
      double precision, dimension(:), pointer :: limits
      TYPE(tpfun_expression), dimension(:), pointer :: funlinks
      double precision hightlimit
@@ -667,6 +668,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! values used to calculate the results
 ! Note that during calculations which can be parallellized the final
 ! results can be different for each parallell process
+     integer forcenewcalc
      double precision, dimension(2) :: tpused
      double precision, dimension(6) :: results
   END TYPE tpfun_parres
