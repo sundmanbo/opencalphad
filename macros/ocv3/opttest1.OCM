@@ -83,7 +83,7 @@ enter experiment h=17000:100
 l equil
 
 @$ This command tells OC which equilibria has experiments
-set range_exp_equil
+set range_exper_eq
 2
 4
 

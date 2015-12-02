@@ -6,8 +6,7 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine global_gridmin(what,tp,xknown,nvsph,iphl,icsl,aphl,&
-      nyphl,yphl,cmu,ceq)
+ subroutine global_gridmin(what,tp,xknown,nvsph,iphl,icsl,aphl,nyphl,cmu,ceq)
 !
 ! finds a set of phases that is a global start point for an equilibrium 
 ! calculation at T and P values in tp, total amount of atoms in totan
@@ -22,17 +21,24 @@
 ! what=-1 will check if any gridpoint below current calculated equilibrium
    implicit none
 ! nyphl(j) is the start position of the constitiuent fractions of phase j in
-! yphl that contains all the constitutions of the phases in the gridpoints
    integer, dimension(*) :: iphl,nyphl,icsl
    integer what,nvsph
    TYPE(gtp_equilibrium_data), pointer :: ceq
    double precision, dimension(2) :: tp
 ! cmu(1..nrel) is the chemical potentials of the solution
-   double precision, dimension(*) :: xknown,aphl,yphl,cmu
+! double precision, dimension(*) :: xknown,aphl,yphl,cmu
+   double precision, dimension(*) :: xknown,aphl,cmu
+!   double precision, dimension(maxconst) :: yphl
+! yarr is used in the call to generate_grid
+   double precision, dimension(maxconst) :: yarr
 !\end{verbatim}
    integer, parameter :: maxgrid=400000,maxy=2000,maxph=500
    integer :: starttid,endoftime
    real finish2
+! removed yphl as argument as it not needed outside global_gridmin
+! dimensioning can be problematic if many phases with many constituents as it
+! contains all constituent fractions of all gridpoints (before merge)
+   double precision, dimension(10*maxconst) :: yphl
    double precision amount,sum
    integer i,ibias,ics,ics2,icsno,icsx,ie,iph,iv,j1,j2,jip,jp,kkz,kp,kph,jbias
    integer lokcs,lokph,mode,ng,nocsets,noofgridpoints,nr,nrel,nrph,ny,nyz
@@ -51,6 +57,7 @@
    double precision qq(5),savetp(2)
    integer, dimension(maxph) :: iphx
    character name1*24
+!   integer idum(*)
 ! debug
    logical trace
 ! sort phases depending on number of gridpoints
@@ -119,8 +126,9 @@
          pph=pph+1
          kphl(pph)=kp
          iphx(pph)=iph
+!         write(*,61)'3Y iphx: ',iph,kp,pph,iphx(pph),kphl(pph)
 ! ionic/fcc/dense grid is delected inside generate_grid
-         call generate_grid(-1,iph,ng,nrel,xarr,garr,ny,yphl,ceq)
+         call generate_grid(-1,iph,ng,nrel,xarr,garr,ny,yarr,ceq)
          if(gx%bmperr.ne.0) goto 1000
          kp=kp+ng
          ngrid(pph)=kp-1
@@ -198,7 +206,7 @@
 !--$           iphx(iph),iv,gridpoints(pph+1-zph)
 42    format(a,10i7)
 ! this call will calculate all gridpoints, that may take time ...
-      call generate_grid(0,iphx(iph),ng,nrel,xarr(1,iv),garr(iv),ny,yphl,ceq)
+      call generate_grid(0,iphx(iph),ng,nrel,xarr(1,iv),garr(iv),ny,yarr,ceq)
       if(gx%bmperr.ne.0) then
          write(*,*)'grid error ',jip,zph,gx%bmperr
 ! this jump illegal when openmp
@@ -238,7 +246,7 @@
 !   write(*,*)'global_gridmin what: ',what
    if(what.eq.-1) then
       call gridmin_check(nystph,kp,nrel,xarr,garr,xknown,ngrid,pph,&
-           cmu,yphl,iphx,ceq)
+           cmu,yarr,iphx,ceq)
       goto 1000
    endif
 !-----------------------------------------------
@@ -283,6 +291,11 @@
       write(31,745)
 745   format(/'Solution: ')
    endif
+!   write(*,316)'3Y gp: ',nrel,(jgrid(jp),jp=1,nrel)
+316 format(a,i2,20i3)
+   do jp=1,nrel
+      iphl(jp)=0
+   enddo
    solloop: do jp=1,nrel
 ! jgrid(jp) is a grid point in the solution, find which phase it is
       mode=jgrid(jp)
@@ -297,22 +310,29 @@
             ibias=ngrid(zph)
          endif
       enddo
-      write(*,*)'gridpoint outside range ',jgrid(jp),ngrid(pph)
+      write(*,*)'3Y gridpoint outside range ',jgrid(jp),ngrid(pph)
       gx%bmperr=4147; goto 1000
 315   continue
       jbias=ibias
-!      write(*,*)'gridpoint in solution: ',mode,ibias
 ! this call is to obtain the constitution of a phase in the solution
 ! mode gives in grid point index in phase iphx(zph), ibias irrelevant (?)
 ! NOTE ibias is changed by subroutine
-      call generate_grid(mode,iphx(zph),ibias,nrel,xarr,garr,ny,yphl(nyz),ceq)
+!      write(*,317)'3Y before: ',mode,jp,iphl(jp),(iphl(nr),nr=1,jp)
+      call generate_grid(mode,iphx(zph),ibias,nrel,xarr,garr,ny,yarr,ceq)
       if(gx%bmperr.ne.0) goto 1000
-!       write(*,317)'gg7B: ',ny,nyz,(yphl(i),i=nyz,nyz+ny-1)
-!317    format(a,2i3,6(1pe11.3))
+!      write(*,317)'3Y after0: ',mode,jp,nyz,ibias,jbias,iphl(jp),&
+!           (iphl(nr),nr=1,jp)
       iphl(jp)=iphx(zph)
       aphl(jp)=phfrac(jp)
       nyphl(jp)=ny
+! copy the constitution of all gridpoints to yphl, needed for possible merge
+      do i=1,ny
+         yphl(nyz+i-1)=yarr(i)
+      enddo
       nyz=nyz+ny
+!      write(*,317)'3Y after1: ',mode,jp,nyz,ibias,jbias,iphl(jp),&
+!           (iphl(nr),nr=1,jp)
+317   format(a,5i4,i3,20i3)
 ! finally copy the mole fractions to xsol, needed for possible merging
       do ie=1,nrel
          xsol(ie,jp)=xarr(ie,mode+jbias)
@@ -333,6 +353,7 @@
    nvsph=nrel
    nr=nvsph
 !   if(.not.btest(globaldata%status,GSNOMERGE)) then
+! will only merge the gas phase
       call merge_gridpoints(nr,iphl,aphl,nyphl,yphl,trace,nrel,xsol,cmu,ceq)
       if(gx%bmperr.ne.0) goto 1000
 !   endif
@@ -645,6 +666,7 @@
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim}
+! subroutine generate_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,idum,ceq)
  subroutine generate_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,ceq)
 ! Different action depending of the value of mode, 
 ! for mode<0:  
@@ -668,6 +690,7 @@
    double precision yarr(*)
 !\end{verbatim} %+
 !
+!   integer idum(*)
    integer lokph,errsave
    double precision, parameter :: yzero=1.0D-12
    integer abrakadabra,i,ibas,ibin,iend,is,iter,je,jend,kend,ll,ls,nend
@@ -890,6 +913,7 @@
 200   continue
       ngg=ngg+1
       if(mode.gt.0) then
+! we have found the gridpoint! store y and x and quit
          if(ngg.eq.mode) goto 500
       else
 ! calculate G and composition and save
@@ -1093,15 +1117,14 @@
 ! here we return the constitution for gridpoint "mode" in the solution
 ! We must also return the mole fractions ... NO??
 500 continue
-!    write(*,505)'ggg: ',mode,iph,nsl,inkl(nsl),ny
-505 format(a,i7,i4,2x,i2,i5,i10)
-!   write(*,510)'ggy: ',mode,ngdim,ny,(yfra(i),i=1,ny)
-510 format(a,2i5,i3,10(F6.3))
-   do i=1,ny
-      yarr(i)=yfra(i)
-   enddo
-!   write(*,520)'ggx: ',(xarr(is,ngg+ngdim),is=1,nrel)
-520 format(a,10(f8.5))
+!   write(*,510)'3Y ggy: ',mode,ngdim,ny,(yfra(i),i=1,ny)
+510 format(a,3i5,10(F6.3))
+! return values of yfra in yarr.  Note xarr calculated above also returned
+    do i=1,ny
+       yarr(i)=yfra(i)
+    enddo
+!    write(*,520)'3Y ggx: ',mode,(xarr(i,mode),i=1,nrel)
+520 format(a,i4,10(f8.5))
 1000 continue
    if(allocated(endm)) then
       deallocate(endm)
@@ -3023,8 +3046,8 @@
          xerr(i)=xerr(i)+aphl(jp)*xsol(i,jp)
       enddo
    enddo
-   write(*,73)'3Y in: ',summu,(xerr(i),i=1,nrel)
-73 format(a,F5.2,2x,10f7.4)
+   write(*,73)'3Y in1: ',summu,(xerr(i),i=1,nrel)
+73 format(a,F5.2,2x,9(f7.4))
 !----------------------------------------------
 100 continue
    igen=.false.
@@ -3200,7 +3223,7 @@
 !----------------------------------------
 ! shift fractions for the removed phases
 450 continue
-   write(*,*)'3Y at label 450: ',nm
+!   write(*,*)'3Y at label 450: ',nm
    klast=0
    do jp=1,nv
       klast=klast+nyphl(jp)
@@ -3244,18 +3267,20 @@
 500   continue
    enddo
    if(iphl(nv).lt.0) nv=nv-1
-   write(*,*)'3Y final number of gridpoints: ',nv
+!   write(*,*)'3Y final number of gridpoints: ',nv
 ! list overall composition with merged gridpoints
    summu=zero
    xerr=zero
 ! this calculate the overall composition from gridpoints
+!   write(*,87)'3Y aphl: ',nv,(aphl(jp),jp=1,nv)
+87 format(a,i2,7(1pe10.2))
    do jp=1,nv
       summu=summu+aphl(jp)
       do i=1,nrel
          xerr(i)=xerr(i)+aphl(jp)*xsol(i,jp)
       enddo
    enddo
-   write(*,73)'3Y in: ',summu,(xerr(i),i=1,nrel)
+!   write(*,73)'3Y in2: ',summu,(xerr(i),i=1,nrel)
 ! uncomment here if problems shifting fractions
 !    write(*,502)nv,(iphl(i),i=1,nv)
 !    write(*,502)0,(incy(i),i=1,nv)
@@ -3277,6 +3302,8 @@
 !------------------------------------------
 ! temporary fix to avoid creating several composition sets in ideal gas
 1100 continue
+!   write(*,1102)'3Y merge ideal: ',nv,(iphl(jp),jp=1,nv)
+1102 format(a,i2,20i3)
    nm=0
    notuse=0
    incy(1)=1
@@ -3298,13 +3325,14 @@
                a1=aphl(jp)/sumam
                a2=aphl(kp)/sumam
                aphl(jp)=aphl(jp)+aphl(kp)
-!               write(*,1117)'3Y: ',jp,(yphl(incy(jp)+i),i=0,nyphl(jp)-1)
-!               write(*,1117)'3Y: ',kp,(yphl(incy(kp)+i),i=0,nyphl(kp)-1)
+! sum the constituent fractions 
                do i=0,nyphl(jp)-1
                   yphl(incy(jp)+i)=a1*yphl(incy(jp)+i)+a2*yphl(incy(kp)+i)
                enddo
-!               write(*,1117)'3Y: ',jp,(yphl(incy(jp)+i),i=0,nyphl(jp)-1)
-1117           format(a,i3,6(1pe12.4))
+! sum also mole fractions!!
+               do i=1,nrel
+                  xsol(i,jp)=a1*xsol(i,jp)+a2*xsol(i,kp)
+               enddo
                notuse(kp)=1
                igen=.TRUE.
                nm=nm+1
@@ -3349,6 +3377,7 @@
    integer ig1,ign,ip,iph,ics,jph,lokcs,lokph,mode,ny,ie,ig,kp,i
    double precision yarr(maxconst),qq(5),xxx,dgmin
    real dg,gplan
+!   integer idum(1000)
 !   write(*,*)'Entering set_metastable'
 ! loop through the gridpoints for all unstable phases and insert the
 ! constitution that is closest to be stable
@@ -3428,6 +3457,7 @@
 !      if(ocv()) write(*,78)'calling gengrid: ',iph,ig1,ip,ign,mode,dgmin
 78    format(a,5i7,1pe12.4)
 ! find the constitution of this gridpoint
+!      call generate_grid(mode,iph,ign,nrel,xarr,garr,ny,yarr,idum,ceq)
       call generate_grid(mode,iph,ign,nrel,xarr,garr,ny,yarr,ceq)
       if(gx%bmperr.ne.0) goto 1000
 !      write(*,451)(yarr(i),i=1,ny)
@@ -3477,6 +3507,7 @@
 !   integer :: addph=8 
 !   integer :: addph=100
    integer :: addph=0
+!   integer idum(1000)
    save addph
 !
    write(*,*)'Entering gridmin_check',addph
@@ -3522,6 +3553,7 @@
       enddo
 115   continue
 !      write(*,*)'mode, ibias and phase: ',mode,ibias,iphx(zph)
+!      call generate_grid(mode,iphx(zph),ibias,nrel,xarr,garr,ny,yphl,idum,ceq)
       call generate_grid(mode,iphx(zph),ibias,nrel,xarr,garr,ny,yphl,ceq)
       if(gx%bmperr.ne.0) goto 1000
       iph=iphx(zph)
@@ -4086,6 +4118,7 @@
    if(btest(globaldata%status,GSNOREMCS)) goto 1000
 !
 ! Now try to remove unstable composition sets with CSTEMPAR bit set
+!   write(*,*)'3Y loop to remove comp sets and auto bits'
    phloop: do iph=1,noph()
       noremove=.FALSE.
       lokph=phases(iph)
@@ -4119,9 +4152,12 @@
                   call suspend_composition_set(iph,.FALSE.,ceq)
                endif
             else
-! the comp.set is stable, remove the CSAUTO bit
+! the comp.set is stable, clear the CSAUTO and CSTEMPAR bits
+!               write(*,*)'3Y this comp.set. should never be removed'
                ceq%phase_varres(lokics)%status2=&
                     ibclr(ceq%phase_varres(lokics)%status2,CSAUTO)
+               ceq%phase_varres(lokics)%status2=&
+                    ibclr(ceq%phase_varres(lokics)%status2,CSTEMPAR)
             endif
          endif auto
       enddo csloopdown

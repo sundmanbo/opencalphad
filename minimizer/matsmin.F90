@@ -286,6 +286,8 @@ CONTAINS
     integer, parameter :: mmu=5
     integer what,mjj,ij,cmix(10),cmode,mufixel(mmu),mufixref(mmu),errout
     integer fixph(2,maxel),oldorder(mmu),kst
+! just for debugging
+    integer idum(1000)
     double precision fixpham(maxel),sumnp
     character statevar*40,encoded*60,name*24
 !
@@ -517,9 +519,10 @@ CONTAINS
     if(gx%bmperr.ne.0) goto 1000
     if(meqrec%typesofcond.eq.1) then
 ! with only massbalance condition make a global grid minimization
-!       call global_gridmin(1,tpval,antot,xknown,meqrec%nv,&
+!       call global_gridmin(1,tpval,xknown,meqrec%nv,&
+!            meqrec%iphl,meqrec%icsl,meqrec%aphl,nyphl,yarr,vmu,idum,ceq)
        call global_gridmin(1,tpval,xknown,meqrec%nv,&
-            meqrec%iphl,meqrec%icsl,meqrec%aphl,nyphl,yarr,vmu,ceq)
+            meqrec%iphl,meqrec%icsl,meqrec%aphl,nyphl,vmu,ceq)
        if(ocv()) write(*,*)'back from gridmin'
        if(gx%bmperr.ne.0) then
 ! if global fails reset error code and try a default start set of phases
@@ -759,9 +762,10 @@ CONTAINS
 ! Use same variables as earler call. New composition sets can be entered
        stop 'This is not yet implemented'
        what=-1
-!       call global_gridmin(what,tpval,antot,xknown,meqrec%nv,meqrec%iphl,&
+!       call global_gridmin(what,tpval,xknown,meqrec%nv,meqrec%iphl,&
+!            meqrec%icsl,meqrec%aphl,nyphl,yarr,vmu,idum,ceq)
        call global_gridmin(what,tpval,xknown,meqrec%nv,meqrec%iphl,&
-            meqrec%icsl,meqrec%aphl,nyphl,yarr,vmu,ceq)
+            meqrec%icsl,meqrec%aphl,nyphl,vmu,ceq)
        if(gx%bmperr.ne.0) then
 !          write(*,*)'MM Error calculating grid to test the solution',gx%bmperr
           goto 1000

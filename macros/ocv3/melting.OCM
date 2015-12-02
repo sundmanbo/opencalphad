@@ -8,14 +8,27 @@ r t steel1
 
 @&
 @$ -------------------------------------------------------------------
-set c t=1200 p=1e5 n=1 x(c)=.01 x(cr)=.05, x(mo)=.05 x(si)=.003 x(v)=.01
+set c t=1200 p=1e5 n=1 x(c)=.05 x(cr)=.05, x(mo)=.05 x(si)=.003 x(v)=.01
 
 c e
 
-l ,,,,
+l ,1
 
-@&
+@$ The equilibrium has two FCC phases, one represent cunbic carbide
+@$ Check result with a denser grid
 @$ -------------------------------------------------------------------
+@&
+
+set advanced 
+dense
+
+c e
+
+l ,,,
+
+@$ The denser grid has about 10 times more gridpoints.  Result the same
+@$ -------------------------------------------------------------------
+@&
 @$ Calculate the melting T by setting liquid fix and remove condition on T
 c tran
 liq
@@ -24,26 +37,38 @@ liq
 list,,,,,
 
 @&
+@$ The grid minimizer cannot be used for these conditions
 @$ -------------------------------------------------------------------
-@$ Test setting a condition on w(fcc,c)
-
-set c x(fcc,c)
-.02
+@$ Test setting a condition on the carbon content of the metallic fcc
+@$ Note that that is the second composition set !!!
+set c x(fcc#2,c)
+.04
 
 set c x(c)=none
 
 c e
+
 l,,,,
 
-@$ The total carbon content is now lower and the liquid is no longer stable
+@$ The total carbon content is lower and the cubic carbide and
+@$ the liquid are no longer stable.  List the constitutions:
+@&
+
+l , 2
+
 @&
 @$ -------------------------------------------------------------------
-@$ Calculate the new melting T
+@$ Calculate the new melting T for a steel with 4 percent C in the fcc
+@$ now using the "set phase ... status" command
 set ph liq 
-status fix 0
+status 
+fix 0
 
 set c t=none
 
+l c
+
+@&
 c e
 
 l,,,,
@@ -63,12 +88,12 @@ l,,,,,
 @&
 @$ -------------------------------------------------------------------
 @$ Now decrease H a little
-set c H=50000
+set c H=40000
 c e
 
 l,,,,
 
-@$ Note the size of the system has changed, N=0.98966 !!
+@$ Note the size of the system has changed, N=0.88287 !!
 
 set inter
 

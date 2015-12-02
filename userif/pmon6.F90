@@ -159,7 +159,7 @@ contains
 ! here are all commands and subcommands
 !    character (len=64), dimension(6) :: oplist
     integer, parameter :: ncbas=30,nclist=18,ncalc=9,ncent=18,ncread=6
-    integer, parameter :: ncam1=15,ncset=24,ncadv=3,ncstat=6,ncdebug=6
+    integer, parameter :: ncam1=15,ncset=24,ncadv=6,ncstat=6,ncdebug=6
     integer, parameter :: nselect=6,nlform=6,noptopt=6
     integer, parameter :: ncamph=12,nclph=6,nccph=6,nrej=6,nsetph=6
     integer, parameter :: nsetphbits=15,ncsave=6,nplt=12,nstepop=6
@@ -267,7 +267,7 @@ contains
          'NUMERIC_OPTIONS ','AXIS            ','INPUT_AMOUNTS   ',&
          'VERBOSE         ','AS_START_EQUILIB','BIT             ',&
          'VARIABLE_COEFF  ','SCALED_COEFF    ','OPTIMIZING_COND ',&
-         'RANGE_EXP_EQUIL ','FIXED_COEFF     ','GRAPHICS_OUPUT  ']
+         'RANGE_EXPER_EQU ','FIXED_COEFF     ','GRAPHICS_OUPUT  ']
 ! subsubcommands to SET STATUS
     character (len=16), dimension(ncstat) :: cstatus=&
          ['ELEMENT         ','SPECIES         ','PHASE           ',&
@@ -275,7 +275,8 @@ contains
 !        123456789.123456---123456789.123456---123456789.123456
 ! subsubcommands to SET ADVANCED
     character (len=16), dimension(ncadv) :: cadv=&
-         ['EQUILIB_TRANSF  ','QUIT            ','                ']
+         ['EQUILIB_TRANSF  ','QUIT            ','                ',&
+          'DENSE_GRID_ONOFF','                ','                ']
 !         123456789.123456---123456789.123456---123456789.123456
 ! subsubcommands to SET PHASE
     character (len=16), dimension(nsetph) :: csetph=&
@@ -853,8 +854,11 @@ contains
 ! generate grid and find the phases and constitutions for the minimum.
 ! Note: global_gridmin calculates for total 1 mole of atoms, not totam
 !          call global_gridmin(1,ceq%tpval,totam,xknown,nv,iphl,icsl,&
+! iphl is diemsioned (1:maxel), maxel=100, it is destroyed inside merge_grid ..
+!          call global_gridmin(1,ceq%tpval,xknown,nv,iphl,icsl,&
+!               aphl,nyphl,yarr,cmu,iphl,ceq)
           call global_gridmin(1,ceq%tpval,xknown,nv,iphl,icsl,&
-               aphl,nyphl,yarr,cmu,ceq)
+               aphl,nyphl,cmu,ceq)
           if(gx%bmperr.ne.0) goto 990
           write(kou,2102)nv,(iphl(j1),icsl(j1),j1=1,nv)
 2102      format('Number of stable phases ',i2/13(i4,i2))
@@ -1154,8 +1158,9 @@ contains
           END SELECT
 !-----------------------------------------------------------
        case(3) ! set ADVANCED
+! default is DENSE_GRID
           name1='advanced command'
-          kom3=submenu(name1,cline,last,cadv,ncadv,2)
+          kom3=submenu(name1,cline,last,cadv,ncadv,4)
           select case(kom3)
 !.................................................................
           CASE DEFAULT
@@ -1198,6 +1203,23 @@ contains
              continue
 !.................................................................
           case(3) ! nothing yet
+             write(*,*)'Not implemented yet'
+!.................................................................
+          case(4) ! DENSE_GRID_ONOFF
+! this sets bit 14 of global status word, also if bit 2 (expert) not set
+             if(btest(globaldata%status,14)) then
+                globaldata%status=ibclr(globaldata%status,14)
+                write(*,3110)'reset'
+3110            format('Dense grid ',a)
+             else
+                globaldata%status=ibset(globaldata%status,14)
+                write(*,3110)'set'
+             endif
+!.................................................................
+          case(5) ! nothing yet
+             write(*,*)'Not implemented yet'
+!.................................................................
+          case(6) ! nothing yet
              write(*,*)'Not implemented yet'
           end select
 !-----------------------------------------------------------
@@ -1703,21 +1725,25 @@ contains
                cline,last,ll,-1,tophlp)
           if(cline(1:1).eq.'?') then
              write(kou,3710)globaldata%status
-3710         format('Toggles global status word ',z8,' (only for experts): '/&
-                  'Bit Used for'/' 0  set if user is a beginner'/&
-                  ' 1  set if occational user'/' 2  set if expert'/&
-                  ' 3  set if gridminimizer not allowed'/&
-                  ' 4  set if gridminimizer must not merge comp.sets.'/&
-                  ' 5  set if these is no data'/&
-                  ' 6  set if there is no phases'/&
-                  ' 7  set if not allowed to create comp.sets automatically'/&
-                  ' 8  set if not allowed to delete comp.sets automatically'/&
-                  ' 9  set if data changed since last save'/&
-                  '10  set if verbose'/'11  set if explicit verbose'/&
-                  '12  set if very silent'/&
-                  '13  set if no cleanup after an equilibrium calculation'/&
-                  '14  set if dense grid in grid minimizer'/&
-                  '15  set if parallel execution not allowed')
+3710         format('Toggles global status word ',z8,&
+                  ' (only experts should change these) '/&
+                  'Bit If set means:'/&
+                  ' 0  user is a beginner'/&
+                  ' 1  user is experienced'/&
+                  ' 2  user is an expert'/&
+                  ' 3  gridminimizer will not be used'/&
+                  ' 4  gridminimizer must not merge comp.sets.'/&
+                  ' 5  there are no data'/&
+                  ' 6  there are no phases'/&
+                  ' 7  comp.sets must not be created automatically'/&
+                  ' 8  comp.sets must not be deleted automatically'/&
+                  ' 9  data has changed since last save'/&
+                  '10  means verbose is on'/&
+                  '11  means verbose is permanently on'/&
+                  '12  means be silent'/&
+                  '13  no cleanup after an equilibrium calculation'/&
+                  '14  use denser grid in grid minimizer'/&
+                  '15  calculations in parallel is not allowed')
              goto 3708
           endif
           if(ll.lt.0 .or. ll.gt.31) then
@@ -1727,13 +1753,17 @@ contains
              if(btest(globaldata%status,ll)) then
                 globaldata%status=ibclr(globaldata%status,ll)
                 write(*,3711)'cleared',globaldata%status
-3711            format('Bit ',a,', new value of status word: ',z8)
+3711            format('Bit ',a,', changed, new value of status word: ',z8)
              else
                 globaldata%status=ibset(globaldata%status,ll)
                 write(*,3711)'set',globaldata%status
              endif
+             if(.not.btest(globaldata%status,2)) then
+! if expert/experienced bit is cleared ensure that experienced bit is set
+                globaldata%status=ibset(globaldata%status,1)
+             endif
           else
-             write(kou,*)'You must have expert status to set this!'
+             write(kou,*)'You must have expert status to toggle this!'
           endif
 !-------------------------
        case(19) ! set variable_coefficent, 0 to 99
@@ -2094,13 +2124,18 @@ contains
           write(kou,*)'LIST FORMAT subcommand error'
           goto 100
 !-----------------------------------------------------------
-       case(1) ! list data for everything, not dependent on equilibrium!!
+       case(1) ! list data, not dependent on equilibrium!!
 ! NOTE output file for SCREEN can be set by /output=
 ! LIST DATA SCREEN/TDB/MACRO/LaTeX
 ! it is also possible to give SAVE TDB 
           kom3=submenu('Output format?',cline,last,llform,nlform,1)
           if(kom.gt.0) then
              call list_many_formats(cline,last,kom3,kou)
+             if(gx%bmperr.ge.4000 .and. gx%bmperr.le.nooferm) then
+                write(kou,*)bmperrmess(gx%bmperr)
+             elseif(gx%bmperr.ne.0) then
+                write(kou,*)'Error code ',gx%bmperr
+             endif
           else
              write(kou,*)'Unknown format'
           endif
@@ -2129,7 +2164,8 @@ contains
              chshort='C'
              write(kou,*)
              call list_global_results(lut,ceq)
-             write(lut,6303)'Some component data ....................'
+!             write(lut,6303)'Some component data ....................'
+             write(lut,6303)'Some data for components ...............'
              j1=1
              if(listresopt.ge.4 .and. listresopt.le.7) then
                 j1=2
@@ -2160,9 +2196,10 @@ contains
 !             if(buperr.ne.0) goto 990
 !  call list_phase_results(iph,ics,mode,kou,firsteq)
              write(lut,6051)ceq%eqno,ceq%eqname
-6051         format('Output for equilibrium: ',i3,', ',a)
+6051         format('Output for equilibrium: ',i3,', ',a,5x,a4,'.',a2,'.',a2)
              mode=110
-             call list_phase_results(iph,ics,mode,lut,ceq)
+             once=.TRUE.
+             call list_phase_results(iph,ics,mode,lut,once,ceq)
              if(gx%bmperr.ne.0) goto 990
 !...............................................................
           case(3) ! list phase model (including disordered fractions)
@@ -2304,8 +2341,11 @@ contains
 !------------------------------
        case(12) ! list results
           call gparid('Output mode: ',cline,last,listresopt,lrodef,q1help)
-          lrodef=listresopt
-          write(lut,6051)ceq%eqno,ceq%eqname
+          if(listresopt.gt.0 .and. listresopt.le.9) then
+             lrodef=listresopt
+          endif
+          call date_and_time(optres,name1)
+          write(lut,6051)ceq%eqno,ceq%eqname,optres(1:4),optres(5:6),optres(7:8)
 !  if(btest(globaldata%status,GSEQFAIL)) then
           if(btest(ceq%status,EQFAIL)) then
              write(lut,6305)
@@ -2330,52 +2370,67 @@ contains
           call list_conditions(lut,ceq)
           write(lut,6303)'Some global data, reference state SER ..'
           call list_global_results(lut,ceq)
-          write(lut,6303)'Some component data ....................'
+!          write(lut,6303)'Some component data ....................'
+          write(lut,6303)'Some data for components ...............'
           j1=1
           if(listresopt.ge.4 .and. listresopt.le.7) then
 ! j1=2 means mass fractions
              j1=2
           endif
           call list_components_result(lut,j1,ceq)
-          write(lut,6303)'Some Phase data ........................'
-! mode >1000 lists stable phases only
+! Phase output starts with newline
+!         write(lut,6304,advance='no')'Some Phase data ........................'
+          write(lut,6304,advance='no')'Some data for phases ...................'
+6304      format(/a,20('.'),':')
           if(listresopt.le.1) then
-! stable phases with mole fractions
+! 1: stable phases with mole fractions in value order 
              mode=1000
           elseif(listresopt.eq.2) then
-! stable phases with mole fractions and constitution
+! 2: stable phases with mole fractions and constitution in value order
              mode=1010
           elseif(listresopt.eq.3) then
-! stable phases with mole fractions and constitution in alphabetical order
+! 3: stable phases with mole fractions and constitution in alphabetical order
              mode=1110
           elseif(listresopt.eq.4) then
-! stable phases with mass fractions
+! 4: stable phases with mass fractions in value order
              mode=1001
           elseif(listresopt.eq.5) then
-! stable phases with mass fractions in alphabetical order
+! 5: stable phases with mass fractions in alphabetical order
              mode=1101
           elseif(listresopt.eq.6) then
-! stable phases with mass fractions and constitution
+! 6: stable phases with mass fractions and constitution in value order
              mode=1011
           elseif(listresopt.eq.7) then
-! all phases with mass fractions
+! 7: all phases with mass fractions in value order
              mode=1
           elseif(listresopt.eq.8) then
-! all phases with mole fractions and constitution in value order
+! 9: all phases with mole fractions in alphabetical order
              mode=110
           elseif(listresopt.eq.9) then
-! all phases with mole fractions in alphabetical order
-             mode=100
+! 9: all phases with mole fractions an constitutions in value order
+             mode=10
           else
 ! all phase with with mole fractions
              mode=0
           endif
           ics=1
+          once=.TRUE.
           do iph=1,noph()
              ics=0
 6310         continue
              ics=ics+1
-             call list_phase_results(iph,ics,mode,lut,ceq)
+! moved to gtp3C
+!             if(listresopt.ge.4 .and. listresopt.le.7) then
+! use phase amount in mass
+!                write(lut,6308)'Mass      '
+!6308            format('Name                Status ',a,' Volume',&
+!                 '    Form.U    At/FU     DGM    X/W:')
+!                     '    Form.U    At/FU     DGM   Frac:')
+!             else
+! use phase amount in mole
+!                write(lut,6308)'Moles     '
+!             endif
+             call list_phase_results(iph,ics,mode,lut,once,ceq)
              if(gx%bmperr.ne.0) then
 ! if error take next phase
                 gx%bmperr=0
@@ -2650,8 +2705,13 @@ contains
 ! format 2 is TDB, see list data ...
           kom3=2
           call list_many_formats(cline,last,kom3,kou)
+          if(gx%bmperr.ge.4000 .and. gx%bmperr.le.nooferm) then
+             write(kou,*)bmperrmess(gx%bmperr)
+          elseif(gx%bmperr.ne.0) then
+             write(kou,*)'Error code ',gx%bmperr
+          endif
 !-----------------------------------------------------------
-       case(3) !
+       case(3) ! not used
           write(kou,*)'Not implemented yet'
 !-----------------------------------------------------------
        case(4) ! save DIRECT

@@ -761,7 +761,7 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine list_phase_results(iph,jcs,mode,lut,ceq)
+ subroutine list_phase_results(iph,jcs,mode,lut,once,ceq)
 ! list results for a phase+comp.set on lut
 ! mode specifies the type and amount of results,
 ! unit digit:   0=mole fraction,      othewise mass fractions
@@ -770,6 +770,7 @@
 ! 1000th digit: 0=all phases,         1000=only stable phases
    implicit none
    integer iph,jcs,mode,lut
+   logical once
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
    character text*256,phname*24,status*10
@@ -854,7 +855,7 @@
       write(lut,19)iph,jcs,lokph,lokcs
 19    format('Illegal  phase name: ',10i5)
    endif
-   write(lut,20)phname,status,ceq%phase_varres(lokcs)%dgm
+!X   write(lut,20)phname,status,ceq%phase_varres(lokcs)%dgm
 20  format(/'Phase: ',A,' Status: 'A,' Driving force: ',1PE12.4)
 !------------------------
 !   xmol=zero
@@ -868,23 +869,45 @@
    kode=mod(mode,10)
 !   write(*,*)'lpr: ',mode,kode
    abv=ceq%phase_varres(lokcs)%abnorm(1)
+! a shorter output
+!   write(lut,700)phname,status(1:1),totmol,totmass*0.001, &
+!        amount*ceq%rtn*ceq%phase_varres(lokcs)%gval(3,1),&
+!        ceq%phase_varres(lokcs)%amfu,abv,ceq%phase_varres(lokcs)%dgm
+! try to fill upp the phase name with '.'
+   nz=len_trim(phname)
+   phname(nz+1:)='.........................'
    if(kode.eq.0) then
 ! The volume value here is WRONG: ceq%phase_varres(lokcs)%gval(3,1) !!! ???
-      if(abs(ceq%phase_varres(lokcs)%netcharge).gt.1.0D-6) then
-         write(lut,28)totmol,totmass*0.001, &
-              amount*ceq%rtn*ceq%phase_varres(lokcs)%gval(3,1),&
-              ceq%phase_varres(lokcs)%netcharge
-      else
-         write(lut,25)totmol,totmass*0.001, &
-              amount*ceq%rtn*ceq%phase_varres(lokcs)%gval(3,1)
-      endif
-      write(lut,21)ceq%phase_varres(lokcs)%amfu,abv
+      if(once) write(lut,699)'Moles     '
+      once=.FALSE.
+699   format(/'Name                Status ',a,' Volume',&
+           '    Form.Units  At/FU dGm/RT  Comp:')
+!          '    Form.U      At/FU DGM    Fracs:')
+      write(lut,700)phname,status(1:1),totmol,&
+           amount*ceq%rtn*ceq%phase_varres(lokcs)%gval(3,1),&
+           ceq%phase_varres(lokcs)%amfu,abv,ceq%phase_varres(lokcs)%dgm,'X:'
+!      phase status moles/mass   (volume FU)  Atomes/FU DGM Content
+700 format(a,1x,a,  1pe11.3,     2(1pe10.2),1x,0pF7.2,1pe10.2,2x,a)
+!X      if(abs(ceq%phase_varres(lokcs)%netcharge).gt.1.0D-6) then
+!X         write(lut,28)totmol,totmass*0.001, &
+!X              amount*ceq%rtn*ceq%phase_varres(lokcs)%gval(3,1),&
+!X              ceq%phase_varres(lokcs)%netcharge
+!X      else
+!X         write(lut,25)totmol,totmass*0.001, &
+!X              amount*ceq%rtn*ceq%phase_varres(lokcs)%gval(3,1)
+!X      endif
+!X      write(lut,21)ceq%phase_varres(lokcs)%amfu,abv
 21    format('Formula Units: ',1pe12.4,', Moles of atoms/FU: ',1pe12.4,&
            ', Molar content:')
    else
-      write(lut,25)totmol,totmass*0.001,&
-           amount*ceq%rtn*ceq%phase_varres(lokcs)%gval(3,1)
-      write(lut,22)ceq%phase_varres(lokcs)%amfu,abv
+      if(once) write(lut,699)'Mass      '
+      once=.FALSE.
+      write(lut,700)phname,status(1:1),totmass*0.001, &
+           amount*ceq%rtn*ceq%phase_varres(lokcs)%gval(3,1),&
+           ceq%phase_varres(lokcs)%amfu,abv,ceq%phase_varres(lokcs)%dgm,'W:'
+!X      write(lut,25)totmol,totmass*0.001,&
+!X           amount*ceq%rtn*ceq%phase_varres(lokcs)%gval(3,1)
+!X      write(lut,22)ceq%phase_varres(lokcs)%amfu,abv
 22    format('Formula Units: ',1pe12.4,', Moles of atoms/FU: ',1pe12.4,&
            ', Mass fractions:')
    endif
@@ -911,17 +934,23 @@
 ! constitution only if nonzero tenth-digit of mode or if GAS
 300 continue
    if(.not.btest(phlista(lokph)%status1,PHGAS)) then
-      if(mod(mode/10,10).le.0) goto 1000
+      if(mod(mode/10,10).le.0) goto 900
    endif
-   write(lut,310)
-310  format('Constitution: ')
+   write(lut,310,advance='no')
+310  format(' Constitution: ')
 !---------------
    nk=0
    sublatloop: do ll=1,phlista(lokph)%noofsubl
       nz=phlista(lokph)%nooffr(ll)
       if(phlista(lokph)%noofsubl.gt.1) then
 !         write(lut,320)ll,nz,phlista(lokph)%sites(ll)
-         write(lut,320)ll,nz,ceq%phase_varres(lokcs)%sites(ll)
+         if(ll.gt.1) then
+            write(lut,319)ll,nz,ceq%phase_varres(lokcs)%sites(ll)
+         else
+            write(lut,320)ll,nz,ceq%phase_varres(lokcs)%sites(ll)
+         endif
+319      format(15x,'Sublattice ',i2,' with ',i5,' constituents and ',&
+              F12.6,' sites')
 320      format('Sublattice ',i2,' with ',i5,' constituents and ',&
               F12.6,' sites')
 !      elseif(phlista(lokph)%sites(ll).eq.one) then
@@ -954,6 +983,9 @@
       if(gx%bmperr.ne.0) goto 1000
       nk=nk+nz
    enddo sublatloop
+900 continue
+! write an empty line after each phase ...
+   write(lut,*)
 1000 continue
    return
  end subroutine list_phase_results
@@ -1007,7 +1039,8 @@
    allocate(isort(nv+4))
 !   if(mode.ge.100) then
 !   write(*,*)'3C mode: ',mode,mod(mode,100),mode-100*mod(mode,100)
-   if(mod(mode,100).eq.0) then
+!   if(mod(mode,10).eq.0) then
+   if(mod(mode/100,10).eq.0) then
 ! value order
       call sortrdd(vals,nv,isort)
       if(buperr.ne.0) then
@@ -1259,8 +1292,10 @@
 !--------------------------------------------------------------
    goto 1000
 ! error
-900 write(kou,*)'File already exist, overwriting not allowed'
-!   close(31)
+900 continue
+!  write(kou,*)'File already exist, overwriting not allowed'
+   close(31)
+   gx%bmperr=4190
 1000 continue
    unit=kousave
    return

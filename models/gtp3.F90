@@ -363,7 +363,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        '                                                                ',&
        '                                                                ',&
 ! 4190
-       '                                                                ',&
+       'File already exist, overwriting not allowed                     ',&
        '                                                                ',&
        '                                                                ',&
        '                                                                ',&
