@@ -8,13 +8,14 @@ set echo
 r t steel1
 fe
 
+@$ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-
 @&
-@$ -------------------------------------------------------------------
 @$ list the data
 l data
 
+@$ Listing of all data above
+@$ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-
 @&
-@$ -------------------------------------------------------------------
 @$ Set condition to calculate an equilibrium
 
 set c t=1000 p=1e5 n=1
@@ -23,35 +24,39 @@ c e
 
 l,,,,
 
+@$ At T=1000 and 1 bar BCC is stable and G=-42272 J
+@$ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-
 @&
-@$ -------------------------------------------------------------------
-@$ A short list
 
 l sh
 
+@$ A short list
+@$ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-
 @&
-@$ -------------------------------------------------------------------
-@$ Change condition to total mass
+@$ Change condition to total mass, B, corresponding to 1 mole
 
 set c b
 
+@$ remove condition on N
 set c n=none
 
 c e
 
 l,,,,
 
+@$ Same equilibrium with B instead of N as condition
+@$ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-
 @&
-@$ -------------------------------------------------------------------
 @$ Change T to ensure we can change stable phase
 
 set c t=2000
 c e
 l,,,,
 
+@$ Now liquid is stable and G=-127520 J
+@$ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-
 @&
-@$ -------------------------------------------------------------------
-@$ set condition of H and remove condition on T
+@$ set condition on H and remove condition on T
 
 set c h
 
@@ -62,11 +67,12 @@ set c t=none
 c e
 
 l,,,,
+@$ Same equilibrium with condition on H instead of T
+@$ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-
 @&
-@$ Problem combining condition on B and H, restore condition on N
+@$ Problem combining condition on H amd B, restore condition on N
 set c N=1
 set c B=none
-@$ -------------------------------------------------------------------
 @$ Change value of H and calculate the equilibrium
 
 set c h
@@ -76,6 +82,6 @@ c e
 
 l,,,,
 
-@$ We have now FCC stable at 1615 K with this value of H
+@$ With this value of H we have FCC stable at 1615 K 
 
 set inter

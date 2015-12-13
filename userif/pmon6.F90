@@ -1753,7 +1753,7 @@ contains
              if(btest(globaldata%status,ll)) then
                 globaldata%status=ibclr(globaldata%status,ll)
                 write(*,3711)'cleared',globaldata%status
-3711            format('Bit ',a,', changed, new value of status word: ',z8)
+3711            format('Bit ',a,', new value of status word: ',z8)
              else
                 globaldata%status=ibset(globaldata%status,ll)
                 write(*,3711)'set',globaldata%status

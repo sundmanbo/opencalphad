@@ -1245,6 +1245,7 @@
                   allocate(temp)
                   temp%previous=>topsave
                   topsave=>temp
+! MEMORY LEAK
                   nullify(temp)
                   topsave%exprot=>exprot
                   topsave%level=level
@@ -1305,6 +1306,7 @@
             allocate(temp)
             temp%previous=>topsave
             topsave=>temp
+! MEMORY LEAK
             nullify(temp)
             topsave%exprot=>exprot
             topsave%level=level
@@ -1404,6 +1406,7 @@
                allocate(temp)
                temp%previous=>topsave
                topsave=>temp
+! MEMORY LEAK
                nullify(temp)
                topsave%exprot=>exprot
                topsave%level=level

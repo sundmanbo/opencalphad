@@ -1859,9 +1859,16 @@
    logical warning
 ! set to TRUE if element present in database
    logical, allocatable :: present(:)
+! to prevent any output
+   logical silent
 !  mmyfr
 ! if warning is true at the end pause before listing bibliography
    warning=.FALSE.
+   silent=.FALSE.
+   if(btest(globaldata%status,GSSILENT)) then
+      silent=.TRUE.
+!      write(*,*)'3E reading database silent'
+   endif
    if(ocv()) write(*,*)'reading a TDB file'
    if(.not.(index(filename,'.tdb').gt.0 &
        .or. index(filename,'.TDB').gt.0)) then
@@ -1922,7 +1929,8 @@
 !            ipp=20
 !         endif
          if(eolch(line,nextc)) then
-            write(*,*)'Function name must be on same line as FUNCTION'
+            if(.not.silent) &
+                 write(kou,*)'Function name must be on same line as FUNCTION'
             gx%bmperr=4000; goto 1000
          endif
          ipp=nextc+index(line(nextc:),' ')
@@ -1952,7 +1960,8 @@
                   if(gx%bmperr.eq.4002) nfail=nfail+1
                   gx%bmperr=0; goto 100
                endif
-               write(*,*)'Failed entering function: ',name1
+               if(.not.silent) write(kou,*)'Failed entering function: ',name1
+               gx%bmperr=4000
                goto 1000
             endif
             if(ocv()) write(*,*)'Entered function: ',name1
@@ -1993,7 +2002,7 @@
    endif
    if(.not.nophase .and. keyw.ne.4) then
 ! after a PHASE keyword one should have a CONSTITUENT
-      write(*,*)'expeciting CONSTITUENT: ',line(1:30)
+      if(.not.silent) write(kou,*)'expeciting CONSTITUENT: ',line(1:30)
       warning=.TRUE.
    endif
 ! check there is a ! in line, otherwise read until we find an exclamation mark
@@ -2009,7 +2018,7 @@
          longline(ip:)=line
          ip=len_trim(longline)+1
          if(ip.gt.len(longline)-80) then
-            write(*,69)nl,ip,longline(1:72)
+            if(.not.silent) write(kou,69)nl,ip,longline(1:72)
 69          format('Overflow in longline ',2i5,' for line starting:'/a)
             gx%bmperr=7777; goto 1000
          endif
@@ -2032,7 +2041,8 @@
 ! ELEMENT CR   BCC_A2                    5.1996E+01  4.0500E+03  2.3560E+01!
       ip=nextc
       if(eolch(longline,ip)) then
-         write(*,*)'No element name after ELEMENT keyword on line ',nl
+         if(.not.silent) &
+              write(kou,*)'No element name after ELEMENT keyword on line ',nl
          gx%bmperr=7777; goto 1000
       endif
       elsym=longline(ip:ip+1)
@@ -2094,7 +2104,7 @@
 ! SPECIES O3PU2                       O3PU2!
       ip=nextc
       if(eolch(longline,ip)) then
-         write(*,*)'Line after SPECIES keyword empty'
+         if(.not.silent) write(kou,*)'Line after SPECIES keyword empty'
          gx%bmperr=7777; goto 1000
       endif
       name1=longline(ip:)
@@ -2103,7 +2113,7 @@
       name1(jp:)=' '
       ip=ip+jp
       if(eolch(longline,ip)) then
-         write(*,*)'No stoichiometry for species: ',name1
+         if(.not.silent) write(kou,*)'No stoichiometry for species: ',name1
          warning=.TRUE.
          goto 100
       endif
@@ -2120,7 +2130,7 @@
          if(gx%bmperr.eq.4046) then
             gx%bmperr=0; goto 100
          else
-            write(*,*)'Error entering species: ',name1,name2
+            if(.not.silent) write(kou,*)'Error entering species: ',name1,name2
             goto 1000
          endif
       endif
@@ -2139,7 +2149,8 @@
 ! all functions entered at the end, skip until !
 !      do while(index(longline,'!').le.0)
       if(index(longline,'!').le.0) then
-         write(*,*)' Error, terminating ! not found for funtion!!',nl
+         if(.not.silent) &
+              write(*,*)' Error, terminating ! not found for funtion!!',nl
          gx%bmperr=7777; goto 1000
       endif
 !-------------------------------------------------------------------------
@@ -2160,18 +2171,19 @@
                endif
             enddo
             if(kkk.gt.1) then
-               write(kou,68)funname(1:kkk)
+               if(.not.silent) write(kou,68)funname(1:kkk)
 68             format(/' *** Warning, elements not present in database: ',a/)
             endif
             deallocate(present)
          endif
       else
-         write(*,*)'Error, a PHASE keyword must be followed by its CONSTIT'
+         if(.not.silent) write(kou,*) &
+              'Error, a PHASE keyword must be followed by its CONSTIT'
          gx%bmperr=7777; goto 1000
       endif
       ip=nextc
       if(eolch(longline,ip)) then
-         write(*,*)'line after PHASE empty'
+         if(.not.silent) write(kou,*)'line after PHASE empty'
          goto 100
       endif
       name1=longline(ip:)
@@ -2225,7 +2237,8 @@
 !      write(*,*)'Checking phase types for phase: ',name1,jp
 ! skip blanks, then read type code, finished by a blank
       if(eolch(longline,jp)) then
-         write(*,*)'3E no phase typecode: ',name1(1:len_trim(name1))
+         if(.not.silent) &
+              write(kou,*)'3E no phase typecode: ',name1(1:len_trim(name1))
          warning=.TRUE.
       endif
       jp=jp-1
@@ -2257,7 +2270,7 @@
 !      write(*,*)'3E buperr: ',buperr ,jp
       call getrel(longline,jp,xsl)
       if(buperr.ne.0) then
-         write(*,*)'3E tdb: "',longline(1:jp),'"',buperr
+         if(.not.silent) write(kou,*)'3E tdb: "',longline(1:jp),'"',buperr
          gx%bmperr=buperr; goto 1000
       endif
       nsl=int(xsl)
@@ -2273,7 +2286,8 @@
    case(4) !    CONSTITUENT LIQUID:L :CR,FE,MO :  !
 ! the phase must have been defined
       if(nophase) then
-         write(*,*)'A CONSTITUENT keyword not directly preceeded by PHASE!'
+         if(.not.silent) write(kou,*) &
+              'A CONSTITUENT keyword not directly preceeded by PHASE!'
          gx%bmperr=7777; goto 1000
       endif
       nophase=.true.
@@ -2319,7 +2333,7 @@
       nr=0
 380   continue
       if(eolch(longline,ip)) then
-         write(*,*)'Error extracting constituents 1'
+         if(.not.silent) write(kou,*)'Error extracting constituents 1'
          gx%bmperr=7777; goto 1000
       endif
       nr=nr+1
@@ -2338,7 +2352,7 @@
 ! bypass any "major" indicator %
       if(ch1.eq.'%') ip=ip+1
       if(eolch(longline,ip)) then
-         write(*,*)'Error extracting constituents 2'
+         if(.not.silent) write(kou,*)'Error extracting constituents 2'
          gx%bmperr=7777; goto 1000
       endif
 ! check that const(nrr) among the selected elements ...
@@ -2358,7 +2372,7 @@
       if(ch1.ne.'!') goto 380
 ! when an ! found the list of constutents is finished.  But we
 ! should have found a : before the !
-      write(*,*)'Found "!" before terminating ":"'
+      if(.not.silent) write(kou,*)'Found "!" before terminating ":"'
       gx%bmperr=7777; goto 1000
 !      write(*,*)'Species terminator error: ',ch1,nl
 !      gx%bmperr=4157; goto 1000
@@ -2379,13 +2393,14 @@
          call find_phase_by_name(ordpartph(thisdis),iph,ics)
          if(gx%bmperr.ne.0) then
 ! NOTE THE ORDERED PHASE MAY NOT BE ENTERED DUE TO COMPONENTS!!
-            write(*,396)thisdis,ordpartph(thisdis)
+            if(.not.silent) write(kou,396)thisdis,ordpartph(thisdis)
 396         format('Disordered phase skipped as no ordered: ',i3,' "',a,'"')
             warning=.TRUE.
             gx%bmperr=0
             goto 100
          else
-            write(*,*)'Adding disordered fraction set: ',ordpartph(thisdis)
+            if(.not.silent) write(kou,*) &
+                 'Adding disordered fraction set: ',ordpartph(thisdis)
          endif
 ! we are creating the phase, there is only one composition set
          call get_phase_compset(iph,1,lokph,lokcs)
@@ -2401,8 +2416,8 @@
 ! if disordred phase is FCC, BCC or HCP then set jl=1 and nd1 to 2 or 4
             if(phlista(lokph)%noofsubl.le.5) nd1=4
             if(phlista(lokph)%noofsubl.le.3) nd1=2
-            write(kou,397)ordpartph(thisdis)(1:len_trim(ordpartph(thisdis))),&
-                 nd1
+            if(.not.silent) write(kou,397) &
+                 ordpartph(thisdis)(1:len_trim(ordpartph(thisdis))),nd1
 !         write(*,399)
 !399      format('Phase names for disordered parts of FCC, BCC and HCP must',&
 !              ' start with:'/'  A1_ , A2_ and A3_ respectivly!'/&
@@ -2413,21 +2428,23 @@
 ! if disordred phase is FCC, BCC or HCP then set jl=1 and nd1 to 2 or 4
             if(phlista(lokph)%noofsubl.le.5) nd1=4
             if(phlista(lokph)%noofsubl.le.3) nd1=2
-            write(kou,397)ordpartph(thisdis)(1:len_trim(ordpartph(thisdis))),&
-                 nd1
+            if(.not.silent) write(kou,397) &
+                 ordpartph(thisdis)(1:len_trim(ordpartph(thisdis))),nd1
 397         format('Phase ',a,&
                  ' has an order/disorder partition model summing first ',i2)
             jl=1
          else
 ! disordered part of sigma, mu etc.
             jl=0; nd1=phlista(lokph)%noofsubl
-            write(kou,398)ordpartph(thisdis)(1:len_trim(ordpartph(thisdis))),nd1
+            if(.not.silent) write(kou,398) &
+                 ordpartph(thisdis)(1:len_trim(ordpartph(thisdis))),nd1
 398         format('Phase ',a,' has NODT partition model summing first ',i2)
          endif
 ! add DIS_PART from TDB
          call add_fraction_set(iph,ch1,nd1,jl)
          if(gx%bmperr.ne.0) then
-            write(*,*)'3E Error entering disordered fraction set: ',gx%bmperr
+            if(.not.silent) write(kou,*) &
+                 '3E Error entering disordered fraction set: ',gx%bmperr
             goto 1000
          endif
          if(jl.eq.0) then
@@ -2441,15 +2458,16 @@
          else
             xxx=one
          endif
-         write(kou,601)dispartph(thisdis)(1:len_trim(dispartph(thisdis))),&
-              ch1,nd1,jl,xxx
+         if(.not.silent) write(kou,601) &
+              dispartph(thisdis)(1:len_trim(dispartph(thisdis))),ch1,nd1,jl,xxx
 601      format('Parameters from disordered part added: ',a,5x,a,2x,2i3,F12.4)
       else
          call enter_phase(name1,nsl,knr,const,stoik,name2,phtype)
 !      write(*,*)'readtdb 9A: ',gx%bmperr
          if(gx%bmperr.ne.0) then
             if(gx%bmperr.eq.4121) then
-               write(*,*)'Phase ',name1(1:len_trim(name1)),&
+               if(.not.silent) write(kou,*) &
+                    'Phase ',name1(1:len_trim(name1)),&
                     ' is ambiguous or short for another phase'
             endif
             goto 1000
@@ -2458,7 +2476,7 @@
          call find_phase_by_name(name1,iph,lcs)
 !         write(*,*)'readtdb 9X: ',gx%bmperr
          if(gx%bmperr.ne.0) then
-            write(*,*)'Phase ',name1,' is ambiguous'
+            if(.not.silent) write(kou,*)'Phase ',name1,' is ambiguous'
             goto 1000
          endif
          lokph=phases(iph)
@@ -2482,7 +2500,7 @@
 !123456789.123456789.123456789.123456789.123456789.123456789.123456789.12345678
 !   PARAMETER G(LIQUID,CR;0)  2.98150E+02  +24339.955-11.420225*T
       if(eolch(longline,nextc)) then
-         write(*,*)'Empty line after PARAMETER'
+         if(.not.silent) write(kou,*)'Empty line after PARAMETER'
          gx%bmperr=7777; goto 1000
       endif
 !      if(dodis.eq.1) write(*,*)'Reading disordered parameters'
@@ -2510,7 +2528,8 @@
 !         write(*,*)'psym1: ',name1(1:len_trim(name1))
          call get_parameter_typty(name1,lokph,typty,fractyp)
          if(gx%bmperr.ne.0) then
-            write(*,*)' *** Illegal parameter identifier on line: ',nl
+            if(.not.silent) write(kou,*) &
+                 ' *** Illegal parameter identifier on line: ',nl
             gx%bmperr=0; typty=0
             warning=.TRUE.
          endif
@@ -2555,7 +2574,8 @@
 ! find terminating )
       lp1=index(name4,')')
       if(lp1.le.0) then
-         write(*,*)'Possible error in constituent array? ',name4,', line:',nl
+         if(.not.silent) write(kou,*) &
+              'Possible error in constituent array? ',name4,', line:',nl
          warning=.TRUE.
          goto 100
       else
@@ -2592,10 +2612,10 @@
 !         goto 1000
       endif
          endif
-      if(nint.gt.1) then
+!      if(nint.gt.1) then
 ! lint(1,1) is species of first, lint(1,2) in second interaction
 !          write(*,305)'readtdb 305: ',endm(1),nint,lint(2,1),lint(2,2)
-      endif
+!      endif
 305    format(a,5i4)
 !---------------- encode function
 !      if(dodis.eq.1) write(*,*)'We are here 1'
@@ -2621,7 +2641,7 @@
 !410    continue
       jp=len_trim(longline)
       if(longline(jp:jp).ne.'!') then
-         write(*,410)nl,ip,longline(1:ip)
+         if(.not.silent) write(kou,410)nl,ip,longline(1:ip)
 410      format('Error, parameter line not ending with !',2i5/a)
          gx%bmperr=7777; goto 1000
       endif
@@ -2633,7 +2653,7 @@
          kp=kp-1
          if(kp.lt.1) then
 ! illegal termination of function in TDB file
-            write(*,417)nl
+            if(.not.silent) write(kou,417)nl
 417 format('No final ; of function in TDB file, around line: ',i5)
             gx%bmperr=4013; goto 1000
          endif
@@ -2681,7 +2701,7 @@
 !         write(*,404)'readtdb entpar: ',refx,fractyp,nint,ideg
 404   format(a,a,i3,2x,10i3)
       if(gx%bmperr.ne.0) then
-         write(*,*)'Error set: ',gx%bmperr,lrot,' ',&
+         if(.not.silent) write(kou,*)'Error set: ',gx%bmperr,lrot,' ',&
               funname(1:len_trim(funname)),' around line: ',nl
          goto 1000
       else
@@ -2692,20 +2712,22 @@
 407      format(a,3i5)
          if(gx%bmperr.ne.0) then
 ! error entering parameter, not fatal
-            if(dodis.eq.1) write(*,408)'3E parameter warning:',gx%bmperr,nl,&
+            if(dodis.eq.1 .and. .not.silent) &
+                 write(*,408)'3E parameter warning:',gx%bmperr,nl,&
                  funname(1:40)
 408         format(a,i6,' line ',i5,': ',a)
             if(.not.(gx%bmperr.ne.4096 .or. gx%bmperr.ne.4066)) goto 1000
 ! ignore error 4096 meaning "no such constituent" or "... in a sublattice"
 !            write(*,*)'readtdb entparerr: ',gx%bmperr,' >',&
 !                 funname(1:len_trim(funname))
-            if(gx%bmperr.eq.7778) write(*,*)'3E Error 7778 at line: ',nl
+            if(gx%bmperr.eq.7778 .and. .not.silent) &
+                 write(*,*)'3E Error 7778 at line: ',nl
             gx%bmperr=0
 !         elseif(dodis.eq.1) then
 !            write(*,*)'Disordered parameter should be entered ok'
          endif
       endif
-      if(gx%bmperr.ne.0) write(*,*)'3E errorcode 1: ',gx%bmperr
+      if(gx%bmperr.ne.0 .and. .not.silent) write(*,*)'3E error 1: ',gx%bmperr
 !------------------------------------------------------------------
 !   elseif(line(2:17).eq.'TYPE_DEFINITION ') then
    case(7) !TYPE_DEFINITION 
@@ -2752,7 +2774,8 @@
                if(km.gt.0 .and. km.lt.ip) ip=km
 !               if(ip.le.0) ip=1
                dispartph(disparttc)(ip:)=' '
-               write(*,82)disparttc,ordpartph(disparttc),dispartph(disparttc)
+               if(.not.silent) write(kou,82) &
+                    disparttc,ordpartph(disparttc),dispartph(disparttc)
 !                    longline(1:len_trim(longline))
 !82             format('Found a type_def DIS_PART:',a,' : ',a)
 82             format('Found a type_def DIS_PART:',i2,1x,a,1x,a)
@@ -2761,7 +2784,7 @@
                if(gx%bmperr.ne.0) then
                   gx%bmperr=0
                else
-                  write(*,83)dispartph(disparttc)
+                  if(.not.silent) write(kou,83)dispartph(disparttc)
 83                format(' *** Warning, the disordered phase is already',&
                        ' entered ***'/' Please rearrange the TDB file so',&
                        ' this TYPE_DEF comes before'/&
@@ -2772,7 +2795,8 @@
                endif
             else
                typedefaction(nytypedef)=99
-               write(kou,87)nl,longline(1:min(78,len_trim(longline)))
+               if(.not.silent) &
+                    write(kou,87)nl,longline(1:min(78,len_trim(longline)))
 87             format('Skipping this TYPE_DEFINITION on line ',i5,':'/a)
                warning=.TRUE.
             endif
@@ -2793,7 +2817,7 @@
 ! position ip after "NUMBER  SOURCE"
       ip=index(longline,'NUMBER  SOURCE')+14
       if(eolch(longline,ip)) then
-         write(*,*)'Empty reference line',nl
+         if(.not.silent) write(kou,*)'Empty reference line',nl
          gx%bmperr=7777; goto 1000
       endif
       if(longline(ip:ip).eq.'!') then
@@ -2842,14 +2866,16 @@
       else
 ! references without citation marks
 ! ip is at the start of the reference id, look for space
-         write(*,*)'Cannot handle references without citation marks',nl
+         if(.not.silent) write(kou,*) &
+              'Cannot handle references without citation marks',nl
          gx%bmperr=7777; goto 1000
       endif citationmarks
 777   continue
 !      write(*,*)'Read ',nrefs,' references, ending at',nl
 !----------------------------------------------------------------
    case(10) ! ASSESSED_SYSTEMS
-      write(*,*)'Cannot handle ASSESSED_SYSTEMS ending at ',nl
+      if(.not.silent) write(kou,*) &
+           'Cannot handle ASSESSED_SYSTEMS ending at ',nl
       warning=.TRUE.
 ! skip lines until !
       do while(index(line,'!').le.0)
@@ -2859,7 +2885,7 @@
       enddo
 !------------------------------------------------------------------
    case(11) ! DATABASE_INFORMATION
-      write(*,*)'Cannot handle DATABASE_INFORMATION at ',nl
+      if(.not.silent) write(kou,*)'Cannot handle DATABASE_INFORMATION at ',nl
       warning=.TRUE.
 ! skip lines until !
       do while(index(line,'!').le.0)
@@ -2876,8 +2902,8 @@
          call replacetab(line,nl)
          goto 780
       else
-         if(line(ip:ip).eq.'!') then
-            write(*,*)'Found VERSION keyword but no specification'
+         if(line(ip:ip).eq.'!' .and. .not.silent) then
+            write(kou,*)'Found VERSION keyword but no specification'
          else
             if(line(ip:ip+3).eq.'OC1 ') tdbv=2
          endif
@@ -2889,7 +2915,8 @@
          call replacetab(line,nl)
       enddo
    end select
-   if(gx%bmperr.ne.0) write(*,*)'3E errorcode 2: ',gx%bmperr
+   if(gx%bmperr.ne.0 .and. .not.silent) write(kou,*) &
+        '3E errorcode 2: ',gx%bmperr
 ! look for next KEYWORD
    goto 100
 !--------------------------------------------------------
@@ -2911,7 +2938,8 @@
 !            ipp=20
 !         endif
    if(eolch(line,nextc)) then
-      write(*,*)'Function name must be on same line as FUNCTION'
+      if(.not.silent) write(kou,*) &
+           'Function name must be on same line as FUNCTION'
       gx%bmperr=4000; goto 1000
    endif
    ipp=nextc+index(line(nextc:),' ')
@@ -2942,7 +2970,7 @@
             call enter_tpfun(name1,longline,lrot,.TRUE.)
             if(gx%bmperr.ne.0) then
 ! one may have error here
-               write(*,*)'Failed entering function: ',name1
+               if(.not.silent) write(kou,*)'Failed entering function: ',name1
                goto 1000
             endif
             if(ocv()) write(*,*)'Entered function: ',name1
@@ -2968,20 +2996,23 @@
 1000 continue
    if(warning) then
 1001  continue
-      write(kou,1003)
-1003  format(/'There were warnings, continue? Y/N')
-      read(kiu,1004)ch1
-1004  format(a)
-      if(ch1.eq.'N') stop 'warnings reading database'
-      if(ch1.ne.'Y') then
-         write(kou,*)'Please answer Y or N'
-         goto 1001
+! if silent set ignore warnings
+      if(.not.silent) then
+         write(kou,1003)
+1003     format(/'There were warnings, continue? Y/N')
+         read(kiu,1004)ch1
+1004     format(a)
+         if(ch1.eq.'N') stop 'warnings reading database'
+         if(ch1.ne.'Y') then
+            write(kou,*)'Please answer Y or N'
+            goto 1001
+         endif
       endif
    endif
 !   write(*,*)'3E At label 1000'
    if(buperr.ne.0 .or. gx%bmperr.ne.0) then
       if(gx%bmperr.eq.0) gx%bmperr=buperr
-      write(*,1002)gx%bmperr,nl
+      if(.not.silent) write(kou,1002)gx%bmperr,nl
 1002   format('Error ',i5', occured at TDB file line ',i7)
 !      write(*,*)'Do you want to continue at your own risk anyway?'
 !      read(*,1008)ch1
@@ -3012,14 +3043,15 @@
           3(i4,'/',i4,1x)/)
    return
 1010 continue
-   write(*,*)'I/O error opening file: ',gx%bmperr
+   if(.not.silent) write(kou,*)'I/O error opening file: ',gx%bmperr
    return
 !-----------------------------------------------------
 ! end of file found, act differently if reading functions
 2000 continue
    rewind: if(dodis.eq.0 .and. disparttc.gt.0) then
 ! rewind to read disordred parts
-      write(*,*)'Rewind to read disordered parts of phases: ',disparttc
+      if(.not.silent) &
+           write(kou,*)'Rewind to read disordered parts of phases: ',disparttc
       rewind(21)
       dodis=1
       nl=0
@@ -3050,7 +3082,7 @@
 ! check if there are any unentered functions
       call list_unentered_funs(kou,nr)
       if(nr.gt.0) then
-         write(kou,*)'Number of missing function: ',nr
+         if(.not.silent) write(kou,*)'Number of missing function: ',nr
          gx%bmperr=4186
       endif
 ! check if any function not entered
@@ -3059,7 +3091,7 @@
    goto 1000
 ! end of file while looking for ! terminating a keyword
 2200 continue
-   write(*,2210)nl,longline(1:72)
+   if(.not.silent) write(kou,2210)nl,longline(1:72)
 2210 format('End of file at ',i5,' looking for end of keyword:'/a)
    gx%bmperr=7777
    goto 1000

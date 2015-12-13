@@ -2548,13 +2548,16 @@
    double precision antot
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
+! This routine MUST return error 4143 or 4144 (too few or too many conditions)
+! if that is the fact.  Other error codes can be returned if there are
+! conditions which does not allow the grid minimizer.
    integer, dimension(4) :: indices
    double precision, dimension(maxel) :: ani,abi,xset,wset
    double precision mass,h298,s298,xxx,xsum,wsum
    double precision sumwdivm,anisum,abisum,restmass,divisor,dividend,abtot
    TYPE(gtp_condition), pointer :: current,last
    character encoded*16,actual_arg(1)*16,elsym*2,elname*16,refstat*16
-   integer nox,now,nc,jl,iref,iunit,ip,idf,ie,more,numberest,istv
+   integer nox,now,nc,jl,iref,iunit,ip,idf,ie,more,numberest,istv,localerr
    logical allmassbal
 !
    ani=zero; abi=zero; xset=zero; wset=zero
@@ -2562,6 +2565,7 @@
    xsum=zero; wsum=zero
    anisum=zero; abisum=zero
    nox=0; now=0
+   localerr=0
 !
 !   write(*,*)"in extract massbalace 1"
    last=>ceq%lastcondition
@@ -2578,8 +2582,8 @@
       if(current%active.ne.0) goto 300
 ! if a conditions has several terms we cannot calculate x
       if(current%noofterms.gt.1) then
-         write(*,*)'Grid minimizer cannot be used with expressions'
-         gx%bmperr=4179; goto 1000
+!         write(*,*)'Grid minimizer cannot be used with expressions'
+         localerr=4179
       endif
 ! for debugging
       istv=current%statev
@@ -2595,7 +2599,6 @@
 ! the value is a symbol, the node to the expression is in
 ! svflista(current%symlink1)%linkpnode
 ! NOTE THIS IS NOT THE SAME AS meq_evaluate_svfun but OK as no derivative
-!         xxx=meq_evaluate_svfun(current%symlink1,actual_arg,1,ceq)
          xxx=evaluate_svfun_old(current%symlink1,actual_arg,1,ceq)
       else
          xxx=current%prescribed
@@ -2616,7 +2619,7 @@
          if(indices(2).gt.0) then
 ! this should mean the number of moles of a component in a phase, illegal here
 !            write(*,*)'N with 2 indices illegal in this case'
-            gx%bmperr=4179; goto 1000
+            localerr=4179
          elseif(indices(1).gt.0) then
 ! N(i)=xxx
             ani(indices(1))=xxx
@@ -2628,7 +2631,7 @@
          nc=nc+1
       elseif(current%statev.eq.111) then
          if(indices(2).gt.0) then
-            gx%bmperr=4179; goto 1000
+            localerr=4179; goto 1000
          endif
 ! this is X(index1)=value, CHECK UNIT if %!!!
          if(iunit.eq.100) xxx=1.0D-2*xxx
@@ -2641,7 +2644,7 @@
          if(indices(2).gt.0) then
 ! this should mean the mass of a component in a phase, illegal here
             write(*,*)'B with 2 indices illegal'
-            gx%bmperr=4179; goto 1000
+            localerr=4179
          elseif(indices(1).gt.0) then
 ! B(i)=xxx
             abi(indices(1))=xxx
@@ -2653,7 +2656,7 @@
          nc=nc+1
       elseif(current%statev.eq.122) then
          if(indices(2).gt.0) then
-            gx%bmperr=4179; goto 1000
+            localerr=4179
          endif
 ! this is W(index1)=value, CHECK UNIT if %!!!
          if(iunit.eq.100) xxx=1.0D-2*xxx
@@ -2680,7 +2683,12 @@
       gx%bmperr=4144; goto 1000
    elseif(.not.allmassbal) then
 ! some conditions are not massbalance
-      gx%bmperr=4151; goto 1000
+      localerr=4151
+   endif
+! We have correct number of conditions but if localerr set we do not have
+! all as massbalance conditions.  Return with that code set
+   if(localerr.ne.0) then
+      gx%bmperr=localerr; goto 1000
    endif
 ! we have extracted all conditions N, B, X, W
 ! check that only one value per component
