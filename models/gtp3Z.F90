@@ -287,6 +287,9 @@
             result=zero
          endif
       else
+! new values must be calculated
+!         write(*,23)'3Z new T,P: ',lrot,tpres(lrot)%tpused,tpval
+23       format(a,i4,4(1pe12.4))
          result=zero
       endif
    endif
@@ -1539,7 +1542,13 @@
       ic=topsave%saveic; nc=topsave%savenc
       link2=topsave%savetp; link4=topsave%savelink4
       exprot=>topsave%exprot
-      topsave=>topsave%previous
+! MEMORY LEAK avoided by deallocate topsave ??
+!      write(*,*)'Trying to remove memory leak'
+      temp=>topsave%previous
+      deallocate(topsave)
+!      write(*,*)'Deallocated topsave'
+!      topsave=>topsave%previous
+      topsave=>temp
       level=level-1
 ! restart from coefficient ic
        goto 200
@@ -1547,7 +1556,7 @@
 !
 1000 continue
    return
- end subroutine ct1efn
+ end subroutine ct1efn !level
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

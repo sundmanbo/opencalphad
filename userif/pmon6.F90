@@ -783,11 +783,13 @@ contains
              goto 100
           endif
 ! use current value of T and P
+          write(*,2015)ceq%tpval
+2015      format('Using T=',F9.2,' K and P=',1pe14.6,' Pa, results in J/F.U.')
           rgast=globaldata%rgas*ceq%tpval(1)
 !
           kom3=submenu('Calculate what for phase?',cline,last,ccph,nccph,defcp)
 !        if(kom2.le.0) goto 100
-!       ph-a ph-G ph-G+dg/dy
+!        ph-a ph-G ph-G+dg/dy
           defcp=kom3
           lut=optionsset%lut
           SELECT CASE(kom3)
@@ -801,8 +803,8 @@ contains
              parres=>ceq%phase_varres(lokres)
              write(lut,2031)(rgast*parres%gval(j1,1),j1=1,4)
              write(lut,2032)parres%gval(1,1)/parres%abnorm(1),parres%abnorm(1)
-2031         format('G/N, dG/dT:',4(1PE16.8))
-2032         format('G/N/RT, N:',2(1PE16.8))
+2031         format('G dG/dT dG/dP d2G/dT2:',4(1PE14.6))
+2032         format('G/RT, Atoms/F.U:',2(1PE14.6))
 !.......................................................
           case(2) ! calculate phase < >  G and dG/dy
              call calcg(iph,ics,1,lokres,ceq)
@@ -815,6 +817,7 @@ contains
 !.......................................................
           case(3) ! calculate phase < > all
              call tabder(iph,ics,ceq)
+             write(*,*)' NOTE THAT dG/dy_i is NOT THE CHEMICAL POTENTIAL of i!'
              if(gx%bmperr.ne.0) goto 990
 !.......................................................
           case(4) ! calculate phase < > all after adjusting constitution

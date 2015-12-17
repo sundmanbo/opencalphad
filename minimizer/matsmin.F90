@@ -1420,6 +1420,12 @@ CONTAINS
 !=====================================================================
 ! debug output of equil matrix, last column is right hand side
 380 continue
+!    open(33,file='eqmat.dat ',access='sequential',status='unknown')
+!    write(33,*)'Equilibrium matrix',nz1
+!    do iz=1,nz1
+!       write(33,112)iz,(smat(iz,jz),jz=1,nz2)
+!112    format('>',i4,1x,4(1pe15.6))
+!    enddo
     if(vbug) then
 !    if(meqrec%noofits.le.2) then
 ! when problem output the smat here and (and svar below) and study!!!
@@ -1456,6 +1462,9 @@ CONTAINS
        gx%bmperr=4203; goto 1000
     endif
 ! when problems output svar here !! (and smat1: above)
+!    write(33,*)'Solution'
+!    write(33,112)1,(svar(jz),jz=1,nz1)
+!    close(33)
 !+    write(*,228)'svar1:',(svar(jz),jz=1,nz1)
     if(vbug) write(*,228)'svar1:',(svar(jz),jz=1,nz1)
 !
@@ -4205,6 +4214,13 @@ CONTAINS
           pmat(neq,jk)=dqsum(jk)
        enddo
     endif
+! write the phase matrix on a file
+!    open(33,file='phasemat.dat ',access='sequential',status='unknown')
+!    write(33,*)'Phase matrix',nd1
+!    do jk=1,nd1
+!       write(33,111)jk,(pmat(jk,ll),ll=1,nd1)
+111    format('>',i4,1x,4(1pe15.6))
+!    enddo
 ! debug output
 !    write(*,*)'Phase matrix',nd1,neq,pmi%chargebal
 !    do j=1,neq
@@ -4221,6 +4237,11 @@ CONTAINS
 !       enddo
        gx%bmperr=4205; goto 1000
     endif
+!    write(33,*)'Inverted'
+!    do jk=1,nd1
+!       write(33,111)jk,(pmi%invmat(jk,ll),ll=1,nd1)
+!    enddo
+!    close(33)
 !    do i=1,neq
 !       write(*,17)'pinv: ',(pmi%invmat(i,j),j=1,neq)
 !    enddo

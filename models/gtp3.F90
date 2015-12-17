@@ -131,7 +131,9 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   use metlib
 !
 ! routines for inverting matrix etc
-  use lukasnum
+  use lukasnum  ! for Lukas solver
+!  use matrix1 for LAPACK/BLAS
+!  use matrix1
 !
 ! for parallel processing
   use OMP_LIB

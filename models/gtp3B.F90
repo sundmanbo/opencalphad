@@ -3776,6 +3776,7 @@
    allocate(eqlista(ieq)%eq_tpres(jz))
 ! allocate result array for state variable functions (svfunres)
    if(ocv()) write(*,*)'3B maxsvfun: ',ieq,maxsvfun,jz
+!   write(*,*)'Allocating svfunres for equilibrium: ',name(1:len_trim(name))
    allocate(eqlista(ieq)%svfunres(maxsvfun))
 ! convergence criteria PHTUPX
    eqlista(ieq)%xconv=firsteq%xconv
@@ -4141,6 +4142,7 @@
       endif
 !
       deallocate(eqlista(ieq)%eq_tpres)
+!    write(*,*)'Deallocating svfunres for equilibrium: ',name(1:len_trim(name))
       deallocate(eqlista(ieq)%svfunres)
    enddo
 ! we have deleted all equilibria until ieq+1

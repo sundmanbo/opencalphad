@@ -58,15 +58,16 @@
       buperr=0; goto 1000
    endif
    ceq%phase_varres(lokcs)%amfu=xxx
-! ask if we should set the default constitution
+! ask if we should set the current constitution, ignore default
 !   write(*,*)'3D we are here!'
-   call gparcd('Default constitution?',cline,last,1,ch1,chd,q1help)
+   call gparcd('Current constitution?',cline,last,1,ch1,chd,q1help)
    if(ch1.eq.'Y' .or. ch1.eq.'y') then
-      call set_default_constitution(iph,ics,ceq)
-      if(gx%bmperr.ne.0) goto 1000
+!      call set_default_constitution(iph,ics,ceq)
+!      if(gx%bmperr.ne.0) goto 1000
       chd='Y'
       goto 200
    else
+! constitution entered interactivly
       chd='N'
    endif
 ! ask for constitution
@@ -936,6 +937,7 @@
       xxx=new%prescribed
       nterm=1
 !      write(*,*)'Found condition',-qp,xxx
+! jump from here to 67 if condition specified as number:=value
       goto 67
    endif
 !---------------------------------
@@ -995,7 +997,7 @@
 !   write(*,*)'3D error search ',notcond,ich,associated(temp)
 ! check that we we have a legal state variable for conditions
    if(notcond.eq.0) then
-! check if allowed as condition
+! it is a condition, check if allowed as condition
       istv=svr%oldstv
       if(istv.lt.0) then
 ! this means a symbol like TC or BMAGN, not allowed
@@ -1003,7 +1005,7 @@
       endif
       kstv=(svr%oldstv+1)/10+5
       if(kstv.eq.14 .or. kstv.eq.15) then
-! this means a state variable like Q or DGM which cannot be used as condition
+! this means state variables Q or DGM which cannot be used as condition
          gx%bmperr=4127; goto 1000
       endif
       if(istv.ge.3 .and. istv.le.5) then
@@ -1096,7 +1098,7 @@
          goto 55
       endif
    else
-! we have only one term for experiments
+! it is an experiment, we have only one term for experiments
       nterm=1
 !      write(*,*)'3D segfault search 2C',nterm,associated(svr),notcond
       if(associated(svr)) then
@@ -1142,7 +1144,7 @@
       jp=1
       call getrel(textval,jp,value)
       if(buperr.ne.0) then
-! UNFINISHED it can be a symbol
+! it can be a symbol
          buperr=0
          svfuname=textval
          call capson(svfuname)
@@ -1198,6 +1200,7 @@
 !======================================================
 ! step 3 create condition or experiment record, jump here from fix phase
 199 continue
+!   write(*,*)'3D at 199: ',associated(new),associated(temp),gx%bmperr
    createrecord: if(gx%bmperr.eq.0) then
 ! no error code means we have found the condition/experiment
       if(.not.associated(new)) then
@@ -1208,11 +1211,27 @@
          new%active=1
 !         write(*,*)'Inactivating condition',new%prescribed,new%active
       else
-! set the new value in the old condition/experiment  remove previous link!!
+! set the new value in the old condition/experiment remove any previous link!!
          new%active=0
          new%prescribed=value
-!         write(*,*)'3D Changing value of condition',linkix,new%symlink1
          new%symlink1=linkix
+!         write(*,*)'3D Changing value of condition',istv,linkix,value
+! special if istv=1 or 2 as ceq%tpfun should be updated
+         if(istv.eq.1) then
+! Save new T also locally in ceq
+!            write(*,*)'3D we are here 1',ceq%tpval(1)
+            if(linkix.gt.0) then
+               write(*,*)'Cannot handle symbol as T value'
+               gx%bmperr=8888; goto 1000
+            endif
+            ceq%tpval(1)=value
+         elseif(istv.eq.2) then
+            if(linkix.gt.0) then
+               write(*,*)'Cannot handle symbol as P value'
+               gx%bmperr=8888; goto 1000
+            endif
+            ceq%tpval(2)=value
+         endif
 ! the uncertainty for experiments will be asked for later
       endif
    else
@@ -1245,6 +1264,7 @@
 !         write(*,*)'3D new experiment 2',istv,symsym,seqz
          istv=symsym
       endif
+!      write(*,*)'3D we are here 3'
 ! for new conditions and experiments
       new%noofterms=nterm
       new%statev=istv
@@ -1292,12 +1312,22 @@
          endif
       endif
 ! special for T and P, change the local value
-!      write(*,*)'set condition/enter experiment ',istv,istv,value
+!      write(*,*)'3D set condition/enter experiment ',istv,value
       if(istv.eq.1) then
          ceq%tpval(1)=value
+! Force recalculation of all TP functions but only in current equilibrium
+         ceq%eq_tpres%tpused(1)=ceq%tpval(1)+one
+!         write(*,*)'3D Changing tpused: ',ceq%eq_tpres%tpused(1)
       elseif(istv.eq.2) then
          ceq%tpval(2)=value
+! Force recalculation of all TP functions
+         ceq%eq_tpres%tpused(2)=ceq%tpval(2)+one
       endif
+! Another way to force recalculation of all TP functions by incrementing
+! an integer in the tpfuns record of all TPFUN.  Used during assessments
+!   do jl=1,freetpfun-1
+!      tpfuns(jl)%forcenewcalc=tpfuns(jl)%forcenewcalc+1
+!   enddo
 !      write(*,*)'3D allocation of statvar ',symsym,istv,nterm
       if(symsym.eq.0) then
 ! store the state variable record in the condition, if symbol do not allocate
