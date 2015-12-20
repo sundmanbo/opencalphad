@@ -331,7 +331,7 @@
    double precision formalunits
    integer kconlok(maxconst),kalpha(maxconst),iord(maxconst),klok(maxconst)
    integer iva(maxconst)
-   logical externalchargebalance
+   logical externalchargebalance,tupix
    integer iph,kkk,lokph,ll,nk,jl,jk,mm,lokcs,nkk,nyfas,loksp,tuple
 !   write(*,*)'enter enter_phase: ',model(1:len_trim(model))
    if(.not.allowenter(2)) then
@@ -529,9 +529,10 @@
 !   ch1='S'
    phlista(nyfas)%phletter=ch1
    phlista(nyfas)%models=model
-   if(nyfas.eq.0) then
-      continue
-   else
+!   if(nyfas.eq.0) then
+!      continue
+!   else
+   if(nyfas.gt.0) then
       call alphaphorder(tuple)
       phlista(nyfas)%nooffs=1
    endif
@@ -586,12 +587,9 @@
    enddo
 ! make sure status word and some other links are set to zero
    firsteq%phase_varres(lokcs)%status2=0
-! Setting of phase tuple is done in alphaphorder
-!   tuple=nooftuples+1
-!   phasetuple(tuple)%phase=nyfas
-!   phasetuple(tuple)%compset=1
-!   nooftuples=tuple
    firsteq%phase_varres(lokcs)%phtupx=tuple
+! set link to lokcs in phase tuple!
+!   phasetuple(tuple)%lokvares=lokcs
 !   write(*,*)'3B new phase tuple: ',nyfas,lokcs,tuple
 ! If one has made NEW the links are not always zero
 ! set some phase bits (PHGAS and PHLIQ set above)
@@ -617,6 +615,20 @@
    if(noofph.gt.0) then
 ! clear the nophase bit
       globaldata%status=ibclr(globaldata%status,GSNOPHASE)
+!---------------------- new code to generate phase tuple array here
+! NOTE nooftuples updated in alphaphorder ... for old times sake
+      do ll=1,noofph
+! this is index in phlista
+         phasetuple(ll)%phaseix=phases(ll)
+         phasetuple(ll)%compset=1
+! this is alphabetical index
+         phasetuple(ll)%ixphase=ll
+! this is the link to phase tuple from the phase
+         jl=phlista(phases(ll))%linktocs(1)
+         firsteq%phase_varres(jl)%phtupx=ll
+         phasetuple(ll)%lokvares=jl
+      enddo
+!---------------------- new code end
    endif
 1000 continue
 !   write(*,*)'end enter_phase' disfra
@@ -903,12 +915,17 @@
 !   write(*,*)'add_cs: ',nyttcs
 ! add new tuple at the end and save tuple index
    tuple=nooftuples+1
-   phasetuple(tuple)%phase=iph
+   phasetuple(tuple)%phaseix=phases(iph)
    phasetuple(tuple)%compset=icsno
+! NEW variables in phase tuple!
+   phasetuple(tuple)%ixphase=iph
+   phasetuple(tuple)%lokvares=nyttcs
    nooftuples=tuple
-!   write(*,*)'3B Adding phase tuple: ',tuple,lastcs,nyttcs
+!   write(*,*)'3B Adding phase tuple: ',tuple,iph,phases(iph)
 ! save index of tuple in new phase_varres record
    firsteq%phase_varres(nyttcs)%phtupx=tuple
+!   write(*,31)'3B Phase tuple: ',nyttcs,tuple,iph,icsno,phases(iph)
+31 format(a,10i5)
 !   firsteq%phase_varres(lastcs)%phtupx=tuple
 !   peq=>eqlista(1)%phase_varres(lastcs)
    peq=>firsteq%phase_varres(lastcs)
@@ -1136,6 +1153,7 @@
    else
       ics=ncs
    endif
+!   write(*,*)'3B Delete highest composition set: ',iph,lokph,ics
    if(noeq().gt.1) then
 ! the deletion of composition sets when many equilibia not allowed until
 ! further testing
@@ -1155,10 +1173,20 @@
 !       write(*,*)'This subroutine must be executed in sequential'
 !$      goto 1000
 !$   endif
-! find this tuple
-   do jl=1,nooftuples
-      if(phasetuple(jl)%phase.eq.iph) tuple=jl
-   enddo
+! find the tuple for this phase+compset
+   loop: do jl=1,nooftuples
+!      write(*,*)'3B tuple compset: ',jl,ics,phasetuple(jl)%compset
+      if(phasetuple(jl)%phaseix.eq.lokph) then
+         if(phasetuple(jl)%compset.eq.ics) then
+            tuple=jl; exit loop
+         endif
+      endif
+   enddo loop
+!   write(*,*)'3B Delete composition set',iph,ics,lokph,tuple
+   if(tuple.le.0) then
+      write(*,*)'No such tuple!!'
+      gx%bmperr=7777; goto 1000
+   endif
 ! collect some data
    nsl=phlista(lokph)%noofsubl
    nkk=phlista(lokph)%tnooffr
@@ -1264,21 +1292,28 @@
 ! update phasetuple array, overwrite tuple.  This means tuples may change phase
 ! NOTE the first tuple for a phase+compset will never change position.  Only
 ! those created later may be shifted ... but that may be complicated enough ...
-!   write(*,*)'Shifting phase tuples above deleted: ',tuple
-      do jl=tuple+1,nooftuples
-         phasetuple(jl-1)%phase=phasetuple(jl)%phase
-         phasetuple(jl-1)%compset=phasetuple(jl)%compset
+!   write(*,*)'3B Shifting phase tuples above deleted: ',tuple,nooftuples
+!   write(*,770)'3B 1: ',(phasetuple(jl),jl=tuple-4,nooftuples)
+770 format(a,10(i4,i2,2x))
+   do jl=tuple+1,nooftuples
+      phasetuple(jl-1)%phaseix=phasetuple(jl)%phaseix
+      phasetuple(jl-1)%compset=phasetuple(jl)%compset
+      phasetuple(jl-1)%ixphase=phasetuple(jl)%ixphase
+      phasetuple(jl-1)%lokvares=phasetuple(jl)%lokvares
 ! we must change the link in the phase_varres record also!!
-         lokph=phases(phasetuple(jl-1)%phase)
-         lokcs=phlista(lokph)%linktocs(phasetuple(jl-1)%compset)
-!         write(*,*)'3B Shifting down ',jl
-! in all equilibrium records, luckily the phase_varres record the same!!
-         do leq=1,noeq()
-            eqlista(leq)%phase_varres(lokcs)%phtupx=jl-1
-         enddo
+      lokph=phasetuple(jl-1)%phaseix
+      lokcs=phlista(lokph)%linktocs(phasetuple(jl-1)%compset)
+!      write(*,771)'3B Shifting down ',jl,nooftuples,phasetuple(jl-1)%phaseix,&
+!           phasetuple(jl-1)%compset,lokph,lokcs
+!771   format(a,10i5)
+! in all equilibrium records, luckily the phase_varres record the same in all!!
+      do leq=1,noeq()
+         eqlista(leq)%phase_varres(lokcs)%phtupx=jl-1
       enddo
-      nooftuples=nooftuples-1
+   enddo
+   nooftuples=nooftuples-1
 !      write(*,*)'3B Warning: phase tuples may have changed phase ...'
+!   write(*,770)'3B 2: ',(phasetuple(jl),jl=tuple-4,nooftuples)
 ! end threadprotected code <<<<<<<<<<<<<<<<<<<<<<<<
 !-------------------------
 1000 continue

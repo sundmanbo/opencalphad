@@ -1,3 +1,4 @@
+
 !
 ! gtp3A.F90 included in gtp3.F90
 !
@@ -1327,7 +1328,7 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine get_phasetup_name(phtuple,name)
+ subroutine get_phasetup_name_old(phtuple,name)
 ! Given the phase tuple this subroutine returns the name with pre- and suffix
 ! for composition sets added and also a \# followed by a digit 2-9 for
 ! composition sets higher than 1.
@@ -1335,7 +1336,46 @@
    character name*(*)
    type(gtp_phasetuple) :: phtuple
 !\end{verbatim} %+
-   call get_phase_name(phtuple%phase,phtuple%compset,name)
+!
+! PROBABLY REDUNDANT and wrong ...
+!
+   call get_phase_name(phtuple%phaseix,phtuple%compset,name)
+1000 continue
+   return
+ end subroutine get_phasetup_name_old
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim} %-
+ subroutine get_phasetup_record(phtx,lokcs,ceq)
+! return lokcs when phase tuple known
+   implicit none
+   integer phtx,lokcs
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim} %+
+   if(phtx.lt.1 .or. phtx.gt.nooftuples) then
+      write(*,*)'Wrong tuple index',phtx
+      gx%bmperr=7654; goto 1000
+   endif
+   lokcs=phlista(phasetuple(phtx)%phaseix)%linktocs(phasetuple(phtx)%compset)
+1000 continue
+   return
+ end subroutine get_phasetup_record
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim} %-
+ subroutine get_phasetup_name(phtupx,name)
+! phasetuple(phtupx)%phase is index to phlista
+! the name has pre- and suffix for composition sets added and also 
+! a \# followed by a digit 2-9 for composition sets higher than 1.
+   implicit none
+   character name*(*)
+   integer phtupx
+!\end{verbatim} %+
+   integer phx,phy
+   phx=phlista(phasetuple(phtupx)%phaseix)%alphaindex
+   call get_phase_name(phx,phasetuple(phtupx)%compset,name)
 1000 continue
    return
  end subroutine get_phasetup_name
@@ -1485,7 +1525,10 @@
 !\end{verbatim}
    integer iz
    do iz=1,nooftuples
+! phasetuple(iz)%phase is lokph!!!  .... probably never used ...
       phcs(iz)=phasetuple(iz)
+!      phcs(iz)%phase=phasetuple(iz)%phase
+!      phcs(iz)%compset=phasetuple(iz)%compset
    enddo
 1000 continue
    get_phtuplearray=nooftuples

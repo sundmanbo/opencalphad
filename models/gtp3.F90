@@ -943,13 +943,14 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !-----------------------------------------------------------------
 !\begin{verbatim}
 ! this constant must be incremented when a change is made in gtp_phasetuple
-  INTEGER, parameter :: gtp_phasetuple_version=1
+  INTEGER, parameter :: gtp_phasetuple_version=2
   TYPE gtp_phasetuple
 ! for handling a single array with phases and composition sets
 ! first index is phase index, second index is composition set
+! ADDED also index in phlista (ixphase) and phase_varres (lokvares)
 ! A tuplet index always refer to the same phase+compset.  New tuples with
 ! the same phase and other compsets are added at the end.
-     integer phase,compset
+     integer phaseix,compset,ixphase,lokvares
   end TYPE gtp_phasetuple
 !\end{verbatim}
   TYPE(gtp_phasetuple), allocatable :: PHASETUPLE(:)

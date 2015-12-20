@@ -1,4 +1,5 @@
 @$ Calculate y and Cp as function of T for the ordered FCC FeNi3
+@$ Enter same data as in step4.OCM
 @$
 @&
 
@@ -33,7 +34,7 @@ enter tp-sym L2 fun 1 0; ,,,,,
 @$ equal to the Fe-Ni bond energy
 enter tp-sym GSRO fun 1 -0.034*evtoj;,,,,,
 
-@$ ==================================================
+@$ -------------------------------------------------
 @$ This is an fcc phase with lro but no explicit sro
 @$ described with the sublattice model
 enter phase PARTITIONED_FCC 4 .25 Fe NI; .25 Fe NI; .25 Fe NI; .25 Fe NI;
@@ -74,8 +75,8 @@ enter param GD(part,Fe,Ni;2),,L2; 6000 N test
 
 list data ,,
 
-
-we have to create composition sets manually
+@$ listing of all data
+@$ -------------------------------------------------------
 
 @$ this is by default FeNi3_L12
 amend phase part comp-set y ,,
@@ -84,6 +85,9 @@ amend phase part comp-set y ,,
 <.1 >.5
 <.1 >.5
 
+@& we create the composition set manually with defaults
+@$ -------------------------------------------------------
+@&
 
 set c t=400 p=1e5 n=1 x(ni)=.75
 
@@ -92,21 +96,23 @@ c e
 l r 2
 
 
+@$ -------------------------------------------------------
 @&
+
 
 set ax 1 T 10 800 10
 
 step 
 
 
-
-
+@$ -------------------------------------------------------
 @&
 
 ent sym cp=h.t;
 
 c sym cp
 
+@$ -------------------------------------------------------
 @&
 
 plot
@@ -116,12 +122,16 @@ title step5 fig 1
 render
 
 
+@$ Plot of the constituent fractions as function of T
+@$ -------------------------------------------------------
 plot
 T
 cp
 title step5 fig 2
 
 
+@$ The heat capacity curve has some jumps when the phase disorder
+@$ -------------------------------------------------------
 plot
 T
 cp
@@ -132,6 +142,8 @@ N
 title step5 fig 3
 render
 
+@$ The heat capacity curve with manual ranges
+@$ -------------------------------------------------------
 set inter
 
 

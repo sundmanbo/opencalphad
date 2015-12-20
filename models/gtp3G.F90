@@ -484,6 +484,35 @@
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim} %-
+ subroutine change_phtup_status(phtupx,nystat,val,ceq)
+! change the status of a phase tuple. Also used when setting phase fix etc.
+! nystat:-4 hidden, -3 suspended, -2 dormant, -1,0,1 entered, 2 fix
+! qph can be -1 meaning all or a specifix phase index. ics compset
+! 
+   implicit none
+   integer phtupx,nystat
+   double precision val
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim} %+
+   integer lokph,iph,ics
+   if(phtupx.lt.0) then
+! change status for all phases to nystat
+      call change_many_phase_status('* ',nystat,val,ceq)
+   else
+      lokph=phasetuple(phtupx)%phaseix
+      iph=phlista(lokph)%alphaindex
+      ics=phasetuple(phtupx)%compset
+!   write(*,77)'3G Test: ',phlista(lokph)%name,phtupx,lokph,iph,phases(iph)
+!77 format(a,a,10i5)
+      call change_phase_status(iph,ics,nystat,val,ceq)
+   endif
+1000 continue
+   return
+ end subroutine change_phtup_status
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim} %-
  subroutine change_phase_status(qph,ics,nystat,val,ceq)
 ! change the status of a phase. Also used when setting phase fix etc.
 ! old: 0=entered, 1=suspended, 2=dormant, 3=fix, 4=hidden,5=not hidden
@@ -1014,25 +1043,36 @@
 !  write(6,*)'alphaphorder 4: ',lokph,iph,noofph
    phases(iph)=noofph
    phlista(noofph)%alphaindex=iph
+   goto 330
+!vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+! code below made redundant as phasetuple updated in enter_equilibrium in gtp3B
 !  write(6,*)'alphaphorder 3: ',iph,(phases(k),k=1,noofph)
 ! update phasetuple array
 !   write(*,*)'3G New phase alphabetic order: ',iph
    do j=nooftuples,iph,-1
-      phasetuple(j+1)%phase=phasetuple(j)%phase
+      phasetuple(j+1)%phaseix=phasetuple(j)%phaseix
       phasetuple(j+1)%compset=phasetuple(j)%compset
+      phasetuple(j+1)%ixphase=phasetuple(j)%ixphase
 ! we must also change the tuple index in phase_varres!!
-      lokcs=phlista(phasetuple(j)%phase)%linktocs(1)
+      lokcs=phlista(phasetuple(j)%phaseix)%linktocs(1)
       firsteq%phase_varres(lokcs)%phtupx=j+1
+      phasetuple(j+1)%lokvares=lokcs
+!      phasetuple(j+1)%lokvares=phasetuple(j)%lokcs
 !      write(*,777)'3G shifted phase in phasetuple',&
 !           phasetuple(j)%phase,lokcs,j+1
    enddo
 ! insert the first compset of new phase in phasetuple position iph
-   phasetuple(iph)%phase=noofph
+   phasetuple(iph)%phaseix=noofph
    phasetuple(iph)%compset=1
+   phasetuple(iph)%ixphase=iph
+! this is set later in enter_phase 
+!   phasetuple(iph)%lokvares=phlista(noofph)%linktocs(1)
+!^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+330 continue
    nooftuples=nooftuples+1
    tuple=iph
-!   write(*,771)(phasetuple(j)%phase,phasetuple(j)%compset,j=1,nooftuples)
-771 format('3G: ',10(2i3,1x))
+!   write(*,771)iph,phasetuple(iph),phlista(noofph)%name
+771 format('3G tuple: ',i5': ',4(i8,1x),2x,a)
 ! link to first compset set when phase_varres record connected
 !   write(*,777)'3G phase tuple position: ',iph,noofph,lokph,lokcs,tuple
 777 format(a,10i5)

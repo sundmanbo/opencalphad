@@ -1701,8 +1701,10 @@
       endif
    enddo emloop
    mm=nn*nn+np*nm*(nn+np+nm)
-   write(*,22)'3Y endmem: ',iph,mode,nend,np,nm,nn,mm
-22 format(a,i3,i6,i5,3i4,5i6)
+!   if(mode.lt.0) then
+!      write(*,22)'3Y ionic phase endmem: ',iph,nend,np,nm,nn,mm
+!22    format(a,i4,i6,3i4,5i6)
+!   endif
 ! select the number of gridpoints here
    if(mm.gt.2000) then
       ncf=ncf3

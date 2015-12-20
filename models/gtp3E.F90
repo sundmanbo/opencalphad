@@ -2950,7 +2950,9 @@
    longline=' '
    longline=line(ipp:)
 810 continue
-   jp=len_trim(longline)
+   jp=max(len_trim(longline),1)
+!   write(*,811)jp,longline(jp:jp),longline(1:jp)
+811 format('3E ll: ',i3,' "',a1,'" ',a)
    if(longline(jp:jp).eq.'!') then
 ! replace # by ' '
 820   continue
@@ -2981,9 +2983,12 @@
          gx%bmperr=0
       endif
    else
+830   continue
       nl=nl+1
       read(21,110)line
 !            write(kou,101)'readtdb 2: ',nl,line(1:40)
+! skip lines with a $ in first position
+      if(line(1:1).eq.'$')goto 830
       call replacetab(line,nl)
       longline=longline(1:jp)//line
       goto 810
@@ -3025,6 +3030,19 @@
 !      endif
    endif
    close(21)
+!---------------------- new code to generate phase tuple array here
+!   do jp=1,noofph
+! this is index in phlista
+!      phasetuple(jp)%phaseix=phases(jp)
+!      phasetuple(jp)%compset=1
+! this is alphabetical index
+!      phasetuple(jp)%ixphase=jp
+! this is the link to phase tuple from the phase
+!      jss=phlista(phases(jp))%linktocs(1)
+!      firsteq%phase_varres(jss)%phtupx=jp
+!      phasetuple(jp)%lokvares=jss
+!   enddo
+!---------------------- new code end
 ! read numbers, value after / is maximum
 ! endmember, interactions, property,
 ! tpfuns, composition sets, equilibria
@@ -3193,6 +3211,13 @@
 1000 continue
    return
  end subroutine gtpsavetm
+!
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+!
+ subroutine readtdbsilent
+   globaldata%status=ibset(globaldata%status,GSSILENT)
+   return
+ end subroutine readtdbsilent
 !
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 !

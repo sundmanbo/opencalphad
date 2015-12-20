@@ -733,7 +733,7 @@
          isort(jd)=phtupx(jd)
 ! This is getting messy again, the phase tuple index is at present
 ! the index to phase_varres +1 (as index 1 is the stable reference phase)
-         iph=phasetuple(phtupx(isort(jd)))%phase
+         iph=phasetuple(phtupx(isort(jd)))%phaseix
          ics=phasetuple(phtupx(isort(jd)))%compset
          call get_phase_compset(iph,ics,lokph,lokcs)
          if(gx%bmperr.ne.0) goto 1000

@@ -532,10 +532,12 @@ CONTAINS
        if(gx%bmperr.ne.0) then
 ! if global fails reset error code and try a default start set of phases
           if(gx%bmperr.ge.4000 .and. gx%bmperr.le.4220) then
-             write(kou,102)gx%bmperr,bmperrmess(gx%bmperr)
-102          format('Tried but failed to use grid minimization, error: ',i5/a)
+!  write(kou,102)gx%bmperr,bmperrmess(gx%bmperr)
+             write(kou,102)gx%bmperr 
+102          format('Cannot use grid minimization, error: ',i5/&
+                  'Using current consttution as start values.')
           endif
-! no initial gridmin, make a gridtest at the end
+! no initial gridmin, make a gridtest at the end (not implemented ...)
           gridtest=.true.
           gx%bmperr=0; goto 110
        endif
@@ -696,22 +698,22 @@ CONTAINS
           meqrec%icsl(ij)=0
        enddo
        if(ocv()) write(*,64)'Fix phase in mapfix record: ',mapfix%nfixph,&
-            mapfix%fixph(1)%phase,mapfix%fixph(1)%compset
+            mapfix%fixph(1)%phaseix,mapfix%fixph(1)%compset
 64     format(a,i3,5x,2i3,5x,i3)
        meqrec%nfixph=mapfix%nfixph
        meqrec%nv=0
        do ij=1,meqrec%nfixph
-          meqrec%fixph(1,ij)=mapfix%fixph(ij)%phase
+          meqrec%fixph(1,ij)=mapfix%fixph(ij)%phaseix
           meqrec%fixph(2,ij)=mapfix%fixph(ij)%compset
           meqrec%fixpham(ij)=zero
           meqrec%nv=meqrec%nv+1
-          meqrec%iphl(meqrec%nv)=mapfix%fixph(ij)%phase
+          meqrec%iphl(meqrec%nv)=mapfix%fixph(ij)%phaseix
           meqrec%icsl(meqrec%nv)=mapfix%fixph(ij)%compset
        enddo
 !       write(*,64)'MM: Number of stable phase from mapfix: ',mapfix%nstabph
        do ij=1,mapfix%nstabph
           meqrec%nv=meqrec%nv+1
-          meqrec%iphl(meqrec%nv)=mapfix%stableph(ij)%phase
+          meqrec%iphl(meqrec%nv)=mapfix%stableph(ij)%phaseix
           meqrec%icsl(meqrec%nv)=mapfix%stableph(ij)%compset
           meqrec%aphl(meqrec%nv)=mapfix%stablepham(ij)
 !          write(*,*)'MM: Amount: ',ij,mapfix%stablepham(ij)
@@ -1015,7 +1017,7 @@ CONTAINS
           if(meqrec%phr(iadd)%curd%netcharge.gt.1.0D-8) then
              write(*,218)'Adding phase with net charge: ',iadd,&
                   meqrec%phr(iadd)%curd%phtupx,meqrec%phr(iadd)%curd%netcharge
-218          format(a,2i3,1pe14.6)
+218          format(a,2i5,1pe14.6)
           endif
        endif
        tupadd=0

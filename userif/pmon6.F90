@@ -2849,9 +2849,22 @@ contains
 ! debug free lists
        CASE(1)
 ! list all tuples
+          write(kou,1617)
+1617      format('Phase tuples content'/&
+               'Tuple phaseix compset ixphase lokvares  phase name')
           do jp=1,nooftup()
-             write(kou,16020)jp,phasetuple(jp)%phase,phasetuple(jp)%compset
-16020        format(i3,': ',2i4)
+             call get_phasetup_name(jp,name1)
+! this is a check that %ihaseix and lokvares are correct
+!             if(phasetuple(jp)%compset.eq.1) then
+!                call get_phase_compset(jp,1,lokph,lokcs)
+!             else
+!                call get_phase_compset(phasetuple(jp)%ixphase,&
+!                     phasetuple(jp)%compset,lokph,lokcs)
+!             endif
+!             write(kou,16020)jp,phasetuple(jp),name1,lokph,lokcs
+             write(kou,16020)jp,phasetuple(jp),name1
+!16020        format(i3,': ',2i7,2i9,3x,a/i12,18x,i7)
+16020        format(i3,': ',2i7,2i9,3x,a)
           enddo
           call list_free_lists(kou)
 !------------------------------

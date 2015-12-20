@@ -10,8 +10,9 @@ enter element Fe Iron BCC 55.847 0 0
 
 enter element Ni Nickel FCC 58.69 0 0
 
+@$ Manual entering of data for the Fe-Ni fcc phase from DFT
+@$-----------------------------------------------------------
 @&
-@$-----------------------------------------------------------------------
 @$ These functions describe the end-member energies at Fe3Ni, Fe2Ni2 and FeNi3
 @$ respectivly.  The VASP energies relative to pure Fe amd Ni as fcc are:
 @$ Fe3Ni1 -0.071689 eV for 1 atom??
@@ -36,8 +37,8 @@ enter tp-sym L2 fun 1 0; ,,,,,
 @$ equal to the Fe-Ni bond energy
 enter tp-sym GSRO fun 1 -0.034*evtoj;,,,,,
 
+@$--------------------------------------------------------
 @&
-@$-----------------------------------------------------------------------
 @$ This is an fcc phase with lro but no explicit sro
 @$ described with the sublattice model
 enter phase PARTITIONED_FCC 4 .25 Fe NI; .25 Fe NI; .25 Fe NI; .25 Fe NI;
@@ -46,8 +47,8 @@ enter phase PARTITIONED_FCC 4 .25 Fe NI; .25 Fe NI; .25 Fe NI; .25 Fe NI;
 @$ we must add disordered set before entering parameters
 amend phase part dis 4 yes
 
+@$--------------------------------------------------------
 @&
-@$-----------------------------------------------------------------------
 enter param G(part,Fe:Fe:Fe:Ni),,GA3B1; 6000 N test
 enter param G(part,Fe:Fe:Ni:Fe),,GA3B1; 6000 N test
 enter param G(part,Fe:Ni:Fe:Fe),,GA3B1; 6000 N test
@@ -71,8 +72,8 @@ enter param G(part,*:Fe,Ni:*:Fe,Ni),,GSRO; 6000 N test
 enter param G(part,*:*:Fe,Ni:Fe,Ni),,GSRO; 6000 N test
 
 amend biblio test VASP calculation by test;
+@$--------------------------------------------------------
 @&
-@$-----------------------------------------------------------------------
 @$ These are possible disordered parameters
 enter param GD(part,Fe,Ni;0),,L0; 6000 N test
 enter param GD(part,Fe,Ni;1),,L1; 6000 N test
@@ -82,7 +83,7 @@ enter param GD(part,Fe,Ni;2),,L2; 6000 N test
 list data ,,
 
 @&
-@$-----------------------------------------------------------------------
+@$--------------------------------------------------------
 we have to create composition sets manually
 
 @$ this is by default Fe3Ni_L12
@@ -107,8 +108,8 @@ amend phase part comp-set y , ,
 >.5 <.2
 
 
+@$--------------------------------------------------------
 @&
-@$-----------------------------------------------------------------------
 @$ Set conditions
 set c t=400 p=1e5 n=1 x(ni)=.6
 
@@ -118,7 +119,7 @@ l r 2
 
 
 @&
-@$-----------------------------------------------------------------------
+@$--------------------------------------------------------
 @$ Vary the composition along the axis
 
 set ax 1 x(ni) 0 1 ,,,,
@@ -129,7 +130,7 @@ step sep
 
 
 @&
-@$-----------------------------------------------------------------------
+@$--------------------------------------------------------
 @$ Plot the Gibbs energy for the different composition sets
 
 
@@ -138,7 +139,7 @@ x(ni)
 GM(*)
 title step 4 fig 1
 
-@$-----------------------------------------------------------------------
+@$--------------------------------------------------------
 @$ Plot the constitution of FeNi3
 
 plot
