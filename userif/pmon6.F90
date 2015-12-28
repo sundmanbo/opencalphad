@@ -234,7 +234,7 @@ contains
 ! subcommands to READ
     character (len=16), dimension(ncread) :: cread=&
         ['UNFORMATTED     ','TDB             ','QUIT            ',&
-         'DIRECT          ','EXPERIMENT_DATA ','                ']
+         'DIRECT          ','                ','                ']
 !-------------------
 ! subcommands to SAVE
 ! note SAVE TDB, MACRO, LATEX part of LIST DATA !!
@@ -797,14 +797,17 @@ contains
           CASE DEFAULT
              write(kou,*)'Calculate phase subcommand error'
 !.......................................................
-          case(1) ! calculate phase < > only G
+          case(1) ! calculate case < > only G
              call calcg(iph,ics,0,lokres,ceq)
              if(gx%bmperr.ne.0) goto 990
              parres=>ceq%phase_varres(lokres)
              write(lut,2031)(rgast*parres%gval(j1,1),j1=1,4)
-             write(lut,2032)parres%gval(1,1)/parres%abnorm(1),parres%abnorm(1)
-2031         format('G dG/dT dG/dP d2G/dT2:',4(1PE14.6))
-2032         format('G/RT, Atoms/F.U:',2(1PE14.6))
+! G=H-T*S; H=G+T*S; S=-G.T; H = G + T*(-G.T) = G - T*G.T
+             write(lut,2032)parres%gval(1,1)/parres%abnorm(1),&
+                  (parres%gval(1,1)-ceq%tpval(1)*parres%gval(2,1))*rgast,&
+                  parres%abnorm(1)
+2031         format('G, dG/dT dG/dP d2G/dT2:',4(1PE14.6))
+2032         format('G/RT, H, atoms/F.U:',3(1PE14.6))
 !.......................................................
           case(2) ! calculate phase < >  G and dG/dy
              call calcg(iph,ics,1,lokres,ceq)
@@ -1210,12 +1213,12 @@ contains
 !.................................................................
           case(4) ! DENSE_GRID_ONOFF
 ! this sets bit 14 of global status word, also if bit 2 (expert) not set
-             if(btest(globaldata%status,14)) then
-                globaldata%status=ibclr(globaldata%status,14)
+             if(btest(globaldata%status,GSXGRID)) then
+                globaldata%status=ibclr(globaldata%status,GSXGRID)
                 write(*,3110)'reset'
 3110            format('Dense grid ',a)
              else
-                globaldata%status=ibset(globaldata%status,14)
+                globaldata%status=ibset(globaldata%status,GSXGRID)
                 write(*,3110)'set'
              endif
 !.................................................................
@@ -1379,6 +1382,16 @@ contains
              SELECT CASE(kom4)
              CASE DEFAULT
                 write(kou,*)'Set phase bit subcommand error'
+! allow any bit changes for experts ...
+                if(btest(globaldata%status,GSADV)) then
+                   call getint(cline,last,ll)
+                   if(ll.ge.0 .and. ll.le.31) then
+                      write(kou,*)'As you are expert ... changing bit: ',ll
+                      call set_phase_status_bit(lokph,ll)
+                   else
+                      write(kou,*)'Illegal bit number'
+                   endif
+                endif
                 goto 100
 !............................................................
              case(1) ! FCC_PERMUTATIONS FORD
@@ -1751,7 +1764,7 @@ contains
           endif
           if(ll.lt.0 .or. ll.gt.31) then
              write(kou,*)'No bit changed'
-          elseif(btest(globaldata%status,2) .or. ll.le.2) then
+          elseif(btest(globaldata%status,GSADV) .or. ll.le.2) then
 ! user must have expert bit set to change any other bit than the user type bit
              if(btest(globaldata%status,ll)) then
                 globaldata%status=ibclr(globaldata%status,ll)
@@ -1761,9 +1774,9 @@ contains
                 globaldata%status=ibset(globaldata%status,ll)
                 write(*,3711)'set',globaldata%status
              endif
-             if(.not.btest(globaldata%status,2)) then
+             if(.not.btest(globaldata%status,GSADV)) then
 ! if expert/experienced bit is cleared ensure that experienced bit is set
-                globaldata%status=ibset(globaldata%status,1)
+                globaldata%status=ibset(globaldata%status,GSOCC)
              endif
           else
              write(kou,*)'You must have expert status to toggle this!'
@@ -2547,7 +2560,7 @@ contains
 !=================================================================
 ! read subcommand
 !        ['UNFORMATTED     ','TDB             ','QUIT            ',&
-!         'DIRECT          ','EXPERIMENT_DATA ','                ']
+!         'DIRECT          ','                ','                ']
     case(8)
 ! disable continue optimization
        iexit=0
@@ -2656,8 +2669,7 @@ contains
        case(4) ! read direct
           write(*,*)'Read direct not implemented yet'
 !-----------------------------------------------------------
-       case(5) ! read experiment_data
-          write(*,*)'Read experimental data not implemented yet'
+       case(5) ! 
           goto 100
 !-----------------------------------------------------------
        case(6) ! read ??
@@ -2851,7 +2863,7 @@ contains
 ! list all tuples
           write(kou,1617)
 1617      format('Phase tuples content'/&
-               'Tuple phaseix compset ixphase lokvares  phase name')
+               'Tuple phaseix compset ixphase lokvares nextcs phase name')
           do jp=1,nooftup()
              call get_phasetup_name(jp,name1)
 ! this is a check that %ihaseix and lokvares are correct
@@ -2864,7 +2876,7 @@ contains
 !             write(kou,16020)jp,phasetuple(jp),name1,lokph,lokcs
              write(kou,16020)jp,phasetuple(jp),name1
 !16020        format(i3,': ',2i7,2i9,3x,a/i12,18x,i7)
-16020        format(i3,': ',2i7,2i9,3x,a)
+16020        format(i3,': ',2i7,2i9,i6,3x,a)
           enddo
           call list_free_lists(kou)
 !------------------------------

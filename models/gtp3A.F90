@@ -36,6 +36,9 @@
    allocate(phlista(0:maxph))
    allocate(phases(0:maxph))
    allocate(phasetuple(0:2*maxph))
+   do jl=1,2*maxph
+      phasetuple%nextcs=0
+   enddo
 ! phases(0) is refrence phase, evidently this index is never set
    phases(0)=0
 !---------------------------
@@ -1327,6 +1330,60 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\begin{verbatim} %
+ subroutine get_phase_name(iph,ics,name)
+! Given the phase index and composition set number this subroutine returns
+! the name with pre- and suffix for composition sets added and also 
+! a \# followed by a digit 2-9 for composition sets higher than 1.
+   implicit none
+   character name*(*)
+   integer iph,ics
+!\end{verbatim} %+
+   character phname*36
+   integer lokph,lokcs,kp
+   call get_phase_compset(iph,ics,lokph,lokcs)
+   if(gx%bmperr.ne.0) goto 1000
+   if(ics.eq.1) then
+      name=phlista(lokph)%name
+   else
+      kp=len_trim(firsteq%phase_varres(lokcs)%prefix)
+      if(kp.gt.0) then
+         phname=firsteq%phase_varres(lokcs)%prefix(1:kp)//'_'//&
+              phlista(lokph)%name
+      else
+         phname=phlista(lokph)%name
+      endif
+      kp=len_trim(firsteq%phase_varres(lokcs)%suffix)
+      if(kp.gt.0) then
+         phname(len_trim(phname)+1:)='_'//firsteq%phase_varres(lokcs)%suffix
+      endif
+      phname(len_trim(phname)+1:)='#'//char(ics+ichar('0'))
+      name=phname
+   endif
+1000 continue
+   return
+ end subroutine get_phase_name
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim} %-
+ subroutine get_phasetup_name(phtupx,name)
+! phasetuple(phtupx)%phase is index to phlista
+! the name has pre- and suffix for composition sets added and also 
+! a \# followed by a digit 2-9 for composition sets higher than 1.
+   implicit none
+   character name*(*)
+   integer phtupx
+!\end{verbatim} %+
+   integer phx,phy
+   phx=phlista(phasetuple(phtupx)%phaseix)%alphaindex
+   call get_phase_name(phx,phasetuple(phtupx)%compset,name)
+1000 continue
+   return
+ end subroutine get_phasetup_name
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
 !\begin{verbatim}
  subroutine get_phasetup_name_old(phtuple,name)
 ! Given the phase tuple this subroutine returns the name with pre- and suffix
@@ -1352,7 +1409,7 @@
    implicit none
    integer phtx,lokcs
    TYPE(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim} %+
+!\end{verbatim}
    if(phtx.lt.1 .or. phtx.gt.nooftuples) then
       write(*,*)'Wrong tuple index',phtx
       gx%bmperr=7654; goto 1000
@@ -1361,60 +1418,6 @@
 1000 continue
    return
  end subroutine get_phasetup_record
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\begin{verbatim} %-
- subroutine get_phasetup_name(phtupx,name)
-! phasetuple(phtupx)%phase is index to phlista
-! the name has pre- and suffix for composition sets added and also 
-! a \# followed by a digit 2-9 for composition sets higher than 1.
-   implicit none
-   character name*(*)
-   integer phtupx
-!\end{verbatim} %+
-   integer phx,phy
-   phx=phlista(phasetuple(phtupx)%phaseix)%alphaindex
-   call get_phase_name(phx,phasetuple(phtupx)%compset,name)
-1000 continue
-   return
- end subroutine get_phasetup_name
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\begin{verbatim} %-
- subroutine get_phase_name(iph,ics,name)
-! Given the phase index and composition set number this subroutine returns
-! the name with pre- and suffix for composition sets added and also 
-! a \# followed by a digit 2-9 for composition sets higher than 1.
-   implicit none
-   character name*(*)
-   integer iph,ics
-!\end{verbatim}
-   character phname*36
-   integer lokph,lokcs,kp
-   call get_phase_compset(iph,ics,lokph,lokcs)
-   if(gx%bmperr.ne.0) goto 1000
-   if(ics.eq.1) then
-      name=phlista(lokph)%name
-   else
-      kp=len_trim(firsteq%phase_varres(lokcs)%prefix)
-      if(kp.gt.0) then
-         phname=firsteq%phase_varres(lokcs)%prefix(1:kp)//'_'//&
-              phlista(lokph)%name
-      else
-         phname=phlista(lokph)%name
-      endif
-      kp=len_trim(firsteq%phase_varres(lokcs)%suffix)
-      if(kp.gt.0) then
-         phname(len_trim(phname)+1:)='_'//firsteq%phase_varres(lokcs)%suffix
-      endif
-      phname(len_trim(phname)+1:)='#'//char(ics+ichar('0'))
-      name=phname
-   endif
-1000 continue
-   return
- end subroutine get_phase_name
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

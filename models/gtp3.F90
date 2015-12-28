@@ -362,7 +362,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'No mole fractions when summing composition                      ',&
        'Error in TDB file, missing function                             ',&
        'Temperature (K) or pressure (Pa) must be larger than 0.1        ',&
-       '                                                                ',&
+       'No such state variable                                          ',&
        '                                                                ',&
 ! 4190
        'File already exist, overwriting not allowed                     ',&
@@ -437,6 +437,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        SPION=4, SPSYS=5
 !\end{verbatim}
 !----------------------------------------------------------------
+! PHSUBO added to subtract ordered part to be compatibe with TC ordered model
 !\begin{verbatim}
 !-Bits in phase record
 ! hidden, implictly hidden, ideal, no concentration variation (NOCV),
@@ -447,13 +448,14 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! FACT,  not create comp. sets (NOCS), Helmholz energy model (HELM),
 ! Model without 2nd derivatives (PHNODGDY2), Elastic model A,
 ! explicit charge balance needed (XCB), extra dense grid (XGRID)
+! Subtract ordered part (PHSUBO)
   integer, parameter :: &
        PHHID=0,     PHIMHID=1,  PHID=2,    PHNOCV=3, &     ! 1 2 4 8
        PHHASP=4,    PHFORD=5,   PHBORD=6,  PHSORD=7, &
        PHMFS=8,     PHGAS=9,    PHLIQ=10,  PHIONLIQ=11, &   
        PHAQ1=12,    PHDILCE=13, PHQCE=14,  PHCVMCE=15,&
        PHFACTCE=16, PHNOCS=17,  PHHELM=18, PHNODGDY2=19,&
-       PHELMA=20,   PHEXCB=21,  PHXGRID=22
+       PHELMA=20,   PHEXCB=21,  PHXGRID=22,PHSUBO=23
 ! 
 !----------------------------------------------------------------
 !-Bits in constituent fraction (phase_varres) record STATUS2
@@ -947,10 +949,11 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   TYPE gtp_phasetuple
 ! for handling a single array with phases and composition sets
 ! first index is phase index, second index is composition set
-! ADDED also index in phlista (ixphase) and phase_varres (lokvares)
+! ADDED also index in phlista (ixphase) and phase_varres (lokvares) and
+! nextcs which is nonzero if there is a higher composition set of the phase
 ! A tuplet index always refer to the same phase+compset.  New tuples with
 ! the same phase and other compsets are added at the end.
-     integer phaseix,compset,ixphase,lokvares
+     integer phaseix,compset,ixphase,lokvares,nextcs
   end TYPE gtp_phasetuple
 !\end{verbatim}
   TYPE(gtp_phasetuple), allocatable :: PHASETUPLE(:)
@@ -1251,7 +1254,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
      double precision, dimension(:), allocatable :: cxmol
      double precision, dimension(:,:), allocatable :: cdxmol
   END TYPE gtp_phase_varres
-! this record is created inside the gtp_equilibrium record
+! this record is created inside the gtp_equilibrium_data record
 !\end{verbatim}
 !-----------------------------------------------------------------
 !\begin{verbatim}

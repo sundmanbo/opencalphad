@@ -13,8 +13,7 @@
 ! and known mole fraction in xknown
 ! It is intentional that this routine is independent of current conditions
 ! It returns: nvsph stable phases, list of phases in iphl, amounts in aphl, 
-! constitution in yphl (compact after each other, nyphl(i) is number of
-! fractions in phase i), cmu are element chemical potentials of solution
+! nyphl(i) is redundant, cmu are element chemical potentials of solution
 ! WHAT determine what to do with the results, 0=just return solution,
 ! 1=enter stable set and constitution of all phases in gtp datastructure
 ! and create composition sets if necessary (and allowed)
@@ -26,12 +25,10 @@
    TYPE(gtp_equilibrium_data), pointer :: ceq
    double precision, dimension(2) :: tp
 ! cmu(1..nrel) is the chemical potentials of the solution
-! double precision, dimension(*) :: xknown,aphl,yphl,cmu
    double precision, dimension(*) :: xknown,aphl,cmu
-!   double precision, dimension(maxconst) :: yphl
-! yarr is used in the call to generate_grid
-   double precision, dimension(maxconst) :: yarr
 !\end{verbatim}
+! yarr is used for fractions in the call to generate_grid
+   double precision, dimension(maxconst) :: yarr
    integer, parameter :: maxgrid=400000,maxy=2000,maxph=500
    integer :: starttid,endoftime
    real finish2
@@ -39,7 +36,7 @@
 ! dimensioning can be problematic if many phases with many constituents as it
 ! contains all constituent fractions of all gridpoints (before merge)
    double precision, dimension(10*maxconst) :: yphl
-   double precision amount,sum
+   double precision amount,sum,gmax
    integer i,ibias,ics,ics2,icsno,icsx,ie,iph,iv,j1,j2,jip,jp,kkz,kp,kph,jbias
    integer lokcs,lokph,mode,ng,nocsets,noofgridpoints,nr,nrel,nrph,ny,nyz
 ! kphl(iph) is first gridpoint in phase iph
@@ -128,7 +125,7 @@
          iphx(pph)=iph
 !         write(*,61)'3Y iphx: ',iph,kp,pph,iphx(pph),kphl(pph)
 ! ionic/fcc/dense grid is delected inside generate_grid
-         call generate_grid(-1,iph,ng,nrel,xarr,garr,ny,yarr,ceq)
+         call generate_grid(-1,iph,ng,nrel,xarr,garr,ny,yarr,gmax,ceq)
          if(gx%bmperr.ne.0) goto 1000
          kp=kp+ng
          ngrid(pph)=kp-1
@@ -158,7 +155,8 @@
 !   write(*,*)'phases and gridpoints: ',pph,kp,ngrid(pph),nrel
 ! total number of gridpoints is kp-1 ... but sometimes kp is wrong, why??
 !   allocate(xarr(nrel,kp-1))
-   allocate(xarr(nrel,kp-1+10))
+!   allocate(xarr(nrel,kp-1+10))
+   allocate(xarr(nrel,kp-1+nrel))
    if(ocv()) write(*,*)'Gridpoints and elements: ',kp-1,nrel
 ! we should sort iphx to have phases with many gripoints first
 ! kphl must be shifted at the same time
@@ -169,6 +167,7 @@
 ! we must know before this loop how many gridpoints that each phase will
 ! need.  That is a function of the number of gridpoints.
    kp=1
+   gmax=zero
 !
 ! we may write the grid on a file
    if(trace) then
@@ -206,13 +205,15 @@
 !--$           iphx(iph),iv,gridpoints(pph+1-zph)
 42    format(a,10i7)
 ! this call will calculate all gridpoints, that may take time ...
-      call generate_grid(0,iphx(iph),ng,nrel,xarr(1,iv),garr(iv),ny,yarr,ceq)
+      call generate_grid(0,iphx(iph),ng,nrel,xarr(1,iv),garr(iv),&
+           ny,yarr,gmax,ceq)
       if(gx%bmperr.ne.0) then
          write(*,*)'grid error ',jip,zph,gx%bmperr
 ! this jump illegal when openmp
 !         goto 1000
          gx%bmperr=0
       endif
+!      write(*,*)'3Y gmax: ',gmax
 ! list xarr for all gridpoints
 !      do kp=1,ng
 !         write(*,73)iphx(zph),kp,(xarr(ie,kp),ie=1,nrel)
@@ -257,6 +258,8 @@
 ! for current overall composition, xknown
 !    write(*,*)'globm 4: ',kp,garr(kp),xarr(1,kp)
 !   phfrac=zero
+! start with all elements having chemical potential equal to gmax
+   cmu(1)=gmax
    if(ocv()) write(*,*)'Finding the gridpoints for the minimum: ',kp-1
    call find_gridmin(kp,nrel,xarr,garr,xknown,jgrid,phfrac,cmu,trace)
    if(gx%bmperr.ne.0) goto 1000
@@ -318,7 +321,7 @@
 ! mode gives in grid point index in phase iphx(zph), ibias irrelevant (?)
 ! NOTE ibias is changed by subroutine
 !      write(*,317)'3Y before: ',mode,jp,iphl(jp),(iphl(nr),nr=1,jp)
-      call generate_grid(mode,iphx(zph),ibias,nrel,xarr,garr,ny,yarr,ceq)
+      call generate_grid(mode,iphx(zph),ibias,nrel,xarr,garr,ny,yarr,gmax,ceq)
       if(gx%bmperr.ne.0) goto 1000
 !      write(*,317)'3Y after0: ',mode,jp,nyz,ibias,jbias,iphl(jp),&
 !           (iphl(nr),nr=1,jp)
@@ -666,8 +669,7 @@
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim}
-! subroutine generate_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,idum,ceq)
- subroutine generate_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,ceq)
+ subroutine generate_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,gmax,ceq)
 ! Different action depending of the value of mode, 
 ! for mode<0:  
 !    return the number of gridpoints that will be generated for phase iph in ngg
@@ -678,7 +680,7 @@
 !    iph is phase number, ngg is number of gridpoints, nrel number of elements,
 ! if mode=0:
 !    return xarr mole fractions of gridpoints, garr Gibbs energy of gridpoints,
-!    ngg is dimension of garr
+!    ngg is dimension of garr, gmax maximum G (start value for chem.pot)
 ! if mode>0:
 !   "mode" is a gridpoint of this phase in solution, return number of 
 !   constituent fractions in ny and fractions in yarr for this gridpoint
@@ -687,7 +689,7 @@
    TYPE(gtp_equilibrium_data), pointer :: ceq
    integer mode,iph,ngg,nrel,ny
    real xarr(nrel,*),garr(*)
-   double precision yarr(*)
+   double precision yarr(*),gmax
 !\end{verbatim} %+
 !
 !   integer idum(*)
@@ -747,18 +749,18 @@
 !   write(*,*)'entering generate_grid: ',mode,iph,ngg
    if(test_phase_status_bit(iph,PHEXCB)) then
 ! This phase has charged endmembers, generate neutral gridpoints
-      call generate_charged_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,ceq)
+      call generate_charged_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,gmax,ceq)
       goto 1000
    elseif(test_phase_status_bit(iph,PHFORD)) then
 ! this phase has 4 sublattice fcc/hcp tetrahedral ordering,
 ! this reduces the number of gridpoints
-      call generate_fccord_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,ceq)
+      call generate_fccord_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,gmax,ceq)
 !      goto 1000
    elseif( (btest(globaldata%status,GSXGRID) .or. & 
             test_phase_status_bit(iph,PHXGRID)) .and. &
         .not.(test_phase_status_bit(iph,PHGAS))) then
 ! Generate extra gridpoints (never for gas)
-      call generate_dense_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,ceq)
+      call generate_dense_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,gmax,ceq)
       goto 1000
    endif
    if(mode.eq.0) then
@@ -922,6 +924,7 @@
          if(ocv()) write(*,*)'Calculating gridpoint: ',ngg
          call calc_gridpoint(iph,yfra,nrel,xarr(1,ngg),garr(ngg),ceq)
          if(gx%bmperr.ne.0) goto 1000
+         if(garr(ngg).gt.gmax) gmax=garr(ngg)
 !         if(ngg.eq.15) then
 !            write(*,520)'cgx: ',(xarr(is,ngg),is=1,nrel)
 !         endif
@@ -1149,7 +1152,7 @@
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim} %-
- subroutine generate_dense_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,ceq)
+ subroutine generate_dense_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,gmax,ceq)
 ! generates more gridpoints than default generate_grid
 ! Different action depending of the value of mode, 
 ! for mode<0:  
@@ -1170,7 +1173,7 @@
    TYPE(gtp_equilibrium_data), pointer :: ceq
    integer mode,iph,ngg,nrel,ny
    real xarr(nrel,*),garr(*)
-   double precision yarr(*)
+   double precision yarr(*),gmax
 !\end{verbatim}
 !
    integer lokph,errsave
@@ -1368,6 +1371,7 @@
 !         write(*,201)'end: ',ngg,(yfra(is),is=1,inkl(nsl))
          call calc_gridpoint(iph,yfra,nrel,xarr(1,ngg),garr(ngg),ceq)
          if(gx%bmperr.ne.0) goto 1000
+         if(garr(ngg).gt.gmax) gmax=garr(ngg)
 201      format(a,i5,20(F5.2))
       elseif(ngg.eq.mode) then
          goto 500
@@ -1385,6 +1389,7 @@
 ! this is for 0.99*y1 + 0.01*y2
             call calc_gridpoint(iph,yfra,nrel,xarr(1,ngg),garr(ngg),ceq)
             if(gx%bmperr.ne.0) goto 1000
+            if(garr(ngg).gt.gmax) gmax=garr(ngg)
 !            write(*,201)'bin: ',ngg,(yfra(is),is=1,inkl(nsl))
          elseif(ngg.eq.mode) then
             goto 500
@@ -1420,6 +1425,7 @@
 ! this is for 0.96*y1 + 0.03*y2+0.01*y3
                   call calc_gridpoint(iph,yfra,nrel,xarr(1,ngg),garr(ngg),ceq)
                   if(gx%bmperr.ne.0) goto 1000
+                  if(garr(ngg).gt.gmax) gmax=garr(ngg)
 !                  write(*,201)'ter: ',ngg,(yfra(is),is=1,inkl(nsl)),ysum
                elseif(ngg.eq.mode) then
                   goto 500
@@ -1530,7 +1536,7 @@
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim}
- subroutine generate_fccord_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,ceq)
+ subroutine generate_fccord_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,gmax,ceq)
 ! This generates grid for a phase with 4 sublattice fcc/hcp ordering
 ! mode<0 just number of gridpoints in ngg, needed for allocations
 ! mode=0 calculate mole fraction and G for all gridpoints
@@ -1538,7 +1544,7 @@
    implicit none
    integer mode,iph,ngg,nrel,ny
    real xarr(nrel,*),garr(*)
-   double precision yarr(*)
+   double precision yarr(*),gmax
    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim} %+
 ! NOTHING IMPLEMENTED YET
@@ -1550,7 +1556,7 @@
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim} %-
- subroutine generate_charged_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,ceq)
+ subroutine generate_charged_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,gmax,ceq)
 ! This generates grid for a phase with charged constituents
 ! mode<0 just number of gridpoints in ngg, needed for allocations
 ! mode=0 calculate mole fraction and G for all gridpoints
@@ -1558,7 +1564,7 @@
    implicit none
    integer mode,iph,ngg,nrel,ny
    real xarr(nrel,*),garr(*)
-   double precision yarr(*)
+   double precision yarr(*),gmax
    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
    integer nkl(maxsubl),knr(maxconst),inkl(0:maxsubl)
@@ -1625,6 +1631,7 @@
 !         write(*,*)'3Y a single neutral endmember for ',iph,mode
             call calc_gridpoint(iph,ydum,nrel,xarr(1,ngg),garr(ngg),ceq)
             if(gx%bmperr.ne.0) goto 1000
+            if(garr(ngg).gt.gmax) gmax=garr(ngg)
 !         elseif(mode,gt.0) then
 ! if mode>0 return constitution, already set
          endif
@@ -2174,6 +2181,7 @@
 !            call calc_gridpoint(iph,y4,nrel,xdum,gdum,ceq)
             call calc_gridpoint(iph,y4,nrel,xarr(1,nm),garr(nm),ceq)
             if(gx%bmperr.ne.0) goto 1000
+            if(garr(ngg).gt.gmax) gmax=garr(ngg)
 !         write(*,512)nm,qq(2),gdum,xdum
 512         format('3Y gridpoint: ',i4,2(1pe12.4),7(0pF7.4))
          endif
@@ -2448,7 +2456,8 @@
    double precision xknown(*),phfrac(*),cmu(nrel)
    logical trace
 !\end{verbatim}
-   double precision, parameter :: phfmin=1.0D-8
+! inverting just a C1_MO2 phase I got phfmain around 1.0e-13 as smallest
+   double precision, parameter :: phfmin=1.0D-15
    real xmat(nrel,nrel),xmatsave(nrel,nrel),xmaxx(nrel)
 ! used to solve the linear system of equations
    double precision qmat(nrel,nrel+1),qmatsave(nrel,nrel+1)
@@ -2461,6 +2470,7 @@
 ! gridpoints that has less difference with the plane than this limit is ignored
    real, parameter :: dgminlim=1.0D-6
    logical checkremoved
+   character ch1*1
 ! if trace then open file to write grid
    if(trace) then
       write(*,*)'Opening ocgrid.dat to write grid solution'
@@ -2493,6 +2503,9 @@
 ! Find the lowest Gibbs energy as close as possible to each pure element
 ! or with max content
    nopure=0
+! skip code below until label 88
+   goto 88
+!----------------------------------------------------------------------
    do ip=1,kp
 !      write(*,118)'3Y pure: ',ip,(xarr(je,ip),je=1,nrel)
 118   format(a,i5,10F6.3)
@@ -2551,10 +2564,26 @@
          phfrac(je)=xknown(je)
       endif
    enddo
+! skip code above-----------------------------------------
+88 continue
+! set start matrix with chemical potential equal to cmu(1) (max G all gridpoint)
+! for all components
+   do iel=1,nrel
+      phfrac(iel)=xknown(iel)
+      xmat(iel,iel)=one
+      cmu(iel)=cmu(1)
+! jgrid value here is dummy ...
+      jgrid(iel)=kp+iel
+   enddo
+! Add nrel "gridpoints" for the pure elements
+!   kp=kp+nrel
 ! output of start matrix
 !   do ip=1,nrel
-!      write(*,123)ip,phfrac(ip),(xmat(je,ip),je=1,nrel)
+!      write(*,121)ip,phfrac(ip),cmu(ip),(xmat(je,ip),je=1,nrel)
 !   enddo
+!   write(*,119)'3Y start: ',0,0,kp,zero,(jgrid(ip),ip=1,nrel)
+119 format(a,3i6,1pe12.4/(12i6))
+121 format('3Y: ',i2,2(1pe10.2),12(0pf5.2))
 123 format('3Y: ',i2,1pe12.4,10(0pf6.3))
 ! looking for tbase calculation error
 !   if(trace) write(*,770)(jgrid(je),je=1,nrel)
@@ -2634,7 +2663,7 @@
 209      format(a,3(1pe12.4))
          if(dg.gt.zero) then
 !            inuse=inuse-1
-! we cannot be sure that a point that has a positive value will always be
+! we cannot be sure that a point that has a positive value now will always be
 ! above the surface of the chemical potentials!!!
 !            notuse(jp)=1
          else
@@ -2652,7 +2681,9 @@
 !         write(*,*)'Excluded: ',griter,jp
       endif included
    enddo pointloop
-!   write(*,*)'3Y Finished loop for all gridpoints: ',jp,kp
+! if lower gridpoint nyp>0
+!   write(*,43)griter,nyp,kp,dgmin,(jgrid(ie),ie=1,nrel)
+43 format('3Y Finished loop ',i6,' for all gridpoints: ',2i6,1pe12.4/12i6)
 ! TBASE bug------------------------
 !   jp=94
 !   do iel=1,nrel
@@ -2665,7 +2696,7 @@
 ! if nyp=0 we have found the lowest tangent plane including the composition
    if(nyp.eq.0 .or. abs(dgmin).lt.dgminlim) then
      if(trace) write(31,*)'Found the solution after iterations: ',griter,dgmin
-!      write(31,*)'Found the solution after iterations: ',griter,dgmin
+!      write(31,*)'Found the solution after ilterations: ',griter,dgmin
       goto 900
    else
       if(trace) write(*,*)'3Y new gridpoint: ',griter,nyp,dgmin
@@ -2677,23 +2708,6 @@
 !211 format(a,i4,1pe12.4,0pf8.4,6(f8.4))
 212 format(a,2i8,6(1pe11.3))
 !-------------------------------------------------------------------------
-! Replace one point with the new nyp keeping the overall composition inside.
-! This is done by replacing one row at a time in xmat and solve a linear
-! equation for the phase fractions and accept the only solution which has 
-! positive phasefractions.
-!
-! check the overall composition
-!   xov=zero
-!   do i=1,nrel
-!      do ie=1,nrel
-!         xov(ie)=xov(ie)+phfrac(i)*xmat(ie,i)
-!      enddo
-!   enddo
-!   write(*,277)'xov:   ',nyp,(xov(i),i=1,nrel)
-!   write(*,277)'phfrac:',0,(phfrac(i),i=1,nrel)
-!277 format(a,i5,10F7.4)
-!   
-!-----------------------------------------------------------------------
    qmat=qmatsave
    do i=1,nrel
       phfsave(i)=phfrac(i)
@@ -2704,9 +2718,14 @@
    ie=ie+1
    if(ie.gt.nrel) then
 ! tried to change all coumns but no solution, error
-!      write(*,301)'Failed gp: ',nyp,inerr,dgmin,(xarr(i,nyp),i=1,nrel)
-301   format(a,i7,i3,1pe10.2,2x,6(0pF7.4))
+      write(*,301)'Failed gp: ',nyp,gpfail,(xarr(i,nyp),i=1,nrel)
+301   format(a,i7,i3,1pe10.2,2x,8(0pF5.2))
       gpfail=gpfail+1
+      if(griter.gt.10*nrel .and. gpfail.gt.8*nrel) then
+! this must be wrong!!
+         write(*,*)'Grid minimizer problem: ',griter,gpfail
+         gx%bmperr=7777; goto 1000
+      endif
 ! listing restored solution ......
 !      xtx=zero
 !      do jjq=1,nrel
@@ -2739,7 +2758,7 @@
    do je=1,nrel
       qmat(je,ie)=dble(xarr(je,nyp))
    enddo
-! left side are the known composition
+! right hand side are the known composition
    do je=1,nrel
       qmat(je,nrel1)=xknown(je)
    enddo
@@ -2749,16 +2768,24 @@
 !    do ik=1,nrel1
 !       write(*,317)'fm6A: ',(qmat(je,ik),je=1,nrel)
 !    enddo
+!   do je=1,nrel
+!      write(*,55)(qmat(je,iel),iel=1,nrel+1)
+!   enddo
+!55 format('3Yq:',7(1pe11.3))
    call lingld(nrel,nrel1,qmat,phfrac,nrel,ierr)
    if(ierr.ne.0) then
 ! error may occur and is not fatal, just try to replace next column
-!       write(*,*)'non-fatal error from lingld: ',ierr,nyp
+!      write(*,*)'non-fatal error from lingld: ',ierr,nyp
       qmat=qmatsave
       do i=1,nrel
          phfrac(i)=phfsave(i)
       enddo
       goto 300
    endif
+!   write(*,299)'3Y q: ',ierr,(phfrac(iel),iel=1,nrel)
+!299 format(a,i5,7(1pe10.2))
+!   read(*,302)ch1
+302 format(a)
 !   write(*,*)'fm6B: ',ie,ierr
 !   write(*,317)'fm6C: ',(phfrac(i),i=1,nrel)
 317 format(a,6(1pe12.4))
@@ -2776,7 +2803,7 @@
          goto 300
       endif
    enddo
-!   if(trace) write(*,*)'Replaced column: ',ie,nyp
+!   write(*,*)'3Y Replaced column: ',ie,nyp
 ! we have found that column ie should be replaced
 !--------------------------------------------------
 ! update xmat, qmatsave and gmin
@@ -2786,7 +2813,11 @@
    jsave=jgrid(iesave)
 ! mark that the replaced gridpoint should be checked again ....
 !   write(*,*)'3Y Putting gridpoint back: ',jgrid(ie)
-   notuse(jgrid(ie))=0
+! DO NOT SAVE THE PURE ELEMENT POINTS ... >k
+!   write(*,*)'3Y for notuse: ',ie,jgrid(ie),size(notuse)
+   if(jgrid(ie).le.size(notuse)) then
+      notuse(jgrid(ie))=0
+   endif
    jgrid(ie)=nyp
    xmatsave=xmat
    do je=1,nrel
@@ -3377,7 +3408,7 @@
    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
    integer ig1,ign,ip,iph,ics,jph,lokcs,lokph,mode,ny,ie,ig,kp,i
-   double precision yarr(maxconst),qq(5),xxx,dgmin
+   double precision yarr(maxconst),qq(5),xxx,dgmin,gmax
    real dg,gplan
 !   integer idum(1000)
 !   write(*,*)'Entering set_metastable'
@@ -3460,7 +3491,7 @@
 78    format(a,5i7,1pe12.4)
 ! find the constitution of this gridpoint
 !      call generate_grid(mode,iph,ign,nrel,xarr,garr,ny,yarr,idum,ceq)
-      call generate_grid(mode,iph,ign,nrel,xarr,garr,ny,yarr,ceq)
+      call generate_grid(mode,iph,ign,nrel,xarr,garr,ny,yarr,gmax,ceq)
       if(gx%bmperr.ne.0) goto 1000
 !      write(*,451)(yarr(i),i=1,ny)
 451   format('fractions: ',6(F10.6))
@@ -3479,7 +3510,7 @@
  
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
-!\begin{verbatiom}
+!\begin{verbatim}
  subroutine gridmin_check(nystph,kp,nrel,xarr,garr,xknown,ngrid,pph,&
       cmu,yphl,iphx,ceq)
 ! This subroutine checks if a calculated solution is correct by  
@@ -3495,7 +3526,6 @@
 ! cmu are the final chemical potentials
 ! yphl is just needed as a dummy
 ! ceq is current equilibrium record
-!\end{verbatiom}
    implicit none
    integer kp,nrel,jp,ie,mode,pph,nystph
    double precision, parameter :: phfmin=1.0D-8
@@ -3504,11 +3534,13 @@
    integer, dimension(*) :: ngrid,iphx
    double precision cmu(*),gsurf,gstable,gd,yphl(*),qq(5),rtn,gdmin
    TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
    integer lokph,lokcs,zph,ibias,ics,iph,ny
 ! setting a value of addph forces that gridpoint to be added, used for test
 !   integer :: addph=8 
 !   integer :: addph=100
    integer :: addph=0
+   double precision gmax
 !   integer idum(1000)
    save addph
 !
@@ -3556,7 +3588,7 @@
 115   continue
 !      write(*,*)'mode, ibias and phase: ',mode,ibias,iphx(zph)
 !      call generate_grid(mode,iphx(zph),ibias,nrel,xarr,garr,ny,yphl,idum,ceq)
-      call generate_grid(mode,iphx(zph),ibias,nrel,xarr,garr,ny,yphl,ceq)
+      call generate_grid(mode,iphx(zph),ibias,nrel,xarr,garr,ny,yphl,gmax,ceq)
       if(gx%bmperr.ne.0) goto 1000
       iph=iphx(zph)
       write(*,*)'Gridmin check found new stable phase: ',iph

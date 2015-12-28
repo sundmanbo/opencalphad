@@ -597,6 +597,8 @@
    if(externalchargebalance) then
       phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHEXCB)
    endif
+! set net charge to zero
+   firsteq%phase_varres(lokcs)%netcharge=zero
    if(nsl.eq.1) then
 ! if no sublattices set ideal bit.  Will be cleared if excess parameter entered
       phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHID)
@@ -623,6 +625,8 @@
          phasetuple(ll)%compset=1
 ! this is alphabetical index
          phasetuple(ll)%ixphase=ll
+! this is link to higher tuple of same phase
+         phasetuple(ll)%nextcs=0
 ! this is the link to phase tuple from the phase
          jl=phlista(phases(ll))%linktocs(1)
          firsteq%phase_varres(jl)%phtupx=ll
@@ -917,9 +921,18 @@
    tuple=nooftuples+1
    phasetuple(tuple)%phaseix=phases(iph)
    phasetuple(tuple)%compset=icsno
-! NEW variables in phase tuple!
+! New variables in phase tuple!, phase index and phase_varrres
    phasetuple(tuple)%ixphase=iph
    phasetuple(tuple)%lokvares=nyttcs
+! nextcs is the index of next phasetuple for same phase
+   leq=iph
+! why upper bound error??
+   do while(leq.le.nooftuples .and. phasetuple(leq)%nextcs.gt.0)
+      leq=phasetuple(leq)%nextcs
+   enddo
+!   write(*,56)'3B setting nextcs in tuple: ',iph,phases(iph),nyttcs,leq,tuple
+!56 format(a,10i5)
+   phasetuple(leq)%nextcs=tuple
    nooftuples=tuple
 !   write(*,*)'3B Adding phase tuple: ',tuple,iph,phases(iph)
 ! save index of tuple in new phase_varres record
@@ -1288,19 +1301,85 @@
    enddo
 ! and zero the last pointer to composition set.
    phlista(lokph)%linktocs(phlista(lokph)%noofcs+1)=0
+!
+! cleaning up phasetuple
+   jl=phasetuple(tuple)%ixphase
+!   write(*,*)
+!   write(*,*)'3B cleaning up phase tuple when removing tuple: ',tuple,jl
+   if(phasetuple(tuple)%compset.eq.2) then
+! if the removed phasetuple has compset index 2 then zero the link in
+! the original phase tuple ...
+!      write(*,*)'3B link to tuple for compset 2 set to zero: ',tuple
+      phasetuple(jl)%nextcs=0
+   else
+      jl=phasetuple(jl)%nextcs
+! zero the nextcs pointer in the phase tuple pointing to tuple
+      eternity: do while(phasetuple(jl)%nextcs.ne.tuple)
+         if(jl.eq.phasetuple(tuple)%nextcs) then
+            exit eternity
+         endif
+         if(phasetuple(jl)%nextcs.eq.0) then
+            write(*,*)'3B erreor: ',phasetuple(tuple)%compset,tuple
+            gx%bmperr=7777; goto 1000
+         endif
+         jl=phasetuple(jl)%nextcs
+      enddo eternity
+      phasetuple(jl)%nextcs=0
+   endif
+!
+!>>>>>>>>>>>>>>>>> THINK <<<<<<<<<<<<<<<<<<<<<<<
+!
+! The assumption is that phase tuples are always ordered in increasing
+! composition set number.  One will always delete the highest number.
+! The main problem is to ensure that %nextcs is correct and that the
+! nextcs from the first composition set is updated correctly, also when
+! phase tuples from other phases are deleted.
+!
 !   write(*,*)'Free list 1: ',csfree,highcs,lokcs
 ! update phasetuple array, overwrite tuple.  This means tuples may change phase
 ! NOTE the first tuple for a phase+compset will never change position.  Only
 ! those created later may be shifted ... but that may be complicated enough ...
 !   write(*,*)'3B Shifting phase tuples above deleted: ',tuple,nooftuples
-!   write(*,770)'3B 1: ',(phasetuple(jl),jl=tuple-4,nooftuples)
-770 format(a,10(i4,i2,2x))
+!   write(*,770)'3B1:',(jl,phasetuple(jl),jl=tuple-1,nooftuples)
+770 format(a,3(6i4,';'),(/4x,6i4,';',6i4,';',6i4,';'))
+! It is always the last compset of a phase that is removed,
+! all nextcs links goes to higher tuples
    do jl=tuple+1,nooftuples
       phasetuple(jl-1)%phaseix=phasetuple(jl)%phaseix
       phasetuple(jl-1)%compset=phasetuple(jl)%compset
       phasetuple(jl-1)%ixphase=phasetuple(jl)%ixphase
       phasetuple(jl-1)%lokvares=phasetuple(jl)%lokvares
-! we must change the link in the phase_varres record also!!
+! all tuples have moved down one position ... thus nextcs decremented by one
+      if(phasetuple(jl)%nextcs.gt.0) then
+         phasetuple(jl-1)%nextcs=phasetuple(jl)%nextcs-1
+      else
+! unless it is zero in which case it keeps its value
+         phasetuple(jl-1)%nextcs=0
+      endif
+! we must change the link to this tuple starting from ixphase ??
+      if(phasetuple(jl-1)%compset.eq.2) then
+!         write(*,*)'Changing link to compset 2: ',&
+!              phasetuple(jl-1)%ixphase,jl-1
+         phasetuple(phasetuple(jl-1)%ixphase)%nextcs=jl-1
+      endif
+!      kcs=phasetuple(jl)%ixphase
+!      evigheten: do while(phasetuple(kcs)%nextcs.ne.jl)
+!         if(phasetuple(kcs)%nextcs.eq.kcs) then
+!            kcs=phasetuple(kcs)%nextcs
+!         else
+!            write(*,*)'3B zero link in tuple: ',kcs
+!            phasetuple(kcs)%nextcs=0
+!            exit evigheten
+!         endif
+!      enddo evigheten
+!      if(phasetuple(kcs)%ixphase.eq.phasetuple(jl-1)%ixphase)then
+!         write(*,*)'3B changed nextcs in tuple ',kcs,jl-1
+!         phasetuple(kcs)%nextcs=jl-1
+!      else
+!         write(*,*)'3B zero link in tuple ',kcs
+!         phasetuple(kcs)%nextcs=0
+!      endif
+! we must change the link in the phase_varres records also!!
       lokph=phasetuple(jl-1)%phaseix
       lokcs=phlista(lokph)%linktocs(phasetuple(jl-1)%compset)
 !      write(*,771)'3B Shifting down ',jl,nooftuples,phasetuple(jl-1)%phaseix,&
@@ -1311,7 +1390,10 @@
          eqlista(leq)%phase_varres(lokcs)%phtupx=jl-1
       enddo
    enddo
+!   write(*,770)'3B2:',(jl,phasetuple(jl),jl=tuple-1,nooftuples)
    nooftuples=nooftuples-1
+! the last tuple must explicitly have its link set to zero ?? done
+!   phasetuple(nooftuples)%nextcs=0
 !      write(*,*)'3B Warning: phase tuples may have changed phase ...'
 !   write(*,770)'3B 2: ',(phasetuple(jl),jl=tuple-4,nooftuples)
 ! end threadprotected code <<<<<<<<<<<<<<<<<<<<<<<<

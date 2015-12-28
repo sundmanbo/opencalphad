@@ -7,10 +7,12 @@ r t CHO-gas
 @&
 @$-------------------------------------------------------------------
 @$ A pure C3H8 gas has enthalpy content -99288 J at 300 K
-@$ adding 7 moles of O with T=300K gives an adiabatic flame T of 3071 K
-@$ remove H2O_L as its data above 700K are bad
+@$ adding 7 moles of O at T=300K gives an adiabatic flame T of 3071 K
+@$ remove all other phases except gas
 
-set ph h2o1_l stat sus
+set status phase *=sus
+
+set status phase gas=ent 1
 
 set c t=300 p=1e5 n(c)=3 n(o)=8 n(h)=8 n(o)=1e-8
 
@@ -32,7 +34,7 @@ c e
 
 l,,,,
 
-@$ The adiabatic flame temperature is 3107 K, same as TC
+@$ The adiabatic flame temperature is 3107 K
 @&
 @$-------------------------------------------------------------------
 @$ Check how it varies with N(O)

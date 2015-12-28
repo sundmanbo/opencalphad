@@ -238,21 +238,27 @@
       fracset=phmain%disfra
       ftype: if(fractype.eq.1) then
 !---------------------------------------------- ordered (or only) fraction set
-!         if(btest(phlista(lokph)%status1,PHMFS)) then
-! there is a disordered fractions set, we need fracset later
-!            if(fracset%totdis.ne.0) then
-! the phase can totally disorder, if disordered skip ordered part
-!               if(btest(phmain%status2,CSORDER)) then
+         if(btest(phlista(lokph)%status1,PHMFS)) then
+! there is a disordered fractions set, we need additional fracset
+            if(fracset%totdis.ne.0) then
+               if(btest(phlista(lokph)%status1,PHSUBO)) then
+! if phsubo set skip subtracting the ordered part as disordered, just add
+                  goto 106
+               endif
+! the phase can totally disorder, disordered skip ordered part
+! the CSORDER bit set by calc_disfrac called from set_constitution
+               if(btest(phmain%status2,CSORDER)) then
 ! the phase is ordered, we have to calculate this part twice
-!                  nevertwice=.false.
+!                  write(*,*)'Setting nevetwice false'
+                  nevertwice=.false.
 ! independent if ordered or disordered always calculate first fraction set
-! nevertwice probably redundant
-!              else
+               else
 ! the phase is disordered, skip ordered part and just calculate disordered
-!                  goto 105
-!               endif
-!            endif
-!         endif
+                  goto 105
+               endif
+            endif
+         endif
+106      continue
          gz%nofc=phlista(lokph)%tnooffr
          msl=nsl
          incffr(0)=0
@@ -1147,12 +1153,18 @@
 ! end loop for this fraction type, initiation for next in the beginning of loop
 ! but we may have to calculate once again with same fraction type but
 ! with the fractions as disordered fractions
-!      write(*,*)' **** 3X Warning: This code should never be executed ',&
-!           nevertwice
-!      if(nevertwice) then
-!         goto 400
-!      endif
-      goto 400
+!      write(*,*)'3X Testing nevertwice ',nevertwice
+! Jump to 400 terminates calculation for this fraction type
+      if(nevertwice) goto 400
+! UNIFINISHED
+! TEST IF WE SHOULD SUBTRACT THE ORDERED ENERGY AS DISORDERED AS THAT
+! IS THE CURRENT IMPLEMENTATION IN THERMO-CALC. BY JUMPING TO 400 WE SKIP THAT.
+      if(btest(phlista(lokph)%status1,phsubo)) then
+         write(*,*)'3X phsubo bit set'
+         goto 400
+      endif
+! PARTITION PROBLEM FOR ORDERED PHASES
+!      goto 400
 !------------------------------------------------
 ! the code from disord: if ... endif is redundant 
       disord: if(fractype.eq.1 .and. btest(phlista(lokph)%status1,phmfs) &
@@ -1166,8 +1178,8 @@
 ! calculate with next fraction type
 ! NEW METHOD: no need to calculate with all fractions as disordered
             first=.false.
-            write(*,*)'3X: next fraction type'
-            goto 400
+!            write(*,*)'3X: next fraction type'
+!            goto 400
 !------------ code below redundant until ^^^^^^^^^^^^^^^^^^^^^^^^^
 ! this is no longer needed as we just add the disordered part
 ! but do not delete yet ... wait until I know it works ...
@@ -1186,6 +1198,9 @@
             saveg=phres%gval
             savedg=phres%dgval
             saved2g=phres%d2gval
+!            do i1=1,gz%nofc
+!               write(*,602)'3X G4y: ',i1,phres%dgval(1,i1,1),savedg(1,i1,1)
+!            enddo
             phres%gval=zero
             phres%dgval=zero
             phres%d2gval=zero
@@ -1195,9 +1210,9 @@
 ! We should now subreact the disordered from the ordered
 ! this is debug output
 !            do i1=1,gz%nofc
-!               write(*,602)'3X Gx: ',i1,phres%dgval(1,i1,1),savedg(1,i1,1)
+!               write(*,602)'3X G4x: ',i1,phres%dgval(1,i1,1),savedg(1,i1,1)
 !            enddo
-!602         format(a,i3,6(1pe14.6))
+602         format(a,i3,6(1pe14.6))
 ! Ordered part calculated with disordered fractions, subtract this
 ! from the first, restore fractions and deallocate
 ! THIS IS TRICKY
@@ -1320,6 +1335,7 @@
          endif
 ! ----------------- code above redundant ^^^^^^^^^^^^^^^^^^^^^^^^
       endif disord
+! WE JUMP HERE WITHOUT CALCULATING THE ORDERED PART AS DISORDERED
 400 continue
    enddo fractyp
 !--------------------------------------------------------------

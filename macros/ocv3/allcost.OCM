@@ -69,13 +69,6 @@ set c t=500
 
 c e
 
-@&
-@$ it sometimes fails, strangely enough it usually work better second time ...
-
-c e
-
-@&
-
 l,,,,
 
 @$ NOTE THE DATABASE IS NOT RELIABLE FOR THIS SYSTEM

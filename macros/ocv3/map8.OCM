@@ -1,6 +1,13 @@
 @$ 
 @$ Calculate a phase diagram for FCC ordering in the Fe-Ni system
 @$ using partition and permutations
+@$
+@$ NOTE in this case we use the option to set FCC_PERMUTATIONS
+@$ so each unique parameters is enetegerd only once (compare with map4.OCM)
+@$
+@$ We also set the bit 23 of the phase not to subtract the ordered part
+@& as disordered.  This the disordered part has just a regular parameter,
+@$ we do not have to add the ordered part as disordered as in map4.OCM.
 @&
 
 set echo
@@ -24,15 +31,20 @@ enter tp-sym GA3B1 fun 1 -0.071689*evtoj;,,,,,
 enter tp-sym GA2B2 fun 1 -0.138536*evtoj;,,,,,
 enter tp-sym GA1B3 fun 1 -0.125748*evtoj;,,,,,
  
-@$ We may have to use some regular solution parameter later
+@$ We set a positive regular solution parameter
 enter tp-sym L0 fun 1 12000; ,,,,,
-enter tp-sym L1 fun 1 0; ,,,,,
-enter tp-sym L2 fun 1 0; ,,,,,
 
 @$ this is an approximate SRO contribution to the LRO phase.  It is
 @$ set to about a quater of the L1_0 ordering energy, 
 @$ equal to the Fe-Ni bond energy
 enter tp-sym GSRO fun 1 -0.034*evtoj;,,,,,
+
+@$ Using the partitioned model the contribition from the ordered parameters
+@$ will cancel when the phase is disordered.  If we want them to contribute
+@$ we must add them to the disordered part
+enter tp-sym LD0 fun 1 GA3B1+1.5*GA2B2+GA1B3+1.5*GSRO;,,,,,,
+enter tp-sym LD1 fun 1 2*GA3B1-2*GA1B3;,,,,,,
+enter tp-sym LD2 fun 1 GA3B1-1.5*GA2B2+GA1B3-1.5*GSRO;,,,,,,
 
 @$ ==================================================
 @$ This is an fcc phase with lro but no explicit sro
@@ -56,8 +68,6 @@ amend biblio test VASP calculation by test;
 
 @$ These are possible disordered parameters
 enter param GD(part,Fe,Ni;0),,L0; 6000 N test
-enter param GD(part,Fe,Ni;1),,L1; 6000 N test
-enter param GD(part,Fe,Ni;2),,L2; 6000 N test
 
 
 list data ,,
@@ -93,6 +103,17 @@ amend phase part comp-set y , ,
 @$ fraction of the minor element.  This should be arranged in todo_after ...
 
 
+@$ Use the mode without subrracting the disordered Gibbs energy of the
+@$ ordered part
+
+set bit 2
+set phase part-fcc bit 23
+23
+
+l sh a
+
+@&
+
 set c t=400 p=1e5 n=1 x(ni)=.6
 
 c e
@@ -106,6 +127,7 @@ set ax 1 x(ni) 0 1 ,,,,
 
 @$ we have to take very small T steps
 set ax 2 t 10 1000 10
+
 
 map
 

@@ -5,8 +5,8 @@ set echo
 
 r t agcu
 
-@&
 @$-------------------------------------------------------------------
+@&
 @$ Calculate an equilibrium in the miscibility gap
 @$ A second composition set is created by the grid minimizer
 
@@ -16,8 +16,8 @@ c e
 
 l r 1
 
-@&
 @$-------------------------------------------------------------------
+@&
 @$ Set two axis for a phase diagram calculation
 
 set ax 1 x(cu) 0 1 ,,,
@@ -27,18 +27,20 @@ l ax
 
 l sh
 
-@&
 @$-------------------------------------------------------------------
+@&
 @$ Set reference state for the elements
 set ref ag fcc,,,,,
 set ref cu fcc,,,,,
 
-@&
 @$-------------------------------------------------------------------
+@&
 
 map
 
 
+@$-------------------------------------------------------------------
+@&
 @$ Plot with X-T axis
 plot
 x(*,cu)
@@ -46,6 +48,7 @@ T
 title map 1 fig 1
 render
 
+@$-------------------------------------------------------------------
 @$ Zoom the Au rich side
 plot
 x(*,cu)
@@ -56,6 +59,7 @@ N
 0.2
 title map 1 fig 2
 
+@$-------------------------------------------------------------------
 @$ Rotate the diagram
 plot
 T
@@ -63,6 +67,7 @@ x(*,cu)
 title map 1 fig 3
 render
 
+@$-------------------------------------------------------------------
 @$ Plot with activity axis
 plot
 ac(cu)

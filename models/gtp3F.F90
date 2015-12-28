@@ -766,7 +766,7 @@
    endif
 !---------------------------------------------------------------------
 ! extract arguments if any. If arguments then lstate(jp:jp) should be (
-! Typically G(fcc#2), N(Cr), BP(fcc), Y(sigma#2,cr#3), TC(BCC#2)
+! Typically H(fcc#2), N(Cr), BP(fcc), Y(sigma#2,cr#3), TC(BCC#2)
 !300 continue
    if(deblist) write(*,*)'3F args: ',jp,lstate(1:jp+10)
    narg=0
@@ -2919,8 +2919,8 @@
 !      write(*,*)'3F find_svfun: ',name,svflista(lrot)%name,lrot
       if(name.eq.svflista(lrot)%name) goto 500
    enddo
-   write(*,*)'3F No such symbol: ',name
-   gx%bmperr=8888; goto 1000
+   write(*,*)'3F No such state variable: ',name
+   gx%bmperr=4188; goto 1000
 !
 500 continue
 ! nothing more to do!

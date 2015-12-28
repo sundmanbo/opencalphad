@@ -816,6 +816,7 @@
 ! in enter_experiment the new variable is removed from the condition list
 ! and instead added to the experimenal list
    type(gtp_condition), pointer :: new
+!   write(*,*)'3D set_cond: ',cline(1:len_trim(cline)),ip
    call set_cond_or_exp(cline,ip,new,0,ceq)
 1000 continue
    nullify(new)
@@ -876,7 +877,7 @@
    indices=0
 ! the list of experiments changes ???
 ! NOTE we can have several conditions on the same line!!
-! argument 4 equal to 5 means extract the whole line
+! argument 4 equal to 5 of gpar* means extract the whole line
    stvexp=' '
 !   write(*,56)'3D scoe: ',nterm,ip,cline(1:64)
 56 format(a,2i3,' "',a,'" ')
@@ -948,6 +949,7 @@
 ! memory leak
    svr=>svrvar
    call decode_state_variable(svtext,svr,ceq)
+!   write(*,*)'3D state var: ',svtext,gx%bmperr
    if(gx%bmperr.ne.0) then
 ! Experiments can be symbols
 !      write(*,*)'3D not a state variable: ',svtext(1:5),gx%bmperr,notcond
@@ -1117,7 +1119,7 @@
    call wrinum(defval,jp,10,0,xxx)
    if(buperr.ne.0) then
       buperr=0; defval=' '
-   endif
+     endif
 !157 continue
 !   write(*,*)'3D value: ',ip,' "',stvexp(1:ip+10),'" ',defval
    call gparcd('Value: ',stvexp,ip,1,textval,defval,q1help)

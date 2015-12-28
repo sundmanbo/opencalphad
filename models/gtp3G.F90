@@ -1043,32 +1043,6 @@
 !  write(6,*)'alphaphorder 4: ',lokph,iph,noofph
    phases(iph)=noofph
    phlista(noofph)%alphaindex=iph
-   goto 330
-!vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-! code below made redundant as phasetuple updated in enter_equilibrium in gtp3B
-!  write(6,*)'alphaphorder 3: ',iph,(phases(k),k=1,noofph)
-! update phasetuple array
-!   write(*,*)'3G New phase alphabetic order: ',iph
-   do j=nooftuples,iph,-1
-      phasetuple(j+1)%phaseix=phasetuple(j)%phaseix
-      phasetuple(j+1)%compset=phasetuple(j)%compset
-      phasetuple(j+1)%ixphase=phasetuple(j)%ixphase
-! we must also change the tuple index in phase_varres!!
-      lokcs=phlista(phasetuple(j)%phaseix)%linktocs(1)
-      firsteq%phase_varres(lokcs)%phtupx=j+1
-      phasetuple(j+1)%lokvares=lokcs
-!      phasetuple(j+1)%lokvares=phasetuple(j)%lokcs
-!      write(*,777)'3G shifted phase in phasetuple',&
-!           phasetuple(j)%phase,lokcs,j+1
-   enddo
-! insert the first compset of new phase in phasetuple position iph
-   phasetuple(iph)%phaseix=noofph
-   phasetuple(iph)%compset=1
-   phasetuple(iph)%ixphase=iph
-! this is set later in enter_phase 
-!   phasetuple(iph)%lokvares=phlista(noofph)%linktocs(1)
-!^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-330 continue
    nooftuples=nooftuples+1
    tuple=iph
 !   write(*,771)iph,phasetuple(iph),phlista(noofph)%name

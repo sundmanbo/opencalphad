@@ -102,7 +102,7 @@ MODULE liboceq
 ! dormlink: is start of list of phases temporarily set dormant
 ! noofits current number of iterations
 ! status for various things
-! nrel number of elements (omponents)
+! nrel number of elements (components)
 ! typesofcond: types of conditions, =1 only massbal, =2 any conditions
 ! nfixmu number of fixed chemical potentials
 ! nfixph number of conditions representing fix phases
@@ -170,7 +170,7 @@ CONTAINS
     implicit none
     integer mode
     TYPE(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim}
+!\end{verbatim} %+
     TYPE(meq_setup), pointer :: meqrec
     type(map_fixph), pointer :: mapfix
     double precision starting,finish2
@@ -206,7 +206,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim}
+!\begin{verbatim} %-
   subroutine calceq3(mode,confirm,ceq)
 ! calculates the equilibrium for the given set of conditions
 ! mode=0 means no global minimization
@@ -533,9 +533,12 @@ CONTAINS
 ! if global fails reset error code and try a default start set of phases
           if(gx%bmperr.ge.4000 .and. gx%bmperr.le.4220) then
 !  write(kou,102)gx%bmperr,bmperrmess(gx%bmperr)
-             write(kou,102)gx%bmperr 
-102          format('Cannot use grid minimization, error: ',i5/&
-                  'Using current consttution as start values.')
+             write(kou,102)bmperrmess(gx%bmperr)
+102          format(a/'Current constitution used as start values.')
+          else
+             write(kou,113)gx%bmperr 
+113          format('Cannot use grid minimazer, error: ',i5/&
+                  'Current constitution used as start values.')
           endif
 ! no initial gridmin, make a gridtest at the end (not implemented ...)
           gridtest=.true.
@@ -4750,14 +4753,14 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim} %+
+!\begin{verbatim} %-
   subroutine calc_dgdyterms2(iy,nrel,mamu,mag,mat,map,pmi)
 ! it should be similar to calc_dgdyterms1
     implicit none
     integer iy,nrel
     double precision mag,mat,map,mamu(*)
     type(meq_phase), pointer :: pmi
-!\end{verbatim} %-
+!\end{verbatim} %+
 ! these are to be multiplied with mu(ib), nothing, deltaT, deltaP
 ! I am not sure if this is used ...
     integer jy,ib
@@ -4799,7 +4802,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim} %+
+!\begin{verbatim} %-
   subroutine calc_dgdytermsh(nrel,ia,tpindep,hval,mamu,mag,mat,map,pmi,&
        curmux,noofits)
 ! This is a variant of dgdyterms1 including a term multiplied with each
@@ -4824,7 +4827,7 @@ CONTAINS
     double precision curmux(*)
 ! pmi is the phase data record for this phase
     type(meq_phase), pointer :: pmi
-!\end{verbatim}
+!\end{verbatim} %+
 ! THIS IS MODIFIED FOR CONDITIONS ON H and related properties
 ! these are to be multiplied with mu(ib), nothing, deltaT, deltaP
 ! CHARRGE BALANCE TERM ADDED 150610!!!
@@ -4913,7 +4916,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim} %+
+!\begin{verbatim} %-
   subroutine calc_dgdytermshm(nrel,ia,tpindep,hval,mamu,mag,mat,map,&
        mamu1,mag1,mat1,map1,pmi,curmux,noofits)
 ! This is a variant of dgdyterms1 including a term multiplied with each
@@ -5726,7 +5729,6 @@ CONTAINS
 
 !\begin{verbatim}
   subroutine assessment_calfun(nexp,nvcoeff,f,x)
-!  subroutine assessment_calfun(nexp,nvcoeff,f,x,ash)
 ! nexp is number of experiments, nvcoeff number of coefficients
 ! f is the differences between experiments and value calculated by model
 ! returned by this subroutine
@@ -5864,7 +5866,7 @@ CONTAINS
 
 !\begin{verbatim}
  subroutine list_equilibrium_extra(lut,ceq)
-! list the extra character variabled for calculate symboles and
+! list the extra character variables for calculate symboles and
 ! list characters (if any),  It is used in pmon and part of matsmin
 ! because it calls subroutines which need access to calculated results
    implicit none

@@ -3030,19 +3030,6 @@
 !      endif
    endif
    close(21)
-!---------------------- new code to generate phase tuple array here
-!   do jp=1,noofph
-! this is index in phlista
-!      phasetuple(jp)%phaseix=phases(jp)
-!      phasetuple(jp)%compset=1
-! this is alphabetical index
-!      phasetuple(jp)%ixphase=jp
-! this is the link to phase tuple from the phase
-!      jss=phlista(phases(jp))%linktocs(1)
-!      firsteq%phase_varres(jss)%phtupx=jp
-!      phasetuple(jp)%lokvares=jss
-!   enddo
-!---------------------- new code end
 ! read numbers, value after / is maximum
 ! endmember, interactions, property,
 ! tpfuns, composition sets, equilibria
