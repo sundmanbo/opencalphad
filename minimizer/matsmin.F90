@@ -810,7 +810,7 @@ CONTAINS
     double precision, parameter :: ylow=1.0D-3
     double precision, parameter :: addedphase_amount=1.0D-2
     double precision xxx
-    integer iremsave,zz,tupadd,tuprem
+    integer iremsave,zz,tupadd,tuprem,samephase
 ! replace always FALSE except when we must replace a phase as we have max stable
     logical replace
 ! number of iterations without adding or removing a phase
@@ -818,6 +818,7 @@ CONTAINS
     minadd=4
     minrem=4
 ! minum number if iterations between any change of stable phase set
+    samephase=0
     nochange=5
     lastchange=0
 !
@@ -1017,10 +1018,18 @@ CONTAINS
              goto 200
           endif
 ! do not add phases with net charge
-          if(meqrec%phr(iadd)%curd%netcharge.gt.1.0D-8) then
-             write(*,218)'Adding phase with net charge: ',iadd,&
+          if(meqrec%phr(iadd)%curd%netcharge.gt.1.0D-2) then
+             if(iadd.ne.samephase) then
+                write(*,218)'Ignoring phase with net charge: ',iadd
+!                meqrec%phr(iadd)%curd%phtupx,meqrec%phr(iadd)%curd%netcharge
+218             format(a,2i5,1pe14.6)
+                samephase=iadd
+             endif
+             goto 200
+          elseif(meqrec%phr(iadd)%curd%netcharge.gt.1.0D-8) then
+             write(*,231)'Adding phase with net charge: ',iadd,&
                   meqrec%phr(iadd)%curd%phtupx,meqrec%phr(iadd)%curd%netcharge
-218          format(a,2i5,1pe14.6)
+231          format(a,2i5,1pe14.6)
           endif
        endif
        tupadd=0

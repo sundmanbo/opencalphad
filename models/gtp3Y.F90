@@ -213,7 +213,7 @@
 !         goto 1000
          gx%bmperr=0
       endif
-!      write(*,*)'3Y gmax: ',gmax
+!      write(*,*)'3Y gmax: ',iph,gmax
 ! list xarr for all gridpoints
 !      do kp=1,ng
 !         write(*,73)iphx(zph),kp,(xarr(ie,kp),ie=1,nrel)
@@ -1508,7 +1508,7 @@
 ! number of real atoms less than 20%, a gridpoint with just vacancies ....
 !      gval=1.0E5
       gval=1.0E1
-   elseif(abs(qq(2)).gt.zero) then
+   elseif(abs(qq(2)).gt.1.0D-14) then
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 ! the gridpoint has net charge, qq(2), make gval more positive. 
 ! Note gval(1,1) is divided by RT so around -5<0
@@ -1516,6 +1516,7 @@
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 !      gval=real(ceq%phase_varres(lokres)%gval(1,1)/qq(1)+20*qq(2)**2)
 !      gval=real(ceq%phase_varres(lokres)%gval(1,1)/qq(1)+5*qq(2)**2)
+      write(*,*)'Problem with net charge ',iph,qq(2)
       gval=real(ceq%phase_varres(lokres)%gval(1,1)/qq(1)+qq(2)**2)
       if(ocv()) write(*,66)'3Y charged gp: ',&
            ceq%phase_varres(lokres)%gval(1,1)/qq(1),qq(1),abs(qq(2))
@@ -1598,6 +1599,7 @@
 ! this should be saved or passed as argument
    save savengg
 ! we will select 5 or 3 gripoints below
+!   write(*,*)'3Y charged grid',iph
 !   ncf=ncf5
    if(.not.allocated(savengg)) then
       allocate(savengg(noofph))
@@ -1919,6 +1921,7 @@
 !            cycle
 !         endif
 ! now we must generate correct constituent fractions and calculate G (mode=0)
+!         write(*,*)'3Y select case',iph,nn
          select case(nn)
          case default
             write(*,*)'3Y case error in generate_charged_grid!!'
@@ -1929,8 +1932,8 @@
                y1(endmem(i1)%constit(ll))=one
             enddo
             y4=y1
-!            write(*,300)'3Y gp* ',nm,nn,loopf,i1,i2,i3,zero,y4
-300         format(a,i4,2i2,3i3,1pe10.2,8(0pf6.3))
+!            write(*,300)'3Y gp0 ',nm,nn,loopf,i1,i2,i3,zero,y4
+300         format(a,i5,2i2,3i3,1pe10.2,7(0pf6.3),13(f6.3))
 !----------------------- first and second endmembers are neutral, 7 gridpoints
 ! combine with factors: 0.01; 0.10; 0.33; 0.51; 0.67; 0.9; 0.01
          case(1)
@@ -1945,7 +1948,7 @@
                y4(iz)=nfact(loopf)*y1(iz)+nfact(8-loopf)*y2(iz)
             enddo
             if(loopf.ge.7) loopf=0
-!            write(*,300)'3Y gp* ',nm,nn,loopf,i1,i2,i3,zero,y4
+!            write(*,300)'3Y gp1 ',nm,nn,loopf,i1,i2,i3,zero,y4
 !----------------------- first endmember is neutral, 2 and 3 charged, 3 gridp
 ! ratio 2/3 depend on charge, ratio 1/(2+3)
          case(2)
@@ -1969,7 +1972,7 @@
                y4(iz)=cfact5(loopf)*y1(iz)+cfact5(ncf+1-loopf)*y2(iz)
             enddo
             if(loopf.ge.ncf) loopf=0
-!            write(*,300)'3Y gp* ',nm,nn,loopf,i1,i2,i3,charge,y4
+!            write(*,300)'3Y gp2 ',nm,nn,loopf,i1,i2,i3,charge,y4
 !----------------------- first charged, second neutral, third charged, 3 gridp
 ! ratio 1/3 depend on charge, ratio 2/(1+3): 0.1; 0.5; 0.9
          case(3)
@@ -1994,7 +1997,7 @@
                y4(iz)=cfact5(loopf)*y1(iz)+cfact5(ncf+1-loopf)*y2(iz)
             enddo
             if(loopf.ge.ncf) loopf=0
-!            write(*,300)'3Y gp* ',nm,nn,loopf,i1,i2,i3,charge,y4
+!            write(*,300)'3Y gp3 ',nm,nn,loopf,i1,i2,i3,charge,y4
 !----------------------- first charged, second opposite, 1 gridp
 ! ratio 1/2 depend on charge
          case(4)
@@ -2011,7 +2014,7 @@
                y4(iz)=ratio1*y1(iz)+ratio2*y2(iz)
             enddo
             charge=ratio1*endmem(i1)%charge+ratio2*endmem(i2)%charge
-!            write(*,300)'3Y gp* ',nm,nn,loopf,i1,i2,i3,charge,y4
+!            write(*,300)'3Y gp4 ',nm,nn,loopf,i1,i2,i3,charge,y4
 !----------------------- first charged, second opposite, third neutral, 3 gridp
 ! ratio 1/2 depend on charge, ratio 3(1+2): 0.1; 0.5; 0.9
          case(5)
@@ -2036,7 +2039,7 @@
                y4(iz)=cfact5(loopf)*y1(iz)+cfact5(ncf+1-loopf)*y3(iz)
             enddo
             if(loopf.ge.ncf) loopf=0
-!            write(*,300)'3Y gp* ',nm,nn,loopf,i1,i2,i3,charge,y4
+!            write(*,300)'3Y gp5 ',nm,nn,loopf,i1,i2,i3,charge,y4
 !----------------------- all charged, 2 and 3 same sign, 3 gridp
 ! ratio depend on charge
          case(6)
@@ -2073,7 +2076,7 @@
                y4(iz)=cfact5(loopf)*y1(iz)+cfact5(ncf+1-loopf)*y3(iz)
             enddo
             if(loopf.ge.ncf) loopf=0
-!            write(*,300)'3Y gp* ',nm,nn,loopf,i1,i2,i3,charge,y4
+!            write(*,300)'3Y gp6 ',nm,nn,loopf,i1,i2,i3,charge,y4
 !----------------------- all charged, 1 and 3 same sign, 3 gridp
 ! ratio depend on charge
          case(7)
@@ -2110,7 +2113,7 @@
                y4(iz)=cfact5(loopf)*y1(iz)+cfact5(ncf+1-loopf)*y2(iz)
             enddo
             if(loopf.ge.ncf) loopf=0
-!            write(*,300)'3Y gp* ',nm,nn,loopf,i1,i2,i3,charge,y4
+!            write(*,300)'3Y gp7 ',nm,nn,loopf,i1,i2,i3,charge,y4
 !----------------------- all charged, 1 and 2 same sign, 3 gridp
 ! ratio depend on charge
          case(8)
@@ -2148,9 +2151,10 @@
                y4(iz)=cfact5(loopf)*y1(iz)+cfact5(ncf+1-loopf)*y2(iz)
             enddo
             if(loopf.ge.ncf) loopf=0
-!            write(*,300)'3Y gp* ',nm,nn,loopf,i1,i2,i3,charge,y4
+!            write(*,300)'3Y gp8 ',nm,nn,loopf,i1,i2,i3,charge,y4
 !----------------------- 
          end select
+!         if(iph.ge.72) write(*,*)'3Y end select',iph,mode
 !===============================================================
 ! Here we have the neutral constituent fraction in y4
 ! if mode>0 we have found the requested constitution
@@ -2163,7 +2167,7 @@
                do ll=1,ny
                   yarr(ll)=y4(ll)
                enddo
-!               write(*,507)'3Y Solution gp: ',mode,iph,y4
+!               if(iph.ge.72) write(*,507)'3Y Solution gp: ',mode,iph,y4
 507            format(a,i5,i4,10F7.4)
                goto 1000
             endif
@@ -2179,11 +2183,22 @@
 !            endif
 !
 !            call calc_gridpoint(iph,y4,nrel,xdum,gdum,ceq)
+!            if(iph.ge.72) then
+!               write(*,*)'3Y calling',nm,size(y4)
+!               write(*,515)y4
+!            endif
             call calc_gridpoint(iph,y4,nrel,xarr(1,nm),garr(nm),ceq)
             if(gx%bmperr.ne.0) goto 1000
-            if(garr(ngg).gt.gmax) gmax=garr(ngg)
-!         write(*,512)nm,qq(2),gdum,xdum
-512         format('3Y gridpoint: ',i4,2(1pe12.4),7(0pF7.4))
+! created a bug here, used ngg instead of nm .... suck
+!            if(garr(ngg).gt.gmax) gmax=garr(ngg)
+            if(garr(nm).gt.gmax) gmax=garr(nm)
+!            write(*,512)nm,qq(2),gdum,(xarr(ll,nm),ll=1,nrel)
+512         format('3Y gridpoint: ',i5,2(1pe12.4),7(0pF5.2),14(F5.2))
+!            if(iph.ge.72) then
+!               write(*,*)'3Y calling done'
+!               write(*,515)(xarr(ll,nm),ll=1,nrel)
+!515            format('3Y yx: ',10F6.3)
+!            endif
          endif
       enddo ygen
 !
@@ -2616,9 +2631,9 @@
       write(31,715)nrel
 715   format(/'3Y Initial matrix:',i3)
       do je=1,nrel
-         write(31,720),xknown(je),xknown(je),(xmat(ie,je),ie=1,nrel)
+         write(31,720)'3Y1:',xknown(je),xknown(je),(xmat(ie,je),ie=1,nrel)
       enddo
-720   format('3Y& ',2F7.4,1x,8f8.5)
+720   format(a,2F7.4,1x,8f7.3)
       write(31,730)gvvp,(cmu(je),je=1,nrel)
 730   format('3Y Gibbs energy: ',1pe14.6/'Chemical potentials: '/6(1pe12.4))
    endif
@@ -2913,7 +2928,7 @@
       write(31,740)griter,nyp
 740   format(/'Iteration ',i6,' found gridpoint: ',i6,', new matrix:')
       do je=1,nrel
-         write(*,720),phfrac(je),xknown(je),(xmat(je,ie),ie=1,nrel)
+         write(*,720)'3Yz:',phfrac(je),xknown(je),(xmat(je,ie),ie=1,nrel)
       enddo
       write(31,730)gvvp,(cmu(je),je=1,nrel)
    endif
