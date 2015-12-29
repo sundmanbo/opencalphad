@@ -2,7 +2,7 @@ The Open Calphad Applicatiopn Software Interface (OCASI)
 
 Based on the TQ standard for interfacing thermodynamic software
 
-Bo Sundman 27 September 2015
+Bo Sundman 29 December 2015
 
 There is a Fortran version and a tentative iso-C version.  It may be
 possible to merge these.
@@ -23,11 +23,11 @@ Sigli at Constellium, France to handle more calls to different
 subroutines.  There are different versions of this file on the isoC
 directories as we are still in the development statge.
 
+The pure C version has been removed.
+
 Directories:
 
-- C has a very primitive C connection to OC
-
-- F90 has 4 Fortran examples, all very simple cases.
+- F90 has 5 Fortran examples, all very simple cases.
 
 - isoC-Teslos example with the firrst liboctqisoc.F90 library using
   the isoC binding for F90 and C++.  Teslos is the user name of a

@@ -220,7 +220,7 @@ contains
     character phasename*(*)      !EXIT: phase name, max 24+8 for pre/suffix
     type(gtp_equilibrium_data), pointer :: ceq !IN: current equilibrium
 !\end{verbatim}
-    call get_phase_name(phcs(phcsx)%phase,phcs(phcsx)%compset,phasename)
+    call get_phase_name(phcs(phcsx)%phaseix,phcs(phcsx)%compset,phasename)
 1000 continue
     return
   end subroutine tqgpn
@@ -362,12 +362,12 @@ contains
     integer n
     if(tup.le.0) then
        do n=1,ntup
-          call change_phase_status(phcs(n)%phase,phcs(n)%compset,&
+          call change_phase_status(phcs(n)%phaseix,phcs(n)%compset,&
                newstat,val,ceq)
           if(gx%bmperr.ne.0) goto 1000
        enddo
     elseif(tup.le.ntup) then
-       call change_phase_status(phcs(tup)%phase,phcs(tup)%compset,&
+       call change_phase_status(phcs(tup)%phaseix,phcs(tup)%compset,&
             newstat,val,ceq)
     else
        write(*,*)'Illegal phase tuple index'
@@ -608,7 +608,7 @@ contains
 !             gx%bmperr=8887; goto 1000
 !          endif
 !          call get_phase_name(nph,ics,name)
-          call get_phase_name(phcs(n1)%phase,phcs(n1)%compset,name)
+          call get_phase_name(phcs(n1)%phaseix,phcs(n1)%compset,name)
           if(gx%bmperr.ne.0) goto 1000
           statevar='NP('//name(1:len_trim(name))//') '
           call get_state_var_value(statevar,values(1),encoded,ceq)
@@ -680,8 +680,8 @@ contains
 !             gx%bmperr=8887; goto 1000
 !          endif
 !          call get_phase_name(nph,ics,name)
-!          write(*,*)'Phase: ',phcs(n1)%phase,phcs(n1)%compset
-          call get_phase_name(phcs(n1)%phase,phcs(n1)%compset,name)
+!          write(*,*)'Phase: ',phcs(n1)%phaseix,phcs(n1)%compset
+          call get_phase_name(phcs(n1)%phaseix,phcs(n1)%compset,name)
           if(gx%bmperr.ne.0) goto 1000
 ! added for composition sets
 !          if(ics.gt.1) then
@@ -700,7 +700,7 @@ contains
 !             gx%bmperr=8887; goto 1000
 !          endif
 !          call get_phase_name(nph,ics,name)
-          call get_phase_name(phcs(n1)%phase,phcs(n1)%compset,name)
+          call get_phase_name(phcs(n1)%phaseix,phcs(n1)%compset,name)
           if(gx%bmperr.ne.0) goto 1000
           statevar=stavar(1:1)//'('//name(1:len_trim(name))//','
           call get_component_name(n2,name,ceq)
@@ -729,7 +729,7 @@ contains
 !             gx%bmperr=8887; goto 1000
 !          endif
 !          call get_phase_name(nph,ics,name)
-          call get_phase_name(phcs(n1)%phase,phcs(n1)%compset,name)
+          call get_phase_name(phcs(n1)%phaseix,phcs(n1)%compset,name)
           if(gx%bmperr.ne.0) goto 1000
           statevar=statevar(1:ki)//'('//name(1:len_trim(name))//') '
 !          call get_state_var_value(statevar,values(ics),encoded,ceq)
@@ -775,7 +775,7 @@ contains
 !          endif
 !          write(*,*)'tqgetv 2: ',nph,ics
 !          call get_phase_name(nph,ics,name)
-          call get_phase_name(phcs(n1)%phase,phcs(n1)%compset,name)
+          call get_phase_name(phcs(n1)%phaseix,phcs(n1)%compset,name)
           if(gx%bmperr.ne.0) goto 1000
           statevar=statevar(1:ki)//'('//name(1:len_trim(name))//') '
 !          write(*,*)'tqgetv 3: ',statevar
@@ -796,7 +796,7 @@ contains
 !          gx%bmperr=8887; goto 1000
 !       endif
 !       call get_phase_name(nph,ics,name)
-       call get_phase_name(phcs(n1)%phase,phcs(n1)%compset,name)
+       call get_phase_name(phcs(n1)%phaseix,phcs(n1)%compset,name)
        if(gx%bmperr.ne.0) goto 1000
        statevar=stavar(1:len_trim(stavar))//'('//name(1:len_trim(name))//')'
 !       write(*,*)'statevar: ',statevar
@@ -812,7 +812,7 @@ contains
 !       endif
 !       write(*,*)'D2G 1: ',nph,ics
 !       call get_phase_compset(nph,ics,lokph,lokcs)
-       call get_phase_compset(phcs(n1)%phase,phcs(n1)%compset,lokph,lokcs)
+       call get_phase_compset(phcs(n1)%phaseix,phcs(n1)%compset,lokph,lokcs)
        if(gx%bmperr.ne.0) goto 1000
 !       write(*,*)'D2G 2: ',lokph,lokcs
 ! this gives wrong myvalue!!
@@ -850,7 +850,7 @@ contains
     double precision sites(*),yfrac(*),extra(*)
     type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-    call get_phase_data(phcs(n1)%phase,phcs(n1)%compset,&
+    call get_phase_data(phcs(n1)%phaseix,phcs(n1)%compset,&
          nsub,cinsub,spix,yfrac,sites,extra,ceq)
 1000 continue
     return
@@ -874,7 +874,7 @@ contains
     double precision yfra(*),extra(*)
     type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-    call set_constitution(phcs(n1)%phase,phcs(n1)%compset,&
+    call set_constitution(phcs(n1)%phaseix,phcs(n1)%compset,&
          yfra,extra,ceq)
 1000 continue
     return
@@ -919,10 +919,10 @@ contains
 !\end{verbatim}
     integer ij,lokres,nofc
 !    write(*,*)'tqcph1 1: ',ceq%eqname
-!    write(*,*)'tqcph1 2',phcs(n1)%phase,phcs(n1)%compset
+!    write(*,*)'tqcph1 2',phcs(n1)%phaseix,phcs(n1)%compset
 !----------------------------------------------------------------------
 ! THIS IS NO EQUILIBRIUM, JUST G AND DERIVATIVES FOR CURRENT T, P AND Y
-    call calcg(phcs(n1)%phase,phcs(n1)%compset,n2,lokres,ceq)
+    call calcg(phcs(n1)%phaseix,phcs(n1)%compset,n2,lokres,ceq)
 !----------------------------------------------------------------------
 !    write(*,*)'tqcph1 3A',lokres,gx%bmperr
 ! this should work but gave segmentation fault, find this a more cumbersum way
@@ -991,10 +991,10 @@ contains
 !\end{verbatim}
     integer ij,lokres,nofc
 !    write(*,*)'tqcph1 1: ',ceq%eqname
-!    write(*,*)'tqcph1 2',phcs(n1)%phase,phcs(n1)%compset
+!    write(*,*)'tqcph1 2',phcs(n1)%phaseix,phcs(n1)%compset
 !----------------------------------------------------------------------
 ! THIS IS NO EQUILIBRIUM, JUST G AND DERIVATIVES FOR CURRENT T, P AND Y
-    call calcg(phcs(n1)%phase,phcs(n1)%compset,n2,lokres,ceq)
+    call calcg(phcs(n1)%phaseix,phcs(n1)%compset,n2,lokres,ceq)
 !----------------------------------------------------------------------
 !    write(*,*)'tqcph1 3A',lokres,gx%bmperr
 ! this should work but gave segmentation fault, find this a more cumbersum way

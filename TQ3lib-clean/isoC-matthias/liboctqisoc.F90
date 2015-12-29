@@ -546,7 +546,7 @@ contains
 !\end{verbatim}
     type(gtp_equilibrium_data), pointer :: ceq
     call c_f_pointer(c_ceq, ceq)
-    call set_constitution(phcs(n1)%phase,phcs(n1)%compset,&
+    call set_constitution(phcs(n1)%phaseix,phcs(n1)%compset,&
          yfra,extra,ceq)
     c_ceq = c_loc(ceq)
   end subroutine c_tqsphc1

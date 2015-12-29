@@ -53,7 +53,7 @@ program octq1
   tp(2)=1.0D5
   rest=one
   do n=1,nel-1
-     xf(n)=0.2D0/dble(nel)
+     xf(n)=0.4D0/dble(nel)
      rest=rest-xf(n)
   enddo
   xf(nel)=rest
@@ -117,13 +117,13 @@ program octq1
 ! PHFIXED prescribed to be stable
 ! suspend all phases
   value=0.0D0
-  call tqphsts(-1,PHSUS,value,ceq)
+  call tqphtupsts(-1,PHSUS,value,ceq)
   if(gx%bmperr.ne.0) then
      write(*,*)'Error setting phases suspended'
      goto 1000
   endif
 ! restore phase 2 (1 is gas, 2 is ionic liquid)
-  call tqphsts(2,PHENTERED,value,ceq)
+  call tqphtupsts(2,PHENTERED,value,ceq)
   if(gx%bmperr.ne.0) then
      write(*,*)'Error setting phase 2 entered'
      goto 1000
