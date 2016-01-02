@@ -734,71 +734,6 @@ CONTAINS
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
-  subroutine map_halfstep(halfstep,axvalok,mapline,axarr,ceq)
-! Used when an error calculating a normal step or a node point
-! take back the last sucessfully calculated axis value and take smaller step
-! possibly one should also restore the ceq record.
-    implicit none
-    integer halfstep
-    double precision axvalok
-    TYPE(gtp_equilibrium_data), pointer :: ceq
-    TYPE(map_line), pointer :: mapline
-    type(map_axis), dimension(*) :: axarr
-!\end{verbatim}
-    type(gtp_condition), pointer :: pcond
-    double precision value
-    double precision, parameter :: sfact=1.0D-2
-    integer jax
-    halfstep=halfstep+1
-    if(axvalok.eq.zero .or. halfstep.ge.3) then
-       if(ocv()) write(*,*)'Problem resolving two phases competing to',&
-            ' appear/disappear'
-       gx%bmperr=8865;
-! Terminate the line and check if there are other lines to calculate
-!       call map_lineend(mapline,zero,ceq)
-    else
-! Previous axis value should be axvalok, find current
-       jax=abs(mapline%axandir)
-       call locate_condition(axarr(jax)%seqz,pcond,ceq)
-       if(gx%bmperr.ne.0) goto 1000
-! first argument 1 means to get the value
-       call condition_value(1,pcond,value,ceq)
-       if(gx%bmperr.ne.0) goto 1000
-!       write(*,*)'Current active axis value: ',value
-! at first call remember the original axis value
-       if(halfstep.eq.1) then
-          if(ocv()) write(*,67)'First call to map_half, value:',value,axvalok
-67        format(a,2(1pe14.6))
-          mapline%evenvalue=value
-       endif
-       if(mapline%axfact.le.1.0D-6) then
-! error initiallizing axfact
-          write(*,*)'Too small value of mapline%axfact: ',mapline%axfact
-          mapline%axfact=1.0D-61
-       endif
-! take a small step
-!       mapline%axfact=1.0D-1*mapline%axfact
-!       mapline%axfact=max(1.0D-6,sfact*mapline%axfact)
-       if(mapline%axandir.gt.0) then
-          value=axvalok+mapline%axfact*axarr(jax)%axinc
-       else
-          value=axvalok-mapline%axfact*axarr(jax)%axinc
-       endif
-!       write(*,97)'Setting axis value: ',mapline%axandir,value,axvalok,&
-!            mapline%axfact,axarr(jax)%axinc
-97     format(a,i2,5(1pe14.6))
-! first argument 0 means to set the value
-       call condition_value(0,pcond,value,ceq)
-       if(gx%bmperr.ne.0) goto 1000
-       if(ocv()) write(*,*)'Taking a small step, new axis value: ',jax,value
-    endif
-1000 continue
-    return
-  end subroutine map_halfstep
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\begin{verbatim}
   subroutine map_startpoint(maptop,nax,axarr,inactive,ceq)
 ! convert a start equilibrium to a start point replacing all but one axis
 ! conditions with fix phases.  The start equilibrium must be already
@@ -1654,7 +1589,7 @@ CONTAINS
     integer nyax,nax,oldax
 ! the value to set as condition on new axis
     double precision axval
-!\end{verbatim}
+!\end{verbatim} %+
     type(gtp_condition), pointer :: pcond,lastcond
     type(gtp_state_variable), pointer :: axcondrec
     integer jax,iadd,irem
@@ -1740,7 +1675,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim}
+!\begin{verbatim} %-
   subroutine map_force_changeaxis(maptop,mapline,meqrec,nax,axarr,ceq)
 ! force change of axis with active condition.  Works only with 2 axis.
 ! (and for tie-line not in plane ??).  Similar to map_changeaxis ...
@@ -3783,6 +3718,71 @@ CONTAINS
 1000 continue
     return
   end subroutine map_problems
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+  subroutine map_halfstep(halfstep,axvalok,mapline,axarr,ceq)
+! Used when an error calculating a normal step or a node point
+! take back the last sucessfully calculated axis value and take smaller step
+! possibly one should also restore the ceq record.
+    implicit none
+    integer halfstep
+    double precision axvalok
+    TYPE(gtp_equilibrium_data), pointer :: ceq
+    TYPE(map_line), pointer :: mapline
+    type(map_axis), dimension(*) :: axarr
+!\end{verbatim}
+    type(gtp_condition), pointer :: pcond
+    double precision value
+    double precision, parameter :: sfact=1.0D-2
+    integer jax
+    halfstep=halfstep+1
+    if(axvalok.eq.zero .or. halfstep.ge.3) then
+       if(ocv()) write(*,*)'Problem resolving two phases competing to',&
+            ' appear/disappear'
+       gx%bmperr=8865;
+! Terminate the line and check if there are other lines to calculate
+!       call map_lineend(mapline,zero,ceq)
+    else
+! Previous axis value should be axvalok, find current
+       jax=abs(mapline%axandir)
+       call locate_condition(axarr(jax)%seqz,pcond,ceq)
+       if(gx%bmperr.ne.0) goto 1000
+! first argument 1 means to get the value
+       call condition_value(1,pcond,value,ceq)
+       if(gx%bmperr.ne.0) goto 1000
+!       write(*,*)'Current active axis value: ',value
+! at first call remember the original axis value
+       if(halfstep.eq.1) then
+          if(ocv()) write(*,67)'First call to map_half, value:',value,axvalok
+67        format(a,2(1pe14.6))
+          mapline%evenvalue=value
+       endif
+       if(mapline%axfact.le.1.0D-6) then
+! error initiallizing axfact
+          write(*,*)'Too small value of mapline%axfact: ',mapline%axfact
+          mapline%axfact=1.0D-61
+       endif
+! take a small step
+!       mapline%axfact=1.0D-1*mapline%axfact
+!       mapline%axfact=max(1.0D-6,sfact*mapline%axfact)
+       if(mapline%axandir.gt.0) then
+          value=axvalok+mapline%axfact*axarr(jax)%axinc
+       else
+          value=axvalok-mapline%axfact*axarr(jax)%axinc
+       endif
+!       write(*,97)'Setting axis value: ',mapline%axandir,value,axvalok,&
+!            mapline%axfact,axarr(jax)%axinc
+97     format(a,i2,5(1pe14.6))
+! first argument 0 means to set the value
+       call condition_value(0,pcond,value,ceq)
+       if(gx%bmperr.ne.0) goto 1000
+       if(ocv()) write(*,*)'Taking a small step, new axis value: ',jax,value
+    endif
+1000 continue
+    return
+  end subroutine map_halfstep
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

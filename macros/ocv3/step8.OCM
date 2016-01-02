@@ -104,5 +104,47 @@ y(gas,h2o1)
 title step 8 fig 8
 
 
+@$ ------------------------------------------------------
+@$ Finally set the chemical potential of C as condition
+@$ First just calculate the equlibrium for current conditions
+
+l c
+
+c e
+
+@$ Then  replace N(C) by MU(C) calculating the same equilibrium
+set c mu(c)
+
+set c n(c)=none
+
+l c
+
+@&
+
+c e
+
+l,,,,,,
+@$ We have the same equilibrium with MU(C) instead on N(C)
+@&
+
+set c mu(c)=-450000
+
+c e
+
+l,,,,
+
+@$ Lower chemical potental of C means lower N(C), here 2.9405 moles
+@$ The temperature changes also, 3073.31 K
+@&
+
+set c mu(c)=-400000
+
+c e
+
+l,,,,,
+
+@$ Less negative, higher chemical potential means more N(C), here 4.6499 moles
+@$ The temperature changes also, 2886.92 K
+
 set inter
 

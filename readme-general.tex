@@ -13,7 +13,7 @@
 \begin{document}
 \begin{center}
 {\Large \bf Some important facts about Open Calphad in general and
-  this test release in particular.
+  this release in particular.
 
 }
 
@@ -26,9 +26,9 @@ opncalpad repoitory at http://www.github.com
 bo.sundman@gmail.com
 \end{center}
 
-{\large \bf Please be aware that this software is a test version.
-  Your feedback about problems and errors is important to make it
-  better.
+{\large \bf Please be aware that this software is a development
+  version.  Your feedback about problems and errors is important to
+  make it better.
 
 }
 
@@ -49,7 +49,7 @@ and a special paper about the minimization algorithm:
 {\bf The implementation of an algorithm to calculate thermodynamic
   equilibria for multi-component systems with non-ideal phases in a
   free software}, Bo Sundman, Xiao-Gang Lu and Hiroshi Ohtani,
-Computer Materials Science, {\bf 101} (2015) 127-137.
+Computational Materials Science, {\bf 101} (2015) 127-137.
 
 \section{General information}
 
@@ -74,7 +74,7 @@ Computer Materials Science, {\bf 101} (2015) 127-137.
 
   In both cases the program will be called ``oc3B''.
 
-\item If you have access to several CPU you can test OC with
+\item If you have access to several CPUs you can test OC with
   parallelization using Open MP.  In that case you should use the
   linkfile ``linkpara.txt'' (after renaming it to linkpara.cmd on
   Windows.  On Linux you have to figure out how to change the Makefile
@@ -91,12 +91,11 @@ Computer Materials Science, {\bf 101} (2015) 127-137.
   stepmapplot, userif'' and ``utilities''.
 
 \item The documentation of the source code is in the directory
-  ``documentation'' in two PDF files ``gtp3'' and ``minpack5'' for the
-  model and minimizer package.
-More informal guides are ``news-OC2'' and
-  ``OC3-commands''.
+  ``documentation'' in several files, ``gtp3'' for the model package
+  and ``hms2'' for the minimizer.  More informal guides are
+  ``news-OC3'' and ``OC3-commands''.
 
-\item There is also a very rudimentary user guide ``ochelp'' in the
+\item There is also a very rudimentary user guide ``ochelp3'' in the
   manual directory.  The user guide is also available in the file
   ``ochelp.hlp'' in LaTeX format used for the on line help.  The user
   guide is still very primitive as many commands are changing.
@@ -130,8 +129,8 @@ More informal guides are ``news-OC2'' and
 
 \section{Some short hints to the user interface}
 
-See also news-OC2 and OC3-commands.  The information in these (as well
-as this) files are not always up-to-date.  You are welcome to inform me
+See also news-OC3 and ochelp3.  The information in these (as well as
+this) files are not always up-to-date.  You are welcome to inform me
 about errors an inconsitencies.  If you do not like the current user
 interface you are welcome to implement your own.
 
@@ -161,11 +160,11 @@ get aquantied to OC.
   always possible for OC to read such partitioned data from a TDB file
   without editing.
 
-\item You can save the thermodynamic data and results from a
-  calculation on an unformatted file {\em save~UNFORM~``filename''}
-  and this can be read back into the program {\em
-    read~UNFORM~``filename''}.  THIS IS FRAGILE.  The DIRECT (random
-  access) format is not yet implemented.
+\item In this release you CANNOT save the thermodynamic data and
+  results from a calculation on an unformatted file {\em
+    save~UNFORM~``filename''} and read it back into the program with
+  {\em read~UNFORM~``filename''}.  I will implement this and the
+  DIRECT (random access) format in the next release.
 
 \item You can save the thermodynamic data using the TDB format by a
   command {\em list~data~TDB~filename}.  The TDB format used by OC can
@@ -212,17 +211,18 @@ get aquantied to OC.
 \item The intention is that you should be able to combine any set of
   conditions to calculate the equilibrium, i.e. you should be able to
   combine conditions on mole fractions, mass fractions, fix phases,
-  chemical potentials etc.  In a future release the plan is to allow
-  expressions of conditions, not just a single state variable.
+  chemical potentials etc.  For conditions on mole fractions
+  you can also enter expressions as conditions.
 
 \item Recently I added condition on the total enthalpy, $H$ of the
   system.  This is shown in the step8 macro and some others.  It is
   also possible to set condition on the composition of a phase but
   there is as yet no macro to show that.
 
-\item For FactSage users there is a command {\em set~input\_amount}
-  which allows the user to set the overall composition by specifying
-  the amount of moles of different species in the system.
+\item For users with FactSage background there is a command {\em
+  set~input\_amount} which allows the user to set the overall
+  composition by specifying the amount of moles of different species
+  in the system.
 
 \end{itemize}
 
@@ -239,16 +239,18 @@ get aquantied to OC.
 \item If you want to provide yourself a guess of the set of stable
   phases and consitutions yourself you can use the {\em
     amend~const~phase~``name''~``amount''~``constitution'' $\cdots$}
-  followed by the command {\em calculate~no\_global}, abbreviated {\rm
+  followed by the command {\em calculate~no\_global}, abbreviated {\em
     c~n}.
 
 \item The grid minimizer that calculates start points for the general
   minimizer is powerful but a bit primitive.  If you have ideas how to
-  improve it you are welcome to provide advice or code.
+  improve it you are welcome to provide advice or code.  There is
+  a command to have a denser grid (about 10 times more gridpoints) using
+  the command {\em set~advanced~dense}
 
-\item For this test version you should always check the results with
-  you favourite thermodynamic software.  Please give documented
-  feedback on any differences.
+\item For this version you should always check the results with you
+  favourite thermodynamic software.  Please give documented feedback
+  on any differences.
 
 \item If the calculation does not converge directly try to use the
   command {\em ``c~n''} two or more times to continue to iterate from
@@ -349,28 +351,30 @@ data in the OC TDB format on the file with the extention TDB.  This
 can be read back later as a TDB file.
 
 \begin{itemize}
-\item Listing results after a calculation is done by {\rm list result
-  ``option''}.  This is the default list and can be abbreviated {\rm
+\item Listing results after a calculation is done by {\em list~result
+  ``option''}.  This is the default list and can be abbreviated {\em
   l,,}.  This list will always include the current conditions and some
   global results and one line for each component.  The options are at
   present:
   \begin{itemize}
-    \item 1 for list of stable phases with amount and composition in
-      mole fractions.
-    \item 2 for list of stable phases with amount, composition in
-      mole fractions and constitution.
-    \item 3 same as 1?
-    \item 4 for list of stable phases with amount and composition in
-      mass fractions.
-    \item 5 same as 4?
-    \item 6 for list of stable phases with amount and composition in
-      mass fractions and the constitution
-    \item 7 for list of all phases with amount and composition in
-      mass fractions.
-    \item 8 for list of all phases with amount and composition in
-      mass fractions and constitution.
-    \item 9 for list of all phases with amount and composition in
-      mole fractions and constitution.
+    \item 1 list of stable phases with amount and composition in mole
+      fractions in value order.
+    \item 2 list of stable phases with amount, composition and
+      constitution in mole fractions in value order.
+    \item 3 list of stable phases with amount and composition in mole
+      fractions in alphabetical order.
+    \item 4 list of stable phases with amount and composition in
+      mass fractions in value order.
+    \item 5 list of stable phases with amount and composition in
+      mass fractions in alphabetical order.
+    \item 6 list of stable phases with amount and composition in
+      mass fractions and the constitution in value order.
+    \item 7 list of all phases with amount and composition in
+      mass fractions in value order.
+    \item 8 list of all phases with amount and composition in
+      mole fractions fractions in value order.
+    \item 9 list of all phases with amount and composition in
+      mole fractions and constitution in value order.
   \end{itemize}
 \item The {\em list~short~A} gives one line for each component,
   species and phase.  In this list you may note the use of the ``phase
@@ -528,10 +532,10 @@ software in a commercial program you must contact the copyright
 owners.
 
 There is a fairly extensive documentation of the source code in the
-directory ``documentationupdate'' and if you look at the code itself
-there are some comments there too.  I have spent a lot of effort to
-make the datastructures general and flexible to handle multicomponent
-and multiphase systems.  But there was quite a lot of redundancy
+directory ``documentation'' and if you look at the code itself there
+are some comments there too.  I have spent a lot of effort to make the
+datastructures general and flexible to handle multicomponent and
+multiphase systems.  But there was quite a lot of redundancy
 introduced during the development that eventually will be removed.
 The set of subroutines is less structured and one problem has been
 that this code was my first attempt to use the new Fortran standard so
@@ -569,11 +573,11 @@ github wiki.
 
 The code has been developed with parallelization in mind and I have
 now started to test this code and surprisingly it seems to work quite
-well.  There is a macro parallel1.OCM showing a calculation of 21
+well.  There is a macro parallel2.OCM showing a calculation of 400
 different equilibria in a 6 component alloy.  They need to be
 initiallized which makes me a bit suspicious but testing changing some
-and calculate again seems to work.  I tested on a PC with 8 CPU and
-the calculation time was about 3 times faster than when calculated
+and calculate again seems to work.  I tested on a PC with 4 CPU and
+the calculation time was almost 4 times faster than when calculated
 sequentially.
 
 Parallization can be implemented in several levels in OC, for example

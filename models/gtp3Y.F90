@@ -1174,7 +1174,7 @@
    integer mode,iph,ngg,nrel,ny
    real xarr(nrel,*),garr(*)
    double precision yarr(*),gmax
-!\end{verbatim}
+!\end{verbatim} %+
 !
    integer lokph,errsave
    double precision, parameter :: yzero=1.0D-12
@@ -1474,69 +1474,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
-!\begin{verbatim}
- subroutine calc_gridpoint(iph,yfra,nrel,xarr,gval,ceq)
-! called by global minimization routine
-! Not adopted to charged crystalline phases as gridpoints have net charge
-! but charged gripoints have high energy, better to look for neutral ones ...
-   implicit none
-   real xarr(*),gval
-   integer iph,nrel
-   double precision yfra(*)
-   TYPE(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim}
-! ny just needed for debugging ...
-   integer i,lokres
-   double precision qq(5),xmol(nrel)
-! set constitution and calculate G per mole atoms and composition
-!
-! BEWARE must be tested for parallel processing
-!
-   call set_constitution(iph,1,yfra,qq,ceq)
-   if(gx%bmperr.ne.0) goto 1000
-   call calcg(iph,1,0,lokres,ceq)
-   if(gx%bmperr.ne.0) goto 1000
-   call calc_phase_mol(iph,xmol,ceq)
-   if(gx%bmperr.ne.0) goto 1000
-!    write(*,15)'gd2: ',iph,lokres,qq(1),&
-!         ceq%phase_varres(lokres)%gval(1,1),(xmol(i),i=1,nrel)
-!15  format(a,2i4,2e12.4,2x,5(F9.5))
-   do i=1,nrel
-      xarr(i)=real(xmol(i))
-   enddo
-   if(qq(1).lt.2.0D-1) then
-! number of real atoms less than 20%, a gridpoint with just vacancies ....
-!      gval=1.0E5
-      gval=1.0E1
-   elseif(abs(qq(2)).gt.1.0D-14) then
-!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-! the gridpoint has net charge, qq(2), make gval more positive. 
-! Note gval(1,1) is divided by RT so around -5<0
-! A better method is needed by combining charged gripoints!!!!
-!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-!      gval=real(ceq%phase_varres(lokres)%gval(1,1)/qq(1)+20*qq(2)**2)
-!      gval=real(ceq%phase_varres(lokres)%gval(1,1)/qq(1)+5*qq(2)**2)
-      write(*,*)'Problem with net charge ',iph,qq(2)
-      gval=real(ceq%phase_varres(lokres)%gval(1,1)/qq(1)+qq(2)**2)
-      if(ocv()) write(*,66)'3Y charged gp: ',&
-           ceq%phase_varres(lokres)%gval(1,1)/qq(1),qq(1),abs(qq(2))
-66    format(a,6(1pe12.4))
-   else
-      gval=real(ceq%phase_varres(lokres)%gval(1,1)/qq(1))
-   endif
-!    read(*,20)ch1
-20  format(a)
-1000 continue
-! check for parallel
-!    jip=omp_get_thread_num()
-!    write(*,1010)jip,gval,gx%bmperr
-1010 format('Thread ',i3,', gval: ',1pe15.6,', error: ',i6)
-   return
- end subroutine calc_gridpoint
-
-!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
-
-!\begin{verbatim}
+!\begin{verbatim} %-
  subroutine generate_fccord_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,gmax,ceq)
 ! This generates grid for a phase with 4 sublattice fcc/hcp ordering
 ! mode<0 just number of gridpoints in ngg, needed for allocations
@@ -2212,6 +2150,68 @@
    endif
    return
  end subroutine generate_charged_grid
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
+ subroutine calc_gridpoint(iph,yfra,nrel,xarr,gval,ceq)
+! called by global minimization routine
+! Not adopted to charged crystalline phases as gridpoints have net charge
+! but charged gripoints have high energy, better to look for neutral ones ...
+   implicit none
+   real xarr(*),gval
+   integer iph,nrel
+   double precision yfra(*)
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+! ny just needed for debugging ...
+   integer i,lokres
+   double precision qq(5),xmol(nrel)
+! set constitution and calculate G per mole atoms and composition
+!
+! BEWARE must be tested for parallel processing
+!
+   call set_constitution(iph,1,yfra,qq,ceq)
+   if(gx%bmperr.ne.0) goto 1000
+   call calcg(iph,1,0,lokres,ceq)
+   if(gx%bmperr.ne.0) goto 1000
+   call calc_phase_mol(iph,xmol,ceq)
+   if(gx%bmperr.ne.0) goto 1000
+!    write(*,15)'gd2: ',iph,lokres,qq(1),&
+!         ceq%phase_varres(lokres)%gval(1,1),(xmol(i),i=1,nrel)
+!15  format(a,2i4,2e12.4,2x,5(F9.5))
+   do i=1,nrel
+      xarr(i)=real(xmol(i))
+   enddo
+   if(qq(1).lt.2.0D-1) then
+! number of real atoms less than 20%, a gridpoint with just vacancies ....
+!      gval=1.0E5
+      gval=1.0E1
+   elseif(abs(qq(2)).gt.1.0D-14) then
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+! the gridpoint has net charge, qq(2), make gval more positive. 
+! Note gval(1,1) is divided by RT so around -5<0
+! A better method is needed by combining charged gripoints!!!!
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+!      gval=real(ceq%phase_varres(lokres)%gval(1,1)/qq(1)+20*qq(2)**2)
+!      gval=real(ceq%phase_varres(lokres)%gval(1,1)/qq(1)+5*qq(2)**2)
+      write(*,*)'Problem with net charge ',iph,qq(2)
+      gval=real(ceq%phase_varres(lokres)%gval(1,1)/qq(1)+qq(2)**2)
+      if(ocv()) write(*,66)'3Y charged gp: ',&
+           ceq%phase_varres(lokres)%gval(1,1)/qq(1),qq(1),abs(qq(2))
+66    format(a,6(1pe12.4))
+   else
+      gval=real(ceq%phase_varres(lokres)%gval(1,1)/qq(1))
+   endif
+!    read(*,20)ch1
+20  format(a)
+1000 continue
+! check for parallel
+!    jip=omp_get_thread_num()
+!    write(*,1010)jip,gval,gx%bmperr
+1010 format('Thread ',i3,', gval: ',1pe15.6,', error: ',i6)
+   return
+ end subroutine calc_gridpoint
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
