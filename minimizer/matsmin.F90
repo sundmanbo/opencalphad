@@ -5170,6 +5170,7 @@ CONTAINS
 !                 (svflista(lrot)%formal_arguments(ii,jt),ii=1,10)
 ! This routine need access to the subroutines in the minimizer
             call meq_state_var_value_derivative(svr,svr2,value,ceq)
+            if(gx%bmperr.ne.0) goto 1000
          endif
       endif
       if(gx%bmperr.ne.0) goto 1000
@@ -5235,10 +5236,10 @@ CONTAINS
 !    write(*,*)'Entering initiate_meqrec'
     if(btest(ceq%status,EQNOEQCAL)) then
 ! error if no sucessful equilibrium calculation or a failed one
-       write(*,*)'No equilibrium calculated, no derivatives'
+!       write(*,*)'No equilibrium calculated, no derivatives'
        gx%bmperr=8888; goto 1000
     elseif(btest(ceq%status,EQFAIL)) then
-       write(*,*)'Last equilibrium calculation failed, no derivatives'
+!       write(*,*)'Last equilibrium calculation failed, no derivatives'
        gx%bmperr=8888; goto 1000
     elseif(btest(ceq%status,EQINCON)) then
 ! give warning if conditions have changed

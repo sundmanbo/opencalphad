@@ -80,7 +80,7 @@ enter param GD(part,Fe,Ni;2),,LD2; 6000 N test
 list data ,,
 
 
-we have to create composition sets manually
+@$ we have to create composition sets manually
 
 @$ this is by default FeNi3_L12
 amend phase part comp-set y ,,
@@ -116,7 +116,7 @@ c sym cp
 
 plot
 T
-y(part#2,*)
+y(part,*)
 title step5 fig 1
 render
 

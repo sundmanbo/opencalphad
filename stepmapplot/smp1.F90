@@ -201,7 +201,7 @@ MODULE ocsmp
 ! ndx is mumber of plot axis, pltax is text with plotaxis variables
 ! filename is intermediary file (maybe not needed)
 ! maptop is map_node record with all results
-! form is type of output (screen or postscript or jpeg)
+! form is type of output (screen or postscript or gif)
      integer rangedefaults(3)
      double precision, dimension(3) :: plotmin,plotmax
      double precision, dimension(3) :: dfltmin,dfltmax
@@ -3870,7 +3870,7 @@ CONTAINS
 ! ndx is mumber of plot axis, pltax is text with plotaxis variables
 ! filename is intermediary file (maybe not needed)
 ! maptop is map_node record with all results
-! pform is type of output (screen or postscript or jpeg)
+! pform is type of output (screen or postscript or gif)
     implicit none
     integer ndx
     character pltax(*)*(*),filename*(*),pform*(*)
@@ -4075,8 +4075,8 @@ CONTAINS
           call meq_get_state_varorfun_value(statevar,value,encoded1,curceq)
           if(gx%bmperr.ne.0) then
 ! this error should not prevent plotting the other points
-             write(*,212)'Skipping this point 1: ',statevar(1:10),&
-                  curceq%tpval(1),nv,nr
+             write(*,212)'SMP skipping a point, error evaluating: ',&
+                  statevar(1:10),curceq%tpval(1),nv,nr
 212          format(a,a,f10.2,2i5)
              gx%bmperr=0
              nv=nv-1; goto 215
@@ -4109,7 +4109,7 @@ CONTAINS
 ! in last equilibria we may have a value from the new phase at the node
                       anp(jj,nv)=yyy(jj)
 !                   elseif(yyy(jj).ne.zero) then
-!                      write(*,*)'Skipping a value for line ',nlinesep
+!                      write(*,*)'SMP skipping a value for line ',nlinesep
                    endif
                 else
                    anp(jj,nv)=yyy(jj)
@@ -4144,8 +4144,8 @@ CONTAINS
 ! More than one state variable or function value
              call meq_get_state_varorfun_value(statevar,value,encoded1,curceq)
              if(gx%bmperr.ne.0) then
-                write(*,212)'Skipping this point 2: ',statevar(1:10),&
-                     curceq%tpval(1),nv,nr
+                write(*,212)'SMP Skipping a point, error evaluating: ',&
+                     statevar(1:10),curceq%tpval(1),nv,nr
                 nv=nv-1; goto 215
              endif
 !             if(gx%bmperr.ne.0) goto 1000
@@ -4159,6 +4159,11 @@ CONTAINS
           if(anpmin.lt.ymin) ymin=anpmin
           if(anpmax.gt.ymax) ymax=anpmax
 215       continue
+! reset any previous error code
+          if(gx%bmperr.ne.0) then
+!             write(*,*)'SMP reset error code ',gx%bmperr
+             gx%bmperr=0
+          endif
           nr=curceq%next
           if(nr.gt.0) then
              if(results%savedceq(nr)%next.eq.0) then
@@ -4192,7 +4197,7 @@ CONTAINS
                    if(ocv()) write(*,*)'Invariant eq: ',&
                         invar%seqx,invar%savednodeceq
                    if(invar%savednodeceq.lt.0) then
-                      write(*,*)'Equilibrium not saved, skipping'
+                      write(*,*)'SMP equilibrium not saved, skipping'
                       goto 222
                    endif
                    curceq=>results%savedceq(invar%savednodeceq)
@@ -4217,8 +4222,8 @@ CONTAINS
                    call meq_get_state_varorfun_value(statevar,value,&
                         encoded1,curceq)
                    if(gx%bmperr.ne.0) then
-                      write(*,212)'Skipping this point 3: ',statevar,&
-                           curceq%tpval(1),nv,0
+                      write(*,212)'SMP skipping a point, error evaluating ',&
+                           statevar,curceq%tpval(1),nv,0
                       goto 222
                    endif
                    nv=nv+3
@@ -4263,8 +4268,8 @@ CONTAINS
                       call meq_get_state_varorfun_value(statevar,&
                            value,encoded1,curceq)
                       if(gx%bmperr.ne.0) then
-                         write(*,212)'Skipping point 4: ',statevar(1:10),&
-                              curceq%tpval(1),nv,0
+                      write(*,212)'SMP skipping a point, error evaluating: ',&
+                              statevar(1:10),curceq%tpval(1),nv,0
                          nv=nv-1; goto 222
                       endif
 !                      if(gx%bmperr.ne.0) goto 1000
@@ -4513,13 +4518,13 @@ CONTAINS
 ! anpax=2 specifies the single value axis before the colon
        write(21,830)
 830    format('# plot "ocgnu.dat" using 2:3 with lines lt 1,',&
-            ' "" using 2:4 with lines lt 1, ...'/'# set term postscript'/&
+            ' "" using 2:4 with lines lt 1, ...'/'# set term postscript color'/&
             '# set output "ocg.ps"'/'# plot ... '/'# ps2pdf ocg.ps')
     else
 ! anpax=1 specifies the single value axis after the colon
        write(21,831)
 831    format('# plot "ocgnu.dat" using 2:1 with lines lt 1,',&
-            ' "" using 3:1 with lines lt 1, ...'/'# set term postscript'/&
+            ' "" using 3:1 with lines lt 1, ...'/'# set term postscript color'/&
             '# set output "ocg.ps"'/'# plot ... '/'# ps2pdf ocg.ps')
     endif
 ! now I plot all lines with broad black lines (should be lt 7 ...)
@@ -4537,7 +4542,7 @@ CONTAINS
     if(pform(1:1).eq.'P') then
        pfh=filename(1:kk)//'.'//'ps '
        write(21,850)pfh(1:len_trim(pfh))
-850    format('set terminal postscript'/'set output "',a,'"')
+850    format('set terminal postscript color'/'set output "',a,'"')
     elseif(pform(1:1).eq.'G') then
        pfh=filename(1:kk)//'.'//'gif '
        write(21,851)pfh(1:len_trim(pfh))
