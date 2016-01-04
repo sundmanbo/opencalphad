@@ -1,0 +1,636 @@
+ma-haitao@mahaitao-Aspire-1602M:~$ opencalphad3b16a
+ma-haitao@mahaitao-Aspire-1602M:~$ cd opencalphad_project/ocversion3b_2016_01_04/
+ma-haitao@mahaitao-Aspire-1602M:~/opencalphad_project/ocversion3b_2016_01_04$ oc3B
+
+Open Calphad (OC) software version  3.0 linked 2016-01-04
+with command line monitor version 21
+
+This program is available with a GNU General Public License.
+It includes the General Thermodynamic Package, version GTP-3.00
+and Hillert's equilibrium calculation algorithm version HMS-2.00
+and step/map/plot software version SMP-1.10
+and LMDIF (1980) from Argonne is used by the assessment procedure
+
+OC3:set echo
+On? /Y/: y
+OC3:r t agbicupbsbsn
+... echo: r t agbicupbsbsn
+Database has  6 elements: AG BI CU PB SB SN
+Give the elements to select, finish with empty line
+Select elements /all/:cu sn
+... echo: cu sn
+Select elements /no more/:
+Selected  2 elements: CU SN
+There are     5 bibliographic references
+REF: 91DIN      '*** Not set by database or user'
+REF: 96SHI      '*** Not set by database or user'
+REF283          'Alan Dinsdale, SGTE Data for Pure Elements, Calphad Vol 
+                 15(1991) p 317-425, also in NPL Report DMA(A)195 Rev. August 
+                 1990'
+REF: 0          '*** Not set by database or user'
+REF: 86JON      '*** Not set by database or user'
+
+OC3:set cond t=523 p=1e5 n=1 x(sn)=0.9993
+... echo: set cond t=523 p=1e5 n=1 x(sn)=0.9993
+OC3:c e 
+... echo: c e
+Gridmin:      66 points   1.11E-03 s and       2 clockcycles, T=  523.00
+Phase change: its/add/remove:    11    0    7
+Equilibrium calculation   15 its,   5.2960E-03 s and       8 clockcycles
+OC3:l r 1
+... echo: l r 1
+Output for equilibrium:   1, DEFAULT_EQUILIBRIUM          2016.01.04
+Conditions .................................................:
+  1:T=523, 2:P=100000, 3:N=1, 4:X(SN)=0.9993
+ Degrees of freedom are   0
+
+Some global data, reference state SER ......................:
+T=    523.00 K (   249.85 C), P=  1.0000E+05 Pa, V=  0.0000E+00 m3
+N=   1.0000E+00 moles, B=   1.1865E+02 g, RT=   4.3485E+03 J/mol
+G= -2.8979E+04 J, G/N= -2.8979E+04 J/mol, H=  1.3534E+04 J, S=  8.1286E+01 J/K
+
+Some data for components ...................................:
+Component name    Moles      Mole-fr  Chem.pot/RT  Activities  Ref.state
+CU                7.0000E-04  0.00070 -1.0818E+01  2.0026E-05  SER (default)   
+SN                9.9930E-01  0.99930 -6.6613E+00  1.2795E-03  SER (default)   
+
+Some data for phases .......................................:
+Name                Status Moles      Volume    Form.Units  At/FU dGm/RT  Comp:
+LIQUID.................. E  1.000E+00  0.00E+00  1.00E+00    1.00  0.00E+00  X:
+ SN     9.99300E-01  CU     7.00000E-04
+OC3:set ax 1 x(sn) 0 1,,,
+... echo: set ax 1 x(sn) 0 1,,,
+OC3:set ax 2 t 300 1500 10
+... echo: set ax 2 t 300 1500 10
+OC3:l ax
+... echo: l ax
+    Axis variable            Min         Max         Max increment
+ 1  X(SN)                     0.0000E+00  1.0000E+00  2.5000E-02
+ 2  T                         3.0000E+02  1.5000E+03  1.0000E+01
+OC3:lsh
+... echo: lsh
+ No such command, available commands are:
+ ABOUT            ENTER            LIST             QUIT            
+ AMEND            EXIT             MACRO            READ            
+ BACK             FIN              MAP              SAVE            
+ CALCULATE        HELP             NEW              SELECT          
+ DEBUG            HPCALC           OPTIMIZE         SET             
+ DELETE           INFORMATION      PLOT             STEP            
+OC3:l sh
+... echo: l sh
+Option /A/: 
+Equilibrium name         Gas constant Pressure norm                      Status
+ DEFAULT_EQUILIBRIUM       8.3145E+00    1.0000E+00                           1
+
+List of elements
+ No Sym Name          Reference state            Mass  H298-H0   S298    Status
+ -1  /- Electron      Electron_gas               0.000    0.00   0.000        0
+  0  VA Vacancy       Vaccum                     0.000    0.00   0.000        0
+  1  CU CU            FCC_A1                    63.546 5004.10  33.150        0
+  2  SN SN            BCT_A5                   118.690 6322.00  51.195        0
+
+List of species
+  No Symbol                    Stoichiometry            Mass      Charge Status
+   1 CU                        CU                          63.546   0.0       4
+   2 SN                        SN                         118.690   0.0       4
+   3 VA                        VA                           0.000   0.0       C
+
+List of  13 phases
+  No tup Name                      Mol.comp. At/F.U.   dGm/RT  Status1  Status2
+   1   1 LIQUID                    1.00E+00     1.00       0.0     410      40S
+   2   2 BCC_A2                         0.0     1.00 -7.21E+00      18       0U
+   3   3 BCT_A5                         0.0     1.00 -5.80E-02      10       0U
+   4   4 CU10SN3                        0.0     1.00 -3.26E+00      18       0U
+   5   5 CU3SN                          0.0     1.00 -2.93E+00      18       0U
+   6   6 CU41SN11                       0.0     1.00 -3.47E+00      18       0U
+   7   7 CU6SN5                         0.0     1.00 -1.93E+00      18       0U
+   8   8 CU6SN5_L                       0.0     1.00 -1.94E+00      18       0U
+   9   9 DO3                            0.0     1.00 -3.48E-01      10       0U
+  10  10 FCC_A1                         0.0     1.00 -6.43E+00      18       0U
+  11  11 HCP_A3                         0.0     1.00 -6.59E+00      18       0U
+  12  12 RHOMBO_A7                      0.0     1.00 -5.26E-01      1C       0U
+  13  13 SBSN                           0.0     2.00 -4.22E+00      18       0U
+OC3:set ref sn bct,,,,,
+... echo: set ref sn bct,,,,,
+OC3:set ref cu fcc,,,,,
+... echo: set ref cu fcc,,,,,
+OC3:map
+... echo: map
+The map command is fragile, please send problematic diagrams to the
+OC development team
+
+ Remove axis condition and set new phase fix:            3
+
+Line   1 T=  504.87 with: BCT_A5 + LIQUID
+ In map_calcnode calling sameset for new node:            3           2
+Calculated with fix phase:    0   0  12  5.2557E+02  1.0000E+05
+ Error calculating node point, take shorter step
+ In map_calcnode calling sameset for new node:            3           2
+Calculated with fix phase:    0   0  11  7.4621E+02  1.0000E+05
+ Error calculating node point, take shorter step
+ In map_calcnode calling sameset for new node:            3           2
+Calculated with fix phase:    0   0  11  7.6621E+02  1.0000E+05
+ Error calculating node point, take shorter step
+ In map_calcnode calling sameset for new node:            3           2
+Calculated with fix phase:    0   0   6  5.2621E+02  1.0000E+05
+ Error calculating node point, take shorter step
+Terminating line with    8 equilibria due to error 8865
+Finished line with     8 equilibria at T=  505.57
+
+Line   2 T=  504.87 with: BCT_A5 + LIQUID
+ In map_calcnode calling sameset for new node:            3           2
+Calculated with fix phase:    0   0   0  4.9999E+02  1.0000E+05
+Finished line with    12 equilibria at T=  499.99
+
+Line   3 T=  499.99 with: CU6SN5 + BCT_A5
+Phase change: its/add/remove:     5    1    0
+ Restore constitutions 1
+In map_problem:    1   1   2   1   2  5.000024E+02
+  1:T=500.002381, 2:P=100000, 3:N=1
+ Degrees of freedom are   1
+ In map_calcnode calling sameset for new node:            3           2
+Calculated with fix phase:    0   0   0  4.6069E+02  1.0000E+05
+Finished line with    12 equilibria at T=  460.69
+
+Line   4 T=  460.69 with: CU6SN5_L + CU6SN5
+ Restore constitutions 1
+In map_problem:    1   1   2   3   2  4.607041E+02
+  1:T=460.704051, 2:P=100000, 3:N=1
+ Degrees of freedom are   1
+ Restore constitutions 1
+In map_problem:    1   2  -2   3   2  4.606940E+02
+  1:T=460.693951, 2:P=100000, 3:N=1
+ Degrees of freedom are   1
+ Restore constitutions 1
+In map_problem:    1   3   2   3   2  4.606942E+02
+  1:T=460.694151, 2:P=100000, 3:N=1
+ Degrees of freedom are   1
+ Restore constitutions 1
+In map_problem:    1   4   2   3   2  4.606942E+02
+  1:T=460.694151, 2:P=100000, 3:N=1
+ Degrees of freedom are   1
+ Restore constitutions 1
+In map_problem:    1   5   2   3   2  4.606942E+02
+  1:T=460.694151, 2:P=100000, 3:N=1
+ Degrees of freedom are   1
+ Restore constitutions 1
+In map_problem:    1   6   2   3   2  4.606942E+02
+I give up on this line  3  _MAPLINE_4                 3   1
+ Generating mapline%meqrec failed:         9876
+Terminating line with    0 equilibria due to error 9876
+
+Line   5 T=  460.69 with: BCT_A5 + CU6SN5_L
+Phase change: its/add/remove:     5    7    0
+ Restore constitutions 1
+In map_problem:    1   1   2   7   2  4.607041E+02
+  1:T=460.704051, 2:P=100000, 3:N=1
+ Degrees of freedom are   1
+Terminating line with   24 equilibria at axis limit   3.0000E+02
+
+Line   6 T=  499.99 with: LIQUID + CU6SN5
+ In map_calcnode calling sameset for new node:            3           2
+Calculated with fix phase:    0   0   0  6.8819E+02  1.0000E+05
+Finished line with    27 equilibria at T=  688.19
+
+Line   7 T=  688.19 with: CU3SN + LIQUID
+ In map_calcnode calling sameset for new node:            3           2
+Calculated with fix phase:    0   0   0  9.1156E+02  1.0000E+05
+Finished line with    30 equilibria at T=  911.56
+
+Line   8 T=  911.56 with: DO3 + CU3SN
+ In map_calcnode calling sameset for new node:            3           2
+Calculated with fix phase:    0   0   6  9.3853E+02  1.0000E+05
+ Error calculating node point, take shorter step
+ In map_calcnode calling sameset for new node:            3           2
+Calculated with fix phase:    0   0   4  9.3853E+02  1.0000E+05
+ Error calculating node point, take shorter step
+ In map_calcnode calling sameset for new node:            3           2
+Calculated with fix phase:    0   0   0  9.1325E+02  1.0000E+05
+Finished line with    12 equilibria at T=  913.25
+
+Line   9 T=  913.25 with: CU10SN3 + DO3
+Phase change: its/add/remove:     5    5    0
+ Restore constitutions 1
+In map_problem:    1   1   2   5   2  9.132565E+02
+  1:T=913.256488, 2:P=100000, 3:N=1
+ Degrees of freedom are   1
+ In map_calcnode calling sameset for new node:            3           2
+Calculated with fix phase:    0   0   0  8.6311E+02  1.0000E+05
+Finished line with    13 equilibria at T=  863.11
+
+Line  10 T=  863.11 with: CU41SN11 + CU10SN3
+Phase change: its/add/remove:     5    9    0
+ Restore constitutions 1
+In map_problem:    1   1   2   9   2  8.631244E+02
+  1:T=863.124426, 2:P=100000, 3:N=1
+ Degrees of freedom are   1
+ In map_calcnode calling sameset for new node:            3           2
+Calculated with fix phase:    0   0   0  8.5561E+02  1.0000E+05
+Finished line with     9 equilibria at T=  855.61
+
+Line  11 T=  855.61 with: CU3SN + CU41SN11
+Phase change: its/add/remove:     5    4    0
+ Restore constitutions 1
+In map_problem:    1   1   2   4   2  8.556246E+02
+  1:T=855.624594, 2:P=100000, 3:N=1
+ Degrees of freedom are   1
+ In map_calcnode calling sameset for new node:            3           2
+Calculated with fix phase:    0   0   0  5.6447E+02  1.0000E+05
+Finished line with    37 equilibria at T=  564.47
+
+Line  12 T=  564.47 with: FCC_A1 + CU3SN
+Phase change: its/add/remove:     5    6    0
+ Restore constitutions 1
+In map_problem:    1   1   2   6   2  5.644807E+02
+  1:T=564.48074, 2:P=100000, 3:N=1
+ Degrees of freedom are   1
+Terminating line with   34 equilibria at axis limit   3.0000E+02
+
+Line  13 T=  564.47 with: CU41SN11 + FCC_A1
+ In map_calcnode calling sameset for new node:            3           2
+Calculated with fix phase:    0   0   0  7.1355E+02  1.0000E+05
+Finished line with    23 equilibria at T=  713.55
+
+Line  14 T=  713.55 with: DO3 + CU41SN11
+ In map_calcnode calling sameset for new node:            3           2
+Calculated with fix phase:    0   0   4  8.6709E+02  1.0000E+05
+ Error calculating node point, take shorter step
+ In map_calcnode calling sameset for new node:            3           2
+Calculated with fix phase:    0   0   0  8.6311E+02  1.0000E+05
+ Can be an invariant equilibrium!           1
+ Removed from node exit:            2
+Finished line with    23 equilibria at T=  863.11
+
+Line  15 T=  713.55 with: FCC_A1 + DO3
+ In map_calcnode calling sameset for new node:            3           2
+Calculated with fix phase:    0   0   0  1.0869E+03  1.0000E+05
+Finished line with    45 equilibria at T= 1086.88
+
+Line  16 T= 1086.88 with: LIQUID + FCC_A1
+ Restore constitutions 2
+ Restore constitutions 2
+ Restore constitutions 2
+Terminating line with   34 equilibria due to error 4204
+
+Line  17 T= 1086.88 with: DO3 + LIQUID
+Phase change: its/add/remove:     5   10    0
+ Restore constitutions 1
+In map_problem:    1   1   2  10   2  1.086890E+03
+  1:T=1086.89009, 2:P=100000, 3:N=1
+ Degrees of freedom are   1
+ In map_calcnode calling sameset for new node:            3           2
+Calculated with fix phase:    0   0   0  9.1156E+02  1.0000E+05
+Finished line with    25 equilibria at T=  911.56
+
+Line  18 T=  911.56 with: CU3SN + DO3
+ In map_calcnode calling sameset for new node:            3           2
+Calculated with fix phase:    0   0   4  9.3853E+02  1.0000E+05
+ Error calculating node point, take shorter step
+ In map_calcnode calling sameset for new node:            3           2
+Calculated with fix phase:    0   0   4  9.3853E+02  1.0000E+05
+ Error calculating node point, take shorter step
+ In map_calcnode calling sameset for new node:            3           2
+Calculated with fix phase:    0   0   0  9.1325E+02  1.0000E+05
+Finished line with    12 equilibria at T=  913.25
+
+Line  19 T=  913.25 with: CU10SN3 + CU3SN
+Phase change: its/add/remove:     5    9    0
+ Restore constitutions 1
+In map_problem:    1   1   2   9   2  9.132565E+02
+  1:T=913.256488, 2:P=100000, 3:N=1
+ Degrees of freedom are   1
+ In map_calcnode calling sameset for new node:            3           2
+Calculated with fix phase:    0   0   0  8.5561E+02  1.0000E+05
+ Can be an invariant equilibrium!           1
+ Removed from node exit:            2
+Finished line with    14 equilibria at T=  855.61
+
+Line  20 T=  913.25 with: DO3 + CU10SN3
+Phase change: its/add/remove:     5    5    0
+ Restore constitutions 1
+In map_problem:    1   1   2   5   2  9.132565E+02
+  1:T=913.256488, 2:P=100000, 3:N=1
+ Degrees of freedom are   1
+ In map_calcnode calling sameset for new node:            3           2
+Calculated with fix phase:    0   0   0  8.6311E+02  1.0000E+05
+Finished line with    13 equilibria at T=  863.11
+
+Line  21 T=  911.56 with: LIQUID + CU3SN
+Phase change: its/add/remove:     5    9    0
+ Restore constitutions 1
+In map_problem:    1   1   2   9   2  9.115655E+02
+  1:T=911.565464, 2:P=100000, 3:N=1
+ Degrees of freedom are   1
+ In map_calcnode calling sameset for new node:            3           2
+Calculated with fix phase:    0   0   0  6.8819E+02  1.0000E+05
+Finished line with    30 equilibria at T=  688.19
+
+Line  22 T=  688.19 with: CU6SN5 + LIQUID
+Phase change: its/add/remove:     5    5    0
+ Restore constitutions 1
+In map_problem:    1   1   2   5   2  6.882049E+02
+  1:T=688.204941, 2:P=100000, 3:N=1
+ Degrees of freedom are   1
+ In map_calcnode calling sameset for new node:            3           2
+Calculated with fix phase:    0   0   0  4.9999E+02  1.0000E+05
+Finished line with    27 equilibria at T=  499.99
+
+Line  23 T=  499.99 with: BCT_A5 + CU6SN5
+Phase change: its/add/remove:     5    1    0
+ Restore constitutions 1
+In map_problem:    1   1   2   1   2  5.000024E+02
+  1:T=500.002377, 2:P=100000, 3:N=1
+ Degrees of freedom are   1
+ In map_calcnode calling sameset for new node:            3           2
+Calculated with fix phase:    0   0   0  4.6069E+02  1.0000E+05
+Finished line with    12 equilibria at T=  460.69
+
+Line  24 T=  499.99 with: LIQUID + BCT_A5
+ In map_calcnode calling sameset for new node:            3           2
+Calculated with fix phase:    0   0   5  5.0322E+02  1.0000E+05
+ Error calculating node point, take shorter step
+ In map_calcnode calling sameset for new node:            3           2
+Calculated with fix phase:    0   0   7  5.9057E+02  1.0000E+05
+ Error calculating node point, take shorter step
+ In map_calcnode calling sameset for new node:            3           2
+Calculated with fix phase:    0   0   4  5.5057E+02  1.0000E+05
+ Error calculating node point, take shorter step
+Terminating line with    7 equilibria due to error 8865
+Finished line with     7 equilibria at T=  506.97
+
+Line  25 T=  688.19 with: CU3SN + CU6SN5
+Phase change: its/add/remove:     5    1    0
+ Restore constitutions 1
+In map_problem:    1   1   2   1   2  6.882049E+02
+  1:T=688.204941, 2:P=100000, 3:N=1
+ Degrees of freedom are   1
+ In map_calcnode calling sameset for new node:            3           2
+Calculated with fix phase:    0   0   0  4.6069E+02  1.0000E+05
+Finished line with    31 equilibria at T=  460.69
+
+Line  26 T=  460.69 with: CU6SN5_L + CU3SN
+Phase change: its/add/remove:     5    7    0
+ Restore constitutions 1
+In map_problem:    1   1   2   7   2  4.607041E+02
+  1:T=460.704051, 2:P=100000, 3:N=1
+ Degrees of freedom are   1
+Terminating line with   24 equilibria at axis limit   3.0000E+02
+
+Line  27 T=  460.69 with: CU6SN5 + CU6SN5_L
+ Restore constitutions 1
+In map_problem:    1   1   2   5   2  4.607041E+02
+  1:T=460.704051, 2:P=100000, 3:N=1
+ Degrees of freedom are   1
+ Restore constitutions 1
+In map_problem:    1   2  -2   5   2  4.606940E+02
+  1:T=460.693951, 2:P=100000, 3:N=1
+ Degrees of freedom are   1
+ Restore constitutions 1
+In map_problem:    1   3   2   5   2  4.606942E+02
+  1:T=460.694151, 2:P=100000, 3:N=1
+ Degrees of freedom are   1
+ Restore constitutions 1
+In map_problem:    1   4   2   5   2  4.606942E+02
+  1:T=460.694151, 2:P=100000, 3:N=1
+ Degrees of freedom are   1
+ Restore constitutions 1
+In map_problem:    1   5   2   5   2  4.606942E+02
+  1:T=460.694151, 2:P=100000, 3:N=1
+ Degrees of freedom are   1
+ Restore constitutions 1
+In map_problem:    1   6   2   5   2  4.606942E+02
+I give up on this line  5  _MAPLINE_27                5   1
+ Generating mapline%meqrec failed:         9876
+Terminating line with    0 equilibria due to error 9876
+
+Line  28 T=  913.25 with: CU3SN + CU10SN3
+Phase change: its/add/remove:     5    9    0
+ Restore constitutions 1
+In map_problem:    1   1   2   9   2  9.132565E+02
+  1:T=913.256488, 2:P=100000, 3:N=1
+ Degrees of freedom are   1
+ In map_calcnode calling sameset for new node:            3           2
+Calculated with fix phase:    0   0   0  8.5561E+02  1.0000E+05
+Finished line with    14 equilibria at T=  855.61
+
+Line  29 T=  911.56 with: LIQUID + DO3
+ In map_calcnode calling sameset for new node:            3           2
+Calculated with fix phase:    0   0   0  1.0869E+03  1.0000E+05
+Finished line with    25 equilibria at T= 1086.88
+
+Line  30 T=  688.19 with: CU6SN5 + CU3SN
+Phase change: its/add/remove:     5    1    0
+ Restore constitutions 1
+In map_problem:    1   1   2   1   2  6.882049E+02
+  1:T=688.204943, 2:P=100000, 3:N=1
+ Degrees of freedom are   1
+ In map_calcnode calling sameset for new node:            3           2
+Calculated with fix phase:    0   0   0  4.6069E+02  1.0000E+05
+Finished line with    31 equilibria at T=  460.69
+Finished step/map   6.2411E-01 s and     635 clockcycles
+OC3:plot
+... echo: plot
+Horizontal axis variable /X(*,SN)/: x(*,sn)
+... echo: x(*,sn)
+Vertical axis variable /T/: T
+... echo: T
+
+Note: give only one option per line!
+Options? /RENDER/: title cu_sn_phase_diagram kji_1234
+... echo: title cu_sn_phase_diagram kji_1234
+
+Note: give only one option per line!
+Options? /RENDER/: render
+... echo: render
+plot data used:       8    674 out of    1000  10000
+ Gnuplot data file   : ocgnu.dat
+ Gnuplot command file: ocgnu.plt
+OC3:set inter
+... echo: set inter
+OC3:exit
+... echo: exit
+Are you sure? /N/: y
+... echo: y
+STOP Ha en bra dag
+ma-haitao@mahaitao-Aspire-1602M:~/opencalphad_project/ocversion3b_2016_01_04$ 
+
+////////////////////////////////////////////////////////
+********************************************************
+ma-haitao@mahaitao-Aspire-1602M:~$ opencalphad3b16a
+ma-haitao@mahaitao-Aspire-1602M:~$ cd opencalphad_project/ocversion3b_2016_01_04/
+ma-haitao@mahaitao-Aspire-1602M:~/opencalphad_project/ocversion3b_2016_01_04$ oc3B
+
+Open Calphad (OC) software version  3.0 linked 2016-01-04
+with command line monitor version 21
+
+This program is available with a GNU General Public License.
+It includes the General Thermodynamic Package, version GTP-3.00
+and Hillert's equilibrium calculation algorithm version HMS-2.00
+and step/map/plot software version SMP-1.10
+and LMDIF (1980) from Argonne is used by the assessment procedure
+
+OC3:set echo
+On? /Y/: y
+OC3:r t agbicupbsbsn
+... echo: r t agbicupbsbsn
+Database has  6 elements: AG BI CU PB SB SN
+Give the elements to select, finish with empty line
+Select elements /all/:cu sn
+... echo: cu sn
+Select elements /no more/:
+Selected  2 elements: CU SN
+There are     5 bibliographic references
+REF: 91DIN      '*** Not set by database or user'
+REF: 96SHI      '*** Not set by database or user'
+REF283          'Alan Dinsdale, SGTE Data for Pure Elements, Calphad Vol 
+                 15(1991) p 317-425, also in NPL Report DMA(A)195 Rev. August 
+                 1990'
+REF: 0          '*** Not set by database or user'
+REF: 86JON      '*** Not set by database or user'
+
+OC3:set cond t=523 p=1e5 n=1 x(sn)=0.9993                                                 
+... echo: set cond t=523 p=1e5 n=1 x(sn)=0.9993
+@$OC3:
+OC3:c e
+... echo: c e
+Gridmin:      66 points   8.73E-04 s and       1 clockcycles, T=  523.00
+Phase change: its/add/remove:    11    0    7
+Equilibrium calculation   15 its,   4.8690E-03 s and       5 clockcycles
+OC3:l r 1
+... echo: l r 1
+Output for equilibrium:   1, DEFAULT_EQUILIBRIUM          2016.01.04
+Conditions .................................................:
+  1:T=523, 2:P=100000, 3:N=1, 4:X(SN)=0.9993
+ Degrees of freedom are   0
+
+Some global data, reference state SER ......................:
+T=    523.00 K (   249.85 C), P=  1.0000E+05 Pa, V=  0.0000E+00 m3
+N=   1.0000E+00 moles, B=   1.1865E+02 g, RT=   4.3485E+03 J/mol
+G= -2.8979E+04 J, G/N= -2.8979E+04 J/mol, H=  1.3534E+04 J, S=  8.1286E+01 J/K
+
+Some data for components ...................................:
+Component name    Moles      Mole-fr  Chem.pot/RT  Activities  Ref.state
+CU                7.0000E-04  0.00070 -1.0818E+01  2.0026E-05  SER (default)   
+SN                9.9930E-01  0.99930 -6.6613E+00  1.2795E-03  SER (default)   
+
+Some data for phases .......................................:
+Name                Status Moles      Volume    Form.Units  At/FU dGm/RT  Comp:
+LIQUID.................. E  1.000E+00  0.00E+00  1.00E+00    1.00  0.00E+00  X:
+ SN     9.99300E-01  CU     7.00000E-04
+OC3:set ref sn bct,,,,,
+... echo: set ref sn bct,,,,,
+OC3:set ref cu fcc,,,,,
+... echo: set ref cu fcc,,,,,
+OC3:set ax 1 x(Sn) 0 1 ,,,
+... echo: set ax 1 x(Sn) 0 1 ,,,
+OC3:l ax
+... echo: l ax
+    Axis variable            Min         Max         Max increment
+ 1  X(SN)                     0.0000E+00  1.0000E+00  2.5000E-02
+OC3:l sh
+... echo: l sh
+Option /A/: 
+Equilibrium name         Gas constant Pressure norm                      Status
+ DEFAULT_EQUILIBRIUM       8.3145E+00    1.0000E+00                           1
+
+List of elements
+ No Sym Name          Reference state            Mass  H298-H0   S298    Status
+ -1  /- Electron      Electron_gas               0.000    0.00   0.000        0
+  0  VA Vacancy       Vaccum                     0.000    0.00   0.000        0
+  1  CU CU            FCC_A1                    63.546 5004.10  33.150        0
+  2  SN SN            BCT_A5                   118.690 6322.00  51.195        0
+
+List of species
+  No Symbol                    Stoichiometry            Mass      Charge Status
+   1 CU                        CU                          63.546   0.0       4
+   2 SN                        SN                         118.690   0.0       4
+   3 VA                        VA                           0.000   0.0       C
+
+List of  13 phases
+  No tup Name                      Mol.comp. At/F.U.   dGm/RT  Status1  Status2
+   1   1 LIQUID                    1.00E+00     1.00       0.0     410      40S
+   2   2 BCC_A2                         0.0     1.00 -7.21E+00      18       0U
+   3   3 BCT_A5                         0.0     1.00 -5.80E-02      10       0U
+   4   4 CU10SN3                        0.0     1.00 -3.26E+00      18       0U
+   5   5 CU3SN                          0.0     1.00 -2.93E+00      18       0U
+   6   6 CU41SN11                       0.0     1.00 -3.47E+00      18       0U
+   7   7 CU6SN5                         0.0     1.00 -1.93E+00      18       0U
+   8   8 CU6SN5_L                       0.0     1.00 -1.94E+00      18       0U
+   9   9 DO3                            0.0     1.00 -3.48E-01      10       0U
+  10  10 FCC_A1                         0.0     1.00 -6.43E+00      18       0U
+  11  11 HCP_A3                         0.0     1.00 -6.59E+00      18       0U
+  12  12 RHOMBO_A7                      0.0     1.00 -5.26E-01      1C       0U
+  13  13 SBSN                           0.0     2.00 -4.22E+00      18       0U
+OC3:step
+... echo: step
+Options? /NORMAL/: sep
+... echo: sep
+
+Setting start condition for LIQUID   0.45274
+
+Line   1 from   4.527363E-01 with: LIQUID  
+Terminating line with   23 equilibria at axis limit   1.0000E+00
+
+Line   2 from   4.527363E-01 with: LIQUID  
+Terminating line with   20 equilibria at axis limit   1.1000E-12
+
+Ignoring phase with fixed composition: BCC_A2  0.000000
+
+Setting start condition for BCT_A5   0.45274
+
+Line   3 from   4.527363E-01 with: BCT_A5  
+Terminating line with   23 equilibria at axis limit   1.0000E+00
+
+Line   4 from   4.527363E-01 with: BCT_A5  
+Terminating line with   20 equilibria at axis limit   1.1000E-12
+
+Ignoring phase with fixed composition: CU10SN3  0.231000
+
+Ignoring phase with fixed composition: CU3SN  0.250000
+
+Ignoring phase with fixed composition: CU41SN11  0.212000
+
+Ignoring phase with fixed composition: CU6SN5  0.455000
+
+Ignoring phase with fixed composition: CU6SN5_L  0.455000
+
+Setting start condition for DO3   0.45274
+
+Line   5 from   4.527363E-01 with: DO3  
+Terminating line with   23 equilibria at axis limit   1.0000E+00
+
+Line   6 from   4.527363E-01 with: DO3  
+Terminating line with   20 equilibria at axis limit   3.7334E-11
+
+Ignoring phase with fixed composition: FCC_A1  0.000000
+
+Ignoring phase with fixed composition: HCP_A3  0.000000
+
+Ignoring phase with fixed composition: RHOMBO_A7  1.000000
+
+Ignoring phase with fixed composition: SBSN  1.000000
+OC3:plot
+... echo: plot
+Horizontal axis variable /X(SN)/: x(sn)
+... echo: x(sn)
+Vertical axis variable /GM(*)/: G(*)
+... echo: G(*)
+
+Note: give only one option per line!
+Options? /RENDER/: title Gibbs Free Energy Diagram step tutorial figure 1
+... echo: title Gibbs Free Energy Diagram step tutorial figure 1
+
+Note: give only one option per line!
+Options? /RENDER/: render
+... echo: render
+plot data used:       3    129 out of    1000  10000
+ Gnuplot data file   : ocgnu.dat
+ Gnuplot command file: ocgnu.plt
+OC3:set inter
+... echo: set inter
+OC3:exit
+... echo: exit
+Are you sure? /N/: y
+... echo: y
+STOP Ha en bra dag
+ma-haitao@mahaitao-Aspire-1602M:~/opencalphad_project/ocversion3b_2016_01_04$
