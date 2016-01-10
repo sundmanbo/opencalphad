@@ -1,7 +1,7 @@
 !
 MODULE LUKASNUM
 !
-! Copyright 1990-2011, H L Lukas, Germany
+! This is free software developed by H L Lukas, Germany
 !
 !    This program is free software; you can redistribute it and/or modify
 !    it under the terms of the GNU General Public License as published by

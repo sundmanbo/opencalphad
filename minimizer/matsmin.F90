@@ -1545,9 +1545,13 @@ CONTAINS
     if(meqrec%tpindep(2)) then
        xxx=ceq%tpval(2)
 ! check convergence
+! ??? svar(ioff) much too small!! why? add a factor ...
+!       svar(ioff)=1.0D2*svar(ioff)
        if(abs(svar(ioff)).gt.1.0D4*ceq%xconv) then
           converged=8
        endif
+!       write(*,389)'HMS pv: ',ioff,converged,svar(ioff),ceq%tpval(2)
+389    format(a,2i3,4(1pe12.4))
        if(abs(svar(ioff)/ceq%tpval(2)).gt.0.2D0) then
           svar(ioff)=sign(0.2D0*ceq%tpval(2),svar(ioff))
        endif
@@ -2452,23 +2456,28 @@ CONTAINS
        write(*,*)'Not implemented yet: ',stvix,stvnorm
        gx%bmperr=4207; goto 1000
 !------------------------------------------------------------------
-    case(4) ! Heat balance condition
+    case(4) ! Enthaly condition (Heat balance). Maybe also V condition? Not yet
 ! Enthalpy for system or phase, normallized or not
 !       gx%bmperr=4207; goto 1000
        if(stvnorm.eq.0) then
 ! not normallized
           if(cmix(3).eq.0) then
-! condition is H=value
+! condition is H=value or V=value
              sph=0
           else
-! condition is H(phase#set)=value
+! condition is H(phase#set)=value or V(phase#set)=value
              sph=cmix(3); scs=cmix(4)
           endif
-! dH=\sum_alpha FU(alpha)(dG/y_i-Td2G/dTdy_i)c_iA\mu_A + 
-!   (-Td2G/dT2 + \sum_i (dG/dy_i - Td2G/dTdY_i)c_iT)dT + ...
-!   +\sum_alpha (G-TdG/dT)\delta FU(alpha) =
-!    \sum_alpha FU(alpha)\sum_i(dG/dy_i-Td2G/dTdy_i)c_iG + H-\tilde H
+! FU(alpha) is formula units of alpha phase
+! dH=\sum_alpha FU(alpha)(dG/y_i-Td2G/dTdy_i)*c_iA*\mu_A + 
+!   (-Td2G/dT2 + \sum_i (dG/dy_i - Td2G/dTdY_i)*c_iT)*dT + ...
+!   +\sum_alpha (G-TdG/dT)*\delta FU(alpha) =
+!    \sum_alpha FU(alpha)\sum_i(dG/dy_i-Td2G/dTdy_i)*c_iG + H\tilde - H
 !          write(*,*)'Condition on H: ',pmi%ncc,dncol
+! dV = \sum_alpha FU(alpha)(d2G/dPdy_i)*c_iA*\mu_A+
+!     \sum_i dG/dP*dP + ??
+!     \sum_alpha ???
+! UNFINISHED
           allocate(xcol(nz2))
           xcol=zero
           totam=zero
@@ -2497,11 +2506,20 @@ CONTAINS
                 allocate(mamu1((meqrec%nrel)))
              endif
              ncol=1
-! calculate the terms dG/dy_i - T*d2G/dTdy_i for all constituents
-             do ie=1,pmi%ncc
-                hval(ie)=pmi%curd%dgval(1,ie,1)-&
-                     ceq%tpval(1)*pmi%curd%dgval(2,ie,1)
-             enddo
+             if(stvix.eq.3) then
+! V condition, calculate the terms d2G/dpdy_i for all constituents
+                do ie=1,pmi%ncc
+                   hval(ie)=pmi%curd%dgval(3,ie,1)
+                enddo
+!                write(*,*)'Volume condition: ',pcol,pmi%ncc,hval(1)
+             else
+! H condition, calculate the terms dG/dy_i - T*d2G/dTdy_i for all constituents
+                do ie=1,pmi%ncc
+                   hval(ie)=pmi%curd%dgval(1,ie,1)-&
+                        ceq%tpval(1)*pmi%curd%dgval(2,ie,1)
+                enddo
+!                write(*,*)'Enthalpy condition: ',tcol,hval(1)
+             endif
 !             write(*,75)'hval: ',hval
 !             write(*,75)'cmuvamanyl: ',(ceq%cmuval(ie),ie=1,meqrec%nrel)
 ! calculate the terms to be multiplied with the unknown mu(ie)
@@ -2554,10 +2572,17 @@ CONTAINS
 !             enddo hallel
 ! hval no longer needed
              deallocate(hval)
+             if(stvix.eq.3) then
+! sum the total volune (or for a single phase its volume)
+                totam=totam+pham*pmi%curd%gval(3,1)
+!                write(*,211)'HMS total volume:',totam,ceq%rtn*totam,cvalue
+211             format(a,5(1pe12.4))
+             else
 ! Sum the total enthalpy (for a single phase just one value)
-             totam=totam+pham*(pmi%curd%gval(1,1)-&
-                  ceq%tpval(1)*pmi%curd%gval(2,1))
+                totam=totam+pham*(pmi%curd%gval(1,1)-&
+                     ceq%tpval(1)*pmi%curd%gval(2,1))
 !             write(*,73)'pham:  ',sph,jj,pham,totam,ceq%cmuval(1),ceq%cmuval(2)
+             endif
 ! Now the term multipled with change of the amount of the phase
              if(pmi%phasestatus.ne.PHFIXED) then
                 xcol(dncol+notf)=pmi%curd%gval(1,1)-&
@@ -2651,6 +2676,7 @@ CONTAINS
           endif
           call get_state_var_value('N ',totalmol,encoded,ceq)
           hmval=hmval/ceq%rtn
+! this is not yet implemented
           write(*,*)'hmval, totalmol: ',hmval, totalmol
           if(gx%bmperr.ne.0) goto 1000
           hmallph: do jph=1,meqrec%nstph
@@ -5183,8 +5209,8 @@ CONTAINS
    modeval: if(mode.eq.0 .and. btest(svflista(lrot)%status,SVFVAL)) then
 ! If mode=0 and SVFVAL set return the stored value
       value=ceq%svfunres(lrot)
-!      write(*,350)'evaluate svfun 2: ',0,lrot,value
-350   format(a,2i4,1pe12.4)
+      write(*,350)'HMS evaluate svfun 2: ',0,lrot,value
+350   format(a,2i4,4(1pe12.4))
    elseif(mode.eq.0 .and. btest(svflista(lrot)%status,SVFEXT)) then
 ! if mode=0 and SVFEXT set use value from equilibrium eqno
       ieq=svflista(lrot)%eqnoval
@@ -5195,9 +5221,10 @@ CONTAINS
             gx%bmperr=4141; goto 1000
          endif
          ceq%svfunres(lrot)=value
-!         write(*,350)'evaluate svfun 3: ',ieq,lrot,value
+         write(*,350)'evaluate svfun 3: ',ieq,lrot,value
       else
          value=eqlista(ieq)%svfunres(lrot)
+         write(*,350)'evaluate svfun 7: ',ieq,lrot,value
       endif
    else
 ! if mode=1 always evaluate
@@ -5207,6 +5234,7 @@ CONTAINS
          write(*,*)'evaluate_svfun putfunerror ',pfnerr
          gx%bmperr=4141; goto 1000
       endif
+!      write(*,350)'HMS evaluate svfun 8: ',ieq,lrot,value,ceq%tpval(1)
    endif modeval
 ! save value in current equilibrium
    ceq%svfunres(lrot)=value
@@ -5485,11 +5513,13 @@ CONTAINS
           if(meqrec%phr(mph)%curd%amfu.gt.zero) then
 ! the hope is that the phase amounts in svar are in the same order as
 ! in svar as ordered in meqrec%phr ...
+! UNFINISHED PROBLEMS fixing Cp for step1.OCM ....
              call meq_calc_phase_derivative(svr1,svr2,meqrec,mph,iel,&
                   svar,jj,xxx,ceq)
              if(gx%bmperr.ne.0) goto 1000
              jj=jj+1
-!             write(*,69)'MM der: ',mph,ceq%tpval(1),value,xxx
+!             write(*,69)'MM der: ',mph,ceq%tpval(1),value,xxx,&
+!                  meqrec%phr(mph)%curd%amfu
 69           format(a,i3,6(1pe14.6))
           else
              xxx=zero
@@ -5502,7 +5532,8 @@ CONTAINS
           if(svr1%phase.eq.meqrec%phr(mph)%iph .and. &
                svr1%compset.eq.meqrec%phr(mph)%ics) then
              call meq_slope(mph,svr1,meqrec,value,ceq)
-             goto 1000
+             write(*,*)'Not implemented x(phase,element).T'
+             gx%bmperr=8911; goto 1000
           endif
        enddo
        write(*,*)'No such phase'

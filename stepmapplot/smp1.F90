@@ -4073,8 +4073,9 @@ CONTAINS
 ! no wildcards allowed on this axis
           statevar=pltax(notanp)
           call meq_get_state_varorfun_value(statevar,value,encoded1,curceq)
+!          write(*,*)'SMP axis variable 1: ',encoded1(1:3),value
           if(gx%bmperr.ne.0) then
-! this error should not prevent plotting the other points
+! this error should not prevent plotting the other points FIRST SKIPPING
              write(*,212)'SMP skipping a point, error evaluating: ',&
                   statevar(1:10),curceq%tpval(1),nv,nr
 212          format(a,a,f10.2,2i5)
@@ -4141,9 +4142,12 @@ CONTAINS
              enddo
 !             write(*,*)'OK Point: ',nr,nv,xax(nv)
           else
-! More than one state variable or function value
+! More than one state variable or function value like CP
+! UNFINISHED PROBLEM WITH NEGATIVE CP HERE 
              call meq_get_state_varorfun_value(statevar,value,encoded1,curceq)
+!             write(*,*)'SMP axis variable 2: ',statevar(1:3),value
              if(gx%bmperr.ne.0) then
+! SECOND Skipping
                 write(*,212)'SMP Skipping a point, error evaluating: ',&
                      statevar(1:10),curceq%tpval(1),nv,nr
                 nv=nv-1; goto 215
@@ -4221,7 +4225,9 @@ CONTAINS
                    statevar=pltax(notanp)
                    call meq_get_state_varorfun_value(statevar,value,&
                         encoded1,curceq)
+!                   write(*,*)'SMP axis variable 3: ',encoded1(1:3),value
                    if(gx%bmperr.ne.0) then
+! THIRD skipping
                       write(*,212)'SMP skipping a point, error evaluating ',&
                            statevar,curceq%tpval(1),nv,0
                       goto 222
@@ -4264,10 +4270,12 @@ CONTAINS
                       nv=nv-3
                       goto 225
 !----------------------------------
+! code until label 222 redundant
                       np=1
                       call meq_get_state_varorfun_value(statevar,&
                            value,encoded1,curceq)
                       if(gx%bmperr.ne.0) then
+! FOURTH Skipping never executed
                       write(*,212)'SMP skipping a point, error evaluating: ',&
                               statevar(1:10),curceq%tpval(1),nv,0
                          nv=nv-1; goto 222
@@ -4281,6 +4289,8 @@ CONTAINS
                    linesep(nlinesep)=nv
 !                   write(*,*)'adding empty line 1',nlinesep,linesep(nlinesep)
                 endif inv
+! code from "goto 225" at 17 lines above until here is never used
+!-------------------------------
 ! exit here if error and skip point
 222             continue
              endif
