@@ -254,7 +254,7 @@ contains
 ! subsubcommands to AMEND PHASE
     character (len=16), dimension(ncamph) :: camph=&
          ['MAGNETIC_CONTRIB','COMPOSITION_SET ','DISORDERED_FRACS',&
-         'GLAS_TRANSITION ','QUIT            ','DEFAULT_CONSTIT ',&
+         'GLASS_TRANSITION','QUIT            ','DEFAULT_CONSTIT ',&
          'DEBYE_CP_MODEL  ','EINSTEIN_CP_MDL ','INDEN_WEI_MAGMOD',&
          'ELASTIC_MODEL_A ','                ','                ']
 !-------------------
@@ -566,7 +566,7 @@ contains
 !-------------------------
 ! subsubcommands to AMEND PHASE
 !       ['MAGNETIC_CONTRIB','COMPOSITION_SET ','DISORDERED_FRACS',&
-!        'GLAS_TRANSITION ','QUIT            ','DEFAULT_CONSTIT ',&
+!        'GLASS_TRANSITION','QUIT            ','DEFAULT_CONSTIT ',&
 !        'DEBYE_CP_MODEL  ','EINSTEIN_CP_MDL ','INDEN_WEI_MAGNET',&
 !        'ELASTIC_MODEL_A ','                ','                ']
        case(4) ! amend phase subcommands
@@ -631,7 +631,7 @@ contains
              call add_fraction_set(iph,ch1,ndl,j1)
              if(gx%bmperr.ne.0) goto 990
 !....................................................
-          case(4) ! amend phase <name> glas_transition
+          case(4) ! amend phase <name> glass_transition
              call add_addrecord(iph,glastransmodela)
 !....................................................
           case(5) ! amend phase quit
