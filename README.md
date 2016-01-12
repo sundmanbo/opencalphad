@@ -1,4 +1,4 @@
 opencalphad
 ===========
 
-This is a prerelase of Open Calphad version 3
+This is the final version of Open Calphad version 3
