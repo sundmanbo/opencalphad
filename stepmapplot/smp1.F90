@@ -1519,7 +1519,8 @@ CONTAINS
 ! pointer to last calculated (can be zero) and last free
 ! store last calulated axis values in axarr(iax)%lastaxval
 !    write(*,*)'In map_store'
-    do jj=1,mapline%start%number_ofaxis
+!   do jj=1,mapline%start%number_ofaxis
+    do jj=1,nax
        axstv1=axarr(jj)%axcond(1)
        axstv=>axstv1
        call state_variable_val(axstv,value,mapline%lineceq)
@@ -3642,7 +3643,7 @@ CONTAINS
 
 !\begin{verbatim}
   integer function invariant_equilibrium(lines,mapnode)
-! Only called for tieöines not in plane.  If tie-lines in plane then all
+! Only called for tie-lines not in plane.  If tie-lines in plane then all
 ! nodes are invariants.
     integer lines
     type(map_node), pointer :: mapnode
