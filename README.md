@@ -1,4 +1,4 @@
-opencalphad
-===========
 
-This is the final version of Open Calphad version 3
+This is Open Calphad version 3 with bugfixes
+
+
