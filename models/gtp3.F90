@@ -953,6 +953,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! nextcs which is nonzero if there is a higher composition set of the phase
 ! A tuplet index always refer to the same phase+compset.  New tuples with
 ! the same phase and other compsets are added at the end.
+! BUT if a compset>1 is deleted tuples with higher index will be shifted down!
      integer phaseix,compset,ixphase,lokvares,nextcs
   end TYPE gtp_phasetuple
 !\end{verbatim}

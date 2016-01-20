@@ -51,7 +51,7 @@
    real, dimension (:,:), allocatable :: xarr
    real, dimension (maxel,maxel) :: xsol
    double precision, dimension(maxel) :: phfrac,phsave
-   double precision qq(5),savetp(2)
+   double precision qq(5),savetp(2),xbase
    integer, dimension(maxph) :: iphx
    character name1*24
 !   integer idum(*)
@@ -60,7 +60,7 @@
 ! sort phases depending on number of gridpoints
    integer, dimension(:), allocatable :: gridpoints,phord
 ! pph is set to number of phases participating, some may be suspended
-   integer pph,zph,nystph,order(maxel)
+   integer pph,zph,nystph,order(maxel),tbase,qbase,wbase
 !
    if(btest(globaldata%status,GSNOGLOB)) then
       write(*,*)'Grid minimization not allowed'
@@ -302,6 +302,7 @@
    solloop: do jp=1,nrel
 ! jgrid(jp) is a grid point in the solution, find which phase it is
       mode=jgrid(jp)
+713   continue
       ibias=0
       do zph=1,pph
 !          write(*,*)'mode and ibias 1: ',mode,ibias
@@ -313,8 +314,27 @@
             ibias=ngrid(zph)
          endif
       enddo
+! This occures using TBASE as TBASE has crazy Gibbs energies
       write(*,*)'3Y gridpoint outside range ',jgrid(jp),ngrid(pph)
-      gx%bmperr=4147; goto 1000
+! It means element je=jgrid(jp)-ngrid(pph) has no chemical potential
+! and possibly no composition.  Find the gripoint with max of with this 
+! component and add a small amont if it to avoid that an element has 
+! no phase in which is can dissolve ...
+      qbase=jgrid(jp)-ngrid(pph)
+      xbase=zero
+      wbase=0
+      do tbase=1,ngrid(pph)
+         if(xarr(qbase,tbase).gt.xbase) wbase=tbase
+      enddo
+      if(wbase.eq.0) then
+! we have failed to find a gridpoint with this element
+         gx%bmperr=4147; goto 1000
+      else
+         write(*,*)'3Y using point: ',wbase
+         phfrac(jp)=1.0D-4
+         mode=wbase
+         goto 713
+      endif
 315   continue
       jbias=ibias
 ! this call is to obtain the constitution of a phase in the solution
@@ -2547,7 +2567,7 @@
 120      continue
       enddo
    enddo
-! check that we have nrel gridpoints
+! check that we have nrel gridpoints for the pure elements
    do je=1,nrel
       if(jgrid(je).eq.0) then
 ! no gridpoint assigned to this element!! error (note C in pure fcc has no gp)
@@ -2586,10 +2606,16 @@
    do iel=1,nrel
       phfrac(iel)=xknown(iel)
       xmat(iel,iel)=one
-      cmu(iel)=cmu(1)
+      cmu(iel)=1.0D8
 ! jgrid value here is dummy ...
       jgrid(iel)=kp+iel
+! we must also set gridpoint enegies!!! maybe 1.0D20 better ....
+      gmin(iel)=1.0D8
    enddo
+! check inial chemical potentials and gripoint energies...
+!   write(*,63)'3Ymu: ',(cmu(ie),ie=1,nrel)
+!63 format(a,8(1pe10.2))
+!   write(*,63)'3Ygm: ',(gmin(ie),ie=1,nrel)
 ! Add nrel "gridpoints" for the pure elements
 !   kp=kp+nrel
 ! output of start matrix
@@ -2885,6 +2911,8 @@
       endif
       goto 200
    endif
+! check new chemical potentials ...
+!   write(*,63)'3Yny: ',(cmu(ie),ie=1,nrel)
 ! calculate total G
 !   gvv=zero
 !   do ie=1,nrel

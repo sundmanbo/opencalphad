@@ -2771,11 +2771,11 @@ contains
 !=================================================================
 ! back / goto, return to calling (main) program
     case(12)
-       call gparcd('Are you sure?',cline,last,1,ch1,'N',q1help)
-       if(ch1.eq.'y' .or. ch1.eq.'Y') then
-          write(*,*)'Welcome back!'
-          return
-       endif
+!       call gparcd('Are you sure?',cline,last,1,ch1,'N',q1help)
+!       if(ch1.eq.'y' .or. ch1.eq.'Y') then
+!          write(*,*)'Welcome back!'
+!       endif
+       return
 !=================================================================
 ! NEW command, same as reinitiate
     case(13)
@@ -3425,7 +3425,8 @@ contains
 ! when setting graphics format always also ask for plot file
        case(7,8)
           if(kom2.eq.7) then
-             call gparcd('Plot terminal',cline,last,1,ch1,'SCREEN',q1help)
+             call gparcd('Plot terminal (P/G/S)',cline,last,1,ch1,&
+                  'SCREEN',q1help)
              if(ch1.eq.'p' .or. ch1.eq.'P') then
                 write(kou,*)'Plotting set to postscript'
                 plotform='P'

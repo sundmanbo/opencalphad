@@ -1319,7 +1319,7 @@
             exit eternity
          endif
          if(phasetuple(jl)%nextcs.eq.0) then
-            write(*,*)'3B erreor: ',phasetuple(tuple)%compset,tuple
+            write(*,*)'3B No such tuple: ',phasetuple(tuple)%compset,tuple
             gx%bmperr=7777; goto 1000
          endif
          jl=phasetuple(jl)%nextcs
@@ -1362,23 +1362,10 @@
 !              phasetuple(jl-1)%ixphase,jl-1
          phasetuple(phasetuple(jl-1)%ixphase)%nextcs=jl-1
       endif
-!      kcs=phasetuple(jl)%ixphase
-!      evigheten: do while(phasetuple(kcs)%nextcs.ne.jl)
-!         if(phasetuple(kcs)%nextcs.eq.kcs) then
-!            kcs=phasetuple(kcs)%nextcs
-!         else
-!            write(*,*)'3B zero link in tuple: ',kcs
-!            phasetuple(kcs)%nextcs=0
-!            exit evigheten
-!         endif
-!      enddo evigheten
-!      if(phasetuple(kcs)%ixphase.eq.phasetuple(jl-1)%ixphase)then
-!         write(*,*)'3B changed nextcs in tuple ',kcs,jl-1
-!         phasetuple(kcs)%nextcs=jl-1
-!      else
-!         write(*,*)'3B zero link in tuple ',kcs
-!         phasetuple(kcs)%nextcs=0
-!      endif
+!
+! THERE IS SOME ERROR HERE ... macro Nestor-800 with 21 elements returned
+! sometimes that a tuple did not exist.
+!
 ! we must change the link in the phase_varres records also!!
       lokph=phasetuple(jl-1)%phaseix
       lokcs=phlista(lokph)%linktocs(phasetuple(jl-1)%compset)
