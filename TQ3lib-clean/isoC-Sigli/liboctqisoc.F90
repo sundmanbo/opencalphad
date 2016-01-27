@@ -19,7 +19,27 @@ contains
     nchars = i - 1  ! Exclude null character from Fortran string
     allocate(character(len=nchars) :: str)
     str = transfer(s(1:nchars), str)
+	
   end function c_to_f_string
+  
+  subroutine c_to_f_str(s,sty)
+    use iso_c_binding
+    implicit none
+    character(kind=c_char,len=1), intent(in) :: s(*)
+	character(len=24), intent(out) :: sty
+    character(len=:), allocatable :: str
+	
+    integer i, nchars
+    i = 1
+    do
+       if (s(i) == c_null_char) exit
+       i = i + 1
+    end do
+    nchars = i - 1  ! Exclude null character from Fortran string
+    allocate(character(len=nchars) :: str)
+    sty = transfer(s(1:nchars), str)
+	deallocate (str)
+  end subroutine c_to_f_str
 
   subroutine f_to_c_string(fstring, cstr)
     use iso_c_binding
@@ -162,10 +182,10 @@ contains
 !\begin{verbatim}
   subroutine c_tqrfil(filename,c_ceq) bind(c, name='c_tqrfil')
     character(kind=c_char,len=1), intent(in) :: filename(*)
-    character(len=:), allocatable :: fstring
-    type(gtp_equilibrium_data), pointer :: ceq
     type(c_ptr), intent(inout) :: c_ceq
 !\end{verbatim}
+	type(gtp_equilibrium_data), pointer :: ceq
+	character(len=:), allocatable :: fstring
     integer :: i,j,l
     character(kind=c_char, len=1),dimension(24), target :: f_pointers
 ! convert type(c_ptr) to fptr
@@ -182,7 +202,8 @@ contains
 	   write(*,*) cmass(i)
     end do
     c_ceq = c_loc(ceq)
-	
+	deallocate(fstring)
+	nullify(ceq)
   end subroutine c_tqrfil
 
  
@@ -219,6 +240,7 @@ contains
     end do
     c_ceq = c_loc(ceq)
 	deallocate (fstring)
+	nullify(ceq)
   end subroutine c_tqrpfil
 
 !\begin{verbatim}
@@ -400,6 +422,7 @@ contains
 	 type(gtp_equilibrium_data), pointer :: ceq
     call c_f_pointer(c_ceq, ceq)
     call tqsetc(statvar, n1, n2, mvalue, cnum, ceq)
+	nullify(ceq)
     
   end subroutine c_tqsetc
 
@@ -408,18 +431,20 @@ contains
 ! calculate equilibrium with possible target
 ! Target can be empty or a state variable with indicies n1 and n2
 ! value is the calculated value of target
-    integer(c_int), intent(in),value :: n1
-    integer(c_int), intent(in),value :: n2
+    integer(c_int), intent(in) :: n1
+    integer(c_int), intent(in) :: n2
     type(c_ptr), intent(inout) :: c_ceq
     character(c_char), intent(inout) :: mtarget  
     real(c_double), intent(inout) :: mvalue
-    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-    character(len=24) :: fstring
+	type(gtp_equilibrium_data), pointer :: ceq
+    character(len=:), allocatable :: fstring
     call c_f_pointer(c_ceq,ceq)
     fstring = c_to_f_string(mtarget)
     call tqce(fstring,n1,n2,mvalue,ceq)
     c_ceq = c_loc(ceq)
+	deallocate(fstring)
+	nullify(ceq)
   end subroutine c_tqce
 
 !\begin{verbatim}
@@ -429,7 +454,7 @@ contains
 ! n3 at the call is the dimension of values, changed to number of values
 ! value is the calculated value, it can be an array with n3 values.
     implicit none
-    integer(c_int), intent(in), value ::  n1,n2
+    integer(c_int), intent(in) ::  n1,n2
     integer(c_int), intent(inout) :: n3
     character(c_char), intent(in) :: statvar
     real(c_double), intent(inout) :: values(*)
@@ -497,7 +522,7 @@ contains
 !    write(*,*)'Phase and error code: ',2,gx%bmperr
 !    write(*,*)
 
-    fstring = c_to_f_string(statvar)
+    call c_to_f_str(statvar,fstring)
     call tqgetv(fstring, n1, n2, n3, values, ceq)
 ! debug ...
 !   write(*,55)fstring(1:len_trim(fstring)),n1,n2,n3,(values(i),i=1,n3)
@@ -505,7 +530,7 @@ contains
 !    write(*,*)
 ! end debug
     c_ceq = c_loc(ceq)
-
+	
   end subroutine c_tqgetv
 
 !\begin{verbatim}
@@ -642,16 +667,17 @@ contains
 !PHENTERED=0
     implicit none
 	character(c_char), intent(in) :: phasename(24)
-	integer(c_int), intent(in), value :: nystat
-	real(c_double), intent(in), value :: myval
+	integer(c_int), intent(in) :: nystat
+	real(c_double), intent(in) :: myval
     type(c_ptr), intent(inout) :: c_ceq ! in: current equilibrium
 !\end{verbatim}	
 	type(gtp_equilibrium_data), pointer :: ceq 
-	 character(len=24) :: fstring
+	character(len=24) :: fstring
     call c_f_pointer(c_ceq, ceq)
-    fstring = c_to_f_string(phasename)
+    call c_to_f_str(phasename,fstring)
 	call Change_Status_Phase(fstring,nystat,myval,ceq)
 	c_ceq = c_loc(ceq)
+	
 1000 continue	
 	return
   end subroutine c_Change_Status_Phase
@@ -717,7 +743,7 @@ contains
     !call selecteq(ieq,ceq)
 	ceq=>eqlista(ieq)
     c_ceq = c_loc(ceq)
-	
+	nullify(ceq)
 	
 	return
   end subroutine c_selecteq
@@ -737,6 +763,7 @@ contains
   call copy_equilibrium(neweq,fstring,ceq)
   c_neweq=c_loc(neweq)
   deallocate(fstring)
+  nullify(ceq)
   return
   end subroutine c_copy_equilibrium
   
