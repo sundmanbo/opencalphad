@@ -71,7 +71,7 @@ module liboctq
 !
   implicit none
 !
-  integer, parameter :: maxc=20,maxp=100
+  integer, parameter :: maxc=40,maxp=500
 !
 ! This is for storage and use of components
   integer nel
@@ -786,6 +786,41 @@ contains
           call get_state_var_value(statevar,values(1),encoded,ceq)
           n3=1
        endif
+!--------------------------------------------------------------------
+! Enthalpy
+    case('H   ')
+! phase specifier not allowed
+       if(norm(1:1).ne.' ') then
+          statevar='H'//norm
+          ki=2
+       else
+          statevar='H '
+          ki=1
+       endif
+!       write(*,*)'tqgetv 1: ',n1,ki
+       if(n1.gt.0) then
+! H for a specific phase
+! NOTE in this case n1 is 10*phase number + composition set number
+!          ics=mod(n1,10)
+!          nph=n1/10
+!          if(nph.eq.0 .or. ics.eq.0) then
+!             write(*,*)'You must use extended phase index'
+!             gx%bmperr=8887; goto 1000
+!          endif
+!          write(*,*)'tqgetv 2: ',nph,ics
+!          call get_phase_name(nph,ics,name)
+			call get_phase_name(phcs(n1)%phaseix,phcs(n1)%compset,name)
+          if(gx%bmperr.ne.0) goto 1000
+          statevar=statevar(1:ki)//'('//name(1:len_trim(name))//') '
+!          write(*,*)'tqgetv 3: ',statevar
+          call get_state_var_value(statevar,values(1),encoded,ceq)
+          n3=1
+       else
+! Total Enthalpy 
+          call get_state_var_value(statevar,values(1),encoded,ceq)
+          n3=1
+       endif
+!--------------------------------------------------------------------	   
 !--------------------------------------------------------------------
 ! Mobilities
     case('MQ   ')

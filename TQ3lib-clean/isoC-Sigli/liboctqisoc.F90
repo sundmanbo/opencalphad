@@ -407,15 +407,15 @@ contains
 ! when a phase indesx is needed it should be 10*nph + ics
 ! SEE TQGETV for doucumentation of stavar etc.
 !>>>> to be modified to use phase tuplets
-    integer(c_int), intent(in) :: n1 !in: 0 or extended phase index:
+    integer(c_int), intent(in),value :: n1 !in: 0 or extended phase index:
 !                                       10*phase_number+comp.set
                                      ! or component set
-    integer(c_int), intent(in) :: n2 !
+    integer(c_int), intent(in),value :: n2 !
     integer(c_int), intent(out) :: cnum !exit: 
 !                                        sequential number of this condition
     character(c_char), intent(in) :: statvar !in: character
 !                                             with state variable symbol
-    real(c_double), intent(in) :: mvalue  !in: value of condition
+    real(c_double), intent(in),value :: mvalue  !in: value of condition
    
     type(c_ptr), intent(in) :: c_ceq ! in: current equilibrium
 !\end{verbatim}
@@ -431,8 +431,8 @@ contains
 ! calculate equilibrium with possible target
 ! Target can be empty or a state variable with indicies n1 and n2
 ! value is the calculated value of target
-    integer(c_int), intent(in) :: n1
-    integer(c_int), intent(in) :: n2
+    integer(c_int), intent(in),value :: n1
+    integer(c_int), intent(in),value :: n2
     type(c_ptr), intent(inout) :: c_ceq
     character(c_char), intent(inout) :: mtarget  
     real(c_double), intent(inout) :: mvalue
@@ -454,7 +454,7 @@ contains
 ! n3 at the call is the dimension of values, changed to number of values
 ! value is the calculated value, it can be an array with n3 values.
     implicit none
-    integer(c_int), intent(in) ::  n1,n2
+    integer(c_int), intent(in),value ::  n1,n2
     integer(c_int), intent(inout) :: n3
     character(c_char), intent(in) :: statvar
     real(c_double), intent(inout) :: values(*)
@@ -667,8 +667,8 @@ contains
 !PHENTERED=0
     implicit none
 	character(c_char), intent(in) :: phasename(24)
-	integer(c_int), intent(in) :: nystat
-	real(c_double), intent(in) :: myval
+	integer(c_int), intent(in), value :: nystat
+	real(c_double), intent(in),value :: myval
     type(c_ptr), intent(inout) :: c_ceq ! in: current equilibrium
 !\end{verbatim}	
 	type(gtp_equilibrium_data), pointer :: ceq 

@@ -1,5 +1,5 @@
 !
-! Minimal TQ interface.
+! Minimal TQ interface, modified for CEA
 !
 ! To compile and link this with an application one must first compile
 ! and form a library with of the most OC subroutines (oclib.a)
@@ -107,7 +107,7 @@ contains
     character*(*) filename  ! IN: database filename
     character ellista(10)*2  ! dummy
     type(gtp_equilibrium_data), pointer :: ceq !IN: current equilibrium
-!\end{verbatim} %+
+!\end{verbatim}
     integer iz
     character elname*2,name*24,refs*24
     double precision a1,a2,a3
@@ -128,7 +128,7 @@ contains
 
 !\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
 
-!\begin{verbatim} %-
+!\begin{verbatim}
   subroutine tqrpfil(filename,nsel,selel,ceq)
 ! read TDB file with selection of elements
     implicit none
@@ -230,6 +230,25 @@ contains
 1000 continue
     return
   end subroutine tqgpi
+
+!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
+
+!\begin{verbatim}
+  subroutine tqgpcn(n,c,constituentname,ceq)
+! get name of consitutent c in phase n
+! NOTE An identical routine with different constituent index is tqgpcn2
+    implicit none
+    integer n !IN: phase number
+!NO  integer c !IN: extended constituent index: 10*species_number+sublattice
+    integer c !IN: sequantial constituent index over all sublattices
+    character constituentname*(24) !EXIT: costituent name
+    type(gtp_equilibrium_data), pointer :: ceq !IN: current equilibrium
+!\end{verbatim}
+    write(*,*)'tqgpcn not implemented yet'
+    gx%bmperr=8888
+1000 continue
+    return
+  end subroutine tqgpcn
 
 !\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
 
@@ -360,7 +379,7 @@ contains
 ! n1 and n2 are auxilliary indices
 ! value is the value of the condition
 ! cnum is returned as an index of the condition.
-! to remove a condition the value sould be equial to RNONE ????
+! to remove a condition the value sould be equal to RNONE ????
 ! when a phase indesx is needed it should be 10*nph + ics
 ! SEE TQGETV for doucumentation of stavar etc.
     implicit none
@@ -624,9 +643,11 @@ contains
        endif
 !--------------------------------------------------------------------
 ! Mole or mass fractions
-    case('X   ','W   ')
+    case('X   ','W   ','N   ','B   ')
 !       write(*,*)'tqgetv: ',n1,n2,n3
-       if(n2.eq.0) then
+       if(kj.gt.0) then
+          call get_many_svar(stavar,values,mjj,n3,encoded,ceq)
+       elseif(n2.eq.0) then
           if(n1.lt.0) then
 ! mole ´fraction of all components, no phase specification
              statevar=stavar(1:1)//'(*) '
@@ -887,7 +908,7 @@ contains
     integer n1,n2,n3
     double precision gtp(6),dgdy(*),d2gdydt(*),d2gdydp(*),d2gdy2(*)
     type(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim} %+
+!\end{verbatim}
     integer ij,lokres,nofc
 !    write(*,*)'tqcph1 1: ',ceq%eqname
 !    write(*,*)'tqcph1 2',phcs(n1)%phaseix,phcs(n1)%compset
@@ -934,7 +955,7 @@ contains
 
 !\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
 
-!\begin{verbatim} %-
+!\begin{verbatim}
   subroutine tqcph2(n1,n2,n3,n4,ceq)
 ! tq_calculate_phase_properties
 !vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv

@@ -2,8 +2,8 @@
 //define PARALLEL 1 declared loops with parallelization
 #define PARALLEL 1
 #define OCVERSION "Open Calphad TQ v3.0 beta"
-#define MAXEL 20
-#define MAXPH 400
+#define MAXEL 41
+#define MAXPH 501
 #define PHFIXED 2
 #define PHENTERED 0
 #define PHSUS -3
@@ -33,17 +33,19 @@
 
 extern"C"
 {
-    void c_tqini(int, void *);                                                  // initiates the OC package
-    void c_tqrfil(char *, void *);                                              // read all elements from a TDB file
+	void c_Change_Status_Phase(char *, int ,double ,void *);
+	void c_tqgetv(char *, int , int , int *, double *, void *);                   // get equilibrium results using state variables
+    void c_tqsetc(char *, int, int , double, int *, void *);                     // set condition
+	void c_tqce(char *, int , int , double *, void *);                            // calculate quilibrium with possible target
+	void c_tqini(int, void *);                                                  // initiates the OC package
+    
+	void c_tqrfil(char *, void *);                                              // read all elements from a TDB file
     //void c_tqgcom(int *, char[MAXEL][24], void **);                           // get system component names. At present the elements
     void c_tqrpfil(char *, int, char **, void *);                               // read TDB file with selection of elements
     //void c_tqgnp(int *, void **);                                             // get total number of phases and composition sets
     void c_tqgpi(int *, char *, void *);                                        // get index of phase phasename
 	void c_tqgpn(int, char *, void *);                                          // get name of phase+compset tuple with index phcsx
-    void c_tqgetv(char *, int *, int *, int *, double *, void *);                   // get equilibrium results using state variables
-    void c_tqsetc(char *, int *, int *,const double *, int *, void *);                     // set condition
-    void c_tqce(char *, const int *, int *, double *, void *);                            // calculate quilibrium with possible target
-    //void c_tqgnp(int, gtp_equilibrium_data **);                               // get total number of phases and composition sets
+     //void c_tqgnp(int, gtp_equilibrium_data **);                               // get total number of phases and composition sets
     void examine_gtp_equilibrium_data(void *);                                  //
     //void c_getG(int, void *);
     //void c_calcg(int, int, int, int, void *);
@@ -51,7 +53,7 @@ extern"C"
                                                                         void *);
     void c_tqsphc1(int, double *, double *, void *);
     void c_tqcph1(int, int, int *, double *, double *, double *, double *, double *, void *);
-	void c_Change_Status_Phase(char *, const int *,const double *,void *);
+	
 	void c_List_Conditions(void *);
 	void c_checktdb(char *);
 	void c_newEquilibrium(char *,int *);
@@ -233,12 +235,12 @@ void ResetAllConditionsButPandN(void *ceq, const vector<string> &el_reduced_name
 	
 	
 }
-void Change_Phase_Status(const string &name,const int &nystat,const double &val,void *ceq){
+void Change_Phase_Status(const string &name,int nystat,double val,void *ceq){
 //nystat=0 :Entered
 //nystat=2 :Fixed
 	char *buffer=(char*)malloc(name.length()+1);
 	char *phasename = strcpy(buffer, name.c_str());
-	c_Change_Status_Phase(phasename,&nystat,&val,ceq);
+	c_Change_Status_Phase(phasename,nystat,val,ceq);
 	free (buffer);
 }
 void SetTemperature(const double &T, void *ceq)
@@ -250,7 +252,7 @@ void SetTemperature(const double &T, void *ceq)
   //  if (T < 1.0) T = 1.0;
 
     //=========================================
-    c_tqsetc(par, &n1, &n2, &T, &cnum, ceq);
+    c_tqsetc(par, n1, n2, T, &cnum, ceq);
     //=========================================
 
    // cout << "-> Set Temperature to: [" << T << "]" << " [" << &ceq << "]" <<
@@ -268,7 +270,7 @@ void SetPressure(const double &P, void *ceq)
    // if (P < 1.0) P = 1.0;
 
     //=========================================
-    c_tqsetc(par, &n1, &n2, &P, &cnum, ceq);
+    c_tqsetc(par, n1, n2, P, &cnum, ceq);
     //=========================================
 
 //    cout << "-> Set Pressure to: [" << P << "]" << " [" << &ceq << "]" <<
@@ -283,7 +285,7 @@ void SetMoles(const double &N, void *ceq)
     char par[60] = "N";
 
     //=========================================
-    c_tqsetc(par, &n1, &n2, &N, &cnum, ceq);
+    c_tqsetc(par, n1, n2, N, &cnum, ceq);
     //=========================================
 
  //   cout << "-> Set Moles to: [" << N << "]" << " [" << &ceq << "]" <<
@@ -310,7 +312,7 @@ void SetComposition(vector<double>& X, void *ceq, const int &i_ref,string &compo
 			int j=i+1;
 			double value= X[i];// Set and print composition, if element 'i' is not the reference/(last) element
             //==================================================
-            c_tqsetc(par, &j, &n2,&value, &cnum, ceq);
+            c_tqsetc(par, j, n2,value, &cnum, ceq);
             //==================================================
 
  //           cout << "-> Set Composition of " << c_cnam[i] << " to: [" <<
@@ -387,7 +389,7 @@ void CalculateEquilibrium(void *ceq, const int &n1, int &i_error, const vector <
 		iter+=1;
 		
 		//======================================
-		c_tqce(target, &n1, &n2, &val, ceq);
+		c_tqce(target, n1, n2, &val, ceq);
 		//======================================
 		i_error=c_errors_number();
 	}while((not(i_error==0))and(iter<1));
@@ -477,7 +479,7 @@ void ReadPhaseFractions(const vector<string> &phnames, vector<double>& phfract,
     int n3 = MAXPH;//sizeof(npf) / sizeof(npf[0]);
 
     //========================================
-    c_tqgetv(statevar, &n1, &n2, &n3, npf, ceq);
+    c_tqgetv(statevar, n1, n2, &n3, npf, ceq);
     //========================================
 	
     for(int i = 0; i < phnames.size(); i++){
@@ -511,7 +513,7 @@ void ReadMU(void *ceq, vector < double > &MU)
 		int n2 = 0;
 		int n3 = 1;
 		//========================================
-		c_tqgetv(statevar, &n1, &n2, &n3, npf, ceq);
+		c_tqgetv(statevar, n1, n2, &n3, npf, ceq);
 		//========================================
 
 		
@@ -529,12 +531,29 @@ double ReadTemperature(void *ceq)
 	double TK;
 
     //========================================
-    c_tqgetv(statevar, &n1, &n2, &n3, npf, ceq);
+    c_tqgetv(statevar, n1, n2, &n3, npf, ceq);
     //========================================
 
     
     TK=npf[0];
 	return(TK);
+};
+double ReadTotalEnthalpy(void *ceq)
+{
+    double npf[1];
+    char statevar[60] = "H";
+    int n1 = 0;
+    int n2 = 0;
+    int n3 = 1;
+	double H;
+
+    //========================================
+    c_tqgetv(statevar, n1, n2, &n3, npf, ceq);
+    //========================================
+
+
+    H=npf[0];
+	return(H);
 };
 void ReadConstituentFractions(const vector<string> &phnames, const vector<double> &phfract,
                                      vector< vector<double> > &elfract, void *ceq, const string &compo_unit)
@@ -564,7 +583,7 @@ void ReadConstituentFractions(const vector<string> &phnames, const vector<double
             int n4 = sizeof(pxf)/sizeof(pxf[0]);
 
             //=======================================
-            c_tqgetv(statevar, &i, &n2, &n4, pxf, ceq);
+            c_tqgetv(statevar, i, n2, &n4, pxf, ceq);
             //=======================================
 			
             for (int k = 0; k < n4; k++)
@@ -889,33 +908,41 @@ void Global_Find_Transitions(ofstream& file,double &TK_start,const int &n_step,d
 	string Ceq_Name=root;
 	
 	if (PARALLEL>0) {
-	int iceq;
+	
+	for (int i=Store_Equilibria.size(); i<n_step+1;i++){
+		Ceq_Name=root+IntToString(i);//in order to have a different name for each equilibrium
+		int iceq=Create_New_Ceq_and_Return_ID(Ceq_Name);// iceq is the index in the equilibrium vector eqlista of OC3
+		//	cout<<Ceq_Name<<" "<<iceq<<endl;
+		Store_Equilibria.push_back(iceq);//all the indexes are stored in the vector Store_Equilibria
+		string compo_unit("W");
+		Store_Equilibria_compo_unit.push_back(compo_unit);
+		void *ceqi= NULL;
+		c_selecteq(iceq, &ceqi);
+		SetPressure(1e5, &ceqi);// Set Pressure when ceqi is created (for the first loop of Global_Find_Transitions)
+
+		SetMoles(1.0, &ceqi); // Set Number of moles when ceqi is created
+		SetComposition(W, &ceqi,i_ref,mycompo_unit);// Set the composition  when ceqi is created
+		c_set_status_globaldata();
+	}
+	
+	for (int i=0; i<n_step+1;i++){
+		void *ceqi= NULL;
+		int iceq=Store_Equilibria[i];
+		c_selecteq(iceq, &ceqi);
+//			Change_Phase_Status("LIQUID",PHENTERED,1.0,&ceqi);//
+
 		
-		for (int i=Store_Equilibria.size(); i<n_step+1;i++){
-			void *ceqi= NULL;
-			Ceq_Name=root+IntToString(i);//in order to have a different name for each equilibrium
-			iceq=Create_New_Ceq_and_Return_ID(Ceq_Name);// iceq is the index in the equilibrium vector eqlista of OC3 
-//			cout<<Ceq_Name<<" "<<iceq<<endl;	
-			Store_Equilibria.push_back(iceq);//all the indexes are stored in the vector Store_Equilibria
-			string compo_unit("W");
-			Store_Equilibria_compo_unit.push_back(compo_unit);
-			c_selecteq(iceq, &ceqi);
-//			Change_Phase_Status("LIQUID",PHENTERED,1.0,&ceqi);// 
-			
-			SetPressure(1e5, &ceqi);// Set Pressure when ceqi is created (for the first loop of Global_Find_Transitions)
-			
-			SetMoles(1.0, &ceqi); // Set Number of moles when ceqi is created
-			SetComposition(W, &ceqi,i_ref,mycompo_unit);// Set the composition  when ceqi is created
-			double TK=1200;
-			SetTemperature(TK, &ceqi);
-			c_set_status_globaldata();
-		//---------------------Compute Equilibrium----------------------------
-			int i_error=0;
-			
-            for (int k=0;k<phnames.size();k++) Change_Phase_Status(phnames[k],PHENTERED,0.,&ceqi);
-			Change_Phase_Status("LIQUID",PHENTERED,1.0,&ceqi);// 
+		double TK=1200;
+		SetTemperature(TK, &ceqi);
+		SetComposition(W, &ceqi,i_ref,mycompo_unit);// Set the composition  when ceqi is created
+//		
+	//---------------------Compute Equilibrium----------------------------
+		int i_error=0;
+
+		for (int k=0;k<phnames.size();k++) Change_Phase_Status(phnames[k],PHENTERED,0.,&ceqi);
+			Change_Phase_Status("LIQUID",PHENTERED,1.0,&ceqi);//
 			CalculateEquilibrium(&ceqi,NOGRID,i_error,Suspended_phase_list);
-			
+
 		}
 	}
 	bool first_iteration=true;
