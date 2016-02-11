@@ -1,0 +1,41 @@
+
+del *.o
+del *.mod
+
+copy utilities\metlib3.F90 .
+gfortran -c -fbounds-check -finit-local-zero metlib3.F90
+del metlib3.F90
+
+copy numlib\lukasnum.F90 .
+gfortran -c -fbounds-check -finit-local-zero lukasnum.F90
+del lukasnum.F90
+
+copy models\gtp3*.F90 .
+gfortran -c -fbounds-check -finit-local-zero gtp3.F90
+del gtp3*.F90
+
+copy minimizer\matsmin.F90 .
+gfortran -c -fbounds-check -finit-local-zero matsmin.F90
+del matsmin.F90
+
+copy numlib\lmdif1lib.F90
+gfortran -c -fbounds-check -finit-local-zero lmdif1lib.F90
+del lmdif1lib.F90
+
+copy stepmapplot\smp1.F90 .
+gfortran -c -fbounds-check -finit-local-zero smp1.F90
+del smp1.F90
+
+copy userif\pmon6.F90 .
+gfortran -c -fbounds-check -finit-local-zero pmon6.F90
+del pmon6.F90
+
+gfortran -o linkoc linkocdate.F90
+linkoc
+
+del liboceq.a
+
+ar sq liboceq.a metlib3.o lukasnum.o gtp3.o matsmin.o lmdif1lib.o
+
+gfortran -o oc3B -fbounds-check pmain1.F90 pmon6.o smp1.o liboceq.a
+
