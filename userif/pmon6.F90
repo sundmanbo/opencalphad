@@ -52,7 +52,7 @@ contains
 ! element symbol and array of element symbols
     character elsym*2,ellist(maxel)*2
 ! more texts for various purposes
-    character text*72,string*256,ch1*1,selection*27
+    character text*72,string*256,ch1*1,selection*27,funstring*1024
     character axplot(3)*24,axplotdef(3)*24
     character plotform*32,longstring*2048,optres*40
 ! separate file names for remembering and providing a default
@@ -289,7 +289,7 @@ contains
          ['FCC_PERMUTATIONS','BCC_PERMUTATIONS','IONIC_LIQUID_MDL',&
          'AQUEOUS_MODEL   ','QUASICHEMICAL   ','FCC_CVM_TETRADRN',&
          'FACT_QUASICHEMCL','NO_AUTO_COMP_SET','QUIT            ',&
-         'EXTRA_DENSE_GRID','                ','                ',&
+         'EXTRA_DENSE_GRID','FLORY_HUGGINS   ','                ',&
          '                ','                ','                ']
 !         123456789.123456---123456789.123456---123456789.123456
 !-------------------
@@ -675,10 +675,10 @@ contains
           endif
           if(idef.eq.0) then
 ! it is a function , this call just read the function starting with low T etc.
-             call enter_tpfun_interactivly(cline,last,string,jp)
+             call enter_tpfun_interactivly(cline,last,funstring,jp)
 ! this stores the tpfun, lrot<0 means the symbol already exists
              lrot=-1
-             call enter_tpfun(name1,string,lrot,.FALSE.)
+             call enter_tpfun(name1,funstring,lrot,.FALSE.)
              if(gx%bmperr.ne.0) goto 990
 ! mark functions not calculated.  This should be done in all ceq ...
              ceq%eq_tpres(lrot)%tpused(1)=-one
@@ -1381,18 +1381,18 @@ contains
              kom4=submenu('Set which bit?',cline,last,csetphbits,nsetphbits,9)
              SELECT CASE(kom4)
              CASE DEFAULT
-                write(kou,*)'Set phase bit subcommand error'
 ! allow any bit changes for experts ...
                 if(btest(globaldata%status,GSADV)) then
                    call getint(cline,last,ll)
                    if(ll.ge.0 .and. ll.le.31) then
-                      write(kou,*)'As you are expert ... changing bit: ',ll
+                      write(kou,*)'Ahh, you are an expert ... changing bit: ',ll
                       call set_phase_status_bit(lokph,ll)
                    else
-                      write(kou,*)'Illegal bit number'
+                      write(kou,*)'Illegal bit number',ll
                    endif
+                else
+                   write(kou,*)'Set phase bit subcommand error'
                 endif
-                goto 100
 !............................................................
              case(1) ! FCC_PERMUTATIONS FORD
 ! if check returns .true. it is not allowed to set FORD or BORD
@@ -1925,11 +1925,11 @@ contains
              call capson(name2)
              if(compare_abbrev(name2,'FUNCTION ')) then
 ! this call just read the function
-                call enter_tpfun_interactivly(cline,last,string,jp)
+                call enter_tpfun_interactivly(cline,last,funstring,jp)
                 if(gx%bmperr.ne.0) goto 990
 ! here the function is stored
                 lrot=0
-                call enter_tpfun(name1,string,lrot,.FALSE.)
+                call enter_tpfun(name1,funstring,lrot,.FALSE.)
                 if(gx%bmperr.ne.0) goto 990
              elseif(compare_abbrev(name2,'CONSTANT ')) then
 ! Enter a numeric constant
@@ -2339,20 +2339,21 @@ contains
              else
                 name1=' '
              endif
+!             j1=len_trim(eqlista(iel)%comment)
              if(eqlista(iel)%weight.le.zero) then
                 write(lut,6202)iel,name1(1:2),eqlista(iel)%eqname,&
-                     eqlista(iel)%tpval(1)
-6202            format(i5,2x,a2,2x,a,' T=',F8.2)
+                     eqlista(iel)%tpval(1),eqlista(iel)%comment(1:33)
+6202            format(i4,1x,a2,1x,a,' T=',F8.2,', ',a)
              else
                 write(lut,6203)iel,name1(1:2),eqlista(iel)%eqname,&
-                     eqlista(iel)%tpval(1),eqlista(iel)%weight
-6203            format(i5,2x,a2,2x,a,' T=',F8.2,', weight=',F6.2)
+                     eqlista(iel)%tpval(1),eqlista(iel)%weight,&
+                     eqlista(iel)%comment(1:20)
+6203            format(i4,1x,a2,1x,a,' T=',F8.2,', weight=',F5.2,', ',a)
              endif
-             j1=len_trim(eqlista(iel)%comment)
-             if(j1.gt.1) then
-                write(lut,6204)eqlista(iel)%comment(1:j1)
-6204            format(12x,a)
-             endif
+!             if(j1.gt.1) then
+!                write(lut,6204)eqlista(iel)%comment(1:j1)
+!6204            format(12x,a)
+!             endif
           enddo
 !------------------------------
        case(12) ! list results
@@ -2362,6 +2363,11 @@ contains
           endif
           call date_and_time(optres,name1)
           write(lut,6051)ceq%eqno,ceq%eqname,optres(1:4),optres(5:6),optres(7:8)
+! write comment line if any
+          if(len_trim(ceq%comment).gt.0) then
+             write(lut,6308)trim(ceq%comment)
+6308         format(3x,a)
+          endif
 !  if(btest(globaldata%status,GSEQFAIL)) then
           if(btest(ceq%status,EQFAIL)) then
              write(lut,6305)

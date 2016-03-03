@@ -4015,6 +4015,11 @@
    coleq=colvar
    eqlin=rowtext
    call gparc('Table row: ',cline,last,5,text,' ',q1help)
+! allow empty lines
+   if(len_trim(text).le.1) goto 300
+! remove TAB characters
+   call untab(text)
+! make all upper case
    call capson(text)
 !   write(*,*)'3B 300: ',cline(1:len_trim(cline))
    if(text(1:5).eq.'TABLE') then

@@ -1793,7 +1793,7 @@
 
 !\begin{verbatim}
  subroutine enter_tpfun_interactivly(cline,ip,longline,jp)
-! interactive input of a TP expression
+! interactive input of a TP expression, whole function returned in longline
 !   implicit double precision (a-h,o-z)
    implicit none
    integer ip,jp
@@ -1802,8 +1802,10 @@
    character line*80,ch1*1
    integer nexpr,lsc,kkp
    double precision xx
+!   write(*,*)'Max ',len(longline),' characters'
    call gparrd('Low temperature limit: ',cline,ip,xx,2.9815D2,nohelp)
    if(buperr.ne.0) then
+! set default low limit
       buperr=0; longline=' 298.15 '
       jp=8
    else
@@ -1836,22 +1838,29 @@
    endif
 150 continue
 ! make sure there is a ; at the end of each expression
-!   write(*,*)'tpfun add ;'
    kkp=index(longline(nexpr:),';')
+!   write(*,130)'3Z pos1: ',nexpr,kkp,lsc,jp,trim(longline)
+!130 format(a,4i4,': ',a/26x,'123456789.123456789.123456789.123456789.')
+!   write(*,*)'tpfun add ;'
    if(kkp.le.0) then
       kkp=len_trim(longline)
       longline(kkp+1:)='; '
       jp=kkp+3
       nexpr=jp
+      write(*,*)'3Z adding ; at position: ',kkp+1,nexpr
    else
-      nexpr=kkp+1
+!      nexpr=kkp+1
+      nexpr=len_trim(longline)+2
    endif
 ! lsc is position of ; for previous range
+!   write(*,130)'3Z pos2: ',nexpr,kkp,lsc,jp,trim(longline)
    lsc=nexpr
    call gparrd('Upper temperature limit ',cline,ip,xx,6.0D3,nohelp)
    if(buperr.ne.0) then
       buperr=0; xx=6.0D3
    endif
+! enter a space after ;
+   jp=jp+1
    call wrinum(longline,jp,8,0,xx)
    if(buperr.ne.0) goto 1000
    call gparcd('Any more ranges',cline,ip,1,ch1,'N',nohelp)
@@ -1863,6 +1872,16 @@
       jp=jp+3
       goto 115
    endif
+! remove any "#" (comes from TC functions)
+900 continue
+   kkp=index(longline,'#')
+   if(kkp.gt.0) then
+      longline(kkp:kkp)=' '
+      goto 900
+   endif
+!   write(*,910)'3Z tpf: ',jp,trim(longline)
+!910 format(a,i3,': ',a)
+!
 1000 continue
    return
  end subroutine enter_tpfun_interactivly

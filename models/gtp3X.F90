@@ -119,9 +119,15 @@
    double precision, dimension(:,:), allocatable :: tmpd2g
 ! added when implicit none
    double precision rtg,pyq,ymult,add1,sum,yionva,fsites,xxx
-   integer nofc2,nprop,nsl,msl,lokdiseq,ll,id,id1,id2,lm,jl
+   integer nofc2,nprop,nsl,msl,lokdiseq,ll,id,id1,id2,lm,qz,floryhuggins
    integer lokfun,itp,nz,intlat,ic,jd,jk,ic1,jpr,ipy,i1,j1
    integer i2,j2,ider,is,kk,ioff,norfc,iw,iw1,iw2,lprop,jonva
+! storage for calculated Flopry Huggins volume parameters
+   integer, dimension(:), allocatable :: fhlista
+   double precision fhvsum
+   double precision, dimension(:,:), allocatable :: fhv
+   double precision, dimension(:,:,:), allocatable :: dfhv
+   double precision, dimension(:,:), allocatable :: d2fhv
 ! to handle parameters with wildcard constituent and other things
    logical wildc,nevertwice,first,chkperm,ionicliq,iliqsave,iliqva
 ! debugging for partitioning and ordering
@@ -130,6 +136,8 @@
    rtg=globaldata%rgas*ceq%tpval(1)
    ceq%rtn=rtg
 !-----------------------
+! this is used for the Flory-Huggins model
+   floryhuggins=0
    chkperm=.false.
    if(btest(phlista(lokph)%status1,PHFORD) .or. &
         btest(phlista(lokph)%status1,PHBORD)) then
@@ -201,6 +209,11 @@
 !      else
 !         onlyanions=.FALSE.
 !      endif
+   elseif(btest(phlista(lokph)%status1,PHFHV)) then
+! Flory-Huggins model require special treatment to calculate the molar
+! volumes of the constituents.  The entropy is calculated in the end and
+! a second loop through all parameters done by jumping to label 100
+      floryhuggins=-1
    else
 ! NOTE: for phases with disordered fraction set this is calculated
 ! for the ordered original constituent fraction set only
@@ -262,8 +275,8 @@
          gz%nofc=phlista(lokph)%tnooffr
          msl=nsl
          incffr(0)=0
-         do jl=1,nsl
-            incffr(jl)=incffr(jl-1)+phlista(lokph)%nooffr(jl)
+         do qz=1,nsl
+            incffr(qz)=incffr(qz-1)+phlista(lokph)%nooffr(qz)
          enddo
 ! the results will be stored in the results arrays indicated by phres
 ! it was set above for the ordered fraction set. 
@@ -273,8 +286,8 @@
          msl=fracset%ndd
          gz%nofc=fracset%tnoofxfr
          incffr(0)=0
-         do jl=1,msl
-            incffr(jl)=incffr(jl-1)+fracset%nooffr(jl)
+         do qz=1,msl
+            incffr(qz)=incffr(qz-1)+fracset%nooffr(qz)
          enddo
 ! we have to deallocate and allocate local arrays, not if moded=0 or 1??
          deallocate(dpyq)
@@ -521,15 +534,15 @@
                typty=proprec%proptype
                if(typty.ne.1) then
 ! if property different from 1 (=G) find where to store it, use phmain link
-                  do jl=2,lprop-1
-                     if(phmain%listprop(jl).eq.typty) goto 170
+                  do qz=2,lprop-1
+                     if(phmain%listprop(qz).eq.typty) goto 170
                   enddo
 ! a new property, save its typty in listprop and increment lprop
 ! note that the property index typty is not used as index in gval etc
 ! as that can be very large. lprop is incremented by 1 for each property
 ! actually used in the model of the phase.
-                  jl=lprop
-                  phmain%listprop(jl)=typty
+                  qz=lprop
+                  phmain%listprop(qz)=typty
                   if(allocated(phmain%listprop)) then
 !                  if(lprop.ge.nprop) then
 ! VERY STRANGE ERROR, nprop is suddenly zero ....
@@ -547,8 +560,9 @@
                   endif
                   lprop=lprop+1
                   phmain%listprop(1)=lprop
+!                  write(*,*)'3X lprop: ',lprop,typty,phmain%listprop(1)
 170               continue
-                  ipy=jl
+                  ipy=qz
                else
                   ipy=1
                endif
@@ -563,8 +577,8 @@
                   vals=vals/rtg
                endif prop1
 ! debug
-!   write(*,173)'endmember: ',endmemrec%antalem,pyq,vals(1)
-!173 format(a,i3,4(1pe12.4))
+!               write(*,173)'3X endmember: ',endmemrec%antalem,ipy,pyq,vals(1)
+173            format(a,2i3,4(1pe12.4))
 ! multiply with py and derivatives. vals is composition independent
 !               write(*,*)'Config G 4B: ',vals(1)*rtg
                noderz2: if(moded.gt.0) then
@@ -585,6 +599,7 @@
                do itp=1,6
                   phres%gval(itp,ipy)=phres%gval(itp,ipy)+pyq*vals(itp)
                enddo
+!               write(*,173)'3X gval:      ',0,ipy,phres%gval(1,ipy),pyq,vals(1)
                proprec=>proprec%nextpr
 !               write(*,*)'Config G 4C: ',phres%gval(1,1)*rtg
             enddo emprop
@@ -937,17 +952,17 @@
                   typty=proprec%proptype
                   if(typty.ne.1) then
 ! other properties than 1 (G) must be stored in different gval(*,ipy) etc
-                     do jl=2,lprop-1
-                        if(phmain%listprop(jl).eq.typty) goto 250
+                     do qz=2,lprop-1
+                        if(phmain%listprop(qz).eq.typty) goto 250
                      enddo
 ! a new property, save its typty in listprop and increment lprop
-                     jl=lprop
-                     phmain%listprop(jl)=typty
+                     qz=lprop
+                     phmain%listprop(qz)=typty
                      lprop=lprop+1
                      phmain%listprop(1)=lprop
 250                  continue
 ! here the value of ipy is set, 1 means G
-                     ipy=jl
+                     ipy=qz
                   else
                      ipy=1
                   endif
@@ -997,11 +1012,11 @@
                            if(moded.gt.1) then
 ! contribution to second derivatives with respect to 2 const previously ignored
 ! No second derivatives calculated in cgint for this case
-                           do jl=jk,4
-                              phres%d2gval(ixsym(gz%iq(jk),gz%iq(jl)),ipy)=&
-                                  phres%d2gval(ixsym(gz%iq(jk),gz%iq(jl)),ipy)+&
-                                  dpyq(gz%iq(jk))*dvals(1,gz%iq(jl))+&
-                                  dpyq(gz%iq(jl))*dvals(1,gz%iq(jk))
+                           do qz=jk,4
+                              phres%d2gval(ixsym(gz%iq(jk),gz%iq(qz)),ipy)=&
+                                  phres%d2gval(ixsym(gz%iq(jk),gz%iq(qz)),ipy)+&
+                                  dpyq(gz%iq(jk))*dvals(1,gz%iq(qz))+&
+                                  dpyq(gz%iq(qz))*dvals(1,gz%iq(jk))
                            enddo
                            endif
 ! first derivatives, including 2nd wrt T and P
@@ -1021,12 +1036,12 @@
 !...<<<<<<<...... indentation back 2 levels
                   if(moded.gt.1) then
                      noindent1: do jk=1,3
-                        do jl=jk+1,3
-! the second derivative for jk=jl calculated below as it is simpler
-                           phres%d2gval(ixsym(gz%iq(jk),gz%iq(jl)),ipy)=&
-                                phres%d2gval(ixsym(gz%iq(jk),gz%iq(jl)),ipy)+&
-                                dpyq(gz%iq(jk))*dvals(1,gz%iq(jl))+&
-                                dpyq(gz%iq(jl))*dvals(1,gz%iq(jk))
+                        do qz=jk+1,3
+! the second derivative for jk=qz calculated below as it is simpler
+                           phres%d2gval(ixsym(gz%iq(jk),gz%iq(qz)),ipy)=&
+                                phres%d2gval(ixsym(gz%iq(jk),gz%iq(qz)),ipy)+&
+                                dpyq(gz%iq(jk))*dvals(1,gz%iq(qz))+&
+                                dpyq(gz%iq(qz))*dvals(1,gz%iq(jk))
                         enddo
                      enddo noindent1
                   endif
@@ -1483,7 +1498,7 @@
 !              phres%dpqdy(i1),phres%gval(1,1)
 !         write(*,747)'3Xx:',i1,add1,sum,phres%dgval(1,i1,1),phres%dpqdy(i1),&
 !              phres%sites(2),savedg(1,i1,1)
-747      format(a,i2,6(1pe12.4))
+!747      format(a,i2,6(1pe12.4))
       enddo firstd
 !      write(*,*)'summed: ',savedg(1,1,1)*rtg,phres%dgval(1,1,1)*rtg
 ! Integral values: G = saveg + Q*phres%gval with T and P derivatives
@@ -1502,7 +1517,7 @@
 ! strange bug which changes the results for a calculation with only C1
 ! if the ionic liquid has been non-suspended at some previous calculation ...
       saveg=zero
-!      if(ocv()) write(*,*)'De-allocated saveg 2: ',size(saveg)
+!      if(ocv()) write(*,*)'3X deallocated saveg 2: ',size(saveg)
 ! no need to set them zero if they will be deallocated??
 !      savedg=zero
 !      saved2g=zero
@@ -1513,6 +1528,92 @@
       endif
 !499   continue
    endif ionliqsum
+!................................
+! we have now finished calculate all parameters including those 
+! properties that affect the Gibbs energy indirectly like Curie T etc
+! For a model like the Flory-Huggins the partial molar volume must be
+! calculated before any other part of G so all must be calculated again ...
+! The label here just to indicate this, there is no explict jump here
+500 continue
+   if(floryhuggins.lt.0) then
+! The Flory-Huggins entropy require that we use the volume parameters
+! These have now been calculated and can be used in a second loop through
+! the other parameters
+! find where the molar volumes are stored, phmain%listprop(1) is no props
+      write(*,*)'3X FH: ',phmain%listprop(1),&
+           (phmain%listprop(ipy),ipy=2,phmain%listprop(1)-1)
+      allocate(fhlista(gz%nofc))
+      fhlista=0
+      ll=1
+      do ipy=2,phmain%listprop(1)
+         if(phmain%listprop(ipy).gt.2000) then
+! NOTE each element has a Flory-Huggins volume ... 2001, 2002 etc in any order
+! fhlista(i) is the index to gval(*,ipy)
+            fhlista(phmain%listprop(ipy)-2000)=ipy
+         endif
+      enddo
+! check that there are parameters!!
+      do j2=1,gz%nofc
+         if(fhlista(j2).eq.0) then
+            write(*,*)'3X No Flory Huggins volume for component: ',j2
+            gx%bmperr=7777; goto 1000
+         else
+            write(*,509)'3X Flory Huggins volume for element: ',&
+                 j2,fhlista(j2),phmain%gval(1,fhlista(j2))
+509         format(a,2i4,1pe12.4)
+         endif
+      enddo
+510   continue
+! we must copy the Flory-Huggins volumes as they will be overwritten next loop
+      allocate(fhv(gz%nofc,6))
+      allocate(dfhv(gz%nofc,3,gz%nofc))
+      allocate(d2fhv(gz%nofc,nofc2))
+      fhvsum=zero
+      do qz=1,gz%nofc
+         ipy=fhlista(qz)
+! if ipy is zero then the volume is constant equal to one
+         do ll=1,6
+            if(ipy.gt.0) then
+               fhv(qz,ll)=phmain%gval(ll,ipy)
+            endif
+         enddo
+         do ll=1,gz%nofc
+            if(ipy.gt..0) then
+               dfhv(qz,1,ll)=phmain%dgval(1,ll,ipy)
+               dfhv(qz,2,ll)=phmain%dgval(2,ll,ipy)
+               dfhv(qz,3,ll)=phmain%dgval(3,ll,ipy)
+            endif
+         enddo
+         do ll=1,nofc2
+            if(ipy.gt.0) then
+               d2fhv(qz,ll)=phmain%d2gval(ll,ipy)
+            endif
+         enddo
+! this is the only non-zero value for elements with no Flory-Huggins para,eter
+         if(ipy.eq.0) fhv(qz,1)=one
+         fhvsum=fhvsum+fhv(qz,1)
+      enddo
+! normallize all by fhvsum
+      write(*,511)fhvsum,(fhv(ll,1),ll=1,gz%nofc)
+      fhv=fhv/fhvsum
+      dfhv=dfhv/fhvsum
+      d2fhv=d2fhv/fhvsum
+! debug output
+      write(*,511)fhvsum,(fhv(ll,1),ll=1,gz%nofc)
+      write(*,511)(dfhv(1,1,ll),ll=1,gz%nofc)
+      write(*,511)(dfhv(1,1,ll),ll=1,gz%nofc)
+511   format('3X FHS: ',6(1pe12.4))
+! the molar volumes are in gval(*,ipy)
+      call config_entropy_floryhuggins(moded,phlista(lokph)%nooffr,&
+           phmain,gz%tpv(1),gz%nofc,fhv,dfhv,d2fhv)
+! set floryhuggins to 1 so the entropy is not calculated again but 
+! the molar volumes that have been calculated here can be used
+      floryhuggins=1
+! we must calculate the other parameters again using the specific molar volumes
+! not implemented yet ...
+      write(*,*)'3X Flory-Huggins model only config entropy, no goto 100'
+!      goto 100
+   endif
 !................................
 ! calculate additions like magnetic contributions etc and add to G
    addrec=>phlista(lokph)%additions
@@ -1754,7 +1855,7 @@
 ! temporary data like gz%intlevel, gz%nofc etc
    double precision d2vals(gz%nofc*(gz%nofc+1)/2),valtp(6)
    double precision vv(0:2),fvv(0:2)
-   integer lfun,jdeg,jint,jl,ivax
+   integer lfun,jdeg,jint,qz,ivax
    double precision rtg,dx0,dx,dx1,dx2,ct,fvs,dvax0,dvax1,dvax2,yionva
    double precision, parameter :: onethird=one/3.0D0,two=2.0D0
    logical ionicliq,iliqva,iliqneut
@@ -1866,18 +1967,18 @@
 11       format(a,3i2,6(1pe12.4))
 ! no composition derivative.  if moded=0 only G, =1 G+G.Y, =2 all
          noder5: if(moded.gt.0) then
-! first derivatives, jl=1: dG/dyA dG/dyB; jl=2: d2G/dTdy; jl=3: d3G/dPdy
+! first derivatives, qz=1: dG/dyA dG/dyB; qz=2: d2G/dTdy; qz=3: d3G/dPdy
 ! for iliqneut there should not be same -dx1 ... gz%iq(2) is neutral
-            do jl=1,3
-               dvals(jl,gz%iq(1))=dvals(jl,gz%iq(1))+dx1*valtp(jl)
-               dvals(jl,gz%iq(2))=dvals(jl,gz%iq(2))-dx1*valtp(jl)
+            do qz=1,3
+               dvals(qz,gz%iq(1))=dvals(qz,gz%iq(1))+dx1*valtp(qz)
+               dvals(qz,gz%iq(2))=dvals(qz,gz%iq(2))-dx1*valtp(qz)
                if(iliqva) then
 ! derivative with respect to vacancy fraction for (yc1-yc2)*yva: yc1-yc2
-                  dvals(jl,ivax)=dvals(jl,ivax)+dvax1*valtp(jl)
-!                  if(jl.eq.1) write(*,11)'3X iliqva: ',0,0,ivax,dvax1
+                  dvals(qz,ivax)=dvals(qz,ivax)+dvax1*valtp(qz)
+!                  if(qz.eq.1) write(*,11)'3X iliqva: ',0,0,ivax,dvax1
               elseif(iliqneut) then
 ! derivative with respect to vacancy fraction for (yc1*yva-yn): yc1
-                  dvals(jl,ivax)=dvals(jl,ivax)+dvax1*valtp(jl)
+                  dvals(qz,ivax)=dvals(qz,ivax)+dvax1*valtp(qz)
                endif
             enddo
 ! second derivatives, d2G/dyAdyA d2G/dyAdyB d2G/dyBdyB
@@ -1996,10 +2097,10 @@
             vals=vals+vv(jint)*valtp
             noder6: if(moded.gt.0) then
 ! first derivatives
-               do jl=1,3
-                  dvals(jl,gz%iq(1))=dvals(jl,gz%iq(1))+fvv(0)*valtp(jl)
-                  dvals(jl,gz%iq(2))=dvals(jl,gz%iq(2))+fvv(1)*valtp(jl)
-                  dvals(jl,gz%iq(3))=dvals(jl,gz%iq(3))+fvv(2)*valtp(jl)
+               do qz=1,3
+                  dvals(qz,gz%iq(1))=dvals(qz,gz%iq(1))+fvv(0)*valtp(qz)
+                  dvals(qz,gz%iq(2))=dvals(qz,gz%iq(2))+fvv(1)*valtp(qz)
+                  dvals(qz,gz%iq(3))=dvals(qz,gz%iq(3))+fvv(2)*valtp(qz)
                enddo
 ! there is no contribution to the second derivatives from this interaction
             endif noder6
@@ -2054,12 +2155,12 @@
 ! dvals(2,const) is the 2nd derivative of the fun wrt const and T
 ! dvals(3,const) is the 2nd derivative of the fun wrt const and P
 ! one dvals(*,ivax) could have been assigned a value above (for ionic liquid)
-            do jl=1,3
-!      write(*,63)'3X dvals: ',jl,gz%iq(3),dvals(jl,gz%iq(3)),&
-!           dvals(jl,gz%iq(4)),valtp(jl)
-               dvals(jl,gz%iq(3))=dvals(jl,gz%iq(3))+valtp(jl)
-               dvals(jl,gz%iq(4))=dvals(jl,gz%iq(4))-valtp(jl)
-!      write(*,63)'3X dvals: ',jl,gz%iq(4),dvals(jl,gz%iq(3)),dvals(jl,gz%iq(4))
+            do qz=1,3
+!      write(*,63)'3X dvals: ',qz,gz%iq(3),dvals(qz,gz%iq(3)),&
+!           dvals(qz,gz%iq(4)),valtp(qz)
+               dvals(qz,gz%iq(3))=dvals(qz,gz%iq(3))+valtp(qz)
+               dvals(qz,gz%iq(4))=dvals(qz,gz%iq(4))-valtp(qz)
+!      write(*,63)'3X dvals: ',qz,gz%iq(4),dvals(qz,gz%iq(3)),dvals(qz,gz%iq(4))
             enddo
 63          format(a,2i3,6(1pe12.4))
          endif recip1
@@ -2077,22 +2178,22 @@
 !67                format('3X ion liq recip: ',i3,2x,4i3,1pe12.4)
 ! interaction in ionic liquid with vacancy as one constituent in 2nd subl.
                   vals=vals+yionva*(gz%yfrem(gz%intlat(1))-gz%yfrint(1))*valtp
-                  do jl=1,3
-                     dvals(jl,gz%iq(1))=+yionva*valtp(jl)
-                     dvals(jl,gz%iq(2))=-yionva*valtp(jl)
+                  do qz=1,3
+                     dvals(qz,gz%iq(1))=+yionva*valtp(qz)
+                     dvals(qz,gz%iq(2))=-yionva*valtp(qz)
                   enddo
 ! we have to take into account extra derivatives wrt vacancies if vacancy
 ! is a constituent in second sublattice
-                  do jl=1,3
-                     dvals(jl,ivax)=&
-                          (gz%yfrem(gz%intlat(1))-gz%yfrint(1))*valtp(jl)
+                  do qz=1,3
+                     dvals(qz,ivax)=&
+                          (gz%yfrem(gz%intlat(1))-gz%yfrint(1))*valtp(qz)
                   enddo
                else
 ! not ionic liquid .... puuuh
                   vals=vals+(gz%yfrem(gz%intlat(1))-gz%yfrint(1))*valtp
-                  do jl=1,3
-                     dvals(jl,gz%iq(1))=+valtp(jl)
-                     dvals(jl,gz%iq(2))=-valtp(jl)
+                  do qz=1,3
+                     dvals(qz,gz%iq(1))=+valtp(qz)
+                     dvals(qz,gz%iq(2))=-valtp(qz)
                   enddo
                endif
             endif
@@ -2163,6 +2264,63 @@
 1000 continue
    return
  end subroutine config_entropy
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine config_entropy_floryhuggins(moded,nkl,phvar,tval,&
+      nofc,fhv,dfhv,d2fhv)
+! calculates configurational entropy/R for a phase with Flory-Huggins model
+! fhv, dfhv and d2fhv are calculated values of the flory-Huggins volume param
+   implicit none
+   integer moded,nofc
+   integer, dimension(1) :: nkl
+   TYPE(gtp_phase_varres), pointer :: phvar
+   double precision tval,fhv(nofc,*),dfhv(nofc,3,*),d2fhv(nofc,*)
+!\end{verbatim}
+   integer ll,kk,kall,nk,jl
+   double precision ss,yfra,ylog
+   write(*,*)'3X Config entropy in Flory Huggins model'
+   ll=0
+   kall=0
+   nk=nkl(1)
+   kk=0
+   ss=zero
+   fractionloop: do while (kk.lt.nk)
+! We use the already calculated partial molar volumes v_i = fhv_i * y_i
+! This means we cannot calculate this before calculating all parameters!!
+! so this routine must be called after a first calculation of fhv, dfhv etc
+! and then we must calculate all parameters again ... as they depend of v_i
+      kk=kk+1
+      kall=kall+1
+      yfra=phvar%yfr(kall)
+      if(yfra.lt.bmpymin) yfra=bmpymin
+      if(yfra.gt.one) yfra=one
+      ylog=log(yfra)
+! gval(1:6,1) are G and derivator wrt T and P
+! dgval(1,1:N,1) are derivatives of G wrt fraction 1:N
+! dgval(2,1:N,1) are derivatives of G wrt fraction 1:N and T
+! dgval(3,1:N,1) are derivatives of G wrt fraction 1:N and P
+! d2dval(ixsym(N*(N+1)/2),1) are derivatives of G wrt fractions N and M
+! this is a symmetric matrix and index givem by ixsym(M,N)
+      ss=ss+fhv(kall,1)*yfra*ylog
+      if(moded.gt.0) then
+         phvar%dgval(1,kall,1)=phvar%sites(1)*(one+ylog)
+         phvar%d2gval(ixsym(kall,kall),1)=phvar%sites(1)/yfra
+      endif
+   enddo fractionloop
+   phvar%gval(1,1)=phvar%gval(1,1)+phvar%sites(1)*ss
+! set temperature derivative of G and dG/dy
+   phvar%gval(2,1)=phvar%gval(1,1)/tval
+   if(moded.gt.0) then
+! This is the T derivative ...
+      do jl=1,kall
+         phvar%dgval(2,jl,1)=phvar%dgval(1,jl,1)/tval
+      enddo
+   endif
+1000 continue
+   return
+ end subroutine config_entropy_floryhuggins
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

@@ -473,7 +473,8 @@
 ! to avoid later trouble we should mark there is no compset for this gridp!!
                         iphl(j2)=-kph
                         icsl(j2)=-1
-                        exit newset
+! error on INTEL        exit newset
+                        cycle loop2
                      else
                         goto 1000
                      endif

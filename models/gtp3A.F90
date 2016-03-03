@@ -281,11 +281,21 @@
    propid(npid)%status=0
 ! The elastic constant may depend on T and P
 !.......................................
+! Flory-Huggins molar volume parameter 20
+   npid=npid+1
+   if(npid.gt.maxprop) stop 'Too many defined properties'
+   propid(npid)%symbol='FHV '
+   propid(npid)%note='Flory-Huggins volume '
+   propid(npid)%status=0
+! FHV is specific för a constituent
+   propid(npid)%status=ibset(propid(npid)%status,IDCONSUFFIX)
+!.......................................
 ! IMPORTRANT: When adding more parameter identifiers one should never
 ! use a name ending in D as that would be taken as a "disordered"
-! The number of defined properties, should be less than maxprop
+! The number of defined properties, should be less than maxprop (=50?)
 ! IMPORTANT: In the addition records one must use the parameter identifier
 ! to extract the calculated composition dependent values
+! IMPORTANT: in gtp3F new variables must be added to be able to list/plot them
    ndefprop=npid
 !-------------------------------------------------
 ! globaldata record; set gas constant mm

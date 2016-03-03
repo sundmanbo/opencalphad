@@ -179,7 +179,7 @@
 !      phtupord=.TRUE.
 !   endif
 ! called from minimizer for testing
-!   write(*,*)'gmv 1: ',statevar(1:20)
+!   write(*,*)'3Y gmv 1: ',trim(statevar)
    svr=>svrvar
    call decode_state_variable(statevar,svr,ceq)
    if(gx%bmperr.ne.0) then
@@ -552,6 +552,7 @@
    character argument*60,arg1*24,arg2*24,ch1*1,lstate*60,propsym*60
    integer typty
    logical deblist
+!   write(*,*)'3F in decode ',trim(statevar),istv
 ! initiate svr internal variables
    deblist=.FALSE.
 !   deblist=.TRUE.
@@ -594,14 +595,16 @@
    if(deblist) write(*,*)'3F decode_state_var 1: ',lstate(1:20)
 ! compare first character
    ch1=lstate(1:1)
+!   write(*,*)'3F decoding: ',trim(lstate),is,' ',ch1
    do is=1,noos
       if(ch1.eq.svid(is)(1:1)) goto 50
    enddo
 ! it may be a property, parameter identifier
+   if(deblist) write(*,*)'3F jump to 600!'
    goto 600
 !------------------------------------------------------------
 50 continue
-   if(deblist) write(*,*)'3F dsv 1: ',is,lstate(1:30)
+   if(deblist) write(*,*)'3F dsv 1: ',is,ch1
    if(is.eq.1) then
       if(lstate(2:2).ne.' ') then
 ! it must be a property like TC or THET
@@ -733,7 +736,7 @@
 ! NOTE: for N and B the second character has been checked and jp incremented
 !       if equal to P.  The third (for NP and BP forth) character must 
 !       be normallizing (MWVF), a space or a (, otherwise it is a property
-   if(deblist) write(*,*)'3F lstate: ',lstate(1:20)
+   if(deblist) write(*,*)'3F lstate: ',lstate(1:20),jp
 ! these have no normalizing: Q, X, W, Y
    nomalize: if(is.le.14 .or. is.eq.16 .or. is.eq.18) then
 ! ZM      x1   (phase)                             per mole components
@@ -763,6 +766,10 @@
    if(lstate(jp:jp).eq.'S') then
       jp=jp+1
       iref=-1
+   elseif(lstate(jp:jp).eq.'R') then
+      write(*,*)'Ignoring suffix "R" on ',trim(statevar),&
+           ', user reference is default'
+      jp=jp+1
    endif
 !---------------------------------------------------------------------
 ! extract arguments if any. If arguments then lstate(jp:jp) should be (
@@ -2336,9 +2343,10 @@
          endif
       enddo find1
 !.......................................
-   case(6,8) 
+   case(6,8,20) 
 ! 6: IBM& Individual Bohr magneton number
 ! 8: MQ& mobility value
+! 20: FHV  Flory Huggins volume
       call get_phase_compset(indices(1),indices(2),lokph,lokcs)
       if(gx%bmperr.ne.0) goto 1000
 ! property is kstv*100+indices(3) (constituent identifier)

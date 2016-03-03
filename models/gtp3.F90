@@ -448,14 +448,15 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! FACT,  not create comp. sets (NOCS), Helmholz energy model (HELM),
 ! Model without 2nd derivatives (PHNODGDY2), Elastic model A,
 ! explicit charge balance needed (XCB), extra dense grid (XGRID)
-! Subtract ordered part (PHSUBO)
+! Subtract ordered part (PHSUBO), Flory-Huggins model (PHFHV)
   integer, parameter :: &
-       PHHID=0,     PHIMHID=1,  PHID=2,    PHNOCV=3, &     ! 1 2 4 8
-       PHHASP=4,    PHFORD=5,   PHBORD=6,  PHSORD=7, &
-       PHMFS=8,     PHGAS=9,    PHLIQ=10,  PHIONLIQ=11, &   
-       PHAQ1=12,    PHDILCE=13, PHQCE=14,  PHCVMCE=15,&
-       PHFACTCE=16, PHNOCS=17,  PHHELM=18, PHNODGDY2=19,&
-       PHELMA=20,   PHEXCB=21,  PHXGRID=22,PHSUBO=23
+       PHHID=0,     PHIMHID=1,  PHID=2,    PHNOCV=3, &     ! 1 2 4 8 
+       PHHASP=4,    PHFORD=5,   PHBORD=6,  PHSORD=7, &     ! 
+       PHMFS=8,     PHGAS=9,    PHLIQ=10,  PHIONLIQ=11, &  ! 
+       PHAQ1=12,    PHDILCE=13, PHQCE=14,  PHCVMCE=15,&    ! 
+       PHFACTCE=16, PHNOCS=17,  PHHELM=18, PHNODGDY2=19,&  ! 
+       PHELMA=20,   PHEXCB=21,  PHXGRID=22,PHSUBO=23, &    ! 
+       PHFHV=24                                            ! 
 ! 
 !----------------------------------------------------------------
 !-Bits in constituent fraction (phase_varres) record STATUS2
