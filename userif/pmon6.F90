@@ -194,7 +194,7 @@ contains
          'AXIS            ','TPFUN_SYMBOLS   ','QUIT            ',&
          'PARAMETER       ','EQUILIBRIA      ','RESULTS         ',&
          'CONDITIONS      ','SYMBOLS         ','LINE_EQUILIBRIA ',&
-         'OPTIMIZATION    ','                ','                ']
+         'OPTIMIZATION    ','MODEL_PARAM_VAL ','                ']
 !-------------------
 ! subsubcommands to LIST DATA
     character (len=16), dimension(nlform) :: llform=&
@@ -753,23 +753,47 @@ contains
           goto 100
 !-------------------------
        CASE(1) ! calculate TPFUN symbols , use current values of T and P
-          write(*,*)'Output unit: ',optionsset%lut
-!          if(optionsset%lut.ne.kou) then
-!             lut=optionsset%lut
-!          else
-!             lut=kou
-!          endif
-          write(lut,2011)notpf(),ceq%tpval
-2011      format(/'Calculating ',i3,' functions for T,P=',F10.2,1PE15.7/&
-               3x,'No   F',11x,'F.T',9x,'F.P',9x,'F.T.T',7x,'F.T.P',7x,'F.P.P')
-          call cpu_time(starting)
-          do j1=1,notpf()
-             call eval_tpfun(j1,ceq%tpval,val,ceq%eq_tpres)
-             if(gx%bmperr.gt.0) goto 990
-             write(lut,2012)j1,val
-2012         format(I5,1x,6(1PE12.4))
-          enddo
-          call cpu_time(ending)
+          call gparcd('name: ',cline,last,5,name1,'*',q1help)
+          lrot=0
+          iel=index(name1,'*')             
+          if(iel.gt.1) name1(iel:)=' '
+          if(name1(1:1).ne.'*') then
+             once=.TRUE.
+2009         continue
+             call find_tpfun_by_name(name1,lrot)
+!             write(*,*)'cui: ',lrot,iel,gx%bmperr
+             if(gx%bmperr.ne.0) then
+                if(iel.eq.0) goto 990
+                gx%bmperr=0
+             else
+! found function number from lrot ???
+                j1=lrot
+                call eval_tpfun(j1,ceq%tpval,val,ceq%eq_tpres)
+                if(gx%bmperr.gt.0) goto 990
+                if(once) then
+                   once=.FALSE.
+                   write(lut,2011)100000,ceq%tpval
+                endif
+                write(lut,2012)j1,val
+!                call list_tpfun(lrot,0,longstring)
+!                call wrice2(lut,0,12,78,1,longstring)
+                if(iel.gt.1) goto 2009
+             endif
+          else
+! calculate all functions
+             write(lut,2011)notpf(),ceq%tpval
+2011         format(/'Calculating ',i4,' functions for T,P=',F10.2,1PE15.7/&
+                  3x,'No   F',11x,'F.T',9x,'F.P',9x,'F.T.T',&
+                  7x,'F.T.P',7x,'F.P.P')
+             call cpu_time(starting)
+             do j1=1,notpf()
+                call eval_tpfun(j1,ceq%tpval,val,ceq%eq_tpres)
+                if(gx%bmperr.gt.0) goto 990
+                write(lut,2012)j1,val
+2012            format(I5,1x,6(1PE12.4))
+             enddo
+             call cpu_time(ending)
+          endif
 !          write(kou,2013)ending-starting
 !2013      format('CPU time used: ',1pe15.6)
 !---------------------------------------------------------------
@@ -1787,31 +1811,79 @@ contains
              write(kou,*)'No optimizing coefficents'
              goto 100
           endif
-          call gpari('Coeffient index: ',cline,last,i1,-1,q1help)
+          call gpari('Coeffient index/range: ',cline,last,i1,-1,q1help)
           if(i1.lt.0 .or. i1.ge.size(firstash%coeffstate)) then
 !             write(*,*)'Dimension ',size(firstash%coeffstate)
 ! coefficients have indices 0 to size(firstash%coeffstate)-1
              write(kou,*)'No such coefficient'
              goto 100
           endif
-! current value may be scaled
-          xxy=firstash%coeffvalues(i1)*firstash%coeffscale(i1)
-          call gparrd('Start value: ',cline,last,xxx,xxy,q1help)
-          if(buperr.ne.0) goto 100
+! upper limit must be negative and must follow directly on same line
+!          write(*,*)'pmon: ',last,': ',cline(last:last)
+          if(last.lt.len(cline) .and. cline(last:last).eq.'-') then
+! pick up upper range limit as a negative value, 
+! the question should thus never be asked ...
+             last=last-1
+             call gpari('Upper index (as negative): ',cline,last,i2,-i1,q1help)
+             if(i2.lt.0) then
+! a negative value, its positive value must be >=i1
+                i2=-i2
+                if(i2.lt.i1) then
+                   i2=i1
+                   write(kou,*)'Illegal range, setting variable just: ',i1
+                endif
+!             elseif(i1.ge.size(firstash%coeffstate)) then
+! coefficients have indices 0 to size(firstash%coeffstate)-1
+!                i2=size(firstash%coeffstate)-1
+!                write(kou,*)'Setting all coefficients fixed after ',i1
+             else
+! any other value ignored
+                i2=i1
+                write(kou,*)'Not understood, setting variable just: ',i1
+             endif
+          else
+             i2=i1
+          endif
+!          write(*,*)'pmon: ',i1,i2
+! possible loop if i2>i1
+          j1=i1
+3740      continue
+          xxy=firstash%coeffvalues(j1)*firstash%coeffscale(j1)
+          if(i1.eq.i2) then
+! when setting a single coefficinet variable ask for value
+             call gparrd('Start value: ',cline,last,xxx,xxy,q1help)
+             if(buperr.ne.0) goto 100
 ! set new value
-          call change_optcoeff(firstash%coeffindex(i1),xxx)
+             call change_optcoeff(firstash%coeffindex(j1),xxx)
+             if(gx%bmperr.ne.0) goto 100
+             firstash%coeffvalues(j1)=one
+             firstash%coeffscale(j1)=xxx
+             firstash%coeffstart(j1)=xxx
+! current value may be scaled  ??????????
+!             xxy=firstash%coeffvalues(j1)*firstash%coeffscale(j1)
+!             call gparrd('Start value: ',cline,last,xxx,xxy,q1help)
+!             if(buperr.ne.0) goto 100
+          else
+! set coefficient variable with current value
+             xxx=xxy
+          endif
+! set new value
+          call change_optcoeff(firstash%coeffindex(j1),xxx)
           if(gx%bmperr.ne.0) goto 100
-          firstash%coeffvalues(i1)=one
-          firstash%coeffscale(i1)=xxx
-          firstash%coeffstart(i1)=xxx
+          firstash%coeffvalues(j1)=one
+          firstash%coeffscale(j1)=xxx
+          firstash%coeffstart(j1)=xxx
 ! mark an optimized coefficient without min/max
-          if(firstash%coeffstate(i1).lt.10) then
+          if(firstash%coeffstate(j1).lt.10) then
              nvcoeff=nvcoeff+1
           endif
-          firstash%coeffstate(i1)=10
-          
-!          write(*,*)'Variable coefficient: ',i1,firstash%coeffstate(i1)
-!-------------------------
+          firstash%coeffstate(j1)=10
+          if(i2.gt.j1) then
+             j1=j1+1
+             goto 3740
+          endif
+          write(kou,*)'Number of variable coefficients are ',nvcoeff
+!------------------------- 
        case(20) ! set scaled_coefficient
           write(*,*)'Not implemeneted yet'
 !          if(firstash%coeffstate(i1).lt.10) then
@@ -1854,36 +1926,70 @@ contains
              write(kou,*)'No optimizing coefficents'
              goto 100
           endif
-          call gpari('Coeffient index: ',cline,last,i1,-1,q1help)
+! lower limit or range
+          call gpari('Coeffient index/range: ',cline,last,i1,-1,q1help)
           if(i1.lt.0 .or. i1.ge.size(firstash%coeffstate)) then
 !             write(*,*)'Dimension ',size(firstash%coeffstate)
 ! coefficients have indices 0 to size(firstash%coeffstate)-1
              write(kou,*)'No such coefficient'
              goto 100
           endif
-! current value
-          xxy=firstash%coeffvalues(i1)*firstash%coeffscale(i1)
-          call gparrd('Start value: ',cline,last,xxx,xxy,q1help)
-          if(buperr.ne.0) goto 100
+! allow writing range on same line as 5-7 but also as 5 -7 on separate lines
+          if(last.lt.len(cline) .and. cline(last:last).eq.'-') then
+             last=last-1
+          endif
+! upper limit must be negative
+          call gpari('Upper index limit (as negative): ',&
+               cline,last,i2,-i1,q1help)
+          if(i2.lt.0) then
+! a negative value, its positive value must be >=i1
+             i2=-i2
+             if(i2.lt.i1) then
+                i2=i1
+                write(kou,*)'Illegal range, setting fixed just: ',i1
+             endif
+          elseif(i1.ge.size(firstash%coeffstate)) then
+! coefficients have indices 0 to size(firstash%coeffstate)-1
+             i2=size(firstash%coeffstate)-1
+             write(kou,*)'Setting all coefficients fixed after ',i1
+          else
+! any other value ignored
+             i2=i1
+             write(kou,*)'Not understood, setting fixed just: ',i1
+          endif
+! possible loop if i2>i1
+          j1=i1
+3720      continue
+          xxy=firstash%coeffvalues(j1)*firstash%coeffscale(j1)
+          if(i1.eq.i2) then
+! when fixing a single coefficinet ask for value
+             call gparrd('Start value: ',cline,last,xxx,xxy,q1help)
+             if(buperr.ne.0) goto 100
 ! set new value
-          call change_optcoeff(firstash%coeffindex(i1),xxx)
-          if(gx%bmperr.ne.0) goto 100
-          firstash%coeffvalues(i1)=one
-          firstash%coeffscale(i1)=xxx
-          firstash%coeffstart(i1)=xxx
+             call change_optcoeff(firstash%coeffindex(j1),xxx)
+             if(gx%bmperr.ne.0) goto 100
+             firstash%coeffvalues(j1)=one
+             firstash%coeffscale(j1)=xxx
+             firstash%coeffstart(j1)=xxx
+          endif
 ! set as fixed without changing any min/max values (first time)
-          if(firstash%coeffstate(i1).gt.13) then
+          if(firstash%coeffstate(j1).gt.13) then
              write(kou,*)'Coefficient state wrong, set to 1'
-             firstash%coeffstate(i1)=1
+             firstash%coeffstate(j1)=1
              nvcoeff=nvcoeff-1
-          elseif(firstash%coeffstate(i1).ge.10) then
-             firstash%coeffstate(i1)=max(1,firstash%coeffstate(i1)-10)
+          elseif(firstash%coeffstate(j1).ge.10) then
+             firstash%coeffstate(j1)=max(1,firstash%coeffstate(j1)-10)
              nvcoeff=nvcoeff-1
           else
-             firstash%coeffstate(i1)=1
+             firstash%coeffstate(j1)=1
           endif
-!          write(*,*)'Fix coefficient: ',i1,nvcoeff,firstash%coeffstate(i1)
-!-------------------------
+          if(i2.gt.j1) then
+             j1=j1+1
+             goto 3720
+          endif
+          write(kou,3730)nvcoeff
+3730      format('Number of variable coefficients are now ',i3)
+!------------------------- 
        case(24) ! GRAPHICS_OUTPUT
 ! for experimental data
           write(*,*)'Not implemeneted yet'
@@ -2129,7 +2235,7 @@ contains
 !         'AXIS            ','TPFUN_SYMBOLS   ','QUIT            ',&
 !         'PARAMETER       ','EQUILIBRIA      ','RESULTS         ',&
 !         'CONDITIONS      ','SYMBOLS         ','LINE_EQUILIBRIA ',&
-!         'OPTIMIZATION    ','                ','                ']
+!         'OPTIMIZATION    ','MODEL_PARAM_VAL ','                ']
     CASE(6)
        kom2=submenu(cbas(kom),cline,last,clist,nclist,12)
        if(kom2.le.0) goto 100
@@ -2224,7 +2330,7 @@ contains
              call list_phase_model(iph,ics,lut,ceq)
           END SELECT
 !------------------------------
-       case(4)  ! list state variable or parameter identifier value, loop.
+       case(4,17)  ! list state variable or parameter identifier value, loop.
 !6099      continue
           if(btest(ceq%status,EQNOEQCAL) .or. btest(ceq%status,EQFAIL)) then
              write(lut,6101)
@@ -2241,7 +2347,7 @@ contains
           if(kom2.eq.4) then
              call gparc('State variable: ',cline,last,5,line,' ',q1help)
           else
-             write(kou,*)'Remember always to give the phase!'
+             write(kou,*)'Remember always to specify the phase!'
              call gparc('Parameter ident: ',cline,last,5,line,' ',q1help)
           endif
           j1=1
@@ -2527,7 +2633,7 @@ contains
                 write(*,*)'Not implemented yet'
 !...........................................................
              case(3) ! just coefficent values
-                write(*,*)'Not implemented yet'
+                call listoptcoeff(lut)
 !...........................................................
              case(4) ! graphics
                 write(*,*)'Not implemented yet'
@@ -2539,11 +2645,11 @@ contains
                 write(*,*)'Not implemented yet'
              end SELECT
 !------------------------------
-! list lines, output of calculated and stored equilibria
-       case(17)
-          write(*,*)'Not implemented yet'
+! list model parameter values, part of case(4)
+!       case(17)
+!          write(*,*)'Not implemented yet'
 !------------------------------
-! list lines, output of calculated and stored equilibria
+! list ??
        case(18)
           write(*,*)'Not implemented yet'
        end SELECT
@@ -4080,6 +4186,66 @@ contains
     if(buperr.ne.0) gx%bmperr=buperr
 1000 continue
   end subroutine enterphase
+
+!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\begin{verbatim}
+  subroutine listoptcoeff(lut)
+! listing of optimizing coefficients
+    integer lut
+!    integer lut,mexp
+!    double precision errs(*)
+!    type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+    type(gtp_equilibrium_data), pointer :: neweq
+    integer i1,i2,j1,j2,j3
+    character name1*24,line*80
+    double precision xxx
+!
+    write(lut,610)
+610 format(/'List of coefficents with non-zero values'/&
+         'Name  Current value   Start value    Scaling factor',&
+         ' RSD')
+    name1=' '
+    do i1=0,size(firstash%coeffstate)-1
+       coeffstate: if(firstash%coeffstate(i1).ge.10) then
+! optimized variable, read from TP constant array
+          call get_value_of_constant_index(firstash%coeffindex(i1),xxx)
+          call makeoptvname(name1,i1)
+          write(lut,615)name1(1:3),xxx,&
+               firstash%coeffstart(i1),firstash%coeffscale(i1),zero
+615       format(a,2x,4(1pe15.6))
+          if(firstash%coeffstate(i1).eq.11) then
+! there is a prescribed minimum
+             write(lut,616)' minimum ',firstash%coeffmin(i1)
+616          format(6x,'Prescribed ',a,': ',1pe12.4)
+          elseif(firstash%coeffstate(i1).eq.12) then
+! there is a prescribed minimum
+             write(lut,616)' maximum ',firstash%coeffmax(i1)
+          elseif(firstash%coeffstate(i1).eq.13) then
+! there is a prescribed minimum
+             write(lut,617)firstash%coeffmin(i1),firstash%coeffmax(i1)
+617          format(6x,'Prescribed min and max: ',2(1pe12.4))
+          elseif(firstash%coeffstate(i1).gt.13) then
+             write(lut,*)'Wrong coefficent state, set to 10'
+             firstash%coeffstate(i2)=10
+          endif
+       elseif(firstash%coeffstate(i1).gt.0) then
+! fix variable status
+          call get_value_of_constant_index(firstash%coeffindex(i1),xxx)
+          call makeoptvname(name1,i1)
+          write(lut,615)name1(1:3),xxx
+       elseif(firstash%coeffscale(i1).ne.0) then
+! coefficient with negative status, status set to 1
+          call get_value_of_constant_index(firstash%coeffindex(i1),xxx)
+          write(lut,619)i1,firstash%coeffscale(i1),xxx,zero
+619       format('Wrong state for coefficient ',i3,4(1pe12.4))
+          firstash%coeffstate(i1)=1
+       endif coeffstate
+    enddo
+1000 continue
+    return
+    end
 
 !\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 

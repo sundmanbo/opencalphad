@@ -4706,7 +4706,8 @@ CONTAINS
 ! this subroutine returnes the total number of phase and composition sets
 !    call sumofphcs(ntup,ceq)
 !    ntup=totalphcs(starteq)
-    ntup=nonsusphcs(starteq)
+!    ntup=nonsusphcs(starteq)
+    ntup=nooftup()
     allocate(entphcs(ntup))
     allocate(stsphcs(ntup))
     itup=0
@@ -4716,6 +4717,7 @@ CONTAINS
     do iph=1,noph()
        do ics=1,noofcs(iph)
           itup=itup+1
+!          write(*,*)'SMP ',iph,noofcs(iph),ics,itup
           entphcs(itup)%phaseix=iph
           entphcs(itup)%compset=ics
           stsphcs(itup)=test_phase_status(iph,ics,val,ceq)

@@ -3279,7 +3279,8 @@
       text(ip:)=svflista(current%symlink1)%name
       ip=len_trim(text)+1
    else
-      call wrinum(text,ip,10,0,current%prescribed)
+!      call wrinum(text,ip,10,0,current%prescribed)
+      call wrinum(text,ip,8,0,current%prescribed)
    endif
 ! uncertainty can also be a symbol
    text(ip:ip)=':'
@@ -3290,7 +3291,8 @@
       text(ip:)=svflista(current%symlink1)%name
       ip=len_trim(text)+1
    else
-      call wrinum(text,ip,10,0,current%uncertainty)
+!      call wrinum(text,ip,10,0,current%uncertainty)
+      call wrinum(text,ip,8,0,current%uncertainty)
    endif
 !   write(*,*)'3C ok here 2',symsym,text(1:ip)
 !   write(*,*)'3C experiment line 2: ',text(1:ip),ip
@@ -3316,7 +3318,8 @@
 !   write(*,*)'3C experimental state variable value: ',xxx
       text(ip:)=' $'
       ip=ip+3
-      call wrinum(text,ip,12,0,xxx)
+!      call wrinum(text,ip,12,0,xxx)
+      call wrinum(text,ip,8,0,xxx)
 !      write(*,*)'3C experiment line 3: ',text(1:ip),ip
    endif
 !   write(*,*)'3C ok here 5'

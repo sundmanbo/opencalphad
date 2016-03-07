@@ -3835,7 +3835,8 @@ CONTAINS
 ! lokcs is set inside this subroutine
        call calcg(iph,ics,2,lokcs,ceq)
        if (gx%bmperr.ne.0) then
-          write(*,*),'calcg error in meq_onephase ',iph,gx%bmperr
+          write(*,91),'calcg error in meq_onephase ',iph,gx%bmperr,ceq%eqno
+91        format(a,3i5)
           goto 1000
        endif
 ! set the inverted phase matrix to zero !!!

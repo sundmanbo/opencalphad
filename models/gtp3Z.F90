@@ -315,6 +315,11 @@
    endif
 ! save the calculated results
 900 continue
+   if(gx%bmperr.ne.0) then
+      write(*,901)gx%bmperr,tpfuns(lrot)%symbol
+901   format('Error ',i5,' evaluating tp function: ',a)
+      goto 1000
+   endif
    tpres(lrot)%tpused(1)=tpval(1)
    tpres(lrot)%tpused(2)=tpval(2)
 !   new: do i=1,6
@@ -1374,6 +1379,7 @@
 !...ignore these at present
          ipow=exprot%wpow(ic+1)
          if(ipow.ne.0) then
+            write(*,*)'TP ipow error: ',ipow
             gx%bmperr=4019
             goto 1000
          endif

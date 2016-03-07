@@ -1164,7 +1164,14 @@ l,,,,
 @&
 @$ Just to test calculation of the congruent melting
 
-set fix 40 -200000
+set fix 40
+
+ -200000
+
+l o c
+
+@&
+@$ The sequilibrium has a congruent transformations
 
 sel eq 546
 
