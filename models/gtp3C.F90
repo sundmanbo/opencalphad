@@ -1960,7 +1960,10 @@
       ch1=char(ichar(ch1)+1)
       isp=isp+1
       special(isp:isp)=ch1
-      write(*,*)' *** Warning: disordered fraction sets need manual editing!'
+      if(.not.btest(globaldata%status,GSSILENT)) then
+         write(kou,53)
+53       format(' *** Warning: disordered fraction sets need manual editing!')
+      endif
       write(lut,55)ch1,phname(1:len_trim(phname)),phname(1:len_trim(phname))
 55    format('$ *** Warning: disordered fraction sets need manual editing!'/&
            ' TYPE_DEFINITION ',a,' GES A_P_D ',a,' DIS_PART DIS_',a,' !')
@@ -2509,7 +2512,7 @@
       endif
    enddo
    if(more.gt.0) goto 300
-! list the elemsnts as -10*H298(SER,element)
+! list the elements as -10*H298(SER,element)
 !    write(*,*)'subrefstate 2:',ie,(element(i),i=1,ie)
    ip=1
    text=' '
@@ -3005,7 +3008,7 @@
    character bibid*(*)
 !\end{verbatim}
    character longline*2048
-   integer ir,jp,nl,ll
+   integer ir,jp,nl,ll,maxl
    if(lut.eq.kou) then
       write(lut,10)reffree-1
 !   else
@@ -3013,6 +3016,7 @@
    endif
 10  format('There are ',i5,' bibliographic references')
 11  format('$ There are ',i5,' bibliographic references')
+   maxl=0
    do ir=1,reffree-1
       if(bibid(1:1).ne.' ' .and. &
            .not.compare_abbrev(bibid,bibrefs(ir)%reference)) cycle
@@ -3027,7 +3031,15 @@
       jp=len_trim(longline)+1
       longline(jp:jp)="'"
       call wrice(lut,0,17,78,longline(1:jp))
+      maxl=maxl+1
+      if(lut.ne.kou .and. maxl.gt.50) then
+! Thermo-Calc limit is 150 lines for each LIST_OF_REFERENCES on a TDB file
+         write(lut,17)
+17       format(' !'//' ADD_REFERENCES'/'  NUMBER  SOURCE'/" dummy ' '")
+         maxl=0
+      endif
    enddo
+   write(*,*)'3C refs: ',reffree,maxl
 1000 continue
    return
  end subroutine list_bibliography
