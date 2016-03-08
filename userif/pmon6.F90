@@ -1935,34 +1935,38 @@ contains
              goto 100
           endif
 ! allow writing range on same line as 5-7 but also as 5 -7 on separate lines
-          if(last.lt.len(cline) .and. cline(last:last).eq.'-') then
+!          write(*,*)'pmon1: ',last,': ',cline(last:last)
+          frange: if(last.lt.len(cline) .and. cline(last:last).eq.'-') then
              last=last-1
-          endif
 ! upper limit must be negative
-          call gpari('Upper index limit (as negative): ',&
-               cline,last,i2,-i1,q1help)
-          if(i2.lt.0) then
+             call gpari('Upper index limit (as negative): ',&
+                  cline,last,i2,-i1,q1help)
+             if(i2.lt.0) then
 ! a negative value, its positive value must be >=i1
-             i2=-i2
-             if(i2.lt.i1) then
-                i2=i1
-                write(kou,*)'Illegal range, setting fixed just: ',i1
-             endif
-          elseif(i1.ge.size(firstash%coeffstate)) then
+                i2=-i2
+                if(i2.lt.i1) then
+                   i2=i1
+                   write(kou,*)'Illegal range, setting fixed just: ',i1
+                endif
+             elseif(i1.ge.size(firstash%coeffstate)) then
 ! coefficients have indices 0 to size(firstash%coeffstate)-1
-             i2=size(firstash%coeffstate)-1
-             write(kou,*)'Setting all coefficients fixed after ',i1
-          else
+                i2=size(firstash%coeffstate)-1
+                write(kou,*)'Setting all coefficients fixed after ',i1
+             else
 ! any other value ignored
+                i2=i1
+                write(kou,*)'Not understood, setting fixed just: ',i1
+             endif
+          else
              i2=i1
-             write(kou,*)'Not understood, setting fixed just: ',i1
-          endif
+          endif frange
 ! possible loop if i2>i1
           j1=i1
+!          write(*,*)'pmon2: ',i1,j1
 3720      continue
           xxy=firstash%coeffvalues(j1)*firstash%coeffscale(j1)
           if(i1.eq.i2) then
-! when fixing a single coefficinet ask for value
+! A single coefficient, when fixing a single coefficinet ask for value
              call gparrd('Start value: ',cline,last,xxx,xxy,q1help)
              if(buperr.ne.0) goto 100
 ! set new value
@@ -1971,8 +1975,11 @@ contains
              firstash%coeffvalues(j1)=one
              firstash%coeffscale(j1)=xxx
              firstash%coeffstart(j1)=xxx
+          else
+             call get_value_of_constant_index(firstash%coeffindex(j1),xxx)
           endif
 ! set as fixed without changing any min/max values (first time)
+!          write(*,*)'pmon3: ',xxx,firstash%coeffstate(j1)
           if(firstash%coeffstate(j1).gt.13) then
              write(kou,*)'Coefficient state wrong, set to 1'
              firstash%coeffstate(j1)=1
@@ -1980,8 +1987,11 @@ contains
           elseif(firstash%coeffstate(j1).ge.10) then
              firstash%coeffstate(j1)=max(1,firstash%coeffstate(j1)-10)
              nvcoeff=nvcoeff-1
-          else
+          elseif(xxx.ne.zero) then
+! mark that the coefficient is fixed and nonzero 
              firstash%coeffstate(j1)=1
+          else
+             firstash%coeffstate(j1)=0
           endif
           if(i2.gt.j1) then
              j1=j1+1
@@ -4220,10 +4230,10 @@ contains
              write(lut,616)' minimum ',firstash%coeffmin(i1)
 616          format(6x,'Prescribed ',a,': ',1pe12.4)
           elseif(firstash%coeffstate(i1).eq.12) then
-! there is a prescribed minimum
+! there is a prescribed maximum
              write(lut,616)' maximum ',firstash%coeffmax(i1)
           elseif(firstash%coeffstate(i1).eq.13) then
-! there is a prescribed minimum
+! there are prescribed minimum and maximum
              write(lut,617)firstash%coeffmin(i1),firstash%coeffmax(i1)
 617          format(6x,'Prescribed min and max: ',2(1pe12.4))
           elseif(firstash%coeffstate(i1).gt.13) then
@@ -4245,7 +4255,7 @@ contains
     enddo
 1000 continue
     return
-    end
+  end subroutine listoptcoeff
 
 !\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
