@@ -158,10 +158,218 @@ MODULE liboceq
 ! phase_varres(lokcs)%abnorm(1) is the number of real atoms per formula unit
 ! (may vary with composition like in (Fe,Cr,...)(Va,C,N,...) )
 ! phase_varres(lokcs)%abnorm(2) is the mass per formula unit
-! NOTE: abnorm(1) and abnorm(2) is set by call to set_constitution
+! NOTE: abnorm(1) and abnorm(2) are set by call to set_constitution
 !
 CONTAINS
   
+!\begin{verbatim}
+  subroutine equilph1a(phtup,tpval,ceq)
+! equilibrates the constituent fractions of a phase
+! phtup is phase tuple
+! tpval is T and P
+! ceq is a datastructure with all relevant thermodynamic data
+    implicit none
+    double precision tpval(*)
+    TYPE(gtp_phasetuple), pointer :: phtup
+    TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim} %+
+    integer nel
+    double precision, allocatable :: xknown(:),wmass(:)
+    double precision totmol,totmass,amount
+    nel=noel()
+    allocate(xknown(nel))
+    allocate(wmass(nel))
+! find the current molefractions
+    call calc_phase_molmass(phtup%phaseix,phtup%compset,xknown,wmass,&
+         totmol,totmass,amount,ceq)
+    if(gx%bmperr.eq.0) then
+! find the set of constutuents with lowest Gibbs energy
+       call equilph1b(phtup,tpval,xknown,ceq)
+    endif
+    deallocate(xknown)
+    deallocate(wmass)
+1000 continue
+    return
+  end subroutine equilph1a
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim} %-
+  subroutine equilph1b(phtup,tpval,xknown,ceq)
+! equilibrates the constituent fractions of a phase for mole fractions xknown
+! phtup is phase tuple
+! tpval is T and P
+! ceq is a datastructure with all relevant thermodynamic data
+    implicit none
+    integer mode
+    double precision tpval(*),xknown(*)
+    TYPE(gtp_phasetuple), pointer :: phtup
+    TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+    integer phase
+    TYPE(meq_setup) :: meqrec
+! setup equilibrium calculation for a single phase, set all others as suspended
+! store vaules in meqrec
+    meqrec%nrel=noel()
+    meqrec%nfixph=0
+    meqrec%nfixmu=0
+    meqrec%tpindep=.FALSE.
+    ceq%rtn=globaldata%rgas*tpval(1)
+    meqrec%nphase=1
+    allocate(meqrec%phr(1))
+    meqrec%nstph=1
+! phaseix is index in phases, ixphase is index in phlista
+    meqrec%phr(1)%iph=phtup%phaseix
+    meqrec%phr(1)%ics=phtup%compset
+    meqrec%phr(1)%itadd=0
+    meqrec%phr(1)%itrem=0
+    meqrec%phr(1)%xdone=0
+    meqrec%phr(1)%phasestatus=1
+    meqrec%phr(1)%ionliq=-1
+    meqrec%phr(1)%i2sly=0
+    if(test_phase_status_bit(phtup%phaseix,PHIONLIQ)) meqrec%phr(1)%ionliq=1
+! set link to calculated values of G etc.
+!    call get_phase_compset(iph,ics,lokph,lokcs)
+! link to results
+    meqrec%phr(1)%curd=>ceq%phase_varres(phtup%lokvares)
+! set phase stable
+    meqrec%phr(1)%stable=1
+    meqrec%phr(1)%prevam=one
+    meqrec%phr(1)%prevdg=zero
+    meqrec%phr(1)%idim=0
+    meqrec%dormlink=0! 
+!
+    meqrec%noofits=0
+! this replaces call to meq_sameset as we will never change stable phase
+    call equilph1c(meqrec,meqrec%phr,tpval,xknown,ceq)
+1000 continue
+    return
+  end subroutine equilph1b
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+  subroutine equilph1c(meqrec,phr,tpval,xknown,ceq)
+! iterate constituent fractions of a phase for mole fractions xknown
+! tpval is T and P
+! xknown are mole fractions
+! ceq is a datastructure with all relevant thermodynamic data
+    implicit none
+    integer phase
+    double precision tpval(*),xknown(*)
+    TYPE(meq_setup) :: meqrec
+    TYPE(meq_phase), dimension(*), target :: phr
+    TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+    integer nz1,nz2,tcol,pcol,dncol,converged,ierr,jj,nj,nk,nl
+    TYPE(meq_phase), pointer :: pmi
+    double precision, allocatable :: smat(:,:),svar(:),yarr(:),ycorr(:)
+    double precision chargefact,chargerr,pv,qq(5),ys,ycormax2
+! number of variables is number of components + one stable phase
+    nz1=meqrec%nrel+1
+    nz2=nz1+1
+    allocate(smat(nz1,nz2))
+    allocate(svar(nz1))
+    chargefact=one
+    chargerr=one
+! we have just one phase in phr
+    pmi=>phr(1)
+100 continue
+! invert the phase matrix for phtup ?? target pointer problem
+    call meq_onephase(meqrec,pmi,ceq)
+    if(gx%bmperr.ne.0) goto 1000
+! all ok to here ???
+! setup mass balance equations, note some components may be missing
+! This is a simplified setup_equilmin using xknown as composition
+!    call setup_equilmatrix(meqrec,phr,nz1,smat,tcol,pcol,dncol,converged,ceq)
+    call setup_comp2cons(meqrec,phr,nz1,smat,tpval,xknown,ceq)
+    if(gx%bmperr.ne.0) goto 1000
+! solve the equilibrium matrix, some chemical potentials may be missing
+    call lingld(nz1,nz2,smat,svar,nz1,ierr)
+    if(ierr.ne.0) then
+       write(*,*)'Error solving equilibrium matrix'
+       gx%bmperr=4444; goto 1000
+    endif
+! update constituent fractions in just one phase
+!    lap: do jj=1
+    jj=1
+! The current chemical potentials are in ceq%cmuval(i) svar(1..n)
+! jj is stable, increment kk but do not make it larger than meqrec%nstph
+! save index in meqrec%stphl in jph !!!!!!!!!!! kk never used !!!!!!!!!
+!    jph=kk
+!    kk=min(kk+1,meqrec%nstph)
+! if phr(jj)%xdone=1 then phase has no composition variation
+    if(phr(jj)%xdone.eq.1) goto 1000
+!----------------------------------------------------
+!    allocate(cit(phr(jj)%idim))
+    ycormax2=zero
+    allocate(ycorr(phr(jj)%idim))
+    allocate(yarr(phr(jj)%idim))
+!    cit=zero
+! loop for all constituents
+    moody: do nj=1,phr(jj)%ncc
+       ys=zero
+       do nk=1,phr(jj)%ncc
+          pv=zero
+          do nl=1,meqrec%nrel
+! ceq%cmuval(nl) is the chemical potential of element nl (divided by RT)
+! phr(jj)%dxmol(nl,nk) is the derivative of component nl
+! wrt constituent nk
+             pv=pv+ceq%cmuval(nl)*phr(jj)%dxmol(nl,nk)
+          enddo
+          pv=pv-phr(jj)%curd%dgval(1,nk,1)
+          ys=ys+phr(jj)%invmat(nj,nk)*pv
+       enddo
+       if(phr(jj)%chargebal.eq.1) then
+! For charged phases add a term 
+! phr(jj)%invmat(phr(jj)%idim,phr(jj)%idim)*Q
+          ys=ys-chargefact*phr(jj)%invmat(nj,phr(jj)%idim)*&
+               phr(jj)%curd%netcharge
+! jph is nonzero only for stable phases
+!          if(jph.gt.0 .and. &
+!               abs(phr(jj)%curd%netcharge).gt.chargerr) then
+!             chargerr=abs(phr(jj)%curd%netcharge)
+!             signerr=phr(jj)%curd%netcharge
+!          endif
+       endif
+!       ycorr(nj)=ys+cit(nj)
+       ycorr(nj)=ys
+       if(abs(ycorr(nj)).gt.ycormax2) then
+          ycormax2=ycorr(nj)
+       endif
+! Sigli converge problem, fixed by changing stable phases in different order
+       if(abs(ys).gt.ceq%xconv) then
+! if the change in any constituent fraction larger than xconv continue iterate
+          if(converged.lt.4) then
+! large correction in fraction of constituent fraction of stable phase
+             converged=4
+!             yss=ys
+!             yst=phr(jj)%curd%yfr(nj)
+          endif
+!       elseif(phr(jj)%stable.eq.1) then
+! check to find good convergence criteria in Re-V test case
+!          if(abs(ycorr(nj)).gt.ysmm) then
+!             jmaxy=jj
+!             ysmm=abs(ycorr(nj))
+!             ysmt=phr(jj)%curd%yfr(nj)
+!           endif
+       endif
+    enddo moody
+! >>>>>>>>>>>>>>>>>> HERE the new constitution is set <<<<<<<<<<<<<<<<<<<<<
+    call set_constitution(phr(jj)%iph,phr(jj)%ics,yarr,qq,ceq)
+    if(gx%bmperr.ne.0) goto 1000
+!  >>>>>>>>>>>>>>>>>> for all phases <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+!    deallocate(cit)
+    deallocate(ycorr)
+!    enddo lap
+! check convergence
+    if(converged.gt.3) goto 100
+1000 continue
+    return
+  end subroutine equilph1c
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
 !\begin{verbatim}
   subroutine calceq2(mode,ceq)
 ! calculates the equilibrium for the given set of conditions
@@ -2231,6 +2439,201 @@ CONTAINS
     gx%bmperr=4204
     goto 1000
   end subroutine meq_sameset
+  
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+  subroutine setup_comp2cons(meqrec,phr,nz1,smat,tval,xknown,ceq)
+! calculate internal equilibrium in a phase for given overall composition
+! meqrec and phr contains data for phases, nz1 is dimension of equlibrium
+! matrix, smat is the equilibrium matrix, tval is fixed T and P
+! xknown is the overall composition
+    TYPE(meq_setup) :: meqrec
+    TYPE(meq_phase), dimension(*), target :: phr
+    double precision smat(nz1,nz1+1),tval(*),xknown(*)
+    integer nz1
+    TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+!    TYPE(gtp_condition), pointer :: condition,lastcond
+    TYPE(meq_phase), pointer :: pmi
+! cmix dimensioned for 2 terms ...
+    integer tcol,pcol,converged,dncol
+    integer cmix(10),cmode,stvix,stvnorm,sel,sph,scs,jph,jj,ie,je,ke,ncol
+    integer notf,nz2,nrow,nterms,mterms,moffs,ncol2
+    double precision cvalue,totam,pham,mag,mat,map,xxx,zval,xval,ccf(5),evalue
+! the next line of values are a desperate search for a solution
+    double precision totalmol,totalmass,check1,check2,amount,mag1,mat1,map1
+    double precision hmval
+    double precision, dimension(:), allocatable :: xcol,mamu,mamu1,zcol,qmat
+    double precision, allocatable :: xxmm(:),wwnn(:),hval(:)
+    logical :: vbug=.FALSE.,calcmolmass,notdone
+    character encoded*32,name*32
+!-------------------------------------------------------------------
+! Formulating the equil equation in general:
+! Variables (one column per variable):
+! - The chemical potentials of the components:     MEQREC%NREL
+!   minus the number of fixed chemical potentials: -MEQREC%NFIXMU
+! - The variation in T if not fixed                +1
+! - The variation in P if not fixed                +1
+! - The variation of the amounts of stable phases: MEQREC%NSTPH
+!   minus those that have fixed amount:            -MEQREC%NFIXPH
+!
+! The variables will be ordered: MU, DeltaT, DeltaP, Delta Phase amounts
+! this is important for the order of columns in the equil matrix
+!
+! Equations (one row per equation):
+! If T or P are variable extra columns and terms are needed
+! - The expression for the Gibbs energy for each stable phase, M_A mu_A = G
+!   if a fixed chemical potentials incorporated that incorporated
+!   if T or P variable an extra term for these
+! - The user defined conditions like:
+!   - Amount of components, N(A)= or B(A)=
+!   - The total amount of moles, N=, or mass, B=
+!   - Overall mole fractions, x(A)=, or mass fractions, w(A)=
+!   - Phase specific mole or mass fractions, x(FCC,C)= or w(LIQUID,B)=
+!   - The volume V=; enthalpy H= etc., with phase spec and normallizing
+!   - relations between state variables x(C14,Fe)-x(liq,Fe)= 0 etc.
+!
+! The equations will always have the G expressions first.  The other will 
+! be random (or in order of the user entered them)
+!
+! There must be as many equations as there are variables and the construction
+! of the equations can be rather complex.  
+! At present only a limited set has been implemented.
+!
+!-------------------------------------------------------------------
+    write(*,*)'MM: in comp2cons'
+    goto 1000
+! zero all values in equil matrix, dimension (nz1)x(nz1)
+    nz2=nz1+1
+    smat=zero
+    tcol=0
+    pcol=0
+    dncol=0
+!-----------------------------------------------------------
+! step 2.1 the Gibbs energies for the phases, we have just one !!
+!    allstableph: do jph=1,meqrec%nstph
+    jph=1
+    jj=meqrec%stphl(jph)
+! column nz2 is the right hand side of the equation, to molar G
+    smat(jph,nz2)=phr(jj)%curd%gval(1,1)
+!       write(*,313)'Gm: ',0,0,jph,nz2,smat(jph,nz2),ceq%tpval(1)
+! one column with amount of component A for each variable chemical potential
+! components with fixed chemical potential are automatically skipped
+    ncol=1
+    xxx=zero
+    gloop: do je=1,meqrec%nrel
+       do ie=1,meqrec%nfixmu
+          if(meqrec%mufixel(ie).eq.je) then
+! meqrec%mufixel(ie) is the component number with fix mu, better use cmuval ?
+! UNIFISHED: reference state must be handelled (may depend on T) ??
+             xxx=smat(jph,nz2)
+             smat(jph,nz2)=smat(jph,nz2)-&
+                  phr(jj)%xmol(je)*meqrec%mufixval(ie)
+             cycle gloop
+          endif
+       enddo
+       smat(jph,ncol)=phr(jj)%xmol(je)
+       ncol=ncol+1
+    enddo gloop
+!------------------------------------------------------------
+! insert code to calculate N(A)=fix for all elements in this phase
+!
+!    case(11) ! N or X with or without indices and normalization
+1100   continue
+! conditions are N(A)=fix for all elements
+    elloop1: do sel=1,meqrec%nrel
+! Formulate equation for total amount N:
+! rhs:  N-N+\sum_alpha N^a + \sum_i \sum_j dM^a_A/dy_i z^a_ij dG/dy_j
+! \sum_B \sum_alpha N^a \sum_i \sum_j dM^_A/dy_i dM^a_B/dy_j*z^a_ij  *mu(B)
+!        \sum_alpha N^a \sum_i d2M^a_A/dTdy_i z^a_ij d2G/dTdy_j      *deltaT
+!        \sum_alpha N^a \sum_i d2M^a_A/dPdy_i z^a_ij d2G/dPdy_j      *deltaP
+!        \sum_A M^a_A                                    *deltaN^a
+       allocate(xcol(nz2))
+       xcol=zero
+       totam=zero
+!       nallph: do jj=1,meqrec%nphase
+! we have just one phase
+       jj=1
+       pmi=>phr(jj)
+! moles formulat unit of phase set above
+!       pham=pmi%curd%amfu
+       pham=one
+       ncol=1
+!      write(*,*)'Loop for elements: ', jj,phr(jj)%iph,phr(jj)%ics,ncol
+       nallel: do ie=1,meqrec%nrel
+! if sel=/=0 then skip all components except sel
+          if(sel.gt.0 .and. ie.ne.sel) cycle nallel
+! multiply terms with the inverse phase matrix
+          call calc_dgdyterms1(meqrec%nrel,ie,meqrec%tpindep,&
+               mamu,mag,mat,map,pmi,ceq%cmuval,meqrec%noofits)
+          if(gx%bmperr.ne.0) goto 1000
+! the call above calculates (A is "ie", z_ij is the inverted phase matrix): 
+! mamu_A(B=1..nrel) = \sum_i \sum_j dM^a_A/dy_i dM^a_B/dy_j z^a_ij
+! mag_A             = \sum_i \sum_j dM^a_A/dy_i z^a_ij dG/dy_j
+! mat_A             = \sum_i \sum_j d2M^a_A/dTdy_i z^a_ij d2G/dTdy_j
+! map_A             = \sum_i \sum_j d2M^a_A/dPdy_i z^a_ij d2G/dPdy_j
+! calculate a term for each column to be multiplied with chemical potential
+! if the potential is fixed add the term to the rhs
+          ncol=1
+          nloop1: do je=1,meqrec%nrel
+! mamu(B) = \sum_i \sum_j \sum_A dM^a_B/dy_i dM^a_A z^a_ij
+             xcol(ncol)=xcol(ncol)-pham*mamu(je)
+             ncol=ncol+1
+          enddo nloop1
+! last columns on lhs are amounts of element ie for all stable non-fix phases
+! dncol should indicate last column with potential, can be different for
+! derivative, notf is set above
+! right hand side (rhs) contribution is
+! - NP(phase)*\sum_i \sum_j dM(ie)/dy_i * dG/dy_j * z_ij
+          xxx=xcol(nz2)
+          xcol(nz2)=xcol(nz2)-pham*mag
+       enddo nallel
+! this is to used on the RHS for compare with prescribed value
+!       if(sel.gt.0) then
+       totam=totam+pham*pmi%xmol(sel)
+!       else
+!          totam=totam+pham*pmi%sumxmol
+!       endif
+!
+! in xcol are values summed over all phases and components
+! then copy summed columns to row nrow in matrix smat
+       nrow=nrow+1
+       if(nrow.gt.nz1) then
+          write(*,*)'too many equations 11A',nrow
+          gx%bmperr=6543; goto 1000
+       endif
+       do ncol=1,nz2
+          smat(nrow,ncol)=xcol(ncol)
+       enddo
+! add N^prescribed - N^current to rhs (right hand side)
+       xxx=smat(nrow,nz2)
+! cvalue is the prescibed composition assuming one F.U. of phase ...??
+       cvalue=xknown(sel)
+       smat(nrow,nz2)=smat(nrow,nz2)-cvalue+totam
+       deallocate(xcol)
+! relative check for convergence if cvalue>1.0
+       if(abs(totam-cvalue).gt.ceq%xconv*max(1.0d0,abs(cvalue))) then
+          if(converged.lt.5) converged=5
+          if(vbug) then
+             if(sel.eq.0) then
+                write(*,266)'Unconverged condition N or N(A): ',sel,&
+                     cvalue,totam,totalmol
+266             format(a,i3,3(1pe14.6))
+             else
+! value of xxmm(sel) only reasonable of N=1 or N(A)+.. = 1
+                write(*,266)'Unconverged condition N or N(A): ',sel,&
+                     cvalue,totam
+             endif
+          endif
+       endif
+    enddo elloop1
+!----------------------------------------------------------
+! all conditions set
+380 continue
+1000 continue
+    return
+  end subroutine setup_comp2cons
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -3296,7 +3699,7 @@ CONTAINS
        endif
 !
 !------------------------------------------------------------------
-    case(12) ! B or W
+  case(12) ! B or W
 ! Amount of component in mass, can have indices and normallization
 ! code copied from the case(11) for N and X and modified for mass
 1200   continue

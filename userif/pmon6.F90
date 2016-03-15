@@ -49,11 +49,11 @@ contains
 ! various symbols and texts
     character name1*24,name2*24,line*80,model*72,chshort
     integer, parameter :: ocmonversion=21
-! element symbol and array of element symbols
+! element symbol and array of element symbols for database use
     character elsym*2,ellist(maxel)*2
 ! more texts for various purposes
     character text*72,string*256,ch1*1,selection*27,funstring*1024
-    character axplot(3)*24,axplotdef(3)*24
+    character axplot(3)*24,axplotdef(3)*24,quest*20
     character plotform*32,longstring*2048,optres*40
 ! separate file names for remembering and providing a default
     character ocmfile*64,ocufile*64,tdbfile*64,ocdfile*64
@@ -155,6 +155,8 @@ contains
 !
     character actual_arg(2)*16
     character cline*128,option*80,aline*128,plotfile*64,eqname*24
+! variable phase tuple
+    type(gtp_phasetuple), pointer :: phtup
 !----------------------------------------------------------------
 ! here are all commands and subcommands
 !    character (len=64), dimension(6) :: oplist
@@ -162,7 +164,7 @@ contains
     integer, parameter :: ncam1=15,ncset=24,ncadv=6,ncstat=6,ncdebug=6
     integer, parameter :: nselect=6,nlform=6,noptopt=6
     integer, parameter :: ncamph=12,nclph=6,nccph=6,nrej=6,nsetph=6
-    integer, parameter :: nsetphbits=15,ncsave=6,nplt=12,nstepop=6
+    integer, parameter :: nsetphbits=15,ncsave=6,nplt=15,nstepop=6
 ! basic commands
     character (len=16), dimension(ncbas), parameter :: cbas=&
        ['AMEND           ','CALCULATE       ','SET             ',&
@@ -189,7 +191,7 @@ contains
 !-------------------
 ! subcommands to LIST
     character (len=16), dimension(nclist) :: clist=&
-        ['DATA            ','SHORT           ','PHASE           ',&
+         ['DATA            ','SHORT           ','PHASE           ',&
          'STATE_VARIABLES ','BIBLIOGRAPHY    ','MODEL_PARAM_ID  ',&
          'AXIS            ','TPFUN_SYMBOLS   ','QUIT            ',&
          'PARAMETER       ','EQUILIBRIA      ','RESULTS         ',&
@@ -319,7 +321,8 @@ contains
          ['RENDER          ','XRANGE          ','YRANGE          ',&
          'XTEXT           ','YTEXT           ','TITLE           ',&
          'GRAPHICS_FORMAT ','OUTPUT_FILE     ','GIBBS_TRIANGLE  ',&
-         'QUIT            ','POSITION_OF_KEYS','                ']
+         'QUIT            ','POSITION_OF_KEYS','APPEND          ',&
+         '                ','                ','                ']
 !-------------------
 !        123456789.123456---123456789.123456---123456789.123456
 ! minimizers
@@ -365,6 +368,7 @@ contains
     graphopt%dfltmin=zero
     graphopt%plotmax=one
     graphopt%dfltmax=one
+    graphopt%appendfile=' '
     graphopt%labelkey='top right'
     plotfile='ocgnu'
     plotform=' '
@@ -806,16 +810,19 @@ contains
              write(kou,*)'Cannot loop for all phases'
              goto 100
           endif
-! use current value of T and P
-          write(*,2015)ceq%tpval
-2015      format('Using T=',F9.2,' K and P=',1pe14.6,' Pa, results in J/F.U.')
-          rgast=globaldata%rgas*ceq%tpval(1)
 !
           kom3=submenu('Calculate what for phase?',cline,last,ccph,nccph,defcp)
 !        if(kom2.le.0) goto 100
 !        ph-a ph-G ph-G+dg/dy
           defcp=kom3
           lut=optionsset%lut
+! use current value of T and P
+          if(kom3.ne.4) then
+             write(*,2015)ceq%tpval
+2015         format('Using T=',F9.2,' K and P=',1pe14.6,&
+                  ' Pa, results in J/F.U.')
+          endif
+          rgast=globaldata%rgas*ceq%tpval(1)
           SELECT CASE(kom3)
 !.......................................................
           CASE DEFAULT
@@ -842,13 +849,52 @@ contains
              write(lut,2041)(rgast*parres%dgval(1,j1,1),j1=1,nofc)
 2041         format('dG/dy:   ',4(1PE16.8))
 !.......................................................
-          case(3) ! calculate phase < > all
+          case(3) ! calculate phase < > all derivatives
              call tabder(iph,ics,ceq)
              write(*,*)' NOTE THAT dG/dy_i is NOT THE CHEMICAL POTENTIAL of i!'
              if(gx%bmperr.ne.0) goto 990
 !.......................................................
-          case(4) ! calculate phase < > all after adjusting constitution
-             write(*,*)'Not implemeneted yet'
+          case(4) ! calculate phase constitution_adjusstment
+! convert to phase tuple here as that is used in the application call
+             do jp=1,nooftup()
+                if(phasetuple(jp)%phaseix.eq.iph .and. &
+                     phasetuple(jp)%compset.eq.ics) then
+!                   write(*,*)'This is phase tuple ',jp
+                   goto 2044
+                endif
+             enddo
+             write(*,*)'No such tuple'
+             goto 100
+2044         continue
+             phtup=>phasetuple(jp)
+! ask for overall composition             
+             totam=one
+             quest='Mole fraction of XX:'
+             do nv=1,noel()
+                if(totam.gt.zero) then
+! assume elements as components
+                   call get_component_name(nv,elsym,ceq)
+                   quest(18:19)=elsym
+                   call gparrd(quest,cline,last,xxy,totam,q1help)
+                   if(buperr.ne.0) then
+                      buperr=0; xxy=zero
+                   endif
+                   if(xxy.gt.totam) then
+                      write(kou,*)'Mole fraction set to ',totam
+                      xxy=totam
+                   endif
+                else
+                   xxy=zero
+                endif
+                xknown(nv)=xxy
+                totam=totam-xxy
+             enddo
+! use current T and P
+             write(*,2042)'pmon: ',(xknown(nv),nv=1,noel())
+2042         format(a,12F6.3)
+             call equilph1b(phtup,ceq%tpval,xknown,ceq)
+             if(gx%bmperr.ne.0) goto 990
+             write(*,*)'Use list phase const to see result'
 !.......................................................
           case(5) !
              write(*,*)'Not implemeneted yet'
@@ -2640,7 +2686,7 @@ contains
                call listoptshort(lut,mexp,errs)
 !...........................................................
              case(2) ! long
-                write(*,*)'Not implemented yet'
+                write(*,*)'haha'
 !...........................................................
              case(3) ! just coefficent values
                 call listoptcoeff(lut)
@@ -3402,6 +3448,7 @@ contains
           if(axplotdef(iax).ne.axplot(iax)) then
 ! if not same axis variable remove any ranges defined !!!
              graphopt%rangedefaults(iax)=0
+             graphopt%appendfile=' '
           endif
 ! remember axis as default
           axplotdef(iax)=axplot(iax)
@@ -3411,7 +3458,7 @@ contains
 ! first argument is the number of plot axis, always 2 at present
        jp=2
        if(associated(maptopsave)) then
-          write(*,*)'We link to maptopsave'
+          write(kou,*)'We link to maptopsave'
           maptop%plotlink=>maptopsave
 !       else
 !          write(*,*)'There is no maptopsave'
@@ -3421,10 +3468,10 @@ contains
 21100   continue
        if(plotform(1:1).eq.'P') then
           write(kou,21110)plotfile(1:len_trim(plotfile))
-21110     format(/'Graphics output in postscript format on file: ',a,'.ps ')
+21110     format(/' *** Graphics format is postscript on: ',a,'.ps ')
        elseif(plotform(1:1).eq.'G') then
           write(kou,21111)plotfile(1:len_trim(plotfile))
-21111     format(/'Graphics output in GIF format on: ',a,'.gif ')
+21111     format(/' *** Graphics format is GIF on: ',a,'.gif ')
        endif
        write(kou,21112)
 21112  format(/'Note: give only one option per line!')
@@ -3547,16 +3594,16 @@ contains
 ! when setting graphics format always also ask for plot file
        case(7,8)
           if(kom2.eq.7) then
-             call gparcd('Plot terminal (P/G/S)',cline,last,1,ch1,&
-                  'SCREEN',q1help)
+             call gparcd('Graphics format (Postscript/Gif/Screeen)',&
+                  cline,last,1,ch1,'SCREEN',q1help)
              if(ch1.eq.'p' .or. ch1.eq.'P') then
-                write(kou,*)'Plotting set to postscript'
+                write(kou,*)'Graphivs format set to postscript'
                 plotform='P'
              elseif(ch1.eq.'g' .or. ch1.eq.'G') then
-                write(kou,*)'Plotting set to gif'
+                write(kou,*)'Graphics format set to gif'
                 plotform='G'
              else
-                write(kou,*)'Plotting set to screen'
+                write(kou,*)'Graphics format set to screen'
                 plotform=' '
              endif
           endif
@@ -3578,7 +3625,7 @@ contains
 !-----------------------------------------------------------
 ! PLOT QUIT
        case(10)
-!return to command level
+! just return to command level
 !-----------------------------------------------------------
 ! PLOT position of line labels (keys)
        case(11)
@@ -3589,8 +3636,30 @@ contains
           graphopt%labelkey=line
           goto 21100
 !-----------------------------------------------------------
-! PLOT not used
+! PLOT APPEND a gnuplot file
        case(12)
+          write(kou,*)'Give a file name with graphics in GNUPLOT format'
+          call gparcd('File name',cline,last,1,text,'  ',q1help)
+! check it is OK
+          open(23,file=text,status='old',access='sequential',err=21300)
+          close(23)
+          graphopt%appendfile=text
+          goto 21100
+! error opening file
+21300     continue
+          write(kou,*)'No such file name'
+          goto 21100
+!-----------------------------------------------------------
+! PLOT not used
+       case(13)
+          goto 21100
+!-----------------------------------------------------------
+! PLOT not used
+       case(14)
+          goto 21100
+!-----------------------------------------------------------
+! PLOT not used
+       case(15)
           goto 21100
 !-----------------------------------------------------------
        end SELECT

@@ -214,7 +214,7 @@ MODULE ocsmp
 ! the set key command in GNUPLOT specifies where the line id is written
 ! it can be on/off, placed inside/outside, left/right/center, top/bottom/center,
 ! and some more options that may be implemented later ...
-     character labelkey*24
+     character labelkey*24,appendfile*72
 ! many more options can easily be added when desired, linetypes etc
   end TYPE graphics_options
 !\end{verbatim}
@@ -3867,6 +3867,7 @@ CONTAINS
 
 !\begin{verbatim}
   subroutine ocplot2(ndx,pltax,filename,maptop,axarr,graphopt,pform,ceq)
+! modified to have just one output file ...
 ! ndx is mumber of plot axis, pltax is text with plotaxis variables
 ! filename is intermediary file (maybe not needed)
 ! maptop is map_node record with all results
@@ -3885,7 +3886,7 @@ CONTAINS
     type(map_line), pointer :: mapline
     logical wildcard
     character ch1*1,gnuplotline*256,pfd*64,pfc*64
-    character pfh*64,dummy*24
+    character pfh*64,dummy*24,applines(10)*128,appline*128
     double precision, dimension(:,:), allocatable :: anp
     double precision, dimension(:), allocatable :: xax,yyy
     integer, parameter :: maxval=10000
@@ -3895,10 +3896,10 @@ CONTAINS
     character statevar*64,encoded1*64,encoded2*4096
     character*64, dimension(:), allocatable :: phaseline
     integer i,ic,jj,k3,kk,kkk,lokcs,nnp,np,nrv,nv,nzp,ip,nstep,nnv
-    integer nr,line,next,seqx,nlinesep,ksep,iax,anpax,notanp
+    integer nr,line,next,seqx,nlinesep,ksep,iax,anpax,notanp,appfil
     double precision xmax,xmin,ymax,ymin,value,anpmin,anpmax
 ! lhpos is last used position in lineheader
-    integer giveup,nax,ikol,maxanp,lcolor,lhpos
+    integer giveup,nax,ikol,maxanp,lcolor,lhpos,repeat
     character date*8,mdate*12,title*128,backslash*2,lineheader*1024
     character deftitle*64
     logical overflow,first,last
@@ -3928,7 +3929,7 @@ CONTAINS
 !         maptop%next%seqx
     if(graphopt%rangedefaults(1).ne.0) then
        write(*,11)'x',graphopt%plotmin(1),graphopt%plotmax(1)
-11     format('User set limits for ',a,': ',2(1pe14.6))
+11     format('Limits set by user for ',a,': ',2(1pe14.6))
     endif
     if(graphopt%rangedefaults(2).ne.0) then
        write(*,11)'y',graphopt%plotmin(2),graphopt%plotmax(2)
@@ -4457,91 +4458,101 @@ CONTAINS
 !       call getext(lineheader,kk,1,lid(i),'x ',lhpos)
 !    enddo
     if(.not.allocated(lid)) then
-       if(np.gt.1) then
+!       if(np.ge.1) then
 ! lid should always be allocated if np>1, but ... one never knows 
-          allocate(lid(np))
-          do i=1,np
-             lid(i)='unknown '
-          enddo
-       endif
+       allocate(lid(np))
+       do i=1,np
+          lid(i)='unknown '
+       enddo
     endif
 !------------------------------------------------------------
-! gnuplot output, first the data file
-    if(np+1.gt.maxval) then
-       write(*,*)'To many points to plot: ',maxval
-       goto 1000
-    endif
-    kk=len_trim(filename)
-    pfd=filename(1:kk)//'.'//'dat '
-    open(21,file=pfd,access='sequential',status='unknown')
-    if(np.gt.1) then
-       do i=1,np
+!    write(*,*)'We are here removing _ ',np
+! replace _ by - in lid
+    do i=1,np
 ! lid may contain phase names with _
 ! replace _ by - in lid because _ is interpreted as subscript (as LaTeX)
-798       continue
-          nv=index(lid(i),'_')
-          if(nv.gt.0) then
-             lid(i)(nv:nv)='-'
-             goto 798
-          endif
-       enddo
-       write(21,810)(lid(i)(1:12),i=1,np)
-810    format('# Open Calphad output for GNUPLOT'/'# Indx Indep.var.  ',&
-         1000(a12,2x))
-    else
-       write(21,810)'Depend. var.'
-    endif
-!-------------
-! NOTE OC does not generate a new line for phase changes that are not
-! invariant equilibria.  Maybe that should be changed.  The list of
-! stable phase is not correct
-    write(21,811)phaseline(1)(1:len_trim(phaseline(1)))
-811       format('# Line      1, with these stable phases at the end:'/'# ',a)
-! if anpax=1 then we must put the first colum after the colon in gnuplot
-    ksep=2
-    do nv=1,nrv
-       write(21,820)nv,xax(nv),(anp(jj,nv),jj=1,np)
-820    format(i4,1000(1pe14.6))
-       if(nv.eq.linesep(ksep)) then
-! an empty line in the dat file means a MOVE to the next point.
-          jj=len_trim(phaseline(ksep))
-          if(nv.lt.nrv) then
-             if(jj.gt.1) then
-                write(21,819)ksep,phaseline(ksep)(1:jj)
-819             format('# end of line '//'# Line ',i5,&
-                     ', with these stable phases:'/'# ',a)
-             else
-                write(21,822)ksep
-822             format('# end of line '//'# Line ',i5,&
-                     ', with unknown phases')
-             endif
-          else
-! try to avoid rubbish
-             write(21,821)
-821          format('# end of line '//)
-          endif
-          ksep=ksep+1
+798    continue
+!       write(*,*)'lid: ',i,': ',trim(lid(i))
+       nv=index(lid(i),'_')
+       if(nv.gt.0) then
+          lid(i)(nv:nv)='-'
+          goto 798
        endif
     enddo
-! finish the data file with some comments how to plot it manually
-    if(anpax.eq.2) then
-! anpax=2 specifies the single value axis before the colon
-       write(21,830)
-830    format('# plot "ocgnu.dat" using 2:3 with lines lt 1,',&
-            ' "" using 2:4 with lines lt 1, ...'/'# set term postscript color'/&
-            '# set output "ocg.ps"'/'# plot ... '/'# ps2pdf ocg.ps')
-    else
-! anpax=1 specifies the single value axis after the colon
-       write(21,831)
-831    format('# plot "ocgnu.dat" using 2:1 with lines lt 1,',&
-            ' "" using 3:1 with lines lt 1, ...'/'# set term postscript color'/&
-            '# set output "ocg.ps"'/'# plot ... '/'# ps2pdf ocg.ps')
-    endif
-! now I plot all lines with broad black lines (should be lt 7 ...)
-! these format statements are comments written at the end of the dat file
-!
-    close(21)
-    write(*,*)'Gnuplot data file   : ',pfd(1:kk+4)
+! move data output to the end of PLT file ...
+!    write(*,*)'We jump to 2000'    
+    goto 2000
+!=============================================================== skipped below
+! as gnuplot commands and data on the same file
+! gnuplot output, first the data file
+!*    if(np+1.gt.maxval) then
+!*       write(*,*)'To many points to plot: ',maxval
+!*       goto 1000
+!*    endif
+!*    kk=len_trim(filename)
+!*    pfd=filename(1:kk)//'.'//'dat '
+!*    open(21,file=pfd,access='sequential',status='unknown')
+!*    if(np.gt.1) then
+!*       write(21,810)(lid(i)(1:12),i=1,np)
+!*810    format('# Open Calphad output for GNUPLOT'/'# Indx Indep.var.  ',&
+!*         1000(a12,2x))
+!*    else
+!*       write(21,810)'Depend. var.'
+!*    endif
+!*!-------------
+!*! NOTE OC does not generate a new line for phase changes that are not
+!*! invariant equilibria.  Maybe that should be changed.  The list of
+!*! stable phase is not correct
+!*    write(21,811)phaseline(1)(1:len_trim(phaseline(1)))
+!*811       format('# Line      1, with these stable phases at the end:'/'# ',a)
+!*! if anpax=1 then we must put the first colum after the colon in gnuplot
+!*    ksep=2
+!*    do nv=1,nrv
+!*       write(21,820)nv,xax(nv),(anp(jj,nv),jj=1,np)
+!*820    format(i4,1000(1pe14.6))
+!*       if(nv.eq.linesep(ksep)) then
+!*! an empty line in the dat file means a MOVE to the next point.
+!*          jj=len_trim(phaseline(ksep))
+!*          if(nv.lt.nrv) then
+!*             if(jj.gt.1) then
+!*                write(21,819)ksep,phaseline(ksep)(1:jj)
+!*819             format('# end of line '//'# Line ',i5,&
+!*                     ', with these stable phases:'/'# ',a)
+!*             else
+!*                write(21,822)ksep
+!*822             format('# end of line '//'# Line ',i5,&
+!*                     ', with unknown phases')
+!*             endif
+!*          else
+!*! try to avoid rubbish
+!*             write(21,821)
+!*821          format('# end of line '//)
+!*          endif
+!*          ksep=ksep+1
+!*       endif
+!*    enddo
+!*! finish the data file with some comments how to plot it manually
+!*    if(anpax.eq.2) then
+!*! anpax=2 specifies the single value axis before the colon
+!*       write(21,830)
+!*830    format('# plot "ocgnu.dat" using 2:3 with lines lt 1,',&
+!*          ' "" using 2:4 with lines lt 1, ...'/'# set term postscript color'/&
+!*            '# set output "ocg.ps"'/'# plot ... '/'# ps2pdf ocg.ps')
+!*    else
+!*! anpax=1 specifies the single value axis after the colon
+!*       write(21,831)
+!*831    format('# plot "ocgnu.dat" using 2:1 with lines lt 1,',&
+!*          ' "" using 3:1 with lines lt 1, ...'/'# set term postscript color'/&
+!*            '# set output "ocg.ps"'/'# plot ... '/'# ps2pdf ocg.ps')
+!*    endif
+!*! now I plot all lines with broad black lines (should be lt 7 ...)
+!*! these format statements are comments written at the end of the dat file
+!*!
+!*    close(21)
+!*    write(*,*)'Gnuplot data file   : ',pfd(1:kk+4)
+!=============================================================== skipped above
+2000 continue
+!    write(*,*)'We are at 2000 '
 !----------------------------------------------------------------------
 ! write the gnuplot command file
 !
@@ -4592,17 +4603,61 @@ CONTAINS
     backslash=',\'
     lcolor=1
 !    write(*,*)'backslash "',backslash,'" '
+!---------------------------------------------------------------
+! handle appended files here ....
+    if(graphopt%appendfile(1:1).eq.' ') then
+       appfil=0
+    else
+       appfil=23
+       write(*,*)'Appending data from: ',trim(graphopt%appendfile)
+       open(appfil,file=graphopt%appendfile,status='old',&
+            access='sequential',err=1750)
+! copy all lines up to "plot" to new graphics file
+       nnv=0
+1710   continue
+       read(appfil,1720,end=1750)appline
+1720   format(a)
+       if(index(appline,'plot "-"').gt.0) then
+          applines(1)=appline
+          ic=1
+1730      continue
+! if line ends with \ then read more
+          i=len_trim(appline)
+!          write(*,*)'There are more? ',appline(i:i),i,ic
+          if(appline(i:i).eq.'\') then
+! continuation lines
+             read(appfil,1720,end=1750)appline
+             ic=ic+1
+             applines(ic)=appline
+             goto 1730
+          endif
+!          write(*,*)'appline: ',trim(appline),ic
+!          close(appfil)
+!          appfil=0
+          goto 1770
+       endif
+       write(21,1720)trim(appline)
+       nnv=nnv+1
+       goto 1710
+! error oppening append file
+1750   continue
+       write(kou,*)'Error opening or reading the append file, skipping it'
+       close(appfil)
+       appfil=0
+1770   continue
+    endif
+!---------------------------------------------------------------
     if(anpax.eq.2) then
 ! anpax=2 means the single valued axis is colum 2 and possibly multiple
 ! values in column 3 and higher
 ! this is the multiple plot, file name only given once!!
 ! last line tuple on a separate format statement, if np>2
 ! np is number of columns
-       if(np.eq.1) then
-          write(21,880)pfd(1:kkk),lcolor,' ',' '
+       if(np.eq.1 .and. appfil.eq.0) then
+          write(21,880)lcolor,' ',' '
        else
-          write(21,880)pfd(1:kkk),lcolor,lid(1)(1:len_trim(lid(1))),backslash
-880       format('plot "',a,'" using 2:3 with lines ls ',i2,' title "'a,'"',a)
+          write(21,880)lcolor,lid(1)(1:len_trim(lid(1))),backslash
+880       format('plot "-" using 2:3 with lines ls ',i2,' title "'a,'"',a)
        endif
        do i=2,np-1
           lcolor=lcolor+1
@@ -4612,19 +4667,27 @@ CONTAINS
        enddo
        lcolor=lcolor+1
        if(lcolor.gt.10) lcolor=1
-       if(np.ge.2) write(21,882)np+2,lcolor,lid(np)(1:len_trim(lid(np))),' '
-! old plot format
-!890       format('plot "',a,'" using 2:',i3,' with lines ls ',2,&
-!               ' title ",a,'" ',&
-!               999(',"" using 2:',i3,' with lines ls ',i2,' title ",a,'" ')
+!       write(*,*)'Append file ',appfil,ic
+       if(appfil.eq.0) then
+          if(np.ge.2) write(21,882)np+2,lcolor,lid(np)(1:len_trim(lid(np))),' '
+       else
+          write(21,882)i+2,lcolor,lid(i)(1:len_trim(lid(i))),backslash
+! we should append data, change plot "-" to just "" in appline(1)
+          i=index(applines(1),'plot "-"')
+          applines(1)(1:i+7)='""'
+          do i=1,ic
+             write(21,884)trim(applines(i))
+884          format(a)
+          enddo
+       endif
     else
 ! anpax=2 means the single valued axis is colum 2
 ! this writes the file name only once and last line separate if np>2
-       if(np.eq.1) then
-          write(21,890)pfd(1:kkk),lcolor,' ',' '
+       if(np.eq.1 .and. appfil.eq.0) then
+          write(21,890)lcolor,' ',' '
        else
-          write(21,890)pfd(1:kkk),lcolor,lid(1)(1:len_trim(lid(1))),backslash
-890       format('plot "',a,'" using 3:2 with lines ls ',i2,' title "',a,'"',a)
+          write(21,890)lcolor,lid(1)(1:len_trim(lid(1))),backslash
+890       format('plot "-" using 3:2 with lines ls ',i2,' title "',a,'"',a)
        endif
        lcolor=2
        do i=2,np-1
@@ -4633,17 +4696,84 @@ CONTAINS
           lcolor=lcolor+1
           if(lcolor.gt.10) lcolor=1
        enddo
-       if(np.ge.2) write(21,892)np+2,lcolor,lid(np)(1:len_trim(lid(np))),' '
+       if(appfil.eq.0) then
+          if(np.ge.2) write(21,892)np+2,lcolor,lid(np)(1:len_trim(lid(np))),' '
+       else
+          write(21,892)i+2,lcolor,lid(i)(1:len_trim(lid(i))),backslash
+! we should append data, change plot "-" to just "" in appline(1)
+          i=index(applines(1),'plot "-"')
+          applines(1)(1:i+7)='""'
+          do i=1,ic
+             write(21,884)trim(applines(i))
+          enddo
+       endif
     endif
-!    if(pform(1:1).ne.'P') then
+!------------------------------------------------------------------
+! Add output of data as many times as there are lines above
+! if anpax=1 then we must put the first colum after the colon in gnuplot
+    repeat=0
+1800 continue
+    ksep=2
+    repeat=repeat+1
+    do nv=1,nrv
+       write(21,1820)nv,xax(nv),(anp(jj,nv),jj=1,np)
+1820    format(i4,1000(1pe14.6))
+       if(nv.eq.linesep(ksep)) then
+! an empty line in the dat file means a MOVE to the next point.
+          jj=len_trim(phaseline(ksep))
+          if(nv.lt.nrv) then
+             if(jj.gt.1) then
+                write(21,1819)ksep,phaseline(ksep)(1:jj)
+1819             format('# end of line '//'# Line ',i5,&
+                     ', with these stable phases:'/'# ',a)
+             else
+                write(21,1822)ksep
+1822             format('# end of line '//'# Line ',i5,&
+                     ', with unknown phases')
+             endif
+          else
+! try to avoid rubbish
+             write(21,1821)
+1821          format('# end of line '/)
+          endif
+          ksep=ksep+1
+       endif
+    enddo
+    if(repeat.lt.np) then
+! we must have an e and repeat the data output for each line to plot
+! eventually we may select just the columns with data used !!
+       write(21,1833)repeat+1
+1833   format('e '//'#--- repeat lines ',i3,' ------------------------------')
+       goto 1800
+    else
+! we must have a simple "e" at the end of last
+       write(21,1834)
+1834   format('e ')
+    endif
+!-----------------------------------------------------
+! finally copy the data from the append file, it should be correctly formatted
+    if(appfil.gt.0) then
+       ic=0
+1900   continue
+       read(appfil,884,end=1910)appline
+       ic=ic+1
+       write(21,884)trim(appline)
+       goto 1900
+1910   continue
+       write(*,*)'Appended ',ic,' data lines'
+       close(appfil)
+       appfil=0
+    endif
+!------------------------------------------------------
     if(pform(1:1).eq.' ') then
 ! if not hardcopy pause gnuplot.  Mouse means clicking in the graphics window
 ! will close it. I would like to have an option to keep the graphics window...
        write(21,990)
 990    format('pause mouse')
-!990    format('pause -1')
     endif
     close(21)
+    if(appfil.ne.0) close(appfil)
+    appfil=0
 !-------------------------------------------------------------------
 ! execute the GNUPLOT command file
 !

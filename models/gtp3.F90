@@ -949,16 +949,17 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   INTEGER, parameter :: gtp_phasetuple_version=2
   TYPE gtp_phasetuple
 ! for handling a single array with phases and composition sets
-! first index is phase index, second index is composition set
+! phaseix is phase index, compset is composition set index
 ! ADDED also index in phlista (ixphase) and phase_varres (lokvares) and
 ! nextcs which is nonzero if there is a higher composition set of the phase
 ! A tuplet index always refer to the same phase+compset.  New tuples with
 ! the same phase and other compsets are added at the end.
 ! BUT if a compset>1 is deleted tuples with higher index will be shifted down!
      integer phaseix,compset,ixphase,lokvares,nextcs
+!     integer phaseix,compset,lokph,lokvares,nextcs
   end TYPE gtp_phasetuple
 !\end{verbatim}
-  TYPE(gtp_phasetuple), allocatable :: PHASETUPLE(:)
+  TYPE(gtp_phasetuple), target, allocatable :: PHASETUPLE(:)
 ! -----------------------------------------------------------------
 ! NOTE: if one wants to model bond energies beteween sites in a phase
 ! like in a 3 sublattice sigma one can enter parameters like

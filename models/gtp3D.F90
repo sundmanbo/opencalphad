@@ -75,6 +75,7 @@
    nylat: do ll=1,nsl
       sss=one
       ydef=one
+      if(knl(ll).eq.1) cycle nylat
       nycon: do nr=1,knl(ll)-1
          kkk=kkk+1
          loksp=phlista(lokph)%constitlist(kkk)
