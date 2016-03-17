@@ -124,7 +124,6 @@
    integer i2,j2,ider,is,kk,ioff,norfc,iw,iw1,iw2,lprop,jonva
 ! storage for calculated Flopry Huggins volume parameters
    integer, dimension(:), allocatable :: fhlista
-   double precision fhvsum
    double precision, dimension(:,:), allocatable :: fhv
    double precision, dimension(:,:,:), allocatable :: dfhv
    double precision, dimension(:,:), allocatable :: d2fhv
@@ -213,10 +212,15 @@
 ! Flory-Huggins model require special treatment to calculate the molar
 ! volumes of the constituents.  The entropy is calculated in the end and
 ! a second loop through all parameters done by jumping to label 100
+! check that just one sublattice and sites equal to one
+      if(nsl.ne.1 .or. phres%sites(1).ne.one) then
+         write(*,*)'Flory-Huggins model must have one lattice and site'
+         gx%bmperr=7777; goto 1000
+      endif
       floryhuggins=-1
    else
 ! NOTE: for phases with disordered fraction set this is calculated
-! for the ordered original constituent fraction set only
+! ONLY for the ordered original constituent fraction set
       call config_entropy(moded,nsl,phlista(lokph)%nooffr,phres,gz%tpv(1))
    endif
    if(gx%bmperr.ne.0) goto 1000
@@ -1195,9 +1199,7 @@
             first=.false.
 !            write(*,*)'3X: next fraction type'
 !            goto 400
-!------------ code below redundant until ^^^^^^^^^^^^^^^^^^^^^^^^^
-! this is no longer needed as we just add the disordered part
-! but do not delete yet ... wait until I know it works ...
+!------------ code below was removed for a while but is now reinstated
             allocate(savey(gz%nofc))
             savey=phres%yfr
 !            write(*,*)'cg: ',phmain%phlink,phmain%disfra%varreslink
@@ -1348,7 +1350,7 @@
             deallocate(savedg)
             deallocate(saved2g)
          endif
-! ----------------- code above redundant ^^^^^^^^^^^^^^^^^^^^^^^^
+! code above reinstated but has problems ....
       endif disord
 ! WE JUMP HERE WITHOUT CALCULATING THE ORDERED PART AS DISORDERED
 400 continue
@@ -1540,8 +1542,9 @@
 ! These have now been calculated and can be used in a second loop through
 ! the other parameters
 ! find where the molar volumes are stored, phmain%listprop(1) is no props
-      write(*,*)'3X FH: ',phmain%listprop(1),&
+      write(*,507)'3X FH: ',nofc2,phmain%listprop(1),&
            (phmain%listprop(ipy),ipy=2,phmain%listprop(1)-1)
+507   format(a,i5,i3,20i5)
       allocate(fhlista(gz%nofc))
       fhlista=0
       ll=1
@@ -1558,17 +1561,18 @@
             write(*,*)'3X No Flory Huggins volume for component: ',j2
             gx%bmperr=7777; goto 1000
          else
-            write(*,509)'3X Flory Huggins volume for element: ',&
-                 j2,fhlista(j2),phmain%gval(1,fhlista(j2))
+            write(*,509)'3X FHV: ',j2,fhlista(j2),phmain%gval(1,fhlista(j2))
 509         format(a,2i4,1pe12.4)
          endif
       enddo
 510   continue
-! we must copy the Flory-Huggins volumes as they will be overwritten next loop
+! we must save the Flory-Huggins volumes as they are used in next loop
       allocate(fhv(gz%nofc,6))
       allocate(dfhv(gz%nofc,3,gz%nofc))
       allocate(d2fhv(gz%nofc,nofc2))
-      fhvsum=zero
+      dfhv=zero
+      d2fhv=zero
+!      fhvsum=zero
       do qz=1,gz%nofc
          ipy=fhlista(qz)
 ! if ipy is zero then the volume is constant equal to one
@@ -1591,21 +1595,11 @@
          enddo
 ! this is the only non-zero value for elements with no Flory-Huggins para,eter
          if(ipy.eq.0) fhv(qz,1)=one
-         fhvsum=fhvsum+fhv(qz,1)
       enddo
-! normallize all by fhvsum
-      write(*,511)fhvsum,(fhv(ll,1),ll=1,gz%nofc)
-      fhv=fhv/fhvsum
-      dfhv=dfhv/fhvsum
-      d2fhv=d2fhv/fhvsum
-! debug output
-      write(*,511)fhvsum,(fhv(ll,1),ll=1,gz%nofc)
-      write(*,511)(dfhv(1,1,ll),ll=1,gz%nofc)
-      write(*,511)(dfhv(1,1,ll),ll=1,gz%nofc)
-511   format('3X FHS: ',6(1pe12.4))
-! the molar volumes are in gval(*,ipy)
-      call config_entropy_floryhuggins(moded,phlista(lokph)%nooffr,&
-           phmain,gz%tpv(1),gz%nofc,fhv,dfhv,d2fhv)
+! the Flory-Huggins parametr for each constituent is in the "fhv" arguments
+! They may be updated inside this subroutine ...
+      call config_entropy_floryhuggins(moded,gz%nofc,phmain,gz%tpv(1),&
+           fhv,dfhv,d2fhv)
 ! set floryhuggins to 1 so the entropy is not calculated again but 
 ! the molar volumes that have been calculated here can be used
       floryhuggins=1
@@ -1757,19 +1751,20 @@
       alpha=zero
       kappa=zero
    endif
-   write(kou,100)napfu,T,P,G
+   write(kou,100)napfu,T,P,G,G/rtg
 100 format(/'Per mole FORMULA UNIT of the phase, ',1pe12.4,' atoms'/&
-         'at T= ',0pF8.2,' K and P= ',1PE13.6,' Pa',/ &
-         'Gibbs energy J/mol ',28('.'),1Pe16.8)
-   write(kou,102)F,H,U,S,V,CP,alpha,kappa
-102 format('Helmholtz energy J/mol ',24('.'),1PE16.8 &
-        /'Enthalpy J/mol ',32('.'),1PE16.8 &
-        /'Internal energy J/mol ',25('.'),1PE16.8 &
-        /'Entropy J/mol/K ',31('.'),1PE16.8 &
-        /'Volume m3 ',37('.'),1PE16.8 &
-        /'Heat capacity J/mol/K ',25('.'),1PE16.8 &
-        /'Thermal expansion 1/K ',25('.'),1PE16.8 &
-        /'Bulk modulus 1/Pa ',29('.'),1PE16.8)
+         'at T= ',0pF8.2,' K and P= ',1PE13.6,' Pa',8x,'SI units',9x,'/RT'/ &
+         'Gibbs energy J/mol ',28('.'),1Pe16.8,e16.7)
+   write(kou,102)F,F/rtg,H,H/rtg,U,U/rtg,S,S/rtg,V,V/rtg,&
+        CP,CP/rtg,alpha,alpha/rtg,kappa,kappa/rtg
+102 format('Helmholtz energy J/mol ',24('.'),1PE16.8,e16.7 &
+        /'Enthalpy J/mol ',32('.'),1PE16.8,e16.7 &
+        /'Internal energy J/mol ',25('.'),1PE16.8,e16.7 &
+        /'Entropy J/mol/K ',31('.'),1PE16.8,e16.7 &
+        /'Volume m3 ',37('.'),1PE16.8,e16.7 &
+        /'Heat capacity J/mol/K ',25('.'),1PE16.8,e16.7 &
+        /'Thermal expansion 1/K ',25('.'),1PE16.8,e16.7 &
+        /'Bulk modulus 1/Pa ',29('.'),1PE16.8,e16.7)
    tnk=phlista(lokph)%tnooffr
    ll=1
    kk1=0
@@ -1796,14 +1791,19 @@
 110 format('First partial derivative with respect to ',a,&
         ' in sublattice ',i2,' of')
       write(kou,120)rtg*ceq%phase_varres(lokcs)%dgval(1,kk1,1),&
+           ceq%phase_varres(lokcs)%dgval(1,kk1,1),&
            rtg*(ceq%phase_varres(lokcs)%dgval(1,kk1,1)-&
            T*ceq%phase_varres(lokcs)%dgval(2,kk1,1)),&
+           ceq%phase_varres(lokcs)%dgval(1,kk1,1)-&
+           T*ceq%phase_varres(lokcs)%dgval(2,kk1,1),&
            rtg*ceq%phase_varres(lokcs)%dgval(2,kk1,1),&
-           rtg*ceq%phase_varres(lokcs)%dgval(3,kk1,1)
-120    format(5x,'G ',40('.'),1PE16.8, &
-           /5x,'H ',40('.'),1PE16.8, &
-           /5x,'G.T ',38('.'),1PE16.8, &
-           /5x,'G.P ',38('.'),1PE16.8)
+           ceq%phase_varres(lokcs)%dgval(2,kk1,1),&
+           rtg*ceq%phase_varres(lokcs)%dgval(3,kk1,1),&
+           ceq%phase_varres(lokcs)%dgval(3,kk1,1)
+120    format(5x,'G ',40('.'),1PE16.8,e16.7, &
+           /5x,'H ',40('.'),1PE16.8,e16.7, &
+           /5x,'G.T ',38('.'),1PE16.8,e16.7, &
+           /5x,'G.P ',38('.'),1PE16.8,e16.7)
       kk3=kk1
       kk4=kk2
       ll2=ll
@@ -1813,8 +1813,9 @@
          if(phlista(lokph)%nooffr(ll2).gt.1) then
 !            write(kou,160)name(1:len_trim(name)),ll2, &
             write(kou,160)name,ll2, &
-                 rtg*ceq%phase_varres(lokcs)%d2gval(ixsym(kk1,kk3),1)
-160          format(10x,a,'   in ',i2,5('.'),1PE16.8)
+                 rtg*ceq%phase_varres(lokcs)%d2gval(ixsym(kk1,kk3),1),&
+                 ceq%phase_varres(lokcs)%d2gval(ixsym(kk1,kk3),1)
+160          format(10x,a,'   in ',i2,5('.'),1PE16.8,e16.7)
          endif
          kk3=kk3+1
          if(kk3.le.tnk) then
@@ -2268,56 +2269,120 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine config_entropy_floryhuggins(moded,nkl,phvar,tval,&
-      nofc,fhv,dfhv,d2fhv)
+ subroutine config_entropy_floryhuggins(moded,nofc,phvar,tval,fhv,dfhv,d2fhv)
 ! calculates configurational entropy/R for a phase with Flory-Huggins model
-! fhv, dfhv and d2fhv are calculated values of the flory-Huggins volume param
+! moded=0 only G; =1 G and dG/dy; =2; G, dG/dy and d2G/dy2
+! nofc number of constituents, phvar phase_varres record
    implicit none
    integer moded,nofc
-   integer, dimension(1) :: nkl
    TYPE(gtp_phase_varres), pointer :: phvar
+! fvh(1,1) is FH volume for constituent 1 etc.
    double precision tval,fhv(nofc,*),dfhv(nofc,3,*),d2fhv(nofc,*)
 !\end{verbatim}
-   integer ll,kk,kall,nk,jl
-   double precision ss,yfra,ylog
-   write(*,*)'3X Config entropy in Flory Huggins model'
-   ll=0
-   kall=0
-   nk=nkl(1)
-   kk=0
+   integer kall,nofc2,k1,k2
+   double precision ss,sy,st,sp,yfra1,ylog,sumq
+   double precision, allocatable :: pfhv(:,:),dpfhv(:,:,:),d2pfhv(:,:)
+   double precision, allocatable :: yfra(:),qfra(:),sumsy(:,:)
+!
+   nofc2=nofc*(nofc+1)/2
+   write(*,1)'3X Calculate onfig entropy for Flory Huggins model',nofc,nofc2
+1  format(a,2i3)
+   do kall=1,nofc
+      write(*,108)'3X fh,dfh: ',kall,fhv(kall,1),(dfhv(kall,1,k1),k1=1,nofc)
+      write(*,107)'3X d2f: ',(d2fhv(kall,k1),k1=1,nofc2)
+   enddo
+107 format(a,6(1pe12.4))
+108 format(a,i2,6(1pe12.4))
+   allocate(yfra(nofc))
+   allocate(qfra(nofc))
+   allocate(sumsy(nofc,nofc))
+! temporary arrays, maybe all not needed??
+   allocate(pfhv(nofc,6))
+   allocate(dpfhv(nofc,3,nofc))
+   allocate(d2pfhv(nofc,nofc2))
+   dpfhv=zero
+   d2pfhv=zero
+!
+! sum the FH volumes for current composition and use as normallizing
+   sumq=zero
+   sumsy=zero
+   do kall=1,nofc
+      yfra1=phvar%yfr(kall)
+      if(yfra1.lt.bmpymin) yfra1=bmpymin
+      if(yfra1.gt.one) yfra1=one
+      sumq=sumq+fhv(kall,1)*yfra1
+      yfra(kall)=yfra1
+      do k1=1,nofc
+         if(k1.eq.kall) then
+! 1st DERIVATIVES of q_i = p_i/\sum_j p_j
+! fhv(i,1) is FH volume for const i, fhv(i,2) is T deriv, fhv(i,3) is P der
+! dfhv(i,1,j) derivative of FH volume for i wrt const j
+! dfhv(i,2,j) 2nd derivative of FH volume for i wrt const j and T
+! dfhv(i,3,j) 2nd derivative of FH volume for i wrt const j and P
+! UNFINISHED ?? sumsy including T and P derivatives ??
+            dpfhv(kall,1,k1)=dfhv(kall,1,k1)*yfra(kall)+fhv(kall,1)
+            dpfhv(kall,2,k1)=dfhv(kall,2,k1)*yfra(kall)+fhv(kall,2)
+            dpfhv(kall,3,k1)=dfhv(kall,3,k1)*yfra(kall)+fhv(kall,3)
+            sumsy(1,k1)=sumsy(1,k1)+dfhv(kall,1,k1)*yfra1+fhv(kall,1)
+            write(*,106)'3X sum1: ',kall,k1,sumsy(1,k1)
+         else
+            dpfhv(kall,1,k1)=dfhv(kall,1,k1)*yfra(kall)
+            dpfhv(kall,2,k1)=dfhv(kall,2,k1)*yfra(kall)
+            dpfhv(kall,3,k1)=dfhv(kall,3,k1)*yfra(kall)
+            sumsy(1,k1)=sumsy(1,k1)+dfhv(kall,1,k1)*yfra1
+            write(*,106)'3X sum2: ',kall,k1,sumsy(1,k1)
+         endif
+      enddo
+   enddo
+106 format(a,2i3,1pe12.4)
+   write(*,108)'3X sumsy: ',0,(sumsy(1,k1),k1=1,nofc)
+!-----------------------------------------
+! Calculate the confurational entropy
    ss=zero
-   fractionloop: do while (kk.lt.nk)
+   fractionloop: do kall=1,nofc
 ! We use the already calculated partial molar volumes v_i = fhv_i * y_i
-! This means we cannot calculate this before calculating all parameters!!
+! This means we cannot calculate this before calculating all parameters once!!
 ! so this routine must be called after a first calculation of fhv, dfhv etc
 ! and then we must calculate all parameters again ... as they depend of v_i
-      kk=kk+1
-      kall=kall+1
-      yfra=phvar%yfr(kall)
-      if(yfra.lt.bmpymin) yfra=bmpymin
-      if(yfra.gt.one) yfra=one
-      ylog=log(yfra)
+! this is ln(n_i/(\sum_j n_j)), 0<yfra(kall)<1
+      ylog=log(fhv(kall,1)*yfra(kall)/sumq)
+! fhv(i,1) is FH volume for const i, fhv(i,2) is T deriv, fhv(i,3) is P deriv
+! dfhv(i,1,j) derivative of FH volume for i wrt const j
+! dfhv(i,2,j) 2nd derivative of FH volume for i wrt const j and T
+! dfhv(i,3,j) 2nd derivative of FH volume for i wrt const j and P
+! d2fhv(i,ixsym(j,k)) 2nd derivative of FH volume for i wrt const j and k
 ! gval(1:6,1) are G and derivator wrt T and P
 ! dgval(1,1:N,1) are derivatives of G wrt fraction 1:N
 ! dgval(2,1:N,1) are derivatives of G wrt fraction 1:N and T
 ! dgval(3,1:N,1) are derivatives of G wrt fraction 1:N and P
 ! d2dval(ixsym(N*(N+1)/2),1) are derivatives of G wrt fractions N and M
 ! this is a symmetric matrix and index givem by ixsym(M,N)
-      ss=ss+fhv(kall,1)*yfra*ylog
       if(moded.gt.0) then
-         phvar%dgval(1,kall,1)=phvar%sites(1)*(one+ylog)
-         phvar%d2gval(ixsym(kall,kall),1)=phvar%sites(1)/yfra
+! UNFINISHED derivatives wrt T, P
+         loopk1: do k1=1,nofc
+            loopk2: do k2=k1,nofc
+! UNFINISHED all second derivatives, just set as for ideal 1/y
+               if(kall.eq.k1 .and. k1.eq.k2) then
+                  phvar%d2gval(ixsym(k1,k2),1)=one/yfra(kall)
+               endif
+            enddo loopk2
+! This is df_i/dz, eq. 11 in FH documentation. Note dpfhv and sumsy set
+! above to include the extra term if kall=k1
+!            sy=dpfhv(kall,1,k1)*(ylog+one)-fhv(kall,1)/sumq*sumsy(1,k1)
+! UNFINISHED ... IGNORE THE COMPOSITION DEPENENCE OF fhv_i ...
+         enddo loopk1
+         phvar%dgval(1,kall,1)=fhv(kall,1)/sumq*(ylog+one)
+         phvar%dgval(2,kall,1)=phvar%dgval(2,kall,1)/tval
       endif
+      ss=ss+(fhv(kall,1)/sumq)*yfra(kall)*ylog
+      write(*,300)'ss:   ',ss,fhv(kall,1),sumq,ylog,yfra(kall)
+300   format(a,6(1pe12.4))
    enddo fractionloop
-   phvar%gval(1,1)=phvar%gval(1,1)+phvar%sites(1)*ss
-! set temperature derivative of G and dG/dy
+! The integral entropy and its T and P derivatives
+! UNFINISHED should include T deruvatives of fhv ....
+   phvar%gval(1,1)=phvar%gval(1,1)+ss
+! UNFINISHED add T derivates of dfhv .... and any P derivatives
    phvar%gval(2,1)=phvar%gval(1,1)/tval
-   if(moded.gt.0) then
-! This is the T derivative ...
-      do jl=1,kall
-         phvar%dgval(2,jl,1)=phvar%dgval(1,jl,1)/tval
-      enddo
-   endif
 1000 continue
    return
  end subroutine config_entropy_floryhuggins

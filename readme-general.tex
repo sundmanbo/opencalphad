@@ -19,9 +19,12 @@
 
 Bo Sundman, \today
 
-http://www.opencalphad.org or
+Opencalphad (OC) is a free software with GNU GPL license.  It is
+available at the following web sites:
 
-Opencalpad repository at http://www.github.com
+http://www.opencalphad.org or the
+
+opencalpad repository at http://www.github.com/sundmanbo/opencalphad
 
 bo.sundman@gmail.com
 \end{center}
@@ -51,7 +54,16 @@ and a special paper about the minimization algorithm:
   free software}, Bo Sundman, Xiao-Gang Lu and Hiroshi Ohtani,
 Computational Materials Science, {\bf 101} (2015) 127-137.
 
+There is also extensive documentation of the different parts provided
+with the software.
+
 \section{General information}
+
+There is no automatic installation routine for OC, you must download
+and compile the software yourself.  You may also have to install
+Fortran compilers and the GNUPLOT software if you do not already have
+them.  The OC development team cannot offer you any help for that,
+please ask some local experts if you need help.
 
 \begin{itemize}
 \item The code is written in the new Fortran standard and requires a
@@ -94,7 +106,7 @@ Computational Materials Science, {\bf 101} (2015) 127-137.
   ``documentation'' in several files, ``gtp3'' for the model package
   and ``hms2'' for the minimizer and news-OC3 for a summary of the new
   features.  The other documentation, ``smp1'' for the step/map/plot
-  routines, ``assess'' for the assessment module, ``octq'' for the
+  routines, ``assess'' for the assessment module, ``ocasi'' for the
   application software interface are very rudimentary.  There is also
   a short description of the macro files provided in ``OC-macros''.
   Reading and testing the macros is probably the best way to get
@@ -561,7 +573,7 @@ As I have understood the data structures (TYPE) in the new Fortran
 standard is more or less identical to those used in C++ so it should
 not be too difficult to combine code written in these languages.
 
-\section{Application software library, TQ}
+\section{Application software library, OCACI}
 
 There is a software interface following the TQ standard to make it
 possible to use OC from application programs.  The subroutines in this

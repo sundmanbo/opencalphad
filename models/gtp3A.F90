@@ -285,7 +285,7 @@
    npid=npid+1
    if(npid.gt.maxprop) stop 'Too many defined properties'
    propid(npid)%symbol='FHV '
-   propid(npid)%note='Flory-Huggins volume '
+   propid(npid)%note='Flory-Hugg. vol '
    propid(npid)%status=0
 ! FHV is specific för a constituent
    propid(npid)%status=ibset(propid(npid)%status,IDCONSUFFIX)

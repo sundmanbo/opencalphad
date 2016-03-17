@@ -15,16 +15,22 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2016.03.16 Some minor changes in all documentation files.  For
+plotting there is now a possibility to APPEND a GNUPLOT command file
+to be superimposed on a calculated diagram.  This should be useful for
+assessments.  An attempt to implement the Flory-Huggins model for
+polymers has been made but it is not finished.
+
 2016.03.08 Some commands have been modified, set fixed and set
-variable now accepts ranges.  There is a command list opt coeff with
-just the coefficients.  You can specify the TP function(s) to be
-calculated.
+variable now accepts ranges of coefficients.  There is a command "list
+opt coeff" which list just the coefficients.  You can specify an
+abbreviated TP function name to be calculated.
 
 2016.03.07 There are several problems entering TP functions, please be
 careful and check the listing of the functions, the listing is true to
 the way the function is calculated.  You cannot use
 parentheses except around arguments to EXP and LOG and negative
-powers.  Separate complicated functions in several parts.  Never have
+powers.  Separate complicated functions in several functions.  Never have
 more than two symbols multiplied together.
 
 2016.02.12 Removed extention on linkmake and linkpara to make it easier

@@ -3039,7 +3039,7 @@
          maxl=0
       endif
    enddo
-   write(*,*)'3C refs: ',reffree,maxl
+!   write(*,*)'3C refs: ',reffree,maxl
 1000 continue
    return
  end subroutine list_bibliography

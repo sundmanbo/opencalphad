@@ -434,6 +434,11 @@ contains
     cline=' '
     call gparc('OC3: ',aline,last,5,cline,' ',tophlp)
     j1=1
+    if(len_trim(cline).gt.80) then
+       write(kou,101)
+101    format(' *** Warning: long input lines may be truncated',&
+            ' and cause errors')
+    endif
 ! with empty line just prompt again
     if(eolch(cline,j1)) goto 100
 ! with macro command character just prompt again
@@ -870,7 +875,7 @@ contains
 ! ask for overall composition             
              totam=one
              quest='Mole fraction of XX:'
-             do nv=1,noel()
+             do nv=1,noel()-1
                 if(totam.gt.zero) then
 ! assume elements as components
                    call get_component_name(nv,elsym,ceq)
@@ -889,8 +894,11 @@ contains
                 xknown(nv)=xxy
                 totam=totam-xxy
              enddo
+             write(kou,2088)totam
+2088         format('Last component fraction set to ',F8.5)
+             xknown(nv)=totam
 ! use current T and P
-             write(*,2042)'pmon: ',(xknown(nv),nv=1,noel())
+!             write(*,2042)'pmon: ',(xknown(nv),nv=1,noel())
 2042         format(a,12F6.3)
              call equilph1b(phtup,ceq%tpval,xknown,ceq)
              if(gx%bmperr.ne.0) goto 990
@@ -1499,6 +1507,9 @@ contains
                    write(kou,*)'Extra gridpoints for this phase.'
                    call set_phase_status_bit(lokph,PHXGRID)
                 endif
+             case(11) ! Flory-Huggins polymer model
+                call set_phase_status_bit(lokph,PHFHV)
+                call clear_phase_status_bit(lokph,PHID)
              end SELECT
 !............................................................
           case(6) ! SET PHASE ... CONSTITUTION iph and ics set above
@@ -2686,7 +2697,7 @@ contains
                call listoptshort(lut,mexp,errs)
 !...........................................................
              case(2) ! long
-                write(*,*)'haha'
+                write(*,*)'Not implemented yet'
 !...........................................................
              case(3) ! just coefficent values
                 call listoptcoeff(lut)
@@ -3446,9 +3457,11 @@ contains
              endif
           endif
           if(axplotdef(iax).ne.axplot(iax)) then
-! if not same axis variable remove any ranges defined !!!
+! RESTAURE DEFAULTS if not same axis variables !!!
              graphopt%rangedefaults(iax)=0
              graphopt%appendfile=' '
+             graphopt%gibbstriangle=.FALSE.
+             graphopt%labelkey='top right'
           endif
 ! remember axis as default
           axplotdef(iax)=axplot(iax)
@@ -3597,7 +3610,7 @@ contains
              call gparcd('Graphics format (Postscript/Gif/Screeen)',&
                   cline,last,1,ch1,'SCREEN',q1help)
              if(ch1.eq.'p' .or. ch1.eq.'P') then
-                write(kou,*)'Graphivs format set to postscript'
+                write(kou,*)'Graphics format set to postscript'
                 plotform='P'
              elseif(ch1.eq.'g' .or. ch1.eq.'G') then
                 write(kou,*)'Graphics format set to gif'

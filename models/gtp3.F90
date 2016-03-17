@@ -347,10 +347,10 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'Request for non-existing chemical potential                     ',&
        'Removing current data not implemented                           ',&
        'Grid minimization not allowed                                   ',&
-       'Illegal composition in call to grid minimization                ',&
+       'Grid minimimazer cannot be used with the current conditions     ',&
        'Too many gridpoints                                             ',&
        'No phases and no gridpoints in call to grid minimization        ',&
-       'Grid minimizer want to create composition set but is not allowed',&
+       'Grid minimizer wants but must not create composition sets       ',&
        'Non-existing fix phase                                          ',&
        'N, X, B or W cannot have two indices for use of grid minimizer  ',&
 ! 4180

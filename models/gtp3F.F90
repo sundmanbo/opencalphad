@@ -2165,7 +2165,8 @@
          value=ceq%phase_varres(lokcs)%dgm/div
       elseif(kstv.eq.10) then
 ! 10: Q (stability, thermodynamic factor), not implemented
-         gx%bmperr=4081; goto 1000
+!         gx%bmperr=4081; goto 1000
+         call calc_qf(lokcs,value,ceq)
 !      else
 !         write(*,*)'3F svval after 10:',kstv
       endif kstv1
@@ -2474,6 +2475,94 @@
 !   write(*,*)'3F State variable value not implemented yet'
    goto 1000
  end subroutine state_variable_val3
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine calc_qf(lokcs,value,ceq)
+! calculates eigenvalues of the second derivative matrix, stability function
+! lokcs is index of phase_varres
+! value calculated value returned
+! ceq is current equilibrium
+! For ioic liquid and charged crystalline phases one should
+! calculate eigenvectors to find neutral directions.
+   implicit none
+   TYPE(gtp_equilibrium_data) :: ceq
+   integer :: lokcs
+   double precision value
+!\end{verbatim}
+   integer info,nofc,nofc2,nmax,ii,jj,lokph,nsl,cc,rr,zz
+   double precision, allocatable :: d2g(:),eigenv(:),work(:)
+   double precision dummy(1,1)
+   integer, allocatable :: skip(:)
+! number of constituents
+! ignore sublattices with single constituents ....
+   nofc=size(ceq%phase_varres(lokcs)%yfr)
+   lokph=ceq%phase_varres(lokcs)%phlink
+   nsl=phlista(lokph)%noofsubl
+   allocate(skip(nsl+1))
+   info=1
+   nmax=0
+   do ii=1,nsl
+      if(phlista(lokph)%nooffr(ii).eq.1) then
+         nmax=nmax+1
+         skip(nmax)=info
+!         write(*,*)'QF skipping column/row ',info
+      endif
+      info=info+phlista(lokph)%nooffr(ii)
+   enddo
+   if(nmax.eq.nsl) then
+! phase has no variable composition
+      value=one
+      goto 1000
+   endif
+   skip(nmax+1)=phlista(lokph)%tnooffr+1
+!   write(*,*)'QF dimension: ',nofc,nmax
+   nofc=nofc-nmax
+   nofc2=nofc*(nofc+1)/2
+   allocate(d2g(nofc2))
+   allocate(eigenv(nofc))
+   allocate(work(3*nofc))
+   nsl=1
+   cc=0
+   rr=0
+   row: do ii=1,nofc+nmax
+      if(ii.eq.skip(nsl)) then
+! skip this column
+         nsl=nsl+1
+         cycle row
+      endif
+      cc=cc+1
+      rr=cc-1
+      column: do jj=ii,nofc+nmax
+         do zz=1,nmax
+            if(jj.eq.skip(zz)) cycle column
+         enddo
+         rr=rr+1
+!         write(*,17)'QF assigning ',ii,jj,' to ',cc,rr
+!17       format(a,2i4,a,2i4)
+         d2g(ixsym(cc,rr))=ceq%phase_varres(lokcs)%d2gval(ixsym(ii,jj),1)
+      enddo column
+   enddo row
+!
+!-------------------------------------------------------------------
+! uncomment the call to dspev in order to make Q work
+!-------------------------------------------------------------------
+! use LAPACK routine, note d2g is destroyed inside dspev
+!   call dspev('N','U',nofc,d2g,eigenv,dummy,1,work,info)
+   info=-1000
+   if(info.eq.0) then
+!      write(*,120)(eigenv(ii),ii=1,nofc)
+!120   format('Eigenvalues: ',6(1pe10.2))
+! return the most negative value
+      value=eigenv(1)
+   else
+      write(*,*)'Error calculating eigenvalues of phase matrix',info
+      gx%bmperr=4444
+   endif
+1000 continue
+   return
+ end subroutine calc_qf
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
