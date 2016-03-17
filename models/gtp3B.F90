@@ -3692,6 +3692,7 @@
       allocate(eqlista(ieq)%compstoi(maxel,maxel))
       allocate(eqlista(ieq)%invcompstoi(maxel,maxel))
       allocate(eqlista(ieq)%cmuval(maxel))
+      eqlista(ieq)%cmuval=zero
 ! this is a bit meaningless but skipping it has given raise to strange errors
       eqlista(ieq)%compstoi=zero
       eqlista(ieq)%invcompstoi=zero

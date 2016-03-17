@@ -64,7 +64,7 @@
 ! call using the local structure phase_varres
 ! results can be obtained through lokres
 !   write(*,17)'calcg: ',lokph,lokres,ceq%phase_varres(lokres)%yfr(1)
-17 format(a,2i4,1pe15.6)
+!17 format(a,2i4,1pe15.6)
    call calcg_internal(lokph,moded,ceq%phase_varres(lokres),ceq)
 1000 continue
    return
@@ -112,7 +112,8 @@
 ! calculate the ordered part twice, one with original fractions and once
 ! with these replaced by the disordered fractions. and subdrahera.  This means
 ! one must have space to save fractions and results
-   double precision, dimension(:), allocatable :: savey
+!   double precision, dimension(:), allocatable :: savey
+   double precision, dimension(maxconst) :: savey
    double precision, dimension(:,:), allocatable :: saveg
    double precision, dimension(:,:,:), allocatable :: savedg
    double precision, dimension(:,:), allocatable :: saved2g
@@ -234,11 +235,11 @@
 100 continue
 ! yionva is used as indicator below if there are Va or just neutrals ...
    yionva=zero
-! this nevertwice is probably redundant
    nevertwice=.true.
    lprop=2
    phmain%listprop(1)=1
    fractype=0
+!   write(*,*)'calcg 99: ',lokph,cps%phtupx,cps%disfra%varreslink
 !   write(*,101)'calcg 100 ',nsl,phres%gval(1,1),cps%gval(1,1)
 101 format(a,i4,4(1pe14.4))
 !--------------------------------------------------------------------
@@ -287,6 +288,7 @@
       else
 !-------------------------------------------------
 ! disorderd/other fraction sets, take data from  gtp_fraction_set
+!         write(*,*)'Fraction type: ',fractype,cps%disfra%varreslink
          msl=fracset%ndd
          gz%nofc=fracset%tnoofxfr
          incffr(0)=0
@@ -310,7 +312,7 @@
          dislink=cps%disfra
 !         write(*,*)'Calc internal disordred part 1A',dislink%fsites
          lokdiseq=dislink%varreslink
-!         write(*,*)'Calc internal disordred part 1B'
+!         write(*,*)'Calc internal disordred part 1B',lokdiseq
          phres=>ceq%phase_varres(lokdiseq)
          phres%gval=zero
 !         write(*,*)'Calc internal disordred part 1c'
@@ -1174,6 +1176,8 @@
 ! with the fractions as disordered fractions
 !      write(*,*)'3X Testing nevertwice ',nevertwice
 ! Jump to 400 terminates calculation for this fraction type
+!      write(*,*)'Nevertwice ',nevertwice,btest(phlista(lokph)%status1,phsubo),&
+!           first,fractype
       if(nevertwice) goto 400
 ! UNIFINISHED
 ! TEST IF WE SHOULD SUBTRACT THE ORDERED ENERGY AS DISORDERED AS THAT
@@ -1195,17 +1199,29 @@
 !611      format(a,i3,3(1x,L),2i3)
          if(first) then
 ! calculate with next fraction type
-! NEW METHOD: no need to calculate with all fractions as disordered
+! alternative meithod: no need to calculate with all fractions as disordered
             first=.false.
 !            write(*,*)'3X: next fraction type'
 !            goto 400
+! we must save phres%yfr before disorder ....
+!            allocate(savey(gz%nofc))
+! this creates problem with pointers in disordery?? avoid by allocating savey??
+!            savey=phres%yfr
+            do j1=1,size(phres%yfr)
+               savey(j1)=phres%yfr(j1)
+            enddo
 !------------ code below was removed for a while but is now reinstated
-            allocate(savey(gz%nofc))
-            savey=phres%yfr
 !            write(*,*)'cg: ',phmain%phlink,phmain%disfra%varreslink
 ! ??? very uncertain how to call disordery .....
 !            call disordery(phmain,phmain%disfra%varreslink,ceq)
+!            write(*,*)'At disordery: ',phmain%disfra%varreslink,&
+!                 cps%disfra%varreslink
             call disordery(phmain,ceq)
+! if call to disordery here no crash in disordery ...
+! if call moved to after assignment of savey there is a crash (GNU fortran)
+!----------
+!            allocate(savey(gz%nofc))
+!            savey=phres%yfr
 !            nprop=phmain%nprop
 ! we already know nprop
             allocate(saveg(6,nprop))
@@ -1345,7 +1361,7 @@
 !            savedg=zero
 !            saved2g=zero
 !            if(ocv()) write(*,*)'saveg DE-allocated 1: ',size(saveg)
-            deallocate(savey)
+!            deallocate(savey)
             deallocate(saveg)
             deallocate(savedg)
             deallocate(saved2g)
@@ -1632,6 +1648,11 @@
 !   if(ipy.gt.10) then
 !      write(*,*)'Property ',typty,ipy
 1000 continue
+!   ipy=phlista(lokph)%linktocs(1)
+!   write(*,*)'exit 1: ',lokph,ipy,ceq%phase_varres(ipy)%disfra%varreslink
+!   ipy=phlista(lokph)%linktocs(2)
+!   if(ipy.gt.0) &
+!        write(*,*)'exit 2: ',lokph,ipy,ceq%phase_varres(ipy)%disfra%varreslink
    if(chkperm) then
 ! wait for checking for errors ....
 !      write(*,*)'Press return'
@@ -1851,7 +1872,9 @@
    TYPE(gtp_property), pointer :: lokpty
    TYPE(gtp_parcalc) :: gz
    double precision vals(6),dvals(3,gz%nofc)
-   TYPE(gtp_equilibrium_data) :: ceq
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+! wojwoj
+!   TYPE(gtp_equilibrium_data) :: ceq
 !\end{verbatim}
 ! temporary data like gz%intlevel, gz%nofc etc
    double precision d2vals(gz%nofc*(gz%nofc+1)/2),valtp(6)
@@ -2643,9 +2666,52 @@
    integer lokph,lokcs
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-   TYPE(gtp_fraction_set), pointer :: disrec
+!   TYPE(gtp_fraction_set), pointer :: disrec
    TYPE(gtp_phase_varres), pointer :: phord
    TYPE(gtp_phase_varres), pointer :: phdis
+!   logical ordered
+! minimum difference in site fraction to be set as ordered
+!   double precision, parameter :: yminord=1.0D-10
+   integer lokdis,is
+!
+!   write(*,*)'entering calc_disfrac'
+! this is the record with the ordered constitution
+   phord=>ceq%phase_varres(lokcs)
+!   disrec=phord%disfra
+!   lokdis=disrec%varreslink
+!   phdis=>disrec%phdapointer
+   lokdis=ceq%phase_varres(lokcs)%disfra%varreslink
+   phdis=>ceq%phase_varres(lokdis)
+! this is a record within the ordered constitution record for disordered fracs
+!   disrec=>phord%disfra
+! to find the varres record with disordered fractions use varreslink
+! this is the index to the phase_varres record with the ordered fractions ???
+   lokdis=ceq%phase_varres(lokcs)%disfra%varreslink
+!   write(*,*)'Calc disfra: ',lokph,lokcs,lokdis
+!   phdis=>ceq%phase_varres(lokdis)
+!   call calc_disfrac2(ceq%phase_varres(lokcs)%disfra,&
+!   call calc_disfrac2(ceq%phase_varres(lokcs),ceq%phase_varres(lokdis),ceq)
+   call calc_disfrac2(phord,phdis,ceq)
+1000 continue
+   return
+ end subroutine calc_disfrac
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine calc_disfrac2(phord,phdis,ceq)
+! calculate and set disordered set of fractions from sitefractions
+! The first derivatives are dxidyj.  There are no second derivatives
+!   TYPE(gtp_fraction_set), pointer :: disrec
+   implicit none
+!   integer lokph,lokcs
+!   TYPE(gtp_fraction_set), pointer :: disrec
+   TYPE(gtp_phase_varres), target :: phord
+!   TYPE(gtp_phase_varres), pointer :: phord
+   TYPE(gtp_phase_varres), pointer :: phdis
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   TYPE(gtp_fraction_set), pointer :: disrec
    logical ordered
 ! minimum difference in site fraction to be set as ordered
    double precision, parameter :: yminord=1.0D-10
@@ -2656,13 +2722,13 @@
 !   lokdis=disrec%varreslink
 !   phdis=>disrec%phdapointer
 ! this is the record with the ordered constitution
-   phord=>ceq%phase_varres(lokcs)
+!   phord=>ceq%phase_varres(lokcs)
 ! this is a record within the ordered constitution record for disordered fracs
    disrec=>phord%disfra
 ! to find the varres record with disordered fractions use varreslink
 ! this is the index to the phase_varres record with the ordered fractions ???
-   lokdis=disrec%varreslink
-   phdis=>ceq%phase_varres(lokdis)
+!   lokdis=disrec%varreslink
+!   phdis=>ceq%phase_varres(lokdis)
 !   write(*,*)'calc_disfrac 1A'
 ! check that some values are accessable
 !   write(*,*)'calc_disfra phase index: ',phord%phlink
@@ -2691,11 +2757,9 @@
    if(.not.ordered) then
 ! if this bit set one will not calculate the ordered part of the phase
       phord%status2=ibclr(phord%status2,csorder)
-!      write(*,*)'calc_disfrac: disordered, clear ordered bit',lokph
    else
 ! bit must be cleared as it might have been set at previous call
       phord%status2=ibset(phord%status2,csorder)
-!      write(*,*)'calc_disfrac: ordered, set ordered bit',lokph
    endif
 !   write(*,*)'calc_disfrac 4'
 ! copy these to the phase_varres record that belongs to this fraction set
@@ -2706,7 +2770,7 @@
    return
 ! G(tot)    = GD(xdis)+(GO(yord)-GO(yord=xdis))
 ! G(tot).yj = dGD(xdis).dxi*dxdyj + GO.yj - GO.yj ... 
- end subroutine calc_disfrac
+ end subroutine calc_disfrac2
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -2714,49 +2778,115 @@
  subroutine disordery(phvar,ceq)
 ! sets the ordered site fractions in FCC and other order/disordered phases
 ! equal to their disordered value in order to calculate and subtract this part
-! phvar is index to phase_varres for ordered fractions
+! phvar is pointer to phase_varres for ordered fractions
    implicit none
    TYPE(gtp_phase_varres), pointer :: phvar
-   TYPE(gtp_equilibrium_data) :: ceq
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+! wojwoj
+!   TYPE(gtp_equilibrium_data) :: ceq
 !\end{verbatim}
    TYPE(gtp_fraction_set), pointer :: disrec
-   TYPE(gtp_phase_varres) :: phdis
-   integer lokdcs,kk,ll,is,nis,nsl
+!   TYPE(gtp_phase_varres) :: phdis
+   TYPE(gtp_phase_varres), pointer :: phdis
+   integer lokdcs,ii,nofc1,nofc2
+   double precision xxx
+!   integer lokdcs,kk,ll,is,nis,nsl
 ! find disordered fractions
-   lokdcs=phvar%disfra%varreslink
-   disrec=>phvar%disfra
+!   lokdcs=phvar%disfra%varreslink
+!   disrec=>phvar%disfra
 !   write(*,*)'disordery: ',disrec%latd,disrec%nooffr(1),lokdcs
-   phdis=ceq%phase_varres(lokdcs)
+!   phdis=ceq%phase_varres(lokdcs)
 !   write(*,*)'disordery: ',ceq%xconv
 !   write(*,*)'disordery: ',phdis%yfr(1)
 !   phdis=>ceq%disrec%phdapointer
+! find disordered fractions
+   disrec=>phvar%disfra
+   lokdcs=phvar%disfra%varreslink
+! problem that this pointer is not always ok ....???
+   phdis=>ceq%phase_varres(lokdcs)
+!   write(*,*)'dis1: 1',lokdcs
+!   xxx=phdis%yfr(1)
+!   write(*,*)'dis1: 2',xxx,phdis%yfr(1)
+!   write(*,*)'disordery: ',disrec%latd,disrec%nooffr(1),lokdcs
+!   phdis=ceq%phase_varres(lokdcs)
+!   write(*,*)'disordery: ',ceq%xconv
+!   call disordery2(phvar,ceq%phase_varres(lokdcs),ceq)
+!   if(.not.associated(phvar)) write(*,*)'phvar not associated'
+!   if(.not.associated(phdis)) write(*,*)'phdis not associated'
+!   nofc1=size(phvar%yfr)
+!   nofc2=size(phdis%yfr)
+!   write(*,11)'phvary: ',(phvar%yfr(ii),ii=1,nofc1)
+!   write(*,11)'phdisy: ',(phdis%yfr(ii),ii=1,nofc2)
+11 format(a,8F7.4)
+!   call disordery2(phdis,phvar,disrec,ceq)
+!   call disordery2(ceq%phase_varres(lokdcs),phvar,disrec,ceq)
+   call disordery2(lokdcs,phvar,disrec,ceq)
+!   write(*,11)'phvary: ',(phvar%yfr(ii),ii=1,nofc1)
+!   write(*,11)'phdisy: ',(phdis%yfr(ii),ii=1,nofc2)
+!   write(*,*)'Done disorder'
+!
+1000 continue
+   return
+ end subroutine disordery
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine disordery2(lokdcs,phvar,disrec,ceq)
+! subroutine disordery2(phdis,phvar,disrec,ceq)
+! sets the ordered site fractions in FCC and other order/disordered phases
+! equal to their disordered value in order to calculate and subtract this part
+! phvar is pointer to phase_varres for ordered fractions
+! phdis is pointer to phase_varres for disordered fractions
+   implicit none
+   TYPE(gtp_phase_varres), pointer :: phvar
+!   integer lokdcs
+!   TYPE(gtp_phase_varres) :: phdis
+!   TYPE(gtp_phase_varres), pointer :: phdis
+   TYPE(gtp_fraction_set), pointer :: disrec
+! wojwoj
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+!   TYPE(gtp_equilibrium_data) :: ceq
+!\end{verbatim}
+   integer lokdcs,kk,ll,is,nis,nsl
+   double precision xxx
 ! copy fractions, loop through all ordered sublattices in phvar
 ! and store fraction from lokdis
+!   write(*,*)'dis2: 1'
    kk=0
 ! here copy: 
 ! y(ord,1,1)=y(dis,1); y(ord,1,2)=y(dis,2); y(ord,1,3)=y(dis,3); 
 ! y(ord,2,1)=y(dis,1); y(ord,2,2)=y(dis,2); y(ord,2,3)=y(dis,3); 
+!   write(*,*)'dis2: 2',disrec%latd,disrec%nooffr(1)
+!   write(*,*)'dis2: 3',phdis%yfr(1)
+!   write(*,*)'disordery2: ',lokdcs
    do ll=1,disrec%latd
       do is=1,disrec%nooffr(1)
          kk=kk+1
-         phvar%yfr(kk)=phdis%yfr(is)
+!         phvar%yfr(kk)=phdis%yfr(is)
+!         xxx=phdis%yfr(is)
+         xxx=ceq%phase_varres(lokdcs)%yfr(is)
+         phvar%yfr(kk)=xxx
       enddo
    enddo
+!   write(*,*)'dis2: 4',disrec%ndd
    if(disrec%ndd.eq.2) then
 ! one can have 2 sets of ordered subl. like (Al,Fe)(Al,Fe)...(C,Va)(C,Va)...
       nis=disrec%nooffr(1)
       nsl=size(phvar%sites)
+!      write(*,*)'dis2: 5',nis,nsl
 !      write(*,*)'dy: ',nis,kk,disrec%latd,nsl,disrec%nooffr(2)
       do ll=disrec%latd+1,nsl
          do is=1,disrec%nooffr(2)
             kk=kk+1
-            phvar%yfr(kk)=phdis%yfr(nis+is)
+!            phvar%yfr(kk)=phdis%yfr(nis+is)
+            phvar%yfr(kk)=ceq%phase_varres(lokdcs)%yfr(nis+is)
          enddo
       enddo
    endif
 1000 continue
    return
- end subroutine disordery
+ end subroutine disordery2
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

@@ -15,6 +15,14 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2016.03.17 A rather complicated bug related to deleting redundant
+phase tuples after an equilibrium calculation probably fixed.  It
+occured for an FCC phase with a disordered fraction set.  In the macro
+opttest2.OCM I have added an example of plotting an appended figure
+with data.  I have also added a command "calulate phase ... const-adj"
+to calculate the constitution of the phase when the mole fractions are
+known.  It is mainly intended for OCASI applications.
+
 2016.03.16 Some minor changes in all documentation files.  For
 plotting there is now a possibility to APPEND a GNUPLOT command file
 to be superimposed on a calculated diagram.  This should be useful for

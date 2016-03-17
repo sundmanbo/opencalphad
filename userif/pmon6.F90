@@ -852,14 +852,14 @@ contains
              nofc=noconst(iph,ics,firsteq)
              write(lut,2031)(rgast*parres%gval(j1,1),j1=1,4)
              write(lut,2041)(rgast*parres%dgval(1,j1,1),j1=1,nofc)
-2041         format('dG/dy:   ',4(1PE16.8))
+2041         format('dG/dy:   ',4(1PE16.8),(/9x,4e16.8))
 !.......................................................
           case(3) ! calculate phase < > all derivatives
              call tabder(iph,ics,ceq)
              write(*,*)' NOTE THAT dG/dy_i is NOT THE CHEMICAL POTENTIAL of i!'
              if(gx%bmperr.ne.0) goto 990
 !.......................................................
-          case(4) ! calculate phase constitution_adjusstment
+          case(4) ! calculate phase with constitution_adjustment
 ! convert to phase tuple here as that is used in the application call
              do jp=1,nooftup()
                 if(phasetuple(jp)%phaseix.eq.iph .and. &
@@ -893,16 +893,21 @@ contains
                 endif
                 xknown(nv)=xxy
                 totam=totam-xxy
+! yarr is used here to provide an array for the chemical potentials
+                yarr(nv)=ceq%cmuval(nv)
              enddo
              write(kou,2088)totam
 2088         format('Last component fraction set to ',F8.5)
              xknown(nv)=totam
+             yarr(nv)=ceq%cmuval(nv)
 ! use current T and P
 !             write(*,2042)'pmon: ',(xknown(nv),nv=1,noel())
 2042         format(a,12F6.3)
-             call equilph1b(phtup,ceq%tpval,xknown,ceq)
+! the FALSE means not quiet
+             call equilph1b(phtup,ceq%tpval,xknown,yarr,.FALSE.,ceq)
              if(gx%bmperr.ne.0) goto 990
-             write(*,*)'Use list phase const to see result'
+             write(kou,2087)(yarr(nv),nv=1,noel())
+2087         format('Calculated chemical potentials/RT:'/6(1pe12.4))
 !.......................................................
           case(5) !
              write(*,*)'Not implemeneted yet'

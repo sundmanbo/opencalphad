@@ -4124,7 +4124,7 @@ CONTAINS
                       if(anp(jj,nv).lt.anpmin) anpmin=anp(jj,nv)
 ! extract state variable jj
                       if(.not.allocated(lid)) then
-                         allocate(lid(np))
+                         allocate(lid(np+5))
 !                         write(*,*)'Allocate lid: ',np
                       endif
 ! getext( , ,2, , , ) returns next text item up to a space
@@ -4671,7 +4671,9 @@ CONTAINS
        if(appfil.eq.0) then
           if(np.ge.2) write(21,882)np+2,lcolor,lid(np)(1:len_trim(lid(np))),' '
        else
-          write(21,882)i+2,lcolor,lid(i)(1:len_trim(lid(i))),backslash
+! write the last calculated curve if np>1
+          if(np.ge.2) write(21,882)i+2,lcolor,lid(i)(1:len_trim(lid(i))),&
+               backslash
 ! we should append data, change plot "-" to just "" in appline(1)
           i=index(applines(1),'plot "-"')
           applines(1)(1:i+7)='""'
@@ -4699,7 +4701,9 @@ CONTAINS
        if(appfil.eq.0) then
           if(np.ge.2) write(21,892)np+2,lcolor,lid(np)(1:len_trim(lid(np))),' '
        else
-          write(21,892)i+2,lcolor,lid(i)(1:len_trim(lid(i))),backslash
+! write the last calculated curve if np>1
+          if(np.ge.2) write(21,892)i+2,lcolor,lid(i)(1:len_trim(lid(i))),&
+               backslash
 ! we should append data, change plot "-" to just "" in appline(1)
           i=index(applines(1),'plot "-"')
           applines(1)(1:i+7)='""'

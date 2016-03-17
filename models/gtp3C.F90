@@ -653,7 +653,11 @@
 !      write(*,*)'state variable :',svtext
       call get_state_var_value(svtext,x3,encoded,ceq)
 ! divide mu with RT
-      x3=x3/rtn
+      if(abs(x3).gt.1.0E-40) then
+         x3=x3/rtn
+      else
+         x3=zero
+      endif
       x4=exp(x3)
       if(gx%bmperr.ne.0) then
          write(*,*)'3C Error line 659: ',svtext(1:20),gx%bmperr

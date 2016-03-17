@@ -4089,12 +4089,23 @@
    integer mode
 !\end{verbatim}
    integer iph,ics,lokph,lokics,jcs,lokjcs,lastset,lokkcs,kzz,jtup,qq
-   integer jstat2,fit,phs
+   integer jstat2,fit,phs,haha1,haha2,disfravares
    double precision val,xj1,xj2
    logical notok,noremove
    character jpre*4,jsuf*4
    real, dimension(:), allocatable :: tmmyfr
 !
+!---------------------------------------------------------------- debug
+!   haha1=1
+!   haha2=phlista(1)%linktocs(1)
+!   write(*,*)'fore 1: ',1,haha2,ceq%phase_varres(haha2)%disfra%varreslink,&
+!        ceq%phase_varres(haha2)%phstate,phlista(lokph)%noofcs
+!   haha2=phlista(1)%linktocs(2)
+!   if(haha2.gt.0) &
+!        write(*,*)'fore 2: ',1,haha2,&
+!        ceq%phase_varres(haha2)%disfra%varreslink,&
+!        ceq%phase_varres(haha2)%phstate
+!----------------------------------------------------------------
    if(btest(globaldata%status,GSNOAFTEREQ)) goto 1000
 !   write(*,*)'3Y in todo_after'
 ! First shift all stable composition down to lower comp.sets
@@ -4133,9 +4144,10 @@
                   cycle csloop2
                endif
 ! Accept a default consitution which almost fits the default
-               write(*,*)'3Y Accept fit to default: ',fit,lokics,lokjcs
+!               write(*,*)'3Y Accept fit to default: ',fit,lokics,lokjcs
 500            continue
 ! move STABLE lokics to UNSTABLE lokjcs
+               write(*,*)'move from to: ',lokics,lokjcs
 !               copycompsets(... ???
 ! save some jcs values of amount, dgm, status, pre&suffix and tuple index
                   xj1=ceq%phase_varres(lokjcs)%amfu
@@ -4150,6 +4162,8 @@
 501               format('3Y 501: ',i5,10F5.1)
 ! copy main content of the phase_varres(lokics) record to phase_varres(lokjcs)
 ! BEWARE mmyfr must be kept!
+! BEWARE disordered fraction set!!!!
+                  disfravares=ceq%phase_varres(lokjcs)%disfra%varreslink
                   allocate(tmmyfr(size(ceq%phase_varres(lokjcs)%mmyfr)))
                   tmmyfr=ceq%phase_varres(lokjcs)%mmyfr
                   ceq%phase_varres(lokjcs)=ceq%phase_varres(lokics)
@@ -4181,11 +4195,20 @@
 !                       write(*,*)'3Y AUTO bit already set in ',ics
                   ceq%phase_varres(lokics)%status2=&
                        ibset(ceq%phase_varres(lokics)%status2,CSAUTO)
+! move the disordered fraction set
+                  ceq%phase_varres(lokjcs)%disfra%varreslink=&
+                       ceq%phase_varres(lokics)%disfra%varreslink
+                  ceq%phase_varres(lokics)%disfra%varreslink=disfravares
                   exit csloop2
             enddo csloop2
          endif
       enddo csloop1
    enddo phloop1
+!   haha2=phlista(lokph)%linktocs(1)
+!   write(*,*)'mitt 1: ',lokph,haha2,ceq%phase_varres(haha2)%disfra%varreslink
+!   haha2=phlista(lokph)%linktocs(2)
+!   if(haha2.gt.0) &
+!   write(*,*)'mitt 2: ',lokph,haha2,ceq%phase_varres(haha2)%disfra%varreslink
 ! Here we may try to ensure that the stable comp.sets fits the
 ! default constitutions of their current set
 !   write(*,*)'3Y Try to shift stable comp.sets. to match default const.'
@@ -4242,6 +4265,12 @@
    enddo phloop
 !
 1000 continue
+!   lokph=1
+!   jcs=phlista(lokph)%linktocs(1)
+!   write(*,*)'after 1: ',lokph,jcs,ceq%phase_varres(jcs)%disfra%varreslink
+!   jcs=phlista(lokph)%linktocs(2)
+!   if(jcs.gt.0) &
+!        write(*,*)'after 2: ',lokph,jcs,ceq%phase_varres(jcs)%disfra%varreslink
    return
  end subroutine todo_after_found_equilibrium
 
@@ -4263,7 +4292,8 @@
 !           fit=1,size(ceq%phase_varres(lokjcs)%yfr))
 9     format('3Y default: ',10F6.2)
       fit=1
-      do kk=1,size(ceq%phase_varres(lokjcs)%yfr)
+      do kk=1,size(ceq%phase_varres(lokjcs)%mmyfr)
+!      do kk=1,size(ceq%phase_varres(lokjcs)%yfr)
          xdef=ceq%phase_varres(lokjcs)%mmyfr(kk)
          if(xdef.eq.0) then
 ! no default for this constitution
@@ -4282,7 +4312,7 @@
 !      write(*,*)'3Y checkdefcon fit: ',fit,kk
    else
 ! no default constitution, perfect fit!!
-      kk=size(ceq%phase_varres(lokjcs)%yfr)
+      fit=size(ceq%phase_varres(lokjcs)%yfr)
    endif
 1000 continue
    return

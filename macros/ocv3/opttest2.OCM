@@ -1164,13 +1164,7 @@ l,,,,
 @&
 @$ Just to test calculation of the congruent melting
 
-set fix 40
- -200000
-
-l o c
-
-@&
-@$ This sequilibrium has a congruent transformations
+set fix 40 -200000
 
 sel eq 546
 
@@ -1183,6 +1177,36 @@ l,,,,
 
 @&
 @$ Now continue on your own ...
+
+sel eq 1
+
+set c t=1100 p=15 n=1 x(mg)=.5
+
+set ref cu liq ,,,,,
+
+set ref mg liq ,,,,,
+
+set ax 1 x(mg) 0 1 ,,
+
+set status ph *=s
+
+set status ph liq=e 1
+
+c e
+
+step
+
+plot
+x(mg)
+hm
+
+
+plot
+x(mg)
+hm
+append
+hliq.plt
+
 
 set interactive 
 
