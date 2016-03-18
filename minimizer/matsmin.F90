@@ -6320,6 +6320,7 @@ CONTAINS
     allocate(yarr(phr(1)%ncc))
     chargefact=one
     chargerr=one
+    write(*,*)'We are in equilph1c: ',phr(1)%iph,phr(1)%ics,gx%bmperr
 ! we have just one phase in phr, phr must be TARGET
     pmi=>phr(1)
 100 continue
@@ -6421,14 +6422,14 @@ CONTAINS
     enddo moody
 ! >>>>>>>>>>>>>>>>>> HERE the new constitution is set <<<<<<<<<<<<<<<<<<<<<
 !    write(*,112)'YC: ',jj,(ycorr(nj),nj=1,phr(jj)%ncc)
-!    write(*,112)'YY: ',jj,(yarr(nj),nj=1,phr(jj)%ncc)
+    write(*,112)'YY: ',meqrec%noofits,(yarr(nj),nj=1,phr(jj)%ncc)
 112 format(a,i3,8F8.5)
     call set_constitution(phr(jj)%iph,phr(jj)%ics,yarr,qq,ceq)
     if(gx%bmperr.ne.0) goto 1000
 !  >>>>>>>>>>>>>>>>>> for all phases <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 ! check convergence
+    meqrec%noofits=meqrec%noofits+1
     if(converged.gt.3) then
-       meqrec%noofits=meqrec%noofits+1
        if(meqrec%noofits.le.ceq%maxiter) goto 100
        write(*,*)'Too many iterations',ceq%maxiter
     elseif(meqrec%noofits.lt.6) then
