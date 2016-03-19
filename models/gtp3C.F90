@@ -1604,13 +1604,19 @@
 ! we have no current equilibrium record but can use firsteq!!
 !                     lokcs=phlista(lokph)%linktocs(1)
 !                     write(*,*)'3C: endmember typspec 1: ',iel
+!                     write(*,*)'3C splink: ',disfrap%splink
                      linkcon=disfrap%splink(iel)
 !                     write(*,*)'3C: endmember typspec 2: ',linkcon
-                     ll=1
-                     if(linkcon.gt.disfrap%nooffr(1)) ll=2
+                     ll=0
+!                     ll=1
+! linkcon has nothing to do with which sublattice, ignore ll
+!                     if(linkcon.gt.disfrap%nooffr(1)) ll=2
                      prop=prop(1:len_trim(prop))//'&'&
                           //splista(linkcon)%symbol
-                     goto 120
+!                     write(*,*)'3C We are here',linkcon,disfrap%nooffr(1),ll
+                     prop=prop(1:len_trim(prop))
+!                     goto 120
+                     goto 121
                   else
                      linkcon=phlista(lokph)%constitlist(iel)
                      if(linkcon.le.0) then
@@ -1633,6 +1639,7 @@
 120               continue
 !                  write(*,*)'property 1: ',prop(1:10),ll
                   prop=prop(1:len_trim(prop))//'#'//char(ll+ichar('0'))
+121               continue
                else
                   write(kou,*)'lpd 7B: ',iel,typty
                   gx%bmperr=4082; goto 1000

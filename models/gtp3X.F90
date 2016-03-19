@@ -584,7 +584,7 @@
                endif prop1
 ! debug
 !               write(*,173)'3X endmember: ',endmemrec%antalem,ipy,pyq,vals(1)
-173            format(a,2i3,4(1pe12.4))
+173            format(a,2i4,4(1pe12.4))
 ! multiply with py and derivatives. vals is composition independent
 !               write(*,*)'Config G 4B: ',vals(1)*rtg
                noderz2: if(moded.gt.0) then
@@ -605,7 +605,11 @@
                do itp=1,6
                   phres%gval(itp,ipy)=phres%gval(itp,ipy)+pyq*vals(itp)
                enddo
-!               write(*,173)'3X gval:      ',0,ipy,phres%gval(1,ipy),pyq,vals(1)
+! strange values of mobilities for ordered phases ...
+!               if(ipy.ne.1) then
+!               write(*,173)'3X gval:      ',phmain%listprop(ipy),ipy,&
+!                    phres%gval(1,ipy),pyq,vals(1)
+!               endif
                proprec=>proprec%nextpr
 !               write(*,*)'Config G 4C: ',phres%gval(1,1)*rtg
             enddo emprop

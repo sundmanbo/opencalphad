@@ -61,7 +61,7 @@ MODULE liboceq
 ! iph: phase number
 ! ics: composition set number
 ! idim: the dimension of phase matrix, 
-! ncc: the number of constituents
+! ncc: the number of constituents (same as idim??)
 ! stable: is 1 for a stable phase
 ! xdone: set to 1 for stoichiometric phases after calculating xmol first time
 ! dormlink: used to link phases that temporarily been set dormant
@@ -6194,6 +6194,7 @@ CONTAINS
     double precision tpval(*)
     TYPE(gtp_phasetuple), pointer :: phtup
     TYPE(gtp_equilibrium_data), pointer :: ceq
+    TYPE(meq_setup) :: meqrec
 !\end{verbatim} %+
     integer nel,ii
     double precision, allocatable :: xknown(:),wmass(:),cpot(:)
@@ -6210,10 +6211,13 @@ CONTAINS
     do ii=1,nel
        cpot=ceq%cmuval(ii)
     enddo
-    if(gx%bmperr.eq.0) then
-! find the set of constutuents with lowest Gibbs energy
-       call equilph1b(phtup,tpval,xknown,cpot,.FALSE.,ceq)
-    endif
+    if(gx%bmperr.ne.0) goto 1000
+! create the meqrec structure
+    call equilph1_meqrec(phtup,meqrec,.FALSE.,ceq)
+    if(gx%bmperr.ne.0) goto 1000
+    ceq%rtn=globaldata%rgas*tpval(1)
+! iterate until equilibrium found for this phase
+    call equilph1c(meqrec,meqrec%phr,tpval,xknown,cpot,ceq)
     deallocate(xknown)
     deallocate(wmass)
 1000 continue
@@ -6232,55 +6236,24 @@ CONTAINS
 ! tyst is TRUE means no outut
     implicit none
     integer mode
+    TYPE(meq_setup) :: meqrec
     double precision tpval(*),xknown(*),cpot(*)
-    TYPE(gtp_phasetuple), pointer :: phtup
     TYPE(gtp_equilibrium_data), pointer :: ceq
     logical tyst
-!\end{verbatim}
-    integer phase
-    TYPE(meq_setup) :: meqrec
-! setup equilibrium calculation for a single phase, set all others as suspended
-! store vaules in meqrec
-    meqrec%nrel=noel()
-    meqrec%nfixph=0
-    meqrec%nfixmu=0
-    meqrec%tpindep=.FALSE.
+!\end{verbatim} %+
+    TYPE(gtp_phasetuple), pointer :: phtup
+    integer ii
+! extract the current chemical potentials as start values
+    do ii=1,noel()
+       cpot(ii)=ceq%cmuval(ii)
+    enddo
+    if(gx%bmperr.ne.0) goto 1000
+! create the meqrec structure
+    call equilph1_meqrec(phtup,meqrec,.FALSE.,ceq)
+    if(gx%bmperr.ne.0) goto 1000
+! mabe we need RT ?
     ceq%rtn=globaldata%rgas*tpval(1)
-    meqrec%nphase=1
-    allocate(meqrec%phr(1))
-    meqrec%nstph=1
-! phaseix is index in phases, ixphase is index in phlista
-    meqrec%phr(1)%iph=phtup%phaseix
-    meqrec%phr(1)%ics=phtup%compset
-    meqrec%phr(1)%itadd=0
-    meqrec%phr(1)%itrem=0
-    meqrec%phr(1)%xdone=0
-    meqrec%phr(1)%phasestatus=1
-    meqrec%phr(1)%ionliq=-1
-    meqrec%phr(1)%i2sly=0
-    meqrec%stphl(1)=1
-    if(test_phase_status_bit(phtup%phaseix,PHIONLIQ)) meqrec%phr(1)%ionliq=1
-! set link to calculated values of G etc.
-!    call get_phase_compset(iph,ics,lokph,lokcs)
-! link to results
-    meqrec%phr(1)%curd=>ceq%phase_varres(phtup%lokvares)
-! set phase stable
-    meqrec%phr(1)%stable=1
-    meqrec%phr(1)%prevam=one
-    meqrec%phr(1)%prevdg=zero
-    meqrec%phr(1)%idim=0
-! number of constituents !!!
-    meqrec%phr(1)%ncc=size(ceq%phase_varres(phtup%lokvares)%yfr)
-    meqrec%dormlink=0! 
-    meqrec%status=0
-    if(tyst) then
-       meqrec%status=ibset(meqrec%status,QUIET)
-    else
-       meqrec%status=ibclr(meqrec%status,QUIET)
-    endif
-!
-    meqrec%noofits=0
-! this replaces call to meq_sameset as we will never change stable phase
+! iterate until equilibrium found for this phase
     call equilph1c(meqrec,meqrec%phr,tpval,xknown,cpot,ceq)
 1000 continue
     return
@@ -6288,7 +6261,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim}
+!\begin{verbatim} %-
   subroutine equilph1c(meqrec,phr,tpval,xknown,ovar,ceq)
 ! iterate constituent fractions of a phase for mole fractions xknown
 ! tpval is T and P
@@ -6320,7 +6293,7 @@ CONTAINS
     allocate(yarr(phr(1)%ncc))
     chargefact=one
     chargerr=one
-    write(*,*)'We are in equilph1c: ',phr(1)%iph,phr(1)%ics,gx%bmperr
+!    write(*,*)'We are in equilph1c: ',phr(1)%iph,phr(1)%ics,gx%bmperr
 ! we have just one phase in phr, phr must be TARGET
     pmi=>phr(1)
 100 continue
@@ -6422,7 +6395,7 @@ CONTAINS
     enddo moody
 ! >>>>>>>>>>>>>>>>>> HERE the new constitution is set <<<<<<<<<<<<<<<<<<<<<
 !    write(*,112)'YC: ',jj,(ycorr(nj),nj=1,phr(jj)%ncc)
-    write(*,112)'YY: ',meqrec%noofits,(yarr(nj),nj=1,phr(jj)%ncc)
+!    write(*,112)'YY: ',meqrec%noofits,(yarr(nj),nj=1,phr(jj)%ncc)
 112 format(a,i3,8F8.5)
     call set_constitution(phr(jj)%iph,phr(jj)%ics,yarr,qq,ceq)
     if(gx%bmperr.ne.0) goto 1000
@@ -6441,6 +6414,406 @@ CONTAINS
 1000 continue
     return
   end subroutine equilph1c
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+  subroutine equilph1d(phtup,tpval,xknown,cpot,tyst,nend,mugrad,intdiv,ceq)
+! equilibrates the constituent fractions of a phase for mole fractions xknown
+! and calculates 
+! phtup is phase tuple
+! tpval is T and P
+! ceq is a datastructure with all relevant thermodynamic data
+! cpot are the (calculated) chemical potentials
+! tyst is TRUE means no outut
+! nend is the number of values returned in mugrad
+! mugrad is the derivatives of the chemical potentials wrt mole fractions??
+! intdiv is the interdiffusivites (provide there are mobilities)
+    implicit none
+    integer nend
+    TYPE(meq_setup) :: meqrec
+    double precision tpval(*),xknown(*),cpot(*),mugrad(*),intdiv(*)
+    TYPE(gtp_equilibrium_data), pointer :: ceq
+    logical tyst
+!\end{verbatim}
+    integer ii
+    TYPE(gtp_phasetuple), pointer :: phtup
+! extract the current chemical potentials as start values
+    do ii=1,noel()
+       cpot(ii)=ceq%cmuval(ii)
+    enddo
+    if(gx%bmperr.ne.0) goto 1000
+! create the meqrec structure
+    call equilph1_meqrec(phtup,meqrec,.FALSE.,ceq)
+    if(gx%bmperr.ne.0) goto 1000
+! mabe we need RT ?
+    ceq%rtn=globaldata%rgas*tpval(1)
+! iterate until equilibrium found for this phase
+    call equilph1e(meqrec,meqrec%phr,tpval,xknown,cpot,nend,mugrad,intdiv,ceq)
+1000 continue
+    return
+  end subroutine equilph1d
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+  subroutine equilph1e(meqrec,phr,tpval,xknown,ovar,nend,mugrad,intdiv,ceq)
+! iterate constituent fractions of a phase for mole fractions xknown
+! and calculate derivatives of MU and diffusion coefficients
+! tpval is T and P
+! xknown are mole fractions
+! nrel is the number of components (elements)
+! ovar are the chemical potentials
+! mugrad is the derivatives of the chemical potentials wrt mole fractions??
+! intdiv is the interdiffusivites (provide there are mobilities)
+! ceq is a datastructure with all relevant thermodynamic data
+    implicit none
+    integer nend
+    double precision tpval(*),xknown(*),ovar(*),mugrad(*),intdiv(*)
+    TYPE(meq_setup) :: meqrec
+    TYPE(meq_phase), dimension(*), target :: phr
+    TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+    integer nz1,nz2,tcol,pcol,dncol,converged,ierr,jj,nj,nk,nl,is,jt
+    integer lokph,nkl(maxsubl),first(maxsubl+1),current(maxsubl),nsl,noofend
+    TYPE(meq_phase), pointer :: pmi
+    double precision, allocatable :: smat(:,:),svar(:),yarr(:),delta(:)
+! dmuenddy is derivatives of mu for endmembers wrt all constituents
+    double precision, allocatable :: dmuenddy(:,:),diffcoeff(:,:),muend(:)
+    double precision, allocatable :: py(:)
+    double precision chargefact,chargerr,pv,qq(5),ys,ycormax2,muall,mob1,mob2
+    integer, allocatable :: koll(:)
+! number of variables is number of components + one stable phase
+    nz1=meqrec%nrel+1
+    nz2=nz1+1
+    allocate(smat(nz1,nz2))
+    allocate(svar(nz1))
+!    allocate(ovar(nz1))
+! current values of chemical potentials
+!    do jj=1,meqrec%nrel
+!       ovar(jj)=ceq%cmuval(jj)
+!    enddo
+    allocate(delta(phr(1)%ncc))
+    allocate(yarr(phr(1)%ncc))
+    chargefact=one
+    chargerr=one
+!    write(*,*)'We are in equilph1c: ',phr(1)%iph,phr(1)%ics,gx%bmperr
+! we have just one phase in phr, phr must be TARGET
+    pmi=>phr(1)
+100 continue
+    converged=0
+    smat=zero
+! invert the phase matrix for pmi
+    call meq_onephase(meqrec,pmi,ceq)
+    if(gx%bmperr.ne.0) goto 1000
+! all ok to here ???
+! setup mass balance equations, note some components may be missing
+! This is a simplified setup_equilmatrix using xknown as composition
+!    call setup_equilmatrix(meqrec,phr,nz1,smat,tcol,pcol,dncol,converged,ceq)
+    call setup_comp2cons(meqrec,phr,nz1,smat,tpval,xknown,converged,ceq)
+    if(gx%bmperr.ne.0) goto 1000
+! debug output as the matrix had changed efter return from subroutine ...
+!    do nk=1,nz1
+!       write(*,111)'smat3: ',nk,(smat(nk,jj),jj=1,nz2)
+!    enddo
+!    goto 1000
+! solve the equilibrium matrix, some chemical potentials may be missing
+    call lingld(nz1,nz2,smat,svar,nz1,ierr)
+    if(ierr.ne.0) then
+       write(*,*)'Error solving equilibrium matrix',ierr
+       gx%bmperr=4444; goto 1000
+    endif
+! check that svar(1..meqrec%nrel) has converged
+    do jj=1,meqrec%nrel
+       if(abs(svar(jj)-ovar(jj)).gt.1.0D1*ceq%xconv) then
+!          write(*,103)'chempot: ',svar(jj),ovar(jj),svar(jj)-ovar(jj)
+103       format(a,3(1pe12.4))
+          converged=7
+       endif
+       ovar(jj)=svar(jj)
+    enddo
+!    write(*,111)'svar: ',0,(svar(jj),jj=1,nz1)
+111 format(a,i2,6(1pe12.4))
+! check dxmol ... seems OK
+!    do nk=1,phr(1)%ncc
+!       write(*,111)'dxmol: ',nk,(phr(1)%dxmol(nl,nk),nl=1,meqrec%nrel)
+!    enddo
+! update constituent fractions in just one phase
+!    lap: do jj=1
+    jj=1
+! The current chemical potentials are in ceq%cmuval(i) svar(1..n)
+! jj is stable, increment kk but do not make it larger than meqrec%nstph
+! save index in meqrec%stphl in jph !!!!!!!!!!! kk never used !!!!!!!!!
+!    jph=kk
+!    kk=min(kk+1,meqrec%nstph)
+! if phr(jj)%xdone=1 then phase has no composition variation
+    if(phr(jj)%xdone.eq.1) goto 1000
+!----------------------------------------------------
+    ycormax2=zero
+!    write(*,*)'cc: ',jj
+! loop for all constituents
+    moody: do nj=1,phr(jj)%ncc
+       ys=zero
+       do nk=1,phr(jj)%ncc
+          pv=zero
+          do nl=1,meqrec%nrel
+! ceq%cmuval(nl) is the chemical potential of element nl (divided by RT)
+! USE values in svar(nl)
+! phr(jj)%dxmol(nl,nk) is the derivative of component nl
+! wrt constituent nk
+!             pv=pv+ceq%cmuval(nl)*phr(jj)%dxmol(nl,nk)
+             pv=pv+svar(nl)*phr(jj)%dxmol(nl,nk)
+          enddo
+          pv=pv-phr(jj)%curd%dgval(1,nk,1)
+          ys=ys+phr(jj)%invmat(nj,nk)*pv
+!          write(*,111)'pv: ',nj,ys,pv,phr(1)%curd%dgval(1,nk,1),&
+!               phr(1)%invmat(nj,nk)
+       enddo
+       if(phr(jj)%chargebal.eq.1) then
+! For charged phases add a term 
+! phr(jj)%invmat(phr(jj)%idim,phr(jj)%idim)*Q
+          ys=ys-chargefact*phr(jj)%invmat(nj,phr(jj)%idim)*&
+               phr(jj)%curd%netcharge
+       endif
+       delta(nj)=ys
+       if(abs(delta(nj)).gt.ycormax2) then
+          ycormax2=delta(nj)
+       endif
+       if(abs(ys).gt.ceq%xconv) then
+! if the change in any constituent fraction larger than xconv continue iterate
+          if(converged.lt.4) then
+! large correction in fraction of constituent fraction of stable phase
+             converged=4
+!             yss=ys
+!             yst=phr(jj)%curd%yfr(nj)
+          endif
+!       elseif(phr(jj)%stable.eq.1) then
+! check to find good convergence criteria in Re-V test case
+!          if(abs(delta(nj)).gt.ysmm) then
+!             jmaxy=jj
+!             ysmm=abs(delta(nj))
+!             ysmt=phr(jj)%curd%yfr(nj)
+!           endif
+       endif
+       yarr(nj)=phr(jj)%curd%yfr(nj)+delta(nj)
+    enddo moody
+! >>>>>>>>>>>>>>>>>> HERE the new constitution is set <<<<<<<<<<<<<<<<<<<<<
+!    write(*,112)'YC: ',jj,(delta(nj),nj=1,phr(jj)%ncc)
+!    write(*,112)'YY: ',meqrec%noofits,(yarr(nj),nj=1,phr(jj)%ncc)
+112 format(a,i3,8F8.5)
+    call set_constitution(phr(jj)%iph,phr(jj)%ics,yarr,qq,ceq)
+    if(gx%bmperr.ne.0) goto 1000
+!-------------------------- end of iteration
+! check convergence
+    meqrec%noofits=meqrec%noofits+1
+    if(converged.gt.3) then
+       if(meqrec%noofits.le.ceq%maxiter) goto 100
+       write(*,*)'Too many iterations',ceq%maxiter
+       goto 1000
+    elseif(meqrec%noofits.lt.6) then
+       goto 100
+    else
+       if(.not.btest(meqrec%status,QUIET)) write(*,202)meqrec%noofits
+202 format('Calculation required ',i4,' its')
+    endif
+    do is=1,meqrec%nrel
+       ovar(is)=svar(is)
+    enddo
+!    goto 1000
+!----------------------------------------------------------
+! When the calculation converged we calculate mugrad and interdiffusivites
+! NOTE mugrad is with respect to an endmember if there are several
+! sublattices
+! dmu_i/dy_I = \sum_is d2G/dy_is - \sum_is\sum_kt y_is d2G/dy_is\dy_jt
+! first for the endmembers ...
+    delta=zero
+    muall=pmi%curd%gval(1,1)
+    do is=1,phr(1)%ncc
+       do jt=1,phr(1)%ncc
+! note the loop for jt must be for all constituents.
+!          write(*,*)'indices: ',is,jt,ixsym(is,jt)
+          delta(is)=delta(is)-&
+               pmi%curd%d2gval(ixsym(is,jt),1)*pmi%curd%yfr(jt)
+       enddo
+       muall=muall-pmi%curd%dgval(1,is,1)*pmi%curd%yfr(is)
+    enddo
+    write(*,88)'Delta: ',muall,(delta(is),is=1,phr(1)%ncc)
+88  format(a,6(1pe12.4))
+! here delta(is) is the sum of the second derivatives of G wrt is and all other
+! constituents jt multiplied with the fraction of jt
+! mucon is part of the chemical potential of the endmember
+! now we must generate the endmembers, loop over all sublattices
+! but sublattics and number of constituents in each are in the phase record
+! and protected ... use a subroutine ...
+    lokph=pmi%curd%phlink
+    call get_phase_structure(lokph,nsl,nkl)
+    if(gx%bmperr.ne.0) goto 1000
+! nsl is number of sublattices and nkl(1..nsl) the number of const in each
+    noofend=1
+    is=1
+    first=0
+    do nl=1,nsl
+! nend is number of endmembers
+! first and current are set to first constituent index in each sublattice
+       noofend=noofend*nkl(nl)
+       first(nl)=is
+       current(nl)=is
+       is=is+nkl(nl)
+    enddo
+! we need this to indicate when we reached the end ??
+    first(nsl+1)=is
+    allocate(muend(noofend))
+    allocate(py(noofend))
+    py=one
+    ys=zero
+    allocate(koll(pmi%ncc*(pmi%ncc+1)/2))
+    koll=0
+    allocate(dmuenddy(noofend,pmi%ncc))
+    write(*,99)'first: ',first
+99  format(a,11i3)
+! calculate both mu(endmember) and dmydyis(endmember) ....
+    endloop: do nend=1,noofend
+       muend(nend)=muall
+       write(*,105)'Endmember: ',nend,(current(nl),nl=1,nsl)
+       nlloop: do nl=1,nsl
+! the chemical potential has one derivative per sublattice of a constituent
+          jt=current(nl)
+          muend(nend)=muend(nend)+pmi%curd%dgval(1,jt,1)
+          isloop: do is=1,phr(1)%ncc
+! this is the 2nd derivative of constituents is and jt in sublattice nl
+!             write(*,105)'indices: ',nend,nl,jt,is,ixsym(is,jt)
+             dmuenddy(nend,is)=dmuenddy(nl,is)+pmi%curd%d2gval(ixsym(is,jt),1)
+             koll(ixsym(is,jt))=koll(ixsym(is,jt))+1
+          enddo isloop
+! just for fun, calculate product of all fractions
+          py(nend)=py(nend)*pmi%curd%yfr(jt)
+       enddo nlloop
+! we must increment one constituent in current for next endmember
+       ys=ys+py(nend)*muend(nend)
+       nl=0
+300    nl=nl+1
+       if(nl.gt.nsl) exit endloop 
+       current(nl)=current(nl)+1
+       if(current(nl).eq.first(nl+1)) then
+          current(nl)=first(nl)
+          goto 300
+       endif
+    enddo endloop
+    write(*,83)'koll: ',koll
+83  format(a,20i3)
+    write(*,107)'check: ',ys,pmi%curd%gval(1,1)
+!    do nl=1,noofend
+!       write(*,107)'muend: ',muend(nl),py(nl)
+!       write(*,107)'dmudy: ',(dmuenddy(nl,is),is=1,phr(1)%ncc)
+!    enddo
+105 format(a,i4,2x,10i4)
+107 format(a,6(1pe12.4))
+!-------------------
+! D_kj = \sum_i\sum_s (delta_ki - y_ks) y_is M_i dmu_i/dy_j
+! this should be calculated for the components ... but I have just endmembers 
+!-------------------
+! UNFINISHED
+! I can calculate D(end,jt) = py(end)*exp(mob(end))*dmudy(end,jt)
+! in the database is stored mq&constituent#sublattice
+! I will calculate the mob(end) as \sum_s \sum_c mq&c#s taking
+! those values missing as zero ... ???
+! the values of mq&c#s are in pmi%curd%gval(1,itp) where itp is
+! 800 + cs where cs is the constituent index counted over all sublattices ??
+! list additional properties:
+    write(*,400)'props: ',(pmi%curd%listprop(jt),jt=2,pmi%curd%listprop(1)-1)
+400 format(a,12i6)
+! HM, the disordered mobilities has 800+disordered index
+! the ordered has 800+ordered index ... one should not use both ...
+    do jt=2,pmi%curd%listprop(1)
+       is=pmi%curd%listprop(jt)
+       if(is.gt.800 .and. is.lt.900) then
+! the is a mobility for constituent is-800 stored inpmi%curd%gval(1,jt)
+          jj=is-800
+          yarr(jj)=exp(pmi%curd%gval(1,jt))
+          write(*,410)jj,yarr(jj),pmi%curd%gval(1,jt)
+410       format('Mobility for constituent ',i2,', value: ',2(1pe16.6))
+       endif
+    enddo
+! I can calculate D(end,jt) = \sum_jt py(end)*exp(mob(end))*dmudy(end,jt)
+! but I do not have mob(end), I use the disordered mobilites in yarr(1..2)
+! The loop below is meaningless
+    do nl=1,noofend
+       do jt=1,pmi%ncc
+          mob1=mob1+py(nl)*yarr(1)*dmuenddy(nl,jt)
+          mob2=mob2+py(nl)*yarr(2)*dmuenddy(nl,jt)
+       enddo
+    enddo
+    write(*,414)mob1,mob2
+414 format('Diffusion coefficients: ',2(1pe16.8))
+1000 continue
+    
+    return
+  end subroutine equilph1e
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+  subroutine equilph1_meqrec(phtup,meqrec,tyst,ceq)
+!  subroutine equilph1b(phtup,tpval,xknown,cpot,tyst,ceq)
+! equilibrates the constituent fractions of a phase for mole fractions xknown
+! phtup is phase tuple
+! tpval is T and P
+! ceq is a datastructure with all relevant thermodynamic data
+! cpot are the (calculated) chemical potentials
+! tyst is TRUE means no outut
+    implicit none
+    integer mode
+    TYPE(meq_setup) :: meqrec
+!    double precision tpval(*),xknown(*),cpot(*)
+    TYPE(gtp_equilibrium_data), pointer :: ceq
+    logical tyst
+!\end{verbatim}
+    TYPE(gtp_phasetuple), pointer :: phtup
+! setup equilibrium calculation for a single phase, set all others as suspended
+! store vaules in meqrec
+    meqrec%nrel=noel()
+    meqrec%nfixph=0
+    meqrec%nfixmu=0
+    meqrec%tpindep=.FALSE.
+    meqrec%nphase=1
+    allocate(meqrec%phr(1))
+    meqrec%nstph=1
+! phaseix is index in phases, ixphase is index in phlista
+    meqrec%phr(1)%iph=phtup%phaseix
+    meqrec%phr(1)%ics=phtup%compset
+    meqrec%phr(1)%itadd=0
+    meqrec%phr(1)%itrem=0
+    meqrec%phr(1)%xdone=0
+    meqrec%phr(1)%phasestatus=1
+    meqrec%phr(1)%ionliq=-1
+    meqrec%phr(1)%i2sly=0
+    meqrec%stphl(1)=1
+    if(test_phase_status_bit(phtup%phaseix,PHIONLIQ)) meqrec%phr(1)%ionliq=1
+! set link to calculated values of G etc.
+!    call get_phase_compset(iph,ics,lokph,lokcs)
+! link to results
+    meqrec%phr(1)%curd=>ceq%phase_varres(phtup%lokvares)
+! set phase stable
+    meqrec%phr(1)%stable=1
+    meqrec%phr(1)%prevam=one
+    meqrec%phr(1)%prevdg=zero
+    meqrec%phr(1)%idim=0
+! number of constituents !!!
+    meqrec%phr(1)%ncc=size(ceq%phase_varres(phtup%lokvares)%yfr)
+    meqrec%dormlink=0! 
+    meqrec%status=0
+    if(tyst) then
+       meqrec%status=ibset(meqrec%status,QUIET)
+    else
+       meqrec%status=ibclr(meqrec%status,QUIET)
+    endif
+!
+    meqrec%noofits=0
+! this replaces call to meq_sameset as we will never change stable phase
+!    call equilph1c(meqrec,meqrec%phr,tpval,xknown,cpot,ceq)
+1000 continue
+    return
+  end subroutine equilph1_meqrec
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

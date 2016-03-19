@@ -2759,8 +2759,8 @@
 300 continue
    ie=ie+1
    if(ie.gt.nrel) then
-! tried to change all coumns but no solution, error
-      write(*,301)'Failed gp: ',nyp,gpfail,(xarr(i,nyp),i=1,nrel)
+! tried to change all columns but no solution, error
+!      write(*,301)'Failed gp: ',nyp,gpfail,(xarr(i,nyp),i=1,nrel)
 301   format(a,i7,i3,1pe10.2,2x,8(0pF5.2))
       gpfail=gpfail+1
       if(griter.gt.10*nrel .and. gpfail.gt.8*nrel) then
@@ -2976,7 +2976,7 @@
 ! NOTE is a H-O gas with N(H)=2 N(O)=1 it fails to find H2O because then
 ! there is just one gridpoint stable!
       write(*,906)gpfail
-906   format('Gridmin failed using ',i7,' gridpoint(s)')
+906   format('Gridmin could not make use of ',i7,' gridpoint(s)')
    endif
 !   write(*,*)'Gridmin has found a solution'
 !   write(*,316)'fm9A: ',(jgrid(i),i=1,nrel)

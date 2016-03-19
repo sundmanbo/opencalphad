@@ -1531,6 +1531,32 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
+ subroutine get_phase_structure(lokph,nsl,nkl)
+! return the structure of phase at location lokph
+! nsl: integer, number of sublattices
+! nkl: integer array, number of constituents in each sublattice
+! USED when calculating derivatives of chemical potentials and diffusion coef
+! when all other this are already known ...
+   implicit none
+   integer, dimension(*) :: nkl
+   integer lokph,nsl
+!\end{verbatim}
+   integer ii
+   if(lokph.le.0 .or. lokph.gt.noofph) then
+      write(*,*)'You are way off your head'
+      gx%bmperr=4445; goto 1000
+   endif
+   nsl=phlista(lokph)%noofsubl
+   do ii=1,nsl
+      nkl(ii)=phlista(lokph)%nooffr(ii)
+   enddo
+1000 continue
+   return
+ end subroutine get_phase_structure
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
  integer function get_phtuplearray(phcs)
 ! copies the internal phase tuple array to external software
 ! function value set to number of tuples
