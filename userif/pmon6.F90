@@ -104,6 +104,9 @@ contains
     integer listresopt,lrodef,lut,afo
 ! integers used for elements, phases, composition sets, equilibria, defaults
     integer iel,iph,ics,ieq,idef
+! for gradients in MU and interdiffusivities
+    integer nend
+    double precision mugrad(100),intdiv(100)
 !-------------------
 ! selection of minimizer and optimizer
     integer minimizer,optimizer
@@ -222,7 +225,7 @@ contains
 ! subcommands to CALCULATE PHASE
     character (len=16), dimension(nccph) :: ccph=&
          ['ONLY_G          ','G_AND_DGDY      ','ALL_DERIVATIVES ',&
-          'CONSTITUTION_ADJ','                ','                ']
+          'CONSTITUTION_ADJ','DIFFUSION_COEFF ','                ']
 !-------------------
 ! subcommands to ENTER
     character (len=16), dimension(ncent) :: center=&
@@ -909,8 +912,55 @@ contains
              write(kou,2087)(yarr(nv),nv=1,noel())
 2087         format('Calculated chemical potentials/RT:'/6(1pe12.4))
 !.......................................................
-          case(5) !
-             write(*,*)'Not implemeneted yet'
+          case(5) ! calculate chem.pot gradients and diffusivity
+! convert to phase tuple here as that is used in the application call
+             do jp=1,nooftup()
+                if(phasetuple(jp)%phaseix.eq.iph .and. &
+                     phasetuple(jp)%compset.eq.ics) then
+                   goto 2094
+                endif
+             enddo
+             write(*,*)'No such tuple'
+             goto 100
+2094         continue
+             phtup=>phasetuple(jp)
+! ask for overall composition             
+             totam=one
+             quest='Mole fraction of XX:'
+             do nv=1,noel()-1
+                if(totam.gt.zero) then
+! assume elements as components
+                   call get_component_name(nv,elsym,ceq)
+                   quest(18:19)=elsym
+                   call gparrd(quest,cline,last,xxy,totam,q1help)
+                   if(buperr.ne.0) then
+                      buperr=0; xxy=zero
+                   endif
+                   if(xxy.gt.totam) then
+                      write(kou,*)'Mole fraction set to ',totam
+                      xxy=totam
+                   endif
+                else
+                   xxy=zero
+                endif
+                xknown(nv)=xxy
+                totam=totam-xxy
+! yarr is used here to provide an array for the chemical potentials
+                yarr(nv)=ceq%cmuval(nv)
+             enddo
+             write(kou,2088)totam
+             xknown(nv)=totam
+             yarr(nv)=ceq%cmuval(nv)
+! use current T and P
+!             write(*,2042)'pmon: ',(xknown(nv),nv=1,noel())
+! the FALSE means not quiet
+! At present:
+! mugrad(I,j) is derivatives of the chemical potential of endmember I
+!         with respect to all constiuent fractions j
+! indiv(i,j) is interdiffusivities of component i and j
+             call equilph1d(phtup,ceq%tpval,xknown,yarr,.FALSE.,&
+                  nend,mugrad,intdiv,ceq)
+             if(gx%bmperr.ne.0) goto 990
 !.......................................................
           case(6) !
              write(*,*)'Not implemeneted yet'
@@ -3019,7 +3069,7 @@ contains
             'described by B Sundman, U R Kattner, M Palumbo and S G Fries,'/&
             'Integrating Materials and Manufacturing Innovation (2015) 4:1'//&
             'It is available for download at http://www.opencalphad.org or'/&
-            'the opencalphad repository at http://www.github.com'//&
+            'the sundmanbo/opencalphad repository at http://www.github.com'//&
             'This software is protected by the GNU General Public License'/&
             'You may freely distribute copies as long as you also provide ',&
             'the source code.'/'The software is provided "as is" without ',&
@@ -3027,7 +3077,7 @@ contains
             'The full license text is provided with the software'/&
             'or can be obtained from the Free Software Foundation ',&
             'http://www.fsf.org'//&
-            'Copyright 2010-2015, several persons.'/&
+            'Copyright 2010-2016, several persons.'/&
             'Contact person Bo Sundman, bo.sundman@gmail.com'/&
             'This version linked ',a/)
 !=================================================================
@@ -3035,7 +3085,7 @@ contains
     case(16)
 !       write(*,*)'Calculating equilibrium record size'
        kom2=ceqsize(ceq)
-       write(kou,*)'Equilibrium record size: ',kom2
+       write(kou,*)'Current equilibrium record size: ',kom2
        kom2=submenu(cbas(kom),cline,last,cdebug,ncdebug,1)
        SELECT CASE (kom2)
 !------------------------------
@@ -3058,9 +3108,10 @@ contains
 !                     phasetuple(jp)%compset,lokph,lokcs)
 !             endif
 !             write(kou,16020)jp,phasetuple(jp),name1,lokph,lokcs
-             write(kou,16020)jp,phasetuple(jp),name1
+             write(kou,16020)jp,phasetuple(jp),name1,&
+                  ceq%phase_varres(phasetuple(jp)%lokvares)%disfra%varreslink
 !16020        format(i3,': ',2i7,2i9,3x,a/i12,18x,i7)
-16020        format(i3,': ',2i7,2i9,i6,3x,a)
+16020        format(i3,': ',2i7,2i9,i6,3x,a,2x,i6)
           enddo
           call list_free_lists(kou)
 !------------------------------
@@ -3658,14 +3709,19 @@ contains
        case(12)
           write(kou,*)'Give a file name with graphics in GNUPLOT format'
           call gparcd('File name',cline,last,1,text,'  ',q1help)
-! check it is OK
+! check it is OK and add .plt if necessary ...
+          jp=index(text,'.plt ')
+          if(jp.le.0) then
+             jp=len_trim(text)
+             text(jp+1:)='.plt'
+          endif
           open(23,file=text,status='old',access='sequential',err=21300)
           close(23)
           graphopt%appendfile=text
           goto 21100
 ! error opening file
 21300     continue
-          write(kou,*)'No such file name'
+          write(kou,*)'No such file name: ',trim(text)
           goto 21100
 !-----------------------------------------------------------
 ! PLOT not used

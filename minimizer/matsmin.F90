@@ -6699,15 +6699,17 @@ CONTAINS
           goto 300
        endif
     enddo endloop
-    write(*,83)'koll: ',koll
-83  format(a,20i3)
+!    write(*,83)'koll: ',koll
+83  format(a,36i3)
     write(*,107)'check: ',ys,pmi%curd%gval(1,1)
-!    do nl=1,noofend
-!       write(*,107)'muend: ',muend(nl),py(nl)
-!       write(*,107)'dmudy: ',(dmuenddy(nl,is),is=1,phr(1)%ncc)
-!    enddo
+    write(*,109)'muend: ',(nl,py(nl),muend(nl),nl=1,noofend)
+    do nl=1,noofend
+       write(*,108)'dmudy: ',(dmuenddy(nl,is),is=1,phr(1)%ncc)
+    enddo
 105 format(a,i4,2x,10i4)
-107 format(a,6(1pe12.4))
+108 format(a,8F9.4)
+107 format(a,2(1pe16.7))
+109 format(a/(i4,F12.6,1pe16.7))
 !-------------------
 ! D_kj = \sum_i\sum_s (delta_ki - y_ks) y_is M_i dmu_i/dy_j
 ! this should be calculated for the components ... but I have just endmembers 
@@ -6721,7 +6723,7 @@ CONTAINS
 ! 800 + cs where cs is the constituent index counted over all sublattices ??
 ! list additional properties:
     write(*,400)'props: ',(pmi%curd%listprop(jt),jt=2,pmi%curd%listprop(1)-1)
-400 format(a,12i6)
+400 format(/a,12i6)
 ! HM, the disordered mobilities has 800+disordered index
 ! the ordered has 800+ordered index ... one should not use both ...
     do jt=2,pmi%curd%listprop(1)

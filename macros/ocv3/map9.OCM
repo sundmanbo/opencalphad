@@ -364,7 +364,6 @@ render
 plot
 x(w)
 hm
-position off
 title map 9 fig 4
 
 enter symbol

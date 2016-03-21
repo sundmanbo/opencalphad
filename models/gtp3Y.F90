@@ -3882,23 +3882,21 @@
             'TP-funs, composition sets, equilibria:           ',3i5/&
             'state variable functions, references, additions: ',3i5)
 !----------------------------
-! csfree, free list is in firsteq
+! first free is csfree, free list is only in equilibrium firsteq
 600 continue
    write(lut,610)csfree,highcs
-610 format('Phase_varres free list: ',2i5)
+610 format('Phase_varres first free/highcs: ',2i5)
 ! NOTE csfree can be higher than highcs ... after deletion pointers can go back
 ! UNFINISHED
-   if(csfree.lt.highcs) then
-      lok=csfree
-620   continue
+   lok=csfree
+620 continue
+   if(lok+5.lt.highcs) then
       last=lok
       lok=firsteq%phase_varres(last)%nextfree
-      write(*,*)'csfree: ',last,lok
-      if(lok.le.0 .or. lok.gt.highcs) then
+      write(*,*)'free varres record at: ',lok,last
+      if(lok.le.0) then
          write(lut,*)'Error in phase_varres free list',last,lok
          goto 1000
-      elseif(lok.eq.highcs) then
-         goto 630
       else
          goto 620
       endif
@@ -4147,7 +4145,7 @@
 !               write(*,*)'3Y Accept fit to default: ',fit,lokics,lokjcs
 500            continue
 ! move STABLE lokics to UNSTABLE lokjcs
-               write(*,*)'move from to: ',lokics,lokjcs
+               write(*,*)'3Y move from to: ',lokics,lokjcs
 !               copycompsets(... ???
 ! save some jcs values of amount, dgm, status, pre&suffix and tuple index
                   xj1=ceq%phase_varres(lokjcs)%amfu
@@ -4195,7 +4193,7 @@
 !                       write(*,*)'3Y AUTO bit already set in ',ics
                   ceq%phase_varres(lokics)%status2=&
                        ibset(ceq%phase_varres(lokics)%status2,CSAUTO)
-! move the disordered fraction set
+! move the link to the disordered fraction set
                   ceq%phase_varres(lokjcs)%disfra%varreslink=&
                        ceq%phase_varres(lokics)%disfra%varreslink
                   ceq%phase_varres(lokics)%disfra%varreslink=disfravares
@@ -4228,15 +4226,16 @@
       lastset=phlista(lokph)%noofcs
       csloopdown: do ics=lastset,2,-1
          lokics=phlista(lokph)%linktocs(ics)
-!         write(*,*)'Checking comp.set ',ics
+!         write(*,*)'3Y Checking comp.set ',ics
 !         auto: if(btest(ceq%phase_varres(lokics)%status2,CSAUTO)) then
          auto: if(btest(ceq%phase_varres(lokics)%status2,CSTEMPAR)) then
             if(ceq%phase_varres(lokics)%phstate.le.PHENTERED) then
 ! comp.set was created automatically but is not stable, it can be removed
                if(noeq().eq.1) then
 ! we have just one equilibrium, OK to remove even in parallel ...
-!                  write(*,*)'3Y removing phase tuple ',&
-!                       ceq%phase_varres(lokics)%phtupx
+                  write(*,802)'3Y removing unstable phase tuple ',&
+                       ceq%phase_varres(lokics)%phtupx,lokics
+802               format(a,3i5)
                   call remove_composition_set(iph,.FALSE.)
                   if(gx%bmperr.ne.0) then
                      write(*,*)'3Y failed to remove ',&

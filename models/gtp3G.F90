@@ -1527,7 +1527,7 @@
 
 !\begin{verbatim}
  subroutine new_disordered_phase_variable_record(lokdis,phvar,phdis,ceq)
-! Does this really work????
+! Does this really work???? phdis has no value when entering ...
 ! creates a copy of the disordered phase variable record lokdis
 ! and set links from ordered phvar
 !   ?????????????? does this work ??????????  is it necessary ????
@@ -1539,9 +1539,11 @@
    integer lokdis
 !\end{verbatim}
    integer tnooffr,nsl
+! phdis not assigned when calling this routine??
 !
    phdis%nextfree=0
    phdis%phlink=ceq%phase_varres(lokdis)%phlink
+   write(*,*)'In new_disordered_phase_variable_record: ',lokdis,phdis%phlink
 !   write(*,*)'disord 1 ',phdis%phlink,phase_varres(lokdis)%phlink
    phdis%status2=ceq%phase_varres(lokdis)%status2
    nsl=size(ceq%phase_varres(lokdis)%sites)
@@ -1558,8 +1560,9 @@
    phdis%sites=ceq%phase_varres(lokdis)%sites
 ! save link to the phdis record, two links ... why? just because it is messy
 !   write(*,*)'disord 2 ',phdis%phlink,phase_varres(lokdis)%phlink
-   phvar%disfra%phdapointer=>phdis
+!??   phvar%disfra%phdapointer=>phdis
 ! why setting it to zero here??? it should be an index to phase_varres record
+   write(*,*)'3G ndpvr: ',lokdis,phvar%disfra%varreslink
    phvar%disfra%varreslink=0
 !   phvar%disordered=>phdis
 !   write(*,*)'disord 3 ',phdis%phlink,phase_varres(lokdis)%phlink
@@ -1826,7 +1829,8 @@
    if(gx%bmperr.ne.0) goto 1000
    fsdata%varreslink=nyttcs
 ! note ceq is firsteq but declared target
-   fsdata%phdapointer=>ceq%phase_varres(nyttcs)
+   write(*,*)'3G disordered fraction set',nyttcs
+!*?   fsdata%phdapointer=>ceq%phase_varres(nyttcs)
    firsteq%phase_varres(nyttcs)%phlink=lokph
    firsteq%phase_varres(nyttcs)%prefix=' '
    firsteq%phase_varres(nyttcs)%suffix=' '
@@ -1851,7 +1855,7 @@
       if(gx%bmperr.ne.0) goto 1000
       fsdata%varreslink=nydis
 ! set pointer also
-      fsdata%phdapointer=firsteq%phase_varres(nydis)
+!*?      fsdata%phdapointer=firsteq%phase_varres(nydis)
       firsteq%phase_varres(nydis)%phlink=lokph
       firsteq%phase_varres(nydis)%prefix=' '
       firsteq%phase_varres(nydis)%suffix=' '
@@ -1897,7 +1901,7 @@
    discopy%tnoofxfr=disrec%tnoofxfr
    discopy%tnoofyfr=disrec%tnoofyfr
    discopy%varreslink=disrec%varreslink
-   discopy%phdapointer=>disrec%phdapointer
+!*?   discopy%phdapointer=>disrec%phdapointer
    discopy%totdis=disrec%totdis
    discopy%id=disrec%id
    allocate(discopy%dsites(disrec%ndd))
@@ -2154,6 +2158,7 @@
 !     real, dimension(:), allocatable :: mmyfr
 !     double precision, dimension(:), allocatable :: sites
    if(allocated(varres%constat)) sum=sum+size(varres%constat)
+   write(*,*)'varressum+yfr: ',sum,size(varres%constat),3*size(varres%yfr)
    if(allocated(varres%yfr)) sum=sum+3*size(varres%yfr)
 !   write(*,*)'In vssize 2',sum
 ! for ionic liquid derivatives of sites wrt fractions (it is the charge), 
@@ -2164,7 +2169,7 @@
 !     double precision, dimension(:), allocatable :: d2pqdvay
    if(allocated(varres%dpqdy)) sum=sum+size(varres%dpqdy)
    if(allocated(varres%d2pqdvay)) sum=sum+size(varres%d2pqdvay)
-!   write(*,*)'In vssize 3',sum
+   write(*,*)'varressum+ionliq',sum,size(varres%dpqdy),size(varres%d2pqdvay)
 ! for extra fraction sets, better to go via phase record index above
 ! this TYPE(gtp_fraction_set) variable is a bit messy.  Declaring it in this
 ! way means the record is stored inside this record.
@@ -2176,7 +2181,7 @@
    if(allocated(varres%disfra%splink)) sum=sum+size(varres%disfra%splink)
    if(allocated(varres%disfra%y2x)) sum=sum+size(varres%disfra%y2x)
    if(allocated(varres%disfra%dxidyj)) sum=sum+size(varres%disfra%dxidyj)
-!   write(*,*)'In vssize 4',sum
+   write(*,*)'varresum incl disfra and pointer: ',sum,varres%disfra%varreslink
 ! It seems difficult to get the phdapointer in disfra record to work
 ! ---
 ! arrays for storing calculated results for each phase (composition set)
@@ -2200,7 +2205,7 @@
 !     integer nprop,ncc
 !     integer, dimension(:), allocatable :: listprop
    if(allocated(varres%listprop)) sum=sum+2+size(varres%listprop)
-!   write(*,*)'In vssize 5',sum
+   write(*,*)'varresum + listprop: ',sum,size(varres%listprop)
 ! gval etc are for all composition dependent properties, gval(*,1) for G
 ! gval(*,1): is G, G.T, G.P, G.T.T, G.T.P and G.P.P
 ! dgval(1,j,1): is first derivatives of G wrt fractions j
@@ -2213,7 +2218,8 @@
    if(allocated(varres%gval)) sum=sum+2*size(varres%gval)
    if(allocated(varres%dgval)) sum=sum+2*size(varres%dgval)
    if(allocated(varres%d2gval)) sum=sum+2*size(varres%d2gval)
-!   write(*,*)'In vssize 6',sum
+   write(*,*)'varresum + gvals: ',sum,2*size(varres%gval),&
+        2*size(varres%dgval),2*size(varres%d2gval)
 ! added for strain/stress, current values of lattice parameters
 !     double precision, dimension(3,3) :: curlat
 ! saved values from last equilibrium calculation
@@ -2223,6 +2229,7 @@
    if(allocated(varres%cinvy)) sum=sum+18+2*size(varres%cinvy)
    if(allocated(varres%cxmol)) sum=sum+18+2*size(varres%cxmol)
    if(allocated(varres%cdxmol)) sum=sum+18+2*size(varres%cdxmol)
+   write(*,*)'varresum + saved: ',sum
 !
 1000 continue
    vssize=sum
@@ -2246,7 +2253,7 @@
 ! svfunres: the values of state variable functions valid for this equilibrium
 !     double precision, dimension(:), allocatable :: svfunres
    sum=18+2*size(ceq%svfunres)
-!   write(*,*)'In ceqsize 2',sum
+   write(*,*)'total + svfunres: ',sum,size(ceq%svfunres)
 ! the experiments are used in assessments and stored like conditions 
 ! lastcondition: link to condition list
 ! lastexperiment: link to experiment list
@@ -2263,7 +2270,7 @@
 ! a gtp_component record is about 20 words, invcompstoi same as compsoti
    if(allocated(ceq%complist)) sum=sum+20*size(ceq%complist)+&
         4*size(ceq%compstoi)
-!   write(*,*)'In ceqsize 3',sum
+   write(*,*)'total + complist:',sum,20*size(ceq%complist),4*size(ceq%compstoi)
 ! one record for each phase+composition set that can be calculated
 ! phase_varres: here all calculated data for the phase is stored
 !     TYPE(gtp_phase_varres), dimension(:), allocatable :: phase_varres
@@ -2272,11 +2279,11 @@
 ! highcs is highest used free phase_varres record
    do ivs=1,highcs
       vss=vssize(ceq%phase_varres(ivs))
-!      write(*,*)'Phase varres: ',ivs,vss
+      write(*,*)'Phase varres: ',ivs,vss
       vsum=vsum+vss
    enddo
    sum=sum+vsum
-!   write(*,*)'In ceqsize 4',sum
+   write(*,*)'total + varres',sum,vsum
 ! index to the tpfun_parres array is the same as in the global array tpres 
 ! eq_tpres: here local calculated values of TP functions are stored
 !     TYPE(tpfun_parres), dimension(:), pointer :: eq_tpres
@@ -2286,6 +2293,7 @@
 ! duplicated here for easy acces by application software
 !     double precision, dimension(:), allocatable :: cmuval
    if(allocated(ceq%cmuval)) sum=sum+2*size(ceq%cmuval)
+   write(*,*)'total + cmuval: ',sum,2*size(ceq%cmuval)
 ! xconc: convergence criteria for constituent fractions and other things
 !     double precision xconv
 ! delta-G value for merging gridpoints in grid minimizer
@@ -2301,8 +2309,8 @@
 !     integer, allocatable :: fixph(:,:)
 !     double precision, allocatable :: savesysmat(:,:)
    sum=sum+3+size(ceq%fixmu)+size(ceq%fixph)+size(ceq%savesysmat)
-! these are normally not used any more
-!   sum=sum+size(ceq%fixmu)+size(ceq%fixph)+size(ceq%savesysmat)
+   write(*,*)'total + savesysmat:',sum,size(ceq%fixmu),size(ceq%fixph),&
+        size(ceq%savesysmat)
    ceqsize=sum
 1000 continue
    return

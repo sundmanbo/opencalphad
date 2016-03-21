@@ -1175,9 +1175,9 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
      double precision, dimension(:), allocatable :: dxidyj
 ! factor needed when reading from TDB file for sigma etc.
      double precision fsites
-! in parallel processing the disordered phase_varres record is linked
-! by this pointer,  used in parcalcg and calcg_internal
-     TYPE(gtp_phase_varres), pointer :: phdapointer
+! ?? the disordered phase_varres record is linked by this pointer,
+!  used only in gtp3G ... but seems to be needed for disordered fraction sets
+!*?     TYPE(gtp_phase_varres), pointer :: phdapointer
   END TYPE gtp_fraction_set
 ! these records are declared in the phase_varres record as DISFRA for 
 ! each composition set and linked from the phase_varres record

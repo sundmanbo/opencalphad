@@ -1562,9 +1562,9 @@
 ! These have now been calculated and can be used in a second loop through
 ! the other parameters
 ! find where the molar volumes are stored, phmain%listprop(1) is no props
-      write(*,507)'3X FH: ',nofc2,phmain%listprop(1),&
-           (phmain%listprop(ipy),ipy=2,phmain%listprop(1)-1)
-507   format(a,i5,i3,20i5)
+!      write(*,507)'3X FH: ',nofc2,phmain%listprop(1),&
+!           (phmain%listprop(ipy),ipy=2,phmain%listprop(1)-1)
+!507   format(a,i5,i3,20i5)
       allocate(fhlista(gz%nofc))
       fhlista=0
       ll=1
@@ -1576,16 +1576,16 @@
          endif
       enddo
 ! check that there are parameters!!
-      do j2=1,gz%nofc
-         if(fhlista(j2).eq.0) then
-            write(*,*)'3X No Flory Huggins volume for component: ',j2
-            gx%bmperr=7777; goto 1000
-         else
-            write(*,509)'3X FHV: ',j2,fhlista(j2),phmain%gval(1,fhlista(j2))
-509         format(a,2i4,1pe12.4)
-         endif
-      enddo
-510   continue
+!      do j2=1,gz%nofc
+!         if(fhlista(j2).eq.0) then
+!            write(*,*)'3X No Flory Huggins volume for component: ',j2
+!            gx%bmperr=7777; goto 1000
+!         else
+!            write(*,509)'3X FHV: ',j2,fhlista(j2),phmain%gval(1,fhlista(j2))
+!509         format(a,2i4,1pe12.4)
+!         endif
+!      enddo
+!510   continue
 ! we must save the Flory-Huggins volumes as they are used in next loop
       allocate(fhv(gz%nofc,6))
       allocate(dfhv(gz%nofc,3,gz%nofc))
@@ -2312,12 +2312,8 @@
    double precision, allocatable :: yfra(:),qfra(:),sumsy(:,:)
 !
    nofc2=nofc*(nofc+1)/2
-   write(*,1)'3X Calculate onfig entropy for Flory Huggins model',nofc,nofc2
-1  format(a,2i3)
-   do kall=1,nofc
-      write(*,108)'3X fh,dfh: ',kall,fhv(kall,1),(dfhv(kall,1,k1),k1=1,nofc)
-      write(*,107)'3X d2f: ',(d2fhv(kall,k1),k1=1,nofc2)
-   enddo
+   write(*,1)'3X Config entropy FH model: ',nofc,(fhv(kall,1),kall=1,nofc)
+1  format(a,i3,5F8.2)
 107 format(a,6(1pe12.4))
 108 format(a,i2,6(1pe12.4))
    allocate(yfra(nofc))
@@ -2339,40 +2335,32 @@
       if(yfra1.gt.one) yfra1=one
       sumq=sumq+fhv(kall,1)*yfra1
       yfra(kall)=yfra1
-      do k1=1,nofc
-         if(k1.eq.kall) then
+!      do k1=1,nofc
+!         if(k1.eq.kall) then
 ! 1st DERIVATIVES of q_i = p_i/\sum_j p_j
 ! fhv(i,1) is FH volume for const i, fhv(i,2) is T deriv, fhv(i,3) is P der
 ! dfhv(i,1,j) derivative of FH volume for i wrt const j
 ! dfhv(i,2,j) 2nd derivative of FH volume for i wrt const j and T
 ! dfhv(i,3,j) 2nd derivative of FH volume for i wrt const j and P
 ! UNFINISHED ?? sumsy including T and P derivatives ??
-            dpfhv(kall,1,k1)=dfhv(kall,1,k1)*yfra(kall)+fhv(kall,1)
-            dpfhv(kall,2,k1)=dfhv(kall,2,k1)*yfra(kall)+fhv(kall,2)
-            dpfhv(kall,3,k1)=dfhv(kall,3,k1)*yfra(kall)+fhv(kall,3)
-            sumsy(1,k1)=sumsy(1,k1)+dfhv(kall,1,k1)*yfra1+fhv(kall,1)
-            write(*,106)'3X sum1: ',kall,k1,sumsy(1,k1)
-         else
-            dpfhv(kall,1,k1)=dfhv(kall,1,k1)*yfra(kall)
-            dpfhv(kall,2,k1)=dfhv(kall,2,k1)*yfra(kall)
-            dpfhv(kall,3,k1)=dfhv(kall,3,k1)*yfra(kall)
-            sumsy(1,k1)=sumsy(1,k1)+dfhv(kall,1,k1)*yfra1
-            write(*,106)'3X sum2: ',kall,k1,sumsy(1,k1)
-         endif
-      enddo
+!            dpfhv(kall,1,k1)=dfhv(kall,1,k1)*yfra(kall)+fhv(kall,1)
+!            dpfhv(kall,2,k1)=dfhv(kall,2,k1)*yfra(kall)+fhv(kall,2)
+!            dpfhv(kall,3,k1)=dfhv(kall,3,k1)*yfra(kall)+fhv(kall,3)
+!            sumsy(1,k1)=sumsy(1,k1)+dfhv(kall,1,k1)*yfra1+fhv(kall,1)
+!            write(*,106)'3X sum1: ',kall,k1,sumsy(1,k1)
+!         else
+!            dpfhv(kall,1,k1)=dfhv(kall,1,k1)*yfra(kall)
+!            dpfhv(kall,2,k1)=dfhv(kall,2,k1)*yfra(kall)
+!            dpfhv(kall,3,k1)=dfhv(kall,3,k1)*yfra(kall)
+!            sumsy(1,k1)=sumsy(1,k1)+dfhv(kall,1,k1)*yfra1
+!            write(*,106)'3X sum2: ',kall,k1,sumsy(1,k1)
+!         endif
+!      enddo
    enddo
 106 format(a,2i3,1pe12.4)
-   write(*,108)'3X sumsy: ',0,(sumsy(1,k1),k1=1,nofc)
+   write(*,117)'3X sumq, vi: ',sumq,(fhv(kall,1)*yfra(kall)/sumq,kall=1,nofc)
+117 format(a,6(1pe12.4))
 !-----------------------------------------
-! Calculate the confurational entropy
-   ss=zero
-   fractionloop: do kall=1,nofc
-! We use the already calculated partial molar volumes v_i = fhv_i * y_i
-! This means we cannot calculate this before calculating all parameters once!!
-! so this routine must be called after a first calculation of fhv, dfhv etc
-! and then we must calculate all parameters again ... as they depend of v_i
-! this is ln(n_i/(\sum_j n_j)), 0<yfra(kall)<1
-      ylog=log(fhv(kall,1)*yfra(kall)/sumq)
 ! fhv(i,1) is FH volume for const i, fhv(i,2) is T deriv, fhv(i,3) is P deriv
 ! dfhv(i,1,j) derivative of FH volume for i wrt const j
 ! dfhv(i,2,j) 2nd derivative of FH volume for i wrt const j and T
@@ -2384,6 +2372,15 @@
 ! dgval(3,1:N,1) are derivatives of G wrt fraction 1:N and P
 ! d2dval(ixsym(N*(N+1)/2),1) are derivatives of G wrt fractions N and M
 ! this is a symmetric matrix and index givem by ixsym(M,N)
+! Calculate the confurational entropy
+   ss=zero
+   fractionloop: do kall=1,nofc
+! We use the already calculated partial molar volumes v_i = fhv_i * y_i
+! This means we cannot calculate this before calculating all parameters once!!
+! so this routine must be called after a first calculation of fhv, dfhv etc
+! and then we must calculate all parameters again ... as they depend of v_i
+! this is ln(n_i/(\sum_j n_j)), 0<yfra(kall)<1
+      ylog=log(fhv(kall,1)*yfra(kall)/sumq)
       if(moded.gt.0) then
 ! UNFINISHED derivatives wrt T, P
          loopk1: do k1=1,nofc
@@ -2398,16 +2395,21 @@
 !            sy=dpfhv(kall,1,k1)*(ylog+one)-fhv(kall,1)/sumq*sumsy(1,k1)
 ! UNFINISHED ... IGNORE THE COMPOSITION DEPENENCE OF fhv_i ...
          enddo loopk1
-         phvar%dgval(1,kall,1)=fhv(kall,1)/sumq*(ylog+one)
+!         phvar%dgval(1,kall,1)=fhv(kall,1)/sumq*(ylog+one)
+         phvar%dgval(1,kall,1)=(ylog+one)/sumq
          phvar%dgval(2,kall,1)=phvar%dgval(2,kall,1)/tval
       endif
-      ss=ss+(fhv(kall,1)/sumq)*yfra(kall)*ylog
-      write(*,300)'ss:   ',ss,fhv(kall,1),sumq,ylog,yfra(kall)
+!      ss=ss+(fhv(kall,1)/sumq)*yfra(kall)*ylog
+      ss=ss+yfra(kall)*ylog
+      write(*,300)'ss:   ',ss,yfra(kall),fhv(kall,1),fhv(kall,1)*yfra/sumq,&
+           ylog
 300   format(a,6(1pe12.4))
    enddo fractionloop
+   ss=ss/sumq
 ! The integral entropy and its T and P derivatives
 ! UNFINISHED should include T deruvatives of fhv ....
-   phvar%gval(1,1)=phvar%gval(1,1)+ss
+!   phvar%gval(1,1)=phvar%gval(1,1)+ss
+   phvar%gval(1,1)=ss
 ! UNFINISHED add T derivates of dfhv .... and any P derivatives
    phvar%gval(2,1)=phvar%gval(1,1)/tval
 1000 continue

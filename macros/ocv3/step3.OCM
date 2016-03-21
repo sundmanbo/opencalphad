@@ -56,7 +56,6 @@ render
 plot
 
 
-position off
 title step3 fig 4
 render
 

@@ -63,7 +63,6 @@ render
 plot
 w(n)
 prefcc
-position off
 title step 7 fig 4
 
 plot
