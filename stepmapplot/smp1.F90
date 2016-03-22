@@ -4569,10 +4569,14 @@ CONTAINS
        pfh=filename(1:kk)//'.'//'ps '
        write(21,850)pfh(1:len_trim(pfh))
 850    format('set terminal postscript color'/'set output "',a,'"')
+    elseif(pform(1:1).eq.'A') then
+       pfh=filename(1:kk)//'.'//'pdf '
+       write(21,851)pfh(1:len_trim(pfh))
+851    format('set terminal pdf color'/'set output "',a,'"')
     elseif(pform(1:1).eq.'G') then
        pfh=filename(1:kk)//'.'//'gif '
-       write(21,851)pfh(1:len_trim(pfh))
-851    format('set terminal gif'/'set output "',a,'"')
+       write(21,852)pfh(1:len_trim(pfh))
+852    format('set terminal gif'/'set output "',a,'"')
     endif
 ! this part is independent of which axis is a single value
 !------------------ some GNUPLOT colors:

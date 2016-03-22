@@ -36,7 +36,7 @@ T
 title map 4 fig 1
 render
 
-@&
+
 @$-----------------------------------------------------------
 @$ Set another start point to calculate the high O side
 @$ SELECTION OF START POINT IS VERY SENSITIVE ...
@@ -82,6 +82,15 @@ N
 .78
 title map4 fig 4
 render
+
+@$ Write this as a PDF file
+plot
+
+
+gra A
+OU
+
+
 
 set interactive
 

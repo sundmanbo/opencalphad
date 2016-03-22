@@ -3544,10 +3544,13 @@ contains
 21100   continue
        if(plotform(1:1).eq.'P') then
           write(kou,21110)plotfile(1:len_trim(plotfile))
-21110     format(/' *** Graphics format is postscript on: ',a,'.ps ')
+21110     format(/' *** Graphics format is PS on: ',a,'.ps ')
        elseif(plotform(1:1).eq.'G') then
           write(kou,21111)plotfile(1:len_trim(plotfile))
 21111     format(/' *** Graphics format is GIF on: ',a,'.gif ')
+       elseif(plotform(1:1).eq.'A') then
+          write(kou,21113)plotfile(1:len_trim(plotfile))
+21113     format(/' *** Graphics format is PDF on: ',a,'.pdf ')
        endif
        write(kou,21112)
 21112  format(/'Note: give only one option per line!')
@@ -3670,16 +3673,19 @@ contains
 ! when setting graphics format always also ask for plot file
        case(7,8)
           if(kom2.eq.7) then
-             call gparcd('Graphics format (Postscript/Gif/Screeen)',&
+             call gparcd('Graphics format (ACROBAT(PDF)/PS/GIF/SCREEEN)',&
                   cline,last,1,ch1,'SCREEN',q1help)
-             if(ch1.eq.'p' .or. ch1.eq.'P') then
-                write(kou,*)'Graphics format set to postscript'
+             if(ch1.eq.'a' .or. ch1.eq.'A') then
+                write(kou,*)'Graphics format set to ACROBAT PDF'
+                plotform='A'
+             elseif(ch1.eq.'p' .or. ch1.eq.'P') then
+                write(kou,*)'Graphics format set to PS'
                 plotform='P'
              elseif(ch1.eq.'g' .or. ch1.eq.'G') then
-                write(kou,*)'Graphics format set to gif'
+                write(kou,*)'Graphics format set to GIF'
                 plotform='G'
              else
-                write(kou,*)'Graphics format set to screen'
+                write(kou,*)'Graphics format set to SCREEN'
                 plotform=' '
              endif
           endif
