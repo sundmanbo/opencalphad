@@ -1972,7 +1972,7 @@ end subroutine get_condition
 !\end{verbatim}
    character symb*24
    integer lokic(maxel),ielno(10)
-   double precision stoi(maxel,maxel+1),invstoi(maxel,maxel),spst(10)
+   double precision stoi(maxel,maxel+1),invstoi(maxel,maxel),spst(10),spextra
    integer ic,loksp,nspel,jl,j2,ierr
    double precision spmass,qsp
 ! input is a list of species name, same as number of elements
@@ -1992,7 +1992,7 @@ end subroutine get_condition
    ic=ic+1
    lokic(ic)=loksp
 ! get the stoichiometry and save it in row in stoi
-   call get_species_data(loksp,nspel,ielno,spst,spmass,qsp)
+   call get_species_data(loksp,nspel,ielno,spst,spmass,qsp,spextra)
    if(gx%bmperr.ne.0) goto 1000
    do jl=1,nspel
       stoi(ic,ielno(jl))=spst(jl)
@@ -2322,6 +2322,7 @@ end subroutine get_condition
  subroutine get_parameter_typty(name1,lokph,typty,fractyp)
 ! interpret parameter identifiers like MQ&C#2 in MQ&C#2(FCC_A1,FE:C) ...
 ! find the property associated with this symbol
+   implicit none
    integer typty,fractyp,lokph
    character name1*(*)
 !\end{verbatim}
@@ -2430,6 +2431,26 @@ end subroutine get_condition
 1000 continue
    return
  end subroutine get_parameter_typty
-!
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
+ subroutine enter_species_property(loksp,value)
+! enter an extra species property for species loksp
+   implicit none
+   integer loksp
+   double precision value
+!\end{verbatim}
+! this is illegal for species that are elements ...
+   if(btest(splista(loksp)%status,SPEL)) then
+      write(*,*)'Illegal to set this for element species'
+      gx%bmperr=7777
+   else
+      splista(loksp)%extra=value
+   endif
+1000 continue
+   return
+ end subroutine enter_species_property
+
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 

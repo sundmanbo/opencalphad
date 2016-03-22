@@ -1290,7 +1290,7 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine get_species_data(loksp,nspel,ielno,stoi,smass,qsp)
+ subroutine get_species_data(loksp,nspel,ielno,stoi,smass,qsp,extra)
 ! return species data, loksp is from a call to find_species_record
 ! nspel: integer, number of elements in species
 ! ielno: integer array, element indices
@@ -1301,7 +1301,7 @@
    integer, dimension(*) :: ielno
    double precision, dimension(*) :: stoi(*)
    integer loksp,nspel
-   double precision smass,qsp
+   double precision smass,qsp,extra
 !\end{verbatim}
    integer jl,iel
    if(loksp.le.0 .or. loksp.gt.noofsp) then
@@ -1316,6 +1316,7 @@
    enddo elements
    smass=splista(loksp)%mass
    qsp=splista(loksp)%charge
+   extra=splista(loksp)%extra
 1000 return
  end subroutine get_species_data
 

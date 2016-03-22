@@ -2333,7 +2333,8 @@
       yfra1=phvar%yfr(kall)
       if(yfra1.lt.bmpymin) yfra1=bmpymin
       if(yfra1.gt.one) yfra1=one
-      sumq=sumq+fhv(kall,1)*yfra1
+!v      sumq=sumq+fhv(kall,1)*yfra1
+      sumq=sumq+yfra1
       yfra(kall)=yfra1
 !      do k1=1,nofc
 !         if(k1.eq.kall) then
@@ -2358,6 +2359,7 @@
 !      enddo
    enddo
 106 format(a,2i3,1pe12.4)
+! we should extract fhv for each constituent from the species record ...
    write(*,117)'3X sumq, vi: ',sumq,(fhv(kall,1)*yfra(kall)/sumq,kall=1,nofc)
 117 format(a,6(1pe12.4))
 !-----------------------------------------
@@ -2380,7 +2382,9 @@
 ! so this routine must be called after a first calculation of fhv, dfhv etc
 ! and then we must calculate all parameters again ... as they depend of v_i
 ! this is ln(n_i/(\sum_j n_j)), 0<yfra(kall)<1
-      ylog=log(fhv(kall,1)*yfra(kall)/sumq)
+!v      ylog=log(fhv(kall,1)*yfra(kall)/sumq)
+!      ylog=log(yfra(kall)/sumq)    .... sumq=1.0!!
+      ylog=log(yfra(kall))
       if(moded.gt.0) then
 ! UNFINISHED derivatives wrt T, P
          loopk1: do k1=1,nofc
@@ -2396,16 +2400,21 @@
 ! UNFINISHED ... IGNORE THE COMPOSITION DEPENENCE OF fhv_i ...
          enddo loopk1
 !         phvar%dgval(1,kall,1)=fhv(kall,1)/sumq*(ylog+one)
-         phvar%dgval(1,kall,1)=(ylog+one)/sumq
+!         phvar%dgval(1,kall,1)=(ylog+one)/sumq
+! each species have now a flory-Huggins segment value
+         phvar%dgval(1,kall,1)=ylog+one
          phvar%dgval(2,kall,1)=phvar%dgval(2,kall,1)/tval
       endif
 !      ss=ss+(fhv(kall,1)/sumq)*yfra(kall)*ylog
-      ss=ss+yfra(kall)*ylog
-      write(*,300)'ss:   ',ss,yfra(kall),fhv(kall,1),fhv(kall,1)*yfra/sumq,&
+!v      ss=ss+yfra(kall)*ylog
+      ss=ss+yfra(kall)/fhv(kall,1)*ylog
+      write(*,300)'3X ss: ',ss,yfra(kall),fhv(kall,1),fhv(kall,1)*yfra/sumq,&
            ylog
 300   format(a,6(1pe12.4))
    enddo fractionloop
-   ss=ss/sumq
+! each species may now have a Flory Huggins segment number ....
+!   ss=ss/sumq
+   ss=ss
 ! The integral entropy and its T and P derivatives
 ! UNFINISHED should include T deruvatives of fhv ....
 !   phvar%gval(1,1)=phvar%gval(1,1)+ss

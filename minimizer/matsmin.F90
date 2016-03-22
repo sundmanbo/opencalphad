@@ -3858,6 +3858,7 @@ CONTAINS
 ! needed for call to get_species_data
     integer, dimension(maxspel) :: ielno
     double precision, dimension(maxspel) :: stoi
+    double precision spextra
 ! minimal y, charge
     double precision, parameter :: ymin=1.0D-12,ymingas=1.0D-30,qeps=1.0D-30
 ! derivative of moles of component wrt y_ks
@@ -3988,7 +3989,7 @@ CONTAINS
           allconst: do ik=1,nkl(ll)
              kkk=kkk+1
              loksp=knr(kkk)
-             call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp)
+             call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp,spextra)
              if(gx%bmperr.ne.0) goto 1000
              addmol=zero
              do jz=1,nspel
@@ -4050,7 +4051,7 @@ CONTAINS
        ncon=0
        do ik=1,nkl(1)
           loksp=knr(ik)
-          call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp)
+          call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp,spextra)
           if(gx%bmperr.ne.0) goto 1000
           addmol=zero
           do jk=1,nspel
@@ -4179,7 +4180,7 @@ CONTAINS
 !                pmi%valency(ncon)=sites(2)
 !                write(*,*)'Va: ',ncon,yva
              else
-                call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp)
+                call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp,spextra)
                 if(gx%bmperr.ne.0) goto 1000
 ! i2sly is index of first neutral (if any) otherwise number of constit+1
                 if(qsp.eq.zero .and. i2sly(2).gt.ncon) i2sly(2)=ncon
@@ -4353,7 +4354,7 @@ CONTAINS
        constll: do ik=1,nkl(ll)
           ncon=ncon+1
           loksp=knr(ncon)
-          call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp)
+          call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp,spextra)
           if(gx%bmperr.ne.0) goto 1000
           addmol=zero
           do jk=1,nspel
@@ -4513,7 +4514,7 @@ CONTAINS
 !
     integer i1,i2,icon,jcon,loksp,nspel,ielno(10),el,allions,nobug
     double precision stoi(10),spmass,qsp1,qsp2,add1,add2,yva,sumcat,bug
-    double precision bugfix
+    double precision bugfix,spextra
 !tafidbug
 !    write(*,*)'Skipping liquid correction'
 !    goto 1000
@@ -4554,7 +4555,7 @@ CONTAINS
 ! loop for all cations and anions
 !       icon=icon+1
        loksp=knr(icon)
-       call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp1)
+       call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp1,spextra)
        if(gx%bmperr.ne.0) goto 1000
        add2=zero
        do el=1,nspel
@@ -4570,7 +4571,7 @@ CONTAINS
 ! loop for all pairs of cations incl twins, nkl(1) is number of cations
 ! A smart but messy solution is to skip this loop for jcon=icon ...
           loksp=knr(jcon)
-          call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp2)
+          call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp2,spextra)
           if(gx%bmperr.ne.0) goto 1000
           add2=zero
           do el=1,nspel
@@ -4604,7 +4605,7 @@ CONTAINS
        do while(jcon.lt.allions)
 ! loop for all anions, allions-1 is last anion
           loksp=knr(jcon)
-          call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp2)
+          call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp2,spextra)
           if(gx%bmperr.ne.0) goto 1000
           add2=zero
           do el=1,nspel
@@ -4641,7 +4642,7 @@ CONTAINS
 ! is this really correct??
        do while(jcon.le.ncc)
           loksp=knr(jcon)
-          call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp2)
+          call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp2,spextra)
           if(gx%bmperr.ne.0) goto 1000
           add2=zero
           do el=1,nspel
@@ -4696,6 +4697,7 @@ CONTAINS
 ! 
     integer i1,i2,icon,jcon,loksp,nspel,ielno(10),el,allions
     double precision stoi(10),spmass,qsp,qsp1,add1,add2,add3,bcat,bani,bneu
+    double precision spextra
 !
 ! dpqdy(1..ncc) is the absolute value of the charge of the species
 ! It is not used as we must get species data, better not to use ...
@@ -4718,7 +4720,7 @@ CONTAINS
 ! loop for all cations, one derivative must be for a cation
        icon=icon+1
        loksp=knr(icon)
-       call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp1)
+       call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp1,spextra)
        if(gx%bmperr.ne.0) goto 1000
        add2=zero
        do el=1,nspel
@@ -4734,7 +4736,7 @@ CONTAINS
 ! loop for all pairs of cations incl twins, nkl(1) is number of cations
 ! A smart and messy solution is to skip this loop for jcon=icon ...
           loksp=knr(jcon)
-          call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp)
+          call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp,spextra)
           if(gx%bmperr.ne.0) goto 1000
           add2=zero
           do el=1,nspel
@@ -4750,7 +4752,7 @@ CONTAINS
        do while(jcon.lt.allions)
 ! loop for all anions, allions-1 is last anion
           loksp=knr(jcon)
-          call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp)
+          call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp,spextra)
           if(gx%bmperr.ne.0) goto 1000
           add2=zero
           do el=1,nspel
@@ -4775,7 +4777,7 @@ CONTAINS
 !-------------second derivative wrt cation and neutral
        do while(jcon.le.ncc)
           loksp=knr(jcon)
-          call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp)
+          call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp,spextra)
           if(gx%bmperr.ne.0) goto 1000
           add2=zero
           do el=1,nspel

@@ -721,16 +721,16 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! this constant must be incremented whenever a change is made in gtp_species
   INTEGER, parameter :: gtp_species_version=1
   TYPE gtp_species
-! data for each species: symnol, mass, charge, status
+! data for each species: symnol, mass, charge, extra, status
 ! mass is in principle redundant as calculated from element mass
+! extra can be used for somethinig extra ... like a Flory-Huggins segment length
      character :: symbol*24
-     double precision :: mass,charge
+     double precision :: mass,charge,extra
 ! alphaindex: the alphabetical order of this species
 ! noofel: number of elements
      integer :: noofel,status,alphaindex
 ! Use an integer array ellinks to indicate the elements in the species
 ! The corresponing stoichiometry is in the array stochiometry
-! ???? these should not be pointers, changed to allocatable ????
      integer, dimension(:), allocatable :: ellinks
      double precision, dimension(:), allocatable :: stoichiometry
   END TYPE gtp_species
@@ -853,6 +853,12 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! antalprop: probably redundant (from the time of arrays of propery records)
      character*16 reference
      TYPE(gtp_property), pointer :: nextpr
+
+
+
+
+
+
      integer proptype,degree,extra,protect,refix,antalprop
      integer, dimension(:), allocatable :: degreelink
   END TYPE gtp_property

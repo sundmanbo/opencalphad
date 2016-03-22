@@ -280,7 +280,7 @@ contains
 !        123456789.123456---123456789.123456---123456789.123456
 ! subsubcommands to SET ADVANCED
     character (len=16), dimension(ncadv) :: cadv=&
-         ['EQUILIB_TRANSF  ','QUIT            ','                ',&
+         ['EQUILIB_TRANSF  ','QUIT            ','EXTRA_PROPERTY  ',&
           'DENSE_GRID_ONOFF','                ','                ']
 !         123456789.123456---123456789.123456---123456789.123456
 ! subsubcommands to SET PHASE
@@ -1341,10 +1341,17 @@ contains
           case(2) ! quit
              continue
 !.................................................................
-          case(3) ! nothing yet
-             write(*,*)'Not implemented yet'
+          case(3) ! SET ADVANCED EXTRTA_PROPERTY for a species
+             call gparc('Species symbol: ',cline,last,1,name1,' ',q1help)
+             call find_species_record(name1,loksp)
+             if(gx%bmperr.ne.0) goto 100
+             xxy=one
+             call gparrd('Property value: ',cline,last,xxx,xxy,q1help)
+             if(buperr.eq.0) then
+                call enter_species_property(loksp,xxx)
+             endif
 !.................................................................
-          case(4) ! DENSE_GRID_ONOFF
+          case(4) ! SET ADVANCED DENSE_GRID_ONOFF
 ! this sets bit 14 of global status word, also if bit 2 (expert) not set
              if(btest(globaldata%status,GSXGRID)) then
                 globaldata%status=ibclr(globaldata%status,GSXGRID)
@@ -1352,7 +1359,7 @@ contains
 3110            format('Dense grid ',a)
              else
                 globaldata%status=ibset(globaldata%status,GSXGRID)
-                write(*,3110)'set'
+                write(*,3110)'dense grid set'
              endif
 !.................................................................
           case(5) ! nothing yet
@@ -1362,7 +1369,7 @@ contains
              write(*,*)'Not implemented yet'
           end select
 !-----------------------------------------------------------
-       case(4) ! set LEVEL
+       case(4) ! set LEVEL, not sure what it will be used for ...
           write(kou,*)'Not implemented yet'
 !-----------------------------------------------------------
 ! end of macro excution (can be nested)

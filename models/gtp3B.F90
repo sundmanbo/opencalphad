@@ -288,6 +288,8 @@
    splista(noofsp)%alphaindex=noofsp
    splista(noofsp)%noofel=noelxx
    splista(noofsp)%status=0
+! I am not sure what this will be used for ...
+   splista(noofsp)%extra=one
    if(charge.ne.zero) then
       splista(noofsp)%status=ibset(splista(noofsp)%status,SPION)
    endif

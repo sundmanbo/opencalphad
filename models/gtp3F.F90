@@ -1975,7 +1975,7 @@
 !\end{verbatim}
    double precision props(5),xmol(maxel),wmass(maxel),stoi(10),cmpstoi(10)
    double precision vt,vp,amult,vg,vs,vv,div,aref,vn,bmult,tmass,tmol
-   double precision qsp,gref,spmass,rmult,tsave,rtn
+   double precision qsp,gref,spmass,rmult,tsave,rtn,spextra
    integer kstv,norm,lokph,lokcs,icx,jp,ncmp,ic,iprop,loksp,nspel,iq
    integer endmember(maxsubl),ielno(maxspel)
    value=zero
@@ -2373,7 +2373,7 @@
       lokph=phases(indices(1))
       loksp=phlista(lokph)%constitlist(indices(2))
 ! split the species in elements, convert to components, add chemical potentials
-      call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp)
+      call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp,spextra)
       if(gx%bmperr.ne.0) goto 1000
       if(qsp.ne.zero) then
 !         write(*,*)'3F Cannot calculate potential of charged species'
