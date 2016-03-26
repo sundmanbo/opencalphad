@@ -2,7 +2,7 @@
 @&
 
 set echo
-
+@&For linux OS filename reading is case sensitive
 r t OU
 
 @&
