@@ -6482,9 +6482,10 @@ CONTAINS
     double precision, allocatable :: smat(:,:),svar(:),yarr(:),delta(:)
 ! dmuenddy is derivatives of mu for endmembers wrt all constituents
     double precision, allocatable :: dmuenddy(:,:),diffcoeff(:,:),muend(:)
-    double precision, allocatable :: py(:)
+    double precision, allocatable :: py(:),diffs(:,:)
     double precision chargefact,chargerr,pv,qq(5),ys,ycormax2,muall,mob1,mob2
-    integer, allocatable :: koll(:)
+    double precision sumsum
+!    integer, allocatable :: koll(:)
 ! number of variables is number of components + one stable phase
     nz1=meqrec%nrel+1
     nz2=nz1+1
@@ -6624,26 +6625,50 @@ CONTAINS
 !    goto 1000
 !----------------------------------------------------------
 ! When the calculation converged we calculate mugrad and interdiffusivites
-! NOTE mugrad is with respect to an endmember if there are several
-! sublattices
-! dmu_i/dy_I = \sum_is d2G/dy_is - \sum_is\sum_kt y_is d2G/dy_is\dy_jt
-! first for the endmembers ...
+! A nontrival expression:
+!
+! dmu_i/dx_j = 1/N (d2G/dx_i/dx_j - \sum_k x_k (d2G/dx_k/dx_i + d2G/dx_k/dx_j)+
+!                              \sum_k\sum_m x_k x_m d2G/dx_k/dx_m )
+!
+! NOTE THIS IS SYMMETRICAL, dmu_i/dx_j = dmu_j/dx_i.
+! If the phase is ideal then d2G/dx_i/dx_j = RT/x_i if i=j, otherwise zero
+! This gives for 
+! dmu_i/dx_i = RT/N * (1-x_i)/x_i
+! dmu_i/dx_j = - RT/N          (i not equal to j)
+!
+! We must sum_k x_k * d2G/dx_k/dx_i for all i and
+!         sum_k sum_m x_k*x_m*d2G/dx_k/dx_m
+!
+! new use of delta !!!
     delta=zero
     muall=pmi%curd%gval(1,1)
+    sumsum=zero
+! Here we calculate delta(is) = \sum_k x_k y(k)*d2G/dy_k/dy_is and
+!                   sumsum = \sum_k\sum_m y(k)*y(m)*d2G/dy_k/dy_m and
     do is=1,phr(1)%ncc
        do jt=1,phr(1)%ncc
+!    do is=1,3
+!       do jt=1,3
 ! note the loop for jt must be for all constituents.
-!          write(*,*)'indices: ',is,jt,ixsym(is,jt)
           delta(is)=delta(is)-&
                pmi%curd%d2gval(ixsym(is,jt),1)*pmi%curd%yfr(jt)
+          write(*,119)'dsum ',is,jt,pmi%curd%d2gval(ixsym(is,jt),1),&
+               ceq%rtn*pmi%curd%d2gval(ixsym(is,jt),1),&
+               pmi%curd%yfr(jt)*pmi%curd%d2gval(ixsym(is,jt),1)
+119       format(a,2i3,4(1pe12.4))
        enddo
+       sumsum=sumsum+pmi%curd%yfr(is)*delta(is)
        muall=muall-pmi%curd%dgval(1,is,1)*pmi%curd%yfr(is)
     enddo
-    write(*,88)'Delta: ',muall,(delta(is),is=1,phr(1)%ncc)
+    write(*,88)'muall: ',muall
 88  format(a,6(1pe12.4))
-! here delta(is) is the sum of the second derivatives of G wrt is and all other
-! constituents jt multiplied with the fraction of jt
-! mucon is part of the chemical potential of the endmember
+!    write(*,88)'sumsum: ',sumsum,(delta(is),is=1,phr(1)%ncc)
+    write(*,88)'sumsum: ',sumsum,(delta(is),is=1,3)
+! delta(is) is the sum of the second derivatives of G wrt is and all other
+!                         constituents jt multiplied with the fraction of jt
+! sumsum is the second drivatives multiplied with both constituent fractions
+! muall is the sum of first derivatives of G multiplied of with the fraction
+!
 ! now we must generate the endmembers, loop over all sublattices
 ! but sublattics and number of constituents in each are in the phase record
 ! and protected ... use a subroutine ...
@@ -6656,7 +6681,7 @@ CONTAINS
     first=0
     do nl=1,nsl
 ! nend is number of endmembers
-! first and current are set to first constituent index in each sublattice
+! here first and current are set to first constituent index in each sublattice
        noofend=noofend*nkl(nl)
        first(nl)=is
        current(nl)=is
@@ -6668,50 +6693,85 @@ CONTAINS
     allocate(py(noofend))
     py=one
     ys=zero
-    allocate(koll(pmi%ncc*(pmi%ncc+1)/2))
-    koll=0
-    allocate(dmuenddy(noofend,pmi%ncc))
-    write(*,99)'first: ',first
-99  format(a,11i3)
-! calculate both mu(endmember) and dmydyis(endmember) ....
-    endloop: do nend=1,noofend
+!    allocate(koll(pmi%ncc*(pmi%ncc+1)/2))
+!    koll=0
+    write(*,99)'first: ',nsl,first
+99  format(a,i2,2x,11i3)
+! calculate just mu(endmember)
+    nendloop: do nend=1,noofend
        muend(nend)=muall
-       write(*,105)'Endmember: ',nend,(current(nl),nl=1,nsl)
        nlloop: do nl=1,nsl
 ! the chemical potential has one derivative per sublattice of a constituent
           jt=current(nl)
           muend(nend)=muend(nend)+pmi%curd%dgval(1,jt,1)
-          isloop: do is=1,phr(1)%ncc
-! this is the 2nd derivative of constituents is and jt in sublattice nl
-!             write(*,105)'indices: ',nend,nl,jt,is,ixsym(is,jt)
-             dmuenddy(nend,is)=dmuenddy(nl,is)+pmi%curd%d2gval(ixsym(is,jt),1)
-             koll(ixsym(is,jt))=koll(ixsym(is,jt))+1
-          enddo isloop
-! just for fun, calculate product of all fractions
           py(nend)=py(nend)*pmi%curd%yfr(jt)
        enddo nlloop
-! we must increment one constituent in current for next endmember
+       write(*,78)'Endmember: ',nend,muend(nend),muend(nend)*ceq%rtn,&
+            (current(nl),nl=1,nsl)
+78     format(a,i3,2(1pe12.4),10i3)
+! This is just for check of G below
        ys=ys+py(nend)*muend(nend)
+       inccur: do nl=1,nl
+          current(nl)=current(nl)+1
+          if(current(nl).eq.first(nl+1)) then
+             current(nl)=first(nl)
+          else
+             exit inccur
+          endif
+       enddo inccur
+    enddo nendloop
+! ---------------------------------------------------------------------
+! now we calculate dmu(end)/dy_is
+    allocate(dmuenddy(noofend,pmi%ncc))
+    dmuenddy=sumsum
+    do nl=1,nsl
+       current(nl)=first(nl)
+    enddo
+! for a drivative of an endmember with respect to an endmember fraction
+! dG_i/dn_J = 1/N ( \sum_s d2G/dy_is/dy_js - 
+!                   \sum_k y_k( d2G/dy_k/dy_is + d2G/dy_k/dy_js) + sumsum)
+! sumsum calculated above
+    nendloop2: do nend=1,noofend
+       nlloop2: do nl=1,nsl
+! the chemical potential has one derivative per sublattice of a constituent
+          jt=current(nl)
+          isloop2: do is=1,phr(1)%ncc
+! this is the 2nd derivative of constituents is and jt in sublattice nl
+!             write(*,105)'indices: ',nend,nl,jt,is,ixsym(is,jt)
+! jt is incremented for each sublattice
+             dmuenddy(nend,is)=dmuenddy(nend,is)+pmi%curd%d2gval(ixsym(is,jt),1)
+             write(*,211)'dmuend/dy_itdy_is: ',nend,is,jt,dmuenddy(nend,is)
+          enddo isloop2
+211       format(a,3i3,1pe16.7)
+       enddo nlloop2
+! we must increment one constituent in current for next endmember
        nl=0
 300    nl=nl+1
-       if(nl.gt.nsl) exit endloop 
+       if(nl.gt.nsl) exit nendloop2
        current(nl)=current(nl)+1
        if(current(nl).eq.first(nl+1)) then
           current(nl)=first(nl)
           goto 300
        endif
-    enddo endloop
+! is has no value here ---- ???
+!       dmuenddy(nend,is)=dmuenddy(nend,is)+delta(is)
+    enddo nendloop2
+!======================================================
 !    write(*,83)'koll: ',koll
 83  format(a,36i3)
-    write(*,107)'check: ',ys,pmi%curd%gval(1,1)
-    write(*,109)'muend: ',(nl,py(nl),muend(nl),nl=1,noofend)
-    do nl=1,noofend
-       write(*,108)'dmudy: ',(dmuenddy(nl,is),is=1,phr(1)%ncc)
+    write(*,107)'check of same G: ',ys,pmi%curd%gval(1,1)
+    write(*,*)'RT: ',ceq%rtn
+!---------------------------------------------------------
+! SPECIAL for AlCuSi ......
+    write(*,109)'  i,   x_i and MU_i/RT: ',(nl,py(nl),muend(nl),nl=1,3)
+    do nl=1,3
+       write(*,108)'dMU_i/dy_j: ',(dmuenddy(nl,is),&
+            ceq%rtn*dmuenddy(nl,is),is=1,3)
     enddo
 105 format(a,i4,2x,10i4)
-108 format(a,8F9.4)
-107 format(a,2(1pe16.7))
-109 format(a/(i4,F12.6,1pe16.7))
+108 format(a,6(1pe11.3))
+107 format(a,2(1pe16.7)/)
+109 format(a/(i4,0pF12.6,1pe16.7))
 !-------------------
 ! D_kj = \sum_i\sum_s (delta_ki - y_ks) y_is M_i dmu_i/dy_j
 ! this should be calculated for the components ... but I have just endmembers 
@@ -6731,24 +6791,46 @@ CONTAINS
     do jt=2,pmi%curd%listprop(1)
        is=pmi%curd%listprop(jt)
        if(is.gt.800 .and. is.lt.900) then
-! the is a mobility for constituent is-800 stored inpmi%curd%gval(1,jt)
+! the is a mobility for constituent is-800 stored in pmi%curd%gval(1,jt)
           jj=is-800
-          yarr(jj)=exp(pmi%curd%gval(1,jt))
-          write(*,410)jj,yarr(jj),pmi%curd%gval(1,jt)
-410       format('Mobility for constituent ',i2,', value: ',2(1pe16.6))
+          yarr(jj)=exp(pmi%curd%gval(1,jt)/ceq%rtn)/ceq%rtn
+          write(*,410)jj,jt,pmi%curd%gval(1,jt),yarr(jj)
+410       format('Mobility for ',i3,' in pos ',i2,&
+               ', value: ',3(1pe14.6))
        endif
     enddo
-! I can calculate D(end,jt) = \sum_jt py(end)*exp(mob(end))*dmudy(end,jt)
-! but I do not have mob(end), I use the disordered mobilites in yarr(1..2)
-! The loop below is meaningless
-    do nl=1,noofend
-       do jt=1,pmi%ncc
-          mob1=mob1+py(nl)*yarr(1)*dmuenddy(nl,jt)
-          mob2=mob2+py(nl)*yarr(2)*dmuenddy(nl,jt)
+! list T and x for current values
+    write(*,412)tpval(1),(pmi%curd%yfr(jt),jt=1,3)
+412 format(/'Unreduced diffusion matrix for T= ',f8.2,' and x= ',3F8.4)
+!
+! TC ger för MU(i).x(j) ....:
+!
+! The loop below is adapted to the FCC phase in the AlCuSi system
+! 2 sublattices but only substitutional diffusion
+! Diffs are D_kj
+    allocate(diffs(3,3))
+!
+! I calculate D(is,jt) = x_is exp(M_is/RT) dmu_is/dx_jt 
+!                      - x_is\sum_nl x_nl *exp(M_nl/RT)*dmu_nl/dy_jt
+!
+    diffs=zero
+    do is=1,3
+       do jt=1,3
+          do nl=1,3
+             diffs(is,jt)=diffs(is,jt)-pmi%curd%yfr(nl)*yarr(nl)*dmuenddy(nl,jt)
+          enddo
+          diffs(is,jt)=pmi%curd%yfr(is)*(yarr(is)*dmuenddy(is,jt)+diffs(is,jt))
        enddo
+       write(*,414)is,(diffs(is,jt),jt=1,3)
     enddo
-    write(*,414)mob1,mob2
-414 format('Diffusion coefficients: ',2(1pe16.8))
+414 format('D_kj, k=',i2,' j=1..3 ',3(1pe16.6))
+!
+    write(*,415)
+415 format(/'Taking Al as reference we ger D^al_kj = D_ij - D_1j ')
+    do is=2,3
+       write(*,416)is,(diffs(is,jt)-diffs(1,jt),jt=2,3)
+    enddo
+416 format('D_kj, k=',i2,' j=2..3 ',2(1pe16.6))
 1000 continue
     
     return

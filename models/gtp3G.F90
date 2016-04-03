@@ -1829,7 +1829,7 @@
    if(gx%bmperr.ne.0) goto 1000
    fsdata%varreslink=nyttcs
 ! note ceq is firsteq but declared target
-   write(*,*)'3G disordered fraction set',nyttcs
+!   write(*,*)'3G disordered fraction set',nyttcs
 !*?   fsdata%phdapointer=>ceq%phase_varres(nyttcs)
    firsteq%phase_varres(nyttcs)%phlink=lokph
    firsteq%phase_varres(nyttcs)%prefix=' '

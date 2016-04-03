@@ -4145,7 +4145,8 @@
 !               write(*,*)'3Y Accept fit to default: ',fit,lokics,lokjcs
 500            continue
 ! move STABLE lokics to UNSTABLE lokjcs
-               write(*,*)'3Y move from to: ',lokics,lokjcs
+               write(*,489)lokics,lokjcs
+489            format('3Y move compset results from ',i6,' to ',i6)
 !               copycompsets(... ???
 ! save some jcs values of amount, dgm, status, pre&suffix and tuple index
                   xj1=ceq%phase_varres(lokjcs)%amfu
@@ -4233,7 +4234,7 @@
 ! comp.set was created automatically but is not stable, it can be removed
                if(noeq().eq.1) then
 ! we have just one equilibrium, OK to remove even in parallel ...
-                  write(*,802)'3Y removing unstable phase tuple ',&
+                  write(*,802)'3Y removing unstable phase tuple/compset ',&
                        ceq%phase_varres(lokics)%phtupx,lokics
 802               format(a,3i5)
                   call remove_composition_set(iph,.FALSE.)

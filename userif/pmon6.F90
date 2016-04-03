@@ -234,7 +234,7 @@ contains
          'CONSTITUTION    ','EXPERIMENT      ','QUIT            ',&
          'EQUILIBRIUM     ','SYMBOL          ','OPTIMIZE_COEFF  ',&
          'COPY_OF_EQUILIB ','COMMENT         ','MANY_EQUILIBRIA ',&
-         '                ','                ','                ']
+         'MATERIAL        ','                ','                ']
 !-------------------
 ! subcommands to READ
     character (len=16), dimension(ncread) :: cread=&
@@ -2130,7 +2130,7 @@ contains
 !         'CONSTITUTION    ','EXPERIMENT      ','QUIT            ',&
 !         'EQUILIBRIUM     ','SYMBOL          ','OPTIMIZE_COEFF  ',&
 !         'COPY_OF_EQUILIB ','COMMENT         ','MANY_EQUILIBRIA ',&
-!         '                ','                ','                ']
+!         'MATERIAL        ','                ','                ']
     CASE(4)
 ! disable continue optimization
        iexit=0
@@ -2337,14 +2337,20 @@ contains
           call enter_many_equil(cline,last)
 !          write(*,*)'Not implemented yet'
 !---------------------------------------------------------------
-! enter not used
+! enter MATERIAL
+! ask for database, then mass/mole fraction, then elements and composition;
+! read the database; jump possibly to SCHEIL/STEP calculation 
+! or simply ask for T and calculate equilibrium; 
        case(16)
+          write(*,*)'Not implemeneted yet'
 !---------------------------------------------------------------
 ! enter not used
        case(17)
+          write(*,*)'Not implemeneted yet'
 !---------------------------------------------------------------
 ! enter not used
        case(18)
+          write(*,*)'Not implemeneted yet'
        END SELECT
 !=================================================================
 ! exit

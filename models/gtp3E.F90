@@ -2422,6 +2422,7 @@
 !399      format('Phase names for disordered parts of FCC, BCC and HCP must',&
 !              ' start with:'/'  A1_ , A2_ and A3_ respectivly!'/&
 !              ' and have an interstitial sublattice')
+            jl=1
          elseif(dispartph(thisdis)(1:3).eq.'A1_' .or. &
               dispartph(thisdis)(1:3).eq.'A2_' .or. &
               dispartph(thisdis)(1:3).eq.'A3_') then
@@ -2436,10 +2437,9 @@
          else
 ! disordered part of sigma, mu etc.
             jl=0; nd1=phlista(lokph)%noofsubl
-            if(.not.silent) write(kou,398) &
-                 ordpartph(thisdis)(1:len_trim(ordpartph(thisdis))),nd1
-398         format('Phase ',a,' has NODT partition model summing first ',i2)
          endif
+         if(jl.eq.0 .and. .not.silent) write(kou,398),trim(ordpartph(thisdis))
+398      format(' *** Warning: phase ',a,' cannot completely disorder')
 ! add DIS_PART from TDB
          call add_fraction_set(iph,ch1,nd1,jl)
          if(gx%bmperr.ne.0) then

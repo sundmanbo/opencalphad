@@ -240,12 +240,22 @@
    phmain%listprop(1)=1
    fractype=0
 !   write(*,*)'calcg 99: ',lokph,cps%phtupx,cps%disfra%varreslink
-!   write(*,101)'calcg 100 ',nsl,phres%gval(1,1),cps%gval(1,1)
-101 format(a,i4,4(1pe14.4))
+!--------------------------------------------------------------------
+! VERY STRANGE ERROR
+! wrong results calculating with disordered fraction set disappeared
+! when adding this write statements (and the one after the else statement
+! and the one with the text nevertwice: further below)
+!   write(*,101)'3X calcg 100 ',nsl,phlista(lokph)%nooffs,&
+!        btest(phmain%status2,CSORDER),phres%gval(1,1),cps%gval(1,1)
+101 format(a,2i4,1x,l,4(1pe14.4))
 !--------------------------------------------------------------------
 ! loop for different types of fractions: site fractions, mole fractions ...
    fractyp: do while(fractype.lt.phlista(lokph)%nooffs)
 105 continue
+!     write(*,7)'At label 105: ',fractype,btest(phlista(lokph)%status1,PHSUBO),&
+!           btest(phmain%status2,CSORDER),btest(phlista(lokph)%status1,PHMFS),&
+!           fracset%totdis,phres%gval(1,1)
+7     format(a,i2,3(1x,l),i3,3(1pe12.4))
       fractype=fractype+1
 ! return here for calculating with disordered fractions for same fraction type
 110 continue
@@ -272,6 +282,7 @@
 ! independent if ordered or disordered always calculate first fraction set
                else
 ! the phase is disordered, skip ordered part and just calculate disordered
+!                  write(*,*)'Skipping ordered part'
                   goto 105
                endif
             endif
@@ -283,6 +294,7 @@
          do qz=1,nsl
             incffr(qz)=incffr(qz-1)+phlista(lokph)%nooffr(qz)
          enddo
+!         write(*,*)'3X after 106: ',fractype,nevertwice
 ! the results will be stored in the results arrays indicated by phres
 ! it was set above for the ordered fraction set. 
       else
@@ -612,6 +624,13 @@
 !               endif
                proprec=>proprec%nextpr
 !               write(*,*)'Config G 4C: ',phres%gval(1,1)*rtg
+! debug problem with mobility calculation
+!               if(ipy.eq.2) then
+!                  write(*,172)'3X mob: ',ipy,phmain%listprop(1),&
+!                       phmain%listprop(ipy),&
+!                       pyq,vals(1),pyq*vals(1),phres%gval(1,ipy)
+!172               format(a,3i4,6(1pe12.4))
+!               endif
             enddo emprop
 !------------------------------------------------------------------
 ! take link to interaction records, use push and pop to save pyq etc
@@ -1121,6 +1140,12 @@
                   iloop6: do itp=1,6
                      phres%gval(itp,ipy)=phres%gval(itp,ipy)+pyq*vals(itp)
                   enddo iloop6
+! debug problem with mobility calculation
+!                  if(ipy.eq.2) then
+!                     write(*,172)'3X imob:',ipy,phmain%listprop(1),&
+!                          phmain%listprop(ipy),&
+!                          pyq,vals(1),pyq*vals(1),phres%gval(1,ipy)
+!                  endif
                   proprec=>proprec%nextpr
                enddo intprop
 !               write(*,*)'Config G 4F: ',phres%gval(1,1)*rtg
@@ -1173,34 +1198,38 @@
 !         write(*,155)'endmem: ',epermut,endmemrec%noofpermut,endmemrec%antalem
          endmemrec=>endmemrec%nextem
       enddo endmemloop
-!      write(*,*)'Config G 5: ',phres%gval(1,1)*rtg
+!      write(*,*)'3X Config G 5: ',phres%gval(1,1)*rtg
 !------------------------------------------------------------------------
 ! end loop for this fraction type, initiation for next in the beginning of loop
 ! but we may have to calculate once again with same fraction type but
 ! with the fractions as disordered fractions
 !      write(*,*)'3X Testing nevertwice ',nevertwice
 ! Jump to 400 terminates calculation for this fraction type
-!      write(*,*)'Nevertwice ',nevertwice,btest(phlista(lokph)%status1,phsubo),&
-!           first,fractype
+!      write(*,303)'Nevertwice: ',nevertwice,&
+!           btest(phlista(lokph)%status1,phsubo),&
+!           first,fractype,phres%gval(1,1)
+303   format(a,3(1x,L),i3,4(1pe12.4))
       if(nevertwice) goto 400
 ! UNIFINISHED
-! TEST IF WE SHOULD SUBTRACT THE ORDERED ENERGY AS DISORDERED AS THAT
-! IS THE CURRENT IMPLEMENTATION IN THERMO-CALC. BY JUMPING TO 400 WE SKIP THAT.
+! TEST IF WE SHOULD SUBTRACT THE ORDERED ENERGY AS DISORDERED AS IN THE
+! CURRENT IMPLEMENTATION IN THERMO-CALC. BY JUMPING TO 400 WE SKIP THAT.
       if(btest(phlista(lokph)%status1,phsubo)) then
-         write(*,*)'3X phsubo bit set'
+!         write(*,*)'3X phsubo bit set'
          goto 400
       endif
 ! PARTITION PROBLEM FOR ORDERED PHASES
 !      goto 400
 !------------------------------------------------
 ! the code from disord: if ... endif is redundant 
+!      write(*,611)'3X ftyp1:',fractype,btest(phlista(lokph)%status1,phmfs),&
+!           btest(phmain%status2,csorder),first,lokph,phres%gval(1,1)
       disord: if(fractype.eq.1 .and. btest(phlista(lokph)%status1,phmfs) &
            .and. btest(phmain%status2,csorder)) then
 ! Handle additions of several fraction set ?? Additions calculated
 ! after both ordered and disordered fraction set calculated
 !         write(*,611)'3X ftyp:',fractype,btest(phlista(lokph)%status1,phmfs),&
-!              btest(phmain%status2,csorder),first,lokph
-!611      format(a,i3,3(1x,L),2i3)
+!              btest(phmain%status2,csorder),first,lokph,phres%gval(1,1)
+!611      format(a,i3,3(1x,L),i3,3(1pe12.4))
          if(first) then
 ! calculate with next fraction type
 ! alternative meithod: no need to calculate with all fractions as disordered
@@ -1453,6 +1482,8 @@
 !         write(*,413)'3X G:',ipy,0,0,&
 !              phpart%gval(1,ipy),add1,phres%gval(1,ipy)
       enddo
+!      write(*,413)'3X 413:',ipy,0,0,&
+!           phpart%gval(1,ipy),add1,phres%gval(1,1)
    endif fractionsets
 ! now set phres to ordered+disorded results and forget phpart
    phres=>phmain
@@ -2399,10 +2430,11 @@
 !            sy=dpfhv(kall,1,k1)*(ylog+one)-fhv(kall,1)/sumq*sumsy(1,k1)
 ! UNFINISHED ... IGNORE THE COMPOSITION DEPENENCE OF fhv_i ...
          enddo loopk1
+! 
 !         phvar%dgval(1,kall,1)=fhv(kall,1)/sumq*(ylog+one)
 !         phvar%dgval(1,kall,1)=(ylog+one)/sumq
-! each species have now a flory-Huggins segment value
-         phvar%dgval(1,kall,1)=ylog+one
+! each species has now a flory-Huggins segment value in fhv(kall,1)
+         phvar%dgval(1,kall,1)=(ylog+one)/fhv(kall,1)
          phvar%dgval(2,kall,1)=phvar%dgval(2,kall,1)/tval
       endif
 !      ss=ss+(fhv(kall,1)/sumq)*yfra(kall)*ylog
@@ -2732,7 +2764,7 @@
    double precision, parameter :: yminord=1.0D-10
    integer lokdis,is
 !
-!   write(*,*)'entering calc_disfrac'
+!   write(*,*)'3X entering calc_disfrac'
 !   disrec=phord%disfra
 !   lokdis=disrec%varreslink
 !   phdis=>disrec%phdapointer
@@ -2776,7 +2808,7 @@
 ! bit must be cleared as it might have been set at previous call
       phord%status2=ibset(phord%status2,csorder)
    endif
-!   write(*,*)'calc_disfrac 4'
+!   write(*,*)'3X calc_disfrac 4: ',phord%status2
 ! copy these to the phase_varres record that belongs to this fraction set
 ! a derivative dGD/dyj = sum_i dGD/dxi * dxidyj
 ! where dGD/dxi is dgval(1,y2x(j),1) and dxidyj is disrec%dxidyj(j)

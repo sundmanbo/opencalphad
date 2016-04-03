@@ -1796,6 +1796,7 @@
 ! set disordered fractions if any
    if(btest(phlista(lokph)%status1,phmfs)) then
 !now set disordered fractions if any
+!      write(*,*)'3A disordered fractions for: ',lokph,lokcs
       call calc_disfrac(lokph,lokcs,ceq)
       if(gx%bmperr.ne.0) goto 1000
    endif
