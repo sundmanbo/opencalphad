@@ -2434,12 +2434,19 @@
 397         format('Phase ',a,&
                  ' has an order/disorder partition model summing first ',i2)
             jl=1
-         else
+         elseif(dispartph(thisdis)(1:4).eq.'DIS_') then
 ! disordered part of sigma, mu etc.
             jl=0; nd1=phlista(lokph)%noofsubl
+         else
+! probably disordered part of sigma, mu etc.
+            write(kou,495)trim(ordpartph(thisdis))
+495         format(' *** WARNING: Non-standard name of disordered phase: ',a/&
+                 ' Assuming ordered phase will never be disordered',&
+                 ' like sigma, mu etc')
+            jl=0; nd1=phlista(lokph)%noofsubl
          endif
-         if(jl.eq.0 .and. .not.silent) write(kou,398),trim(ordpartph(thisdis))
-398      format(' *** Warning: phase ',a,' cannot completely disorder')
+         if(jl.eq.0 .and. .not.silent) write(kou,398)trim(ordpartph(thisdis))
+398      format(' Assuming that phase ',a,' cannot completely disorder')
 ! add DIS_PART from TDB
          call add_fraction_set(iph,ch1,nd1,jl)
          if(gx%bmperr.ne.0) then

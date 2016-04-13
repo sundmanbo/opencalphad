@@ -774,7 +774,7 @@
       goto 1000
    elseif(test_phase_status_bit(iph,PHFORD)) then
 ! this phase has 4 sublattice fcc/hcp tetrahedral ordering,
-! this reduces the number of gridpoints
+! this reduces the number of gridpoints UNFINISHED: NOT IMPLEMENTED YET
       call generate_fccord_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,gmax,ceq)
 !      goto 1000
    elseif( (btest(globaldata%status,GSXGRID) .or. & 
@@ -924,8 +924,12 @@
    endmem: do iend=1,nend
       yfra=yzero
       do ls=1,nsl
+! attempt to generate better start valued for fcc-prototype
          yfra(endm(ls,iend))=ybas(1)
+!         yfra(endm(ls,iend))=ybas(1)-1.0D-6*(nkl(ls)-1)
       enddo
+!      write(*,180)'3Y yfra: ',1,iend,nkl(1),endm(1,iend),yfra(endm(1,iend))
+180   format(a,4i3,6(1pe16.7))
       isendmem=.TRUE.
 ! initiate the loop veriables below for endmembers and fractions
       ibas=2
@@ -941,7 +945,7 @@
       else
 ! calculate G and composition and save
 !         write(*,201)ibas,ngg,(yfra(is),is=1,inkl(nsl))
-201      format('ggz: ',i2,i5,10(F6.3))
+201      format('ggz: ',i2,i4,5(F10.6))
          if(ocv()) write(*,*)'Calculating gridpoint: ',ngg
          call calc_gridpoint(iph,yfra,nrel,xarr(1,ngg),garr(ngg),ceq)
          if(gx%bmperr.ne.0) goto 1000
@@ -983,9 +987,12 @@
          if(jend.eq.iend) jend=jend+1
          if(jend.gt.nend) cycle
          do ls=1,nsl
+! attempt to generate better start values for fcc-protototype ordering
             yfra(endm(ls,iend))=ybas(ibas)
+!            yfra(endm(ls,iend))=ybas(ibas)-1.0D-6*(nkl(ls)-1)
             yfra(endm(ls,jend))=yfra(endm(ls,jend))+ybin(ibin)
          enddo
+!      write(*,180)'3Y yfra: ',ibas,iend,nkl(1),endm(1,jend),yfra(endm(1,jend))
          goto 200
       elseif(nend.gt.25) then
 ! nend=26..30 two binary combinations, 1326-1770
@@ -999,9 +1006,12 @@
             ibas=3; ibin=2
          endif
          do ls=1,nsl
+! attempt to generate better start values for fcc-protototype ordering
             yfra(endm(ls,iend))=ybas(ibas)
+!            yfra(endm(ls,iend))=ybas(ibas)-1.0D-6*(nkl(ls)-1)
             yfra(endm(ls,jend))=yfra(endm(ls,jend))+ybin(ibin)
          enddo
+!      write(*,180)'3Y yfra: ',ibas,jend,nkl(1),endm(1,jend),yfra(endm(1,jend))
          goto 200
       elseif(nend.eq.2 .or. nend.ge.15) then
 ! nend=2 or nend=15..25, three binary combinations, ??-1825
@@ -1017,9 +1027,12 @@
             if(jend.eq.iend) jend=jend+1
          endif
          do ls=1,nsl
+! attempt to generate better start values for fcc-protototype ordering
             yfra(endm(ls,iend))=ybas(ibas)
+!            yfra(endm(ls,iend))=ybas(ibas)-1.0D-6*(nkl(ls)-1)
             yfra(endm(ls,jend))=yfra(endm(ls,jend))+ybin(ibin)
          enddo
+!      write(*,180)'3Y yfra: ',ibas,jend,nkl(1),endm(1,jend),yfra(endm(1,jend))
          goto 200
       elseif(nend.gt.10) then
 ! complicated here, iterating in both binary and ternary combinations ....
@@ -1063,12 +1076,15 @@
             endif
          endif
          do ls=1,nsl
+! attempt to generate better start values for fcc-protototype ordering
             yfra(endm(ls,iend))=ybas(ibas)
+!            yfra(endm(ls,iend))=ybas(ibas)-1.0D-6*(nkl(ls)-1)
             yfra(endm(ls,jend))=yfra(endm(ls,jend))+ybin(ibin)
             if(kend.gt.0) then
                yfra(endm(ls,kend))=yfra(endm(ls,kend))+yter(iter)
             endif
          enddo
+!      write(*,180)'3Y yfra: ',ibas,jend,nkl(1),endm(1,jend),yfra(endm(1,jend))
          goto 200
       else
 ! nend=3..10, 3 binary and 2 ternary combinations, 33-1720
@@ -1119,12 +1135,16 @@
             endif
          endif
          do ls=1,nsl
+! attempt to generate better start values for fcc-protototype ordering
+!            yfra(endm(ls,iend))=ybas(ibas)
+!            yfra(endm(ls,iend))=ybas(ibas)-1.0D-6*(nkl(ls)-1)
             yfra(endm(ls,iend))=ybas(ibas)
             yfra(endm(ls,jend))=yfra(endm(ls,jend))+ybin(ibin)
             if(kend.gt.0) then
                yfra(endm(ls,kend))=yfra(endm(ls,kend))+yter(iter)
             endif
          enddo
+!      write(*,180)'3Y yfra: ',ibas,kend,nkl(1),endm(1,kend),yfra(endm(1,kend))
          goto 200
       endif combend
    enddo endmem
@@ -1402,6 +1422,9 @@
          if(jend.eq.iend) cycle endmem2a
          yfra=zero
          do ls=1,nsl
+! to generate better start values for fcc-protototype ordering
+!            yfra(endm(ls,iend))=ybas(ibas)
+!            yfra(endm(ls,iend))=ybas(0)-1.0D-6*nkl(ls) ???
             yfra(endm(ls,iend))=ybas(0)
             yfra(endm(ls,jend))=yfra(endm(ls,jend))+yter(1)
          enddo
@@ -2204,10 +2227,13 @@
    do i=1,nrel
       xarr(i)=real(xmol(i))
    enddo
-   if(qq(1).lt.2.0D-1) then
+!   if(qq(1).lt.2.0D-1) then
 ! number of real atoms less than 20%, a gridpoint with just vacancies ....
+   if(qq(1).lt.5.0D-1) then
+! number of real atoms less than 50%, a gridpoint with mainly vacancies ....
 !      gval=1.0E5
-      gval=1.0E1
+!      gval=1.0E1
+      gval=1.0E2
    elseif(abs(qq(2)).gt.1.0D-14) then
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 ! the gridpoint has net charge, qq(2), make gval more positive. 

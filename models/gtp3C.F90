@@ -712,7 +712,7 @@
             endif
             once=once+1
             if(once.eq.1) write(lut,109)
-109         format(/' *** Phases which would like to be stable')
+109         format(/' *** There are phases which would like to be stable')
             phtupx(once)=ceq%phase_varres(lokcs)%phtupx
 !            write(*,98)once,phtupx(once),phasetuple(phtupx(once))%phase,iph,&
 !                 lokcs,ceq%phase_varres(lokcs)%dgm,&
@@ -1638,7 +1638,11 @@
 ! jump here to append sublattice
 120               continue
 !                  write(*,*)'property 1: ',prop(1:10),ll
-                  prop=prop(1:len_trim(prop))//'#'//char(ll+ichar('0'))
+                  if(ll.gt.1) then
+                     prop=prop(1:len_trim(prop))//'#'//char(ll+ichar('0'))
+!                  else
+!                     prop=prop(1:len_trim(prop))//'#'//char(ll+ichar('0'))
+                  endif
 121               continue
                else
                   write(kou,*)'lpd 7B: ',iel,typty
@@ -1797,7 +1801,10 @@
                      gx%bmperr=7777; goto 1000
 220                  continue
 !                     write(*,*)'property 2: ',prop(1:10),ll
-                     prop=prop(1:len_trim(prop))//'#'//char(ll+ichar('0'))
+! add sublattice index only if not unity
+                     if(ll.gt.1) then
+                        prop=prop(1:len_trim(prop))//'#'//char(ll+ichar('0'))
+                     endif
                   else
 !                          write(*,*)'lpd 7: ',iel,typty
                      gx%bmperr=4082; goto 1000

@@ -6459,7 +6459,8 @@ CONTAINS
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
-  subroutine equilph1e(meqrec,phr,tpval,xknown,ovar,nend,mugrad,intdiv,ceq)
+  subroutine equilph1e(meqrec,phr,tpval,xknown,ovar,&
+       noofend,mugrad,intdiv,ceq)
 ! iterate constituent fractions of a phase for mole fractions xknown
 ! and calculate derivatives of MU and diffusion coefficients
 ! tpval is T and P
@@ -6470,22 +6471,22 @@ CONTAINS
 ! intdiv is the interdiffusivites (provide there are mobilities)
 ! ceq is a datastructure with all relevant thermodynamic data
     implicit none
-    integer nend
+    integer noofend
     double precision tpval(*),xknown(*),ovar(*),mugrad(*),intdiv(*)
     TYPE(meq_setup) :: meqrec
     TYPE(meq_phase), dimension(*), target :: phr
     TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
     integer nz1,nz2,tcol,pcol,dncol,converged,ierr,jj,nj,nk,nl,is,jt
-    integer lokph,nkl(maxsubl),first(maxsubl+1),current(maxsubl),nsl,noofend
+    integer lokph,nkl(maxsubl),first(maxsubl+1),current(maxsubl),nsl,nend
+    integer deriv(maxsubl),ql,mend
     TYPE(meq_phase), pointer :: pmi
     double precision, allocatable :: smat(:,:),svar(:),yarr(:),delta(:)
 ! dmuenddy is derivatives of mu for endmembers wrt all constituents
     double precision, allocatable :: dmuenddy(:,:),diffcoeff(:,:),muend(:)
-    double precision, allocatable :: py(:),diffs(:,:)
+    double precision, allocatable :: py(:),diffs(:,:),delta2(:,:)
     double precision chargefact,chargerr,pv,qq(5),ys,ycormax2,muall,mob1,mob2
     double precision sumsum
-!    integer, allocatable :: koll(:)
 ! number of variables is number of components + one stable phase
     nz1=meqrec%nrel+1
     nz2=nz1+1
@@ -6634,149 +6635,355 @@ CONTAINS
 ! If the phase is ideal then d2G/dx_i/dx_j = RT/x_i if i=j, otherwise zero
 ! This gives for 
 ! dmu_i/dx_i = RT/N * (1-x_i)/x_i
-! dmu_i/dx_j = - RT/N          (i not equal to j)
+! dmu_i/dx_j = - RT/N                  (i not equal to j)
 !
-! We must sum_k x_k * d2G/dx_k/dx_i for all i and
-!         sum_k sum_m x_k*x_m*d2G/dx_k/dx_m
+! We calc             sum_k (x_k*d2G/dx_k/dx_i)   in delta(i)
+!         sum_m x_m ( sum_k (x_k*d2G/dx_k/dx_m))  in sumsum
 !
 ! new use of delta !!!
     delta=zero
     muall=pmi%curd%gval(1,1)
     sumsum=zero
-! Here we calculate delta(is) = \sum_k x_k y(k)*d2G/dy_k/dy_is and
-!                   sumsum = \sum_k\sum_m y(k)*y(m)*d2G/dy_k/dy_m and
+! Here we calculate delta(is) =           \sum_jt y(jt)*d2G/dy_jt/dy_is and
+!                   sumsum = \sum_m y(is) \sum_jt y(jt)*d2G/dy_jt/dy_is
+! The loop of is is for all constituents
     do is=1,phr(1)%ncc
+! The loop for jt are for all constituents in all sublattices
        do jt=1,phr(1)%ncc
-!    do is=1,3
-!       do jt=1,3
-! note the loop for jt must be for all constituents.
-          delta(is)=delta(is)-&
-               pmi%curd%d2gval(ixsym(is,jt),1)*pmi%curd%yfr(jt)
-          write(*,119)'dsum ',is,jt,pmi%curd%d2gval(ixsym(is,jt),1),&
-               ceq%rtn*pmi%curd%d2gval(ixsym(is,jt),1),&
-               pmi%curd%yfr(jt)*pmi%curd%d2gval(ixsym(is,jt),1)
-119       format(a,2i3,4(1pe12.4))
+! STRANGE that d2G/dy_Va/dy_Va is zero ... should be 1 (*RT) ...does not matter
+!          if(pmi%curd%d2gval(ixsym(is,jt),1).eq.zero) &
+!               pmi%curd%d2gval(ixsym(is,jt),1)=-one
+          delta(is)=delta(is)+pmi%curd%yfr(jt)*pmi%curd%d2gval(ixsym(is,jt),1)
+!          write(*,*)'d2G/dy/dy: ',is,jt,pmi%curd%d2gval(ixsym(is,jt),1)
        enddo
        sumsum=sumsum+pmi%curd%yfr(is)*delta(is)
        muall=muall-pmi%curd%dgval(1,is,1)*pmi%curd%yfr(is)
     enddo
-    write(*,88)'muall: ',muall
-88  format(a,6(1pe12.4))
-!    write(*,88)'sumsum: ',sumsum,(delta(is),is=1,phr(1)%ncc)
-    write(*,88)'sumsum: ',sumsum,(delta(is),is=1,3)
-! delta(is) is the sum of the second derivatives of G wrt is and all other
-!                         constituents jt multiplied with the fraction of jt
-! sumsum is the second drivatives multiplied with both constituent fractions
-! muall is the sum of first derivatives of G multiplied of with the fraction
-!
+! muall    = G_m - \sum_i y_i dG/dy_i
+! delta(i) = \sum_j y_j d2G/dy_i/dy_j             sum for all y_j for one y_i
+! sumsum   = \sum_i \sum_j y_i y_j d2G/dy_i/dy_j  sum for all y_i and y_j
+!-------------------- summations over all constituents in all sublattices
 ! now we must generate the endmembers, loop over all sublattices
 ! but sublattics and number of constituents in each are in the phase record
 ! and protected ... use a subroutine ...
     lokph=pmi%curd%phlink
     call get_phase_structure(lokph,nsl,nkl)
     if(gx%bmperr.ne.0) goto 1000
+! ---------------------------------------------------------------------
+    substitutional: if(nsl.eq.1) then
+! specially simple if nsl=1 (substitutional)
+       noofend=nkl(1)
+       allocate(muend(noofend))
+! calculate just mu(endmember)
+!       loop1: do nend=1,noofend
+!          muend(nend)=muall+pmi%curd%dgval(1,nend,1)
+!          loop2: do jt=1,noofend
+! the chemical potential has the derivative of the constituent
+!             muend(nend)=muend(nend)+pmi%curd%dgval(1,jt,1)
+!          enddo loop2
+!       enddo loop1
+! now we calculate dmu(end)/dy_is (just for substitutional)
+       allocate(dmuenddy(noofend,pmi%ncc))
+       dmuenddy=zero
+! For a substitutional solution:
+! dmu_i/dx_j = 1/N ( d2G/dx_i/dx_j -
+!                    \sum_k x_k d2G/dx_k/dx_i - \sum_k x_k d2G/dx_k/dx_j+
+!                    \sum_k\sum_m x_k x_m d2G/dx_k/dx_m )
+! NOTE THIS SHOULD BE SYMMETRICAL, dmu_i/dx_j = dmu_j/dx_i.
+! use delta(i) and sumsum calculated above
+!       write(*,*)'Derivatives of chemical potentials',noofend
+       nl=0
+       loop3: do is=1,noofend
+          muend(is)=muall+pmi%curd%dgval(1,is,1)
+          loop4: do jt=1,noofend
+             dmuenddy(is,jt)=pmi%curd%d2gval(ixsym(is,jt),1)-&
+                  delta(is)-delta(jt)+sumsum
+!             write(*,775)'dd1:',1,is,jt,&
+!                  dmuenddy(is,jt),pmi%curd%d2gval(ixsym(is,jt),1),&
+!                  delta(is),delta(jt),sumsum
+             nl=nl+1
+             mugrad(nl)=dmuenddy(is,jt)*ceq%rtn
+          enddo loop4
+!          write(*,777)'dd: ',(ceq%rtn*dmuenddy(is,jt),jt=1,noofend)
+777       format(a,6(1pe12.4))
+       enddo loop3
+! UNFINISHED ?? I do not divide by N
+!       write(*,777)'mu: ',(muend(is),is=1,noofend)
+!-------------------
+    else ! not substitutional below
+! now we have to handle sublattices and endmembers
 ! nsl is number of sublattices and nkl(1..nsl) the number of const in each
-    noofend=1
-    is=1
-    first=0
-    do nl=1,nsl
+!       write(*,*)'Not implemented yet'
+!       gx%bmperr=7777; goto 1000
+       noofend=1
+       is=1
+       first=0
+       do nl=1,nsl
 ! nend is number of endmembers
 ! here first and current are set to first constituent index in each sublattice
-       noofend=noofend*nkl(nl)
-       first(nl)=is
-       current(nl)=is
-       is=is+nkl(nl)
-    enddo
-! we need this to indicate when we reached the end ??
-    first(nsl+1)=is
-    allocate(muend(noofend))
-    allocate(py(noofend))
-    py=one
-    ys=zero
-!    allocate(koll(pmi%ncc*(pmi%ncc+1)/2))
-!    koll=0
-    write(*,99)'first: ',nsl,first
-99  format(a,i2,2x,11i3)
-! calculate just mu(endmember)
-    nendloop: do nend=1,noofend
-       muend(nend)=muall
-       nlloop: do nl=1,nsl
-! the chemical potential has one derivative per sublattice of a constituent
-          jt=current(nl)
-          muend(nend)=muend(nend)+pmi%curd%dgval(1,jt,1)
-          py(nend)=py(nend)*pmi%curd%yfr(jt)
-       enddo nlloop
-       write(*,78)'Endmember: ',nend,muend(nend),muend(nend)*ceq%rtn,&
-            (current(nl),nl=1,nsl)
-78     format(a,i3,2(1pe12.4),10i3)
-! This is just for check of G below
-       ys=ys+py(nend)*muend(nend)
-       inccur: do nl=1,nl
-          current(nl)=current(nl)+1
-          if(current(nl).eq.first(nl+1)) then
-             current(nl)=first(nl)
-          else
-             exit inccur
+          noofend=noofend*nkl(nl)
+          first(nl)=is
+          current(nl)=is
+          deriv(nl)=is
+          is=is+nkl(nl)
+       enddo
+! we need this to indicate when we reached the end
+       first(nsl+1)=is
+       allocate(muend(noofend))
+       allocate(py(noofend))
+       py=one
+! all partials have this term
+       muend=muall
+! The partial Gibbs energy, for each sublattice add one dG/dy_is
+       nend=0
+       nj=0
+       allpg: do while(nj.le.nsl)
+          nend=nend+1
+! the partials constituents, G_I, are in current(1..nsl)
+          nlloop: do nl=1,nsl
+             is=current(nl)
+! endmembers like 1:1:1, 1:1:2, 1:2:1, 1:2:2, 2:1:1, 2:1:2, 2:2:1, 2:2:2 =8
+! constituents are in current(1..nsl)
+             muend(nend)=muend(nend)+pmi%curd%dgval(1,is,1)
+          enddo nlloop
+! generate a new set of constituents in current
+          nj=1
+888       continue
+          current(nj)=current(nj)+1
+          if(current(nj).eq.first(nj+1)) then
+! note first(nsl+1) is the end of all constituents
+             current(nj)=first(nj)
+             nj=nj+1
+             if(nj.le.nsl) goto 888
           endif
-       enddo inccur
-    enddo nendloop
-! ---------------------------------------------------------------------
-! now we calculate dmu(end)/dy_is
-    allocate(dmuenddy(noofend,pmi%ncc))
-    dmuenddy=sumsum
-    do nl=1,nsl
-       current(nl)=first(nl)
-    enddo
-! for a drivative of an endmember with respect to an endmember fraction
-! dG_i/dn_J = 1/N ( \sum_s d2G/dy_is/dy_js - 
-!                   \sum_k y_k( d2G/dy_k/dy_is + d2G/dy_k/dy_js) + sumsum)
-! sumsum calculated above
-    nendloop2: do nend=1,noofend
-       nlloop2: do nl=1,nsl
-! the chemical potential has one derivative per sublattice of a constituent
-          jt=current(nl)
-          isloop2: do is=1,phr(1)%ncc
-! this is the 2nd derivative of constituents is and jt in sublattice nl
-!             write(*,105)'indices: ',nend,nl,jt,is,ixsym(is,jt)
-! jt is incremented for each sublattice
-             dmuenddy(nend,is)=dmuenddy(nend,is)+pmi%curd%d2gval(ixsym(is,jt),1)
-             write(*,211)'dmuend/dy_itdy_is: ',nend,is,jt,dmuenddy(nend,is)
-          enddo isloop2
-211       format(a,3i3,1pe16.7)
-       enddo nlloop2
-! we must increment one constituent in current for next endmember
+       enddo allpg
+!       write(*,777)'muend: ',(muend(jt),jt=1,nj)
+!-----------------------------------------------------------------------
+! the part below is messy and unfinished
+!---------------- now the derivative of the partial Gibbs energy
+! The partial Gibbs energy, for each sublattice add one dG/dy_is
+! the derivative of the partial Gibbs energy wrt all other endmembers ....
+! dG_i/dn_J = 1/N_J( \sum_s (d2G/dy_is/dy_js - delta(is) - delta(js)) + sumsum )
+! delta(is) = \sum_s \sum_k y_k d2G/dy_is/dy_k
+! sumsum    = \sum_k \sum_m y_k y_m d2G/dy_k/dy_m (already added above)
+!---------------------------------------------------
+! all derivatives of the partial has the sumsum term
+       allocate(dmuenddy(noofend,noofend))
+       dmuenddy=sumsum
+       nj=0
+       nend=0
+       allpartg: do while(nj.le.nsl)
+! loop for all partial Gibbs energies G_I
+          nend=nend+1
+          mend=0
+!          write(*,773)'Partial:   ',nend,(current(nl),nl=1,nsl)
+          allql: do while(nj.le.nsl)
+! loop for all constituent endmembers n_J
+             mend=mend+1
+!             write(*,773)'Endmember: ',mend,(deriv(nl),nl=1,nsl)
+773          format(a,i3,2x,10i3)
+             lattloop: do nl=1,nsl
+! loop for all sublattices, skip sublattices with a single constituent??
+!                if(nkl(nl).eq.1) cycle lattloop
+                is=current(nl)
+! the 2nd derivative of G for constituents in same sublattice
+                jt=deriv(nl)
+                dmuenddy(nend,mend)=dmuenddy(nend,mend)-delta(is)-delta(jt)
+! add second derivatives wrt is and all constituents in deriv
+                suckloop: do ql=1,nsl
+                   dmuenddy(nend,mend)=dmuenddy(nend,mend)+&
+                        pmi%curd%d2gval(ixsym(is,deriv(ql)),1)
+                enddo suckloop
+! dG_i/dn_J = 1/N_J( \sum_s (d2G/dy_is/dy_js - delta(is) - delta(js)) + sumsum )
+!+                dmuenddy(nend,mend)=dmuenddy(nend,mend)+&
+!+                     pmi%curd%d2gval(ixsym(is,jt),1)-delta(is)-delta(jt)
+! loop for all constituents in deriv ....
+!+                if(nl.eq.1) then
+! test for Al-Cu-Si ....
+! add derivatives for all combinations of constituents in current
+!+                   dmuenddy(nend,mend)=dmuenddy(nend,mend)+&
+!+                        pmi%curd%d2gval(ixsym(is,deriv(2)),1)
+!+                else
+!+                   dmuenddy(nend,mend)=dmuenddy(nend,mend)+&
+!+                        pmi%curd%d2gval(ixsym(is,deriv(1)),1)
+!+                endif
+!                write(*,775)'dd2:',nl,is,jt,&
+!                     dmuenddy(nend,mend),pmi%curd%d2gval(ixsym(is,jt),1),&
+!                     delta(is),delta(jt),sumsum
+775             format(a,3i3,6(1pe12.4))
+! the amount of this endmember, should be calculated only once ...
+                if(mend.eq.1) py(nend)=py(nend)*pmi%curd%yfr(is)
+             enddo lattloop
+!             dmuenddy(nend,mend)=dmuenddy(nend,mend)+sumsum
+! update the derivative endmember
+             nj=1
+887          continue
+             deriv(nj)=deriv(nj)+1
+             if(deriv(nj).eq.first(nj+1)) then
+! note first(nsl) is the end of all constituents
+                deriv(nj)=first(nj)
+                nj=nj+1
+                if(nj.le.nsl) goto 887
+             endif
+          enddo allql
+! update the partitial Gibbs energy endmember
+          nj=1
+886       continue
+          current(nj)=current(nj)+1
+          if(current(nj).eq.first(nj+1)) then
+! note first(nsl) is the end of all constituents
+             current(nj)=first(nj)
+             nj=nj+1
+             if(nj.le.nsl) goto 886
+          endif
+       enddo allpartg
        nl=0
-300    nl=nl+1
-       if(nl.gt.nsl) exit nendloop2
-       current(nl)=current(nl)+1
-       if(current(nl).eq.first(nl+1)) then
-          current(nl)=first(nl)
-          goto 300
-       endif
-! is has no value here ---- ???
-!       dmuenddy(nend,is)=dmuenddy(nend,is)+delta(is)
-    enddo nendloop2
-!======================================================
-!    write(*,83)'koll: ',koll
-83  format(a,36i3)
-    write(*,107)'check of same G: ',ys,pmi%curd%gval(1,1)
-    write(*,*)'RT: ',ceq%rtn
-!---------------------------------------------------------
-! SPECIAL for AlCuSi ......
-    write(*,109)'  i,   x_i and MU_i/RT: ',(nl,py(nl),muend(nl),nl=1,3)
-    do nl=1,3
-       write(*,108)'dMU_i/dy_j: ',(dmuenddy(nl,is),&
-            ceq%rtn*dmuenddy(nl,is),is=1,3)
-    enddo
-105 format(a,i4,2x,10i4)
-108 format(a,6(1pe11.3))
-107 format(a,2(1pe16.7)/)
-109 format(a/(i4,0pF12.6,1pe16.7))
+       loop7: do is=1,noofend
+          loop8: do jt=1,noofend
+             nl=nl+1
+             mugrad(nl)=dmuenddy(is,jt)*ceq%rtn
+          enddo loop8
+!          write(*,705)'dmu: ',(dmuenddy(is,jt),jt=1,noofend)
+705       format(a,6(1pe12.4))
+       enddo loop7
+       goto 889
+!
+!-------------------
+!vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv redundant below
+!    else ! not substitutional below
+! now we have to handle sublattices and endmembers
+! nsl is number of sublattices and nkl(1..nsl) the number of const in each
+!       write(*,*)'Not implemented yet'
+!       gx%bmperr=7777; goto 1000
+!       noofend=1
+!       is=1
+!       first=0
+!       do nl=1,nsl
+! nend is number of endmembers
+! here first and current are set to first constituent index in each sublattice
+!          noofend=noofend*nkl(nl)
+!          first(nl)=is
+!          current(nl)=is
+!          deriv(nl)=is
+!          is=is+nkl(nl)
+!       enddo
+! we need this to indicate when we reached the end ??
+!       first(nsl+1)=is
+!       allocate(muend(noofend))
+! all partials have this term
+!       muend=muall
+! The partial Gibbs energy, for each sublattice add one dG/dy_is
+!       nend=0
+!       nj=0
+!       allpg: do while(nj.le.nsl)
+!          nend=nend+1
+! the partials constituents, G_I, are in current(1..nsl)
+!          nlloop: do nl=1,nsl
+!             is=current(nl)
+! endmembers like 1:1:1, 1:1:2, 1:2:1, 1:2:2, 2:1:1, 2:1:2, 2:2:1, 2:2:2 =8
+! constituents are in current(1..nsl)
+!             muend(nend)=muend(nend)+pmi%curd%dgval(1,is,1)
+!          enddo nlloop
+! generate a new set of constituents in current
+!          nj=1
+!888       continue
+!          current(nj)=current(nj)+1
+!          if(current(nj).eq.first(nj+1)) then
+!! note first(nsl+1) is the end of all constituents
+!             current(nj)=first(nj)
+!             nj=nj+1
+!             if(nj.le.nsl) goto 888
+!          endif
+!       enddo allpg
+!       write(*,777)'muend: ',(muend(jt),jt=1,nj)
+!-----------------------------------------------------------------------
+! the part below is messy and unfinished
+!---------------- now the derivative of the partial Gibbs energy
+! The partial Gibbs energy, for each sublattice add one dG/dy_is
+! the derivative of the partial Gibbs energy wrt all other endmembers ....
+! dG_i/dn_J = 1/N_J( \sum_s d2G/dy_is/dy_js - 
+!                                \sum_s delta(is) - \sum_s delta(js) + sumsum )
+! delta(is) = \sum_s \sum_k y_k d2G/dy_is/dy_k
+! sumsum    = \sum_k \sum_m y_k y_m d2G/dy_k/dy_m (already added above)
+!---------------------------------------------------
+! all derivatives of the partial has the sumsum term
+!       allocate(dmuenddy(noofend,noofend))
+!       dmuenddy=sumsum
+!       nj=0
+!       nend=0
+!       allpg2: do while(nj.le.nsl)
+!          nend=nend+1
+!          mend=1
+!          write(*,773)'Partial:    ',nend,0,(current(nl),nl=1,nsl)
+!773       format(a,2i3,2x,10i3)
+!          nlloop2: do nl=1,nsl
+!! skip sublattices with a single constituent
+!             if(nkl(nl).eq.1) cycle nlloop2
+!             is=current(nl)
+!! add sum of 2nd derivatives of G vs is and all constituents
+!!             do nk=1,noofend
+!                dmuenddy(nend,mend)=dmuenddy(nend,mend)-delta(is)
+!!             enddo
+!             allql: do while(nj.le.nsl)
+!!                write(*,773)'derivative: ',nend,mend,(deriv(ql),ql=1,nsl)
+!!                qlloop: do ql=1,nsl
+!                ql=nl
+!! the 2nd derivative of G for constituents in same sublattice
+!                   jt=deriv(ql)
+!                   if(nl.eq.ql) then
+!! the updating of mend is probably not correct ... UNFINISHED
+!                      write(*,775)'dd2        :',nend,mend,nl,ql,is,jt
+!                      dmuenddy(nend,mend)=dmuenddy(nend,mend)+&
+!                           pmi%curd%d2gval(ixsym(is,jt),1)
+!!                      write(*,775)'dd2:        ',nend,mend,nl,ql,is,jt,&
+!!                           dmuenddy(nend,mend),pmi%curd%d2gval(ixsym(is,jt),1)
+!775                   format(a,2i3,2x,4i3,2(1pe12.4))
+!                   endif
+!! add sum of 2nd derivatives of G vs jt and all constituents
+!!                   do nk=1,noofend
+!                      dmuenddy(nend,mend)=dmuenddy(nend,mend)-delta(jt)
+!!                   enddo
+!!                enddo qlloop
+!! update the derivative endmember
+!                mend=mend+1
+!                nj=1
+!887             continue
+!                deriv(nj)=deriv(nj)+1
+!                if(deriv(nj).eq.first(nj+1)) then
+!! note first(nsl) is the end of all constituents
+!                   deriv(nj)=first(nj)
+!                   nj=nj+1
+!                   if(nj.le.nsl) goto 887
+!                endif
+!             enddo allql
+!! update the partitial Gibbs energy endmember
+!             nj=1
+!886          continue
+!             current(nj)=current(nj)+1
+!             if(current(nj).eq.first(nj+1)) then
+!! note first(nsl) is the end of all constituents
+!                current(nj)=first(nj)
+!                nj=nj+1
+!                if(nj.le.nsl) goto 886
+!             endif
+!          enddo nlloop2
+!          do is=1,noofend
+!             write(*,777)'dd: ',(dmuenddy(is,jt),jt=1,nj)
+!          enddo
+!       enddo allpg2
+!       goto 889
+!
+!       goto 889
+!^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ redundant code above
+889    continue
+    endif substitutional
+! skip the mobilities
+!    goto 1000
 !-------------------
 ! D_kj = \sum_i\sum_s (delta_ki - y_ks) y_is M_i dmu_i/dy_j
 ! this should be calculated for the components ... but I have just endmembers 
 !-------------------
-! UNFINISHED
+! UNFINISHED calculation of diffusivities
 ! I can calculate D(end,jt) = py(end)*exp(mob(end))*dmudy(end,jt)
 ! in the database is stored mq&constituent#sublattice
 ! I will calculate the mob(end) as \sum_s \sum_c mq&c#s taking
@@ -6784,23 +6991,25 @@ CONTAINS
 ! the values of mq&c#s are in pmi%curd%gval(1,itp) where itp is
 ! 800 + cs where cs is the constituent index counted over all sublattices ??
 ! list additional properties:
-    write(*,400)'props: ',(pmi%curd%listprop(jt),jt=2,pmi%curd%listprop(1)-1)
+!    write(*,400)'props: ',(pmi%curd%listprop(jt),jt=2,pmi%curd%listprop(1)-1)
 400 format(/a,12i6)
 ! HM, the disordered mobilities has 800+disordered index
 ! the ordered has 800+ordered index ... one should not use both ...
     do jt=2,pmi%curd%listprop(1)
        is=pmi%curd%listprop(jt)
        if(is.gt.800 .and. is.lt.900) then
-! the is a mobility for constituent is-800 stored in pmi%curd%gval(1,jt)
+! there is a mobility for constituent (is-800) stored in pmi%curd%gval(1,jt)
           jj=is-800
           yarr(jj)=exp(pmi%curd%gval(1,jt)/ceq%rtn)/ceq%rtn
-          write(*,410)jj,jt,pmi%curd%gval(1,jt),yarr(jj)
+! should there be a second RT??
+!          yarr(jj)=exp(pmi%curd%gval(1,jt)/ceq%rtn)
+!          write(*,410)jj,jt,pmi%curd%gval(1,jt),yarr(jj)
 410       format('Mobility for ',i3,' in pos ',i2,&
                ', value: ',3(1pe14.6))
        endif
     enddo
 ! list T and x for current values
-    write(*,412)tpval(1),(pmi%curd%yfr(jt),jt=1,3)
+!    write(*,412)tpval(1),(pmi%curd%yfr(jt),jt=1,3)
 412 format(/'Unreduced diffusion matrix for T= ',f8.2,' and x= ',3F8.4)
 !
 ! TC ger för MU(i).x(j) ....:
@@ -6810,26 +7019,33 @@ CONTAINS
 ! Diffs are D_kj
     allocate(diffs(3,3))
 !
-! I calculate D(is,jt) = x_is exp(M_is/RT) dmu_is/dx_jt 
-!                      - x_is\sum_nl x_nl *exp(M_nl/RT)*dmu_nl/dy_jt
+! I calculate D(is,jt) = x_is * exp(M_is/RT) * (dmu_is/dx_jt) 
+!                      - x_is * \sum_nl x_nl * exp(M_nl/RT)* (dmu_nl/dy_jt)
 !
     diffs=zero
+    nend=0
     do is=1,3
        do jt=1,3
+          sumsum=zero
           do nl=1,3
-             diffs(is,jt)=diffs(is,jt)-pmi%curd%yfr(nl)*yarr(nl)*dmuenddy(nl,jt)
+! note yarr(nl) is exp(M_nl/RT)/RT
+! dumenddy is also divided by RT ...
+             sumsum=sumsum-pmi%curd%yfr(nl)*yarr(nl)*dmuenddy(nl,jt)*ceq%rtn
           enddo
-          diffs(is,jt)=pmi%curd%yfr(is)*(yarr(is)*dmuenddy(is,jt)+diffs(is,jt))
+          diffs(is,jt)=pmi%curd%yfr(is)*(yarr(is)*dmuenddy(is,jt)*ceq%rtn+&
+               sumsum)
+          nend=nend+1
+          intdiv(nend)=diffs(is,jt)
        enddo
-       write(*,414)is,(diffs(is,jt),jt=1,3)
+!       write(*,414)is,(diffs(is,jt),jt=1,3)
     enddo
-414 format('D_kj, k=',i2,' j=1..3 ',3(1pe16.6))
+414 format('D_kj, k=',i2,' j=1..3 ',4(1pe14.6))
 !
-    write(*,415)
-415 format(/'Taking Al as reference we ger D^al_kj = D_ij - D_1j ')
-    do is=2,3
-       write(*,416)is,(diffs(is,jt)-diffs(1,jt),jt=2,3)
-    enddo
+!    write(*,415)
+415 format(/'Taking Al as reference we ger D^Al_kj = D_ij - D_1j ')
+!    do is=2,3
+!       write(*,416)is,(diffs(is,jt)-diffs(1,jt),jt=2,3)
+!    enddo
 416 format('D_kj, k=',i2,' j=2..3 ',2(1pe16.6))
 1000 continue
     

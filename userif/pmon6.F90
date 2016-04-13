@@ -106,7 +106,7 @@ contains
     integer iel,iph,ics,ieq,idef
 ! for gradients in MU and interdiffusivities
     integer nend
-    double precision mugrad(100),intdiv(100)
+    double precision mugrad(100),intdif(100)
 !-------------------
 ! selection of minimizer and optimizer
     integer minimizer,optimizer
@@ -875,7 +875,7 @@ contains
              goto 100
 2044         continue
              phtup=>phasetuple(jp)
-! ask for overall composition             
+! ask for overall composition
              totam=one
              quest='Mole fraction of XX:'
              do nv=1,noel()-1
@@ -912,7 +912,7 @@ contains
              write(kou,2087)(yarr(nv),nv=1,noel())
 2087         format('Calculated chemical potentials/RT:'/6(1pe12.4))
 !.......................................................
-          case(5) ! calculate chem.pot gradients and diffusivity
+          case(5) ! calculate chem.pot derivatives and diffusivity
 ! convert to phase tuple here as that is used in the application call
              do jp=1,nooftup()
                 if(phasetuple(jp)%phaseix.eq.iph .and. &
@@ -920,11 +920,11 @@ contains
                    goto 2094
                 endif
              enddo
-             write(*,*)'No such tuple'
+             write(*,*)'No such phase tuple'
              goto 100
 2094         continue
              phtup=>phasetuple(jp)
-! ask for overall composition             
+! ask for overall composition UNFINISHED: prompt with current overall comp
              totam=one
              quest='Mole fraction of XX:'
              do nv=1,noel()-1
@@ -949,6 +949,7 @@ contains
                 yarr(nv)=ceq%cmuval(nv)
              enddo
              write(kou,2088)totam
+! after the loop the loop variable should have value noel()
              xknown(nv)=totam
              yarr(nv)=ceq%cmuval(nv)
 ! use current T and P
@@ -957,10 +958,23 @@ contains
 ! At present:
 ! mugrad(I,j) is derivatives of the chemical potential of endmember I
 !         with respect to all constiuent fractions j
-! indiv(i,j) is interdiffusivities of component i and j
+! indiv(i,j) is unreduced interdiffusivities of component i and j
+             mugrad=zero
+             intdif=zero
              call equilph1d(phtup,ceq%tpval,xknown,yarr,.FALSE.,&
-                  nend,mugrad,intdiv,ceq)
+                  nend,mugrad,intdif,ceq)
              if(gx%bmperr.ne.0) goto 990
+             write(kou,2096)nend
+2096         format('Chemical potential derivative matrix, dG_I/dn_J for ',&
+                  i3,' endmembers')
+             do nv=0,nend-1
+                write(kou,2095)nv+1,(mugrad(nend*nv+jp),jp=1,nend)
+2095            format(i3,6(1pe12.4)/(3x,6e12.4))
+             enddo
+             write(kou,*)'Unreduced matrix of interdiffusivities, D_ij:'
+             do nv=0,nend-1
+                write(kou,2095)nv+1,(intdif(nend*nv+jp),jp=1,nend)
+             enddo
 !.......................................................
           case(6) !
              write(*,*)'Not implemeneted yet'

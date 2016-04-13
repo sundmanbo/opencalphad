@@ -1223,13 +1223,13 @@
 ! the code from disord: if ... endif is redundant 
 !      write(*,611)'3X ftyp1:',fractype,btest(phlista(lokph)%status1,phmfs),&
 !           btest(phmain%status2,csorder),first,lokph,phres%gval(1,1)
+611   format(a,i3,3(1x,L),i3,3(1pe12.4))
       disord: if(fractype.eq.1 .and. btest(phlista(lokph)%status1,phmfs) &
            .and. btest(phmain%status2,csorder)) then
 ! Handle additions of several fraction set ?? Additions calculated
 ! after both ordered and disordered fraction set calculated
 !         write(*,611)'3X ftyp:',fractype,btest(phlista(lokph)%status1,phmfs),&
 !              btest(phmain%status2,csorder),first,lokph,phres%gval(1,1)
-!611      format(a,i3,3(1x,L),i3,3(1pe12.4))
          if(first) then
 ! calculate with next fraction type
 ! alternative meithod: no need to calculate with all fractions as disordered
