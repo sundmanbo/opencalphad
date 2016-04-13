@@ -106,7 +106,7 @@ contains
     integer iel,iph,ics,ieq,idef
 ! for gradients in MU and interdiffusivities
     integer nend
-    double precision mugrad(100),intdif(100)
+    double precision mugrad(100),mobilities(20)
 !-------------------
 ! selection of minimizer and optimizer
     integer minimizer,optimizer
@@ -809,7 +809,7 @@ contains
 !          write(kou,2013)ending-starting
 !2013      format('CPU time used: ',1pe15.6)
 !---------------------------------------------------------------
-       case(2) ! calculate phase, _all _only_g or _g_and_dgdy, separated later
+       case(2) ! calculate phase, _all _only_g or _g_and_dgdy, etc
           ! asks for phase name and constitution
           call ask_phase_constitution(cline,last,iph,ics,lokcs,ceq)
           if(gx%bmperr.ne.0) goto 990
@@ -862,7 +862,8 @@ contains
              write(*,*)' NOTE THAT dG/dy_i is NOT THE CHEMICAL POTENTIAL of i!'
              if(gx%bmperr.ne.0) goto 990
 !.......................................................
-          case(4) ! calculate phase with constitution_adjustment
+          case(4,5) ! calculate phase with constitution_adjustment
+! or derivatives of chemical potentials and mobility data
 ! convert to phase tuple here as that is used in the application call
              do jp=1,nooftup()
                 if(phasetuple(jp)%phaseix.eq.iph .and. &
@@ -875,6 +876,8 @@ contains
              goto 100
 2044         continue
              phtup=>phasetuple(jp)
+! Get current composition of the phase
+             call calc_phase_molmass(iph,ics,xknown,aphl,totam,xxy,xxx,ceq)
 ! ask for overall composition
              totam=one
              quest='Mole fraction of XX:'
@@ -883,12 +886,13 @@ contains
 ! assume elements as components
                    call get_component_name(nv,elsym,ceq)
                    quest(18:19)=elsym
-                   call gparrd(quest,cline,last,xxy,totam,q1help)
+! prompt with current mole fraction:
+                   call gparrd(quest,cline,last,xxy,xknown(nv),q1help)
                    if(buperr.ne.0) then
                       buperr=0; xxy=zero
                    endif
                    if(xxy.gt.totam) then
-                      write(kou,*)'Mole fraction set to ',totam
+                      write(kou,*)'Fraction too large, set to ',totam
                       xxy=totam
                    endif
                 else
@@ -899,82 +903,42 @@ contains
 ! yarr is used here to provide an array for the chemical potentials
                 yarr(nv)=ceq%cmuval(nv)
              enddo
-             write(kou,2088)totam
-2088         format('Last component fraction set to ',F8.5)
+! after loop nv=noel()
+             call get_component_name(nv,elsym,ceq)
+             write(kou,2088)elsym,totam
+2088         format('Mole fraction of ',a,' set to ',F8.5)
              xknown(nv)=totam
              yarr(nv)=ceq%cmuval(nv)
 ! use current T and P
-!             write(*,2042)'pmon: ',(xknown(nv),nv=1,noel())
-2042         format(a,12F6.3)
-! the FALSE means not quiet
-             call equilph1b(phtup,ceq%tpval,xknown,yarr,.FALSE.,ceq)
-             if(gx%bmperr.ne.0) goto 990
-             write(kou,2087)(yarr(nv),nv=1,noel())
-2087         format('Calculated chemical potentials/RT:'/6(1pe12.4))
-!.......................................................
-          case(5) ! calculate chem.pot derivatives and diffusivity
-! convert to phase tuple here as that is used in the application call
-             do jp=1,nooftup()
-                if(phasetuple(jp)%phaseix.eq.iph .and. &
-                     phasetuple(jp)%compset.eq.ics) then
-                   goto 2094
-                endif
-             enddo
-             write(*,*)'No such phase tuple'
-             goto 100
-2094         continue
-             phtup=>phasetuple(jp)
-! ask for overall composition UNFINISHED: prompt with current overall comp
-             totam=one
-             quest='Mole fraction of XX:'
-             do nv=1,noel()-1
-                if(totam.gt.zero) then
-! assume elements as components
-                   call get_component_name(nv,elsym,ceq)
-                   quest(18:19)=elsym
-                   call gparrd(quest,cline,last,xxy,totam,q1help)
-                   if(buperr.ne.0) then
-                      buperr=0; xxy=zero
-                   endif
-                   if(xxy.gt.totam) then
-                      write(kou,*)'Mole fraction set to ',totam
-                      xxy=totam
-                   endif
-                else
-                   xxy=zero
-                endif
-                xknown(nv)=xxy
-                totam=totam-xxy
-! yarr is used here to provide an array for the chemical potentials
-                yarr(nv)=ceq%cmuval(nv)
-             enddo
-             write(kou,2088)totam
-! after the loop the loop variable should have value noel()
-             xknown(nv)=totam
-             yarr(nv)=ceq%cmuval(nv)
-! use current T and P
-!             write(*,2042)'pmon: ',(xknown(nv),nv=1,noel())
-! the FALSE means not quiet
-! At present:
-! mugrad(I,j) is derivatives of the chemical potential of endmember I
-!         with respect to all constiuent fractions j
-! indiv(i,j) is unreduced interdiffusivities of component i and j
-             mugrad=zero
-             intdif=zero
-             call equilph1d(phtup,ceq%tpval,xknown,yarr,.FALSE.,&
-                  nend,mugrad,intdif,ceq)
-             if(gx%bmperr.ne.0) goto 990
-             write(kou,2096)nend
-2096         format('Chemical potential derivative matrix, dG_I/dn_J for ',&
-                  i3,' endmembers')
-             do nv=0,nend-1
-                write(kou,2095)nv+1,(mugrad(nend*nv+jp),jp=1,nend)
-2095            format(i3,6(1pe12.4)/(3x,6e12.4))
-             enddo
-             write(kou,*)'Unreduced matrix of interdiffusivities, D_ij:'
-             do nv=0,nend-1
-                write(kou,2095)nv+1,(intdif(nend*nv+jp),jp=1,nend)
-             enddo
+             if(kom3.eq.4) then
+! constituent adjustment, the FALSE means not quiet
+                call equilph1b(phtup,ceq%tpval,xknown,yarr,.FALSE.,ceq)
+                if(gx%bmperr.ne.0) goto 990
+                write(kou,2087)(yarr(nv),nv=1,noel())
+2087            format('Calculated chemical potentials/RT:'/6(1pe12.4))
+             else
+!.............................................
+! calculate chem.pot derivatives and mobilities
+! mugrad(I,J) are derivatives of the chemical potential of endmember I
+!         with respect to endmember J
+! mobilities(i) is mobility of component i
+                mugrad=zero
+                mobilities=zero
+! derivatives of mu and mobilities, the FALSE means not quiet
+                call equilph1d(phtup,ceq%tpval,xknown,yarr,.FALSE.,&
+                     nend,mugrad,mobilities,ceq)
+                if(gx%bmperr.ne.0) goto 990
+                write(kou,2096)nend
+2096            format('Chemical potential derivative matrix, dG_I/dn_J for ',&
+                     i3,' endmembers')
+                do nv=0,nend-1
+                   write(kou,2095)nv+1,(mugrad(nend*nv+jp),jp=1,nend)
+2095               format(i3,6(1pe12.4)/(3x,6e12.4))
+                enddo
+                write(kou,2098)noel()
+2098            format('Mobility values mols/m2/s ?? for',i3,' components')
+                write(kou,2095)1,(mobilities(jp),jp=1,noel())
+             endif
 !.......................................................
           case(6) !
              write(*,*)'Not implemeneted yet'

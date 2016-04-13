@@ -445,8 +445,6 @@ CONTAINS
 !          write(*,*)'Fix phase condition: ',cmix(2),cmix(3),cvalue
 ! debug output of fix phase composition
 !          call calc_phase_mol(cmix(1),yarr,ceq)
-!          write(*,83)'fix phasse: ',cmix(1),(yarr(mjj),mjj=1,noel())
-!83        format(a,i2,10f7.4)
        end select !-----------------------------------------------
        if(.not.associated(condition,lastcond)) goto 70
 ! end loop of conditions
@@ -2372,7 +2370,11 @@ CONTAINS
 ! derivative, notf is set above
 ! Amount of component in phase
 !       totam=totam+pham*pmi%xmol(sel)
-       totam=pham*pmi%xmol(sel)
+! pmi%xmol(sel) is the M per formula unit, not mole fraction !!!!
+       jj=size(pmi%xmol)
+!       write(*,411)'xmol: ',jj,pmi%sumxmol,(pmi%xmol(ncol2),ncol2=1,jj)
+!411    format(a,i2,6(1pe12.4))
+       totam=pham*pmi%xmol(sel)/pmi%sumxmol
        xcol(ncol)=pham*pmi%xmol(sel)
 ! right hand side (rhs) contribution is
 ! - NP(phase)*\sum_i \sum_j dM(ie)/dy_i * dG/dy_j * z_ij
@@ -2395,12 +2397,12 @@ CONTAINS
 ! cvalue is the prescibed composition assuming one F.U. of phase ...??
        cvalue=xknown(sel)
        smat(nrow,nz2)=smat(nrow,nz2)-cvalue+totam
-!       write(*,11)'MM row: ',nrow,(smat(nrow,ncol),ncol=1,nz2)
+!       write(*,11)'MM row: ',nrow,cvalue,totam,(smat(nrow,ncol),ncol=1,nz2)
 ! relative check for convergence if cvalue>1.0
        conv: if(abs(totam-cvalue).gt.ceq%xconv*max(1.0d0,abs(cvalue)))then
           if(converged.lt.5) converged=5
 ! value of xxmm(sel) only reasonable of N=1 or N(A)+.. = 1
-!          write(*,266)'Unconverged condition N or N(A): ',sel,cvalue,totam
+          write(*,266)'Unconverged condition N or N(A): ',sel,cvalue,totam
 266       format(a,i3,4(1pe12.4))
        endif conv
     enddo elloop1
@@ -3471,8 +3473,7 @@ CONTAINS
 !          if(abs(xxmm(sel)-cvalue).gt.ceq%xconv) then
           if(abs(evalue-cvalue).gt.ceq%xconv) then
              if(converged.lt.5) converged=5
-!             write(*,266)'Unconverged condition x(A): ',sel,&
-!                  cvalue,evalue
+!             write(*,266)'Unconverged condition x(A): ',sel,cvalue,evalue
              if(vbug) write(*,266)'Unconverged condition x(A): ',sel,&
                   cvalue,evalue
           endif
@@ -4363,7 +4364,8 @@ CONTAINS
           dqsum(ncon)=sites(ll)*qsp
           qsum=qsum+sites(ll)*qsp*yarr(ncon)
           do jk=1,nspel
-!             write(*,*)'xmol: ',ncon,ik,jk,ielno(j)
+!             write(*,963)'xmol: ',ncon,ik,jk,ielno(jk),sites(ll)
+!963          format(a,4i3,6(1pe12.4))
              if(ielno(jk).gt.0) then
 ! ignore vacancies
 ! addmol(jk) can be replaced by stoi(jk) when I know it works ....
@@ -4380,8 +4382,8 @@ CONTAINS
 !       write(*,*)'sumwmol 3:',pmi%xmol(ik),mass_of(ik,ceq)
        pmi%sumwmol=pmi%sumwmol+pmi%xmol(ik)*mass_of(ik,ceq)
     enddo
-!    write(*,92)'onephase 3: ',pmi%iph,nsl,pmi%xdone,pmi%sumxmol,&
-!         pmi%sumnmol,qq(1)
+!    write(*,92)'onephase 3: ',pmi%iph,nsl,pmi%xdone,pmi%sumxmol,qq(1)
+!92  format(a,3i3,6(1pe12.4))
 !    write(*,17)'Vacanies: ',qq
 !       do i=1,noel()
 !          write(*,17)'xm: ',pmi%xmol(i)
@@ -6420,7 +6422,7 @@ CONTAINS
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
-  subroutine equilph1d(phtup,tpval,xknown,cpot,tyst,nend,mugrad,intdiv,ceq)
+  subroutine equilph1d(phtup,tpval,xknown,cpot,tyst,nend,mugrad,mobval,ceq)
 ! equilibrates the constituent fractions of a phase for mole fractions xknown
 ! and calculates 
 ! phtup is phase tuple
@@ -6429,17 +6431,17 @@ CONTAINS
 ! cpot are the (calculated) chemical potentials
 ! tyst is TRUE means no outut
 ! nend is the number of values returned in mugrad
-! mugrad is the derivatives of the chemical potentials wrt mole fractions??
-! intdiv is the interdiffusivites (provide there are mobilities)
+! mugrad are the derivatives of the chemical potentials wrt mole fractions??
+! mobval are the mobilities
     implicit none
     integer nend
-    TYPE(meq_setup) :: meqrec
-    double precision tpval(*),xknown(*),cpot(*),mugrad(*),intdiv(*)
-    TYPE(gtp_equilibrium_data), pointer :: ceq
     logical tyst
-!\end{verbatim}
-    integer ii
+    double precision tpval(*),xknown(*),cpot(*),mugrad(*),mobval(*)
     TYPE(gtp_phasetuple), pointer :: phtup
+    TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+    TYPE(meq_setup) :: meqrec
+    integer ii
 ! extract the current chemical potentials as start values
     do ii=1,noel()
        cpot(ii)=ceq%cmuval(ii)
@@ -6451,7 +6453,8 @@ CONTAINS
 ! mabe we need RT ?
     ceq%rtn=globaldata%rgas*tpval(1)
 ! iterate until equilibrium found for this phase
-    call equilph1e(meqrec,meqrec%phr,tpval,xknown,cpot,nend,mugrad,intdiv,ceq)
+    call equilph1e(meqrec,meqrec%phr,tpval,xknown,cpot,tyst,&
+         nend,mugrad,mobval,ceq)
 1000 continue
     return
   end subroutine equilph1d
@@ -6459,20 +6462,22 @@ CONTAINS
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
-  subroutine equilph1e(meqrec,phr,tpval,xknown,ovar,&
-       noofend,mugrad,intdiv,ceq)
+  subroutine equilph1e(meqrec,phr,tpval,xknown,ovar,tyst,&
+       noofend,mugrad,mobval,ceq)
 ! iterate constituent fractions of a phase for mole fractions xknown
 ! and calculate derivatives of MU and diffusion coefficients
 ! tpval is T and P
 ! xknown are mole fractions
 ! nrel is the number of components (elements)
 ! ovar are the chemical potentials
+! tyst is TRUE if no output
 ! mugrad is the derivatives of the chemical potentials wrt mole fractions??
-! intdiv is the interdiffusivites (provide there are mobilities)
+! mobval are the mobilities
 ! ceq is a datastructure with all relevant thermodynamic data
     implicit none
     integer noofend
-    double precision tpval(*),xknown(*),ovar(*),mugrad(*),intdiv(*)
+    double precision tpval(*),xknown(*),ovar(*),mugrad(*),mobval(*)
+    logical tyst
     TYPE(meq_setup) :: meqrec
     TYPE(meq_phase), dimension(*), target :: phr
     TYPE(gtp_equilibrium_data), pointer :: ceq
@@ -6516,6 +6521,7 @@ CONTAINS
 !    call setup_equilmatrix(meqrec,phr,nz1,smat,tcol,pcol,dncol,converged,ceq)
     call setup_comp2cons(meqrec,phr,nz1,smat,tpval,xknown,converged,ceq)
     if(gx%bmperr.ne.0) goto 1000
+!    write(*,*)'after setup_comp2cons: ',converged
 ! debug output as the matrix had changed efter return from subroutine ...
 !    do nk=1,nz1
 !       write(*,111)'smat3: ',nk,(smat(nk,jj),jj=1,nz2)
@@ -6603,8 +6609,8 @@ CONTAINS
     enddo moody
 ! >>>>>>>>>>>>>>>>>> HERE the new constitution is set <<<<<<<<<<<<<<<<<<<<<
 !    write(*,112)'YC: ',jj,(delta(nj),nj=1,phr(jj)%ncc)
-!    write(*,112)'YY: ',meqrec%noofits,(yarr(nj),nj=1,phr(jj)%ncc)
-112 format(a,i3,8F8.5)
+!    write(*,112)'YY: ',meqrec%noofits,converged,(yarr(nj),nj=1,phr(jj)%ncc)
+112 format(a,2i3,8F8.5)
     call set_constitution(phr(jj)%iph,phr(jj)%ics,yarr,qq,ceq)
     if(gx%bmperr.ne.0) goto 1000
 !-------------------------- end of iteration
@@ -6612,7 +6618,8 @@ CONTAINS
     meqrec%noofits=meqrec%noofits+1
     if(converged.gt.3) then
        if(meqrec%noofits.le.ceq%maxiter) goto 100
-       write(*,*)'Too many iterations',ceq%maxiter
+       gx%bmperr=4204
+!       write(*,*)'Too many iterations',ceq%maxiter
        goto 1000
     elseif(meqrec%noofits.lt.6) then
        goto 100
@@ -6732,6 +6739,8 @@ CONTAINS
        allocate(muend(noofend))
        allocate(py(noofend))
        py=one
+!       write(*,611)'first: ',nsl,(first(nj),nj=1,nsl)
+611    format(a,i2,2x,10i3)
 ! all partials have this term
        muend=muall
 ! The partial Gibbs energy, for each sublattice add one dG/dy_is
@@ -6757,7 +6766,9 @@ CONTAINS
              if(nj.le.nsl) goto 888
           endif
        enddo allpg
-!       write(*,777)'muend: ',(muend(jt),jt=1,nj)
+       if(.not.tyst) then
+          write(*,777)'G_I: ',(muend(jt),jt=1,noofend)
+       endif
 !-----------------------------------------------------------------------
 ! the part below is messy and unfinished
 !---------------- now the derivative of the partial Gibbs energy
@@ -6794,23 +6805,6 @@ CONTAINS
                    dmuenddy(nend,mend)=dmuenddy(nend,mend)+&
                         pmi%curd%d2gval(ixsym(is,deriv(ql)),1)
                 enddo suckloop
-! dG_i/dn_J = 1/N_J( \sum_s (d2G/dy_is/dy_js - delta(is) - delta(js)) + sumsum )
-!+                dmuenddy(nend,mend)=dmuenddy(nend,mend)+&
-!+                     pmi%curd%d2gval(ixsym(is,jt),1)-delta(is)-delta(jt)
-! loop for all constituents in deriv ....
-!+                if(nl.eq.1) then
-! test for Al-Cu-Si ....
-! add derivatives for all combinations of constituents in current
-!+                   dmuenddy(nend,mend)=dmuenddy(nend,mend)+&
-!+                        pmi%curd%d2gval(ixsym(is,deriv(2)),1)
-!+                else
-!+                   dmuenddy(nend,mend)=dmuenddy(nend,mend)+&
-!+                        pmi%curd%d2gval(ixsym(is,deriv(1)),1)
-!+                endif
-!                write(*,775)'dd2:',nl,is,jt,&
-!                     dmuenddy(nend,mend),pmi%curd%d2gval(ixsym(is,jt),1),&
-!                     delta(is),delta(jt),sumsum
-775             format(a,3i3,6(1pe12.4))
 ! the amount of this endmember, should be calculated only once ...
                 if(mend.eq.1) py(nend)=py(nend)*pmi%curd%yfr(is)
              enddo lattloop
@@ -6846,139 +6840,7 @@ CONTAINS
 !          write(*,705)'dmu: ',(dmuenddy(is,jt),jt=1,noofend)
 705       format(a,6(1pe12.4))
        enddo loop7
-       goto 889
-!
-!-------------------
-!vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv redundant below
-!    else ! not substitutional below
-! now we have to handle sublattices and endmembers
-! nsl is number of sublattices and nkl(1..nsl) the number of const in each
-!       write(*,*)'Not implemented yet'
-!       gx%bmperr=7777; goto 1000
-!       noofend=1
-!       is=1
-!       first=0
-!       do nl=1,nsl
-! nend is number of endmembers
-! here first and current are set to first constituent index in each sublattice
-!          noofend=noofend*nkl(nl)
-!          first(nl)=is
-!          current(nl)=is
-!          deriv(nl)=is
-!          is=is+nkl(nl)
-!       enddo
-! we need this to indicate when we reached the end ??
-!       first(nsl+1)=is
-!       allocate(muend(noofend))
-! all partials have this term
-!       muend=muall
-! The partial Gibbs energy, for each sublattice add one dG/dy_is
-!       nend=0
-!       nj=0
-!       allpg: do while(nj.le.nsl)
-!          nend=nend+1
-! the partials constituents, G_I, are in current(1..nsl)
-!          nlloop: do nl=1,nsl
-!             is=current(nl)
-! endmembers like 1:1:1, 1:1:2, 1:2:1, 1:2:2, 2:1:1, 2:1:2, 2:2:1, 2:2:2 =8
-! constituents are in current(1..nsl)
-!             muend(nend)=muend(nend)+pmi%curd%dgval(1,is,1)
-!          enddo nlloop
-! generate a new set of constituents in current
-!          nj=1
-!888       continue
-!          current(nj)=current(nj)+1
-!          if(current(nj).eq.first(nj+1)) then
-!! note first(nsl+1) is the end of all constituents
-!             current(nj)=first(nj)
-!             nj=nj+1
-!             if(nj.le.nsl) goto 888
-!          endif
-!       enddo allpg
-!       write(*,777)'muend: ',(muend(jt),jt=1,nj)
-!-----------------------------------------------------------------------
-! the part below is messy and unfinished
-!---------------- now the derivative of the partial Gibbs energy
-! The partial Gibbs energy, for each sublattice add one dG/dy_is
-! the derivative of the partial Gibbs energy wrt all other endmembers ....
-! dG_i/dn_J = 1/N_J( \sum_s d2G/dy_is/dy_js - 
-!                                \sum_s delta(is) - \sum_s delta(js) + sumsum )
-! delta(is) = \sum_s \sum_k y_k d2G/dy_is/dy_k
-! sumsum    = \sum_k \sum_m y_k y_m d2G/dy_k/dy_m (already added above)
-!---------------------------------------------------
-! all derivatives of the partial has the sumsum term
-!       allocate(dmuenddy(noofend,noofend))
-!       dmuenddy=sumsum
-!       nj=0
-!       nend=0
-!       allpg2: do while(nj.le.nsl)
-!          nend=nend+1
-!          mend=1
-!          write(*,773)'Partial:    ',nend,0,(current(nl),nl=1,nsl)
-!773       format(a,2i3,2x,10i3)
-!          nlloop2: do nl=1,nsl
-!! skip sublattices with a single constituent
-!             if(nkl(nl).eq.1) cycle nlloop2
-!             is=current(nl)
-!! add sum of 2nd derivatives of G vs is and all constituents
-!!             do nk=1,noofend
-!                dmuenddy(nend,mend)=dmuenddy(nend,mend)-delta(is)
-!!             enddo
-!             allql: do while(nj.le.nsl)
-!!                write(*,773)'derivative: ',nend,mend,(deriv(ql),ql=1,nsl)
-!!                qlloop: do ql=1,nsl
-!                ql=nl
-!! the 2nd derivative of G for constituents in same sublattice
-!                   jt=deriv(ql)
-!                   if(nl.eq.ql) then
-!! the updating of mend is probably not correct ... UNFINISHED
-!                      write(*,775)'dd2        :',nend,mend,nl,ql,is,jt
-!                      dmuenddy(nend,mend)=dmuenddy(nend,mend)+&
-!                           pmi%curd%d2gval(ixsym(is,jt),1)
-!!                      write(*,775)'dd2:        ',nend,mend,nl,ql,is,jt,&
-!!                           dmuenddy(nend,mend),pmi%curd%d2gval(ixsym(is,jt),1)
-!775                   format(a,2i3,2x,4i3,2(1pe12.4))
-!                   endif
-!! add sum of 2nd derivatives of G vs jt and all constituents
-!!                   do nk=1,noofend
-!                      dmuenddy(nend,mend)=dmuenddy(nend,mend)-delta(jt)
-!!                   enddo
-!!                enddo qlloop
-!! update the derivative endmember
-!                mend=mend+1
-!                nj=1
-!887             continue
-!                deriv(nj)=deriv(nj)+1
-!                if(deriv(nj).eq.first(nj+1)) then
-!! note first(nsl) is the end of all constituents
-!                   deriv(nj)=first(nj)
-!                   nj=nj+1
-!                   if(nj.le.nsl) goto 887
-!                endif
-!             enddo allql
-!! update the partitial Gibbs energy endmember
-!             nj=1
-!886          continue
-!             current(nj)=current(nj)+1
-!             if(current(nj).eq.first(nj+1)) then
-!! note first(nsl) is the end of all constituents
-!                current(nj)=first(nj)
-!                nj=nj+1
-!                if(nj.le.nsl) goto 886
-!             endif
-!          enddo nlloop2
-!          do is=1,noofend
-!             write(*,777)'dd: ',(dmuenddy(is,jt),jt=1,nj)
-!          enddo
-!       enddo allpg2
-!       goto 889
-!
-!       goto 889
-!^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ redundant code above
-889    continue
     endif substitutional
-! skip the mobilities
-!    goto 1000
 !-------------------
 ! D_kj = \sum_i\sum_s (delta_ki - y_ks) y_is M_i dmu_i/dy_j
 ! this should be calculated for the components ... but I have just endmembers 
@@ -6995,60 +6857,67 @@ CONTAINS
 400 format(/a,12i6)
 ! HM, the disordered mobilities has 800+disordered index
 ! the ordered has 800+ordered index ... one should not use both ...
+    ql=0
     do jt=2,pmi%curd%listprop(1)
        is=pmi%curd%listprop(jt)
        if(is.gt.800 .and. is.lt.900) then
 ! there is a mobility for constituent (is-800) stored in pmi%curd%gval(1,jt)
           jj=is-800
-          yarr(jj)=exp(pmi%curd%gval(1,jt)/ceq%rtn)/ceq%rtn
-! should there be a second RT??
-!          yarr(jj)=exp(pmi%curd%gval(1,jt)/ceq%rtn)
-!          write(*,410)jj,jt,pmi%curd%gval(1,jt),yarr(jj)
+          ql=ql+1
+          mobval(jj)=exp(pmi%curd%gval(1,jt)/ceq%rtn)/ceq%rtn
+!          write(*,410)jj,jt,pmi%curd%gval(1,jt),mobval(jj)
 410       format('Mobility for ',i3,' in pos ',i2,&
                ', value: ',3(1pe14.6))
        endif
     enddo
+    if(ql.lt.noofend) then
+       write(*,411)noofend-ql
+411    format(' *** Warning: Missing mobility data for ',i2,' components')
+       goto 1000
+    endif
+    goto 1000
+! NO CALCULATION OF DIFFUSIVITIES HERE, JUST RETURN MOBILITY VALUES
 ! list T and x for current values
 !    write(*,412)tpval(1),(pmi%curd%yfr(jt),jt=1,3)
-412 format(/'Unreduced diffusion matrix for T= ',f8.2,' and x= ',3F8.4)
+!412 format(/'Unreduced diffusion matrix for T= ',f8.2,' and x= ',3F8.4)
 !
 ! TC ger för MU(i).x(j) ....:
 !
 ! The loop below is adapted to the FCC phase in the AlCuSi system
 ! 2 sublattices but only substitutional diffusion
 ! Diffs are D_kj
-    allocate(diffs(3,3))
+!    allocate(diffs(3,3))
 !
 ! I calculate D(is,jt) = x_is * exp(M_is/RT) * (dmu_is/dx_jt) 
 !                      - x_is * \sum_nl x_nl * exp(M_nl/RT)* (dmu_nl/dy_jt)
 !
-    diffs=zero
-    nend=0
-    do is=1,3
-       do jt=1,3
-          sumsum=zero
-          do nl=1,3
+!    diffs=zero
+!    nend=0
+!    do is=1,noofend
+!       do jt=1,noofend
+!          sumsum=zero
+!          do nl=1,noofend
 ! note yarr(nl) is exp(M_nl/RT)/RT
 ! dumenddy is also divided by RT ...
-             sumsum=sumsum-pmi%curd%yfr(nl)*yarr(nl)*dmuenddy(nl,jt)*ceq%rtn
-          enddo
-          diffs(is,jt)=pmi%curd%yfr(is)*(yarr(is)*dmuenddy(is,jt)*ceq%rtn+&
-               sumsum)
-          nend=nend+1
-          intdiv(nend)=diffs(is,jt)
-       enddo
+!             sumsum=sumsum-pmi%curd%yfr(nl)*yarr(nl)*dmuenddy(nl,jt)*ceq%rtn
+!          enddo
+!          diffs(is,jt)=pmi%curd%yfr(is)*(yarr(is)*dmuenddy(is,jt)*ceq%rtn+&
+!               sumsum)
+!          nend=nend+1
+!          intdiv(nend)=diffs(is,jt)
+!       enddo
 !       write(*,414)is,(diffs(is,jt),jt=1,3)
-    enddo
-414 format('D_kj, k=',i2,' j=1..3 ',4(1pe14.6))
+!    enddo
+!414 format('D_kj, k=',i2,' j=1..3 ',4(1pe14.6))
 !
 !    write(*,415)
-415 format(/'Taking Al as reference we ger D^Al_kj = D_ij - D_1j ')
+!415 format(/'Taking Al as reference we ger D^Al_kj = D_ij - D_1j ')
 !    do is=2,3
 !       write(*,416)is,(diffs(is,jt)-diffs(1,jt),jt=2,3)
 !    enddo
-416 format('D_kj, k=',i2,' j=2..3 ',2(1pe16.6))
+!416 format('D_kj, k=',i2,' j=2..3 ',2(1pe16.6))
+!
 1000 continue
-    
     return
   end subroutine equilph1e
 
