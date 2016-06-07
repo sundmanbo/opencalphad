@@ -643,7 +643,7 @@
       endif
    enddo
    if(isp.eq.0) then
-!    write(*,*)'in find_species_by_name'
+!      write(*,*)'in find_species_by_name'
       gx%bmperr=4051
       loksp=0
    endif
@@ -687,7 +687,7 @@
       endif
    enddo
    if(isp.le.0) then
-!   write(*,*)'Error in find_species_record "',name,'"'
+!      write(*,*)'Error in find_species_record "',name,'"'
       gx%bmperr=4051
       loksp=0
    else
@@ -739,7 +739,8 @@
 !17     format(a,i3,' "',a,'" "',a,'"')
       if(symbol.eq.splista(loksp)%symbol) goto 1000
    enddo
-!    write(*,*)'in find_species_record'
+! This message cannot be written as it is used when reading a TDB file ...
+!   write(kou,*)'Exact match to species name requited'
    gx%bmperr=4051
    loksp=0
 1000 continue
@@ -779,6 +780,32 @@
 1000 continue
    return
  end subroutine find_phase_by_name
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim} %-
+ integer function find_phasetuple_by_indices(iph,ics)
+! subroutine find_phasetuple_by-indices(iph,ics)
+! find phase tuple index given phase index and composition set number
+   integer iph,ics
+!\end{verbatim}
+   integer ij
+   ij=iph
+   if(ij.gt.0 .and. ij.le.nooftuples) then
+      do while(ij.gt.0)
+         if(ics.eq.phasetuple(ij)%compset) then
+            find_phasetuple_by_indices=ij
+            goto 1000
+         else
+            ij=phasetuple(ij)%nextcs
+         endif
+      enddo
+   endif
+   write(*,*)'Wrong arguments to find_phasetuple_by_indices: ',iph,ics,ij
+   gx%bmperr=4073
+1000 continue
+ return
+end function find_phasetuple_by_indices
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -1278,7 +1305,7 @@
    integer isp
 !\end{verbatim}
    if(isp.le.0 .or. isp.gt.noofsp) then
-!       write(*,*)'in get_species_name'
+!      write(*,*)'in get_species_name'
       gx%bmperr=4051; goto 1000
    endif
 !   loksp=species(isp)
@@ -1305,7 +1332,7 @@
 !\end{verbatim}
    integer jl,iel
    if(loksp.le.0 .or. loksp.gt.noofsp) then
-!       write(*,*)'in get_species_data'
+!      write(*,*)'in get_species_data'
       gx%bmperr=4051; goto 1000
    endif
    nspel=splista(loksp)%noofel
@@ -1486,6 +1513,7 @@
    qsum=zero
    kkk=0
    if(.not.btest(ceq%phase_varres(lokcs)%status2,CSCONSUS)) then
+! CSCONSUS set if a constituent is suspended ... not implemented yet
       sublat: do ll=1,nsl
          nkl(ll)=phlista(lokph)%nooffr(ll)
 ! we get strange error "index 1 or array ceq above bound of 0"
@@ -1495,6 +1523,8 @@
          endif
 !         write(*,17)'3 A Strange error: ',iph,ics,lokcs,ll,&
 !              size(ceq%phase_varres(lokcs)%sites)
+! another strange error "below lower bound of 4 ..."
+! I do not now how to check for a lower boundary ... 
 17       format(a,10i6)
          sites(ll)=ceq%phase_varres(lokcs)%sites(ll)
          ql=zero

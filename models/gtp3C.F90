@@ -1453,7 +1453,9 @@
    integer intpq,linkcon,ftyp
    character text*2048,phname*24,prop*32,funexpr*512
    character special*8,ch1*1
-   integer, dimension(2,3) :: lint
+!   integer, dimension(2,3) :: lint
+! ?? increased dimension of lint ??
+   integer, dimension(2,5) :: lint
    integer, dimension(maxsubl) :: endm,ilist
    logical subref,noelin1
    type(gtp_fraction_set), pointer :: disfrap

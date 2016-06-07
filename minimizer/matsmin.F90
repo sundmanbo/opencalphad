@@ -3,6 +3,7 @@
 ! Details of this implementation published in Computational Materials Science,
 !  vol 101, (2015) pp 127-137
 !
+! NOTE: MUBUG: when fixed remove all write statements referring to label 102
 MODULE liboceq
 !
 ! Copyright 2012-2015, Bo Sundman, France
@@ -450,7 +451,7 @@ CONTAINS
 ! end loop of conditions
 !--------------------------------------------------------------
 !       write(*,*)'variable potentials, max variable phases: ',&
-!               noel()-cmix(2),meqrec%maxphases
+!            noel()-cmix(2),meqrec%maxphases
     meqrec%nfixmu=np
     if(np.gt.0) then 
        allocate(meqrec%mufixel(np))
@@ -481,8 +482,12 @@ CONTAINS
     endif
     if(meqrec%nfixph.gt.0) then
 ! allocate 5 extra places for fix phase during mapping ...
-       allocate(meqrec%fixph(2,meqrec%nfixph+5))
-       allocate(meqrec%fixpham(meqrec%nfixph+5))
+       if(.not.allocated(meqrec%fixph)) then
+!          write(*,*)'Allocate  meqrec%fixph'
+          allocate(meqrec%fixph(2,meqrec%nfixph+5))
+          allocate(meqrec%fixpham(meqrec%nfixph+5))
+!          write(*,*)'Allocated meqrec%fixph'
+       endif
        if(np.gt.1) then
 ! ?? sort phases in increasing order to simplify below
           write(*,*)'Cannot handle two fix phases ... '
@@ -701,7 +706,8 @@ CONTAINS
           meqrec%icsl(ij)=0
        enddo
        if(ocv()) write(*,64)'Fix phase in mapfix record: ',mapfix%nfixph,&
-            mapfix%fixph(1)%phaseix,mapfix%fixph(1)%compset
+            mapfix%fixph(1)%phaseix,mapfix%fixph(1)%compset,&
+            mapfix%fixph(1)%lokvares
 64     format(a,i3,5x,2i3,5x,i3)
        meqrec%nfixph=mapfix%nfixph
        meqrec%nv=0
@@ -2438,7 +2444,7 @@ CONTAINS
     TYPE(meq_phase), pointer :: pmi
 ! cmix dimensioned for 2 terms ...
     integer cmix(10),cmode,stvix,stvnorm,sel,sph,scs,jph,jj,ie,je,ke,ncol
-    integer notf,nz2,nrow,nterms,mterms,moffs,ncol2
+    integer notf,nz2,nrow,nterms,mterms,moffs,ncol2,mubug
     double precision cvalue,totam,pham,mag,mat,map,xxx,zval,xval,ccf(5),evalue
 ! the next line of values are a desperate search for a solution
     double precision totalmol,totalmass,check1,check2,amount,mag1,mat1,map1
@@ -2517,7 +2523,7 @@ CONTAINS
        gloop: do je=1,meqrec%nrel
           do ie=1,meqrec%nfixmu
              if(meqrec%mufixel(ie).eq.je) then
-! meqrec%mufixel(ie) is the component number with fix mu, better use cmuval ?
+! meqrec%mufixel(ie) is the component number with fix chemical potential
 ! UNFINISHED: reference state must be handelled (may depend on T) ??
                 xxx=smat(jph,nz2)
                 smat(jph,nz2)=smat(jph,nz2)-&
@@ -2727,13 +2733,12 @@ CONTAINS
 !                      write(*,102)'fix mu H6:',nz2,ie,pham,&
 !                           meqrec%mufixval(ke),mamu1(ie),&
 !                           pham*meqrec%mufixval(ke)*mamu1(ie),xcol(nz2)
-102                   format(a,2i3,6(1pe12.4))
+!102                   format(a,2i3,6(1pe12.4))
                       cycle hallel
                    endif
                 enddo
                 xcol(ncol)=xcol(ncol) - pham*mamu(ie)
                 ncol=ncol+1
-!                write(*,102)'xcol6: ',ie,ncol,pham,mamu(ie),xcol(ncol)
              enddo hallel
 ! I think hallel loop should end here as mat and map are element independent
 ! If T or P are variable, mat and map include \sum_j hval(j)
@@ -2908,6 +2913,8 @@ CONTAINS
 ! components with fix chemical potential added to rhs, do not increment ncol2!!!
                          xcol(nz2)=xcol(nz2)+&
                               pham*hmval*mamu1(je)*meqrec%mufixval(ke)
+!                         write(*,102)'fix mu 1: ',nz2,je,pham,mamu1(je),&
+!                              meqrec%mufixval(ke)
                          cycle hmloop1
                       endif
                    enddo
@@ -2923,7 +2930,7 @@ CONTAINS
                    if(meqrec%mufixel(ke).eq.ie) then
 ! components with fix chemical potential added to rhs, do not increment ncol!!!
                       xcol(nz2)=xcol(nz2) + pham*meqrec%mufixval(ke)*mamu(ie)
-!                      write(*,102)'fix mu HM:',nz2,ke,pham,&
+!                      write(*,102)'fix mu HM 3:',nz2,ke,pham,&
 !                           meqrec%mufixval(ke),mamu1(ie),xcol(nz2)
                       cycle hmallel
                    endif
@@ -2945,8 +2952,8 @@ CONTAINS
                 xcol(tcol)=xcol(tcol)+&
                      pham*(ceq%tpval(1)*pmi%curd%gval(4,1)-mat)
 !                     pham*(ceq%tpval(1)*pmi%curd%gval(4,1)-mat+hmval*mat1)
-                write(*,102)'HM dt: ',0,tcol,pham,&
-                     ceq%tpval(1)*pmi%curd%gval(4,1),mat,hmval,mat1,xcol(tcol)
+!                write(*,102)'HM dt: ',0,tcol,pham,&
+!                     ceq%tpval(1)*pmi%curd%gval(4,1),mat,hmval,mat1,xcol(tcol)
              endif
              if(pcol.gt.0) then
                 xxx=xcol(pcol)
@@ -2966,7 +2973,7 @@ CONTAINS
 ! term to the RHS
 !             xcol(nz2)=xcol(nz2)+pham*(mag-hmval*mag1)
              xcol(nz2)=xcol(nz2)+pham*mag
-             write(*,102)'HM rhs:',ie,nz2,pham,mag,hmval,mag1,xcol(nz2)
+!             write(*,102)'HM rhs:',ie,nz2,pham,mag,hmval,mag1,xcol(nz2)
 ! hval can be differnt for next phase
              deallocate(hval)
           enddo hmallph
@@ -3137,7 +3144,7 @@ CONTAINS
                       if(meqrec%mufixel(ke).eq.je) then
 ! components with fix chemical potential added to rhs, do not increment ncol!!!
                          xcol(nz2)=xcol(nz2)+pham*mamu(je)*meqrec%mufixval(ke)
-!                         write(*,102)'fix mu N: ',nz2,je,pham,&
+!                         write(*,102)'fix mu N: ',sel,je,pham,&
 !                              meqrec%mufixval(ke),mamu(je),&
 !                              pham*mamu(je)*meqrec%mufixval(ke),xcol(nz2)
                          cycle nloop1
@@ -3147,24 +3154,8 @@ CONTAINS
                    xcol(ncol)=xcol(ncol)-pham*mamu(je)
                    ncol=ncol+1
                 enddo nloop1
-                goto 9000
-!??????????????????? is loop above needed ??????????????????????
-!??????????????????? can maybe be replaced by code below ... NO it gives error
-!8000            continue
-!                do ke=1,meqrec%nfixmu
-!                   if(meqrec%mufixel(ke).eq.ie) then
-! components with fix chemical potential added to rhs, do not increment ncol!!!
-!                      xcol(nz2)=xcol(nz2)+pham*mamu(ie)*meqrec%mufixval(ke)
-!                      write(*,102)'fix mu N: ',nz2,ie,pham,&
-!                           meqrec%mufixval(ke),mamu(ie),xcol(nz2)
-!                      cycle nallel
-!                   endif
-!                enddo
-! mamu(B) = \sum_i \sum_j \sum_A dM^a_B/dy_i dM^a_A z^a_ij
-!                xcol(ncol)=xcol(ncol)-pham*mamu(ie)
-!                ncol=ncol+1
-!??????????????????????? end of code to replace loop
-9000            continue
+!                goto 9000
+!9000            continue
 ! If T or P are variable
                 if(tcol.gt.0) then
                    xxx=xcol(tcol)
@@ -3297,6 +3288,7 @@ CONTAINS
 ! LOOP FOR ALL PHASES (why not all stable??)
 ! dncol+notf indicate column for the amount of phases with variable amount
           notf=0
+          mubug=0
 !          xallph: do jph=1,meqrec%nstph
 !             jj=meqrec%stphl(jph)
 ! sum over all phases to handle conditions like x(phase#set,A)=fix
@@ -3322,7 +3314,6 @@ CONTAINS
                 calcmolmass=.FALSE.
                 if(gx%bmperr.ne.0) goto 1000
              endif
-!             pmi=>phr(jj)
 ! notf indicates the column for the variable amount of the phase
              if(pmi%phasestatus.ne.PHFIXED) notf=notf+1
              xallel: do ie=1,meqrec%nrel
@@ -3336,20 +3327,32 @@ CONTAINS
 !                write(*,355)'MM dgdy: ',mamu
                 ncol=1
                 xloop2: do je=1,meqrec%nrel
+!---------------------------------------------------------------------
+! BIG TROUBLE HERE FOR FIXED CHEMICAL POTENTIAL !!!!! FIXED NOW
+! but still problems combining with other conditions on H etc ...
+! it works when we have N(A)=fix (code above) but not with x(A)=fix
 ! Calculate one column for each component to be multiplied with chem.pot.
 ! components with fix chemical potential added to rhs, do not increment ncol!!!
                    do ke=1,meqrec%nfixmu
 ! check for elements with fixed chemical potentials, they go to RHS
                       if(meqrec%mufixel(ke).eq.je) then
-                         xcol(nz2)=xcol(nz2)+pham*mamu(je)*meqrec%mufixval(ke)
-                         if(sel.eq.je) then
-! negative sign as it is on the RHS
-                            zcol(nz2)=zcol(nz2)-&
+! the sign here should be opposite from xcol(ncol)= below
+!                         write(*,*)'In xloop2: ',ie,ke,je,sel,nrow
+                         xcol(nz2)=xcol(nz2)-&
+                              pham*mamu(je)*meqrec%mufixval(ke)
+!                         write(*,102)'fix mu x: ',sel,je,pham,&
+!                              meqrec%mufixval(ke),mamu(je),&
+!                              pham*mamu(je)*meqrec%mufixval(ke),xcol(nz2)
+! zcol needed because we have a normallized property (mole fraction)
+! NOTE it should be ie here and NOT je ??? and opposite sign from xcol(nz2)
+                         if(ie.eq.sel) then
+                            zcol(nz2)=zcol(nz2)+&
                                  pham*mamu(je)*meqrec%mufixval(ke)
+!                            write(*,102)'fix mu z: ',ie,je,pham,&
+!                                 meqrec%mufixval(ke),mamu(je),&
+!                                 pham*mamu(je)*meqrec%mufixval(ke),zcol(nz2)
                          endif
-!                         write(*,102)'fix mu X: ',nz2,je,pham,&
-!                              meqrec%mufixval(ke),mamu(je),xcol(nz2)
-                         cycle xloop2
+                         cycle xloop2   
                       endif
                    enddo
 ! mamu(B) = \sum_i \sum_j dM^a_B/dy_i dM^a_A z^a_ij
@@ -3361,6 +3364,7 @@ CONTAINS
                    endif
                    ncol=ncol+1
                 enddo xloop2
+!-----------------------------------------------------------------------
 ! If T or P are variable, mat is \sum_i d2G/dy_idT, map is \sum_i d2G/dy_idP
                 if(tcol.gt.0) then
                    xcol(tcol)=xcol(tcol)+pham*mat
@@ -3402,7 +3406,7 @@ CONTAINS
 !             sel=cmix(5); sph=cmix(3); scs=cmix(4)
 !             write(*,*)'MM x(p,c): ',sph,scs,sel,zval
           enddo xallph
-!-------------- now code begin
+!-------------- new code begin
 ! can handle the case of several terms like x(liquid,S)-x(pyrrh,S)=0
 !                                       x(Mg)-2*x(Si)=0
           if(mterms.lt.nterms) then
@@ -3445,8 +3449,8 @@ CONTAINS
              smat(nrow,nz2)=smat(nrow,nz2)-cvalue+evalue
 !             gx%bmperr=7777; goto 1000
 !------------------new code end
-! use this else brash when nterms=1
           else
+! use this else brash when nterms=1, just a single x(a)=value
              nrow=nrow+1
              if(nrow.gt.nz1) then
                 write(*,*)'too many equations 11B: ',nrow,nz1,meqrec%nfixph
@@ -3540,10 +3544,10 @@ CONTAINS
 ! NOTE: mamu includes summation of two components, multiply with two masses!!!
                          xcol(nz2)=xcol(nz2)+&
                               pham*mamu(je)*meqrec%mufixval(ke)*mass_of(ie,ceq)
+!                         write(*,102)'fix mu B: ',nz2,je,pham,&
+!                              meqrec%mufixval(ke),mamu(je),xcol(nz2)
                          cycle bloop1
                       endif
-                      write(*,102)'fix mu B: ',nz2,je,pham,&
-                           meqrec%mufixval(ke),mamu(je),xcol(nz2)
                    enddo
 ! mamu(B) = \sum_i \sum_j \sum_A dM^a_B/dy_i dM^a_A z^a_ij mass_A mass_B
                    xcol(ncol)=xcol(ncol)-pham*mamu(je)*mass_of(ie,ceq)
@@ -3724,9 +3728,9 @@ CONTAINS
                                  pham*mamu(je)*meqrec%mufixval(ke)*&
                                  mass_of(je,ceq)
                          endif
+!                         write(*,102)'fix mu W: ',nz2,je,pham,&
+!                              meqrec%mufixval(ke),mamu(je),xcol(nz2)
                          cycle wloop2
-                         write(*,102)'fix mu W: ',nz2,je,pham,&
-                              meqrec%mufixval(ke),mamu(je),xcol(nz2)
                       endif
                    enddo
 ! mamu(B) = \sum_i \sum_j dM^a_B/dy_i dM^a_A z^a_ij
@@ -6767,7 +6771,8 @@ CONTAINS
           endif
        enddo allpg
        if(.not.tyst) then
-          write(*,777)'G_I: ',(muend(jt),jt=1,noofend)
+          write(*,881)(muend(jt),jt=1,noofend)
+881       format('Calculated potentials for all endmembers/RT: '/6(1x,1pe12.4))
        endif
 !-----------------------------------------------------------------------
 ! the part below is messy and unfinished

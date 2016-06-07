@@ -406,7 +406,7 @@
       enddo findspecies
 !      write(6,297)' enter_phase constituent error: ',jl,const(jl),jk,nkk
 297 format(a,i3,'>',A,'<',2i3)
-!      write(*,*)'in enter new phase: ',const(jl)
+      write(kou,*)'Unknown constituent, name must be exact: ',trim(const(jl))
       gx%bmperr=4051
       goto 1000
 ! found species,
@@ -1540,7 +1540,7 @@
 ! wildcard
          iord(ll)=-99
       else
-!          write(*,*)'in enter_parameter'
+!         write(*,*)'in enter_parameter'
          gx%bmperr=4051; goto 1000
       endif
 67     continue

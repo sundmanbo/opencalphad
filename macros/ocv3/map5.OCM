@@ -67,7 +67,7 @@ render
 @$--------------------------------------------------------------------
 @$ we must calculate the gamma loop separately
 
-set c t=1400 x(mo)=.02
+set c t=1400 x(mo)=.001
 
 c n
 

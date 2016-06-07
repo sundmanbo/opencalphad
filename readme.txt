@@ -15,10 +15,10 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
-2016.04.12 Derivatives of the partial Gibbs energy for a component or
-constituent array has been implemented.  These are needed for
-diffusion simulations.  It can be tested by the "calculate phase"
-command.
+2016.06.07 Some development for new STEP/MAP routines made but no real
+improvements.  Fixed a bug setting chemical potentials together with
+conditions on mole fractions.  There is still a bug changing the
+reference state of a component.
 
 2016.03.17 A rather complicated bug related to deleting redundant
 phase tuples after an equilibrium calculation probably fixed.  It

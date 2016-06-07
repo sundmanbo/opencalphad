@@ -429,7 +429,7 @@
          endif
       enddo
 ! constituent not found
-      write(kou,*)'No such constituent'
+      write(kou,*)'Parameter symbol contains unknown constituent'
       gx%bmperr=4066; goto 1000
 ! constituent found in right sublattice
 80    continue

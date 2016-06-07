@@ -64,7 +64,6 @@ y(gas,*)
 title step 8 fig 2
 
 
-
 @$ At present we can only plot constiton species one by one (or all)
 plot
 n(o)
@@ -105,17 +104,22 @@ title step 8 fig 8
 
 
 @$ ------------------------------------------------------
-@$ Finally set the chemical potential of C as condition
+@$ Finally set the chemical potential of O as condition
 @$ First just calculate the equlibrium for current conditions
+@@ and set T as condition instead of H
+
+set c t
+
+set c h=none
 
 l c
 
 c e
 
-@$ Then  replace N(C) by MU(C) calculating the same equilibrium
-set c mu(c)
+@$ Then  replace N(O) by MU(O) calculating the same equilibrium
+set c mu(o)
 
-set c n(c)=none
+set c n(o)=none
 
 l c
 
@@ -124,27 +128,30 @@ l c
 c e
 
 l,,,,,,
-@$ We have the same equilibrium with MU(C) instead on N(C)
+
+@$ We have the same equilibrium with MU(O) instead on N(O)
+@$ Change mu(o) slightly.  Note the reference state is O2 gas at 298.15 K
 @&
 
-set c mu(c)=-450000
+set c mu(o)=-400000
 
 c e
 
 l,,,,
 
-@$ Lower chemical potental of C means lower N(C), here 2.9405 moles
-@$ The temperature changes also, 3073.31 K
+@$ Less negative chemical potental of O means more N(O), here 22.0381 moles
+@$ Try a more negative value
 @&
 
-set c mu(c)=-400000
+set c mu(o)=-500000
 
 c e
 
 l,,,,,
 
-@$ Less negative, higher chemical potential means more N(C), here 4.6499 moles
-@$ The temperature changes also, 2886.92 K
+@$ Now N(O) is just 3.805 moles
+
+@$ Setting the reference state of O to gas does not work yet ...
 
 set inter
 

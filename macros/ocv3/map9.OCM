@@ -286,7 +286,7 @@ list short
 
 @$ Calculate the stable phase diagram
 
-set c t=1000 p=1e5 n=1 x(w)=.3
+set c t=2000 p=1e5 n=1 x(w)=.3
 
 c e
 

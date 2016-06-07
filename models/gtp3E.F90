@@ -1837,7 +1837,7 @@
    integer nel
    character filename*(*),selel(*)*2
 !\end{verbatim}
-   character line*100,elsym*2,name1*24,name2*24,elsyms(10)*2
+   character line*128,elsym*2,name1*24,name2*24,elsyms(10)*2
    character longline*10000,reftext*512
    character phtype*1,ch1*1,const(maxsp)*24,name3*24,funname*60,name4*60
    character refx*16
@@ -1904,6 +1904,11 @@
    read(21,110,end=2000)line
 110 format(a)
    nl=nl+1
+   if(len_trim(line).gt.80) then
+      if(.not.silent) write(*,121)nl
+121   format(' *** Warning: line ',i5,' has characters beyong position 80,'/&
+           'some information may be lost')
+   endif
 ! One should remove TAB characters !! ?? YES !!
 !   if(line(1:1).eq.'$') goto 100
    ipp=1
@@ -2922,8 +2927,12 @@
          call replacetab(line,nl)
       enddo
    end select
-   if(gx%bmperr.ne.0 .and. .not.silent) write(kou,*) &
-        '3E errorcode 2: ',gx%bmperr
+   if(gx%bmperr.ne.0 .and. .not.silent) then
+      write(kou,711)gx%bmperr,nl,trim(line)
+711   format('3E error: ',i5,' around line ',i7,': '/a)
+! this error means reference error
+      if(gx%bmperr.eq.4154) gx%bmperr=0
+   endif
 ! look for next KEYWORD
    goto 100
 !--------------------------------------------------------

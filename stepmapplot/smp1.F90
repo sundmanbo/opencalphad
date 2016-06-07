@@ -1,5 +1,10 @@
 ! Data structures and routines for step/map/plot (using gnuplot)
 !
+! Modifications:
+! For step there are 3 initial short steps after phase change
+! Conditions saved in node points (not fix phase but axis values)
+! Conditions saved in line equilibria
+!
 MODULE ocsmp
 !
 ! Copyright 2012-2015, Bo Sundman, France
@@ -100,7 +105,7 @@ MODULE ocsmp
      double precision firstinc,evenvalue
 ! During map the last axis values for ALL axis are stored here
      double precision, dimension(:), allocatable :: axvals
-! If tie-lines in the plane we must also check the axis valies for
+! If tie-lines in the plane we must also check the axis values for
 ! the other line as we may have to change the fix phase
      double precision, dimension(:), allocatable :: axvals2
 ! save previous values of axvals to handle axis changes ...
@@ -245,7 +250,7 @@ CONTAINS
     type(meq_setup), pointer :: meqrec
     type(map_fixph), pointer :: mapfix
     double precision starting,finish2,axvalok,dgm,tsave,xxx,yyy,zzz
-    integer starttid,endoftime,bytdir,seqz
+    integer starttid,endoftime,bytdir,seqz,nrestore
 ! for copy of constituions
     double precision, allocatable, dimension(:) :: copyofconst
 ! inactive are indices of axis conditions inactivated by phases set fixed
@@ -437,6 +442,7 @@ CONTAINS
 ! try saving constitutions ...
     if(allocated(copyofconst)) deallocate(copyofconst)
     call save_constitutions(ceq,copyofconst)
+!    nrestore=0
 ! emergency return when two phases want to change status
 320 continue
     iadd=0
@@ -522,38 +528,44 @@ CONTAINS
           ceq%tpval(1)=tsave
        endif
 ! also restore constitutions
-       write(*,*)'Restore constitutions 2'
-       call restore_constitutions(ceq,copyofconst)
+       nrestore=nrestore+1
+       if(nrestore.lt.5) then
+          write(*,*)'Restore constitutions 2',nrestore
+          call restore_constitutions(ceq,copyofconst)
 !
-       call map_halfstep(halfstep,axvalok,mapline,axarr,ceq)
-       if(gx%bmperr.eq.0) then
+          call map_halfstep(halfstep,axvalok,mapline,axarr,ceq)
+          if(gx%bmperr.eq.0) then
 ! jump back without setting halfstep=0, setting iadd=-1 turn on debug output 
-!          iadd=-1
-          goto 321
-       elseif(nax.gt.1 .and. bytaxis.eq.0) then
-          if(meqrec%tpindep(1)) then
-             if(ocv()) write(*,*)'Restoring T 3: ',tsave,axvalok
-             ceq%tpval(1)=tsave
-          endif
-          if(ocv()) write(*,555)'Repeated error 7, try to change axis',&
+             !          iadd=-1
+             goto 321
+          elseif(nax.gt.1 .and. bytaxis.eq.0) then
+             if(meqrec%tpindep(1)) then
+                if(ocv()) write(*,*)'Restoring T 3: ',tsave,axvalok
+                ceq%tpval(1)=tsave
+             endif
+             if(ocv()) write(*,555)'Repeated error 7, try to change axis',&
                gx%bmperr,ceq%tpval(1),axvalok,tsave
-555       format(a,i5,3F8.2)
-          gx%bmperr=0
-          bytaxis=1
+555          format(a,i5,3F8.2)
+             gx%bmperr=0
+             bytaxis=1
 ! Make sure that the current axis has the last successfully calculated value
 ! as prescribed value
-          call locate_condition(axarr(abs(mapline%axandir))%seqz,pcond,ceq)
-          if(gx%bmperr.ne.0) goto 1000
+             call locate_condition(axarr(abs(mapline%axandir))%seqz,pcond,ceq)
+             if(gx%bmperr.ne.0) goto 1000
 ! first argument 1 means to extract the value, 0 means to set the value
-          call condition_value(1,pcond,xxx,ceq)
-          if(gx%bmperr.ne.0) goto 1000
-          call condition_value(0,pcond,axvalok,ceq)
-          if(gx%bmperr.ne.0) goto 1000
+             call condition_value(1,pcond,xxx,ceq)
+             if(gx%bmperr.ne.0) goto 1000
+             call condition_value(0,pcond,axvalok,ceq)
+             if(gx%bmperr.ne.0) goto 1000
 !          write(*,*)'Old axis value: ',xxx,axvalok
 !
-          call map_force_changeaxis(maptop,mapline,mapline%meqrec,nax,axarr,ceq)
-          if(gx%bmperr.eq.0) goto 320
+             call map_force_changeaxis(maptop,mapline,mapline%meqrec,&
+                  nax,axarr,ceq)
+             if(gx%bmperr.eq.0) goto 320
 !          call map_lineend(mapline,zero,ceq)
+          endif
+       else
+          write(*,*)'No use restoring ...'
        endif
 ! error, terminate the line and check if there are other lines to calculate
 !       call map_lineend(mapline,axarr(abs(mapline%axandir))%lastaxval,ceq)
@@ -886,7 +898,7 @@ CONTAINS
     if(ocv()) write(*,*)'allocating lineheads: ',ieq
     allocate(mapnode%linehead(ieq))
     if(ieq.eq.2) then
-! set one exit in each direction of the active axis axactive
+! STEP command: set one exit in each direction of the active axis axactive
        do jp=1,2
 ! one line has +axactive, the other -axactive
           mapnode%linehead(jp)%axandir=(3-2*jp)*axactive
@@ -900,7 +912,10 @@ CONTAINS
           mapnode%linehead(jp)%more=1
           mapnode%linehead(jp)%termerr=0
           mapnode%linehead(jp)%firstinc=zero
-          mapnode%linehead(jp)%evenvalue=zero
+!          mapnode%linehead(jp)%evenvalue=zero
+! to ensure small initial steps
+          mapnode%linehead(jp)%evenvalue=value+(3-2*jp)*axarr(1)%axinc
+!          write(*,*)'evenvalue: ',mapnode%linehead(jp)%evenvalue,value
           mapnode%linehead(jp)%start=>mapnode
           mapnode%linehead(jp)%axfact=1.0D-2
 ! this is set to zero indicating the stable phases are saved in ceq record
@@ -1122,7 +1137,14 @@ CONTAINS
           if(ocv()) write(*,*)'Fixing phase: ',kj,&
                meqrec%phr(kj)%iph,meqrec%phr(kj)%ics
           meqrec%phr(kj)%curd%dgm=zero
-          meqrec%phr(kj)%curd%amfu=zero
+! 
+          if(tieline_inplane(nax,axarr,ceq).eq.1) then
+! if tie-lines in the plane set amount 0.1
+             write(*,*)'Setting fix phase nonzero amount'
+             meqrec%phr(kj)%curd%amfu=1.0D-1
+          else
+             meqrec%phr(kj)%curd%amfu=zero
+          endif
           meqrec%phr(kj)%stable=1
           meqrec%phr(kj)%phasestatus=PHFIXED
 ! The array fixph contains also phases with explicit condition to be fixed
@@ -1212,7 +1234,7 @@ CONTAINS
 900 continue
     if(nax.gt.2) then
        write(*,*)'Cannot handle more than 2 axis at present'
-       gx%bmperr=8877
+       gx%bmperr=8878
     endif
 1000 continue
     return
@@ -1477,13 +1499,17 @@ CONTAINS
        axstv=>axstv1
        call state_variable_val(axstv,value,mapline%lineceq)
        if(gx%bmperr.gt.0) goto 1000
-       if(mapline%number_of_equilibria.gt.3) then
-          if(abs(axarr(jj)%lastaxval-value).gt.&
-               1.0D-1*(axarr(jj)%axmax-axarr(jj)%axmin)) then
-             write(*,17)'map_step found too large step in axis: ',jj,&
-                  mapline%number_of_equilibria,axarr(jj)%lastaxval,value
-17           format(a,i2,i3,2(1pe14.6))
-             gx%bmperr=4300; goto 1000
+       if(nax.gt.1) then
+! when several axis check if any has a big change ...
+          if(mapline%number_of_equilibria.gt.3) then
+             if(abs(axarr(jj)%lastaxval-value).gt.&
+                  1.0D-1*(axarr(jj)%axmax-axarr(jj)%axmin)) then
+!                  2.0D-2*(axarr(jj)%axmax-axarr(jj)%axmin)) then
+                write(*,17)'map_step found too large step in axis: ',jj,&
+                     mapline%number_of_equilibria,axarr(jj)%lastaxval,value
+17              format(a,i2,i3,2(1pe14.6))
+                gx%bmperr=4300; goto 1000
+             endif
           endif
        endif
        axarr(jj)%lastaxval=value
@@ -1520,6 +1546,8 @@ CONTAINS
        jj=meqrec%stphl(jph)
        if(meqrec%phr(jj)%curd%phstate.lt.PHFIXED) then
           meqrec%phr(jj)%curd%phstate=PHENTSTAB
+!       else
+!          write(*,*)'Fix phase 1: ',jj,meqrec%phr(jj)%iph,meqrec%phr(jj)%ics
        endif
     enddo
     if(ocv()) write(*,201)' map store, stable phases: ',&
@@ -1640,11 +1668,13 @@ CONTAINS
     if(gx%bmperr.ne.0) goto 1000
     if(pcond%active.ne.0) then
        if(ocv()) write(*,*)'Error: old axis condition is not active'
-       gx%bmperr=8888; goto 1000
-    endif
-    if(ocv())write(*,*)'Current value of old axis condition: ',pcond%prescribed
+!       gx%bmperr=8887; goto 1000
+!    endif
+    else
 ! deactivate condition
-    pcond%active=1
+       if(ocv())write(*,*)'Current value of old axis cond: ',pcond%prescribed
+       pcond%active=1
+    endif
 ! we must indicate if T or P are not fixed ...
     if(pcond%statev.eq.1) then
 ! in one case the value ceq%tpval was zero whereas the condition was positive
@@ -1828,9 +1858,14 @@ CONTAINS
             mapline%axandir,value
 16     format(a,2i3,6(1pe14.6))
        if(mapline%evenvalue.ne.zero) then
-! If there is a value in mapline%evenvalue use that as next value on axis!
-          value=mapline%evenvalue
-          mapline%evenvalue=zero
+! If there is a value in mapline%evenvalue this is the first step in a new
+! region, take 3 very small steps before using that as next value on axis!
+          if(mapline%number_of_equilibria.lt.3) then
+             value=value+1.0D-3*(mapline%evenvalue-value)
+          else
+             value=mapline%evenvalue
+             mapline%evenvalue=zero
+          endif
        else
 ! just take a step in axis variable.  mapline%axandir is -1 or +1
           value=value+axarr(1)%axinc*mapline%axandir
@@ -2199,7 +2234,7 @@ CONTAINS
              phfix=-irem
           else
 ! go back and calculate with half the step ... 
-             gx%bmperr=8877; goto 1000
+             gx%bmperr=8876; goto 1000
           endif
        else
           phfix=-irem
@@ -2216,7 +2251,7 @@ CONTAINS
     lastcond=>ceq%lastcondition
     if(.not.associated(lastcond)) then
        write(*,*)'in map_calcnode, no conditions: ',jax
-       gx%bmperr=8888; goto 1000
+       gx%bmperr=8889; goto 1000
     endif
     pcond=>lastcond
 60  continue
@@ -2315,7 +2350,7 @@ CONTAINS
     if(meqrec%nfixph.gt.size(meqrec%fixpham)) then
        write(*,*)'Too many phases set fixed during mapping',&
             meqrec%nfixph,size(meqrec%fixpham)
-       gx%bmperr=8888; goto 1000
+       gx%bmperr=8890; goto 1000
     endif
 ! meqrec%nfixph is used to reduce the number of variables in the system
 ! matrix.  Fix phases have no variable amount.
@@ -2417,7 +2452,7 @@ CONTAINS
 ! and the new value ...
     if(pcond%noofterms.gt.1) then
        write(*,*)'Cannot handle conditions with several terms'
-       gx%bmperr=8888; goto 1000
+       gx%bmperr=8885; goto 1000
     endif
 ! this sets the condition as active
     pcond%active=0
@@ -2914,7 +2949,7 @@ CONTAINS
                   meqrec%phr(jj)%ics.eq.mapline%linefixph(1)%compset)) cycle
              if(jphr.gt.0) then
                 write(*,*)'Problems, two entered phases: ',jj,jphr
-                gx%bmperr=8880; goto 290
+                gx%bmperr=8881; goto 290
              else
                 jphr=jj
              endif
@@ -2939,7 +2974,7 @@ CONTAINS
 ! jphr is the phase that was stable along the line
        if(jphr.eq.0) then
           write(*,*)'Problems, not a single entered phase!'
-          gx%bmperr=8881; goto 290
+          gx%bmperr=8893; goto 290
        endif
 ! In mapnode there is a nfixph and array linefixph
        if(ocv()) write(*,207)mapline%linefixph(1)%phaseix,&
@@ -3575,7 +3610,7 @@ CONTAINS
     lastcond=>ceq%lastcondition
     if(.not.associated(lastcond)) then
        write(*,*)'Whops, mapping with no conditions?'
-       gx%bmperr=8888; goto 1000
+       gx%bmperr=8886; goto 1000
     endif
     nexv=0
     pcond=>lastcond

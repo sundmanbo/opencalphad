@@ -1650,11 +1650,7 @@ contains
              write(kou,*)'Axis must be set in sequential order',&
                   ', axis number set to ',iax
 !          elseif(iax.lt.i1) then
-! replacing an existing axis, get the current as defualt
-!             call encode(...)
-! deallocate axarr ?? redundant ??
-!             deallocate(axarr(iax)%indices)
-!             deallocate(axarr(iax)%coeffs)
+! replacing an existing axis, reset defaults ... ???
           endif
 ! as condition one may give a condition number followed by :
 ! or a single state variable like T, x(o) etc.
@@ -1692,7 +1688,7 @@ contains
           else ! add or change axis variable
              i1=len_trim(text)
              if(text(i1:i1).eq.':') then
-! condition given as an index in the condition list terminated by :
+! condition given as an index in the condition list terminated by : like "1:"
                 i1=1
                 call getrel(text,i1,xxx)
                 if(buperr.ne.0) then
@@ -1731,6 +1727,8 @@ contains
 ! check if axis variable is a condition, maybe create it if allowed
 !                write(*,*)'decoding axis condition: ',text(1:20)
                 stvr=>stvrvar
+! this call also accept state variable functions like t_c, cp (if entered)
+! UNIFINISHED: but it also accepts unknown texts ... 
                 call decode_state_variable(text,stvr,ceq)
                 if(gx%bmperr.ne.0) goto 990
 !                write(*,*)'check if this state variable is a condition'
@@ -2576,6 +2574,11 @@ contains
           enddo
 !------------------------------
        case(12) ! list results
+! if no calculation made skip
+          if(btest(ceq%status,EQNOEQCAL)) then
+             write(*,*)' *** No results as no equilibrium calculated!'
+             goto 100
+          endif
           call gparid('Output mode: ',cline,last,listresopt,lrodef,q1help)
           if(listresopt.gt.0 .and. listresopt.le.9) then
              lrodef=listresopt
@@ -2587,7 +2590,6 @@ contains
              write(lut,6308)trim(ceq%comment)
 6308         format(3x,a)
           endif
-!  if(btest(globaldata%status,GSEQFAIL)) then
           if(btest(ceq%status,EQFAIL)) then
              write(lut,6305)
 6305         format(/' *** The results listed are not a valid equilibrium',&
@@ -4282,8 +4284,8 @@ contains
 4043   format(i2)
        call gparrd(quest1,cline,last,sites(ll),one,q1help)
        if(buperr.ne.0) goto 900
-       if(sites(ll).le.1.0D-2) then
-          write(kou,*)'Number of sites must be larger than 0.01'
+       if(sites(ll).le.1.0D-6) then
+          write(kou,*)'Number of sites must be larger than 1.0D-6'
           if(once) then
              once=.false.
              goto 4042

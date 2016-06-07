@@ -1210,7 +1210,7 @@
 !           first,fractype,phres%gval(1,1)
 303   format(a,3(1x,L),i3,4(1pe12.4))
       if(nevertwice) goto 400
-! UNIFINISHED
+! UNIFINISHED ??
 ! TEST IF WE SHOULD SUBTRACT THE ORDERED ENERGY AS DISORDERED AS IN THE
 ! CURRENT IMPLEMENTATION IN THERMO-CALC. BY JUMPING TO 400 WE SKIP THAT.
       if(btest(phlista(lokph)%status1,phsubo)) then
@@ -1383,11 +1383,13 @@
                        phres%gval(ider,ipy)
                enddo
             enddo
-! restore ordered fractions and deallocate save arrays
-!            write(*,612)'3X yd: ',phres%yfr
-            phres%yfr=savey
-!            write(*,612)'3X yo: ',phres%yfr
-612         format(a,6(1pe11.3),(7x,6e11.3))
+! restore ordered fractions and deallocate save arrays why not allocate savey?
+!            write(*,612)'3X yd: ',(phres%yfr(ipy),ipy=1,gz%nofc)
+!            do ipy=1,gz%nofc
+               phres%yfr=savey
+!            enddo
+!            write(*,612)'3X yo: ',(phres%yfr(ipy),ipy=1,gz%nofc)
+612         format(a,6(1pe11.3)/(7x,6e11.3))
 ! why set to zero if I deallocate ??
 !            savey=zero
 !            saveg=zero
@@ -1626,7 +1628,7 @@
 !      fhvsum=zero
       do qz=1,gz%nofc
          ipy=fhlista(qz)
-! if ipy is zero then the volume is constant equal to one
+! if ipy is zero then the volume is constant
          do ll=1,6
             if(ipy.gt.0) then
                fhv(qz,ll)=phmain%gval(ll,ipy)
@@ -1656,8 +1658,8 @@
       floryhuggins=1
 ! we must calculate the other parameters again using the specific molar volumes
 ! not implemented yet ...
-      write(*,*)'3X Flory-Huggins model only config entropy, no goto 100'
-!      goto 100
+!      write(*,*)'3X Flory-Huggins model only config entropy, no goto 100'
+      goto 100
    endif
 !................................
 ! calculate additions like magnetic contributions etc and add to G
@@ -2343,7 +2345,7 @@
    double precision, allocatable :: yfra(:),qfra(:),sumsy(:,:)
 !
    nofc2=nofc*(nofc+1)/2
-   write(*,1)'3X Config entropy FH model: ',nofc,(fhv(kall,1),kall=1,nofc)
+!   write(*,1)'3X Config entropy FH model: ',nofc,(fhv(kall,1),kall=1,nofc)
 1  format(a,i3,5F8.2)
 107 format(a,6(1pe12.4))
 108 format(a,i2,6(1pe12.4))
@@ -2391,7 +2393,7 @@
    enddo
 106 format(a,2i3,1pe12.4)
 ! we should extract fhv for each constituent from the species record ...
-   write(*,117)'3X sumq, vi: ',sumq,(fhv(kall,1)*yfra(kall)/sumq,kall=1,nofc)
+!   write(*,117)'3X sumq, vi: ',sumq,(fhv(kall,1)*yfra(kall)/sumq,kall=1,nofc)
 117 format(a,6(1pe12.4))
 !-----------------------------------------
 ! fhv(i,1) is FH volume for const i, fhv(i,2) is T deriv, fhv(i,3) is P deriv
@@ -2405,6 +2407,20 @@
 ! dgval(3,1:N,1) are derivatives of G wrt fraction 1:N and P
 ! d2dval(ixsym(N*(N+1)/2),1) are derivatives of G wrt fractions N and M
 ! this is a symmetric matrix and index givem by ixsym(M,N)
+! ========== IMPORTANT: We have not implemented composition dependence in the
+! Gibbs energy calculations !!!  Test that is not used!
+   do kall=1,nofc
+      ss=dfhv(kall,1,1)
+      do k1=2,nofc
+         if(abs(dfhv(kall,1,k1)-ss).gt.1.0D-8) then
+            write(*,77)kall,k1,dfhv(kall,1,k1)
+77          format(' *** Warning, Flory-Huggins model implemented',&
+                 ' for constant FHV only',2i3,1pe12.4)
+!            gx%bmperr=8833; goto 1000
+         endif
+      enddo
+   enddo
+! =========================================================================
 ! Calculate the confurational entropy
    ss=zero
    fractionloop: do kall=1,nofc
@@ -2420,7 +2436,7 @@
 ! UNFINISHED derivatives wrt T, P
          loopk1: do k1=1,nofc
             loopk2: do k2=k1,nofc
-! UNFINISHED all second derivatives, just set as for ideal 1/y
+! UNFINISHED all second derivatives ignored, just set as for ideal 1/y
                if(kall.eq.k1 .and. k1.eq.k2) then
                   phvar%d2gval(ixsym(k1,k2),1)=one/yfra(kall)
                endif
@@ -2440,15 +2456,15 @@
 !      ss=ss+(fhv(kall,1)/sumq)*yfra(kall)*ylog
 !v      ss=ss+yfra(kall)*ylog
       ss=ss+yfra(kall)/fhv(kall,1)*ylog
-      write(*,300)'3X ss: ',ss,yfra(kall),fhv(kall,1),fhv(kall,1)*yfra/sumq,&
-           ylog
+!      write(*,300)'3X ss: ',ss,yfra(kall),fhv(kall,1),fhv(kall,1)*yfra/sumq,&
+!           ylog
 300   format(a,6(1pe12.4))
    enddo fractionloop
 ! each species may now have a Flory Huggins segment number ....
 !   ss=ss/sumq
    ss=ss
 ! The integral entropy and its T and P derivatives
-! UNFINISHED should include T deruvatives of fhv ....
+! UNFINISHED should include T and P derivatives of fhv ....
 !   phvar%gval(1,1)=phvar%gval(1,1)+ss
    phvar%gval(1,1)=ss
 ! UNFINISHED add T derivates of dfhv .... and any P derivatives
