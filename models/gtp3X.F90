@@ -1701,6 +1701,11 @@
    deallocate(d2pyq)
    deallocate(dvals)
    deallocate(d2vals)
+   if(allocated(fhv)) then
+      deallocate(fhv)
+      deallocate(dfhv)
+      deallocate(d2fhv)
+   endif
 !    write(*,1001)gx%bmperr,(phres%gval(i,1),i=1,4)
 !    write(*,1002)(phres%dgval(1,i,1),i=1,3)
 !    write(*,1003)(phres%d2gval(i,1),i=1,6)
@@ -1715,6 +1720,7 @@
 !\begin{verbatim}
  subroutine setendmemarr(lokph,ceq)
 ! stores the pointers to all ordered and disordered endmemners in arrays
+! UNUSED ??
    implicit none
    integer lokph
    TYPE(gtp_equilibrium_data), pointer :: ceq
@@ -3289,7 +3295,7 @@
 !   do varresx=2,csfree-1
    do varresx=2,highcs
 ! save 1+sfr values for each composition set
-! segmentation fault in this loop for stepbug (20 elements COST507)
+! segmentation fault in this loop for stepbug (>20 elements COST507)
 ! crash happends when higher composition sets are stored ...
       copyofconst(nz)=ceq%phase_varres(varresx)%amfu
       if(allocated(ceq%phase_varres(varresx)%yfr)) then
@@ -3317,7 +3323,7 @@
 
 !\begin{verbatim} %-
  subroutine restore_constitutions(ceq,copyofconst)
-! restore the phase amounts and constituitions from copyofconst
+! restore the phase amounts and constitutions from copyofconst
 ! if calculations fails during step/map
 ! DANGEROUS IF NEW COMPOSITION SETS CREATED
    implicit none

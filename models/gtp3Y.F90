@@ -616,6 +616,11 @@
 ! set the global bit that this is not a full equilibrium
       ceq%status=ibset(ceq%status,EQNOEQCAL)
    endif
+! deallocate 
+   if(allocated(gridpoints)) then
+      deallocate(gridpoints)
+      deallocate(phord)
+   endif
    if(ocv()) write(*,*)'leaving global_gridmin'
    return
  end subroutine global_gridmin
@@ -2186,6 +2191,18 @@
 !
    endif
 1000 continue
+! deallocate creates problems ...
+!   if(allocated(savengg)) then
+!      deallocate(savengg)
+!      deallocate(endmem)
+!   endif
+!   if(allocated(neutral)) then
+!      deallocate(neutral)
+!      deallocate(y1)
+!      deallocate(y2)
+!      deallocate(y3)
+!      deallocate(y4)
+!   endif
 ! restore original constitution
 !   write(*,*)'3Y Gridpoints for: ',iph,mode,np
    call set_constitution(iph,1,ydum,qq,ceq)
@@ -3994,7 +4011,6 @@
    cset=>ceq%phase_varres(lokcs)
 ! we must use set_constitution at the end to update various internal variables
    allocate(yarr(phlista(lokph)%tnooffr))
-!   if(allocated(cset%mmyfr)) then
    if(btest(cset%status2,CSDEFCON)) then
 ! there is a preset default constitution
       kk=0
@@ -4050,6 +4066,7 @@
 411 format('3Y set_def_const: ',8F7.4,(10f7.4))
 ! in this routine the fractions in each sublattice is normallized to be unity
    call set_constitution(iph,ics,yarr,qq,ceq)
+   deallocate(yarr)
 1000 continue
    return
  end subroutine set_default_constitution
@@ -4488,6 +4505,11 @@
    ceq%phase_varres(lokcs2)%d2gval=d2gval
 ! curlat, cinvy, cxmol, cdxmol?
 1000 continue
+! deallocate
+   deallocate(val)
+   deallocate(gval)
+   deallocate(dgval)
+   deallocate(d2gval)
    return
  end subroutine copycompsets2
 

@@ -3,7 +3,6 @@
 ! Details of this implementation published in Computational Materials Science,
 !  vol 101, (2015) pp 127-137
 !
-! NOTE: MUBUG: when fixed remove all write statements referring to label 102
 MODULE liboceq
 !
 ! Copyright 2012-2015, Bo Sundman, France
@@ -2262,7 +2261,7 @@ CONTAINS
     double precision totalmol,totalmass,check1,check2,amount,mag1,mat1,map1
     double precision hmval
     double precision, dimension(:), allocatable :: xcol,mamu,mamu1,zcol,qmat
-    double precision, allocatable :: xxmm(:),wwnn(:),hval(:)
+!    double precision, allocatable :: xxmm(:),wwnn(:),hval(:)
     logical :: vbug=.FALSE.,calcmolmass,notdone
     character encoded*32,name*32
 !-------------------------------------------------------------------
@@ -2407,7 +2406,6 @@ CONTAINS
 ! relative check for convergence if cvalue>1.0
        conv: if(abs(totam-cvalue).gt.ceq%xconv*max(1.0d0,abs(cvalue)))then
           if(converged.lt.5) converged=5
-! value of xxmm(sel) only reasonable of N=1 or N(A)+.. = 1
           write(*,266)'Unconverged condition N or N(A): ',sel,cvalue,totam
 266       format(a,i3,4(1pe12.4))
        endif conv
@@ -2693,7 +2691,7 @@ CONTAINS
              allocate(hval(pmi%ncc))
              notdone=.FALSE.
              if(.not.allocated(mamu1)) then
-! it will be deallocated when leaving this subroutine
+! it will be deallocated when leaving this subroutine ??
                 allocate(mamu1((meqrec%nrel)))
              endif
              ncol=1
@@ -2849,7 +2847,7 @@ CONTAINS
           check2=zero
           notdone=.TRUE.
           if(.not.allocated(mamu1)) then
-! it will be deallocated when leaving this subroutine
+! it will be deallocated when leaving this subroutine ??
              allocate(mamu1((meqrec%nrel)))
           endif
 ! current value of molar enthalpy
@@ -3088,15 +3086,6 @@ CONTAINS
           allocate(xcol(nz2))
           xcol=zero
           totam=zero
-!          if(.not.allocated(xxmm)) then
-! just for debugging, not needed for N= or N(A)=
-! this call returns the current fractions and total amounts.  We need
-! to do it only once inside this subroutine. xxmm are deallocated at exit
-!             allocate(xxmm(meqrec%nrel))
-!             allocate(wwnn(meqrec%nrel))
-!             call calc_molmass(xxmm,wwnn,totalmol,totalmass,ceq)
-!             if(gx%bmperr.ne.0) goto 1000
-!          endif
 ! notf keeps track on entered non-fixed phases with variable amount
           notf=0
 ! THE CALCULATION FOR N= and N(A)= seems OK
@@ -3228,7 +3217,6 @@ CONTAINS
                    write(*,266)'Unconverged condition N or N(A): ',sel,&
                         cvalue,totam,totalmol
                 else
-! value of xxmm(sel) only reasonable of N=1 or N(A)+.. = 1
                    write(*,266)'Unconverged condition N or N(A): ',sel,&
                         cvalue,totam
                 endif
@@ -3340,19 +3328,23 @@ CONTAINS
 !                         write(*,*)'In xloop2: ',ie,ke,je,sel,nrow
                          xcol(nz2)=xcol(nz2)-&
                               pham*mamu(je)*meqrec%mufixval(ke)
+!                            write(*,98)'fix mu x:',sel,je,&
+!                                 pham*mamu(je)*meqrec%mufixval(ke)
 !                         write(*,102)'fix mu x: ',sel,je,pham,&
 !                              meqrec%mufixval(ke),mamu(je),&
 !                              pham*mamu(je)*meqrec%mufixval(ke),xcol(nz2)
 ! zcol needed because we have a normallized property (mole fraction)
 ! NOTE it should be ie here and NOT je ??? and opposite sign from xcol(nz2)
                          if(ie.eq.sel) then
+!                            write(*,98)'fix mu z:',sel,ie,&
+!                                 pham*mamu(je)*meqrec%mufixval(ke)
                             zcol(nz2)=zcol(nz2)+&
                                  pham*mamu(je)*meqrec%mufixval(ke)
 !                            write(*,102)'fix mu z: ',ie,je,pham,&
 !                                 meqrec%mufixval(ke),mamu(je),&
 !                                 pham*mamu(je)*meqrec%mufixval(ke),zcol(nz2)
                          endif
-                         cycle xloop2   
+                         cycle xloop2
                       endif
                    enddo
 ! mamu(B) = \sum_i \sum_j dM^a_B/dy_i dM^a_A z^a_ij
@@ -3482,6 +3474,11 @@ CONTAINS
                   cvalue,evalue
           endif
        endif
+! finished conditions on N and X with indices
+       if(allocated(xxmm)) then
+          deallocate(xxmm)
+          deallocate(wwnn)
+       endif
 !
 !------------------------------------------------------------------
   case(12) ! B or W
@@ -3542,17 +3539,15 @@ CONTAINS
                       if(meqrec%mufixel(ke).eq.je) then
 ! components with fix chemical potential added to rhs, do not increment ncol!!!
 ! NOTE: mamu includes summation of two components, multiply with two masses!!!
+!                         write(*,98)'fix mu b:',sel,je,&
+!                              pham*mamu(je),meqrec%mufixval(ke),mass_of(ie,ceq)
                          xcol(nz2)=xcol(nz2)+&
                               pham*mamu(je)*meqrec%mufixval(ke)*mass_of(ie,ceq)
-!                         write(*,102)'fix mu B: ',nz2,je,pham,&
-!                              meqrec%mufixval(ke),mamu(je),xcol(nz2)
                          cycle bloop1
                       endif
                    enddo
-! mamu(B) = \sum_i \sum_j \sum_A dM^a_B/dy_i dM^a_A z^a_ij mass_A mass_B
+! mamu(B) = \sum_i \sum_j \sum_A dM^a_B/dy_i dM^a_A z^a_ij mass_A mass_B ???
                    xcol(ncol)=xcol(ncol)-pham*mamu(je)*mass_of(ie,ceq)
-!                   write(*,363)'xcola: ',ncol,ie,je,xcol(ncol),pham,mamu(je),&
-!                        mass_of(ie,ceq)
                    ncol=ncol+1
                 enddo bloop1
 ! If T or P are variable
@@ -3614,6 +3609,8 @@ CONTAINS
           do ncol=1,nz2
              smat(nrow,ncol)=xcol(ncol)
           enddo
+!          write(*,97)'Totalmass B: ',sel,totam,cvalue,totalmass,wwnn(sel)
+97        format(a,i4,6(1pe12.4))
 ! add B^prescribed - B^current to rhs (right hand side)
           xxx=smat(nrow,nz2)
           smat(nrow,nz2)=smat(nrow,nz2)-cvalue+totam
@@ -3715,21 +3712,28 @@ CONTAINS
                 if(gx%bmperr.ne.0) goto 1000
 !                write(*,*)'Calculated dgdyterms 4: ',mat
                 ncol=1
+! BUG TROUBLE WITH MIXED FIX CHEMICAL POT AND MASS FRACTION CONDITION !!!
                 wloop2: do je=1,meqrec%nrel
 ! Calculate one column for each component to be multiplied with chem.pot.
 ! components with fix chemical potential added to rhs, do not increment ncol!!!
+! modified in accordance with condition on x
                    do ke=1,meqrec%nfixmu
                       if(meqrec%mufixel(ke).eq.je) then
+!                         write(*,98)'fix mu w:',sel,je,&
+!                              pham*mamu(je),meqrec%mufixval(ke),mass_of(ie,ceq)
+98                       format(a,2i3,6f12.4)
                          xcol(nz2)=xcol(nz2)+&
-                              pham*mamu(je)*meqrec%mufixval(ke)*mass_of(je,ceq)
-                         if(sel.eq.je) then
-! negative sign as it is on the RHS
-                            zcol(nz2)=zcol(nz2)-&
+                              pham*mamu(je)*meqrec%mufixval(ke)*mass_of(ie,ceq)
+                         if(ie.eq.sel) then
+!                            write(*,98)'fix mu u:',sel,ie,&
+!                                 pham*mamu(je),meqrec%mufixval(ke),&
+!                                 mass_of(ie,ceq)
+! VERY STRANGE ... zcol and xcol have both the term added here but
+! when calculating with mole frac and fix chem.pot they have different signs!!!
+                            zcol(nz2)=zcol(nz2)+&
                                  pham*mamu(je)*meqrec%mufixval(ke)*&
-                                 mass_of(je,ceq)
+                                 mass_of(ie,ceq)
                          endif
-!                         write(*,102)'fix mu W: ',nz2,je,pham,&
-!                              meqrec%mufixval(ke),mamu(je),xcol(nz2)
                          cycle wloop2
                       endif
                    enddo
@@ -3778,7 +3782,12 @@ CONTAINS
                    zcol(nz2)=zcol(nz2)-pham*mag*mass_of(ie,ceq)
                 endif
              enddo wallel
-             totam=totam+pham*pmi%sumwmol
+! totam never used ???
+             if(sel.gt.0) then
+                totam=totam+pham*pmi%xmol(sel)*mass_of(sel,ceq)
+             else
+                totam=totam+pham*pmi%sumwmol
+             endif
 ! UNFINISHED: if sph=/=0 next line must be changed
 !             zval=zval+pham*pmi%xmol(sel)*mass_of(sel,ceq)
           enddo wallph
@@ -3790,6 +3799,7 @@ CONTAINS
              write(*,*)'too many equations 12B',nrow,nz1
              gx%bmperr=4209; goto 1000
           endif
+!          write(*,97)'Totalmass W: ',sel,wwnn(sel),cvalue,totalmass,totam
 ! copy to smat row nrow.  totalmass=1 if phase specific composition
           do ncol=1,nz2
              smat(nrow,ncol)=(zcol(ncol)-xcol(ncol)*wwnn(sel))/totalmass
@@ -3814,6 +3824,11 @@ CONTAINS
 ! this is not implemented yet
 !             write(*,363)'Condition w(phase#set,A)=fix',sph,sel,0,cvalue,zval
 !          endif
+       endif
+! finished conditions on B and W with indices
+       if(allocated(xxmm)) then
+          deallocate(xxmm)
+          deallocate(wwnn)
        endif
 !
 !------------------------------------------------------------------
@@ -5261,7 +5276,7 @@ CONTAINS
    integer kou
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-! THIS SUBROUTINE MOVED FROM pmod25D
+! THIS SUBROUTINE MOVED FROM gtp3D
    character actual_arg(10)*24
    integer kf,nsvfun
    double precision val
@@ -5335,7 +5350,7 @@ CONTAINS
    character actual_arg(*)*(*)
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-! THIS SUBROUTINE MOVED FROM pmod25D
+! THIS SUBROUTINE MOVED FROM gtp3D
    character encoded*60
    double precision argval(20)
    type(gtp_state_variable), pointer :: svr,svr2
@@ -5953,6 +5968,7 @@ CONTAINS
 !    
     call get_phase_data(svr%phase,svr%compset,nsl,nkl,knr,yarr,sites,qq,ceq)
     if(gx%bmperr.ne.0) goto 1000
+! UNFINISHED
 !
 1000 continue
     return
