@@ -1995,7 +1995,8 @@
    elseif(istv.eq.2) then
 ! this is P
       value=ceq%tpval(2)
-   else
+   elseif(istv.le.5) then
+! the check of reference state state is made at label 500 
       if(istv.eq.3) then
 ! MUx(component) or MU(phase,constituent), x can be S for SER
          goto 500
@@ -2006,6 +2007,10 @@
 ! LNACx(component) or LNAC(phase,constituent)
          goto 500
       endif
+! wrong or state variable not implemented
+      write(*,10)'3F not impl: ',istv,indices,iref,iunit,gx%bmperr,value
+      goto 1100
+   else
 ! wrong or state variable not implemented
       write(*,10)'3F not impl: ',istv,indices,iref,iunit,gx%bmperr,value
       goto 1100
@@ -2118,7 +2123,7 @@
          aref=zero
       else
 ! positive value of iref is undefined
-         write(*,*)'3F Reference state undefined',iref
+         write(*,*)'3F Reference state undefined: ',iref
          aref=zero
       endif
 ! if phase specific the scaling for phase specific must be compensated
@@ -2367,9 +2372,12 @@
 500 continue
 !   ceq%rtn=globaldata%rgas*ceq%tpval(1)
 ! if one argument that is a component, if two these are phase and constituent
+! here indices(2) is considered to specify a reference state ...???
 !   write(*,502)'3F refstate 500: ',iref,indices(1),indices(2)
 502 format(a,10i4)
    if(indices(2).ne.0) then
+! This has nothing to do with reference state ... ??? see else link for that
+! I wonder if this code is ever used ...
       lokph=phases(indices(1))
       loksp=phlista(lokph)%constitlist(indices(2))
 ! split the species in elements, convert to components, add chemical potentials
@@ -2390,7 +2398,7 @@
       enddo
 ! >>>> subtract reference state: i.e. calculate G for the phase with 
 ! just this constituent.  Note indices(1) is phase record, change to index
-!      write(*,*)'3F refphase: ',indices(1),phlista(indices(1))%alphaindex
+!      write(*,*)'3F refphase: ',indices(1),phlista(indices(1))%alphaindex,value
       ic=phlista(indices(1))%alphaindex
       endmember(1)=indices(2)
       call calcg_endmember(indices(1),endmember,gref,ceq)
@@ -2401,26 +2409,21 @@
 ! possibly convert to AC or LNAC
       goto 700
    else
-! MU(i) should be in position i, not indexed by splink ??
-! loop through components, different components in each equilibrium
-!      do ic=1,noofel
-!         write(*,*)'3F state var value: ',indices(1),ceq%complist(ic)%splink,&
-!              ceq%complist(ic)%chempot(1)
-!         if(indices(1).eq.ceq%complist(ic)%splink) then
+!      write(*,*)'3F elselink: ',indices
       if(indices(1).le.0 .or. indices(1).gt.noofel) then
 !         write(*,*)'3F Asking for nonexisting chemical potential'
          gx%bmperr=4171; goto 1000
       endif
-! iref=0 is default meaning SER, if iref<0 user user defined reference state
+! iref=0 is default meaning user defined reference state,
+! if iref<0 use SER as reference state, ignoring user defined reference state
+!
 ! If a component has a defined reference state that is in complist(indices(1))
-!      write(*,*)'3F Reference state: ',iref,ceq%complist(indices(1))%phlink
-!      write(*,*)'3F Reference state: ',iref
       if(iref.eq.0 .and. ceq%complist(indices(1))%phlink.ne.0) then
 !         write(*,*)'3F Reference state: ',indices(1),indices(2),&
 !              ceq%complist(indices(1))%phlink
 ! phlink is phase, endmember is enmember, tpref<0 means current T
 ! we should also have a stoichiometry factor ??
-         endmember(1)=indices(2)
+!         endmember(1)=indices(2)
          tsave=ceq%tpval(1)
          if(ceq%complist(indices(1))%tpref(1).gt.zero) then
 ! reference state is at a fixed T, negative tpref(1) means current T
@@ -2430,9 +2433,9 @@
 !              ceq%complist(indices(1))%phlink,&
 !              ceq%complist(indices(1))%endmember
          ic=ceq%complist(indices(1))%phlink
+         ic=phlista(ic)%alphaindex
 !         write(*,*)'3F refphase: ',indices(1),ic,phlista(indices(1))%alphaindex
 !         ic=phlista(indices(1))%alphaindex
-         ic=phlista(ic)%alphaindex
 ! the first index should be phase index, not location
 ! We may have to restore gval after this!!!
          call calcg_endmember(ic,ceq%complist(indices(1))%endmember,gref,ceq)
@@ -2444,12 +2447,14 @@
          rtn=globaldata%rgas*ceq%tpval(1)
          ceq%tpval(1)=tsave
          aref=ceq%complist(indices(1))%chempot(1)
-         value=ceq%complist(indices(1))%chempot(1)-gref*rtn
-!         write(*,513)'3F gref: ',indices(1),value,aref,gref*rtn,rtn
+!         value=ceq%complist(indices(1))%chempot(1)-gref*rtn
+         value=aref-gref*rtn
+!         write(*,513)'3F gref: ',indices(1),value/rtn,aref/rtn,gref,rtn
 513      format(a,i3,5(1pe14.6))
+         ceq%complist(indices(1))%chempot(2)=value
       else
-! this value should always be referenced to SER
-! the value in chempot(2) is probably redundant now
+! the value in chempot(1) should always be referenced to SER
+! the value in chempot(2) should always be for the user reference
          value=ceq%complist(indices(1))%chempot(1)
       endif
 !      write(*,*)'3F chempot: ',indices(1),&

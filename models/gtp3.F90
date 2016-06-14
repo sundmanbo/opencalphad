@@ -744,10 +744,10 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   INTEGER, parameter :: gtp_component_version=1
   TYPE gtp_components
 ! The components are simply an array of indices to species records
-! the components must be "orthogonal".  There is always a "systems components"
-! that by default is the elements.
-! Later one may implement that the user can define a different "system set"
-! and also specific sets for each phase.
+! the components must be "orthogonal".  There is always a set of "systems
+! components" that by default is the elements.
+! Later one may implement that the user can define a different "user set"
+! and maybe also specific sets for each phase.
 ! The reference state is set as a phase and value of T and P.
 ! The name of the phase and its link and the link to the constituent is stored
 ! the endmember array is for the reference phase to calculate GREF

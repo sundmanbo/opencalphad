@@ -1858,9 +1858,9 @@ end function find_phasetuple_by_indices
 ! I do not understand the code here any longer but this gave error
 ! as unallocated when I tried to ser reference state back to SER
          deallocate(ceq%complist(icomp)%endmember)
-      else
+!      else
 !         write(*,4)icomp,ceq%complist(icomp)%phlink
-4        format('3A This component has no previous reference state: ',2i4)
+!4        format('3A This component has no previous reference state: ',2i4)
       endif
       ceq%complist(icomp)%phlink=0
       ceq%complist(icomp)%tpref=zero
@@ -2006,6 +2006,7 @@ end function find_phasetuple_by_indices
    ceq%complist(icomp)%tpref=tpval
    ceq%complist(icomp)%refstate=phlista(lokph)%name
 ! restore original constitution of compset 1
+!   write(*,*)'3A gval: ',gval
 900 continue
    ceq%tpval=tpsave
    jerr=gx%bmperr; gx%bmperr=0

@@ -1425,7 +1425,7 @@ contains
           case(1) ! quit
              continue
 !............................................................
-! copied from 3045
+! begin code copied from 3045
           case(2) ! SET PHASE STATUS <phase> <status>
              if(iph.gt.0) then
                 j1=get_phase_status(iph,ics,text,i1,xxx,ceq)
@@ -1475,10 +1475,10 @@ contains
              else
                 write(kou,*)'New status set for all phases'
              endif
-! end copied from 3045
+! end code copied from 3045
 !............................................................
           case(3:4) !set phase default_constitution wildcard allod, also AMOUNT
-             write(*,*)'SET PHASE AMOUNT or DEFAULT_CONST',kom3,iph,ics
+!             write(*,*)'SET PHASE AMOUNT or DEFAULT_CONST',kom3,iph,ics
              if(kom3.eq.3) then
 ! set default constituntion of phase
 !                call set_default_constitution(iph,ics,ceq)

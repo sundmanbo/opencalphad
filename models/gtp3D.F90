@@ -2182,6 +2182,7 @@ end subroutine get_condition
    character cline*(*)
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
+   TYPE(gtp_state_variable), target :: svr1
    TYPE(gtp_state_variable), pointer :: svr
    TYPE(gtp_condition), pointer :: current,first,last
    character species*32,cval*16,statevar*4,condline*32
@@ -2192,7 +2193,7 @@ end subroutine get_condition
 ! repeat reading until empty line
 100 continue
    addval=zero
-   call gparc('Species amount as N(..) or B(...): ',&
+   call gparc('Species and amount as N(..)= or B(...)= : ',&
         cline,lpos,1,species,' ',q1help)
    call capson(species)
    statevar=species(1:1)
@@ -2208,7 +2209,7 @@ end subroutine get_condition
       endif
       cval=species(k+1:)
       species=species(3:k-1)
-!      write(*,*)'3D Species: ',species
+!      write(*,*)'3D Species: ',trim(species),' <',trim(cval),'> '
       if(index(species,',').gt.0 .or. index(species,'(').gt.0) then
          write(*,*)'Use only N(species) or B(species) in input amounts'
          goto 1000
@@ -2221,21 +2222,27 @@ end subroutine get_condition
 !   call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp)
    if(gx%bmperr.ne.0) goto 1000
 ! if user writes N(C)=2 the =2 will be in cval, if a space after = in cline
-   if(cval(1:2).eq.'= ') goto 200
-   goto 300
+   if(cval(1:1).eq.'=') goto 300
+!   goto 300
 200 continue
 ! the user can also give values without = or with a space before =
 ! but no space allowed after =
+!   write(*,*)'3D cline: ',trim(cline),lpos
    call gparc('Amount: ',cline,lpos,1,cval,' ',q1help)
 300 continue
    if(cval(1:1).eq.'=') cval(1:1)=' '
    ip=1
+!   write(*,*)'3D cval: ',trim(cval),ip
    call getrel(cval,ip,xval)
    if(buperr.ne.0) then
       write(*,*)'Amount must be a real number'
       goto 1000
    endif
+!   write(*,*)'3D xval: ',xval
 ! this return the internal code for N
+! BUG here as svr is no longer allocated in decode_state_variable to avoid
+! memory leaks
+  svr=>svr1
    call decode_state_variable('N ',svr,ceq)
    if(gx%bmperr.ne.0) then
       write(*,*)'Error decoding N in set_input_amounts'

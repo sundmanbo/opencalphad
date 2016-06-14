@@ -286,7 +286,7 @@ list short
 
 @$ Calculate the stable phase diagram
 
-set c t=2000 p=1e5 n=1 x(w)=.3
+set c t=4000 p=1e5 n=1 x(w)=.4
 
 c e
 
@@ -299,7 +299,7 @@ l r 2
 
 @&
 
-set ax 1 x(w) 0 1 .025
+set ax 1 x(w) 0 1 .01
 
 set ax 2 T 100 6000 25
 
@@ -311,7 +311,6 @@ plot
 title map 9 fig 1
 render
 
-@&
 
 @$ Calculate speciation in sigma across the whole diagram at 1000 K
 
@@ -333,7 +332,7 @@ l short
 
 @$ conditions not restored after map
 l c
-set c x(w)=.3
+set c x(w)=.3 t=2000
 
 
 @$ avoid using grid minimizer as that creates two composition sets

@@ -5,7 +5,7 @@
 !
 MODULE liboceq
 !
-! Copyright 2012-2015, Bo Sundman, France
+! Copyright 2012-2016, Bo Sundman, France
 !
 !    This program is free software; you can redistribute it and/or modify
 !    it under the terms of the GNU General Public License as published by
@@ -23,24 +23,17 @@ MODULE liboceq
 !
 !---------------------------
 !
-! To be implemented
+! To be implemented/improved
 ! - calculating dot derivatives (Cp, thermal expansion etc) PARTIALLY DONE
 ! - stability check (eigenvalues)
-! - fix bug with mass and mass fractions (done)
 ! - conditions for properties H, V, S etc. (partially done)
-! - expressions as conditions
+! - expressions as conditions (only for x)
 ! - calculate gridminimizer after equilibrium 
+! - cleanup the use of chemical potentials.  Can ceq%cmuval be removed??
 !
-! To be done later outside this module:
-! - step, map and plot (gnuplot) PARTIALLY DONE
-! - assessment module
-! 
   use general_thermodynamic_package
 !
-! This contains the general thermoynamic package and other things
-!  use hsl_for_oc
-!
-! For parallellization, also use in gtp3.F90
+! For parallellization, also used in gtp3.F90
   use omp_lib
 !
   implicit none
@@ -111,7 +104,10 @@ MODULE liboceq
 ! component numbers of fixed potentials, reference and value 
      integer, dimension(:), allocatable :: mufixel
      integer, dimension(:), allocatable :: mufixref
+! in this array the mu value as calculated from SER is stored
      double precision, dimension(:), allocatable :: mufixval
+! in this array the mu value for user defined reference state is stored
+     double precision, dimension(:), allocatable :: mufixvalref
 ! fix phases and amounts
      integer, dimension(:,:), allocatable :: fixph
      double precision, dimension(:), allocatable :: fixpham
@@ -453,9 +449,11 @@ CONTAINS
 !            noel()-cmix(2),meqrec%maxphases
     meqrec%nfixmu=np
     if(np.gt.0) then 
+! number of fixed chemical potentials
        allocate(meqrec%mufixel(np))
        allocate(meqrec%mufixref(np))
        allocate(meqrec%mufixval(np))
+       allocate(meqrec%mufixvalref(np))
        if(np.gt.1) then
 ! sort components with fix MU in increasing order to simplify below
           call sortin(mufixel,np,oldorder)
@@ -464,6 +462,7 @@ CONTAINS
              meqrec%mufixel(mjj)=nvf
              meqrec%mufixref(mjj)=mufixref(oldorder(mjj))
              meqrec%mufixval(mjj)=yarr(oldorder(mjj))
+             meqrec%mufixvalref(mjj)=yarr(oldorder(mjj))
 ! copy fixed chemical potential (divided by RT) to ceq%cmuval also
              ceq%cmuval(nvf)=yarr(oldorder(mjj))
 ! in the component records multiply with RT
@@ -474,6 +473,7 @@ CONTAINS
           meqrec%mufixel(1)=nvf
           meqrec%mufixref(1)=mufixref(1)
           meqrec%mufixval(1)=yarr(1)
+          meqrec%mufixvalref(1)=yarr(1)
 ! also copy fixed chemical potential to ceq%cmuval
           ceq%cmuval(nvf)=yarr(1)
           ceq%complist(nvf)%chempot(1)=ceq%cmuval(nvf)*ceq%rtn
@@ -814,7 +814,7 @@ CONTAINS
     integer kph,minrem,mph,nip,nochange,zap,toomanystable,jrem,krem,inmap
     double precision, parameter :: ylow=1.0D-3
     double precision, parameter :: addedphase_amount=1.0D-2
-    double precision xxx
+    double precision xxx,tpvalsave(2)
     integer iremsave,zz,tupadd,tuprem,samephase
 ! replace always FALSE except when we must replace a phase as we have max stable
     logical replace
@@ -918,34 +918,45 @@ CONTAINS
 ! set link to calculated values of G etc.
              call get_phase_compset(iph,ics,lokph,lokcs)
              meqrec%phr(mph)%curd=>ceq%phase_varres(lokcs)
-             if(iph.eq.meqrec%iphl(nip) .and. ics.eq.meqrec%icsl(nip)) then
+! causing trouble at line 3175 ???
+             if(nip.le.meqrec%nv) then
+                if(iph.eq.meqrec%iphl(nip) .and. ics.eq.meqrec%icsl(nip)) then
 ! this phase is part of the initial stable set, increment nstph
-                meqrec%nstph=meqrec%nstph+1
-                meqrec%stphl(meqrec%nstph)=mph
-                meqrec%phr(mph)%stable=1
-                if(meqrec%phr(mph)%phasestatus.eq.PHFIXED) then
+                   meqrec%nstph=meqrec%nstph+1
+                   meqrec%stphl(meqrec%nstph)=mph
+                   meqrec%phr(mph)%stable=1
+                   if(meqrec%phr(mph)%phasestatus.eq.PHFIXED) then
 ! Rather confused here ...
 ! fixed phases as conditions have an amount in meqrec%fixpham
 ! fixed phases during mapping should have zero amount
 !                   krem=krem+1
 !                   write(*,*)'aphl for fix phase: ',krem,mph,&
 !                        meqrec%fixpham(krem)
-                   if(meqrec%phr(mph)%curd%phstate.ne.PHFIXED) then
+                      if(meqrec%phr(mph)%curd%phstate.ne.PHFIXED) then
 ! this is a phase set fix by mapping, set amount to zero
-                      meqrec%phr(mph)%curd%amfu=zero
+                         meqrec%phr(mph)%curd%amfu=zero
 !                   else
 ! phases set fix by user have their amount in meqrec%phr(mph)%curd%amfu 
 !                      write(*,*)'User set fixed phase:',mph,&
 !                           meqrec%phr(mph)%curd%amfu
+                      endif
+                   else
+                      meqrec%phr(mph)%curd%amfu=meqrec%aphl(meqrec%nstph)
                    endif
-                else
-                   meqrec%phr(mph)%curd%amfu=meqrec%aphl(meqrec%nstph)
-                endif
 ! set "previous values"
-                meqrec%phr(mph)%prevam=meqrec%aphl(meqrec%nstph)
-                meqrec%phr(mph)%prevdg=zero
-                nip=nip+1
+                   meqrec%phr(mph)%prevam=meqrec%aphl(meqrec%nstph)
+                   meqrec%phr(mph)%prevdg=zero
+                   nip=nip+1
+                else
+! unstable phase
+                   meqrec%phr(mph)%stable=0
+                   meqrec%phr(mph)%prevam=zero
+                   meqrec%phr(mph)%prevdg=-one
+                   meqrec%phr(mph)%curd%amfu=zero
+                endif
              else
+!                write(*,312)'MM nip: ',nip,meqrec%nv
+!312             format(a,5i4)
 ! unstable phase
                 meqrec%phr(mph)%stable=0
                 meqrec%phr(mph)%prevam=zero
@@ -1269,11 +1280,28 @@ CONTAINS
        goto 1200
     endif
 ! try to find problem with listed chemical potential    
-! chempot(2) should be value with user defined reference state, has
-! to be implemented ...
+! chempot(2) should be value with user defined reference state,
     do jj=1,meqrec%nrel
-       ceq%complist(jj)%chempot(2)=ceq%complist(jj)%chempot(1)
+       xxx=zero
+       iph=ceq%complist(jj)%phlink
+       if(iph.gt.0) then
+! we must also handle reference state at fix T !!
+          tpvalsave=ceq%tpval
+          call calcg_endmember(iph,ceq%complist(jj)%endmember,xxx,ceq)
+          if(gx%bmperr.ne.0) then
+             write(*,68)'MM error calculating reference state',gx%bmperr,&
+                  iph,jj,xxx,tpvalsave(1),ceq%complist(jj)%endmember
+68           format(a,3i5,2(1pe12.4),2x,10i3)
+             ceq%tpval=tpvalsave
+             stop
+             goto 1000
+          endif
+       endif
+       ceq%complist(jj)%chempot(2)=ceq%complist(jj)%chempot(1)+xxx*ceq%rtn
     enddo
+!    write(*,37)'mu1: ',(ceq%complist(jj)%chempot(1),jj=1,meqrec%nrel)
+!    write(*,37)'mu2: ',(ceq%complist(jj)%chempot(2),jj=1,meqrec%nrel)
+37  format(a,6(1pe12.4))
 !-------------
     if(.not.formap) then
 ! if called during mapping keep phr
@@ -1499,6 +1527,7 @@ CONTAINS
        if(notf.le.meqrec%nfixmu) then
           if(ik.eq.meqrec%mufixel(notf)) then
 ! this potential is fixed, no incrementing "iz", ceq%cmuval(ik) is a condition
+             ceq%complist(ik)%chempot(1)=meqrec%mufixval(1)*ceq%rtn
              notf=notf+1
              cycle setmu
           endif
@@ -1510,6 +1539,8 @@ CONTAINS
           converged=7
        endif
        ceq%cmuval(ik)=svar(iz)
+! svar(iz) is mu/RT, chemput is mu
+       ceq%complist(ik)%chempot(1)=svar(iz)*ceq%rtn
        iz=iz+1
     enddo setmu
     ioff=meqrec%nrel-meqrec%nfixmu+1
@@ -1730,6 +1761,13 @@ CONTAINS
 !
     if(vbug) write(*,*)'finished updating phase amounts: ',&
          meqrec%noofits,phasechangeok,irem
+!    if(meqrec%nfixmu.gt.0) then
+!       write(*,33)'mu1: ',(ceq%cmuval(nj),nj=1,meqrec%nrel)
+!       write(*,33)'mu2: ',(ceq%complist(nj)%chempot(1),nj=1,meqrec%nrel)
+!       write(*,33)'mu3: ',(ceq%complist(nj)%chempot(2),nj=1,meqrec%nrel)
+!       write(*,33)'mu4: ',(svar(nj),nj=1,meqrec%nrel)
+!33     format(a,6(1pe12.4))
+!    endif
 !-------------------------------------------------------
 ! After solving the equil matrix and updating the chemical potentials,
 ! the phase amounts and possibly T and P we correct constitions of all phases
@@ -1847,7 +1885,10 @@ CONTAINS
 ! ceq%cmuval(nl) is the chemical potential of element nl (divided by RT)
 ! phr(jj)%dxmol(nl,nk) is the derivative of component nl
 ! wrt constituent nk
-                pv=pv+ceq%cmuval(nl)*phr(jj)%dxmol(nl,nk)
+!                write(*,*)'ycorr: ',nl,ceq%complist(nl)%chempot(1)/ceq%rtn
+                pv=pv+ceq%complist(nl)%chempot(1)/ceq%rtn*phr(jj)%dxmol(nl,nk)
+!                pv=pv+ceq%cmuval(nl)*phr(jj)%dxmol(nl,nk)
+!                pv=pv+svar(nl)*phr(jj)%dxmol(nl,nk)
              enddo
              pv=pv-phr(jj)%curd%dgval(1,nk,1)
              ys=ys+phr(jj)%invmat(nj,nk)*pv
@@ -1909,6 +1950,7 @@ CONTAINS
                 endif
              elseif(converged.lt.4) then
 ! large correction in fraction of constituent fraction of stable phase
+!                write(*,*)'mm converged 4A: ',jj,nj,ys
                 converged=4
                 yss=ys
                 yst=phr(jj)%curd%yfr(nj)
@@ -2125,7 +2167,9 @@ CONTAINS
             irem,iadd,0,phf,dgmmax
        goto 1100
     endif
+!--------------------------------------------------------------------
 !    write(*,*)'Iterations and convergence: ',meqrec%noofits,converged
+!--------------------------------------------------------------------
     if(vbug) write(*,*)'Convergence criteria: ',converged
 ! converged=1 or 2 means constituent fraction in metastable phase not converged
 !    write(*,*)'Convergence criteria: ',converged
@@ -2442,11 +2486,11 @@ CONTAINS
     TYPE(meq_phase), pointer :: pmi
 ! cmix dimensioned for 2 terms ...
     integer cmix(10),cmode,stvix,stvnorm,sel,sph,scs,jph,jj,ie,je,ke,ncol
-    integer notf,nz2,nrow,nterms,mterms,moffs,ncol2,mubug
+    integer notf,nz2,nrow,nterms,mterms,moffs,ncol2,lokph,iph
     double precision cvalue,totam,pham,mag,mat,map,xxx,zval,xval,ccf(5),evalue
 ! the next line of values are a desperate search for a solution
     double precision totalmol,totalmass,check1,check2,amount,mag1,mat1,map1
-    double precision hmval
+    double precision hmval,gref,tpvalsave(2)
     double precision, dimension(:), allocatable :: xcol,mamu,mamu1,zcol,qmat
     double precision, allocatable :: xxmm(:),wwnn(:),hval(:)
     logical :: vbug=.FALSE.,calcmolmass,notdone
@@ -2519,15 +2563,46 @@ CONTAINS
        ncol=1
        xxx=zero
        gloop: do je=1,meqrec%nrel
-          do ie=1,meqrec%nfixmu
-             if(meqrec%mufixel(ie).eq.je) then
-! meqrec%mufixel(ie) is the component number with fix chemical potential
+          do ke=1,meqrec%nfixmu
+             if(meqrec%mufixel(ke).eq.je) then
+! meqrec%mufixel(ke) is the component number with fix chemical potential
 ! UNFINISHED: reference state must be handelled (may depend on T) ??
+!
+!---------------------------------------------------------
+! handling of user defined reference states for components
+                iph=ceq%complist(je)%phlink
+                if(iph.gt.0) then
+! lokph is index of phase record, to get phase index use phlink ....
+!                   iph=ceq%phase_varres(lokph)%phlink
+!                   write(*,34)'MM refst: ',je,ke,iph,ceq%complist(je)%endmember
+34                 format(a,3i4,4x,10i3)
+! we must also handle reference state at fix T !!
+                   tpvalsave=ceq%tpval
+                   call calcg_endmember(iph,ceq%complist(je)%endmember,&
+                        gref,ceq)
+                   if(gx%bmperr.ne.0) then
+                      write(*,*)'MM error calculating reference state'
+                      ceq%tpval=tpvalsave
+                      goto 1000
+                   endif
+! this is only place where we need to use %mufixvalref
+! mufixval should be referred to SER, mufixvalref prescribed value for user ref
+                   meqrec%mufixval(ke)=meqrec%mufixvalref(ke)+gref
+!                   write(*,35)'MM gref: ',ke,meqrec%mufixvalref(ke),gref,&
+!                        meqrec%mufixval(ke)
+35                 format(a,i3,6(1pe12.4))
+! also copy to cmuval !!?? YES !!!
+                   ceq%cmuval(je)=meqrec%mufixval(ke)
+!                else
+!                   write(*,*)'No userdefined reference state'
+                endif
+!---------------------------------------------------------
+!
                 xxx=smat(jph,nz2)
                 smat(jph,nz2)=smat(jph,nz2)-&
-                     phr(jj)%xmol(je)*meqrec%mufixval(ie)
-!                write(*,312)'fix mu G: ',jj,je,ie,xxx,smat(jph,nz2),&
-!                     phr(jj)%xmol(je),meqrec%mufixval(ie)
+                     phr(jj)%xmol(je)*meqrec%mufixval(ke)
+!                write(*,312)'fix mu G: ',jj,je,ke,xxx,smat(jph,nz2),&
+!                     phr(jj)%xmol(je),meqrec%mufixval(ke)
 312             format(a,3i3,6(1pe12.4))
                 cycle gloop
              endif
@@ -2731,7 +2806,7 @@ CONTAINS
 !                      write(*,102)'fix mu H6:',nz2,ie,pham,&
 !                           meqrec%mufixval(ke),mamu1(ie),&
 !                           pham*meqrec%mufixval(ke)*mamu1(ie),xcol(nz2)
-!102                   format(a,2i3,6(1pe12.4))
+102                   format(a,2i3,6(1pe12.4))
                       cycle hallel
                    endif
                 enddo
@@ -3276,7 +3351,6 @@ CONTAINS
 ! LOOP FOR ALL PHASES (why not all stable??)
 ! dncol+notf indicate column for the amount of phases with variable amount
           notf=0
-          mubug=0
 !          xallph: do jph=1,meqrec%nstph
 !             jj=meqrec%stphl(jph)
 ! sum over all phases to handle conditions like x(phase#set,A)=fix
@@ -6381,8 +6455,9 @@ CONTAINS
 ! USE values in svar(nl)
 ! phr(jj)%dxmol(nl,nk) is the derivative of component nl
 ! wrt constituent nk
+             pv=pv+ceq%complist(nl)%chempot(1)/ceq%rtn*phr(jj)%dxmol(nl,nk)
 !             pv=pv+ceq%cmuval(nl)*phr(jj)%dxmol(nl,nk)
-             pv=pv+svar(nl)*phr(jj)%dxmol(nl,nk)
+!             pv=pv+svar(nl)*phr(jj)%dxmol(nl,nk)
           enddo
           pv=pv-phr(jj)%curd%dgval(1,nk,1)
           ys=ys+phr(jj)%invmat(nj,nk)*pv
@@ -6403,6 +6478,7 @@ CONTAINS
 ! if the change in any constituent fraction larger than xconv continue iterate
           if(converged.lt.4) then
 ! large correction in fraction of constituent fraction of stable phase
+!             write(*,*)'mm converged 4B: ',jj,nj,ys
              converged=4
 !             yss=ys
 !             yst=phr(jj)%curd%yfr(nj)
@@ -6588,11 +6664,12 @@ CONTAINS
           pv=zero
           do nl=1,meqrec%nrel
 ! ceq%cmuval(nl) is the chemical potential of element nl (divided by RT)
-! USE values in svar(nl)
+! When a chemical potential is fixed use meqrec%mufixval
 ! phr(jj)%dxmol(nl,nk) is the derivative of component nl
 ! wrt constituent nk
+             pv=pv+ceq%complist(nl)%chempot(1)/ceq%rtn*phr(jj)%dxmol(nl,nk)
 !             pv=pv+ceq%cmuval(nl)*phr(jj)%dxmol(nl,nk)
-             pv=pv+svar(nl)*phr(jj)%dxmol(nl,nk)
+!             pv=pv+svar(nl)*phr(jj)%dxmol(nl,nk)
           enddo
           pv=pv-phr(jj)%curd%dgval(1,nk,1)
           ys=ys+phr(jj)%invmat(nj,nk)*pv
@@ -6613,6 +6690,7 @@ CONTAINS
 ! if the change in any constituent fraction larger than xconv continue iterate
           if(converged.lt.4) then
 ! large correction in fraction of constituent fraction of stable phase
+!             write(*,*)'mm converged 4C: ',jj,nj,ys
              converged=4
 !             yss=ys
 !             yst=phr(jj)%curd%yfr(nj)

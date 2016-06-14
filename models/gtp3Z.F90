@@ -167,6 +167,8 @@
       tpfuns(ifri)%noofranges=0
       tpfuns(ifri)%status=0
       tpfuns(ifri)%forcenewcalc=0
+! should also be initiallized ??
+      tpres(ifri)%forcenewcalc=0
    enddo
    tpfuns(nf)%nextfree=-1
    return
@@ -2154,13 +2156,14 @@
 
 !\begin{verbatim} %-
  subroutine below_t0_calc(t0,tpval,fun)
-! calculates exp(20(1-t/t0))/(1+exp(20(1-t/t0))
+! calculates exp(20(1-t/t0))/(1+exp(20(1-t/t0)))
 ! At t<<t0 K function is unity, at t>>t0 function is zero
    implicit none
    double precision t0,tpval(2),fun(6)
 !\end{verbatim} %+
    double precision arg,expa
    double precision, parameter :: ffix=2.0D1
+!   double precision, parameter :: ffix=1.0D2
    if(t0.le.zero) then
       write(*,*)'temperature breakpoint below zero'
       goto 1000
@@ -2177,6 +2180,25 @@
    fun(3)=zero
    fun(5)=zero
    fun(6)=zero
+   goto 1000
+! failed tries ....
+   expa=exp(-arg)
+   fun(1)=one/(one+expa)
+!   write(*,*)'3Z expa: ',expa,fun(1)
+   fun(2)=ffix/t0*expa/(one+expa)**2
+   fun(3)=zero
+   fun(4)=(ffix/t0)**2*(one-2.0D0*expa/(one+expa))*expa/(one+expa)**2
+   fun(5)=zero
+   fun(6)=zero
+   if(tpval(1).le.t0) then
+      fun(1)=one
+      fun(2)=one
+      fun(3)=one
+   else
+      fun(1)=zero
+      fun(2)=zero
+      fun(3)=zero
+   endif
 1000 continue
    return
  end subroutine below_t0_calc

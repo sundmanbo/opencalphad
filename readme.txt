@@ -7,13 +7,17 @@ Please read the readme-general.pdf for more general information.
 The installation and use of OC requires some general knowledge about
 compilation and linking of software.  If you are not familiar with
 such procedures please ask a local guru.  We who are providing this
-softwsre do not have time to answer such questions.  
+software do not have time to answer such questions.  
 
 If you want a thermodynamic software that can install itself and do
 not require any understanding of thermodynamics please conact a
 commercial vendor.
 
 In the list below the most recent changes come first.
+
+2016.06.14 Most of the problems setting conditions on chemical
+potentials in combination with other conditions should now be solved.
+Including that one can set a reference state.
 
 2016.06.07 Some development for new STEP/MAP routines made but no real
 improvements.  Fixed a bug setting chemical potentials together with

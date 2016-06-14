@@ -2293,14 +2293,14 @@
 !\end{verbatim} %+
    integer ierr,kk0,ll,lokres,nsl,lokph
    integer nkl(maxsubl),knr(maxconst)
-   double precision savey(maxconst),sites(maxsubl),qq(5),yfra(maxconst)
-   double precision saveg(6)
+   double precision savey(maxconst),sites(maxsubl),yfra(maxconst)
+   double precision qq(5),saveg(6)
 !
    call get_phase_data(iph,1,nsl,nkl,knr,savey,sites,qq,ceq)
    if(gx%bmperr.ne.0) goto 1100
 ! set constitution to be just the endmember
 ! It is difficult to make this simpler as one can have magnetic contributions
-! to G, this it is not suffiecient jyst to calculate the G function, one must
+! to G, this it is not sufficient just to calculate the G function, one must
 ! calculate TC etc.
    yfra=zero
    kk0=0
@@ -2315,7 +2315,7 @@
       endif
       kk0=kk0+nkl(ll)
    enddo
-!   write(*,17)'set: ',kk0,(yfra(i),i=1,kk0)
+!   write(*,17)'set: ',kk0,(yfra(ll),ll=1,kk0)
 17 format(a,i3,5(1pe12.4))
    call set_constitution(iph,1,yfra,qq,ceq)
    if(gx%bmperr.ne.0) goto 1000
@@ -2330,9 +2330,10 @@
    enddo
    call calcg(iph,1,0,lokres,ceq)
    if(gx%bmperr.ne.0) goto 1000
-   if(qq(1).ge.1.0D-3) then
+!   if(qq(1).ge.1.0D-3) then
+   if(qq(1).ge.1.0D-2) then
 ! avoid calculating endmembers with too many vacancies. gval is divided by RT
-      gval=real(ceq%phase_varres(lokres)%gval(1,1)/qq(1))
+      gval=ceq%phase_varres(lokres)%gval(1,1)/qq(1)
 !      write(*,*)'gval: ',gval,qq(1)
    else
 !      write(*,*)'End member has no atoms'
