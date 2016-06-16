@@ -2315,7 +2315,7 @@
       endif
       kk0=kk0+nkl(ll)
    enddo
-!   write(*,17)'set: ',kk0,(yfra(ll),ll=1,kk0)
+!   write(*,17)'3Y set: ',kk0,(yfra(ll),ll=1,kk0)
 17 format(a,i3,5(1pe12.4))
    call set_constitution(iph,1,yfra,qq,ceq)
    if(gx%bmperr.ne.0) goto 1000
@@ -2339,20 +2339,17 @@
 !      write(*,*)'End member has no atoms'
       gx%bmperr=4161; goto 1000
    endif
-! restore gval
-   do ll=1,6
-      ceq%phase_varres(lokres)%gval(ll,1)=saveg(ll)
-   enddo
 1000 continue
    ierr=gx%bmperr
    if(gx%bmperr.ne.0) gx%bmperr=0
 ! restore constitution and gval!!!
 !   write(*,17)'res: ',kk0,(savey(i),i=1,kk0)
+   do ll=1,6
+      ceq%phase_varres(lokres)%gval(ll,1)=saveg(ll)
+   enddo
    call set_constitution(iph,1,savey,qq,ceq)
    if(gx%bmperr.ne.0) then
-      if(ierr.ne.0) then
-         write(*,*)'Double errors in calcg_endmember: ',ierr,gx%bmperr
-      endif
+      write(*,*)'3Y Error resetting constitution: ',ierr,gx%bmperr
    endif
 ! return first error if any
    if(ierr.ne.0) gx%bmperr=ierr

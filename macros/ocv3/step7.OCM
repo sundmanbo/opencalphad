@@ -1,4 +1,4 @@
-@$ Calculate phass fractions and other property diagrams for SAF2507
+@$ Calculate phase fractions and other property diagrams for SAF2507
 @&
 
 set echo
@@ -29,6 +29,7 @@ plot
 title step 7 fig 1
 render
 
+@& save plot
 plot
 
 
@@ -63,6 +64,7 @@ render
 plot
 w(n)
 prefcc
+position off
 title step 7 fig 4
 
 plot

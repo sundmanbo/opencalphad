@@ -17,7 +17,8 @@ In the list below the most recent changes come first.
 
 2016.06.14 Most of the problems setting conditions on chemical
 potentials in combination with other conditions should now be solved.
-Including that one can set a reference state.
+It is also possible to set a reference state.  There is a new macro
+file for testing this.
 
 2016.06.07 Some development for new STEP/MAP routines made but no real
 improvements.  Fixed a bug setting chemical potentials together with

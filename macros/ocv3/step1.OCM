@@ -5,11 +5,10 @@ set echo
 
 r t steel1
 
-@$------------------------------------------------------
-@&
-set c t=1200 p=1e5 n=1 w(c)=.009 w(cr)=.045, w(mo)=.1 w(si)=.001 w(v)=.009
+set c t=1200 p=1e5 n=1 w(c)=.009 w(cr)=.045, w(mo)=.1,w(si)=.001 w(v)=.009
 
 @$ Enter a composition set for the MC carbide (FCC)
+@$ This is convenient to specify an additional pre/suffix 
 amend phase fcc comp_set y MC ,
 NONE
 <.1
@@ -19,8 +18,6 @@ NONE
 >.5
 <.2
 
-@$------------------------------------------------------
-@&
 @$ Set the default constitution for the FCC to be austenite
 amend phase fcc default
 <.2
@@ -41,51 +38,52 @@ NONE
 >.5
 <.2
 
-@$------------------------------------------------------
+@$ We will later plot the heat capacity, enter this as a
+@$ "dot derivative"
+ent sym cp=hm.t;
+
 @&
-@$ Finally calculate the equilibrium
+@$--------------------------------------------------------
 
 c e
 
 l r 1
 
-@$------------------------------------------------------
+@$ Note that there are two FCC phases and the second, 
+@$ with prefix MC, is a cubic carbide with mainly VC
 @&
-@$ List with mass fractions
+@$--------------------------------------------------------------
 
 l r 4
 
-@$------------------------------------------------------
+@$ list the results using mass fractions
 @&
-@$ Set an axis for a propery diagram
 
 set axis 1 T 800 1800 10
 
 l ax
 
-@$------------------------------------------------------
 @&
-@$ Calculate equilibria along the axis
 
 step
 
 
-@$------------------------------------------------------
+
+
+@$ The stepping gives a lot of output as it is still fragile
 @&
+@$---------------------------------------------------------
 
 l line
 
-@$ listing of the stored equilibria
-@$------------------------------------------------------
+@$ Listing of all equilibria calculated by step
 @&
 
 l eq
 
-@$ listing of the node points with phase changes
-@$------------------------------------------------------
+@$ list of all node points with phase changes
 @&
-@$ Plot a phase fraction diagram
-
+@$ Plot the phase amounts
 plot
 T
 NP(*)
@@ -94,8 +92,7 @@ step 1 fig 1
 render
 
 
-@$------------------------------------------------------
-@$ move the line identification out of the plot
+@$ move the line identification outside the plot
 plot
 
 
@@ -104,36 +101,30 @@ position outside right
 title step 1 fig 2
 render
 
-@$------------------------------------------------------
-@$ Plot the Cr content in the stable phases
+
+@$ Plot the Cr content in all stable phases
 plot
 T
 w(*,cr)
 title step 1 fig 3
 render
 
-@$ Plot the enthalpy content
+@$ Plot the enthalpy variation
 plot
 T
 H
 title step 1 fig 4
 render
 
-@$------------------------------------------------------
-@$ Enter a function for the heat capacity and plot it
-ent sym cp=hm.t;
 
-
-
+@$ Plot the heat capacity
 plot
 T
 cp
 title step 1 fig 5
 render
 
-@$------------------------------------------------------
-@$ The Cp is negative as I do not save the endpoint equilibria correctly
-@$ change the range (scaling) of y axis
+@$ scaling of y axis
 
 plot
 T
@@ -145,6 +136,8 @@ N
 title step 1 fig 6
 render
 
+@$ The plotted cp include latent heat
+@$ The negative heat capcities is a bug calculating the cp function
 
 set inter
 

@@ -82,7 +82,7 @@ set c H
 set c N=none
 
 c e
-l,,,,,
+l r 1
 
 @$ We have the same quilibrium with different conditions
 @$ -------------------------------------------------------------

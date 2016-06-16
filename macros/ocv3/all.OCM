@@ -7,6 +7,13 @@ set echo
 mac unary
 
 @$ *********************************************************
+@$ Test setting various conditions for a C-Cr-Fe system
+@& *********************************************************
+
+new Y
+mac testcond1
+
+@$ *********************************************************
 @$ Equilibria and melting T of a 6 component high speed steel (HSS)
 @& *********************************************************
 

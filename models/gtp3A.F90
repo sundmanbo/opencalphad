@@ -1983,10 +1983,12 @@ end function find_phasetuple_by_indices
    endif
 !----------------------------------------------
    if(noendm.eq.0) then
-! if no endmember found this phase cannt be reference phase
+! if no endmember found this phase cannot be reference phase
       write(*,*)'This phase cannot be reference state for for this component'
       gx%bmperr=7777; goto 900
    endif
+! mark that conditions and equilibrium may not be consistent
+   ceq%status=ibset(ceq%status,EQINCON)
 ! endmemx and endmemxy redundant
 !   write(*,808)'3G reference state endmember',lokph,endmemxy,jendsave
 808 format(a,i3,2x,10i3)

@@ -193,11 +193,11 @@ CONTAINS
 ! For example to ensure a fcc-carbonitrides is always the same compset.
        ij=1
        call todo_after_found_equilibrium(ij,ceq)
-    else
-       write(*,1020)gx%bmperr
-1020   format('Error return from equilibrium calculation ',i5)
+!    else
+!       write(*,1020)gx%bmperr
+!1020   format('Error return from equilibrium calculation ',i5)
     endif
-! memory leak 2
+! maybe memory leak 2
     deallocate(meqrec)
     return
   end subroutine calceq2
@@ -380,6 +380,8 @@ CONTAINS
        if(ocv()) write(*,*)'check condition'
        call apply_condition_value(condition,cmode,cvalue,cmix,ccf,ceq)
        if(gx%bmperr.ne.0) goto 1000
+!       write(*,71)'MM apply 1: ',cmode,cvalue,cmix,ccf(1)
+71     format(a,i3,1pe14.4,10i4/5(1pe12.4))
 ! cmix(1)=0 for inactive conditions
 ! cmix(1)=1 fix T, =2, fix P, =3 fix MU/AC/LNAC, =4 fix phase, =5 anything else
 ! if condition on T, P, potential or fix phase reduce maxsph
@@ -1153,13 +1155,13 @@ CONTAINS
                 krem=jrem
                 irem=jrem
                 if(.not.btest(meqrec%status,QUIET)) &
-                     write(*,240)meqrec%noofits,irem,iadd,ceq%tpval(1)
+                     write(*,241)meqrec%noofits,irem,iadd,ceq%tpval(1)
 241             format('Too many stable phases at iter ',i3,', phase ',i3,&
                      ' replaced by ',i3,', T= ',F8.2)
 !                write(*,240)meqrec%noofits,irem,iadd,ceq%tpval(1),&
 !                     (meqrec%stphl(iph),iph=1,meqrec%nstph)
-240             format('Too many stable phases at iter ',i3,', phase ',i3,&
-                     ' replaced by ',i3,', T= ',F8.2/3x,15(i3))
+!240             format('Too many stable phases at iter ',i3,', phase ',i3,&
+!                     ' replaced by ',i3,', T= ',F8.2/3x,15(i3))
                 replace=.TRUE.
                 goto 222             
              else
@@ -1236,7 +1238,8 @@ CONTAINS
              meqrec%phr(jj)%curd%status2=&
                   ibset(meqrec%phr(jj)%curd%status2,CSABLE)
 ! the stable phase list should be ordered in increasing phase number
-             kk=kk+1
+             kk=min(kk+1,meqrec%nstph)
+!             write(*,*)'mm max kk: ',kk,meqrec%nstph
           else
              meqrec%phr(jj)%curd%status2=&
                   ibclr(meqrec%phr(jj)%curd%status2,CSABLE)
@@ -1281,24 +1284,29 @@ CONTAINS
     endif
 ! try to find problem with listed chemical potential    
 ! chempot(2) should be value with user defined reference state,
-    do jj=1,meqrec%nrel
-       xxx=zero
-       iph=ceq%complist(jj)%phlink
-       if(iph.gt.0) then
+    if(gx%bmperr.eq.0) then
+       do jj=1,meqrec%nrel
+          xxx=zero
+          iph=ceq%complist(jj)%phlink
+          if(iph.gt.0) then
 ! we must also handle reference state at fix T !!
-          tpvalsave=ceq%tpval
-          call calcg_endmember(iph,ceq%complist(jj)%endmember,xxx,ceq)
-          if(gx%bmperr.ne.0) then
-             write(*,68)'MM error calculating reference state',gx%bmperr,&
-                  iph,jj,xxx,tpvalsave(1),ceq%complist(jj)%endmember
-68           format(a,3i5,2(1pe12.4),2x,10i3)
-             ceq%tpval=tpvalsave
-             stop
-             goto 1000
+             tpvalsave=ceq%tpval
+             call calcg_endmember(iph,ceq%complist(jj)%endmember,xxx,ceq)
+             if(gx%bmperr.ne.0) then
+                write(*,68)'MM error calculating reference state',gx%bmperr,&
+                     iph,jj,xxx,tpvalsave(1),ceq%complist(jj)%endmember
+68              format(a,3i5,2(1pe12.4),2x,10i3)
+                ceq%tpval=tpvalsave
+                stop
+                goto 1000
+             endif
           endif
-       endif
-       ceq%complist(jj)%chempot(2)=ceq%complist(jj)%chempot(1)+xxx*ceq%rtn
-    enddo
+          ceq%complist(jj)%chempot(2)=ceq%complist(jj)%chempot(1)+xxx*ceq%rtn
+       enddo
+    else
+       write(*,69)'Unable to calculate reference states due to errors'
+69     format(a)
+    endif
 !    write(*,37)'mu1: ',(ceq%complist(jj)%chempot(1),jj=1,meqrec%nrel)
 !    write(*,37)'mu2: ',(ceq%complist(jj)%chempot(2),jj=1,meqrec%nrel)
 37  format(a,6(1pe12.4))
@@ -1641,8 +1649,10 @@ CONTAINS
           if(ioff.gt.size(svar)) then
 ! error here calculating Fe-Si-C with 2 phases set fix zero
 ! setting w(si)=w(c)=none and fix T; should have w(si) fix and T=none
-             write(*,*)'Too many phases with variable amount',ioff,size(svar)
-             gx%bmperr=7777; goto 1000
+             write(*,42)'Too many phases with variable amount',ioff,size(svar),&
+                  meqrec%nstph,phr(jj)%iph
+42           format(a,10i4)
+            gx%bmperr=6666; goto 1000
           endif
           deltaam=svar(ioff)
 ! Sigli convergence problem, bad guess of start amount of phases??
@@ -1886,6 +1896,9 @@ CONTAINS
 ! phr(jj)%dxmol(nl,nk) is the derivative of component nl
 ! wrt constituent nk
 !                write(*,*)'ycorr: ',nl,ceq%complist(nl)%chempot(1)/ceq%rtn
+!                write(*,612)'MM y1: ',nk,nl,&
+!                     ceq%complist(nl)%chempot(1)/ceq%rtn,ceq%cmuval(nl)
+612             format(a,2i4,6(1pe12.4))
                 pv=pv+ceq%complist(nl)%chempot(1)/ceq%rtn*phr(jj)%dxmol(nl,nk)
 !                pv=pv+ceq%cmuval(nl)*phr(jj)%dxmol(nl,nk)
 !                pv=pv+svar(nl)*phr(jj)%dxmol(nl,nk)
@@ -1962,8 +1975,15 @@ CONTAINS
                 ysmm=abs(ycorr(nj))
                 ysmt=phr(jj)%curd%yfr(nj)
              endif
+! check if the change in any fraction is larger than the fraction ...
+             if(ycorr(nj).gt.phr(jj)%curd%yfr(nj)) then
+!                write(*,612)'MM y2: ',jj,nj,ycorr(nj),phr(jj)%curd%yfr(nj)
+                if(converged.lt.4) converged=4
+             endif
           endif
+! why jump to 77??
           goto 77
+          write(*,*)'At jump to 77',ys
 !-----------------------------------------------------------
 ! fetch constituent fractions directly from phase_varres record
           yprev=phr(jj)%curd%yfr(nj)
@@ -2566,7 +2586,7 @@ CONTAINS
           do ke=1,meqrec%nfixmu
              if(meqrec%mufixel(ke).eq.je) then
 ! meqrec%mufixel(ke) is the component number with fix chemical potential
-! UNFINISHED: reference state must be handelled (may depend on T) ??
+! DONE: UNFINISHED: reference state must be handelled (may depend on T) ??
 !
 !---------------------------------------------------------
 ! handling of user defined reference states for components
@@ -2664,6 +2684,8 @@ CONTAINS
 !    write(*,*)'MM calling apply',condition%noofterms
     call apply_condition_value(condition,cmode,cvalue,cmix,ccf,ceq)
     if(gx%bmperr.ne.0) goto 1000
+!    write(*,71)'MM apply 2: ',cmode,cvalue,cmix,ccf(1)
+71  format(a,i3,1pe12.4,10i4,1pe12.4,1x,4F4.2)
 !    if(condition%noofterms.gt.1) write(*,351)nrow,cmode,cmix,nterms,cvalue,&
 !         (ccf(jj),jj=1,condition%noofterms)
 ! Only cmix(1)=5 is interesting here. potentials already cared for

@@ -820,6 +820,8 @@
 !   write(*,*)'3D set_cond: ',cline(1:len_trim(cline)),ip
    call set_cond_or_exp(cline,ip,new,0,ceq)
 1000 continue
+! always mark that current equilibrium may not be consistent with conditions
+   ceq%status=ibset(ceq%status,EQINCON)
    nullify(new)
  end subroutine set_condition
 
@@ -1916,6 +1918,11 @@ end subroutine get_condition
       gx%bmperr=8888; goto 1000
    endif
    value=current%prescribed
+   if(iunit.eq.100) then
+! Prescribed value is in percent, divide value by 100
+      value=1.0D-2*value
+!      write(*,*)'3D iunit: ',iunit,value
+   endif
    goto 900
 !--------------------------------------
 ! this part is redundant ....
