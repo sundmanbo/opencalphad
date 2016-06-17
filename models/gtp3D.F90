@@ -1238,6 +1238,9 @@
             ceq%tpval(2)=value
          endif
 ! the uncertainty for experiments will be asked for later
+! To avoid that valgrind compains uncertainty is not initiallized ...
+!         write(*,*)'3D initiallizing uncertainty 2'
+         new%uncertainty=zero
       endif
    else
 ! If we have an error from findrecord then create condition/experiment record
@@ -1277,6 +1280,9 @@
       new%iref=iref
       new%active=0
       new%seqz=seqz
+! To avoid that valgrind compains uncertainty is not initiallized ...
+!      write(*,*)'3D initiallizing uncertainty 3',value
+      new%uncertainty=zero
 !      write(*,*)'3D experimenttype: ',experimenttype,symsym,nterm
       new%experimenttype=experimenttype
       if(symsym.eq.0) then
@@ -1293,7 +1299,7 @@
 !         write(*,111)'3D in record: ',istv,jl,(new%indices(ks,jl),ks=1,4)
 111      format(a,i3,i5,2x,4i4)
          enddo
-      else
+!      else
 ! Only experiments can be symbols, what to do next?
       endif
 !      write(*,*)'3D storing value: ',value,linkix
@@ -1325,7 +1331,7 @@
 !         write(*,*)'3D Changing tpused: ',ceq%eq_tpres%tpused(1)
       elseif(istv.eq.2) then
          ceq%tpval(2)=value
-! Force recalculation of all TP functions
+! Force recalculation of all TP functions.  Is there a better way?
          ceq%eq_tpres%tpused(2)=ceq%tpval(2)+one
       endif
 ! Another way to force recalculation of all TP functions by incrementing

@@ -1206,6 +1206,7 @@
               mini*tpres(link)%tpused(1) .and. &
               abs(tpres(link)%tpused(2)-tpval(2)).lt.&
               mini*tpres(link)%tpused(2)) then
+! Valgrid complained about uninitial variable in if above, I do not know which
             jpow=exprot%wpow(ic)
 !---------------------------------------------
             jpowif: if(jpow.gt.1000) then

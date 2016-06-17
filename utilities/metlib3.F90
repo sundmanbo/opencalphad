@@ -2881,8 +2881,13 @@ CONTAINS
 
   subroutine bintxt(lin,line)
     character line*(*)
-    read(lin,10)line
+    integer iostatus
+    read(lin,10,iostat=iostatus)line
 10  format(a)
+    if(iostatus.lt.0) then
+! reading beyond EOL
+       line='fin '
+    endif
     return
   end subroutine bintxt
 

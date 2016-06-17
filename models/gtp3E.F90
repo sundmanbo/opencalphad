@@ -531,6 +531,7 @@
 !\end{verbatim}
    character text*512,symbols(20)*32,afterdot*32
    integer ip,ipos,istv,js,jt,kl,ks,lrot
+   type(gtp_state_variable), target :: svr2
    type(gtp_state_variable), pointer :: svrrec
    write(lut)nsvfun
    do lrot=1,nsvfun
@@ -549,6 +550,7 @@
          symbols(js)=svflista(-istv)%name
       else
 ! the 1:10 was a new bug discovered in GNU fortran 4.7 and later
+         svrrec=>svr2
          call make_stvrec(svrrec,svflista(lrot)%formal_arguments(1:10,jt))
 !         do ii=1,4
 !            indices(ii)=svflista(lrot)%formal_arguments(1+ii,jt)

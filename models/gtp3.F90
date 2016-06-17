@@ -1312,6 +1312,8 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! index to the tpfun_parres array is the same as in the global array tpres 
 ! eq_tpres: here local calculated values of TP functions are stored
      TYPE(tpfun_parres), dimension(:), pointer :: eq_tpres
+! memory leak, should be allocatable ????
+!     TYPE(tpfun_parres), dimension(:), allocatable :: eq_tpres
 ! current values of chemical potentials stored in component record but
 ! duplicated here for easy acces by application software
      double precision, dimension(:), allocatable :: cmuval

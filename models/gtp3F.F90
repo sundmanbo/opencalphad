@@ -3042,6 +3042,7 @@
 !\end{verbatim}
 ! copied svflista(lrot)%formal_arguments(2..5,jt) to indices as gfortran error
 !   integer indstv(4)
+   type(gtp_state_variable), target :: svr2
    type(gtp_state_variable), pointer :: svr
    character symbols(20)*32,afterdot*32
    integer js,jt,ip,istv,kl
@@ -3063,6 +3064,7 @@
          symbols(js)=svflista(-istv)%name
       else
 ! the 1:10 was a new bug discovered in GNU fortran 4.7 and later
+         svr=>svr2
          call make_stvrec(svr,svflista(lrot)%formal_arguments(1:10,jt))
          call encode_state_variable(symbols(js),ip,svr,ceq)
          if(svflista(lrot)%formal_arguments(10,jt).ne.0) then
@@ -3072,6 +3074,7 @@
             jt=jt+1
             afterdot=' '
             ip=1
+            svr=>svr2
             call make_stvrec(svr,svflista(lrot)%formal_arguments(1:10,jt))
             call encode_state_variable(afterdot,ip,svr,ceq)
 !            write(*,111)'3F wrt state variable  ',js,jt,afterdot
@@ -3108,7 +3111,8 @@
 !\end{verbatim}
    integer jt,norm
 !
-   allocate(svr)
+! memory leak
+!   allocate(svr)
    if(iarr(1).lt.10) then
 ! This is T, P, MU, AC, LNAC
 !         1  2  3   4   5
@@ -3210,7 +3214,8 @@
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
    double precision argval(20)
-   type(gtp_state_variable), pointer :: svr,svr2
+   type(gtp_state_variable), target :: svr2
+   type(gtp_state_variable), pointer :: svr
    integer jv,jt,istv,ieq
    double precision value
    argval=zero
@@ -3237,6 +3242,7 @@
 !          write(*,*)'3F evaluate_svfun symbol',ieq,value
       else
 ! the 1:10 was a new bug discovered in GNU fortran 4.7 and later
+         svr=>svr2
          call make_stvrec(svr,svflista(lrot)%formal_arguments(1:10,jt))
          if(gx%bmperr.ne.0) goto 1000
          if(svflista(lrot)%formal_arguments(10,jt).eq.0) then

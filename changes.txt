@@ -15,6 +15,15 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2016.06.17 I have run valgrid on a few examples and found and
+corrected several cases where uninitiated variables were used.  I also
+found several cases of lost memory and I reallized I have to rethink a
+bit about using pointers.  When I started writing OC I did not know
+that one should never allocate pointer variables ... . But these
+allocations are only in the static memory, they do not eat memory
+while calculating.  Hopefully the code is a bit more stable.  And I
+have to start fixing the problems with step and map.
+
 2016.06.14 Most of the problems setting conditions on chemical
 potentials in combination with other conditions should now be solved.
 It is also possible to set a reference state.  There is a new macro

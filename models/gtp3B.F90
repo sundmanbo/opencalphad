@@ -3701,8 +3701,13 @@
       do jl=1,maxel
          eqlista(ieq)%compstoi(jl,jl)=one
          eqlista(ieq)%invcompstoi(jl,jl)=one
+! valgrind complained this was not set !!
+         eqlista(ieq)%complist(jl)%chempot=zero
       enddo
+! Maybe valgrind complained of this ... it can have to with -finit-local-zero
+      eqlista(ieq)%status=0
    else
+      eqlista(ieq)%status=0
       allocate(eqlista(ieq)%complist(noofel))
 ! copy mass of components, maybe other components?
       do jl=1,noofel
@@ -3726,20 +3731,20 @@
          eqlista(ieq)%complist(jl)%status=firsteq%complist(jl)%status
 !         if(firsteq%complist(jl)%phlink.gt.0) then
 ! only if there is a defined reference state
-            eqlista(ieq)%complist(jl)%refstate=firsteq%complist(jl)%refstate
-            eqlista(ieq)%complist(jl)%tpref=firsteq%complist(jl)%tpref
-            eqlista(ieq)%complist(jl)%chempot=zero
-            do jk=1,noofel
-               eqlista(ieq)%compstoi(jl,jk)=firsteq%compstoi(jl,jk)
-               eqlista(ieq)%invcompstoi(jl,jk)=firsteq%invcompstoi(jl,jk)
-            enddo
-            if(allocated(firsteq%complist(jl)%endmember)) then
-               iz=size(firsteq%complist(jl)%endmember)
-               if(ocv()) write(*,*)'3B: entereq 1E: ',iz
-               allocate(eqlista(ieq)%complist(jl)%endmember(iz))
-               eqlista(ieq)%complist(jl)%endmember=&
-                    firsteq%complist(jl)%endmember
-            endif
+         eqlista(ieq)%complist(jl)%refstate=firsteq%complist(jl)%refstate
+         eqlista(ieq)%complist(jl)%tpref=firsteq%complist(jl)%tpref
+         eqlista(ieq)%complist(jl)%chempot=zero
+         do jk=1,noofel
+            eqlista(ieq)%compstoi(jl,jk)=firsteq%compstoi(jl,jk)
+            eqlista(ieq)%invcompstoi(jl,jk)=firsteq%invcompstoi(jl,jk)
+         enddo
+         if(allocated(firsteq%complist(jl)%endmember)) then
+            iz=size(firsteq%complist(jl)%endmember)
+            if(ocv()) write(*,*)'3B: entereq 1E: ',iz
+            allocate(eqlista(ieq)%complist(jl)%endmember(iz))
+            eqlista(ieq)%complist(jl)%endmember=&
+                 firsteq%complist(jl)%endmember
+         endif
 !         endif
       enddo
    endif
@@ -3880,7 +3885,12 @@
 !   write(*,*)'3B enter_eq 4',jz,maxsvfun
    if(ocv()) write(*,*)'3B: entereq 4: ',jz,maxsvfun
 !    write(*,*)'create equil tpres size ',jz,notpf()
+! Valgrind wants us to initiate eq_tpres%forcenewcalc !!!
+! This is probably quite messy as eq_pres are pointers???
    allocate(eqlista(ieq)%eq_tpres(jz))
+   do iz=1,jz
+      eqlista(ieq)%eq_tpres(iz)%forcenewcalc=0
+   enddo
 ! allocate result array for state variable functions (svfunres)
    if(ocv()) write(*,*)'3B maxsvfun: ',ieq,maxsvfun,jz
 !   write(*,*)'Allocating svfunres for equilibrium: ',name(1:len_trim(name))

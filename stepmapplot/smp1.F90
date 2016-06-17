@@ -3385,6 +3385,7 @@ CONTAINS
     endif
     maptop%seqy=seqy
     mapline%lineid=seqy
+    mapline%nodfixph=0
 ! mapline%more is positive while line is calculated, 0 means at axis limit
     mapline%more=1
     if(mapline%firstinc.ne.zero) then
@@ -4768,16 +4769,21 @@ CONTAINS
     repeat=0
 1800 continue
     ksep=2
+    if(nlinesep.lt.2) linesep(2)=nrv
     repeat=repeat+1
+    jj=0
     do nv=1,nrv
        write(21,1820)nv,xax(nv),(anp(jj,nv),jj=1,np)
 1820    format(i4,1000(1pe14.6))
        if(nv.eq.linesep(ksep)) then
 ! an empty line in the dat file means a MOVE to the next point.
-          jj=len_trim(phaseline(ksep))
+!          jj=len_trim(phaseline(ksep))
+!          write(*,*)'SMP: ',ksep,nlinesep,jj,nv,nrv
           if(nv.lt.nrv) then
              if(jj.gt.1) then
-                write(21,1819)ksep,phaseline(ksep)(1:jj)
+! phaseline is never used in the plot, just included in the file
+!                write(21,1819)ksep,phaseline(ksep)(1:jj)
+                write(21,1819)ksep
 1819             format('# end of line '//'# Line ',i5,&
                      ', with these stable phases:'/'# ',a)
              else
@@ -4790,7 +4796,9 @@ CONTAINS
              write(21,1821)
 1821          format('# end of line '/)
           endif
-          ksep=ksep+1
+! test of uninitiallized variable, ksep must not exceed nlinesep
+          ksep=min(ksep+1,nlinesep)
+!          write(*,*)'SMP ksep: ',ksep,nlinesep
        endif
     enddo
     if(repeat.lt.np) then

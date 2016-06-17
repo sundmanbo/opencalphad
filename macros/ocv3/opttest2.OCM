@@ -1176,11 +1176,11 @@ c n
 l,,,,
 
 @&
-@$ Now continue on your own ...
+@$ Calculate the enthalpy curve and overlay experiments
 
 sel eq 1
 
-set c t=1100 p=15 n=1 x(mg)=.5
+set c t=1100 p=15 n=1 x(mg)=.1
 
 set ref cu liq ,,,,,
 
@@ -1207,6 +1207,8 @@ hm
 append
 hliq.plt
 
+
+@$ Now continue on your own ...
 
 set interactive 
 

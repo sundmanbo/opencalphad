@@ -210,6 +210,8 @@
    integer, parameter :: ncc=6
    double precision coeff(ncc)
    integer koder(5,ncc)
+! There is some trouble with memory leaks in expressions to fix!!!
+   TYPE(tpfun_expression), target :: llow2,lhigh2
    TYPE(tpfun_expression), pointer :: llow,lhigh
 !
    if(aff.eq.-1) then
@@ -225,6 +227,8 @@
 !       write(*,17)'emm 1B:',nc,(coeff(i),i=1,nc)
 17     format(a,i3,5(1PE11.3))
       if(gx%bmperr.ne.0) goto 1000
+! Trouble with memory leaks for expressions to be fixed ...
+      llow=>llow2
       call ct1mexpr(nc,coeff,koder,llow)
       if(gx%bmperr.ne.0) goto 1000
 ! Magnetic function above Curie Temperature
@@ -247,6 +251,7 @@
       nc=ncc
       call ct1xfn(text,ip,nc,coeff,koder,.FALSE.)
       if(gx%bmperr.ne.0) goto 1000
+      llow=>llow2
       call ct1mexpr(nc,coeff,koder,llow)
       if(gx%bmperr.ne.0) goto 1000
 ! Magnetic function above Curie Temperature

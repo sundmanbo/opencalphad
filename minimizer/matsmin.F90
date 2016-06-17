@@ -1385,6 +1385,7 @@ CONTAINS
 !    nmagic=0
 ! this is an attempt to decrease variation in phase amount corrections
     allocate(lastdeltaam(meqrec%nstph))
+    lastdeltaam=zero
 ! dimension matrix for conditions, components+stable phases
     nz1=meqrec%nrel-meqrec%nfixmu+meqrec%nstph-meqrec%nfixph
     if(meqrec%tpindep(1)) nz1=nz1+1
@@ -4089,6 +4090,7 @@ CONTAINS
 ! and driving force.  All pmi%dxmol=zero but one must also calculate 
 ! pmi%xmol and save it for all future iterations
 ! It must also be saved in curd%abnorm(1) ?? done in set_constitution ??
+!       write(*,*)'MM xdone: ',pmi%xdone,iph,nv
        if(pmi%xdone.eq.1) goto 90
 ! we must call set_constitution once to have correct abnorm etc
        call set_constitution(iph,ics,yarr,qq,ceq)
@@ -5449,6 +5451,7 @@ CONTAINS
 ! THIS SUBROUTINE MOVED FROM gtp3D
    character encoded*60
    double precision argval(20)
+   type(gtp_state_variable), target :: tsvr,tsvr2
    type(gtp_state_variable), pointer :: svr,svr2
    integer jv,jt,istv,ieq,nsvfun
    double precision value
@@ -5484,6 +5487,7 @@ CONTAINS
 !         write(*,*)'in meq_evaluate_svfun 3X',ieq,istv,value
       else
 ! the need for 1:10 was a new bug discovered in GNU fortran 4.7 and later
+         svr=>tsvr
          call make_stvrec(svr,svflista(lrot)%formal_arguments(1:10,jt))
          if(gx%bmperr.ne.0) goto 1000
          if(svflista(lrot)%formal_arguments(10,jt).eq.0) then
@@ -5494,6 +5498,7 @@ CONTAINS
          else
 ! state variable derivative, the denominator is the next variable
             jt=jt+1
+            svr2=>tsvr2
             call make_stvrec(svr2,svflista(lrot)%formal_arguments(1:10,jt))
 !            write(*,77)'meq_eval: ',&
 !                 (svflista(lrot)%formal_arguments(ii,jt),ii=1,10)
@@ -5625,6 +5630,8 @@ CONTAINS
                 meqrec%phr(mph)%stable=0
              endif
              meqrec%phr(mph)%idim=0
+! valgrind found one case xdone was not initiated ....
+             meqrec%phr(mph)%xdone=0
 !          else
 ! nothing to do for suspended or hidden phase
           endif
