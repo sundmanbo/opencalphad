@@ -15,6 +15,22 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2016.06.17 A major revision of the datastructure has been made with
+help of valgrind to avoid uninitiallized variables and memory leaks.
+In particular the array eq_tpres was changed from pointer to
+allocatable.  This had some unexpected consquences as the memory used
+during step and map increased.  I do not really understand why.  But
+it required that I imprived the cleanup of memory for the NEW command
+and I now delete all memory used to store equilibria during step/map.
+
+A good consequence of this is that I can now run all macro files with
+the same supermacro all.OCM, I do not run ot of memory any more.  I
+also added that I do not store more than 1500 equilibria during
+step/map, if more I must write results on a file which is still not
+implemented.  This affects the step7.OCM macro which terminates due to
+too many equilibria calculated.  So I have to implement save on
+files... some time in the future.
+
 2016.06.17 I have run valgrid on a few examples and found and
 corrected several cases where uninitiated variables were used.  I also
 found several cases of lost memory and I reallized I have to rethink a

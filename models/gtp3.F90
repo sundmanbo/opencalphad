@@ -397,7 +397,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        '                                                                ',&
        'Use "calculate symbol" for state variable symbols               ',&
        '                                                                ',&
-       '                                                                ',&
+       'Too many equilibria in STEP/MAP, save on file not implemented   ',&
 ! 4220
        '                                                                '/
 ! last used error codes above
@@ -550,7 +550,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !\begin{verbatim}
 ! Parameters defining the size of arrays etc.
 ! max elements, species, phases, sublattices, constituents (ideal phase)
-  integer, parameter :: maxel=100,maxsp=1000,maxph=800,maxsubl=10,maxconst=1000
+  integer, parameter :: maxel=100,maxsp=1000,maxph=300,maxsubl=10,maxconst=1000
 ! maximum number of consitutents in non-ideal phase
   integer, parameter :: maxcons2=100
 ! maximum number of elements in a species
@@ -1311,9 +1311,9 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
      TYPE(gtp_phase_varres), dimension(:), allocatable :: phase_varres
 ! index to the tpfun_parres array is the same as in the global array tpres 
 ! eq_tpres: here local calculated values of TP functions are stored
-     TYPE(tpfun_parres), dimension(:), pointer :: eq_tpres
+!     TYPE(tpfun_parres), dimension(:), pointer :: eq_tpres
 ! memory leak, should be allocatable ????
-!     TYPE(tpfun_parres), dimension(:), allocatable :: eq_tpres
+     TYPE(tpfun_parres), dimension(:), allocatable :: eq_tpres
 ! current values of chemical potentials stored in component record but
 ! duplicated here for easy acces by application software
      double precision, dimension(:), allocatable :: cmuval

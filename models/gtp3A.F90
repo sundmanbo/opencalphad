@@ -2029,3 +2029,38 @@ end function find_phasetuple_by_indices
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\begin{verbatim}
+ subroutine deallocate_gtp(intvar,dblvar)
+! deallocate the data structure
+   implicit none
+   integer allocatestatus
+   integer intvar(*)
+   double precision dblvar(*)
+!\end{verbatim}
+!   integer jl
+   deallocate(ellista, STAT = allocateStatus)
+   if (allocateStatus /= 0) then
+     write(kou,*) 'Error during deallocation of ellista'
+     goto 1000
+   else
+     write(kou,*) 'Deallocation of data ',  allocateStatus
+   endif
+!   flush(6)
+   deallocate(elements)
+! deallocate records for species
+   deallocate(splista)
+   deallocate(species)
+! deallocate records for phases
+   deallocate(phlista)
+   deallocate(phases)
+   deallocate(phasetuple)
+   deallocate(bibrefs)
+   deallocate(propid)
+   deallocate(eqlista)
+   deallocate(svflista)
+   call tpfun_deallocate
+1000 continue
+   return
+ END subroutine deallocate_gtp
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\

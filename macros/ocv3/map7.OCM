@@ -26,7 +26,9 @@ map
 
 
 
-
+@$ We normally get an overflow error as there is not yet any
+@$ saveing of results on file implemented
+@&
 
 l l
 

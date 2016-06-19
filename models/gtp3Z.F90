@@ -155,11 +155,13 @@
    implicit none
    integer nf
 ! use tpres declared externally for parallel processing
-  TYPE(tpfun_parres), dimension(:), pointer :: tpres
+  TYPE(tpfun_parres), dimension(:), allocatable :: tpres
+!  TYPE(tpfun_parres), dimension(:), pointer :: tpres
 !\end{verbatim}
    integer ifri
    allocate(tpfuns(nf))
-   allocate(tpres(nf))
+! tpres allocated when creating equilibria
+!   allocate(tpres(nf))
 ! create free list for named functions records
    freetpfun=1
    do ifri=1,nf-1
@@ -168,7 +170,7 @@
       tpfuns(ifri)%status=0
       tpfuns(ifri)%forcenewcalc=0
 ! should also be initiallized ??
-      tpres(ifri)%forcenewcalc=0
+!      tpres(ifri)%forcenewcalc=0
    enddo
    tpfuns(nf)%nextfree=-1
    return
@@ -253,7 +255,9 @@
    implicit none
    integer lrot
    double precision tpval(2),result(6)
-   TYPE(tpfun_parres), dimension(:), pointer :: tpres
+! changes to avoid memory leak in valgrind
+   TYPE(tpfun_parres), dimension(*) :: tpres
+!   TYPE(tpfun_parres), dimension(:), pointer :: tpres
 !\end{verbatim}
    integer nr,ns
    TYPE(tpfun_expression), pointer :: exprot
@@ -1070,7 +1074,8 @@
    implicit none
    double precision val(6),tpval(*)
    TYPE(tpfun_expression), pointer :: inrot
-   TYPE(tpfun_parres), dimension(:), pointer :: tpres
+   TYPE(tpfun_parres), dimension(*) :: tpres
+!   TYPE(tpfun_parres), dimension(:), pointer :: tpres
 !\end{verbatim}
    integer mlev,level,jpow,link2
    double precision mini
@@ -1897,24 +1902,23 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!-\begin{verbatim}
-! subroutine tpfun_deallocate
+!\begin{verbatim}
+ subroutine tpfun_deallocate
 ! deallocates all arrays associated with a TP function
-!-\end{verbatim}
-!   implicit double precision (a-h,o-z)
-!   implicit none
-!   integer j,nr
-!   do j=1,freetpfun-1
-!      nr=tpfuns(j)%noofranges
-!      if(nr.gt.0) then
+!\end{verbatim}
+   implicit none
+   integer j,nr
+   do j=1,freetpfun-1
+      nr=tpfuns(j)%noofranges
+      if(nr.gt.0) then
+         deallocate(tpfuns(j)%funlinks)
+         deallocate(tpfuns(j)%limits)
 !         deallocate(tpfuns(j)%funlinks)
-!         deallocate(tpfuns(j)%limits)
-!         deallocate(tpfuns(j)%funlinks)
-!      endif
-!   enddo
-!1000 continue
-!   return
-! end subroutine tpfun_deallocate
+      endif
+   enddo
+1000 continue
+   return
+ end subroutine tpfun_deallocate
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

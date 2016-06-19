@@ -478,15 +478,16 @@ calc all N
 
 @&
 @$ calculate and write the output on a file
-calc /out=parallel2 all N
+calc /out=outpara all N
 
 @&
 @$ Run without parallel with output on file for comparison
 @$ Bit 2 makes me an expert, bit 15 turns off parallel
+@$ ------------------------ BE PATIENT -----------------------------
 set bit 2
 set bit 15
 
-calc /out=sequential all N
+calc /out=outseq all N
 
 
 set inter

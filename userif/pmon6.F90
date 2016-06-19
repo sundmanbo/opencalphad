@@ -3027,13 +3027,20 @@ contains
        iexit=0
        iexit(2)=1
 !       write(*,*)'No Segmentation fault 4'
+!----- deleting map results ...
+!       write(*,*)'Deleting map results'
+       if(associated(maptopsave)) then
+! this is necessary only if no plot of last step/map made ...
+!          write(kou,*)'We link to maptopsave'
+          maptop%plotlink=>maptopsave
+       endif
+       call delete_mapresults(maptop)
 !----- deallocate local axis records
        do jp=1,noofaxis
           if(allocated(axarr(jp)%axcond)) deallocate(axarr(jp)%axcond)
 !          deallocate(axarr(jp)%indices)
 !          deallocate(axarr(jp)%coeffs)
        enddo
-!       write(*,*)'No Segmentation fault 5'
        noofaxis=0
        if(associated(maptop)) then
           deallocate(maptop)

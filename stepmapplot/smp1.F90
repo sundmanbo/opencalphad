@@ -36,7 +36,7 @@ MODULE ocsmp
 ! It can have links to two or more MAP_LINE records with calculated equilibra.
 ! Initially at least one of these map_line records are empty with just 
 ! information of the axis to vary and direction.
-! There is a FIRST map_node record and subsequent are liked by a double linked
+! There is a FIRST map_node record and subsequent are linked by a double linked
 ! list, next and previous.  All map_node records have a pointer to the first.
 ! There are a special use of map_node records when the node has as many stable
 ! phases as the line and it has only two lines connected:
@@ -258,7 +258,6 @@ CONTAINS
     integer iadd,irem,isp,seqx,seqy,mode,halfstep,jj,ij,inactive(4),bytaxis
 ! inmap=1 turns off converge control of T
     integer, parameter :: inmap=1
-    type(map_ceqresults), pointer :: saveceq
     character ch1*1
     logical firststep
 ! first transform start points to start equilibria on zero phase lines
@@ -291,7 +290,7 @@ CONTAINS
        endif
 !       write(*,*)'There is a MAPTOP record ...'
 ! create array of equilibrium records for saving results
-       seqy=8000
+       seqy=1500
        call create_saveceq(maptop%saveceq,seqy)
        if(gx%bmperr.ne.0) goto 1000
 ! initiate line counter
@@ -477,7 +476,9 @@ CONTAINS
        mapline%problems=0
        call map_store(mapline,axarr,nax,maptop%saveceq)
        if(gx%bmperr.ne.0) then
-! can be running out of memory or that a line has a too big jump
+! Test if we are running out of memory 
+          if(gx%bmperr.eq.4219) goto 1000
+! or that a line has a too big jump
 ! terminate line any error code will be cleared inside map_lineend.
           call map_lineend(mapline,axarr(abs(mapline%axandir))%lastaxval,ceq)
           goto 300
@@ -1520,6 +1521,7 @@ CONTAINS
 !-----------------------
 ! >>>> begin treadprotected
     call reserve_saveceq(place,saveceq)
+    if(gx%bmperr.ne.0) goto 1000
 ! >>>> end threadprotected
 !-----------------------
 ! loop through all phases and if their status is entered set it as PHENTUNST
@@ -2719,6 +2721,7 @@ CONTAINS
 ! save a copy of ceq also in result (reserve is threadprotected)
     if(ocv()) write(*,*)'Copies node ceq to saveceq'
     call reserve_saveceq(jj,maptop%saveceq)
+    if(gx%bmperr.ne.0) goto 1000
     maptop%saveceq%savedceq(jj)=newceq
     newnode%savednodeceq=jj
 !    write(*,*)'Copy successful'
@@ -3314,9 +3317,11 @@ CONTAINS
     type(map_ceqresults), pointer :: saveceq
 !\end{verbatim}
     location=saveceq%free
-    if(location.ge.saveceq%size) then
-       write(*,*)'Overflow in saveceq: ',saveceq%free
-       gx%bmperr=7777; goto 1000
+!    write(*,*)'Reserve place for equilibrium: ',location,saveceq%size
+    if(location.eq.saveceq%size-5) then
+! indicate overflow with 5 places left if some emergency saving needed
+!       write(*,*)'Overflow in saveceq: ',saveceq%free
+       gx%bmperr=4219; goto 1000
     endif
     saveceq%free=location+1
 ! end THREADPROTECT
@@ -3590,6 +3595,39 @@ CONTAINS
 1000 continue
     return
   end subroutine create_saveceq
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+  subroutine delete_mapresults(maptop)
+! delete all saved results created by step or map
+    TYPE(map_node), pointer :: maptop
+!\end{verbatim}
+    type(map_ceqresults), pointer :: saveceq
+    TYPE(map_node), pointer :: current
+!    integer place,lastused
+!
+    if(.not.associated(maptop)) then
+       write(*,*)'No step or map results to delete'
+       goto 1000
+    endif
+    current=>maptop
+!    deloop: do while(associated(current))
+!       write(*,*)'Number of stored equilibria: ',current%saveceq%free-1
+!       current=>current%plotlink
+!    enddo deloop
+!    write(*,*)'All mapnodes listed'
+! all mapnodes has a pointer to first where the saveceq is allocated
+    current=>maptop
+    do while(associated(current))
+!       write(*,*)'deleting map results: ',current%saveceq%free-1
+       deallocate(current%saveceq%savedceq)
+       current=>current%plotlink
+    enddo
+!    write(*,*)'Done delete_mapresults'
+1000 continue
+    return
+  end subroutine delete_mapresults
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -4993,7 +5031,7 @@ CONTAINS
              call map_startpoint(maptop,noofaxis,axarr,inactive,ceq)
              if(gx%bmperr.ne.0) goto 500
 ! create array of equilibrium records for saving results
-             seqy=6000
+             seqy=1500
              call create_saveceq(maptop%saveceq,seqy)
              if(gx%bmperr.ne.0) goto 900
 ! initiate line counter
@@ -5058,7 +5096,7 @@ CONTAINS
 !             write(*,*)'Storing the equilibrium'
              call map_store(mapline,axarr,maptop%number_ofaxis,maptop%saveceq)
              if(gx%bmperr.ne.0) then
-                write(*,*)'Error storing equilibrium'
+                write(*,*)'Error storing equilibrium',gx%bmperr
                 goto 900
              endif
 !             write(*,*)'Taking a step'
@@ -5096,7 +5134,7 @@ CONTAINS
 !       write(*,*)'At end of phase loop itup=',itup
     enddo phaseloop
 !============================================================
-! restore all phase status, even if error above
+! Terminate but restore all phase status, even if error above
 900 continue
     val=zero
 !    write(*,*)'Restoring previous phase status'

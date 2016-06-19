@@ -3887,7 +3887,15 @@
 !    write(*,*)'create equil tpres size ',jz,notpf()
 ! Valgrind wants us to initiate eq_tpres%forcenewcalc !!!
 ! This is probably quite messy as eq_pres are pointers???
-   allocate(eqlista(ieq)%eq_tpres(jz))
+!! eq_tpres already allocated in gtp_init???
+!   allocate(eqlista(ieq)%eq_tpres(jz))
+   if(.not.allocated(eqlista(ieq)%eq_tpres)) then
+!      if(ieq.ne.1) then
+!         write(*,*)'Allocating eq_tpres for equil: ',ieq,jz,freetpfun
+         allocate(eqlista(ieq)%eq_tpres(jz))
+!      endif
+   endif
+! this should be done in init_tpfun (gtp3Z.F90) ??
    do iz=1,jz
       eqlista(ieq)%eq_tpres(iz)%forcenewcalc=0
    enddo

@@ -1538,11 +1538,15 @@
    enddo
 !   write(*,*)'3E No segmentation error D1'
 ! I am not sure if this really releases all memory, how to check .... ???
+!   call deallocate_gtp(intvar,dblvar)
    deallocate(eqlista)
 !   write(*,*)'3E No segmentation error D2'
 !------- deallocate elements, species and phases, will be allocated in init_gtp
    deallocate(ellista)
    deallocate(elements)
+!   do k=1,noofsp
+!      deallocate(splista(k)%ellinks)
+!   enddo
    deallocate(splista)
    deallocate(species)
    deallocate(phlista)
@@ -1566,6 +1570,8 @@
 !------ parameter property records
    deallocate(propid)
 !   write(*,*)'3E No segmentation error G'
+!------ map results are deleted separately
+!   call delete_mapresults(maptop)
 !    deallocate( .... any more ???
 !---------------------------
 ! now initiate all lists and a little more

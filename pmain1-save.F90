@@ -19,7 +19,7 @@ PROGRAM pmain1
 ! the next line overwritten with current linkdate by linkocdate
   linkdate='01-01-2015'
 ! this is the overall version identifier
-  version=' 3.0'
+  version=' 3.1'
 ! intvar and dblvar will eventually be used for allocations and defaults
   intvar(1)=30
   call init_gtp(intvar,dblvar)
@@ -34,5 +34,6 @@ PROGRAM pmain1
   ceq=>eqlista(1)
 !
   write(*,*)'A bientot'
+  call deallocate_gtp(intvar,dblvar)
 !
   end
