@@ -169,12 +169,14 @@ CONTAINS
     integer mode
     TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim} %+
+    TYPE(meq_setup), allocatable, target :: meqrec1
     TYPE(meq_setup), pointer :: meqrec
     type(map_fixph), pointer :: mapfix
     double precision starting,finish2
     integer starttid,endoftime,ij
 !--------------------------------
-    allocate(meqrec)
+    allocate(meqrec1)
+    meqrec=>meqrec1
     meqrec%status=0
     nullify(mapfix)
     call cpu_time(starting)
@@ -198,7 +200,7 @@ CONTAINS
 !1020   format('Error return from equilibrium calculation ',i5)
     endif
 ! maybe memory leak 2
-    deallocate(meqrec)
+    deallocate(meqrec1)
     return
   end subroutine calceq2
 
@@ -215,12 +217,14 @@ CONTAINS
     logical confirm
     TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
+    TYPE(meq_setup), allocatable, target :: meqrec1
     TYPE(meq_setup), pointer :: meqrec
     type(map_fixph), pointer :: mapfix
     double precision starting,finish2
     integer starttid,endoftime,ij
 !--------------------------------
-    allocate(meqrec)
+    allocate(meqrec1)
+    meqrec=>meqrec1
     meqrec%status=0
     if(.not.confirm) meqrec%status=ibset(meqrec%status,QUIET)
     nullify(mapfix)
@@ -247,7 +251,7 @@ CONTAINS
 1020   format('Error return from equilibrium calculation ',i5)
     endif
 ! memory leak 2
-    deallocate(meqrec)
+    deallocate(meqrec1)
     return
   end subroutine calceq3
 
@@ -5584,7 +5588,8 @@ CONTAINS
             ' derivatives may be wrong.')
 ! EQNOACS is not used at present but means probably "no automatic comp.set"
     endif
-    allocate(meqrec)
+! meqrec is a pointer to an allocated record!
+!    allocate(meqrec)
 ! we must enter data into meqrec here, some set outside ...
 !    meqrec%typesofcond=2
     meqrec%nrel=noel()
@@ -5763,6 +5768,7 @@ CONTAINS
     double precision value
 !\end{verbatim}
 ! variables needed to calculate phase inverse
+    TYPE(meq_setup), allocatable, target :: meqrec1
     TYPE(meq_setup), pointer :: meqrec
     TYPE(meq_phase), pointer :: pmi
     TYPE(gtp_condition), pointer :: pcond
@@ -5803,6 +5809,8 @@ CONTAINS
 !17 format(a,10i4)
 ! meqrec creates the data structure for the equilibrium data
 ! this routine also calculated Delta-amount of phases and delta-mu
+    allocate(meqrec1)
+    meqrec=>meqrec1
     call initiate_meqrec(svr2,svar,meqrec,ceq)
     if(gx%bmperr.ne.0) goto 1000
     iel=size(svar)
@@ -5852,8 +5860,8 @@ CONTAINS
        write(*,*)'Sorry, derivates of this variable not implemented'
        gx%bmperr=8888; goto 1000
     endif
-! meqrec automatically deallocated when this routine terminates
-!    deallocate(meqrec)
+! meqrec deallocated when this routine terminates ?? NO but meqrec1
+    deallocate(meqrec1)
 !    gx%bmperr=4078
 1000 continue
     return

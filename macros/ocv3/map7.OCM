@@ -26,8 +26,8 @@ map
 
 
 
-@$ We normally get an overflow error as there is not yet any
-@$ saveing of results on file implemented
+@$ We normally get a buffer overflow error here
+@$ but there is not yet any saving of results on file implemented
 @&
 
 l l

@@ -1491,6 +1491,7 @@ CONTAINS
     type(gtp_state_variable), target :: axstv1
     type(gtp_state_variable), pointer :: axstv
     double precision value
+    logical saveonfile
 ! pointer to last calculated (can be zero) and last free
 ! store last calulated axis values in axarr(iax)%lastaxval
 !    write(*,*)'In map_store',mapline%start%number_ofaxis,nax
@@ -1519,9 +1520,17 @@ CONTAINS
 !         jj=1,mapline%start%number_ofaxis)
 !18  format(a,i3,5(1pe14.6))
 !-----------------------
+    saveonfile=.FALSE.
 ! >>>> begin treadprotected
     call reserve_saveceq(place,saveceq)
-    if(gx%bmperr.ne.0) goto 1000
+    if(gx%bmperr.eq.4219) then
+! the memory is full, save this equilibrium, clean up and empty all on file
+       saveonfile=.TRUE.
+       gx%bmperr=0
+    elseif(gx%bmperr.ne.0) then
+! some other fatal error
+       goto 1000
+    endif
 ! >>>> end threadprotected
 !-----------------------
 ! loop through all phases and if their status is entered set it as PHENTUNST
@@ -1557,6 +1566,7 @@ CONTAINS
          meqrec%phr(meqrec%stphl(jj))%ics,jj=1,meqrec%nstph)
 201 format(a,10(2i3,2x))
 !-----------------------------------------
+! this copies the whole data structure !!!
     saveceq%savedceq(place)=mapline%lineceq
     saveceq%savedceq(place)%next=0
     if(mapline%last.gt.0) then
@@ -1566,6 +1576,11 @@ CONTAINS
     mapline%number_of_equilibria=mapline%number_of_equilibria+1
     if(mapline%first.eq.0) mapline%first=place
     if(ocv()) write(*,*)' >> equilibrium saved'
+    if(saveonfile) then
+! not yet implemented
+       write(*,*)'Save on file not yet implemented, terminating step/map'
+       gx%bmperr=4219
+    endif
 1000 continue
     return
   end subroutine map_store

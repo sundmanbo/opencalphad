@@ -490,6 +490,11 @@ set bit 15
 calc /out=outseq all N
 
 
+@$ prepare for more tests in parallel
+
+set bit 15
+
+
 set inter
 
 2378
