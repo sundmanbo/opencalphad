@@ -34,7 +34,7 @@ MODULE liboceq
   use general_thermodynamic_package
 !
 ! For parallellization, also used in gtp3.F90
-  use omp_lib
+!$  use omp_lib
 !
   implicit none
   character*8, parameter :: hmsversion='HMS-2.00'
@@ -362,7 +362,7 @@ CONTAINS
     lastcond=>ceq%lastcondition
     if(.not.associated(lastcond)) then
        write(*,*)'No conditions'
-       gx%bmperr=7777; goto 1000
+       gx%bmperr=4143; goto 1000
     endif
     condition=>lastcond
     cmix=0
@@ -415,7 +415,7 @@ CONTAINS
           np=np+1
           if(np.gt.mmu) then
              write(*,*)'Max conditions on potentials is ',mmu
-             gx%bmperr=7777; goto 1000
+             gx%bmperr=4189; goto 1000
           endif
           mufixel(np)=cmix(3)
           mufixref(np)=cmix(4)
@@ -427,7 +427,7 @@ CONTAINS
 ! AC=exp(MU/RT) converted to chemical potential/RT
              if(cvalue.le.zero) then
                 write(*,*)'Conditions on activity must be larger than zero'
-                gx%bmperr=7777; goto 1000
+                gx%bmperr=4191; goto 1000
              endif
              yarr(np)=LOG(cvalue)
           else
@@ -496,7 +496,7 @@ CONTAINS
        if(np.gt.1) then
 ! ?? sort phases in increasing order to simplify below
           write(*,*)'Cannot handle two fix phases ... '
-          gx%bmperr=8888; goto 1000
+          gx%bmperr=4192; goto 1000
        endif
        do mjj=1,meqrec%nfixph
           meqrec%fixph(1,mjj)=fixph(1,mjj)
@@ -692,7 +692,7 @@ CONTAINS
 ! meqrec%nv is the current number of stable phases
        if(meqrec%nv.eq.meqrec%maxsph) then
           write(*,*)'Too many stable phases'
-          gx%bmperr=9998; goto 1000
+          gx%bmperr=4193; goto 1000
        endif
 !       write(*,*)'Adding fix phase to stable phase set',&
 !            meqrec%fixph(1,mjj),meqrec%fixph(2,mjj)
@@ -1079,7 +1079,6 @@ CONTAINS
           if(.not.REPLACE) then
 ! we must be able to REPLACE the only stable phase for a unary system
              write(*,*)'Attempt to remove the only stable phase!!!'
-!          gx%bmperr=7777; goto 1000
              goto 200
           endif
 !          write(*,*)'We are replacing one stable phase with another',irem,iadd
@@ -1231,10 +1230,11 @@ CONTAINS
 !
 !------------------------------------------------------------
 ! clear bits: no equilibrium calculated/ inconsistent conditions and result/
-! equilibrium calculation failed
+! equilibrium calculation failed/ only gridcal
        ceq%status=ibclr(ceq%status,EQNOEQCAL)
        ceq%status=ibclr(ceq%status,EQINCON)
        ceq%status=ibclr(ceq%status,EQFAIL)
+       ceq%status=ibclr(ceq%status,EQGRIDCAL)
 ! set stable bit in stable phases and clear it in all others
        kk=1
        do jj=1,mph
@@ -1270,6 +1270,7 @@ CONTAINS
 ! set some failure bits
        ceq%status=ibset(ceq%status,EQINCON)
        ceq%status=ibset(ceq%status,EQFAIL)
+       ceq%status=ibclr(ceq%status,EQGRIDCAL)
 ! even when not converged save the current chemical potentials
        do jj=1,meqrec%nrel
           ceq%complist(jj)%chempot(1)=ceq%cmuval(jj)*ceq%rtn
@@ -1307,9 +1308,9 @@ CONTAINS
           endif
           ceq%complist(jj)%chempot(2)=ceq%complist(jj)%chempot(1)+xxx*ceq%rtn
        enddo
-    else
-       write(*,69)'Unable to calculate reference states due to errors'
-69     format(a)
+!    else
+!       write(*,69)'Unable to calculate reference states due to errors'
+!69     format(a)
     endif
 !    write(*,37)'mu1: ',(ceq%complist(jj)%chempot(1),jj=1,meqrec%nrel)
 !    write(*,37)'mu2: ',(ceq%complist(jj)%chempot(2),jj=1,meqrec%nrel)
@@ -1657,7 +1658,7 @@ CONTAINS
              write(*,42)'Too many phases with variable amount',ioff,size(svar),&
                   meqrec%nstph,phr(jj)%iph
 42           format(a,10i4)
-            gx%bmperr=6666; goto 1000
+            gx%bmperr=4193; goto 1000
           endif
           deltaam=svar(ioff)
 ! Sigli convergence problem, bad guess of start amount of phases??
@@ -1734,7 +1735,7 @@ CONTAINS
 ! phase is dormant or suspended, must not be stable!!!!
           write(*,373)phr(jj)%iph,phr(jj)%ics,kkz
 373       format('This phase must not be stable:',3i7)
-          gx%bmperr=7777; goto 1000
+          gx%bmperr=4194; goto 1000
        endif
 ! problem with Fe-O-U-Zr convergence, all phases disappear ??
 !       write(*,364)'Stable phase: ',meqrec%noofits,jj,phr(jj)%iph,&
@@ -1749,7 +1750,7 @@ CONTAINS
                   phr(jj)%curd%amfu
 367          format(a,i3,1pe14.6)
              phf=0.5D0*phr(jj)%curd%amfu
-             gx%bmperr=7867; goto 1000
+             gx%bmperr=4195; goto 1000
           else
 !             write(*,363)'Phase with negative amount: ',jj,0,0,&
 !                  phf,phs,phr(jj)%prevam
@@ -2461,7 +2462,7 @@ CONTAINS
        nrow=nrow+1
        if(nrow.gt.nz1) then
           write(*,*)'too many equations 11A',nrow
-          gx%bmperr=6543; goto 1000
+          gx%bmperr=4212; goto 1000
        endif
        do ncol=1,nz2
           smat(nrow,ncol)=xcol(ncol)
@@ -2703,11 +2704,6 @@ CONTAINS
 ! check if several terms
     mterms=1
     nterms=condition%noofterms
-!    if(nterms.gt.1) then
-!       write(*,351)nrow,cmode,cmix,nterms,cvalue,(ccf(jj),jj=1,nterms)
-!351    format('MM cmix: ',2i3,2x,10i4,'; ',i2,6(1pe12.4))
-!       gx%bmperr=7777; goto 1000
-!    endif
 ! do something with the condition ... it can be N=1, x(A)=.1, VM(GAS)=1e-6 etc.
 ! THE MASTER VERSION OF THIS TABLE in PMOD25C.F90
 ! symb cmix(2) indices                   irrelevant Property
@@ -2890,7 +2886,7 @@ CONTAINS
 ! These values are most probably all zero making system matrix singular
              write(*,177)'xcol: ',nz2,(xcol(jj),jj=1,nz2)
 177          format(a,i2,6(1pe10.2))
-             gx%bmperr=7865; goto 1000
+             gx%bmperr=4196; goto 1000
           endif
 !          write(*,177)'xcol: ',nz2,(xcol(jj),jj=1,nz2)
 ! Add difference to the RHS.  Totam is summed above, cvalue is prescribed value
@@ -3083,7 +3079,7 @@ CONTAINS
              write(*,*)'Normalized enthalpy condition of unstable phase'
 ! These values are most probably all zero making system matrix singular
              write(*,177)'xcol: ',nz2,(xcol(jj),jj=1,nz2)
-             gx%bmperr=7865; goto 1000
+             gx%bmperr=4196; goto 1000
           endif
 !          write(*,177)'xcol: ',nz2,(xcol(jj),jj=1,nz2)
 ! Add difference to the RHS.  Totam is summed above, cvalue is prescribed value
@@ -3203,7 +3199,7 @@ CONTAINS
 ! condition is for a specific phase#compset, N(phase#compset,comp)=A
                 if(phr(jj)%iph.ne.sph .or. phr(jj)%ics.ne.scs) cycle nallph
                 write(*,*)'N(phase#set,component) not implemented'
-                gx%bmperr=7777; goto 1000
+                gx%bmperr=4207; goto 1000
              endif
 ! moles formulat unit of phase set above
              pham=pmi%curd%amfu
@@ -3295,7 +3291,7 @@ CONTAINS
           nrow=nrow+1
           if(nrow.gt.nz1) then
              write(*,*)'too many equations 11A',nrow
-             gx%bmperr=6543; goto 1000
+             gx%bmperr=4212; goto 1000
           endif
           do ncol=1,nz2
              smat(nrow,ncol)=xcol(ncol)
@@ -3352,7 +3348,6 @@ CONTAINS
 ! condition is x(phase#set,A)=fix
 !             write(*,33)cmix
 33           format('Condition x(phase#set,A)=fix?',10i4)
-!             gx%bmperr=9898; goto 1000
              sel=cmix(5+moffs); sph=cmix(3+moffs); scs=cmix(4+moffs)
           endif
           if(.not.allocated(xxmm)) then
@@ -3540,7 +3535,6 @@ CONTAINS
              evalue=evalue+ccf(mterms)*xxmm(sel)
 ! add x^prescribed - x^current to rhs (right hand side)
              smat(nrow,nz2)=smat(nrow,nz2)-cvalue+evalue
-!             gx%bmperr=7777; goto 1000
 !------------------new code end
           else
 ! use this else brash when nterms=1, just a single x(a)=value
@@ -3751,9 +3745,6 @@ CONTAINS
 ! condition is x(A)=fix
              sel=cmix(3); sph=0
           else
-! condition is w(phase#set,A)=fix;  how to handle if phase#set not stable?
-!             write(*,*)'Condition w(phase#set,A)=fix not yet allowed'
-!             gx%bmperr=9898; goto 1000
              sel=cmix(5); sph=cmix(3); scs=cmix(4)
           endif
           if(.not.allocated(xxmm)) then
@@ -4292,7 +4283,7 @@ CONTAINS
              if(loksp.lt.0) then
                 if(ll.eq.1 .and. nkl(1).eq.1) cycle
                 write(*,*)'Illegal wildcard constituent in ionic liquid'
-                gx%bmperr=7777; goto 1000
+                gx%bmperr=4197; goto 1000
              endif
              if(btest(pmi%curd%constat(ncon),CONVA)) then
 ! This is the nypothetical vacancy .... its charge is sites(2) = Q
@@ -5408,7 +5399,7 @@ CONTAINS
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
    character encoded*64,actual_arg(2)*16
-   integer lrot,mode
+   integer lrot,mode,olderr
 !
 !   write(*,*)'In meq_get_state_varofun: ',statevar(1:16)
 ! if not derivative this will work
@@ -5416,7 +5407,7 @@ CONTAINS
    if(gx%bmperr.ne.0) then
 ! if error try using meq_evaluate_svfun try calling meq_evaluate_svfun
 !      write(*,*)'In meq_get_state_varofun 2: ',gx%bmperr
-      lrot=gx%bmperr
+      olderr=gx%bmperr
       gx%bmperr=0
       encoded=statevar
       call capson(encoded)
@@ -5425,7 +5416,7 @@ CONTAINS
 ! if error here return previous error code
 !         write(*,*)'In meq_get_state_varofun 3: ',gx%bmperr
          value=zero
-         gx%bmperr=lrot; goto 1000
+         gx%bmperr=olderr; goto 1000
       else
          mode=1
          actual_arg=' '
@@ -5577,10 +5568,10 @@ CONTAINS
     if(btest(ceq%status,EQNOEQCAL)) then
 ! error if no sucessful equilibrium calculation or a failed one
 !       write(*,*)'No equilibrium calculated, no derivatives'
-       gx%bmperr=8888; goto 1000
+       gx%bmperr=4198; goto 1000
     elseif(btest(ceq%status,EQFAIL)) then
 !       write(*,*)'Last equilibrium calculation failed, no derivatives'
-       gx%bmperr=8888; goto 1000
+       gx%bmperr=4198; goto 1000
     elseif(btest(ceq%status,EQINCON)) then
 ! give warning if conditions have changed
        write(*,15)
@@ -5658,7 +5649,7 @@ CONTAINS
        call meq_onephase(meqrec,pmi,ceq)
        if(gx%bmperr.ne.0) then
           write(*,*)'Error calculating phase matrix'
-          gx%bmperr=8888; goto 1000
+          gx%bmperr=4199; goto 1000
        endif
     enddo
 ! now we will solve a modified phase matrix and calculate svar
@@ -5708,7 +5699,7 @@ CONTAINS
        meqrec%tpindep(2)=.TRUE.
     else
        write(*,*)'Derivatives with respect to T and P allowed only'
-       gx%bmperr=8888; goto 1000
+       gx%bmperr=4213; goto 1000
     endif
 !-------------------------------------------------------------------
 !    write(*,854)'dncol mm: ',tcol,pcol,dncol,converged,nz1
@@ -5744,7 +5735,7 @@ CONTAINS
 !       do jel=1,nz1
 !          write(*,89)jel,(smat(jel,nz2),nz2=1,nz1+1)
 !       enddo
-       gx%bmperr=8888; goto 1000
+       gx%bmperr=4214; goto 1000
 !    else
     endif
 !    write(*,89)0,(svar(jel),jel=1,nz1)
@@ -5782,7 +5773,7 @@ CONTAINS
     pcond=>ceq%lastcondition
     if(.not.associated(pcond)) then
        write(*,*)'There are no conditions at all!'
-       gx%bmperr=8888; goto 1000
+       gx%bmperr=4143; goto 1000
     endif
 ! all conditions have just one term at present
     nterm=1
@@ -5800,7 +5791,7 @@ CONTAINS
 ! Currently only implemented H.T 
     if(.NOT.(svr2%statevarid.eq.1 .or. svr2%statevarid.eq.2)) then
        write(*,*)'Derivatives with respect to T and P only'
-       gx%bmperr=8888; goto 1000
+       gx%bmperr=4213; goto 1000
     endif
 !------------
 !    write(*,17)'minimzer: meq_state_var_value_derivative: ',&
@@ -5851,14 +5842,14 @@ CONTAINS
                svr1%compset.eq.meqrec%phr(mph)%ics) then
              call meq_slope(mph,svr1,meqrec,value,ceq)
              write(*,*)'Not implemented x(phase,element).T'
-             gx%bmperr=8911; goto 1000
+             gx%bmperr=4215; goto 1000
           endif
        enddo
        write(*,*)'No such phase'
-       gx%bmperr=8888
+       gx%bmperr=4050
     else
        write(*,*)'Sorry, derivates of this variable not implemented'
-       gx%bmperr=8888; goto 1000
+       gx%bmperr=4215; goto 1000
     endif
 ! meqrec deallocated when this routine terminates ?? NO but meqrec1
     deallocate(meqrec1)
@@ -5925,7 +5916,7 @@ CONTAINS
     if(iel.lt.0) then
 ! sum for all elements
        write(*,*)'sum over elements not implemented'
-       gx%bmperr=8888
+       gx%bmperr=4216
     elseif(iel.eq.0) then
 ! independent of element, return for phase
        musum=zero
@@ -5954,7 +5945,7 @@ CONTAINS
           case default
 ! state variables 1..5 are potentials, 14-15 not possible to derivate
              write(*,*)'Illegal state variable id:',svr1%statevarid
-             gx%bmperr=8888; goto 1000
+             gx%bmperr=4188; goto 1000
           case(6) !U = G + TS - PV = G - T G.T - P G.P
              write(*,*)'Not implemented yet: ',svr1%statevarid
           case(7) !S = -G.T
@@ -6002,7 +5993,7 @@ CONTAINS
        case default
 ! state variables 1..5 are potentials, 14-15 not possible to derivate
           write(*,*)'Illegal state variable id:',svr1%statevarid
-          gx%bmperr=8888; goto 1000
+          gx%bmperr=4188; goto 1000
        case(6) !U = G + TS - PV
           write(*,*)'Not implemeneted yet: ',svr1%statevarid
        case(7) !S = -dG/dT
@@ -6055,7 +6046,7 @@ CONTAINS
    else
 ! something for a specific element
        write(*,*)'Element specific not implemented'
-       gx%bmperr=8888
+       gx%bmperr=4215
     endif
 !
 1000 continue
@@ -6452,7 +6443,7 @@ CONTAINS
     call lingld(nz1,nz2,smat,svar,nz1,ierr)
     if(ierr.ne.0) then
        write(*,*)'Error solving equilibrium matrix',ierr
-       gx%bmperr=4444; goto 1000
+       gx%bmperr=4203; goto 1000
     endif
 ! check that svar(1..meqrec%nrel) has converged
     do jj=1,meqrec%nrel
@@ -6664,7 +6655,7 @@ CONTAINS
     call lingld(nz1,nz2,smat,svar,nz1,ierr)
     if(ierr.ne.0) then
        write(*,*)'Error solving equilibrium matrix',ierr
-       gx%bmperr=4444; goto 1000
+       gx%bmperr=4203; goto 1000
     endif
 ! check that svar(1..meqrec%nrel) has converged
     do jj=1,meqrec%nrel
@@ -6855,8 +6846,6 @@ CONTAINS
     else ! not substitutional below
 ! now we have to handle sublattices and endmembers
 ! nsl is number of sublattices and nkl(1..nsl) the number of const in each
-!       write(*,*)'Not implemented yet'
-!       gx%bmperr=7777; goto 1000
        noofend=1
        is=1
        first=0

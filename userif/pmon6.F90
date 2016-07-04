@@ -29,7 +29,7 @@ MODULE cmon1oc
 !  use liboceq
 ! 
 ! parallel processing, set in gtp3.F90
-!  use omp_lib
+!$  use omp_lib
 !
   implicit none
 !
@@ -164,7 +164,7 @@ contains
 ! here are all commands and subcommands
 !    character (len=64), dimension(6) :: oplist
     integer, parameter :: ncbas=30,nclist=18,ncalc=9,ncent=18,ncread=6
-    integer, parameter :: ncam1=15,ncset=24,ncadv=6,ncstat=6,ncdebug=6
+    integer, parameter :: ncam1=18,ncset=24,ncadv=6,ncstat=6,ncdebug=6
     integer, parameter :: nselect=6,nlform=6,noptopt=6
     integer, parameter :: ncamph=12,nclph=6,nccph=6,nrej=6,nsetph=6
     integer, parameter :: nsetphbits=15,ncsave=6,nplt=15,nstepop=6
@@ -254,7 +254,8 @@ contains
          'PHASE           ','PARAMETER       ','BIBLIOGRAPHY    ',&
          'TPFUN_SYMBOL    ','CONSTITUTION    ','QUIT            ',&
          'COMPONENTS      ','GENERAL         ','CP_MODEL        ',&
-         'ALL_OPTIM_COEFF ','EQUILIBRIUM     ','                ']
+         'ALL_OPTIM_COEFF ','EQUILIBRIUM     ','                ',&
+         'LINE            ','                ','                ']
 !-------------------
 ! subsubcommands to AMEND PHASE
     character (len=16), dimension(ncamph) :: camph=&
@@ -515,7 +516,8 @@ contains
 !        'PHASE           ','PARAMETER       ','BIBLIOGRAPHY    ',&
 !        'TPFUN_SYMBOL    ','CONSTITUTION    ','QUIT            ',&
 !        'COMPONENTS      ','GENERAL         ','                ',&
-!         'ALL_OPTIM_COEFF ','EQUILIBRIUM     ','                ']
+!         'ALL_OPTIM_COEFF','EQUILIBRIUM     ','                ',&
+!         'LIST           ','                ','                ']
     CASE(1) ! AMEND
 ! disable continue optimization
        iexit=0
@@ -751,6 +753,21 @@ contains
 !-------------------------
        case(15) ! Nothing defined
           write(*,*)'Not implemented yet'
+!-------------------------
+       case(16) ! AMEND LINEs of calculated equilibria
+! we have to insert link to previos results (only one level!)
+!          if(associated(maptopsave)) then
+!             write(kou,*)'We link to maptopsave'
+!             maptop%plotlink=>maptopsave
+!          endif
+! possible amendment of all stored equilibria as ACTIVE or INACTIVE
+          call amend_stored_equilibria(axarr,maptop)
+!-------------------------
+       case(17) ! Nothing defined
+          write(*,*)'Not implemented yet'
+!-------------------------
+       case(18) ! Nothing defined
+          write(*,*)'Not implemented yet'
        END SELECT
 !=================================================================
 ! calculate subcommands
@@ -943,7 +960,9 @@ contains
           case(6) !
              write(*,*)'Not implemeneted yet'
           END SELECT
-!----------------------------------
+          ceq%status=ibclr(ceq%status,EQNOEQCAL)
+          ceq%status=ibset(ceq%status,EQINCON)
+!---------------------------------- end of calculate phase
        case(3) ! calculate equilibrium without initial global minimization
           if(minimizer.eq.1) then
 ! Lukas minimizer, first argument=0 means do not use grid minimizer
@@ -1162,7 +1181,7 @@ contains
 !         'VERBOSE         ','AS_START_EQUILIB','BIT             ',&
 !         'VARIABLE_COEFF  ','SCALED_COEFF    ','OPTIMIZING_COND ',&
 !         'EXPERIMENT_EQUIL','FIXED_COEFF     ','                ']
-    CASE(3) ! set subcommands
+    CASE(3) ! SET SUBCOMMANDS
 ! disable continue optimization
        iexit=0
        iexit(2)=1
@@ -2347,7 +2366,7 @@ contains
 !         'PARAMETER       ','EQUILIBRIA      ','RESULTS         ',&
 !         'CONDITIONS      ','SYMBOLS         ','LINE_EQUILIBRIA ',&
 !         'OPTIMIZATION    ','MODEL_PARAM_VAL ','                ']
-    CASE(6)
+    CASE(6) ! LIST
        kom2=submenu(cbas(kom),cline,last,clist,nclist,12)
        if(kom2.le.0) goto 100
        lut=optionsset%lut
@@ -2578,6 +2597,8 @@ contains
           if(btest(ceq%status,EQNOEQCAL)) then
              write(*,*)' *** No results as no equilibrium calculated!'
              goto 100
+          elseif(btest(ceq%status,EQGRIDCAL)) then
+             write(kou,*)' *** Last calculation was no a full equilibrium'
           endif
           call gparid('Output mode: ',cline,last,listresopt,lrodef,q1help)
           if(listresopt.gt.0 .and. listresopt.le.9) then
@@ -2719,6 +2740,11 @@ contains
 !------------------------------
 ! list lines, output of calculated and stored equilibria
        case(15)
+! we have to insert link to previos results (only one level!)
+!          if(associated(maptopsave)) then
+!             write(kou,*)'We link to maptopsave'
+!             maptop%plotlink=>maptopsave
+!          endif
 ! temporary listing of all stored equilibria as test
           call list_stored_equilibria(lut,axarr,maptop)
 !------------------------------
@@ -3035,6 +3061,10 @@ contains
           maptop%plotlink=>maptopsave
        endif
        call delete_mapresults(maptop)
+! remove any results from step and map
+       nullify(maptop)
+       nullify(mapnode)
+       nullify(maptopsave)
 !----- deallocate local axis records
        do jp=1,noofaxis
           if(allocated(axarr(jp)%axcond)) deallocate(axarr(jp)%axcond)
@@ -3396,7 +3426,7 @@ contains
           write(kou,*)'Not implemented yet'
        end SELECT
 !=================================================================
-! map, must be tested if compatible with assessments
+! MAP, must be tested if compatible with assessments
     case(20)
 ! disable continue optimization
 !       iexit=0
@@ -3444,6 +3474,10 @@ contains
              maptop=>maptopsave
              nullify(maptopsave)
           endif
+       elseif(associated(maptopsave)) then
+          write(Kou,*)'Set link to previous map results'
+          maptop%plotlink=>maptopsave
+          nullify(maptopsave)
        endif
 ! remove start equilibria
        nullify(starteq)
@@ -3906,10 +3940,11 @@ contains
 !============================================================
 ! handling errors
 990 continue
-    write(kou,*)
-    write(kou,*)'Error codes: ',gx%bmperr,buperr
+    write(kou,991)gx%bmperr,buperr
+991 format(/'Error codes: ',2i6)
     if(gx%bmperr.ge.4000 .and. gx%bmperr.le.nooferm) then
-       write(kou,*)bmperrmess(gx%bmperr)
+       write(kou,992)trim(bmperrmess(gx%bmperr))
+992    format('Message: ',a/)
     else
        write(kou,*)'No defined error message, maybe I/O error'
     endif

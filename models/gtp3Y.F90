@@ -614,7 +614,7 @@
 1010  format('Gridmin: ',i7,' points ',1pe10.2,' s and ',&
            i7,' clockcycles, T=',0pF8.2)
 ! set the global bit that this is not a full equilibrium
-      ceq%status=ibset(ceq%status,EQNOEQCAL)
+      ceq%status=ibset(ceq%status,EQGRIDCAL)
    endif
 ! deallocate 
    if(allocated(gridpoints)) then
@@ -624,73 +624,6 @@
    if(ocv()) write(*,*)'leaving global_gridmin'
    return
  end subroutine global_gridmin
-
-!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
-
-!-\begin{verbatim}
- subroutine new_gridpoint_calc(only,iph,nsl,nend,endm,jend,ifra,ny,yfra,&
-      xmol,gval,ceq)
-! This subroutine sets the fractions according to three indicators
-! and calculates the Gibbs energy of the gridpoint
-   implicit none
-   TYPE(gtp_equilibrium_data), pointer :: ceq
-   integer iph,nsl,only,nend,ny,jend(3),ifra(3)
-   double precision yfra(*),gval,xmol(*)
-   integer, dimension(nsl,nend) :: endm
-!-\end{verbatim}
-   integer lokres,ls
-! preset fractions
-   double precision qq(5)
-   double precision, parameter :: yzero=1.0D-12
-! preset weights of endmembers
-   double precision, dimension(4), parameter:: ybas=&
-        [1.0D0,0.89D0,0.74D0,0.61D0]
-   double precision, dimension(4), parameter :: ybin=&
-        [0.11D0,0.26D0,0.39D0,0.15D0]
-   double precision, dimension(2), parameter :: yter=&
-        [0.11D0,0.13D0]
-! When setting fractions one must have the sum of fractions in each sublattice
-! equal to unity.  This is done by weighting endmembers
-! endm(ll,ie) is the index to constituent ie in sublattice ll
-! With 3 sublattices with (2,2,4) constituents endm is
-! endm(1,1)=1, endm(1,2)=2, 
-! endm(2,1)=3, endm(2,2)=4,
-! endm(3,1)=5, endm(3,2)=6, endm(3,3)=7, endm(3,4)=8
-! jend(*) select endmember to mix, with two constitutions jend(3)=0
-!
-   do ls=1,ny
-      yfra(ls)=zero
-   enddo
-!   write(*,10)iph,jend,ifra
-10 format('gix: ',i2,13x,3i3,2x,3i3)
-   do ls=1,nsl
-      yfra(endm(ls,jend(1)))=ybas(ifra(1))
-      if(jend(2).gt.0) yfra(endm(ls,jend(2)))=&
-           yfra(endm(ls,jend(2)))+ybin(ifra(2))
-      if(jend(3).gt.0) yfra(endm(ls,jend(3)))=&
-           yfra(endm(ls,jend(3)))+yter(ifra(3))
-   enddo
-   if(only.gt.0) goto 1000
-!
-! calculate G and composition and save
-   write(*,11)iph,(yfra(ls),ls=1,ny)
-11 format('gyp: ',i2,25x,10(f6.3))
-   call set_constitution(iph,1,yfra,qq,ceq)
-   if(gx%bmperr.ne.0) goto 1000
-   call calcg(iph,1,0,lokres,ceq)
-   if(gx%bmperr.ne.0) goto 1000
-!
-   if(qq(1).ge.1.0D-1) then
-! number of real atoms less than 10%, a gridpoint with just vacancies ....
-      gval=real(ceq%phase_varres(lokres)%gval(1,1)/qq(1))
-   else
-      gval=1.0E5
-   endif
-   call calc_phase_mol(iph,xmol,ceq)
-   if(gx%bmperr.ne.0) goto 1000
-1000 continue
-   return
- end subroutine new_gridpoint_calc
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
@@ -739,6 +672,8 @@
 !             + 0.15*Y_F + 0.1*Y_G,G=/=(E,F) + 0.01*Y_all  (3 or more endmemb)
 !    0.61*Y_E + 0.38*Y_F,F=/=E + 0.01*Y_all
 !             + 0.25*Y_F + 0.13*Y_G,G=/=(E,F) + 0.01*Y_all (3 or more endmemb)
+! added:
+!    0.45*Y_E + 0.35*Y_F + 0.19*Y_G + 0.01*Y_all      N*(N-1)*(N-2) (4 or more)
 !----- N=2: total 2+2+2+2=8
 !----- N>2: total N*(1+(N-1)*(3+2*(N-2))); N=3:33, N=20:
 ! with 2 endmembers: 2*(1+3)=2*4=8
@@ -762,11 +697,14 @@
 ! for n=2 and n=15-25 three binary cobinations: 
 ! for n=11-14 three binary and one ternary combination
 ! for n<=10 use full grid: 2 binar and 2 ternar combinarions
-   double precision, dimension(4), parameter:: ybas=&
-        [1.0D0,0.89D0,0.74D0,0.61D0]
+! NOTE for ybas=0.45 never add same endmember !!!
+   double precision, dimension(5), parameter:: ybas=&
+        [1.0D0,0.89D0,0.74D0,0.61D0,0.45D0]
    double precision, dimension(4), parameter :: ybin=&
         [0.11D0,0.26D0,0.39D0,0.15D0]
    double precision, dimension(3), parameter :: yter=[0.0D0,0.11D0,0.13D0]
+! added: not here ... just for the dense grid
+!   double precision, dimension(2), parameter :: yqrt=[0.35D0,0.19D0]
 ! for output of gridpoints
    integer jbas,sumngg,loksp
    logical trace,isendmem
@@ -789,6 +727,10 @@
       call generate_dense_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,gmax,ceq)
       goto 1000
    endif
+!
+! mode=0 means gerate grid (-1 means calculate points for allocation, >0 means
+!                         find constituent fractions for gridpoint in solution)
+!
    if(mode.eq.0) then
 !      write(*,*)'Generating grid for phase: ',iph
 ! trace TRUE means generate outpt for each gridpoint
@@ -839,6 +781,9 @@
 !
    ny=inkl(nsl)
 !   write(*,1010)'Saved   ',iph,(ydum(i),i=1,ny)
+!
+! mode<0 means calculate size of arrays to allocate
+!
    negmode: if(mode.lt.0) then
 !---------------------------------------------------------
 ! just determine the number of gridpoints for this phase for global minimimum
@@ -862,18 +807,27 @@
          ngg=nend*(1+3*(nend-1))
       elseif(nend.gt.10) then
 ! 11-14: three binary and one ternary combinarion 
-         ngg=nend*(1+(nend-1)*(3+nend-2)) ! (ternary combination skipped)
+!         ngg=nend*(1+(nend-1)*(3+nend-2)) ! (ternary combination skipped)
+!         ny=ngg
          ngg=nend*(1+3*(nend-1))
+! added yqrt
+!         je=nend*(nend-1)*(nend-2)
+!         write(*,*)'endmemers, ngg and je: ',nend,ngg,je
       else
 ! 3-10: three binary and two ternary combinarions (all)
-         ngg=nend*(1+(nend-1)*(3+2*(nend-2))) ! (ternary combinations skipped)
+! and the added (quaternary) combinatin
+!         ngg=nend*(1+(nend-1)*(3+2*(nend-2))) ! (ternary combinations skipped)
+!         ny=ngg
          ngg=nend*(1+3*(nend-1))
+! added ygrt
+         je=nend*(nend-1)*(nend-2)
+!         write(*,*)'endmemers, ngg and je: ',nend,ngg,je
       endif
 !      write(*,*)'endmembers and gridpoints: ',nend,ngg
 !      read(*,11)ch1
 11    format(a)
 !      ngg=ngg+iliqneut
-      ngg=ngg
+!      ngg=ngg
       if(ocv()) write(*,*)'Generate grid: ',nend,ngg
       ny=nend
       goto 1001
@@ -929,9 +883,7 @@
    endmem: do iend=1,nend
       yfra=yzero
       do ls=1,nsl
-! attempt to generate better start valued for fcc-prototype
          yfra(endm(ls,iend))=ybas(1)
-!         yfra(endm(ls,iend))=ybas(1)-1.0D-6*(nkl(ls)-1)
       enddo
 !      write(*,180)'3Y yfra: ',1,iend,nkl(1),endm(1,iend),yfra(endm(1,iend))
 180   format(a,4i3,6(1pe16.7))
@@ -945,7 +897,7 @@
 200   continue
       ngg=ngg+1
       if(mode.gt.0) then
-! we have found the gridpoint! store y and x and quit
+! if ngg=mode we have found the gridpoint! store y and x and quit
          if(ngg.eq.mode) goto 500
       else
 ! calculate G and composition and save
@@ -992,9 +944,7 @@
          if(jend.eq.iend) jend=jend+1
          if(jend.gt.nend) cycle
          do ls=1,nsl
-! attempt to generate better start values for fcc-protototype ordering
             yfra(endm(ls,iend))=ybas(ibas)
-!            yfra(endm(ls,iend))=ybas(ibas)-1.0D-6*(nkl(ls)-1)
             yfra(endm(ls,jend))=yfra(endm(ls,jend))+ybin(ibin)
          enddo
 !      write(*,180)'3Y yfra: ',ibas,iend,nkl(1),endm(1,jend),yfra(endm(1,jend))
@@ -1011,9 +961,7 @@
             ibas=3; ibin=2
          endif
          do ls=1,nsl
-! attempt to generate better start values for fcc-protototype ordering
             yfra(endm(ls,iend))=ybas(ibas)
-!            yfra(endm(ls,iend))=ybas(ibas)-1.0D-6*(nkl(ls)-1)
             yfra(endm(ls,jend))=yfra(endm(ls,jend))+ybin(ibin)
          enddo
 !      write(*,180)'3Y yfra: ',ibas,jend,nkl(1),endm(1,jend),yfra(endm(1,jend))
@@ -1032,9 +980,7 @@
             if(jend.eq.iend) jend=jend+1
          endif
          do ls=1,nsl
-! attempt to generate better start values for fcc-protototype ordering
             yfra(endm(ls,iend))=ybas(ibas)
-!            yfra(endm(ls,iend))=ybas(ibas)-1.0D-6*(nkl(ls)-1)
             yfra(endm(ls,jend))=yfra(endm(ls,jend))+ybin(ibin)
          enddo
 !      write(*,180)'3Y yfra: ',ibas,jend,nkl(1),endm(1,jend),yfra(endm(1,jend))
@@ -1081,9 +1027,7 @@
             endif
          endif
          do ls=1,nsl
-! attempt to generate better start values for fcc-protototype ordering
             yfra(endm(ls,iend))=ybas(ibas)
-!            yfra(endm(ls,iend))=ybas(ibas)-1.0D-6*(nkl(ls)-1)
             yfra(endm(ls,jend))=yfra(endm(ls,jend))+ybin(ibin)
             if(kend.gt.0) then
                yfra(endm(ls,kend))=yfra(endm(ls,kend))+yter(iter)
@@ -1141,8 +1085,6 @@
          endif
          do ls=1,nsl
 ! attempt to generate better start values for fcc-protototype ordering
-!            yfra(endm(ls,iend))=ybas(ibas)
-!            yfra(endm(ls,iend))=ybas(ibas)-1.0D-6*(nkl(ls)-1)
             yfra(endm(ls,iend))=ybas(ibas)
             yfra(endm(ls,jend))=yfra(endm(ls,jend))+ybin(ibin)
             if(kend.gt.0) then
@@ -1241,8 +1183,11 @@
 !    0.91*Y_E + 0.07*Y_F + 0.02*Y_all, F.ne.E          N*N*(N-1)
 !    0.80*Y_E + 0.15*Y_F + 0.05*Y_all, F.ne.E          N*N*(N-1)
 !    0.68*Y_E + 0.25*Y_F + 0.07*Y_all, F.ne.E          N*N*(N-1)
+! or 0.68*Y_E + 0.16*Y_F + 0.16*Y_all, F.ne.E          N*N*(N-1)
 !    0.54*Y_E + 0.36*Y_F + 0.10*Y_all, F.ne.E          N*N*(N-1)
 !    0.42*Y_E + 0.35*Y_F + 0.23*Y_G, F.ne.E.ne.G       N*(N-1)*(N-2)
+! or 0.42*Y_E + 0.40*Y_F + 0.18*Y_G, F.ne.E.ne.G       N*(N-1)*(N-2)
+! or 0.48*Y_E + 0.40*Y_F + 0.12*Y_G, F.ne.E.ne.G       N*(N-1)*(N-2)
 ! with 2 endmembers: 24 gridpoints
 ! (1.00,0.00) (0.99,0.01) (0.01,0.99) (0.00,1.00)
 ! (0.96,0.04) (0.04,0.96) *2
@@ -1265,11 +1210,13 @@
 ! ...
    integer, parameter, dimension(5) :: breaks=[9,12,15,18,21]
    double precision, dimension(-1:6), parameter:: ybas=&
-        [1.00D0,0.99D0,0.96D0,0.91D0,0.68D0,0.80D0,0.54D0,0.42D0]
+        [1.00D0,0.99D0,0.96D0,0.91D0,0.68D0,0.80D0,0.54D0,0.44D0]
    double precision, dimension(6), parameter :: ybin=&
-                      [0.03D0,0.07D0,0.25D0,0.15D0,0.36D0,0.35D0]
+                      [0.03D0,0.07D0,0.16D0,0.15D0,0.36D0,0.44D0]
+!                      [0.03D0,0.07D0,0.25D0,0.15D0,0.36D0,0.35D0]
    double precision, dimension(6), parameter :: yter=&
-                      [0.01D0,0.02D0,0.07D0,0.05D0,0.10D0,0.23D0]
+                      [0.01D0,0.02D0,0.16D0,0.05D0,0.10D0,0.12D0]
+!                      [0.01D0,0.02D0,0.07D0,0.05D0,0.10D0,0.23D0]
 ! for output of gridpoints
    integer jbas,sumngg,loksp,l0,l1
    logical trace,isendmem

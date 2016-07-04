@@ -3,19 +3,19 @@
 
 set echo
 
-r t steel1
+r t steel1 c cr fe mo v
 
-@& calculate at 1200 to create two fcc phases
+@& calculate a first equilibrium at 1200 to create two fcc phases automatically 
 
-set c t=1200 p=1e5 n=1 w(c)=.008 w(cr)=.05, w(mo)=.08 w(v)=.01 w(si)=.003
+set c t=1200 p=1e5 n=1 w%(c)=.8 w%(cr)=5, w%(mo)=8 w%(v)=1
 
 c e
 
-l r 1
+l r 4
 
 @&
 
-set axis 1 w(c) 0 0.02 ,,,
+set axis 1 w%(c) 0 1.2 ,,,
 set axis 2 T 800 1800 25
 
 l ax
@@ -26,21 +26,23 @@ map
 
 
 
-@$ We normally get a buffer overflow error here
+@$ It is normal to get a buffer overflow error here
 @$ but there is not yet any saving of results on file implemented
 @&
-
-l l
-
-@&
-
-l eq
-
 
 
 plot,,,,,,,,
 
 
+@$ We can list all calculated equilibria
+
+l l
+
+@&
+
+@$ or all node points
+
+l eq
 
 set inter
 

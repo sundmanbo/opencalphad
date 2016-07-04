@@ -515,8 +515,9 @@
 !\begin{verbatim} %-
  subroutine change_phase_status(qph,ics,nystat,val,ceq)
 ! change the status of a phase. Also used when setting phase fix etc.
-! old: 0=entered, 1=suspended, 2=dormant, 3=fix, 4=hidden,5=not hidden
+! not used old: 0=entered, 1=suspended, 2=dormant, 3=fix, 4=hidden,5=not hidden
 ! nystat:-4 hidden, -3 suspended, -2 dormant, -1,0,1 entered, 2 fix
+! try using nystat=3 for map/step fix phase ...
 ! qph can be -1 meaning all or a specifix phase index. ics compset
 ! 
    implicit none
@@ -628,8 +629,11 @@
          ceq%phase_varres(lokcs)%netcharge=zero
          ceq%phase_varres(lokcs)%dgm=zero
       elseif(nystat.eq.phfixed) then
+! to allow MAPPHASEFIX=3
+!      elseif(nystat.ge.phfixed) then
 ! set fix with amount val
 !         write(*,*)'Setting phase as fix'
+!         if(nystat.eq.3) write(*,*)'Phase set mapphasefix'
          ceq%phase_varres(lokcs)%phstate=phfixed
 !z         ceq%phase_varres(lokcs)%status2=&
 !z              ibclr(ceq%phase_varres(lokcs)%status2,CSSUS)

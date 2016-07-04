@@ -2819,6 +2819,7 @@
                     write(kou,87)nl,longline(1:min(78,len_trim(longline)))
 87             format('Skipping this TYPE_DEFINITION on line ',i5,':'/a)
                warning=.TRUE.
+!               write(*,*)' WARNING SET TRUE <<<<<<<<<<<<<<<<<<<<<<<<<<<'
             endif
          endif magnetic
       endif newtypedef
@@ -2896,7 +2897,7 @@
    case(10) ! ASSESSED_SYSTEMS
       if(.not.silent) write(kou,*) &
            'Cannot handle ASSESSED_SYSTEMS ending at ',nl
-      warning=.TRUE.
+!      warning=.TRUE.
 ! skip lines until !
       do while(index(line,'!').le.0)
          read(21,110)line
@@ -2906,7 +2907,7 @@
 !------------------------------------------------------------------
    case(11) ! DATABASE_INFORMATION
       if(.not.silent) write(kou,*)'Cannot handle DATABASE_INFORMATION at ',nl
-      warning=.TRUE.
+!      warning=.TRUE.
 ! skip lines until !
       do while(index(line,'!').le.0)
          read(21,110)line
@@ -3028,14 +3029,15 @@
 ! if silent set ignore warnings
       if(.not.silent) then
          write(kou,1003)
-1003     format(/'There were warnings, continue? Y/N')
+1003     format(/'There were warnings, check them carefully'/&
+              'and press RETURN if you wish to continue.')
          read(kiu,1004)ch1
 1004     format(a)
-         if(ch1.eq.'N') stop 'warnings reading database'
-         if(ch1.ne.'Y') then
-            write(kou,*)'Please answer Y or N'
-            goto 1001
-         endif
+!         if(ch1.eq.'N') stop 'warnings reading database'
+!         if(ch1.ne.'Y') then
+!            write(kou,*)'Please answer Y or N'
+!            goto 1001
+!         endif
       endif
    endif
 !   write(*,*)'3E At label 1000'

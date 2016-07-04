@@ -5,13 +5,6 @@ set echo
 
 r t ou
 
-@&
-@$-----------------------------------------------------------
-l d,,,
-
-@&
-@$-----------------------------------------------------------
-@$ Set contions to create a second liquid composition set
 
 set c t=3200 p=1e5 n=1 x(o)=.5
 
@@ -20,8 +13,6 @@ c e
 l r 2
 
 @&
-@$-----------------------------------------------------------
-@$ Set axis for mapping
 
 set ax 1 x(o) 0 1 ,,
 
@@ -29,7 +20,6 @@ set ax 2 t 500 3500 25
 
 map
 
-@$ Plot the diagram, the O rich part missing
 plot
 x(*,o)
 T
@@ -37,60 +27,23 @@ title map 4 fig 1
 render
 
 
-@$-----------------------------------------------------------
-@$ Set another start point to calculate the high O side
-@$ SELECTION OF START POINT IS VERY SENSITIVE ...
-
-set c t=2400 x(o)=.8
-
-c e
-
-c e
-
-l,,,,
-
-@&
-@$---------------------------------------------------------------
-@$ Map without removing the previous results
-map
-N
-
-
-@$ Plot the diagram again
 plot
-
-
+x(*,o)
+T
 title map4 fig 2
-render
-
-@$ set the line definitions outside the plot
-plot
-
-
-position outside right
-title map4 fig 3
+position bottom right
 render
 
 
-@$ set range (scaling) of the x axis
 plot
 
 
+tite map4 fig 3
 xrange 
 N 
 .58 
 .78
-title map4 fig 4
 render
-
-@$ Write this as a PDF file
-plot
-
-
-gra A
-OU
-
-
 
 set interactive
 

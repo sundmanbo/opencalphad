@@ -652,17 +652,17 @@
       svtext='MU('//name(1:kl)//') '
 !      write(*,*)'state variable :',svtext
       call get_state_var_value(svtext,x3,encoded,ceq)
-! divide mu with RT
-      if(abs(x3).gt.1.0E-40) then
+      if(gx%bmperr.ne.0) then
+         write(*,*)'3C Error line 659: ',trim(svtext),gx%bmperr
+         gx%bmperr=0; x3=1.0D2*rtn
+      endif
+! divide mu with RT, lnac
+      if(abs(x3).gt.1.0D-30) then
          x3=x3/rtn
       else
          x3=zero
       endif
       x4=exp(x3)
-      if(gx%bmperr.ne.0) then
-         write(*,*)'3C Error line 659: ',svtext(1:20),gx%bmperr
-         gx%bmperr=0; x3=1.0D36
-      endif
 ! reference state, by default "SER (default)" take from component record
 !      if(ceq%complist(ie)%phlink.gt.0) then
       encoded=ceq%complist(ie)%refstate
@@ -803,7 +803,7 @@
       jcs=1
    endif
    lokcs=phlista(lokph)%linktocs(jcs)
-!   write(*,*)'lpr 2: ',jcs,phlista(lokph)%noofcs,lokcs
+!   write(*,*)'3C lpr 2: ',jcs,phlista(lokph)%noofcs,lokcs
 ! get name with pre- and suffix
    call get_phase_name(iph,jcs,phname)
    if(gx%bmperr.ne.0) goto 1000
@@ -946,7 +946,8 @@
    nk=0
    sublatloop: do ll=1,phlista(lokph)%noofsubl
       nz=phlista(lokph)%nooffr(ll)
-      if(phlista(lokph)%noofsubl.gt.1) then
+!      if(phlista(lokph)%noofsubl.gt.1) then
+      if(size(ceq%phase_varres(lokcs)%sites).gt.1) then
 !         write(lut,320)ll,nz,phlista(lokph)%sites(ll)
          if(ll.gt.1) then
             write(lut,319)ll,nz,ceq%phase_varres(lokcs)%sites(ll)
@@ -3740,6 +3741,53 @@
 1000 continue
    return
  end subroutine find_defined_property
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
+ subroutine line_with_phases_withdgm0(line,ceq)
+! used in amend lines with stored STEP/MAP results
+! enter first 6, two .. and last 2 characters of phase names with abs(dgm)<1-8
+! line LIQUID#2, PHYRRO..#2 
+   implicit none
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+   character line*(*)
+!\end{verbatim}
+   integer iph,ik,jk,tup
+   character name*32
+   ik=1
+! number of phases is equal to number of phase tuples?? no
+   do iph=1,noofph
+!         iph=phasetuple(phtupx(isort(jd)))%phaseix
+!         ics=phasetuple(phtupx(isort(jd)))%compset
+!         call get_phase_compset(iph,ics,lokph,lokcs)
+      tup=iph
+100   continue
+      if(abs(ceq%phase_varres(phasetuple(tup)%lokvares)%dgm).lt.1.0D-9) then
+         call get_phasetup_name(tup,name)
+         if(gx%bmperr.ne.0) goto 1000
+         jk=len_trim(name)
+         if(ik+10.gt.len(line)) then
+            line(ik:)=' ...'
+         elseif(jk.gt.8) then
+            line(ik:)=name(1:6)//'..'
+            line(ik+8:)=name(jk-1:jk)
+            ik=ik+11
+         else
+            line(ik:)=name
+            ik=len_trim(line)+2
+         endif
+!      else
+!         continue
+      endif
+! find higher composition sets of this phase
+      tup=phasetuple(tup)%nextcs
+      if(tup.gt.0) goto 100
+   enddo
+!   write(*,*)'3C phaseline: ',line
+1000 continue
+   return
+ end subroutine line_with_phases_withdgm0
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 

@@ -4295,6 +4295,26 @@
 ! copied as a whole, not each record structure separately ... ???
    implicit none
    character name*(*)
+   type(gtp_equilibrium_data), pointer ::neweq,ceq
+!\end{verbatim} %+
+   integer number
+   call copy_equilibrium2(neweq,number,name,ceq)
+1000 continue
+   return
+ end subroutine copy_equilibrium
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim} %-
+ subroutine copy_equilibrium2(neweq,number,name,ceq)
+! creates a new equilibrium which is a copy of ceq.  
+! Allocates arrayes for conditions,
+! components, phase data and results etc. from equilibrium ceq
+! returns a pointer to the new equilibrium record
+! THIS CAN PROBABLY BE SIMPLIFIED, especially phase_varres array can be
+! copied as a whole, not each record structure separately ... ???
+   implicit none
+   character name*(*)
    integer number
    type(gtp_equilibrium_data), pointer ::neweq,ceq
 !\end{verbatim}
@@ -4501,7 +4521,7 @@
 1000 continue
 !   write(*,*)'exit copy_equilibrium'
    return
- end subroutine copy_equilibrium
+ end subroutine copy_equilibrium2
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 

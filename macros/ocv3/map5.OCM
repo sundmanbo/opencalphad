@@ -30,7 +30,7 @@ def
 @$--------------------------------------------------------------------
 @$ Set conditions
 
-set cond t=2000 p=1e5 n=1 x(mo)=.7
+set cond t=2000 p=1e5 n=1 x(mo)=.2
 
 c e
 
@@ -64,6 +64,7 @@ title map5 fig 1
 render
 
 
+
 @$--------------------------------------------------------------------
 @$ we must calculate the gamma loop separately
 
@@ -95,7 +96,7 @@ T
 yr
 N
 1600
-1800
+1900
 title map5 fig 3
 render
 

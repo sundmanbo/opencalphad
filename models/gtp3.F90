@@ -136,7 +136,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !  use matrix1
 !
 ! for parallel processing
-  use OMP_LIB
+!$  use OMP_LIB
 !
 !--------------------------------------------------------------------------
 !
@@ -144,6 +144,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! date       item
 ! 2013.03.01 Release version 1
 ! 2015.01.07 Release version 2
+! 2016.02.14 Release version 3
 !
 !=================================================================
 !
@@ -153,7 +154,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! error messages
 ! numbers 4000 to 4220 defined.  gx%bmperr is set to message index
 ! A lot of error flags set have no messages ....
-  integer, parameter :: nooferm=4220
+  integer, parameter :: nooferm=4250
   character (len=64), dimension(4000:nooferm) :: bmperrmess
   data bmperrmess(4000:4199)&
       /'Too many coefficients in a TP function.                         ',&
@@ -347,7 +348,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'Request for non-existing chemical potential                     ',&
        'Removing current data not implemented                           ',&
        'Grid minimization not allowed                                   ',&
-       'Grid minimimazer cannot be used with the current conditions     ',&
+       'Grid minimizer cannot be used with the current conditions       ',&
        'Too many gridpoints                                             ',&
        'No phases and no gridpoints in call to grid minimization        ',&
        'Grid minimizer wants but must not create composition sets       ',&
@@ -361,26 +362,26 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'Cannot handle conditions on both N and B                        ',&
        'No mole fractions when summing composition                      ',&
        'Error in TDB file, missing function                             ',&
-       'Temperature (K) or pressure (Pa) must be larger than 0.1        ',&
+       'Temperature (K) or pressure (Pa) values must be larger than 0.1 ',&
        'No such state variable                                          ',&
-       '                                                                ',&
+       'Too many conditions on potentials                               ',&
 ! 4190
        'File already exist, overwriting not allowed                     ',&
-       '                                                                ',&
-       '                                                                ',&
-       '                                                                ',&
-       '                                                                ',&
-       '                                                                ',&
-       '                                                                ',&
-       '                                                                ',&
-       '                                                                ',&
-       '                                                                '/
+       'Activity conditions must be larger than zero                    ',&
+       'Cannot handle two fix phases                                    ',&
+       'Too many stable phases                                          ',&
+       'This phase must not be stable                                   ',&
+       'Attempt to remove the only stable phase                         ',&
+       'Enthalpy condition on unstable phase                            ',&
+       'Illegal wildcard constituent in ionic liquid model              ',&
+       'No equilibrium calculated, cannot calculate dot derivative      ',&
+       'Error calculating equilibrium matrix for dot derivative         '/
 ! 4200 errors in minimizer
-  data bmperrmess(4200:4220)&
+  data bmperrmess(4200:4250)&
       /'No phase that can be set stable                                 ',&
        'Attempt to set too many phases as stable                        ',&
        'Total amount is negative                                        ',&
-       'Error solving system matrix                                     ',&
+       'Error solving equilibrium matrix                                ',&
        'Too many iterations                                             ',&
        'Phase matrix singular                                           ',&
        'Cannot handle models without analytical second derivativatives  ',&
@@ -390,15 +391,48 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! 4210
        'Phase change not allowed due to step/map constraints            ',&
        'Attempt to delete composition sets when many equilibria         ',&
-       '                                                                ',&
-       '                                                                ',&
-       '                                                                ',&
-       '                                                                ',&
-       '                                                                ',&
+       'Too many equation in equilibrium matrix                         ',&
+       'Derivatives with respect to T and P only are allowed            ',&
+       'Error creating system matrix in initiate meqrec subroutine      ',&
+       'This dot derivative not yet implemented                         ',&
+       'Wildcard not allowed in dot derivative                          ',&
        'Use "calculate symbol" for state variable symbols               ',&
        '                                                                ',&
        'Too many equilibria in STEP/MAP, save on file not implemented   ',&
-! 4220
+! 4220 step/map
+       'STEP/MAP error calculating node point, trying to decrease step  ',&
+       'STEP/MAP error calculating node point, axis condition not found ',&
+       'STEP/MAP error calculating node point, another phase stable     ',&
+       'STEP/MAP error calculating node point, too many stable phases   ',&
+       '4224                                                            ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+! 4230
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+! 4240
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+! 4250
        '                                                                '/
 ! last used error codes above
 !
@@ -503,9 +537,10 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! EQFAIL set if last calculation failed
 ! EQNOACS set if no automatic composition sets ?? not used !! see GSNOACS
 ! EQGRIDTEST set if grid minimizer should be used after equilibrium
+! EQGRIDCAL set if last calculation was using only gridminimizer
    integer, parameter :: &
-        EQNOTHREAD=0, EQNOGLOB=1, EQNOEQCAL=2, EQINCON=3, &
-        EQFAIL=4,     EQNOACS=5,  EQGRIDTEST=6
+        EQNOTHREAD=0, EQNOGLOB=1, EQNOEQCAL=2,  EQINCON=3, &
+        EQFAIL=4,     EQNOACS=5,  EQGRIDTEST=6, EQGRIDCAL=7
 !----------------------------------------------------------------
 !-Bits in parameter property type record (gtp_propid)
 ! constant (no T or P dependence), only P, property has an element suffix
@@ -1307,7 +1342,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
      double precision, dimension(:,:), allocatable :: compstoi
      double precision, dimension(:,:), allocatable :: invcompstoi
 ! one record for each phase+composition set that can be calculated
-! phase_varres: here all calculated data for the phase is stored
+! phase_varres: here all calculated data for the phases are stored
      TYPE(gtp_phase_varres), dimension(:), allocatable :: phase_varres
 ! index to the tpfun_parres array is the same as in the global array tpres 
 ! eq_tpres: here local calculated values of TP functions are stored

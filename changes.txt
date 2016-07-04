@@ -15,6 +15,16 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2016.07.04 I have finally started to improve the calculation of phase
+diagrams and this version has some significant improvements.  But the
+mapping is still very fragile and depend a lot on the starting point.
+But now miscibility gaps are almost closed and the mapping can cross a
+congruent melting point.  I have also added a command AMEND LINE to
+remove lines that are wrong.  I discovered that most lines are
+calculated twice so I will remove that and implement a global
+minimization at nodepoints to check they are stable.  The isopleth
+calculations are also better but require global tests.
+
 2016.06.17 A major revision of the datastructure has been made with
 help of valgrind to avoid uninitiallized variables and memory leaks.
 In particular the array eq_tpres was changed from pointer to
