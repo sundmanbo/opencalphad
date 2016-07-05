@@ -404,33 +404,33 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'STEP/MAP error calculating node point, axis condition not found ',&
        'STEP/MAP error calculating node point, another phase stable     ',&
        'STEP/MAP error calculating node point, too many stable phases   ',&
-       '4224                                                            ',&
-       '                                                                ',&
-       '                                                                ',&
-       '                                                                ',&
-       '                                                                ',&
-       '                                                                ',&
+       'Cannot find start equilibrium for step/map                      ',&
+       'Startpoint for step/map outside axis limits                     ',&
+       'Cannot yet handle nodepoints with more than 2 exits             ',&
+       'Phase set changed in start point                                ',&
+       'Only two axis implemented currently                             ',&
+       'Axis direction error, no such axis                              ',&
 ! 4230
-       '                                                                ',&
-       '                                                                ',&
-       '                                                                ',&
-       '                                                                ',&
-       '                                                                ',&
-       '                                                                ',&
-       '                                                                ',&
-       '                                                                ',&
-       '                                                                ',&
-       '                                                                ',&
+       'STEP/MAP tries to set the only stable phase as fix              ',&
+       'Too many stable phases during mapping                           ',&
+       'Another phase wants to be stable at node point                  ',&
+       'No phase change searching along an axis for a start point       ',&
+       'Internal error handling fix phases at node point                ',&
+       'Too many phases set fix during mapping                          ',&
+       'Mapping cannot handle expressions as conditions                 ',&
+       'Node with no exit lines                                         ',&
+       'Attempt to remove the only stable phase                         ',&
+       'Yet another never never error                                   ',&
 ! 4240
-       '                                                                ',&
-       '                                                                ',&
-       '                                                                ',&
-       '                                                                ',&
-       '                                                                ',&
-       '                                                                ',&
-       '                                                                ',&
-       '                                                                ',&
-       '                                                                ',&
+       'Too many fix phases during mapping                              ',&
+       'More than one entered phase                                     ',&
+       'Not a single entered phase                                      ',&
+       'Whops, mapping without conditions ...                           ',&
+       'I give up on this line                                          ',&
+       'Unknown problem                                                 ',&
+       'Two phases compete to be stable                                 ',&
+       'Nothing to plot in ocplot                                       ',&
+       'No data so no plot                                              ',&
        '                                                                ',&
 ! 4250
        '                                                                '/
@@ -452,12 +452,14 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! NOAFTEREQ: no manipulations of results after equilirum calculation
 ! XGRID: extra dense grid for all phases
 ! NOPAR: do not run in parallel
+! NOSMGLOB do not test global equilibrium at node points
 ! >>>> some of these should be moved to the gtp_equilibrium_data record
   integer, parameter :: &
        GSBEG=0,     GSOCC=1,     GSADV=2,      GSNOGLOB=3, &
        GSNOMERGE=4, GSNODATA=5,  GSNOPHASE=6,  GSNOACS=7, &
        GSNOREMCS=8, GSNOSAVE=9,  GSVERBOSE=10, GSSETVERB=11,&
-       GSSILENT=12, GSNOAFTEREQ=13, GSXGRID=14,GSNOPAR=15
+       GSSILENT=12, GSNOAFTEREQ=13, GSXGRID=14,GSNOPAR=15, &
+       GSNOSMGLOB=16
 !----------------------------------------------------------------
 !-Bits in element record
   integer, parameter :: &

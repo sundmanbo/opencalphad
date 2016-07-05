@@ -3543,6 +3543,24 @@
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim}
+ logical function global_equilibrium_check(ceq,newceq)
+! subroutine global_equilibrium_check(ceq,newceq)
+! This subroutine checks if a calculated solution is the global equilibrium
+   implicit none
+   TYPE(gtp_equilibrium_data), pointer :: ceq,newceq
+!\end{verbatim}
+   logical check
+   check=.TRUE.
+   write(*,*)'Global check of node points not implemented'
+! call gridmin_check(....)
+1000 continue
+   global_equilibrium_check=check
+   return
+ end function global_equilibrium_check
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
  subroutine gridmin_check(nystph,kp,nrel,xarr,garr,xknown,ngrid,pph,&
       cmu,yphl,iphx,ceq)
 ! This subroutine checks if a calculated solution is correct by  

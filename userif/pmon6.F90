@@ -1003,6 +1003,8 @@ contains
              call get_phase_compset(iphl(j1),icsl(j1),lokph,lokcs)
              ceq%phase_varres(lokcs)%amfu=totam*ceq%phase_varres(lokcs)%amfu
           enddo
+! clear this bit so one can list the equilibrium
+          ceq%status=ibclr(ceq%status,EQNOEQCAL)
 !2103      format('Stable phase ',2i4,': ',a)
 !---------------------------------------------------------------
        case(7) ! calculate symbol
@@ -1026,12 +1028,13 @@ contains
 !---------------------------------------------------------------
        case(8) ! calculate equilibrium for current equilibrium ceq
           if(minimizer.eq.1) then
-! Lukas minimizer, first argiment=1 means use grid minimizer
+! Lukas minimizer, first argument=1 means use grid minimizer
 !           call calceq1(1,ceq)
              write(kou,*)'Not implemented yet'
           else
              call calceq2(1,ceq)
           endif
+! calceq2 set appropriate bits for listing
           if(gx%bmperr.ne.0) goto 990
 !---------------------------------------------------------------
        case(9) ! calculate all equilibria
