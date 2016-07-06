@@ -162,6 +162,7 @@
    logical once
 ! save here to use the same default as last time
    save chd
+   qph=0
 !   call gparc('Phase name: ',cline,last,1,name1,' ',q1help)
 !   if(name1(1:2).eq.'* ') then
 ! this means all phases and composition sets
@@ -301,6 +302,7 @@
    integer, dimension(maxsubl) :: endm(maxsubl)
    double precision xxx
 !
+   lk3=0
 10  continue
    call gparc('Parameter name: ',cline,ip,7,parname,' ',q1help)
 ! simple parameter names are like G(SIGMA,FE:CR:FE,CR;1)
@@ -863,6 +865,9 @@
 !   return
 !=========================================================================
    nullify(temp)
+   symsym=0
+   iunit=0
+   iref=0
 ! return here to deconde another condition on the same line
 50 continue
    nterm=0
@@ -920,14 +925,14 @@
 ! special case when condition number provided, extract the number, can be *
 ! UNFINISHED for *
       if(notcond.ne.0) then
-         write(*,*)'Experiments have no number'
-         gx%bmperr=7777; goto 1000
+!         write(*,*)'Experiments have no number'
+         gx%bmperr=4131; goto 1000
       endif
       qp=1
       call getrel(stvexp,qp,xxx)
       if(buperr.ne.0) then
-         write(*,*)'No such condition number'
-         gx%bmperr=7777; goto 1000
+!         write(*,*)'No such condition number'
+         gx%bmperr=4131; goto 1000
       endif
       qp=-int(xxx)
 ! search for condition with number -qp
@@ -1095,9 +1100,6 @@
             continue
          endif
 ! multiterm expression, jump back to 55 ... not yet implemented
-!         write(*,86)ich,ip,nterm,stvexp(1:25),ccc
-!86       format('Expression: ',3i3,' "',a,'" ',1pe12.4)
-!      gx%bmperr=9998; goto 1000
          coeffs(nterm+1)=ccc
          cline=stvexp(ip-1:); ip=1
          goto 55
@@ -1226,14 +1228,14 @@
 ! Save new T also locally in ceq
 !            write(*,*)'3D we are here 1',ceq%tpval(1)
             if(linkix.gt.0) then
-               write(*,*)'Cannot handle symbol as T value'
-               gx%bmperr=8888; goto 1000
+!               write(*,*)'Cannot handle symbol as T value'
+               gx%bmperr=4293; goto 1000
             endif
             ceq%tpval(1)=value
          elseif(istv.eq.2) then
             if(linkix.gt.0) then
-               write(*,*)'Cannot handle symbol as P value'
-               gx%bmperr=8888; goto 1000
+!               write(*,*)'Cannot handle symbol as P value'
+               gx%bmperr=4293; goto 1000
             endif
             ceq%tpval(2)=value
          endif
@@ -1395,7 +1397,7 @@
 299 continue
    if(notcond.ne.0) then
       write(kou,*)'Illegal to set a fix phase as experiment'
-      gx%bmperr=7677; goto 1000
+      gx%bmperr=4294; goto 1000
    endif
 !   write(*,*)'3D fix phase 2: ',ip,stvexp(ip:40)
    call find_phase_by_name(stvexp(ip:),iph,ics)
@@ -1686,8 +1688,8 @@ end subroutine get_condition
 !   integer, dimension(4) :: indx
    integer ncc,nac,j1,istv,iref,iunit
 !
-   write(*,*)'not implemented!!'
-   gx%bmperr=7777; goto 1000
+!   write(*,*)'not implemented!!'
+   gx%bmperr=4078; goto 1000
 !--------------------------------------------------------
    if(.not.associated(pcond)) goto 900
    first=>pcond%next
@@ -1751,12 +1753,16 @@ end subroutine get_condition
    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
    integer ij
+!   write(*,*)'In locate_condition 1'
    pcond=>ceq%lastcondition
+!   write(*,*)'In locate_condition 2',seqz
    do ij=1,seqz
       pcond=>pcond%next
+! segmentation faults in this routine when locating ceq saved during step/map
+!      write(*,*)'In locate_condition 3',ij
       if(seqz.gt.ij .and. associated(pcond,ceq%lastcondition)) then
-         write(*,*)'Locate condition called with too high index: ',seqz
-         gx%bmperr=7777; goto 1000
+         write(*,*)'Locate condition called with illegal index: ',seqz
+         gx%bmperr=4295; goto 1000
       endif
    enddo
 1000 continue
@@ -1802,7 +1808,6 @@ end subroutine get_condition
 !         write(*,69)'3D in apply: ',current%statev,current%noofterms,&
 !              ((current%indices(jl,nterms),jl=1,4),nterms=1,current%noofterms)
 69       format(a,i4,i2,3(2x,4i5))
-!         gx%bmperr=7777; goto 900
          nterms=current%noofterms
          do jl=1,nterms
             ccf(jl)=current%condcoeff(jl)
@@ -1811,8 +1816,8 @@ end subroutine get_condition
 !68       format('3D coeff: ',i2,6(1pe12.4))
       else
 ! cannot handle other conditions with several terms
-         write(*,*)'3D Illegal condition with several terms',current%statev
-         gx%bmperr=7777; goto 900
+!         write(*,*)'3D Illegal condition with several terms',current%statev
+         gx%bmperr=4207; goto 900
       endif
    else
 ! one term with coefficient one
@@ -1871,19 +1876,14 @@ end subroutine get_condition
       cmix(1)=5
 !      write(*,*)'3D Extensive condition: ',current%statev
    else
-      write(*,*)'3D Illegal condition',current%statev
-      gx%bmperr=7777; goto 1000
+!      write(*,*)'3D Illegal condition',current%statev
+      gx%bmperr=4208; goto 1000
    endif
    goto 900
 !--------------------------------------
 ! Here we should return extensive condition, maybe calculate value
 200 if(what.ne.0) goto 300
    cmix(1)=0
-!   if(current%noofterms.gt.1) then
-! ignore conditions with several terms
-!      write(*,*)'Found condition with several terms',current%noofterms
-!      gx%bmperr=8888; goto 1000
-!   endif
 ! for debugging
    istv=current%statev
    do jl=1,4
@@ -1920,8 +1920,8 @@ end subroutine get_condition
 211   format(a,2i4,2x,4i3,2x,4i3,3(1pe12.4))
    endif
    if(current%noofterms.gt.2) then
-      write(*,*)'3D Found condition more than 2 terms',current%noofterms
-      gx%bmperr=8888; goto 1000
+!      write(*,*)'3D Found condition more than 2 terms',current%noofterms
+      gx%bmperr=4207; goto 1000
    endif
    value=current%prescribed
    if(iunit.eq.100) then
@@ -1933,8 +1933,8 @@ end subroutine get_condition
 !--------------------------------------
 ! this part is redundant ....
 300   continue
-   write(*,*)'Calling apply_condition with illegal option'
-   gx%bmperr=8888; goto 1000
+!   write(*,*)'Calling apply_condition with illegal option'
+   gx%bmperr=4296; goto 1000
 !-----------------------------------------------------------
 ! maybe something common
 900 continue
@@ -2218,7 +2218,7 @@ end subroutine get_condition
       k=index(species,')')
       if(k.le.3) then
          write(*,*)'Species must be surrounded by ( )'
-         gx%bmperr=7777; goto 1000
+         gx%bmperr=4297; goto 1000
       endif
       cval=species(k+1:)
       species=species(3:k-1)
@@ -2371,8 +2371,8 @@ end subroutine get_condition
          goto 70
       endif
    enddo
-! no matching symbol
-   gx%bmperr=7777; goto 1000
+! no matching property identifier
+   gx%bmperr=4292; goto 1000
 !
 70 continue
    typty=nr
@@ -2463,8 +2463,8 @@ end subroutine get_condition
 !\end{verbatim}
 ! this is illegal for species that are elements ...
    if(btest(splista(loksp)%status,SPEL)) then
-      write(*,*)'Illegal to set this for element species'
-      gx%bmperr=7777
+!      write(*,*)'Illegal to set this for element species'
+      gx%bmperr=4298
    else
       splista(loksp)%extra=value
    endif

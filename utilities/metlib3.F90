@@ -3155,6 +3155,7 @@ CONTAINS
 !...INSERTS A NEW OPNODE IN THE TREE
     TYPE(putfun_node), pointer :: binnod,temp
     LOGICAL NOTPP
+    integer, parameter :: zero=0.0d0
 ! ENTRY:
 !      KOD    IS OPERATION CODE: 1 +, 2 -, 3 *, 4 /, 5 **
 ! EXIT: 
@@ -3667,6 +3668,7 @@ CONTAINS
 
   SUBROUTINE EBINRY(KOD,X,Y)
     IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+    ZERO=0.0D0
     IF(KOD.EQ.1) X=X+Y
     IF(KOD.EQ.2) X=X-Y
     IF(KOD.EQ.3) X=X*Y

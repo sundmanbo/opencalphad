@@ -154,8 +154,9 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! error messages
 ! numbers 4000 to 4220 defined.  gx%bmperr is set to message index
 ! A lot of error flags set have no messages ....
-  integer, parameter :: nooferm=4250
+  integer, parameter :: nooferm=4399
   character (len=64), dimension(4000:nooferm) :: bmperrmess
+! The first 30 error messages mainly for TP functions
   data bmperrmess(4000:4199)&
       /'Too many coefficients in a TP function.                         ',&
        'Illegal character in a TP function, digit expected.             ',&
@@ -189,6 +190,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'Symbol referenced in a parameter does not exist                 ',&
        'Missing separator between phase and constituent array in paramet',&
        'Cannot enter disordered fraction set when several composition se',&
+! These error mainly in GTP
 ! 4030
        'Cannot enter disordered fraction set when suspended constituents',&
        'Wildcards in interaction parameters not yet implemented         ',&
@@ -301,7 +303,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'Illegal value for a state variable                              ',&
 ! 4130 line below
        'Factor in front of a condition must be followed by *            ',&
-       'No such condition                                               ',&
+       'No such condition or experiment                                 ',&
        'Function name must start with a letter A-Z                      ',&
        'Function name and expression must be separated by "="           ',&
        'Error in function expression (putfun)                           ',&
@@ -376,8 +378,8 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'Illegal wildcard constituent in ionic liquid model              ',&
        'No equilibrium calculated, cannot calculate dot derivative      ',&
        'Error calculating equilibrium matrix for dot derivative         '/
-! 4200 errors in minimizer
-  data bmperrmess(4200:4250)&
+! 4200 mainly errors in minimizer
+  data bmperrmess(4200:4399)&
       /'No phase that can be set stable                                 ',&
        'Attempt to set too many phases as stable                        ',&
        'Total amount is negative                                        ',&
@@ -397,8 +399,9 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'This dot derivative not yet implemented                         ',&
        'Wildcard not allowed in dot derivative                          ',&
        'Use "calculate symbol" for state variable symbols               ',&
-       '                                                                ',&
+       'This experiment is not acivated                                 ',&
        'Too many equilibria in STEP/MAP, save on file not implemented   ',&
+! mainly errors in STEP/MAP
 ! 4220 step/map
        'STEP/MAP error calculating node point, trying to decrease step  ',&
        'STEP/MAP error calculating node point, axis condition not found ',&
@@ -431,8 +434,172 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'Two phases compete to be stable                                 ',&
        'Nothing to plot in ocplot                                       ',&
        'No data so no plot                                              ',&
-       '                                                                ',&
+       'No experiments                                                  ',&
+! more error messages for GTP and other modules
 ! 4250
+       'Too many parameter identifiers, increase maxprop                ',&
+       'Calling mass_of with illegal component number                   ',&
+       'No such phase tuple index                                       ',&
+       'Internal error, not a single lattice for a phase                ',&
+       'Illegal phase index                                             ',&
+       'The partially ionic liquid model must have two sublattices      ',&
+       'This phase cannot be reference phase for this component         ',&
+       'Internal error, constituent index outside range                 ',&
+       'Same constituent twice in one sublattice                        ',&
+       'Too many phases, increase dimension of phlista                  ',&
+! 4260
+       'The partially ionic liquid model has only cations in first subl.',&
+       'Illegal parameter with wildcards mixed with cations             ',&
+       'The partially ionic liquid model not only wildcard on 2nd subl. ',&
+       'The partially ionic liquid model has no catioons on 2nd subl.   ',&
+       'Only neutrals on 2nd sublattice of I2SL if wildcard on first    ',&
+       'Illegal interaction parameter                                   ',&
+       'Same constituent twice in interaction parameter                 ',&
+       'There must be at least 4 sublattices for a phase with F/B option',&
+       'Maximum two interaction levels using the F option               ',&
+       'Internal error, unknown case for endmember permutation          ',&
+! 4270
+       'Interaction must be on first sublattice using option F or B     ',&
+       'Cannot find endmember element for permutation                   ',&
+       'Internal error, unknown case for permutations                   ',&
+       'Internal error, too complicated                                 ',&
+       'Internal error generating fcc permutations                      ',&
+       'This excess parameter not yet implemented in option F           ',&
+       'Internal error generating permutations for option F             ',&
+       'BCC permutations (option B) not yet implemented                 ',&
+       'Subcommand error when enter many_equilibria                     ',&
+       'Too many columns when entering many_equilibria row              ',&
+! 4280
+       'Table row missing in colum when entering many_equilbria         ',&
+       'Number expected after specifying fix phase                      ',&
+       'Phase name expected after status command                        ',&
+       'Too many equilibra, increase dimension of eqlista               ',&
+       'Equilibrium name must start with a letter A-Z                   ',&
+       'Cannot overwrite the default equilibrium                        ',&
+       'Illegal use of wildcard                                         ',&
+       'Error in constituent dependence for parameter idenifier         ',&
+       'Yet another never never error                                   ',&
+       'Charge must be given as /+ or /-                                ',&
+! 4290
+       'Error in parameter identifier                                   ',&
+       'Phase missing in parameter                                      ',&
+       'No such property name or index                                  ',&
+       'Illegal to have a symbol as value of T or P                     ',&
+       'Illegal to set a fix phase as experiment                        ',&
+       'Calling locate_condition with illegal index                     ',&
+       'Calling apply_condition with illegal option                     ',&
+       'Species names must be surrounded by ( ) for set input_amounts   ',&
+       'Illegal to enter property to a species that is an element       ',&
+       'Saved file not same version as program                          ',&
+! 4300
+       'Data record format on save file not the same as in program      ',&
+       'Bibliographic record too long on save file                      ',&
+       'Error reading records for a phase from save file                ',&
+       'Failed entering function from save file                         ',&
+       'Too long line on save file                                      ',&
+       'No element symbol after ELEMENT keyword in TDB file             ',&
+       'No information after SPECIES keyword on TDB file                ',&
+       'No terminator after FUNCTION keyword on TDB file                ',&
+       'The CONSTITUENT keyword must follow directly after PHASE keyword',&
+       'Error extracting constituents for a phase                       ',&
+! 4310
+       'Error that final : for constituents missing                     ',&
+       'Empty line after FUNCTION keyword                               ',&
+       'Line woth PARAMETER keyword does not finish with !              ',&
+       'Empty reference line on TDB file                                ',&
+       'References must be surrounded by citation marks                 ',&
+       'Function name must be on same line as FUNCTION keyword          ',&
+       'End of file while searching for end of keyword in TDB file      ',&
+       'Indices error in old state variable format                      ',&
+       'Unknown state variable or property                              ',&
+       'Character variable length insufficient for output of values     ',&
+! 4320
+       'State variable has illegal argument type                        ',&
+       'Error calculating eigenvalues of phase matrix                   ',&
+       'Only a single symbol allowed                                    ',&
+       'Symbol must be a constant                                       ',&
+       'Value of PHSTATE not correct                                    ',&
+       'Illegal bit number for phase status                             ',&
+       'Illegal phase for setting status bit                            ',&
+       'Illegal selection of old phase status                           ',&
+       'Condition specified by number must be followed by :=            ',&
+       'Calling create_interaction with too many permutations           ',&
+! 4330
+       'No such addition type                                           ',&
+       'Cp model not yet implemented                                    ',&
+       'Magnetic model with separate Curie and Neel T not yet implement ',&
+       'Glas model not yet implemented                                  ',&
+       'Not implemented this way                                        ',&
+       'Parameter identifier not found                                  ',&
+       'Value for model parameter identifier not found                  ',&
+       'Flory-Huggins model must have one lattice and site              ',&
+       'Too many parameter properties for this phase                    ',&
+       'Internal error, listprop not allocated                          ',&
+! 4340
+       'Max level 2 interactions allowed                                ',&
+       'Wildcard parameters not allowed in 2nd sublattice of I2SL model ',&
+       'Illegal interaction parameter                                   ',&
+       'Ternary cation interactions not yet implemented in I2SL         ',&
+       'Too many phases for the global gridminimizer                    ',&
+       'Global minimization with a fix phase not possible               ',&
+       'Internal problems in grid minimizer                             ',&
+       'Interaction levels more than 5 levels deep                      ',&
+       'A TP function with this name already entered                    ',&
+       'Illegal value of TP function index                              ',&
+! 4350
+       'A never never error evaluating a TP function                    ',&
+       'Cannot find this TP function                                    ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '5                                                               ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+! 4360
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '5                                                               ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+! 4370
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '5                                                               ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+! 4380
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '5                                                               ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+! 4390
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '5                                                               ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
        '                                                                '/
 ! last used error codes above
 !

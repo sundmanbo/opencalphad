@@ -191,7 +191,7 @@
          write(*,16)'3G: PHSTATE not correct: ',iph,ics,j,ip,&
               ceq%phase_varres(lokcs)%status2
 16       format(a,4i3,2x,z16)
-         gx%bmperr=7777
+         gx%bmperr=4324
       case(phfixed) ! fix 2
          text='FIXED'
          ip=5
@@ -314,10 +314,10 @@
    integer lokcs,j
    if(bit.lt.0 .or. bit.gt.31) then
       write(*,*)'Illegal phase bit number'
-      gx%bmperr=7777; goto 1000
+      gx%bmperr=4325; goto 1000
    elseif(lokph.le.0 .or. lokph.gt.noofph) then
       write(*,*)'Illegal phase in call to set_phase_status_bit'
-      gx%bmperr=7777; goto 1000
+      gx%bmperr=4326; goto 1000
    endif
 !   write(*,99)'sphs1bit: ',lokph,bit,phlista(lokph)%status1
 99 format(a,2i3,z8)
@@ -346,7 +346,7 @@
    integer lokcs,j
    if(bit.lt.0 .or. bit.gt.31) then
       write(*,*)'Illegal phase bit number'
-      gx%bmperr=7777; goto 1000
+      gx%bmperr=4325; goto 1000
    endif
    phlista(lokph)%status1=ibclr(phlista(lokph)%status1,bit)
    if(bit.eq.PHHID) then
@@ -425,7 +425,7 @@
          goto 1000
       else
          write(*,*)'Illegal selection of old phase status after *'
-         gx%bmperr=7222; goto 1000
+         gx%bmperr=4327; goto 1000
       endif
 ! loop for all phases to find those with correct old status
       do qph=1,noofph
@@ -719,7 +719,7 @@
    character*(*) property,unit
 !\end{verbatim}
    write(*,*)'Not implemented yet'
-   gx%bmperr=7777
+   gx%bmperr=4078
 1000 continue
    return
  end subroutine set_unit
@@ -733,7 +733,7 @@
    integer lut,iph,ics,long
 !\end{verbatim}
    write(*,*)'Not implemented yet'
-   gx%bmperr=7777
+   gx%bmperr=4078
 ! header with abbreviations
 !    call list_abbrev(lut)
 ! first conditions ...
@@ -916,7 +916,7 @@
    case(6)
 ! there is an : sign, meaning a condition number, must be followed by =
       if(string(ipos+1:ipos+1).ne.'=') then
-         gx%bmperr=7656; goto 1000
+         gx%bmperr=4328; goto 1000
       endif
       kpos=ipos+1
    end select
@@ -1302,7 +1302,7 @@
 !      write(*,17)'level 2 permutations: ',nz,emperm,nq,lqq
    else
       write(*,*)'Create_interaction called with too many permutations'
-      gx%bmperr=7777; goto 1000
+      gx%bmperr=4329; goto 1000
    endif
    if(permut.eq.0) then
 ! this is again a default when there are no permutations

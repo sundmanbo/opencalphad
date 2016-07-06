@@ -663,7 +663,7 @@
    if(version.ne.savefile) then
       write(*,11)id,version,savefile
 11     format('File not same version as program: ',A/a,' : ',a)
-      gx%bmperr=2901; goto 1000
+      gx%bmperr=4299; goto 1000
    endif
 !   write(*,*)'comment: ',comment(1:len_trim(comment))
    str=comment
@@ -680,9 +680,9 @@
 !>>>>> 2: elementlist
    read(lin)ivers
    if(ivers.ne.gtp_element_version) then
-      write(*,17)'Element',ivers,gtp_element_version
+!      write(*,17)'Element',ivers,gtp_element_version
 17    format(a,' record version error: ',2i4)
-      gx%bmperr=7777; goto 1000
+      gx%bmperr=4300; goto 1000
    endif
    do i=1,noofel
       read(lin)ellista(i)
@@ -703,8 +703,8 @@
 !>>>>> 3: specieslist
    read(lin)ivers
    if(ivers.ne.gtp_species_version) then
-      write(*,17)'Species',ivers,gtp_species_version
-      gx%bmperr=7777; goto 1000
+!      write(*,17)'Species',ivers,gtp_species_version
+      gx%bmperr=4300; goto 1000
    endif
    do isp=1,noofsp
       read(lin)splista(isp)%symbol,splista(isp)%mass,splista(isp)%charge
@@ -735,19 +735,19 @@
    read(lin)ivers,i1,i2,i3
    if(ivers.ne.gtp_phase_version) then
       write(*,17)'Phase',ivers,gtp_phase_version
-      gx%bmperr=7777; goto 1000
+      gx%bmperr=4300; goto 1000
    endif
    if(i1.ne.gtp_endmember_version) then
       write(*,17)'Endmember',i1,gtp_endmember_version
-      gx%bmperr=7777; goto 1000
+      gx%bmperr=4300; goto 1000
    endif
    if(i2.ne.gtp_interaction_version) then
       write(*,17)'Interaction',i2,gtp_interaction_version
-      gx%bmperr=7777; goto 1000
+      gx%bmperr=4300; goto 1000
    endif
    if(i3.ne.gtp_property_version) then
       write(*,17)'Property',i3,gtp_property_version
-      gx%bmperr=7777; goto 1000
+      gx%bmperr=4300; goto 1000
    endif
    noofem=0
    noofint=0
@@ -819,17 +819,17 @@
    if(i1.ne.gtp_equilibrium_data_version) then
       write(*,*)'Wrong version of equilibrium data record: ',i1,&
            gtp_equilibrium_data_version
-      gx%bmperr=7777; goto 1000
+      gx%bmperr=4300; goto 1000
    endif
    if(i2.ne.gtp_component_version) then
       write(*,*)'Wrong version of component record: ',i2,&
            gtp_component_version
-      gx%bmperr=7777; goto 1000
+      gx%bmperr=4300; goto 1000
    endif
    if(i3.ne.gtp_phase_varres_version) then
       write(*,*)'Wrong version of phase_varres record: ',i3,&
            gtp_phase_varres_version
-      gx%bmperr=7777; goto 1000
+      gx%bmperr=4300; goto 1000
    endif
    call readequil(lin,firsteq)
    if(gx%bmperr.ne.0) goto 900
@@ -1430,7 +1430,7 @@
 !>>>>> 42: text
       if(jp.gt.512) then
          write(*,*)'Too long bibliographic reference text',jp
-         gx%bmperr=7777; goto 1000
+         gx%bmperr=4301; goto 1000
       endif
       read(lin)text(1:jp)
 !      write(*,*)text(1:jp)
@@ -1471,7 +1471,7 @@
    if(gtp_species_version.ne.1) then
       if(ocv()) write(*,17)'Species',1,gtp_species_version
 17    format(a,' record version error: ',2i4)
-      gx%bmperr=7777; goto 1000
+      gx%bmperr=4300; goto 1000
    endif
    ceq=>firsteq
 !   write(*,*)'3E No segmentation error A'
@@ -1485,19 +1485,19 @@
 !   write(*,*)'3E No segmentation error B'
    if(gtp_phase_version.ne.1) then
       if(ocv()) write(*,17)'Phase',1,gtp_phase_version
-      gx%bmperr=7777; goto 1000
+      gx%bmperr=4302; goto 1000
    endif
    if(gtp_endmember_version.ne.1) then
       if(ocv()) write(*,17)'Endmember',1,gtp_endmember_version
-      gx%bmperr=7777; goto 1000
+      gx%bmperr=4302; goto 1000
    endif
    if(gtp_interaction_version.ne.1) then
       if(ocv()) write(*,17)'Interaction',1,gtp_interaction_version
-      gx%bmperr=7777; goto 1000
+      gx%bmperr=4302; goto 1000
    endif
    if(gtp_property_version.ne.1) then
       if(ocv()) write(*,17)'Property',1,gtp_property_version
-      gx%bmperr=7777; goto 1000
+      gx%bmperr=4302; goto 1000
    endif
    do j=0,noofph
       call delphase(j)
@@ -1974,7 +1974,7 @@
                   gx%bmperr=0; goto 100
                endif
                if(.not.silent) write(kou,*)'Failed entering function: ',name1
-               gx%bmperr=4000
+               gx%bmperr=4303
                goto 1000
             endif
             if(ocv()) write(*,*)'Entered function: ',name1
@@ -2033,7 +2033,7 @@
          if(ip.gt.len(longline)-80) then
             if(.not.silent) write(kou,69)nl,ip,longline(1:72)
 69          format('Overflow in longline ',2i5,' for line starting:'/a)
-            gx%bmperr=7777; goto 1000
+            gx%bmperr=4304; goto 1000
          endif
       endif
    enddo
@@ -2056,7 +2056,7 @@
       if(eolch(longline,ip)) then
          if(.not.silent) &
               write(kou,*)'No element name after ELEMENT keyword on line ',nl
-         gx%bmperr=7777; goto 1000
+         gx%bmperr=4305; goto 1000
       endif
       elsym=longline(ip:ip+1)
       if(elsym.eq.'/-' .or. elsym.eq.'VA') goto 100
@@ -2118,7 +2118,7 @@
       ip=nextc
       if(eolch(longline,ip)) then
          if(.not.silent) write(kou,*)'Line after SPECIES keyword empty'
-         gx%bmperr=7777; goto 1000
+         gx%bmperr=4306; goto 1000
       endif
       name1=longline(ip:)
 ! find first space after non-space
@@ -2164,7 +2164,7 @@
       if(index(longline,'!').le.0) then
          if(.not.silent) &
               write(*,*)' Error, terminating ! not found for funtion!!',nl
-         gx%bmperr=7777; goto 1000
+         gx%bmperr=4307; goto 1000
       endif
 !-------------------------------------------------------------------------
 !   elseif(line(2:7).eq.'PHASE ') then
@@ -2192,7 +2192,7 @@
       else
          if(.not.silent) write(kou,*) &
               'Error, a PHASE keyword must be followed by its CONSTIT'
-         gx%bmperr=7777; goto 1000
+         gx%bmperr=4308; goto 1000
       endif
       ip=nextc
       if(eolch(longline,ip)) then
@@ -2301,7 +2301,7 @@
       if(nophase) then
          if(.not.silent) write(kou,*) &
               'A CONSTITUENT keyword not directly preceeded by PHASE!'
-         gx%bmperr=7777; goto 1000
+         gx%bmperr=4308; goto 1000
       endif
       nophase=.true.
       condis1: if(dodis.eq.1) then
@@ -2335,7 +2335,6 @@
 !              write(*,378)name1,ll
 378            format('Phase ',a,' has no constituents in sublattice ',i2)
 ! Not a fatal error when elements have been selected but skip this phase
-!              gx%bmperr=7777; goto 1000
             endif
             goto 100
          endif
@@ -2347,7 +2346,7 @@
 380   continue
       if(eolch(longline,ip)) then
          if(.not.silent) write(kou,*)'Error extracting constituents 1'
-         gx%bmperr=7777; goto 1000
+         gx%bmperr=4309; goto 1000
       endif
       nr=nr+1
       nrr=nrr+1
@@ -2365,8 +2364,8 @@
 ! bypass any "major" indicator %
       if(ch1.eq.'%') ip=ip+1
       if(eolch(longline,ip)) then
-         if(.not.silent) write(kou,*)'Error extracting constituents 2'
-         gx%bmperr=7777; goto 1000
+!         if(.not.silent) write(kou,*)'Error extracting constituents 2'
+         gx%bmperr=4309; goto 1000
       endif
 ! check that const(nrr) among the selected elements ...
 !      write(*,*)'Testing constituent: ',name3,nr
@@ -2386,7 +2385,7 @@
 ! when an ! found the list of constutents is finished.  But we
 ! should have found a : before the !
       if(.not.silent) write(kou,*)'Found "!" before terminating ":"'
-      gx%bmperr=7777; goto 1000
+      gx%bmperr=4310; goto 1000
 !      write(*,*)'Species terminator error: ',ch1,nl
 !      gx%bmperr=4157; goto 1000
 390    continue
@@ -2521,7 +2520,7 @@
 !   PARAMETER G(LIQUID,CR;0)  2.98150E+02  +24339.955-11.420225*T
       if(eolch(longline,nextc)) then
          if(.not.silent) write(kou,*)'Empty line after PARAMETER'
-         gx%bmperr=7777; goto 1000
+         gx%bmperr=4311; goto 1000
       endif
 !      if(dodis.eq.1) write(*,*)'Reading disordered parameters'
       ip=nextc
@@ -2663,7 +2662,7 @@
       if(longline(jp:jp).ne.'!') then
          if(.not.silent) write(kou,410)nl,ip,longline(1:ip)
 410      format('Error, parameter line not ending with !',2i5/a)
-         gx%bmperr=7777; goto 1000
+         gx%bmperr=4312; goto 1000
       endif
 ! extract reference if any
 ! NOTE: a legal ending is ;,,,!
@@ -2839,7 +2838,7 @@
       ip=index(longline,'NUMBER  SOURCE')+14
       if(eolch(longline,ip)) then
          if(.not.silent) write(kou,*)'Empty reference line',nl
-         gx%bmperr=7777; goto 1000
+         gx%bmperr=4313; goto 1000
       endif
       if(longline(ip:ip).eq.'!') then
 !         write(*,*)'No references at all'
@@ -2878,7 +2877,7 @@
          nrefs=nrefs+1
 !         write(*,*)'added biblio ',refx,'>',longline(ip-5:ip+5),'<'
          if(eolch(longline,ip)) then
-            gx%bmperr=7777; goto 1000
+            gx%bmperr=4313; goto 1000
          endif
          if(longline(ip:ip).ne.'!') then
             kp=index(longline(ip:),"'")
@@ -2889,7 +2888,7 @@
 ! ip is at the start of the reference id, look for space
          if(.not.silent) write(kou,*) &
               'Cannot handle references without citation marks',nl
-         gx%bmperr=7777; goto 1000
+         gx%bmperr=4314; goto 1000
       endif citationmarks
 777   continue
 !      write(*,*)'Read ',nrefs,' references, ending at',nl
@@ -2965,7 +2964,7 @@
    if(eolch(line,nextc)) then
       if(.not.silent) write(kou,*) &
            'Function name must be on same line as FUNCTION'
-      gx%bmperr=4000; goto 1000
+      gx%bmperr=4315; goto 1000
    endif
    ipp=nextc+index(line(nextc:),' ')
    name1=line(nextc:ipp-1)
@@ -3124,7 +3123,7 @@
 2200 continue
    if(.not.silent) write(kou,2210)nl,longline(1:72)
 2210 format('End of file at ',i5,' looking for end of keyword:'/a)
-   gx%bmperr=7777
+   gx%bmperr=4316
    goto 1000
  end subroutine readtdb
 

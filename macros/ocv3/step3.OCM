@@ -52,21 +52,13 @@ title step3 fig 3
 render
 
 @$-------------------------------------------------------
-@$ Remove the ideification of the (single) line
-plot
-
-
-title step3 fig 4
-render
-
-@$-------------------------------------------------------
 @$ Enter symbol for heat capacity and plot the heat capacity
 ent symb cp=h.t;
 
 plot
 T
 cp
-title step3 fig 5
+title step3 fig 4
 render
 
 @$ Note the strong contribution to the heat capacity from the variation

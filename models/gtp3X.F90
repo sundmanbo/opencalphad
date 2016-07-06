@@ -195,11 +195,12 @@
 ! calculate configurational entropy.
    nsl=phlista(lokph)%noofsubl
    ionicliq=.FALSE.
+   iliqsave=.FALSE.
    if(btest(phlista(lokph)%status1,PHIONLIQ)) then
       call config_entropy_i2sl(moded,nsl,phlista(lokph)%nooffr,phres,&
            phlista(lokph)%i2slx,gz%tpv(1))
       ionicliq=.TRUE.
-      iliqsave=.FALSE.
+!      iliqsave=.FALSE.
       iliqva=.FALSE.
       jonva=0
 !      write(*,*)'Config G 1: ',phres%gval(1,1)*rtg
@@ -216,7 +217,7 @@
 ! check that just one sublattice and sites equal to one
       if(nsl.ne.1 .or. phres%sites(1).ne.one) then
          write(*,*)'Flory-Huggins model must have one lattice and site'
-         gx%bmperr=7777; goto 1000
+         gx%bmperr=4337; goto 1000
       endif
       floryhuggins=-1
    else
@@ -569,12 +570,12 @@
                              lprop,nprop,typty,lokph,&
                              size(phmain%listprop),phlista(lokph)%name
 169                     format(a,3i3,2x,2i3,2x,a)
-                        gx%bmperr=7777; goto 1000
+                        gx%bmperr=4338; goto 1000
                      endif
                   else
                      write(*,*)'Internal error, listprop not allocated',&
                           lokph,phlista(lokph)%name
-                     gx%bmperr=7766; goto 1000
+                     gx%bmperr=4339; goto 1000
                   endif
                   lprop=lprop+1
                   phmain%listprop(1)=lprop
@@ -679,7 +680,7 @@
                            if(ipermut.le.maxpmq(pmq)) goto 230
                         elseif(gz%intlevel.gt.2) then
                            write(*,*)'Max level 2 interactions allowed'
-                           gx%bmperr=7777; goto 1000
+                           gx%bmperr=4340; goto 1000
                         else
                            varying: if(intrec%noofip(1).eq.1) then
 ! If this is 1 then noofip(2) is number of permutations each time
@@ -740,7 +741,7 @@
                               write(*,229)gz%intlevel
 229                           format('Error, max 2 levels of interactions',/&
                                    ' with permutations!! ',i3)
-                              gx%bmperr=7777; goto 1000
+                              gx%bmperr=4340; goto 1000
                            endif
 ! Take the link to higher as no more permutations here
                            goto 290
@@ -800,7 +801,7 @@
                   if(iliqsave) then
 ! I sincerely hope wildcards are never used in 2nd subl of ionic liquids ...
      write(*,*)'Wildcard in second sublattice is not allowed for ionic liquids'
-                     gx%bmperr=7777; goto 1000
+                     gx%bmperr=4341; goto 1000
                   endif
                   wildc=.TRUE.
                   write(*,*)'wildcard found!'
@@ -823,7 +824,7 @@
 ! jonva=phlista(lokph)%i2slx(1) is index of vacancy, i2slx(2) is first neutral
                            if(jonva.le.0) then
                               write(*,*)'3X illegal interaction'
-                              gx%bmperr=7777; goto 1000
+                              gx%bmperr=4342; goto 1000
                            endif
 !                           iloop2A: do jd=id,gz%nofc
 ! for ionic liquids pyq can contain powers of Va, for such a case jd must loop
@@ -1608,17 +1609,6 @@
             fhlista(phmain%listprop(ipy)-2000)=ipy
          endif
       enddo
-! check that there are parameters!!
-!      do j2=1,gz%nofc
-!         if(fhlista(j2).eq.0) then
-!            write(*,*)'3X No Flory Huggins volume for component: ',j2
-!            gx%bmperr=7777; goto 1000
-!         else
-!            write(*,509)'3X FHV: ',j2,fhlista(j2),phmain%gval(1,fhlista(j2))
-!509         format(a,2i4,1pe12.4)
-!         endif
-!      enddo
-!510   continue
 ! we must save the Flory-Huggins volumes as they are used in next loop
       allocate(fhv(gz%nofc,6))
       allocate(dfhv(gz%nofc,3,gz%nofc))
@@ -2110,14 +2100,9 @@
             if(gz%intlat(1).eq.1 .and. gz%intlat(2).eq.1) then
 ! we have 3 cations interacting in first sublattice and Va in second
 ! require treatment of extra vacancy fraction
-               write(*,*)'3 interacting cations not implemented'
-               gx%bmperr=7777; goto 1000
+!               write(*,*)'3 interacting cations not implemented'
+               gx%bmperr=4343; goto 1000
             elseif(gz%intlat(1).eq.1 .and. gz%intlat(2).eq.2) then
-! we have 2 cations interacting in 1st sublattice and Va and neutral in 2nd
-! require treatment of extra vacancy fraction
-!               write(*,*)'Reciprocal with neutrals not implemented'
-!               gx%bmperr=7777; goto 1000
-! yionva set above!
                ivax=gz%endcon(2)
             endif
          elseif(gz%intcon(2).eq.phlista(lokph)%i2slx(1)) then
@@ -2128,7 +2113,7 @@
             yionva=gz%yfrint(2)
          else
             write(*,*)'3X: parameter not implemented'
-            gx%bmperr=7777; goto 1000
+            gx%bmperr=4342; goto 1000
          endif
 ! other ternary parameters in ionic liquid OK, no extra vacancy fraction
       endif
@@ -2422,7 +2407,6 @@
             write(*,77)kall,k1,dfhv(kall,1,k1)
 77          format(' *** Warning, Flory-Huggins model implemented',&
                  ' for constant FHV only',2i3,1pe12.4)
-!            gx%bmperr=8833; goto 1000
          endif
       enddo
    enddo

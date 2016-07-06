@@ -15,6 +15,12 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2016.07.04 With a lot of help from Jacques Lechelle the mapping now
+seems to work much better, also the multicomponent isopleths.  I will
+even start to think about how to calculate and plot isothermal ternary
+diagrams.  But there are things to fix with the step command also.
+And with assessments and ...
+
 2016.07.04 I have finally started to improve the calculation of phase
 diagrams and this version has some significant improvements.  But the
 mapping is still very fragile and depend a lot on the starting point.

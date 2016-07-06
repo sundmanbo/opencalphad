@@ -4089,6 +4089,8 @@ CONTAINS
        if(pmi%xdone.eq.1) goto 90
 ! we must call set_constitution once to have correct abnorm etc
        call set_constitution(iph,ics,yarr,qq,ceq)
+       qsum=zero
+       dqsum=zero
        pmi%xmol=zero
        pmi%dxmol=zero
        pmi%sumxmol=zero
@@ -4120,6 +4122,10 @@ CONTAINS
              enddo
           enddo allconst
        enddo sublatt
+       if(qsum.ne.zero) then
+! if qsum not zero this phase should be suspended as it cannot be stable
+          write(*,*)'Stoichiometric phase with net charge: ',iph,ics
+       endif
 ! meqrec is not available in this routine
        do iz=1,nrel
           pmi%sumxmol=pmi%sumxmol+pmi%xmol(iz)

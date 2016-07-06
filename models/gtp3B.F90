@@ -425,7 +425,7 @@
             goto 310
          else
             write(*,*)'Impossible: constituent index outside range!'
-            gx%bmperr=9999; goto 1000
+            gx%bmperr=4257; goto 1000
          endif
       else
          do mm=mm,jl-1
@@ -437,7 +437,7 @@
                     const(jl)(1:len_trim(const(jl))),ll
 315            format(' *** Error, the ',a,' phase has constituent ',a,&
                     ' twice in sublattice ',i2)
-               gx%bmperr=8900; goto 1000
+               gx%bmperr=4258; goto 1000
             endif
          enddo
       endif
@@ -458,9 +458,10 @@
 ! sort the phase in alphabetical order but always gas (if any) first
 ! then liquids specified by the phtype letter (G, L, etc)
       noofph=noofph+1
-      if(nyfas.gt.size(phlista)) then
-         write(*,*)'Too many phases: ',noofph
-         gx%bmperr=6699; goto 1000
+!      if(nyfas.gt.size(phlista)) then
+      if(noofph.gt.size(phlista)) then
+!         write(*,*)'Too many phases: ',noofph
+         gx%bmperr=4259; goto 1000
       endif
       nyfas=noofph
    endif
@@ -475,7 +476,7 @@
       if(nsl.ne.2) then
 ! if entered with only one sublattice then no cations and only neutrals!!
          write(*,*)'Ionic liquid must have 2 sublattices'
-         gx%bmperr=7777; goto 1000
+         gx%bmperr=4255; goto 1000
       endif
       phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHIONLIQ)
 ! constituents in ionic liquid must be sorted in a special way
@@ -537,6 +538,9 @@
    if(nyfas.gt.0) then
       call alphaphorder(tuple)
       phlista(nyfas)%nooffs=1
+   else
+! uninitiated below for reference phase
+      tuple=0
    endif
    phlista(nyfas)%noofsubl=nsl
    allocate(phlista(nyfas)%nooffr(nsl))
@@ -673,7 +677,7 @@
          kalpha(nk)=-99
       elseif(splista(kconlok(nk))%charge.le.zero) then
          write(*,*)'In ionic_liquid only cations on first sublattice'
-         gx%bmperr=7777; goto 1000
+         gx%bmperr=4260; goto 1000
       else
          kalpha(nk)=splista(kconlok(nk))%alphaindex
       endif
@@ -688,7 +692,7 @@
       if(mode.eq.0 .and. kalpha(1).lt.0) then
 ! when entering phase a single wildcard allowed in first sublattice
          write(*,*)'Illegal parameter with wildcard mixed with cations'
-         gx%bmperr=7777; goto 1000
+         gx%bmperr=4261; goto 1000
       endif
       do jl=1,knr(1)
          klok(jl)=kconlok(iord(jl))
@@ -707,16 +711,16 @@
       if(mode.eq.0 .and. kconlok(nk+kkk).lt.0) then
 ! when entering phase no wildcards allowed in second sublattice
          write(*,*)'You cannot enter phase with wildcard on 2nd sublattice'
-         gx%bmperr=7777; goto 1000
+         gx%bmperr=4262; goto 1000
       elseif(kconlok(nk+kkk).lt.0) then
 ! wildcard, treat as anion ?? DO NOT ALLOW, what stoichiometry??
          write(*,*)'Ionic_liq parameter with wildcard on 2nd sublat. illegal'
-         gx%bmperr=7777; goto 1000
+         gx%bmperr=4262; goto 1000
 !         jk=jk+1
 !         anion(jk)=nk
       elseif(splista(kconlok(nk+kkk))%charge.gt.zero) then
          write(*,*)'No cations allowed on second sublattice'
-         gx%bmperr=7777; goto 1000
+         gx%bmperr=4263; goto 1000
       elseif(btest(splista(kconlok(nk+kkk))%status,SPVA)) then
 ! this is the hypothetical vacancy
          ionva=nk
@@ -736,7 +740,7 @@
 ! if wildcard on first sublattice neither ainons nor Va allowed on 2nd
    if(klok(1).lt.0 .and. (jk.gt.0 .or. ionva.ne.0)) then
       write(*,*)'Only neutrals on second sublattice if wildcard on first'
-      gx%bmperr=7777; goto 1000
+      gx%bmperr=4264; goto 1000
    endif
    do nk=1,jk
       if(anion(nk).gt.nk) then
@@ -823,7 +827,7 @@
       if(jk.eq.0 .and. ionva.eq.0) then
          if(knr(1).gt.1) then
             write(*,*)'Illegal interaction parameter'
-            gx%bmperr=7777; goto 1000
+            gx%bmperr=4265; goto 1000
          else
 ! replace whatever constituent specified in sublattice 1 by wildcard
             klok(1)=-99
@@ -1199,8 +1203,8 @@
    enddo loop
 !   write(*,*)'3B Delete composition set',iph,ics,lokph,tuple
    if(tuple.le.0) then
-      write(*,*)'No such tuple!!'
-      gx%bmperr=7777; goto 1000
+!      write(*,*)'No such tuple!!'
+      gx%bmperr=4252; goto 1000
    endif
 ! collect some data
    nsl=phlista(lokph)%noofsubl
@@ -1321,8 +1325,8 @@
             exit eternity
          endif
          if(phasetuple(jl)%nextcs.eq.0) then
-            write(*,*)'3B No such tuple: ',phasetuple(tuple)%compset,tuple
-            gx%bmperr=7777; goto 1000
+!            write(*,*)'3B No such tuple: ',phasetuple(tuple)%compset,tuple
+            gx%bmperr=4252; goto 1000
          endif
          jl=phasetuple(jl)%nextcs
       enddo eternity
@@ -1433,7 +1437,7 @@
    logical ionliq
 !
    if(gx%bmperr.ne.0) then
-      write(*,*)'Error ',gx%bmperr,' already set entering enter_parameter!'
+      write(*,*)'Error ',gx%bmperr,' already set calling enter_parameter!'
       gx%bmperr=0
    endif
 ! listfun used when calling this routine just to list a parameter
@@ -1603,10 +1607,10 @@
 !            write(*,*)'interactions: ',jord(2,lokint),jord(2,lokint-1)
             again=1
          elseif(jord(2,lokint).eq.jord(2,lokint-1)) then
-            write(*,656)'Illegal with same interaction constituent twice',&
-                 phlista(lokph)%name
+!            write(*,656)'Illegal with same interaction constituent twice',&
+!                 phlista(lokph)%name
 656         format(a/' phase: ',a)
-            gx%bmperr=7778; goto 1000
+            gx%bmperr=4266; goto 1000
          endif
       endif
    enddo intcheck
@@ -1624,11 +1628,11 @@
 !         write(*,*)'pmod3B: Illegal with interaction with same constituent'
 ! subroutine enter_parameter(lokph,typty,fractyp,nsl,endm,nint,lint,ideg,&
 !      lfun,refx)
-         write(*,97)lokph,typty,fractyp,nsl,(endm(zz),zz=1,nsl),&
-              ideg,nint,(lint(1,zz),lint(2,zz),zz=1,nint)
+!         write(*,97)lokph,typty,fractyp,nsl,(endm(zz),zz=1,nsl),&
+!              ideg,nint,(lint(1,zz),lint(2,zz),zz=1,nint)
 97       format('pmod3B: Illegal with interaction with same constituent:'/&
               3i3,i4,2x,15(i5))
-        gx%bmperr=7777; goto 1000
+        gx%bmperr=4266; goto 1000
       elseif(jord(2,kint).lt.iord(ll)) then
 ! constituent in iord higher than that in jord, exchange jord and iord.  
          ib=iord(ll)
@@ -2029,11 +2033,11 @@
 ! I assume the ordering is in the first 4 sublattices, that could be changed
    if(nsl.lt.4) then
       write(*,*)'There must be at least 4 sublattices for fcc/hcp option'
-      gx%bmperr=7777; goto 1000
+      gx%bmperr=4267; goto 1000
    endif
    if(nint.gt.2) then
       write(*,*)'Maximum 2nd level interaction with option F'
-      gx%bmperr=7777; goto 1000
+      gx%bmperr=4268; goto 1000
    endif
 ! rearrange constituents in alphabetcal order in the sublattices,
 ! change interactions also!
@@ -2398,16 +2402,16 @@
 ! intperm(3..) used for 2nd level
    select case(noperm)
    case default ! error
-      write(*,*)'Unknown case for endmemeber permutations: ',noperm
-      gx%bmperr=7777
+!      write(*,*)'Unknown case for endmemeber permutations: ',noperm
+      gx%bmperr=4269
 !----------
    case(1) ! A:A:A:A
 !      if(nint.eq.2) then
 !         write(*,501)'fccpermuts4: ',jord(1,1),jord(2,1),jord(1,2),jord(2,2)
 !      endif
       if(jord(1,1).ne.1) then
-         write(*,*)'Interaction must be in sublattice 1'
-         gx%bmperr=7777; goto 1000
+!         write(*,*)'Interaction must be in sublattice 1'
+         gx%bmperr=4270; goto 1000
       endif
       intperm(1)=4
       intperm(2)=4
@@ -2480,7 +2484,7 @@
                if(jb.eq.ib) goto 410
             enddo
             write(*,*)'Cannot find endmember element for premutation ',ll,ib
-            gx%bmperr=7777; goto 1000
+            gx%bmperr=4271; goto 1000
 410         continue
             intlinks(1,ll)=l3
             mshift=(intlinks(1,ll)-intlinks(1,ll-1))*lshift
@@ -2509,7 +2513,7 @@
 !419         format(a,2i4,2x,3i4)
          enddo
          write(*,*)'Cannot find endmember element for premutation ',ll,ib
-         gx%bmperr=7777; goto 1000
+         gx%bmperr=4271; goto 1000
 420      continue
          intlinks(1,ll)=l3
          mshift=(intlinks(1,ll)-intlinks(1,ll-1))*lshift
@@ -2550,7 +2554,7 @@
    select case(level1)
    case default !error
       write(*,*)'Unknown case for permutations on level 1: ',level1
-      gx%bmperr=7777
+      gx%bmperr=4272
 !-----------------------------------------------------------
    case(1) ! AXY:A:A:A or AX:AX:A:A or AX:AY:A:A
       call fccip2A(lokph,jord,intperm,intlinks)
@@ -2582,10 +2586,10 @@
       endif
 !-----------------------------------------------------------
    case(3) ! A:A:A:BXY
-! never hase as taken care by shortcut above
+! never here as taken care by shortcut above ??
       if(jord(1,2).ne.jord(1,1)) then
-         write(*,*)'Thinking error, restructure!'
-         gx%bmperr=7777; goto 1000
+!         write(*,*)'Thinking error, restructure!'
+         gx%bmperr=4273; goto 1000
       endif
 !-----------------------------------------------------------
    case(4) ! A:BXY:B:B or A:BX:BY:B; no AY:BX:B:B as that would be case 5
@@ -2652,8 +2656,8 @@
             if(gx%bmperr.ne.0) goto 1000
             select case(nl1)
             case default
-               write(*,*)'Error in fccpermut, case(lavel1=6), case(nl1)'
-               gx%bmperr=7777; goto 1000
+!               write(*,*)'Error in fccpermut, case(lavel1=6), case(nl1)'
+               gx%bmperr=4274; goto 1000
             case(1) ! change nl2 to 2 or 4, nl1 should be 1
                if(nl2.eq.2) nl2=4 
                if(nl2.eq.3) nl2=2
@@ -2704,7 +2708,7 @@
                   select case(nz)
                   case default
                      write(*,*)'Error in fccpermut, case(lavel1=6), nz=',nz
-                     gx%bmperr=7777; goto 1000
+                     gx%bmperr=4274; goto 1000
                   case(13) ! change nll to 3 if 2, else same
                      if(nll.eq.2) nll=3  ! 3 or same
                   case(14)
@@ -2762,18 +2766,18 @@
 !-----------------------------------------------------------
 ! Maybe this can wait a little ...
    case(7) ! AX:A:B:C or A:BX:B:C or A:B:CX:C
-      write(*,*)'Not implemented yet 7'
-      gx%bmperr=7777
+!      write(*,*)'Not implemented yet 7'
+      gx%bmperr=4275
 !-----------------------------------------------------------
 ! Maybe this can wait a little ...
    case(8) ! A:A:BX;C or similar
-      write(*,*)'Not implemented yet 8'
-      gx%bmperr=7777
+!      write(*,*)'Not implemented yet 8'
+      gx%bmperr=4275
 !-----------------------------------------------------------
 ! Maybe this can wait a little ...
    case(9) ! AX:B:C:D or similar
-      write(*,*)'Not implemented yet 9'
-      gx%bmperr=7777
+!      write(*,*)'Not implemented yet 9'
+      gx%bmperr=4275
    end select
 !-----------------------------------------------------------
 ! done permutations of interactions
@@ -2916,8 +2920,8 @@
             nll=nll+1
             intlinks(1,iqq)=nll
             if(nll.gt.4) then
-               write(*,*)'Error in 2nd level interaction of AX:AX:A:A'
-               gx%bmperr=7777; goto 1000
+!               write(*,*)'Error in 2nd level interaction of AX:AX:A:A'
+               gx%bmperr=4276; goto 1000
             endif
             call findconst(lokph,intlinks(1,iqq),isp,intlinks(2,iqq))
             if(gx%bmperr.ne.0) goto 1000
@@ -3240,8 +3244,8 @@
    intperm(2)=24
    l2=jord(1,1)
    if(l2.ne.a211) then
-      write(*,*)'Error calling fccint211',a211,l2
-      gx%bmperr=7777; goto 1000
+!      write(*,*)'Error calling fccint211',a211,l2
+      gx%bmperr=4276; goto 1000
    endif
    clink=jord(2,1)
    idis=0
@@ -3530,11 +3534,11 @@
 ! I assume the ordering is in the first 4 sublattices, that could be changed
    if(nsl.lt.4) then
       write(*,*)'There must be at least 4 sublattices for bcc option'
-      gx%bmperr=7777; goto 1000
+      gx%bmperr=4267; goto 1000
    endif
 ! unifinished
    write(*,*)'BCC permutations not implemented yet'
-   gx%bmperr=7777
+   gx%bmperr=4277
 1000 continue
    return
  end subroutine bccpermuts
@@ -3567,9 +3571,9 @@
       endif
    enddo
    if(constix.eq.0) then
-      write(*,90)spix,nc
+!      write(*,90)spix,nc
 90    format('No such constituent with index ',i5,' in sublattice',i3)
-      gx%bmperr=7777; goto 1000
+      gx%bmperr=4066; goto 1000
    endif
 1000 continue
    return
@@ -3979,7 +3983,7 @@
    if(kom.le.0) then
       write(kou,110)text(1:len_trim(text))
 110   format('Error in subcommand to enter many: ',a)
-      gx%bmperr=6660; goto 1000
+      gx%bmperr=4278; goto 1000
    endif
 ! the table_start command means end of head, generate one equilibria per row
    if(kom.eq.8) goto 299
@@ -4012,9 +4016,9 @@
                goto 250
             endif
          enddo
-         write(kou,240)ncol,dcom,rowtext(dcom)(1:len_trim(rowtext(dcom)))
+!         write(kou,240)ncol,dcom,rowtext(dcom)(1:len_trim(rowtext(dcom)))
 240      format('More than ',i2,' column variables used in row ',i3/a)
-         gx%bmperr=6664; goto 1000
+         gx%bmperr=4279; goto 1000
 ! no problem, continue
 250      continue
       endif
@@ -4057,7 +4061,7 @@
 !      write(*,*)'3B tval: ',tval,slen,ival
       if(slen.le.0) then
          write(kou,*)'Table row missing value in column: ',ival
-         gx%bmperr=6667; goto 1000
+         gx%bmperr=4280; goto 1000
       endif
 ! first value, in column 0, is equilibrium name
       if(ival.eq.0) then
@@ -4126,14 +4130,14 @@
          ip=1
          call getrel(tval,ip,xxx)
          if(buperr.ne.0) then
-            write(*,*)'Not a number: ',tval
-            gx%bmperr=6667; goto 1000
+!            write(*,*)'Not a number: ',tval
+            gx%bmperr=4281; goto 1000
          endif
          nystat=PHFIXED
          if(kom.eq.2) nystat=PHENTERED
          if(eolch(eqlin(jval),last)) then
             write(*,*)'3B no phase name after status command'
-            gx%bmperr=7777; goto 1000
+            gx%bmperr=4282; goto 1000
          endif
          call change_many_phase_status(eqlin(jval)(last:),nystat,xxx,ceq)
          if(gx%bmperr.ne.0) goto 1000
@@ -4259,17 +4263,18 @@
 ! do not deallocate explicitly disfra as it is another phase_varres record ...
       enddo
       deallocate(eqlista(ieq)%phase_varres)
+! Do mot deallocate the condition list in order to make list/amend lines work
 ! condition list
 !      write(*,*)'deleting conditions'
-      lastcond=>eqlista(ieq)%lastcondition
-      if(associated(lastcond)) then
-         pcond=>lastcond%next
-         do while(.not.associated(pcond,lastcond))
-            qcond=>pcond
-            pcond=>pcond%next
-            deallocate(qcond)
-         enddo
-      endif
+!      lastcond=>eqlista(ieq)%lastcondition
+!      if(associated(lastcond)) then
+!         pcond=>lastcond%next
+!         do while(.not.associated(pcond,lastcond))
+!            qcond=>pcond
+!            pcond=>pcond%next
+!            deallocate(qcond)
+!         enddo
+!      endif
 !
       deallocate(eqlista(ieq)%eq_tpres)
 !    write(*,*)'Deallocating svfunres for equilibrium: ',name(1:len_trim(name))
@@ -4344,7 +4349,7 @@
       jk=1
    elseif(name(1:1).eq.' ') then
       write(*,*)'A name must start with a letter'
-      gx%bmperr=8888; goto 1000
+      gx%bmperr=4284; goto 1000
    else
       name2=name
       jk=0
@@ -4381,13 +4386,13 @@
       ieq=eqfree
       eqfree=eqfree+1
    else
-      write(*,*)'Too many equilibrium required, increase dimension',eqfree
-      gx%bmperr=9999; goto 1000
+!      write(*,*)'Too many equilibrium required, increase dimension',eqfree
+      gx%bmperr=4283; goto 1000
    endif
    number=ieq
    if(ieq.eq.1) then
-      write(*,*)'Cannot copy to default equilibria'
-      gx%bmperr=7777; goto 1000
+!      write(*,*)'Cannot copy to default equilibria'
+      gx%bmperr=4285; goto 1000
    endif
 !   write(*,*)'copy eq',eqfree,maxeq,ieq
 ! allocate data arrayes in equilibrium record

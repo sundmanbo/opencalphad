@@ -31,14 +31,14 @@ plot
 x(*,o)
 T
 title map4 fig 2
-position bottom right
+position bottom left
 render
 
 
 plot
 
 
-tite map4 fig 3
+title map4 fig 3
 xrange 
 N 
 .58 

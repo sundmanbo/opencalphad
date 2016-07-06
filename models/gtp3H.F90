@@ -44,28 +44,28 @@
    addition: select case(addrec%type)
    case default
       write(kou,*)'No such addition type ',addrec%type,lokph
-      gx%bmperr=7777
+      gx%bmperr=4330
    case(indenmagnetic) ! Inden magnetic
       call calc_magnetic_inden(moded,phres,addrec,lokph,mc,ceq)
    case(debyecp) ! Debye Cp
       call calc_debyecp(moded,phres,addrec,lokph,mc,ceq)
       write(kou,*)' Debye Cp model not implemented yet'
-      gx%bmperr=7777
+      gx%bmperr=4331
    case(weimagnetic) ! Wei-Inden
       call calc_weimagnetic(moded,phres,addrec,lokph,mc,ceq)
       write(kou,*)'Inden magnetic model with sep TC and TN not implemented yet'
-      gx%bmperr=7777
+      gx%bmperr=4332
    case(einsteincp) ! Einstein Cp
       call calc_einsteincp(moded,phres,addrec,lokph,mc,ceq)
       write(kou,*)' Einstein Cp model not implemented yet'
-      gx%bmperr=7777
+      gx%bmperr=4331
    case(elasticmodela) ! Elastic model
       call calc_elastica(moded,phres,addrec,lokph,mc,ceq)
 !      write(kou,*)' Elastic model not implemented yet'
 !      gx%bmperr=7777
    case(glastransmodela) ! Glas transition model
       write(kou,*)' Glas transition not implemented yet'
-      gx%bmperr=7777
+      gx%bmperr=4333
    end select addition
 1000 continue
    return
@@ -93,7 +93,7 @@
    case(indenmagnetic) ! Inden magnetic
 ! added by separate subroutine
       write(kou,*)'Inden magnetic model is not added this way' 
-      gx%bmperr=7777
+      gx%bmperr=4334
    case(debyecp) ! Debye Cp
       call create_debyecp(newadd)
    case(weimagnetic) ! Inden-Wei.  Assume bcc if BCC part of phase name
@@ -154,7 +154,7 @@
       endif
    enddo
    write(*,*)'Parameter id ',id,' not found'
-   gx%bmperr=7777
+   gx%bmperr=4335
    typty=-1
 1000 continue
    return
@@ -1109,7 +1109,7 @@
       if(phres%listprop(ith).eq.addrec%need_property(1)) goto 100
    enddo findix
    write(*,*)'No theta value. ',lokph
-   gx%bmperr=7777; goto 1000
+   gx%bmperr=4336; goto 1000
 100 continue
 ! thet is in gval(ith,1), derivatives in dgval(*,ith,*) and d2gval(ith,*)
 ! G/RT = 3*ln( 1 - exp( THET/T ) ) 
@@ -1134,7 +1134,7 @@
    implicit none
    type(gtp_phase_add), pointer :: newadd
 !\end{verbatim}
-   write(kou,*)'Not implemented yet'; gx%bmperr=7777
+   write(kou,*)'Not implemented yet'; gx%bmperr=4078
 1000 continue
    return
  end subroutine create_glas_transition_modela
@@ -1158,7 +1158,7 @@
    addrec%need_property(1)=typty
 ! missing things for the actual Cp function ...
 !
-   write(kou,*)'Not implemented yet'; gx%bmperr=7777
+   write(kou,*)'Not implemented yet'; gx%bmperr=4078
 !
 1000 continue
    return
@@ -1191,10 +1191,10 @@
       if(phres%listprop(ith).eq.lokadd%need_property(1)) goto 100
    enddo
    write(*,*)'No Debye temperature THET',lokph
-   gx%bmperr=7777; goto 1000
+   gx%bmperr=4336; goto 1000
 100 continue
    write(*,*)'Not implemented yet'
-   gx%bmperr=7777
+   gx%bmperr=4078
 1000 continue
    return
  end subroutine calc_debyecp

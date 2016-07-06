@@ -163,7 +163,7 @@ contains
 !----------------------------------------------------------------
 ! here are all commands and subcommands
 !    character (len=64), dimension(6) :: oplist
-    integer, parameter :: ncbas=30,nclist=18,ncalc=9,ncent=18,ncread=6
+    integer, parameter :: ncbas=30,nclist=21,ncalc=9,ncent=18,ncread=6
     integer, parameter :: ncam1=18,ncset=24,ncadv=6,ncstat=6,ncdebug=6
     integer, parameter :: nselect=6,nlform=6,noptopt=6
     integer, parameter :: ncamph=12,nclph=6,nccph=6,nrej=6,nsetph=6
@@ -199,7 +199,8 @@ contains
          'AXIS            ','TPFUN_SYMBOLS   ','QUIT            ',&
          'PARAMETER       ','EQUILIBRIA      ','RESULTS         ',&
          'CONDITIONS      ','SYMBOLS         ','LINE_EQUILIBRIA ',&
-         'OPTIMIZATION    ','MODEL_PARAM_VAL ','                ']
+         'OPTIMIZATION    ','MODEL_PARAM_VAL ','ERROR_MESSAGE   ',&
+         '                ','                ','                ']
 !-------------------
 ! subsubcommands to LIST DATA
     character (len=16), dimension(nlform) :: llform=&
@@ -2793,8 +2794,27 @@ contains
 !       case(17)
 !          write(*,*)'Not implemented yet'
 !------------------------------
-! list ??
+! list error message
        case(18)
+          i2=4204
+          call gparid('Error code: ',cline,last,i1,i2,q1help)
+          if(i1.ge.4000 .and. i1.lt.4399) then
+             write(kou,4999)i1,bmperrmess(i1)
+4999         format('The error code ',i4', means: '/a)
+          else
+             write(kou,*)'No a standard OC error message'
+          endif
+!------------------------------
+! list ??
+       case(19)
+          write(*,*)'Not implemented yet'
+!------------------------------
+! list ??
+       case(20)
+          write(*,*)'Not implemented yet'
+!------------------------------
+! list ??
+       case(21)
           write(*,*)'Not implemented yet'
        end SELECT
 !=================================================================

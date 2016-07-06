@@ -80,7 +80,7 @@
    if(nrph.gt.maxph) then
 ! too many phases
       write(*,*)'Too many phases for gridmin'
-      gx%bmperr=6663; goto 1000
+      gx%bmperr=4344; goto 1000
    endif
    nrel=noel()
    sum=zero
@@ -507,7 +507,7 @@
 !                  if(kkz.eq.2) then
                   if(kkz.eq.PHFIXED) then
                      write(*,*)'Global minimization with fix phase not allowed'
-                     gx%bmperr=7777; goto 1000
+                     gx%bmperr=4346; goto 1000
                   elseif(kkz.lt.PHENTUNST) then
                      write(*,*)'Changing status for phase ',name1
                   endif
@@ -840,7 +840,6 @@
 !   BUT: The only way to find the site fraction of a gripoint is to generate
 !   all gridpoints up the one specified by the value of mode (no G calculation)
 !   write(*,*)'ggy: ',mode,iph,nsl,nend,inkl(nsl)
-!   gx%bmperr=7777; goto 1000
    allocate(endm(nsl,nend))
    allocate(yfra(inkl(nsl)))
    nofy=inkl(nsl)
@@ -1306,7 +1305,6 @@
 !   BUT: The only way to find the site fraction of a gripoint is to generate
 !   all gridpoints up the one specified by the value of mode (no G calculation)
 !   write(*,*)'ggy: ',mode,iph,nsl,nend,inkl(nsl)
-!   gx%bmperr=7777; goto 1000
 !
 ! endm(i,j) has constituent indices in i=1..nsl for endmember j 
 ! endm(1,1) is constituent in sublattice 1 of first endmember
@@ -2754,7 +2752,7 @@
       if(griter.gt.10*nrel .and. gpfail.gt.8*nrel) then
 ! this must be wrong!!
          write(*,*)'Grid minimizer problem: ',griter,gpfail
-         gx%bmperr=7777; goto 1000
+         gx%bmperr=4346; goto 1000
       endif
 ! listing restored solution ......
 !      xtx=zero
@@ -3731,7 +3729,7 @@
          level=level+1
          if(level.gt.5) then
             write(*,*)'Interaction more than 5 levels deep!'
-            gx%bmperr=7777; goto 1000
+            gx%bmperr=4347; goto 1000
          endif
          int_stack(level)%p1=>intrec
          seq=seq+1

@@ -206,9 +206,6 @@
       indices(1)=svr%phase
       indices(2)=svr%compset
       indices(3)=svr%constituent
-!   else
-!      write(*,*)'state variable has illegal argtyp: ',svr%argtyp
-!      gx%bmperr=7775; goto 1000
    endif
 !
 !   write(*,20)istv,indices,iref,gx%bmperr
@@ -271,7 +268,7 @@
 ! indices(3) must be -2, -1 or >=0 so if we are here there is an error
             write(*,17)'3F Illegal set of indices 1',(indices(jl),jl=1,4)
 17          format(a,4i4)
-            gx%bmperr=7777; goto 1000
+            gx%bmperr=4317; goto 1000
          endif
       elseif(indices(2).eq.-3) then
 ! if indices(1)>=0 then indices(2)<0 must means a loop for all phase+compset
@@ -306,7 +303,7 @@
       else
 ! if indices(1)>=0 then indices(2) must be -3 or >=0, so if here it is error
          write(*,17)'3F Illegal set of indices 2',(indices(jl),jl=1,4)
-         gx%bmperr=7777; goto 1000
+         gx%bmperr=4317; goto 1000
       endif
    elseif(indices(1).eq.-1) then
 ! loop for component as first indices, 2+3 can be fix phase+compset
@@ -357,7 +354,7 @@
       else
 ! if we come here it must be an error
          write(*,17)'3F Illegal set of indices 3',(indices(jl),jl=1,4)
-         gx%bmperr=7777; goto 1000
+         gx%bmperr=4317; goto 1000
       endif
    elseif(indices(1).eq.-3) then
 ! loop for phase+compset as indices(1+2)
@@ -444,7 +441,7 @@
             else
 ! error if here
                write(*,17)'3F Illegal set of indices 4',(indices(jl),jl=1,4)
-               gx%bmperr=7777; goto 1000
+               gx%bmperr=4317; goto 1000
             endif
             if(gx%bmperr.ne.0) then
                write(*,19)'3F error 3',modind,gx%bmperr
@@ -456,7 +453,7 @@
    else
 ! error if here
       write(*,17)'3F Illegal set of indices 5',(indices(jl),jl=1,4)
-      gx%bmperr=7777; goto 1000
+      gx%bmperr=4317; goto 1000
    endif
 1000 continue
 ! possible memory leak
@@ -465,7 +462,7 @@
    return
 1100 continue
    write(*,*)'3F Overflow in array to get_state_variables'
-   gx%bmperr=7777; goto 1000
+   gx%bmperr=4317; goto 1000
  end subroutine get_many_svar
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
@@ -994,7 +991,7 @@
    else
 ! unknown propery
       write(*,*)'3F Unknown state variable or property',typty
-      gx%bmperr=7777; goto 1000
+      gx%bmperr=4318; goto 1000
    endif
    svr%oldstv=istv
    svr%statevarid=istv
@@ -1037,6 +1034,7 @@
 ! No such component
 1170 continue
    gx%bmperr=4106; goto 1000
+!
  end subroutine decode_state_variable3 !allocate
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
@@ -1411,9 +1409,6 @@
       indices(1)=svr%phase
       indices(2)=svr%compset
       indices(3)=svr%constituent
-!   else
-!      write(*,*)'3F state variable has illegal argtyp: ',svr%argtyp
-!      gx%bmperr=7775; goto 1000
    endif
    call encode_state_variable3(text,ip,istv,indices,iunit,iref,ceq)
 1000 continue
@@ -1445,12 +1440,12 @@
    character stsymb*60
    character*1, dimension(4), parameter :: cnorm=['M','W','V','F']
 !
+   sublat=0
    if(istv.le.0) then
 ! this is a parameter property symbol: TC (-2), BM (-3), MQ&FE(FCC) (-4) etc
 ! translate to 21, 22, 23 ...
       kstv=19-istv
       goto 200
-!      gx%bmperr=4116; goto 1000
    endif
 ! T or P
    if(istv.le.2) then
@@ -1640,7 +1635,7 @@
 800 continue
    if(ip+jp.gt.len(text)) then
       write(*,*)'State variable value output exceed character variable length'
-      gx%bmperr=4999; goto 1000
+      gx%bmperr=4319; goto 1000
    endif
    text(ip:ip+jp-1)=stsymb
    ip=ip+jp
@@ -1941,7 +1936,7 @@
       indices(3)=svr%constituent
    elseif(svr%argtyp.ne.0) then
       write(*,*)'3F state variable has illegal argtyp: ',svr%argtyp
-      gx%bmperr=7775; goto 1000
+      gx%bmperr=4320; goto 1000
    endif
 !   write(*,910)'3F svv: ',istv,indices,iref,iunit,value
 910 format(a,i3,2x,4i3,2i3,1pe14.6)
@@ -2489,7 +2484,7 @@
 ! lokcs is index of phase_varres
 ! value calculated value returned
 ! ceq is current equilibrium
-! For ioic liquid and charged crystalline phases one should
+! For ionic liquid and charged crystalline phases one should
 ! calculate eigenvectors to find neutral directions.
    implicit none
    TYPE(gtp_equilibrium_data) :: ceq
@@ -2563,7 +2558,7 @@
       value=eigenv(1)
    else
       write(*,*)'Error calculating eigenvalues of phase matrix',info
-      gx%bmperr=4444
+      gx%bmperr=4321
    endif
 1000 continue
    return
@@ -2803,8 +2798,8 @@
 !         write(*,*)'3F Found dot derivative: ',kdot,pfsym(js)
 ! Only allow a single symbol in this case!!!
          if(nsymb.gt.1) then
-            write(*,*)'3F Only a single symbol allowed!'
-            gx%bmperr=7777; goto 1000
+!            write(*,*)'3F Only a single symbol allowed!'
+            gx%bmperr=4320; goto 1000
          endif
          jt=1
 ! denominator, variable after . for with the derivative is taken
@@ -2902,7 +2897,7 @@
    type(putfun_node), pointer :: lrot
    if(.not.btest(svflista(svfix)%status,SVCONST)) then
       write(*,*)'Symbol is not a constant'
-      gx%bmperr=6666
+      gx%bmperr=4323
    else
       lrot=>svflista(svfix)%linkpnode
       write(*,*)'3F current and new: ',lrot%value,value
@@ -3219,6 +3214,7 @@
    integer jv,jt,istv,ieq
    double precision value
    argval=zero
+   value=zero
 !    write(*,*)'3F evaluate_svfun ',lrot,svflista(lrot)%narg,svflista(lrot)%name
 ! locate function
    if(lrot.le.0 .or. lrot.gt.nsvfun) then
@@ -3298,10 +3294,10 @@
       endif
    endif modeval
 ! save value in current equilibrium
-!   write(*,*)'3F eval_svfun: ',lrot,value,size(ceq%svfunres)
-   ceq%svfunres(lrot)=value
-   evaluate_svfun_old=value
+   if(lrot.gt.0) ceq%svfunres(lrot)=value
 1000 continue
+!   write(*,*)'3F eval_svfun: ',lrot,value,size(ceq%svfunres)
+   evaluate_svfun_old=value
    return
  end function evaluate_svfun_old
 

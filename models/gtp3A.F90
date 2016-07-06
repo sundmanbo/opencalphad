@@ -272,10 +272,6 @@
 !.......................................
 ! This is yet another elastic "constant" 19
    npid=npid+1
-   if(npid.gt.maxprop) then
-      write(*,*)'Too many parameter identifiers, increase maxprop'
-      gx%bmperr=7777; goto 1000
-   endif
    propid(npid)%symbol='EC44 '
    propid(npid)%note='Elast const C44'
    propid(npid)%status=0
@@ -283,7 +279,11 @@
 !.......................................
 ! Flory-Huggins molar volume parameter 20
    npid=npid+1
-   if(npid.gt.maxprop) stop 'Too many defined properties'
+! This IF statement should be at the last parameter identifier
+   if(npid.gt.maxprop) then
+!      write(*,*)'Too many parameter identifiers, increase maxprop'
+      gx%bmperr=4250; goto 1000
+   endif
    propid(npid)%symbol='FHV '
    propid(npid)%note='Flory-Hugg. vol '
    propid(npid)%status=0
@@ -1241,8 +1241,8 @@ end function find_phasetuple_by_indices
       spname=splista(loksp)%symbol
       mass=splista(loksp)%mass
    else
-      write(*,*)'No such constituent'
-      gx%bmperr=7777
+!      write(*,*)'No such constituent'
+      gx%bmperr=4096
    endif
 1000 continue
    return
@@ -1359,7 +1359,7 @@ end function find_phasetuple_by_indices
 !\end{verbatim}
    if(component.le.0 .or. component.gt.noofel) then
       write(*,*)'Calling mass_of with illegal component number: ',component
-      gx%bmperr=7777; goto 1000
+      gx%bmperr=4251; goto 1000
    endif
 ! return in kg
    mass_of=ceq%complist(component)%mass
@@ -1449,8 +1449,8 @@ end function find_phasetuple_by_indices
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
    if(phtx.lt.1 .or. phtx.gt.nooftuples) then
-      write(*,*)'Wrong tuple index',phtx
-      gx%bmperr=7654; goto 1000
+!      write(*,*)'Wrong tuple index',phtx
+      gx%bmperr=4252; goto 1000
    endif
    lokcs=phlista(phasetuple(phtx)%phaseix)%linktocs(phasetuple(phtx)%compset)
 1000 continue
@@ -1518,8 +1518,8 @@ end function find_phasetuple_by_indices
          nkl(ll)=phlista(lokph)%nooffr(ll)
 ! we get strange error "index 1 or array ceq above bound of 0"
          if(size(ceq%phase_varres(lokcs)%sites).lt.1) then
-            write(*,*)'Strange error when step: ',iph,ics,lokcs,ll
-            gx%bmperr=8765; goto 1000
+!            write(*,*)'Strange error when step: ',iph,ics,lokcs,ll
+            gx%bmperr=4253; goto 1000
          endif
 !         write(*,17)'3 A Strange error: ',iph,ics,lokcs,ll,&
 !              size(ceq%phase_varres(lokcs)%sites)
@@ -1574,8 +1574,8 @@ end function find_phasetuple_by_indices
 !\end{verbatim}
    integer ii
    if(lokph.le.0 .or. lokph.gt.noofph) then
-      write(*,*)'You are way off your head'
-      gx%bmperr=4445; goto 1000
+!      write(*,*)'You are way off your head'
+      gx%bmperr=4254; goto 1000
    endif
    nsl=phlista(lokph)%noofsubl
    do ii=1,nsl
@@ -1777,8 +1777,8 @@ end function find_phasetuple_by_indices
 66                format(a,i3,6(1pe12.4))
                   badd=zero
                else
-                  write(*,*)'Ionic liquid must have two sublattices',ll
-                  gx%bmperr=7777; goto 1000
+!                  write(*,*)'Ionic liquid must have two sublattices',ll
+                  gx%bmperr=4255; goto 1000
                endif
             endif ionliq
 ! note: for ionic liquid previous values of asum and bsum are updated 
@@ -1984,8 +1984,8 @@ end function find_phasetuple_by_indices
 !----------------------------------------------
    if(noendm.eq.0) then
 ! if no endmember found this phase cannot be reference phase
-      write(*,*)'This phase cannot be reference state for for this component'
-      gx%bmperr=7777; goto 900
+!      write(*,*)'This phase cannot be reference state for for this component'
+      gx%bmperr=4256; goto 900
    endif
 ! mark that conditions and equilibrium may not be consistent
    ceq%status=ibset(ceq%status,EQINCON)

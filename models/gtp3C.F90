@@ -1332,8 +1332,8 @@
 ! number of disordered sublattices
 ! sites, constituents and fractions in each disordered constituents
    if(ics.lt.0 .or. ics.gt.phlista(lokph)%noofcs) then
-      write(*,*)'No subch composition set'
-      gx%bmperr=7777; goto 1000
+!      write(*,*)'No subch composition set'
+      gx%bmperr=4072; goto 1000
    elseif(ics.eq.0) then
       ics=1
    endif
@@ -1624,7 +1624,7 @@
                      linkcon=phlista(lokph)%constitlist(iel)
                      if(linkcon.le.0) then
                         write(*,*)'Illegal use of wildcard 1'
-                        gx%bmperr=7777; goto 1000
+                        gx%bmperr=4286; goto 1000
                      endif
                      prop=prop(1:len_trim(prop))//'&'&
                           //splista(linkcon)%symbol
@@ -1637,7 +1637,7 @@
                   endif
 ! error if sublattice not found
                   write(kou,*)'Error in constituent depended parameter id'
-                  gx%bmperr=7777; goto 1000
+                  gx%bmperr=4287; goto 1000
 ! jump here to append sublattice
 120               continue
 !                  write(*,*)'property 1: ',prop(1:10),ll
@@ -1787,8 +1787,8 @@
                      else
                         linkcon=phlista(lokph)%constitlist(iel)
                         if(linkcon.le.0) then
-                           write(*,*)'Illegal use of wildcard 2'
-                           gx%bmperr=7777; goto 1000
+!                           write(*,*)'Illegal use of wildcard 2'
+                           gx%bmperr=4286; goto 1000
                         endif
                         prop=prop(1:len_trim(prop))//'&'&
                              //splista(linkcon)%symbol
@@ -1800,8 +1800,8 @@
                         enddo
                      endif
 ! there cannot be any errors here ....
-                     write(*,*)'Never never error 2'
-                     gx%bmperr=7777; goto 1000
+!                     write(*,*)'Never never error 2'
+                     gx%bmperr=4288; goto 1000
 220                  continue
 !                     write(*,*)'property 2: ',prop(1:10),ll
 ! add sublattice index only if not unity
@@ -2122,8 +2122,8 @@
                   else
                      linkcon=phlista(lokph)%constitlist(iel)
                      if(linkcon.le.0) then
-                        write(*,*)'Illegal use of wildcard 1'
-                        gx%bmperr=7777; goto 1000
+!                        write(*,*)'Illegal use of wildcard 1'
+                        gx%bmperr=4286; goto 1000
                      endif
                      prop=prop(1:len_trim(prop))//'&'&
                           //splista(linkcon)%symbol
@@ -2136,7 +2136,7 @@
                   endif
 ! error if sublattice not found
                   write(kou,*)'Error in constituent depended parameter id'
-                  gx%bmperr=7777; goto 1000
+                  gx%bmperr=4287; goto 1000
 ! jump here to append sublattice
 120               continue
 !                  write(*,*)'property 1: ',prop(1:10),ll
@@ -2286,8 +2286,8 @@
                      else
                         linkcon=phlista(lokph)%constitlist(iel)
                         if(linkcon.le.0) then
-                           write(*,*)'Illegal use of wildcard 2'
-                           gx%bmperr=7777; goto 1000
+!                           write(*,*)'Illegal use of wildcard 2'
+                           gx%bmperr=4286; goto 1000
                         endif
                         prop=prop(1:len_trim(prop))//'&'&
                              //splista(linkcon)%symbol
@@ -2299,8 +2299,8 @@
                         enddo
                      endif
 ! there cannot be any errors here ....
-                     write(*,*)'Never never error 2'
-                     gx%bmperr=7777; goto 1000
+!                     write(*,*)'Never never error 2'
+                     gx%bmperr=4288; goto 1000
 220                  continue
 !                     write(*,*)'property 2: ',prop(1:10),ll
                      prop=prop(1:len_trim(prop))//'#'//char(ll+ichar('0'))
@@ -2492,8 +2492,8 @@
          endif
       endif
    else
-      write(*,*)'Illegal with wildcards in 2nd sublattice'
-      gx%bmperr=7777; goto 1000
+!      write(*,*)'Illegal with wildcards in 2nd sublattice'
+      gx%bmperr=4262; goto 1000
    endif
    ionsl: do ll=1,2
       jsp=endm(ll)
@@ -2692,8 +2692,8 @@
          ip=ip+2
       else
 ! do not accept Fe/2 for Fe/+2, always require + or -
-         write(*,*)'Charge must always be given as /+ or /-'
-         gx%bmperr=7777; goto 1000
+!         write(*,*)'Charge must always be given as /+ or /-'
+         gx%bmperr=4289; goto 1000
       endif
 !      write(*,*)'Found charge: ',ip,noelx,'>',lname(ip:ip+5),'<'
    else
@@ -2929,8 +2929,8 @@
          do jsp=1,nint
             lint(2,jsp)=constlist(1+jsp)
          enddo
-         if(ocv()) write(*,*)'Ionic liquid has always 2 sublattices'
-         gx%bmperr=7777; goto 1000
+!         if(ocv()) write(*,*)'Ionic liquid has always 2 sublattices'
+         gx%bmperr=4255; goto 1000
       endif
       lord=1
       do jsp=1,nint
@@ -3108,8 +3108,8 @@
    if(ip.le.0) ip=1
    text(ip:)=' '
    if(.not.associated(ceq%lastcondition)) then
-      write(*,*)'3C No conditions at all'
-      gx%bmperr=8887; goto 1000
+!      write(*,*)'3C No conditions at all'
+      gx%bmperr=4143; goto 1000
    endif
    last=>ceq%lastcondition
    current=>last
@@ -3227,7 +3227,7 @@
    text(ip:)=' '
    if(.not.associated(ceq%lastexperiment)) then
 !      write(*,*)'3C No experiments'
-      gx%bmperr=8887; goto 1000
+      gx%bmperr=4249; goto 1000
    endif
    last=>ceq%lastexperiment
    current=>last
@@ -3243,7 +3243,7 @@
 100 continue
    if(current%active.eq.1) then
 !      write(*,*)'3C Experiment not active '
-      gx%bmperr=7654; goto 1000
+      gx%bmperr=4218; goto 1000
    endif
    iterm=1
 150 continue
@@ -3566,7 +3566,7 @@
 !   write(*,7)'3C fdp 1: ',symbol(1:5),mode,typty,iph,ics
 7  format(a,a,5i5)
    if(mode.eq.0) then
-! symbol given, can include & # and ( ) like MQ&FE#3(SIGMA)
+! parameter identifier given, can include & # and ( ) like MQ&FE#3(SIGMA)
       lattice=0
       nude=' '
       specid=' '
@@ -3578,14 +3578,14 @@
             k2=index(symbol,'(')
             if(k2.eq.0) then
 !               write(*,*)'3C: Missing phase specifier in property symbol 1'
-               write(*,*)'Error in symbol: ',symbol
-               gx%bmperr=7777; goto 1000
+!               write(*,*)'Error in symbol: ',symbol
+               gx%bmperr=4290; goto 1000
             endif
          else
             lattice=ichar(symbol(k2+1:k2+1))-ichar('0')
             if(lattice.le.0 .or. lattice.gt.9) then
-               write(*,*)'3C Sublattice outside range in property symbol'
-               gx%bmperr=7777; goto 1000
+!               write(*,*)'3C Sublattice outside range in property symbol'
+               gx%bmperr=4290; goto 1000
             endif
          endif
          specid=symbol(k1+1:k2-1)
@@ -3596,9 +3596,9 @@
       if(k1.gt.0) then
          k2=index(symbol,')')
          if(k2.lt.k1) then
-            write(*,*)'3C Missing phase specifier in property symbol 2'
-            write(*,*)'Symbol: ',symbol
-            gx%bmperr=7777; goto 1000
+!            write(*,*)'3C Missing phase specifier in property symbol 2'
+!            write(*,*)'Symbol: ',symbol
+            gx%bmperr=4291; goto 1000
          endif
          phsym=symbol(k1+1:k2-1)
          call find_phase_by_name(phsym,iph,ics)
@@ -3608,7 +3608,7 @@
       elseif(mode.ne.0) then
          write(*,*)'3C Missing phase specifier in property symbol 3'
          write(*,*)'Symbol: ',symbol,mode
-         gx%bmperr=7777; goto 1000
+         gx%bmperr=4291; goto 1000
 !      else
 ! mode=0 means just ignore
 !         write(*,*)'3C mode: ',mode,iph,ics
@@ -3638,8 +3638,8 @@
                   kk=kk+1
                   splink=phlista(lokph)%constitlist(kk)
                   if(splink.le.0) then
-                     write(*,*)'3C Illegal use of woildcard 3'
-                     gx%bmperr=7777; goto 1000
+!                     write(*,*)'3C Illegal use of woildcard 3'
+                     gx%bmperr=4286; goto 1000
                   endif
                   if(specid.eq.splista(splink)%symbol .and. &
                        (lattice.eq.0 .or. lattice.eq.ll)) then
@@ -3657,7 +3657,7 @@
 ! if we come here we have not found the constituent or element or property
 ! it may be OK anyway if this is a call to test if symbol exists ??
 !      write(*,*)'3C Illegal property symbol'
-      gx%bmperr=7777; goto 1000
+      gx%bmperr=4290; goto 1000
 ! we must return property number, phase location, element
 ! the value TYPTY stored in property records is "idprop" or
 ! if IDELSUFFIX set then 100*"idprop"+ellista index of element
@@ -3675,29 +3675,29 @@
          jtyp=typty-100*ityp
       endif
       if(ityp.le.1 .or. ityp.gt.ndefprop) then
-         write(*,*)'3C Property number outside range ',ityp,typty
-         gx%bmperr=7777; goto 1000
+!         write(*,*)'3C Property number outside range ',ityp,typty
+         gx%bmperr=4292; goto 1000
       endif
       symbol=propid(ityp)%symbol
       if(btest(propid(ityp)%status,IDELSUFFIX)) then
 ! could one have /- as specifier??? NO !! But maye Va
          if(jtyp.lt.0) then
-            write(*,*)'3C Missing element index in property symbol'
-            gx%bmperr=7777; goto 1000
+!            write(*,*)'3C Missing element index in property symbol'
+            gx%bmperr=4290; goto 1000
          endif
          if(jtyp.lt.0 .or. jtyp.gt.noofel) then
-            write(*,*)'3C Too high element index in property symbol'
-            gx%bmperr=7777; goto 1000
+!            write(*,*)'3C Too high element index in property symbol'
+            gx%bmperr=4290; goto 1000
          endif
          symbol=symbol(1:len_trim(symbol))//'&'//ellista(jtyp)%symbol
       elseif(btest(propid(ityp)%status,IDCONSUFFIX)) then
          if(jtyp.lt.0) then
-            write(*,*)'3C Missing constituent index in property symbol'
-            gx%bmperr=7777; goto 1000
+!            write(*,*)'3C Missing constituent index in property symbol'
+            gx%bmperr=4290; goto 1000
          endif
          if(iph.le.0 .or. iph.gt.noofph) then
-            write(*,*)'3C Illegal phase location in property symbol'
-            gx%bmperr=7777; goto 1000
+!            write(*,*)'3C Illegal phase location in property symbol'
+            gx%bmperr=4290; goto 1000
          endif
          kk=0
          do ll=1,phlista(lokph)%noofsubl
@@ -3706,8 +3706,8 @@
                if(kk.eq.jtyp) then
                   splink=phlista(lokph)%constitlist(kk)
                   if(splink.le.0) then
-                     write(*,*)'3C Illegal use of woildcard 4'
-                     gx%bmperr=7777; goto 1000
+!                     write(*,*)'3C Illegal use of woildcard 4'
+                     gx%bmperr=4286; goto 1000
                   endif
                   specid=splista(splink)%symbol
                   if(ll.gt.1) then
@@ -3720,19 +3720,19 @@
          enddo
 ! we come here is we failed to find the constituent
          write(*,*)'3C Illegal constituent index in property symbol'
-         gx%bmperr=7777; goto 1000
+         gx%bmperr=4290; goto 1000
 400      continue
          symbol=symbol(1:len_trim(symbol))//'&'//specid
       elseif(jtyp.gt.0) then
          write(*,*)'3C This property has no specifier'
-         gx%bmperr=7777; goto 1000
+         gx%bmperr=4290; goto 1000
       endif
 ! add the phase
 !      write(*,*)'3C fdp 11: ',lokph,ics
       symbol=symbol(1:len_trim(symbol))//'('//phlista(lokph)%name
       if(ics.lt.0 .or. ics.gt.phlista(lokph)%noofcs) then
-         write(*,*)'3C No such composition set'
-         gx%bmperr=7777; goto 1000
+!         write(*,*)'3C No such composition set'
+         gx%bmperr=4072; goto 1000
       endif
       if(ics.gt.1) symbol=symbol(1:len_trim(symbol))//'#'//char(ichar('0')+ics)
       symbol=symbol(1:len_trim(symbol))//')'
