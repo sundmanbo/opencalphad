@@ -1,0 +1,111 @@
+@$ Calculate the phase diagram for O-U
+@&
+
+set echo
+
+r t ou
+
+
+set c t=3200 p=1e5 n=1 x(o)=.5
+
+c e
+
+l r 2
+
+@&
+
+set ax 1 x(o) 0 1 ,,
+
+set ax 2 t 500 3500 25
+
+map
+
+plot
+x(*,o)
+T
+title map 4 fig 1
+render
+
+
+plot
+x(*,o)
+T
+title map4 fig 2
+position bottom left
+render
+
+
+plot
+
+
+title map4 fig 3
+xrange 
+N 
+.58 
+.78
+render
+
+plot
+
+
+title map4 fig 4
+yr
+N
+2500
+3200
+
+
+
+@$-------------------------------------------------------------
+@$ As a final touch calculate the congruent melting of UO2
+@$ First calculate an equilibrium in the liquid (or solid) above it
+
+l c
+
+set c x(u)=.33
+
+l,,,,,
+
+@&
+@$----------------------------------------------------------
+@$ Then set C1_MO2 as fix with zero amount
+
+set stat ph c1_mo2=f 0
+set c t=none
+l c
+
+c e
+
+l,,,,,
+
+@&
+@$---------------------------------------------------------
+@$ Finally replace the condition of U with the condition
+@$ that it should be the same in liquid and C1
+@$ IT IS IMPORTANT TO USE THE COMPOSITION SETS THAT ARE STABLE ABOVE
+
+set c x(ionic,u)-x(c1_mo2,u)=0
+set c x(u)=none
+l c
+
+c e
+
+l,,,,
+
+@$ Voila! 
+@$ T=3139 K and x(o)=.6638, slightly on the U rich side.
+@&
+
+plot
+
+
+xr
+N
+.64 .68
+yr n 3100 3150
+
+
+@$ As can be seen the step on the U rich side is quite big
+
+set interactive
+

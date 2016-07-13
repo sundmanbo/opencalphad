@@ -549,7 +549,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! 4350
        'A never never error evaluating a TP function                    ',&
        'Cannot find this TP function                                    ',&
-       '                                                                ',&
+       'Current equilibrium not global, gridmin found gridpoint below   ',&
        '                                                                ',&
        '                                                                ',&
        '5                                                               ',&

@@ -6,7 +6,7 @@ PROGRAM pmain1
   use cmon1oc
 !
 ! For parallel processing
-  use omp_lib
+!$  use omp_lib
 !
   implicit none
 !
@@ -19,7 +19,7 @@ PROGRAM pmain1
 ! the next line overwritten with current linkdate by linkocdate
   linkdate='01-01-2015'
 ! this is the overall version identifier
-  version=' 3.1'
+  version=' 4.0'
 ! intvar and dblvar will eventually be used for allocations and defaults
   intvar(1)=30
   call init_gtp(intvar,dblvar)

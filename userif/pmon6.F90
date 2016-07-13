@@ -48,7 +48,7 @@ contains
 !
 ! various symbols and texts
     character name1*24,name2*24,line*80,model*72,chshort
-    integer, parameter :: ocmonversion=21
+    integer, parameter :: ocmonversion=22
 ! element symbol and array of element symbols for database use
     character elsym*2,ellist(maxel)*2
 ! more texts for various purposes
@@ -86,7 +86,8 @@ contains
 ! for map results
     type(map_node), pointer :: maptop,mapnode,maptopsave
 !    type(map_line) :: mapline
-    integer noofaxis,noofstarteq
+! seqxyz has initial values of seqx, seqy and seqz
+    integer noofaxis,noofstarteq,seqxyz(3)
 ! this should be removed
 !    TYPE(ssm_node), pointer :: resultlist
 !<<<<<<<--------------------------------------------------------------
@@ -122,7 +123,7 @@ contains
 !    double precision latpos(3,3)
 !-------------------
 ! variables for assessment using VA05AD
-    integer :: nopt=100,iprint=1,ient,mexp,nvcoeff,nwc
+    integer :: nopt=100,iprint=1,ient,mexp=0,nvcoeff,nwc
     integer iexit(5)
     double precision :: dstep=1.0D-4,dmax2=1.0D2,acc=1.0D-3
     integer, parameter :: maxw=5000
@@ -165,7 +166,7 @@ contains
 !    character (len=64), dimension(6) :: oplist
     integer, parameter :: ncbas=30,nclist=21,ncalc=9,ncent=18,ncread=6
     integer, parameter :: ncam1=18,ncset=24,ncadv=6,ncstat=6,ncdebug=6
-    integer, parameter :: nselect=6,nlform=6,noptopt=6
+    integer, parameter :: nselect=6,nlform=6,noptopt=6,nsetbit=6
     integer, parameter :: ncamph=12,nclph=6,nccph=6,nrej=6,nsetph=6
     integer, parameter :: nsetphbits=15,ncsave=6,nplt=15,nstepop=6
 ! basic commands
@@ -285,6 +286,11 @@ contains
          ['EQUILIB_TRANSF  ','QUIT            ','EXTRA_PROPERTY  ',&
           'DENSE_GRID_ONOFF','                ','                ']
 !         123456789.123456---123456789.123456---123456789.123456
+! subsubcommands to SET BITS
+    character (len=16), dimension(nsetbit) :: csetbit=&
+         ['EQUILIBRIUM     ','GLOBAL          ','PHASE           ',&
+          '                ','                ','                ']
+!          123456789.123456---123456789.123456---123456789.123456
 ! subsubcommands to SET PHASE
     character (len=16), dimension(nsetph) :: csetph=&
          ['QUIT            ','STATUS          ','DEFAULT_CONSTIT ',&
@@ -350,7 +356,7 @@ contains
 !
     write(kou,10)version,linkdate(1:len_trim(linkdate)),ocmonversion,&
          gtpversion,hmsversion,smpversion
-10  format(/'Open Calphad (OC) software version ',a,' linked ',a,/&
+10  format(/'Open Calphad (OC) software version ',a,' prerelease, linked ',a,/&
          'with command line monitor version ',i2//&
          'This program is available with a GNU General Public License.'/&
          'It includes the General Thermodynamic Package, version ',A/&
@@ -1875,54 +1881,100 @@ contains
        case(18) ! SET BIT (all kinds of bits) just global implemented
 !          call gparid('Toggle bit (from 0-31, -1 quits):',&
 !               cline,last,ll,-1,q1help)
-3708      continue
-! subroutine TOPHLP forces return with ? in position cline(last:last)
-          write(kou,3709)globaldata%status
-3709      format('Current global status word: ',z8)
-          call gparid('Toggle global status bit (from 0-31, -1 quits):',&
-               cline,last,ll,-1,tophlp)
-          if(cline(1:1).eq.'?') then
-             write(kou,3710)globaldata%status
-3710         format('Toggles global status word ',z8,&
-                  ' (only experts should change these) '/&
-                  'Bit If set means:'/&
-                  ' 0  user is a beginner'/&
-                  ' 1  user is experienced'/&
-                  ' 2  user is an expert'/&
-                  ' 3  gridminimizer will not be used'/&
-                  ' 4  gridminimizer must not merge comp.sets.'/&
-                  ' 5  there are no data'/&
-                  ' 6  there are no phases'/&
-                  ' 7  comp.sets must not be created automatically'/&
-                  ' 8  comp.sets must not be deleted automatically'/&
-                  ' 9  data has changed since last save'/&
-                  '10  means verbose is on'/&
-                  '11  means verbose is permanently on'/&
-                  '12  means be silent'/&
-                  '13  no cleanup after an equilibrium calculation'/&
-                  '14  use denser grid in grid minimizer'/&
-                  '15  calculations in parallel is not allowed')
-             goto 3708
-          endif
-          if(ll.lt.0 .or. ll.gt.31) then
-             write(kou,*)'No bit changed'
-          elseif(btest(globaldata%status,GSADV) .or. ll.le.2) then
-! user must have expert bit set to change any other bit than the user type bit
-             if(btest(globaldata%status,ll)) then
-                globaldata%status=ibclr(globaldata%status,ll)
-                write(*,3711)'cleared',globaldata%status
-3711            format('Bit ',a,', new value of status word: ',z8)
+!         ['EQUILIBRIUM     ','GLOBAL          ','PHASE           ',&
+          kom3=submenu('Set which status word?',cline,last,csetbit,nsetbit,2)
+          SELECT CASE(kom3)
+          CASE DEFAULT
+             write(kou,*)'SET BIT subcommand error'
+!................................................................
+          case(1) ! equilibrium status word
+!        EQNOTHREAD=0, EQNOGLOB=1, EQNOEQCAL=2,  EQINCON=3, &
+!        EQFAIL=4,     EQNOACS=5,  EQGRIDTEST=6, EQGRIDCAL=7
+3610         continue
+!             write(kou,*)'Current equlibrium status: ',ceq%status
+             write(kou,3612)ceq%status
+             call gparid('Which bit? ',cline,last,ll,-1,tophlp)
+             if(cline(1:1).eq.'?') then
+                write(kou,3612)ceq%status
+3612            format('Toggles equilibrium status word, currently: ',z8,/&
+                     'Bit If set means',/&
+                     ' 0  No threads allowed (no parallel calculation)',/&
+                     ' 1  No global minimization allowed',/&
+                     ' 2  No equilibrium has been calculated',/&
+                     ' 3  Conditions and results not consistent',/'-'/&
+                     ' 4  Last equilibrium calculation failed',/&
+                     ' 5  No automatic generation of composition sets',/&
+                     ' 6  Equilibrim tested by gridminimizer',/&
+                     ' 7  Current results are from a grid minimization'/)
+                goto 3610
+             endif
+             if(ll.lt.0 .or. ll.gt.7) then
+                write(kou,*)'No such bit, no bit changed'
              else
-                globaldata%status=ibset(globaldata%status,ll)
-                write(*,3711)'set',globaldata%status
+                if(btest(ceq%status,ll)) then
+                   ceq%status=ibclr(ceq%status,ll)
+                   write(kou,*)'Bit cleared'
+                else
+                   ceq%status=ibset(ceq%status,ll)
+                   write(kou,*)'Bit set'
+                endif
              endif
-             if(.not.btest(globaldata%status,GSADV)) then
+!             write(*,*)'Not implemented yet'
+!................................................................
+! maybe change order of questions, maybe check name exits etc ....
+          case(2) ! global status word
+3708         continue
+! subroutine TOPHLP forces return with ? in position cline(last:last)
+             write(kou,3709)globaldata%status
+3709         format('Current global status word: ',z8)
+             call gparid('Toggle global status bit (from 0-31, -1 quits):',&
+                  cline,last,ll,-1,tophlp)
+             if(cline(1:1).eq.'?') then
+                write(kou,3710)globaldata%status
+3710            format('Toggles global status word ',z8,&
+                     ' (only experts should change these) '/&
+                     'Bit If set means:'/&
+                     ' 0  user is a beginner'/&
+                     ' 1  user is experienced'/&
+                     ' 2  user is an expert'/&
+                     ' 3  gridminimizer will not be used'/'-'/&
+                     ' 4  gridminimizer must not merge comp.sets.'/&
+                     ' 5  there are no data'/&
+                     ' 6  there are no phases'/&
+                     ' 7  comp.sets must not be created automatically'/'-'/&
+                     ' 8  comp.sets must not be deleted automatically'/&
+                     ' 9  data has changed since last save'/&
+                     '10  means verbose is on'/&
+                     '11  means verbose is permanently on'/'-'/&
+                     '12  means be silent'/&
+                     '13  no cleanup after an equilibrium calculation'/&
+                     '14  use denser grid in grid minimizer'/&
+                     '15  calculations in parallel is not allowed')
+                goto 3708
+             endif
+             if(ll.lt.0 .or. ll.gt.31) then
+                write(kou,*)'No bit changed'
+             elseif(btest(globaldata%status,GSADV) .or. ll.le.2) then
+! user must have expert bit set to change any other bit than the user type bit
+                if(btest(globaldata%status,ll)) then
+                   globaldata%status=ibclr(globaldata%status,ll)
+                   write(*,3711)'cleared',globaldata%status
+3711               format('Bit ',a,', new value of status word: ',z8)
+                else
+                   globaldata%status=ibset(globaldata%status,ll)
+                   write(*,3711)'set',globaldata%status
+                endif
+                if(.not.btest(globaldata%status,GSADV)) then
 ! if expert/experienced bit is cleared ensure that experienced bit is set
-                globaldata%status=ibset(globaldata%status,GSOCC)
+                   globaldata%status=ibset(globaldata%status,GSOCC)
+                endif
+             else
+                write(kou,*)'You must have expert status to toggle this!'
              endif
-          else
-             write(kou,*)'You must have expert status to toggle this!'
-          endif
+!....................................................
+          case(3) ! set bit phase ...
+             write(*,*)'Please use set phase ... bit '
+          end select
 !-------------------------
        case(19) ! set variable_coefficent, 0 to 99
           if(.not.btest(firstash%status,AHCOEF)) then
@@ -3395,7 +3447,12 @@ contains
           if(.not.associated(starteq)) then
              starteq=>ceq
           endif
-          call map_setup(maptop,noofaxis,axarr,starteq)
+! can one have several STEP commands??
+          if(associated(maptop)) then
+             write(*,*)'Deleting previous step/map results missing'
+          endif
+          seqxyz=0
+          call map_setup(maptop,noofaxis,axarr,seqxyz,starteq)
 ! mark that interactive listing of conditions and results may be inconsistent
           ceq%status=ibset(ceq%status,EQINCON)
           if(.not.associated(maptop)) then
@@ -3414,7 +3471,12 @@ contains
 ! STEP SEPARATE
        case(2) ! calculate for each entered phase separately
           starteq=>ceq
-          call step_separate(maptop,noofaxis,axarr,starteq)
+! can one have several STEP commands??
+          if(associated(maptop)) then
+             write(*,*)'Deleting previous step/map results missing'
+          endif
+          seqxyz=0
+          call step_separate(maptop,noofaxis,axarr,seqxyz,starteq)
 ! mark that interactive listing of conditions and results may be inconsistent
           ceq%status=ibset(ceq%status,EQINCON)
           if(.not.associated(maptop)) then
@@ -3474,7 +3536,13 @@ contains
                 write(kou,*)'Error removing old MAP equilibria'
                 goto 990
              endif
+! initiate indexing nodes and lines
+             seqxyz=0
           else
+! start indexing new noes/lines from previous 
+             seqxyz(1)=maptop%seqx
+             seqxyz(2)=maptop%seqy
+!             seqxyz(3) can be used for something else ...
              maptopsave=>maptop
              nullify(maptop)
           endif
@@ -3488,7 +3556,8 @@ contains
           starteq=>ceq
           starteq%next=0
        endif
-       call map_setup(maptop,noofaxis,axarr,starteq)
+! maptop is nullified when call map_setup
+       call map_setup(maptop,noofaxis,axarr,seqxyz,starteq)
        if(.not.associated(maptop)) then
 ! if one has errors in map_setup maptop may not be initiated, if one
 ! has saved previous calculations in maptopsave restore those
@@ -4283,11 +4352,11 @@ contains
     call state_variable_val(stvr,xxx,ceq)
     if(gx%bmperr.ne.0) goto 1000
     write(kou,2099)xxx
-2099 format('The transition occurs at ',1pe16.8/'Now set as condition')
+2099 format('The transition occurs at ',1pe16.8,', set as condition')
     pcond%prescribed=xxx
     pcond%active=0
 ! set phase back as entered and stable
-    write(*,*)'Set phase back as entered'
+!    write(*,*)'Set phase back as entered'
     call change_phase_status(iph,ics,PHENTSTAB,zero,ceq)
 1000 continue
     return

@@ -103,13 +103,7 @@
    allocate(gridpoints(nrph))
    allocate(phord(nrph))
    ggloop: do iph=1,nrph
-!      if(.not.phase_status(iph,1,PHHID,ceq)) then
-! skip phases that are hidden or suspended .... old 5; new -3
-!      if(test_phase_status(iph,1,amount,ceq).lt.5) then
-!      if(test_phase_status(iph,1,amount,ceq).gt.PHHIDDEN) then
-!      if(test_phase_status(iph,1,amount,ceq).gt.PHSUS) then
-! skip dormant phases
-! include phases with first composition set entered (only once!)
+! include phases with any composition set entered (but only once!)
       ent1: if(test_phase_status(iph,1,amount,ceq).gt.PHDORM) then
          do ics=1,noofcs(iph)
 ! new: -3 suspended, -2 dormant, -1,0,1 entered, 2 fixed
@@ -133,10 +127,12 @@
 !         write(*,61)'3Y gpno: ',pph,iph,ngrid(pph),gridpoints(pph)
 61       format(a,10i7)
 !         if(trace) then
-            call get_phase_name(iph,1,name1)
+!            call get_phase_name(iph,1,name1)
 !            write(*,21)iph,name1(1:12),kphl(pph),ng
 !         endif
 !         write(*,22)iph,kphl(pph),ny,ng,pph
+!      else
+!         write(*,*)'3Y Suspended or dormant phase: ',iph
       endif ent1
    enddo ggloop
 ! we have a grid for pph phases, note that pph is not a phase index!!!
@@ -144,7 +140,7 @@
 21 format('Gridpoints for phase ',i3,': ',a,', starts ',i7,', with ',2i7)
 22 format('Gridpoints for phase ',i3,' starts at ',i5,', with ',2i5,i8)
    if(kp-1.gt.maxgrid) then
-      write(*,*)'Too many gridpoints'
+      write(*,*)'Too many gridpoints: ',iph
       gx%bmperr=4175; goto 1000
    endif
 ! we may have no gridpoints!!!
@@ -655,6 +651,7 @@
    integer lokph,errsave
    double precision, parameter :: yzero=1.0D-12
    integer abrakadabra,i,ibas,ibin,iend,is,iter,je,jend,kend,ll,ls,nend
+! used to save and restore constituent fractions
    double precision ydum(maxconst)
    integer ngdim,nsl
    integer nkl(maxsubl),knr(maxconst),inkl(0:maxsubl),nofy
@@ -711,6 +708,11 @@
    save sumngg
 !
 !   write(*,*)'entering generate_grid: ',mode,iph,ngg
+!---------------------------------------------------------
+! save current constitution in ydum
+   call get_phase_data(iph,1,nsl,nkl,knr,ydum,sites,qq,ceq)
+   if(gx%bmperr.ne.0) goto 1020
+!---------------------------------------------------------
    if(test_phase_status_bit(iph,PHEXCB)) then
 ! This phase has charged endmembers, generate neutral gridpoints
       call generate_charged_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,gmax,ceq)
@@ -752,8 +754,7 @@
    else
       trace=.FALSE.
    endif
-   call get_phase_data(iph,1,nsl,nkl,knr,ydum,sites,qq,ceq)
-   if(gx%bmperr.ne.0) goto 1000
+!---------------------------------------------------------
 ! calculate the number of endmembers and index of first constituent in subl ll
    nend=1
    inkl(0)=0
@@ -1115,13 +1116,15 @@
     enddo
 !    write(*,520)'3Y ggx: ',mode,(xarr(i,mode),i=1,nrel)
 520 format(a,i4,10(f8.5))
+!----------------------------------------------------------
 1000 continue
    if(allocated(endm)) then
       deallocate(endm)
       deallocate(yfra)
    endif
 1001 continue
-! restore original constituent fractions
+!------------------------------------------------------------
+! IMPORTANT !! restore original constituent fractions
 !   call get_phase_data(iph,1,nsl,nkl,knr,ydum,sites,qq,ceq)
    errsave=gx%bmperr
    gx%bmperr=0
@@ -1132,6 +1135,8 @@
       write(*,*)'Error restoring constitution for phase: ',iph,gx%bmperr
    endif
    gx%bmperr=errsave
+! jump here if error saving constitution!!
+1020 continue
    if(gx%bmperr.ne.0) write(*,*)'gengrid error: ',gx%bmperr
    return
  end subroutine generate_grid
@@ -3541,20 +3546,130 @@
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim}
- logical function global_equilibrium_check(ceq,newceq)
-! subroutine global_equilibrium_check(ceq,newceq)
-! This subroutine checks if a calculated solution is the global equilibrium
+ logical function global_equil_check1(mode,ceq)
+! subroutine global_equil_check(ceq,newceq)
+! This subroutine checks there are any gridpoints below the calculated solution
+! if not it is taken as a correct global equilibrium
+! This avoids creating any new composition sets but may fail in some cases
+! to detect that the equilibrium is not global.
    implicit none
-   TYPE(gtp_equilibrium_data), pointer :: ceq,newceq
+   integer mode
+   TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-   logical check
-   check=.TRUE.
-   write(*,*)'Global check of node points not implemented'
-! call gridmin_check(....)
+   TYPE(gtp_equilibrium_data), target :: cceq
+   TYPE(gtp_equilibrium_data), pointer :: pceq
+   logical global,newcs
+   real, allocatable :: xarr(:,:),garr(:)
+   real sumx
+   double precision, dimension(maxconst) :: yarr
+   double precision totmol,totmass,amount,gmax
+   integer, allocatable :: kphl(:),iphx(:)
+   integer gmode,iph,ngg,nrel,ny,ifri,firstpoint,sumng,nrph,ii,jj,nz,lokcs
+!
+!   write(*,*)'In global_equil_check1',mode
+   global=.TRUE.
+! COPY the whole equilibrium record to avoid destroying anything!!
+! otherwise I had strange problems with amounts of phases ??
+   cceq=ceq
+   pceq=>cceq
+   nrph=noofph
+   allocate(kphl(nrph+1))
+   allocate(iphx(nrph+1))
+!
+   sumng=0
+   ifri=0
+   firstpoint=1
+   iphx=0
+   kphl=0
+   ifri=0
+   loop1: do iph=1,nrph
+! this loop just to calculate how many points will be generated for allocation
+      if(test_phase_status(iph,1,amount,pceq).le.PHDORM) cycle loop1
+      ifri=ifri+1
+      iphx(ifri)=iph
+      kphl(ifri)=firstpoint
+! not used: nrel, xarr, garr, yarr, gmax
+      call generate_grid(-1,iph,ngg,nrel,xarr,garr,ny,yarr,gmax,pceq)
+      if(gx%bmperr.ne.0) goto 1000
+      kphl(ifri)=ngg
+      sumng=sumng+ngg
+   enddo loop1
+!   write(*,*)'3Y Generated gridpoints for check:  ',sumng
+!
+   nrel=noofel
+! allocate arrays, added 1 to avoid a segmenentation fault ....
+   allocate(xarr(nrel,sumng+1))
+   allocate(garr(sumng+1))
+! calculate the composition and G for the gridpoints
+   ii=1
+   loop2: do ifri=1,nrph
+      iph=iphx(ifri)
+      if(iph.gt.0) then
+!         write(*,*)'3y GG: ',ifri,iph,ii
+! generate_grid restore original composition before ending
+         call generate_grid(0,iph,ngg,nrel,xarr(1,ii),garr(ii),&
+              ny,yarr,gmax,pceq)
+         if(gx%bmperr.ne.0) goto 1000
+         ii=ii+kphl(ifri)
+      endif
+   enddo loop2
+!   write(*,*)'3Y Calculated gridpoints for check: ',sumng
+! check if any gridpoint is below the G surface defined by cmuval
+   iph=0
+   ny=0
+   loop4: do ifri=1,sumng
+! keep track of the phase the gridpoint belongs to
+      if(ifri.gt.ny) then
+         iph=iph+1
+         ny=ny+kphl(iph)
+!         write(*,*)'3Y Incrementing iph: ',iph,kphl(iph),ifri,ny
+      endif
+      gmax=zero
+      sumx=0.0E0
+      do ngg=1,nrel
+         gmax=gmax+dble(xarr(ngg,ifri))*pceq%cmuval(ngg)
+         sumx=sumx+xarr(ngg,ifri)
+      enddo
+!      if(ifri.eq.sumng) write(*,*)'OK ',ifri,iph
+      if(abs(sumx-1.0E0).gt.1.0E-6) then
+         write(*,*)'3Y wrong gridpoint fractions ',ifri,sumx,garr(ifri)
+         cycle loop4
+      endif
+      if(dble(garr(ifri))-gmax.lt.-1.0D-6) then
+         global=.FALSE.
+         write(*,87)iph,(xarr(ngg,ifri),ngg=1,nrel)
+87       format(/' **** Equilibrium not global, a stable phase no: ',&
+              i3,' found with mole fractions: '(/2x,9F8.5))
+         gx%bmperr=4352; goto 500
+      endif
+!      if(ifri.eq.sumng) write(*,*)'OK ',ifri
+   enddo loop4
+! no gridpoint below current G surface
+!   write(*,*)'Still OK?'
+   goto 1000
+! Found gridpoint below gmax, if mode=/=1 just return error message
+500 continue
+   write(*,*)'Sorry I have not yet implemented automatic recalculation!'
+   if(mode.eq.1) then
+! Here you should implement automatic recalculation including new phase ...
+      continue
+!      gx%bmperr=0
+   else
+      write(*,*)'Please include this phase and recalculate'
+   endif
+!
 1000 continue
-   global_equilibrium_check=check
+!   write(*,*)'Deallocating, check due to segmentation fault ...'
+   if(allocated(xarr)) then
+      deallocate(xarr)
+      deallocate(garr)
+      deallocate(kphl)
+      deallocate(iphx)
+   endif
+1010 continue
+   global_equil_check1=global
    return
- end function global_equilibrium_check
+ end function global_equil_check1
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
@@ -3564,11 +3679,12 @@
 ! This subroutine checks if a calculated solution is correct by  
 ! checking if there are any gridpoints below the surface defined
 ! by the chemical potentials cmu
-! nystph return 0 or 10*(phase number)+compset number for new stable phase
-! there are kp gridpoints, nrel is number of components
+! The gridpoints have already been calculated
+! nystph return 0 or the phase tuple index for a new stable phase
+! kp are the number of gridpoints, nrel is number of components
 ! composition of each gridpoint in xarr, G in garr
 ! xknown is the known overall composition
-! ngrid is last  calculated gridpoint point for a phase jj
+! ngrid is last calculated gridpoint point for a phase jj
 ! pph is number of phases for which there is a grid
 ! iphx is phase numbers
 ! cmu are the final chemical potentials
@@ -3592,7 +3708,7 @@
 !   integer idum(1000)
    save addph
 !
-   write(*,*)'Entering gridmin_check',addph
+!   write(*,*)'Entering gridmin_check',addph
    gstable=zero
    nystph=0
    mode=0
@@ -3611,7 +3727,7 @@
 !      write(*,17)'grid comarison: ',gd,garr(jp),gsurf
 !17    format(a,3(1pe12.4))
       if(gd.gt.gstable) then
-! this gridpoint should be set as stable and recalculate
+! this gridpoint should be set as stable and equilibriuum recalculated
          gstable=gd
          mode=jp
       endif
@@ -3635,7 +3751,7 @@
       enddo
 115   continue
 !      write(*,*)'mode, ibias and phase: ',mode,ibias,iphx(zph)
-!      call generate_grid(mode,iphx(zph),ibias,nrel,xarr,garr,ny,yphl,idum,ceq)
+! This call return constitution of new gridpoint
       call generate_grid(mode,iphx(zph),ibias,nrel,xarr,garr,ny,yphl,gmax,ceq)
       if(gx%bmperr.ne.0) goto 1000
       iph=iphx(zph)
@@ -4070,13 +4186,13 @@
 
 !\begin{verbatim}
  subroutine todo_after_found_equilibrium(mode,ceq)
-! this is called after an equilibrium calculation
+! this is called after an equilibrium calculation by calceq2 and calceq3
 ! It marks stable phase (set CSSTABLE and remove any CSAUTO)
 ! It removes redundant unstable composition sets created automatically
 ! (CSAUTO set).  It will also shift stable composition sets to loweest 
 ! possible (it will take into account if there are default constituent 
 ! fractions, CSDEFCON set).
-! mode determine some of the actions
+! mode determine some of the actions, at present only >0 or <0 matters
 !
 ! >>>>>>>>>>> THIS IS DANGEROUS IN PARALLELL PROCESSING
 ! It should work in step and map as a composition set that once been stable
@@ -4093,24 +4209,37 @@
    integer iph,ics,lokph,lokics,jcs,lokjcs,lastset,lokkcs,kzz,jtup,qq
    integer jstat2,fit,phs,haha1,haha2,disfravares
    double precision val,xj1,xj2
-   logical notok,noremove
+   logical notok,noremove,globalok
    character jpre*4,jsuf*4
    real, dimension(:), allocatable :: tmmyfr
 !
-!---------------------------------------------------------------- debug
-!   haha1=1
-!   haha2=phlista(1)%linktocs(1)
-!   write(*,*)'fore 1: ',1,haha2,ceq%phase_varres(haha2)%disfra%varreslink,&
-!        ceq%phase_varres(haha2)%phstate,phlista(lokph)%noofcs
-!   haha2=phlista(1)%linktocs(2)
-!   if(haha2.gt.0) &
-!        write(*,*)'fore 2: ',1,haha2,&
-!        ceq%phase_varres(haha2)%disfra%varreslink,&
-!        ceq%phase_varres(haha2)%phstate
+!   write(*,*)'3Y in todo_after',mode
 !----------------------------------------------------------------
    if(btest(globaldata%status,GSNOAFTEREQ)) goto 1000
-!   write(*,*)'3Y in todo_after'
-! First shift all stable composition down to lower comp.sets
+   nostart: if(mode.lt.0) then
+! Problems with this section so global_equil_chek is disabled inside ...
+! if mode<0 the conditions did not allow gridmin before use it after
+!      write(*,*)'3Y Testing after calculation if equilibrium is global'
+      qq=1
+      globalok=global_equil_check1(qq,ceq)
+!      write(*,*)'Back from GEC1'
+      if(globalok) then
+! if TRUE equilibrium OK or it could not be tested
+         if(gx%bmperr.ne.0) then
+            write(*,*)'3Y Testing equilibrium with gridminimizer failed'
+            goto 1000
+         endif
+         write(*,*)'3Y Grid minimizer found no problems with calculation'
+      else
+! if FALSE the test showed this is not a global equilibrium
+         write(*,*)'3Y Grid minimizer found equilibrium wrong',gx%bmperr
+         goto 1000
+      endif
+   endif nostart
+!--------------------------------------------------------------------
+! Shift all stable composition down to lower comp.sets
+200 continue
+!   write(*,*)'Shifting composition sets'
    phloop1: do iph=1,noph()
       lokph=phases(iph)
       if(btest(phlista(lokph)%status1,PHHID)) cycle
@@ -4148,6 +4277,7 @@
 ! Accept a default consitution which almost fits the default
 !               write(*,*)'3Y Accept fit to default: ',fit,lokics,lokjcs
 500            continue
+!               write(*,*)'Move stable to lower unstable compsets'
 ! move STABLE lokics to UNSTABLE lokjcs
                write(*,489)lokics,lokjcs
 489            format('3Y move compset results from ',i6,' to ',i6)
@@ -4273,6 +4403,7 @@
 !   jcs=phlista(lokph)%linktocs(1)
 !   write(*,*)'after 1: ',lokph,jcs,ceq%phase_varres(jcs)%disfra%varreslink
 !   jcs=phlista(lokph)%linktocs(2)
+!   write(*,*)'Leaving todo_after'
 !   if(jcs.gt.0) &
 !        write(*,*)'after 2: ',lokph,jcs,ceq%phase_varres(jcs)%disfra%varreslink
    return

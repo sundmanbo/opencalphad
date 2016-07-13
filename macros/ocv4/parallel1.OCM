@@ -178,8 +178,8 @@ c a N 1
 
 
 @$ Turn off parallel (if on)
-set bit 2 
-set bit 15
+set bit glo 2 
+set bit glo 15
 
 c a N 1
 

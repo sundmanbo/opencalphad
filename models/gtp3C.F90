@@ -576,6 +576,7 @@
    double precision x1,x2,x3,xn,rtn
 !
 !   write(kou,*)'gtp3C: output unit: ',lut
+   encoded=' '
    call get_state_var_value('T ',x1,encoded,ceq)
    call get_state_var_value('P ',x2,encoded,ceq)
 ! We must use VS to get SER reference 
@@ -621,6 +622,7 @@
    character svtext*64,encoded*64,name*24
    integer ie,kl
    double precision x1,x2,x3,x4,rtn
+   encoded=' '
    if(mode.eq.1) then
       write(lut,7)
 !7     format('Component name',11x,'Moles',7x,'Mole-fracs  Chem.potent. ',&

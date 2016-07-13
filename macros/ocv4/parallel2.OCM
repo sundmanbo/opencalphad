@@ -1,0 +1,506 @@
+@$ testing enter many equilibria and calculate in parallel
+@&
+@$ The calculate all command using the grid minimizer does not calculate
+@$ in parallel as I get problems creating composition sets ...
+@$ Calculating without grid minimizer with oc3P will use parallel calculation
+@$
+@$ I also allow the user to output extra data for each equlibrium
+@$ according to a suggestion by Andre
+set echo
+
+r t steel1
+
+
+set cond t=1000 p=1e5 n=1 w(c)=0.01 w(cr)=.05 w(mo)=.08 w(si)=.003 w(v)=0.01
+
+c e
+
+l,,,,,
+@&
+
+enter symbol cp=h.t;
+
+calc symb cp
+
+l state 
+x(bcc,c)
+tc(bcc)
+
+@&
+
+enter many_equil
+@$ set all phases as entered
+entered 0 *
+@$ set conditions and refer some values to table columns
+condition t=@1 p=1e5 n=1 w(c)=@2 w(cr)=.05 w(mo)=.08 w(si)=.003 w(v)=0.01
+@$ add a (predefined) symbol to be calculated at each equilibrium
+calc cp
+@$ add a list of (state) variables to be listed at each equilibrium
+list x(fcc,c) tc(bcc)
+@$ Now starts the table values
+@&
+table_start
+@$ comment line NOTE first value (column 0) on each line is equilibrium name!!
+@$ equilibrium names like FIRST, NEXT, PREVIOUS, DEFAULT, LAST forbidden
+@$     T is column 1, x(c) is column 2 (Preferably no TAB characters)
+ettan     760 0.008
+tvaan     770 0.008
+@&
+equil_003  780 0.008
+equil_004  790 0.008
+equil_005  800 0.008
+equil_006  810 0.008
+equil_007  820 0.008
+equil_008  830 0.008
+equil_009  840 0.008
+equil_010  850 0.008
+equil_011  860 0.008
+equil_012  870 0.008
+equil_013  880 0.008
+equil_014  900 0.008
+equil_015  910 0.008
+equil_016  920 0.008
+equil_017  930 0.008
+equil_018  940 0.008
+equil_019  950 0.008
+equil_020  960 0.008
+equil_021  970 0.008
+equil_022  970 0.008
+equil_023  980 0.008
+equiL_024  990 0.008
+equiL_025 1000 0.008
+equiL_026 1070 0.008
+equiL_027 1080 0.008
+equiL_028 1110 0.008
+equiL_029 1120 0.008
+equiL_030 1130 0.008
+equiL_031 1140 0.008
+equiL_032 1150 0.008
+equiL_033 1160 0.008
+equiL_034 1170 0.008
+equiL_035 1180 0.008
+equiL_036 1190 0.008
+equiL_037 1200 0.008
+equiL_038 1210 0.008
+equiL_039 1220 0.008
+equiL_040 1230 0.008
+equiL_041 1240 0.008
+equil_042 1250 0.008
+equil_043 1250 0.008
+equil_044 1260 0.008
+equiL_045 1270 0.008
+equiL_046 1280 0.008
+equiL_047 1290 0.008
+equiL_048 1300 0.008
+equiL_049 1320 0.008
+equiL_050 1330 0.008
+equiL_051 1340 0.008
+equiL_052 1350 0.008
+equiL_053 1360 0.008
+equiL_054 1370 0.008
+equiL_055 1380 0.008
+equiL_056 1390 0.008
+equiL_057 1400 0.008
+equiL_058 1410 0.008
+equiL_059 1420 0.008
+equiL_060 1430 0.008
+equiL_061 1440 0.008
+equiL_062 1450 0.008
+equil_063 1460 0.007
+equil_064 1460 0.008
+equil_065 1470 0.008
+equiL_066 1480 0.008
+equiL_067 1490 0.008
+equiL_068 1500 0.008
+equiL_069 1510 0.008
+equiL_070 1520 0.008
+equiL_071 1530 0.008
+equiL_072 1540 0.008
+equiL_073 1550 0.008
+equiL_074 1560 0.008
+equiL_075 1570 0.008
+equiL_076 1580 0.008
+equiL_077 1590 0.008
+equiL_078 1600 0.008
+equiL_079 1610 0.008
+equiL_080 1620 0.008
+equiL_081 1630 0.008
+equiL_082 1640 0.008
+equiL_083 1650 0.008
+@$
+equil_101  760 0.009
+equil_102  770 0.009
+equil_103  780 0.009
+equil_104  790 0.009
+equil_105  800 0.009
+equil_106  810 0.009
+equil_107  820 0.009
+equil_108  830 0.009
+equil_109  840 0.009
+equil_110  850 0.009
+equil_111  860 0.009
+equil_112  870 0.009
+equil_113  880 0.009
+equil_114  900 0.009
+equil_115  910 0.009
+equil_116  920 0.009
+equil_117  930 0.009
+equil_118  940 0.009
+equil_119  950 0.009
+equil_120  960 0.009
+equil_121  970 0.009
+equil_122  980 0.009
+equiL_123  990 0.009
+equiL_124 1000 0.009
+equiL_125 1070 0.009
+equiL_126 1080 0.009
+equiL_127 1110 0.009
+equiL_128 1120 0.009
+equiL_129 1130 0.009
+equiL_130 1140 0.009
+equiL_131 1150 0.009
+equiL_132 1160 0.009
+equiL_133 1170 0.009
+equiL_134 1180 0.009
+equiL_135 1190 0.009
+equiL_136 1200 0.009
+equiL_137 1210 0.009
+equiL_138 1220 0.009
+equiL_139 1230 0.009
+equiL_140 1240 0.009
+equil_141 1250 0.009
+equil_142 1260 0.009
+equiL_143 1270 0.009
+equiL_144 1280 0.009
+equiL_145 1290 0.009
+equiL_146 1300 0.009
+equiL_147 1320 0.009
+equiL_148 1330 0.009
+equiL_149 1340 0.009
+equiL_150 1350 0.009
+equiL_151 1360 0.009
+equiL_152 1370 0.009
+equiL_153 1380 0.009
+equiL_154 1390 0.009
+equiL_155 1400 0.009
+equiL_156 1410 0.009
+equiL_157 1420 0.009
+equiL_158 1430 0.009
+equiL_159 1440 0.009
+equiL_160 1450 0.009
+equil_161 1460 0.009
+equil_162 1470 0.009
+equiL_163 1480 0.009
+equiL_164 1490 0.009
+equiL_165 1500 0.009
+equiL_166 1510 0.009
+equiL_167 1520 0.009
+equiL_168 1530 0.009
+equiL_169 1540 0.009
+equiL_170 1550 0.009
+equiL_171 1560 0.009
+equiL_172 1570 0.009
+equiL_173 1580 0.009
+equiL_174 1590 0.009
+equiL_175 1600 0.009
+equiL_176 1610 0.009
+equiL_177 1620 0.009
+equiL_178 1630 0.009
+equiL_179 1640 0.009
+equiL_180 1650 0.009
+@&
+equil_201  760 0.010
+equil_202  770 0.010
+equil_203  780 0.010
+equil_204  790 0.010
+equil_205  800 0.010
+equil_206  810 0.010
+equil_207  820 0.010
+equil_208  830 0.010
+equil_209  840 0.010
+equil_210  850 0.010
+equil_211  860 0.010
+equil_212  870 0.010
+equil_213  880 0.010
+equil_214  900 0.010
+equil_215  910 0.010
+equil_216  920 0.010
+equil_217  930 0.010
+equil_218  940 0.010
+equil_219  950 0.010
+equil_220  960 0.010
+equil_221  870 0.010
+equil_222  980 0.010
+equiL_223  990 0.010
+equiL_224 1000 0.010
+equiL_225 1070 0.010
+equiL_226 1080 0.010
+equiL_227 1110 0.010
+equiL_228 1120 0.010
+equiL_229 1130 0.010
+equiL_230 1140 0.010
+equiL_231 1150 0.010
+equiL_232 1160 0.010
+equiL_233 1170 0.010
+equiL_234 1180 0.010
+equiL_235 1190 0.010
+equiL_236 1200 0.010
+equiL_237 1210 0.010
+equiL_238 1220 0.010
+equiL_239 1230 0.010
+equiL_240 1240 0.010
+equil_241 1250 0.010
+equil_242 1260 0.010
+equiL_243 1270 0.010
+equiL_244 1280 0.010
+equiL_245 1290 0.010
+equiL_246 1300 0.010
+equiL_247 1320 0.010
+equiL_248 1330 0.010
+equiL_249 1340 0.010
+equiL_250 1350 0.010
+equiL_251 1360 0.010
+equiL_252 1370 0.010
+equiL_253 1380 0.010
+equiL_254 1390 0.010
+equiL_255 1400 0.010
+equiL_256 1410 0.010
+equiL_257 1420 0.010
+equiL_258 1430 0.010
+equiL_259 1440 0.010
+equiL_260 1450 0.010
+equil_261 1460 0.010
+equil_262 1470 0.010
+equiL_263 1480 0.010
+equiL_264 1490 0.010
+equiL_265 1500 0.010
+equiL_266 1510 0.010
+equiL_267 1520 0.010
+equiL_268 1530 0.010
+equiL_269 1540 0.010
+equiL_270 1550 0.010
+equiL_271 1560 0.010
+equiL_272 1570 0.010
+equiL_273 1580 0.010
+equiL_274 1590 0.010
+equiL_275 1600 0.010
+equiL_276 1610 0.010
+equiL_277 1620 0.010
+equiL_278 1630 0.010
+equiL_279 1640 0.010
+equiL_280 1650 0.010
+@$
+equil_301  760 0.011
+equil_302  770 0.011
+equil_303  780 0.011
+equil_304  790 0.011
+equil_305  800 0.011
+equil_306  810 0.011
+equil_307  820 0.011
+equil_308  830 0.011
+equil_309  840 0.011
+equil_310  850 0.011
+equil_311  860 0.011
+equil_312  870 0.011
+equil_313  880 0.011
+equil_314  900 0.011
+equil_315  920 0.011
+equil_316  930 0.011
+equil_317  940 0.011
+equil_318  950 0.011
+equil_319  960 0.011
+equil_320  970 0.011
+equil_321  980 0.011
+equiL_322  990 0.011
+equiL_323 1000 0.011
+equiL_324 1070 0.011
+equiL_325 1080 0.011
+equiL_326 1110 0.011
+equiL_327 1120 0.011
+equiL_328 1130 0.011
+equiL_329 1140 0.011
+equiL_330 1150 0.011
+equiL_331 1160 0.011
+equiL_332 1170 0.011
+equiL_333 1180 0.011
+equiL_334 1190 0.011
+equiL_335 1200 0.011
+equiL_336 1220 0.011
+equiL_337 1230 0.011
+equiL_338 1240 0.011
+equil_339 1250 0.011
+equil_340 1260 0.011
+equiL_341 1270 0.011
+equiL_342 1280 0.011
+equiL_343 1290 0.011
+equiL_344 1300 0.011
+equiL_345 1310 0.012
+equiL_346 1320 0.011
+equiL_347 1330 0.011
+equiL_348 1340 0.011
+equiL_349 1350 0.011
+equiL_350 1360 0.011
+equiL_351 1370 0.011
+equiL_352 1380 0.011
+equiL_353 1390 0.011
+equiL_354 1400 0.011
+equiL_355 1410 0.011
+equiL_356 1420 0.011
+equiL_357 1430 0.011
+equiL_358 1440 0.011
+equiL_359 1450 0.011
+equil_360 1460 0.011
+equil_361 1470 0.011
+equiL_362 1480 0.011
+equiL_363 1490 0.011
+equiL_364 1500 0.011
+equiL_365 1510 0.011
+equiL_366 1520 0.011
+equiL_367 1530 0.011
+equiL_368 1540 0.011
+equiL_369 1550 0.011
+equiL_370 1560 0.011
+equiL_371 1570 0.011
+equiL_372 1580 0.011
+equiL_373 1590 0.011
+equiL_374 1600 0.011
+equiL_375 1610 0.011
+equiL_376 1620 0.011
+equiL_377 1630 0.011
+equiL_378 1640 0.011
+equiL_379 1650 0.011
+equil_380 1660 0.011
+@$
+equil_401 760 0.012
+equil_402 770 0.012
+equil_403 780 0.012
+equil_404 790 0.012
+equil_405 800 0.012
+equil_406 810 0.012
+equil_407 820 0.012
+equil_408 830 0.012
+equil_409 840 0.012
+equil_410 850 0.012
+equil_411 860 0.012
+equil_412 870 0.012
+equil_413 880 0.012
+equil_414 900 0.012
+equil_415 910 0.012
+equil_416 920 0.012
+equil_417 930 0.012
+equil_418 940 0.012
+equil_419 950 0.012
+equil_420  970 0.012
+equiL_421  980 0.012
+equiL_422  990 0.012
+equiL_423 1100 0.012
+equiL_424 1110 0.012
+equiL_425 1120 0.012
+equiL_426 1130 0.012
+equiL_427 1070 0.012
+equiL_428 1080 0.012
+equiL_429 1140 0.012
+equiL_430 1150 0.012
+equiL_431 1160 0.012
+equiL_432 1170 0.012
+equiL_433 1190 0.012
+equiL_434 1200 0.012
+equiL_435 1210 0.012
+equiL_436 1210 0.011
+equiL_437 1220 0.012
+equiL_438 1230 0.012
+equil_439 1250 0.012
+equiL_440 1260 0.012
+equiL_441 1270 0.012
+equiL_442 1280 0.012
+equiL_443 1290 0.012
+equiL_444 1320 0.012
+equiL_445 1330 0.012
+equiL_446 1340 0.012
+equiL_447 1350 0.012
+equiL_448 1360 0.012
+equiL_449 1370 0.012
+equiL_450 1380 0.012
+equiL_451 1390 0.012
+equiL_452 1400 0.012
+equiL_453 1410 0.012
+equiL_454 1420 0.012
+equiL_455 1430 0.012
+equiL_456 1440 0.012
+equil_457 1460 0.012
+equiL_458 1470 0.012
+equiL_459 1480 0.012
+equiL_460 1490 0.012
+equiL_461 1500 0.012
+equiL_462 1510 0.012
+equiL_463 1520 0.012
+equiL_464 1530 0.012
+equiL_465 1540 0.012
+equiL_466 1550 0.012
+equiL_467 1560 0.012
+equiL_468 1570 0.012
+equiL_469 1580 0.012
+equiL_470 1590 0.012
+equiL_471 1600 0.012
+equiL_472 1610 0.012
+equiL_473 1620 0.012
+equiL_474 1630 0.012
+equiL_475 1640 0.012
+equiL_476 1650 0.011
+equiL_477 1660 0.012
+table_end
+
+@&
+
+@$ Just list the equilibria
+l eq
+
+@&
+@$ Set range so they can be calculated by the "calculate all" command
+set range 2 401
+
+@&
+@$ Calculate once with gridminimizer, we may create composition sets
+@$ Calculate with gridminimizer disables parallel calculation
+@$ Note the composition of x(fcc,c) is in most cases the cubic carbide,
+@$ it is difficult to specify the austenite.  Evidently redundant composition
+@$ sets are not removed after the equilibrium calculation.  
+@$ There are also problems to make sure user defined composition sets
+@$ have the most similar stable composition.
+@$ Some work is needed with the grid minimizer and the cleanup process.
+@$ I have added that if the phase specified for a state variable is not stable
+@$ the program searches for another stable composition set, 
+@$ thus TC(BCC) is sometimes TC(BCC#2)
+calc all Y
+
+@&
+@$ Calculate without gridminimizer, note the speed
+@$ When calculated in parallel even more ...
+calc all N
+
+@&
+@$ calculate and write the output on a file
+calc /out=outpara all N
+
+@&
+@$ Run without parallel with output on file for comparison
+@$ Bit 2 makes me an expert, bit 15 turns off parallel
+@$ ------------------------ BE PATIENT -----------------------------
+set bit glo 2
+set bit glo 15
+
+calc /out=outseq all N
+
+
+@$ prepare for more tests in parallel
+
+set bit glo 15
+
+
+set inter
+
+2378
+
+8320
+
+

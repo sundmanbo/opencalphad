@@ -106,7 +106,8 @@ amend phase part comp-set y , ,
 @$ Use the mode without subrracting the disordered Gibbs energy of the
 @$ ordered part
 
-set bit 2
+@$ NOTE the SET BIT command has changed!!
+set bit glob 2
 set phase part-fcc bit 23
 23
 
@@ -114,7 +115,7 @@ l sh a
 
 @&
 
-set c t=400 p=1e5 n=1 x(ni)=.6
+set c t=350 p=1e5 n=1 x(ni)=.45
 
 c e
 
@@ -134,10 +135,16 @@ map
 
 
 
-@$ just the FeNi/FeNi3
+plot
 
 
-set c x(ni)=.9
+title map8 fig 1
+
+
+@$ the missing FeNi_L10/FeNi3_L12
+
+
+set c x(ni)=.6
 
 c e
 
@@ -154,25 +161,10 @@ N
 plot 
 
 
-title map 8 fig 1
-render
-
-
-set c t=350 x(ni)=.4
-
-c e
-
-map
-N
-
-
-
-
-plot
-
-
 title map 8 fig 2
 render
+
+
 
 set inter
 

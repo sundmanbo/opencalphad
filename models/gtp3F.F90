@@ -2706,7 +2706,8 @@
    integer iz,jz,kz,lz,lokph,aha
    double precision, dimension(:), allocatable :: dum
 ! I assume the values are NP(*), maybe there are other cases ...
-   allocate(dum(n*m))
+! Karl had overflow error in dum ... no problem to make it a little larger
+   allocate(dum(n*m+10))
 !   write(*,*)'3Y corrected sortinphtup',m,n
    kz=0
    do iz=1,noofph

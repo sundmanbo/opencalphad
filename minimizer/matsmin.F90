@@ -43,8 +43,9 @@ MODULE liboceq
 ! for single equilibrium
 !
 ! BITS in meqrec status word
-! quiet means no output for the equilibrium calculation
-  integer, parameter :: quiet=0
+! MMQUIET means no output for the equilibrium calculation
+! MMNOSTARTVAL means grid minimizer not called at start
+  integer, parameter :: MMQUIET=0, MMNOSTARTVAL=1
 !
 !\begin{verbatim}
   TYPE meq_phase
@@ -194,6 +195,9 @@ CONTAINS
 ! to the lowest compset number unless the default constitution fits another
 ! For example to ensure a fcc-carbonitrides is always the same compset.
        ij=1
+! if meqrec%status indicate no initial startvalues set ij<0 to indicate test
+       if(btest(meqrec%status,MMNOSTARTVAL)) ij=-ij
+!       write(*,*)'Calling todo_after: ',btest(meqrec%status,MMNOSTARTVAL),mode
        call todo_after_found_equilibrium(ij,ceq)
 !    else
 !       write(*,1020)gx%bmperr
@@ -226,7 +230,7 @@ CONTAINS
     allocate(meqrec1)
     meqrec=>meqrec1
     meqrec%status=0
-    if(.not.confirm) meqrec%status=ibset(meqrec%status,QUIET)
+    if(.not.confirm) meqrec%status=ibset(meqrec%status,MMQUIET)
     nullify(mapfix)
     call cpu_time(starting)
     call system_clock(count=starttid)
@@ -240,6 +244,8 @@ CONTAINS
 ! to the lowest compset number unless the default constitution fits another
 ! For example to ensure a fcc-carbonitrides is always the same compset.
        ij=1
+! if meqrec%status indicate no initial startvalues set ij<0 to indicate test
+       if(btest(meqrec%status,MMNOSTARTVAL)) ij=-ij
        call todo_after_found_equilibrium(ij,ceq)
        if(confirm) then
           write(*,1010)meqrec%noofits,finish2-starting,endoftime-starttid
@@ -295,6 +301,8 @@ CONTAINS
 !
     if(ocv()) write(*,*)"Entering calceq7",mode
     errout=0
+! clear bit that start values has not been calculated
+    meqrec%status=ibclr(meqrec%status,MMNOSTARTVAL)
     if(gx%bmperr.ne.0) then
        if(gx%bmperr.eq.4203 .or. gx%bmperr.eq.4204) then
 ! this means system matrix error and too many iterations respectivly
@@ -334,9 +342,9 @@ CONTAINS
 !          if(gx%bmperr.eq.4173 .or. &
 !               gx%bmperr.eq.4174 .or. &
 !               (gx%bmperr.ge.4176 .and. gx%bmperr.le.4185)) goto 1000
-          if(.not.btest(meqrec%status,QUIET)) &
+          if(.not.btest(meqrec%status,MMQUIET)) &
                write(*,*) &
-               ' *** Warning, conditions prevent using gridminimizer',gx%bmperr
+               ' *** Warning, conditions prevent using gridminimizer'
           gx%bmperr=0
           gridtest=.true.
           meqrec%typesofcond=2
@@ -734,9 +742,6 @@ CONTAINS
        enddo
     endif
 !------------------------------- 
-! debug output of fix phase composition
-!    call calc_phase_mol(1,yarr,ceq)
-!    write(*,83)'at 200: ',cmix(1),(yarr(mjj),mjj=1,noel())
 ! zero start of link to phases set temporarily dormant ....
     meqrec%dormlink=0
 !
@@ -749,56 +754,17 @@ CONTAINS
     if(ocv()) write(*,*)'calling meq_phaseset'
     call meq_phaseset(meqrec,formap,ceq)
     if(gx%bmperr.ne.0) goto 1000
-    gridtest=.false.
+!    gridtest=.false.
 !------------------------------------------------------
 !
 ! When we come here the equilibrium is calculated or calculation failed
-!   gridtest value should have been set to .true. if no gridmin done initially
-    gridcheck: if(gridtest .and. btest(ceq%status,EQGRIDTEST)) then
-! if conditions are not massbalance apply gridtest as we now know the
-! overall composition.  First extract the molefractions
-       write(*,*)'Testing solution with new grid'
-       do mjj=1,meqrec%nrel
-          call get_component_name(mjj,name,ceq)
-          if(gx%bmperr.ne.0) then
-             write(*,*)'error getting component name ',mjj,gx%bmperr
-             goto 1000
-          endif
-          statevar='X('//name(1:len_trim(name))//') '
-          call get_state_var_value(statevar,xknown(mjj),encoded,ceq)
-          if(gx%bmperr.ne.0) then
-             write(*,*)'Error extracting x to test the solution',gx%bmperr
-             goto 1000
-          endif
-          statevar='MU('//name(1:len_trim(name))//') '
-          call get_state_var_value(statevar,vmu(mjj),encoded,ceq)
-          if(gx%bmperr.ne.0) then
-             write(*,*)'Error extracting mu to test the solution',gx%bmperr
-             goto 1000
-          endif
-       enddo
-       tpval(1)=ceq%tpval(1)
-       tpval(2)=ceq%tpval(2)
-! with what=-1 this is a test, what is changed if new phase should be stable.
-! Use same variables as earler call. New composition sets can be entered
-       stop 'This is not yet implemented'
-       what=-1
-!       call global_gridmin(what,tpval,xknown,meqrec%nv,meqrec%iphl,&
-!            meqrec%icsl,meqrec%aphl,nyphl,yarr,vmu,idum,ceq)
-       call global_gridmin(what,tpval,xknown,meqrec%nv,meqrec%iphl,&
-            meqrec%icsl,meqrec%aphl,nyphl,vmu,ceq)
-       if(gx%bmperr.ne.0) then
-!          write(*,*)'MM Error calculating grid to test the solution',gx%bmperr
-          goto 1000
-       endif
-       if(what.gt.0) then
-! solution incorrect, a gridpoint is below the chem.pot surface
-          iph=what/10
-          ics=mod(what,10)
-          write(*,*)'Recalculate as another phase is stable: ',iph,ics
-          goto 110
-       endif
-    endif gridcheck
+! if failed or called from step/map (formap TRUE) just exit
+    if(gx%bmperr.ne.0 .or. formap) goto 1000
+!    write(*,*)'End of calceq7 ',gridtest
+    if(gridtest) then
+! gridtest value is set to .TRUE. if no gridmin done initially
+       meqrec%status=ibset(meqrec%status,MMNOSTARTVAL)
+    endif
 !--------------------------------------------------
 1000 continue
     return
@@ -1059,7 +1025,7 @@ CONTAINS
        xxx=0.0D0
        if(iadd.gt.0) tupadd=meqrec%phr(iadd)%curd%phtupx
        if(irem.gt.0) tuprem=meqrec%phr(irem)%curd%phtupx
-       if(.not.btest(meqrec%status,QUIET)) &
+       if(.not.btest(meqrec%status,MMQUIET)) &
             write(*,219)meqrec%noofits,tupadd,tuprem
 219    format('Phase change: its/add/remove: ',3i5,1pe12.4)
        if(formap) then
@@ -1128,7 +1094,7 @@ CONTAINS
 223    format(a,2x,2i4,1pe15.4,i7)
        if(meqrec%noofits-meqrec%phr(iadd)%itrem.lt.minadd) then
 ! if phase was just removed do not add it before minadd iterations
-          if(.not.btest(meqrec%status,QUIET))write(*,224)minadd,&
+          if(.not.btest(meqrec%status,MMQUIET))write(*,224)minadd,&
                meqrec%phr(iadd)%iph,meqrec%phr(iadd)%ics,&
                meqrec%noofits,meqrec%phr(iadd)%itrem
 224       format('Too soon to add phase: ',i3,2x,2i4,5i5)
@@ -1157,7 +1123,7 @@ CONTAINS
                 if(jrem.eq.0) jrem=meqrec%stphl(meqrec%nstph)
                 krem=jrem
                 irem=jrem
-                if(.not.btest(meqrec%status,QUIET)) &
+                if(.not.btest(meqrec%status,MMQUIET)) &
                      write(*,241)meqrec%noofits,irem,iadd,ceq%tpval(1)
 241             format('Too many stable phases at iter ',i3,', phase ',i3,&
                      ' replaced by ',i3,', T= ',F8.2)
@@ -1280,7 +1246,7 @@ CONTAINS
     jj=meqrec%dormlink
 1200 continue
     if(jj.ne.0) then
-       if(.not.btest(meqrec%status,QUIET)) &
+       if(.not.btest(meqrec%status,MMQUIET)) &
             write(*,*)'Restore from dormant: ',jj,meqrec%phr(jj)%iph,&
             meqrec%phr(jj)%ics
        meqrec%phr(jj)%phasestatus=PHENTUNST
@@ -1503,7 +1469,7 @@ CONTAINS
 ! This can be caused by having no phase with solubility of an element
 ! (happened in Fe-O-U-Zr calculation with just C1_MO2 stable and C1 does not
 ! dissolve Fe).  Try to set back the last phase removed!!
-          if(.not.btest(meqrec%status,QUIET)) &
+          if(.not.btest(meqrec%status,MMQUIET)) &
                write(*,*)'Error, restoring previously removed phase: ',iremsave
           iadd=iremsave
           goto 1100
@@ -1710,7 +1676,7 @@ CONTAINS
           if(abs(deltaam).gt.one) then
 ! try to prevent too large increase/decrease in phase amounts. 
 ! Should be related to total amount of components.
-             if(.not.btest(meqrec%status,QUIET)) &
+             if(.not.btest(meqrec%status,MMQUIET)) &
                   write(*,*)'Large change in phase amount: ',deltaam
 !             deltaam=-one
              deltaam=sign(0.5D0,deltaam)
@@ -6126,8 +6092,7 @@ CONTAINS
 ! 2. calculate all differences, skipping equilibria with weight zero
 ! the array firstash%eqlista contain pointers to equilibria with experiments
     if(.not.allocated(firstash%eqlista)) then
-!       if(.not.btest(meqrec%status,QUIET)) &
-            write(kou,*)' *** Warning: no experimental data!'
+       write(kou,*)' *** Warning: no experimental data!'
        do i1=1,nexp
           f(i1)=zero
        enddo
@@ -6542,7 +6507,7 @@ CONTAINS
     elseif(meqrec%noofits.lt.6) then
        goto 100
     else
-       if(.not.btest(meqrec%status,QUIET)) write(*,202)meqrec%noofits
+       if(.not.btest(meqrec%status,MMQUIET)) write(*,202)meqrec%noofits
 202 format('Calculation required ',i4,' its')
     endif
 1000 continue
@@ -6756,7 +6721,7 @@ CONTAINS
     elseif(meqrec%noofits.lt.6) then
        goto 100
     else
-       if(.not.btest(meqrec%status,QUIET)) write(*,202)meqrec%noofits
+       if(.not.btest(meqrec%status,MMQUIET)) write(*,202)meqrec%noofits
 202 format('Calculation required ',i4,' its')
     endif
     do is=1,meqrec%nrel
@@ -7105,9 +7070,9 @@ CONTAINS
     meqrec%dormlink=0! 
     meqrec%status=0
     if(tyst) then
-       meqrec%status=ibset(meqrec%status,QUIET)
+       meqrec%status=ibset(meqrec%status,MMQUIET)
     else
-       meqrec%status=ibclr(meqrec%status,QUIET)
+       meqrec%status=ibclr(meqrec%status,MMQUIET)
     endif
 !
     meqrec%noofits=0

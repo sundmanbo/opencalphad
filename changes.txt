@@ -1,6 +1,8 @@
-This file contains information on bugfixes and other changes in 
-Open Calphad (OC) version 3
-after its release
+This file contains information on Open Calphad (OC) version 4 prerelease
+
+Updating version 3 is now finished.  The main practical change is that
+the step/map/plot file is now called smp2.F90, the executable oc4A
+or oc4P and the macros are on the ocv4 directory.
 
 Please read the readme-general.pdf for more general information.
 
@@ -9,27 +11,31 @@ compilation and linking of software.  If you are not familiar with
 such procedures please ask a local guru.  We who are providing this
 software do not have time to answer such questions.  
 
-If you want a thermodynamic software that can install itself and do
-not require any understanding of thermodynamics please conact a
+If you want a thermodynamic software that can install itself and which
+do not require any understanding of thermodynamics please contact a
 commercial vendor.
 
 In the list below the most recent changes come first.
 
-2016.07.04 With a lot of help from Jacques Lechelle the mapping now
-seems to work much better, also the multicomponent isopleths.  I will
-even start to think about how to calculate and plot isothermal ternary
-diagrams.  But there are things to fix with the step command also.
-And with assessments and ...
+2016.07.13 With the iminent celebration of the French revolution I
+have decided that this update is a prerelease of OC version 4.
+
+2016.07.10 With a lot of help from Jacques Lechelle and others the
+mapping now seems to work much better, also the multicomponent
+isopleths.  I have even started to think about how to calculate and
+plot isothermal ternary diagrams.  But there are still things to fix
+with the step command also.  And with assessments and with ...
 
 2016.07.04 I have finally started to improve the calculation of phase
 diagrams and this version has some significant improvements.  But the
 mapping is still very fragile and depend a lot on the starting point.
-But now miscibility gaps are almost closed and the mapping can cross a
-congruent melting point.  I have also added a command AMEND LINE to
-remove lines that are wrong.  I discovered that most lines are
-calculated twice so I will remove that and implement a global
+But now miscibility gaps are almost closed (Cr-Mo) and the mapping can
+cross a congruent melting point (U-O).  I discovered that most lines
+are calculated twice so I will remove that and implement a global
 minimization at nodepoints to check they are stable.  The isopleth
-calculations are also better but require global tests.
+calculations are also better but require global tests.  I have tried
+to add a command AMEND LINE to remove lines that are wrong but if one
+has made two ore more maps it crashes.  I should not delete mapnodes.
 
 2016.06.17 A major revision of the datastructure has been made with
 help of valgrind to avoid uninitiallized variables and memory leaks.

@@ -23,9 +23,9 @@ copy numlib\lmdif1lib.F90 .
 gfortran -c -finit-local-zero lmdif1lib.F90
 del lmdif1lib.F90
 
-copy stepmapplot\smp1.F90 .
-gfortran -c -finit-local-zero smp1.F90
-del smp1.F90
+copy stepmapplot\smp2.F90 .
+gfortran -c -finit-local-zero smp2.F90
+del smp2.F90
 
 copy userif\pmon6.F90 .
 gfortran -c -fopenmp -finit-local-zero pmon6.F90
@@ -38,5 +38,5 @@ del liboceq.a
 
 ar sq liboceq.a metlib3.o lukasnum.o gtp3.o matsmin.o lmdif1lib.o
 
-gfortran -o oc3P -fopenmp -finit-local-zero pmain1.F90 pmon6.o smp1.o liboceq.a
+gfortran -o oc4P -fopenmp -finit-local-zero pmain1.F90 pmon6.o smp2.o liboceq.a
 
