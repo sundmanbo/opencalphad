@@ -208,8 +208,8 @@
       indices(3)=svr%constituent
    endif
 !
-!   write(*,20)istv,indices,iref,gx%bmperr
-20 format('gmsvar 1: ',i5,4i4,3i7)
+!   write(*,20)istv,indices,iref,iunit,gx%bmperr
+20 format('3F many 1: ',i5,4i4,3i7)
 ! -----------------------------------------
 ! Indices 1: one or all components (-1)
 !          Indices 2+3: 0 or phase+set 
@@ -409,6 +409,9 @@
                   call state_variable_val3(istv,modind,iref,&
                        iunit,values(jj),ceq)
                endif
+!               write(*,73)'3F listing w(*,A): ',istv,modind,iref,iunit,&
+!                    ceq%phase_varres(lokcs)%phstate,jj,values(jj)
+73             format(a,i5,2x,4i3,2x,2i4,2i5,1pe12.4)
                if(gx%bmperr.ne.0) goto 1000
             elseif(ceq%phase_varres(lokcs)%phstate.lt.PHENTSTAB) then
 ! loop for all components or constitunets of stable phases
@@ -456,7 +459,7 @@
       gx%bmperr=4317; goto 1000
    endif
 1000 continue
-! possible memory leak
+! possible memory leak, nullify does not release memory
    nullify(svr)
    kjj=jj
    return
@@ -2230,7 +2233,9 @@
             call calc_phase_molmass(indices(1),indices(2),&
                  xmol,wmass,tmol,tmass,bmult,ceq)
             icx=3
-!            write(*,*)'3F cpmm: ',tmol,tmass,bmult
+!            write(*,92)'3F cpmm: ',indices(icx),tmol,tmass,bmult,&
+!                 wmass(1),wmass(2),wmass(3)
+92          format(a,i3,3(1pe12.4),3(0pF8.5))
          endif
          if(gx%bmperr.ne.0) goto 1000
 !         write(*,13)'3F gsvv 19: ',norm,(xmol(iq),iq=1,noofel)
@@ -2271,6 +2276,9 @@
             else
                value=zero
             endif
+! problem when plotting w(*,C) for phase fix with 0 amount
+!            value=wmass(indices(icx))
+            value=vn
 ! percent %
             if(iunit.eq.100) value=1.0D2*value
          elseif(norm.eq.3) then

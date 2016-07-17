@@ -60,7 +60,7 @@ MODULE ocsmp
 ! have a zero link for that end of the line.
 !
 ! These are bits in the map_line status word
-! if set the whole line is deleted
+! if set the whole line is inactive
   integer, parameter :: EXCLUDEDLINE=0
 !
 !\begin{verbatim}
@@ -204,6 +204,17 @@ MODULE ocsmp
 !
 !--------------------------------------------------------------
 !
+!\begin{verbatim}
+  TYPE graphics_textlabel
+! To put labels on a graph we must store these in a list
+     TYPE(graphics_textlabel), pointer :: nexttextlabel
+     double precision xpos,ypos
+     character*40 textline
+  end type graphics_textlabel
+!
+!\end{verbatim}
+!
+!------------------------------------------------------------------------
 !
 !\begin{verbatim}
   TYPE graphics_options
@@ -226,6 +237,8 @@ MODULE ocsmp
 ! it can be on/off, placed inside/outside, left/right/center, top/bottom/center,
 ! and some more options that may be implemented later ...
      character labelkey*24,appendfile*72
+! text label to be written at a given position
+     TYPE(graphics_textlabel), pointer :: firsttextlabel
 ! many more options can easily be added when desired, linetypes etc
   end TYPE graphics_options
 !\end{verbatim}
@@ -286,7 +299,7 @@ CONTAINS
 ! Store the start points in map_node records started from maptop
 100 continue
        ceq=>starteq
-       call map_startpoint(maptop,nax,axarr,inactive,ceq)
+       call map_startpoint(maptop,nax,axarr,seqxyz,inactive,ceq)
        if(gx%bmperr.ne.0) then
           if(ceq%next.gt.0) then
              write(*,101)ceq%next,gx%bmperr
@@ -305,8 +318,11 @@ CONTAINS
        seqy=maxsavedceq
        call create_saveceq(maptop%saveceq,seqy)
        if(gx%bmperr.ne.0) goto 1000
-! initiate line counter
-       maptop%seqy=0
+! initiate node counter done, line counter will be incremented
+       if(maptop%seqx.gt.1) write(*,85)maptop%seqx,maptop%seqy+1
+85     format('Previous step/map results saved'/&
+            'New mapnode/line equilibria indices will start from: ',i3,i5)
+!       maptop%seqy=0
 !    write(*,*)'savesize: ',size(maptop%saveceq%savedceq)
 !-------------------------------
 ! return here for each new line to be calculated
@@ -711,6 +727,14 @@ CONTAINS
        if(gx%bmperr.ne.0) then
 ! if error one can try to calculate using a shorter step or other things ...
 !          write(*,*)'Error return from map_calcnode: ',gx%bmperr
+          if(gx%bmperr.eq.4353) then
+! this means node point not global, line leading to this is set inactive
+! and we should not generate any startpoint.             
+             write(*,*)'Setting line inactive',mapline%lineid
+             mapline%status=ibset(mapline%status,EXCLUDEDLINE)
+             call map_lineend(mapline,zero,ceq)
+             goto 805
+          endif
           if(meqrec%tpindep(1)) then
 ! restore the original temperature, maybe also compositions ...
 !             write(*,*)'Restored T 5: ',tsave,axvalok
@@ -752,6 +776,7 @@ CONTAINS
        axvalok=zero
     endif
 ! we have finished a line
+805 continue
     write(*,808)mapline%number_of_equilibria,ceq%tpval(1)
 808 format('Finished line with ',i5,' equilibria at T=',F8.2)
     mapline%problems=0
@@ -784,7 +809,7 @@ CONTAINS
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
-  subroutine map_startpoint(maptop,nax,axarr,inactive,ceq)
+  subroutine map_startpoint(maptop,nax,axarr,seqxyz,inactive,ceq)
 ! convert a start equilibrium to a start point replacing all but one axis
 ! conditions with fix phases.  The start equilibrium must be already
 ! calculated. ceq is a datastructure with all relevant data for the equilibrium
@@ -794,7 +819,7 @@ CONTAINS
     implicit none
     TYPE(gtp_equilibrium_data), pointer :: ceq
     TYPE(map_node), pointer :: maptop
-    integer nax
+    integer nax,seqxyz(*)
     integer inactive(*)
     type(map_axis), dimension(nax) :: axarr
 !\end{verbatim}
@@ -894,15 +919,12 @@ CONTAINS
        mapnode%first=>mapnode
        mapnode%number_ofaxis=nax
        mapnode%nodefix%phaseix=0
-! if there is a previous MAP/STEP then copy seqx and seqy from these
-       if(associated(mapnode%plotlink)) then
-          write(*,*)'plotlink exists!'
-       else
-          write(*,*)'No plotlöink'
-       endif
+! if there is a previous MAP/STEP then 
+! seqx and seqy pass on the last used indices for _MAPNODE and _MAPLINE
+!       write(*,*)'Seqxyz 1: ',seqxyz(1),seqxyz(2)
 ! seqx is set to 0 here, will be increemented by 1 at copy_equilibrium
-       mapnode%seqx=0
-       mapnode%seqy=0
+       mapnode%seqx=seqxyz(1)
+       mapnode%seqy=seqxyz(2)
        if(ocv()) write(*,*)'created maptop',maptop%seqx
 ! set the tieline_inplane or not
 ! For step calculation, tieline_inplane=0
@@ -1049,7 +1071,7 @@ CONTAINS
     jp=10
 ! maptop%next is the most recent created mapnode ??
 !    seqx=maptop%next%seqx+1
-    write(*,*)'Maptop index: ',maptop%next%seqx,maptop%previous%seqx
+!    write(*,*)'Maptop index: ',maptop%next%seqx,maptop%previous%seqx
     seqx=max(maptop%next%seqx,maptop%previous%seqx)+1
 !    write(*,666)seqx,maptop%seqx,maptop%next%seqx,maptop%previous%seqx
 666 format('maptop seqx: ',10i3)
@@ -1405,7 +1427,7 @@ CONTAINS
        kph=irem
 !---------------------------------------------------------------
     else !fixfas iadd
-       write(*,*)'Remove axis condition and set new phase fix: ',iadd
+!       write(*,*)'Remove axis condition and set new phase fix: ',iadd
        if(meqrec%nstph.eq.meqrec%maxsph) then
           write(*,*)'Too many phases stable',meqrec%maxsph
           gx%bmperr=4231; goto 1000
@@ -2203,6 +2225,9 @@ CONTAINS
              laxfact=1.0D-2
           elseif(i3.lt.6) then
              laxfact=1.0D-1
+!          else
+! laxfact= 0.02, 0.04, 0.08, 0.16, 0.32, 0.64, 1.0
+!             laxfact=min(1.0,2.0D0*laxfact)
           endif
 !          write(*,*)'stepcheck: ',nax,maybecongruent,i3
           if(maybecongruent.gt.0 .and. i3.ge.3) then
@@ -2308,10 +2333,11 @@ CONTAINS
 !\end{verbatim}
     type(gtp_condition), pointer :: lastcond,pcond
     integer iremsave,iaddsave,iph,ics,jj,jph,kph,phfix,seqx,jax
-    integer what,type,cmix(10),maxstph,noplot
+    integer what,type,cmix(10),maxstph,noplot,mode
     double precision, parameter :: addedphase_amount=1.0D-2
     double precision value,axval,axvalsave
     type(gtp_state_variable), pointer :: svrrec
+    logical global
 ! turns off converge control for T
     integer, parameter :: inmap=1
 !
@@ -2483,6 +2509,19 @@ CONTAINS
        gx%bmperr=4223
     else
 ! It worked to calculate with a new fix phase releasing all axis condition!!!
+! *************************************************************
+! check that the node point is global using grid minimizer
+! ceq is not destroyed
+       mode=0
+       global=global_equil_check1(mode,ceq)
+       if(.not.global) then
+          write(*,*)'gridminimizer found node point not global'
+! set this line as INACTIVE and do not generate any start points
+          mapline%status=ibset(mapline%status,EXCLUDEDLINE)
+          gx%bmperr=4353
+          goto 1000
+       endif
+! *************************************************************
        goto 500
     endif
 ! Problems, the simplest is to go back and try a smaller step
@@ -2756,12 +2795,12 @@ CONTAINS
 !             write(*,*)'Number of stable phases: ',&
 !                  nodexit%nstabph,mapline%nstabph
              if(nodexit%nstabph.eq.mapline%nstabph) then
-! if we have same number of stable phases they must be chacked (invariant)
-                write(*,*)'Can be an invariant equilibrium!',&
-                     mapline%nstabph
+! if we have same number of stable phases they must be checked (invariant)
+!                write(*,*)'Can be an invariant equilibrium!',mapline%nstabph
              endif
              mapnode%linehead(jj)%done=-1
-             write(*,*)'Removed from node exit: ',jj
+             write(*,106)jj,mapnode%seqx
+106          format('Removed exit ',i2,' from node: ',i3)
              exit removexit
           endif
        enddo removexit
@@ -4019,6 +4058,10 @@ CONTAINS
                mapnode%linehead(kl)%number_of_equilibria,ll
 120       format('  Line ',i3,' with ',i3,' equilibria ending at node ',i3)
        endif
+       if(btest(mapnode%linehead(kl)%status,EXCLUDEDLINE)) then
+          write(*,*)'Line excluded'
+          cycle
+       endif
        ll=mapnode%linehead(kl)%first
 !       write(*,*)'list first equilibrium ',ll
 !       write(*,*)'axis: ',mapnode%number_ofaxis
@@ -4154,7 +4197,7 @@ CONTAINS
        endif
 !       write(*,*)'mapnode%linehead%first: '
        ll=mapnode%linehead(kl)%first
-       write(*,*)'conditions: ',ll,axarr(1)%seqz,axarr(2)%seqz
+!       write(*,*)'axis conditions: ',ll,axarr(1)%seqz,axarr(2)%seqz
        if(.not.btest(mapnode%linehead(kl)%status,EXCLUDEDLINE)) then
           if(.not.allocated(results%savedceq)) then
              write(*,*)'Cannot find link to saved equilibria! '
@@ -4259,8 +4302,10 @@ CONTAINS
 ! lhpos is last used position in lineheader
     integer giveup,nax,ikol,maxanp,lcolor,lhpos,repeat
     character date*8,mdate*12,title*128,backslash*2,lineheader*1024
-    character deftitle*64,labelkey*64
+    character deftitle*128,labelkey*64
     logical overflow,first,last
+! textlabels
+    type(graphics_textlabel), pointer :: textlabel
 ! line identification (title)
     character*16, dimension(:), allocatable :: lid
 !    logical nolid
@@ -4276,7 +4321,8 @@ CONTAINS
 ! alwas inlcude open calphad and date, add user title at the end
 !       123456789.123456789.123456789
 !      'Open Calphad 3.0 2015-03-16 : with GNUPLOT'
-       title=deftitle(1:30)//graphopt%plotlabels(1)
+       jj=len_trim(deftitle)
+       title=deftitle(1:jj+1)//graphopt%plotlabels(1)
     endif
 !
     if(.not.associated(maptop)) then
@@ -4443,7 +4489,7 @@ CONTAINS
 ! no wildcards allowed on this axis
           statevar=pltax(notanp)
           call meq_get_state_varorfun_value(statevar,value,encoded1,curceq)
-!          write(*,*)'SMP axis variable 1: ',encoded1(1:3),value
+!          write(*,*)'SMP axis variable 1: ',trim(encoded1),value
           if(gx%bmperr.ne.0) then
 ! this error should not prevent plotting the other points FIRST SKIPPING
              write(*,212)'SMP skipping a point, error evaluating: ',&
@@ -4463,14 +4509,16 @@ CONTAINS
           if(wildcard) then
 !             write(*,*)'Getting a wildcard value 1: ',nr,statevar(1:20)
              call get_many_svar(statevar,yyy,nzp,np,encoded2,curceq)
+!             write(*,*)'wildcard value 1: ',nr,trim(statevar)
 !             write(*,*)'Values: ',np,(yyy(i),i=1,np)
              if(gx%bmperr.ne.0) then
-!                write(*,*)'yaxis error: "',statevar(1:20),'"'
+                write(*,*)'yaxis error: "',trim(statevar),'"'
                 goto 1000
              endif
-!             write(*,111)encoded2(1:len_trim(encoded2)),(yyy(ic),ic=1,np)
+!             write(*,213)trim(encoded2),np,(yyy(ic),ic=1,np)
+213          format('windcard: ',a,i3,6(1pe12.4))
 !             write(*,16)'val: ',kp,nr,gx%bmperr,(yyy(i),i=1,np)
-16           format(a,2i3,i5,6(1pe11.3))
+16           format(a,2i3,i5,/6(1pe11.3/))
              anpmin=1.0D20
              anpmax=-1.0D20
              lcolor=0
@@ -4865,75 +4913,6 @@ CONTAINS
 ! move data output to the end of PLT file ...
 !    write(*,*)'We jump to 2000'    
     goto 2000
-!=============================================================== skipped below
-! as gnuplot commands and data on the same file
-! gnuplot output, first the data file
-!*    if(np+1.gt.maxval) then
-!*       write(*,*)'To many points to plot: ',maxval
-!*       goto 1000
-!*    endif
-!*    kk=len_trim(filename)
-!*    pfd=filename(1:kk)//'.'//'dat '
-!*    open(21,file=pfd,access='sequential',status='unknown')
-!*    if(np.gt.1) then
-!*       write(21,810)(lid(i)(1:12),i=1,np)
-!*810    format('# Open Calphad output for GNUPLOT'/'# Indx Indep.var.  ',&
-!*         1000(a12,2x))
-!*    else
-!*       write(21,810)'Depend. var.'
-!*    endif
-!*!-------------
-!*! NOTE OC does not generate a new line for phase changes that are not
-!*! invariant equilibria.  Maybe that should be changed.  The list of
-!*! stable phase is not correct
-!*    write(21,811)phaseline(1)(1:len_trim(phaseline(1)))
-!*811       format('# Line      1, with these stable phases at the end:'/'# ',a)
-!*! if anpax=1 then we must put the first colum after the colon in gnuplot
-!*    ksep=2
-!*    do nv=1,nrv
-!*       write(21,820)nv,xax(nv),(anp(jj,nv),jj=1,np)
-!*820    format(i4,1000(1pe14.6))
-!*       if(nv.eq.linesep(ksep)) then
-!*! an empty line in the dat file means a MOVE to the next point.
-!*          jj=len_trim(phaseline(ksep))
-!*          if(nv.lt.nrv) then
-!*             if(jj.gt.1) then
-!*                write(21,819)ksep,phaseline(ksep)(1:jj)
-!*819             format('# end of line '//'# Line ',i5,&
-!*                     ', with these stable phases:'/'# ',a)
-!*             else
-!*                write(21,822)ksep
-!*822             format('# end of line '//'# Line ',i5,&
-!*                     ', with unknown phases')
-!*             endif
-!*          else
-!*! try to avoid rubbish
-!*             write(21,821)
-!*821          format('# end of line '//)
-!*          endif
-!*          ksep=ksep+1
-!*       endif
-!*    enddo
-!*! finish the data file with some comments how to plot it manually
-!*    if(anpax.eq.2) then
-!*! anpax=2 specifies the single value axis before the colon
-!*       write(21,830)
-!*830    format('# plot "ocgnu.dat" using 2:3 with lines lt 1,',&
-!*          ' "" using 2:4 with lines lt 1, ...'/'# set term postscript color'/&
-!*            '# set output "ocg.ps"'/'# plot ... '/'# ps2pdf ocg.ps')
-!*    else
-!*! anpax=1 specifies the single value axis after the colon
-!*       write(21,831)
-!*831    format('# plot "ocgnu.dat" using 2:1 with lines lt 1,',&
-!*          ' "" using 3:1 with lines lt 1, ...'/'# set term postscript color'/&
-!*            '# set output "ocg.ps"'/'# plot ... '/'# ps2pdf ocg.ps')
-!*    endif
-!*! now I plot all lines with broad black lines (should be lt 7 ...)
-!*! these format statements are comments written at the end of the dat file
-!*!
-!*    close(21)
-!*    write(*,*)'Gnuplot data file   : ',pfd(1:kk+4)
-!=============================================================== skipped above
 2000 continue
 !    write(*,*)'We are at 2000 '
 !----------------------------------------------------------------------
@@ -4997,12 +4976,23 @@ CONTAINS
 ! user defined ranges for y axis
        write(21,870)'y',graphopt%plotmin(2),graphopt%plotmax(2)
     endif
+!------------------------------------------------------------
+! set labels
+    textlabel=>graphopt%firsttextlabel
+    do while(associated(textlabel))
+       jj=len_trim(textlabel%textline)
+       write(21,1505)textlabel%textline(1:jj),textlabel%xpos,textlabel%ypos
+1505   format('set label "',a,'" at ',1pe14.6,', ',1pe14.6)
+!       write(*,1505)textlabel%textline(1:jj),textlabel%xpos,textlabel%ypos
+       textlabel=>textlabel%nexttextlabel
+    enddo
 !----------------------
     backslash=',\'
     lcolor=1
 !    write(*,*)'backslash "',backslash,'" '
 !---------------------------------------------------------------
 ! handle appended files here ....
+!
     if(graphopt%appendfile(1:1).eq.' ') then
        appfil=0
     else
@@ -5010,11 +5000,31 @@ CONTAINS
        write(*,*)'Appending data from: ',trim(graphopt%appendfile)
        open(appfil,file=graphopt%appendfile,status='old',&
             access='sequential',err=1750)
+!
+       write(21,1720)'# APPENDED from '//trim(graphopt%appendfile)
 ! copy all lines up to "plot" to new graphics file
        nnv=0
 1710   continue
        read(appfil,1720,end=1750)appline
 1720   format(a)
+!------------------------------------------------------------------
+! ignore some lines with "set" in the append file
+! set title
+! set xlabel
+! set ylabel
+! set xrange
+! set yrange
+! set key
+       if(appline(1:10).eq.'set title ' .or.&
+            appline(1:11).eq.'set xlabel ' .or.&
+            appline(1:11).eq.'set ylabel ' .or.&
+            appline(1:11).eq.'set xrange ' .or.&
+            appline(1:11).eq.'set yrange ' .or.&
+            appline(1:8).eq. 'set key ') then
+!          write(*,*)'ignoring append line ',trim(appline)
+          goto 1710
+       endif
+!------------------------------------------------------------------
        if(index(appline,'plot "-"').gt.0) then
           applines(1)=appline
           ic=1
@@ -5166,6 +5176,7 @@ CONTAINS
 1900   continue
        read(appfil,884,end=1910)appline
        ic=ic+1
+       if(appline(1:11).eq.'pause mouse') goto 1900
        write(21,884)trim(appline)
        goto 1900
 1910   continue
@@ -5186,6 +5197,8 @@ CONTAINS
 !-------------------------------------------------------------------
 ! execute the GNUPLOT command file
 !
+! persist means not close plot window
+!    gnuplotline='gnuplot -persist '//pfc(1:kkk)//' '
     gnuplotline='gnuplot '//pfc(1:kkk)//' '
 ! if gnuplot cannot be started with gnuplot give normal path ...
 !    gnuplotline='"c:\program files\gnuplot\bin\wgnuplot.exe" '//pfc(1:kkk)//' '
@@ -5337,20 +5350,23 @@ CONTAINS
 ! map_startpoint calculates the equilibrium and generates two start points
 !             write(*,*)'Creating start point',itup
              inactive=0
-             call map_startpoint(maptop,noofaxis,axarr,inactive,ceq)
+             call map_startpoint(maptop,noofaxis,axarr,seqxyz,inactive,ceq)
              if(gx%bmperr.ne.0) goto 500
 ! create array of equilibrium records for saving results
              seqy=1500
              call create_saveceq(maptop%saveceq,seqy)
              if(gx%bmperr.ne.0) goto 900
 ! initiate line counter
+             if(seqxyz(2).ne.0) then
+                write(*,*)'step_separate seqy: ',seqxyz(2)
+             endif
              maptop%seqy=0
           else
 ! we generate a second or later startpoint for another phase
 ! note that maptop is allocated a new map_node linked from this
 !             write(*,*)'Creating next start point',itup
              inactive=0
-             call map_startpoint(maptop,noofaxis,axarr,inactive,ceq)
+             call map_startpoint(maptop,noofaxis,axarr,seqxyz,inactive,ceq)
              if(gx%bmperr.ne.0) then
                 goto 500
              endif

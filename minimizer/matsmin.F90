@@ -344,7 +344,7 @@ CONTAINS
 !               (gx%bmperr.ge.4176 .and. gx%bmperr.le.4185)) goto 1000
           if(.not.btest(meqrec%status,MMQUIET)) &
                write(*,*) &
-               ' *** Warning, conditions prevent using gridminimizer'
+               'Grid minimizer cannot be used for the current set of conditions'
           gx%bmperr=0
           gridtest=.true.
           meqrec%typesofcond=2
@@ -549,17 +549,23 @@ CONTAINS
        if(ocv()) write(*,*)'back from gridmin'
        if(gx%bmperr.ne.0) then
 ! if global fails reset error code and try a default start set of phases
-          if(gx%bmperr.ge.4000 .and. gx%bmperr.le.4220) then
+          if(gx%bmperr.ge.4000 .and. gx%bmperr.le.nooferm) then
+             write(*,102)bmperrmess(gx%bmperr)
+102          format(a)
 !  write(kou,102)gx%bmperr,bmperrmess(gx%bmperr)
-             write(kou,102)bmperrmess(gx%bmperr)
-102          format(a/'Current constitution used as start values.')
-          else
-             write(kou,113)gx%bmperr 
-113          format('Cannot use grid minimazer, error: ',i5/&
-                  'Current constitution used as start values.')
-          endif
+!             write(kou,102)bmperrmess(gx%bmperr)
+!102          format(a/'Current constitution used as start values.')
+!          else
+!             write(kou,113)gx%bmperr 
+!113          format('Cannot use grid minimazer, error: ',i5/&
+!                  'Current constitution used as start values.')
+!          endif
 ! no initial gridmin, make a gridtest at the end (not implemented ...)
+          else
+             write(*,*)'Grid minimizer cannot be used'
+          endif
           gridtest=.true.
+! use current constitution or set default constitution (does not work well)
           gx%bmperr=0; goto 110
        endif
 ! multiply phase amounts with antot as global_grimin assumes 1 mole

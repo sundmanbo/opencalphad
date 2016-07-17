@@ -1486,7 +1486,7 @@
    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim} %+
 ! NOTHING IMPLEMENTED YET
-   write(*,*)'Gridpoints for FCC/HCP 4SL ordering not handelled gracefully'
+   write(*,*)'Gridpoints for FCC/HCP 4SL ordering not implemented yet'
 1000 continue
    return
  end subroutine generate_fccord_grid
@@ -1559,6 +1559,7 @@
    if(nend.eq.1) then
 ! a single endmember, just check it is neutral
       ngg=1
+      charge=zero
       do ll=1,nsl
          loksp=knr(ll)
          charge=charge+sites(ll)*splista(loksp)%charge
@@ -3552,6 +3553,7 @@
 ! if not it is taken as a correct global equilibrium
 ! This avoids creating any new composition sets but may fail in some cases
 ! to detect that the equilibrium is not global.
+! mode=1 means try to recalculate equilibrium if not global (not implemented)
    implicit none
    integer mode
    TYPE(gtp_equilibrium_data), pointer :: ceq
@@ -3638,8 +3640,8 @@
       if(dble(garr(ifri))-gmax.lt.-1.0D-6) then
          global=.FALSE.
          write(*,87)iph,(xarr(ngg,ifri),ngg=1,nrel)
-87       format(/' **** Equilibrium not global, a stable phase no: ',&
-              i3,' found with mole fractions: '(/2x,9F8.5))
+87       format(/' *** Equilibrium not global, a stable phase no: ',&
+              i3,' found with mole fractions:',(/2x,9F8.5))
          gx%bmperr=4352; goto 500
       endif
 !      if(ifri.eq.sumng) write(*,*)'OK ',ifri
@@ -3655,7 +3657,7 @@
       continue
 !      gx%bmperr=0
    else
-      write(*,*)'Please include this phase and recalculate'
+      write(*,*)'Please include this phase and recalculate equilibrium'
    endif
 !
 1000 continue
@@ -4209,7 +4211,7 @@
    integer iph,ics,lokph,lokics,jcs,lokjcs,lastset,lokkcs,kzz,jtup,qq
    integer jstat2,fit,phs,haha1,haha2,disfravares
    double precision val,xj1,xj2
-   logical notok,noremove,globalok
+   logical notok,noremove,globalok,once
    character jpre*4,jsuf*4
    real, dimension(:), allocatable :: tmmyfr
 !
@@ -4229,7 +4231,7 @@
             write(*,*)'3Y Testing equilibrium with gridminimizer failed'
             goto 1000
          endif
-         write(*,*)'3Y Grid minimizer found no problems with calculation'
+         write(*,*)'3Y Grid minimizer test of equilibrium OK'
       else
 ! if FALSE the test showed this is not a global equilibrium
          write(*,*)'3Y Grid minimizer found equilibrium wrong',gx%bmperr
@@ -4353,6 +4355,7 @@
 !
 ! Now try to remove unstable composition sets with CSTEMPAR bit set
 !   write(*,*)'3Y loop to remove comp sets and auto bits'
+   once=.TRUE.
    phloop: do iph=1,noph()
       noremove=.FALSE.
       lokph=phases(iph)
@@ -4368,8 +4371,12 @@
 ! comp.set was created automatically but is not stable, it can be removed
                if(noeq().eq.1) then
 ! we have just one equilibrium, OK to remove even in parallel ...
-                  write(*,802)'3Y removing unstable phase tuple/compset ',&
-                       ceq%phase_varres(lokics)%phtupx,lokics
+                  if(once) then
+                     write(*,*)'Removing unstable phase tuple'
+                     once=.FALSE.
+                  endif
+!                  write(*,802)'3Y removing unstable phase tuple/compset ',&
+!                       ceq%phase_varres(lokics)%phtupx,lokics
 802               format(a,3i5)
                   call remove_composition_set(iph,.FALSE.)
                   if(gx%bmperr.ne.0) then

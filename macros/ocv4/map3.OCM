@@ -37,14 +37,62 @@ title map 3 fig 1
 render
 
 plot
-x(*,c)
-T
+w%(*,c)
+T_C
 xr
 n
 0
-.2
+7
 title map 3 fig 2
+out
+stable
 render
+
+@$---------------------------------------------------------
+@$ Calculate the metastable Fe-C with cementite
+set st ph *=sus
+set st ph fcc bcc liquid cem=ent 0
+
+l c
+
+set c x(c)=.1
+
+c e
+
+l,,,,,
+
+map
+
+
+
+
+plot
+
+
+
+@$ now overlay the stable
+plot
+
+
+append stable
+
+
+plot
+
+
+xr
+n
+0
+2.5
+yr
+n
+700
+1200
+pos
+top left
+text n 1.2 1100 y austenite
+
+
 
 
 set inter

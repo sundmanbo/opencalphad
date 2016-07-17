@@ -79,6 +79,10 @@ contains
     double precision dinc,dmin,dmax
 ! plot ranges, texts and defaults
     type(graphics_options) :: graphopt
+! plot texts
+!    type(graphics_textlabel), allocatable, target :: textlabel
+    type(graphics_textlabel), pointer :: textlabel
+    type(graphics_textlabel), pointer :: labelp
 ! axis data structures
     type(map_axis), dimension(5) :: axarr
 ! if more than one start equilibrium these are linked using the ceq%next index
@@ -121,6 +125,9 @@ contains
     integer mode,ndl,neqdef,noelx,nofc,nopl,nops,nv,nystat
 ! temporary matrix
 !    double precision latpos(3,3)
+! used to call init_gtp for the NEW command
+    integer intv(10)
+    double precision dblv(10)
 !-------------------
 ! variables for assessment using VA05AD
     integer :: nopt=100,iprint=1,ient,mexp=0,nvcoeff,nwc
@@ -333,7 +340,7 @@ contains
          'XTEXT           ','YTEXT           ','TITLE           ',&
          'GRAPHICS_FORMAT ','OUTPUT_FILE     ','GIBBS_TRIANGLE  ',&
          'QUIT            ','POSITION_OF_KEYS','APPEND          ',&
-         '                ','                ','                ']
+         'TEXT            ','                ','                ']
 !-------------------
 !        123456789.123456---123456789.123456---123456789.123456
 ! minimizers
@@ -381,6 +388,8 @@ contains
     graphopt%dfltmax=one
     graphopt%appendfile=' '
     graphopt%labelkey='top right'
+    nullify(graphopt%firsttextlabel)
+    nullify(textlabel)
     plotfile='ocgnu'
     plotform=' '
 ! default list unit
@@ -762,11 +771,6 @@ contains
           write(*,*)'Not implemented yet'
 !-------------------------
        case(16) ! AMEND LINEs of calculated equilibria
-! we have to insert link to previos results (only one level!)
-!          if(associated(maptopsave)) then
-!             write(kou,*)'We link to maptopsave'
-!             maptop%plotlink=>maptopsave
-!          endif
 ! possible amendment of all stored equilibria as ACTIVE or INACTIVE
           call amend_stored_equilibria(axarr,maptop)
 !-------------------------
@@ -2796,11 +2800,6 @@ contains
 !------------------------------
 ! list lines, output of calculated and stored equilibria
        case(15)
-! we have to insert link to previos results (only one level!)
-!          if(associated(maptopsave)) then
-!             write(kou,*)'We link to maptopsave'
-!             maptop%plotlink=>maptopsave
-!          endif
 ! temporary listing of all stored equilibria as test
           call list_stored_equilibria(lut,axarr,maptop)
 !------------------------------
@@ -3134,10 +3133,17 @@ contains
 ! this is necessary only if no plot of last step/map made ...
 !          write(kou,*)'We link to maptopsave'
           maptop%plotlink=>maptopsave
+          nullify(maptopsave)
        endif
+       seqxyz=0
        call delete_mapresults(maptop)
 ! remove any results from step and map
-       nullify(maptop)
+       if(associated(maptop)) then
+!          write(*,*)'maptop nullified: ',maptop%next%seqx
+          maptop%next%seqx=0
+          maptop%next%seqy=0
+          nullify(maptop)
+       endif
        nullify(mapnode)
        nullify(maptopsave)
 !----- deallocate local axis records
@@ -3147,17 +3153,19 @@ contains
 !          deallocate(axarr(jp)%coeffs)
        enddo
        noofaxis=0
-       if(associated(maptop)) then
-          deallocate(maptop)
-       endif
+! deallocate does not work on pointers!!!
+!       deallocate(maptop)
 !       write(*,*)'No Segmentation fault 6'
        nullify(starteq)
+       noofstarteq=0
        graphopt%rangedefaults=0
 !
 ! this routine fragile, inside new_gtp init_gtp is called
 !       write(*,*)'No segmentation fault 7'
        call new_gtp
        write(kou,*)'All data removed'
+       call init_gtp(intv,dblv)
+       write(kou,*)'Workspaces initiated'
 !       ceq=>firsteq
        goto 20
 !=================================================================
@@ -3393,7 +3401,7 @@ contains
           call remove_composition_set(iph,.FALSE.)
           if(gx%bmperr.ne.0) goto 990
 !-----------------------------------------------------------
-! delete equilibrium
+! delete equilibria
        case(6)
           call gparcd('Equilibrium name: ',cline,last,1,name1,'_MAP* ',q1help)
           if(buperr.ne.0) goto 990
@@ -3401,7 +3409,7 @@ contains
           if(gx%bmperr.ne.0) goto 990
        end SELECT
 !=================================================================
-! step, must be tested if compatible with assessments
+! STEP, must be tested if compatible with assessments
 !         ['NORMAL          ','SEPARATE        ','QUIT            ',&
 !          'CONDITIONAL     ','                ','                ']
     case(19)
@@ -3415,7 +3423,8 @@ contains
        endif
 ! check if adding results
        if(associated(maptop)) then
-          write(kou,*)'There are some results already from step or map'
+          write(kou,833)
+833       format('There are previous results from step or map')
           call gparcd('Delete them?',cline,last,1,ch1,'Y',q1help)
           if(ch1.eq.'y' .or. ch1.eq.'Y') then
 ! there should be a more careful deallocation to free memory
@@ -3423,13 +3432,15 @@ contains
              nullify(maptop)
              nullify(maptopsave)
              write(kou,*)'Previous results removed'
+! delete equilibria associated with STEP/MAP
+             call delete_equilibrium('_MAP*',ceq)
           else
              maptopsave=>maptop
              nullify(maptop)
              write(kou,*)'Previous results kept'
           endif
 ! this should preferably be done directly after map/step, but kept for debug
-          call delete_equilibrium('_MAP*',ceq)
+!          call delete_equilibrium('_MAP*',ceq)
        endif
        kom2=submenu('Options?',cline,last,cstepop,nstepop,1)
        SELECT CASE(kom2)
@@ -3524,13 +3535,13 @@ contains
 20014   format('The map command is fragile, please send problematic diagrams',&
             ' to the',/'OC development team'/)
        if(associated(maptop)) then
-          write(kou,*)'There are some results already form step or map'
+          write(kou,833)
           call gparcd('Reinitiate?',cline,last,1,ch1,'Y',q1help)
           if(ch1.eq.'y' .or. ch1.eq.'Y') then
              deallocate(maptop%saveceq)
              nullify(maptop)
              nullify(maptopsave)
-! this should preferably be done directly after map/step, but kept for debug
+! this removes all previous equilibria associated with STEP/MAP commands
              call delete_equilibrium('_MAP*',ceq)
              if(gx%bmperr.ne.0) then
                 write(kou,*)'Error removing old MAP equilibria'
@@ -3540,14 +3551,17 @@ contains
              seqxyz=0
           else
 ! start indexing new noes/lines from previous 
-             seqxyz(1)=maptop%seqx
+!             write(*,*)'mapnode: ',maptop%seqx,maptop%previous%seqx,&
+!                  maptop%next%seqx
+             seqxyz(1)=maptop%next%seqx
              seqxyz(2)=maptop%seqy
 !             seqxyz(3) can be used for something else ...
              maptopsave=>maptop
              nullify(maptop)
+!             write(*,*)'seqxyz: ',seqxyz
           endif
-! this should preferably be done directly after map/step, but kept for debug
-          call delete_equilibrium('_MAP*',ceq)
+! this should never be done ! It destroys the possibility to find old nodes
+!          call delete_equilibrium('_MAP*',ceq)
        endif
 ! maptop is returned as main map/step record for results
 ! noofaxis is current number of axis, axarr is array with axis data
@@ -3556,7 +3570,7 @@ contains
           starteq=>ceq
           starteq%next=0
        endif
-! maptop is nullified when call map_setup
+! maptop is first nullified inside map_setup, then alloctated to return result
        call map_setup(maptop,noofaxis,axarr,seqxyz,starteq)
        if(.not.associated(maptop)) then
 ! if one has errors in map_setup maptop may not be initiated, if one
@@ -3851,13 +3865,83 @@ contains
           close(23)
           graphopt%appendfile=text
           goto 21100
-! error opening file
+! error opening file, remove any previous appended file
 21300     continue
-          write(kou,*)'No such file name: ',trim(text)
+          if(graphopt%appendfile(1:1).ne.' ') then
+             write(*,21304)trim(graphopt%appendfile)
+21304        format('Removing append file: ',a)
+          else
+             write(kou,*)'No such file name: ',trim(text)
+          endif
+          graphopt%appendfile=' '
           goto 21100
 !-----------------------------------------------------------
-! PLOT not used
+! PLOT TEXT 
        case(13)
+          call gparcd('Modify existing text?',cline,last,1,ch1,'NO',q1help)
+          if(ch1.eq.'y' .or. ch1.eq.'Y') then
+             labelp=>graphopt%firsttextlabel
+             jp=0
+             do while(associated(labelp))
+                jp=jp+1
+                write(kou,2310)jp,labelp%xpos,labelp%ypos,labelp%textline
+2310            format(i3,2(1pe12.4),5x,a)
+                labelp=>labelp%nexttextlabel
+             enddo
+             call gparid('Which text index?',cline,last,kl,1,q1help)
+             if(kl.lt.1 .or. kl.gt.jp) then
+                write(*,*)'No such text label'
+                goto 100
+             endif
+             labelp=>graphopt%firsttextlabel
+             do jp=2,kl
+                labelp=>labelp%nexttextlabel
+             enddo
+             call gparcd('New text: ',cline,last,5,text,labelp%textline,q1help)
+             labelp%textline=trim(text)
+             call gparrd('New X position: ',cline,last,xxx,labelp%xpos,q1help)
+             call gparrd('New Y position: ',cline,last,xxy,labelp%ypos,q1help)
+             if(buperr.ne.0) then
+                write(*,*)'Error reading coordinates'; goto 100
+             endif
+             labelp%xpos=xxx
+             labelp%ypos=xxy
+          else
+             call gparrd('X position: ',cline,last,xxx,zero,q1help)
+             call gparrd('Y position: ',cline,last,xxy,zero,q1help)
+             if(buperr.ne.0) then
+                write(*,*)'Error reading coordinates'; goto 100
+             endif
+             line=' '
+             if(noofaxis.gt.1) then
+! add the question now not to break future macro files
+                call gparc('Do you want to calculate the equilibrium? ',&
+                  cline,last,1,ch1,' ',q1help)
+                if(ch1.eq.'y' .or. ch1.eq.'Y') then
+                   write(*,*)'Sorry, not implemented yet'
+! when implemented add the stable phase names to "Line" as default for text
+                endif
+             endif
+             call gparc('Text: ',cline,last,5,text,line,q1help)
+             if(text(1:1).eq.' ') then
+                write(*,*)'Label ignored'
+                goto 21100
+             endif
+! I know one should never allocate pointers but this is the only way ???
+             allocate(textlabel)
+             textlabel%xpos=xxx
+             textlabel%ypos=xxy
+             textlabel%textline=trim(text)
+             if(associated(graphopt%firsttextlabel)) then
+                textlabel%nexttextlabel=>graphopt%firsttextlabel
+                write(*,*)trim(graphopt%firsttextlabel%textline)
+             else
+                nullify(textlabel%nexttextlabel)
+             endif
+             graphopt%firsttextlabel=>textlabel
+! the record is now linked from graphopt, nullify the pointer ...
+             nullify(textlabel)
+          endif
           goto 21100
 !-----------------------------------------------------------
 ! PLOT not used

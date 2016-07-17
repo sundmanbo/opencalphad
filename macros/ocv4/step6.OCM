@@ -35,6 +35,7 @@ plot
 title step 6 fig 1
 render
 
+
 plot
 x(mo)
 gm(*)

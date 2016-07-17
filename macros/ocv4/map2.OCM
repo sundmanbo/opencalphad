@@ -48,4 +48,18 @@ title map 2 fig 2
 
 
 
+plot
+
+
+text
+n
+0.5 1400
+n
+BCC
+text
+n 0.5 2800 n
+liquid
+title map 2 fig 3
+
+
 set inter

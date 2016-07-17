@@ -588,6 +588,8 @@
 10    format('T= ',F9.2,' K (',F9.2,' C), P= ',1pe11.4,&
         ' Pa, V= ',1pe11.4,' m3')
       rtn=globaldata%rgas*x1
+   else
+      rtn=one
    endif
 ! problem with N, should not take into account the atoms/formula units?
    call get_state_var_value('N ',xn,encoded,ceq)

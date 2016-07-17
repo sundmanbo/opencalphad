@@ -82,7 +82,6 @@ enter param GD(part,Fe,Ni;2),,LD2; 6000 N test
 
 list data ,,
 
-
 @$ we have to create composition sets manually
 
 @$ this is by default Fe3Ni_L12
@@ -139,6 +138,7 @@ plot
 x(ni)
 y(part#4,*)
 title step4 fig 2
+
 
 plot
 

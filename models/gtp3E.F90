@@ -1577,10 +1577,10 @@
 ! now initiate all lists and a little more
    if(ocv()) write(*,*)'All data structures will be reinitiated'
 ! intv(1) negative means reinititate with same values as before
-   intv(1)=-1
-!   write(*,*)'3E No segmentation error H'
-   call init_gtp(intv,dblv)
-! after return firsteq must ve initiated ... maybe it should be done here ??
+!   intv(1)=-1
+!   write(*,*)'3E No segmentation error H', moved to pmon
+!   call init_gtp(intv,dblv)
+! after return firsteq must be initiated ... maybe it should be done here ??
 !
 1000 continue
    return

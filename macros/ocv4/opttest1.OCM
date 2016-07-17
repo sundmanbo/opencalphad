@@ -59,12 +59,15 @@ l,,,,,
 @&
 
 enter experiment h=10000:200
+enter comment the first experimental equilibria
 c n
 l,,,,,
 
 @$ enter a second experiment
 enter experiment s=6.1
 0.2
+
+@$ Calculate without gridminimizer
 c n
 l,,,,
 
@@ -73,22 +76,25 @@ l equil
 enter equil FCC2_ZA Y
 set c t=1000 p=1e5 n=1 x(b)=.5
 enter experiment h=15000:100
+enter comment another experimental equilibria
 
 l equil
 @$ third experiment ........................................ 4
 enter equil FCC3_ZB Y
 set c t=800 p=1e5 n=1 x(b)=.5
 enter experiment h=17000:100
+enter comment the final experimental equilibria
 
 l equil
 
+@&
+
 @$ This command tells OC which equilibria has experiments
-set range_exper_eq
+set range_exp
 2
 4
 
-@$ Calculate all xperimental equilibria without gridminimizer
-@$ That avoids creating composition sets
+@$ Calculate all experimental equilibria without grid minimizer
 
 c all N
 
@@ -115,9 +121,9 @@ set wei 0 za
 
 l eq
 
-@$ Calculate all xperimental equilibria without grid minimizer
+@$ Calculate all xperimental equilibria without gridminimmizer
 
-c all N
+c all N 1
 
 @&
 @$ Optimize with new set of experiments
@@ -166,7 +172,8 @@ opt 100
 l opt,,
 
 @&
-@$ Removing all data sometimes cause segmentation error
+@$ Test removing all data, this used to cause segmentation error
+
 @$ new Y
 
 set inter

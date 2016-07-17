@@ -137,6 +137,7 @@ EQ_T1_24_CP15 763 27.43
 table_end
 @$
 @$=================================
+@&
 enter many_equilibria
 ENT 1        LAVES_C15
 condition P=P0 T=@2  N(MG)=1 N(CU)=2
