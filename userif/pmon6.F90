@@ -340,7 +340,7 @@ contains
          'XTEXT           ','YTEXT           ','TITLE           ',&
          'GRAPHICS_FORMAT ','OUTPUT_FILE     ','GIBBS_TRIANGLE  ',&
          'QUIT            ','POSITION_OF_KEYS','APPEND          ',&
-         'TEXT            ','                ','                ']
+         'TEXT            ','TIE_LINES       ','                ']
 !-------------------
 !        123456789.123456---123456789.123456---123456789.123456
 ! minimizers
@@ -3645,12 +3645,12 @@ contains
           endif
           if(buperr.ne.0) goto 990
           if(index(axplot(iax),'*').gt.0) then
-             if(wildcard) then
-                write(*,*)'Wildcards allowed for one axis only'
-                goto 21000
-             else
+!             if(wildcard) then
+!                write(*,*)'Wildcards allowed for one axis only'
+!                goto 21000
+!             else
                 wildcard=.TRUE.
-             endif
+!             endif
           endif
           if(axplotdef(iax).ne.axplot(iax)) then
 ! RESTAURE DEFAULTS if not same axis variables !!!
@@ -3944,8 +3944,11 @@ contains
           endif
           goto 21100
 !-----------------------------------------------------------
-! PLOT not used
+! PLOT TIE_LINES increment
        case(14)
+          call gparid('Tie-line increment?',cline,last,kl,0,q1help)
+          if(kl.lt.0) kl=0
+          graphopt%tielines=kl
           goto 21100
 !-----------------------------------------------------------
 ! PLOT not used

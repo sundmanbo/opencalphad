@@ -1592,7 +1592,7 @@ end function find_phasetuple_by_indices
 ! copies the internal phase tuple array to external software
 ! function value set to number of tuples
    type(gtp_phasetuple), dimension(*) :: phcs
-!\end{verbatim}
+!\end{verbatim} %+
    integer iz
    do iz=1,nooftuples
 ! phasetuple(iz)%phase is lokph!!!  .... probably never used ...
@@ -1604,6 +1604,16 @@ end function find_phasetuple_by_indices
    get_phtuplearray=nooftuples
    return
  end function get_phtuplearray
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim} %-
+ integer function noofphasetuples()
+! number of phase tuples
+!\end{verbatim}
+   noofphasetuples=nooftuples
+   return
+ end function noofphasetuples
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 !>     5. Set things

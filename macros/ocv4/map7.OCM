@@ -31,7 +31,10 @@ map
 @&
 
 
-plot,,,,,,,,
+plot
+
+
+title map7 fig 1
 
 
 @$ We can list all calculated equilibria
@@ -44,6 +47,7 @@ l l
 
 l eq
 
+@$ this is a magnification of the small region between 1550 and 1600 K
 plot
 
 
@@ -51,7 +55,7 @@ yr
 n
 1550
 1600
-
+title map7 fig 2
 
 
 set inter

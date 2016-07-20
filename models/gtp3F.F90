@@ -2555,6 +2555,7 @@
 !
 !-------------------------------------------------------------------
 ! uncomment the call to dspev in order to make Q work
+! AND link to LAPACK
 !-------------------------------------------------------------------
 ! use LAPACK routine, note d2g is destroyed inside dspev
 !   call dspev('N','U',nofc,d2g,eigenv,dummy,1,work,info)
