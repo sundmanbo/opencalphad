@@ -23,8 +23,9 @@ equilibrium at a node point is a global minimum and if not the line
 leading to this nodepoint is inactivatedg and no exit lines generated.
 With this change the map7 macro works (almost) perfectly (the isopleth
 for the HSS steel).  Calculating isothermal sections are almost
-finished, requires rewriting of plotting also.  The next big thing is
-to save results on file.  And then 1000 minor things to fix.
+finished, the plotting is still rudimentary but there is a test macro.
+The next big thing is to save results on file.  And then 1000 minor
+things to fix.
 
 2016.07.13 I have decided that this update is now a prerelease of OC
 version 4.

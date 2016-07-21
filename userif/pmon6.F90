@@ -175,7 +175,7 @@ contains
     integer, parameter :: ncam1=18,ncset=24,ncadv=6,ncstat=6,ncdebug=6
     integer, parameter :: nselect=6,nlform=6,noptopt=6,nsetbit=6
     integer, parameter :: ncamph=12,nclph=6,nccph=6,nrej=6,nsetph=6
-    integer, parameter :: nsetphbits=15,ncsave=6,nplt=15,nstepop=6
+    integer, parameter :: nsetphbits=15,ncsave=6,nplt=18,nstepop=6
 ! basic commands
     character (len=16), dimension(ncbas), parameter :: cbas=&
        ['AMEND           ','CALCULATE       ','SET             ',&
@@ -273,7 +273,7 @@ contains
          'DEBYE_CP_MODEL  ','EINSTEIN_CP_MDL ','INDEN_WEI_MAGMOD',&
          'ELASTIC_MODEL_A ','                ','                ']
 !-------------------
-! subcommands to SET.  
+! subcommands to SET
     character (len=16), dimension(ncset) :: cset=&
          ['CONDITION       ','STATUS          ','ADVANCED        ',&
          'LEVEL           ','INTERACTIVE     ','REFERENCE_STATE ',&
@@ -282,7 +282,7 @@ contains
          'NUMERIC_OPTIONS ','AXIS            ','INPUT_AMOUNTS   ',&
          'VERBOSE         ','AS_START_EQUILIB','BIT             ',&
          'VARIABLE_COEFF  ','SCALED_COEFF    ','OPTIMIZING_COND ',&
-         'RANGE_EXPER_EQU ','FIXED_COEFF     ','GRAPHICS_OUPUT  ']
+         'RANGE_EXPER_EQU ','FIXED_COEFF     ','                ']
 ! subsubcommands to SET STATUS
     character (len=16), dimension(ncstat) :: cstatus=&
          ['ELEMENT         ','SPECIES         ','PHASE           ',&
@@ -334,13 +334,14 @@ contains
          ['ELEMENTS        ','SPECIES         ','PHASE           ',&
           'QUIT            ','COMPOSITION_SET ','EQUILIBRIUM     ']
 !-------------------
-! subcommands to PLOT OPTIONS
+! subcommands to PLOT OPTIONS/ GRAPHICS OPTIONS
     character (len=16), dimension(nplt) :: cplot=&
          ['RENDER          ','XRANGE          ','YRANGE          ',&
          'XTEXT           ','YTEXT           ','TITLE           ',&
          'GRAPHICS_FORMAT ','OUTPUT_FILE     ','GIBBS_TRIANGLE  ',&
          'QUIT            ','POSITION_OF_KEYS','APPEND          ',&
-         'TEXT            ','TIE_LINES       ','                ']
+         'TEXT            ','TIE_LINES       ','KEEP            ',&
+         '                ','                ','                ']
 !-------------------
 !        123456789.123456---123456789.123456---123456789.123456
 ! minimizers
@@ -387,6 +388,7 @@ contains
     graphopt%plotmax=one
     graphopt%dfltmax=one
     graphopt%appendfile=' '
+    graphopt%status=0
     graphopt%labelkey='top right'
     nullify(graphopt%firsttextlabel)
     nullify(textlabel)
@@ -2174,8 +2176,7 @@ contains
           write(kou,3730)nvcoeff
 3730      format('Number of variable coefficients are now ',i3)
 !------------------------- 
-       case(24) ! GRAPHICS_OUTPUT
-! for experimental data
+       case(24) ! unused
           write(*,*)'Not implemeneted yet'
        END SELECT
 !=================================================================
@@ -3446,7 +3447,7 @@ contains
        SELECT CASE(kom2)
 !-----------------------------------------------------------
        CASE DEFAULT
-          write(kou,*)'No such plot option'
+          write(kou,*)'No such step option'
 !-----------------------------------------------------------
 ! STEP NORMAL
        case(1)
@@ -3591,7 +3592,7 @@ contains
        ceq%status=ibset(ceq%status,EQINCON)
        if(gx%bmperr.ne.0) goto 990
 !=================================================================
-! plot
+! PLOT
     case(21)
        if(.not.associated(maptop)) then
           write(kou,*)'You must give a STEP or MAP command before PLOT'
@@ -3634,7 +3635,8 @@ contains
 !      6 TEXT UP TO AND INCLUDING ";"
 !      7 TEXT TERMINATED BY SPACE OR "," BUT IGNORING SUCH INSIDE ( )
 !    >31, THE CHAR(JTYP) IS USED AS TERMINATING CHARACTER
-!2100      continue
+!------------------------------------------------------------------------
+! return here after each subcommand
 21000      continue
           if(iax.eq.1) then
              call gparcd('Horizontal axis variable',&
@@ -3653,11 +3655,12 @@ contains
 !             endif
           endif
           if(axplotdef(iax).ne.axplot(iax)) then
-! RESTAURE DEFAULTS if not same axis variables !!!
+! RESTORE DEFAULTS if not same axis variables !!! 
              graphopt%rangedefaults(iax)=0
              graphopt%appendfile=' '
              graphopt%gibbstriangle=.FALSE.
              graphopt%labelkey='top right'
+! more options to restore ...
           endif
 ! remember axis as default
           axplotdef(iax)=axplot(iax)
@@ -3693,7 +3696,7 @@ contains
        CASE DEFAULT
           write(kou,*)'No such plot option'
 !-----------------------------------------------------------
-! no more options to plot, just RENDER!
+! RENDER no more options to plot ...
        case(1)
 ! added ceq in the call to make it possible to handle change of reference states
 !2190      continue
@@ -3949,10 +3952,19 @@ contains
           call gparid('Tie-line increment?',cline,last,kl,0,q1help)
           if(kl.lt.0) kl=0
           graphopt%tielines=kl
+          write(*,*)'No implemented yet'
           goto 21100
 !-----------------------------------------------------------
-! PLOT not used
+! PLOT KEEP
        case(15)
+          if(btest(graphopt%status,GRKEEP)) then
+             graphopt%status=ibclr(graphopt%status,GRKEEP)
+!             write(kou,*)'Graphics window closes with mouse'
+          else
+             graphopt%status=ibset(graphopt%status,GRKEEP)
+!             write(kou,*)'Graphics window must be closed separately'
+          endif
+          write(*,*)'Not implemented yet'
           goto 21100
 !-----------------------------------------------------------
        end SELECT

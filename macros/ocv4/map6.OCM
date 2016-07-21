@@ -32,4 +32,25 @@ title map 6 fig 1
 render
  
  
+plot
+
+
+title map6 fig 2
+yr
+n
+1700
+1800
+
+
+plot
+
+
+title map6 fig3
+yr
+n
+1150
+1250
+
+
+
  set interactive

@@ -119,6 +119,13 @@ new Y
 mac map6
 
 @$ *********************************************************
+@$ Incomplete isopleth calculation of a HSS
+@& *********************************************************
+
+new Y
+mac map7
+
+@$ *********************************************************
 @$ Metastable phase diagram for ordered FCC in Fe-Ni
 @& *********************************************************
 
@@ -133,11 +140,11 @@ new Y
 mac map9
 
 @$ *********************************************************
-@$ Incomplete isopleth calculation of a HSS
+@$ An isothermal section of Cr-Fe-Ni
 @& *********************************************************
 
 new Y
-mac map7
+mac map10
 
 @$ *********************************************************
 @$ Calculation for 20 elements and 191 phases using COST507

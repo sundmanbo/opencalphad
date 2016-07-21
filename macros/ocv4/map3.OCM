@@ -65,21 +65,26 @@ map
 
 
 
-
+@$ Plot the metastable Fe-C diagram
 plot
 
+
+
+title map 3 fig 3
 
 
 @$ now overlay the stable
 plot
 
 
+title map 3 fig 4
 append stable
 
 
 plot
 
 
+title map 3 fig 5
 xr
 n
 0

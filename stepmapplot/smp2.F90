@@ -224,7 +224,7 @@ MODULE ocsmp
 ! filename is intermediary file (maybe not needed)
 ! maptop is map_node record with all results
 ! form is type of output (screen or postscript or gif)
-     integer rangedefaults(3)
+     integer status,rangedefaults(3)
      double precision, dimension(3) :: plotmin,plotmax
      double precision, dimension(3) :: dfltmin,dfltmax
 ! labeldefaults 0 if default, 1 if text provided in plotlabels
@@ -247,6 +247,9 @@ MODULE ocsmp
   integer, parameter :: MAPPHASEFIX=3
 ! maximum number of saved equilibria during step/map
   integer, parameter :: maxsavedceq=2000
+! for graphopt status word
+! GRKEEP is set if graphics windows kept
+  integer, parameter :: GRKEEP=0
 !
 !-------------------------------------------------
 !
@@ -3239,8 +3242,8 @@ CONTAINS
        if(nopotax.eq.0) then
 ! If we have no potential axis we MUST change the axis condition
 ! to represent the axis composition of the new stable phase
-          write(*,*)'CASE WITH NO POTENTIAL AXIS: ',stepax,&
-               axarr(abs(stepax))%axcond(1)%statevarid,stepaxval
+          write(*,712)stepax,axarr(abs(stepax))%axcond(1)%statevarid,stepaxval
+712       format('MAPPING WITH NO POTENTIAL AXIS: ',2i4,1pe12.4)
 ! we have to change the axis condition to be the current composition of the
 ! new stable phase.  
 !          write(*,*)'Conditions at node point'
@@ -4474,7 +4477,7 @@ CONTAINS
        goto 1000
     endif
     write(*,17)
-17  format(//'Testing ocplot3')
+17  format(//'Using ocplot3')
 ! extract the axis variables
     jph=index(pltax(1),'*')
     xax1=pltax(1)(1:jph-1)
@@ -4496,13 +4499,13 @@ CONTAINS
     results=>plottop%saveceq
     node: do ii=1,lines
        curline=>curtop%linehead(ii)
-       write(*,*)'Data from line: ',curline%lineid,lines
+!       write(*,*)'Data from line: ',curline%lineid,lines
        eqindex=curline%first
        lasteq=curline%last
        if(eqindex.le.0 .or. eqindex.gt.lasteq) cycle node
        same=same+1
        nofeq(same)=lasteq+1-eqindex
-       write(*,*)'Line ',same,eqindex,nofeq(same)
+!       write(*,*)'Line ',same,eqindex,nofeq(same)
        line: do eqindex=eqindex,lasteq
 ! extract for each stable phase the state variable in pltax       
           point=point+1
@@ -4515,7 +4518,7 @@ CONTAINS
              lokcs=phasetuple(jph)%lokvares
              if(curceq%phase_varres(lokcs)%phstate.ge.PHENTSTAB) then
                 if(jj.ge.3) then
-                   write(*,*)'Indexing error in ocplot3'
+                   write(*,*)'Indexing error in ocplot3, line: ',eqindex
                    cycle equil
                 endif
                 plotkod(plotp)=same
@@ -4527,14 +4530,14 @@ CONTAINS
                 call meq_get_state_varorfun_value(axis,xxx,encoded,curceq)
 !                write(*,19)'X/Y axis variable: ',plotp,trim(axis),&
 !                     xval(jj,plotp),xxx,point
-19              format(a,i5,2x,a,2F10.6,2i5)
+!19              format(a,i5,2x,a,2F10.6,2i5)
                 yval(jj,plotp)=xxx
                 jj=jj+1
              endif
           enddo equil
-          write(*,21)xval(1,plotp),yval(1,plotp),&
-               xval(2,plotp),yval(2,plotp),plotp
-21        format('phase 1: ',2F10.7,10x,'phase 2: ',2F10.7,i7)
+!          write(*,21)xval(1,plotp),yval(1,plotp),&
+!               xval(2,plotp),yval(2,plotp),plotp
+!21        format('phase 1: ',2F10.7,10x,'phase 2: ',2F10.7,i7)
        enddo line
     enddo node
 ! finished all lines in this curtop, take next
@@ -4549,12 +4552,77 @@ CONTAINS
 !========================================================
 ! now we should have all data to plot in xval and yval arrays
 500 continue
-    write(*,*)'found lines/points to plot: ',same,plotp
-    write(*,502)(nofeq(ii),ii=1,same)
-502 format(10i5)
-!    goto 900
+!    write(*,*)'found lines/points to plot: ',same,plotp
+!    write(*,502)(nofeq(ii),ii=1,same)
+!502 format(10i5)
+    call ocplot3B(same,nofeq,xval,yval,plotkod,pltax,filename,graphopt,pform)
+    deallocate(xval)
+    deallocate(yval)
+    deallocate(plotkod)
+1000 continue
+    return
+  end subroutine ocplot3
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+  subroutine ocplot3B(same,nofeq,xval,yval,plotkod,&
+       pltax,filename,graphopt,pform)
+!  subroutine ocplot4(ndx,pltax,filename,maptop,axarr,graphopt,pform,ceq)
+! special to write the GNUPLOT file for two wildcard columns
+! ndx is mumber of plot axis, pltax is text with plotaxis variables
+! filename is intermediary file (maybe not needed)
+! maptop is map_node record with all results
+! pform is type of output (screen or postscript or gif)
+!    implicit none
+!    integer ndx
+    character pltax(*)*(*),filename*(*),pform*(*)
+!    type(map_axis), dimension(*) :: axarr
+!    type(map_node), pointer :: maptop
+    type(graphics_options) :: graphopt
+!    TYPE(gtp_equilibrium_data), pointer :: ceq
+    integer same,nofeq(*),plotkod(*),ii,jj,kk,jph,offset
+    double precision xval(2,*),yval(2,*)
+!\end{verbatim}
+    character gnuplotline*64,date*12,mdate*12,title*128,deftitle*64
+    character labelkey*24
+    integer sumpp,np
+!  
+    write(*,*)'Using the rudimentary graphics in ocplot3B!'
 !
-    open(21,file='tern.plt ',access='sequential ',status='unknown ')
+    call date_and_time(date)
+    mdate=" "//date(1:4)//'-'//date(5:6)//'-'//date(7:8)//" "
+    deftitle='Open Calphad 4.0 prerelease '//mdate//': with GNUPLOT'
+    if(graphopt%labeldefaults(1).eq.0) then
+       title=deftitle
+    else
+! alwas inlcude open calphad and date, add user title at the end
+       title=trim(deftitle)//' '//graphopt%plotlabels(1)
+    endif
+! np should be the number of different lines to be plotted
+    np=1
+    if(np.eq.1) then
+       labelkey=' off'
+    else
+       labelkey=graphopt%labelkey
+    endif
+!
+    open(21,file='ocgnu.plt ',access='sequential ',status='unknown ')
+!
+    write(21,860)trim(title),trim(pltax(1)),trim(pltax(2)),labelkey
+860 format('set title "',a,'"'/&
+            'set xlabel "',a,'"'/'set ylabel "',a,'"'/&
+            'set key ',a/&
+            'set style line 1 lt 2 lc rgb "#000000" lw 2'/&
+            'set style line 2 lt 2 lc rgb "#FF0000" lw 2'/&
+            'set style line 3 lt 2 lc rgb "#00C000" lw 2'/&
+            'set style line 4 lt 2 lc rgb "#0080FF" lw 2'/&
+            'set style line 5 lt 2 lc rgb "#C8C800" lw 2'/&
+            'set style line 6 lt 2 lc rgb "#4169E1" lw 2'/&
+            'set style line 7 lt 2 lc rgb "#C0C0C0" lw 2'/&
+            'set style line 8 lt 2 lc rgb "#00FFFF" lw 2'/&
+            'set style line 9 lt 2 lc rgb "#804080" lw 2'/&
+            'set style line 10 lt 2 lc rgb "#7CFF40" lw 2')
     write(21,520)
 520 format(/'plot "-" using 1:2 with lines')
     jph=0
@@ -4567,21 +4635,36 @@ CONTAINS
 ! first all in xval(1,1..same) yval(1,1..same) then xval(2,1..same) yval(2,1..)
              offset=offset+1
              write(21,550)xval(kk,offset),yval(kk,offset)
-             write(*,550)xval(kk,offset),yval(kk,offset),jj,kk,ii,offset
+!             write(*,550)xval(kk,offset),yval(kk,offset),jj,kk,ii,offset
 550          format(2f12.6,4i7)
              jph=jph+1
           enddo inline
           write(21,560)
 560       format(/)
-          write(*,*)'points: ',kk,nofeq(jj)
+!          write(*,*)'points: ',kk,nofeq(jj)
        enddo leftright
     enddo outline
+    write(21,565)
+565 format('e'//'pause mouse'/)
     close(21)
-900 continue
-    write(*,*)'In ocplot3, not implemented!',jph/2
+!
+    gnuplotline='gnuplot ocgnu.plt '
+! if gnuplot cannot be started with gnuplot give normal path ...
+!    gnuplotline='"c:\program files\gnuplot\bin\wgnuplot.exe" '//pfc(1:kkk)//' '
+!    k3=len_trim(gnuplotline)+1
+!    write(*,*)'Gnuplot command line: ',trim(gnuplotline)
+!    if(pform(1:1).ne.' ') then
+!       write(*,*)'Graphics output file: ',pfh(1:kk+4)
+!    endif
+    if(btest(graphopt%status,GRKEEP)) then
+       call system(gnuplotline(9:))
+    else
+       call system(gnuplotline)
+    endif
+!900 continue
 1000 continue
     return
-  end subroutine ocplot3
+  end subroutine ocplot3B
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -4619,7 +4702,7 @@ CONTAINS
     integer nr,line,next,seqx,nlinesep,ksep,iax,anpax,notanp,appfil
     double precision xmax,xmin,ymax,ymin,value,anpmin,anpmax
 ! lhpos is last used position in lineheader
-    integer giveup,nax,ikol,maxanp,lcolor,lhpos,repeat
+    integer giveup,nax,ikol,maxanp,lcolor,lhpos,repeat,anpdim
     character date*8,mdate*12,title*128,backslash*2,lineheader*1024
     character deftitle*128,labelkey*64
     logical overflow,first,last
@@ -4700,6 +4783,7 @@ CONTAINS
           endif
 ! wildcards allowed only on one axis, we do not know how many columns needed
 ! allocate as many array elements as columns
+          anpdim=np
           allocate(anp(np,nrv))
           allocate(nonzero(np))
           allocate(linzero(np))
@@ -4712,6 +4796,7 @@ CONTAINS
        endif
     enddo
     if(.not.wildcard) then
+       anpdim=1
        allocate(anp(1,nrv))
        wildcard=.FALSE.
        nnp=1
@@ -5238,8 +5323,63 @@ CONTAINS
 2000 continue
 !    write(*,*)'We are at 2000 '
 !----------------------------------------------------------------------
+!
+!  end subroutine ocplot2
+! all code below moved to subroutine above
+    call ocplot2B(np,nrv,nlinesep,linesep,pltax,xax,anpax,anpdim,anp,lid,&
+         title,filename,graphopt,pform)
+!    goto 900
+! deallocate, not really needed for local arrays
+    deallocate(anp)
+    deallocate(xax)
+    deallocate(linesep)
+    if(allocated(yyy)) then
+       deallocate(yyy)
+       deallocate(nonzero)
+    endif
+1000 continue
+    return
+  end subroutine ocplot2
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+  subroutine ocplot2B(np,nrv,nlinesep,linesep,pltax,xax,anpax,anpdim,anp,lid,&
+       title,filename,graphopt,pform)
+!  subroutine ocplot2(ndx,pltax,filename,maptop,axarr,graphopt,pform,ceq)
+! modified to have a separate output file for GNUPLOT ...
+! ndx is mumber of plot axis, pltax is text with plotaxis variables
+! filename is intermediary file (maybe not needed)
+! maptop is map_node record with all results
+! pform is type of output (screen or postscript or gif)
+    implicit none
+    integer ndx,nrv,linesep(*),anpdim
+    character pltax(*)*(*),filename*(*),pform*(*),lid(*)*(*),title*(*)
+!    type(map_axis), dimension(*) :: axarr
+!    type(map_node), pointer :: maptop
+    type(graphics_options) :: graphopt
+! xax is single axis value, anp is muliple comumn values
+    double precision xax(*),anp(anpdim,*)
+!\end{verbatim}
+!----------------------------------------------------------------------
+! from calling routine
+! np is number of columns (separate lines), if 1 no labelkey
+! anpax=2 if single value is column 2 and (multiple) values in columns 3 
+!         and higher
+! nrv is number of values to plot?
+    integer np,anpax,nlinesep
+! linesep is row when line finish
+    type(graphics_textlabel), pointer :: textlabel
+!----------------------------------------------------------------------a
+! internal
+    integer ii,jj,kk,lcolor,appfil,nnv,ic,repeat,ksep,nv,k3,kkk
+    character pfc*64,pfh*64,backslash*2,appline*128
+    character applines(20)*128,gnuplotline*80,labelkey*64
 ! write the gnuplot command file with data appended
 !
+!    write(*,10)'in ocplot2B: ',np,anpax,nrv,pform(1:1),trim(title),&
+!         nlinesep,(linesep(kk),kk=1,nlinesep)
+10  format(a,3i5,' "',a,'" '/a/i3,2x,15i4)
     if(index(filename,'.plt ').le.0) then 
        kk=len_trim(filename)
        pfc=filename(1:kk)//'.'//'plt '
@@ -5273,8 +5413,7 @@ CONTAINS
     else
        labelkey=graphopt%labelkey
     endif
-    write(21,860)title(1:len_trim(title)),pltax(1)(1:len_trim(pltax(1))),&
-         pltax(2)(1:len_trim(pltax(2))),labelkey
+    write(21,860)trim(title),trim(pltax(1)),trim(pltax(2)),labelkey
 860 format('set title "',a,'"'/&
             'set xlabel "',a,'"'/'set ylabel "',a,'"'/&
             'set key ',a/&
@@ -5319,7 +5458,7 @@ CONTAINS
        appfil=0
     else
        appfil=23
-       write(*,*)'Appending data from: ',trim(graphopt%appendfile)
+       write(kou,*)'Appending data from: ',trim(graphopt%appendfile)
        open(appfil,file=graphopt%appendfile,status='old',&
             access='sequential',err=1750)
 !
@@ -5352,9 +5491,9 @@ CONTAINS
           ic=1
 1730      continue
 ! if line ends with \ then read more
-          i=len_trim(appline)
-!          write(*,*)'There are more? ',appline(i:i),i,ic
-          if(appline(i:i).eq.'\') then
+          ii=len_trim(appline)
+!          write(*,*)'There are more? ',appline(i:ii),ii,ic
+          if(appline(ii:ii).eq.'\') then
 ! continuation lines
              read(appfil,1720,end=1750)appline
              ic=ic+1
@@ -5386,29 +5525,27 @@ CONTAINS
        if(np.eq.1 .and. appfil.eq.0) then
           write(21,880)lcolor,' ',' '
        else
-          write(21,880)lcolor,lid(1)(1:len_trim(lid(1))),backslash
+          write(21,880)lcolor,trim(lid(1)),backslash
 880       format('plot "-" using 2:3 with lines ls ',i2,' title "'a,'"',a)
        endif
-       do i=2,np-1
+       do ii=2,np-1
           lcolor=lcolor+1
           if(lcolor.gt.10) lcolor=1
-          write(21,882)i+2,lcolor,lid(i)(1:len_trim(lid(i))),backslash
+          write(21,882)ii+2,lcolor,trim(lid(ii)),backslash
 882       format('"" using 2:',i3,' with lines ls ',i2,' title "'a,'"',a)
        enddo
        lcolor=lcolor+1
        if(lcolor.gt.10) lcolor=1
-!       write(*,*)'Append file ',appfil,ic
        if(appfil.eq.0) then
-          if(np.ge.2) write(21,882)np+2,lcolor,lid(np)(1:len_trim(lid(np))),' '
+          if(np.ge.2) write(21,882)np+2,lcolor,trim(lid(np)),' '
        else
 ! write the last calculated curve if np>1
-          if(np.ge.2) write(21,882)i+2,lcolor,lid(i)(1:len_trim(lid(i))),&
-               backslash
+          if(np.ge.2) write(21,882)ii+2,lcolor,trim(lid(ii)),backslash
 ! we should append data, change plot "-" to just "" in appline(1)
-          i=index(applines(1),'plot "-"')
-          applines(1)(1:i+7)='""'
-          do i=1,ic
-             write(21,884)trim(applines(i))
+          ii=index(applines(1),'plot "-"')
+          applines(1)(1:ii+7)='""'
+          do ii=1,ic
+             write(21,884)trim(applines(ii))
 884          format(a)
           enddo
        endif
@@ -5418,27 +5555,26 @@ CONTAINS
        if(np.eq.1 .and. appfil.eq.0) then
           write(21,890)lcolor,' ',' '
        else
-          write(21,890)lcolor,lid(1)(1:len_trim(lid(1))),backslash
+          write(21,890)lcolor,trim(lid(1)),backslash
 890       format('plot "-" using 3:2 with lines ls ',i2,' title "',a,'"',a)
        endif
        lcolor=2
-       do i=2,np-1
-          write(21,892)i+2,lcolor,lid(i)(1:len_trim(lid(i))),backslash
+       do ii=2,np-1
+          write(21,892)ii+2,lcolor,trim(lid(ii)),backslash
 892       format('"" using ',i3,':2 with lines ls ',i2,' title "'a,'"',a)
           lcolor=lcolor+1
           if(lcolor.gt.10) lcolor=1
        enddo
        if(appfil.eq.0) then
-          if(np.ge.2) write(21,892)np+2,lcolor,lid(np)(1:len_trim(lid(np))),' '
+          if(np.ge.2) write(21,892)np+2,lcolor,trim(lid(np)),' '
        else
 ! write the last calculated curve if np>1
-          if(np.ge.2) write(21,892)i+2,lcolor,lid(i)(1:len_trim(lid(i))),&
-               backslash
+          if(np.ge.2) write(21,892)ii+2,lcolor,trim(lid(ii)),backslash
 ! we should append data, change plot "-" to just "" in appline(1)
-          i=index(applines(1),'plot "-"')
-          applines(1)(1:i+7)='""'
-          do i=1,ic
-             write(21,884)trim(applines(i))
+          ii=index(applines(1),'plot "-"')
+          applines(1)(1:ii+7)='""'
+          do ii=1,ic
+             write(21,884)trim(applines(ii))
           enddo
        endif
     endif
@@ -5451,33 +5587,30 @@ CONTAINS
     if(nlinesep.lt.2) linesep(2)=nrv
     repeat=repeat+1
     jj=0
+!    write(*,*)'Writing repeat, rows, columns ',repeat,nrv,np+2
     do nv=1,nrv
        write(21,1820)nv,xax(nv),(anp(jj,nv),jj=1,np)
 1820    format(i4,1000(1pe14.6))
        if(nv.eq.linesep(ksep)) then
 ! an empty line in the dat file means a MOVE to the next point.
-!          jj=len_trim(phaseline(ksep))
-!          write(*,*)'SMP: ',ksep,nlinesep,jj,nv,nrv
           if(nv.lt.nrv) then
              if(jj.gt.1) then
 ! phaseline is never used in the plot, just included in the file
-!                write(21,1819)ksep,phaseline(ksep)(1:jj)
                 write(21,1819)ksep
-1819             format('# end of line '//'# Line ',i5,&
+1819            format('# end of line '//'# Line ',i5,&
                      ', with these stable phases:'/'# ',a)
              else
                 write(21,1822)ksep
-1822             format('# end of line '//'# Line ',i5,&
+1822            format('# end of line '//'# Line ',i5,&
                      ', with unknown phases')
              endif
           else
 ! try to avoid rubbish
              write(21,1821)
-1821          format('# end of line '/)
+1821         format('# end of line '/)
           endif
 ! test of uninitiallized variable, ksep must not exceed nlinesep
           ksep=min(ksep+1,nlinesep)
-!          write(*,*)'SMP ksep: ',ksep,nlinesep
        endif
     enddo
     if(repeat.lt.np) then
@@ -5502,7 +5635,7 @@ CONTAINS
        write(21,884)trim(appline)
        goto 1900
 1910   continue
-       write(*,*)'Appended ',ic,' data lines'
+!       write(*,*)'Appended ',ic,' data lines'
        close(appfil)
        appfil=0
     endif
@@ -5519,28 +5652,32 @@ CONTAINS
 !-------------------------------------------------------------------
 ! execute the GNUPLOT command file
 !
-! persist means not close plot window
-!    gnuplotline='gnuplot -persist '//pfc(1:kkk)//' '
-    gnuplotline='gnuplot '//pfc(1:kkk)//' '
+    gnuplotline='gnuplot '//pfc(1:kkk)//' & '
 ! if gnuplot cannot be started with gnuplot give normal path ...
 !    gnuplotline='"c:\program files\gnuplot\bin\wgnuplot.exe" '//pfc(1:kkk)//' '
     k3=len_trim(gnuplotline)+1
-    write(*,*)'Gnuplot command file: ',pfc(1:kk+4)
+    write(kou,*)'Gnuplot command file: ',pfc(1:kk+4)
     if(pform(1:1).ne.' ') then
-       write(*,*)'Graphics output file: ',pfh(1:kk+4)
+       write(kou,*)'Graphics output file: ',pfh(1:kk+4)
     endif
-    call system(gnuplotline(1:k3))
+! call system without initial "gnuplot " keeps the window !!!
+    if(btest(graphopt%status,GRKEEP)) then
+!       write(*,*)'plot command: "',gnuplotline(9:k3),'"'
+       call system(gnuplotline(9:k3))
+    else
+!       write(*,*)'plot command: "',gnuplotline(1:k3),'"'
+       call system(gnuplotline)
+    endif
 ! deallocate, not really needed for local arrays
-    deallocate(anp)
-    deallocate(xax)
-    deallocate(linesep)
-    if(allocated(yyy)) then
-       deallocate(yyy)
-       deallocate(nonzero)
-    endif
+!    deallocate(anp)
+!    deallocate(xax)
+!    deallocate(linesep)
+!    if(allocated(yyy)) then
+!       deallocate(yyy)
+!       deallocate(nonzero)
 1000 continue
     return
-  end subroutine ocplot2
+  end subroutine ocplot2B
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -5574,7 +5711,7 @@ CONTAINS
 !
 !    write(*,*)'In step_separate'
     if(noofaxis.ne.1) then
-       write(*,*)'Step separate only with one axis variable'
+       write(kou,*)'Step separate only with one axis variable'
        goto 1000
     endif
 ! this subroutine returnes the total number of phase and composition sets
@@ -5704,9 +5841,9 @@ CONTAINS
              call create_saveceq(maptop%saveceq,saveq)
              if(gx%bmperr.ne.0) goto 900
 ! initiate line counter (redundant) ... maybe if several step separate?
-             if(seqxyz(2).ne.0) then
-                write(*,*)'step_separate seqy: ',seqxyz(2)
-             endif
+!             if(seqxyz(2).ne.0) then
+!                write(*,*)'step_separate seqy: ',seqxyz(2)
+!             endif
           else
 ! we generate a second or later startpoint for another phase
 ! note that maptop is allocated a new map_node linked from this

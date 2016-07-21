@@ -1485,8 +1485,11 @@
    double precision yarr(*),gmax
    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim} %+
+   logical, save :: once=.TRUE.
 ! NOTHING IMPLEMENTED YET
-   write(*,*)'Gridpoints for FCC/HCP 4SL ordering not implemented yet'
+   if(once) write(*,17)
+17 format('3Y Special grid for FCC/HCP 4SL ordering not implemented yet')
+   once=.FALSE.
 1000 continue
    return
  end subroutine generate_fccord_grid
@@ -4199,8 +4202,10 @@
 ! >>>>>>>>>>> THIS IS DANGEROUS IN PARALLELL PROCESSING
 ! It should work in step and map as a composition set that once been stable
 ! will never be removed except if one does global minimization during the
-! step and map. Then  metallic-FCC and MC-carbides may shift composition sets.
-! Such shifts should be avoided by manual entering of comp.sets with
+! step and map. The function global_equil_check works on a copy of the
+! ceq record and creates only a grid, it does not create any composition sets.
+! Automatically entered metallic-FCC and MC-carbides may shift composition sets.
+! Such shifts can be avoided by manual entering composition sets with
 ! default constitutions, but comparing a stable constitution with a
 ! default is not trivial ...
 !
@@ -4231,7 +4236,7 @@
             write(*,*)'3Y Testing equilibrium with gridminimizer failed'
             goto 1000
          endif
-         write(*,*)'3Y Grid minimizer test of equilibrium OK'
+!         write(*,*)'3Y Grid minimizer test of equilibrium OK'
       else
 ! if FALSE the test showed this is not a global equilibrium
          write(*,*)'3Y Grid minimizer found equilibrium wrong',gx%bmperr
