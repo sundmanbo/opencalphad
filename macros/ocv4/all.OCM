@@ -3,6 +3,7 @@ set echo
 
 @$ *********************************************************
 @$ Equilibria in pure Fe
+@$ *********************************************************
 
 mac unary
 
@@ -112,14 +113,14 @@ new Y
 mac map5
 
 @$ *********************************************************
-@$ Isopleth phase diagram for an 18-8 stainless steel: Cr-Fe-Ni
+@$ Almost complete isopleth phase diagram for an 18-8 stainless steel
 @& *********************************************************
 
 new Y
 mac map6
 
 @$ *********************************************************
-@$ Incomplete isopleth calculation of a HSS
+@$ Almost complete isopleth calculation of a HSS
 @& *********************************************************
 
 new Y
@@ -147,6 +148,13 @@ new Y
 mac map10
 
 @$ *********************************************************
+@$ The Cr-Fe binary phase diagram
+@& *********************************************************
+
+new Y
+mac map11
+
+@$ *********************************************************
 @$ Calculation for 20 elements and 191 phases using COST507
 @& *********************************************************
 
@@ -162,11 +170,7 @@ new Y
 mac parallel1
 
 @$ *********************************************************
-@$ USUALLY the computer runs out of memory at the next example
-@$ Quit and continue run the all2.OCM macro
-@&
-@$ *********************************************************
-@$ enter a table with many equilibria and calculate all
+@$ Enter a table with many equilibria and calculate all
 @$ Can be used to test parallel calculations
 @& *********************************************************
 
@@ -181,7 +185,7 @@ new Y
 mac opttest1
 
 @$ *********************************************************
-@$ Assessment start of the Cu-Mg case
+@$ Assessment start of the Cu-Mg case study
 @& *********************************************************
 
 new Y
