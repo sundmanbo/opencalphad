@@ -1,0 +1,82 @@
+@$ Testing a calculation with 20 elements, 191 phases
+
+set echo
+
+r t cost507r
+
+
+@&
+
+@$ This should try to enter >9 composition sets
+
+set c t=2000 p=1e5 n=1 
+
+set c w(b)=.001 w(c)=.004 w(ce)=.002 w(cr)=0.0002 w(cu)=.02 w(fe)=0.0001
+
+set c w(li)=.0006 w(mg)=.03 w(mn)=.0002 w(n)=0.001 w(nd)=.01 w(ni)=.01 
+
+set c w(si)=.07 w(sn)=.003 w(ti)=.002 w(v)=.0008 w(y)=.00014
+
+set c w(zn)=.06 w(zr)=.007
+
+l c
+
+@&
+@$ Just calculate with gridmin, some warnings
+
+c g
+
+@&
+l,,,,
+
+@&
+@$ A short listing ...
+
+l sh
+
+
+@&
+@$ Then calculate the full equilibrium.  
+
+c e
+
+@&
+
+l,,,,,
+
+@$ NOTE THE DATABASE IS NOT RELIABLE FOR THIS SYSTEM
+@&
+@$ Then calculte a full equilibrium at 1000 K
+
+set c t=1000
+
+c e
+
+@&
+
+l,,,,,
+
+@$ NOTE THE DATABASE IS NOT RELIABLE FOR THIS SYSTEM
+@&
+
+l sh p
+
+@$ NOTE THE DATABASE IS NOT RELIABLE FOR THIS SYSTEM
+@&
+@$ Calculate at a lower T
+
+set c t=500
+
+c e
+
+l,,,,
+
+@$ NOTE THE DATABASE IS NOT RELIABLE FOR THIS SYSTEM
+@&
+
+l sh p
+
+@$ NOTE THE DATABASE IS NOT RELIABLE FOR THIS SYSTEM
+
+set inter
+

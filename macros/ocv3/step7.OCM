@@ -1,0 +1,98 @@
+@$ Calculate phase fractions and other property diagrams for SAF2507
+@&
+
+set echo
+
+r t saf2507
+
+set c t=1273.15 p=1e5 n=1 W(cr)=.25 w(ni)=.07, w(mo)=.03 w(mn)=.015 w(n)=.002
+
+@$ set c t=1273 p=1e5 n=1 x(cr)=.266 x(ni)=.066, x(mo)=.017 x(mn)=.015 x(n)=.008
+
+c e
+
+l r 1
+
+set axis 1 T 800 1800 10
+
+l ax
+
+@&
+
+step
+
+
+
+plot
+
+
+title step 7 fig 1
+render
+
+@& save plot
+plot
+
+
+position top left 
+title step 7 fig 2
+render
+
+ent sym prefcc=100*w(fcc,cr)+300*w(fcc,mo)+1600*w(fcc,n);
+
+ent sym prebcc=100*w(bcc,cr)+300*w(bcc,mo)+1600*w(bcc,n);
+
+
+set c t=1350
+
+c e
+
+l,,,,,
+
+@&
+
+set ax 1 w(n) 0 .005
+
+step
+
+
+plot
+w(n)
+np(*)
+title step 7 fig 3
+render
+
+plot
+w(n)
+prefcc
+position off
+title step 7 fig 4
+
+plot
+w(n)
+prebcc
+title step 7 fig 5
+render
+
+@$ step with 50% ferrite
+
+set stat ph bcc=fix 0.5
+
+set c t=none
+
+l c
+
+@&
+
+c e
+
+step
+
+
+plot
+w(n)
+T
+title step 7 fig 6
+render
+
+set inter
+

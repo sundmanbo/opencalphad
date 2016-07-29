@@ -1,0 +1,267 @@
+@$ Abiabatic flame temoperature for propane, C3H8
+
+set echo
+
+r t CHO-gas
+
+@&
+@$-------------------------------------------------------------------
+@$ A pure C3H8 gas has enthalpy content -99288 J at 300 K
+@$ adding 7 moles of O at T=300K gives an adiabatic flame T of 3071 K
+@$ remove all other phases except gas
+
+set status phase *=sus
+
+set status phase gas=ent 1
+
+@$ set c t=300 p=1e5 n(c)=3 n(h)=8 n(o)=1e-8
+
+@$ Set that the system has 1 mole C3H8
+set input n(c3h8)=1
+
+set c t=300 p=1e5 n(o)=1e-8
+
+@$ Also set the reference state of O to be gas at current T
+
+set ref O gas
+
+
+@$ We must be careful setting gas as reference state if there are
+@$ several possible species like O, O2 or O3 in this case
+@$ The program will automatically select the species (endmember) that
+@$ has the lowest Gibbs energy at the current T.  At very high T
+@$ that may be O and not O2
+
+c e
+
+l,,,,
+
+@$ This is the stable state of a gas with 3 moles C and 8 moles H at 300 K
+@$ but there is no C3H8!
+@&
+@$------------------------------------------------------------
+@$ This is a rather clumsy way to calculate the enthalpy content
+@$ of a pure propane gas at 300 K
+
+calc phase gas 
+1 
+N
+0
+0
+0
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 
+0 
+0
+0
+1
+,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,
+
+@$ The enthalpy content is -103711 J
+@$ We will use this enthalpy as condition and calculate
+@$ the temperature when reacting C3H8 with 7 moles of O will give
+@$ the same enthalpy content (adiabatic conditions).
+@$ N(O)=7 assumes that the product will be 3 moles C1O1 4 moles and H2O1
+@$ The enthalpy content of O2 gas at 298.15 K is 0 J by definition
+@&
+@$-------------------------------------------------------------------
+@$ We must use HS as we refer the enthalpy to 298.15 K
+
+set c HS
+-103711
+
+set c t=none
+
+set c n(o)=7
+
+c e
+
+l,,,,
+
+@$ The adiabatic flame temperature is 3069 K
+@$ Note the reaction to C1O1 and H2O is not complete,
+@$ there are some H2, C1O2 even H gas species
+@&
+
+@$-------------------------------------------------------------------
+@$ Check the temperature with N(O)=8
+
+set cond n(o)=8
+
+c e
+
+l,,,,,,,,
+
+@$ The temperature is now 3098 K, slightly higher.
+@$-------------------------------------------------------------------
+@&
+@$ Check how the temperature varies with N(O)
+
+set ax 1
+n(o)
+5
+15
+
+
+
+@&
+@$-------------------------------------------------------------------
+step
+
+
+plot
+n(o)
+T
+title step 8 fig 1
+
+
+@$ The maximum T is about 8 moles of O
+
+plot
+ac(o)
+T
+title step 8 fig 2
+
+
+@$ We can see how the T varies with the oxygen potential
+@$ It is rather constant for a large range of activities
+@$--------------------------------------------------------------------
+@$ The next plot is very messy  ....
+plot
+n(o)
+y(gas,*)
+title step 8 fig 2
+
+
+@$ At present we can only plot constiton species one by one (or all)
+plot
+n(o)
+y(gas,h2o1)
+title step 8 fig 3
+
+
+
+plot
+n(o)
+y(gas,c1o1)
+title step 8 fig 4
+
+
+plot
+n(o)
+y(gas,c1o2)
+title step 8 fig 5
+
+
+plot
+n(o)
+y(gas,o2)
+title step 8 fig 6
+
+
+plot
+n(o)
+y(gas,h2)
+title step 8 fig 7
+
+
+@$ How the H2O1 content depend on T
+plot
+T
+y(gas,h2o1)
+title step 8 fig 8
+
+
+@$ ------------------------------------------------------
+@$ Finally set the chemical potential of O as condition
+@$ First change the conditions to use the current value of T=3097.67876
+@$ instead of H (open system so amount of O can change)
+
+@$ c e
+
+l,,,,,,
+
+@&
+
+@$ set c t
+
+@$ set c h=none
+
+l c
+
+c e
+
+l,,,,,,,
+
+@&
+@$ Replace N(O) by current value of AC(O)=0.19658
+@$ (referred to O2 at current T) and calculate the same equilibrium
+
+set c ac(o)
+
+set c n(o)=none
+
+l c
+
+@&
+
+c e
+
+l,,,,,,
+
+@$ We have the same equilibrium with AC(O) instead on N(O)
+@&
+@$---------------------------------------------------------
+@$ Change ac(o) to a higher value meaning more oxygen
+
+set c ac(o)=0.3
+
+c e
+
+l,,,,
+
+@$ Higher oxygen activity means more N(O), here 9.7968 moles
+@$ and lower T, 3096 K
+@$ NOTE ALSO DALTON's LAW is valid!!! The constituent fraction of O2 is 0.09
+@$ which is the square of ac(o)
+@&
+@$ Include the calculation of the driving force of graphite
+@$ by setting it as dormant
+
+set st ph gra=d
+
+c e
+
+l sh p
+
+@$ We can see graphite has very negative driving force, it is not stable
+@&
+@$---------------------------------------------------------
+@$ Set the amount of O less than 3
+set c ac(o)=none
+
+set c n(o)=2
+
+c e
+
+l,,,,,
+
+@$ Now graphite has a positive driving force, 
+@$ and we have a much lower T 1204 K
+@$ We get soot and a lot of H2 gas burning C3H8 without enough oxygen
+@&
+@$ Calculate minimum O to avoid soot
+
+set st ph gra=fix 0
+
+set c n(o)=none
+
+c e
+
+l,,,,,
+
+@$ As expected we must have at least 3 moles of O (1.5 O2) to avoid soot.
+@$ and we have a low T, 1366 K, as there is a lot of H2 to burn.
+
+set inter
+

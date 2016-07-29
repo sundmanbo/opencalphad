@@ -18,9 +18,15 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2016.07.27 A number of small features added.  Isothermal ternary
+diagrams have their invariants plotted.  One can select a point in a
+phase diagram and add a text, by default the stable phases from an
+equilibrium calculating at that point.  A bug when calculating the
+constitution of an ordered phase for a given composition fixed.
+
 2016.07.19 I have implemented that the MAP command checks if the
 equilibrium at a node point is a global minimum and if not the line
-leading to this nodepoint is inactivatedg and no exit lines generated.
+leading to this nodepoint is inactivated and no exit lines generated.
 With this change the map7 macro works (almost) perfectly (the isopleth
 for the HSS steel).  Calculating isothermal sections are almost
 finished, the plotting is still rudimentary but there is a test macro.

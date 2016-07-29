@@ -1,0 +1,35 @@
+@$ Calculate an (incomplete) isopleth for Cr-Fe-Ni at 8 mass% Ni
+@&
+
+set echo
+
+r t saf2507
+cr fe ni
+ 
+set c t=2000 p=1e5 w(cr)=.2 w(ni)=.08 n=1
+
+c e
+l
+
+4
+
+@&
+
+set ax 1 w(cr) 0 1 ,,,
+set ax 2 t 800 2200 25
+
+
+
+map
+
+
+@&
+
+plot
+w(CR)
+T
+title map 6 fig 1
+render
+ 
+ 
+ set interactive

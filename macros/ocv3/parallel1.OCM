@@ -1,0 +1,189 @@
+@$ testing parallelization
+@$ If you run this macro without using oc3P version it
+@$ will be executed sequentially.
+@&
+@$
+@$ This macro should work but unless I calculate the equilibria one by one
+@$ when I enter them I get problems.  There are probably some errors ...
+@$
+@$ The problem may be connected with changing set of stable phases
+@$ but I have tested to change a few equilibria and recalculate so a few
+@$ equilibria with phase changes seems to work.  Any help fixing this is
+@$ appreciated.
+@$
+set echo
+
+r t steel1
+
+
+set c t=1200 p=1e5 n=1 w(c)=.01 w(cr)=.05 w(mo)=.08 w(si)=.003 w(v)=0.01
+
+c e
+
+l,,,,
+
+@&
+@$ enter a second equilibrium and test we can calculate it
+enter equil para1 Y
+
+l c
+
+@&
+set c t=1200 p=1e5 n=1 w(c)=.008 x(cr)=.045 x(mo)=.1 x(si)=.005 x(v)=0.011
+
+l c
+
+c e
+
+l,,,,
+@$ it seems to work, the result is different and the first unchanged
+sel eq 1
+l,,,,
+@&
+@$ enter 20 more equilibria, just different T
+enter equil para3 Y
+
+set c t=1250 p=1e5 n=1 w(c)=.008 x(cr)=.045 x(mo)=.1 x(si)=.005 x(v)=0.011
+
+c e
+
+enter equil para4 Y
+
+set c t=1300 p=1e5 n=1 w(c)=.008 x(cr)=.045 x(mo)=.1 x(si)=.005 x(v)=0.011
+
+c e
+
+enter equil para5 Y
+
+set c t=1350 p=1e5 n=1 w(c)=.008 x(cr)=.045 x(mo)=.1 x(si)=.005 x(v)=0.011
+
+c e
+
+enter equil para6 Y
+
+set c t=1400 p=1e5 n=1 w(c)=.008 x(cr)=.045 x(mo)=.1 x(si)=.005 x(v)=0.011
+
+c e
+
+enter equil para7 Y
+
+set c t=1450 p=1e5 n=1 w(c)=.008 x(cr)=.045 x(mo)=.1 x(si)=.005 x(v)=0.011
+
+c e
+
+enter equil para8 Y
+
+set c t=1500 p=1e5 n=1 w(c)=.008 x(cr)=.045 x(mo)=.1 x(si)=.005 x(v)=0.011
+
+c e
+
+enter equil para9 Y
+
+set c t=1550 p=1e5 n=1 w(c)=.008 x(cr)=.045 x(mo)=.1 x(si)=.005 x(v)=0.011
+
+c e
+
+enter equil para10 Y
+
+set c t=1600 p=1e5 n=1 w(c)=.008 x(cr)=.045 x(mo)=.1 x(si)=.005 x(v)=0.011
+
+c e
+
+enter equil para11 Y
+
+set c t=1650 p=1e5 n=1 w(c)=.008 x(cr)=.045 x(mo)=.1 x(si)=.005 x(v)=0.011
+
+c e
+
+enter equil para12 Y
+
+set c t=1700 p=1e5 n=1 w(c)=.008 x(cr)=.045 x(mo)=.1 x(si)=.005 x(v)=0.011
+
+c e
+
+enter equil para13 Y
+
+set c t=1750 p=1e5 n=1 w(c)=.008 x(cr)=.045 x(mo)=.1 x(si)=.005 x(v)=0.011
+
+c e
+
+enter equil para14 Y
+
+set c t=1800 p=1e5 n=1 w(c)=.008 x(cr)=.045 x(mo)=.1 x(si)=.005 x(v)=0.011
+
+c e
+
+enter equil para15 Y
+
+set c t=1150 p=1e5 n=1 w(c)=.008 x(cr)=.045 x(mo)=.1 x(si)=.005 x(v)=0.011
+
+c e
+
+enter equil para16 Y
+
+set c t=1100 p=1e5 n=1 w(c)=.008 x(cr)=.045 x(mo)=.1 x(si)=.005 x(v)=0.011
+
+c e
+
+enter equil para17 Y
+
+set c t=1050 p=1e5 n=1 w(c)=.008 x(cr)=.045 x(mo)=.1 x(si)=.005 x(v)=0.011
+
+c e
+
+enter equil para18 Y
+
+set c t=1000 p=1e5 n=1 w(c)=.008 x(cr)=.045 x(mo)=.1 x(si)=.005 x(v)=0.011
+
+c e
+
+enter equil para19 Y
+
+set c t=950 p=1e5 n=1 w(c)=.008 x(cr)=.045 x(mo)=.1 x(si)=.005 x(v)=0.011
+
+c e
+
+enter equil para20 Y
+
+set c t=900 p=1e5 n=1 w(c)=.008 x(cr)=.045 x(mo)=.1 x(si)=.005 x(v)=0.011
+
+c e
+
+enter equil para21 Y
+
+set c t=850 p=1e5 n=1 w(c)=.008 x(cr)=.045 x(mo)=.1 x(si)=.005 x(v)=0.011
+
+c e
+
+enter equil para22 Y
+
+set c t=800 p=1e5 n=1 w(c)=.008 x(cr)=.045 x(mo)=.1 x(si)=.005 x(v)=0.011
+
+@&
+l eq
+
+@&
+@$ set all equilibria (except first) available for calc all
+
+set range 2 22
+
+@&
+
+@$ calculate all with grid minimizer
+c a Y 
+1
+
+@$ calculate all without grid minimmizer (and in parallel if oc3P)
+c a N 1
+
+
+@$ Turn off parallel (if on)
+set bit 2 
+set bit 15
+
+c a N 1
+
+
+set inter
+
+ 

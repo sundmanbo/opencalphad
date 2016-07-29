@@ -1,0 +1,418 @@
+@$ OC macro file for RE-W system, 
+@$ M Palumbo, S G Fries, T Hammerschmidt et al, 
+@$                       Comp. Mat. Sci, Vol 81 (2014) 439-445; 
+@&
+
+set echo
+
+enter element RE Rhenium HCP 186.21 5355.5 36.526
+enter element W Tungsten BCC 183.85 4970.0 32.62
+
+enter tpfun GHSERRE fun 298.15 0;,,,,
+enter tpfun GHSERW fun 298.15 0;,,,,
+enter tpfun UNASS fun 298.15 0; 300,,,,
+enter tpfun ZERO fun 298.15 0; 6000,,,,
+
+@$ eVtoJ is J/eV per atom, eVtoJ29 the same for 29 atoms etc.
+enter tpfun eVtoJ const 96490,,,,
+enter tpfun eVtoJ8  fun 298.15 8*eVtoJ;,,,,,
+enter tpfun eVtoJ12 fun 298.15 12*eVtoJ;,,,,,
+enter tpfun eVtoJ13 fun 298.15 13*eVtoJ;,,,,,
+enter tpfun eVtoJ24 fun 298.15 24*eVtoJ;,,,,,
+enter tpfun eVtoJ29 fun 298.15 29*eVtoJ;,,,,
+enter tpfun eVtoJ30 fun 298.15 30*eVtoJ;,,,,,
+
+l tp *
+
+@$---------------
+@&
+
+enter phase fcc 4 
+.25 RE W;
+.25 RE W;
+.25 RE W;
+.25 RE W;
+
+@$ mark that we have parameter permutations according to fcc tetrahedrons
+set phase fcc bit fcc_perm
+
+ent par G(fcc,RE:RE:RE:RE) 298.15 0.062787*eVtoJ;,,,14Pal                fcc.A
+ent par G(fcc,W:RE:RE:RE) 298.15 0.11703575*eVtoJ;,,,14Pal             L12.A3B
+ent par G(fcc,W:W:RE:RE) 298.15 0.2098125*eVtoJ;,,,14Pal                L10.AB 
+ent par G(fcc,W:W:W:RE) 298.15 0.33351125*eVtoJ;,,,14Pal               L12.AB3 
+ent par G(fcc,W:W:W:W) 298.15 0.474125*eVtoJ;,,,14Pal                    fcc.B 
+@$-----------
+
+list data
+
+@&
+
+amend bib 14Pal M Palumbo, S G Fries, T Hammerschmidt et al,
+Comp. Mat. Sci, Vol 81 (2014) 439-445;
+
+list data
+
+@&
+
+enter phase bcc 4 .25 RE W; .25 RE W; .25 RE W; .25 RE W;
+
+@$ the BCC permutations are not yet implemented ....
+
+ent par G(bcc,RE:RE:RE:RE) 298.15 0.320286*eVtoJ;,,,14Pal                bcc.A
+ent par G(bcc,W:RE:RE:RE) 298.15 0.21785575*eVtoJ;,,,14Pal             D03.A3B
+ent par G(bcc,RE:W:RE:RE) 298.15 0.21785575*eVtoJ;,,,14Pal             D03.A3B
+ent par G(bcc,RE:RE:W:RE) 298.15 0.21785575*eVtoJ;,,,14Pal             D03.A3B
+ent par G(bcc,RE:RE:RE:W) 298.15 0.21785575*eVtoJ;,,,14Pal             D03.A3B
+ent par G(bcc,W:RE:W:RE) 298.15 0.1385725*eVtoJ;,,,14Pal                B32.AB
+ent par G(bcc,RE:W:W:RE) 298.15 0.1385725*eVtoJ;,,,14Pal                B32.AB
+ent par G(bcc,W:RE:RE:W) 298.15 0.1385725*eVtoJ;,,,14Pal                B32.AB
+ent par G(bcc,RE:W:RE:W) 298.15 0.1385725*eVtoJ;,,,14Pal                B32.AB
+ent par G(bcc,W:W:RE:RE) 298.15 0.0971185*eVtoJ;,,,14Pal                 B2.AB
+ent par G(bcc,RE:RE:W:W) 298.15 0.0971185*eVtoJ;,,,14Pal                 B2.AB
+ent par G(bcc,W:W:W:RE) 298.15 0.04742525*eVtoJ;,,,14Pal               D03.AB3
+ent par G(bcc,W:W:RE:W) 298.15 0.04742525*eVtoJ;,,,14Pal               D03.AB3
+ent par G(bcc,W:RE:W:W) 298.15 0.04742525*eVtoJ;,,,14Pal               D03.AB3
+ent par G(bcc,RE:W:W:W) 298.15 0.04742525*eVtoJ;,,,14Pal               D03.AB3
+ent par G(bcc,W:W:W:W) 298.15 0*eVtoJ;,,,14Pal                           bcc.B
+@$-----------
+
+list data
+
+@&
+
+list phase bcc data
+
+@&
+
+@$-------
+
+enter phase hcp 4 .25 RE W; .25 RE W; .25 RE W; .25 RE W;
+@$ The HCP tetrahedron is the same as FCC
+set phase hcp bit fcc_perm
+
+ent par G(hcp,RE:RE:RE:RE) 298.15 0*eVtoJ;,,,14Pal                       hcp.A
+ent par G(hcp,W:RE:RE:RE) 298.15 0.12874775*eVtoJ;,,,14Pal           D0_19.A3B
+ent par G(hcp,W:W:RE:RE) 298.15 0.2823905*eVtoJ;,,,14Pal                B19.AB
+ent par G(hcp,W:W:W:RE) 298.15 0.38047325*eVtoJ;,,,14Pal             D0_19.AB3
+ent par G(hcp,W:W:W:W) 298.15 0.490701*eVtoJ;,,,14Pal                    hcp.B
+
+list phase hcp data
+
+@&
+@$-------
+
+ent phase A15 2 2 RE W; 6  RE W;
+ent par G(A15,RE:RE) 298.15 0.185144*eVtoJ8;,,,14Pal                     A15.A
+ent par G(A15,RE:W) 298.15 0.19109475*eVtoJ8;,,,14Pal                   A15.AB
+ent par G(A15,W:RE) 298.15 0.02878425*eVtoJ8;,,,14Pal                   A15.BA
+ent par G(A15,W:W) 298.15 0.089645*eVtoJ8;,,,14Pal                       A15.B
+
+list phase A15 data
+
+@&
+@$--------
+
+ent phase sigma 5 2 RE W; 4 RE W; 8 RE W; 8 RE W; 8 RE W;
+ent par G(sigma,RE:RE:RE:RE:RE) 298.15 0.103465*eVtoJ30;,,,14Pal      sigma.A
+ent par G(sigma,W:RE:RE:RE:RE) 298.15 0.117920533*eVtoJ30;,,,14Pal sigma.BAAAA
+ent par G(sigma,RE:W:RE:RE:RE) 298.15 0.074164067*eVtoJ30;,,,14Pal sigma.ABAAA
+ent par G(sigma,W:W:RE:RE:RE) 298.15 0.0887456*eVtoJ30;,,,14Pal    sigma.BBAAA
+ent par G(sigma,RE:RE:RE:RE:W) 298.15 0.075425133*eVtoJ30;,,,14Pal sigma.AAAAB
+ent par G(sigma,RE:RE:RE:W:RE) 298.15 0.144846133*eVtoJ30;,,,14Pal sigma.AAABA
+ent par G(sigma,RE:RE:W:RE:RE) 298.15 0.062163133*eVtoJ30;,,,14Pal sigma.AABAA
+ent par G(sigma,W:RE:RE:RE:W) 298.15 0.096883667*eVtoJ30;,,,14Pal  sigma.BAAAB 
+ent par G(sigma,W:RE:RE:W:RE) 298.15 0.166788667*eVtoJ30;,,,14Pal  sigma.BAABA 
+ent par G(sigma,W:RE:W:RE:RE) 298.15 0.078029667*eVtoJ30;,,,14Pal  sigma.BABAA 
+ent par G(sigma,RE:W:RE:RE:W) 298.15 0.0425622*eVtoJ30;,,,14Pal    sigma.ABAAB
+ent par G(sigma,RE:W:RE:W:RE) 298.15 0.1150282*eVtoJ30;,,,14Pal    sigma.ABABA
+ent par G(sigma,RE:W:W:RE:RE) 298.15 0.0432172*eVtoJ30;,,,14Pal    sigma.ABBAA
+ent par G(sigma,W:W:RE:RE:W) 298.15 0.067439733*eVtoJ30;,,,14Pal   sigma.BBAAB
+ent par G(sigma,W:W:RE:W:RE) 298.15 0.141463733*eVtoJ30;,,,14Pal   sigma.BBABA
+ent par G(sigma,W:W:W:RE:RE) 298.15 0.062896733*eVtoJ30;,,,14Pal   sigma.BBBAA
+ent par G(sigma,RE:RE:RE:W:W) 298.15 0.145899267*eVtoJ30;,,,14Pal  sigma.AAABB
+ent par G(sigma,RE:RE:W:RE:W) 298.15 0.052479267*eVtoJ30;,,,14Pal  sigma.AABAB
+ent par G(sigma,RE:RE:W:W:RE) 298.15 0.151518267*eVtoJ30;,,,14Pal  sigma.AABBA
+ent par G(sigma,W:RE:RE:W:W) 298.15 0.1732738*eVtoJ30;,,,14Pal     sigma.BAABB
+ent par G(sigma,W:RE:W:RE:W) 298.15 0.0767538*eVtoJ30;,,,14Pal     sigma.BABAB
+ent par G(sigma,W:RE:W:W:RE) 298.15 0.1743168*eVtoJ30;,,,14Pal     sigma.BABBA
+ent par G(sigma,RE:W:RE:W:W) 298.15 0.117787333*eVtoJ30;,,,14Pal   sigma.ABABB
+ent par G(sigma,RE:W:W:RE:W) 298.15 0.031243333*eVtoJ30;,,,14Pal   sigma.ABBAB
+ent par G(sigma,RE:W:W:W:RE) 298.15 0.135710333*eVtoJ30;,,,14Pal   sigma.ABBBA
+ent par G(sigma,W:W:RE:W:W) 298.15 0.149161867*eVtoJ30;,,,14Pal    sigma.BBABB 
+ent par G(sigma,W:W:W:RE:W) 298.15 0.059292867*eVtoJ30;,,,14Pal    sigma.BBBAB 
+ent par G(sigma,W:W:W:W:RE) 298.15 0.165621867*eVtoJ30;,,,14Pal    sigma.BBBBA 
+ent par G(sigma,RE:RE:W:W:W) 298.15 0.1662344*eVtoJ30;,,,14Pal     sigma.AABBB
+ent par G(sigma,W:RE:W:W:W) 298.15 0.192115933*eVtoJ30;,,,14Pal    sigma.BABBB
+ent par G(sigma,RE:W:W:W:W) 298.15 0.142513467*eVtoJ30;,,,14Pal    sigma.ABBBB
+ent par G(sigma,W:W:W:W:W) 298.15 0.17298*eVtoJ30;,,,14Pal             sigma.B
+
+list phase sigma data
+
+@&
+@$-------------
+
+ent phase chi 4 1 RE W; 4 RE W; 12 RE W; 12  RE W;
+ent par G(chi,RE:RE:RE:RE) 298.15 0.057085*eVtoJ29;,,,14Pal              chi.A
+ent par G(chi,W:RE:RE:RE) 298.15 0.044341138*eVtoJ29;,,,14Pal         chi.BAAA
+ent par G(chi,RE:W:RE:RE) 298.15 0.010266552*eVtoJ29;,,,14Pal         chi.ABAA
+ent par G(chi,W:W:RE:RE) 298.15 0.00176469*eVtoJ29;,,,14Pal           chi.BBAA
+ent par G(chi,RE:RE:RE:W) 298.15 0.222213655*eVtoJ29;,,,14Pal         chi.AAAB
+ent par G(chi,RE:RE:W:RE) 298.15 0.107317655*eVtoJ29;,,,14Pal         chi.AABA
+ent par G(chi,W:RE:RE:W) 298.15 0.203353793*eVtoJ29;,,,14Pal          chi.BAAB 
+ent par G(chi,W:RE:W:RE) 298.15 0.093724793*eVtoJ29;,,,14Pal          chi.BABA 
+ent par G(chi,RE:W:RE:W) 298.15 0.154246207*eVtoJ29;,,,14Pal          chi.ABAB 
+ent par G(chi,RE:W:W:RE) 298.15 0.065460207*eVtoJ29;,,,14Pal          chi.ABBA
+ent par G(chi,W:W:RE:W) 298.15 0.138812345*eVtoJ29;,,,14Pal           chi.BBAB
+ent par G(chi,W:W:W:RE) 298.15 0.059790345*eVtoJ29;,,,14Pal           chi.BBBA
+ent par G(chi,RE:RE:W:W) 298.15 0.32744331*eVtoJ29;,,,14Pal           chi.AABB
+ent par G(chi,W:RE:W:W) 298.15 0.312474448*eVtoJ29;,,,14Pal           chi.BABB
+ent par G(chi,RE:W:W:W) 298.15 0.294603862*eVtoJ29;,,,14Pal           chi.ABBB
+ent par G(chi,W:W:W:W) 298.15 0.283917*eVtoJ29;,,,14Pal                  chi.B 
+
+list phase chi data
+
+@&
+@$----------
+
+ent phase mu 5 1 RE W; 6 RE W; 2 RE W; 2 RE W; 2  RE W;
+ent par G(mu,RE:RE:RE:RE:RE) 298.15 0.213904*eVtoJ13;,,,14Pal             mu.A
+ent par G(mu,W:RE:RE:RE:RE) 298.15 0.232698923*eVtoJ13;,,,14Pal       mu.BAAAA
+ent par G(mu,RE:RE:RE:RE:W) 298.15 0.237154846*eVtoJ13;,,,14Pal       mu.AAAAB
+ent par G(mu,RE:RE:RE:W:RE) 298.15 0.172403846*eVtoJ13;,,,14Pal       mu.AAABA
+ent par G(mu,RE:RE:W:RE:RE) 298.15 0.166768846*eVtoJ13;,,,14Pal       mu.AABAA
+ent par G(mu,W:RE:RE:RE:W) 298.15 0.261267769*eVtoJ13;,,,14Pal        mu.BAAAB 
+ent par G(mu,W:RE:RE:W:RE) 298.15 0.187943769*eVtoJ13;,,,14Pal        mu.BAABA 
+ent par G(mu,W:RE:W:RE:RE) 298.15 0.189324769*eVtoJ13;,,,14Pal        mu.BABAA 
+ent par G(mu,RE:RE:RE:W:W) 298.15 0.195145692*eVtoJ13;,,,14Pal        mu.AAABB 
+ent par G(mu,RE:RE:W:RE:W) 298.15 0.193476692*eVtoJ13;,,,14Pal        mu.AABAB 
+ent par G(mu,RE:RE:W:W:RE) 298.15 0.136986692*eVtoJ13;,,,14Pal        mu.AABBA 
+ent par G(mu,W:RE:RE:W:W) 298.15 0.216702615*eVtoJ13;,,,14Pal         mu.BAABB
+ent par G(mu,W:RE:W:RE:W) 298.15 0.216780615*eVtoJ13;,,,14Pal         mu.BABAB
+ent par G(mu,W:RE:W:W:RE) 298.15 0.156615615*eVtoJ13;,,,14Pal         mu.BABBA
+ent par G(mu,RE:RE:W:W:W) 298.15 0.157312538*eVtoJ13;,,,14Pal         mu.AABBB
+ent par G(mu,RE:W:RE:RE:RE) 298.15 0.340443538*eVtoJ13;,,,14Pal       mu.ABAAA
+ent par G(mu,W:RE:W:W:W) 298.15 0.174036462*eVtoJ13;,,,14Pal          mu.BABBB
+ent par G(mu,W:W:RE:RE:RE) 298.15 0.369531462*eVtoJ13;,,,14Pal        mu.BBAAA 
+ent par G(mu,RE:W:RE:RE:W) 298.15 0.385507385*eVtoJ13;,,,14Pal        mu.ABAAB
+ent par G(mu,RE:W:RE:W:RE) 298.15 0.294760385*eVtoJ13;,,,14Pal        mu.ABABA
+ent par G(mu,RE:W:W:RE:RE) 298.15 0.314514385*eVtoJ13;,,,14Pal        mu.ABBAA
+ent par G(mu,W:W:RE:RE:W) 298.15 0.421966308*eVtoJ13;,,,14Pal         mu.BBAAB
+ent par G(mu,W:W:RE:W:RE) 298.15 0.326644308*eVtoJ13;,,,14Pal         mu.BBABA
+ent par G(mu,W:W:W:RE:RE) 298.15 0.344868308*eVtoJ13;,,,14Pal         mu.BBBAA
+ent par G(mu,RE:W:RE:W:W) 298.15 0.346191231*eVtoJ13;,,,14Pal         mu.ABABB
+ent par G(mu,RE:W:W:RE:W) 298.15 0.355482231*eVtoJ13;,,,14Pal         mu.ABBAB
+ent par G(mu,RE:W:W:W:RE) 298.15 0.276514231*eVtoJ13;,,,14Pal         mu.ABBBA
+ent par G(mu,W:W:RE:W:W) 298.15 0.381076154*eVtoJ13;,,,14Pal          mu.BBABB
+ent par G(mu,W:W:W:RE:W) 298.15 0.393287154*eVtoJ13;,,,14Pal          mu.BBBAB
+ent par G(mu,W:W:W:W:RE) 298.15 0.310854154*eVtoJ13;,,,14Pal          mu.BBBBA
+ent par G(mu,RE:W:W:W:W) 298.15 0.320410077*eVtoJ13;,,,14Pal          mu.ABBBB
+ent par G(mu,W:W:W:W:W) 298.15 0.356369*eVtoJ13;,,,14Pal                  mu.B
+
+list phase mu data
+
+@&
+@$--------
+
+ent phase C14 3 2 RE W; 6 RE W; 4 RE W;
+ent par G(C14,RE:RE:RE) 298.15 0.286726*eVtoJ12;,,,14Pal                 C14.A
+ent par G(C14,RE:W:RE) 298.15 0.331349833*eVtoJ12;,,,14Pal             C14.ABA
+ent par G(C14,W:RE:RE) 298.15 0.203029667*eVtoJ12;,,,14Pal             C14.BAA
+ent par G(C14,RE:RE:W) 298.15 0.4255515*eVtoJ12;,,,14Pal               C14.AAB
+ent par G(C14,W:W:RE) 298.15 0.2850135*eVtoJ12;,,,14Pal                C14.BBA
+ent par G(C14,RE:W:W) 298.15 0.527325333*eVtoJ12;,,,14Pal              C14.ABB
+ent par G(C14,W:RE:W) 298.15 0.380295167*eVtoJ12;,,,14Pal              C14.BAB
+ent par G(C14,W:W:W) 298.15 0.459543*eVtoJ12;,,,14Pal                    C14.B
+
+list phase C14 data
+
+@&
+
+@$-----------
+
+ent phase C15 2 8 RE W; 16 RE W;
+ent par G(C15,RE:RE) 298.15 0.345061*eVtoJ24;,,,14Pal                    C15.A
+ent par G(C15,W:RE) 298.15 0.250001667*eVtoJ24;,,,14Pal                C15.A2B
+ent par G(C15,RE:W) 298.15 0.491933333*eVtoJ24;,,,14Pal                C15.AB2
+ent par G(C15,W:W) 298.15 0.454032*eVtoJ24;,,,14Pal                      C15.B
+
+list phase C15 data
+
+@&
+
+@$----------
+
+ent phase C36  5 4 RE W; 4 RE W; 4 RE W; 6 RE W; 6 RE W;
+ent par G(C36,RE:RE:RE:RE:RE) 298.15 0.31195*eVtoJ24;,,,14Pal        C36.A
+ent par G(C36,RE:RE:W:RE:RE) 298.15 0.337458833*eVtoJ24;,,,14Pal     C36.AABAA
+ent par G(C36,RE:W:RE:RE:RE) 298.15 0.250287833*eVtoJ24;,,,14Pal     C36.ABAAA
+ent par G(C36,W:RE:RE:RE:RE) 298.15 0.247355833*eVtoJ24;,,,14Pal     C36.BAAAA
+ent par G(C36,RE:RE:RE:RE:W) 298.15 0.37904175*eVtoJ24;,,,14Pal      C36.AAAAB
+ent par G(C36,RE:RE:RE:W:RE) 298.15 0.34407575*eVtoJ24;,,,14Pal      C36.AAABA
+ent par G(C36,RE:W:W:RE:RE) 298.15 0.315368667*eVtoJ24;,,,14Pal      C36.ABBAA
+ent par G(C36,W:RE:W:RE:RE) 298.15 0.305384667*eVtoJ24;,,,14Pal      C36.BABAA
+ent par G(C36,W:W:RE:RE:RE) 298.15 0.224973667*eVtoJ24;,,,14Pal      C36.BBAAA
+ent par G(C36,RE:RE:W:RE:W) 298.15 0.442608583*eVtoJ24;,,,14Pal      C36.AABAB
+ent par G(C36,RE:RE:W:W:RE) 298.15 0.410960583*eVtoJ24;,,,14Pal      C36.AABBA
+ent par G(C36,RE:W:RE:RE:W) 298.15 0.353971583*eVtoJ24;,,,14Pal      C36.ABAAB
+ent par G(C36,RE:W:RE:W:RE) 298.15 0.321842583*eVtoJ24;,,,14Pal      C36.ABABA
+ent par G(C36,W:RE:RE:RE:W) 298.15 0.346623583*eVtoJ24;,,,14Pal      C36.BAAAB
+ent par G(C36,W:RE:RE:W:RE) 298.15 0.315309583*eVtoJ24;,,,14Pal      C36.BAABA
+ent par G(C36,RE:RE:RE:W:W) 298.15 0.4229085*eVtoJ24;,,,14Pal        C36.AAABB
+ent par G(C36,W:W:W:RE:RE) 298.15 0.2877075*eVtoJ24;,,,14Pal         C36.BBBAA
+ent par G(C36,RE:W:W:RE:W) 298.15 0.415114417*eVtoJ24;,,,14Pal       C36.ABBAB
+ent par G(C36,RE:W:W:W:RE) 298.15 0.397507417*eVtoJ24;,,,14Pal       C36.ABBBA
+ent par G(C36,W:RE:W:W:RE) 298.15 0.380724417*eVtoJ24;,,,14Pal       C36.BABBA
+ent par G(C36,W:W:RE:RE:W) 298.15 0.328912417*eVtoJ24;,,,14Pal       C36.BBAAB
+ent par G(C36,W:W:RE:W:RE) 298.15 0.295539417*eVtoJ24;,,,14Pal       C36.BBABA
+ent par G(C36,RE:RE:W:W:W) 298.15 0.506832333*eVtoJ24;,,,14Pal       C36.AABBB
+ent par G(C36,RE:W:RE:W:W) 298.15 0.416418333*eVtoJ24;,,,14Pal       C36.ABABB
+ent par G(C36,W:RE:RE:W:W) 298.15 0.403344333*eVtoJ24;,,,14Pal       C36.BAABB
+ent par G(C36,W:RE:W:RE:W) 298.15 0.403344333*eVtoJ24;,,,14Pal       C36.BABAB
+ent par G(C36,W:W:W:RE:W) 298.15 0.38162625*eVtoJ24;,,,14Pal         C36.BBBAB
+ent par G(C36,W:W:W:W:RE) 298.15 0.36110925*eVtoJ24;,,,14Pal         C36.BBBBA
+ent par G(C36,RE:W:W:W:W) 298.15 0.496471167*eVtoJ24;,,,14Pal        C36.ABBBB
+ent par G(C36,W:RE:W:W:W) 298.15 0.481127167*eVtoJ24;,,,14Pal        C36.BABBB
+ent par G(C36,W:W:RE:W:W) 298.15 0.382497167*eVtoJ24;,,,14Pal        C36.BBABB
+ent par G(C36,W:W:W:W:W) 298.15 0.459342*eVtoJ24;,,,14Pal                C36.B
+
+list phase C36 data
+
+@&
+
+list short
+
+@&
+@$---------
+
+@$ Calculate the stable phase diagram
+
+set c t=4000 p=1e5 n=1 x(w)=.4
+
+c e
+
+l r
+
+
+@&
+
+l r 2
+
+@&
+
+set ax 1 x(w) 0 1 .01
+
+set ax 2 T 100 6000 25
+
+map
+
+plot
+
+
+title map 9 fig 1
+render
+
+
+@$ Calculate speciation in sigma across the whole diagram at 1000 K
+
+set ax 
+2 
+none
+
+list ax
+
+@&
+
+set stat phase *=sus
+
+set stat phase sigma=ent 1
+
+l short
+
+@&
+
+@$ conditions not restored after map
+l c
+set c x(w)=.3 t=2000
+
+
+@$ avoid using grid minimizer as that creates two composition sets
+c n
+
+l,,,,
+
+@&
+
+@$ when using step delete previous map results
+step
+Y
+
+plot
+x(w)
+y(sigma,*)
+title map 9 fig 2
+render
+
+@$ also plot the Gibbs energy, enthalpy and heat capacity
+
+plot
+x(w)
+gm
+title map 9 fig 3
+render
+
+plot
+x(w)
+hm
+title map 9 fig 4
+
+enter symbol
+cp
+hm.t;
+
+
+plot
+x(w)
+cp
+title map 9 fig 5
+render
+
+@$ finally calculate the Gibbs energy curves for all phases at 3000 K
+
+set stat ph *=ent 0
+
+c e
+
+step 
+Y
+sep
+
+
+plot
+x(w)
+gm(*)
+position outside right
+title map 9 fig 6
+render
+
+plot
+x(w)
+hm(*)
+title map 9 fig 7
+render
+
+
+@$ Finally calculate the Gibbs energy of an endmember
+
+c p
+sigma
+1
+n
+1
+0
+1
+0
+1
+only
+
+set inter
+

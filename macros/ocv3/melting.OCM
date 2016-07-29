@@ -1,0 +1,111 @@
+@$ Calculating a multicomponent single equilibrium
+@$ Including the melting point of the alloy
+@&
+
+set echo
+
+r t steel1
+
+@$ -------------------------------------------------------------
+@&
+set c t=1200 p=1e5 n=1 x(c)=.05 x(cr)=.05, x(mo)=.05 x(si)=.003 x(v)=.01
+
+c e
+
+l ,1
+
+@$ The equilibrium has two FCC phases, one represent cunbic carbide
+@$ Check result with a denser grid
+@$ -------------------------------------------------------------
+@&
+
+set advanced 
+dense
+
+c e
+
+l ,,,
+
+@$ The denser grid has about 10 times more gridpoints.  Result the same
+@$ -------------------------------------------------------------
+@&
+@$ Calculate the melting T by setting liquid fix and remove condition on T
+c tran
+liq
+1
+
+list,,,,,
+
+@$ The grid minimizer cannot be used for these conditions
+@$ -------------------------------------------------------------
+@&
+@$ Test setting a condition on the mole percent of carbon in the metallic fcc
+@$ Note that that is the second composition set !!!
+set c x%(fcc#2,c)
+
+set c x(c)=none
+
+c e
+
+l,,,,
+
+@$ The result is the same we have just calculated the same equilibrium
+@$ with different sets of conditions.  List the constitutions
+@&
+
+l , 2
+
+
+@$ -------------------------------------------------------------
+@&
+@$ Decrease the carbon content in the austenite
+set c x%(fcc#2,c)=4
+
+c e
+
+l , 1
+
+@$ total carbon content is now lower and the cubic carbide and
+@$ the liquid are no longer stable.  
+@$ -------------------------------------------------------------
+@&
+@$ Calculate the new melting T for a steel with 4 percent C in the fcc
+@$ now using the "set phase ... status" command
+set ph liq 
+status 
+fix 0
+
+set c t=none
+
+l c
+
+@&
+c e
+
+l,,,,
+
+@$ -------------------------------------------------------------
+@&
+@$ Now set condition on current H and remove condition on N
+
+set c H
+
+set c N=none
+
+c e
+l r 1
+
+@$ We have the same quilibrium with different conditions
+@$ -------------------------------------------------------------
+@&
+@$ Now decrease H a little
+set c H=40000
+c e
+
+l,,,,
+
+@$ Note the size of the system has changed, N=0.88287 !!
+@$ -------------------------------------------------------------
+
+set inter
+

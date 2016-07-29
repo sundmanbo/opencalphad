@@ -16,13 +16,14 @@
    double precision yarr(maxcons2),sites(maxsubl),qq(5),yyy,xxx,sss,ydef
    integer knl(maxsubl),knr(maxcons2)
    character line*64,ch1*1
+   character :: lastph*24='                        '
    character*1 :: chd='Y'
    integer qph,lokph,nsl,kkk,loksp,ip,ll,nr
    TYPE(gtp_equilibrium_data), pointer :: ceq
    logical once
 ! save here to use the same default as last time
-   save chd
-   call gparc('Phase name: ',cline,last,1,name1,' ',q1help)
+   save chd,lastph
+   call gparcd('Phase name: ',cline,last,1,name1,lastph,q1help)
    if(name1(1:2).eq.'* ') then
 ! this means all phases and composition sets
       qph=-1
@@ -34,6 +35,8 @@
       qph=0
       call find_phase_by_name(name1,iph,ics)
       if(gx%bmperr.ne.0) goto 1000
+! remember the phase name
+      lastph=name1
    endif
 100 continue
 !   write(*,*)'spc 1',qph,iph,ics,name1
@@ -60,7 +63,7 @@
    ceq%phase_varres(lokcs)%amfu=xxx
 ! ask if we should set the current constitution, ignore default
 !   write(*,*)'3D we are here!'
-   call gparcd('Current constitution?',cline,last,1,ch1,chd,q1help)
+   call gparcd('Use current constitution?',cline,last,1,ch1,chd,q1help)
    if(ch1.eq.'Y' .or. ch1.eq.'y') then
 !      call set_default_constitution(iph,ics,ceq)
 !      if(gx%bmperr.ne.0) goto 1000

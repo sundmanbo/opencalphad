@@ -1,0 +1,70 @@
+@$
+@$ Calculating speciation in a gas phase and plot y, H and Cp
+@&
+
+set echo
+
+r t hogas
+
+l d,,,,,
+
+@$ Listing of the gas data
+@$-------------------------------------------------------
+@&
+@$ Set conditions
+set c t=3000 p=1e5 n(h)=2 n(o)=1
+
+c e
+
+l,,,,,
+
+@$-------------------------------------------------------
+@&
+@$ Set T as axis
+set ax 1 t 1000 6000 25
+
+step
+
+
+@$-------------------------------------------------------
+@$ Plot the constitution of the gas
+plot
+T
+y(gas,*)
+title step3 fig 1
+render
+
+@$-------------------------------------------------------
+@$ Move the position of the identification
+plot
+
+
+position bottom left
+title step3 fig 2
+render
+
+@$-------------------------------------------------------
+@$ Plot the enthalpy content
+plot
+T
+H
+title step3 fig 3
+render
+
+@$-------------------------------------------------------
+@$ Enter symbol for heat capacity and plot the heat capacity
+ent symb cp=h.t;
+
+plot
+T
+cp
+title step3 fig 4
+render
+
+@$ Note the strong contribution to the heat capacity from the variation
+@$ of the constituent fractions
+@$-------------------------------------------------------
+@&
+
+set inter
+

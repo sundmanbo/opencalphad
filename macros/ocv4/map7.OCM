@@ -5,7 +5,33 @@ set echo
 
 r t steel1 c cr fe mo v
 
-@& calculate a first equilibrium at 1200 to create two fcc phases automatically 
+@$ There will be a cubic carbide stable in this system
+@$ create a composition set of the fcc phase for that
+amend phase 
+fcc
+
+Y
+MC
+
+NONE
+<.5
+
+>.5
+>.5
+<.5
+
+@$ amend the default composition also of the austenite
+amend phase
+fcc
+default
+<.1
+>.5
+<.1
+<.1
+<.1
+>.9
+
+@& calculate a first equilibrium at 1200 where we have both fcc phases 
 
 set c t=1200 p=1e5 n=1 w%(c)=.8 w%(cr)=5, w%(mo)=8 w%(v)=1
 
@@ -36,6 +62,26 @@ plot
 
 title map7 fig 1
 
+@$ add some labels
+
+plot
+
+
+text
+0.4 1000 y
+
+text
+n .55 1300 y 
+
+text
+n .5 1450 y
+
+text 
+n 0.15 1400 y
+
+text 
+n 0.9 1600 y
+
 
 @$ We can list all calculated equilibria
 
@@ -47,7 +93,6 @@ l l
 
 l eq
 
-@$ this is a magnification of the small region between 1550 and 1600 K
 plot
 
 

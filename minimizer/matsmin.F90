@@ -1497,7 +1497,7 @@ CONTAINS
 !    write(33,*)'Solution'
 !    write(33,112)1,(svar(jz),jz=1,nz1)
 !    close(33)
-!+    write(*,228)'svar1:',(svar(jz),jz=1,nz1)
+!    write(*,228)'svar1:',(svar(jz),jz=1,nz1)
     if(vbug) write(*,228)'svar1:',(svar(jz),jz=1,nz1)
 !
 ! if no error at first calculation after phase set change iremsave=0
@@ -1878,11 +1878,16 @@ CONTAINS
 !                     ceq%complist(nl)%chempot(1)/ceq%rtn,ceq%cmuval(nl)
 612             format(a,2i4,6(1pe12.4))
                 pv=pv+ceq%complist(nl)%chempot(1)/ceq%rtn*phr(jj)%dxmol(nl,nk)
+!                write(*,111)'pvx: ',nj,pv,ceq%complist(nl)%chempot(1),&
+!                     ceq%rtn,phr(jj)%dxmol(nl,nk)
 !                pv=pv+ceq%cmuval(nl)*phr(jj)%dxmol(nl,nk)
 !                pv=pv+svar(nl)*phr(jj)%dxmol(nl,nk)
              enddo
              pv=pv-phr(jj)%curd%dgval(1,nk,1)
              ys=ys+phr(jj)%invmat(nj,nk)*pv
+!             write(*,111)'pvx: ',nj,ys,pv,phr(1)%curd%dgval(1,nk,1),&
+!                  phr(1)%invmat(nj,nk)
+111          format(a,i2,6(1pe12.4))
           enddo
           if(phr(jj)%chargebal.eq.1) then
 ! For charged phases add a term 
@@ -1904,13 +1909,14 @@ CONTAINS
              endif
 !             write(*,*)'Charge: ',jj,phr(jj)%netcharge
           endif
+! when T is variable
           ycorr(nj)=ys+cit(nj)
           if(abs(ycorr(nj)).gt.ycormax2) then
              ycormax2=ycorr(nj)
           endif
 ! Sigli converge problem, fixed by changing stable phases in different order
 !          write(*,111)converged,jj,nj,ys
-111       format('Y corr: cc/ph/cons/y: ',i2,2i4,1pe12.4)
+!111       format('Y corr: cc/ph/cons/y: ',i2,2i4,1pe12.4)
           if(abs(ys).gt.ceq%xconv) then
 ! if the change in any constituent fraction larger than xconv continue iterate
 !             write(*,*)'Convergence criteria, phase/const: ',jj,nk
@@ -2098,6 +2104,7 @@ CONTAINS
 ! >>>>>>>>>>>>>>>>>> HERE the new constitution is set <<<<<<<<<<<<<<<<<<<<<
 !       if(meqrec%noofits.le.2) write(*,83)'dy2: ',jj,phr(jj)%iph,kk,&
 !            (yarr(nj),nj=1,phr(jj)%ncc)
+!       write(*,111)'YARR: ',jj,(yarr(nj),nj=1,phr(jj)%ncc)
        call set_constitution(phr(jj)%iph,phr(jj)%ics,yarr,qq,ceq)
        if(gx%bmperr.ne.0) goto 1000
 !  >>>>>>>>>>>>>>>>>> for all phases <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -2448,7 +2455,7 @@ CONTAINS
 ! relative check for convergence if cvalue>1.0
        conv: if(abs(totam-cvalue).gt.ceq%xconv*max(1.0d0,abs(cvalue)))then
           if(converged.lt.5) converged=5
-          write(*,266)'Unconverged condition N or N(A): ',sel,cvalue,totam
+!          write(*,266)'Unconverged condition N or N(A): ',sel,cvalue,totam
 266       format(a,i3,4(1pe12.4))
        endif conv
     enddo elloop1
@@ -3063,8 +3070,8 @@ CONTAINS
                ceq%tpval(1)
 ! test if condition converged, use relative error 
           if(abs(hmval-cvalue/ceq%rtn).gt.ceq%xconv*abs(cvalue)) then
-             write(*,75)'Unconverged enthalpy: ',&
-                  hmval*ceq%rtn,cvalue,hmval-cvalue/ceq%rtn
+!             write(*,75)'Unconverged enthalpy: ',&
+!                  hmval*ceq%rtn,cvalue,hmval-cvalue/ceq%rtn
              if(converged.lt.5) converged=5
           endif
 ! we have one more equation to add to the equilibrium matrix
@@ -6330,17 +6337,18 @@ CONTAINS
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim} %-
-  subroutine equilph1b(phtup,tpval,xknown,cpot,tyst,ceq)
+  subroutine equilph1b(phtup,tpval,xknown,gval,cpot,tyst,ceq)
 ! equilibrates the constituent fractions of a phase for mole fractions xknown
 ! phtup is phase tuple
 ! tpval is T and P
 ! ceq is a datastructure with all relevant thermodynamic data
+! gval is the Gibbs energy calculated as xknown(i)*cpot(i)
 ! cpot are the (calculated) chemical potentials
 ! tyst is TRUE means no outut
     implicit none
     integer mode
     TYPE(meq_setup) :: meqrec
-    double precision tpval(*),xknown(*),cpot(*)
+    double precision tpval(*),xknown(*),cpot(*),gval
     TYPE(gtp_equilibrium_data), pointer :: ceq
     logical tyst
 !\end{verbatim} %+
@@ -6358,6 +6366,14 @@ CONTAINS
     ceq%rtn=globaldata%rgas*tpval(1)
 ! iterate until equilibrium found for this phase
     call equilph1c(meqrec,meqrec%phr,tpval,xknown,cpot,ceq)
+!    write(*,*)'We are in equilph1b',gx%bmperr
+    gval=zero
+    if(gx%bmperr.eq.0) then
+       do ii=1,noel()
+          gval=gval+xknown(ii)*cpot(ii)
+!          write(*,*)'We are in equilph1b',gval
+       enddo
+    endif
 1000 continue
     return
   end subroutine equilph1b
@@ -6413,7 +6429,7 @@ CONTAINS
     if(gx%bmperr.ne.0) goto 1000
 ! debug output as the matrix had changed efter return from subroutine ...
 !    do nk=1,nz1
-!       write(*,111)'smat3: ',nk,(smat(nk,jj),jj=1,nz2)
+!       write(*,111)'smat4: ',nk,(smat(nk,jj),jj=1,nz2)
 !    enddo
 !    goto 1000
 ! solve the equilibrium matrix, some chemical potentials may be missing
@@ -6429,9 +6445,10 @@ CONTAINS
 103       format(a,3(1pe12.4))
           converged=7
        endif
+! use ovar below to correct constitutions.  Note ovar is chem.pot/RT
        ovar(jj)=svar(jj)
     enddo
-!    write(*,111)'svar: ',0,(svar(jj),jj=1,nz1)
+!    write(*,111)'svar4: ',0,(svar(jj),jj=1,nz1)
 111 format(a,i2,6(1pe12.4))
 ! check dxmol ... seems OK
 !    do nk=1,phr(1)%ncc
@@ -6449,7 +6466,7 @@ CONTAINS
     if(phr(jj)%xdone.eq.1) goto 1000
 !----------------------------------------------------
     ycormax2=zero
-!    write(*,*)'cc: ',jj
+!    write(*,*)'cc: ',jj,phr(jj)%ncc
 ! loop for all constituents
     moody: do nj=1,phr(jj)%ncc
        ys=zero
@@ -6460,13 +6477,20 @@ CONTAINS
 ! USE values in svar(nl)
 ! phr(jj)%dxmol(nl,nk) is the derivative of component nl
 ! wrt constituent nk
-             pv=pv+ceq%complist(nl)%chempot(1)/ceq%rtn*phr(jj)%dxmol(nl,nk)
-!             pv=pv+ceq%cmuval(nl)*phr(jj)%dxmol(nl,nk)
-!             pv=pv+svar(nl)*phr(jj)%dxmol(nl,nk)
+!             pv=pv+ceq%complist(nl)%chempot(1)/ceq%rtn*phr(jj)%dxmol(nl,nk)
+!             write(*,111)'pv1: ',nj,pv,ceq%complist(nl)%chempot(1),&
+! ovar(nl) is used instead of complist(nl)%chempot(1) as we do not want to
+! change the global values of the chemical potential
+             pv=pv+ovar(nl)*phr(jj)%dxmol(nl,nk)
+!             write(*,111)'pv1: ',nj,pv,ovar(nl),&
+!                  ceq%rtn,phr(jj)%dxmol(nl,nk)
           enddo
+!          write(*,119)'cph1: ',jj,nj,nk,ys,pv,phr(jj)%curd%dgval(1,nk,1),&
+!               phr(jj)%invmat(nj,nk)
+119       format(a,3i3,6(1pe12.4))
           pv=pv-phr(jj)%curd%dgval(1,nk,1)
           ys=ys+phr(jj)%invmat(nj,nk)*pv
-!          write(*,111)'pv: ',nj,ys,pv,phr(1)%curd%dgval(1,nk,1),&
+!          write(*,111)'pv2: ',nj,ys,pv,phr(1)%curd%dgval(1,nk,1),&
 !               phr(1)%invmat(nj,nk)
        enddo
        if(phr(jj)%chargebal.eq.1) then
@@ -6497,6 +6521,8 @@ CONTAINS
 !           endif
        endif
        yarr(nj)=phr(jj)%curd%yfr(nj)+ycorr(nj)
+!       write(*,119)'ycorr4: ',jj,nj,phr(jj)%chargebal,&
+!            yarr(nj),phr(jj)%curd%yfr(nj),ycorr(nj),ys
     enddo moody
 ! >>>>>>>>>>>>>>>>>> HERE the new constitution is set <<<<<<<<<<<<<<<<<<<<<
 !    write(*,112)'YC: ',jj,(ycorr(nj),nj=1,phr(jj)%ncc)
@@ -6607,7 +6633,7 @@ CONTAINS
     allocate(yarr(phr(1)%ncc))
     chargefact=one
     chargerr=one
-!    write(*,*)'We are in equilph1c: ',phr(1)%iph,phr(1)%ics,gx%bmperr
+!    write(*,*)'We are in equilph1e: ',phr(1)%iph,phr(1)%ics,gx%bmperr
 ! we have just one phase in phr, phr must be TARGET
     pmi=>phr(1)
 100 continue
@@ -6643,7 +6669,7 @@ CONTAINS
        endif
        ovar(jj)=svar(jj)
     enddo
-!    write(*,111)'svar: ',0,(svar(jj),jj=1,nz1)
+!    write(*,111)'svar3: ',0,(svar(jj),jj=1,nz1)
 111 format(a,i2,6(1pe12.4))
 ! check dxmol ... seems OK
 !    do nk=1,phr(1)%ncc

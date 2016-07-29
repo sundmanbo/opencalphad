@@ -505,7 +505,7 @@ CONTAINS
        if(mapline%number_of_equilibria.gt.10 .and. mapline%nodfixph.gt.0) then
 ! we have managed 3 steps, set phase at start node as entered (if dormant)
           if(meqrec%phr(mapline%nodfixph)%phasestatus.eq.PHDORM) then
-             write(*,*)'Phase set entered ',mapline%nodfixph
+!             write(*,*)'Phase set entered ',mapline%nodfixph
              meqrec%phr(mapline%nodfixph)%phasestatus=PHENTUNST
           endif
        endif
@@ -2837,8 +2837,8 @@ CONTAINS
 !                write(*,*)'Can be an invariant equilibrium!',mapline%nstabph
              endif
              mapnode%linehead(jj)%done=-1
-             write(*,106)jj,mapnode%seqx
-106          format('Removed exit ',i2,' from node: ',i3)
+             write(*,106)mapnode%linehead(jj)%lineid,jj,mapnode%seqx
+106          format('Removed line ',i2,', exit ',i3,' from node: ',i3)
              exit removexit
           endif
        enddo removexit
@@ -4654,6 +4654,107 @@ CONTAINS
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
+  subroutine calc_diagram_point(axarr,pltax,xxx,xxy,line,ceq)
+! calculates the equilibrium for axis coordinates xxx,xxy
+! axarr specifies calculation axis, pltax plot axis
+! xxx and xxy are axis coordinates for calculating a point
+! line is a character where the stable phases at the point is returned
+! ceq is the current equilibrium, should be the default with axis conditions
+! ONLY COORDINATES FOR CALCULATION AXIS ALLOWED
+    implicit none
+    type(map_axis), dimension(*) :: axarr
+    double precision xxx,xxy
+    character line*(*),pltax(*)*(*)
+    TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+    integer jax,nax,kk,jj,ic,k3
+    type(gtp_condition), pointer :: pcond
+    type(gtp_state_variable), pointer :: svrrec
+    double precision value
+    character dummy*24
+!
+!    write(*,*)'Not implemented yet'
+!    goto 1000
+!
+! We should check if plotaxis are the same as those used for calculation!!! 
+! x-axis
+    dummy=' '
+    if(xxx.lt.axarr(1)%axmin .or. xxx.gt.axarr(1)%axmax) then
+       write(*,11)'X value outside axis limits',xxx,&
+            axarr(1)%axmin,axarr(1)%axmax
+11     format(a,3(1pe14.5))
+       gx%bmperr=4399; goto 1000
+    endif
+    call locate_condition(axarr(1)%seqz,pcond,ceq)
+    if(gx%bmperr.ne.0) goto 1000
+! first argument 1 means to extract the value, 0 means to set the value
+    call condition_value(0,pcond,xxx,ceq)
+    if(gx%bmperr.ne.0) goto 1000
+    if(pcond%active.ne.0) then
+! active=0 means condition is active
+       pcond%active=0
+! we must indicate if T or P are now fixed ...
+!       if(pcond%statev.eq.1) then
+!          mapline%meqrec%tpindep(1)=.FALSE.
+!       elseif(pcond%statev.eq.2) then
+!          mapline%meqrec%tpindep(1)=.FALSE.
+!       endif
+    endif
+! y-axis
+    if(xxy.lt.axarr(2)%axmin .or. xxy.gt.axarr(2)%axmax) then
+       write(*,11)'Y value outside axis limits',xxy,&
+            axarr(2)%axmin,axarr(2)%axmax
+       gx%bmperr=4399; goto 1000
+    endif
+    call locate_condition(axarr(2)%seqz,pcond,ceq)
+    if(gx%bmperr.ne.0) goto 1000
+    call condition_value(0,pcond,xxy,ceq)
+    if(gx%bmperr.ne.0) goto 1000
+    if(pcond%active.ne.0) then
+! active=0 means condition is active
+       pcond%active=0
+! we must indicate if T or P are now fixed ... ??
+!       if(pcond%statev.eq.1) then
+!          mapline%meqrec%tpindep(1)=.FALSE.
+!       elseif(pcond%statev.eq.2) then
+!          mapline%meqrec%tpindep(1)=.FALSE.
+!       endif
+    endif
+! calculate the equilibrium without global minimization
+!    call list_conditions(kou,ceq)
+    call calceq3(0,.FALSE.,ceq)!
+    if(gx%bmperr.ne.0) then
+       write(*,*)'Calculation failed'
+       goto 1000
+    endif
+! extract the names of the stable phases
+    kk=1
+    do jj=1,noph()
+       do ic=1,noofcs(jj)
+          k3=test_phase_status(jj,ic,value,ceq)
+          if(k3.gt.0) then
+! this phase is stable or fix
+             call get_phase_name(jj,ic,dummy)
+             line(kk:)=dummy
+             kk=len_trim(line)+2
+!             write(*,*)'Stable phases ',trim(line)
+          endif
+       enddo
+    enddo
+! replace _ with - in phase names
+100 continue
+    kk=index(line,'_')
+    if(kk.gt.0) then
+       line(kk:kk)='-'
+       goto 100
+    endif
+1000 continue
+    return
+  end subroutine calc_diagram_point
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
   subroutine ocplot3B(same,nofinv,lineends,nx1,xval,ny1,yval,nz1,zval,plotkod,&
        pltax,lid,filename,graphopt,pform)
 !  subroutine ocplot3B(same,nofeq,lineends,nx1,xval,ny1,yval,nz1,zval,plotkod,&
@@ -4664,7 +4765,7 @@ CONTAINS
 ! filename is intermediary file (maybe not needed)
 ! maptop is map_node record with all results
 ! pform is type of output (screen or postscript or gif)
-!    implicit none
+    implicit none
 !    integer ndx
     character pltax(*)*(*),filename*(*),pform*(*),lid(nx1,*)*(*)
 !    type(map_axis), dimension(*) :: axarr

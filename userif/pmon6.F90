@@ -111,7 +111,8 @@ contains
     integer iel,iph,ics,ieq,idef
 ! for gradients in MU and interdiffusivities
     integer nend
-    double precision mugrad(100),mobilities(20)
+! dimension of mugrad for 16x16 matrix 
+    double precision mugrad(300),mobilities(20)
 !-------------------
 ! selection of minimizer and optimizer
     integer minimizer,optimizer
@@ -370,7 +371,7 @@ contains
          'It includes the General Thermodynamic Package, version ',A/&
          "and Hillert's equilibrium calculation algorithm version ",A/&
          'and step/map/plot software version ',A/&
-         'and LMDIF (1980) from Argonne is used by the assessment procedure'/)
+      'and LMDIF from ANL (Argonne, USA) is used by the assessment procedure'/)
 !
 !$    write(kou,11)
 11  format('Linked with OpenMp for parallel execution')
@@ -942,10 +943,11 @@ contains
 ! use current T and P
              if(kom3.eq.4) then
 ! constituent adjustment, the FALSE means not quiet
-                call equilph1b(phtup,ceq%tpval,xknown,yarr,.FALSE.,ceq)
+                call equilph1b(phtup,ceq%tpval,xknown,xxx,yarr,.FALSE.,ceq)
                 if(gx%bmperr.ne.0) goto 990
-                write(kou,2087)(yarr(nv),nv=1,noel())
-2087            format('Calculated chemical potentials/RT:'/6(1pe12.4))
+                write(kou,2087)xxx,(yarr(nv),nv=1,noel())
+2087            format('Calculated Gibbs energy/RT: ',1pe14.6,&
+                     ' and the chemical potentials/RT:'/6(1pe12.4))
              else
 !.............................................
 ! calculate chem.pot derivatives and mobilities
@@ -961,6 +963,8 @@ contains
                 write(kou,2096)nend
 2096            format('Chemical potential derivative matrix, dG_I/dn_J for ',&
                      i3,' endmembers')
+                write(kou,2094)(nv,nv=1,nend)
+2094            format(3x,6(6x,i6)/(3x,6i12))
                 do nv=0,nend-1
                    write(kou,2095)nv+1,(mugrad(nend*nv+jp),jp=1,nend)
 2095               format(i3,6(1pe12.4)/(3x,6e12.4))
@@ -3881,70 +3885,91 @@ contains
 !-----------------------------------------------------------
 ! PLOT TEXT 
        case(13)
-          call gparcd('Modify existing text?',cline,last,1,ch1,'NO',q1help)
-          if(ch1.eq.'y' .or. ch1.eq.'Y') then
-             labelp=>graphopt%firsttextlabel
-             jp=0
-             do while(associated(labelp))
-                jp=jp+1
-                write(kou,2310)jp,labelp%xpos,labelp%ypos,labelp%textline
-2310            format(i3,2(1pe12.4),5x,a)
-                labelp=>labelp%nexttextlabel
-             enddo
-             call gparid('Which text index?',cline,last,kl,1,q1help)
-             if(kl.lt.1 .or. kl.gt.jp) then
-                write(*,*)'No such text label'
-                goto 100
-             endif
-             labelp=>graphopt%firsttextlabel
-             do jp=2,kl
-                labelp=>labelp%nexttextlabel
-             enddo
-             call gparcd('New text: ',cline,last,5,text,labelp%textline,q1help)
-             labelp%textline=trim(text)
-             call gparrd('New X position: ',cline,last,xxx,labelp%xpos,q1help)
-             call gparrd('New Y position: ',cline,last,xxy,labelp%ypos,q1help)
-             if(buperr.ne.0) then
-                write(*,*)'Error reading coordinates'; goto 100
-             endif
-             labelp%xpos=xxx
-             labelp%ypos=xxy
-          else
-             call gparrd('X position: ',cline,last,xxx,zero,q1help)
-             call gparrd('Y position: ',cline,last,xxy,zero,q1help)
-             if(buperr.ne.0) then
-                write(*,*)'Error reading coordinates'; goto 100
-             endif
-             line=' '
-             if(noofaxis.gt.1) then
-! add the question now not to break future macro files
-                call gparc('Do you want to calculate the equilibrium? ',&
-                  cline,last,1,ch1,' ',q1help)
-                if(ch1.eq.'y' .or. ch1.eq.'Y') then
-                   write(*,*)'Sorry, not implemented yet'
-! when implemented add the stable phase names to "Line" as default for text
+          labelp=>graphopt%firsttextlabel
+          if(associated(labelp)) then
+             call gparcd('Modify existing text?',cline,last,1,ch1,'NO',q1help)
+             if(ch1.eq.'y' .or. ch1.eq.'Y') then
+                jp=0
+                do while(associated(labelp))
+                   jp=jp+1
+                   write(kou,2310)jp,labelp%xpos,labelp%ypos,labelp%textline
+2310               format(i3,2(1pe12.4),5x,a)
+                   labelp=>labelp%nexttextlabel
+                enddo
+                call gparid('Which text index?',cline,last,kl,1,q1help)
+                if(kl.lt.1 .or. kl.gt.jp) then
+                   write(*,*)'No such text label'
+                   goto 100
                 endif
-             endif
-             call gparc('Text: ',cline,last,5,text,line,q1help)
-             if(text(1:1).eq.' ') then
-                write(*,*)'Label ignored'
+                labelp=>graphopt%firsttextlabel
+                do jp=2,kl
+                   labelp=>labelp%nexttextlabel
+                enddo
+                call gparcd('New text: ',cline,last,5,text,&
+                     labelp%textline,q1help)
+                labelp%textline=trim(text)
+                call gparrd('New X position: ',cline,last,xxx,&
+                     labelp%xpos,q1help)
+                call gparrd('New Y position: ',cline,last,xxy,&
+                     labelp%ypos,q1help)
+                if(buperr.ne.0) then
+                   write(*,*)'Error reading coordinates'; goto 100
+                endif
+                labelp%xpos=xxx
+                labelp%ypos=xxy
+! ask for more options
                 goto 21100
              endif
-! I know one should never allocate pointers but this is the only way ???
-             allocate(textlabel)
-             textlabel%xpos=xxx
-             textlabel%ypos=xxy
-             textlabel%textline=trim(text)
-             if(associated(graphopt%firsttextlabel)) then
-                textlabel%nexttextlabel=>graphopt%firsttextlabel
-                write(*,*)trim(graphopt%firsttextlabel%textline)
-             else
-                nullify(textlabel%nexttextlabel)
-             endif
-             graphopt%firsttextlabel=>textlabel
-! the record is now linked from graphopt, nullify the pointer ...
-             nullify(textlabel)
           endif
+! input a new label
+          call gparrd('X position: ',cline,last,xxx,zero,q1help)
+          call gparrd('Y position: ',cline,last,xxy,zero,q1help)
+          if(buperr.ne.0) then
+             write(*,*)'Error reading coordinates'; goto 100
+          endif
+          line=' '
+          if(noofaxis.eq.2) then
+! Calculate the equilibria at the specific point
+             write(kou,*)'This is possible only when you plot with'//&
+                  ' the same axis as you calculated!'
+             call gparcd('Do you want to calculate the equilibrium? ',&
+                  cline,last,1,ch1,'Y',q1help)
+             if(ch1.eq.'y' .or. ch1.eq.'Y') then
+! Check if plotted diagram (axplot) has same axis as calculated (axarr)??
+! Or better, calculate using the plot axis ...
+                line=' '
+                call calc_diagram_point(axarr,axplot,xxx,xxy,line,ceq)
+                if(gx%bmperr.ne.0) then
+                   write(*,*)'Calculation failed ',gx%bmperr
+                   gx%bmperr=0
+                   line=' '
+                endif
+! when implemented add the stable phase names to "line" as default for text
+             endif
+          endif
+! There is no gparcd which allows editing the existing text ... emacs!!
+          call gparcd('Text: ',cline,last,5,text,line,q1help)
+          if(text(1:1).eq.' ') then
+             write(*,*)'Label ignored'
+             goto 21100
+          endif
+! I know one should never allocate pointers but this is the only way ???
+          allocate(textlabel)
+          textlabel%xpos=xxx
+          textlabel%ypos=xxy
+          textlabel%textline=trim(text)
+          if(associated(graphopt%firsttextlabel)) then
+             textlabel%nexttextlabel=>graphopt%firsttextlabel
+             write(*,*)trim(graphopt%firsttextlabel%textline)
+          else
+             nullify(textlabel%nexttextlabel)
+          endif
+          graphopt%firsttextlabel=>textlabel
+! the record is now linked from graphopt, nullify the pointer ...
+          nullify(textlabel)
+! also clean the cline character otherwise labels may be overwritten
+          cline=' '
+          last=len(cline)
           goto 21100
 !-----------------------------------------------------------
 ! PLOT TIE_LINES increment
@@ -3955,7 +3980,7 @@ contains
           write(*,*)'No implemented yet'
           goto 21100
 !-----------------------------------------------------------
-! PLOT KEEP
+! PLOT KEEP does not work ...
        case(15)
           if(btest(graphopt%status,GRKEEP)) then
              graphopt%status=ibclr(graphopt%status,GRKEEP)
@@ -4730,31 +4755,3 @@ contains
 
 END MODULE cmon1oc
 
-! ====================================================================
-! Feature:
-! Parameters that depend on a constituent like mobilities and the new
-! Bohr magneton number.  Previously only average Bohr magneton numbers
-! have been used.
-! The Bohr magneton number of Fe in FCC can be a function of composition i.e.
-! BMAGN&FE(BCC) = x_Fe*BMAGN&FE(BCC,FE)+x_CR*BMAGN&FE(BCC,CR)+
-!                 X_FE*X_CR*BMAGN(BCC,CR,FE)+ ...
-! A similar function BMAGN&CR(BCC)= ....
-! The identifications "&FE" or "&CR" are stored in the property record.
-!
-! Each property has a unique number but usually only a few are needed
-! When calculating for a phase the there is an internal propertytype counter
-! incremented for each property found.  This keeps track of the actual
-! property that has been calculated for each value of the property counter.
-! Property type 1 is always the Gibbs energy.
-!
-! ===========================================================
-! Parallellizing
-! Fraction values may be different for the same phase if there are
-! parallell calculation of equilibria.  
-! Note that the number of sites for a sublattice are normally static 
-! but for ionic liquids they are dynamic.
-! Function values must also be stored separate in each thread
-! as they are calculated for different values of T and P.
-! The error code must be separate in each thread as it may
-! not be fatal but can be handelled by the process
-! 

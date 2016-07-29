@@ -82,6 +82,7 @@ enter param GD(part,Fe,Ni;2),,LD2; 6000 N test
 
 list data ,,
 
+
 @$ we have to create composition sets manually
 
 @$ this is by default Fe3Ni_L12
@@ -106,7 +107,7 @@ amend phase part comp-set y , ,
 >.5 <.2
 
 
-set c t=400 p=1e5 n=1 x(fe)=.3
+set c t=400 p=1e5 n=1 x(ni)=.7
 
 c e
 
@@ -115,7 +116,7 @@ l r 2
 
 @&
 
-set ax 1 x(fe) 0 1 ,,,,
+set ax 1 x(ni) 0 1 ,,,,
 
 step sep
 
@@ -139,7 +140,6 @@ x(ni)
 y(part#4,*)
 title step4 fig 2
 
-
 plot
 
 
@@ -148,166 +148,7 @@ position outside right
 render
 
 
-@&
-@$ ========================================================
-@$ Now something different
-@$ 
-@$ During a phase field simulation one may use mole fractions
-@$ to calculate diffusion also for ordered phases. To find
-@$ how the CONSTITUTION changes in an ordered phase when
-@$ the MOLE FRACTION changes one must minimize the
-@$ Gibbs energy for that phase.  
-@$ There is a special command (and subroutine) to calculate 
-@$ the constitution of a phase for a given set of mole fractions
-@$ which could be useid when for a gridpoint with just one
-@$ stable phase.  This command also gives the chemical potentials.
-@$
-@$ This is a way to avoid a full equilibrium calculation 
-@$ but if there are two or more phases stable at the gridpoint
-@$ one must do that in order to determine the phase amounts.
-@$ However, an equilibrium calculation is sometimes needed to 
-@$ find the most stable configuration ...
-@&
-@$ We use the current ordered FCC as an example, first
-@$ calculate a full equilibrium at T=400 K and x(fe)=.27
-
-l sh a
-
-set c x(fe)=.27
-
-l c
-
-c e
-
-l,,,,
-
-@$
-@$ At this composition and T we have an L1_2 ordered fcc phase
-@&
-@$ ============================================================
-@$ Now calculate for a single phase with mole fraction Fe 0.26
-
-calc phase 
-part 
-1 
-y 
-con
-.26
-
-@$
-@$ Note the chemical potentials/RT above
-@$ they are different the equilibrium listing higher up
-@$ The value of G is also different but as it is divided by RT
-@$ it is not so easy to compare
-@&
-@$ If we list the full equilibrium we get a warning
-
-l,,,
-
-@$
-@$ because the constitution and composition listed is from the 
-@$ single phase calculation whereas the conditions on the 
-@$ composition and chemical potentials and the Gibbs energy
-@$ has not changed and are inconsistent.
-@&
-@$ If we set the condition of Fe and calculate
-
-set c x(fe)=.26
-
-c e
-
-l,,,,,
-
-@$ then we get the same chemical potentials/RT
-@&
-@$ ============================================================
-@$ Try a calculate phase with a different composition, x(fe)=.49
-@$ 
-calc phase 
-part 
-1 
-y 
-con
-.49
-
-l,,,
-
-@$
-@$ The phase is still L1_2 ordered as the calculation
-@$ used the previous constitution as start values.  
-@$ Note the Gibbs energy/RT= -3.0747
-@&
-@$ ============================================================
-@$ To have the fcc L1_0 ordered we have to give a start constitution
-@$ NOTE it is important to start from extreme ordering
-
-calc phase 
-part 
-1 
-n
-.01
-.01
-.99
-.99
-con
-.49
-
-l,,,
-
-@$
-@$ Now the fcc phase is L1_0 ordered 
-@$ and the Gibbs energy/RT is more negative, -3.1546
-@$
-@$ NOTE: If you start from a less ordered state like 0.1/0.9 
-@$ you may find a less stable L1_2 phase.
-@&
-@$ ============================================================
-@$ Calculate also setting start constitution as disordered
-
-calc phase 
-part 
-1 
-n
-.5
-.5
-.5
-.5
-con
-.49
-
-l,,,
-
-
-@$
-@$ The Gibbs energy/RT is -3.1150
-@$ so the L1_0 ordered state is more stable than the
-@$ disordered which is more stable than the L1_2
-@&
-@$ ============================================================
-@$ A full equilibrium calculation is sometimes necessary to
-@$ determine the most stable configuration of a single phase
-@$ using the grid minimizer (or manually set start constitutions)
-@$ We can check what the grid minimizer gives for x(Fe)=0.49
-
-set c x(fe)=.49
-
-c e
-
-l,,,,
-
-
-@$ But again, 
-@$ sometimes one may want to use a metastable state...
-
 set inter
-
-@$ ============================================================
-@&
-@$ 
-
-@$ 
-@&
-@$ 
 
 
 

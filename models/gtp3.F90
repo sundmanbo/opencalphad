@@ -600,7 +600,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        '                                                                ',&
        '                                                                ',&
        '                                                                ',&
-       '                                                                '/
+       'No message assigned                                             '/
 ! last used error codes above
 !
 !=================================================================
