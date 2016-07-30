@@ -137,14 +137,22 @@ title step 4 fig 1
 plot
 x(ni)
 y(part#4,*)
-title step4 fig 2
+title step4 fig 2 L1_2
 
 
 plot
 
 
-title step4 fig 3
-position outside right
+title step4 fig 3 L1_2
+position top left
+render
+
+@$ The constitution of the L1_0 phase (AlNi)
+plot
+
+y(part#3,*)
+title step4 fig 4 L1_0
+position top left
 render
 
 

@@ -18,11 +18,13 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
-2016.07.27 A number of small features added.  Isothermal ternary
+2016.07.30 A number of small features added.  Isothermal ternary
 diagrams have their invariants plotted.  One can select a point in a
 phase diagram and add a text, by default the stable phases from an
-equilibrium calculating at that point.  A bug when calculating the
-constitution of an ordered phase for a given composition fixed.
+equilibrium calculation at that point.  When plotting the constitution
+of a phase all other phases are ignored, previously they added spurios
+lines.  A bug when calculating the constitution of an ordered phase
+for a given composition fixed.
 
 2016.07.19 I have implemented that the MAP command checks if the
 equilibrium at a node point is a global minimum and if not the line

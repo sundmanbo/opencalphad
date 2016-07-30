@@ -3992,6 +3992,7 @@ CONTAINS
   integer function invariant_equilibrium(lines,mapnode)
 ! Only called for tie-lines not in plane.  If tie-lines in plane then all
 ! nodes are invariants.
+! UNFINISHED
     integer lines
     type(map_node), pointer :: mapnode
 !\end{verbatim}
@@ -5070,6 +5071,7 @@ CONTAINS
 !       write(*,*)'Graphics output file: ',pfh(1:kk+4)
 !    endif
     if(btest(graphopt%status,GRKEEP)) then
+       write(*,*)'Trying to spawn'
        call system(gnuplotline(9:))
     else
        call system(gnuplotline)
@@ -5109,16 +5111,17 @@ CONTAINS
     integer, dimension(:), allocatable :: nonzero,linzero,linesep
 !    integer, dimension(:), allocatable :: linesep
 ! encoded2 stores returned text from get_many ... 2048 is too short ...
-    character statevar*64,encoded1*64,encoded2*4096
+! selphase used when plotting data just for a selected phase like y(fcc,*)
+    character statevar*64,encoded1*64,encoded2*4096,selphase*24
     character*64, dimension(:), allocatable :: phaseline
     integer i,ic,jj,k3,kk,kkk,lokcs,nnp,np,nrv,nv,nzp,ip,nstep,nnv
     integer nr,line,next,seqx,nlinesep,ksep,iax,anpax,notanp,appfil
     double precision xmax,xmin,ymax,ymin,value,anpmin,anpmax
 ! lhpos is last used position in lineheader
-    integer giveup,nax,ikol,maxanp,lcolor,lhpos,repeat,anpdim
+    integer giveup,nax,ikol,maxanp,lcolor,lhpos,repeat,anpdim,qp
     character date*8,mdate*12,title*128,backslash*2,lineheader*1024
     character deftitle*128,labelkey*64
-    logical overflow,first,last
+    logical overflow,first,last,novalues,selectph
 ! textlabels
     type(graphics_textlabel), pointer :: textlabel
 ! line identification (title)
@@ -5186,7 +5189,9 @@ CONTAINS
     ymax=-1.0D20
     maxanp=1000
     np=maxanp
+    qp=1
     wildcard=.FALSE.
+    selectph=.FALSE.
     do iax=1,2
 !       write(*,*)'Allocating for axis: ',iax
        call capson(pltax(iax))
@@ -5207,6 +5212,20 @@ CONTAINS
           nonzero=0
           wildcard=.TRUE.
           anpax=iax
+! when we plot things like y(fcc,*) we should only select equilibria
+! with fcc stable. Such state variables contain a ","
+          ikol=index(pltax(iax),',')
+          if(ikol.gt.0) then
+! if the * is after the , then extract the phase name before             
+             if(pltax(iax)(ikol+1:ikol+1).eq.'*') then
+                nrv=index(pltax(iax),'(')
+                if(nrv.lt.ikol) then
+                   selphase=pltax(iax)(nrv+1:ikol-1)
+!                   write(*,*)'Selected phase: ',trim(selphase)
+                   selectph=.TRUE.
+                endif
+             endif
+          endif
        endif
     enddo
     if(.not.wildcard) then
@@ -5248,6 +5267,8 @@ CONTAINS
 !------------------------------------------- begin loop 100
 100    continue
        mapline=>localtop%linehead(line)
+! initiate novalues to false for each line
+       novalues=.false.
 !       write(*,*)'In ocplot2, looking for segmentation fault 3'
 ! skip line if EXCLUDEDLINE set
        if(btest(mapline%status,EXCLUDEDLINE)) then
@@ -5297,6 +5318,19 @@ CONTAINS
                    if(k3.gt.0) then
 ! this phase is stable or fix
                       call get_phase_name(jj,ic,dummy)
+                      if(gx%bmperr.ne.0) goto 1000
+                      if(selectph) then
+! this is an attempt to remove lines from irrelevant equilibria when plotting
+! data for a specific phase like y(fcc#4,*)
+                         if(abbr_phname_same(dummy,trim(selphase))) then
+                            novalues=.FALSE.
+!                            write(*,*)'Setting novalues FALSE',mapline%lineid
+                         else
+                            novalues=.TRUE.
+!                            write(*,*)'Setting novalues TRUE',mapline%lineid
+                         endif
+                      endif
+! I think this phaseline is no longer used ??
                       phaseline(nlinesep)(kk:)=dummy
                       kk=len_trim(phaseline(nlinesep))+2
                    endif
@@ -5328,13 +5362,23 @@ CONTAINS
 ! second axis
           statevar=pltax(anpax)
           if(wildcard) then
-!             write(*,*)'Getting a wildcard value 1: ',nr,statevar(1:20)
-             call get_many_svar(statevar,yyy,nzp,np,encoded2,curceq)
+! NEW ignore data for this equilibrium if NOVALUES is TRUE
+! because selphase not equal to the stable phase found above
+             if(novalues) then
+!                write(*,*)'Ignoring equilibria without ',trim(selphase)
+                yyy=zero
+                np=1
+             else
+!                write(*,*)'Getting a wildcard value 1: ',nr,trim(statevar)
+                call get_many_svar(statevar,yyy,nzp,np,encoded2,curceq)
+                qp=np
 !             write(*,*)'wildcard value 1: ',nr,trim(statevar)
-!             write(*,*)'Values: ',np,(yyy(i),i=1,np)
-             if(gx%bmperr.ne.0) then
-                write(*,*)'yaxis error: "',trim(statevar),'"'
-                goto 1000
+!                write(*,223)'Values: ',np,(yyy(i),i=1,np)
+223             format(a,i3,8F8.4)
+                if(gx%bmperr.ne.0) then
+                   write(*,*)'yaxis error: "',trim(statevar),'"'
+                   goto 1000
+                endif
              endif
 !             write(*,213)trim(encoded2),np,(yyy(ic),ic=1,np)
 213          format('windcard: ',a,i3,6(1pe12.4))
@@ -5509,7 +5553,7 @@ CONTAINS
                       nv=nv-3
                       goto 225
 !----------------------------------
-! code until label 222 redundant
+! code below until label 222 redundant
                       np=1
                       call meq_get_state_varorfun_value(statevar,&
                            value,encoded1,curceq)
@@ -5649,7 +5693,10 @@ CONTAINS
 !       write(*,*)'Now remove colums with just zeros',nv,nrv
 !       read(*,17)ch1
        ic=0
-       nnp=np
+! if a selected phase has been plotten np and qp may be different
+! select the largest!
+       nnp=max(np,qp)
+!       write(*,*)'wildcard 3: ',wildcard,np,qp,nnp
 !------------------------------------------ begin loop 650
 650    ic=ic+1
 660       continue
@@ -5657,12 +5704,12 @@ CONTAINS
           if(nonzero(ic).eq.0) then
 ! shift all values from ic+1 to np
              if(nnp.ge.maxanp) then
-                write(kou,*)'Too many points in anp array',maxanp,nv
+                write(kou,*)'Too many points in anp array 1',maxanp,nv,nnp
                 overflow=.TRUE.
                 nnp=maxanp
              endif
              if(nv.ge.maxval) then
-                write(kou,*)'Too many points in anp array',maxval,nv
+                write(kou,*)'Too many points in anp array 2',maxval,nv
                 overflow=.TRUE.
                 nv=maxval
              endif
@@ -5678,7 +5725,10 @@ CONTAINS
              goto 660
           endif
 ! there is no more space in arrays to plot
-          if(overflow) goto 690
+          if(overflow) then
+             write(*,*)'overflow',nv,nnp
+             goto 690
+          endif
           goto 650
 !------------------------------------------ end loop 650
 ! nnp is the number of columns to plot
@@ -5686,7 +5736,7 @@ CONTAINS
 690 continue
        nrv=nv
        np=nnp
-       goto 800
+!       goto 800
 !============================================ generate gnuplot file
 800 continue
     write(*,808)np,nv,maxanp,maxval
@@ -5738,12 +5788,10 @@ CONTAINS
 !    write(*,*)'We are at 2000 '
 !----------------------------------------------------------------------
 !
-!  end subroutine ocplot2
-! all code below moved to subroutine above
     call ocplot2B(np,nrv,nlinesep,linesep,pltax,xax,anpax,anpdim,anp,lid,&
          title,filename,graphopt,pform)
 !    goto 900
-! deallocate, not really needed for local arrays
+! deallocate, not really needed for local arrays ??
     deallocate(anp)
     deallocate(xax)
     deallocate(linesep)
@@ -5861,10 +5909,6 @@ CONTAINS
 !       write(*,1505)textlabel%textline(1:jj),textlabel%xpos,textlabel%ypos
        textlabel=>textlabel%nexttextlabel
     enddo
-!----------------------
-    backslash=',\'
-    lcolor=1
-!    write(*,*)'backslash "',backslash,'" '
 !---------------------------------------------------------------
 ! handle appended files here ....
 !
@@ -5930,6 +5974,9 @@ CONTAINS
 1770   continue
     endif
 !---------------------------------------------------------------
+    backslash=',\'
+    lcolor=1
+!    write(*,*)'backslash "',backslash,'" '
     if(anpax.eq.2) then
 ! anpax=2 means the single valued axis is colum 2 and possibly multiple
 ! values in column 3 and higher
@@ -6077,18 +6124,12 @@ CONTAINS
 ! call system without initial "gnuplot " keeps the window !!!
     if(btest(graphopt%status,GRKEEP)) then
 !       write(*,*)'plot command: "',gnuplotline(9:k3),'"'
+       write(*,*)'Trying to spawn'
        call system(gnuplotline(9:k3))
     else
 !       write(*,*)'plot command: "',gnuplotline(1:k3),'"'
        call system(gnuplotline)
     endif
-! deallocate, not really needed for local arrays
-!    deallocate(anp)
-!    deallocate(xax)
-!    deallocate(linesep)
-!    if(allocated(yyy)) then
-!       deallocate(yyy)
-!       deallocate(nonzero)
 1000 continue
     return
   end subroutine ocplot2B
@@ -6369,6 +6410,47 @@ CONTAINS
 1000 continue
     return
   end subroutine step_separate
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+  logical function abbr_phname_same(full,short)
+! return TRUE if short is a correct abbreviation if full
+    implicit none
+    character*(*) full,short
+    logical same
+    integer k1,k2
+    character*1 ch1,ch2
+!    write(*,*)'Comparing ',trim(full)//' : '//trim(short)
+    same=.false.
+! unequal if full has no # or different index after
+    k1=index(short,'#')
+    if(k1.gt.0) then
+       k2=index(full,'#')
+       if(k2.le.0) then
+! if short has #1 then the full phase without # should be accepted
+!          write(*,*)'no compset:  ',short(k1+1:k1+1),k2
+! I DO NOT UNDERSTAND THIS EITHER
+!          if(short(k1+1:k1+1).ne.'1') then
+!             goto 1000
+!          endif
+          goto 1000
+       else
+          ch1=short(k1+1:k1+1)
+          ch2=full(k2+1:k2+1)
+!       write(*,*)'compset: ',k1,k2,'  ',ch1,' ',ch2
+! I DO NOT UNDERSTAND !!!  it should ne .ne. !!!
+!       if(ch1.ne.ch2) goto 1000
+          if(ch1.eq.ch2) goto 1000
+       endif
+    endif
+! if short is without # then all compsets match
+    if(compare_abbrev(short,full)) then
+       same=.true.
+    endif
+1000 continue
+    return
+    abbr_phname_same=same
+  end function abbr_phname_same
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

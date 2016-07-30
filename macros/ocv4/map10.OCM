@@ -32,11 +32,20 @@ plot
 
 
 title map 10 fig 1
+
+plot
+
+
+title map 10 fig 2
 text
 0.47
 0.07
 n
 {/Symbol s}
+text n 0.6 0.02 y
+
+text n 0.5 0.25 y
+
 
 
 @$ There is no Gibbs triagle diagram option yet either.
