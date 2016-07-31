@@ -124,9 +124,8 @@ l r 2
 
 @&
 
-set ax 1 x(ni) 0 1 ,,,,
+set ax 1 x(ni) 0 1 0.01
 
-@$ we have to take very small T steps
 set ax 2 t 10 1000 10
 
 

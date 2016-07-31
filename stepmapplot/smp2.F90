@@ -224,7 +224,7 @@ MODULE ocsmp
 ! filename is intermediary file (maybe not needed)
 ! maptop is map_node record with all results
 ! form is type of output (screen or postscript or gif)
-     integer status,rangedefaults(3)
+     integer :: status=0,rangedefaults(3)=0,axistype(2)=0
      double precision, dimension(3) :: plotmin,plotmax
      double precision, dimension(3) :: dfltmin,dfltmax
 ! labeldefaults 0 if default, 1 if text provided in plotlabels
@@ -843,7 +843,7 @@ CONTAINS
     nullify(tmpnode)
 ! replace all but one axis conditions with fix phases.  In ceq we have
 ! a calculated equilibrium with all conditions. make sure it works
-! (no global minimization).  We will save the meq_setup record!
+! (without global minimization).  We will save the meq_setup record!
     allocate(meqrec)
 ! We must use mode=-1 for map_replaceaxis below has to calculate several equil
 ! and the phr array must not be deallocated.  mapfix will be used later to
@@ -932,8 +932,8 @@ CONTAINS
             axactive,ieq,&
             tmpline(1)%linefixph(1)%phaseix,tmpline(1)%linefixph(1)%compset,&
             tmpline(1)%stableph(1)%phaseix,tmpline(1)%stableph(1)%compset
-205   format(a,3i5,5x,2(2i3))
-      if(gx%bmperr.ne.0) goto 1000
+205    format(a,3i5,5x,2(2i3))
+       if(gx%bmperr.ne.0) goto 1000
     else
 ! only one axis, i.e. a step command, create a map_node record with 2 lines
        axactive=1
@@ -1179,7 +1179,7 @@ CONTAINS
     type(map_line), dimension(2) :: tmpline
     integer inactive(*)
 !\end{verbatim}
-    integer iph,jph,naxvar,iax,tip,jj,jax,irem,iadd,kj
+    integer iph,jph,naxvar,iax,tip,jj,jax,irem,iadd,kj,nrel
     integer ics,lokph,lokcs,kph,kcs
     double precision aval,avalm
     type(gtp_condition), pointer :: pcond
@@ -1187,15 +1187,45 @@ CONTAINS
 ! turns off converge control for T
     integer, parameter :: inmap=1
 !
+    nrel=noel()
     tip=tieline_inplane(nax,axarr,ceq)
     if(gx%bmperr.ne.0) goto 1000
     if(ocv()) write(*,*)'In map_replaceaxis ',tip
+!-----------------------------------------------------------------
+! check if start point is an invariant equilibria, can easily happen in 
+! ternary isotherms
+    if(inveq(jj,ceq)) then
+       if(tip.gt.0) then
+! ignore this for less than 3 components
+          if(nrel.eq.3) then
+! we are in an isothermal triangle, 3 startlines
+             write(*,*)'Start equilibrium is invariant',jj
+             ieq=3
+!             goto 1000
+          elseif(nrel.gt.3) then
+! I do not know what kind of equilibrium this is
+             write(*,160)
+160          format('Start equilibrium invariant with tie-lines in plane',&
+                  ' but not 3 components'/'I do not know how to handle this')
+             gx%bmperr=4399
+             goto 1000
+          endif
+       else
+! start equilibrium for a system without tie-lines in plane is invariant
+! a rare case
+          write(*,161)
+161       format('Start equilibrium invariant without tie-lines in plane'/&
+               'I do not know how to handle this')
+          gx%bmperr=4399
+          goto 1000
+       endif
+    endif
     naxvar=nax
 ! zero the number of fix phases and allocate data for those needed
     tmpline%nfixphases=0
     allocate(tmpline(1)%linefixph(naxvar-1))
-    tieline_in_plane: if(tip.eq.1) then
 !========================================================== tie-lines in plane
+    tieline_in_plane: if(tip.eq.1) then
 ! We have tie-lines in the plane, only one stable phase in addition to fix
        allocate(tmpline(1)%stableph(1))
        allocate(tmpline(1)%stablepham(1))
@@ -1337,7 +1367,7 @@ CONTAINS
        endif stablephases
 ! ============================================= no tie-lines in plane
     else !tie-lines NOT in the plane
-! am am not sure what stableph and axis_withnocond are used for ...
+! I am not sure what stableph and axis_withnocond are used for ...
 !       allocate(tmpline(1)%stableph(1)) this is allocated in map_startline
        allocate(axis_withnocond(nax))
        axis_withnocond=0
@@ -2367,7 +2397,7 @@ CONTAINS
     type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
     type(gtp_condition), pointer :: lastcond,pcond
-    integer iremsave,iaddsave,iph,ics,jj,jph,kph,phfix,seqx,jax
+    integer iremsave,iaddsave,iph,ics,jj,jph,kph,phfix,seqx,jax,haha
     integer what,type,cmix(10),maxstph,noplot,mode
     double precision, parameter :: addedphase_amount=1.0D-2
     double precision value,axval,axvalsave
@@ -2565,7 +2595,7 @@ CONTAINS
 !         irem,iadd,phfix,pcond%statev,mapline%problems,axval
 54  format(a,2i5,5i3,1pe12.4)
     if(maptop%tieline_inplane.gt.0) then
-! if <0 ispleth, 0 step, >0 tie-lines in plane
+! if <0 isopleth, 0 step, >0 tie-lines in plane
 !       write(*,*)'Tie-lines in plane:'
 ! if T axis maybe change to extensive axis ...
     endif
@@ -2621,8 +2651,17 @@ CONTAINS
 ! time to test if the current equilibrium is the global one.  We can use
 ! a temporary ceq record and chech the set of phases and chemical potentials
 !
-! >>> add test of the global equilibrium here
+! >>> add test of the global equilibrium here ... it has been added elsewhere
 !
+    haha=0
+    if(maptop%tieline_inplane.lt.0) then
+! test if invariant ...
+       if(inveq(haha,ceq)) then
+          write(*,*)'Invariant equilibrium ignored',haha
+! haha is set to number of stable phases at invariant.
+! the number of lines ending at this is 2*haha
+       endif
+    endif
 ! NOTE that after a global equilibrium new composition set can have been
 ! created ... that should not be allowed unless they are really stable ...
 ! and one may have the same phases but different composition sets ... it
@@ -2741,7 +2780,7 @@ CONTAINS
 !
 ! Finally create the new node and with new lines
 !    write(*,*)'calling map_newnode: ',mapline%meqrec%nfixph,meqrec%nfixph
-    call map_newnode(mapline,meqrec,maptop,axval,jax,axarr,phfix,ceq)
+    call map_newnode(mapline,meqrec,maptop,axval,jax,axarr,phfix,haha,ceq)
     if(gx%bmperr.ne.0) then
        if(ocv()) write(*,*)'Error return from map_newnode: ',gx%bmperr
     endif
@@ -2753,18 +2792,19 @@ CONTAINS
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
-  subroutine map_newnode(mapline,meqrec,maptop,axval,lastax,axarr,phfix,ceq)
+  subroutine map_newnode(mapline,meqrec,maptop,axval,lastax,axarr,&
+       phfix,haha,ceq)
 ! must be partially THREADPROTECTED
 ! first check if a node with this equilibrium already exists
 ! if not add a new node with appropriate lineheads and arrange all links
-! Take care it tie-lines in the plane all lines do not have to be calculated
+! Take care if tie-lines in the plane all lines do not have to be calculated
 ! NOTE: meqrec not the same as mapline%meqrec !! ??
     type(map_node), pointer :: maptop
     type(meq_setup) :: meqrec
     type(map_line), pointer :: mapline,nodexit
     type(map_axis), dimension(*) :: axarr
     type(gtp_equilibrium_data), pointer :: ceq
-    integer phfix,lastax
+    integer phfix,lastax,haha
 ! axval is axis value which was attemped to calculate, 
     double precision axval
 !\end{verbatim}
@@ -2951,10 +2991,17 @@ CONTAINS
 ! mapping with tie-lines in plane. Always 3 lines ... 2 new exits ??
 ! depends on number of axis, for 2 axis OK, for 3 axis (one pot) 4 lines meet
        newnode%lines=2
+    elseif(haha.gt.0) then
+! for mapping without tie-lines in plane haha is nonzero if we are at
+! an invariant equlibrium with haha stable phases.
+!       write(*,*)'For the moment ignore this'
+!       newnode%lines=2*jj-1
+       newnode%lines=3
     else
-! mapping without tie-lines in plane.  Always 4 lines, 3 exits 
-! except if invariant equilibrium.
-       newnode%lines=invariant_equilibrium(jj,newnode)
+! mapping without tie-lines in plane
+! at other node points 4 lines meets, 3 exits
+!       write(*,*)'Invariant equilibrium found, exit lines: ',newnode%lines
+       newnode%lines=3
     endif
 ! set link to end node in maplie
     mapline%end=>newnode
@@ -3989,27 +4036,63 @@ CONTAINS
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
-  integer function invariant_equilibrium(lines,mapnode)
+  logical function inveq(phases,ceq)
 ! Only called for tie-lines not in plane.  If tie-lines in plane then all
 ! nodes are invariants.
 ! UNFINISHED
-    integer lines
-    type(map_node), pointer :: mapnode
+    integer phases
+    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-    integer nrel
-! How to know if the node is invariant? Gibbs phase rule, Degrees of freedom
+    integer nrel,ii,nostph,tpvar,degf
+    type(gtp_condition), pointer :: pcond,lastcond
+    type(gtp_state_variable), pointer :: stvr
+! How to know if the ceq is invariant? Gibbs phase rule, Degrees of freedom
 ! f = n + 2 - p
 ! where n is number of components, 2 if T and P variable, 1 if T or P variable,
 ! 0 if both T and P fixed, p is number of stable phases.
+!    write(*,*)'in inveq'
     nrel=noel()
-!    write(*,10)mapnode%noofstph,nrel
-10  format('In invariant_equilibrium, elements, stable phases: ',2i3)
-! if not invariant 3 exits
-    lines=3
-    invariant_equilibrium=lines
+! sum up nubler of stable phases and check if T and P are fixed
+    nostph=0
+    do ii=1,noofphasetuples()
+       if(ceq%phase_varres(phasetuple(ii)%lokvares)%phstate.gt.0) &
+            nostph=nostph+1
+    enddo
+! loop all conditions
+    lastcond=>ceq%lastcondition
+    pcond=>lastcond
+    tpvar=2
+100 continue
+       if(pcond%active.eq.0) then
+! condtion is active
+          stvr=>pcond%statvar(1)
+! statevarid 1 is T and 2 is P
+          if(stvr%statevarid.eq.1 .or. stvr%statevarid.eq.2) then
+! Hm, ceq is not the equilibrium record for the node point ...
+             tpvar=tpvar-1
+          endif
+       endif
+       pcond=>pcond%next
+       if(.not.associated(pcond,lastcond)) goto 100
+!
+    degf=nrel+tpvar-nostph
+!    write(*,*)'in inveq 2',degf,nrel,tpvar,nostph
+    if(degf.eq.0) then
+! number of exit phases is equal to the number of stable phases ???
+       phases=nostph
+       inveq=.true.
+!       write(*,200)'We have an invariant equilibrium!',nrel,tpvar,nostph,phases
+200    format(a,5i7)
+    else
+!       write(*,210)degef,nrel,tpvar,phases
+210     format('Not inveq, elements, stable phases: ',4i4)
+!       if not invariant there are 3 exits (2 lines crossing)
+        phases=degf
+       inveq=.false.
+    endif
 1000 continue
     return
-  end function invariant_equilibrium
+  end function inveq
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -4461,7 +4544,7 @@ CONTAINS
     type(graphics_options) :: graphopt
     TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-    type(map_node), pointer :: plottop,curtop
+    type(map_node), pointer :: plottop,curtop,endnode
     type(map_line), pointer :: curline
     type(gtp_equilibrium_data), pointer :: curceq
     type(map_ceqresults), pointer :: results
@@ -4469,9 +4552,10 @@ CONTAINS
     integer, parameter :: maxval=2000,mazval=100
     double precision, allocatable :: xval(:,:),yval(:,:),zval(:,:)
     integer offset,nofeq(mazval),sumpp,last,nofinv
-    double precision xxx
+    double precision xxx,yyy
     integer, allocatable :: plotkod(:),lineends(:)
-    character xax1*8,xax2*24,yax1*8,yax2*24,axis*64,phname*32,encoded*80
+    character xax1*8,xax2*24,yax1*8,yax2*24,axis1*32,axisx(2)*32,axisy(2)*32
+    character phname*32,encoded*80,axis*32
     character lid(2,30)*24
 !
 ! xval and yval and ccordinates to plot, 
@@ -4527,6 +4611,8 @@ CONTAINS
        endif
        nofeq(same)=lasteq+1-eqindex
 !       write(*,*)'Line ',same,eqindex,nofeq(same)
+       axisx=' '
+       axisy=' '
        line: do eqindex=eqindex,lasteq
 ! extract for each stable phase the state variable in pltax       
           point=point+1
@@ -4556,15 +4642,20 @@ CONTAINS
                 if(same.gt.last) then
                    lid(jj,same)=phname
                 endif
-                axis=trim(xax1)//trim(phname)//trim(xax2)
-                call meq_get_state_varorfun_value(axis,xxx,encoded,curceq)
+                if(axisx(1)(1:1).eq.' ') then
+                   axisx(1)=trim(xax1)//trim(phname)//trim(xax2)
+                   axisy(1)=trim(yax1)//trim(phname)//trim(yax2)
+                elseif(axisx(2)(1:1).eq.' ') then
+                   axisx(2)=trim(xax1)//trim(phname)//trim(xax2)
+                   axisy(2)=trim(yax1)//trim(phname)//trim(yax2)
+                endif
+                call meq_get_state_varorfun_value(axisx(jj),xxx,encoded,curceq)
                 xval(jj,plotp)=xxx
-                axis=trim(yax1)//trim(phname)//trim(yax2)
-                call meq_get_state_varorfun_value(axis,xxx,encoded,curceq)
+                call meq_get_state_varorfun_value(axisy(jj),xxx,encoded,curceq)
+                yval(jj,plotp)=xxx
 !                write(*,19)'X/Y axis variable: ',plotp,trim(axis),&
 !                     xval(jj,plotp),xxx,point
 !19              format(a,i5,2x,a,2F10.6,2i5)
-                yval(jj,plotp)=xxx
                 jj=jj+1
              endif
           enddo equil
@@ -4576,11 +4667,33 @@ CONTAINS
 !21        format('phase 1: ',2F10.7,10x,'phase 2: ',2F10.7,i7)
           lineends(same)=plotp
        enddo line
+! check if line ends in a node and add its coordinates for the same phases
+       endnode=>curline%end
+       if(associated(endnode)) then
+! there is a nod at the end, extracts its ceq record
+          curceq=>endnode%nodeceq
+          plotp=plotp+1
+          do jj=1,2
+             call meq_get_state_varorfun_value(axisx(jj),xxx,encoded,curceq)
+             if(gx%bmperr.ne.0) then
+                write(*,*)'Error extracting end points'
+                goto 1000
+             endif
+             xval(jj,plotp)=xxx
+             call meq_get_state_varorfun_value(axisy(jj),yyy,encoded,curceq)
+             if(gx%bmperr.ne.0) goto 1000
+             yval(jj,plotp)=yyy
+          enddo
+!          write(*,*)'Endnode x,y: ',plotp,xxx,yyy
+! correct lineends!!
+          lineends(same)=plotp
+       endif
 !       write(*,23)'phase line: ',same,plotp,trim(lid(1,same)),trim(lid(2,same))
 23     format(a,2i5,3x,a,' and ',a)
     enddo node
+!----------------------------------------------------------------------
 ! finished all lines in this curtop, take next
-! MAYBE EXTRACT THIRD COORDINATE FROM NODE POINT
+! but first generate the invariant
     curtop=>curtop%next
     if(.not.associated(curtop,maptop)) then
 !       write(*,*)'Extracting data from node'
@@ -4782,8 +4895,8 @@ CONTAINS
     type(graphics_textlabel), pointer :: textlabel
     character gnuplotline*64,date*12,mdate*12,title*128,deftitle*64,backslash*2
     character labelkey*24,applines(10)*128,appline*128,pfc*80,pfh*80
-    integer sumpp,np,appfil,ic,nnv,kkk,lcolor(30),iz,again,done,foundinv
-    character color(30)*24
+    integer sumpp,np,appfil,ic,nnv,kkk,lcolor(50),iz,again,done,foundinv
+    character color(50)*24
 !  
     write(*,*)'Using the rudimentary graphics in ocplot3B!'
 !
@@ -4856,6 +4969,16 @@ CONTAINS
 ! user defined ranges for y axis
        write(21,150)'y',graphopt%plotmin(2),graphopt%plotmax(2)
     endif
+!----------------------
+! logarithmic axis
+    if(graphopt%axistype(1).eq.1) then
+       write(21,151)'x'
+151    format('set logscale ',a)
+    endif
+    if(graphopt%axistype(2).eq.1) then
+       write(21,151)'y'
+    endif
+!----------------------
 ! line labels
 ! set labels
     textlabel=>graphopt%firsttextlabel
@@ -5899,6 +6022,15 @@ CONTAINS
 ! user defined ranges for y axis
        write(21,870)'y',graphopt%plotmin(2),graphopt%plotmax(2)
     endif
+!----------------------
+! logarithmic axis
+    if(graphopt%axistype(1).eq.1) then
+       write(21,151)'x'
+151    format('set logscale ',a)
+    endif
+    if(graphopt%axistype(2).eq.1) then
+       write(21,151)'y'
+    endif
 !------------------------------------------------------------
 ! set labels
     textlabel=>graphopt%firsttextlabel
@@ -6458,7 +6590,6 @@ END MODULE ocsmp
 
 ! map/step subroutines:
 ! map_setup should be OK
-! map_halfstep when convergence trouble
 ! map_startpoint to convert from start equilibria to point on a line
 ! map_replaceaxis ok
 ! map_startline ?? stupid name > map_sputility ??
@@ -6472,11 +6603,21 @@ END MODULE ocsmp
 ! map_reserve_saveceq
 ! map_findline should be ok
 ! create_saveceq
+! delete_mapresults
 ! integer function tieline_inplane
-! integer function invariant_equilibrium
+! logical function inveq (invariant_equilibrium)
+! map_problems called when problems
+! map_halfstep when convergence trouble
 ! list_stored_equilibria
-! ocplot2 does not plot equilibrium data in map_nodes
-!
+! amend_stored_equilibria
+! ocplot3 extract data for diagrams with two wildcard axis
+! calc_diagram_point calculates an equilibrium for specified coordinates
+! ocplot3B generate GNUPLOT file with data from ocplot3
+! ocplot2 extracting data for all diagrams except isothermal sections
+! ocplot2B generate GNUPLOT file with data from ocplot2
+! step_separate calculates each phase separately
+! abbr_phname_same checks if a phase name is an abbreviation including compset
+
 ! There should be a reorganizing of mapnodes at the end
 !
 

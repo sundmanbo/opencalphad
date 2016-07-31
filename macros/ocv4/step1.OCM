@@ -92,6 +92,7 @@ step 1 fig 1
 render
 
 
+@&
 @$ move the line identification outside the plot
 plot
 
@@ -102,6 +103,7 @@ title step 1 fig 2
 render
 
 
+@&
 @$ Plot the Cr content in all stable phases
 plot
 T
@@ -109,6 +111,7 @@ w(*,cr)
 title step 1 fig 3
 render
 
+@&
 @$ Plot the enthalpy variation
 plot
 T
@@ -117,15 +120,18 @@ title step 1 fig 4
 render
 
 
+@&
 @$ Plot the heat capacity
+@$ There is a problem with the heat capacity calculation
+@$ when there is a phase chage.
 plot
 T
 cp
 title step 1 fig 5
 render
 
+@&
 @$ scaling of y axis
-
 plot
 T
 cp

@@ -2499,6 +2499,7 @@ CONTAINS
     double precision, dimension(:), allocatable :: xcol,mamu,mamu1,zcol,qmat
     double precision, allocatable :: xxmm(:),wwnn(:),hval(:)
     logical :: vbug=.FALSE.,calcmolmass,notdone
+    double precision abug,bbug
     character encoded*32,name*32
 !-------------------------------------------------------------------
 ! Formulating the equil equation in general:
@@ -2571,7 +2572,7 @@ CONTAINS
           do ke=1,meqrec%nfixmu
              if(meqrec%mufixel(ke).eq.je) then
 ! meqrec%mufixel(ke) is the component number with fix chemical potential
-! DONE: UNFINISHED: reference state must be handelled (may depend on T) ??
+! DONE: reference state must be handelled (may depend on T) ??
 !
 !---------------------------------------------------------
 ! handling of user defined reference states for components
@@ -3356,6 +3357,7 @@ CONTAINS
 !             jj=meqrec%stphl(jph)
 ! sum over all phases to handle conditions like x(phase#set,A)=fix
 ! as the phase#set may not be stable
+          bbug=zero
           xallph: do jj=1,meqrec%nphase
              pmi=>phr(jj)
              if(sph.eq.0) then
@@ -3391,7 +3393,7 @@ CONTAINS
                 ncol=1
                 xloop2: do je=1,meqrec%nrel
 !---------------------------------------------------------------------
-! BIG TROUBLE HERE FOR FIXED CHEMICAL POTENTIAL !!!!! FIXED NOW
+! BIG TROUBLE HERE FOR FIXED CHEMICAL POTENTIAL !!!!! FIXED NOW ... NO!!
 ! but still problems combining with other conditions on H etc ...
 ! it works when we have N(A)=fix (code above) but not with x(A)=fix
 ! Calculate one column for each component to be multiplied with chem.pot.
@@ -3401,23 +3403,22 @@ CONTAINS
                       if(meqrec%mufixel(ke).eq.je) then
 ! the sign here should be opposite from xcol(ncol)= below
 !                         write(*,*)'In xloop2: ',ie,ke,je,sel,nrow
-                         xcol(nz2)=xcol(nz2)-&
+!                         xcol(nz2)=xcol(nz2)-&
+                         xcol(nz2)=xcol(nz2)+&
                               pham*mamu(je)*meqrec%mufixval(ke)
-!                            write(*,98)'fix mu x:',sel,je,&
-!                                 pham*mamu(je)*meqrec%mufixval(ke)
-!                         write(*,102)'fix mu x: ',sel,je,pham,&
+!                         bbug=bbug-pham*mamu(je)
+!                         write(*,102)'fix mu xall: ',sel,je,pham,&
 !                              meqrec%mufixval(ke),mamu(je),&
 !                              pham*mamu(je)*meqrec%mufixval(ke),xcol(nz2)
 ! zcol needed because we have a normallized property (mole fraction)
 ! NOTE it should be ie here and NOT je ??? and opposite sign from xcol(nz2)
                          if(ie.eq.sel) then
-!                            write(*,98)'fix mu z:',sel,ie,&
-!                                 pham*mamu(je)*meqrec%mufixval(ke)
                             zcol(nz2)=zcol(nz2)+&
                                  pham*mamu(je)*meqrec%mufixval(ke)
-!                            write(*,102)'fix mu z: ',ie,je,pham,&
+!                            write(*,102)'fix mu xsel: ',ie,je,pham,&
 !                                 meqrec%mufixval(ke),mamu(je),&
 !                                 pham*mamu(je)*meqrec%mufixval(ke),zcol(nz2)
+!                            abug=-pham*mamu(je)
                          endif
                          cycle xloop2
                       endif
@@ -3516,21 +3517,31 @@ CONTAINS
              smat(nrow,nz2)=smat(nrow,nz2)-cvalue+evalue
 !------------------new code end
           else
-! use this else brash when nterms=1, just a single x(a)=value
+! use this else branch when nterms=1, just a single x(a)=value
              nrow=nrow+1
+!             if(bbug.ne.zero) then
+! looking for bug with activity conditions
+!                write(*,16)'abug: ',sel,abug,bbug,xxmm(sel),&
+!                     abug-bbug*xxmm(sel),meqrec%mufixval(1),&
+!                     (abug-bbug*xxmm(sel))*meqrec%mufixval(1)
+!16              format(a,i3,6(1pe12.4))
+!             else
+!                write(*,16)'nomy : ',sel,zcol(1),xcol(1),&
+!                     xxmm(sel),zcol(1)-xcol(1)*xxmm(sel)
+!             endif
              if(nrow.gt.nz1) then
                 write(*,*)'too many equations 11B: ',nrow,nz1,meqrec%nfixph
                 gx%bmperr=4209; goto 1000
              endif
 ! in xcol is dN and in zcol dN(A) summed over all phases and components
 ! calculate the normallized values now
-! xmat=dN(A)/N - N(A)*dN/N**2
+! xmat=1/N*(dN(A) - (N(A)/N)*dN)
 ! sum zcol and xcol to nrow in smat multiplying xcol with current amount
 ! and normallizing with total amount, including the RHS (column nz2)
              do ncol=1,nz2
                 smat(nrow,ncol)=(zcol(ncol)-xcol(ncol)*xxmm(sel))/totalmol
              enddo
-! add x^prescribed - x^current to rhs (right hand side)
+! subract x^prescribed - x^current to rhs (right hand side)
              smat(nrow,nz2)=smat(nrow,nz2)-cvalue+xxmm(sel)
              evalue=xxmm(sel)
           endif

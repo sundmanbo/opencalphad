@@ -47,6 +47,7 @@ contains
     implicit none
 !
 ! various symbols and texts
+    character :: ocprompt*4='OC4:'
     character name1*24,name2*24,line*80,model*72,chshort
     integer, parameter :: ocmonversion=22
 ! element symbol and array of element symbols for database use
@@ -342,7 +343,7 @@ contains
          'GRAPHICS_FORMAT ','OUTPUT_FILE     ','GIBBS_TRIANGLE  ',&
          'QUIT            ','POSITION_OF_KEYS','APPEND          ',&
          'TEXT            ','TIE_LINES       ','KEEP            ',&
-         '                ','                ','                ']
+         'LOGSCALE        ','                ','                ']
 !-------------------
 !        123456789.123456---123456789.123456---123456789.123456
 ! minimizers
@@ -455,7 +456,7 @@ contains
     last=len(aline)
     aline=' '
     cline=' '
-    call gparc('OC3: ',aline,last,5,cline,' ',tophlp)
+    call gparc(ocprompt,aline,last,5,cline,' ',tophlp)
     j1=1
     if(len_trim(cline).gt.80) then
        write(kou,101)
@@ -3992,6 +3993,35 @@ contains
           write(*,*)'Not implemented yet'
           goto 21100
 !-----------------------------------------------------------
+! LOGSCALE
+       case(16)
+          call gparcd('For x or y axis? ',cline,last,1,ch1,'x',q1help)
+          if(ch1.eq.'x') then
+             if(graphopt%axistype(1).eq.1) then
+                write(kou,*)'The x axis set to linear'
+                graphopt%axistype(1)=0
+             else
+                graphopt%axistype(1)=1
+             endif
+          elseif(ch1.eq.'y') then
+             if(graphopt%axistype(2).eq.1) then
+                write(kou,*)'The y axis set to linear'
+                graphopt%axistype(2)=0
+             else
+                graphopt%axistype(2)=1
+             endif
+          else
+             write(kou,*)'Please answer x or y'
+          endif
+          goto 21100
+!-----------------------------------------------------------
+! unused
+       case(17)
+          goto 21100
+!-----------------------------------------------------------
+! unused
+       case(18)
+          goto 21100
        end SELECT
 !=================================================================
 ! HPCALC

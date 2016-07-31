@@ -1313,7 +1313,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
      integer, dimension(:,:), allocatable :: indices
      double precision, dimension(:), allocatable :: condcoeff
      double precision prescribed, current, uncertainty
-! currently this is not used but it will be
+! currently this is not used but it will be ???
      TYPE(gtp_state_variable), dimension(:), allocatable :: statvar
      TYPE(gtp_condition), pointer :: next, previous
   end TYPE gtp_condition
