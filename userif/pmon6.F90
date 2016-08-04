@@ -117,6 +117,8 @@ contains
 !-------------------
 ! selection of minimizer and optimizer
     integer minimizer,optimizer
+! plot unit for experimental data used in enter many_equilibria
+    integer :: plotdataunit(9)=0
 ! temporary integer variables in loops etc
     integer i1,i2,j1,iax
 ! more temporary integers
@@ -245,7 +247,7 @@ contains
          'CONSTITUTION    ','EXPERIMENT      ','QUIT            ',&
          'EQUILIBRIUM     ','SYMBOL          ','OPTIMIZE_COEFF  ',&
          'COPY_OF_EQUILIB ','COMMENT         ','MANY_EQUILIBRIA ',&
-         'MATERIAL        ','                ','                ']
+         'MATERIAL        ','PLOT_DATA       ','                ']
 !-------------------
 ! subcommands to READ
     character (len=16), dimension(ncread) :: cread=&
@@ -1187,7 +1189,7 @@ contains
              call system_clock(count=ll)
              call cpu_time(xxy)
              write(kou,664)i2,jp,xxy-xxx,ll-j1
-664          format('Calculated ',i4,' equilibria out of ',i4/&
+664          format('Calculated ',i5,' equilibria out of ',i5/&
                   'Total time: ',1pe12.4,' s and ',i7,' clockcycles')
           else
              write(kou,*)'You must first SET RANGE of experimental equilibria'
@@ -1828,9 +1830,8 @@ contains
           endif
           axarr(iax)%axmax=xxx
 !          axval(2,iax)=xxx
-! default step 1/40
-!          dinc=axvalold(3,iax)
-!          dinc=0.025*(axval(2,iax)-axval(1,iax))
+! default step 1/100 of difference ?? several diagram failed ...
+! default step 1/40 of difference
           dinc=0.025*(axarr(iax)%axmax-axarr(iax)%axmin)
           call gparrd('Increment:',cline,last,xxx,dinc,q1help)
           if(buperr.ne.0) goto 100
@@ -2099,6 +2100,15 @@ contains
           do i2=1,j1
              firstash%eqlista(i2)%p1=>eqlista(i1)
              i1=i1+1
+          enddo
+! close the plotdataunits!
+          do i1=1,9
+             if(plotdataunit(i1).gt.0) then
+                write(plotdataunit(i1),22)
+22              format('e'/'pause mouse'/)
+                close(plotdataunit(i1))
+                plotdataunit(i1)=0
+             endif
           enddo
 !          write(*,*)'Not implemeneted yet'
 !-------------------------
@@ -2394,9 +2404,11 @@ contains
           ceq%comment=text
 !---------------------------------------------------------------
 ! enter MANY_EQUILIBRIA
+! plotdataunit should be zero at first call, then the unit is opened
+! (if there are any plot_data commands).  It will remain open until
+! a set range command is given
        case(15)
-          call enter_many_equil(cline,last)
-!          write(*,*)'Not implemented yet'
+          call enter_many_equil(cline,last,plotdataunit)
 !---------------------------------------------------------------
 ! enter MATERIAL
 ! ask for database, then mass/mole fraction, then elements and composition;
@@ -2405,9 +2417,24 @@ contains
        case(16)
           write(*,*)'Not implemeneted yet'
 !---------------------------------------------------------------
-! enter not used
+! enter PLOT DATA
+! the file ocmanyi.plt with unit plotdataunit(i) must already bw open!
+! it is opened in the enter_many_equilibria if there is a plot_data command
        case(17)
-          write(*,*)'Not implemeneted yet'
+          call gparid('Dataset number:',cline,last,i1,1,q1help)
+          if(i1.gt.0 .and. i1.lt.10) then
+             if(plotdataunit(i1).lt.10) then
+                write(kou,*)'No plotdata file for this dataset'
+                goto 100
+             endif
+             call gparrd('X coordinate:',cline,last,xxx,zero,q1help)
+             call gparrd('Y coordinate:',cline,last,xxy,one,q1help)
+             call gparid('Symbol:',cline,last,i2,1,q1help)
+             write(plotdataunit(i1),171)i1,xxx,xxy,i2
+171          format(i3,2(1pe14.6),i5,' have a nice day')
+          else
+             write(kou,*)'No plotdata file for dataset ',i1
+          endif
 !---------------------------------------------------------------
 ! enter not used
        case(18)
@@ -3160,11 +3187,17 @@ contains
        enddo
        noofaxis=0
 ! deallocate does not work on pointers!!!
-!       deallocate(maptop)
-!       write(*,*)'No Segmentation fault 6'
        nullify(starteq)
        noofstarteq=0
        graphopt%rangedefaults=0
+       graphopt%tielines=0
+       graphopt%status=0
+       graphopt%axistype=0
+       graphopt%tielines=0
+       graphopt%gibbstriangle=.FALSE.
+       graphopt%labelkey='upper right'
+       graphopt%appendfile=' '
+       nullify(graphopt%firsttextlabel)
 !
 ! this routine fragile, inside new_gtp init_gtp is called
 !       write(*,*)'No segmentation fault 7'
@@ -3978,7 +4011,7 @@ contains
           call gparid('Tie-line increment?',cline,last,kl,0,q1help)
           if(kl.lt.0) kl=0
           graphopt%tielines=kl
-          write(*,*)'No implemented yet'
+!          write(*,*)'No implemented yet'
           goto 21100
 !-----------------------------------------------------------
 ! PLOT KEEP does not work ...

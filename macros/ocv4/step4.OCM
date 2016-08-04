@@ -114,8 +114,9 @@ l r 2
 
 
 @&
+@$ This is one of the rare cases when it is better to take longer increments
 
-set ax 1 x(fe) 0 1 ,,,,
+set ax 1 x(fe) 0 1 ,,,
 
 step sep
 
@@ -155,7 +156,8 @@ title step4 fig 4 L1_0
 position top left
 render
 
-
+@$ The calculation has sometimes failed for compositions
+@$ where the L1_2 or L1_0 ordering is not stable
 @&
 @$ ========================================================
 @$ Now something different

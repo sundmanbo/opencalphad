@@ -278,6 +278,8 @@ CONTAINS
     type(map_fixph), pointer :: mapfix
     double precision starting,finish2,axvalok,dgm,tsave,xxx,yyy,zzz
     integer starttid,endoftime,bytdir,seqz,nrestore,termerr
+! save current conditions
+    character savedconditions*256
 ! for copy of constituions
     double precision, allocatable, dimension(:) :: copyofconst
 ! inactive are indices of axis conditions inactivated by phases set fixed
@@ -287,6 +289,15 @@ CONTAINS
     integer, parameter :: inmap=1
     character ch1*1
     logical firststep
+!
+!    write(*,*)'in map_setup'
+    call get_all_conditions(savedconditions,-1,starteq)
+    if(gx%bmperr.ne.0) then
+       write(kou,*)'Cannot save current conditions'
+       savedconditions=' '
+!    else
+!       write(*,*)'Saved: ',trim(savedconditions)
+    endif
     nrestore=0
 ! first transform start points to start equilibria on zero phase lines
 ! All axis conditions except one are converted to fix phase conditions 
@@ -4544,19 +4555,20 @@ CONTAINS
     type(graphics_options) :: graphopt
     TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
+    integer, parameter :: maxsame=200
     type(map_node), pointer :: plottop,curtop,endnode
     type(map_line), pointer :: curline
     type(gtp_equilibrium_data), pointer :: curceq
     type(map_ceqresults), pointer :: results
     integer ii,jj,point,plotp,lines,eqindex,lasteq,nooftup,lokcs,jph,same,kk
     integer, parameter :: maxval=2000,mazval=100
-    double precision, allocatable :: xval(:,:),yval(:,:),zval(:,:)
-    integer offset,nofeq(mazval),sumpp,last,nofinv
+    double precision, allocatable :: xval(:,:),yval(:,:),zval(:,:),tieline(:,:)
+    integer offset,nofeq,sumpp,last,nofinv,ntieline,mtieline
     double precision xxx,yyy
     integer, allocatable :: plotkod(:),lineends(:)
     character xax1*8,xax2*24,yax1*8,yax2*24,axis1*32,axisx(2)*32,axisy(2)*32
     character phname*32,encoded*80,axis*32
-    character lid(2,30)*24
+    character lid(2,maxsame)*24
 !
 ! xval and yval and ccordinates to plot, 
 ! points on one line is       xval(1,jj),yval(1,jj)
@@ -4566,9 +4578,9 @@ CONTAINS
 ! lineends is the index in xval/yval for an end of line
     allocate(xval(2,maxval))
     allocate(yval(2,maxval))
-    allocate(zval(2,mazval))
     allocate(plotkod(maxval))
-    allocate(lineends(mazval))
+    allocate(zval(2,maxsame))
+    allocate(lineends(maxsame))
     if(.not.associated(maptop)) then
        write(*,*)'No data to plot'
        goto 1000
@@ -4587,6 +4599,14 @@ CONTAINS
     point=0
     plotp=0
     nofinv=0
+! if graphopt%tielines not zero check if the tielines are in plane ...
+! %tieline_tieline_inplane <0 means step, 0 means isopleth
+    if(graphopt%tielines.gt.0) then
+       if(maptop%tieline_inplane.le.0) then
+          write(kou,*)'No tie-lines can be plotted'
+          graphopt%tielines=0
+       endif
+    endif
 ! same is incremented for each line
     same=0
     sumpp=0
@@ -4605,14 +4625,23 @@ CONTAINS
        if(eqindex.le.0 .or. eqindex.gt.lasteq) cycle node
        last=same
        same=same+1
-       if(same.gt.mazval) then
-          write(*,*)'Too many lines to plot ',mazval
+       if(same.gt.maxsame) then
+          write(*,*)'Too many lines to plot ',maxsame
           cycle node
        endif
-       nofeq(same)=lasteq+1-eqindex
-!       write(*,*)'Line ',same,eqindex,nofeq(same)
+       nofeq=lasteq+1-eqindex
        axisx=' '
        axisy=' '
+       ntieline=0
+!       write(*,*)'Plotting tie-lines: ',graphopt%tielines
+       if(graphopt%tielines.gt.0) then
+! the number of tie-lines to extract
+          mtieline=nofeq/graphopt%tielines
+!          write(*,*)'Number of tie-lines: ',mtieline
+          allocate(tieline(4,mtieline+5))
+!          write(*,*)'Allocating for tielines: ',mtieline+1
+! UNFINISHED: try to have equal number of equilibria at the beginning and end 
+       endif
        line: do eqindex=eqindex,lasteq
 ! extract for each stable phase the state variable in pltax       
           point=point+1
@@ -4659,6 +4688,18 @@ CONTAINS
                 jj=jj+1
              endif
           enddo equil
+          if(graphopt%tielines.gt.0) then
+! exact coordinates for tielines each ntieline equilibria
+!             write(*,*)'saving tieline?',eqindex,&
+!                  mod(eqindex,graphopt%tielines),ntieline,plotp
+             if(mod(eqindex,graphopt%tielines).eq.0) then
+                ntieline=ntieline+1
+                tieline(1,ntieline)=xval(1,plotp)
+                tieline(2,ntieline)=yval(1,plotp)
+                tieline(3,ntieline)=xval(2,plotp)
+                tieline(4,ntieline)=yval(2,plotp)
+             endif
+          endif
 !          write(*,23)'phase line: ',same,last,trim(lid(1,same)),&
 !               trim(lid(2,same))
           last=same
@@ -4690,6 +4731,30 @@ CONTAINS
        endif
 !       write(*,23)'phase line: ',same,plotp,trim(lid(1,same)),trim(lid(2,same))
 23     format(a,2i5,3x,a,' and ',a)
+       if(ntieline.gt.0) then
+! All tielines on the same line with a space in between
+          same=same+1
+          do eqindex=1,ntieline
+             plotp=plotp+1
+             xval(1,plotp)=tieline(1,eqindex)
+             yval(1,plotp)=tieline(2,eqindex)
+! this means the tie-lines will be plotted twice ... but mhy not??
+             xval(2,plotp)=tieline(1,eqindex)
+             yval(2,plotp)=tieline(2,eqindex)
+             plotkod(plotp)=-100
+             plotp=plotp+1
+             xval(1,plotp)=tieline(3,eqindex)
+             yval(1,plotp)=tieline(4,eqindex)
+             xval(2,plotp)=tieline(3,eqindex)
+             yval(2,plotp)=tieline(4,eqindex)
+             lineends(same)=plotp
+             plotkod(plotp)=-101
+          enddo
+          lid(1,same)='tieline'
+          lid(2,same)='tieline'
+       endif
+! no longer any use of tieline
+       if(allocated(tieline)) deallocate(tieline)
     enddo node
 !----------------------------------------------------------------------
 ! finished all lines in this curtop, take next
@@ -4751,11 +4816,8 @@ CONTAINS
 ! now we should have all data to plot in xval and yval arrays
 500 continue
 !    write(*,*)'found lines/points to plot: ',same,plotp
-!    write(*,502)(nofeq(ii),ii=1,same)
 !    write(*,502)(lineends(ii),ii=1,same)
 502 format(10i5)
-!    call ocplot3B(same,nofeq,lineends,2,xval,2,yval,2,zval,plotkod,pltax,lid,&
-!         filename,graphopt,pform)
     call ocplot3B(same,nofinv,lineends,2,xval,2,yval,2,zval,plotkod,pltax,&
          lid,filename,graphopt,pform)
     deallocate(xval)
@@ -4888,15 +4950,18 @@ CONTAINS
 !    TYPE(gtp_equilibrium_data), pointer :: ceq
     integer same,plotkod(*),nx1,ny1,nz1,nofinv
 ! to be exchanged
-    integer nofeq(30),lineends(30)
+!    integer nofeq(30),lineends(30)
+    integer lineends(*)
     double precision xval(nx1,*),yval(ny1,*),zval(nz1,*)
 !\end{verbatim}
+    integer, parameter :: maxcolor=200
     integer ii,jj,kk,jph,offset,n1
     type(graphics_textlabel), pointer :: textlabel
     character gnuplotline*64,date*12,mdate*12,title*128,deftitle*64,backslash*2
     character labelkey*24,applines(10)*128,appline*128,pfc*80,pfh*80
-    integer sumpp,np,appfil,ic,nnv,kkk,lcolor(50),iz,again,done,foundinv
-    character color(50)*24
+    integer sumpp,np,appfil,ic,nnv,kkk,lcolor(maxcolor),iz,again
+    integer done(maxcolor),foundinv,fcolor
+    character color(maxcolor)*24
 !  
     write(*,*)'Using the rudimentary graphics in ocplot3B!'
 !
@@ -4911,7 +4976,7 @@ CONTAINS
     endif
 ! np should be the number of different lines to be plotted
     np=2
-    if(np.eq.1) then
+    if(np.eq.1 .and. graphopt%appendfile(1:1).eq.' ') then
        labelkey=' off'
     else
        labelkey=graphopt%labelkey
@@ -4949,15 +5014,18 @@ CONTAINS
             'set xlabel "',a,'"'/'set ylabel "',a,'"'/&
             'set key ',a/&
             'set style line 1 lt 2 lc rgb "#000000" lw 2'/&
-            'set style line 2 lt 2 lc rgb "#FF0000" lw 2'/&
+            'set style line 2 lt 2 lc rgb "#804080" lw 2'/&
             'set style line 3 lt 2 lc rgb "#00C000" lw 2'/&
-            'set style line 4 lt 2 lc rgb "#0080FF" lw 2'/&
-            'set style line 5 lt 2 lc rgb "#C8C800" lw 2'/&
-            'set style line 6 lt 2 lc rgb "#4169E1" lw 2'/&
-            'set style line 7 lt 2 lc rgb "#C0C0C0" lw 2'/&
-            'set style line 8 lt 2 lc rgb "#00FFFF" lw 2'/&
-            'set style line 9 lt 2 lc rgb "#804080" lw 2'/&
-            'set style line 10 lt 2 lc rgb "#7CFF40" lw 2')
+            'set style line 4 lt 2 lc rgb "#FF0000" lw 2'/&
+            'set style line 5 lt 2 lc rgb "#0080FF" lw 2'/&
+            'set style line 6 lt 2 lc rgb "#C8C800" lw 2'/&
+            'set style line 7 lt 2 lc rgb "#4169E1" lw 2'/&
+            'set style line 8 lt 2 lc rgb "#7CFF40" lw 2'/&
+            'set style line 9 lt 2 lc rgb "#C0C0C0" lw 2'/&
+            'set style line 10 lt 2 lc rgb "#00FFFF" lw 2'/&
+            'set style line 11 lt 2 lc rgb "#0C0C0C" lw 3'/&
+            'set style line 12 lt 2 lc rgb "#0C0C0C" lw 1')
+! The last two styles (11 and 12) are for invariants and tielines
 !
 ! ranges for x and y
     if(graphopt%rangedefaults(1).ne.0) then
@@ -5052,22 +5120,32 @@ CONTAINS
     endif
 ! coordinate the content of lid with the colors
 !    do ii=1,same
-!       write(*,*)'phases: ',trim(lid(1,ii)),' ',trim(lid(2,ii))
+!       write(*,*)'phases: ',ii,trim(lid(1,ii)),' ',trim(lid(2,ii))
 !    enddo
     nnv=0
     iz=0
     color(1)=' '
+!    if(2*same.gt.maxcolor) then
+!       write(*,*)'Number of lines: ',2*same
+!    endif
     pair: do jj=1,2
        point: do ii=1,same
           iz=iz+1
+! plotkod -1 negative means ignore
+! plotkod -100 and -101 used for tie-lines
           if(jj.eq.2 .and. plotkod(iz).eq.-1) cycle pair
-          do ic=1,nnv
-             if(trim(lid(jj,ii)).eq.trim(color(ic))) then
-                lcolor(iz)=ic
-                goto 295
-             endif
-          enddo
+             do ic=1,nnv
+                if(trim(lid(jj,ii)).eq.trim(color(ic))) then
+                   if(iz.gt.maxcolor) then
+                      write(kou,*)'lcolor dimension overflow',iz
+                   else
+                      lcolor(iz)=ic
+                   endif
+                   goto 295
+                endif
+             enddo
 ! no match, increment nnv and assign that color to lcolor
+! skip colors 11 and 12, reserved for invariants and tielines
           nnv=nnv+1
           lcolor(iz)=nnv
           color(nnv)=lid(jj,ii)
@@ -5076,7 +5154,7 @@ CONTAINS
 295       continue
        enddo point
     enddo pair
-! replace _ by - (phase names)
+! replace _ by - (in phase names)
     do kk=1,nnv
 297    continue
        jj=index(color(kk),'_')
@@ -5085,6 +5163,40 @@ CONTAINS
           goto 297
        endif
     enddo
+!---------------------------------------------------------------
+! check for invariant and tieline and replace color!
+!    do ii=1,2*same
+!       write(*,*)'original: ',ii,lcolor(ii),trim(color(lcolor(ii)))
+!    enddo
+    lcolor1: do ii=1,2*same
+       jj=lcolor(ii)
+       if(trim(color(jj)).eq.'invariant') then
+!          write(*,*)'Changing ',ii,jj,' to 11'
+          lcolor(ii)=11
+          color(11)='invariant'
+          do kk=ii+1,2*same
+             if(lcolor(kk).eq.jj) then
+!                write(*,*)'subsequent: ',kk,lcolor(kk),jj,11
+                lcolor(kk)=11
+             endif
+          enddo
+          exit lcolor1
+       endif
+    enddo lcolor1
+    lcolor2: do ii=1,2*same
+       jj=lcolor(ii)
+       if(trim(color(jj)).eq.'tieline') then
+          lcolor(ii)=12
+          color(12)='tie-line'
+          do kk=ii+1,2*same
+             if(lcolor(kk).eq.jj) lcolor(kk)=12
+          enddo
+          exit lcolor2
+       endif
+    enddo lcolor2
+!    do ii=1,2*same
+!       write(*,*)'Final: ',ii,lcolor(ii),trim(color(lcolor(ii)))
+!    enddo
 !----------------------------------------------------------------
 ! Here we generate the datafile with coordinates to plot
 ! if nx1 or ny1 is 1 plot all on other axis versus single axis coordinate
@@ -5096,31 +5208,38 @@ CONTAINS
 !    write(*,*)'lines: ',same,nofinv
     write(21,*)
     ii=0
+    done=0
     do kk=1,2
        do jj=1,same
           ii=ii+1
           if(ii.eq.1) then
              write(21,309)lcolor(ii),trim(color(lcolor(ii))),backslash
 309          format('plot "-" using 1:2 with lines ls ',i2,' title "',a,'"',a)
-             done=1
+             done(lcolor(1))=1
           else
 ! the invariant "lines" are just a point and occur only once
 ! the last line for the plot command has no backslash
 !             if(ii.eq.2*(same-nofinv)+nofinv) backslash=' '
              if(ii.eq.2*same) backslash=' '
-             if(lcolor(ii).gt.done) then
-                write(21,310)lcolor(ii),trim(color(lcolor(ii))),backslash
-310             format('"" using 1:2 with lines ls ',i2,' title "',a,'"',a)
-                done=done+1
-             else
-                write(21,320)abs(lcolor(ii)),backslash
+! we can only use linestyles 1 to 10 except for invariants and tie-lines
+             fcolor=lcolor(ii)
+             if(fcolor.gt.12) then
+                fcolor=mod(fcolor,10)
+                if(fcolor.eq.0) fcolor=10
+             endif
+             if(done(lcolor(ii)).eq.1) then
+                write(21,320)fcolor,backslash
 320             format('"" using 1:2 with lines ls ',i2,' notitle ',a)
+             else
+                write(21,310)fcolor,trim(color(lcolor(ii))),backslash
+310             format('"" using 1:2 with lines ls ',i2,' title "',a,'"',a)
+                done(lcolor(ii))=1
              endif
           endif
        enddo
     enddo
 !    goto 500
-! loop for all lines
+! loop for all line coordinates
 !    sumpp=0
     do kk=1,2
 !       again=sumpp
@@ -5145,6 +5264,9 @@ CONTAINS
                 sumpp=sumpp+1
                 write(21,549)xval(kk,sumpp),yval(kk,sumpp)
 549             format(2f12.6,4i7)
+! plotkod -101 means tieline
+                if(plotkod(sumpp).eq.-101) write(21,552)
+552             format(1x)
              enddo
 ! we are at the end of a line, write a blank line
              write(21,551)jj
@@ -5887,7 +6009,7 @@ CONTAINS
 ! lid should always be allocated if np>1, but ... one never knows 
        allocate(lid(np))
        do i=1,np
-          lid(i)='unknown '
+          lid(i)='calculated '
        enddo
     endif
 !------------------------------------------------------------
@@ -5993,7 +6115,7 @@ CONTAINS
 ! dark-yellow: #C8C800, royal-blue: #4169E1, steel-blue #306080,
 ! gray: #C0C0C0, cyan: #00FFFF, orchid4: #804080, chartreuse: 7CFF40
 ! if just one line set key off for that line.
-    if(np.eq.1) then
+    if(np.eq.1 .and. graphopt%appendfile(1:1).eq.' ') then
        labelkey=' off'
     else
        labelkey=graphopt%labelkey

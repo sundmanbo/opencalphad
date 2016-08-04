@@ -3918,12 +3918,13 @@
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim}
- subroutine enter_many_equil(cline,last)
+ subroutine enter_many_equil(cline,last,pun)
 ! executes an enter many_equilibria command
 ! and creates many similar equilibria from a table
+! pun is file units for storing experimental dataset, >0 if open
    implicit none
    character*(*) cline
-   integer last
+   integer last,pun(*)
 !\end{verbatim}
 ! enter many_equilibria
 ! by default all phases suspended
@@ -3937,6 +3938,9 @@
 ! 8 table_start
 ! <equil name> values in columns ...
 ! 9 table_end
+!10 referece state
+!11 plot_data
+!12 not used
 !
 ! values required by @<column> will appear in table in column order
 ! EXAMPLE:
@@ -3957,20 +3961,22 @@
 !        123456789.12...123456789.12...123456789.12...123456789.12
        ['FIXED       ','ENTERED     ','DORMANT     ','CONDITIONS  ',&
         'EXPERIMENTS ','CALCULATE   ','LIST        ','TABLE_START ',&
-        'COMMENT     ','REFERENCE_S ','            ','            ']
-   character*128 rowtext(ncom),text*128,dummy*128,tval*24
-   character*128 eqlin(ncom),eqname*24
+        'COMMENT     ','REFERENCE_S ','PLOT_DATA   ','            ']
+   character*128 rowtext(ncom),text*128,dummy*128,tval*24,savetitle*24
+   character*128 eqlin(ncom),eqname*24,plotdatafile*8
    integer dcom,kom,done(ncom),ip,jp,kp,ival,jval,neq,slen,shift,ieq,nystat
    integer iel,iph,ics,maxcol
    type(gtp_equilibrium_data), pointer ::ceq
-   double precision xxx,xxy,tpa(2)
+   double precision xxx,xxy,pxx,pyy,tpa(2)
 ! This is to know where to store column values from a row
    TYPE gtp_row
       integer column,position
    end type gtp_row
    type(gtp_row), dimension(ncom,ncol) :: colvar,coleq 
+   logical plotfile
 !
    done=0
+   plotfile=.FALSE.
    do ip=1,ncom-1
       colvar(ip,1)%column=0
       rowtext(ip)=' '
@@ -3978,7 +3984,7 @@
    maxcol=0
    dcom=0
 100 continue
-   call gparcd('Table head: ',cline,last,5,text,' ',q1help)
+   call gparcd('Table head line: ',cline,last,5,text,' ',q1help)
    kom=ncomp(text,commands,ncom,last)
    if(kom.le.0) then
       write(kou,110)text(1:len_trim(text))
@@ -4121,9 +4127,10 @@
    do jval=1,dcom
       kom=ncomp(eqlin(jval),commands,ncom,last)
       SELECT CASE(kom)
+!---------------------------
       CASE DEFAULT
-         write(*,*)'Error generating equilibrium: ',&
-              eqlin(jval)(1:len_trim(eqlin(jval)))
+         write(*,*)'Error generating equilibrium: ',trim(eqlin(jval))
+!---------------------------
       CASE(1,2)! fixed phases
 ! pick up the number of moles of the phases as first argument after command
          call getext(eqlin(jval),last,1,tval,'1.0',slen)
@@ -4141,34 +4148,42 @@
          endif
          call change_many_phase_status(eqlin(jval)(last:),nystat,xxx,ceq)
          if(gx%bmperr.ne.0) goto 1000
+!---------------------------
       CASE(3)! domant phases
          nystat=PHSUS
          xxx=zero
          call change_many_phase_status(eqlin(jval)(last:),nystat,xxx,ceq)
          if(gx%bmperr.ne.0) goto 1000
+!---------------------------
       CASE(4)! conditions
          ip=0
          call set_condition(eqlin(jval)(last:),ip,ceq)
          if(gx%bmperr.ne.0) goto 1000
+!---------------------------
       CASE(5)! experiments
          ip=0
          call enter_experiment(eqlin(jval)(last:),ip,ceq)
          if(gx%bmperr.ne.0) goto 1000
+!---------------------------
       CASE(6)! calculate symbol
          if(.not.allocated(ceq%eqextra)) then
             allocate(ceq%eqextra(2))
             ceq%eqextra(2)=' '
          endif
          ceq%eqextra(1)=eqlin(jval)(last:)
+!---------------------------
       CASE(7)! list state variables and modelled properties
          if(.not.allocated(ceq%eqextra)) then
             allocate(ceq%eqextra(2))
             ceq%eqextra(1)=' '
          endif
          ceq%eqextra(2)=eqlin(jval)(last:)
+!---------------------------
 !      CASE(8)! table start should never occur
+!---------------------------
       CASE(9)! comment
          ceq%comment=eqlin(jval)(last:)
+!---------------------------
       CASE(10)! reference state
          call gparc('Component name: ',eqlin(jval),last,1,tval,' ',q1help)
          call find_component_by_name(tval,iel,ceq)
@@ -4203,8 +4218,85 @@
          endif
 !         write(*,*)'3B Reference T and P: ',tpa
          call set_reference_state(iel,iph,tpa,ceq)
-!      CASE(11)! unused
-!         continue
+!---------------------------
+      CASE(11)! PLOT_DATA
+         call getint(eqlin(jval),last,ip)
+         if(buperr.ne.0) then
+            write(kou,*)'Dataset number must be 1 to 9',buperr
+         else
+            if(ip.le.0 .or. ip.gt.9) then
+               write(kou,*)'Illegal dataset number, must be 1 to 9',ip
+            else
+               if(pun(ip).eq.0) then
+                  pun(ip)=30+ip
+                  plotdatafile='oc_many0'
+                  plotdatafile(8:8)=char(ichar('0')+ip)
+                  write(*,*)'Opening ',plotdatafile//'.plt'
+                  open(pun(ip),file=plotdatafile//'.plt',access='sequential',&
+                       status='unknown')
+                  call getrel(eqlin(jval),last,pxx)
+                  call getrel(eqlin(jval),last,pyy)
+                  call getint(eqlin(jval),last,iel)
+                  if(buperr.ne.0) then
+                     write(*,*)'Incorrect values in plot_data',trim(eqlin(jval))
+                     buperr=0
+                  endif
+                  if(eolch(eqlin(jval),last)) then
+                     savetitle='Unknown'
+                  else
+                     savetitle=trim(eqlin(jval)(last:))
+                  endif
+                  write(pun(ip),600)iel,trim(eqlin(jval)(last:))
+600               format('# GUNPLOT file generated by enter many_equilibria '/&
+                       'set title "Open Calphad 4.0 : with GNUPLOT"'/&
+                       'set xlabel "whatever"'/&
+                       'set ylabel "whatever"'/&
+                       'set key bottom right'/&
+                       '#'/'# One can use expressions to convert values'/&
+                       '# (1-$3) above means the x-value willl be,'&
+                       ' "1-value in column 3"'/'#'/&
+                       '# pt pointtype 1 +, 2 x, 3 star, 4 square,'&
+                       ' 5 fill square, 6 circle',/&
+                       '#',14x,'7 filled circle, 8 triangle up,'&
+                       ' 9 filled triangle up'/'#',14x,'10 triangle down,',&
+                       ' 11 filled triangle down, 12 romb'/'#',14x,&
+                       '13 filled romb, 14 pentad, 15 filled pentad,',&
+                       '16 same as 1 etc'/&
+                       '# ps pointsize'/'# color ???'/&
+                       '# set style line 1 lt 2 lc rgb "#000000" lw 2'/&
+                       '# set multiplot ?? '/'#'/&
+                       '# To make a nice plot with different symbols for each',&
+                       ' experimentalist'/'# Move all plot lines after',&
+                       ' the first one, remove the #',/'# and add a ,\ at the',&
+                       ' end exept for the last.'/&
+                       '# Remove also the # for the line with a single e',/'#'/&
+                       'plot "-" using 2:3 with points pt ',i3,&
+                       ' ps 1.5 title "',a,' and maybe others"')
+               else
+                  call getrel(eqlin(jval),last,pxx)
+                  call getrel(eqlin(jval),last,pyy)
+                  call getint(eqlin(jval),last,iel)
+                  if(buperr.ne.0) then
+                     write(*,*)'Incorrect values in plot_data',trim(eqlin(jval))
+                     buperr=0
+                  endif
+                  if(eolch(eqlin(jval),last)) then
+                     savetitle='Unknown'
+                  endif
+                  if(trim(savetitle).ne.trim(eqlin(jval)(last:))) then
+! new title, this should preferably be with the previous plot command??
+                     write(pun(ip),605)iel,trim(eqlin(jval)(last:))
+605                  format('#e'/'#"" using 2:3 with points pt ',i3,&
+                          ' ps 1.5 title "',a,'"')
+                     savetitle=trim(eqlin(jval)(last:))
+                  endif
+               endif
+!               write(*,610)'3B debug: ',ip,pxx,pyy,iel,trim(savetitle)
+               write(pun(ip),610)' ',ip,pxx,pyy,iel
+610            format(a,i2,2x,2(1pe14.6),i3,5x,a)
+            endif
+         endif
+!---------------------------
 !      CASE(12)! unused
 !         continue
       end SELECT
@@ -4215,6 +4307,13 @@
    goto 300
 !
 1000 continue
+! we can have many enter many with plot data, do not close here!
+! The file(s) will be closed when the command  enter range
+!   if(plotfile) then
+!      write(pun,1010)
+!1010  format('e'/'pause mouse'/)
+!      close(pun)
+!   endif
    return
  end subroutine enter_many_equil
 

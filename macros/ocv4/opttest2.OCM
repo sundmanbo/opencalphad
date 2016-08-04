@@ -34,14 +34,14 @@ enter element MG Magnesium HCP_A3   2.4305E+01  4.9980E+03  3.2671E+01 2
 
    enter param G(LIQUID,CU;0) 298.15 +GLIQCU ;  3.20000E+03  N 91Din
    enter param G(LIQUID,MG;0) 298.15 +GLIQMG ;  3.00000E+03  N 91DIN
-   enter param G(LIQUID,CU,MG;0)  2.98150E+02 A00+A01*T;   6.00000E+03  N MYASS
-   enter param G(LIQUID,CU,MG;1)  2.98150E+02 A02+A03*T;   6.00000E+03  N MYASS
-   enter param G(LIQUID,CU,MG;2)  2.98150E+02 A04+A05*T;   6.00000E+03  N MYASS
+   enter param G(LIQUID,CU,MG;0)  2.98150E+02 A00+A01*T;   6.00000E+03  N MYVAL
+   enter param G(LIQUID,CU,MG;1)  2.98150E+02 A02+A03*T;   6.00000E+03  N MYVAL
+   enter param G(LIQUID,CU,MG;2)  2.98150E+02 A04+A05*T;   6.00000E+03  N MYVAL
 
 
  enter phase CUMG2   2 1.0 CU;  2.0 MG;
    enter param G(CUMG2,CU:MG;0) 298.15 +A30+A31*T+A32*T*LN(T)+
-   A33*T**2+A34*T**(-1)+A35*T**3;   6.00000E+03   N MYASS
+   A33*T**2+A34*T**(-1)+A35*T**3;   6.00000E+03   N MYVAL
 
 
  enter phase FCC_A1   2 1.0 CU MG; 1.0 VA;
@@ -49,8 +49,8 @@ enter element MG Magnesium HCP_A3   2.4305E+01  4.9980E+03  3.2671E+01 2
 
    enter param G(FCC_A1,CU:VA;0) 298.15 +GHSERCU ;  3.20000E+03  N 91DIN
    enter param G(FCC_A1,MG:VA;0) 298.15 +GFCCMG ;  3.00000E+03  N 91DIN
-   enter param G(FCC_A1,CU,MG:VA;0) 298.15 +A11 +A12*T;   6.00000E+03   N MYASS
-   enter param G(FCC_A1,CU,MG:VA;1) 298.15 +A13 +A14*T;   6.00000E+03   N MYASS
+   enter param G(FCC_A1,CU,MG:VA;0) 298.15 +A11 +A12*T;   6.00000E+03   N MYVAL
+   enter param G(FCC_A1,CU,MG:VA;1) 298.15 +A13 +A14*T;   6.00000E+03   N MYVAL
 
 
  enter phase HCP_A3  2 1.0 CU MG;  0.5 VA; 
@@ -58,8 +58,8 @@ enter element MG Magnesium HCP_A3   2.4305E+01  4.9980E+03  3.2671E+01 2
 
    enter param G(HCP_A3,CU:VA;0) 298.15 +GHCPCU ;  3.20000E+03  N 91DIN
    enter param G(HCP_A3,MG:VA;0) 298.15 +GHSERMG ;  3.00000E+03  N 91DIN
-   enter param G(HCP_A3,CU,MG:VA;0) 298.15 +A21 +A22*T;   6.00000E+03  N MYASS
-   enter param G(HCP_A3,CU,MG:VA;1) 298.15 +A23 +A24*T;   6.00000E+03  N MYASS
+   enter param G(HCP_A3,CU,MG:VA;0) 298.15 +A21 +A22*T;   6.00000E+03  N MYVAL
+   enter param G(HCP_A3,CU,MG:VA;1) 298.15 +A23 +A24*T;   6.00000E+03  N MYVAL
 
 
  enter phase LAVES_C15   2 2.0 CU MG;   1.0 CU MG; 
@@ -69,17 +69,17 @@ enter element MG Magnesium HCP_A3   2.4305E+01  4.9980E+03  3.2671E+01 2
    enter param G(LAVES_C15,MG:CU;0) 298.15 +34720+2*GHSERMG +GHSERCU; 
   6.00000E+03   N SL
    enter param G(LAVES_C15,CU:MG;0) 298.15 +A40+A41*T+A42*T*LN(T)
-  +A43*T**2+A44*T**(-1)+A45*T**3;   6.00000E+03   N MYASS
+  +A43*T**2+A44*T**(-1)+A45*T**3;   6.00000E+03   N MYVAL
    enter param G(LAVES_C15,MG:MG;0) 298.15 +17700+3*GFCCMG ;   
   6.00000E+03   N SL
-   enter param G(LAVES_C15,CU,MG:CU;0) 298.15 +A46 ;   6.00000E+03   N MYASS
-   enter param G(LAVES_C15,CU:CU,MG;0) 298.15 +A47 ;   6.00000E+03   N MYASS
-   enter param G(LAVES_C15,MG:CU,MG;0) 298.15 +A47 ;   6.00000E+03   N MYASS
-   enter param G(LAVES_C15,CU,MG:MG;0) 298.15 +A46 ;   6.00000E+03   N MYASS
+   enter param G(LAVES_C15,CU,MG:CU;0) 298.15 +A46 ;   6.00000E+03   N MYVAL
+   enter param G(LAVES_C15,CU:CU,MG;0) 298.15 +A47 ;   6.00000E+03   N MYVAL
+   enter param G(LAVES_C15,MG:CU,MG;0) 298.15 +A47 ;   6.00000E+03   N MYVAL
+   enter param G(LAVES_C15,CU,MG:MG;0) 298.15 +A46 ;   6.00000E+03   N MYVAL
 
  amend bib 91DIN A Dinsdale Calphad 1991;
  amend bib SL M H F Sluiter Calphad 2006;
- amend bib MYASS My assessment;
+ amend bib MYVAL My assessed value; 
 
 @&
 
@@ -100,16 +100,30 @@ set cond P=P0 T=298.15 N(MG)=1 N(CU)=2
 enter symbol CP1=H.T;
 enter symbol CP=CP1/N;
 enter experiment CP=24.4:.1
-@$ graphics 1 298.15 24.4 8
+@$ we cannot enter plot_data before the first enter many_equilibria
+@$ enter plot_data 1 298.15 24.4 8 Feufel
 enter comment C15 - CP 298 - FEUFEL
 @$
+@&
 @$=================================
 enter many_equilibria
 ENT 1        LAVES_C15
 condition P=P0 T=@1 N(MG)=1 N(CU)=2
 experiment CP=@2:.1
-comment C15 - CP DSC - FEUFEL
-@$ graphics 1 @1 @2 8
+comment FEUFEL C15 - CP DSC
+plot_data 1 @1 @2 8 Feufel
+@$ The plot_data command saves the whole line 
+@$ (after plot_data) on a file
+@$ that will be opened inside the many_equilibria 
+@$ command.  The first number is a dataset number, 
+@$ can be 1 to 9 and ´data for the same dataset
+@$ will be saved on the file oc_manyj.plt where
+@$ j is the dataset number.  The next two numbers
+@$ are coordinates, the last a symbol, 1 to 15.
+@$ Finally a text reference can be given
+@$ The oc_manyj.plt data can be plotted as is but
+@$ will be nicer after they have some editing
+@&
 table_start
 EQ_T1_2_CP15 100 17
 EQ_T1_3_CP15 343 24.90
@@ -136,14 +150,14 @@ EQ_T1_23_CP15 743 27.47
 EQ_T1_24_CP15 763 27.43
 table_end
 @$
-@$=================================
 @&
+@$=================================
 enter many_equilibria
 ENT 1        LAVES_C15
 condition P=P0 T=@2  N(MG)=1 N(CU)=2
 experiment CP=@3:.1
 comment C15 - PHONON CALC - CRIVELLO
-@$ graphics 1 @2 @3 2
+plot_data 1 @2 @3 2 Crivello
 table_start
 EQ_T2_30_CP15_P 30   20    0.72162
 EQ_T2_31_CP15_P 31   30    2.1669
@@ -253,7 +267,7 @@ ENT 1        CUMG2
 condition P=P0 T=@1 N(MG)=2 N(CU)=1
 experiment CP=@2:.1
 comment CUMG2 - CP - FEUFEL
-@$ graphics 2 @1 @2 8
+plot_data 2 @1 @2 8 Feufel
 table_start
 EQ_T3_130_CP2 100    12
 EQ_T3_131_CP2 298.15 24.12
@@ -289,7 +303,7 @@ reference MG LIQ * 1E5
 @$ experiment MUR(MG)=@2:20%
 experiment MU(MG)=@2:20%
 comment LIQ - MG PRESS - SCHMAHL AND SIEBEN
-@$ graphics 3 @3 @2 MS1
+plot_data 3 @3 @2 7 Schmahl
 table_start
 EQ_T4_190_MUL_S 190    -83   865  .936
 EQ_T4_191_MUL_S 191   -385   895  .936
@@ -324,7 +338,7 @@ reference MG LIQ * 1E5
 @$ experiment ACR(MG)=@5:16%
 experiment AC(MG)=@5:16%
 comment LIQ - MG PRESSURE - JUNEJA
-@$ graphics 3 @2 @7 MS1
+plot_data 3 @2 @7 8 Juneja
 table_start
 EQ_T5_220_MUL_J 220  1056   9.4698   -0.0466   0.8982   0.9005   -943
 EQ_T5_221_MUL_J 221  1032   9.6927   -0.0471   0.8972   0.9005   -931
@@ -386,7 +400,7 @@ reference MG LIQ * 1E5
 @$ experiment ACR(MG)=@6:20%
 experiment AC(MG)=@6:20%
 comment LIQ - MG PRESSURE - GARG
-@$ graphics 3 @3 @7 MS1
+plot_data 3 @3 @7 9 Garg
 table_start
 EQ_T6_270_MUL_G 270 0.11   1173   8.52514919    -2.1844     0.0065   -49053.0
 EQ_T6_271_MUL_G 271 0.11   1200   8.333333333   -2.1543     0.0070   -49490.3
@@ -424,7 +438,7 @@ reference MG HCP * 1E5
 @$ experiment MUR(MG)=@6:20%
 experiment MU(MG)=@6:20%
 comment C15+CUMG2 - MG PRESSURE - SMITH
-@$ graphics 4 @2 @6 MS2
+plot_data 4 @2 @6 7 Smith
 table_start
 EQ_T7_300_MU2 AC2 675   -6.4800        3.3113E-07   0.0786   -14276
 EQ_T7_301_MU2 AC2 725   -5.6800        2.0893E-06   0.0839   -14937
@@ -441,7 +455,7 @@ reference MG HCP * 1E5
 @$ experiment MUR(MG)=@6:20%
 experiment MU(MG)=@6:20%
 comment CU+C15 - MG PRESSURE - SMITH
-@$ graphics 4 @2 @6 MS2
+plot_data 4 @2 @6 7 Smith
 table_start
 EQ_T8_310_MUF2 AF2 751   -6.3515      4.4514E-07   0.0078   -30310
 EQ_T8_311_MUF2 AF2 801   -5.6417      2.2821E-06   0.0094   -31066
@@ -456,7 +470,7 @@ condition P=P0 N=1 T=@6 X(MG)=@9
 reference MG HCP * 1E5
 @$ experiment MUR(MG)=@4:@5
 experiment MU(MG)=@4:@5
-@$ graphics 4 @6 @4 MS1
+plot_data 4 @6 @4 8 Eremenko
 comment EMF - EREMENKO
 table_start
 EQ_T9_320_MU3 AFC  FCC_A1   L_C15  -34373  1050   723   .0400     .333300  .2
@@ -473,8 +487,8 @@ reference CU LIQUID * 1E5
 reference MG LIQUID * 1E5
 @$ experiment HMR=@2:5%
 experiment HM=@2:5%
-comment LIQ - CALO - BATALIN
-@$ graphics 5 @3 @2 MS2
+comment BATALIN LIQ - CALO - 
+plot_data 5 @3 @2 2 Batalin
 table_start
 EQ_T10_330_HLIQ_B 330  -3.7240E3  1.0222E-01
 EQ_T10_331_HLIQ_B 331  -5.9639E3  2.0807E-01
@@ -495,8 +509,8 @@ reference CU LIQUID * 1E5
 reference MG LIQUID * 1E5
 @$ experiment HMR=@3:5%
 experiment HM=@3:5%
-comment LIQ - CALO - HULTGREN
-@$ graphics 5 @2 @3 MS8
+comment HULTGREN LIQ - CALO - 
+plot_data 5 @2 @3 8 Hultgren
 table_start
 EQ_T11_340_HLIQ_H 340 1.9481E-01 -7.3231E3
 EQ_T11_341_HLIQ_H 341 3.0398E-01 -9.1922E3
@@ -516,8 +530,8 @@ reference CU LIQUID * 1E5
 reference MG LIQUID * 1E5
 @$ experiment HMR=@2:5%
 experiment HM=@2:5%
-comment LIQ - CALO - SOMMER
-@$ graphics 5 @4 @2 MS200
+comment SOMMER LIQ - CALO - 
+plot_data 5 @4 @2 3 Sommer
 table_start
 EQ_T12_350_HLIQ_S 350   -1900  .075  .925
 EQ_T12_351_HLIQ_S 351   -3200  .13   .87
@@ -555,7 +569,7 @@ set reference_state CU FCC_A1 * 1E5
 set reference_state MG HCP_A3 * 1E5
 @$ enter experiment HMR=-11171.3:420
 enter experiment HM=-11171.3:420
-@$ graphics 6 .33 -11171.3 MS1
+enter plot_data 6 .33 -11171.3 7 King
 enter comment C15 - CALORIMETRY - KING
 @$ ==========================================
 enter equilibrium EQ_401_HCUMG2_K YES
@@ -566,7 +580,7 @@ set reference_state CU FCC_A1 * 1E5
 set reference_state MG HCP_A3 * 1E5
 @$ enter experiment HMR=-9539.5:420
 enter experiment HM=-9539.5:420
-@$ graphics 6 .67 -9539.5 MS1
+enter plot_data 6 .67 -9539.5 7 King
 enter comment CUMG2 - CALORIMETRY - KING
 @$ ==========================================
 enter equilibrium EQ_402_HC15_F YES
@@ -577,7 +591,7 @@ set reference_state CU FCC_A1 * 1E5
 set reference_state MG HCP_A3 * 1E5
 @$ enter experiment HMR=-12700:2000
 enter experiment HM=-12700:2000
-@$ graphics 6 .33 -12700 8
+enter plot_data 6 .33 -12700 8 Feufel
 enter comment C15 - SOLUTION CALORIMETRY - FEUFEL
 @$ ==========================================
 enter equilibrium EQ_403_HCUMG2_F YES
@@ -588,7 +602,7 @@ set reference_state CU FCC_A1 * 1E5
 set reference_state MG HCP_A3 * 1E5
 @$ enter experiment HMR=-9800:1800
 enter experiment HM=-9800:1800
-@$ graphics 6 .67 -9800 8
+enter plot_data 6 .67 -9800 8 Feufel
 enter comment CUMG2 - SOLUTION CALORIMETRY - FEUFEL
 enter symbol HFUS=HM(LIQUID)-HM;
 @$ ==========================================
@@ -598,7 +612,7 @@ set status PHASE LIQUID=FIX 0
 set status PHASE L_C15=ENT 1
 set cond P=P0 N(MG)=1 N(CU)=2
 enter experiment HFUS=15200:1500
-@$ graphics 7 .33 15200 8
+enter plot_data 7 .33 15200 8 Feufel
 enter comment C15 - MELTING ENTHALPY - FEUFEL 95
 @$ ==========================================
 enter equilibrium EQ_411_HTCUMG2  YES
@@ -607,7 +621,7 @@ set status PHASE LIQUID=FIX 0
 set status PHASE CUMG2=FIX 1
 set cond P=P0 X(LIQ,MG)-X(CUMG2,MG)=0
 enter experiment HFUS=13700:1400
-@$ graphics .67 13700:1400 8
+enter plot_data 7 .67 13700:1400 8 Feufel
 enter comment CUMG2 - MELTING ENTHALPY - FEUFEL 95
 @$ ==========================================
 enter equilibrium EQ_470_HC15_C YES
@@ -618,7 +632,7 @@ set reference_state CU FCC_A1 * 1E5
 set reference_state MG HCP_A3 * 1E5
 @$ enter experiment HMR=-14369:1000
 enter experiment HM=-14369:1000
-@$ graphics 6 0.333333 -14369 10
+enter plot_data 6 0.333333 -14369 10 12Cur
 enter comment C15 - DFT FORMATION H - 12CUR
 @$ ==========================================
 enter equilibrium EQ_471_HCUMG2_C YES
@@ -629,7 +643,7 @@ set reference_state CU FCC_A1 * 1E5
 set reference_state MG HCP_A3 * 1E5
 @$ enter experiment HMR=-10700:1000
 enter experiment HM=-10700:1000
-@$ graphics 6 0.6666667 -10700 10
+enter plot_data 6 0.6666667 -10700 10 12Cur
 enter comment CUMG2 - DFT FORMATION H - 12CUR
 @$ ==========================================
 enter equilibrium EQ_472_HC15_Z YES
@@ -640,7 +654,7 @@ set reference_state CU FCC_A1 * 1E5
 set reference_state MG HCP_A3 * 1E5
 @$ enter experiment HMR=-15720:1000
 enter experiment HM=-15720:1000
-@$ graphics 6 0.3333333 -15720 6
+enter plot_data 6 0.3333333 -15720 6 07Zho
 enter comment C15 - DFT FORMATION H - 07ZHO
 @$ ==========================================
 enter equilibrium EQ_473_HCUMG2_Z YES
@@ -652,7 +666,7 @@ set reference_state MG HCP_A3 * 1E5
 @$ enter experiment HMR=-13200:1000
 enter experiment HM=-13200:1000
 enter comment CUMG2 - DFT FORMATION H - 07ZHO
-@$ graphics 6 0.66666667 -13200 6
+enter plot_data 6 0.66666667 -13200 6 07Zho
 @$
 @$=================================
 enter many_equilibria
@@ -662,15 +676,15 @@ reference CU @3 * 1E5
 reference MG @3 * 1E5
 @$ experiment HMR=@5:500
 experiment HM=@5:500
-@$ graphics @7 @4 @5 @6
+plot_data @7 @4 @5 @6 07Shi
 comment @3 - SQS - 07SHI
 table_start
 EQ_T13_480_HFSQS_S 480 AFS   FCC_A1  0.25  1580    2    8
 EQ_T13_481_HFSQS_S 481 AFS   FCC_A1  0.5   8070    2    8
 EQ_T13_482_HFSQS_S 482 AFS   FCC_A1  0.75  6980    2    8
-EQ_T13_483_HHSQS_S 483 AHS   HCP_A3  0.25  1120    2    S200
-EQ_T13_484_HHSQS_S 484 AHS   HCP_A3  0.5   5650    2    S200
-EQ_T13_485_HHSQS_S 485 AHS   HCP_A3  0.75  5810    2    S200
+EQ_T13_483_HHSQS_S 483 AHS   HCP_A3  0.25  1120    2    8
+EQ_T13_484_HHSQS_S 484 AHS   HCP_A3  0.5   5650    2    8
+EQ_T13_485_HHSQS_S 485 AHS   HCP_A3  0.75  5810    2    8
 table_end
 @$ ==========================================
 enter equilibrium EQ_486_HSSQS_W  YES
@@ -681,7 +695,7 @@ set reference_state CU FCC_A1 * 1E5
 set reference_state MG FCC_A1 * 1E5
 @$ enter experiment HMR=-2600:500
 enter experiment HM=-2600:500
-@$ graphics 8 0.5 -2600 3
+enter plot_data 8 0.5 -2600 3 07Wol
 enter comment FCC_A1 - SQS - 07WOL
 @$
 @$=================================
@@ -691,7 +705,7 @@ ENT 1        @3
 condition P=P0 N=1 X(MG)=@4
 experiment T=@5:5
 comment LIQUIDUS @7
-@$ graphics 10 @4 @5 S200
+plot_data 9 @4 @5 7 @7
 table_start
 EQ_T14_501_XLIQ_F 501   ALF   FCC_A1       0.026   1338   9      08SAH
 EQ_T14_502_XLIQ_F 502   ALF   FCC_A1       0.075   1263   9      08SAH
@@ -725,7 +739,7 @@ ENT 1        @3
 condition P=P0 N=1 X(MG)=@4
 experiment T=@5:5
 comment LIQUIDUS @7
-@$ graphics 10 @4 @5 8
+plot_data 9 @4 @5 8 @7
 table_start
 EQ_T15_530_XLIQ_H 530   ALH   HCP_A3   0.999988522    920.45   2      31JON
 EQ_T15_531_XLIQ_H 531   ALH   HCP_A3   0.999973217    920.15   2      31JON
@@ -849,7 +863,7 @@ ENT 1        @3
 condition P=P0 N=1 X(MG)=@4
 experiment T=@5:5
 comment LIQUIDUS @7
-@$ graphics 10 @4 @5 MS202
+plot_data 9 @4 @5 2 @7
 table_start
 EQ_T16_650_XLIQ_C 650   ALC   L_C15   0.29042   1056.11423   2      78BAG
 EQ_T16_651_XLIQ_C 651   ALC   L_C15   0.30246   1062.70164   2      78BAG
@@ -869,7 +883,7 @@ ENT 1        @3
 condition P=P0 N=1 X(MG)=@4
 experiment T=@5:5
 comment LIQUIDUS @7
-@$ graphics 10 @4 @5 6
+plot_data 9 @4 @5 6 @7
 table_start
 EQ_T17_659_XLIQ_F 659   ALF   FCC_A1   0.008   1348.15   6      07URA
 EQ_T17_660_XLIQ_F 660   ALF   FCC_A1   0.0515  1289.15   6      07URA
@@ -954,7 +968,7 @@ set status PHASE FCC_A1 L_C15=ENT 1
 set cond P=P0 N=1 X(MG)=.2
 enter experiment T=995.15:5
 enter experiment X(LIQ,MG)=0.219:0.01
-@$ graphics 10 .219 995 8
+enter plot_data 9 .219 995 8 31Jon
 enter comment CU+C15 EUTECTIC - 31JON
 @$ ==========================================
 enter equilibrium EQ_801_ALCF_AEUT YES
@@ -972,7 +986,7 @@ set status PHASE L_C15 CUMG2=FIX 1
 set cond P=P0
 enter experiment T=825.15:5
 enter experiment X(LIQ,MG)=0.580:0.01
-@$ graphics 10 .580 825 8
+enter plot_data 9 .580 825 8 31Jon
 enter comment C15+CUMG2 EUTECTIC - 31JON
 @$ ==========================================
 enter equilibrium EQ_803_ALC2_AEUT YES
@@ -990,7 +1004,7 @@ set status PHASE CUMG2 HCP_A3=ENT 1
 set cond P=P0 N=1 X(MG)=.8
 enter experiment T= 758.15:5
 enter experiment X(LIQ,MG)=0.855:0.01
-@$ graphics 10 .855 758 8
+enter plot_data 9 .855 758 8 31Jon
 enter comment CUM2+MG EUTECTIC - 31JON
 @$ ==========================================
 enter equilibrium EQ_805_CMELT  YES
@@ -1000,7 +1014,7 @@ set cond P=P0
 set cond X(LIQUID,MG)-X(L_C15,MG)=0
 enter experiment T=1093.15:5
 enter experiment X(MG)=.33333:.01
-@$ graphics 10 .333 1093 8
+enter plot_data 9 .333 1093 8 31Jon
 enter comment C15 - CONGRUENT MELTING - 31JON
 @$ ==========================================
 enter equilibrium EQ_806_CMELT  YES
@@ -1010,7 +1024,7 @@ set cond P=P0
 set cond X(LIQUID,MG)-X(L_C15,MG)=0
 enter experiment T=1066.15:5
 enter experiment X(MG)=.33333:.01
-@$ graphics 10 .333 1066 MS202
+enter plot_data 9 .333 1066 12 78Bag
 enter comment C15 - CONGRUENT MELTING - 78BAG
 @$ ==========================================
 enter equilibrium EQ_807_MELT2  YES
@@ -1019,7 +1033,7 @@ set status PHASE LIQUID CUMG2=FIX 1
 set cond P=P0
 set cond X(LIQUID,MG)-X(CUMG2,MG)=0
 enter experiment T=840.15:5
-@$ graphics 10 .667 840 8
+enter plot_data 9 .667 840 8 31Jon
 enter comment CUMG2 - CONGRUENT MELTING - 31JON
 @$ ==========================================
 enter equilibrium EQ_808_MELT2  YES
@@ -1028,7 +1042,7 @@ set status PHASE LIQUID CUMG2=FIX 1
 set cond P=P0
 set cond X(LIQUID,MG)-X(CUMG2,MG)=0
 enter experiment T=841.15:5
-@$ graphics 10 .667 841 MS202
+enter plot_data 9 .667 841 12 78Bag
 enter comment CUMG2 - CONGRUENT MELTING - 78BAG
 @$
 @$=================================
@@ -1036,7 +1050,7 @@ enter many_equilibria
 ENT 1        @3,@4
 condition P=P0 N=1 X(MG)=@9 T=@6
 experiment X(L_C15,MG)=@5:0.001
-@$ graphics 10 @5 @6 MS202
+enter plot_data 9 @5 @6 12 @8
 comment C15 HOMOGENEITY RANGE @8
 table_start
 EQ_T18_901_RC15 901   ACF   L_C15   FCC_A1   0.32632   572.281   2  78BAG   .2
@@ -1058,9 +1072,9 @@ ENT 1        @3,@4
 condition P=P0 N=1 T=@6 X(MG)=.2
 experiment X(@3,MG)=@5:0.001
 comment CU SOLVUS @8
-@$ graphics 10 @5 @6 @7
+plot_data 9 @5 @6 @7 @8
 table_start
-EQ_T19_921_XFCC 921   AFC   FCC_A1   L_C15   0.07     990.15   MS202  78BAG
+EQ_T19_921_XFCC 921   AFC   FCC_A1   L_C15   0.07     990.15  12      78BAG
 EQ_T19_922_XFCC 922   AFC   FCC_A1   L_C15   0.0553   773.15   8      31JON
 EQ_T19_923_XFCC 923   AFC   FCC_A1   L_C15   0.0553   873.15   8      31JON
 EQ_T19_924_XFCC 924   AFC   FCC_A1   L_C15   0.0616   953.15   8      31JON
@@ -1080,7 +1094,7 @@ ENT 1        @3,@4
 condition P=P0 N=1 X(MG)=.8 T=@6
 experiment X(HCP_A3,MG)=@5:0.001
 comment MG SOLVUS @8
-@$ graphics 10 @5 @6 @7
+plot_data 9 @5 @6 @7 @8
 table_start
 EQ_T20_941_XHCP 941   AH2   HCP_A3   CUMG2   0.99993   298.15   8      31JON
 EQ_T20_942_XHCP 942   AH2   HCP_A3   CUMG2   0.99989   738.15   8      31JON
@@ -1093,6 +1107,7 @@ EQ_T20_948_XHCP 948   AH2   HCP_A3   CUMG2   0.99789   753.15   7      35STE
 table_end
 @$ ===========================
 @$ This defines the range of equilibria for assessment and calc all
+@$ The default for last equilibrium is the current
 set range 2
 
 
@@ -1202,11 +1217,32 @@ x(mg)
 hm
 
 
+@$ plot together with a data file with experimental data
 plot
 x(mg)
 hm
 append
 hliq.plt
+
+
+
+@&
+@$ The experimental data file has been edited manually from files
+@$ created when we executed the command "enter Many_equilibria"
+@$ The program saved lines with plot_data on various files to be plotted. 
+@$ The one with enthalpy of mixing had dataset number 5 and is called 
+@$ oc_many5.plt
+@$ It needs some editing to display the references for the data 
+@$ but we can append it as it is also.
+
+plot
+
+
+append
+oc_many5
+
+
+
 
 
 @$ Now continue on your own ...

@@ -245,6 +245,62 @@ c e
 l,,,,
 
 @$ Temperature becomes 2139 with this addition of heat
+@&
+@$ ----------------------------------------------------------------- 
+@$ Something different
+@$ Calculate NPLE (Negligible Partition Local Equilibrium)
+@&
+@$ First clean up the last set of conditions
+set c ac(cr)=none h=none
+set status phase *=sus
+
+@&
+@$ Set conditions for a tie-line between FCC and BCC with
+@$  x(cr)=.2 in BCC
+set status phase fcc_a1 bcc_a2 = ent 1
+set c t=1000 p=1e5 n=1 x(c)=.02 x(bcc_a2,cr)=.2
+
+l c
+
+c e
+
+l r 1
+
+@$ This is the stable tie-line between FCC and BCC
+@$ (Ortho-equilibrium) when BCC has x(cr)=.2.  FCC has less Cr 
+@$ and its x(c)=.032961.  Now we want to find the NPLE
+@$ composition of C in FCC (when FCC has the same Cr content
+@$  as BCC and the current chemical potential for C)
+@& 
+@$--------------------------------------------------------------
+@$ To calculate this remove the bcc phase and calculate with just
+@$ the FCC with the same Cr content as bcc, x(fcc,cr)=.2 for the
+@$ same carbon activity.  That is NPLE conditions for growing FCC
+
+set status phase bcc_a2=d
+set status phase fcc_a1=ent 1
+set c ac(c)
+
+set c x(c)=none x(bcc_a2,cr)=none
+set c x(fcc,cr)=.2
+
+l c 
+@&
+
+c n
+
+l,,,,
+
+@$ This is the content of C in an FCC with same Cr fraction
+@$ as BCC and with the same carbon activity as the tie-line.
+@$ The carbon content in FCC is now x(c)=.030725
+@$ We are inside the two-phase region as BCC would like to be
+@$ stable (it has a small positive driving force) but as it is
+@$ dormant it cannot be included in the stable phase set.
+@$ 
+@$ The calculation kindly provided by Shaojie Song
+@$ who discovered a bug!
+@$ Report one yourself and get cited!
 
 @$ That is all for now
 

@@ -14,7 +14,7 @@ l r 1
 
 @&
 
-set ax 1 x(cu) 0 1 ,,,
+set ax 1 x(cu) 0 1 0.025
 set ax 2 t 800 1500 10
 
 l ax

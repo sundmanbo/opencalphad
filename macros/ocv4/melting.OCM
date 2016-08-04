@@ -171,11 +171,12 @@ l sh
 @&
 @$ --------------------------------------------------------------
 @$ READ THIS CAREFULLY
-@$ If you know what you are doing you can fix the problem like this
+@$ If you know what you are doing you can fix problems like this
 @$
-@$ It is hardware dependent if the fcc or fcc#2 phase is stable above
-@$ If it is fcc#2 which is stable the correction below works
-@$ If it is fcc which is stable then change two lines below to fcc#2
+@$ It is hardware dependent if the fcc or fcc#2 phase is stable
+@$ in the list above.
+@$ If fcc#2 is stable the correction below works
+@$ If fcc   is stable, change two lines below to fcc#2
 @$ --------------------------------------------------------------
 @&
 c ph fcc

@@ -3369,7 +3369,7 @@
 
 !\begin{verbatim}
  subroutine get_all_conditions(text,mode,ceq)
-! list all conditions if mode=0, experiments if mode=1
+! list all conditions if mode=0, experiments if mode=1, -1 if no numbers
    implicit none
    integer mode
    character text*(*)
@@ -3393,9 +3393,13 @@
    endif
    last=>ceq%lastcondition
    if(.not.associated(last)) then
+      if(mode.eq.-1) then
+         text=' '
+      else
 ! The CRLF indicates CR+LF at output
-      write(text,50)noofel+2
-50    format('CRLF Degrees of freedom are ',i3)
+         write(text,50)noofel+2
+50       format('CRLF Degrees of freedom are ',i3)
+      endif
       goto 1000
    endif
    current=>last%next
@@ -3409,13 +3413,15 @@
 ! if active is nonzero the condition is not active
       goto 200
    endif
-!   call wrinum(text,ip,3,0,dble(nc))
-   call wriint(text,ip,nc)
+   if(mode.ne.-1) then
+! no condition numbers for mode=-1
+      call wriint(text,ip,nc)
 ! number the conditions
-   text(ip:)=':'
+      text(ip:)=':'
 !   ip=ip+2
 ! No space after :
-   ip=ip+1
+      ip=ip+1
+   endif
    iterm=1
    if(current%statev.lt.0) then
 ! handle FIX phases
@@ -3502,7 +3508,10 @@
 !      write(kou,99)text(1:ip-3)
 !99    format(a)
    endif
-   write(text(ip:),50)noofel+3-nc
+   if(mode.eq.0) then
+! the degrees of freedoms   
+      write(text(ip:),50)noofel+3-nc
+   endif
 1000 return
  end subroutine get_all_conditions
 
