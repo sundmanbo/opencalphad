@@ -1175,6 +1175,8 @@ end function find_phasetuple_by_indices
    double precision mass
    integer iph,icon
 !\end{verbatim}
+! BUG found, asking for a constituent N it returned the constituent NB !!!
+! Must search for exact match!!!
    character spname1*24
    integer lokph,kp,ll,kk,loksp,ls,first
    lokph=phases(iph)
@@ -1194,21 +1196,24 @@ end function find_phasetuple_by_indices
          icon=icon+1
          if(ls.eq.0 .or. ls.eq.ll) then
             loksp=phlista(lokph)%constitlist(icon)
-! constituent icon is the requested one
-!             write(*,55)ll,kk,icon,spname1(1:3),splista(loksp)%symbol(1:3)
-!55           format('find_const 7: ',3i3,1x,a,2x,a)
+! constituent icon is the requested one ??
+!            write(*,55)ll,kk,icon,trim(spname1),trim(splista(loksp)%symbol)
+55          format('find_const 7: ',3i3,1x,a,2x,a)
             if(compare_abbrev(spname1,splista(loksp)%symbol)) then
-               if(first.eq.0) then
+               if(trim(spname1).eq.trim(splista(loksp)%symbol)) then
+! if exact match accept
+                  first=loksp; goto 90
+               elseif(first.eq.0) then
                   first=loksp
                else
                   gx%bmperr=4121
                   goto 1000
                endif
-               goto 1000
             endif
          endif
       enddo sploop
    enddo lloop
+90 continue
    if(first.eq.0) then
       gx%bmperr=4096
    else

@@ -1050,7 +1050,7 @@ enter many_equilibria
 ENT 1        @3,@4
 condition P=P0 N=1 X(MG)=@9 T=@6
 experiment X(L_C15,MG)=@5:0.001
-enter plot_data 9 @5 @6 12 @8
+plot_data 9 @5 @6 12 @8
 comment C15 HOMOGENEITY RANGE @8
 table_start
 EQ_T18_901_RC15 901   ACF   L_C15   FCC_A1   0.32632   572.281   2  78BAG   .2

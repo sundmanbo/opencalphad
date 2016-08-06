@@ -2000,7 +2000,7 @@ CONTAINS
     integer seqz,jaxwc,jax,cmode,cmix(10),nyax,oldax,maybecongruent
     integer istv,indices(4),iref,iunit,ip,i1,i2,i3
     double precision value,dax1(5),dax2(5),axval(5),axval2(5),axvalt(5)
-    double precision laxfact,xxx,yyy
+    double precision laxfact,xxx,yyy,bigincfix
     double precision preval(5),curval(5),prefixval(5),curfixval(5)
     double precision, parameter :: endfact=1.0D-6
     character ch1*1,statevar*24,encoded*24
@@ -2064,6 +2064,7 @@ CONTAINS
     else 
 ! this is the current axis with acitive condition
        jaxwc=abs(mapline%axandir)
+       bigincfix=one
 !       write(*,*)'map_step: Number of fix phases: ',mapline%meqrec%nfixph
 !       write(*,*)'map_step: Fix phase: ',mapline%meqrec%fixph(1,1),&
 !            mapline%meqrec%fixph(2,1)
@@ -2124,9 +2125,14 @@ CONTAINS
 ! for later equilibria calculate the slope and check if close to limit
                 dax2(jax)=(xxx-mapline%axvals2(jax))/axarr(jax)%axinc
                 axvalt(jax)=mapline%axvals2(jax)
+                
                 if(jax.ne.jaxwc .and. istv.ge.10) then
                    prefixval(jax)=xxx
                    curfixval(jax)=mapline%axvals2(jax)
+                   if(abs(prefixval(jax)-curfixval(jax)).gt.&
+                        0.5D0*axarr(jax)%axinc) then
+                      bigincfix=5.0D-1
+                   endif
 ! for axis with inactive condition check if next step would pass min/max limit
 ! If so reduce the step in the active axis but do not change active axis!!
 ! xxx is last axis value, mapline%axvals2(jax) is previous
@@ -2194,6 +2200,7 @@ CONTAINS
 ! is done at the tip2 statement below
           endif tip1
        enddo loopaxis
+!-------------------------------------------------------------
 !       write(*,73)'Saved: ',(jax,mapline%axvalx(jax),&
 !            mapline%axvals(jax),jax=1,nax)
 !73     format(a,2(i4,2(1pe14.6)))
@@ -2313,10 +2320,12 @@ CONTAINS
        endif
        axvalok=value
 ! laxfact is not saved between calls
+! bigincfix 0.5 if fix phase changes more than 0.5*axinc
+       bigincfix=one
        if(mapline%axandir.gt.0) then
-          value=value+laxfact*axarr(jaxwc)%axinc*mapline%axfact
+          value=value+bigincfix*laxfact*axarr(jaxwc)%axinc*mapline%axfact
        else
-          value=value-laxfact*axarr(jaxwc)%axinc*mapline%axfact
+          value=value-bigincfix*laxfact*axarr(jaxwc)%axinc*mapline%axfact
        endif
 !       write(*,313)'laxfact: ',jaxwc,laxfact,value,&
 !            axarr(jaxwc)%axinc,mapline%axfact,axvalok
@@ -3026,6 +3035,7 @@ CONTAINS
     nopotax=0
     if(maptop%number_ofaxis.gt.1) then
 !       write(*,*)'Seach for step axis'
+       kk=0
        do jj=1,maptop%number_ofaxis
           if(axarr(jj)%axcond(1)%statevarid.lt.5) then
 ! positive or negative direction is unknown
@@ -4567,7 +4577,7 @@ CONTAINS
     double precision xxx,yyy
     integer, allocatable :: plotkod(:),lineends(:)
     character xax1*8,xax2*24,yax1*8,yax2*24,axis1*32,axisx(2)*32,axisy(2)*32
-    character phname*32,encoded*80,axis*32
+    character phname*32,encoded*128,axis*32
     character lid(2,maxsame)*24
 !
 ! xval and yval and ccordinates to plot, 
@@ -4813,13 +4823,15 @@ CONTAINS
        goto 100
     endif
 !========================================================
+!    call get_all_conditions(encoded,-1,ceq)
+    call get_plot_conditions(encoded,maptop%number_ofaxis,axarr,ceq)
 ! now we should have all data to plot in xval and yval arrays
 500 continue
 !    write(*,*)'found lines/points to plot: ',same,plotp
 !    write(*,502)(lineends(ii),ii=1,same)
 502 format(10i5)
     call ocplot3B(same,nofinv,lineends,2,xval,2,yval,2,zval,plotkod,pltax,&
-         lid,filename,graphopt,pform)
+         lid,filename,graphopt,pform,encoded)
     deallocate(xval)
     deallocate(yval)
     deallocate(plotkod)
@@ -4932,9 +4944,7 @@ CONTAINS
 
 !\begin{verbatim}
   subroutine ocplot3B(same,nofinv,lineends,nx1,xval,ny1,yval,nz1,zval,plotkod,&
-       pltax,lid,filename,graphopt,pform)
-!  subroutine ocplot3B(same,nofeq,lineends,nx1,xval,ny1,yval,nz1,zval,plotkod,&
-!       pltax,lid,filename,graphopt,pform)
+       pltax,lid,filename,graphopt,pform,conditions)
 !  subroutine ocplot4(ndx,pltax,filename,maptop,axarr,graphopt,pform,ceq)
 ! special to write the GNUPLOT file for two wildcard columns
 ! same is the number of lines to plot
@@ -4943,7 +4953,7 @@ CONTAINS
 ! pform is type of output (screen or postscript or gif)
     implicit none
 !    integer ndx
-    character pltax(*)*(*),filename*(*),pform*(*),lid(nx1,*)*(*)
+    character pltax(*)*(*),filename*(*),pform*(*),lid(nx1,*)*(*),conditions*(*)
 !    type(map_axis), dimension(*) :: axarr
 !    type(map_node), pointer :: maptop
     type(graphics_options) :: graphopt
@@ -4960,7 +4970,7 @@ CONTAINS
     character gnuplotline*64,date*12,mdate*12,title*128,deftitle*64,backslash*2
     character labelkey*24,applines(10)*128,appline*128,pfc*80,pfh*80
     integer sumpp,np,appfil,ic,nnv,kkk,lcolor(maxcolor),iz,again
-    integer done(maxcolor),foundinv,fcolor
+    integer done(maxcolor),foundinv,fcolor,k3
     character color(maxcolor)*24
 !  
     write(*,*)'Using the rudimentary graphics in ocplot3B!'
@@ -4975,7 +4985,8 @@ CONTAINS
        title=trim(deftitle)//' '//graphopt%plotlabels(1)
     endif
 ! np should be the number of different lines to be plotted
-    np=2
+! if there is just one line do not write any key.  May be overriiden later ..
+    np=same
     if(np.eq.1 .and. graphopt%appendfile(1:1).eq.' ') then
        labelkey=' off'
     else
@@ -4989,28 +5000,29 @@ CONTAINS
     else
        pfc=filename
     endif
-    write(*,*)'filename: ',trim(pfc)
+    write(*,*)'filename: ',trim(pfc),' ',pform(1:1)
     open(21,file=pfc,access='sequential',status='unknown')
     write(21,110)
 110 format('# GNUPLOT file generated by Open Calphad'/)
-! if there is just one curve do not write any key.  May be overriiden later ..
     if(pform(1:1).eq.'P') then
        pfh=filename(1:kk)//'.'//'ps '
-       write(21,120)pfh(1:len_trim(pfh))
+       write(21,120)trim(pfh)
 120    format('set terminal postscript color'/'set output "',a,'"')
     elseif(pform(1:1).eq.'A') then
        pfh=filename(1:kk)//'.'//'pdf '
-       write(21,121)pfh(1:len_trim(pfh))
+       write(*,121)trim(pfh)
+       write(21,121)trim(pfh)
 121    format('set terminal pdf color'/'set output "',a,'"')
     elseif(pform(1:1).eq.'G') then
        pfh=filename(1:kk)//'.'//'gif '
-       write(21,122)pfh(1:len_trim(pfh))
+       write(21,122)trim(pfh)
 122    format('set terminal gif'/'set output "',a,'"')
     endif
 !    open(21,file='ocgnu.plt ',access='sequential ',status='unknown ')
 !
-    write(21,130)trim(title),trim(pltax(1)),trim(pltax(2)),labelkey
-130 format('set title "',a,'"'/&
+    write(21,130)trim(title),trim(conditions),&
+         trim(pltax(1)),trim(pltax(2)),labelkey
+130 format('set title "',a,' \n ',a,'"'/&
             'set xlabel "',a,'"'/'set ylabel "',a,'"'/&
             'set key ',a/&
             'set style line 1 lt 2 lc rgb "#000000" lw 2'/&
@@ -5023,8 +5035,8 @@ CONTAINS
             'set style line 8 lt 2 lc rgb "#7CFF40" lw 2'/&
             'set style line 9 lt 2 lc rgb "#C0C0C0" lw 2'/&
             'set style line 10 lt 2 lc rgb "#00FFFF" lw 2'/&
-            'set style line 11 lt 2 lc rgb "#0C0C0C" lw 3'/&
-            'set style line 12 lt 2 lc rgb "#0C0C0C" lw 1')
+            'set style line 11 lt 2 lc rgb "#8F8F8F" lw 3'/&
+            'set style line 12 lt 2 lc rgb "#8F8F8F" lw 1')
 ! The last two styles (11 and 12) are for invariants and tielines
 !
 ! ranges for x and y
@@ -5307,14 +5319,15 @@ CONTAINS
 !565 format('e'//'pause mouse'/)
 !    close(21)
 !
-    gnuplotline='gnuplot ocgnu.plt '
+!    gnuplotline='gnuplot ocgnu.plt '
+    gnuplotline='gnuplot '//pfc
 ! if gnuplot cannot be started with gnuplot give normal path ...
 !    gnuplotline='"c:\program files\gnuplot\bin\wgnuplot.exe" '//pfc(1:kkk)//' '
 !    k3=len_trim(gnuplotline)+1
-!    write(*,*)'Gnuplot command line: ',trim(gnuplotline)
-!    if(pform(1:1).ne.' ') then
-!       write(*,*)'Graphics output file: ',pfh(1:kk+4)
-!    endif
+    write(*,*)'Gnuplot command line: ',trim(gnuplotline)
+    if(pform(1:1).ne.' ') then
+       write(*,*)'Graphics output file: ',trim(pfh)
+    endif
     if(btest(graphopt%status,GRKEEP)) then
        write(*,*)'Trying to spawn'
        call system(gnuplotline(9:))
@@ -5357,7 +5370,7 @@ CONTAINS
 !    integer, dimension(:), allocatable :: linesep
 ! encoded2 stores returned text from get_many ... 2048 is too short ...
 ! selphase used when plotting data just for a selected phase like y(fcc,*)
-    character statevar*64,encoded1*64,encoded2*4096,selphase*24
+    character statevar*64,encoded1*128,encoded2*4096,selphase*24
     character*64, dimension(:), allocatable :: phaseline
     integer i,ic,jj,k3,kk,kkk,lokcs,nnp,np,nrv,nv,nzp,ip,nstep,nnv
     integer nr,line,next,seqx,nlinesep,ksep,iax,anpax,notanp,appfil
@@ -6033,8 +6046,10 @@ CONTAINS
 !    write(*,*)'We are at 2000 '
 !----------------------------------------------------------------------
 !
+    call get_plot_conditions(encoded1,maptop%number_ofaxis,axarr,ceq)
+!
     call ocplot2B(np,nrv,nlinesep,linesep,pltax,xax,anpax,anpdim,anp,lid,&
-         title,filename,graphopt,pform)
+         title,filename,graphopt,pform,encoded1)
 !    goto 900
 ! deallocate, not really needed for local arrays ??
     deallocate(anp)
@@ -6052,7 +6067,7 @@ CONTAINS
 
 !\begin{verbatim}
   subroutine ocplot2B(np,nrv,nlinesep,linesep,pltax,xax,anpax,anpdim,anp,lid,&
-       title,filename,graphopt,pform)
+       title,filename,graphopt,pform,conditions)
 !  subroutine ocplot2(ndx,pltax,filename,maptop,axarr,graphopt,pform,ceq)
 ! modified to have a separate output file for GNUPLOT ...
 ! ndx is mumber of plot axis, pltax is text with plotaxis variables
@@ -6062,6 +6077,7 @@ CONTAINS
     implicit none
     integer ndx,nrv,linesep(*),anpdim
     character pltax(*)*(*),filename*(*),pform*(*),lid(*)*(*),title*(*)
+    character conditions*(*)
 !    type(map_axis), dimension(*) :: axarr
 !    type(map_node), pointer :: maptop
     type(graphics_options) :: graphopt
@@ -6120,8 +6136,9 @@ CONTAINS
     else
        labelkey=graphopt%labelkey
     endif
-    write(21,860)trim(title),trim(pltax(1)),trim(pltax(2)),labelkey
-860 format('set title "',a,'"'/&
+    write(21,860)trim(title),trim(conditions),&
+         trim(pltax(1)),trim(pltax(2)),labelkey
+860 format('set title "',a,' \n ',a,'"'/&
             'set xlabel "',a,'"'/'set ylabel "',a,'"'/&
             'set key ',a/&
             'set style line 1 lt 2 lc rgb "#000000" lw 2'/&
@@ -6705,6 +6722,53 @@ CONTAINS
     return
     abbr_phname_same=same
   end function abbr_phname_same
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+  subroutine get_plot_conditions(text,ndx,axarr,ceq)
+! extacts the conditions from ceq and removes those that are axis variables
+    implicit none
+    character text*(*)
+    integer ndx
+    type(map_axis), dimension(ndx) :: axarr
+    type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+    integer jj,seqz,ip,jp
+    character symbol*24
+    type(gtp_condition), pointer :: pcond
+    type(gtp_state_variable), pointer :: svrrec,svr2
+!
+! get all conditions
+    call get_all_conditions(text,-1,ceq)
+    write(*,*)'PC1: ',trim(text),ndx
+    do jj=1,ndx
+! replace the values of those that are axis with X or Y
+       seqz=axarr(jj)%seqz
+       call locate_condition(seqz,pcond,ceq)
+       if(gx%bmperr.ne.0) goto 1000
+       svrrec=>pcond%statvar(1)
+       symbol=' '
+       ip=1
+       call encode_state_variable(symbol,ip,svrrec,ceq)
+       if(gx%bmperr.ne.0) goto 1000
+       write(*,*)'PC2: ',symbol(1:ip-1),jj
+       jp=index(text,symbol(1:ip-1))
+       if(jp.gt.0) then
+          seqz=jp+index(text(jp:),'=')-1
+          ip=jp+index(text(jp:),' ')-1
+          if(jj.eq.1) then
+             text(seqz:)='=X, '//text(ip:)
+          else
+             text(seqz:)='=Y, '//text(ip:)
+          endif
+!       else
+!          write(*,*)'Cannot find: ',symbol(1:ip-1),' in ',trim(text)
+       endif
+    enddo
+1000 continue
+    return
+  end subroutine get_plot_conditions
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

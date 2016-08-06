@@ -2634,7 +2634,9 @@ CONTAINS
              dncol=ncol
              ncol=ncol+1
           endif
+! PVARIABLE in G
           smat(jph,pcol)=-phr(jj)%curd%gval(3,1)
+!          smat(jph,pcol)=phr(jj)%curd%gval(3,1)
        endif
 !       if(meqrec%noofits.le.2) &
 !            write(*,13)'Row: ',jph,jj,(smat(jph,je),je=1,nz2)
@@ -2719,9 +2721,145 @@ CONTAINS
        write(*,*)'Not implemented yet: ',stvix,stvnorm
        gx%bmperr=4207; goto 1000
 !------------------------------------------------------------------
-    case(3) ! V volume condition
-       write(*,*)'Not implemented yet: ',stvix,stvnorm
-       gx%bmperr=4207; goto 1000
+    case(3) ! V volume condition, almost the same a H condition
+       write(*,*)'Volume condition not implemented yet: ',stvix,stvnorm
+!       gx%bmperr=4207; goto 1000
+! Volume for system or phase, NOT normallized
+       if(stvnorm.eq.0) then
+! not normallized
+          if(cmix(3).eq.0) then
+! condition is V=value
+             sph=0
+          else
+! condition is H(phase#set)=value or V(phase#set)=value
+             sph=cmix(3); scs=cmix(4)
+          endif
+! FU(alpha) is formula units of alpha phase, V=\sum_alpha VM(alpha) VM(alpha)
+! dVM(alpha) = d2GM/dPdy_i*c_iA*\mu_A+
+!     \sum_i dGM/dP*dP + ??
+!     \sum_alpha ???
+! UNFINISHED
+          allocate(xcol(nz2))
+          xcol=zero
+          totam=zero
+          notf=0
+          check1=zero
+          check2=zero
+          notdone=.TRUE.
+          vallph: do jph=1,meqrec%nstph
+! sum over all stable phases
+             jj=meqrec%stphl(jph)
+             pmi=>phr(jj)
+! if phase is not fixed there is a column in xcol for variable amount
+! This has to be done before loop of elements
+             if(pmi%phasestatus.ne.PHFIXED) notf=notf+1
+             if(sph.gt.0) then
+! if a phase is specified, skip all other phases
+                if(.not.(sph.eq.phr(jj)%iph .and. scs.eq.phr(jj)%ics)) &
+                     cycle vallph
+             endif
+! moles formula unit of phase
+             pham=pmi%curd%amfu
+             allocate(hval(pmi%ncc))
+             notdone=.FALSE.
+             if(.not.allocated(mamu1)) then
+! it will be deallocated when leaving this subroutine ??
+                allocate(mamu1((meqrec%nrel)))
+             endif
+             ncol=1
+             if(stvix.eq.3) then
+! V condition, calculate the terms d2G/dPdy_i for all constituents
+                do ie=1,pmi%ncc
+                   hval(ie)=pmi%curd%dgval(3,ie,1)
+                enddo
+!                write(*,*)'Volume condition: ',pcol,pmi%ncc,hval(1)
+             endif
+!             write(*,75)'hval: ',hval
+!             write(*,75)'cmuvamanyl: ',(ceq%cmuval(ie),ie=1,meqrec%nrel)
+! calculate the terms to be multiplied with the unknown mu(ie)
+             vallel: do ie=1,meqrec%nrel
+! multiply terms with the inverse phase matrix and hval()
+! but also return values without this in mamu1,mag1,mat1 and map1 needed
+! for normalization and if there is a condition on chemical potentials
+                call calc_dgdytermshm(meqrec%nrel,ie,meqrec%tpindep,hval,&
+                     mamu,mag,mat,map,mamu1,mag1,mat1,map1,&
+                     pmi,ceq%cmuval,meqrec%noofits)
+                if(gx%bmperr.ne.0) goto 1000
+! calculate a term for each column to be multiplied with chemical potential
+! if the potential is fixed add the term to the rhs
+                do ke=1,meqrec%nfixmu
+                   if(meqrec%mufixel(ke).eq.ie) then
+! components with fix chemical potential added to rhs, do not increment ncol!!!
+                      xcol(nz2)=xcol(nz2) + pham*meqrec%mufixval(ke)*mamu(ie)
+!                      write(*,102)'fix mu V:',nz2,ie,pham,&
+!                           meqrec%mufixval(ke),mamu1(ie),&
+!                           pham*meqrec%mufixval(ke)*mamu1(ie),xcol(nz2)
+                      cycle vallel
+                   endif
+                enddo
+                xcol(ncol)=xcol(ncol) - pham*mamu(ie)
+                ncol=ncol+1
+             enddo vallel
+! vallel loop should end here as mat and map are element independent
+! If T or P are variable, mat and map include \sum_j hval(j)
+             if(tcol.gt.0) then
+                xxx=xcol(tcol)
+! gval(2,1) is dG/dT, gval(4,1) is d2G/dT2, sign????
+                xcol(tcol)=xcol(tcol)+&
+                     pham*(ceq%tpval(1)*pmi%curd%gval(4,1)-mat)
+             endif
+! PVARIABLE for condition on V
+             if(pcol.gt.0) then
+                xxx=xcol(pcol)
+! gval(3,1) is dG/dP, gval(6,1) is d2G/dP2, sign???
+                xcol(pcol)=xcol(pcol)+pham*(map-pmi%curd%gval(6,1))
+!                     pmi%curd%gval(3,1)-ceq%tpval(1)*pmi%curd%gval(5,1))
+             endif
+! uncertain if enddo hallel here or after label 7000 above ...
+             deallocate(hval)
+             if(stvix.eq.3) then
+! sum the total volume (or for a single phase its volume)
+                totam=totam+pham*pmi%curd%gval(3,1)
+             endif
+! Now the term multipled with change of the amount of the phase
+             if(pmi%phasestatus.ne.PHFIXED) then
+                xcol(dncol+notf)=pmi%curd%gval(3,1)
+             endif
+! term to the RHS, sign???
+!             xcol(nz2)=xcol(nz2)-pham*mag
+             xcol(nz2)=xcol(nz2)+pham*mag
+          enddo vallph
+          if(sph.gt.0 .and. notdone) then
+! if sph.ne.0 it is possible that the specified phase is not stable, check that
+! the hallph loop has beed done at least once
+             write(*,*)'Unnormalized enthalpy condition of unstable phase'
+! These values are most probably all zero making system matrix singular
+             write(*,177)'xcol: ',nz2,(xcol(jj),jj=1,nz2)
+             gx%bmperr=4196; goto 1000
+          endif
+! Add difference to the RHS.  Totam is summed above, cvalue is prescribed value
+!          write(*,74)'Enthalpy: ',nrow+1,ceq%tpval(1),ceq%rtn,&
+!               xcol(nz2),totam,cvalue/ceq%rtn
+! sign?   xcol(nz2)=xcol(nz2)+totam-cvalue/ceq%rtn
+          xcol(nz2)=xcol(nz2)-totam+cvalue/ceq%rtn
+!          write(*,75)'RHS: ',xcol(nz2),totam,cvalue,ceq%rtn,cvalue/ceq%rtn
+! test if condition converged, use relative error 
+          if(abs(totam-cvalue/ceq%rtn).gt.ceq%xconv*abs(cvalue)) then
+             if(vbug) write(*,75)'Unconverged volume: ',ceq%tpval(1),&
+                  totam,cvalue/ceq%rtn,totam-cvalue/ceq%rtn
+             if(converged.lt.5) converged=5
+          endif
+! we have one more equation to add to the equilibrium matrix
+          nrow=nrow+1
+          if(nrow.gt.nz1) stop 'too many equations 5A'
+          do ncol=1,nz2
+             smat(nrow,ncol)=xcol(ncol)
+          enddo
+          deallocate(xcol)
+       else
+          write(*,*)'Normalized volume condition not implemented yet'
+          gx%bmperr=4207; goto 1000
+       endif
 !------------------------------------------------------------------
     case(4) ! Enthaly condition (Heat balance). Maybe also V condition? Not yet
 ! Enthalpy for system or phase, normallized or not
@@ -2824,11 +2962,13 @@ CONTAINS
                 xcol(tcol)=xcol(tcol)+&
                      pham*(ceq%tpval(1)*pmi%curd%gval(4,1)-mat)
              endif
+! PVARIABLE condition on H
              if(pcol.gt.0) then
                 xxx=xcol(pcol)
 ! gval(3,1) is dG/dP, gval(5,1) is d2G/dTdP, sign???
-                xcol(pcol)=xcol(pcol)+pham*(map-&
-                     pmi%curd%gval(3,1)-ceq%tpval(1)*pmi%curd%gval(5,1))
+                xcol(pcol)=xcol(pcol)+pham*(pmi%curd%gval(3,1)-map)
+!                xcol(pcol)=xcol(pcol)+pham*(map-&
+!                     pmi%curd%gval(3,1)-ceq%tpval(1)*pmi%curd%gval(5,1))
 !>>                xcol(pcol)=xcol(pcol)-pham*(map-&
 !                     pmi%curd%gval(3,1)+ceq%tpval(1)*pmi%curd%gval(5,1))
 !                write(*,363)'d2G/dPdy: H',nrow+1,ie,pcol,&
@@ -5883,7 +6023,7 @@ CONTAINS
     double precision mag,mat,map,dmsum,dpham,dhdy,musum,dy,hconfig
     double precision, allocatable :: mamu(:)
 !
-! THE MASTER VERSION OF THIS TABLE in PMOD25C.F90
+! THE MASTER VERSION OF THIS TABLE in GTP3C.F90
 ! symb cmix(2) indices                   statevarid Property
 ! U       10   (phase#set)                    6     Internal energy (J)
 ! UM      11    "                             6     per mole components
@@ -5947,7 +6087,7 @@ CONTAINS
           case(7) !S = -G.T
              hconfig=-pmi%curd%dgval(2,jy,1)
           case(8) !V = G.P
-             write(*,*)'Not implemeneted yet: ',svr1%statevarid
+             write(*,*)'Not implemented yet: ',svr1%statevarid
           case(9) !H = G + TS = G - T G.T
              hconfig=pmi%curd%dgval(1,jy,1)-ceq%tpval(1)*pmi%curd%dgval(2,jy,1)
           case(10) !A = G - PV = G - P G.P
@@ -5963,7 +6103,7 @@ CONTAINS
           case(17) !X
              write(*,*)'Not implemented yet: ',svr1%statevarid
           case(18) !B
-             write(*,*)'Not implemeneted yet: ',svr1%statevarid
+             write(*,*)'Not implemented yet: ',svr1%statevarid
           case(19) !W
              write(*,*)'Not implemented yet: ',svr1%statevarid
           case(20) !Y
@@ -6211,18 +6351,20 @@ CONTAINS
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine list_equilibrium_extra(lut,ceq)
+ subroutine list_equilibrium_extra(lut,ceq,pun)
 ! list the extra character variables for calculate symboles and
 ! list characters (if any),  It is used in pmon and part of matsmin
 ! because it calls subroutines which need access to calculated results
+! It can also plot using the file oc_many0.plt
    implicit none
-   integer lut
+   integer lut,pun
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-   integer mode,istv,ip,slen
-   character tval*24,symbol*24
-   double precision xxx
+   integer mode,istv,ip,slen,jj,last,kk
+   character tval*24,symbol*24,encoded*24,date*12
+   double precision xxx,xarr(6)
 !   write(*,*)'MM calc/list extra: ',ceq%eqname
+!
    tval=' '
    symbol=' '
    extra: if(allocated(ceq%eqextra)) then
@@ -6283,23 +6425,142 @@ CONTAINS
 !            call get_many_svar(tval,...
             else
                symbol=' '
-!               call get_state_var_value(tval,xxx,symbol,ceq)
+               call get_state_var_value(tval,xxx,symbol,ceq)
 ! This checks that the phase is stable ...
-               call get_stable_state_var_value(tval,xxx,symbol,ceq)
+!               call get_stable_state_var_value(tval,xxx,symbol,ceq)
                if(gx%bmperr.ne.0) then
                   write(*,*)'MM Cannot list variable: ',tval,' Error reset'
                   gx%bmperr=0
                else
-                  write(lut,110)symbol(1:len_trim(symbol)),xxx
+                  write(lut,110)trim(symbol),xxx
                endif
             endif
             goto 200
          endif
       endif lists
+290   continue
+      ip=1
+      if(eolch(ceq%eqextra(3),ip)) goto 390
+      plots: if(ceq%eqextra(3)(ip:ip).eq.'0') then
+! this creates a plot file for calculated values
+! This is for plot_data set 0, calculated values'
+! next value must be number of columns with data to be plotted!!
+         last=ip+1
+         call getint(ceq%eqextra(3),last,ip)
+         if(buperr.ne.0) then
+            write(*,*)'Cannot extract number of columns'
+            gx%bmperr=4399; goto 1000
+         endif
+         if(ip.gt.6) then
+            write(*,*)'Too many columns in plot_data 0. Max: 6',ip
+            gx%bmperr=4399; goto 1000
+         endif
+         if(pun.eq.0) then
+            pun=30
+!            plotdatafile='oc_many0'
+!            write(*,*)'Opening oc_many0.plt '
+            open(pun,file='oc_many0.plt',access='sequential',status='unknown')
+!
+! extract state variable symbols, first is x axis variable
+            kk=last
+            call getext(ceq%eqextra(3),kk,2,tval,' ',slen)
+            call date_and_time(date)
+            write(pun,305)date(1:4),date(5:6),date(7:8),&
+                 trim(tval),trim(ceq%eqextra(3))
+305         format('# GUNPLOT file generated by enter many_equilibria '/&
+                 'set title "Open Calphad 4.0 prerelease: ',a,'-',a,'-',a,&
+                 ' with GNUPLOT"'/&
+                 '# set terminal pdf color'/&
+                 '# set output "whatever"'/&
+                 'set xlabel "',a,'"'/&
+                 'set ylabel "whatever"'/&
+                 'set key bottom right'/&
+                 '# ',a/&
+                 '# THE DATA LINES MUST BE REPEATED AS MANY TIMES AS',&
+                 ' THERE ARE PLOT COMMANDS!')
+            call getext(ceq%eqextra(3),kk,2,tval,' ',slen)
+            if(ip.eq.2) then
+! with just two columns
+               write(pun,310)trim(tval)
+310            format('plot "-" using 1:2 with points pt 5 ',&
+                    'ps 1.5 title "',a,'"')
+            else
+! this first line if 3 or more columns
+               write(pun,311)trim(tval)
+311            format('plot "-" using 1:2 with points pt 5 ',&
+                    'ps 1.5 title "',a,'",\')
+            endif
+! if ip>4 this for second and further lines until jj is ip-1
+            do jj=3,ip-1
+               call getext(ceq%eqextra(3),kk,2,tval,' ',slen)
+               write(pun,312)jj,jj+3,trim(tval)
+312            format('"" using 1:',i2,' with points pt ',i2,&
+                    ' ps 1.5 title "',a,'",\')
+            enddo
+! if ip=3 this is second line, otherwise the last line
+            if(ip.gt.3) then
+               call getext(ceq%eqextra(3),kk,2,tval,' ',slen)
+               write(pun,313)ip,ip+3,trim(tval)
+313            format('"" using 1:',i2,' with points pt ',i2,&
+                    ' ps 1.5 title "',a,'"')
+            endif
+! the line consists of several state variables to be calculated and listed
+            jj=0
+320         continue
+!            write(*,321)trim(ceq%eqextra(3)),last
+321         format('3B extract: ',a,i5,' "',a,'"')
+! 3rd argument 2 means skipping , only space separators
+            call getext(ceq%eqextra(3),last,2,tval,' ',slen)
+!            write(*,321)trim(ceq%eqextra(3)),last,trim(tval)
+            if(tval(1:1).eq.' ') then
+               goto 350
+            elseif(buperr.ne.0) then
+               write(kou,*)'Error reading symbol: ',trim(ceq%eqextra(3))
+               goto 350
+            else
+               jj=jj+1
+               call get_state_var_value(tval,xarr(jj),encoded,ceq)
+               if(gx%bmperr.ne.0) then
+                  write(*,*)'Error getting: ',tval
+                  goto 350
+               endif
+            endif
+            goto 320
+! no more values
+350         continue
+         else
+! This is another line with values for plot_data set 0, file is open
+            jj=0
+360         continue
+            call getext(ceq%eqextra(3),last,2,tval,' ',slen)
+            if(tval(1:1).eq.' ') then
+               goto 370
+            elseif(buperr.ne.0) then
+               write(kou,*)'Error reading symbol: ',trim(ceq%eqextra(3))
+               goto 370
+            else
+               jj=jj+1
+               call get_state_var_value(tval,xarr(jj),encoded,ceq)
+               if(gx%bmperr.ne.0) then
+                  write(*,*)'Error getting: ',tval
+                  goto 370
+               endif
+            endif
+            goto 360
+! no more values
+370         continue
+         endif
+! write the line on the plot_data file
+         if(jj.ne.ip) then
+            write(*,*)'Wrong number of columns',jj,ip
+         endif
+         write(pun,380)(xarr(jj),jj=1,ip)
+380      format(6(1pe12.4))
+      endif plots
 !   else
 !      write(*,*)'No extra lines found'
    endif extra
-290 continue
+390 continue
 1000 continue
  end subroutine list_equilibrium_extra
 

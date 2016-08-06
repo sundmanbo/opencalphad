@@ -1306,7 +1306,7 @@
    close(31)
    gx%bmperr=4190
 1000 continue
-   unit=kousave
+!   unit=kousave
    return
  end subroutine list_many_formats
 

@@ -1,4 +1,4 @@
-@$ Calculating a multicomponent single equilibrium
+@$ Calculating multicomponent single equilibria
 @$ Including the melting point of the alloy
 @&
 
@@ -33,7 +33,7 @@ l ,,,
 
 l , 2
 
-@$ Note how the carbon content is distributed in the two FCC phases
+@$ Note how the carbon content is different in the two FCC phases
 @$ -------------------------------------------------------------
 @&
 @$ Now calculate the melting T of this alloy 
@@ -44,16 +44,13 @@ liq
 
 l , 1
 
-@$ The results are listed as "maybe inconsistent" because 
-@$ after the calculation OC has set T as condition and removed the 
-@$ status FIX of the liquid.  
-@$ Note also that the grid minimizer could not be used for this calculation
+@$ Note that the grid minimizer could not be used for this calculation
 @$ but is is automatically called afterwards to check if there is any
-@$ gridpoints below the calculated equilibrium.
+@$ gridpoint below the calculated equilibrium.
 @$ -------------------------------------------------------------
 @&
 @$ Test setting a condition on the carbon content of the metallic FCC
-@$ Note that the metallic FCC  is the second composition set !!!
+@$ Note that the metallic FCC (austenite) is the second composition set !!!
 set c x%(fcc#2,c)
 
 set c x(c)=none

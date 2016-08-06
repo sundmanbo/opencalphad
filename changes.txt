@@ -18,6 +18,10 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2016.08.06 Still adding some minor features and bugfixes.  I am
+looking for some unexpected trouble occuring when P is variable.  The
+big thing to implement next is user defined components.
+
 2016.07.30 A number of small features added.  Isothermal ternary
 diagrams have their invariants plotted.  One can select a point in a
 phase diagram and add a text, by default the stable phases from an

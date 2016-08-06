@@ -118,7 +118,7 @@ contains
 ! selection of minimizer and optimizer
     integer minimizer,optimizer
 ! plot unit for experimental data used in enter many_equilibria
-    integer :: plotdataunit(9)=0
+    integer :: plotdataunit(9)=0,plotunit0=0
 ! temporary integer variables in loops etc
     integer i1,i2,j1,iax
 ! more temporary integers
@@ -879,7 +879,7 @@ contains
              write(lut,2032)parres%gval(1,1)/parres%abnorm(1),&
                   (parres%gval(1,1)-ceq%tpval(1)*parres%gval(2,1))*rgast,&
                   parres%abnorm(1)
-2031         format('G, dG/dT dG/dP d2G/dT2:',4(1PE14.6))
+2031         format(/'G, dG/dT dG/dP d2G/dT2:',4(1PE14.6))
 2032         format('G/RT, H, atoms/F.U:',3(1PE14.6))
 !.......................................................
           case(2) ! calculate phase < >  G and dG/dy
@@ -949,7 +949,7 @@ contains
                 call equilph1b(phtup,ceq%tpval,xknown,xxx,yarr,.FALSE.,ceq)
                 if(gx%bmperr.ne.0) goto 990
                 write(kou,2087)xxx,(yarr(nv),nv=1,noel())
-2087            format('Calculated Gibbs energy/RT: ',1pe14.6,&
+2087            format(/'Calculated Gibbs energy/RT: ',1pe14.6,&
                      ' and the chemical potentials/RT:'/6(1pe12.4))
              else
 !.............................................
@@ -964,7 +964,7 @@ contains
                      nend,mugrad,mobilities,ceq)
                 if(gx%bmperr.ne.0) goto 990
                 write(kou,2096)nend
-2096            format('Chemical potential derivative matrix, dG_I/dn_J for ',&
+2096            format(/'Chemical potential derivative matrix, dG_I/dn_J for ',&
                      i3,' endmembers')
                 write(kou,2094)(nv,nv=1,nend)
 2094            format(3x,6(6x,i6)/(3x,6i12))
@@ -973,13 +973,14 @@ contains
 2095               format(i3,6(1pe12.4)/(3x,6e12.4))
                 enddo
                 write(kou,2098)noel()
-2098            format('Mobility values mols/m2/s ?? for',i3,' components')
+2098            format(/'Mobility values mols/m2/s ?? for',i3,' components')
                 write(kou,2095)1,(mobilities(jp),jp=1,noel())
              endif
 !.......................................................
           case(6) !
              write(*,*)'Not implemeneted yet'
           END SELECT
+! set bits to warn that listings may be inconsistent
           ceq%status=ibclr(ceq%status,EQNOEQCAL)
           ceq%status=ibset(ceq%status,EQINCON)
 !---------------------------------- end of calculate phase
@@ -996,6 +997,9 @@ contains
 !----------------------------------
        case(4) ! calculate transition
           call calctrans(cline,last,ceq)
+! clear this bit so there there will be no warning the listing is inconsistent
+          if(gx%bmperr.ne.0) goto 990
+          ceq%status=ibclr(ceq%status,EQINCON)
 !----------------------------------
        case(5) ! quit
           goto 100
@@ -1023,7 +1027,7 @@ contains
              call get_phase_compset(iphl(j1),icsl(j1),lokph,lokcs)
              ceq%phase_varres(lokcs)%amfu=totam*ceq%phase_varres(lokcs)%amfu
           enddo
-! clear this bit so one can list the equilibrium
+! clear this bit so we can list the equilibrium
           ceq%status=ibclr(ceq%status,EQNOEQCAL)
 !2103      format('Stable phase ',2i4,': ',a)
 !---------------------------------------------------------------
@@ -1112,7 +1116,7 @@ contains
                    endif
 ! extra symbol calculations ....
 !                   write(*,*)'Listing extra'
-                   call list_equilibrium_extra(lut,neweq)
+                   call list_equilibrium_extra(lut,neweq,plotunit0)
                    if(gx%bmperr.ne.0) then
                       write(kou,*)'Error ',gx%bmperr,' reset'
                       gx%bmperr=0
@@ -1164,7 +1168,7 @@ contains
                       endif
                    endif
 !                   write(*,*)'Listing extra'
-                   call list_equilibrium_extra(lut,neweq)
+                   call list_equilibrium_extra(lut,neweq,plotunit0)
                    if(gx%bmperr.ne.0) then
                       write(kou,*)'*** Error ',gx%bmperr,' reset'
                       gx%bmperr=0
@@ -1191,6 +1195,15 @@ contains
              write(kou,664)i2,jp,xxy-xxx,ll-j1
 664          format('Calculated ',i5,' equilibria out of ',i5/&
                   'Total time: ',1pe12.4,' s and ',i7,' clockcycles')
+! this may have been used to extract calculated data for plotting
+             if(plotunit0.gt.0) then
+                write(kou,670)
+670             format('Closing a GNUPLOT file oc_many0.plt'/&
+                     'that may need some editing before plotting')
+                write(plotunit0,665)
+665             format('e'/'pause mouse'/)
+                close(plotunit0)
+             endif
           else
              write(kou,*)'You must first SET RANGE of experimental equilibria'
           endif
@@ -2422,6 +2435,7 @@ contains
 ! it is opened in the enter_many_equilibria if there is a plot_data command
        case(17)
           call gparid('Dataset number:',cline,last,i1,1,q1help)
+! here only the normal plotdata units 1 to 9 are legal
           if(i1.gt.0 .and. i1.lt.10) then
              if(plotdataunit(i1).lt.10) then
                 write(kou,*)'No plotdata file for this dataset'
