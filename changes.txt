@@ -18,6 +18,12 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2016.08.08 A major step to complete the OC software, P can be used as
+variable and V can be set as condition, provided there are volume
+data.  The macro step8 include some calculations with variable P.  A
+complex bug with reference state also removed.  And probably new
+added.
+
 2016.08.06 Still adding some minor features and bugfixes.  I am
 looking for some unexpected trouble occuring when P is variable.  The
 big thing to implement next is user defined components.

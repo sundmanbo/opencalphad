@@ -2329,7 +2329,7 @@
    integer ierr,kk0,ll,lokres,lokph,nsl
    integer nkl(maxsubl),knr(maxconst),ics
    double precision savey(maxconst),sites(maxsubl),qq(5),yfra(maxconst)
-   double precision saveg(6)
+   double precision saveg(6),savedabnorm(2)
 !
    call get_phase_data(iph,1,nsl,nkl,knr,savey,sites,qq,ceq)
    if(gx%bmperr.ne.0) goto 1100
@@ -2339,6 +2339,14 @@
 ! calculate TC etc.
    yfra=zero
    kk0=0
+! NOTE abnorm(1) not restored by setting constitution, why?
+   ics=1
+   call get_phase_compset(iph,ics,lokph,lokres)
+   if(gx%bmperr.ne.0) goto 1000
+   savedabnorm=ceq%phase_varres(lokres)%abnorm
+!   write(*,432)'3Y em6a: ',ceq%phase_varres(lokres)%gval(3,1),&
+!        ceq%phase_varres(lokres)%abnorm(1),ceq%phase_varres(lokres)%amfu
+432 format(a,6(1pe12.4))
 !   write(*,11)'3Y refstate: ',iph,nsl,nkl(1),endmember(1)
 11 format(a,10i5)
    do ll=1,nsl
@@ -2356,15 +2364,15 @@
 17 format(a,i3,5(1pe12.4))
    call set_constitution(iph,1,yfra,qq,ceq)
    if(gx%bmperr.ne.0) goto 1000
-! we do not know lokres here !!
-   ics=1
-   call get_phase_compset(iph,ics,lokph,lokres)
-   if(gx%bmperr.ne.0) goto 1000
+! we do not know lokres here !! YES we do now
+!   ics=1
+!   call get_phase_compset(iph,ics,lokph,lokres)
+!   if(gx%bmperr.ne.0) goto 1000
    do ll=1,6
-      saveg(ll)=ceq%phase_varres(lokres)%gval(ll,1)/qq(1)
+! Why dividing with qq(1)???
+!      saveg(ll)=ceq%phase_varres(lokres)%gval(ll,1)/qq(1)
+      saveg(ll)=ceq%phase_varres(lokres)%gval(ll,1)
    enddo
-!   write(*,432)saveg
-432 format('3Y::',6(1pe12.4))
 ! third argument to calcg is 2 to calculate all derivatives
    call calcg(iph,1,2,lokres,ceq)
    if(gx%bmperr.ne.0) goto 1000
@@ -2374,7 +2382,6 @@
       do ll=1,6
          gval(ll)=ceq%phase_varres(lokres)%gval(ll,1)/qq(1)
       enddo
-!      write(*,*)'gval: ',gval,qq(1)
    else
 !      write(*,*)'End member has no atoms'
       gx%bmperr=4161; goto 1000
@@ -2389,6 +2396,9 @@
 ! restore constitution
 !   write(*,17)'res: ',kk0,(savey(i),i=1,kk0)
    call set_constitution(iph,1,savey,qq,ceq)
+   ceq%phase_varres(lokres)%abnorm=savedabnorm
+!   write(*,432)'3Y em6b: ',ceq%phase_varres(lokres)%gval(3,1),&
+!        ceq%phase_varres(lokres)%abnorm(1),ceq%phase_varres(lokres)%amfu
    if(gx%bmperr.ne.0) then
       if(ierr.ne.0) then
          write(*,*)'Double errors in calcg_endmember: ',ierr,gx%bmperr

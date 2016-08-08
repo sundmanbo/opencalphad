@@ -2722,7 +2722,7 @@ CONTAINS
        gx%bmperr=4207; goto 1000
 !------------------------------------------------------------------
     case(3) ! V volume condition, almost the same a H condition
-       write(*,*)'Volume condition not implemented yet: ',stvix,stvnorm
+!       write(*,*)'Volume condition does not work yet: ',stvix,stvnorm
 !       gx%bmperr=4207; goto 1000
 ! Volume for system or phase, NOT normallized
        if(stvnorm.eq.0) then
@@ -2804,49 +2804,71 @@ CONTAINS
 ! If T or P are variable, mat and map include \sum_j hval(j)
              if(tcol.gt.0) then
                 xxx=xcol(tcol)
-! gval(2,1) is dG/dT, gval(4,1) is d2G/dT2, sign????
+! gval(2,1) is dG/dT, gval(4,1) is d2G/dT2, gval(5,1) is d2G/dTdP=dV/dT
                 xcol(tcol)=xcol(tcol)+&
-                     pham*(ceq%tpval(1)*pmi%curd%gval(4,1)-mat)
+                     2.0D-3*pham*(ceq%tpval(1)*pmi%curd%gval(5,1)-mat)
+! Why is d2G/dTdP multiplied by T??
+! >500 its            1.0D-3*pham*(ceq%tpval(1)*pmi%curd%gval(5,1)-mat)
+! 27 its              2.0D-3*pham*(ceq%tpval(1)*pmi%curd%gval(5,1)-mat)
+! 80 its              5.0D-3*pham*(ceq%tpval(1)*pmi%curd%gval(5,1)-mat)
+! 158 its             1.0D-2*pham*(ceq%tpval(1)*pmi%curd%gval(5,1)-mat)
+! slow                 pham*(ceq%tpval(1)*pmi%curd%gval(5,1)-mat)
+! bad                  pham*ceq%tpval(1)*(ceq%tpval(1)*pmi%curd%gval(5,1)-mat)
+! slow                 pham*(ceq%tpval(1)*pmi%curd%gval(5,1)-mat)
+! wrong                pham*(mat-ceq%tpval(1)*pmi%curd%gval(5,1))
+!                write(*,*)'VCONDT: ',tcol,xcol(tcol)
              endif
 ! PVARIABLE for condition on V
              if(pcol.gt.0) then
                 xxx=xcol(pcol)
 ! gval(3,1) is dG/dP, gval(6,1) is d2G/dP2, sign???
-                xcol(pcol)=xcol(pcol)+pham*(map-pmi%curd%gval(6,1))
+                xcol(pcol)=xcol(pcol)+pham*(pmi%curd%gval(6,1)-map)
+!                xcol(pcol)=xcol(pcol)+pham*(map-pmi%curd%gval(6,1))
 !                     pmi%curd%gval(3,1)-ceq%tpval(1)*pmi%curd%gval(5,1))
+!                write(*,*)'VCONDP: ',pcol,xcol(pcol)
              endif
 ! uncertain if enddo hallel here or after label 7000 above ...
              deallocate(hval)
              if(stvix.eq.3) then
 ! sum the total volume (or for a single phase its volume)
+! slow                totam=totam+pham*pmi%curd%gval(3,1)
+!                totam=totam+pham*pmi%curd%gval(3,1)
                 totam=totam+pham*pmi%curd%gval(3,1)
+! wrong                totam=totam+pham*pmi%curd%gval(3,1)*ceq%rtn
              endif
 ! Now the term multipled with change of the amount of the phase
              if(pmi%phasestatus.ne.PHFIXED) then
                 xcol(dncol+notf)=pmi%curd%gval(3,1)
              endif
 ! term to the RHS, sign???
-!             xcol(nz2)=xcol(nz2)-pham*mag
              xcol(nz2)=xcol(nz2)+pham*mag
+! slow            xcol(nz2)=xcol(nz2)+pham*mag
+! as slow         xcol(nz2)=xcol(nz2)-pham*mag
           enddo vallph
           if(sph.gt.0 .and. notdone) then
 ! if sph.ne.0 it is possible that the specified phase is not stable, check that
-! the hallph loop has beed done at least once
-             write(*,*)'Unnormalized enthalpy condition of unstable phase'
+! the vallph loop has beed done at least once
+             write(*,*)'Unnormalized volume condition of unstable phase'
 ! These values are most probably all zero making system matrix singular
              write(*,177)'xcol: ',nz2,(xcol(jj),jj=1,nz2)
              gx%bmperr=4196; goto 1000
           endif
 ! Add difference to the RHS.  Totam is summed above, cvalue is prescribed value
-!          write(*,74)'Enthalpy: ',nrow+1,ceq%tpval(1),ceq%rtn,&
+!          write(*,74)'Volume: ',nrow+1,ceq%tpval(1),ceq%rtn,&
 !               xcol(nz2),totam,cvalue/ceq%rtn
 ! sign?   xcol(nz2)=xcol(nz2)+totam-cvalue/ceq%rtn
           xcol(nz2)=xcol(nz2)-totam+cvalue/ceq%rtn
-!          write(*,75)'RHS: ',xcol(nz2),totam,cvalue,ceq%rtn,cvalue/ceq%rtn
+!          xcol(nz2)=xcol(nz2)-totam+cvalue
+!          write(*,75)'RHS: ',xcol(nz2),totam,cvalue/ceq%rtn,ceq%rtn,&
+!               totam*ceq%rtn,ceq%tpval(1)
 ! test if condition converged, use relative error 
+! slow          if(abs(totam-cvalue/ceq%rtn).gt.ceq%xconv*abs(cvalue)) then
           if(abs(totam-cvalue/ceq%rtn).gt.ceq%xconv*abs(cvalue)) then
+!          if(abs(totam-cvalue).gt.ceq%xconv*abs(cvalue)) then
+!                  write(*,75)'Unconverged volume: ',ceq%tpval(1),&
              if(vbug) write(*,75)'Unconverged volume: ',ceq%tpval(1),&
-                  totam,cvalue/ceq%rtn,totam-cvalue/ceq%rtn
+                  totam,cvalue,totam-cvalue,ceq%xconv*abs(cvalue)
+!                  totam,cvalue/ceq%rtn,totam-cvalue/ceq%rtn
              if(converged.lt.5) converged=5
           endif
 ! we have one more equation to add to the equilibrium matrix
@@ -2912,7 +2934,7 @@ CONTAINS
              endif
              ncol=1
              if(stvix.eq.3) then
-! V condition, calculate the terms d2G/dpdy_i for all constituents
+! V condition, calculate the terms d2G/dPdy_i for all constituents
                 do ie=1,pmi%ncc
                    hval(ie)=pmi%curd%dgval(3,ie,1)
                 enddo
@@ -3172,6 +3194,7 @@ CONTAINS
 !                     ceq%tpval(1)*pmi%curd%gval(4,1),mat,hmval,mat1,xcol(tcol)
              endif
              if(pcol.gt.0) then
+! condition on H and variable P
                 xxx=xcol(pcol)
 ! gval(3,1) is dG/dP, gval(5,1) is d2G/dTdP, sign??? UNFINISHED TEST
                 xcol(pcol)=xcol(pcol)+pham*(map-hmval*map1-&
@@ -3207,8 +3230,8 @@ CONTAINS
 !               xcol(nz2),totam,cvalue/ceq%rtn
 !          xcol(nz2)=xcol(nz2)+totam-cvalue/ceq%rtn
           xcol(nz2)=xcol(nz2)/totalmol-hmval+cvalue/ceq%rtn
-          write(*,75)'RHS: ',xcol(nz2),hmval,cvalue/ceq%rtn,totalmol,&
-               ceq%tpval(1)
+!          write(*,75)'RHS: ',xcol(nz2),hmval,cvalue/ceq%rtn,totalmol,&
+!               ceq%tpval(1)
 ! test if condition converged, use relative error 
           if(abs(hmval-cvalue/ceq%rtn).gt.ceq%xconv*abs(cvalue)) then
 !             write(*,75)'Unconverged enthalpy: ',&
@@ -3370,11 +3393,12 @@ CONTAINS
 !                   write(*,363)'d2G/dTdy 2: ',nrow+1,ie,tcol,&
 !                        xxx,xcol(tcol),pham,mat
                 endif
+! condition on N and variable P
                 if(pcol.gt.0) then
                    xxx=xcol(pcol)
                    xcol(pcol)=xcol(pcol)+pham*map
-!                   write(*,363)'d2G/dPdy: ',nrow+1,ie,pcol,&
-!                        xxx,xcol(pcol),pham,mat
+!                   write(*,363)'MM d2G/dPdyi: ',nrow+1,ie,pcol,&
+!                        xxx,xcol(pcol),pham,map
                 endif
 ! last columns on lhs are amounts of element ie for all stable non-fix phases
 ! dncol should indicate last column with potential, can be different for
@@ -5171,7 +5195,7 @@ CONTAINS
     double precision sum,cig,cit,cip,cib
     double precision morr,curmu(maxel)
 !
-!    write(*,*)'entering calc_dgdyterms: ',ia
+!    write(*,*)'entering calc_dgdyterms1: ',tpindep,ia
     mag=zero
     do ib=1,nrel
        sum=zero
@@ -5200,6 +5224,10 @@ CONTAINS
     mag=zero
     mat=zero
     map=zero
+!    if(tpindep(2)) then
+!       write(*,99)'MM d2G/dPdy: ',(pmi%curd%dgval(3,jy,1),jy=1,pmi%ncc)
+!99     format(a,6(1pe11.3))
+!    endif
     do iy=1,pmi%ncc
        cig=zero
        cit=zero
@@ -5207,7 +5235,7 @@ CONTAINS
        do jy=1,pmi%ncc
 ! I inversed order of iy, jy, does it still converge??
           cig=cig+pmi%invmat(jy,iy)*pmi%curd%dgval(1,jy,1)
-! always calculate cit because cp debug!!
+! always calculate cit because cp debug ?? dgval(2,jy,1) is d2G/dTdy_j
           if(tpindep(1)) cit=cit+pmi%invmat(jy,iy)*pmi%curd%dgval(2,jy,1)
           if(tpindep(2)) cip=cip+pmi%invmat(jy,iy)*pmi%curd%dgval(3,jy,1)
        enddo

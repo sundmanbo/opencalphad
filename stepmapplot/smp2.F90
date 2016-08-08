@@ -6741,7 +6741,7 @@ CONTAINS
 !
 ! get all conditions
     call get_all_conditions(text,-1,ceq)
-    write(*,*)'PC1: ',trim(text),ndx
+!    write(*,*)'PC1: ',trim(text),ndx
     do jj=1,ndx
 ! replace the values of those that are axis with X or Y
        seqz=axarr(jj)%seqz
@@ -6752,7 +6752,7 @@ CONTAINS
        ip=1
        call encode_state_variable(symbol,ip,svrrec,ceq)
        if(gx%bmperr.ne.0) goto 1000
-       write(*,*)'PC2: ',symbol(1:ip-1),jj
+!       write(*,*)'PC2: ',symbol(1:ip-1),jj
        jp=index(text,symbol(1:ip-1))
        if(jp.gt.0) then
           seqz=jp+index(text(jp:),'=')-1

@@ -1805,8 +1805,9 @@
       alpha=zero
       kappa=zero
    endif
-   write(kou,100)napfu,T,P,G,G/rtg
-100 format(/'Per mole FORMULA UNIT of the phase, ',1pe12.4,' atoms'/&
+   write(kou,100)napfu,rtg,T,P,G,G/rtg
+100 format(/'Per mole FORMULA UNIT of the phase, ',1pe12.4,' atoms/F.U., RT=',&
+         1pe15.7/&
          'at T= ',0pF8.2,' K and P= ',1PE13.6,' Pa',8x,'SI units',9x,'/RT'/ &
          'Gibbs energy J/mol ',28('.'),1Pe16.8,e16.7)
    write(kou,102)F,F/rtg,H,H/rtg,U,U/rtg,S,S/rtg,V,V/rtg,&

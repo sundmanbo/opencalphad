@@ -1195,7 +1195,7 @@ contains
              write(kou,664)i2,jp,xxy-xxx,ll-j1
 664          format('Calculated ',i5,' equilibria out of ',i5/&
                   'Total time: ',1pe12.4,' s and ',i7,' clockcycles')
-! this may have been used to extract calculated data for plotting
+! this unit may have been used to extract calculated data for plotting
              if(plotunit0.gt.0) then
                 write(kou,670)
 670             format('Closing a GNUPLOT file oc_many0.plt'/&
@@ -1203,6 +1203,8 @@ contains
                 write(plotunit0,665)
 665             format('e'/'pause mouse'/)
                 close(plotunit0)
+! UNFINISHED possibly we could reopen the file again and make oopies 
+! of tha data to avoid manual editing
              endif
           else
              write(kou,*)'You must first SET RANGE of experimental equilibria'
@@ -2708,6 +2710,11 @@ contains
              write(kou,*)' *** Last calculation was no a full equilibrium'
           endif
           call gparid('Output mode: ',cline,last,listresopt,lrodef,q1help)
+          if(buperr.ne.0) then
+             write(kou,*)'No such mode, using default'
+             buperr=0
+             listresopt=lrodef
+          endif
           if(listresopt.gt.0 .and. listresopt.le.9) then
              lrodef=listresopt
           endif

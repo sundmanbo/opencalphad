@@ -1344,6 +1344,8 @@
 ! properties are G, G.T=-S, G.P=V and moles and mass of real atoms
 ! Note gval(*,1) is per mole formula unit and ceq%phase_varres(lokcs)%abnorm(1)
 ! is the number of real atoms per formula unit
+!               write(*,13)'3F props1:',lokcs,props(1),props(2),props(3),am,&
+!                    ceq%phase_varres(lokcs)%abnorm(1)
                props(1)=props(1)+am*ceq%phase_varres(lokcs)%gval(1,1)/&
                     ceq%phase_varres(lokcs)%abnorm(1)
 !               write(*,10)props(1),am,ceq%phase_varres(lokcs)%gval(1,1),&
@@ -1354,6 +1356,9 @@
                props(3)=props(3)+am*ceq%phase_varres(lokcs)%gval(3,1)/&
                     ceq%phase_varres(lokcs)%abnorm(1)
                props(4)=props(4)+am
+!               write(*,13)'3F props2:',lokcs,props(1),props(2),props(3),&
+!                    props(4),ceq%phase_varres(lokcs)%gval(3,1)
+13             format(a,i3,6(1pe12.4))
 ! ceq%phase_varres(lokcs)%abnorm(2) should be the current mass
 ! %abnorm(2) is actual mass, its should be multiplied with %amfu, not am!!
 ! This value is calculated in set_constitution ... check there if problems
@@ -2111,8 +2116,14 @@
 !      aref=zero
       if(iref.eq.0) then
 ! iref=0 means user defined reference state >>>> unfinished
+!??????????????????????????????????
+! UNFINISHED
+! If O has reference state but no other elements then ignore refstate
+! for integral quantities UNLESS all components has the same reference
+! state ....
 !         write(*,52)'3F Ref state:',iref,kstv,indices(1),indices(2),rmult
 52       format(a,4i4,1pe12.4)
+! IMPORTANT !!! calculate reference state may destroy valies in %gval
          call calculate_reference_state(kstv,indices(1),indices(2),aref,ceq)
          if(gx%bmperr.ne.0) goto 1000
 ! value here seems OK
@@ -2139,6 +2150,7 @@
       elseif(kstv.eq.3) then
 ! 3: V = G.P
          value=amult*(vv-aref)/div
+!         write(*,54)amult,vv,aref,div,value
       elseif(kstv.eq.4) then
 ! 4: H = G + TS = G - T*G.T
 ! Problem with vg here when reference state is set
@@ -2612,14 +2624,18 @@
 ! Calculate the user defined reference state for extensive properties
 ! kstv is the typde of property: 1 U, 2 S, 3 V, 4 H, 5 A, 6 G
 ! It can be phase specific (iph.ne.0) or global (iph=0)
+! IMPORTANT
+! For integral quantitites (like calculated here) the reference state
+! is ignored unless all components have the same phase as reference (like Hmix)
    implicit none
    integer kstv,iph,ics
    double precision aref
    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
+! BIG BUG, the values of %gval is not restored!!
 ! kstv=1  2  3  4  5  6 other values cared for elsewhere
 !      U  S  V  H  A  G
-   integer iel,phref
+   integer iel,phref,allcomp
    double precision gref(6),bref(6),xmol(maxel),wmass(maxel),xxx(6)
    double precision tmol,tmass,bmult
 !
@@ -2633,12 +2649,35 @@
    bref=zero
    gref=zero
    xxx=zero
+   allcomp=0
 ! loop for all components to extract the value of their reference states
 ! Multiply that with the overall composition (iph=0) or the phase composition
    xmol=zero
    do iel=1,noofel
 ! this is the reference phase for component iel
       phref=ceq%complist(iel)%phlink
+!      write(*,*)'3F Reference for: ',iel,phref
+! added when starting to handle P as variable.  V should not depend
+! on a reference state unless all have the same phase as reference
+      if(allcomp.eq.0) then
+         if(phref.gt.0) then
+            allcomp=phref
+!            write(*,*)'3F Setting allcomp: ',allcomp
+         else
+! at least one component has no reference phase, ignore all refernce states
+            aref=zero
+            goto 900
+         endif
+      elseif(phref.ne.allcomp) then
+! different reference phases for the components, ignore the reference state
+!         writing(*,*)'3F Ignoring reference state as not same for all'
+         aref=zero
+         goto 900
+!      else
+! phref is same, continue the loop
+! ignore any user defined reference state for the other components
+      endif
+! UNFINISHED ?? For integral properties, kstv=1..
       if(phref.gt.0) then
 ! we should use the phase index, not location in call below
 !         write(*,*)'3F ref.ph: ',phref,phlista(phref)%alphaindex
@@ -2692,6 +2731,7 @@
 ! G
       aref=bref(1)
    endif
+900 continue
 !   write(*,75)kstv,aref
 75 format('3F ref:',i3,6(1pe12.4))
 1000 continue

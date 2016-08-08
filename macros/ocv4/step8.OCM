@@ -262,6 +262,93 @@ l,,,,,
 
 @$ As expected we must have at least 3 moles of O (1.5 O2) to avoid soot.
 @$ and we have a low T, 1366 K, as there is a lot of H2 to burn.
+@&
+@$================================================================
+@$ Now something different again
+@$ Testing variable P and using V as condition
+@$ First set condtions using T, P and N
+@$ 
+set stat ph gra=e 0
+set c h=none
 
+set c t=3000 n(o)=7
+
+@&
+
+c e
+
+l,,,,,
+
+@&
+@$ Now release P as condition at same V
+
+set c v
+
+set c p=none
+
+c e
+
+l,,,,
+
+@$ Same equilibrium with V as condition, next change V
+@& 
+
+set c v=2
+
+c e
+
+l,,,,
+
+@$ With a bigger volume P has decreased to 94963 Pa
+@$ or 0.94963 bar
+@&
+
+set c v=1
+
+c e
+
+l,,,,,
+
+@$ With a smaller volume the pressure increases, P=1.8499 bar
+@$ Check Boyles law: P1V1=P2V2 (N/m2 * m3) = Nm = J
+@$ right hand side: 2*94963=189926 J
+@$ left hand side:  1*184990 Pa
+@$ It is not same because the constitution of the gas has changed!!  
+@$ Increasing the pressure increases the fraction of large molecules 
+@$
+@&
+@$ We can list the volume separately (unit is m3)
+
+l st v
+
+
+@$ Make a plot how P depend on V
+set ax 1 
+V
+.1
+10
+
+step
+Y
+
+
+@&
+plot
+V
+P
+
+
+@$ A nice hyperbolic curve
+@&
+
+@$ Try using logscale
+plot
+V
+P
+log
+y
+
+
+@$ That is all for now !!
 set inter
 

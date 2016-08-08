@@ -1823,6 +1823,7 @@ end function find_phasetuple_by_indices
    ceq%phase_varres(lokcs)%netcharge=charge
    ceq%phase_varres(lokcs)%abnorm(1)=asum
    ceq%phase_varres(lokcs)%abnorm(2)=bsum
+!   write(*,*)'3A sety: ',lokcs,ceq%phase_varres(lokcs)%abnorm(1)
    if(ionicliq .and. locva.gt.0) then
 ! the ionic liquid vacancy charge is the number of sites on second subl.
       ceq%phase_varres(lokcs)%dpqdy(locva)=ceq%phase_varres(lokcs)%sites(2)
