@@ -2046,6 +2046,111 @@ end function find_phasetuple_by_indices
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
+ subroutine enter_components(line,ceq)
+! enter a new set of components
+   implicit none
+   character line*(*)
+   type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   integer c1,c2,c3,i1,i2,nspel,ierr
+   integer, allocatable :: ielno(:),loksp(:)
+   double precision, allocatable :: stoi(:),smass(:)
+   double precision qsp,extra
+   double precision, allocatable :: matrix(:,:),imat(:,:)
+   character name*24
+   type(gtp_condition), pointer :: pcond,qcond,last
+!
+   allocate(loksp(noofel))
+   allocate(ielno(noofel))
+   allocate(stoi(noofel))
+   allocate(smass(noofel))
+   allocate(matrix(noofel,noofel+1))
+   matrix=zero
+   c2=1
+   do c1=1,noel()
+      c3=c2+index(line(c2:),' ')
+      name=line(c2:c3-1)
+!      write(*,*)'3A name: "',trim(name),'"',c3,c1,' "',trim(line(c3:)),'"'
+      c2=c3
+      call find_species_record_exact(name,loksp(c1))
+      if(gx%bmperr.ne.0) goto 1000
+      call get_species_data(loksp(c1),nspel,ielno,stoi,&
+           smass(c1),qsp,extra)
+      if(qsp.gt.zero) then
+         write(*,*)'Charged species must not be components'
+         gx%bmperr=4399; goto 1000
+      endif
+      do i1=1,nspel
+         matrix(ielno(i1),c1)=stoi(i1)
+      enddo
+   enddo
+   do c1=1,noofel
+      write(*,70)'3A mat: ',c1,(matrix(c2,c1),c2=1,noofel)
+   enddo
+70 format(a,i1,6(1pe12.4))
+! check that the matrix has an inverse
+   allocate(imat(noofel,noofel))
+   call mdinv(noofel,noofel+1,matrix,imat,noofel,ierr)
+   if(ierr.eq.0) then
+      write(*,*)'Error inverting component matrix'
+      gx%bmperr=4399; goto 1000
+   endif
+   do c1=1,noofel
+      write(*,70)'3A imt: ',c1,(imat(c2,c1),c2=1,noofel)
+   enddo
+   gx%bmperr=4399
+   write(*,*)'All seems OK so far ... but not implemented yet'
+   goto 1000
+!----------------------------------------------------------
+! We have a new set of components!!
+! At present (and maybe forever) use the same components in all equilibria ...
+   do c1=1,noofel
+      do c2=1,noofel
+         ceq%compstoi(c2,c1)=matrix(c2,c1)
+         ceq%invcompstoi(c2,c1)=imat(c2,c1)
+      enddo
+!   enddo
+! enter the components, no alphabetical order ... ??
+!   do c1=1,noofel
+      ceq%complist(c1)%splink=loksp(c1)
+      ceq%complist(c1)%phlink=0
+      ceq%complist(c1)%tpref(1)=2.9815D2
+      ceq%complist(c1)%tpref(2)=1.0D5
+      ceq%complist(c1)%mass=smass(c1)
+   enddo
+! delete all conditions and experiments in all equilibria
+   last=>ceq%lastcondition
+700 continue
+   if(associated(last)) then
+      pcond=>last%next
+      do while(.not.associated(pcond,last))
+         qcond=>pcond
+         pcond=>pcond%next
+         write(*,*)'deleting condition/experiment'
+         deallocate(qcond)
+      enddo
+      deallocate(pcond)
+      nullify(ceq%lastcondition)
+   endif
+   last=>ceq%lastexperiment
+   if(associated(last)) then
+      write(*,*)'There are experiments'
+      goto 700
+   endif
+   if(allocated(ceq%eqextra)) deallocate(ceq%eqextra)
+! 
+1000 continue
+   deallocate(loksp)
+   deallocate(ielno)
+   deallocate(stoi)
+   deallocate(smass)
+   deallocate(matrix)
+   return
+ end subroutine enter_components
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
  subroutine deallocate_gtp(intvar,dblvar)
 ! deallocate the data structure
    implicit none

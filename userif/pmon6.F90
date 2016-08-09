@@ -175,7 +175,7 @@ contains
 !----------------------------------------------------------------
 ! here are all commands and subcommands
 !    character (len=64), dimension(6) :: oplist
-    integer, parameter :: ncbas=30,nclist=21,ncalc=9,ncent=18,ncread=6
+    integer, parameter :: ncbas=30,nclist=21,ncalc=9,ncent=21,ncread=6
     integer, parameter :: ncam1=18,ncset=24,ncadv=6,ncstat=6,ncdebug=6
     integer, parameter :: nselect=6,nlform=6,noptopt=6,nsetbit=6
     integer, parameter :: ncamph=12,nclph=6,nccph=6,nrej=6,nsetph=6
@@ -247,7 +247,8 @@ contains
          'CONSTITUTION    ','EXPERIMENT      ','QUIT            ',&
          'EQUILIBRIUM     ','SYMBOL          ','OPTIMIZE_COEFF  ',&
          'COPY_OF_EQUILIB ','COMMENT         ','MANY_EQUILIBRIA ',&
-         'MATERIAL        ','PLOT_DATA       ','                ']
+         'MATERIAL        ','PLOT_DATA       ','                ',&
+         'COMPONENTS      ','                ','                ']
 !-------------------
 ! subcommands to READ
     character (len=16), dimension(ncread) :: cread=&
@@ -2455,6 +2456,25 @@ contains
 ! enter not used
        case(18)
           write(*,*)'Not implemeneted yet'
+!----------------------------------------------------------------
+! enter components
+       case(19)
+          i2=1
+          line=' '
+          do i1=1,noel()
+             call get_component_name(i1,line(i2:),ceq)
+             i2=len_trim(line)+2
+          enddo
+          call gparcd('Give all new components: ',cline,last,&
+               5,option,line,q1help)
+          call enter_components(option,ceq)
+          if(gx%bmperr.ne.0) goto 990
+!----------------------------------------------------------------
+! enter unused
+       case(20)
+!----------------------------------------------------------------
+! enter unused
+       case(21)
        END SELECT
 !=================================================================
 ! exit

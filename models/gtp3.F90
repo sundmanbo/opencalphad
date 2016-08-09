@@ -1057,12 +1057,6 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! antalprop: probably redundant (from the time of arrays of propery records)
      character*16 reference
      TYPE(gtp_property), pointer :: nextpr
-
-
-
-
-
-
      integer proptype,degree,extra,protect,refix,antalprop
      integer, dimension(:), allocatable :: degreelink
   END TYPE gtp_property
@@ -1504,7 +1498,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! lastexperiment: link to experiment list
      TYPE(gtp_condition), pointer :: lastcondition,lastexperiment
 ! components and conversion matrix from components to elements
-! complist: array with components
+! complist: array with components (species index or location)??
 ! compstoi: stoichiometric matrix of compoents relative to elements
 ! invcompstoi: inverted stoichiometric matrix
      TYPE(gtp_components), dimension(:), allocatable :: complist

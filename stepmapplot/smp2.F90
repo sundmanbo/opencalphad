@@ -6685,7 +6685,8 @@ CONTAINS
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
   logical function abbr_phname_same(full,short)
-! return TRUE if short is a correct abbreviation if full
+! return TRUE if short is a correct abbreviation of full
+! This is used in macro step4 to plot fractions in different composition sets
     implicit none
     character*(*) full,short
     logical same
@@ -6697,21 +6698,20 @@ CONTAINS
     k1=index(short,'#')
     if(k1.gt.0) then
        k2=index(full,'#')
+! full has no compset
        if(k2.le.0) then
 ! if short has #1 then the full phase without # should be accepted
-!          write(*,*)'no compset:  ',short(k1+1:k1+1),k2
-! I DO NOT UNDERSTAND THIS EITHER
-!          if(short(k1+1:k1+1).ne.'1') then
-!             goto 1000
-!          endif
-          goto 1000
+!          write(*,*)'full has no compset:  ',short(k1+1:k1+1),k2
+          if(short(k1+1:k1+1).eq.'1') then
+             same=.true.
+             goto 1000
+          endif
        else
-          ch1=short(k1+1:k1+1)
-          ch2=full(k2+1:k2+1)
-!       write(*,*)'compset: ',k1,k2,'  ',ch1,' ',ch2
-! I DO NOT UNDERSTAND !!!  it should ne .ne. !!!
-!       if(ch1.ne.ch2) goto 1000
-          if(ch1.eq.ch2) goto 1000
+! the character after # must be the same
+          if(short(k1+1:k1+1).eq.full(k2+1:k2+1)) then
+             same=.true.
+             goto 1000
+          endif
        endif
     endif
 ! if short is without # then all compsets match
@@ -6719,8 +6719,9 @@ CONTAINS
        same=.true.
     endif
 1000 continue
-    return
+!    write(*,*)'Comparing ',trim(short)//' with '//trim(full),' is ',same
     abbr_phname_same=same
+    return
   end function abbr_phname_same
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\

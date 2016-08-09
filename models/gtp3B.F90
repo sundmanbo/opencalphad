@@ -155,6 +155,7 @@
    else
       jjj=noofel
    endif
+! %splink is location of species
    firsteq%complist(jjj)%splink=noofsp
    firsteq%complist(jjj)%phlink=0
 ! do not copy element reference state name here
