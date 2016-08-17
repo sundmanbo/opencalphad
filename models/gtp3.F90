@@ -264,16 +264,16 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'Illegal composition set number                                  ',&
        'No more records for phases or composition sets.                 ',&
        'Hidden phase cannot be ENTERED, SUSPENDED, DORMANT or FIXED     ',&
-       'No such constituents or ambiguous name                          ',&
+       'Ambiguous or unknown constituent                                ',&
        'Too many argument to a state variable                           ',&
        'This state variable must have two arguments                     ',&
        'First character of a state variable is wrong                    ',&
 ! 4100
        'State variable starting with M not followed by U                ',&
        'State variable starting with L not followed by NAC              ',&
-       'Missing ( for arguments for state variable                      ',&
+       'Missing ( for arguments of state variable                       ',&
        'Missing ) after arguments of state variable                     ',&
-       'Unknown phase used as state varible argument                    ',&
+       'Unknown phase used as state variable argument                   ',&
        'Unknown constituent used as state variable argument             ',&
        'Unknown component used as state variable argument               ',&
        'State variable starting with D not followed by G                ',&
@@ -282,10 +282,10 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! 4110
        'This state variable cannot not have two arguments               ',&
        'This state variable must have an argument                       ',&
-       'Impossible reference state for this constituent                 ',&
-       'No such property for this phase                                 ',&
-       'Cannot calculate property value per volume as no volume data    ',&
-       'Property per formula unit only for a single phase               ',&
+       'Impossible reference state for this component                   ',&
+       'No such property calculated for this phase                      ',&
+       'Property normallized by volume impossible as no volume data     ',&
+       'Property per formula unit is phase specific                     ',&
        'State variable number must be larger than zero                  ',&
        'Only state variable Y can have 3 indices                        ',&
        'Illegal normalization of state variable                         ',&

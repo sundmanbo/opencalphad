@@ -327,7 +327,7 @@ contains
 ! subcommands to DEBUG
     character (len=16), dimension(ncdebug) :: cdebug=&
          ['FREE_LISTS      ','STOP_ON_ERROR   ','ELASTICITY      ',&
-         '                ','                ','                ']
+          'TEST1           ','TEST2           ','                ']
 !-------------------
 ! subcommands to SELECT, maybe some should be CUSTOMMIZE ??
     character (len=16), dimension(nselect) :: cselect=&
@@ -845,7 +845,9 @@ contains
 !2013      format('CPU time used: ',1pe15.6)
 !---------------------------------------------------------------
        case(2) ! calculate phase, _all _only_g or _g_and_dgdy, etc
-          ! asks for phase name and constitution
+! asks for phase name and constitution.  DO NOT ALLOW * by setting iph=-1
+! before calling!
+          iph=-1
           call ask_phase_constitution(cline,last,iph,ics,lokcs,ceq)
           if(gx%bmperr.ne.0) goto 990
 ! if iph<0 then * has been given as phase name
@@ -3276,9 +3278,6 @@ contains
 !=================================================================
 ! debug subcommands
     case(16)
-!       write(*,*)'Calculating equilibrium record size'
-       kom2=ceqsize(ceq)
-       write(kou,*)'Current equilibrium record size: ',kom2
        kom2=submenu(cbas(kom),cline,last,cdebug,ncdebug,1)
        SELECT CASE (kom2)
 !------------------------------
@@ -3287,6 +3286,9 @@ contains
 !------------------------------
 ! debug free lists
        CASE(1)
+          write(*,*)'Calculating equilibrium record size'
+          kom3=ceqsize(ceq)
+          write(kou,*)'Current equilibrium record memory use: ',kom3
 ! list all tuples
           write(kou,1617)
 1617      format('Phase tuples content'/&
@@ -3310,7 +3312,12 @@ contains
 !------------------------------
 ! debug stop_on_error
        CASE(2)
-          stop_on_error=.true.
+          if(stop_on_error) then
+             stop_on_error=.FALSE.
+             write(kou,*)'No longer stop on error'
+          else
+             stop_on_error=.true.
+          endif
 !------------------------------
 ! debug elasticity (this is temporary)
        CASE(3)
@@ -3331,6 +3338,19 @@ contains
 !          call gparrd('lattice par (3,2):',cline,last,latpos(3,2),xxy,nohelp)
 !          call gparrd('lattice par (3,3):',cline,last,latpos(3,3),xxx,nohelp)
 !          call set_lattice_parameters(iph,ics,latpos,ceq)
+!----------------------------------
+! debug test1 (whatever)
+       case(4)
+          write(*,*)'Nothing here'
+!          call delete_all_conditions(0,ceq)
+!---------------------------------
+! debug test2 (whatever)
+       case(5)
+          write(*,*)'Nothing here'
+!---------------------------------
+! debug unused
+       case(6)
+          write(*,*)'Neither here'
        END SELECT
 !=================================================================
 ! select command

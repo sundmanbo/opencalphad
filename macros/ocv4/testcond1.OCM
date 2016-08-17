@@ -1,11 +1,20 @@
-@$-------------------------------------------------------------------------
-@$
-@$ Testing combining various condition
-@&
-@$-------------------------------------------------------------------------
-@$ 
 
 set echo
+
+@$===============================================================
+@$
+@$ Testing combining combination of various condition
+@$ for a ternary system C-Cr-Fe
+@$ 
+@$ There is a test to calculate NPLE conditions
+@$
+@$ There are also tests of entering, listing
+@$ and calculating mobility data
+@$ and the matrix to convert these to diffusion
+@$ coefficients.
+@&
+@$===============================================================
+@$ 
 
 r t steel1 c fe cr
 
@@ -246,7 +255,7 @@ l,,,,
 
 @$ Temperature becomes 2139 with this addition of heat
 @&
-@$ ----------------------------------------------------------------- 
+@$ ==============================================================
 @$ Something different
 @$ Calculate NPLE (Negligible Partition Local Equilibrium)
 @&
@@ -301,6 +310,55 @@ l,,,,
 @$ The calculation kindly provided by Shaojie Song
 @$ who discovered a bug!
 @$ Report one yourself and get cited!
+
+@&
+@$ ==============================================================
+@$ 
+@$ Testing entering mobility data, list and calculate
+@$ The values are just made up
+
+enter parameter mq&c(fcc,fe:c) 298.15 -1000+5*T; 6000 N me
+
+enter parameter mq&c(fcc,cr:c) 298.15 -2000+7*T; 6000 N me
+enter parameter mq&c(fcc,fe:va) 298.15 -10000+3*T; 6000 N me
+enter parameter mq&c(fcc,cr:va) 298.15 -5000; 6000 N me
+
+list ph fcc data
+
+@$
+@$ Note there are 4 parameters called MQ&C
+@&
+ 
+enter symbol mobc = exp(mq&c(fcc)/rt);
+
+l sym
+
+cal sym *
+
+@$ We cannot calculate the MOBC symbol unless the phase
+@$ has been calculated with the mobility parameters.
+@&
+@$ It is enough to calculate the phase
+
+cal ph fcc ,,,,,
+
+cal sym *
+
+@&
+@$ There is also a command to calculate the potential derivative
+@$  matrix (note it is symmetrical) which needed the diffusion
+@$ coefficients and the mobilities
+@& 
+
+cal ph fcc
+
+Y
+diff
+
+
+
+
+@&
 
 @$ That is all for now
 

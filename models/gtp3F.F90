@@ -85,7 +85,7 @@
    type(gtp_state_variable), pointer :: svr
    character actual_arg(2)*16,name*16
 !
-!   write(*,*)'3F In state_variable_value: ',statevar
+!   write(*,*)'3F In get_state_variable_value: ',statevar
    iunit=0
    svr=>svrvar
    call decode_state_variable(statevar,svr,ceq)
@@ -1392,6 +1392,7 @@
    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim} %+
    integer istv,indices(4),iunit,iref
+!   write(*,*)'3F ************* encode: '
    iref=svr%phref
    iunit=svr%unit
 ! if svr%oldstv>=10 then istv should be 10*(svr%oldstv-5)+svr%norm
@@ -1449,6 +1450,7 @@
    character*1, dimension(4), parameter :: cnorm=['M','W','V','F']
 !
    sublat=0
+!   write(*,*)'3F encode: ',istv
    if(istv.le.0) then
 ! this is a parameter property symbol: TC (-2), BM (-3), MQ&FE(FCC) (-4) etc
 ! translate to 21, 22, 23 ...
@@ -1557,6 +1559,7 @@
       kstv=-istv
    endif
 ! this call creates the symbol or gives an error
+!   write(*,*)'3F parameter property symbol: ',kstv,iph,ics
    call find_defined_property(stsymb,1,kstv,iph,ics)
    if(gx%bmperr.ne.0) goto 1000
    jp=len_trim(stsymb)+1
@@ -1920,7 +1923,7 @@
    iref=svr%phref
    iunit=svr%unit
 ! searching for experimental bug
-!   write(*,*)'3F state_variable_val: ',iref,iunit
+!   write(*,*)'3F state_variable_val: ',svr%statevarid,iref,iunit
 !   if(svr%oldstv.gt.10) then
 !      istv=10*(svr%oldstv-5)+svr%norm
 !   else
@@ -1950,8 +1953,8 @@
 910 format(a,i3,2x,4i3,2i3,1pe14.6)
    call state_variable_val3(istv,indices,iref,iunit,value,ceq)
    if(gx%bmperr.ne.0) then
-      write(*,920)'3F error 7: ',gx%bmperr,istv,svr%oldstv,svr%argtyp
-920   format(a,i5,2x,2i15,i2)
+!      write(*,920)'3F error 7: ',gx%bmperr,istv,svr%oldstv,svr%argtyp
+!920   format(a,i5,2x,2i15,i2)
 !   else
 !      write(*,*)'3F value: ',value
    endif
@@ -2332,16 +2335,19 @@
 ! >>> this can easily be generallized ... next time around ...
 ! here with state variable <0, syetm and user defined properties
 200   continue
+!   write(*,*)'3F svv3 at 200:',kstv
    select case(kstv)
    case default
       write(kou,*)'Unknown parameter identifier: ',kstv
 !.......................................
    case(2:5,7,9:19) 
+!-------------------------------------------------------------------
 ! 2: TC (Curie/Neel Temperature)
 ! 3: BM (Average Bohr magneton number)
 ! 4: CTA just Curie Temperature
 ! 5: NTA just Neel temperature
 ! 7: THET Debye or Einstein temperature
+! 8: MQ& mobility
 ! 9: RHO electrical resistivity
 ! 10: MAGS Magnetic suseptibility
 ! 11: GTT Glas transition temperature
@@ -2353,6 +2359,9 @@
 ! 17: EC11 Elastic constant C11
 ! 18: EC12 Elastic constant C12
 ! 19: EC44 Elastic constant C44
+! 20: Flory-Huggins model parameter
+!-------------------------------------------------------------------
+!
       call get_phase_compset(indices(1),indices(2),lokph,lokcs)
       if(gx%bmperr.ne.0) goto 1000
 ! nprop is number of properties calculated.  Property 1 is always G
@@ -2368,11 +2377,16 @@
 ! 6: IBM& Individual Bohr magneton number
 ! 8: MQ& mobility value
 ! 20: FHV  Flory Huggins volume
+!      write(*,*)'3F svv3 mob1: ',indices(1),indices(2),iprop
       call get_phase_compset(indices(1),indices(2),lokph,lokcs)
       if(gx%bmperr.ne.0) goto 1000
 ! property is kstv*100+indices(3) (constituent identifier)
       iprop=100*kstv+indices(3)
+!      write(*,485)'3F svv3 mob2: ',indices(1),indices(2),iprop,&
+!           ceq%phase_varres(lokcs)%nprop
+485   format(a,2i3,10i5)
       find2: do jp=2,ceq%phase_varres(lokcs)%nprop
+!         write(*,485)'3F calcprop: ',ceq%phase_varres(lokcs)%listprop(jp)
          if(ceq%phase_varres(lokcs)%listprop(jp).eq.iprop) then
             value=ceq%phase_varres(lokcs)%gval(1,jp)
             goto 1000
@@ -2796,7 +2810,7 @@
    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim} %+
    integer, parameter :: npfs=20
-   integer ks,maxsym,ipos,jt,js,kdot,nsymb
+   integer ks,maxsym,ipos,jt,js,kdot,nsymb,allowch
    character name2*16,pfsym(npfs)*60,string*128,pfsymdenom*60
 !   integer istv(npfs),indstv(4,npfs),iref(npfs),iunit(npfs),lokv(npfs)
    integer iarr(10,npfs),lokv(npfs)
@@ -2821,13 +2835,15 @@
          gx%bmperr=4136; goto 1000
       endif
    enddo
+! added allowch to handle symbols including & and #
+   allowch=1
 ! TO BE IMPLEMENTED: enter symbols with dummy arguments like CP(@P1)=HM(@P1).T
 ! where @Pi is a phase, @Ci is a component and @Si is a species
 ! these dummy variables must be defined in symbol name ?? why ?? maybe not
    call gparc('Expression, end with ";" :',cline,last,6,string,';',q1help)
    maxsym=-npfs
    ipos=1
-   call putfun(string,ipos,maxsym,pfsym,lokv,lrot,nsymb)
+   call putfun(string,ipos,maxsym,pfsym,lokv,lrot,allowch,nsymb)
    if(pfnerr.ne.0) then
       pfnerr=0; gx%bmperr=4134; goto 1000
    endif
@@ -2836,7 +2852,7 @@
 ! like Curie temperature etc.  The symbols are in pfsym(1..nsymb)
 !
 !   write(*,11)nsymb,(pfsym(js)(1:len_trim(pfsym(js))),js=1,nsymb)
-11 format('3F: args ',i2,': ',10(1x,a,','))
+11 format('3F args: ',i2,': ',10(1x,a,','))
 ! identify symbols as state variables, if derivative there is a dot
    iarr=0
    jt=0
@@ -2889,8 +2905,7 @@
             gx%bmperr=0
             do ks=1,nsvfun
                if(pfsym(js).eq.svflista(ks)%name) then
-!                  write(*,*)'3F found other function: ',&
-!                       pfsym(js)(1:len_trim(pfsym(js)))
+!                  write(*,*)'3F found another function: ',trim(pfsym(js))
                   iarr(1,js)=-ks
                   goto 390
                endif
@@ -2899,10 +2914,17 @@
                  pfsym(js)(1:len_trim(pfsym(js))),'"'
             gx%bmperr=4135; goto 1000
          else
-!            write(*,*)'3F decoded 1: ',pfsym(js)
-!            write(*,*)'3F decoded 2: ',svr%statev
+! This can be a parameter identifier like mobility: mq&fe(fcc)
+!            write(*,*)'3F decoded 1: ',trim(pfsym(js)),svr%oldstv
+!            write(*,*)'3F decoded 2: ',svr%statevarid
+! to avoid confusing this with another function index subtract 1000
 ! Store in the old way in iarr
-            iarr(1,js)=svr%oldstv
+!            iarr(1,js)=svr%oldstv-1000
+            if(svr%oldstv.lt.0) then
+               iarr(1,js)=svr%oldstv-1000
+            else
+               iarr(1,js)=svr%oldstv
+            endif
             iarr(2,js)=svr%norm
             iarr(3,js)=svr%unit
             iarr(4,js)=svr%phref
@@ -3090,7 +3112,7 @@
    type(gtp_state_variable), target :: svr2
    type(gtp_state_variable), pointer :: svr
    character symbols(20)*32,afterdot*32
-   integer js,jt,ip,istv,kl
+   integer js,jt,ip,istv,kl,mm
 !    write(*,*)'3F list_svfun 1:',svflista(lrot)%narg
    if(lrot.le.0 .or. lrot.gt.nsvfun) then
       gx%bmperr=4140; goto 1000
@@ -3104,14 +3126,24 @@
       ip=1
       symbols(js)=' '
       istv=svflista(lrot)%formal_arguments(1,jt)
-      if(istv.lt.0) then
-! function refer to another function
+!      write(*,*)'3F list_svfun: ',istv,js,jt
+      if(istv.gt.-1000 .and. istv.lt.0) then
+! istv<-1000 means this is a parameter property identifier
+! function refer to another function (assuming never to have 1000 symbols ...
          symbols(js)=svflista(-istv)%name
       else
 ! the 1:10 was a new bug discovered in GNU fortran 4.7 and later
          svr=>svr2
          call make_stvrec(svr,svflista(lrot)%formal_arguments(1:10,jt))
+         if(gx%bmperr.ne.0) then
+            write(*,*)'3F failed creating state variable record'
+            goto 1000
+         endif
          call encode_state_variable(symbols(js),ip,svr,ceq)
+         if(gx%bmperr.ne.0) then
+            write(*,*)'3F failed encode state variable'
+            goto 1000
+         endif
          if(svflista(lrot)%formal_arguments(10,jt).ne.0) then
 ! a derivative!!!
 !            write(*,111)'3F A dot derivative of ',js,jt,symbols(js)
@@ -3123,7 +3155,8 @@
             call make_stvrec(svr,svflista(lrot)%formal_arguments(1:10,jt))
             call encode_state_variable(afterdot,ip,svr,ceq)
 !            write(*,111)'3F wrt state variable  ',js,jt,afterdot
-            symbols(js)=symbols(js)(1:len_trim(symbols(js)))//'.'//afterdot
+!            symbols(js)=symbols(js)(1:len_trim(symbols(js)))//'.'//afterdot
+            symbols(js)=trim(symbols(js))//'.'//afterdot
 !            write(*,111)'3F alltogether ',js,jt,symbols(js)
          endif
       endif
@@ -3132,6 +3165,8 @@
    kl=len_trim(svflista(lrot)%name)
    text(ipos:ipos+kl+1)=svflista(lrot)%name(1:kl)//'= '
    ipos=ipos+kl+2
+!   write(*,502)'3F wrtfun: ',jt,(trim(symbols(mm)),mm=1,jt)
+502 format(a,i3,10(' "',a,'", '))
    call wrtfun(text,ipos,svflista(lrot)%linkpnode,symbols)
 ! where is pfnerr defined??
    if(pfnerr.ne.0) then
@@ -3154,14 +3189,22 @@
    type(gtp_state_variable), pointer :: svr
    integer iarr(10)
 !\end{verbatim}
-   integer jt,norm
+   integer jt,norm,currid
 !
 ! memory leak
 !   allocate(svr)
-   if(iarr(1).lt.10) then
+   if(iarr(1).lt.-1000) then
+! Handling of parameter property symbols like TC, BMAGN etc
+! NOTE inside symbols  -1000 used to separate from other symbols 
+      currid=iarr(1)+1000
+      svr%statevarid=currid
+   elseif(iarr(1).le.0) then
+      write(*,*)'3F illegal argument to make_stvrec: ',iarr(1)
+   elseif(iarr(1).lt.10) then
 ! This is T, P, MU, AC, LNAC
 !         1  2  3   4   5
       svr%statevarid=iarr(1)
+      currid=iarr(1)
    else
 ! This is U, S, V, H, A,  G,  NP, BP, DG, Q,   N,  X,  B,  W,  Y   symbol
 !         6  7  8  9  10, 11, 12, 13, 14, 15,  16, 17, 18, 19. 20   new code
@@ -3173,12 +3216,13 @@
       if(jt.eq.16 .and. norm.eq.1) jt=17
       if(jt.eq.18 .and. norm.eq.2) jt=19
       svr%statevarid=jt
+      currid=iarr(1)
 !      write(*,*)'3F make: ',iarr(1),jt
    endif
 !   write(*,11)iarr
 11 format('3F Arguments: ',10i5)
-! Not implemented handling of property symbols like TC, BMAGN etc
-   svr%oldstv=iarr(1)
+!   svr%oldstv=iarr(1)
+   svr%oldstv=currid
    svr%norm=iarr(2)
    svr%unit=iarr(3)
    svr%phref=iarr(4)

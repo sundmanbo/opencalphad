@@ -577,6 +577,7 @@
       kl=len_trim(svflista(lrot)%name)
       text(ipos:ipos+kl+1)=svflista(lrot)%name(1:kl)//'= '
       ipos=ipos+kl+2
+      write(*,*)'3E calling wrtfun'
       call wrtfun(text,ipos,svflista(lrot)%linkpnode,symbols)
       if(pfnerr.ne.0) then
          write(kou,*)'Putfun error listing funtion ',ks,pfnerr

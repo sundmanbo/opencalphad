@@ -5632,7 +5632,9 @@ CONTAINS
       jt=jt+1
       istv=svflista(lrot)%formal_arguments(1,jt)
 !      write(*,*)'in meq_evaluate_svfun 3A',jt,istv
-      if(istv.lt.0) then
+      if(istv.gt.-1000 .and. istv.lt.0) then
+! istv values between -1000 and -1 are indices to functions
+! istv values less than -1000 are parameter identication symbols
 ! if eqnoval nonzero it indicates from which equilibrium to get its value
          ieq=svflista(lrot)%eqnoval
 !********************************************************************
@@ -5647,6 +5649,7 @@ CONTAINS
       else
 ! the need for 1:10 was a new bug discovered in GNU fortran 4.7 and later
          svr=>tsvr
+! inside make_stvrec istv values less than -1000 are converted
          call make_stvrec(svr,svflista(lrot)%formal_arguments(1:10,jt))
          if(gx%bmperr.ne.0) goto 1000
          if(svflista(lrot)%formal_arguments(10,jt).eq.0) then
@@ -7300,7 +7303,7 @@ CONTAINS
     enddo
     if(ql.lt.noofend) then
        write(*,411)noofend-ql
-411    format(' *** Warning: Missing mobility data for ',i2,' components')
+411    format(' *** Warning: Missing mobility data for ',i2,' endmembers')
        goto 1000
     endif
     goto 1000

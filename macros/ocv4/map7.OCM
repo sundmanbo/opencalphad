@@ -33,7 +33,7 @@ default
 
 @& calculate a first equilibrium at 1200 where we have both fcc phases 
 
-set c t=1200 p=1e5 n=1 w%(c)=.8 w%(cr)=5, w%(mo)=8 w%(v)=1
+set c t=1200 p=1e5 n=1 w%(c)=.9 w%(cr)=5, w%(mo)=8 w%(v)=1
 
 c e
 

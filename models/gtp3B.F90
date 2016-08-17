@@ -586,7 +586,7 @@
    firsteq%phase_varres(lokcs)%abnorm(1)=formalunits
 ! ncc no longer part of this record
 !   firsteq%phase_varres%ncc=nkk
-! zero the phstate
+! zero the phstate (means entered and unknown if stable)
    firsteq%phase_varres(lokcs)%phstate=0
 ! sites must be stored in phase_varres
    do ll=1,nsl
@@ -4333,6 +4333,106 @@
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim}
+ subroutine delete_all_conditions(mode,ceq)
+! deletes the (circular) list of conditions in an equilibrium
+! it also deletes any experiments
+! if mode=1 the whole equilibrium is removed, do not change phase status
+! because the phase_varres records have been deallocated !!!
+! I am not sure it releases any memory though ...
+   implicit none
+   integer mode
+   type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   type(gtp_condition), pointer :: last,current,next
+   integer iph,ics,lokcs
+!
+!   write(*,*)'3B deleting conditions and experiments',trim(ceq%eqname)
+   last=>ceq%lastcondition
+   do while(associated(last))
+      next=>last%next
+      do while(.not.associated(next,last))
+         current=>next
+         next=>current%next
+! if mode=0 then the equilibrium is not deleted, just the conditions
+         if(mode.eq.0 .and. current%active.eq.0) then
+! if condition is active and that a phase is fix change the phase status!!
+! A fix phase has a negative statevariable-id
+            iph=-current%statvar(1)%statevarid
+!            write(*,*)'Active condition: ',iph
+            if(iph.gt.0) then
+!               write(*,*)'3B rest status for phase: ',iph
+               ics=current%statvar(1)%compset
+110            continue
+               if(phasetuple(iph)%compset.ne.ics) then
+                  iph=phasetuple(iph)%nextcs
+                  if(iph.gt.0) goto 110
+! this composition set does not exist
+                  gx%bmperr=4399; goto 1000
+               else
+                  lokcs=phasetuple(iph)%lokvares
+! set the phase status to entered and unknown
+!                  write(*,*)'3B remove phase condition: ',iph,ics,lokcs
+                  ceq%phase_varres(lokcs)%phstate=0
+               endif
+            endif
+!         else
+!            write(*,*)'3B inactive condition: ',current%statvar(1)%statevarid
+         endif
+         deallocate(current)
+      enddo
+!      write(*,*)'3B last condition'
+      if(mode.eq.0 .and. last%active.eq.0) then
+! if condition is active and that a phase is fix change the phase status!!
+! A fix phase has a negative statevariable-id
+         iph=-last%statvar(1)%statevarid
+!         write(*,*)'Active condition: ',iph
+         if(iph.gt.0) then
+!            write(*,*)'3B restore status for phase: ',iph
+            ics=last%statvar(1)%compset
+120         continue
+            if(phasetuple(iph)%compset.ne.ics) then
+               iph=phasetuple(iph)%nextcs
+               if(iph.gt.0) goto 120
+! this composition set does not exist
+               gx%bmperr=4399; goto 1000
+            else
+               lokcs=phasetuple(iph)%lokvares
+! set the phase status to entered and stable (not fix)
+!               write(*,*)'3B change phase status: ',iph,ics,lokcs
+               ceq%phase_varres(lokcs)%phstate=phentstab
+!               write(*,*)'3B new phase status: ',&
+!                    ceq%phase_varres(lokcs)%phstate
+            endif
+         endif
+      endif
+!      write(*,*)'3B deallocate last condition'
+      deallocate(last)
+!      write(*,*)'3B last condition deallocated'
+   enddo
+   nullify(ceq%lastcondition)
+!------------------------------
+! same for experiments (no fix phases)
+   last=>ceq%lastexperiment
+   do while(associated(last))
+      next=>last%next
+      do while(.not.associated(next,last))
+         current=>next
+         next=>current%next
+         deallocate(current)
+      enddo
+      deallocate(last)
+   enddo
+   nullify(ceq%lastexperiment)
+! same for experiments ...
+1000 continue
+! mark conditions and current result may not be compatible
+   ceq%status=ibset(ceq%status,EQINCON)
+   return
+ end subroutine delete_all_conditions
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
  subroutine delete_equilibrium(name,ceq)
 ! deletes an equilibrium (needed when repeated step/map)
 ! name can be an abbreviation line "_MAP*"
@@ -4341,17 +4441,18 @@
    character name*(*)
    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
+   type(gtp_equilibrium_data), pointer :: curceq
    type(gtp_condition), pointer :: lastcond,pcond,qcond
    integer cureq,ieq,ik,novarres,ipv
 !
    cureq=ceq%eqno
    ik=index(name,'*')-1
    if(ik.lt.0) ik=min(24,len(name))
-   do ieq=eqfree-1,1,-1
+   do ieq=eqfree-1,2,-1
 ! we cannot have "holes" in the free list??  Delete from the end...
       if(ieq.eq.cureq) exit 
       if(eqlista(ieq)%eqname(1:ik).ne.name(1:ik)) exit
-      if(ocv()) write(*,*)'Deleting: ',eqlista(ieq)%eqname,ieq
+!      write(*,*)'3B Deleting equil: ',trim(eqlista(ieq)%eqname),ieq
       eqlista(ieq)%eqname=' '
       deallocate(eqlista(ieq)%complist)
       deallocate(eqlista(ieq)%compstoi)
@@ -4375,22 +4476,17 @@
 ! do not deallocate explicitly disfra as it is another phase_varres record ...
       enddo
       deallocate(eqlista(ieq)%phase_varres)
-! Do mot deallocate the condition list in order to make list/amend lines work
-! condition list
-!      write(*,*)'deleting conditions'
-!      lastcond=>eqlista(ieq)%lastcondition
-!      if(associated(lastcond)) then
-!         pcond=>lastcond%next
-!         do while(.not.associated(pcond,lastcond))
-!            qcond=>pcond
-!            pcond=>pcond%next
-!            deallocate(qcond)
-!         enddo
-!      endif
-!
       deallocate(eqlista(ieq)%eq_tpres)
 !    write(*,*)'Deallocating svfunres for equilibrium: ',name(1:len_trim(name))
       deallocate(eqlista(ieq)%svfunres)
+! this deletes the conditions and experiments (if any)
+      curceq=>eqlista(ieq)
+      call delete_all_conditions(1,curceq)
+      if(gx%bmperr.ne.0) then
+         write(kou,800)gx%bmperr,ieq
+800      format(' *** Error ',i6,' deleting equilibrium ',i5)
+         gx%bmperr=0
+      endif
    enddo
 ! we have deleted all equilibria until ieq+1
    if(ocv()) write(*,900)ieq+1,eqfree-1

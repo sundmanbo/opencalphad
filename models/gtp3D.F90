@@ -26,6 +26,11 @@
    call gparcd('Phase name: ',cline,last,1,name1,lastph,q1help)
    if(name1(1:2).eq.'* ') then
 ! this means all phases and composition sets
+! If iph is -1 than this is not allowed!!
+      if(iph.lt.0) then
+         write(kou,*)'Wildcard not allowed in this case'
+         goto 1000
+      endif
       qph=-1
       iph=1
       ics=1
@@ -933,6 +938,11 @@
          gx%bmperr=4131; goto 1000
       endif
       qp=1
+      if(stvexp(qp:qp).eq.'*') then
+         write(*,*)'3D Special case of deleting all conditions'
+         call delete_all_conditions(0,ceq)
+         goto 1000
+      endif
       call getrel(stvexp,qp,xxx)
       if(buperr.ne.0) then
 !         write(*,*)'No such condition number'
@@ -1443,8 +1453,8 @@
          gx%bmperr=4100; goto 1000
       endif
    endif
-!   write(*,*)'3D calling get_condition'
    svr=>svrarr(1)
+!   write(*,*)'3D set_cond_or_exp for fix phase: ',svr%statevarid,svr%phase
 ! new must be unassociated, for inactvate temp will be set to condition.
    nullify(new)
    call get_condition(nterm,svr,temp)

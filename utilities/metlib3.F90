@@ -2941,12 +2941,13 @@ CONTAINS
 !
 ! MODULE PUTFUNLIB
 !
-  SUBROUTINE PUTFUN(STRING,L,MAXS,SYMBOL,LOKV,LROT,NV)
+  SUBROUTINE PUTFUN(STRING,L,MAXS,SYMBOL,LOKV,LROT,ALLOWCH,NV)
 !...READS AN EXPRESSION FROM STRING POSITION L AND CREATES AN BINARY TREE
     IMPLICIT DOUBLE PRECISION (A-H,O-Z)
     CHARACTER STRING*(*),CH*1,SYMBOL(*)*(*),MESSG*40
     PARAMETER (ZERO=0.0D0)
     DIMENSION LOKV(*)
+    integer allowch
 !    type(putfun_symlink) :: symlist
     LOGICAL NOTPP
     TYPE(putfun_node), pointer :: LROT,NYNOD,NONOD,DUMMY,dummy2
@@ -3057,7 +3058,7 @@ CONTAINS
 ! not a number, it must be a symbol or unary operator
        L=LQ
 !       write(*,*)'PUTFUN buperror: ',l
-       CALL NYVAR(STRING,L,IOPUNI,negmark,MAXS,SYMBOL,LOKV,dummy2)
+       CALL NYVAR(STRING,L,IOPUNI,negmark,MAXS,SYMBOL,LOKV,allowch,dummy2)
        IF(pfnerr.ne.0) GOTO 900
 !       write(*,*)'After nyvar: ',iopuni,symbol(1)
        IF(IOPUNI.GT.0) THEN
@@ -3343,7 +3344,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-  SUBROUTINE NYVAR(TEXT,L,IOPUNI,negmark,MAXS,SYMBOL,LOKV,dummy2)
+  SUBROUTINE NYVAR(TEXT,L,IOPUNI,negmark,MAXS,SYMBOL,LOKV,allowch,dummy2)
 !  SUBROUTINE NYVAR(TEXT,L,IOPUNI,negmark,MAXS,SYMBOL,LOKV,symlist)
 ! insert a symbol
     IMPLICIT DOUBLE PRECISION (A-H,O-Z)
@@ -3352,6 +3353,7 @@ CONTAINS
     PARAMETER (ZERO=0.0D0)
     LOGICAL DEL2
     DIMENSION LOKV(*)
+    integer allowch
     type(putfun_node), pointer :: dummy2
     parameter (one=1.0d0)
 !    type(putfun_symlink) :: symlist
@@ -3373,6 +3375,14 @@ CONTAINS
        IF(CH.GE.'A' .AND. CH.LE.'Z') THEN
           NAME(K:K)=CH
           K=K+1
+       ELSEIF(K.GT.1 .AND. allowch.EQ.1) THEN
+! allowch=1 means allow & and # in symbol names
+          if(ch.eq.'#' .or. ch.eq.'&') then
+             name(k:k)=ch
+             k=k+1
+          else
+             goto 200
+          endif
        ELSE
           GOTO 200
        ENDIF
@@ -3801,6 +3811,7 @@ CONTAINS
    CHARACTER STRING*(*),SYMBOL(*)*(*)
 !    string=' '
 !    ipos=1
+!   write(*,*)'wrtfun: ',trim(symbol(1))
 !...Quick return if no expression
     IF(.not.associated(LROT)) THEN
        CALL CONS(STRING,IPOS,'0')
@@ -4028,6 +4039,7 @@ CONTAINS
 !..a name of a variable, the name is in SYMBOL(KOD), skip trailing spaces
 ! if negated surround by ( )
 !       CALL CONS(STRING,IPOS,SYMBOL(KOD))
+!       write(*,*)'wrtdaq symbol: ',kod,trim(symbol(kod))
        if(val.lt.zero) then
           CALL CONS(STRING,IPOS,'(')
           CALL CONS(STRING,IPOS,SYMBOL(KOD))

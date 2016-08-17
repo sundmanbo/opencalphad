@@ -3650,12 +3650,25 @@
          write(*,*)'3Y wrong gridpoint fractions ',ifri,sumx,garr(ifri)
          cycle loop4
       endif
-      if(dble(garr(ifri))-gmax.lt.-1.0D-6) then
-         global=.FALSE.
-         write(*,87)iph,(xarr(ngg,ifri),ngg=1,nrel)
-87       format(/' *** Equilibrium not global, a stable phase no: ',&
-              i3,' found with mole fractions:',(/2x,9F8.5))
-         gx%bmperr=4352; goto 500
+      if(dble(garr(ifri))-gmax.lt.-1.0D-7*abs(gmax)) then
+!      if(dble(garr(ifri))-gmax.lt.-1.0D-7) then
+! if the phase is stoichiometric and stable this is no error
+! find the phase record using the phase tuple
+         lokcs=phasetuple(iph)%lokvares
+         if(ceq%phase_varres(lokcs)%phstate.ge.PHENTSTAB) then
+! if number of constituent fractions equal to sublattice the composition is fix
+            nz=size(ceq%phase_varres(lokcs)%sites)-&
+                 size(ceq%phase_varres(lokcs)%yfr)
+!            write(*,*)'No problem, phase stable with fix composition'
+         else
+            global=.FALSE.
+!         endif
+!            write(*,87)iph,garr(ifri),dble(garr(ifri))-gmax,1.0D-7*abs(gmax),&
+            write(*,87)iph,(xarr(ngg,ifri),ngg=1,nrel)
+87          format(/' *** Equilibrium may not be global, phase ',&
+                 i3,' found stable with mole fractions:',(/2x,9F8.5))
+            gx%bmperr=4352; goto 500
+         endif
       endif
 !      if(ifri.eq.sumng) write(*,*)'OK ',ifri
    enddo loop4
@@ -3664,13 +3677,13 @@
    goto 1000
 ! Found gridpoint below gmax, if mode=/=1 just return error message
 500 continue
-   write(*,*)'Sorry I have not yet implemented automatic recalculation!'
+!   write(*,*)'Sorry I have not yet implemented automatic recalculation!'
    if(mode.eq.1) then
 ! Here you should implement automatic recalculation including new phase ...
       continue
 !      gx%bmperr=0
-   else
-      write(*,*)'Please include this phase and recalculate equilibrium'
+!   else
+!      write(*,*)'Please include this phase and recalculate equilibrium'
    endif
 !
 1000 continue
@@ -4296,20 +4309,21 @@
 500            continue
 !               write(*,*)'Move stable to lower unstable compsets'
 ! move STABLE lokics to UNSTABLE lokjcs
-               write(*,489)lokics,lokjcs
-489            format('3Y move compset results from ',i6,' to ',i6)
 !               copycompsets(... ???
 ! save some jcs values of amount, dgm, status, pre&suffix and tuple index
-                  xj1=ceq%phase_varres(lokjcs)%amfu
-                  xj2=ceq%phase_varres(lokjcs)%dgm
-                  jtup=ceq%phase_varres(lokjcs)%phtupx
-                  jstat2=ceq%phase_varres(lokjcs)%status2
-                  jpre=ceq%phase_varres(lokjcs)%prefix
-                  jsuf=ceq%phase_varres(lokjcs)%suffix
-                  phs=ceq%phase_varres(lokjcs)%phstate
+               xj1=ceq%phase_varres(lokjcs)%amfu
+               xj2=ceq%phase_varres(lokjcs)%dgm
+               jtup=ceq%phase_varres(lokjcs)%phtupx
+               jstat2=ceq%phase_varres(lokjcs)%status2
+               jpre=ceq%phase_varres(lokjcs)%prefix
+               jsuf=ceq%phase_varres(lokjcs)%suffix
+               phs=ceq%phase_varres(lokjcs)%phstate
+!               write(*,489)lokics,lokjcs
+               write(*,489)ceq%phase_varres(lokics)%phtupx,jtup
+489            format('3Y move results from tuplet ',i4,' to ',i4)
 !                  write(*,501)lokics,ceq%phase_varres(lokics)%mmyfr
 !                  write(*,501)lokjcs,ceq%phase_varres(lokjcs)%mmyfr
-501               format('3Y 501: ',i5,10F5.1)
+501            format('3Y 501: ',i5,10F5.1)
 ! copy main content of the phase_varres(lokics) record to phase_varres(lokjcs)
 ! BEWARE mmyfr must be kept!
 ! BEWARE disordered fraction set!!!!
@@ -4387,7 +4401,8 @@
                if(noeq().eq.1) then
 ! we have just one equilibrium, OK to remove even in parallel ...
                   if(once) then
-                     write(*,*)'Removing unstable phase tuple'
+                     write(*,801)
+801                  format('3Y Removing unstable phase tuple(s)')
                      once=.FALSE.
                   endif
 !                  write(*,802)'3Y removing unstable phase tuple/compset ',&
