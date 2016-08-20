@@ -349,6 +349,45 @@ log
 y
 
 
+@$
+@$===============================================================
+@$ Yet another test
+@&
+@$ 
+@$ We can use expressions for some state variables like N(C)
+@$ try that but first rearrange the other conditions
+
+set c v=none
+set c p=1e5
+
+c e
+
+l,,,,
+
+@&
+@$
+@$ This condition means there will be a constant ratio between C and H
+set c 8*n(c)-3*n(h)=0
+
+set c n(h)=none
+
+c e
+
+l,,,,,
+
+@$ The equilibrium is the same, N(H)=8/3*N(C) !
+@&
+@$ Now increase C
+
+set c n(c)=4
+
+c e
+
+l,,,,,
+
+@$ The amount of h has also increased to keep the ratio
+@$ 3*n(c)-8*n(h)=0
+
 @$ That is all for now !!
 set inter
 

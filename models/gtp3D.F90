@@ -856,7 +856,7 @@
    TYPE(gtp_condition), pointer :: new
 !\end{verbatim} %+
    integer nterm,kolon,iqz,krp,jp,istv,iref,iunit,jstv,jref,junit,jl,ks
-   integer linkix,norem,ics,kstv,iph,nidfirst,nidlast,nidpre,qp
+   integer linkix,norem,ics,kstv,iph,nidfirst,nidlast,nidpre,qp,firstc,lpos
    character stvexp*80,stvrest*80,textval*32,c5*5
    character svtext*128,encoded*60,defval*18,actual_arg*24,svfuname*16
    integer indices(4),allterms(4,10),seqz,experimenttype
@@ -896,12 +896,14 @@
 ! NOTE we can have several conditions on the same line!!
 ! argument 4 equal to 5 of gpar* means extract the whole line
    stvexp=' '
-!   write(*,56)'3D scoe: ',nterm,ip,cline(1:64)
+!   write(*,56)'3D scoe: ',nterm,ip,trim(cline)
 56 format(a,2i3,' "',a,'" ')
    if(nterm.eq.0) then
       call gparcd('State variable: ',cline,ip,5,stvexp,'T',q1help)
    else
 ! the whole expression must have been entered on the same line
+! note cline is updated below !!
+      ip=ip-1
       call gparcd(' ',cline,ip,5,stvexp,'!',q1help)
    endif
    if(stvexp(1:1).eq.' ') then
@@ -925,21 +927,24 @@
    endif
 ! this can be a condition or experiment ... and have several terms
 ! check for +, -, =, <, >, or :=  
-! previous value of ip irrelevant, ip points at terminator inside stvexp
-   call termterm(stvexp,ich,ip,ccc)
+! previous value of ip irrelevant, 
+! ip points at terminator inside stvexp for current state variable
+! if lpos>0 is where to start for next term
+   call termterm(stvexp,ich,ip,lpos,ccc)
    if(gx%bmperr.ne.0) goto 1000
-!   write(*,48)'3D tt: ',ich,ip,stvexp(1:30),xxx
-48 format(a,2i4,' "',a,'" ',1pe12.4)
+!   write(*,48)'3D tt: ',ich,ip,lpos,trim(stvexp),stvexp(1:ip),ccc
+48 format(a,3i4,' "',a,'" >',a,'< ',1pe12.4)
    if(ich.eq.6) then
 ! special case when condition number provided, extract the number, can be *
-! UNFINISHED for *
+! no longer UNFINISHED for *
       if(notcond.ne.0) then
 !         write(*,*)'Experiments have no number'
          gx%bmperr=4131; goto 1000
       endif
       qp=1
       if(stvexp(qp:qp).eq.'*') then
-         write(*,*)'3D Special case of deleting all conditions'
+!         write(*,*)'3D Special case of deleting all conditions'
+! 0 means only conditions deleted, not the equilibrium
          call delete_all_conditions(0,ceq)
          goto 1000
       endif
@@ -948,6 +953,7 @@
 !         write(*,*)'No such condition number'
          gx%bmperr=4131; goto 1000
       endif
+! the condition number must be an integer
       qp=-int(xxx)
 ! search for condition with number -qp
 !      write(*,*)'3D looking for condition: ',-qp
@@ -962,12 +968,36 @@
 !      write(*,*)'Found condition',-qp,xxx
 ! jump from here to 67 if condition specified as number:=value
       goto 67
+   elseif(ich.lt.3 .and. nterm.eq.0) then
+! first term of state variable which is an expression,
+! this term is terminated by + or -
+!      write(*,*)'3D extract first coeff, if none set to 1',ich
+      if(stvexp(1:1).ge.'0' .and. stvexp(1:1).le.'9') then
+         firstc=1
+         call getrel(stvexp,firstc,coeffs(1))
+         if(buperr.ne.0) then
+            write(*,*)'3D error in coefficient for first condition term',buperr
+            goto 1000
+         endif
+! terminating character must be a *
+         if(stvexp(firstc:firstc).ne.'*') then
+            write(*,*)'3D coefficient is not terminated by *: ',&
+                 stvexp(firstc:firstc)
+            gx%bmperr=4130
+         else
+! update stvexp for next term, we must also update lpos ... lousy coding
+            stvexp=stvexp(firstc+1:)
+            lpos=lpos-firstc
+         endif
+      else
+         coeffs(1)=one
+      endif
    endif
 !---------------------------------
-! check it is a legal state variable
+! check it is a legal state variable, ignore terminator 
    svtext=stvexp(1:ip-1)
    symsym=0
-!   write(*,*)'3D calling decode with: ',ip,': ',svtext(1:ip)
+!   write(*,*)'3D calling decode with: ',ip-1,': ',svtext(1:ip-1)
 ! memory leak
    svr=>svrvar
    call decode_state_variable(svtext,svr,ceq)
@@ -1089,13 +1119,11 @@
          endif
       endif
    endif
-!   write(*,*)'3D segfault search 2A',nterm,associated(svr),notcond
-!   if(associated(svr)) then
    if(notcond.eq.0) then
 !----------------------------------------------------------------
 ! Only for conditions: save current term if several
       nterm=nterm+1
-!      write(*,*)'3D segfault search 2B',nterm
+!      write(*,*)'3D several terms: ',nterm
       svrarr(nterm)=svr
 !      write(*,*)'3D segfault search 3',nterm
 ! convert to old format, currently we need to store both formats ....
@@ -1114,8 +1142,10 @@
             continue
          endif
 ! multiterm expression, jump back to 55 ... not yet implemented
+!         write(*,*)'3D problems entering expression: ',trim(stvexp),lpos
          coeffs(nterm+1)=ccc
-         cline=stvexp(ip-1:); ip=1
+!         cline=stvexp(ip-1:); ip=1
+         cline=stvexp(lpos:); ip=1
          goto 55
       endif
    else
@@ -1178,18 +1208,21 @@
       endif
    endif none
    findrecord: if(notcond.eq.0) then
+! remove a condition
       if(.not.associated(new)) then
 ! search if condition already exist
 !         write(*,*)'3D searching for condition'
          temp=>ceq%lastcondition
          call get_condition(nterm,svr,temp)
          if(gx%bmperr.ne.0 .and. inactivate) then
-            write(kou,*)'Attempt to remove a non-exixting condition'
+            write(kou,140)
+140         format('Attempt to remove a non-existing condition')
             goto 1000
          endif
 ! the error code it will be tested below to create a condition record
       endif
    else
+! remove an experiment
       if(.not.associated(new)) then
 !         write(*,*)'3D First exmperiment: ',associated(temp)
 ! search for an experiment with state variable svr or symbol symsym
@@ -1817,8 +1850,8 @@ end subroutine get_condition
 ! and fix phases
    cmix(1)=0
    if(current%noofterms.gt.1) then
-      if(current%statev.eq.111) then
-! allow mole fractions!!
+      if(current%statev.eq.111 .or.current%statev.eq.110) then
+! allow 2 terms for mole fractions and N(A)-N(B)!!
 !         write(*,69)'3D in apply: ',current%statev,current%noofterms,&
 !              ((current%indices(jl,nterms),jl=1,4),nterms=1,current%noofterms)
 69       format(a,i4,i2,3(2x,4i5))
@@ -1830,7 +1863,7 @@ end subroutine get_condition
 !68       format('3D coeff: ',i2,6(1pe12.4))
       else
 ! cannot handle other conditions with several terms
-!         write(*,*)'3D Illegal condition with several terms',current%statev
+         write(*,*)'3D Apply_condition with several terms',current%statev
          gx%bmperr=4207; goto 900
       endif
    else
@@ -1934,7 +1967,7 @@ end subroutine get_condition
 211   format(a,2i4,2x,4i3,2x,4i3,3(1pe12.4))
    endif
    if(current%noofterms.gt.2) then
-!      write(*,*)'3D Found condition more than 2 terms',current%noofterms
+      write(*,*)'3D Apply_condition with more than 2 terms',current%noofterms
       gx%bmperr=4207; goto 1000
    endif
    value=current%prescribed

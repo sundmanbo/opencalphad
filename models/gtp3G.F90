@@ -858,7 +858,78 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
  
 !\begin{verbatim}
- subroutine termterm(string,ich,kpos,value)
+ subroutine termterm(string,ich,kpos,lpos,value)
+! search for first occurance of + - = > or <
+! if + or - then also extract possible value after sign
+! value is coefficient for NEXT term (if any)
+! kpos is last character in THIS state variable, lpos where NEXT may start
+   implicit none
+   character string*(*)
+   integer kpos,ich,lpos
+   double precision value
+!\end{verbatim}
+   integer ipos,jpos,i1
+   character ch1*1
+   character (len=1), dimension(6), parameter :: chterm=&
+        ['+','-','=','<','>',':']
+!
+   ich=0
+   sloop: do ipos=1,len_trim(string)
+      ch1=string(ipos:ipos)
+      do i1=1,6
+         if(ch1.eq.chterm(i1)) then
+            kpos=ipos; ich=i1; exit sloop
+         endif
+      enddo
+   enddo sloop
+! different actions depending on ich
+!   write(*,17)'3G termterm: ',trim(string),string(1:kpos),ich,kpos
+17 format(a,' "',a,'" >',a,'< ',2i3)
+   select case(ich)
+   case default
+      write(*,*)'3G wrong ich case: ',ich
+   case(0)
+! no terminator, just return with position pointer after the text
+      continue
+      kpos=len_trim(string)+1
+   case(1,2)
+! there is a - or + sign, collect value in front of next term
+      lpos=kpos+1
+      call getrel(string,lpos,value)
+      if(buperr.ne.0) then
+! a sign not followed by number means unity
+         buperr=0; value=one
+      else
+! lpos first character after number, a number must be followed by a "*"
+         if(string(lpos:lpos).ne.'*') then
+            write(*,*)'3G syntax error missing *: ',string(1:lpos+5),lpos
+            gx%bmperr=4130
+         else
+            lpos=lpos+1
+         endif
+      endif
+      if(ich.eq.2) value=-value
+   case(3,4,5)
+! there is an = sign, or > or <, just set back the pointer
+      kpos=ipos
+      lpos=0
+   case(6)
+! there is an : sign, meaning a condition number, must be followed by =
+      if(string(kpos+1:kpos+1).ne.'=') then
+         gx%bmperr=4328; goto 1000
+      endif
+      kpos=ipos+1
+      lpos=0
+   end select
+1000 continue
+!   write(*,17)'3G termterm: ',trim(string),string(1:lpos),ich,lpos
+   return
+ end subroutine termterm
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine termterm_old(string,ich,kpos,value)
 ! search for first occurance of + - = > or <
 ! if + or - then also extract possible value after sign
    implicit none
@@ -922,7 +993,7 @@
    end select
 1000 continue
    return
- end subroutine termterm
+ end subroutine termterm_old
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

@@ -346,8 +346,8 @@ cal sym *
 
 @&
 @$ There is also a command to calculate the potential derivative
-@$  matrix (note it is symmetrical) which needed the diffusion
-@$ coefficients and the mobilities
+@$ matrix (note it is symmetrical) which is needed to convert
+@$ the mobilities to diffusion coefficients.
 @& 
 
 cal ph fcc

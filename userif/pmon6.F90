@@ -997,6 +997,10 @@ contains
 ! check that invmat allocated and stored
 !           write(*,*)'inverted y: ',ceq%phase_varres(2)%cinvy(1,1)
           endif
+          if(gx%bmperr.ne.0) then
+             ceq%status=ibset(ceq%status,EQFAIL)
+             goto 990
+          endif
 !----------------------------------
        case(4) ! calculate transition
           call calctrans(cline,last,ceq)
@@ -1062,7 +1066,10 @@ contains
              call calceq2(1,ceq)
           endif
 ! calceq2 set appropriate bits for listing
-          if(gx%bmperr.ne.0) goto 990
+          if(gx%bmperr.ne.0) then
+             ceq%status=ibset(ceq%status,EQFAIL)
+             goto 990
+          endif
 !---------------------------------------------------------------
        case(9) ! calculate all equilibria
 ! rather complex to handle both parallel on non-parallel and with/without 
@@ -1214,6 +1221,7 @@ contains
           endif
        END SELECT
 !=================================================================
+! SET SUBCOMMANDS
 !         ['CONDITION       ','STATUS          ','ADVANCED        ',&
 !         'LEVEL           ','INTERACTIVE     ','REFERENCE_STATE ',&
 !         'QUIT            ','ECHO            ','PHASE           ',&

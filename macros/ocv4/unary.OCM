@@ -1,7 +1,10 @@
-@$ Calculation for pure Fe
+@$==========================================================================
+@$
+@$ This is calculation for a single element, pure Fe
 @$ Just to check it can change stable phase 
 @$ step in T and P-T diagram does not work
 @&
+@$==========================================================================
 
 set echo
 

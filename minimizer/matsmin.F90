@@ -342,7 +342,8 @@ CONTAINS
 !          if(gx%bmperr.eq.4173 .or. &
 !               gx%bmperr.eq.4174 .or. &
 !               (gx%bmperr.ge.4176 .and. gx%bmperr.le.4185)) goto 1000
-          if(.not.btest(meqrec%status,MMQUIET)) &
+! if mode=0 we should not use grid minimizer
+          if(mode.ne.0 .or. .not.btest(meqrec%status,MMQUIET)) &
                write(*,*) &
                'Grid minimizer cannot be used for the current set of conditions'
           gx%bmperr=0
@@ -531,6 +532,7 @@ CONTAINS
     if(meqrec%nrel.eq.1) then
        goto 110
     endif
+!---------------------------------------------------------------
 ! Try global gridminimization.  Returned values are:
 ! nv is number of stable phase, iphl, icsl list of stable  phases, aphl amounts
 ! nyphl(j) is number of constituent fractions in phase j, yarr are the 
@@ -585,6 +587,8 @@ CONTAINS
     endif
 !--------------------
 ! no global gridmin or we come here if gridtest finds a new stable phase
+! UNFINISHED: A better start guess should be made!!!
+!
 110 continue
 !    write(*,*)'starting without gridmin',errout
     meqrec%nv=0
@@ -2658,6 +2662,7 @@ CONTAINS
 !    nz2=nz1+1
 !
 ! >>>>>>>>>>> THIS IS UNFINISHED, ONLY A FEW STATE VARIABLES ALLOWED
+! expressions only for N and x
 !
     nrow=meqrec%nstph
     lastcond=>ceq%lastcondition
@@ -3303,19 +3308,24 @@ CONTAINS
 ! 9 and 10 (DG and Q) not allowed as conditions
 !------------------------------------------------------------------
     case(11) ! N or X with or without indices and normalization
+! 160818: adding possibility to have several terms a*N(A)-b*N(B)=cvalue
 1100   continue
        if(stvnorm.eq.0) then
+          moffs=0
+!          write(*,*)'MM condition for N: ',nterms,sph,sel
+! return here for second term
+1107      continue
           if(cmix(3).eq.0) then
 ! condition is N=fix
              sel=0; sph=0
-          elseif(cmix(4).eq.0) then
+          elseif(cmix(4+moffs).eq.0) then
 ! condition is N(A)=fix
-             sel=cmix(3); sph=0
+             sel=cmix(3+moffs); sph=0
           else
 ! condition is N(phase#set,A)=fix;  how to handle if phase#set not stable?
 !             write(*,*)'Condition N(phase#set,A)=fix not allowed'
 !             gx%bmperr=4208; goto 1000
-             sel=cmix(5); sph=cmix(3); scs=cmix(4)
+             sel=cmix(5+moffs); sph=cmix(3+moffs); scs=cmix(4+moffs)
           endif
 !          write(*,*)'Condition on N, N(A) or N(phase,A)',sph,sel
 ! Formulate equation for total amount N:
@@ -3430,37 +3440,86 @@ CONTAINS
 665          format('RHS: ',6(1pe12.4))
           enddo nallph
 !
+! 160818: adding code to have several terms ... same as for x below
+          nmany: if(mterms.lt.nterms) then
+! this branch if 2 or more terms
+             if(mterms.eq.1) then
+! allocate arry to save intermediate results
+                if(.not.allocated(qmat)) allocate(qmat(nz2))
+                qmat=zero
+                evalue=zero
+             endif
+! save xcol and then go back and calculate next term
+! maybe ccf should be included ??? YES!!! must correct also xterms!!!
+             do ncol=1,nz2
+                qmat(ncol)=qmat(ncol)+ccf(mterms)*xcol(ncol)
+             enddo
+             evalue=evalue+ccf(mterms)*totam
+!             write(*,664)'MM nsel1:',moffs,sel,sph,totam,ccf(mterms),&
+!                  cvalue,evalue
+!             write(*,666)'MM evalue1: ',mterms,evalue,ccf(mterms),totam
+!             write(*,666)'MM q:',mterms,evalue,(qmat(ncol),ncol=1,nz2)
+666          format(a,i2,6(1pe12.4))
+! prepare for next term by incrementing mterms and moffs
+             mterms=mterms+1
+             moffs=moffs+4
+             deallocate(xcol)
+!             deallocate(zcol)
+             goto 1107
+          elseif(nterms.gt.1) then
+! for last term when more than 1
+             nrow=nrow+1
+             if(nrow.gt.nz1) then
+                write(*,*)'too many equations 11A0',nrow
+                gx%bmperr=4209; goto 1000
+             endif
+             do ncol=1,nz2
+                smat(nrow,ncol)=qmat(ncol)+ccf(mterms)*xcol(ncol)
+             enddo
+             evalue=evalue+ccf(mterms)*totam
+             smat(nrow,nz2)=smat(nrow,nz2)-cvalue+evalue
+!             write(*,664)'MM nsel2:',moffs,sel,sph,totam,ccf(mterms),&
+!                  cvalue,evalue
+664          format(a,3i3,6(1pe12.4))
+!             write(*,666)'MM evalue: ',mterms,evalue,ccf(mterms),totam
+!             write(*,666)'MM s:',mterms,evalue,(smat(nrow,ncol),ncol=1,nz2)
+! 160818: end code added for N(A)-N(B)
+          else
+! only one terms (original code unchanged)
 ! in xcol are values summed over all phases and components
 ! then copy summed columns to row nrow in matrix smat
-          nrow=nrow+1
-          if(nrow.gt.nz1) then
-             write(*,*)'too many equations 11A',nrow
-             gx%bmperr=4212; goto 1000
-          endif
-          do ncol=1,nz2
-             smat(nrow,ncol)=xcol(ncol)
-          enddo
+             nrow=nrow+1
+             if(nrow.gt.nz1) then
+                write(*,*)'too many equations 11A',nrow
+                gx%bmperr=4212; goto 1000
+             endif
+             do ncol=1,nz2
+                smat(nrow,ncol)=xcol(ncol)
+             enddo
 ! add N^prescribed - N^current to rhs (right hand side)
-          xxx=smat(nrow,nz2)
+             xxx=smat(nrow,nz2)
 ! convergence problems using condition fix phase with amount >0, change sign ...
-          smat(nrow,nz2)=smat(nrow,nz2)-cvalue+totam
+             smat(nrow,nz2)=smat(nrow,nz2)-cvalue+totam
+             evalue=totam
+          endif nmany
 ! tafidbug
 !          smat(nrow,nz2)=smat(nrow,nz2)+cvalue-totam
 !          write(*,355)'MM N: ',cvalue,totam,(smat(nrow,jj),jj=1,nz2)
-355       format(a,6(1pe12.4))
+355          format(a,6(1pe12.4))
 !          write(*,363)'RHSN: ',nrow,nz2,0,smat(nrow,nz2),xxx,cvalue,totam,&
 !               cvalue-totam
           deallocate(xcol)
 ! relative check for convergence if cvalue>1.0
-          if(abs(totam-cvalue).gt.ceq%xconv*max(1.0d0,abs(cvalue))) then
+!          if(abs(totam-cvalue).gt.ceq%xconv*max(1.0d0,abs(cvalue))) then
+          if(abs(evalue-cvalue).gt.ceq%xconv*max(1.0d0,abs(cvalue))) then
              if(converged.lt.5) converged=5
              if(vbug) then
                 if(sel.eq.0) then
                    write(*,266)'Unconverged condition N or N(A): ',sel,&
-                        cvalue,totam,totalmol
+                        cvalue,evalue,totalmol
                 else
                    write(*,266)'Unconverged condition N or N(A): ',sel,&
-                        cvalue,totam
+                        cvalue,evalue
                 endif
              endif
           endif
@@ -3517,8 +3576,6 @@ CONTAINS
 ! LOOP FOR ALL PHASES (why not all stable??)
 ! dncol+notf indicate column for the amount of phases with variable amount
           notf=0
-!          xallph: do jph=1,meqrec%nstph
-!             jj=meqrec%stphl(jph)
 ! sum over all phases to handle conditions like x(phase#set,A)=fix
 ! as the phase#set may not be stable
           bbug=zero
@@ -3536,11 +3593,11 @@ CONTAINS
 ! note this destroys calculated values from calc_molmass above ...
                 call calc_phase_molmass(sph,scs,xxmm,wwnn,&
                      totalmol,totalmass,amount,ceq)
+                calcmolmass=.FALSE.
                 pham=one
                 totalmol=one
 !                write(*,355)'MM cpm: ',totalmol,amount,pham,xxmm
 ! totalmol depend on amout of phase stable, irrelevant here
-                calcmolmass=.FALSE.
                 if(gx%bmperr.ne.0) goto 1000
              endif
 ! notf indicates the column for the variable amount of the phase
@@ -3557,7 +3614,7 @@ CONTAINS
                 ncol=1
                 xloop2: do je=1,meqrec%nrel
 !---------------------------------------------------------------------
-! BIG TROUBLE HERE FOR FIXED CHEMICAL POTENTIAL !!!!! FIXED NOW ... NO!!
+! BIG TROUBLE HERE FOR FIXED CHEMICAL POTENTIAL !!!!! FIXED NOW ... NO!! ??
 ! but still problems combining with other conditions on H etc ...
 ! it works when we have N(A)=fix (code above) but not with x(A)=fix
 ! Calculate one column for each component to be multiplied with chem.pot.
@@ -3641,7 +3698,7 @@ CONTAINS
 !-------------- new code begin
 ! can handle the case of several terms like x(liquid,S)-x(pyrrh,S)=0
 !                                       x(Mg)-2*x(Si)=0
-          if(mterms.lt.nterms) then
+          xterms: if(mterms.lt.nterms) then
 ! this branch if 2 or more terms
              if(mterms.eq.1) then
 ! allocate array for saving intermediate results
@@ -3650,8 +3707,10 @@ CONTAINS
                 evalue=zero
              endif
 ! save zcol and xcol then go back and calculate next term
+! corrected by adding ccf factor!! (not needed for x(liq,a)-x(sol,a)=0 ....
              do ncol=1,nz2
-                qmat(ncol)=qmat(ncol)+(zcol(ncol)-xcol(ncol)*xxmm(sel))/totalmol
+                qmat(ncol)=qmat(ncol)+ccf(mterms)*&
+                     (zcol(ncol)-xcol(ncol)*xxmm(sel))/totalmol
              enddo
              evalue=evalue+ccf(mterms)*xxmm(sel)
 ! prepare for next term by incrementing mterms and moffs
@@ -3664,6 +3723,7 @@ CONTAINS
              deallocate(zcol)
              goto 1120
           elseif(nterms.gt.1) then
+! for last term of expression
              nrow=nrow+1
              if(nrow.gt.nz1) then
                 write(*,*)'too many equations 11B: ',nrow,nz1,meqrec%nfixph
@@ -3674,7 +3734,7 @@ CONTAINS
 1118         format(a,2i3,6(1pe12.4))
              do ncol=1,nz2
                 smat(nrow,ncol)=qmat(ncol)+&
-                     (zcol(ncol)-xcol(ncol)*xxmm(sel))/totalmol
+                     ccf(mterms)*(zcol(ncol)-xcol(ncol)*xxmm(sel))/totalmol
              enddo
              evalue=evalue+ccf(mterms)*xxmm(sel)
 ! add x^prescribed - x^current to rhs (right hand side)
@@ -3708,7 +3768,7 @@ CONTAINS
 ! subract x^prescribed - x^current to rhs (right hand side)
              smat(nrow,nz2)=smat(nrow,nz2)-cvalue+xxmm(sel)
              evalue=xxmm(sel)
-          endif
+          endif xterms
           deallocate(xcol)
           deallocate(zcol)
 ! phase composition problem

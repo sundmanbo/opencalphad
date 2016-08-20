@@ -18,6 +18,11 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2016.08.20 I have added the possibility to use expressions also for
+total amount of an element.  It is sometimes interesting to keep the
+ratio of the amounts of two elements fixed when changing the overall
+composition.
+
 2016.08.17 It is now possible to use parameter identifiers including
 characters like & and # in expressions for symbols.  I have also added
 in a macro file how to enter mobility data and calculate the matrix of

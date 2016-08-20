@@ -3139,12 +3139,17 @@
          ip=ip+1
       else
 ! not +1 or -1, write number
-         call wrinum(text,ip,8,1,current%condcoeff(iterm))
+! if iterm=1 no not write a positive sign
+         if(iterm.eq.1) then
+            call wrinum(text,ip,8,1,current%condcoeff(iterm))
+         else
+            call wrinum(text,ip,8,0,current%condcoeff(iterm))
+         endif
          text(ip:ip)='*'
          ip=ip+1
       endif
    elseif(iterm.gt.1) then
-! must be a + in front of second and later terms
+! must be a + in front of second and later terms even if coeff is +1
       text(ip:ip)='+'
       ip=ip+1
    endif
