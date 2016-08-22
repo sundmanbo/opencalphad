@@ -292,7 +292,8 @@ CONTAINS
     integer np,iph,ics,jph,lokph,lokcs,mode2
     integer mostcon,mph,nvf,mostconph(2,maxel),icc,jcc
     integer, parameter :: mmu=5
-    integer what,mjj,ij,cmix(10),cmode,mufixel(mmu),mufixref(mmu),errout
+! dimension cmix(22) allows 5 terms: 2+4*5 
+    integer what,mjj,ij,cmix(22),cmode,mufixel(mmu),mufixref(mmu),errout
     integer fixph(2,maxel),oldorder(mmu),kst
 ! just for debugging
     integer idum(1000)
@@ -333,7 +334,7 @@ CONTAINS
        if(gx%bmperr.ne.0) then
 ! error 4143 means no conditions, 4144 wrong number of conditions
           if(gx%bmperr.eq.4143 .or. gx%bmperr.eq.4144) then
-             write(*,*)'Degrees of freedom not zero',gx%bmperr
+!             write(*,*)'Degrees of freedom not zero',gx%bmperr
              goto 1000
           endif
 ! 4151 not only massbalance conditions
@@ -370,7 +371,7 @@ CONTAINS
 ! now we calculate maxsph, nfixmu and maybe other things for later
     lastcond=>ceq%lastcondition
     if(.not.associated(lastcond)) then
-       write(*,*)'No conditions'
+!       write(*,*)'No conditions'
        gx%bmperr=4143; goto 1000
     endif
     condition=>lastcond
@@ -2307,7 +2308,7 @@ CONTAINS
     TYPE(meq_phase), pointer :: pmi
 ! cmix dimensioned for 2 terms ...
     integer tcol,pcol,dncol
-    integer cmix(10),cmode,stvix,stvnorm,sel,sph,scs,jph,jj,ie,je,ke,ncol
+    integer cmix(22),cmode,stvix,stvnorm,sel,sph,scs,jph,jj,ie,je,ke,ncol
     integer notf,nz2,nrow,nterms,mterms,moffs,ncol2
     double precision cvalue,totam,pham,mag,mat,map,xxx,zval,xval,ccf(5),evalue
 ! the next line of values are a desperate search for a solution
@@ -2494,7 +2495,7 @@ CONTAINS
     TYPE(gtp_condition), pointer :: condition,lastcond
     TYPE(meq_phase), pointer :: pmi
 ! cmix dimensioned for 2 terms ...
-    integer cmix(10),cmode,stvix,stvnorm,sel,sph,scs,jph,jj,ie,je,ke,ncol
+    integer cmix(22),cmode,stvix,stvnorm,sel,sph,scs,jph,jj,ie,je,ke,ncol
     integer notf,nz2,nrow,nterms,mterms,moffs,ncol2,lokph,iph
     double precision cvalue,totam,pham,mag,mat,map,xxx,zval,xval,ccf(5),evalue
 ! the next line of values are a desperate search for a solution
@@ -4318,14 +4319,17 @@ CONTAINS
           allconst: do ik=1,nkl(ll)
              kkk=kkk+1
              loksp=knr(kkk)
-             call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp,spextra)
+!             call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp,spextra)
+             call get_species_component_data(loksp,nspel,ielno,&
+                  stoi,spmass,qsp,ceq)
              if(gx%bmperr.ne.0) goto 1000
              addmol=zero
              do jz=1,nspel
                 addmol(jz)=stoi(jz)
              enddo
              dqsum(kkk)=qsp
-             qsum=qsum+qsp
+! 160820: forgotten to multiply with site ratio??!!
+             qsum=qsum+sites(ll)*qsp
              do jz=1,nspel
                 if(ielno(jz).gt.0) then
 ! ignore vacancies, taken care of by using sumsit=qq(1) above
@@ -4336,9 +4340,11 @@ CONTAINS
              enddo
           enddo allconst
        enddo sublatt
-       if(qsum.ne.zero) then
+!       if(qsum.ne.zero) then
+       if(abs(qsum).gt.1.0D-14) then
 ! if qsum not zero this phase should be suspended as it cannot be stable
-          write(*,*)'Stoichiometric phase with net charge: ',iph,ics
+          write(*,88)'Stoichiometric phase with net charge: ',iph,ics,qsum
+88        format(a,2i4,2(1pe12.4))
        endif
 ! meqrec is not available in this routine
        do iz=1,nrel
@@ -4384,7 +4390,9 @@ CONTAINS
        ncon=0
        do ik=1,nkl(1)
           loksp=knr(ik)
-          call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp,spextra)
+!          call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp,spextra)
+          call get_species_component_data(loksp,nspel,ielno,stoi,spmass,&
+               qsp,ceq)
           if(gx%bmperr.ne.0) goto 1000
           addmol=zero
           do jk=1,nspel
@@ -4513,7 +4521,9 @@ CONTAINS
 !                pmi%valency(ncon)=sites(2)
 !                write(*,*)'Va: ',ncon,yva
              else
-                call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp,spextra)
+!               call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp,spextra)
+                call get_species_component_data(loksp,nspel,ielno,stoi,&
+                     spmass,qsp,ceq)
                 if(gx%bmperr.ne.0) goto 1000
 ! i2sly is index of first neutral (if any) otherwise number of constit+1
                 if(qsp.eq.zero .and. i2sly(2).gt.ncon) i2sly(2)=ncon
@@ -4687,7 +4697,8 @@ CONTAINS
        constll: do ik=1,nkl(ll)
           ncon=ncon+1
           loksp=knr(ncon)
-          call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp,spextra)
+!          call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp,spextra)
+          call get_species_component_data(loksp,nspel,ielno,stoi,spmass,qsp,ceq)
           if(gx%bmperr.ne.0) goto 1000
           addmol=zero
           do jk=1,nspel
@@ -4889,7 +4900,8 @@ CONTAINS
 ! loop for all cations and anions
 !       icon=icon+1
        loksp=knr(icon)
-       call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp1,spextra)
+!       call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp1,spextra)
+       call get_species_component_data(loksp,nspel,ielno,stoi,spmass,qsp1,ceq)
        if(gx%bmperr.ne.0) goto 1000
        add2=zero
        do el=1,nspel
@@ -4905,7 +4917,9 @@ CONTAINS
 ! loop for all pairs of cations incl twins, nkl(1) is number of cations
 ! A smart but messy solution is to skip this loop for jcon=icon ...
           loksp=knr(jcon)
-          call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp2,spextra)
+!          call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp2,spextra)
+          call get_species_component_data(loksp,nspel,ielno,stoi,&
+               spmass,qsp2,ceq)
           if(gx%bmperr.ne.0) goto 1000
           add2=zero
           do el=1,nspel
@@ -4939,7 +4953,9 @@ CONTAINS
        do while(jcon.lt.allions)
 ! loop for all anions, allions-1 is last anion
           loksp=knr(jcon)
-          call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp2,spextra)
+!          call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp2,spextra)
+          call get_species_component_data(loksp,nspel,ielno,stoi,&
+               spmass,qsp2,ceq)
           if(gx%bmperr.ne.0) goto 1000
           add2=zero
           do el=1,nspel
@@ -4976,7 +4992,9 @@ CONTAINS
 ! is this really correct??
        do while(jcon.le.ncc)
           loksp=knr(jcon)
-          call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp2,spextra)
+!          call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp2,spextra)
+          call get_species_component_data(loksp,nspel,ielno,stoi,spmass,&
+               qsp2,ceq)
           if(gx%bmperr.ne.0) goto 1000
           add2=zero
           do el=1,nspel
@@ -5054,7 +5072,8 @@ CONTAINS
 ! loop for all cations, one derivative must be for a cation
        icon=icon+1
        loksp=knr(icon)
-       call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp1,spextra)
+!       call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp1,spextra)
+       call get_species_component_data(loksp,nspel,ielno,stoi,spmass,qsp1,ceq)
        if(gx%bmperr.ne.0) goto 1000
        add2=zero
        do el=1,nspel
@@ -5070,7 +5089,8 @@ CONTAINS
 ! loop for all pairs of cations incl twins, nkl(1) is number of cations
 ! A smart and messy solution is to skip this loop for jcon=icon ...
           loksp=knr(jcon)
-          call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp,spextra)
+!          call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp,spextra)
+          call get_species_component_data(loksp,nspel,ielno,stoi,spmass,qsp,ceq)
           if(gx%bmperr.ne.0) goto 1000
           add2=zero
           do el=1,nspel
@@ -5086,7 +5106,8 @@ CONTAINS
        do while(jcon.lt.allions)
 ! loop for all anions, allions-1 is last anion
           loksp=knr(jcon)
-          call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp,spextra)
+!          call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp,spextra)
+          call get_species_component_data(loksp,nspel,ielno,stoi,spmass,qsp,ceq)
           if(gx%bmperr.ne.0) goto 1000
           add2=zero
           do el=1,nspel
@@ -5111,7 +5132,8 @@ CONTAINS
 !-------------second derivative wrt cation and neutral
        do while(jcon.le.ncc)
           loksp=knr(jcon)
-          call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp,spextra)
+!          call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp,spextra)
+          call get_species_component_data(loksp,nspel,ielno,stoi,spmass,qsp,ceq)
           if(gx%bmperr.ne.0) goto 1000
           add2=zero
           do el=1,nspel
@@ -5999,7 +6021,7 @@ CONTAINS
 ! we must check if there is a condition on svr2
     pcond=>ceq%lastcondition
     if(.not.associated(pcond)) then
-       write(*,*)'There are no conditions at all!'
+!       write(*,*)'There are no conditions at all!'
        gx%bmperr=4143; goto 1000
     endif
 ! all conditions have just one term at present

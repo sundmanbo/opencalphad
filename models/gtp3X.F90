@@ -18,7 +18,7 @@
 !\end{verbatim}
    integer jcs,lokcs,lokph
    if(gx%bmperr.ne.0) then
-      write(*,*)'Error code set when calling calcg: ',gx%bmperr
+      write(*,*)'3X Error code set when calling calcg: ',gx%bmperr
       goto 1000
    endif
    if(iph.le.0 .or. iph.gt.noofph) then
@@ -29,7 +29,7 @@
    if(lokph.le.0 .or.lokph.gt.noofph) then
       gx%bmperr=4050; goto 1000
    endif
-!    write(*,*)'calcg 1: ',phlista(lokph)%name
+!    write(*,*)'3X calcg 1: ',phlista(lokph)%name
 ! find fractions for this composition set
    if(ics.le.1) then
       jcs=1
@@ -37,12 +37,12 @@
       jcs=ics
    else
 ! no such composition set
-!      write(*,*)'calcg 1 error 4072'
+!      write(*,*)'3X calcg 1 error 4072'
       gx%bmperr=4072; goto 1000
    endif
 !   if(phlista(1)%noofcs.gt.1) then
 ! strange error that liquid (phase 1) has 3 composition set
-!      write(*,*)'csbug: ',lokph,jcs,phlista(1)%noofcs
+!      write(*,*)'3X csbug: ',lokph,jcs,phlista(1)%noofcs
 !      stop 'csbug'
 !   endif
 ! Find fraction record this composition set
@@ -55,15 +55,15 @@
 ! firsteq is the first equilibrium and a global variable in this module
 !      lokcs=firsteq%phase_varres(lokcs)%next
 !      if(lokcs.le.0) then
-!         write(*,*)'calcg 2 error 4072'
+!         write(*,*)'3X calcg 2 error 4072'
 !         gx%bmperr=4072; goto 1000
 !      endif
 !   enddo
    lokres=lokcs
-!   write(*,*)'calcg 7: ',lokres,ceq%eqname(1:10)
+!   write(*,*)'3X calcg 7: ',lokres,ceq%eqname(1:10)
 ! call using the local structure phase_varres
 ! results can be obtained through lokres
-!   write(*,17)'calcg: ',lokph,lokres,ceq%phase_varres(lokres)%yfr(1)
+!   write(*,17)'3X calcg: ',lokph,lokres,ceq%phase_varres(lokres)%yfr(1)
 !17 format(a,2i4,1pe15.6)
    call calcg_internal(lokph,moded,ceq%phase_varres(lokres),ceq)
 1000 continue
@@ -147,18 +147,18 @@
       call palmtree(lokph)
       if(gx%bmperr.ne.0) goto 1000
    endif
-!   if(ocv()) write(*,*)'in gcalc_internal: ',lokph
+!   if(ocv()) write(*,*)'3X in gcalc_internal: ',lokph
 !-----------------------------------------------------------------
 50  continue
 ! local work arrays for products of Y and calculated parameters are allocated
    gz%nofc=phlista(lokph)%tnooffr
    nofc2=gz%nofc*(gz%nofc+1)/2
-!   write(*,17)'calcg, ',lokph,gz%nofc,nofc2,size(cps%d2gval),cps%nprop,&
+!   write(*,17)'3X calcg, ',lokph,gz%nofc,nofc2,size(cps%d2gval),cps%nprop,&
 !        cps%yfr(1)
 !17 format(a,5i4,1pe15.6)
 ! for disordered fraction sets gz%nofc must be from disordered fraction record
 ! maybe these should not be allocated for moded=0 and 1
-!   if(ocv()) write(*,*)'First allocate: ',gz%nofc,nofc2
+!   if(ocv()) write(*,*)'3X First allocate: ',gz%nofc,nofc2
    allocate(dpyq(gz%nofc))
    allocate(d2pyq(nofc2))
 ! these return values from excess parameters that may depend on constitution
@@ -186,7 +186,7 @@
 ! copy current values of T, P and RT from gtp_phase_varres
    gz%tpv(1)=ceq%tpval(1)
    gz%tpv(2)=ceq%tpval(2)
-!   write(*,*)'calcg_i: ',gz%tpv
+!   write(*,*)'3X calcg_i: ',gz%tpv
    gz%rgast=ceq%tpval(1)*globaldata%rgas
 !   gz%rgast=ceq%tpval(1)*ceq%rgas
 ! this is used to check the number of times an ordered phase is calculated
@@ -203,7 +203,7 @@
 !      iliqsave=.FALSE.
       iliqva=.FALSE.
       jonva=0
-!      write(*,*)'Config G 1: ',phres%gval(1,1)*rtg
+!      write(*,*)'3X Config G 1: ',phres%gval(1,1)*rtg
 !      if(phlista(lokph)%i2slx(1).gt.phlista(lokph)%tnooffr .and. &
 !           phlista(lokph)%i2slx(2).gt.phlista(lokph)%tnooffr) then
 !         onlyanions=.TRUE.
@@ -216,7 +216,7 @@
 ! a second loop through all parameters done by jumping to label 100
 ! check that just one sublattice and sites equal to one
       if(nsl.ne.1 .or. phres%sites(1).ne.one) then
-         write(*,*)'Flory-Huggins model must have one lattice and site'
+         write(*,*)'3X Flory-Huggins model must have one lattice and site'
          gx%bmperr=4337; goto 1000
       endif
       floryhuggins=-1
@@ -240,7 +240,7 @@
    lprop=2
    phmain%listprop(1)=1
    fractype=0
-!   write(*,*)'calcg 99: ',lokph,cps%phtupx,cps%disfra%varreslink
+!   write(*,*)'3X calcg 99: ',lokph,cps%phtupx,cps%disfra%varreslink
 !--------------------------------------------------------------------
 ! VERY STRANGE ERROR
 ! wrong results calculating with disordered fraction set disappeared
@@ -253,7 +253,7 @@
 ! loop for different types of fractions: site fractions, mole fractions ...
    fractyp: do while(fractype.lt.phlista(lokph)%nooffs)
 105 continue
-!     write(*,7)'At label 105: ',fractype,btest(phlista(lokph)%status1,PHSUBO),&
+!     write(*,7)'3X label 105: ',fractype,btest(phlista(lokph)%status1,PHSUBO),&
 !           btest(phmain%status2,CSORDER),btest(phlista(lokph)%status1,PHMFS),&
 !           fracset%totdis,phres%gval(1,1)
 7     format(a,i2,3(1x,l),i3,3(1pe12.4))
@@ -278,12 +278,12 @@
 ! the CSORDER bit set by calc_disfrac called from set_constitution
                if(btest(phmain%status2,CSORDER)) then
 ! the phase is ordered, we have to calculate this part twice
-!                  write(*,*)'Setting nevetwice false'
+!                  write(*,*)'3X Setting nevetwice false'
                   nevertwice=.false.
 ! independent if ordered or disordered always calculate first fraction set
                else
 ! the phase is disordered, skip ordered part and just calculate disordered
-!                  write(*,*)'Skipping ordered part'
+!                  write(*,*)'3X Skipping ordered part'
                   goto 105
                endif
             endif
@@ -301,7 +301,7 @@
       else
 !-------------------------------------------------
 ! disorderd/other fraction sets, take data from  gtp_fraction_set
-!         write(*,*)'Fraction type: ',fractype,cps%disfra%varreslink
+!         write(*,*)'3X Fraction type: ',fractype,cps%disfra%varreslink
          msl=fracset%ndd
          gz%nofc=fracset%tnoofxfr
          incffr(0)=0
@@ -313,29 +313,29 @@
          deallocate(d2pyq)
          allocate(dpyq(gz%nofc))
          allocate(d2pyq(nofc2))
-!         if(ocv()) write(*,*)'Allocated dpyq 2'
+!         if(ocv()) write(*,*)'3X Allocated dpyq 2'
          dpyq=zero
          deallocate(dvals)
          deallocate(d2vals)
          allocate(dvals(3,gz%nofc))
          allocate(d2vals(nofc2))
-         if(ocv()) write(*,*)'Allocated vals 2'
+         if(ocv()) write(*,*)'3X Allocated vals 2'
 ! the results will be stored in result arrays indicated by phres
 ! for the disordered fraction set phres must be set here and the arrays zeroed
          dislink=cps%disfra
-!         write(*,*)'Calc internal disordred part 1A',dislink%fsites
+!         write(*,*)'3X Calc internal disordred part 1A',dislink%fsites
          lokdiseq=dislink%varreslink
-!         write(*,*)'Calc internal disordred part 1B',lokdiseq
+!         write(*,*)'3X Calc internal disordred part 1B',lokdiseq
          phres=>ceq%phase_varres(lokdiseq)
          phres%gval=zero
-!         write(*,*)'Calc internal disordred part 1c'
+!         write(*,*)'3X Calc internal disordred part 1c'
          if(moded.gt.0) then
             phres%dgval=zero
             if(moded.gt.1) then
                phres%d2gval=zero
             endif
          endif
-!         write(*,*)'Calc internal disordred part 2'
+!         write(*,*)'3X Calc internal disordred part 2'
       endif ftype
 !==========================================================
 !vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
@@ -385,7 +385,7 @@
 ! big loop for all permutation of fractions (ordering option F and B)
 ! including all interaction parameters linked from this endmember
 !
-!      write(*,*)'Config G 2: ',phres%gval(1,1)*rtg
+!      write(*,*)'3X Config G 2: ',phres%gval(1,1)*rtg
       endmemloop: do while(associated(endmemrec))
 !
 ! The array maxpmq is used for interaction permutations.  It must be
@@ -437,7 +437,7 @@
 ! we have already extracted nprop above .... 
                      allocate(saveg(6,nprop))
                      saveg=phres%gval
-!                     if(ocv()) write(*,*)'saveg allocated 1A: ',size(saveg),&
+!                     if(ocv()) write(*,*)'3X saveg allocated 1A:',size(saveg),&
 !                          gz%nofc,nofc2,nprop,moded
                      if(moded.gt.0) then
 ! only allocate if needed, some "out of memory" problems here calculating grid
@@ -447,14 +447,14 @@
                         savedg=phres%dgval
                         saved2g=phres%d2gval
                      endif
-!                     if(ocv()) write(*,*)'saveg allocated 1B: '
-!                     write(*,*)'Config G 3A: ',phres%gval(1,1)*rtg
+!                     if(ocv()) write(*,*)'3X saveg allocated 1B: '
+!                     write(*,*)'3X Config G 3A: ',phres%gval(1,1)*rtg
                      phres%gval=zero
                      phres%dgval=zero
                      phres%d2gval=zero
-!                     write(*,*)'Config G 3B: ',phres%gval(1,1)*rtg
+!                     write(*,*)'3X Config G 3B: ',phres%gval(1,1)*rtg
                      iliqsave=.TRUE.
-!                     write(*,117)'Saved ionliq G at Va id: ',&
+!                     write(*,117)'3X Saved ionliq G at Va id: ',&
 !                          id,yionva,saveg(1,1)
 117                  format(a,i3,6(1pe12.4))
                   elseif(id.eq.phlista(lokph)%i2slx(2)) then
@@ -470,7 +470,7 @@
                         allocate(saveg(6,nprop))
                         allocate(savedg(3,gz%nofc,nprop))
                         allocate(saved2g(nofc2,nprop))
-!                        if(ocv()) write(*,*)'saveg allocated 2: ',size(saveg)
+!                        if(ocv()) write(*,*)'3X saveg allocated 2:',size(saveg)
                         saveg=phres%gval
                         savedg=phres%dgval
                         saved2g=phres%d2gval
@@ -478,7 +478,7 @@
                         phres%dgval=zero
                         phres%d2gval=zero
                         iliqsave=.TRUE.
-!                        write(*,117)'Saved ionliq G at neutral id: ',&
+!                        write(*,117)'3X Saved ionliq G at neutral id: ',&
 !                           id,yionva,saveg(1,1)
                      endif
                   endif
@@ -544,8 +544,8 @@
 !---- jump here if moded is 0 or 1
 150         continue
 !            write(*,228)'3X d2pyq 0:',d2pyq
-!            write(*,*)'Config G 4A: ',phres%gval(1,1)*rtg
-!            write(*,154)'endmember permutation: ',epermut,(clist(i),i=1,4)
+!            write(*,*)'3X Config G 4A: ',phres%gval(1,1)*rtg
+!            write(*,154)'3X endmember permutation: ',epermut,(clist(i),i=1,4)
 154         format(a,i5,4i4,'--------------------------------')
 155         format(a,i5,10i4)
             proprec=>endmemrec%propointer
@@ -573,7 +573,7 @@
                         gx%bmperr=4338; goto 1000
                      endif
                   else
-                     write(*,*)'Internal error, listprop not allocated',&
+                     write(*,*)'3X Internal error, listprop not allocated',&
                           lokph,phlista(lokph)%name
                      gx%bmperr=4339; goto 1000
                   endif
@@ -589,7 +589,7 @@
 ! the results from eval_tpfun must also be different in different treads ...
                lokfun=proprec%degreelink(0)
                call eval_tpfun(lokfun,ceq%tpval,vals,ceq%eq_tpres)
-!               write(*,*)'calcg calling eval_tpfun 2: ',gx%bmperr,vals(1)
+!               write(*,*)'3X calcg calling eval_tpfun 2: ',gx%bmperr,vals(1)
                if(gx%bmperr.ne.0) goto 1000
                prop1: if(ipy.eq.1) then
 ! property 1 i.e. Gibbs energy, should be divided by RT
@@ -599,7 +599,7 @@
 !               write(*,173)'3X endmember: ',endmemrec%antalem,ipy,pyq,vals(1)
 173            format(a,2i4,4(1pe12.4))
 ! multiply with py and derivatives. vals is composition independent
-!               write(*,*)'Config G 4B: ',vals(1)*rtg
+!               write(*,*)'3X Config G 4B: ',vals(1)*rtg
                noderz2: if(moded.gt.0) then
                   derloopz2: do id=1,gz%nofc
                      do itp=1,3
@@ -624,7 +624,7 @@
 !                    phres%gval(1,ipy),pyq,vals(1)
 !               endif
                proprec=>proprec%nextpr
-!               write(*,*)'Config G 4C: ',phres%gval(1,1)*rtg
+!               write(*,*)'3X Config G 4C: ',phres%gval(1,1)*rtg
 ! debug problem with mobility calculation
 !               if(ipy.eq.2) then
 !                  write(*,172)'3X mob: ',ipy,phmain%listprop(1),&
@@ -653,7 +653,7 @@
                     pyq,dpyq,d2pyq,moded,gz%nofc)
 ! intrec%order is initiated by palmtree to set a sequential number
                pmq=intrec%order
-!               write(*,155)'Pushed: ',pmq,gz%intlevel
+!               write(*,155)'3X Pushed: ',pmq,gz%intlevel
 !-------------------------------------------------------------------
 ! come back here for another permutation of same paremeter (no push needed)
 220            continue
@@ -675,11 +675,11 @@
 ! This is always simple for level 1, 
                            maxpmq(pmq)=maxpmq(pmq)+&
                                 intrec%noofip(1)
-!                           write(*,155)'new limit: ',ipermut,&
+!                           write(*,155)'3X new limit: ',ipermut,&
 !                                maxpmq(pmq)
                            if(ipermut.le.maxpmq(pmq)) goto 230
                         elseif(gz%intlevel.gt.2) then
-                           write(*,*)'Max level 2 interactions allowed'
+                           write(*,*)'3X Max level 2 interactions allowed'
                            gx%bmperr=4340; goto 1000
                         else
                            varying: if(intrec%noofip(1).eq.1) then
@@ -705,8 +705,8 @@
 ! (A:A:A:AB)                   none
 ! If mod(ipermut,noofip(1)) is 0 one should start from index 2
                               nz=intrec%noofip(1)
-!                              write(*,155)'noofip: ',ipermut,pmq,maxpmq(pmq),&
-!                                   (intrec%noofip(j),j=1,nz)
+!                              write(*,155)'3X noofip: ',ipermut,pmq,&
+!                                   maxpmq(pmq),(intrec%noofip(j),j=1,nz)
                               if(maxpmq(pmq).gt.0) then
 ! Previous increase of limit was greater than zero, special case for noofip=2
                                  if(intrec%noofip(1).eq.2) then
@@ -727,7 +727,7 @@
                                       maxpmq(pmq)
                                  if(ipermut.le.maxpmq(pmq)) goto 230
                               endif
-!                              write(*,155)'noperm: ',ipermut,pmq,&
+!                              write(*,155)'3X noperm: ',ipermut,pmq,&
 !                                   lastpmq(pmq),maxpmq(pmq)
                            endif varying
 ! as we have passed the limit of permutations, take higher or next interaction
@@ -739,7 +739,7 @@
                         if(associated(intrec%highlink)) then
                            if(gz%intlevel.eq.2) then
                               write(*,229)gz%intlevel
-229                           format('Error, max 2 levels of interactions',/&
+229                           format('3X Error, max 2 levels of interactions',/&
                                    ' with permutations!! ',i3)
                               gx%bmperr=4340; goto 1000
                            endif
@@ -800,11 +800,11 @@
                else
                   if(iliqsave) then
 ! I sincerely hope wildcards are never used in 2nd subl of ionic liquids ...
-     write(*,*)'Wildcard in second sublattice is not allowed for ionic liquids'
+        write(*,*)'3X Wildcard in second sublattice illegal for ionic liquids'
                      gx%bmperr=4341; goto 1000
                   endif
                   wildc=.TRUE.
-                  write(*,*)'wildcard found!'
+                  write(*,*)'3X wildcard found!'
                   ymult=gz%yfrint(gz%intlevel)*(one-gz%yfrint(gz%intlevel))
                endif
 !               write(*,228)'3X d2pyq 1:',d2pyq
@@ -931,7 +931,7 @@
                         if(iw.ne.ic) then
                            d2pyq(ixsym(iw,ic))=dpyq(iw)
                         endif
-!                        write(*,213)'529: ',iw,ic,ixsym(iw,ic),&
+!                        write(*,213)'3X 529: ',iw,ic,ixsym(iw,ic),&
 !                             gz%intlevel,intlat,incffr(intlat)
                         dpyq(iw)=pyq*gz%yfrint(gz%intlevel)
 !                        dpyq(jd)=pyq*gz%yfrint(gz%intlevel)
@@ -1129,7 +1129,7 @@
                                  phres%dgval(itp,jonva,ipy)=&
                                       phres%dgval(itp,jonva,ipy)+&
                                       pyq*dvals(itp,jonva)
-!                                 write(*,*)'jonva: ',jonva,pyq,dvals(1,jonva)
+!                                 write(*,*)'3X jonva:',jonva,pyq,dvals(1,jonva)
                               endif
                            endif
                         enddo
@@ -1149,7 +1149,7 @@
 !                  endif
                   proprec=>proprec%nextpr
                enddo intprop
-!               write(*,*)'Config G 4F: ',phres%gval(1,1)*rtg
+!               write(*,*)'3X Config G 4F: ',phres%gval(1,1)*rtg
 ! finished one interaction (or permutation on this level), go to higher level
 ! note that ipermut is saved in lastpmq(pmq).  If there are more
 ! permutations on this level they will be calculated later also including 
@@ -1164,7 +1164,7 @@
                   if(lastpmq(jpr).gt.0 .and.lastpmq(jpr).ge.maxpmq(jpr)) then
 ! if we nullify here we will take next rather than higher
 !                     nullify(intrec)
-!                     write(*,155)'Maybe skipping higer?: ',jpr,&
+!                     write(*,155)'3X Maybe skipping higer?: ',jpr,&
 !                          lastpmq(jpr),maxpmq(jpr),gz%intlevel
 !                     if(maxpmq(jpr).lt.0) maxpmq(jpr)=intrec%noofip(2)-&
 !                          maxpmq(jpr)
@@ -1191,12 +1191,12 @@
 ! a lower order record with a next link
             enddo interloop
 298         continue
-!            write(*,*)'Config G 4X: ',phres%gval(1,1)*rtg
+!            write(*,*)'3X Config G 4X: ',phres%gval(1,1)*rtg
 ! take next permutation of the end member fractions
          enddo empermut
 300      continue
 ! take next end member
-!         write(*,155)'endmem: ',epermut,endmemrec%noofpermut,endmemrec%antalem
+!      write(*,155)'3X endmem: ',epermut,endmemrec%noofpermut,endmemrec%antalem
          endmemrec=>endmemrec%nextem
       enddo endmemloop
 !      write(*,*)'3X Config G 5: ',phres%gval(1,1)*rtg
@@ -1206,7 +1206,7 @@
 ! with the fractions as disordered fractions
 !      write(*,*)'3X Testing nevertwice ',nevertwice
 ! Jump to 400 terminates calculation for this fraction type
-!      write(*,303)'Nevertwice: ',nevertwice,&
+!      write(*,303)'3X Nevertwice: ',nevertwice,&
 !           btest(phlista(lokph)%status1,phsubo),&
 !           first,fractype,phres%gval(1,1)
 303   format(a,3(1x,L),i3,4(1pe12.4))
@@ -1245,10 +1245,10 @@
                savey(j1)=phres%yfr(j1)
             enddo
 !------------ code below was removed for a while but is now reinstated
-!            write(*,*)'cg: ',phmain%phlink,phmain%disfra%varreslink
+!            write(*,*)'3X cg: ',phmain%phlink,phmain%disfra%varreslink
 ! ??? very uncertain how to call disordery .....
 !            call disordery(phmain,phmain%disfra%varreslink,ceq)
-!            write(*,*)'At disordery: ',phmain%disfra%varreslink,&
+!            write(*,*)'3X At disordery: ',phmain%disfra%varreslink,&
 !                 cps%disfra%varreslink
             call disordery(phmain,ceq)
 ! if call to disordery here no crash in disordery ...
@@ -1261,7 +1261,7 @@
             allocate(saveg(6,nprop))
             allocate(savedg(3,gz%nofc,nprop))
             allocate(saved2g(nofc2,nprop))
-!            write(*,*)'saveg allocated 3: ',size(saveg)
+!            write(*,*)'3X saveg allocated 3: ',size(saveg)
             saveg=phres%gval
             savedg=phres%dgval
             saved2g=phres%d2gval
@@ -1396,7 +1396,7 @@
 !            saveg=zero
 !            savedg=zero
 !            saved2g=zero
-!            if(ocv()) write(*,*)'saveg DE-allocated 1: ',size(saveg)
+!            if(ocv()) write(*,*)'3X saveg DE-allocated 1: ',size(saveg)
 !            deallocate(savey)
             deallocate(saveg)
             deallocate(savedg)
@@ -1415,7 +1415,7 @@
 !   if(ocv()) then
 !      write(*,411)lprop-1,(phmain%listprop(j1),j1=2,lprop)
 !      write(*,412)'Val: ',(phmain%gval(1,j1),j1=1,lprop-1)
-!411   format('Properties: ',i3,': ',10i4)
+!411   format('3X Properties: ',i3,': ',10i4)
 412   format(a,(6E12.4))
 !   endif
    norfc=phlista(lokph)%tnooffr
@@ -1504,14 +1504,14 @@
 ! This is wrong but all endmember parameters are never zero for a real liquid.
 !^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 !
-!      write(*,*)'Config G 6: ',phres%gval(1,1)*rtg
+!      write(*,*)'3X Config G 6: ',phres%gval(1,1)*rtg
       if(moded.eq.0) goto 490
 !      write(*,491)'3X ionliq: ',phlista(lokph)%i2slx,phlista(lokph)%nooffr
 491   format(a,2i3,5x,2i3)
       firstd: do i1=1,norfc
          secondd: do i2=i1,norfc
             do ipy=1,lprop-1
-!               write(*,497)'adding: ',i1,i2,ixsym(i1,i2),ipy
+!               write(*,497)'3X adding: ',i1,i2,ixsym(i1,i2),ipy
 497            format(a,10i3)
                phres%d2gval(ixsym(i1,i2),ipy)=saved2g(ixsym(i1,i2),ipy)+&
                     phres%sites(2)*phres%d2gval(ixsym(i1,i2),ipy)
@@ -1550,26 +1550,26 @@
                endif
             enddo
          enddo
-!        write(*,747)'suming: ',i1,savedg(1,i1,1)*rtg,phres%dgval(1,i1,1)*rtg,&
+!     write(*,747)'3X suming: ',i1,savedg(1,i1,1)*rtg,phres%dgval(1,i1,1)*rtg,&
 !              phres%dpqdy(i1),phres%gval(1,1)
 !         write(*,747)'3Xx:',i1,add1,sum,phres%dgval(1,i1,1),phres%dpqdy(i1),&
 !              phres%sites(2),savedg(1,i1,1)
 !747      format(a,i2,6(1pe12.4))
       enddo firstd
-!      write(*,*)'summed: ',savedg(1,1,1)*rtg,phres%dgval(1,1,1)*rtg
+!      write(*,*)'3X summed: ',savedg(1,1,1)*rtg,phres%dgval(1,1,1)*rtg
 ! Integral values: G = saveg + Q*phres%gval with T and P derivatives
 490   continue
-!      write(*,492)'ionsum: ',saveg(1,1),phres%gval(1,1),&
+!      write(*,492)'3X ionsum: ',saveg(1,1),phres%gval(1,1),&
 !           (saveg(1,1)+phres%gval(1,1))*rtg*phres%sites(2)
 492   format(a,6(1pe12.4))
-!      write(*,*)'Config G 7A: ',phres%gval(1,1)*rtg
+!      write(*,*)'3X Config G 7A: ',phres%gval(1,1)*rtg
       do ipy=1,lprop-1
          do ider=1,6
             phres%gval(ider,ipy)=saveg(ider,ipy)+&
                  phres%sites(2)*phres%gval(ider,ipy)
          enddo
       enddo
-!      write(*,*)'Config G 7B: ',phres%gval(1,1)*rtg,saveg(1,1)*rtg
+!      write(*,*)'3X Config G 7B: ',phres%gval(1,1)*rtg,saveg(1,1)*rtg
 ! strange bug which changes the results for a calculation with only C1
 ! if the ionic liquid has been non-suspended at some previous calculation ...
       saveg=zero
@@ -1673,16 +1673,16 @@
 ! have a conmponent or constituent index like MQ&<constituent>
 !   ipy=typty/100+mod(typty,100)
 !   if(ipy.gt.10) then
-!      write(*,*)'Property ',typty,ipy
+!      write(*,*)'3X Property ',typty,ipy
 1000 continue
 !   ipy=phlista(lokph)%linktocs(1)
-!   write(*,*)'exit 1: ',lokph,ipy,ceq%phase_varres(ipy)%disfra%varreslink
+!   write(*,*)'3X exit 1: ',lokph,ipy,ceq%phase_varres(ipy)%disfra%varreslink
 !   ipy=phlista(lokph)%linktocs(2)
 !   if(ipy.gt.0) &
-!        write(*,*)'exit 2: ',lokph,ipy,ceq%phase_varres(ipy)%disfra%varreslink
+!      write(*,*)'3X exit 2: ',lokph,ipy,ceq%phase_varres(ipy)%disfra%varreslink
    if(chkperm) then
 ! wait for checking for errors ....
-!      write(*,*)'Press return'
+!      write(*,*)'3X Press return'
 !      read(*,297)ch1
 !297   format(a)
    endif
@@ -1699,9 +1699,9 @@
 !    write(*,1001)gx%bmperr,(phres%gval(i,1),i=1,4)
 !    write(*,1002)(phres%dgval(1,i,1),i=1,3)
 !    write(*,1003)(phres%d2gval(i,1),i=1,6)
-1001 format('calcg g: ',i5,4(1PE15.7))
-1002 format('calcg dg:  ',3(1PE15.7))
-1003 format('calcg d2g: ',6(1PE11.3))
+1001 format('3X calcg g: ',i5,4(1PE15.7))
+1002 format('3X calcg dg:  ',3(1PE15.7))
+1003 format('3X calcg d2g: ',6(1PE11.3))
    return
  end subroutine calcg_internal
 
@@ -1791,7 +1791,7 @@
 ! H=G+TS=G-T*G.T, U=H-PV=(G-T*G.T)-P*G.P, CP=-T*G.T.T
 ! alpha= 1/V*V.T = G.T.P/V, kappa = -1/V*V.P = -G.P.P/V
    G=rtg*ceq%phase_varres(lokcs)%gval(1,1)
-!    write(*,5)'tabder 2: ',rtg,G
+!    write(*,5)'3X tabder 2: ',rtg,G
    S=-rtg*ceq%phase_varres(lokcs)%gval(2,1)
    V=rtg*ceq%phase_varres(lokcs)%gval(3,1)
    H=G+T*S
@@ -1827,14 +1827,14 @@
    dy1loop: do while(kk1.le.tnk)
       kk1=kk1+1
       if(kk1.gt.kk2) then
-!          write(*,11)'tabder 2: ',kk1,kk2,ll,tnk,nsl
+!          write(*,11)'3X tabder 2: ',kk1,kk2,ll,tnk,nsl
 !11 format(a,10i3)
          ll=ll+1
          if(ll.gt.nsl) exit
          kk2=kk2+phlista(lokph)%nooffr(ll)
       endif
       if(phlista(lokph)%nooffr(ll).eq.1) then
-!          write(*,*)'tabder 1: ',kk1,kk2,ll,tnk
+!          write(*,*)'3X tabder 1: ',kk1,kk2,ll,tnk
          ll=ll+1
          if(ll.gt.nsl) exit
          kk2=kk2+phlista(lokph)%nooffr(ll)
@@ -1883,11 +1883,11 @@
             kk4=kk4+phlista(lokph)%nooffr(ll2)
          endif
       enddo dy2loop
-!       write(*,*)'tabder 7A: ',kk1,kk2
+!       write(*,*)'3X tabder 7A: ',kk1,kk2
    enddo dy1loop
 900 continue
-!    write(*,*)'tabder 7B: ',kk2
-!    write(*,*)'tabder: ',rtg,rtg*phase_varres(lokcs)%gval(1,1)
+!    write(*,*)'3X tabder 7B: ',kk2
+!    write(*,*)'3X tabder: ',rtg,rtg*phase_varres(lokcs)%gval(1,1)
 1000 continue
    return
  end subroutine tabder
@@ -1945,7 +1945,7 @@
 ! prepare for ionic liquid interactions
 !      write(*,17)'3X RK: ',phlista(lokph)%i2slx(1),gz%endcon(gz%intlat(1))
 17    format(a,10i4)
-!      write(*,*)'ionicliq set true'
+!      write(*,*)'3X ionicliq set true'
 !      write(*,17)'3X Const in subl: ',gz%intlat(1),gz%endcon(gz%intlat(1)),&
 !           gz%endcon(2),phlista(lokph)%i2slx(1),gz%intlevel
       ionicliq=.TRUE.
@@ -2101,7 +2101,7 @@
             if(gz%intlat(1).eq.1 .and. gz%intlat(2).eq.1) then
 ! we have 3 cations interacting in first sublattice and Va in second
 ! require treatment of extra vacancy fraction
-!               write(*,*)'3 interacting cations not implemented'
+               write(*,*)'3X 3 interacting cations not implemented'
                gx%bmperr=4343; goto 1000
             elseif(gz%intlat(1).eq.1 .and. gz%intlat(2).eq.2) then
                ivax=gz%endcon(2)
@@ -2166,12 +2166,12 @@
 !.........................................................
 ! composition dependent reciprocal interactions here only degree 1 and 2
          if(lokpty%degree.gt.2) then
-            write(*,*)'Composition dependent reciprocal degree max 2'
+            write(*,*)'3X Composition dependent reciprocal degree max 2'
             gx%bmperr=4078; goto 1000
          else
 !            write(*,32)lokph,lokpty%degree,gz%intlat(1),gz%intlat(2),&
 !                 gz%iq(1),gz%iq(2),gz%iq(3),gz%iq(4)
-32          format('Comp.dep. rec. param: ',i3,2x,i1,2x,2i2,4i5)
+32          format('3X Comp.dep. rec. param: ',i3,2x,i1,2x,2i2,4i5)
          endif
 ! Note the composition dependence is defined that 
 ! L = y'_Ay'_By"_Cy"_D (0L + (y"_C-y"_D)*1L + (y'_A-y'_B)*2L)
@@ -2499,7 +2499,7 @@
          if(yfra.gt.one) yfra=one
 ! save current value of vacancy fraction
          if(kall.eq.i2slx(1)) yva=yfra
-!         write(*,2)'yva: ',kall,i2slx(1),yva,yfra
+!         write(*,2)'3X yva: ',kall,i2slx(1),yva,yfra
 !2        format(a,2i3,6(1pe12.4))
          ylog=log(yfra)
 ! gval(1:6,1) are G and derivator wrt T and P
@@ -2525,7 +2525,7 @@
 ! convergence problem with ionic liquid, skip contribution to 2nd derivatuves
 !   localmoded=moded
 !   if(moded.eq.2) localmoded=1
-!   write(*,*)'ionic config_entropy: ',i2slx,kall
+!   write(*,*)'3X ionic config_entropy: ',i2slx,kall
 ! additional derivatives as sublattice sites depend on composition
 ! -------------------------- derivatives of config entropy
 ! S = P*S1 + Q*S2
@@ -2553,7 +2553,7 @@
 ! the coding is not optimal for speed, all the 1/y**2 term calculated above
 ! i2slx(1) is index of vacancy, i2slx(2) is index of first neutral
 ! if either (or both) are missing their index is higher than last constituent
-!   write(*,102)'va+neutral: ',i2slx
+!   write(*,102)'3X va+neutral: ',i2slx
 !102 format(a,10i3)
 ! dpqdy is calculated in gtp3X: set_constitution ??
 !   write(*,108)'3X dpqdy: ',(phvar%dpqdy(j1),j1=1,nkl(1)+nkl(2))
@@ -2564,7 +2564,7 @@
       cation2: do j2=j1,nkl(1)
 ! d2S/dy_i1dy_i2 = v_i1*y_Va*(1+ln(y_i2) + v_i2*y_Va*(1+ln(y_i1) + 
 !                  [P*(1/y_i1**2)]         ..last term already calculated  OK
-!         write(*,103)'ij: ',j1,j2,ixsym(j1,j2),yva,&
+!         write(*,103)'3X ij: ',j1,j2,ixsym(j1,j2),yva,&
 !              phvar%d2gval(ixsym(j1,j2),1),&
 !              phvar%dpqdy(j1),phvar%dpqdy(j2),&
 !              phvar%dgval(1,j1,1),phvar%dgval(1,j2,1)
@@ -2588,7 +2588,7 @@
                  phvar%sites(2)*phvar%dgval(1,j1,1)/phvar%sites(1)
          else
 ! d2S/dy_idy_k   = v_i*(1+ln(y_k))                        ...cation+neutral OK
-!            write(*,107)'i,va: ',j1,j2,phvar%dpqdy(j1),phvar%dgval(1,j2,1),&
+!            write(*,107)'3X i,va: ',j1,j2,phvar%dpqdy(j1),phvar%dgval(1,j2,1),&
 !                 phvar%sites(2)
 !107         format(a,2i2,6(1pe12.4))
             phvar%d2gval(ixsym(j1,j2),1)=&
@@ -2598,7 +2598,7 @@
 109   continue
 ! this done at the end as original dgval(1,j1,1)=P*(1+ln(y_j1))/P used above
 ! dS/dy_i        = +v_i*S2 + v_i*y_Va*S1 + [P*(1+ln(y_i)]   ..cation   OK
-!      write(*,19)'c: ',j1,phvar%dgval(1,j1,1),&
+!      write(*,19)'3X c: ',j1,phvar%dgval(1,j1,1),&
 !           phvar%dpqdy(j1),spart(2),phvar%dpqdy(j1),yva,spart(1)
 !19    format(a,i3,6(1pe12.4))
       phvar%dgval(1,j1,1)=phvar%dgval(1,j1,1)+&
@@ -2609,16 +2609,16 @@
    anion1: do j2=nkl(1)+1,min(i2slx(1),kall)
       if(j2.lt.min(i2slx(1),i2slx(2))) then
 ! dS/dy_j        = -v_j*S1 +               [Q*(1+ln(y_j))]  ..anion    OK
-!         write(*,*)'anion1 A: ',j2
+!         write(*,*)'3X anion1 A: ',j2
          phvar%dgval(1,j2,1)=phvar%dgval(1,j2,1)+phvar%dpqdy(j2)*spart(1)
       elseif(j2.eq.i2slx(1)) then
 ! dS/dy_Va       = Q*S1 +                  [Q*(1+ln(y_Va))] ..Va       OK
-!         write(*,*)'anion1 B: ',j2
+!         write(*,*)'3X anion1 B: ',j2
          phvar%dgval(1,j2,1)=phvar%dgval(1,j2,1)+phvar%sites(2)*spart(1)
 !      else
 ! dS/dy_k        = nothing +               [Q*(1+ln(y_k)]   ..neutral  OK
       endif
-!      write(*,*)'anion1 C: ',j2
+!      write(*,*)'3X anion1 C: ',j2
    enddo anion1
 ! set temperature derivative of dG/dy
    do j1=1,kall
@@ -2626,7 +2626,7 @@
    enddo
 900 continue
 !  phvar%gval(1,1)=phvar%gval(1,1)+phvar%sites(ll)*ss
-!   write(*,905)'parts: ',phvar%gval(1,1),phvar%sites,spart
+!   write(*,905)'3X parts: ',phvar%gval(1,1),phvar%sites,spart
 !905 format(a,6(1pe12.4))
 ! set temperature derivative of G
    phvar%gval(2,1)=phvar%gval(1,1)/tval
@@ -2686,7 +2686,7 @@
 !\end{verbatim}
    type(gtp_pystack), pointer :: old
    if(.not.associated(pystack)) then
-!      write(*,*)'Tying to pop from an empty PY stack'
+!      write(*,*)'3X Tying to pop from an empty PY stack'
       gx%bmperr=4075; goto 1000
    endif
 ! restore data
@@ -2728,7 +2728,7 @@
 !   double precision, parameter :: yminord=1.0D-10
    integer lokdis,is
 !
-!   write(*,*)'entering calc_disfrac'
+!   write(*,*)'3X entering calc_disfrac'
 ! this is the record with the ordered constitution
    phord=>ceq%phase_varres(lokcs)
 !   disrec=phord%disfra
@@ -2741,7 +2741,7 @@
 ! to find the varres record with disordered fractions use varreslink
 ! this is the index to the phase_varres record with the ordered fractions ???
    lokdis=ceq%phase_varres(lokcs)%disfra%varreslink
-!   write(*,*)'Calc disfra: ',lokph,lokcs,lokdis
+!   write(*,*)'3X Calc disfra: ',lokph,lokcs,lokdis
 !   phdis=>ceq%phase_varres(lokdis)
 !   call calc_disfrac2(ceq%phase_varres(lokcs)%disfra,&
 !   call calc_disfrac2(ceq%phase_varres(lokcs),ceq%phase_varres(lokdis),ceq)
@@ -2783,23 +2783,23 @@
 ! this is the index to the phase_varres record with the ordered fractions ???
 !   lokdis=disrec%varreslink
 !   phdis=>ceq%phase_varres(lokdis)
-!   write(*,*)'calc_disfrac 1A'
+!   write(*,*)'3X calc_disfrac 1A'
 ! check that some values are accessable
-!   write(*,*)'calc_disfra phase index: ',phord%phlink
-!   write(*,*)'calc_disfra disordered sublattices: ',disrec%ndd
-!   write(*,*)'calc_disfra ordered and disordered records: ',lokcs,lokdis
-!   write(*,*)'calc_disfra phase index via disordred record: ',phdis%phlink
-!   write(*,*)'calc_disfrac 1B'
+!   write(*,*)'3X calc_disfra phase index: ',phord%phlink
+!   write(*,*)'3X calc_disfra disordered sublattices: ',disrec%ndd
+!   write(*,*)'3X calc_disfra ordered and disordered records: ',lokcs,lokdis
+!   write(*,*)'3X calc_disfra phase index via disordred record: ',phdis%phlink
+!   write(*,*)'3X calc_disfrac 1B'
    phdis%yfr=zero
-!   write(*,*)'disfrac 1: ',disrec%tnoofyfr
+!   write(*,*)'3X disfrac 1: ',disrec%tnoofyfr
    do is=1,disrec%tnoofyfr
       phdis%yfr(disrec%y2x(is))=&
            phdis%yfr(disrec%y2x(is))+disrec%dxidyj(is)*phord%yfr(is)
-!      write(*,77)'disfrac 2: ',is,disrec%y2x(is),phdis%yfr(disrec%y2x(is)),&
+!      write(*,77)'3X disfrac 2: ',is,disrec%y2x(is),phdis%yfr(disrec%y2x(is)),&
 !           disrec%dxidyj(is),phord%yfr(is)
 77    format(a,2i3,3(1pe12.4))
    enddo
-!   write(*,*)'calc_disfrac 2'
+!   write(*,*)'3X calc_disfrac 2'
 ! check if phase is really ordered, meaning that the disordered fractions
 ! are equal to the ordered ones
    ordered=.false.
@@ -2807,7 +2807,7 @@
       if(abs(phdis%yfr(disrec%y2x(is))-&
            phord%yfr(is)).gt.yminord) ordered=.true.
    enddo
-!   write(*,*)'calc_disfrac 3'
+!   write(*,*)'3X calc_disfrac 3'
    if(.not.ordered) then
 ! if this bit set one will not calculate the ordered part of the phase
       phord%status2=ibclr(phord%status2,csorder)
@@ -2848,36 +2848,36 @@
 ! find disordered fractions
 !   lokdcs=phvar%disfra%varreslink
 !   disrec=>phvar%disfra
-!   write(*,*)'disordery: ',disrec%latd,disrec%nooffr(1),lokdcs
+!   write(*,*)'3X disordery: ',disrec%latd,disrec%nooffr(1),lokdcs
 !   phdis=ceq%phase_varres(lokdcs)
-!   write(*,*)'disordery: ',ceq%xconv
-!   write(*,*)'disordery: ',phdis%yfr(1)
+!   write(*,*)'3X disordery: ',ceq%xconv
+!   write(*,*)'3X disordery: ',phdis%yfr(1)
 !   phdis=>ceq%disrec%phdapointer
 ! find disordered fractions
    disrec=>phvar%disfra
    lokdcs=phvar%disfra%varreslink
 ! problem that this pointer is not always ok ....???
    phdis=>ceq%phase_varres(lokdcs)
-!   write(*,*)'dis1: 1',lokdcs
+!   write(*,*)'3X dis1: 1',lokdcs
 !   xxx=phdis%yfr(1)
-!   write(*,*)'dis1: 2',xxx,phdis%yfr(1)
-!   write(*,*)'disordery: ',disrec%latd,disrec%nooffr(1),lokdcs
+!   write(*,*)'3X dis1: 2',xxx,phdis%yfr(1)
+!   write(*,*)'3X disordery: ',disrec%latd,disrec%nooffr(1),lokdcs
 !   phdis=ceq%phase_varres(lokdcs)
-!   write(*,*)'disordery: ',ceq%xconv
+!   write(*,*)'3X disordery: ',ceq%xconv
 !   call disordery2(phvar,ceq%phase_varres(lokdcs),ceq)
-!   if(.not.associated(phvar)) write(*,*)'phvar not associated'
-!   if(.not.associated(phdis)) write(*,*)'phdis not associated'
+!   if(.not.associated(phvar)) write(*,*)'3X phvar not associated'
+!   if(.not.associated(phdis)) write(*,*)'3X phdis not associated'
 !   nofc1=size(phvar%yfr)
 !   nofc2=size(phdis%yfr)
-!   write(*,11)'phvary: ',(phvar%yfr(ii),ii=1,nofc1)
-!   write(*,11)'phdisy: ',(phdis%yfr(ii),ii=1,nofc2)
+!   write(*,11)'3X phvary: ',(phvar%yfr(ii),ii=1,nofc1)
+!   write(*,11)'3X phdisy: ',(phdis%yfr(ii),ii=1,nofc2)
 11 format(a,8F7.4)
 !   call disordery2(phdis,phvar,disrec,ceq)
 !   call disordery2(ceq%phase_varres(lokdcs),phvar,disrec,ceq)
    call disordery2(lokdcs,phvar,disrec,ceq)
-!   write(*,11)'phvary: ',(phvar%yfr(ii),ii=1,nofc1)
-!   write(*,11)'phdisy: ',(phdis%yfr(ii),ii=1,nofc2)
-!   write(*,*)'Done disorder'
+!   write(*,11)'3X phvary: ',(phvar%yfr(ii),ii=1,nofc1)
+!   write(*,11)'3X phdisy: ',(phdis%yfr(ii),ii=1,nofc2)
+!   write(*,*)'3X Done disorder'
 !
 1000 continue
    return
@@ -2906,14 +2906,14 @@
    double precision xxx
 ! copy fractions, loop through all ordered sublattices in phvar
 ! and store fraction from lokdis
-!   write(*,*)'dis2: 1'
+!   write(*,*)'3X dis2: 1'
    kk=0
 ! here copy: 
 ! y(ord,1,1)=y(dis,1); y(ord,1,2)=y(dis,2); y(ord,1,3)=y(dis,3); 
 ! y(ord,2,1)=y(dis,1); y(ord,2,2)=y(dis,2); y(ord,2,3)=y(dis,3); 
-!   write(*,*)'dis2: 2',disrec%latd,disrec%nooffr(1)
-!   write(*,*)'dis2: 3',phdis%yfr(1)
-!   write(*,*)'disordery2: ',lokdcs
+!   write(*,*)'3X dis2: 2',disrec%latd,disrec%nooffr(1)
+!   write(*,*)'3X dis2: 3',phdis%yfr(1)
+!   write(*,*)'3X disordery2: ',lokdcs
    do ll=1,disrec%latd
       do is=1,disrec%nooffr(1)
          kk=kk+1
@@ -2923,13 +2923,13 @@
          phvar%yfr(kk)=xxx
       enddo
    enddo
-!   write(*,*)'dis2: 4',disrec%ndd
+!   write(*,*)'3X dis2: 4',disrec%ndd
    if(disrec%ndd.eq.2) then
 ! one can have 2 sets of ordered subl. like (Al,Fe)(Al,Fe)...(C,Va)(C,Va)...
       nis=disrec%nooffr(1)
       nsl=size(phvar%sites)
-!      write(*,*)'dis2: 5',nis,nsl
-!      write(*,*)'dy: ',nis,kk,disrec%latd,nsl,disrec%nooffr(2)
+!      write(*,*)'3X dis2: 5',nis,nsl
+!      write(*,*)'3X dy: ',nis,kk,disrec%latd,nsl,disrec%nooffr(2)
       do ll=disrec%latd+1,nsl
          do is=1,disrec%nooffr(2)
             kk=kk+1
@@ -2990,12 +2990,12 @@
    nox=0; now=0
    localerr=0
 !
-!   write(*,*)"in extract massbalace 1"
+!   write(*,*)"3X in extract massbalace 1"
    last=>ceq%lastcondition
    if(.not.associated(last)) then
       gx%bmperr=4143; goto 1000
    endif
-!   write(*,*)"in extract massbalace 2"
+!   write(*,*)"3X in extract massbalace 2"
    current=>last
    nc=0
    allmassbal=.TRUE.
@@ -3005,7 +3005,7 @@
       if(current%active.ne.0) goto 300
 ! if a conditions has several terms we cannot calculate x
       if(current%noofterms.gt.1) then
-!         write(*,*)'Grid minimizer cannot be used with expressions'
+!         write(*,*)'3X Grid minimizer cannot be used with expressions'
          localerr=4179
       endif
 ! for debugging
@@ -3026,7 +3026,7 @@
       else
          xxx=current%prescribed
       endif
-!      write(*,17)'massbal: ',encoded,istv,indices,iunit,iref,xxx
+!      write(*,17)'3X massbal: ',encoded,istv,indices,iunit,iref,xxx
 17    format(a,2x,a,2x,i3,2x,4i3,2x,2i3,1PE15.7)
 ! extract values of T, P, N, B, X and W
       if(current%statev.eq.1) then
@@ -3041,7 +3041,7 @@
 ! this is N=value or N(element)=value
          if(indices(2).gt.0) then
 ! this should mean the number of moles of a component in a phase, illegal here
-!            write(*,*)'N with 2 indices illegal in this case'
+!            write(*,*)'3X N with 2 indices illegal in this case'
             localerr=4179
          elseif(indices(1).gt.0) then
 ! N(i)=xxx
@@ -3066,7 +3066,7 @@
 ! this is B=value or B(i)=value
          if(indices(2).gt.0) then
 ! this should mean the mass of a component in a phase, illegal here
-            write(*,*)'B with 2 indices illegal'
+            write(*,*)'3X B with 2 indices illegal'
             localerr=4179
          elseif(indices(1).gt.0) then
 ! B(i)=xxx
@@ -3127,7 +3127,12 @@
          if(abi(ie).gt.zero) goto 1100
       elseif(abi(ie).le.zero) then
 ! this can be "the rest"
-         if(antot.eq.zero .and. abtot.eq.zero) goto 1105
+!         write(*,*)'3X massbal',ie,abi(ie),antot,abtot
+         if(btest(globaldata%status,GSNOTELCOMP)) then
+            write(*,*)'3X Other elements than components 1'
+         else
+            if(antot.eq.zero .and. abtot.eq.zero) goto 1105
+         endif
       endif
    enddo
 !   write(*,510)'N: ',(ani(i),i=1,noel())
@@ -3158,7 +3163,7 @@
             more=1
          elseif(ani(ie).eq.zero) then
             if(numberest.gt.0) then
-               write(*,*)'Missing condition for two elements.'
+               write(*,*)'3X Missing condition for two elements.'
 ! ??               gx%bmperr=0; goto 1000
                gx%bmperr=4151; goto 1000
             endif
@@ -3167,7 +3172,7 @@
          endif
       enddo
       if(numberest.eq.0) then
-         write(*,*)'Error - condition on all elements and N??'
+         write(*,*)'3X Error - condition on all elements and N??'
          gx%bmperr=0; goto 1000
       endif
       if(more.gt.0) then
@@ -3180,7 +3185,7 @@
          abisum=abisum+abi(numberest)
 ! now calculate B
          abtot=abisum/(one-wsum)
-!         write(*,520)'nrest: ',numberest,divisor,dividend,ani(numberest),&
+!         write(*,520)'3X nrest: ',numberest,divisor,dividend,ani(numberest),&
 !              abi(numberest),abtot
 520 format(a,i3,6(1pe12.4))
 ! now calculate moles of elements with massfractions
@@ -3200,11 +3205,11 @@
       enddo
    elseif(abtot.gt.zero) then
 ! we have a value for total mass, B, not common and too complicated
-!      write(*,*)'Cannot handle condition on total mass'
+!      write(*,*)'3X Cannot handle condition on total mass'
       gx%bmperr=4180
    elseif(xsum.eq.zero .and. wsum.eq.zero) then
 ! just N(i)= and B(i)=, no N= nor B= and no X nor W, No rest element
-!      write(*,520)'N(i): ',0,anisum,(ani(j),j=1,noel())
+!      write(*,520)'3X N(i): ',0,anisum,(ani(j),j=1,noel())
       do ie=1,noel()
          if(abi(ie).gt.zero) then
             call get_element_data(ie,elsym,elname,refstat,mass,h298,s298)
@@ -3216,13 +3221,17 @@
       do ie=1,noel()
          xset(ie)=ani(ie)/antot
          if(xset(ie).le.zero) then
-            write(*,*)'mass balance error: ',ie
-            gx%bmperr=4181; goto 1000
+            if(btest(globaldata%status,GSNOTELCOMP)) then
+               write(*,*)'3X Other elements than components 2'
+            else
+               write(*,*)'3X mass balance error: ',ie
+               gx%bmperr=4181; goto 1000
+            endif
          endif
       enddo
    else
 ! any other combination of conditions ....
-      write(*,*)'Cannot handle these massbalance conditions'
+      write(*,*)'3X Cannot handle these massbalance conditions'
       gx%bmperr=4182
    endif bigif
 ! copy fractions to arguments
@@ -3234,13 +3243,13 @@
    return
 ! errors
 1100 continue
-   write(*,*)'Two mass balance conditions for same element',ie
+   write(*,*)'3X Two mass balance conditions for same element',ie
    gx%bmperr=4183; goto 1000
 1105 continue
-   write(*,*)'One component without condition'
+   write(*,*)'3X One component without condition'
    gx%bmperr=4181; goto 1000
 1110 continue
-   write(*,*)'Both N and B cannot be set'
+   write(*,*)'3X Both N and B cannot be set'
    gx%bmperr=4184; goto 1000
 !
  end subroutine extract_massbalcond
@@ -3270,11 +3279,11 @@
       else
          syfr=0
       endif
-!      write(*,12)'Varres record and size: ',varresx,1+syfr,nz
+!      write(*,12)'3X Varres record and size: ',varresx,1+syfr,nz
 12    format(a,3i5)
       nz=nz+1+syfr
    enddo
-!   write(*,*)'In save_constitution',nz,highcs
+!   write(*,*)'3X In save_constitution',nz,highcs
    allocate(copyofconst(nz))
    nz=1
 !   do varresx=2,csfree-1
@@ -3288,7 +3297,7 @@
       else
          syfr=0
       endif
-!      write(*,16)'Storing varres record: ',varresx,syfr,size(copyofconst),nz
+!      write(*,16)'3X Storing varres record: ',varresx,syfr,size(copyofconst),nz
 16    format(a,5i5)
 ! the segmentation fault seems not to be the allocation of copyofconst but
 ! rather that we cannot access the yfr in ceq%phase_varres(varresx)
@@ -3297,7 +3306,7 @@
          copyofconst(nz+ij)=ceq%phase_varres(varresx)%yfr(ij)
       enddo
 !      write(*,17)varresx,nz,1+syfr,(copyofconst(ij),ij=nz,nz+syfr)
-17    format('3Xs:',3i4,10(F6.3))
+17    format('3X s:',3i4,10(F6.3))
       nz=nz+1+syfr
    enddo
 1000 continue
@@ -3331,7 +3340,7 @@
       enddo
 !      write(*,17)varresx,nz,syfr,ceq%phase_varres(varresx)%amfu,&
 !           (ceq%phase_varres(varresx)%yfr(ij),ij=1,syfr)
-17    format('3Xr:',i2,2i3,6(1pe12.4))
+17    format('3X r:',i2,2i3,6(1pe12.4))
       nz=nz+1+size(ceq%phase_varres(varresx)%yfr)
    enddo
 1000 continue

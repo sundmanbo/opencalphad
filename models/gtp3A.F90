@@ -1321,6 +1321,25 @@ end function find_phasetuple_by_indices
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\begin{verbatim} %-
+ subroutine get_species_location(isp,loksp,spsym)
+! return species location and name, isp is species number
+   implicit none
+   character spsym*(*)
+   integer isp,loksp
+!\end{verbatim}
+   if(isp.le.0 .or. isp.gt.noofsp) then
+!      write(*,*)'in get_species_name'
+      gx%bmperr=4051; goto 1000
+   endif
+   loksp=species(isp)
+   spsym=splista(loksp)%symbol
+!   spsym=splista(species(isp))%symbol
+1000 return
+ end subroutine get_species_location
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
 !\begin{verbatim}
  subroutine get_species_data(loksp,nspel,ielno,stoi,smass,qsp,extra)
 ! return species data, loksp is from a call to find_species_record
@@ -1329,12 +1348,13 @@ end function find_phasetuple_by_indices
 ! stoi: double array, stocichiometric factors
 ! smass: double, mass of species
 ! qsp: double, charge of the species
+! extra: some additional information ...
    implicit none
    integer, dimension(*) :: ielno
    double precision, dimension(*) :: stoi(*)
    integer loksp,nspel
    double precision smass,qsp,extra
-!\end{verbatim}
+!\end{verbatim} %+
    integer jl,iel
    if(loksp.le.0 .or. loksp.gt.noofsp) then
 !      write(*,*)'in get_species_data'
@@ -1351,6 +1371,101 @@ end function find_phasetuple_by_indices
    extra=splista(loksp)%extra
 1000 return
  end subroutine get_species_data
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim} %-
+ subroutine get_species_component_data(loksp,nspel,compnos,stoi,smass,qsp,ceq)
+! return species data, loksp is from a call to find_species_record
+! Here we return stoichiometry using components 
+! nspel: integer, number of elements in species
+! compno: integer array, element indices
+! stoi: double array, stocichiometric factors
+! smass: double, mass of species
+! qsp: double, charge of the species
+   implicit none
+   integer, dimension(*) :: compnos
+   double precision, dimension(*) :: stoi(*)
+   integer loksp,nspel
+   double precision smass,qsp
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   integer jl,iel,jk,ncomp,locomp
+   integer, allocatable :: components(:)
+   double precision, allocatable :: compstoi(:)
+   double precision qextra
+!
+! if the components are the elements then use get_species_data
+   if(.not.btest(globaldata%status,GSNOTELCOMP)) then
+      call get_species_data(loksp,nspel,compnos,stoi,smass,qsp,qextra)
+      qextra=zero
+      goto 1000
+!   else
+!      write(*,11)globaldata%status,GSNOTELCOMP
+!11    format('3A using other components than elements',Z8,i4)
+   endif
+   allocate(components(noofel))
+   allocate(compstoi(noofel))
+   components=0
+   compstoi=zero
+   if(loksp.le.0 .or. loksp.gt.noofsp) then
+!      write(*,*)'in get_species_data'
+      gx%bmperr=4051; goto 1000
+   endif
+   nspel=splista(loksp)%noofel
+   elements: do jl=1,nspel
+! splista(loksp)%ellinks is the location of the element record in ellista
+! To find the element index in alphabetical order use the %alphaindex
+      iel=ellista(splista(loksp)%ellinks(jl))%alphaindex
+! ignore vacancies
+      if(iel.le.0) cycle elements
+      allcomp: do jk=1,noofel
+! this is a loop for all components
+! locomp is the species record of the component
+         if(abs(ceq%invcompstoi(jk,iel)).gt.1.0D-12) then
+! the stoichiometry of this component is nonzero for this element
+! add to compstoi(jk)
+! convert the element to components using the inverted stocihiometry matrix
+! for example elements Ca O Si
+! components CaO SiO2 O
+! matrix  components/elemenets    Ca   O    Si
+!         CaO                     1    1    0
+!         SiO2                    0    2    1
+!         O                       0    1    0
+! inverted matrix                 CaO SiO2  O
+!                          Ca     1    0    -1  invmat(1,1) (2,1) (3,1)
+!                          O      0    1    0
+!                          Si     0    1    -2
+! for Ca return 2 components,  1 * CaO -1 * O
+! for SiO return 2 components  1*SiO   -1 * O
+            compstoi(jk)=compstoi(jk)+&
+                 splista(loksp)%stoichiometry(jl)*ceq%invcompstoi(jk,iel)
+            qsp=splista(loksp)%charge
+         endif
+      enddo allcomp
+   enddo elements
+! return components with nonzero stoichiometry.  
+! Note stoichiometry can be negative
+! There are always as many components as elements
+   smass=zero
+   nspel=0
+   reduce: do jk=1,noofel
+      if(abs(compstoi(jk)).gt.1.0D-12) then
+         nspel=nspel+1
+         compnos(nspel)=jk
+         stoi(nspel)=compstoi(jk)
+         smass=smass+stoi(nspel)*ceq%complist(jk)%mass
+! maybe save species charge in the component record??
+! the lines below needed only if a component is charged !! hopefully never ...
+         locomp=ceq%complist(jk)%splink
+         qsp=qsp+stoi(nspel)*splista(locomp)%charge
+         if(splista(locomp)%charge.ne.zero) then
+            write(*,*)'3A charge: ',loksp,qsp,stoi(nspel),splista(locomp)%charge
+         endif
+      endif
+   enddo reduce
+1000 return
+ end subroutine get_species_component_data
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -2059,6 +2174,7 @@ end function find_phasetuple_by_indices
    double precision, allocatable :: matrix(:,:),imat(:,:)
    character name*24
    type(gtp_condition), pointer :: pcond,qcond,last
+   type(gtp_equilibrium_data), pointer :: curceq
 !
    allocate(loksp(noofel))
    allocate(ielno(noofel))
@@ -2084,9 +2200,9 @@ end function find_phasetuple_by_indices
          matrix(ielno(i1),c1)=stoi(i1)
       enddo
    enddo
-   do c1=1,noofel
-      write(*,70)'3A mat: ',c1,(matrix(c2,c1),c2=1,noofel)
-   enddo
+!   do c1=1,noofel
+!      write(*,70)'3A mat: ',c1,(matrix(c2,c1),c2=1,noofel)
+!   enddo
 70 format(a,i1,6(1pe12.4))
 ! check that the matrix has an inverse
    allocate(imat(noofel,noofel))
@@ -2095,12 +2211,12 @@ end function find_phasetuple_by_indices
       write(*,*)'Error inverting component matrix'
       gx%bmperr=4399; goto 1000
    endif
-   do c1=1,noofel
-      write(*,70)'3A imt: ',c1,(imat(c2,c1),c2=1,noofel)
-   enddo
-   gx%bmperr=4399
-   write(*,*)'All seems OK so far ... but not implemented yet'
-   goto 1000
+!   do c1=1,noofel
+!      write(*,70)'3A imt: ',c1,(imat(c2,c1),c2=1,noofel)
+!   enddo
+!   gx%bmperr=4399
+!   write(*,*)'3A *** All seems OK so far ... but only testing yet'
+!   goto 1000
 !----------------------------------------------------------
 ! We have a new set of components!!
 ! At present (and maybe forever) use the same components in all equilibria ...
@@ -2108,6 +2224,10 @@ end function find_phasetuple_by_indices
       do c2=1,noofel
          ceq%compstoi(c2,c1)=matrix(c2,c1)
          ceq%invcompstoi(c2,c1)=imat(c2,c1)
+! set bit GSNOTELCOMP if there are non-zero off-diagonal terms in invcompstoi 
+         if(c1.ne.c2 .and. imat(c2,c1).ne.zero) then
+            globaldata%status=ibset(globaldata%status,GSNOTELCOMP)
+         endif
       enddo
 !   enddo
 ! enter the components, no alphabetical order ... ??
@@ -2119,27 +2239,17 @@ end function find_phasetuple_by_indices
       ceq%complist(c1)%mass=smass(c1)
    enddo
 ! delete all conditions and experiments in all equilibria
-   last=>ceq%lastcondition
-700 continue
-   if(associated(last)) then
-      pcond=>last%next
-      do while(.not.associated(pcond,last))
-         qcond=>pcond
-         pcond=>pcond%next
-         write(*,*)'deleting condition/experiment'
-         deallocate(qcond)
-      enddo
-      deallocate(pcond)
-      nullify(ceq%lastcondition)
-   endif
-   last=>ceq%lastexperiment
-   if(associated(last)) then
-      write(*,*)'There are experiments'
-      goto 700
-   endif
-   if(allocated(ceq%eqextra)) deallocate(ceq%eqextra)
-! 
+! the argument 0 means only conditions and experiments deleted, 
+! not the ceq itself
+   write(*,*)'3A deleting all conditions in all equilibria',eqfree-1
+   do c1=1,eqfree-1
+      curceq=>eqlista(c1)
+      call delete_all_conditions(0,curceq)
+! delete if there are some extra things
+      if(allocated(curceq%eqextra)) deallocate(curceq%eqextra)
+   enddo
 1000 continue
+! deallocate temporary things (maybe default?)
    deallocate(loksp)
    deallocate(ielno)
    deallocate(stoi)

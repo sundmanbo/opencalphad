@@ -62,8 +62,6 @@ contains
     character prefix*4,suffix*4
 ! element mass
     double precision mass
-! constituent indices in a phase
-!    integer, dimension(maxconst) :: knr
 ! constituent fractions of a phase
     double precision, dimension(maxconst) :: yarr
 ! stoichiometry of a specis and sublattice sites of a phase
@@ -3237,6 +3235,8 @@ contains
 !          deallocate(axarr(jp)%coeffs)
        enddo
        noofaxis=0
+! remove some more defaults ...
+       defcp=1
 ! deallocate does not work on pointers!!!
        nullify(starteq)
        noofstarteq=0
@@ -3349,7 +3349,16 @@ contains
 !----------------------------------
 ! debug test1 (whatever)
        case(4)
-          write(*,*)'Nothing here'
+!          write(*,*)'Nothing here'
+          do i1=1,nosp()
+             call get_species_location(i1,loksp,name1)
+             if(gx%bmperr.ne.0) goto 990
+             call get_species_component_data(loksp,i2,iphl,stoik,xxx,&
+                  xxy,ceq)
+             if(gx%bmperr.ne.0) goto 990
+             write(kou,1670)i1,loksp,name1,xxx,xxy,(iphl(j1),stoik(j1),j1=1,i2)
+1670         format(2i4,1x,a12,1x,2F6.2,2x,10(i3,1x,F7.4))
+          enddo
 !          call delete_all_conditions(0,ceq)
 !---------------------------------
 ! debug test2 (whatever)

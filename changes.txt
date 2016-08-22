@@ -18,6 +18,12 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2016.08.22 It is now possible to enter a new set of components but
+there are some problems not yet solved, in parts of the code the
+elements are still used, for example the size of the system is still
+calculated as the number of moles of elements.  But I leave such
+things until I am 69 years old.
+
 2016.08.20 I have added the possibility to use expressions also for
 total amount of an element.  It is sometimes interesting to keep the
 ratio of the amounts of two elements fixed when changing the overall

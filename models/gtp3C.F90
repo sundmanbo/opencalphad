@@ -3462,7 +3462,12 @@
       else
 ! not +1 or -1, write number
 !         write(*,*)'3C list cond: ',current%condcoeff(iterm),one,wone
-         call wrinum(text,ip,8,1,current%condcoeff(iterm))
+         if(iterm.eq.1) then
+! do not write a + in front of first term
+            call wrinum(text,ip,8,0,current%condcoeff(iterm))
+         else
+            call wrinum(text,ip,8,1,current%condcoeff(iterm))
+         endif
          text(ip:ip)='*'
          ip=ip+1
       endif

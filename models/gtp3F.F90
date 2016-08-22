@@ -1049,13 +1049,14 @@
 ! totmol is total number of moles and totmass total mass of components.
 ! amount is number of moles of components per formula unit.
    implicit none
-   TYPE(gtp_equilibrium_data) :: ceq
+   TYPE(gtp_equilibrium_data), pointer :: ceq
    integer iph,ics
    double precision, dimension(*) :: xmol,wmass
    double precision amount,totmol,totmass
 !\end{verbatim}
-   integer ic,jc,lokph,lokcs,ll,iel,lokel,ie,kk,loksp
-   double precision as,yz,xsum,wsum
+   integer ic,jc,lokph,lokcs,ll,iel,lokel,ie,kk,loksp,nspel
+   integer compnos(maxspel)
+   double precision as,yz,xsum,wsum,stoi(maxspel),smass,qsp
    double precision, dimension(maxel) :: x2mol,w2mass
 !
    do ic=1,noofel
@@ -1076,24 +1077,26 @@
          if(.not.btest(ceq%phase_varres(lokcs)%constat(ic),CONSUS)) then
             yz=ceq%phase_varres(lokcs)%yfr(ic)
             loksp=phlista(lokph)%constitlist(ic)
-! isq just for debug output
-!            isq=splista(loksp)%alphaindex
-!             write(*,11)'3F cpm 3: ',lokph,lokcs,loksp,splista(loksp)%noofel
-!11           format(a,5i3)
-            do iel=1,splista(loksp)%noofel
-               lokel=splista(loksp)%ellinks(iel)
-               ie=ellista(lokel)%alphaindex
-               if(ie.ne.0) then
-                  xmol(ie)=xmol(ie)+&
-                       as*yz*splista(loksp)%stoichiometry(iel)
-               endif
-            enddo
-!            if(ie.gt.0) then
-!               write(*,711)ic,loksp,isq,lokel,ie,yz,xmol(ie)
-!            else
-!               write(*,711)ic,loksp,isq,lokel,ie,yz
-!            endif
-!711         format('3F cpmm: ',5i9,2F7.4)
+            if(.not.btest(globaldata%status,GSNOTELCOMP)) then
+! the elements are the components
+               do iel=1,splista(loksp)%noofel
+                  lokel=splista(loksp)%ellinks(iel)
+                  ie=ellista(lokel)%alphaindex
+                  if(ie.ne.0) then
+                     xmol(ie)=xmol(ie)+&
+                          as*yz*splista(loksp)%stoichiometry(iel)
+                  endif
+               enddo
+            else
+! when we have other components than the elements
+! we must convert the element stoichiometry to component stoichiometry
+!               write(*,*)'3F other components than elements'
+               call get_species_component_data(loksp,nspel,compnos,stoi,&
+                    smass,qsp,ceq)
+               do iel=1,nspel
+                  xmol(compnos(iel))=xmol(compnos(iel))+as*yz*stoi(iel)
+               enddo
+            endif
          endif
       enddo allcons
    enddo allsubl
@@ -1106,7 +1109,8 @@
 ! here xmol(i) is equal to the number of moles of element i per formula unit
 ! set wmass(i) to the mass of of element i per mole formula unit and sum
    do ic=1,noofel
-      wmass(ic)=xmol(ic)*ellista(elements(ic))%mass
+!      wmass(ic)=xmol(ic)*ellista(elements(ic))%mass
+      wmass(ic)=xmol(ic)*ceq%complist(ic)%mass
       xsum=xsum+xmol(ic)
       wsum=wsum+wmass(ic)
    enddo
@@ -1226,7 +1230,7 @@
    implicit none
    double precision, dimension(*) :: xmol,wmass
    double precision totmol,totmass
-   TYPE(gtp_equilibrium_data) :: ceq
+   TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
    double precision am,amult,tmol,tmass
    double precision, dimension(maxel) :: xph,wph

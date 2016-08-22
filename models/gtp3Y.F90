@@ -63,7 +63,7 @@
    integer pph,zph,nystph,order(maxel),tbase,qbase,wbase
 !
    if(btest(globaldata%status,GSNOGLOB)) then
-      write(*,*)'Grid minimization not allowed'
+      write(*,*)'3Y Grid minimization not allowed'
       gx%bmperr=4173; goto 1000
    endif
    call cpu_time(starting)
@@ -71,30 +71,35 @@
 ! Trace turn on output of grid on a file ocgrid.dat
 !   trace=.true.
    trace=.FALSE.
-   if(trace) write(*,*)'Trace set TRUE'
+   if(trace) write(*,*)'3Y Trace set TRUE'
    savetp=ceq%tpval
    ceq%tpval=tp
 !    ceq%tpval(2)=tp(2)
    nrph=noph()
-!    write(*,*)'ggp A: ',tp(1),ceq%tpval(1)
+!    write(*,*)'3Y ggp A: ',tp(1),ceq%tpval(1)
    if(nrph.gt.maxph) then
 ! too many phases
-      write(*,*)'Too many phases for gridmin'
+      write(*,*)'3Y Too many phases for gridmin'
       gx%bmperr=4344; goto 1000
    endif
    nrel=noel()
    sum=zero
    do i=1,nrel
       if(xknown(i).le.zero .or. xknown(i).ge.one) then
-!         write(*,*)'Illegal composition for gridmin'
-         gx%bmperr=4174; goto 1000
+         if(.not.btest(globaldata%status,GSNOTELCOMP)) then
+            write(*,*)'3Y Illegal composition for gridmin'
+            gx%bmperr=4174; goto 1000
+         else
+! we have other components than elements, fractions can be negative and >1
+            write(*,*)'3Y trying to use gridmininmizer when comp not elements'
+         endif
       endif
       sum=sum+xknown(i)
    enddo
-   if(ocv()) write(*,12)'gridmin: ',sum,(xknown(i),i=1,nrel)
+   if(ocv()) write(*,12)'3Y gridmin: ',sum,(xknown(i),i=1,nrel)
 12 format(a,1pe12.4,10(f8.4))
    if(abs(sum-one).gt.1.0D-8) then
-      write(*,*)'Sum of fractions larger than unity calling global_gridmin'
+      write(*,*)'3Y Sum of fractions not unity when calling global_gridmin'
       gx%bmperr=4174; goto 1000
    endif
    kp=1
@@ -140,20 +145,20 @@
 21 format('Gridpoints for phase ',i3,': ',a,', starts ',i7,', with ',2i7)
 22 format('Gridpoints for phase ',i3,' starts at ',i5,', with ',2i5,i8)
    if(kp-1.gt.maxgrid) then
-      write(*,*)'Too many gridpoints: ',iph
+      write(*,*)'3Y Too many gridpoints: ',iph
       gx%bmperr=4175; goto 1000
    endif
 ! we may have no gridpoints!!!
    if(kp.eq.1) then
-      write(*,*)'No phases, no gridpoints'
+      write(*,*)'3Y No phases, no gridpoints'
       gx%bmperr=4176; goto 1000
    endif
-!   write(*,*)'phases and gridpoints: ',pph,kp,ngrid(pph),nrel
+!   write(*,*)'3Y phases and gridpoints: ',pph,kp,ngrid(pph),nrel
 ! total number of gridpoints is kp-1 ... but sometimes kp is wrong, why??
 !   allocate(xarr(nrel,kp-1))
 !   allocate(xarr(nrel,kp-1+10))
    allocate(xarr(nrel,kp-1+nrel))
-   if(ocv()) write(*,*)'Gridpoints and elements: ',kp-1,nrel
+   if(ocv()) write(*,*)'3Y Gridpoints and elements: ',kp-1,nrel
 ! we should sort iphx to have phases with many gripoints first
 ! kphl must be shifted at the same time
 !$   call sortin(gridpoints,pph,phord)
@@ -167,12 +172,12 @@
 !
 ! we may write the grid on a file
    if(trace) then
-      write(*,*)'Opening gridgen.dat'
+      write(*,*)'3Y Opening gridgen.dat'
       open(33,file='gridgen.dat ',access='sequential')
    endif
 !
    call system_clock(count=starttid)
-!   write(*,*)'Start calculate gridvalues'
+!   write(*,*)'3Y Start calculate gridvalues'
 ! OpenMP parallellization START
 ! the error code gx%bmperr should also be threadprivate
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -197,14 +202,14 @@
 ! for parallel take the phases from phord(pph), phord(pph-1) .... 2, 1
 !-$      iph=phord(pph+1-zph)
 !-$      iv=kphl(iph)
-!--$      write(*,42)'Thread: ',omp_get_thread_num(),zph,iph,&
+!--$      write(*,42)'3Y Thread: ',omp_get_thread_num(),zph,iph,&
 !--$           iphx(iph),iv,gridpoints(pph+1-zph)
 42    format(a,10i7)
 ! this call will calculate all gridpoints, that may take time ...
       call generate_grid(0,iphx(iph),ng,nrel,xarr(1,iv),garr(iv),&
            ny,yarr,gmax,ceq)
       if(gx%bmperr.ne.0) then
-         write(*,*)'grid error ',jip,zph,gx%bmperr
+         write(*,*)'3Y grid error ',jip,zph,gx%bmperr
 ! this jump illegal when openmp
 !         goto 1000
          gx%bmperr=0
@@ -215,13 +220,13 @@
 !         write(*,73)iphx(zph),kp,(xarr(ie,kp),ie=1,nrel)
 !73       format('gp: ',i3,i5,10(f6.3))
 !      enddo
-!      write(*,*)'look!!!'
+!      write(*,*)'3Y look!!!'
 !      read(*,74)ch1
 !74    format(a)
    enddo phloop
 ! we may have open a file
    if(trace) then
-      write(*,*)'Closing gridgen.dat'
+      write(*,*)'3Y Closing gridgen.dat'
       close(33)
    endif
 ! set how many points in 
@@ -234,13 +239,13 @@
 !    kp=ngrid(nrph)
    kp=ngrid(pph)
 !    if(trace) write(*,108)kp
-108 format('The total number of gridpoints are ',i5)
+108 format('3Y The total number of gridpoints are ',i5)
    call cpu_time(finished)
    noofgridpoints=ngrid(pph)
 ! If WHAT is -1 then just compare all gridpoints with plane defined by
 ! the chemical potentials cmu to see if any is below.
 ! If so insert the gridpoint furtherst below the plane and set WHAT 10*iph+ics
-!   write(*,*)'global_gridmin what: ',what
+!   write(*,*)'3Y global_gridmin what: ',what
    if(what.eq.-1) then
       call gridmin_check(nystph,kp,nrel,xarr,garr,xknown,ngrid,pph,&
            cmu,yarr,iphx,ceq)
@@ -248,15 +253,15 @@
    endif
 !-----------------------------------------------
 !    write(*,109)ngrid(pph),finished-starting,endoftime-starttid
-109 format('Calculated ',i6,' gridpoints in ',1pe12.4,' seconds, ',&
+109 format('3Y Calculated ',i6,' gridpoints in ',1pe12.4,' seconds, ',&
          i7,' clockcycles')
 ! find the minimum of nrel gridpoints among the kp-1 gridpoint
 ! for current overall composition, xknown
-!    write(*,*)'globm 4: ',kp,garr(kp),xarr(1,kp)
+!    write(*,*)'3Y globm 4: ',kp,garr(kp),xarr(1,kp)
 !   phfrac=zero
 ! start with all elements having chemical potential equal to gmax
    cmu(1)=gmax
-   if(ocv()) write(*,*)'Finding the gridpoints for the minimum: ',kp-1
+   if(ocv()) write(*,*)'3Y Finding the gridpoints for the minimum: ',kp-1
    call find_gridmin(kp,nrel,xarr,garr,xknown,jgrid,phfrac,cmu,trace)
    if(gx%bmperr.ne.0) goto 1000
 ! The solution with nrel gridpoints are in jgrid, the amount of each in phfrac
@@ -275,17 +280,17 @@
 !   xov=zero
 !   sum=zero
 !   do jp=1,nrel
-!      write(*,63)'xs: ',phfrac(jp),(xarr(nyz,jgrid(jp)),nyz=1,nrel)
+!      write(*,63)'3Y xs: ',phfrac(jp),(xarr(nyz,jgrid(jp)),nyz=1,nrel)
 !      do nyz=1,nrel
 !         xov(nyz)=xov(nyz)+phfrac(jp)*xarr(nyz,jgrid(jp))
 !      enddo
 !      sum=sum+phfrac(jp)
 !   enddo
-!   write(*,63)'ss: ',sum,(xov(nyz),nyz=1,nrel)
+!   write(*,63)'3Y ss: ',sum,(xov(nyz),nyz=1,nrel)
 !63 format(a,1e12.4,10f7.4)
 ! get the phase and constitution for each
    nyz=1
-!   if(trace) write(*,*)'Extracting constititution'
+!   if(trace) write(*,*)'3Y Extracting constititution'
    if(trace) then
       write(31,745)
 745   format(/'Solution: ')
@@ -301,7 +306,7 @@
 713   continue
       ibias=0
       do zph=1,pph
-!          write(*,*)'mode and ibias 1: ',mode,ibias
+!          write(*,*)'3Y mode and ibias 1: ',mode,ibias
 ! ngrid(zph) is the first gridpoints of phase zph
          if(mode.le.ngrid(zph)) then
             mode=mode-ibias
@@ -365,7 +370,7 @@
       endif
    enddo solloop
    if(trace) then
-      write(*,*)'Closing ocgrid.dat file'
+      write(*,*)'3Y Closing ocgrid.dat file'
       close(31)
    endif
 ! there must be as many gridpoints (phases) as there are elements
@@ -377,7 +382,7 @@
       if(gx%bmperr.ne.0) goto 1000
 !   endif
 ! number of gridpoints, nr, may have changed
-!   write(*,*)'After merge_gripoints: ',nr,nvsph
+!   write(*,*)'3Y After merge_gripoints: ',nr,nvsph
    nvsph=nr
 ! if what=-1 or0 do nothing more, just exit
 !   if(what.eq.0) goto 1000
@@ -402,7 +407,7 @@
 ! store chemical potentials multiplied with RT if what not -1
    ceq%rtn=globaldata%rgas*ceq%tpval(1)
    do ie=1,nrel
-!      write(*,*)'grid chemical potential: ',ie,cmu(ie)*ceq%rtn
+!      write(*,*)'3Y grid chemical potential: ',ie,cmu(ie)*ceq%rtn
 ! do not care about reference state for chempot(2)
       ceq%complist(ie)%chempot(1)=cmu(ie)*ceq%rtn
       ceq%complist(ie)%chempot(2)=cmu(ie)*ceq%rtn
@@ -421,7 +426,7 @@
       icsl(i)=0
    enddo
    nocsets=0
-!   write(*,*)'before loop1: ',nvsph,ceq%eqname
+!   write(*,*)'3Y before loop1: ',nvsph,ceq%eqname
 ! loop for all gripoints to store them in composition sets
    loop1: do j1=1,nvsph
 !      write(*,31)'3Y storing gripoints in compsets: ',j1,iphl(j1),icsl(j1),&
@@ -442,7 +447,7 @@
 ! there is no such composition set, is automatic creation allowed?
 ! NOTE: there is a EQNOACS bit also???
                   if(btest(globaldata%status,GSNOACS)) then
-!                     write(*,*)'Not allowed to create composition sets'
+!                     write(*,*)'3Y Not allowed to create composition sets'
                      gx%bmperr=4177; goto 1000
                   endif
                   gx%bmperr=0
@@ -459,10 +464,10 @@
 ! one must be careful with the status word when creating comp.sets
                   call enter_composition_set(kph,'    ','AUTO',icsno)
                   if(gx%bmperr.ne.0) then
-!                     write(*,*)'Error entering composition set ',j1,gx%bmperr
+!                   write(*,*)'3Y Error entering composition set ',j1,gx%bmperr
                      if(gx%bmperr.eq.4092) then
 ! skip entering this set, it may work anyway ...
-                        write(*,298)iphl(j1)
+                        write(kou,298)iphl(j1)
 298             format('Cannot enter enough composition sets for phase',i4,&
                      ' but gridmin struggles on')
                         gx%bmperr=0
@@ -496,16 +501,16 @@
                   call get_phase_name(iphl(j1),ics2,name1)
                   icsl(j2)=ics2
 !                  write(*,1711)name1,ics2
-1711              format('Using composition set for ',a,i3)
+1711              format('3Y Using composition set for ',a,i3)
 ! check if the composition set is fix (2), dormant (2) or suspended (3)
                   kkz=test_phase_status(iphl(j1),ics2,amount,ceq)
 ! old kkz=2 means fix
 !                  if(kkz.eq.2) then
                   if(kkz.eq.PHFIXED) then
-                     write(*,*)'Global minimization with fix phase not allowed'
+                   write(*,*)'3Y Global minimization with fix phase not allowed'
                      gx%bmperr=4346; goto 1000
                   elseif(kkz.lt.PHENTUNST) then
-                     write(*,*)'Changing status for phase ',name1
+                     write(*,*)'3Y Changing status for phase ',name1
                   endif
 ! this means status entered PHSTATE
 !                  ceq%phase_varres(lokcs)%status2=&
@@ -520,8 +525,8 @@
 !313   continue
 !      write(*,*)'3Y enter next gridpoint: ',j1,j2,gx%bmperr
    enddo loop1
-!   write(*,*)'after loop1: ',phlista(1)%noofcs
-   if(nocsets.gt.0) write(*,*)'Composition set(s) created: ',nocsets
+!   write(*,*)'3Y after loop1: ',phlista(1)%noofcs
+   if(nocsets.gt.0) write(*,*)'3Y Composition set(s) created: ',nocsets
 ! Above one should consider if some user created compsets are dedicated to
 ! certain cases (MC carbides or L1_2 ordered).  These should have
 ! a default constitution and CSDEFCON set)
@@ -530,12 +535,12 @@
    ceqstore: do iph=1,nvsph
       if(iphl(iph).lt.0) then
 ! this gripoint has no composition set!!!
-!         write(*,*)'Gridpoint ',iph,' not entered as composition set'
+!         write(*,*)'3Y Gridpoint ',iph,' not entered as composition set'
          continue
       else
          call set_constitution(iphl(iph),icsl(iph),yphl(j1),qq,ceq)
          if(gx%bmperr.ne.0) goto 1000
-!         write(*,1788)'gg: ',iph,iphl(iph),icsl(iph),aphl(iph),&
+!         write(*,1788)'3Y gg: ',iph,iphl(iph),icsl(iph),aphl(iph),&
 !              (yphl(j1+ie),ie=0,3),qq(1)
 1788  format(a,3i3,f8.4,2x,4f8.4,1pe10.2)
 ! aphl(iph) is amount of phase per mole component
@@ -545,9 +550,9 @@
 !         aphl(iph)=aphl(iph)/ceq%phase_varres(lokcs)%abnorm(1)
 !      endif
 !      write(*,1812)iph,lokcs,aphl(iph),ceq%phase_varres(lokcs)%abnorm(1)
-01812  format('aphl: ',2i3,6(1pe12.4))
+1812  format('3Y aphl: ',2i3,6(1pe12.4))
          aphl(iph)=aphl(iph)/ceq%phase_varres(lokcs)%abnorm(1)
-!      write(*,1789)'aphl: ',iph,lokcs,aphl(iph),&
+!      write(*,1789)'3Y aphl: ',iph,lokcs,aphl(iph),&
 !           ceq%phase_varres(lokcs)%abnorm(1)
 1789     format(a,2i3,2(1pe12.4))
          ceq%phase_varres(lokcs)%amfu=aphl(iph)
@@ -565,9 +570,9 @@
    iph=1
 870 continue
       if(iphl(iph).lt.0) then
-!         write(*,*)'Missing compset for phase ',-iphl(iph),&
+!         write(*,*)'3Y Missing compset for phase ',-iphl(iph),&
 !              ' shifting all values down',iph,iv
-!         write(*,880)'Before: ',(iphl(j2),j2=1,nvsph)
+!         write(*,880)'3Y Before: ',(iphl(j2),j2=1,nvsph)
 880      format(a,(20i4))
          do kph=iph,nvsph-1
             iphl(kph)=iphl(kph+1)
@@ -577,7 +582,7 @@
             nyphl(kph)=nyphl(kph+1)
          enddo
          iphl(nvsph)=-9
-!         write(*,880)'After:  ',(iphl(j2),j2=1,nvsph)
+!         write(*,880)'3Y After:  ',(iphl(j2),j2=1,nvsph)
          if(kph.lt.nvsph) then
             do j2=j1,iv
                yphl(j2)=yphl(j2+kkz)
@@ -594,7 +599,7 @@
 !---------------------------------------
 !   write(*,*)'3Y gridpoints: ',nvsph,iph
 1000 continue
-!   write(*,*)'at 1000: ',phlista(1)%noofcs
+!   write(*,*)'3Y at 1000: ',phlista(1)%noofcs
 ! restore tpval in ceq
    ceq%tpval=savetp
    call cpu_time(finish2)
@@ -607,7 +612,7 @@
    else
       write(*,1010)noofgridpoints,finish2-starting,&
            endoftime-starttid,ceq%tpval(1)
-1010  format('Gridmin: ',i7,' points ',1pe10.2,' s and ',&
+1010  format('3Y Gridmin: ',i7,' points ',1pe10.2,' s and ',&
            i7,' clockcycles, T=',0pF8.2)
 ! set the global bit that this is not a full equilibrium
       ceq%status=ibset(ceq%status,EQGRIDCAL)
@@ -617,7 +622,7 @@
       deallocate(gridpoints)
       deallocate(phord)
    endif
-   if(ocv()) write(*,*)'leaving global_gridmin'
+   if(ocv()) write(*,*)'3Y leaving global_gridmin'
    return
  end subroutine global_gridmin
 
@@ -707,7 +712,7 @@
    logical trace,isendmem
    save sumngg
 !
-!   write(*,*)'entering generate_grid: ',mode,iph,ngg
+!   write(*,*)'3Y entering generate_grid: ',mode,iph,ngg
 !---------------------------------------------------------
 ! save current constitution in ydum
    call get_phase_data(iph,1,nsl,nkl,knr,ydum,sites,qq,ceq)
@@ -734,7 +739,7 @@
 !                         find constituent fractions for gridpoint in solution)
 !
    if(mode.eq.0) then
-!      write(*,*)'Generating grid for phase: ',iph
+!      write(*,*)'3Y Generating grid for phase: ',iph
 ! trace TRUE means generate outpt for each gridpoint
 !      trace=.TRUE.
       trace=.FALSE.
@@ -781,7 +786,7 @@
 !   endif
 !
    ny=inkl(nsl)
-!   write(*,1010)'Saved   ',iph,(ydum(i),i=1,ny)
+!   write(*,1010)'3Y Saved   ',iph,(ydum(i),i=1,ny)
 !
 ! mode<0 means calculate size of arrays to allocate
 !
@@ -813,7 +818,7 @@
          ngg=nend*(1+3*(nend-1))
 ! added yqrt
 !         je=nend*(nend-1)*(nend-2)
-!         write(*,*)'endmemers, ngg and je: ',nend,ngg,je
+!         write(*,*)'3Y endmemers, ngg and je: ',nend,ngg,je
       else
 ! 3-10: three binary and two ternary combinarions (all)
 ! and the added (quaternary) combinatin
@@ -822,14 +827,14 @@
          ngg=nend*(1+3*(nend-1))
 ! added ygrt
          je=nend*(nend-1)*(nend-2)
-!         write(*,*)'endmemers, ngg and je: ',nend,ngg,je
+!         write(*,*)'3Y endmemers, ngg and je: ',nend,ngg,je
       endif
-!      write(*,*)'endmembers and gridpoints: ',nend,ngg
+!      write(*,*)'3Y endmembers and gridpoints: ',nend,ngg
 !      read(*,11)ch1
 11    format(a)
 !      ngg=ngg+iliqneut
 !      ngg=ngg
-      if(ocv()) write(*,*)'Generate grid: ',nend,ngg
+      if(ocv()) write(*,*)'3Y Generate grid: ',nend,ngg
       ny=nend
       goto 1001
    endif negmode
@@ -840,7 +845,7 @@
 !   return sitefractions (for mode=gridpoint number (part of the solution))
 !   BUT: The only way to find the site fraction of a gripoint is to generate
 !   all gridpoints up the one specified by the value of mode (no G calculation)
-!   write(*,*)'ggy: ',mode,iph,nsl,nend,inkl(nsl)
+!   write(*,*)'3Y ggy: ',mode,iph,nsl,nend,inkl(nsl)
    allocate(endm(nsl,nend))
    allocate(yfra(inkl(nsl)))
    nofy=inkl(nsl)
@@ -876,7 +881,7 @@
 150 continue
 !---------------------------------------
 ! now generate all combinations of endmembers
-!   write(*,*)'endmembers and gridpoints: ',nend,ngg
+!   write(*,*)'3Y endmembers and gridpoints: ',nend,ngg
 !   read(*,11)ch1
    ngg=0
    lokph=phases(iph)
@@ -902,13 +907,13 @@
       else
 ! calculate G and composition and save
 !         write(*,201)ibas,ngg,(yfra(is),is=1,inkl(nsl))
-201      format('ggz: ',i2,i4,5(F10.6))
-         if(ocv()) write(*,*)'Calculating gridpoint: ',ngg
+201      format('3Y ggz: ',i2,i4,5(F10.6))
+         if(ocv()) write(*,*)'3Y Calculating gridpoint: ',ngg
          call calc_gridpoint(iph,yfra,nrel,xarr(1,ngg),garr(ngg),ceq)
          if(gx%bmperr.ne.0) goto 1000
          if(garr(ngg).gt.gmax) gmax=garr(ngg)
 !         if(ngg.eq.15) then
-!            write(*,520)'cgx: ',(xarr(is,ngg),is=1,nrel)
+!            write(*,520)'3Y cgx: ',(xarr(is,ngg),is=1,nrel)
 !         endif
          if(trace) then
             if(isendmem) then
@@ -995,7 +1000,7 @@
          if(iter.eq.2) then
 ! we are interating in the ternary endmember
             stop 'no ternary for 10<nend<15'
-!            write(*,*)'Ternary combinations for 10<nend<15'
+!            write(*,*)'3Y Ternary combinations for 10<nend<15'
             kend=kend+1
             if(kend.eq.iend) kend=kend+1
             if(kend.eq.jend) kend=kend+1
@@ -1045,7 +1050,7 @@
          if(iter.eq.2 .or. iter.eq.3) then
 ! we are interating in the ternary endmember
             stop 'no ternary for nend<10'
-!            write(*,*)'Ternary combinations for 2<nend<10'
+!            write(*,*)'3Y Ternary combinations for 2<nend<10'
             kend=kend+1
             if(kend.eq.iend) kend=kend+1
             if(kend.eq.jend) kend=kend+1
@@ -1128,16 +1133,16 @@
 !   call get_phase_data(iph,1,nsl,nkl,knr,ydum,sites,qq,ceq)
    errsave=gx%bmperr
    gx%bmperr=0
-!   write(*,1010)'Restore ',iph,(ydum(i),i=1,ny)
+!   write(*,1010)'3Y Restore ',iph,(ydum(i),i=1,ny)
 1010 format(a,'const for ',i3,10(f6.3))
    call set_constitution(iph,1,ydum,qq,ceq)
    if(gx%bmperr.ne.0) then
-      write(*,*)'Error restoring constitution for phase: ',iph,gx%bmperr
+      write(*,*)'3Y Error restoring constitution for phase: ',iph,gx%bmperr
    endif
    gx%bmperr=errsave
 ! jump here if error saving constitution!!
 1020 continue
-   if(gx%bmperr.ne.0) write(*,*)'gengrid error: ',gx%bmperr
+   if(gx%bmperr.ne.0) write(*,*)'3Y gengrid error: ',gx%bmperr
    return
  end subroutine generate_grid
 
@@ -1229,9 +1234,9 @@
    character ch1*1
 !
 !   write(*,17)mode,iph,ngg
-17 format('entering generate_dense_grid: ',i2,i3,i10)
+17 format('3Y entering generate_dense_grid: ',i2,i3,i10)
    if(mode.eq.0) then
-!      write(*,*)'Generating grid for phase: ',iph
+!      write(*,*)'3Y Generating grid for phase: ',iph
 ! trace TRUE means generate outpt for each gridpoint
 !      trace=.TRUE.
       trace=.FALSE.
@@ -1251,7 +1256,7 @@
    else
       trace=.FALSE.
    endif
-!   write(*,*)'Getting phase data',mode
+!   write(*,*)'3Y Getting phase data',mode
    call get_phase_data(iph,1,nsl,nkl,knr,ydum,sites,qq,ceq)
    if(gx%bmperr.ne.0) goto 1000
 ! calculate the number of endmembers and index of first constituent in subl ll
@@ -1270,7 +1275,7 @@
       ngdim=ngg
       ngg=nend
       lokph=phases(iph)
-!      write(*,*)'nend 1: ',mode,ngg
+!      write(*,*)'3Y nend 1: ',mode,ngg
       if(nend.eq.1 .or. nend.gt.50 .or. &
            btest(phlista(lokph)%status1,PHID)) then
 ! >50 or 1 endmember or ideal phase: only endmembers
@@ -1295,11 +1300,11 @@
             ngg=ngg+nend*(nend-1)+6*nend*nend*(nend-1)
          endif
       endif
-!      write(*,*)'endmembers and gridpoints: ',nend,ngg
+!      write(*,*)'3Y endmembers and gridpoints: ',nend,ngg
 !      read(*,11)ch1
 11    format(a)
       ny=nend
-!      write(*,*)'nend 2: ',mode,ngg
+!      write(*,*)'3Y nend 2: ',mode,ngg
       goto 1001
    endif negmode
 !------------------------------------------------------------
@@ -1309,7 +1314,7 @@
 !   return sitefractions (for mode=gridpoint number (part of the solution))
 !   BUT: The only way to find the site fraction of a gripoint is to generate
 !   all gridpoints up the one specified by the value of mode (no G calculation)
-!   write(*,*)'ggy: ',mode,iph,nsl,nend,inkl(nsl)
+!   write(*,*)'3Y ggy: ',mode,iph,nsl,nend,inkl(nsl)
 !
 ! endm(i,j) has constituent indices in i=1..nsl for endmember j 
 ! endm(1,1) is constituent in sublattice 1 of first endmember
@@ -1364,7 +1369,7 @@
       ngg=ngg+1
       if(mode.eq.0) then
 ! this is fór a single endmember
-!         write(*,201)'end: ',ngg,(yfra(is),is=1,inkl(nsl))
+!         write(*,201)'3Y end: ',ngg,(yfra(is),is=1,inkl(nsl))
          call calc_gridpoint(iph,yfra,nrel,xarr(1,ngg),garr(ngg),ceq)
          if(gx%bmperr.ne.0) goto 1000
          if(garr(ngg).gt.gmax) gmax=garr(ngg)
@@ -1389,7 +1394,7 @@
             call calc_gridpoint(iph,yfra,nrel,xarr(1,ngg),garr(ngg),ceq)
             if(gx%bmperr.ne.0) goto 1000
             if(garr(ngg).gt.gmax) gmax=garr(ngg)
-!            write(*,201)'bin: ',ngg,(yfra(is),is=1,inkl(nsl))
+!            write(*,201)'3Y bin: ',ngg,(yfra(is),is=1,inkl(nsl))
          elseif(ngg.eq.mode) then
             goto 500
          endif
@@ -1425,7 +1430,7 @@
                   call calc_gridpoint(iph,yfra,nrel,xarr(1,ngg),garr(ngg),ceq)
                   if(gx%bmperr.ne.0) goto 1000
                   if(garr(ngg).gt.gmax) gmax=garr(ngg)
-!                  write(*,201)'ter: ',ngg,(yfra(is),is=1,inkl(nsl)),ysum
+!                  write(*,201)'3Y ter: ',ngg,(yfra(is),is=1,inkl(nsl)),ysum
                elseif(ngg.eq.mode) then
                   goto 500
                endif
@@ -1434,20 +1439,20 @@
          l1=ngg
       enddo ibasloop
    enddo endmem1
-!   write(*,*)'Calculated points: ',ngg
+!   write(*,*)'3Y Calculated points: ',ngg
    goto 1000
 !----------------------------------------
 ! here we return the constitution for gridpoint "mode" in the solution
 ! We must also return the mole fractions ... NO??
 500 continue
-!    write(*,505)'ggg: ',mode,iph,nsl,inkl(nsl),ny
+!    write(*,505)'3Y ggg: ',mode,iph,nsl,inkl(nsl),ny
 505 format(a,i7,i4,2x,i2,i5,i10)
-!   write(*,510)'ggy: ',mode,ngdim,ny,(yfra(i),i=1,ny)
+!   write(*,510)'3Y ggy: ',mode,ngdim,ny,(yfra(i),i=1,ny)
 510 format(a,2i5,i3,10(F6.3))
    do i=1,ny
       yarr(i)=yfra(i)
    enddo
-!   write(*,520)'ggx: ',(xarr(is,ngg+ngdim),is=1,nrel)
+!   write(*,520)'3Y ggx: ',(xarr(is,ngg+ngdim),is=1,nrel)
 520 format(a,10(f8.5))
 1000 continue
 ! these will be deallocated by default when exit this subroutine ...
@@ -1460,14 +1465,14 @@
 !   call get_phase_data(iph,1,nsl,nkl,knr,ydum,sites,qq,ceq)
    errsave=gx%bmperr
    gx%bmperr=0
-!   write(*,1010)'Restore ',iph,(ydum(i),i=1,ny)
+!   write(*,1010)'3Y Restore ',iph,(ydum(i),i=1,ny)
 1010 format(a,'const for ',i3,10(f6.3))
    call set_constitution(iph,1,ydum,qq,ceq)
    if(gx%bmperr.ne.0) then
-      write(*,*)'Error restoring constitution for phase: ',iph,gx%bmperr
+      write(*,*)'3Y Error restoring constitution for phase: ',iph,gx%bmperr
    endif
    gx%bmperr=errsave
-   if(gx%bmperr.ne.0) write(*,*)'gengrid error: ',gx%bmperr
+   if(gx%bmperr.ne.0) write(*,*)'3Y gengrid error: ',gx%bmperr
    return
  end subroutine generate_dense_grid
 
@@ -1558,7 +1563,7 @@
 ! inkl(ll) is the number of constituents up to and including sublattice ll
       inkl(ll)=inkl(ll-1)+nkl(ll)
    enddo
-!   write(*,*)'Charged grid for phase ',iph,mode,nend
+!   write(*,*)'3Y Charged grid for phase ',iph,mode,nend
    if(nend.eq.1) then
 ! a single endmember, just check it is neutral
       ngg=1
@@ -1579,14 +1584,14 @@
 ! if mode>0 return constitution, already set
          endif
 ! finally remove the request for external charge balance !!!
-!         write(*,*)'No external charge balance for phase:',iph,lokcs,mode
+!         write(*,*)'3Y No external charge balance for phase:',iph,lokcs,mode
          call get_phase_compset(iph,1,lokph,lokcs)
          phlista(lokph)%status1=ibclr(phlista(lokph)%status1,PHEXCB)
          goto 1000
       endif
       ngg=0
       call get_phase_compset(iph,1,lokph,lokcs)
-      write(*,*)'Phase suspended as net charge: ',phlista(lokph)%name
+      write(*,*)'3Y Phase suspended as net charge: ',phlista(lokph)%name
 ! suspend all composition sets
       do mm=1,phlista(lokph)%noofcs
          lokcs=phlista(lokph)%linktocs(mm)
@@ -2100,7 +2105,7 @@
 ! Here we have the neutral constituent fraction in y4
 ! if mode>0 we have found the requested constitution
          if(mode.lt.0) then
-            write(*,*)'We should never be here ...'
+            write(*,*)'3Y We should never be here ...'
             goto 1000
          elseif(mode.gt.0) then
             if(mode.eq.nm) then
@@ -2192,7 +2197,7 @@
    if(gx%bmperr.ne.0) goto 1000
    call calc_phase_mol(iph,xmol,ceq)
    if(gx%bmperr.ne.0) goto 1000
-!    write(*,15)'gd2: ',iph,lokres,qq(1),&
+!    write(*,15)'3Y gd2: ',iph,lokres,qq(1),&
 !         ceq%phase_varres(lokres)%gval(1,1),(xmol(i),i=1,nrel)
 !15  format(a,2i4,2e12.4,2x,5(F9.5))
    do i=1,nrel
@@ -2213,7 +2218,7 @@
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 !      gval=real(ceq%phase_varres(lokres)%gval(1,1)/qq(1)+20*qq(2)**2)
 !      gval=real(ceq%phase_varres(lokres)%gval(1,1)/qq(1)+5*qq(2)**2)
-      write(*,*)'Problem with net charge ',iph,qq(2)
+      write(*,*)'3Y Problem with net charge ',iph,qq(2)
       gval=real(ceq%phase_varres(lokres)%gval(1,1)/qq(1)+qq(2)**2)
       if(ocv()) write(*,66)'3Y charged gp: ',&
            ceq%phase_varres(lokres)%gval(1,1)/qq(1),qq(1),abs(qq(2))
@@ -2227,7 +2232,7 @@
 ! check for parallel
 !    jip=omp_get_thread_num()
 !    write(*,1010)jip,gval,gx%bmperr
-1010 format('Thread ',i3,', gval: ',1pe15.6,', error: ',i6)
+1010 format('3Y Thread ',i3,', gval: ',1pe15.6,', error: ',i6)
    return
  end subroutine calc_gridpoint
 
@@ -2288,16 +2293,16 @@
    if(qq(1).ge.1.0D-2) then
 ! avoid calculating endmembers with too many vacancies. gval is divided by RT
       gval=ceq%phase_varres(lokres)%gval(1,1)/qq(1)
-!      write(*,*)'gval: ',gval,qq(1)
+!      write(*,*)'3Y gval: ',gval,qq(1)
    else
-!      write(*,*)'End member has no atoms'
+!      write(*,*)'3Y End member has no atoms'
       gx%bmperr=4161; goto 1000
    endif
 1000 continue
    ierr=gx%bmperr
    if(gx%bmperr.ne.0) gx%bmperr=0
 ! restore constitution and gval!!!
-!   write(*,17)'res: ',kk0,(savey(i),i=1,kk0)
+!   write(*,17)'3Y res: ',kk0,(savey(i),i=1,kk0)
    do ll=1,6
       ceq%phase_varres(lokres)%gval(ll,1)=saveg(ll)
    enddo
@@ -2444,7 +2449,7 @@
       endif
       kk0=kk0+nkl(ll)
    enddo
-!   write(*,17)'set: ',kk0,(yfra(i),i=1,kk0)
+!   write(*,17)'3Y set: ',kk0,(yfra(i),i=1,kk0)
 !17 format(a,i3,5(1pe12.4))
    call set_constitution(iph,1,yfra,qq,ceq)
    if(gx%bmperr.ne.0) goto 1000
@@ -2467,11 +2472,11 @@
       ierr=gx%bmperr; gx%bmperr=0
    endif
 ! restore constitution and T and P
-!   write(*,17)'res: ',kk0,(savey(i),i=1,kk0)
+!   write(*,17)'3Y res: ',kk0,(savey(i),i=1,kk0)
    call set_constitution(iph,1,savey,qq,ceq)
    if(gx%bmperr.ne.0) then
       if(ierr.ne.0) then
-         write(*,*)'Double errors: ',ierr,gx%bmperr
+         write(*,*)'3Y Double errors: ',ierr,gx%bmperr
       endif
 ! return first error
       gx%bmperr=ierr
@@ -2514,7 +2519,7 @@
    character ch1*1
 ! if trace then open file to write grid
    if(trace) then
-      write(*,*)'Opening ocgrid.dat to write grid solution'
+      write(*,*)'3Y Opening ocgrid.dat to write grid solution'
       open(31,file='ocgrid.dat ',access='sequential')
       write(31,700)nrel,kp,(xknown(inuse),inuse=1,nrel)
 700   format('Output from OC gridmin'/' Elements: ',i2,', gridpoints: 'i5,&
@@ -2539,7 +2544,7 @@
    enddo
    nrel1=nrel+1
    checkremoved=.false.
-!   write(*,11)'fm8: ',(xknown(i),i=1,nrel)
+!   write(*,11)'3Y fm8: ',(xknown(i),i=1,nrel)
 !11 format(a,7(F8.4))
 ! Find the lowest Gibbs energy as close as possible to each pure element
 ! or with max content
@@ -2562,7 +2567,7 @@
             xmat(je,je)=xarr(je,ip)
             jgrid(je)=ip
             gmin(je)=garr(ip)
-!            write(*,*)'pure: ',je,ip,gmin(je)
+!            write(*,*)'3Y pure: ',je,ip,gmin(je)
 !         elseif(jgrid(je).eq.0 .and. xarr(je,ip).gt.xmaxx(je)) then
 ! failed attempt to handle cases with no gridpoint for a pure element
 !            xmaxx(je)=xarr(je,ip)
@@ -2578,11 +2583,11 @@
       if(jgrid(je).eq.0) then
 ! no gridpoint assigned to this element!! error (note C in pure fcc has no gp)
 !         gx%bmperr=4149; goto 1000
-         write(*,122)'Warning, no gridpoint for pure element ',je
+         write(*,122)'3Y Warning, no gridpoint for pure element ',je
 !              nopure(je),xmaxx(je)
 122      format(a,2i5,2F7.4)
          if(nopure(je).eq.0) then
-!            write(*,122)'No solubility in any phase for element ',je
+!            write(*,122)'3Y No solubility in any phase for element ',je
             gx%bmperr=4149; goto 1000
          elseif(xarr(je,nopure(je)).gt.xknown(je)) then
 ! accept gripoint with highest content of element je outside known composition
@@ -2592,7 +2597,7 @@
             gmin(je)=garr(ip)
             phfrac(je)=xknown(je)
          else
-            write(*,122)'Composition outside phase compositions for element',&
+           write(*,122)'3Y Composition outside phase compositions for element',&
                  je,nopure(je),xmaxx(je),xknown(je)
             gx%bmperr=4149; goto 1000
          endif
@@ -2652,7 +2657,7 @@
    qmatsave=qmat
 ! debug output
 !   do je=1,nrel
-!      write(*,177)'fm4: ',jgrid(je),phfrac(je),(xmat(ie,je),ie=1,nrel)
+!      write(*,177)'3Y fm4: ',jgrid(je),phfrac(je),(xmat(ie,je),ie=1,nrel)
 !   enddo
 177 format(a,i5,1pe11.3,2x,5(1pe11.3))
    gvvp=zero
@@ -2671,14 +2676,14 @@
    endif
    griter=0
    gpfail=0
-!   write(*,175)'ini: ',gvvp,(cmu(ie),ie=1,nrel)
+!   write(*,175)'3Y ini: ',gvvp,(cmu(ie),ie=1,nrel)
 175 format(a,(1e12.4),2x,6(1pe12.4))
-!   write(*,*)'gvvp: ',gvvp
+!   write(*,*)'3Y gvvp: ',gvvp
 ! check we have the correct global composition
 !    call chocx('fgm1 ',nrel,jgrid,phfrac,xmat)
 !    if(gx%bmperr.ne.0) goto 1000
 !    write(*,173)gvvp,(jgrid(i),i=1,nrel)
-173 format('fms: ',1pe12.4,10i5)
+173 format('3Y fms: ',1pe12.4,10i5)
 !   read(*,174)ch1
 !174 format(a)
 !----------------------------------------------------------
@@ -2691,12 +2696,12 @@
    griter=griter+1
    dgmin=zero
    nyp=0
-!   write(*,*)'Gridpoints in use: ',inuse
+!   write(*,*)'3Y Gridpoints in use: ',inuse
 !   ovall=zero
 !   do i=1,nrel
 !      ovall=ovall+xknown(i)*cmu(i)
 !   enddo
-!   write(*,203)'ff:',inuse,ovall,(cmu(je),je=1,nrel)
+!   write(*,203)'3Y ff:',inuse,ovall,(cmu(je),je=1,nrel)
 203 format(a,i4,1pe12.4,6(1pe11.3))
    pointloop: do jp=1,kp
       included: if(notuse(jp).eq.0) then
@@ -2706,7 +2711,7 @@
             gplan=gplan+xarr(iel,jp)*cmu(iel)
          enddo
          dg=garr(jp)-gplan
-!         write(*,209)'fmz: ',dg,garr(jp),gplan
+!         write(*,209)'3Y fmz: ',dg,garr(jp),gplan
 209      format(a,3(1pe12.4))
          if(dg.gt.zero) then
 !            inuse=inuse-1
@@ -2725,7 +2730,7 @@
 44          format(a,i5,5(1pe12.4))
          endif
 !      else
-!         write(*,*)'Excluded: ',griter,jp
+!         write(*,*)'3X Excluded: ',griter,jp
       endif included
    enddo pointloop
 ! if lower gridpoint nyp>0
@@ -2738,7 +2743,7 @@
 !   enddo
 !   dg=garr(jp)-gplan
 !   write(*,7677)jp,gplan,garr(jp),dg,(xarr(iel,jp),iel=1,nrel)
-!7677 format('Gridpoint: ',i5,3(1pe12.4)/(10f7.4))
+!7677 format('3Y Gridpoint: ',i5,3(1pe12.4)/(10f7.4))
 ! TBASE bug------------------------end
 ! if nyp=0 we have found the lowest tangent plane including the composition
    if(nyp.eq.0 .or. abs(dgmin).lt.dgminlim) then
@@ -2750,7 +2755,7 @@
    endif
 !   inuse=inuse-1
    notuse(nyp)=1
-!   write(*,211)'ny:',nyp,dgmin,(xarr(ie,nyp),ie=1,nrel)
+!   write(*,211)'3Y ny:',nyp,dgmin,(xarr(ie,nyp),ie=1,nrel)
    if(trace) write(*,212)'3Y Found gridpoint ',nyp,inuse,dgmin,garr(nyp)
 !211 format(a,i4,1pe12.4,0pf8.4,6(f8.4))
 212 format(a,2i8,6(1pe11.3))
@@ -2765,18 +2770,18 @@
    ie=ie+1
    if(ie.gt.nrel) then
 ! tried to change all columns but no solution, error
-!      write(*,301)'Failed gp: ',nyp,gpfail,(xarr(i,nyp),i=1,nrel)
+!      write(*,301)'3Y Failed gp: ',nyp,gpfail,(xarr(i,nyp),i=1,nrel)
 301   format(a,i7,i3,1pe10.2,2x,8(0pF5.2))
       gpfail=gpfail+1
       if(griter.gt.10*nrel .and. gpfail.gt.8*nrel) then
 ! this must be wrong!!
-         write(*,*)'Grid minimizer problem: ',griter,gpfail
+         write(*,*)'3Y Grid minimizer problem: ',griter,gpfail
          gx%bmperr=4346; goto 1000
       endif
 ! listing restored solution ......
 !      xtx=zero
 !      do jjq=1,nrel
-!         write(*,177)'flp: ',jgrid(jjq),phfrac(jjq),(xmat(ie,jjq),ie=1,nrel)
+!         write(*,177)'3Y flp: ',jgrid(jjq),phfrac(jjq),(xmat(ie,jjq),ie=1,nrel)
 !         do jjz=1,nrel
 !            xtx(jjz)=xtx(jjz)+phfrac(jjq)*xmat(jjz,jjq)
 !         enddo
@@ -2785,12 +2790,12 @@
 !      do jjq=1,nrel
 !         gvv=gvv+xtx(jjq)*cmu(jjq)
 !      enddo
-!      write(*,175)'cur: ',gvv,(cmu(ie),ie=1,nrel)
+!      write(*,175)'3Y cur: ',gvv,(cmu(ie),ie=1,nrel)
 !
 ! >>>> problem with gas phase test case cho1 with x(c)=.2 x(o)=x(H)=.4
 ! The gridpoints returned not good, probably due to too many gridpoints ...
 !
-!      if(trace) write(*,*)'Failed when trying to add gridpoint ',nyp
+!      if(trace) write(*,*)'3Y Failed when trying to add gridpoint ',nyp
       if(checkremoved) goto 950
 ! just ignore this gridpoint and continue, it has been added to notuse
 ! and will be checked again later as "removed"
@@ -2813,7 +2818,7 @@
 ! qmat matrix with left hand side as additional column i.e. QMAT(1..ND1,ND2)
 ! phfrac(ND1) is result array, nz number of unknown, ierr nonzero=error
 !    do ik=1,nrel1
-!       write(*,317)'fm6A: ',(qmat(je,ik),je=1,nrel)
+!       write(*,317)'3Y fm6A: ',(qmat(je,ik),je=1,nrel)
 !    enddo
 !   do je=1,nrel
 !      write(*,55)(qmat(je,iel),iel=1,nrel+1)
@@ -2822,7 +2827,7 @@
    call lingld(nrel,nrel1,qmat,phfrac,nrel,ierr)
    if(ierr.ne.0) then
 ! error may occur and is not fatal, just try to replace next column
-!      write(*,*)'non-fatal error from lingld: ',ierr,nyp
+!      write(*,*)'3Y non-fatal error from lingld: ',ierr,nyp
       qmat=qmatsave
       do i=1,nrel
          phfrac(i)=phfsave(i)
@@ -2833,8 +2838,8 @@
 !299 format(a,i5,7(1pe10.2))
 !   read(*,302)ch1
 302 format(a)
-!   write(*,*)'fm6B: ',ie,ierr
-!   write(*,317)'fm6C: ',(phfrac(i),i=1,nrel)
+!   write(*,*)'3Y fm6B: ',ie,ierr
+!   write(*,317)'3Y fm6C: ',(phfrac(i),i=1,nrel)
 317 format(a,6(1pe12.4))
 !-----------------------
 ! if solution has only positive values accept this, ierr nonzero if singular
@@ -2842,7 +2847,7 @@
       if(phfrac(je).le.phfmin .or. phfrac(je).gt.one) then
 ! maybe problems if known composition have almost zero of some components?
 ! restore qmat
-!          write(*,*)'fm6D: ',je
+!          write(*,*)'3Y fm6D: ',je
          qmat=qmatsave
          do i=1,nrel
             phfrac(i)=phfsave(i)
@@ -2873,9 +2878,9 @@
    enddo
    gmin(ie)=garr(nyp)
 !   do ik=1,nrel
-!      write(*,317)'fm6F: ',(xmat(je,ik),je=1,nrel)
+!      write(*,317)'3Y fm6F: ',(xmat(je,ik),je=1,nrel)
 !   enddo
-!   write(*,317)'fm6G: ',(gmin(je),je=1,nrel)
+!   write(*,317)'3Y fm6G: ',(gmin(je),je=1,nrel)
 ! to solve for the chemical potentials we have ro replace the rows by
 ! columns, there is a TRANSPOSE command for symmetrical matrices
    do ie=1,nrel
@@ -2888,15 +2893,15 @@
       zmat(je,nrel1)=gmin(je)
    enddo
 !    do ik=1,nrel1
-!       write(*,317)'fm8A: ',(zmat(je,ik),je=1,nrel)
+!       write(*,317)'3Y fm8A: ',(zmat(je,ik),je=1,nrel)
 !    enddo
    cmusave=cmu
    call lingld(nrel,nrel1,zmat,cmu,nrel,ierr)
    if(ierr.ne.0) then
 ! this should also be handelled by ignoring the new gridpoint but
 ! here we must restore the xmat, qmatsave and cmu.
-!      write(*,*)'Failed to calculate chemical potentials',ierr
-!      if(trace) write(*,*)'Error from LINGLD for chem.pot.: ',ierr,nyp
+!      write(*,*)'3Y Failed to calculate chemical potentials',ierr
+!      if(trace) write(*,*)'3Y Error from LINGLD for chem.pot.: ',ierr,nyp
       if(checkremoved) goto 950
       inerr=inerr+1
       if(inerr.gt.jerr) then
@@ -2927,17 +2932,17 @@
 !         gvv=gvv+xmat(je,ie)*cmu(je)
 !      enddo
 !   enddo
-!   if(trace) write(*,*)'New total G: ',gvv,gvvp
+!   if(trace) write(*,*)'3Y New total G: ',gvv,gvvp
 ! check if gvv is lower than previous
 !   if(gvv.gt.gvvp) then
-!      write(*,*)' *** Gibbs energy increased, restore!'
+!      write(*,*)'3Y *** Gibbs energy increased, restore!'
 !   endif
 !   gvvp=gvv
 !----------------------------------------------------------
 ! debug output as we have changed one gridpoint
 !   xtx=zero
 !   do jjq=1,nrel
-!      write(*,177)'gpf: ',jgrid(jjq),phfrac(jjq),(xmat(ie,jjq),ie=1,nrel)
+!      write(*,177)'3Y gpf: ',jgrid(jjq),phfrac(jjq),(xmat(ie,jjq),ie=1,nrel)
 !      do jjz=1,nrel
 !         xtx(jjz)=xtx(jjz)+phfrac(jjq)*xmat(jjz,jjq)
 !      enddo
@@ -2946,8 +2951,8 @@
 !   do jjq=1,nrel
 !      gvv=gvv+xtx(jjq)*cmu(jjq)
 !   enddo
-!   write(*,175)'ny4: ',gvv,(cmu(ie),ie=1,nrel)
-!   write(*,317)'new cmu: ',(cmu(je),je=1,nrel)
+!   write(*,175)'3Y ny4: ',gvv,(cmu(ie),ie=1,nrel)
+!   write(*,317)'3Y new cmu: ',(cmu(je),je=1,nrel)
 !   read(*,321)ch1
 !321 format(a)
    gy=zero
@@ -2968,12 +2973,12 @@
    endif
    if(checkremoved) then
       write(*,198)nyp
-198   format('Added previously removed gridpoint ',i6)
+198   format('3Y Added previously removed gridpoint ',i6)
       goto 950
    endif
 !----------------------------------------------
 ! here we go back to loop through all gridpoints again
-!   write(*,*)'New search: ',griter
+!   write(*,*)'3Y New search: ',griter
    goto 200
 !==============================================
 900 continue
@@ -2981,31 +2986,31 @@
 ! NOTE is a H-O gas with N(H)=2 N(O)=1 it fails to find H2O because then
 ! there is just one gridpoint stable!
       write(*,906)gpfail
-906   format('Gridmin could not make use of ',i7,' gridpoint(s)')
+906   format('3Y Gridmin could not make use of ',i7,' gridpoint(s)')
    endif
-!   write(*,*)'Gridmin has found a solution'
-!   write(*,316)'fm9A: ',(jgrid(i),i=1,nrel)
+!   write(*,*)'3Y Gridmin has found a solution'
+!   write(*,316)'3Y fm9A: ',(jgrid(i),i=1,nrel)
 !   do ik=1,nrel
-!      write(*,317)'fm9B: ',(xmat(je,ik),je=1,nrel)
+!      write(*,317)'3Y fm9B: ',(xmat(je,ik),je=1,nrel)
 !   enddo
-!   write(*,317)'fm9C: ',(garr(je),je=1,nrel)
-!   write(*,317)'fm9D: ',(cmu(je),je=1,nrel)
-!   write(*,317)'fm9E: ',(phfrac(je),je=1,nrel)
+!   write(*,317)'3Y fm9C: ',(garr(je),je=1,nrel)
+!   write(*,317)'3Y fm9D: ',(cmu(je),je=1,nrel)
+!   write(*,317)'3Y fm9E: ',(phfrac(je),je=1,nrel)
 316 format(a,10i5)
    nj=0
 !    do j=1,jerr
 !       if(removed(j).gt.0) then
-!          write(*,*)'Failed testing gridpoint ',removed(j)
+!          write(*,*)'3Y Failed testing gridpoint ',removed(j)
 !          nj=nj+1
 !       endif
 !    enddo
 950 continue
    nj=0
    checkremoved=.true.
-!   write(*,*)'Checking removed gridpoints',inerr
+!   write(*,*)'3Y Checking removed gridpoints',inerr
 !   xtx=zero
 !   do jjq=1,nrel
-!      write(*,177)'flp: ',jgrid(jjq),phfrac(jjq),(xmat(ie,jjq),ie=1,nrel)
+!      write(*,177)'3Y flp: ',jgrid(jjq),phfrac(jjq),(xmat(ie,jjq),ie=1,nrel)
 !      do jjz=1,nrel
 !         xtx(jjz)=xtx(jjz)+phfrac(jjq)*xmat(jjz,jjq)
 !      enddo
@@ -3014,11 +3019,11 @@
 !   do jjq=1,nrel
 !      gvv=gvv+xtx(jjq)*cmu(jjq)
 !   enddo
-!   write(*,175)'cur: ',gvv,(cmu(ie),ie=1,nrel)
+!   write(*,175)'3Y cur: ',gvv,(cmu(ie),ie=1,nrel)
 !----------------
    testloop: do jj=1,inerr
       jp=removed(jj)
-!      write(*,*)'Checking removed gridpoint: ',jj,jp
+!      write(*,*)'3Y Checking removed gridpoint: ',jj,jp
       if(jp.gt.0) then
          gplan=zero
          do iel=1,nrel
@@ -3028,7 +3033,7 @@
          if(dg.lt.zero) then
 !            if(trace) write(*,985)jp,dg,garr(jp),gplan
 !            write(*,982)jp,dg,garr(jp),gplan
-982         format('Removed gridpoint ',i5,' is below surface ',3(1pe12.4))
+982         format('3Y Removed gridpoint ',i5,' is below surface ',3(1pe12.4))
 ! try to include it ....
             ie=0
             removed(jj)=-jp
@@ -3036,27 +3041,27 @@
             goto 300
          else
 !            write(*,983)jp,dg
-983         format('Removed gridpoint ',i5,' above surface ',1pe12.4)
+983         format('3Y Removed gridpoint ',i5,' above surface ',1pe12.4)
             removed(jj)=-jp
          endif
       endif
    enddo testloop
    if(inerr.gt.0 .and. nj.eq.0) then
 !      if(trace) write(*,986)inerr
-986   format('None of the ',i3,' removed gridpoints below final surface')
+986   format('3Y None of the ',i3,' removed gridpoints below final surface')
    endif
    if(trace) write(*,771)(jgrid(je),je=1,nrel)
-771 format('Final set of gridpoints: '(/15i5))
+771 format('3Y Final set of gridpoints: '(/15i5))
 !   xtx=0
 !   do iii=1,nrel
 !      write(*,987)jgrid(iii),phfrac(iii),(xarr(i,jgrid(iii)),i=1,nrel)
-!987   format('GP: ',i5,F7.4,2x,6F9.6)
+!987   format('3Y GP: ',i5,F7.4,2x,6F9.6)
 !      do j=1,nrel
 !         xtx(j)=xtx(j)+phfrac(iii)*xarr(j,jgrid(iii))
 !      enddo
 !   enddo
 !   write(*,988)(xtx(i),i=1,nrel)
-!988 format('MF: ',6F9.6)
+!988 format('3Y MF: ',6F9.6)
 !
 !    call chocx('fgme ',nrel,jgrid,phfrac,xmat)
 1000 continue
@@ -3094,8 +3099,8 @@
 !
 ! gmindif is the value to accept to merge two gridpoints
 ! It should be a variable that can be set by the user for finetuning
-!   write(*,*)'Now we try to merge gridpoints in the same phase'
-!   write(*,7)'Merge_gridpoints is dissabled for the moment',nv
+!   write(*,*)'3Y Now we try to merge gridpoints in the same phase'
+!   write(*,7)'3Y Merge_gridpoints is dissabled for the moment',nv
 !7  format(a,i3)
 ! NOTE, always merge gripoints in ideal phases like gas
    goto 1100
@@ -3179,7 +3184,7 @@
 ! merge require that difference is less than gmindif or phase ideal
             if(gdf.gt.gmindif) then
 ! middle is higher, no merge 1-3-5
-               write(*,830)'not merged: ',jp,kp,gdf,iphl(jp),gmindif
+               write(*,830)'3Y not merged: ',jp,kp,gdf,iphl(jp),gmindif
                cycle secondgp
             endif
 ! calculate G at 0.25
@@ -3197,14 +3202,14 @@
             gdf=gval2-a1*gval1-a2*gval5
             if(gdf.gt.gmindif) then
 ! middle is higher, no merge 1-2-5
-               write(*,830)'not merged: ',jp,kp,gdf,iphl(jp),gmindif
+               write(*,830)'3Y not merged: ',jp,kp,gdf,iphl(jp),gmindif
                cycle secondgp
             else
 ! also compare between gval1 and gval3
                gdf=gval2-a1*gval1-a2*gval3
                if(gdf.gt.gmindif) then
 ! gval2 is s higher, no merge 1-2-3
-                  write(*,830)'not merged: ',jp,kp,gdf,iphl(jp),gmindif
+                  write(*,830)'3Y not merged: ',jp,kp,gdf,iphl(jp),gmindif
                   cycle secondgp
                endif
             endif
@@ -3224,19 +3229,19 @@
             gdf=gval4-a1*gval1-a2*gval5
             if(gdf.gt.gmindif) then
 ! gval4 is higer mo merge 1-4-5
-               write(*,830)'not merged ',jp,kp,gdf,iphl(jp),gmindif
+               write(*,830)'3Y not merged ',jp,kp,gdf,iphl(jp),gmindif
                cycle secondgp
             else
                gdf=gval4-a1*gval1-a2*gval5
                if(gdf.gt.gmindif) then
 ! gval4 is higer mo merge 1-4-5
-                  write(*,830)'not merged ',jp,kp,gdf,iphl(jp),gmindif
+                  write(*,830)'3Y not merged ',jp,kp,gdf,iphl(jp),gmindif
                   cycle secondgp
                endif
                gdf=gval4-a1*gval1-a2*gval5
                if(gdf.gt.gmindif) then
 ! gval4 is higer mo merge 1-4-5
-                  write(*,830)'not merged ',jp,kp,gdf,iphl(jp),gmindif
+                  write(*,830)'3Y not merged ',jp,kp,gdf,iphl(jp),gmindif
                   cycle secondgp
                endif
             endif
@@ -3265,13 +3270,13 @@
             if(gx%bmperr.ne.0) goto 1000
 ! extract correct mole fractions
             call calc_phase_mol(iph,xfromy,ceq)
-            write(*,162)'ym:',0.0D0,(yphl(incy(jp)+i),i=0,nyphl(jp)-1)
+            write(*,162)'3Y ym:',0.0D0,(yphl(incy(jp)+i),i=0,nyphl(jp)-1)
             write(*,162)'3Y xy:',0.0D0,(xfromy(i),i=1,nrel)
 ! calculate mole fractions from xsol to compare!!
             do i=1,nrel
                xerr(i)=a1*xsol(jp,i)+a2*xsol(kp,i)
             enddo
-            write(*,162)'xj+xk:',0.0D0,(xerr(i),i=1,nrel)
+            write(*,162)'3Y xj+xk:',0.0D0,(xerr(i),i=1,nrel)
             do i=1,nrel
                xsol(i,jp)=xerr(i)
             enddo
@@ -3315,7 +3320,7 @@
 !    write(*,502)nv,(iphl(i),i=1,nv)
 !    write(*,502)0,(incy(i),i=1,nv)
 !    write(*,502)klast,(nyphl(i),i=1,nv)
-502 format('check1: ',i3,2x,20i4)
+502 format('3Y check1: ',i3,2x,20i4)
 !    kk=0
 !    do j=1,nv
 !       write(*,510)j,(yphl(i),i=kk+1,kk+nyphl(j))
@@ -3329,13 +3334,13 @@
 ! shift all fractions down.  klast should be updated each shift but ...
          jump=nyphl(jp)
 !          write(*,503)jp,kk,klast,jump
-503      format('check3: ',5i5)
-!          write(*,555)'nyy1: ',(yphl(ip),ip=kk+1,kk+jump)
+503      format('3Y check3: ',5i5)
+!          write(*,555)'3Y nyy1: ',(yphl(ip),ip=kk+1,kk+jump)
 555      format(a,6(1pe12.4))
          do ip=kk+1,klast-jump
             yphl(ip)=yphl(ip+jump)
          enddo
-!          write(*,555)'nyy2: ',(yphl(ip),ip=kk+1,kk+jump)
+!          write(*,555)'3Y nyy2: ',(yphl(ip),ip=kk+1,kk+jump)
          do kp=jp,nv-1
             iphl(kp)=iphl(kp+1)
             aphl(kp)=aphl(kp+1)
@@ -3379,7 +3384,7 @@
 !
 510 format(i3,':',6(1pe12.4))
 1000 continue
-   if(ocv()) write(*,*)'At return from merge_gridpoints: ',nv
+   if(ocv()) write(*,*)'3Y At return from merge_gridpoints: ',nv
    return
 !------------------------------------------
 ! temporary fix to avoid creating several composition sets in ideal gas
@@ -3402,7 +3407,7 @@
             lokph=phases(iph)
             if(btest(phlista(lokph)%status1,PHID)) then
 ! add together gridpoints in ideal phases (gas)
-!               write(*,*)'merging gridpoints in ideal phase'
+!               write(*,*)'3Y merging gridpoints in ideal phase'
                sumam=aphl(jp)+aphl(kp)
                a1=aphl(jp)/sumam
                a2=aphl(kp)/sumam
@@ -3460,21 +3465,21 @@
    double precision yarr(maxconst),qq(5),xxx,dgmin,gmax
    real dg,gplan
 !   integer idum(1000)
-!   write(*,*)'Entering set_metastable'
+!   write(*,*)'3Y Entering set_metastable'
 ! loop through the gridpoints for all unstable phases and insert the
 ! constitution that is closest to be stable
-!   write(*,7)'set_meta: ',kp,nrel,nr,(iphl(i),i=1,nr)
+!   write(*,7)'3Y set_meta: ',kp,nrel,nr,(iphl(i),i=1,nr)
 7  format(a,i9,2i4,2x,10i3)
 !
 ! WOW kphl and ngrid must be incremented by 1 ???? why BUG??
 !
 !   do ig=1,noofph
-!      write(*,*)'phase grid: ',ig,kphl(ig+1),ngrid(ig+1)
+!      write(*,*)'3Y phase grid: ',ig,kphl(ig+1),ngrid(ig+1)
 !   enddo
    phloop: do iph=1,noofph
       do jph=1,nr
          if(iph.eq.iphl(jph)) then
-!            write(*,*)'Phase is stable',iph
+!            write(*,*)'3Y Phase is stable',iph
             cycle phloop
          endif
       enddo
@@ -3494,9 +3499,9 @@
 ! NOTE add 1 to phase index!!
       ig1=kphl(iph+1)
       ign=ngrid(iph+1)
-!      if(ocv()) write(*,69)'Searching gridpoints for: ',iph,ics,ig1,ign
+!      if(ocv()) write(*,69)'3Y Searching gridpoints for: ',iph,ics,ig1,ign
 69    format(a,2(i3,1x),2x,3(i6,1x))
-!      write(*,68)'Chempot: ',(cmu(ie),ie=1,nrel)
+!      write(*,68)'3Y Chempot: ',(cmu(ie),ie=1,nrel)
 68    format(a,6(1pe12.4))
 ! if ig1=0 there are no gridpoints for this phase, it is suspended or dormant
       if(ig1.le.0) cycle phloop
@@ -3510,10 +3515,10 @@
             gplan=gplan+xarr(ie,ig)*cmu(ie)
          enddo
          dg=gplan-garr(ig)
-!         write(*,74)'dgx: ',ig,gplan,garr(ig),dg,dgmin,(xarr(i,ig),i=1,nrel)
+!         write(*,74)'3Y dgx: ',ig,gplan,garr(ig),dg,dgmin,(xarr(i,ig),i=1,nrel)
 74       format(a,i5,2(1pe10.2),2x,6(0pf5.2))
          if(ign.eq.ig1) then
-!            write(*,*)'Single gridpoint, dgm: ',dg
+!            write(*,*)'3Y Single gridpoint, dgm: ',dg
             dgmin=dg
             call set_driving_force(iph,1,dgmin,ceq)
             cycle phloop
@@ -3521,39 +3526,39 @@
          if(abs(dg).lt.abs(dgmin)) then
             ip=ig
             dgmin=dg
-!            write(*,77)'low: ',ig,gplan,garr(ig),dg,dgmin
+!            write(*,77)'3Y low: ',ig,gplan,garr(ig),dg,dgmin
 77          format(a,i5,4(1pe12.4))
          endif
       enddo
-      if(ocv()) write(*,79)'Least unstable gridpoint: ',iph,ics,ig1,ign,dgmin
+      if(ocv()) write(*,79)'3Y Least unstable gridpoint: ',iph,ics,ig1,ign,dgmin
 79    format(a,4(i6,1x),1pe12.4)
 !      if(ip.eq.0 .or. dgmin.gt.zero) then
-!         write(*,*)'This gridpoint stable: ',ip,dgmin
-!         write(*,*)'data: ',ip,dgmin
+!         write(*,*)'3Y This gridpoint stable: ',ip,dgmin
+!         write(*,*)'3Y data: ',ip,dgmin
 !      endif
 ! retrieve constitution for this gridpoint and insert it in phase
 ! must provide mode and iph. The subroutine returns ny and yarr
 ! mode is the gridpoint in the phase, subtract ig1-1
       mode=ip-ig1+1
 ! 
-!      if(ocv()) write(*,78)'calling gengrid: ',iph,ig1,ip,ign,mode,dgmin
+!      if(ocv()) write(*,78)'3Y calling gengrid: ',iph,ig1,ip,ign,mode,dgmin
 78    format(a,5i7,1pe12.4)
 ! find the constitution of this gridpoint
 !      call generate_grid(mode,iph,ign,nrel,xarr,garr,ny,yarr,idum,ceq)
       call generate_grid(mode,iph,ign,nrel,xarr,garr,ny,yarr,gmax,ceq)
       if(gx%bmperr.ne.0) goto 1000
 !      write(*,451)(yarr(i),i=1,ny)
-451   format('fractions: ',6(F10.6))
+451   format('3Y fractions: ',6(F10.6))
       call set_constitution(iph,1,yarr,qq,ceq)
       if(gx%bmperr.ne.0) goto 1000
 !      write(*,452)iph,ics,(yarr(i),i=1,ny)
-452   format('my: ',2i2,6(1pe10.3))
+452   format('3Y my: ',2i2,6(1pe10.3))
 ! set driving force also ...
       call set_driving_force(iph,1,dgmin,ceq)
 500   continue
    enddo phloop
 1000 continue
-!   write(*,*)'Finished set_metastable'
+!   write(*,*)'3Y Finished set_metastable'
    return
  end subroutine set_metastable_constitutions
  
@@ -3581,7 +3586,7 @@
    integer, allocatable :: kphl(:),iphx(:)
    integer gmode,iph,ngg,nrel,ny,ifri,firstpoint,sumng,nrph,ii,jj,nz,lokcs
 !
-!   write(*,*)'In global_equil_check1',mode
+!   write(*,*)'3Y In global_equil_check1',mode
    global=.TRUE.
 ! COPY the whole equilibrium record to avoid destroying anything!!
 ! otherwise I had strange problems with amounts of phases ??
@@ -3645,7 +3650,7 @@
          gmax=gmax+dble(xarr(ngg,ifri))*pceq%cmuval(ngg)
          sumx=sumx+xarr(ngg,ifri)
       enddo
-!      if(ifri.eq.sumng) write(*,*)'OK ',ifri,iph
+!      if(ifri.eq.sumng) write(*,*)'3Y OK ',ifri,iph
       if(abs(sumx-1.0E0).gt.1.0E-6) then
          write(*,*)'3Y wrong gridpoint fractions ',ifri,sumx,garr(ifri)
          cycle loop4
@@ -3659,12 +3664,12 @@
 ! if number of constituent fractions equal to sublattice the composition is fix
             nz=size(ceq%phase_varres(lokcs)%sites)-&
                  size(ceq%phase_varres(lokcs)%yfr)
-!            write(*,*)'No problem, phase stable with fix composition'
+!            write(*,*)'3Y No problem, phase stable with fix composition'
          else
             global=.FALSE.
 !         endif
 !            write(*,87)iph,garr(ifri),dble(garr(ifri))-gmax,1.0D-7*abs(gmax),&
-            write(*,87)iph,(xarr(ngg,ifri),ngg=1,nrel)
+            write(kou,87)iph,(xarr(ngg,ifri),ngg=1,nrel)
 87          format(/' *** Equilibrium may not be global, phase ',&
                  i3,' found stable with mole fractions:',(/2x,9F8.5))
             gx%bmperr=4352; goto 500
@@ -3673,21 +3678,21 @@
 !      if(ifri.eq.sumng) write(*,*)'OK ',ifri
    enddo loop4
 ! no gridpoint below current G surface
-!   write(*,*)'Still OK?'
+!   write(*,*)'3Y Still OK?'
    goto 1000
 ! Found gridpoint below gmax, if mode=/=1 just return error message
 500 continue
-!   write(*,*)'Sorry I have not yet implemented automatic recalculation!'
+!   write(*,*)'3Y Sorry I have not yet implemented automatic recalculation!'
    if(mode.eq.1) then
 ! Here you should implement automatic recalculation including new phase ...
       continue
 !      gx%bmperr=0
 !   else
-!      write(*,*)'Please include this phase and recalculate equilibrium'
+!      write(*,*)'3Y Please include this phase and recalculate equilibrium'
    endif
 !
 1000 continue
-!   write(*,*)'Deallocating, check due to segmentation fault ...'
+!   write(*,*)'3Y Deallocating, check due to segmentation fault ...'
    if(allocated(xarr)) then
       deallocate(xarr)
       deallocate(garr)
@@ -3736,7 +3741,7 @@
 !   integer idum(1000)
    save addph
 !
-!   write(*,*)'Entering gridmin_check',addph
+!   write(*,*)'3Y Entering gridmin_check',addph
    gstable=zero
    nystph=0
    mode=0
@@ -3752,7 +3757,7 @@
 ! mixing real and double precision is not a numerical problem here
       gd=gsurf-garr(jp)
       if(gd.gt.gdmin) gdmin=gd
-!      write(*,17)'grid comarison: ',gd,garr(jp),gsurf
+!      write(*,17)'3Y grid comparison: ',gd,garr(jp),gsurf
 !17    format(a,3(1pe12.4))
       if(gd.gt.gstable) then
 ! this gridpoint should be set as stable and equilibriuum recalculated
@@ -3778,12 +3783,12 @@
          endif
       enddo
 115   continue
-!      write(*,*)'mode, ibias and phase: ',mode,ibias,iphx(zph)
+!      write(*,*)'3Y mode, ibias and phase: ',mode,ibias,iphx(zph)
 ! This call return constitution of new gridpoint
       call generate_grid(mode,iphx(zph),ibias,nrel,xarr,garr,ny,yphl,gmax,ceq)
       if(gx%bmperr.ne.0) goto 1000
       iph=iphx(zph)
-      write(*,*)'Gridmin check found new stable phase: ',iph
+      write(*,*)'3Y Gridmin check found new stable phase: ',iph
 !-------------------
 ! new stable phase is iph, constituent fractions in yphl
 ! check if compset 1 of phase is already stable, if so maybe create compset
@@ -3799,7 +3804,7 @@
 !         ceq%phase_varres(lokcs)%amount(1)=one
          ceq%phase_varres(lokcs)%amfu=one
          write(*,222)iph,ics,ny,(yphl(ie),ie=1,ny)
-222      format('added: ',3i3,10(f6.3))
+222      format('3Y added: ',3i3,10(f6.3))
          call set_constitution(iph,ics,yphl,qq,ceq)
       else
          ics=ics+1
@@ -3808,7 +3813,7 @@
             if(btest(globaldata%status,GSNOACS)) then
                gx%bmperr=4177; goto 1000
             endif
-            write(*,*)'Creating new composition set for ',iph
+            write(*,*)'3Y Creating new composition set for ',iph
             call enter_composition_set(iph,'    ','AUTO',ics)
             if(gx%bmperr.ne.0) goto 1000
 ! link to new compositiin set stored here
@@ -3872,7 +3877,7 @@
       do while(associated(intrec))
          level=level+1
          if(level.gt.5) then
-            write(*,*)'Interaction more than 5 levels deep!'
+            write(*,*)'3Y Interaction more than 5 levels deep!'
             gx%bmperr=4347; goto 1000
          endif
          int_stack(level)%p1=>intrec
@@ -3909,7 +3914,7 @@
    implicit none
    integer mode
 !\end{verbatim}
-!   write(*,*)'In allowenter: ',mode
+!   write(*,*)'3Y In allowenter: ',mode
    logical yesorno
    yesorno=.FALSE.
    if(mode.le.0 .or. mode.gt.3) goto 1000
@@ -3962,7 +3967,7 @@
    call capson(name2)
    if(.not.ucletter(name2(1:1))) then
 ! the first character of a symbol must always be a letter A-Z
-!      write(*,*)'Wrong first letter of symbol: ',name2(1:1),':',name2(1:5)
+!      write(*,*)'3Y Wrong first letter of symbol: ',name2(1:1),':',name2(1:5)
       gx%bmperr=4137; goto 1000
    endif
    jl=1
@@ -4009,7 +4014,7 @@
 !
 1000 continue
 !
-   if(.not.korrekt) write(*,*)'Illegal name: ',name2,jl
+   if(.not.korrekt) write(*,*)'3Y Illegal name: ',name2,jl
    proper_symbol_name=korrekt
    return
  end function proper_symbol_name
@@ -4041,7 +4046,7 @@
    if(lok+5.lt.highcs) then
       last=lok
       lok=firsteq%phase_varres(last)%nextfree
-      write(*,*)'free varres record at: ',lok,last
+      write(*,*)'3Y free varres record at: ',lok,last
       if(lok.le.0) then
          write(lut,*)'Error in phase_varres free list',last,lok
          goto 1000
@@ -4190,7 +4195,7 @@
 !\end{verbatim}
    integer iph,ics,lokph,lokcs
 !
-!   write(*,*)'Todo_before ... not implemented'
+!   write(*,*)'3Y Todo_before ... not implemented'
    goto 1000
 !
    phloop: do iph=1,noph()
@@ -4252,7 +4257,7 @@
 !      write(*,*)'3Y Testing after calculation if equilibrium is global'
       qq=1
       globalok=global_equil_check1(qq,ceq)
-!      write(*,*)'Back from GEC1'
+!      write(*,*)'3Y Back from GEC1'
       if(globalok) then
 ! if TRUE equilibrium OK or it could not be tested
          if(gx%bmperr.ne.0) then
@@ -4269,7 +4274,7 @@
 !--------------------------------------------------------------------
 ! Shift all stable composition down to lower comp.sets
 200 continue
-!   write(*,*)'Shifting composition sets'
+!   write(*,*)'3Y Shifting composition sets'
    phloop1: do iph=1,noph()
       lokph=phases(iph)
       if(btest(phlista(lokph)%status1,PHHID)) cycle
@@ -4307,7 +4312,7 @@
 ! Accept a default consitution which almost fits the default
 !               write(*,*)'3Y Accept fit to default: ',fit,lokics,lokjcs
 500            continue
-!               write(*,*)'Move stable to lower unstable compsets'
+!               write(*,*)'3Y Move stable to lower unstable compsets'
 ! move STABLE lokics to UNSTABLE lokjcs
 !               copycompsets(... ???
 ! save some jcs values of amount, dgm, status, pre&suffix and tuple index
@@ -4369,10 +4374,10 @@
       enddo csloop1
    enddo phloop1
 !   haha2=phlista(lokph)%linktocs(1)
-!   write(*,*)'mitt 1: ',lokph,haha2,ceq%phase_varres(haha2)%disfra%varreslink
+!   write(*,*)'3Y mitt 1:',lokph,haha2,ceq%phase_varres(haha2)%disfra%varreslink
 !   haha2=phlista(lokph)%linktocs(2)
 !   if(haha2.gt.0) &
-!   write(*,*)'mitt 2: ',lokph,haha2,ceq%phase_varres(haha2)%disfra%varreslink
+!   write(*,*)'3Y mitt 2:',lokph,haha2,ceq%phase_varres(haha2)%disfra%varreslink
 ! Here we may try to ensure that the stable comp.sets fits the
 ! default constitutions of their current set
 !   write(*,*)'3Y Try to shift stable comp.sets. to match default const.'
@@ -4438,9 +4443,9 @@
 1000 continue
 !   lokph=1
 !   jcs=phlista(lokph)%linktocs(1)
-!   write(*,*)'after 1: ',lokph,jcs,ceq%phase_varres(jcs)%disfra%varreslink
+!   write(*,*)'3Y after 1: ',lokph,jcs,ceq%phase_varres(jcs)%disfra%varreslink
 !   jcs=phlista(lokph)%linktocs(2)
-!   write(*,*)'Leaving todo_after'
+!   write(*,*)'3Y Leaving todo_after'
 !   if(jcs.gt.0) &
 !        write(*,*)'after 2: ',lokph,jcs,ceq%phase_varres(jcs)%disfra%varreslink
    return
@@ -4474,7 +4479,7 @@
 ! A fraction with a maximum set (mmyfr<0) must be below mmyfr(kk)
             if(ceq%phase_varres(lokics)%yfr(kk).lt.abs(xdef)) fit=fit+1
 !            write(*,11)ceq%phase_varres(lokics)%yfr(kk),' < ',xdef,kk,fit
-11          format('If ',F10.6,a,F10.6,' increment ',2i3)
+11          format('3Y If ',F10.6,a,F10.6,' increment ',2i3)
          else
 ! A fraction with a minimum set (mmyfr>0) should be above mmyfr(kk)
             if(ceq%phase_varres(lokics)%yfr(kk).gt.xdef) fit=fit+1
@@ -4587,7 +4592,7 @@
    double precision, dimension(:,:,:), allocatable :: dgval
    double precision qq(5),xdum
 !
-!   write(*,*)'In copycompsets ',lokph,ics1,ics2
+!   write(*,*)'3Y In copycompsets ',lokph,ics1,ics2
    lokcs1=phlista(lokph)%linktocs(ics1)
    lokcs2=phlista(lokph)%linktocs(ics2)
 ! save current constitution of lokcs1 in val
@@ -4654,7 +4659,7 @@
    integer kk,lokics,lokjcs,fit
 ! A fraction with a maximum set (mmyfr>0) must be below that value
 ! A fraction with a minimum set (mmyfr<0) should be above that value
-   write(*,*)'Not implemented testing defaults'
+   write(*,*)'3Y Not implemented testing defaults'
    fit=0
    do kk=1,size(ceq%phase_varres(lokics)%yfr)
       write(*,*)'3Y defconst: ',kk,ceq%phase_varres(lokics)%mmyfr(kk)
@@ -4767,7 +4772,7 @@
       endif
    enddo
    nb=j1
-   write(*,11)'bounds column 1: ',nb,(bounds(k1,1),k1=1,nb)
+   write(*,11)'3Y bounds column 1: ',nb,(bounds(k1,1),k1=1,nb)
 11 format(a,i3,10i5)
 ! now the first column sorted and all values are in xord, sort columns 2 etc
 ! separately for each lower column bounds

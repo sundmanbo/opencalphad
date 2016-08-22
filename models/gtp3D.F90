@@ -971,15 +971,17 @@
    elseif(ich.lt.3 .and. nterm.eq.0) then
 ! first term of state variable which is an expression,
 ! this term is terminated by + or -
-!      write(*,*)'3D extract first coeff, if none set to 1',ich
-      if(stvexp(1:1).ge.'0' .and. stvexp(1:1).le.'9') then
-         firstc=1
-         call getrel(stvexp,firstc,coeffs(1))
-         if(buperr.ne.0) then
-            write(*,*)'3D error in coefficient for first condition term',buperr
-            goto 1000
-         endif
-! terminating character must be a *
+!      if(stvexp(1:1).ge.'0' .and. stvexp(1:1).le.'9') then
+!      write(*,*)'3D extract coeff for first term, if none set to 1',ich
+      firstc=1
+      call getrel(stvexp,firstc,coeffs(1))
+      if(buperr.ne.0) then
+!         write(*,*)'3D error in coefficient for first condition term',buperr
+! ignore error, means no coefficient
+         buperr=0
+         coeffs(1)=one
+      else
+! character after coefficient must be a *
          if(stvexp(firstc:firstc).ne.'*') then
             write(*,*)'3D coefficient is not terminated by *: ',&
                  stvexp(firstc:firstc)
@@ -989,8 +991,6 @@
             stvexp=stvexp(firstc+1:)
             lpos=lpos-firstc
          endif
-      else
-         coeffs(1)=one
       endif
    endif
 !---------------------------------
@@ -1851,7 +1851,7 @@ end subroutine get_condition
    cmix(1)=0
    if(current%noofterms.gt.1) then
       if(current%statev.eq.111 .or.current%statev.eq.110) then
-! allow 2 terms for mole fractions and N(A)-N(B)!!
+! allow several terms for mole fractions and \sum_i a_i*N(i)=0 !!
 !         write(*,69)'3D in apply: ',current%statev,current%noofterms,&
 !              ((current%indices(jl,nterms),jl=1,4),nterms=1,current%noofterms)
 69       format(a,i4,i2,3(2x,4i5))
@@ -1953,23 +1953,28 @@ end subroutine get_condition
    cmix(6)=current%indices(4,1)
 ! for one term set coefficient to one
    ccf(1)=one
-! more than one term ...
-   if(current%noofterms.eq.2) then
-      nterms=current%noofterms
-      cmix(7)=current%indices(1,2)
-      cmix(8)=current%indices(2,2)
-      cmix(9)=current%indices(3,2)
-      cmix(10)=current%indices(4,2)
-      do jl=1,nterms
+! more than one term ... this is very clumy ...
+   if(current%noofterms.gt.1) then
+      do nterms=2,current%noofterms
+! 7, 8, 9 10 for second term, 11, 12, 13 14 for third etc
+         cmix(4*nterms-1)=current%indices(1,nterms)
+         cmix(4*nterms)=current%indices(2,nterms)
+         cmix(4*nterms+1)=current%indices(3,nterms)
+         cmix(4*nterms+2)=current%indices(4,nterms)
+      enddo
+      ip=current%noofterms
+      do jl=1,ip
          ccf(jl)=current%condcoeff(jl)
       enddo
-!      write(*,211)'3D Two terms: ',(cmix(jl),jl=1,10),(ccf(jl),jl=1,nterms)
-211   format(a,2i4,2x,4i3,2x,4i3,3(1pe12.4))
+!      write(*,211)'3D Many terms: ',(cmix(jl),jl=1,4*ip+2)
+!      write(*,212)'3D more: ',(ccf(jl),jl=1,ip)
+211   format(a,2i4,4(2x,44i3))
+212   format(a,4(1pe12.4))
    endif
-   if(current%noofterms.gt.2) then
-      write(*,*)'3D Apply_condition with more than 2 terms',current%noofterms
-      gx%bmperr=4207; goto 1000
-   endif
+!   if(current%noofterms.gt.2) then
+!      write(*,*)'3D Apply_condition with more than 2 terms',current%noofterms
+!      gx%bmperr=4207; goto 1000
+!   endif
    value=current%prescribed
    if(iunit.eq.100) then
 ! Prescribed value is in percent, divide value by 100
