@@ -1181,10 +1181,10 @@
    implicit none
    integer iph
    double precision xmol(*)
-   TYPE(gtp_equilibrium_data) :: ceq
+   TYPE(gtp_equilibrium_data),pointer :: ceq
 !\end{verbatim}
-   integer ic,lokph,lokcs,ll,kk,loksp,lokel,iel,ie
-   double precision as,yz,xsum
+   integer ic,lokph,lokcs,ll,kk,loksp,lokel,iel,ie,compnos(maxspel),nspel
+   double precision as,yz,xsum,smass,qsp,stoi(maxspel)
    do ic=1,noofel
       xmol(ic)=zero
    enddo
@@ -1198,14 +1198,27 @@
          if(.not.btest(ceq%phase_varres(lokcs)%constat(ic),CONSUS)) then
             yz=ceq%phase_varres(lokcs)%yfr(ic)
             loksp=phlista(lokph)%constitlist(ic)
-            do iel=1,splista(loksp)%noofel
-               lokel=splista(loksp)%ellinks(iel)
-               ie=ellista(lokel)%alphaindex
-               if(ie.ne.0) then
-                  xmol(ie)=xmol(ie)+&
-                       as*yz*splista(loksp)%stoichiometry(iel)
-               endif
-            enddo
+            if(.not.btest(globaldata%status,GSNOTELCOMP)) then
+! the elements are the components
+               do iel=1,splista(loksp)%noofel
+                  lokel=splista(loksp)%ellinks(iel)
+                  ie=ellista(lokel)%alphaindex
+                  if(ie.ne.0) then
+                     xmol(ie)=xmol(ie)+&
+                          as*yz*splista(loksp)%stoichiometry(iel)
+                  endif
+               enddo
+            else
+! when we have other components than the elements
+! we must convert the element stoichiometry to component stoichiometry
+!               write(*,*)'3F other components than elements'
+               call get_species_component_data(loksp,nspel,compnos,stoi,&
+                    smass,qsp,ceq)
+               do iel=1,nspel
+                  xmol(compnos(iel))=xmol(compnos(iel))+as*yz*stoi(iel)
+               enddo
+            endif
+
          endif
       enddo allcons
    enddo allsubl
@@ -1320,7 +1333,7 @@
 ! summing up G, S, V, N and B for all phases with positive amount
 ! Check if this is correct
    implicit none
-   TYPE(gtp_equilibrium_data) :: ceq
+   TYPE(gtp_equilibrium_data), pointer :: ceq
    double precision props(5)
 !\end{verbatim}
    integer lokph,lokcs,ics
@@ -2525,7 +2538,7 @@
 ! For ionic liquid and charged crystalline phases one should
 ! calculate eigenvectors to find neutral directions.
    implicit none
-   TYPE(gtp_equilibrium_data) :: ceq
+   TYPE(gtp_equilibrium_data), pointer :: ceq
    integer :: lokcs
    double precision value
 !\end{verbatim}
@@ -2619,7 +2632,7 @@
 ! ceq is current equilibrium
    implicit none
    TYPE(gtp_state_variable), pointer :: svr1,svr2
-   TYPE(gtp_equilibrium_data) :: ceq
+   TYPE(gtp_equilibrium_data), pointer :: ceq
 !   integer :: istv,iref,iunit,istv2,iref2,iunit2
 !   integer, dimension(4) :: indices,indices2
    double precision value
@@ -3398,5 +3411,22 @@
    evaluate_svfun_old=value
    return
  end function evaluate_svfun_old
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
+ double precision function phase_component_amount(lokph,lokcs,ceq)
+! This subroutine calculates the ratio components/atoms for a phase iph/ics
+! It is needed when the user entered other components than the elements
+   implicit none
+   integer lokph,lokcs
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   double precision camount
+   camount=ceq%phase_varres(lokcs)%amfu
+1000 continue
+   phase_component_amount=camount
+   return
+ end function phase_component_amount
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\

@@ -499,7 +499,8 @@
 ! change status for all phases to nystat
       call change_many_phase_status('* ',nystat,val,ceq)
    else
-      lokph=phasetuple(phtupx)%phaseix
+!      lokph=phasetuple(phtupx)%phaseix
+      lokph=phasetuple(phtupx)%lokph
       iph=phlista(lokph)%alphaindex
       ics=phasetuple(phtupx)%compset
 !   write(*,77)'3G Test: ',phlista(lokph)%name,phtupx,lokph,iph,phases(iph)
@@ -1536,7 +1537,7 @@
 ! >>>> unfinished
 ! >>>> for calculation of the same phase in separate threads
    integer iph
-   TYPE(gtp_equilibrium_data) :: ceq
+   TYPE(gtp_equilibrium_data), pointer :: ceq
    TYPE(gtp_phase_varres) :: phvar
 !\end{verbatim}
    integer tnooffr,lokph,lokcs,nsl,lokdis
@@ -1608,7 +1609,7 @@
 !   ?????????????? does this work ??????????  is it necessary ????
 ! can one just make an assignment ????
    implicit none
-   TYPE(gtp_equilibrium_data) :: ceq
+   TYPE(gtp_equilibrium_data), pointer :: ceq
    TYPE(gtp_phase_varres) :: phvar
    TYPE(gtp_phase_varres), target :: phdis
    integer lokdis
@@ -1964,7 +1965,7 @@
 ! attempt to create a new disordered record  ??? this can probably be done
 ! with just one statement .. but as it works I am not changing right now
    implicit none
-   TYPE(gtp_equilibrium_data) :: ceq
+   TYPE(gtp_equilibrium_data), pointer :: ceq
    TYPE(gtp_fraction_set) :: disrec
    integer lokcs
 !\end{verbatim}
@@ -2033,7 +2034,7 @@
 ! SUSPEND phases with all constituents in a sublattice suspended
 !   dimension lokcs(9)
    implicit none
-   TYPE(gtp_equilibrium_data) :: ceq
+   TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim} %+
    integer lokph,lokcs,ncc,kk,kkl,nek,icon,ll,loksp,jl
 !

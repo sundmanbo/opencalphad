@@ -1908,7 +1908,7 @@
    double precision vals(6),dvals(3,gz%nofc)
    TYPE(gtp_equilibrium_data), pointer :: ceq
 ! wojwoj
-!   TYPE(gtp_equilibrium_data) :: ceq
+!   TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
 ! temporary data like gz%intlevel, gz%nofc etc
    double precision d2vals(gz%nofc*(gz%nofc+1)/2),valtp(6)
@@ -2837,7 +2837,7 @@
    TYPE(gtp_phase_varres), pointer :: phvar
    TYPE(gtp_equilibrium_data), pointer :: ceq
 ! wojwoj
-!   TYPE(gtp_equilibrium_data) :: ceq
+!   TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
    TYPE(gtp_fraction_set), pointer :: disrec
 !   TYPE(gtp_phase_varres) :: phdis
@@ -2900,7 +2900,7 @@
    TYPE(gtp_fraction_set), pointer :: disrec
 ! wojwoj
    TYPE(gtp_equilibrium_data), pointer :: ceq
-!   TYPE(gtp_equilibrium_data) :: ceq
+!   TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
    integer lokdcs,kk,ll,is,nis,nsl
    double precision xxx
@@ -3128,10 +3128,10 @@
       elseif(abi(ie).le.zero) then
 ! this can be "the rest"
 !         write(*,*)'3X massbal',ie,abi(ie),antot,abtot
-         if(btest(globaldata%status,GSNOTELCOMP)) then
-            write(*,*)'3X Other elements than components 1'
-         else
+         if(.not.btest(globaldata%status,GSNOTELCOMP)) then
             if(antot.eq.zero .and. abtot.eq.zero) goto 1105
+         else
+            write(*,*)'3X Other components then elements 1'
          endif
       endif
    enddo
@@ -3221,11 +3221,12 @@
       do ie=1,noel()
          xset(ie)=ani(ie)/antot
          if(xset(ie).le.zero) then
-            if(btest(globaldata%status,GSNOTELCOMP)) then
-               write(*,*)'3X Other elements than components 2'
-            else
+            if(.not.btest(globaldata%status,GSNOTELCOMP)) then
+! when other components than elements the mole fractions can be <0 or > 1
                write(*,*)'3X mass balance error: ',ie
                gx%bmperr=4181; goto 1000
+            else
+               write(*,*)'3X Other components than elements 2'
             endif
          endif
       enddo

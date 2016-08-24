@@ -305,7 +305,7 @@
    integer moded,lokph,mc
    TYPE(gtp_phase_varres) :: phres
    TYPE(gtp_phase_add), pointer :: lokadd
-   TYPE(gtp_equilibrium_data) :: ceq
+   TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
    integer itc,ibm,jl,noprop,ik,k,jk,j
    double precision logb1,invb1,iafftc,iaffbm,rgasm,rt,tao,gmagn
@@ -648,7 +648,7 @@
 ! phres points to result record with gval etc for this phase
    TYPE(gtp_phase_varres) :: phres
    TYPE(gtp_phase_add), pointer :: lokadd
-   TYPE(gtp_equilibrium_data) :: ceq
+   TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
    integer itc,ibm,jl,noprop,ik,k,jk,j
    double precision logb1,invb1,iafftc,iaffbm,rgasm,rt,tao,gmagn
@@ -1033,7 +1033,7 @@
    implicit none
    integer iph,ics
    double precision, dimension(3,3) :: xxx
-   type(gtp_equilibrium_data) :: ceq
+   type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
    integer lokph,lokcs
    call get_phase_compset(iph,ics,lokph,lokcs)
@@ -1178,7 +1178,7 @@
 ! ceq: pointer, to gtp_equilibrium_data
    implicit none
    integer moded,lokph,mc
-   TYPE(gtp_equilibrium_data) :: ceq
+   TYPE(gtp_equilibrium_data), pointer :: ceq
    TYPE(gtp_phase_add), pointer :: lokadd
    TYPE(gtp_phase_varres) :: phres
 !\end{verbatim}

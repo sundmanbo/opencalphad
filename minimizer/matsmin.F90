@@ -553,8 +553,8 @@ CONTAINS
        if(gx%bmperr.ne.0) then
 ! if global fails reset error code and try a default start set of phases
           if(gx%bmperr.ge.4000 .and. gx%bmperr.le.nooferm) then
-             write(*,102)bmperrmess(gx%bmperr)
-102          format(a)
+             write(*,102)gx%bmperr,trim(bmperrmess(gx%bmperr))
+102          format('Error ',i5,': ',a/'Trying default start values')
 !  write(kou,102)gx%bmperr,bmperrmess(gx%bmperr)
 !             write(kou,102)bmperrmess(gx%bmperr)
 !102          format(a/'Current constitution used as start values.')
@@ -568,6 +568,7 @@ CONTAINS
              write(*,*)'Grid minimizer cannot be used'
           endif
           gridtest=.true.
+! problems using gridmin
 ! use current constitution or set default constitution (does not work well)
           gx%bmperr=0; goto 110
        endif
@@ -730,23 +731,26 @@ CONTAINS
           meqrec%icsl(ij)=0
        enddo
        if(ocv()) write(*,64)'Fix phase in mapfix record: ',mapfix%nfixph,&
-            mapfix%fixph(1)%phaseix,mapfix%fixph(1)%compset,&
+            mapfix%fixph(1)%ixphase,mapfix%fixph(1)%compset,&
             mapfix%fixph(1)%lokvares
-64     format(a,i3,5x,2i3,5x,i3)
+64     format(a,i3,5x,2i5,5x,i5)
        meqrec%nfixph=mapfix%nfixph
        meqrec%nv=0
        do ij=1,meqrec%nfixph
-          meqrec%fixph(1,ij)=mapfix%fixph(ij)%phaseix
+!          meqrec%fixph(1,ij)=mapfix%fixph(ij)%phaseix
+          meqrec%fixph(1,ij)=mapfix%fixph(ij)%ixphase
           meqrec%fixph(2,ij)=mapfix%fixph(ij)%compset
           meqrec%fixpham(ij)=zero
           meqrec%nv=meqrec%nv+1
-          meqrec%iphl(meqrec%nv)=mapfix%fixph(ij)%phaseix
+!          meqrec%iphl(meqrec%nv)=mapfix%fixph(ij)%phaseix
+          meqrec%iphl(meqrec%nv)=mapfix%fixph(ij)%ixphase
           meqrec%icsl(meqrec%nv)=mapfix%fixph(ij)%compset
        enddo
 !       write(*,64)'MM: Number of stable phase from mapfix: ',mapfix%nstabph
        do ij=1,mapfix%nstabph
           meqrec%nv=meqrec%nv+1
-          meqrec%iphl(meqrec%nv)=mapfix%stableph(ij)%phaseix
+!          meqrec%iphl(meqrec%nv)=mapfix%stableph(ij)%phaseix
+          meqrec%iphl(meqrec%nv)=mapfix%stableph(ij)%ixphase
           meqrec%icsl(meqrec%nv)=mapfix%stableph(ij)%compset
           meqrec%aphl(meqrec%nv)=mapfix%stablepham(ij)
 !          write(*,*)'MM: Amount: ',ij,mapfix%stablepham(ij)
@@ -1694,7 +1698,7 @@ CONTAINS
           endif
           phf=phr(jj)%curd%amfu-deltaam
           if(phs.gt.0.2D0 .and. phf.le.zero) then
-! violent change of phase fractions in Silis case, liquid change from 1 to 0
+! violent change of phase fractions in Siglis case, liquid change from 1 to 0
 ! Prevent changes larger than 0.5 if value larger than 0.5
 ! old value of amfu in phs
              phf=0.1D0
@@ -2271,6 +2275,21 @@ CONTAINS
 !----------------------
     enddo
 1000 continue
+    if(btest(globaldata%status,GSNOTELCOMP)) then
+! add values in phase_varres(lokcs)%cmfu for all phases
+! UNFINISHED
+       do ie=1,noofphasetuples()
+          jj=phasetuple(ie)%lokvares
+          jph=phasetuple(ie)%ixphase
+          ceq%phase_varres(jj)%cmfu=phase_component_amount(jph,jj,ceq)
+       enddo
+    else
+! when elements are components just copy
+       do ie=1,noofphasetuples()
+          jj=phasetuple(ie)%lokvares
+          ceq%phase_varres(jj)%cmfu=ceq%phase_varres(jj)%amfu
+       enddo
+    endif
     if(gx%bmperr.ne.0) then
        ceq%status=ibset(ceq%status,EQFAIL)
 !      write(*,*)'minimization error: ',gx%bmperr
@@ -6699,7 +6718,8 @@ CONTAINS
     allocate(wmass(nel))
     allocate(cpot(nel))
 ! find the current molefractions
-    call calc_phase_molmass(phtup%phaseix,phtup%compset,xknown,wmass,&
+!    call calc_phase_molmass(phtup%phaseix,phtup%compset,xknown,wmass,&
+    call calc_phase_molmass(phtup%ixphase,phtup%compset,xknown,wmass,&
          totmol,totmass,amount,ceq)
     if(gx%bmperr.ne.0) goto 1000
 ! extract the current chemical potentials
@@ -7462,8 +7482,9 @@ CONTAINS
     meqrec%nphase=1
     allocate(meqrec%phr(1))
     meqrec%nstph=1
-! phaseix is index in phases, ixphase is index in phlista
-    meqrec%phr(1)%iph=phtup%phaseix
+! wrong?? phaseix is index in phases, ixphase is index in phlista
+!    meqrec%phr(1)%iph=phtup%phaseix
+    meqrec%phr(1)%iph=phtup%ixphase
     meqrec%phr(1)%ics=phtup%compset
     meqrec%phr(1)%itadd=0
     meqrec%phr(1)%itrem=0
@@ -7472,7 +7493,8 @@ CONTAINS
     meqrec%phr(1)%ionliq=-1
     meqrec%phr(1)%i2sly=0
     meqrec%stphl(1)=1
-    if(test_phase_status_bit(phtup%phaseix,PHIONLIQ)) meqrec%phr(1)%ionliq=1
+!    if(test_phase_status_bit(phtup%phaseix,PHIONLIQ)) meqrec%phr(1)%ionliq=1
+    if(test_phase_status_bit(phtup%ixphase,PHIONLIQ)) meqrec%phr(1)%ionliq=1
 ! set link to calculated values of G etc.
 !    call get_phase_compset(iph,ics,lokph,lokcs)
 ! link to results

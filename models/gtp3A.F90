@@ -1534,7 +1534,8 @@ end function find_phasetuple_by_indices
    integer phtupx
 !\end{verbatim} %+
    integer phx,phy
-   phx=phlista(phasetuple(phtupx)%phaseix)%alphaindex
+!   phx=phlista(phasetuple(phtupx)%phaseix)%alphaindex
+   phx=phlista(phasetuple(phtupx)%lokph)%alphaindex
    call get_phase_name(phx,phasetuple(phtupx)%compset,name)
 1000 continue
    return
@@ -1554,7 +1555,8 @@ end function find_phasetuple_by_indices
 !
 ! PROBABLY REDUNDANT and wrong ...
 !
-   call get_phase_name(phtuple%phaseix,phtuple%compset,name)
+!   call get_phase_name(phtuple%phaseix,phtuple%compset,name)
+   call get_phase_name(phtuple%ixphase,phtuple%compset,name)
 1000 continue
    return
  end subroutine get_phasetup_name_old
@@ -1572,7 +1574,9 @@ end function find_phasetuple_by_indices
 !      write(*,*)'Wrong tuple index',phtx
       gx%bmperr=4252; goto 1000
    endif
-   lokcs=phlista(phasetuple(phtx)%phaseix)%linktocs(phasetuple(phtx)%compset)
+   write(*,*)'Calling get_phasetup_record is redundant'
+   stop
+!   lokcs=phlista(phasetuple(phtx)%phaseix)%linktocs(phasetuple(phtx)%compset)
 1000 continue
    return
  end subroutine get_phasetup_record

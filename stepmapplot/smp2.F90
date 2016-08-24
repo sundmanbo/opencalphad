@@ -895,7 +895,8 @@ CONTAINS
        mapnode%next=>maptop
        mapnode%first=>maptop
        mapnode%seqx=tmpnode%seqx+1
-       mapnode%nodefix%phaseix=0
+!       mapnode%nodefix%phaseix=0
+       mapnode%nodefix%ixphase=0
 !       write(*,*)'creating another mapnode record',mapnode%seqx
 ! nullify here indicates more than one node record
        nullify(tmpnode)
@@ -911,7 +912,8 @@ CONTAINS
        mapnode%previous=>mapnode
        mapnode%first=>mapnode
        mapnode%number_ofaxis=nax
-       mapnode%nodefix%phaseix=0
+!       mapnode%nodefix%phaseix=0
+       mapnode%nodefix%ixphase=0
 ! if there is a previous MAP/STEP then 
 ! seqx and seqy pass on the last used indices for _MAPNODE and _MAPLINE
 !       write(*,*)'Seqxyz 1: ',seqxyz(1),seqxyz(2)
@@ -941,8 +943,10 @@ CONTAINS
        call map_replaceaxis(meqrec,axactive,ieq,nax,axarr,tmpline,inactive,ceq)
        if(ocv()) write(*,205)'Back from replaceaxis with: ',gx%bmperr,&
             axactive,ieq,&
-            tmpline(1)%linefixph(1)%phaseix,tmpline(1)%linefixph(1)%compset,&
-            tmpline(1)%stableph(1)%phaseix,tmpline(1)%stableph(1)%compset
+            tmpline(1)%linefixph(1)%ixphase,tmpline(1)%linefixph(1)%compset,&
+            tmpline(1)%stableph(1)%ixphase,tmpline(1)%stableph(1)%compset
+!            tmpline(1)%linefixph(1)%phaseix,tmpline(1)%linefixph(1)%compset,&
+!            tmpline(1)%stableph(1)%phaseix,tmpline(1)%stableph(1)%compset
 205    format(a,3i5,5x,2(2i3))
        if(gx%bmperr.ne.0) goto 1000
     else
@@ -955,8 +959,6 @@ CONTAINS
 !         jp=1,meqrec%nphase)
 !-----------------------------------------------------------------------
 ! finished converting a start equilibrium to a start point, 
-!    write(*,*)'Fix phase at startpoint 2: ',phfix%phase,phfix%compset
-!    mapnode%nodefix=phfix%phase
     mapnode%type_of_node=0
     mapnode%lines=ieq
 ! debug listing of links for maptop ...
@@ -1055,10 +1057,12 @@ CONTAINS
 !             write(*,*)'allocated size of stableph 1: ',jp,&
 !                  size(mapnode%linehead(jp)%stableph)
              if(ocv())write(*,27)'We have a startpoint for no tie-lines map:',&
-                  axactive,mapnode%linehead(jp)%linefixph(1)%phaseix,&
+!                  axactive,mapnode%linehead(jp)%linefixph(1)%phaseix,&
+                  axactive,mapnode%linehead(jp)%linefixph(1)%ixphase,&
                   mapnode%linehead(jp)%linefixph(1)%compset,&
                   mapnode%linehead(jp)%nstabph,&
-                  (mapnode%linehead(jp)%stableph(kp)%phaseix,&
+!                  (mapnode%linehead(jp)%stableph(kp)%phaseix,&
+                  (mapnode%linehead(jp)%stableph(kp)%ixphase,&
                   mapnode%linehead(jp)%stableph(kp)%compset,&
                   kp=1,mapnode%linehead(jp)%nstabph)
 27           format(a,i3,5x,2i3,5x,i3,2x,10(i5,i2))
@@ -1078,10 +1082,12 @@ CONTAINS
              mapnode%linehead(jp)%nstabph=1
              mapnode%linehead(jp)%stableph=tmpline(1)%stableph
              if(ocv()) write(*,25)'We have saved a startpoint for map:',&
-                  axactive,mapnode%linehead(jp)%linefixph(1)%phaseix,&
+!                  axactive,mapnode%linehead(jp)%linefixph(1)%phaseix,&
+                  axactive,mapnode%linehead(jp)%linefixph(1)%ixphase,&
                   mapnode%linehead(jp)%linefixph(1)%compset,&
                   mapnode%linehead(jp)%nstabph,&
-                  mapnode%linehead(jp)%stableph(1)%phaseix,&
+!                  mapnode%linehead(jp)%stableph(1)%phaseix,&
+                  mapnode%linehead(jp)%stableph(1)%ixphase,&
                   mapnode%linehead(jp)%stableph(1)%compset
 25           format(a,i3,5x,2i3,5x,i3,2x,2i3)
 !------------------------- below for STEP
@@ -1093,7 +1099,8 @@ CONTAINS
              mapnode%linehead(jp)%nstabph=meqrec%nstph
              do kp=1,mapnode%linehead(jp)%nstabph
                 zz=meqrec%stphl(kp)
-                mapnode%linehead(jp)%stableph(kp)%phaseix=meqrec%phr(zz)%iph
+!                mapnode%linehead(jp)%stableph(kp)%phaseix=meqrec%phr(zz)%iph
+                mapnode%linehead(jp)%stableph(kp)%ixphase=meqrec%phr(zz)%iph
                 mapnode%linehead(jp)%stableph(kp)%compset=meqrec%phr(zz)%ics
              enddo
 !             mapnode%linehead(jp)%nstabph
@@ -1345,14 +1352,16 @@ CONTAINS
 ! when we are here we have a start point and can determine the number of exits
 ! for the moment just assume 2nd axis is the remaining condition!!
              tmpline(1)%nfixphases=1
-             tmpline(1)%linefixph%phaseix=kph
+!             tmpline(1)%linefixph%phaseix=kph
+             tmpline(1)%linefixph%ixphase=kph
              tmpline(1)%linefixph%compset=kcs
              tmpline(1)%nstabph=0
              do jph=1,meqrec%nstph
                 jj=meqrec%stphl(jph)
                 if(meqrec%phr(jj)%iph.eq.kph .and.&
                      meqrec%phr(jj)%ics.eq.kcs) cycle
-                tmpline(1)%stableph(1)%phaseix=meqrec%phr(jj)%iph
+!                tmpline(1)%stableph(1)%phaseix=meqrec%phr(jj)%iph
+                tmpline(1)%stableph(1)%ixphase=meqrec%phr(jj)%iph
                 tmpline(1)%stableph(1)%compset=meqrec%phr(jj)%ics
                 tmpline(1)%nstabph=tmpline(1)%nstabph+1
 !                tmpline(1)%nstabph=1
@@ -1489,7 +1498,7 @@ CONTAINS
           write(*,*)'Attempt to set the only phase as fix!'
           gx%bmperr=4230; goto 1000
        endif
-!       write(*,*)'Remove axis condition and set stable phase fix: ',irem
+       write(*,*)'Remove axis condition and set stable phase fix: ',irem
 ! phase already in lists, just mark it is no fixed with zero amount
 !       meqrec%phr(irem)%itrem=meqrec%noofits
 !       meqrec%phr(irem)%prevam=zero
@@ -1576,7 +1585,8 @@ CONTAINS
     axactive=3-jax
 ! templine is map_line record, some data must be set
     tmpline(1)%nfixphases=1
-    tmpline(1)%linefixph%phaseix=meqrec%phr(kph)%iph
+!    tmpline(1)%linefixph%phaseix=meqrec%phr(kph)%iph
+    tmpline(1)%linefixph%ixphase=meqrec%phr(kph)%iph
     tmpline(1)%linefixph%compset=meqrec%phr(kph)%ics
 ! allocate space for all stable phases minus one as fix, may already be alloc
 !    allocate(tmpline(1)%stableph(meqrec%nstph-1))
@@ -1601,16 +1611,19 @@ CONTAINS
 66     format(a,10i4)
        ll=ll+1
 !       write(*,*)'Store stable phase: ',jj,ll
-       tmpline(1)%stableph(ll)%phaseix=meqrec%phr(jj)%iph
+!       tmpline(1)%stableph(ll)%phaseix=meqrec%phr(jj)%iph
+       tmpline(1)%stableph(ll)%ixphase=meqrec%phr(jj)%iph
        tmpline(1)%stableph(ll)%compset=meqrec%phr(jj)%ics
        tmpline(1)%stablepham(ll)=meqrec%phr(jj)%curd%amfu
        tmpline(1)%nstabph=tmpline(1)%nstabph+1
 ! why exit?
 !       exit
     enddo
-    if(ocv()) write(*,300)axactive,kph,tmpline(1)%linefixph%phaseix,&
+!    if(ocv()) write(*,300)axactive,kph,tmpline(1)%linefixph%phaseix,&
+    if(ocv()) write(*,300)axactive,kph,tmpline(1)%linefixph%ixphase,&
          tmpline(1)%linefixph%compset,tmpline(1)%nstabph,&
-         (tmpline(1)%stableph(jj)%phaseix,tmpline(1)%stableph(jj)%compset,&
+!         (tmpline(1)%stableph(jj)%phaseix,tmpline(1)%stableph(jj)%compset,&
+         (tmpline(1)%stableph(jj)%ixphase,tmpline(1)%stableph(jj)%compset,&
          jj=1,tmpline(1)%nstabph)
 300 format('exit map_startline: ',i2,i3,2x,2i3,2x,i2,10(2x,i3,i2))
     if(tmpline(1)%nstabph.eq.0) then
@@ -2111,7 +2124,8 @@ CONTAINS
 ! NOTE: If we change fix/entered phase we must change axvals/axvals2
 !                i1=svr2%argtyp; i2=svr2%phase; i3=svr2%compset
                 svrtarget%argtyp=3
-                svrtarget%phase=mapline%linefixph(1)%phaseix
+!                svrtarget%phase=mapline%linefixph(1)%phaseix
+                svrtarget%phase=mapline%linefixph(1)%ixphase
                 svrtarget%compset=mapline%linefixph(1)%compset
              endif
 ! we must use a pointer in state_variable_val
@@ -2876,7 +2890,8 @@ CONTAINS
           goto 800
        endif
 ! T, P and all chemical potentials the same, one should maybe check phases??
-       iph=mapline%linefixph(1)%phaseix
+!       iph=mapline%linefixph(1)%phaseix
+       iph=mapline%linefixph(1)%ixphase
        ics=mapline%linefixph(1)%compset
        if(ocv()) write(*,107)'Node exist: ',&
             mapnode%seqx,size(mapnode%linehead),iph,ics
@@ -2885,10 +2900,12 @@ CONTAINS
 ! loop for all exits
           nodexit=>mapnode%linehead(jj)
           if(ocv()) write(*,108)'Exit: ',jj,nodexit%done,&
-               nodexit%linefixph(1)%phaseix,nodexit%linefixph(1)%compset
+               nodexit%linefixph(1)%ixphase,nodexit%linefixph(1)%compset
+!               nodexit%linefixph(1)%phaseix,nodexit%linefixph(1)%compset
 108       format(a,i4,i7,i5,i2)
           if(nodexit%done.le.0) cycle
-          if(nodexit%linefixph(1)%phaseix.eq.iph .and. &
+!          if(nodexit%linefixph(1)%phaseix.eq.iph .and. &
+          if(nodexit%linefixph(1)%ixphase.eq.iph .and. &
                nodexit%linefixph(1)%compset.eq.ics) then
 !             write(*,*)'Number of stable phases: ',&
 !                  nodexit%nstabph,mapline%nstabph
@@ -2979,9 +2996,11 @@ CONTAINS
 ! save index of the phase set fix at the node
 !    write(*,*)'Saving index of fix phase: ',phfix
     if(phfix.lt.0) then
-       newnode%nodefix%phaseix=-meqrec%phr(abs(phfix))%iph
+!       newnode%nodefix%phaseix=-meqrec%phr(abs(phfix))%iph
+       newnode%nodefix%ixphase=-meqrec%phr(abs(phfix))%iph
     else
-       newnode%nodefix%phaseix=meqrec%phr(abs(phfix))%iph
+!       newnode%nodefix%phaseix=meqrec%phr(abs(phfix))%iph
+       newnode%nodefix%ixphase=meqrec%phr(abs(phfix))%iph
     endif
     newnode%nodefix%compset=meqrec%phr(abs(phfix))%ics
 !    write(*,*)'Saved node fix phase: ',newnode%nodefix%phase,&
@@ -2990,7 +3009,8 @@ CONTAINS
     newnode%noofstph=meqrec%nstph
     allocate(newnode%stable_phases(newnode%noofstph))
     do jj=1,newnode%noofstph
-       newnode%stable_phases(jj)%phaseix=meqrec%iphl(jj)
+!       newnode%stable_phases(jj)%phaseix=meqrec%iphl(jj)
+       newnode%stable_phases(jj)%ixphase=meqrec%iphl(jj)
        newnode%stable_phases(jj)%compset=meqrec%icsl(jj)
     enddo
 ! Thats all in the newnode ... except the lineheads ....
@@ -3161,7 +3181,8 @@ CONTAINS
        do iph=1,meqrec%nstph
           newnode%linehead(1)%nstabph=newnode%linehead(1)%nstabph+1
           jj=meqrec%stphl(iph)
-          newnode%linehead(1)%stableph(iph)%phaseix=meqrec%phr(jj)%iph
+!          newnode%linehead(1)%stableph(iph)%phaseix=meqrec%phr(jj)%iph
+          newnode%linehead(1)%stableph(iph)%ixphase=meqrec%phr(jj)%iph
           newnode%linehead(1)%stableph(iph)%compset=meqrec%phr(jj)%ics
        enddo
 ! end attempt
@@ -3243,7 +3264,8 @@ CONTAINS
 ! loop through whole phr array to be sure nothing is wrong
           if(meqrec%phr(jj)%stable.eq.1) then
              if(jj.eq.abs(phfix) .or.&
-                  (meqrec%phr(jj)%iph.eq.mapline%linefixph(1)%phaseix .and.&
+!                  (meqrec%phr(jj)%iph.eq.mapline%linefixph(1)%phaseix .and.&
+                  (meqrec%phr(jj)%iph.eq.mapline%linefixph(1)%ixphase .and.&
                   meqrec%phr(jj)%ics.eq.mapline%linefixph(1)%compset)) cycle
              if(jphr.gt.0) then
                 write(*,*)'Problems, two entered phases: ',jj,jphr
@@ -3255,7 +3277,8 @@ CONTAINS
        enddo
        zph=0
        do jj=1,meqrec%nphase
-          if(meqrec%phr(jj)%iph.eq.mapline%linefixph(1)%phaseix .and. &
+!          if(meqrec%phr(jj)%iph.eq.mapline%linefixph(1)%phaseix .and. &
+          if(meqrec%phr(jj)%iph.eq.mapline%linefixph(1)%ixphase .and. &
                meqrec%phr(jj)%ics.eq.mapline%linefixph(1)%compset) then
 ! this is the index in phr for the phase that was fix along the line
              zph=jj
@@ -3263,7 +3286,8 @@ CONTAINS
        enddo
        if(zph.eq.0) then
           write(*,203)' *** warning: cannot find the fix phase: ',zph,&
-               mapline%linefixph(1)%phaseix,mapline%linefixph(1)%compset
+               mapline%linefixph(1)%ixphase,mapline%linefixph(1)%compset
+!               mapline%linefixph(1)%phaseix,mapline%linefixph(1)%compset
 203       format(a,10i4)
 !       else
 !          write(*,203)' Found the fix phase: ',zph,&
@@ -3280,7 +3304,8 @@ CONTAINS
 !          write(*,*)'Changing the axis variable for the new entered phase'
 !       endif
 ! In mapnode there is a nfixph and array linefixph
-       if(ocv()) write(*,207)mapline%linefixph(1)%phaseix,&
+!       if(ocv()) write(*,207)mapline%linefixph(1)%phaseix,&
+       if(ocv()) write(*,207)mapline%linefixph(1)%ixphase,&
             mapline%linefixph(1)%compset,&
             meqrec%phr(phfix)%iph,meqrec%phr(phfix)%ics,&
             meqrec%phr(jphr)%iph,meqrec%phr(jphr)%ics
@@ -3288,22 +3313,27 @@ CONTAINS
 ! The two exits are:   FIX    STABLE    UNSTABLE
 ! exit 1               PHFIX  LFIX      LENT
 ! exit 2               LENT   PHFIX     LFIX
-       iph=mapline%linefixph(1)%phaseix
+!       iph=mapline%linefixph(1)%phaseix
+       iph=mapline%linefixph(1)%ixphase
        ics=mapline%linefixph(1)%compset
-       newnode%linehead(1)%linefixph%phaseix=meqrec%phr(phfix)%iph
+!       newnode%linehead(1)%linefixph%phaseix=meqrec%phr(phfix)%iph
+       newnode%linehead(1)%linefixph%ixphase=meqrec%phr(phfix)%iph
        newnode%linehead(1)%linefixph%compset=meqrec%phr(phfix)%ics
        newnode%linehead(1)%nstabph=1
 ! the previously fix phase is set as entered with stablepham as initial amount
-       newnode%linehead(1)%stableph(1)%phaseix=iph
+!       newnode%linehead(1)%stableph(1)%phaseix=iph
+       newnode%linehead(1)%stableph(1)%ixphase=iph
        newnode%linehead(1)%stableph(1)%compset=ics
        newnode%linehead(1)%stablepham(1)=one
 ! store the phase number that must not become stable in nodfixph
        newnode%linehead(1)%nodfixph=jphr
 !-----------
-       newnode%linehead(2)%linefixph%phaseix=meqrec%phr(jphr)%iph
+!       newnode%linehead(2)%linefixph%phaseix=meqrec%phr(jphr)%iph
+       newnode%linehead(2)%linefixph%ixphase=meqrec%phr(jphr)%iph
        newnode%linehead(2)%linefixph%compset=meqrec%phr(jphr)%ics
        newnode%linehead(2)%nstabph=1
-       newnode%linehead(2)%stableph(1)%phaseix=meqrec%phr(phfix)%iph
+!       newnode%linehead(2)%stableph(1)%phaseix=meqrec%phr(phfix)%iph
+       newnode%linehead(2)%stableph(1)%ixphase=meqrec%phr(phfix)%iph
        newnode%linehead(2)%stableph(1)%compset=meqrec%phr(phfix)%ics
        newnode%linehead(2)%stablepham(1)=one
        newnode%linehead(2)%nodfixph=zph
@@ -3331,7 +3361,8 @@ CONTAINS
 !              i1=svr2%argtyp; i2=svr2%phase; i3=svr2%compset
           svrtarget=svrrec
           svrtarget%argtyp=3
-          svrtarget%phase=newnode%linehead(1)%stableph(1)%phaseix
+!          svrtarget%phase=newnode%linehead(1)%stableph(1)%phaseix
+          svrtarget%phase=newnode%linehead(1)%stableph(1)%ixphase
           svrtarget%compset=newnode%linehead(1)%stableph(1)%compset
 ! This extracts the composition of the entered phase for first new line
 ! we must use a pointer in state_variable_val
@@ -3360,7 +3391,8 @@ CONTAINS
           svrrec=>pcond%statvar(1)
           svrtarget=svrrec
           svrtarget%argtyp=3
-          svrtarget%phase=newnode%linehead(2)%stableph(1)%phaseix
+!          svrtarget%phase=newnode%linehead(2)%stableph(1)%phaseix
+          svrtarget%phase=newnode%linehead(2)%stableph(1)%ixphase
           svrtarget%compset=newnode%linehead(2)%stableph(1)%compset
 ! This extracts the composition of the entered phase for second new line
           call state_variable_val(svr2,xxx,tmpceq)
@@ -3377,15 +3409,19 @@ CONTAINS
        endif
 !
        if(ocv()) write(*,56)'Created linehead 1 for node: ',newnode%seqx,&
-            newnode%linehead(1)%linefixph%phaseix,&
+!            newnode%linehead(1)%linefixph%phaseix,&
+            newnode%linehead(1)%linefixph%ixphase,&
             newnode%linehead(1)%linefixph%compset,&
-            newnode%linehead(1)%stableph(1)%phaseix,&
+!            newnode%linehead(1)%stableph(1)%phaseix,&
+            newnode%linehead(1)%stableph(1)%ixphase,&
             newnode%linehead(1)%stableph(1)%compset,&
             newnode%linehead(1)%nodfixph
        if(ocv()) write(*,56)'Created linehead 2 for node: ',newnode%seqx,&
-            newnode%linehead(2)%linefixph%phaseix,&
+!            newnode%linehead(2)%linefixph%phaseix,&
+            newnode%linehead(2)%linefixph%ixphase,&
             newnode%linehead(2)%linefixph%compset,&
-            newnode%linehead(2)%stableph(1)%phaseix,&
+!            newnode%linehead(2)%stableph(1)%phaseix,&
+            newnode%linehead(2)%stableph(1)%ixphase,&
             newnode%linehead(2)%stableph(1)%compset,&
             newnode%linehead(2)%nodfixph
 56     format(a,i3,5x,2i3,5x,2i3,5x,2i3)
@@ -3477,7 +3513,8 @@ CONTAINS
 !                  (meqrec%phr(jj)%iph.eq.mapline%linefixph(1)%phase .and.&
 !                   meqrec%phr(jj)%ics.eq.mapline%linefixph(1)%compset)) cycle
 ! we should include phfix in stabph!!
-             if(meqrec%phr(jj)%iph.eq.mapline%linefixph(1)%phaseix .and.&
+!             if(meqrec%phr(jj)%iph.eq.mapline%linefixph(1)%phaseix .and.&
+             if(meqrec%phr(jj)%iph.eq.mapline%linefixph(1)%ixphase .and.&
                   meqrec%phr(jj)%ics.eq.mapline%linefixph(1)%compset) cycle
              stabph=stabph+1
           endif
@@ -3505,7 +3542,8 @@ CONTAINS
 ! exit 1                 LFIX   f-1 (-PHFIX)              PHFIX
 ! exit 2                 PHFIX  f-1 (-PHFIX not LFIX)     LFIX
 ! exit 3                 PHFIX  f   (-PHFIX and add LFIX) LFIX
-       iph=mapline%linefixph(1)%phaseix
+!       iph=mapline%linefixph(1)%phaseix
+       iph=mapline%linefixph(1)%ixphase
        ics=mapline%linefixph(1)%compset
 ! for use below I need to know the position of iph+ics in meqrec%phr ...
        flfix: do jj=1,meqrec%nstph
@@ -3516,20 +3554,24 @@ CONTAINS
        kph=mapline%meqrec%phr(abs(phfix))%iph
        kcs=mapline%meqrec%phr(abs(phfix))%ics
 ! exit 1 has same linefix as incomming line ------------------------
-       newnode%linehead(1)%linefixph%phaseix=iph
+!       newnode%linehead(1)%linefixph%phaseix=iph
+       newnode%linehead(1)%linefixph%ixphase=iph
        newnode%linehead(1)%linefixph%compset=ics
        if(phfix.gt.0) then
 !          write(*,*)'allocated size of stableph 2: ',size(mapline%stableph)
           do jj=1,stabph
-             newnode%linehead(1)%stableph(jj)%phaseix=&
-                  mapline%stableph(jj)%phaseix
+!             newnode%linehead(1)%stableph(jj)%phaseix=&
+!                  mapline%stableph(jj)%phaseix
+             newnode%linehead(1)%stableph(jj)%ixphase=&
+                  mapline%stableph(jj)%ixphase
              newnode%linehead(1)%stableph(jj)%compset=&
                   mapline%stableph(jj)%compset
              newnode%linehead(1)%stablepham(jj)=mapline%stablepham(jj)
           enddo
 ! add phfix as stable phase
           jj=stabph+1
-          newnode%linehead(1)%stableph(jj)%phaseix=kph
+!          newnode%linehead(1)%stableph(jj)%phaseix=kph
+          newnode%linehead(1)%stableph(jj)%ixphase=kph
           newnode%linehead(1)%stableph(jj)%compset=kcs
           newnode%linehead(1)%stablepham(jj)=zero
 !          newnode%linehead(1)%nodfixph=meqrec%phr(abs(phfix))%iph
@@ -3539,14 +3581,17 @@ CONTAINS
           kk=0
           do jj=1,stabph-1
 ! remove -phfix as stable phase
-             if(mapline%stableph(jj)%phaseix.eq.kph .and.&
+!             if(mapline%stableph(jj)%phaseix.eq.kph .and.&
+             if(mapline%stableph(jj)%ixphase.eq.kph .and.&
                   mapline%stableph(jj)%compset.eq.kcs) then
                 kk=jj+1
              else
                 kk=kk+1
              endif
-             newnode%linehead(1)%stableph(jj)%phaseix=&
-                  mapline%stableph(kk)%phaseix
+!             newnode%linehead(1)%stableph(jj)%phaseix=&
+!                  mapline%stableph(kk)%phaseix
+             newnode%linehead(1)%stableph(jj)%ixphase=&
+                  mapline%stableph(kk)%ixphase
              newnode%linehead(1)%stableph(jj)%compset=&
                   mapline%stableph(kk)%compset
              newnode%linehead(1)%stablepham(jj)=mapline%stablepham(kk)
@@ -3557,19 +3602,23 @@ CONTAINS
        endif
 !
 ! exit 2 has PHFIX as linefix ----------------------------------
-       newnode%linehead(2)%linefixph%phaseix=kph
+!       newnode%linehead(2)%linefixph%phaseix=kph
+       newnode%linehead(2)%linefixph%ixphase=kph
        newnode%linehead(2)%linefixph%compset=kcs
        if(phfix.gt.0) then
           do jj=1,stabph
-             newnode%linehead(2)%stableph(jj)%phaseix=&
-                  mapline%stableph(jj)%phaseix
+!             newnode%linehead(2)%stableph(jj)%phaseix=&
+!                  mapline%stableph(jj)%phaseix
+             newnode%linehead(2)%stableph(jj)%ixphase=&
+                  mapline%stableph(jj)%ixphase
              newnode%linehead(2)%stableph(jj)%compset=&
                   mapline%stableph(jj)%compset
              newnode%linehead(2)%stablepham(jj)=mapline%stablepham(jj)
           enddo
 ! add LFIX as stable phase
           jj=stabph+1
-          newnode%linehead(2)%stableph(jj)%phaseix=iph
+!          newnode%linehead(2)%stableph(jj)%phaseix=iph
+          newnode%linehead(2)%stableph(jj)%ixphase=iph
           newnode%linehead(2)%stableph(jj)%compset=ics
           newnode%linehead(2)%stablepham(jj)=zero
 !          newnode%linehead(2)%nodfixph=meqrec%phr(lfix)%iph
@@ -3579,14 +3628,17 @@ CONTAINS
           kk=0
           do jj=1,stabph-1
 ! remove -phfix as stable phase
-             if(mapline%stableph(jj)%phaseix.eq.kph .and.&
+!             if(mapline%stableph(jj)%phaseix.eq.kph .and.&
+             if(mapline%stableph(jj)%ixphase.eq.kph .and.&
                   mapline%stableph(jj)%compset.eq.kcs) then
                 kk=jj+1
              else
                 kk=kk+1
              endif
-             newnode%linehead(2)%stableph(jj)%phaseix=&
-                  mapline%stableph(kk)%phaseix
+!             newnode%linehead(2)%stableph(jj)%phaseix=&
+!                  mapline%stableph(kk)%phaseix
+             newnode%linehead(2)%stableph(jj)%ixphase=&
+                  mapline%stableph(kk)%ixphase
              newnode%linehead(2)%stableph(jj)%compset=&
                   mapline%stableph(kk)%compset
              newnode%linehead(2)%stablepham(jj)=mapline%stablepham(kk)
@@ -3597,18 +3649,23 @@ CONTAINS
        endif
 !
 ! exit 3 has PHFIX as linefix ----------------------------------
-       newnode%linehead(3)%linefixph%phaseix=kph
+!       newnode%linehead(3)%linefixph%phaseix=kph
+       newnode%linehead(3)%linefixph%ixphase=kph
        newnode%linehead(3)%linefixph%compset=kcs
        do jj=1,stabph
-          if(mapline%stableph(jj)%phaseix.eq.kph .and. &
+!          if(mapline%stableph(jj)%phaseix.eq.kph .and. &
+          if(mapline%stableph(jj)%ixphase.eq.kph .and. &
                mapline%stableph(jj)%compset.eq.kcs) then
 ! exchange PHFIX for LFIX as stable phase
-             newnode%linehead(3)%stableph(jj)%phaseix=iph
+!             newnode%linehead(3)%stableph(jj)%phaseix=iph
+             newnode%linehead(3)%stableph(jj)%ixphase=iph
              newnode%linehead(3)%stableph(jj)%compset=ics
              newnode%linehead(3)%stablepham(jj)=zero
           else
-             newnode%linehead(3)%stableph(jj)%phaseix=&
-                  mapline%stableph(jj)%phaseix
+!             newnode%linehead(3)%stableph(jj)%phaseix=&
+!                  mapline%stableph(jj)%phaseix
+             newnode%linehead(3)%stableph(jj)%ixphase=&
+                  mapline%stableph(jj)%ixphase
              newnode%linehead(3)%stableph(jj)%compset=&
                   mapline%stableph(jj)%compset
              newnode%linehead(3)%stablepham(jj)=mapline%stablepham(jj)
@@ -3621,11 +3678,13 @@ CONTAINS
        if(ocv()) then
           do jj=1,3
              write(*,356)jj,newnode%seqx,&
-                  newnode%linehead(jj)%linefixph%phaseix,&
+!                  newnode%linehead(jj)%linefixph%phaseix,&
+                  newnode%linehead(jj)%linefixph%ixphase,&
                   newnode%linehead(jj)%linefixph%compset,&
                   newnode%linehead(jj)%nodfixph,&
                   newnode%linehead(jj)%nstabph,&
-                  (newnode%linehead(jj)%stableph(kk)%phaseix,&
+!                  (newnode%linehead(jj)%stableph(kk)%phaseix,&
+                  (newnode%linehead(jj)%stableph(kk)%ixphase,&
                   newnode%linehead(jj)%stableph(kk)%compset,&
                   kk=1,newnode%linehead(jj)%nstabph)
           enddo
@@ -3805,7 +3864,7 @@ CONTAINS
 ! for mapping set values in mapfix about which phases that should be fix
 ! or stable when calling calceq7, at present ingnore that
 !-------------------------------------------------------------
-!    write(*,*)'tielines ',maptop%tieline_inplane
+!    write(*,*)'tielines: ',maptop%tieline_inplane
     if(maptop%tieline_inplane.lt.0) then
 ! ISOPLETH
        allocate(mapfix)
@@ -3823,11 +3882,12 @@ CONTAINS
        call get_phasetup_name_old(mapfix%fixph(1),phaseset)
        if(gx%bmperr.ne.0) goto 1000
        ip=len_trim(phaseset)+4
-       phaseset(ip-2:ip-2)='+'
+       phaseset(ip-1:ip-2)='+'
        if(mapnode%linehead(nyline)%nstabph.le.0) then
           write(*,*)'No stable phases for a line'
           write(*,*)'Error 14:  ',nyline,mapnode%linehead(nyline)%nstabph,&
-               mapnode%linehead(nyline)%stableph(1)%phaseix,&
+!               mapnode%linehead(nyline)%stableph(1)%phaseix,&
+               mapnode%linehead(nyline)%stableph(1)%ixphase,&
                mapnode%linehead(nyline)%stableph(1)%compset
           mapfix%nstabph=0
           gx%bmperr=4242; goto 1000
@@ -3883,7 +3943,7 @@ CONTAINS
        ip=len_trim(phaseset)+4
        phaseset(ip-2:ip-2)='+'
 !       write(*,*)'Fixed phase: ',mapfix%nfixph,&
-!            mapfix%fixph%phase,mapfix%fixph%compset
+!            mapfix%fixph%ixphase,mapfix%fixph%compset
        if(mapnode%linehead(nyline)%nstabph.gt.0) then
 ! this is stored only for "real" nodes
           mapfix%nstabph=1
@@ -3900,7 +3960,7 @@ CONTAINS
           if(ip.gt.1) then
              write(kou,516)mapline%lineid,&
                   mapline%lineceq%tpval(1),phaseset(1:ip)
-516          format(/'Line ',i3,' T=',F8.2,' with: ',a)
+516          format(/'Line: ',i3,' T=',F8.2,' with: ',a)
 !             write(*,507)' *** Phase numbers: ',mapfix%fixph(1),&
 !                  mapfix%stableph(1),mapline%nodfixph
 507          format(a,2i3,2x,2i3,2x,2i3)
@@ -3911,18 +3971,21 @@ CONTAINS
        else
           write(*,*)'No stable phase!! why??'
           write(*,*)'stable 4:  ',nyline,mapnode%linehead(nyline)%nstabph,&
-               mapnode%linehead(nyline)%stableph(1)%phaseix,&
+!               mapnode%linehead(nyline)%stableph(1)%phaseix,&
+               mapnode%linehead(nyline)%stableph(1)%ixphase,&
                mapnode%linehead(nyline)%stableph(1)%compset
           mapfix%nstabph=0
        endif
 !-------------------------------------------------------------
     else
 ! For STEP we should set a small positive amount of a new stable phase
-       if(mapnode%nodefix%phaseix.gt.0) then
+!       if(mapnode%nodefix%phaseix.gt.0) then
+       if(mapnode%nodefix%ixphase.gt.0) then
 ! If the fix phase at the node was disappearing the phase index is negative
 !          write(*,*)'Add a small amount to the new stable phase: ',&
 !               mapnode%nodefix%phase,mapnode%nodefix%compset
-          call get_phase_compset(abs(mapnode%nodefix%phaseix),&
+!          call get_phase_compset(abs(mapnode%nodefix%phaseix),&
+          call get_phase_compset(abs(mapnode%nodefix%ixphase),&
                mapnode%nodefix%compset,lokph,lokcs)
           mapline%lineceq%phase_varres(lokcs)%amfu=1.0D-2
        endif
@@ -4148,7 +4211,7 @@ CONTAINS
                mapline%meqrec%phr(mapline%nodfixph)%ics
 11        format('I give up on this line',i3,2x,a,' with fix phase ',2i4)
        else
-          write(*,11)mapline%nodfixph,mapline%lineceq%eqname
+          write(*,11)mapline%nodfixph,mapline%lineceq%eqname,0,0
        endif
        gx%bmperr=4244; goto 1000
     endif
@@ -6455,7 +6518,8 @@ CONTAINS
        do ics=1,noofcs(iph)
           itup=itup+1
 !          write(*,*)'SMP ',iph,noofcs(iph),ics,itup
-          entphcs(itup)%phaseix=iph
+!          entphcs(itup)%phaseix=iph
+          entphcs(itup)%ixphase=iph
           entphcs(itup)%compset=ics
           stsphcs(itup)=test_phase_status(iph,ics,val,ceq)
           if(gx%bmperr.ne.0) goto 1000
@@ -6475,8 +6539,10 @@ CONTAINS
 ! nystat:-4 hidden, -3 suspended, -2 dormant, -1,0,1 entered, 2 fix
        if(stsphcs(itup).gt.-2) then
 ! set default constitution, if none specified in the middle
-          iph=entphcs(itup)%phaseix
-          call set_default_constitution(entphcs(itup)%phaseix,&
+!          iph=entphcs(itup)%phaseix
+          iph=entphcs(itup)%ixphase
+!          call set_default_constitution(entphcs(itup)%phaseix,&
+          call set_default_constitution(entphcs(itup)%ixphase,&
                entphcs(itup)%compset,ceq)
           if(gx%bmperr.ne.0) then
              write(*,*)'Failed setting default constitution'
@@ -6484,7 +6550,8 @@ CONTAINS
           endif
 ! set phase as entered
 !          write(*,*)'Set phase entered ',itup,entphcs(itup)%phase
-          call change_phase_status(entphcs(itup)%phaseix,&
+!          call change_phase_status(entphcs(itup)%phaseix,&
+          call change_phase_status(entphcs(itup)%ixphase,&
                entphcs(itup)%compset,0,one,ceq)
           if(gx%bmperr.ne.0) then
              write(*,*)'Failed setting phase entered',gx%bmperr
@@ -6508,13 +6575,15 @@ CONTAINS
              if(gx%bmperr.ne.0) goto 500
              call get_phasetup_name_old(entphcs(itup),name)
 ! axis variable is composition, skip hases with no variance
-             call get_phase_variance(entphcs(itup)%phaseix,nv)
+!             call get_phase_variance(entphcs(itup)%phaseix,nv)
+             call get_phase_variance(entphcs(itup)%ixphase,nv)
              if(nv.eq.0) then
                 write(*,71)name(1:len_trim(name)),val
 71              format(/'Ignoring phase with fixed composition: ',a,F10.6)
 !----------------
                 lokcs=phasetuple(iph)%lokvares
-                write(*,*)'indices: ',iph,phasetuple(iph)%phaseix,lokcs
+!                write(*,*)'indices: ',iph,phasetuple(iph)%phaseix,lokcs
+                write(*,*)'indices: ',iph,phasetuple(iph)%ixphase,lokcs
                 goto 500
 ! handle stoichiometric phases in step_separate ....
 ! we need to initiate a line with just one point
@@ -6662,7 +6731,8 @@ CONTAINS
           endif
        endif
 ! set current phase as suspended and calculate for next phase
-       call change_phase_status(entphcs(itup)%phaseix,entphcs(itup)%compset,&
+!       call change_phase_status(entphcs(itup)%phaseix,entphcs(itup)%compset,&
+       call change_phase_status(entphcs(itup)%ixphase,entphcs(itup)%compset,&
             -3,zero,ceq)
 !       write(*,*)'At end of phase loop itup=',itup
     enddo phaseloop
@@ -6674,7 +6744,8 @@ CONTAINS
     do itup=1,ntup
 !       write(*,910)itup,entphcs(itup)%phase,entphcs(itup)%compset,stsphcs(itup)
 910    format('Restoring all phase status: ',4i5)
-       call change_phase_status(entphcs(itup)%phaseix,&
+!       call change_phase_status(entphcs(itup)%phaseix,&
+       call change_phase_status(entphcs(itup)%ixphase,&
             entphcs(itup)%compset,stsphcs(itup),val,ceq)
        if(gx%bmperr.ne.0) goto 1000
     enddo

@@ -901,7 +901,8 @@ contains
 ! or derivatives of chemical potentials and mobility data
 ! convert to phase tuple here as that is used in the application call
              do jp=1,nooftup()
-                if(phasetuple(jp)%phaseix.eq.iph .and. &
+!                if(phasetuple(jp)%phaseix.eq.iph .and. &
+                if(phasetuple(jp)%ixphase.eq.iph .and. &
                      phasetuple(jp)%compset.eq.ics) then
 !                   write(*,*)'This is phase tuple ',jp
                    goto 2044
@@ -3299,8 +3300,8 @@ contains
           write(kou,*)'Current equilibrium record memory use: ',kom3
 ! list all tuples
           write(kou,1617)
-1617      format('Phase tuples content'/&
-               'Tuple phaseix compset ixphase lokvares nextcs phase name')
+1617      format('Phase tuples content:'/&
+               'Tuple lokph   compset ixphase lokvares nextcs phase name')
           do jp=1,nooftup()
              call get_phasetup_name(jp,name1)
 ! this is a check that %ihaseix and lokvares are correct

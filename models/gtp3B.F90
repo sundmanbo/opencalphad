@@ -628,7 +628,8 @@
 ! NOTE nooftuples updated in alphaphorder ... for old times sake
       do ll=1,noofph
 ! this is index in phlista
-         phasetuple(ll)%phaseix=phases(ll)
+!         phasetuple(ll)%phaseix=phases(ll)
+         phasetuple(ll)%lokph=phases(ll)
          phasetuple(ll)%compset=1
 ! this is alphabetical index
          phasetuple(ll)%ixphase=ll
@@ -926,7 +927,8 @@
 !   write(*,*)'add_cs: ',nyttcs
 ! add new tuple at the end and save tuple index
    tuple=nooftuples+1
-   phasetuple(tuple)%phaseix=phases(iph)
+!   phasetuple(tuple)%phaseix=phases(iph)
+   phasetuple(tuple)%lokph=phases(iph)
    phasetuple(tuple)%compset=icsno
 ! New variables in phase tuple!, phase index and phase_varrres
    phasetuple(tuple)%ixphase=iph
@@ -1196,7 +1198,8 @@
 ! find the tuple for this phase+compset
    loop: do jl=1,nooftuples
 !      write(*,*)'3B tuple compset: ',jl,ics,phasetuple(jl)%compset
-      if(phasetuple(jl)%phaseix.eq.lokph) then
+!      if(phasetuple(jl)%phaseix.eq.lokph) then
+      if(phasetuple(jl)%lokph.eq.lokph) then
          if(phasetuple(jl)%compset.eq.ics) then
             tuple=jl; exit loop
          endif
@@ -1352,7 +1355,8 @@
 ! It is always the last compset of a phase that is removed,
 ! all nextcs links goes to higher tuples
    do jl=tuple+1,nooftuples
-      phasetuple(jl-1)%phaseix=phasetuple(jl)%phaseix
+!      phasetuple(jl-1)%phaseix=phasetuple(jl)%phaseix
+      phasetuple(jl-1)%lokph=phasetuple(jl)%lokph
       phasetuple(jl-1)%compset=phasetuple(jl)%compset
       phasetuple(jl-1)%ixphase=phasetuple(jl)%ixphase
       phasetuple(jl-1)%lokvares=phasetuple(jl)%lokvares
@@ -1374,7 +1378,8 @@
 ! sometimes that a tuple did not exist.
 !
 ! we must change the link in the phase_varres records also!!
-      lokph=phasetuple(jl-1)%phaseix
+!      lokph=phasetuple(jl-1)%phaseix
+      lokph=phasetuple(jl-1)%lokph
       lokcs=phlista(lokph)%linktocs(phasetuple(jl-1)%compset)
 !      write(*,771)'3B Shifting down ',jl,nooftuples,phasetuple(jl-1)%phaseix,&
 !           phasetuple(jl-1)%compset,lokph,lokcs

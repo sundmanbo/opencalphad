@@ -350,9 +350,9 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'Request for non-existing chemical potential                     ',&
        'Removing current data not implemented                           ',&
        'Grid minimization not allowed                                   ',&
-       'Grid minimizer cannot be used with the current conditions       ',&
+       'Grid minimizer cannot be used with the current set of conditions',&
        'Too many gridpoints                                             ',&
-       'No phases and no gridpoints in call to grid minimization        ',&
+       'No phases and no gridpoints for grid minimization               ',&
        'Grid minimizer wants but must not create composition sets       ',&
        'Non-existing fix phase                                          ',&
        'N, X, B or W cannot have two indices for use of grid minimizer  ',&
@@ -1154,14 +1154,14 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   INTEGER, parameter :: gtp_phasetuple_version=2
   TYPE gtp_phasetuple
 ! for handling a single array with phases and composition sets
-! phaseix is phase index, compset is composition set index
-! ADDED also index in phlista (ixphase) and phase_varres (lokvares) and
+! ixphase is phase index, compset is composition set index
+! ADDED also index in phlista (lokph) and phase_varres (lokvares) and
 ! nextcs which is nonzero if there is a higher composition set of the phase
 ! A tuplet index always refer to the same phase+compset.  New tuples with
 ! the same phase and other compsets are added at the end.
 ! BUT if a compset>1 is deleted tuples with higher index will be shifted down!
-     integer phaseix,compset,ixphase,lokvares,nextcs
-!     integer phaseix,compset,lokph,lokvares,nextcs
+     integer lokph,compset,ixphase,lokvares,nextcs
+!     integer phaseix,compset,ixphase,lokvares,nextcs
   end TYPE gtp_phasetuple
 !\end{verbatim}
   TYPE(gtp_phasetuple), target, allocatable :: PHASETUPLE(:)
@@ -1431,11 +1431,12 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! way means the record is stored inside this record.
      type(gtp_fraction_set) :: disfra
 ! ---
-! arrays for storing calculated results for each phase (composition set)
+! stored calculated results for each phase (composition set)
 ! amfu: is amount formula units of the composition set (calculated result)
 ! netcharge: is net charge of phase
 ! dgm: driving force
-     double precision amfu,netcharge,dgm
+! cmfu: is amount formula units for user defined components
+     double precision amfu,netcharge,dgm,cmfu
 ! Other properties may be that: gval(*,2) is TC, (*,3) is BMAG, see listprop
 ! nprop: the number of different properties (set in allocate)
 !- ncc: total number of site fractions (redundant but used in some subroutines)

@@ -18,6 +18,20 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2016.08.22 The record gtp_phasetuple has been modified.  Originally it
+had only two indices, the phase index and the composition set number.
+Later it has been extended to include the phase location, index of the
+result record and an index to higher composition sets.  Unfortunately
+I named the phase index "phaseix" and the location "ixphase" and I
+have messed up which is what myself several times.  So now I renamed
+the phase location "lokph" and have made all necessary changes in the
+OC code EXCEPT for OCASI/TQ.
+
+Thus those who use the OCASI interface must test if they have any
+problems.  There are several subroutines using the phase tuple in
+OCASI and some of them may need modifications.  I will test OCASI as
+soon as possible but the application software may also need changes.
+
 2016.08.22 It is now possible to enter a new set of components but
 there are some problems not yet solved, in parts of the code the
 elements are still used, for example the size of the system is still

@@ -87,11 +87,12 @@
    do i=1,nrel
       if(xknown(i).le.zero .or. xknown(i).ge.one) then
          if(.not.btest(globaldata%status,GSNOTELCOMP)) then
-            write(*,*)'3Y Illegal composition for gridmin'
+            write(*,*)'3Y Gridmin cannot handle these composition conditions'
             gx%bmperr=4174; goto 1000
          else
 ! we have other components than elements, fractions can be negative and >1
             write(*,*)'3Y trying to use gridmininmizer when comp not elements'
+            gx%bmperr=4174; goto 1000
          endif
       endif
       sum=sum+xknown(i)
@@ -623,6 +624,7 @@
       deallocate(phord)
    endif
    if(ocv()) write(*,*)'3Y leaving global_gridmin'
+!   write(*,*)'3Y leaving global_gridmin'
    return
  end subroutine global_gridmin
 
