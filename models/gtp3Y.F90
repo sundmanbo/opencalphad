@@ -3921,8 +3921,8 @@
    yesorno=.FALSE.
    if(mode.le.0 .or. mode.gt.3) goto 1000
    if(mode.eq.1) then
-! enter element of species not allowed after entering first phase
-      if(noofph.gt.1) goto 1000
+! enter element or species not allowed after entering first phase
+      if(noofph.gt.0) goto 1000
       yesorno=.TRUE.
    elseif(mode.eq.2) then
 ! enter phases of a disordred fraction set not allowed

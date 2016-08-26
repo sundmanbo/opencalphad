@@ -3416,16 +3416,18 @@
 
 !\begin{verbatim}
  double precision function phase_component_amount(lokph,lokcs,ceq)
-! This subroutine calculates the ratio components/atoms for a phase iph/ics
-! It is needed when the user entered other components than the elements
+! This subroutine calculates the amount of components/F.U. for a phase iph/ics
+! when the user has entered other components than the elements
+! It replaces %abnorm(1)
    implicit none
    integer lokph,lokcs
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-   double precision camount
-   camount=ceq%phase_varres(lokcs)%amfu
+   double precision abnorm3
+   write(*,*)'phase component amount not implemented yet'
+   abnorm3=ceq%phase_varres(lokcs)%abnorm(1)
 1000 continue
-   phase_component_amount=camount
+   phase_component_amount=abnorm3
    return
  end function phase_component_amount
 

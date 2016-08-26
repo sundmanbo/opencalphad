@@ -811,6 +811,7 @@
 !\begin{verbatim}
  subroutine elements2components(nspel,stoi,ncmp,cmpstoi,ceq)
 ! converts a stoichiometry array for a species from elements to components
+! ?? I do not understand this subroutine, is it really used anywhere ??
    implicit none
    integer nspel,ncmp
    double precision stoi(*),cmpstoi(*)

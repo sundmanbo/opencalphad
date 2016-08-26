@@ -14,9 +14,13 @@ l r 2
 
 @&
 
-set ax 1 x(o) 0 1 ,,
+@$ All OK except congruent melting ...
+@$ set ax 1 x(o) 0 1 0.01
+@$ set ax 2 t 500 3500 10
 
-set ax 2 t 500 3500 25
+set ax 1 x(o) 0 1 0.005
+
+set ax 2 t 500 3500 20
 
 map
 

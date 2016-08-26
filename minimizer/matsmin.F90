@@ -2275,21 +2275,6 @@ CONTAINS
 !----------------------
     enddo
 1000 continue
-    if(btest(globaldata%status,GSNOTELCOMP)) then
-! add values in phase_varres(lokcs)%cmfu for all phases
-! UNFINISHED
-       do ie=1,noofphasetuples()
-          jj=phasetuple(ie)%lokvares
-          jph=phasetuple(ie)%ixphase
-          ceq%phase_varres(jj)%cmfu=phase_component_amount(jph,jj,ceq)
-       enddo
-    else
-! when elements are components just copy
-       do ie=1,noofphasetuples()
-          jj=phasetuple(ie)%lokvares
-          ceq%phase_varres(jj)%cmfu=ceq%phase_varres(jj)%amfu
-       enddo
-    endif
     if(gx%bmperr.ne.0) then
        ceq%status=ibset(ceq%status,EQFAIL)
 !      write(*,*)'minimization error: ',gx%bmperr

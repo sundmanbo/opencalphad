@@ -1754,10 +1754,10 @@ end function find_phasetuple_by_indices
    integer iph,ics
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-   integer lokph,lokcs,ll,ml,ic,loksp,jl,locva
+   integer lokph,lokcs,ll,ml,ic,loksp,jl,locva,zl,zel
    double precision charge,spat,asite,bsite,badd,yz,yva,sumat,asum,bsum
 !   double precision charge1,bion1,ionsites(2)
-   double precision charge1,bion1
+   double precision charge1,bion1,compsum
 ! The mass is not calculated correctly in version 2, attempt to fix
    double precision bliq1
 !   TYPE(gtp_fraction_set), pointer :: disrec
@@ -1860,9 +1860,29 @@ end function find_phasetuple_by_indices
 56          format(a,2i3,6(1pe12.4))
             sumat=zero
 ! This is not adopted for other components than the elements
-            do jl=1,splista(loksp)%noofel
-               sumat=sumat+splista(loksp)%stoichiometry(jl)
-            enddo
+            if(.not.btest(globaldata%status,GSNOTELCOMP)) then
+               do jl=1,splista(loksp)%noofel
+                  sumat=sumat+splista(loksp)%stoichiometry(jl)
+               enddo
+            else
+               do jl=1,splista(loksp)%noofel
+                  compsum=zero
+! ceq%invcompstoi converts elements to component stoichiometry
+! ceq%invcompstoi(zl=1,noofel,ie) is the amount of component iz for element ie
+! NOTE that the component is specified by its location, not alphabetically!!
+                  do zl=1,noofel
+! we must use %alphaindex to have the alphabetical index of the element ?? YES
+!                     zel=splista(loksp)%ellinks(jl) this is the location!!
+                     zel=ellista(splista(loksp)%ellinks(jl))%alphaindex
+! first index is the component, second the element
+                     compsum=compsum+ceq%invcompstoi(zl,zel)
+                  enddo
+                  sumat=sumat+splista(loksp)%stoichiometry(jl)*compsum
+                  write(*,14)'3A Elements not component: ',zel,compsum,&
+                       splista(loksp)%stoichiometry(jl),sumat
+14                format(a,i4,3(1pe12.4))
+               enddo
+            endif
             spat=spat+yz*sumat
 ! check sum number of atoms for ionic liquid
 !            if(sumat.gt.1) then

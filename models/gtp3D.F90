@@ -2085,6 +2085,10 @@ end subroutine get_condition
    allocate(ceq%compstoi(ic,ic))
    allocate(ceq%invcompstoi(ic,ic))
 !   write(*,*)(lokic(i),i=1,ic)
+! NOTE the component list not in alphabetical order
+! invcompstoi(component index, element index)
+! to convert from an element to a component sum first index  ??
+! to convert from a component to an element sum second index ??
    do jl=1,ic
       ceq%complist(jl)%splink=lokic(jl)
 ! phlink=0 means no user defined reference state

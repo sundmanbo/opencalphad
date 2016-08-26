@@ -1435,16 +1435,12 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! amfu: is amount formula units of the composition set (calculated result)
 ! netcharge: is net charge of phase
 ! dgm: driving force
-! cmfu: is amount formula units for user defined components
-     double precision amfu,netcharge,dgm,cmfu
+     double precision amfu,netcharge,dgm
 ! Other properties may be that: gval(*,2) is TC, (*,3) is BMAG, see listprop
 ! nprop: the number of different properties (set in allocate)
-!- ncc: total number of site fractions (redundant but used in some subroutines)
-! BEWHARE: ncc seems to be wrong using TQ test program fenitq.F90 ???
 ! listprop(1): is number of calculated properties
 ! listprop(2:listprop(1)): identifies the property stored in gval(1,ipy) etc
 !   2=TC, 3=BMAG. Properties defined in the gtp_propid record
-!-     integer nprop,ncc
      integer nprop
      integer, dimension(:), allocatable :: listprop
 ! gval etc are for all composition dependent properties, gval(*,1) for G
@@ -1511,8 +1507,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
      TYPE(gtp_phase_varres), dimension(:), allocatable :: phase_varres
 ! index to the tpfun_parres array is the same as in the global array tpres 
 ! eq_tpres: here local calculated values of TP functions are stored
-!     TYPE(tpfun_parres), dimension(:), pointer :: eq_tpres
-! memory leak, should be allocatable ????
+! should be allocatable, not a pointer
      TYPE(tpfun_parres), dimension(:), allocatable :: eq_tpres
 ! current values of chemical potentials stored in component record but
 ! duplicated here for easy acces by application software
@@ -1520,7 +1515,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! xconc: convergence criteria for constituent fractions and other things
      double precision xconv
 ! delta-G value for merging gridpoints in grid minimizer
-! smaller value creates problem for test step3.BMM, MC and austenite merged
+! smaller value creates problem for test step3.OCM, MC and austenite merged
      double precision :: gmindif=-5.0D-2
 ! maxiter: maximum number of iterations allowed
      integer maxiter

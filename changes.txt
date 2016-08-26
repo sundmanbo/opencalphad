@@ -1,5 +1,5 @@
-This file contains information on Open Calphad (OC) version 4
-prerelease no more updates of version 3.
+This file contains information on Open Calphad (OC) version 4 prerelease
+No more updates of version 3.
 
 The main practical change is that the step/map/plot file is now called
 smp2.F90, the executable oc4A or oc4P and the macros are on the ocv4
@@ -17,6 +17,11 @@ do not require any understanding of thermodynamics please contact a
 commercial vendor.
 
 In the list below the most recent changes come first.
+
+2016.08.26 A profiling showed that the routine to invert the phase
+matrix takes 25% of the calculation time.  A test has been made to use
+LAPACK/BLAS and the time of calculation an equilibrium has decreased
+almost 20%!  Additionally several minor things has been changed.
 
 2016.08.22 The record gtp_phasetuple has been modified.  Originally it
 had only two indices, the phase index and the composition set number.
@@ -165,3 +170,4 @@ to rename these files.
 2016.03.03 Fixed some errors when entering TP functions interactivly.
 Modified slightly the listing of many equilibria.  Empty lines in the
 enter_many_equil command and TAB characters the row lines accepted.
+

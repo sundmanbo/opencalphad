@@ -3714,7 +3714,7 @@
 ! valgrind complained this was not set !!
          eqlista(ieq)%complist(jl)%chempot=zero
       enddo
-! Maybe valgrind complained of this ... it can have to with -finit-local-zero
+! Maybe valgrind complained of this ... it can have to do with -finit-local-zero
       eqlista(ieq)%status=0
    else
       eqlista(ieq)%status=0

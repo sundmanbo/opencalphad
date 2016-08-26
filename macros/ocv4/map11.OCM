@@ -11,7 +11,7 @@ set echo
 r t steel1
 cr fe
  
-set c t=600 p=1e5 n=1 x(cr)=.2
+set c t=700 p=1e5 n=1 x(cr)=.2
 c e
 l
 RESULTS
@@ -22,10 +22,10 @@ RESULTS
 set ax 1 x(cr)
 0
 1
-.025
+.01
 
 set ax 2 t
-300
+400
 2300
 25
 
@@ -38,6 +38,12 @@ T
 title map 11 fig 1
 RENDER
 
+@$
+@$ This diagram will in most cases have a metastable
+@$ extrapolation of the sigma+bcc lines because the
+@$ two bcc phases merges at hight T and the 3-phase line
+@$ is not found when lowering the T.  
+@$ More work ineeded to fintune mapping!!
 @$=================================================================
 @$ Then calculate the gamma loop
 @$

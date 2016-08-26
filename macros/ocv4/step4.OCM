@@ -114,9 +114,9 @@ l r 2
 
 
 @&
-@$ This is one of the rare cases when it is better to take longer increments
+@$ Calculating the metastable regions are very sensitive to the step increment
 
-set ax 1 x(fe) 0 1 ,,,
+set ax 1 x(fe) 0 1 0.02
 
 step sep
 

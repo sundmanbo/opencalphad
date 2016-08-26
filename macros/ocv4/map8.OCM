@@ -115,7 +115,7 @@ l sh a
 
 @&
 
-set c t=350 p=1e5 n=1 x(ni)=.45
+set c t=350 p=1e5 n=1 x(ni)=.6
 
 c e
 
@@ -126,7 +126,7 @@ l r 2
 
 set ax 1 x(ni) 0 1 0.01
 
-set ax 2 t 10 1000 10
+set ax 2 t 10 1000 25
 
 
 map
@@ -140,30 +140,15 @@ plot
 title map8 fig 1
 
 
-@$ the missing FeNi_L10/FeNi3_L12
+plot
 
 
-set c x(ni)=.6
+pos
+top left
+title map8 fig 2
 
-c e
-
-l ,,,,
 
 @&
-
-map
-N
-
-
-
-
-plot 
-
-
-title map 8 fig 2
-render
-
-
 
 set inter
 
