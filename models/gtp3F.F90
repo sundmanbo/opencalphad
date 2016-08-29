@@ -2779,7 +2779,8 @@
 ! The number of values belonging to the phase is m (for example composition)
 ! argument ceq added as new composition sets can be created ...
    integer n,m
-   double precision xx(n*m)
+!   double precision xx(n*m)
+   double precision xx(*)
 !   type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
 !
@@ -2787,13 +2788,12 @@
    double precision, dimension(:), allocatable :: dum
 ! I assume the values are NP(*), maybe there are other cases ...
 ! Karl had overflow error in dum ... no problem to make it a little larger
+! but then I cannot set xx=dum below ...
    allocate(dum(n*m+10))
 !   write(*,*)'3Y corrected sortinphtup',m,n
    kz=0
    do iz=1,noofph
       lokph=phases(iz)
-! difficult bug to find ... should be noofcs(iz) or directly use %noofcs ...
-!      do jz=1,noofs(lokph)
       do jz=1,phlista(lokph)%noofcs
 ! in xx the values are sequentially for all composition sets for this phase
 ! But they should be stored in tuple order and compset 2 etc comes at the end
@@ -2810,7 +2810,10 @@
          kz=kz+m
       enddo
    enddo
-   xx=dum
+!   xx=dum
+   do iz=1,n*m
+      xx(iz)=dum(iz)
+   enddo
    deallocate(dum)
 1000 continue
    return

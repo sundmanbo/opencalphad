@@ -4408,19 +4408,21 @@
                if(noeq().eq.1) then
 ! we have just one equilibrium, OK to remove even in parallel ...
                   if(once) then
-                     write(*,801)
-801                  format('3Y Removing unstable phase tuple(s)')
+                     write(*,801)lokics
+801                  format('3Y Removing unstable phase tuple(s)',i5)
                      once=.FALSE.
                   endif
 !                  write(*,802)'3Y removing unstable phase tuple/compset ',&
 !                       ceq%phase_varres(lokics)%phtupx,lokics
 802               format(a,3i5)
+! remove the higherst composition set
                   call remove_composition_set(iph,.FALSE.)
                   if(gx%bmperr.ne.0) then
                      write(*,*)'3Y failed to remove ',&
                           ceq%phase_varres(lokics)%phtupx
                      goto 1000
                   endif
+!                  write(*,*)'3Y Phase tuple removed for phase: ',iph
 !$               elseif(omp_get_num_threads().gt.1) then
 ! we are running with several threads, just suspend the compset for the
 ! equilibrium in this thread
@@ -4443,6 +4445,7 @@
    enddo phloop
 !
 1000 continue
+!   write(*,*)'3Y Leaving todo_after!'
 !   lokph=1
 !   jcs=phlista(lokph)%linktocs(1)
 !   write(*,*)'3Y after 1: ',lokph,jcs,ceq%phase_varres(jcs)%disfra%varreslink

@@ -1170,8 +1170,9 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! like in a 3 sublattice sigma one can enter parameters like
 ! G(sigma,A:B:*) which will mean the bond energy between an A atom in
 ! first sublattice and B in the second.  The parameter G(sigma,B:A:*)
-! will be different.  Such parameters are added to the Gibbs energy
-! even if there are also endmember parameters like G(sigma,A:B:C)
+! will be different.  Such parameters, multiplied with the fractions of
+! the constutuents, are added to the Gibbs energy even if there are 
+! also endmember parameters like G(sigma,A:B:C)
 ! -----------------------------------------------------------------
 !\begin{verbatim}
 ! a smart way to have an array of pointers used in gtp_phase
@@ -1405,6 +1406,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
      integer nextfree,phlink,status2,phstate,phtupx
 ! abnorm(1): amount moles of atoms for a formula unit of the composition set
 ! abnorm(2): mass/formula unit (both set by call to set_constitution)
+! abnorm(3): moles components per formula unit (all set by SET_CONSTITUTION)
 ! prefix and suffix are added to the name for composition sets 2 and higher
      double precision, dimension(2) :: abnorm
      character*4 prefix,suffix

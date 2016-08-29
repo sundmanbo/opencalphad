@@ -18,6 +18,10 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2016.08.29 A new directory TQ4lib has been added with updates of the
+OC/TQ application software interface.  As yet only one test program
+for F90 and one for C++ has been updated yet.
+
 2016.08.26 A profiling showed that the routine to invert the phase
 matrix takes 25% of the calculation time.  A test has been made to use
 LAPACK/BLAS and the time of calculation an equilibrium has decreased
