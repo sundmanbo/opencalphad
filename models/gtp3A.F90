@@ -1755,11 +1755,13 @@ end function find_phasetuple_by_indices
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
    integer lokph,lokcs,ll,ml,ic,loksp,jl,locva,zl,zel
-   double precision charge,spat,asite,bsite,badd,yz,yva,sumat,asum,bsum
+   double precision charge,spat,asite,bsite,badd,yz,yva,sumat,asum,bsum,csum
 !   double precision charge1,bion1,ionsites(2)
-   double precision charge1,bion1,compsum
+   double precision charge1,bion1,compsum,comp1
 ! The mass is not calculated correctly in version 2, attempt to fix
    double precision bliq1
+! This is needed if we have other components than the elements
+   double precision, allocatable :: compam(:),elam(:),iliqcats(:)
 !   TYPE(gtp_fraction_set), pointer :: disrec
    logical ionicliq
 !   write(*,*)'In set_constitution ...'
@@ -1782,6 +1784,17 @@ end function find_phasetuple_by_indices
       locva=0
    endif
 !----
+   if(btest(globaldata%status,GSNOTELCOMP)) then
+      allocate(elam(noofel))
+      allocate(compam(noofel))
+      elam=zero
+      compam=zero
+      if(ionicliq) then
+! we must save the amounts on sublattice 1 as we do not know the sites
+         allocate(iliqcats(noofel))
+         iliqcats=zero
+      endif
+   endif
    if(ocv()) write(*,8)'3Ay:',iph,ics,&
         (yfra(ic),ic=1,phlista(lokph)%tnooffr)
 8  format(a,2i2,6(1pe11.3))
@@ -1819,7 +1832,7 @@ end function find_phasetuple_by_indices
          ic=ic+phlista(lokph)%nooffr(ll)
       enddo
 !--------
-      ll=1; ml=0; asum=zero; bsum=zero; charge=zero
+      ll=1; ml=0; asum=zero; bsum=zero; csum=zero; charge=zero
       if(ionicliq) then
 ! For ionic liquid we do not know the number of sites
          asite=one
@@ -1859,29 +1872,27 @@ end function find_phasetuple_by_indices
 !            write(*,56)'3A badd: ',iph,loksp,splista(loksp)%mass,yz,bsite,badd
 56          format(a,2i3,6(1pe12.4))
             sumat=zero
-! This is not adopted for other components than the elements
-            if(.not.btest(globaldata%status,GSNOTELCOMP)) then
+! This is summing atoms per formula unit of the phase
+            do jl=1,splista(loksp)%noofel
+               sumat=sumat+splista(loksp)%stoichiometry(jl)
+            enddo
+!--------------------------------------------------------------
+            if(btest(globaldata%status,GSNOTELCOMP)) then
+! When there are other components than the elements we must sum the number
+! of each atom, not just the total. elam was alloctated and zeroed above
                do jl=1,splista(loksp)%noofel
-                  sumat=sumat+splista(loksp)%stoichiometry(jl)
-               enddo
-            else
-               do jl=1,splista(loksp)%noofel
-                  compsum=zero
-! ceq%invcompstoi converts elements to component stoichiometry
-! ceq%invcompstoi(zl=1,noofel,ie) is the amount of component iz for element ie
-! NOTE that the component is specified by its location, not alphabetically!!
-                  do zl=1,noofel
+! NOTE that the ellinks specify the location, not alphabetically!!
 ! we must use %alphaindex to have the alphabetical index of the element ?? YES
-!                     zel=splista(loksp)%ellinks(jl) this is the location!!
-                     zel=ellista(splista(loksp)%ellinks(jl))%alphaindex
-! first index is the component, second the element
-                     compsum=compsum+ceq%invcompstoi(zl,zel)
-                  enddo
-                  sumat=sumat+splista(loksp)%stoichiometry(jl)*compsum
-                  write(*,14)'3A Elements not component: ',zel,compsum,&
-                       splista(loksp)%stoichiometry(jl),sumat
-14                format(a,i4,3(1pe12.4))
+                  zel=ellista(splista(loksp)%ellinks(jl))%alphaindex
+! FOR IONIC LIQUID MODEL asite is unity and must be updatated below!!
+                  elam(zel)=elam(zel)+yz*splista(loksp)%stoichiometry(jl)*asite
+!                  write(*,14)'3A elam: ',zel,yz,&
+!                     splista(loksp)%stoichiometry(jl),(elam(zl),zl=1,noofel),&
+!                       trim(splista(loksp)%symbol)
+!14                format(a,i2,5(1pe11.3),2x,a)
                enddo
+!               write(*,*)'3A NOTELCOMP: ',compsum,trim(splista(loksp)%symbol)
+!               csum=csum+yz*compsum
             endif
             spat=spat+yz*sumat
 ! check sum number of atoms for ionic liquid
@@ -1913,16 +1924,24 @@ end function find_phasetuple_by_indices
                   badd=zero
 ! initiate vacancy and neutral indices beyond last index (already done??)
                   phlista(lokph)%i2slx=phlista(lokph)%tnooffr+1
+                  if(btest(globaldata%status,GSNOTELCOMP)) then
+                     iliqcats=elam
+                     elam=zero
+                  endif
                elseif(ll.eq.2) then
 ! P=\sum_j (-v_j)y_j + Qy_Va. Note charge is total charge and valences 
 ! on 2nd sublattice is negative
 ! Now we know number of sites on sublattice 1, update asum and bsum
+! Cryptic programming ... sumat is here set to sites on first sublattice
                   sumat=-charge+charge1*yva
                   ceq%phase_varres(lokcs)%sites(1)=sumat
 !                  write(*,*)'Ionic 1: ',ceq%phase_varres(lokcs)%sites(1)
                   asum=asum*sumat
                   bsum=bion1*sumat
                   charge=zero
+                  if(btest(globaldata%status,GSNOTELCOMP)) then
+                     elam=elam+sumat*iliqcats
+                  endif
 !                  write(*,88)'3A iliq: ',ll,badd,bion1,bsum,sumat,yva
 ! new way to calculate mass of ionic liquid
                   bsum=sumat*bliq1+ceq%phase_varres(lokcs)%sites(2)*badd
@@ -1960,8 +1979,35 @@ end function find_phasetuple_by_indices
 ! save charge, number of moles and mass of real atoms per formula unit
 !   write(*,33)'3A isum:',lokcs,0,charge,asum,bsum,asite,spat
    ceq%phase_varres(lokcs)%netcharge=charge
-   ceq%phase_varres(lokcs)%abnorm(1)=asum
    ceq%phase_varres(lokcs)%abnorm(2)=bsum
+   if(btest(globaldata%status,GSNOTELCOMP)) then
+! Now we can convert the amount of atoms to amount of components
+! use ceq%invcompstoi to convert to components
+!      write(*,279)'3A elsm: ',iph,asum,(elam(zl),zl=1,noofel)
+279   format(a,i3,6(1pe12.4))
+      csum=zero
+      do zl=1,noofel
+         comp1=zero
+!         write(*,278)'3A inv: ',(ceq%invcompstoi(zl,zel),zel=1,noofel)
+278      format(a,6(1pe12.4))
+         do zel=1,noofel
+            comp1=comp1+ceq%invcompstoi(zl,zel)*elam(zel)
+         enddo
+         compam(zl)=comp1
+         csum=csum+compam(zl)
+      enddo
+!      write(*,277)'3A cpam: ',iph,csum,(compam(zl),zl=1,noofel)
+277   format(a,i3,6(1pe12.4))
+! abnorm(3) is the number of moles of user defined components
+!      write(*,299)'3A comp/FU: ',iph,ics,asum,csum
+299   format(a,2i3,4(1pe12.4))
+      ceq%phase_varres(lokcs)%abnorm(1)=csum
+      ceq%phase_varres(lokcs)%abnorm(3)=asum
+   else
+! if elements are constituents then set abnorm(3)=abnorm(1)
+      ceq%phase_varres(lokcs)%abnorm(1)=asum
+      ceq%phase_varres(lokcs)%abnorm(3)=asum
+   endif
 !   write(*,*)'3A sety: ',lokcs,ceq%phase_varres(lokcs)%abnorm(1)
    if(ionicliq .and. locva.gt.0) then
 ! the ionic liquid vacancy charge is the number of sites on second subl.
@@ -2185,16 +2231,16 @@ end function find_phasetuple_by_indices
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine enter_components(line,ceq)
-! enter a new set of components
+ subroutine amend_components(line,ceq)
+! amend the set of components
    implicit none
    character line*(*)
    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-   integer c1,c2,c3,i1,i2,nspel,ierr
+   integer c1,c2,c3,i1,i2,nspel,ierr,lokph,lokcs
    integer, allocatable :: ielno(:),loksp(:)
-   double precision, allocatable :: stoi(:),smass(:)
-   double precision qsp,extra
+   double precision, allocatable :: stoi(:),smass(:),yarr(:)
+   double precision qsp,extra,qq(5)
    double precision, allocatable :: matrix(:,:),imat(:,:)
    character name*24
    type(gtp_condition), pointer :: pcond,qcond,last
@@ -2204,7 +2250,7 @@ end function find_phasetuple_by_indices
    allocate(ielno(noofel))
    allocate(stoi(noofel))
    allocate(smass(noofel))
-   allocate(matrix(noofel,noofel+1))
+   allocate(matrix(noofel,noofel))
    matrix=zero
    c2=1
    do c1=1,noel()
@@ -2223,6 +2269,9 @@ end function find_phasetuple_by_indices
       do i1=1,nspel
          matrix(ielno(i1),c1)=stoi(i1)
       enddo
+!      do i1=1,nspel
+!         matrix(c1,ielno(i1))=stoi(i1)
+!      enddo
    enddo
 !   do c1=1,noofel
 !      write(*,70)'3A mat: ',c1,(matrix(c2,c1),c2=1,noofel)
@@ -2230,7 +2279,7 @@ end function find_phasetuple_by_indices
 70 format(a,i1,6(1pe12.4))
 ! check that the matrix has an inverse
    allocate(imat(noofel,noofel))
-   call mdinv(noofel,noofel+1,matrix,imat,noofel,ierr)
+   call mdinvold(noofel,noofel+1,matrix,imat,noofel,ierr)
    if(ierr.eq.0) then
       write(*,*)'Error inverting component matrix'
       gx%bmperr=4399; goto 1000
@@ -2265,12 +2314,30 @@ end function find_phasetuple_by_indices
 ! delete all conditions and experiments in all equilibria
 ! the argument 0 means only conditions and experiments deleted, 
 ! not the ceq itself
-   write(*,*)'3A deleting all conditions in all equilibria',eqfree-1
+!   write(*,*)'3A deleting all conditions in all equilibria',eqfree-1
    do c1=1,eqfree-1
       curceq=>eqlista(c1)
       call delete_all_conditions(0,curceq)
 ! delete if there are some extra things
       if(allocated(curceq%eqextra)) deallocate(curceq%eqextra)
+   enddo
+! we must go through all (stoichiometric?) phases and set a new
+! value for abnorm(1) and (3)
+!   write(*,*)'3A update asum and csum for all phases'
+   do c1=1,noofph
+! the value stored in phases(i) is the location of phase record!!
+      lokph=phases(c1)
+      do c2=1,phlista(lokph)%noofcs
+         lokcs=phlista(lokph)%linktocs(c2)
+         c3=size(ceq%phase_varres(lokcs)%yfr)
+         if(.not.allocated(yarr)) then
+            allocate(yarr(c3))
+         endif
+         yarr=ceq%phase_varres(lokcs)%yfr
+! this will update abnorm(1) and (3) for THIS equilibrium ... loop for all??
+         call set_constitution(c1,c2,yarr,qq,ceq)
+      enddo
+      deallocate(yarr)
    enddo
 1000 continue
 ! deallocate temporary things (maybe default?)
@@ -2280,7 +2347,7 @@ end function find_phasetuple_by_indices
    deallocate(smass)
    deallocate(matrix)
    return
- end subroutine enter_components
+ end subroutine amend_components
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

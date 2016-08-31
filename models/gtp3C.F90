@@ -311,7 +311,8 @@
 ! we have now sorted stable, entered and dormant phases
    write(unit,10)
 10 format(/'List of stable and entered phases'/ &
-        '  No tup Name',22x,'Mol.comp. At/F.U.   dGm/RT  Status1  Status2')
+        '  No tup Name',22x,'Mol.comp. Comp/FU   dGm/RT  Status1  Status2')
+!        '  No tup Name',22x,'Mol.comp. At/F.U.   dGm/RT  Status1  Status2')
 ! come back here for dormant phases
 200 continue
    jph=0
@@ -364,7 +365,8 @@
    if(ndorm.eq.0) goto 400
    write(unit,210)
 210 format(/'List of dormant phases'/ &
-         '  No tup Name',22x,'Mol.comp.  At/F.U.  dGm/RT   Status1 Status2')
+         '  No tup Name',22x,'Mol.comp.  Comp/FU  dGm/RT   Status1 Status2')
+!         '  No tup Name',22x,'Mol.comp.  At/F.U.  dGm/RT   Status1 Status2')
    jph=0
    dorlist: do iph=1,ndorm
       trailer=' '
@@ -435,8 +437,8 @@
    nsusp=1
    write(unit,10)nooftuples
 10  format(/'List of ',i3,' phases'/ &
-         '  No tup Name',22x,'Mol.comp. At/F.U.   dGm/RT  Status1  Status2')
-!        '  No tup Name',22x,'Mol.comp.  At/F.U.  dGm/RT   Status1 Status2')
+         '  No tup Name',22x,'Mol.comp. Comp/FU   dGm/RT  Status1  Status2')
+!         '  No tup Name',22x,'Mol.comp. At/F.U.   dGm/RT  Status1  Status2')
    jl=0
    trailer=' '
 !   write(*,*)'In list_all_phases',noofph
@@ -540,7 +542,8 @@
    if(ndorm.gt.0) then
       write(unit,200)
 200   format(/'List of dormant phases'/ &
-           '  No tup Name',22x,'Mol.comp.  At/F.U.  dGm/RT   Status1 Status2')
+           '  No tup Name',22x,'Mol.comp.  Comp/FU  dGm/RT   Status1 Status2')
+!           '  No tup Name',22x,'Mol.comp.  At/F.U.  dGm/RT   Status1 Status2')
       ndorm=-1
       goto 20
    endif
@@ -893,7 +896,7 @@
       if(once) write(lut,699)'Moles     '
       once=.FALSE.
 699   format(/'Name                Status ',a,' Volume',&
-           '    Form.Units  At/FU dGm/RT  Comp:')
+           '    Form.Units Cmp/FU dGm/RT  Comp:')
 !          '    Form.U      At/FU DGM    Fracs:')
       write(lut,700)phname,status(1:1),totmol,&
            amount*ceq%rtn*ceq%phase_varres(lokcs)%gval(3,1),&

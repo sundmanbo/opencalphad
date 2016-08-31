@@ -91,7 +91,9 @@
             gx%bmperr=4174; goto 1000
          else
 ! we have other components than elements, fractions can be negative and >1
-            write(*,*)'3Y trying to use gridmininmizer when comp not elements'
+            write(kou,10)
+10          format('3Y Trying to use gridmininmizer whith other components',&
+                 ' than the elements'/'   Can give warnings and error messages')
             gx%bmperr=4174; goto 1000
          endif
       endif
@@ -2336,7 +2338,7 @@
    integer ierr,kk0,ll,lokres,lokph,nsl
    integer nkl(maxsubl),knr(maxconst),ics
    double precision savey(maxconst),sites(maxsubl),qq(5),yfra(maxconst)
-   double precision saveg(6),savedabnorm(2)
+   double precision saveg(6),savedabnorm(3)
 !
    call get_phase_data(iph,1,nsl,nkl,knr,savey,sites,qq,ceq)
    if(gx%bmperr.ne.0) goto 1100
@@ -4254,9 +4256,13 @@
 !----------------------------------------------------------------
    if(btest(globaldata%status,GSNOAFTEREQ)) goto 1000
    nostart: if(mode.lt.0) then
-! Problems with this section so global_equil_chek is disabled inside ...
+! Problems with this section so global_equil_check is disabled inside ...
 ! if mode<0 the conditions did not allow gridmin before use it after
 !      write(*,*)'3Y Testing after calculation if equilibrium is global'
+      if(btest(globaldata%status,GSNOTELCOMP)) then
+         write(*,*)'3Y Cannot test global equilibrium when these components'
+         goto 1000
+      endif
       qq=1
       globalok=global_equil_check1(qq,ceq)
 !      write(*,*)'3Y Back from GEC1'

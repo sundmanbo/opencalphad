@@ -554,7 +554,8 @@ CONTAINS
 ! if global fails reset error code and try a default start set of phases
           if(gx%bmperr.ge.4000 .and. gx%bmperr.le.nooferm) then
              write(*,102)gx%bmperr,trim(bmperrmess(gx%bmperr))
-102          format('Error ',i5,': ',a/'Trying default start values')
+102          format('Error ',i5,': ',a/&
+                  'Minimizer tries using current or default start values')
 !  write(kou,102)gx%bmperr,bmperrmess(gx%bmperr)
 !             write(kou,102)bmperrmess(gx%bmperr)
 !102          format(a/'Current constitution used as start values.')
@@ -4464,6 +4465,7 @@ CONTAINS
 ! invert the phase matrix (faster routine should be used) IDEAL PHASE
        call mdinv(nd1,nd2,pmat,pmi%invmat,neq,ierr)
        if(ierr.eq.0) then
+          write(*,*)'Numeric problem 1, phase/set: ',iph,ics
           write(*,*)'Phase matrix singular 1:',pmi%iph,pmi%ics,pmi%ncc,ierr
           do jk=1,neq
              write(*,73)(pmat(ik,jk),ik=1,neq)
@@ -4670,6 +4672,7 @@ CONTAINS
 ! invert the phase matrix (faster routine should be used) IONIC LIQUID MODEL
        call mdinv(nd1,nd2,pmat,pmi%invmat,nd1,ierr)
        if(ierr.eq.0) then
+          write(*,*)'Numeric problem 2, phase/set: ',iph,ics
           write(*,*)'Phase matrix singular 2:',pmi%iph,pmi%ics,pmi%ncc,ierr
           do jk=1,neq
              write(*,73)(pmat(ik,jk),ik=1,neq)
@@ -4800,9 +4803,10 @@ CONTAINS
 !    do j=1,neq
 !       write(*,17)'pmat: ',(pmat(i,j),i=1,neq)
 !    enddo
-! invert the phase matrix (faster routine should be used) ALL OTHER MODELS
+! invert the phase matrix (using LAPACK+BLAS inside mdinv ... 50% faster)
     call mdinv(nd1,nd2,pmat,pmi%invmat,neq,ierr)
     if(ierr.eq.0) then
+       write(*,*)'Numeric problem 3, phase/set:',iph,ics
        if(ocv()) write(*,556)'Phase matrix singular 3:',meqrec%noofits,&
             pmi%iph,pmi%ics,pmi%ncc,ierr
 556    format(a,5i5)

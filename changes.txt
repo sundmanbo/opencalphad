@@ -18,6 +18,12 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2016.08.29 It is now possible to define other components than the
+elements and calculate.  However, quasi-binary and ternary are still
+problematic.  But I think the OC datastructure is now stable.  Time to
+start writing the save/read direct command.  And all documentation...
+The paper about OCASI has been accepted for publication.
+
 2016.08.29 A new directory TQ4lib has been added with updates of the
 OC/TQ application software interface.  As yet only one test program
 for F90 and one for C++ has been updated yet.

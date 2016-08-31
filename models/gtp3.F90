@@ -649,17 +649,17 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! F option (FORD), B option (BORD), Sigma ordering (SORD),
 ! multiple/disordered fraction sets (MFS), gas, liquid, ionic liquid, 
 ! aqueous, dilute config. entropy (DILCE), quasichemical (QCE), CVM,
+! explicit charge balance needed (XCB), extra dense grid (XGRID)
 ! FACT,  not create comp. sets (NOCS), Helmholz energy model (HELM),
 ! Model without 2nd derivatives (PHNODGDY2), Elastic model A,
-! explicit charge balance needed (XCB), extra dense grid (XGRID)
 ! Subtract ordered part (PHSUBO), Flory-Huggins model (PHFHV)
   integer, parameter :: &
-       PHHID=0,     PHIMHID=1,  PHID=2,    PHNOCV=3, &     ! 1 2 4 8 
+       PHHID=0,     PHIMHID=1,  PHID=2,    PHNOCV=3, &     ! 1 2 4 8 : 0/F
        PHHASP=4,    PHFORD=5,   PHBORD=6,  PHSORD=7, &     ! 
        PHMFS=8,     PHGAS=9,    PHLIQ=10,  PHIONLIQ=11, &  ! 
        PHAQ1=12,    PHDILCE=13, PHQCE=14,  PHCVMCE=15,&    ! 
-       PHFACTCE=16, PHNOCS=17,  PHHELM=18, PHNODGDY2=19,&  ! 
-       PHELMA=20,   PHEXCB=21,  PHXGRID=22,PHSUBO=23, &    ! 
+       PHEXCB=16,   PHXGRID=17, PHFACTCE=18, PHNOCS=19,&   !
+       PHHELM=20,   PHNODGDY2=21, PHELMA=22, PHSUBO=23,&   ! 
        PHFHV=24                                            ! 
 ! 
 !----------------------------------------------------------------
@@ -1404,11 +1404,11 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !                           2   1      0        -1      -2      -3       -4
 ! phtupx: phase tuple index
      integer nextfree,phlink,status2,phstate,phtupx
-! abnorm(1): amount moles of atoms for a formula unit of the composition set
-! abnorm(2): mass/formula unit (both set by call to set_constitution)
-! abnorm(3): moles components per formula unit (all set by SET_CONSTITUTION)
+! abnorm(1): moles of components per formula unit of the phase/composition set
+! abnorm(2): mass of components per formula unit
+! abnorm(3): moles atoms per formula unit (all abnorm set by SET_CONSTITUTION)
 ! prefix and suffix are added to the name for composition sets 2 and higher
-     double precision, dimension(2) :: abnorm
+     double precision, dimension(3) :: abnorm
      character*4 prefix,suffix
 ! constat: array with status word for each constituent, any can be suspended
 ! yfr: the site fraction array

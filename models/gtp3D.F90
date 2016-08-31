@@ -44,7 +44,7 @@
       lastph=name1
    endif
 100 continue
-!   write(*,*)'spc 1',qph,iph,ics,name1
+   write(*,*)'spc 1',qph,iph,ics,name1
 ! skip hidden and suspended phases, test_phase_status return
 ! -4 hidden, -3 suspend, -2 dormant, -1,0, entered, 2 fixed
    if(qph.lt.0 .and. test_phase_status(iph,ics,xxx,ceq).le.PHDORM) goto 200
@@ -83,7 +83,9 @@
    nylat: do ll=1,nsl
       sss=one
       ydef=one
-      if(knl(ll).eq.1) cycle nylat
+      if(knl(ll).eq.1) then
+         kkk=kkk+1; cycle nylat
+      endif
       nycon: do nr=1,knl(ll)-1
          kkk=kkk+1
          loksp=phlista(lokph)%constitlist(kkk)
@@ -2023,88 +2025,6 @@ end subroutine get_condition
 1000 continue
    return
  end subroutine condition_value
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-
-!\begin{verbatim}
- subroutine amend_components(cline,last,ceq)
-! enter a new set of components for equilibrium ceq
-   implicit none
-   integer last
-   character cline*(*)
-   type(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim}
-   character symb*24
-   integer lokic(maxel),ielno(10)
-   double precision stoi(maxel,maxel+1),invstoi(maxel,maxel),spst(10),spextra
-   integer ic,loksp,nspel,jl,j2,ierr
-   double precision spmass,qsp
-! input is a list of species name, same as number of elements
-   stoi=zero
-   ic=0
-100 continue
-   call gparc('Give all components: ',cline,last,1,symb,' ',q1help)
-   call find_species_record(symb,loksp)
-   if(gx%bmperr.ne.0) goto 1000
-! check not same species twice
-   do jl=1,ic
-      if(loksp.eq.lokic(jl)) then
-!         write(*,*)'Same species twice'
-         gx%bmperr=4162; goto 1000
-      endif
-   enddo
-   ic=ic+1
-   lokic(ic)=loksp
-! get the stoichiometry and save it in row in stoi
-   call get_species_data(loksp,nspel,ielno,spst,spmass,qsp,spextra)
-   if(gx%bmperr.ne.0) goto 1000
-   do jl=1,nspel
-      stoi(ic,ielno(jl))=spst(jl)
-   enddo
-   if(ic.lt.noofel) goto 100
-! check that stoichiometry matrix not singular, should calculate the inverse
-!   do i=1,ic
-!      write(*,200)(stoi(i,j),j=1,ic)
-!200   format('X: ',6(1PE12.4))
-!   enddo
-! lukasnum routine to invert matrix
-   call mdinv(maxel,maxel+1,stoi,invstoi,ic,ierr)
-! check the matrix and its inverse
-!   do i=1,ic
-!      write(*,200)(invstoi(i,j),j=1,ic)
-!   enddo
-   if(ierr.eq.0) then
-!      write(*,*)'Component matrix singular'
-      gx%bmperr=4163; goto 1000
-   endif
-   if(allocated(ceq%compstoi)) then
-      deallocate(ceq%compstoi)
-      deallocate(ceq%invcompstoi)
-   endif
-   allocate(ceq%compstoi(ic,ic))
-   allocate(ceq%invcompstoi(ic,ic))
-!   write(*,*)(lokic(i),i=1,ic)
-! NOTE the component list not in alphabetical order
-! invcompstoi(component index, element index)
-! to convert from an element to a component sum first index  ??
-! to convert from a component to an element sum second index ??
-   do jl=1,ic
-      ceq%complist(jl)%splink=lokic(jl)
-! phlink=0 means no user defined reference state
-      ceq%complist(jl)%phlink=0
-      ceq%complist(jl)%status=0
-      ceq%complist(jl)%tpref=zero
-      ceq%complist(jl)%chempot=zero
-      ceq%complist(jl)%mass=spmass
-      do j2=1,ic
-         ceq%compstoi(jl,j2)=stoi(jl,j2)
-         ceq%invcompstoi(jl,j2)=invstoi(jl,j2)
-      enddo
-   enddo
-1000 continue
-   return
- end subroutine amend_components
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 

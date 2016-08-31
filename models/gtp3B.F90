@@ -550,7 +550,6 @@
    formalunits=zero
    do ll=1,nsl
       phlista(nyfas)%nooffr(ll)=knr(ll)
-!      phlista(nyfas)%sites(ll)=sites(ll)
       formalunits=formalunits+sites(ll)
    enddo
 !  write(*,*)'enter_phase 8x: ',nyfas,nkk
@@ -583,16 +582,17 @@
    firsteq%phase_varres(lokcs)%phlink=nyfas
    firsteq%phase_varres(lokcs)%prefix=' '
    firsteq%phase_varres(lokcs)%suffix=' '
+! Initiated to total number of sites, will be updated in set_condition
    firsteq%phase_varres(lokcs)%abnorm(1)=formalunits
 ! ncc no longer part of this record
 !   firsteq%phase_varres%ncc=nkk
-! zero the phstate (means entered and unknown if stable)
+! zero the phstate (means entered and not known (unknown) if stable)
    firsteq%phase_varres(lokcs)%phstate=0
 ! sites must be stored in phase_varres
    do ll=1,nsl
       firsteq%phase_varres(lokcs)%sites(ll)=sites(ll)
    enddo
-! make sure status word and some other links are set to zero
+! make sure status word and some other links are set
    firsteq%phase_varres(lokcs)%status2=0
    firsteq%phase_varres(lokcs)%phtupx=tuple
 ! set link to lokcs in phase tuple!

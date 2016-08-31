@@ -246,7 +246,7 @@ contains
          'EQUILIBRIUM     ','SYMBOL          ','OPTIMIZE_COEFF  ',&
          'COPY_OF_EQUILIB ','COMMENT         ','MANY_EQUILIBRIA ',&
          'MATERIAL        ','PLOT_DATA       ','                ',&
-         'COMPONENTS      ','                ','                ']
+         '                ','                ','                ']
 !-------------------
 ! subcommands to READ
     character (len=16), dimension(ncread) :: cread=&
@@ -736,10 +736,23 @@ contains
           continue
 !-------------------------
        case(10) ! amend components
+          write(*,*)'WARNING: not fully implemented yet'
+!          goto 100
           if(associated(ceq%lastcondition)) then
-             write(kou,*)'Warning, your conditions may not be valid after this'
+             write(kou,*)'Warning: All your conditions will be removed'
           endif
-          call amend_components(cline,last,ceq)
+          i2=1
+          line=' '
+          do i1=1,noel()
+             call get_component_name(i1,line(i2:),ceq)
+             i2=len_trim(line)+2
+          enddo
+          aline=' '
+          call gparcd('Give all new components: ',cline,last,&
+               5,aline,line,q1help)
+! option is a character with the new components ...
+          call amend_components(aline,ceq)
+          if(gx%bmperr.ne.0) goto 990
 !-------------------------
        case(11) ! amend general
           call amend_global_data(cline,last)
@@ -2466,18 +2479,20 @@ contains
        case(18)
           write(*,*)'Not implemeneted yet'
 !----------------------------------------------------------------
-! enter components
+! enter not used
        case(19)
-          i2=1
-          line=' '
-          do i1=1,noel()
-             call get_component_name(i1,line(i2:),ceq)
-             i2=len_trim(line)+2
-          enddo
-          call gparcd('Give all new components: ',cline,last,&
-               5,option,line,q1help)
-          call enter_components(option,ceq)
-          if(gx%bmperr.ne.0) goto 990
+          write(*,*)'Not implemeneted yet'
+! this is at amend components
+!          i2=1
+!          line=' '
+!          do i1=1,noel()
+!             call get_component_name(i1,line(i2:),ceq)
+!             i2=len_trim(line)+2
+!          enddo
+!          call gparcd('Give all new components: ',cline,last,&
+!               5,option,line,q1help)
+!          call enter_components(option,ceq)
+!          if(gx%bmperr.ne.0) goto 990
 !----------------------------------------------------------------
 ! enter unused
        case(20)

@@ -3130,8 +3130,8 @@
 !         write(*,*)'3X massbal',ie,abi(ie),antot,abtot
          if(.not.btest(globaldata%status,GSNOTELCOMP)) then
             if(antot.eq.zero .and. abtot.eq.zero) goto 1105
-         else
-            write(*,*)'3X Other components then elements 1'
+!         else
+!            write(*,*)'3X Other components then elements 1'
          endif
       endif
    enddo
@@ -3225,8 +3225,8 @@
 ! when other components than elements the mole fractions can be <0 or > 1
                write(*,*)'3X mass balance error: ',ie
                gx%bmperr=4181; goto 1000
-            else
-               write(*,*)'3X Other components than elements 2'
+!            else
+!               write(*,*)'3X Other components than elements 2'
             endif
          endif
       enddo

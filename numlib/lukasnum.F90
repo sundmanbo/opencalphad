@@ -196,6 +196,163 @@ CONTAINS
 
 !///////////////////////////////////////////////////////////////////////
 
+  SUBROUTINE MDINVOLD (ND1,ND2,RMAT,RINV,N,IS)
+!-----------------------------------------------------------------------
+!     Matrix inversion, DOUBLE PRECISION
+!     algorithm after Gauss for linear equations with line exchange
+!     ND1, ND2  =  Dimensioning of RMAT and RINV (ND2 = ND1 + 1)
+!     RINV      =  invers of matrix RMAT (without last column of RMAT)
+!     RMAT      =  matrix with additional column
+!     N         =  number of lines and columns
+!     IS        =  Test for singularity (0 = singular, 1 = not singular)
+!-----------------------------------------------------------------------
+!---- COMMON VARIABLES
+!    COMMON /ALLG/ DMAX,DMIN,DSMAX,DSMIN,EPSX,R,UNITY,ZERO
+!    DOUBLE PRECISION DMAX,DMIN,DSMAX,DSMIN,EPSX,R,UNITY,ZERO
+!-----------------------------------------------------------------------
+!---- VARIABLES OF THE ARGUMENT LIST
+    INTEGER N,IS,ND1,ND2
+    DOUBLE PRECISION RMAT(ND1,ND2),RINV(ND1,ND1)
+!-----------------------------------------------------------------------
+!---- LOCAL VARIABLES
+    DOUBLE PRECISION A,B,C
+    INTEGER I,I1,J,K,L,N1
+!    double precision, parameter :: DSMIN=1.0D-18,DSMAX=1.0D+18,&
+!         DMAX=1.0D+36,DMIN=1.0D-36,epsx=1.0D-10,r=8.31451D0,&
+!         unity=1.0D0,zero=0.0D0
+!-----------------------------------------------------------------------
+!    write(*,*)'enter mdinv'
+    IS=1
+    N1=N-1
+    L110: DO I=1,N
+       L100: DO J=1,N
+          RINV(I,J)=ZERO
+       enddo L100
+       RINV(I,I)=UNITY
+    enddo L110
+    IF (N.LE.1) GOTO 500
+!-----------------------------------------------------------------------
+    L490: DO I=1,N1
+       I1=I+1
+       A=ZERO
+       L=I
+!-----------------------------------------------------------------------
+!     search of pivot line
+       L290: DO J=I,N
+          B=ZERO
+          L220: DO K=I,N
+             IF(DABS(RMAT(J,K)).LT.DSMIN) GOTO 210
+             IF(DABS(RMAT(J,K)).GT.DSMAX) GOTO 200
+             B=B+RMAT(J,K)**2
+             GOTO 220
+200          B=B+DMAX
+             GOTO 220
+210          B=B+DMIN
+220          CONTINUE
+          enddo L220
+          IF (B.GE.DMAX) GOTO 700
+          IF (DABS(RMAT(J,I))*DSMAX.LT.B) GOTO 290
+          IF (DABS(RMAT(J,I)).LT.DSMIN) GOTO 290
+          C=RMAT(J,I)/B*RMAT(J,I)
+          IF (C.LE.A) GOTO 290
+          A=C
+          L=J
+290       CONTINUE
+       enddo L290
+!-----------------------------------------------------------------------
+!     line exchange
+       IF (L.EQ.I) GOTO 330
+       L310: DO J=I,N
+          C=RMAT(I,J)
+          RMAT(I,J)=RMAT(L,J)
+          RMAT(L,J)=C
+       enddo L310
+       L320: DO J=1,N
+          C=RINV(I,J)
+          RINV(I,J)=RINV(L,J)
+          RINV(L,J)=C
+       enddo L320
+!-----------------------------------------------------------------------
+!     diagonalisation of the matrix
+330    CONTINUE
+       L480: DO J=I1,N
+          IF (DABS(RMAT(J,I)).LT.DSMIN.AND.DABS(RMAT(I,I)).GE.UNITY) &
+               GOTO 480
+          IF (DABS(RMAT(J,I)).LE.UNITY.AND.DABS(RMAT(I,I)).GT.DSMAX) &
+               GOTO 480
+          IF (DABS(RMAT(J,I)).LT.DMIN) GOTO 480
+          IF (DABS(RMAT(J,I)).GT.DSMAX.AND.DABS(RMAT(I,I)).LE.UNITY) &
+               GOTO 700
+          IF (DABS(RMAT(J,I)).GE.UNITY.AND.DABS(RMAT(I,I)).LT.DSMIN) &
+               GOTO 700
+          IF (DABS(RMAT(I,I)).LT.DMIN) GOTO 700
+          C=RMAT(J,I)/RMAT(I,I)
+          L440: DO K=I1,N
+             IF (DABS(RMAT(I,K)).LT.DSMIN.AND.DABS(C).LE.UNITY) GOTO 440
+             IF (DABS(RMAT(I,K)).LE.UNITY.AND.DABS(C).LT.DSMIN) GOTO 440
+             IF (DABS(RMAT(I,K)).LT.DMIN.OR.DABS(C).LT.DMIN) GOTO 440
+             IF (DABS(RMAT(I,K)).GT.DSMAX.AND.DABS(C).GE.UNITY) GOTO 700
+             IF (DABS(RMAT(I,K)).GE.UNITY.AND.DABS(C).GT.DSMAX) GOTO 700
+             RMAT(J,K)=RMAT(J,K)-RMAT(I,K)*C
+440          CONTINUE
+          enddo L440
+          L460: DO K=1,N
+             IF (DABS(RINV(I,K)).LT.DSMIN.AND.DABS(C).LE.UNITY) GOTO 460
+             IF (DABS(RINV(I,K)).LE.UNITY.AND.DABS(C).LT.DSMIN) GOTO 460
+             IF (DABS(RINV(I,K)).LT.DMIN.OR.DABS(C).LT.DMIN) GOTO 460
+             IF (DABS(RINV(I,K)).GT.DSMAX.AND.DABS(C).GE.UNITY) GOTO 700
+             IF (DABS(RINV(I,K)).GE.UNITY.AND.DABS(C).GT.DSMAX) GOTO 700
+             RINV(J,K)=RINV(J,K)-RINV(I,K)*C
+460          CONTINUE
+          enddo L460
+480       CONTINUE
+       enddo L480
+490    CONTINUE
+    enddo L490
+!-----------------------------------------------------------------------
+500 CONTINUE
+    L690A: DO K=1,N
+       L690B: DO L=1,N
+          I=N+1-L
+          I1=I-1
+          IF (DABS(RINV(I,K)).LT.DSMIN.AND.DABS(RMAT(I,I)).GE.UNITY) &
+               GOTO 660
+          IF (DABS(RINV(I,K)).LE.UNITY.AND.DABS(RMAT(I,I)).GT.DSMAX) &
+               GOTO 660
+          IF (DABS(RINV(I,K)).LT.DMIN) GOTO 660
+          IF (DABS(RINV(I,K)).GT.DSMAX.AND.DABS(RMAT(I,I)).LE.UNITY) &
+               GOTO 700
+          IF (DABS(RINV(I,K)).GE.UNITY.AND.DABS(RMAT(I,I)).LT.DSMIN) &
+               GOTO 700
+          IF (DABS(RMAT(I,I)).LT.DMIN) GOTO 700
+          RINV(I,K)=RINV(I,K)/RMAT(I,I)
+          C=RINV(I,K)
+          IF (I.EQ.1) GOTO 690
+          L600: DO J=1,I1
+             IF (DABS(RMAT(J,I)).LT.DSMIN.AND.DABS(C).LE.UNITY) GOTO 600
+             IF (DABS(RMAT(J,I)).LE.UNITY.AND.DABS(C).LT.DSMIN) GOTO 600
+             IF (DABS(RMAT(J,I)).LT.DMIN.OR.DABS(C).LT.DMIN) GOTO 600
+             IF (DABS(RMAT(J,I)).GT.DSMAX.AND.DABS(C).GE.UNITY) GOTO 700
+             IF (DABS(RMAT(J,I)).GE.UNITY.AND.DABS(C).GT.DSMAX) GOTO 700
+             RINV(J,K)=RINV(J,K)-RMAT(J,I)*C
+600          CONTINUE
+          enddo L600
+          GOTO 690
+660       RINV(I,K)=ZERO
+690       CONTINUE
+       enddo L690B
+    enddo L690A
+    RETURN
+!-----------------------------------------------------------------------
+!     overflow ( = matrix singular)
+700 IS=0
+!    write(*,701)DSMIN,DSMAX,UNITY,DMAX,DMIN
+!701 format('MDINV: ',5(1PE12.4))
+    RETURN
+  END SUBROUTINE MDINVOLD
+
+!/////////////////////////////////////////////////////////////////////
+
   SUBROUTINE MDINV (ND1,ND2,RMAT,RINV,N,IS)
 !-----------------------------------------------------------------------
 !     Matrix inversion, DOUBLE PRECISION
@@ -236,7 +393,7 @@ CONTAINS
     allocate(work(800))
     CALL DSYTRF(UPLO,N,RMAT,LDA,IPIV,WORK,m,INFO)
     if(info.ne.0) then
-       write(*,*)'Error from DSYTRF: ',info
+!       write(*,*)'Error from DSYTRF: ',info
        IS=0
        goto 1000
     endif
@@ -250,14 +407,14 @@ CONTAINS
 ! factorize a symmetric unpacked indefinite matrix
     CALL DSYTRF(UPLO,N,RINV,LDA,IPIV,WORK,LWORK,INFO)
     if(info.ne.0) then
-       write(*,*)'Error return from DSYTRF:',info
+!       write(*,*)'Error return from DSYTRF:',info
        is=0; goto 1000
     endif
 ! invert using the factorization
     CALL DSYTRI(UPLO,N,RINV,LDA,IPIV,WORK,INFO)
 !    write(*,*)'Info: ',info,n,lda,lwork
     if(info.ne.0) then
-       write(*,*)'Error return from DSYTRI: ',info
+!       write(*,*)'Error return from DSYTRI: ',info
        is=0; goto 1000
     endif
 ! copy solution to RINV triangle to lower
@@ -270,6 +427,8 @@ CONTAINS
     is=1
 !
 1000 continue
+    deallocate(ipiv)
+    deallocate(work)
     RETURN
   END SUBROUTINE MDINV
 

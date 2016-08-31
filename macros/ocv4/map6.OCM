@@ -32,10 +32,32 @@ title map 6 fig 1
 render
  
  
+@$ add some labels
 plot
 
 
 title map6 fig 2
+text 
+0.1 2000 y
+
+text n
+.5 1500 y
+
+text n
+.05 1300 y
+
+text n
+.46 1160 y
+{/Symbol s}
+text n
+.75 1000 y
+
+
+
+plot
+
+
+title map6 fig 3
 yr
 n
 1700
@@ -45,12 +67,11 @@ n
 plot
 
 
-title map6 fig3
+title map6 fig4
 yr
 n
 1150
 1250
-
 
 
  set interactive
