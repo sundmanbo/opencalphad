@@ -1274,18 +1274,21 @@ CONTAINS
     if(gx%bmperr.eq.0) then
        do jj=1,meqrec%nrel
           xxx=zero
-          iph=ceq%complist(jj)%phlink
-          if(iph.gt.0) then
+          lokph=ceq%complist(jj)%phlink
+          if(lokph.gt.0) then
 ! we must also handle reference state at fix T !!
+! lokph is index of phase in phlista, calcg_endmember want index in phases ....
+!             write(*,*)'Component has defined reference state: ',jj,lokph
              tpvalsave=ceq%tpval
-             call calcg_endmember(iph,ceq%complist(jj)%endmember,xxx,ceq)
+! modified calcg_endmember to convert negative phase index to phase number ...
+             call calcg_endmember(-lokph,ceq%complist(jj)%endmember,xxx,ceq)
              if(gx%bmperr.ne.0) then
                 write(*,68)'MM error calculating reference state',gx%bmperr,&
-                     iph,jj,xxx,tpvalsave(1),ceq%complist(jj)%endmember
+                     -lokph,jj,xxx,tpvalsave(1),ceq%complist(jj)%endmember
 68              format(a,3i5,2(1pe12.4),2x,10i3)
                 ceq%tpval=tpvalsave
-                stop
-                goto 1000
+!                stop
+                goto 998
              endif
           endif
           ceq%complist(jj)%chempot(2)=ceq%complist(jj)%chempot(1)+xxx*ceq%rtn
@@ -1298,7 +1301,8 @@ CONTAINS
 !    write(*,37)'mu2: ',(ceq%complist(jj)%chempot(2),jj=1,meqrec%nrel)
 37  format(a,6(1pe12.4))
 !-------------
-    if(.not.formap) then
+998 continue 
+   if(.not.formap) then
 ! if called during mapping keep phr
        deallocate(meqrec%phr)
     endif

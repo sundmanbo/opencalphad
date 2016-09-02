@@ -2243,21 +2243,28 @@
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim}
- subroutine calcg_endmember(iph,endmember,gval,ceq)
+ subroutine calcg_endmember(iphx,endmember,gval,ceq)
 ! calculates G for one mole of real atoms for a single end member
 ! used for reference states. Restores current composition (but not G or deriv)
 ! endmember contains indices in the constituent array, not species index
 ! one for each sublattice
    implicit none
-   integer iph
+   integer iphx
    double precision gval
    integer endmember(maxsubl)
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim} %+
-   integer ierr,kk0,ll,lokres,nsl,lokph
+   integer iph,ierr,kk0,ll,lokres,nsl,lokph
    integer nkl(maxsubl),knr(maxconst)
    double precision savey(maxconst),sites(maxsubl),yfra(maxconst)
    double precision qq(5),saveg(6)
+! when called by matsmin negative iph should be interpreted as index to
+! phlista, convert to phase index ... suck
+   if(iphx.lt.0) then
+      iph=phlista(-iphx)%alphaindex
+   else
+      iph=iphx
+   endif
 !
    call get_phase_data(iph,1,nsl,nkl,knr,savey,sites,qq,ceq)
    if(gx%bmperr.ne.0) goto 1100
@@ -2284,13 +2291,14 @@
    if(gx%bmperr.ne.0) goto 1000
 ! this was necessary using this routine when reference states are
 ! defined for components
-! The calcg below returns lokres but we need it to save here!!!
+! The calcg below returns lokres but we need it to save G values first!!!
    call get_phase_compset(iph,1,lokph,lokres)
    if(gx%bmperr.ne.0) goto 1000
 !   write(*,*)'3Y saving gval: ',lokres,iph
    do ll=1,6
       saveg(ll)=ceq%phase_varres(lokres)%gval(ll,1)
    enddo
+! just calculate Gm no derivatives!
    call calcg(iph,1,0,lokres,ceq)
    if(gx%bmperr.ne.0) goto 1000
 !   if(qq(1).ge.1.0D-3) then
@@ -2303,9 +2311,9 @@
       gx%bmperr=4161; goto 1000
    endif
 1000 continue
+! restore constitution and gval even if there has been an error flag!!
    ierr=gx%bmperr
    if(gx%bmperr.ne.0) gx%bmperr=0
-! restore constitution and gval!!!
 !   write(*,17)'3Y res: ',kk0,(savey(i),i=1,kk0)
    do ll=1,6
       ceq%phase_varres(lokres)%gval(ll,1)=saveg(ll)
