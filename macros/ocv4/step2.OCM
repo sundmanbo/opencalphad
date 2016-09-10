@@ -48,13 +48,12 @@ render
 
 
 @$ plot the stability function, the lowest eigenvalue 
-@$ LAPACK not linked at present!!!
 
-@$ plot
-@$ x(cu)
-@$ Q(*)
-@$ title step2 fig 2
-@$ render
+plot
+x(cu)
+Q(*)
+title step2 fig 2
+render
 
 
 set inter

@@ -2075,6 +2075,11 @@ CONTAINS
 !=============================================================== new step
 ! This is for MAP with 2 or more axis, both tie-line in plane and not
     else 
+! at regular intervals check that phases with 2 or more composition sets have
+! not identical constitutions!!
+       if(mod(mapline%number_of_equilibria,3).eq.0) then
+          call separate_constitutions(ceq)
+       endif
 ! this is the current axis with acitive condition
        jaxwc=abs(mapline%axandir)
        bigincfix=one
@@ -2355,6 +2360,7 @@ CONTAINS
 ! calculation OK and no problems, make sure mapline%axfact approaches unity
 !                   write(*,*)'Incrementing mapline%axfact: ',mapline%axfact
 !          mapline%axfact=min(one,1.2D0*mapline%axfact)
+! Trying to male axfact decrease less (like line above) makes map worse
           mapline%axfact=min(one,2.0D0*mapline%axfact)
        endif
 !======================================================================
@@ -5442,7 +5448,7 @@ CONTAINS
     integer giveup,nax,ikol,maxanp,lcolor,lhpos,repeat,anpdim,qp
     character date*8,mdate*12,title*128,backslash*2,lineheader*1024
     character deftitle*128,labelkey*64
-    logical overflow,first,last,novalues,selectph
+    logical overflow,first,last,novalues,selectph,varofun
 ! textlabels
     type(graphics_textlabel), pointer :: textlabel
 ! line identification (title)
@@ -5682,6 +5688,7 @@ CONTAINS
           if(xax(nv).gt.xmax) xmax=xax(nv)
 ! second axis
           statevar=pltax(anpax)
+!          varofun=.FALSE.
           if(wildcard) then
 ! NEW ignore data for this equilibrium if NOVALUES is TRUE
 ! because selphase not equal to the stable phase found above
@@ -5748,12 +5755,20 @@ CONTAINS
           else
 ! More than one state variable or function value like CP
 ! UNFINISHED PROBLEM WITH NEGATIVE CP HERE 
+! try skipping this value (below) if last equilibrium on the line 
+!             varofun=.TRUE.
              call meq_get_state_varorfun_value(statevar,value,encoded1,curceq)
 !             write(*,*)'SMP axis variable 2: ',statevar(1:3),value
              if(gx%bmperr.ne.0) then
 ! SECOND Skipping
                 write(*,212)'SMP Skipping a point, error evaluating: ',&
                      statevar(1:10),curceq%tpval(1),nv,nr
+                nv=nv-1; goto 215
+             endif
+             if(results%savedceq(nr)%next.eq.0) then
+! THIRD ?? Skipping
+!                write(*,212)'SMP skip last evaluated symbol: ',&
+!                     trim(statevar),curceq%tpval(1),nv,nr
                 nv=nv-1; goto 215
              endif
 !             if(gx%bmperr.ne.0) goto 1000

@@ -551,7 +551,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'Cannot find this TP function                                    ',&
        'Current equilibrium not global, gridmin found gridpoint below   ',&
        'Nodepoint not global, line ignored                              ',&
-       '                                                                ',&
+       'Illegal numerical value in equilibrium matrix                   ',&
        '5                                                               ',&
        '                                                                ',&
        '                                                                ',&

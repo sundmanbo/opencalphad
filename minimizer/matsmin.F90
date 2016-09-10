@@ -1427,6 +1427,8 @@ CONTAINS
 !-$     write(*,*)'Phase and tread: ',mph,omp_get_thread_num()
        call meq_onephase(meqrec,pmi,ceq)
        if(gx%bmperr.ne.0) then
+! using LAPCK gives severe problems if we do not stop
+          goto 1000
           if(pmi%stable.eq.0) then
 ! if this happends for an unstable phase just continue but ensure it will
 ! not be stable (in a very crude way)
@@ -1438,8 +1440,9 @@ CONTAINS
              if(once) then
                 write(*,*)'Warning, matrix inversion problem: ',pmi%iph
                 once=.false.
+             else
+                goto 1000
              endif
-!             stop
              gx%bmperr=0
           endif
        endif
@@ -1481,6 +1484,16 @@ CONTAINS
        enddo
     endif
 228 format(a,6(1pe12.4),(8x,6e12.4))
+! This is an emergy check that the smat matrix does not contain
+! values >1E+50.  We shopuld test for Infinity and NaN but how??
+    do iz=1,nz1
+       do jz=1,nz2
+          if(abs(smat(iz,jz)).gt.1.0D+50) then
+             write(*,*)'Illegal numerical value in equilibrium matrix',iz,jz
+             gx%bmperr=4254; goto 1000
+          endif
+       enddo
+    enddo
     call lingld(nz1,nz2,smat,svar,nz1,ierr)
     if(ierr.ne.0) then
        if(vbug) write(*,*)'Error solving equil matrix',meqrec%noofits,ierr
@@ -4678,9 +4691,6 @@ CONTAINS
        if(ierr.eq.0) then
           write(*,*)'Numeric problem 2, phase/set: ',iph,ics
           write(*,*)'Phase matrix singular 2:',pmi%iph,pmi%ics,pmi%ncc,ierr
-          do jk=1,neq
-             write(*,73)(pmat(ik,jk),ik=1,neq)
-          enddo
           gx%bmperr=4205; goto 1000
        endif
 !       do ll=1,nd1
@@ -4811,9 +4821,22 @@ CONTAINS
     call mdinv(nd1,nd2,pmat,pmi%invmat,neq,ierr)
     if(ierr.eq.0) then
        write(*,*)'Numeric problem 3, phase/set:',iph,ics
-       if(ocv()) write(*,556)'Phase matrix singular 3:',meqrec%noofits,&
+!       if(ocv()) write(*,556)'Phase matrix singular 3:',meqrec%noofits,&
+       write(*,556)'Phase matrix singular 3:',meqrec%noofits,&
             pmi%iph,pmi%ics,pmi%ncc,ierr
 556    format(a,5i5)
+! emergency fix does not work ...
+       pmi%invmat=zero
+       do jk=1,neq
+          pmi%invmat(jk,jk)=one/neq
+       enddo
+!       do jk=1,neq
+!          write(*,18)'3Y mat:',jk,(pmat(ik,jk),ik=1,neq)
+!       enddo
+!       do jk=1,neq
+!          write(*,18)'3Y inv:',jk,(pmi%invmat(ik,jk),ik=1,neq)
+!       enddo
+18     format(a,i3,7(1pe10.2))
 !       do jk=1,neq
 !          write(*,73)(pmat(ik,jk),ik=1,neq)
 !       enddo

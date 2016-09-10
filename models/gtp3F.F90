@@ -2601,8 +2601,9 @@
 ! AND link to LAPACK
 !-------------------------------------------------------------------
 ! use LAPACK routine, note d2g is destroyed inside dspev
-!   call dspev('N','U',nofc,d2g,eigenv,dummy,1,work,info)
-   info=-1000
+!   write(*,*)'LAPACK routine DSPEV not implemented'
+   call dspev('N','U',nofc,d2g,eigenv,dummy,1,work,info)
+!   info=-1000
    if(info.eq.0) then
 !      write(*,120)(eigenv(ii),ii=1,nofc)
 !120   format('Eigenvalues: ',6(1pe10.2))

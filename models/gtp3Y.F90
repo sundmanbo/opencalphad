@@ -2527,9 +2527,10 @@
    real gmin(nrel),dg,dgmin,gplan,gy,gvvp
 ! gridpoints that has less difference with the plane than this limit is ignored
    real, parameter :: dgminlim=1.0D-6
-   logical checkremoved
+   logical checkremoved,linglderr
    character ch1*1
 ! if trace then open file to write grid
+   linglderr=.FALSE.
    if(trace) then
       write(*,*)'3Y Opening ocgrid.dat to write grid solution'
       open(31,file='ocgrid.dat ',access='sequential')
@@ -2839,7 +2840,10 @@
    call lingld(nrel,nrel1,qmat,phfrac,nrel,ierr)
    if(ierr.ne.0) then
 ! error may occur and is not fatal, just try to replace next column
-!      write(*,*)'3Y non-fatal error from lingld: ',ierr,nyp
+      if(.not.linglderr) then
+         write(*,*)'3Y gridmin warning(s) using lingld: ',ierr,nyp
+         linglderr=.TRUE.
+      endif
       qmat=qmatsave
       do i=1,nrel
          phfrac(i)=phfsave(i)
@@ -2912,7 +2916,7 @@
    if(ierr.ne.0) then
 ! this should also be handelled by ignoring the new gridpoint but
 ! here we must restore the xmat, qmatsave and cmu.
-!      write(*,*)'3Y Failed to calculate chemical potentials',ierr
+      write(*,*)'3Y Failed to calculate chemical potentials',ierr
 !      if(trace) write(*,*)'3Y Error from LINGLD for chem.pot.: ',ierr,nyp
       if(checkremoved) goto 950
       inerr=inerr+1
@@ -3590,7 +3594,7 @@
 !\end{verbatim}
    TYPE(gtp_equilibrium_data), target :: cceq
    TYPE(gtp_equilibrium_data), pointer :: pceq
-   logical global,newcs
+   logical global,newcs,notglobwarning1,notglobwarning2
    real, allocatable :: xarr(:,:),garr(:)
    real sumx
    double precision, dimension(maxconst) :: yarr
@@ -3600,6 +3604,8 @@
 !
 !   write(*,*)'3Y In global_equil_check1',mode
    global=.TRUE.
+   notglobwarning1=.TRUE.
+   notglobwarning2=.TRUE.
 ! COPY the whole equilibrium record to avoid destroying anything!!
 ! otherwise I had strange problems with amounts of phases ??
    cceq=ceq
@@ -3645,7 +3651,7 @@
          ii=ii+kphl(ifri)
       endif
    enddo loop2
-!   write(*,*)'3Y Calculated gridpoints for check: ',sumng
+!   write(*,*)'3Y Calculated ',sumng,' gridpoints for check.'
 ! check if any gridpoint is below the G surface defined by cmuval
    iph=0
    ny=0
@@ -3667,6 +3673,8 @@
          write(*,*)'3Y wrong gridpoint fractions ',ifri,sumx,garr(ifri)
          cycle loop4
       endif
+!      write(*,75)'3Y check: ',ifri,iph,garr(ifri),gmax,garr(ifri)-gmax
+75    format(a,i6,i4,5(1pe12.4))
       if(dble(garr(ifri))-gmax.lt.-1.0D-7*abs(gmax)) then
 !      if(dble(garr(ifri))-gmax.lt.-1.0D-7) then
 ! if the phase is stoichiometric and stable this is no error
@@ -3676,15 +3684,30 @@
 ! if number of constituent fractions equal to sublattice the composition is fix
             nz=size(ceq%phase_varres(lokcs)%sites)-&
                  size(ceq%phase_varres(lokcs)%yfr)
-!            write(*,*)'3Y No problem, phase stable with fix composition'
+            if(nz.eq.0) then
+!               write(*,*)'3Y No problem, phase stable with fix composition'
+               cycle loop4
+            else
+! This gridpoint is for a solution phase that is stable and has a grid point
+! below current equilibrium plane.  Could be the cubic carbide/austenit case 
+               global=.FALSE.
+               if(notglobwarning2) then
+                  write(kou,87)iph,(xarr(ngg,ifri),ngg=1,nrel)
+                  gx%bmperr=4352
+                  notglobwarning2=.FALSE.
+               endif
+            endif
          else
+! This gridpoint is for a phase that is not stable but has a grid point
+! below the current equilibrium plane 
             global=.FALSE.
-!         endif
-!            write(*,87)iph,garr(ifri),dble(garr(ifri))-gmax,1.0D-7*abs(gmax),&
-            write(kou,87)iph,(xarr(ngg,ifri),ngg=1,nrel)
-87          format(/' *** Equilibrium may not be global, phase ',&
-                 i3,' found stable with mole fractions:',(/2x,9F8.5))
-            gx%bmperr=4352; goto 500
+            if(notglobwarning1) then
+               write(kou,87)iph,(xarr(ngg,ifri),ngg=1,nrel)
+87             format(/' *** Equilibrium may not be global, phase ',&
+                    i3,' is stable with mole fractions:',(/2x,9F8.5))
+               gx%bmperr=4352
+               notglobwarning1=.FALSE.
+            endif
          endif
       endif
 !      if(ifri.eq.sumng) write(*,*)'OK ',ifri
@@ -3846,6 +3869,84 @@
 1000 continue
    return
  end subroutine gridmin_check
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine separate_constitutions(ceq)
+! Go through all entered phases and if there are two composition sets
+! that have similar constitutions then separate them
+! Used during mapping of for example Fe-Cr to detect the miscibility gap
+    implicit none
+    TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+    integer phtup,nextset,lokcs1,lokcs2,ic,ll,lokph,ss
+    double precision, allocatable :: yarr(:)
+    allph: do phtup=1,nooftup()
+       nextset=phasetuple(phtup)%nextcs
+       if(nextset.eq.0) cycle allph
+       lokcs1=phasetuple(phtup)%lokvares
+       lokcs2=phasetuple(nextset)%lokvares
+       do ic=1,size(ceq%phase_varres(lokcs1)%yfr)
+          if(abs(ceq%phase_varres(lokcs1)%yfr(ic)-&
+               ceq%phase_varres(lokcs2)%yfr(ic)).gt.1.0D-2) then
+!             write(*,66)'3Y two compsets not same:',lokcs1,lokcs2,ceq%tpval(1)
+             cycle allph
+          endif
+       enddo
+! These two composition sets have identical compositions, skip if both stable
+!       write(*,66)'3Y two compsets same:',lokcs1,lokcs2,ceq%tpval(1)
+66     format(a,2i3,f10.2)
+       if(ceq%phase_varres(lokcs1)%phstate.ge.PHENTSTAB) then
+          if(ceq%phase_varres(lokcs2)%phstate.ge.PHENTSTAB) cycle allph
+! set the constitution of lokcs2 to one-the stable
+! or maybe to its default??
+          lokph=phasetuple(phtup)%lokph
+          ic=0
+          phsubl1: do ll=1,phlista(lokph)%noofsubl
+             if(phlista(lokph)%nooffr(ll).eq.1) then
+                ic=ic+1; cycle phsubl1
+             endif
+             do ss=1,phlista(lokph)%nooffr(ll)
+                ic=ic+1
+!                if(ceq%phase_varres(lokcs1)%yfr(ic).gt.5.0D-1) then
+!                   ceq%phase_varres(lokcs2)%yfr(ic)=1.0D-1
+!                else
+!                   ceq%phase_varres(lokcs2)%yfr(ic)=9.0D-1
+!                endif
+                ceq%phase_varres(lokcs2)%yfr(ic)=&
+                     one-ceq%phase_varres(lokcs1)%yfr(ic)
+             enddo
+          enddo phsubl1
+!          write(*,77)'3Y: nyy:',ic,(ceq%phase_varres(lokcs2)%yfr(ss),ss=1,ic)
+77        format(a,i3,8F6.3)
+       elseif(ceq%phase_varres(lokcs2)%phstate.ge.PHENTSTAB) then
+! set the constitution of lokcs2 to one-the stable
+! or maybe to its default??
+          lokph=phasetuple(phtup)%lokph
+          ic=0
+          phsubl2: do ll=1,phlista(lokph)%noofsubl
+             if(phlista(lokph)%nooffr(ll).eq.1) then
+                ic=ic+1; cycle phsubl2
+             endif
+             do ss=1,phlista(lokph)%nooffr(ll)
+                ic=ic+1
+!                if(ceq%phase_varres(lokcs2)%yfr(ic).gt.5.0D-1) then
+!                   ceq%phase_varres(lokcs1)%yfr(ic)=1.0D-1
+!                else
+!                   ceq%phase_varres(lokcs1)%yfr(ic)=9.0D-1
+!                endif
+                ceq%phase_varres(lokcs1)%yfr(ic)=&
+                     one-ceq%phase_varres(lokcs2)%yfr(ic)
+             enddo
+          enddo phsubl2
+!          write(*,77)'3Y: nyy:',ic,(ceq%phase_varres(lokcs1)%yfr(ss),ss=1,ic)
+!       else
+!          write(*,*)'Both compsets unstable'
+       endif
+    enddo allph
+1000 continue
+  end subroutine separate_constitutions
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 !>      17. Miscellaneous

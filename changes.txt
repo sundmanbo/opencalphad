@@ -18,6 +18,22 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2016.09.10 A major change of the numerics has been made.  Now LAPACK
+and BLAS are used for all numerical operations.  This has decreased
+the computation time with 20%.  I provide a subset of LAPACK and BLAS
+with OC compiled without specific adjustments to your hardware.  If
+you have access to a LAPACK and BLAS library fitted to your hardware
+please replace compiling the file oclablas.F90 by your own library.
+
+There are changes in all files compiling and linking OC.  If you use
+your own LAPACK and BLAS you must make additional changes to link that
+library and also changes in the ocnum.F90 to use that library.
+
+There is now also a possibility to calculate the eigenvalues of the
+stability matrix using using Q(phase), if the lowest value is negative
+it means the calculation represents an unstable equilibrium inside the
+spinodal.  Some minor improvements of STEP and MAP has also been made.
+
 2016.08.29 It is now possible to define other components than the
 elements and calculate.  However, quasi-binary and ternary are still
 problematic.  But I think the OC datastructure is now stable.  Time to
