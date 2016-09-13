@@ -660,7 +660,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        PHAQ1=12,    PHDILCE=13, PHQCE=14,  PHCVMCE=15,&    ! 
        PHEXCB=16,   PHXGRID=17, PHFACTCE=18, PHNOCS=19,&   !
        PHHELM=20,   PHNODGDY2=21, PHELMA=22, PHSUBO=23,&   ! 
-       PHFHV=24                                            ! 
+       PHFHV=24                                            !
 ! 
 !----------------------------------------------------------------
 !-Bits in constituent fraction (phase_varres) record STATUS2
@@ -678,10 +678,11 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! CSTEMPAR set if created by grid minimizer and can be suspended afterwards
 !       when running parallel
 ! CSDEL set if record is not used but has been and then deleted (by gridmin)
+! CSADDG means there are terms to be added to G 
    integer, parameter :: &
         CSDFS=0,    CSDLNK=1,  CSDUM2=2,    CSDUM3=3, &
         CSCONSUS=4, CSORDER=5, CSABLE=6,    CSAUTO=7, &
-        CSDEFCON=8, CSTEMPAR=9,CSDEL=10
+        CSDEFCON=8, CSTEMPAR=9,CSDEL=10,    CSADDG=11
 !\end{verbatim}
 !----------------------------------------------------------------
 !\begin{verbatim}
@@ -1460,6 +1461,8 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
      double precision, dimension(:,:), allocatable :: cinvy
      double precision, dimension(:), allocatable :: cxmol
      double precision, dimension(:,:), allocatable :: cdxmol
+! terms added to G if bit CSADDG nonzero
+     double precision, dimension(:), allocatable :: addg
   END TYPE gtp_phase_varres
 ! this record is created inside the gtp_equilibrium_data record
 !\end{verbatim}

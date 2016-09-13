@@ -1,4 +1,4 @@
-OBJS=metlib3.o ocnum.o oclabla.o gtp3.o matsmin.o lmdif1lib.o smp2.o pmon6.o  
+OBJS=metlib3.o oclabla.o ocnum.o gtp3.o matsmin.o lmdif1lib.o smp2.o pmon6.o  
 EXE=oc4P
 
 all:

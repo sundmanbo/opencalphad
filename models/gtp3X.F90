@@ -1591,6 +1591,25 @@
 ! calculated before any other part of G so all must be calculated again ...
 ! The label here just to indicate this, there is no explict jump here
 500 continue
+   if(btest(phmain%status2,CSADDG)) then
+! we have an addition to G, at present just a constant /RT
+      if(allocated(phmain%addg)) then
+         xxx=phmain%addg(1)/ceq%rtn
+      else
+         write(*,*)'3X not allocated addg'
+         xxx=zero
+      endif
+!      write(*,*)'Addition to G:',xxx
+! a constant addition affects G and dG/dy and d2G/dy2
+      phmain%gval(1,1)=phmain%gval(1,1)+xxx
+! dgval( 1/dT/dP , i , property)
+      do id=1,gz%nofc
+         phmain%dgval(1,id,1)=phmain%dgval(1,id,1)+xxx
+         do jd=id,gz%nofc
+            phmain%d2gval(ixsym(id,jd),1)=phmain%d2gval(ixsym(id,jd),1)+xxx
+         enddo
+      enddo
+   endif
    if(floryhuggins.lt.0) then
 ! The Flory-Huggins entropy require that we use the volume parameters
 ! These have now been calculated and can be used in a second loop through

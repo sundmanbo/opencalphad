@@ -5699,6 +5699,8 @@ CONTAINS
              else
 !                write(*,*)'Getting a wildcard value 1: ',nr,trim(statevar)
                 call get_many_svar(statevar,yyy,nzp,np,encoded2,curceq)
+! compiling without -finit-local-zero gives a segmentation fault here
+! running the MAP11 macro
                 qp=np
 !             write(*,*)'wildcard value 1: ',nr,trim(statevar)
 !                write(*,223)'Values: ',np,(yyy(i),i=1,np)

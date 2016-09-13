@@ -274,7 +274,7 @@ contains
          ['MAGNETIC_CONTRIB','COMPOSITION_SET ','DISORDERED_FRACS',&
          'GLASS_TRANSITION','QUIT            ','DEFAULT_CONSTIT ',&
          'DEBYE_CP_MODEL  ','EINSTEIN_CP_MDL ','INDEN_WEI_MAGMOD',&
-         'ELASTIC_MODEL_A ','                ','                ']
+         'ELASTIC_MODEL_A ','GADDITION       ','                ']
 !-------------------
 ! subcommands to SET
     character (len=16), dimension(ncset) :: cset=&
@@ -360,6 +360,7 @@ contains
     language=1
     logfil=0
     defcp=1
+    seqxyz=0
 ! defaults for optimizer, iexit(2)=1 means listing scaled coefficients (Va05AD)
     nvcoeff=0
     iexit=0
@@ -603,7 +604,7 @@ contains
 !       ['MAGNETIC_CONTRIB','COMPOSITION_SET ','DISORDERED_FRACS',&
 !        'GLASS_TRANSITION','QUIT            ','DEFAULT_CONSTIT ',&
 !        'DEBYE_CP_MODEL  ','EINSTEIN_CP_MDL ','INDEN_WEI_MAGNET',&
-!        'ELASTIC_MODEL_A ','                ','                ']
+!        'ELASTIC_MODEL_A ','GADDITION       ','                ']
        case(4) ! amend phase subcommands
           call gparc('Phase name: ',cline,last,1,name1,' ',q1help)
           if(buperr.ne.0) goto 990
@@ -688,8 +689,20 @@ contains
           case(10) ! amend phase elastic model
              call add_addrecord(iph,elasticmodela)
 !....................................................
-          case(11) ! amend phase ??
-             write(kou,*)'Not implemented yet'
+          case(11) ! AMEND PHASE GADDITION
+! add a constant term to G, value in J/FU
+             lokcs=phasetuple(iph)%lokvares
+             if(allocated(ceq%phase_varres(lokcs)%addg)) then
+                xxy=ceq%phase_varres(lokcs)%addg(1)
+             else
+! maybe we will use more terms later ....
+                allocate(ceq%phase_varres(lokcs)%addg(1))
+             endif
+             call gparrd('Addition to G in J/FU: ',cline,last,xxx,xxy,q1help)
+             ceq%phase_varres(lokcs)%addg(1)=xxx
+! set bit that this should be calculated
+             ceq%phase_varres(lokcs)%status2=&
+                  ibset(ceq%phase_varres(lokcs)%status2,CSADDG)
 !....................................................
           case(12) ! amend phase ??
              write(kou,*)'Not implemented yet'

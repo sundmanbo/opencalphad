@@ -4431,7 +4431,7 @@
 500            continue
 !               write(*,*)'3Y Move stable to lower unstable compsets'
 ! move STABLE lokics to UNSTABLE lokjcs
-!               copycompsets(... ???
+!               switch_compsets(... ???
 ! save some jcs values of amount, dgm, status, pre&suffix and tuple index
                xj1=ceq%phase_varres(lokjcs)%amfu
                xj2=ceq%phase_varres(lokjcs)%dgm
@@ -4665,14 +4665,14 @@
                if(bestfit(jcs,ics).gt.kk) then
                   kk=bestfit(jcs,ics)
                   write(*,*)'3Y shifting: ',ics,jcs
-                  call copycompsets2(lokph,ics,jcs,ceq)
+                  call switch_compsets2(lokph,ics,jcs,ceq)
                endif
             enddo shiftto
          enddo shiftfrom
 ! just check do nothing for the moment ....
 ! if moveto(ics) is zero do not move.  otherwise moveto moveto(ics)
 ! but if moveto(moveto(ics)) is zero look for a moveto() that is negative ...
-!         call copycompsets2(lokph,ics,jcs,ceq)
+!         call switch_compsets2(lokph,ics,jcs,ceq)
       endif manycs
    enddo phloop
 ! 
@@ -4683,7 +4683,7 @@
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim} %-
- subroutine copycompsets(iph,ics1,ics2,ceq)
+ subroutine switch_compsets(iph,ics1,ics2,ceq)
 ! copy constitution and results from ic2 to ic1 and vice versa
    integer iph,ics1,ics2
    type(gtp_equilibrium_data), pointer :: ceq
@@ -4693,15 +4693,15 @@
    call get_phase_compset(iph,ics1,lokph,lokcs1)
    call get_phase_compset(iph,ics2,lokph,lokcs2)
    if(gx%bmperr.ne.0) goto 1000
-   call copycompsets2(lokph,ics1,ics2,ceq)
+   call switch_compsets2(lokph,ics1,ics2,ceq)
 1000 continue
    return
- end subroutine copycompsets
+ end subroutine switch_compsets
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim} %-
- subroutine copycompsets2(lokph,ics1,ics2,ceq)
+ subroutine switch_compsets2(lokph,ics1,ics2,ceq)
 ! copy constitution and results from ic2 to ic1 and vice versa
    integer lokph,ics1,ics2
    type(gtp_equilibrium_data), pointer :: ceq
@@ -4712,7 +4712,7 @@
    double precision, dimension(:,:,:), allocatable :: dgval
    double precision qq(5),xdum
 !
-!   write(*,*)'3Y In copycompsets ',lokph,ics1,ics2
+!   write(*,*)'3Y In switch_compsets ',lokph,ics1,ics2
    lokcs1=phlista(lokph)%linktocs(ics1)
    lokcs2=phlista(lokph)%linktocs(ics2)
 ! save current constitution of lokcs1 in val
@@ -4757,6 +4757,13 @@
    d2gval=ceq%phase_varres(lokcs1)%d2gval
    ceq%phase_varres(lokcs1)%d2gval=ceq%phase_varres(lokcs2)%d2gval
    ceq%phase_varres(lokcs2)%d2gval=d2gval
+! addg!!
+!   if(btest(ceq%phase_varres(lokcs1)%status2
+   if(allocated(ceq%phase_varres(lokcs1)%addg)) then
+      val(1)=ceq%phase_varres(lokcs1)%addg(1)
+      ceq%phase_varres(lokcs1)%addg(1)=ceq%phase_varres(lokcs2)%addg(1)
+      ceq%phase_varres(lokcs2)%addg(1)=val(1)
+   endif
 ! curlat, cinvy, cxmol, cdxmol?
 1000 continue
 ! deallocate
@@ -4765,7 +4772,7 @@
    deallocate(dgval)
    deallocate(d2gval)
    return
- end subroutine copycompsets2
+ end subroutine switch_compsets2
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 

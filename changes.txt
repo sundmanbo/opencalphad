@@ -18,6 +18,8 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2016.09.13 The amend phase command can now add a constant G to a phase.
+
 2016.09.10 A major change of the numerics has been made.  Now LAPACK
 and BLAS are used for all numerical operations.  This has decreased
 the computation time with 20%.  I provide a subset of LAPACK and BLAS

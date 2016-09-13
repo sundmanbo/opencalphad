@@ -1031,6 +1031,13 @@
          allocate(neq%d2gval(nz*(nz+1)/2,nprop))
          allocate(neq%listprop(nprop))
       endif
+!------------------- add addg ...
+      if(btest(neq%status2,CSADDG)) then
+         if(.not.allocated(neq%addg)) then
+            allocate(neq%addg(1))
+            neq%addg(1)=peq%addg(1)
+         endif
+      endif
 !--------------------
 !      write(*,88)'3B cs: ',nz,neq%status2,neq%constat
 88    format(a,i2,2x,Z16,2x,10(1x,i3))
