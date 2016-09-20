@@ -124,16 +124,12 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !--------------------------------------------------------------------------
 !
 ! EXTERNAL MODULES
-! TP functions, tpfunlib makes USE of metlib
-! NOW INTEGRATED in GTP
-!  use tpfunlib
 ! metlib package
   use metlib
 !
 ! routines for inverting matrix etc
-  use lukasnum  ! for Lukas solver
-!  use matrix1 for LAPACK/BLAS
-!  use matrix1
+!  use lukasnum  ! for Lukas solver
+  use ocnum      ! for LAPACK and BLAS
 !
 ! for parallel processing
 !$  use OMP_LIB
@@ -145,6 +141,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! 2013.03.01 Release version 1
 ! 2015.01.07 Release version 2
 ! 2016.02.14 Release version 3
+! 2016.09.14 Prerelease version 4
 !
 !=================================================================
 !
@@ -757,7 +754,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! Parameters defining the size of arrays etc.
 ! max elements, species, phases, sublattices, constituents (ideal phase)
   integer, parameter :: maxel=100,maxsp=1000,maxph=300,maxsubl=10,maxconst=1000
-! maximum number of consitutents in non-ideal phase
+! maximum number of constituents in non-ideal phase
   integer, parameter :: maxcons2=100
 ! maximum number of elements in a species
   integer, parameter :: maxspel=10
@@ -777,9 +774,9 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! max number of state variable functions
   integer, private, parameter :: maxsvfun=500
 ! version number
-! changes in last 2 digits means no change in SAVE/READ format
-  character*8, parameter :: gtpversion='GTP-3.00'
-  character*8, parameter ::   savefile='OCF-3.00'
+! changes in the last digit means no change in SAVE/READ format
+  character*8, parameter :: gtpversion='GTP-3.10'
+  character*8, parameter ::   savefile='OCF-3.10'
 !\end{verbatim}
 !=================================================================
 !\begin{verbatim}
@@ -811,8 +808,8 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !
 !\begin{verbatim}
   TYPE gtp_parerr
-! This record contains the global error code.  In parallell processing each
-! parallell processes has its own error code copied to this if nonzero
+! This record contains the global error code.  In parallel processing each
+! parallel processes has its own error code copied to this if nonzero
 ! it should be replaced by gtperr for separate errors in treads
      INTEGER :: bmperr
   END TYPE gtp_parerr
@@ -852,8 +849,8 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   integer, parameter :: tpfun_root_version=1
   TYPE tpfun_root
 ! Root of a TP function including name with links to coefficients and codes
-! and results.  Note that during calculations which can be parallellized
-! the results can be different for each parallell process
+! and results.  Note that during calculations which can be parallelized
+! the results can be different for each parallel process
      character*(lenfnsym) symbol
 ! limits are the low temperature limit for each range
 ! funlinks links to expression records for each range
@@ -877,8 +874,8 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   TYPE tpfun_parres
 ! Contains a TP results, 6 double for results and 2 doubles for T and P 
 ! values used to calculate the results
-! Note that during calculations which can be parallellized the final
-! results can be different for each parallell process
+! Note that during calculations which can be parallelized the final
+! results can be different for each parallel process
      integer forcenewcalc
      double precision, dimension(2) :: tpused
      double precision, dimension(6) :: results
@@ -912,7 +909,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! data for each element: symbol, name, reference state, mass, h298-h0, s298
      character :: symbol*2,name*12,ref_state*24
      double precision :: mass,h298_h0,s298
-! splink: index of corresponing species in array splink
+! splink: index of corresponding species in array splink
 ! Status bits are stored in the integer status
 ! alphaindex: the alphabetical order of this elements
 ! refstatesymbol: indicates H0 (1), H298 (0, default) or G (2) for endmembers
@@ -927,7 +924,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! this constant must be incremented whenever a change is made in gtp_species
   INTEGER, parameter :: gtp_species_version=1
   TYPE gtp_species
-! data for each species: symnol, mass, charge, extra, status
+! data for each species: symbol, mass, charge, extra, status
 ! mass is in principle redundant as calculated from element mass
 ! extra can be used for somethinig extra ... like a Flory-Huggins segment length
      character :: symbol*24
@@ -1020,7 +1017,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! The necessary information is stored in noofip.  It is not easy to keep
 ! track of permutations during calculations, the smart way to store the last
 ! permutation calculated is in this record ... but that will not work for
-! parallell calculations as this record is static ...
+! parallel calculations as this record is static ...
 ! status: may be useful eventually
 ! antalint: sequential number of interaction record, to follow the structure
 ! order: for permutations one must have a sequential number in each node
@@ -1194,7 +1191,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! One can allocate a dynamic array for the constituent list, done
 ! by subroutine create_constitlist.
 ! Note that the phase has a dynamic status word status2 in gtp_phase_varres
-! which can be differnt in different parallell calculations.
+! which can be differnt in different parallel calculations.
 ! This status word has the FIX/ENT/SUS/DORM status bits for example
 ! name: phase name, note composition sets can have pre and suffixes
 ! model: free text
@@ -1382,9 +1379,6 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
      double precision, dimension(:), allocatable :: dxidyj
 ! factor needed when reading from TDB file for sigma etc.
      double precision fsites
-! ?? the disordered phase_varres record is linked by this pointer,
-!  used only in gtp3G ... but seems to be needed for disordered fraction sets
-!*?     TYPE(gtp_phase_varres), pointer :: phdapointer
   END TYPE gtp_fraction_set
 ! these records are declared in the phase_varres record as DISFRA for 
 ! each composition set and linked from the phase_varres record
@@ -1473,7 +1467,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   TYPE gtp_equilibrium_data
 ! this contains all data specific to an equilibrium like conditions,
 ! status, constitution and calculated values of all phases etc
-! Several equilibria may be calculated simultaneously in parallell threads
+! Several equilibria may be calculated simultaneously in parallel threads
 ! so each equilibrium must be independent 
 ! NOTE: the error code must be local to each equilibria!!!!
 ! During step and map each equilibrium record with results is saved
@@ -1554,7 +1548,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   INTEGER, parameter :: gtp_parcalc_version=1
   TYPE gtp_parcalc
 ! This record contains temporary data that must be separate in different
-! parallell processes when calculating G and derivatives for any phase.
+! parallel processes when calculating G and derivatives for any phase.
 ! There is nothing here that need to be saved after the calculation is finished
 ! global variables used when calculating G and derivaties
 ! sublattice with interaction, interacting constituent, endmember constituents

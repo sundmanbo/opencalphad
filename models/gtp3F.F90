@@ -2619,38 +2619,6 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!-\begin{verbatim}
- subroutine state_var_value_derivative_old(svr1,svr2,value,ceq)
-! THIS SUBROUTINE MOVED TO MINIMIZER
-! subroutine state_var_value_derivative(istv,indices,iref,iunit,&
-!      istv2,indices2,iref2,iunit2,value,ceq)
-! calculates a state variable value derivative NOT IMPLEMENTED YET
-! istv and istv2 are state variable type (integer)
-! indices and indices2 are possible specifiers
-! iref and iref2 are possible reference state
-! iunit and iunit2 are units, (K, oC, J, cal etc)
-! value is calculated value
-! ceq is current equilibrium
-   implicit none
-   TYPE(gtp_state_variable), pointer :: svr1,svr2
-   TYPE(gtp_equilibrium_data), pointer :: ceq
-!   integer :: istv,iref,iunit,istv2,iref2,iunit2
-!   integer, dimension(4) :: indices,indices2
-   double precision value
-!-\end{verbatim}
-!
-   value=zero
-   write(*,17)svr1%statevarid,svr1%argtyp,svr2%statevarid,svr2%argtyp
-17 format('3F: state_var_value_derivative: ',10i4)
-! this must be calculated in the minimizer
-!   call meq_state_var_value_derivative(svr1,svr2,value,ceq)
-   gx%bmperr=4078
-1000 continue
-   return
- end subroutine state_var_value_derivative_old
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
 !\begin{verbatim}
  subroutine calculate_reference_state(kstv,iph,ics,aref,ceq)
 ! Calculate the user defined reference state for extensive properties
@@ -3288,7 +3256,7 @@
  subroutine evaluate_all_svfun_old(kou,ceq)
 ! THIS SUBROUTINE MOVED TO MINIMIZER but kept for initiallizing
 ! cannot be used for state variable functions that are derivatives ...
-! evaluate and list values of all functions
+! evaluate and list values of all functions but it is still used somewhere
    implicit none
    integer kou
    TYPE(gtp_equilibrium_data), pointer :: ceq
@@ -3415,24 +3383,5 @@
    evaluate_svfun_old=value
    return
  end function evaluate_svfun_old
-
-!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
-
-!\begin{verbatim}
- double precision function phase_component_amount(lokph,lokcs,ceq)
-! This subroutine calculates the amount of components/F.U. for a phase iph/ics
-! when the user has entered other components than the elements
-! It replaces %abnorm(1)
-   implicit none
-   integer lokph,lokcs
-   TYPE(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim}
-   double precision abnorm3
-   write(*,*)'phase component amount not implemented yet'
-   abnorm3=ceq%phase_varres(lokcs)%abnorm(1)
-1000 continue
-   phase_component_amount=abnorm3
-   return
- end function phase_component_amount
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\

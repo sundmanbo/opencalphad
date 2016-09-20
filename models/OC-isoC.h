@@ -70,6 +70,7 @@ typedef struct {
   double **cinvy;
   double *cxmol;
   double **cdxmol;
+  double *addg;
 } gtp_phase_varres;
 
 typedef struct gtp_condition {

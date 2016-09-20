@@ -1,5 +1,6 @@
 !
-MODULE LUKASNUM
+! MODULE LUKASNUM
+MODULE OCNUM
 !
 ! This is free software using LAPACK and BLAS
 !
@@ -458,4 +459,4 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-END MODULE LUKASNUM
+END MODULE OCNUM

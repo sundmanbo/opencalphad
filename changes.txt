@@ -13,10 +13,27 @@ such procedures please ask a local guru.  We who are providing this
 software do not have time to answer such questions.  
 
 If you want a thermodynamic software that can install itself and which
-do not require any understanding of thermodynamics please contact a
+does not require any understanding of thermodynamics please contact a
 commercial vendor.
 
 In the list below the most recent changes come first.
+
+2016.09.20 Hard work on updating the documentation, I have done all
+except the step/map/plot which I want to edit like a paper and the
+OCASI documentation where I have to write some new code.  I have
+started writing installation guides for different OS with the help of
+Philippe Zeller.
+
+An environment variable OCHOME has been introduced and on the dirctory
+indicated by this variable one should have the ochelp.hlp file and one
+can have a start.OCM file that is executed when the program starts and
+an OCHOME/database directory which is searched for TDB databases if
+user start the database name with "ocbase/" or "ocbase\"
+
+Whenever I find a something difficult to explain in the documentation
+I try to change the code but that will affect other parts of the
+documentation.  Updating OC and documentation is a bit like playing a
+4 handed piece of piano music all alone.
 
 2016.09.13 The amend phase command can now add a constant G to a phase.
 

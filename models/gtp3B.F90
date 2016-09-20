@@ -209,7 +209,7 @@
 !\begin{verbatim}
  subroutine enter_species(symb,noelx,ellist,stoik)
 ! creates a new species
-! symb: character*24, name of species, often equal to stoichimoetric formula
+! symb: character*24, name of species, often equal to stoichiometric formula
 ! noelx: integer, number of elements in stoichiometric formula (incl charge)
 ! ellist: character array, element names (electron is /-)
 ! stoik: double array, must be positive except for electron.
@@ -4513,11 +4513,6 @@
 !\begin{verbatim}
  subroutine copy_equilibrium(neweq,name,ceq)
 ! creates a new equilibrium which is a copy of ceq.  
-! Allocates arrayes for conditions,
-! components, phase data and results etc. from equilibrium ceq
-! returns a pointer to the new equilibrium record
-! THIS CAN PROBABLY BE SIMPLIFIED, especially phase_varres array can be
-! copied as a whole, not each record structure separately ... ???
    implicit none
    character name*(*)
    type(gtp_equilibrium_data), pointer ::neweq,ceq

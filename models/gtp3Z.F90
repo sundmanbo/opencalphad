@@ -36,7 +36,6 @@
    integer nf
 ! use tpres declared externally for parallel processing
   TYPE(tpfun_parres), dimension(:), allocatable :: tpres
-!  TYPE(tpfun_parres), dimension(:), pointer :: tpres
 !\end{verbatim}
    integer ifri
    allocate(tpfuns(nf))
@@ -137,7 +136,6 @@
    double precision tpval(2),result(6)
 ! changes to avoid memory leak in valgrind
    TYPE(tpfun_parres), dimension(*) :: tpres
-!   TYPE(tpfun_parres), dimension(:), pointer :: tpres
 !\end{verbatim}
    integer nr,ns
    TYPE(tpfun_expression), pointer :: exprot
@@ -955,7 +953,6 @@
    double precision val(6),tpval(*)
    TYPE(tpfun_expression), pointer :: inrot
    TYPE(tpfun_parres), dimension(*) :: tpres
-!   TYPE(tpfun_parres), dimension(:), pointer :: tpres
 !\end{verbatim}
    integer mlev,level,jpow,link2
    double precision mini

@@ -37,7 +37,7 @@ MODULE liboceq
 !$  use omp_lib
 !
   implicit none
-  character*8, parameter :: hmsversion='HMS-2.00'
+  character*8, parameter :: hmsversion='HMS-2.10'
 !
 !-------------------------------------------------------
 ! for single equilibrium
@@ -6501,9 +6501,10 @@ CONTAINS
 !\begin{verbatim}
  subroutine list_equilibrium_extra(lut,ceq,pun)
 ! list the extra character variables for calculate symboles and
-! list characters (if any),  It is used in pmon and part of matsmin
+! list characters (if any),  It is used in pmon and is part of matsmin
 ! because it calls subroutines which need access to calculated results
-! It can also plot using the file oc_many0.plt
+! If the first non-blank character of ceq%eqextra(3) is 0 (zero) then pun
+! will be used as a file number to generate a plotfile with calculated values
    implicit none
    integer lut,pun
    TYPE(gtp_equilibrium_data), pointer :: ceq
@@ -6801,7 +6802,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim} %-
+!\begin{verbatim}
   subroutine equilph1c(meqrec,phr,tpval,xknown,ovar,ceq)
 ! iterate constituent fractions of a phase for mole fractions xknown
 ! tpval is T and P
@@ -6972,7 +6973,7 @@ CONTAINS
 !\begin{verbatim}
   subroutine equilph1d(phtup,tpval,xknown,cpot,tyst,nend,mugrad,mobval,ceq)
 ! equilibrates the constituent fractions of a phase for mole fractions xknown
-! and calculates 
+! and calculates the Darken matrix and unreduced diffusivities
 ! phtup is phase tuple
 ! tpval is T and P
 ! ceq is a datastructure with all relevant thermodynamic data
@@ -6987,7 +6988,7 @@ CONTAINS
     double precision tpval(*),xknown(*),cpot(*),mugrad(*),mobval(*)
     TYPE(gtp_phasetuple), pointer :: phtup
     TYPE(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim}
+!\end{verbatim} %+
     TYPE(meq_setup) :: meqrec
     integer ii
 ! extract the current chemical potentials as start values
@@ -7009,7 +7010,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim}
+!\begin{verbatim} %-
   subroutine equilph1e(meqrec,phr,tpval,xknown,ovar,tyst,&
        noofend,mugrad,mobval,ceq)
 ! iterate constituent fractions of a phase for mole fractions xknown

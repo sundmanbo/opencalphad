@@ -58,6 +58,8 @@ contains
     character plotform*32,longstring*2048,optres*40
 ! separate file names for remembering and providing a default
     character ocmfile*64,ocufile*64,tdbfile*64,ocdfile*64
+! home for OC and default directory for databases
+    character ochome*64,ocbase*64
 ! prefix and suffix for composition sets
     character prefix*4,suffix*4
 ! element mass
@@ -366,16 +368,17 @@ contains
     iexit=0
     iexit(2)=1
 !
-    write(kou,10)version,linkdate(1:len_trim(linkdate)),ocmonversion,&
-         gtpversion,hmsversion,smpversion
+    write(kou,10)version,trim(linkdate),ocmonversion,gtpversion,hmsversion,&
+         smpversion
 10  format(/'Open Calphad (OC) software version ',a,' prerelease, linked ',a,/&
          'with command line monitor version ',i2//&
          'This program is available with a GNU General Public License.'/&
-         'It includes the General Thermodynamic Package, version ',A/&
-         "and Hillert's equilibrium calculation algorithm version ",A/&
-         'and step/map/plot software version ',A/&
-      'and LMDIF from ANL (Argonne, USA) is used by the assessment procedure'/)
-!
+         'It includes the General Thermodynamic Package, version ',A,','/&
+         "Hillert's equilibrium calculation algorithm version ",A,','/&
+         'step/map/plot software version ',A,', ',&
+         'LAPACK and BLAS numerical routines'/'and LMDIF from ANL ',&
+         '(Argonne, USA) is used by the assessment procedure'/)
+!aa
 !$    write(kou,11)
 11  format('Linked with OpenMp for parallel execution')
 !
@@ -402,8 +405,6 @@ contains
     optionsset%lut=kou
 ! default for list short
     chshort='A'
-! initiate on-line help
-    call init_help('ochelp.hlp ')
 ! set default minimizer, 2 is matsmin, 1 does not work ...
     minimizer=2
 ! set default optimimzer, 1 is LMDIF, 2 is VA05AD
@@ -441,9 +442,37 @@ contains
 ! set default equilibrium to 1 and current equilibrium (CEQ) to firsteq
     neqdef=1
     ceq=>firsteq
-! >>> we should remove all equilibria !!
+! >>> we should remove all equilibria !! ??
 ! here one should read a user initialisation file as a macro
 ! file can be at current directory or at home directory
+! initiate on-line help
+! local environment
+    ochome=' '
+    call get_environment_variable('OCHOME ',ochome)
+    if(ochome(1:1).eq.' ') then
+       write(*,*)'Environment variable OCHOME undefined, using local help file'
+! help file on local directory?
+       call init_help('ochelp.hlp ')
+    else
+! both LINUX and WINDOWS accept / as separator between directory and file names
+!       write(*,*)'Help file: ',trim(ochome)//'\ochelp.hlp '
+       call init_help(trim(ochome)//'/ochelp.hlp ')
+! default directory for databases
+       ocbase=trim(ochome)//'/databases'
+! running a initial macro file
+       cline=trim(ochome)//'/start.OCM '
+       inquire(file=cline,exist=logok)
+       if(logok) then
+          write(*,*)'there is an initiation file!',trim(cline)
+          last=0
+          call macbeg(cline,last,logok)
+!       else
+!          write(*,*)'No initiation file'
+       endif
+    endif
+!
+! finished initiallization
+88  continue
 !
 !============================================================
 ! return here for next command
@@ -981,7 +1010,7 @@ contains
                      ' and the chemical potentials/RT:'/6(1pe12.4))
              else
 !.............................................
-! calculate chem.pot derivatives and mobilities
+! calculate phase diffusion: chem.pot derivatives and mobilities
 ! mugrad(I,J) are derivatives of the chemical potential of endmember I
 !         with respect to endmember J
 ! mobilities(i) is mobility of component i
@@ -997,8 +1026,10 @@ contains
                 write(kou,2094)(nv,nv=1,nend)
 2094            format(3x,6(6x,i6)/(3x,6i12))
                 do nv=0,nend-1
+! An extra LF is generated when just 6 components!! use ll, kp j1, i2
                    write(kou,2095)nv+1,(mugrad(nend*nv+jp),jp=1,nend)
-2095               format(i3,6(1pe12.4)/(3x,6e12.4))
+!2095               format(i3,6(1pe12.4)/(3x,6e12.4))
+2095               format(i3,6(1pe12.4),(/3x,6e12.4))
                 enddo
                 write(kou,2098)noel()
 2098            format(/'Mobility values mols/m2/s ?? for',i3,' components')
@@ -1446,6 +1477,7 @@ contains
 ! end of macro excution (can be nested)
        case(5) ! set INTERACTIVE
           call macend(cline,last,logok)  
+!          write(*,*)'Macro terminated'
 !-----------------------------------------------------------
        case(6) ! set REFERENCE_STATE
           call gparc('Component name: ',cline,last,1,name1,' ',q1help)
@@ -2455,7 +2487,7 @@ contains
           ceq%comment=text
 !---------------------------------------------------------------
 ! enter MANY_EQUILIBRIA
-! plotdataunit should be zero at first call, then the unit is opened
+! The plotdataunit array should be zero at first call, then the unit is opened
 ! (if there are any plot_data commands).  It will remain open until
 ! a set range command is given
        case(15)
@@ -3040,10 +3072,18 @@ contains
 !---------------------------------------------------------
        case(2) ! read TDB
           if(tdbfile(1:1).ne.' ') then
+! set tdbfil as default
              text=tdbfile
              call gparcd('File name: ',cline,last,1,tdbfile,text,q1help)
           else
              call gparc('File name: ',cline,last,1,tdbfile,' ',q1help)
+          endif
+! if tdbfle starts with "ocbase/" replace that with content of ocbase!!
+          name1=tdbfile(1:7)
+          call capson(name1)
+          if(name1(1:7).eq.'OCBASE/' .or. name1(1:7).eq.'OCBASE\') then
+             tdbfile=trim(ocbase)//tdbfile(7:)
+             write(*,*)'database file: ',trim(tdbfile)
           endif
 ! this call checks the file exists and returns the elements
           call checktdb(tdbfile,jp,ellist)
@@ -3296,20 +3336,25 @@ contains
 ! about
     case(15)
        write(kou,15010)linkdate
-15010  format(/'This is Open Calphad (OC), a free software for ',&
+15010  format(/'This is OpenCalphad (OC), a free software for ',&
             'thermodynamic calculations'/&
             'described by B Sundman, U R Kattner, M Palumbo and S G Fries,'/&
-            'Integrating Materials and Manufacturing Innovation (2015) 4:1'//&
+            'Integrating Mat and Manufact Innov (2015) 4:1 and'/&
+            'B Sundman, X-G Lu and H Ohtani, Comp Mat Sci, Vol 101 ',&
+            '(2015) 127-137 and'/'B Sundman et al. Comp Mat Sci, Vol 125 '&
+            '(2016) 188-196'//&
             'It is available for download at http://www.opencalphad.org or'/&
             'the sundmanbo/opencalphad repository at http://www.github.com'//&
             'This software is protected by the GNU General Public License'/&
             'You may freely distribute copies as long as you also provide ',&
-            'the source code.'/'The software is provided "as is" without ',&
-            'any warranty of any kind, either'/'expressed or implied.  ',&
+            'the source code'/' and use the GNU GPL license also for your own'/&
+            'additions and modifications.'//&
+            'The software is provided "as is" without any warranty of any ',&
+            'kind, either'/'expressed or implied.  ',&
             'The full license text is provided with the software'/&
             'or can be obtained from the Free Software Foundation ',&
             'http://www.fsf.org'//&
-            'Copyright 2010-2016, several persons.'/&
+            'Copyright 2011-2016, Bo Sundman, France.'/&
             'Contact person Bo Sundman, bo.sundman@gmail.com'/&
             'This version linked ',a/)
 !=================================================================

@@ -516,9 +516,7 @@
 !\begin{verbatim} %-
  subroutine change_phase_status(qph,ics,nystat,val,ceq)
 ! change the status of a phase. Also used when setting phase fix etc.
-! not used old: 0=entered, 1=suspended, 2=dormant, 3=fix, 4=hidden,5=not hidden
 ! nystat:-4 hidden, -3 suspended, -2 dormant, -1,0,1 entered, 2 fix
-! try using nystat=3 for map/step fix phase ...
 ! qph can be -1 meaning all or a specifix phase index. ics compset
 ! 
    implicit none
@@ -931,75 +929,6 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine termterm_old(string,ich,kpos,value)
-! search for first occurance of + - = > or <
-! if + or - then also extract possible value after sign
-   implicit none
-   character string*(*)
-   integer kpos,ich
-   double precision value
-!\end{verbatim}
-   integer ipos,jpos,i1
-   character (len=1), dimension(6), parameter :: chterm=&
-        ['+','-','=','<','>',':']
-!
-   ipos=len_trim(string)
-   ich=0
-   do i1=1,6
-      jpos=index(string,chterm(i1))
-      if(jpos.gt.0 .and. jpos.lt.ipos) then
-!         write(*,*)'3G tt: ',ipos,ich,jpos,i1
-         ipos=jpos; ich=i1
-      endif
-   enddo
-! different actions depending on ich
-   select case(ich)
-   case default
-      write(*,*)'3G ich case is wrong: ',ich
-   case(0)
-! no terminator, just return with position pointer after the text
-      continue
-      kpos=ipos+1
-   case(1,2)
-! there is a - or + sign, collect value in front of next term
-      kpos=ipos+1
-      call getrel(string,kpos,value)
-      if(buperr.ne.0) then
-! a sign not followed by number means unity
-         buperr=0; value=one
-         if(ich.eq.2) value=-value
-      else
-! a number must be followed by a "*"
-         if(string(kpos:kpos).ne.'*') then
-            write(*,*)'3G syntax error missing *: ',string(1:kpos+5),kpos
-         else
-            kpos=kpos+1
-         endif
-! if there is a * do not care, it will be swollowed by next gparcd ...
-      endif
-   case(3)
-! there is an = sign, just set back the pointer
-      kpos=ipos
-   case(4)
-! there is an < sign, just set back the pointer
-      kpos=ipos
-   case(5)
-! there is an > sign, just set back the pointer
-      kpos=ipos
-   case(6)
-! there is an : sign, meaning a condition number, must be followed by =
-      if(string(ipos+1:ipos+1).ne.'=') then
-         gx%bmperr=4328; goto 1000
-      endif
-      kpos=ipos+1
-   end select
-1000 continue
-   return
- end subroutine termterm_old
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\begin{verbatim}
  subroutine alphaelorder
 ! arrange new element in alphabetical order
 ! also make alphaindex give alphabetical order
@@ -1183,7 +1112,7 @@
 
 !\begin{verbatim}
  subroutine create_parrecords(lokph,lokcs,nsl,nc,nprop,iva,ceq)
-! fractions and results arrays for a phase for parallell calculations
+! fractions and results arrays for a phase for parallel calculations
 ! location is returned in lokcs
 ! nsl is sublattices, nc number of constituents, nprop max number if propert,
 ! iva is an array which is set as constituent status word (to indicate VA)
@@ -1256,7 +1185,7 @@
       endif
    endif
 !
-! result arrays for a phase for use in parallell processing
+! result arrays for a phase for use in parallel processing
    ceq%phase_varres(lokcs)%nprop=nprop
    allocate(ceq%phase_varres(lokcs)%listprop(nprop))
    allocate(ceq%phase_varres(lokcs)%gval(6,nprop))
@@ -1527,7 +1456,7 @@
 ! this subroutine returnes a copy of the phase variable structure for iph
 ! >>>>>>>>>>>>>
 ! this subroutine is probably redundant since the structure 
-! gtp_equilibrium_data was introduced.  Each parallell tread should have
+! gtp_equilibrium_data was introduced.  Each parallel tread should have
 ! its own gtp_equilibrium_data record.
 ! >>>>>>>>>>>>>>>>>>>>>>>>>>
 ! The programmer can enter fraction in this structure and use it in calls

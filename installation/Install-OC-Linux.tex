@@ -1,0 +1,116 @@
+\documentclass[12pt]{article}
+\usepackage[latin1]{inputenc}
+\usepackage{graphicx,subfigure}
+\topmargin -1mm
+\oddsidemargin -1mm
+\evensidemargin -1mm
+\textwidth 165mm
+\textheight 220mm
+\parskip 2mm
+\parindent 3mm
+%\pagestyle{empty}
+
+\begin{document}
+\begin{center}
+{\Large \bf Installation of OpenCalphad on Linux}
+
+Bo Sundman, \today
+
+\end{center}
+
+There is no automatic installation routine for OC, you must download
+and compile the software yourself.  You may also have to install
+Fortran compilers and the GNUPLOT software if you do not already have
+them.  The OC development team cannot offer you any help for that,
+please ask some local experts if you need help.
+
+The descrcipton below applies when installing OC on a ``vanilla''
+Linux system, the guides available are:
+\begin{itemize}
+\item Install-OC-Windows-MinGW
+\item Installation de OC sous Windows avec Cygwin (in French)
+\item Install-OC-Linux
+\end{itemize}
+
+Step by step installation:
+
+\begin{itemize}
+\item The code is written in the new Fortran standard and requires a
+  compiler like GNU Fortran 4.8 or similar.
+
+\item If you have not already installed a Fortran compiler you can get
+  the GNU Fortran suite free from https://SourgeForge.net or some
+  similar site.  If you have Intel or another Fortran compiler you
+  must be sure it is compatible with GNU Fortran 4.8 or later.
+
+\item Rename the file ``Makefile-sequential'' to Makefile
+
+\item If you have access to several CPUs you can test OC with
+  parallelization using Open MP.  In that case you should rename
+  ``Makefile-parallel'' to Makefile
+
+\item Run the make command in a terminal window.{\bf If you have
+  errors running the make command files please contact a local
+  expert.}
+
+\item For the graphics you must download and install the free GNUPLOT
+  software, for example from SoureForge.
+
+  Make sure your PATH includes the directory with the GNUPLOT program.
+  If you do not know how to set your PATH ask a local expert.
+
+\item There is a documentation directory with several PDF files.  Read
+  the ``Getting\_started'' documentation to understand how to operate
+  the program.  Also look at the ``OC-macro'' documentation which
+  describes several macro files which you have on a directory
+  ``macro''.  These are useful to test the software and gives some
+  ideas how to use it.  There is also a news-OC4 for a summary of the
+  features of OC.
+
+\item There is also a preliminary user guide ``ochelp4'' in the manual
+  directory.  The user guide is also available in the file
+  ``ochelp.hlp'' in LaTeX format because it is used for the on line
+  help.  The user guide is still very primitive as many commands are
+  changing or not yet implemented.
+
+\item The source code is in the directories ``minimizer, models,
+  numlib, stepmapplot, userif'' and ``utilities''.
+
+\item The documentation of the source code is in the directory
+  ``documentation'' in several PDF files: ``gtp3'' for the model
+  package and ``hms2'' for the minimizer.  The other software
+  documentation, ``smp2'' for the step/map/plot routines, ``assess''
+  for the assessment module and ``ocasi'' for the application software
+  interface are very preliminary.
+
+\item The TQ4lib directory has a few examples for using the software
+  interface for Fortran and C/C++.  An attempt to implement isoC
+  binding to C++ has been made.  Consult the ``readme'' files on the
+  different directories how to install them.
+
+\item Contributions of new and improved source code are welcome.  You
+  can do this using the github repository.  Contact Bo Sundman if you
+  want to know more.
+
+\item The OC command line interface has a ``VAX/VMS'' flavor which
+  reflects the age of the developer.  It means the commands are
+  ``verbs'' like {\em set, list, calculate, enter} etc.  After the
+  verb several objects are usually possible like {\em Set
+    ~condition/status} etc.  There is some redundancy so the same
+  effect can sometimes be achieved by different combinations of verbs
+  and objects.
+
+  Each command and subcommand can be abbreviated, usually 3 characters
+  are sufficient.
+
+  If you want a graphical user interface you are welcome to develop
+  it.
+\end{itemize}
+
+You are welcome to provide a better installation guide also!
+
+\bigskip
+
+{\large \bf Have fun and help make OC useful!}
+
+\end{document}

@@ -19,6 +19,10 @@ RESULTS
 
 @&
 
+set ref cr bcc * ,,
+
+set ref fe bcc * ,,
+
 set ax 1 x(cr)
 0
 1
@@ -39,7 +43,7 @@ title map 11 fig 1
 RENDER
 
 @$
-@$ This diagram will in most cases have a metastable
+@$ This diagram will in some cases have a metastable
 @$ extrapolation of the sigma+bcc lines because the
 @$ two bcc phases merges at hight T and the 3-phase line
 @$ is not found when lowering the T.  

@@ -1,0 +1,151 @@
+\documentclass[12pt]{article}
+\usepackage[latin1]{inputenc}
+\usepackage{graphicx,subfigure}
+\topmargin -1mm
+\oddsidemargin -1mm
+\evensidemargin -1mm
+\textwidth 165mm
+\textheight 220mm
+\parskip 2mm
+\parindent 3mm
+%\pagestyle{empty}
+
+\begin{document}
+\begin{center}
+{\Large \bf Installation of OpenCalphad on Windows using MinGW}
+
+Bo Sundman, \today
+
+\end{center}
+
+There is no automatic installation routine for OC, you must download
+and compile the software yourself.  You may also have to install
+Fortran compilers and the GNUPLOT software if you do not already have
+them.  The OC development team cannot offer you any help for that,
+please ask some local experts if you need help.
+
+The descrcipton below applies when installing OC on Windows using
+MinGW, the guides available are:
+\begin{itemize}
+\item Install-OC-Windows-MinGW
+\item Installation de OC sous Windows avec Cygwin (in French)
+\item Install-OC-Linux
+\end{itemize}
+
+Step by step installation:
+
+\begin{itemize}
+\item The code is written in the new Fortran standard and requires a
+  compiler like GNU Fortran 4.8 or similar.
+
+\item If you have not already installed MinGW and the Fortran compiler
+  you must do that from https://SourgeForge.net or some similar site.
+  If you have MinGW but not the Fortran compiler you must add that.
+  The MinGW software is free.
+
+\item Rename the file ``linkmake'' to linkmake.cmd so it can be executed.
+
+\item If you have access to several CPUs you can test OC with
+  parallelization using Open MP.  In that case you should use the
+  linkfile ``linkpara'' (after renaming it to linkpara.cmd) on
+
+\item Open a terminal window.  If you do not know what is a terminal
+  window you should ask a local expert.  Keep him or her with you
+  until you finished the installation.
+
+\item In the terminal window exectute the file you just renamed by
+  typing its name.
+
+\item {\bf If you have errors running the linkmake or linkpara command
+  files please contact a local expert.}
+
+\item For the graphics you must download and install the free GNUPLOT
+  software, for example from SoureForge.
+
+  Make sure your PATH includes the directory with the GNUPLOT program.
+  If you do not know how to set your PATH ask a local expert.
+
+\item Creating a home directory for OC
+  \begin{itemize} 
+    \item Create a directory called OCHOME at you home directory,
+      usually\\
+      ``C:${\backslash}$Users${\backslash}$yourname''.
+
+    \item Copy the file ochelp.hlp to this directory
+    
+    \item Later you may also add a mcro file that you want to run
+      everytime you start OC on this directory or subdirectores
+      with databases or calculated results
+
+    \item Create an environment variable for your account called
+      OCHOME with the path to your OCHOME directory as value.  If you
+      do not know how to create an environment variable please ask a
+      local expert.
+      
+      Normally you have to restart your computer to have the
+      environmet variable available.
+
+% On my Swedish Windows I create a environment variable by clicking
+% on the Windows icon and then type ``miljö''
+% and select Redigera miljövariabler för kontot
+
+    \item If you want to start the OC program from several directories
+      copy also the executable to OCHOME and add the path to OCHOME
+      to your \%PATH\%
+  \end{itemize}
+
+\item There is a documentation directory with several PDF files.  Read
+  the ``Getting\_started'' documentation to understand how to operate
+  the program.  Also look at the ``OC-macro'' documentation which
+  describes several macro files which you have on a directory
+  ``macro''.  These are useful to test the software and gives some
+  ideas how to use it.  There is also a news-OC4 for a summary of the
+  features of OC.
+
+\item There is also a preliminary user guide ``ochelp'' in the manual
+  directory.  The user guide is also available in the file
+  ``ochelp.hlp'' in LaTeX format because it is used for the on line
+  help.  The user guide is still very primitive as many commands are
+  changing or not yet implemented.
+
+\item The source code is in the directories ``minimizer, models,
+  numlib, stepmapplot, userif'' and ``utilities''.
+
+\item The documentation of the source code is in the directory
+  ``documentation'' in several PDF files: ``gtp3'' for the model
+  package and ``hms2'' for the minimizer.  The other software
+  documentation, ``smp2'' for the step/map/plot routines, ``assess''
+  for the assessment module and ``ocasi'' for the application software
+  interface are very preliminary.
+
+\item The TQ4lib directory has a few examples for using the software
+  interface for Fortran and C/C++.  An attempt to implement isoC
+  binding to C++ has been made.
+
+\item Contributions of new and improved source code are welcome.  You
+  can do this using the github repository.  Contact Bo Sundman if you
+  want to know more.
+
+\item the command line interface has a ``VAX/VMS'' flavor which
+  reflects the age of the developer.  It means the commands are
+  ``verbs'' like {\em set, list, calculate, enter} etc.  After the
+  verb several objects are usually possible like {\em Set
+    ~condition/status} etc.  There is some redundancy so the same
+  effect can sometimes be achieved by different combinations of verbs
+  and objects.
+
+  Each command and subcommand can be abbreviated, usually 3 characters
+  are sufficient.
+
+  If you want a graphical user interface you are welcome to develop
+  it.
+\end{itemize}
+
+You are welcome to provide a better installation guide also!
+
+\bigskip
+
+{\large \bf Have fun and help make OC useful!}
+
+\end{document}
+

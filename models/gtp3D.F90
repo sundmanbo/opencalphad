@@ -44,7 +44,7 @@
       lastph=name1
    endif
 100 continue
-   write(*,*)'spc 1',qph,iph,ics,name1
+!   write(*,*)'3D spc 1',qph,iph,ics,name1
 ! skip hidden and suspended phases, test_phase_status return
 ! -4 hidden, -3 suspend, -2 dormant, -1,0, entered, 2 fixed
    if(qph.lt.0 .and. test_phase_status(iph,ics,xxx,ceq).le.PHDORM) goto 200
@@ -187,7 +187,7 @@
 !      if(gx%bmperr.ne.0) goto 1000
 !   endif
 100 continue
-!   write(*,*)'spc 1',qph,iph,ics,name1
+!   write(*,*)'3D spc 1',qph,iph,ics,name1
 ! skip hidden and suspended phases, test_phase_status return
 ! -4 hidden, -3 suspend, -2 dormant, -1,0, entered, 2 fixed
 !   if(qph.lt.0 .and. test_phase_status(iph,ics,xxx,ceq).le.PHDORM) goto 200

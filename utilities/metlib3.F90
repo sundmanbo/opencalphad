@@ -2754,9 +2754,9 @@ CONTAINS
   SUBROUTINE MACBEG(LINE,LAST,OK)
 !....subroutine to execute set-interactive allowing nesting of macros
 !
-! addera lablar i macro så man kan ange MACRO fil LABEL
+! addera lablar i macro sa man kan ange MACRO fil LABEL
 ! och vid stop som @? eller @& man kan interaktivt ange GOTO label
-! Också en generisk subrutin som gör att man kan få fram ett variabelvärde
+! Ocksa en generisk subrutin som gor att man kan fa fram ett variabelvarde
 ! call macsymval(package,symbol,ival,rval,cval)
 !
     CHARACTER LINE*(*),MACFIL*256,FIL*256,CH1*1

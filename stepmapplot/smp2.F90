@@ -28,7 +28,7 @@ MODULE ocsmp
   use liboceqplus
 !
   implicit none
-  character*8, parameter :: smpversion='SMP-2.0'
+  character*8, parameter :: smpversion='SMP-2.10'
 !
 ! note the type map_fixph declared in matsmin.F90 (in liboceq)
 !

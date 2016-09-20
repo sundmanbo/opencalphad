@@ -181,7 +181,7 @@
 !
    call system_clock(count=starttid)
 !   write(*,*)'3Y Start calculate gridvalues'
-! OpenMP parallellization START
+! OpenMP parallelization START
 ! the error code gx%bmperr should also be threadprivate
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 ! for parallelizing:
@@ -234,7 +234,7 @@
    endif
 ! set how many points in 
 !-$omp end parallel do
-! OpenMP parallellization END
+! OpenMP parallelization END
    call system_clock(count=endoftime)
 !    write(*,106)endoftime-starttid
 106 format('Clockcycles: ',i12)
@@ -4340,7 +4340,7 @@
 ! fractions, CSDEFCON set).
 ! mode determine some of the actions, at present only >0 or <0 matters
 !
-! >>>>>>>>>>> THIS IS DANGEROUS IN PARALLELL PROCESSING
+! >>>>>>>>>>> THIS IS DANGEROUS IN PARALLEL PROCESSING
 ! It should work in step and map as a composition set that once been stable
 ! will never be removed except if one does global minimization during the
 ! step and map. The function global_equil_check works on a copy of the

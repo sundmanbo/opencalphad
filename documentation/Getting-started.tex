@@ -11,51 +11,71 @@
 %\pagestyle{empty}
 
 \begin{document}
-\begin{center}
-{\Large \bf Some important facts about Open Calphad in general and
-  this release in particular.
 
-}
+\begin{center}
+{\Large \bf Getting started with OpenCaplhad}
 
 Bo Sundman, \today
 
-Opencalphad (OC) is a free software with GNU GPL license.  It is
-available at the following web sites:
-
+Opencalphad (OC) is a free software with GNU GPL license.  The last
+version is available at the following web site:\\
 http://www.opencalphad.org or the
 
-opencalpad repository at http://www.github.com/sundmanbo/opencalphad
+A development version is available at the opencalpad repository at::\\
+http://www.github.com/sundmanbo/opencalphad
 
-bo.sundman@gmail.com
+You can contact me at: bo.sundman@gmail.com
 \end{center}
 
-{\large \bf Please be aware that this software is a development
-  version.  Your feedback about problems and errors is important to
-  make it better.
-
-}
+{\large \bf Please be aware that this software is under development.
+  Your feedback about problems and errors is important to make it
+  better.  But if you have problems with the installation please
+  contact a local expert.}
 
 OC cannot replace your favorite thermodynamic software today or
 tomorrow but the main advantage is that you have access to the source
 code and can (with some efforts) add or fix things yourself that you
 are missing in your favorite software.
 
-There is a review paper describing OC:
+There are several papers describing OC:
 
-{\bf OpenCalphad - a free thermodynamic software}, Bo Sundman, Ursula
-R Kattner, Mauro Palumbo and Suzana G Fries (Open Access) Integrating
-Materials and Manufacturing Innovation (2015) {\bf 4:}1 DOI
-10.1186/s40192-014-0029-1
+\begin{itemize}
+\item {\bf OpenCalphad - a free thermodynamic software}, Bo Sundman,
+  Ursula R Kattner, Mauro Palumbo and Suzana G Fries (Open Access)
+  Integrating Materials and Manufacturing Innovation (2015) {\bf 4:1}
+  DOI 10.1186/s40192-014-0029-1
 
-and a special paper about the minimization algorithm:
+\item {\bf The implementation of an algorithm to calculate
+  thermodynamic equilibria for multi-component systems with non-ideal
+  phases in a free software}, Bo Sundman, Xiao-Gang Lu and Hiroshi
+  Ohtani, Computational Materials Science, {\bf 101} (2015) 127-137.
 
-{\bf The implementation of an algorithm to calculate thermodynamic
-  equilibria for multi-component systems with non-ideal phases in a
-  free software}, Bo Sundman, Xiao-Gang Lu and Hiroshi Ohtani,
-Computational Materials Science, {\bf 101} (2015) 127-137.
+\item {\bf The OpenCalphad thermodynamic software interface}, Bo
+  Sundman, Ursula R Kattner, Christophe Sigli, Matthias Stratmann,
+  Romain Le Tellier, Mauro Palumbo and Suzana G Fries, Comp Mat Sci,
+  {\bf 125} (2016) 188-196
+\end{itemize}
 
-There is also extensive documentation of the different parts provided
-with the software.
+
+There is also an extensive documentation provided with the software:
+
+\begin{itemize}
+\item Getting started with OpenCalphad (this document).
+\item Install-OC, several different versions.
+\begin{itemize}
+\item Install-OC-Windows-MinGW on Windows using MinGW.
+\item Install-OC-Windows-Cygwin on Windows using Cygwin (in French).
+\item Install-OC-Linux on Linux using GNU.
+\end{itemize}
+\item news-OC4 about features and user interface.
+\item UG, User Guide and manual.
+\item OC-macros, describing the test macro files.
+\item GTP, General Thermodynamic Pacakage describing the model package.
+\item HMS, Hillert's Minimizer describing the equilibrium calculations.
+\item SMP, StepMapPlot describing calculation and plotting of diagrams.
+\item OCASI, OC Application Software Interface (draft).
+\item Assessments using OC (draft).
+\end{itemize}
 
 \section{General information}
 
@@ -76,79 +96,29 @@ please ask some local experts if you need help.
   opencalphad repository on the http://www.github.com.  On that site
   there is also a wiki for information, discussion and questions.
 
-\item Users with Windows can compile and link the program using the
-  file ``linkmake'' which you should rename to ``linkmake.cmd'' in
-  order to compile and link an executable program from the source
-  code.
-
-  If you are using a UNIX system there is a Makefile to compile and link
-  the program.
-
-  In both cases the program will be called ``oc3B''.
+\item See the special installation guides for advice on the
+  installation.  If you have problems please contact a local expert.
+  This is all free software and we are not experts on hardware.
 
 \item If you have access to several CPUs you can test OC with
-  parallelization using Open MP.  In that case you should use the
-  linkfile ``linkpara'' (after renaming it to linkpara.cmd on
-  Windows.  On Linux you have to figure out how to change the Makefile
-  yourself.  The executable will be called oc3P.exe.
+  parallelization using Open MP.
 
-\item For the graphics you must download and install the GNUPLOT
-  software.  That is freely available from the web.
+\item In the ``macro'' directory there are examples for a variety of
+  calculations.
 
-  Make sure your PATH includes the directory with the GNUPLOT program.
-  If you do not know how to set your PATH ask a local expert.
-
-\item There are several directories provided in the zip file, the
-  source code is in the directories ``minimizer, models, numlib,
-  stepmapplot, userif'' and ``utilities''.
-
-\item The documentation of the source code is in the directory
-  ``documentation'' in several files, ``gtp3'' for the model package
-  and ``hms2'' for the minimizer and news-OC3 for a summary of the new
-  features.  The other documentation, ``smp1'' for the step/map/plot
-  routines, ``assess'' for the assessment module, ``ocasi'' for the
-  application software interface are very rudimentary.  There is also
-  a short description of the macro files provided in ``OC-macros''.
-  Reading and testing the macros is probably the best way to get
-  started using OC.
-
-\item There is also a preliminary user guide ``ochelp3'' in the manual
-  directory.  The user guide is also available in the file
-  ``ochelp.hlp'' in LaTeX format used for the on line help.  The user
-  guide is still very primitive as many commands are changing.
-
-\item The ``macro'' directory has examples for a variety of
-  calculations.  There are subdirectories created for testing
-  different versions but as the command interface changes those
-  provided with previous versions will normally not work with a later
-  versions.
-
-\item The TQ3lib directory has examples for using the software
-  interface for Fortran and C/C++.  An attempt to implement isoC
-  binding to C++ has been made.
+\item The TQ4lib directory has examples for using the software
+  interface for Fortran and C/C++.
 
 \item Contributions of new and improved source code are welcome.  You
-  can do this using the github repository.  Contact Bo Sundman if you
-  want to know more.
-
-\item the command line interface has a ``VAX/VMS'' flavor which
-  Reflects the age of the developer.  It means the commands are
-  ``verbs'' like {\em set, list, calculate, enter} etc.  After the
-  Verb several objects are usually possible like {\em
-    Set ~condition/status} etc.  There is some redundancy so the same
-  Effect can sometimes be achieved by different combinations of verbs
-  And objects.
-
-  Each command and subcommand can be abbreviated, never more than 3
-  Characters are needed.
-
+  can do this by cloning the github repository.  Contact Bo Sundman if
+  you want to know more.
 \end{itemize}
 
 \section{Some short hints to the user interface}
 
-See also news-OC3 and ochelp3.  The information in these (as well as
-this) files are not always up-to-date.  You are welcome to inform me
-about errors an inconsistencies.  If you do not like the current user
+See also news-OC and UG.  The information in these (as well as this)
+files are not always up-to-date.  You are welcome to inform me about
+errors an inconsistencies.  If you do not like the current user
 interface you are welcome to develop your own.
 
 \subsection{Entering and manipulating thermodynamic data}
@@ -171,22 +141,22 @@ useful.
   the command {\em new~YES}.
 
 \item There are some exception from how data are entered into OC
-  compared to Thermo-Calc, most important perhaps the
-  ``partitioning'' of a phase into an ordered and disordered part.  OC
-  has implemented this in a different way and at present it is not
-  always possible for OC to read such partitioned data from a TDB file
-  without editing.
+  compared to Thermo-Calc, most important perhaps the ``partitioning''
+  of a phase into an ordered and disordered part.  OC has implemented
+  this in a different way and at present it is not always possible for
+  OC to read such partitioned data from a TDB file without editing the
+  TDB file.
 
 \item In this release you CANNOT save the thermodynamic data and
   results from a calculation on an unformatted file {\em
     save~UNFORM~``filename''} and read it back into the program with
   {\em read~UNFORM~``filename''}.  I will implement this and the
-  DIRECT (random access) format in the next release.
+  DIRECT (random access) format in a future release.
 
 \item You can save the thermodynamic data using the TDB format by a
   command\\ {\em list~data~TDB~filename}.  The TDB format used by OC
-  can with some exceptions be read also by other thermodynamic
-  software.
+  can, with some exceptions, be read also by other thermodynamic
+  software which accepts TDB format.
 
 \item You can list the thermodynamic data on the screen with the {\em
   list~data} command.  You can list on a file by using the switch {\em
@@ -196,13 +166,12 @@ useful.
 \item You can enter thermodynamic data from a macro file as well as
   commands for calculations.  In order to document errors or problems
   please send a complete macro file with data and commands reproducing
-  the error.  
+  the error to Bo.Sundman@gmail.com
 
   You can generate a macro file interactively by setting a log file
   {\em set~log~``filename''} and then (after some editing) use the log
   file as a macro with the extension OCM.  The log file has the
   extension LOG.
-
 \end{itemize}
 
 \subsection{Setting conditions}
@@ -212,37 +181,42 @@ useful.
   like temperature, T, pressure, P etc.  The number of conditions must
   be equal to the number of components plus 2 (Gibbs phase rule).
 
-\item Setting conditions is very similar to the Thermo-Calc software.
-  Each condition is set separately by the command is {\em
-    set~cond~``state variable''~=~``value''}.  The safest set of
-  conditions for calculating an equilibrium, i.e. which has most
-  chance to converge, is to set values on T, P and N(element),
-  i.e. the total amount of each element.  The table at the end gives a
-  list of available state variable symbols and their meaning.
+\item Setting conditions is similar to the Thermo-Calc software.  Each
+  condition is set separately by the command is {\em set~cond~``state
+    variable''~=~``value''}.  The safest set of conditions for
+  calculating an equilibrium, i.e. which has most chance to converge,
+  is to set values on T, P and N(element), i.e. the total amount of
+  each element.  The table at the end gives a list of available state
+  variable symbols and their meaning.
 
 \item It is also possible to set conditions on chemical potentials,
-  activities, enthalpies and that a phase is stable (fix).  See the
-  macro file examples how this is done.  Note that some commands are
-  fragile and they may also change between releases of the test
-  versions of the OC software, depending on new ideas and suggestions
-  by users.
+  activities, enthalpies, volumes and that a phase is stable (fix).
+  See the macro file examples how this is done.  Note that some
+  commands are fragile and they may also change between releases of
+  the OC software, depending on new ideas and suggestions by users.
 
 \item The intention is that you should be able to combine any set of
   conditions to calculate the equilibrium, i.e. you should be able to
   combine conditions on mole fractions, mass fractions, fix phases,
-  chemical potentials etc.  For conditions on mole fractions
-  you can also enter expressions as conditions.
-
-\item Recently I added that one can set a condition on the total
-  enthalpy, $H$ of the system or a phase.  This is shown in the step8
-  macro and some others.  It is also possible to set condition on the
-  composition of a phase (see the melting macro) and an expression (at
-  the end of opttest2 macro).
+  chemical potentials, enthalpies etc.  For conditions on mole
+  fractions you can also enter expressions as conditions, for example
+  to calculate the congruent melting of UO$_2$ you can set a condition
+  x(liq,o)-x(c1\_mo2,o)=0 (see macro map4.OCM).
 
 \item For users with FactSage background there is a command {\em
   set~input\_amount} which allows the user to set the overall
   composition by specifying the amount of moles of different species
-  in the system.
+  in the system.  The software converts this to {\em condtions} on the
+  amounts of the components.
+
+\item You can only use components to set conditions on the amounts,
+  activities and chemical potential.   By default the components are
+  the same as the elements but with the command {\em amend components}
+  you can specify any orthogonal set of species as components.
+
+  Beware that with other components than the elements your mole
+  fractions and amounts of phases may be negative or larger than
+  unity.
 
 \end{itemize}
 
@@ -268,15 +242,15 @@ useful.
   a command to have a denser grid (about 10 times more gridpoints) using
   the command {\em set~advanced~dense}
 
-\item For this version you should always check the results with you
-  favorite thermodynamic software.  Please give documented feedback
-  on any differences.
+\item You should always check the results with you favorite
+  thermodynamic software.  Please give documented feedback on any
+  differences.
 
 \item If the calculation does not converge directly try to use the
   command {\em ``c~n''} two or more times to continue to iterate from
-  the set of phases you have.  The {\em ``c~e''} command runs the grid
-  minimiser and, therefore, will normally give the same result each
-  time.
+  the set of phases you have.  The {\em ``c~e''} command will run the
+  grid minimiser and, therefore, will normally give the same result
+  each time.
 
 \item You can also try to change the number of iterations and
   convergence criteria with the command {\em
@@ -305,8 +279,8 @@ useful.
 
   Composition sets have a number after the phase name preceded by the
   letter \#, like LIQUID\#2.  The user can use both pre- and suffixes
-  or the set number to specify the composition set.  A phase can have
-  up to 9 composition sets.
+  or use the composition set number to specify the composition set.  A
+  phase can have up to 9 composition sets.
 
 \item When entering a composition set manually you are asked for a min
   or max values of each constituent.  After a calculation the software
@@ -317,16 +291,34 @@ useful.
 \item To set the default constitution of the first composition set use
   {\em set~phase~``name''~default\_constitution~$\cdots$ }.
 
-\item There are some more option to calculate things:
+\item There are several options to calculate things:
   \begin{itemize} 
   \item {\em calculate~all} calculates all equilibria set by the {\rm
     set~range} command.  It is intended for equilibria with
-    experiments as used in assessments.
+    experiments and used in assessments but can be used to calculate a
+    range of equilibria not suitable for the STEP command.
   \item {\em calculate global\_gridmin} will use the global
     gridminimizer and not the final iterative routine,
-  \item {\em calculate~phase} calculates the Gibbs energy and possibly
-    derivatives for a specified phase and composition at the current $T$
-    and $P$.
+  \item {\em calculate~phase} to calculate properties for a specific phase.
+    You must first specify the amount of the phase and if you want to
+    use the current constitution.  Then you can select
+    \begin{itemize}
+    \item {\em only G} to get G and derivatives with respect to $T$.
+    \item {\em G and dGdy} to get G and also first derivatives
+      w.r.t. constituents.
+    \item {\em all derivatives} to get G and all first and second
+      derivatives w.r.t $T$, $P$ and constituents.
+    \item {\em constitution adjustment} This will ask for a new
+      composition (default is the current or the one specified) and
+      miminize the Gibbs energy of the specified phase to have the
+      equilibrium constitution (for example adjust the fraction of gas
+      constituents or sublattice fractions).  It will return the value
+      of G and all chemical potentials (divided by RT).
+    \item {\em diffusion coeff} This will also ask for a new
+      composition and return the values of the Darken stability matrix
+      calculated as $\frac{\partial G_{\rm A}}{\partial N_{\rm B}}$
+      and if the phase has any mobility data also their values.
+    \end{itemize}
   \item {\em calculate~symbol} will calculate the value of one or more
     symbols.
   \item {\em calculate~tp\_funs} will calculate the value and the
@@ -338,7 +330,7 @@ useful.
   \end{itemize}
 \end{itemize}
 
-\subsection{Setting the status of phases: entered, fixed, dormant, suspend}
+\subsection{Setting the status of phases: entered, fixed, dormant, suspended}
 
 To set the status of a phase to be fixed is treated as a condition.
 
@@ -347,10 +339,16 @@ To set the status of a phase to be fixed is treated as a condition.
   phases you do not want by {\em
     set~status~phase~``name''~$\cdots$~=~``suspend''}.
 
+  If the phase should be stable you will calculate a metastable equilibrium.
+
 \item To specify that a phase must be stable you can set its status to
   fix, the command is
 
   {\em set~status~phase~``name''~=~``fix''~''amount''}.
+
+  If the amount is set to zero OC will calculate a point on the
+  solubility line of the phase.  Note it may fail because there is no
+  such point due to the other conditions.
 
 \item The dormant status means the phase cannot be stable but its
   driving force is calculated.  If this is positive the phase wants to
@@ -577,9 +575,9 @@ not be too difficult to combine code written in these languages.
 
 There is a software interface following the TQ standard to make it
 possible to use OC from application programs.  The subroutines in this
-interface can be found in the directory ``TQ3lib'' together with a few
-test program.  To compile and run these read the separate readme files
-in these directories.
+interface can be found in the directory ``TQ4lib'' together with a few
+test program.  Read the separate readme files in these directories to
+compile and run these.
 
 There is a Fortran version of the TQ library and also an isoC version
 that can be called from C++/C routines.  The isoC binding makes it
@@ -599,9 +597,9 @@ now started to test this code and surprisingly it seems to work quite
 well.  There is a macro parallel2.OCM showing a calculation of 400
 different equilibria in a 6 component alloy.  They need to be
 initialized which makes me a bit suspicious but testing changing some
-and calculate again seems to work.  I tested on a PC with 4 CPU and
-the calculation time was almost 4 times faster than when calculated
-sequentially.
+and calculate again seems to work.  I have tested on a PC with 4 CPU
+and the clock time is about 3.5 times faster compared to calculate
+them sequentially.
 
 Parallization can be implemented in several levels in OC, for example
 the grid minimizer, but the ability to calculate many separate

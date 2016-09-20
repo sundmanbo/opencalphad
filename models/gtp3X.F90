@@ -1926,8 +1926,6 @@
    TYPE(gtp_parcalc) :: gz
    double precision vals(6),dvals(3,gz%nofc)
    TYPE(gtp_equilibrium_data), pointer :: ceq
-! wojwoj
-!   TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
 ! temporary data like gz%intlevel, gz%nofc etc
    double precision d2vals(gz%nofc*(gz%nofc+1)/2),valtp(6)
@@ -2738,7 +2736,7 @@
    implicit none
    integer lokph,lokcs
    TYPE(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim}
+!\end{verbatim} %+
 !   TYPE(gtp_fraction_set), pointer :: disrec
    TYPE(gtp_phase_varres), pointer :: phord
    TYPE(gtp_phase_varres), pointer :: phdis
@@ -2771,16 +2769,13 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim}
+!\begin{verbatim} %-
  subroutine calc_disfrac2(phord,phdis,ceq)
 ! calculate and set disordered set of fractions from sitefractions
 ! The first derivatives are dxidyj.  There are no second derivatives
 !   TYPE(gtp_fraction_set), pointer :: disrec
    implicit none
-!   integer lokph,lokcs
-!   TYPE(gtp_fraction_set), pointer :: disrec
    TYPE(gtp_phase_varres), target :: phord
-!   TYPE(gtp_phase_varres), pointer :: phord
    TYPE(gtp_phase_varres), pointer :: phdis
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
@@ -2855,9 +2850,7 @@
    implicit none
    TYPE(gtp_phase_varres), pointer :: phvar
    TYPE(gtp_equilibrium_data), pointer :: ceq
-! wojwoj
-!   TYPE(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim}
+!\end{verbatim} %+
    TYPE(gtp_fraction_set), pointer :: disrec
 !   TYPE(gtp_phase_varres) :: phdis
    TYPE(gtp_phase_varres), pointer :: phdis
@@ -2904,7 +2897,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim}
+!\begin{verbatim} %-
  subroutine disordery2(lokdcs,phvar,disrec,ceq)
 ! subroutine disordery2(phdis,phvar,disrec,ceq)
 ! sets the ordered site fractions in FCC and other order/disordered phases
@@ -2913,13 +2906,8 @@
 ! phdis is pointer to phase_varres for disordered fractions
    implicit none
    TYPE(gtp_phase_varres), pointer :: phvar
-!   integer lokdcs
-!   TYPE(gtp_phase_varres) :: phdis
-!   TYPE(gtp_phase_varres), pointer :: phdis
    TYPE(gtp_fraction_set), pointer :: disrec
-! wojwoj
    TYPE(gtp_equilibrium_data), pointer :: ceq
-!   TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
    integer lokdcs,kk,ll,is,nis,nsl
    double precision xxx

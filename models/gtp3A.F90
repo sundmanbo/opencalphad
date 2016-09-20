@@ -730,7 +730,7 @@
    implicit none
    integer loksp
    character name*(*)
-!\end{verbatim} %+
+!\end{verbatim}
    character symbol*24
    symbol=name
    call capson(symbol)
@@ -749,7 +749,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim} %-
+!\begin{verbatim}
  subroutine find_phasetuple_by_name(name,phcsx)
 ! finds a phase with name "name", returns phase tuple index
 ! handles composition sets either with prefix/suffix or #digit
@@ -785,10 +785,10 @@
 
 !\begin{verbatim} %-
  integer function find_phasetuple_by_indices(iph,ics)
-! subroutine find_phasetuple_by-indices(iph,ics)
+! subroutine find_phasetuple_by_indices(iph,ics)
 ! find phase tuple index given phase index and composition set number
    integer iph,ics
-!\end{verbatim}
+!\end{verbatim} %+
    integer ij
    ij=iph
    if(ij.gt.0 .and. ij.le.nooftuples) then
@@ -1308,7 +1308,7 @@ end function find_phasetuple_by_indices
    implicit none
    character spsym*(*)
    integer isp
-!\end{verbatim}
+!\end{verbatim} %+
    if(isp.le.0 .or. isp.gt.noofsp) then
 !      write(*,*)'in get_species_name'
       gx%bmperr=4051; goto 1000
@@ -1345,7 +1345,7 @@ end function find_phasetuple_by_indices
 ! return species data, loksp is from a call to find_species_record
 ! nspel: integer, number of elements in species
 ! ielno: integer array, element indices
-! stoi: double array, stocichiometric factors
+! stoi: double array, stoichiometric factors
 ! smass: double, mass of species
 ! qsp: double, charge of the species
 ! extra: some additional information ...
@@ -1378,9 +1378,9 @@ end function find_phasetuple_by_indices
  subroutine get_species_component_data(loksp,nspel,compnos,stoi,smass,qsp,ceq)
 ! return species data, loksp is from a call to find_species_record
 ! Here we return stoichiometry using components 
-! nspel: integer, number of elements in species
-! compno: integer array, element indices
-! stoi: double array, stocichiometric factors
+! nspel: integer, number of components in species
+! compno: integer array, component (species) indices
+! stoi: double array, stoichiometric factors
 ! smass: double, mass of species
 ! qsp: double, charge of the species
    implicit none
@@ -1425,7 +1425,7 @@ end function find_phasetuple_by_indices
          if(abs(ceq%invcompstoi(jk,iel)).gt.1.0D-12) then
 ! the stoichiometry of this component is nonzero for this element
 ! add to compstoi(jk)
-! convert the element to components using the inverted stocihiometry matrix
+! convert the element to components using the inverted stoichiometry matrix
 ! for example elements Ca O Si
 ! components CaO SiO2 O
 ! matrix  components/elemenets    Ca   O    Si
@@ -1600,7 +1600,7 @@ end function find_phasetuple_by_indices
    double precision, dimension(*) :: yarr,sites,qq
    integer iph,ics,nsl
    TYPE(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim}
+!\end{verbatim} %+
    integer lokph,lokcs,kkk,ll,jj,loksp
    double precision vsum,qsum,ql,vl,yz
 !
@@ -1685,13 +1685,12 @@ end function find_phasetuple_by_indices
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim}
+!\begin{verbatim} %-
  subroutine get_phase_structure(lokph,nsl,nkl)
 ! return the structure of phase at location lokph
 ! nsl: integer, number of sublattices
 ! nkl: integer array, number of constituents in each sublattice
 ! USED when calculating derivatives of chemical potentials and diffusion coef
-! when all other this are already known ...
    implicit none
    integer, dimension(*) :: nkl
    integer lokph,nsl
