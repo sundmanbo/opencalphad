@@ -450,20 +450,30 @@ contains
     ochome=' '
     call get_environment_variable('OCHOME ',ochome)
     if(ochome(1:1).eq.' ') then
-       write(*,*)'Environment variable OCHOME undefined, using local help file'
+       inquire(file='ochelp.hlp ',exist=logok)
+       if(.not.logok) then
+          write(*,*)'Warning, no help file'
+       else
 ! help file on local directory?
-       call init_help('ochelp.hlp ')
+          call init_help('ochelp.hlp ')
+       endif
     else
 ! both LINUX and WINDOWS accept / as separator between directory and file names
 !       write(*,*)'Help file: ',trim(ochome)//'\ochelp.hlp '
        call init_help(trim(ochome)//'/ochelp.hlp ')
 ! default directory for databases
        ocbase=trim(ochome)//'/databases'
+       inquire(file=trim(ocbase),exist=logok)
+!       if(logok) then
+!          write(*,*)'There is a database directory: ',trim(ocbase)
+!       else
+!          write(*,*)'No database directory'
+!       endif
 ! running a initial macro file
        cline=trim(ochome)//'/start.OCM '
        inquire(file=cline,exist=logok)
        if(logok) then
-          write(*,*)'there is an initiation file!',trim(cline)
+!          write(*,*)'there is an initiation file!',trim(cline)
           last=0
           call macbeg(cline,last,logok)
 !       else

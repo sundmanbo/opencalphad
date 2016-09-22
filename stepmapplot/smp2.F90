@@ -2144,7 +2144,6 @@ CONTAINS
 ! for later equilibria calculate the slope and check if close to limit
                 dax2(jax)=(xxx-mapline%axvals2(jax))/axarr(jax)%axinc
                 axvalt(jax)=mapline%axvals2(jax)
-                
                 if(jax.ne.jaxwc .and. istv.ge.10) then
                    prefixval(jax)=xxx
                    curfixval(jax)=mapline%axvals2(jax)
@@ -2180,14 +2179,19 @@ CONTAINS
                 else
                    prefixval(jax)=xxx
                    curfixval(jax)=mapline%axvals2(jax)
+! This test is very sensitive and if maybecongruent is set nonzero
+! it is too much to reduce the step by 1.0D-2 below.  If so the map5
+! fails at low T and I calculate too many points.  I set the
+! reduction to 1.0D-1 which seems OK.
                    if(istv.ge.10 .and. &
                         abs(curval(jax)-curfixval(jax)).lt.&
-                        0.1*axarr(jax)%axinc) then
-! if phase compositions close decrease step!!
+                        axarr(jax)%axinc) then
+!                        0.1*axarr(jax)%axinc) then
+! if phase compositions are close decrease step!!
 !                      write(*,93)'Phase compositions close:',jax,&
 !                           mapline%number_of_equilibria,curval(jax),&
 !                           curfixval(jax)
-93                    format(a,2i4,4(1pe12.4))
+93                    format(a,2i5,4(1pe12.4))
                       maybecongruent=jax
                    endif
                 endif
@@ -2291,6 +2295,7 @@ CONTAINS
                 if(ocv()) write(*,16)'Axis, old and new condition: ',&
                      mapline%axandir,value,xxx,ceq%tpval(1)
              endif
+! 
 !-----------------------------------------------------------------
           elseif(maptop%tieline_inplane.lt.0) then
 ! Tie-lines not in the plane
@@ -2333,7 +2338,8 @@ CONTAINS
           endif
 !          write(*,*)'stepcheck: ',nax,maybecongruent,i3
           if(maybecongruent.gt.0 .and. i3.ge.3) then
-             mapline%axfact=1.0D-2
+!             mapline%axfact=1.0D-2
+             mapline%axfact=1.0D-1
 !            write(*,*)'Decrease step due to close compositions',mapline%axfact
           endif
        endif

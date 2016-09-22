@@ -24,6 +24,18 @@ Fortran compilers and the GNUPLOT software if you do not already have
 them.  The OC development team cannot offer you any help for that,
 please ask some local experts if you need help.
 
+On Windows you can use a native Fortran compiler like Microsoft
+Developer Studio or Intel.  There is no installation guide for that.
+Maybe you can use some of the information below.  Usually you have to
+pay for these so you may be able to get some help from the vendor if
+you have problems.
+
+Most academics use the free MinGW or Cygwin system with several
+compilers which emulates (in slightly different ways) a linux computer
+on Windows.  This guide is for MinGW.  There is a French guide for
+Cygwin which is more elaborate and does not require that you
+understand much French.
+
 The descrcipton below applies when installing OC on Windows using
 MinGW, the guides available are:
 \begin{itemize}
@@ -47,20 +59,21 @@ Step by step installation:
 
 \item If you have access to several CPUs you can test OC with
   parallelization using Open MP.  In that case you should use the
-  linkfile ``linkpara'' (after renaming it to linkpara.cmd) on
+  linkfile ``linkpara'' below (after renaming it to linkpara.cmd).
 
 \item Open a terminal window.  If you do not know what is a terminal
   window you should ask a local expert.  Keep him or her with you
   until you finished the installation.
 
-\item In the terminal window exectute the file you just renamed by
-  typing its name.
+\item In the terminal window you may have to use ``cd'' (change
+  directory) until you reach the direcory where you unzipped OC.  Then
+  exectute the file you just renamed by typing its name.
 
 \item {\bf If you have errors running the linkmake or linkpara command
   files please contact a local expert.}
 
 \item For the graphics you must download and install the free GNUPLOT
-  software, for example from SoureForge.
+  software, you can find that on SoureForge.
 
   Make sure your PATH includes the directory with the GNUPLOT program.
   If you do not know how to set your PATH ask a local expert.
@@ -71,77 +84,36 @@ Step by step installation:
       usually\\
       ``C:${\backslash}$Users${\backslash}$yourname''.
 
-    \item Copy the file ochelp.hlp to this directory
-    
-    \item Later you may also add a mcro file that you want to run
-      everytime you start OC on this directory or subdirectores
-      with databases or calculated results
-
     \item Create an environment variable for your account called
       OCHOME with the path to your OCHOME directory as value.  If you
       do not know how to create an environment variable please ask a
       local expert.
       
-      Normally you have to restart your computer to have the
-      environmet variable available.
+% On my Swedish Windows system I create a environment variable by
+% clicking on the Windows icon and then type ``miljö'' and select
+% ``Redigera miljövariabler för kontot''
 
-% On my Swedish Windows I create a environment variable by clicking
-% on the Windows icon and then type ``miljö''
-% and select Redigera miljövariabler för kontot
+      Normally you have to restart your computer to make the
+      environment variable available.
 
-    \item If you want to start the OC program from several directories
-      copy also the executable to OCHOME and add the path to OCHOME
-      to your \%PATH\%
+    \item Copy the file ochelp.hlp to this directory
+    
+    \item Later you may also add a macro file on this directory called
+      ``start.OCM'' that will be run everytime you start OC.  You may
+      also create a direcory called ``databases'' with databases you
+      use.  Such databases will be searched if you prefix the database
+      name with ``ocdata/'' in the command ``read tdb''
+
+    \item If you want to start the OC program from any directory copy
+      also the executable to OCHOME and add the path to OCHOME to your
+      \%PATH\%
   \end{itemize}
 
-\item There is a documentation directory with several PDF files.  Read
-  the ``Getting\_started'' documentation to understand how to operate
-  the program.  Also look at the ``OC-macro'' documentation which
-  describes several macro files which you have on a directory
-  ``macro''.  These are useful to test the software and gives some
-  ideas how to use it.  There is also a news-OC4 for a summary of the
-  features of OC.
+\item Look in ``after-installation'' for help to use OC.
 
-\item There is also a preliminary user guide ``ochelp'' in the manual
-  directory.  The user guide is also available in the file
-  ``ochelp.hlp'' in LaTeX format because it is used for the on line
-  help.  The user guide is still very primitive as many commands are
-  changing or not yet implemented.
-
-\item The source code is in the directories ``minimizer, models,
-  numlib, stepmapplot, userif'' and ``utilities''.
-
-\item The documentation of the source code is in the directory
-  ``documentation'' in several PDF files: ``gtp3'' for the model
-  package and ``hms2'' for the minimizer.  The other software
-  documentation, ``smp2'' for the step/map/plot routines, ``assess''
-  for the assessment module and ``ocasi'' for the application software
-  interface are very preliminary.
-
-\item The TQ4lib directory has a few examples for using the software
-  interface for Fortran and C/C++.  An attempt to implement isoC
-  binding to C++ has been made.
-
-\item Contributions of new and improved source code are welcome.  You
-  can do this using the github repository.  Contact Bo Sundman if you
-  want to know more.
-
-\item the command line interface has a ``VAX/VMS'' flavor which
-  reflects the age of the developer.  It means the commands are
-  ``verbs'' like {\em set, list, calculate, enter} etc.  After the
-  verb several objects are usually possible like {\em Set
-    ~condition/status} etc.  There is some redundancy so the same
-  effect can sometimes be achieved by different combinations of verbs
-  and objects.
-
-  Each command and subcommand can be abbreviated, usually 3 characters
-  are sufficient.
-
-  If you want a graphical user interface you are welcome to develop
-  it.
 \end{itemize}
 
-You are welcome to provide a better installation guide also!
+You are welcome to help providing a better installation guide also!
 
 \bigskip
 

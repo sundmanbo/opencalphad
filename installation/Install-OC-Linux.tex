@@ -38,10 +38,11 @@ Step by step installation:
 \item The code is written in the new Fortran standard and requires a
   compiler like GNU Fortran 4.8 or similar.
 
-\item If you have not already installed a Fortran compiler you can get
-  the GNU Fortran suite free from https://SourgeForge.net or some
-  similar site.  If you have Intel or another Fortran compiler you
-  must be sure it is compatible with GNU Fortran 4.8 or later.
+\item Normally you have the GNU Fortran compiler in your linux system
+  otherwise you can get the GNU Fortran suite free from
+  https://SourgeForge.net or some similar site.  If you have Intel or
+  another Fortran compiler you must be sure it is compatible with GNU
+  Fortran 4.8 or later.
 
 \item Rename the file ``Makefile-sequential'' to Makefile
 
@@ -49,9 +50,10 @@ Step by step installation:
   parallelization using Open MP.  In that case you should rename
   ``Makefile-parallel'' to Makefile
 
-\item Run the make command in a terminal window.{\bf If you have
-  errors running the make command files please contact a local
-  expert.}
+\item open a terminal window and use ``cd'' (change directory) to the
+  direcory where you unzipped OC.  Type ``make'' to run the Makefile.
+  {\bf If you have errors running the make command files please
+    contact a local expert.}
 
 \item For the graphics you must download and install the free GNUPLOT
   software, for example from SoureForge.
@@ -59,55 +61,29 @@ Step by step installation:
   Make sure your PATH includes the directory with the GNUPLOT program.
   If you do not know how to set your PATH ask a local expert.
 
-\item There is a documentation directory with several PDF files.  Read
-  the ``Getting\_started'' documentation to understand how to operate
-  the program.  Also look at the ``OC-macro'' documentation which
-  describes several macro files which you have on a directory
-  ``macro''.  These are useful to test the software and gives some
-  ideas how to use it.  There is also a news-OC4 for a summary of the
-  features of OC.
+\item Creating a home directory for OC
+  \begin{itemize}
+  \item Create a directory called OCHOME, usually at your home
+    directory ``mkfile OCHOME''
+    
+  \item Copy the file ochelp.hlp to this directory
 
-\item There is also a preliminary user guide ``ochelp4'' in the manual
-  directory.  The user guide is also available in the file
-  ``ochelp.hlp'' in LaTeX format because it is used for the on line
-  help.  The user guide is still very primitive as many commands are
-  changing or not yet implemented.
+  \item Create an environment variable called OCHOME with the parth
+    to your OCHOME directory.  If you do not know how create an
+    environment variable please as a local expert.
 
-\item The source code is in the directories ``minimizer, models,
-  numlib, stepmapplot, userif'' and ``utilities''.
+  \item Later you may also add a macro file called ``start.OCM''
+    that you want to run everytime you start OC on this directory.
+    You can also create a subdirectory called ``databases'' that you
+    can search when you give the command ``read tdb'' in OC if you
+    prefix the file name by ``ocbase/''
+  \end{itemize} 
 
-\item The documentation of the source code is in the directory
-  ``documentation'' in several PDF files: ``gtp3'' for the model
-  package and ``hms2'' for the minimizer.  The other software
-  documentation, ``smp2'' for the step/map/plot routines, ``assess''
-  for the assessment module and ``ocasi'' for the application software
-  interface are very preliminary.
+\item Look in ``after-installation'' for help using OC.
 
-\item The TQ4lib directory has a few examples for using the software
-  interface for Fortran and C/C++.  An attempt to implement isoC
-  binding to C++ has been made.  Consult the ``readme'' files on the
-  different directories how to install them.
-
-\item Contributions of new and improved source code are welcome.  You
-  can do this using the github repository.  Contact Bo Sundman if you
-  want to know more.
-
-\item The OC command line interface has a ``VAX/VMS'' flavor which
-  reflects the age of the developer.  It means the commands are
-  ``verbs'' like {\em set, list, calculate, enter} etc.  After the
-  verb several objects are usually possible like {\em Set
-    ~condition/status} etc.  There is some redundancy so the same
-  effect can sometimes be achieved by different combinations of verbs
-  and objects.
-
-  Each command and subcommand can be abbreviated, usually 3 characters
-  are sufficient.
-
-  If you want a graphical user interface you are welcome to develop
-  it.
 \end{itemize}
 
-You are welcome to provide a better installation guide also!
+You are welcome to help providing a better installation guide also!
 
 \bigskip
 

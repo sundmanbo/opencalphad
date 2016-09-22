@@ -18,6 +18,8 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2016.09.22 Small fix in SMP and some changes in the documentation.
+
 2016.09.20 Hard work on updating the documentation, I have done all
 except the step/map/plot which I want to edit like a paper and the
 OCASI documentation where I have to write some new code.  I have
