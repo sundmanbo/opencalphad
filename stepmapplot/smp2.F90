@@ -96,7 +96,7 @@ MODULE ocsmp
      double precision,     dimension(:), allocatable :: stablepham
 ! axandir is set when linenode is created to the axis and direction for first
 ! step from the node.  It can be changed to another axis and direction
-! during map and indicate the curren taxis with active condition
+! during map and indicate the current axis with active condition
 ! axchange remember the equilibrum number for an axis change
      integer axandir,axchange
 ! more is 1 while following the line, 0 for last equilbrium, -1 when finished
@@ -261,6 +261,7 @@ CONTAINS
 ! maptop is the main map_node record which will return all calculated lines.
 ! nax is the number of axis (can be just one for STEP)
 ! axarr is an array of records specifying the axis for the step/map
+! seqxyz are intial values for number of nodes and lines
 ! starteq is an equilibrium data record, if there are more start equilibria
 ! they are linked using the ceq%next index
     implicit none
@@ -829,7 +830,11 @@ CONTAINS
 ! calculated. ceq is a datastructure with all relevant data for the equilibrium
 ! A copy of ceq and the corresponing meqrec must be made and linked from maprec
 ! the axis conditions replaced by fix phases are inactive
-!
+! maptop is returned as a first nodepoint(although it is not a node)
+! nax is number of axis, axarr records with axis information
+! seqxyz is array with indices for numbering nodepoints and lines
+! inactive is not really used (conditions replaced by fix phase)
+! ceq is equilibrium record
     implicit none
     TYPE(gtp_equilibrium_data), pointer :: ceq
     TYPE(map_node), pointer :: maptop
@@ -1184,12 +1189,15 @@ CONTAINS
   subroutine map_replaceaxis(meqrec,axactive,ieq,nax,axarr,tmpline,&
        inactive,ceq)
 ! replace an axis condition with a fix phase
-    implicit none
+! meqrec is equilibrium calculation record
 ! axactive is the axis with active condition, ieq is number of exiting lines
 ! ieq is the number of lines exiting from the startpoint
 ! nax is number of axis, axarr are description of the axis
+! axarr is array with axis records
 ! tmpline is to transfer some line data to calling routine
 ! inactive is not really used.
+! ceq is equilibrium record
+    implicit none
     type(meq_setup), pointer :: meqrec
     integer nax,axactive,ieq
     type(map_axis), dimension(nax) :: axarr
@@ -1642,6 +1650,10 @@ CONTAINS
 !\begin{verbatim}
   subroutine map_store(mapline,axarr,nax,saveceq)
 ! store a calculated equilibrium
+! mapline is line record
+! axarr is array with axis records
+! nax is number of axis
+! saveceq is record for saved equilibria
     implicit none
     integer nax
     type(map_line), pointer :: mapline
@@ -1755,7 +1767,9 @@ CONTAINS
 !\begin{verbatim}
   subroutine map_lineend(mapline,value,ceq)
 ! terminates gracefully a line at an axis limit or an error.
-! maptop probably not needed except for testing
+! mapline probably not needed except for testing
+! value is last calculated axis value
+! ceq is equilibrium record
     implicit none
     integer mode
     type(map_line), pointer :: mapline
@@ -1791,13 +1805,19 @@ CONTAINS
 !\begin{verbatim}
   subroutine map_changeaxis(mapline,nyax,oldax,nax,axarr,axval,bytax,ceq)
 ! changes the axis with active condition to nyax
+! mapline is line record
+! nyax is index of new active axis
+! oldax is index of old active axis
+! nax is number of axis (always 2?)
+! axarr is array with axis records
+! axval the value to set as condition on new axis
+! bytax logical, if true ignore axval
+! ceq is equilibrium record
     type(map_line), pointer :: mapline
     type(gtp_equilibrium_data), pointer :: ceq
     type(map_axis), dimension(nax) :: axarr
     logical bytax
-! nax is number of axis, nyax is new axis with active condition
     integer nyax,nax,oldax
-! the value to set as condition on new axis
     double precision axval
 !\end{verbatim} %+
     type(gtp_condition), pointer :: pcond,lastcond
@@ -1891,9 +1911,15 @@ CONTAINS
 !\begin{verbatim} %-
   subroutine map_force_changeaxis(maptop,mapline,meqrec,nax,axarr,axvalok,ceq)
 ! force change of axis with active condition.  Works only with 2 axis.
-! (and for tie-line not in plane ??).  Similar to map_changeaxis ...
+! (and for tie-line not in plane ??).  Calls map_changeaxis ...
+! maptop is node record
+! mapline is line record
+! meqrec is equilibrium calculation record
+! nax is number of axis, also in maptop record
+! axarr is array with axis records
+! axvalok is last successfully calculated axis value
+! ceq is equilibrium record
     implicit none
-! number of axis, also in maptop record
     integer nax
     type(map_node), pointer :: maptop
     type(map_line), pointer :: mapline
@@ -1994,16 +2020,21 @@ CONTAINS
 
 !\begin{verbatim}
   subroutine map_step(maptop,mapline,meqrec,phr,axvalok,nax,axarr,ceq)
-! used also for map as mapping is stepping in one axis with phase fix condition
+! used also for map as mapping is stepping in one axis with fix phase condition
 ! calculate the next equilibrium along a line.  New phases can appear.
 ! axis with active condition can change and the direction.
+! maptop is map node record
+! mapline is line record
+! phr is new array phase status (just for debugging)
+! axvalok is last successfully calculated axis value
+! nax number of axis, redundant as also in maptop record
+! axarr is array with axis records
+! ceq is equilibrium record
     implicit none
-! number of axis, redundant as also in maptop record
     integer nax
     type(map_node), pointer :: maptop
     type(map_line), pointer :: mapline
     type(meq_setup) :: meqrec
-! phr is included just for debugging to see phase amounts
     type(meq_phase), dimension(*), target :: phr
     type(gtp_equilibrium_data), pointer :: ceq
     type(map_axis), dimension(*) :: axarr
@@ -2432,12 +2463,17 @@ CONTAINS
 ! already been found and if so eliminate a line record.  Otherwise 
 ! create a new node record with line records and continue mapping one
 ! of these.
+! irem and iadd are indices (in phr?) of phase that will disappear/appear
+! maptop is map node record
+! mapline is map line record
+! meqrec is equilibrium calculation record, ! Note changes in meqrec is local,
+!      not copied to mapline%meqrec!!!
+! axarr is array with axis records
+! ceq is equilibrium record
     implicit none
     integer irem,iadd
-! am am wondering if pointer is necessary??
     type(map_node), pointer :: maptop
     type(map_line), pointer :: mapline
-! Note changes in meqrec is local, not copied to mapline%meqrec!!!
     type(meq_setup) :: meqrec
     type(map_axis), dimension(*) :: axarr
     type(gtp_equilibrium_data), pointer :: ceq
@@ -2845,13 +2881,22 @@ CONTAINS
 ! if not add a new node with appropriate lineheads and arrange all links
 ! Take care if tie-lines in the plane all lines do not have to be calculated
 ! NOTE: meqrec not the same as mapline%meqrec !! ??
+! mapline is line record for current line
+! meqrec has information about last calculated equilibrium
+! maptop is node record
+! axval is the axis value attemped to calculate when phase set wanted to change
+! lastax is index of last active axis
+! axarr are axis records
+! phfix is phase which is set fix at node point
+! haha is nonzero if the calculated equilibrium is invariant
+! ceq is equilibrium record
+    implicit none
     type(map_node), pointer :: maptop
     type(meq_setup) :: meqrec
     type(map_line), pointer :: mapline,nodexit
     type(map_axis), dimension(*) :: axarr
     type(gtp_equilibrium_data), pointer :: ceq
     integer phfix,lastax,haha
-! axval is axis value which was attemped to calculate, 
     double precision axval
 !\end{verbatim}
     type(gtp_equilibrium_data), pointer :: newceq,tmpceq
@@ -2867,7 +2912,7 @@ CONTAINS
     character eqname*24
     double precision stepaxval,middle,testv,xxx
     lfix=0
-! the phase kept fix with zero amount at the node is phfix.  It can be
+! the phase kept fix with zero amount at the node is phfix  It can be
 ! negative at STEP if it is a phase that will dissapear.
 !    write(*,*)'Found a node point with phase change',phfix,ceq%tpval(1)
     if(ocv()) write(*,87)'We are in map_newnode with a fix phase: ',&
@@ -3745,7 +3790,7 @@ CONTAINS
 !\begin{verbatim}
   subroutine reserve_saveceq(location,saveceq)
 ! must be THREADPROTECTED
-! reserves a ceq record in saveceq
+! location index of reserved ceq record in saveceq
     implicit none
     integer location
     type(map_ceqresults), pointer :: saveceq
@@ -3768,8 +3813,12 @@ CONTAINS
 !\begin{verbatim}
   subroutine map_findline(maptop,axarr,mapfix,mapline)
 ! must be THREADPROTECTED
-! Find a map_line record to be calculated from maptop
-! already been found and if so eliminate a line record.  Otherwise 
+! Searches all node records from maptop for a map_line record to be calculated
+! ?? already been found and if so eliminate a line record ??
+! maptop map node record
+! axarr array with axis records
+! mapfix returned fixph record with phases to be ste as fixed for this line
+! mapline returned mapline record for line to be calculated
     type(map_node), pointer :: maptop
     type(map_line), pointer :: mapline
     type(map_axis), dimension(*) :: axarr
@@ -4088,6 +4137,8 @@ CONTAINS
 !          0 for step calculations (nax=1)
 !          1 if tielines in the plane (binary T-X, ternary isopleths
 !          set if more than one extensive variable is not axis variables
+! nax number of axis
+! axarr array with axis records
     integer nax
     type(map_axis), dimension(nax) :: axarr
     type(gtp_equilibrium_data), pointer :: ceq
@@ -4195,14 +4246,20 @@ CONTAINS
 !\begin{verbatim}
   subroutine map_problems(maptop,mapline,axarr,xxx,typ)
 ! jump here for different problems
+! maptop map node record
+! mapline current line record
+! axarr array with axis records
+! xxx current active axis value that caused problems to calculate
+! typ indicates the type of problem
     integer typ
     type(map_node), pointer :: maptop
     type(map_line), pointer :: mapline
     type(map_axis), dimension(*) :: axarr
-    double precision xxx,yyy
+    double precision xxx
 !\end{verbatim}
     character ch1*1
     integer oldaxis
+    double precision yyy
 !    write(*,7)'In map_problem: ',typ,mapline%problems,mapline%lasterr,&
 !         mapline%axandir,mapline%nodfixph,maptop%number_ofaxis,xxx
 7   format(a,6i4,6(1pe14.6))
@@ -4293,6 +4350,11 @@ CONTAINS
 ! Used when an error calculating a normal step or a node point
 ! take back the last sucessfully calculated axis value and take smaller step
 ! possibly one should also restore the ceq record.
+! halfstep number of times halfstep has been called for this problem
+! axvalok last cucessfully calculated value of active axis
+! mapline line record
+! axarr array with axis records
+! ceq equilibrium record
     implicit none
     integer halfstep
     double precision axvalok
@@ -4353,11 +4415,14 @@ CONTAINS
 !\begin{verbatim}
   subroutine list_stored_equilibria(kou,axarr,maptop)
 ! list all nodes and lines from step/map
-! maybe allow some delete/amend later ...
+! use amed to exclude/include lines
+! kou output unit
+! axarr array with axis records
+! maptop map node record
     integer kou
     type(map_node), pointer :: maptop
     type(map_axis), dimension(*) :: axarr
-!\end{verbatim}
+!\end{verbatim} %+
     type(map_ceqresults), pointer :: results
     type(map_node), pointer :: mapnode,localtop
     type(gtp_equilibrium_data), pointer :: thisceq
@@ -4467,10 +4532,9 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim}
+!\begin{verbatim} %-
   subroutine amend_stored_equilibria(axarr,maptop)
-! list all nodes and lines from step/map
-! maybe allow some delete/amend later ...
+! allows amending inactive/acive status of all lines from step/map
     type(map_node), pointer :: maptop
     type(map_axis), dimension(*) :: axarr
 !\end{verbatim}
@@ -4623,816 +4687,27 @@ CONTAINS
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
-  subroutine ocplot3(ndx,pltax,filename,maptop,axarr,graphopt,pform,ceq)
-! special to plot isothermal sections (two columns like x(*,cr) x(*,ni))
-! ndx is mumber of plot axis, pltax is text with plotaxis variables
-! filename is intermediary file (maybe not needed)
-! maptop is map_node record with all results
-! axarr are axis records
-! graphopt is graphics record (should be extended to include more)
-! pform is graphics form
-! pform is type of output (screen or postscript or gif)
-    implicit none
-    integer ndx
-    character pltax(*)*(*),filename*(*),pform*(*)
-    type(map_axis), dimension(*) :: axarr
-    type(map_node), pointer :: maptop
-    type(graphics_options) :: graphopt
-    TYPE(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim}
-    integer, parameter :: maxsame=200
-    type(map_node), pointer :: plottop,curtop,endnode
-    type(map_line), pointer :: curline
-    type(gtp_equilibrium_data), pointer :: curceq
-    type(map_ceqresults), pointer :: results
-    integer ii,jj,point,plotp,lines,eqindex,lasteq,nooftup,lokcs,jph,same,kk
-    integer, parameter :: maxval=2000,mazval=100
-    double precision, allocatable :: xval(:,:),yval(:,:),zval(:,:),tieline(:,:)
-    integer offset,nofeq,sumpp,last,nofinv,ntieline,mtieline
-    double precision xxx,yyy
-    integer, allocatable :: plotkod(:),lineends(:)
-    character xax1*8,xax2*24,yax1*8,yax2*24,axis1*32,axisx(2)*32,axisy(2)*32
-    character phname*32,encoded*128,axis*32
-    character lid(2,maxsame)*24
-!
-! xval and yval and ccordinates to plot, 
-! points on one line is       xval(1,jj),yval(1,jj)
-! points on the other line is xval(2,jj),yval(2,jj)
-! zval is an occational point zval(1,kk),zval(2,kk) at line ends (invariants)
-! plotkod is a specific code for each point (not used?)
-! lineends is the index in xval/yval for an end of line
-    allocate(xval(2,maxval))
-    allocate(yval(2,maxval))
-    allocate(plotkod(maxval))
-    allocate(zval(2,maxsame))
-    allocate(lineends(maxsame))
-    if(.not.associated(maptop)) then
-       write(*,*)'No data to plot'
-       goto 1000
-    endif
-    write(*,17)
-17  format(//'Using ocplot3')
-! extract the axis variables
-    jph=index(pltax(1),'*')
-    xax1=pltax(1)(1:jph-1)
-    xax2=pltax(1)(jph+1:)
-    jph=index(pltax(2),'*')
-    yax1=pltax(2)(1:jph-1)
-    yax2=pltax(2)(jph+1:)
-!
-! initiate loop to extract values
-    point=0
-    plotp=0
-    nofinv=0
-! if graphopt%tielines not zero check if the tielines are in plane ...
-! %tieline_tieline_inplane <0 means step, 0 means isopleth
-    if(graphopt%tielines.gt.0) then
-       if(maptop%tieline_inplane.le.0) then
-          write(kou,*)'No tie-lines can be plotted'
-          graphopt%tielines=0
-       endif
-    endif
-! same is incremented for each line
-    same=0
-    sumpp=0
-    plottop=>maptop
-    curtop=>plottop
-    nooftup=noofphasetuples()
-100 continue
-    if(.not.allocated(curtop%linehead)) goto 500
-    lines=size(curtop%linehead)
-    results=>plottop%saveceq
-    node: do ii=1,lines
-       curline=>curtop%linehead(ii)
-!       write(*,*)'Data from line: ',curline%lineid,lines
-       eqindex=curline%first
-       lasteq=curline%last
-       if(eqindex.le.0 .or. eqindex.gt.lasteq) cycle node
-       last=same
-       same=same+1
-       if(same.gt.maxsame) then
-          write(*,*)'Too many lines to plot ',maxsame
-          cycle node
-       endif
-       nofeq=lasteq+1-eqindex
-       axisx=' '
-       axisy=' '
-       ntieline=0
-!       write(*,*)'Plotting tie-lines: ',graphopt%tielines
-       if(graphopt%tielines.gt.0) then
-! the number of tie-lines to extract
-          mtieline=nofeq/graphopt%tielines
-!          write(*,*)'Number of tie-lines: ',mtieline
-          allocate(tieline(4,mtieline+5))
-!          write(*,*)'Allocating for tielines: ',mtieline+1
-! UNFINISHED: try to have equal number of equilibria at the beginning and end 
-       endif
-       line: do eqindex=eqindex,lasteq
-! extract for each stable phase the state variable in pltax       
-          point=point+1
-          curceq=>results%savedceq(eqindex)
-! find the stable phases (max 3)
-          plotp=plotp+1
-          if(plotp.gt.maxval) then
-             write(*,*)'Too many points to plot ',maxval
-             cycle node
-          endif
-          jj=1
-          equil: do jph=1,nooftup
-             lokcs=phasetuple(jph)%lokvares
-             if(curceq%phase_varres(lokcs)%phstate.ge.PHENTSTAB) then
-                if(jj.ge.3) then
-                   if(eqindex.eq.lasteq) then
-! skip this point if it is the last
-                      plotp=plotp-1
-!                      write(*,*)'ocplot3 indexing error, skipping last point'
-                   endif
-                   cycle equil
-                endif
-! the generation of the axis state variable is needed just once for all points 
-! if we save the axis text ...
-                plotkod(plotp)=same
-                call get_phasetup_name(jph,phname)
-                if(same.gt.last) then
-                   lid(jj,same)=phname
-                endif
-                if(axisx(1)(1:1).eq.' ') then
-                   axisx(1)=trim(xax1)//trim(phname)//trim(xax2)
-                   axisy(1)=trim(yax1)//trim(phname)//trim(yax2)
-                elseif(axisx(2)(1:1).eq.' ') then
-                   axisx(2)=trim(xax1)//trim(phname)//trim(xax2)
-                   axisy(2)=trim(yax1)//trim(phname)//trim(yax2)
-                endif
-                call meq_get_state_varorfun_value(axisx(jj),xxx,encoded,curceq)
-                xval(jj,plotp)=xxx
-                call meq_get_state_varorfun_value(axisy(jj),xxx,encoded,curceq)
-                yval(jj,plotp)=xxx
-!                write(*,19)'X/Y axis variable: ',plotp,trim(axis),&
-!                     xval(jj,plotp),xxx,point
-!19              format(a,i5,2x,a,2F10.6,2i5)
-                jj=jj+1
-             endif
-          enddo equil
-          if(graphopt%tielines.gt.0) then
-! exact coordinates for tielines each ntieline equilibria
-!             write(*,*)'saving tieline?',eqindex,&
-!                  mod(eqindex,graphopt%tielines),ntieline,plotp
-             if(mod(eqindex,graphopt%tielines).eq.0) then
-                ntieline=ntieline+1
-                tieline(1,ntieline)=xval(1,plotp)
-                tieline(2,ntieline)=yval(1,plotp)
-                tieline(3,ntieline)=xval(2,plotp)
-                tieline(4,ntieline)=yval(2,plotp)
-             endif
-          endif
-!          write(*,23)'phase line: ',same,last,trim(lid(1,same)),&
-!               trim(lid(2,same))
-          last=same
-!          write(*,21)xval(1,plotp),yval(1,plotp),&
-!               xval(2,plotp),yval(2,plotp),plotp
-!21        format('phase 1: ',2F10.7,10x,'phase 2: ',2F10.7,i7)
-          lineends(same)=plotp
-       enddo line
-! check if line ends in a node and add its coordinates for the same phases
-       endnode=>curline%end
-       if(associated(endnode)) then
-! there is a nod at the end, extracts its ceq record
-          curceq=>endnode%nodeceq
-          plotp=plotp+1
-          do jj=1,2
-             call meq_get_state_varorfun_value(axisx(jj),xxx,encoded,curceq)
-             if(gx%bmperr.ne.0) then
-                write(*,*)'Error extracting end points'
-                goto 1000
-             endif
-             xval(jj,plotp)=xxx
-             call meq_get_state_varorfun_value(axisy(jj),yyy,encoded,curceq)
-             if(gx%bmperr.ne.0) goto 1000
-             yval(jj,plotp)=yyy
-          enddo
-!          write(*,*)'Endnode x,y: ',plotp,xxx,yyy
-! correct lineends!!
-          lineends(same)=plotp
-       endif
-!       write(*,23)'phase line: ',same,plotp,trim(lid(1,same)),trim(lid(2,same))
-23     format(a,2i5,3x,a,' and ',a)
-       if(ntieline.gt.0) then
-! All tielines on the same line with a space in between
-          same=same+1
-          do eqindex=1,ntieline
-             plotp=plotp+1
-             xval(1,plotp)=tieline(1,eqindex)
-             yval(1,plotp)=tieline(2,eqindex)
-! this means the tie-lines will be plotted twice ... but mhy not??
-             xval(2,plotp)=tieline(1,eqindex)
-             yval(2,plotp)=tieline(2,eqindex)
-             plotkod(plotp)=-100
-             plotp=plotp+1
-             xval(1,plotp)=tieline(3,eqindex)
-             yval(1,plotp)=tieline(4,eqindex)
-             xval(2,plotp)=tieline(3,eqindex)
-             yval(2,plotp)=tieline(4,eqindex)
-             lineends(same)=plotp
-             plotkod(plotp)=-101
-          enddo
-          lid(1,same)='tieline'
-          lid(2,same)='tieline'
-       endif
-! no longer any use of tieline
-       if(allocated(tieline)) deallocate(tieline)
-    enddo node
-!----------------------------------------------------------------------
-! finished all lines in this curtop, take next
-! but first generate the invariant
-    curtop=>curtop%next
-    if(.not.associated(curtop,maptop)) then
-!       write(*,*)'Extracting data from node'
-       curceq=>curtop%nodeceq
-       if(associated(curceq)) then
-!          write(*,*)'Extracting data from node equilibrium'
-          plotp=plotp+1
-          jj=1
-          same=same+1
-          nodeequil: do jph=1,nooftup
-             lokcs=phasetuple(jph)%lokvares
-             if(curceq%phase_varres(lokcs)%phstate.ge.PHENTSTAB) then
-! plotkod set to -1 to indicate invariant
-                plotkod(plotp)=-1
-                call get_phasetup_name(jph,phname)
-!                write(*,*)'Stable phase ',trim(phname),jj
-                if(jj.lt.3) lid(jj,same)='invariant'
-                axis=trim(xax1)//trim(phname)//trim(xax2)
-                call meq_get_state_varorfun_value(axis,xxx,encoded,curceq)
-                if(jj.ge.3) then
-                   nofinv=nofinv+1
-                   zval(1,nofinv)=xxx
-                else
-                   xval(jj,plotp)=xxx
-                endif
-                axis=trim(yax1)//trim(phname)//trim(yax2)
-                call meq_get_state_varorfun_value(axis,xxx,encoded,curceq)
-                if(jj.ge.3) then
-                   zval(2,nofinv)=xxx
-                else
-                   yval(jj,plotp)=xxx
-                endif
-                jj=jj+1
-             endif
-          enddo nodeequil
-!          write(*,333)'invariant:',nofinv,plotp,xval(1,plotp),yval(1,plotp),&
-!               xval(2,plotp),yval(2,plotp),zval(1,nofinv),zval(2,nofinv)
-!333       format(a,i3,i4,3(2F8.4,2x))
-! create a line for just this point
-!          same=same+1
-          lineends(same)=plotp
-       endif
-       goto 100
-    endif
-!    do jj=1,same
-!       write(*,23)'phases: ',same,jj,trim(lid(1,jj)),trim(lid(2,jj))
-!    enddo
-!------------------------------------------------
-! there can be more maptops linked via plotlink
-    if(associated(plottop%plotlink)) then
-       plottop=>plottop%plotlink
-       goto 100
-    endif
-!========================================================
-!    call get_all_conditions(encoded,-1,ceq)
-    call get_plot_conditions(encoded,maptop%number_ofaxis,axarr,ceq)
-! now we should have all data to plot in xval and yval arrays
-500 continue
-!    write(*,*)'found lines/points to plot: ',same,plotp
-!    write(*,502)(lineends(ii),ii=1,same)
-502 format(10i5)
-    call ocplot3B(same,nofinv,lineends,2,xval,2,yval,2,zval,plotkod,pltax,&
-         lid,filename,graphopt,pform,encoded)
-    deallocate(xval)
-    deallocate(yval)
-    deallocate(plotkod)
-1000 continue
-    return
-  end subroutine ocplot3
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\begin{verbatim}
-  subroutine calc_diagram_point(axarr,pltax,xxx,xxy,line,ceq)
-! calculates the equilibrium for axis coordinates xxx,xxy
-! axarr specifies calculation axis, pltax plot axis
-! xxx and xxy are axis coordinates for calculating a point
-! line is a character where the stable phases at the point is returned
-! ceq is the current equilibrium, should be the default with axis conditions
-! ONLY COORDINATES FOR CALCULATION AXIS ALLOWED
-    implicit none
-    type(map_axis), dimension(*) :: axarr
-    double precision xxx,xxy
-    character line*(*),pltax(*)*(*)
-    TYPE(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim}
-    integer jax,nax,kk,jj,ic,k3
-    type(gtp_condition), pointer :: pcond
-    type(gtp_state_variable), pointer :: svrrec
-    double precision value
-    character dummy*24
-!
-!    write(*,*)'Not implemented yet'
-!    goto 1000
-!
-! We should check if plotaxis are the same as those used for calculation!!! 
-! x-axis
-    dummy=' '
-    if(xxx.lt.axarr(1)%axmin .or. xxx.gt.axarr(1)%axmax) then
-       write(*,11)'X value outside axis limits',xxx,&
-            axarr(1)%axmin,axarr(1)%axmax
-11     format(a,3(1pe14.5))
-       gx%bmperr=4399; goto 1000
-    endif
-    call locate_condition(axarr(1)%seqz,pcond,ceq)
-    if(gx%bmperr.ne.0) goto 1000
-! first argument 1 means to extract the value, 0 means to set the value
-    call condition_value(0,pcond,xxx,ceq)
-    if(gx%bmperr.ne.0) goto 1000
-    if(pcond%active.ne.0) then
-! active=0 means condition is active
-       pcond%active=0
-! we must indicate if T or P are now fixed ...
-!       if(pcond%statev.eq.1) then
-!          mapline%meqrec%tpindep(1)=.FALSE.
-!       elseif(pcond%statev.eq.2) then
-!          mapline%meqrec%tpindep(1)=.FALSE.
-!       endif
-    endif
-! y-axis
-    if(xxy.lt.axarr(2)%axmin .or. xxy.gt.axarr(2)%axmax) then
-       write(*,11)'Y value outside axis limits',xxy,&
-            axarr(2)%axmin,axarr(2)%axmax
-       gx%bmperr=4399; goto 1000
-    endif
-    call locate_condition(axarr(2)%seqz,pcond,ceq)
-    if(gx%bmperr.ne.0) goto 1000
-    call condition_value(0,pcond,xxy,ceq)
-    if(gx%bmperr.ne.0) goto 1000
-    if(pcond%active.ne.0) then
-! active=0 means condition is active
-       pcond%active=0
-! we must indicate if T or P are now fixed ... ??
-!       if(pcond%statev.eq.1) then
-!          mapline%meqrec%tpindep(1)=.FALSE.
-!       elseif(pcond%statev.eq.2) then
-!          mapline%meqrec%tpindep(1)=.FALSE.
-!       endif
-    endif
-! calculate the equilibrium without global minimization
-!    call list_conditions(kou,ceq)
-    call calceq3(0,.FALSE.,ceq)!
-    if(gx%bmperr.ne.0) then
-       write(*,*)'Calculation failed'
-       goto 1000
-    endif
-! extract the names of the stable phases
-    kk=1
-    do jj=1,noph()
-       do ic=1,noofcs(jj)
-          k3=test_phase_status(jj,ic,value,ceq)
-          if(k3.gt.0) then
-! this phase is stable or fix
-             call get_phase_name(jj,ic,dummy)
-             line(kk:)=dummy
-             kk=len_trim(line)+2
-!             write(*,*)'Stable phases ',trim(line)
-          endif
-       enddo
-    enddo
-! replace _ with - in phase names
-100 continue
-    kk=index(line,'_')
-    if(kk.gt.0) then
-       line(kk:kk)='-'
-       goto 100
-    endif
-1000 continue
-    return
-  end subroutine calc_diagram_point
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\begin{verbatim}
-  subroutine ocplot3B(same,nofinv,lineends,nx1,xval,ny1,yval,nz1,zval,plotkod,&
-       pltax,lid,filename,graphopt,pform,conditions)
-!  subroutine ocplot4(ndx,pltax,filename,maptop,axarr,graphopt,pform,ceq)
-! special to write the GNUPLOT file for two wildcard columns
-! same is the number of lines to plot
-! filename is intermediary file (maybe not needed)
-! maptop is map_node record with all results
-! pform is type of output (screen or postscript or gif)
-    implicit none
-!    integer ndx
-    character pltax(*)*(*),filename*(*),pform*(*),lid(nx1,*)*(*),conditions*(*)
-!    type(map_axis), dimension(*) :: axarr
-!    type(map_node), pointer :: maptop
-    type(graphics_options) :: graphopt
-!    TYPE(gtp_equilibrium_data), pointer :: ceq
-    integer same,plotkod(*),nx1,ny1,nz1,nofinv
-! to be exchanged
-!    integer nofeq(30),lineends(30)
-    integer lineends(*)
-    double precision xval(nx1,*),yval(ny1,*),zval(nz1,*)
-!\end{verbatim}
-    integer, parameter :: maxcolor=200
-    integer ii,jj,kk,jph,offset,n1
-    type(graphics_textlabel), pointer :: textlabel
-    character gnuplotline*64,date*12,mdate*12,title*128,deftitle*64,backslash*2
-    character labelkey*24,applines(10)*128,appline*128,pfc*80,pfh*80
-    integer sumpp,np,appfil,ic,nnv,kkk,lcolor(maxcolor),iz,again
-    integer done(maxcolor),foundinv,fcolor,k3
-    character color(maxcolor)*24
-!  
-    write(*,*)'Using the rudimentary graphics in ocplot3B!'
-!
-    call date_and_time(date)
-    mdate=" "//date(1:4)//'-'//date(5:6)//'-'//date(7:8)//" "
-    deftitle='Open Calphad 4.0 prerelease '//mdate//': with GNUPLOT'
-    if(graphopt%labeldefaults(1).eq.0) then
-       title=deftitle
-    else
-! alwas inlcude open calphad and date, add user title at the end
-       title=trim(deftitle)//' '//graphopt%plotlabels(1)
-    endif
-! np should be the number of different lines to be plotted
-! if there is just one line do not write any key.  May be overriiden later ..
-    np=same
-    if(np.eq.1 .and. graphopt%appendfile(1:1).eq.' ') then
-       labelkey=' off'
-    else
-       labelkey=graphopt%labelkey
-    endif
-!
-    if(index(filename,'.plt ').le.0) then 
-       kk=len_trim(filename)
-       pfc=filename(1:kk)//'.'//'plt '
-       kkk=kk+4
-    else
-       pfc=filename
-    endif
-    write(*,*)'filename: ',trim(pfc),' ',pform(1:1)
-    open(21,file=pfc,access='sequential',status='unknown')
-    write(21,110)
-110 format('# GNUPLOT file generated by Open Calphad'/)
-    if(pform(1:1).eq.'P') then
-       pfh=filename(1:kk)//'.'//'ps '
-       write(21,120)trim(pfh)
-120    format('set terminal postscript color'/'set output "',a,'"')
-    elseif(pform(1:1).eq.'A') then
-       pfh=filename(1:kk)//'.'//'pdf '
-       write(*,121)trim(pfh)
-       write(21,121)trim(pfh)
-121    format('set terminal pdf color'/'set output "',a,'"')
-    elseif(pform(1:1).eq.'G') then
-       pfh=filename(1:kk)//'.'//'gif '
-       write(21,122)trim(pfh)
-122    format('set terminal gif'/'set output "',a,'"')
-    endif
-!    open(21,file='ocgnu.plt ',access='sequential ',status='unknown ')
-!
-    write(21,130)trim(title),trim(conditions),&
-         trim(pltax(1)),trim(pltax(2)),labelkey
-130 format('set title "',a,' \n ',a,'"'/&
-            'set xlabel "',a,'"'/'set ylabel "',a,'"'/&
-            'set key ',a/&
-            'set style line 1 lt 2 lc rgb "#000000" lw 2'/&
-            'set style line 2 lt 2 lc rgb "#804080" lw 2'/&
-            'set style line 3 lt 2 lc rgb "#00C000" lw 2'/&
-            'set style line 4 lt 2 lc rgb "#FF0000" lw 2'/&
-            'set style line 5 lt 2 lc rgb "#0080FF" lw 2'/&
-            'set style line 6 lt 2 lc rgb "#C8C800" lw 2'/&
-            'set style line 7 lt 2 lc rgb "#4169E1" lw 2'/&
-            'set style line 8 lt 2 lc rgb "#7CFF40" lw 2'/&
-            'set style line 9 lt 2 lc rgb "#C0C0C0" lw 2'/&
-            'set style line 10 lt 2 lc rgb "#00FFFF" lw 2'/&
-            'set style line 11 lt 2 lc rgb "#8F8F8F" lw 3'/&
-            'set style line 12 lt 2 lc rgb "#8F8F8F" lw 1')
-! The last two styles (11 and 12) are for invariants and tielines
-!
-! ranges for x and y
-    if(graphopt%rangedefaults(1).ne.0) then
-! user defined ranges for x axis
-       write(21,150)'x',graphopt%plotmin(1),graphopt%plotmax(1)
-150    format('set ',a1,'range [',1pe12.4,':',1pe12.4,'] ')
-    endif
-    if(graphopt%rangedefaults(2).ne.0) then
-! user defined ranges for y axis
-       write(21,150)'y',graphopt%plotmin(2),graphopt%plotmax(2)
-    endif
-!----------------------
-! logarithmic axis
-    if(graphopt%axistype(1).eq.1) then
-       write(21,151)'x'
-151    format('set logscale ',a)
-    endif
-    if(graphopt%axistype(2).eq.1) then
-       write(21,151)'y'
-    endif
-!----------------------
-! line labels
-! set labels
-    textlabel=>graphopt%firsttextlabel
-    do while(associated(textlabel))
-       jj=len_trim(textlabel%textline)
-       write(21,160)textlabel%textline(1:jj),textlabel%xpos,textlabel%ypos
-160    format('set label "',a,'" at ',1pe14.6,', ',1pe14.6)
-!       write(*,1505)textlabel%textline(1:jj),textlabel%xpos,textlabel%ypos
-       textlabel=>textlabel%nexttextlabel
-    enddo
-!---------------------------------------------------------------
-! handle heading of appended files here ....
-!
-    if(graphopt%appendfile(1:1).eq.' ') then
-       appfil=0
-    else
-       appfil=23
-       write(kou,*)'Appending data from: ',trim(graphopt%appendfile)
-       open(appfil,file=graphopt%appendfile,status='old',&
-            access='sequential',err=280)
-!
-       write(21,210)'# APPENDED from '//trim(graphopt%appendfile)
-! copy all lines up to "plot" to new graphics file
-       nnv=0
-200   continue
-       read(appfil,210,end=290)appline
-210   format(a)
-!------------------------------------------------------------------
-! ignore some lines with "set" in the append file
-! set title
-! set xlabel
-! set ylabel
-! set xrange
-! set yrange
-! set key
-       if(appline(1:10).eq.'set title ' .or.&
-            appline(1:11).eq.'set xlabel ' .or.&
-            appline(1:11).eq.'set ylabel ' .or.&
-            appline(1:11).eq.'set xrange ' .or.&
-            appline(1:11).eq.'set yrange ' .or.&
-            appline(1:8).eq. 'set key ') then
-!          write(*,*)'ignoring append line ',trim(appline)
-          goto 200
-       endif
-!------------------------------------------------------------------
-       if(index(appline,'plot "-"').gt.0) then
-          applines(1)=appline
-          ic=1
-230       continue
-! if line ends with \ then read more
-          ii=len_trim(appline)
-!          write(*,*)'There are more? ',appline(i:ii),ii,ic
-          if(appline(ii:ii).eq.'\') then
-! continuation lines
-             read(appfil,210,end=290)appline
-             ic=ic+1
-             applines(ic)=appline
-             goto 230
-          endif
-          goto 290
-       endif
-       write(21,210)trim(appline)
-       nnv=nnv+1
-       goto 200
-! error oppening append file
-280    continue
-       write(kou,*)'Error opening or reading the append file, skipping it'
-       close(appfil)
-       appfil=0
-290    continue
-    endif
-! coordinate the content of lid with the colors
-!    do ii=1,same
-!       write(*,*)'phases: ',ii,trim(lid(1,ii)),' ',trim(lid(2,ii))
-!    enddo
-    nnv=0
-    iz=0
-    color(1)=' '
-!    if(2*same.gt.maxcolor) then
-!       write(*,*)'Number of lines: ',2*same
-!    endif
-    pair: do jj=1,2
-       point: do ii=1,same
-          iz=iz+1
-! plotkod -1 negative means ignore
-! plotkod -100 and -101 used for tie-lines
-          if(jj.eq.2 .and. plotkod(iz).eq.-1) cycle pair
-             do ic=1,nnv
-                if(trim(lid(jj,ii)).eq.trim(color(ic))) then
-                   if(iz.gt.maxcolor) then
-                      write(kou,*)'lcolor dimension overflow',iz
-                   else
-                      lcolor(iz)=ic
-                   endif
-                   goto 295
-                endif
-             enddo
-! no match, increment nnv and assign that color to lcolor
-! skip colors 11 and 12, reserved for invariants and tielines
-          nnv=nnv+1
-          lcolor(iz)=nnv
-          color(nnv)=lid(jj,ii)
-!          write(*,293)'Assigned: ',nnv,jj,ii,iz,trim(color(nnv))
-!293       format(a,4i5,' "',a,'"')
-295       continue
-       enddo point
-    enddo pair
-! replace _ by - (in phase names)
-    do kk=1,nnv
-297    continue
-       jj=index(color(kk),'_')
-       if(jj.gt.0) then
-          color(kk)(jj:jj)='-'
-          goto 297
-       endif
-    enddo
-!---------------------------------------------------------------
-! check for invariant and tieline and replace color!
-!    do ii=1,2*same
-!       write(*,*)'original: ',ii,lcolor(ii),trim(color(lcolor(ii)))
-!    enddo
-    lcolor1: do ii=1,2*same
-       jj=lcolor(ii)
-       if(trim(color(jj)).eq.'invariant') then
-!          write(*,*)'Changing ',ii,jj,' to 11'
-          lcolor(ii)=11
-          color(11)='invariant'
-          do kk=ii+1,2*same
-             if(lcolor(kk).eq.jj) then
-!                write(*,*)'subsequent: ',kk,lcolor(kk),jj,11
-                lcolor(kk)=11
-             endif
-          enddo
-          exit lcolor1
-       endif
-    enddo lcolor1
-    lcolor2: do ii=1,2*same
-       jj=lcolor(ii)
-       if(trim(color(jj)).eq.'tieline') then
-          lcolor(ii)=12
-          color(12)='tie-line'
-          do kk=ii+1,2*same
-             if(lcolor(kk).eq.jj) lcolor(kk)=12
-          enddo
-          exit lcolor2
-       endif
-    enddo lcolor2
-!    do ii=1,2*same
-!       write(*,*)'Final: ',ii,lcolor(ii),trim(color(lcolor(ii)))
-!    enddo
-!----------------------------------------------------------------
-! Here we generate the datafile with coordinates to plot
-! if nx1 or ny1 is 1 plot all on other axis versus single axis coordinate
-! if nx1=ny1 plot the pairs xval(1..nx1,jj) yval(1..ny1,jj)
-! else error
-!----------------------
-    backslash=',\'
-! empty line before the plot command
-!    write(*,*)'lines: ',same,nofinv
-    write(21,*)
-    ii=0
-    done=0
-    do kk=1,2
-       do jj=1,same
-          ii=ii+1
-          if(ii.eq.1) then
-             write(21,309)lcolor(ii),trim(color(lcolor(ii))),backslash
-309          format('plot "-" using 1:2 with lines ls ',i2,' title "',a,'"',a)
-             done(lcolor(1))=1
-          else
-! the invariant "lines" are just a point and occur only once
-! the last line for the plot command has no backslash
-!             if(ii.eq.2*(same-nofinv)+nofinv) backslash=' '
-             if(ii.eq.2*same) backslash=' '
-! we can only use linestyles 1 to 10 except for invariants and tie-lines
-             fcolor=lcolor(ii)
-             if(fcolor.gt.12) then
-                fcolor=mod(fcolor,10)
-                if(fcolor.eq.0) fcolor=10
-             endif
-             if(done(lcolor(ii)).eq.1) then
-                write(21,320)fcolor,backslash
-320             format('"" using 1:2 with lines ls ',i2,' notitle ',a)
-             else
-                write(21,310)fcolor,trim(color(lcolor(ii))),backslash
-310             format('"" using 1:2 with lines ls ',i2,' title "',a,'"',a)
-                done(lcolor(ii))=1
-             endif
-          endif
-       enddo
-    enddo
-!    goto 500
-! loop for all line coordinates
-!    sumpp=0
-    do kk=1,2
-!       again=sumpp
-       foundinv=0
-       sumpp=0
-       do jj=1,same
-! handle invariants, just one point, just once
-! the invariants will be plotted twice ...
-          if(sumpp+1.eq.lineends(jj)) then
-             foundinv=foundinv+1
-             sumpp=sumpp+1
-!             write(*,*)'Assumed to be an invariant!',foundinv,kk
-             write(21,549)xval(1,sumpp),yval(1,sumpp)
-             write(21,549)xval(2,sumpp),yval(2,sumpp)
-             write(21,549)zval(1,foundinv),zval(2,foundinv)
-             write(21,549)xval(1,sumpp),yval(1,sumpp)
-! we are at the end of a line, write a blank line
-             write(21,548)jj
-548          format('e '//'# end of invariant',2i5)
-          else
-             do while(sumpp.lt.lineends(jj))
-                sumpp=sumpp+1
-                write(21,549)xval(kk,sumpp),yval(kk,sumpp)
-549             format(2f12.6,4i7)
-! plotkod -101 means tieline
-                if(plotkod(sumpp).eq.-101) write(21,552)
-552             format(1x)
-             enddo
-! we are at the end of a line, write a blank line
-             write(21,551)jj
-551          format('e '//'# end of line',2i5)
-          endif
-       enddo
-    enddo
-!------------------------------------------------------------------------
-! finally copy the data from the append file, it should be correctly formatted
-    if(appfil.gt.0) then
-       ic=0
-1900   continue
-       read(appfil,884,end=1910)appline
-884    format(a)
-       ic=ic+1
-       if(appline(1:11).eq.'pause mouse') goto 1900
-       write(21,884)trim(appline)
-       goto 1900
-1910   continue
-!       write(*,*)'Appended ',ic,' data lines'
-       close(appfil)
-       appfil=0
-    endif
-!------------------------------------------------------
-    if(pform(1:1).eq.' ') then
-! if not hardcopy pause gnuplot.  Mouse means clicking in the graphics window
-! will close it. I would like to have an option to spawn the graphics window...
-! so it is kept while continuing the program.
-       write(21,990)
-990    format('pause mouse')
-!990    format('e'//'pause mouse')
-    endif
-    close(21)
-    if(appfil.ne.0) close(appfil)
-    appfil=0
-
-!    write(21,565)
-!565 format('e'//'pause mouse'/)
-!    close(21)
-!
-!    gnuplotline='gnuplot ocgnu.plt '
-    gnuplotline='gnuplot '//pfc
-! if gnuplot cannot be started with gnuplot give normal path ...
-!    gnuplotline='"c:\program files\gnuplot\bin\wgnuplot.exe" '//pfc(1:kkk)//' '
-!    k3=len_trim(gnuplotline)+1
-    write(*,*)'Gnuplot command line: ',trim(gnuplotline)
-    if(pform(1:1).ne.' ') then
-       write(*,*)'Graphics output file: ',trim(pfh)
-    endif
-    if(btest(graphopt%status,GRKEEP)) then
-       write(*,*)'Trying to spawn'
-       call system(gnuplotline(9:))
-    else
-       call system(gnuplotline)
-    endif
-!900 continue
-1000 continue
-    return
-  end subroutine ocplot3B
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\begin{verbatim}
   subroutine ocplot2(ndx,pltax,filename,maptop,axarr,graphopt,pform,ceq)
-! modified to have just one output file ...
-! ndx is mumber of plot axis, pltax is text with plotaxis variables
-! filename is intermediary file (maybe not needed)
+! Main plotting routine, generates a GNUPLOT data file for a step/map calc
+! NOTE for isothermal section ocplot3 is used (when 2 axis with wildcards)
+! ndx is mumber of plot axis, 
+! pltax is text with plotaxis variables
+! filename is the name of the GNUPLOT file
 ! maptop is map_node record with all results
-! pform is type of output (screen or postscript or gif)
+! axarr is array of axis records
+! graphopt is graphical option record
+! pform is type of output (screen/acrobat/postscript/gif)
+! ceq is equilibrium record
     implicit none
     integer ndx
     character pltax(*)*(*),filename*(*),pform*(*)
     type(map_axis), dimension(*) :: axarr
     type(map_node), pointer :: maptop
     type(graphics_options) :: graphopt
-!\end{verbatim}
+    TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim} %+
     type(map_ceqresults), pointer :: results
-    TYPE(gtp_equilibrium_data), pointer :: ceq,curceq
-!    TYPE(gtp_condition), pointer :: pcond
+    TYPE(gtp_equilibrium_data), pointer :: curceq
     type(map_node), pointer :: mapnode,invar,localtop
     type(map_line), pointer :: mapline
     logical wildcard
@@ -6151,34 +5426,34 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim}
+!\begin{verbatim} %-
   subroutine ocplot2B(np,nrv,nlinesep,linesep,pltax,xax,anpax,anpdim,anp,lid,&
        title,filename,graphopt,pform,conditions)
-!  subroutine ocplot2(ndx,pltax,filename,maptop,axarr,graphopt,pform,ceq)
-! modified to have a separate output file for GNUPLOT ...
-! ndx is mumber of plot axis, pltax is text with plotaxis variables
-! filename is intermediary file (maybe not needed)
-! maptop is map_node record with all results
-! pform is type of output (screen or postscript or gif)
+! called from icplot2 to generate the GNUPLOT file after extracting data
+! np is number of columns (separate lines), if 1 no labelkey
+! nrv is number of values to plot?
+! nlinesep is the number of separate lines (index to linesep)
+! linesep is the row when the line to plot finishes
+! pltax
+! xax array of values for single valued axis (T or mu etc)
+! anpax=2 if axis with single value is column 2 and (multiple) values in
+!         columns 3 and higher
+! anp array of values for axis with multiple values (can be single values also)
+! lid array with GNUPLOT line types for the different lines
+! title Title of the plot
+! filename GNUPLOT file name, (also used for pdf/ps/gif file)
+! graphopt is graphical option record
+! pform is output form (scree/acrobat/postscript/git)
+! conditions is a character with the conditions for the diagram
     implicit none
+    integer np,anpax,nlinesep
     integer ndx,nrv,linesep(*),anpdim
     character pltax(*)*(*),filename*(*),pform*(*),lid(*)*(*),title*(*)
     character conditions*(*)
-!    type(map_axis), dimension(*) :: axarr
-!    type(map_node), pointer :: maptop
     type(graphics_options) :: graphopt
-! xax is single axis value, anp is muliple comumn values
     double precision xax(*),anp(anpdim,*)
-!\end{verbatim}
-!----------------------------------------------------------------------
-! from calling routine
-! np is number of columns (separate lines), if 1 no labelkey
-! anpax=2 if single value is column 2 and (multiple) values in columns 3 
-!         and higher
-! nrv is number of values to plot?
-    integer np,anpax,nlinesep
-! linesep is row when line finish
     type(graphics_textlabel), pointer :: textlabel
+!\end{verbatim}
 !----------------------------------------------------------------------
 ! internal
     integer ii,jj,kk,lcolor,appfil,nnv,ic,repeat,ksep,nv,k3,kkk
@@ -6494,9 +5769,817 @@ CONTAINS
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
+  subroutine ocplot3(ndx,pltax,filename,maptop,axarr,graphopt,pform,ceq)
+! special to plot isothermal sections (two columns like x(*,cr) x(*,ni))
+! ndx is mumber of plot axis, 
+! pltax is text with plotaxis variables
+! filename is intermediary file (maybe not needed)
+! maptop is map_node record with all results
+! axarr are axis records
+! graphopt is graphics record (should be extended to include more)
+! pform is graphics form
+! pform is type of output (screen or postscript or gif)
+    implicit none
+    integer ndx
+    character pltax(*)*(*),filename*(*),pform*(*)
+    type(map_axis), dimension(*) :: axarr
+    type(map_node), pointer :: maptop
+    type(graphics_options) :: graphopt
+    TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim} %+
+    integer, parameter :: maxsame=200
+    type(map_node), pointer :: plottop,curtop,endnode
+    type(map_line), pointer :: curline
+    type(gtp_equilibrium_data), pointer :: curceq
+    type(map_ceqresults), pointer :: results
+    integer ii,jj,point,plotp,lines,eqindex,lasteq,nooftup,lokcs,jph,same,kk
+    integer, parameter :: maxval=2000,mazval=100
+    double precision, allocatable :: xval(:,:),yval(:,:),zval(:,:),tieline(:,:)
+    integer offset,nofeq,sumpp,last,nofinv,ntieline,mtieline
+    double precision xxx,yyy
+    integer, allocatable :: plotkod(:),lineends(:)
+    character xax1*8,xax2*24,yax1*8,yax2*24,axis1*32,axisx(2)*32,axisy(2)*32
+    character phname*32,encoded*128,axis*32
+    character lid(2,maxsame)*24
+!
+! xval and yval and ccordinates to plot, 
+! points on one line is       xval(1,jj),yval(1,jj)
+! points on the other line is xval(2,jj),yval(2,jj)
+! zval is an occational point zval(1,kk),zval(2,kk) at line ends (invariants)
+! plotkod is a specific code for each point (not used?)
+! lineends is the index in xval/yval for an end of line
+    allocate(xval(2,maxval))
+    allocate(yval(2,maxval))
+    allocate(plotkod(maxval))
+    allocate(zval(2,maxsame))
+    allocate(lineends(maxsame))
+    if(.not.associated(maptop)) then
+       write(*,*)'No data to plot'
+       goto 1000
+    endif
+    write(*,17)
+17  format(//'Using ocplot3')
+! extract the axis variables
+    jph=index(pltax(1),'*')
+    xax1=pltax(1)(1:jph-1)
+    xax2=pltax(1)(jph+1:)
+    jph=index(pltax(2),'*')
+    yax1=pltax(2)(1:jph-1)
+    yax2=pltax(2)(jph+1:)
+!
+! initiate loop to extract values
+    point=0
+    plotp=0
+    nofinv=0
+! if graphopt%tielines not zero check if the tielines are in plane ...
+! %tieline_tieline_inplane <0 means step, 0 means isopleth
+    if(graphopt%tielines.gt.0) then
+       if(maptop%tieline_inplane.le.0) then
+          write(kou,*)'No tie-lines can be plotted'
+          graphopt%tielines=0
+       endif
+    endif
+! same is incremented for each line
+    same=0
+    sumpp=0
+    plottop=>maptop
+    curtop=>plottop
+    nooftup=noofphasetuples()
+100 continue
+    if(.not.allocated(curtop%linehead)) goto 500
+    lines=size(curtop%linehead)
+    results=>plottop%saveceq
+    node: do ii=1,lines
+       curline=>curtop%linehead(ii)
+!       write(*,*)'Data from line: ',curline%lineid,lines
+       eqindex=curline%first
+       lasteq=curline%last
+       if(eqindex.le.0 .or. eqindex.gt.lasteq) cycle node
+       last=same
+       same=same+1
+       if(same.gt.maxsame) then
+          write(*,*)'Too many lines to plot ',maxsame
+          cycle node
+       endif
+       nofeq=lasteq+1-eqindex
+       axisx=' '
+       axisy=' '
+       ntieline=0
+!       write(*,*)'Plotting tie-lines: ',graphopt%tielines
+       if(graphopt%tielines.gt.0) then
+! the number of tie-lines to extract
+          mtieline=nofeq/graphopt%tielines
+!          write(*,*)'Number of tie-lines: ',mtieline
+          allocate(tieline(4,mtieline+5))
+!          write(*,*)'Allocating for tielines: ',mtieline+1
+! UNFINISHED: try to have equal number of equilibria at the beginning and end 
+       endif
+       line: do eqindex=eqindex,lasteq
+! extract for each stable phase the state variable in pltax       
+          point=point+1
+          curceq=>results%savedceq(eqindex)
+! find the stable phases (max 3)
+          plotp=plotp+1
+          if(plotp.gt.maxval) then
+             write(*,*)'Too many points to plot ',maxval
+             cycle node
+          endif
+          jj=1
+          equil: do jph=1,nooftup
+             lokcs=phasetuple(jph)%lokvares
+             if(curceq%phase_varres(lokcs)%phstate.ge.PHENTSTAB) then
+                if(jj.ge.3) then
+                   if(eqindex.eq.lasteq) then
+! skip this point if it is the last
+                      plotp=plotp-1
+!                      write(*,*)'ocplot3 indexing error, skipping last point'
+                   endif
+                   cycle equil
+                endif
+! the generation of the axis state variable is needed just once for all points 
+! if we save the axis text ...
+                plotkod(plotp)=same
+                call get_phasetup_name(jph,phname)
+                if(same.gt.last) then
+                   lid(jj,same)=phname
+                endif
+                if(axisx(1)(1:1).eq.' ') then
+                   axisx(1)=trim(xax1)//trim(phname)//trim(xax2)
+                   axisy(1)=trim(yax1)//trim(phname)//trim(yax2)
+                elseif(axisx(2)(1:1).eq.' ') then
+                   axisx(2)=trim(xax1)//trim(phname)//trim(xax2)
+                   axisy(2)=trim(yax1)//trim(phname)//trim(yax2)
+                endif
+                call meq_get_state_varorfun_value(axisx(jj),xxx,encoded,curceq)
+                xval(jj,plotp)=xxx
+                call meq_get_state_varorfun_value(axisy(jj),xxx,encoded,curceq)
+                yval(jj,plotp)=xxx
+!                write(*,19)'X/Y axis variable: ',plotp,trim(axis),&
+!                     xval(jj,plotp),xxx,point
+!19              format(a,i5,2x,a,2F10.6,2i5)
+                jj=jj+1
+             endif
+          enddo equil
+          if(graphopt%tielines.gt.0) then
+! exact coordinates for tielines each ntieline equilibria
+!             write(*,*)'saving tieline?',eqindex,&
+!                  mod(eqindex,graphopt%tielines),ntieline,plotp
+             if(mod(eqindex,graphopt%tielines).eq.0) then
+                ntieline=ntieline+1
+                tieline(1,ntieline)=xval(1,plotp)
+                tieline(2,ntieline)=yval(1,plotp)
+                tieline(3,ntieline)=xval(2,plotp)
+                tieline(4,ntieline)=yval(2,plotp)
+             endif
+          endif
+!          write(*,23)'phase line: ',same,last,trim(lid(1,same)),&
+!               trim(lid(2,same))
+          last=same
+!          write(*,21)xval(1,plotp),yval(1,plotp),&
+!               xval(2,plotp),yval(2,plotp),plotp
+!21        format('phase 1: ',2F10.7,10x,'phase 2: ',2F10.7,i7)
+          lineends(same)=plotp
+       enddo line
+! check if line ends in a node and add its coordinates for the same phases
+       endnode=>curline%end
+       if(associated(endnode)) then
+! there is a nod at the end, extracts its ceq record
+          curceq=>endnode%nodeceq
+          plotp=plotp+1
+          do jj=1,2
+             call meq_get_state_varorfun_value(axisx(jj),xxx,encoded,curceq)
+             if(gx%bmperr.ne.0) then
+                write(*,*)'Error extracting end points'
+                goto 1000
+             endif
+             xval(jj,plotp)=xxx
+             call meq_get_state_varorfun_value(axisy(jj),yyy,encoded,curceq)
+             if(gx%bmperr.ne.0) goto 1000
+             yval(jj,plotp)=yyy
+          enddo
+!          write(*,*)'Endnode x,y: ',plotp,xxx,yyy
+! correct lineends!!
+          lineends(same)=plotp
+       endif
+!       write(*,23)'phase line: ',same,plotp,trim(lid(1,same)),trim(lid(2,same))
+23     format(a,2i5,3x,a,' and ',a)
+       if(ntieline.gt.0) then
+! All tielines on the same line with a space in between
+          same=same+1
+          do eqindex=1,ntieline
+             plotp=plotp+1
+             xval(1,plotp)=tieline(1,eqindex)
+             yval(1,plotp)=tieline(2,eqindex)
+! this means the tie-lines will be plotted twice ... but mhy not??
+             xval(2,plotp)=tieline(1,eqindex)
+             yval(2,plotp)=tieline(2,eqindex)
+             plotkod(plotp)=-100
+             plotp=plotp+1
+             xval(1,plotp)=tieline(3,eqindex)
+             yval(1,plotp)=tieline(4,eqindex)
+             xval(2,plotp)=tieline(3,eqindex)
+             yval(2,plotp)=tieline(4,eqindex)
+             lineends(same)=plotp
+             plotkod(plotp)=-101
+          enddo
+          lid(1,same)='tieline'
+          lid(2,same)='tieline'
+       endif
+! no longer any use of tieline
+       if(allocated(tieline)) deallocate(tieline)
+    enddo node
+!----------------------------------------------------------------------
+! finished all lines in this curtop, take next
+! but first generate the invariant
+    curtop=>curtop%next
+    if(.not.associated(curtop,maptop)) then
+!       write(*,*)'Extracting data from node'
+       curceq=>curtop%nodeceq
+       if(associated(curceq)) then
+!          write(*,*)'Extracting data from node equilibrium'
+          plotp=plotp+1
+          jj=1
+          same=same+1
+          nodeequil: do jph=1,nooftup
+             lokcs=phasetuple(jph)%lokvares
+             if(curceq%phase_varres(lokcs)%phstate.ge.PHENTSTAB) then
+! plotkod set to -1 to indicate invariant
+                plotkod(plotp)=-1
+                call get_phasetup_name(jph,phname)
+!                write(*,*)'Stable phase ',trim(phname),jj
+                if(jj.lt.3) lid(jj,same)='invariant'
+                axis=trim(xax1)//trim(phname)//trim(xax2)
+                call meq_get_state_varorfun_value(axis,xxx,encoded,curceq)
+                if(jj.ge.3) then
+                   nofinv=nofinv+1
+                   zval(1,nofinv)=xxx
+                else
+                   xval(jj,plotp)=xxx
+                endif
+                axis=trim(yax1)//trim(phname)//trim(yax2)
+                call meq_get_state_varorfun_value(axis,xxx,encoded,curceq)
+                if(jj.ge.3) then
+                   zval(2,nofinv)=xxx
+                else
+                   yval(jj,plotp)=xxx
+                endif
+                jj=jj+1
+             endif
+          enddo nodeequil
+!          write(*,333)'invariant:',nofinv,plotp,xval(1,plotp),yval(1,plotp),&
+!               xval(2,plotp),yval(2,plotp),zval(1,nofinv),zval(2,nofinv)
+!333       format(a,i3,i4,3(2F8.4,2x))
+! create a line for just this point
+!          same=same+1
+          lineends(same)=plotp
+       endif
+       goto 100
+    endif
+!    do jj=1,same
+!       write(*,23)'phases: ',same,jj,trim(lid(1,jj)),trim(lid(2,jj))
+!    enddo
+!------------------------------------------------
+! there can be more maptops linked via plotlink
+    if(associated(plottop%plotlink)) then
+       plottop=>plottop%plotlink
+       goto 100
+    endif
+!========================================================
+!    call get_all_conditions(encoded,-1,ceq)
+    call get_plot_conditions(encoded,maptop%number_ofaxis,axarr,ceq)
+! now we should have all data to plot in xval and yval arrays
+500 continue
+!    write(*,*)'found lines/points to plot: ',same,plotp
+!    write(*,502)(lineends(ii),ii=1,same)
+502 format(10i5)
+    call ocplot3B(same,nofinv,lineends,2,xval,2,yval,2,zval,plotkod,pltax,&
+         lid,filename,graphopt,pform,encoded)
+    deallocate(xval)
+    deallocate(yval)
+    deallocate(plotkod)
+1000 continue
+    return
+  end subroutine ocplot3
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim} %-
+  subroutine ocplot3B(same,nofinv,lineends,nx1,xval,ny1,yval,nz1,zval,plotkod,&
+       pltax,lid,filename,graphopt,pform,conditions)
+! called by ocplot3 to write the GNUPLOT file for two wildcard columns
+! same is the number of lines to plot
+! nofinv number of invariants
+! lineends array with row numbers where ecah line ends
+! nx1 first dimension of xval
+! xval 2D matrix with values to plot on x axis
+! ny1 first dimension of yval
+! yval 2D matrix with values to plot on y axis
+! nz1 first dimension of zval
+! zval 2D matrix with third point of invariant triangles
+! plotkod integer array indicating the type of line (-1 skip line)
+! pltax text for axis
+! lid array with GNUPLOT line types
+! filename is intermediary file (maybe not needed)
+! graphopt is graphics option record
+! maptop is map_node record with all results
+! pform is type of output (screen/acrobat/postscript/gir)
+! conditions is a text with conditions for the calculation
+    implicit none
+    character pltax(*)*(*),filename*(*),pform*(*),lid(nx1,*)*(*),conditions*(*)
+    type(graphics_options) :: graphopt
+    integer same,plotkod(*),nx1,ny1,nz1,nofinv
+    integer lineends(*)
+    double precision xval(nx1,*),yval(ny1,*),zval(nz1,*)
+!\end{verbatim}
+    integer, parameter :: maxcolor=200
+    integer ii,jj,kk,jph,offset,n1
+    type(graphics_textlabel), pointer :: textlabel
+    character gnuplotline*64,date*12,mdate*12,title*128,deftitle*64,backslash*2
+    character labelkey*24,applines(10)*128,appline*128,pfc*80,pfh*80
+    integer sumpp,np,appfil,ic,nnv,kkk,lcolor(maxcolor),iz,again
+    integer done(maxcolor),foundinv,fcolor,k3
+    character color(maxcolor)*24
+!  
+    write(*,*)'Using the rudimentary graphics in ocplot3B!'
+!
+    call date_and_time(date)
+    mdate=" "//date(1:4)//'-'//date(5:6)//'-'//date(7:8)//" "
+    deftitle='Open Calphad 4.0 prerelease '//mdate//': with GNUPLOT'
+    if(graphopt%labeldefaults(1).eq.0) then
+       title=deftitle
+    else
+! alwas inlcude open calphad and date, add user title at the end
+       title=trim(deftitle)//' '//graphopt%plotlabels(1)
+    endif
+! np should be the number of different lines to be plotted
+! if there is just one line do not write any key.  May be overriiden later ..
+    np=same
+    if(np.eq.1 .and. graphopt%appendfile(1:1).eq.' ') then
+       labelkey=' off'
+    else
+       labelkey=graphopt%labelkey
+    endif
+!
+    if(index(filename,'.plt ').le.0) then 
+       kk=len_trim(filename)
+       pfc=filename(1:kk)//'.'//'plt '
+       kkk=kk+4
+    else
+       pfc=filename
+    endif
+    write(*,*)'filename: ',trim(pfc),' ',pform(1:1)
+    open(21,file=pfc,access='sequential',status='unknown')
+    write(21,110)
+110 format('# GNUPLOT file generated by Open Calphad'/)
+    if(pform(1:1).eq.'P') then
+       pfh=filename(1:kk)//'.'//'ps '
+       write(21,120)trim(pfh)
+120    format('set terminal postscript color'/'set output "',a,'"')
+    elseif(pform(1:1).eq.'A') then
+       pfh=filename(1:kk)//'.'//'pdf '
+       write(*,121)trim(pfh)
+       write(21,121)trim(pfh)
+121    format('set terminal pdf color'/'set output "',a,'"')
+    elseif(pform(1:1).eq.'G') then
+       pfh=filename(1:kk)//'.'//'gif '
+       write(21,122)trim(pfh)
+122    format('set terminal gif'/'set output "',a,'"')
+    endif
+!    open(21,file='ocgnu.plt ',access='sequential ',status='unknown ')
+!
+    write(21,130)trim(title),trim(conditions),&
+         trim(pltax(1)),trim(pltax(2)),labelkey
+130 format('set title "',a,' \n ',a,'"'/&
+            'set xlabel "',a,'"'/'set ylabel "',a,'"'/&
+            'set key ',a/&
+            'set style line 1 lt 2 lc rgb "#000000" lw 2'/&
+            'set style line 2 lt 2 lc rgb "#804080" lw 2'/&
+            'set style line 3 lt 2 lc rgb "#00C000" lw 2'/&
+            'set style line 4 lt 2 lc rgb "#FF0000" lw 2'/&
+            'set style line 5 lt 2 lc rgb "#0080FF" lw 2'/&
+            'set style line 6 lt 2 lc rgb "#C8C800" lw 2'/&
+            'set style line 7 lt 2 lc rgb "#4169E1" lw 2'/&
+            'set style line 8 lt 2 lc rgb "#7CFF40" lw 2'/&
+            'set style line 9 lt 2 lc rgb "#C0C0C0" lw 2'/&
+            'set style line 10 lt 2 lc rgb "#00FFFF" lw 2'/&
+            'set style line 11 lt 2 lc rgb "#8F8F8F" lw 3'/&
+            'set style line 12 lt 2 lc rgb "#8F8F8F" lw 1')
+! The last two styles (11 and 12) are for invariants and tielines
+!
+! ranges for x and y
+    if(graphopt%rangedefaults(1).ne.0) then
+! user defined ranges for x axis
+       write(21,150)'x',graphopt%plotmin(1),graphopt%plotmax(1)
+150    format('set ',a1,'range [',1pe12.4,':',1pe12.4,'] ')
+    endif
+    if(graphopt%rangedefaults(2).ne.0) then
+! user defined ranges for y axis
+       write(21,150)'y',graphopt%plotmin(2),graphopt%plotmax(2)
+    endif
+!----------------------
+! logarithmic axis
+    if(graphopt%axistype(1).eq.1) then
+       write(21,151)'x'
+151    format('set logscale ',a)
+    endif
+    if(graphopt%axistype(2).eq.1) then
+       write(21,151)'y'
+    endif
+!----------------------
+! line labels
+! set labels
+    textlabel=>graphopt%firsttextlabel
+    do while(associated(textlabel))
+       jj=len_trim(textlabel%textline)
+       write(21,160)textlabel%textline(1:jj),textlabel%xpos,textlabel%ypos
+160    format('set label "',a,'" at ',1pe14.6,', ',1pe14.6)
+!       write(*,1505)textlabel%textline(1:jj),textlabel%xpos,textlabel%ypos
+       textlabel=>textlabel%nexttextlabel
+    enddo
+!---------------------------------------------------------------
+! handle heading of appended files here ....
+!
+    if(graphopt%appendfile(1:1).eq.' ') then
+       appfil=0
+    else
+       appfil=23
+       write(kou,*)'Appending data from: ',trim(graphopt%appendfile)
+       open(appfil,file=graphopt%appendfile,status='old',&
+            access='sequential',err=280)
+!
+       write(21,210)'# APPENDED from '//trim(graphopt%appendfile)
+! copy all lines up to "plot" to new graphics file
+       nnv=0
+200   continue
+       read(appfil,210,end=290)appline
+210   format(a)
+!------------------------------------------------------------------
+! ignore some lines with "set" in the append file
+! set title
+! set xlabel
+! set ylabel
+! set xrange
+! set yrange
+! set key
+       if(appline(1:10).eq.'set title ' .or.&
+            appline(1:11).eq.'set xlabel ' .or.&
+            appline(1:11).eq.'set ylabel ' .or.&
+            appline(1:11).eq.'set xrange ' .or.&
+            appline(1:11).eq.'set yrange ' .or.&
+            appline(1:8).eq. 'set key ') then
+!          write(*,*)'ignoring append line ',trim(appline)
+          goto 200
+       endif
+!------------------------------------------------------------------
+       if(index(appline,'plot "-"').gt.0) then
+          applines(1)=appline
+          ic=1
+230       continue
+! if line ends with \ then read more
+          ii=len_trim(appline)
+!          write(*,*)'There are more? ',appline(i:ii),ii,ic
+          if(appline(ii:ii).eq.'\') then
+! continuation lines
+             read(appfil,210,end=290)appline
+             ic=ic+1
+             applines(ic)=appline
+             goto 230
+          endif
+          goto 290
+       endif
+       write(21,210)trim(appline)
+       nnv=nnv+1
+       goto 200
+! error oppening append file
+280    continue
+       write(kou,*)'Error opening or reading the append file, skipping it'
+       close(appfil)
+       appfil=0
+290    continue
+    endif
+! coordinate the content of lid with the colors
+!    do ii=1,same
+!       write(*,*)'phases: ',ii,trim(lid(1,ii)),' ',trim(lid(2,ii))
+!    enddo
+    nnv=0
+    iz=0
+    color(1)=' '
+!    if(2*same.gt.maxcolor) then
+!       write(*,*)'Number of lines: ',2*same
+!    endif
+    pair: do jj=1,2
+       point: do ii=1,same
+          iz=iz+1
+! plotkod -1 negative means ignore
+! plotkod -100 and -101 used for tie-lines
+          if(jj.eq.2 .and. plotkod(iz).eq.-1) cycle pair
+             do ic=1,nnv
+                if(trim(lid(jj,ii)).eq.trim(color(ic))) then
+                   if(iz.gt.maxcolor) then
+                      write(kou,*)'lcolor dimension overflow',iz
+                   else
+                      lcolor(iz)=ic
+                   endif
+                   goto 295
+                endif
+             enddo
+! no match, increment nnv and assign that color to lcolor
+! skip colors 11 and 12, reserved for invariants and tielines
+          nnv=nnv+1
+          lcolor(iz)=nnv
+          color(nnv)=lid(jj,ii)
+!          write(*,293)'Assigned: ',nnv,jj,ii,iz,trim(color(nnv))
+!293       format(a,4i5,' "',a,'"')
+295       continue
+       enddo point
+    enddo pair
+! replace _ by - (in phase names)
+    do kk=1,nnv
+297    continue
+       jj=index(color(kk),'_')
+       if(jj.gt.0) then
+          color(kk)(jj:jj)='-'
+          goto 297
+       endif
+    enddo
+!---------------------------------------------------------------
+! check for invariant and tieline and replace color!
+!    do ii=1,2*same
+!       write(*,*)'original: ',ii,lcolor(ii),trim(color(lcolor(ii)))
+!    enddo
+    lcolor1: do ii=1,2*same
+       jj=lcolor(ii)
+       if(trim(color(jj)).eq.'invariant') then
+!          write(*,*)'Changing ',ii,jj,' to 11'
+          lcolor(ii)=11
+          color(11)='invariant'
+          do kk=ii+1,2*same
+             if(lcolor(kk).eq.jj) then
+!                write(*,*)'subsequent: ',kk,lcolor(kk),jj,11
+                lcolor(kk)=11
+             endif
+          enddo
+          exit lcolor1
+       endif
+    enddo lcolor1
+    lcolor2: do ii=1,2*same
+       jj=lcolor(ii)
+       if(trim(color(jj)).eq.'tieline') then
+          lcolor(ii)=12
+          color(12)='tie-line'
+          do kk=ii+1,2*same
+             if(lcolor(kk).eq.jj) lcolor(kk)=12
+          enddo
+          exit lcolor2
+       endif
+    enddo lcolor2
+!    do ii=1,2*same
+!       write(*,*)'Final: ',ii,lcolor(ii),trim(color(lcolor(ii)))
+!    enddo
+!----------------------------------------------------------------
+! Here we generate the datafile with coordinates to plot
+! if nx1 or ny1 is 1 plot all on other axis versus single axis coordinate
+! if nx1=ny1 plot the pairs xval(1..nx1,jj) yval(1..ny1,jj)
+! else error
+!----------------------
+    backslash=',\'
+! empty line before the plot command
+!    write(*,*)'lines: ',same,nofinv
+    write(21,*)
+    ii=0
+    done=0
+    do kk=1,2
+       do jj=1,same
+          ii=ii+1
+          if(ii.eq.1) then
+             write(21,309)lcolor(ii),trim(color(lcolor(ii))),backslash
+309          format('plot "-" using 1:2 with lines ls ',i2,' title "',a,'"',a)
+             done(lcolor(1))=1
+          else
+! the invariant "lines" are just a point and occur only once
+! the last line for the plot command has no backslash
+!             if(ii.eq.2*(same-nofinv)+nofinv) backslash=' '
+             if(ii.eq.2*same) backslash=' '
+! we can only use linestyles 1 to 10 except for invariants and tie-lines
+             fcolor=lcolor(ii)
+             if(fcolor.gt.12) then
+                fcolor=mod(fcolor,10)
+                if(fcolor.eq.0) fcolor=10
+             endif
+             if(done(lcolor(ii)).eq.1) then
+                write(21,320)fcolor,backslash
+320             format('"" using 1:2 with lines ls ',i2,' notitle ',a)
+             else
+                write(21,310)fcolor,trim(color(lcolor(ii))),backslash
+310             format('"" using 1:2 with lines ls ',i2,' title "',a,'"',a)
+                done(lcolor(ii))=1
+             endif
+          endif
+       enddo
+    enddo
+!    goto 500
+! loop for all line coordinates
+!    sumpp=0
+    do kk=1,2
+!       again=sumpp
+       foundinv=0
+       sumpp=0
+       do jj=1,same
+! handle invariants, just one point, just once
+! the invariants will be plotted twice ...
+          if(sumpp+1.eq.lineends(jj)) then
+             foundinv=foundinv+1
+             sumpp=sumpp+1
+!             write(*,*)'Assumed to be an invariant!',foundinv,kk
+             write(21,549)xval(1,sumpp),yval(1,sumpp)
+             write(21,549)xval(2,sumpp),yval(2,sumpp)
+             write(21,549)zval(1,foundinv),zval(2,foundinv)
+             write(21,549)xval(1,sumpp),yval(1,sumpp)
+! we are at the end of a line, write a blank line
+             write(21,548)jj
+548          format('e '//'# end of invariant',2i5)
+          else
+             do while(sumpp.lt.lineends(jj))
+                sumpp=sumpp+1
+                write(21,549)xval(kk,sumpp),yval(kk,sumpp)
+549             format(2f12.6,4i7)
+! plotkod -101 means tieline
+                if(plotkod(sumpp).eq.-101) write(21,552)
+552             format(1x)
+             enddo
+! we are at the end of a line, write a blank line
+             write(21,551)jj
+551          format('e '//'# end of line',2i5)
+          endif
+       enddo
+    enddo
+!------------------------------------------------------------------------
+! finally copy the data from the append file, it should be correctly formatted
+    if(appfil.gt.0) then
+       ic=0
+1900   continue
+       read(appfil,884,end=1910)appline
+884    format(a)
+       ic=ic+1
+       if(appline(1:11).eq.'pause mouse') goto 1900
+       write(21,884)trim(appline)
+       goto 1900
+1910   continue
+!       write(*,*)'Appended ',ic,' data lines'
+       close(appfil)
+       appfil=0
+    endif
+!------------------------------------------------------
+    if(pform(1:1).eq.' ') then
+! if not hardcopy pause gnuplot.  Mouse means clicking in the graphics window
+! will close it. I would like to have an option to spawn the graphics window...
+! so it is kept while continuing the program.
+       write(21,990)
+990    format('pause mouse')
+!990    format('e'//'pause mouse')
+    endif
+    close(21)
+    if(appfil.ne.0) close(appfil)
+    appfil=0
+
+!    write(21,565)
+!565 format('e'//'pause mouse'/)
+!    close(21)
+!
+!    gnuplotline='gnuplot ocgnu.plt '
+    gnuplotline='gnuplot '//pfc
+! if gnuplot cannot be started with gnuplot give normal path ...
+!    gnuplotline='"c:\program files\gnuplot\bin\wgnuplot.exe" '//pfc(1:kkk)//' '
+!    k3=len_trim(gnuplotline)+1
+    write(*,*)'Gnuplot command line: ',trim(gnuplotline)
+    if(pform(1:1).ne.' ') then
+       write(*,*)'Graphics output file: ',trim(pfh)
+    endif
+    if(btest(graphopt%status,GRKEEP)) then
+       write(*,*)'Trying to spawn'
+       call system(gnuplotline(9:))
+    else
+       call system(gnuplotline)
+    endif
+!900 continue
+1000 continue
+    return
+  end subroutine ocplot3B
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+  subroutine calc_diagram_point(axarr,pltax,xxx,xxy,line,ceq)
+! calculates the equilibrium for axis coordinates xxx,xxy
+! to obtain the set of stable phases
+! axarr specifies calculation axis, 
+! pltax plot axis
+! xxx and xxy are axis coordinates for calculating a point
+! line is a character where the stable phases at the point is returned
+! ceq is the current equilibrium, should be the default with axis conditions
+! ONLY COORDINATES FOR CALCULATION AXIS ALLOWED
+    implicit none
+    type(map_axis), dimension(*) :: axarr
+    double precision xxx,xxy
+    character line*(*),pltax(*)*(*)
+    TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+    integer jax,nax,kk,jj,ic,k3
+    type(gtp_condition), pointer :: pcond
+    type(gtp_state_variable), pointer :: svrrec
+    double precision value
+    character dummy*24
+!
+!    write(*,*)'Not implemented yet'
+!    goto 1000
+!
+! We should check if plotaxis are the same as those used for calculation!!! 
+! x-axis
+    dummy=' '
+    if(xxx.lt.axarr(1)%axmin .or. xxx.gt.axarr(1)%axmax) then
+       write(*,11)'X value outside axis limits',xxx,&
+            axarr(1)%axmin,axarr(1)%axmax
+11     format(a,3(1pe14.5))
+       gx%bmperr=4399; goto 1000
+    endif
+    call locate_condition(axarr(1)%seqz,pcond,ceq)
+    if(gx%bmperr.ne.0) goto 1000
+! first argument 1 means to extract the value, 0 means to set the value
+    call condition_value(0,pcond,xxx,ceq)
+    if(gx%bmperr.ne.0) goto 1000
+    if(pcond%active.ne.0) then
+! active=0 means condition is active
+       pcond%active=0
+! we must indicate if T or P are now fixed ...
+!       if(pcond%statev.eq.1) then
+!          mapline%meqrec%tpindep(1)=.FALSE.
+!       elseif(pcond%statev.eq.2) then
+!          mapline%meqrec%tpindep(1)=.FALSE.
+!       endif
+    endif
+! y-axis
+    if(xxy.lt.axarr(2)%axmin .or. xxy.gt.axarr(2)%axmax) then
+       write(*,11)'Y value outside axis limits',xxy,&
+            axarr(2)%axmin,axarr(2)%axmax
+       gx%bmperr=4399; goto 1000
+    endif
+    call locate_condition(axarr(2)%seqz,pcond,ceq)
+    if(gx%bmperr.ne.0) goto 1000
+    call condition_value(0,pcond,xxy,ceq)
+    if(gx%bmperr.ne.0) goto 1000
+    if(pcond%active.ne.0) then
+! active=0 means condition is active
+       pcond%active=0
+! we must indicate if T or P are now fixed ... ??
+!       if(pcond%statev.eq.1) then
+!          mapline%meqrec%tpindep(1)=.FALSE.
+!       elseif(pcond%statev.eq.2) then
+!          mapline%meqrec%tpindep(1)=.FALSE.
+!       endif
+    endif
+! calculate the equilibrium without global minimization
+!    call list_conditions(kou,ceq)
+    call calceq3(0,.FALSE.,ceq)!
+    if(gx%bmperr.ne.0) then
+       write(*,*)'Calculation failed'
+       goto 1000
+    endif
+! extract the names of the stable phases
+    kk=1
+    do jj=1,noph()
+       do ic=1,noofcs(jj)
+          k3=test_phase_status(jj,ic,value,ceq)
+          if(k3.gt.0) then
+! this phase is stable or fix
+             call get_phase_name(jj,ic,dummy)
+             line(kk:)=dummy
+             kk=len_trim(line)+2
+!             write(*,*)'Stable phases ',trim(line)
+          endif
+       enddo
+    enddo
+! replace _ with - in phase names
+100 continue
+    kk=index(line,'_')
+    if(kk.gt.0) then
+       line(kk:kk)='-'
+       goto 100
+    endif
+1000 continue
+    return
+  end subroutine calc_diagram_point
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
   subroutine step_separate(maptop,noofaxis,axarr,seqxyz,starteq)
 ! calculates for each phase separately along an axis (like G curves)
 ! There can not be any changes of the stable phase ...
+! maptop map node record
+! noofaxis must be 1
+! axarr array of axis records
+! seqxyz indices for map and line records
+! starteq equilibrium record for starting
     implicit none
     integer noofaxis,seqxyz(*)
     type(map_axis), dimension(noofaxis) :: axarr
@@ -6778,11 +6861,13 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\begin{verbatim}
   logical function abbr_phname_same(full,short)
 ! return TRUE if short is a correct abbreviation of full
 ! This is used in macro step4 to plot fractions in different composition sets
     implicit none
     character*(*) full,short
+!\end{verbatim}
     logical same
     integer k1,k2
     character*1 ch1,ch2
