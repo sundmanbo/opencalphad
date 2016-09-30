@@ -16,7 +16,7 @@ l r 1
 @&
 
 set ax 1 x(c) 0 1 ,,,
-set ax 2 t 500 2000 25
+set ax 2 t 500 2000 10
 
 l ax
 

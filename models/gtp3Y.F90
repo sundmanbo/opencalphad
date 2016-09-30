@@ -529,7 +529,11 @@
 !      write(*,*)'3Y enter next gridpoint: ',j1,j2,gx%bmperr
    enddo loop1
 !   write(*,*)'3Y after loop1: ',phlista(1)%noofcs
-   if(nocsets.gt.0) write(*,*)'3Y Composition set(s) created: ',nocsets
+   if(nocsets.gt.0) then
+      if(.not.btest(globaldata%status,GSSILENT)) then
+         write(*,*)'3Y Composition set(s) created: ',nocsets
+      endif
+   endif
 ! Above one should consider if some user created compsets are dedicated to
 ! certain cases (MC carbides or L1_2 ordered).  These should have
 ! a default constitution and CSDEFCON set)
@@ -612,7 +616,7 @@
       ceq%status=ibset(ceq%status,EQFAIL)
    elseif(what.eq.-1) then
       if(nystph.gt.0) what=nystph
-   else
+   elseif(.not.btest(globaldata%status,GSSILENT)) then
       write(*,1010)noofgridpoints,finish2-starting,&
            endoftime-starttid,ceq%tpval(1)
 1010  format('3Y Gridmin: ',i7,' points ',1pe10.2,' s and ',&
@@ -2841,7 +2845,7 @@
    if(ierr.ne.0) then
 ! error may occur and is not fatal, just try to replace next column
       if(.not.linglderr) then
-         write(*,*)'3Y gridmin warning(s) using lingld: ',ierr,nyp
+         if(ocv()) write(*,*)'3Y gridmin warning(s) using lingld: ',ierr,nyp
          linglderr=.TRUE.
       endif
       qmat=qmatsave
@@ -4441,7 +4445,7 @@
                jsuf=ceq%phase_varres(lokjcs)%suffix
                phs=ceq%phase_varres(lokjcs)%phstate
 !               write(*,489)lokics,lokjcs
-               write(*,489)ceq%phase_varres(lokics)%phtupx,jtup
+               if(ocv()) write(*,489)ceq%phase_varres(lokics)%phtupx,jtup
 489            format('3Y move results from tuplet ',i4,' to ',i4)
 !                  write(*,501)lokics,ceq%phase_varres(lokics)%mmyfr
 !                  write(*,501)lokjcs,ceq%phase_varres(lokjcs)%mmyfr
@@ -4523,7 +4527,7 @@
                if(noeq().eq.1) then
 ! we have just one equilibrium, OK to remove even in parallel ...
                   if(once) then
-                     write(*,801)lokics
+                     if(ocv()) write(*,801)lokics
 801                  format('3Y Removing unstable phase tuple(s)',i5)
                      once=.FALSE.
                   endif
@@ -4533,7 +4537,7 @@
 ! remove the higherst composition set
                   call remove_composition_set(iph,.FALSE.)
                   if(gx%bmperr.ne.0) then
-                     write(*,*)'3Y failed to remove ',&
+                     write(*,*)'3Y failed to remove tuplet:',&
                           ceq%phase_varres(lokics)%phtupx
                      goto 1000
                   endif

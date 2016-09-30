@@ -6,14 +6,15 @@ program octq1
   use liboctq
 !
   implicit none
-! maxel and maxph defined in pmod package
-!  integer, parameter :: maxel=10,maxph=20
+! maxel and maxph defined in gtp3 package
+! phasetuples is a TYPE(gtp_phasetuples) array with phase numbers 
   integer n,n1,n2,n3,n4,ip,cnum(maxel+3),mm,m2
-  character filename*60,phnames(maxph)*24
+  character filename*60
   character condition*60,line*80,statevar*60,quest*60,ch1*1
-  character target*60,phcsname*36
+  character target*60,phcsname*24
   double precision value,temp,tp(2),mel(maxel)
-  double precision xf(maxel),pxf(10*maxph),npf(maxph),mu(maxel)
+  double precision xf(maxel),pxf(10*maxph),npf(maxph),mu(maxel),mus(maxel)
+  double precision tpref(2)
   type(gtp_equilibrium_data), pointer :: ceq
 !
 ! initiate
@@ -22,27 +23,26 @@ program octq1
 !
 ! read database file
   filename='crfe '
+  write(*,*)'Reading all elements from the database file: ',trim(filename)
   call tqrfil(filename,ceq)
   if(gx%bmperr.ne.0) goto 1000
-! tqrfil also enters the number of elements in nel and the element names
-! in cnam and the number of phases in ntup and all phase tuples in phcs 
-!
-! this call is redundant: number of elements and their names
-!  call tqgcom(nel,cmpname,ceq)
-!  if(gx%bmperr.ne.0) goto 1000
-! this call is redundant: number of phases and their names
-!  call tqgnp(ntup,ceq)
-!  if(gx%bmperr.ne.0) goto 1000
-  do n=1,ntup
-     call tqgpn(n,phnames(n),ceq)
-     if(gx%bmperr.ne.0) goto 1000
-  enddo
+! tqrfil enters the number of elements in NEL
+! and the element names in CNAM 
+! and the number of phases in NTUP
 !
 ! list elements and phases
   write(*,10)nel,(cnam(n)(1:2),n=1,nel)
 10 format(/'System with ',i2,' elements: ',10(a,', '))
-  write(*,20)ntup,(phnames(n)(1:len_trim(phnames(n))),n=1,ntup)
-20 format('and ',i3,' phases: ',10(a,', '))
+  write(*,12,advance='no')ntup
+12 format('and ',i3,' phases: ')
+! list the phase names using the tuple index
+  do n=1,ntup
+     call tqgpn(n,phcsname,ceq)
+     if(gx%bmperr.ne.0) goto 1000
+     write(*,20,advance='no')trim(phcsname)
+20   format(a,', ')
+  enddo
+  write(*,*)
 !
 ! set default values of temperature and pressure
   tp(1)=8.0D2
@@ -57,21 +57,21 @@ program octq1
 105 format(/'Give conditions:')
   ip=len(line)
   temp=tp(1)
-  call gparrd('Temperature: ',line,ip,tp(1),temp,nohelp)
+  call gparrd('Temperature (K): ',line,ip,tp(1),temp,nohelp)
   if(buperr.ne.0) goto 1000
   if(tp(1).lt.1.0d0) then
      write(*,*)'Temperature must be larger than 1 K'
      tp(1)=1.0D0
   endif
   temp=tp(2)
-  call gparrd('Pressure: ',line,ip,tp(2),temp,nohelp)
+  call gparrd('Pressure (Pa): ',line,ip,tp(2),temp,nohelp)
   if(buperr.ne.0) goto 1000
   if(tp(2).lt.1.0d0) then
      write(*,*)'Pressure must be larger than 1 Pa'
      tp(2)=1.0D0
   endif
   do n=1,nel-1
-     quest='Mole fraction of '//cnam(n)(1:len_trim(cnam(n)))//':'
+     quest='Mole fraction of '//trim(cnam(n))//':'
      temp=xf(n)
      call gparrd(quest,line,ip,xf(n),temp,nohelp)
      if(buperr.ne.0) goto 1000
@@ -84,7 +84,7 @@ program octq1
      endif
   enddo
 ! -------------------------------------
-! set conditions
+! set conditions in OC for the calculation
   n1=0
   n2=0
   condition='T'
@@ -100,6 +100,15 @@ program octq1
      condition='X'
      call tqsetc(condition,n,n2,xf(n),cnum(3+n),ceq)
      if(gx%bmperr.ne.0) goto 1000
+  enddo
+!
+! set reference state for the elements (components) to BCC at current T
+  do n=1,nel
+     phcsname='BCC_A2'
+     tpref(1)=-one
+     tpref(2)=1.0D5
+     call tqcref(n,phcsname,tpref,ceq)
+     if(gx%bmperr.ne.0) goto 600
   enddo
 !
 ! calculate the equilibria
@@ -118,16 +127,27 @@ program octq1
   endif
 !
 !------------------------------------------------
-! list some results
+! list some results using TQ routines
 ! amount of all phases
   statevar='NP'
   n1=-1
   n2=0
+! n3 is set to the dimension of npf
+! it is changed inside tqgetv to the number of values set
+! for this case n3 is set to the number of phase tuples
+! note that this can change if new composition set has been created
   n3=size(npf)
   call tqgetv(statevar,n1,n2,n3,npf,ceq)
   if(gx%bmperr.ne.0) goto 1000
-  write(*,505)n3,(npf(n),n=1,n3)
-505 format(/'Amount of ',i2,' phases: ',(10F7.4))
+! here n3 is the number of phase tuples!
+  write(*,502)
+502 format('Tuple index  Phase name                 Amount')
+  do n=1,n3
+     call tqgpn(n,phcsname,ceq)
+     if(gx%bmperr.ne.0) goto 600
+     write(*,505)n,phcsname,npf(n)
+505  format(i3,10x,a,2x,F7.4)
+  enddo
 !------------------------------------------------
 ! composition of stable phases
 ! NOTE that the number of phases may have changed if new composition sets
@@ -137,13 +157,14 @@ program octq1
      if(npf(n).gt.zero) then
 ! the phase is stable if it has a positive amount ... it can be stable with 0
         call tqgpn(n,phcsname,ceq)
-        write(*,510)phcsname(1:len_trim(phcsname)),npf(n)
+        if(gx%bmperr.ne.0) goto 600
+        write(*,510)trim(phcsname),npf(n)
 510     format(/'Stable phase: ',a,', amount: ',1PE12.4,', mole fractions:')
-! composition of stable phase, n2=-1 means all fractions
+! mole fractions of components in stable phase, n2=-1 means all fractions
         statevar='X'
         n2=-1
         n4=size(pxf)
-! Use phase tupe index: n
+! Use phase tuple index: n
         call tqgetv(statevar,n,n2,n4,pxf,ceq)
         if(gx%bmperr.ne.0) goto 1000
 ! write 3 fractions on each line
@@ -153,19 +174,26 @@ program octq1
   enddo phloop
 ! chemical potentials
   write(*,525)
-525 format(/'Component, mole fraction and chemical potential')
+525 format(/'Component, mole fraction,  chemical potential (SER)   BCC')
+  statevar='X'
+  n=-1
+  n2=0
+  n4=size(pxf)
+  call tqgetv(statevar,n,n2,n4,pxf,ceq)
+  if(gx%bmperr.ne.0) goto 1000
+! mus is the chemical potential relative to SER
+  statevar='MUS'
+  n4=size(mus)
+  call tqgetv(statevar,n,n2,n4,mus,ceq)
+  if(gx%bmperr.ne.0) goto 1000
+! mu is the chemival potential relative to user defined reference state
+  statevar='MU'
+  n4=size(pxf)
+  call tqgetv(statevar,n,n2,n4,mu,ceq)
+  if(gx%bmperr.ne.0) goto 1000
   do n=1,nel
-     statevar='MU'
-     n2=0
-     n4=size(pxf)
-     call tqgetv(statevar,n,n2,n4,pxf,ceq)
-     if(gx%bmperr.ne.0) goto 1000
-     mu(n)=pxf(1)
-     statevar='X'
-     call tqgetv(statevar,n,n2,n4,pxf,ceq)
-     if(gx%bmperr.ne.0) goto 1000
-     write(*,530)cnam(n)(1:2),pxf(1),mu(n)
-530  format(a,10x,F10.6,10x,1PE14.6)
+     write(*,530)cnam(n)(1:2),pxf(n),mus(n),mu(n)
+530  format(a,10x,F10.6,10x,2(1PE16.6))
   enddo
 ! for debugging also list results as OC
   call tqlr(kou,ceq)
@@ -175,7 +203,12 @@ program octq1
   write(*,*)
   ip=len(line)
   call gparcd('Any more calculations?',line,ip,1,ch1,'N',nohelp)
-  if(ch1.ne.'N') goto 100
+  if(ch1.ne.'N') then
+! set silent!
+     write(*,*)'Turning on silent mode, less output from OC'
+     call tqquiet(.TRUE.)
+     goto 100
+  endif
 ! 
 ! end of program
 1000 continue

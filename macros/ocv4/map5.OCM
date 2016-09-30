@@ -60,7 +60,7 @@ map
 plot
 x(*,mo)
 T
-title map5 fig 1
+title map 5 fig 1
 render
 
 
@@ -85,7 +85,7 @@ plot
 x(*,mo)
 T
 position bottom right
-title map5 fig 2
+title map 5 fig 2
 render
 
 
@@ -106,6 +106,7 @@ render
 plot
 
 
+title map 5 fig 4
 text 
 .47 1700 y
 
@@ -119,6 +120,7 @@ text n .1 1850 y
 plot
 
 
+title map 5 fig 5
 text
 y 
 3

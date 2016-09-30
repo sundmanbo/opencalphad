@@ -130,46 +130,46 @@ title step 8 fig 2
 plot
 n(o)
 y(gas,*)
-title step 8 fig 2
+title step 8 fig 3
 
 
 @$ At present we can only plot constiton species one by one (or all)
 plot
 n(o)
 y(gas,h2o1)
-title step 8 fig 3
+title step 8 fig 4
 
 
 
 plot
 n(o)
 y(gas,c1o1)
-title step 8 fig 4
-
-
-plot
-n(o)
-y(gas,c1o2)
 title step 8 fig 5
 
 
 plot
 n(o)
-y(gas,o2)
+y(gas,c1o2)
 title step 8 fig 6
 
 
 plot
 n(o)
-y(gas,h2)
+y(gas,o2)
 title step 8 fig 7
+
+
+plot
+n(o)
+y(gas,h2)
+title step 8 fig 8
 
 
 @$ How the H2O1 content depend on T
 plot
 T
 y(gas,h2o1)
-title step 8 fig 8
+title step 8 fig 9
 
 
 @$ ------------------------------------------------------
@@ -336,7 +336,7 @@ Y
 plot
 V
 P
-
+plot step 8 fig 10
 
 @$ A nice hyperbolic curve
 @&
@@ -347,7 +347,7 @@ V
 P
 log
 y
-
+plot step 8 fig 11
 
 @$
 @$===============================================================

@@ -1938,17 +1938,26 @@ contains
           call set_input_amounts(cline,last,ceq)
 !-------------------------
        case(16) ! SET VERBOSE
-! This toggles verbose for all commands.  If on turn it off
-          if(btest(globaldata%status,GSVERBOSE)) then
-             globaldata%status=ibclr(globaldata%status,GSVERBOSE)
+! This toggles verbose for all commands.
+! it is always turned of fwhen a command is finished ...
+!          write(kou,3603)'on/off',globaldata%status,GSVERBOSE
+          if(btest(globaldata%status,GSSILENT)) then
+! turn off VERBOSE and turn on SILENT
+!             globaldata%status=ibclr(globaldata%status,GSVERBOSE)
+             globaldata%status=ibclr(globaldata%status,GSSILENT)
+             write(kou,3603)'off',globaldata%status
           else
-             globaldata%status=ibset(globaldata%status,GSVERBOSE)
+! turn on VERBOSE
+!             globaldata%status=ibset(globaldata%status,GSVERBOSE)
+             globaldata%status=ibset(globaldata%status,GSSILENT)
+             write(kou,3603)'on',globaldata%status,GSSILENT
           endif
-          if(ocv()) then
-             write(kou,*)'Verbose mode on'
-          else
-             write(kou,*)'Verbose mode off'
-          endif
+3603      format('Silent is turned ',a,2x,z8,i5)
+!          if(ocv()) then
+!             write(kou,*)'Verbose mode on'
+!          else
+!             write(kou,*)'Verbose mode off'
+!          endif
 !-------------------------
 ! the current set of condition sill be used as start equilibrium for map/step
 ! Calculate the equilibrium and ask for a direction.
@@ -3348,17 +3357,17 @@ contains
        write(kou,15010)linkdate
 15010  format(/'This is OpenCalphad (OC), a free software for ',&
             'thermodynamic calculations'/&
-            'described by B Sundman, U R Kattner, M Palumbo and S G Fries,'/&
-            'Integrating Mat and Manufact Innov (2015) 4:1 and'/&
-            'B Sundman, X-G Lu and H Ohtani, Comp Mat Sci, Vol 101 ',&
-            '(2015) 127-137 and'/'B Sundman et al. Comp Mat Sci, Vol 125 '&
-            '(2016) 188-196'//&
+            'described by B Sundman, U R Kattner, M Palumbo and S G Fries, ',&
+            'Integrating'/'Materials and Manu Innov (2015) 4:1 and ',&
+            'B Sundman, X-G Lu and H Ohtani,'/'Comp Mat Sci, Vol 101 ',&
+            '(2015) 127-137 and B Sundman et al., Comp Mat Sci, '/&
+            'Vol 125 (2016) 188-196'//&
             'It is available for download at http://www.opencalphad.org or'/&
             'the sundmanbo/opencalphad repository at http://www.github.com'//&
             'This software is protected by the GNU General Public License'/&
             'You may freely distribute copies as long as you also provide ',&
-            'the source code'/' and use the GNU GPL license also for your own'/&
-            'additions and modifications.'//&
+            'the source code'/'and use the GNU GPL license also for your own',&
+            ' additions and modifications.'//&
             'The software is provided "as is" without any warranty of any ',&
             'kind, either'/'expressed or implied.  ',&
             'The full license text is provided with the software'/&

@@ -187,7 +187,8 @@ CONTAINS
     call cpu_time(finish2)
 1000 continue
     if(gx%bmperr.eq.0) then
-       write(*,1010)meqrec%noofits,finish2-starting,endoftime-starttid
+       if(.not.btest(globaldata%status,GSSILENT)) &
+            write(*,1010)meqrec%noofits,finish2-starting,endoftime-starttid
 1010   format('Equilibrium calculation ',i4' its, ',&
             1pe12.4,' s and ',i7,' clockcycles')
 ! Here we have now an equilibrium calculated.  Do a cleanup of the structure
@@ -300,6 +301,8 @@ CONTAINS
     double precision fixpham(maxel),sumnp
     character statevar*40,encoded*60,name*24
 !
+    if(btest(globaldata%status,GSSILENT)) &
+         meqrec%status=ibset(meqrec%status,MMQUIET)
     if(ocv()) write(*,*)"Entering calceq7",mode
     errout=0
 ! clear bit that start values has not been calculated

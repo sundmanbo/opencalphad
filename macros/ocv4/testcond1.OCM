@@ -342,8 +342,19 @@ cal sym *
 
 cal ph fcc ,,,,,
 
+l sym
+
 cal sym *
 
+@$ The value of a parameter identifier can also be obtained directly
+@$ woth list model-para-val
+@$ DO NOT FORGET THE PHASE!
+
+list model-para-val
+mq&c(fcc)
+
+
+@$
 @&
 @$ There is also a command to calculate the potential derivative
 @$ matrix (note it is symmetrical) which is needed to convert

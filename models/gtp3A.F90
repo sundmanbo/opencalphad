@@ -759,6 +759,9 @@
    integer phcsx
 !\end{verbatim} %+
    integer iph,ics
+   iph=0
+   ics=0
+   phcsx=0
    call find_phasex_by_name(name,phcsx,iph,ics)
 1000 continue
    return
@@ -776,6 +779,7 @@
    integer iph,ics
 !\end{verbatim} %+
    integer phcsx
+   phcsx=0
    call find_phasex_by_name(name,phcsx,iph,ics)
 1000 continue
    return
@@ -810,22 +814,24 @@ end function find_phasetuple_by_indices
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim} %-
- subroutine find_phasex_by_name(name,phcsx,iph,ics)
+ subroutine find_phasex_by_name(name,phcsx,iph,zcs)
 ! finds a phase with name "name", returns index and tuplet of phase.
 ! All phases checked and error return if name is ambiguous
 ! handles composition sets either with prefix/suffix or #digit or both
 ! if no # check all composition sets for prefix/suffix
+! phcsx, iph and zcs are values to return!
    implicit none
    character name*(*)
-   integer phcsx,iph,ics
+   integer phcsx,iph,zcs
 !\end{verbatim} %+
    character name1*36,csname*36,name2*24,name3*24
    TYPE(gtp_phase_varres), pointer :: csrec
-   integer kp,kcs,lokph,jcs,lokcs,first1,fcs,lcs,lenam
+   integer kp,kcs,lokph,jcs,lokcs,first1,fcs,lcs,ics,lenam
 ! convert to upper case locally
    name1=name
    call capson(name1)
-!   write(*,*)'3A find phase: ',name1
+!   ics=zcs
+!   write(*,*)'3A find_phasex_by_name: ',name1,ics
 ! composition set as #digit
    kp=index(name1,'#')
    if(kp.gt.0) then
@@ -841,7 +847,7 @@ end function find_phasetuple_by_indices
       ics=1
       kcs=0
    endif
-!   write(*,17)name(1:len_trim(name)),ics,kcs,kp
+!   write(*,17)trim(name),ics,kcs,kp,noofph
 17 format('3A find_phase 3: ',a,2x,10i4)
    first1=0
    loop1: do lokph=1,noofph
@@ -921,7 +927,8 @@ end function find_phasetuple_by_indices
    endif
 300 continue
    iph=phlista(first1)%alphaindex
-! ics set above
+! ics set above, return it in zcs
+   zcs=ics
    phcsx=firsteq%phase_varres(phlista(first1)%linktocs(ics))%phtupx
    gx%bmperr=0
 1000 continue
