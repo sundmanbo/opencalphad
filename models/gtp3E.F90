@@ -3511,12 +3511,14 @@
       havedisorder=.FALSE.
       if(name2(1:6).eq.'IDEAL ') then
 ! ideal model
+         stoik(1)=one
          modelcode=0
          nsl=1
       elseif(name2(1:3).eq.'SUB') then
 ! substitutional model
          modelcode=1
          nsl=1
+         stoik(1)=one
          if(name2(4:7).eq.'RKM ') then
             excessmodel=1
          elseif(name2(4:6).eq.'PK ') then
@@ -3592,9 +3594,12 @@
 ! ionic liquid model
          modelcode=3
          ionliq=.TRUE.
+         stoik(1)=one
+         stoik(2)=one
       elseif(name2(1:5).eq.'KFGL ') then
 ! Kaphor-Frohberg-Gye-Lehman IRSID slag model
          modelcode=4
+         stoik(1)=one
       else
          write(*,*)'Unknown model for phase: ',trim(name1)
          gx%bmperr=4399; goto 1000
