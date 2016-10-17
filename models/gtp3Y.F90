@@ -84,6 +84,9 @@
    endif
    nrel=noel()
    sum=zero
+! problem that extract_massbalcond did not object to condition x(fcc,a)=
+!   write(*,7)(xknown(i),i=1,nrel)
+!7  format('3Y why?: ',9F8.4)
    do i=1,nrel
       if(xknown(i).le.zero .or. xknown(i).ge.one) then
          if(.not.btest(globaldata%status,GSNOTELCOMP)) then

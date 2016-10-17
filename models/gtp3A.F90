@@ -1,4 +1,3 @@
-
 !
 ! gtp3A.F90 included in gtp3.F90
 !
@@ -291,7 +290,7 @@
    propid(npid)%status=ibset(propid(npid)%status,IDCONSUFFIX)
 !.......................................
 ! IMPORTRANT: When adding more parameter identifiers one should never
-! use a name ending in D as that would be taken as a "disordered"
+! NEVER USE A NAME ENDING IN D as that would be taken as a "disordered"
 ! The number of defined properties, should be less than maxprop (=50?)
 ! IMPORTANT: In the addition records one must use the parameter identifier
 ! to extract the calculated composition dependent values
@@ -1299,7 +1298,7 @@ end function find_phasetuple_by_indices
    else
       name=splista(ceq%complist(icomp)%splink)%symbol
       if(buperr.ne.0) then
-         write(*,*)'gcn buperr: ',buperr
+         write(*,*)'3A gcn buperr: ',trim(name),buperr
          gx%bmperr=buperr
       endif
    endif

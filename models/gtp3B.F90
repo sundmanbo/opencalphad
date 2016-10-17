@@ -4185,6 +4185,7 @@
          if(.not.allocated(ceq%eqextra)) then
             allocate(ceq%eqextra(3))
             ceq%eqextra(2)=' '
+            ceq%eqextra(3)=' '
          endif
          ceq%eqextra(1)=eqlin(jval)(last:)
 !---------------------------
@@ -4192,6 +4193,7 @@
          if(.not.allocated(ceq%eqextra)) then
             allocate(ceq%eqextra(3))
             ceq%eqextra(1)=' '
+            ceq%eqextra(3)=' '
          endif
          ceq%eqextra(2)=eqlin(jval)(last:)
 !---------------------------
@@ -4243,6 +4245,8 @@
 ! this is a special plotdata file for calculated values, store in eqextra(3)
             if(.not.allocated(ceq%eqextra)) then
                allocate(ceq%eqextra(3))
+               ceq%eqextra(1)=' '
+               ceq%eqextra(2)=' '
             endif
             ceq%eqextra(3)=' 0 '//eqlin(jval)(last:)
 !            write(*,*)'eqextra(3): ',trim(ceq%eqextra(3))

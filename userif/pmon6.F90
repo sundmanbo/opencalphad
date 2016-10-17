@@ -217,7 +217,7 @@ contains
 ! subsubcommands to LIST DATA
     character (len=16), dimension(nlform) :: llform=&
         ['SCREEN          ','TDB             ','MACRO           ',&
-         'LATEX           ','ODB             ','                ']
+         'LATEX           ','PDB             ','                ']
 !-------------------
 ! subsubcommands to LIST PHASE
     character (len=16), dimension(nclph) :: clph=&
@@ -253,7 +253,7 @@ contains
 ! subcommands to READ
     character (len=16), dimension(ncread) :: cread=&
         ['UNFORMATTED     ','TDB             ','QUIT            ',&
-         'DIRECT          ','                ','                ']
+         'DIRECT          ','PDB             ','                ']
 !-------------------
 ! subcommands to SAVE
 ! note SAVE TDB, MACRO, LATEX part of LIST DATA !!
@@ -3105,7 +3105,7 @@ contains
              write(*,*)'database file: ',trim(tdbfile)
           endif
 ! this call checks the file exists and returns the elements
-          call checktdb(tdbfile,jp,ellist)
+          call checkdb(tdbfile,'.tdb',jp,ellist)
           if(gx%bmperr.ne.0) then
              write(kou,*)'No database with this name'
              goto 990
@@ -3166,11 +3166,52 @@ contains
        case(4) ! read direct
           write(*,*)'Read direct not implemented yet'
 !-----------------------------------------------------------
-       case(5) ! 
-          goto 100
+       case(5) ! read PDB 
+          if(tdbfile(1:1).ne.' ') then
+             text=tdbfile
+             call gparcd('File name: ',cline,last,1,tdbfile,text,q1help)
+          else
+             call gparc('File name: ',cline,last,1,tdbfile,' ',q1help)
+          endif
+! this call checks the file exists and returns the elements
+          call checkdb(tdbfile,'.pdb',jp,ellist)
+          if(gx%bmperr.ne.0) then
+             write(kou,*)'No PDB database with this name'
+             goto 990
+          elseif(jp.eq.0) then
+             write(Kou,*)'No elements in the database'
+          endif
+          write(kou,8203)jp,(ellist(kl),kl=1,jp)
+          write(kou,8205)
+          jp=1
+          selection='Select elements /all/:'
+8217      continue
+          call gparc(selection,cline,last,1,ellist(jp),' ',q1help)
+          if(ellist(jp).ne.'  ') then
+             call capson(ellist(jp))
+             jp=jp+1
+             if(jp.gt.size(ellist)) then
+                write(kou,*)'Max number of elements selected: ',size(ellist)
+             else
+                selection='Select elements /no more/:'
+                goto 8217
+             endif
+          else
+             jp=jp-1
+          endif
+          if(jp.eq.0) then
+             write(kou,*)'All elements selected'
+          else
+             write(*,8220)jp,(ellist(iel),iel=1,jp)
+          endif
+! later we can add possible options
+          name1=' '
+          call readpdb(tdbfile,jp,ellist,name1)
+!          goto 100
 !-----------------------------------------------------------
        case(6) ! read ??
-          goto 100
+          write(*,*)'Nothing yet'
+!          goto 100
        end SELECT
 !=================================================================
 ! save in various formats (NOT TDB, MACRO and LATEX, use LIST DATA)

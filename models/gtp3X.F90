@@ -2990,6 +2990,10 @@
    integer nox,now,nc,jl,iref,iunit,ip,idf,ie,more,numberest,istv,localerr
    logical allmassbal
 !
+   do ie=1,noel()
+      xknown(ie)=zero
+   enddo
+!   write(*,*)'3X in extract_massbal'
    ani=zero; abi=zero; xset=zero; wset=zero
    antot=zero; abtot=zero
    xsum=zero; wsum=zero
@@ -3115,6 +3119,7 @@
 ! some conditions are not massbalance
       localerr=4151
    endif
+!   write(*,*)'3X extract_massbal: ',localerr
 ! We have correct number of conditions but if localerr set we do not have
 ! all as massbalance conditions.  Return with that code set
    if(localerr.ne.0) then

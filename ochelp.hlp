@@ -104,15 +104,15 @@ other documentation.
 \section{Some general features}
 
 The command monitor has a menu of command and each of these usually
-has sub-menus and finally some questions may be asked like phase names,
-a value or an expression.  At any level the user should be able to
-type a ? and get some help, usually an extract from this manual, a
-menu or possible answers.
+has sub-menus and finally some questions may be asked like phase
+names, a value or an expression.  At any level the user should be able
+to type a ? and get some help, usually an extract from this manual,
+sometimes just a menu or examples of answers.
 
 The different parts of OC are documented separately for each module:
 models (GTP), minimizer (HMS), step/map/plot routines (SMP) and the
-application software interface (OCTQ).  It uses a free numerics
-package developed by H L Lukas and a free optimizing routine, LMDIF,
+application software interface (OCASI).  It uses the free numerics
+package LAPACK and BLAS and a free least square routine, LMDIF,
 developed at Argonne 1980 for assessments.  For graphics the GNUPLOT
 program is used.
 
@@ -120,8 +120,9 @@ program is used.
 
 There are many symbols and names used in this package.  A symbol or
 name MUST start with a letter A-Z.  It usually can contain digits and
-the underscore character after the initial letter.  Some special
-symbols are also used:
+the underscore character after the initial letter.  All names are case
+insensitive, i.e. fe, FE, fE and Fe is the same.  Some special symbols
+are also used:
 
 \begin{itemize}
 \item /- is used to denote the electron. /+ can be used for a positive charge.
@@ -131,6 +132,20 @@ sublattice after a constituent name.
   constituent for the parameter, like for mobilities, the mobility
   of Fe in the BCC phase is denoted MQ\&FE(BCC).
 \end{itemize}
+
+A name of an element is one or two characters, a species maximum 24
+characters (note that a species name does not have to be its
+stoichiometric formula).  A phase name is 24 characters but can also
+have a pre- and suffix 4 characters long and possibly a composition
+set number after a hash symbol, \#.
+
+State variable symbols and TP-fun symbols can be 16 characters long.
+TP-funs are expressions used to describe the $T$ and $P$ dependence of
+model parameters.
+
+For user input it is possible to use abbreviations of names but one
+must be careful with names that have the same abbreviation and avoid
+names that are abbreviations of another name!
 
 \subsection{Parameters}
 
@@ -208,12 +223,13 @@ A constituent array specifies one or more constituent in each
 sublattice.  A constituent must be entered as a species with fixed
 stoichiometry.  Between constituents in different sublattices one must
 give a colon, ":", between interacting constituents in the same
-sublattice one must give a comma, ",".  A constituent array with
-exactly one constituent in each sublattice is also called an
+sublattice one must give a comma, "," or a space.  A constituent array
+with exactly one constituent in each sublattice is also called an
 ``endmember'' as it give the value for a ``compound'' with fixed
 stoichiometry.  Constituent arrays with one or more interaction
-describe the composition dependence of the property, without such
-parameter the property will vary linearly between the endmembers.
+constituents describe the composition dependence of the property.
+Without such parameters the property will vary linearly between the
+endmembers.
 
 If there are no sublattices, like in the gas, one just give the phase
 and the constituent
@@ -223,21 +239,22 @@ G(gas,C1O2)
 If no degree is specified it is assumed to be zero.  For endmembers
 the degree must be zero but it may sometimes be useful to specify the
 zero in order to distinguish the parameter from the expression for the
-chemical potential of a component.  In the gas phase one normally
-assumes there are no interactions but it is possible to add such
-parameters.  For an fcc phase with 4 sublattice for ordering and one
-for interstitials an endmember parameter is
+calculated value of the property, like the chemical potential of a
+component.  In the gas phase one normally assumes there are no
+interactions but it is possible to add such parameters.  For an fcc
+phase with 4 sublattice for ordering and one for interstitials an
+endmember parameter is
 
-G(fcc,AL:NI:NI:NI:VA)
+G(fcc,AL:NI:NI:NI:VA;0)
 
-This would be the Gibbs energy of an Al1NI3 fcc ordered compound.
+This would be the Gibbs energy of an fcc Al1NI3 ordered compound.
 
 An interaction between vacancies and carbon in the austenite is
 
 G(fcc,Fe:C,VA;0)
 
-For interaction one should always specify a degree but also in this
-case an omitted degree is interpreted as zero.
+For an interaction parameter one should always specify a degree but
+also in this case an omitted degree is interpreted as zero.
 
 \subsubsection{Expression and bibliographic reference}
 
@@ -269,7 +286,7 @@ temperatures above the breakpoint.
 
 After the high temperature limit the letter ``N'' must be given
 followed by a bibliographic reference for the parameter.  Use the
-commands AMEND or ENTER BIBLIOGRAPIC to give the reference.
+commands AMEND or ENTER BIBLIOGRAPHIC to give the reference.
 
 {\bf The database manager should always add a bibliographic reference
   even if it is just his or her name and a date.  This avoids people
@@ -289,6 +306,31 @@ or arguments to LN and EXP.  A valid expression is
 
 where 91Din is the reference to the SGTE unary database.
 
+\subsection{The reference state of a component}
+
+The values of most thermodynamic data must have a welldefined
+reference state.  By default the reference state for the components is
+SER (Stable Element Reference) which is the stable state of the
+element at 298.15~K and 1~bar.  (NOTE: the default reference state is
+defined by the database but today almost all databases have SER as
+reference state.)
+
+For each component (also for other components than the elements) one
+can specify a phase at a given temperature and pressure as reference
+state, see section~\ref{sc:setref}.  The phase must exist for the
+component as pure.
+
+A state variable like the chemical potential, MU(O), will refer to the
+user defined reference state if set.  To obtain the value for the SER
+state one can use a suffix S, i.e. MUS(O) to obtain the chemical
+potential refered to SER.
+
+Note that the value of integral properties like Gibbs energy, $G$,
+enthalpy, $H$, etc. will always be given relative SER unless all
+components have the same phase as reference state.  Thus in order to
+have the enthalpy of mixing of a phase all components must have that
+phase as reference state.
+
 \subsection{Macro files}
 
 The macro command is very useful for preparing complex calculations
@@ -297,9 +339,11 @@ staring from a log file (created by the SET LOG command).  See the
 macros directory for examples.
 
 You can insert stops in the macro file with ``@\&'' at the beginning
-of a line.  It can be useful to inspect output.  The macro continues
-after pressing RETURN key.  If you plot the program will automatically
-stop and you must use the mouse to click on the figure to continue.
+of a line.  This can be useful to inspect the output.  The macro
+continues after pressing the ENTER/RETURN key.  Depending on the
+graphical driver you use the program will normally pause after each
+plot and you must use the mouse to click on the graphical window to
+continue.
 
 You can insert comments in the macro file with ``@\$'' at the beginning
 of the comment line.
@@ -308,7 +352,7 @@ A macro file should be terminated with the command SET INTERACTIVE
 which gives back control to the keyboard otherwise the program will
 terminate at the end of the macro.
 
-A macro can start another macro file 5 levels deep.
+Macro files can be nested 5 levels deep.
 
 %
 % "identifier" ( "phase name" , "constituent array" ; "degree" ) "expression"
@@ -786,8 +830,9 @@ As symbols can refer to each other all symbols are normally evaluated
 whenever any symbol is calculated and this is to ensure that all
 symbol values are consisten and refer to the same equilibrium.  But in
 certain cases one wants to compare a value between two or more
-equilibra and transfer a value from one equilibrium to another.  For
-example if one has experimental data on the heat difference for a
+equilibra and transfer a value from one equilibrium to another.  
+
+For example if one has experimental data on the heat difference for a
 compound at various $T$.  In such a case the heat content at the
 reference $T$ can be stored in a symbol, which is amended with this
 command, and this symbol is then used to calculate the heat difference
@@ -1078,9 +1123,11 @@ The subcommands are:
 \subsection{{\em enter} Bibliography}
 %\subsection{ENTER Bibliography}
 
-Each parameter must have a reference.  When entering a parameter a
-reference symbol is given and with this command one can give a full
-reference text for that symbol like a published paper or report.
+Each parameter must have a bibliographic reference.  When entering a
+parameter a bibliographic reference symbol is given and with this
+command one can give a full reference text for that symbol like a
+published paper, a report or simply the reason for the value, the date
+and name of the responsible.
 
 %--------------------------------
 \subsection{{\em enter} Comment}
@@ -1257,13 +1304,13 @@ the same sublattice by a comma, ``,''.  For example
 G(FCC,FE:C,VA) is the interaction between C (carbon) and VA (vacant
 interstitial sites) in the FCC phase.
 
-The only binary excess model implemented in OC is the Redlish-Kiter
+The only binary excess model implemented in OC is the Redlish-Kister
 Muggianu
 \begin{eqnarray*}
-L_{\rm A,B} = \sum_{\nu=0}^n (y_{\rm A} - y_{\rm B})^{\nu} ~^{\nu}L_{\rm A,B}
+L_{\rm A,B} = \sum_{\nu=0}^n  ~^{\nu}L_{\rm A,B} (y_{\rm A} - y_{\rm B})^{\nu}
 \end{eqnarray*}
-and the degree, $\nu$, of the interaction parameter is specified after
-a semicolon, L(phase,A,B;$\nu$).
+where the degree, $\nu$, of the interaction parameter is specified
+after a semicolon, L(phase,A,B;$\nu$).
 
 For ternary parameters and for reciprocal parameters the Hillert model
 for composition dependence is implemented, see~\cite{07Luk}.
@@ -1417,7 +1464,7 @@ Terminate the OC software in French, Au revoir.
 Can give a list if commands or subcommands or parts of this help text.
 
 %===================================================================
-\section{HPCALC }
+\section{HPcalc }
 %\section{HPCALC }
 
 A Start the reverse polish calculator.
@@ -1681,12 +1728,19 @@ of calculated state variables can be used for plotting.
 To remove all data so a new system can be entered.  Fragile
 
 %===================================================================
-\section{OPTIMIZE}
-%\section{Plot }
+\section{Optimize}
+%\section{Optimize }
 
 The model parameters selected by SET VARIABLE\_COEFF will be varied to
 obtain the best least square fit the experimental data provided.
-The user must provide a maximum number of iterations allowed.
+
+Before this command the user must have entered the thermodynamic
+descriptions of the phases with model parameters depending on
+optimizing coefficients and the experimental data.  He must also set
+the range and weights of the experiments and which coefficents to
+vary.
+
+The user provides a maximum number of iterations allowed.
 
 %===================================================================
 \section{Plot }
@@ -2241,12 +2295,32 @@ The equilibria are assigned weight one by default.  The weight can be
 changed with the SET WEIGHT command.
 
 %--------------------------------
-\subsection{{\em set} Reference\_State}
+\subsection{{\em set} Reference\_State}\label{sc:setref}
 %\subsection{SET Reference\_State}
 
-For each component (also when not the elements) one should be able to
-specify a phase at a given temperature and pressure as reference
-state.  The phase must exist for the component as pure.
+By default the reference state for the components is SER (Stable
+Element Reference) which is the stable state of the element at
+298.15~K and 1~bar.  (NOTE: in principle SER is defined by the database
+but today almost all databases have SER as reference state.)
+
+For each component (also for other components than the elements) one
+can specify a phase at a given temperature and pressure as reference
+state.  The phase must exist for the component as pure.  Instead of a
+fixed $T$ one can give a *, indicating current $T$, if one calculates
+at different values of $T$.  Example:
+
+{\bf set reference O gas * 1e5}
+
+Note that state variables like the chemical potential, MU(O), will
+refer to the user defined reference state.  To obtain the value for
+the SER state one can use the suffix S, i.e. MUS(O) will give the
+chemical potential refered to SER.
+
+NOTE also that the value of integral properties like Gibbs energy,
+$G$, enthalpy, $H$, etc. will always be given relative SER unless all
+components have the same phase as reference state.  Thus in order to
+have the enthalpy of mixing of a phase all components must have that
+phase as reference state.
 
 %--------------------------------
 \subsection{{\em set} Scaled coefficient}

@@ -334,6 +334,8 @@ CONTAINS
 !---------------------------
 ! extract conditions
        call extract_massbalcond(tpval,xknown,antot,ceq)
+!       write(*,7)'MM xk: ',gx%bmperr,(xknown(mjj),mjj=1,noel())
+!7      format(a,i5,9(F8.4))
        if(gx%bmperr.ne.0) then
 ! error 4143 means no conditions, 4144 wrong number of conditions
           if(gx%bmperr.eq.4143 .or. gx%bmperr.eq.4144) then
@@ -550,15 +552,16 @@ CONTAINS
 ! with only massbalance condition make a global grid minimization
 !       call global_gridmin(1,tpval,xknown,meqrec%nv,&
 !            meqrec%iphl,meqrec%icsl,meqrec%aphl,nyphl,yarr,vmu,idum,ceq)
+!       write(*,*)'MM calling global gridmin'
        call global_gridmin(1,tpval,xknown,meqrec%nv,&
             meqrec%iphl,meqrec%icsl,meqrec%aphl,nyphl,vmu,ceq)
        if(ocv()) write(*,*)'back from gridmin'
        if(gx%bmperr.ne.0) then
 ! if global fails reset error code and try a default start set of phases
-          if(gx%bmperr.ge.4000 .and. gx%bmperr.le.nooferm) then
-             write(*,102)gx%bmperr,trim(bmperrmess(gx%bmperr))
-102          format('Error ',i5,': ',a/&
-                  'Minimizer tries using current or default start values')
+!          if(gx%bmperr.ge.4000 .and. gx%bmperr.le.nooferm) then
+!             write(*,102)gx%bmperr,trim(bmperrmess(gx%bmperr))
+!102          format('Error ',i5,': ',a/&
+!                  'Minimizer tries using current or default start values')
 !  write(kou,102)gx%bmperr,bmperrmess(gx%bmperr)
 !             write(kou,102)bmperrmess(gx%bmperr)
 !102          format(a/'Current constitution used as start values.')
@@ -568,9 +571,10 @@ CONTAINS
 !                  'Current constitution used as start values.')
 !          endif
 ! no initial gridmin, make a gridtest at the end (not implemented ...)
-          else
-             write(*,*)'Grid minimizer cannot be used'
-          endif
+!          else
+!             write(*,*)'Grid minimizer cannot be used with these conditions'
+!          endif
+! set that grid minimizer is called after the equilibrium calculation
           gridtest=.true.
 ! problems using gridmin
 ! use current constitution or set default constitution (does not work well)

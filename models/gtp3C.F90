@@ -1202,8 +1202,8 @@
          elseif(ftyp.eq.4) then
             fil(ipos:)='.tex'
          elseif(ftyp.eq.5) then
-! TDB file a la Open Calphad
-            fil(ipos:)='.ODB'
+! PDB file
+            fil(ipos:)='.PDB'
          endif
       endif
 ! check if file exists ... overwriting not allowed ...
@@ -1303,7 +1303,8 @@
       write(kou,*)'LaTeX not implemented yet'
 !--------------------------------------------------------------
    case(5) ! ftyp=5 Open Calphad TDB format
-      write(kou,*)'ODB not implemented yet'
+!      write(kou,*)'PDB not implemented yet'
+      call write_pdbformat(unit)
    end select
 !--------------------------------------------------------------
    goto 1000
@@ -2427,7 +2428,8 @@
    character text*80,els*2
    integer element(maxel),lokel
    double precision coef(maxel),xx,pqval(2)
-   TYPE(gtp_fraction_set) :: disfra
+!   TYPE(gtp_fraction_set) :: disfra
+   TYPE(gtp_fraction_set), pointer :: disfra
    integer nsl,lokcs,ie,ll,jsp,nrel,ik,je,more,is,ip
 !
    noelin1=.FALSE.
@@ -2436,8 +2438,12 @@
    if(parlist.eq.1) then
       nsl=phlista(lokph)%noofsubl
    else
+! for disordered fraction set always use 1 as factor ??
+! How about bcc with C? the second sublattice should count ...
+! CONCLUSION: If disordered fraction set has 2 sublattices calculate
 ! should disfra be a pointer?? It seems to work like this ....
-      disfra=firsteq%phase_varres(lokcs)%disfra
+!      disfra=firsteq%phase_varres(lokcs)%disfra      
+      disfra=>firsteq%phase_varres(lokcs)%disfra
       nsl=disfra%ndd
    endif
    ie=0
@@ -2471,7 +2477,12 @@
                     splista(jsp)%stoichiometry(ik)
 !                    phlista(lokph)%sites(ll)*splista(jsp)%stoichiometry(ik)
             else
-               coef(ie)=disfra%dsites(ll)*splista(jsp)%stoichiometry(ik)
+! if a single disordered sublattice ignore the number of sites !!!
+               if(nsl.eq.1) then
+                  coef(ie)=splista(jsp)%stoichiometry(ik)
+               else
+                  coef(ie)=disfra%dsites(ll)*splista(jsp)%stoichiometry(ik)
+               endif
             endif
 200          continue
          enddo elem

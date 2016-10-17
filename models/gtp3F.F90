@@ -124,9 +124,10 @@
       call state_variable_val(svr,value,ceq)
       if(gx%bmperr.ne.0) goto 1000
       ip=1
+      encoded=' '
       call encode_state_variable(encoded,ip,svr,ceq)
       if(gx%bmperr.ne.0) then
-         write(*,*)'3F encode error: ',gx%bmperr
+         write(*,*)'3F encode error: ',trim(encoded),gx%bmperr
          gx%bmperr=0; encoded='dummy'
       endif
    endif

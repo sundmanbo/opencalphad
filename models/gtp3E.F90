@@ -580,7 +580,7 @@
       write(*,*)'3E calling wrtfun'
       call wrtfun(text,ipos,svflista(lrot)%linkpnode,symbols)
       if(pfnerr.ne.0) then
-         write(kou,*)'Putfun error listing funtion ',ks,pfnerr
+         write(kou,*)'Putfun error listing function ',ks,pfnerr
          gx%bmperr=4142; goto 1000
       endif
       write(lut)ipos-1
@@ -1719,7 +1719,7 @@
    implicit none
    character text*(*),keyword*(*),key*64
    integer nextc
-!\end{verbatim}
+!\end{verbatim} %+
    character word*64
    logical ok
    integer kl,ks,kt
@@ -1757,7 +1757,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
-!\begin{verbatim}
+!\begin{verbatim} %-
  integer function istdbkeyword(text,nextc)
 ! compare a text with a given keyword. Abbreviations allowed (not within _)
 ! but the keyword and abbreviation must be surrounded by spaces
@@ -1812,6 +1812,66 @@
    istdbkeyword=j
    return
  end function istdbkeyword
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim} %-
+ integer function ispdbkeyword(text,nextc)
+! compare a text with a given keyword. Abbreviations allowed (not within _)
+! but the keyword and abbreviation must be surrounded by spaces
+! nextc set to space character in text after the (abbreviated) keyword
+   implicit none
+   character text*(*)
+   integer nextc
+!\end{verbatim} %+
+! only those currently implemented ... rest ignored
+   integer, parameter :: kwl=20
+   integer, parameter :: nkw=16
+   character (len=kwl), dimension(nkw), parameter :: keyword=&
+        ['ELEMENT             ','SPECIES             ',&
+         'PHASE               ','CONSTITUENT         ',&
+         'FUNCTION            ','PARAMETER           ',&
+         'SPECIAL             ','BIBLIOGRAPHY        ',&
+         'TABLE_OF_MODELS     ','TABLE_OF_IDENTIFIERS',&
+         'DATABASE_INFORMATION','ASSESSED_SYSTEMS    ',&
+         'DEFAULTS            ','VERSION             ',&
+         'INCLUDE_FILE        ','CHECKSUM            ']
+!   
+   character word*64
+   integer j,ks,kt
+! extract the first word of text
+   ks=1
+   if(eolch(text,ks)) then
+! if empty line, just exit
+      j=0; goto 1000
+   else
+! find the space after the first word
+      kt=ks+index(text(ks:),' ')-1
+! the abbreviation of the keyword must be at least 3 character, max kwl
+      if(kt-ks.lt.3 .or. kt-ks.ge.kwl) then
+         j=0; goto 1000
+      endif
+   endif
+   word=text(ks:kt)
+   kt=kt-ks
+   call capson(word)
+! check if word is an abbreviation of a keyword
+!   write(*,*)'abbreviation: ',kt,'>',word(1:kt),'<'
+!   do j=1,10
+   do j=1,nkw
+      if(word(1:kt).eq.keyword(j)(1:kt)) goto 100
+   enddo
+   j=0
+   goto 1000
+! found keyword at start of line, set nextc to be positioned at the final space
+100 continue
+   nextc=ks+kt
+!   write(*,101)j,nextc,text(1:nextc)
+!101 format('Found keyword: ',2i3,'>',a,'<')
+1000 continue
+   ispdbkeyword=j
+   return
+ end function ispdbkeyword
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
@@ -1915,7 +1975,7 @@
    nl=nl+1
    if(len_trim(line).gt.80) then
       if(.not.silent) write(*,121)nl
-121   format(' *** Warning: line ',i5,' has characters beyong position 80,'/&
+121   format(' *** Warning: line ',i5,' has characters beyond position 80,'/&
            'some information may be lost')
    endif
 ! One should remove TAB characters !! ?? YES !!
@@ -2164,7 +2224,7 @@
 !      do while(index(longline,'!').le.0)
       if(index(longline,'!').le.0) then
          if(.not.silent) &
-              write(*,*)' Error, terminating ! not found for funtion!!',nl
+              write(*,*)' Error, terminating ! not found for function!!',nl
          gx%bmperr=4307; goto 1000
       endif
 !-------------------------------------------------------------------------
@@ -2945,23 +3005,8 @@
 ! look for next KEYWORD
    goto 100
 !--------------------------------------------------------
-!----- reading functions at the end
+!----- reading functions at the end from a TDB file
 800 continue
-!   barafun: if(onlyfun) then
-! enter only functions that are undefined
-!      if(line(2:10).eq.'FUNCTION ') then
-!      write(*,*)'Input line >',line(1:20),'<'
-!      ipp=istdbkeyword(line,nextc)
-!      if(ipp.eq.5) then
-!123456789.123456789.123456789.123456789.123456789.123456789.123456789.12345678
-! FUNCTION GHSERCR    2.98150E+02  -8856.94+157.48*T-26.908*T*LN(T)
-!         name1=line(11:18)
-! special case, error in TDB file, UN_ASS is only 6 characters
-!         if(name1(1:6).eq.'UN_ASS') then
-!            name1=line(11:16); ipp=18
-!         else
-!            ipp=20
-!         endif
    if(eolch(line,nextc)) then
       if(.not.silent) write(kou,*) &
            'Function name must be on same line as FUNCTION'
@@ -3131,19 +3176,1402 @@
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim}
- subroutine checktdb(filename,nel,selel)
-! checking a TDB file exists and return the elements
+ subroutine readpdb(filename,nel,selel,options)
+! reading data from a TDB file with selection of elements
+!-------------------------------------------------------
+! Not all TYPE_DEFS implemented
+!-------------------------------------------------------
    implicit none
    integer nel
-   character filename*(*),selel(*)*2
+   character filename*(*),selel(*)*2,options*(*)
 !\end{verbatim}
-   character line*256
+   character line*150,elsym*2,name1*24,name2*80,elsyms(10)*2
+   character longline*10000,reftext*512
+   character phtype*1,ch1*1,const(maxsp)*24,name3*24,funname*60,name4*60
+   character refx*16
+   character (len=1), dimension(20) :: typedefchar
+   integer, dimension(20) :: typedefaction
+   integer, dimension(5) :: addphasetypedef
+   double precision mass,h298,s298
+   integer, dimension(10) :: knr,endm
+! lint(1,*) is sublattice, lint(2,*) is species
+   double precision stoik(10),xsl,xxx
+   integer lint(2,3),noofphasetype,nytypedef,nextc,keyw,tdbv
+   integer typty,fractyp,lp1,lp2,ix,jph,kkk,lcs,nint,noelx
+   logical onlyfun,nophase,ionliq,notent
+   integer norew,newfun,nfail,nooftypedefs,nl,ipp,jp,jss,lrot,ip,jt
+   integer nsl,ll,kp,nr,nrr,mode,lokph,lokcs,km,nrefs,ideg,iph,ics
+! disparttc and dispartph to handle phases with disordered parts
+   integer nofunent,disparttc,dodis,jl,nd1,thisdis
+   integer excessmodel,modelcode,noofadds,noofdet,permut
+   character*24 dispartph(5),ordpartph(5)
+   integer add(10),allel
+   character modelname*72
+   integer, parameter :: nadditions=6
+   character*128, dimension(10) :: detail
+   character*12, dimension(8), parameter :: addition=&
+        ['IMAGF       ','IMAGB       ','IWMAGF      ','IWMAGB      ',&
+         'DEBYE1      ','EINSTEIN1   ','            ','            ']
+   logical warning,verbose,subord
+! set to TRUE if element present in database
+   logical, allocatable :: present(:)
+! to prevent any output
+   logical silent,havedisorder
+!  mmyfr
+! if warning is true at the end pause before listing bibliography
+!
+   warning=.FALSE.
+   silent=.FALSE.
+   verbose=.TRUE.
+!   if(btest(globaldata%status,GSSILENT)) then
+!      silent=.TRUE.
+!      write(*,*)'3E reading database silent'
+!   endif
+   write(*,*)'reading a PDB file'
+   if(.not.(index(filename,'.pdb').gt.0 &
+       .or. index(filename,'.PDB').gt.0)) then
+! no extention provided
+      filename(len_trim(filename)+1:)='.PDB'
+   endif
+   if(nel.gt.0) then
+      allocate(present(nel))
+      present=.FALSE.
+   else
+      allel=0
+      allocate(present(maxel))
+      present=.FALSE.
+   endif
+! disparttc counts the number of disordered phases to read, the
+! phase names are in dispartph(1..disparttc)
+! dodis is nonzero only when reading the disordered part of phases.
+   disparttc=0
+   dodis=0
+   open(21,file=filename,access='sequential',form='formatted',&
+        err=1010,iostat=gx%bmperr,status='old')
+   onlyfun=.FALSE.
+   tdbv=1
+   norew=0
+   newfun=0
+   nfail=0
+   nrefs=0
+   nooftypedefs=0
+! nophase set false after reading a PHASE keyword, 
+! expecting next keyword to be CONSTITUENT
+   nophase=.TRUE.
+! return here after rewind
+90  continue
+   nl=0
+! return here to look for a new keyword, end-of-file OK here
+100 continue
+   read(21,110,end=2000)line
+110 format(a)
+   nl=nl+1
+   if(len_trim(line).gt.128) then
+      write(*,121)nl
+121   format(' *** Warning: line ',i5,' has characters beyond position 128,'/&
+           'some information may be lost')
+   endif
+! look for first nonblank character
+   ipp=1
+   if(eolch(line,ipp)) goto 100
+   if(line(ipp:ipp).eq.'$') goto 100
+! replace TAB by space
+   call replacetab(line,nl)
+! debug
+!  write(*,*)'input: ',trim(line),nl
+!---------------------------------------------------------
+! handle all PDB keywords except function, 5
+120 continue
+   keyw=ispdbkeyword(line,nextc)
+!   write(*,*)'Keyword? ',trim(line),keyw,nophase
+   if(keyw.eq.0) then
+      ip=1
+      if(.not.eolch(line,ip)) then
+         if(ocv()) write(*,*)'Ignoring line: ',nl,ip,line(ip:ip+20)
+      endif
+      if(.not.onlyfun) write(*,*)' *** Ignoring unknown keyword: ',line(1:24)
+!      read(*,122)ch1
+122   format(a)
+      goto 100
+   endif
+   if(.not.nophase .and. keyw.ne.4) then
+! after a PHASE keyword one should have a CONSTITUENT
+      if(.not.silent) write(kou,*)'expeciting CONSTITUENT: ',trim(line)
+      warning=.TRUE.
+   endif
+! check there is a ! in line, otherwise read until we find an exclamation mark
+!   ip=1
+   longline=line
+   ip=len_trim(longline)+1
+   do while(index(longline,'!').le.0)
+      read(21,110,err=2200)line
+      nl=nl+1
+      if(line(1:1).ne.'$') then
+         call replacetab(line,nl)
+         longline(ip:)=line
+         ip=len_trim(longline)+1
+         if(ip.gt.len(longline)-80) then
+            if(.not.silent) write(kou,69)nl,ip,longline(1:72)
+69          format('Overflow in longline ',2i5,' for line starting:'/a)
+            gx%bmperr=4304; goto 1000
+         endif
+      endif
+   enddo
+!
+   if(onlyfun) then
+      if(keyw.eq.5) then
+!         write(*,*)'At 100: ',trim(longline)
+         goto 800
+      endif
+      goto 100
+   endif
+!
+  select case(keyw)
+! case default means keyw not understood
+   case default
+      write(*,*)'no such keyword? ',trim(longline)
+   case(1) !element ------------------------------------------------
+! ELEMENT CR   BCC_A2                    5.1996E+01  4.0500E+03  2.3560E+01!
+! SAME AS TDB
+      ip=nextc
+      if(eolch(longline,ip)) then
+         write(kou,*)'No element name after ELEMENT keyword on line ',nl
+         gx%bmperr=4305; goto 1000
+      endif
+      elsym=longline(ip:ip+1)
+      if(elsym.eq.'/-' .or. elsym.eq.'VA') goto 100
+! allow lower case in TDB file ...
+      call capson(elsym)
+      if(nel.gt.0) then
+! check if element among selected, if nel=0 accept all
+         do jt=1,nel
+            if(elsym.eq.selel(jt)) goto 76
+         enddo
+! ignore this element as not selected
+         goto 100
+      else
+         allel=allel+1
+         jt=allel
+      endif
+! mark we found a selected element
+76    continue
+      if(allocated(present)) then
+         present(jt)=.TRUE.
+      endif
+! we seem to miss the first letter of the reference state below ??
+      ip=ip+len_trim(elsym)-1
+      if(eolch(longline,ip)) then
+         name1='DUMMY'
+         mass=one
+         h298=zero
+         s298=zero
+      else
+! extract the reference phase, third argument is 1 meaning until next space
+! ix is the length of the reference phase (irrelevant here)
+! ip is updated to character after the name extracted
+         call getext(longline,ip,1,name1,' ',ix)
+! after the name should be mass, H298-H0 and S298, ignore errors
+         call getrel(longline,ip,mass)
+         if(buperr.ne.0) then
+            mass=one; buperr=0
+         endif
+         call getrel(longline,ip,h298)
+         if(buperr.ne.0) then
+            h298=zero; buperr=0
+         endif
+         call getrel(longline,ip,s298)
+         if(buperr.ne.0) then
+            s298=zero; buperr=0
+         endif
+! in OC one can have the element name in addition to its symbol
+         name2=elsym
+      endif
+      call enter_element(elsym,name2,name1,mass,h298,s298)
+      if(gx%bmperr.ne.0) goto 1000
+   case(2) !SPECIES -------------------------------------------------
+! SPECIES O3PU2                       O3PU2!
+! SAME AS TDB
+      ip=nextc
+      if(eolch(longline,ip)) then
+         if(.not.silent) write(kou,*)'Line after SPECIES keyword empty'
+         gx%bmperr=4306; goto 1000
+      endif
+      name1=longline(ip:)
+! find first space after non-space
+      jp=index(name1,' ')
+      name1(jp:)=' '
+      ip=ip+jp
+      if(eolch(longline,ip)) then
+         if(.not.silent) write(kou,*)'No stoichiometry for species: ',name1
+         warning=.TRUE.
+         goto 100
+      endif
+      name2=longline(ip:)
+      jp=index(name2,' ')
+      name2(jp:)=' '
+      call decode_stoik(name2,noelx,elsyms,stoik)
+      if(gx%bmperr.ne.0) goto 1000
+! check elements exist
+      call enter_species(name1,noelx,elsyms,stoik)
+!      write(*,*)'3E: entering species error: ',gx%bmperr
+      if(gx%bmperr.ne.0) then
+! if element not selected just skip the species
+         if(gx%bmperr.eq.4046) then
+            gx%bmperr=0; goto 100
+         else
+            if(.not.silent) write(kou,*)'Error entering species: ',name1,name2
+            goto 1000
+         endif
+      endif
+!-----------------------------------------------------------------------
+   case(5) ! function
+! all functions entered at the end at label 800
+! SAME AS TDB
+      if(index(longline,'!').le.0) then
+         write(*,*)' Error, terminating ! not found for function!!',nl
+         gx%bmperr=4307; goto 1000
+      endif
+!-------------------------------------------------------------------------
+!   elseif(line(2:7).eq.'PHASE ') then
+   case(3) ! PHASE
+!123456789.123456789.123456789.123456789.123456789.123456789.123456789.12345678
+! PHASE LIQUID MODEL_CODE ADDITION_CODE DETAIL_CODE !
+      if(nophase) then
+         nophase=.false.
+! give a warning if any selected element is not present
+         if(allocated(present)) then
+            funname=' '
+            kkk=1
+            do jt=1,max(nel,allel)
+               if(.not.present(jt)) then
+                  funname(kkk:)=selel(jt)
+                  kkk=len_trim(funname)+2
+               endif
+            enddo
+            if(kkk.gt.1) then
+               if(.not.silent) write(kou,68)funname(1:kkk)
+68             format(/' *** Warning, elements not present in database: ',a/)
+            endif
+            deallocate(present)
+         endif
+      else
+         if(.not.silent) write(kou,*) &
+              'Error, a PHASE keyword must be followed by its CONSTIT'
+         gx%bmperr=4308; goto 1000
+      endif
+      ip=nextc
+!      if(eolch(longline,ip)) then
+!         if(.not.silent) write(kou,*)'line after PHASE empty'
+!         goto 100
+!      endif
+! this extracts the phase name from position ip terminated by a space
+! ix is the length of the phase name, ip is updated to position after the name
+! note getext increments ip by 1 before extracting the name!
+      call getext(longline,ip,1,name1,' ',ix)
+      if(name1(1:1).eq.' ') then
+         write(kou,*)'Missing phase name after PHASE keyword'
+         gx%bmperr=4399; goto 1000
+      endif
+! convert phase name to upper case
+      call capson(name1)
+! phytype was used in TDB to specify gas and liquid, not used here
+      phtype=' '
+!      noofphasetype=0
+!-----------------------------------------------
+! extract phase model codes like CEF3D(10.0 4.0 16.0)
+! additions and details ...
+! NEED to modify getext to read up to )
+      call getext(longline,ip,1,name2,' ',ix)
+      if(name2(1:1).eq.' ') then
+         write(kou,*)'Missing phase model'
+         gx%bmperr=4399; goto 1000
+      endif
+      call capson(name2)
+      ix=index(name2,'(')
+      if(ix.gt.0) then
+         modelname=name2
+       else
+         modelname=name2
+       endif
+! if name2 contains a ( but no ) append that part ...
+      if(index(name2,'(').gt.0) then
+         if(index(name2,')').eq.0) then
+            jp=index(longline(ip:),')')
+!      write(*,178)'CEFx: ',ip,jp,longline(ip:ip+jp)
+            name2(len_trim(name2)+1:)=longline(ip:ip+jp)
+!      write(*,178)'CEFy: ',trim(name2)
+            ip=ip+jp
+         endif
+      endif
+! known models: SUBxxx CEFxxx I2SL 
+! check model is known
+      thisdis=0
+      permut=0
+      ionliq=.FALSE.
+      havedisorder=.FALSE.
+      if(name2(1:6).eq.'IDEAL ') then
+! ideal model
+         modelcode=0
+         nsl=1
+      elseif(name2(1:3).eq.'SUB') then
+! substitutional model
+         modelcode=1
+         nsl=1
+         if(name2(4:7).eq.'RKM ') then
+            excessmodel=1
+         elseif(name2(4:6).eq.'PK ') then
+            excessmodel=2
+         elseif(name2(4:7).eq.'MIX ') then
+            excessmodel=3
+         else
+            write(*,*)'Unknown model for ',trim(name1),': ',trim(name2)
+            gx%bmperr=4399; goto 1000
+         endif
+      elseif(name2(1:3).eq.'CEF') then
+! CEF model, the 4th letter is the number of sublattices
+         modelcode=2
+         nsl=ichar(name2(4:4))-ichar('0')
+         if(nsl.lt.1 .or. nsl.gt.9) then
+            write(*,*)'Illegal number of sublattices for phase: ',trim(name1)
+            gx%bmperr=4399; goto 1000
+         endif
+         jp=5
+         if(name2(5:5).eq.'D') then
+! there can be a disordered part and ordered part should be subtracted
+            thisdis=1
+            jp=6
+            havedisorder=.TRUE.
+            subord=.TRUE.
+         elseif(name2(5:5).eq.'N') then
+! there can be a disordered part and the ordered part should NOT be subtracted
+! like for SIGMA etc
+            thisdis=1
+            jp=6
+            havedisorder=.TRUE.
+            subord=.FALSE.
+         elseif(nsl.ge.4) then
+! >=4 sublattice models can have permutations
+            if(name2(5:5).eq.'F') then
+               permut=1
+            elseif(name2(5:5).eq.'B') then
+               permut=2
+            endif
+            if(permut.gt.0) then
+               if(name2(6:6).eq.'D') then
+                  havedisorder=.TRUE.
+                  subord=.TRUE.
+                  jp=7
+               else
+                  jp=6
+               endif
+            else
+               jp=5
+            endif
+         endif
+! here jp should be at the position of (
+         if(name2(jp:jp).ne.'(') then
+            write(*,*)'Missing ( after CEFj ',trim(name1),': ',trim(name2),jp
+            gx%bmperr=4399; goto 1000
+         else
+            jp=jp+1
+!           write(*,181)'CEF: ',nsl,jp,trim(name2)
+181         format(a,2i3,1x,a)
+            stoik=zero
+            do ll=1,nsl
+               call getrel(name2,jp,stoik(ll))
+               if(buperr.ne.0) then
+                   write(*,*)'Site ratio wrong: ',trim(name1),ll,buperr
+                   gx%bmperr=4399; goto 1000
+               endif
+            enddo
+! maybe there should be a check that ) is the next character?? Can be a space?
+!            write(*,182)'Sites: ',nsl,(stoik(ll),ll=1,nsl)
+182         format(a,i2,9(1pE12.4))
+         endif
+      elseif(name2(1:5).eq.'I2SL ') then
+! ionic liquid model
+         modelcode=3
+         ionliq=.TRUE.
+      elseif(name2(1:5).eq.'KFGL ') then
+! Kaphor-Frohberg-Gye-Lehman IRSID slag model
+         modelcode=4
+      else
+         write(*,*)'Unknown model for phase: ',trim(name1)
+         gx%bmperr=4399; goto 1000
+      endif
+! additions (or details), there can be none or several
+      noofadds=0
+      noofdet=0
+180   continue
+!      write(*,*)'phase: ',ip,trim(line)
+      call getext(longline,ip,1,name2,' ',ix)
+! if name2 contains a ( but no ) append that part ...
+! here detail can be complicated with internal ( ... ) ....
+      if(index(name2,'(').gt.0) then
+         if(index(name2,')').eq.0) then
+            jp=index(longline(ip:),')')
+            name2(len_trim(name2)+1:)=longline(ip:ip+jp)
+            ip=ip+jp
+         endif
+      endif
+      if(name2(1:1).ne.' ') then
+! additions are IMAGF, IMAGB, IWMAGF, IWMAGB, DEBYE1, EINSTEIN1
+         add1: do jp=1,nadditions
+            if(name2(1:12).eq.addition(jp)) then
+               noofadds=noofadds+1
+               add(noofadds)=jp
+               goto 180
+            endif
+         enddo add1
+! details will be handled later, save the detail text
+         if(name2(1:6).eq.'DETAIL') then
+            noofdet=noofdet+1
+            detail(noofdet)=name2
+         endif
+      endif
+!---------------------------------------------------------------------
+! The constituent line must follow PHASE before any new phase
+   case(4) !    CONSTITUENT LIQUID:L :CR,FE,MO :  !
+! the phase must have been defined
+      if(nophase) then
+         if(.not.silent) write(kou,*) &
+              'A CONSTITUENT keyword not directly preceeded by PHASE!'
+         gx%bmperr=4308; goto 1000
+      endif
+      nophase=.true.
+      condis1: if(dodis.eq.1) then
+         if(thisdis.eq.0) goto 100
+! we skip the constituent line and go directly to create disordered fractions
+         goto 395
+      elseif(disparttc.gt.0 .and. thisdis.lt.0) then
+! this is a disordered part, skip
+         goto 100
+      endif condis1
+!360    continue
+      jp=len_trim(longline)
+!      write(*,*)'readpdb gas1: ',nl,jp,longline(1:jp)
+! eliminate all after the exclamation mark
+!      longline(jp+1:)=' '
+! 
+      ip=index(longline,' :')+2
+!      write(*,*)'readpdb gas2: ',jp,longline(1:jp)
+      ll=0
+      nr=0
+      nrr=0
+!      write(*,*)'readpdb 3C: ',ll,nr,nsl,longline(ip:jp)
+! mode=1 indicates to getname that / + - are allowed in species names
+      mode=1
+370   continue
+      if(ll.ge.1) then
+         knr(ll)=nr
+         if(nr.le.0) then
+            if(ocv()) then
+               write(*,*)'Skipping phase due to missing constituents: ',name1
+!              write(*,378)name1,ll
+378            format('Phase ',a,' has no constituents in sublattice ',i2)
+! Not a fatal error when elements have been selected but skip this phase
+            endif
+            goto 100
+         endif
+      endif
+      ll=ll+1
+!      write(*,*)'start sublat ',ll,nsl,nr,ip
+      if(ll.gt.nsl) goto 390
+      nr=0
+380   continue
+      if(eolch(longline,ip)) then
+         if(.not.silent) write(kou,*)'Error extracting constituents 1'
+         gx%bmperr=4309; goto 1000
+      endif
+      nr=nr+1
+      nrr=nrr+1
+!      write(*,379)'readpdb 3CXX: ',ip,nr,longline(ip:ip+10)
+379   format(a,2i4,' >',a,'< >',a,'< >',a,'<')
+      call getname(longline,ip,name3,mode,ch1)
+!      write(*,379)'readpdb 3CY: ',ip,nr,longline(ip:ip+10),name3,ch1
+      if(buperr.ne.0) then
+!         write(*,381)'readpdb 3E: ',ll,nr,longline(1:ip+5),ip,name3
+381      format(a,2i4,' "',a,'" ',i5,1x,a,'"',a)
+         gx%bmperr=buperr; goto 1000
+      endif
+!      write(*,381)'readpdb 3E: ',ll,nr,longline(1:ip+5),ip,name3,ch1
+      const(nrr)=name3
+! bypass any "major" indicator %
+      if(ch1.eq.'%') ip=ip+1
+      if(eolch(longline,ip)) then
+!         if(.not.silent) write(kou,*)'Error extracting constituents 2'
+         gx%bmperr=4309; goto 1000
+      endif
+! check that const(nrr) among the selected elements ...
+!      write(*,*)'Testing constituent: ',name3,nr
+      call find_species_record_noabbr(name3,lp1)
+      if(gx%bmperr.ne.0) then
+! this species is not present, not a fatal error, skip it and continue
+!         write(*,*)'Skipping constituent: ',name3
+         gx%bmperr=0; nrr=nrr-1; nr=nr-1
+      endif
+      ch1=longline(ip:ip)
+      if(ch1.eq.',') then
+         ip=ip+1; goto 380
+      elseif(ch1.eq.':') then
+         ip=ip+1; goto 370
+      endif
+      if(ch1.ne.'!') goto 380
+! when an ! found the list of constutents is finished.  But we
+! should have found a : before the !
+      if(.not.silent) write(kou,*)'Found "!" before terminating ":"'
+      gx%bmperr=4310; goto 1000
+!      write(*,*)'Species terminator error: ',ch1,nl
+!      gx%bmperr=4157; goto 1000
+390    continue
+! name2 is model, ignored on reading TDB
+!      ionliq=.FALSE.
+!      if(phtype(1:1).eq.'Y') then
+!         name2='IONIC_LIQUID '
+!         ionliq=.TRUE.
+!      else
+!         name2='CEF-TDB-RKM? '
+!      endif
+      if(ocv()) write(*,*)'readpdb 9: ',name1,nsl,knr(1),knr(2),phtype
+395   continue
+! disordered phase is part of model
+      condis2: if(dodis.eq.1) then
+! if we have a disordered part do not enter the phase, add disordered fracs!
+! the ordered phase name is ordpart(thisdis)
+!         call find_phase_by_name(ordpartph(thisdis),iph,ics)
+!         if(gx%bmperr.ne.0) then
+! NOTE THE ORDERED PHASE MAY NOT BE ENTERED DUE TO COMPONENTS!!
+!            if(.not.silent) write(kou,396)thisdis,ordpartph(thisdis)
+!396         format('Disordered phase skipped as no ordered: ',i3,' "',a,'"')
+!            warning=.TRUE.
+!            gx%bmperr=0
+!            goto 100
+!         else
+!            if(.not.silent) write(kou,*) &
+!                 'Adding disordered fraction set: ',ordpartph(thisdis)
+!         endif
+! we are creating the phase, there is only one composition set
+!         call get_phase_compset(iph,1,lokph,lokcs)
+!         if(gx%bmperr.ne.0) goto 1000
+! ch1 is suffix for parameters, always D
+!         ch1='D'
+! jl=0 if NDM (sigma)
+! jl=1 if phase can be totally disordered (but can have interstitials)
+! nd1 is the number of sublattices to sum into disordered set
+         if(dispartph(thisdis)(1:7).eq.'FCC_A1 ' .or. &
+              dispartph(thisdis)(1:7).eq.'BCC_A2 ' .or. &
+              dispartph(thisdis)(1:7).eq.'HCP_A3 ') then
+! if disordred phase is FCC, BCC or HCP then set jl=1 and nd1 to 2 or 4
+            if(phlista(lokph)%noofsubl.le.5) nd1=4
+            if(phlista(lokph)%noofsubl.le.3) nd1=2
+            if(.not.silent) write(kou,397) &
+                 ordpartph(thisdis)(1:len_trim(ordpartph(thisdis))),nd1
+!         write(*,399)
+!399      format('Phase names for disordered parts of FCC, BCC and HCP must',&
+!              ' start with:'/'  A1_ , A2_ and A3_ respectivly!'/&
+!              ' and have an interstitial sublattice')
+            jl=1
+         elseif(dispartph(thisdis)(1:3).eq.'A1_' .or. &
+              dispartph(thisdis)(1:3).eq.'A2_' .or. &
+              dispartph(thisdis)(1:3).eq.'A3_') then
+! if disordred phase is FCC, BCC or HCP then set jl=1 and nd1 to 2 or 4
+            if(phlista(lokph)%noofsubl.le.5) nd1=4
+            if(phlista(lokph)%noofsubl.le.3) nd1=2
+            if(.not.silent) write(kou,397) &
+                 ordpartph(thisdis)(1:len_trim(ordpartph(thisdis))),nd1
+397         format('Phase ',a,&
+                 ' has an order/disorder partition model summing first ',i2)
+            jl=1
+         elseif(dispartph(thisdis)(1:4).eq.'DIS_') then
+! disordered part of sigma, mu etc.
+            jl=0; nd1=phlista(lokph)%noofsubl
+         else
+! probably disordered part of sigma, mu etc.
+            write(kou,495)trim(ordpartph(thisdis))
+495         format(' *** WARNING: Non-standard name of disordered phase: ',a/&
+                 ' Assuming ordered phase will never be disordered',&
+                 ' like sigma, mu etc')
+            jl=0; nd1=phlista(lokph)%noofsubl
+         endif
+         if(jl.eq.0 .and. .not.silent) write(kou,398)trim(ordpartph(thisdis))
+398      format(' Assuming that phase ',a,' cannot completely disorder')
+! add DIS_PART from TDB
+         call add_fraction_set(iph,ch1,nd1,jl)
+         if(gx%bmperr.ne.0) then
+            if(.not.silent) write(kou,*) &
+                 '3E Error entering disordered fraction set: ',gx%bmperr
+            goto 1000
+         endif
+         if(jl.eq.0) then
+! we must set the correct formula unit of the disordered phase, on the
+! TDB file it is unity.  Sum up the sites for the ordered phase in lokcs
+            xxx=zero
+            do ll=1,nd1
+               xxx=xxx+firsteq%phase_varres(lokcs)%sites(ll)
+            enddo
+            firsteq%phase_varres(lokcs)%disfra%fsites=xxx
+         else
+            xxx=one
+         endif
+         if(.not.silent) write(kou,601) &
+              dispartph(thisdis)(1:len_trim(dispartph(thisdis))),ch1,nd1,jl,xxx
+601      format('Parameters from disordered part added: ',a,5x,a,2x,2i3,F12.4)
+      else
+!--- ENTER PHASE with constituents and model.  Modelcode is CEF etc
+! in OC phtype G means it is first, L that it is first after G
+! remaining phases ordered alphabetically
+         if(name1(1:4).eq.'GAS ') then
+            phtype='G'
+         elseif(name1(1:7).eq.'LIQUID ') then
+            phtype='L'
+         endif
+         if(modelname(1:5).eq.'I2SL ') phtype='Y'
+!
+         call enter_phase(name1,nsl,knr,const,stoik,modelname,phtype)
+!      write(*,*)'readpdb 9A: ',gx%bmperr
+         if(gx%bmperr.ne.0) then
+            if(gx%bmperr.eq.4121) then
+               if(.not.silent) write(kou,*) &
+                    'Phase ',name1(1:len_trim(name1)),&
+                    ' is ambiguous or short for another phase'
+            endif
+            goto 1000
+         endif
+! we may need to add things to the phase
+         call find_phase_by_name(name1,iph,ics)
+         if(gx%bmperr.ne.0) goto 1000
+         call get_phase_compset(iph,1,lokph,lokcs)
+         if(gx%bmperr.ne.0) goto 1000
+! add disordered fraction set if any
+         if(havedisorder) then
+! this is the suffix for the disordered parameters
+            ch1='D'
+            if(subord) then
+! we should subract the ordered G as disordered
+! if 4 or 5 subl in ordered the first 4 are summed in the disordered
+! if 2 or 3 subl in ordered the first 2 are summed in the disordered
+               jl=1
+               if(phlista(lokph)%noofsubl.le.5) nd1=4
+               if(phlista(lokph)%noofsubl.le.3) nd1=2
+            else
+! we should just add the ordered and disordered (without the config.entropy)
+! nd1 is the number of ordered sublattices merged in the disordered phase
+               jl=0
+               nd1=phlista(lokph)%noofsubl
+            endif
+            call add_fraction_set(iph,ch1,nd1,jl)
+            if(gx%bmperr.ne.0) then
+               if(.not.silent) write(kou,*) &
+                 '3E Error entering disordered fraction set: ',gx%bmperr
+               goto 1000
+            endif
+! we must set the correct formula unit of the disordered phase
+            xxx=zero
+            do ll=1,nd1
+               xxx=xxx+firsteq%phase_varres(lokcs)%sites(ll)
+            enddo
+! here to number of sites are stored in the disordered fraction set!!
+            firsteq%phase_varres(lokcs)%disfra%fsites=xxx
+         endif
+! any typedefs? only magnetic handelled at present
+!         call find_phase_by_name(name1,iph,lcs)
+!         write(*,*)'readpdb 9X: ',gx%bmperr
+!         if(gx%bmperr.ne.0) then
+!            if(.not.silent) write(kou,*)'Phase ',name1,' is ambiguous'
+!            goto 1000
+!         endif
+!         lokph=phases(iph)
+!      write(*,*)'typedefs for ',name1(1:20),lokph,noofphasetype
+!         phasetypes: do jt=1,noofphasetype
+!          write(*,*)'typedef ',jt,addphasetypedef(jt)
+         do jt=1,noofadds
+            if(add(jt).eq.1) then
+! Inden magnetic for FCC
+               call add_magrec_inden(lokph,1,-3)
+            elseif(add(jt).eq.2) then
+! Inden magnetic for BCC
+               call add_magrec_inden(lokph,1,-1)
+            else
+! no other implemented
+               write(*,*)'Addition not implemented: ',addition(add(jt))
+               gx%bmperr=4399; goto 1000
+            endif
+         enddo
+      endif condis2
+!      write(*,*)'readpdb 9B:',name1,nsl,phtype
+!-------------------------------------------------------------------
+   case(6) ! PARAMETER --------------------------------------------
+! for PDB databases
+!123456789.123456789.123456789.123456789.123456789.123456789.123456789.12345678
+!   PARAMETER G(LIQUID,CR;0)  2.98150E+02  +24339.955-11.420225*T
+      if(eolch(longline,nextc)) then
+         if(.not.silent) write(kou,*)'Empty line after PARAMETER'
+         gx%bmperr=4311; goto 1000
+      endif
+      ip=nextc
+      funname=longline(ip:)
+      kp=index(funname,' ')
+! save position after parameter name in nextc
+      nextc=ip+kp
+      funname(kp:)=' '
+! extract symbol, normally G or L but TC, BMAGN and others can occur
+      lp1=index(funname,'(')
+      name1=funname(1:lp1-1)
+! handle parameters for disordered part
+! NOTE WE SHOULD NEVER HAVE A PARAMETER IDENTIFIER ENDING WITH D ...
+      if(funname(lp1-1:lp1-1).eq.'D') then
+         fractyp=2
+         name1(lp1-1:lp1-1)=' '
+      else
+         fractyp=1
+      endif
+      typty=0
+! this is kept for compatibility with TDB files generated by TC
+      if(name1(1:2).eq.'G ' .or. name1(1:2).eq.'L ') then
+         typty=1
+      elseif(name1(1:3).eq.'TC ') then
+         typty=2
+      elseif(name1(1:5).eq.'BMAG ') then
+         typty=3
+      elseif(name1(1:6).eq.'BMAGN ') then
+         typty=3
+      endif
+! we should handle also other parameter types
+      if(typty.eq.0) then
+! find the property associated with this symbol
+!         write(*,*)'psym1: ',name1(1:len_trim(name1))
+         call get_parameter_typty(name1,lokph,typty,fractyp)
+         if(gx%bmperr.ne.0) then
+            if(.not.silent) write(kou,*) &
+                 ' *** Illegal parameter identifier on line: ',nl
+            gx%bmperr=0; typty=0
+            warning=.TRUE.
+         endif
+!         write(*,*)'psym2: ',typty,fractyp
+      endif
+! only fractyp 1 on TDB files until I implemented disordered part
+!      fractyp=1
+!       write(*,*)'readpdb: PAR',name1,typty
+! extract phase name and constituent array
+      lp1=index(funname,'(')
+      lp2=index(funname,',')
+      name2=funname(lp1+1:lp2-1)
+!      dispar: if(dodis.eq.1) then
+! first check if phase name is a disordered part, if not skip
+! then change phase name to ordered phase and set fractyp=2
+! and add a suffix D to parameter symbol
+!         do jl=1,disparttc
+!            if(name2.eq.dispartph(jl)) goto 710
+!         enddo
+! not disordered phase, skip this parameter
+!         goto 100
+!-----------------------
+!710      continue
+!         write(*,*)'Entering disordered parameter to: ',thisdis,jl
+!         thisdis=jl
+!         write(*,*)'Entering disordered parameter to: ',ordpartph(thisdis)
+!         write(*,*)'3E ',longline(1:len_trim(longline))
+!         name2=ordpartph(jl)
+!         fractyp=2
+!      endif dispar
+      call find_phase_by_name_exact(name2,jph,kkk)
+!      write(*,*)'readpdb 19: ',jph,gx%bmperr,name2
+      if(gx%bmperr.ne.0) then
+!         write(*,*)'Skipping parameter due to phase: ',name2
+         gx%bmperr=0; goto 100
+!         goto 1000
+      endif
+! extract constituent array, remove final ) and decode
+! constituent names can be very long ....
+      lokph=phases(jph)
+      name4=funname(lp2+1:)
+! find terminating )
+      lp1=index(name4,')')
+      if(lp1.le.0) then
+         if(.not.silent) write(kou,*) &
+              'Possible error in constituent array? ',name4,', line:',nl
+         warning=.TRUE.
+         goto 100
+      else
+         name4(lp1:)=' '
+      endif
+297   continue
+!
+      call decode_constarr(lokph,name4,nsl,endm,nint,lint,ideg)
+      if(ocv()) write(*,303)'readpdb 303: ',name4(1:len_trim(name4)),&
+           nsl,endm(1),endm(2),nint,((lint(ip,jp),ip=1,2),jp=1,nint)
+303   format(a,a,2i4,2x,2i3,' : ',3(2i3,2x))
+      if(gx%bmperr.ne.0) then
+! error here can mean parameter with un-selected constituent, i.e. no error
+!         write(*,*)'3E: decode',ionliq,tdbv,nsl,gx%bmperr
+         if(ionliq .and. tdbv.eq.1 .and. nsl.eq.1) then
+! handle parameters in ionic liquids with only neutrals in second sublattice
+! in TC one can have no constituent there or an arbitrary constituent,
+! in OC the constituent in sublattice 1 must be a *
+            nsl=2
+            endm(2)=endm(1)
+            endm(1)=-99
+! shift any interaction from sublattice 1 to 2
+            do ip=1,nint
+!               write(*,*)'3E lint: ',lint(1,ip),lint(2,ip)
+               lint(2,ip)=2
+            enddo
+            if(ocv()) write(*,303)'modif endmem: ',name4(1:len_trim(name4)),&
+                 nsl,endm(1),endm(2),nint,((lint(ip,jp),ip=1,2),jp=1,nint)
+            gx%bmperr=0
+         else
+            if(ocv()) write(*,*)'Skipping parameter: ',name4(1:len_trim(name4))
+            gx%bmperr=0; goto 100
+!         write(*,*)'readpdb error: ',gx%bmperr,name4
+!         goto 1000
+         endif
+      endif
+! check number of sublattices correct
+      if(.not.ionliq) then
+         lokcs=phlista(lokph)%linktocs(1)
+         if(fractyp.eq.1) then
+            if(phlista(lokph)%noofsubl.ne.nsl) then
+               write(*,*)'Wrong number of sublattices 1',&
+                    phlista(lokph)%noofsubl,nsl
+               gx%bmperr=4399; goto 1000
+            endif
+         else
+            if(firsteq%phase_varres(lokcs)%disfra%ndd.ne.nsl) then
+               write(*,*)'Wrong number of sublattices 2',&
+                    firsteq%phase_varres(lokcs)%disfra%ndd,nsl
+               gx%bmperr=4399; goto 1000
+            endif
+         endif
+      endif
+!      if(nint.gt.1) then
+! lint(1,1) is species of first, lint(1,2) in second interaction
+!          write(*,305)'readpdb 305: ',endm(1),nint,lint(2,1),lint(2,2)
+!      endif
+305    format(a,5i4)
+!---------------- encode function
+!      if(dodis.eq.1) write(*,*)'We are here 1'
+      ip=0
+      jp=0
+400    continue
+      ip=ip+1
+405    continue
+      ch1=funname(ip:ip)
+! accept the first 8 letters and numbers of phase name
+      if((ch1.ge.'A' .and. ch1.le.'Z') .or. &
+         (ch1.ge.'0' .and. ch1.le.'9')) goto 400
+      if(ch1.ne.' ') then
+         funname(ip:)=funname(ip+1:)
+         jp=jp+1
+         if(jp.lt.8) goto 405
+         funname(ip+1:)=' '
+      endif
+      funname='_'//funname
+!-------------------------------------------------
+! now read the function, start from position nextc
+      longline=longline(nextc:)
+!410    continue
+      jp=len_trim(longline)
+      if(longline(jp:jp).ne.'!') then
+         if(.not.silent) write(kou,410)nl,ip,longline(1:ip)
+410      format('Error, parameter line not ending with !',2i5/a)
+         gx%bmperr=4312; goto 1000
+      endif
+! extract reference if any
+! NOTE: a legal ending is ;,,,!
+      refx='none'
+      kp=jp-1
+      do while(longline(kp:kp).ne.';')
+         kp=kp-1
+         if(kp.lt.1) then
+! illegal termination of function in TDB file
+            if(.not.silent) write(kou,417)nl
+417 format('No final ; of function in TDB file, around line: ',i5)
+            gx%bmperr=4013; goto 1000
+         endif
+      enddo
+      kp=kp+2
+! longline(kp:kp) is character after "; " or ";," 
+! next is upper temperature limit or , meaning default.  We have a "!" at end
+430   continue
+      if(eolch(longline,kp)) continue
+      if(longline(kp:kp).eq.',') then
+         kp=kp+1
+      elseif(longline(kp:kp).eq.'!') then
+         goto 433
+      else
+!    ; 6000 N 91DIN !
+!   kp=^                 => index(...,' ')=5; kp=kp+4
+         kp=kp+index(longline(kp:),' ')-1
+      endif
+! next is N or ,
+      if(eolch(longline,kp)) continue
+      if(longline(kp:kp).ne.'!') then
+         kp=kp+1
+      endif
+      if(eolch(longline,kp)) continue
+      if(kp.lt.jp) then
+         refx=longline(kp:jp-1)
+         call capson(refx)
+      else
+         refx=' '
+      endif
+! ------------------- we found the reference, continue with the expression
+433   continue
+! replace any # by ' '
+412   continue
+      jss=index(longline(1:jp),'#')
+      if(jss.gt.0) then
+         longline(jss:jss)=' '
+         goto 412
+      endif
+!      write(*,*)'3E Entering function 2: ',funname,len_trim(longline)
+!      lrot=0
+      call enter_tpfun(funname,longline,lrot,.TRUE.)
+!          write(*,17)lokph,typty,nsl,lrot,(endm(i),i=1,nsl)
+17 format('readpdb 17: '4i3,5x,10i3)
+!         write(*,404)'readpdb entpar: ',refx,fractyp,nint,ideg
+404   format(a,a,i3,2x,10i3)
+      if(gx%bmperr.ne.0) then
+         if(.not.silent) write(kou,*)'Error set: ',gx%bmperr,lrot,' ',&
+              funname(1:len_trim(funname)),' around line: ',nl
+         goto 1000
+      else
+!         if(dodis.eq.1) write(*,*)'We are here 2'
+         call enter_parameter(lokph,typty,fractyp,nsl,endm,nint,lint,ideg,&
+              lrot,refx)
+         if(ocv()) write(*,407)'Entered parameter: ',lokph,typty,gx%bmperr
+407      format(a,3i5)
+         if(gx%bmperr.ne.0) then
+! error entering parameter, not fatal
+            if(dodis.eq.1 .and. .not.silent) &
+                 write(*,408)'3E parameter warning:',gx%bmperr,nl,&
+                 funname(1:40)
+408         format(a,i6,' line ',i5,': ',a)
+            if(.not.(gx%bmperr.ne.4096 .or. gx%bmperr.ne.4066)) goto 1000
+! ignore error 4096 meaning "no such constituent" or "... in a sublattice"
+!            write(*,*)'readpdb entparerr: ',gx%bmperr,' >',&
+!                 funname(1:len_trim(funname))
+            if(gx%bmperr.eq.7778 .and. .not.silent) &
+                 write(*,*)'3E Error 7778 at line: ',nl
+            gx%bmperr=0
+!         elseif(dodis.eq.1) then
+!            write(*,*)'Disordered parameter should be entered ok'
+         endif
+      endif
+      if(gx%bmperr.ne.0 .and. .not.silent) write(*,*)'3E error 1: ',gx%bmperr
+!      if(verbose) write(*,*)'Entered parameter: ',trim(name1)
+!------------------------------------------------------------------
+   case(7) !SPECIAL
+!123456789.123456789.123456789.123456789.123456789.123456789.123456789.12345678
+      write(*,*)'SPECIAL not yet implemented'
+      goto 100
+! 
+! TYPE_DEFINITION & GES A_P_D BCC_A2 MAGNETIC  -1.0    4.00000E-01 !
+      nytypedef=nooftypedefs+1
+      nooftypedefs=nytypedef
+      typedefchar(nytypedef)=longline(nextc+1:nextc+1)
+      ip=nextc+3
+      newtypedef: if(longline(ip:ip+2).eq.'SEQ') then
+         typedefaction(nytypedef)=100
+      else
+         km=index(longline,' MAGNETIC ')
+         magnetic: if(km.gt.0) then
+            ip=km+9
+!73           format(a,i3,' "',a,'"')
+            call getrel(longline,ip,xxx)
+            if(buperr.ne.0) then
+               gx%bmperr=buperr; goto 1000
+            endif
+! this can be -1 for BCC or -3 for FCC, HCP and other phases
+            typedefaction(nytypedef)=int(xxx)
+         else
+            km=index(longline,' DIS_PART ')
+            if(km.gt.0) then
+! disordered part, several checks
+               disparttc=disparttc+1
+! find the ordered phase name, we have to go backwrds from km
+               ip=km-1
+81             continue
+               if(longline(ip:ip).eq.' ') then
+!                  ordpartph(disparttc)=' '
+                  ordpartph(disparttc)=longline(ip+1:km)
+               else
+                  ip=ip-1
+                  goto 81
+               endif
+! extract the disordered part phase name
+               ip=index(longline(km+2:),' ')
+               dispartph(disparttc)=longline(km+2+ip:)
+! find the end of phase name, a space or a , there is always a space ...
+               ip=index(dispartph(disparttc),' ')
+               km=index(dispartph(disparttc),',')
+               if(km.gt.0 .and. km.lt.ip) ip=km
+!               if(ip.le.0) ip=1
+               dispartph(disparttc)(ip:)=' '
+               if(.not.silent) write(kou,82) &
+                    disparttc,ordpartph(disparttc),dispartph(disparttc)
+!                    longline(1:len_trim(longline))
+!82             format('Found a type_def DIS_PART:',a,' : ',a)
+82             format('Found a type_def DIS_PART:',i2,1x,a,1x,a)
+! if the disordered part phase already entered give advice
+               call find_phase_by_name(dispartph(disparttc),iph,ics)
+               if(gx%bmperr.ne.0) then
+                  gx%bmperr=0
+               else
+                  if(.not.silent) write(kou,83)dispartph(disparttc)
+83                format(' *** Warning, the disordered phase is already',&
+                       ' entered ***'/' Please rearrange the TDB file so',&
+                       ' this TYPE_DEF comes before'/&
+                       ' the PHASE keyword for the disordered phase: ',a/&
+                       ' *** The disordordered part ignored ***')
+                  disparttc=disparttc-1
+                  warning=.TRUE.
+               endif
+            else
+               typedefaction(nytypedef)=99
+               if(.not.silent) &
+                    write(kou,87)nl,longline(1:min(78,len_trim(longline)))
+87             format('Skipping this TYPE_DEFINITION on line ',i5,':'/a)
+               warning=.TRUE.
+!               write(*,*)' WARNING SET TRUE <<<<<<<<<<<<<<<<<<<<<<<<<<<'
+            endif
+         endif magnetic
+      endif newtypedef
+!---------------------------------------------------------------------
+! BIBLIOGRAPHY
+   case(8) 
+!123456789.123456789.123456789.123456789.123456789.123456789.123456789.12345678
+!   REF283  'Alan Dinsdale, SGTE Data for Pure Elements,
+!          Calphad Vol 15(1991) p 317-425,
+!          also in NPL Report DMA(A)195 Rev. August 1990'
+      ip=1
+      if(eolch(longline,ip)) then
+         if(.not.silent) write(kou,*)'Empty reference line',nl
+         gx%bmperr=4313; goto 1000
+      endif
+      if(longline(ip:ip).eq.'!') then
+!         write(*,*)'No references at all'
+         goto 100
+      endif
+!      write(*,*)'list_of_references text length: ',len_trim(longline),ip
+! some reference lists like those from SSUB has no single quotes
+      kp=index(longline(ip:),"'")
+      citationmarks: if(kp.gt.0) then
+775      continue
+! reference symbol is refx; reference text in reftext
+         refx=longline(ip:ip+kp-2)
+         if(longline(ip+kp:ip+kp).eq."'") then
+! two ' after each other, a dummy reference
+            reftext=' '
+            ip=ip+kp+1
+            kkk=1
+!            write(*,*)'dummy: ',refx,' next >',longline(ip:ip+20),'<'
+         else
+            jp=ip+kp+1+index(longline(ip+kp+1:),"'")
+            reftext=longline(ip+kp:jp-2)
+            ip=jp
+! when all works replace multiple spaces by a single one in reftext
+            kkk=len_trim(reftext)
+            kp=index(reftext(1:kkk),'  ')
+            do while(kp.gt.0)
+               reftext(kp:)=reftext(kp+1:)
+               kkk=kkk-1
+               kp=index(reftext(1:kkk),'  ')
+            enddo
+         endif
+!         write(*,776)refx,nrefs,ip,jp,reftext(1:kkk)
+776      format('Reference: ',a,3i5/a)
+! this will not create bibliographic references that has not been referenced
+         call tdbrefs(refx,reftext(1:kkk),1,ix)
+         nrefs=nrefs+1
+!         write(*,*)'added biblio ',refx,'>',longline(ip-5:ip+5),'<'
+         if(eolch(longline,ip)) then
+            gx%bmperr=4313; goto 1000
+         endif
+         if(longline(ip:ip).ne.'!') then
+            kp=index(longline(ip:),"'")
+            goto 775
+         endif
+      else
+! references without citation marks
+! ip is at the start of the reference id, look for space
+         if(.not.silent) write(kou,*) &
+              'Cannot handle references without citation marks',nl
+         gx%bmperr=4314; goto 1000
+      endif citationmarks
+777   continue
+!      write(*,*)'Read ',nrefs,' references, ending at',nl
+!------------------------------------------------------------------
+   case(9) ! TABLE_OF_MODELS
+      write(*,*)'Table of models not implemented'
+!------------------------------------------------------------------
+   case(10) ! TABLE_OF_IDENTIFIERS
+      write(*,*)'Table of idenifiers not implemented'
+!------------------------------------------------------------------
+   case(11) ! DATABASE_INFORMATION
+      if(.not.silent) write(kou,*)'Cannot handle DATABASE_INFORMATION at ',nl
+!      warning=.TRUE.
+! skip lines until !
+      do while(index(line,'!').le.0)
+         read(21,110)line
+         nl=nl+1
+         call replacetab(line,nl)
+      enddo
+!----------------------------------------------------------------
+   case(12) ! ASSESSED_SYSTEMS
+      if(.not.silent) write(kou,*) &
+           'Cannot handle ASSESSED_SYSTEMS ending at ',nl
+!      warning=.TRUE.
+! skip lines until !
+      do while(index(line,'!').le.0)
+         read(21,110)line
+         nl=nl+1
+         call replacetab(line,nl)
+      enddo
+!------------------------------------------------------------------
+   case(13) ! DEFAULTS
+      write(*,*)'Cannot handle defaults'
+!------------------------------------------------------------------
+   case(14) ! VERSION
+780   continue
+      write(kou,*)'Found VERSION keyword: ',trim(longline)
+!----------------------------------------
+   case(15) ! INCLUDE_FILE
+      write(*,*)'INCLUDE_FILE not implemented yet'
+!----------------------------------------
+   case(16) ! CHECKSUM
+      write(*,*)'CHECKSUM not implemented yet'
+   end select
+!=====================================================
+   if(gx%bmperr.ne.0 .and. .not.silent) then
+      write(kou,711)gx%bmperr,nl,trim(line)
+711   format('3E error: ',i5,' around line ',i7,': '/a)
+! this error means reference error
+      if(gx%bmperr.eq.4154) gx%bmperr=0
+   endif
+! look for next KEYWORD
+   goto 100
+!--------------------------------------------------------
+!----- reading functions at the end from a PDB file
+800 continue
+!   if(eolch(line,nextc)) then
+!      if(.not.silent) write(kou,*) &
+!           'Function name must be on same line as FUNCTION'
+!      gx%bmperr=4315; goto 1000
+!   endif
+!   ipp=nextc+index(line(nextc:),' ')
+   ip=nextc
+   call getext(longline,ip,1,name1,' ',ix)
+!         write(*,18)'function >',name1,'< ',nextc,ipp
+!18       format(a,a,a,2i4)
+! old code
+!   longline=' '
+!   longline=line(ipp:)
+!810 continue
+!   jp=max(len_trim(longline),1)
+!   write(*,811)jp,longline(jp:jp),longline(1:jp)
+!811 format('3E ll: ',i3,' "',a1,'" ',a)
+!   if(longline(jp:jp).eq.'!') then
+! replace # by ' '
+   jp=max(len_trim(longline),1)
+820 continue
+   jss=index(longline(1:jp),'#')
+   if(jss.gt.0) then
+      longline(jss:jss)=' '
+      goto 820
+   endif
+! check if function is entered as undefined, exact match of name required
+!   write(*,*)'TPFUN: ',trim(name1),':  ',notent,ip,longline(ip:ip+30)
+   call find_tpfun_by_name_exact(name1,nr,notent)
+   if(gx%bmperr.eq.0) then
+!      write(*,*)'Found TPfunction: ',trim(name1),notent
+      if(notent) then
+! entering a function may add new unentered functions ... last argument TRUE
+!            write(*,*)'3E Entering function 3: ',name1,len_trim(longline)
+!            lrot=0
+         call enter_tpfun(name1,longline(ip:),lrot,.TRUE.)
+         if(gx%bmperr.ne.0) then
+! one may have error here
+            if(.not.silent) write(kou,*)'Failed entering function: ',name1
+            goto 1000
+         endif
+!         write(*,*)'Entered missing function: ',name1
+         nofunent=nofunent+1
+      endif
+   else
+! reset error code
+      gx%bmperr=0
+   endif
+!   else
+!830   continue
+!      nl=nl+1
+!      read(21,110)line
+!            write(kou,101)'readpdb 2: ',nl,line(1:40)
+! skip lines with a $ in first position
+!      if(line(1:1).eq.'$')goto 830
+!      call replacetab(line,nl)
+!      longline=longline(1:jp)//line
+!      goto 810
+!   endif
+   goto 100
+!   endif barafun
+!---------------------------------------------------------
+! We have now read all
+!--------------------------------------------------------
+1000 continue
+   if(warning) then
+1001  continue
+! if silent set ignore warnings
+      if(.not.silent) then
+         write(kou,1003)
+1003     format(/'There were warnings, check them carefully'/&
+              'and press RETURN if you wish to continue.')
+         read(kiu,1004)ch1
+1004     format(a)
+!         if(ch1.eq.'N') stop 'warnings reading database'
+!         if(ch1.ne.'Y') then
+!            write(kou,*)'Please answer Y or N'
+!            goto 1001
+!         endif
+      endif
+   endif
+! 4057
+   if(gx%bmperr.ge.4000 .and. gx%bmperr.le.4399) then
+      write(*,*)trim(bmperrmess(gx%bmperr))
+   endif
+!   write(*,*)'3E At label 1000'
+   if(buperr.ne.0 .or. gx%bmperr.ne.0) then
+      if(gx%bmperr.eq.0) gx%bmperr=buperr
+      if(.not.silent) write(kou,1002)gx%bmperr,nl
+1002   format('Error ',i5', occured at TDB file line ',i7)
+!      write(*,*)'Do you want to continue at your own risk anyway?'
+!      read(*,1008)ch1
+!1008  format(a)
+!      if(ch1.eq.'Y') then
+!         write(*,*)'Now any kind of error may occur .... '
+!         buperr=0
+!         gx%bmperr=0
+!         goto 100
+!      endif
+   endif
+   close(21)
+! read numbers, value after / is maximum
+! endmember, interactions, property,
+! tpfuns, composition sets, equilibria
+! state variable functions, references, additions
+   if(ocv()) write(*,1007)noofel,maxel,noofsp,maxsp,noofph,maxph,&
+        noofem,100000,noofint,100000,noofprop,100000,&
+        notpf(),maxtpf,highcs,2*maxph,eqfree-1,maxeq,&
+        nsvfun,maxsvfun,reffree-1,maxrefs,addrecs,csfree-1
+1007 format('Created records for elements, species, phases: ',2x,&
+          3(i4,'/',i4,1x)/&
+          'end members, interactions, properties: ',10x,&
+          3(i4,'/',i4,1x)/&
+          'TP-funs, max and free composition sets, equilibria: ',10x,&
+          3(i4,'/',i4,1x)/&
+          'state variable functions, references, additions: ',&
+          3(i4,'/',i4,1x)/)
+   return
+1010 continue
+   if(.not.silent) write(kou,*)'I/O error opening file: ',gx%bmperr
+   return
+!-----------------------------------------------------
+! end of file found, act differently if reading functions
+2000 continue
+!   rewind: if(dodis.eq.0 .and. disparttc.gt.0) then
+! rewind to read disordred parts
+!      if(.not.silent) &
+!           write(kou,*)'Rewind to read disordered parts of phases: ',disparttc
+!      rewind(21)
+!      dodis=1
+!      nl=0
+!      goto 100
+!   elseif(.not.onlyfun) then
+   rewind: if(.not.onlyfun) then
+! rewind to read referenced functions
+!      dodis=2
+!      write(*,*)'Rewinding to read functions first time'
+      rewind(21)
+      onlyfun=.TRUE.
+      nofunent=0
+!      write(*,2002)gx%bmperr
+2002 format('Found end-of-file, rewind to find functions',i5)
+      nl=0
+      goto 100
+!   elseif(norew.lt.3) then
+! rewind if there were functions entered last time
+!      rewind(21)
+!      norew=norew+1
+!    write(*,*)'Found functions: ',nofunent,' rewinding again',norew,gx%bmperr
+!      if(newfun.gt.0) then
+!          write(*,*)'Read ',newfun+nfail,' functions, entered ',newfun,&
+!               ' rewinding ',norew
+!         newfun=0
+!      nofunent=0
+!      nl=0
+!      goto 100
+   elseif(nofunent.gt.0) then
+! rewind if there were functions entered last time
+      rewind(21)
+      norew=norew+1
+!    write(*,*)'Found functions: ',nofunent,' rewinding again',norew,gx%bmperr
+!      if(newfun.gt.0) then
+!          write(*,*)'Read ',newfun+nfail,' functions, entered ',newfun,&
+!               ' rewinding ',norew
+!         newfun=0
+      nofunent=0
+      nl=0
+      goto 100
+   else
+! check if there are any unentered functions
+      call list_unentered_funs(kou,nr)
+      if(nr.gt.0) then
+         if(.not.silent) write(kou,*)'Number of missing function: ',nr
+         gx%bmperr=4186
+      endif
+! check if any function not entered
+      onlyfun=.FALSE.
+   endif rewind
+   goto 1000
+! end of file while looking for ! terminating a keyword
+2200 continue
+   if(.not.silent) write(kou,2210)nl,longline(1:72)
+2210 format('End of file at ',i5,' looking for end of keyword:'/a)
+   gx%bmperr=4316
+   goto 1000
+ end subroutine readpdb
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
+ subroutine write_pdbformat(unit)
+! write a PDB database
+   implicit none
+   integer unit
+!\end{verbatim}
+   write(*,*)'PDB format output not yet implemented'
+1000 continue
+   return
+ end subroutine write_pdbformat
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
+ subroutine checkdb(filename,ext,nel,selel)
+! checking a TDB/PDB file exists and return the elements
+   implicit none
+   integer nel
+   character filename*(*),ext*4,selel(*)*2
+!\end{verbatim}
+   character line*256,ext2*4
    integer ipp,nl,kk
 !
-   if(.not.(index(filename,'.tdb').gt.0 &
-       .or. index(filename,'.TDB').gt.0)) then
+   ext2=ext
+   call capson(ext2)
+   if(.not.(index(filename,ext).gt.0 &
+       .or. index(filename,ext2).gt.0)) then
 ! no extention provided
-      filename(len_trim(filename)+1:)='.TDB'
+      filename(len_trim(filename)+1:)=ext2
    endif
    open(21,file=filename,access='sequential',form='formatted',&
         err=1010,iostat=gx%bmperr,status='old')
@@ -3181,7 +4609,7 @@
    close(21)
    goto 1000
    return
- end subroutine checktdb
+ end subroutine checkdb
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
