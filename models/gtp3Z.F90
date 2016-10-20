@@ -320,9 +320,9 @@
    nosym=0
    write(lut,10)
 10 format(/'List of all symbols used in phase parameters (TP-functions):'/ &
-        ' Predefined symbols:'/&
-        ' BELOW(TB) = EXP(20*(1-T/TB))/(1+EXP(20*(1-T/TB)));'/&
-        ' ABOVE(TB) = 1-EXP(20*(1-T/TB))/(1+EXP(20*(1-T/TB)));'/&
+!        ' Predefined symbols:'/&
+!        ' BELOW(TB) = something;'/&
+!        ' ABOVE(TB) = 1-BELOW(TB);'/&
         ' Nr  Name =     T-low  expression; T-high Y/N')
 20  format(I4,1x,A)
 !   write(*,*)'First free index: ',freetpfun
@@ -2037,7 +2037,7 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim} %-
- subroutine below_t0_calc(t0,tpval,fun)
+ subroutine old_below_t0_calc(t0,tpval,fun)
 ! calculates exp(20(1-t/t0))/(1+exp(20(1-t/t0)))
 ! At t<<t0 K function is unity, at t>>t0 function is zero
    implicit none
@@ -2080,6 +2080,38 @@
       fun(1)=zero
       fun(2)=zero
       fun(3)=zero
+   endif
+1000 continue
+   return
+ end subroutine old_below_t0_calc
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim} %-
+ subroutine below_t0_calc(t0,tpval,fun)
+! if tpval<=t0        : 1
+! if t0<tpvalis<t0+100: cos((tpval-t0)*pi/200) is
+! if tpval>t0+100     : 0
+   implicit none
+   double precision t0,tpval(2),fun(6)
+!\end{verbatim} %+
+   double precision, parameter :: pi=3.14159265359,smooth=5.0D2
+   double precision arg
+   if(t0.le.zero) then
+      write(*,*)'temperature breakpoint below zero',t0,tpval(1)
+      goto 1000
+   endif
+   fun=zero
+   if(tpval(1).le.t0) then
+! F, F.T, F.P, F.T.T, F.T.P, F.P.P
+      fun(1)=one
+   elseif(tpval(1)-smooth.lt.t0) then
+      arg=(tpval(1)-t0)*pi/(2*smooth)
+      fun(1)=cos(arg)
+      fun(2)=-sin(arg)*pi/(2*smooth)
+      fun(4)=-cos(arg)*(pi/2*smooth)**2
+      write(*,70)t0,tpval(1),arg,fun(1),fun(2),fun(4)
+70    format('below: ',6(1pe12.4))
    endif
 1000 continue
    return

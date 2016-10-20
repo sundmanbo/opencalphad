@@ -3227,7 +3227,7 @@
 !      silent=.TRUE.
 !      write(*,*)'3E reading database silent'
 !   endif
-   write(*,*)'reading a PDB file'
+!   write(*,*)'reading a PDB file'
    if(.not.(index(filename,'.pdb').gt.0 &
        .or. index(filename,'.PDB').gt.0)) then
 ! no extention provided
@@ -3534,7 +3534,7 @@
          modelcode=2
          nsl=ichar(name2(4:4))-ichar('0')
          if(nsl.lt.1 .or. nsl.gt.9) then
-            write(*,*)'Illegal number of sublattices for phase: ',trim(name1)
+            write(*,*)'Wrong number of sublattices for phase: ',trim(name1),nsl
             gx%bmperr=4399; goto 1000
          endif
          jp=5
@@ -3552,6 +3552,7 @@
             havedisorder=.TRUE.
             subord=.FALSE.
          elseif(nsl.ge.4) then
+!            write(*,*)'3E checking permut: ',name2(5:5)
 ! >=4 sublattice models can have permutations
             if(name2(5:5).eq.'F') then
                permut=1
@@ -3832,6 +3833,7 @@
          endif
          if(modelname(1:5).eq.'I2SL ') phtype='Y'
 !
+!         write(*,*)'3E enter phase: ',trim(name1),' ',subord,havedisorder
          call enter_phase(name1,nsl,knr,const,stoik,modelname,phtype)
 !      write(*,*)'readpdb 9A: ',gx%bmperr
          if(gx%bmperr.ne.0) then
@@ -3855,12 +3857,20 @@
 ! we should subract the ordered G as disordered
 ! if 4 or 5 subl in ordered the first 4 are summed in the disordered
 ! if 2 or 3 subl in ordered the first 2 are summed in the disordered
+! jl is stored in fracset%totdis and 1 means subtract ordered as disordered
                jl=1
                if(phlista(lokph)%noofsubl.le.5) nd1=4
                if(phlista(lokph)%noofsubl.le.3) nd1=2
+! THIS IS CONFUSED!! never set PHSUBO
+! The idea was that FCC/BCC/HCP ordering may be calculated without subtracting
+! the ordered set but then
+!               write(*,*)'3E Setting bit: ', trim(name1),PHSUBO,permut
+!               phlista(lokph)%status1=ibset(phlista(lokph)%status1,PHSUBO)
+!               firsteq%phase_varres(lokcs)%status2=&
+!                    ibset(firsteq%phase_varres(lokcs)%status2,PHSUBO)
             else
-! we should just add the ordered and disordered (without the config.entropy)
-! nd1 is the number of ordered sublattices merged in the disordered phase
+! we should just add the ordered and disordered G (without the config.entropy)
+! all ordered sublattices merged into a single one for the disordered phase
                jl=0
                nd1=phlista(lokph)%noofsubl
             endif
@@ -3878,6 +3888,14 @@
 ! here to number of sites are stored in the disordered fraction set!!
             firsteq%phase_varres(lokcs)%disfra%fsites=xxx
          endif
+! set permutations
+         if(permut.eq.1) then
+            phlista(lokph)%status1=ibset(phlista(lokph)%status1,PHFORD)
+         elseif(permut.eq.2) then
+            write(*,*)'3E bcc permutations not implemented'
+            gx%bmperr=4399; goto 1000
+!            phlista(lokph)%status1=ibset(phlista(lokph)%status1,PHBORD)
+         endif
 ! any typedefs? only magnetic handelled at present
 !         call find_phase_by_name(name1,iph,lcs)
 !         write(*,*)'readpdb 9X: ',gx%bmperr
@@ -3886,9 +3904,9 @@
 !            goto 1000
 !         endif
 !         lokph=phases(iph)
-!      write(*,*)'typedefs for ',name1(1:20),lokph,noofphasetype
+!      write(*,*)'3E typedefs for ',name1(1:20),lokph,noofphasetype
 !         phasetypes: do jt=1,noofphasetype
-!          write(*,*)'typedef ',jt,addphasetypedef(jt)
+!          write(*,*)'3E typedef ',jt,addphasetypedef(jt)
          do jt=1,noofadds
             if(add(jt).eq.1) then
 ! Inden magnetic for FCC

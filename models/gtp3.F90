@@ -1247,7 +1247,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   TYPE gtp_state_variable
 ! this is to specify a formal or real argument to a function of state variables
 ! statev/istv: state variable index
-! phref/iref: if a specified reference state (for chemical potentials)
+! phref/iref: if a specified reference state (for chemical potential
 ! unit/iunit: 100 for percent, no other defined at present
 ! argtyp together with the next 4 integers represent the indices(4), only 0-4
 ! argtyp=0: no indices (T or P)
@@ -1394,7 +1394,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !    The global integer csfree is the index of the first free record
 !    The global integer highcs is the higest varres index used
 ! phlink: is index of phase record for this phase_varres record
-! status2: has phase status bits like ENT/FIX/SUS/DORM
+! status2: has composition set status bits CSxyz
 ! phstate: indicate state: fix/stable/entered/unknown/dormant/suspended/hidden
 !                           2   1      0        -1      -2      -3       -4
 ! phtupx: phase tuple index

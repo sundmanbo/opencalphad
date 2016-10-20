@@ -6604,7 +6604,7 @@ CONTAINS
          last=ip+1
          call getint(ceq%eqextra(3),last,ip)
          if(buperr.ne.0) then
-            write(*,*)'Cannot extract number of columns'
+            write(*,*)'MM Cannot extract number of columns'
             gx%bmperr=4399; goto 1000
          endif
          if(ip.gt.6) then

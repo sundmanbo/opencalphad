@@ -288,6 +288,19 @@ mac map11
 @$
 @$
 @$
+@$ The Mo-Re binary phase diagram using database in PDB format
+@& *********************************************************
+
+new Y
+mac map12
+
+@$ *********************************************************
+@$
+@$
+@$
+@$
+@$
+@$
 @$ Calculation for 20 elements and 191 phases using COST507
 @& *********************************************************
 

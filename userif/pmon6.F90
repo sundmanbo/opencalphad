@@ -1039,7 +1039,7 @@ contains
 ! An extra LF is generated when just 6 components!! use ll, kp j1, i2
                    write(kou,2095)nv+1,(mugrad(nend*nv+jp),jp=1,nend)
 !2095               format(i3,6(1pe12.4)/(3x,6e12.4))
-2095               format(i3,6(1pe12.4),(/3x,6e12.4))
+2095               format(i3,6(1pe12.4)/(3x,6e12.4))
                 enddo
                 write(kou,2098)noel()
 2098            format(/'Mobility values mols/m2/s ?? for',i3,' components')
@@ -2834,20 +2834,20 @@ contains
 6308         format(3x,a)
           endif
           if(btest(ceq%status,EQFAIL)) then
-             write(lut,6305)
-6305         format(/' *** The results listed are not a valid equilibrium',&
-                  ' as last calculation failed'/)
+             write(lut,6305)'below'
+6305         format(/' *** The results listed ',a,&
+                  ' are not a valid equilibrium as last calculation failed'/)
           elseif(btest(globaldata%status,GSNOPHASE)) then
              write(kou,*)'No results as no data'
              goto 100
 !  elseif(btest(globaldata%status,GSNOEQCAL)) then
           elseif(btest(ceq%status,EQNOEQCAL)) then
-             write(lut,6307)
-6307         format(/' *** The results listed does not represent',&
+             write(lut,6307)'below'
+6307         format(/' *** The results listed ',a,'does not represent',&
                   ' a calculated equilibrium'/)
           elseif(btest(ceq%status,EQINCON)) then
-             write(lut,6306)
-6306         format(/' *** The results listed may be inconsistent',&
+             write(lut,6306)'below'
+6306         format(/' *** The results listed ',a,' may be inconsistent',&
                   ' with the current conditions'/)
           endif
           write(lut,6302)'Conditions .............................'
@@ -2946,11 +2946,11 @@ contains
 ! make sure phases with positive DGM listed
           call list_phases_with_positive_dgm(mode,lut,ceq)
           if(btest(ceq%status,EQFAIL)) then
-             write(lut,6305)
+             write(lut,6305)'above'
           elseif(btest(ceq%status,EQNOEQCAL)) then
-             write(lut,6307)
+             write(lut,6307)'above'
           elseif(btest(ceq%status,EQINCON)) then
-             write(lut,6306)
+             write(lut,6306)'above'
           endif
 !------------------------------
        case(13) ! list conditions
@@ -3207,11 +3207,12 @@ contains
 ! later we can add possible options
           name1=' '
           call readpdb(tdbfile,jp,ellist,name1)
-!          goto 100
+! also list the bibliography
+          call list_bibliography(' ',kou)
+          write(kou,*)
 !-----------------------------------------------------------
        case(6) ! read ??
           write(*,*)'Nothing yet'
-!          goto 100
        end SELECT
 !=================================================================
 ! save in various formats (NOT TDB, MACRO and LATEX, use LIST DATA)
