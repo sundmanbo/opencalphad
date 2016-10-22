@@ -3907,6 +3907,10 @@
 !      write(*,*)'3E typedefs for ',name1(1:20),lokph,noofphasetype
 !         phasetypes: do jt=1,noofphasetype
 !          write(*,*)'3E typedef ',jt,addphasetypedef(jt)
+!   character*12, dimension(8), parameter :: addition=&
+!        ['IMAGF       ','IMAGB       ','IWMAGF      ','IWMAGB      ',&
+!         'DEBYE1      ','EINSTEIN1   ','            ','            ']
+!
          do jt=1,noofadds
             if(add(jt).eq.1) then
 ! Inden magnetic for FCC
@@ -3914,6 +3918,12 @@
             elseif(add(jt).eq.2) then
 ! Inden magnetic for BCC
                call add_magrec_inden(lokph,1,-1)
+            elseif(add(jt).eq.3) then
+! Xiong-Inden magnetic for non-BCC
+               call add_addrecord(lokph,'N',weimagnetic)
+            elseif(add(jt).eq.4) then
+! Xiong-Inden magnetic for BCC
+               call add_addrecord(lokph,'Y',weimagnetic)
             else
 ! no other implemented
                write(*,*)'Addition not implemented: ',addition(add(jt))

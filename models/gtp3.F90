@@ -1125,6 +1125,8 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
      TYPE(tpfun_expression), dimension(:), pointer :: explink
      TYPE(gtp_phase_add), pointer :: nextadd
      type(gtp_elastic_modela), pointer :: elastica
+! calculated contribution to G, G.T, G.P, G.T.T, G.T.P and G.P.P
+     double precision, dimension(6) :: propval
   END TYPE gtp_phase_add
 ! allocated when needed and linked from phase record
 !\end{verbatim}

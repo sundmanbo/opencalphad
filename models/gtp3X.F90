@@ -1674,18 +1674,17 @@
 ! calculate additions like magnetic contributions etc and add to G
    addrec=>phlista(lokph)%additions
    additions: do while(associated(addrec))
-!      if(addlista(lokadd)%type.eq.1) then
 ! Note for phases with a disordered fraction set, gz%nofc is equal to
 ! the disordered number of fractions here 
-!      i1=gz%nofc
       gz%nofc=phlista(lokph)%tnooffr
-!      write(*,*)'3X gz%nofc: ',i1,gz%nofc
 ! moded is 0, 1 or 2 if derivatives should be calculated, phres is pointer
 ! to result arrays, lokadd is the addition record, listprop is needed to
 ! find where TC and BM are stored, gz%nofc are number of constituents
       call addition_selector(addrec,moded,phres,lokph,gz%nofc,ceq)
       if(gx%bmperr.ne.0) goto 1000
-! there are actually no other additions defined ...
+! NOTE that the addition record is not in the dynamic data struturce
+! but the values calculated are returned added to phres
+! There is a temporary storage of results for listing only.
       addrec=>addrec%nextadd
    enddo additions
 ! there are some special properties like mobilities and similar which

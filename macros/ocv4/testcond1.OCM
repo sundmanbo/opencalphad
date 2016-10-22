@@ -346,8 +346,7 @@ l sym
 
 cal sym *
 
-@$ The value of a parameter identifier can also be obtained directly
-@$ woth list model-para-val
+@$ vara value of a parameter identifier can also be obtained directly
 @$ DO NOT FORGET THE PHASE!
 
 list model-para-val

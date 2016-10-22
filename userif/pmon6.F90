@@ -167,6 +167,8 @@ contains
 ! current equilibrium records
     TYPE(gtp_equilibrium_data), pointer :: ceq,neweq
     TYPE(gtp_phase_varres), pointer :: parres
+! addition record used for listing calculated values
+    type(gtp_phase_add), pointer :: addrec
 !
     character actual_arg(2)*16
     character cline*128,option*80,aline*128,plotfile*64,eqname*24
@@ -273,9 +275,10 @@ contains
 !-------------------
 ! subsubcommands to AMEND PHASE
     character (len=16), dimension(ncamph) :: camph=&
-         ['MAGNETIC_CONTRIB','COMPOSITION_SET ','DISORDERED_FRACS',&
-         'GLASS_TRANSITION','QUIT            ','DEFAULT_CONSTIT ',&
-         'DEBYE_CP_MODEL  ','EINSTEIN_CP_MDL ','INDEN_WEI_MAGMOD',&
+!         ['MAGNETIC_CONTRIB','COMPOSITION_SET ','DISORDERED_FRACS',&
+         ['MAGNETIC_INDEN  ','COMPOSITION_SET ','DISORDERED_FRACS',&
+         'GLASS_MODEL_A   ','QUIT            ','DEFAULT_CONSTIT ',&
+         'DEBYE_CP_MODEL  ','EINSTEIN_CP_MDL ','XIONG_INDEN_MAGN',&
          'ELASTIC_MODEL_A ','GADDITION       ','                ']
 !-------------------
 ! subcommands to SET
@@ -641,8 +644,8 @@ contains
 !-------------------------
 ! subsubcommands to AMEND PHASE
 !       ['MAGNETIC_CONTRIB','COMPOSITION_SET ','DISORDERED_FRACS',&
-!        'GLASS_TRANSITION','QUIT            ','DEFAULT_CONSTIT ',&
-!        'DEBYE_CP_MODEL  ','EINSTEIN_CP_MDL ','INDEN_WEI_MAGNET',&
+!        'GLASS_MODEL_A   ','QUIT            ','DEFAULT_CONSTIT ',&
+!        'DEBYE_CP_MODEL  ','EINSTEIN_CP_MDL ','XIONG_INDEN_MAGM',&
 !        'ELASTIC_MODEL_A ','GADDITION       ','                ']
        case(4) ! amend phase subcommands
           call gparc('Phase name: ',cline,last,1,name1,' ',q1help)
@@ -707,7 +710,7 @@ contains
              if(gx%bmperr.ne.0) goto 990
 !....................................................
           case(4) ! amend phase <name> glass_transition
-             call add_addrecord(iph,glastransmodela)
+             call add_addrecord(iph,' ',glastransmodela)
 !....................................................
           case(5) ! amend phase quit
              goto 100
@@ -717,16 +720,17 @@ contains
              call ask_default_constitution(cline,last,iph,ics,ceq)
 !....................................................
           case(7) ! amend phase <name> Debye model
-             call add_addrecord(iph,debyecp)
+             call add_addrecord(iph,' ',debyecp)
 !....................................................
           case(8) ! amend phase einstein cp model
-             call add_addrecord(iph,einsteincp)
+             call add_addrecord(iph,' ',einsteincp)
 !....................................................
           case(9) ! amend phase wei_inden_magnetic_model
-             call add_addrecord(iph,weimagnetic)
+             call gparcd('BCC type phase: ',cline,last,1,ch1,'N',q1help)
+             call add_addrecord(iph,ch1,weimagnetic)
 !....................................................
           case(10) ! amend phase elastic model
-             call add_addrecord(iph,elasticmodela)
+             call add_addrecord(iph,' ',elasticmodela)
 !....................................................
           case(11) ! AMEND PHASE GADDITION
 ! add a constant term to G, value in J/FU
@@ -947,6 +951,8 @@ contains
                   parres%abnorm(1)
 2031         format(/'G, dG/dT dG/dP d2G/dT2:',4(1PE14.6))
 2032         format('G/RT, H, atoms/F.U:',3(1PE14.6))
+! also list contributions from calculated additions ...!!!
+             call list_addition_values(lut,parres)
 !.......................................................
           case(2) ! calculate phase < >  G and dG/dy
              call calcg(iph,ics,1,lokres,ceq)

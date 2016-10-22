@@ -53,7 +53,7 @@
       gx%bmperr=4331
    case(weimagnetic) ! Wei-Inden
       call calc_weimagnetic(moded,phres,addrec,lokph,mc,ceq)
-      write(kou,*)'Inden magnetic model with sep TC and TN not implemented yet'
+!     write(kou,*)'Inden magnetic model with sep TC and TN not implemented yet'
       gx%bmperr=4332
    case(einsteincp) ! Einstein Cp
       call calc_einsteincp(moded,phres,addrec,lokph,mc,ceq)
@@ -61,8 +61,8 @@
       gx%bmperr=4331
    case(elasticmodela) ! Elastic model
       call calc_elastica(moded,phres,addrec,lokph,mc,ceq)
-!      write(kou,*)' Elastic model not implemented yet'
-!      gx%bmperr=7777
+      write(kou,*)' Elastic model not implemented yet'
+      gx%bmperr=7777
    case(glastransmodela) ! Glas transition model
       write(kou,*)' Glas transition not implemented yet'
       gx%bmperr=4333
@@ -74,10 +74,11 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
 
 !\begin{verbatim}
- subroutine add_addrecord(iph,addtyp)
+ subroutine add_addrecord(iph,extra,addtyp)
 ! generic subroutine to add an addition typ addtyp (Except Inden)
    implicit none
    integer iph,addtyp
+   character extra*(*)
 !\end{verbatim}
    integer lokph,mc
    type(gtp_phase_add), pointer :: newadd,addrec,lastrec
@@ -97,8 +98,13 @@
    case(debyecp) ! Debye Cp
       call create_debyecp(newadd)
    case(weimagnetic) ! Inden-Wei.  Assume bcc if BCC part of phase name
-      bcc=.false.
-      if(index('BCC',phlista(lokph)%name).gt.0) bcc=.true.
+!      bcc=.false.
+!      if(index('BCC',phlista(lokph)%name).gt.0) bcc=.true.
+      if(extra(1:1).eq.'Y' .or. extra(1:1).eq.'y') then
+         bcc=.TRUE.
+      else
+         bcc=.FALSE.
+      endif
       call create_weimagnetic(newadd,bcc)
    case(einsteincp) ! Einstein Cp
       call create_einsteincp(newadd)
@@ -220,11 +226,11 @@
 ! problem in ct1xfn to start a function with +1 or 1
       text=' 1.0-.905299383*T**(-1)-.153008346*T**3-'//&
            '.00680037095*T**9-.00153008346*T**15 ;'
-!       write(*,*)'emm 1: ',text(1:len_trim(text))
+!       write(*,*)'3H emm 1: ',text(1:len_trim(text))
       ip=1
       nc=ncc
       call ct1xfn(text,ip,nc,coeff,koder,.FALSE.)
-!       write(*,17)'emm 1B:',nc,(coeff(i),i=1,nc)
+!       write(*,17)'3H emm 1B:',nc,(coeff(i),i=1,nc)
 17     format(a,i3,5(1PE11.3))
       if(gx%bmperr.ne.0) goto 1000
 ! Trouble with memory leaks for expressions to be fixed ...
@@ -423,9 +429,16 @@
    addgval(1)=gmagn
    addgval(2)=gmagn/tv+rt*ftao(2)*dtaodt*logb1
    addgval(3)=rt*ftao(2)*dtaodp*logb1+rt*ftao(1)*invb1*phres%gval(3,ibm)
-      phres%gval(1,1)=phres%gval(1,1)+addgval(1)/rt
-      phres%gval(2,1)=phres%gval(2,1)+addgval(2)/rt
-      phres%gval(3,1)=phres%gval(3,1)+addgval(3)/rt
+!      phres%gval(1,1)=phres%gval(1,1)+addgval(1)/rt
+!      phres%gval(2,1)=phres%gval(2,1)+addgval(2)/rt
+!      phres%gval(3,1)=phres%gval(3,1)+addgval(3)/rt
+! save these in record
+   do j=1,3
+      lokadd%propval(j)=addgval(j)
+      phres%gval(j,1)=phres%gval(j,1)+addgval(j)/rt
+   enddo
+!   write(*,77)lokadd%type,(lokadd%propval(j),j=1,4)
+!77 format('Addition ',i2,': ',4(1pe12.4))
 ! ignore second derivatives if no derivatives wanted
    if(moded.eq.0) then
       goto 1000
@@ -527,6 +540,7 @@
 !   write(*,*)'cm 7: ',phres%gval(1,1),addgval(1)/rt
 ! note phres%gval(1..3,1) already calculated above
    do j=4,6
+      lokadd%propval(j)=addgval(j)
       phres%gval(j,1)=phres%gval(j,1)+addgval(j)/rt
    enddo
 1000 continue
@@ -537,7 +551,7 @@
 
 !\begin{verbatim}
  subroutine create_weimagnetic(addrec,bcc)
-! adds a wei type magnetic record, we must separate fcc and bcc but no aff!!
+! adds a wei type magnetic record, we must separate fcc and bcc by extra
 ! copied from Inden magnetic model
 ! The difference is that it uses TCA for Curie temperature and TNA for Neel
 ! and individual Bohr magneton numbers
@@ -552,45 +566,78 @@
    integer koder(5,ncc)
    TYPE(tpfun_expression), pointer :: llow,lhigh
 !
+! from W Xiong et al Calphad (2012) 11-20
+!
+! G = RT g(tao) ln(b* + 1)
+!
+! tao = T/Tc
+! b*= \Pi_i (b_i + 1)**(x_i) - 1
+!
+! tao<0 g(tao)=0
+!
+! tao<1 g(tao) = 1-1/D( 0.38438376/(p*tao)+0.63570895(1/p-1)*
+!
+!            (tao**3/6 + tao**9/135 + tao**15/600 + tao**21/1617) )
+!
+! tao>1 g(tao) = tao**(-7)/D( 1/21 + tao**(-14)/630 + tao**(-28)/2975 + 
+!                             tao**(-42)/8232)
+!
+! p=0.37 for bcc and p=0.25 for non-bcc (like fcc)
+!
+! for bcc:      +1-.880323235*TAO**(-1)-.152870878*TAO**3-.00679426123*TAO**9
+!               -.00152870878*TAO**15-5.67238878E-04*TAO**21
+!
+!              -.0403514888*TAO**(-7)-.00134504963*TAO**(-21)
+!              -2.84834039E-04*TAO**(-35)-1.02937472E-04*TAO**(-49)
+!
+! for non-bcc: 
+!
+!      +1-.842849633*TAO**(-1)-.174242226*TAO**3-.00774409892*TAO**9
+!      -.00174242226*TAO**15-6.46538871E-04*TAO**21
+!
+!       -.0261039233*TAO**(-7)-8.70130777E-04*TAO**(-21)
+!      -1.84262988E-04*TAO**(-35)-6.65916411E-05*TAO**(-49)
+!
    if(bcc) then
-! Magnetic function below Curie Temperature
+! Magnetic function below Curie/Neel Temperature, 
 ! problem in ct1xfn to start a function with +1 or 1
-      text=' 1.0-.905299383*T**(-1)-.153008346*T**3-'//&
-           '.00680037095*T**9-.00153008346*T**15 ;'
-!       write(*,*)'emm 1: ',text(1:len_trim(text))
+      text=' +1-.880323235*T**(-1)-.152870878*T**3-.00679426123*T**9'//&
+           '-.00152870878*T**15-5.67238878E-04*T**21'
+!      write(*,*)'3H emm 1: ',trim(text)
       ip=1
       nc=ncc
       call ct1xfn(text,ip,nc,coeff,koder,.FALSE.)
-!       write(*,17)'emm 1B:',nc,(coeff(i),i=1,nc)
+!       write(*,17)'3H emm 1B:',nc,(coeff(i),i=1,nc)
 17     format(a,i3,5(1PE11.3))
       if(gx%bmperr.ne.0) goto 1000
       call ct1mexpr(nc,coeff,koder,llow)
       if(gx%bmperr.ne.0) goto 1000
-! Magnetic function above Curie Temperature
-      text=' -.0641731208*T**(-5)-.00203724193*T**(-15)'//&
-           '-4.27820805E-04*T**(-25) ; '
-!       write(*,*)'emm 2: ',text(1:len_trim(text))
+! Magnetic function above Curie/Neel Temperature
+      text='-.0403514888*T**(-7)-.00134504963*T**(-21)'//&
+           '-2.84834039E-04*T**(-35)-1.02937472E-04*T**(-49)'
+!       write(*,*)'3H emm 2: ',trim(text)
       ip=1
       nc=ncc
       call ct1xfn(text,ip,nc,coeff,koder,.FALSE.)
       if(gx%bmperr.ne.0) goto 1000
       call ct1mexpr(nc,coeff,koder,lhigh)
       if(gx%bmperr.ne.0) goto 1000
+
    else
 !------------
 ! fcc
-! Magnetic function below Curie Temperature
-      text='+1.0-.860338755*T**(-1)-.17449124*T**3-.00775516624*T**9'//&
-           '-.0017449124*T**15 ; '
+! Magnetic function below Curie/Neel Temperature
+      text='+1-.842849633*T**(-1)-.174242226*T**3-.00774409892*T**9'//&
+           '-.00174242226*T**15-6.46538871E-04*T**21'
       ip=1
       nc=ncc
       call ct1xfn(text,ip,nc,coeff,koder,.FALSE.)
       if(gx%bmperr.ne.0) goto 1000
       call ct1mexpr(nc,coeff,koder,llow)
       if(gx%bmperr.ne.0) goto 1000
-! Magnetic function above Curie Temperature
-      text='-.0426902268*T**(-5)-.0013552453*T**(-15)'//&
-           '-2.84601512E-04*T**(-25) ; '
+! Magnetic function above Curie/Neel Temperature
+      text='-.0261039233*T**(-7)-8.70130777E-04*T**(-21)'//&
+           '-1.84262988E-04*T**(-35)-6.65916411E-05*T**(-49)'
       ip=1
       nc=ncc
       call ct1xfn(text,ip,nc,coeff,koder,.FALSE.)
@@ -613,7 +660,9 @@
    call need_propertyid('CTA ',typty)
    if(gx%bmperr.ne.0) goto 1000
    addrec%need_property(1)=typty
-   call need_propertyid('IBM ',typty)
+! This model use an effective Bohr magneton number b*=prod(b_i+1)**x_i -1
+!   call need_propertyid('IBM ',typty)
+   call need_propertyid('BMAG ',typty)
    if(gx%bmperr.ne.0) goto 1000
    addrec%need_property(2)=typty
 ! NTA is not so important, anti-magnetic contributions usually small
@@ -634,8 +683,6 @@
  subroutine calc_weimagnetic(moded,phres,lokadd,lokph,mc,ceq)
 ! calculates Wei-Indens magnetic contribution
 ! 
-! NOTE this is just copied from Inden subroutine, must be changed
-!
 ! Gmagn = RT*f(T/Tc)*ln(beta+1)
 ! moded: integer, 0=only G, S, Cp; 1=G and dG/dy; 2=Gm dG/dy and d2G/dy2
 ! phres: pointer, to phase\_varres record
@@ -650,11 +697,12 @@
    TYPE(gtp_phase_add), pointer :: lokadd
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-   integer itc,ibm,jl,noprop,ik,k,jk,j
+   integer itc,itn,ibm,jl,noprop,ik,k,jk,j
    double precision logb1,invb1,iafftc,iaffbm,rgasm,rt,tao,gmagn
    double precision dtaodt,dtaodp,beta,d2taodp2,d2taodtdp,tc,tv
    double precision tao2(2),ftao(6),dtao(3,mc),d2tao(mc*(mc+1)/2)
    double precision addgval(6),daddgval(3,mc),d2addgval(mc*(mc+1)/2)
+   double precision tn,tcsave,tnsave
    TYPE(tpfun_expression), pointer :: exprot
 ! dgdt = Gmagn/T + RT*df/dtao*dtao/dT*ln(beta+1)
 ! dgdp = RT df/dtao*dtao/dP*ln(beta+1)
@@ -663,7 +711,7 @@
 !        +RT*df/dtao*d2tao/dT2*ln(beta+1)
 ! d2gdtdp= ...
 ! d2gdp2=
-! d2gdtdy=
+! d2gdtdy= suck
 ! d2gdpdy=
 ! d2gdydy=
 ! listprop(1) is the number of properties calculated
@@ -674,66 +722,52 @@
 ! the properties needed.
 !
    noprop=phres%listprop(1)-1
-   itc=0; ibm=0
+   itc=0; ibm=0; itn=0
+   lokadd%propval=zero
 !    write(*,*)'cmi 2: ',noprop,(phres%listprop(i),i=1,noprop)
-! Inden magnetic need properties in need_property(1..2)
+! Inden magnetic need properties in need_property(1..3)
    findix: do jl=2,noprop
       if(phres%listprop(jl).eq.lokadd%need_property(1)) then
          itc=jl
       elseif(phres%listprop(jl).eq.lokadd%need_property(2)) then
          ibm=jl
+      elseif(phres%listprop(jl).eq.lokadd%need_property(3)) then
+         itn=jl
       endif
    enddo findix
-   if(itc.eq.0 .or. ibm.eq.0) then
-! it is no error if no TC or BM but then magnetic contribution is zero
-!       write(*,12)phlista(lokph)%name
-12     format('Warning: Magnetic addition for phase ',a&
-           /9x,'but no values for TC or BM, magnetic contribution zero')
+! check that the needed properties are defined
+   if(ibm.eq.0 .or. (itc.eq.0 .and. itn.eq.0)) then
+! it is no error if no CTA, NTA or BMAG but then magnetic contribution is zero
+       write(*,12)trim(phlista(lokph)%name)
+12     format('Warning: Magnetic addition for phase ',a,' but no calculated '/&
+            'values for CTA, NTA or BMAG, magnetic G is zero')
+      goto 1000
+   else
+      tc=-one
+      tn=-one
+      if(itc.gt.0) tc=phres%gval(1,itc)
+      if(itn.gt.0) tn=phres%gval(1,itn)
+   endif
+   beta=phres%gval(1,ibm)
+   write(*,95)'Magnetic values in: ',itc,itn,ibm,tc,tn,beta
+95 format(a,3i3,3(1PE15.6))
+   if(beta.le.zero .or. (tc.le.zero .and. tn.le.zero)) then
+! no magnetic contribution
+      gmagn=zero
+      addgval=zero
+      daddgval=zero
+      d2addgval=zero
       goto 1000
    endif
-   tc=phres%gval(1,itc)
-   beta=phres%gval(1,ibm)
-!    write(*,95)'Magnetic values in: ',itc,ibm,tc,beta
-!95 format(a,2i3,3(1PE15.6))
-   if(tc.lt.zero) then
-! we should take care of the case when tc and beta have different signs
-! note: all derivatives of tc must be multiplied with iaff
-      iafftc=one/lokadd%aff
-      do ik=1,mc
-         do k=1,3
-            phres%dgval(k,ik,itc)=iafftc*phres%dgval(k,ik,itc)
-         enddo
-         do jk=ik,mc
-            phres%d2gval(ixsym(ik,jk),itc)=&
-                 iafftc*phres%d2gval(ixsym(ik,jk),itc)
-         enddo
-      enddo
-      do k=1,6
-         phres%gval(k,itc)=iafftc*phres%gval(k,itc)
-      enddo
-      tc=phres%gval(1,itc)
-!      write(*,*)'Inden 1: ',tc,iafftc
-   endif
-! avoid diving with zero, tc is a temperature so 0.01 degree is small
-   if(tc.lt.one) tc=1.0D-2
-   if(beta.lt.zero) then
-! note all derivatives of bm must be multipled by iaffbm
-!      iaffbm=one/addlista(lokadd)%aff
-      iaffbm=one/lokadd%aff
-      do ik=1,mc
-         do k=1,3
-            phres%dgval(k,ik,ibm)=iaffbm*phres%dgval(k,ik,ibm)
-         enddo
-         do jk=ik,mc
-            phres%d2gval(ixsym(ik,jk),ibm)=&
-                 iaffbm*phres%d2gval(ixsym(ik,jk),ibm)
-         enddo
-      enddo
-      do k=1,6
-         phres%gval(k,ibm)=iaffbm*phres%gval(k,ibm)
-      enddo
-      beta=phres%gval(1,ibm)
-!      write(*,*)'Inden 2: ',beta,iaffbm
+! we should use the appropriate tao=t/tc or t/tn
+! use AF model unless tc negative, both cannot be negative here
+   if(tc.le.zero) then
+! no ferro but antiferro.  tn>0 as both tn and tc checked against zero above
+      tcsave=tc
+      tc=tn
+! if tn negative use tc
+!   elseif(tn.gt.zero) then
+! we have both AFM and FM, use FM, i.e. tc so nothing to do
    endif
 !
    tv=ceq%tpval(1)
@@ -761,9 +795,19 @@
    addgval(1)=gmagn
    addgval(2)=gmagn/tv+rt*ftao(2)*dtaodt*logb1
    addgval(3)=rt*ftao(2)*dtaodp*logb1+rt*ftao(1)*invb1*phres%gval(3,ibm)
-      phres%gval(1,1)=phres%gval(1,1)+addgval(1)/rt
-      phres%gval(2,1)=phres%gval(2,1)+addgval(2)/rt
-      phres%gval(3,1)=phres%gval(3,1)+addgval(3)/rt
+!   phres%gval(1,1)=phres%gval(1,1)+addgval(1)/rt
+!   phres%gval(2,1)=phres%gval(2,1)+addgval(2)/rt
+!   phres%gval(3,1)=phres%gval(3,1)+addgval(3)/rt
+! save these in record
+! NOTE if parallel calculation the same stored values %propval will be
+! written by all threads so they must not be used!!
+! They are included only for listing and debugging
+   do j=1,3
+      lokadd%propval(j)=addgval(j)
+      phres%gval(j,1)=phres%gval(j,1)+addgval(j)/rt
+   enddo
+   write(*,77)lokadd%type,(lokadd%propval(j),j=1,4)
+77 format('Addition ',i2,': ',4(1pe12.4))
 ! ignore second derivatives if no derivatives wanted
    if(moded.eq.0) then
       goto 1000
@@ -862,8 +906,12 @@
 !    write(*,*)'cm 7: ',rt*phres%gval(1,1),addgval(1)
 ! note phres%gval(1..3,1) already calculated above
    do j=4,6
+      lokadd%propval(j)=addgval(j)
       phres%gval(j,1)=phres%gval(j,1)+addgval(j)/rt
    enddo
+! we may have destroyed the original value of tc if we have AFM
+   tc=tcsave
+! jump here if no magnetic contribution
 1000 continue
    return
  end subroutine calc_weimagnetic
@@ -1208,11 +1256,12 @@
    integer unit,ftyp
    character ch1*1,phname*(*)
    TYPE(gtp_phase_add), pointer :: lokadd
-!\end{verbatim}
+!\end{verbatim} %+
    integer ip
    TYPE(tpfun_expression), pointer :: exprot
    character line*256,tps(2)*3
    double precision ff
+!
    addition: select case(lokadd%type)
    case default
       write(unit,*)'Unknown addtion type: ',phname,lokadd%type
@@ -1243,6 +1292,9 @@
          exprot=>lokadd%explink(2)
          call ct1wfn(exprot,tps,line,ip)
          call wrice(unit,4,8,78,line(1:ip))
+! write current values of gmagn and values
+!         write(unit,120)(lokadd%propval(ip),ip=1,4)
+!120      format('    Curr. contrib. G, G.T etc:',4(1pe12.4))
       endif
 !---------------------------------------------
    case(debyecp) ! Debye Cp model
@@ -1251,10 +1303,10 @@
 !---------------------------------------------
    case(weimagnetic) ! Inden-Wei
       write(unit,300)
-300   format(2x,'+ Inden magnetic model'/&
-           2x,'with separate Curie and Neel temperatures.'/&
-           4x,'Magnetic function above the ordering temperature TC'&
-           ' with TAO=T/TC':)
+300   format(2x,'+ Inden magnetic model modified by Xiong'/&
+           4x,'with separate Curie and Neel temperatures.'/&
+           4x,'Magnetic function below the ordering temperature TC ',&
+           ' with TAO=T/TC:')
       tps(1)='TAO'
       tps(2)='err'
       ip=1
@@ -1284,6 +1336,29 @@
 1000 continue
    return
  end subroutine list_addition
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim} %-
+ subroutine list_addition_values(unit,phres)
+! lists calculated values for this addition
+   implicit none
+   integer unit
+   TYPE(gtp_phase_varres), pointer :: phres
+!\end{verbatim}
+   integer lokph,j1
+   TYPE(gtp_phase_add), pointer :: addrec
+!
+   lokph=phres%phlink
+   addrec=>phlista(lokph)%additions
+   do while(associated(addrec)) 
+      write(lut,77)addrec%type,(addrec%propval(j1),j1=1,4)
+77    format('Addition type ',i2,': ',4(1pe12.4))
+      addrec=>addrec%nextadd
+   enddo
+1000 continue
+   return
+ end subroutine list_addition_values
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
