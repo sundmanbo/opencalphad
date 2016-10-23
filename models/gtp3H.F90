@@ -54,7 +54,7 @@
    case(weimagnetic) ! Wei-Inden
       call calc_weimagnetic(moded,phres,addrec,lokph,mc,ceq)
 !     write(kou,*)'Inden magnetic model with sep TC and TN not implemented yet'
-      gx%bmperr=4332
+!      gx%bmperr=4332
    case(einsteincp) ! Einstein Cp
       call calc_einsteincp(moded,phres,addrec,lokph,mc,ceq)
       write(kou,*)' Einstein Cp model not implemented yet'
@@ -159,7 +159,7 @@
          goto 1000
       endif
    enddo
-   write(*,*)'Parameter id ',id,' not found'
+   write(*,*)'3H Parameter id ',id,' not found'
    gx%bmperr=4335
    typty=-1
 1000 continue
@@ -240,7 +240,7 @@
 ! Magnetic function above Curie Temperature
       text=' -.0641731208*T**(-5)-.00203724193*T**(-15)'//&
            '-4.27820805E-04*T**(-25) ; '
-!       write(*,*)'emm 2: ',text(1:len_trim(text))
+!       write(*,*)'3H emm 2: ',text(1:len_trim(text))
       ip=1
       nc=ncc
       call ct1xfn(text,ip,nc,coeff,koder,.FALSE.)
@@ -351,13 +351,13 @@
    if(itc.eq.0 .or. ibm.eq.0) then
 ! it is no error if no TC or BM but then magnetic contribution is zero
 !       write(*,12)phlista(lokph)%name
-12     format('Warning: Magnetic addition for phase ',a&
+12     format('3H Warning: Magnetic addition for phase ',a&
            /9x,'but no values for TC or BM, magnetic contribution zero')
       goto 1000
    endif
    tc=phres%gval(1,itc)
    beta=phres%gval(1,ibm)
-!    write(*,95)'Magnetic values in: ',itc,ibm,tc,beta
+!    write(*,95)'3H Magnetic values in: ',itc,ibm,tc,beta
 !95 format(a,2i3,3(1PE15.6))
    if(tc.lt.zero) then
 ! we should take care of the case when tc and beta have different signs
@@ -376,7 +376,7 @@
          phres%gval(k,itc)=iafftc*phres%gval(k,itc)
       enddo
       tc=phres%gval(1,itc)
-!      write(*,*)'Inden 1: ',tc,iafftc
+!      write(*,*)'3H Inden 1: ',tc,iafftc
    else
       iafftc=zero
    endif
@@ -399,7 +399,7 @@
          phres%gval(k,ibm)=iaffbm*phres%gval(k,ibm)
       enddo
       beta=phres%gval(1,ibm)
-!      write(*,*)'Inden 2: ',beta,iaffbm
+!      write(*,*)'3H Inden 2: ',beta,iaffbm
    endif
 !
    tv=ceq%tpval(1)
@@ -438,7 +438,7 @@
       phres%gval(j,1)=phres%gval(j,1)+addgval(j)/rt
    enddo
 !   write(*,77)lokadd%type,(lokadd%propval(j),j=1,4)
-!77 format('Addition ',i2,': ',4(1pe12.4))
+!77 format('3H Addition ',i2,': ',4(1pe12.4))
 ! ignore second derivatives if no derivatives wanted
    if(moded.eq.0) then
       goto 1000
@@ -484,7 +484,7 @@
       daddgval(1,j)=rt*ftao(2)*dtao(1,j)*logb1+&
            rt*ftao(1)*invb1*phres%dgval(1,j,ibm)
 !      write(*,43)j,daddgval(1,j),dtao(1,j),phres%dgval(1,j,ibm)
-!43    format('Inden 4: ',i2,6(1pe12.5))
+!43    format('3H Inden 4: ',i2,6(1pe12.5))
 ! second derivative wrt to T and Y, checked
       daddgval(2,j)=rgasm*ftao(2)*dtao(1,j)*logb1+&
            rgasm*ftao(1)*invb1*phres%dgval(1,j,ibm)+&
@@ -496,7 +496,7 @@
 !            rt*ftao(4)*dtaodt*dtao(1,j)*logb1,&
 !            rgasm*ftao(2)*dtao(2,j)*logb1,&
 !            rt*ftao(2)*dtaodt*invb1*phres%dgval(1,j,ibm)
-!56 format('calcmag : ',5(1PE13.5))
+!56 format('3H calcmag : ',5(1PE13.5))
 ! second derivative wrt P and Y, no P dependence
       daddgval(3,j)=rt*ftao(4)*dtaodp*dtao(1,j)*logb1+&
            rt*ftao(2)*dtao(3,j)*logb1+&
@@ -517,13 +517,13 @@
 !               rt*ftao(2)*dtao(1,k)*invb1*phres%dgval(1,j,ibm),&
 !              -rt*ftao(1)*invb1**2*phres%dgval(1,j,ibm)*phres%dgval(1,k,ibm),&
 !               rt*ftao(1)*invb1*phres%d2gval(ixsym(j,k),ibm)
-!57 format('mag2y: ',6(1PE12.4))
+!57 format('3H mag2y: ',6(1PE12.4))
       enddo
    enddo
 ! now add all to the total G and its derivatives
 ! something wrong here, j should go from 1 to 9 in my fenix case ...
    do j=1,mc
-!      write(*,99)'magadd 1: ',1,j,phres%dgval(1,j,1),daddgval(1,j)/rt
+!      write(*,99)'3H magadd 1: ',1,j,phres%dgval(1,j,1),daddgval(1,j)/rt
       do k=1,3
 ! first derivatives
          phres%dgval(k,j,1)=phres%dgval(k,j,1)+daddgval(k,j)/rt
@@ -531,13 +531,13 @@
 99    format(a,2i3,2(1pe16.8))
       do k=j,mc
 ! second derivatives
-!         write(*,99)'magadd 2: ',k,j,rt*phres%d2gval(ixsym(j,k),1),&
+!         write(*,99)'3H magadd 2: ',k,j,rt*phres%d2gval(ixsym(j,k),1),&
 !              d2addgval(ixsym(j,k))
          phres%d2gval(ixsym(j,k),1)=phres%d2gval(ixsym(j,k),1)+&
               d2addgval(ixsym(j,k))/rt
       enddo
    enddo
-!   write(*,*)'cm 7: ',phres%gval(1,1),addgval(1)/rt
+!   write(*,*)'3H cm 7: ',phres%gval(1,1),addgval(1)/rt
 ! note phres%gval(1..3,1) already calculated above
    do j=4,6
       lokadd%propval(j)=addgval(j)
@@ -724,7 +724,7 @@
    noprop=phres%listprop(1)-1
    itc=0; ibm=0; itn=0
    lokadd%propval=zero
-!    write(*,*)'cmi 2: ',noprop,(phres%listprop(i),i=1,noprop)
+!    write(*,*)'3H cmi 2: ',noprop,(phres%listprop(i),i=1,noprop)
 ! Inden magnetic need properties in need_property(1..3)
    findix: do jl=2,noprop
       if(phres%listprop(jl).eq.lokadd%need_property(1)) then
@@ -739,8 +739,9 @@
    if(ibm.eq.0 .or. (itc.eq.0 .and. itn.eq.0)) then
 ! it is no error if no CTA, NTA or BMAG but then magnetic contribution is zero
        write(*,12)trim(phlista(lokph)%name)
-12     format('Warning: Magnetic addition for phase ',a,' but no calculated '/&
-            'values for CTA, NTA or BMAG, magnetic G is zero')
+12     format('3H Warning: Magnetic addition for phase ',a,&
+            ' not calculated as '/10x&
+            'values for CTA, NTA or BMAG, magnetic G are zero')
       goto 1000
    else
       tc=-one
@@ -749,7 +750,7 @@
       if(itn.gt.0) tn=phres%gval(1,itn)
    endif
    beta=phres%gval(1,ibm)
-   write(*,95)'Magnetic values in: ',itc,itn,ibm,tc,tn,beta
+!   write(*,95)'3H Magnetic values in: ',itc,itn,ibm,tc,tn,beta
 95 format(a,3i3,3(1PE15.6))
    if(beta.le.zero .or. (tc.le.zero .and. tn.le.zero)) then
 ! no magnetic contribution
@@ -786,8 +787,8 @@
    logb1=log(beta+one)
    invb1=one/(beta+one)
    gmagn=rt*ftao(1)*logb1
-!    write(*,98)'cm 97: ',tc,beta,ftao(1),logb1,rt
-!    write(*,98)'cm 98: ',rt*gmagn,rt*(gmagn+phres%gval(1,1)),tcx,iafftc
+!    write(*,98)'3H cm 97: ',tc,beta,ftao(1),logb1,rt
+!    write(*,98)'3H cm 98: ',rt*gmagn,rt*(gmagn+phres%gval(1,1)),tcx,iafftc
 !98  format(a,5(1PE14.6))
 !
    dtaodt=one/tc
@@ -806,10 +807,14 @@
       lokadd%propval(j)=addgval(j)
       phres%gval(j,1)=phres%gval(j,1)+addgval(j)/rt
    enddo
-   write(*,77)lokadd%type,(lokadd%propval(j),j=1,4)
-77 format('Addition ',i2,': ',4(1pe12.4))
+!   write(*,77)lokadd%type,(lokadd%propval(j),j=1,4)
+77 format('3H addition ',i2,': ',4(1pe12.4))
 ! ignore second derivatives if no derivatives wanted
    if(moded.eq.0) then
+! make sure Cp is calculated and stored so it can be listed
+      addgval(4)=2.0d0*rgasm*ftao(2)*dtaodt*logb1+&
+           rt*ftao(4)*(dtaodt)**2*logb1
+      lokadd%propval(4)=addgval(4)
       goto 1000
    endif
 ! Now all derivatives
@@ -853,7 +858,7 @@
       daddgval(1,j)=rt*ftao(2)*dtao(1,j)*logb1+&
            rt*ftao(1)*invb1*phres%dgval(1,j,ibm)
 !      write(*,43)j,daddgval(1,j),dtao(1,j),phres%dgval(1,j,ibm)
-!43    format('Inden 4: ',i2,6(1pe12.5))
+!43    format('3H Inden 4: ',i2,6(1pe12.5))
 ! second derivative wrt to T and Y, checked
       daddgval(2,j)=rgasm*ftao(2)*dtao(1,j)*logb1+&
            rgasm*ftao(1)*invb1*phres%dgval(1,j,ibm)+&
@@ -865,7 +870,7 @@
 !            rt*ftao(4)*dtaodt*dtao(1,j)*logb1,&
 !            rgasm*ftao(2)*dtao(2,j)*logb1,&
 !            rt*ftao(2)*dtaodt*invb1*phres%dgval(1,j,ibm)
-!56 format('calcmag : ',5(1PE13.5))
+!56 format('3H calcmag : ',5(1PE13.5))
 ! second derivative wrt P and Y, no P dependence
       daddgval(3,j)=rt*ftao(4)*dtaodp*dtao(1,j)*logb1+&
            rt*ftao(2)*dtao(3,j)*logb1+&
@@ -873,7 +878,7 @@
            rt*ftao(1)*invb1**2*phres%gval(3,ibm)*phres%dgval(1,j,ibm)+&
            rt*ftao(1)*invb1*phres%dgval(3,j,ibm)
       do k=j,mc
-! second derivatives wrt Y1 and Y2, wrong
+! second derivatives wrt Y1 and Y2, wrong ??
          d2addgval(ixsym(j,k))=rt*ftao(4)*dtao(1,j)*dtao(1,k)*logb1+&
               rt*ftao(2)*d2tao(ixsym(j,k))*logb1+&
               rt*ftao(2)*dtao(1,j)*invb1*phres%dgval(1,k,ibm)+&
@@ -886,24 +891,24 @@
 !               rt*ftao(2)*dtao(1,k)*invb1*phres%dgval(1,j,ibm),&
 !              -rt*ftao(1)*invb1**2*phres%dgval(1,j,ibm)*phres%dgval(1,k,ibm),&
 !               rt*ftao(1)*invb1*phres%d2gval(ixsym(j,k),ibm)
-!57 format('mag2y: ',6(1PE12.4))
+!57 format('3H mag2y: ',6(1PE12.4))
       enddo
    enddo
 ! now add all to the total G
    do j=1,mc
       do k=1,3
-!          write(*,99)'magadd 1: ',k,j,rt*phres%dgval(k,j,1),daddgval(k,j)
+!          write(*,99)'3H magadd 1: ',k,j,rt*phres%dgval(k,j,1),daddgval(k,j)
          phres%dgval(k,j,1)=phres%dgval(k,j,1)+daddgval(k,j)/rt
       enddo
 !99 format(a,2i3,2(1pe16.8))
       do k=j,mc
-!          write(*,99)'magadd 2: ',k,j,rt*phres%d2gval(ixsym(j,k),1),&
+!          write(*,99)'3H magadd 2: ',k,j,rt*phres%d2gval(ixsym(j,k),1),&
 !               d2addgval(ixsym(j,k))
          phres%d2gval(ixsym(j,k),1)=phres%d2gval(ixsym(j,k),1)+&
               d2addgval(ixsym(j,k))/rt
       enddo
    enddo
-!    write(*,*)'cm 7: ',rt*phres%gval(1,1),addgval(1)
+!    write(*,*)'3H cm 7: ',rt*phres%gval(1,1),addgval(1)
 ! note phres%gval(1..3,1) already calculated above
    do j=4,6
       lokadd%propval(j)=addgval(j)
@@ -982,7 +987,7 @@
       endif
    enddo findix
    if(ilpx.eq.0 .or. iec11.eq.0 .or. iec12.eq.0 .or. iec44.eq.0) then
-      write(*,11)'Missing elastic parameter index: ',ilpx,iec11,iec12,iec44
+      write(*,11)'3H Missing elastic parameter index: ',ilpx,iec11,iec12,iec44
 11    format(a,5i4)
    endif
 !   write(*,11)'3H indices: ',ilpx,iec11,iec12,iec44
@@ -1010,21 +1015,21 @@
 !   write(*,19)(addrec%elastica%cmat(4,i1),i1=1,6)
 !   write(*,19)(addrec%elastica%cmat(5,i1),i1=1,6)
 !   write(*,19)(addrec%elastica%cmat(6,i1),i1=1,6)
-19 format('CIJ: ',6(1pe12.4))
+19 format('3H CIJ: ',6(1pe12.4))
 !....................
 ! equilibrium lattice constant (cubic, just diagonal)
    addrec%elastica%latticepar=zero
    addrec%elastica%latticepar(1,1)=phres%gval(1,ilpx)
    addrec%elastica%latticepar(2,2)=phres%gval(1,ilpx)
    addrec%elastica%latticepar(3,3)=phres%gval(1,ilpx)
-!   write(*,23)'Lattice parameter: ',phres%gval(1,ilpx)
+!   write(*,23)'3H Lattice parameter: ',phres%gval(1,ilpx)
 !....................
 ! The equilibrium lattice distances are in LPX (cubic lattice)
 ! The current lattice parameters are in ceq%phres%curlat(3,3)
 ! generate epsa, Voigt notation
-!   write(*,23)'curlat 1: ',(phres%curlat(i1,1),i1=1,3)
-!   write(*,23)'curlat 2: ',(phres%curlat(i1,2),i1=1,3)
-!   write(*,23)'curlat 3: ',(phres%curlat(i1,3),i1=1,3)
+!   write(*,23)'3H curlat 1: ',(phres%curlat(i1,1),i1=1,3)
+!   write(*,23)'3H curlat 2: ',(phres%curlat(i1,2),i1=1,3)
+!   write(*,23)'3H curlat 3: ',(phres%curlat(i1,3),i1=1,3)
 23 format(a,3(1pe12.4))
    addrec%elastica%epsa(1)=(phres%curlat(1,1)-addrec%elastica%latticepar(1,1))&
         /addrec%elastica%latticepar(1,1)
@@ -1042,7 +1047,7 @@
    addrec%elastica%epsa(6)=&
         (2*(phres%curlat(1,2)-addrec%elastica%latticepar(1,2)))&
         /addrec%elastica%latticepar(1,1)
-!   write(*,25)'ev1: ',(addrec%elastica%epsa(i1),i1=1,6)
+!   write(*,25)'3H ev1: ',(addrec%elastica%epsa(i1),i1=1,6)
 25 format(a,6(1pe12.4))
 !....................
 ! calculate the elastic energy ... I do not know how to use F08 matrix mult
@@ -1052,7 +1057,7 @@
       do i2=1,6
          sum2=sum2+addrec%elastica%cmat(i1,i2)*addrec%elastica%epsa(i2)
       enddo
-!      write(*,23)'sum2: ',sum2
+!      write(*,23)'3H sum2: ',sum2
       sum1=sum1+addrec%elastica%epsa(i1)*sum2
    enddo
    addrec%elastica%eeadd(1)=5.0D-1*sum1
@@ -1088,9 +1093,9 @@
    if(gx%bmperr.ne.0) goto 1000
    ceq%phase_varres(lokcs)%curlat=xxx
 !   write(*,*)'3H Phase+set: ',lokph,lokcs
-!   write(*,23)'slp 1: ',(ceq%phase_varres(lokcs)%curlat(i1,1),i1=1,3)
-!   write(*,23)'slp 2: ',(ceq%phase_varres(lokcs)%curlat(i1,2),i1=1,3)
-!   write(*,23)'slp 3: ',(ceq%phase_varres(lokcs)%curlat(i1,3),i1=1,3)
+!   write(*,23)'3H slp 1: ',(ceq%phase_varres(lokcs)%curlat(i1,1),i1=1,3)
+!   write(*,23)'3H slp 2: ',(ceq%phase_varres(lokcs)%curlat(i1,2),i1=1,3)
+!   write(*,23)'3H slp 3: ',(ceq%phase_varres(lokcs)%curlat(i1,3),i1=1,3)
 23 format(a,3(1pe12.4))
 1000 continue
    return
@@ -1156,7 +1161,7 @@
    findix: do ith=2,noprop
       if(phres%listprop(ith).eq.addrec%need_property(1)) goto 100
    enddo findix
-   write(*,*)'No theta value. ',lokph
+   write(*,*)'3H No theta value. ',lokph
    gx%bmperr=4336; goto 1000
 100 continue
 ! thet is in gval(ith,1), derivatives in dgval(*,ith,*) and d2gval(ith,*)
@@ -1233,15 +1238,15 @@
    integer ith,noprop
 ! value of THET and derivatives have type ??
    noprop=phres%listprop(1)-1
-!    write(*,*)'cmi 2: ',noprop,(phres%listprop(i),i=1,noprop)
+!    write(*,*)'3H cmi 2: ',noprop,(phres%listprop(i),i=1,noprop)
 ! Find thet, index stored in need_property(1)
    do ith=2,noprop
       if(phres%listprop(ith).eq.lokadd%need_property(1)) goto 100
    enddo
-   write(*,*)'No Debye temperature THET',lokph
+   write(*,*)'3H No Debye temperature THET',lokph
    gx%bmperr=4336; goto 1000
 100 continue
-   write(*,*)'Not implemented yet'
+   write(*,*)'3H Not implemented yet'
    gx%bmperr=4078
 1000 continue
    return
