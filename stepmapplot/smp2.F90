@@ -2102,6 +2102,8 @@ CONTAINS
        endif
        call condition_value(0,pcond,value,ceq)
        if(gx%bmperr.ne.0) goto 1000
+! check conditions
+!       call list_conditions(kou,ceq)
 !       write(*,*)'New axis value: ',value,ceq%tpval(1)
 !=============================================================== new step
 ! This is for MAP with 2 or more axis, both tie-line in plane and not
@@ -2906,7 +2908,7 @@ CONTAINS
     type(gtp_state_variable), pointer :: svrrec,svr2
     type(gtp_state_variable), target :: svrtarget
     integer remph,addph,nel,iph,ics,jj,seqx,nrel,jphr,stabph,kph,kcs,kk,lfix
-    integer zph,stepax,kpos,seqy,jp,nopotax
+    integer zph,stepax,kpos,seqy,jp,nopotax,lokcs,lokph
 ! there should be 8 significant digits, first step factor
     double precision, parameter :: vz=1.0D-9,axinc1=1.0D-3
     character eqname*24
@@ -3084,6 +3086,24 @@ CONTAINS
     if(maptop%tieline_inplane.eq.0) then
 ! this is a step, just one line and one exit with the new set of stable phases
        newnode%lines=1
+       if(noel().eq.1) then
+! step with single phase: problems with phase change as old phase still stable
+          call get_phase_compset(phfix,1,lokph,lokcs)
+! this change will reomve the previously stable phase in newnode and 
+! below also in meqrec
+          jj=newnode%stable_phases(1)%ixphase
+          newnode%stable_phases(1)=phasetuple(phfix)
+          phfix=-jj
+          newnode%nodeceq%phase_varres(lokcs)%PHSTATE=PHENTSTAB
+          newnode%nodeceq%phase_varres(lokcs)%amfu=one
+          newnode%noofstph=1
+          write(*,*)'SMP phases 1A: ',phfix,newnode%stable_phases(1)%ixphase,&
+               newnode%stable_phases(2)%ixphase
+! But I had to remove the previously stable phase also this way !!
+          call get_phase_compset(-phfix,1,lokph,lokcs)
+          newnode%nodeceq%phase_varres(lokcs)%PHSTATE=PHENTUNST
+          newnode%nodeceq%phase_varres(lokcs)%amfu=zero
+       endif
     elseif(maptop%tieline_inplane.gt.0) then
 ! mapping with tie-lines in plane. Always 3 lines ... 2 new exits ??
 ! depends on number of axis, for 2 axis OK, for 3 axis (one pot) 4 lines meet
@@ -3163,6 +3183,8 @@ CONTAINS
           write(*,*)'Error creating equilibrium: ',eqname
           goto 1000
        endif
+!       write(*,*)'SMP phases 2: ',seqy,phfix,newnode%stable_phases(1)%ixphase,&
+!               newnode%nodeceq%phase_varres(lokcs)%phstate,newnode%noofstph
        maptop%seqy=seqy
        newnode%linehead(jp)%lineid=seqy
        newnode%linehead(jp)%nodfixph=0
@@ -3182,13 +3204,13 @@ CONTAINS
        changephaseset: if(phfix.lt.0) then
 ! remove a phase ---------------------------
           remph=-phfix
-!          write(kou,88)-phfix,' disappears,',meqrec%nstph
-88        format('A node created where phase ',i3,a,' stable phases:',i3)
+!          write(kou,88)remph,' disappears,',meqrec%nstph
+88        format('SMP a node created where phase ',i3,a,' stable phases:',i3)
           if(meqrec%nstph.eq.1) then
              write(*,*)'Attempt to remove the only stable phase!!!'
              gx%bmperr=4238; goto 1000
           endif
-! shift phases after remph down in meqrec%stphlnewnode%lines)
+! shift phases after remph up?? in meqrec%stphlnewnode%lines)
 ! irem is index to meqrec%phr(), meqrec%stphl(jph) is index to meqrec%phr
           meqrec%nstph=meqrec%nstph-1
           do iph=1,meqrec%nstph
@@ -3203,6 +3225,7 @@ CONTAINS
           meqrec%phr(remph)%prevam=zero
           meqrec%phr(remph)%stable=0
           meqrec%phr(remph)%curd%amfu=zero
+!          write(*,*)'SMP lineeq 3: ',meqrec%nstph,meqrec%stphl(1)
        elseif(phfix.gt.0) then
 ! we have to add phase phfix to the stable phase set, that is no problem
 ! as it is already in all lists, just remove that it should be fix
@@ -4260,30 +4283,35 @@ CONTAINS
     character ch1*1
     integer oldaxis
     double precision yyy
+! skip debug output
 !    write(*,7)'In map_problem: ',typ,mapline%problems,mapline%lasterr,&
 !         mapline%axandir,mapline%nodfixph,maptop%number_ofaxis,xxx
 7   format(a,6i4,6(1pe14.6))
 ! we can list the current conditions here, 
-! note fix phases for mapping not included as condition!!
+! note fix phases for mapping not included as condition here!!
+!    write(*,*)'Map problems 1'
 !    call list_conditions(kou,mapline%lineceq)
+!    call list_short_results(kou,mapline%lineceq)
 !    read(*,10)ch1
 10  format(a)
     if(mapline%problems.gt.5) then
        if(mapline%nodfixph.gt.0) then
-          call list_conditions(kou,mapline%lineceq)
-          if(gx%bmperr.ne.0) then
-             write(*,*)'Error listing conditions'
-             gx%bmperr=0
-          endif
+!          call list_conditions(kou,mapline%lineceq)
+!          if(gx%bmperr.ne.0) then
+!             write(*,*)'Error listing conditions'
+!             gx%bmperr=0
+!          endif
           write(*,11)mapline%lineid,trim(mapline%lineceq%eqname),&
                mapline%meqrec%phr(mapline%nodfixph)%iph,&
                mapline%meqrec%phr(mapline%nodfixph)%ics
 11        format('I give up on this line',i3,2x,a,' with fix phase ',2i4)
-       else
-          write(*,11)mapline%nodfixph,mapline%lineceq%eqname,0,0
+!       else
+!          write(*,11)mapline%nodfixph,mapline%lineceq%eqname,0,0
        endif
        gx%bmperr=4244; goto 1000
     endif
+!    write(*,*)'Map problems 2'
+!---------------------------------------------
 ! list current conditions
 !    call list_conditions(kou,mapline%lineceq)
     if(maptop%number_ofaxis.eq.1) then

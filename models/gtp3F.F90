@@ -144,11 +144,14 @@
 ! called with a state variable name with woldcards allowed like NP(*), X(*,CR)
 ! mjj is dimension of values, kjj is number of values returned
 ! encoded used to specify if phase data in phasetuple order ('Z')
-! >>>> BIG problem: How to do with phases that are note stable?
+! >>>> BIG question: How to do with phases that are note stable?
 ! If I ask for w(*,Cr) I only want the fraction in stable phases
 ! but whenthis is used for GNUPLOT the values are written in a matix
 ! and the same column in that phase must be the same phase ...
 ! so I have to have the same number of phases from each equilibria.
+!
+! CURRENTLY if x(*,*) and x(*,A) mole fractions only in stable phases
+! Proposal: use * for all phases, use *S o $ or something else for all stable??
 !
    implicit none
    TYPE(gtp_equilibrium_data), pointer :: ceq
@@ -308,6 +311,8 @@
       endif
    elseif(indices(1).eq.-1) then
 ! loop for component as first indices, 2+3 can be fix phase+compset
+! NOTE: loop for x(*,*) is below with indices(1).eq.-3
+!      write(*,*)'3F indices: ',indices
       if(indices(2).ge.0) then
          do k1=1,noofel
             indices(1)=k1
@@ -340,11 +345,13 @@
                   enpos=enpos+1
                   if(test_phase_status(indices(2),indices(3),xxx,ceq).le. &
                        PHENTSTAB) then
+! xnan means "no value"
                      values(jj)=xnan
                   elseif(ceq%phase_varres(lokcs)%dgm.lt.zero) then
 ! the phase must not have negative driving force
                      values(jj)=xnan
                   else
+! here the value is extracted
                      call state_variable_val3(istv,indices,iref,&
                           iunit,values(jj),ceq)
                      if(gx%bmperr.ne.0) goto 1000
@@ -360,7 +367,7 @@
    elseif(indices(1).eq.-3) then
 ! loop for phase+compset as indices(1+2)
 ! here we must be careful not to destroy original indices, use modind
-!      write(*,*)'get_many NP(*) 1: ',gx%bmperr,indices(3)
+!      write(*,*)'3F get_many NP(*) etc 1: ',gx%bmperr,indices(3)
 !      write(*,*)'Loop for many phases',indices(1)
       phloop: do k1=1,noofph
          modind(1)=k1
@@ -370,8 +377,6 @@
          if(gx%bmperr.ne.0) goto 1000
          csloop: do k2=1,phlista(lokph)%noofcs
             modind(2)=k2
-            jj=jj+1
-            if(jj.gt.mjj) goto 1100
             call get_phase_compset(modind(1),modind(2),lokph,lokcs)
             if(gx%bmperr.ne.0) goto 1000
             if(indices(3).eq.0) then
@@ -381,6 +386,8 @@
                     iunit,iref,ceq)
                if(gx%bmperr.ne.0) goto 1000
                enpos=enpos+1
+               jj=jj+1
+               if(jj.gt.mjj) goto 1100
                if(ceq%phase_varres(lokcs)%phstate.lt.PHENTSTAB) then
                   values(jj)=xnan
                else
@@ -403,6 +410,8 @@
                     iunit,iref,ceq)
                if(gx%bmperr.ne.0) goto 1000
                enpos=enpos+1
+               jj=jj+1
+               if(jj.gt.mjj) goto 1100
                if(ceq%phase_varres(lokcs)%phstate.lt.PHENTSTAB) then
 ! if phase is unstable set dummy value
                   values(jj)=xnan
@@ -426,6 +435,8 @@
                        iunit,iref,ceq)
                   if(gx%bmperr.ne.0) goto 1000
                   enpos=enpos+1
+                  jj=jj+1
+                  if(jj.gt.mjj) goto 1100
                   call state_variable_val3(istv,modind,iref,&
                        iunit,values(jj),ceq)
                   if(gx%bmperr.ne.0) goto 1000
@@ -438,6 +449,8 @@
                        iunit,iref,ceq)
                   if(gx%bmperr.ne.0) goto 1000
                   enpos=enpos+1
+                  jj=jj+1
+                  if(jj.gt.mjj) goto 1100
                   call state_variable_val3(istv,modind,iref,&
                        iunit,values(jj),ceq)
                   if(gx%bmperr.ne.0) goto 1000
@@ -2760,11 +2773,14 @@
 ! Karl had overflow error in dum ... no problem to make it a little larger
 ! but then I cannot set xx=dum below ...
    allocate(dum(n*m+10))
-!   write(*,*)'3Y corrected sortinphtup',m,n
+!   write(*,*)'3F corrected sortinphtup',n,m
+!   write(*,10)'3F in: ',(xx(iz),iz=1,n*m)
+10 format(a,10(f7.4))
    kz=0
    do iz=1,noofph
       lokph=phases(iz)
       do jz=1,phlista(lokph)%noofcs
+!         if(jz.gt.1) then
 ! in xx the values are sequentially for all composition sets for this phase
 ! But they should be stored in tuple order and compset 2 etc comes at the end
 ! the index to the tuple is in %phtups
@@ -2774,6 +2790,9 @@
 ! BUG FIXED: Sigli example gives hard error here
 ! index '0' of array 'firsteq' below lower boundary of 1
          aha=(firsteq%phase_varres(phlista(lokph)%linktocs(jz))%phtupx-1)*m
+!         if(aha.ne.kz) then
+!            write(*,*)'3F shifting from, to, values: ',kz,aha,m
+!         endif
          do lz=1,m
             dum(aha+lz)=xx(kz+lz)
          enddo
@@ -2785,6 +2804,7 @@
       xx(iz)=dum(iz)
    enddo
    deallocate(dum)
+!   write(*,10)'3F ut: ',(xx(iz),iz=1,n*m)
 1000 continue
    return
  end subroutine sortinphtup

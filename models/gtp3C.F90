@@ -773,6 +773,7 @@
    return
  end subroutine list_phases_with_positive_dgm
 
+
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
@@ -787,7 +788,7 @@
    integer iph,jcs,mode,lut
    logical once
    TYPE(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim}
+!\end{verbatim} %+
    character text*256,phname*24,status*10
    character (len=24), dimension(:), allocatable :: consts
 !    character*24, allocatable (:) :: consts
@@ -1005,6 +1006,30 @@
 1000 continue
    return
  end subroutine list_phase_results
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine list_short_results(lut,ceq)
+! list short results for all stable phases (for debugging) lut
+   implicit none
+   integer lut
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   integer iph,ics,lokph,lokcs,i1,i2
+   phaseloop: do iph=1,noofph
+      lokph=phases(ics)
+      compsets: do ics=1,phlista(lokph)%noofcs
+         lokcs=phlista(lokph)%linktocs(ics)
+         if(ceq%phase_varres(lokcs)%phstate.ge.PHENTSTAB) then
+            write(lut,110)phlista(lokph)%name,ics,ceq%phase_varres(lokcs)%amfu
+110         format(a,i2,4(1pe12.4))
+         endif
+      enddo compsets
+   enddo phaseloop
+1000 continue
+   return
+ end subroutine list_short_results
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

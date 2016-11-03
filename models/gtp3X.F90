@@ -1221,7 +1221,7 @@
 ! PARTITION PROBLEM FOR ORDERED PHASES
 !      goto 400
 !------------------------------------------------
-! the code from disord: if ... endif is redundant 
+! the code from disord: if ... endif is redundant  NO!!!!
 !      write(*,611)'3X ftyp1:',fractype,btest(phlista(lokph)%status1,phmfs),&
 !           btest(phmain%status2,csorder),first,lokph,phres%gval(1,1)
 611   format(a,i3,3(1x,L),i3,3(1pe12.4))
@@ -1273,7 +1273,7 @@
             phres%d2gval=zero
             goto 110
          else
-! We have now calculated the 4SL model with both as original and disordered
+! We have now calculated the 4SL model both as original and disordered
 ! We should now subreact the disordered from the ordered
 ! this is debug output
 !            do i1=1,gz%nofc
@@ -2914,6 +2914,9 @@
 ! and store fraction from lokdis
 !   write(*,*)'3X dis2: 1'
    kk=0
+! this was never assigned!! BOS 16.11.04
+   lokdcs=disrec%varreslink
+!   write(*,*)'3X lokdcs: ',lokdcs
 ! here copy: 
 ! y(ord,1,1)=y(dis,1); y(ord,1,2)=y(dis,2); y(ord,1,3)=y(dis,3); 
 ! y(ord,2,1)=y(dis,1); y(ord,2,2)=y(dis,2); y(ord,2,3)=y(dis,3); 

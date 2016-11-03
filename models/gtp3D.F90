@@ -12,6 +12,8 @@
    integer last,iph,ics,lokcs
    character cline*(*)
 !\end{verbatim} %+
+! NOTE a strange bug when calculating a phase 
+! the result is different if one sets the constitution explicitly the same!!
    character name1*24,quest*32
    double precision yarr(maxcons2),sites(maxsubl),qq(5),yyy,xxx,sss,ydef
    integer knl(maxsubl),knr(maxcons2)
@@ -73,6 +75,10 @@
 !      call set_default_constitution(iph,ics,ceq)
 !      if(gx%bmperr.ne.0) goto 1000
       chd='Y'
+! set the old constitution explicitly!!
+! without this seemingly unnecessary call to set the same constution the
+! calculate phase gives sometimes wrong values!
+      call set_constitution(iph,ics,yarr,qq,ceq)
       goto 200
    else
 ! constitution entered interactivly

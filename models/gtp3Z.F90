@@ -493,7 +493,7 @@
    if(ch1.ge.'A' .and. ch1.le.'Z') goto 300
 !...this check because getrel accepts + and - and no sign is allowed
    if(.not.(ch1.ge.'0' .and. ch1.le.'9') .and. ch1.ne.'.') then
-      write(*,*)'ct1xfn 66:',ip,ch1,'>',string(ip-5:ip+5),'<'
+      write(*,*)'ct1xfn 66:',ip,ch1,' >',trim(string),'<'
       gx%bmperr=4001
       goto 1000
    endif
@@ -1843,7 +1843,7 @@
 !\end{verbatim}
 ! max number of ranges, max number of coefficents in each range
    integer, parameter :: mrange=20,mc=15
-   integer jss,nc,ip,nrange
+   integer jss,nc,ip,nrange,cbug
    real tlim(mrange)
    double precision coeff(mc),val
    integer koder(5,mc)
@@ -1890,13 +1890,20 @@
 18 continue
 ! low T limit
    ip=1
+   cbug=ip
    call getrel(text,ip,val)
    if(buperr.ne.0) then
 ! A , has been used to select default low temperature limit
-      write(*,*)'Warning low temperature limit set to 298.15 K'
-      val=298.15; buperr=0
-      write(*,19)ip,text(1:72)
-19    format('TPFUN: ',i3,' >',a)
+      if(text(ip:ip).eq.',') then
+         buperr=0; val=298.15D0
+      else
+         write(*,*)'Illegal character for low temperature limit: ',text(ip:ip)
+         val=298.15; buperr=0
+!         write(*,19)ip,cbug,trim(text)
+19    format('TPFUN: ',2i3,' >',a)
+      endif
+! increement ip!
+      ip=ip+1
    endif
    tlim(1)=val
    nrange=0

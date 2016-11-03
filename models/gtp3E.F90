@@ -1795,6 +1795,13 @@
    word=text(ks:kt)
    kt=kt-ks
    call capson(word)
+! replace - by _
+90 continue
+   j=index(word,'-')
+   if(j.gt.0) then
+      word(j:j)='_'
+      goto 90
+   endif
 ! check if word is an abbreviation of a keyword
 !   write(*,*)'abbreviation: ',kt,'>',word(1:kt),'<'
 !   do j=1,10
@@ -1855,6 +1862,12 @@
    word=text(ks:kt)
    kt=kt-ks
    call capson(word)
+90 continue
+   j=index(word,'-')
+   if(j.gt.0) then
+      word(j:j)='_'
+      goto 90
+   endif
 ! check if word is an abbreviation of a keyword
 !   write(*,*)'abbreviation: ',kt,'>',word(1:kt),'<'
 !   do j=1,10
@@ -1923,7 +1936,7 @@
    integer norew,newfun,nfail,nooftypedefs,nl,ipp,jp,jss,lrot,ip,jt
    integer nsl,ll,kp,nr,nrr,mode,lokph,lokcs,km,nrefs,ideg,iph,ics
 ! disparttc and dispartph to handle phases with disordered parts
-   integer nofunent,disparttc,dodis,jl,nd1,thisdis
+   integer nofunent,disparttc,dodis,jl,nd1,thisdis,cbug
    character*24 dispartph(5),ordpartph(5)
    logical warning
 ! set to TRUE if element present in database
@@ -2024,8 +2037,8 @@
                longline(jss:jss)=' '
                goto 112
             endif
-!            write(*,*)'3E Entering function 1: ',name1,len_trim(longline)
-!            lrot=0
+            write(*,*)'3E Entering function 1: ',name1,trim(longline)
+            lrot=0
             call enter_tpfun(name1,longline,lrot,.TRUE.)
             if(gx%bmperr.ne.0) then
 ! one may have error here if function calls other functions not entered, 4002
@@ -2586,9 +2599,17 @@
 !      if(dodis.eq.1) write(*,*)'Reading disordered parameters'
       ip=nextc
       funname=longline(ip:)
+! problem with default low T limit, can be ,, directly after parameter )
       kp=index(funname,' ')
+      cbug=index(funname,'),')
 ! save position after parameter name in nextc
-      nextc=ip+kp
+      if(cbug.gt.0 .and. cbug.lt.kp) then
+         nextc=ip+cbug+1
+         kp=cbug+1
+!         write(*,*)'3E ,,2: ',trim(longline),ip,kp
+      else
+         nextc=ip+kp
+      endif
       funname(kp:)=' '
 ! extract symbol, normally G or L but TC, BMAGN and others can occur
       lp1=index(funname,'(')
@@ -2605,11 +2626,11 @@
 ! we should handle also other parameter types
       if(typty.eq.0) then
 ! find the property associated with this symbol
-!         write(*,*)'psym1: ',name1(1:len_trim(name1))
+!         write(*,*)'psym1: ',trim(name1)
          call get_parameter_typty(name1,lokph,typty,fractyp)
          if(gx%bmperr.ne.0) then
             if(.not.silent) write(kou,*) &
-                 ' *** Illegal parameter identifier on line: ',nl
+            ' *** Illegal parameter identifier, ",trim(psym1)," on line: ',nl
             gx%bmperr=0; typty=0
             warning=.TRUE.
          endif
@@ -2717,6 +2738,7 @@
       funname='_'//funname
 !-------------------------------------------------
 ! now read the function, start from position nextc
+!      write(*,398)'3E ,,: ',trim(longline),nextc
       longline=longline(nextc:)
 !410    continue
       jp=len_trim(longline)
@@ -2773,8 +2795,8 @@
          longline(jss:jss)=' '
          goto 412
       endif
-!      write(*,*)'3E Entering function 2: ',funname,len_trim(longline)
-!      lrot=0
+!      write(*,*)'3E Entering function 2: ',funname,trim(longline)
+      lrot=0
       call enter_tpfun(funname,longline,lrot,.TRUE.)
 !          write(*,17)lokph,typty,nsl,lrot,(endm(i),i=1,nsl)
 17 format('readtdb 17: '4i3,5x,10i3)
@@ -3205,7 +3227,7 @@
    integer nofunent,disparttc,dodis,jl,nd1,thisdis
    integer excessmodel,modelcode,noofadds,noofdet,permut
    character*24 dispartph(5),ordpartph(5)
-   integer add(10),allel
+   integer add(10),allel,cbug
    character modelname*72
    integer, parameter :: nadditions=6
    character*128, dimension(10) :: detail
@@ -3944,8 +3966,14 @@
       ip=nextc
       funname=longline(ip:)
       kp=index(funname,' ')
+      cbug=index(funname,'),')
 ! save position after parameter name in nextc
-      nextc=ip+kp
+      if(cbug.gt.0 .and. cbug.lt.kp) then
+         nextc=ip+cbug+1
+         kp=cbug+1
+      else
+         nextc=ip+kp
+      endif
       funname(kp:)=' '
 ! extract symbol, normally G or L but TC, BMAGN and others can occur
       lp1=index(funname,'(')

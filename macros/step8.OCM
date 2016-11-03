@@ -336,7 +336,8 @@ Y
 plot
 V
 P
-plot step 8 fig 10
+title step 8 fig 10
+
 
 @$ A nice hyperbolic curve
 @&
@@ -347,7 +348,7 @@ V
 P
 log
 y
-plot step 8 fig 11
+title step 8 fig 11
 
 @$
 @$===============================================================

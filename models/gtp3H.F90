@@ -766,6 +766,8 @@
 ! no ferro but antiferro.  tn>0 as both tn and tc checked against zero above
       tcsave=tc
       tc=tn
+! we use this index below to extract its value
+      itc=itn
 ! if tn negative use tc
 !   elseif(tn.gt.zero) then
 ! we have both AFM and FM, use FM, i.e. tc so nothing to do
