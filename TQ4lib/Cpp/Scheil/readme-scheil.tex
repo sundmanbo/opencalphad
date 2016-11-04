@@ -1,0 +1,210 @@
+\documentclass[12pt]{article}
+\textwidth 175mm
+\textheight 210mm
+\oddsidemargin  1mm
+\evensidemargin  1mm
+\topmargin 1mm
+\usepackage[latin1]{inputenc}
+
+\begin{document}
+
+\begin{center}
+{\large \bf Example using OCASI for a Scheil solidification simulation}
+
+\bigskip
+
+Christophe Sigli
+
+\end{center}
+
+\bigskip
+
+{\Large \bf Compiling and linking the example on Windows}
+
+\bigskip
+
+{\small
+\begin{verbatim}
+C:\Users\...\TQ4lib\Cpp\Scheil>linkmake
+
+C:\Users\...\TQ4lib\Cpp\Scheil>REM You must first install OC to generate the
+ libraries
+
+C:\Users\...\TQ4lib\Cpp\Scheil>REM liboceq.a, liboceqplus.mod
+
+C:\Users\...\TQ4lib\Cpp\Scheil>REM You must compile the parallel version,
+ linkpara or Makefile-parallel
+
+C:\Users\...\TQ4lib\Cpp\Scheil>REM These are copied there (assumed to be three
+ levels above)
+
+C:\Users\...\TQ4lib\Cpp\Scheil>copy ..\..\..\liboceq.a .
+        1 fil(er) kopierad(e).
+
+C:\Users\...\TQ4lib\Cpp\Scheil>copy ..\..\..\liboceqplus.mod .
+        1 fil(er) kopierad(e).
+
+C:\Users\...\TQ4lib\Cpp\Scheil>REM Then the libraries for TQ are copied here from
+ one level above
+
+C:\Users\...\TQ4lib\Cpp\Scheil>copy ..\liboctq.F90 .
+        1 fil(er) kopierad(e).
+
+C:\Users\...\TQ4lib\Cpp\Scheil>REM Compile this library together with the isoc
+ library and the program
+
+C:\Users\...\TQ4lib\Cpp\Scheil>gfortran -c liboctq.F90
+
+C:\Users\...\TQ4lib\Cpp\Scheil>gfortran -c liboctqisoc.F90
+
+
+C:\Users\...\TQ4lib\Cpp\Scheil>g++ -o scheil -fopenmp -lstdc++ Example_OCASI.cpp
+ liboctqisoc.o liboctq.o liboceq.a -lgfortran -lm
+
+\end{verbatim}}
+
+\newpage
+
+{\large \bf A run of the example on Windows}
+
+\bigskip
+
+The program need an input file with commands, input.txt
+
+The output below is captured from the screen, it generates the same
+output on the file output.txt and in a more condenced way on the file
+oc\_log.txt
+
+{\small
+\begin{verbatim}
+C:\Users\...\TQ4lib\Cpp\Scheil>scheil.exe input.txt
+DEFINE_OUTPUT_FILE_NAME<output.txt>                  name of the log file
+
+********************************************************************************
+*****************************
+
+                                     Open CalPhad Software Interface July 2016
+                 Computation performed on: 4 November 2016 , 22h:14mn:50s
+
+********************************************************************************
+*****************************
+
+TDB_FILE_NAME<cost507r.tdb>          name of the thermodynamic data file
+
+                                     TDB_FILE_NAME cost507r.tdb
+
+ the following elements are in the database:
+ AL / B / C / CE / CR / CU / FE / LI / MG / MN / N / ND / NI / SI / SN / TI / V
+/ Y / ZN / ZR /
+DEFINE_REF_ELEMENT<AL>
+                                DEFINE_REF_ELEMENT AL
+DEFINE_LIQUID_NAME<LIQUID>
+                                DEFINE_LIQUID_NAME LIQUID
+DEFINE_SOLSOL_NAME<FCC_A1>
+                                DEFINE_SOLSOL_NAME FCC_A1
+DEFINE_UNIT_COMPO_INPUT<W%>
+                           DEFINE_UNIT_COMPO_INPUT W%
+DEFINE_UNIT_TEMP_INPUT<C>                                        C or K
+                            DEFINE_UNIT_TEMP_INPUT C
+DEFINE_NCPU<8>
+                                       DEFINE_NCPU 8
+DEFINE_COMPOSITION<MG=5/SI=1>
+                                DEFINE_COMPOSITION  tqini created: DEFAULT_EQUIL
+IBRIUM
+MG=5/SI=1
+MG=5/SI=1
+reading phases
+ list of possible phases in the system :
+ LIQUID AL12MG17 AL5FE4 ALCU_THETA ALLI ALMG_BETA ALMG_DZETA ALMG_UPSILON ALTI A
+LTI3 BCC_A2 BCC_B2 BCT_A5
+ CBCC_A12 CR3SI_A15 CRSI2 CUB_A13 DIAMOND_A4 FCC_A1 HCP_A3 LAVES_C15 MG24Y5 MG2S
+I MGY_GAMMA SIV3
+LIQUIDUS<>
+                                          LIQUIDUS
+* ----> liquidus is: 629.716 C
+
+SOLIDUS<>
+                                           SOLIDUS
+* ----> solidus is: 587.599 C
+
+COMPUTE_TRANSITION_TEMPERATURES<1100.0/400.0/0.0010000/20 >
+                   COMPUTE_TRANSITION_TEMPERATURES 1100.0 / 400.0 / 0.0010000 /
+20
+first convergence issue
+======================================================================
+ TQ Parallel: Yes / number of threads: 8
+ Here are the transition temperatures that have been found
+ in the temperature range [400,1100] C
+ for the following composition:
+    0     629.72 LIQUID +
+    1    629.715 LIQUID + FCC_A1
+    2    592.104 LIQUID + FCC_A1 + MG2SI
+    3    587.591 FCC_A1 + MG2SI
+
+Store_Equilibria.size()=21
+ elapsed time for the transition temperature routine (s)= 0.3205
+
+
+COMPUTE_EQUILIBRIUM<500/3>
+                               COMPUTE_EQUILIBRIUM 500 / 3
+
+ Equilibrium at: 500 C fat%  FCC_A1=97.1874  MG2SI=2.81263
+  MU(AL)= -28943.8
+  MU(MG)= -47677.9
+  MU(SI)= -44984.1
+ ---------------------------------------
+            FCC_A1
+ ---------------------------------------
+        AL =    96.5871 (W%)
+        MG =     3.3932 (W%)
+        SI =  0.0196668 (W%)
+ ---------------------------------------
+            MG2SI
+ ---------------------------------------
+        MG =    63.3809 (W%)
+        SI =    36.6191 (W%)
+
+LIQUIDUS<>
+                                          LIQUIDUS
+* ----> liquidus is: 629.716 C
+
+SCHEIL_SOLIDIFICATION<castcompoS0001.txt/0.99500/1.0/0.1>
+                             SCHEIL_SOLIDIFICATION castcompoS0001.txt / 0.99500
+/ 1.0 / 0.1
+first convergence issue
+!!!!!!!! convergence issue !!!!!!!!!!!!!!!!!!!!!
+ Error setting condition:  T= 0.20000000E+04           2
+Error code  4204 reset before calling grid minimizer
+3Y Gridmin:     263 points   0.00E+00 s and       0 clockcycles, T=  722.87
+Phases:   6 1 0.91 19 1 0.09 23 1 0.00
+------------------------------------------
+ starting composition in at :
+AL = 0.935217 at
+MG = 0.0552247 at
+SI = 0.00955838 at
+------------------------------------------
+ concentrations left in FCC_A1 after Scheil solidification:
+AL = 0.966794 at
+MG = 0.0320182 at
+SI = 0.00118751 at
+------------------------------------------
+ Phases formed after Scheil solidification:
+fat(ALMG_BETA)=0.0203004
+fat(FCC_A1)=0.954425
+fat(MG2SI)=0.025275
+------------------------------------------
+======================================================================
+ Here are the transition temperatures that have been found
+     during a Scheil solidification simulation
+    0    627.716 C  FL=  0.915013 LIQUID + FCC_A1
+    1    590.716 C  FL=  0.300997 LIQUID + FCC_A1 + MG2SI
+    2    449.716 C  FL=         0 ALMG_BETA + FCC_A1 + MG2SI
+ end of solidification: 449.716
+
+ elapsed time for the scheil solidification routine (s)= 0.640501
+
+C:\Users\...\TQ4lib\Cpp\Scheil>
+\end{verbatim}}
+
+\end{document}
+

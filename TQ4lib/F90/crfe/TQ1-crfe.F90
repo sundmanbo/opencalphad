@@ -188,13 +188,27 @@ program octq1
   if(gx%bmperr.ne.0) goto 1000
 ! mu is the chemival potential relative to user defined reference state
   statevar='MU'
-  n4=size(pxf)
+  n4=size(mu)
   call tqgetv(statevar,n,n2,n4,mu,ceq)
   if(gx%bmperr.ne.0) goto 1000
   do n=1,nel
      write(*,530)cnam(n)(1:2),pxf(n),mus(n),mu(n)
 530  format(a,10x,F10.6,10x,2(1PE16.6))
   enddo
+! Some examples of using tqgetv
+  write(*,*)
+  write(*,*)'Mole fractions of all components in stable phases:'
+  n4=size(pxf)
+  statevar='X(*,*) '
+  call tqgetv(statevar,-1,-1,n4,pxf,ceq)
+  write(*,540)' X(*,*): ',(pxf(ip),ip=1,n4)
+540 format(a,10F7.4)
+  write(*,*)'Mole fraction of a component in all phases, also those unstable:'
+  write(*,*)'in phase tuple order!'
+  n4=size(pxf)
+  statevar='X(*,CR) '
+  call tqgetv(statevar,-1,1,n4,pxf,ceq)
+  write(*,540)' X(*,CR): ',(pxf(ip),ip=1,n4)
 ! for debugging also list results as OC
   call tqlr(kou,ceq)
 !

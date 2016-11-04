@@ -670,7 +670,7 @@ contains
 !       write(*,*)'in tqgetv n,x,w: ',n1,n2,n3
        if(n2.eq.0) then
           if(n1.lt.0) then
-! mole ´fraction of all components, no phase specification
+! moles, mole or mass fraction of all components for all phases
              statevar=stavar(1:1)//'(*) '
 !             write(*,*)'tqgetv 3: ',mjj,statevar(1:len_trim(statevar))
              call get_many_svar(statevar,values,mjj,n3,encoded,ceq)
@@ -697,13 +697,16 @@ contains
 !........................................................
 ! for all phases one or several components
           if(n2.lt.0) then
-! this means all components all phases
+! this means all components all phases, for example x(*,*)
              statevar=stavar(1:1)//'(*,*) '
 !             write(*,*)'tqgetv 5: ',mjj,statevar(1:len_trim(statevar))
              call get_many_svar(statevar,values,mjj,n3,encoded,ceq)
 ! this output gives the composition for all compsets of a phase sequentially
 ! but we want them in phase tuple order
-! ??             call sortinphtup(n3,,values)
+! The second argument is the number of values for each phase, noel()
+! in this case
+             ics=noel()
+             call sortinphtup(n3,ics,values)
           else
 ! a single component in all phases. n2 must not be zero
 !             call get_component_name(n2,name,ceq)
@@ -712,13 +715,16 @@ contains
                 write(*,*)'No such component'
                 goto 1000
              endif
+! state variable like w(*,cr), the Cr content in all (stable) phases
              statevar=stavar(1:1)//'(*,'//cnam(n2)(1:len_trim(cnam(n2)))//')'
 !             write(*,*)'tqgetv 6: ',mjj,statevar(1:len_trim(statevar))
              call get_many_svar(statevar,values,mjj,n3,encoded,ceq)
 ! this output gives the composition for all compsets of a phase sequentially
 ! but we want them in phase tuple order
-             ics=noel()
-             call sortinphtup(n3,ics,values)
+! The second argument is the number of values for each phase, in this case 1
+!             ics=noel()
+! THIS MUST BE CHECKED !!!
+             call sortinphtup(n3,1,values)
           endif
        elseif(n2.lt.0) then
 ! this means all components in one phase

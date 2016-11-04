@@ -1,7 +1,7 @@
 REM 160926 Bo Sundman update
 REM 151210 Mathias original
 
-REM You must have compiled the OC software 
+REM You must have compiled the OC software without parallelization
 REM to obtain liboceq.a and liboceqplus.mod
 REM These files are copied here together with
 REM the F90 source library liboctq.F90 
@@ -12,11 +12,11 @@ REM TQ4lib/Cpp/isoC-matthias/ below OC
 copy ..\..\..\liboceq.a .
 copy ..\..\..\liboceqplus.mod .
 
-REM This is the same for library for F90 and C++
-copy ..\..\liboctq.F90 .
+REM This is the Fortran part of TQ library for C++
+copy ..\liboctq.F90 .
 gfortran -c liboctq.F90
 
-REM This library calls the F90 library
+REM This the C++ TQ library which calls the F90 library
 gfortran -c liboctqisoc.F90
 
 REM This is linking all together

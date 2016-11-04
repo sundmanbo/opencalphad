@@ -6,10 +6,15 @@
 !  and to copy this and the corresponding "mov" files from this compilation 
 ! to the folder with this library
 !
-! NOTE that for the identification of phase and composition sets this
-! TQ interface use a Fortran TYPE called gtp_phasetuple containing two
-! integers, "phase" with the phase number and "compset" with the
-! comp.set The number of phase tuples is initially equal to the number
+! NOTE that for the identification of phase and composition sets this TQ
+! interface use a Fortran TYPE called gtp_phasetuple containing five integers:
+! lokph is the index of the phase in the phlista array
+! compset is the composition index starting from 1
+! ixphase is the index of the phase in the phases array
+! lokvares is the index of the phase and compset in the phase_varres array
+! nextcs if nonzero the index in the phasetuple array of next comp.set
+!
+! The number of phase tuples is initially equal to the number
 ! of phases and have the same index.  This represent comp.set 1 of the
 ! phases as each phase has just one composition set.  A phase may have
 ! several comp.sets created by calculations or by commands and these will
@@ -17,12 +22,9 @@
 ! is in the order of which they were created.
 ! This may cause some problems if composition sets are deleted because that
 ! will change the phase tuple index for those with higher index.  So do not
-! delete comp.sets or at least be very careful when deleting comp.sets
+! delete comp.sets or at least be very careful when deleting!
 !
-! When not using Fortran 95 (or later) one can probably replace this
-! with a 2-dimensional array with first index phase number and second
-! the comp.set number.
-!
+! 161103 BOS A few fixes for compatibility for version 4 release
 ! 150520 BOS added a few subroutines for single phase data and calculations
 ! 141210 BOS changed to use phase tuples
 ! 140128 BOS added D2G and phase specific V and G
@@ -57,6 +59,11 @@
 ! tqdceq   ok delete equilibrium record
 ! tqcceq   ok copy current equilibrium to a new one
 ! tqselceq ok select new current equilibrium
+! --------
+! reset_conditions    ok reset any condition on T
+! Change_Status_Phase ok change status of a named phase
+! tqlr                ok listing of results on screen (for debugging) 
+! tqlc                ok list current conditions (for debugging)
 !
 !------------------------------------------------------------
 !
@@ -73,6 +80,7 @@ module liboctq
 ! This is for storage and use of components
   integer nel
   character, dimension(maxc) :: cnam*24
+  double precision, dimension(maxc) :: cmass
 ! Number of phase tuples
   integer ntup
 ! use the array PHASETUPLE available from OC
@@ -604,6 +612,7 @@ contains
 ! T or P
     case('T  ','P  ')
        call get_state_var_value(selvar,values(1),encoded,ceq)
+       n3=1
 !--------------------------------------------------------------------
 ! chemical potential for a component
     case('MU  ')
@@ -619,6 +628,7 @@ contains
 !       write(*,*)'tqgetv 4: ',statevar(1:len_trim(statevar))
 ! we must use index value(1) as the subroutine expect a single variable
           call get_state_var_value(statevar,values(1),encoded,ceq)
+          n3=1
        else
           write(*,*)'No such component'
        endif
@@ -676,13 +686,15 @@ contains
 !........................................................
 ! for all phases one or several components
           if(n2.lt.0) then
-! this means all components all phases
+! this means all components all phases, for example x(*,*)
              statevar=stavar(1:1)//'(*,*) '
 !             write(*,*)'tqgetv 5: ',mjj,statevar(1:len_trim(statevar))
              call get_many_svar(statevar,values,mjj,n3,encoded,ceq)
 ! this output gives the composition for all compsets of a phase sequentially
-! but we want them in phase tuple order
-! ??             call sortinphtup(n3,,values)
+! but we want them in phase tuple order !! MUST BE CHECKED !!!
+! The second argument is the number of values for each phase, here noel()
+             ics=noel()
+             call sortinphtup(n3,ics,values)
           else
 ! a single component in all phases. n2 must not be zero
 !             call get_component_name(n2,name,ceq)
@@ -691,12 +703,15 @@ contains
                 write(*,*)'No such component'
                 goto 1000
              endif
+! statevar is like w(*,CR), the Cr content in all (stable) phases
              statevar=stavar(1:1)//'(*,'//cnam(n2)(1:len_trim(cnam(n2)))//')'
 !             write(*,*)'tqgetv 6: ',mjj,statevar(1:len_trim(statevar))
              call get_many_svar(statevar,values,mjj,n3,encoded,ceq)
 ! this output gives the composition for all compsets of a phase sequentially
 ! but we want them in phase tuple order
-             ics=noel()
+! The second argument is the number of values for each phase, here 1
+!             ics=noel()
+             ics=1
              call sortinphtup(n3,ics,values)
           endif
        elseif(n2.lt.0) then
@@ -870,12 +885,12 @@ contains
 ! tq_calculate_phase_properties
 !vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 ! WARNIG: this is not a subroutine to calculate chemical potentials
-! those can only be made by an equilibrium calculation.
+! those can only be obtained by an equilibrium calculation.
 ! The values returned are partial derivatives of G for the phase at the
 ! current T, P and phase constitution.  The phase constitution has been
 ! obtained by a previous equilibrium calculation or 
 ! set by the subroutine tqsphc
-! It corresponds to the "calculate phase" command.
+! The subroutine is equivalent to the "calculate phase" command.
 !
 ! NOTE that values are per formula unit divided by RT, 
 ! divide also by extra(1) in subroutine tqsphc1 to get them per mole component
@@ -891,9 +906,9 @@ contains
 ! d2gdydt is an array with G.T.Yi
 ! d2gdydp is an array with G.P.Yi
 ! d2gdy2 is an array with the upper triangle of the symmetrix matrix G.Yi.Yj 
-! reurned in the order:  1,1; 1,2; 1,3; ...           
-!                             2,2; 2,3; ...
-!                                  3,3; ...
+! returned in the order:  1,1; 1,2; 1,3; ...           
+!                              2,2; 2,3; ...
+!                                   3,3; ...
 ! for indexing one can use the integer function ixsym(i1,i2)
     implicit none
     integer n1,n2,n3
@@ -1060,6 +1075,40 @@ contains
     return
   end subroutine tqselceq
 
+!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
+
+!\begin{verbatim} 
+  subroutine reset_conditions(cline,ceq)
+!reset any condition on temperature  
+    implicit none
+    character cline*24
+    type(gtp_equilibrium_data), pointer :: ceq 
+!\end{verbatim}	
+    integer ip
+    ip=0
+!	write(*,*) cline
+    call set_condition(cline,ip,ceq)
+1000 continue	
+    return
+  end subroutine reset_conditions
+ 
+!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
+
+!\begin{verbatim}
+  subroutine Change_Status_Phase(myname,nystat,myval,ceq)
+    implicit none
+    character myname*24
+    integer nystat
+    double precision myval
+    type(gtp_equilibrium_data), pointer :: ceq 
+!\end{verbatim}	
+    integer iph,ics
+    call find_phase_by_name(myname,iph,ics)
+    call change_phase_status(iph,ics,nystat,myval,ceq)
+1000 continue	
+    return
+  end subroutine Change_Status_Phase
+ 
 !\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
 
 !\begin{verbatim}

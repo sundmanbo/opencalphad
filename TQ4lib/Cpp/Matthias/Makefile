@@ -11,10 +11,10 @@ clean:
 	rm -f *.o *.mod $(EXE)
 
 liboctq.o:	../liboctq.F90
-	gfortran -c -g -fbounds-check -finit-local-zero -I$(LIBS) ../liboctq.F90
+	gfortran -c -g -I$(LIBS) ../liboctq.F90
 
-liboctqisoc.o:	../isoC/liboctqisoc.F90
-	gfortran -c -g -fbounds-check -finit-local-zero -I$(LIBS) ../isoC/liboctqisoc.F90
+liboctqisoc.o:	liboctqisoc.F90
+	gfortran -c -g -I$(LIBS) liboctqisoc.F90
 
 $(EXE): $(OBJS)
 	gcc -o $(EXE) -lstdc++ $(EXE).cpp liboctqisoc.o liboctq.o ../../liboceq.a -lgfortran -lm
