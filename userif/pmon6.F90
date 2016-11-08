@@ -2519,14 +2519,29 @@ contains
           call enter_many_equil(cline,last,plotdataunit)
 !---------------------------------------------------------------
 ! enter MATERIAL
-! ask for database, then mass/mole fraction, then elements and composition;
+! ask for database, then major element, mass/mole fraction of elements
 ! read the database; jump possibly to SCHEIL/STEP calculation 
 ! or simply ask for T and calculate equilibrium; 
        case(16)
-          write(*,*)'Not implemeneted yet'
+          call enter_material(cline,last,nv,xknown,ceq)
+          if(gx%bmperr.ne.0) goto 990
+          xxy=firsteq%tpval(1)
+          call gparrd('Temperature ',cline,last,xxx,xxy,q1help)
+! set T and P
+          cline='P=1E5 T='
+          i1=len_trim(cline)+1
+          call wrinum(cline,i1,10,0,xxx)
+          i1=0
+          call set_condition(cline,i1,ceq)
+! calculate the equilibrium
+          call calceq2(1,ceq)
+          if(gx%bmperr.ne.0) then
+             ceq%status=ibset(ceq%status,EQFAIL)
+             goto 990
+          endif
 !---------------------------------------------------------------
 ! enter PLOT DATA
-! the file ocmanyi.plt with unit plotdataunit(i) must already bw open!
+! the file ocmanyi.plt with unit plotdataunit(i) must already be open!
 ! it is opened in the enter_many_equilibria if there is a plot_data command
        case(17)
           call gparid('Dataset number:',cline,last,i1,1,q1help)
@@ -2694,13 +2709,17 @@ contains
 6102         format(' *** Warning, values can be inconsistent with',&
                 ' current conditions')
           endif
+          once=.TRUE.
 6105      continue
 ! NOTE: 4th argument is 5 because otherwise , will terminate reading cline
 ! and state variables like x(fcc,cr) will not work.
           if(kom2.eq.4) then
              call gparc('State variable: ',cline,last,5,line,' ',q1help)
           else
-             write(kou,*)'Remember always to specify the phase!'
+             if(once) then
+                write(kou,*)'Remember always to specify the phase!'
+                once=.FALSE.
+             endif
              call gparc('Parameter ident: ',cline,last,5,line,' ',q1help)
           endif
           j1=1

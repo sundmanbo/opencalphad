@@ -4498,6 +4498,8 @@
       novarres=csfree-1
 !      write(*,*)'3B deallocationg phase_varres'
       do ipv=1,novarres
+! can happen it is not allocated when previous errors
+         if(.not.allocated(eqlista(ieq)%phase_varres(ipv)%yfr)) cycle
          deallocate(eqlista(ieq)%phase_varres(ipv)%yfr)
          deallocate(eqlista(ieq)%phase_varres(ipv)%constat)
          if(allocated(eqlista(ieq)%phase_varres(ipv)%mmyfr)) &

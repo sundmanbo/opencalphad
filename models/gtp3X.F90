@@ -1221,7 +1221,6 @@
 ! PARTITION PROBLEM FOR ORDERED PHASES
 !      goto 400
 !------------------------------------------------
-! the code from disord: if ... endif is redundant  NO!!!!
 !      write(*,611)'3X ftyp1:',fractype,btest(phlista(lokph)%status1,phmfs),&
 !           btest(phmain%status2,csorder),first,lokph,phres%gval(1,1)
 611   format(a,i3,3(1x,L),i3,3(1pe12.4))
@@ -1378,6 +1377,10 @@
                   enddo
                endif
             endif noder6B
+! check for bug, phres%gval(1,1) must not be negative!!
+!            write(*,617)'3X do=o-oasd: ',saveg(1,1),phres%gval(1,1),&
+!                 saveg(1,1)-phres%gval(1,1)
+617         format(a,6(1pe12.4))
             do ipy=1,lprop-1
                do ider=1,6
                   phres%gval(ider,ipy)=saveg(ider,ipy)-&
@@ -1473,7 +1476,9 @@
          enddo
       endif noder7A
 413   format(a,3i3,6(1pe12.4))
-! Integral values
+! Check Integral values, phpart%gval(1,1) is ordered-ordasdis, phres is disord
+!      write(*,617)'3X g=do+d:   ',phpart%gval(1,1),fsites*phres%gval(1,1),&
+!           phpart%gval(1,1)+fsites*phres%gval(1,1)
       do ipy=1,lprop-1
 !         add1=phpart%gval(1,ipy)
          do ider=1,6
@@ -2916,7 +2921,7 @@
    kk=0
 ! this was never assigned!! BOS 16.11.04
    lokdcs=disrec%varreslink
-!   write(*,*)'3X lokdcs: ',lokdcs
+!   write(*,*)'3X lokdcs: ',lokdcs,allocated(ceq%phase_varres(lokdcs)%yfr)
 ! here copy: 
 ! y(ord,1,1)=y(dis,1); y(ord,1,2)=y(dis,2); y(ord,1,3)=y(dis,3); 
 ! y(ord,2,1)=y(dis,1); y(ord,2,2)=y(dis,2); y(ord,2,3)=y(dis,3); 

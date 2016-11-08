@@ -3391,7 +3391,7 @@
    if(symsym.eq.0) then
       call state_variable_val(svrrec,xxx,ceq)
    else
-!      write(*,*)'3C ok here 4'
+!      write(*,*)'3C ok here 4',symsym
       actual_arg=' '
       xxx=evaluate_svfun_old(symsym,actual_arg,1,ceq)
    endif

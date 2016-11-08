@@ -740,13 +740,18 @@
 ! in set_condition new is not used for anything.
 ! in this subroutine the new variable is removed from the condition list
 ! and instead added to the experimenal list
+   integer kp
    type(gtp_condition), pointer :: new,temp
 !   integer nidlast,nidfirst,nidpre
    double precision xxx,yyy
 !
+! return here if more experiments
+17 continue
 ! inside here things are done
+!   write(*,*)'3D exp1: ',trim(cline),ip
    call set_cond_or_exp(cline,ip,new,1,ceq)
    if(gx%bmperr.ne.0) goto 1000
+!   write(*,*)'3D exp2: ',trim(cline),ip
 !   write(*,*)'3D Back in enter_experiment'
 !   write(*,*)'3D Values: ',new%active,new%prescribed
 !   write(*,*)'3D Segmentation fault before this line means a problem with new'
@@ -759,6 +764,7 @@
       else
          yyy=new%uncertainty
       endif
+      kp=ip
       call gparrd('Uncertainty: ',cline,ip,xxx,yyy,q1help)
       if(gx%bmperr.ne.0) then
 ! UNFINISHED we should allow symbol links
@@ -767,6 +773,7 @@
          write(*,*)'Uncertainty must not be zero, set to 0.1 of value'
          xxx=0.1*new%prescribed
       endif
+!      write(*,*)'3D exp3: ',trim(cline),ip,kp
       new%symlink2=0
       new%uncertainty=abs(xxx)
 ! this is for relative errors
@@ -784,6 +791,12 @@
       if(ceq%weight.lt.zero) then
          ceq%weight=one
       endif
+   endif
+! any  more experiments?
+!   write(*,*)'3D exp4: ',trim(cline),ip,kp,len(cline),len_trim(cline)
+   if(kp.le.ip .and. len_trim(cline).gt.ip) then
+!      write(*,*)'3D more experiments',cline(ip:)
+      goto 17
    endif
 1000 continue
  end subroutine enter_experiment
@@ -868,7 +881,7 @@
    character stvexp*80,stvrest*80,textval*32,c5*5
    character svtext*128,encoded*60,defval*18,actual_arg*24,svfuname*16
    integer indices(4),allterms(4,10),seqz,experimenttype
-   integer ich,back,condvalsym,symsym
+   integer ich,back,condvalsym,symsym,nextexp
    double precision coeffs(10),xxx,value,ccc
    logical inactivate
 ! memory leak
@@ -904,9 +917,11 @@
 ! NOTE we can have several conditions on the same line!!
 ! argument 4 equal to 5 of gpar* means extract the whole line
    stvexp=' '
+   nextexp=ip
 !   write(*,56)'3D scoe: ',nterm,ip,trim(cline)
 56 format(a,2i3,' "',a,'" ')
    if(nterm.eq.0) then
+! the whole line is read into stvexp
       call gparcd('State variable: ',cline,ip,5,stvexp,'T',q1help)
    else
 ! the whole expression must have been entered on the same line
@@ -967,7 +982,9 @@
 !      write(*,*)'3D looking for condition: ',-qp
 ! UNFINISHED: one should look for the qp:th ACTIVE condition ....
       temp=>ceq%lastcondition
+!      write(*,*)'3D calling get_condition A'
       call get_condition(qp,svr,temp)
+!      write(*,*)'3D Back from calling get_condition A'
       if(gx%bmperr.ne.0) goto 1000
 ! save link to old condition in new
       new=>temp
@@ -1215,6 +1232,7 @@
          linkix=condvalsym
       endif
    endif none
+!
    findrecord: if(notcond.eq.0) then
 ! remove a condition
       if(.not.associated(new)) then
@@ -1232,14 +1250,20 @@
    else
 ! remove an experiment
       if(.not.associated(new)) then
-!         write(*,*)'3D First exmperiment: ',associated(temp)
+!         write(*,*)'3D First experiment: ',associated(temp)
 ! search for an experiment with state variable svr or symbol symsym
          temp=>ceq%lastexperiment
 142      continue
 !         write(*,*)'3D searching for experiment'
          if(symsym.eq.0) then
             istv=symsym
+!            if(associated(temp)) then
+!               write(*,*)'3D Calling get_condition C',allocated(temp%condcoeff)
+!            else
+!               write(*,*)'3D Calling get_condition C with temp null'
+!            endif
             call get_condition(nterm,svr,temp)
+!            write(*,*)'3D Back from calling get_condition C',gx%bmperr
             if(gx%bmperr.eq.0) then
 ! we must also test eperimenttype, if not same continue search
                if(temp%experimenttype.eq.experimenttype) goto 142
@@ -1274,6 +1298,7 @@
 !         write(*,*)'Inactivating condition',new%prescribed,new%active
       else
 ! set the new value in the old condition/experiment remove any previous link!!
+! linkix is link to symbol representing the value
          new%active=0
          new%prescribed=value
          new%symlink1=linkix
@@ -1342,6 +1367,7 @@
       new%uncertainty=zero
 !      write(*,*)'3D experimenttype: ',experimenttype,symsym,nterm
       new%experimenttype=experimenttype
+!      write(*,*)'3D symsym: ',symsym,nterm
       if(symsym.eq.0) then
 ! DO NOT allocate terms for condcoeff and indices if symbol
          allocate(new%condcoeff(nterm))
@@ -1354,9 +1380,8 @@
                new%indices(ks,jl)=allterms(ks,jl)
             enddo
 !         write(*,111)'3D in record: ',istv,jl,(new%indices(ks,jl),ks=1,4)
-111      format(a,i3,i5,2x,4i4)
+111         format(a,i3,i5,2x,4i4)
          enddo
-!      else
 ! Only experiments can be symbols, what to do next?
       endif
 !      write(*,*)'3D storing value: ',value,linkix
@@ -1405,7 +1430,11 @@
          enddo
 !      else
 ! experiment is a symbol, no statvar record !!
-!         write(*,*)'3D experiment is a symbol 2',istv,symsym
+! The index to the state variable symbol is symsym stored in new%statev
+!         write(*,*)'3D experiment is a symbol 2',istv,symsym,linkix
+!         allocate(new%statvar(1))
+!         new%statvar(1)%statevarid=0
+!         new%statvar(1)%argtyp=-symsym
       endif
 ! link the new record into the condition list
 !    write(*,*)'linking condition'
@@ -1427,9 +1456,20 @@
       endif
       if(notcond.ne.0) then
 ! we are actually entering an experiment, terminate here
-!         write(*,*)'3D exit: ',jp,textval
-         cline=textval(jp:)
-         ip=1
+! if textval(jp:jp) is ":" we have to step back ip to that
+! increment ip with nextexp!
+         ip=ip+nextexp
+!         write(*,*)'3D exit: "',trim(cline),'" "',trim(textval),ip,jp,nextexp
+         if(textval(jp:jp).eq.':') then
+200         continue
+            if(cline(ip+1:ip+1).ne.':') then
+               ip=ip-1; goto 200
+            endif
+            ip=ip+1
+         endif
+! allow for more experiments on the same line ...
+!         cline=textval(jp:)
+!         ip=1
          goto 1000
       endif
    endif createrecord
@@ -1496,7 +1536,7 @@
    endif
    svr=>svrarr(1)
 !   write(*,*)'3D set_cond_or_exp for fix phase: ',svr%statevarid,svr%phase
-! new must be unassociated, for inactvate temp will be set to condition.
+! new must be unassociated, for inactivate temp will be set to condition.
    nullify(new)
    call get_condition(nterm,svr,temp)
 !   write(*,*)'3D Back from get_condition ',gx%bmperr,ip
@@ -1592,13 +1632,16 @@
 ! pcond starts with the last equilibria, not the first ...
          if(iact+nterm.eq.0) goto 1000
       elseif(.not.allocated(pcond%condcoeff)) then
+! problem when experiment is a symbol ...
+!      elseif(.not.allocated(pcond%condcoeff) .and. istv.ne.0) then
 ! no coefficients allocated, it must be an experiment with a symbol as variable
-         write(*,*)'3D experiment as symbol',pcond%statev,pcond%seqz
+!-         write(*,*)'3D experiment as symbol',pcond%statev,pcond%seqz,num
 ! we must transfer the symbol index ...
 !         if(pcond%statev.eq. )then
 !            goto 1000
 !         endif
-         goto 200
+!         goto 200
+         continue
       elseif(pcond%noofterms.eq.nterm) then
 !         write(*,*)'3D nterm: ',nterm,pcond%noofterms
 ! experiments that are symbols have not allocated any coefficent record
@@ -1640,7 +1683,7 @@
       pcond=>pcond%next
       if(.not.associated(pcond,last)) goto 100
 900 continue
-!   write(*,*)'3D get_condition: No such condition'
+!   write(*,*)'3D get_condition: No such condition or experiment'
    gx%bmperr=4131; goto 1000
 1000 continue
  return
@@ -2453,6 +2496,178 @@ end subroutine get_condition
 1000 continue
    return
  end subroutine enter_species_property
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
+ subroutine enter_material(cline,last,nv,xknown,ceq)
+! enter a material from a database
+! called from user i/f
+   implicit none
+   integer last,nv
+   character cline*(*)
+   double precision xknown(*)
+   type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   integer nel,j1,j2
+   character material*72,database*72,selel(20)*2,ext*4,alloy(20)*2
+   character majorel*2,ftype*1,bline*128
+   double precision xalloy(20),rest,xxx,xxy
+! these are saved for use in a subsequent call
+   save selel,majorel,ftype,xalloy
+!
+   if(.not.btest(globaldata%status,GSNOPHASE)) then
+! Ask for new alloy composition:
+      if(ftype.eq.'Y') then
+         rest=1.0D2
+         bline='Mass % of '
+      else
+         rest=one
+         bline='Mole fraction of '
+      endif
+      j2=len_trim(bline)+2
+      do j1=1,noofel
+         if(ellista(j1)%symbol.eq.majorel) cycle
+         bline(j2:)=ellista(j1)%symbol
+         xxy=xalloy(j1)
+60       continue
+         call gparrd(bline,cline,last,xxx,xxy,q1help)
+         if(buperr.ne.0 .or. xxx.le.zero) then
+            write(*,*)'Illegal value for composition'
+            goto 60
+         endif
+         xalloy(j1)=xxx
+         rest=rest-xxx
+      enddo
+   else
+      ext='.TDB'
+      call gparc('Database: ',cline,last,1,database,' ',q1help)
+! this extracts all element symbols from database
+      call checkdb(database,ext,nel,selel)
+      if(gx%bmperr.ne.0) goto 1000
+! ask for major component
+      call gparc('Major element or material: ',cline,last,1,majorel,' ',q1help)
+      call capson(majorel)
+      do nv=1,nel
+         if(majorel.eq.selel(nv)) goto 100
+      enddo
+      write(*,*)'No such element in the database'
+      gx%bmperr=4399
+      goto 1000
+100   continue
+      call gparcd('Input in mass percent? ',cline,last,1,ftype,'Y',q1help)
+      if(ftype.eq.'Y') then
+         rest=1.0D2
+      else
+         rest=one
+      endif
+110   continue
+      call gparc('First alloying element:',cline,last,1,alloy(1),' ',q1help)
+      nv=0
+      call capson(alloy(1))
+      do j1=1,nel
+         if(alloy(1).eq.selel(j1)) goto 200
+      enddo
+      write(*,*)'No such element in database'
+      goto 110
+!-----
+200   continue
+      do j1=1,nv
+         if(alloy(nv+1).eq.alloy(j1)) then
+            write(*,*)'Alloying element already entered'
+            goto 250
+         endif
+      enddo
+      nv=nv+1
+220   continue
+      if(ftype.eq.'Y') then
+         call gparrd('Mass percent: ',cline,last,xalloy(nv),one,q1help)
+         if(buperr.ne.0) then
+            write(*,*)'Give a numeric value'; buperr=0
+            goto 220
+         endif
+      else
+         call gparrd('Mole fraction: ',cline,last,xalloy(nv),1.0D-2,q1help)
+         if(buperr.ne.0) then
+            write(*,*)'Give a numeric value'; buperr=0
+            goto 220
+         endif
+      endif
+      if(xalloy(nv).le.zero) then
+         write(*,*)'Composition must be positive!'
+         goto 220
+      endif
+      rest=rest-xalloy(nv)
+      if(rest.le.zero) then
+         write(*,*)'Your major component is less than zero!!'
+         gx%bmperr=4399; goto 1000
+      elseif(rest.le.5.0D-1) then
+         write(*,*)'Your major component is less than 0.5'
+      endif
+250 continue
+      if(nv.eq.1) then
+         call gparc('Second alloying element:',cline,last,1,alloy(2),' ',q1help)
+         if(alloy(2).eq.'  ') goto 500
+      elseif(nv.eq.2) then
+         call gparc('Third alloying element:',cline,last,1,alloy(3),' ',q1help)
+         if(alloy(3).eq.'  ') goto 500
+      else
+         call gparc('Next alloying element:',cline,last,1,&
+              alloy(nv+1),' ',q1help)
+         if(alloy(nv+1).eq.'  ') goto 500
+      endif
+      call capson(alloy(nv+1))
+      do j1=1,nel
+         if(alloy(nv+1).eq.selel(j1)) goto 200
+      enddo
+      write(*,*)'No such element in database'
+      goto 250
+!----------------------
+! read the database including the major element
+500   continue
+      nv=nv+1
+      alloy(nv)=majorel
+      xalloy(nv)=rest
+!   write(*,*)'3D em: ',(alloy(j1),j1=1,nv)
+      call readtdb(database,nv,alloy)
+      if(gx%bmperr.ne.0) goto 1000
+! order the amounts in xalloy in alphabetical order
+      do j1=1,nv
+         do j2=1,nv
+            if(alloy(j1).eq.ellista(j2)%symbol) then
+               xknown(ellista(j2)%alphaindex)=xalloy(j1); cycle
+            endif
+         enddo
+      enddo
+! these are saved until another enter material command
+      do j1=1,nv
+         xalloy(j1)=xknown(j1)
+      enddo
+      write(*,510)(ellista(j1)%symbol,xknown(j1),j1=1,nv)
+510   format('3D em: ',10(a2,F6.3,1x))
+   endif
+!----------------------------------
+! set conditions for composition (replace major by N=1)
+   bline='N=1 '
+   j2=len_trim(bline)+2
+   do j1=1,nv
+      if(ellista(j1)%symbol.eq.majorel) cycle
+      if(ftype.eq.'Y') then
+         bline(j2:)='W%('//trim(ellista(j1)%symbol)//')='
+      else
+         bline(j2:)='X('//trim(ellista(j1)%symbol)//')='
+      endif
+      j2=len_trim(bline)+1
+      call wrinum(bline,j2,10,0,xalloy(j1))
+      j2=j2+2
+   enddo
+   write(*,*)'3D em: ',trim(bline)
+! set_condition will increment j1
+   j1=0
+   call set_condition(bline,j1,ceq)
+1000 continue
+   return
+ end subroutine enter_material
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 

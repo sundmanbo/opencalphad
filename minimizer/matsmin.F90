@@ -5065,134 +5065,6 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!-\begin{verbatim}
-  subroutine corriliq_d2gdyidyj_old(nkl,knr,curmu,yva,pmi,ncc,pmat,ceq)
-! correction of d2G/dy1dy2 for ionic liquid because the formula unit is
-! not fixed.  This contributes ONLY to the second derivaties of G and
-! is not really part of the model itself, only needed when minimizing G
-    implicit none
-    type(gtp_equilibrium_data), pointer :: ceq
-    TYPE(meq_phase), pointer :: pmi
-    integer ncc,nkl(*),knr(*)
-    double precision curmu(*),pmat(ncc,*),yva
-!-\end{verbatim}
-! corr = \sum_A \mu_A * d2 N_A/dy_i dy_k ; i cation, j anion, Va vacancy, k meu
-! N_A  = P*\sum_i b_Ai y_i + Q(\sum_j b_Aj y_j) + Q(\sum_j b_Ak y_k)
-! P    = \sum_j v_j y_j + y_Va \sum_i v_i y_i
-! Q    = \sum_i v_i y_i 
-! N_A  = (\sum_j v_jy_j + y_Va\sum_i v_iy_i)\sum_i b_Aiy_i +
-!         \sum_i v_iy_i\sum_j b_Ajy_j
-!
-! Derivate wrt to a cation k:
-! dN_A/dy_k=(\sum_j v_jy_j+y_Va\sum_i v_iy_i) b_Ak + y_Va v_k\sum_i b_Aiy_i
-!         v_k\sum_j b_Ajy_j
-! Derivate wrt to another cation m:
-! d2N_A/dy_kdy_m = y_Va v_m b_Ak + y_Va v_k b_Am
-! 
-    integer i1,i2,icon,jcon,loksp,nspel,ielno(10),el,allions
-    double precision stoi(10),spmass,qsp,qsp1,add1,add2,add3,bcat,bani,bneu
-    double precision spextra
-!
-! dpqdy(1..ncc) is the absolute value of the charge of the species
-! It is not used as we must get species data, better not to use ...
-! i2sly(1) is index of vacancy, i2sly(2) is index of first neutral
-! If either is missing it is equal to number of constituents+1
-    allions=min(pmi%i2sly(1),pmi%i2sly(2))
-!    write(*,11)'corrion 2: ',pmi%i2sly,nkl(1)+nkl(2),allions,ncc
-11  format(a,10i5)
-    icon=0
-    write(*,12)'mu: ',(curmu(i1),i1=1,noel())
-12  format(a,6(1pe12.4))
-!    do i1=1,nkl(1)+nkl(2)
-! loop for all constituents
-    if(nkl(1).eq.0) then
-!       write(*,*)'Liquids without cations have fixed stoichiometry 1.0
-!       gx%bmperr=9876
-       goto 1000
-    endif
-    do i1=1,nkl(1)
-! loop for all cations, one derivative must be for a cation
-       icon=icon+1
-       loksp=knr(icon)
-!       call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp1,spextra)
-       call get_species_component_data(loksp,nspel,ielno,stoi,spmass,qsp1,ceq)
-       if(gx%bmperr.ne.0) goto 1000
-       add2=zero
-       do el=1,nspel
-! skip any vacancy in a species, they have zero chemical potential anyway
-          if(ielno(el).gt.0) add2=add2+stoi(el)*curmu(ielno(el))
-       enddo
-       add1=add2
-       write(*,13)'cation: ',icon,0,qsp1,add1
-13     format(a,2i3,6(1pe12.4))
-!-------------------------2nd derivatives wrt two cations
-       jcon=icon
-       do while(jcon.le.nkl(1))
-! loop for all pairs of cations incl twins, nkl(1) is number of cations
-! A smart and messy solution is to skip this loop for jcon=icon ...
-          loksp=knr(jcon)
-!          call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp,spextra)
-          call get_species_component_data(loksp,nspel,ielno,stoi,spmass,qsp,ceq)
-          if(gx%bmperr.ne.0) goto 1000
-          add2=zero
-          do el=1,nspel
-             if(ielno(el).ne.0) add2=add2+stoi(el)*curmu(ielno(el))
-          enddo
-          add2=add1*qsp+add2*qsp1
-          write(*,13)'pmat caca: ',icon,jcon,add2,qsp,yva,yva*add2
-! store value in pmat as correction to d2G/dyidyj
-          pmat(icon,jcon)=-yva*add2
-          jcon=jcon+1
-       enddo
-! ------------------------ 2nd derivative wrt cation and anion
-       do while(jcon.lt.allions)
-! loop for all anions, allions-1 is last anion
-          loksp=knr(jcon)
-!          call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp,spextra)
-          call get_species_component_data(loksp,nspel,ielno,stoi,spmass,qsp,ceq)
-          if(gx%bmperr.ne.0) goto 1000
-          add2=zero
-          do el=1,nspel
-             if(ielno(el).ne.0) add2=add2+stoi(el)*curmu(ielno(el))
-          enddo
-! anions have negative charge
-!          add2=add2*qsp1-add1*qsp
-          add2=add2*qsp1+add1*qsp
-          write(*,13)'pmat caan: ',icon,jcon,qsp,add2
-! store value in pmat as correction to d2G/dyidyj
-          pmat(icon,jcon)=-add2
-          jcon=jcon+1
-       enddo
-!-------------second derivative wrt cation and vacancy
-       if(jcon.eq.pmi%i2sly(1)) then
-          write(*,13)'pmat cava: ',icon,jcon,add1,pmi%curd%sites(2),&
-               add1*pmi%curd%sites(2)
-! store value in pmat as correction to d2G/dyidyj
-          pmat(icon,jcon)=-add1*pmi%curd%sites(2)
-       endif
-       jcon=jcon+1
-!-------------second derivative wrt cation and neutral
-       do while(jcon.le.ncc)
-          loksp=knr(jcon)
-!          call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp,spextra)
-          call get_species_component_data(loksp,nspel,ielno,stoi,spmass,qsp,ceq)
-          if(gx%bmperr.ne.0) goto 1000
-          add2=zero
-          do el=1,nspel
-             if(ielno(el).ne.0) add2=add2+stoi(el)*curmu(ielno(el))
-          enddo
-          write(*,13)'pmat cane: ',icon,jcon,add2,qsp1,qsp1*add2
-! store value in pmat as correction to d2G/dyidyj
-          pmat(icon,jcon)=-qsp1*add2
-          jcon=jcon+1
-       enddo
-    enddo
-1000 continue
-    return
-  end subroutine corriliq_d2gdyidyj_old
-
-!/!\!/!\!/!\!/!\!/\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
 ! subroutine
 !\begin{verbatim}
   logical function same_composition(jj,phr,meqrec,ceq,dgm)
@@ -6381,11 +6253,12 @@ CONTAINS
 !    type(gtp_assessmenthead), pointer :: ash
 !\end{verbatim}
 ! firstash is the data structure for assessment head (globally declared) 
-   integer i1,i2,iexp
+   integer i1,i2,iexp,symsym
     double precision xxx,yyy
     type(gtp_equilibrium_data), pointer :: equil
     type(gtp_condition), pointer :: experiment
     type(gtp_state_variable), pointer :: svrrec
+    character text*24
 !
 !    write(*,*)'MM in assessment_calfun',nexp,nvcoeff
 !    write(*,*)'MM In assessment_calfun',size(ash%eqlista)
@@ -6416,7 +6289,7 @@ CONTAINS
           f(i1)=zero
        enddo
        goto 1000
-    else
+!    else
 !       write(*,*)'MM6 First equilibrium number: ',firstash%firstexpeq
 !       write(*,17)size(firstash%eqlista),firstash%firstexpeq
 17     format('MM Number of equilibra with experiments: ',i5,', first is ',i3)
@@ -6453,18 +6326,28 @@ CONTAINS
 ! current value of the experiment
 500       continue
           iexp=iexp+1
-!          write(*,*)'MM Setting pointer to experiment ',iexp
-          svrrec=>experiment%statvar(1)
-!          write(*,*)'MM new_assessment_calfun Calculate value of experiment'
-          call state_variable_val(svrrec,xxx,equil)
+!          write(*,*)'MM Setting pointer to experiment ',&
+!               allocated(experiment%statvar),iexp
+          nostv: if(.not.allocated(experiment%statvar)) then
+             symsym=experiment%statev
+             text=' '
+!             write(*,*)'MM symsym: ',symsym
+             xxx=evaluate_svfun_old(symsym,text,1,equil)
+          else
+             svrrec=>experiment%statvar(1)
+!             write(*,*)'MM exp: ',svrrec%statevarid,svrrec%argtyp
+! svrrec%statevarid = 0 means symbol ...
+! this can handle state variable symbols also !!??
+             call state_variable_val(svrrec,xxx,equil)
+          endif nostv
           if(gx%bmperr.ne.0) then
              write(kou,*)' *** Error calculating experiment ',&
-                  equil%eqname,gx%bmperr
+                  equil%eqname,gx%bmperr,xxx
              gx%bmperr=0
              f(iexp)=zero
              goto 590
           endif
-!          write(*,510)'MM f',iexp,experiment%prescribed,xxx,&
+!        write(*,510)'MM f',iexp,experiment%prescribed,xxx,&
 !               experiment%uncertainty,equil%weight
 510          format(a,i4,6(1pe12.4))
           if(experiment%experimenttype.eq.0) then
@@ -6492,10 +6375,10 @@ CONTAINS
                 f(iexp)=zero
              endif
           endif
-590    if(.not.associated(experiment,equil%lastexperiment)) then
-          experiment=>experiment%next
-          goto 500
-       endif
+590       if(.not.associated(experiment,equil%lastexperiment)) then
+             experiment=>experiment%next
+             goto 500
+          endif
 ! done all experiments for this equilibrium
     enddo eqloop
 !    write(*,*)'MM experiments: ',iexp,nexp
@@ -7421,10 +7304,10 @@ CONTAINS
 ! there is a mobility for constituent (is-800) stored in pmi%curd%gval(1,jt)
           jj=is-800
           ql=ql+1
-          mobval(jj)=exp(pmi%curd%gval(1,jt)/ceq%rtn)/ceq%rtn
-!          write(*,410)jj,jt,pmi%curd%gval(1,jt),mobval(jj)
-410       format('Mobility for ',i3,' in pos ',i2,&
-               ', value: ',3(1pe14.6))
+!          mobval(jj)=exp(pmi%curd%gval(1,jt)/ceq%rtn)/ceq%rtn
+          mobval(jj)=pmi%curd%gval(1,jt)
+!          write(*,410)jj,jt,pmi%curd%gval(1,jt)
+410       format('MM Mobility for ',i3,' in pos ',i2,', value: ',3(1pe14.6))
        endif
     enddo
     if(ql.lt.noofend) then
@@ -7488,7 +7371,7 @@ CONTAINS
 ! tpval is T and P
 ! ceq is a datastructure with all relevant thermodynamic data
 ! cpot are the (calculated) chemical potentials
-! tyst is TRUE means no outut
+! tyst is TRUE means keep quiet
     implicit none
     integer mode
     TYPE(meq_setup) :: meqrec
@@ -7498,7 +7381,7 @@ CONTAINS
 !\end{verbatim}
     TYPE(gtp_phasetuple), pointer :: phtup
 ! setup equilibrium calculation for a single phase, set all others as suspended
-! store vaules in meqrec
+! store values in meqrec
     meqrec%nrel=noel()
     meqrec%nfixph=0
     meqrec%nfixmu=0
