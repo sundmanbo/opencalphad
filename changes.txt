@@ -18,19 +18,24 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2016.11.15 I have started implementying save unformatted/direct by
+converying the Fortran datastructure to the old integer format.  So
+far elements, species and TP functions can be saved.  I think this is
+an absolutely necessary feature in order to use OC in assessments.
+
 2016.11.03 A general cleanup, the old macro directories have been
 removed and the macro files for version 4 are directly on the maros/
 directory.  The reading of parameters from TDB and PDB files have been
 made more flexible.  Some problems using the order/disorder model have
-also been fixed.  Work on the OCASI software is ongoing but not yet
+also been fixed.  Work on the OCASI subroutines is ongoing but not yet
 finished.
 
 2016.10.22 Several updates made for the new PDB database format.
 There is a separate documentation for that available at the github
 repository SGTE-PDB.  The macro map12 use this format.
 
-I have also added the Inden-Xiong magnetic model with separate Curie
-and Neel temperatures.
+I have also added the Inden-Xiong magnetic model with the "effective"
+magnetic moment and separate Curie and Neel temperatures.
 
 2016.09.22 Small fix in SMP and some changes in the documentation.
 

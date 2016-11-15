@@ -14,8 +14,8 @@
    integer jl,ipos
    character line*80
    line=' '
-   write(unit,10)
-10  format(/'List of elements'/ &
+   write(unit,10)noofel
+10  format(/'List of ',i2,' elements'/ &
         ' No Sym Name',10X,'Reference state',12X,&
         'Mass  H298-H0   S298    Status')
    loop1: do jl=-1,noofel
@@ -193,8 +193,8 @@
 !\end{verbatim}
    integer jl,ipos
    character line*80
-   write(unit,10)
-10  format(/'List of species'/ &
+   write(unit,10)noofsp
+10  format(/'List of ',i3,' species'/ &
         '  No Symbol',20X,'Stoichiometry',12X,'Mass      Charge Status')
    loop1: do jl=1,noofsp
       ipos=1

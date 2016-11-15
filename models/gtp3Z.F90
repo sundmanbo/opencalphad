@@ -823,18 +823,29 @@
    TYPE(tpfun_expression), dimension(*) :: lokexpr
    real tlimits(*)
 !\end{verbatim} %+
+! special for unformatted files, lrot < 0 and this index MUST be used
+! ignore freetpfun!!
    integer ir
    character name*16
-   lrot=freetpfun
+   if(lrot.lt.0) then
+! store funtion at this specific place!!
+      lrot=-lrot
+!      if(lrot.gt.freetpfun) then
+         write(*,*)'Storing at position above freetpfun',lrot
+!         gx%bmperr=4399; goto 1000
+!      endif
+   else
+      lrot=freetpfun
 !   write(*,*)'ct1mfn: ',freetpfun
 !   write(*,*)'ct1mfn: ',lrot,tpfuns(lrot)%nextfree
-   if(lrot.gt.0) then
-      freetpfun=tpfuns(lrot)%nextfree
-      tpfuns(lrot)%nextfree=0
-   else
+      if(lrot.gt.0) then
+         freetpfun=tpfuns(lrot)%nextfree
+         tpfuns(lrot)%nextfree=0
+      else
 ! no more tpfun records
-      write(*,*)'No more space for TP functions: ',size(tpfuns)
-      gx%bmperr=4014; goto 1000
+         write(*,*)'No more space for TP functions: ',size(tpfuns)
+         gx%bmperr=4014; goto 1000
+      endif
    endif
    allocate(tpfuns(lrot)%limits(nranges))
    allocate(tpfuns(lrot)%funlinks(nranges))
@@ -1854,6 +1865,8 @@
 ! check if function already entered, there are freetpfun-1 of them
 ! ignore functions that start with a "_" as they are parameters
 !   lrot=0
+! special when read unformatted or direct files, lrot<0 and this
+! must be the location for storing the function ...
    already=.FALSE.
    if(symbol(1:1).ne.'_') then
       lsym=symbol
@@ -1863,7 +1876,7 @@
 17       format('enter_tpfun: ',i5,' >,'a,'=',a,'?')
          if(lsym.eq.tpfuns(jss)%symbol) then
             if(btest(tpfuns(jss)%status,TPNOTENT)) then
-! function name already eneterd, now enter expression, this is from TDB files
+! function name already entered, now enter expression, this is from TDB files
                lrot=jss; already=.TRUE.; goto 18
             else
 !               write(*,*)'amend tpfun: ',fromtdb,lrot
@@ -1876,7 +1889,7 @@
                   deallocate(tpfuns(lrot)%funlinks)
                   tpfuns(lrot)%noofranges=0
                   tpfuns(lrot)%status=ibset(tpfuns(lrot)%status,TPNOTENT)
-! we have to clear the stored values! But those are stored in equil.rec
+! we should clear the stored values! But those are stored separatly in all ceq
                   nrange=0; goto 18
                else
                   gx%bmperr=4026; goto 1000
@@ -2508,8 +2521,44 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim} %-
+ subroutine save2tpfun(link,iws,nosym,jfun)
+! save one tpfun (a parameter) with index jfun on a file
+! iws(link) is the place in iws to store a link to the function
+   implicit none
+   integer link,jfun,nosym,iws(*)
+!\end{verbatim} %+
+! store the function as text! That minimizer programming here 
+   character bigtxt*2048
+   integer lok,bytes,kk
+! nosym=0 means include tpfun name in bignext
+   call list_tpfun(jfun,nosym,bigtxt)
+   if(gx%bmperr.ne.0) goto 1000
+   bytes=len_trim(bigtxt)
+   call wtake(lok,2+nwch(bytes),iws)
+   if(buperr.ne.0) then
+      write(*,*)'3Z error reserving a function'
+      gx%bmperr=4399
+      goto 1000
+   endif
+!   write(*,*)'3Z tpfun: ',trim(bigtxt),lok,bytes,iws(1)
+   call storc(lok+2,iws,trim(bigtxt))
+! we must store the length in bytes!!
+   iws(lok)=bytes
+   iws(lok+1)=jfun
+   iws(link)=lok
+   kk=index(bigtxt,'=')
+   write(*,77)'3Z tpfun: ',jfun,iws(lok+1),lok+2,bigtxt(1:kk-1)
+77 format(a,3i7,2x,a)
+1000 continue
+   return
+ end subroutine save2tpfun
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim} %-
  subroutine save1tpfun(lut,form,jfun)
 ! save one tpfun (a parameter) with index jfun on a file
+! lut is unit, form is TRUE is formatted
 !   implicit double precision (a-h,o-z)
    implicit none
    integer lut,jfun
@@ -2587,6 +2636,115 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim} %-
+ subroutine save0tpfun(lfun,iws,jfun)
+! save one tpfun (or parameter) with index jfun in workspace iws
+!   implicit double precision (a-h,o-z)
+   implicit none
+   integer lfun,iws(*),jfun
+!\end{verbatim} %+
+   integer nr,i,kx,nc,displace,lexpr,rsize,mmz
+   TYPE(tpfun_expression), pointer :: exprot
+   double precision dummy,xxx
+! jfun can be zero meaning a parameter that is zero   
+! unformatted
+   if(jfun.eq.0) then
+      iws(lfun)=0
+   else
+      nr=tpfuns(jfun)%noofranges
+      rsize=3+nwch(16)+nr*(1+nwpr)+nwpr
+      call wtake(lfun,rsize,iws)
+      if(buperr.ne.0) then
+         write(*,*)'Error reserving record for TPfun'
+         gx%bmperr=4399; goto 1000
+      endif
+!      write(lut)jfun,tpfuns(jfun)%symbol,tpfuns(jfun)%noofranges,&
+!           tpfuns(jfun)%nextfree
+      iws(lfun+1)=tpfuns(jfun)%noofranges
+! what is nextfree??
+      iws(lfun+2)=tpfuns(jfun)%nextfree
+      call storc(lfun+3,iws,tpfuns(jfun)%symbol)
+      displace=3+nwch(16)
+      call storrn(nr,iws(lfun+displace),tpfuns(jfun)%limits)
+!         write(lut)(tpfuns(jfun)%limits(i),i=1,nr)
+      call storr(lfun+displace+nr*nwpr,iws,tpfuns(jfun)%hightlimit)
+! store location of expressions from displace
+      displace=displace+nwpr*(nr+1)
+! now the expressions, number of coefficients, nc, can be different
+! link them from lfun
+      do kx=1,nr
+         exprot=>tpfuns(jfun)%funlinks(kx)
+         nc=exprot%noofcoeffs
+         rsize=1+nc*(5+nwpr)
+         call wtake(lexpr,rsize,iws)
+         if(buperr.ne.0) then
+            write(*,*)'Error reserving record for TPfun'
+            gx%bmperr=4399; goto 1000
+         endif
+         iws(lfun+displace+kx-1)=lexpr
+         iws(lexpr)=nc
+         mmz=lexpr+1
+! The coefficients and the codes
+         do i=1,nc
+            iws(mmz)=exprot%link(i)
+            iws(mmz+1)=exprot%tpow(i)
+            iws(mmz+2)=exprot%ppow(i)
+            iws(mmz+3)=exprot%wpow(i)
+            iws(mmz+4)=exprot%plevel(i)
+            call storr(mmz+5,iws,exprot%coeffs(i))
+            call loadr(mmz+5,iws,xxx)
+            mmz=mmz+5+nwpr
+         enddo
+      enddo
+   endif
+1000 continue
+   return
+ end subroutine save0tpfun
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim} %-
+ subroutine read2tpfun(lokfun,iws,jfun)
+! read a tpfun from a character string stored in iws at lokfun
+   implicit none
+   integer lokfun,jfun,iws(*)
+!\end{verbatim} %+
+   character bigtxt*2048,symbol*16
+   integer flen,funrec,kk,ifun
+   logical fromtdb
+!
+   bigtxt=' '
+   funrec=iws(lokfun)
+   flen=iws(funrec)
+!   write(*,*)'3Z length: ',lokfun,funrec,flen
+   call loadc(funrec+2,iws,bigtxt(1:flen))
+   kk=index(bigtxt,'=')
+   symbol=bigtxt(1:kk-1)
+   fromtdb=.TRUE.
+   call enter_tpfun(symbol,bigtxt(kk+1:flen),jfun,fromtdb)
+   write(*,76)'3Z tpfun: ',ifun,jfun,iws(funrec+1),funrec+2,symbol
+76 format(a,4i7,2x,a)
+   if(gx%bmperr.ne.0) then
+      write(*,77)'3Z read2err: ',trim(bigtxt),kk,symbol
+77    format(a,a,i6,a)
+   endif
+1000 continue
+   return
+ end subroutine read2tpfun
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine fixtpfunlinks
+! called after reading a save file to set all links to function
+!\end{verbatim}
+   implicit none
+1000 continue
+   return
+ end subroutine fixtpfunlinks
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim} %-
  subroutine read1tpfun(lut,jfun)
 ! read one unformatted tpfun (a parameter) with index jfun
 !   implicit double precision (a-h,o-z)
@@ -2641,6 +2799,84 @@
 1000 continue
    return
  end subroutine read1tpfun
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim} %-
+ subroutine read0tpfun(lfun,iws,jfun)
+! read one TPfun from workspace
+   implicit none
+   integer lfun,jfun,iws(*)
+!\end{verbatim} %+
+   integer i,i2,kx,nc,nr,displace,lexpr,loklexpr,mmz
+   TYPE(tpfun_expression), pointer :: exprot
+   character*16 symbol
+   double precision dummy
+! jfun can be sero meaning no link to a TPFUN
+!   read(lut)jfun,symbol,nr,i2
+! the TPfuns are stored in an array, no need to allocate
+!   if(iws(lfun).gt.0) then
+   if(jfun.gt.0) then
+      nr=iws(lfun+1)
+      tpfuns(jfun)%noofranges=nr
+      tpfuns(jfun)%nextfree=iws(lfun+2)
+      call loadc(lfun+3,iws,tpfuns(jfun)%symbol)
+   else
+      write(*,*)'not a function: ',lfun,jfun
+      goto 1000
+   endif
+!   else
+!      write(*,*)'no symbol!',lfun,iws(lfun)
+!      goto 1000
+!   endif
+!   write(*,*)'Calling wrttprec'
+!   call wrttprec(3,iws)
+!   write(*,*)'Back from wrttprec'
+!   write(*,*)'3Z TPfun: ',jfun,lfun,nr,tpfuns(jfun)%symbol
+   displace=3+nwch(16)
+! a TPfun can have different number of ranges, must be allocated
+   allocate(tpfuns(jfun)%limits(nr))
+   allocate(tpfuns(jfun)%funlinks(nr))
+   call loadrn(nr,iws(lfun+displace),tpfuns(jfun)%limits)
+   call loadr(lfun+displace+nr*nwpr,iws,tpfuns(jfun)%hightlimit)
+!   write(*,*)'3Z high T',tpfuns(jfun)%hightlimit
+! the expressions are linked from here, one per range
+   displace=displace+(1+nr)*nwpr
+   loklexpr=lfun+displace-1
+! extract  the expressions
+   do kx=1,nr
+      lexpr=iws(loklexpr+kx)
+      nc=iws(lexpr)
+!      write(*,*)'3Z coeffs 1',kx,lfun,lexpr,nr,nc
+      exprot=>tpfuns(jfun)%funlinks(kx)
+      exprot%noofcoeffs=nc
+!      if(nc.gt.20) stop
+      allocate(exprot%tpow(nc))
+      allocate(exprot%ppow(nc))
+      allocate(exprot%wpow(nc))
+      allocate(exprot%plevel(nc))
+      allocate(exprot%link(nc))
+      allocate(exprot%coeffs(nc))
+      mmz=lexpr
+!      write(*,*)'3Z coeffs 2',nc,iws(nc),mmz
+      do i=1,nc
+         exprot%link(i)=iws(mmz+1)
+         exprot%tpow(i)=iws(mmz+2)
+         exprot%ppow(i)=iws(mmz+3)
+         exprot%wpow(i)=iws(mmz+4)
+         exprot%plevel(i)=iws(mmz+5)
+         call loadr(mmz+6,iws,exprot%coeffs(i))
+         mmz=mmz+5+nwpr
+      enddo
+   enddo
+!   if(jfun.gt.0) then
+!      read(lut)tpfuns(jfun)%hightlimit
+!   else
+!      read(lut)dummy
+!   endif
+1000 continue
+   return
+ end subroutine read0tpfun
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -2797,3 +3033,41 @@
     return
   end subroutine makeoptvname
 
+  subroutine wrttprec(jfun,iws)
+    implicit none
+    integer jfun,iws(*),lfun,i,root,displace,nr,lokex,j,nc,lokexp
+    character symbol*16
+    double precision xxx(10),yyy
+!
+    lfun=iws(7)
+    lfun=iws(lfun+jfun)
+    call loadc(lfun+3,iws,symbol)
+    write(*,10)lfun,iws(lfun),iws(lfun+1),iws(lfun+2),symbol
+10  format('TP1: ',i7,2x,3i7,2x,a)
+    displace=3+nwch(16)
+    nr=iws(lfun+1)
+    call loadrn(nr,iws(lfun+displace),xxx)
+    call loadr(lfun+displace+nr*nwpr,iws,yyy)
+    write(*,20)yyy,(xxx(i),i=1,nr)
+20  format('TP2: ',6(1pe12.4))
+    displace=displace+nwpr*(nr+1)
+    write(*,30)(iws(lfun+displace+i-1),i=1,nr)
+30  format('TP3: ',10i7)
+    ! expression records
+    lokexp=lfun+displace-1
+    do i=1,nr
+       lokex=iws(lokexp+i)
+       nc=iws(lokex)
+       write(*,40)i,lfun+displace-1,lokex,iws(lokex),nc
+40     format('   EX1: ',i3,2x,8i7)
+       displace=lokex
+       do j=1,nc
+          call loadr(displace+6,iws,yyy)
+          write(*,50)j,displace,iws(displace+1),iws(displace+2),&
+               iws(displace+3),iws(displace+4),iws(displace+5),yyy
+          displace=displace+5+nwpr
+       enddo
+50     format('      EX2: ',i3,i7,2x,5i6,1pe12.4)
+    enddo
+    return
+  end subroutine wrttprec

@@ -21,14 +21,19 @@
 !\end{verbatim}
 ! separate UNFORMATTED, DIRECT, TDB, MACRO or LaTeX 
    if(str(1:1).eq.'U') then
+! unformatted
       call gtpsaveu(filename,str(3:))
    elseif(str(1:1).eq.'D') then
+! direct (random access)
       call gtpsavedir(filename,str(3:))
    elseif(str(1:1).eq.'T') then
+! TDB format
       call gtpsavetdb(filename,str(3:))
    elseif(str(1:1).eq.'L') then
+! LaTeX format
       call gtpsavelatex(filename,str(3:))
    else
+! macro and PDB formats
       call gtpsavetm(filename,str)
    endif
 1000 continue
@@ -100,9 +105,32 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!-\begin{verbatim}
+ subroutine gtpsaveu_old(filename,specification)
+! save all data unformatted on an file
+! header
+! element list
+! species list
+! phase list with sublattices, endmembers, interactions and parameters etc
+! tpfuns
+! state variable functions
+! references
+! equilibrium record(s) with conditions, componenets, phase_varres records etc
+! anything else?
+   implicit none
+   character*(*) filename,specification
+!-\end{verbatim}
+1000 continue
+   return
+ end subroutine gtpsaveu_old
+
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
 !\begin{verbatim}
  subroutine gtpsaveu(filename,specification)
 ! save all data unformatted on an file
+! First move it to an integer workspace, then write that on a file
 ! header
 ! element list
 ! species list
@@ -116,9 +144,182 @@
    character*(*) filename,specification
 !\end{verbatim}
 !
-   character id*40,comment*72,endoffile*16,mark*8
-   integer i,isp,jph,kontroll,lokph,lut
+   character id*40,comment*72
+   integer, parameter :: miws=100000
+   integer iws(miws)
+   integer i,isp,jph,lokph,lut,last,lok,rsize,displace,ibug,ffun
+! these depend on hardware, bytes/word and words/double. Defined in metlib3
+!   integer, parameter :: nbpw=4,nwpr=2
+! integer function nwch calculates the number of words to store a character
+!   write(*,*)'In gtpsaveu: ',trim(specification),' version: ',trim(savefile)
 !
+!----------------------------------------------------------------------
+   ! allocate the workspace, words 3-102 for pointers and other things
+   call winit(miws,100,iws)
+   if(buperr.ne.0) goto 1100
+!----------------------------------------------------------------------
+! note the use of gtp_xxx_version to handle versions of data structures
+!----------------------------------------------------------------------
+!
+!>>>>> 1: elementlist
+!   write(*,*)'3E nbpw and nwpr: ',nbpw,nwpr,nwch(1)
+!   rsize=1+1+12/nbpw+24/nbpw+3*nwpr+4 should be enough but ....
+   rsize=1+1+nwch(12)+nwch(24)+3*nwpr+5
+!   write(*,*)'3E Storing elements',noofel,rsize
+   last=3
+   iws(last+1)=gtp_element_version
+   do i=1,noofel
+! next, symbol*2, name*12, ref_state*24, mass, h298, s298,
+! splink, status, alphaindex, refstatesymbol
+      call wtake(lok,rsize,iws)
+      if(buperr.ne.0) then
+         write(*,*)'Error reserving element record'
+         gx%bmperr=4399; goto 1000
+      endif
+      call storc(lok+1,iws,ellista(i)%symbol)
+      call storc(lok+2,iws,ellista(i)%name)
+      displace=3+nwch(12)
+      call storc(lok+displace,iws,ellista(i)%ref_state)
+      displace=displace+nwch(24)
+      call storr(lok+displace,iws,ellista(i)%mass)
+      call storr(lok+displace+nwpr,iws,ellista(i)%h298_h0)
+      call storr(lok+displace+2*nwpr,iws,ellista(i)%s298)
+      displace=displace+3*nwpr
+      iws(lok+displace)=ellista(i)%splink
+      iws(lok+displace+1)=ellista(i)%status
+      iws(lok+displace+2)=ellista(i)%alphaindex
+      iws(lok+displace+3)=ellista(i)%refstatesymbol
+!      write(*,*)'3E element: ',i,displace+3,rsize,ellista(i)%refstatesymbol
+! link sequentially in first word
+      iws(last)=lok
+      last=lok
+      ibug=lok+displace+3
+!      write(*,*)'3E refstatesymbol 0: ',ibug,iws(ibug),iws(1)
+   enddo
+! bug??
+   ibug=lok+displace+3
+!   write(*,*)'3E refstatesymbol 1: ',ibug,iws(ibug),iws(1)
+!-----------
+!>>>>> 2: specieslist
+   rsize=1+nwch(24)+3*nwpr+3
+! next, symbol*24, mass, charge, extra, noofel, status, alphaindex
+! (allocated) ellinks, stoichiometry
+!   write(*,*)'3E storing species',noofsp,rsize,'+ellinks'
+   last=5
+   iws(last+1)=gtp_species_version
+   do isp=1,noofsp
+      call wtake(lok,rsize+splista(isp)%noofel*(1+nwpr),iws)
+      if(buperr.ne.0) then
+         write(*,*)'Error reserving species record'
+         gx%bmperr=4399; goto 1000
+      endif
+!      write(*,*)'3E refstatesymbol 2: ',ibug,iws(ibug),lok
+      call storc(lok+1,iws,splista(isp)%symbol)
+      displace=2+nwch(24)
+      call storr(lok+displace,iws,splista(isp)%mass)
+      call storr(lok+displace+nwpr,iws,splista(isp)%charge)
+      iws(lok+displace+2*nwpr)=splista(isp)%noofel
+      iws(lok+displace+2*nwpr+1)=splista(isp)%status
+      iws(lok+displace+2*nwpr+2)=splista(isp)%alphaindex
+! displace one less as i is added
+      displace=displace+2*nwpr+2
+      do i=1,splista(isp)%noofel
+         iws(lok+displace+i)=splista(isp)%ellinks(i)
+      enddo
+      displace=displace+splista(isp)%noofel+1
+! storing splista(isp)%noofel doubles in iws(lok+displace)
+!      write(*,*)'3E displace store: ',lok,displace
+      call storrn(splista(isp)%noofel,&
+           iws(lok+displace),splista(isp)%stoichiometry)
+!      write(*,*)'3E refstatesymbol 3: ',ibug,iws(ibug),lok+displace
+!      do i=1,splista(isp)%noofel
+!         call storr(lok+displace+(i-1)*nwpr,iws,
+!      enddo
+!      write(*,*)'3E stored species ',isp,lok,displace+splista(isp)%noofel*nwpr
+! link records sequentially in first word
+      iws(last)=lok
+      last=lok
+   enddo
+!   write(*,*)'3E last species link: ',last,lok,iws(lok),iws(1)
+!
+!------------- tpfuns
+!>>>>> 20: tpfuns
+   call wtake(lok,freetpfun,iws)
+   if(buperr.ne.0) then
+      write(*,*)'Error reserving tpfun record'
+      gx%bmperr=4399; goto 1000
+   endif
+   iws(7)=lok
+   iws(8)=tpfun_expression_version
+   iws(lok)=freetpfun
+!   write(*,*)'3E saving TPfuns: ',iws(7),iws(iws(7))
+   do i=1,freetpfun-1
+! store all TPfuns here. In parameters just store an index!
+! we have to pass iws also ....
+      call save0tpfun(ffun,iws,i)
+      if(gx%bmperr.ne.0) goto 1000
+!      write(*,*)'3E TPfun: ',i,' stored in ',iws(lok+i),iws(iws(lok+i))
+      iws(lok+i)=ffun
+   enddo
+! write the record for TP function 3
+!   call wrttprec(3,iws)
+   goto 900
+!>>>>> 3: phaselist, start from 0 (reference phase)
+! including sublattces, endmembers, interactions, properties etc
+! save version of various records
+   write(*,*)'3E saving phases',noofph
+   last=9
+   iws(last+1)=gtp_phase_version
+   iws(last+2)=gtp_endmember_version
+   iws(last+3)=gtp_interaction_version
+   iws(last+4)=gtp_property_version
+   call savephases(last,iws)
+   if(gx%bmperr.ne.0) goto 1000
+! save all phase tuples in a single reord
+   last=14
+   iws(last+1)=gtp_phasetuple_version
+   if(nooftuples.gt.0) then
+      call wtake(lok,1+nooftuples*5,iws)
+      if(buperr.ne.0) then
+         write(*,*)'Error reserving phase tuple record'
+         gx%bmperr=4399; goto 1000
+      endif
+      iws(lok)=nooftuples
+      do i=0,nooftuples-1
+         iws(lok+5*i+1)=phasetuple(i+1)%lokph
+         iws(lok+5*i+2)=phasetuple(i+1)%compset
+         iws(lok+5*i+3)=phasetuple(i+1)%ixphase
+         iws(lok+5*i+4)=phasetuple(i+1)%lokvares
+         iws(lok+5*i+5)=phasetuple(i+1)%nextcs
+      enddo
+      iws(last)=lok
+   else
+! no phase tuples
+      iws(last)=0
+   endif
+   call wrkchk(rsize,miws,iws)
+   write(*,*)'3E used workspace up to ',rsize
+   goto 900
+! unfinished
+!------------- state variable functions
+!>>>>> 30: svfuns
+   write(*,*)'3E  saving state variable functions'
+!   call svfunsave(iws,firsteq)
+!------------- references
+!>>>>> 40: bibliographic references
+   write(*,*)'3E saving bibliography'
+!   call bibliosave(iws)
+!-------------------------------------------------------
+! write the equilibrium records, at present for FIRSTEQ only
+! conditions, components, phase_varres for all composition sets etc
+!>>>>> 50: equilibria
+   write(*,*)'3E saving equilibria'
+   write(lut)gtp_equilibrium_data_version,gtp_component_version,&
+        gtp_phase_varres_version
+   call saveequil(lut,firsteq)
+!-------------------------------------------------------
+! finally write the workspace to the file ...
+900 continue
    if(index(filename,'.').eq.0) then
       filename(len_trim(filename)+1:)='.ocu'
    endif
@@ -127,265 +328,368 @@
            form='unformatted',iostat=gx%bmperr,err=1000)
    id='This is a save file for OC version:    '
    comment=specification
-! this control number will be written regularly on the file and checked on read
-   kontroll=175638
-   mark=' MARK '//char(13)//char(10)
-!>>>>> 1: write first some id, version etc.
-   write(lut)id,savefile,comment,globaldata
-   write(lut)noofel,noofsp,noofph,nooftuples
-   write(lut)1,kontroll,mark
-!----------------------------------------------------------------------
-! note the use of gtp_xxx_version to handle versions
-!----------------------------------------------------------------------
-!
-! it is extremely important to keep the order of the records as they
-! are linked using indices
-!
-!>>>>> 2: elementlist
-   if(ocv()) write(*,*)'Writing elements'
-   write(lut)gtp_element_version
-   do i=1,noofel
-      write(lut)ellista(i)
-   enddo
-!-----------
-   write(lut)2,kontroll,mark
-!>>>>> 3: specieslist
-   if(ocv()) write(*,*)'Writing species'
-   write(lut)gtp_species_version
-   do isp=1,noofsp
-      write(lut)splista(isp)%symbol,splista(isp)%mass,splista(isp)%charge
-      write(lut)splista(isp)%noofel,splista(isp)%status, &
-           splista(isp)%alphaindex
-      write(lut)(splista(isp)%ellinks(i),i=1,splista(isp)%noofel)
-      write(lut)(splista(isp)%stoichiometry(i),i=1,splista(isp)%noofel)
-   enddo
-   write(lut)3,kontroll,mark
-!>>>>> 4: phaselist, start from 0 (reference phase)
-! including sublattces, endmembers, interactions, properties etc
-! save version of various records
-   if(ocv()) write(*,*)'Writing phases'
-   write(lut)gtp_phase_version,gtp_endmember_version,gtp_interaction_version,&
-        gtp_property_version
-   if(noofph.gt.0) then
-      do jph=0,noofph
-         lokph=phases(jph)
-         call savephase(lut,lokph)
-         if(gx%bmperr.ne.0) goto 1000
-         if(ocv()) write(*,*)'Saved phase: ',jph
-      enddo
-   endif
-   write(lut)(phasetuple(i),i=1,nooftuples)
-   write(lut)4,kontroll,mark
-!------------- tpfuns
-!>>>>> 20: tpfuns
-   if(ocv()) write(*,*)'Writing tpfuns'
-   call tpfunsave(lut,.FALSE.)
-   write(lut)5,kontroll,mark
-!------------- state variable functions
-!>>>>> 30: svfuns
-   if(ocv()) write(*,*)'Writing state variable functions'
-   call svfunsave(lut,firsteq)
-   write(lut)6,kontroll,mark
-!   write(*,*)'Writing mark: ',6,kontroll,mark
-!------------- references
-!>>>>> 40: bibliographic references
-   if(ocv()) write(*,*)'Writing references'
-   call bibliosave(lut)
-   write(lut)7,kontroll,mark
-!-------------------------------------------------------
-! write the equilibrium records, at present for FIRSTEQ only
-! conditions, components, phase_varres for all composition sets etc
-!>>>>> 50: equilibria
-   if(ocv()) write(*,*)'Writing equilibria'
-   write(lut)gtp_equilibrium_data_version,gtp_component_version,&
-        gtp_phase_varres_version
-   call saveequil(lut,firsteq)
-   write(lut)8,kontroll,mark
-!-------------------------------------------------------
-   endoffile='- END OF DATA - '
-   write(lut)endoffile
-900 continue
+   call wrkchk(rsize,miws,iws)
+! NOTE: savefile is a character*8 in gtp3.F90
+   write(lut)id,savefile,comment,noofel,noofsp,noofph,nooftuples,rsize+5
+   write(lut)(iws(i),i=1,rsize+5)
    close(lut)
+   write(kou,991)rsize+5,trim(filename)
+991 format('Written workspace ',i8,' words unformatted on ',a)
 1000 continue
    return
+1100 continue
+   write(*,*)'Error storing record',buperr
+   gx%bmperr=4399
+   goto 1000
  end subroutine gtpsaveu
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine savephase(lut,lokph)
-! save data for phase at location lokph (except data in the equilibrium record)
+ subroutine savephases(phroot,iws)
+! save data for all phases and store pointer in iws(phroot)
 ! For phases with disordered set of parameters we must access the number of
 ! sublattices via firsteq
    implicit none
-   integer lut,lokph
+   integer phroot,iws(*)
 !\end{verbatim}
    integer doneord,i,j,level,lokcs,nem,noi,nop,nox,nsl,nup,noendm,fipsize
+   integer iph,lok,rsize,displace,lokph,iwsph,lokem,lastem,lokpty,last
+   integer phreclink
    type(gtp_endmember), pointer :: emrec
    type(gtp_interaction), pointer :: intrec
    type(gtp_property), pointer :: proprec
+   character*8 dummy
 ! to keep track of interaction records
    type saveint
       type(gtp_interaction), pointer :: p1
+      integer lok
    end type saveint
    type(saveint), dimension(:), pointer :: stack
    type(gtp_phase_add), pointer :: addlink
-   if(ocv()) write(*,*)'In savephase'
    allocate(stack(5))
+! do not save the phases array, regenerate it on read
+!   call wtake(lok,noofph+1,iws)
+!   do i=1,noofph
+!      iws(lok+i)=phases(i)
+!   enddo
+! store this link in last and set link to next in first word
+!   iws(last)=lok
+!   last=lok
+! loop for all phases
+   iwsph=phroot
+! phases start from 0, the SER phase
+   do iph=0,noofph
+      lokph=phases(iph)
 !>>>>> 5: phase header
-   write(lut)lokph,phlista(lokph)%name,&
-        phlista(lokph)%models,phlista(lokph)%phletter,&
-        phlista(lokph)%status1,&
-        phlista(lokph)%alphaindex,phlista(lokph)%noofcs,phlista(lokph)%nooffs
-   nsl=phlista(lokph)%noofsubl
-   emrec=>phlista(lokph)%ordered
-   if(.not.associated(emrec)) then
-      noendm=0
-   else
-      noendm=1
-   endif
-!>>>>> 6: sublattice info
-   j=phlista(lokph)%tnooffr
-   if(ocv()) write(*,10)j,lokph,size(phlista(lokph)%constitlist)
-10 format('3E: ',3i20)
-   if(ocv()) write(*,11)(phlista(lokph)%constitlist(i),i=1,j)
-11 format('3E: ',20i3)
-   write(lut)nsl,phlista(lokph)%linktocs,phlista(lokph)%tnooffr
-   write(lut)(phlista(lokph)%nooffr(i),i=1,nsl),&
-        (phlista(lokph)%constitlist(i),i=1,j),noendm
+! link,name*24,model*72,phletter*1,status1,alphaindex,noofcs,nooffs,additionlink
+      rsize=1+nwch(24)+nwch(72)+nwch(1)+5
+! the endmember_ord, endmember_dis and endmemrecarray is not used ...
+! noofsubl,tnooffr,linktocs(9),nooffr(subl),constlist(tnooffr),i2slx
+      rsize=rsize+2+9+phlista(lokph)%noofsubl+phlista(lokph)%tnooffr+2
+! we must also have links to endmember lists, addtions and ??
+      rsize=rsize+2
+      call wtake(lok,rsize,iws)
+      if(buperr.ne.0) then
+         write(*,*)'Error reserving phase record',trim(phlista(lokph)%name),&
+              buperr
+         gx%bmperr=4399; goto 1000
+      endif
+! link all phase records sequentially from phroot using iwsph
+      iws(iwsph)=lok
+      iwsph=lok
+! store phase data
+      write(*,*)'3E creating record for ',trim(phlista(lokph)%name)
+      call storc(lok+1,iws,phlista(lokph)%name)
+      displace=1+nwch(24)
+      call storc(lok+displace,iws,phlista(lokph)%models)
+      displace=displace+nwch(72)
+! we should store at least 4 characters ...
+      dummy=phlista(lokph)%phletter
+      call storc(lok+displace,iws,dummy(1:4))
+      displace=displace+1
+      iws(lok+displace)=phlista(lokph)%status1
+      iws(lok+displace+1)=phlista(lokph)%alphaindex
+      iws(lok+displace+2)=phlista(lokph)%noofcs
+      iws(lok+displace+3)=phlista(lokph)%nooffs
+! mark there are additions, it is handled below
+!      if(associated(phlista(lokph)%additions)) then
+!         iws(lok+displace+4)=1
+!      endif
+      if(allocated(phlista(lokph)%oendmemarr)) then
+         write(*,*)'3E Attention!! ignoring endmemberrec array!'
+      endif
+!>>>>> 6: sublattice and constituent info
+      nsl=phlista(lokph)%noofsubl
+      iws(lok+displace+4)=nsl
+      j=phlista(lokph)%tnooffr
+      iws(lok+displace+5)=j
+! displace one less as loops starts from 1
+      displace=displace+5
+      do i=1,9
+         iws(lok+displace+i)=phlista(lokph)%linktocs(i)
+      enddo
+      displace=displace+9
+      do i=1,nsl
+         iws(lok+displace+i)=phlista(lokph)%nooffr(i)
+      enddo
+      displace=displace+nsl
+      do i=1,j
+         iws(lok+displace+i)=phlista(lokph)%constitlist(i)
+      enddo
+      displace=displace+j+1
+! saving i2sl is probably not necessary as it is calculated each time ??
+      iws(lok+displace)=phlista(lokph)%i2slx(1)
+      iws(lok+displace+1)=phlista(lokph)%i2slx(2)
+      write(*,*)'3E check size: ',rsize,displace+1,lok+displace+1,iws(1)
+! links to endmembers and additions to be stored here and afterwards
+      phreclink=lok+displace+2
 !--------- endmember list, interaction tree and property records
 ! save all parameter data starting from the endmember list
-   doneord=0
-   if(ocv()) write(*,*)'listing endmembers',doneord,nsl,noendm
+      doneord=0
+      emrec=>phlista(lokph)%ordered
+      write(*,*)'3E saving endmembers',doneord,nsl
 ! there can be phases without any ordered parameters ...
-   if(.not.associated(emrec)) goto 400
+      if(.not.associated(emrec)) goto 400
+! The start of the sequentail list of endmember records (for ordered fractions)
+      lokem=phreclink
 ! we come back here if there are disordered parameters
-200 continue
+200   continue
 ! if doneord=1 then we have listed the ordered parameters
-   if(doneord.eq.1) then
-      emrec=>phlista(lokph)%disordered
-      if(ocv()) write(*,*)'Saving disordered parameters'
-   endif
-   if(ocv()) write(*,*)'any endmember: ',doneord
-   emlista: do while(associated(emrec))
-      proprec=>emrec%propointer
-      intrec=>emrec%intpointer
-      nop=0
-      noi=0
-      nem=0
-      if(associated(proprec)) nop=1
-      if(associated(intrec)) noi=1
-      if(associated(emrec%nextem)) nem=1
-      if(ocv()) write(*,55)'writing endmember: ',nsl,emrec%noofpermut,&
-           emrec%phaselink,emrec%antalem,nop,noi,nem
-55    format(a,7i5)
+      if(doneord.eq.1) then
+         emrec=>phlista(lokph)%disordered
+         if(ocv()) write(*,*)'Saving disordered parameters'
+      endif
+      emlista: do while(associated(emrec))
+         proprec=>emrec%propointer
+         intrec=>emrec%intpointer
+!         nop=0
+!         noi=0
+!         nem=0
+!         if(associated(proprec)) nop=1
+!         if(associated(intrec)) noi=1
+!         if(associated(emrec%nextem)) nem=1
 !>>>>> 7: endmember record (basic or disordered)
-      write(lut)emrec%noofpermut,emrec%phaselink,emrec%antalem,nop,noi,nem
-      do j=1,emrec%noofpermut
-         write(lut)(emrec%fraclinks(i,j),i=1,nsl)
-      enddo
-      emproplista: do while(associated(proprec))
-         nox=0
-         if(associated(proprec%nextpr)) nox=1
+!         write(lut)emrec%noofpermut,emrec%phaselink,emrec%antalem,nop,noi,nem
+!         do j=1,emrec%noofpermut
+!            write(lut)(emrec%fraclinks(i,j),i=1,nsl)
+!         enddo
+! In the endmember recorde we store:
+! link to next endmember, link to interaction, link to property record : 3
+! link to phase record, number of permutations, seq.order of creation? : 3
+! for each permutation nsl indices to fractions                      : perm*nsl
+!
+         rsize=6+emrec%noofpermut*nsl
+         write(*,*)'3E emrec: ',emrec%noofpermut,rsize
+         call wtake(lok,rsize,iws)
+         if(buperr.ne.0) then
+            write(*,*)'Error reserving endmember record'
+            gx%bmperr=4399; goto 1000
+         endif
+         write(*,*)'3E creating endmember record',emrec%antalem
+! maintain the sequential link between all endmember records
+         iws(lokem)=lok
+         lokem=lok
+! iws(lok) to next, iws(nop=lok+1) to property, iws(noi=lok+2) to intercation, 
+! these are nem, noi, nop
+!         write(lut)emrec%noofpermut,emrec%phaselink,emrec%antalem,nop,noi,nem
+         iws(lok+3)=emrec%noofpermut
+         iws(lok+4)=emrec%phaselink
+         iws(lok+5)=emrec%antalem
+         displace=5
+         do j=1,emrec%noofpermut
+            do i=1,nsl
+               iws(lok+displace+i)=emrec%fraclinks(i,j)
+            enddo
+            displace=displace+nsl
+!            write(lut)(emrec%fraclinks(i,j),i=1,nsl)
+         enddo
+! this is the place to store the start of property records
+         nop=lok+1
+         emproplista: do while(associated(proprec))
+!            if(associated(proprec%nextpr)) nox=1
 !>>>>> 8: endmember property record (loop)
-         write(lut)proprec%reference,proprec%proptype,&
-              proprec%degree,proprec%extra,proprec%antalprop,nox
-         do i=0,proprec%degree
-            call save1tpfun(lut,.FALSE.,proprec%degreelink(i))
-         enddo
-         proprec=>proprec%nextpr
-      enddo emproplista
-! interaction tree
-      level=0
-300   continue
-      intlista: do while(associated(intrec))
-! noi is next, nup is higher, nop is property
-         noi=0
-         nup=0
-         nop=0
-         if(associated(intrec%nextlink)) noi=1
-         if(associated(intrec%highlink)) nup=1
-         if(associated(intrec%propointer)) nop=1
-310      continue
-!>>>>> 9: interaction record
-! look in gtp3H, create_interaction for use of intec%noofip
-         fipsize=size(intrec%noofip)
-         write(lut)fipsize
-         write(lut)intrec%noofip,intrec%status,noi,nup,nop
-         do i=1,intrec%noofip(2)
-            write(lut)intrec%sublattice(i),intrec%fraclink(i)
-         enddo
-! interaction property
-         proprec=>intrec%propointer
-         intproplista: do while(associated(proprec))
-            nox=0
-            if(associated(proprec%nextpr)) nox=1
-!>>>>> 10: interaction property record (loop)
-            write(lut)proprec%reference,proprec%proptype,&
-                 proprec%degree,proprec%extra,proprec%antalprop,nox
+            rsize=5+nwch(16)+proprec%degree+1
+            call wtake(lokpty,rsize,iws)
+            if(buperr.ne.0) then
+               write(*,*)'Error reserving endmember record'
+               gx%bmperr=4399; goto 1000
+            endif
+! link the property recordds sequentially
+            iws(nop)=lokpty
+            nop=lokpty
+            write(*,*)'3E creating propery record',proprec%proptype
+!            write(lut)proprec%reference,proprec%proptype,&
+!                 proprec%degree,proprec%extra,proprec%antalprop,nox
+            iws(lokpty+1)=proprec%proptype
+            iws(lokpty+2)=proprec%degree
+            iws(lokpty+3)=proprec%extra
+            iws(lokpty+4)=proprec%antalprop
+            call storc(lokpty+5,iws,proprec%reference)
+!            displace=5+nwch(16)
+            displace=5+nwch(len(proprec%reference))
             do i=0,proprec%degree
-               call save1tpfun(lut,.FALSE.,proprec%degreelink(i))
+! store a link in iws(lokpty+displace+i) to the TP fun stored as a text
+! we have to pass iws also ....
+!               call save1tpfun(lut,.FALSE.,proprec%degreelink(i))
+! third argument 1 means do not store function name
+!               call save2tpfun(lokpty+displace+i,iws,1,proprec%degreelink(i))
+!               if(gx%bmperr.ne.0) goto 1000
+               iws(lokpty+displace+i)=proprec%degreelink(i)
+               if(gx%bmperr.ne.0) goto 1000
+!               write(*,*)'3E place of function: ',iws(lokpty+displace+i),&
+!                    ' stored in ',lokpty+displace+i,iws(1)
             enddo
             proprec=>proprec%nextpr
-         enddo intproplista
-! take link to higher higher interaction
-         level=level+1
-         if(level.gt.5) then
+         enddo emproplista
+! at the end of the propoerty list iws(lokpty)=0 (zero)
+! start interaction tree
+         level=0
+         noi=lokem+2
+! return here for new interaction record
+300      continue
+         intlista: do while(associated(intrec))
+! noi is next, nup is higher, nop is property
+!            noi=0
+!            nup=0
+!            nop=0
+!            if(associated(intrec%nextlink)) noi=1
+!            if(associated(intrec%highlink)) nup=1
+!            if(associated(intrec%propointer)) nop=1
+310         continue
+!>>>>> 9: interaction record
+! next, higher,property,status,antalint,order,fipsize  :7
+! very complex for permutations ...
+! look in gtp3G, create_interaction, for use of intrec%noofip
+! noofip,sublattice(noofip),fraclink(noofip) 
+            fipsize=size(intrec%noofip)
+            rsize=7+fipsize+2*intrec%noofip(2)
+            write(*,*)'3E interaction: ',intrec%antalint,rsize
+            call wtake(lok,rsize,iws)
+            if(buperr.ne.0) then
+               write(*,*)'Error reserving interaction record'
+               gx%bmperr=4399; goto 1000
+            endif
+! link from previous, iws(lok+1) is link to higher, iws(lok+2) is property
+            iws(noi)=lok
+            lok=noi
+! store data
+            iws(lok+3)=intrec%status
+            iws(lok+4)=intrec%antalint
+            iws(lok+5)=intrec%order
+            iws(lok+6)=fipsize
+            displace=6
+            do i=1,fipsize
+               iws(lok+displace+i)=intrec%noofip(i)
+            enddo
+            displace=displace+fipsize
+            do i=1,intrec%noofip(2)
+               iws(lok+displace+2*i-1)=intrec%sublattice(i)
+               iws(lok+displace+2*i)=intrec%fraclink(i)
+            enddo
+! interaction property, link from nop
+            proprec=>intrec%propointer
+            nop=lok+2
+            intproplista: do while(associated(proprec))
+!>>>>> 10: interaction property record (loop)
+               rsize=5+nwch(16)+proprec%degree+1
+               call wtake(lokpty,rsize,iws)
+               if(buperr.ne.0) then
+                  write(*,*)'Error reserving inteaction property record'
+                  gx%bmperr=4399; goto 1000
+               endif
+! link the property recordds sequentially
+               iws(nop)=lokpty
+               nop=lokpty
+               write(*,*)'3E creating int propery record',proprec%proptype
+!            write(lut)proprec%reference,proprec%proptype,&
+!                 proprec%degree,proprec%extra,proprec%antalprop,nox
+               iws(lokpty+1)=proprec%proptype
+               iws(lokpty+2)=proprec%degree
+               iws(lokpty+3)=proprec%extra
+               iws(lokpty+4)=proprec%antalprop
+               call storc(lokpty+5,iws,proprec%reference)
+               displace=5+nwch(16)
+               do i=0,proprec%degree
+! store a link in iws(lokpty+displace+i) to the TP fun stored as a text
+! we have to pass iws also ....
+!                  call save2tpfun(lokpty+displace+i,iws,1,&
+!                       proprec%degreelink(i)) 
+                  iws(lokpty+displace+i)=proprec%degreelink(i)
+               enddo
+               proprec=>proprec%nextpr 
+               enddo intproplista
+! save on stack and check if higher level
+            level=level+1
+            if(level.gt.5) then
 !            write(*,*)'Too many interaction levels'
-            gx%bmperr=4164; goto 1000
+               gx%bmperr=4164; goto 1000
+            endif
+! save this interaction record and take link to higher
+            stack(level)%p1=>intrec
+            stack(level)%lok=lok
+            intrec=>intrec%highlink
+! link to higher should be in lok+1
+            noi=lok+1
+         enddo intlista
+! we come here when there is no higher level
+! pop previous intrec and take link to next interaction (on same level)
+         if(level.gt.0) then
+            intrec=>stack(level)%p1
+            noi=stack(level)%lok
+            intrec=>intrec%nextlink
+            level=level-1
+            goto 300
          endif
-         stack(level)%p1=>intrec
-         intrec=>intrec%highlink
-      enddo intlista
-! pop previous intrec and take link to next interaction
-      if(level.gt.0) then
-         intrec=>stack(level)%p1
-         intrec=>intrec%nextlink
-         level=level-1
-         goto 300
-      endif
 !---- next endmember
-      emrec=>emrec%nextem
-   enddo emlista
+         emrec=>emrec%nextem
+      enddo emlista
 ! no more endmembers, check if the disordered (if any) has been written
-400 continue
-   if(doneord.eq.0) then
-      if(ocv()) write(*,*)'any disordered endmembers?'
-      if(associated(phlista(lokph)%disordered)) then
-! there are some disordered parameters
+400   continue
+! take link to higher higher interaction
+      if(doneord.eq.0) then
+         if(ocv()) write(*,*)'any disordered endmembers?'
+         if(associated(phlista(lokph)%disordered)) then
+! there are also disordered parameters
 ! the disfra record is written in saveequil??
 ! we have to change nsl ...three % vojvoj
-         doneord=1
-         lokcs=phlista(lokph)%linktocs(1)
-         nsl=firsteq%phase_varres(lokcs)%disfra%ndd
+            doneord=1
+            lokcs=phlista(lokph)%linktocs(1)
+            nsl=firsteq%phase_varres(lokcs)%disfra%ndd
 !>>>>> 11A: write disordered endmemebers
-         write(lut)2,nsl
+            write(lut)2,nsl
 ! emrec should already be null but for security ....
-         nullify(emrec)
-         goto 200
-      else
-! we must mark that there are no disordered parameters
-!>>>>> 11B: no moe endmemebers
-         write(lut)0,0
+            nullify(emrec)
+            goto 200
+         endif
       endif
-   endif
-!------ additions list
+!------ start additions list, use lokpty...
 500 continue
-   addlink=>phlista(lokph)%additions
-   addition: do while(associated(addlink))
-      if(addlink%type.eq.1) then
-!>>>>> 12A: additions id
-         write(lut)addlink%type,addlink%addrecno,addlink%aff
-      else
-         write(*,*)'Not saving unknown addition record type ',addlink%type
-      endif
-      addlink=>addlink%nextadd
-   enddo addition
-!>>>>> 12B: mark end of data for phase
-   write(lut)-1,-1,-1
+      addlink=>phlista(lokph)%additions
+      lokpty=phreclink+1
+      addition: do while(associated(addlink))
+         if(addlink%type.eq.1) then
+!>>>>> 12A: additions id, regenerate all when reading this
+            rsize=3
+            call wtake(lokpty,rsize,iws)
+            if(buperr.ne.0) then
+               write(*,*)'Error reserving addition record'
+               gx%bmperr=4399; goto 1000
+            endif
+            iws(lokpty)=lok
+            lokpty=lok
+            iws(lok+1)=addlink%type
+            iws(lok+2)=addlink%aff
+! link the property recordds sequentially
+         else
+            write(*,*)'3E unknown addition record type ',addlink%type
+         endif
+         addlink=>addlink%nextadd
+      enddo addition
+   enddo
 1000 continue
    return
- end subroutine savephase
+ end subroutine savephases
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -625,6 +929,27 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
+ subroutine gtpread_old(filename,str)
+! read unformatted all data in the following order
+! header
+! element list
+! species list
+! phase list with sublattices, endmembers, interactions and parameters etc
+! tpfuns
+! state variable functions
+! references
+! equilibrium record(s) with conditions, componenets, phase_varres records etc
+!
+   implicit none
+   character*(*) filename,str
+!\end{verbatim}
+1000 continue
+   return
+ end subroutine gtpread_old
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
  subroutine gtpread(filename,str)
 ! read unformatted all data in the following order
 ! header
@@ -639,231 +964,196 @@
    implicit none
    character*(*) filename,str
 !\end{verbatim}
-   character id*40,endoffile*16,version*8,comment*72,mark*8
-   integer i,i1,i2,i3,isp,jph,kontroll,nel,ivers,lin
+   character id*40,version*8,comment*72
+   integer i,i1,i2,i3,isp,jph,kontroll,nel,ivers,lin,last,lok,displace,jfun
+   integer, allocatable :: iws(:)
 10  format(i8)
    if(index(filename,'.').eq.0) then
       filename(len_trim(filename)+1:)='.ocu'
    endif
-   kontroll=175638
    lin=21
    open(lin,file=filename,access='sequential',status='old',&
         form='unformatted',iostat=gx%bmperr,err=1100)
-   if(ocv()) write(*,*)'Opening file: ',filename(1:len_trim(filename)),&
-        ' for unformatted read'
-!>>>>> 1: read some identification etc, SAVE VERBOSE option!
-   if(ocv()) then
-      i1=1
-   else
-      i1=0
-   endif
-   read(lin)id,version,comment,globaldata
-   if(i1.eq.1) then
-      globaldata%status=ibset(globaldata%status,GSVERBOSE)
-   endif
+!   write(*,*)'3E opening file: ',trim(filename),' for unformatted read'
+!
+   read(lin)id,version,comment,noofel,noofsp,noofph,nooftuples,last
    if(version.ne.savefile) then
       write(*,11)id,version,savefile
 11     format('File not same version as program: ',A/a,' : ',a)
-      gx%bmperr=4299; goto 1000
+      gx%bmperr=4299; goto 900
    endif
-!   write(*,*)'comment: ',comment(1:len_trim(comment))
+!   write(*,12)id,version,comment
+!12 format(/a,a/'Comment: ',a)
    str=comment
-   read(lin)noofel,noofsp,noofph,nooftuples
-   if(ocv()) write(*,*)'4 numbers: ',noofel,noofsp,noofph,nooftuples
+!   write(*,*)'3E numbers: ',noofel,noofsp,noofph,nooftuples,last
 !-------
-   read(lin)i1,i2,mark
-   if(i1.ne.1 .and. i2.ne.kontroll) then
-      write(*,*)'Read error at control 1'
-      gx%bmperr=4165; goto 1000
-   elseif(ocv()) then
-      write(*,*)'Control 1 OK'
+   allocate(iws(last))
+   read(lin)(iws(i),i=1,last)
+   close(lin)
+!------------------------
+!>>>>> 2: elementlist, follow link from iws(3)
+   if(iws(4).ne.gtp_element_version) then
+      write(*,*)'Element data structure not same: ',iws(4),gtp_element_version
+      gx%bmperr=4399; goto 1000
    endif
-!>>>>> 2: elementlist
-   read(lin)ivers
-   if(ivers.ne.gtp_element_version) then
-!      write(*,17)'Element',ivers,gtp_element_version
-17    format(a,' record version error: ',2i4)
-      gx%bmperr=4300; goto 1000
+   nel=0
+   last=iws(3)
+   do while(last.gt.0)
+      nel=nel+1
+      lok=last
+      call loadc(lok+1,iws,ellista(nel)%symbol)
+      call loadc(lok+2,iws,ellista(nel)%name)
+      displace=3+nwch(12)
+      call loadc(lok+displace,iws,ellista(nel)%ref_state)
+      displace=displace+nwch(24)
+      call loadr(lok+displace,iws,ellista(nel)%mass)
+      call loadr(lok+displace+nwpr,iws,ellista(nel)%h298_h0)
+      call loadr(lok+displace+2*nwpr,iws,ellista(nel)%s298)
+      displace=displace+3*nwpr
+      ellista(nel)%splink=iws(lok+displace)
+      ellista(nel)%status=iws(lok+displace+1)
+      ellista(nel)%alphaindex=iws(lok+displace+2)
+      ellista(nel)%refstatesymbol=iws(lok+displace+3)
+!      write(*,17)ellista(nel)%symbol,ellista(nel)%name,ellista(nel)%ref_state,&
+!           ellista(nel)%mass,ellista(nel)%h298_h0,ellista(nel)%s298,&
+!           ellista(nel)%splink,ellista(nel)%status,ellista(nel)%alphaindex,&
+!           ellista(nel)%refstatesymbol
+17    format(a2,2x,a12,2x,a24,2x,3(1pe12.4),4i5)
+! do not forget the element array!
+      elements(ellista(nel)%alphaindex)=nel
+!
+      last=iws(last)
+!      write(*,*)'3E elloop: ',nel,lok,last,iws(1)
+   enddo
+   if(nel.ne.noofel) then
+      write(*,*)'Number of elements wrong: ',nel,noofel
    endif
-   do i=1,noofel
-      read(lin)ellista(i)
-   enddo
-   do i=1,noofel
-      elements(ellista(i)%alphaindex)=i
-   enddo
-   if(ocv()) write(*,19)(ellista(i)%alphaindex,i=1,noofel)
-19 format('Ellista: ',100i3)
+!   write(*,*)'3E Now the species!!'
 !-------
-   read(lin)i1,i2,mark
-   if(i1.ne.2 .and. i2.ne.kontroll) then
-      write(*,*)'Read error at control 2'
-      gx%bmperr=4165; goto 1000
-   elseif(ocv()) then
-      write(*,*)'Control 2 OK'
-   endif
 !>>>>> 3: specieslist
-   read(lin)ivers
-   if(ivers.ne.gtp_species_version) then
-!      write(*,17)'Species',ivers,gtp_species_version
-      gx%bmperr=4300; goto 1000
+   if(iws(6).ne.gtp_species_version) then
+      write(*,*)'Species version: ',iws(5),gtp_species_version
+      gx%bmperr=4399; goto 1000
    endif
-   do isp=1,noofsp
-      read(lin)splista(isp)%symbol,splista(isp)%mass,splista(isp)%charge
-      read(lin)splista(isp)%noofel,splista(isp)%status, &
-           splista(isp)%alphaindex
-      if(isp.gt.1) then
-         nel=splista(isp)%noofel
-         allocate(splista(isp)%ellinks(nel))
-         allocate(splista(isp)%stoichiometry(nel))
-      endif
-      read(lin)(splista(isp)%ellinks(i),i=1,splista(isp)%noofel)
-      read(lin)(splista(isp)%stoichiometry(i),i=1,splista(isp)%noofel)
-   enddo
-   do i=1,noofsp
-      species(splista(i)%alphaindex)=i
-   enddo
-!   write(*,22)(splista(i)%alphaindex,i=1,noofsp)
-!22 format('3E splista: ',20i3)
-!-------
-   read(lin)i1,i2,mark
-   if(i1.ne.3 .and. i2.ne.kontroll) then
-      write(*,*)'Read error at control 3'
-      gx%bmperr=4165; goto 1000
-   elseif(ocv()) then
-      write(*,*)'Control 3 OK'
-   endif
-!>>>>> 5: phaselist, starting from 0, the reference phase
-   read(lin)ivers,i1,i2,i3
-   if(ivers.ne.gtp_phase_version) then
-      write(*,17)'Phase',ivers,gtp_phase_version
-      gx%bmperr=4300; goto 1000
-   endif
-   if(i1.ne.gtp_endmember_version) then
-      write(*,17)'Endmember',i1,gtp_endmember_version
-      gx%bmperr=4300; goto 1000
-   endif
-   if(i2.ne.gtp_interaction_version) then
-      write(*,17)'Interaction',i2,gtp_interaction_version
-      gx%bmperr=4300; goto 1000
-   endif
-   if(i3.ne.gtp_property_version) then
-      write(*,17)'Property',i3,gtp_property_version
-      gx%bmperr=4300; goto 1000
-   endif
-   noofem=0
-   noofint=0
-   noofprop=0
-   if(noofph.gt.0) then
-      do jph=0,noofph
-!>>>>> 5..12 inside readphase
-         call readphase(lin,jph)
-         if(gx%bmperr.ne.0) goto 1000
-         if(ocv()) write(*,*)'Done reading phase: ',jph,' out of: ',noofph
+   last=iws(5)
+! VA is entered automatically at first index in splista when reinitiating 
+! so keep that.  We just skip the first species in iws and extract
+! its alphaindex
+   splista(1)%alphaindex=iws(last+2+nwch(24)+2*nwpr+2)
+   species(splista(1)%alphaindex)=1
+! skip the first species
+   last=iws(last)
+   isp=1
+   do while(last.gt.0)
+      isp=isp+1
+!      write(*,*)'3E loop: ',last,isp,splista(isp-1)%symbol
+      call loadc(last+1,iws,splista(isp)%symbol)
+      displace=2+nwch(24)
+      call loadr(last+displace,iws,splista(isp)%mass)
+      call loadr(last+displace+nwpr,iws,splista(isp)%charge)
+      splista(isp)%noofel=iws(last+displace+2*nwpr)
+      splista(isp)%status=iws(last+displace+2*nwpr+1)
+      splista(isp)%alphaindex=iws(last+displace+2*nwpr+2)
+      allocate(splista(isp)%ellinks(splista(isp)%noofel))
+      allocate(splista(isp)%stoichiometry(splista(isp)%noofel))
+      displace=displace+2*nwpr+2
+      do i=1,splista(isp)%noofel
+         splista(isp)%ellinks(i)=iws(last+displace+i)
       enddo
-      do i=1,noofph
-         phases(phlista(i)%alphaindex)=i
-      enddo
-   endif
-   read(lin)(phasetuple(i),i=1,nooftuples)
-!--------
-   read(lin)i1,i2,mark
-   if(i1.ne.4 .and. i2.ne.kontroll) then
-      write(*,*)'Read error at control 4'
-      gx%bmperr=4165; goto 1000
-   elseif(ocv()) then
-      write(*,*)'Control 4 OK'
+      displace=displace+splista(isp)%noofel+1
+!      write(*,*)'3E displace load: ',last,displace
+      call loadrn(splista(isp)%noofel,&
+           iws(last+displace),splista(isp)%stoichiometry)
+      species(splista(isp)%alphaindex)=isp
+! next species
+      last=iws(last)
+   enddo
+   if(isp.ne.noofsp) then
+      write(*,*)'3E wrong number of species: ',isp,noofsp
+      gx%bmperr=4399; goto 1000
    endif
 !---------- tpfuns
 !>>>>> 20.. inside tpfunread, skip functions already read
-   call tpfunread(lin,.TRUE.)
-!   write(*,*)'return with error code: ',gx%bmperr
-   if(gx%bmperr.ne.0) then
-! many functions already entered when reading parameters
-      write(*,*)'Error reading TP functiona: ',gx%bmperr
-      goto 1000
+   last=7
+   if(iws(8).ne.tpfun_expression_version) then
+      write(*,*)'3E tpfun_expression_version not same',iws(8),&
+           tpfun_expression_version
+      gx%bmperr=4399; goto 1000
    endif
-!--------
-   read(lin)i1,i2,mark
-   if(i1.ne.5 .and. i2.ne.kontroll) then
-      write(*,*)'Read error at control 5'
-      gx%bmperr=4165; goto 1000
-   elseif(ocv()) then
-      write(*,*)'read TPFUNS OK'
+   isp=iws(last)
+   i3=iws(isp)
+!   write(*,*)'3E tpfuns',iws(7),iws(8),i3
+   if(isp.gt.0) then
+! skip first 2 (R and RTLNP)
+      do i=3,i3-1
+         call read0tpfun(iws(isp+i),iws,i)
+         if(gx%bmperr.ne.0) then
+            write(*,*)'Error reading TP functiona: ',gx%bmperr
+            goto 1000
+         endif
+      enddo
    endif
+! we cannot update freetpfun before all functions are entered ....
+   freetpfun=i3
+! hopefully the TP functions will keep the same index ... so for parameters
+! one just store the index!
+   goto 1000
+! unfinished below ...
+!-------
+!>>>>> 5: phaselist, starting from 0, the reference phase
+! zero number of phases etc
+   noofph=0
+   nooftuples=0
+   noofem=0
+   noofint=0
+   noofprop=0
+   do jph=0,noofph
+! link to phaselist is in 9
+      call readphases(iws)
+      if(gx%bmperr.ne.0) goto 1000
+   enddo
+!-----------
+! restore phase tuples
+   lok=iws(12)
+   if(lok.gt.0) then
+      if(iws(13).ne.gtp_phasetuple_version) then
+         write(*,*)'3E wrong phasetuple version',gtp_phasetuple_version,iws(13)
+         gx%bmperr=4399; goto 1000
+      endif
+      nooftuples=iws(lok)
+      do i=1,nooftuples
+         phasetuple(i)%lokph=iws(lok+5*i-4)
+         phasetuple(i)%compset=iws(lok+5*i-3)
+         phasetuple(i)%ixphase=iws(lok+5*i-2)
+         phasetuple(i)%lokvares=iws(lok+5*i-1)
+         phasetuple(i)%nextcs=iws(lok+5*i)
+      enddo
+   endif
+   goto 1000
+! unfinished below
 !---------- state variable functions
 !>>>>> 30... inside svfunread
    call svfunread(lin)
    if(gx%bmperr.ne.0) goto 1000
-!--------
-   read(lin)i1,i2,mark
-   if(i1.ne.6 .and. i2.ne.kontroll) then
-      write(*,*)'Read error at control 6'
-      gx%bmperr=4165; goto 1000
-   elseif(ocv()) then
-      write(*,*)'read state variable functions OK at mark ',i1,i2,mark
-   endif
 !---------- bibliographic references
 !>>>>> 40.. inside refread
    call biblioread(lin)
    if(gx%bmperr.ne.0) goto 1000
-!--------
-   read(lin)i1,i2,mark
-   if(i1.ne.7 .and. i2.ne.kontroll) then
-      write(*,*)'Read error at control 7'
-      gx%bmperr=4165; goto 1000
-   elseif(ocv()) then
-      write(*,*)'read references OK'
-   endif
 !---------- equilibrium record
-!>>>>> 50.. inside readequil
-   read(lin)i1,i2,i3
-   if(i1.ne.gtp_equilibrium_data_version) then
-      write(*,*)'Wrong version of equilibrium data record: ',i1,&
-           gtp_equilibrium_data_version
-      gx%bmperr=4300; goto 1000
-   endif
-   if(i2.ne.gtp_component_version) then
-      write(*,*)'Wrong version of component record: ',i2,&
-           gtp_component_version
-      gx%bmperr=4300; goto 1000
-   endif
-   if(i3.ne.gtp_phase_varres_version) then
-      write(*,*)'Wrong version of phase_varres record: ',i3,&
-           gtp_phase_varres_version
-      gx%bmperr=4300; goto 1000
-   endif
    call readequil(lin,firsteq)
-   if(gx%bmperr.ne.0) goto 900
-!   if(gx%bmperr.ne.0) goto 1000
-!--------
-   read(lin)i1,i2,mark
-   if(i1.ne.8 .and. i2.ne.kontroll) then
-      write(*,*)'Read error at control 8'
-      gx%bmperr=4165; goto 1000
-   elseif(ocv()) then
-      write(*,*)'read equilibrium records OK'
-   endif
+   if(gx%bmperr.ne.0) goto 1000
 !------ read all ??
-   endoffile=' '
-   read(lin,end=800,err=800)endoffile
 800 continue
-   if(endoffile.ne.'- END OF DATA - ') then
-      write(kou,811)endoffile
-811   format('Unexpected end of file mark: '/'>',A,'<')
-      gx%bmperr=4166; goto 1000
-   elseif(ocv()) then
-      write(kou,812)endoffile
-812    format('Expected end of file mark found: '/'>',A,'<')
-   endif
 ! emergency exit
 900 continue
-   close(lin)
+! file already closed above
+!   close(lin)
 !
 1000 continue
    return
 ! error opening files
 1100 continue
-   write(*,1110)gx%bmperr,filename(1:len_trim(filename))
+   write(*,1110)gx%bmperr,trim(filename)
 1110 format('I/O error: ',i5,', opening file; ',a)
    goto 1000
  end subroutine gtpread
@@ -871,13 +1161,14 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine readphase(lin,jdum)
+ subroutine readphases(iws)
 ! read data for phlista and all endmembers etc
 ! works for test case without disordered fraction test
    implicit none
-   integer lin,jdum
+   integer iws(*)
 !\end{verbatim}
-   integer firstendmem,i,i1,i2,i3,jph,level,nem,noi,nop,nox,nup,nsl,mult
+   integer firstendmem,i,i1,i2,i3,jph,level,nem,noi,nop,nox,nup,nsl,mult,lin
+   integer lok,displace,totcon,phreclink,lokem,lokint
    type(gtp_endmember), pointer :: emrec
    type(gtp_interaction), pointer :: intrec
    type(gtp_property), pointer :: proprec
@@ -889,117 +1180,132 @@
    type(gtp_phase_add), pointer :: addlink
 !
    allocate(stack(5))
-   if(ocv()) write(*,*)'in readphase:'
+   write(*,*)'in readphase:'
 ! as the phlista record contain pointers each item must be read separately
-!>>>>> 5: phase header
-   read(lin)jph,phlista(jph)%name,&
-        phlista(jph)%models,phlista(jph)%phletter,phlista(jph)%status1,&
-        phlista(jph)%alphaindex,phlista(jph)%noofcs,phlista(jph)%nooffs
-!>>>>> 6: sublattice info
-   read(lin)phlista(jph)%noofsubl,phlista(jph)%linktocs,phlista(jph)%tnooffr
-   nsl=phlista(jph)%noofsubl
-   allocate(phlista(jph)%nooffr(nsl))
-   allocate(phlista(jph)%constitlist(phlista(jph)%tnooffr))
-   read(lin)(phlista(jph)%nooffr(i),i=1,nsl),&
-        (phlista(jph)%constitlist(i),i=1,phlista(jph)%tnooffr),nem
-!------ endmember records, these must be allocated and linked now
-   nullify(phlista(jph)%ordered)
-   nullify(phlista(jph)%disordered)
-   nullify(emrec)
-   if(associated(emrec)) then
-      write(*,*)'nullify does not work'
-      stop
+! the phaes are stored sequentially from iws(5)
+   lok=iws(7)
+   if(iws(lok+1).ne.gtp_phase_version) then
+      write(*,*)'3E phase version not the same ',iws(lok+1),gtp_phase_version
+      goto 1000
+   elseif(iws(lok+2).ne.gtp_endmember_version) then
+      write(*,*)'3E endmember not the same ',iws(lok+2),gtp_endmember_version
+      goto 1000
+   elseif(iws(lok+3).ne.gtp_interaction_version) then
+      write(*,*)'3E interaction not the same ',iws(lok+3),&
+           gtp_interaction_version
+      goto 1000
+   elseif(iws(lok+4).ne.gtp_property_version) then
+      write(*,*)'3E property version not the same ',iws(lok+4),&
+           gtp_property_version
+      goto 1000
    endif
-   if(ocv()) write(*,*)'read endmember data',nsl,nem
+! first phase (number 0) is SER phase
+   jph=-1
+   do while(lok.gt.0)
+      jph=jph+1
+      call loadc(lok+1,iws,phlista(jph)%name)
+      displace=1+nwch(24)
+      call loadc(lok+1,iws,phlista(jph)%models)
+      displace=displace+nwch(72)
+      call loadc(lok+1,iws,phlista(jph)%phletter)
+      displace=displace+1
+      phlista(jph)%status1=iws(lok+displace)
+      phlista(jph)%alphaindex=iws(lok+displace+1)
+      phlista(jph)%noofcs=iws(lok+displace+2)
+      phlista(jph)%nooffs=iws(lok+displace+3)
+!   read(lin)jph,phlista(jph)%name,&
+!        phlista(jph)%models,phlista(jph)%phletter,phlista(jph)%status1,&
+!        phlista(jph)%alphaindex,phlista(jph)%noofcs,phlista(jph)%nooffs
+!>>>>> 6: sublattice info
+!   read(lin)phlista(jph)%noofsubl,phlista(jph)%linktocs,phlista(jph)%tnooffr
+      nsl=iws(lok+displace+4)
+      phlista(jph)%noofsubl=nsl
+      totcon=iws(lok+displace+5)
+      phlista(jph)%tnooffr=totcon
+      allocate(phlista(jph)%nooffr(nsl))
+      allocate(phlista(jph)%constitlist(phlista(jph)%tnooffr))
+!   read(lin)(phlista(jph)%nooffr(i),i=1,nsl),&
+!        (phlista(jph)%constitlist(i),i=1,phlista(jph)%tnooffr),nem
+      displace=displace+5
+      do i=1,9
+         phlista(jph)%linktocs(i)=iws(lok+displace+i)
+      enddo
+      displace=displace+9
+      do i=1,nsl
+         phlista(jph)%nooffr(i)=iws(lok+displace+i)
+      enddo
+      displace=displace+nsl
+      do i=1,totcon
+         phlista(jph)%constitlist(i)=iws(lok+displace+i)
+      enddo
+      displace=displace+totcon+1
+      phlista(jph)%i2slx(1)=iws(lok+displace)
+      phlista(jph)%i2slx(2)=iws(lok+displace+1)
+! here are stored endmember records and additions
+      phreclink=lok+displace+2
+!------ endmember records, these must be allocated and linked now
+      nullify(phlista(jph)%ordered)
+      nullify(phlista(jph)%disordered)
+      nullify(emrec)
+      if(associated(emrec)) then
+         write(*,*)'nullify does not work'
+         stop
+      endif
+      write(*,*)'3E read endmember data',nsl,phreclink,iws(1)
 ! if nem=0 now there are no basic (ordered) endmember (can that happen?)
 ! return here when endmember list empty and there is a disordered list
-   firstendmem=1
+      firstendmem=1
+      lokem=iws(phreclink)
+   enddo
+! unfinished below
+!vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 200 continue
-   if(ocv()) write(*,202)'reading parameters: ',phlista(jph)%name,&
-        nsl,firstendmem,nem
-202 format(a,a,10i4)
-!   newendmem: do while(nem.eq.1)
-   newendmem: do while(nem.gt.0)
-      if(associated(emrec)) then
-!>>>>> 7C: the second or later endmember in the same list
-         call readendmem(lin,nsl,emrec%nextem,nop,noi,nem)
+   newendmem: do while(lokem.gt.0)
+      call readendmem(lokem,iws,nsl,emrec)
+      if(firstendmem.eq.1) then
+! unfinished below
+         if(.not.associated(phlista(jph)%ordered)) then
+            phlista(jph)%ordered=>emrec
+         endif
          emrec=>emrec%nextem
-      elseif(firstendmem.eq.1) then
-!>>>>> 7A: the first (only or ordered) endmember
-         call readendmem(lin,nsl,phlista(jph)%ordered,nop,noi,nem)
-         emrec=>phlista(jph)%ordered
       elseif(firstendmem.eq.2) then
-!>>>>> 7B: the first disordered endmember
-         if(ocv()) write(*,*)'Reading isordered parameter list'
-         call readendmem(lin,nsl,phlista(jph)%disordered,nop,noi,nem)
-         emrec=>phlista(jph)%disordered 
-         firstendmem=0
+         if(.not.associated(phlista(jph)%disordered)) then
+            phlista(jph)%disordered=>emrec
+         endif
+         emrec=>emrec%nextem
       endif
-      if(nop.eq.1) then
-!>>>>> 8A: endmember property (lookp)
-         call readproprec(lin,emrec%propointer,nox)
-         proprec=>emrec%propointer
-         do while(nox.eq.1)
-            call readproprec(lin,proprec%nextpr,nox)
-            proprec=>proprec%nextpr
-         enddo
-      endif
-      inttree: if(noi.eq.1) then
-!>>>>> 9A: interaction record
-         level=0
-         call readintrec(lin,emrec%intpointer,mult,noi,nup,nop)
+! the endmember property records are read with the endmember
+! in iws(lokem+2=noi) is the location of interaction records (if any)
+      lokint=iws(lokem+2)
+      level=0
+      inttree: if(iws(lokint).gt.0) then
+!>>>>> 9A: first interaction record
+         call readintrec(lokint,iws,emrec%intpointer)
          intrec=>emrec%intpointer
-         if(ocv()) write(*,13)'read interaction: ',intrec%status,noi,nup,nop
+         write(*,13)'read interaction: ',level
 13       format(a,10i4)
 300      continue
-         if(nop.eq.1) then
-!>>>>> 10A: interaction property record
-            call readproprec(lin,intrec%propointer,nox)
-            proprec=>intrec%propointer
-            do while(nox.eq.1)
-               call readproprec(lin,proprec%nextpr,nox)
-               proprec=>proprec%nextpr
-            enddo
-         endif
 ! push before going to higher
-330      continue
          level=level+1
          stack(level)%p1=>intrec
-         stack(level)%noi=noi
-         if(ocv()) write(*,13)'pushed interaction: ',intrec%status,0,0,0,level
-         higher: if(nup.eq.1) then
-!>>>>> 9B: go to higher level and save intrec
-            call readintrec(lin,intrec%highlink,mult,noi,nup,nop)
+         stack(level)%noi=lokint
+! iws(lokint+1) is link to higher interaction
+         higher: if(iws(lokint+1).gt.0) then
+            call readintrec(lokint,iws,intrec%highlink)
             intrec=>intrec%highlink
-!            write(*,13)'read higher interaction: ',intrec%status,noi,nup,nop
-            if(nop.eq.1) then
-!>>>>> 10B: there are some property records !!
-               call readproprec(lin,intrec%propointer,nox)
-               proprec=>intrec%propointer
-               do while(nox.eq.1)
-                  call readproprec(lin,proprec%nextpr,nox)
-                  proprec=>proprec%nextpr
-               enddo
-            endif
-            goto 330
+            goto 300
          endif higher
-! we come here when no higher records, pop records from stack
+! There are higher records, pop records from stack
 350      continue
          pop: if(level.gt.0) then
             intrec=>stack(level)%p1
-            noi=stack(level)%noi
+            lokint=stack(level)%noi
             level=level-1
-            if(ocv())write(*,13)'poped interaction: ',intrec%status,0,0,0,level
-            if(noi.eq.1) then
-!>>>>> 9C: 
-               call readintrec(lin,intrec%nextlink,mult,noi,nup,nop)
+            if(iws(lokint).gt.0) then
+               call readintrec(lokint,iws,intrec%nextlink)
                intrec=>intrec%nextlink
-               if(ocv()) write(*,13)'read interaction: ',intrec%status,&
-                    noi,nup,nop
-               goto 300
-            else
-               goto 350
             endif
+            goto 300
          endif pop
       endif inttree
    enddo newendmem
@@ -1041,99 +1347,138 @@
    endif
 1000 continue
    return
- end subroutine readphase
+ end subroutine readphases
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine readendmem(lin,nsl,emrec,nop,noi,nem)
+ subroutine readendmem(lokem,iws,nsl,emrec)
 ! allocates and reads an endmember record
    implicit none
-   integer lin,nsl,nop,noi,nem
+   integer lokem,nsl,iws(*)
    type(gtp_endmember), pointer :: emrec
 !\end{verbatim}
-   integer i,j
+   integer i,j,displace,lokpty
+   type(gtp_property), pointer :: proprec
+!
    allocate(emrec)
-!   write(*,*)'Going to read endmember record'
-!>>>>> 7D: actually reading ....
-   read(lin)emrec%noofpermut,emrec%phaselink,emrec%antalem,nop,noi,nem
-   if(ocv()) write(*,17)'readendmem: ',nsl,emrec%noofpermut,emrec%phaselink,&
-        emrec%antalem,nop,noi,nem
-17 format(a,7i5)
+   write(*,*)'Allocating an endmember record'
+! iws(lokem) is next endmember
+! iws(lokem+1) is property
+! iws(lokem+2) is interaction
+!   read(lin)emrec%noofpermut,emrec%phaselink,emrec%antalem,nop,noi,nem
+   emrec%noofpermut=iws(lokem+3)
+   emrec%phaselink=iws(lokem+4)
+   emrec%antalem=iws(lokem+5)
+   displace=5
    allocate(emrec%fraclinks(nsl,emrec%noofpermut))
    do j=1,emrec%noofpermut
-      read(lin)(emrec%fraclinks(i,j),i=1,nsl)
+!      read(lin)(emrec%fraclinks(i,j),i=1,nsl)
+      do i=1,nsl
+         emrec%fraclinks(i,j)=iws(lokem+displace+i)
+      enddo
+      displace=displace+nsl
    enddo
    nullify(emrec%nextem)
-   nullify(emrec%propointer)
    nullify(emrec%intpointer)
-   noofem=noofem+1
+! called nop when storing in iws
+   lokpty=lokem+1
+! property list
+   call readproprec(lokpty,iws,proprec)
+1000 continue
    return
  end subroutine readendmem
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine readproprec(lin,proprec,nox)
-! allocates and reads a property record
+ subroutine readproprec(lokpty,iws,firstproprec)
+! allocates and a property record for both endmembers and interactions
    implicit none
-   integer lin,nox
-   type(gtp_property), pointer :: proprec
+   integer lokpty,iws(*)
+   type(gtp_property), pointer :: firstproprec
 !\end{verbatim}
-   integer i
-   allocate(proprec)
-!>>>>> 8B: actually reading property record (endmember)
-!>>>>> 10B: actually reading property record (interaction)
-!   write(*,*)'Going to read property record'
-   read(lin)proprec%reference,proprec%proptype,&
-        proprec%degree,proprec%extra,proprec%antalprop,nox
-   allocate(proprec%degreelink(0:proprec%degree))
-   if(ocv()) write(*,17)'readprop: ',proprec%proptype,proprec%degree,&
-        proprec%antalprop,nox
-17 format(a,6i5)
-!   write(*,*)'To read TP functions: ',proprec%degree,proprec%degreelink(0)
-   do i=0,proprec%degree
-      call read1tpfun(21,proprec%degreelink(i))
+   integer i,lokfun
+   type(gtp_property), allocatable, target :: prec
+   type(gtp_property), pointer :: proprec
+   do while(iws(lokpty).gt.0)
+      if(allocated(prec)) then
+         allocate(proprec%nextpr)
+         proprec=>proprec%nextpr
+      else
+         allocate(prec)
+         firstproprec=>prec
+         proprec=>prec
+      endif
+!   read(lin)proprec%reference,proprec%proptype,&
+!        proprec%degree,proprec%extra,proprec%antalprop,nox
+      proprec%proptype=iws(lokpty+1)
+      proprec%degree=iws(lokpty+2)
+      proprec%extra=iws(lokpty+3)
+      proprec%antalprop=iws(lokpty+4)
+      call loadc(lokpty+5,iws,proprec%reference)
+      lokfun=lokpty+5+nwch(16)
+! links to function as stored as integer indices
+      allocate(proprec%degreelink(0:proprec%degree))
+      do i=0,proprec%degree
+! functions already read and hopefully stored with same index!
+         proprec%degreelink(i)=iws(lokfun+i)
+      enddo
+      write(*,*)'3E Allocated property record ',proprec%proptype,proprec%degree
+      nullify(proprec%nextpr)
+      lokpty=iws(lokpty)
    enddo
-   if(ocv()) write(*,*)'Read TP functions: ',proprec%degree,&
-        proprec%degreelink(0)
-   nullify(proprec%nextpr)
-   noofprop=noofprop+1
+1000 continue
    return
  end subroutine readproprec
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine readintrec(lin,intrec,mult,noi,nup,nop)
-! allocates and reads an interaction record UNFINISHED
+ subroutine readintrec(lokint,iws,intrec)
+! allocates and reads an interaction record
    implicit none
-   integer lin,mult,noi,nup,nop
+   integer lokint,iws(*)
    type(gtp_interaction), pointer :: intrec
 !\end{verbatim}
-   integer fipsize,noofperm,i
+   integer fipsize,noofperm,i,displace,lokpty
+   type(gtp_property), pointer :: proprec
 ! the storage of permutations in interaction records is complex ... one must
 ! take into account the number of permutations in lower order intecations ...
 ! for an fcc endmember A:A:A:B (4 perm) the binary interaction A:A:A,B:B has 
 ! 3; 3; 3 and 3 perms and the ternary A:A,B:A,B:B has 2; 2; 2; 2
 ! mult may not be needed ...
+! one should never allocate a pointer ... but this is more or less permanent
    allocate(intrec)
 !>>>>> 9D: actually read the interaction record
-   read(lin)fipsize
+!   read(lin)fipsize
+   intrec%status=iws(lokint+3)
+   intrec%antalint=iws(lokint+4)
+   intrec%order=iws(lokint+5)
+   fipsize=iws(lokint+6)
    allocate(intrec%noofip(fipsize))
-   read(lin)intrec%noofip,intrec%status,noi,nup,nop
-!   write(*,17)'3E readint: ',fipsize,intrec%status,noi,nup,nop,&
-!        (intrec%noofip,i=1,fipsize)
-17 format(a,5i4,2x,10i3)
+!   read(lin)intrec%noofip,intrec%status,noi,nup,nop
+   displace=6
+   do i=1,fipsize
+      intrec%noofip(i)=iws(lokint+displace+i)
+   enddo
+   displace=displace+fipsize
    noofperm=intrec%noofip(2)
    allocate(intrec%sublattice(noofperm))
    allocate(intrec%fraclink(noofperm))
-   do i=1,intrec%noofip(1)
-      read(lin)intrec%sublattice(i),intrec%fraclink(i)
+   do i=1,noofperm
+!      read(lin)intrec%sublattice(i),intrec%fraclink(i)
+      intrec%sublattice(i)=iws(lokint+displace+i)
+      intrec%fraclink(i)=iws(lokint+displace+i)
    enddo
    nullify(intrec%nextlink)
    nullify(intrec%highlink)
-   nullify(intrec%propointer)
+   nullify(proprec)
+! link to property record in lokint+2
+   lokpty=lokint+2
+   call readproprec(lokpty,iws,proprec)
+! if there are no property records proprec is still nullified
+   intrec%propointer=>proprec
    return
  end subroutine readintrec
 

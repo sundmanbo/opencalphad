@@ -775,8 +775,8 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   integer, private, parameter :: maxsvfun=500
 ! version number
 ! changes in the last digit means no change in SAVE/READ format
-  character*8, parameter :: gtpversion='GTP-3.10'
-  character*8, parameter ::   savefile='OCF-3.10'
+  character*8, parameter :: gtpversion='GTP-4.10'
+  character*8, parameter ::   savefile='OCF-4.10'
 !\end{verbatim}
 !=================================================================
 !\begin{verbatim}
@@ -1032,7 +1032,8 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
      TYPE(gtp_interaction), pointer :: nextlink,highlink
      integer, dimension(:), allocatable :: sublattice,fraclink,noofip
   END TYPE gtp_interaction
-! allocated dynamically and linked from endmember records
+! allocated dynamically and linked from endmember records and other
+! interaction records (in a binary tree)
 !\end{verbatim}
 !-----------------------------------------------------------------
 !\begin{verbatim}
@@ -1151,7 +1152,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !-----------------------------------------------------------------
 !\begin{verbatim}
 ! this constant must be incremented when a change is made in gtp_phasetuple
-  INTEGER, parameter :: gtp_phasetuple_version=2
+  INTEGER, parameter :: gtp_phasetuple_version=1
   TYPE gtp_phasetuple
 ! for handling a single array with phases and composition sets
 ! ixphase is phase index, compset is composition set index
@@ -1245,7 +1246,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !-----------------------------------------------------------------
 !\begin{verbatim}
 ! this constant must be incremented when a change is made in gtp_state_variable
-  INTEGER, parameter :: gtp_state_variable_version=2
+  INTEGER, parameter :: gtp_state_variable_version=1
   TYPE gtp_state_variable
 ! this is to specify a formal or real argument to a function of state variables
 ! statev/istv: state variable index
@@ -1465,7 +1466,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !-----------------------------------------------------------------
 !\begin{verbatim}
 ! this must be incremented when a change is made in gtp_equilibrium_data
-  INTEGER, parameter :: gtp_equilibrium_data_version=3
+  INTEGER, parameter :: gtp_equilibrium_data_version=1
   TYPE gtp_equilibrium_data
 ! this contains all data specific to an equilibrium like conditions,
 ! status, constitution and calculated values of all phases etc
@@ -1700,19 +1701,16 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! this record is allocated when necessary
   type(gtp_applicationhead), pointer :: firstapp,lastapp
 !\end{verbatim}
-!-----------------------------------------------------------------
-!
-! a global array to provide information about composition sets
-! phcs(nph) is the composition set counter for phase nph
-!  integer, dimension(maxph) :: phcs ----- removed as redundant ??
 !
 !===================================================================
 !
 ! Below are private global variables like free lists etc.
 !
 !===================================================================
-
+!
 ! Several arrays with lists have a free list: csfree,addrecs,eqfree,reffree
+! it is not really consistent how to handle deleted equilibria etc
+! as the eqlista or phase_varres arrays  may have "holes" with deleted data
 !
 !\begin{verbatim}
 ! counters for elements, species and phases initiated to zero

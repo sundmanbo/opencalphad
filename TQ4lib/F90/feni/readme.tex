@@ -1,0 +1,222 @@
+\documentclass[12pt]{article}
+\textwidth 165mm
+\textheight 210mm
+\oddsidemargin  1mm
+\evensidemargin  1mm
+\topmargin 1mm
+\usepackage[latin1]{inputenc}
+
+\begin{document}
+
+\begin{center}
+{\Large \bf Example 2 using OCASI-TQ:
+
+Calculations in the binary Fe-Ni system
+
+including mobility data
+
+}
+
+\bigskip
+
+Bo Sundman \today
+
+\end{center}
+
+This is an example for the OCASI Fortran TQ interface.
+
+The example is based on the TQ standard for interfacing thermodynamic
+software with application software.  A more extensive interface called
+OpenCalphad Application Software Interface (OCASI) is under
+development.
+
+If you are not familiar with compiling and linking software and do not
+understand the intructions here please ask some guru close to you for
+help.  The instructions here are very brief but I do not have time to
+answer questions about how to compile and link software.  If you find
+errors you are welcome to report them.
+
+To link this example you must first install the OC main program.  This
+installation generates two files you need: {\bf liboceq.a} and {\bf
+  liboceqplus.mod}.  Both of these files are needed for these
+applications.
+
+You also need the {\bf liboctq.F90} source code which is on the
+directory above this example.
+
+\bigskip
+
+{\bf Files on this directory:}
+\begin{itemize}
+\item readme.pdf is this file.
+
+\item readme.tex is a LaTeX file to generate this pdf file.
+
+\item FENI.TDB is a small database in the TDB format.
+
+\item TQ2-feni.F90 is the test program written in Fortran95/08.
+
+\item linkmake is a text file without extention which you can use as
+  command file a on Windows system if you add the extention .cmd and
+  execute it a batch file in a terminal window (or if you double click
+  on it).  If you use LINUX you can edit it to create a Makefile.
+
+  In the linkmake file there are some additional comments and
+  instructions.  If you do not understand these instruction please ask
+  a local guru for help.
+\end{itemize}
+
+\newpage
+
+{\bf Compiling and linking the test program}
+
+\bigskip
+
+When you executing the linkmake file in a terminal window (or the
+corresponding Makefile) you should have a program called tqtest1.exe.
+The linking below assumes that the OC main program and the corresponing
+libraries will be two directories above this one.
+
+The output during compiling and linking will be something like:
+
+{\small
+\begin{verbatim}
+
+C:\Users\...\TQ4lib\F90\feni>linkmake
+
+C:\Users\...\TQ4lib\F90\feni>REM Copy libraries (compiled without OpenMP)
+ from OC directory
+
+C:\Users\...\TQ4lib\F90\feni>copy ..\..\..\liboceq.a .
+        1 fil(er) kopierad(e).
+
+C:\Users\...\TQ4lib\F90\feni>copy ..\..\..\liboceqplus.mod
+.
+        1 fil(er) kopierad(e).
+
+C:\Users\...\TQ4lib\F90\feni>REM Copy tqlibrary from directory above
+
+C:\Users\...\TQ4lib\F90\feni>copy ..\liboctq.F90 .
+        1 fil(er) kopierad(e).
+
+C:\Users\...\TQ4lib\F90\feni>REM Compile and link
+
+C:\Users\...\TQ4lib\F90\feni>gfortran -c liboctq.F90
+
+C:\Users\...\TQ4lib\F90\feni>gfortran -o tqex2 TQ2-feni.F90
+ liboctq.o liboceq.a
+
+\end{verbatim}}
+
+When you run the program it will look like
+
+{\small
+\begin{verbatim}
+
+C:\Users\...\TQ4lib\F90\feni>tqex2.exe
+
+Calculation of equilibria and mobility data in Fe-Ni system
+Fictitious mobility data for the liquid in the TDB file:
+PARAMETER MQ&FE(LIQUID,FE;0) 298.15 -10000*IQRT-18; 6000 N BOS !
+PARAMETER MQ&FE(LIQUID,NI;0) 298.15 -12000*IQRT-19; 6000 N BOS !
+PARAMETER MQ&NI(LIQUID,NI;0) 298.15 -11000*IQRT-18; 6000 N BOS !
+PARAMETER MQ&NI(LIQUID,FE;0) 298.15 -13000*IQRT-19; 6000 N BOS !
+PARAMETER MQ&FE(FCC_A1,FE:VA;0) 298.15 -30000*IQRT-30; 6000 N BOS !
+PARAMETER MQ&FE(FCC_A1,NI:VA;0) 298.15 -32000*IQRT-32; 6000 N BOS !
+PARAMETER MQ&NI(FCC_A1,NI:VA;0) 298.15 -33000*IQRT-32; 6000 N BOS !
+PARAMETER MQ&NI(FCC_A1,FE:VA;0) 298.15 -25000*IQRT-31; 6000 N BOS !
+
+ tqini created: DEFAULT_EQUILIBRIUM
+
+System with  2 elements: FE, NI,
+and   2 phases: LIQUID, FCC_A1,
+
+Give conditions:
+Temperature: /1000/:
+Pressure: /100000/:
+Mole fraction of FE: /0.5/: .3
+ 3Y Composition set(s) created:            1
+3Y Gridmin:      16 points   0.00E+00 s and       0 clockcycles, T= 1000.00
+Phase change: its/add/remove:    16    0    2
+Equilibrium calculation   21 its,   1.5600E-02 s and      15 clockcycles
+
+Successful calculation
+
+Amount of  2 phases:  0.0000 1.0000
+
+Stable phase: FCC_A1, amount:   1.0000E+00, mole fractions:
+FE:  0.300000,  NI:  0.700000,
+
+System volume:   5.7000E-06
+
+Component, mole fraction, chemical potentials, lnac = mu/RT
+FE          0.300000     -5.569910E+04        -6.699023E+00
+NI          0.700000     -4.984943E+04        -5.995474E+00
+
+LN(mobility of component in phase) and exp(ln(..)):
+MQ&FE(LIQUID) =        -2.002412E+01        2.012036E-09
+MQ&NI(LIQUID) =        -1.974213E+01        2.667485E-09
+MQ&FE(FCC_A1) =        -3.517653E+01        5.284780E-16
+MQ&NI(FCC_A1) =        -3.538031E+01        4.310476E-16
+
+Calculating Darken stability matrix, dG_A/dN_B for phase  2:
+Calculation required    6 its
+
+Chemical potential derivative matrix, dG_I/dN_J for   2 endmembers
+              1           2
+  1  3.9069E+04 -1.6744E+04
+  2 -1.6744E+04  7.1759E+03
+
+LN(mobility) values for  2 components
+  1 -3.5177E+01 -3.5380E+01
+
+Any more calculations? /N/: y
+
+Give conditions:
+Temperature: /1000/: 2000
+Pressure: /100000/:
+Mole fraction of FE: /0.7/: .3
+ 3Y Composition set(s) created:            1
+3Y Gridmin:      16 points   0.00E+00 s and       0 clockcycles, T= 2000.00
+Phase change: its/add/remove:     5    0    3
+Equilibrium calculation   10 its,   1.5600E-02 s and      15 clockcycles
+
+Successful calculation
+
+Amount of  2 phases:  1.0000 0.0000
+
+Stable phase: LIQUID, amount:   1.0000E+00, mole fractions:
+FE:  0.300000,  NI:  0.700000,
+
+System volume:   7.7000E-06
+
+Component, mole fraction, chemical potentials, lnac = mu/RT
+FE          0.300000     -1.504170E+05        -9.045449E+00
+NI          0.700000     -1.343949E+05        -8.081949E+00
+
+LN(mobility of component in phase) and exp(ln(..)):
+MQ&FE(LIQUID) =        -1.938555E+01        3.810336E-09
+MQ&NI(LIQUID) =        -1.899758E+01        5.616396E-09
+MQ&FE(FCC_A1) =        -3.327521E+01        3.538017E-15
+MQ&NI(FCC_A1) =        -3.353104E+01        2.739401E-15
+
+Calculating Darken stability matrix, dG_A/dN_B for phase  1:
+Calculation required    6 its
+
+Chemical potential derivative matrix, dG_I/dN_J for   2 endmembers
+              1           2
+  1  4.7487E+04 -2.0351E+04
+  2 -2.0351E+04  8.7221E+03
+
+LN(mobility) values for  2 components
+  1 -1.9386E+01 -1.8998E+01
+
+Any more calculations? /N/:
+
+ Auf wiedersehen
+
+C:\Users\...\TQ4lib\F90\feni>
+\end{verbatim}}
+
+\end{document}
+

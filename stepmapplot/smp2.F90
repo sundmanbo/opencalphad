@@ -4128,6 +4128,8 @@ CONTAINS
 !\end{verbatim}
     type(map_ceqresults), pointer :: saveceq
     TYPE(map_node), pointer :: current
+    TYPE(gtp_equilibrium_data), pointer :: ceq
+    integer ieq
 !    integer place,lastused
 !
     if(.not.associated(maptop)) then
@@ -4147,6 +4149,9 @@ CONTAINS
        deallocate(current%saveceq%savedceq)
        current=>current%plotlink
     enddo
+!    write(*,*)'SMP: deleting _MAPx equilibria'
+    ceq=>firsteq
+    call delete_equilibria('_MAP*',ceq)
 !    write(*,*)'Done delete_mapresults'
 1000 continue
     return

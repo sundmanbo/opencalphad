@@ -179,8 +179,8 @@ contains
 !    character (len=64), dimension(6) :: oplist
     integer, parameter :: ncbas=30,nclist=21,ncalc=9,ncent=21,ncread=6
     integer, parameter :: ncam1=18,ncset=24,ncadv=6,ncstat=6,ncdebug=6
-    integer, parameter :: nselect=6,nlform=6,noptopt=6,nsetbit=6
-    integer, parameter :: ncamph=12,nclph=6,nccph=6,nrej=6,nsetph=6
+    integer, parameter :: nselect=6,nlform=6,noptopt=9,nsetbit=6
+    integer, parameter :: ncamph=12,nclph=6,nccph=6,nrej=9,nsetph=6
     integer, parameter :: nsetphbits=15,ncsave=6,nplt=18,nstepop=6
 ! basic commands
     character (len=16), dimension(ncbas), parameter :: cbas=&
@@ -229,7 +229,8 @@ contains
 ! subsubcommands to LIST OPTIMIZE results
     character (len=16), dimension(noptopt) :: optopt=&
         ['SHORT           ','LONG            ','COEFFICIENTS    ',&
-         'GRAPHICS        ','DEBUG           ','                ']
+         'GRAPHICS        ','DEBUG           ','MACRO           ',&
+         '                ','                ','                ']
 !-------------------
 ! subcommands to CALCULATE
     character (len=16), dimension(ncalc) :: ccalc=&
@@ -340,7 +341,8 @@ contains
 ! subcommands to DELETE
     character (len=16), dimension(nrej) :: crej=&
          ['ELEMENTS        ','SPECIES         ','PHASE           ',&
-          'QUIT            ','COMPOSITION_SET ','EQUILIBRIUM     ']
+          'QUIT            ','COMPOSITION_SET ','EQUILIBRIUM     ',&
+          'STEP_MAP_RESULTS','                ','                ']
 !-------------------
 ! subcommands to PLOT OPTIONS/ GRAPHICS OPTIONS
     character (len=16), dimension(nplt) :: cplot=&
@@ -1206,7 +1208,7 @@ contains
                 enddo
              else
 ! We calculate without grid minimizer, if parallel we must turn off
-! creationg/removing composition sets!! not safe to do that!!
+! creating/removing composition sets!! not safe to do that!!
 !$             globaldata%status=ibset(globaldata%status,GSNOACS)
 !$             globaldata%status=ibset(globaldata%status,GSNOREMCS)
 !-$             write(*,*)'Sequential: ',omp_get_num_threads()
@@ -1227,7 +1229,8 @@ contains
                    if(neweq%weight.eq.zero) then
                       write(kou,2050)neweq%eqno,neweq%eqname
                    else
-!$                     if(.TRUE.) then
+! write output only for leak=0
+!$                     if(.TRUE. .and. leak.eq.1) then
 !$                      write(*,663)'Equil/loop/thread/maxth/error: ',&
 !$                             neweq%eqname,i1,omp_get_thread_num(),&
 !$                             omp_get_num_threads(),gx%bmperr
@@ -3015,7 +3018,7 @@ contains
              case(2) ! long
                 write(*,*)'Not implemented yet'
 !...........................................................
-             case(3) ! just coefficent values
+             case(3) ! coefficent values
                 call listoptcoeff(lut)
 !...........................................................
              case(4) ! graphics
@@ -3024,7 +3027,16 @@ contains
              case(5) ! debug
                 write(*,*)'Not implemented yet'
 !...........................................................
-             case(6) ! unused
+             case(6) ! MACRO include experiments
+                write(*,*)'Not implemented yet'
+!...........................................................
+             case(7) ! unused
+                write(*,*)'Not implemented yet'
+!...........................................................
+             case(8) ! unused
+                write(*,*)'Not implemented yet'
+!...........................................................
+             case(9) ! unused
                 write(*,*)'Not implemented yet'
              end SELECT
 !------------------------------
@@ -3401,7 +3413,7 @@ contains
        graphopt%axistype=0
        graphopt%tielines=0
        graphopt%gibbstriangle=.FALSE.
-       graphopt%labelkey='upper right'
+       graphopt%labelkey='top right'
        graphopt%appendfile=' '
        nullify(graphopt%firsttextlabel)
 !
@@ -3633,7 +3645,8 @@ contains
 !=================================================================
 ! delete not much implemented ...
 !         ['ELEMENTS        ','SPECIES         ','PHASE           ',&
-!          'QUIT            ','COMPOSITION_SET ','EQUILIBRIUM     ']
+!          'QUIT            ','COMPOSITION_SET ','EQUILIBRIUM     ',&
+!          'STEP_MAP_RESULTS','                ','                ']
     CASE(18)
 ! disable continue optimization
        iexit=0
@@ -3680,10 +3693,58 @@ contains
 !-----------------------------------------------------------
 ! delete equilibria
        case(6)
-          call gparcd('Equilibrium name: ',cline,last,1,name1,'_MAP* ',q1help)
+          call gparc('Equilibrium name or abbr.:',cline,last,1,name1,' ',q1help)
           if(buperr.ne.0) goto 990
-          call delete_equilibrium(name1,ceq)
+          call delete_equilibria(name1,ceq)
           if(gx%bmperr.ne.0) goto 990
+!-----------------------------------------------------------
+! delete step_map_results
+       case(7)
+          if(associated(maptopsave)) then
+! this is necessary only if no plot of last step/map made ...
+             maptop%plotlink=>maptopsave
+             nullify(maptopsave)
+             write(*,*)'maptopsave nullified'
+          endif
+          seqxyz=0
+! this does not delete _mapnode and _mapline equilibria ???
+          call delete_mapresults(maptop)
+! remove any results from step and map
+          if(associated(maptop)) then
+             write(*,*)'maptop nullified: ',maptop%next%seqx
+             maptop%next%seqx=0
+             maptop%next%seqy=0
+             nullify(maptop)
+          endif
+          nullify(mapnode)
+          nullify(maptopsave)
+!----- deallocate local axis records
+          do jp=1,noofaxis
+             if(allocated(axarr(jp)%axcond)) deallocate(axarr(jp)%axcond)
+          enddo
+          noofaxis=0
+! remove some more defaults ...
+          defcp=1
+! deallocate does not work on pointers!!!
+          nullify(starteq)
+          noofstarteq=0
+          graphopt%rangedefaults=0
+          graphopt%tielines=0
+          graphopt%status=0
+          graphopt%axistype=0
+          graphopt%tielines=0
+          graphopt%gibbstriangle=.FALSE.
+          graphopt%labelkey='upper right'
+          graphopt%appendfile=' '
+          nullify(graphopt%firsttextlabel)
+!-----------------------------------------------------------
+!
+       case(8)
+          continue
+!-----------------------------------------------------------
+!
+       case(9)
+          continue
        end SELECT
 !=================================================================
 ! STEP, must be tested if compatible with assessments
@@ -3710,14 +3771,14 @@ contains
              nullify(maptopsave)
              write(kou,*)'Previous results removed'
 ! delete equilibria associated with STEP/MAP
-             call delete_equilibrium('_MAP*',ceq)
+             call delete_equilibria('_MAP*',ceq)
           else
              maptopsave=>maptop
              nullify(maptop)
              write(kou,*)'Previous results kept'
           endif
 ! this should preferably be done directly after map/step, but kept for debug
-!          call delete_equilibrium('_MAP*',ceq)
+!          call delete_equilibria('_MAP*',ceq)
        endif
        kom2=submenu('Options?',cline,last,cstepop,nstepop,1)
        SELECT CASE(kom2)
@@ -3819,7 +3880,7 @@ contains
              nullify(maptop)
              nullify(maptopsave)
 ! this removes all previous equilibria associated with STEP/MAP commands
-             call delete_equilibrium('_MAP*',ceq)
+             call delete_equilibria('_MAP*',ceq)
              if(gx%bmperr.ne.0) then
                 write(kou,*)'Error removing old MAP equilibria'
                 goto 990
@@ -3838,7 +3899,7 @@ contains
 !             write(*,*)'seqxyz: ',seqxyz
           endif
 ! this should never be done ! It destroys the possibility to find old nodes
-!          call delete_equilibrium('_MAP*',ceq)
+!          call delete_equilibria('_MAP*',ceq)
        endif
 ! maptop is returned as main map/step record for results
 ! noofaxis is current number of axis, axarr is array with axis data

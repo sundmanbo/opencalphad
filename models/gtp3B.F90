@@ -4467,8 +4467,8 @@
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim}
- subroutine delete_equilibrium(name,ceq)
-! deletes an equilibrium (needed when repeated step/map)
+ subroutine delete_equilibria(name,ceq)
+! deletes equilibria (needed when repeated step/map)
 ! name can be an abbreviation line "_MAP*"
 ! deallocates all data.  Minimal checks ... one cannot delete "ceq"
    implicit none
@@ -4480,6 +4480,7 @@
    integer cureq,ieq,ik,novarres,ipv
 !
    cureq=ceq%eqno
+!   write(*,*)'In delete_equilibria ',cureq,trim(name)
    ik=index(name,'*')-1
    if(ik.lt.0) ik=min(24,len(name))
    do ieq=eqfree-1,2,-1
@@ -4513,7 +4514,7 @@
       enddo
       deallocate(eqlista(ieq)%phase_varres)
       deallocate(eqlista(ieq)%eq_tpres)
-!   write(*,*)'3B Deallocating svfunres for equilibrium:',name(1:len_trim(name))
+!      write(*,*)'3B Deallocating svfunres for equilibrium:',trim(name)
       deallocate(eqlista(ieq)%svfunres)
 ! this deletes the conditions and experiments (if any)
       curceq=>eqlista(ieq)
@@ -4526,11 +4527,12 @@
    enddo
 ! we have deleted all equilibria until ieq+1
    if(ocv()) write(*,900)ieq+1,eqfree-1
-900 format('Deleted equilibra from ',i3,' to ',i3)
+!   write(*,900)ieq+1,eqfree-1
+900 format('Deleted all data in equilibria from ',i3,' to ',i3)
    eqfree=ieq+1
 1000 continue
    return
- end subroutine delete_equilibrium
+ end subroutine delete_equilibria
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
