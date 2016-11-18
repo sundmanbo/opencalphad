@@ -82,6 +82,30 @@ mac melting
 @$
 @$
 @$
+@$ Testing a single calculation and save/read it unformatted
+@& *********************************************************
+
+new Y
+mac save
+
+@$ *********************************************************
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
 @$ Diagrams for phase fractions, compositions, heat content of a HSS
 @& *********************************************************
 

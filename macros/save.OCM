@@ -1,0 +1,81 @@
+@$ testing unformatted save and read
+@$ read a TDB file and make a calculation
+
+r t steel7
+
+@&
+
+l sh a
+
+@&
+
+set c t=1200 p=1e5 n=1 x(c)=.05 x(cr)=.05 x(mo)=.05 x(si)=.003 x(v)=.01
+
+c e
+
+@&
+
+l,,,,
+
+@&
+@$ Save workspaces unformatted on a file
+
+save
+unf
+testing
+steel7
+
+@&
+@$ Reinitiate the program and delete all data
+
+new Y
+
+l d,,,
+
+@&
+@$ Read the last calculation from the unformatted file
+
+read
+unf
+steel7
+
+@&
+@$ The conditions are all there
+l c
+
+@&
+@$ and the data
+
+l d
+
+@&
+@$ W can recalculate the equilibrium
+
+c e
+
+l,,,,
+
+@&
+@$ and calculate another equilibrium
+
+set c t=800
+
+c e
+
+l,,,,,
+
+@&
+@$ Just to test that one can set any component as the "rest" or balance
+
+c p liq 1 n 
+.02
+.05
+rest
+.08
+.005
+.01
+all
+
+
+set inter
+
