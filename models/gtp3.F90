@@ -1352,13 +1352,13 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! this constant must be incremented when a change is made in gtp_fraction_set
   INTEGER, parameter :: gtp_fraction_set_version=1
   TYPE gtp_fraction_set
-! info about disordred fractions for some phases like ordered fcc, sigma etc
+! info about disordered fractions for some phases like ordered fcc, sigma etc
 ! latd: the number of sublattices added to first disordred sublattice
 ! ndd: sublattices for this fraction set, 
 ! tnoofxfr: number of disordered fractions
 ! tnoofyfr: same for ordered fractions (=same as in phlista).
 ! varreslink: index of disordered phase_varres, 
-! phdapointer: pointer to the same phase_varres record as varreslink
+! phdapointer (not needed): pointer to the same phase_varres record
 !    (Note that there is a bit set indicating that the sublattices should 
 !    be taken from this record)
 ! totdis: 0 indicates no total disorder (sigma), 1=fcc, bcc or hcp
@@ -1371,7 +1371,6 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! dxidyj: are the the coeff to multiply the y fractions to get the disordered
 !        xfra(y2x(i))=xfra(y2x(i))+dxidyj(i)*yfra(i)
 ! disordered fractions stored in the phase_varres record with index varreslink
-!    (also pointed to by phdapointer).  Maybe phdapointer is redundant??
 ! arrays originally declared as pointers now changed to allocatable
      integer latd,ndd,tnoofxfr,tnoofyfr,varreslink,totdis
      character*1 id
@@ -1380,7 +1379,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
      integer, dimension(:), allocatable :: splink
      integer, dimension(:), allocatable :: y2x
      double precision, dimension(:), allocatable :: dxidyj
-! factor needed when reading from TDB file for sigma etc.
+! formula unit factor needed when calculating G for disordered sigma
      double precision fsites
   END TYPE gtp_fraction_set
 ! these records are declared in the phase_varres record as DISFRA for 
@@ -1514,7 +1513,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! current values of chemical potentials stored in component record but
 ! duplicated here for easy acces by application software
      double precision, dimension(:), allocatable :: cmuval
-! xconc: convergence criteria for constituent fractions and other things
+! xconv: convergence criteria for constituent fractions and other things
      double precision xconv
 ! delta-G value for merging gridpoints in grid minimizer
 ! smaller value creates problem for test step3.OCM, MC and austenite merged

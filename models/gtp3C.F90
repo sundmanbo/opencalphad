@@ -1694,10 +1694,6 @@
             write(*,*)'unknown property type xx: ',ij,typty,typspec
             prop='ZZ'
          endif
-! if disordered fraction set add D, already done above
-!         if(parlist.eq.2) then
-!            prop=prop(1:len_trim(prop))//'D'
-!         endif
 ! note changes here must be repeated for interaction parameters below
          write(funexpr,200)prop(1:len_trim(prop)),&
               phname(1:len_trim(phname)),text(1:len_trim(text))

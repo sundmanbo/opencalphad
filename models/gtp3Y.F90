@@ -4160,7 +4160,16 @@
    write(lut,610)csfree,highcs
 610 format('Phase_varres first free/highcs: ',2i5)
 ! NOTE csfree can be higher than highcs ... after deletion pointers can go back
-! UNFINISHED
+! UNFINISHED??
+!   lok=csfree
+! list free list for composition sets
+!   write(*,*)'3Y csfree and highcs: ',csfree,highcs
+!611 continue
+!   last=lok
+!   lok=firsteq%phase_varres(last)%nextfree
+!   write(*,*)'3Y lok: ',last,lok
+!   if(lok.gt.0) goto 611
+!
    lok=csfree
 620 continue
    if(lok+5.lt.highcs) then

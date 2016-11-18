@@ -147,7 +147,7 @@
    character id*40,comment*72
    integer, parameter :: miws=100000
    integer iws(miws)
-   integer i,isp,jph,lokph,lut,last,lok,rsize,displace,ibug,ffun
+   integer i,isp,jph,lokph,lut,last,lok,rsize,displace,ibug,ffun,lokeq
 ! these depend on hardware, bytes/word and words/double. Defined in metlib3
 !   integer, parameter :: nbpw=4,nwpr=2
 ! integer function nwch calculates the number of words to store a character
@@ -261,13 +261,14 @@
 !      write(*,*)'3E TPfun: ',i,' stored in ',iws(lok+i),iws(iws(lok+i))
       iws(lok+i)=ffun
    enddo
-! write the record for TP function 3
+! write the record for TP function 3 as check
 !   call wrttprec(3,iws)
-   goto 900
+! All seems OK this far
+!------------- phases and parameters, static data
 !>>>>> 3: phaselist, start from 0 (reference phase)
 ! including sublattces, endmembers, interactions, properties etc
 ! save version of various records
-   write(*,*)'3E saving phases',noofph
+!   write(*,*)'3E saving phases',noofph
    last=9
    iws(last+1)=gtp_phase_version
    iws(last+2)=gtp_endmember_version
@@ -297,26 +298,52 @@
 ! no phase tuples
       iws(last)=0
    endif
-   call wrkchk(rsize,miws,iws)
-   write(*,*)'3E used workspace up to ',rsize
-   goto 900
+!------------------------------------
+! save link to the global data record and version in 20-21
+   last=20
+   rsize=1+nwch(24)+3*nwpr+10
+   call wtake(lok,rsize,iws)
+   if(buperr.ne.0) then
+      write(*,*)'Error reserving globaldata record'
+      gx%bmperr=4399; goto 1000
+   endif
+   iws(last)=lok
+   iws(lok+1)=globaldata%status
+   call storc(lok+2,iws,globaldata%name)
+   call storr(lok+3,iws,globaldata%rgas)
+   call storr(lok+3+nwpr,iws,globaldata%rgasuser)
+   call storr(lok+3+2*nwpr,iws,globaldata%pnorm)
+!   call wrkchk(rsize,miws,iws)
+!   write(*,*)'3E used workspace up to ',rsize
+!   goto 900
 ! unfinished
 !------------- state variable functions
 !>>>>> 30: svfuns
-   write(*,*)'3E  saving state variable functions'
+   write(*,*)'3E NOT saving state variable functions'
 !   call svfunsave(iws,firsteq)
 !------------- references
 !>>>>> 40: bibliographic references
-   write(*,*)'3E saving bibliography'
+   write(*,*)'3E NOT saving bibliography'
 !   call bibliosave(iws)
 !-------------------------------------------------------
-! write the equilibrium records, at present for FIRSTEQ only
+! write the equilibrium records, at present for only FIRSTEQ
 ! conditions, components, phase_varres for all composition sets etc
 !>>>>> 50: equilibria
-   write(*,*)'3E saving equilibria'
-   write(lut)gtp_equilibrium_data_version,gtp_component_version,&
-        gtp_phase_varres_version
-   call saveequil(lut,firsteq)
+!   write(*,*)'3E saving equilibria'
+!   write(lut)gtp_equilibrium_data_version,gtp_component_version,&
+!        gtp_phase_varres_version
+   lokeq=0
+! we should eventually have a loop to save all equilibria
+   call saveequil(lokeq,iws,firsteq)
+! finished saving equilibria
+!   write(*,*)'3E first saved equilibrium at: ',lokeq
+   iws(16)=lokeq
+   iws(17)=gtp_equilibrium_data_version
+   iws(18)=gtp_component_version
+   iws(19)=gtp_phase_varres_version
+! disfra record version??
+!-------------------------------------------------------
+! UNFINISHED we should write assessment records and step/map/plot records
 !-------------------------------------------------------
 ! finally write the workspace to the file ...
 900 continue
@@ -360,6 +387,7 @@
    type(gtp_interaction), pointer :: intrec
    type(gtp_property), pointer :: proprec
    character*8 dummy
+   logical higher
 ! to keep track of interaction records
    type saveint
       type(gtp_interaction), pointer :: p1
@@ -380,15 +408,16 @@
    iwsph=phroot
 ! phases start from 0, the SER phase
    do iph=0,noofph
-      lokph=phases(iph)
+!      lokph=phases(iph)
+      lokph=iph
 !>>>>> 5: phase header
 ! link,name*24,model*72,phletter*1,status1,alphaindex,noofcs,nooffs,additionlink
       rsize=1+nwch(24)+nwch(72)+nwch(1)+5
 ! the endmember_ord, endmember_dis and endmemrecarray is not used ...
 ! noofsubl,tnooffr,linktocs(9),nooffr(subl),constlist(tnooffr),i2slx
       rsize=rsize+2+9+phlista(lokph)%noofsubl+phlista(lokph)%tnooffr+2
-! we must also have links to endmember lists, addtions and ??
-      rsize=rsize+2
+! we must also have links to two endmember lists and addtions
+      rsize=rsize+3
       call wtake(lok,rsize,iws)
       if(buperr.ne.0) then
          write(*,*)'Error reserving phase record',trim(phlista(lokph)%name),&
@@ -399,7 +428,7 @@
       iws(iwsph)=lok
       iwsph=lok
 ! store phase data
-      write(*,*)'3E creating record for ',trim(phlista(lokph)%name)
+!      write(*,*)'3E creating record for ',trim(phlista(lokph)%name),lok
       call storc(lok+1,iws,phlista(lokph)%name)
       displace=1+nwch(24)
       call storc(lok+displace,iws,phlista(lokph)%models)
@@ -441,14 +470,15 @@
 ! saving i2sl is probably not necessary as it is calculated each time ??
       iws(lok+displace)=phlista(lokph)%i2slx(1)
       iws(lok+displace+1)=phlista(lokph)%i2slx(2)
-      write(*,*)'3E check size: ',rsize,displace+1,lok+displace+1,iws(1)
 ! links to endmembers and additions to be stored here and afterwards
+! iws(phreclink) ordered, iws(phreclink+1) disordered, iws(phreclink+2) addition
       phreclink=lok+displace+2
+!      write(*,*)'3E phreclink 1: ',phreclink,iws(1)
 !--------- endmember list, interaction tree and property records
 ! save all parameter data starting from the endmember list
       doneord=0
       emrec=>phlista(lokph)%ordered
-      write(*,*)'3E saving endmembers',doneord,nsl
+!      write(*,*)'3E saving endmembers',doneord,nsl
 ! there can be phases without any ordered parameters ...
       if(.not.associated(emrec)) goto 400
 ! The start of the sequentail list of endmember records (for ordered fractions)
@@ -480,13 +510,12 @@
 ! for each permutation nsl indices to fractions                      : perm*nsl
 !
          rsize=6+emrec%noofpermut*nsl
-         write(*,*)'3E emrec: ',emrec%noofpermut,rsize
          call wtake(lok,rsize,iws)
          if(buperr.ne.0) then
             write(*,*)'Error reserving endmember record'
             gx%bmperr=4399; goto 1000
          endif
-         write(*,*)'3E creating endmember record',emrec%antalem
+!         write(*,*)'3E emrec:    ',emrec%noofpermut,lok,rsize,emrec%antalem
 ! maintain the sequential link between all endmember records
          iws(lokem)=lok
          lokem=lok
@@ -506,6 +535,7 @@
          enddo
 ! this is the place to store the start of property records
          nop=lok+1
+         level=nop
          emproplista: do while(associated(proprec))
 !            if(associated(proprec%nextpr)) nox=1
 !>>>>> 8: endmember property record (loop)
@@ -517,8 +547,10 @@
             endif
 ! link the property recordds sequentially
             iws(nop)=lokpty
+!            write(*,*)'3E endmem property record',iws(nop),lokpty,&
+!                 proprec%proptype,proprec%degree
+            level=nop
             nop=lokpty
-            write(*,*)'3E creating propery record',proprec%proptype
 !            write(lut)proprec%reference,proprec%proptype,&
 !                 proprec%degree,proprec%extra,proprec%antalprop,nox
             iws(lokpty+1)=proprec%proptype
@@ -526,8 +558,8 @@
             iws(lokpty+3)=proprec%extra
             iws(lokpty+4)=proprec%antalprop
             call storc(lokpty+5,iws,proprec%reference)
-!            displace=5+nwch(16)
-            displace=5+nwch(len(proprec%reference))
+            displace=5+nwch(16)
+!            displace=5+nwch(len(proprec%reference))            
             do i=0,proprec%degree
 ! store a link in iws(lokpty+displace+i) to the TP fun stored as a text
 ! we have to pass iws also ....
@@ -550,12 +582,6 @@
 300      continue
          intlista: do while(associated(intrec))
 ! noi is next, nup is higher, nop is property
-!            noi=0
-!            nup=0
-!            nop=0
-!            if(associated(intrec%nextlink)) noi=1
-!            if(associated(intrec%highlink)) nup=1
-!            if(associated(intrec%propointer)) nop=1
 310         continue
 !>>>>> 9: interaction record
 ! next, higher,property,status,antalint,order,fipsize  :7
@@ -564,15 +590,11 @@
 ! noofip,sublattice(noofip),fraclink(noofip) 
             fipsize=size(intrec%noofip)
             rsize=7+fipsize+2*intrec%noofip(2)
-            write(*,*)'3E interaction: ',intrec%antalint,rsize
             call wtake(lok,rsize,iws)
             if(buperr.ne.0) then
                write(*,*)'Error reserving interaction record'
                gx%bmperr=4399; goto 1000
             endif
-! link from previous, iws(lok+1) is link to higher, iws(lok+2) is property
-            iws(noi)=lok
-            lok=noi
 ! store data
             iws(lok+3)=intrec%status
             iws(lok+4)=intrec%antalint
@@ -587,6 +609,12 @@
                iws(lok+displace+2*i-1)=intrec%sublattice(i)
                iws(lok+displace+2*i)=intrec%fraclink(i)
             enddo
+!            write(*,11)'3E interaction: ',intrec%antalint,higher,lok,noi,&
+!                 intrec%noofip(2),intrec%sublattice(1),intrec%fraclink(1)
+11          format(a,i3,l3,10i5)
+! link from previous, iws(lok+1) is link to higher, iws(lok+2) is property
+            iws(noi)=lok
+            noi=lok
 ! interaction property, link from nop
             proprec=>intrec%propointer
             nop=lok+2
@@ -598,10 +626,11 @@
                   write(*,*)'Error reserving inteaction property record'
                   gx%bmperr=4399; goto 1000
                endif
-! link the property recordds sequentially
+! link the property records sequentially
                iws(nop)=lokpty
                nop=lokpty
-               write(*,*)'3E creating int propery record',proprec%proptype
+!               write(*,*)'3E interact property record',lokpty,&
+!                    proprec%proptype
 !            write(lut)proprec%reference,proprec%proptype,&
 !                 proprec%degree,proprec%extra,proprec%antalprop,nox
                iws(lokpty+1)=proprec%proptype
@@ -618,7 +647,7 @@
                   iws(lokpty+displace+i)=proprec%degreelink(i)
                enddo
                proprec=>proprec%nextpr 
-               enddo intproplista
+            enddo intproplista
 ! save on stack and check if higher level
             level=level+1
             if(level.gt.5) then
@@ -631,9 +660,11 @@
             intrec=>intrec%highlink
 ! link to higher should be in lok+1
             noi=lok+1
+            if(associated(intrec)) higher=.true.
          enddo intlista
 ! we come here when there is no higher level
 ! pop previous intrec and take link to next interaction (on same level)
+         higher=.false.
          if(level.gt.0) then
             intrec=>stack(level)%p1
             noi=stack(level)%lok
@@ -657,21 +688,23 @@
             lokcs=phlista(lokph)%linktocs(1)
             nsl=firsteq%phase_varres(lokcs)%disfra%ndd
 !>>>>> 11A: write disordered endmemebers
-            write(lut)2,nsl
+!            write(lut)2,nsl
 ! emrec should already be null but for security ....
             nullify(emrec)
+            lokem=phreclink+1
             goto 200
          endif
       endif
 !------ start additions list, use lokpty...
 500 continue
+! iws error check
       addlink=>phlista(lokph)%additions
-      lokpty=phreclink+1
+      lokpty=phreclink+2
       addition: do while(associated(addlink))
          if(addlink%type.eq.1) then
 !>>>>> 12A: additions id, regenerate all when reading this
             rsize=3
-            call wtake(lokpty,rsize,iws)
+            call wtake(lok,rsize,iws)
             if(buperr.ne.0) then
                write(*,*)'Error reserving addition record'
                gx%bmperr=4399; goto 1000
@@ -687,6 +720,8 @@
          addlink=>addlink%nextadd
       enddo addition
    enddo
+!   write(*,*)'3E phreclink 2: ',phreclink,iws(phreclink),iws(phreclink+1),&
+!        iws(phreclink+2)
 1000 continue
    return
  end subroutine savephases
@@ -694,132 +729,305 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine saveequil(lut,ceq)
-! save data for an equilibrium record
+ subroutine saveequil(lok1,iws,ceq)
+! save data for equilibrium record ceq
    implicit none
-   integer lut
+   integer lok1,iws(*),jeq
    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
    character text*512
    type(gtp_phase_varres), pointer :: firstvarres
    TYPE(gtp_fraction_set), pointer :: fslink
 !   TYPE(gtp_condition), pointer :: condrec
-   integer i,isp,j,k,kl,lokcs,lokph,mc,mc2,nsl
+   integer i,isp,j,k,kl,lokcs,lokph,mc,mc2,nsl,lokeq,rsize,displace,lokvares
+   integer lokdis,disz,lok,qsize,eqdis,iws1,dcheck,lokcc
 !>>>>> 50:
-   write(lut)ceq%eqname,ceq%eqno,ceq%status,ceq%next
-! ignore svfunres and eq_tpres
-!---- components
-!>>>>> 51:
-   do i=1,noofel
-      isp=ceq%complist(i)%splink
-      write(lut)isp
-      write(lut)ceq%complist(i)%phlink,ceq%complist(i)%status,&
-           ceq%complist(i)%refstate,ceq%complist(i)%tpref,&
-           ceq%complist(i)%mass
-   enddo
-   do i=1,noofel
-      if(ocv()) write(*,99)'comp.matrix: ',(ceq%invcompstoi(j,i),j=1,noofel)
-   enddo
-99 format(a,7e11.3)
-   do i=1,noofel
-      write(lut)(ceq%compstoi(j,i),j=1,noofel)
-   enddo
-!---- varres records, one for each composition set
-!>>>>> 54:
-   write(lut)highcs
+!   write(lut)ceq%eqname,ceq%eqno,ceq%status,ceq%next
+! status,multi,eqno,next,name,comment,tpval(2),rtn,weight,
+! (links to cond,exper), complist(nel),(link to compstoi*(nel*nel))
+! highcs, (link to phase_varres), mu(nel), xconc,gmind,eqextra,maxiter
+   rsize=4+nwch(24)+nwch(72)+4*nwpr+2+2*noofel+4+3*nwpr
+   call wtake(lokeq,rsize,iws)
+   if(buperr.ne.0) then
+      write(*,*)'Error reserving equilibrium record'
+      gx%bmperr=4399; goto 1000
+   endif
+   if(lok1.eq.0) then
+! return pointer to first
+      lok1=lokeq
+   else
+! else link from previous
+      iws(lok1)=lokeq
+   endif
+! iws(lokeq) is pointer to next
+   iws(lokeq+1)=ceq%status
+   iws(lokeq+2)=ceq%multiuse
+   iws(lokeq+3)=ceq%eqno
+   iws(lokeq+4)=ceq%next
+   call storc(lokeq+5,iws,ceq%eqname)
+   displace=5+nwch(24)
+   call storc(lokeq+displace,iws,ceq%comment)
+   displace=5+nwch(72)
+   call storrn(2,iws(lokeq+displace),ceq%tpval)
+   call storr(lokeq+displace+2*nwpr,iws,ceq%weight)
+   displace=displace+3*nwpr
+! svfunres not stored
+!---- conditions, write as text and recreate when reading file
+   call get_all_conditions(text,0,ceq)
+   if(gx%bmperr.ne.0) goto 1000
+   kl=index(text,'CRLF')
+   if(kl.gt.1) then
+      call wtake(lok,1+nwch(kl),iws)
+      if(buperr.ne.0) then
+         write(*,*)'Error reserving condition record'
+         gx%bmperr=4399; goto 1000
+      endif
+      call storc(lok+1,iws,text(1:kl))
+      iws(lok)=kl
+      iws(lokeq+displace)=lok
+   else
+! no conditions
+      iws(lokeq+displace)=0
+   endif
+!---- experiments stored as text
+   call get_all_conditions(text,1,ceq)
+   if(gx%bmperr.ne.0) goto 1000
+   kl=len_trim(text)
+   if(kl.gt.1) then
+      call wtake(lok,1+nwch(kl),iws)
+      if(buperr.ne.0) then
+         write(*,*)'Error reserving experiments record'
+         gx%bmperr=4399; goto 1000
+      endif
+      call storc(lok+1,iws,text(1:kl))
+      iws(lok)=kl
+      iws(lokeq+displace+1)=lok
+   else
+! no experiments
+      iws(lokeq+displace+1)=0
+   endif
+!---- if components different from elements
+   if(btest(globaldata%status,GSNOTELCOMP)) then
+      write(*,*)'Not implemented saving other components than elements'
+      gx%bmperr=4399; goto 1000
+!      do i=1,noofel
+!         isp=ceq%complist(i)%splink
+!         write(lut)isp
+!         write(lut)ceq%complist(i)%phlink,ceq%complist(i)%status,&
+!              ceq%complist(i)%refstate,ceq%complist(i)%tpref,&
+!              ceq%complist(i)%mass
+!      enddo
+!      do i=1,noofel
+!         if(ocv()) write(*,99)'comp.matrix: ',(ceq%invcompstoi(j,i),j=1,noofel)
+!      enddo
+!99    format(a,7e11.3)
+!      do i=1,noofel
+!         write(lut)(ceq%compstoi(j,i),j=1,noofel)
+!      enddo
+   else
+! save component records anyway in a linked list
+      lokcc=lokeq+displace+2
+      rsize=5+nwch(16)+1+6*nwpr
+      do j=1,noofel
+         call wtake(lok,rsize,iws)
+         if(buperr.ne.0) then
+            write(*,*)'Error reserving varres record',j,rsize,nsl,mc
+            gx%bmperr=4399; goto 1000
+         endif
+! sequential link
+         iws(lokcc)=lok
+         lokcc=lok
+! data
+         iws(lok+1)=ceq%complist(j)%splink
+         iws(lok+2)=ceq%complist(j)%phlink
+         iws(lok+3)=ceq%complist(j)%status
+         call storc(lok+4,iws,ceq%complist(j)%refstate)
+         disz=4+nwch(16)
+         call storrn(2,iws(lok+disz),ceq%complist(j)%tpref)
+         disz=disz+2*nwpr
+         call storrn(2,iws(lok+disz),ceq%complist(j)%tpref)
+         disz=disz+2*nwpr
+         call storr(lok+disz,iws,ceq%complist(j)%mass)
+         call storr(lok+disz+nwpr,iws,ceq%complist(j)%molat)
+!         write(*,*)'3e debug: ',lok,lok+disz+nwpr,iws(1)
+      enddo
+   endif
+117 continue
+! linked list of phase_varres records stored from lokeq+lokvares
+   iws(lokeq+displace+3)=highcs
+   lokvares=lokeq+displace+4
+   eqdis=displace+5
+!   write(*,*)'3E link to first phase_varres in ',lokvares,highcs
+!--------------------------------------------------------- below is varres
+!---- varres records, one for each composition set of the phases and sometimes
+! one for disordered fraction sets ....
+! write them in records linked from lokvares as they can be very different
+!   write(lut)highcs
    compset: do j=1,highcs
 ! loop for all composition sets
       firstvarres=>ceq%phase_varres(j)
       if(btest(firstvarres%status2,CSDFS)) then
-! this phase_varres/parres records belong to disordered fraction_set
+! this phase_varres/parres record belong to disordered fraction_set
 ! A big tricky to find the number of sublattices and constituents ....
          lokph=firstvarres%phlink
          lokcs=phlista(lokph)%linktocs(1)
          nsl=ceq%phase_varres(lokcs)%disfra%ndd
          mc=ceq%phase_varres(lokcs)%disfra%tnoofxfr
       else
-         lokph=0; lokcs=0
+         lokph=firstvarres%phlink; lokcs=0
          nsl=phlista(firstvarres%phlink)%noofsubl
          mc=phlista(firstvarres%phlink)%tnooffr
       endif
       mc2=mc*(mc+1)/2
-!>>>>> 55:
-      write(lut)firstvarres%nextfree,firstvarres%phlink,&
-           firstvarres%status2,firstvarres%phstate
-      write(lut)firstvarres%prefix,firstvarres%suffix
-      write(lut)firstvarres%abnorm
-!>>>>> 56:
-      write(lut)(firstvarres%constat(i),i=1,mc)
-      write(lut)(firstvarres%yfr(i),i=1,mc)
-      write(lut)(firstvarres%mmyfr(i),i=1,mc)
-      write(lut)(firstvarres%sites(i),i=1,nsl)
-! We do not save the cmuval array
-! These should only be interesting for ionic liquids and in that case
+! nextfree,phlink,status2,phstate,phtupx,abnorm(3),prefix*4,suffix*4
+! constat(mc),yfr(mc),mmyfr(mc)
+      rsize=6+2*nwch(4)+3*nwpr+mc+2*mc*nwpr
+      dcheck=rsize
+! sites(nsl),disfralink,amfu,netcharge,dgm
+      rsize=rsize+nsl*nwpr+1+4*nwpr+1
+! results g, dg, d2g some exra space
+      rsize=rsize+6*nwpr+3*mc*nwpr+mc2*nwpr+5
+      qsize=rsize
+      call wtake(lok,rsize,iws)
+      if(buperr.ne.0) then
+         write(*,*)'Error reserving varres record',j,rsize,nsl,mc
+         gx%bmperr=4399; goto 1000
+      endif
+      iws1=iws(1)
+      lokph=firstvarres%phlink
+      write(*,107)'3E saving: ',j,lok,rsize,mc,nsl,trim(phlista(lokph)%name)
+!      write(*,107)'3E saving: ',j,phasetuple(j)%ixphase,nsl,&
+!      trim(phlista(lokph)%name)
+107   format(a,5i7,2x,a)
+! link from lokvares and use iws(lok) to link to next
+      iws(lokvares)=lok
+      lokvares=lok
+! data
+      iws(lok+1)=firstvarres%nextfree
+      iws(lok+2)=firstvarres%phlink
+      iws(lok+3)=firstvarres%status2
+      iws(lok+4)=firstvarres%phstate
+      iws(lok+5)=firstvarres%phtupx
+      call storc(lok+6,iws,firstvarres%prefix)
+      displace=6+nwch(4)
+      call storc(lok+displace,iws,firstvarres%suffix)
+      displace=displace+nwch(4)
+      call storrn(3,iws(lok+displace),firstvarres%abnorm)
+      displace=displace+3*nwpr
+      do i=1,mc
+         iws(lok+displace+i-1)=firstvarres%constat(i)
+      enddo
+      displace=displace+mc
+      call storrn(mc,iws(lok+displace),firstvarres%yfr)
+      displace=displace+mc*nwpr
+! mmyfr is just reals ... do not bother (although space for double reserved)
+!      write(lut)(firstvarres%mmyfr(i),i=1,mc)
+      displace=displace+mc*nwpr
+!      write(*,*)'3E sites:',lok,displace,lok+displace
+      call storrn(nsl,iws(lok+displace),firstvarres%sites)
+      displace=displace+nsl*nwpr
+! do not save the cmuval array
+! dsitesdy should only be interesting for ionic liquids and in that case
 ! only the dimension, not the values
 !          write(lut)(firstvarres%dsitesdy(i),i=1,mc)
 !          write(lut)(firstvarres%d2sitesdy2(i),i=1,mc2)
-      lokph=firstvarres%phlink
       fsrec: if(btest(firstvarres%status2,CSDLNK)) then
-! we must indicate on the file a disordered fraction_set record follows!
+! we need a record for a disordered fraction_set record
+! latd,ndd,tnoofxfr,tnoofyfr,varreslink,totdis, id*1, dsites(nsl), 
+! nooffr(mc), splink(mc), y2x(mc), dxidyj(mc),fsites
+         rsize=6+nwch(1)+nsl+3*mc+mc*nwpr+nwpr
+         call wtake(lokdis,rsize,iws)
+         if(buperr.ne.0) then
+            write(*,*)'Error reserving ddisordered varres record',rsize
+            gx%bmperr=4399; goto 1000
+         endif
+! set link from varres record
+         iws(lok+displace)=lokdis
+! store data
          fslink=>firstvarres%disfra
-         if(ocv()) write(*,*)'Disordered fraction set linked from: ',&
-              j,fslink%varreslink
-!>>>>> 57A: write disordered record, is is inside the phase_varres record
-         write(lut)1
-!>>>>> 58:
-         write(lut)fslink%latd,fslink%ndd,fslink%tnoofxfr,&
-              fslink%tnoofyfr,fslink%totdis,fslink%varreslink,fslink%id
-         write(lut)fslink%nooffr,fslink%splink
-         write(lut)fslink%dsites
-         write(lut)fslink%y2x
-         write(lut)fslink%dxidyj
+         iws(lokdis)=fslink%latd
+         iws(lokdis+1)=fslink%ndd
+         iws(lokdis+2)=fslink%tnoofxfr
+         iws(lokdis+3)=fslink%tnoofyfr
+         iws(lokdis+4)=fslink%totdis
+         iws(lokdis+5)=fslink%varreslink
+         call storc(lokdis+6,iws,fslink%id)
+         disz=disz+5+nwch(1)
+! increment disz one less as i starts from 1
+! number of constituents in each sublattice
+         do i=1,nsl
+            iws(lokdis+disz+i)=fslink%nooffr(i)
+         enddo
+         disz=disz+nsl
+! species index for ecah constituent
+         do i=1,nsl
+            iws(lokdis+disz+i)=fslink%splink(i)
+         enddo
+         disz=disz+nsl
+! I am not sure what this is
+         do i=1,nsl
+            iws(lokdis+disz+i)=fslink%y2x(i)
+         enddo
+         disz=disz+nsl+1
+! number of sites in each sublattice
+         call storrn(nsl,iws(lokdis+disz),fslink%dsites)
+         disz=disz+nsl*nwpr
+! formula unit factor
+         call storr(lokdis+disz,iws,fslink%fsites)
+!         write(lut)fslink%dxidyj
+!         write(lut)fslink%dxidyj
       else
-! no disordered fraction set record
-!>>>>> 57B:
-         write(lut)0
+! mark no link to disordered record
+!         write(*,*)'3E no disorderd record',lok+displace,iws(1),iws(2)
+         iws(lok+displace)=0
       endif fsrec
-!>>>>> 59:
-      write(lut)firstvarres%amfu,firstvarres%netcharge,firstvarres%dgm,&
-           firstvarres%nprop
-! only G values saved ???? well maybe not even those ...
-!>>>>> 60:
-      write(lut)(firstvarres%gval(i,1),i=1,6)
-      do k=1,mc
-         write(lut)(firstvarres%dgval(i,k,1),i=1,3)
+!------------------------------------- end of disorderd record
+! save some results stored in the phase_varres record
+      displace=displace+1
+      call storr(lok+displace,iws,firstvarres%amfu)
+      call storr(lok+displace+nwpr,iws,firstvarres%netcharge)
+      call storr(lok+displace+2*nwpr,iws,firstvarres%dgm)
+      iws(lok+displace+3*nwpr)=firstvarres%nprop
+      displace=displace+3*nwpr+1
+! only save G and derivatives
+      do i=1,6
+         call storr(lok+displace+nwpr*(i-1),iws,firstvarres%gval(i,1))
       enddo
-!>>>>> 61:
-      write(lut)(firstvarres%d2gval(i,1),i=1,mc2)
+      displace=displace+6*nwpr
+      do i=1,3
+         do k=1,mc
+            call storr(lok+displace,iws,firstvarres%dgval(i,k,1))
+            displace=displace+nwpr
+         enddo
+      enddo
+      do i=1,mc2
+         call storr(lok+displace+nwpr*(i-1),iws,firstvarres%d2gval(i,1))
+      enddo
+!      write(*,*)'3E last values used ',lok+displace+mc2*nwpr,lok+qsize,iws1
    enddo compset
-!---- conditions, write as text and recreate when reading file
-   call get_all_conditions(text,0,ceq)
-   if(gx%bmperr.ne.0) goto 1000
-   kl=index(text,'CRLF')
-!>>>>> 62:
-   write(lut)kl-1
-   if(kl.gt.1) then
-      write(lut)' SET CONDITIONS ',text(1:kl-1)
-   endif
-!---- experiments
-   call get_all_conditions(text,1,ceq)
-   if(gx%bmperr.ne.0) goto 1000
-   kl=len_trim(text)
-!>>>>> 63:
-   write(lut)kl-1
-   if(kl.gt.1) then
-      write(lut)' EXPERIMENTS    ',text(1:kl-1)
-   endif
+!----------------------------------------
+! mu(nel), xconc,gmind,eqextra,maxiter
+   iws(lokeq+eqdis)=ceq%maxiter
+   call storrn(noofel,iws(lokeq+eqdis+1),ceq%cmuval)
+   eqdis=eqdis+1+noofel*nwpr
+   call storr(lokeq+eqdis,iws,ceq%xconv)
+   call storr(lokeq+eqdis+nwpr,iws,ceq%gmindif)
+   write(*,*)'3E NOT saving the character eqextra!'
+!   call storc(lokeq+displace+2*nwpr,iws,ceq%eqextra)
+!   write(*,*)'3E check rsize: ',rsize,eqdis+2*nwpr
 !>>>>>> 64: savesysmat
+!   write(*,*)'3E not saving sysmat?',ceq%sysmatdim,ceq%nfixmu,ceq%nfixph
 ! NOTE:: ceq%sysmatdim negative, not initiallized??
 ! NOTE:: phasetuples not saved !!!
-   write(lut)ceq%sysmatdim,ceq%nfixmu,ceq%nfixph
-   if(ceq%nfixmu.gt.0) write(lut)(ceq%fixmu(kl),kl=1,ceq%nfixmu)
-   if(ceq%nfixph.gt.0) write(lut)&
-        (ceq%fixph(1,kl),ceq%fixph(2,kl),kl=1,ceq%nfixph)
-   if(ceq%sysmatdim.gt.0) then
-      do mc=1,ceq%sysmatdim
-         write(lut)(ceq%savesysmat(mc,kl),kl=1,ceq%sysmatdim)
-      enddo
-   endif
+!   write(lut)ceq%sysmatdim,ceq%nfixmu,ceq%nfixph
+!   if(ceq%nfixmu.gt.0) write(lut)(ceq%fixmu(kl),kl=1,ceq%nfixmu)
+!   if(ceq%nfixph.gt.0) write(lut)&
+!        (ceq%fixph(1,kl),ceq%fixph(2,kl),kl=1,ceq%nfixph)
+!   if(ceq%sysmatdim.gt.0) then
+!      do mc=1,ceq%sysmatdim
+!         write(lut)(ceq%savesysmat(mc,kl),kl=1,ceq%sysmatdim)
+!      enddo
+!   endif
 1000 continue
    return
  end subroutine saveequil
@@ -1072,6 +1280,9 @@
       write(*,*)'3E wrong number of species: ',isp,noofsp
       gx%bmperr=4399; goto 1000
    endif
+!---------- component record
+!
+   
 !---------- tpfuns
 !>>>>> 20.. inside tpfunread, skip functions already read
    last=7
@@ -1097,8 +1308,6 @@
    freetpfun=i3
 ! hopefully the TP functions will keep the same index ... so for parameters
 ! one just store the index!
-   goto 1000
-! unfinished below ...
 !-------
 !>>>>> 5: phaselist, starting from 0, the reference phase
 ! zero number of phases etc
@@ -1107,14 +1316,13 @@
    noofem=0
    noofint=0
    noofprop=0
-   do jph=0,noofph
-! link to phaselist is in 9
-      call readphases(iws)
-      if(gx%bmperr.ne.0) goto 1000
-   enddo
+! link to phaselist is in 9 (+10, 11, 12, 13)
+   call readphases(noofph,iws)
+   if(gx%bmperr.ne.0) goto 1000
 !-----------
 ! restore phase tuples
-   lok=iws(12)
+!   write(*,*)'Reading phase tuples',iws(14),noofph
+   lok=iws(14)
    if(lok.gt.0) then
       if(iws(13).ne.gtp_phasetuple_version) then
          write(*,*)'3E wrong phasetuple version',gtp_phasetuple_version,iws(13)
@@ -1129,18 +1337,43 @@
          phasetuple(i)%nextcs=iws(lok+5*i)
       enddo
    endif
-   goto 1000
-! unfinished below
+! restore the phases lista using phase tuples!
+   do jph=1,noofph
+      phases(jph)=phasetuple(jph)%lokph
+   enddo
+!-------------------------------
+! the global status word in 20-21
+   lok=iws(20)
+   globaldata%status=iws(lok+1)
+   call loadc(lok+2,iws,globaldata%name)
+   call loadr(lok+3,iws,globaldata%rgas)
+   call loadr(lok+3+nwpr,iws,globaldata%rgasuser)
+   call loadr(lok+3+2*nwpr,iws,globaldata%pnorm)
+! partly unfinished below
 !---------- state variable functions
 !>>>>> 30... inside svfunread
-   call svfunread(lin)
+   write(*,*)'3E NOT reading state variable functions'
+!   call svfunread(lin)
    if(gx%bmperr.ne.0) goto 1000
 !---------- bibliographic references
 !>>>>> 40.. inside refread
-   call biblioread(lin)
+   write(*,*)'3E NOT reading bibliography'
+!   call biblioread(lin)
    if(gx%bmperr.ne.0) goto 1000
 !---------- equilibrium record
-   call readequil(lin,firsteq)
+   if(iws(17).ne.gtp_equilibrium_data_version) then
+      write(*,*)'Wrong equilibrium data version'
+      gx%bmperr=4399; goto 1000
+   elseif(iws(18).ne.gtp_component_version) then
+      write(*,*)'Wrong component version'
+      gx%bmperr=4399; goto 1000
+   elseif(iws(19).ne.gtp_phase_varres_version) then
+      write(*,*)'Wrong phase varres version'
+      gx%bmperr=4399; goto 1000
+   endif
+! link to first saved in equilibrium in iws(16)
+   i=iws(16)
+   call readequil(i,iws,firsteq)
    if(gx%bmperr.ne.0) goto 1000
 !------ read all ??
 800 continue
@@ -1161,15 +1394,16 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine readphases(iws)
+ subroutine readphases(kkk,iws)
 ! read data for phlista and all endmembers etc
 ! works for test case without disordered fraction test
    implicit none
-   integer iws(*)
+   integer kkk,iws(*)
 !\end{verbatim}
    integer firstendmem,i,i1,i2,i3,jph,level,nem,noi,nop,nox,nup,nsl,mult,lin
    integer lok,displace,totcon,phreclink,lokem,lokint
-   type(gtp_endmember), pointer :: emrec
+   type(gtp_endmember), allocatable, target :: nyemrec
+   type(gtp_endmember), pointer :: emrec,lem
    type(gtp_interaction), pointer :: intrec
    type(gtp_property), pointer :: proprec
    type saveint
@@ -1180,10 +1414,11 @@
    type(gtp_phase_add), pointer :: addlink
 !
    allocate(stack(5))
-   write(*,*)'in readphase:'
+!   write(*,*)'in readphase:',iws(9),iws(10),iws(11),iws(12),iws(13),&
+!        iws(7),iws(8)
 ! as the phlista record contain pointers each item must be read separately
-! the phaes are stored sequentially from iws(5)
-   lok=iws(7)
+! the phaes are stored sequentially from iws(9)
+   lok=9
    if(iws(lok+1).ne.gtp_phase_version) then
       write(*,*)'3E phase version not the same ',iws(lok+1),gtp_phase_version
       goto 1000
@@ -1201,7 +1436,8 @@
    endif
 ! first phase (number 0) is SER phase
    jph=-1
-   do while(lok.gt.0)
+   lok=iws(lok)
+   bigloop: do while(lok.gt.0)
       jph=jph+1
       call loadc(lok+1,iws,phlista(jph)%name)
       displace=1+nwch(24)
@@ -1230,6 +1466,8 @@
       do i=1,9
          phlista(jph)%linktocs(i)=iws(lok+displace+i)
       enddo
+      write(*,*)'Reading phase: ',trim(phlista(jph)%name),&
+           phlista(jph)%alphaindex,phlista(jph)%linktocs(1)
       displace=displace+9
       do i=1,nsl
          phlista(jph)%nooffr(i)=iws(lok+displace+i)
@@ -1247,105 +1485,133 @@
       nullify(phlista(jph)%ordered)
       nullify(phlista(jph)%disordered)
       nullify(emrec)
-      if(associated(emrec)) then
-         write(*,*)'nullify does not work'
-         stop
-      endif
-      write(*,*)'3E read endmember data',nsl,phreclink,iws(1)
+!      if(associated(emrec)) then
+!         write(*,*)'nullify does not work'
+!         stop
+!      endif
 ! if nem=0 now there are no basic (ordered) endmember (can that happen?)
 ! return here when endmember list empty and there is a disordered list
       firstendmem=1
       lokem=iws(phreclink)
-   enddo
-! unfinished below
-!vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-200 continue
-   newendmem: do while(lokem.gt.0)
-      call readendmem(lokem,iws,nsl,emrec)
-      if(firstendmem.eq.1) then
-! unfinished below
-         if(.not.associated(phlista(jph)%ordered)) then
-            phlista(jph)%ordered=>emrec
+!      write(*,*)'3E read endmember data',nsl,phreclink,iws(phreclink),lokem
+!------------------
+200   continue
+      newendmem: do while(lokem.gt.0)
+! this could probably be made nicer ...
+         if(associated(emrec)) then
+! emrec is allocated and the property record is also read
+!            write(*,*)'3E next endmember',lokem,iws(lokem)
+            call readendmem(lokem,iws,nsl,emrec%nextem)
+            emrec=>emrec%nextem
+         elseif(firstendmem.eq.1) then
+!            write(*,*)'Read first endmember',jph
+            call readendmem(lokem,iws,nsl,phlista(jph)%ordered)
+            emrec=>phlista(jph)%ordered
+         elseif(firstendmem.eq.2) then
+            call readendmem(lokem,iws,nsl,phlista(jph)%disordered)
+            emrec=>phlista(jph)%disordered
          endif
-         emrec=>emrec%nextem
-      elseif(firstendmem.eq.2) then
-         if(.not.associated(phlista(jph)%disordered)) then
-            phlista(jph)%disordered=>emrec
-         endif
-         emrec=>emrec%nextem
-      endif
-! the endmember property records are read with the endmember
 ! in iws(lokem+2=noi) is the location of interaction records (if any)
-      lokint=iws(lokem+2)
-      level=0
-      inttree: if(iws(lokint).gt.0) then
+         lokint=iws(lokem+2)
+         level=0
+         inttree: if(lokint.gt.0) then
 !>>>>> 9A: first interaction record
-         call readintrec(lokint,iws,emrec%intpointer)
-         intrec=>emrec%intpointer
-         write(*,13)'read interaction: ',level
-13       format(a,10i4)
-300      continue
+            call readintrec(lokint,iws,emrec%intpointer)
+            intrec=>emrec%intpointer
+300         continue
 ! push before going to higher
-         level=level+1
-         stack(level)%p1=>intrec
-         stack(level)%noi=lokint
+            level=level+1
+            stack(level)%p1=>intrec
+            stack(level)%noi=lokint
 ! iws(lokint+1) is link to higher interaction
-         higher: if(iws(lokint+1).gt.0) then
-            call readintrec(lokint,iws,intrec%highlink)
-            intrec=>intrec%highlink
-            goto 300
-         endif higher
-! There are higher records, pop records from stack
-350      continue
-         pop: if(level.gt.0) then
-            intrec=>stack(level)%p1
-            lokint=stack(level)%noi
-            level=level-1
-            if(iws(lokint).gt.0) then
-               call readintrec(lokint,iws,intrec%nextlink)
-               intrec=>intrec%nextlink
-            endif
-            goto 300
-         endif pop
-      endif inttree
-   enddo newendmem
-! we come nere when no more endmembers in this list
-   if(firstendmem.eq.1) then
-!>>>>> 11: if nem read here is zero there are no disordered endmembers
-      if(ocv()) write(*,*)'checking for disordered endmembers'
-      read(lin)nem,nsl
-! we must nullify emrec to start a new list of endmembers
-      nullify(emrec)
-      if(nem.ne.0) then
-         firstendmem=2
-         if(ocv()) write(*,*)'Reading disordered parameters',nem,nsl
-         goto 200
+            higher: if(iws(lokint+1).gt.0) then
+               call readintrec(iws(lokint+1),iws,intrec%highlink)
+               intrec=>intrec%highlink
+! problem pushing ....
+               lokint=iws(lokint+1)
+!               lokint=lokint+1
+               goto 300
+            endif higher
+! There are no higher records, pop records from stack
+350         continue
+            pop: if(level.le.0) then
+! no more interactions, take next endmember
+               goto 390
+            else
+! loosing parameters when comming back from higher level
+               intrec=>stack(level)%p1
+               lokint=iws(stack(level)%noi)
+               level=level-1
+               if(lokint.gt.0) then
+                  call readintrec(lokint,iws,intrec%nextlink)
+                  intrec=>intrec%nextlink
+               else
+                  goto 350
+               endif
+               if(lokint.gt.0) goto 300
+               goto 350
+            endif pop
+         endif inttree
+390      continue
+         lokem=iws(lokem)
+      enddo newendmem
+! list endmembers
+!      emrec=>phlista(jph)%ordered
+!      i1=1
+!      do while(associated(emrec) .and. i1.lt.20)
+!         write(*,*)'Found endmember ',i1
+!         emrec=>emrec%nextem
+!         i1=i1+1
+!      enddo
+! make sure the list of endmember as a null ending
+      if(associated(emrec)) then
+         nullify(emrec%nextem)
       endif
-   endif
+! we come here when no more endmembers in this list
+      if(firstendmem.eq.1) then
+!>>>>> 11: if nem read here is zero there are no disordered endmembers
+         if(ocv()) write(*,*)'checking for disordered endmembers'
+!         read(lin)nem,nsl
+! we must nullify emrec to start a new list of endmembers
+         nullify(emrec)
+         lokem=iws(phreclink+1)
+         if(lokem.ne.0) then
+            firstendmem=2
+            goto 200
+         endif
+      endif
 !------ additions list
 !500 continue
-   nullify(phlista(jph)%additions)
-510 continue
-   read(lin)i1,i2,i3
-   if(ocv()) write(*,*)'Reading any addition; ',i1
-   if(i1.eq.1) then
+      nullify(phlista(jph)%additions)
+510   continue
+      write(*,*)'NOT Reading any addition; '
+      goto 900
+      if(i1.eq.1) then
 ! here addition record should be created but as I have not managed to
 ! save the functions I just skip this for the moment and use create_magrec
-      call create_magrec_inden(addlink,i3)
-      if(gx%bmperr.ne.0) goto 1000
-      if(.not.associated(phlista(jph)%additions)) then
-         phlista(jph)%additions=>addlink
-      else
-         addlink%nextadd=>addlink
-         addlink=>addlink%nextadd
-      endif
-      goto 510
-   elseif(i1.eq.-1) then
+         call create_magrec_inden(addlink,i3)
+         if(gx%bmperr.ne.0) goto 1000
+         if(.not.associated(phlista(jph)%additions)) then
+            phlista(jph)%additions=>addlink
+         else
+            addlink%nextadd=>addlink
+            addlink=>addlink%nextadd
+         endif
+         goto 510
+      elseif(i1.eq.-1) then
 ! end of addition list
-      continue
-      if(i2.ne.i1 .and. i3.ne.i1) write(*,*)'end of phase error:',i2,i3
-   endif
+         continue
+         if(i2.ne.i1 .and. i3.ne.i1) write(*,*)'end of phase error:',i2,i3
+      endif
+!----------------------------------
+! Now the phase_varres record ....
+900   continue
+! take next phase
+      lok=iws(lok)
+   enddo bigloop
+! all data for the phase read
 1000 continue
+   kkk=jph
    return
  end subroutine readphases
 
@@ -1353,7 +1619,8 @@
 
 !\begin{verbatim}
  subroutine readendmem(lokem,iws,nsl,emrec)
-! allocates and reads an endmember record
+! allocates and reads an endmember record and its property record from iws
+! emrec is an un-allocated pointer in the parameter tree structure
    implicit none
    integer lokem,nsl,iws(*)
    type(gtp_endmember), pointer :: emrec
@@ -1362,7 +1629,8 @@
    type(gtp_property), pointer :: proprec
 !
    allocate(emrec)
-   write(*,*)'Allocating an endmember record'
+!   write(*,*)'Allocating endmember for',lokem,iws(lokem),iws(lokem+1),&
+!        iws(lokem+2)
 ! iws(lokem) is next endmember
 ! iws(lokem+1) is property
 ! iws(lokem+2) is interaction
@@ -1381,10 +1649,14 @@
    enddo
    nullify(emrec%nextem)
    nullify(emrec%intpointer)
+   nullify(emrec%propointer)
 ! called nop when storing in iws
    lokpty=lokem+1
-! property list
-   call readproprec(lokpty,iws,proprec)
+   if(iws(lokpty).gt.0) then
+! property list loop inside readproprec
+      call readproprec(lokpty,iws,emrec%propointer)
+!      write(*,*)'3E Back from readproprec 1'
+   endif
 1000 continue
    return
  end subroutine readendmem
@@ -1399,19 +1671,22 @@
    type(gtp_property), pointer :: firstproprec
 !\end{verbatim}
    integer i,lokfun
-   type(gtp_property), allocatable, target :: prec
+!   type(gtp_property), allocatable, target :: prec
    type(gtp_property), pointer :: proprec
+! lokpty is the location where there can be a property record pointer
+   nullify(proprec)
    do while(iws(lokpty).gt.0)
-      if(allocated(prec)) then
+      lokpty=iws(lokpty)
+      if(associated(proprec)) then
          allocate(proprec%nextpr)
          proprec=>proprec%nextpr
       else
-         allocate(prec)
-         firstproprec=>prec
-         proprec=>prec
+         allocate(firstproprec)
+         proprec=>firstproprec
       endif
 !   read(lin)proprec%reference,proprec%proptype,&
 !        proprec%degree,proprec%extra,proprec%antalprop,nox
+!      write(*,88)lokpty,iws(lokpty),iws(lokpty+1),iws(lokpty+2)
       proprec%proptype=iws(lokpty+1)
       proprec%degree=iws(lokpty+2)
       proprec%extra=iws(lokpty+3)
@@ -1424,10 +1699,12 @@
 ! functions already read and hopefully stored with same index!
          proprec%degreelink(i)=iws(lokfun+i)
       enddo
-      write(*,*)'3E Allocated property record ',proprec%proptype,proprec%degree
-      nullify(proprec%nextpr)
-      lokpty=iws(lokpty)
+!      write(*,*)'3E Allocated property record ',lokpty,iws(lokpty),&
+!           proprec%proptype,proprec%degree
+!      nullify(proprec%nextpr)
    enddo
+! make sure the list is terminated by a null pointer
+   nullify(proprec%nextpr)
 1000 continue
    return
  end subroutine readproprec
@@ -1441,7 +1718,7 @@
    integer lokint,iws(*)
    type(gtp_interaction), pointer :: intrec
 !\end{verbatim}
-   integer fipsize,noofperm,i,displace,lokpty
+   integer fipsize,noofperm,i,displace,lokpty,lokalint
    type(gtp_property), pointer :: proprec
 ! the storage of permutations in interaction records is complex ... one must
 ! take into account the number of permutations in lower order intecations ...
@@ -1451,16 +1728,18 @@
 ! one should never allocate a pointer ... but this is more or less permanent
    allocate(intrec)
 !>>>>> 9D: actually read the interaction record
-!   read(lin)fipsize
-   intrec%status=iws(lokint+3)
-   intrec%antalint=iws(lokint+4)
-   intrec%order=iws(lokint+5)
-   fipsize=iws(lokint+6)
+!   lokalint=iws(lokint)
+   lokalint=lokint
+   intrec%status=iws(lokalint+3)
+   intrec%antalint=iws(lokalint+4)
+   intrec%order=iws(lokalint+5)
+   fipsize=iws(lokalint+6)
+!   write(*,*)'3E In readintrec 1:',intrec%antalint,lokalint,fipsize
    allocate(intrec%noofip(fipsize))
 !   read(lin)intrec%noofip,intrec%status,noi,nup,nop
    displace=6
    do i=1,fipsize
-      intrec%noofip(i)=iws(lokint+displace+i)
+      intrec%noofip(i)=iws(lokalint+displace+i)
    enddo
    displace=displace+fipsize
    noofperm=intrec%noofip(2)
@@ -1468,248 +1747,235 @@
    allocate(intrec%fraclink(noofperm))
    do i=1,noofperm
 !      read(lin)intrec%sublattice(i),intrec%fraclink(i)
-      intrec%sublattice(i)=iws(lokint+displace+i)
-      intrec%fraclink(i)=iws(lokint+displace+i)
+      intrec%sublattice(i)=iws(lokalint+displace+2*i-1)
+      intrec%fraclink(i)=iws(lokalint+displace+2*i)
    enddo
    nullify(intrec%nextlink)
    nullify(intrec%highlink)
-   nullify(proprec)
-! link to property record in lokint+2
-   lokpty=lokint+2
-   call readproprec(lokpty,iws,proprec)
+   nullify(intrec%propointer)
+! link to property record in lokalint+2
+   lokpty=lokalint+2
+   if(iws(lokpty).gt.0) then
+      call readproprec(lokpty,iws,intrec%propointer)
+!      write(*,*)'3E Back from readproprec 2'
 ! if there are no property records proprec is still nullified
-   intrec%propointer=>proprec
+   endif
    return
  end subroutine readintrec
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine readequil(lin,ceq)
-! Read equilibria records from a file
+ subroutine readequil(lokeq,iws,ceq)
+! lokeq is index for equilibrium record in iws
    implicit none
-   integer lin
+   integer lokeq,iws(*)
    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
    character text*512,dum16*16
    type(gtp_phase_varres), pointer :: firstvarres
    TYPE(gtp_fraction_set) :: fslink
    integer i,ierr,ip,isp,ivar,j,jp,k,lokcs,lokph,mc,mc2,nprop,nsl,kp
+   integer displace,llen,lok,lokvares,lokdiz,eqdis,lokcc,disz
    double precision, dimension(:,:), allocatable :: ca,ci
 ! containing conditions, components and phase varres records for wach compset
 !>>>>> 50:
-   read(lin)ceq%eqname,ceq%eqno,ceq%status,ceq%next
-   if(ocv()) write(*,*)'Reading equilibrium: ',ceq%eqname
-!----- components
-!   allocate(ceq%complist(noofel)) already allocated for 20
-!   write(*,*)'Size of component array: ',size(ceq%complist)
-!>>>>> 51:
-   do i=1,noofel
-      read(lin)isp
-      ceq%complist(i)%splink=isp
-      read(lin)ceq%complist(i)%phlink,&
-           ceq%complist(i)%status,&
-           ceq%complist(i)%refstate,ceq%complist(i)%tpref,ceq%complist(1)%mass
-! ============ never written ???
-!      if(isp.gt.0) then
-! user defined reference state only allocated if necessary
-!         read(lin)j
-!         allocate(ceq%complist(i)%endmember(j))
-!         read(lin)ceq%complist(i)%endmember
-!         read(lin)ceq%complist(i)%molat
-!      endif
+!   read(lin)ceq%eqname,ceq%eqno,ceq%status,ceq%next
+   if(lokeq.le.0) then
+      write(*,*)'Not an equilibrium record'
+      gx%bmperr=4399; goto 1000
+   endif
+   ceq%status=iws(lokeq+1)
+   ceq%multiuse=iws(lokeq+2)
+! Hm, eqno should not be changed?
+   if(ceq%eqno.ne.iws(lokeq+3)) then
+      write(*,*)'Should be same equilibrium number ',ceq%eqno,iws(lokeq+3)
+   endif
+   ceq%next=iws(lokeq+4)
+   call loadc(lokeq+5,iws,ceq%eqname)
+!   write(*,*)'Reading equilibrium: ',ceq%eqname
+   displace=5+nwch(24)
+   call loadc(lokeq+displace,iws,ceq%comment)
+   displace=displace+nwch(72)
+!----- conditions (note that inactive conditions not set)
+   lok=iws(lokeq+displace)
+   if(lok.gt.0) then
+      llen=iws(lok)
+      call loadc(lok+1,iws,text(1:llen))
+      write(*,*)'Conditions: "',text(1:llen),'"',llen
+      if(.false.) then
+! set the conditions, ip will be incremented by 1 in enter_condition
+! the text contains " number: variable=value, "
+! we have to set each condition variable separately
+         jp=1
+         if(ocv()) write(*,*)'Conditions >',text(1:ip),'<',jp,ip
+         cloop: do while(jp.lt.ip)
+            k=index(text(jp:ip),':')
+            if(k.le.0) exit cloop
+            jp=jp+k
+            kp=min(jp+index(text(jp+1:),' '),ip)
+            if(kp.gt.jp) then
+! remove , as that indicates more conditions on same line
+               if(text(kp-1:kp-1).eq.',') then
+                  text(kp-1:kp-1)=' '
+               endif
+            else
+               kp=ip
+            endif
+            jp=jp-1
+            !         write(*,*)'condition 1 >',text(jp:kp),'<',jp
+            call set_condition(text(1:kp),jp,firsteq)
+! jp automatically update inside set_condition
+            if(gx%bmperr.ne.0) then
+               write(*,*)'Error setting conditions'
+               write(*,*)ip,' >',text(jp:kp),'<'
+               goto 1000
+            endif
+         enddo cloop
+      endif
+!   else
+!      write(*,*)'3E no conditions'
+   endif
+!----- experiments
+   lok=iws(lokeq+displace+1)
+   if(lok.gt.0) then
+      llen=iws(lok)
+      call loadc(lok+1,iws,text(1:llen))
+      write(*,*)'3E experiment: ',text(1:llen),llen
+!      call set_conditions
+   endif
+!----- components if not elements
+! complist already allocated for 20
+   if(allocated(ceq%complist)) then
+      deallocate(ceq%complist)
+   endif
+   allocate(ceq%complist(noofel))
+   llen=0
+   lokcc=iws(lokeq+displace+2)
+   do while(lokcc.gt.0)
+      llen=llen+1
+      if(llen.gt.noofel) then
+         write(*,*)'Too many components'
+         gx%bmperr=4399; goto 1000
+      endif
+      ceq%complist(llen)%splink=iws(lokcc+1)
+      ceq%complist(llen)%phlink=iws(lokcc+2)
+      ceq%complist(llen)%status=iws(lokcc+3)
+      call loadc(lokcc+4,iws,ceq%complist(llen)%refstate)
+      disz=4+nwch(16)
+      call loadrn(2,iws(lokcc+disz),ceq%complist(llen)%tpref)
+      disz=disz+2*nwpr
+      call loadrn(2,iws(lok+disz),ceq%complist(llen)%tpref)
+      disz=disz+2*nwpr
+      call loadr(lok+disz,iws,ceq%complist(llen)%mass)
+      call loadr(lok+disz+nwpr,iws,ceq%complist(llen)%molat)
+      lokcc=iws(lokcc)
    enddo
-!==================================
-! stoichiometry conversion matrix, already allocated?? where??
-   ceq%compstoi=zero
-! calculate the inverse stoichiometry matrix
-!   write(*,*)'Reading component stoichiometry matrix',noofel,maxel
-   do j=1,noofel
-      read(lin)(ceq%compstoi(j,i),i=1,noofel)
-   enddo 
- ! this because mdinv did strange things inverting a larger matrix
-   allocate(ca(noofel,noofel+1))
-   allocate(ci(noofel,noofel))
-   do i=1,noofel
-      do j=1,noofel
-         ca(i,j)=ceq%compstoi(i,j)
-      enddo
-   enddo
-!   do j=1,noofel
-!      write(*,99)'ca: ',(ca(j,i),i=1,noofel)
-!   enddo 
-99 format(a,7e11.3)
-!   call mdinv(maxel-1,maxel,ceq%compstoi,ceq%invcompstoi,noofel,ierr)
-   call mdinv(noofel,noofel+1,ca,ci,noofel,ierr)
-!   write(*,*)'Inverting matrix',ierr
-   do j=1,noofel
-!      write(*,99)'ci: ',(ci(i,j),i=1,noofel)
-      do i=1,noofel
-         ceq%invcompstoi(i,j)=ci(i,j)
-      enddo
-   enddo
-   deallocate(ca)
-   deallocate(ci)
 !----------- phase_varres record
 !>>>>> 54:
-   read(lin)highcs
+   highcs=iws(lokeq+displace+3)
    if(ocv()) then
       write(*,*)'Number of phase_varres records: ',highcs
       write(*,*)'phase_varres size: ',size(ceq%phase_varres)
    endif
-   do j=1,highcs
-!      write(*,*)'reading phase_varres ',j
+! link to first varres record stored here
+   lokvares=iws(lokeq+displace+4)
+   eqdis=displace+5
+   compset: do j=1,highcs
+      if(lokvares.le.100) then
+         write(*,*)'3E error linking phase_varres records ...',lokvares
+         goto 1000
+      endif
 !------------------------------------------
 ! DEBUGPROBLEM BEWARE, using = instead of => below took 2 days to find
 !------------------------------------------
 ! >>>      firstvarres=ceq%phase_varres(j)    <<< error
       firstvarres=>ceq%phase_varres(j)
 !>>>>> 55:
-      read(lin)firstvarres%nextfree,firstvarres%phlink,&
-           firstvarres%status2,firstvarres%phstate
-      read(lin)firstvarres%prefix,firstvarres%suffix
-      read(lin)firstvarres%abnorm
-! check interconecctions, firstvarres%phlink is phase record index
-! from phlista(firstvarres%phlink)%clink one should find this record (j)
-!      jxph=firstvarres%phlink
+      firstvarres%nextfree=iws(lokvares+1)
+      lokph=iws(lokvares+2)
+      firstvarres%phlink=lokph
+      firstvarres%status2=iws(lokvares+3)
+      firstvarres%phstate=iws(lokvares+4)
+      firstvarres%phtupx=iws(lokvares+5)
+      call loadc(lokvares+6,iws,firstvarres%prefix)
+      displace=6+nwch(4)
+      call loadc(lokvares+displace,iws,firstvarres%suffix)
+      displace=displace+nwch(4)
+      call loadrn(3,iws(lokvares+displace),firstvarres%abnorm)
+      displace=displace+3*nwpr
       if(btest(firstvarres%status2,CSDFS)) then
-! this phase_varres records belong to a disordered fraction_set
-         lokph=firstvarres%phlink
-!         lokcs=phlista(lokph)%cslink
-         lokcs=phlista(lokph)%linktocs(1)
-         nsl=ceq%phase_varres(lokcs)%disfra%ndd
-         mc=ceq%phase_varres(lokcs)%disfra%tnoofxfr
+         write(*,*)'3E cannot handle a disordered fraction set'
+         stop
       else
-         nsl=phlista(firstvarres%phlink)%noofsubl
-         mc=phlista(firstvarres%phlink)%tnooffr
+! we need these values here!
+         nsl=phlista(lokph)%noofsubl
+         mc=phlista(lokph)%tnooffr
+         mc2=mc*(mc+1)/2
       endif
-!       write(*,*)'bmpread 78: ',j,nsl,mc
-      mc2=mc*(mc+1)/2
-! added integer status array constat
-!      write(*,*)'Allocate constat 1: ',nsl,mc
-      allocate(firstvarres%constat(mc))
-      allocate(firstvarres%yfr(mc))
-      allocate(firstvarres%sites(nsl))
-! for ionic liquids allocate dpqdy
-      if(btest(phlista(firstvarres%phlink)%status1,PHIONLIQ)) then
-         if(ocv()) write(*,*)'Allocate dpqdy: ',mc
-         allocate(firstvarres%dpqdy(mc))
-      endif
-!>>>>> 56:
-      read(lin)(firstvarres%constat(i),i=1,mc)
-      read(lin)(firstvarres%yfr(i),i=1,mc)
-      allocate(firstvarres%mmyfr(mc))
-      read(lin)(firstvarres%mmyfr(i),i=1,mc)
-      read(lin)(firstvarres%sites(i),i=1,nsl)
-! these are ignored, values not important but must be allocated
-! for ionic liquid as (2,mc) and (2,mc2)
-!       read(lin)(firstvarres%dsitesdy(2,i),i=1,mc)
-!       read(lin)(firstvarres%d2sitesdy2(2,i),i=1,mc2)
-!>>>>> 57:
-      read(lin)ivar
-      if(ivar.eq.1) then
-! extra fraction set
-         if(ocv()) write(*,*)'reading extra fraction set for ',j
-!>>>>> 58:
-         read(lin)fslink%latd,fslink%ndd,fslink%tnoofxfr,&
-              fslink%tnoofyfr,fslink%totdis,fslink%varreslink,fslink%id
-         allocate(fslink%nooffr(fslink%ndd))
-         allocate(fslink%dsites(fslink%ndd))
-         allocate(fslink%splink(fslink%tnoofxfr))
-         allocate(fslink%y2x(fslink%tnoofyfr))
-         allocate(fslink%dxidyj(fslink%tnoofyfr))
-         read(lin)fslink%nooffr,fslink%splink
-         read(lin)fslink%dsites
-         read(lin)fslink%y2x
-         read(lin)fslink%dxidyj
-! now copy fslink to the correct record and then deallocate fslink arrays
-         call copy_fracset_record(j,fslink,ceq)
-         deallocate(fslink%nooffr)
-         deallocate(fslink%dsites)
-         deallocate(fslink%splink)
-         deallocate(fslink%y2x)
-         deallocate(fslink%dxidyj)
-      endif
-! The result data
-!>>>>> 59:
-      read(lin)firstvarres%amfu,firstvarres%netcharge,firstvarres%dgm, &
-           firstvarres%nprop
-      nprop=firstvarres%nprop
-      allocate(firstvarres%listprop(nprop))
-      allocate(firstvarres%gval(6,nprop))
-      allocate(firstvarres%dgval(3,mc,nprop))
-      allocate(firstvarres%d2gval(mc2,nprop))
-!>>>>> 60:
-      read(lin)(firstvarres%gval(i,1),i=1,6)
-      do k=1,mc
-         read(21)(firstvarres%dgval(i,k,1),i=1,3)
-      enddo
-!>>>>> 61:
-      read(lin)(firstvarres%d2gval(i,1),i=1,mc2)
-      if(ocv()) write(*,*)'phase_varres size: ',j,size(ceq%phase_varres)
-   enddo
-!----- conditions, can be empty, NOTE: entered after phase_varres
-!>>>>> 62:
-   read(lin)ip
-   if(ip.gt.0) then
-      read(lin)dum16,text(1:ip)
-! set the conditions, ip will be incremented by 1 in enter_condition
-! the text contains " number: variable=value, "
-! we have to set each condition variable separately
-      jp=1
-      if(ocv()) write(*,*)'Conditions >',text(1:ip),'<',jp,ip
-      cloop: do while(jp.lt.ip)
-         k=index(text(jp:ip),':')
-         if(k.le.0) exit cloop
-         jp=jp+k
-         kp=min(jp+index(text(jp+1:),' '),ip)
-         if(kp.gt.jp) then
-! remove , as that indicates more conditions on same line
-            if(text(kp-1:kp-1).eq.',') then
-               text(kp-1:kp-1)=' '
-            endif
-         else
-            kp=ip
-         endif
-         jp=jp-1
-!         write(*,*)'condition 1 >',text(jp:kp),'<',jp
-         call set_condition(text(1:kp),jp,firsteq)
-! jp automatically update inside set_condition
-         if(gx%bmperr.ne.0) then
-            write(*,*)'Error setting conditions'
-            write(*,*)ip,' >',text(jp:kp),'<'
-            goto 1000
-         endif
-      enddo cloop
-   endif
-!---- experiments
-!>>>>> 63:
-   read(lin)ip
-   if(ip.gt.0) then
-      read(lin)dum16,text(1:ip)
-   endif
-!>>>>>> 64: restore savesysmat
-   read(lin)ceq%sysmatdim,ceq%nfixmu,ceq%nfixph
-!   write(*,*)'savesysmat: ',ceq%sysmatdim,ceq%nfixmu,ceq%nfixph
-   if(ceq%nfixmu.gt.0) then
-      allocate(ceq%fixmu(ceq%nfixmu))
-      read(lin)(ceq%fixmu(kp),kp=1,ceq%nfixmu)
-   endif
-   if(ceq%nfixph.gt.0) then
-      allocate(ceq%fixph(2,ceq%nfixph))
-      read(lin)(ceq%fixph(1,kp),ceq%fixph(2,kp),kp=1,ceq%nfixph)
-   endif
-   if(ceq%sysmatdim.gt.0) then
-      allocate(ceq%savesysmat(ceq%sysmatdim,ceq%sysmatdim))
-      do mc=1,ceq%sysmatdim
-         read(lin)(ceq%savesysmat(mc,kp),kp=1,ceq%sysmatdim)
-      enddo
-   endif
-! allocate and zero the array with current chemical potentials
-   if(.not.allocated(ceq%cmuval)) allocate(ceq%cmuval(noofel))
-   ceq%cmuval=zero
+!      write(*,88)'3E reading phase_varres ',j,highcs,lokvares,nsl,mc,&
+!           trim(phlista(firstvarres%phlink)%name)
+!88    format(a,5i7,2x,a)
 !
-   write(*,*)'UNIFINSHED reading of equilibria ...',highcs
+      allocate(firstvarres%constat(mc))
+      do i=1,mc
+         firstvarres%constat(i)=iws(lokvares+displace+i-1)
+      enddo
+      displace=displace+mc
+      allocate(firstvarres%yfr(mc))
+      call loadrn(mc,iws(lokvares+displace),firstvarres%yfr)
+      displace=displace+mc*nwpr
+!      write(*,*)'3E not allocating mmyfr'
+      displace=displace+mc*nwpr
+      allocate(firstvarres%sites(nsl))
+!      write(*,*)'3E sites: ',lokvares,displace,lokvares+displace
+      call loadrn(nsl,iws(lokvares+displace),firstvarres%sites)
+      displace=displace+nsl*nwpr
+      fsrec: if(btest(firstvarres%status2,CSDLNK)) then
+         write(*,*)'3E NOT implemented disordered fraction link'
+      else
+         firstvarres%disfra%varreslink=0
+      endif fsrec
+      displace=displace+1
+      call loadr(lokvares+displace,iws,firstvarres%amfu)
+      call loadr(lokvares+displace+nwpr,iws,firstvarres%netcharge)
+      call loadr(lokvares+displace+2*nwpr,iws,firstvarres%dgm)
+      displace=displace+3*nwpr
+      nprop=iws(lokvares+displace)
+      firstvarres%nprop=nprop
+      write(*,*)'3E nprop: ',trim(phlista(lokph)%name),&
+           displace,lokvares+displace,nprop
+      nprop=20
+      allocate(firstvarres%gval(6,nprop))
+      displace=displace+1
+      do i=1,6
+         call loadr(lokvares+displace+nwpr*(i-1),iws,firstvarres%gval(i,1))
+      enddo
+      displace=displace+6*nwpr
+      allocate(firstvarres%dgval(3,mc,nprop))
+      do i=1,3
+         do k=1,mc
+            call loadr(lokvares+displace,iws,firstvarres%dgval(i,k,1))
+            displace=displace+nwpr
+         enddo
+      enddo
+      allocate(firstvarres%d2gval(mc2,nprop))
+      do i=1,mc2
+         call loadr(lokvares+displace+nwpr*(i-1),iws,firstvarres%d2gval(i,1))
+      enddo
+! link to next stored phase_varres record
+      lokvares=iws(lokvares)
+   enddo compset
+   ceq%maxiter=iws(lokeq+eqdis)
+   call loadrn(noofel,iws(lokeq+eqdis+1),ceq%cmuval)
+   eqdis=eqdis+1+noofel*nwpr
+   call loadr(lokeq+eqdis,iws,ceq%xconv)
+   call loadr(lokeq+eqdis+nwpr,iws,ceq%gmindif)
+!   write(*,*)'3E used size: ',eqdis+2*nwpr
+!   goto 1000
+!
+!
+!   write(*,*)'UNIFINSHED reading of equilibria ...',highcs
 ! what about the free list ....??? there can be free records below highcs ...
    csfree=highcs+1
 1000 continue
