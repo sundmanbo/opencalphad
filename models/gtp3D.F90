@@ -17,10 +17,10 @@
    character name1*24,quest*32
    double precision yarr(maxcons2),sites(maxsubl),qq(5),yyy,xxx,sss,ydef
    integer knl(maxsubl),knr(maxcons2)
-   character line*64,ch1*1
+   character line*64,ch1*1,crest*24
    character :: lastph*24='                        '
    character*1 :: chd='Y'
-   integer qph,lokph,nsl,kkk,loksp,ip,ll,nr
+   integer qph,lokph,nsl,kkk,loksp,ip,ll,nr,yrest
    TYPE(gtp_equilibrium_data), pointer :: ceq
    logical once
 ! save here to use the same default as last time
@@ -87,12 +87,16 @@
 ! ask for constitution
    kkk=0
    nylat: do ll=1,nsl
+      yrest=0
       sss=one
       ydef=one
       if(knl(ll).eq.1) then
          kkk=kkk+1; cycle nylat
       endif
-      nycon: do nr=1,knl(ll)-1
+      nycon: do nr=1,knl(ll)
+         if(nr.eq.knl(ll) .and. yrest.eq.0) then
+            cycle nycon
+         endif
          kkk=kkk+1
          loksp=phlista(lokph)%constitlist(kkk)
          line='Fraction of '//splista(loksp)%symbol
@@ -105,6 +109,20 @@
 20        continue
          ydef=min(yarr(kkk),ydef)
          call gparrd(line(1:ip+2),cline,last,xxx,ydef,q1help)
+         if(buperr.ne.0) then
+!            write(*,*)'3D Allow REST: ',trim(cline),last,buperr,yrest
+            buperr=0
+            if(yrest.eq.0) then
+               crest=cline(last:last+3)
+               call capson(crest)
+               if(crest(1:4).eq.'REST') then
+                  yrest=nr
+                  last=len(cline)
+                  crest=splista(loksp)%symbol
+                  cycle nycon
+               endif
+            endif
+         endif
          if(xxx.lt.zero) then
             if(once) then
                write(*,*)'A fraction must be greater than zero'
@@ -128,10 +146,15 @@
 !         write(*,*)'ydef: ',ydef,sss
          yarr(kkk)=xxx
       enddo nycon
-! the last constituent is set to the rest
-      kkk=kkk+1
-      yarr(kkk)=max(sss,1.0D-12)
-      write(*,21)'Last fraction set to: ',yarr(kkk)
+! if yrest is zero the last constituent is set to the rest, otherwise yrest
+      if(yrest.eq.0) then
+         kkk=kkk+1
+         yarr(kkk)=max(sss,1.0D-12)
+         write(*,21)'Last fraction set to: ',yarr(kkk)
+      else
+         yarr(yrest)=max(sss,1.0D-12)
+         write(*,21)'Fraction of '//trim(crest)//' set to: ',yarr(yrest)
+      endif
    enddo nylat
 ! set the new constitution
    call set_constitution(iph,ics,yarr,qq,ceq)

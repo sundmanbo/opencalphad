@@ -4466,11 +4466,13 @@
 ! BEWARE mmyfr must be kept!
 ! BEWARE disordered fraction set!!!!
                   disfravares=ceq%phase_varres(lokjcs)%disfra%varreslink
-                  allocate(tmmyfr(size(ceq%phase_varres(lokjcs)%mmyfr)))
-                  tmmyfr=ceq%phase_varres(lokjcs)%mmyfr
-                  ceq%phase_varres(lokjcs)=ceq%phase_varres(lokics)
-                  ceq%phase_varres(lokics)%mmyfr=tmmyfr
-                  deallocate(tmmyfr)
+                  if(allocated(ceq%phase_varres(lokjcs)%mmyfr)) then
+                     allocate(tmmyfr(size(ceq%phase_varres(lokjcs)%mmyfr)))
+                     tmmyfr=ceq%phase_varres(lokjcs)%mmyfr
+                     ceq%phase_varres(lokjcs)=ceq%phase_varres(lokics)
+                     ceq%phase_varres(lokics)%mmyfr=tmmyfr
+                     deallocate(tmmyfr)
+                  endif
                   ceq%phase_varres(lokjcs)=ceq%phase_varres(lokics)
 ! Some content in jcs must be set or restorted separately
                   ceq%phase_varres(lokjcs)%phtupx=jtup

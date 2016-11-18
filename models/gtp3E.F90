@@ -323,8 +323,11 @@
 !   call svfunsave(iws,firsteq)
 !------------- references
 !>>>>> 40: bibliographic references
-   write(*,*)'3E NOT saving bibliography'
-!   call bibliosave(iws)
+!   write(*,*)'3E NOT saving bibliography'
+! link to bibliography is stored in 22
+   call bibliosave(lok,iws)
+   iws(22)=lok
+   iws(23)=gtp_biblioref_version
 !-------------------------------------------------------
 ! write the equilibrium records, at present for only FIRSTEQ
 ! conditions, components, phase_varres for all composition sets etc
@@ -713,6 +716,8 @@
             lokpty=lok
             iws(lok+1)=addlink%type
             iws(lok+2)=addlink%aff
+!            write(*,*)'3E saving additions in: ',phreclink+2,lok,iws(lok+1),&
+!                 iws(lok+2)
 ! link the property recordds sequentially
          else
             write(*,*)'3E unknown addition record type ',addlink%type
@@ -767,7 +772,7 @@
    call storc(lokeq+5,iws,ceq%eqname)
    displace=5+nwch(24)
    call storc(lokeq+displace,iws,ceq%comment)
-   displace=5+nwch(72)
+   displace=displace+nwch(72)
    call storrn(2,iws(lokeq+displace),ceq%tpval)
    call storr(lokeq+displace+2*nwpr,iws,ceq%weight)
    displace=displace+3*nwpr
@@ -775,7 +780,8 @@
 !---- conditions, write as text and recreate when reading file
    call get_all_conditions(text,0,ceq)
    if(gx%bmperr.ne.0) goto 1000
-   kl=index(text,'CRLF')
+   kl=index(text,'CRLF')-1
+!   write(*,*)'3E cond: ',trim(text),kl
    if(kl.gt.1) then
       call wtake(lok,1+nwch(kl),iws)
       if(buperr.ne.0) then
@@ -793,6 +799,7 @@
    call get_all_conditions(text,1,ceq)
    if(gx%bmperr.ne.0) goto 1000
    kl=len_trim(text)
+!   write(*,*)'3E exp: ',trim(text),kl
    if(kl.gt.1) then
       call wtake(lok,1+nwch(kl),iws)
       if(buperr.ne.0) then
@@ -895,7 +902,7 @@
       endif
       iws1=iws(1)
       lokph=firstvarres%phlink
-      write(*,107)'3E saving: ',j,lok,rsize,mc,nsl,trim(phlista(lokph)%name)
+!      write(*,107)'3E saving: ',j,lok,rsize,mc,nsl,trim(phlista(lokph)%name)
 !      write(*,107)'3E saving: ',j,phasetuple(j)%ixphase,nsl,&
 !      trim(phlista(lokph)%name)
 107   format(a,5i7,2x,a)
@@ -1105,18 +1112,27 @@
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim}
- subroutine bibliosave(lut)
+ subroutine bibliosave(bibhead,iws)
 ! saves references on a file
    implicit none
-   integer lut
+   integer bibhead,iws(*)
 !\end{verbatim}
    character longline*2048
-   integer ir,jp,ll,nl
+   integer ir,jp,ll,nl,lok,rsize
 !>>>>> 40:
 !   write(*,*)'Saving reference version and number of:',&
 !        gtp_biblioref_version,reffree-1
-   write(lut)gtp_biblioref_version,reffree-1
+   rsize=3+reffree-1
+   call wtake(bibhead,rsize,iws)
+   if(buperr.ne.0) then
+      write(*,*)'Error reserving biblographiic record',rsize,iws(1)
+      gx%bmperr=4399; goto 1000
+   endif
+   iws(bibhead)=reffree-1
    do ir=1,reffree-1
+! a bibliographic reference contains 16 character identifier and multiple
+! 64 characters text.  Concatinate that into a single text and save one
+! reference in each record linked from bibhead
       longline=bibrefs(ir)%reference
       jp=17
       nl=size(bibrefs(ir)%refspec)
@@ -1125,10 +1141,15 @@
          jp=jp+64
       enddo
       jp=len_trim(longline)
-!>>>>> 41:
-      write(lut)jp
-!>>>>> 42:
-      write(lut)longline(1:jp)
+      rsize=1+nwch(jp)
+      call wtake(lok,rsize,iws)
+      if(buperr.ne.0) then
+         write(*,*)'Error reserving biblographiic record',rsize,iws(1)
+         gx%bmperr=4399; goto 1000
+      endif
+      iws(lok)=jp
+      call storc(lok+1,iws,longline(1:jp))
+      iws(bibhead+ir)=lok
    enddo
 1000 continue
    return
@@ -1357,9 +1378,13 @@
    if(gx%bmperr.ne.0) goto 1000
 !---------- bibliographic references
 !>>>>> 40.. inside refread
-   write(*,*)'3E NOT reading bibliography'
-!   call biblioread(lin)
-   if(gx%bmperr.ne.0) goto 1000
+!   write(*,*)'3E NOT reading bibliography'
+   if(iws(23).ne.gtp_biblioref_version) then
+      write(*,*)'Bibliography version not same ',iws(23),gtp_biblioref_version
+   else
+      call biblioread(iws(22),iws)
+      if(gx%bmperr.ne.0) goto 1000
+   endif
 !---------- equilibrium record
    if(iws(17).ne.gtp_equilibrium_data_version) then
       write(*,*)'Wrong equilibrium data version'
@@ -1411,7 +1436,7 @@
       integer noi
    end type saveint
    type(saveint), dimension(:), pointer :: stack
-   type(gtp_phase_add), pointer :: addlink
+   type(gtp_phase_add), pointer :: addlink,nyaddlink
 !
    allocate(stack(5))
 !   write(*,*)'in readphase:',iws(9),iws(10),iws(11),iws(12),iws(13),&
@@ -1466,8 +1491,8 @@
       do i=1,9
          phlista(jph)%linktocs(i)=iws(lok+displace+i)
       enddo
-      write(*,*)'Reading phase: ',trim(phlista(jph)%name),&
-           phlista(jph)%alphaindex,phlista(jph)%linktocs(1)
+!      write(*,*)'Reading phase: ',trim(phlista(jph)%name),&
+!           phlista(jph)%alphaindex,phlista(jph)%linktocs(1)
       displace=displace+9
       do i=1,nsl
          phlista(jph)%nooffr(i)=iws(lok+displace+i)
@@ -1582,29 +1607,29 @@
       endif
 !------ additions list
 !500 continue
-      nullify(phlista(jph)%additions)
-510   continue
-      write(*,*)'NOT Reading any addition; '
-      goto 900
-      if(i1.eq.1) then
-! here addition record should be created but as I have not managed to
-! save the functions I just skip this for the moment and use create_magrec
-         call create_magrec_inden(addlink,i3)
-         if(gx%bmperr.ne.0) goto 1000
-         if(.not.associated(phlista(jph)%additions)) then
-            phlista(jph)%additions=>addlink
+      lokem=phreclink+2
+!      write(*,*)'3E Any addition for ',trim(phlista(jph)%name),lokem
+      if(iws(lokem).gt.0) then
+         lokem=iws(lokem)
+510      continue
+         write(*,*)'3E An addition type ',iws(lokem+1),' for ',&
+              trim(phlista(jph)%name)
+         if(iws(lokem+1).eq.INDENMAGNETIC) then
+            call create_magrec_inden(nyaddlink,iws(lokem+2))
+            if(gx%bmperr.ne.0) goto 1000
+! just set it as a link, do not care if there are other additions ...
+            phlista(jph)%additions=>nyaddlink
+            nullify(nyaddlink%nextadd)
          else
-            addlink%nextadd=>addlink
-            addlink=>addlink%nextadd
+            write(*,*)'3E unknown addition'
+            nullify(phlista(jph)%additions)
+            goto 900
          endif
-         goto 510
-      elseif(i1.eq.-1) then
-! end of addition list
-         continue
-         if(i2.ne.i1 .and. i3.ne.i1) write(*,*)'end of phase error:',i2,i3
+         lokem=iws(lokem)
+         if(lokem.gt.0) goto 510
+      else
+         nullify(phlista(jph)%additions)
       endif
-!----------------------------------
-! Now the phase_varres record ....
 900   continue
 ! take next phase
       lok=iws(lok)
@@ -1772,7 +1797,7 @@
    integer lokeq,iws(*)
    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-   character text*512,dum16*16
+   character text*512,dum16*16,line*72
    type(gtp_phase_varres), pointer :: firstvarres
    TYPE(gtp_fraction_set) :: fslink
    integer i,ierr,ip,isp,ivar,j,jp,k,lokcs,lokph,mc,mc2,nprop,nsl,kp
@@ -1796,55 +1821,13 @@
 !   write(*,*)'Reading equilibrium: ',ceq%eqname
    displace=5+nwch(24)
    call loadc(lokeq+displace,iws,ceq%comment)
+!   write(*,*)'3E comment: "',trim(ceq%comment),'" ',len_trim(ceq%comment)
    displace=displace+nwch(72)
-!----- conditions (note that inactive conditions not set)
-   lok=iws(lokeq+displace)
-   if(lok.gt.0) then
-      llen=iws(lok)
-      call loadc(lok+1,iws,text(1:llen))
-      write(*,*)'Conditions: "',text(1:llen),'"',llen
-      if(.false.) then
-! set the conditions, ip will be incremented by 1 in enter_condition
-! the text contains " number: variable=value, "
-! we have to set each condition variable separately
-         jp=1
-         if(ocv()) write(*,*)'Conditions >',text(1:ip),'<',jp,ip
-         cloop: do while(jp.lt.ip)
-            k=index(text(jp:ip),':')
-            if(k.le.0) exit cloop
-            jp=jp+k
-            kp=min(jp+index(text(jp+1:),' '),ip)
-            if(kp.gt.jp) then
-! remove , as that indicates more conditions on same line
-               if(text(kp-1:kp-1).eq.',') then
-                  text(kp-1:kp-1)=' '
-               endif
-            else
-               kp=ip
-            endif
-            jp=jp-1
-            !         write(*,*)'condition 1 >',text(jp:kp),'<',jp
-            call set_condition(text(1:kp),jp,firsteq)
-! jp automatically update inside set_condition
-            if(gx%bmperr.ne.0) then
-               write(*,*)'Error setting conditions'
-               write(*,*)ip,' >',text(jp:kp),'<'
-               goto 1000
-            endif
-         enddo cloop
-      endif
-!   else
-!      write(*,*)'3E no conditions'
-   endif
-!----- experiments
-   lok=iws(lokeq+displace+1)
-   if(lok.gt.0) then
-      llen=iws(lok)
-      call loadc(lok+1,iws,text(1:llen))
-      write(*,*)'3E experiment: ',text(1:llen),llen
-!      call set_conditions
-   endif
-!----- components if not elements
+! values of T and P and weight
+   call loadrn(2,iws(lokeq+displace),ceq%tpval)
+   call loadr(lokeq+displace+2*nwpr,iws,ceq%weight)
+   displace=displace+3*nwpr
+!----- components (must be elements).  Must be entered before conditions
 ! complist already allocated for 20
    if(allocated(ceq%complist)) then
       deallocate(ceq%complist)
@@ -1871,6 +1854,52 @@
       call loadr(lok+disz+nwpr,iws,ceq%complist(llen)%molat)
       lokcc=iws(lokcc)
    enddo
+!----- conditions (note that inactive conditions not set)
+   lok=iws(lokeq+displace)
+   if(lok.gt.0) then
+      llen=iws(lok)
+      call loadc(lok+1,iws,text(1:llen))
+!      write(*,*)'3E Conditions: "',text(1:llen),'"',llen
+      if(llen.gt.0) then
+! set the conditions, kp will be incremented by 1 in enter_condition
+! the text contains " number: variable expression=value, "
+! we have to set each condition separately.  There can be , but no :
+! in the variable expressions.
+         jp=1; ip=llen
+         cloop: do while(jp.lt.ip)
+            k=index(text(jp:ip),':')
+            if(k.le.0) exit cloop
+            line=text(jp+k:ip)
+            jp=jp+k+2
+! remove any commma followed by space ", " as that indicates there are more 
+! conditions on the same line
+            kp=index(line,', ')
+            if(kp.gt.0) then
+               line(kp:)=' '
+            else
+               kp=index(line,' ')
+               line(kp:)=' '
+            endif
+            kp=0
+!            write(*,*)'3E set condition "',trim(line),'"',jp,ip
+            call set_condition(line,kp,ceq)
+            if(gx%bmperr.ne.0) then
+               write(*,*)'Error setting conditions'
+               goto 1000
+            endif
+         enddo cloop
+      endif
+!   else
+!      write(*,*)'3E no conditions'
+   endif
+!----- experiments
+   lok=iws(lokeq+displace+1)
+   if(lok.gt.0) then
+      llen=iws(lok)
+      call loadc(lok+1,iws,text(1:llen))
+      write(*,*)'3E experiment: ',text(1:llen),llen
+!      call set_conditions
+   endif
 !----------- phase_varres record
 !>>>>> 54:
    highcs=iws(lokeq+displace+3)
@@ -1914,7 +1943,7 @@
          mc2=mc*(mc+1)/2
       endif
 !      write(*,88)'3E reading phase_varres ',j,highcs,lokvares,nsl,mc,&
-!           trim(phlista(firstvarres%phlink)%name)
+!           trim(phlista(lokph)%name)
 !88    format(a,5i7,2x,a)
 !
       allocate(firstvarres%constat(mc))
@@ -1942,12 +1971,17 @@
       call loadr(lokvares+displace+2*nwpr,iws,firstvarres%dgm)
       displace=displace+3*nwpr
       nprop=iws(lokvares+displace)
+      if(nprop.ne.20) then
+         write(*,*)'3E nprop: ',nprop,displace,lokvares+displace,&
+           trim(phlista(lokph)%name)
+         nprop=20
+      endif
       firstvarres%nprop=nprop
-      write(*,*)'3E nprop: ',trim(phlista(lokph)%name),&
-           displace,lokvares+displace,nprop
-      nprop=20
+      allocate(firstvarres%listprop(nprop))
+! calculated results, only G saved
       allocate(firstvarres%gval(6,nprop))
       displace=displace+1
+! we have saved only G values
       do i=1,6
          call loadr(lokvares+displace+nwpr*(i-1),iws,firstvarres%gval(i,1))
       enddo
@@ -2018,36 +2052,21 @@
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim}
- subroutine biblioread(lin)
+ subroutine biblioread(bibhead,iws)
 ! read references from save file
    implicit none
-   integer lin
+   integer bibhead,iws(*)
 !\end{verbatim}
-   character text*512
-   integer i,iref,jp,nrefs
+   character text*2048
+   integer i,iref,jp,nrefs,lok,kk,ir,nr
 !>>>>> 40: number of references
 !   write(*,*)'Reading reference version and nummer of'
-   read(lin)i,nrefs
-!   write(*,*)i,nrefs
-   if(i.ne.gtp_biblioref_version) then
-      write(*,*)'Warning, the bibliographic references version not same'
-   endif
-   if(ocv()) write(*,*)'Reading bibligraphic references: ',nrefs,reffree
-!   reffree=nrefs+1
-   reffree=1
+   nrefs=iws(bibhead)
    do i=1,nrefs
-!>>>>> 41: number characters to read
-      read(lin)jp
-!      write(*,*)'Length of text: ',i,jp
-!>>>>> 42: text
-      if(jp.gt.512) then
-         write(*,*)'Too long bibliographic reference text',jp
-         gx%bmperr=4301; goto 1000
-      endif
-      read(lin)text(1:jp)
-!      write(*,*)text(1:jp)
+      lok=iws(bibhead+i)
+      jp=iws(lok)
+      call loadc(lok+1,iws,text(1:jp))
       call tdbrefs(text(1:16),text(17:jp),0,iref)
-      if(gx%bmperr.ne.0) goto 1000
    enddo
 1000 continue
    return

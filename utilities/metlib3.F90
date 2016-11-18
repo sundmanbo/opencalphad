@@ -5542,14 +5542,14 @@ CONTAINS
 ! due to the equivalence this stores the character bit map into localint2 !!
 ! the localtext will be padded with spaces after text
     localtxt=text
-! number of words to store llrounding off?? integers are 4 bytes (32 bits)
+! number of words to store rounding off?? integers are 4 bytes (32 bits)
     now=nwch(llen)
     do j=1,now
        iws(n+j-1)=localint(j)
     enddo
 !    localint2=localint
 !    write(*,800)llen,now,text(1:llen),localtxt(1:llen),localtxt2(1:llen)
-!800 format('storc: ',2i4,3(1x,a))
+!800 format('storc: ',2i4,3('"',a),'"')
 900 continue
     return
   end SUBROUTINE STORC
@@ -5565,15 +5565,15 @@ CONTAINS
 !    integer, allocatable, dimension(:) :: localint
 ! maximal size of character, note used also to store functions and bibliography
     integer, parameter :: maxchar=2048,maxequiv=512
-! NOTE BELOW DIMENSIONING BLEOW, maxchar=nbpw*maxequiv
+! NOTE BELOW DIMENSIONING BELOW, maxchar=nbpw*maxequiv
     character*(maxchar) localtxt
 ! assumed 32 bit integer, 8 bits character, 4 characters/word
     integer localint(maxequiv)
 ! equivalence can obly be made between local unallocated variables
     equivalence (localtxt,localint)
     llen=len(text)
-    if(llen.gt.256) then
-       write(*,*)'Attempt to extract a text larger than 256 characters'
+    if(llen.gt.maxchar) then
+       write(*,*)'Attempt to extract a text larger than ',maxchar
        buperr=1010;; goto 900
     endif
     now=nwch(llen)
@@ -5581,7 +5581,7 @@ CONTAINS
        localint(j)=iws(n+j-1)
     enddo
 !    write(*,800)llen,now,localtxt(1:llen)
-!800 format(2i3,' "',a,'"')
+!800 format('LOADC: ',2i3,' "',a,'"')
     text=localtxt(1:llen)
 900 continue
     return
@@ -5631,7 +5631,7 @@ CONTAINS
     double precision dlocal(maxr)
     integer ilocal(maxr*nwpr)
     equivalence (dlocal,ilocal)
-    if(i.gt.256) then
+    if(n.gt.256) then
        write(*,*)'STORRN cannot handle arrays larger than ',maxr
        buperr=1010; goto 900
     endif
@@ -5654,7 +5654,7 @@ CONTAINS
     double precision dlocal(maxr)
     integer ilocal(maxr*nwpr)
     equivalence (dlocal,ilocal)
-    if(i.gt.256) then
+    if(n.gt.256) then
        write(*,*)'LOADRN cannot handle arrays larger than ',maxr
        buperr=1010; goto 900
     endif
