@@ -1074,7 +1074,8 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! reference: can be used for search of reference
 ! refspec: free text
      character*16 reference
-     character*64, dimension(:), allocatable :: refspec
+!     character*64, dimension(:), allocatable :: refspec
+     character(len=:), allocatable :: nyrefspec
   END TYPE gtp_biblioref
 ! allocated in init_gtp
   TYPE(gtp_biblioref), private, allocatable :: bibrefs(:)

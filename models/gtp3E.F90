@@ -1135,11 +1135,12 @@
 ! reference in each record linked from bibhead
       longline=bibrefs(ir)%reference
       jp=17
-      nl=size(bibrefs(ir)%refspec)
-      do ll=1,nl
-         longline(jp:)=bibrefs(ir)%refspec(ll)
-         jp=jp+64
-      enddo
+      longline(17:)=bibrefs(ir)%nyrefspec
+!      nl=size(bibrefs(ir)%refspec)
+!      do ll=1,nl
+!         longline(jp:)=bibrefs(ir)%refspec(ll)
+!         jp=jp+64
+!      enddo
       jp=len_trim(longline)
       rsize=1+nwch(jp)
       call wtake(lok,rsize,iws)
@@ -1378,7 +1379,7 @@
    if(gx%bmperr.ne.0) goto 1000
 !---------- bibliographic references
 !>>>>> 40.. inside refread
-!   write(*,*)'3E NOT reading bibliography'
+!   write(*,*)'3E reading bibliography'
    if(iws(23).ne.gtp_biblioref_version) then
       write(*,*)'Bibliography version not same ',iws(23),gtp_biblioref_version
    else
@@ -1801,11 +1802,12 @@
    type(gtp_phase_varres), pointer :: firstvarres
    TYPE(gtp_fraction_set) :: fslink
    integer i,ierr,ip,isp,ivar,j,jp,k,lokcs,lokph,mc,mc2,nprop,nsl,kp
-   integer displace,llen,lok,lokvares,lokdiz,eqdis,lokcc,disz
+   integer displace,llen,lok,lokvares,lokdiz,eqdis,lokcc,disz,conditionplace
    double precision, dimension(:,:), allocatable :: ca,ci
 ! containing conditions, components and phase varres records for wach compset
 !>>>>> 50:
 !   read(lin)ceq%eqname,ceq%eqno,ceq%status,ceq%next
+!   write(*,*)'In readequil ',lokeq
    if(lokeq.le.0) then
       write(*,*)'Not an equilibrium record'
       gx%bmperr=4399; goto 1000
@@ -1855,51 +1857,8 @@
       lokcc=iws(lokcc)
    enddo
 !----- conditions (note that inactive conditions not set)
-   lok=iws(lokeq+displace)
-   if(lok.gt.0) then
-      llen=iws(lok)
-      call loadc(lok+1,iws,text(1:llen))
-!      write(*,*)'3E Conditions: "',text(1:llen),'"',llen
-      if(llen.gt.0) then
-! set the conditions, kp will be incremented by 1 in enter_condition
-! the text contains " number: variable expression=value, "
-! we have to set each condition separately.  There can be , but no :
-! in the variable expressions.
-         jp=1; ip=llen
-         cloop: do while(jp.lt.ip)
-            k=index(text(jp:ip),':')
-            if(k.le.0) exit cloop
-            line=text(jp+k:ip)
-            jp=jp+k+2
-! remove any commma followed by space ", " as that indicates there are more 
-! conditions on the same line
-            kp=index(line,', ')
-            if(kp.gt.0) then
-               line(kp:)=' '
-            else
-               kp=index(line,' ')
-               line(kp:)=' '
-            endif
-            kp=0
-!            write(*,*)'3E set condition "',trim(line),'"',jp,ip
-            call set_condition(line,kp,ceq)
-            if(gx%bmperr.ne.0) then
-               write(*,*)'Error setting conditions'
-               goto 1000
-            endif
-         enddo cloop
-      endif
-!   else
-!      write(*,*)'3E no conditions'
-   endif
-!----- experiments
-   lok=iws(lokeq+displace+1)
-   if(lok.gt.0) then
-      llen=iws(lok)
-      call loadc(lok+1,iws,text(1:llen))
-      write(*,*)'3E experiment: ',text(1:llen),llen
-!      call set_conditions
-   endif
+! conditions cannot be entered before the phase_varres for all phases
+   conditionplace=displace
 !----------- phase_varres record
 !>>>>> 54:
    highcs=iws(lokeq+displace+3)
@@ -2000,6 +1959,56 @@
 ! link to next stored phase_varres record
       lokvares=iws(lokvares)
    enddo compset
+!----- conditions (note that inactive conditions not set)
+!   lok=iws(lokeq+displace)
+   lok=iws(lokeq+conditionplace)
+   if(lok.gt.0) then
+      llen=iws(lok)
+      call loadc(lok+1,iws,text(1:llen))
+!      write(*,*)'3E Conditions: "',text(1:llen),'"',llen
+      if(llen.gt.0) then
+! set the conditions, kp will be incremented by 1 in enter_condition
+! the text contains " number: variable expression=value, "
+! we have to set each condition separately.  There can be , but no :
+! in the variable expressions.
+         jp=1; ip=llen
+         cloop: do while(jp.lt.ip)
+            k=index(text(jp:ip),':')
+            if(k.le.0) exit cloop
+            line=text(jp+k:ip)
+            jp=jp+k+2
+! remove any commma followed by space ", " as that indicates there are more 
+! conditions on the same line
+            kp=index(line,', ')
+            if(kp.gt.0) then
+               line(kp:)=' '
+            else
+               kp=index(line,' ')
+               line(kp:)=' '
+            endif
+            kp=0
+!            write(*,*)'3E set condition "',trim(line),'"',jp,ip
+            call set_condition(line,kp,ceq)
+            if(gx%bmperr.ne.0) then
+               write(*,*)'Error setting conditions'
+               goto 1000
+            endif
+         enddo cloop
+      endif
+!   else
+!      write(*,*)'3E no conditions'
+   endif
+!----- experiments
+   lok=iws(lokeq+conditionplace+1)
+   if(lok.gt.0) then
+      llen=iws(lok)
+      call loadc(lok+1,iws,text(1:llen))
+      write(*,*)'3E experiment: ',text(1:llen),llen
+!      call set_conditions
+   else
+      write(*,*)'3E NO experiments '
+   endif
+!-------------------------- a few remaining things
    ceq%maxiter=iws(lokeq+eqdis)
    call loadrn(noofel,iws(lokeq+eqdis+1),ceq%cmuval)
    eqdis=eqdis+1+noofel*nwpr

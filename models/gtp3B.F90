@@ -3637,7 +3637,8 @@
          if(mode.eq.1) then
 !            write(*,70)i,refid,bibrefs(i)%refspec
 !70          format('3B tdbrefs: ',i4,a,a)
-            deallocate(bibrefs(iref)%refspec)
+!            deallocate(bibrefs(iref)%refspec)
+            deallocate(bibrefs(iref)%nyrefspec)
             goto 200
          else
 ! reference already exist and no changes needed
@@ -3652,21 +3653,29 @@
    bibrefs(iref)%reference=refid
 200 continue
    ml=len_trim(line)
-   nr=(ml+63)/64
-   allocate(bibrefs(iref)%refspec(nr))
-   mc=1
-   nc=0
+!   nr=(ml+63)/64
+!   allocate(bibrefs(iref)%refspec(nr))
+   if(ml.gt.1024) then
+      write(*,*)'Too long bibliographic references will be truncated'
+      mc=1024
+   else
+      mc=ml
+   endif
+   allocate(character(len=mc) :: bibrefs(iref)%nyrefspec)
+!   mc=1
+!   nc=0
+   bibrefs(iref)%nyrefspec=line(1:mc)
 !   write(*,202)'3B newref: ',iref,refid,nr,line(1:min(32,len_trim(line)))
 !202 format(a,i4,1x,a,i3,1x,a)
-   do jl=1,nr
+!   do jl=1,nr
 ! 1-64       mc=1, nc=64
 ! 65-122
-      bibrefs(iref)%refspec(jl)=' '
-      nc=nc+min(ml,64)
-      bibrefs(iref)%refspec(jl)=line(mc:nc)
-      mc=nc+1
-      ml=ml-64
-   enddo
+!      bibrefs(iref)%refspec(jl)=' '
+!      nc=nc+min(ml,64)
+!      bibrefs(iref)%refspec(jl)=line(mc:nc)
+!      mc=nc+1
+!      ml=ml-64
+!   enddo
 1000 continue
    return
  end subroutine tdbrefs

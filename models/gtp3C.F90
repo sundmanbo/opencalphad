@@ -3087,11 +3087,12 @@
       longline=bibrefs(ir)%reference
       longline(17:17)="'"
       jp=18
-      nl=size(bibrefs(ir)%refspec)
-      do ll=1,nl
-         longline(jp:)=bibrefs(ir)%refspec(ll)
-         jp=jp+64
-      enddo
+!      nl=size(bibrefs(ir)%refspec)
+!      do ll=1,nl
+!         longline(jp:)=bibrefs(ir)%refspec(ll)
+!         jp=jp+64
+!      enddo
+      longline(jp:)=bibrefs(ir)%nyrefspec
       jp=len_trim(longline)+1
       longline(jp:jp)="'"
       call wrice(lut,0,17,78,longline(1:jp))
