@@ -3301,7 +3301,7 @@
    nostv: if(.not.allocated(current%statvar)) then
 ! an experiment is a symbol!!! Then statvar is not allocated
       symsym=current%statev
-!      write(*,*)'3C A symbol, not a state variable for this experiment',symsym
+      write(*,*)'3C A symbol, not a state variable for this experiment',symsym
 ! get the symbol name
       text=svflista(symsym)%name
       ip=len_trim(text)+1
@@ -3393,6 +3393,14 @@
       xxx=evaluate_svfun_old(symsym,actual_arg,1,ceq)
    endif
    if(gx%bmperr.ne.0) then
+! it is maybe a derivative ... 
+      write(*,*)'3C we cannot evaluate a derivative here ...',gx%bmperr
+! but meq_evaluate_svfun not available here ... it is part of the minimizer
+!      gx%bmperr=0
+!      xxx=meq_evaluate_svfun(symsym,actual_arg,0,ceq)
+!   endif
+!   if(gx%bmperr.ne.0) then
+      write(*,*)'3C Error evaluating symbol: ',gx%bmperr
       text(ip:)=' $ ?? '
       ip=ip+5
       gx%bmperr=0

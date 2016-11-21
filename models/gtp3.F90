@@ -784,12 +784,12 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! This is a way to try to organize them.  Each addtion has a unique
 ! number identifying it when created, listed or calculated.  These
 ! numbers are defined here
-  integer, public, parameter :: indenmagnetic=1
-  integer, public, parameter :: debyecp=2
-  integer, public, parameter :: weimagnetic=3
-  integer, public, parameter :: einsteincp=4
-  integer, public, parameter :: elasticmodela=5
-  integer, public, parameter :: glastransmodela=6
+  integer, public, parameter :: INDENMAGNETIC=1
+  integer, public, parameter :: XIONGMAGNETIC=2
+  integer, public, parameter :: DEBYECP=3
+  integer, public, parameter :: EINSTEINCP=4
+  integer, public, parameter :: TWOSTATEMODEL1=5
+  integer, public, parameter :: ELASTICMODEL1=6
 ! Note that additions often use extra parameters like Curie or Debye
 ! temperatures defined by parameter identifiers stored in gtp_propid
 !\end{verbatim}

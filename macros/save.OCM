@@ -8,6 +8,9 @@ r t steel7
 l sh a
 
 @&
+@$ Set reference state for Cr
+
+set ref cr bcc * 1e5
 
 set c t=1200 p=1e5 n=1 x(c)=.05 x(cr)=.05 x(mo)=.05 x(si)=.003 x(v)=.01
 
@@ -18,22 +21,40 @@ c e
 l,,,,
 
 @&
-@$ Save workspaces unformatted on a file
+@$ enter some state variable functions
+
+enter symb cp = h.t;
+
+enter symb htr = hm(liq)-hm(bcc);
+
+enter symb gcr = ac(cr)/x(bcc,cr);
+
+@&
+
+list symb
+
+calc symb
+
+
+
+@&
+@$ Save workspaces unformatted on a file, final Y to overwrite!!
 
 save
 unf
 testing
 steel7
+Y
 
 @&
-@$ Reinitiate the program and delete all data
+@$ Reinitiate the program and delete all data and results
 
 new Y
 
 l d,,,
 
 @&
-@$ Read the last calculation from the unformatted file
+@$ Read the the unformatted file with data and the last calculation
 
 read
 unf
@@ -44,19 +65,26 @@ steel7
 l c
 
 @&
-@$ and the data
+@$ and the symbols
+
+l sym
+
+
+@&
+@$ and all the parameters
 
 l d
 
 @&
-@$ W can recalculate the equilibrium
+
+@$ We can recalculate the equilibrium
 
 c e
 
 l,,,,
 
 @&
-@$ and calculate another equilibrium
+@$ and continue calculate another equilibrium
 
 set c t=800
 
@@ -65,7 +93,8 @@ c e
 l,,,,,
 
 @&
-@$ Just to test that one can set any component as the "rest" or balance
+@$ Just to test that one can set the fraction of any component
+@$ as the "rest" or "balance"
 
 c p liq 1 n 
 .02

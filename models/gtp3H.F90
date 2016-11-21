@@ -6,18 +6,17 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
 ! Additions have a unique number, given sequentially as implemented
 ! These are all defined in gtp3.F90
+!  integer, public, parameter :: INDENMAGNETIC=1
+!  integer, public, parameter :: XIONGMAGNETIC=2
+!  integer, public, parameter :: DEBYECP=3
+!  integer, public, parameter :: EINSTEINCP=4
+!  integer, public, parameter :: TWOSTATESMODEL1=5
+!  integer, public, parameter :: ELASTICMODEL1=6
 ! integer, public, parameter :: indenmagnetic=1
 ! integer, public, parameter :: debyecp=2
-! integer, public, parameter :: weimagnetic=3
 ! integer, public, parameter :: einstaincp=4
 ! integer, public, parameter :: elasticmodela=5
 ! integer, public, parameter :: glastransmodela=6
-! 1 is Inden magnetic model with mixed Cuire and Neel temperatures and aff
-! 2 is Debye Cp model for low T
-! 3 is Inden magnetic model with separate Curie and Neel temp
-! 4 is Einstein Cp model for low T
-! 5 is Elastic model A
-! 6 is glas transition model
 !------------------------------------
 ! For each addition XX there is a subroutine create_XX
 ! called from the add_addrecord
@@ -51,20 +50,20 @@
       call calc_debyecp(moded,phres,addrec,lokph,mc,ceq)
       write(kou,*)' Debye Cp model not implemented yet'
       gx%bmperr=4331
-   case(weimagnetic) ! Wei-Inden
-      call calc_weimagnetic(moded,phres,addrec,lokph,mc,ceq)
+   case(xiongmagnetic) ! Inden-Xiong
+      call calc_xiongmagnetic(moded,phres,addrec,lokph,mc,ceq)
 !     write(kou,*)'Inden magnetic model with sep TC and TN not implemented yet'
 !      gx%bmperr=4332
    case(einsteincp) ! Einstein Cp
       call calc_einsteincp(moded,phres,addrec,lokph,mc,ceq)
       write(kou,*)' Einstein Cp model not implemented yet'
       gx%bmperr=4331
-   case(elasticmodela) ! Elastic model
+   case(elasticmodel1) ! Elastic model !
       call calc_elastica(moded,phres,addrec,lokph,mc,ceq)
       write(kou,*)' Elastic model not implemented yet'
-      gx%bmperr=7777
-   case(glastransmodela) ! Glas transition model
-      write(kou,*)' Glas transition not implemented yet'
+      gx%bmperr=4399
+   case(twostatemodel1) ! Two state model
+      write(kou,*)' Two state model not implemented yet'
       gx%bmperr=4333
    end select addition
 1000 continue
@@ -97,7 +96,7 @@
       gx%bmperr=4334
    case(debyecp) ! Debye Cp
       call create_debyecp(newadd)
-   case(weimagnetic) ! Inden-Wei.  Assume bcc if BCC part of phase name
+   case(xiongmagnetic) ! Inden-Xiong.  Assume bcc if BCC part of phase name
 !      bcc=.false.
 !      if(index('BCC',phlista(lokph)%name).gt.0) bcc=.true.
       if(extra(1:1).eq.'Y' .or. extra(1:1).eq.'y') then
@@ -105,13 +104,13 @@
       else
          bcc=.FALSE.
       endif
-      call create_weimagnetic(newadd,bcc)
+      call create_xiongmagnetic(newadd,bcc)
    case(einsteincp) ! Einstein Cp
       call create_einsteincp(newadd)
-   case(elasticmodela) ! Elastic model A
+   case(elasticmodel1) ! Elastic model 1
       call create_elastic_model_a(newadd)
-   case(glastransmodela) ! Glas transition model A
-      call create_glas_transition_modela(newadd)
+   case(twostatemodel1) ! Two state model 1
+      call create_twostate_model1(newadd)
    end select addition
    if(gx%bmperr.ne.0) goto 1000
 ! check if there are other additions 
@@ -550,8 +549,8 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine create_weimagnetic(addrec,bcc)
-! adds a wei type magnetic record, we must separate fcc and bcc by extra
+ subroutine create_xiongmagnetic(addrec,bcc)
+! adds a Xiong type magnetic record, we must separate fcc and bcc by extra
 ! copied from Inden magnetic model
 ! The difference is that it uses TCA for Curie temperature and TNA for Neel
 ! and individual Bohr magneton numbers
@@ -650,7 +649,7 @@
 ! store data in record
    allocate(addrec%explink(2))
    nullify(addrec%nextadd)
-   addrec%type=weimagnetic
+   addrec%type=xiongmagnetic
    addrec%explink(1)=llow
    addrec%explink(2)=lhigh
    addrecs=addrecs+1
@@ -675,13 +674,13 @@
    endif
 1000 continue
    return
- end subroutine create_weimagnetic
+ end subroutine create_xiongmagnetic
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine calc_weimagnetic(moded,phres,lokadd,lokph,mc,ceq)
-! calculates Wei-Indens magnetic contribution
+ subroutine calc_xiongmagnetic(moded,phres,lokadd,lokph,mc,ceq)
+! calculates Indens-Xiong magnetic contribution
 ! 
 ! Gmagn = RT*f(T/Tc)*ln(beta+1)
 ! moded: integer, 0=only G, S, Cp; 1=G and dG/dy; 2=Gm dG/dy and d2G/dy2
@@ -921,7 +920,7 @@
 ! jump here if no magnetic contribution
 1000 continue
    return
- end subroutine calc_weimagnetic
+ end subroutine calc_xiongmagnetic
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -933,7 +932,7 @@
 !\end{verbatim} %+
    integer typty
    allocate(newadd)
-   newadd%type=elasticmodela
+   newadd%type=elasticmodel1
    allocate(newadd%need_property(5))
 ! needed properties
    newadd%need_property=0
@@ -1184,7 +1183,7 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine create_glas_transition_modela(newadd)
+ subroutine create_twostate_model1(newadd)
 ! not implemented
    implicit none
    type(gtp_phase_add), pointer :: newadd
@@ -1192,7 +1191,7 @@
    write(kou,*)'Not implemented yet'; gx%bmperr=4078
 1000 continue
    return
- end subroutine create_glas_transition_modela
+ end subroutine create_twostate_model1
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -1308,7 +1307,7 @@
       write(unit,200)
 200   format(2x,'+ Debye Cp model, not implemented yet')
 !---------------------------------------------
-   case(weimagnetic) ! Inden-Wei
+   case(xiongmagnetic) ! Inden-Xiong
       write(unit,300)
 300   format(2x,'+ Inden magnetic model modified by Xiong'/&
            4x,'with separate Curie and Neel temperatures.'/&
@@ -1332,13 +1331,13 @@
       write(unit,400)
 400   format(2x,'+ Einstein Cp model:'/4x,'G = 3*R*T*LN(1-THET/T)')
 !---------------------------------------------
-   case(elasticmodela) ! Elastic model A
+   case(elasticmodel1) ! Elastic model 1
       write(unit,500)
-500   format(2x,'+ Elastic model A, with P interpreted as a force in',&
+500   format(2x,'+ Elastic model 1, with P interpreted as a force in',&
            ' the X direction.')
 !---------------------------------------------
-   case(glastransmodela) ! Glas transtion model A
-      write(unit,*)'Glas transition model A, not implemented yet'
+   case(twostatemodel1) ! Two state  model 1
+      write(unit,*)'Two state model 1, not implemented yet'
    end select addition
 1000 continue
    return

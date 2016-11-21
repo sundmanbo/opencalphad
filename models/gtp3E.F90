@@ -153,8 +153,39 @@
 ! integer function nwch calculates the number of words to store a character
 !   write(*,*)'In gtpsaveu: ',trim(specification),' version: ',trim(savefile)
 !
+! positions reserved in the beginning of the workspace
+! 3 element list
+! 4 element version
+! 5 species list
+! 6 species version
+! 7 tpfun list
+! 8 tpfun version
+! 9 phlista lista
+! 10 phase version
+! 11 endmember version
+! 12 interaction version
+! 13 property version
+! 14 phase tuples lista
+! 15 phase tuples version
+! 16 equilibrium lista
+! 17 equilibrium data version
+! 18 component version
+! 19 phase_varres version
+! 20 global data record
+! 21 global data version (not saved?)
+! 22 bibliography lista
+! 23 bibliography version
+! 24 svfun lista
+! 25 svfun version
+! 26 not used ...
+! 27
+! 28
+! 29
+! 30
+! missing: parameter_id_lista ... step/map/plot data
+! range record? experiments ...
 !----------------------------------------------------------------------
-   ! allocate the workspace, words 3-102 for pointers and other things
+! allocate the workspace, words 3-102 for pointers and things listed above
    call winit(miws,100,iws)
    if(buperr.ne.0) goto 1100
 !----------------------------------------------------------------------
@@ -174,7 +205,7 @@
       call wtake(lok,rsize,iws)
       if(buperr.ne.0) then
          write(*,*)'Error reserving element record'
-         gx%bmperr=4399; goto 1000
+         gx%bmperr=4399; goto 1100
       endif
       call storc(lok+1,iws,ellista(i)%symbol)
       call storc(lok+2,iws,ellista(i)%name)
@@ -211,7 +242,7 @@
       call wtake(lok,rsize+splista(isp)%noofel*(1+nwpr),iws)
       if(buperr.ne.0) then
          write(*,*)'Error reserving species record'
-         gx%bmperr=4399; goto 1000
+         gx%bmperr=4399; goto 1100
       endif
 !      write(*,*)'3E refstatesymbol 2: ',ibug,iws(ibug),lok
       call storc(lok+1,iws,splista(isp)%symbol)
@@ -247,7 +278,7 @@
    call wtake(lok,freetpfun,iws)
    if(buperr.ne.0) then
       write(*,*)'Error reserving tpfun record'
-      gx%bmperr=4399; goto 1000
+      gx%bmperr=4399; goto 1100
    endif
    iws(7)=lok
    iws(8)=tpfun_expression_version
@@ -257,7 +288,7 @@
 ! store all TPfuns here. In parameters just store an index!
 ! we have to pass iws also ....
       call save0tpfun(ffun,iws,i)
-      if(gx%bmperr.ne.0) goto 1000
+      if(gx%bmperr.ne.0) goto 1100
 !      write(*,*)'3E TPfun: ',i,' stored in ',iws(lok+i),iws(iws(lok+i))
       iws(lok+i)=ffun
    enddo
@@ -275,7 +306,7 @@
    iws(last+3)=gtp_interaction_version
    iws(last+4)=gtp_property_version
    call savephases(last,iws)
-   if(gx%bmperr.ne.0) goto 1000
+   if(gx%bmperr.ne.0) goto 1100
 ! save all phase tuples in a single reord
    last=14
    iws(last+1)=gtp_phasetuple_version
@@ -283,7 +314,7 @@
       call wtake(lok,1+nooftuples*5,iws)
       if(buperr.ne.0) then
          write(*,*)'Error reserving phase tuple record'
-         gx%bmperr=4399; goto 1000
+         gx%bmperr=4399; goto 1100
       endif
       iws(lok)=nooftuples
       do i=0,nooftuples-1
@@ -305,7 +336,7 @@
    call wtake(lok,rsize,iws)
    if(buperr.ne.0) then
       write(*,*)'Error reserving globaldata record'
-      gx%bmperr=4399; goto 1000
+      gx%bmperr=4399; goto 1100
    endif
    iws(last)=lok
    iws(lok+1)=globaldata%status
@@ -319,13 +350,17 @@
 ! unfinished
 !------------- state variable functions
 !>>>>> 30: svfuns
-   write(*,*)'3E NOT saving state variable functions'
-!   call svfunsave(iws,firsteq)
+!   write(*,*)'3E saving state variable functions'
+   call svfunsave(lok,iws,firsteq)
+   if(gx%bmperr.ne.0) goto 1100
+   iws(24)=lok
+   iws(25)=gtp_putfun_lista_version
 !------------- references
 !>>>>> 40: bibliographic references
 !   write(*,*)'3E NOT saving bibliography'
 ! link to bibliography is stored in 22
    call bibliosave(lok,iws)
+   if(gx%bmperr.ne.0) goto 1100
    iws(22)=lok
    iws(23)=gtp_biblioref_version
 !-------------------------------------------------------
@@ -338,6 +373,7 @@
    lokeq=0
 ! we should eventually have a loop to save all equilibria
    call saveequil(lokeq,iws,firsteq)
+   if(gx%bmperr.ne.0) goto 1100
 ! finished saving equilibria
 !   write(*,*)'3E first saved equilibrium at: ',lokeq
    iws(16)=lokeq
@@ -363,12 +399,16 @@
    write(lut)id,savefile,comment,noofel,noofsp,noofph,nooftuples,rsize+5
    write(lut)(iws(i),i=1,rsize+5)
    close(lut)
+   if(buperr.ne.0) then
+      write(kou,990)buperr
+990   format(/' *** WARNING *** , workspace save error: ',i7/)
+   endif
    write(kou,991)rsize+5,trim(filename)
-991 format('Written workspace ',i8,' words unformatted on ',a)
+991 format('Written workspace ',i8,' words unformatted on ',a,i7)
 1000 continue
    return
 1100 continue
-   write(*,*)'Error storing record',buperr
+   write(*,*)'Error storing record, nothing written on file',buperr,gx%bmperr
    gx%bmperr=4399
    goto 1000
  end subroutine gtpsaveu
@@ -745,7 +785,7 @@
    TYPE(gtp_fraction_set), pointer :: fslink
 !   TYPE(gtp_condition), pointer :: condrec
    integer i,isp,j,k,kl,lokcs,lokph,mc,mc2,nsl,lokeq,rsize,displace,lokvares
-   integer lokdis,disz,lok,qsize,eqdis,iws1,dcheck,lokcc
+   integer lokdis,disz,lok,qsize,eqdis,iws1,dcheck,lokcc,seqz
 !>>>>> 50:
 !   write(lut)ceq%eqname,ceq%eqno,ceq%status,ceq%next
 ! status,multi,eqno,next,name,comment,tpval(2),rtn,weight,
@@ -781,7 +821,7 @@
    call get_all_conditions(text,0,ceq)
    if(gx%bmperr.ne.0) goto 1000
    kl=index(text,'CRLF')-1
-!   write(*,*)'3E cond: ',trim(text),kl
+   write(*,*)'3E cond: ',trim(text),kl
    if(kl.gt.1) then
       call wtake(lok,1+nwch(kl),iws)
       if(buperr.ne.0) then
@@ -795,24 +835,41 @@
 ! no conditions
       iws(lokeq+displace)=0
    endif
-!---- experiments stored as text
-   call get_all_conditions(text,1,ceq)
-   if(gx%bmperr.ne.0) goto 1000
-   kl=len_trim(text)
-!   write(*,*)'3E exp: ',trim(text),kl
-   if(kl.gt.1) then
-      call wtake(lok,1+nwch(kl),iws)
-      if(buperr.ne.0) then
-         write(*,*)'Error reserving experiments record'
-         gx%bmperr=4399; goto 1000
-      endif
-      call storc(lok+1,iws,text(1:kl))
-      iws(lok)=kl
-      iws(lokeq+displace+1)=lok
+!---- save experiments as text
+! a bit strange one has to loop incrementing seqz until there is an error ...
+   iws(lokeq+displace+1)=0
+   seqz=0
+   lokcc=lokeq+displace+1
+133 continue
+   seqz=seqz+1
+   j=1
+   text=' '
+   call get_one_experiment(j,text,seqz,ceq)
+   if(gx%bmperr.ne.0) then
+! no or no more experiments
+      gx%bmperr=0
    else
-! no experiments
-      iws(lokeq+displace+1)=0
+! do not save the "current value" after the $
+      kl=index(text,'$')-1
+      if(kl.le.0) then
+         kl=len_trim(text)
+      endif
+      if(kl.gt.0) then
+         write(*,*)'3E exp: ',trim(text),kl,seqz
+         call wtake(lok,2+nwch(kl),iws)
+         if(buperr.ne.0) then
+            write(*,*)'Error reserving experiments record'
+            gx%bmperr=4399; goto 1000
+         endif
+         call storc(lok+2,iws,text(1:kl))
+         iws(lok+1)=kl
+! create a linear list
+         iws(lokcc)=lok
+         lokcc=lok
+      endif
+      goto 133
    endif
+!   write(*,*)'3E buperr 1: ',buperr
 !---- if components different from elements
    if(btest(globaldata%status,GSNOTELCOMP)) then
       write(*,*)'Not implemented saving other components than elements'
@@ -832,13 +889,20 @@
 !         write(lut)(ceq%compstoi(j,i),j=1,noofel)
 !      enddo
    else
-! save component records anyway in a linked list
+! save component records anyway in a linked list NEEDED FOR MANY THINGS
+! like reference state etc
       lokcc=lokeq+displace+2
       rsize=5+nwch(16)+1+6*nwpr
       do j=1,noofel
-         call wtake(lok,rsize,iws)
+         if(allocated(ceq%complist(j)%endmember)) then
+! this component has a user defined reference state
+            kl=size(ceq%complist(j)%endmember)
+         else
+            kl=0
+         endif
+         call wtake(lok,rsize+kl,iws)
          if(buperr.ne.0) then
-            write(*,*)'Error reserving varres record',j,rsize,nsl,mc
+            write(*,*)'Error reserving varres record',j,rsize+kl
             gx%bmperr=4399; goto 1000
          endif
 ! sequential link
@@ -850,13 +914,23 @@
          iws(lok+3)=ceq%complist(j)%status
          call storc(lok+4,iws,ceq%complist(j)%refstate)
          disz=4+nwch(16)
+         iws(lok+disz)=kl
+         if(kl.gt.0) then
+            do mc=1,kl
+               iws(lok+disz+mc)=ceq%complist(j)%endmember(mc)
+            enddo
+            disz=disz+kl+1
+         else
+            disz=disz+1
+         endif
+!         write(*,*)'3E refstate 1: ',ceq%complist(j)%tpref
          call storrn(2,iws(lok+disz),ceq%complist(j)%tpref)
          disz=disz+2*nwpr
-         call storrn(2,iws(lok+disz),ceq%complist(j)%tpref)
+         call storrn(2,iws(lok+disz),ceq%complist(j)%chempot)
          disz=disz+2*nwpr
          call storr(lok+disz,iws,ceq%complist(j)%mass)
          call storr(lok+disz+nwpr,iws,ceq%complist(j)%molat)
-!         write(*,*)'3e debug: ',lok,lok+disz+nwpr,iws(1)
+!         write(*,*)'3e comprec size: ',lok,lok+disz+nwpr,iws(1)
       enddo
    endif
 117 continue
@@ -864,6 +938,7 @@
    iws(lokeq+displace+3)=highcs
    lokvares=lokeq+displace+4
    eqdis=displace+5
+!   write(*,*)'3E buperr 2: ',buperr
 !   write(*,*)'3E link to first phase_varres in ',lokvares,highcs
 !--------------------------------------------------------- below is varres
 !---- varres records, one for each composition set of the phases and sometimes
@@ -988,6 +1063,7 @@
 !         write(*,*)'3E no disorderd record',lok+displace,iws(1),iws(2)
          iws(lok+displace)=0
       endif fsrec
+!      write(*,*)'3E buperr 7: ',buperr
 !------------------------------------- end of disorderd record
 ! save some results stored in the phase_varres record
       displace=displace+1
@@ -1042,7 +1118,49 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine svfunsave(lut,ceq)
+ subroutine svfunsave(loksvf,iws,ceq)
+! saves all state variable functions as texts in iws
+   implicit none
+   integer iws(*),loksvf
+   type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   character text*512,symbols(20)*32,afterdot*32
+   integer ip,ipos,istv,js,jt,kl,ks,lrot,rsize,lok
+   type(gtp_state_variable), target :: svr2
+   type(gtp_state_variable), pointer :: svrrec
+   rsize=nsvfun+5
+   call wtake(loksvf,rsize,iws)
+   if(buperr.ne.0) then
+      write(*,*)'Error reserving state variable function record',rsize,iws(1)
+      gx%bmperr=4399; goto 1000
+   endif
+   iws(loksvf)=nsvfun
+   iws(loksvf+1)=3
+! do not save the first three, R, RT and T_C
+   symbols=' '
+   do lrot=4,nsvfun
+      ipos=1
+      text=' '
+      call list_svfun(text,ipos,lrot,ceq)
+      rsize=1+nwch(ipos)
+      call wtake(lok,rsize,iws)
+      if(buperr.ne.0) then
+         write(*,*)'Error reserving state variable function record',rsize,iws(1)
+         gx%bmperr=4399; goto 1000
+      endif
+!      write(*,*)'3E storing svfun: ',text(1:ipos)
+      iws(lok)=ipos
+      call storc(lok+1,iws,text(1:ipos))
+      iws(loksvf+lrot)=lok
+   enddo
+1000 continue
+   return
+ end subroutine svfunsave
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine svfunsave_old(lut,ceq)
 ! saves all state variable functions on a file
    implicit none
    integer lut
@@ -1107,7 +1225,7 @@
    enddo
 1000 continue
    return
- end subroutine svfunsave
+ end subroutine svfunsave_old
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
@@ -1372,11 +1490,6 @@
    call loadr(lok+3+nwpr,iws,globaldata%rgasuser)
    call loadr(lok+3+2*nwpr,iws,globaldata%pnorm)
 ! partly unfinished below
-!---------- state variable functions
-!>>>>> 30... inside svfunread
-   write(*,*)'3E NOT reading state variable functions'
-!   call svfunread(lin)
-   if(gx%bmperr.ne.0) goto 1000
 !---------- bibliographic references
 !>>>>> 40.. inside refread
 !   write(*,*)'3E reading bibliography'
@@ -1401,6 +1514,16 @@
    i=iws(16)
    call readequil(i,iws,firsteq)
    if(gx%bmperr.ne.0) goto 1000
+!---------- state variable functions
+!>>>>> 30... inside svfunread
+!   write(*,*)'3E reading state variable functions'
+   if(iws(25).eq.gtp_putfun_lista_version) then
+      call svfunread(iws(24),iws)
+      if(gx%bmperr.ne.0) goto 1000
+   else
+      write(*,*)'3E state variable function version error',iws(25),&
+           gtp_putfun_lista_version
+   endif
 !------ read all ??
 800 continue
 ! emergency exit
@@ -1801,7 +1924,7 @@
    character text*512,dum16*16,line*72
    type(gtp_phase_varres), pointer :: firstvarres
    TYPE(gtp_fraction_set) :: fslink
-   integer i,ierr,ip,isp,ivar,j,jp,k,lokcs,lokph,mc,mc2,nprop,nsl,kp
+   integer i,ierr,ip,isp,ivar,j,jp,k,lokcs,lokph,mc,mc2,nprop,nsl,kp,kl
    integer displace,llen,lok,lokvares,lokdiz,eqdis,lokcc,disz,conditionplace
    double precision, dimension(:,:), allocatable :: ca,ci
 ! containing conditions, components and phase varres records for wach compset
@@ -1848,9 +1971,21 @@
       ceq%complist(llen)%status=iws(lokcc+3)
       call loadc(lokcc+4,iws,ceq%complist(llen)%refstate)
       disz=4+nwch(16)
+      kl=iws(lokcc+disz)
+      if(kl.gt.0) then
+         allocate(ceq%complist(llen)%endmember(kl))
+         do mc=1,kl
+            ceq%complist(llen)%endmember(mc)=iws(lokcc+disz+mc)
+         enddo
+!         write(*,*)'3E endmem: ',kl,(ceq%complist(llen)%endmember(mc),mc=1,kl)
+         disz=disz+kl+1
+      else
+         disz=disz+1
+      endif
       call loadrn(2,iws(lokcc+disz),ceq%complist(llen)%tpref)
+!      write(*,*)'3E refstate 2: ',ceq%complist(llen)%tpref
       disz=disz+2*nwpr
-      call loadrn(2,iws(lok+disz),ceq%complist(llen)%tpref)
+      call loadrn(2,iws(lok+disz),ceq%complist(llen)%chempot)
       disz=disz+2*nwpr
       call loadr(lok+disz,iws,ceq%complist(llen)%mass)
       call loadr(lok+disz+nwpr,iws,ceq%complist(llen)%molat)
@@ -2000,14 +2135,20 @@
    endif
 !----- experiments
    lok=iws(lokeq+conditionplace+1)
+733 continue
+   kp=0
    if(lok.gt.0) then
-      llen=iws(lok)
-      call loadc(lok+1,iws,text(1:llen))
-      write(*,*)'3E experiment: ',text(1:llen),llen
-!      call set_conditions
-   else
-      write(*,*)'3E NO experiments '
+! experiments are stored individually in a linked list
+      kp=kp+1
+      llen=iws(lok+1)
+      call loadc(lok+2,iws,text(1:llen))
+      write(*,*)'3E found experiment: ',text(1:llen),llen
+      llen=0
+      call enter_experiment(text,llen,ceq)
+      lok=iws(lok)
+      goto 733
    endif
+   if(kp.gt.0) write(*,*)'Found ',kp,' experiments'
 !-------------------------- a few remaining things
    ceq%maxiter=iws(lokeq+eqdis)
    call loadrn(noofel,iws(lokeq+eqdis+1),ceq%cmuval)
@@ -2028,28 +2169,26 @@
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim}
- subroutine svfunread(lin)
+ subroutine svfunread(loksvf,iws)
 ! read a state variable function from save file and store it.
 ! by default there are some state variable functions, make sure
 ! they are deleted.  Done here just by setting nsvfun=0
    implicit none
-   integer lin
+   integer loksvf,iws(*)
 !\end{verbatim}
-   integer nsvfun,i,ip,nsvfunfil
+   integer nsvfun,i,ip,lok
    character*512 text
-   nsvfun=0
-   read(lin)nsvfunfil
-   if(ocv()) write(*,*)'Number of state variable functions: ',nsvfunfil
-   do i=1,nsvfunfil
-      read(lin)ip
-!      write(*,*)'Number of characters: ',ip
+   nsvfun=iws(loksvf)
+   do i=iws(loksvf+1)+1,nsvfun
+      lok=iws(loksvf+i)
+      ip=iws(lok)
       text=' '
-      read(lin)text(2:ip)
-!      write(*,*)text(2:ip)
-      ip=1
+      call loadc(lok+1,iws,text(1:ip))
+!      write(*,*)'Entering saved svf: ',text(1:ip)
+      ip=0
       call enter_svfun(text,ip,firsteq)
       if(gx%bmperr.ne.0) then
-!         write(*,*)'Error entering svf from file',gx%bmperr
+         write(*,*)'Error entering saved svf',gx%bmperr
          if(gx%bmperr.ne.4136) goto 1000
          gx%bmperr=0
       endif
@@ -4581,10 +4720,10 @@
                call add_magrec_inden(lokph,1,-1)
             elseif(add(jt).eq.3) then
 ! Xiong-Inden magnetic for non-BCC
-               call add_addrecord(lokph,'N',weimagnetic)
+               call add_addrecord(lokph,'N',xiongmagnetic)
             elseif(add(jt).eq.4) then
 ! Xiong-Inden magnetic for BCC
-               call add_addrecord(lokph,'Y',weimagnetic)
+               call add_addrecord(lokph,'Y',xiongmagnetic)
             else
 ! no other implemented
                write(*,*)'Addition not implemented: ',addition(add(jt))

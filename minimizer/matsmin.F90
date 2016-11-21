@@ -5520,6 +5520,207 @@ CONTAINS
     return
   end subroutine calc_dgdytermshm
 
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
+ subroutine meq_list_experiments(lut,ceq)
+! list all experiments into text, special to handle derivatives ...
+   implicit none
+   integer lut
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim} %+
+   integer seqz,ip
+   character text*72
+   seqz=0
+100 continue
+      seqz=seqz+1
+      ip=1
+      text=' '
+      call meq_get_one_experiment(ip,text,seqz,ceq)
+!      write(*,*)'MM Back from get_one'
+      if(gx%bmperr.ne.0) then
+! error code for no more experiments or inactive experiment
+!         write(*,*)'MM error line 3117: ',gx%bmperr,seqz,text(1:ip)
+! speciel error code meaning experiment is not active
+         if(gx%bmperr.eq.7654) then
+            gx%bmperr=0; goto 100
+         endif
+         gx%bmperr=0; goto 1000
+      else
+         write(lut,120)seqz,text(1:ip)
+120      format('Experiment ',i2,2x,a)
+      endif
+      goto 100
+!------------
+1000 continue
+   gx%bmperr=0
+   return
+ end subroutine meq_list_experiments
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim} %-
+ subroutine meq_get_one_experiment(ip,text,seqz,ceq)
+! list the experiment with the index seqz into text
+! It lists also experiments that are not active ??
+! UNFINISHED current value should be appended
+   implicit none
+   integer ip,seqz
+   character text*(*)
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   integer jl,iterm,indx(4),symsym
+   TYPE(gtp_condition), pointer :: last,current
+   type(gtp_state_variable), pointer :: svrrec
+   double precision wone,xxx
+   character actual_arg*16
+!
+   if(ip.le.0) ip=1
+   text(ip:)=' '
+   if(.not.associated(ceq%lastexperiment)) then
+!      write(*,*)'MM No experiments'
+      gx%bmperr=4249; goto 1000
+   endif
+   last=>ceq%lastexperiment
+   current=>last
+!   write(*,*)'MM index of last experiment: ',current%seqz
+70 continue
+!   write(*,*)'MM experiment number: ',seqz,current%seqz
+   if(current%seqz.eq.seqz) goto 100
+   current=>current%next
+   if(.not.associated(current,last)) goto 70
+! no experiment with this index found or it is inactivated
+   gx%bmperr=4131; goto 1000
+!
+100 continue
+   if(current%active.eq.1) then
+!      write(*,*)'MM Experiment not active '
+      gx%bmperr=4218; goto 1000
+   endif
+   iterm=1
+150 continue
+!   write(*,*)'MM Testing is symbol or state variable record',&
+!        allocated(current%statvar)
+   nostv: if(.not.allocated(current%statvar)) then
+! an experiment is a symbol!!! Then statvar is not allocated
+      symsym=current%statev
+!      write(*,*)'MM A symbol, not a state variable for this experiment',symsym
+! get the symbol name
+      text=svflista(symsym)%name
+      ip=len_trim(text)+1
+!      text(ip-1:ip-1)='='
+!      write(*,*)'MM experiment: ',text(1:ip),ip
+   else
+!      write(*,*)'MM This experiment has a state variable record',&
+!           allocated(current%statvar),allocated(current%indices),iterm
+      symsym=0
+! these are not needed??
+!      do jl=1,4
+!         indx(jl)=current%indices(jl,iterm)
+!      enddo
+!      if(abs(current%condcoeff(iterm)-one).gt.1.0D-10) then
+!         wone=current%condcoeff(iterm)+one
+!         if(abs(wone).lt.1.0D-10) then
+!            text(ip:ip)='-'
+!            ip=ip+1
+!         else
+! not +1 or -1, write number
+!            call wrinum(text,ip,8,1,current%condcoeff(iterm))
+!            text(ip:ip)='*'
+!            ip=ip+1
+!         endif
+!      elseif(iterm.gt.1) then
+! must be a + in front of second and later terms
+!         text(ip:ip)='+'
+!         ip=ip+1
+!      endif
+! why is ceq needed?? BECAUSE COMPONENTS CAN BE DIFFERENT   ... hm?? !! 
+!   call encode_state_variable2(text,ip,current%statev,indx,&
+!        current%iunit,current%iref,ceq)
+      svrrec=>current%statvar(1)
+      call encode_state_variable(text,ip,svrrec,ceq)
+      if(iterm.lt.current%noofterms) then
+         iterm=iterm+1; goto 150
+      endif
+   endif nostv
+!   write(*,*)'MM ok here',symsym
+   if(current%experimenttype.eq.0 .or. current%experimenttype.eq.100) then
+! write = followed by the value 
+!      if(text(ip:ip).ne.' ') ip=ip+1
+      text(ip:)='='
+      ip=ip+1
+   elseif(current%experimenttype.eq.-1) then
+!      if(text(ip:ip).ne.' ') ip=ip+1
+      text(ip:)='<'
+      ip=ip+1
+   elseif(current%experimenttype.eq.1) then
+!      if(text(ip:ip).ne.' ') ip=ip+1
+      text(ip:)='>'
+      ip=ip+1
+   endif
+!   write(*,*)'MM experiment line 2: ',text(1:ip),ip
+   if(current%symlink1.gt.0) then
+! the value is a symbol
+      text(ip:)=svflista(current%symlink1)%name
+      ip=len_trim(text)+1
+   else
+!      call wrinum(text,ip,10,0,current%prescribed)
+      call wrinum(text,ip,8,0,current%prescribed)
+   endif
+! uncertainty can also be a symbol
+   text(ip:ip)=':'
+   ip=ip+1
+!   write(*,*)'MM experiment line 3: ',text(1:ip),ip
+   if(current%symlink2.gt.0) then
+! the value is a symbol
+      text(ip:)=svflista(current%symlink1)%name
+      ip=len_trim(text)+1
+   else
+!      call wrinum(text,ip,10,0,current%uncertainty)
+      call wrinum(text,ip,8,0,current%uncertainty)
+   endif
+!   write(*,*)'MM ok here 2',symsym,text(1:ip)
+!   write(*,*)'MM experiment line 2: ',text(1:ip),ip
+   if(current%experimenttype.eq.100) then
+      text(ip:ip)='%'
+      ip=ip+1
+   endif
+!   write(*,*)'MM ok here 3',symsym
+! add the current value of the experiment after a $ sign
+! TROUBLE GETTING WRONG VALUE HERE WHEN USER DEFINED REFERENCE STATES
+   if(symsym.eq.0) then
+      call state_variable_val(svrrec,xxx,ceq)
+   else
+!      write(*,*)'MM ok here 4',symsym
+      actual_arg=' '
+      xxx=evaluate_svfun_old(symsym,actual_arg,1,ceq)
+   endif
+   if(gx%bmperr.ne.0) then
+! it is maybe a derivative ... 
+!      write(*,*)'MM we cannot evaluate a derivative here ...',gx%bmperr
+! but meq_evaluate_svfun not available here ... it is part of the minimizer
+      gx%bmperr=0
+      xxx=meq_evaluate_svfun(symsym,actual_arg,0,ceq)
+   endif
+   if(gx%bmperr.ne.0) then
+      write(*,*)'MM Error evaluating symbol: ',gx%bmperr
+      text(ip:)=' $ ?? '
+      ip=ip+5
+      gx%bmperr=0
+   else
+!   write(*,*)'MM experimental state variable value: ',xxx
+      text(ip:)=' $'
+      ip=ip+3
+!      call wrinum(text,ip,12,0,xxx)
+      call wrinum(text,ip,8,0,xxx)
+!      write(*,*)'MM experiment line 3: ',text(1:ip),ip
+   endif
+!   write(*,*)'MM ok here 5'
+1000 continue
+!   write(*,*)'MM experiment line 4: ',text(1:ip),ip,gx%bmperr
+   return
+ end subroutine meq_get_one_experiment
+
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
@@ -6333,6 +6534,12 @@ CONTAINS
              text=' '
 !             write(*,*)'MM symsym: ',symsym
              xxx=evaluate_svfun_old(symsym,text,1,equil)
+             if(gx%bmperr.ne.0) then
+                gx%bmperr=0
+!                write(*,*)'MM using meq_evaluate_svfun',gx%bmperr
+                xxx=meq_evaluate_svfun(symsym,text,1,equil)
+             endif
+!             write(*,*)'MM value: ',iexp,xxx
           else
              svrrec=>experiment%statvar(1)
 !             write(*,*)'MM exp: ',svrrec%statevarid,svrrec%argtyp
@@ -6342,7 +6549,7 @@ CONTAINS
           endif nostv
           if(gx%bmperr.ne.0) then
              write(kou,*)' *** Error calculating experiment ',&
-                  equil%eqname,gx%bmperr,xxx
+                  trim(equil%eqname),symsym,gx%bmperr
              gx%bmperr=0
              f(iexp)=zero
              goto 590
@@ -6354,6 +6561,7 @@ CONTAINS
 ! take the difference between prescribed value
              f(iexp)=(experiment%prescribed-xxx)*equil%weight/&
                   experiment%uncertainty
+!             write(*,*)'MM least.sq: ',iexp,f(iexp)
           elseif(experiment%experimenttype.eq.100) then
 ! relative error
              yyy=1.0D-2*experiment%uncertainty*experiment%prescribed

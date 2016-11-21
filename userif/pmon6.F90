@@ -278,9 +278,9 @@ contains
     character (len=16), dimension(ncamph) :: camph=&
 !         ['MAGNETIC_CONTRIB','COMPOSITION_SET ','DISORDERED_FRACS',&
          ['MAGNETIC_INDEN  ','COMPOSITION_SET ','DISORDERED_FRACS',&
-         'GLASS_MODEL_A   ','QUIT            ','DEFAULT_CONSTIT ',&
+         'TWOSTATE_MODEL_1','QUIT            ','DEFAULT_CONSTIT ',&
          'DEBYE_CP_MODEL  ','EINSTEIN_CP_MDL ','XIONG_INDEN_MAGN',&
-         'ELASTIC_MODEL_A ','GADDITION       ','                ']
+         'ELASTIC_MODEL_1 ','GADDITION       ','                ']
 !-------------------
 ! subcommands to SET
     character (len=16), dimension(ncset) :: cset=&
@@ -646,9 +646,9 @@ contains
 !-------------------------
 ! subsubcommands to AMEND PHASE
 !       ['MAGNETIC_CONTRIB','COMPOSITION_SET ','DISORDERED_FRACS',&
-!        'GLASS_MODEL_A   ','QUIT            ','DEFAULT_CONSTIT ',&
+!        'TWOSTATE_MODEL_1   ','QUIT            ','DEFAULT_CONSTIT ',&
 !        'DEBYE_CP_MODEL  ','EINSTEIN_CP_MDL ','XIONG_INDEN_MAGM',&
-!        'ELASTIC_MODEL_A ','GADDITION       ','                ']
+!        'ELASTIC_MODEL_1 ','GADDITION       ','                ']
        case(4) ! amend phase subcommands
           call gparc('Phase name: ',cline,last,1,name1,' ',q1help)
           if(buperr.ne.0) goto 990
@@ -711,8 +711,8 @@ contains
              call add_fraction_set(iph,ch1,ndl,j1)
              if(gx%bmperr.ne.0) goto 990
 !....................................................
-          case(4) ! amend phase <name> glass_transition
-             call add_addrecord(iph,' ',glastransmodela)
+          case(4) ! amend phase <name> twostate model 1
+             call add_addrecord(iph,' ',twostatemodel1)
 !....................................................
           case(5) ! amend phase quit
              goto 100
@@ -727,12 +727,12 @@ contains
           case(8) ! amend phase einstein cp model
              call add_addrecord(iph,' ',einsteincp)
 !....................................................
-          case(9) ! amend phase wei_inden_magnetic_model
+          case(9) ! amend phase Inden-Xiong magnetic_model
              call gparcd('BCC type phase: ',cline,last,1,ch1,'N',q1help)
-             call add_addrecord(iph,ch1,weimagnetic)
+             call add_addrecord(iph,ch1,xiongmagnetic)
 !....................................................
           case(10) ! amend phase elastic model
-             call add_addrecord(iph,' ',elasticmodela)
+             call add_addrecord(iph,' ',elasticmodel1)
 !....................................................
           case(11) ! AMEND PHASE GADDITION
 ! add a constant term to G, value in J/FU
@@ -2958,7 +2958,7 @@ contains
              write(lut,491)ceq%weight
 491          format(/'Weight ',F6.2)
 ! list all experiments ........................................
-             call list_experiments(lut,ceq)
+             call meq_list_experiments(lut,ceq)
              write(lut,*)
 !          else
 !             write(*,*)'No experiments found'
@@ -3270,6 +3270,7 @@ contains
           write(kou,*)'save subcommand error'
 !-----------------------------------------------------------
        case(1) ! save unformatted
+132       continue
           if(ocufile(1:1).ne.' ') then
              text=ocufile
              call gparcd('File name: ',cline,last,1,ocufile,text,q1help)
@@ -3289,6 +3290,18 @@ contains
              goto 100
           endif
           if(jp.gt.0) ocufile(jp+1:)='.ocu '
+          inquire(file=ocufile,exist=logok)
+          if(logok) then
+             call gparcd('File exists, overwrite?',cline,last,1,ch1,'N',q1help)
+             if(ch1.ne.'Y') then
+                write(*,133)
+133             format('You can use another file name')
+                ocufile=' '
+                goto 132
+             endif
+             write(*,134)trim(ocufile)
+134          format(/'Overwriting previous results on ',a/)
+          endif
           text='U '//model
           call gtpsave(ocufile,text)
 !-----------------------------------------------------------
@@ -5099,7 +5112,7 @@ contains
              j1=1
              line=' '
 ! this subroutine reurns experiment and calculated value: "H=1000:200 $ 5000"
-             call get_one_experiment(j1,line,j2,neweq)
+             call meq_get_one_experiment(j1,line,j2,neweq)
              j3=j3+1
              write(lut,622)name1(1:12),neweq%weight,line(1:45),&
                   errs(j3)
