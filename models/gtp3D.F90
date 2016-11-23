@@ -2532,10 +2532,11 @@ end subroutine get_condition
    double precision xknown(*)
    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-   integer nel,j1,j2
+   integer nel,j1,j2,j3
    character material*72,database*72,selel(20)*2,ext*4,alloy(20)*2
-   character majorel*2,ftype*1,bline*128
+   character majorel*2,ftype*1,bline*128,elnam*2
    double precision xalloy(20),rest,xxx,xxy
+   logical byte
 ! these are saved for use in a subsequent call
    save selel,majorel,ftype,xalloy
 !
@@ -2568,6 +2569,8 @@ end subroutine get_condition
 ! this extracts all element symbols from database
       call checkdb(database,ext,nel,selel)
       if(gx%bmperr.ne.0) goto 1000
+      write(kou,70)(selel(nv),nv=1,nel)
+70    format('Elements: ',15(a2,', '))
 ! ask for major component
       call gparc('Major element or material: ',cline,last,1,majorel,' ',q1help)
       call capson(majorel)
@@ -2648,45 +2651,61 @@ end subroutine get_condition
 !----------------------
 ! read the database including the major element
 500   continue
+!      write(*,505)'Comp: ',nv,(alloy(j1),xalloy(j1),j1=1,nv)
+505   format(a,i2,2x,8(a2,F8.4,', '))
       nv=nv+1
       alloy(nv)=majorel
       xalloy(nv)=rest
-!   write(*,*)'3D em: ',(alloy(j1),j1=1,nv)
+      write(*,505)'3D m1: ',nv,(alloy(j1),xalloy(j1),j1=1,nv)
       call readtdb(database,nv,alloy)
       if(gx%bmperr.ne.0) goto 1000
 ! order the amounts in xalloy in alphabetical order
-      do j1=1,nv
-         do j2=1,nv
-            if(alloy(j1).eq.ellista(j2)%symbol) then
-               xknown(ellista(j2)%alphaindex)=xalloy(j1); cycle
-            endif
+      byte=.true.
+      order: do while(byte)
+         byte=.false.
+         do j1=1,nv
+            do j2=j1+1,nv
+               if(alloy(j1).gt.alloy(j2)) then
+                  byte=.true.
+                  elnam=alloy(j1)
+                  alloy(j1)=alloy(j2)
+                  alloy(j2)=elnam
+                  xxx=xalloy(j1)
+                  xalloy(j1)=xalloy(j2)
+                  xalloy(j2)=xxx
+!                  write(*,505)'3D m1: ',nv,(alloy(j3),xalloy(j3),j3=1,nv)
+                  cycle order
+               endif
+            enddo
          enddo
-      enddo
+      enddo order
 ! these are saved until another enter material command
       do j1=1,nv
-         xalloy(j1)=xknown(j1)
+         xknown(j1)=xalloy(j1)
       enddo
-      write(*,510)(ellista(j1)%symbol,xknown(j1),j1=1,nv)
+!      write(*,505)'3D m2: ',nv,(alloy(j1),xknown(j1),j1=1,nv)
 510   format('3D em: ',10(a2,F6.3,1x))
    endif
 !----------------------------------
 ! set conditions for composition (replace major by N=1)
-   bline='N=1 '
+   bline=' '
    j2=len_trim(bline)+2
    do j1=1,nv
-      if(ellista(j1)%symbol.eq.majorel) cycle
+      if(alloy(j1).eq.majorel) cycle
       if(ftype.eq.'Y') then
-         bline(j2:)='W%('//trim(ellista(j1)%symbol)//')='
+         bline(j2:)='W%('//trim(alloy(j1))//')='
       else
-         bline(j2:)='X('//trim(ellista(j1)%symbol)//')='
+         bline(j2:)='X('//trim(alloy(j1))//')='
       endif
       j2=len_trim(bline)+1
       call wrinum(bline,j2,10,0,xalloy(j1))
       j2=j2+2
    enddo
+   bline(j2:)=' N=1 '
+   j2=len_trim(bline)+2
    write(*,*)'3D em: ',trim(bline)
 ! set_condition will increment j1
-   j1=0
+   j1=1
    call set_condition(bline,j1,ceq)
 1000 continue
    return

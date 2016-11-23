@@ -873,6 +873,13 @@ contains
           lrot=0
           iel=index(name1,'*')             
           if(iel.gt.1) name1(iel:)=' '
+! as TP functions call each other force recalculation and calculate all
+! even if just a single function is requested
+          call change_optcoeff(-1,zero)
+          do j1=1,notpf()
+             call eval_tpfun(j1,ceq%tpval,val,ceq%eq_tpres)
+             if(gx%bmperr.gt.0) goto 990
+          enddo
           if(name1(1:1).ne.'*') then
              once=.TRUE.
 2009         continue
@@ -896,19 +903,18 @@ contains
                 if(iel.gt.1) goto 2009
              endif
           else
-! calculate all functions
              write(lut,2011)notpf(),ceq%tpval
 2011         format(/'Calculating ',i4,' functions for T,P=',F10.2,1PE15.7/&
                   3x,'No   F',11x,'F.T',9x,'F.P',9x,'F.T.T',&
                   7x,'F.T.P',7x,'F.P.P')
-             call cpu_time(starting)
+!             call cpu_time(starting)
              do j1=1,notpf()
                 call eval_tpfun(j1,ceq%tpval,val,ceq%eq_tpres)
                 if(gx%bmperr.gt.0) goto 990
                 write(lut,2012)j1,val
 2012            format(I5,1x,6(1PE12.4))
              enddo
-             call cpu_time(ending)
+!             call cpu_time(ending)
           endif
 !          write(kou,2013)ending-starting
 !2013      format('CPU time used: ',1pe15.6)
@@ -1116,7 +1122,12 @@ contains
 !          call evaluate_all_svfun(kou,ceq)
 ! to calculate derivatives this must be in the minimizer module
           call gparcd('Name ',cline,last,1,name1,'*',q1help)
+! always calculate all state variable functions as they may depend on eachother
+          call meq_evaluate_all_svfun(-1,ceq)
+! ignore error
+          if(gx%bmperr.ne.0) gx%bmperr=0
           if(name1(1:1).eq.'*') then
+! this calculate them again ... and lists the values
              call meq_evaluate_all_svfun(lut,ceq)
           else
              call capson(name1)
@@ -2800,7 +2811,11 @@ contains
                 if(iel.eq.0) goto 990
                 gx%bmperr=0
              else
-                call list_tpfun(lrot,0,longstring)
+                longstring=' '
+                write(longstring,6142)lrot,name1
+6142            format(i5,1x,a)
+                jp=len_trim(longstring)
+                call list_tpfun(lrot,0,longstring(jp:))
                 call wrice2(lut,0,12,78,1,longstring)
                 if(iel.gt.1) goto 6140
              endif
@@ -2956,7 +2971,8 @@ contains
 ! list experiments if any
           if(associated(ceq%lastexperiment)) then
              write(lut,491)ceq%weight
-491          format(/'Weight ',F6.2)
+!491          format(/'Weight ',F6.2)
+491          format('Weight ',F6.2)
 ! list all experiments ........................................
              call meq_list_experiments(lut,ceq)
              write(lut,*)

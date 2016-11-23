@@ -5605,6 +5605,8 @@ CONTAINS
 ! an experiment is a symbol!!! Then statvar is not allocated
       symsym=current%statev
 !      write(*,*)'MM A symbol, not a state variable for this experiment',symsym
+! we must evaluate all state variable functions!!
+      call meq_evaluate_all_svfun(-1,ceq)
 ! get the symbol name
       text=svflista(symsym)%name
       ip=len_trim(text)+1
@@ -5731,6 +5733,7 @@ CONTAINS
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
 ! THIS SUBROUTINE MOVED FROM gtp3D
+! if kou<0 no output
    character actual_arg(10)*24
    integer kf,nsvfun
    double precision val
@@ -5740,9 +5743,20 @@ CONTAINS
    do kf=1,nsvfun
 ! actual arguments needed if svflista(kf)%nactarg>0
       val=meq_evaluate_svfun(kf,actual_arg,0,ceq)
-      if(gx%bmperr.ne.0) goto 1000
-      if(kou.gt.0) write(kou,77)kf,svflista(kf)%name,val
+      if(gx%bmperr.ne.0) then
+         if(kou.gt.0) then
+            write(kou,76)kf,svflista(kf)%name,gx%bmperr
+76          format(i3,1x,a,'  cannot be calculated due to error ',i5)
+            if(gx%bmperr.ge.4000 .and. gx%bmperr.le.nooferm) then
+               write(kou,992)trim(bmperrmess(gx%bmperr))
+992            format('Meaning: ',a/)
+            endif
+         endif
+         gx%bmperr=0
+      elseif(kou.gt.0) then
+         write(kou,77)kf,svflista(kf)%name,val
 77    format(i3,1x,a,1x,1PE15.8)
+      endif
    enddo
 1000 continue
    return
@@ -5876,7 +5890,7 @@ CONTAINS
    modeval: if(mode.eq.0 .and. btest(svflista(lrot)%status,SVFVAL)) then
 ! If mode=0 and SVFVAL set return the stored value
       value=ceq%svfunres(lrot)
-      write(*,350)'HMS evaluate svfun 2: ',0,lrot,value
+!      write(*,350)'HMS evaluate svfun 2: ',0,lrot,value
 350   format(a,2i4,4(1pe12.4))
    elseif(mode.eq.0 .and. btest(svflista(lrot)%status,SVFEXT)) then
 ! if mode=0 and SVFEXT set use value from equilibrium eqno
@@ -5939,8 +5953,8 @@ CONTAINS
     elseif(btest(ceq%status,EQINCON)) then
 ! give warning if conditions have changed
        write(*,15)
-15     format('Warning: conditions changed since last equilibrium calc,',&
-            ' derivatives may be wrong.')
+15     format('Conditions changed since last equilibrium calc,',&
+            ' values may be wrong.')
 ! EQNOACS is not used at present but means probably "no automatic comp.set"
     endif
 ! meqrec is a pointer to an allocated record!
@@ -6532,6 +6546,8 @@ CONTAINS
           nostv: if(.not.allocated(experiment%statvar)) then
              symsym=experiment%statev
              text=' '
+! WE MUST EVALUATE ALL SYMBOLS!!!
+             call meq_evaluate_all_svfun(-1,equil)
 !             write(*,*)'MM symsym: ',symsym
              xxx=evaluate_svfun_old(symsym,text,1,equil)
              if(gx%bmperr.ne.0) then

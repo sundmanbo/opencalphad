@@ -106,5 +106,69 @@ rest
 all
 
 
+new Y
+
+@&
+@$ ===================================================================
+@$ testing unformatted save and read using a PDB file
+@$ with disordered fraction set
+
+r p more1
+
+@&
+
+l sh a
+
+@$ Calculate an equilibrium
+
+set c t=1000 p=1e5 n=1 x(re)=.3
+
+c e
+
+l r 2
+
+
+@&
+@$ Save workspaces unformatted on a file, final Y to overwrite!!
+
+
+l d
+
+@&
+
+save
+unf
+testing
+more1
+Y
+
+@&
+@$ Reinitiate the program and delete all data and results
+
+new Y
+
+l d,,,
+
+@&
+@$ Read the the unformatted file with data and the last calculation
+
+read
+unf
+more1
+
+
+@&
+
+l c
+
+c e
+
+l r 2
+
+@&
+
+l d
+
+
 set inter
 

@@ -3092,7 +3092,11 @@
 !         longline(jp:)=bibrefs(ir)%refspec(ll)
 !         jp=jp+64
 !      enddo
-      longline(jp:)=bibrefs(ir)%nyrefspec
+! this require Fortran standard 2003/2008      
+!      longline(jp:)=bibrefs(ir)%nyrefspec
+      ll=bibrefs(ir)%wprefspec(1)
+! loadc/storc are WPACK routines to store/load characters in integer arrays
+      call loadc(2,bibrefs(ir)%wprefspec,longline(jp:jp+ll-1))
       jp=len_trim(longline)+1
       longline(jp:jp)="'"
       call wrice(lut,0,17,78,longline(1:jp))

@@ -3638,7 +3638,8 @@
 !            write(*,70)i,refid,bibrefs(i)%refspec
 !70          format('3B tdbrefs: ',i4,a,a)
 !            deallocate(bibrefs(iref)%refspec)
-            deallocate(bibrefs(iref)%nyrefspec)
+!            deallocate(bibrefs(iref)%nyrefspec)
+            deallocate(bibrefs(iref)%wprefspec)
             goto 200
          else
 ! reference already exist and no changes needed
@@ -3656,15 +3657,19 @@
 !   nr=(ml+63)/64
 !   allocate(bibrefs(iref)%refspec(nr))
    if(ml.gt.1024) then
-      write(*,*)'Too long bibliographic references will be truncated'
-      mc=1024
+      write(*,*)'Bibliographic references longer than 1024 will be truncated'
+      mc=nwch(1024)+1
    else
-      mc=ml
+      mc=nwch(ml)+1
    endif
-   allocate(character(len=mc) :: bibrefs(iref)%nyrefspec)
+   allocate(bibrefs(iref)%wprefspec(mc))
+! This requires Fortran 2003/2008 standard
+!   allocate(character(len=mc) :: bibrefs(iref)%nyrefspec)
 !   mc=1
 !   nc=0
-   bibrefs(iref)%nyrefspec=line(1:mc)
+!   bibrefs(iref)%nyrefspec=line(1:mc)
+   bibrefs(iref)%wprefspec(1)=ml
+   call storc(2,bibrefs(iref)%wprefspec,line(1:ml))
 !   write(*,202)'3B newref: ',iref,refid,nr,line(1:min(32,len_trim(line)))
 !202 format(a,i4,1x,a,i3,1x,a)
 !   do jl=1,nr

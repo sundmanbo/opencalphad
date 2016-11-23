@@ -6,9 +6,11 @@
 2015-2016 Matthias Stratmann and Cristophe Sigli Modifications
 2014 Teslos? First version
 
-This contains the structure of TYPE variables in OC needed for the OC/TQ OCASI interface 
+This contains the structure of TYPE variables in OC 
+needed for the OC/TQ OCASI interface 
 
-NOTE there is also a c_gtp_equilibrium_data structure defined in liboctqisoc.F90 */
+NOTE there is also a c_gtp_equilibrium_data structure defined in 
+liboctqisoc.F90 */
 
 typedef struct {
   int forcenewcalc;

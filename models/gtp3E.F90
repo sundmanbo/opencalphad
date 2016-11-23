@@ -785,7 +785,7 @@
    TYPE(gtp_fraction_set), pointer :: fslink
 !   TYPE(gtp_condition), pointer :: condrec
    integer i,isp,j,k,kl,lokcs,lokph,mc,mc2,nsl,lokeq,rsize,displace,lokvares
-   integer lokdis,disz,lok,qsize,eqdis,iws1,dcheck,lokcc,seqz
+   integer lokdis,disz,lok,qsize,eqdis,iws1,dcheck,lokcc,seqz,offset,dmc
 !>>>>> 50:
 !   write(lut)ceq%eqname,ceq%eqno,ceq%status,ceq%next
 ! status,multi,eqno,next,name,comment,tpval(2),rtn,weight,
@@ -821,7 +821,7 @@
    call get_all_conditions(text,0,ceq)
    if(gx%bmperr.ne.0) goto 1000
    kl=index(text,'CRLF')-1
-   write(*,*)'3E cond: ',trim(text),kl
+!   write(*,*)'3E cond: ',trim(text),kl
    if(kl.gt.1) then
       call wtake(lok,1+nwch(kl),iws)
       if(buperr.ne.0) then
@@ -960,15 +960,19 @@
          nsl=phlista(firstvarres%phlink)%noofsubl
          mc=phlista(firstvarres%phlink)%tnooffr
       endif
+      if(btest(firstvarres%status2,CSDLNK)) then
+! the offset here shold be the place to store the disfra record ...
+         offset=6+2*nwch(4)+3*nwpr+mc*(1+2*nwpr)+nsl*nwpr
+!         write(*,202)'3E offset 0: ',j,highcs,lokph,lokcs,nsl,mc,offset
+      endif
       mc2=mc*(mc+1)/2
 ! nextfree,phlink,status2,phstate,phtupx,abnorm(3),prefix*4,suffix*4
-! constat(mc),yfr(mc),mmyfr(mc)
+! constat(mc),yfr(mc),mmyfr(mc)+2 extra for nsl and mc!!
       rsize=6+2*nwch(4)+3*nwpr+mc+2*mc*nwpr
-      dcheck=rsize
 ! sites(nsl),disfralink,amfu,netcharge,dgm
       rsize=rsize+nsl*nwpr+1+4*nwpr+1
 ! results g, dg, d2g some exra space
-      rsize=rsize+6*nwpr+3*mc*nwpr+mc2*nwpr+5
+      rsize=rsize+6*nwpr+3*mc*nwpr+mc2*nwpr+5+2
       qsize=rsize
       call wtake(lok,rsize,iws)
       if(buperr.ne.0) then
@@ -990,8 +994,10 @@
       iws(lok+3)=firstvarres%status2
       iws(lok+4)=firstvarres%phstate
       iws(lok+5)=firstvarres%phtupx
-      call storc(lok+6,iws,firstvarres%prefix)
-      displace=6+nwch(4)
+      iws(lok+6)=nsl
+      iws(lok+7)=mc
+      call storc(lok+8,iws,firstvarres%prefix)
+      displace=8+nwch(4)
       call storc(lok+displace,iws,firstvarres%suffix)
       displace=displace+nwch(4)
       call storrn(3,iws(lok+displace),firstvarres%abnorm)
@@ -1013,20 +1019,26 @@
 ! only the dimension, not the values
 !          write(lut)(firstvarres%dsitesdy(i),i=1,mc)
 !          write(lut)(firstvarres%d2sitesdy2(i),i=1,mc2)
+!      write(*,*)'3E odd:   ',lok,displace
       fsrec: if(btest(firstvarres%status2,CSDLNK)) then
 ! we need a record for a disordered fraction_set record
 ! latd,ndd,tnoofxfr,tnoofyfr,varreslink,totdis, id*1, dsites(nsl), 
 ! nooffr(mc), splink(mc), y2x(mc), dxidyj(mc),fsites
-         rsize=6+nwch(1)+nsl+3*mc+mc*nwpr+nwpr
+         fslink=>firstvarres%disfra
+         nsl=fslink%ndd
+! dmc because we store G and dG/dy later for original mc
+         dmc=fslink%tnoofxfr
+         rsize=8+nwch(1)+nsl+dmc+1+mc*(1+nwpr)+nsl*nwpr+nwpr
          call wtake(lokdis,rsize,iws)
          if(buperr.ne.0) then
-            write(*,*)'Error reserving ddisordered varres record',rsize
+            write(*,*)'Error reserving disordered varres record',rsize
             gx%bmperr=4399; goto 1000
          endif
+!         write(*,202)'3E disfracset 1: ',j,lok,displace,lokdis,nsl,dmc
+202      format(a,10i6)
 ! set link from varres record
          iws(lok+displace)=lokdis
 ! store data
-         fslink=>firstvarres%disfra
          iws(lokdis)=fslink%latd
          iws(lokdis+1)=fslink%ndd
          iws(lokdis+2)=fslink%tnoofxfr
@@ -1034,43 +1046,57 @@
          iws(lokdis+4)=fslink%totdis
          iws(lokdis+5)=fslink%varreslink
          call storc(lokdis+6,iws,fslink%id)
-         disz=disz+5+nwch(1)
-! increment disz one less as i starts from 1
+!         write(*,202)'3E disfracset 2: ',j,iws(lokdis+1),iws(lokdis+2),&
+!              iws(lokdis+5)
+! set disz to one less as i starts from 1
+         disz=6+nwch(1)
 ! number of constituents in each sublattice
          do i=1,nsl
             iws(lokdis+disz+i)=fslink%nooffr(i)
          enddo
          disz=disz+nsl
-! species index for ecah constituent
-         do i=1,nsl
+!         write(*,*)'3E disfra 1: ',lokdis,disz
+! species index for all constituents
+         do i=1,dmc
             iws(lokdis+disz+i)=fslink%splink(i)
          enddo
-         disz=disz+nsl
-! I am not sure what this is
-         do i=1,nsl
+         disz=disz+dmc+1
+         iws(lokdis+disz)=mc
+         disz=disz
+! NOTE y2x and dxidy1 has dimension mc!!
+!         write(*,*)'3E disfra 2: ',lokdis,disz,dmc,mc,size(fslink%y2x)
+! This has to do with the fractions that should be added together
+         do i=1,mc
             iws(lokdis+disz+i)=fslink%y2x(i)
          enddo
-         disz=disz+nsl+1
+         disz=disz+mc+1
+!         write(*,*)'3E disfra 3: ',lokdis,disz
 ! number of sites in each sublattice
          call storrn(nsl,iws(lokdis+disz),fslink%dsites)
          disz=disz+nsl*nwpr
+!         write(*,*)'3E disfra 4: ',lokdis,disz,dmc,mc,size(fslink%y2x)
+! converting ordered fractions to disordered fractions
+         call storrn(mc,iws(lokdis+disz),fslink%dxidyj)
 ! formula unit factor
+         disz=disz+mc*nwpr
+!         write(*,*)'3E disfra 5: ',lokdis,disz
          call storr(lokdis+disz,iws,fslink%fsites)
-!         write(lut)fslink%dxidyj
-!         write(lut)fslink%dxidyj
+!         write(*,*)'3E disfra: ',lokdis+disz+nwpr,iws(1)
       else
 ! mark no link to disordered record
 !         write(*,*)'3E no disorderd record',lok+displace,iws(1),iws(2)
          iws(lok+displace)=0
       endif fsrec
-!      write(*,*)'3E buperr 7: ',buperr
+!      write(*,*)'3E buperr 7: ',buperr,lok,displace
 !------------------------------------- end of disorderd record
 ! save some results stored in the phase_varres record
       displace=displace+1
       call storr(lok+displace,iws,firstvarres%amfu)
       call storr(lok+displace+nwpr,iws,firstvarres%netcharge)
       call storr(lok+displace+2*nwpr,iws,firstvarres%dgm)
-      iws(lok+displace+3*nwpr)=firstvarres%nprop
+      iws(lok+displace+3*nwpr)=firstvarres%nprop 
+!      write(*,*)'3E nprop: ',lok,displace+3*nwpr,lok+displace+3*nwpr,&
+!           iws(lok+displace+3*nwpr),trim(phlista(lokph)%name)
       displace=displace+3*nwpr+1
 ! only save G and derivatives
       do i=1,6
@@ -1248,12 +1274,15 @@
    endif
    iws(bibhead)=reffree-1
    do ir=1,reffree-1
-! a bibliographic reference contains 16 character identifier and multiple
-! 64 characters text.  Concatinate that into a single text and save one
+! a bibliographic reference contains 16 character identifier and a variable
+! characters text.  Concatinate that into a single text and save one
 ! reference in each record linked from bibhead
       longline=bibrefs(ir)%reference
       jp=17
-      longline(17:)=bibrefs(ir)%nyrefspec
+! This require Fortran 2003/2008 standard, not available in GNU Fortran 4.8 
+!      longline(17:)=bibrefs(ir)%nyrefspec
+      ll=bibrefs(ir)%wprefspec(1)
+      call loadc(2,bibrefs(ir)%wprefspec,longline(17:ll+16))
 !      nl=size(bibrefs(ir)%refspec)
 !      do ll=1,nl
 !         longline(jp:)=bibrefs(ir)%refspec(ll)
@@ -1923,9 +1952,10 @@
 !\end{verbatim}
    character text*512,dum16*16,line*72
    type(gtp_phase_varres), pointer :: firstvarres
-   TYPE(gtp_fraction_set) :: fslink
+   TYPE(gtp_fraction_set), pointer :: fslink
    integer i,ierr,ip,isp,ivar,j,jp,k,lokcs,lokph,mc,mc2,nprop,nsl,kp,kl
    integer displace,llen,lok,lokvares,lokdiz,eqdis,lokcc,disz,conditionplace
+   integer offset,lokd,dmc
    double precision, dimension(:,:), allocatable :: ca,ci
 ! containing conditions, components and phase varres records for wach compset
 !>>>>> 50:
@@ -2021,20 +2051,33 @@
       firstvarres%status2=iws(lokvares+3)
       firstvarres%phstate=iws(lokvares+4)
       firstvarres%phtupx=iws(lokvares+5)
-      call loadc(lokvares+6,iws,firstvarres%prefix)
-      displace=6+nwch(4)
+      nsl=iws(lokvares+6)
+      mc=iws(lokvares+7)
+      call loadc(lokvares+8,iws,firstvarres%prefix)
+      displace=8+nwch(4)
       call loadc(lokvares+displace,iws,firstvarres%suffix)
       displace=displace+nwch(4)
       call loadrn(3,iws(lokvares+displace),firstvarres%abnorm)
       displace=displace+3*nwpr
-      if(btest(firstvarres%status2,CSDFS)) then
-         write(*,*)'3E cannot handle a disordered fraction set'
-         stop
-      else
+! we need these values here! but now they are stored in iws!!
+!      nsl=phlista(lokph)%noofsubl
+!      mc=phlista(lokph)%tnooffr
+      mc2=mc*(mc+1)/2
+      if(btest(firstvarres%status2,CSDLNK)) then
+! varres record with link to disordered varres record, some data to be stored
+! NOTE necessary data for nsl and mc stored later ...
 ! we need these values here!
-         nsl=phlista(lokph)%noofsubl
-         mc=phlista(lokph)%tnooffr
-         mc2=mc*(mc+1)/2
+!         write(*,*)'3E varres with link to disordered fraction varres'
+         offset=6+2*nwch(4)+3*nwpr+mc*(1+2*nwpr)+nsl*nwpr
+!         write(*,202)'3E offset:',j,lokvares,displace,iws(lokvares+displace),&
+!              nsl,mc,offset,iws(lokvares+offset),iws(lokvares+26)
+202      format(a,10i6)
+!         stop
+!      elseif(btest(firstvarres%status2,CSDFS)) then
+!         write(*,*)'3E varres for disordered fraction set OK',j,nsl,mc
+! this phase_varres/parres record belong to disordered fraction_set
+! we should use nsl and mc from disordered fraction set!
+! but they are not yet created...
       endif
 !      write(*,88)'3E reading phase_varres ',j,highcs,lokvares,nsl,mc,&
 !           trim(phlista(lokph)%name)
@@ -2054,8 +2097,56 @@
 !      write(*,*)'3E sites: ',lokvares,displace,lokvares+displace
       call loadrn(nsl,iws(lokvares+displace),firstvarres%sites)
       displace=displace+nsl*nwpr
+!      write(*,*)'3E odd:   ',lokvares,displace
       fsrec: if(btest(firstvarres%status2,CSDLNK)) then
-         write(*,*)'3E NOT implemented disordered fraction link'
+!         write(*,*)'3E disfra record:',lokvares,displace,iws(lokvares+displace)
+! disfra record
+         lokd=iws(lokvares+displace)
+         fslink=>firstvarres%disfra
+         fslink%latd=iws(lokd)
+         nsl=iws(lokd+1)
+         fslink%ndd=nsl
+         dmc=iws(lokd+2)
+         fslink%tnoofxfr=dmc
+         fslink%tnoofyfr=iws(lokd+3)
+         fslink%totdis=iws(lokd+4)
+         fslink%varreslink=iws(lokd+5)
+         call storc(lokd+6,iws,fslink%id)
+         disz=6+nwch(1)
+         allocate(fslink%nooffr(nsl))
+         allocate(fslink%splink(dmc))
+         allocate(fslink%y2x(mc))
+         allocate(fslink%dsites(nsl))
+         allocate(fslink%dxidyj(mc))
+         disz=6+nwch(1)
+         do i=1,nsl
+            fslink%nooffr(i)=iws(lokd+disz+i)
+         enddo
+         disz=disz+nsl
+!         write(*,202)'3E disfra 1: ',lokd,disz
+         do i=1,dmc
+            fslink%splink(i)=iws(lokd+disz+i)
+         enddo
+         disz=disz+dmc+1
+! we must use the ordered number of constituents here!!
+         if(mc.ne.iws(lokd+disz)) then
+            write(*,*)'3E constituent number error: ',mc,iws(lokd+disz)
+            mc=iws(lokd+disz)
+         endif
+!         write(*,202)'3E disfra 2: ',lokd,disz
+         do i=1,mc
+            fslink%y2x(i)=iws(lokd+disz+i)
+         enddo
+         disz=disz+mc+1
+!         write(*,202)'3E disfra 3: ',lokd,disz
+         call loadrn(nsl,iws(lokd+disz),fslink%dsites)
+         disz=disz+nsl*nwpr
+!         write(*,202)'3E disfra 4: ',lokd,disz
+         call loadrn(mc,iws(lokd+disz),fslink%dxidyj)
+         disz=disz+mc*nwpr
+!         write(*,202)'3E disfra 5: ',lokd,disz
+         call loadr(lokd+disz,iws,fslink%fsites)
+!         write(*,*)'3E disfra last: ',lokd+disz+nwpr
       else
          firstvarres%disfra%varreslink=0
       endif fsrec
@@ -2066,7 +2157,7 @@
       displace=displace+3*nwpr
       nprop=iws(lokvares+displace)
       if(nprop.ne.20) then
-         write(*,*)'3E nprop: ',nprop,displace,lokvares+displace,&
+         write(*,*)'3E nprop: ',lokvares,displace,lokvares+displace,nprop,&
            trim(phlista(lokph)%name)
          nprop=20
       endif

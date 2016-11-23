@@ -18,6 +18,12 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2016.11.23 A new macro to test SAVE is included.  Many small changes
+and bugixes in particular I now use the old WPACK storc/loafc routines
+rather than a new feature in Fortran 2003/8, allocating a character,
+which is not avalable in GNU Fortran 4.8.  I have also fixed some
+problems calculating dot functions.
+
 2016.11.18 The unformatted save is now almost finished.  I can save
 the static data structure except some minor things and the first
 equilibrium record with all calculated results and read all back and

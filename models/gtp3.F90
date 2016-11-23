@@ -1075,7 +1075,10 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! refspec: free text
      character*16 reference
 !     character*64, dimension(:), allocatable :: refspec
-     character(len=:), allocatable :: nyrefspec
+! this is Fortran 2003/2008 standard, not available in GNU 4.8
+!     character(len=:), allocatable :: nyrefspec
+! Use wpack routines!!!
+     integer, dimension(:), allocatable :: wprefspec
   END TYPE gtp_biblioref
 ! allocated in init_gtp
   TYPE(gtp_biblioref), private, allocatable :: bibrefs(:)
