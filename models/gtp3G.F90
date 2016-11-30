@@ -1137,15 +1137,16 @@
 ! when reserving the last free record.  The same for the other free lists
       gx%bmperr=4094; goto 1000
    endif
-! the free list of phase_varres record only maintained in firsteq
+! the free list of phase_varres record is only maintained in firsteq
 ! but all equilibria have identical allocation of phase_varres records
 ! the free list is created when starting OC, each record points to the next
 ! After composition sets has been entered and deleted it may be different
 ! highcs should always be the index of the highest used record
-!   write(*,*)'3G allocating varres record ',lokcs
+!   write(*,*)'3G looking for free varres record 1:',lokcs,csfree
    csfree=firsteq%phase_varres(lokcs)%nextfree
 ! wrong ...   if(csfree.gt.highcs) highcs=csfree
-! The record used is lokcs
+! The varres record used will be, csfree is updated
+!   write(*,*)'3G looking for free varres record 2:',lokcs,csfree
    firsteq%phase_varres(lokcs)%nextfree=0
    firsteq%phase_varres(lokcs)%status2=0
    ic=newhighcs(.true.)
@@ -1160,6 +1161,8 @@
 ! Maybe if composition set has been deleted without releasing allocated arrays?
       allocate(ceq%phase_varres(lokcs)%constat(nc))
    endif
+!   write(*,*)'3G compset: ',trim(phlista(lokph)%name),nc,lokcs,&
+!        size(ceq%phase_varres(lokcs)%constat)
 !    write(*,33)nc,(iva(i),i=1,nc)
    do ic=1,nc
       ceq%phase_varres(lokcs)%constat(ic)=iva(ic)

@@ -18,11 +18,16 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2016.11.39 It is now possible to save several equilibria and the
+assessment record.  It means OC now can save an assessment on a file
+similar to the PAR file for PARROT.  It is possible to continue the
+assessment from the saved file.
+
 2016.11.23 A new macro to test SAVE is included.  Many small changes
-and bugixes in particular I now use the old WPACK storc/loafc routines
-rather than a new feature in Fortran 2003/8, allocating a character,
+and bugixes in particular I now use the old WPACK storc/loadc routines
+rather than a new feature in Fortran 2003/8 to allocating a character,
 which is not avalable in GNU Fortran 4.8.  I have also fixed some
-problems calculating dot functions.
+problems calculating dot derivatives.
 
 2016.11.18 The unformatted save is now almost finished.  I can save
 the static data structure except some minor things and the first
@@ -49,8 +54,8 @@ also been fixed.  Work on the OCASI subroutines is ongoing but not yet
 finished.
 
 Christophe Sigli has provided an update of his Scheil simulation and
-was happy that the new LAPACK/BLAS routines made his calculation
-faster.
+was happy that the new LAPACK/BLAS routines made his calculations
+faster.  I have also added a second F90 example using TQ.
 
 2016.10.22 Several updates have been made for the new PDB database
 format.  There is a separate documentation for that available at the
@@ -67,7 +72,7 @@ OCASI documentation where I have to write some new code.  I have
 started writing installation guides for different OS with the help of
 Philippe Zeller.
 
-An environment variable OCHOME has been introduced and on the dirctory
+An environment variable OCHOME has been introduced and on the directory
 indicated by this variable one should have the ochelp.hlp file and one
 can have a start.OCM file that is executed when the program starts and
 an OCHOME/database directory which is searched for TDB databases if
@@ -76,16 +81,17 @@ user start the database name with "ocbase/" or "ocbase\"
 Whenever I find a something difficult to explain in the documentation
 I try to change the code but that will affect other parts of the
 documentation.  Updating OC and the documentation in parallel is a bit
-like playing a 4 handed piece of music on a piano all alone.
+like playing a piece of 4 handed piano music all alone.
 
 2016.09.13 The amend phase command can now add a constant G to a phase.
 
 2016.09.10 A major change of the numerics has been made.  Now LAPACK
 and BLAS are used for all numerical operations.  This has decreased
-the computation time with 20%.  I provide a subset of LAPACK and BLAS
-with OC compiled without specific adjustments to your hardware.  If
-you have access to a LAPACK and BLAS library fitted to your hardware
-please replace compiling the file oclablas.F90 by your own library.
+the computation time with almost 20%.  I provide a subset of LAPACK
+and BLAS with OC compiled without specific adjustments to your
+hardware.  If you have access to a LAPACK and BLAS library fitted to
+your hardware please replace compiling the file oclablas.F90 by your
+own library.
 
 There are changes in all files compiling and linking OC.  If you want
 to use your own LAPACK and BLAS routines you must make additional

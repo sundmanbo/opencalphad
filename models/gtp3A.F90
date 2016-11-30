@@ -374,8 +374,10 @@
    call assessmenthead(firstash)
    firstash%status=0
 !   write(*,*)'firstash allocated: ',firstash%status
-   nullify(firstash%prevash)
-   nullify(firstash%nextash)
+!   nullify(firstash%prevash)
+!   nullify(firstash%nextash)
+   firstash%nextash=>firstash
+   firstash%prevash=>firstash
 ! set that dense grid used by default
 !   globaldata%status=ibset(globaldata%status,GSXGRID)
 ! removed line above as that caused crash in parallel2 WHY????

@@ -141,16 +141,17 @@
    species(noofsp)=noofsp
    call alphasporder
 ! As this is an element add the species to the component list of firsteq
+!------------------------------------------------
 ! Beware that the alphabetical order may have changed. jjj used later
    jjj=ellista(noofel)%alphaindex
    if(jjj.lt.noofel) then
-!      write(*,*)'3B Fixing components in alphabetical order!!',jjj,noofel
+!      write(*,*)'3B TDB MUST HAVE ELEMENTS IN ALPHABETICAL ORDER!',jjj,noofel
       do kkk=noofel,jjj+1,-1
          firsteq%complist(kkk)%splink=firsteq%complist(kkk-1)%splink
          firsteq%complist(kkk)%phlink=firsteq%complist(kkk-1)%phlink
          firsteq%complist(kkk)%refstate=firsteq%complist(kkk-1)%refstate
-         firsteq%complist(kkk)%tpref(1)=firsteq%complist(kkk-1)%tpref(1)
-         firsteq%complist(kkk)%tpref(2)=firsteq%complist(kkk-1)%tpref(2)
+         firsteq%complist(kkk)%tpref=firsteq%complist(kkk-1)%tpref
+         firsteq%complist(kkk)%mass=firsteq%complist(kkk-1)%mass
       enddo
    else
       jjj=noofel
@@ -164,6 +165,8 @@
    firsteq%complist(jjj)%tpref(2)=1.0D5
 ! copy mass of component from species record
    firsteq%complist(jjj)%mass=mass
+! check
+!   call compmassbug(firsteq)
 ! NOTE jjj is used below when adding this element to reference phase
 ! also set the stoichiometry matrix, just the diagonal.  Also the inverse
    firsteq%compstoi(noofel,noofel)=one
@@ -528,7 +531,17 @@
    elseif(ch1.eq.'L') then
       phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHLIQ)
    endif
-! I is used by TC to indicate charge balance needed, ignore
+! Handle option F and B for permutations
+   if(ch1.eq.'F') then
+!      write(*,*)'3B Setting PHFORD bit'
+      phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHFORD)
+!      call set_phase_status_bit(lokph,PHFORD)
+   elseif(ch1.eq.'B') then
+!      write(*,*)'3B Setting PHBORD bit'
+      phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHBORD)
+!      call set_phase_status_bit(lokph,PHBORD)
+   endif
+! :I is used by TC to indicate charge balance needed, ignore
    if(ch1.eq.' ' .or. ch1.eq.'I') ch1='S'
 !   ch1='S'
    phlista(nyfas)%phletter=ch1

@@ -105,28 +105,6 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!-\begin{verbatim}
- subroutine gtpsaveu_old(filename,specification)
-! save all data unformatted on an file
-! header
-! element list
-! species list
-! phase list with sublattices, endmembers, interactions and parameters etc
-! tpfuns
-! state variable functions
-! references
-! equilibrium record(s) with conditions, componenets, phase_varres records etc
-! anything else?
-   implicit none
-   character*(*) filename,specification
-!-\end{verbatim}
-1000 continue
-   return
- end subroutine gtpsaveu_old
-
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
 !\begin{verbatim}
  subroutine gtpsaveu(filename,specification)
 ! save all data unformatted on an file
@@ -145,13 +123,13 @@
 !\end{verbatim}
 !
    character id*40,comment*72
-   integer, parameter :: miws=100000
+   integer, parameter :: miws=1000000
    integer iws(miws)
    integer i,isp,jph,lokph,lut,last,lok,rsize,displace,ibug,ffun,lokeq
 ! these depend on hardware, bytes/word and words/double. Defined in metlib3
 !   integer, parameter :: nbpw=4,nwpr=2
 ! integer function nwch calculates the number of words to store a character
-!   write(*,*)'In gtpsaveu: ',trim(specification),' version: ',trim(savefile)
+!   write(*,*)'3E In gtpsaveu: ',trim(specification),' version: ',trim(savefile)
 !
 ! positions reserved in the beginning of the workspace
 ! 3 element list
@@ -177,8 +155,8 @@
 ! 23 bibliography version
 ! 24 svfun lista
 ! 25 svfun version
-! 26 not used ...
-! 27
+! 26 assessment record list
+! 27 assessment version
 ! 28
 ! 29
 ! 30
@@ -204,7 +182,7 @@
 ! splink, status, alphaindex, refstatesymbol
       call wtake(lok,rsize,iws)
       if(buperr.ne.0) then
-         write(*,*)'Error reserving element record'
+         write(*,*)'3E Error reserving element record'
          gx%bmperr=4399; goto 1100
       endif
       call storc(lok+1,iws,ellista(i)%symbol)
@@ -241,7 +219,7 @@
    do isp=1,noofsp
       call wtake(lok,rsize+splista(isp)%noofel*(1+nwpr),iws)
       if(buperr.ne.0) then
-         write(*,*)'Error reserving species record'
+         write(*,*)'3E Error reserving species record'
          gx%bmperr=4399; goto 1100
       endif
 !      write(*,*)'3E refstatesymbol 2: ',ibug,iws(ibug),lok
@@ -277,7 +255,7 @@
 !>>>>> 20: tpfuns
    call wtake(lok,freetpfun,iws)
    if(buperr.ne.0) then
-      write(*,*)'Error reserving tpfun record'
+      write(*,*)'3E Error reserving tpfun record'
       gx%bmperr=4399; goto 1100
    endif
    iws(7)=lok
@@ -313,7 +291,7 @@
    if(nooftuples.gt.0) then
       call wtake(lok,1+nooftuples*5,iws)
       if(buperr.ne.0) then
-         write(*,*)'Error reserving phase tuple record'
+         write(*,*)'3E Error reserving phase tuple record'
          gx%bmperr=4399; goto 1100
       endif
       iws(lok)=nooftuples
@@ -335,7 +313,7 @@
    rsize=1+nwch(24)+3*nwpr+10
    call wtake(lok,rsize,iws)
    if(buperr.ne.0) then
-      write(*,*)'Error reserving globaldata record'
+      write(*,*)'3E Error reserving globaldata record'
       gx%bmperr=4399; goto 1100
    endif
    iws(last)=lok
@@ -372,7 +350,8 @@
 !        gtp_phase_varres_version
    lokeq=0
 ! we should eventually have a loop to save all equilibria
-   call saveequil(lokeq,iws,firsteq)
+!   call saveequil(lokeq,iws,firsteq)
+   call saveequil(lokeq,iws)
    if(gx%bmperr.ne.0) goto 1100
 ! finished saving equilibria
 !   write(*,*)'3E first saved equilibrium at: ',lokeq
@@ -382,6 +361,12 @@
    iws(19)=gtp_phase_varres_version
 ! disfra record version??
 !-------------------------------------------------------
+! assessment head record
+   if(associated(firstash)) then
+      iws(27)=gtp_assessment_version
+      lok=26
+      call saveash(lok,iws)
+   endif
 ! UNFINISHED we should write assessment records and step/map/plot records
 !-------------------------------------------------------
 ! finally write the workspace to the file ...
@@ -396,6 +381,7 @@
    comment=specification
    call wrkchk(rsize,miws,iws)
 ! NOTE: savefile is a character*8 in gtp3.F90
+   last=5+nwch(40)+nwch(8)+nwch(72)
    write(lut)id,savefile,comment,noofel,noofsp,noofph,nooftuples,rsize+5
    write(lut)(iws(i),i=1,rsize+5)
    close(lut)
@@ -403,12 +389,12 @@
       write(kou,990)buperr
 990   format(/' *** WARNING *** , workspace save error: ',i7/)
    endif
-   write(kou,991)rsize+5,trim(filename)
-991 format('Written workspace ',i8,' words unformatted on ',a,i7)
+   write(kou,991)nbpw*(rsize+5+last),trim(filename)
+991 format('Written workspace ',i10,' bytes unformatted on ',a)
 1000 continue
    return
 1100 continue
-   write(*,*)'Error storing record, nothing written on file',buperr,gx%bmperr
+   write(*,*)'3E Error storing record, nothing written on file',buperr,gx%bmperr
    gx%bmperr=4399
    goto 1000
  end subroutine gtpsaveu
@@ -463,7 +449,7 @@
       rsize=rsize+3
       call wtake(lok,rsize,iws)
       if(buperr.ne.0) then
-         write(*,*)'Error reserving phase record',trim(phlista(lokph)%name),&
+         write(*,*)'3E Error reserving phase record',trim(phlista(lokph)%name),&
               buperr
          gx%bmperr=4399; goto 1000
       endif
@@ -531,7 +517,7 @@
 ! if doneord=1 then we have listed the ordered parameters
       if(doneord.eq.1) then
          emrec=>phlista(lokph)%disordered
-         if(ocv()) write(*,*)'Saving disordered parameters'
+         if(ocv()) write(*,*)'3E Saving disordered parameters'
       endif
       emlista: do while(associated(emrec))
          proprec=>emrec%propointer
@@ -555,7 +541,7 @@
          rsize=6+emrec%noofpermut*nsl
          call wtake(lok,rsize,iws)
          if(buperr.ne.0) then
-            write(*,*)'Error reserving endmember record'
+            write(*,*)'3E Error reserving endmember record'
             gx%bmperr=4399; goto 1000
          endif
 !         write(*,*)'3E emrec:    ',emrec%noofpermut,lok,rsize,emrec%antalem
@@ -585,7 +571,7 @@
             rsize=5+nwch(16)+proprec%degree+1
             call wtake(lokpty,rsize,iws)
             if(buperr.ne.0) then
-               write(*,*)'Error reserving endmember record'
+               write(*,*)'3E Error reserving endmember record'
                gx%bmperr=4399; goto 1000
             endif
 ! link the property recordds sequentially
@@ -635,7 +621,7 @@
             rsize=7+fipsize+2*intrec%noofip(2)
             call wtake(lok,rsize,iws)
             if(buperr.ne.0) then
-               write(*,*)'Error reserving interaction record'
+               write(*,*)'3E Error reserving interaction record'
                gx%bmperr=4399; goto 1000
             endif
 ! store data
@@ -666,7 +652,7 @@
                rsize=5+nwch(16)+proprec%degree+1
                call wtake(lokpty,rsize,iws)
                if(buperr.ne.0) then
-                  write(*,*)'Error reserving inteaction property record'
+                  write(*,*)'3E Error reserving inteaction property record'
                   gx%bmperr=4399; goto 1000
                endif
 ! link the property records sequentially
@@ -694,7 +680,7 @@
 ! save on stack and check if higher level
             level=level+1
             if(level.gt.5) then
-!            write(*,*)'Too many interaction levels'
+!            write(*,*)'3E Too many interaction levels'
                gx%bmperr=4164; goto 1000
             endif
 ! save this interaction record and take link to higher
@@ -722,7 +708,7 @@
 400   continue
 ! take link to higher higher interaction
       if(doneord.eq.0) then
-         if(ocv()) write(*,*)'any disordered endmembers?'
+         if(ocv()) write(*,*)'3E any disordered endmembers?'
          if(associated(phlista(lokph)%disordered)) then
 ! there are also disordered parameters
 ! the disfra record is written in saveequil??
@@ -749,7 +735,7 @@
             rsize=3
             call wtake(lok,rsize,iws)
             if(buperr.ne.0) then
-               write(*,*)'Error reserving addition record'
+               write(*,*)'3E Error reserving addition record'
                gx%bmperr=4399; goto 1000
             endif
             iws(lokpty)=lok
@@ -774,11 +760,11 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine saveequil(lok1,iws,ceq)
+ subroutine saveequil(lok1,iws)
+! subroutine saveequil(lok1,iws,ceq)
 ! save data for equilibrium record ceq
    implicit none
    integer lok1,iws(*),jeq
-   type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
    character text*512
    type(gtp_phase_varres), pointer :: firstvarres
@@ -786,6 +772,20 @@
 !   TYPE(gtp_condition), pointer :: condrec
    integer i,isp,j,k,kl,lokcs,lokph,mc,mc2,nsl,lokeq,rsize,displace,lokvares
    integer lokdis,disz,lok,qsize,eqdis,iws1,dcheck,lokcc,seqz,offset,dmc
+   integer loklast,eqnumber
+   type(gtp_equilibrium_data), pointer :: ceq
+! loop to save all equilibria
+   eqnumber=0
+17 continue
+   eqnumber=eqnumber+1
+   ceq=>eqlista(eqnumber)
+! check if enything entered ...
+   if(.not.allocated(ceq%complist)) then
+      write(*,*)'3E not storing unused equilibria from: ',eqnumber
+      goto 1000
+!   else
+!      write(*,*)'3E storing equilibrium number: ',eqnumber
+   endif
 !>>>>> 50:
 !   write(lut)ceq%eqname,ceq%eqno,ceq%status,ceq%next
 ! status,multi,eqno,next,name,comment,tpval(2),rtn,weight,
@@ -794,7 +794,7 @@
    rsize=4+nwch(24)+nwch(72)+4*nwpr+2+2*noofel+4+3*nwpr
    call wtake(lokeq,rsize,iws)
    if(buperr.ne.0) then
-      write(*,*)'Error reserving equilibrium record'
+      write(*,*)'3E Error reserving equilibrium record'
       gx%bmperr=4399; goto 1000
    endif
    if(lok1.eq.0) then
@@ -802,8 +802,10 @@
       lok1=lokeq
    else
 ! else link from previous
-      iws(lok1)=lokeq
+!      write(*,*)'Linking equilibria: ',lok1,loklast,lokeq
+      iws(loklast)=lokeq
    endif
+   loklast=lokeq
 ! iws(lokeq) is pointer to next
    iws(lokeq+1)=ceq%status
    iws(lokeq+2)=ceq%multiuse
@@ -825,7 +827,7 @@
    if(kl.gt.1) then
       call wtake(lok,1+nwch(kl),iws)
       if(buperr.ne.0) then
-         write(*,*)'Error reserving condition record'
+         write(*,*)'3E Error reserving condition record'
          gx%bmperr=4399; goto 1000
       endif
       call storc(lok+1,iws,text(1:kl))
@@ -844,7 +846,7 @@
    seqz=seqz+1
    j=1
    text=' '
-   call get_one_experiment(j,text,seqz,ceq)
+   call get_one_experiment(j,text,seqz,.FALSE.,ceq)
    if(gx%bmperr.ne.0) then
 ! no or no more experiments
       gx%bmperr=0
@@ -855,10 +857,10 @@
          kl=len_trim(text)
       endif
       if(kl.gt.0) then
-         write(*,*)'3E exp: ',trim(text),kl,seqz
+!         write(*,*)'3E experiment: ',text(1:kl),seqz
          call wtake(lok,2+nwch(kl),iws)
          if(buperr.ne.0) then
-            write(*,*)'Error reserving experiments record'
+            write(*,*)'3E Error reserving experiments record'
             gx%bmperr=4399; goto 1000
          endif
          call storc(lok+2,iws,text(1:kl))
@@ -872,7 +874,7 @@
 !   write(*,*)'3E buperr 1: ',buperr
 !---- if components different from elements
    if(btest(globaldata%status,GSNOTELCOMP)) then
-      write(*,*)'Not implemented saving other components than elements'
+      write(*,*)'3E Not implemented saving other components than elements'
       gx%bmperr=4399; goto 1000
 !      do i=1,noofel
 !         isp=ceq%complist(i)%splink
@@ -889,7 +891,7 @@
 !         write(lut)(ceq%compstoi(j,i),j=1,noofel)
 !      enddo
    else
-! save component records anyway in a linked list NEEDED FOR MANY THINGS
+! save component records in a linked list NEEDED FOR MANY THINGS
 ! like reference state etc
       lokcc=lokeq+displace+2
       rsize=5+nwch(16)+1+6*nwpr
@@ -902,7 +904,7 @@
          endif
          call wtake(lok,rsize+kl,iws)
          if(buperr.ne.0) then
-            write(*,*)'Error reserving varres record',j,rsize+kl
+            write(*,*)'3E Error reserving varres record',j,rsize+kl
             gx%bmperr=4399; goto 1000
          endif
 ! sequential link
@@ -929,6 +931,7 @@
          call storrn(2,iws(lok+disz),ceq%complist(j)%chempot)
          disz=disz+2*nwpr
          call storr(lok+disz,iws,ceq%complist(j)%mass)
+!         write(*,*)'3E saving component mass',lok,disz,j,ceq%complist(j)%mass
          call storr(lok+disz+nwpr,iws,ceq%complist(j)%molat)
 !         write(*,*)'3e comprec size: ',lok,lok+disz+nwpr,iws(1)
       enddo
@@ -948,22 +951,24 @@
    compset: do j=1,highcs
 ! loop for all composition sets
       firstvarres=>ceq%phase_varres(j)
+      lokph=firstvarres%phlink
       if(btest(firstvarres%status2,CSDFS)) then
 ! this phase_varres/parres record belong to disordered fraction_set
 ! A big tricky to find the number of sublattices and constituents ....
-         lokph=firstvarres%phlink
          lokcs=phlista(lokph)%linktocs(1)
          nsl=ceq%phase_varres(lokcs)%disfra%ndd
          mc=ceq%phase_varres(lokcs)%disfra%tnoofxfr
       else
-         lokph=firstvarres%phlink; lokcs=0
+!         lokcs=0
          nsl=phlista(firstvarres%phlink)%noofsubl
-         mc=phlista(firstvarres%phlink)%tnooffr
+!         mc=phlista(firstvarres%phlink)%tnooffr
+         mc=size(firstvarres%yfr)
+!         write(*,*)'3E mc: ',trim(phlista(lokph)%name),mc
       endif
       if(btest(firstvarres%status2,CSDLNK)) then
 ! the offset here shold be the place to store the disfra record ...
          offset=6+2*nwch(4)+3*nwpr+mc*(1+2*nwpr)+nsl*nwpr
-!         write(*,202)'3E offset 0: ',j,highcs,lokph,lokcs,nsl,mc,offset
+!         write(*,202)'3E offset 0: ',j,highcs,lokph,nsl,mc,offset
       endif
       mc2=mc*(mc+1)/2
 ! nextfree,phlink,status2,phstate,phtupx,abnorm(3),prefix*4,suffix*4
@@ -976,11 +981,11 @@
       qsize=rsize
       call wtake(lok,rsize,iws)
       if(buperr.ne.0) then
-         write(*,*)'Error reserving varres record',j,rsize,nsl,mc
+         write(*,*)'3E Error reserving varres record',j,rsize,nsl,mc
          gx%bmperr=4399; goto 1000
       endif
       iws1=iws(1)
-      lokph=firstvarres%phlink
+!      lokph=firstvarres%phlink
 !      write(*,107)'3E saving: ',j,lok,rsize,mc,nsl,trim(phlista(lokph)%name)
 !      write(*,107)'3E saving: ',j,phasetuple(j)%ixphase,nsl,&
 !      trim(phlista(lokph)%name)
@@ -1031,7 +1036,7 @@
          rsize=8+nwch(1)+nsl+dmc+1+mc*(1+nwpr)+nsl*nwpr+nwpr
          call wtake(lokdis,rsize,iws)
          if(buperr.ne.0) then
-            write(*,*)'Error reserving disordered varres record',rsize
+            write(*,*)'3E Error reserving disordered varres record',rsize
             gx%bmperr=4399; goto 1000
          endif
 !         write(*,202)'3E disfracset 1: ',j,lok,displace,lokdis,nsl,dmc
@@ -1094,9 +1099,16 @@
       call storr(lok+displace,iws,firstvarres%amfu)
       call storr(lok+displace+nwpr,iws,firstvarres%netcharge)
       call storr(lok+displace+2*nwpr,iws,firstvarres%dgm)
-      iws(lok+displace+3*nwpr)=firstvarres%nprop 
-!      write(*,*)'3E nprop: ',lok,displace+3*nwpr,lok+displace+3*nwpr,&
+! Maybe firstvarres%nprop is not always initiated??
+! it seems that additional compsets have an arbitrary value ...
+      if(firstvarres%nprop.ne.20) then
+         iws(lok+displace+3*nwpr)=20
+      else
+         iws(lok+displace+3*nwpr)=firstvarres%nprop
+      endif
+!      write(*,303)'3E saving nprop: ',lok,displace+3*nwpr,lok+displace+3*nwpr,&
 !           iws(lok+displace+3*nwpr),trim(phlista(lokph)%name)
+303   format(a,4i8,2x,a)
       displace=displace+3*nwpr+1
 ! only save G and derivatives
       do i=1,6
@@ -1115,13 +1127,17 @@
 !      write(*,*)'3E last values used ',lok+displace+mc2*nwpr,lok+qsize,iws1
    enddo compset
 !----------------------------------------
+! we must set csfree to highcs+1
+! as new composition sets will use that as the free list pointer
+   csfree=highcs+1
+!-----------------------------------------
 ! mu(nel), xconc,gmind,eqextra,maxiter
    iws(lokeq+eqdis)=ceq%maxiter
    call storrn(noofel,iws(lokeq+eqdis+1),ceq%cmuval)
    eqdis=eqdis+1+noofel*nwpr
    call storr(lokeq+eqdis,iws,ceq%xconv)
    call storr(lokeq+eqdis+nwpr,iws,ceq%gmindif)
-   write(*,*)'3E NOT saving the character eqextra!'
+!   write(*,*)'3E NOT saving the character eqextra!'
 !   call storc(lokeq+displace+2*nwpr,iws,ceq%eqextra)
 !   write(*,*)'3E check rsize: ',rsize,eqdis+2*nwpr
 !>>>>>> 64: savesysmat
@@ -1137,6 +1153,9 @@
 !         write(lut)(ceq%savesysmat(mc,kl),kl=1,ceq%sysmatdim)
 !      enddo
 !   endif
+! loop for all entered equilibria
+   goto 17
+!----------
 1000 continue
    return
  end subroutine saveequil
@@ -1157,7 +1176,7 @@
    rsize=nsvfun+5
    call wtake(loksvf,rsize,iws)
    if(buperr.ne.0) then
-      write(*,*)'Error reserving state variable function record',rsize,iws(1)
+      write(*,*)'3E Error reserving state variable function record',rsize,iws(1)
       gx%bmperr=4399; goto 1000
    endif
    iws(loksvf)=nsvfun
@@ -1171,7 +1190,7 @@
       rsize=1+nwch(ipos)
       call wtake(lok,rsize,iws)
       if(buperr.ne.0) then
-         write(*,*)'Error reserving state variable function record',rsize,iws(1)
+         write(*,*)'3E Error reserving state variable func record',rsize,iws(1)
          gx%bmperr=4399; goto 1000
       endif
 !      write(*,*)'3E storing svfun: ',text(1:ipos)
@@ -1182,76 +1201,6 @@
 1000 continue
    return
  end subroutine svfunsave
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\begin{verbatim}
- subroutine svfunsave_old(lut,ceq)
-! saves all state variable functions on a file
-   implicit none
-   integer lut
-   type(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim}
-   character text*512,symbols(20)*32,afterdot*32
-   integer ip,ipos,istv,js,jt,kl,ks,lrot
-   type(gtp_state_variable), target :: svr2
-   type(gtp_state_variable), pointer :: svrrec
-   write(lut)nsvfun
-   do lrot=1,nsvfun
-      ipos=1
-      if(svflista(lrot)%narg.eq.0) goto 500
-      js=0
-      jt=0
-100 continue
-      jt=jt+1
-      js=js+1
-      ip=1
-      symbols(js)=' '
-      istv=svflista(lrot)%formal_arguments(1,jt)
-      if(istv.lt.0) then
-! function refer to another function
-         symbols(js)=svflista(-istv)%name
-      else
-! the 1:10 was a new bug discovered in GNU fortran 4.7 and later
-         svrrec=>svr2
-         call make_stvrec(svrrec,svflista(lrot)%formal_arguments(1:10,jt))
-!         do ii=1,4
-!            indices(ii)=svflista(lrot)%formal_arguments(1+ii,jt)
-!         enddo
-!         call encode_state_variable2(symbols(js),ip,istv,indices,&
-!              svflista(lrot)%formal_arguments(6,jt), &
-!              svflista(lrot)%formal_arguments(7,jt),ceq)
-         call encode_state_variable(symbols(js),ip,svrrec,ceq)
-         if(svflista(lrot)%formal_arguments(10,jt).ne.0) then
-! a derivative!!!
-            jt=jt+1
-            afterdot=' '
-            ip=1
-            write(*,*)'What? Derivatives not implemented'
-!            call encode_state_variable2(afterdot,ip,&
-!                 svflista(lrot)%formal_arguments(1,jt),indices,&
-!                 svflista(lrot)%formal_arguments(6,jt), &
-!                 svflista(lrot)%formal_arguments(7,jt),ceq)
-!            symbols(js)=symbols(js)(1:len_trim(symbols(js)))//'.'//afterdot
-         endif
-      endif
-      if(jt.lt.svflista(lrot)%narg) goto 100
-500   continue
-      kl=len_trim(svflista(lrot)%name)
-      text(ipos:ipos+kl+1)=svflista(lrot)%name(1:kl)//'= '
-      ipos=ipos+kl+2
-      write(*,*)'3E calling wrtfun'
-      call wrtfun(text,ipos,svflista(lrot)%linkpnode,symbols)
-      if(pfnerr.ne.0) then
-         write(kou,*)'Putfun error listing function ',ks,pfnerr
-         gx%bmperr=4142; goto 1000
-      endif
-      write(lut)ipos-1
-      write(lut)text(1:ipos-1)
-   enddo
-1000 continue
-   return
- end subroutine svfunsave_old
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
@@ -1264,12 +1213,12 @@
    character longline*2048
    integer ir,jp,ll,nl,lok,rsize
 !>>>>> 40:
-!   write(*,*)'Saving reference version and number of:',&
+!   write(*,*)'3E Saving reference version and number of:',&
 !        gtp_biblioref_version,reffree-1
    rsize=3+reffree-1
    call wtake(bibhead,rsize,iws)
    if(buperr.ne.0) then
-      write(*,*)'Error reserving biblographiic record',rsize,iws(1)
+      write(*,*)'3E Error reserving biblographiic record',rsize,iws(1)
       gx%bmperr=4399; goto 1000
    endif
    iws(bibhead)=reffree-1
@@ -1292,7 +1241,7 @@
       rsize=1+nwch(jp)
       call wtake(lok,rsize,iws)
       if(buperr.ne.0) then
-         write(*,*)'Error reserving biblographiic record',rsize,iws(1)
+         write(*,*)'3E Error reserving biblographiic record',rsize,iws(1)
          gx%bmperr=4399; goto 1000
       endif
       iws(lok)=jp
@@ -1302,6 +1251,171 @@
 1000 continue
    return
  end subroutine bibliosave
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine saveash(lok,iws)
+! saving assessment records
+   integer lok,iws(*)
+!\end{verbatim}
+   integer lok1,lok2,last,rsize,i1,i2,disp
+   type(gtp_assessmenthead), pointer :: assrec
+!   type(gtp_equilibrium_data), pointer :: ceq
+!
+   assrec=>firstash%nextash
+   if(.not.allocated(assrec%eqlista)) then
+      iws(lok)=0
+      goto 1000
+   endif
+20 continue
+! next, status, varcoef, first, and 8 allocatable arrays
+   rsize=4+2*nwch(64)+10
+   call wtake(lok1,rsize,iws)
+   if(buperr.ne.0) then
+      write(*,*)'3E Error reserving assessment record',rsize,iws(1)
+      gx%bmperr=4399; goto 1000
+   endif
+   if(iws(lok).eq.0) then
+      iws(lok)=lok1
+      last=lok1
+   else
+      iws(last)=lok1
+      last=lok1
+   endif
+   iws(lok1+1)=assrec%status
+   iws(lok1+2)=assrec%varcoef
+   iws(lok1+3)=assrec%firstexpeq
+   call storc(lok1+4,iws,assrec%general)
+   disp=4+nwch(64)
+   call storc(lok1+disp,iws,assrec%special)
+   disp=disp+nwch(64)
+! eqlista
+   i1=size(assrec%eqlista)
+   rsize=1+i1
+   call wtake(lok2,rsize,iws)
+   if(buperr.ne.0) then
+      write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
+      gx%bmperr=4399; goto 1000
+   endif
+!   write(*,*)'3E in saveash 1:',lok,lok1,lok2,i1
+   iws(lok2)=i1
+! Hm assrec%eqlista(i2)%p1 is a pointer to an element in the global eqlists
+!   ceq=>assrec%eqlista(1)%p1
+   do i2=1,i1
+      iws(lok2+i2)=assrec%eqlista(i2)%p1%eqno
+   enddo
+   iws(lok1+disp+1)=lok2
+! coeffvalues
+   i1=size(assrec%coeffvalues)
+   rsize=1+nwpr*i1
+   call wtake(lok2,rsize,iws)
+   if(buperr.ne.0) then
+      write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
+      gx%bmperr=4399; goto 1000
+   endif
+!   write(*,*)'3E in saveash 2:',lok2,i1
+   iws(lok2)=i1
+   call storrn(i1,iws(lok2+1),assrec%coeffvalues)
+   iws(lok1+disp+2)=lok2
+! coeffscale
+   i1=size(assrec%coeffscale)
+   rsize=1+nwpr*i1
+   call wtake(lok2,rsize,iws)
+   if(buperr.ne.0) then
+      write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
+      gx%bmperr=4399; goto 1000
+   endif
+   iws(lok2)=i1
+!   write(*,*)'3E in saveash 3:',lok2,i1
+   call storrn(i1,iws(lok2+1),assrec%coeffscale)
+   iws(lok1+disp+3)=lok2
+! coeffstart
+   i1=size(assrec%coeffstart)
+   rsize=1+nwpr*i1
+   call wtake(lok2,rsize,iws)
+   if(buperr.ne.0) then
+      write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
+      gx%bmperr=4399; goto 1000
+   endif
+   iws(lok2)=i1
+!   write(*,*)'3E in saveash 4:',lok2,i1
+   call storrn(i1,iws(lok2+1),assrec%coeffstart)
+   iws(lok1+disp+4)=lok2
+! coeffmin
+   i1=size(assrec%coeffmin)
+   rsize=1+nwpr*i1
+   call wtake(lok2,rsize,iws)
+   if(buperr.ne.0) then
+      write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
+      gx%bmperr=4399; goto 1000
+   endif
+   iws(lok2)=i1
+!   write(*,*)'3E in saveash 5:',lok2,i1
+   call storrn(i1,iws(lok2+1),assrec%coeffmin)
+   iws(lok1+disp+5)=lok2
+! coeffmax
+   i1=size(assrec%coeffmax)
+   rsize=1+nwpr*i1
+   call wtake(lok2,rsize,iws)
+   if(buperr.ne.0) then
+      write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
+      gx%bmperr=4399; goto 1000
+   endif
+   iws(lok2)=i1
+   call storrn(i1,iws(lok2+1),assrec%coeffmax)
+   iws(lok1+disp+6)=lok2
+! coeffindices
+   i1=size(assrec%coeffindex)
+   rsize=1+i1
+   call wtake(lok2,rsize,iws)
+   if(buperr.ne.0) then
+      write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
+      gx%bmperr=4399; goto 1000
+   endif
+   iws(lok2)=i1
+   do i2=1,i1
+      iws(lok2+i2)=assrec%coeffindex(i2-1)
+   enddo
+   iws(lok1+disp+7)=lok2
+! coeffstate
+   i1=size(assrec%coeffstate)
+   rsize=1+i1
+   call wtake(lok2,rsize,iws)
+   if(buperr.ne.0) then
+      write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
+      gx%bmperr=4399; goto 1000
+   endif
+   iws(lok2)=i1
+   do i2=1,i1
+      iws(lok2+i2)=assrec%coeffstate(i2-1)
+   enddo
+   iws(lok1+disp+8)=lok2
+! maybe work array should not be saved?
+   if(allocated(assrec%wopt)) then
+      i1=size(assrec%wopt)
+      rsize=1+nwpr*i1
+!      write(*,*)'3E saving assessment record: ',lok1,rsize
+      call wtake(lok2,rsize,iws)
+      if(buperr.ne.0) then
+         write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
+         gx%bmperr=4399; goto 1000
+      endif
+      iws(lok2)=i1
+      call storrn(i1,iws(lok2+1),assrec%wopt)
+      iws(lok1+disp+9)=lok2
+   else
+      iws(lok1+disp+9)=0
+   endif
+! check if there are several
+   if(.not.associated(assrec,firstash)) then
+      assrec=>assrec%nextash
+      write(*,*)'3E more than one assessment records'
+      goto 20
+   endif
+1000 continue
+   return
+ end subroutine saveash
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -1334,9 +1448,10 @@
 ! species list
 ! phase list with sublattices, endmembers, interactions and parameters etc
 ! tpfuns
-! state variable functions
 ! references
-! equilibrium record(s) with conditions, componenets, phase_varres records etc
+! first equilibrium record with conditions, componenets, phase_varres etc
+! state variable functions
+! equilibrium record(s) with conditions, componenets, phase_varres, experim etc
 !
    implicit none
    character*(*) filename,str
@@ -1344,6 +1459,7 @@
    character id*40,version*8,comment*72
    integer i,i1,i2,i3,isp,jph,kontroll,nel,ivers,lin,last,lok,displace,jfun
    integer, allocatable :: iws(:)
+!   type(gtp_equilibrium_data), pointer :: ceq
 10  format(i8)
    if(index(filename,'.').eq.0) then
       filename(len_trim(filename)+1:)='.ocu'
@@ -1370,7 +1486,7 @@
 !------------------------
 !>>>>> 2: elementlist, follow link from iws(3)
    if(iws(4).ne.gtp_element_version) then
-      write(*,*)'Element data structure not same: ',iws(4),gtp_element_version
+      write(*,*)'3E Element data structure not same:',iws(4),gtp_element_version
       gx%bmperr=4399; goto 1000
    endif
    nel=0
@@ -1395,7 +1511,7 @@
 !           ellista(nel)%mass,ellista(nel)%h298_h0,ellista(nel)%s298,&
 !           ellista(nel)%splink,ellista(nel)%status,ellista(nel)%alphaindex,&
 !           ellista(nel)%refstatesymbol
-17    format(a2,2x,a12,2x,a24,2x,3(1pe12.4),4i5)
+17    format('3E ',a2,2x,a12,2x,a24,2x,3(1pe12.4),4i5)
 ! do not forget the element array!
       elements(ellista(nel)%alphaindex)=nel
 !
@@ -1403,13 +1519,13 @@
 !      write(*,*)'3E elloop: ',nel,lok,last,iws(1)
    enddo
    if(nel.ne.noofel) then
-      write(*,*)'Number of elements wrong: ',nel,noofel
+      write(*,*)'3E Number of elements wrong: ',nel,noofel
    endif
 !   write(*,*)'3E Now the species!!'
 !-------
 !>>>>> 3: specieslist
    if(iws(6).ne.gtp_species_version) then
-      write(*,*)'Species version: ',iws(5),gtp_species_version
+      write(*,*)'3E Species version wrong: ',iws(5),gtp_species_version
       gx%bmperr=4399; goto 1000
    endif
    last=iws(5)
@@ -1450,8 +1566,7 @@
       gx%bmperr=4399; goto 1000
    endif
 !---------- component record
-!
-   
+! read inside the equilibrium record   
 !---------- tpfuns
 !>>>>> 20.. inside tpfunread, skip functions already read
    last=7
@@ -1468,7 +1583,7 @@
       do i=3,i3-1
          call read0tpfun(iws(isp+i),iws,i)
          if(gx%bmperr.ne.0) then
-            write(*,*)'Error reading TP functiona: ',gx%bmperr
+            write(*,*)'3E Error reading TP function: ',gx%bmperr
             goto 1000
          endif
       enddo
@@ -1490,7 +1605,7 @@
    if(gx%bmperr.ne.0) goto 1000
 !-----------
 ! restore phase tuples
-!   write(*,*)'Reading phase tuples',iws(14),noofph
+!   write(*,*)'3E Reading phase tuples',iws(14),noofph
    lok=iws(14)
    if(lok.gt.0) then
       if(iws(13).ne.gtp_phasetuple_version) then
@@ -1523,27 +1638,29 @@
 !>>>>> 40.. inside refread
 !   write(*,*)'3E reading bibliography'
    if(iws(23).ne.gtp_biblioref_version) then
-      write(*,*)'Bibliography version not same ',iws(23),gtp_biblioref_version
+      write(*,*)'3E Bibliography version wrong ',iws(23),gtp_biblioref_version
    else
       call biblioread(iws(22),iws)
       if(gx%bmperr.ne.0) goto 1000
    endif
-!---------- equilibrium record
+!---------- enter the first equilibrium record without experiments!!
    if(iws(17).ne.gtp_equilibrium_data_version) then
-      write(*,*)'Wrong equilibrium data version'
+      write(*,*)'3E Wrong equilibrium data version'
       gx%bmperr=4399; goto 1000
    elseif(iws(18).ne.gtp_component_version) then
-      write(*,*)'Wrong component version'
+      write(*,*)'3E Wrong component version'
       gx%bmperr=4399; goto 1000
    elseif(iws(19).ne.gtp_phase_varres_version) then
-      write(*,*)'Wrong phase varres version'
+      write(*,*)'3E Wrong phase varres version'
       gx%bmperr=4399; goto 1000
    endif
-! link to first saved in equilibrium in iws(16)
+! link to first saved in equilibrium in iws(16). firsteq is eqlista(1)
    i=iws(16)
-   call readequil(i,iws,firsteq)
+!   call readequil(i,iws,1,firsteq)
+   call readequil(i,iws,1)
    if(gx%bmperr.ne.0) goto 1000
-!---------- state variable functions
+!---------- state variable functions must be present when reading experiments
+! and the equilibria must
 !>>>>> 30... inside svfunread
 !   write(*,*)'3E reading state variable functions'
    if(iws(25).eq.gtp_putfun_lista_version) then
@@ -1553,6 +1670,22 @@
       write(*,*)'3E state variable function version error',iws(25),&
            gtp_putfun_lista_version
    endif
+!--------------------------------------------------------------------
+! read remaining equilibria which may contain experiments
+! link to first saved in equilibrium in iws(16)
+   i=iws(16)
+   i3=2
+   call readequil(i,iws,-1)
+   if(gx%bmperr.ne.0) goto 1000
+!-------------------------------------------------------------------
+! read assessment hear recods
+   if(iws(27).ne.gtp_assessment_version) then
+      write(*,*)'3E wrong assemmenst record version',iws(27),&
+           gtp_assessment_version
+   endif
+   lok=26
+   call readash(lok,iws)
+   if(gx%bmperr.ne.0) goto 1000
 !------ read all ??
 800 continue
 ! emergency exit
@@ -1592,7 +1725,7 @@
    type(gtp_phase_add), pointer :: addlink,nyaddlink
 !
    allocate(stack(5))
-!   write(*,*)'in readphase:',iws(9),iws(10),iws(11),iws(12),iws(13),&
+!   write(*,*)'3E in readphase:',iws(9),iws(10),iws(11),iws(12),iws(13),&
 !        iws(7),iws(8)
 ! as the phlista record contain pointers each item must be read separately
 ! the phaes are stored sequentially from iws(9)
@@ -1644,7 +1777,7 @@
       do i=1,9
          phlista(jph)%linktocs(i)=iws(lok+displace+i)
       enddo
-!      write(*,*)'Reading phase: ',trim(phlista(jph)%name),&
+!      write(*,*)'3E Reading phase: ',trim(phlista(jph)%name),&
 !           phlista(jph)%alphaindex,phlista(jph)%linktocs(1)
       displace=displace+9
       do i=1,nsl
@@ -1664,7 +1797,7 @@
       nullify(phlista(jph)%disordered)
       nullify(emrec)
 !      if(associated(emrec)) then
-!         write(*,*)'nullify does not work'
+!         write(*,*)'3E nullify does not work'
 !         stop
 !      endif
 ! if nem=0 now there are no basic (ordered) endmember (can that happen?)
@@ -1682,7 +1815,7 @@
             call readendmem(lokem,iws,nsl,emrec%nextem)
             emrec=>emrec%nextem
          elseif(firstendmem.eq.1) then
-!            write(*,*)'Read first endmember',jph
+!            write(*,*)'3E Read first endmember',jph
             call readendmem(lokem,iws,nsl,phlista(jph)%ordered)
             emrec=>phlista(jph)%ordered
          elseif(firstendmem.eq.2) then
@@ -1737,7 +1870,7 @@
 !      emrec=>phlista(jph)%ordered
 !      i1=1
 !      do while(associated(emrec) .and. i1.lt.20)
-!         write(*,*)'Found endmember ',i1
+!         write(*,*)'3E Found endmember ',i1
 !         emrec=>emrec%nextem
 !         i1=i1+1
 !      enddo
@@ -1748,7 +1881,7 @@
 ! we come here when no more endmembers in this list
       if(firstendmem.eq.1) then
 !>>>>> 11: if nem read here is zero there are no disordered endmembers
-         if(ocv()) write(*,*)'checking for disordered endmembers'
+         if(ocv()) write(*,*)'3E checking for disordered endmembers'
 !         read(lin)nem,nsl
 ! we must nullify emrec to start a new list of endmembers
          nullify(emrec)
@@ -1807,7 +1940,7 @@
    type(gtp_property), pointer :: proprec
 !
    allocate(emrec)
-!   write(*,*)'Allocating endmember for',lokem,iws(lokem),iws(lokem+1),&
+!   write(*,*)'3E Allocating endmember for',lokem,iws(lokem),iws(lokem+1),&
 !        iws(lokem+2)
 ! iws(lokem) is next endmember
 ! iws(lokem+1) is property
@@ -1944,36 +2077,56 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine readequil(lokeq,iws,ceq)
+ subroutine readequil(lokeq,iws,elope)
+! subroutine readequil(lokeq,iws,elope,ceq)
 ! lokeq is index for equilibrium record in iws
    implicit none
-   integer lokeq,iws(*)
-   type(gtp_equilibrium_data), pointer :: ceq
+   integer lokeq,iws(*),elope
 !\end{verbatim}
-   character text*512,dum16*16,line*72
+   type(gtp_equilibrium_data), pointer :: ceq
+   character text*512,dum16*16,line*72,ctext*72
    type(gtp_phase_varres), pointer :: firstvarres
    TYPE(gtp_fraction_set), pointer :: fslink
    integer i,ierr,ip,isp,ivar,j,jp,k,lokcs,lokph,mc,mc2,nprop,nsl,kp,kl
    integer displace,llen,lok,lokvares,lokdiz,eqdis,lokcc,disz,conditionplace
-   integer offset,lokd,dmc
+   integer offset,lokd,dmc,eqnumber,fixph
    double precision, dimension(:,:), allocatable :: ca,ci
+   double precision xxx
 ! containing conditions, components and phase varres records for wach compset
 !>>>>> 50:
 !   read(lin)ceq%eqname,ceq%eqno,ceq%status,ceq%next
-!   write(*,*)'In readequil ',lokeq
+!   write(*,*)'3E In readequil ',lokeq,elope
+! constat
+! elope=1 to read first equilibrium, -1 to read second or later
+   eqnumber=1
+17 continue
+   if(elope.lt.0) then
+! take next equilibrium and increment eqnumber
+      lokeq=iws(lokeq)
+      eqnumber=eqnumber+1
+   endif
+   ceq=>eqlista(eqnumber)
    if(lokeq.le.0) then
-      write(*,*)'Not an equilibrium record'
-      gx%bmperr=4399; goto 1000
+      if(elope.gt.0) then
+! if this is the first equilibrium this is an error, otherwise just end of list
+         write(*,*)'3E Not an equilibrium record'
+         gx%bmperr=4399
+      endif
+      goto 1000
    endif
+!   write(*,*)'Reading equilibrium number ',eqnumber,iws(lokeq+3),iws(lokeq+4)
    ceq%status=iws(lokeq+1)
+! set that no calculation is made in status word to prevent listing
+   ceq%status=ibset(ceq%status,EQNOEQCAL)
    ceq%multiuse=iws(lokeq+2)
-! Hm, eqno should not be changed?
-   if(ceq%eqno.ne.iws(lokeq+3)) then
-      write(*,*)'Should be same equilibrium number ',ceq%eqno,iws(lokeq+3)
+! Hm, eqno should not be changed?  By default arbitrary value!!
+   if(eqnumber.ne.iws(lokeq+3)) then
+      write(*,*)'3E Should be same equilibrium number ',eqnumber,iws(lokeq+3)
    endif
+   ceq%eqno=iws(lokeq+3)
    ceq%next=iws(lokeq+4)
    call loadc(lokeq+5,iws,ceq%eqname)
-!   write(*,*)'Reading equilibrium: ',ceq%eqname
+!   write(*,*)'3E Reading equilibrium: ',ceq%eqname
    displace=5+nwch(24)
    call loadc(lokeq+displace,iws,ceq%comment)
 !   write(*,*)'3E comment: "',trim(ceq%comment),'" ',len_trim(ceq%comment)
@@ -1988,12 +2141,23 @@
       deallocate(ceq%complist)
    endif
    allocate(ceq%complist(noofel))
+   if(eqnumber.gt.1) then
+      allocate(ceq%compstoi(noofel,noofel))
+      allocate(ceq%invcompstoi(noofel,noofel))
+   endif
+   ceq%compstoi=zero
+   ceq%invcompstoi=zero
+   do kl=1,noofel
+! when the elements are components ...
+      ceq%compstoi(kl,kl)=one
+      ceq%invcompstoi(kl,kl)=one
+   enddo
    llen=0
    lokcc=iws(lokeq+displace+2)
    do while(lokcc.gt.0)
       llen=llen+1
       if(llen.gt.noofel) then
-         write(*,*)'Too many components'
+         write(*,*)'3E Too many components'
          gx%bmperr=4399; goto 1000
       endif
       ceq%complist(llen)%splink=iws(lokcc+1)
@@ -2015,10 +2179,12 @@
       call loadrn(2,iws(lokcc+disz),ceq%complist(llen)%tpref)
 !      write(*,*)'3E refstate 2: ',ceq%complist(llen)%tpref
       disz=disz+2*nwpr
-      call loadrn(2,iws(lok+disz),ceq%complist(llen)%chempot)
+      call loadrn(2,iws(lokcc+disz),ceq%complist(llen)%chempot)
       disz=disz+2*nwpr
-      call loadr(lok+disz,iws,ceq%complist(llen)%mass)
-      call loadr(lok+disz+nwpr,iws,ceq%complist(llen)%molat)
+      call loadr(lokcc+disz,iws,ceq%complist(llen)%mass)
+!      write(*,*)'3E loading component mass',lokcc,disz,llen,&
+!           ceq%complist(llen)%mass
+      call loadr(lokcc+disz+nwpr,iws,ceq%complist(llen)%molat)
       lokcc=iws(lokcc)
    enddo
 !----- conditions (note that inactive conditions not set)
@@ -2028,12 +2194,25 @@
 !>>>>> 54:
    highcs=iws(lokeq+displace+3)
    if(ocv()) then
-      write(*,*)'Number of phase_varres records: ',highcs
+      write(*,*)'3E Number of phase_varres records: ',highcs
       write(*,*)'phase_varres size: ',size(ceq%phase_varres)
    endif
 ! link to first varres record stored here
    lokvares=iws(lokeq+displace+4)
    eqdis=displace+5
+! for equilibria 2 and higher phase_varees must be allocated!!
+   if(eqnumber.gt.1) then
+!      write(*,*)'3E allocating phase_varres for equilibrium: ',eqnumber
+      allocate(ceq%phase_varres(highcs+5))
+! we should also allocate a few other things
+      allocate(ceq%eq_tpres(maxtpf))
+      allocate(ceq%svfunres(maxsvfun))
+      do j=1,maxtpf
+         ceq%eq_tpres(j)%forcenewcalc=0
+      enddo
+      ceq%tpval(1)=1.0D3
+      ceq%tpval(2)=1.0D5
+   endif
    compset: do j=1,highcs
       if(lokvares.le.100) then
          write(*,*)'3E error linking phase_varres records ...',lokvares
@@ -2053,6 +2232,7 @@
       firstvarres%phtupx=iws(lokvares+5)
       nsl=iws(lokvares+6)
       mc=iws(lokvares+7)
+!      write(*,*)'3E read mc ',trim(phlista(lokph)%name),nsl,mc,j
       call loadc(lokvares+8,iws,firstvarres%prefix)
       displace=8+nwch(4)
       call loadc(lokvares+displace,iws,firstvarres%suffix)
@@ -2083,6 +2263,7 @@
 !           trim(phlista(lokph)%name)
 !88    format(a,5i7,2x,a)
 !
+!      write(*,*)'3E allocating constat: ',j,mc
       allocate(firstvarres%constat(mc))
       do i=1,mc
          firstvarres%constat(i)=iws(lokvares+displace+i-1)
@@ -2157,10 +2338,11 @@
       displace=displace+3*nwpr
       nprop=iws(lokvares+displace)
       if(nprop.ne.20) then
-         write(*,*)'3E nprop: ',lokvares,displace,lokvares+displace,nprop,&
-           trim(phlista(lokph)%name)
+         write(*,303)'3E get nprop: ',lokvares,displace,lokvares+displace,&
+              nprop,trim(phlista(lokph)%name)
          nprop=20
       endif
+303   format(a,4i7,2x,a)
       firstvarres%nprop=nprop
       allocate(firstvarres%listprop(nprop))
 ! calculated results, only G saved
@@ -2185,9 +2367,16 @@
 ! link to next stored phase_varres record
       lokvares=iws(lokvares)
    enddo compset
+!   if(elope.lt.0) then
+      csfree=highcs+1
+!   endif
+!   write(*,*)'3E csfree: ',highcs,csfree,elope
+!   write(*,*)'3E All phase_varres records created for ',ceq%eqno
 !----- conditions (note that inactive conditions not set)
 !   lok=iws(lokeq+displace)
    lok=iws(lokeq+conditionplace)
+   nullify(ceq%lastcondition)
+   nullify(ceq%lastexperiment)
    if(lok.gt.0) then
       llen=iws(lok)
       call loadc(lok+1,iws,text(1:llen))
@@ -2212,11 +2401,25 @@
                kp=index(line,' ')
                line(kp:)=' '
             endif
+! We must handle fix phases :: <phase>=value transforms to fix=phase == value
+            if(line(1:1).eq.'<') then
+               kp=index(line,'>')
+               fixph=kp+1
+               call getrel(line,fixph,xxx)
+               if(buperr.ne.0) then
+                  buperr=0; xxx=zero
+               endif
+               ctext=' FIX='//line(2:kp-1)//' == '//line(fixph+1:)
+!               write(*,*)'3E fixph: ',trim(ctext)
+               line=ctext
+            endif
             kp=0
 !            write(*,*)'3E set condition "',trim(line),'"',jp,ip
             call set_condition(line,kp,ceq)
+!            write(*,*)'3E back from set condition "',gx%bmperr
             if(gx%bmperr.ne.0) then
-               write(*,*)'Error setting conditions'
+               write(*,*)'3E Error setting conditions'
+               write(*,*)'3E condition "',trim(line),'"',kp
                goto 1000
             endif
          enddo cloop
@@ -2232,28 +2435,40 @@
 ! experiments are stored individually in a linked list
       kp=kp+1
       llen=iws(lok+1)
+      text=' '
       call loadc(lok+2,iws,text(1:llen))
-      write(*,*)'3E found experiment: ',text(1:llen),llen
+!      write(*,*)'3E found experiment: ',text(1:llen),llen
       llen=0
       call enter_experiment(text,llen,ceq)
+!      write(*,*)'3E Back from enter_experiment'
+      if(gx%bmperr.ne.0) then
+         write(*,*)'3E error entering experiment ',gx%bmperr,' continuing'
+         gx%bmperr=0
+      endif
       lok=iws(lok)
       goto 733
    endif
-   if(kp.gt.0) write(*,*)'Found ',kp,' experiments'
+   if(kp.gt.0) write(*,*)'3E Found ',kp,' experiments'
 !-------------------------- a few remaining things
    ceq%maxiter=iws(lokeq+eqdis)
+   if(.not.allocated(ceq%cmuval)) then
+      allocate(ceq%cmuval(noofel))
+   endif
    call loadrn(noofel,iws(lokeq+eqdis+1),ceq%cmuval)
    eqdis=eqdis+1+noofel*nwpr
    call loadr(lokeq+eqdis,iws,ceq%xconv)
    call loadr(lokeq+eqdis+nwpr,iws,ceq%gmindif)
-!   write(*,*)'3E used size: ',eqdis+2*nwpr
-!   goto 1000
+! if elope negative continue reading next equilibrium
+   if(elope.lt.0) then
+!      write(*,*)'3E read the next equilibrium'
+! increment the index of first free equilibrium
+      eqfree=eqfree+1
+      goto 17
+   endif
 !
-!
-!   write(*,*)'UNIFINSHED reading of equilibria ...',highcs
-! what about the free list ....??? there can be free records below highcs ...
-   csfree=highcs+1
 1000 continue
+   if(eqfree.gt.2) write(*,1010)eqfree-1
+1010 format('Read ',i4,' equilibria')
    return
  end subroutine readequil
 
@@ -2275,11 +2490,11 @@
       ip=iws(lok)
       text=' '
       call loadc(lok+1,iws,text(1:ip))
-!      write(*,*)'Entering saved svf: ',text(1:ip)
+!      write(*,*)'3E Entering saved svf: ',text(1:ip)
       ip=0
       call enter_svfun(text,ip,firsteq)
       if(gx%bmperr.ne.0) then
-         write(*,*)'Error entering saved svf',gx%bmperr
+         write(*,*)'3E Error entering saved svf',gx%bmperr
          if(gx%bmperr.ne.4136) goto 1000
          gx%bmperr=0
       endif
@@ -2299,7 +2514,7 @@
    character text*2048
    integer i,iref,jp,nrefs,lok,kk,ir,nr
 !>>>>> 40: number of references
-!   write(*,*)'Reading reference version and nummer of'
+!   write(*,*)'3E Reading reference version and nummer of'
    nrefs=iws(bibhead)
    do i=1,nrefs
       lok=iws(bibhead+i)
@@ -2312,6 +2527,136 @@
  end subroutine biblioread
 
 !/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!
+
+!\begin{verbatim}
+ subroutine readash(lok,iws)
+! reading assessment records
+   integer lok,iws(*)
+!\end{verbatim}
+   integer lok1,lok2,last,rsize,i1,i2,disp
+   type(gtp_assessmenthead), pointer :: assrec
+   type(gtp_equilibrium_data), pointer :: ceq
+!
+   lok1=lok
+   assrec=>firstash%nextash
+20 continue
+   if(iws(lok1).eq.0) goto 1000
+   lok1=iws(lok1)
+   assrec%status=iws(lok1+1)
+   assrec%varcoef=iws(lok1+2)
+   assrec%firstexpeq=iws(lok1+3)
+   call loadc(lok1+4,iws,assrec%general)
+   disp=4+nwch(64)
+   call loadc(lok1+disp,iws,assrec%special)
+   disp=disp+nwch(64)
+   lok2=iws(lok1+disp+1)
+   if(lok2.gt.0) then
+! eqlista
+!      lok2=iws(lok2)
+      i1=iws(lok2)
+!      write(*,*)'3E In readash 1: ',lok,lok1,lok2,i1
+      allocate(assrec%eqlista(i1))
+! in iws(lok2+i2) the index to eqlista is stored, 
+! assrec%eqlista(i2)%p1 is a pointer to this equilibrium
+      do i2=1,i1
+         ceq=>eqlista(iws(lok2+i2))
+         assrec%eqlista(i2)%p1=>ceq
+      enddo
+   endif
+   lok2=iws(lok1+disp+2)
+   if(iws(lok2).gt.0) then
+! coeffvalues
+!      lok2=iws(lok2)
+      i1=iws(lok2)
+!      write(*,*)'3E In readash 2: ',lok2,i1
+      allocate(assrec%coeffvalues(0:i1-1))
+      call loadrn(i1,iws(lok2+1),assrec%coeffvalues)
+   endif
+   lok2=iws(lok1+disp+3)
+   if(iws(lok2).gt.0) then
+! coeffscale
+!      lok2=iws(lok2)
+      i1=iws(lok2)
+!      write(*,*)'3E In readash 3: ',lok2,i1
+      allocate(assrec%coeffscale(0:i1-1))
+      call loadrn(i1,iws(lok2+1),assrec%coeffscale)
+   endif
+   lok2=iws(lok1+disp+4)
+   if(iws(lok2).gt.0) then
+! coeffstart
+!      lok2=iws(lok2)
+      i1=iws(lok2)
+!      write(*,*)'3E In readash 4: ',lok2,i1
+      allocate(assrec%coeffstart(0:i1-1))
+      call loadrn(i1,iws(lok2+1),assrec%coeffstart)
+   endif
+   lok2=iws(lok1+disp+5)
+   if(iws(lok2).gt.0) then
+! coeffmin
+!      lok2=iws(lok2)
+      i1=iws(lok2)
+!      write(*,*)'3E In readash 5: ',lok2,i1
+      allocate(assrec%coeffmin(0:i1-1))
+      call loadrn(i1,iws(lok2+1),assrec%coeffmin)
+   endif
+   lok2=iws(lok1+disp+6)
+   if(iws(lok2).gt.0) then
+! coeffmax
+!      lok2=iws(lok2)
+      i1=iws(lok2)
+!      write(*,*)'3E In readash 6: ',lok2,i1
+      allocate(assrec%coeffmax(0:i1-1))
+      call loadrn(i1,iws(lok2+1),assrec%coeffmax)
+   endif
+   lok2=iws(lok1+disp+7)
+   if(iws(lok2).gt.0) then
+! coeffindices
+!      lok2=iws(lok2)
+      i1=iws(lok2)
+!      write(*,*)'3E In readash 7: ',lok2,i1
+      allocate(assrec%coeffindex(0:i1-1))
+      do i2=1,i1
+         assrec%coeffindex(i2-1)=iws(lok2+i2)
+      enddo
+   endif
+   lok2=iws(lok1+disp+8)
+   if(iws(lok2).gt.0) then
+! coeffstate
+!      lok2=iws(lok2)
+      i1=iws(lok2)
+!      write(*,*)'3E In readash 8: ',lok2,i1
+      allocate(assrec%coeffstate(0:i1-1))
+      do i2=1,i1
+         assrec%coeffstate(i2-1)=iws(lok2+i2)
+      enddo
+   endif
+! maybe work array should not be saved?
+   lok2=iws(lok1+disp+9)
+   if(lok2.gt.0) then
+      if(iws(lok2).gt.0) then
+!         lok2=iws(lok2)
+         i1=iws(lok2)
+!         write(*,*)'3E In readash 9: ',lok2,i1
+         allocate(assrec%wopt(i1))
+         call loadrn(i1,iws(lok2+1),assrec%wopt)
+      endif
+   endif
+! check if there are several assessmentheads
+   if(iws(lok1).gt.0) then
+! There are more records, try to create a circular list in both directions
+      write(*,*)'3E In readash 10: ',lok1,iws(lok1)
+      allocate(assrec%nextash)
+      assrec%nextash%prevash=>assrec
+      assrec=>assrec%nextash
+      firstash%prevash=>assrec
+      write(*,*)'3E more assessment records'
+      goto 20
+   endif
+1000 continue
+   return
+ end subroutine readash
+
+!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!!/!\!
 
 !\begin{verbatim}
  subroutine new_gtp
@@ -2329,17 +2674,17 @@
    type(gtp_phase_varres), pointer :: phdyn
 !   TYPE(gtp_fraction_set) :: fslink
 !   write(*,*)'3E Testing segmentation error in new_gtp'
-   if(ocv()) write(*,*)'Removing current data'
+   if(ocv()) write(*,*)'3E Removing current data'
 !---------- elementlist, no need to delete, just deallocate below
 !>>>>> 2:
 !---------- specieslist, we have to deallocate ?? maybe not ??
 !>>>>> 3:
    if(btest(globaldata%status,GSNODATA)) then
-      if(ocv()) write(*,*)'No thermodynamic data to delete'
+      if(ocv()) write(*,*)'3E No thermodynamic data to delete'
       goto 600
    endif
    if(gtp_species_version.ne.1) then
-      if(ocv()) write(*,17)'Species',1,gtp_species_version
+      if(ocv()) write(*,17)'3E Species',1,gtp_species_version
 17    format(a,' record version error: ',2i4)
       gx%bmperr=4300; goto 1000
    endif
@@ -2354,19 +2699,19 @@
 !>>>>> 4
 !   write(*,*)'3E No segmentation error B'
    if(gtp_phase_version.ne.1) then
-      if(ocv()) write(*,17)'Phase',1,gtp_phase_version
+      if(ocv()) write(*,17)'3E Phase',1,gtp_phase_version
       gx%bmperr=4302; goto 1000
    endif
    if(gtp_endmember_version.ne.1) then
-      if(ocv()) write(*,17)'Endmember',1,gtp_endmember_version
+      if(ocv()) write(*,17)'3E Endmember',1,gtp_endmember_version
       gx%bmperr=4302; goto 1000
    endif
    if(gtp_interaction_version.ne.1) then
-      if(ocv()) write(*,17)'Interaction',1,gtp_interaction_version
+      if(ocv()) write(*,17)'3E Interaction',1,gtp_interaction_version
       gx%bmperr=4302; goto 1000
    endif
    if(gtp_property_version.ne.1) then
-      if(ocv()) write(*,17)'Property',1,gtp_property_version
+      if(ocv()) write(*,17)'3E Property',1,gtp_property_version
       gx%bmperr=4302; goto 1000
    endif
    do j=0,noofph
@@ -2425,9 +2770,9 @@
 !   write(*,*)'3E No segmentation error E'
 !------ tpfunction expressions and other lists
 !>>>>> 20: delete tpfuns
-!   write(*,*)'Delete TP funs, just deallocate??'
+!   write(*,*)'3E Delete TP funs, just deallocate??'
    call delete_all_tpfuns
-!   write(*,*)'Back from deleting all TP funs, this is fun!!'
+!   write(*,*)'3E Back from deleting all TP funs, this is fun!!'
 !------ tpfunction expressions and other lists
 !>>>>> 30: delete state variable functions
    deallocate(svflista)
@@ -2445,7 +2790,7 @@
 !    deallocate( .... any more ???
 !---------------------------
 ! now initiate all lists and a little more
-   if(ocv()) write(*,*)'All data structures will be reinitiated'
+   if(ocv()) write(*,*)'3E All data structures will be reinitiated'
 ! intv(1) negative means reinititate with same values as before
 !   intv(1)=-1
 !   write(*,*)'3E No segmentation error H', moved to pmon
@@ -2476,7 +2821,7 @@
    end type saveint
    type(saveint), dimension(:), pointer :: stack
    type(gtp_phase_add), pointer :: addlink,nextadd
-!   write(*,*)'In delphase',lokph
+!   write(*,*)'3E In delphase',lokph
    allocate(stack(5))
    nsl=phlista(lokph)%noofsubl
 !>>>>> 6:
@@ -2493,7 +2838,7 @@
       intrec=>emrec%intpointer
       nextem=>emrec%nextem
 !>>>>> 7: after saving links deallocate endmember record with all its content
-!      write(*,*)'deallocate endmember record'
+!      write(*,*)'3E deallocate endmember record'
       deallocate(emrec)
 ! nextem do not need to be declared as target??
       emrec=>nextem
@@ -2501,7 +2846,7 @@
          nextprop=>proprec%nextpr
 !>>>>> 8: endmember property records
 ! functions and references deallocated separately
-!         write(*,*)'deallocate endmember property record'
+!         write(*,*)'3E deallocate endmember property record'
          deallocate(proprec)
          proprec=>nextprop
       enddo emproplista
@@ -2514,16 +2859,16 @@
          if(level.gt.5) then
             gx%bmperr=4164; goto 1000
          endif
-!         write(*,*)'Pushing ',level
+!         write(*,*)'3E Pushing ',level
          stack(level)%p1=>intrec%nextlink
          nextint=>intrec%highlink
          proprec=>intrec%propointer
-!         write(*,*)'deallocate interaction record'
+!         write(*,*)'3E deallocate interaction record'
          deallocate(intrec)
          intproplista: do while(associated(proprec))
             nextprop=>proprec%nextpr
 !>>>>> 10: interaction properties
-!            write(*,*)'deallocate interaction property record'
+!            write(*,*)'3E deallocate interaction property record'
             deallocate(proprec)
             proprec=>nextprop
          enddo intproplista
@@ -2531,7 +2876,7 @@
       enddo intlista
 ! pop the link to next interaction if any
       pop: if(level.gt.0) then
-!         write(*,*)'popping interaction record',level
+!         write(*,*)'3E popping interaction record',level
          intrec=>stack(level)%p1
          nullify(stack(level)%p1)
          level=level-1
@@ -2544,12 +2889,12 @@
    if(noendm.eq.0) then
 ! we do not have to care about that nsl is different ....
 !>>>>> 11: disordered endmembers
-!      write(*,*)'disordered endmembers'
+!      write(*,*)'3E disordered endmembers'
       emrec=>phlista(lokph)%disordered
       noendm=1
       goto 200
    endif
-!   write(*,*)'finished parameter records'
+!   write(*,*)'3E finished parameter records'
 !------ additions list
 500 continue
    addlink=>phlista(lokph)%additions
@@ -2560,11 +2905,11 @@
 !>>>>> 12A: delete magnetic addition ...
          deallocate(addlink)
       else
-         write(*,*)'Cannot delete unknown addition type ',addlink%type
+         write(*,*)'3E Cannot delete unknown addition type ',addlink%type
       endif
       addlink=>nextadd
    enddo addition
-!   write(*,*)'phase location: ',lokph,size(phlista(lokph)%nooffr),&
+!   write(*,*)'3E phase location: ',lokph,size(phlista(lokph)%nooffr),&
 !        size(phlista(lokph)%constitlist)
 !   if(lokph.ne.0) then
 ! problem with phases, cannot deallocate these arrays, why??
@@ -2820,7 +3165,7 @@
       silent=.TRUE.
 !      write(*,*)'3E reading database silent'
    endif
-   if(ocv()) write(*,*)'reading a TDB file'
+   if(ocv()) write(*,*)'3E reading a TDB file'
    if(.not.(index(filename,'.tdb').gt.0 &
        .or. index(filename,'.TDB').gt.0)) then
 ! no extention provided
@@ -2872,7 +3217,7 @@
    funfirst: if(onlyfun) then
 ! first read only functions until all has been read
 !      if(line(2:10).eq.'FUNCTION ') then
-!      write(*,*)'Input line >',line(1:20),'<'
+!      write(*,*)'3E Input line >',line(1:20),'<'
       ipp=istdbkeyword(line,nextc)
       if(ipp.eq.5) then
 !123456789.123456789.123456789.123456789.123456789.123456789.123456789.12345678
@@ -2891,7 +3236,7 @@
          endif
          ipp=nextc+index(line(nextc:),' ')
          name1=line(nextc:ipp-1)
-!         write(*,18)'function >',name1,'< ',nextc,ipp
+!         write(*,18)'3E function >',name1,'< ',nextc,ipp
 !18       format(a,a,a,2i4)
 ! old code
          longline=' '
@@ -2920,7 +3265,7 @@
                gx%bmperr=4303
                goto 1000
             endif
-            if(ocv()) write(*,*)'Entered function: ',name1
+            if(ocv()) write(*,*)'3E Entered function: ',name1
             newfun=newfun+1
          else
             nl=nl+1
@@ -2949,7 +3294,7 @@
    if(keyw.eq.0) then
       ip=1
       if(.not.eolch(line,ip)) then
-         if(ocv()) write(*,*)'Ignoring line: ',nl,ip,line(ip:ip+20)
+         if(ocv()) write(*,*)'3E Ignoring line: ',nl,ip,line(ip:ip+20)
       endif
       goto 100
    elseif(onlyfun) then
@@ -2965,7 +3310,7 @@
    ip=1
    longline(ip:)=line
    ip=len_trim(longline)+1
-!   write(*,*)'new keyword ',ip,'>',longline(1:40)
+!   write(*,*)'3E new keyword ',ip,'>',longline(1:40)
    do while(index(longline,'!').le.0)
       read(21,110,err=2200)line
       nl=nl+1
@@ -2988,7 +3333,7 @@
 !
   select case(keyw)
    case default
-      if(ocv()) write(*,*)'default case: ',keyw,line(1:30)
+      if(ocv()) write(*,*)'3E default case: ',keyw,line(1:30)
 !---------------------------------------------------------------------
 !101 format('readtdb 1: ',i3,'>',a,'<')
 !   if(line(2:9).eq.'ELEMENT ') then
@@ -3011,7 +3356,7 @@
             if(elsym.eq.selel(jt)) goto 76
          enddo
 ! ignore this element as not selected
-         if(ocv()) write(*,*)'Skipping database element: ',elsym
+         if(ocv()) write(*,*)'3E Skipping database element: ',elsym
 !         write(*,*)'Skipping database element: ',elsym
 !         write(*,*)'Select: ',nel,(selel(jt),jt=1,nel)
          goto 100
@@ -3101,12 +3446,12 @@
 !300    continue
 !      jp=len_trim(longline)
 !      if(longline(jp:jp).eq.'!') then
-!          write(*,*)'Skipping function: ',name1
+!          write(*,*)'3E Skipping function: ',name1
 ! all functions entered at the end, skip until !
 !      do while(index(longline,'!').le.0)
       if(index(longline,'!').le.0) then
          if(.not.silent) &
-              write(*,*)' Error, terminating ! not found for function!!',nl
+              write(*,*)'3E Error, terminating ! not found for function!!',nl
          gx%bmperr=4307; goto 1000
       endif
 !-------------------------------------------------------------------------
@@ -3159,7 +3504,7 @@
       else
          phtype=' '
       endif
-!      write(*,*)'nophase set to false, phase: ',name1
+!      write(*,*)'3E nophase set to false, phase: ',name1
 ! phase type code
       noofphasetype=0
       ip=ip+1
@@ -3168,7 +3513,7 @@
       thisdis=0
       phdis: if(dodis.eq.1) then
 ! special when reading disordered parts, check phase name equail
-!         write(*,*)'Check if disordered part: ',dodis,name1
+!         write(*,*)'3E Check if disordered part: ',dodis,name1
          do jt=1,disparttc
             if(name1.eq.dispartph(jt)) goto 307
          enddo
@@ -3176,21 +3521,21 @@
          goto 100
 307      continue
          thisdis=jt
-!         write(*,*)'Found disordered part: ',name1,thisdis
+!         write(*,*)'3E Found disordered part: ',name1,thisdis
 ! we skip the rest of the phase line ...
          goto 100
       elseif(dodis.eq.0 .and. disparttc.gt.0) then
 ! we must not enter phases that are disordered parts
          do jt=1,disparttc
             if(name1.eq.dispartph(jt)) then
-!               write(*,*)'Skip phase that is a disordered part: ',name1
+!               write(*,*)'3E Skip phase that is a disordered part: ',name1
                thisdis=-1
                goto 100
             endif
          enddo
       endif phdis
-!      write(*,*)'Entering phase: ',name1
-!      write(*,*)'Checking phase types for phase: ',name1,jp
+!      write(*,*)'3E Entering phase: ',name1
+!      write(*,*)'3E Checking phase types for phase: ',name1,jp
 ! skip blanks, then read type code, finished by a blank
       if(eolch(longline,jp)) then
          if(.not.silent) &
@@ -3236,7 +3581,7 @@
             gx%bmperr=buperr; goto 1000
          endif
       enddo
-!      write(*,*)'readtdb 3A: ',nsl,(stoik(ll),ll=1,nsl)
+!      write(*,*)'3E readtdb 3A: ',nsl,(stoik(ll),ll=1,nsl)
 !---------------------------------------------------------------------
 ! The constituent line must follow PHASE before any new phase
    case(4) !    CONSTITUENT LIQUID:L :CR,FE,MO :  !
@@ -3257,16 +3602,16 @@
       endif condis1
 !360    continue
       jp=len_trim(longline)
-!      write(*,*)'readtdb gas1: ',nl,jp,longline(1:jp)
+!      write(*,*)'3E readtdb gas1: ',nl,jp,longline(1:jp)
 ! eliminate all after the exclamation mark
 !      longline(jp+1:)=' '
 ! 
       ip=index(longline,' :')+2
-!      write(*,*)'readtdb gas2: ',jp,longline(1:jp)
+!      write(*,*)'3E readtdb gas2: ',jp,longline(1:jp)
       ll=0
       nr=0
       nrr=0
-!      write(*,*)'readtdb 3C: ',ll,nr,nsl,longline(ip:jp)
+!      write(*,*)'3E readtdb 3C: ',ll,nr,nsl,longline(ip:jp)
 ! mode=1 indicates to getname that / + - are allowed in species names
       mode=1
 370   continue
@@ -3274,7 +3619,7 @@
          knr(ll)=nr
          if(nr.le.0) then
             if(ocv()) then
-               write(*,*)'Skipping phase due to missing constituents: ',name1
+               write(*,*)'3E Skipping phase due to missing constituents: ',name1
 !              write(*,378)name1,ll
 378            format('Phase ',a,' has no constituents in sublattice ',i2)
 ! Not a fatal error when elements have been selected but skip this phase
@@ -3283,7 +3628,7 @@
          endif
       endif
       ll=ll+1
-!      write(*,*)'start sublat ',ll,nsl,nr,ip
+!      write(*,*)'3E start sublat ',ll,nsl,nr,ip
       if(ll.gt.nsl) goto 390
       nr=0
 380   continue
@@ -3349,13 +3694,13 @@
          if(gx%bmperr.ne.0) then
 ! NOTE THE ORDERED PHASE MAY NOT BE ENTERED DUE TO COMPONENTS!!
             if(.not.silent) write(kou,396)thisdis,ordpartph(thisdis)
-396         format('Disordered phase skipped as no ordered: ',i3,' "',a,'"')
+396         format('3E Disordered phase skipped as no ordered: ',i3,' "',a,'"')
             warning=.TRUE.
             gx%bmperr=0
             goto 100
          else
             if(.not.silent) write(kou,*) &
-                 'Adding disordered fraction set: ',ordpartph(thisdis)
+               '3E Adding disordered fraction set to: ',trim(ordpartph(thisdis))
          endif
 ! we are creating the phase, there is only one composition set
          call get_phase_compset(iph,1,lokph,lokcs)
@@ -3373,10 +3718,6 @@
             if(phlista(lokph)%noofsubl.le.3) nd1=2
             if(.not.silent) write(kou,397) &
                  ordpartph(thisdis)(1:len_trim(ordpartph(thisdis))),nd1
-!         write(*,399)
-!399      format('Phase names for disordered parts of FCC, BCC and HCP must',&
-!              ' start with:'/'  A1_ , A2_ and A3_ respectivly!'/&
-!              ' and have an interstitial sublattice')
             jl=1
          elseif(dispartph(thisdis)(1:3).eq.'A1_' .or. &
               dispartph(thisdis)(1:3).eq.'A2_' .or. &
@@ -3386,22 +3727,22 @@
             if(phlista(lokph)%noofsubl.le.3) nd1=2
             if(.not.silent) write(kou,397) &
                  ordpartph(thisdis)(1:len_trim(ordpartph(thisdis))),nd1
-397         format('Phase ',a,&
+397         format('3E Phase ',a,&
                  ' has an order/disorder partition model summing first ',i2)
             jl=1
          elseif(dispartph(thisdis)(1:4).eq.'DIS_') then
 ! disordered part of sigma, mu etc.
             jl=0; nd1=phlista(lokph)%noofsubl
+            write(kou,493)trim(ordpartph(thisdis)),nd1
+493         format('3E Adding disordered phase: ',a,' summing all ',i3)
          else
 ! probably disordered part of sigma, mu etc.
-            write(kou,495)trim(ordpartph(thisdis))
-495         format(' *** WARNING: Non-standard name of disordered phase: ',a/&
-                 ' Assuming ordered phase will never be disordered',&
-                 ' like sigma, mu etc')
             jl=0; nd1=phlista(lokph)%noofsubl
+            write(kou,495)trim(ordpartph(thisdis)),nd1
+495         format('3E  Adding disordered phase: ',a,' summing all ',i3)
          endif
          if(jl.eq.0 .and. .not.silent) write(kou,398)trim(ordpartph(thisdis))
-398      format(' Assuming that phase ',a,' cannot completely disorder')
+398      format(' 3E Assuming phase ',a,' cannot be completely disordered')
 ! add DIS_PART from TDB
          call add_fraction_set(iph,ch1,nd1,jl)
          if(gx%bmperr.ne.0) then
@@ -3422,14 +3763,14 @@
          endif
          if(.not.silent) write(kou,601) &
               dispartph(thisdis)(1:len_trim(dispartph(thisdis))),ch1,nd1,jl,xxx
-601      format('Parameters from disordered part added: ',a,5x,a,2x,2i3,F12.4)
+601      format('3E Add parameters from disordered part: ',a,5x,a,2x,2i3,F12.4)
       else
          call enter_phase(name1,nsl,knr,const,stoik,name2,phtype)
 !      write(*,*)'readtdb 9A: ',gx%bmperr
          if(gx%bmperr.ne.0) then
             if(gx%bmperr.eq.4121) then
                if(.not.silent) write(kou,*) &
-                    'Phase ',name1(1:len_trim(name1)),&
+                    '3E Phase ',name1(1:len_trim(name1)),&
                     ' is ambiguous or short for another phase'
             endif
             goto 1000
@@ -3746,17 +4087,16 @@
 !               if(ip.le.0) ip=1
                dispartph(disparttc)(ip:)=' '
                if(.not.silent) write(kou,82) &
-                    disparttc,ordpartph(disparttc),dispartph(disparttc)
-!                    longline(1:len_trim(longline))
-!82             format('Found a type_def DIS_PART:',a,' : ',a)
-82             format('Found a type_def DIS_PART:',i2,1x,a,1x,a)
+                    disparttc,trim(ordpartph(disparttc)),&
+                    trim(dispartph(disparttc))
+82             format('3E Found a type_def DIS_PART:',i2,' with ',a,' and ',a)
 ! if the disordered part phase already entered give advice
                call find_phase_by_name(dispartph(disparttc),iph,ics)
                if(gx%bmperr.ne.0) then
                   gx%bmperr=0
                else
                   if(.not.silent) write(kou,83)dispartph(disparttc)
-83                format(' *** Warning, the disordered phase is already',&
+83                format('3E *** Warning, the disordered phase is already',&
                        ' entered ***'/' Please rearrange the TDB file so',&
                        ' this TYPE_DEF comes before'/&
                        ' the PHASE keyword for the disordered phase: ',a/&
@@ -3768,7 +4108,7 @@
                typedefaction(nytypedef)=99
                if(.not.silent) &
                     write(kou,87)nl,longline(1:min(78,len_trim(longline)))
-87             format('Skipping this TYPE_DEFINITION on line ',i5,':'/a)
+87             format('3E Skipping this TYPE_DEFINITION on line ',i5,':'/a)
                warning=.TRUE.
 !               write(*,*)' WARNING SET TRUE <<<<<<<<<<<<<<<<<<<<<<<<<<<'
             endif
@@ -4018,7 +4358,7 @@
    rewind: if(dodis.eq.0 .and. disparttc.gt.0) then
 ! rewind to read disordred parts
       if(.not.silent) &
-           write(kou,*)'Rewind to read disordered parts of phases: ',disparttc
+           write(kou,*)'3E Rewind to read disordered part of phases'
       rewind(21)
       dodis=1
       nl=0
@@ -4645,7 +4985,7 @@
 !            goto 100
 !         else
 !            if(.not.silent) write(kou,*) &
-!                 'Adding disordered fraction set: ',ordpartph(thisdis)
+!                 '3E Adding disordered fraction set: ',ordpartph(thisdis)
 !         endif
 ! we are creating the phase, there is only one composition set
 !         call get_phase_compset(iph,1,lokph,lokcs)
@@ -4712,7 +5052,7 @@
          endif
          if(.not.silent) write(kou,601) &
               dispartph(thisdis)(1:len_trim(dispartph(thisdis))),ch1,nd1,jl,xxx
-601      format('Parameters from disordered part added: ',a,5x,a,2x,2i3,F12.4)
+601      format('3E Add parameters from disordered part: ',a,5x,a,2x,2i3,F12.4)
       else
 !--- ENTER PHASE with constituents and model.  Modelcode is CEF etc
 ! in OC phtype G means it is first, L that it is first after G
@@ -5139,7 +5479,8 @@
 !               if(ip.le.0) ip=1
                dispartph(disparttc)(ip:)=' '
                if(.not.silent) write(kou,82) &
-                    disparttc,ordpartph(disparttc),dispartph(disparttc)
+                    disparttc,trim(ordpartph(disparttc)),&
+                    trim(dispartph(disparttc))
 !                    longline(1:len_trim(longline))
 !82             format('Found a type_def DIS_PART:',a,' : ',a)
 82             format('Found a type_def DIS_PART:',i2,1x,a,1x,a)

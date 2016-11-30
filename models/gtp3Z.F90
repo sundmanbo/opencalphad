@@ -152,32 +152,26 @@
       result=zero
       goto 1000
    elseif(btest(tpfuns(lrot)%status,TPCONST)) then
-! TP symbol is a constant, value stored in tpfuns
+! TP symbol is a constant, value stored in tpfuns(lrot)%linits(1)
       result=zero
       result(1)=tpfuns(lrot)%limits(1)
-      goto 1000
+! wow, we must not forget to store the constant in tpres(lrot)%results!
+      goto 990
    else
 ! check if previous values can be used
-      if(abs(tpres(lrot)%tpused(1)-tpval(1)).le.&
-           mini*tpres(lrot)%tpused(1) .and. &
-           (abs(tpres(lrot)%tpused(2)-tpval(2)).le.&
-           mini*tpres(lrot)%tpused(2))) then
-!         write(*,*)'TP forcenewcalc: ',lrot,tpres(lrot)%forcenewcalc,&
-!              tpfuns(lrot)%forcenewcalc
-         if(tpres(lrot)%forcenewcalc.eq.tpfuns(lrot)%forcenewcalc) then
+      if(tpres(lrot)%forcenewcalc.eq.tpfuns(lrot)%forcenewcalc) then
+         if(abs(tpres(lrot)%tpused(1)-tpval(1)).le.&
+              mini*tpres(lrot)%tpused(1) .and. &
+              (abs(tpres(lrot)%tpused(2)-tpval(2)).le.&
+              mini*tpres(lrot)%tpused(2))) then
             result=tpres(lrot)%results
             goto 1000
-         else
-! new calculation forced by changing optimizing coefficents for example
-!            write(*,*)'New calculation forced',tpfuns(lrot)%forcenewcalc
-            tpres(lrot)%forcenewcalc=tpfuns(lrot)%forcenewcalc
-            result=zero
          endif
-      else
+!      else
 ! new values must be calculated
 !         write(*,23)'3Z new T,P: ',lrot,tpres(lrot)%tpused,tpval
-23       format(a,i4,4(1pe12.4))
-         result=zero
+!23       format(a,i4,4(1pe12.4))
+!         result=zero
       endif
    endif
 ! we must calculate the function
@@ -209,6 +203,7 @@
    endif
    tpres(lrot)%tpused(1)=tpval(1)
    tpres(lrot)%tpused(2)=tpval(2)
+990 continue
 !   new: do i=1,6
 !      tpres(lrot)%results(i)=result(i)
 !   enddo new
@@ -2293,26 +2288,25 @@
 !\begin{verbatim} %-
  subroutine change_optcoeff(lrot,value)
 ! change value of optimizing coefficient.  lrot is index
+! -1 means just force recalculate
    implicit none
    integer lrot
    double precision value
 !\end{verbatim} %+
    integer mrot
-   if(lrot.le.0 .or. lrot.ge.freetpfun-1) then
-      write(*,*)'Attempt to change non-existing constant',lrot
-      gx%bmperr=7777; goto 1000
+   if(lrot.gt.0 .and. lrot.lt.freetpfun-1) then
+      if(.not.btest(tpfuns(lrot)%status,TPOPTCON)) then
+         write(*,*)'Attempt to change non-existing coefficent',lrot
+         gx%bmperr=7777; goto 1000
+      endif
+      tpfuns(lrot)%limits(1)=value
    endif
-   if(.not.btest(tpfuns(lrot)%status,TPOPTCON)) then
-      write(*,*)'Attempt to change non-existing coefficent',lrot
-      gx%bmperr=7777; goto 1000
-   endif
-   tpfuns(lrot)%limits(1)=value
 ! force recalculation of all functions. HOW?
 ! by incrementing an integer in tpfuns because this may affect many equilibria
    do mrot=1,freetpfun-1
       tpfuns(mrot)%forcenewcalc=tpfuns(mrot)%forcenewcalc+1
    enddo
-!   write(*,*)'3Z forcenewcalc: ',tpfuns(1)%forcenewcalc+1
+!   write(*,*)'3Z forcenewcalc: ',tpfuns(1)%forcenewcalc
 1000 continue
    return
  end subroutine change_optcoeff
@@ -2435,19 +2429,21 @@
       iws(lfun)=0
    else
       nr=tpfuns(jfun)%noofranges
-      rsize=3+nwch(16)+nr*(1+nwpr)+nwpr
+      rsize=4+nwch(16)+nr*(1+nwpr)+nwpr
       call wtake(lfun,rsize,iws)
       if(buperr.ne.0) then
          write(*,*)'Error reserving record for TPfun'
          gx%bmperr=4399; goto 1000
       endif
-!      write(lut)jfun,tpfuns(jfun)%symbol,tpfuns(jfun)%noofranges,&
-!           tpfuns(jfun)%nextfree
+!      write(*,11)'3Z tpfun ',lfun,jfun,trim(tpfuns(jfun)%symbol),&
+!           tpfuns(jfun)%noofranges,tpfuns(jfun)%status
+!11    format(a,2i7,2x,a,2x,5i7)
       iws(lfun+1)=tpfuns(jfun)%noofranges
+      iws(lfun+2)=tpfuns(jfun)%status
 ! what is nextfree??
-      iws(lfun+2)=tpfuns(jfun)%nextfree
-      call storc(lfun+3,iws,tpfuns(jfun)%symbol)
-      displace=3+nwch(16)
+      iws(lfun+3)=tpfuns(jfun)%nextfree
+      call storc(lfun+4,iws,tpfuns(jfun)%symbol)
+      displace=4+nwch(16)
       call storrn(nr,iws(lfun+displace),tpfuns(jfun)%limits)
 !         write(lut)(tpfuns(jfun)%limits(i),i=1,nr)
       call storr(lfun+displace+nr*nwpr,iws,tpfuns(jfun)%hightlimit)
@@ -2503,22 +2499,22 @@
    if(jfun.gt.0) then
       nr=iws(lfun+1)
       tpfuns(jfun)%noofranges=nr
-      tpfuns(jfun)%nextfree=iws(lfun+2)
-      call loadc(lfun+3,iws,tpfuns(jfun)%symbol)
+      tpfuns(jfun)%status=iws(lfun+2)
+      tpfuns(jfun)%nextfree=iws(lfun+3)
+      call loadc(lfun+4,iws,tpfuns(jfun)%symbol)
    else
       write(*,*)'not a function: ',lfun,jfun
       goto 1000
    endif
-!   else
-!      write(*,*)'no symbol!',lfun,iws(lfun)
-!      goto 1000
-!   endif
-!   write(*,*)'Calling wrttprec'
-!   call wrttprec(3,iws)
-!   write(*,*)'Back from wrttprec'
-!   write(*,*)'3Z TPfun: ',jfun,lfun,nr,tpfuns(jfun)%symbol
-   displace=3+nwch(16)
+! special for optimizing variables
+   if(btest(tpfuns(jfun)%status,TPOPTCON)) then
+!      write(*,*)'3Z allocating zero limit for ',tpfuns(jfun)%symbol
+      allocate(tpfuns(jfun)%limits(1))
+      tpfuns(jfun)%limits(1)=zero
+      goto 1000
+   endif
 ! a TPfun can have different number of ranges, must be allocated
+   displace=4+nwch(16)
    allocate(tpfuns(jfun)%limits(nr))
    allocate(tpfuns(jfun)%funlinks(nr))
    call loadrn(nr,iws(lfun+displace),tpfuns(jfun)%limits)

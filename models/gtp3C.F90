@@ -550,7 +550,7 @@
 ! list suspended phases without composition set numbers
    if(nsusp.gt.1) then
       write(unit,300)
-300   format(/'List of suspended phases:')
+300   format(/'List of phases that are suspended:')
 ! First indentation 4, for 2nd and later lines 4 also
       call  wrice2(unit,2,4,78,1,susph(1:nsusp-3))
    endif
@@ -3237,7 +3237,7 @@
       seqz=seqz+1
       ip=1
       text=' '
-      call get_one_experiment(ip,text,seqz,ceq)
+      call get_one_experiment(ip,text,seqz,.TRUE.,ceq)
 !      write(*,*)'3C Back from get_one'
       if(gx%bmperr.ne.0) then
 ! error code for no more experiments or inactive experiment
@@ -3261,13 +3261,14 @@
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim} %-
- subroutine get_one_experiment(ip,text,seqz,ceq)
+ subroutine get_one_experiment(ip,text,seqz,eval,ceq)
 ! list the experiment with the index seqz into text
 ! It lists also experiments that are not active ??
 ! UNFINISHED current value should be appended
    implicit none
    integer ip,seqz
    character text*(*)
+   logical eval
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
    integer jl,iterm,indx(4),symsym
@@ -3305,7 +3306,7 @@
    nostv: if(.not.allocated(current%statvar)) then
 ! an experiment is a symbol!!! Then statvar is not allocated
       symsym=current%statev
-      write(*,*)'3C A symbol, not a state variable for this experiment',symsym
+!      write(*,*)'3C A symbol, not a state variable for this experiment',symsym
 ! get the symbol name
       text=svflista(symsym)%name
       ip=len_trim(text)+1
@@ -3387,8 +3388,12 @@
       ip=ip+1
    endif
 !   write(*,*)'3C ok here 3',symsym
-! add the current value of the experiment after a $ sign
+! if eval TRUE add the current value of the experiment after a $ sign
 ! TROUBLE GETTING WRONG VALUE HERE WHEN USER DEFINED REFERENCE STATES
+   if(.not.eval) then
+      text(ip+2:)='$ ?? '
+      goto 1000
+   endif
    if(symsym.eq.0) then
       call state_variable_val(svrrec,xxx,ceq)
    else
@@ -3409,7 +3414,7 @@
       ip=ip+5
       gx%bmperr=0
    else
-!   write(*,*)'3C experimental state variable value: ',xxx
+!   write(*,*)'3C experimental state variable current value: ',xxx
       text(ip:)=' $'
       ip=ip+3
 !      call wrinum(text,ip,12,0,xxx)

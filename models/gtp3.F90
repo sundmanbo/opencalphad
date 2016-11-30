@@ -638,7 +638,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        SPION=4, SPSYS=5
 !\end{verbatim}
 !----------------------------------------------------------------
-! PHSUBO added to subtract ordered part to be compatibe with TC ordered model
+! PHSUBO and PHSORD not used. PHBORD (and others) not implemented
 !\begin{verbatim}
 !-Bits in phase record
 ! hidden, implictly hidden, ideal, no concentration variation (NOCV),
@@ -872,16 +872,16 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !\begin{verbatim}
   integer, parameter :: tpfun_parres_version=1
   TYPE tpfun_parres
-! Contains a TP results, 6 double for results and 2 doubles for T and P 
+! Contains TP results, 6 double for results and 2 doubles for T and P 
 ! values used to calculate the results
-! Note that during calculations which can be parallelized the final
-! results can be different for each parallel process
+! Note that during calculations which can be parallelized the
+! results can be different for each tread
      integer forcenewcalc
      double precision, dimension(2) :: tpused
      double precision, dimension(6) :: results
   END TYPE tpfun_parres
 ! This array is local to the gtp_equilibrium_data record
-! index the same as the function
+! index is the same as the function
 !\end{verbatim}
 !
 ! =============================== end of TPFUN data structures

@@ -2700,7 +2700,7 @@ contains
 !             if(buperr.ne.0) goto 990
 !  call list_phase_results(iph,ics,mode,kou,firsteq)
              write(lut,6051)ceq%eqno,ceq%eqname
-6051         format('Output for equilibrium: ',i3,', ',a,5x,a4,'.',a2,'.',a2)
+6051         format(/'Output for equilibrium: ',i3,', ',a,5x,a4,'.',a2,'.',a2)
              mode=110
              once=.TRUE.
              call list_phase_results(iph,ics,mode,lut,once,ceq)
@@ -3141,6 +3141,18 @@ contains
              write(kou,8110)text(1:kl)
           endif
 8110      format(/'Savefile text: ',a/)
+! if there is an assessment record set nvcoeff ...
+          if(allocated(firstash%eqlista)) then
+             write(*,*)'There is an assessment record'
+             nvcoeff=0
+             kl=size(firstash%coeffvalues)-1
+             do j1=0,kl
+                if(firstash%coeffstate(j1).ge.10) then
+                   nvcoeff=nvcoeff+1
+                endif
+             enddo
+             write(kou,3730)nvcoeff
+          endif
 !---------------------------------------------------------
        case(2) ! read TDB
           if(tdbfile(1:1).ne.' ') then
@@ -3302,7 +3314,7 @@ contains
              jp=kl
           endif
           if(kl.le.0 .and. jp.le.0) then
-             write(kou,*)'Missing file name'
+             write(kou,*)'Missing file name, nothing saved'
              goto 100
           endif
           if(jp.gt.0) ocufile(jp+1:)='.ocu '
@@ -3350,7 +3362,7 @@ contains
              jp=kl
           endif
           if(kl.le.0 .and. jp.le.0) then
-             write(kou,*)'Missing file name'
+             write(kou,*)'Missing file name, nothing saved'
              goto 100
           endif
           if(jp.gt.0) ocdfile(jp+1:)='.ocd '
@@ -3495,9 +3507,11 @@ contains
 !------------------------------
 ! debug free lists
        CASE(1)
-          write(*,*)'Calculating equilibrium record size'
-          kom3=ceqsize(ceq)
-          write(kou,*)'Current equilibrium record memory use: ',kom3
+          write(*,*)'Check components masses'
+          call compmassbug(ceq)
+!          write(*,*)'Calculating equilibrium record size'
+!          kom3=ceqsize(ceq)
+!          write(kou,*)'Current equilibrium record memory use: ',kom3
 ! list all tuples
           write(kou,1617)
 1617      format('Phase tuples content:'/&
@@ -4487,12 +4501,17 @@ contains
        endif
 ! JUMP HERE IF CONTINUE optimization
 987    continue
-! nex     Number of experiments
-! nvcoeff Number of coefficients
+! mexp    Number of experiments
+! nvcoeff Number of coefficients to be optimized
 ! errs Array with differences with experiments and calculated values
-! coefs Array with coefficinets
+! coefs Array with coefficients
 ! VA05AD variables: dstep, dmax2, acc, iterations, output unit, workspace
 !                   entry mode, exit mode
+       if(mexp.le.0 .or. nvcoeff.le.0) then
+          write(kou,569)mexp,nvcoeff
+569       format('Cannot optimize with zero experiments or coefficients',2i5)
+          goto 100
+       endif
        write(*,558)mexp,nvcoeff,maxw
 558    format(/'>>>   Start of optimization   >>>'/&
             'Experiments, coefficients and workspace: ',3(1x,i5))

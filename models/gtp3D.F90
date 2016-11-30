@@ -767,6 +767,12 @@
    type(gtp_condition), pointer :: new,temp
 !   integer nidlast,nidfirst,nidpre
    double precision xxx,yyy
+! do not allow experiments in first equilibrium!!
+   if(ceq%eqno.eq.1) then
+      write(kou,16)
+16    format('Experiments are not allowed in the default equilibrium')
+      goto 1000
+   endif
 !
 ! return here if more experiments
 17 continue
@@ -921,6 +927,7 @@
    symsym=0
    iunit=0
    iref=0
+!   write(*,*)'3D Condition: ',trim(cline)
 ! return here to deconde another condition on the same line
 50 continue
    nterm=0
@@ -1427,7 +1434,7 @@
             gx%bmperr=4187; goto 1000
          endif
       endif
-! special for T and P, change the local value
+! special for T and P, change the local value and mark tpres
 !      write(*,*)'3D set condition/enter experiment ',istv,value
       if(istv.eq.1) then
          ceq%tpval(1)=value
@@ -1993,7 +2000,7 @@ end subroutine get_condition
       value=current%prescribed
 !      write(*,*)'3D condition on MU/AC/LNAC'
    elseif(current%statev.ge.10) then
-! other condition must be on extensive properties (N, X, H etc)
+! other condition must be on (normalized) extensive properties (N, X, H etc)
       cmix(1)=5
 !      write(*,*)'3D Extensive condition: ',current%statev
    else
@@ -2584,9 +2591,12 @@ end subroutine get_condition
       call gparcd('Input in mass percent? ',cline,last,1,ftype,'Y',q1help)
       if(ftype.eq.'Y') then
          rest=1.0D2
+         write(*,102)'mass percent'
       else
          rest=one
+         write(*,102)'mole fractions'
       endif
+102   format('Input expected in ',a/)
 110   continue
       call gparc('First alloying element:',cline,last,1,alloy(1),' ',q1help)
       nv=0
@@ -2625,10 +2635,11 @@ end subroutine get_condition
       endif
       rest=rest-xalloy(nv)
       if(rest.le.zero) then
-         write(*,*)'Your major component is less than zero!!'
+         write(*,240)'zero!!'
+240      format('Your major component composition is less than ')
          gx%bmperr=4399; goto 1000
       elseif(rest.le.5.0D-1) then
-         write(*,*)'Your major component is less than 0.5'
+         write(*,240)'half the system!!'
       endif
 250 continue
       if(nv.eq.1) then
@@ -2656,7 +2667,7 @@ end subroutine get_condition
       nv=nv+1
       alloy(nv)=majorel
       xalloy(nv)=rest
-      write(*,505)'3D m1: ',nv,(alloy(j1),xalloy(j1),j1=1,nv)
+!      write(*,505)'3D m1: ',nv,(alloy(j1),xalloy(j1),j1=1,nv)
       call readtdb(database,nv,alloy)
       if(gx%bmperr.ne.0) goto 1000
 ! order the amounts in xalloy in alphabetical order
@@ -2710,6 +2721,27 @@ end subroutine get_condition
 1000 continue
    return
  end subroutine enter_material
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+ subroutine compmassbug(ceq)
+   type(gtp_equilibrium_data), pointer :: ceq
+   integer cp,sp,ep
+! elements(1..n) is ordered alphabetcally
+! complist(1..n) is initially also ordered alphabetcally but with errors ... 
+! 
+   do cp=1,noofel
+      sp=ceq%complist(cp)%splink
+      ep=splista(sp)%ellinks(1)
+      write(*,100)cp,sp,ep,trim(ellista(ep)%name),trim(splista(sp)%symbol),&
+           ellista(ep)%alphaindex,ellista(ep)%splink,&
+           ceq%complist(cp)%mass,mass_of(cp,ceq),&
+           ellista(ep)%mass,splista(sp)%mass
+100   format(3i3,2x,a,2x,a,2i2,3x,4(1pe12.4))
+   enddo
+   write(*,*)
+   return
+ end subroutine compmassbug
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
