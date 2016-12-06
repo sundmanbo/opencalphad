@@ -1466,7 +1466,7 @@
    integer lokph,fractyp,typty,nsl,nint,ideg,lfun
    integer, dimension(2,*) :: lint
 !\end{verbatim}
-   character notext*20,funexp*512
+   character notext*20,funexp*1024
    integer iord(maxsubl),jord(2,maxsubl)
    integer again,kkk,ll,kk1,mint,kk,lokint,iz,it,kint,ib,jl,zz
    integer lj,i1,i2,newint,ifri,lokcs,noperm,firstint,listfun

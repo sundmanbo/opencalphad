@@ -18,6 +18,11 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2016.12.05 I have stated writing code for output in DAT
+(ChemSage/Solgasmix) formats.  It is a bit complicated with the TDB
+functions that can call each other and have different temperature
+ranges.
+
 2016.11.39 It is now possible to save several equilibria and the
 assessment record.  It means OC now can save an assessment on a file
 similar to the PAR file for PARROT.  It is possible to continue the

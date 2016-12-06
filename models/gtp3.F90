@@ -1704,7 +1704,28 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! this record is allocated when necessary
   type(gtp_applicationhead), pointer :: firstapp,lastapp
 !\end{verbatim}
+!------------------------------------------------------------------
+!\begin{verbatim}
+  TYPE gtp_tpfun_as_coeff
+! this is a TPFUN converted to coefficents without any references to other
+! functions.
+     double precision, dimension(:), allocatable :: tbreaks
+     double precision, dimension(:,:), allocatable :: coefs
+     integer, dimension(:,:), allocatable :: tpows
+! this is used only during conversion
+!     type(gtp_tpfun_as_coeff), pointer :: nextcrec
+  end type gtp_tpfun_as_coeff
 !
+  INTEGER, parameter :: gtp_tpfun2dat_version=1
+  TYPE gtp_tpfun2dat
+! this is a temporary storage of TP functions converted to arrays of
+! coefficients.  Allocated as an array when necessary and the index in
+! this array is the same index as for the TPfun
+     integer nranges
+!     type(gtp_tpfun_as_coeff) :: tpfuncoef
+     type(gtp_tpfun_as_coeff) :: cfun
+  end type gtp_tpfun2dat
+!\end{verbatim}
 !===================================================================
 !
 ! Below are private global variables like free lists etc.

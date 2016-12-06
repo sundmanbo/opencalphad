@@ -124,7 +124,7 @@
 !
    character id*40,comment*72
    integer, parameter :: miws=1000000
-   integer iws(miws)
+   integer, allocatable, dimension(:) :: iws
    integer i,isp,jph,lokph,lut,last,lok,rsize,displace,ibug,ffun,lokeq
 ! these depend on hardware, bytes/word and words/double. Defined in metlib3
 !   integer, parameter :: nbpw=4,nwpr=2
@@ -164,6 +164,8 @@
 ! range record? experiments ...
 !----------------------------------------------------------------------
 ! allocate the workspace, words 3-102 for pointers and things listed above
+!   write(*,*)'3E allocating iws',miws
+   allocate(iws(miws))
    call winit(miws,100,iws)
    if(buperr.ne.0) goto 1100
 !----------------------------------------------------------------------
@@ -335,7 +337,7 @@
    iws(25)=gtp_putfun_lista_version
 !------------- references
 !>>>>> 40: bibliographic references
-!   write(*,*)'3E NOT saving bibliography'
+!   write(*,*)'3E saving bibliography'
 ! link to bibliography is stored in 22
    call bibliosave(lok,iws)
    if(gx%bmperr.ne.0) goto 1100
@@ -362,6 +364,7 @@
 ! disfra record version??
 !-------------------------------------------------------
 ! assessment head record
+!   write(*,*)'3E Saving assessment record'
    if(associated(firstash)) then
       iws(27)=gtp_assessment_version
       lok=26
@@ -392,6 +395,7 @@
    write(kou,991)nbpw*(rsize+5+last),trim(filename)
 991 format('Written workspace ',i10,' bytes unformatted on ',a)
 1000 continue
+   deallocate(iws)
    return
 1100 continue
    write(*,*)'3E Error storing record, nothing written on file',buperr,gx%bmperr

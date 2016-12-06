@@ -1489,7 +1489,7 @@
    integer typty,parlist,typspec,lokph,nsl,nk,ip,ll,jnr,ics,lokcs
    integer nint,ideg,ij,kk,iel,ncsum,kkx,kkk,jdeg,iqnext,iqhigh,lqq,nz,ik
    integer intpq,linkcon,ftyp
-   character text*2048,phname*24,prop*32,funexpr*512
+   character text*2048,phname*24,prop*32,funexpr*1024
    character special*8,ch1*1
 !   integer, dimension(2,3) :: lint
 ! ?? increased dimension of lint ??
@@ -1946,7 +1946,7 @@
    integer typty,parlist,typspec,lokph,nsl,nk,ip,ll,jnr,ics,lokcs,isp
    integer nint,ideg,ij,kk,iel,ncsum,kkx,kkk,jdeg,iqnext,iqhigh,lqq,nz,ik
    integer intpq,linkcon
-   character text*1024,phname*24,prop*32,funexpr*512
+   character text*1024,phname*24,prop*32,funexpr*1024
    character special*8
    integer, dimension(2,3) :: lint
    integer, dimension(maxsubl) :: endm,ilist
@@ -3910,6 +3910,44 @@
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim}
+ subroutine savedatformat(filename,kod,ceq)
+! writes a DAT format file
+   implicit none
+   integer kod
+   character filename*(*)
+   type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   integer ntpf,last
+   logical logok
+   character ch1*1,line*16
+   type(gtp_tpfun2dat), dimension(:), allocatable :: tpfc
+   inquire(file=filename,exist=logok)
+   if(logok) then
+      line=' '
+      last=len(line)
+      call gparcd('File exists, overwrite?',line,last,1,ch1,'N',q1help)
+      if(ch1.ne.'Y') then
+         write(*,*)'Try again!'
+         goto 1000
+      endif
+   endif
+   ntpf=freetpfun-1
+   allocate(tpfc(ntpf))
+   write(*,*)'TPfuns and parameters: ',ntpf
+! in this call all tpfuns are converted to arrays of coefficients
+! each tpfc(i) represent TPfunction i (note parameters are also TP functions!)
+   call tpfun2coef(tpfc,ntpf,ceq)
+   if(gx%bmperr.ne.0) goto 1000
+   write(*,*)'DAT format not implemented yet'
+! 
+1000 continue
+   deallocate(tpfc)
+   return
+ end subroutine savedatformat
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
  logical function gtp_error_message(reset)
 ! tests the error code and writes the error message (if any) 
 ! and reset error code if reset=0
@@ -3945,4 +3983,178 @@
  end function gtp_error_message
    
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+! subroutines extracted from the user interface
+
+!\begin{verbatim}
+  subroutine enterphase(cline,last)
+! interactive entering of phase
+    character cline*(*)
+    integer last
+!    type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+    character name1*24,text*80,name3*24,model*72,phtype*1,ch1*1
+    integer nsl,defnsl,icon,ll,jp
+    double precision sites(9)
+    character (len=34) :: quest1='Number of sites on sublattice xx: '
+! constituent indices in a phase
+    integer, dimension(maxconst) :: knr
+! array with constituents in sublattices when entering a phase
+    character, dimension(maxconst) :: const*24
+    logical once
+!
+    call gparc('Phase name: ',cline,last,1,name1,' ',q1help)
+! ionic liquid require special sorting of constituents on anion sublattice
+    call capson(name1)
+    defnsl=1
+    if(name1(1:4).eq.'GAS ') then
+       phtype='G'
+       model='CEF-RKM'
+    elseif(name1(1:7).eq.'LIQUID ') then
+       phtype='L'
+       model='CEF-RKM'
+    elseif(name1(1:9).eq.'IONIC_LIQ') then
+       phtype='L'
+       model='IONIC_LIQUID'
+       defnsl=2
+    else
+       phtype='S'
+       model='CEF-RKM'
+    endif
+    call gparid('Number of sublattices: ',cline,last,nsl,defnsl,q1help)
+    if(buperr.ne.0) goto 900
+    if(nsl.le.0) then
+       write(kou,*)'At least one configurational space!!!'
+       goto 1000
+    elseif(nsl.ge.10) then
+       write(kou,*)'Maximum 9 sublattices'
+       goto 1000
+    endif
+    icon=0
+    sloop: do ll=1,nsl
+! 'Number of sites on sublattice xx: '
+!  123456789.123456789.123456789.123
+       once=.true.
+4042   continue
+       write(quest1(31:32),4043)ll
+4043   format(i2)
+       call gparrd(quest1,cline,last,sites(ll),one,q1help)
+       if(buperr.ne.0) goto 900
+       if(sites(ll).le.1.0D-6) then
+          write(kou,*)'Number of sites must be larger than 1.0D-6'
+          if(once) then
+             once=.false.
+             goto 4042
+          else
+             goto 1000
+          endif
+       endif
+! This should be extended to allow several lines of input
+! 4 means up to ;
+       once=.true.
+4045   continue
+       call gparc('All Constituents: ',cline,last,4,text,';',q1help)
+       if(buperr.ne.0) goto 900
+       knr(ll)=0
+       jp=1
+4047   continue
+       if(eolch(text,jp)) goto 4049
+       if(model(1:13).eq.'IONIC_LIQUID ' .and. ll.eq.1 &
+            .and. knr(1).eq.0) then
+! a very special case: a single "*" is allowed on 1st sublattice for ionic liq
+          if(text(jp:jp).eq.'*') then
+             icon=icon+1
+             const(icon)='*'
+             knr(1)=1
+             cycle sloop
+          endif
+       endif
+       call getname(text,jp,name3,1,ch1)
+       if(buperr.eq.0) then
+          icon=icon+1
+          const(icon)=name3
+          knr(ll)=knr(ll)+1
+!          write(*,66)'constituent: ',knr(ll),icon,jp,const(icon)
+66        format(a,3i3,a)
+! increment jp to bypass a separating , 
+          jp=jp+1
+          goto 4047
+       elseif(once) then
+!          write(kou,*)'Input error ',buperr,', at ',jp,', please reenter'
+          buperr=0; once=.false.; goto 4045
+       else
+          goto 1000
+       endif
+       buperr=0
+4049   continue
+    enddo sloop
+    call enter_phase(name1,nsl,knr,const,sites,model,phtype)
+    if(gx%bmperr.ne.0) goto 1000
+900 continue
+    if(buperr.ne.0) gx%bmperr=buperr
+1000 continue
+  end subroutine enterphase
+
+!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\begin{verbatim}
+  subroutine listoptcoeff(lut)
+! listing of optimizing coefficients
+    integer lut
+!    integer lut,mexp
+!    double precision errs(*)
+!    type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+    type(gtp_equilibrium_data), pointer :: neweq
+    integer i1,i2,j1,j2,j3
+    character name1*24,line*80
+    double precision xxx
+!
+    write(lut,610)
+610 format(/'List of coefficents with non-zero values'/&
+         'Name  Current value   Start value    Scaling factor',&
+         ' RSD')
+    name1=' '
+    do i1=0,size(firstash%coeffstate)-1
+       coeffstate: if(firstash%coeffstate(i1).ge.10) then
+! optimized variable, read from TP constant array
+          call get_value_of_constant_index(firstash%coeffindex(i1),xxx)
+          call makeoptvname(name1,i1)
+          write(lut,615)name1(1:3),xxx,&
+               firstash%coeffstart(i1),firstash%coeffscale(i1),zero
+615       format(a,2x,4(1pe15.6))
+          if(firstash%coeffstate(i1).eq.11) then
+! there is a prescribed minimum
+             write(lut,616)' minimum ',firstash%coeffmin(i1)
+616          format(6x,'Prescribed ',a,': ',1pe12.4)
+          elseif(firstash%coeffstate(i1).eq.12) then
+! there is a prescribed maximum
+             write(lut,616)' maximum ',firstash%coeffmax(i1)
+          elseif(firstash%coeffstate(i1).eq.13) then
+! there are prescribed minimum and maximum
+             write(lut,617)firstash%coeffmin(i1),firstash%coeffmax(i1)
+617          format(6x,'Prescribed min and max: ',2(1pe12.4))
+          elseif(firstash%coeffstate(i1).gt.13) then
+             write(lut,*)'Wrong coefficent state, set to 10'
+             firstash%coeffstate(i2)=10
+          endif
+       elseif(firstash%coeffstate(i1).gt.0) then
+! fix variable status
+          call get_value_of_constant_index(firstash%coeffindex(i1),xxx)
+          call makeoptvname(name1,i1)
+          write(lut,615)name1(1:3),xxx
+       elseif(firstash%coeffscale(i1).ne.0) then
+! coefficient with negative status, status set to 1
+          call get_value_of_constant_index(firstash%coeffindex(i1),xxx)
+          write(lut,619)i1,firstash%coeffscale(i1),xxx,zero
+619       format('Wrong state for coefficient ',i3,4(1pe12.4))
+          firstash%coeffstate(i1)=1
+       endif coeffstate
+    enddo
+1000 continue
+    return
+  end subroutine listoptcoeff
+
+!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 

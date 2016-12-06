@@ -57,7 +57,7 @@ contains
     character axplot(3)*24,axplotdef(3)*24,quest*20
     character plotform*32,longstring*2048,optres*40
 ! separate file names for remembering and providing a default
-    character ocmfile*64,ocufile*64,tdbfile*64,ocdfile*64
+    character ocmfile*64,ocufile*64,tdbfile*64,ocdfile*64,filename*64
 ! home for OC and default directory for databases
     character ochome*64,ocbase*64
 ! prefix and suffix for composition sets
@@ -261,7 +261,7 @@ contains
 ! subcommands to SAVE
 ! note SAVE TDB, MACRO, LATEX part of LIST DATA !!
     character (len=16), dimension(ncsave) :: csave=&
-        ['UNFORMATTED     ','TDB             ','                ',&
+        ['TDB             ','SOLGASMIX       ','UNFORMATTED     ',&
          'DIRECT          ','                ','QUIT            ']
 !-------------------
 ! subcommands to AMEND first level
@@ -2812,9 +2812,9 @@ contains
                 gx%bmperr=0
              else
                 longstring=' '
-                write(longstring,6142)lrot,name1
-6142            format(i5,1x,a)
-                jp=len_trim(longstring)
+                write(longstring,6142)lrot
+6142            format(i5)
+                jp=len_trim(longstring)+2
                 call list_tpfun(lrot,0,longstring(jp:))
                 call wrice2(lut,0,12,78,1,longstring)
                 if(iel.gt.1) goto 6140
@@ -3282,14 +3282,15 @@ contains
 !=================================================================
 ! save in various formats (NOT TDB, MACRO and LATEX, use LIST DATA)
 ! It is a bit inconsistent as one READ TDB but not SAVE TDB ...
-!        ['UNFORMATTED     ','TDB             ','                ',&
+!        ['TDB             ','SOLGASMIX       ','UNFORMATTED     ',&
 !         'DIRECT          ','                ','QUIT            ']
     CASE(9)
-       kom2=submenu(cbas(kom),cline,last,csave,ncsave,1)
+! default i 3, unformatted
+       kom2=submenu(cbas(kom),cline,last,csave,ncsave,3)
        if(kom2.le.0 .or. kom2.gt.ncsave) goto 100
 !
-       if(kom2.ne.2) then
-! Do not ask this question for TDB files
+       if(kom2.gt.2) then
+! Do not ask this question for TDB and SOLGASMIX files
           call gparc('Comment line: ',cline,last,5,model,' ',q1help)
        endif
        SELECT CASE(kom2)
@@ -3297,7 +3298,32 @@ contains
        CASE DEFAULT
           write(kou,*)'save subcommand error'
 !-----------------------------------------------------------
-       case(1) ! save unformatted
+       case(1) ! save TDB, same as list data TDB
+! format 2 is TDB, see list data ...
+          kom3=2
+          call list_many_formats(cline,last,kom3,kou)
+          if(gx%bmperr.ge.4000 .and. gx%bmperr.le.nooferm) then
+             write(kou,*)bmperrmess(gx%bmperr)
+          elseif(gx%bmperr.ne.0) then
+             write(kou,*)'Error code ',gx%bmperr
+          endif
+!-----------------------------------------------------------
+       case(2) ! SOLGASMIX
+          text=' '
+          call gparc('File name: ',cline,last,1,filename,text,q1help)
+          kl=max(index(filename,'.dat '),index(filename,'.DAT '))
+          if(kl.le.0) then
+             kl=len_trim(filename)+1
+             if(kl.eq.1) then
+                write(*,*)'Too short file name'
+                goto 100
+             endif
+             filename(kl:)='DAT '
+          endif
+          kl=1
+          call savedatformat(filename,kl,ceq)   
+!-----------------------------------------------------------
+       case(3) ! save unformatted
 132       continue
           if(ocufile(1:1).ne.' ') then
              text=ocufile
@@ -3332,19 +3358,6 @@ contains
           endif
           text='U '//model
           call gtpsave(ocufile,text)
-!-----------------------------------------------------------
-       case(2) ! save TDB, same as list data TDB
-! format 2 is TDB, see list data ...
-          kom3=2
-          call list_many_formats(cline,last,kom3,kou)
-          if(gx%bmperr.ge.4000 .and. gx%bmperr.le.nooferm) then
-             write(kou,*)bmperrmess(gx%bmperr)
-          elseif(gx%bmperr.ne.0) then
-             write(kou,*)'Error code ',gx%bmperr
-          endif
-!-----------------------------------------------------------
-       case(3) ! not used
-          write(kou,*)'Not implemented yet'
 !-----------------------------------------------------------
        case(4) ! save DIRECT
           if(ocdfile(1:1).ne.' ') then
@@ -4824,248 +4837,6 @@ contains
     return
   end subroutine ocmon_reset_options
 
-!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
-! subroutines extracted from the user interface
-
-!\begin{verbatim}
-  subroutine calctrans(cline,last,ceq)
-! calculate a phase transition
-    character cline*(*)
-    integer last
-    type(gtp_equilibrium_data), pointer :: ceq
-!\end
-    character name1*30
-    integer j1,iph,ics
-    double precision xxx
-    type(gtp_condition), pointer :: pcond
-    type(gtp_state_variable), pointer :: stvr
-!
-    write(kou,2090)
-2090 format('To calculate when a phase will appear/disappear',&
-          ' by releasing a condition.')
-    if(btest(ceq%status,EQNOEQCAL)) then
-       write(kou,2095)
-2095   format('You must make an equilibrium calculation before using',&
-            ' this command.')
-       goto 1000
-    endif
-    call gparc('Phase name: ',cline,last,1,name1,' ',q1help)
-    call find_phase_by_name(name1,iph,ics)
-    if(gx%bmperr.ne.0) goto 1000
-    j1=test_phase_status(iph,ics,xxx,ceq)
-    if(j1.eq.PHFIXED) then
-       write(kou,*)'Phase status already fixed'
-       goto 1000
-    endif
-    call list_conditions(kou,ceq)
-    write(kou,2097)
-2097 format('You must release one condition, give its number')
-    call gparid('Condition number',cline,last,j1,1,q1help)
-    if(j1.le.0 .or. j1.gt.noel()+2) then
-       write(kou,*)'No such condition'
-       goto 1000
-    endif
-! this finds condition with given number
-    call locate_condition(j1,pcond,ceq)
-    if(gx%bmperr.ne.0) goto 1000
-    if(pcond%active.eq.0) then
-! the condition is active, deactivate it!
-       pcond%active=1
-    else
-       write(kou,*)'This condition is not active!'
-       goto 1000
-    endif
-! Condition released, now set the phase as fix with zero moles
-    call change_phase_status(iph,ics,PHFIXED,xxx,ceq)
-    if(gx%bmperr.ne.0) goto 1000
-! Calculate equilibrium
-    call calceq2(1,ceq)
-    if(gx%bmperr.ne.0) goto 1000
-! get the value of the released condition and set it to the new value
-    stvr=>pcond%statvar(1)
-    call state_variable_val(stvr,xxx,ceq)
-    if(gx%bmperr.ne.0) goto 1000
-    write(kou,2099)xxx
-2099 format('The transition occurs at ',1pe16.8,', set as condition')
-    pcond%prescribed=xxx
-    pcond%active=0
-! set phase back as entered and stable
-!    write(*,*)'Set phase back as entered'
-    call change_phase_status(iph,ics,PHENTSTAB,zero,ceq)
-1000 continue
-    return
-  end subroutine calctrans
-
-!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
-
-!\begin{verbatim}
-  subroutine enterphase(cline,last)
-! interactive entering of phase
-    character cline*(*)
-    integer last
-!    type(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim}
-    character name1*24,text*80,name3*24,model*72,phtype*1,ch1*1
-    integer nsl,defnsl,icon,ll,jp
-    double precision sites(9)
-    character (len=34) :: quest1='Number of sites on sublattice xx: '
-! constituent indices in a phase
-    integer, dimension(maxconst) :: knr
-! array with constituents in sublattices when entering a phase
-    character, dimension(maxconst) :: const*24
-    logical once
-!
-    call gparc('Phase name: ',cline,last,1,name1,' ',q1help)
-! ionic liquid require special sorting of constituents on anion sublattice
-    call capson(name1)
-    defnsl=1
-    if(name1(1:4).eq.'GAS ') then
-       phtype='G'
-       model='CEF-RKM'
-    elseif(name1(1:7).eq.'LIQUID ') then
-       phtype='L'
-       model='CEF-RKM'
-    elseif(name1(1:9).eq.'IONIC_LIQ') then
-       phtype='L'
-       model='IONIC_LIQUID'
-       defnsl=2
-    else
-       phtype='S'
-       model='CEF-RKM'
-    endif
-    call gparid('Number of sublattices: ',cline,last,nsl,defnsl,q1help)
-    if(buperr.ne.0) goto 900
-    if(nsl.le.0) then
-       write(kou,*)'At least one configurational space!!!'
-       goto 1000
-    elseif(nsl.ge.10) then
-       write(kou,*)'Maximum 9 sublattices'
-       goto 1000
-    endif
-    icon=0
-    sloop: do ll=1,nsl
-! 'Number of sites on sublattice xx: '
-!  123456789.123456789.123456789.123
-       once=.true.
-4042   continue
-       write(quest1(31:32),4043)ll
-4043   format(i2)
-       call gparrd(quest1,cline,last,sites(ll),one,q1help)
-       if(buperr.ne.0) goto 900
-       if(sites(ll).le.1.0D-6) then
-          write(kou,*)'Number of sites must be larger than 1.0D-6'
-          if(once) then
-             once=.false.
-             goto 4042
-          else
-             goto 1000
-          endif
-       endif
-! This should be extended to allow several lines of input
-! 4 means up to ;
-       once=.true.
-4045   continue
-       call gparc('All Constituents: ',cline,last,4,text,';',q1help)
-       if(buperr.ne.0) goto 900
-       knr(ll)=0
-       jp=1
-4047   continue
-       if(eolch(text,jp)) goto 4049
-       if(model(1:13).eq.'IONIC_LIQUID ' .and. ll.eq.1 &
-            .and. knr(1).eq.0) then
-! a very special case: a single "*" is allowed on 1st sublattice for ionic liq
-          if(text(jp:jp).eq.'*') then
-             icon=icon+1
-             const(icon)='*'
-             knr(1)=1
-             cycle sloop
-          endif
-       endif
-       call getname(text,jp,name3,1,ch1)
-       if(buperr.eq.0) then
-          icon=icon+1
-          const(icon)=name3
-          knr(ll)=knr(ll)+1
-!          write(*,66)'constituent: ',knr(ll),icon,jp,const(icon)
-66        format(a,3i3,a)
-! increment jp to bypass a separating , 
-          jp=jp+1
-          goto 4047
-       elseif(once) then
-!          write(kou,*)'Input error ',buperr,', at ',jp,', please reenter'
-          buperr=0; once=.false.; goto 4045
-       else
-          goto 1000
-       endif
-       buperr=0
-4049   continue
-    enddo sloop
-    call enter_phase(name1,nsl,knr,const,sites,model,phtype)
-    if(gx%bmperr.ne.0) goto 1000
-900 continue
-    if(buperr.ne.0) gx%bmperr=buperr
-1000 continue
-  end subroutine enterphase
-
-!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
-
-!\begin{verbatim}
-  subroutine listoptcoeff(lut)
-! listing of optimizing coefficients
-    integer lut
-!    integer lut,mexp
-!    double precision errs(*)
-!    type(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim}
-    type(gtp_equilibrium_data), pointer :: neweq
-    integer i1,i2,j1,j2,j3
-    character name1*24,line*80
-    double precision xxx
-!
-    write(lut,610)
-610 format(/'List of coefficents with non-zero values'/&
-         'Name  Current value   Start value    Scaling factor',&
-         ' RSD')
-    name1=' '
-    do i1=0,size(firstash%coeffstate)-1
-       coeffstate: if(firstash%coeffstate(i1).ge.10) then
-! optimized variable, read from TP constant array
-          call get_value_of_constant_index(firstash%coeffindex(i1),xxx)
-          call makeoptvname(name1,i1)
-          write(lut,615)name1(1:3),xxx,&
-               firstash%coeffstart(i1),firstash%coeffscale(i1),zero
-615       format(a,2x,4(1pe15.6))
-          if(firstash%coeffstate(i1).eq.11) then
-! there is a prescribed minimum
-             write(lut,616)' minimum ',firstash%coeffmin(i1)
-616          format(6x,'Prescribed ',a,': ',1pe12.4)
-          elseif(firstash%coeffstate(i1).eq.12) then
-! there is a prescribed maximum
-             write(lut,616)' maximum ',firstash%coeffmax(i1)
-          elseif(firstash%coeffstate(i1).eq.13) then
-! there are prescribed minimum and maximum
-             write(lut,617)firstash%coeffmin(i1),firstash%coeffmax(i1)
-617          format(6x,'Prescribed min and max: ',2(1pe12.4))
-          elseif(firstash%coeffstate(i1).gt.13) then
-             write(lut,*)'Wrong coefficent state, set to 10'
-             firstash%coeffstate(i2)=10
-          endif
-       elseif(firstash%coeffstate(i1).gt.0) then
-! fix variable status
-          call get_value_of_constant_index(firstash%coeffindex(i1),xxx)
-          call makeoptvname(name1,i1)
-          write(lut,615)name1(1:3),xxx
-       elseif(firstash%coeffscale(i1).ne.0) then
-! coefficient with negative status, status set to 1
-          call get_value_of_constant_index(firstash%coeffindex(i1),xxx)
-          write(lut,619)i1,firstash%coeffscale(i1),xxx,zero
-619       format('Wrong state for coefficient ',i3,4(1pe12.4))
-          firstash%coeffstate(i1)=1
-       endif coeffstate
-    enddo
-1000 continue
-    return
-  end subroutine listoptcoeff
 
 !\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
@@ -5146,7 +4917,7 @@ contains
           do j2=1,i2
              j1=1
              line=' '
-! this subroutine reurns experiment and calculated value: "H=1000:200 $ 5000"
+! this subroutine returns experiment and calculated value: "H=1000:200 $ 5000"
              call meq_get_one_experiment(j1,line,j2,neweq)
              j3=j3+1
              write(lut,622)name1(1:12),neweq%weight,line(1:45),&
@@ -5160,6 +4931,77 @@ contains
 1000 continue
     return
   end subroutine listoptshort
+
+!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\begin{verbatim}
+  subroutine calctrans(cline,last,ceq)
+! calculate a phase transition
+    character cline*(*)
+    integer last
+    type(gtp_equilibrium_data), pointer :: ceq
+!\end
+    character name1*30
+    integer j1,iph,ics
+    double precision xxx
+    type(gtp_condition), pointer :: pcond
+    type(gtp_state_variable), pointer :: stvr
+!
+    write(kou,2090)
+2090 format('To calculate when a phase will appear/disappear',&
+          ' by releasing a condition.')
+    if(btest(ceq%status,EQNOEQCAL)) then
+       write(kou,2095)
+2095   format('You must make an equilibrium calculation before using',&
+            ' this command.')
+       goto 1000
+    endif
+    call gparc('Phase name: ',cline,last,1,name1,' ',q1help)
+    call find_phase_by_name(name1,iph,ics)
+    if(gx%bmperr.ne.0) goto 1000
+    j1=test_phase_status(iph,ics,xxx,ceq)
+    if(j1.eq.PHFIXED) then
+       write(kou,*)'Phase status already fixed'
+       goto 1000
+    endif
+    call list_conditions(kou,ceq)
+    write(kou,2097)
+2097 format('You must release one condition, give its number')
+    call gparid('Condition number',cline,last,j1,1,q1help)
+    if(j1.le.0 .or. j1.gt.noel()+2) then
+       write(kou,*)'No such condition'
+       goto 1000
+    endif
+! this finds condition with given number
+    call locate_condition(j1,pcond,ceq)
+    if(gx%bmperr.ne.0) goto 1000
+    if(pcond%active.eq.0) then
+! the condition is active, deactivate it!
+       pcond%active=1
+    else
+       write(kou,*)'This condition is not active!'
+       goto 1000
+    endif
+! Condition released, now set the phase as fix with zero moles
+    call change_phase_status(iph,ics,PHFIXED,xxx,ceq)
+    if(gx%bmperr.ne.0) goto 1000
+! Calculate equilibrium
+    call calceq2(1,ceq)
+    if(gx%bmperr.ne.0) goto 1000
+! get the value of the released condition and set it to the new value
+    stvr=>pcond%statvar(1)
+    call state_variable_val(stvr,xxx,ceq)
+    if(gx%bmperr.ne.0) goto 1000
+    write(kou,2099)xxx
+2099 format('The transition occurs at ',1pe16.8,', set as condition')
+    pcond%prescribed=xxx
+    pcond%active=0
+! set phase back as entered and stable
+!    write(*,*)'Set phase back as entered'
+    call change_phase_status(iph,ics,PHENTSTAB,zero,ceq)
+1000 continue
+    return
+  end subroutine calctrans
 
 !\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 

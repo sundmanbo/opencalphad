@@ -38,7 +38,7 @@ c e
 l,,,,
 
 @$ We have the same equilibrium with different conditions,
-@$ lnac(c)=-5.1407979
+@$ lnac(c)=-5.14107979
 @&
 @$----------------------------------------------
 @$ Change the value of the lnac condition
@@ -346,7 +346,7 @@ l sym
 
 cal sym *
 
-@$ vara value of a parameter identifier can also be obtained directly
+@$ the value of a parameter identifier can also be obtained directly
 @$ DO NOT FORGET THE PHASE!
 
 list model-para-val
