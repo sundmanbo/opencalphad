@@ -646,7 +646,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! F option (FORD), B option (BORD), Sigma ordering (SORD),
 ! multiple/disordered fraction sets (MFS), gas, liquid, ionic liquid, 
 ! aqueous, dilute config. entropy (DILCE), quasichemical (QCE), CVM,
-! explicit charge balance needed (XCB), extra dense grid (XGRID)
+! explicit charge balance needed (EXCB), extra dense grid (XGRID)
 ! FACT,  not create comp. sets (NOCS), Helmholz energy model (HELM),
 ! Model without 2nd derivatives (PHNODGDY2), Elastic model A,
 ! Subtract ordered part (PHSUBO), Flory-Huggins model (PHFHV)
@@ -1223,7 +1223,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! nooffr: array with number of constituents in each sublattice 
 ! Note that sites are stored in phase_varres as they may vary with the
 ! constituion for ionic liquid)
-! constitlist: indices of species that are constituents (in all soblattices)
+! constitlist: indices of species that are constituents (in all sublattices)
      integer noofsubl,tnooffr
      integer, dimension(9) :: linktocs
      integer, dimension(:), allocatable :: nooffr

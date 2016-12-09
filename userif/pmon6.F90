@@ -3318,10 +3318,10 @@ contains
                 write(*,*)'Too short file name'
                 goto 100
              endif
-             filename(kl:)='DAT '
+             filename(kl:)='.DAT '
           endif
           kl=1
-          call savedatformat(filename,kl,ceq)   
+          call save_datformat(filename,kl,ceq)   
 !-----------------------------------------------------------
        case(3) ! save unformatted
 132       continue
@@ -3418,8 +3418,8 @@ contains
        endif
 !------remove assessment data
 !       write(*,*)'No segmentation fault 1'
-       if(associated(firstash%nextash)) then
-          write(*,*)' *** Warning, assessment data not cleaned up'
+       if(allocated(firstash%eqlista)) then
+          write(*,*)' *** Warning, assessment data not removed'
        endif
 !       write(*,*)'No segmentation fault 2'
        if(allocated(firstash%eqlista)) deallocate(firstash%eqlista)

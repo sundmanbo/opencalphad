@@ -3910,24 +3910,34 @@
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim}
- subroutine savedatformat(filename,kod,ceq)
-! writes a DAT format file
+ subroutine save_datformat(filename,kod,ceq)
+! writes a DAT format file. kod is not used (yet)
    implicit none
    integer kod
    character filename*(*)
    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-   integer ntpf,last
-   logical logok
-   character ch1*1,line*16
+   integer ntpf,last,i1,i2,i3,npows,lut,ip,jp,nstoi,lokph,isp,f1,nphstoi,nphmix
+   integer, dimension(:), allocatable :: ncon,phmix,phstoi,estoi
+   integer nelectrons,lokcs,nsubl,isubl,mphstoi
+   logical logok,nogas,ionliq
+   character ch1*1,line*16,text*80,powers*80,model*24,constext*72
    type(gtp_tpfun2dat), dimension(:), allocatable :: tpfc
+   type(gtp_endmember), pointer :: endmember
+   double precision, allocatable, dimension(:) :: constcomp,constcompiliq
+   double precision valency(9)
+! we must probably create a stack
+!   type(gtp_interaction), dimension(5), pointer :: nint
+   type(gtp_phase_varres), pointer :: varres
+   type(gtp_interaction), pointer :: hint
+   type(gtp_property), pointer :: property
    inquire(file=filename,exist=logok)
    if(logok) then
       line=' '
       last=len(line)
       call gparcd('File exists, overwrite?',line,last,1,ch1,'N',q1help)
       if(ch1.ne.'Y') then
-         write(*,*)'Try again!'
+         write(*,*)'Better luck next time!'
          goto 1000
       endif
    endif
@@ -3936,14 +3946,413 @@
    write(*,*)'TPfuns and parameters: ',ntpf
 ! in this call all tpfuns are converted to arrays of coefficients
 ! each tpfc(i) represent TPfunction i (note parameters are also TP functions!)
-   call tpfun2coef(tpfc,ntpf,ceq)
+! text returns the powers of T used
+   call tpfun2coef(tpfc,ntpf,npows,powers)
    if(gx%bmperr.ne.0) goto 1000
-   write(*,*)'DAT format not implemented yet'
+! listing of all tpfuns
+!   write(*,*)trim(text)
+!   do i1=3,ntpf
+!      write(text,76)i1
+!76    format(' ranges, TP function number s ',i5,' *****************')
+!      call list_tpascoef(kou,text,i1,npows,tpfc)
+!   enddo
+   open(lut,file=filename,access='sequential',status='unknown')
+   write(*,*)'Writing on file: ',trim(filename)
+   text='System'
+   ip=len_trim(text)+2
+   do i1=1,noofel
+      text(ip:)=trim(ellista(elements(i1))%symbol)//'-'
+      ip=len_trim(text)+1
+   enddo
+   text(ip-1:)=' generated from TDB file by OC'
+   write(lut,100)trim(text)
+99 format(a)
+100 format(1x,a)
+!------------------- we have to sort the phases as SOLGASMIX wants
+! and list constituents in gas, mixtures, stoichiometric 
+   allocate(ncon(noofph))
+   allocate(phmix(noofph))
+   allocate(phstoi(noofph))
+   allocate(estoi(noofph))
+   ncon=0
+   phmix=0
+   phstoi=0
+   estoi=0
+   nelectrons=0
+! check for gas phase
+   lokph=phases(1)
+   nogas=.true.
+   if(phlista(lokph)%name(1:4).eq.'GAS ') nogas=.false.
+   nphmix=0
+   nphstoi=0
+   do i1=1,noofph
+      lokph=phasetuple(i1)%lokph
+      if(phlista(lokph)%nooffs.gt.1) then
+         write(*,105)trim(phlista(lokph)%name)
+105      format('Cannot handle phase ',a,' with several fraction sets')
+         gx%bmperr=4399; goto 1000
+      endif
+      ncon(i1)=phlista(lokph)%tnooffr-phlista(lokph)%noofsubl
+      if(ncon(i1).eq.0) then
+! this phase has fixed composition
+         nphstoi=nphstoi+1
+         phstoi(nphstoi)=i1
+! a stoichiometric phase cannot have a charge ...
+      else
+         nphmix=nphmix+1
+         phmix(nphmix)=i1
+         if(btest(phlista(lokph)%status1,PHEXCB)) then
+            nelectrons=nelectrons+1
+            estoi(i1)=-noofel-nelectrons
+         endif
+! should ncon be the number of endmembers?? YES
+         i3=1
+         do i2=1,phlista(lokph)%noofsubl
+            i3=i3*phlista(lokph)%nooffr(i2)
+         enddo
+         ncon(i1)=i3
+      endif
+   enddo
+! now can we write the line with overall phase information ... suck
+   ip=1
+   write(text(ip:),110)noofel+nelectrons
+   ip=len_trim(text)+2
+! number of mixture phases and for each mixture the number of endmembers
+! if nogas is TRUE add 1 with zero endmembers first
+   if(nogas) then
+      write(text(ip:),109)nphmix+1,0
+      ip=len_trim(text)+2
+109   format(2i4)
+   else
+      write(text(ip:),110)nphmix
+      ip=len_trim(text)+2
+110   format(i4)
+   endif
+   ph1: do i1=1,noofph
+      if(ncon(i1).gt.0) then
+         write(text(ip:),110)ncon(i1)
+         ip=len_trim(text)+2
+         if(ip.gt.72) then
+            write(lut,100)trim(text)
+            ip=1
+         endif
+      endif
+   enddo ph1
+! number of stoichiometric phases
+   write(text(ip:),110)nphstoi
+! NOTE format 100 adds an initial space on the line
+   write(lut,100)trim(text)
+!---------------------- system components including electrones for each phase
+   ip=1
+   text=' '
+   do i1=1,noofel
+      text(ip:)=ellista(elements(i1))%symbol
+      ip=ip+25
+      if(ip.gt.51) then
+         write(lut,100)trim(text)
+         ip=1
+         text=' '
+      endif
+   enddo
+! electrons
+   do i1=1,noofph
+      if(estoi(i1).lt.0) then
+         lokph=phasetuple(i1)%lokph
+         text(ip:)='e('//trim(phlista(lokph)%name)//')'
+         ip=ip+25
+         if(ip.gt.51) then
+            write(lut,100)trim(text)
+            ip=1
+            text=' '
+         endif
+      endif
+   enddo
+   if(ip.gt.1) then
+      write(lut,100)trim(text)
+   endif
+! allocate an array for constituent stoichiometry
+   allocate(constcomp(noofel+nelectrons))
+!---------------------------------- system component mass
+   ip=1
+   text=' '
+   do i1=1,noofel
+      write(text(ip:),130)ellista(elements(i1))%mass
+130   format(F25.8)
+      ip=ip+25
+      if(ip.gt.51) then
+         write(lut,100)trim(text)
+         ip=1
+         text=' '
+      endif
+   enddo
+! electrons
+   do i1=1,nelectrons
+      write(text(ip:),130)5.4858D-4
+      ip=ip+25
+      if(ip.gt.51) then
+         write(lut,100)trim(text)
+         ip=1
+         text=' '
+      endif
+   enddo
+   if(ip.gt.1) then
+      write(lut,100)trim(text)
+   endif
+!---------------------------------T powers
+   if(npows.eq.9) then
+! the first 7 digits should be 9 1..6
+!      write(lut,140)trim(powers(36:))
+!      write(lut,140)trim(powers(36:))
+!140   format('   9   1   2   3   4   5   6',a)
+! it does not seem to matter what is on these lines ...
+      write(lut,140)
+      write(lut,140)
+140   format('   6   1   2   3   4   5   6')
+   else
+      write(*,*)'Please fix the T powers manually'
+      stop
+   endif
+!-------------------------------------- end of header section
+! data for mixtures
+   mphstoi=1
+   phases1: do i1=1,noofph
+!      if(i1.gt.1) exit phases
+      lokph=phasetuple(i1)%lokph
+      if(i1.eq.phstoi(mphstoi)) then
+!         write(*,*)'3C skipping stoichiometric ',trim(phlista(lokph)%name)
+         mphstoi=mphstoi+1
+         cycle phases1
+      else
+         write(*,*)'3C parameters for mixture ',trim(phlista(lokph)%name)
+      endif
+      lokcs=phlista(lokph)%linktocs(1)
+      varres=>ceq%phase_varres(lokcs)
+      nsubl=1
+      ionliq=.false.
+! phase model
+      if(btest(phlista(lokph)%status1,PHFORD)) then
+         write(*,141)trim(phlista(lokph)%name)
+141      format('Phase ',a,' has FCC permutated parameters, ignored')
+         cycle phases1
+      elseif(btest(phlista(lokph)%status1,PHBORD)) then
+         write(*,142)trim(phlista(lokph)%name)
+142      format('Phase ',a,' has BCC permutated parameters, ignored')
+         cycle phases1
+      elseif(btest(phlista(lokph)%status1,PHMFS)) then
+         write(*,143)trim(phlista(lokph)%name)
+143      format('Phase ',a,' has disorded fraction sets, ignored')
+         cycle phases1
+      elseif(btest(phlista(lokph)%status1,PHIONLIQ)) then
+         model='SUBI'
+         nsubl=2
+         ionliq=.true.
+! there can just be one ionic liquid ... ??
+!         if(.not.allocated(constcompiliq)) then
+            allocate(constcompiliq(noofel+nelectrons))
+!         endif
+      elseif(btest(phlista(lokph)%status1,PHID)) then
+         model='IDMX'         
+      else
+! there are phases with other bits which will not work but they are rarely set
+! now for sublattices ...
+         nsubl=phlista(lokph)%noofsubl
+         if(nsubl.gt.1) then
+            model='SUBL'
+         endif
+      endif
+      write(lut,200)phlista(lokph)%name,trim(model)
+200   format(1x,a,5x,40('=')/1x,a)
+      endmember=>phlista(lokph)%ordered
+! endmember parameters
+      do while(associated(endmember))
+! we have to generate two lines by extracting the enmember and constituents
+         constcomp=zero
+         if(ionliq) constcompiliq=zero
+         constext=' '
+         text=' '
+         ip=1
+         jp=1
+         valency=zero
+         sloop: do isubl=1,nsubl
+! this is the loop for the constituents in sublattices
+            isp=endmember%fraclinks(isubl,1)
+            if(isp.eq.-99) then
+! this means wildcard in this sublattice
+               write(*,*)'3C Beware! Parameter with wildcard constituent'
+               constext(ip:)='*:'
+               ip=ip+2
+! Hm we should add stoichiometric factors for all constituents in this subl
+! For ionliq this means neutrals on sublattice 2
+!>> QUESTION >> the DAT format repeats all neutrals for all cations
+!>>>>>>>>>>>>>> with the stoichiometry of the cation !!!
+               if(ionliq) valency(1)=one
+               cycle sloop
+            endif
+            isp=phlista(lokph)%constitlist(isp)
+            if(btest(splista(isp)%status,SPVA)) then
+!               write(*,*)'3C vacancy'
+               valency(isubl)=zero
+! according to the example I have the stoichiometry should be 1 for (cation:VA)
+!               if(ionliq) valency(2)=-valency(1)
+               if(ionliq) valency(2)=-one
+            else
+               valency(isubl)=splista(isp)%charge
+               if(abs(valency(isubl)).lt.1.0D-6) valency(isubl)=zero
+            endif
+            if(ionliq .and. isubl.eq.2) then
+               do i3=1,noofel
+                  constcomp(i3)=-constcomp(i3)*valency(2)
+               enddo
+            elseif(estoi(i1).lt.0) then
+! charged sublattice phase
+               constcomp(-estoi(i1))=constcomp(-estoi(i1))+&
+                    valency(isubl)*varres%sites(isubl)
+!               write(*,901)'3C e-stoik:',isubl,-estoi(i1),&
+!                    valency(isubl),varres%sites(isubl),constcomp(-estoi(i1))
+901            format(a,2i3,3F10.2)
+            endif
+            write(constext(ip:),99)trim(splista(isp)%symbol)//':'
+            ip=len_trim(constext)+1
+            do i2=1,splista(isp)%noofel
+! this is a loop for the components of the endmember constituents
+               i3=ellista(splista(isp)%ellinks(i2))%alphaindex
+               if(i3.eq.0) then
+! skip vacancies
+                  continue
+               elseif(ionliq) then
+                  if(isubl.eq.1) then
+                     constcomp(i3)=constcomp(i3)+splista(isp)%stoichiometry(i2)
+                  else
+                     constcomp(i3)=constcomp(i3)+&
+                          splista(isp)%stoichiometry(i2)*valency(1)
+                  endif
+               else
+                  constcomp(i3)=constcomp(i3)+splista(isp)%stoichiometry(i2)*&
+                       varres%sites(isubl)
+                  if(estoi(i1).lt.0) then
+!                     write(*,901)'3C c-stoik:',isubl,i3,&
+!                          splista(isp)%stoichiometry(i2),varres%sites(isubl),&
+!                          constcomp(i3)
+                  endif
+               endif
+            enddo
+         enddo sloop
+! for the parameters follow the property link
+         property=>endmember%propointer
+         if(associated(property)) then
+! some endmembers may not have a property record!!
+! write without the final :
+            write(lut,100)constext(1:ip-2)
+! this line should be written together with the type of coefficients and ranges
+! it may require several lines
+            write(text,210)constcomp
+210         format(12F7.1)
+! what about several properties??
+            f1=property%degreelink(0)
+!            write(*,*)'TP function pointer is ',f1
+            if(f1.gt.0) then
+               call list_tpascoef(lut,text,f1,npows,tpfc)
+            else
+               write(*,*)'missing endmember parameter'
+            endif
+         endif
+         endmember=>endmember%nextem
+      enddo
+! repeat the endmember loop again for interaction parameters (and magnetism??)
+   enddo phases1
+! now data for stoichiometric phases
+   mphstoi=1
+   phases2: do i1=1,noofph
+      lokph=phasetuple(i1)%lokph
+      if(i1.ne.phstoi(mphstoi)) then
+!         write(*,*)'3C skipping mixture ',trim(phlista(lokph)%name)
+         cycle phases2
+      endif
+      mphstoi=mphstoi+1
+      write(*,*)'3C parameters for compound ',trim(phlista(lokph)%name)
+      lokcs=phlista(lokph)%linktocs(1)
+      varres=>ceq%phase_varres(lokcs)
+      nsubl=1
+      ionliq=.false.
+      nsubl=phlista(lokph)%noofsubl
+      write(lut,300)phlista(lokph)%name
+300   format(1x,a,5x,20('='),' compound')
+! there is just one endmember!!
+      endmember=>phlista(lokph)%ordered
+      constext=' '
+      ip=1
+      constcomp=zero
+      sloop2: do isubl=1,nsubl
+! this is the loop for the constituents in sublattices
+         isp=endmember%fraclinks(isubl,1)
+         if(isp.eq.-99) then
+! this means wildcard in this sublattice
+            write(*,*)'3C wildcard in stoichiometric compound!!!'
+            constext(ip:)='*:'
+            ip=ip+2
+            cycle sloop2
+         endif
+! Hm we should add stoichiometric factors for all constituents in this subl
+! For ionliq this means neutrals on sublattice 2
+         isp=phlista(lokph)%constitlist(isp)
+         if(btest(splista(isp)%status,SPVA)) then
+            write(*,*)'3C vacancy in stoichiometric compound!!'
+         endif
+         write(constext(ip:),99)trim(splista(isp)%symbol)//':'
+         ip=len_trim(constext)+1
+         do i2=1,splista(isp)%noofel
+! this is a loop for the components of the endmember constituents
+            i3=ellista(splista(isp)%ellinks(i2))%alphaindex
+            if(i3.eq.0) then
+! skip vacancies
+               continue
+            else
+               constcomp(i3)=constcomp(i3)+splista(isp)%stoichiometry(i2)*&
+                    varres%sites(isubl)
+            endif
+         enddo
+      enddo sloop2
+! for the parameters follow the property link
+      property=>endmember%propointer
+      if(associated(property)) then
+! some endmembers may not have a property record!!
+! write without the final :
+!         write(lut,100)constext(1:ip-2)
+! this line should be written together with the type of coefficients and ranges
+! it may require several lines
+         write(text,210)constcomp
+! what about several properties??
+         f1=property%degreelink(0)
+         if(f1.gt.0) then
+            call list_tpascoef(lut,text,f1,npows,tpfc)
+         else
+            write(*,*)'missing endmember parameter'
+         endif
+      endif
+   enddo phases2
+! At the end some dummy line for the pure elements??
+   do i1=1,noofel
+      write(lut,600)ellista(elements(i1))%symbol
+600   format(1x,a2,22x,'#')
+      constcomp=zero
+      constcomp(i1)=one
+      write(lut,610)constcomp
+610   format('   4  1',12F7.1)
+      write(lut,620)
+620   format('  6001.0000     0.00000000     0.00000000     0.00000000',&
+           '     0.00000000 '/' 0.00000000     0.00000000 '/&
+           ' 1 0.00000000       0.00')
+   enddo
+!
+   write(*,*)' *** WARNING: DAT format not fully implemented'
 ! 
 1000 continue
    deallocate(tpfc)
+   write(*,1010)trim(filename)
+1010 format(/'Output finished on ',a)
+   close(lut)
    return
- end subroutine savedatformat
+ end subroutine save_datformat
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
