@@ -2573,7 +2573,7 @@
    integer, parameter :: maxnc=12
    integer i1,i2,i3,usedpow(maxnc)
    logical done
-   write(*,*)'In tpfun2coef with ',ntpf,' ctpf records allocated'
+!   write(*,*)'In tpfun2coef with ',ntpf,' ctpf records allocated'
    do i1=1,ntpf
       ctpf(i1)%nranges=-1
    enddo
@@ -2630,12 +2630,16 @@
 !\end{verbatim}
    integer i2,i3,ip
    ip=len_trim(text)
-   if(ip.gt.77) then
-      write(lut,698)4,ctpf(i1)%nranges,text(1:ip)
-      write(lut,699)trim(text(ip+1:))
+   if(ip.gt.71) then
+      write(lut,698)4,ctpf(i1)%nranges,text(1:70)
+      write(lut,699)trim(text(71:))
    else
       write(lut,698)4,ctpf(i1)%nranges,trim(text)
    endif
+!698 format(i4,i3,a)
+! According to Ted
+698 format(i2,i3,1x,a)
+699 format(a)
    do i2=1,ctpf(i1)%nranges
       if(ctpf(i1)%cfun%coefs(7,i2).eq.zero .and. &
            ctpf(i1)%cfun%coefs(8,i2).eq.zero .and. &
@@ -2649,10 +2653,11 @@
               ctpf(i1)%cfun%tpows(i3,i2),i3=7,npows)
       endif
    enddo
-698 format(i4,i3,a)
-699 format(a)
-700 format(F11.4,4x,4(1x,G14.8)/2(1x,G14.8)/' 1 0.00000000       0.00')
-705 format(F11.4,4x,4(1x,G14.8)/2(1x,G14.8)/' 3 ',3(1x,G14.8,i3,'.00'))
+!700 format(F11.4,4x,6(1x,G14.8)/' 1 0.00000000       0.00')
+!705 format(F11.4,4x,6(1x,G14.8)/' 3 ',3(1x,G14.8,i3,'.00'))
+! according to Ted
+700 format(1x,F11.4,6(1x,G15.8)/' 1 0.00000000       0.00')
+705 format(1x,F11.4,6(1x,G15.8)/' 3 ',3(1x,G15.8,i3,'.00'))
 1000 continue
    return
  end subroutine list_tpascoef
@@ -2690,11 +2695,11 @@
          funref=tpfexpr%link(i2)
          if(funref.eq.1) then
 ! this is a constant R, multiply the coefficient with 8.31451 and set link=0
-            write(*,*)'Replacing R with its value in function ',lfun
+            write(*,*)'3Z Replacing R with its value in function ',lfun
             tpfexpr%coeffs(i2)=8.31451*tpfexpr%coeffs(i2)
             tpfexpr%link(i2)=0
          elseif(funref.eq.2) then
-            write(*,*)'Deleting use of RTLNP for gas in function ',lfun
+            write(*,*)'3Z Deleting use of RTLNP for gas in function ',lfun
             tpfexpr%link(i2)=0
             tpfexpr%coeffs(i2)=zero
          elseif(funref.gt.0) then
@@ -2716,6 +2721,7 @@
  end subroutine tpf2c
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
 ! each term has a coefficent and an array of integers
 ! tpow is power of T
 ! ppow is power of P
@@ -2809,9 +2815,13 @@
 ! assume link to unary LN function just means LN(T)
          funref=tpfexpr%link(i2)
          if(skipnext) then
-! skip this term as it just contains the ln(T)
-            if(tpfexpr%plevel(i2).ne.1) &
-                 write(*,*)'3Z WARNING probable TPFUN error: ',i1a,i2
+! skip this term as it should just contains the ln(T)
+            if(tpfexpr%plevel(i2).ne.1 .or. tpfexpr%link(i2).ne.0 &
+                 .or. tpfexpr%tpow(i2).ne.1) then
+               write(*,*)'3Z WARNING probable TPFUN error in: ',&
+                    trim(tpfroot%symbol),lfun
+               gx%bmperr=4393; goto 1000
+            endif
             cfun1%coefs(i2,i1b)=zero
             cfun1%tpows(i2,i1b)=-100
             skipnext=.false.
@@ -2820,7 +2830,8 @@
          if(funref.lt.0) then
 ! this is assumed to be a link to LN(T)
             if(funref.ne.-2) then
-               write(*,*)'Can only handle the unary function LN(T)'
+               write(*,*)'3Z TPFUN with other unary function than LN(T): ',&
+                    trim(tpfroot%symbol),lfun
                gx%bmperr=4393; goto 1000
             elseif(tpfexpr%tpow(i2).eq.1) then
 ! Tln(T) will have tpows = 100, we skip the next term with the T
@@ -2933,6 +2944,40 @@
 800 format('3Z ',a,': ',2i3,F9.2,3(1pe10.2,i5)/3(e10.2,i5))
    return
  end subroutine tpwrite
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+ subroutine tpmult(lfun,mfun,ccc,ctpf)
+! multiples all terms in cfpf(lfun) with the factor ccc and returns that
+! in ctpf(mult)
+! cfun is not changed
+   implicit none
+   integer lfun,mfun
+   double precision ccc
+   type(gtp_tpfun2dat) :: ctpf(*)
+!   type(gtp_tpfun_as_coeff) :: cfun
+! 
+   integer, parameter :: maxnc=12,maxnr=20
+   integer i1,i2
+   ctpf(mfun)%nranges=ctpf(lfun)%nranges
+   if(.not.allocated(ctpf(mfun)%cfun%tbreaks)) then
+!      write(*,*)'3Z allocating mfun'
+      allocate(ctpf(mfun)%cfun%tbreaks(maxnr))
+      allocate(ctpf(mfun)%cfun%coefs(maxnc,maxnr))
+      allocate(ctpf(mfun)%cfun%tpows(maxnc,maxnr))
+   endif
+   ctpf(mfun)%cfun%tbreaks=zero
+   ctpf(mfun)%cfun%coefs=zero
+   ctpf(mfun)%cfun%tpows=zero
+   do i1=1,ctpf(mfun)%nranges
+      ctpf(mfun)%cfun%tbreaks(i1)=ctpf(lfun)%cfun%tbreaks(i1)
+      do i2=1,maxnc
+         ctpf(mfun)%cfun%coefs(i2,i1)=ccc*ctpf(lfun)%cfun%coefs(i2,i1)
+         ctpf(mfun)%cfun%tpows(i2,i1)=ctpf(lfun)%cfun%tpows(i2,i1)
+      enddo
+   enddo
+   return
+ end subroutine tpmult
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

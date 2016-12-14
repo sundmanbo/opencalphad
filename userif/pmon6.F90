@@ -1166,7 +1166,8 @@ contains
              if(ch1.eq.'N' .or. ch1.eq.'n') mode=0
 ! Seach for memory leaks
              call gparid('How many times? ',cline,last,leak,1,q1help)
-! allow output file
+! allow output file, if idef>1 no output
+             idef=leak
              lut=optionsset%lut
              jp=0
              i2=0
@@ -1241,7 +1242,7 @@ contains
                       write(kou,2050)neweq%eqno,neweq%eqname
                    else
 ! write output only for leak=0
-!$                     if(.TRUE. .and. leak.eq.1) then
+!$                     if(.TRUE. .and. idef.eq.1) then
 !$                      write(*,663)'Equil/loop/thread/maxth/error: ',&
 !$                             neweq%eqname,i1,omp_get_thread_num(),&
 !$                             omp_get_num_threads(),gx%bmperr

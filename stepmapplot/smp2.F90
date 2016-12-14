@@ -280,7 +280,7 @@ CONTAINS
     double precision starting,finish2,axvalok,dgm,tsave,xxx,yyy,zzz
     integer starttid,endoftime,bytdir,seqz,nrestore,termerr
 ! save current conditions
-    character savedconditions*256
+    character savedconditions*1024
 ! for copy of constituions
     double precision, allocatable, dimension(:) :: copyofconst
 ! inactive are indices of axis conditions inactivated by phases set fixed
@@ -4753,7 +4753,7 @@ CONTAINS
 !    integer, dimension(:), allocatable :: linesep
 ! encoded2 stores returned text from get_many ... 2048 is too short ...
 ! selphase used when plotting data just for a selected phase like y(fcc,*)
-    character statevar*64,encoded1*128,encoded2*4096,selphase*24
+    character statevar*64,encoded1*1024,encoded2*4096,selphase*24
     character*64, dimension(:), allocatable :: phaseline
     integer i,ic,jj,k3,kk,kkk,lokcs,nnp,np,nrv,nv,nzp,ip,nstep,nnv
     integer nr,line,next,seqx,nlinesep,ksep,iax,anpax,notanp,appfil
@@ -5832,7 +5832,7 @@ CONTAINS
     double precision xxx,yyy
     integer, allocatable :: plotkod(:),lineends(:)
     character xax1*8,xax2*24,yax1*8,yax2*24,axis1*32,axisx(2)*32,axisy(2)*32
-    character phname*32,encoded*128,axis*32
+    character phname*32,encoded*1024,axis*32
     character lid(2,maxsame)*24
 !
 ! xval and yval and ccordinates to plot, 
@@ -6078,7 +6078,6 @@ CONTAINS
        goto 100
     endif
 !========================================================
-!    call get_all_conditions(encoded,-1,ceq)
     call get_plot_conditions(encoded,maptop%number_ofaxis,axarr,ceq)
 ! now we should have all data to plot in xval and yval arrays
 500 continue

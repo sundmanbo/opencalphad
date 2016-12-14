@@ -770,7 +770,7 @@
    implicit none
    integer lok1,iws(*),jeq
 !\end{verbatim}
-   character text*512
+   character text*1024
    type(gtp_phase_varres), pointer :: firstvarres
    TYPE(gtp_fraction_set), pointer :: fslink
 !   TYPE(gtp_condition), pointer :: condrec

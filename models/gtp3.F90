@@ -204,7 +204,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'Too many species                                                ',&
        'No such element                                                 ',&
        'Text position outside text                                      ',&
-       'Species symbol must start with letter A-Z                       ',&
+       'Species symbol contain illegal letter or not letter A-Z as first',&
        'No elements or too many elements in species formula             ',&
        'Unknown element in species formula                              ',&
        'Negative stoichiometric factor in species                       ',&
@@ -753,7 +753,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !\begin{verbatim}
 ! Parameters defining the size of arrays etc.
 ! max elements, species, phases, sublattices, constituents (ideal phase)
-  integer, parameter :: maxel=100,maxsp=1000,maxph=300,maxsubl=10,maxconst=1000
+  integer, parameter :: maxel=100,maxsp=1000,maxph=400,maxsubl=10,maxconst=1000
 ! maximum number of constituents in non-ideal phase
   integer, parameter :: maxcons2=100
 ! maximum number of elements in a species
@@ -1223,11 +1223,11 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! nooffr: array with number of constituents in each sublattice 
 ! Note that sites are stored in phase_varres as they may vary with the
 ! constituion for ionic liquid)
-! constitlist: indices of species that are constituents (in all sublattices)
      integer noofsubl,tnooffr
      integer, dimension(9) :: linktocs
      integer, dimension(:), allocatable :: nooffr
 ! number of sites in phase_varres record as it can vary with composition
+! constitlist: indices of species that are constituents (in all sublattices)
      integer, dimension(:), allocatable :: constitlist
 ! used in ionic liquid:
 ! i2slx(1) is index of Va, i2slx(2) is index if last anion (both can be zero)

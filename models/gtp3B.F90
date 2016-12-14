@@ -229,6 +229,7 @@
       goto 1000
    endif
    call capson(symb)
+!   write(*,*)'3B Entering ',symb,noelx
    if(.not.ucletter(symb(1:1))) then
       gx%bmperr=4044
       goto 1000
@@ -236,6 +237,10 @@
    if(noelx.le.0 .or. noelx.gt.10) then
       gx%bmperr=4045
       goto 1000
+   endif
+! check if there is a period "." in the species, that is a common error!
+   if(index(symb,'.').gt.0) then
+      gx%bmperr=4044; goto 1000
    endif
 ! check symb is unique
 !   call find_species_record(symb,loksp)
