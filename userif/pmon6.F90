@@ -2646,13 +2646,13 @@ contains
           endif
 !-----------------------------------------------------------
        case(2) ! list short with status bits
-          call gparcd('Option ',cline,last,1,ch1,chshort,q1help)
+          call gparcd('Option (A/C/M/P)',cline,last,1,ch1,chshort,q1help)
           call capson(ch1)
           write(lut,6022)ceq%eqname,globaldata%rgasuser,&
                globaldata%pnorm,globaldata%status
 6022      format('Equilibrium name',9x,'Gas constant Pressure norm',&
                22x,'Status'/1x,a,1pe12.4,2x,1pe12.4,20x,z8)
-! options are
+! options are A=all phases; P=some phases; C=components; M=phase models
           if(ch1.eq.'A') then
 ! A all
              chshort='A'
@@ -2676,8 +2676,13 @@ contains
                 j1=2
              endif
              call list_components_result(lut,j1,ceq)
+          elseif(ch1.eq.'M') then
+! list models for all phases
+             do iph=1,noph()
+                call list_phase_model(iph,1,lut,ceq)
+             enddo
           else
-             write(kou,*)'Only option A and P implemented'
+             write(kou,*)'Only option A, C and P implemented'
           endif
 !-----------------------------------------------------------
        case(3) ! list phase subcommands

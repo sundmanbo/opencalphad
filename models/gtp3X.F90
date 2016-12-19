@@ -2122,7 +2122,7 @@
             if(gz%intlat(1).eq.1 .and. gz%intlat(2).eq.1) then
 ! we have 3 cations interacting in first sublattice and Va in second
 ! require treatment of extra vacancy fraction
-               write(*,*)'3X 3 interacting cations not implemented'
+               write(*,*)'3X 3 interacting cations in liquid not implemented'
                gx%bmperr=4343; goto 1000
             elseif(gz%intlat(1).eq.1 .and. gz%intlat(2).eq.2) then
                ivax=gz%endcon(2)

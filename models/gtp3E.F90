@@ -290,6 +290,7 @@
 ! save all phase tuples in a single reord
    last=14
    iws(last+1)=gtp_phasetuple_version
+!   write(*,*)'3E Saving tuples: ',nooftuples
    if(nooftuples.gt.0) then
       call wtake(lok,1+nooftuples*5,iws)
       if(buperr.ne.0) then
@@ -309,6 +310,7 @@
 ! no phase tuples
       iws(last)=0
    endif
+!   write(*,*)'3E tuples saved: '
 !------------------------------------
 ! save link to the global data record and version in 20-21
    last=20
@@ -364,7 +366,7 @@
 ! disfra record version??
 !-------------------------------------------------------
 ! assessment head record
-!   write(*,*)'3E Saving assessment record'
+   write(*,*)'3E Saving assessment record'
    if(associated(firstash)) then
       iws(27)=gtp_assessment_version
       lok=26
@@ -776,7 +778,7 @@
 !   TYPE(gtp_condition), pointer :: condrec
    integer i,isp,j,k,kl,lokcs,lokph,mc,mc2,nsl,lokeq,rsize,displace,lokvares
    integer lokdis,disz,lok,qsize,eqdis,iws1,dcheck,lokcc,seqz,offset,dmc
-   integer loklast,eqnumber
+   integer loklast,eqnumber,lokhighcs
    type(gtp_equilibrium_data), pointer :: ceq
 ! loop to save all equilibria
    eqnumber=0
@@ -941,9 +943,11 @@
       enddo
    endif
 117 continue
-! linked list of phase_varres records stored from lokeq+lokvares
-   iws(lokeq+displace+3)=highcs
-   lokvares=lokeq+displace+4
+! LINKED LIST of phase_varres records stored from lokeq+lokvares
+   lokhighcs=lokeq+displace+3
+!   write(*,*)'3E highcs: ',highcs,csfree,lokhighcs
+   iws(lokhighcs)=highcs
+   lokvares=lokhighcs+1
    eqdis=displace+5
 !   write(*,*)'3E buperr 2: ',buperr
 !   write(*,*)'3E link to first phase_varres in ',lokvares,highcs
@@ -951,7 +955,6 @@
 !---- varres records, one for each composition set of the phases and sometimes
 ! one for disordered fraction sets ....
 ! write them in records linked from lokvares as they can be very different
-!   write(lut)highcs
    compset: do j=1,highcs
 ! loop for all composition sets
       firstvarres=>ceq%phase_varres(j)
@@ -966,6 +969,12 @@
 !         lokcs=0
          nsl=phlista(firstvarres%phlink)%noofsubl
 !         mc=phlista(firstvarres%phlink)%tnooffr
+! if this phase_varres has been removed this may be unallocated
+         if(.not.allocated(firstvarres%yfr)) then
+            write(*,*)'3E highcs not updated when removing compset!',j,lokhighcs
+! we should update??             iws(lokeq+displace+3)=highcs
+            cycle compset
+         endif
          mc=size(firstvarres%yfr)
 !         write(*,*)'3E mc: ',trim(phlista(lokph)%name),mc
       endif
@@ -1128,7 +1137,7 @@
       do i=1,mc2
          call storr(lok+displace+nwpr*(i-1),iws,firstvarres%d2gval(i,1))
       enddo
-!      write(*,*)'3E last values used ',lok+displace+mc2*nwpr,lok+qsize,iws1
+!      write(*,*)'3E last values used ',j,lok+displace+mc2*nwpr,lok+qsize,iws1
    enddo compset
 !----------------------------------------
 ! we must set csfree to highcs+1

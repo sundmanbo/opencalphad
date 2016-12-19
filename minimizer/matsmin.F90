@@ -27,9 +27,9 @@ MODULE liboceq
 ! - calculating dot derivatives (Cp, thermal expansion etc) PARTIALLY DONE
 ! - stability check (eigenvalues)
 ! - conditions for properties H, V, S etc. (partially done)
-! - expressions as conditions (only for x)
-! - calculate gridminimizer after equilibrium 
-! - cleanup the use of chemical potentials.  Can ceq%cmuval be removed??
+! - expressions as conditions (only for x(A) and N(A))
+! - calculate gridminimizer after equilibrium as check DONE 
+! - cleanup the use of chemical potentials. DONE
 !
   use general_thermodynamic_package
 !
@@ -810,7 +810,7 @@ CONTAINS
     double precision, parameter :: ylow=1.0D-3
     double precision, parameter :: addedphase_amount=1.0D-2
     double precision xxx,tpvalsave(2)
-    integer iremsave,zz,tupadd,tuprem,samephase
+    integer iremsave,zz,tupadd,tuprem,samephase,phloopaddrem1,phloopaddrem2
 ! replace always FALSE except when we must replace a phase as we have max stable
     logical replace
 ! number of iterations without adding or removing a phase
@@ -989,11 +989,12 @@ CONTAINS
     jrem=0
     krem=0
     iremsave=0
+    phloopaddrem1=0
 ! code above executed only intially
 !----------------------------------------------------------------
 !
 ! meq_sameset calculate the equilibrium for a given set of stable phases
-! if phase set change one return to this routine to take some action and
+! if the phase set change we return to this routine to take some action and
 ! then call meq_sameset again
 ! irem nonzero if phase irem should be removed
 ! iadd nonzero if phase iadd should be added
@@ -1037,6 +1038,15 @@ CONTAINS
                 samephase=iadd
              endif
              goto 200
+          elseif(phloopaddrem1.gt.4) then
+! rest this phase to a default constitution
+             iadd=phloopaddrem2
+             call set_default_constitution(phasetuple(iadd)%ixphase,&
+                  phasetuple(iadd)%compset,ceq)
+             iadd=0
+             phloopaddrem1=0
+             phloopaddrem2=0
+             goto 200
           elseif(meqrec%phr(iadd)%curd%netcharge.gt.1.0D-8) then
              write(*,231)'Adding phase with net charge: ',iadd,&
                   meqrec%phr(iadd)%curd%phtupx,meqrec%phr(iadd)%curd%netcharge
@@ -1078,7 +1088,19 @@ CONTAINS
        if(meqrec%noofits-meqrec%phr(irem)%itadd.lt.minrem) then
 ! if phase was just added do not remove before minrem iterations
           if(ocv()) write(*,*)'Too soon to remove phase',&
-               meqrec%phr(irem)%iph,meqrec%noofits,meqrec%phr(irem)%itadd
+               meqrec%phr(irem)%curd%phtupx,meqrec%noofits,&
+               meqrec%phr(irem)%itadd
+          if(phloopaddrem1.gt.0) then
+             if(phloopaddrem2.eq.meqrec%phr(irem)%curd%phtupx) then
+                phloopaddrem1=phloopaddrem1+1
+             else
+                phloopaddrem2=0
+                phloopaddrem1=0
+             endif
+          else
+             phloopaddrem2=meqrec%phr(irem)%curd%phtupx
+             phloopaddrem1=1
+          endif
           goto 200
        endif
 ! shift phases after irem down in meqrec%stphl
@@ -1118,9 +1140,20 @@ CONTAINS
        if(meqrec%noofits-meqrec%phr(iadd)%itrem.lt.minadd) then
 ! if phase was just removed do not add it before minadd iterations
           if(.not.btest(meqrec%status,MMQUIET))write(*,224)minadd,&
-               meqrec%phr(iadd)%iph,meqrec%phr(iadd)%ics,&
-               meqrec%noofits,meqrec%phr(iadd)%itrem
-224       format('Too soon to add phase: ',i3,2x,2i4,5i5)
+               meqrec%phr(iadd)%curd%phtupx,meqrec%noofits,&
+               meqrec%phr(iadd)%itrem,phloopaddrem1,phloopaddrem2
+224       format('Too soon to add phase: ',i3,2x,i4,2x,5i5)
+          if(phloopaddrem1.gt.0) then
+             if(phloopaddrem2.eq.meqrec%phr(iadd)%curd%phtupx) then
+                phloopaddrem1=phloopaddrem1+1
+             else
+                phloopaddrem2=0
+                phloopaddrem1=0
+             endif
+          else
+             phloopaddrem2=meqrec%phr(iadd)%curd%phtupx
+             phloopaddrem1=1
+          endif
           goto 200
        endif
 ! make sure iremsave is set to zero
@@ -4225,6 +4258,7 @@ CONTAINS
     double precision, dimension(:,:), allocatable :: pmat
     double precision qsp,sumsit,ykvot,ysum,qsum,spmass,yva,fion
     double precision, dimension(:,:), allocatable :: sumion
+    character name*24
 !
 !    write(*,*)'in meq_onephase: '
     iph=pmi%iph
@@ -4804,6 +4838,9 @@ CONTAINS
     neq=neq+nsl
     if(pmi%chargebal.eq.1) then
 ! if external charge balance add one column and one row
+! It causes problem to invert the phase matrix below for a phase like
+! M2O3 with cations CE+3 and LA+3 as the phase is always neutral 
+! and the charge balance not needed.
        neq=neq+1
        do jk=1,ncon
 ! this is the row
@@ -4829,9 +4866,13 @@ CONTAINS
     if(ierr.eq.0) then
        write(*,*)'Numeric problem 3, phase/set:',iph,ics
 !       if(ocv()) write(*,556)'Phase matrix singular 3:',meqrec%noofits,&
-       write(*,556)'Phase matrix singular 3:',meqrec%noofits,&
-            pmi%iph,pmi%ics,pmi%ncc,ierr
-556    format(a,5i5)
+       if(pmi%chargebal.eq.1) then
+! can be problem with external chargebalance not needed ...
+          call get_phase_name(pmi%iph,1,name)
+          write(*,553)'Try to suspend phase: ',trim(name)
+553       format(a,a)
+       endif
+556    format(a,6i5)
 ! emergency fix does not work ...
        pmi%invmat=zero
        do jk=1,neq

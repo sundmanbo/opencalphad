@@ -60,7 +60,7 @@
 ! sort phases depending on number of gridpoints
    integer, dimension(:), allocatable :: gridpoints,phord
 ! pph is set to number of phases participating, some may be suspended
-   integer pph,zph,nystph,order(maxel),tbase,qbase,wbase
+   integer pph,zph,nystph,order(maxel),tbase,qbase,wbase,jj,gcheck(maxph)
 !
    if(btest(globaldata%status,GSNOGLOB)) then
       write(*,*)'3Y Grid minimization not allowed'
@@ -146,12 +146,15 @@
 !         write(*,*)'3Y Suspended or dormant phase: ',iph
       endif ent1
    enddo ggloop
+! list the number of gridpoints in all phases
+!   write(*,14)'3Y gridp1: ',(gridpoints(iph),iph=1,nrph)
+14 format(a,1x,10i6/(12i6))
 ! we have a grid for pph phases, note that pph is not a phase index!!!
 ! the phase index for phase 1..pph is in iphx(1..pph)
 21 format('Gridpoints for phase ',i3,': ',a,', starts ',i7,', with ',2i7)
 22 format('Gridpoints for phase ',i3,' starts at ',i5,', with ',2i5,i8)
    if(kp-1.gt.maxgrid) then
-      write(*,*)'3Y Too many gridpoints: ',iph
+      write(*,*)'3Y Too many gridpoints: ',kp,maxgrid
       gx%bmperr=4175; goto 1000
    endif
 ! we may have no gridpoints!!!
@@ -163,9 +166,11 @@
 ! total number of gridpoints is kp-1 ... but sometimes kp is wrong, why??
 !   allocate(xarr(nrel,kp-1))
 !   allocate(xarr(nrel,kp-1+10))
-   allocate(xarr(nrel,kp-1+nrel))
+!   allocate(xarr(nrel,kp-1+nrel))
+   allocate(xarr(nrel,maxgrid))
+!   write(*,*)'3Y Gridpoints and elements: ',kp-1,nrel,maxgrid
    if(ocv()) write(*,*)'3Y Gridpoints and elements: ',kp-1,nrel
-! we should sort iphx to have phases with many gripoints first
+! we should maybe sort iphx to have phases with many gripoints first
 ! kphl must be shifted at the same time
 !$   call sortin(gridpoints,pph,phord)
 !-$   write(*,32)(kp,phord(kp),gridpoints(kp),kp=1,pph)
@@ -200,7 +205,7 @@
 ! mole fracts in xarr, g in garr
 ! yphl is not used when mode=0, ng should be set to number of remaining points
 ! ngrid(iph) is number of gridpoints in phase iph
-      ng=maxgrid
+!?      ng=maxgrid
 ! values in kphl set in previous call to generate_grid(-1,.....)
       iv=kphl(zph)
 ! when not parallel set iph=zph
@@ -220,16 +225,22 @@
 !         goto 1000
          gx%bmperr=0
       endif
+      gcheck(iph)=ng
 !      write(*,*)'3Y gmax: ',iph,gmax
 ! list xarr for all gridpoints
+!      write(*,*)'3Y grid: ',zph,ng
 !      do kp=1,ng
-!         write(*,73)iphx(zph),kp,(xarr(ie,kp),ie=1,nrel)
-!73       format('gp: ',i3,i5,10(f6.3))
+!         write(33,74)iphx(zph),kp,garr(kp),(xarr(ie,kp),ie=1,nrel)
+!         write(*,73)iphx(zph),kp,garr(kp),(xarr(ie,kp),ie=1,nrel)
+73       format('gp: ',i3,i7,1pe12.4,8(0pf6.3)/(3x,10f6.3))
+74       format('gp: ',i3,i7,1pe12.4,0pf6.3,(16f6.3))
 !      enddo
 !      write(*,*)'3Y look!!!'
 !      read(*,74)ch1
 !74    format(a)
    enddo phloop
+! check the gridpoints the same ...
+!   write(*,14)'3Y gridp2: ',(gcheck(iph),iph=1,nrph)
 ! we may have open a file
    if(trace) then
       write(*,*)'3Y Closing gridgen.dat'
@@ -1192,6 +1203,7 @@
    integer nkl(maxsubl),knr(maxconst),inkl(0:maxsubl),nofy
    double precision, dimension(:), allocatable :: yfra
    double precision sites(maxsubl),qq(5)
+   real, allocatable :: xbrr(:)
 ! endm(i,j) has constituent indices in i=1..nsl for endmember j 
    integer, dimension(:,:), allocatable :: endm
 !--------------------------------
@@ -1238,7 +1250,7 @@
                       [0.01D0,0.02D0,0.16D0,0.05D0,0.10D0,0.12D0]
 !                      [0.01D0,0.02D0,0.07D0,0.05D0,0.10D0,0.23D0]
 ! for output of gridpoints
-   integer jbas,sumngg,loksp,l0,l1
+   integer jbas,sumngg,loksp,l0,l1,ncon,jj,anion,isp
    logical trace,isendmem
    double precision ysum
    save sumngg
@@ -1273,11 +1285,30 @@
 ! calculate the number of endmembers and index of first constituent in subl ll
    nend=1
    inkl(0)=0
+   lokph=phases(iph)
    do ll=1,nsl
-      nend=nend*nkl(ll)
+      if(btest(phlista(lokph)%status1,PHIONLIQ) .and. ll.eq.2) then
+! multiply with charged anions and Va only, add neutrals
+         do jj=1,nkl(2)
+! I am no longer sure if knr is in alphabetical order or specues location ...
+            isp=phlista(lokph)%constitlist(nkl(1)+jj)
+            if(btest(splista(isp)%status,SPION) .or. &
+                 btest(splista(isp)%status,SPVA)) then
+               anion=anion+1
+               cycle
+            endif
+         enddo
+         nend=nend*anion+phlista(lokph)%nooffr(2)-anion
+      else
+         nend=nend*nkl(ll)
+      endif
       inkl(ll)=inkl(ll-1)+nkl(ll)
    enddo
+!   if(btest(phlista(lokph)%status1,PHIONLIQ)) then
+!      write(*,*)'3Y ionic liq: ',anion,nend
+!   endif
    ny=inkl(nsl)
+   ncon=inkl(nsl)
    negmode: if(mode.lt.0) then
 !---------------------------------------------------------
 ! just determine the number of gridpoints for this phase for global minimimum
@@ -1287,35 +1318,46 @@
       ngg=nend
       lokph=phases(iph)
 !      write(*,*)'3Y nend 1: ',mode,ngg
-      if(nend.eq.1 .or. nend.gt.50 .or. &
+      if(nend.eq.1 .or. nend.gt.100 .or. &
            btest(phlista(lokph)%status1,PHID)) then
-! >50 or 1 endmember or ideal phase: only endmembers
+! >100 or 1 endmember or ideal phase: only endmembers
          ngg=nend
       else
          ngg=nend
 ! The limits for various combinations will be adjusted when testing ...
 ! Max about 20000 gridpoints per phase
-         if(nend.ge.50) then
-            ngg=ngg+nend*(nend-1)
-         elseif(nend.ge.breaks(5)) then
-            ngg=ngg+nend*(nend-1)+nend*nend*(nend-1)
-         elseif(nend.ge.breaks(4)) then
-            ngg=ngg+nend*(nend-1)+2*nend*nend*(nend-1)
-         elseif(nend.ge.breaks(3)) then
-            ngg=ngg+nend*(nend-1)+3*nend*nend*(nend-1)
-         elseif(nend.ge.breaks(2)) then
-            ngg=ngg+nend*(nend-1)+4*nend*nend*(nend-1)
-         elseif(nend.ge.breaks(1)) then
-            ngg=ngg+nend*(nend-1)+5*nend*nend*(nend-1)
-         else
-            ngg=ngg+nend*(nend-1)+6*nend*nend*(nend-1)
+!         if(nend.ge.50) then
+!         if(nend.ge.100) then
+         ngg=ngg+nend*(nend-1)
+!         write(*,*)'3Y dense -1A: ',iph,nend,ngg,breaks(5)
+! ATTENTION
+! The calculation below is not correct, it overestimates a bit the number of 
+! gridpoints actually generated but it should not matter so much ... I hope
+! When matching a gridpoint in the solution the code to generate the
+! gridpoint is used, the code below is just an estimate for allocation
+         if(nend.le.50) then
+            if(nend.gt.breaks(5)) then
+               ngg=ngg+nend*(nend-1)+nend*nend*(nend-1)
+!               write(*,*)'3Y dense -1B: ',iph,nend,ngg,breaks(4)
+            elseif(nend.gt.breaks(5)) then
+               ngg=ngg+nend*(nend-1)+2*nend*nend*(nend-1)
+            elseif(nend.gt.breaks(4)) then
+               ngg=ngg+nend*(nend-1)+3*nend*nend*(nend-1)
+            elseif(nend.gt.breaks(3)) then
+               ngg=ngg+nend*(nend-1)+4*nend*nend*(nend-1)
+            elseif(nend.gt.breaks(2)) then
+               ngg=ngg+nend*(nend-1)+5*nend*nend*(nend-1)
+!            elseif(nend.gt.breaks(1)) then
+            else
+               ngg=ngg+nend*(nend-1)+6*nend*nend*(nend-1)
+            endif
          endif
+!         write(*,*)'3Y dense -1X: ',iph,nend,ngg
       endif
 !      write(*,*)'3Y endmembers and gridpoints: ',nend,ngg
 !      read(*,11)ch1
 11    format(a)
       ny=nend
-!      write(*,*)'3Y nend 2: ',mode,ngg
       goto 1001
    endif negmode
 !------------------------------------------------------------
@@ -1327,6 +1369,7 @@
 !   all gridpoints up the one specified by the value of mode (no G calculation)
 !   write(*,*)'3Y ggy: ',mode,iph,nsl,nend,inkl(nsl)
 !
+   allocate(yfra(inkl(nsl)))
 ! endm(i,j) has constituent indices in i=1..nsl for endmember j 
 ! endm(1,1) is constituent in sublattice 1 of first endmember
 ! endm(2,1) is constituent in sublattice 2 of first endmember
@@ -1334,7 +1377,8 @@
 ! endm(1..nsl,nend) are constituents in all sublattices of last endmember
    allocate(endm(nsl,nend))
 ! inkl(nsl) is the number of fraction variables in the phase
-   allocate(yfra(inkl(nsl)))
+!   allocate(yfra(inkl(nsl)))
+   allocate(xbrr(noofel))
 !   nofy=inkl(nsl)
 ! generate endmembers, endm(ll,ie) is set to consituent index in sublattice ll
    je=1
@@ -1362,6 +1406,8 @@
 !---------------------------------------
 ! We have now generated endm(1..nsl,j)
 120 continue
+!   write(*,202)'3Y special 1: ',nsl,nend,inkl(nsl),endm(1,2),endm(2,2),&
+!        endm(1,nend),endm(1,3),endm(2,3),endm(1,4),endm(2,4)
 ! now generate all unary, binary and ternary combinations of endmember fractions
 ! Note the sum of constituent fractions in all sublattices must be unity
 ! By combining endmember fractions weighted according to ybas, ybin and yter
@@ -1392,17 +1438,24 @@
       endmem2a: do jend=1,nend
          if(jend.eq.iend) cycle endmem2a
          yfra=zero
+!         write(*,202)'3Y special 3: ',endm(1,2)
          do ls=1,nsl
 ! to generate better start values for fcc-protototype ordering
-!            yfra(endm(ls,iend))=ybas(ibas)
-!            yfra(endm(ls,iend))=ybas(0)-1.0D-6*nkl(ls) ???
+!            write(*,202)'3Y ls iend endm: ',ls,iend,jend,endm(ls,iend)
+202         format(a,10i6)
             yfra(endm(ls,iend))=ybas(0)
             yfra(endm(ls,jend))=yfra(endm(ls,jend))+yter(1)
          enddo
          ngg=ngg+1
          if(mode.eq.0) then
 ! this is for 0.99*y1 + 0.01*y2
+! STRANGE error that destroyed endm after the call to calc_gridpoint!!
+! the error was due to wrong size when allocating xarr which is a bit
+! strange but anyway the error disapperared when I allocated a larger xarr
+! although the allocated did not seem too small. 
             call calc_gridpoint(iph,yfra,nrel,xarr(1,ngg),garr(ngg),ceq)
+!            call calc_gridpoint2(iph,yfra,endm,nrel,xarr(1,ngg),garr(ngg),ceq)
+!            call calc_gridpoint2(iph,yfra,endm,nrel,xbrr,garr(ngg),ceq)
             if(gx%bmperr.ne.0) goto 1000
             if(garr(ngg).gt.gmax) gmax=garr(ngg)
 !            write(*,201)'3Y bin: ',ngg,(yfra(is),is=1,inkl(nsl))
@@ -1416,6 +1469,7 @@
 ! ybin               0.03D0,0.07D0,0.25D0,0.15D0,0.36D0,0.35D0
 ! yter               0.01D0,0.02D0,0.07D0,0.05D0,0.10D0,0.23D0
       if(nend.gt.50) cycle endmem1
+!      if(nend.gt.60) cycle endmem1
       ibasloop: do ibas=1,6
          if(nend.ge.breaks(5) .and. ibas.eq.2) cycle endmem1
          if(nend.ge.breaks(4) .and. ibas.eq.3) cycle endmem1
@@ -2197,7 +2251,7 @@
 !\end{verbatim}
 ! ny just needed for debugging ...
    integer i,lokres
-   double precision qq(5),xmol(nrel)
+   double precision qq(5),xmol(nrel),ytemp(maxconst)
 ! set constitution and calculate G per mole atoms and composition
 !
 ! BEWARE must be tested for parallel processing
@@ -2246,6 +2300,73 @@
 1010 format('3Y Thread ',i3,', gval: ',1pe15.6,', error: ',i6)
    return
  end subroutine calc_gridpoint
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
+ subroutine calc_gridpoint2(iph,yfra,endm,nrel,xarr,gval,ceq)
+! called by global minimization routine
+! Not adopted to charged crystalline phases as gridpoints have net charge
+! but charged gripoints have high energy, better to look for neutral ones ...
+! FAILED ATTEMPT TO FIND BUG THAT DESTROYED LOCAL ARRAY IN GENERATE_DENSE_GRID
+   implicit none
+   real xarr(*),gval
+   integer iph,nrel,endm(2,*)
+   double precision yfra(*)
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+! ny just needed for debugging ...
+   integer i,lokres,ibas
+   double precision qq(5),xmol(nrel)
+   double precision, allocatable :: ydum(:)
+! set constitution and calculate G per mole atoms and composition
+!
+! BEWARE must be tested for parallel processing
+!
+   call set_constitution(iph,1,yfra,qq,ceq)
+   if(gx%bmperr.ne.0) goto 1000
+   call calcg(iph,1,0,lokres,ceq)
+   if(gx%bmperr.ne.0) goto 1000
+   call calc_phase_mol(iph,xmol,ceq)
+   if(gx%bmperr.ne.0) goto 1000
+!    write(*,15)'3Y gd2: ',iph,lokres,qq(1),&
+!         ceq%phase_varres(lokres)%gval(1,1),(xmol(i),i=1,nrel)
+!15  format(a,2i4,2e12.4,2x,5(F9.5))
+   do i=1,nrel
+      xarr(i)=real(xmol(i))
+   enddo
+!   if(qq(1).lt.2.0D-1) then
+! number of real atoms less than 20%, a gridpoint with just vacancies ....
+   if(qq(1).lt.5.0D-1) then
+! number of real atoms less than 50%, a gridpoint with mainly vacancies ....
+!      gval=1.0E5
+!      gval=1.0E1
+      gval=1.0E2
+   elseif(abs(qq(2)).gt.1.0D-14) then
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+! the gridpoint has net charge, qq(2), make gval more positive. 
+! Note gval(1,1) is divided by RT so around -5<0
+! A better method is needed by combining charged gripoints!!!!
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+!      gval=real(ceq%phase_varres(lokres)%gval(1,1)/qq(1)+20*qq(2)**2)
+!      gval=real(ceq%phase_varres(lokres)%gval(1,1)/qq(1)+5*qq(2)**2)
+      write(*,*)'3Y Problem with net charge ',iph,qq(2)
+      gval=real(ceq%phase_varres(lokres)%gval(1,1)/qq(1)+qq(2)**2)
+      if(ocv()) write(*,66)'3Y charged gp: ',&
+           ceq%phase_varres(lokres)%gval(1,1)/qq(1),qq(1),abs(qq(2))
+66    format(a,6(1pe12.4))
+   else
+      gval=real(ceq%phase_varres(lokres)%gval(1,1)/qq(1))
+   endif
+!    read(*,20)ch1
+20  format(a)
+1000 continue
+! check for parallel
+!    jip=omp_get_thread_num()
+!    write(*,1010)jip,gval,gx%bmperr
+1010 format('3Y Thread ',i3,', gval: ',1pe15.6,', error: ',i6)
+   return
+ end subroutine calc_gridpoint2
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
@@ -2534,10 +2655,11 @@
    real gmin(nrel),dg,dgmin,gplan,gy,gvvp
 ! gridpoints that has less difference with the plane than this limit is ignored
    real, parameter :: dgminlim=1.0D-6
-   logical checkremoved,linglderr
+   logical checkremoved,linglderr,grindingon
    character ch1*1
 ! if trace then open file to write grid
    linglderr=.FALSE.
+   grindingon=.TRUE.
    if(trace) then
       write(*,*)'3Y Opening ocgrid.dat to write grid solution'
       open(31,file='ocgrid.dat ',access='sequential')
@@ -2768,7 +2890,7 @@
 ! if nyp=0 we have found the lowest tangent plane including the composition
    if(nyp.eq.0 .or. abs(dgmin).lt.dgminlim) then
      if(trace) write(31,*)'Found the solution after iterations: ',griter,dgmin
-!      write(31,*)'Found the solution after ilterations: ',griter,dgmin
+!      write(31,*)'Found the solution after iterations: ',griter,dgmin
       goto 900
    else
       if(trace) write(*,*)'3Y new gridpoint: ',griter,nyp,dgmin
@@ -2777,7 +2899,7 @@
    notuse(nyp)=1
 !   write(*,211)'3Y ny:',nyp,dgmin,(xarr(ie,nyp),ie=1,nrel)
    if(trace) write(*,212)'3Y Found gridpoint ',nyp,inuse,dgmin,garr(nyp)
-!211 format(a,i4,1pe12.4,0pf8.4,6(f8.4))
+211 format(a,i7,1pe12.4,0pf7.4,6f7.4,(3x,10f7.4))
 212 format(a,2i8,6(1pe11.3))
 !-------------------------------------------------------------------------
    qmat=qmatsave
@@ -2794,9 +2916,12 @@
 301   format(a,i7,i3,1pe10.2,2x,8(0pF5.2))
       gpfail=gpfail+1
       if(griter.gt.10*nrel .and. gpfail.gt.8*nrel) then
-! this must be wrong!!
-         write(*,*)'3Y Grid minimizer problem: ',griter,gpfail
-         gx%bmperr=4346; goto 1000
+! this must be wrong!!  Maybe someone can understand it ...
+         if(grindingon) then
+            write(*,*)'3Y Grid minimizer problem but grinding on '
+            grindingon=.false.
+         endif
+!         gx%bmperr=4346; goto 1000
       endif
 ! listing restored solution ......
 !      xtx=zero
@@ -2815,7 +2940,8 @@
 ! >>>> problem with gas phase test case cho1 with x(c)=.2 x(o)=x(H)=.4
 ! The gridpoints returned not good, probably due to too many gridpoints ...
 !
-!      if(trace) write(*,*)'3Y Failed when trying to add gridpoint ',nyp
+      if(trace) write(*,*)'3Y Failed when trying to add gridpoint ',nyp
+      write(*,*)'3Y Failed when trying to add gridpoint ',nyp
       if(checkremoved) goto 950
 ! just ignore this gridpoint and continue, it has been added to notuse
 ! and will be checked again later as "removed"
@@ -2847,6 +2973,7 @@
    call lingld(nrel,nrel1,qmat,phfrac,nrel,ierr)
    if(ierr.ne.0) then
 ! error may occur and is not fatal, just try to replace next column
+!      write(*,*)'3Y failed replace: ',dgmin
       if(.not.linglderr) then
          if(ocv()) write(*,*)'3Y gridmin warning(s) using lingld: ',ierr,nyp
          linglderr=.TRUE.
@@ -3601,7 +3728,7 @@
 !\end{verbatim}
    TYPE(gtp_equilibrium_data), target :: cceq
    TYPE(gtp_equilibrium_data), pointer :: pceq
-   logical global,newcs,notglobwarning1,notglobwarning2
+   logical global,newcs,notglobwarning1,notglobwarning2,wrongfrac
    real, allocatable :: xarr(:,:),garr(:)
    real sumx
    double precision, dimension(maxconst) :: yarr
@@ -3627,6 +3754,7 @@
    iphx=0
    kphl=0
    ifri=0
+   wrongfrac=.true.
    loop1: do iph=1,nrph
 ! this loop just to calculate how many points will be generated for allocation
       if(test_phase_status(iph,1,amount,pceq).le.PHDORM) cycle loop1
@@ -3677,7 +3805,12 @@
       enddo
 !      if(ifri.eq.sumng) write(*,*)'3Y OK ',ifri,iph
       if(abs(sumx-1.0E0).gt.1.0E-6) then
-         write(*,*)'3Y wrong gridpoint fractions ',ifri,sumx,garr(ifri)
+         if(wrongfrac) then
+            write(*,69)'3Y Some gridpoint fractions wrong',&
+                 iph,ifri,sumx,garr(ifri)
+69          format(a,i3,i7,2(1pe12.4))
+            wrongfrac=.false.
+         endif
          cycle loop4
       endif
 !      write(*,75)'3Y check: ',ifri,iph,garr(ifri),gmax,garr(ifri)-gmax
@@ -4553,7 +4686,8 @@
                   if(gx%bmperr.ne.0) then
                      write(*,*)'3Y failed to remove tuplet:',&
                           ceq%phase_varres(lokics)%phtupx
-                     goto 1000
+! reset the error code but exit the attempt to clean up
+                     gx%bmperr=0; goto 1000
                   endif
 !                  write(*,*)'3Y Phase tuple removed for phase: ',iph
 !$               elseif(omp_get_num_threads().gt.1) then

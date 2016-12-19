@@ -1379,7 +1379,7 @@
    write(lut,110)phname,phlista(lokph)%models(1:40),&
         phlista(lokph)%noofsubl,phlista(lokph)%status1,&
         ceq%phase_varres(lokcs)%status2
-110 format(a,', model: ',a/'Number of sublattices: ',i2,&
+110 format(a,' model: ',a/'  Number of sublattices: ',i2,&
         ', status: ',z8,1x,z8,5x)
    addrec=>phlista(lokph)%additions
    lastadd: do while(associated(addrec))
@@ -1417,7 +1417,7 @@
       ip=ip+2
       if(ip.gt.60) then
          write(lut,330)l78(1:ip-3)
-330       format(a)
+330       format(2x,a)
          l78=' '
          ip=4
       endif
@@ -1431,13 +1431,13 @@
       lokcs=disfra%varreslink
       if(disfra%ndd.eq.1) then
          write(lut,410)disfra%latd
-410      format('Disordred fractions adding all fractions from all ',&
+410      format(4x,'Disordred fractions adding all fractions from all ',&
               i2,' sublattices together')
       else
          write(lut,420)disfra%latd
-420      format('Disordred fractions adding fractions from first ',i2,&
-              ' sublattices together'/&
-              ' in the first disordered sublattice',&
+420      format(4x,'Disordred fractions adding fractions from first ',i2,&
+              ' sublattices together in'/&
+              4x,'the first disordered sublattice',&
               ' and the remaining fractions in the second.')
       endif
 ! write the disordered constituents and fractions
@@ -1466,7 +1466,8 @@
       l78(ip:)=','
       ip=ip+2
       if(ip.gt.60) then
-         write(lut,330)l78(1:ip-3)
+         write(lut,450)l78(1:ip-3)
+450       format(4x,a)
          l78=' '
          ip=4
       endif
