@@ -1240,7 +1240,9 @@
 ! N=10  100 + 5*100*9     +   10*9*8      = 4600+720 = 5320
 ! N=20  400 + 400*19      +   0           >8000
 ! ...
+   integer, parameter :: breaks6=50
    integer, parameter, dimension(5) :: breaks=[9,12,15,18,21]
+!   integer, parameter, dimension(5) :: breaks=[9,12,15,18,55]
    double precision, dimension(-1:6), parameter:: ybas=&
         [1.00D0,0.99D0,0.96D0,0.91D0,0.68D0,0.80D0,0.54D0,0.44D0]
    double precision, dimension(6), parameter :: ybin=&
@@ -1290,7 +1292,7 @@
       if(btest(phlista(lokph)%status1,PHIONLIQ) .and. ll.eq.2) then
 ! multiply with charged anions and Va only, add neutrals
          do jj=1,nkl(2)
-! I am no longer sure if knr is in alphabetical order or specues location ...
+! knr(i) is species(i) location but I use constitlist as I have access to it
             isp=phlista(lokph)%constitlist(nkl(1)+jj)
             if(btest(splista(isp)%status,SPION) .or. &
                  btest(splista(isp)%status,SPVA)) then
@@ -1300,6 +1302,7 @@
          enddo
          nend=nend*anion+phlista(lokph)%nooffr(2)-anion
       else
+! this is the "normal" number of endmembers
          nend=nend*nkl(ll)
       endif
       inkl(ll)=inkl(ll-1)+nkl(ll)
@@ -1335,7 +1338,10 @@
 ! gridpoints actually generated but it should not matter so much ... I hope
 ! When matching a gridpoint in the solution the code to generate the
 ! gridpoint is used, the code below is just an estimate for allocation
-         if(nend.le.50) then
+!         if(nend.le.50) then
+! Try 60 to handle 53 endmembers in liquid noc2500.TDB from TAF-ID
+!         if(nend.le.60) then
+         if(nend.le.breaks6) then
             if(nend.gt.breaks(5)) then
                ngg=ngg+nend*(nend-1)+nend*nend*(nend-1)
 !               write(*,*)'3Y dense -1B: ',iph,nend,ngg,breaks(4)
@@ -1450,9 +1456,9 @@
          if(mode.eq.0) then
 ! this is for 0.99*y1 + 0.01*y2
 ! STRANGE error that destroyed endm after the call to calc_gridpoint!!
-! the error was due to wrong size when allocating xarr which is a bit
-! strange but anyway the error disapperared when I allocated a larger xarr
-! although the allocated did not seem too small. 
+! the error was due to wrong size allocated to xarr which is strange as it
+! is done elsewhere but the error disapperared when I allocated a larger
+! xarr although the allocated one did not seem too small. 
             call calc_gridpoint(iph,yfra,nrel,xarr(1,ngg),garr(ngg),ceq)
 !            call calc_gridpoint2(iph,yfra,endm,nrel,xarr(1,ngg),garr(ngg),ceq)
 !            call calc_gridpoint2(iph,yfra,endm,nrel,xbrr,garr(ngg),ceq)
@@ -1468,8 +1474,9 @@
 ! ybas 1.00D0,0.99D0,0.96D0,0.91D0,0.68D0,0.80D0,0.54D0,0.42D0
 ! ybin               0.03D0,0.07D0,0.25D0,0.15D0,0.36D0,0.35D0
 ! yter               0.01D0,0.02D0,0.07D0,0.05D0,0.10D0,0.23D0
-      if(nend.gt.50) cycle endmem1
+!      if(nend.gt.50) cycle endmem1
 !      if(nend.gt.60) cycle endmem1
+      if(nend.gt.breaks6) cycle endmem1
       ibasloop: do ibas=1,6
          if(nend.ge.breaks(5) .and. ibas.eq.2) cycle endmem1
          if(nend.ge.breaks(4) .and. ibas.eq.3) cycle endmem1

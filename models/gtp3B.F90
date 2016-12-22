@@ -339,9 +339,9 @@
    character, dimension(*) :: const*(*)
 !\end{verbatim}
    character ch1*1
-   double precision formalunits
+   double precision formalunits,endch
    integer kconlok(maxconst),kalpha(maxconst),iord(maxconst),klok(maxconst)
-   integer iva(maxconst)
+   integer iva(maxconst),endm(maxsubl),endm0(maxsubl+1)
    logical externalchargebalance,tupix
    integer iph,kkk,lokph,ll,nk,jl,jk,mm,lokcs,nkk,nyfas,loksp,tuple
 !   write(*,*)'3B enter enter_phase: ',model(1:len_trim(model))
@@ -620,7 +620,47 @@
 ! set some phase bits (PHGAS and PHLIQ set above)
 ! external charge balance etc.
    if(externalchargebalance) then
+! do not set this if all endmembers have zero charge  m2o3(Ce+3,La+3)2(O-2)3
+      jl=1
+      endch=zero
+      do ll=1,nsl
+         endm0(ll)=jl
+         endm(ll)=jl
+         jk=phlista(nyfas)%constitlist(jl)
+         endch=endch+splista(jk)%charge*sites(ll)
+         jl=jl+phlista(nyfas)%nooffr(ll)
+      enddo
+      endm0(nsl+1)=phlista(nyfas)%tnooffr+1
+400   continue
+!      write(*,405)'3B netcharge ',trim(name),endch,(endm(ll),ll=1,nsl)
+!405   format(a,a,1pe12.4,9i4)
+      if(abs(endch).gt.1.0D-6) goto 420
+      ll=nsl
+410   continue
+      if(endm(ll).lt.endm0(ll+1)-1) then
+         jk=phlista(nyfas)%constitlist(endm(ll))
+         endch=endch-splista(jk)%charge*sites(ll)
+         endm(ll)=endm(ll)+1
+         jk=phlista(nyfas)%constitlist(endm(ll))
+         endch=endch+splista(jk)%charge*sites(ll)
+         goto 400
+      elseif(ll.gt.1) then
+         jk=phlista(nyfas)%constitlist(endm(ll))
+         endch=endch-splista(jk)%charge*sites(ll)
+         endm(ll)=endm0(ll)
+         jk=phlista(nyfas)%constitlist(endm(ll))
+         endch=endch+splista(jk)%charge*sites(ll)
+         ll=ll-1
+         goto 410
+      endif
+!      write(*,*)'3B charge balance not needed for ',trim(name)
+      goto 430
+! jump here if any endmember has a net charge
+420   continue
+!      write(*,*)'3B charge balance needed for ',trim(name)
       phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHEXCB)
+! jump here if all neutral
+430   continue
    endif
 ! set net charge to zero
    firsteq%phase_varres(lokcs)%netcharge=zero
