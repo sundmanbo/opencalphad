@@ -661,7 +661,7 @@ CONTAINS
 !          write(*,*)'No phase to set stable'
           gx%bmperr=4200; goto 1000
        endif
-!       write(*,55)'Intial phases set stable: ',mostcon,&
+!       write(*,55)'Initial phases set stable: ',mostcon,&
 !            (mostconph(1,icc),mostconph(2,icc),icc=1,mostcon)
 55     format(a,i3,10(2i3,2x))
        meqrec%nv=mostcon
@@ -669,7 +669,9 @@ CONTAINS
 56     format('Setting start phases: ',20(i3))
        do icc=1,mostcon
           call get_phase_compset(mostconph(2,icc),1,lokph,lokcs)
-          ceq%phase_varres(lokcs)%amfu=one/mostcon
+!          ceq%phase_varres(lokcs)%amfu=one/mostcon
+          ceq%phase_varres(lokcs)%amfu=one
+          ceq%phase_varres(lokcs)%phstate=PHENTSTAB
           meqrec%iphl(icc)=mostconph(2,icc)
           meqrec%icsl(icc)=1
           meqrec%aphl(icc)=one
@@ -983,7 +985,7 @@ CONTAINS
        enddo
     enddo
 ! problem phases suspended are restored!!
-!    write(*,*)'at start, nonsuspenden phases: ',mph
+!    write(*,*)'MM at start, nonsuspenden phases: ',mph
     meqrec%noofits=0
     toomanystable=0
     jrem=0
@@ -1039,7 +1041,7 @@ CONTAINS
              endif
              goto 200
           elseif(phloopaddrem1.gt.4) then
-! rest this phase to a default constitution
+! reset this phase to a default constitution
              iadd=phloopaddrem2
              call set_default_constitution(phasetuple(iadd)%ixphase,&
                   phasetuple(iadd)%compset,ceq)
@@ -1139,9 +1141,10 @@ CONTAINS
 223    format(a,2x,2i4,1pe15.4,i7)
        if(meqrec%noofits-meqrec%phr(iadd)%itrem.lt.minadd) then
 ! if phase was just removed do not add it before minadd iterations
-          if(.not.btest(meqrec%status,MMQUIET))write(*,224)minadd,&
-               meqrec%phr(iadd)%curd%phtupx,meqrec%noofits,&
-               meqrec%phr(iadd)%itrem,phloopaddrem1,phloopaddrem2
+!          if(.not.btest(meqrec%status,MMQUIET))write(*,224)
+          if(ocv()) write(*,224)meqrec%phr(iadd)%curd%phtupx,&
+               meqrec%noofits,meqrec%phr(iadd)%itrem,phloopaddrem1,&
+               phloopaddrem2,minadd
 224       format('Too soon to add phase: ',i3,2x,i4,2x,5i5)
           if(phloopaddrem1.gt.0) then
              if(phloopaddrem2.eq.meqrec%phr(iadd)%curd%phtupx) then
@@ -1530,7 +1533,7 @@ CONTAINS
        do jz=1,nz2
           if(abs(smat(iz,jz)).gt.1.0D+50) then
              write(*,*)'Illegal numerical value in equilibrium matrix',iz,jz
-             gx%bmperr=4254; goto 1000
+             gx%bmperr=4354; goto 990
           endif
        enddo
     enddo
@@ -2332,6 +2335,13 @@ CONTAINS
        phr(jj)%curd%cdxmol=phr(jj)%dxmol
 !----------------------
     enddo
+    goto 1000
+! output of equilibrium matrix when error return
+990 continue
+    do iz=1,nz1
+       write(*,228)'smat1:',(smat(iz,jz),jz=1,nz2)
+    enddo
+!
 1000 continue
     if(gx%bmperr.ne.0) then
        ceq%status=ibset(ceq%status,EQFAIL)
@@ -2533,6 +2543,7 @@ CONTAINS
 !    do nrow=1,nz1
 !       write(*,11)'MM smat2: ',nrow,(smat(nrow,ncol),ncol=1,nz2)
 !    enddo
+    goto 1000
 1000 continue
     return
   end subroutine setup_comp2cons

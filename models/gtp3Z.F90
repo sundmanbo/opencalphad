@@ -1957,6 +1957,8 @@
 ! a new function record will be allocated
       call ct1mfn(symbol,nrange,tlim,links,lrot)
    endif
+! force functions to be recalculated
+   call force_recalculate_tpfuns
 1000 continue
    return
  end subroutine enter_tpfun
@@ -2303,14 +2305,25 @@
       tpfuns(lrot)%limits(1)=value
    endif
 ! force recalculation of all functions. HOW?
-! by incrementing an integer in tpfuns because this may affect many equilibria
-   do mrot=1,freetpfun-1
-      tpfuns(mrot)%forcenewcalc=tpfuns(mrot)%forcenewcalc+1
-   enddo
-!   write(*,*)'3Z forcenewcalc: ',tpfuns(1)%forcenewcalc
+   call force_recalculate_tpfuns
 1000 continue
    return
  end subroutine change_optcoeff
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim} %-
+ subroutine force_recalculate_tpfuns
+! force recalculation of all tpfuns by incrementing an integer in tpfuns
+!\end{verbatim} %+
+   implicit none
+   integer mrot
+   do mrot=1,freetpfun-1
+      tpfuns(mrot)%forcenewcalc=tpfuns(mrot)%forcenewcalc+1
+   enddo
+!   write(*,*)'3Z all tpfuns will be recalculated'
+   return
+ end subroutine force_recalculate_tpfuns
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -2630,9 +2643,9 @@
 !\end{verbatim}
    integer i2,i3,ip
    ip=len_trim(text)
-   if(ip.gt.71) then
-      write(lut,698)4,ctpf(i1)%nranges,text(1:70)
-      write(lut,699)trim(text(71:))
+   if(ip.gt.74) then
+      write(lut,698)4,ctpf(i1)%nranges,text(1:74)
+      write(lut,699)trim(text(75:))
    else
       write(lut,698)4,ctpf(i1)%nranges,trim(text)
    endif

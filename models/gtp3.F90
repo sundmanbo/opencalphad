@@ -618,13 +618,14 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! NOPAR: do not run in parallel
 ! NOSMGLOB do not test global equilibrium at node points
 ! NOTELCOMP the elements are not the components
+! TGRID always check calculated equilibrium with grid minimizer
 ! >>>> some of these should be moved to the gtp_equilibrium_data record
   integer, parameter :: &
        GSBEG=0,     GSOCC=1,     GSADV=2,      GSNOGLOB=3, &
        GSNOMERGE=4, GSNODATA=5,  GSNOPHASE=6,  GSNOACS=7, &
        GSNOREMCS=8, GSNOSAVE=9,  GSVERBOSE=10, GSSETVERB=11,&
        GSSILENT=12, GSNOAFTEREQ=13, GSXGRID=14,GSNOPAR=15, &
-       GSNOSMGLOB=16, GSNOTELCOMP=17
+       GSNOSMGLOB=16, GSNOTELCOMP=17, GSTGRID=18
 !----------------------------------------------------------------
 !-Bits in element record
   integer, parameter :: &

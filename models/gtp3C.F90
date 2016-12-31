@@ -3935,9 +3935,9 @@
 !\end{verbatim}
    integer ntpf,last,i1,i2,i3,npows,lut,ip,jp,nstoi,lokph,isp,f1,nphstoi,nphmix
    integer, dimension(:), allocatable :: ncon,phmix,phstoi,estoi
-   integer nelectrons,lokcs,nsubl,isubl,mphstoi,k1
+   integer nelectrons,lokcs,nsubl,isubl,mphstoi,k1,lcase,mult(10)
    logical logok,nogas,ionliq,wildcard
-   character ch1*1,line*16,text*512,powers*80,model*24,constext*72
+   character ch1*1,line*16,text*512,powers*80,model*24,constext*80,elsym*2
    type(gtp_tpfun2dat), dimension(:), allocatable :: tpfc
    type(gtp_endmember), pointer :: endmember
    double precision, allocatable, dimension(:) :: constcomp,constcompiliq
@@ -3996,10 +3996,10 @@
    phstoi=0
    estoi=0
    nelectrons=0
-! check for gas phase
+! check for gas phase, it must be the first phase and name start with GAS
    lokph=phases(1)
    nogas=.true.
-   if(phlista(lokph)%name(1:4).eq.'GAS ') nogas=.false.
+   if(phlista(lokph)%name(1:3).eq.'GAS') nogas=.false.
    nphmix=0
    nphstoi=0
    do i1=1,noofph
@@ -4069,8 +4069,14 @@
 !------------------ system components including electrons for charged phases
    ip=1
    text=' '
+   lcase=ichar('a')-ichar('A')
    do i1=1,noofel
-      text(ip:)=ellista(elements(i1))%symbol
+! second letter lower case
+      elsym=ellista(elements(i1))%symbol
+      if(elsym(2:2).ne.' ') then
+         elsym(2:2)=char(ichar(elsym(2:2))+lcase)
+      endif
+      text(ip:)=elsym
       ip=ip+25
       if(ip.gt.51) then
          write(lut,100)trim(text)
@@ -4189,16 +4195,16 @@
             model='RKMP'
          endif
       endif
-! UNFINISHED: Magnetism?
+! UNFINISHED: Magnetism? A suffix M ...
       write(lut,200)phlista(lokph)%name,trim(model)
 !200   format(1x,a,5x,40('=')/1x,a)
 ! According to Ted
-200   format(1a,5x,40('=')/a)
-!-------------------- we must repeat the endmember loop for interactions
+200   format(a,5x,40('=')/a)
+!-------------------- we must repeat this endmember loop for interactions
       endmember=>phlista(lokph)%ordered
 ! endmember parameters
       do while(associated(endmember))
-! we have to generate two lines by extracting the enmember and constituents
+! we have to generate two lines by extracting the endmember and constituents
          constcomp=zero
          if(ionliq) constcompiliq=zero
          constext=' '
@@ -4245,8 +4251,9 @@
 !                    valency(isubl),varres%sites(isubl),constcomp(-estoi(i1))
 901            format(a,2i3,3F10.2)
             endif
-            write(constext(ip:),99)trim(splista(isp)%symbol)//':'
-            ip=len_trim(constext)+1
+            call lower_case_species_name(constext,ip,isp)
+            constext(ip:ip+1)=':'
+            ip=ip+1
             do i2=1,splista(isp)%noofel
 ! this is a loop for the components of the endmember constituents
                i3=ellista(splista(isp)%ellinks(i2))%alphaindex
@@ -4263,11 +4270,11 @@
                else
                   constcomp(i3)=constcomp(i3)+splista(isp)%stoichiometry(i2)*&
                        varres%sites(isubl)
-                  if(estoi(i1).lt.0) then
+!                  if(estoi(i1).lt.0) then
 !                     write(*,901)'3C c-stoik:',isubl,i3,&
 !                          splista(isp)%stoichiometry(i2),varres%sites(isubl),&
 !                          constcomp(i3)
-                  endif
+!                  endif
                endif
             enddo
          enddo sloop
@@ -4317,7 +4324,126 @@
          endif
          endmember=>endmember%nextem
       enddo
+! ------------------- end of endmembers, constituents and excess parameters ??
+      if(model(1:4).eq.'IDMX') cycle phases1
+! For sublattice phases we write number of sublattices and sites
+      if(model(1:4).eq.'SUBL') then
+         write(lut,250)nsubl
+         write(lut,260)(ceq%phase_varres(lokcs)%sites(isubl),isubl=1,nsubl)
+250      format(1x,i4)
+260      format(1x,8F9.5)
+      endif
+      if(model(1:4).eq.'SUBL' .or. model(1:4).eq.'SUBI') then
+! number of constituents in each sublattice
+         write(lut,270)(phlista(lokph)%nooffr(isubl),isubl=1,nsubl)
+270      format(9i5)
+      endif
+! For all mixtures we should write the constituents of all sublattices
+      i3=0
+      do isubl=1,phlista(lokph)%noofsubl
+         constext=' '
+         ip=1
+         do i2=1,phlista(lokph)%nooffr(isubl)
+            i3=i3+1
+            isp=phlista(lokph)%constitlist(i3)
+            jp=ip
+            call lower_case_species_name(constext,ip,isp)
+            ip=jp+25
+            if(ip.ge.75) then
+               write(lut,100)trim(constext)
+               constext=' '
+               ip=1
+            endif
+         enddo
+         ip=len_trim(constext)
+         if(ip.gt.1) then
+            write(lut,100)trim(constext)
+         endif
+      enddo
+      if(model(1:4).eq.'SUBI') then
+! There should be a line with just a "2" ???
+         write(lut,272)
+272      format('   2')
+! for ionic liquid list abs(valencies) of constituents, one line per sublattice
+         ip=1
+         isp=1
+         constext=' '
+         do i2=1,phlista(lokph)%nooffr(1)
+            ccc=splista(phlista(lokph)%constitlist(isp))%charge
+            write(constext(ip:),274)ccc
+274         format(F10.5)
+            ip=len_trim(constext)
+            if(ip.gt.69) then
+               write(lut,99)trim(constext)
+               ip=1
+               constext=' '
+            endif
+            isp=isp+1
+         enddo
+         if(ip.gt.1) then
+            write(lut,99)trim(constext)
+         endif
+         ip=1
+         constext=' '
+         do i2=1,phlista(lokph)%nooffr(2)
+! For anions the charge as a positive value, for Va unity, for neutrals zero
+            if(btest(splista(phlista(lokph)%constitlist(isp))%status,SPVA)) then
+               ccc=one
+            else
+               ccc=abs(splista(phlista(lokph)%constitlist(isp))%charge)
+            endif
+            write(constext(ip:),274)ccc
+            ip=len_trim(constext)
+            if(ip.gt.69) then
+               write(lut,99)trim(constext)
+               ip=1
+               constext=' '
+            endif
+            isp=isp+1
+         enddo
+         if(ip.gt.1) then
+            write(lut,99)trim(constext)
+         endif
+      endif
+      if(phlista(lokph)%noofsubl.gt.1) then
+! A very strange output of integers representing endmembers
+         jp=1
+         mult=1
+         do isubl=phlista(lokph)%noofsubl,1,-1
+            mult(isubl)=jp
+            jp=jp*phlista(lokph)%nooffr(isubl)
+         enddo
+!         write(*,278)'3C mult2: ',jp,(mult(ip),ip=1,phlista(lokph)%noofsubl)
+278      format(a,10i4)
+         do isubl=1,phlista(lokph)%noofsubl
+            text=' '
+            ip=3
+            k1=0
+            i2=0
+290         continue
+               k1=k1+1
+               i3=0
+292            continue
+                  call wriint(text,ip,k1)
+                  ip=ip+3
+                  i2=i2+1
+                  i3=i3+1
+                  if(i3.lt.mult(isubl)) goto 292
+               if(k1.gt.phlista(lokph)%nooffr(isubl)) k1=0
+               if(k1.eq.phlista(lokph)%nooffr(isubl) .and. isubl.gt.1) k1=0
+            if(i2.lt.jp) goto 290
+!            if(i2.lt.phlista(lokph)%nooffr(isubl)) goto 290
+! According to Markus Piro one should have 19 values per line, 18*4+3=75
+            isp=1
+            do while(len_trim(text(isp:))-76.gt.0)
+               write(lut,99)trim(text(isp:isp+74))
+               isp=isp+75
+            enddo
+            if(len_trim(text(isp:)).gt.0) write(lut,99)trim(text(isp:))
+         enddo
+      endif
 ! repeat the endmember loop again for interaction parameters (and magnetism??)
+! I still have to figure out how to reference interacting constituents
 ! for the moment just terminate with a line starting with 0
       write(lut,300)
 300   format(' 0')
@@ -4420,6 +4546,53 @@
    close(lut)
    return
  end subroutine save_datformat
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
+ subroutine lower_case_species_name(constext,ip,isp)
+! writes a species name using lower case for second letter of element
+   implicit none
+   character constext*(*)
+   integer ip,isp
+!\end{verbatim}
+   integer iel,jp,lcase,kp
+   character elsym*2,name*24
+   jp=1
+   name=' '
+   lcase=ichar('a')-ichar('A')
+   do iel=1,splista(isp)%noofel
+      elsym=ellista(splista(isp)%ellinks(iel))%symbol
+      kp=0
+      if(elsym(2:2).ne.' ') then
+         elsym(2:2)=char(ichar(elsym(2:2))+lcase)
+         name(jp:)=elsym
+         jp=jp+2
+      else
+         name(jp:)=elsym
+         jp=jp+1
+         kp=1
+      endif
+! 3rd argument 0 means no sign
+      if(abs(splista(isp)%stoichiometry(iel)-one).gt.1.0D-6 .or. &
+           (iel.lt.splista(isp)%noofel .and. kp.eq.1)) then
+         call wrinum(name,jp,6,0,splista(isp)%stoichiometry(iel))
+         if(buperr.ne.0) then
+            write(*,*)'3C buperr 2: ',trim(name),buperr
+            buperr=0
+         endif
+      endif
+   enddo
+! species may have a charge
+   if(abs(splista(isp)%charge).gt.1-0D-6) then
+      call wrinum(name,jp,6,1,splista(isp)%charge)
+   endif
+!   write(*,*)'3C suck: lower case name: ',trim(name)
+   constext(ip:)=name
+   ip=len_trim(constext)+1
+1000 continue
+   return
+ end subroutine lower_case_species_name
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 

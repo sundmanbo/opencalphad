@@ -1203,7 +1203,7 @@ contains
 2051                     format(' *** Error code ',i5,' for equilibrium ',&
                               a,' reset',i2)
                          gx%bmperr=0
-                      else
+                      elseif(idef.eq.1) then
                          write(lut,2052)neweq%eqno,&
                               neweq%eqname(1:len_trim(neweq%eqname)),&
                               neweq%tpval(1)
@@ -1212,10 +1212,12 @@ contains
                    endif
 ! extra symbol calculations ....
 !                   write(*,*)'Listing extra'
-                   call list_equilibrium_extra(lut,neweq,plotunit0)
-                   if(gx%bmperr.ne.0) then
-                      write(kou,*)'Error ',gx%bmperr,' reset'
-                      gx%bmperr=0
+                   if(idef.eq.1) then
+                      call list_equilibrium_extra(lut,neweq,plotunit0)
+                      if(gx%bmperr.ne.0) then
+                         write(kou,*)'Error ',gx%bmperr,' reset'
+                         gx%bmperr=0
+                      endif
                    endif
                 enddo
              else
@@ -1223,15 +1225,9 @@ contains
 ! creating/removing composition sets!! not safe to do that!!
 !$             globaldata%status=ibset(globaldata%status,GSNOACS)
 !$             globaldata%status=ibset(globaldata%status,GSNOREMCS)
-!-$             write(*,*)'Sequential: ',omp_get_num_threads()
-!-$omp parallel do private(ng,iv,iph),schedule(dynamic)
-!--$omp parallel do private(ng,iv),schedule(dynamic)
-!--$omp parallel do 
 !        !$OMP for an OMP directive
 !        !$ as sentinel
-!--!$OMP parallel do private(gx%bmperr,neweq) 
-!--!$OMP parallel do private(neweq)
-!       NOTE: $OMP  threadprivate(gx) declared in TPFUN4.F90 ??
+! NOTE: $OMP  threadprivate(gx) declared in TPFUN4.F90 ??
 !$OMP parallel do private(neweq)
                 do i1=1,size(firstash%eqlista)
 ! the error code must be set to zero for each thread ?? !!
@@ -1241,7 +1237,7 @@ contains
                    if(neweq%weight.eq.zero) then
                       write(kou,2050)neweq%eqno,neweq%eqname
                    else
-! write output only for leak=0
+! write output only for idef=1
 !$                     if(.TRUE. .and. idef.eq.1) then
 !$                      write(*,663)'Equil/loop/thread/maxth/error: ',&
 !$                             neweq%eqname,i1,omp_get_thread_num(),&
@@ -1258,17 +1254,19 @@ contains
                          write(kou,2051)gx%bmperr,neweq%eqname,mode
                          write(*,*)'Error: ',gx%bmperr
                          gx%bmperr=0
-                      else
+                      elseif(idef.eq.1) then
                          write(lut,2052)neweq%eqno,&
                               neweq%eqname(1:len_trim(neweq%eqname)),&
                               neweq%tpval(1)
                       endif
                    endif
-!                   write(*,*)'Listing extra'
-                   call list_equilibrium_extra(lut,neweq,plotunit0)
-                   if(gx%bmperr.ne.0) then
-                      write(kou,*)'*** Error ',gx%bmperr,' reset'
-                      gx%bmperr=0
+! Listing extra'
+                   if(idef.eq.1) then
+                      call list_equilibrium_extra(lut,neweq,plotunit0)
+                      if(gx%bmperr.ne.0) then
+!                         write(kou,*)'*** Error ',gx%bmperr,' reset'
+                         gx%bmperr=0
+                      endif
                    endif
                 enddo
 !- $OMP end parallel do not needed???

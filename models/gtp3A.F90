@@ -1695,7 +1695,7 @@ end function find_phasetuple_by_indices
 
 !\begin{verbatim} %-
  subroutine get_phase_structure(lokph,nsl,nkl)
-! return the structure of phase at location lokph
+! return the number of sblattices and constituents in each.
 ! nsl: integer, number of sublattices
 ! nkl: integer array, number of constituents in each sublattice
 ! USED when calculating derivatives of chemical potentials and diffusion coef
@@ -1706,7 +1706,7 @@ end function find_phasetuple_by_indices
    integer ii
    if(lokph.le.0 .or. lokph.gt.noofph) then
 !      write(*,*)'You are way off your head'
-      gx%bmperr=4254; goto 1000
+      gx%bmperr=4050; goto 1000
    endif
    nsl=phlista(lokph)%noofsubl
    do ii=1,nsl

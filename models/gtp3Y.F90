@@ -221,9 +221,8 @@
            ny,yarr,gmax,ceq)
       if(gx%bmperr.ne.0) then
          write(*,*)'3Y grid error ',jip,zph,gx%bmperr
-! this jump illegal when openmp
-!         goto 1000
-         gx%bmperr=0
+! this jump illegal when compiled with openmp
+         exit phloop
       endif
       gcheck(iph)=ng
 !      write(*,*)'3Y gmax: ',iph,gmax
@@ -239,6 +238,7 @@
 !      read(*,74)ch1
 !74    format(a)
    enddo phloop
+   if(gx%bmperr.ne.0) goto 1000
 ! check the gridpoints the same ...
 !   write(*,14)'3Y gridp2: ',(gcheck(iph),iph=1,nrph)
 ! we may have open a file
@@ -677,11 +677,10 @@
 !   integer idum(*)
    integer lokph,errsave
    double precision, parameter :: yzero=1.0D-12
-   integer abrakadabra,i,ibas,ibin,iend,is,iter,je,jend,kend,ll,ls,nend
+   integer abrakadabra,i,ibas,ibin,iend,is,iter,je,jend,kend,ll,ls,nend,nsl
 ! used to save and restore constituent fractions
    double precision ydum(maxconst)
-   integer ngdim,nsl
-   integer nkl(maxsubl),knr(maxconst),inkl(0:maxsubl),nofy
+  integer nkl(maxsubl),knr(maxconst),inkl(0:maxsubl),nofy
    double precision, dimension(:), allocatable :: yfra
    double precision sites(maxsubl),qq(5)
 ! endm(i,j) has constituent indices in i=1..nsl for endmember j 
@@ -741,24 +740,31 @@
    if(gx%bmperr.ne.0) goto 1020
 !---------------------------------------------------------
    if(test_phase_status_bit(iph,PHEXCB)) then
-! This phase has charged endmembers, generate neutral gridpoints
+! This phase has charged endmembers, generate neutral gridpoints (also dense)
       call generate_charged_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,gmax,ceq)
+      goto 1000
+   elseif(test_phase_status_bit(iph,PHIONLIQ)) then
+! This is the ionic liquid, requires a special grid, also used for dense
+      call generate_ionliq_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,gmax,ceq)
+! ionliq usually overestimates the number of gridpoints actually generated 
+!      if(mode.le.0) write(*,*)'3Y exit ionliq ',mode,ngg,ny
       goto 1000
    elseif(test_phase_status_bit(iph,PHFORD)) then
 ! this phase has 4 sublattice fcc/hcp tetrahedral ordering,
 ! this reduces the number of gridpoints UNFINISHED: NOT IMPLEMENTED YET
       call generate_fccord_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,gmax,ceq)
+! do not jump to 1000 until the fccord routine implemented correctly
 !      goto 1000
-   elseif( (btest(globaldata%status,GSXGRID) .or. & 
+   elseif((btest(globaldata%status,GSXGRID) .or. & 
             test_phase_status_bit(iph,PHXGRID)) .and. &
-        .not.(test_phase_status_bit(iph,PHGAS))) then
-! Generate extra gridpoints (never for gas)
+        .not.test_phase_status_bit(iph,PHGAS)) then
+! Generate extra gridpoints for all phases or a special phase but never for gas
       call generate_dense_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,gmax,ceq)
       goto 1000
    endif
 !
-! mode=0 means gerate grid (-1 means calculate points for allocation, >0 means
-!                         find constituent fractions for gridpoint in solution)
+! mode=0 means generate grid (-1 means estimate size of grid for allocation), 
+!     >0 means find constituent fractions for gridpoint in solution)
 !
    if(mode.eq.0) then
 !      write(*,*)'3Y Generating grid for phase: ',iph
@@ -774,8 +780,8 @@
               ' after G:'/)
       endif
       if(trace) then
-         call get_phase_record(iph,nend)
-         write(33,44)iph,phlista(nend)%name
+         call get_phase_record(iph,lokph)
+         write(33,44)iph,phlista(lokph)%name
 44       format('Endmembers (EM) and gridpoints (GP) for phase: ',i3,1x,a)
       endif
    else
@@ -816,8 +822,6 @@
 !---------------------------------------------------------
 ! just determine the number of gridpoints for this phase for global minimimum
 ! ideal gases should just have the endmembers ....
-! Hm, gases with ions??
-      ngdim=ngg
       ngg=nend
       lokph=phases(iph)
       if(nend.eq.1 .or. nend.gt.50 .or. &
@@ -1203,7 +1207,6 @@
    integer nkl(maxsubl),knr(maxconst),inkl(0:maxsubl),nofy
    double precision, dimension(:), allocatable :: yfra
    double precision sites(maxsubl),qq(5)
-   real, allocatable :: xbrr(:)
 ! endm(i,j) has constituent indices in i=1..nsl for endmember j 
    integer, dimension(:,:), allocatable :: endm
 !--------------------------------
@@ -1242,9 +1245,8 @@
 ! ...
    integer, parameter :: breaks6=50
    integer, parameter, dimension(5) :: breaks=[9,12,15,18,21]
-!   integer, parameter, dimension(5) :: breaks=[9,12,15,18,55]
    double precision, dimension(-1:6), parameter:: ybas=&
-        [1.00D0,0.99D0,0.96D0,0.91D0,0.68D0,0.80D0,0.54D0,0.44D0]
+        [1.00D0,0.99D0,0.54D0,0.91D0,0.68D0,0.80D0,0.96D0,0.44D0]
    double precision, dimension(6), parameter :: ybin=&
                       [0.03D0,0.07D0,0.16D0,0.15D0,0.36D0,0.44D0]
 !                      [0.03D0,0.07D0,0.25D0,0.15D0,0.36D0,0.35D0]
@@ -1285,26 +1287,29 @@
    call get_phase_data(iph,1,nsl,nkl,knr,ydum,sites,qq,ceq)
    if(gx%bmperr.ne.0) goto 1000
 ! calculate the number of endmembers and index of first constituent in subl ll
+   if(btest(phlista(lokph)%status1,PHIONLIQ)) then
+      write(*,*)'We should not be in dense_grid!'
+      gx%bmperr=4399; goto 1000
+   endif
    nend=1
    inkl(0)=0
    lokph=phases(iph)
    do ll=1,nsl
-      if(btest(phlista(lokph)%status1,PHIONLIQ) .and. ll.eq.2) then
+!      if(btest(phlista(lokph)%status1,PHIONLIQ) .and. ll.eq.2) then
 ! multiply with charged anions and Va only, add neutrals
-         do jj=1,nkl(2)
+!         do jj=1,nkl(2)
 ! knr(i) is species(i) location but I use constitlist as I have access to it
-            isp=phlista(lokph)%constitlist(nkl(1)+jj)
-            if(btest(splista(isp)%status,SPION) .or. &
-                 btest(splista(isp)%status,SPVA)) then
-               anion=anion+1
-               cycle
-            endif
-         enddo
-         nend=nend*anion+phlista(lokph)%nooffr(2)-anion
-      else
+!            isp=phlista(lokph)%constitlist(nkl(1)+jj)
+!            if(btest(splista(isp)%status,SPION) .or. &
+!                 btest(splista(isp)%status,SPVA)) then
+!               anion=anion+1
+!               cycle
+!            endif
+!         enddo
+!         nend=nend*anion+phlista(lokph)%nooffr(2)-anion
+!      else
 ! this is the "normal" number of endmembers
-         nend=nend*nkl(ll)
-      endif
+      nend=nend*nkl(ll)
       inkl(ll)=inkl(ll-1)+nkl(ll)
    enddo
 !   if(btest(phlista(lokph)%status1,PHIONLIQ)) then
@@ -1384,7 +1389,6 @@
    allocate(endm(nsl,nend))
 ! inkl(nsl) is the number of fraction variables in the phase
 !   allocate(yfra(inkl(nsl)))
-   allocate(xbrr(noofel))
 !   nofy=inkl(nsl)
 ! generate endmembers, endm(ll,ie) is set to consituent index in sublattice ll
    je=1
@@ -1460,8 +1464,6 @@
 ! is done elsewhere but the error disapperared when I allocated a larger
 ! xarr although the allocated one did not seem too small. 
             call calc_gridpoint(iph,yfra,nrel,xarr(1,ngg),garr(ngg),ceq)
-!            call calc_gridpoint2(iph,yfra,endm,nrel,xarr(1,ngg),garr(ngg),ceq)
-!            call calc_gridpoint2(iph,yfra,endm,nrel,xbrr,garr(ngg),ceq)
             if(gx%bmperr.ne.0) goto 1000
             if(garr(ngg).gt.gmax) gmax=garr(ngg)
 !            write(*,201)'3Y bin: ',ngg,(yfra(is),is=1,inkl(nsl))
@@ -1551,6 +1553,363 @@
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim} %-
+ subroutine generate_ionliq_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,gmax,ceq)
+! generates gridpoints for ionic liquid (also dense)
+! Different action depending of the value of mode, 
+! for mode<0:  
+!    return the number of gridpoints that will be generated for phase iph in ngg
+! for mode=0:
+!    return garr(i) gibbs energy and xarr(1,i) the compositions of gridpoint i
+! for mode>0:
+!    return site fractions of gridpoint mode in yarr, number of fractions in ny
+!    iph is phase number, ngg is number of gridpoints, nrel number of elements,
+! if mode=0:
+!    return xarr mole fractions of gridpoints, garr Gibbs energy of gridpoints,
+!    ngg is dimension of garr
+! if mode>0:
+!   "mode" is a gridpoint of this phase in solution, return number of 
+!   constituent fractions in ny and fractions in yarr for this gridpoint
+! The current constitution is restored at the end of the subroutine
+   implicit none
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+   integer mode,iph,ngg,nrel,ny
+   real xarr(nrel,*),garr(*)
+   double precision yarr(*),gmax
+!\end{verbatim} %+
+!
+   integer lokph,errsave
+   double precision, parameter :: yzero=1.0D-12
+   integer je,iend,jend,kend,lend,ll,nend
+   double precision ydum(maxconst)
+   integer ngdim,nsl
+   integer nkl(2),knr(maxconst),inkl(0:2)
+   double precision, dimension(:), allocatable :: yfra
+   double precision, dimension(:,:), allocatable :: yendm
+   double precision sites(2),qq(5)
+! endm(i,j) has constituent indices in i=1..nsl for endmember j 
+   integer, dimension(:,:), allocatable :: endm
+!--------------------------------
+! grid is generated by combining end endmembers
+! Number of endmemers is N
+! First level generate for 4 endmembers including same N**4 pemutations
+! 4    1+4  1+3  1+3+4 1+2  1+2+4 1+2+3 1+2+3+4
+! 0.52 0.54 0.63 0.65  0.87 0.81  0.98  1.00
+! 0.35 0.34 0.34 0.34  0.19 0.19  0.02  -
+! 0.11 0.19 0.02 -     0.02 -     -     -
+! 0.02 -    -    -     -    -     -     -
+! for 2: 1.00 0.98 0.87 0.81 0.65 0.63 0.54 0.52 ...          =16
+! for 3: 1.00 0.98/2 0.98/3 ...                               =81
+! for N=4..7: N*N*N*N                                         =256-2401
+! 1 when 8..15: skip 0.02 except first and last (not dense)              
+! 2 when 16-25: 0.02 and 0.11 same except first and last (not dense) N*N*N+..
+! 3 when 26-60: 0.02, 0.11 and 0.35 same except first and last N*N+..
+! 4 >60 only endmembers
+!----------
+! IDE: 
+! 1) binary liquid of all endmembers N*N (53*53=2809) (incl pure endmembers)
+! 2) ternary liquid of all cations with sanme anion or Va (4*11*10*9=2880)
+! 3) neutrals?
+   integer, parameter, dimension(4) :: breaks=[8,15,25,60]
+   double precision, dimension(1:4), parameter:: yf=&
+        [0.52D0,0.35D0,0.11D0,0.02D0]
+! These are fractions of mixed cations for same anion, not all variants
+! Used only when there are many endmembers >15
+   double precision, dimension(1:3), parameter:: yfc=&
+        [0.42D0,0.35D0,0.23D0]
+! for output of gridpoints
+   integer l1,ncon,jj,cation,anion,isp,iva,catloop
+   logical trace,dense
+   character ch1*1
+!
+   if(mode.eq.0) then
+!      write(*,*)'3Y Calculating number of gridpoints for ionic liquid'
+! trace TRUE means generate outpt for each gridpoint
+!      trace=.TRUE.
+      trace=.FALSE.
+      if(trace) then
+! unit 33 is opened before calling this routine
+         write(33,43)
+43       format('The constituent fractions, y, enclosed within parentheses',&
+              'for each sublattice'/'Mole fractions after x:, Gibbs energies',&
+              ' after G:'/)
+      endif
+      if(trace) then
+         call get_phase_record(iph,lokph)
+!         write(33,44)iph,phlista(lokph)%name
+44       format('Endmembers (EM) and gridpoints (GP) for phase: ',i3,1x,a)
+      endif
+   else
+      trace=.FALSE.
+   endif
+   if(btest(globaldata%status,GSXGRID) .or. & 
+            test_phase_status_bit(iph,PHXGRID)) then
+      write(*,*)'Dense grid set'
+      dense=.TRUE.
+   else
+      dense=.FALSE.
+   endif
+!!   write(*,*)'3Y Getting phase data',mode
+   call get_phase_data(iph,1,nsl,nkl,knr,ydum,sites,qq,ceq)
+   if(gx%bmperr.ne.0) goto 1000
+! calculate the number of endmembers and index of first constituent in subl ll
+   nend=1
+   inkl(0)=0
+   inkl(1)=nkl(1)
+   cation=nkl(1)
+   inkl(2)=inkl(1)+nkl(2)
+   lokph=phases(iph)
+   if(.not.btest(phlista(lokph)%status1,PHIONLIQ)) then
+      write(*,*)'3Y internal error, this phase has not ionic liquid model!'
+      gx%bmperr=4399; goto 1000
+   endif
+! multiply with charged anions and Va only, add neutrals, nsl=2
+   do jj=1,nkl(2)
+! knr(i) is species(i) location but I use constitlist as I have access to it
+      isp=phlista(lokph)%constitlist(nkl(1)+jj)
+      if(btest(splista(isp)%status,SPION) .or. &
+           btest(splista(isp)%status,SPVA)) then
+         anion=anion+1
+         cycle
+      endif
+   enddo
+   nend=inkl(1)*anion+phlista(lokph)%nooffr(2)-anion
+   ny=inkl(nsl)
+   ncon=inkl(nsl)
+   negmode: if(mode.lt.0) then
+!---------------------------------------------------------
+! just estimate the number of gridpoints for the ionic liquid phase
+! pairs of cation+anion, cation+Va, neutrals
+      ngdim=ngg
+      ngg=nend
+      lokph=phases(iph)
+!      write(*,*)'3Y nend 1: ',mode,ngg,breaks
+      if(nend.eq.1 .or. nend.gt.breaks(4)) then
+! Normally about 2000 gridpoints per phase, for dense 10 times more ...
+! 1 or >60 endmembers: only endmembers
+         ngg=nend+(cation-2)*cation*(cation+1)*anion/2
+      elseif(.not.dense .and. nend.gt.breaks(3)) then
+! 26..60: between 676-3600
+         ngg=nend*nend+(cation-2)*cation*(cation+1)*anion/2
+!         write(*,*)'3Y catloop 17: ',ngg,nend,cation,anion,&
+!              (cation-2)*cation*(cation+1)*anion/2
+      elseif(.not.dense .and. nend.gt.breaks(2)) then
+! 16..25: ??
+         ngg=nend*nend*2+(cation-2)*cation*(cation+1)*anion/2
+!         write(*,*)'3Y catoop 18: ',ngg,nend,cation,anion
+      elseif(nend.gt.breaks(1)) then
+! 8..15: ??
+         ngg=nend*nend*nend
+      else
+! 2..7, all combinations
+         ngg=nend*nend*nend*nend
+      endif
+!      write(*,*)'3Y endmembers and gridpoints: ',nend,ngg
+!      read(*,11)ch1
+11    format(a)
+      ny=nend
+      goto 1001
+   endif negmode
+!------------------------------------------------------------
+! for mode=0:
+!    set gridpoint sitefractions and calculate G
+! for mode>0:
+!   return sitefractions (for mode=gridpoint number (part of the solution))
+!   BUT: The only way to find the site fraction of a gripoint is to generate
+!   all gridpoints up the one specified by the value of mode (no G calculation)
+!   write(*,*)'3Y ggy: ',mode,iph,nsl,nend,inkl(nsl)
+!
+! endm(i,j) has constituent indices in i=1..nsl for endmember j 
+! endm(1,1) is constituent in sublattice 1 of first endmember
+! endm(2,1) is constituent in sublattice 2 of first endmember
+! endm(nsl,2) is constituent in sublattice nsl of second endmember
+! endm(1..nsl,nend) are constituents in all sublattices of last endmember
+   allocate(endm(nsl,nend))
+! inkl(nsl) is the number of fraction variables in the phase
+!   allocate(yfra(inkl(nsl)))
+!   nofy=inkl(nsl)
+! generate endmembers, endm(ll,ie) is set to consituent index in sublattice ll
+! For neutrals in sublattice 2, sublattice 1 has -99 as constituent
+   je=1
+   do ll=1,nsl
+      endm(ll,je)=inkl(ll-1)+1
+   enddo
+! we can have an ionic liquid without any cation
+   if(knr(1).eq.-99) endm(1,1)=-99
+   genend: do while(je.lt.nend)
+      je=je+1
+! next endmember is first equal to previous
+      do ll=1,nsl
+         endm(ll,je)=endm(ll,je-1)
+      enddo
+! increment the constituent in the first sublattice
+      if(endm(1,je).lt.inkl(1)) then
+         endm(1,je)=endm(1,je)+1
+      else
+         endm(1,je)=1
+         isp=endm(2,je)+1
+         if(splista(knr(isp))%charge.eq.zero .and. &
+              .not.btest(splista(knr(isp))%status,SPVA)) then
+! The next constituent in second sublattice is not Va or a neutral
+            exit genend
+         else
+! the next constituent is an anion or Va
+            endm(2,je)=endm(2,je)+1
+         endif
+      endif
+   enddo genend
+! we must generate endmembers for neutrals, wildcard -99 in first sublattice
+   do iend=je,nend
+      endm(1,iend)=-99
+      endm(2,iend)=isp
+      isp=isp+1
+   enddo
+! debug check
+!   write(*,*)'3Y mode, endmembers, gridpoints: ',mode,nend,ngg
+!   write(*,111)(endm(1,je),endm(2,je),je=1,nend)
+111 format('3Y   : ',10(i4,i3)/11(i4,i3))
+!   gx%bmperr=4399; goto 1000
+!---------------------------------------
+! We have now generated endm(1..nsl,j)
+!120 continue
+!   write(*,202)'3Y special 1: ',nsl,nend,inkl(nsl),endm(1,2),endm(2,2),&
+!        endm(1,nend),endm(1,3),endm(2,3),endm(1,4),endm(2,4)
+! we must allocate and set endmember fractions both for mode 0 and 1
+   allocate(yendm(inkl(2),nend))
+   yendm=zero
+!   write(*,*)'3Y endmember fractions:',mode,je
+   do je=1,nend
+      if(endm(1,je).lt.0) then
+! for neutrals set all fractions in first sublatice to unity/number of constit
+! The G value calculated for the endmember is same as if all were zero
+! but when mixing endmembers with cation fractions it may differ ....
+         do l1=1,inkl(1)
+            yendm(l1,je)=one/inkl(1)
+         enddo
+      else
+         yendm(endm(1,je),je)=one
+      endif
+      yendm(endm(2,je),je)=one
+!      write(*,213)je,(yendm(l1,je),l1=1,inkl(2))
+213   format('3Y#',i2,14F5.2/(15F5.2))
+   enddo
+   allocate(yfra(inkl(nsl)))
+!---------------------------------------------
+! now generate combinations of endmember fractions
+! Note the sum of constituent fractions in all sublattices should be unity
+   ngg=0
+   lokph=phases(iph)
+   endmem1: do iend=1,nend
+      endmem2: do jend=1,nend
+         if(nend.gt.breaks(4) .and. jend.ne.iend) cycle endmem2
+         endmem3: do kend=1,nend
+            if(nend.gt.breaks(3) .and. kend.ne.jend) cycle endmem3
+            endmem4: do lend=1,nend
+               if(nend.gt.breaks(2) .and. lend.ne.kend) cycle endmem4
+               do jj=1,ncon
+                  yfra(jj)=yf(1)*yendm(jj,iend)+yf(2)*yendm(jj,jend)+&
+                       yf(3)*yendm(jj,kend)+yf(4)*yendm(jj,lend)
+               enddo
+               ngg=ngg+1
+               if(mode.eq.0) then
+                  call calc_gridpoint(iph,yfra,nrel,xarr(1,ngg),garr(ngg),ceq)
+                  if(gx%bmperr.ne.0) goto 1000
+                  if(garr(ngg).gt.gmax) gmax=garr(ngg)
+                  if(mod(ngg,10000).eq.0) write(*,*)'Calculated ',ngg,&
+                       ' gridpoints, more to go'
+!                  write(*,211)'3Y ny:',ngg,garr(ngg),(xarr(jj,ngg),jj=1,nrel)
+!                  write(*,212)'3Yy: ',(yfra(jj),jj=1,ncon)
+211               format(a,i7,1pe12.4,0pf7.4,6f7.4,(3x,10f7.4))
+212               format(a,15F5.2,(16F5.2))
+               elseif(ngg.eq.mode) then
+! when mode>0 we are searching for the constitution of a grid point
+! and we must know the yfra here!!
+                  goto 500
+               endif
+            enddo endmem4
+         enddo endmem3
+      enddo endmem2
+   enddo endmem1
+!   write(*,*)'3Y Calculated points 1: ',ngg,nend,breaks(2)
+!   goto 1000
+! UNFINISHED
+!   write(*,*)'3Y cation loop: '
+   if(nend.le.breaks(2)) goto 1000
+! combinations with same anion and different cations
+   anion2: do lend=0,anion-1
+      catloop=lend*cation+1
+!      write(*,*)'3Y catloop: ',lend+1,cation,catloop,ngg
+      endmem1b: do iend=catloop,catloop+cation-1
+         endmem2b: do jend=iend+1,catloop+cation
+            endmem3b: do kend=jend+1,catloop+cation-1
+! these loops are more dense but gave bad results ...
+!      endmem1b: do iend=catloop,catloop+cation
+!         endmem2b: do jend=catloop,catloop+cation
+!            if(jend.eq.iend) cycle endmem2b
+!            endmem3b: do kend=catloop,catloop+cation
+!               if(kend.eq.jend .or. kend.eq.iend) cycle endmem3b
+               if(.not.dense .and. cation.gt.breaks(3)) then
+                  write(*,*)'skipping ternary cationloop'
+                  cycle endmem3b
+!               elseif(mode.eq.0) then
+!                  write(*,480)'3Y cations: ',lend+1,iend,jend,kend,ngg
+!480               format(a,10i5)
+               endif
+! mixing of cations with the same anion
+               do jj=1,ncon
+                  yfra(jj)=yfc(1)*yendm(jj,iend)+yfc(2)*yendm(jj,jend)+&
+                       yfc(3)*yendm(jj,kend)
+               enddo
+               ngg=ngg+1
+               if(mode.eq.0) then
+                  call calc_gridpoint(iph,yfra,nrel,xarr(1,ngg),garr(ngg),ceq)
+                  if(gx%bmperr.ne.0) goto 1000
+                  if(garr(ngg).gt.gmax) gmax=garr(ngg)
+!                  if(mod(ngg,10000).eq.0) write(*,*)'Calculated ',ngg,&
+!                       ' gridpoints, more to go'
+!                  write(*,211)'3Y ny:',ngg,garr(ngg),(xarr(jj,ngg),jj=1,nrel)
+!                  write(*,212)'3Yy: ',(yfra(jj),jj=1,ncon)
+               elseif(ngg.eq.mode) then
+! when mode>0 we are searching for the constitution of a grid point
+! and we must know the yfra here!!
+                  goto 500
+               endif
+            enddo endmem3b
+         enddo endmem2b
+      enddo endmem1b
+   enddo anion2
+!   write(*,*)'3Y Calculated points 2: ',ngg
+! generate combinations of ternary anions if not done above
+   goto 1000
+!----------------------------------------
+! jump here to return the constitution for gridpoint "mode" in the solution
+500 continue
+   do jj=1,ny
+      yarr(jj)=yfra(jj)
+   enddo
+1000 continue
+! these should be deallocated by default when exit this subroutine ...
+   if(allocated(endm)) then
+      deallocate(endm)
+      deallocate(yfra)
+      deallocate(yendm)
+   endif
+1001 continue
+! restore original constituent fractions, also if error in this routine
+!   call get_phase_data(iph,1,nsl,nkl,knr,ydum,sites,qq,ceq)
+   errsave=gx%bmperr
+   gx%bmperr=0
+   call set_constitution(iph,1,ydum,qq,ceq)
+   if(gx%bmperr.ne.0) then
+      write(*,*)'3Y Error restoring constitution for phase: ',iph,gx%bmperr
+   endif
+   gx%bmperr=errsave
+   if(gx%bmperr.ne.0) write(*,*)'3Y ionliq_grid error: ',gx%bmperr
+   return
+ end subroutine generate_ionliq_grid
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim} %-
  subroutine generate_fccord_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,gmax,ceq)
 ! This generates grid for a phase with 4 sublattice fcc/hcp ordering
 ! mode<0 just number of gridpoints in ngg, needed for allocations
@@ -1563,10 +1922,54 @@
    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim} %+
    logical, save :: once=.TRUE.
+   integer i,j,k,l,m,n,e
+   integer, dimension(:,:), allocatable :: endm
 ! NOTHING IMPLEMENTED YET
    if(once) write(*,17)
 17 format('3Y Special grid for FCC/HCP 4SL ordering not implemented yet')
    once=.FALSE.
+! number of constituents in the first 4 sublattices
+   n=5
+! first calculate the middle value in a Pascal triangle for row n+3
+   j=1
+   k=1
+   l=1
+! n+3 can be odd or even
+   if(mod(n+3,2).eq.0) then
+      m=(n+3)/2
+   else
+      m=(n+2)/2
+   endif
+   do i=1,n+3
+      j=j*i
+      if(i.le.m) then
+         k=k*i
+      else
+         l=l*(n+4-i)
+      endif
+   enddo
+! This is the number of unique permutations
+   e=j/(k*l)
+   allocate(endm(4,e))
+   e=0
+   do i=1,n
+      do j=i,n
+         do k=j,n
+            do l=k,n
+               e=e+1
+               endm(1,e)=i
+               endm(2,e)=j
+               endm(3,e)=k
+               endm(4,e)=l
+            enddo
+         enddo
+      enddo
+   enddo
+!  write(*,*)'Endmembers ',e
+!  do i=1,e
+!     write(*,30)(endm(j,i),j=1,4)
+!  enddo
+30 format(4i3)
 1000 continue
    return
  end subroutine generate_fccord_grid
@@ -2258,7 +2661,7 @@
 !\end{verbatim}
 ! ny just needed for debugging ...
    integer i,lokres
-   double precision qq(5),xmol(nrel),ytemp(maxconst)
+   double precision qq(5),xmol(nrel),ytemp(maxconst),sum
 ! set constitution and calculate G per mole atoms and composition
 !
 ! BEWARE must be tested for parallel processing
@@ -2272,8 +2675,13 @@
 !    write(*,15)'3Y gd2: ',iph,lokres,qq(1),&
 !         ceq%phase_varres(lokres)%gval(1,1),(xmol(i),i=1,nrel)
 !15  format(a,2i4,2e12.4,2x,5(F9.5))
+!   sum=zero
+!   do i=1,nrel
+!      sum=sum+xmol(i)
+!   enddo
    do i=1,nrel
       xarr(i)=real(xmol(i))
+!     xarr(i)=real(xmol(i)/sum)
    enddo
 !   if(qq(1).lt.2.0D-1) then
 ! number of real atoms less than 20%, a gridpoint with just vacancies ....
@@ -2281,7 +2689,7 @@
 ! number of real atoms less than 50%, a gridpoint with mainly vacancies ....
 !      gval=1.0E5
 !      gval=1.0E1
-      gval=1.0E2
+      gval=max(1.0E2,real(ceq%phase_varres(lokres)%gval(1,1)/qq(1)))
    elseif(abs(qq(2)).gt.1.0D-14) then
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 ! the gridpoint has net charge, qq(2), make gval more positive. 
@@ -4520,10 +4928,10 @@
 !   write(*,*)'3Y in todo_after',mode
 !----------------------------------------------------------------
    if(btest(globaldata%status,GSNOAFTEREQ)) goto 1000
-   nostart: if(mode.lt.0) then
-! Problems with this section so global_equil_check is disabled inside ...
+   nostart: if(mode.lt.0 .or. btest(globaldata%status,GSTGRID)) then
 ! if mode<0 the conditions did not allow gridmin before use it after
-!      write(*,*)'3Y Testing after calculation if equilibrium is global'
+! Problems with this calculation so global_equil_check is disabled inside ...
+      write(*,*)'3Y Testing after calculation if any gridpoints below'
       if(btest(globaldata%status,GSNOTELCOMP)) then
          write(*,*)'3Y Cannot test global equilibrium when these components'
          goto 1000

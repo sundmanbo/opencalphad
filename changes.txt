@@ -18,6 +18,11 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2016.12.05 There is a new grid minimizer for the ionic liquid that
+works well for thr 15 component system.  It treats the cations and
+anions separately to limit the number of gridpoints generated.  Some
+progress also for writing the DAT file format.
+
 2016.12.05 Problems calculating the equilibrium for a 15 component
 system has required several small modifications to find the correct
 results.  I fixed a problem when a phase with charged species did not
