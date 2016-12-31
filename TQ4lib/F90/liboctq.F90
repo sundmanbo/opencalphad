@@ -848,7 +848,7 @@ contains
 ! This subroutine returns the sublattices and constitution of a phase
 ! n1 is phase tuple index
 ! nsub is the number of sublattices (1 if no sublattices)
-! cinsub is an array with the number of constítuents in each sublattice
+! cinsub is an array with the number of constÃ­tuents in each sublattice
 ! spix is an array with the species index of the constituents in all sublattices
 ! sites is an array of the site ratios for all sublattices.  
 ! yfrac is the constituent fractions in same order as in spix
@@ -1044,7 +1044,7 @@ contains
        goto 1000
     endif
     ceq=>eqlista(n1)
-    call delete_equilibrium(name,ceq)
+    call delete_equilibria(name,ceq)
 1000 continue
     return
   end subroutine tqdceq
