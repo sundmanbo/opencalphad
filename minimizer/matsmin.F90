@@ -6701,7 +6701,7 @@ CONTAINS
 !            mode=1
 !            call meq_evaluate_svfun(tval,'  ',mode,ceq)
             if(gx%bmperr.ne.0) then
-               write(*,*)'MM Cannot find symbol: ',tval,' Error reset'
+!               write(*,*)'MM Cannot find symbol: ',tval,' Error reset'
                gx%bmperr=0
             else
 !            mode=1
@@ -6744,7 +6744,7 @@ CONTAINS
 ! This checks that the phase is stable ...
 !               call get_stable_state_var_value(tval,xxx,symbol,ceq)
                if(gx%bmperr.ne.0) then
-                  write(*,*)'MM Cannot list variable: ',tval,' Error reset'
+!                  write(*,*)'MM Cannot list variable: ',tval,' Error reset'
                   gx%bmperr=0
                else
                   write(lut,110)trim(symbol),xxx

@@ -19,14 +19,14 @@ commercial vendor.
 In the list below the most recent changes come first.
 
 2016.12.05 There is a new grid minimizer for the ionic liquid that
-works well for thr 15 component system.  It treats the cations and
+works well for the 15 component system.  It treats the cations and
 anions separately to limit the number of gridpoints generated.  Some
 progress also for writing the DAT file format.
 
 2016.12.05 Problems calculating the equilibrium for a 15 component
 system has required several small modifications to find the correct
-results.  I fixed a problem when a phase with charged species did not
-need external phase balance because all cations and anions had the
+results.  I have fixed a problem when a phase with charged species did
+not need external phase balance because all cations and anions had the
 same change.  I discovered a problem that deleted composition sets did
 not restore the free list for phase_varres records.  That is not fixed
 as it is a bit complicated.  Markus Piro has helped me to understand
@@ -37,11 +37,11 @@ the DAT format but that part is not yet finished.
 functions that can call each other and have different temperature
 ranges.
 
-2016.11.39 It is now possible to save several equilibria and the
-assessment record.  It means OC now can save an assessment on a file
-similar to the PAR file for PARROT.  It is possible to continue the
-assessment from the saved file.  The NEW command does not remove the
-assessment record, it gives a warning but it seems not to cause
+2016.11.39 It is now possible to save (unformatted) several equilibria
+and the assessment record.  It means OC now can save an assessment on
+a file similar to the PAR file for PARROT.  It is possible to continue
+the assessment from the saved file.  The NEW command does not remove
+the assessment record, it gives a warning but it seems not to cause
 problems.
 
 2016.11.23 A new macro to test SAVE is included.  Many small changes
