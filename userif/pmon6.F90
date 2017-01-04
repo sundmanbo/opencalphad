@@ -1101,12 +1101,14 @@ contains
 ! generate grid and find the phases and constitutions for the minimum.
 ! Note: global_gridmin calculates for total 1 mole of atoms, not totam
 !          call global_gridmin(1,ceq%tpval,totam,xknown,nv,iphl,icsl,&
-! iphl is diemsioned (1:maxel), maxel=100, it is destroyed inside merge_grid ..
+! iphl is dimensioned (1:maxel), maxel=100, it is destroyed inside merge_grid ..
 !          call global_gridmin(1,ceq%tpval,xknown,nv,iphl,icsl,&
 !               aphl,nyphl,yarr,cmu,iphl,ceq)
           call global_gridmin(1,ceq%tpval,xknown,nv,iphl,icsl,&
                aphl,nyphl,cmu,ceq)
           if(gx%bmperr.ne.0) goto 990
+!          write(kou,2102)nv,(iphl(j1),icsl(j1),j1=1,nv)
+! we should write phase tuples ...
           write(kou,2102)nv,(iphl(j1),icsl(j1),j1=1,nv)
 2102      format('Number of stable phases ',i2/13(i4,i2))
 ! we must multiply the amount of the stable phases with totam
@@ -2077,12 +2079,15 @@ contains
                      ' 7  comp.sets must not be created automatically'/'-'/&
                      ' 8  comp.sets must not be deleted automatically'/&
                      ' 9  data has changed since last save'/&
-                     '10  means verbose is on'/&
-                     '11  means verbose is permanently on'/'-'/&
-                     '12  means be silent'/&
+                     '10  verbose is on'/&
+                     '11  verbose is permanently on'/'-'/&
+                     '12  no warnings'/&
                      '13  no cleanup after an equilibrium calculation'/&
-                     '14  use denser grid in grid minimizer'/&
-                     '15  calculations in parallel is not allowed')
+                     '14  denser grid used in grid minimizer'/&
+                     '15  calculations in parallel is not allowed'/'-'/&
+                     '16  no global test at node points durung STEP/MAP'/&
+                     '17  the components are not the elements'/&
+                     '18  test calcúlated equilibrium with the grid minimizer')
                 goto 3708
              endif
              if(ll.lt.0 .or. ll.gt.31) then
@@ -2650,6 +2655,7 @@ contains
                globaldata%pnorm,globaldata%status
 6022      format('Equilibrium name',9x,'Gas constant Pressure norm',&
                22x,'Status'/1x,a,1pe12.4,2x,1pe12.4,20x,z8)
+!....................................................................
 ! options are A=all phases; P=some phases; C=components; M=phase models
           if(ch1.eq.'A') then
 ! A all
@@ -2657,12 +2663,14 @@ contains
              call list_all_elements(lut)
              call list_all_species(lut)
              call list_all_phases(lut,ceq)
+!....................................................................
           elseif(ch1.eq.'P') then
 ! just the phases
 ! P phases sorted: stable/ unstable in driving force order/ dormant the same
              chshort='P'
              call list_sorted_phases(lut,ceq)
           elseif(ch1.eq.'C') then
+!....................................................................
 ! global values and the chemical potentials
              chshort='C'
              write(kou,*)
@@ -2674,13 +2682,15 @@ contains
                 j1=2
              endif
              call list_components_result(lut,j1,ceq)
+!....................................................................
           elseif(ch1.eq.'M') then
 ! list models for all phases
              do iph=1,noph()
                 call list_phase_model(iph,1,lut,ceq)
              enddo
+!....................................................................
           else
-             write(kou,*)'Only option A, C and P implemented'
+             write(kou,*)'Only option A, C, M and P implemented'
           endif
 !-----------------------------------------------------------
        case(3) ! list phase subcommands

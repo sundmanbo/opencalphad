@@ -1230,6 +1230,7 @@
 !\begin{verbatim} %-
  subroutine remove_composition_set(iph,force)
 ! the last composition set is deleted, update csfree and highcs
+! SPURIOUS ERRORS OCCUR IN THIS SUBROUTINE
 !
 ! >>>>>>>>>>>>>>>>>>>>>>>>>>>> NOTE <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< !
 ! Not safe to remove composition sets when more than one equilibrium       !
@@ -1464,6 +1465,10 @@
 !      lokph=phasetuple(jl-1)%phaseix
       lokph=phasetuple(jl-1)%lokph
       lokcs=phlista(lokph)%linktocs(phasetuple(jl-1)%compset)
+      if(lokcs.le.0) then
+         write(*,*)'3B index pf phase_varres <=0',jl-1,lokph
+         gx%bmperr=4399; goto 1000
+      endif
 !      write(*,771)'3B Shifting down ',jl,nooftuples,phasetuple(jl-1)%phaseix,&
 !           phasetuple(jl-1)%compset,lokph,lokcs
 !771   format(a,10i5)

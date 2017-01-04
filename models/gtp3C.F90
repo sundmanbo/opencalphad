@@ -1,3 +1,4 @@
+
 !
 ! gtp3C included in gtp3.F90
 !
@@ -213,7 +214,7 @@
  subroutine list_sorted_phases(unit,ceq)
 ! short list with one line for each phase
 ! suspended phases merged into one line
-! stable first, then entered ordered in driving force order, then dormat
+! stable first, then entered ordered in driving force order, then dormant
 ! also in driving force order.  Only 10 of each, the others lumped together
    implicit none
    integer unit
@@ -223,6 +224,7 @@
    character line*80,phname*24,trailer*28,chs*1,csname*36,susph*4096,ch1*1
    integer, dimension(:), allocatable :: entph,dorph
    TYPE(gtp_phase_varres), pointer :: csrec
+   double precision am1,am2
 !
    allocate(entph(nooftuples))
    allocate(dorph(nooftuples))
@@ -243,7 +245,11 @@
             else
 ! FIX and STABLE phases first in order of amount
                do iph=1,nent
-                  if(csrec%amfu.lt.ceq%phase_varres(entph(iph))%amfu) cycle
+                  am1=csrec%amfu*csrec%abnorm(1)
+                  am2=ceq%phase_varres(entph(iph))%amfu*&
+                       ceq%phase_varres(entph(iph))%abnorm(1)
+                  if(am1.lt.am2) cycle
+!                  if(csrec%amfu.lt.ceq%phase_varres(entph(iph))%amfu) cycle
 ! this is the place for this phase, shift later down
                   do jph=nent,iph,-1
                      entph(jph+1)=entph(jph)

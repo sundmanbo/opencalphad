@@ -35,6 +35,7 @@
 ! removed yphl as argument as it not needed outside global_gridmin
 ! dimensioning can be problematic if many phases with many constituents as it
 ! contains all constituent fractions of all gridpoints (before merge)
+!   double precision, dimension(10* amounts of maxconst) :: yphl
    double precision, dimension(10*maxconst) :: yphl
    double precision amount,sum,gmax
    integer i,ibias,ics,ics2,icsno,icsx,ie,iph,iv,j1,j2,jip,jp,kkz,kp,kph,jbias
@@ -50,15 +51,15 @@
    real garr(maxgrid),starting,finished
    real, dimension (:,:), allocatable :: xarr
    real, dimension (maxel,maxel) :: xsol
-   double precision, dimension(maxel) :: phfrac,phsave
-   double precision qq(5),savetp(2),xbase
+   double precision, dimension(maxel) :: phfrac,phsave,xdum
+   double precision qq(5),savetp(2),xbase,totam
    integer, dimension(maxph) :: iphx
    character name1*24
 !   integer idum(*)
 ! debug
-   logical trace
+   logical trace,toomany
 ! sort phases depending on number of gridpoints
-   integer, dimension(:), allocatable :: gridpoints,phord
+   integer, dimension(:), allocatable :: gridpoints,phord,starttup
 ! pph is set to number of phases participating, some may be suspended
    integer pph,zph,nystph,order(maxel),tbase,qbase,wbase,jj,gcheck(maxph)
 !
@@ -70,6 +71,7 @@
    ngrid=0
 ! Trace turn on output of grid on a file ocgrid.dat
 !   trace=.true.
+   toomany=.false.
    trace=.FALSE.
    if(trace) write(*,*)'3Y Trace set TRUE'
    savetp=ceq%tpval
@@ -484,10 +486,13 @@
 !                   write(*,*)'3Y Error entering composition set ',j1,gx%bmperr
                      if(gx%bmperr.eq.4092) then
 ! skip entering this set, it may work anyway ...
-                        write(kou,298)iphl(j1)
-298             format('Cannot enter enough composition sets for phase',i4,&
-                     ' but gridmin struggles on')
-                        gx%bmperr=0
+                        if(.not.toomany) then
+                           write(kou,298)iphl(j1)
+298                        format('Cannot enter enough composition sets',&
+                                ' for phase',i4,' but gridmin struggles on')
+                           gx%bmperr=0
+                           toomany=.true.
+                        endif
 ! to avoid later trouble we should mark there is no compset for this gridp!!
                         iphl(j2)=-kph
                         icsl(j2)=-1
@@ -553,10 +558,15 @@
 ! a default constitution and CSDEFCON set)
 ! finally store stable phase amounts and constitutions into ceq%phase_varres
    j1=1
+   allocate(starttup(nvsph))
+! PROBLEM for use in CEA with 15 elements, one stable phase disappear ...
+! use extract_massbalcond ???
+   call extract_massbalcond(ceq%tpval,xdum,totam,ceq)
    ceqstore: do iph=1,nvsph
       if(iphl(iph).lt.0) then
-! this gripoint has no composition set!!!
+! this gripoint has no composition set, too many gridpoints in same phase
 !         write(*,*)'3Y Gridpoint ',iph,' not entered as composition set'
+         starttup(iph)=0
          continue
       else
          call set_constitution(iphl(iph),icsl(iph),yphl(j1),qq,ceq)
@@ -572,16 +582,26 @@
 !      endif
 !      write(*,1812)iph,lokcs,aphl(iph),ceq%phase_varres(lokcs)%abnorm(1)
 1812  format('3Y aphl: ',2i3,6(1pe12.4))
-         aphl(iph)=aphl(iph)/ceq%phase_varres(lokcs)%abnorm(1)
+!
+! Problems when calculating a nuclear fuel as the number
+! of atoms/formula unit varied a lot even for the same phase
+! To fix that I multiplied the phase amount with TOTAM calculated above
+         aphl(iph)=totam*aphl(iph)/ceq%phase_varres(lokcs)%abnorm(1)
+!
 !      write(*,1789)'3Y aphl: ',iph,lokcs,aphl(iph),&
 !           ceq%phase_varres(lokcs)%abnorm(1)
 1789     format(a,2i3,2(1pe12.4))
          ceq%phase_varres(lokcs)%amfu=aphl(iph)
          ceq%phase_varres(lokcs)%phstate=PHENTSTAB
+         starttup(iph)=ceq%phase_varres(lokcs)%phtupx
 !      write(*,*)'3Y gridmin stable: ',lokcs,ceq%phase_varres(lokcs)%phtupx
          j1=j1+nyphl(iph)
       endif
    enddo ceqstore
+!-----------------------------------------------------------------------
+! debug listing of tuples at gridpoints
+!   write(*,1411)(starttup(iph),iph=1,nvsph)
+1411 format('3Y tupl:',18i4)
 !-----------------------------------------------------------------------
 ! iv is total number of constituent fractions
    iv=j1
@@ -633,7 +653,7 @@
    elseif(.not.btest(globaldata%status,GSSILENT)) then
       write(*,1010)noofgridpoints,finish2-starting,&
            endoftime-starttid,ceq%tpval(1)
-1010  format('3Y Gridmin: ',i7,' points ',1pe10.2,' s and ',&
+1010  format('Gridmin: ',i7,' points ',1pe10.2,' s and ',&
            i7,' clockcycles, T=',0pF8.2)
 ! set the global bit that this is not a full equilibrium
       ceq%status=ibset(ceq%status,EQGRIDCAL)
@@ -729,9 +749,9 @@
 ! added: not here ... just for the dense grid
 !   double precision, dimension(2), parameter :: yqrt=[0.35D0,0.19D0]
 ! for output of gridpoints
-   integer jbas,sumngg,loksp
+   integer jbas,sumngg,loksp,wrongngg
    logical trace,isendmem
-   save sumngg
+   save sumngg,wrongngg
 !
 !   write(*,*)'3Y entering generate_grid: ',mode,iph,ngg
 !---------------------------------------------------------
@@ -746,8 +766,16 @@
    elseif(test_phase_status_bit(iph,PHIONLIQ)) then
 ! This is the ionic liquid, requires a special grid, also used for dense
       call generate_ionliq_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,gmax,ceq)
-! ionliq usually overestimates the number of gridpoints actually generated 
 !      if(mode.le.0) write(*,*)'3Y exit ionliq ',mode,ngg,ny
+      if(mode.eq.-1) then
+         wrongngg=ngg
+      elseif(mode.eq.0) then
+! ionliq -1 makes a bad estimate of the number of gridpoints generated 
+! give a warning if it may be too wrong ...
+         if(ngg-wrongngg.gt.1000) then
+            write(*,*)'3Y warning: ionic liquid gridpoints: ',ngg,wrongngg
+         endif
+      endif
       goto 1000
    elseif(test_phase_status_bit(iph,PHFORD)) then
 ! this phase has 4 sublattice fcc/hcp tetrahedral ordering,
@@ -1995,7 +2023,7 @@
 ! These are fractions of mixed cations for same anion, not all variants
 ! Used only when there are many endmembers >15
    double precision, dimension(1:3), parameter:: yfc=&
-        [0.42D0,0.35D0,0.23D0]
+        [0.42D0,0.33D0,0.25D0]
 ! for output of gridpoints
    integer l1,ncon,jj,cation,anion,isp,iva,catloop
    logical trace,dense
@@ -2211,13 +2239,14 @@
    enddo endmem1
 !   write(*,*)'3Y Calculated points 1: ',ngg,nend,breaks(2)
 !   goto 1000
-! UNFINISHED
 !   write(*,*)'3Y cation loop: '
    if(nend.le.breaks(2)) goto 1000
 ! combinations with same anion and different cations
    anion2: do lend=0,anion-1
       catloop=lend*cation+1
 !      write(*,*)'3Y catloop: ',lend+1,cation,catloop,ngg
+! these works for noc2500 case first time, later not ... WHY?
+! calculating "c g" followed by "c n" gives better result than "c e", why??
       endmem1b: do iend=catloop,catloop+cation-1
          endmem2b: do jend=iend+1,catloop+cation
             endmem3b: do kend=jend+1,catloop+cation-1
@@ -4599,13 +4628,14 @@
          sumx=sumx+xarr(ngg,ifri)
       enddo
 !      if(ifri.eq.sumng) write(*,*)'3Y OK ',ifri,iph
-      if(abs(sumx-1.0E0).gt.1.0E-6) then
-         if(wrongfrac) then
-            write(*,69)'3Y Some gridpoint fractions wrong',&
-                 iph,ifri,sumx,garr(ifri)
-69          format(a,i3,i7,2(1pe12.4))
-            wrongfrac=.false.
-         endif
+      if(abs(sumx-1.0E0).gt.1.0E-4) then
+! skip this warning message ...
+!         if(wrongfrac) then
+!            write(*,69)'3Y Some gridpoint fractions wrong',&
+!                 iph,ifri,sumx,garr(ifri)
+!69          format(a,i3,i7,2(1pe14.6))
+!            wrongfrac=.false.
+!         endif
          cycle loop4
       endif
 !      write(*,75)'3Y check: ',ifri,iph,garr(ifri),gmax,garr(ifri)-gmax
@@ -5311,7 +5341,8 @@
    nostart: if(mode.lt.0 .or. btest(globaldata%status,GSTGRID)) then
 ! if mode<0 the conditions did not allow gridmin before use it after
 ! Problems with this calculation so global_equil_check is disabled inside ...
-      write(*,*)'3Y Testing after calculation if any gridpoints below'
+      write(*,3)
+3     format('Testing if any gridpoint is below the calculated equilibrium')
       if(btest(globaldata%status,GSNOTELCOMP)) then
          write(*,*)'3Y Cannot test global equilibrium when these components'
          goto 1000
