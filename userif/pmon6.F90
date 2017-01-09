@@ -3192,7 +3192,7 @@ contains
              write(Kou,*)'No elements in the database'
           endif
           write(kou,8203)jp,(ellist(kl),kl=1,jp)
-8203      format('Database has ',i2,' elements: ',20(a,1x))
+8203      format('Database has ',i2,' elements: ',18(a,1x)/(1x,28(1x,a)))
           write(kou,8205)
 8205      format('Give the elements to select, finish with empty line')
           jp=1

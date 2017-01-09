@@ -49,7 +49,7 @@ c e
 
 l,,,,,
 
-@$ Lower carbon acrtivity decreases carbon content, 
+@$ Lower carbon activity decreases carbon content, 
 @$ x(c)=.05484
 @&
 @$------------------------------------
@@ -304,8 +304,8 @@ l,,,,
 @$ as BCC and with the same carbon activity as the tie-line.
 @$ The carbon content in FCC is now x(c)=.030725
 @$ We are inside the two-phase region as BCC would like to be
-@$ stable (it has a small positive driving force) but as it is
-@$ dormant it cannot be included in the stable phase set.
+@$ stable (it has a small positive driving force, +4.90E-4) but
+@$ it is dormant and cannot be included in the stable phase set.
 @$ 
 @$ The calculation kindly provided by Shaojie Song
 @$ who discovered a bug!

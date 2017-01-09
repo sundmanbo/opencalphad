@@ -2995,14 +2995,15 @@
 !\end{verbatim} %+
 ! only those currently implemented ... rest ignored
    integer, parameter :: kwl=20
-   integer, parameter :: nkw=12
+   integer, parameter :: nkw=14
    character (len=kwl), dimension(nkw), parameter :: keyword=&
         ['ELEMENT             ','SPECIES             ',&
          'PHASE               ','CONSTITUENT         ',&
          'FUNCTION            ','PARAMETER           ',&
          'TYPE_DEFINITION     ','LIST_OF_REFERENCES  ',&
          'ADD_REFERENCES      ','ASSESSED_SYSTEMS    ',&
-         'DATABASE_INFORMATION','VERSION             ']
+         'DATABASE_INFORMATION','VERSION             ',&
+         'DEFAULT_COMMAND     ','                    ']
 !   
    character word*64
    integer j,ks,kt
@@ -3146,6 +3147,7 @@
    integer nel
    character filename*(*),selel(*)*2
 !\end{verbatim}
+   integer, parameter :: maxrejph=30,maxorddis=10
    character line*128,elsym*2,name1*24,name2*24,elsyms(10)*2
    character longline*10000,reftext*512
    character phtype*1,ch1*1,const(maxsp)*24,name3*24,funname*60,name4*60
@@ -3163,17 +3165,19 @@
    integer norew,newfun,nfail,nooftypedefs,nl,ipp,jp,jss,lrot,ip,jt
    integer nsl,ll,kp,nr,nrr,mode,lokph,lokcs,km,nrefs,ideg,iph,ics
 ! disparttc and dispartph to handle phases with disordered parts
-   integer nofunent,disparttc,dodis,jl,nd1,thisdis,cbug
-   character*24 dispartph(5),ordpartph(5)
+   integer nofunent,disparttc,dodis,jl,nd1,thisdis,cbug,nphrej,never
+   character*24 dispartph(maxorddis),ordpartph(maxorddis),phreject(maxrejph)*24
+   integer orddistyp(maxorddis)
    logical warning
 ! set to TRUE if element present in database
    logical, allocatable :: present(:)
 ! to prevent any output
-   logical silent
+   logical silent,thisphaserejected
 !  mmyfr
 ! if warning is true at the end pause before listing bibliography
    warning=.FALSE.
    silent=.FALSE.
+   nphrej=0
    if(btest(globaldata%status,GSSILENT)) then
       silent=.TRUE.
 !      write(*,*)'3E reading database silent'
@@ -3225,81 +3229,7 @@
    if(line(ipp:ipp).eq.'$') goto 100
 ! replace TAB by space
    call replacetab(line,nl)
-   goto 120
-!----- this part moved to the end ....
-   funfirst: if(onlyfun) then
-! first read only functions until all has been read
-!      if(line(2:10).eq.'FUNCTION ') then
-!      write(*,*)'3E Input line >',line(1:20),'<'
-      ipp=istdbkeyword(line,nextc)
-      if(ipp.eq.5) then
-!123456789.123456789.123456789.123456789.123456789.123456789.123456789.12345678
-! FUNCTION GHSERCR    2.98150E+02  -8856.94+157.48*T-26.908*T*LN(T)
-!         name1=line(11:18)
-! special case, error in TDB file, UN_ASS is only 6 characters
-!         if(name1(1:6).eq.'UN_ASS') then
-!            name1=line(11:16); ipp=18
-!         else
-!            ipp=20
-!         endif
-         if(eolch(line,nextc)) then
-            if(.not.silent) &
-                 write(kou,*)'Function name must be on same line as FUNCTION'
-            gx%bmperr=4000; goto 1000
-         endif
-         ipp=nextc+index(line(nextc:),' ')
-         name1=line(nextc:ipp-1)
-!         write(*,18)'3E function >',name1,'< ',nextc,ipp
-!18       format(a,a,a,2i4)
-! old code
-         longline=' '
-         longline=line(ipp:)
-111       continue
-         jp=len_trim(longline)
-         if(longline(jp:jp).eq.'!') then
-! replace # by ' '
-112          continue
-            jss=index(longline(1:jp),'#')
-            if(jss.gt.0) then
-               longline(jss:jss)=' '
-               goto 112
-            endif
-            write(*,*)'3E Entering function 1: ',name1,trim(longline)
-            lrot=0
-            call enter_tpfun(name1,longline,lrot,.TRUE.)
-            if(gx%bmperr.ne.0) then
-! one may have error here if function calls other functions not entered, 4002
-! or if the function is already entered, 4026
-               if(gx%bmperr.eq.4002.or. gx%bmperr.eq.4026) then
-                  if(gx%bmperr.eq.4002) nfail=nfail+1
-                  gx%bmperr=0; goto 100
-               endif
-               if(.not.silent) write(kou,*)'Failed entering function: ',name1
-               gx%bmperr=4303
-               goto 1000
-            endif
-            if(ocv()) write(*,*)'3E Entered function: ',name1
-            newfun=newfun+1
-         else
-            nl=nl+1
-            read(21,110)line
-!            write(kou,101)'readtdb 2: ',nl,line(1:40)
-            call replacetab(line,nl)
-            longline=longline(1:jp)//line
-            goto 111
-         endif
-      elseif(ipp.gt.0) then
-! skip lines until !.  There can be a ! on the line with the keyword!
-77       continue
-         if(index(line,'!').le.0) then
-            read(21,110,end=2000)line
-            nl=nl+1
-            call replacetab(line,nl)
-            goto 77
-         endif
-      endif
-      goto 100
-   endif funfirst
+!   goto 120
 !---------------------------------------------------------
 ! handle all TDB keywords except function
 120 continue
@@ -3307,7 +3237,7 @@
    if(keyw.eq.0) then
       ip=1
       if(.not.eolch(line,ip)) then
-         if(ocv()) write(*,*)'3E Ignoring line: ',nl,ip,line(ip:ip+20)
+         if(ocv()) write(*,*)'3E Ignoring line: ',nl,ip,trim(line)
       endif
       goto 100
    elseif(onlyfun) then
@@ -3344,6 +3274,7 @@
       if(keyw.lt.3 .or. keyw.eq.5 .or. keyw.gt.6) goto 100
    endif
 !
+! we have 13 keywords
   select case(keyw)
    case default
       if(ocv()) write(*,*)'3E default case: ',keyw,line(1:30)
@@ -3517,6 +3448,15 @@
       else
          phtype=' '
       endif
+! check if phase rejected
+      do jt=1,nphrej
+         if(name1.eq.phreject(jt)) then
+            thisphaserejected=.TRUE.
+            nophase=.true.
+            goto 100
+         endif
+      enddo
+      thisphaserejected=.false.
 !      write(*,*)'3E nophase set to false, phase: ',name1
 ! phase type code
       noofphasetype=0
@@ -3600,8 +3540,9 @@
    case(4) !    CONSTITUENT LIQUID:L :CR,FE,MO :  !
 ! the phase must have been defined
       if(nophase) then
-         if(.not.silent) write(kou,*) &
-              'A CONSTITUENT keyword not directly preceeded by PHASE!'
+         if(thisphaserejected) goto 100
+         if(.not.silent) write(kou,327)trim(longline)
+327      format('A CONSTITUENT keyword not directly preceeded by PHASE!'/a)
          gx%bmperr=4308; goto 1000
       endif
       nophase=.true.
@@ -3723,6 +3664,16 @@
 ! jl=0 if NDM (sigma)
 ! jl=1 if phase can be totally disordered (but can have interstitials)
 ! nd1 is the number of sublattices to sum into disordered set
+         if(orddistyp(thisdis).eq.1) then
+            jl=1
+            if(phlista(lokph)%noofsubl.le.5) nd1=4
+            if(phlista(lokph)%noofsubl.le.3) nd1=2
+         else
+            jl=0
+            nd1=phlista(lokph)%noofsubl
+         endif
+         goto 402
+! code below now redundant ...
          if(dispartph(thisdis)(1:7).eq.'FCC_A1 ' .or. &
               dispartph(thisdis)(1:7).eq.'BCC_A2 ' .or. &
               dispartph(thisdis)(1:7).eq.'HCP_A3 ') then
@@ -3754,6 +3705,8 @@
             write(kou,495)trim(ordpartph(thisdis)),nd1
 495         format('3E  Adding disordered phase: ',a,' summing all ',i3)
          endif
+!------------- code above is redundant
+402      continue
          if(jl.eq.0 .and. .not.silent) write(kou,398)trim(ordpartph(thisdis))
 398      format(' 3E Assuming phase ',a,' cannot be completely disordered')
 ! add DIS_PART from TDB
@@ -3894,6 +3847,12 @@
 ! extract constituent array, remove final ) and decode
 ! constituent names can be very long ....
       lokph=phases(jph)
+      if(btest(phlista(lokph)%status1,PHIONLIQ)) then
+! check if ionic liquid for handling neutrals ...
+         ionliq=.TRUE.
+      else
+         ionliq=.FALSE.
+      endif
       name4=funname(lp2+1:)
 ! find terminating )
       lp1=index(name4,')')
@@ -3904,6 +3863,16 @@
          goto 100
       else
          name4(lp1:)=' '
+      endif
+! Handling of ionic liquid parameters for neutrals
+      if(ionliq) then
+         nsl=index(name4,':')
+!         write(*,*)'3E ionic liquid parameter: ',trim(name4),nsl
+         if(nsl.le.0) then
+            name4(3:)=name4
+            name4(1:2)='*:'
+!            write(*,*)'3E Added wildcard to parameter: ',trim(name4)
+         endif
       endif
 297   continue
 !
@@ -4077,6 +4046,14 @@
             typedefaction(nytypedef)=int(xxx)
          else
             km=index(longline,' DIS_PART ')
+            never=1
+            if(km.eq.0) then
+               km=index(longline,' NEVER ')
+! this is for disordered SIGMA etc.
+               if(km.gt.0) then
+                  never=-1
+               endif
+            endif
             if(km.gt.0) then
 ! disordered part, several checks
                disparttc=disparttc+1
@@ -4086,10 +4063,20 @@
                if(longline(ip:ip).eq.' ') then
 !                  ordpartph(disparttc)=' '
                   ordpartph(disparttc)=longline(ip+1:km)
+! if the ordered part rejected skip this TYPE_DEF
+                  do ix=1,nphrej
+                     if(ordpartph(disparttc).eq.phreject(ix)) then
+                        write(*,86)trim(longline(ip+1:))
+86  format('3E TYPE_DEF ignored as ordered phase rejected: 'a)
+                        disparttc=disparttc-1
+                        goto 88
+                     endif
+                  enddo
                else
                   ip=ip-1
                   goto 81
                endif
+               orddistyp(disparttc)=never
 ! extract the disordered part phase name
                ip=index(longline(km+2:),' ')
                dispartph(disparttc)=longline(km+2+ip:)
@@ -4118,15 +4105,22 @@
                   warning=.TRUE.
                endif
             else
-               typedefaction(nytypedef)=99
-               if(.not.silent) &
-                    write(kou,87)nl,longline(1:min(78,len_trim(longline)))
-87             format('3E Skipping this TYPE_DEFINITION on line ',i5,':'/a)
-               warning=.TRUE.
+               km=index(longline,' NEVER ')
+               if(km.gt.0) then
+! this is for disordered SIGMA etc.
+                  write(*,*)'3E Not yet implemented NEVER'
+               else
+                  typedefaction(nytypedef)=99
+                  if(.not.silent) &
+                       write(kou,87)nl,longline(1:min(78,len_trim(longline)))
+87                format('3E Skipping this TYPE_DEFINITION on line ',i5,':'/a)
+                  warning=.TRUE.
 !               write(*,*)' WARNING SET TRUE <<<<<<<<<<<<<<<<<<<<<<<<<<<'
+               endif
             endif
          endif magnetic
       endif newtypedef
+88    continue
 !---------------------------------------------------------------------
 !   elseif(line(2:20).eq.'LIST_OF_REFERENCES ' .or. &
 !          line(2:16).eq.'ADD_REFERENCES ') then
@@ -4239,7 +4233,49 @@
          nl=nl+1
          call replacetab(line,nl)
       enddo
+!------------------------------------------------------------------
+   case(13) ! DEFAULT_COMMAND, handle REJECT only
+! skip lines until !
+      do while(index(line,'!').le.0)
+         read(21,110)line
+         nl=nl+1
+         call replacetab(line,nl)
+      enddo
+! replace - by _
+790   continue
+      ip=index(line,'-')
+      if(ip.gt.0) then
+         line(ip:ip)='_'
+         goto 790
+      endif
+! here I handle only reject phase
+791   continue
+      call getext(line,nextc,1,name1,' ',ix)
+      if(name1(1:ix).eq.'REJECT_PHASE') then
+793      continue
+! save phase names to be rejected in a structure            
+         call getext(line,nextc,1,name1,' ',ix)
+         if(name1(1:1).eq.' ' .or. name1(1:1).eq.'!') then
+            goto 794
+         else
+            nphrej=nphrej+1
+            if(nphrej.gt.maxrejph) then
+               write(*,*)'3E Too many phases to reject, increase maxrejph'
+            else
+               write(*,*)'3E rejected phase: ',name1
+               phreject(nphrej)=name1
+            endif
+         endif
+         goto 793
+      elseif(line(nextc:nextc+6).eq.'DEF_SYS ') then
+! ignore
+         continue
+      else
+         write(*,*)'3E ignoring default command: ',trim(line)
+      endif
+794   continue
    end select
+!-------------------------------------------------------- end select
    if(gx%bmperr.ne.0 .and. .not.silent) then
       write(kou,711)gx%bmperr,nl,trim(line)
 711   format('3E error: ',i5,' around line ',i7,': '/a)

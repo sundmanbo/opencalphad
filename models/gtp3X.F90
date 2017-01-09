@@ -1936,13 +1936,14 @@
    double precision vv(0:2),fvv(0:2)
    integer lfun,jdeg,jint,qz,ivax
    double precision rtg,dx0,dx,dx1,dx2,ct,fvs,dvax0,dvax1,dvax2,yionva
+   double precision ycat0,dcat1,dcat2,dyvan1,dyvan2
    double precision, parameter :: onethird=one/3.0D0,two=2.0D0
    logical ionicliq,iliqva,iliqneut
 ! zeroing 5 iq, and vals, dvals and d2vals
    gz%iq=0
-   vals=0
-   dvals=0
-   d2vals=0
+   vals=zero
+   dvals=zero
+   d2vals=zero
    rtg=gz%rgast
 !   write(*,*)'3X in cgint',lokph
    if(lokpty%degree.eq.0) then
@@ -2003,7 +2004,7 @@
       gz%iq(2)=gz%intcon(1)
       if(gz%iq(1).lt.0 .or. gz%iq(2).lt.0) then
 ! composition dependent wildcard interaction not implemented
-! y(1-y) ( L0 + (2y-1) L1 + (2y-1)**2 L2 + ....)
+! y(1-y) ( L0 + (2y-1) L1 + (2y-1)**2 L2 + ....) ??
          gx%bmperr=4031; goto 1000
       endif
 ! endmember fraction minus interaction fraction
@@ -2011,25 +2012,31 @@
       if(ionicliq) then
          if(iliqva) then
 ! interaction between cations with vacancy on second sublattice
-! NOTE intraction fraction alreay multiplied with yionva!!!
-            dx0=gz%yfrem(gz%intlat(1))-gz%yfrint(1)/yionva
-            dvax0=dx0
-            dx0=yionva*dx0
+! NOTE intraction fraction alreay multiplied with yionva before calling cgint
+            dvax0=gz%yfrem(gz%intlat(1))-gz%yfrint(1)/yionva
+!            dvax0=dx0
+            dx0=yionva*dvax0
 !            write(*,65)'3X Va on 2nd: ',gz%iq(2),gz%intlat(1),dvax0,dx0,&
 !                 gz%yfrem(gz%intlat(1)),gz%yfrint(1)
 65          format(a,2i3,6(1pe12.4))
          elseif(iliqneut) then
 ! interaction between vacancy and neutral in second sublattice
-            dvax0=gz%yfrem(gz%intlat(1))
-            dx0=gz%yfrem(gz%intlat(1))*yionva-gz%yfrint(1)
+!            dvax0=gz%yfrem(gz%intlat(1))
+            ycat0=gz%yfrem(1)
+! the fraction difference is between (y_cation * y_Va - y_neutral)
+            dx0=gz%yfrem(1)*yionva-gz%yfrint(1)
+            dvax0=ycat0
+!            write(*,*)'3X dx0: ',dx0,ycat0,yionva
          endif
       endif
       vals=zero
       dx=one
       dx1=zero
       dx2=zero
-      dvax2=zero
       dvax1=zero
+      dvax2=zero
+      dyvan1=one
+      dyvan2=one
 !      write(*,*)'3X c1bug: ',ionicliq,iliqva,iliqneut
 ! special for ionic liquid: when two cation interacts with Va in second
 ! sublattice the vacancy fraction is raised by power 2
@@ -2049,15 +2056,21 @@
 ! first derivatives, qz=1: dG/dyA dG/dyB; qz=2: d2G/dTdy; qz=3: d3G/dPdy
 ! for iliqneut there should not be same -dx1 ... gz%iq(2) is neutral
             do qz=1,3
-               dvals(qz,gz%iq(1))=dvals(qz,gz%iq(1))+dx1*valtp(qz)
+!               dvals(qz,gz%iq(1))=dvals(qz,gz%iq(1))+dx1*valtp(qz)
+! For interactions between Va and neutral in ionic liguid a power of yionva
+! is required for the cation derivative as we have (y_cation*yionva-y_neutral)
+! In all other cases dyvan1=unity
+               dvals(qz,gz%iq(1))=dvals(qz,gz%iq(1))+dyvan1*dx1*valtp(qz)
                dvals(qz,gz%iq(2))=dvals(qz,gz%iq(2))-dx1*valtp(qz)
+! The handling of ionic liquid parameter derivatives can be simplified ...
                if(iliqva) then
 ! derivative with respect to vacancy fraction for (yc1-yc2)*yva: yc1-yc2
                   dvals(qz,ivax)=dvals(qz,ivax)+dvax1*valtp(qz)
 !                  if(qz.eq.1) write(*,11)'3X iliqva: ',0,0,ivax,dvax1
               elseif(iliqneut) then
-! derivative with respect to vacancy fraction for (yc1*yva-yn): yc1
-                  dvals(qz,ivax)=dvals(qz,ivax)+dvax1*valtp(qz)
+! derivative with respect to vacancy fraction for (yc1*yva-yn):
+! multiply with a power of y_cation
+                  dvals(qz,ivax)=dvals(qz,ivax)+dcat1*dx1*valtp(qz)
                endif
             enddo
 ! second derivatives, d2G/dyAdyA d2G/dyAdyB d2G/dyBdyB
@@ -2069,10 +2082,11 @@
                d2vals(ixsym(gz%iq(2),gz%iq(2)))=&
                     d2vals(ixsym(gz%iq(2),gz%iq(2)))+dx2*valtp(1)
 !               if(iliqva) then
-! unfinished d2G/dyvdyv d2G/dyvdyA d2G/dyvdyB 
+! UNFINISHED d2G/dyvdyv d2G/dyvdyA d2G/dyvdyB interactions two cations
 !                  d2vals(ixsym(ivax,ivax))=&
 !                       d2vals(ixsym(ivax,ivax))+dvax2*valtp(1)
 !               elseif(iliqneut) then
+! UNFINISHED also for interactions Va-neutral
 !                  continue
 !               endif
             endif
@@ -2080,6 +2094,7 @@
 ! next power of dx
          if(iliqva) then
 ! interaction between two cations, dx0=y_va*(y_c1 - y_c2)
+! NO CHANGE HERE WHEN FIXING ERROR FOR Va-Neutal interaction ...
             dx2=(jdeg+1)*dx1
             dvax2=(jdeg+1)*dvax1
             if(jdeg.eq.0) then
@@ -2094,14 +2109,15 @@
 23          format(a,i2,6(1pe12.4))
          elseif(iliqneut) then
 ! interaction between Va and neutral a bit more complicated ... NOT TESTED
+! NOTE 2nd derivatives ignored ...
             dx2=(jdeg+1)*dx1
-            dvax2=(jdeg+1)*dvax1
+            dvax2=dvax1
             if(jdeg.eq.0) then
-               dx1=yionva
+               dx1=one
                dvax1=dvax0
             else
                dx1=(jdeg+1)*dx1*dx0
-               dvax1=(jdeg+1)*dvax1*dx0
+               dvax1=(jdeg+1)*dvax0*dx1
             endif
             dx=dx*dx0
          else

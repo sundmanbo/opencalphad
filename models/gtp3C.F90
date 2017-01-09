@@ -613,7 +613,7 @@
    call get_state_var_value('SS ',x3,encoded,ceq)
    if(.not.gtp_error_message(0)) then
       write(lut,12)x1,x1/xn,x2,x3
-12    format('G= ',1pe11.4,' J, G/N= ',1pe11.4,' J/mol, H= ',1pe11.4,&
+12    format('G= ',1pe12.5,' J, G/N= ',1pe11.4,' J/mol, H= ',1pe11.4,&
            ' J, S= ',1pe11.4,' J/K')
    endif
 1000 continue

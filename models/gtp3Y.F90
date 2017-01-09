@@ -490,9 +490,9 @@
                            write(kou,298)iphl(j1)
 298                        format('Cannot enter enough composition sets',&
                                 ' for phase',i4,' but gridmin struggles on')
-                           gx%bmperr=0
                            toomany=.true.
                         endif
+                        gx%bmperr=0
 ! to avoid later trouble we should mark there is no compset for this gridp!!
                         iphl(j2)=-kph
                         icsl(j2)=-1
@@ -2025,7 +2025,7 @@
    double precision, dimension(1:3), parameter:: yfc=&
         [0.42D0,0.33D0,0.25D0]
 ! for output of gridpoints
-   integer l1,ncon,jj,cation,anion,isp,iva,catloop
+   integer l1,ncon,jj,cation,anion,isp,iva,catloop,neutral1
    logical trace,dense
    character ch1*1
 !
@@ -2051,7 +2051,7 @@
    endif
    if(btest(globaldata%status,GSXGRID) .or. & 
             test_phase_status_bit(iph,PHXGRID)) then
-      write(*,*)'Dense grid set'
+!      write(*,*)'Dense grid set'
       dense=.TRUE.
    else
       dense=.FALSE.
@@ -2094,9 +2094,11 @@
       if(nend.eq.1 .or. nend.gt.breaks(4)) then
 ! Normally about 2000 gridpoints per phase, for dense 10 times more ...
 ! 1 or >60 endmembers: only endmembers
+! if more dense cation grid do not divide cation loop by 2
          ngg=nend+(cation-2)*cation*(cation+1)*anion/2
       elseif(.not.dense .and. nend.gt.breaks(3)) then
 ! 26..60: between 676-3600
+! if more dense cation grid do not divide cation loop by 2
          ngg=nend*nend+(cation-2)*cation*(cation+1)*anion/2
 !         write(*,*)'3Y catloop 17: ',ngg,nend,cation,anion,&
 !              (cation-2)*cation*(cation+1)*anion/2
@@ -2239,22 +2241,23 @@
    enddo endmem1
 !   write(*,*)'3Y Calculated points 1: ',ngg,nend,breaks(2)
 !   goto 1000
-!   write(*,*)'3Y cation loop: '
+!   write(*,*)'3Y special cation loop: '
    if(nend.le.breaks(2)) goto 1000
-! combinations with same anion and different cations
+! combinations 3 different cations with same anion
    anion2: do lend=0,anion-1
       catloop=lend*cation+1
 !      write(*,*)'3Y catloop: ',lend+1,cation,catloop,ngg
-! these works for noc2500 case first time, later not ... WHY?
 ! calculating "c g" followed by "c n" gives better result than "c e", why??
-      endmem1b: do iend=catloop,catloop+cation-1
-         endmem2b: do jend=iend+1,catloop+cation
+! The reason was that I had forgotten to scale phase amounts with total moles
+      endmem1b: do iend=catloop,catloop+cation-3
+         endmem2b: do jend=iend+1,catloop+cation-2
             endmem3b: do kend=jend+1,catloop+cation-1
-! these loops are more dense but gave bad results ...
-!      endmem1b: do iend=catloop,catloop+cation
-!         endmem2b: do jend=catloop,catloop+cation
+! these loops generate a  more dense grid but give same results ...
+! NOTE to use these also increase gridpoints generated with mode=-1
+!      endmem1b: do iend=catloop,catloop+cation-1
+!         endmem2b: do jend=catloop,catloop+cation-1
 !            if(jend.eq.iend) cycle endmem2b
-!            endmem3b: do kend=catloop,catloop+cation
+!            endmem3b: do kend=catloop,catloop+cation-1
 !               if(kend.eq.jend .or. kend.eq.iend) cycle endmem3b
                if(.not.dense .and. cation.gt.breaks(3)) then
                   write(*,*)'skipping ternary cationloop'
@@ -2286,6 +2289,55 @@
          enddo endmem2b
       enddo endmem1b
    enddo anion2
+!--------
+! skip next loop for the moment
+   goto 1000
+! combination of 2 different cations with same anion and a neutral
+! there are cation*anion endmembers (incl Va as anion), neutrals follow
+   neutral1=cation*anion+1
+   iva=ngg
+   write(*,*)'3Y ionliqgrid3: ',neutral1,ngg
+   recip: do lend=0,anion-1
+      catloop=lend*cation+1
+!      write(*,*)'3Y catloop: ',lend+1,cation,catloop,ngg
+! calculating "c g" followed by "c n" gives better result than "c e", why??
+! The reason was that I had forgotten to scale phase amounts with total moles
+      endmem1c: do iend=catloop,catloop+cation-2
+         endmem2c: do jend=iend,catloop+cation-1
+! now a neutral, 
+            endmem3c: do kend=neutral1,nend
+               if(.not.dense .and. cation.gt.breaks(3)) then
+                  write(*,*)'skipping ternary cationloop'
+                  cycle endmem3c
+               elseif(mode.eq.0) then
+                  write(*,480)'3Y cations: ',lend+1,iend,jend,kend,ngg
+480               format(a,10i5)
+               endif
+! mixing of cations with the same anion and a neutral
+               do jj=1,ncon
+                  yfra(jj)=yfc(1)*yendm(jj,iend)+yfc(2)*yendm(jj,jend)+&
+                       yfc(3)*yendm(jj,kend)
+               enddo
+               ngg=ngg+1
+               if(mode.eq.0) then
+                  call calc_gridpoint(iph,yfra,nrel,xarr(1,ngg),garr(ngg),ceq)
+                  if(gx%bmperr.ne.0) goto 1000
+                  if(garr(ngg).gt.gmax) gmax=garr(ngg)
+!                  if(mod(ngg,10000).eq.0) write(*,*)'Calculated ',ngg,&
+!                       ' gridpoints, more to go'
+!                  write(*,211)'3Y ny:',ngg,garr(ngg),(xarr(jj,ngg),jj=1,nrel)
+!                  write(*,212)'3Yy: ',(yfra(jj),jj=1,ncon)
+               elseif(ngg.eq.mode) then
+! when mode>0 we are searching for the constitution of a grid point
+! and we must know the yfra here!!
+                  goto 500
+               endif
+            enddo endmem3c
+         enddo endmem2c
+      enddo endmem1c
+   enddo recip
+   write(*,*)'3Y ionliqgrid7: ',neutral1,ngg,iva
+!
 !   write(*,*)'3Y Calculated points 2: ',ngg
 ! generate combinations of ternary anions if not done above
    goto 1000
@@ -4667,9 +4719,10 @@
 ! below the current equilibrium plane 
             global=.FALSE.
             if(notglobwarning1) then
-               write(kou,87)iph,(xarr(ngg,ifri),ngg=1,nrel)
-87             format(/' *** Equilibrium may not be global, phase ',&
-                    i3,' is stable with mole fractions:',(/2x,9F8.5))
+               write(kou,87)ceq%phase_varres(lokcs)%phtupx,&
+                    (xarr(ngg,ifri),ngg=1,nrel)
+87             format(/' *** Equilibrium not global, phasetuple ',&
+                    i3,' is stable with mole fractions:'/(2x,9F8.5))
                gx%bmperr=4352
                notglobwarning1=.FALSE.
             endif
