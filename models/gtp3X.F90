@@ -122,14 +122,14 @@
    double precision rtg,pyq,ymult,add1,sum,yionva,fsites,xxx
    integer nofc2,nprop,nsl,msl,lokdiseq,ll,id,id1,id2,lm,qz,floryhuggins
    integer lokfun,itp,nz,intlat,ic,jd,jk,ic1,jpr,ipy,i1,j1
-   integer i2,j2,ider,is,kk,ioff,norfc,iw,iw1,iw2,lprop,jonva
+   integer i2,j2,ider,is,kk,ioff,norfc,iw,iw1,iw2,lprop,jonva,icat
 ! storage for calculated Flopry Huggins volume parameters
    integer, dimension(:), allocatable :: fhlista
    double precision, dimension(:,:), allocatable :: fhv
    double precision, dimension(:,:,:), allocatable :: dfhv
    double precision, dimension(:,:), allocatable :: d2fhv
 ! to handle parameters with wildcard constituent and other things
-   logical wildc,nevertwice,first,chkperm,ionicliq,iliqsave,iliqva
+   logical wildc,nevertwice,first,chkperm,ionicliq,iliqsave,iliqva,iliqneut
 ! debugging for partitioning and ordering
 !   integer clist(4)
 ! calculate RT to normalize all Gibbs energies, ceq is current equilibrium
@@ -1062,7 +1062,7 @@
 ! composition dependent ternary interaction in same sublattice, Mats model
 ! PROBABLY ERRORS HERE as no consideration of derivatives wrt other endmember
 ! constituents, only to the 3 interacting
-! ALSO used to indicate derivatives wrt vacancies in ionic liquid model ???
+! ALSO used to indicate derivatives wrt vacancies in ionic liquid model ??? NO!
 !...<<<<<<<...... indentation back 2 levels
                   if(moded.gt.1) then
                      noindent1: do jk=1,3
@@ -1085,7 +1085,7 @@
                           phres%d2gval(ixsym(gz%iq(jk),gz%iq(jk)),ipy)+&
                           2.0D0*dpyq(gz%iq(jk))*dvals(1,gz%iq(jk))
                   enddo
-!...>>>>>>...........indentation back
+!...>>>>>>...........indentation forward
                      elseif(gz%iq(2).gt.0) then !cedex1
 ! gz%iq(2) nonzero means composition dependent binary interaction parameter,
 ! only RK yet.
@@ -1122,14 +1122,25 @@
 ! due to the vacancy fraction multiplied with the cations yc1*yc2*yva**2
 ! we are dealing with binary RK interactions, gz%intlevel=1, check if 
 ! interaction is in first sublattice (between cations) and vacancy in second
-                              if(iliqva .and. gz%intlat(1).eq.1 &
-                                   .and. jonva.gt.0) then
+                              if(iliqva .and. jonva.gt.0) then
+                                 if(gz%intlat(1).eq.1) then
 ! add pyq multipled with the derivative with respect to vacancy fraction
 ! This should be done for d2gval also but I skip that at present ...
-                                 phres%dgval(itp,jonva,ipy)=&
-                                      phres%dgval(itp,jonva,ipy)+&
-                                      pyq*dvals(itp,jonva)
+                                    phres%dgval(itp,jonva,ipy)=&
+                                         phres%dgval(itp,jonva,ipy)+&
+                                         pyq*dvals(itp,jonva)
 !                                 write(*,*)'3X jonva:',jonva,pyq,dvals(1,jonva)
+                                 elseif(gz%intlat(1).eq.2 .and. &
+                                      gz%iq(2).gt.jonva) then
+! This fixed the problem with Pd-Ru-Te in the fuel (+ fix in cgint)
+!                 write(*,55)'3X (C:Va,K)',iliqva,gz%intlat(1),jonva,gz%iq(1),&
+!                      gz%iq(2),gz%endcon(1),pyq,dvals(itp,gz%endcon(1))
+55               format(a,l2,5i3,4(1pe12.4))
+                                    icat=gz%endcon(1)
+                                    phres%dgval(itp,icat,ipy)=&
+                                         phres%dgval(itp,icat,ipy)+&
+                                         pyq*dvals(itp,icat)
+                                 endif
                               endif
                            endif
                         enddo
@@ -1934,12 +1945,14 @@
 ! temporary data like gz%intlevel, gz%nofc etc
    double precision d2vals(gz%nofc*(gz%nofc+1)/2),valtp(6)
    double precision vv(0:2),fvv(0:2)
-   integer lfun,jdeg,jint,qz,ivax
+   integer lfun,jdeg,jint,qz,ivax,icat
    double precision rtg,dx0,dx,dx1,dx2,ct,fvs,dvax0,dvax1,dvax2,yionva
    double precision ycat0,dcat1,dcat2,dyvan1,dyvan2
    double precision, parameter :: onethird=one/3.0D0,two=2.0D0
    logical ionicliq,iliqva,iliqneut
 ! zeroing 5 iq, and vals, dvals and d2vals
+!   write(*,*)'3X cgint 1:',gz%iq(1),gz%iq(2),gz%iq(3)
+! why zero qz%iq, it has been set before calling ...
    gz%iq=0
    vals=zero
    dvals=zero
@@ -2009,6 +2022,8 @@
       endif
 ! endmember fraction minus interaction fraction
       dx0=gz%yfrem(gz%intlat(1))-gz%yfrint(1)
+! ycat is one unless ionic liquid with vacancy-neutral interaction
+      ycat0=one
       if(ionicliq) then
          if(iliqva) then
 ! interaction between cations with vacancy on second sublattice
@@ -2021,7 +2036,8 @@
 65          format(a,2i3,6(1pe12.4))
          elseif(iliqneut) then
 ! interaction between vacancy and neutral in second sublattice
-!            dvax0=gz%yfrem(gz%intlat(1))
+! we must know the cation
+            icat=gz%endcon(1)
             ycat0=gz%yfrem(1)
 ! the fraction difference is between (y_cation * y_Va - y_neutral)
             dx0=gz%yfrem(1)*yionva-gz%yfrint(1)
@@ -2037,6 +2053,7 @@
       dvax2=zero
       dyvan1=one
       dyvan2=one
+!      write(*,*)'3X cgint 2:',gz%iq(1),gz%iq(2),gz%iq(3),icat
 !      write(*,*)'3X c1bug: ',ionicliq,iliqva,iliqneut
 ! special for ionic liquid: when two cation interacts with Va in second
 ! sublattice the vacancy fraction is raised by power 2
@@ -2060,7 +2077,7 @@
 ! For interactions between Va and neutral in ionic liguid a power of yionva
 ! is required for the cation derivative as we have (y_cation*yionva-y_neutral)
 ! In all other cases dyvan1=unity
-               dvals(qz,gz%iq(1))=dvals(qz,gz%iq(1))+dyvan1*dx1*valtp(qz)
+               dvals(qz,gz%iq(1))=dvals(qz,gz%iq(1))+ycat0*dx1*valtp(qz)
                dvals(qz,gz%iq(2))=dvals(qz,gz%iq(2))-dx1*valtp(qz)
 ! The handling of ionic liquid parameter derivatives can be simplified ...
                if(iliqva) then
@@ -2068,9 +2085,12 @@
                   dvals(qz,ivax)=dvals(qz,ivax)+dvax1*valtp(qz)
 !                  if(qz.eq.1) write(*,11)'3X iliqva: ',0,0,ivax,dvax1
               elseif(iliqneut) then
-! derivative with respect to vacancy fraction for (yc1*yva-yn):
-! multiply with a power of y_cation
-                  dvals(qz,ivax)=dvals(qz,ivax)+dcat1*dx1*valtp(qz)
+! derivative with respect to cation (yc1*yva-yn):
+! multiply with a power of y_Va
+                  dvals(qz,icat)=dvals(qz,icat)+yionva*dx1*valtp(qz)
+!                write(*,19)'3X mess:',qz,gz%iq(1),gz%iq(2),icat,yionva,ycat0,&
+!                       valtp(qz),dx1
+19                format(a,4i3,6(1pe12.4))
                endif
             enddo
 ! second derivatives, d2G/dyAdyA d2G/dyAdyB d2G/dyBdyB

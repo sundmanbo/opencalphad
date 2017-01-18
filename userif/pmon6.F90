@@ -1111,13 +1111,13 @@ contains
 ! we should write phase tuples ...
           write(kou,2102)nv,(iphl(j1),icsl(j1),j1=1,nv)
 2102      format('Number of stable phases ',i2/13(i4,i2))
-! we must multiply the amount of the stable phases with totam
+! In some cases "c n" converges better if we scale with the total amount here
           do j1=1,nv
              call get_phase_compset(iphl(j1),icsl(j1),lokph,lokcs)
              ceq%phase_varres(lokcs)%amfu=totam*ceq%phase_varres(lokcs)%amfu
           enddo
-! clear this bit so we can list the equilibrium
-          ceq%status=ibclr(ceq%status,EQNOEQCAL)
+! if set clear this bit so we can list the equilibrium
+          if(btest(ceq%status,EQNOEQCAL)) ceq%status=ibclr(ceq%status,EQNOEQCAL)
 !2103      format('Stable phase ',2i4,': ',a)
 !---------------------------------------------------------------
        case(7) ! calculate symbol
@@ -3235,8 +3235,14 @@ contains
              endif
           endif
 ! also list the bibliography
+          write(kou,*)
           call list_bibliography(' ',kou)
           write(kou,*)
+          if(firsteq%multiuse.ne.0) then
+             write(*,8221)
+8221         format(/' *** There were warnings from reading the database'/&
+                  ' *** If you run a macro file please scroll back and check!'/)
+          endif
 !-----------------------------------------------------------
 !8300      continue
        case(3) ! read quit
@@ -3842,13 +3848,14 @@ contains
              write(kou,*)'Previous results removed'
 ! delete equilibria associated with STEP/MAP
              call delete_equilibria('_MAP*',ceq)
+             seqxyz=0
           else
+             seqxyz(1)=maptop%next%seqx
+             seqxyz(2)=maptop%seqy
              maptopsave=>maptop
              nullify(maptop)
-             write(kou,*)'Previous results kept'
+!             write(kou,*)'Previous results kept'
           endif
-! this should preferably be done directly after map/step, but kept for debug
-!          call delete_equilibria('_MAP*',ceq)
        endif
        kom2=submenu('Options?',cline,last,cstepop,nstepop,1)
        SELECT CASE(kom2)
@@ -3870,7 +3877,9 @@ contains
           if(associated(maptop)) then
              write(*,*)'Deleting previous step/map results missing'
           endif
-          seqxyz=0
+! seqzyz are initial values for creating equilibria for lines and nodes
+! if previous results should be kept it should not be zeroed, see above
+!          seqxyz=0
           call map_setup(maptop,noofaxis,axarr,seqxyz,starteq)
 ! mark that interactive listing of conditions and results may be inconsistent
           ceq%status=ibset(ceq%status,EQINCON)
@@ -3894,7 +3903,7 @@ contains
           if(associated(maptop)) then
              write(*,*)'Deleting previous step/map results missing'
           endif
-          seqxyz=0
+!          seqxyz=0
           call step_separate(maptop,noofaxis,axarr,seqxyz,starteq)
 ! mark that interactive listing of conditions and results may be inconsistent
           ceq%status=ibset(ceq%status,EQINCON)

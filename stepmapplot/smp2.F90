@@ -985,7 +985,7 @@ CONTAINS
     mapnode%tpval=ceq%tpval
     mapnode%nodeceq=>ceq
 !-----------------------------------------------------------------------
-    if(ocv()) write(*,*)'allocating lineheads: ',ieq
+    if(ocv()) write(*,*)'allocating lineheads: ',ieq,maptop%seqy
     allocate(mapnode%linehead(ieq))
 ! we can have 3 or more exits if starting inside a 3 phase triagle for isotherm
     if(ieq.eq.2) then
@@ -4762,7 +4762,7 @@ CONTAINS
     integer giveup,nax,ikol,maxanp,lcolor,lhpos,repeat,anpdim,qp
     character date*8,mdate*12,title*128,backslash*2,lineheader*1024
     character deftitle*128,labelkey*64
-    logical overflow,first,last,novalues,selectph,varofun
+    logical overflow,first,last,novalues,selectph,varofun,moretops
 ! textlabels
     type(graphics_textlabel), pointer :: textlabel
 ! line identification (title)
@@ -4774,6 +4774,7 @@ CONTAINS
        call ocplot3(ndx,pltax,filename,maptop,axarr,graphopt,pform,ceq)
        goto 1000
     endif
+    moretops=.FALSE.
     seqx=0
     call date_and_time(date)
     mdate=" "//date(1:4)//'-'//date(5:6)//'-'//date(7:8)//" "
@@ -5330,7 +5331,10 @@ CONTAINS
        overflow=.FALSE.
 ! but we may have another maptop !!
        if(associated(localtop%plotlink)) then
-          write(*,*)'One more maptop record'
+          if(.not.moretops) then
+             write(*,*)'More than one maptop record'
+             moretops=.true.
+          endif
           localtop=>localtop%plotlink
           goto 77
        endif

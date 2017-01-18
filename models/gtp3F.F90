@@ -2464,7 +2464,7 @@
       call calcg_endmember(indices(1),endmember,gref,ceq)
       if(gx%bmperr.ne.0) goto 1000
       value=value-gref*ceq%rtn
-      write(*,511)'3F refstate: ',endmember(1),indices(1),gref,value
+!      write(*,511)'3F refstate: ',endmember(1),indices(1),gref,value
 511   format(a,2i3,6(1pe14.6))
 ! possibly convert to AC or LNAC
       goto 700

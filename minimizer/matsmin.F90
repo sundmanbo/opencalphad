@@ -4741,12 +4741,12 @@ CONTAINS
 ! invert the phase matrix (faster routine should be used) IONIC LIQUID MODEL
        call mdinv(nd1,nd2,pmat,pmi%invmat,nd1,ierr)
        if(ierr.eq.0) then
-          write(*,*)'Numeric problem 2, phase/set: ',iph,ics
+!          write(*,*)'Numeric problem 2, phase/set: ',iph,ics
           write(*,*)'Phase matrix singular 2:',pmi%iph,pmi%ics,pmi%ncc,ierr
           gx%bmperr=4205; goto 1000
        endif
 !       do ll=1,nd1
-!          write(*,17)'pinv: ',(pmi%invmat(ll,ik),ik=1,nd1)
+!          write(*,17)'pinv: ',(pmi%mat(ll,ik),ik=1,nd1)
 !       enddo
 ! maybe some common ending
        goto 900

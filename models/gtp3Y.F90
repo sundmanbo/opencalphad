@@ -396,7 +396,7 @@
    nvsph=nrel
    nr=nvsph
 !   if(.not.btest(globaldata%status,GSNOMERGE)) then
-! will only merge the gas phase
+! will only merge grid points in the gas phase
       call merge_gridpoints(nr,iphl,aphl,nyphl,yphl,trace,nrel,xsol,cmu,ceq)
       if(gx%bmperr.ne.0) goto 1000
 !   endif
@@ -562,9 +562,16 @@
 ! PROBLEM for use in CEA with 15 elements, one stable phase disappear ...
 ! use extract_massbalcond ???
    call extract_massbalcond(ceq%tpval,xdum,totam,ceq)
+   if(gx%bmperr.ne.0) goto 1000
+   sum=zero
+   do iph=1,nvsph
+      sum=sum+aphl(iph)
+   enddo
+   gmax=zero
+! If there is a gas nvsph may be less than number of elements
    ceqstore: do iph=1,nvsph
       if(iphl(iph).lt.0) then
-! this gripoint has no composition set, too many gridpoints in same phase
+! this gripoint has no composition set because too many gridpoints in same phase
 !         write(*,*)'3Y Gridpoint ',iph,' not entered as composition set'
          starttup(iph)=0
          continue
@@ -574,23 +581,30 @@
 !         write(*,1788)'3Y gg: ',iph,iphl(iph),icsl(iph),aphl(iph),&
 !              (yphl(j1+ie),ie=0,3),qq(1)
 1788  format(a,3i3,f8.4,2x,4f8.4,1pe10.2)
-! aphl(iph) is amount of phase per mole component
          call get_phase_compset(iphl(iph),icsl(iph),lokph,lokcs)
-! Here aphl is divided with the number of mole of atoms in the phase
-!      if(ceq%phase_varres(lokcs)%abnorm(1).ge.one) then
-!         aphl(iph)=aphl(iph)/ceq%phase_varres(lokcs)%abnorm(1)
-!      endif
-!      write(*,1812)iph,lokcs,aphl(iph),ceq%phase_varres(lokcs)%abnorm(1)
-1812  format('3Y aphl: ',2i3,6(1pe12.4))
+         if(gx%bmperr.ne.0) goto 1000
+! aphl(iph) is amount of phase per mole component assumin 1 mole atoms
+! Problems calculating equilibrium in a 15 component nuclear fuel
+! When the total amount of components >1 it seems work better when
+! scaling with the total amount, gridminimizer assumes total 1 atom.
+!         if(totam.gt.one) then
+!            amount=totam*aphl(iph)
+!         else
+!            amount=aphl(iph)
+!         endif
+! Using the scaling above for aphl created havoc for the parallel2 macro
+! using the one below the La-rich C1_MO2 phase disappears SUCK
+! one should not divide by abnorm(1) but it seems to work better ....
+!         amount=totam*aphl(iph)/ceq%phase_varres(lokcs)%abnorm(1)
+!         amount=totam*aphl(iph)
+!         amount=aphl(iph)
+         amount=aphl(iph)/ceq%phase_varres(lokcs)%abnorm(1)
+         gmax=gmax+amount
 !
-! Problems when calculating a nuclear fuel as the number
-! of atoms/formula unit varied a lot even for the same phase
-! To fix that I multiplied the phase amount with TOTAM calculated above
-         aphl(iph)=totam*aphl(iph)/ceq%phase_varres(lokcs)%abnorm(1)
-!
-!      write(*,1789)'3Y aphl: ',iph,lokcs,aphl(iph),&
-!           ceq%phase_varres(lokcs)%abnorm(1)
-1789     format(a,2i3,2(1pe12.4))
+!         write(*,1789)'3Y aphl: ',iph,lokcs,totam,&
+!              ceq%phase_varres(lokcs)%abnorm(1),aphl(iph),amount
+         aphl(iph)=amount
+1789     format(a,2i4,5(1pe12.4))
          ceq%phase_varres(lokcs)%amfu=aphl(iph)
          ceq%phase_varres(lokcs)%phstate=PHENTSTAB
          starttup(iph)=ceq%phase_varres(lokcs)%phtupx
@@ -598,6 +612,8 @@
          j1=j1+nyphl(iph)
       endif
    enddo ceqstore
+! Here sum should be unity, totam total moles of atoms and gmax sum of aphl
+!   write(*,*)'3Y totam: ',totam,sum,gmax
 !-----------------------------------------------------------------------
 ! debug listing of tuples at gridpoints
 !   write(*,1411)(starttup(iph),iph=1,nvsph)

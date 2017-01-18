@@ -18,6 +18,11 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2016.01.17 Fixed a bug calculating ionic liquid with interactions
+between vacancies and neutrals and another bug that one could not use
+STEP several times to have several curves.  Some fixes when reading
+the TDB files also.
+
 2016.01.09 Many small and large changes.  Reading TDB files has been
 improved so it handles some more TYPE_DEFS and also parameters for
 neutrals in the ionic liquid model and phases with a disordered phase

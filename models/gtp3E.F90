@@ -3246,7 +3246,7 @@
    endif
    if(.not.nophase .and. keyw.ne.4) then
 ! after a PHASE keyword one should have a CONSTITUENT
-      if(.not.silent) write(kou,*)'expeciting CONSTITUENT: ',line(1:30)
+      if(.not.silent) write(kou,*)'WARNING expeciting CONSTITUENT: ',line(1:30)
       warning=.TRUE.
    endif
 ! check there is a ! in line, otherwise read until we find an exclamation mark
@@ -3358,7 +3358,8 @@
       name1(jp:)=' '
       ip=ip+jp
       if(eolch(longline,ip)) then
-         if(.not.silent) write(kou,*)'No stoichiometry for species: ',name1
+         if(.not.silent) write(kou,*)'WARNING No stoichiometry for species: ',&
+              trim(name1)
          warning=.TRUE.
          goto 100
       endif
@@ -3492,7 +3493,7 @@
 ! skip blanks, then read type code, finished by a blank
       if(eolch(longline,jp)) then
          if(.not.silent) &
-              write(kou,*)'3E no phase typecode: ',name1(1:len_trim(name1))
+              write(kou,*)'3E WARNING no phase typecode: ',trim(name1)
          warning=.TRUE.
       endif
       jp=jp-1
@@ -3648,15 +3649,16 @@
          if(gx%bmperr.ne.0) then
 ! NOTE THE ORDERED PHASE MAY NOT BE ENTERED DUE TO COMPONENTS!!
             if(.not.silent) write(kou,396)thisdis,ordpartph(thisdis)
-396         format('3E Disordered phase skipped as no ordered: ',i3,' "',a,'"')
+396         format('3E WARNING disordered phase skipped: ',i3,' "',a,'"')
             warning=.TRUE.
             gx%bmperr=0
             goto 100
          else
             if(.not.silent) write(kou,*) &
-               '3E Adding disordered fraction set to: ',trim(ordpartph(thisdis))
+               '3E Adding disordered fraction set to: ',&
+               trim(ordpartph(thisdis)),orddistyp(thisdis)
          endif
-! we are creating the phase, there is only one composition set
+! we are creating the phase, there is only one composition set, iph is ordered
          call get_phase_compset(iph,1,lokph,lokcs)
          if(gx%bmperr.ne.0) goto 1000
 ! ch1 is suffix for parameters, always D
@@ -3668,6 +3670,9 @@
             jl=1
             if(phlista(lokph)%noofsubl.le.5) nd1=4
             if(phlista(lokph)%noofsubl.le.3) nd1=2
+            if(.not.silent) write(kou,397) trim(ordpartph(thisdis)),nd1
+397         format('3E Phase ',a,' has an order/disorder partition model',&
+                 ' summing first ',i2)
          else
             jl=0
             nd1=phlista(lokph)%noofsubl
@@ -3689,10 +3694,7 @@
 ! if disordred phase is FCC, BCC or HCP then set jl=1 and nd1 to 2 or 4
             if(phlista(lokph)%noofsubl.le.5) nd1=4
             if(phlista(lokph)%noofsubl.le.3) nd1=2
-            if(.not.silent) write(kou,397) &
-                 ordpartph(thisdis)(1:len_trim(ordpartph(thisdis))),nd1
-397         format('3E Phase ',a,&
-                 ' has an order/disorder partition model summing first ',i2)
+            if(.not.silent) write(kou,397) trim(ordpartph(thisdis)),nd1
             jl=1
          elseif(dispartph(thisdis)(1:4).eq.'DIS_') then
 ! disordered part of sigma, mu etc.
@@ -3702,8 +3704,7 @@
          else
 ! probably disordered part of sigma, mu etc.
             jl=0; nd1=phlista(lokph)%noofsubl
-            write(kou,495)trim(ordpartph(thisdis)),nd1
-495         format('3E  Adding disordered phase: ',a,' summing all ',i3)
+            write(kou,493)trim(ordpartph(thisdis)),nd1
          endif
 !------------- code above is redundant
 402      continue
@@ -3727,8 +3728,8 @@
          else
             xxx=one
          endif
-         if(.not.silent) write(kou,601) &
-              dispartph(thisdis)(1:len_trim(dispartph(thisdis))),ch1,nd1,jl,xxx
+!         if(.not.silent) write(kou,601) &
+!              dispartph(thisdis)(1:len_trim(dispartph(thisdis))),ch1,nd1,jl,xxx
 601      format('3E Add parameters from disordered part: ',a,5x,a,2x,2i3,F12.4)
       else
          call enter_phase(name1,nsl,knr,const,stoik,name2,phtype)
@@ -3806,7 +3807,7 @@
          call get_parameter_typty(name1,lokph,typty,fractyp)
          if(gx%bmperr.ne.0) then
             if(.not.silent) write(kou,*) &
-            ' *** Illegal parameter identifier, ",trim(psym1)," on line: ',nl
+            ' *** WARNING parameter identifier, ",trim(psym1)," on line: ',nl
             gx%bmperr=0; typty=0
             warning=.TRUE.
          endif
@@ -3858,7 +3859,7 @@
       lp1=index(name4,')')
       if(lp1.le.0) then
          if(.not.silent) write(kou,*) &
-              'Possible error in constituent array? ',name4,', line:',nl
+              '3E WARNING error in constituent array? ',name4,', line:',nl
          warning=.TRUE.
          goto 100
       else
@@ -4006,19 +4007,22 @@
 407      format(a,3i5)
          if(gx%bmperr.ne.0) then
 ! error entering parameter, not fatal
-            if(dodis.eq.1 .and. .not.silent) &
-                 write(*,408)'3E parameter warning:',gx%bmperr,nl,&
-                 funname(1:40)
-408         format(a,i6,' line ',i5,': ',a)
+!            if(dodis.eq.1 .and. .not.silent) &
+!                 write(*,408)'3E parameter warning:',gx%bmperr,nl,&
+!                 funname(1:40)
+!408         format(a,i6,' line ',i5,': ',a)
             if(.not.(gx%bmperr.ne.4096 .or. gx%bmperr.ne.4066)) goto 1000
 ! ignore error 4096 meaning "no such constituent" or "... in a sublattice"
 !            write(*,*)'readtdb entparerr: ',gx%bmperr,' >',&
 !                 funname(1:len_trim(funname))
-            if(gx%bmperr.eq.7778 .and. .not.silent) &
-                 write(*,*)'3E Error 7778 at line: ',nl
+! error 4154 means missing reference
+            if(gx%bmperr.ne.4154 .and. .not.silent) then
+               write(*,409)gx%bmperr,nl
+409            format('3E WARNING for parameter ',i6,' at line: ',i7,&
+                    ', continuing')
+               warning=.TRUE.
+            endif
             gx%bmperr=0
-!         elseif(dodis.eq.1) then
-!            write(*,*)'Disordered parameter should be entered ok'
          endif
       endif
       if(gx%bmperr.ne.0 .and. .not.silent) write(*,*)'3E error 1: ',gx%bmperr
@@ -4087,7 +4091,7 @@
 !               if(ip.le.0) ip=1
                dispartph(disparttc)(ip:)=' '
                if(.not.silent) write(kou,82) &
-                    disparttc,trim(ordpartph(disparttc)),&
+                    orddistyp(disparttc),trim(ordpartph(disparttc)),&
                     trim(dispartph(disparttc))
 82             format('3E Found a type_def DIS_PART:',i2,' with ',a,' and ',a)
 ! if the disordered part phase already entered give advice
@@ -4113,7 +4117,7 @@
                   typedefaction(nytypedef)=99
                   if(.not.silent) &
                        write(kou,87)nl,longline(1:min(78,len_trim(longline)))
-87                format('3E Skipping this TYPE_DEFINITION on line ',i5,':'/a)
+87                format('3E WARNING TYPE_DEFINITION ignored on line ',i5,':'/a)
                   warning=.TRUE.
 !               write(*,*)' WARNING SET TRUE <<<<<<<<<<<<<<<<<<<<<<<<<<<'
                endif
@@ -4194,7 +4198,7 @@
 !----------------------------------------------------------------
    case(10) ! ASSESSED_SYSTEMS
       if(.not.silent) write(kou,*) &
-           'Cannot handle ASSESSED_SYSTEMS ending at ',nl
+           '3E cannot handle ASSESSED_SYSTEMS ending at ',nl
 !      warning=.TRUE.
 ! skip lines until !
       do while(index(line,'!').le.0)
@@ -4204,7 +4208,7 @@
       enddo
 !------------------------------------------------------------------
    case(11) ! DATABASE_INFORMATION
-      if(.not.silent) write(kou,*)'Cannot handle DATABASE_INFORMATION at ',nl
+      if(.not.silent) write(kou,*)'3E Cannot handle DATABASE_INFORMATION at ',nl
 !      warning=.TRUE.
 ! skip lines until !
       do while(index(line,'!').le.0)
@@ -4241,7 +4245,7 @@
          nl=nl+1
          call replacetab(line,nl)
       enddo
-! replace - by _
+! replace - by _  ... can be dangerous for electrons /-
 790   continue
       ip=index(line,'-')
       if(ip.gt.0) then
@@ -4267,11 +4271,12 @@
             endif
          endif
          goto 793
-      elseif(line(nextc:nextc+6).eq.'DEF_SYS ') then
-! ignore
+      elseif(name1(1:7).eq.'DEF_SYS' .or. &
+           name1(1:13).eq.'DEFINE_SYSTEM') then
+! ignore default define_system... as, Va and /- are always entered by default
          continue
       else
-         write(*,*)'3E ignoring default command: ',trim(line)
+         write(*,*)'3E WARNING: ignoring default command: ',trim(name1)
       endif
 794   continue
    end select
@@ -4397,7 +4402,13 @@
           3(i4,'/',i4,1x)/&
           'state variable functions, references, additions: ',&
           3(i4,'/',i4,1x)/)
+! a special warning message as it may be scrolled away by all references
+!   write(*,*)'Any warnings?',warning
+! nonzero multiuse will prompt a warning in the monitor
+   firsteq%multiuse=0
+   if(gx%bmperr.eq.0 .and. warning) firsteq%multiuse=-1
    return
+!------------------------------------------------------
 1010 continue
    if(.not.silent) write(kou,*)'I/O error opening file: ',gx%bmperr
    return
@@ -5079,7 +5090,7 @@
                  ' like sigma, mu etc')
             jl=0; nd1=phlista(lokph)%noofsubl
          endif
-         if(jl.eq.0 .and. .not.silent) write(kou,398)trim(ordpartph(thisdis))
+!         if(jl.eq.0 .and. .not.silent) write(kou,398)trim(ordpartph(thisdis))
 398      format(' Assuming that phase ',a,' cannot completely disorder')
 ! add DIS_PART from TDB
          call add_fraction_set(iph,ch1,nd1,jl)
@@ -5099,8 +5110,8 @@
          else
             xxx=one
          endif
-         if(.not.silent) write(kou,601) &
-              dispartph(thisdis)(1:len_trim(dispartph(thisdis))),ch1,nd1,jl,xxx
+!         if(.not.silent) write(kou,601) &
+!              dispartph(thisdis)(1:len_trim(dispartph(thisdis))),ch1,nd1,jl,xxx
 601      format('3E Add parameters from disordered part: ',a,5x,a,2x,2i3,F12.4)
       else
 !--- ENTER PHASE with constituents and model.  Modelcode is CEF etc
