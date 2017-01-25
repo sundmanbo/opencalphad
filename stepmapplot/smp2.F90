@@ -402,6 +402,11 @@ CONTAINS
     call calceq7(mode,meqrec,mapfix,ceq)
 !    write(*,*)'Back from calceq7 ',gx%bmperr
     if(gx%bmperr.ne.0) then
+! error 4187 is to set T or P to less than 0.1
+       if(gx%bmperr.eq.4187) then
+          write(*,*)'We are here 1'
+          goto 306
+       endif
        if(mapline%number_of_equilibria.eq.0) then
 ! We can add/subtract a small amount of axis condition if error at first step
 !          write(*,*)'Error at first equilibrium: ',gx%bmperr,mapline%axandir
@@ -499,6 +504,13 @@ CONTAINS
 !    call list_conditions(kou,ceq)
 !
     call meq_sameset(irem,iadd,mapline%meqrec,mapline%meqrec%phr,inmap,ceq)
+    if(gx%bmperr.ne.0) then
+       write(*,*)'Error in meq_sameset called from smp',gx%bmperr
+!       goto 1000
+! check if there are more lines
+       gx%bmperr=0
+       goto 805
+    endif
 !    write(*,323)'Calc line: ',gx%bmperr,irem,iadd,mapline%axandir,&
 !         mapline%meqrec%noofits,mapline%meqrec%nstph,ceq%tpval(1)
     if(ocv())write(*,323)'Calc line: ',gx%bmperr,irem,iadd,mapline%axandir,&
@@ -1891,7 +1903,9 @@ CONTAINS
 !    iadd=-1
     if(ocv()) write(*,*)'Map_changeaxis call meq_sameset, T=',ceq%tpval(1)
     call meq_sameset(irem,iadd,mapline%meqrec,mapline%meqrec%phr,inmap,ceq)
-!    if(gx%bmperr.ne.0) then
+    if(gx%bmperr.ne.0) then
+       write(*,*)'Error from meq_sameset when trying to change axis',gx%bmperr
+    endif
 !       ierr=gx%bmperr; gx%bmperr=0
 !       write(*,*)'Error trying to change axis: ',ierr
 !       call list_conditions(kou,ceq)
@@ -2650,7 +2664,8 @@ CONTAINS
 ! the previous calculated equilibrium
     if(gx%bmperr.ne.0) then
        if(ocv()) write(*,*)'Error trying to calculate a node point',gx%bmperr
-    elseif(irem.gt.0) then
+       if(gx%bmperr.eq.4187) goto 1000
+   elseif(irem.gt.0) then
        if(ocv()) write(*,*)'Another phase wants to disappear',irem
        gx%bmperr=4222
     elseif(iadd.gt.0) then
@@ -2678,11 +2693,11 @@ CONTAINS
 !    write(*,54)'Error calculating node point? ',gx%bmperr,mapline%lasterr,&
 !         irem,iadd,phfix,pcond%statev,mapline%problems,axval
 54  format(a,2i5,5i3,1pe12.4)
-    if(maptop%tieline_inplane.gt.0) then
+!    if(maptop%tieline_inplane.gt.0) then
 ! if <0 isopleth, 0 step, >0 tie-lines in plane
 !       write(*,*)'Tie-lines in plane:'
 ! if T axis maybe change to extensive axis ...
-    endif
+!    endif
     if(ocv()) write(*,*)'Error calculating node point, take shorter step'
     pcond%active=0
     pcond%prescribed=axval
@@ -6683,7 +6698,6 @@ CONTAINS
 ! set default constitution, if none specified in the middle
 !          iph=entphcs(itup)%phaseix
           iph=entphcs(itup)%ixphase
-!          call set_default_constitution(entphcs(itup)%phaseix,&
           call set_default_constitution(entphcs(itup)%ixphase,&
                entphcs(itup)%compset,ceq)
           if(gx%bmperr.ne.0) then
@@ -6691,14 +6705,17 @@ CONTAINS
              goto 500
           endif
 ! set phase as entered
-!          write(*,*)'Set phase entered ',itup,entphcs(itup)%phase
-!          call change_phase_status(entphcs(itup)%phaseix,&
+!          write(*,*)'Set phase stable ',itup,entphcs(itup)%phase
           call change_phase_status(entphcs(itup)%ixphase,&
-               entphcs(itup)%compset,0,one,ceq)
+               entphcs(itup)%compset,1,one,ceq)
+!               entphcs(itup)%compset,0,one,ceq)
           if(gx%bmperr.ne.0) then
              write(*,*)'Failed setting phase entered',gx%bmperr
              goto 500
           endif
+! debug listing of phase constitution to check
+!          call list_phase_model(entphcs(itup)%ixphase,entphcs(itup)%compset,&
+!               kou,ceq)
 ! here we should set the condition for overall composition to that of the phase
 ! Extract the current value of the axis state variable items using pcond
 !          write(*,*)'Extracting axis condition value '
@@ -6706,11 +6723,9 @@ CONTAINS
 !          write(*,*)'Locating condition ',seqz
           call locate_condition(seqz,pcond,ceq)
           if(gx%bmperr.ne.0) goto 500
-!          call condition_value(1,pcond,zzz,ceq)
-!          if(gx%bmperr.ne.0) goto 500
-          svr=>pcond%statvar(1)
 ! if condition is a composition set it to be the current value with the
 ! default composition of the phase, 17 is mole fraction
+          svr=>pcond%statvar(1)
           if(svr%statevarid.eq.17) then
 ! this call calculates the value of the axis condition with default composition
              call state_variable_val(svr,val,ceq)
@@ -6757,7 +6772,8 @@ CONTAINS
 !                goto 500
 !----------------
              endif
-             if(ocv()) write(*,73)name(1:len_trim(name)),val
+!             if(ocv()) write(*,73)name(1:len_trim(name)),val
+             write(*,73)name(1:len_trim(name)),val
 73           format(/'Setting start condition for ',a,f10.5)
 ! first argument 1 means to extract the value, 0 means to set the value
              call condition_value(0,pcond,val,ceq)
@@ -6805,6 +6821,11 @@ CONTAINS
 !          write(*,*)'Calling calceq7'
           call calceq7(mode,meqrec,mapfix,ceq)
           if(gx%bmperr.ne.0) then
+! error 4187 is to set T or P less than 0.1
+             if(gx%bmperr.eq.4187) then
+                write(*,*)'We jump to 333'
+                goto 333
+             endif
              if(mapline%number_of_equilibria.eq.0) then
 ! We can add/subtract a small amount of axis condition if error at first step
                 write(*,*)'Error at first equilibrium: ',gx%bmperr,&

@@ -5279,6 +5279,7 @@
    allocate(yarr(phlista(lokph)%tnooffr))
    if(btest(cset%status2,CSDEFCON)) then
 ! there is a preset default constitution
+!      write(*,12)'3Y mmfy: ',(cset%mmyfr(kk),kk=1,phlista(lokph)%tnooffr)
       kk=0
       subl1: do ll=1,phlista(lokph)%noofsubl
          kk0=kk
@@ -5297,7 +5298,6 @@
             kk=kk0
 ! the sum of fractions should be unity, hm done in set_constitution also ...
             do jj=1,phlista(lokph)%nooffr(ll)
-! mmy(kk) is negative for small fractions with a maxium, set to 0.01
                kk=kk+1
                yarr(kk)=yarr(kk)/sum
             enddo
@@ -5307,9 +5307,12 @@
             yarr(kk)=one
          endif
       enddo subl1
+!      write(*,12)'3Y defy: ',(yarr(kk),kk=1,phlista(lokph)%tnooffr)
+12    format(a,10F6.3)
    else
 ! there is no default constitution, set equal amount of all fractions
 ! with some randomness
+!      write(*,*)'3Y No default constituition for: ',iph,ics
       kk=0
       subl2: do ll=1,phlista(lokph)%noofsubl
          if(phlista(lokph)%nooffr(ll).gt.1) then

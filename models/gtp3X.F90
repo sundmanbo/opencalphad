@@ -962,22 +962,16 @@
 !               write(*,218)'3X pyq: ',associated(proprec),ymult,pyq
 218            format(a,l,2(1pe12.4))
 ! list values of pyq, dpyg, d2pyg
-!               write(*,228)'3X pyq  :',pyq
-!               write(*,228)'3X dpyq :',dpyq
-!               write(*,228)'3X d2pyq 5:',d2pyq
+!               write(*,228)'3X pyq:',pyq
+!               write(*,228)'3X dpy:',dpyq
+!               write(*,228)'3X d2py:',d2pyq
 219            format(a,6(1pe12.4))
-! test, set correct d2pyq for test case ... hbug6.OCM
-!               d2pyq=zero
-!               d2pyq(2)=0.04
-!               d2pyq(7)=0.16
-!               d2pyq(8)=0.24
-!               d2pyq(10)=0.48
-!               write(*,228)'3X d2pyq 6:',d2pyq
 !..............................
                intprop: do while(associated(proprec))
 ! calculate interaction parameter, can depend on composition
                   call cgint(lokph,proprec,moded,vals,dvals,d2vals,gz,ceq)
                   if(gx%bmperr.ne.0) goto 1000
+!                  write(*,228)'3X val:',vals(1),(dvals(1,id),id=1,gz%nofc)
 ! G parameters (ipy=1) are divided by RT inside cgint
                   typty=proprec%proptype
                   if(typty.ne.1) then
@@ -1284,7 +1278,7 @@
             goto 110
          else
 ! We have now calculated the 4SL model both as original and disordered
-! We should now subreact the disordered from the ordered
+! We should now subtract the disordered from the ordered
 ! this is debug output
 !            do i1=1,gz%nofc
 !               write(*,602)'3X G4x: ',i1,phres%dgval(1,i1,1),savedg(1,i1,1)
@@ -1300,7 +1294,13 @@
                nz=fracset%tnoofxfr
                allocate(tmpd2g(nz*(nz+1)/2,nprop))
                tmpd2g=zero
-! DEBUG, problem with partitioning 4 sublattice FeNi: 
+               if(nsl.gt.3) goto 666
+! for 4 sublattice model just ignore the 2nd derivatives from the ordered
+! phase calculated as disordered ...
+! BEWARE use dense grid!
+! ****************** probable BUG here with 2nd derivatives of ordered FCC
+! But this is necessary for 2 sublattice ordered model !! ??
+! DEBUG, problem with partitioning
 !               write(*,613)'3X sub: ',nz,gz%nofc,fracset%latd,fracset%y2x
 !613            format(a,3i3,2x,20i3)
 !               write(*,614)'3X dxi/dyj: ',fracset%dxidyj
@@ -1315,9 +1315,32 @@
                      enddo
                   enddo
                enddo
+! phres%d2gval(ixsym(i1,i2),ipy) is 2nd derivatives of the orderd part
+! calculated with the same fractions in all sublattices.
+!               write(*,603)'3X d2Gord(x)/dy1/dy2: ',nz,tmpd2g(1,1),&
+!                    tmpd2g(2,1),tmpd2g(3,1)
+603            format(a,i3,6(1pe12.4))
 ! tmpd2g is now d2G/dxidxj calculated with disordered fractions
 ! subract that from saved d2G/dyidyj saved in saved2g taking into account
 ! the derivatives dxi/dyj (in fracset%dxidyj)
+666            continue
+! original
+!               do ipy=1,lprop-1
+!                  do i1=1,gz%nofc
+!                     j1=fracset%y2x(i1)
+!                     do i2=i1,gz%nofc
+! subtract from saved value
+!                        j2=fracset%y2x(i2)
+!                        phres%d2gval(ixsym(i1,i2),ipy)=&
+!                             saved2g(ixsym(i1,i2),ipy)
+! just ignore contribution to 2nd derivatives from ordered calc as disordered??
+!                             saved2g(ixsym(i1,i2),ipy)-&
+!                             tmpd2g(ixsym(j1,j2),ipy)*&
+!                             fracset%dxidyj(i1)*fracset%dxidyj(i2)
+!                     enddo
+!                  enddo
+!               enddo
+! subreact dirctly the corresponding d2G/dy1/dy2
                do ipy=1,lprop-1
                   do i1=1,gz%nofc
                      j1=fracset%y2x(i1)
@@ -1326,12 +1349,14 @@
                         j2=fracset%y2x(i2)
                         phres%d2gval(ixsym(i1,i2),ipy)=&
                              saved2g(ixsym(i1,i2),ipy)-&
-                             tmpd2g(ixsym(j1,j2),ipy)*&
-                             fracset%dxidyj(i1)*fracset%dxidyj(i2)
+                             phres%d2gval(ixsym(i1,i2),ipy)
+! maybe not needed ??
+!                             phres%d2gval(ixsym(i1,i2),ipy)*&
+!                             fracset%dxidyj(i1)*fracset%dxidyj(i2)
                      enddo
                   enddo
                enddo
-               deallocate(tmpd2g)
+               if(allocated(tmpd2g)) deallocate(tmpd2g)
             endif noder6A
 !---------------------
 ! sum all first partial derivates to first sublattice
@@ -1352,6 +1377,7 @@
                      enddo
                      if(fracset%ndd.eq.2) then
 ! one can have 2 sets of ordered subl like (Al,Fe)(Al,Fe)...(C,Va)(C,Va)...
+! I doubt that works ...
                         ioff=fracset%nooffr(1)*fracset%latd
                         do is=1,fracset%nooffr(2)
                            sum=zero
@@ -1401,7 +1427,7 @@
 ! restore ordered fractions and deallocate save arrays why not allocate savey?
 !            write(*,612)'3X yd: ',(phres%yfr(ipy),ipy=1,gz%nofc)
 !            do ipy=1,gz%nofc
-               phres%yfr=savey
+            phres%yfr=savey
 !            enddo
 !            write(*,612)'3X yo: ',(phres%yfr(ipy),ipy=1,gz%nofc)
 612         format(a,6(1pe11.3)/(7x,6e11.3))
@@ -1418,7 +1444,7 @@
          endif
 ! code above reinstated but has problems ....
       endif disord
-! WE JUMP HERE WITHOUT CALCULATING THE ORDERED PART AS DISORDERED
+! WE CAN JUMP HERE WITHOUT CALCULATING THE ORDERED PART AS DISORDERED
 400 continue
    enddo fractyp
 !--------------------------------------------------------------
@@ -1514,10 +1540,10 @@
 ! NOT FINISHED !!! interaction parameters above with VA must be treated
 !
 !vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-! BEWHARE: FOR IONIC_LIQUID Thermo-Calc calculates G = Q G_M 
+! BEWHARE: FOR IONIC_LIQUID Thermo-Calc (version S) calculates G = Q G_M 
 ! if there are no end-member parameters (G_M is the Gibbs energy per
 ! formula unit and Q is the number of sites in second sublattice), 
-! This is wrong but all endmember parameters are never zero for a real liquid.
+! This is wrong (but all endmember parameters are never zero for a real liquid)
 !^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 !
 !      write(*,*)'3X Config G 6: ',phres%gval(1,1)*rtg
@@ -2065,15 +2091,15 @@
 ! property type 1 is G and should be normalized by RT
             valtp=valtp/rtg
          endif
+! vals and valtp are arrays with 6 elements: G, G.T, G.P, G.T.T ...
          vals=vals+dx*valtp
-!         write(*,11)'3X dx:     ',gz%iq(1),gz%iq(2),jdeg,dx0,dx,dx1
-11       format(a,3i2,6(1pe12.4))
+!         write(*,11)'3X dx: ',gz%iq(1),gz%iq(2),jdeg,vals(1),dx,valtp(1)
+11       format(a,3i2,6(1pe11.3))
 ! no composition derivative.  if moded=0 only G, =1 G+G.Y, =2 all
          noder5: if(moded.gt.0) then
 ! first derivatives, qz=1: dG/dyA dG/dyB; qz=2: d2G/dTdy; qz=3: d3G/dPdy
 ! for iliqneut there should not be same -dx1 ... gz%iq(2) is neutral
             do qz=1,3
-!               dvals(qz,gz%iq(1))=dvals(qz,gz%iq(1))+dx1*valtp(qz)
 ! For interactions between Va and neutral in ionic liguid a power of yionva
 ! is required for the cation derivative as we have (y_cation*yionva-y_neutral)
 ! In all other cases dyvan1=unity
@@ -2093,6 +2119,8 @@
 19                format(a,4i3,6(1pe12.4))
                endif
             enddo
+!            write(*,11)'3X dx1:',gz%iq(1),gz%iq(2),jdeg,dvals(1,gz%iq(1)),&
+!                 dvals(1,gz%iq(2)),dx1,valtp(1)
 ! second derivatives, d2G/dyAdyA d2G/dyAdyB d2G/dyBdyB
             if(moded.gt.1) then
                d2vals(ixsym(gz%iq(1),gz%iq(1)))=&

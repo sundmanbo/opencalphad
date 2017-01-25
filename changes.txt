@@ -18,6 +18,14 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2016.01.25 I have worked with the ordering models to prepare a
+discussion with Roger Reed and his student.  I have problems
+calculating the 2nd derivatives of the ordered phase "as disordered"
+which causes a converge problem when I use the 4 sublattice model.  I
+tried a fix but then the calculations did not converge for the 2
+sublattice model so I must derive the correct expression for the 2nd
+derivatives.  TC has also problems with the same cases.
+
 2016.01.17 Fixed a bug calculating ionic liquid with interactions
 between vacancies and neutrals and another bug that one could not use
 STEP several times to have several curves.  Some fixes when reading

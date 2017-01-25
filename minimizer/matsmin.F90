@@ -792,6 +792,7 @@ CONTAINS
     endif
 !--------------------------------------------------
 1000 continue
+    if(gx%bmperr.eq.4187) write(*,*)'Exit calceq7 with error ',gx%bmperr
     return
   end subroutine calceq7
 
@@ -1011,7 +1012,9 @@ CONTAINS
 ! If there is a phase change (iadd or irem nonzeri) or error it exits 
     call meq_sameset(irem,iadd,meqrec,meqrec%phr,inmap,ceq)
     if(ocv()) write(*,*)'Back from sameset ',irem,iadd,meqrec%noofits
-    if(gx%bmperr.ne.0) goto 1000
+    if(gx%bmperr.ne.0) then
+       goto 1000
+    endif
 !
     if(irem.gt.0 .or. iadd.gt.0) then
        if(iremsave.gt.0 .and. iadd.eq.iremsave) then
@@ -1049,9 +1052,9 @@ CONTAINS
              phloopaddrem1=0
              phloopaddrem2=0
              goto 200
-          elseif(meqrec%phr(iadd)%curd%netcharge.gt.1.0D-8) then
-             write(*,231)'Adding phase with net charge: ',iadd,&
-                  meqrec%phr(iadd)%curd%phtupx,meqrec%phr(iadd)%curd%netcharge
+!          elseif(meqrec%phr(iadd)%curd%netcharge.gt.1.0D-8) then
+!             write(*,231)'Adding phase with net charge: ',iadd,&
+!                  meqrec%phr(iadd)%curd%phtupx,meqrec%phr(iadd)%curd%netcharge
 231          format(a,2i5,1pe14.6)
           endif
        endif
@@ -1292,6 +1295,7 @@ CONTAINS
        enddo
 !-----------------------------------------
     else
+!       write(*,*)'MM cleaning up due to error'
 ! set some failure bits
        ceq%status=ibset(ceq%status,EQINCON)
        ceq%status=ibset(ceq%status,EQFAIL)
@@ -1391,6 +1395,7 @@ CONTAINS
     double precision yvar1,yvar2
     double precision maxphch
     double precision sum
+    double precision tmdum,wmdum,dumdum,xdum(20),wdum(20)
 !    double precision, dimension(:), allocatable :: xcol
     double precision, dimension(:), allocatable :: cit
 !    double precision, dimension(:,:), allocatable :: cpmat
@@ -1517,8 +1522,26 @@ CONTAINS
 !    write(33,*)'Equilibrium matrix',nz1
 !    do iz=1,nz1
 !       write(33,112)iz,(smat(iz,jz),jz=1,nz2)
-!112    format('>',i4,1x,4(1pe15.6))
+!112 format('>',i4,1x,4(1pe15.6))
 !    enddo
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> debug
+! debug output to follow the minimization: all mu_i, and 
+! for all stable phases np^alpha, G^alpha, and x^alpha_i
+!    call calc_molmass(xdum,wdum,tmdum,wmdum,ceq)
+!    write(*,116)'MM mu:',meqrec%nstph,(ceq%cmuval(iz),iz=1,meqrec%nrel),&
+!         (xdum(iz),iz=1,meqrec%nrel)
+!116 format(a,i3,6(1pe12.4))
+!    do iz=1,meqrec%nstph
+!       jj=meqrec%stphl(iz)
+!       call calc_phase_molmass(phr(jj)%iph,phr(jj)%ics,&
+!            xdum,wdum,tmdum,wmdum,dumdum,ceq)
+!       if(gx%bmperr.ne.0) stop 'debug'
+! amount of phase, G of phase, x_i of phase
+!       write(*,116)'MM ph:',jj,phr(jj)%curd%amfu,smat(iz,nz2),&
+!            (xdum(ioff),ioff=1,meqrec%nrel)
+!    enddo
+! end debug output
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
     if(vbug) then
 ! when convergence problem list smat here and (and svar below) and study!!!
        call list_conditions(kou,ceq)
@@ -1561,11 +1584,11 @@ CONTAINS
 !       do iz=1,nz1
 !          write(*,228)'smat2:',(smat(iz,jz),jz=1,nz2)
 !       enddo
-       gx%bmperr=4203; goto 1000
+!       gx%bmperr=4203; goto 1000
     endif
 ! when problems output svar here !! (and smat1: above)
 !    write(33,*)'Solution'
-!    write(33,112)1,(svar(jz),jz=1,nz1)
+!       write(*,228)'Sltn: ',(svar(jz),jz=1,nz1)
 !    close(33)
 !    write(*,228)'svar1:',(svar(jz),jz=1,nz1)
     if(vbug) write(*,228)'svar1:',(svar(jz),jz=1,nz1)
@@ -1628,7 +1651,7 @@ CONTAINS
 ! problems here when -finit-local-zero is removed
        if(vbug) write(*,*)'T and deltaT:',ceq%tpval(1),deltat
        if(ceq%tpval(1).le.0.1D0) then
-          write(*,*)'Attempt to set temperature less than 0.1 K !!!'
+          write(*,*)'Attempt to set a temperature less than 0.1 K !!!'
           gx%bmperr=4187; goto 1000
        endif
        ioff=ioff+1
@@ -1684,6 +1707,12 @@ CONTAINS
     endif
 !
     ioff=dncol+1
+! do not change phase amounts the first iteration
+!    write(*,554)svar
+!554 format('MM svar: ',6(1pe12.4))
+!    if(meqrec%noofits.eq.1) then
+!       goto 555
+!    endif
     phamount2: do jph=1,meqrec%nstph
 ! loop for all stable phases
        jj=meqrec%stphl(jph)
@@ -1706,7 +1735,7 @@ CONTAINS
 ! Sigli convergence problem, bad guess of start amount of phases??
 !          write(*,43)'Deltaam: ',meqrec%noofits,jj,deltaam,lastdeltaam(jph),&
 !               phr(jj)%curd%amfu
-!43        format(a,2i3,6(1pe12.4))
+43        format(a,2i3,6(1pe12.4))
 ! avoid too large changes in phase amount, just made things worse
 !          if(meqrec%noofits.lt.3 .and. &
 !               abs(deltaam).gt.0.5D0*phr(jj)%curd%amfu) then
@@ -1788,8 +1817,8 @@ CONTAINS
        if(phf.lt.zero) then
 ! phase has negative amount, NOT ALLOWED if it is the only stable phase 
           if(meqrec%nstph-meqrec%nfixph.eq.1) then
-             write(*,367)'Trying to remove the only stable phase ',jj,&
-                  phr(jj)%curd%amfu
+!             write(*,367)'Trying to remove the only stable phase ',jj,&
+!                  phr(jj)%curd%amfu
 367          format(a,i3,1pe14.6)
              phf=0.5D0*phr(jj)%curd%amfu
              gx%bmperr=4195; goto 1000
@@ -1816,6 +1845,7 @@ CONTAINS
 ! store the new phase fraction (moles formula units)
        phr(jj)%curd%amfu=phf
     enddo phamount2 ! end of loop for jph=1,meqrec%nstph
+555 continue
 !
     if(vbug) write(*,*)'finished updating phase amounts: ',&
          meqrec%noofits,phasechangeok,irem
@@ -2354,6 +2384,7 @@ CONTAINS
     deallocate(smat)
     deallocate(svar)
     if(vbug) write(*,*)'Final return from meq_sameset'
+!    if(gx%bmperr.ne.0) write(*,*)'Error return from meq_sameset',gx%bmperr
     return
 ! too many iterations
 1200 continue

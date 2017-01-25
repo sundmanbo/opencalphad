@@ -1931,7 +1931,7 @@
 ! does this make a copy?  Maybe it should be a pointer
       disfra=firsteq%phase_varres(lokcs)%disfra
       write(lut,810)disfra%fsites
-810    format('Disordered fraction parameters, factor: ',F10.4,2x,10('-'))
+810    format('Disordered fraction set parameters, factor: ',F10.4,2x,10('-'))
       nsl=disfra%ndd
       parlist=2
       if(ocv()) write(*,*)'Jump back to list disordered',nsl,parlist

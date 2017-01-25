@@ -1660,7 +1660,12 @@ contains
                    call getint(cline,last,ll)
                    if(ll.ge.0 .and. ll.le.31) then
                       write(kou,*)'Ahh, you are an expert ... changing bit: ',ll
-                      call set_phase_status_bit(lokph,ll)
+                      if(test_phase_status_bit(lokph,ll)) then
+                         call clear_phase_status_bit(lokph,ll)
+                         write(kou,*)'Clearing bit ',ll
+                      else
+                         call set_phase_status_bit(lokph,ll)
+                      endif
                    else
                       write(kou,*)'Illegal bit number',ll
                    endif
