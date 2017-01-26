@@ -169,6 +169,7 @@
 !   allocate(xarr(nrel,kp-1))
 !   allocate(xarr(nrel,kp-1+10))
 !   allocate(xarr(nrel,kp-1+nrel))
+!   write(*,*)'Allocate xarr: ',nrel,maxgrid
    allocate(xarr(nrel,maxgrid))
 !   write(*,*)'3Y Gridpoints and elements: ',kp-1,nrel,maxgrid
    if(ocv()) write(*,*)'3Y Gridpoints and elements: ',kp-1,nrel
@@ -558,6 +559,7 @@
 ! a default constitution and CSDEFCON set)
 ! finally store stable phase amounts and constitutions into ceq%phase_varres
    j1=1
+   write(*,*)'3Y allocating startup',nvsph
    allocate(starttup(nvsph))
 ! PROBLEM for use in CEA with 15 elements, one stable phase disappear ...
 ! use extract_massbalcond ???
@@ -769,7 +771,7 @@
    logical trace,isendmem
    save sumngg,wrongngg
 !
-!   write(*,*)'3Y entering generate_grid: ',mode,iph,ngg
+!   if(mode.gt.0) write(*,*)'3Y entering generate_grid: ',mode,iph,ngg
 !---------------------------------------------------------
 ! save current constitution in ydum
    call get_phase_data(iph,1,nsl,nkl,knr,ydum,sites,qq,ceq)
@@ -781,6 +783,7 @@
       goto 1000
    elseif(test_phase_status_bit(iph,PHIONLIQ)) then
 ! This is the ionic liquid, requires a special grid, also used for dense
+!      if(mode.gt.0) write(*,*)'3Y gridpoint in the liquid',mode
       call generate_ionliq_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,gmax,ceq)
 !      if(mode.le.0) write(*,*)'3Y exit ionliq ',mode,ngg,ny
       if(mode.eq.-1) then
@@ -916,6 +919,9 @@
 !   BUT: The only way to find the site fraction of a gripoint is to generate
 !   all gridpoints up the one specified by the value of mode (no G calculation)
 !   write(*,*)'3Y ggy: ',mode,iph,nsl,nend,inkl(nsl)
+!   if(mode.gt.0) then
+!      write(*,*)'3Y looking for allocate error: ',nsl,nend,inkl(nsl)
+!   endif
    allocate(endm(nsl,nend))
    allocate(yfra(inkl(nsl)))
    nofy=inkl(nsl)
@@ -2080,13 +2086,14 @@
    inkl(0)=0
    inkl(1)=nkl(1)
    cation=nkl(1)
-   inkl(2)=inkl(1)+nkl(2)
+   inkl(2)=nkl(1)+nkl(2)
    lokph=phases(iph)
    if(.not.btest(phlista(lokph)%status1,PHIONLIQ)) then
       write(*,*)'3Y internal error, this phase has not ionic liquid model!'
       gx%bmperr=4399; goto 1000
    endif
 ! multiply with charged anions and Va only, add neutrals, nsl=2
+   anion=0
    do jj=1,nkl(2)
 ! knr(i) is species(i) location but I use constitlist as I have access to it
       isp=phlista(lokph)%constitlist(nkl(1)+jj)
@@ -2096,9 +2103,13 @@
          cycle
       endif
    enddo
-   nend=inkl(1)*anion+phlista(lokph)%nooffr(2)-anion
+! error when compiling with  -O2
+!   nend=inkl(1)*anion+phlista(lokph)%nooffr(2)-anion
+   nend=nkl(1)*anion+nkl(2)-anion
    ny=inkl(nsl)
    ncon=inkl(nsl)
+!   write(*,45)'3Y liquid endmembers: ',mode,nkl(1),nkl(2),anion,nend
+45 format(a,5i5)
    negmode: if(mode.lt.0) then
 !---------------------------------------------------------
 ! just estimate the number of gridpoints for the ionic liquid phase
@@ -2149,6 +2160,7 @@
 ! endm(2,1) is constituent in sublattice 2 of first endmember
 ! endm(nsl,2) is constituent in sublattice nsl of second endmember
 ! endm(1..nsl,nend) are constituents in all sublattices of last endmember
+!   if(mode.gt.0) write(*,*)'3Y allocate endm: ',nsl,nend
    allocate(endm(nsl,nend))
 ! inkl(nsl) is the number of fraction variables in the phase
 !   allocate(yfra(inkl(nsl)))
@@ -2200,6 +2212,7 @@
 !   write(*,202)'3Y special 1: ',nsl,nend,inkl(nsl),endm(1,2),endm(2,2),&
 !        endm(1,nend),endm(1,3),endm(2,3),endm(1,4),endm(2,4)
 ! we must allocate and set endmember fractions both for mode 0 and 1
+!   if(mode.gt.0) write(*,*)'3Y allocate yendm: ',inkl(2),nend
    allocate(yendm(inkl(2),nend))
    yendm=zero
 !   write(*,*)'3Y endmember fractions:',mode,je
@@ -2218,6 +2231,7 @@
 !      write(*,213)je,(yendm(l1,je),l1=1,inkl(2))
 213   format('3Y#',i2,14F5.2/(15F5.2))
    enddo
+!   if(mode.gt.0) write(*,*)'3Y allocate yfra: ',nsl,inkl(nsl)
    allocate(yfra(inkl(nsl)))
 !---------------------------------------------
 ! now generate combinations of endmember fractions
@@ -3547,11 +3561,12 @@
    real gmin(nrel),dg,dgmin,gplan,gy,gvvp
 ! gridpoints that has less difference with the plane than this limit is ignored
    real, parameter :: dgminlim=1.0D-6
-   logical checkremoved,linglderr,grindingon
+   logical checkremoved,linglderr,grindingon,failadd
    character ch1*1
 ! if trace then open file to write grid
    linglderr=.FALSE.
    grindingon=.TRUE.
+   failadd=.TRUE.
    if(trace) then
       write(*,*)'3Y Opening ocgrid.dat to write grid solution'
       open(31,file='ocgrid.dat ',access='sequential')
@@ -3833,7 +3848,10 @@
 ! The gridpoints returned not good, probably due to too many gridpoints ...
 !
       if(trace) write(*,*)'3Y Failed when trying to add gridpoint ',nyp
-      write(*,*)'3Y Failed when trying to add gridpoint ',nyp
+      if(failadd) then
+         write(*,*)'3Y Failed trying to use some gridpoints '         
+         failadd=.false.
+      endif
       if(checkremoved) goto 950
 ! just ignore this gridpoint and continue, it has been added to notuse
 ! and will be checked again later as "removed"
@@ -4107,6 +4125,7 @@
 !
 !    call chocx('fgme ',nrel,jgrid,phfrac,xmat)
 1000 continue
+!   write(*,*)'3Y exit find_gridmin'
    return
  end subroutine find_gridmin
 

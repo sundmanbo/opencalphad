@@ -1,8 +1,7 @@
-This file contains information on Open Calphad (OC) version 4 prerelease
-No more updates of version 3.
+This file contains information on Open Calphad (OC) version 4
 
 The main practical change is that the step/map/plot file is now called
-smp2.F90, the executable oc4A or oc4P.  I have removed the macros for
+smp2.F90, the executables oc4A or oc4P.  I have removed the macros for
 the older versions.
 
 For general information please read the readme-general.pdf 
@@ -17,6 +16,9 @@ does not require any understanding of thermodynamics please contact a
 commercial vendor.
 
 In the list below the most recent changes come first.
+
+2016.01.26 Corrected a severe bug in the gridminimizer for ionic
+liquid.  Version 4 of OC is now finished and I will start in version 5.
 
 2016.01.25 I have worked with the ordering models to prepare a
 discussion with Roger Reed and his student.  I have problems
