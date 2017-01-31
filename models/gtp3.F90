@@ -712,10 +712,10 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
         EQFAIL=4,     EQNOACS=5,  EQGRIDTEST=6, EQGRIDCAL=7
 !----------------------------------------------------------------
 !-Bits in parameter property type record (gtp_propid)
-! constant (no T or P dependence), only P, property has an element suffix
-! (like mobility), property has a constituent suffix
+! constant (no T or P dependence), only P, only T, property has an 
+! element suffix (like mobility), property has a constituent suffix
    integer, parameter :: &
-        IDNOTP=0, IDONLYP=1, IDELSUFFIX=2, IDCONSUFFIX=3
+        IDNOTP=0, IDONLYP=1, IDONLYT=2, IDELSUFFIX=3, IDCONSUFFIX=4
 !----------------------------------------------------------------
 !- Bits in condition status word (some set in onther ways??)
 ! singlevar means T=, x(el)= etc, singlevalue means value is a number
@@ -791,6 +791,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   integer, public, parameter :: EINSTEINCP=4
   integer, public, parameter :: TWOSTATEMODEL1=5
   integer, public, parameter :: ELASTICMODEL1=6
+  integer, public, parameter :: VOLMOD1=7
 ! Note that additions often use extra parameters like Curie or Debye
 ! temperatures defined by parameter identifiers stored in gtp_propid
 !\end{verbatim}

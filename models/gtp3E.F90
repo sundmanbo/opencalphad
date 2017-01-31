@@ -751,6 +751,20 @@
 !            write(*,*)'3E saving additions in: ',phreclink+2,lok,iws(lok+1),&
 !                 iws(lok+2)
 ! link the property recordds sequentially
+         elseif(addlink%type.eq.7) then
+!>>>>> 12A: additions id, regenerate all when reading this
+            rsize=3
+            call wtake(lok,rsize,iws)
+            if(buperr.ne.0) then
+               write(*,*)'3E Error reserving addition record'
+               gx%bmperr=4399; goto 1000
+            endif
+            iws(lokpty)=lok
+            lokpty=lok
+            iws(lok+1)=addlink%type
+!            iws(lok+2)=addlink%aff
+!            write(*,*)'3E saving additions in: ',phreclink+2,lok,iws(lok+1),&
+!                 iws(lok+2)
          else
             write(*,*)'3E unknown addition record type ',addlink%type
          endif
@@ -1910,11 +1924,16 @@
 !      write(*,*)'3E Any addition for ',trim(phlista(jph)%name),lokem
       if(iws(lokem).gt.0) then
          lokem=iws(lokem)
+         nullify(addlink)
 510      continue
-         write(*,*)'3E An addition type ',iws(lokem+1),' for ',&
-              trim(phlista(jph)%name)
+! all phases has volume addition ...
+         if(iws(lokem+1).ne.7) write(*,*)'3E An addition type ',&
+              iws(lokem+1),' for ',trim(phlista(jph)%name)
          if(iws(lokem+1).eq.INDENMAGNETIC) then
             call create_magrec_inden(nyaddlink,iws(lokem+2))
+            if(gx%bmperr.ne.0) goto 1000
+         elseif(iws(lokem+1).eq.VOLMOD1) then
+            call create_volmod1(nyaddlink)
             if(gx%bmperr.ne.0) goto 1000
 ! just set it as a link, do not care if there are other additions ...
             phlista(jph)%additions=>nyaddlink
@@ -1922,8 +1941,17 @@
          else
             write(*,*)'3E unknown addition'
             nullify(phlista(jph)%additions)
-            goto 900
+            goto 550
          endif
+! link the additions sequentially
+         if(associated(addlink)) then
+            addlink%nextadd=>nyaddlink
+         else
+            phlista(jph)%additions=>nyaddlink
+         endif
+         nullify(nyaddlink%nextadd)
+         addlink=>nyaddlink
+550      continue
          lokem=iws(lokem)
          if(lokem.gt.0) goto 510
       else
@@ -2914,8 +2942,8 @@
    addition: do while(associated(addlink))
 !>>>>> 12: additions
       nextadd=>addlink%nextadd
-      if(addlink%type.eq.1) then
-!>>>>> 12A: delete magnetic addition ...
+      if(addlink%type.eq.1 .or. addlink%type.eq.7) then
+!>>>>> 12A: delete magnetic, volume addition ...
          deallocate(addlink)
       else
          write(*,*)'3E Cannot delete unknown addition type ',addlink%type
@@ -3147,19 +3175,19 @@
    integer nel
    character filename*(*),selel(*)*2
 !\end{verbatim}
-   integer, parameter :: maxrejph=30,maxorddis=10
+   integer, parameter :: maxrejph=30,maxorddis=10,maxtypedefs=40
    character line*128,elsym*2,name1*24,name2*24,elsyms(10)*2
    character longline*10000,reftext*512
    character phtype*1,ch1*1,const(maxsp)*24,name3*24,funname*60,name4*60
    character refx*16
-   character (len=1), dimension(20) :: typedefchar
-   integer, dimension(20) :: typedefaction
+   character (len=1), dimension(maxtypedefs) :: typedefchar
+   integer, dimension(maxtypedefs) :: typedefaction
    integer, dimension(5) :: addphasetypedef
    double precision mass,h298,s298
    integer, dimension(10) :: knr,endm
 ! lint(1,*) is sublattice, lint(2,*) is species
    double precision stoik(10),xsl,xxx
-   integer lint(2,3),noofphasetype,nytypedef,nextc,keyw,tdbv
+   integer lint(2,3),TDthisphase,nytypedef,nextc,keyw,tdbv
    integer typty,fractyp,lp1,lp2,ix,jph,kkk,lcs,nint,noelx
    logical onlyfun,nophase,ionliq,notent
    integer norew,newfun,nfail,nooftypedefs,nl,ipp,jp,jss,lrot,ip,jt
@@ -3173,7 +3201,7 @@
    logical, allocatable :: present(:)
 ! to prevent any output
    logical silent,thisphaserejected
-!  mmyfr
+!  mmyfr noofph
 ! if warning is true at the end pause before listing bibliography
    warning=.FALSE.
    silent=.FALSE.
@@ -3270,8 +3298,10 @@
    enddo
    if(dodis.eq.1) then
 ! if dodis=1 only read data for disordred phases
-! PHASE=3, CONSTITUENT=4, PARAMETER=6 ... any more?      
-      if(keyw.lt.3 .or. keyw.eq.5 .or. keyw.gt.6) goto 100
+! PHASE=3, CONSTITUENT=4, PARAMETER=6 ... BIBLIOGRAPHIC REFERENCES=8,9
+!      if(keyw.lt.3 .or. keyw.eq.5 .or. keyw.gt.6) goto 100
+      if(.not.(keyw.eq.3 .or. keyw.eq.4 .or. keyw.eq.6 &
+           .or. keyw.eq.8 .or. keyw.eq.9)) goto 100
    endif
 !
 ! we have 13 keywords
@@ -3427,6 +3457,8 @@
               'Error, a PHASE keyword must be followed by its CONSTIT'
          gx%bmperr=4308; goto 1000
       endif
+! number of TYP_DEFS for this phase
+      TDthisphase=0
       ip=nextc
       if(eolch(longline,ip)) then
          if(.not.silent) write(kou,*)'line after PHASE empty'
@@ -3459,8 +3491,6 @@
       enddo
       thisphaserejected=.false.
 !      write(*,*)'3E nophase set to false, phase: ',name1
-! phase type code
-      noofphasetype=0
       ip=ip+1
       jp=ip
       name2=longline(ip:jp)
@@ -3501,27 +3531,29 @@
 ! NOTE and FIX: type code expected to be after a single space: be flexible ??
       typedefcheck: if(longline(jp:jp).ne.' ') then
          ch1=longline(jp:jp)
-!         write(*,*)'3E typedef: ',ch1,jp
+!         write(*,*)'3E typedef for ',trim(name1),': ',ch1,TDthisphase
          do jt=1,nooftypedefs
             if(ch1.eq.typedefchar(jt)) goto 320
          enddo
          goto 310
-320       continue
+320      continue
          if(typedefaction(jt).eq.99) then
 ! ignore TYPE_DEF SEQ
             continue
          elseif(typedefaction(jt).eq.-1 .or. &
               typedefaction(jt).eq.-3) then
 ! magnetic addition, save for after phase created
-            noofphasetype=noofphasetype+1
-            addphasetypedef(noofphasetype)=typedefaction(jt)
+            TDthisphase=TDthisphase+1
+            addphasetypedef(TDthisphase)=typedefaction(jt)
          else
             continue
          endif
          goto 310
       endif typedefcheck
+!      write(*,*)'3E typedefs for ',trim(name1),': ',TDthisphase,&
+!           (addphasetypedef(ll),ll=1,TDthisphase)
       name2='TDB file model: '//name2
-! sublattices
+! number of sublattices
 !      write(*,*)'3E buperr: ',buperr ,jp
       call getrel(longline,jp,xsl)
       if(buperr.ne.0) then
@@ -3678,6 +3710,7 @@
             nd1=phlista(lokph)%noofsubl
          endif
          goto 402
+!vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 ! code below now redundant ...
          if(dispartph(thisdis)(1:7).eq.'FCC_A1 ' .or. &
               dispartph(thisdis)(1:7).eq.'BCC_A2 ' .or. &
@@ -3699,14 +3732,15 @@
          elseif(dispartph(thisdis)(1:4).eq.'DIS_') then
 ! disordered part of sigma, mu etc.
             jl=0; nd1=phlista(lokph)%noofsubl
-            write(kou,493)trim(ordpartph(thisdis)),nd1
-493         format('3E Adding disordered phase: ',a,' summing all ',i3)
+!            write(kou,493)trim(ordpartph(thisdis)),nd1
+!493         format('3E Adding disordered phase: ',a,' summing all ',i3)
          else
 ! probably disordered part of sigma, mu etc.
             jl=0; nd1=phlista(lokph)%noofsubl
-            write(kou,493)trim(ordpartph(thisdis)),nd1
+!            write(kou,493)trim(ordpartph(thisdis)),nd1
          endif
 !------------- code above is redundant
+!^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 402      continue
          if(jl.eq.0 .and. .not.silent) write(kou,398)trim(ordpartph(thisdis))
 398      format(' 3E Assuming phase ',a,' cannot be completely disordered')
@@ -3750,17 +3784,21 @@
             goto 1000
          endif
          lokph=phases(iph)
-!      write(*,*)'typedefs for ',name1(1:20),lokph,noofphasetype
-         phasetypes: do jt=1,noofphasetype
+!         write(*,*)'3E typedefs for ',trim(name1),lokph,TDthisphase
+         phasetypes: do jt=1,TDthisphase
 !          write(*,*)'typedef ',jt,addphasetypedef(jt)
             if(addphasetypedef(jt).eq.-1) then
-               call add_magrec_inden(lokph,1,-1)
+! Inden magnetic for BCC
+               call add_addrecord(lokph,'Y',indenmagnetic)
+!               call add_magrec_inden(lokph,1,-1)
             elseif(addphasetypedef(jt).eq.-3) then
-               call add_magrec_inden(lokph,1,-3)
+! Inden magnetic for FCC
+               call add_addrecord(lokph,'N',indenmagnetic)
+!               call add_magrec_inden(lokph,1,-3)
             endif
             if(gx%bmperr.ne.0) goto 1000
          enddo phasetypes
-!         write(*,607)name1,iph
+!         write(*,607)trim(name1),iph
 607      format('3E Entered phase ',a,i5)
       endif condis2
 !      write(*,*)'readtdb 9B:',name1,nsl,phtype
@@ -3785,7 +3823,27 @@
          kp=cbug+1
 !         write(*,*)'3E ,,2: ',trim(longline),ip,kp
       else
-         nextc=ip+kp
+         cbug=index(funname,')')
+         if(cbug.lt.kp) then
+            nextc=ip+kp
+         else
+! We have spaces inside constituent arrays !!!
+            kp=cbug+1
+            nextc=ip+cbug
+!            write(*,*)'3E spaces inside constituent array ',&
+!                 trim(funname(1:kp)),kp,nextc
+            funname(kp:)=' '
+612         continue
+            cbug=index(funname(1:kp),' ')
+            if(cbug.gt.0) then
+               funname(cbug:)=funname(cbug+1:)
+               kp=kp-1
+               goto 612
+            endif
+!            write(*,*)'3E spaces removed in constituent array? ',&
+!                 trim(funname(1:kp)),kp,nextc
+            kp=kp+1
+         endif
       endif
       funname(kp:)=' '
 ! extract symbol, normally G or L but TC, BMAGN and others can occur
@@ -3799,6 +3857,10 @@
          typty=2
       elseif(name1(1:6).eq.'BMAGN ') then
          typty=3
+      elseif(name1(1:3).eq.'V0 ') then
+         typty=21
+      elseif(name1(1:3).eq.'VA ') then
+         typty=22
       endif
 ! we should handle also other parameter types
       if(typty.eq.0) then
@@ -3807,7 +3869,7 @@
          call get_parameter_typty(name1,lokph,typty,fractyp)
          if(gx%bmperr.ne.0) then
             if(.not.silent) write(kou,*) &
-            ' *** WARNING parameter identifier, ",trim(psym1)," on line: ',nl
+            ' *** WARNING parameter identifier, "',trim(name1),'" on line: ',nl
             gx%bmperr=0; typty=0
             warning=.TRUE.
          endif
@@ -3857,9 +3919,18 @@
       name4=funname(lp2+1:)
 ! find terminating )
       lp1=index(name4,')')
+!      if(name2(1:7).eq.'FCC_L12') then
+!         write(*,*)'3E constituent array: ',trim(name4)
+!      endif
       if(lp1.le.0) then
-         if(.not.silent) write(kou,*) &
-              '3E WARNING error in constituent array? ',name4,', line:',nl
+         if(.not.silent) then
+! problem with space in constituent array ...
+            write(kou,*) &
+                 '3E WARNING missing ")" in parameter constituent array "',&
+                 trim(name2),',',trim(name4),'", line:',nl
+            write(*,*)'3E funname: ',trim(funname(lp2+1:))
+            write(*,*)'3E longline: ',trim(longline)
+         endif
          warning=.TRUE.
          goto 100
       else
@@ -3940,7 +4011,7 @@
 410      format('Error, parameter line not ending with !',2i5/a)
          gx%bmperr=4312; goto 1000
       endif
-! extract reference if any
+! extract bibliographic reference if any
 ! NOTE: a legal ending is ;,,,!
       refx='none'
       kp=jp-1
@@ -4018,7 +4089,7 @@
 ! error 4154 means missing reference
             if(gx%bmperr.ne.4154 .and. .not.silent) then
                write(*,409)gx%bmperr,nl
-409            format('3E WARNING for parameter ',i6,' at line: ',i7,&
+409            format('3E WARNING ',i6,' for parameter around line: ',i7,&
                     ', continuing')
                warning=.TRUE.
             endif
@@ -4031,11 +4102,25 @@
    case(7) !TYPE_DEFINITION 
 !123456789.123456789.123456789.123456789.123456789.123456789.123456789.12345678
 ! TYPE_DEFINITION & GES A_P_D BCC_A2 MAGNETIC  -1.0    4.00000E-01 !
-      nytypedef=nooftypedefs+1
-      nooftypedefs=nytypedef
+      nytypedef=nytypedef+1
       typedefchar(nytypedef)=longline(nextc+1:nextc+1)
+! in TC the same typedef "letter" can be used several times
+      do ip=1,nooftypedefs
+         if(typedefchar(nytypedef).eq.typedefchar(ip)) then
+            write(*,*)'3E Same typedef again, "',&
+                 typedefchar(nytypedef),'", ignoring second or later occurance'
+            nytypedef=nytypedef-1
+            goto 88
+         endif
+      enddo
+      nooftypedefs=nytypedef
+      if(nooftypedefs.gt.maxtypedefs) then
+         write(*,*)'3E Too many TYPE_DEFINITION, modify in readtdb'
+         gx%bmperr=4399; goto 1000
+      endif
       ip=nextc+3
-      newtypedef: if(longline(ip:ip+2).eq.'SEQ') then
+!      newtypedef: if(index(longline(ip:),' SEQ').gt.0) then
+      newtypedef: if(index(longline,' SEQ').gt.0) then
          typedefaction(nytypedef)=100
       else
          km=index(longline,' MAGNETIC ')
@@ -4128,7 +4213,7 @@
 !---------------------------------------------------------------------
 !   elseif(line(2:20).eq.'LIST_OF_REFERENCES ' .or. &
 !          line(2:16).eq.'ADD_REFERENCES ') then
-   case(8,9) ! LIST_OF_REFERENCES and ADD_REFERENCES 
+   case(8,9) ! LIST_OF_REFERENCES and ADD_REFERENCES bibliography
 !123456789.123456789.123456789.123456789.123456789.123456789.123456789.12345678
 ! LIST_OF_REFERENCES
 ! NUMBER  SOURCE
@@ -4424,7 +4509,7 @@
       nl=0
       goto 100
    elseif(.not.onlyfun) then
-! rewind to read referenced functions
+! rewind to read referenced functions and references !!
       dodis=2
       rewind(21)
       onlyfun=.TRUE.
@@ -4487,7 +4572,7 @@
    integer, dimension(10) :: knr,endm
 ! lint(1,*) is sublattice, lint(2,*) is species
    double precision stoik(10),xsl,xxx
-   integer lint(2,3),noofphasetype,nytypedef,nextc,keyw,tdbv
+   integer lint(2,3),nytypedef,nextc,keyw,tdbv
    integer typty,fractyp,lp1,lp2,ix,jph,kkk,lcs,nint,noelx
    logical onlyfun,nophase,ionliq,notent
    integer norew,newfun,nfail,nooftypedefs,nl,ipp,jp,jss,lrot,ip,jt
@@ -4767,7 +4852,6 @@
       call capson(name1)
 ! phytype was used in TDB to specify gas and liquid, not used here
       phtype=' '
-!      noofphasetype=0
 !-----------------------------------------------
 ! extract phase model codes like CEF3D(10.0 4.0 16.0)
 ! additions and details ...
@@ -5124,7 +5208,7 @@
          endif
          if(modelname(1:5).eq.'I2SL ') phtype='Y'
 !
-!         write(*,*)'3E enter phase: ',trim(name1),' ',subord,havedisorder
+         write(*,*)'3E enter phase: ',trim(name1),' ',subord,havedisorder
          call enter_phase(name1,nsl,knr,const,stoik,modelname,phtype)
 !      write(*,*)'readpdb 9A: ',gx%bmperr
          if(gx%bmperr.ne.0) then
@@ -5195,26 +5279,31 @@
 !            goto 1000
 !         endif
 !         lokph=phases(iph)
-!      write(*,*)'3E typedefs for ',name1(1:20),lokph,noofphasetype
-!         phasetypes: do jt=1,noofphasetype
+!      write(*,*)'3E typedefs for ',name1(1:20),lokph,xx
+!         phasetypes: do jt=1,xx
 !          write(*,*)'3E typedef ',jt,addphasetypedef(jt)
 !   character*12, dimension(8), parameter :: addition=&
 !        ['IMAGF       ','IMAGB       ','IWMAGF      ','IWMAGB      ',&
 !         'DEBYE1      ','EINSTEIN1   ','            ','            ']
 !
+! THIS READPDB ... not readtdb
          do jt=1,noofadds
             if(add(jt).eq.1) then
 ! Inden magnetic for FCC
-               call add_magrec_inden(lokph,1,-3)
+               call add_addrecord(lokph,'N',indenmagnetic)
             elseif(add(jt).eq.2) then
 ! Inden magnetic for BCC
-               call add_magrec_inden(lokph,1,-1)
+               call add_addrecord(lokph,'Y',indenmagnetic)
             elseif(add(jt).eq.3) then
 ! Xiong-Inden magnetic for non-BCC
                call add_addrecord(lokph,'N',xiongmagnetic)
             elseif(add(jt).eq.4) then
 ! Xiong-Inden magnetic for BCC
                call add_addrecord(lokph,'Y',xiongmagnetic)
+!            elseif(add(jt).eq.7) then
+! Volume model volmod1 always entered at call enter_phase(...
+!               write(*,*)'3E adding volume model ',jt
+!               call add_addrecord(lokph,'Y',volmod1)
             else
 ! no other implemented
                write(*,*)'Addition not implemented: ',addition(add(jt))

@@ -198,6 +198,7 @@ CONTAINS
        ij=1
 ! if meqrec%status indicate no initial startvalues set ij<0 to indicate test
        if(btest(meqrec%status,MMNOSTARTVAL)) ij=-ij
+! OC went into a loop for a complex alloy calcumation here
 !       write(*,*)'Calling todo_after: ',btest(meqrec%status,MMNOSTARTVAL),mode
        call todo_after_found_equilibrium(ij,ceq)
 !    else
@@ -205,7 +206,9 @@ CONTAINS
 !1020   format('Error return from equilibrium calculation ',i5)
     endif
 ! maybe memory leak 2
+!    write(*,*)'MM deallocate 2'
     deallocate(meqrec1)
+!    write(*,*)'MM deallocated'
     return
   end subroutine calceq2
 
@@ -258,7 +261,9 @@ CONTAINS
 1020   format('Error return from equilibrium calculation ',i5)
     endif
 ! memory leak 2
+!    write(*,*)'MM deallocate 3'
     deallocate(meqrec1)
+!    write(*,*)'MM deallocated'
     return
   end subroutine calceq3
 

@@ -1215,6 +1215,7 @@
 !           btest(phlista(lokph)%status1,phsubo),&
 !           first,fractype,phres%gval(1,1)
 303   format(a,3(1x,L),i3,4(1pe12.4))
+!      write(*,623)'3X order/disorder: ',lprop,phres%gval(1,2),phres%gval(1,3)
       if(nevertwice) goto 400
 ! UNIFINISHED ??
 ! TEST IF WE SHOULD SUBTRACT THE ORDERED ENERGY AS DISORDERED AS IN THE
@@ -1261,6 +1262,9 @@
 !            allocate(savey(gz%nofc))
 !            savey=phres%yfr
 !            nprop=phmain%nprop
+! error calculating volumes for order/disorder, V0 in gval(1,2), VA in gval(1,3)
+!            write(*,623)'3X V0,VA 1: ',lprop,phres%gval(1,2),phres%gval(1,3)
+623         format(a,i3,6(1pe12.4))
 ! we already know nprop
             allocate(saveg(6,nprop))
             allocate(savedg(3,gz%nofc,nprop))
@@ -1290,6 +1294,8 @@
 ! NOTE all sublattices are identical in this case with the same number 
 ! of constituents
 ! First sum all second derivatives into tmpd2g, moded=1 means only 1st deriv
+! error calculating volumes for order/disorder, V0 in gval(1,2), VA in gval(1,3)
+!            write(*,623)'3X V0,VA 2: ',lprop,phres%gval(1,2),phres%gval(1,3)
             noder6A: if(moded.gt.1) then
                nz=fracset%tnoofxfr
                allocate(tmpd2g(nz*(nz+1)/2,nprop))
@@ -1424,6 +1430,8 @@
                        phres%gval(ider,ipy)
                enddo
             enddo
+! error calculating volumes for order/disorder, V0 in gval(1,2), VA in gval(1,3)
+!            write(*,623)'3X V0,VA 3: ',lprop,phres%gval(1,2),phres%gval(1,3)
 ! restore ordered fractions and deallocate save arrays why not allocate savey?
 !            write(*,612)'3X yd: ',(phres%yfr(ipy),ipy=1,gz%nofc)
 !            do ipy=1,gz%nofc
@@ -2198,7 +2206,7 @@
             ivax=gz%intcon(2)
             yionva=gz%yfrint(2)
          else
-            write(*,*)'3X: parameter not implemented'
+            write(*,*)'3X: ionic liquid model parameter not implemented'
             gx%bmperr=4342; goto 1000
          endif
 ! other ternary parameters in ionic liquid OK, no extra vacancy fraction
@@ -2936,24 +2944,10 @@
 ! find disordered fractions
    disrec=>phvar%disfra
    lokdcs=phvar%disfra%varreslink
+!   write(*,9)trim(phlista(phvar%phlink)%name),lokdcs
+9  format('3X diordery: ',a,i5)
 ! problem that this pointer is not always ok ....???
    phdis=>ceq%phase_varres(lokdcs)
-!   write(*,*)'3X dis1: 1',lokdcs
-!   xxx=phdis%yfr(1)
-!   write(*,*)'3X dis1: 2',xxx,phdis%yfr(1)
-!   write(*,*)'3X disordery: ',disrec%latd,disrec%nooffr(1),lokdcs
-!   phdis=ceq%phase_varres(lokdcs)
-!   write(*,*)'3X disordery: ',ceq%xconv
-!   call disordery2(phvar,ceq%phase_varres(lokdcs),ceq)
-!   if(.not.associated(phvar)) write(*,*)'3X phvar not associated'
-!   if(.not.associated(phdis)) write(*,*)'3X phdis not associated'
-!   nofc1=size(phvar%yfr)
-!   nofc2=size(phdis%yfr)
-!   write(*,11)'3X phvary: ',(phvar%yfr(ii),ii=1,nofc1)
-!   write(*,11)'3X phdisy: ',(phdis%yfr(ii),ii=1,nofc2)
-11 format(a,8F7.4)
-!   call disordery2(phdis,phvar,disrec,ceq)
-!   call disordery2(ceq%phase_varres(lokdcs),phvar,disrec,ceq)
    call disordery2(lokdcs,phvar,disrec,ceq)
 !   write(*,11)'3X phvary: ',(phvar%yfr(ii),ii=1,nofc1)
 !   write(*,11)'3X phdisy: ',(phdis%yfr(ii),ii=1,nofc2)

@@ -1,4 +1,4 @@
-This file contains information on Open Calphad (OC) version 4
+This file contains information on Open Calphad (OC) version 4+
 
 The main practical change is that the step/map/plot file is now called
 smp2.F90, the executables oc4A or oc4P.  I have removed the macros for
@@ -16,6 +16,12 @@ does not require any understanding of thermodynamics please contact a
 commercial vendor.
 
 In the list below the most recent changes come first.
+
+2016.01.31 I have added a smiple volume model using two paramaters
+V=V0(x)*exp(VA(x,T)) same as in TC but without the bulk modulus
+parameter.  I have also modified the reading of TDB files to be more
+compatible with TC. A number of small bugs fixed also and I must start
+rewriting the grid minimizer.
 
 2016.01.26 Corrected a severe bug in the gridminimizer for ionic
 liquid.  Version 4 of OC is now finished and I will start in version 5.

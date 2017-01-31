@@ -667,7 +667,13 @@ contains
                   cline,last,j1,idef,q1help)
              if(buperr.ne.0) goto 990
              call get_phase_record(iph,lokph)
-             call add_magrec_inden(lokph,1,j1)
+             if(j1.eq.-1) then
+! Inden magnetic for BCC
+                call add_addrecord(lokph,'Y',indenmagnetic)
+             else
+! Inden magnetic for FCC
+                call add_addrecord(lokph,'N',indenmagnetic)
+             endif
 !....................................................
           case(2) ! amend phase <name> composition set add/remove
              call gparcd('Add new set? ',cline,last,1,ch1,'Y ',q1help)
@@ -2691,7 +2697,7 @@ contains
           elseif(ch1.eq.'M') then
 ! list models for all phases
              do iph=1,noph()
-                call list_phase_model(iph,1,lut,ceq)
+                call list_phase_model(iph,1,lut,' ',ceq)
              enddo
 !....................................................................
           else
@@ -2710,7 +2716,7 @@ contains
              write(kou,*)'list phase subcommand error'
 !...............................................................
           CASE(1) ! list phase data
-             call list_phase_data(iph,lut)
+             call list_phase_data(iph,' ',lut)
 !...............................................................
 ! list phase constitution
           case(2) ! list phase constitution
@@ -2728,7 +2734,7 @@ contains
           case(3) ! list phase model (including disordered fractions)
              write(kou,6070)'For ',ceq%eqno,ceq%eqname
 6070      format(a,'equilibrium: ',i3,', ',a)
-             call list_phase_model(iph,ics,lut,ceq)
+             call list_phase_model(iph,ics,lut,' ',ceq)
           END SELECT
 !------------------------------
        case(4,17)  ! list state variable or parameter identifier value, loop.

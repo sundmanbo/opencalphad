@@ -1212,7 +1212,7 @@
 !\end{verbatim}
    integer iph,ipos,kousave,unit,isp
    character text*64, text2*2000,fil*64
-   character date*8,ch1*1
+   character date*8,CHTD*1
 ! if not screen then ask for file name
 ! for screen outpot of file use /option= ...
    if(ftyp.ne.1) then
@@ -1256,20 +1256,20 @@
       call list_all_funs(kou)
       if(gx%bmperr.ne.0) goto 1000
       do iph=1,noph()
-         call list_phase_data(iph,kou)
+         call list_phase_data(iph,' ',kou)
          if(gx%bmperr.ne.0) goto 1000
       enddo
 ! list reference phase last
       iph=0
-      call list_phase_data(0,kou)
+      call list_phase_data(0,' ',kou)
 ! finally list the data bibliography
       write(kou,*)
       call list_bibliography(' ',kou)
 !--------------------------------------------------------------
 ! write on unit
    case(2) ! ftyp=2 TDB format
-! ch1 keeps track of type definitions, note: incremented before use
-      ch1='%'
+! CHTD1 keeps track of type definitions, note: incremented before use
+      CHTD='0'
       write(unit,106)date(1:4),date(5:6),date(7:8)
 106   format('$ Database file written by Open Calphad ',a,'-',a,'-',a/)
       call list_all_elements2(unit)
@@ -1317,7 +1317,7 @@
           'DEFAULT_COMMAND DEF_SYS_ELEMENT  VA /- !'/)
       write(unit,107)
       do iph=1, noph()
-         call list_phase_data2(iph,ftyp,ch1,unit)
+         call list_phase_data2(iph,ftyp,CHTD,unit)
       enddo
       write(unit,107)
       write(unit,140)
@@ -1352,13 +1352,14 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine list_phase_model(iph,ics,lut,ceq)
+ subroutine list_phase_model(iph,ics,lut,CHTD,ceq)
 ! list model (no parameters) for a phase on lut
    implicit none
    integer iph,ics,lut
    TYPE(gtp_equilibrium_data), pointer :: ceq
+   character CHTD*1
 !\end{verbatim}
-   character phname*24,l78*78,ch1*1
+   character phname*24,l78*78
 !   integer, dimension(maxsubl) :: endm,ilist
    integer lokcs,knr,kmr,ll,ip,lokph,ftyp
    TYPE(gtp_fraction_set) :: disfra
@@ -1389,7 +1390,7 @@
         ', status: ',z8,1x,z8,5x)
    addrec=>phlista(lokph)%additions
    lastadd: do while(associated(addrec))
-      call list_addition(lut,ch1,phname,ftyp,addrec)
+      call list_addition(lut,CHTD,phname,ftyp,addrec)
       addrec=>addrec%nextadd
    enddo lastadd
 ! return here if more composition sets
@@ -1488,16 +1489,17 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine list_phase_data(iph,lut)
+ subroutine list_phase_data(iph,CHTD,lut)
 ! list parameter data for a phase on unit lut
    implicit none
    integer iph,lut
+   character CHTD*1
 !\end{verbatim} %+
    integer typty,parlist,typspec,lokph,nsl,nk,ip,ll,jnr,ics,lokcs
    integer nint,ideg,ij,kk,iel,ncsum,kkx,kkk,jdeg,iqnext,iqhigh,lqq,nz,ik
    integer intpq,linkcon,ftyp
    character text*2048,phname*24,prop*32,funexpr*1024
-   character special*8,ch1*1
+   character special*8
 !   integer, dimension(2,3) :: lint
 ! ?? increased dimension of lint ??
    integer, dimension(2,5) :: lint
@@ -1572,7 +1574,7 @@
 ! additions
    addrec=>phlista(lokph)%additions
    lastadd: do while(associated(addrec))
-      call list_addition(lut,ch1,phname,ftyp,addrec)
+      call list_addition(lut,CHTD,phname,ftyp,addrec)
       addrec=>addrec%nextadd
    enddo lastadd
 60 continue
@@ -1944,11 +1946,11 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim} %-
- subroutine list_phase_data2(iph,ftyp,ch1,lut)
+ subroutine list_phase_data2(iph,ftyp,CHTD,lut)
 ! list parameter data for a phase on unit lut in ftyp format, ftyp=2 is TDB
    implicit none
    integer iph,lut,ftyp
-   character ch1*1
+   character CHTD*1
 !\end{verbatim}
    integer typty,parlist,typspec,lokph,nsl,nk,ip,ll,jnr,ics,lokcs,isp
    integer nint,ideg,ij,kk,iel,ncsum,kkx,kkk,jdeg,iqnext,iqhigh,lqq,nz,ik
@@ -2018,25 +2020,29 @@
       phname='LIQUID:L'
    endif
    if(btest(phlista(lokph)%status1,PHMFS)) then
-      ch1=char(ichar(ch1)+1)
+!      write(*,*)'3C typedef character 1 ',ichar(CHTD),' "',chtd,'"'
+      CHTD=char(ichar(CHTD)+1)
       isp=isp+1
-      special(isp:isp)=ch1
+      special(isp:isp)=CHTD
       if(.not.btest(globaldata%status,GSSILENT)) then
          write(kou,53)
 53       format(' *** Warning: disordered fraction sets need manual editing!')
       endif
-      write(lut,55)ch1,phname(1:len_trim(phname)),phname(1:len_trim(phname))
+      write(lut,55)CHTD,phname(1:len_trim(phname)),phname(1:len_trim(phname))
 55    format('$ *** Warning: disordered fraction sets need manual editing!'/&
            ' TYPE_DEFINITION ',a,' GES A_P_D ',a,' DIS_PART DIS_',a,' !')
    endif
 ! additions
    addrec=>phlista(lokph)%additions
    lastadd: do while(associated(addrec))
-! increment ch1 and position in special for each addition
-      ch1=char(ichar(ch1)+1)
-      isp=isp+1
-      special(isp:isp)=ch1
-      call list_addition(lut,ch1,phname,ftyp,addrec)
+! no need to increment CHTD except for magnetism
+      if(addrec%type.eq.1) then
+!         write(*,*)'3C typedef character 2 ',ichar(CHTD),' "',chtd,'"'
+         CHTD=char(ichar(CHTD)+1)
+         isp=isp+1
+         special(isp:isp)=CHTD
+      endif
+      call list_addition(lut,CHTD,phname,ftyp,addrec)
       addrec=>addrec%nextadd
    enddo lastadd
 60 continue
@@ -3640,6 +3646,9 @@
       elseif(btest(propid(typty)%status,IDONLYP)) then
 !         special(kk:)='Not T-dependant'
          tdep='-'
+      elseif(btest(propid(typty)%status,IDONLYT)) then
+!         special(kk:)='Not P-dependant'
+         pdep='-'
       endif
       write(lut,50)typty,propid(typty)%symbol,tdep,pdep,special,&
            propid(typty)%status,propid(typty)%note

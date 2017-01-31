@@ -12,11 +12,7 @@
 !  integer, public, parameter :: EINSTEINCP=4
 !  integer, public, parameter :: TWOSTATESMODEL1=5
 !  integer, public, parameter :: ELASTICMODEL1=6
-! integer, public, parameter :: indenmagnetic=1
-! integer, public, parameter :: debyecp=2
-! integer, public, parameter :: einstaincp=4
-! integer, public, parameter :: elasticmodela=5
-! integer, public, parameter :: glastransmodela=6
+!  integer, public, parameter :: VOLMOD1=7
 !------------------------------------
 ! For each addition XX there is a subroutine create_XX
 ! called from the add_addrecord
@@ -65,6 +61,10 @@
    case(twostatemodel1) ! Two state model
       write(kou,*)' Two state model not implemented yet'
       gx%bmperr=4333
+   case(volmod1) ! Simple volume model depending on V0, VA and VB
+      call calc_volmod1(moded,phres,addrec,lokph,mc,ceq)
+!      write(kou,*)' Two state model not implemented yet'
+!      gx%bmperr=4333
    end select addition
 1000 continue
    return
@@ -73,29 +73,45 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
 
 !\begin{verbatim}
- subroutine add_addrecord(iph,extra,addtyp)
+ subroutine add_addrecord(lokph,extra,addtyp)
 ! generic subroutine to add an addition typ addtyp (Except Inden)
    implicit none
-   integer iph,addtyp
+   integer lokph,addtyp
    character extra*(*)
 !\end{verbatim}
-   integer lokph,mc
+   integer aff
+   double precision xxx
+   character name*24
    type(gtp_phase_add), pointer :: newadd,addrec,lastrec
    logical bcc
 !
-   call get_phase_record(iph,lokph)
-   if(gx%bmperr.ne.0) goto 1000
-   mc=phlista(lokph)%tnooffr
+! check if this addition already entered
+   lastrec=>phlista(lokph)%additions
+   addrec=>lastrec
+   do while(associated(addrec))
+      if(addrec%type.eq.addtyp) then
+         write(*,*)'3H addition already entered ',trim(phlista(lokph)%name),&
+              addtyp,lokph,extra              
+         goto 1000
+      else
+         lastrec=>addrec
+         addrec=>lastrec%nextadd
+      endif
+   enddo
 ! create addition record
+!   write(*,*)'3H adding addition record',lokph,addtyp
    addition: select case(addtyp)
    case default
       write(kou,*)'No addtion type ',addtyp,lokph
    case(indenmagnetic) ! Inden magnetic
-! added by separate subroutine
-      write(kou,*)'Inden magnetic model is not added this way' 
-      gx%bmperr=4334
-   case(debyecp) ! Debye Cp
-      call create_debyecp(newadd)
+      if(extra(1:1).eq.'Y' .or. extra(1:1).eq.'y') then
+! bcc model
+         aff=-1
+         call create_magrec_inden(newadd,aff)
+      else
+         aff=-3
+         call create_magrec_inden(newadd,aff)
+      endif
    case(xiongmagnetic) ! Inden-Xiong.  Assume bcc if BCC part of phase name
 !      bcc=.false.
 !      if(index('BCC',phlista(lokph)%name).gt.0) bcc=.true.
@@ -105,39 +121,23 @@
          bcc=.FALSE.
       endif
       call create_xiongmagnetic(newadd,bcc)
+   case(debyecp) ! Debye Cp
+      call create_debyecp(newadd)
    case(einsteincp) ! Einstein Cp
       call create_einsteincp(newadd)
    case(elasticmodel1) ! Elastic model 1
       call create_elastic_model_a(newadd)
    case(twostatemodel1) ! Two state model 1
       call create_twostate_model1(newadd)
+   case(volmod1) ! Volume model 1
+      call create_volmod1(newadd)
    end select addition
    if(gx%bmperr.ne.0) goto 1000
-! check if there are other additions 
-!   write(*,*)'3H: adding addition: ',newadd%type,addtyp
-   if(.not.associated(phlista(lokph)%additions)) then
-      phlista(lokph)%additions=>newadd
-!      write(*,*)'3H: added as first addition: ',newadd%type
+   if(associated(phlista(lokph)%additions)) then
+!      write(*,*)'3H adding new addition record to phase  ',lokph,addtyp
+      lastrec%nextadd=>newadd
    else
-! remove any previous addition of the same type
-      nullify(lastrec)
-      addrec=>phlista(lokph)%additions
-200   if(addrec%type.eq.addtyp) then
-         write(*,*)'3H: replace old addition: ',newadd%type
-         if(associated(lastrec)) then
-            lastrec%nextadd=>addrec%nextadd
-            deallocate(addrec)
-         else
-            phlista(lokph)%additions=>newadd
-            newadd%nextadd=>addrec%nextadd
-            goto 1000
-         endif
-      elseif(associated(addrec%nextadd)) then
-         addrec=>addrec%nextadd
-         goto 200
-      endif
-!      write(*,*)'3H: Insering as first addition: ',newadd%type
-      newadd%nextadd=>phlista(lokph)%additions
+!      write(*,*)'3H adding first addition record to phase',lokph,addtyp
       phlista(lokph)%additions=>newadd
    endif
 1000 return
@@ -168,38 +168,36 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine add_magrec_inden(lokph,addtyp,aff)
+! subroutine add_magrec_inden(lokph,addtyp,aff)
 ! adds a magnetic record to lokph
 ! lokph is phase location
 ! addtyp should be 1 of Inden model
 ! aff is antiferromagnic factor, -1 for bcc and -3 for fcc and hcp
-   implicit none
-   integer lokph,addtyp,aff
+!   implicit none
+!   integer lokph,addtyp,aff
 !\end{verbatim} %+
-   integer mc
-   type(gtp_phase_add), pointer :: newadd,addrec
-   mc=phlista(lokph)%tnooffr
-! create addition record
-   call create_magrec_inden(newadd,aff)
-   if(gx%bmperr.ne.0) goto 1000
+!   integer mc
+!   type(gtp_phase_add), pointer :: newadd,addrec,addrec1
+!   mc=phlista(lokph)%tnooffr
 ! check if there are other additions
-   if(.not.associated(phlista(lokph)%additions)) then
-      phlista(lokph)%additions=>newadd
-   else
-! remove any previous addition of the same type 1
-      addrec=>phlista(lokph)%additions
-200   if(addrec%type.eq.indenmagnetic) then
-         addrec%nextadd=>addrec%nextadd
-         deallocate(addrec)
-      elseif(associated(addrec%nextadd)) then
-         addrec=>addrec%nextadd
-         goto 200
-      endif
-      phlista(lokph)%additions=>newadd
-   endif
-1000 continue
-   return
- end subroutine add_magrec_inden
+!   addrec1=>phlista(lokph)%additions
+!   addrec=>addrec1
+!200 do while(associated(addrec))
+!      if(addrec%type.eq.indenmagnetic) then
+!         write(*,*)'3H Inden magnetic model already entered'
+!         goto 1000
+!      else
+!         addrec1=addrec
+!         addrec=>addrec%nextadd
+!      endif
+!   enddo
+! add the addition record last
+!   call create_magrec_inden(newadd,aff)
+!   if(gx%bmperr.ne.0) goto 1000
+!   addrec1%nextadd=>newadd
+!1000 continue
+!   return
+! end subroutine add_magrec_inden
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -278,6 +276,7 @@
    addrec%type=indenmagnetic
    addrec%explink(1)=llow
    addrec%explink(2)=lhigh
+! addrecs declared in gtp3.F90 but I am not sure it is needed or used
    addrecs=addrecs+1
    allocate(addrec%need_property(2))
    addrec%addrecno=addrecs
@@ -925,6 +924,127 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
+ subroutine create_volmod1(addrec)
+! create addition record for the simple volume model
+!
+! currently only V = V0 * exp(VA(T))
+! V0 is property (typty) 21, VA is 22 and reserved VB (Bulk modulus) 23 
+! but VB is not implemented yet
+   implicit none
+   type(gtp_phase_add), pointer :: addrec
+!\end{verbatim} %+
+   integer typty,kk
+! reserve an addition record
+   allocate(addrec)
+! store data in record
+   nullify(addrec%nextadd)
+   addrec%type=volmod1
+! addrecs declared in gtp3.F90 but I am not sure it is needed or used
+   addrecs=addrecs+1
+   addrec%addrecno=addrecs
+   allocate(addrec%need_property(3))
+! properties needed
+   call need_propertyid('V0  ',typty)
+   if(gx%bmperr.ne.0) goto 1000
+   addrec%need_property(1)=typty
+   call need_propertyid('VA  ',typty)
+   if(gx%bmperr.ne.0) goto 1000
+   addrec%need_property(2)=typty
+   call need_propertyid('VB  ',typty)
+   if(gx%bmperr.ne.0) goto 1000
+   addrec%need_property(3)=typty
+! store zero in 6 values for propval
+   addrec%propval=zero
+1000 continue
+!   write(*,*)'3H created volume addition',addrecs
+   return
+ end subroutine create_volmod1
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim} %-
+ subroutine calc_volmod1(moded,phres,lokadd,lokph,mc,ceq)
+! calculate the simple volume model
+!
+! G = P*V0*exp(VA(T))
+! moded: integer, 0=only G, S, Cp; 1=G and dG/dy; 2=Gm dG/dy and d2G/dy2
+! phres: pointer, to phase\_varres record
+! lokadd: pointer, to addition record
+! lokph: integer, phase record 
+! mc: integer, number of constituents
+! ceq: pointer, to gtp_equilibrium_data
+   implicit none
+   integer moded,lokph,mc
+! phres points to result record with gval etc for this phase
+   TYPE(gtp_phase_varres) :: phres
+   TYPE(gtp_phase_add), pointer :: lokadd
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   integer jl,iv0,iva,ivb,noprop
+   double precision v0,va,vb,vol,deltap,pvol
+   iv0=0; iva=0; ivb=0;
+   v0=zero; va=zero; vb=zero
+   noprop=phres%listprop(1)-1
+   findix: do jl=2,noprop
+      if(phres%listprop(jl).eq.lokadd%need_property(1)) then
+         iv0=jl
+         v0=phres%gval(1,iv0)
+      elseif(phres%listprop(jl).eq.lokadd%need_property(2)) then
+         iva=jl
+         va=phres%gval(1,iva)
+      elseif(phres%listprop(jl).eq.lokadd%need_property(3)) then
+         ivb=jl
+         vb=phres%gval(1,ivb)
+      endif
+   enddo findix
+! if iva is zero there are no volume data
+   if(iva.eq.0) goto 1000
+! reference pressure is 1 bar
+   deltap=ceq%tpval(2)-1.0D5
+   if(ivb.ne.zero) then
+! if ivb not zero there are bulk modulus data
+      write(*,*)'3H Volume model with bulk modulus not implemented'
+   elseif(v0.ne.zero) then
+! NOTE all values should be divided by RT
+      vol=v0*exp(va)/ceq%rtn
+      pvol=deltap*vol/ceq%rtn
+      if(iva.gt.0) then
+!         write(*,17)'3H volume: ',lokph,iv0,iva,v0,va,vol,pvol,&
+!              phres%gval(2,iva),phres%gval(4,iva)
+17       format(a,3i3,6(1pe11.3))
+      else
+!         write(*,17)'3H volume: ',lokph,iv0,iva,vol,pvol
+      endif
+! contribtions to G and derivatives, G, G.T, G.P=V, G.T.T, G.T.P, G.P.P
+! NOTE other parameters may depend on P!
+      phres%gval(1,1)=phres%gval(1,1)+pvol
+! G.T
+      phres%gval(2,1)=phres%gval(2,1)+pvol*phres%gval(2,iva)
+! G.P
+      phres%gval(3,1)=phres%gval(3,1)+vol
+! G.T.T
+      phres%gval(4,1)=phres%gval(4,1)+&
+           pvol*(phres%gval(2,iva)**2+phres%gval(4,iva))
+! G.T.P
+      phres%gval(5,1)=phres%gval(5,1)+vol*phres%gval(2,iva)
+! G.P.P
+!      phres%gval(6,1)=phres%gval(6,1)
+! for the moment ignore composition dependence ...
+! store some property values
+      lokadd%propval(1)=pvol
+      lokadd%propval(2)=pvol*phres%gval(2,iva)
+      lokadd%propval(3)=vol
+      lokadd%propval(4)=pvol*(phres%gval(2,iva)**2+phres%gval(4,iva))
+      lokadd%propval(5)=vol*phres%gval(2,iva)
+      lokadd%propval(6)=zero
+   endif
+1000 continue
+   return
+ end subroutine calc_volmod1
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
  subroutine create_elastic_model_a(newadd)
 ! addition record to calculate the elastic energy contribution
    implicit none
@@ -1256,11 +1376,11 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine list_addition(unit,ch1,phname,ftyp,lokadd)
+ subroutine list_addition(unit,CHTD,phname,ftyp,lokadd)
 ! list description of an addition for a phase on unit
    implicit none
    integer unit,ftyp
-   character ch1*1,phname*(*)
+   character CHTD*1,phname*(*)
    TYPE(gtp_phase_add), pointer :: lokadd
 !\end{verbatim} %+
    integer ip
@@ -1276,7 +1396,7 @@
 ! TDB file: a do not think I have saved the enthalpy factor, bcc (-1) it is 0.4
          ff=0.28D0
          if(lokadd%aff.eq.-1) ff=0.4D0
-         write(unit,88)ch1,phname(1:len_trim(phname)),lokadd%aff,ff
+         write(unit,88)CHTD,phname(1:len_trim(phname)),lokadd%aff,ff
 88       format(' TYPE_DEFINITION ',a,' GES A_P_D ',a,' MAGNETIC ',i3,F8.4,'!')
       else
          write(unit,100)lokadd%aff
@@ -1338,6 +1458,13 @@
 !---------------------------------------------
    case(twostatemodel1) ! Two state  model 1
       write(unit,*)'Two state model 1, not implemented yet'
+!---------------------------------------------
+   case(volmod1) ! Volume model 1
+      if(unit.eq.kou) then
+         write(unit,*)' + Volume model V=V0(x)*exp(VA(x,T))'
+      else
+         write(unit,*)'$  + Volume model V=V0(x)*exp(VA(x,T))'
+      endif
    end select addition
 1000 continue
    return

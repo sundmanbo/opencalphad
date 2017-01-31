@@ -559,7 +559,6 @@
 ! a default constitution and CSDEFCON set)
 ! finally store stable phase amounts and constitutions into ceq%phase_varres
    j1=1
-   write(*,*)'3Y allocating startup',nvsph
    allocate(starttup(nvsph))
 ! PROBLEM for use in CEA with 15 elements, one stable phase disappear ...
 ! use extract_massbalcond ???

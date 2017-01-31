@@ -338,13 +338,14 @@
    double precision, dimension(*) :: sites
    character, dimension(*) :: const*(*)
 !\end{verbatim}
+   type(gtp_phase_add), pointer :: addrec
    character ch1*1
    double precision formalunits,endch
    integer kconlok(maxconst),kalpha(maxconst),iord(maxconst),klok(maxconst)
    integer iva(maxconst),endm(maxsubl),endm0(maxsubl+1)
    logical externalchargebalance,tupix
    integer iph,kkk,lokph,ll,nk,jl,jk,mm,lokcs,nkk,nyfas,loksp,tuple
-!   write(*,*)'3B enter enter_phase: ',model(1:len_trim(model))
+!   write(*,*)'3B enter enter_phase: ',trim(name),' ',trim(model)
    if(.not.allowenter(2)) then
       gx%bmperr=4125
       goto 1000
@@ -700,8 +701,12 @@
       enddo
 !---------------------- new code end
    endif
+! always enter volume model1, nyfas is lokph, use alphabetical index
+   if(nyfas.gt.0) then
+!      write(*,*)'3B enter_phase adding volume model: ',trim(name),nyfas
+      call add_addrecord(nyfas,' ',volmod1)
+   endif
 1000 continue
-!   write(*,*)'3B end enter_phase' disfra
    return
  END subroutine enter_phase
 

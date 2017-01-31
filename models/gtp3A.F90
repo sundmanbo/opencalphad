@@ -278,16 +278,38 @@
 !.......................................
 ! Flory-Huggins molar volume parameter 20
    npid=npid+1
-! This IF statement should be at the last parameter identifier
-   if(npid.gt.maxprop) then
-!      write(*,*)'Too many parameter identifiers, increase maxprop'
-      gx%bmperr=4250; goto 1000
-   endif
    propid(npid)%symbol='FHV '
    propid(npid)%note='Flory-Hugg. vol '
    propid(npid)%status=0
 ! FHV is specific för a constituent
    propid(npid)%status=ibset(propid(npid)%status,IDCONSUFFIX)
+!....................................... 21
+! Molar volume at T=298.15, 1 bar
+   npid=npid+1
+   propid(npid)%symbol='V0 '
+   propid(npid)%note='Volume at T0, P0 '
+   propid(npid)%status=0
+! Constant independent on temperature or pressure
+   propid(npid)%status=ibset(propid(npid)%status,IDNOTP)
+!....................................... 22
+! Thermal expansion at 1 bar
+   npid=npid+1
+   propid(npid)%symbol='VA '
+   propid(npid)%note='Thermal expansion '
+   propid(npid)%status=0
+! Only T dependent
+   propid(npid)%status=ibset(propid(npid)%status,IDONLYT)
+!....................................... 23
+! Bulk modulus as function of T and P
+   npid=npid+1
+   propid(npid)%symbol='VB '
+   propid(npid)%note='Bulk modulus '
+   propid(npid)%status=0
+! This IF statement should be at the last parameter identifier, maxprop=50?
+   if(npid.gt.maxprop) then
+!      write(*,*)'Too many parameter identifiers, increase maxprop'
+      gx%bmperr=4250; goto 1000
+   endif
 !.......................................
 ! IMPORTRANT: When adding more parameter identifiers one should never
 ! NEVER USE A NAME ENDING IN D as that would be taken as a "disordered"
