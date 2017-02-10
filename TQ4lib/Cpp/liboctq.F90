@@ -1032,7 +1032,7 @@ contains
        goto 1000
     endif
     ceq=>eqlista(n1)
-    call delete_equilibrium(name,ceq)
+    call delete_equilibria(name,ceq)
 1000 continue
     return
   end subroutine tqdceq

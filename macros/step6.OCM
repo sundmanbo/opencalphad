@@ -15,7 +15,7 @@ l r 1
 
 @&
 
-set axis 1 x(mo) 0 1 .01
+set axis 1 x(mo) 0 1 .02
 
 @&
 

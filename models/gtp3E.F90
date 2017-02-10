@@ -3193,7 +3193,7 @@
    integer norew,newfun,nfail,nooftypedefs,nl,ipp,jp,jss,lrot,ip,jt
    integer nsl,ll,kp,nr,nrr,mode,lokph,lokcs,km,nrefs,ideg,iph,ics
 ! disparttc and dispartph to handle phases with disordered parts
-   integer nofunent,disparttc,dodis,jl,nd1,thisdis,cbug,nphrej,never
+   integer nofunent,disparttc,dodis,jl,nd1,thisdis,cbug,nphrej,never,always
    character*24 dispartph(maxorddis),ordpartph(maxorddis),phreject(maxrejph)*24
    integer orddistyp(maxorddis)
    logical warning
@@ -3531,7 +3531,14 @@
 ! NOTE and FIX: type code expected to be after a single space: be flexible ??
       typedefcheck: if(longline(jp:jp).ne.' ') then
          ch1=longline(jp:jp)
-!         write(*,*)'3E typedef for ',trim(name1),': ',ch1,TDthisphase
+         if(always.eq.3) then
+! this code an attempt to fool -O2 compiler switch
+            write(*,*)'3E typedef for ',trim(name1),': ',ch1,TDthisphase
+            write(*,311)'3E TDs: ',nooftypedefs,&
+                 (typedefchar(jt),jt=1,nooftypedefs)
+311      format(a,i3,10('"',a,'", '))
+            always=always+1
+         endif
          do jt=1,nooftypedefs
             if(ch1.eq.typedefchar(jt)) goto 320
          enddo
@@ -3547,6 +3554,7 @@
             addphasetypedef(TDthisphase)=typedefaction(jt)
          else
             continue
+!            write(*,*)'3E Unknown typedefaction: ',typedefaction(jt)
          endif
          goto 310
       endif typedefcheck
@@ -3560,6 +3568,8 @@
          if(.not.silent) write(kou,*)'3E tdb: "',longline(1:jp),'"',buperr
          gx%bmperr=buperr; goto 1000
       endif
+! dummy statement to fool -O2 optimization
+      if(nsl.lt.0) jt=1
       nsl=int(xsl)
       do ll=1,nsl
          call getrel(longline,jp,stoik(ll))
@@ -3786,7 +3796,7 @@
          lokph=phases(iph)
 !         write(*,*)'3E typedefs for ',trim(name1),lokph,TDthisphase
          phasetypes: do jt=1,TDthisphase
-!          write(*,*)'typedef ',jt,addphasetypedef(jt)
+!            write(*,*)'3E typedef ',jt,addphasetypedef(jt)
             if(addphasetypedef(jt).eq.-1) then
 ! Inden magnetic for BCC
                call add_addrecord(lokph,'Y',indenmagnetic)
@@ -5995,6 +6005,13 @@
    endif
    open(21,file=filename,access='sequential',form='formatted',&
         err=1010,iostat=gx%bmperr,status='old')
+! if first line of file is "$OCVERSION ..." the text is displayed once
+   read(21,110)line
+   if(line(1:11).eq.'$OCVERSION ') then
+      write(kou,117)trim(line(12:))
+117   format(/'TDB file id: ',a/)
+   endif
+   rewind(21)
 ! just check for ELEMENT keywords
 ! return here to look for a new keyword, end-of-file OK here
    nl=0

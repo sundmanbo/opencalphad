@@ -1,9 +1,5 @@
 This file contains information on Open Calphad (OC) version 4+
 
-The main practical change is that the step/map/plot file is now called
-smp2.F90, the executables oc4A or oc4P.  I have removed the macros for
-the older versions.
-
 For general information please read the readme-general.pdf 
 
 The installation and use of OC requires some general knowledge about
@@ -17,7 +13,12 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
-2016.01.31 I have added a smiple volume model using two paramaters
+2016.02.09 I have written a new gridminimizer which is easier to
+understand and fine-tune than the one I write 4 years ago.  I am not
+sure it is better but at least I can now vary the intervals between
+the gridpoints.  
+
+2016.01.31 I have added a simple volume model using two paramaters
 V=V0(x)*exp(VA(x,T)) same as in TC but without the bulk modulus
 parameter.  I have also modified the reading of TDB files to be more
 compatible with TC. A number of small bugs fixed also and I must start

@@ -74,7 +74,7 @@
 
 !\begin{verbatim}
  subroutine add_addrecord(lokph,extra,addtyp)
-! generic subroutine to add an addition typ addtyp (Except Inden)
+! generic subroutine to add an addition typ addtyp (including Inden)
    implicit none
    integer lokph,addtyp
    character extra*(*)

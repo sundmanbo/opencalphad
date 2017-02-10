@@ -46,10 +46,12 @@ contains
 ! command monitor
     implicit none
 !
+! passed as date when program was linked
+    character linkdate*(*),version*(*)
 ! various symbols and texts
     character :: ocprompt*4='OC4:'
     character name1*24,name2*24,line*80,model*72,chshort
-    integer, parameter :: ocmonversion=22
+    integer, parameter :: ocmonversion=30
 ! element symbol and array of element symbols for database use
     character elsym*2,ellist(maxel)*2
 ! more texts for various purposes
@@ -149,8 +151,6 @@ contains
     integer icon
 ! array with constituents in sublattices when entering a phase
 !    character, dimension(maxconst) :: const*24
-! passed as date when program was linked
-    character linkdate*(*),version*(*)
 ! for macro and logfile and repeating questions
     logical logok,stop_on_error,once,wildcard,twice
 ! unit for logfile input, 0 means no logfile
@@ -375,7 +375,7 @@ contains
 !
     write(kou,10)version,trim(linkdate),ocmonversion,gtpversion,hmsversion,&
          smpversion
-10  format(/'Open Calphad (OC) software version ',a,' prerelease, linked ',a,/&
+10  format(/'Open Calphad (OC) software version ',a,', linked ',a,/&
          'with command line monitor version ',i2//&
          'This program is available with a GNU General Public License.'/&
          'It includes the General Thermodynamic Package, version ',A,','/&

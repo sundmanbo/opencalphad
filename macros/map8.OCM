@@ -115,7 +115,7 @@ l sh a
 
 @&
 
-set c t=350 p=1e5 n=1 x(ni)=.6
+set c t=100 p=1e5 n=1 x(ni)=.6
 
 c e
 
@@ -139,6 +139,18 @@ plot
 
 title map8 fig 1
 
+
+
+set c x(ni)=.45
+
+c e
+
+l,,,,
+
+@&
+
+map
+N
 
 plot
 

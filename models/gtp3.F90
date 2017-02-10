@@ -754,6 +754,9 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !\begin{verbatim}
 ! Parameters defining the size of arrays etc.
 ! max elements, species, phases, sublattices, constituents (ideal phase)
+!  integer, parameter :: maxel=100,maxsp=1000,maxph=600,maxsubl=10,maxconst=1000
+! NOTE increasing maxph to 600 and maxtpf to 80*maxph made the equilibrium
+! record very big and created problems storing equilibria at STEP/MAP!!!
   integer, parameter :: maxel=100,maxsp=1000,maxph=400,maxsubl=10,maxconst=1000
 ! maximum number of constituents in non-ideal phase
   integer, parameter :: maxcons2=100
@@ -768,8 +771,9 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   double precision, private, parameter :: YPRECD=1.0D-6,YMIND=1.0D-30
 ! dimension for push/pop in calcg, max composition dependent interaction
   integer, private, parameter :: maxpp=1000,maxinter=3
-! max number of TP symbols
+! max number of TP symbols, TOO BIG VALUE MAKES SAVE AT STEP/MAP DIFFICULT
   integer, private, parameter :: maxtpf=20*maxph
+!  integer, private, parameter :: maxtpf=80*maxph
 ! max number of properties (G, TC, BMAG MQ%(...) etc)
   integer, private, parameter :: maxprop=50
 ! max number of state variable functions

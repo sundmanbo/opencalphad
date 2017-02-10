@@ -96,6 +96,7 @@
    double precision, dimension(:), allocatable :: dpyq(:),d2pyq(:),d2vals(:)
    double precision, dimension(:,:), allocatable :: dvals(:,:)
    double precision vals(6)
+! this array has the sum of constituents up to and including current sublattice
    integer incffr(0:maxsubl)
 ! in local gz: gz%intlevel level of interaction, gz%intcon and gz%intlat are
 ! used also in cgint when calculating interactions.
@@ -119,10 +120,11 @@
    double precision, dimension(:,:), allocatable :: saved2g
    double precision, dimension(:,:), allocatable :: tmpd2g
 ! added when implicit none
-   double precision rtg,pyq,ymult,add1,sum,yionva,fsites,xxx
+   double precision rtg,pyq,ymult,add1,sum,yionva,fsites,xxx,sublf
    integer nofc2,nprop,nsl,msl,lokdiseq,ll,id,id1,id2,lm,qz,floryhuggins
    integer lokfun,itp,nz,intlat,ic,jd,jk,ic1,jpr,ipy,i1,j1
    integer i2,j2,ider,is,kk,ioff,norfc,iw,iw1,iw2,lprop,jonva,icat
+   integer nsit1,nsit2
 ! storage for calculated Flopry Huggins volume parameters
    integer, dimension(:), allocatable :: fhlista
    double precision, dimension(:,:), allocatable :: fhv
@@ -1300,10 +1302,8 @@
                nz=fracset%tnoofxfr
                allocate(tmpd2g(nz*(nz+1)/2,nprop))
                tmpd2g=zero
-               if(nsl.gt.3) goto 666
-! for 4 sublattice model just ignore the 2nd derivatives from the ordered
-! phase calculated as disordered ...
-! BEWARE use dense grid!
+               goto 666
+!               if(nsl.gt.3) goto 666
 ! ****************** probable BUG here with 2nd derivatives of ordered FCC
 ! But this is necessary for 2 sublattice ordered model !! ??
 ! DEBUG, problem with partitioning
@@ -1311,6 +1311,7 @@
 !613            format(a,3i3,2x,20i3)
 !               write(*,614)'3X dxi/dyj: ',fracset%dxidyj
 !614            format(a,(10f7.4))
+! THIS IS ONLY DONE FOR ORDERING ON 2 SUBLATTICES
                do ipy=1,lprop-1
                   do i1=1,gz%nofc
                      j1=fracset%y2x(i1)
@@ -1346,16 +1347,30 @@
 !                     enddo
 !                  enddo
 !               enddo
-! subreact dirctly the corresponding d2G/dy1/dy2
+! subract the corresponding d2G/dy1/dy2 calculated as disordered ...
+! but multiplied with the product of the sites on the sublattices for
+! the constituents used as derivatives
                do ipy=1,lprop-1
+                  nsit1=1
                   do i1=1,gz%nofc
-                     j1=fracset%y2x(i1)
+!                     j1=fracset%y2x(i1)
+! incffr is the number of constituents up to and including nsit1
+                     if(i1.gt.incffr(nsit1)) nsit1=nsit1+1
+                     nsit2=nsit1
                      do i2=i1,gz%nofc
 ! subtract from saved value
-                        j2=fracset%y2x(i2)
+!                        j2=fracset%y2x(i2)
+                        if(i2.gt.incffr(nsit2)) nsit2=nsit2+1
+                        sublf=phres%sites(nsit1)*phres%sites(nsit2)
+!                        write(*,637)'3X sublf: ',ipy,i1,i2,nsit1,nsit2,&
+!                             gz%nofc,sublf
+637                     format(a,6i3,1pe12.4)
+! evidently this attempt to improve made it worse ...
+!                        sublf=one
                         phres%d2gval(ixsym(i1,i2),ipy)=&
                              saved2g(ixsym(i1,i2),ipy)-&
                              phres%d2gval(ixsym(i1,i2),ipy)
+!                             sublf*phres%d2gval(ixsym(i1,i2),ipy)
 ! maybe not needed ??
 !                             phres%d2gval(ixsym(i1,i2),ipy)*&
 !                             fracset%dxidyj(i1)*fracset%dxidyj(i2)
@@ -1383,7 +1398,7 @@
                      enddo
                      if(fracset%ndd.eq.2) then
 ! one can have 2 sets of ordered subl like (Al,Fe)(Al,Fe)...(C,Va)(C,Va)...
-! I doubt that works ...
+! BUT I doubt that works ...
                         ioff=fracset%nooffr(1)*fracset%latd
                         do is=1,fracset%nooffr(2)
                            sum=zero

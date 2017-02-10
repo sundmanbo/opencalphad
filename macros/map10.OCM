@@ -6,7 +6,7 @@ set echo
 r t saf2507
 fe cr ni
 
-set c t=1200 p=1e5 n=1 x(cr)=.4 x(ni)=.2
+set c t=1200 p=1e5 n=1 x(cr)=.3 x(ni)=.05
 
 c e
 

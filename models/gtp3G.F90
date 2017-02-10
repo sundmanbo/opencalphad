@@ -21,6 +21,8 @@
    call find_element_by_name(elname,iel)
    if(gx%bmperr.ne.0) goto 1000
    lokel=elements(iel)
+   write(*,*)'3G Changing element status not yet implemented'
+   goto 1000
    if(btest(ellista(iel)%status,elsus)) then
 ! element already suspended, quit it should be suspended again ....
       if(nystat.eq.1) goto 1000
@@ -76,6 +78,8 @@
    integer loksp
    call find_species_record(spname,loksp)
    if(gx%bmperr.ne.0) goto 1000
+   write(*,*)'3G Changing species status not yet implemented'
+   goto 1000
    if(btest(splista(loksp)%status,spsus)) then
 ! species already suspended, quit if it should be suspended again ....
       if(nystat.eq.1) goto 1000
