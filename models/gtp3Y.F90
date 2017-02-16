@@ -3416,6 +3416,8 @@
    else
       iph=iphx
    endif
+!   write(*,*)'3Y calcg_endmember: ',iphx,' ',trim(phlista(abs(iphx))%name),&
+!        iph,' ',trim(phlista(iph)%name)
 !
    call get_phase_data(iph,1,nsl,nkl,knr,savey,sites,qq,ceq)
    if(gx%bmperr.ne.0) goto 1100
@@ -3423,14 +3425,15 @@
 ! It is difficult to make this simpler as one can have magnetic contributions
 ! to G, this it is not sufficient just to calculate the G function, one must
 ! calculate TC etc.
+!   write(*,16)'3Y call endmember: ',iph,nsl,(endmember(ll),ll=1,nsl)
    yfra=zero
    kk0=0
    do ll=1,nsl
       if(endmember(ll).gt.kk0 .and. endmember(ll).le.kk0+nkl(ll)) then
          yfra(endmember(ll))=one
       else
-!         write(*,16)'3Y endmember index outside range',ll,endmember(ll),&
-!              kk0,nkl(ll)
+         write(*,16)'3Y endmember outside range 1: ',iph,ll,endmember(ll),&
+              kk0,kk0+nkl(ll)
 16       format(a,10i5)
          gx%bmperr=4160; goto 1100
       endif
@@ -3521,8 +3524,8 @@
       if(endmember(ll).gt.kk0 .and. endmember(ll).le.kk0+nkl(ll)) then
          yfra(endmember(ll))=one
       else
-!         write(*,16)'3Y endmember index outside range',ll,endmember(ll),&
-!              kk0,nkl(ll)
+         write(*,16)'3Y endmember outside range 2',ll,endmember(ll),&
+              kk0,nkl(ll)
 16       format(a,10i5)
          gx%bmperr=4160; goto 1100
       endif
@@ -3606,7 +3609,7 @@
       if(endmember(ll).gt.kk0 .and. endmember(ll).le.nkl(ll)) then
          yfra(endmember(ll))=one
       else
-         write(*,11)'3Y endmember index outside range',ll,endmember(ll),nkl(ll)
+         write(*,11)'3Y endmember outside range 3',ll,endmember(ll),nkl(ll)
 11       format(a,10i4)
          gx%bmperr=4160; goto 1100
       endif
@@ -3665,6 +3668,20 @@
    double precision xknown(*),phfrac(*),cmu(nrel)
    logical trace
 !\end{verbatim}
+!------------------------------------------------------------------------
+! How to include conditions on chemical potentials (activities) ??
+! Assume mix of conditions N(A)=value and MU(B)=value
+! 1. find gridpoints with phase alpha for pure A with highest MU(A),
+!    set NP(alpha)=N(A) 
+! 2. Tangent plane is \sum_A MU(A)+\sum_B MU(B)
+! 2. seach gridpoint with composition N(C) most below tangent plane 
+! 3. setup matrix with rows \sum_alpha N(alpha,A)*NP(alpha) = N(A) 
+!     replacing the gridpoints one by onw with the new
+!    to find a set of gridpoints with positive NP(alpha)
+! 4. replace the gridpoint that gives positive NP(alpha) with the new
+! 5. repeat from 3 intil no gridpoint lower
+! The set of gridpoints should now fullfill the massbalance for A and MU(B)
+!---------------------------------------------------------------------------
 ! inverting just a C1_MO2 phase I got phfmain around 1.0e-13 as smallest
    double precision, parameter :: phfmin=1.0D-15
    real xmat(nrel,nrel),xmatsave(nrel,nrel),xmaxx(nrel)

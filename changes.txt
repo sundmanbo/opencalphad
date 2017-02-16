@@ -13,8 +13,12 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2016.02.15 Some major and many minor changes to make OC work with a
+multicomponent fuel simulation for CEA.  A large memory leak when
+reading databases was also removed using valgrind.
+
 2016.02.09 I have written a new gridminimizer which is easier to
-understand and fine-tune than the one I write 4 years ago.  I am not
+understand and fine-tune than the one I wrote 4 years ago.  I am not
 sure it is better but at least I can now vary the intervals between
 the gridpoints.  
 

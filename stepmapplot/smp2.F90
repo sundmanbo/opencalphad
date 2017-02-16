@@ -355,7 +355,7 @@ CONTAINS
     call map_findline(maptop,axarr,mapfix,mapline)
     if(gx%bmperr.ne.0) goto 1000
 ! if no line we are finished!
-!    write(*,*)'Back from map_findline'
+!    write(*,*)'Back from map_findline 1'
 ! segmentation fault crash later ...
     if(.not.associated(mapline)) goto 900
 !    write(*,*)'We will start calculate line: ',mapline%lineid,mapline%axandir
@@ -1681,7 +1681,6 @@ CONTAINS
 ! pointer to last calculated (can be zero) and last free
 ! store last calulated axis values in axarr(iax)%lastaxval
 !    write(*,*)'In map_store',mapline%start%number_ofaxis,nax
-!    do jj=1,mapline%start%number_ofaxis
     do jj=1,nax
        axstv1=axarr(jj)%axcond(1)
        axstv=>axstv1
@@ -1722,7 +1721,6 @@ CONTAINS
 ! loop through all phases and if their status is entered set it as PHENTUNST
 ! then loop through all stable to set status PHENTSTAB
 ! That is important for extracting values later ...
-!       write(*,*)'Setting phase status 1',meqrec%nphase
     meqrec=>mapline%meqrec
     do jph=1,meqrec%nphase
 !          write(*,*)'phase and status: ',jph,meqrec%phr(jph)%curd%phstate,&
@@ -1738,7 +1736,7 @@ CONTAINS
 !                         meqrec%phr(jph)%curd%phstate
        endif
     enddo
-    if(ocv()) write(*,*)'map_store, stable phases',meqrec%nstph,place
+!    write(*,*)'map_store, stable phases',meqrec%nstph,place
     do jph=1,meqrec%nstph
        jj=meqrec%stphl(jph)
        if(meqrec%phr(jj)%curd%phstate.lt.PHFIXED) then
@@ -1747,12 +1745,14 @@ CONTAINS
 !          write(*,*)'Fix phase 1: ',jj,meqrec%phr(jj)%iph,meqrec%phr(jj)%ics
        endif
     enddo
-    if(ocv()) write(*,201)' map store, stable phases: ',&
-         (meqrec%phr(meqrec%stphl(jj))%iph,&
-         meqrec%phr(meqrec%stphl(jj))%ics,jj=1,meqrec%nstph)
+!    write(*,201)' map store, stable phases: ',&
+!         (meqrec%phr(meqrec%stphl(jj))%iph,&
+!         meqrec%phr(meqrec%stphl(jj))%ics,jj=1,meqrec%nstph)
 201 format(a,10(2i3,2x))
 !-----------------------------------------
 ! this copies the whole data structure !!!
+! LIKELY PLACE FOR SEGMENTATION FAULT !!!
+!    write(*,*)'SMP storing equilibrium record: ',place
     saveceq%savedceq(place)=mapline%lineceq
     saveceq%savedceq(place)%next=0
     if(mapline%last.gt.0) then
@@ -1761,7 +1761,6 @@ CONTAINS
     mapline%last=place
     mapline%number_of_equilibria=mapline%number_of_equilibria+1
     if(mapline%first.eq.0) mapline%first=place
-    if(ocv()) write(*,*)' >> equilibrium saved'
     if(saveonfile) then
 ! We have to wind up all unfinished lines to continue step/map
 ! but this is not yet implemented
@@ -3112,8 +3111,8 @@ CONTAINS
           newnode%nodeceq%phase_varres(lokcs)%PHSTATE=PHENTSTAB
           newnode%nodeceq%phase_varres(lokcs)%amfu=one
           newnode%noofstph=1
-          write(*,*)'SMP phases 1A: ',phfix,newnode%stable_phases(1)%ixphase,&
-               newnode%stable_phases(2)%ixphase
+!          write(*,*)'SMP phases 1A: ',phfix,newnode%stable_phases(1)%ixphase,&
+!               newnode%stable_phases(2)%ixphase
 ! But I had to remove the previously stable phase also this way !!
           call get_phase_compset(-phfix,1,lokph,lokcs)
           newnode%nodeceq%phase_varres(lokcs)%PHSTATE=PHENTUNST
@@ -3834,10 +3833,11 @@ CONTAINS
     type(map_ceqresults), pointer :: saveceq
 !\end{verbatim}
     location=saveceq%free
+!    write(*,*)'SMP reserve record: ',location,saveceq%size
 !    write(*,*)'Reserve place for equilibrium: ',location,saveceq%size
-    if(location.eq.saveceq%size-5) then
+    if(location.eq.saveceq%size-10) then
 ! indicate overflow with 5 places left if some emergency saving needed
-!       write(*,*)'Overflow in saveceq: ',saveceq%free
+       write(*,*)'Close to overflow in saveceq: ',saveceq%free
        gx%bmperr=4219; goto 1000
     endif
     saveceq%free=location+1
@@ -6651,6 +6651,7 @@ CONTAINS
     type(meq_phase), pointer :: phr
     double precision val,xxx,yyy,axvalok
     logical firstline
+    integer, parameter :: maxsavedceq=2000
     character name*24
 ! turns off convergence control for T
     integer, parameter :: inmap=1
@@ -6790,7 +6791,8 @@ CONTAINS
              call map_startpoint(maptop,noofaxis,axarr,seqxyz,inactive,ceq)
              if(gx%bmperr.ne.0) goto 500
 ! create array of equilibrium records for saving results
-             saveq=1500
+! if larger than 500 I get segmentation fault ,,,,
+             saveq=maxsavedceq
              call create_saveceq(maptop%saveceq,saveq)
              if(gx%bmperr.ne.0) goto 900
 ! initiate line counter (redundant) ... maybe if several step separate?
@@ -6813,12 +6815,12 @@ CONTAINS
 200       continue
           call map_findline(maptop,axarr,mapfix,mapline)
           if(gx%bmperr.ne.0) goto 500
+!          write(*,*)'Back from map_findline 2'
 !          write(*,*)'We have a line'
           ceq=>mapline%lineceq
           meqrec=>mapline%meqrec
 ! this is the first equilibrium along the line, create meqrec in step_separate
 305       continue
-!          write(*,*)'Calling calceq7'
           call calceq7(mode,meqrec,mapfix,ceq)
           if(gx%bmperr.ne.0) then
 ! error 4187 is to set T or P less than 0.1
@@ -6859,13 +6861,11 @@ CONTAINS
                 goto 333
              endif
 ! store the result
-!             write(*,*)'Storing the equilibrium'
              call map_store(mapline,axarr,maptop%number_ofaxis,maptop%saveceq)
              if(gx%bmperr.ne.0) then
                 write(*,*)'Error storing equilibrium',gx%bmperr
                 goto 900
              endif
-!             write(*,*)'Taking a step'
              call map_step(maptop,mapline,mapline%meqrec,mapline%meqrec%phr,&
                   axvalok,noofaxis,axarr,ceq)
              if(gx%bmperr.ne.0) then

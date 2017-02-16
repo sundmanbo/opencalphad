@@ -27,7 +27,7 @@ c e
 
 l,,,,
 
-@$ At T=1000 and 1 bar BCC is stable and G=-42272 J
+@$ At T=1000 and 1 bar BCC is stable and G=-42.2718 kJ
 @$ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-
 @&
 
@@ -85,6 +85,6 @@ c e
 
 l,,,,
 
-@$ With this value of H we have FCC stable at 1615 K 
+@$ With this value of H we have FCC stable at 1615.28 K 
 
 set inter

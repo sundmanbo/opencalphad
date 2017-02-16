@@ -915,17 +915,20 @@
 !   implicit double precision (a-h,o-z)
    implicit none
    integer nc,koder(5,*)
-   TYPE(tpfun_expression), pointer :: lrot
-   TYPE(tpfun_expression), pointer :: noexpr
+!   TYPE(tpfun_expression), pointer :: lrot
+   TYPE(tpfun_expression) :: lrot
+!   TYPE(tpfun_expression), pointer :: noexpr
    double precision coeff(*)
 !\end{verbatim} %+
    integer i
+!   write(*,*)'3Z in ct1mexpr',nc
+   lrot%noofcoeffs=nc
    if(nc.le.0) then
-      nullify(lrot)
+!      nullify(lrot)
       goto 1000
    endif
 ! allocate an expression record and then allocate all arrays
-   allocate(lrot)
+!   allocate(lrot)
    lrot%noofcoeffs=nc
    allocate(lrot%coeffs(nc))
    allocate(lrot%tpow(nc))
@@ -942,7 +945,9 @@
       lrot%plevel(i)=koder(4,i)
       lrot%link(i)=koder(5,i)
    enddo save2
-1000  return
+1000  continue
+!   write(*,*)'3Z leaving ct1mexpr'
+   return
  end subroutine ct1mexpr
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
@@ -1857,8 +1862,11 @@
    real tlim(mrange)
    double precision coeff(mc),val
    integer koder(5,mc)
+! attempt to remove big memory leak
+!   TYPE(tpfun_expression) :: links(mrange)
+!   TYPE(tpfun_expression), target :: links(mrange)
    TYPE(tpfun_expression) :: links(mrange)
-   TYPE(tpfun_expression), pointer :: ltpexpr
+!   TYPE(tpfun_expression), pointer :: ltpexpr
    character ch1*1,lsym*(lenfnsym)
    logical already
 ! check if function already entered, there are freetpfun-1 of them
@@ -1929,8 +1937,14 @@
       nc=mc
       call ct1xfn(text,ip,nc,coeff,koder,fromtdb)
       if(gx%bmperr.ne.0) goto 1000
-      call ct1mexpr(nc,coeff,koder,ltpexpr)
-      links(nrange)=ltpexpr
+! big memory leak ... still there ...
+!      call ct1mexpr(nc,coeff,koder,ltpexpr)
+!      links(nrange)=ltpexpr
+!      ltpexpr=>links(nrange)
+!      call ct1mexpr(nc,coeff,koder,ltpexpr)
+!      write(*,*)'3Z calling ct1mexpr', nrange
+      call ct1mexpr(nc,coeff,koder,links(nrange))
+! attempt to remove memory leak
 ! bypass final ; of expression
       ip=ip+1
       call getrel(text,ip,val)

@@ -1,11 +1,11 @@
 ! Hillert's Minimizer as implemented by Sundman (HMS)
 ! Based on Mats Hillert paper in Physica 1981 and Bo Janssons thesis 1984
 ! Details of this implementation published in Computational Materials Science,
-!  vol 101, (2015) pp 127-137
+! vol 101, (2015) pp 127-137
 !
 MODULE liboceq
 !
-! Copyright 2012-2016, Bo Sundman, France
+! Copyright 2012-2017, Bo Sundman, France
 !
 !    This program is free software; you can redistribute it and/or modify
 !    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,8 @@ MODULE liboceq
 !    You should have received a copy of the GNU General Public License
 !    along with this program; if not, write to the Free Software
 !    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+!
+! contact person: bo.sundman@gmail.com
 !
 !---------------------------
 !
@@ -297,7 +299,8 @@ CONTAINS
     double precision, dimension(maxconst) :: yarr
     integer np,iph,ics,jph,lokph,lokcs,mode2
     integer mostcon,mph,nvf,mostconph(2,maxel),icc,jcc
-    integer, parameter :: mmu=5
+! max number of potential conditions
+    integer, parameter :: mmu=20
 ! dimension cmix(22) allows 5 terms: 2+4*5 
     integer what,mjj,ij,cmix(22),cmode,mufixel(mmu),mufixref(mmu),errout
     integer fixph(2,maxel),oldorder(mmu),kst
@@ -819,6 +822,7 @@ CONTAINS
     double precision, parameter :: addedphase_amount=1.0D-2
     double precision xxx,tpvalsave(2)
     integer iremsave,zz,tupadd,tuprem,samephase,phloopaddrem1,phloopaddrem2
+    integer phloopv
 ! replace always FALSE except when we must replace a phase as we have max stable
     logical replace
 ! number of iterations without adding or removing a phase
@@ -1050,9 +1054,21 @@ CONTAINS
              goto 200
           elseif(phloopaddrem1.gt.4) then
 ! reset this phase to a default constitution
+             write(*,*)'MM phloopaddrem: ',phloopaddrem2
              iadd=phloopaddrem2
-             call set_default_constitution(phasetuple(iadd)%ixphase,&
-                  phasetuple(iadd)%compset,ceq)
+             phloopv=phasetuple(iadd)%lokph
+!             if(ceq%phlista(phloopv)%tnooffr-ceq%phlista(phloopv)%noofsubl &
+!                  .gt. 0) then
+! reset troublesome phase constitution if it can vary
+                call set_default_constitution(phasetuple(iadd)%ixphase,&
+                     phasetuple(iadd)%compset,ceq)
+!             else
+! set phase dormant ... Hm I do not understand meqrec%phr any longer ...
+!                phloopv=phasetuple(iadd)%lokvares
+!                ceq%phase_varres(phloopv)%phstate=PHDORM
+!                meqrec%phr(mph)%dormlink=0
+!                meqrec%dormlink=
+!             endif
              iadd=0
              phloopaddrem1=0
              phloopaddrem2=0
@@ -1070,7 +1086,7 @@ CONTAINS
        if(irem.gt.0) tuprem=meqrec%phr(irem)%curd%phtupx
        if(.not.btest(meqrec%status,MMQUIET)) &
             write(*,219)meqrec%noofits,tupadd,tuprem
-219    format('Phase change: its/add/remove: ',3i5,1pe12.4)
+219    format('Phase change: its/add/remove: ',5i5,1pe12.4)
        if(formap) then
 ! when called during mapping the set of phases must not change!
           if(ocv()) write(*,*)'Phase change not allowed',ceq%tpval(1)
@@ -1148,7 +1164,7 @@ CONTAINS
             meqrec%phr(iadd)%ics,meqrec%phr(iadd)%curd%dgm,meqrec%noofits
 223    format(a,2x,2i4,1pe15.4,i7)
        if(meqrec%noofits-meqrec%phr(iadd)%itrem.lt.minadd) then
-! if phase was just removed do not add it before minadd iterations
+! if phase was just removed, do not add it before minadd iterations
 !          if(.not.btest(meqrec%status,MMQUIET))write(*,224)
           if(ocv()) write(*,224)meqrec%phr(iadd)%curd%phtupx,&
                meqrec%noofits,meqrec%phr(iadd)%itrem,phloopaddrem1,&
@@ -1167,7 +1183,7 @@ CONTAINS
           endif
           goto 200
        endif
-! make sure iremsave is set to zero
+! make sure iremsave is zero
        iremsave=0
        if(meqrec%nstph.eq.meqrec%maxsph) then
 ! No more phases allowed, we must see if  some other phase may be removed
@@ -1333,6 +1349,7 @@ CONTAINS
 !             write(*,*)'Component has defined reference state: ',jj,lokph
              tpvalsave=ceq%tpval
 ! modified calcg_endmember to convert negative phase index to phase number ...
+!             write(*,*)'MM calling calcg_endmember 1: ',-lokph
              call calcg_endmember(-lokph,ceq%complist(jj)%endmember,xxx,ceq)
              if(gx%bmperr.ne.0) then
                 write(*,68)'MM error calculating reference state',gx%bmperr,&
@@ -1408,11 +1425,16 @@ CONTAINS
 ! this is an emergecy fix to improve convergence for ionic liquid
     double precision, parameter :: ionliqyfact=3.0D-1
 !    double precision, parameter :: ionliqyfact=1.0D0
-    integer iz,tcol,pcol
+! to check if we are calculating a single almost stoichiometric phase ...
+    integer iz,tcol,pcol,nophasechange
+    double precision maxphasechange
     integer notf,dncol,iy,jy,iremsave,phasechangeok
     double precision, dimension(:), allocatable :: lastdeltaam
-    logical vbug
+    logical vbug,stoikph
 !
+    stoikph=.true.
+    nophasechange=0
+    maxphasechange=zero
     if(iadd.eq.-1 .or. ocv()) then
        write(*,*)'Debug output in meq_sameset'
        vbug=.TRUE.; iadd=0
@@ -1454,6 +1476,23 @@ CONTAINS
 ! return here until converged or phase set change
 100 continue
     meqrec%noofits=meqrec%noofits+1
+    if(nophasechange.gt.100 .and. maxphasechange.lt.1.0E-10) then
+! if we have not changed the set of stable phases for many iterations
+! and the changes in phase amounts is small maybe we are calculationg an
+! almost stoichiometric phase?  Changes in MU can be large!
+       if(stoikph .and. meqrec%nphase.gt.1) then
+          write(*,30)nophasechange
+30        format('Same set of phases for ',i3,' iterations and negligable',&
+               ' changes of amounts, '/'probably almost stoichiometric',&
+               ' phases. NOTE: potentials are uncertain.')
+          stoikph=.false.
+! if this happends during step/map give error message
+          if(inmap.eq.1) gx%bmperr=4398
+       endif
+       converged=0
+       goto 1000
+    endif
+    nophasechange=nophasechange+1
 ! this is magic ....
 !    nmagic=nmagic+1
 !    if(mod(nmagic,5).eq.0) ymagic=0.5*ymagic
@@ -1556,7 +1595,7 @@ CONTAINS
     endif
 228 format(a,6(1pe12.4),(8x,6e12.4))
 ! This is an emergy check that the smat matrix does not contain
-! values >1E+50.  We shopuld test for Infinity and NaN but how??
+! values >1E+50.  We should test for Infinity and NaN but how??
     do iz=1,nz1
        do jz=1,nz2
           if(abs(smat(iz,jz)).gt.1.0D+50) then
@@ -1593,7 +1632,7 @@ CONTAINS
     endif
 ! when problems output svar here !! (and smat1: above)
 !    write(33,*)'Solution'
-!       write(*,228)'Sltn: ',(svar(jz),jz=1,nz1)
+!    write(*,228)'PHMAT: ',(svar(jz),jz=1,nz1)
 !    close(33)
 !    write(*,228)'svar1:',(svar(jz),jz=1,nz1)
     if(vbug) write(*,228)'svar1:',(svar(jz),jz=1,nz1)
@@ -1790,6 +1829,12 @@ CONTAINS
                   write(*,*)'Large change in phase amount: ',deltaam
 !             deltaam=-one
              deltaam=sign(0.5D0,deltaam)
+          endif
+          if(abs(deltaam).gt.maxphasechange) then
+! to allow checks when phase set does not change and amount changes are small
+! like when calculating an almost stoichiometric composition like UO2 with
+! n(o)=2 and n(u)=1 at low T
+             maxphasechange=abs(deltaam)
           endif
           phf=phr(jj)%curd%amfu-deltaam
           if(phs.gt.0.2D0 .and. phf.le.zero) then
@@ -2698,7 +2743,8 @@ CONTAINS
 34                 format(a,3i4,4x,10i3)
 ! we must also handle reference state at fix T !!
                    tpvalsave=ceq%tpval
-                   call calcg_endmember(iph,ceq%complist(je)%endmember,&
+!                   write(*,*)'MM calling calcg_endmember 2: ',-iph
+                   call calcg_endmember(-iph,ceq%complist(je)%endmember,&
                         gref,ceq)
                    if(gx%bmperr.ne.0) then
                       write(*,*)'MM error calculating reference state'

@@ -346,7 +346,7 @@
    iws(22)=lok
    iws(23)=gtp_biblioref_version
 !-------------------------------------------------------
-! write the equilibrium records, at present for only FIRSTEQ
+! write the equilibrium records
 ! conditions, components, phase_varres for all composition sets etc
 !>>>>> 50: equilibria
 !   write(*,*)'3E saving equilibria'

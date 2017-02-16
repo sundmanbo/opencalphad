@@ -2461,6 +2461,7 @@
 !      write(*,*)'3F refphase: ',indices(1),phlista(indices(1))%alphaindex,value
       ic=phlista(indices(1))%alphaindex
       endmember(1)=indices(2)
+!      write(*,*)'3F callcg_endmember 1: ',indices(1)
       call calcg_endmember(indices(1),endmember,gref,ceq)
       if(gx%bmperr.ne.0) goto 1000
       value=value-gref*ceq%rtn
@@ -2493,12 +2494,13 @@
 !              ceq%complist(indices(1))%phlink,&
 !              ceq%complist(indices(1))%endmember
          ic=ceq%complist(indices(1))%phlink
-         ic=phlista(ic)%alphaindex
+!         ic=phlista(ic)%alphaindex
 !         write(*,*)'3F refphase: ',indices(1),ic,phlista(indices(1))%alphaindex
 !         ic=phlista(indices(1))%alphaindex
 ! the first index should be phase index, not location
 ! We may have to restore gval after this!!!
-         call calcg_endmember(ic,ceq%complist(indices(1))%endmember,gref,ceq)
+!         write(*,*)'3F callcg_endmember 2: ',-ic
+         call calcg_endmember(-ic,ceq%complist(indices(1))%endmember,gref,ceq)
          if(gx%bmperr.ne.0) then
             write(*,*)'3F Error calculating refstate for chemical pot'
             goto 1000
@@ -2699,6 +2701,7 @@
 ! special endmember call that returns G, G.T, G.P, G.T.T, G.T.P and G.P.P
 !         write(*,73)'3F R state: ',iel,phref,ceq%complist(iel)%endmember
 73       format(a,2i3,2x,10i4)
+!         write(*,*)'3F callcg_endmember 3: ',phref
          call calcg_endmember6(phref,ceq%complist(iel)%endmember,gref,ceq)
          if(gx%bmperr.ne.0) then
             write(*,*)'3F Error return: ',gx%bmperr

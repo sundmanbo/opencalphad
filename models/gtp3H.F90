@@ -232,7 +232,9 @@
       if(gx%bmperr.ne.0) goto 1000
 ! Trouble with memory leaks for expressions to be fixed ...
       llow=>llow2
-      call ct1mexpr(nc,coeff,koder,llow)
+!      call ct1mexpr(nc,coeff,koder,llow)
+! Attempt to remove big memory leak
+      call ct1mexpr(nc,coeff,koder,llow2)
       if(gx%bmperr.ne.0) goto 1000
 ! Magnetic function above Curie Temperature
       text=' -.0641731208*T**(-5)-.00203724193*T**(-15)'//&
@@ -242,7 +244,9 @@
       nc=ncc
       call ct1xfn(text,ip,nc,coeff,koder,.FALSE.)
       if(gx%bmperr.ne.0) goto 1000
-      call ct1mexpr(nc,coeff,koder,lhigh)
+!      call ct1mexpr(nc,coeff,koder,lhigh)
+! Attempt to remove big memory leak
+      call ct1mexpr(nc,coeff,koder,lhigh2)
       if(gx%bmperr.ne.0) goto 1000
    else
 !------------
@@ -255,7 +259,9 @@
       call ct1xfn(text,ip,nc,coeff,koder,.FALSE.)
       if(gx%bmperr.ne.0) goto 1000
       llow=>llow2
-      call ct1mexpr(nc,coeff,koder,llow)
+!      call ct1mexpr(nc,coeff,koder,llow)
+! Attempt to remove big memory leak
+      call ct1mexpr(nc,coeff,koder,llow2)
       if(gx%bmperr.ne.0) goto 1000
 ! Magnetic function above Curie Temperature
       text='-.0426902268*T**(-5)-.0013552453*T**(-15)'//&
@@ -264,8 +270,10 @@
       nc=ncc
       call ct1xfn(text,ip,nc,coeff,koder,.FALSE.)
       if(gx%bmperr.ne.0) goto 1000
-      call ct1mexpr(nc,coeff,koder,lhigh)
-      if(gx%bmperr.ne.0) goto 1000
+!      call ct1mexpr(nc,coeff,koder,lhigh)
+ ! Attempt to remove big memory leak
+      call ct1mexpr(nc,coeff,koder,lhigh2)
+     if(gx%bmperr.ne.0) goto 1000
    endif
 ! reserve an addition record
    allocate(addrec)
@@ -274,8 +282,12 @@
    nullify(addrec%nextadd)
    addrec%aff=aff
    addrec%type=indenmagnetic
-   addrec%explink(1)=llow
-   addrec%explink(2)=lhigh
+! attempt to remove memory leak
+!   addrec%explink(1)=llow
+!   addrec%explink(2)=lhigh
+!   write(*,*)'3H magnetic expression links'
+   addrec%explink(1)=llow2
+   addrec%explink(2)=lhigh2
 ! addrecs declared in gtp3.F90 but I am not sure it is needed or used
    addrecs=addrecs+1
    allocate(addrec%need_property(2))
@@ -562,7 +574,8 @@
    integer, parameter :: ncc=6
    double precision coeff(ncc)
    integer koder(5,ncc)
-   TYPE(tpfun_expression), pointer :: llow,lhigh
+!   TYPE(tpfun_expression), pointer :: llow,lhigh
+   TYPE(tpfun_expression) :: llow,lhigh
 !
 ! from W Xiong et al Calphad (2012) 11-20
 !
@@ -649,6 +662,7 @@
    allocate(addrec%explink(2))
    nullify(addrec%nextadd)
    addrec%type=xiongmagnetic
+! beware of segmentation fault here !!! llow and llhigh no longer pointers
    addrec%explink(1)=llow
    addrec%explink(2)=lhigh
    addrecs=addrecs+1
