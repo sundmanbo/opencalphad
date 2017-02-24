@@ -13,6 +13,20 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2016.02.24 OC version 4.014: I have fixed the dense option for the
+grid minimizer (NOTE ionic liquid and charged crystalline phases has
+no dense grid (yet)).  The SET STATUS PHASE command is slightly
+changed.  If a user gives just a phase name and no specific
+composition set all composition sets for that phase will be given the
+new status.  A few other minor bugs fixed.  This should also work for
+the OCASI/TQ interface.
+
+2016.02.16 I reallize that the model package is still version 3, not 4
+so I have changed it to 3.20 rather than 4.10, although the text
+documentation still calls it version 4.  It is only the OC version
+number that is 4.  GTP is still waiting for the complete revision that
+I have hoped to do for several years...
+
 2016.02.15 Some major and many minor changes to make OC work with a
 multicomponent fuel simulation for CEA.  A large memory leak when
 reading databases was also removed using valgrind.
@@ -49,7 +63,7 @@ improved so it handles some more TYPE_DEFS and also parameters for
 neutrals in the ionic liquid model and phases with a disordered phase
 set better.  But it is still necessary to have the typ_defs in a
 specific order (which is also acceptable to TC itself).  The
-gridminimizer has some changes, if they are improvements I am not
+gridminimizer has some changes but if they are improvements I am not
 sure.  A bug calculating excess parameters with neutrals in the ionic
 liquid has been removed.
 

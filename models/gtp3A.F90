@@ -842,6 +842,8 @@ end function find_phasetuple_by_indices
 ! All phases checked and error return if name is ambiguous
 ! handles composition sets either with prefix/suffix or #digit or both
 ! if no # check all composition sets for prefix/suffix
+! special if phcsx = -1 and there are several composition sets then
+! zcs is set to -(number of composition sets).  Used when changing status
 ! phcsx, iph and zcs are values to return!
    implicit none
    character name*(*)
@@ -849,12 +851,13 @@ end function find_phasetuple_by_indices
 !\end{verbatim} %+
    character name1*36,csname*36,name2*24,name3*24
    TYPE(gtp_phase_varres), pointer :: csrec
-   integer kp,kcs,lokph,jcs,lokcs,first1,fcs,lcs,ics,lenam
+   integer kp,kcs,lokph,jcs,lokcs,first1,fcs,lcs,ics,lenam,allsets
+! set ics to an illegal value
+   ics=-1
+   allsets=phcsx
 ! convert to upper case locally
    name1=name
    call capson(name1)
-!   ics=zcs
-!   write(*,*)'3A find_phasex_by_name: ',name1,ics
 ! composition set as #digit
    kp=index(name1,'#')
    if(kp.gt.0) then
@@ -864,6 +867,7 @@ end function find_phasetuple_by_indices
       if(ics.lt.1 .or. ics.gt.9) then
          gx%bmperr=4093; goto 1000
       endif
+      allsets=ics
       name1(kp:)=' '
       kcs=ics
    else
@@ -923,6 +927,7 @@ end function find_phasetuple_by_indices
             elseif(first1.eq.0) then
                first1=lokph
                ics=jcs
+               allsets=ics
             else
 ! ambiguous phase name
                gx%bmperr=4121; goto 1000
@@ -949,10 +954,22 @@ end function find_phasetuple_by_indices
       goto 1000
    endif
 300 continue
+! first1 is lokph for phase
    iph=phlista(first1)%alphaindex
+   if(allsets.eq.-1) then
+! special to set status: return -(number of composition sets) in zcs if >1
+! DO NOT CHANGE PHCSX
+      lcs=phlista(first1)%noofcs
+      if(lcs.gt.1) then
+         ics=-lcs; zcs=-lcs
+      else
+         ics=1; zcs=1
+      endif
+   else
 ! ics set above, return it in zcs
-   zcs=ics
-   phcsx=firsteq%phase_varres(phlista(first1)%linktocs(ics))%phtupx
+      zcs=ics
+      phcsx=firsteq%phase_varres(phlista(first1)%linktocs(ics))%phtupx
+   endif
    gx%bmperr=0
 1000 continue
    return

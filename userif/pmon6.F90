@@ -2663,9 +2663,10 @@ contains
           call gparcd('Option (A/C/M/P)',cline,last,1,ch1,chshort,q1help)
           call capson(ch1)
           write(lut,6022)ceq%eqname,globaldata%rgasuser,&
-               globaldata%pnorm,globaldata%status
+               globaldata%pnorm,globaldata%status,ceq%status
 6022      format('Equilibrium name',9x,'Gas constant Pressure norm',&
-               22x,'Status'/1x,a,1pe12.4,2x,1pe12.4,20x,z8)
+               5x,'Status Global   Equilib'/&
+               1x,a,1pe12.4,2x,1pe12.4,10x,z8,2x,z8)
 !....................................................................
 ! options are A=all phases; P=some phases; C=components; M=phase models
           if(ch1.eq.'A') then
@@ -2880,10 +2881,11 @@ contains
        case(12) ! list results
 ! if no calculation made skip
           if(btest(ceq%status,EQNOEQCAL)) then
-             write(*,*)' *** No results as no equilibrium calculated!'
+             write(*,6277)ceq%status
+6277         format(' *** No results as no equilibrium calculated! ',z8)
              goto 100
           elseif(btest(ceq%status,EQGRIDCAL)) then
-             write(kou,*)' *** Last calculation was no a full equilibrium'
+             write(kou,*)' *** Last calculation was not a full equilibrium'
           endif
           call gparid('Output mode: ',cline,last,listresopt,lrodef,q1help)
           if(buperr.ne.0) then

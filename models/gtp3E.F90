@@ -372,6 +372,8 @@
       lok=26
       call saveash(lok,iws)
    endif
+! free list for phase_varres records
+!   write(*,*)'3E Phase_varres first free/highcs: ',csfree,highcs
 ! UNFINISHED we should write assessment records and step/map/plot records
 !-------------------------------------------------------
 ! finally write the workspace to the file ...
@@ -782,7 +784,7 @@
 !\begin{verbatim}
  subroutine saveequil(lok1,iws)
 ! subroutine saveequil(lok1,iws,ceq)
-! save data for equilibrium record ceq
+! save data for equilibrium record ceq including phase_varres
    implicit none
    integer lok1,iws(*),jeq
 !\end{verbatim}
@@ -827,6 +829,8 @@
    endif
    loklast=lokeq
 ! iws(lokeq) is pointer to next
+!   write(*,16)lokeq,ceq%status
+16 format('3E equilibrium status word: ',i8,1x,z8)
    iws(lokeq+1)=ceq%status
    iws(lokeq+2)=ceq%multiuse
    iws(lokeq+3)=ceq%eqno
@@ -999,10 +1003,10 @@
       endif
       mc2=mc*(mc+1)/2
 ! nextfree,phlink,status2,phstate,phtupx,abnorm(3),prefix*4,suffix*4
-! constat(mc),yfr(mc),mmyfr(mc)+2 extra for nsl and mc!!
+! constat(mc),yfr(mc),mmyfr(mc)+2 extra for nsl and mc 
       rsize=6+2*nwch(4)+3*nwpr+mc+2*mc*nwpr
-! sites(nsl),disfralink,amfu,netcharge,dgm
-      rsize=rsize+nsl*nwpr+1+4*nwpr+1
+! sites(nsl),disfralink,amfu,netcharge,dgm and link to ionliq dpqdy record!!
+      rsize=rsize+nsl*nwpr+1+4*nwpr+2
 ! results g, dg, d2g some exra space
       rsize=rsize+6*nwpr+3*mc*nwpr+mc2*nwpr+5+2
       qsize=rsize
@@ -1047,11 +1051,17 @@
       call storrn(nsl,iws(lok+displace),firstvarres%sites)
       displace=displace+nsl*nwpr
 ! do not save the cmuval array
-! dsitesdy should only be interesting for ionic liquids and in that case
-! only the dimension, not the values
-!          write(lut)(firstvarres%dsitesdy(i),i=1,mc)
-!          write(lut)(firstvarres%d2sitesdy2(i),i=1,mc2)
-!      write(*,*)'3E odd:   ',lok,displace
+! dsitesdy is interesting only for ionic liquids
+!      if(btest(phlista(lokph)%status1,PHIONLIQ)) then
+!         call wtake(mc+mc2,iws
+!         call storrn(mc,iws(lok+displace),firstvarres%dpqdy)
+!         displace=displace+mc
+!         call storrn(mc2,iws(lok+displace),firstvarres%d2pqdvay)
+!         displace=displace+mc2
+!         write(*,*)'3E odd:   ',lok,displace
+!      else
+!         iws(
+!      endif
       fsrec: if(btest(firstvarres%status2,CSDLNK)) then
 ! we need a record for a disordered fraction_set record
 ! latd,ndd,tnoofxfr,tnoofyfr,varreslink,totdis, id*1, dsites(nsl), 
@@ -1502,8 +1512,8 @@
 11     format('File not same version as program: ',A/a,' : ',a)
       gx%bmperr=4299; goto 900
    endif
-!   write(*,12)id,version,comment
-!12 format(/a,a/'Comment: ',a)
+   write(*,12)id,version,trim(comment)
+12 format(/'Read unformatted file: ',a,a/'Comment: ',a/)
    str=comment
 !   write(*,*)'3E numbers: ',noofel,noofsp,noofph,nooftuples,last
 !-------
@@ -2155,10 +2165,12 @@
       endif
       goto 1000
    endif
-!   write(*,*)'Reading equilibrium number ',eqnumber,iws(lokeq+3),iws(lokeq+4)
+!   write(*,12)'3E Reading equilibrium ',lokeq,eqnumber,iws(lokeq+3),&
+!        iws(lokeq+1)
+12 format(a,3i5,1x,z8)
    ceq%status=iws(lokeq+1)
-! set that no calculation is made in status word to prevent listing
-   ceq%status=ibset(ceq%status,EQNOEQCAL)
+! set that no calculation is made in status word to prevent listing ?? why ??
+!   ceq%status=ibset(ceq%status,EQNOEQCAL)
    ceq%multiuse=iws(lokeq+2)
 ! Hm, eqno should not be changed?  By default arbitrary value!!
    if(eqnumber.ne.iws(lokeq+3)) then
@@ -2167,7 +2179,7 @@
    ceq%eqno=iws(lokeq+3)
    ceq%next=iws(lokeq+4)
    call loadc(lokeq+5,iws,ceq%eqname)
-!   write(*,*)'3E Reading equilibrium: ',ceq%eqname
+!   write(*,*)'3E Reading equilibrium with name: ',ceq%eqname
    displace=5+nwch(24)
    call loadc(lokeq+displace,iws,ceq%comment)
 !   write(*,*)'3E comment: "',trim(ceq%comment),'" ',len_trim(ceq%comment)
@@ -2319,6 +2331,9 @@
 !      write(*,*)'3E sites: ',lokvares,displace,lokvares+displace
       call loadrn(nsl,iws(lokvares+displace),firstvarres%sites)
       displace=displace+nsl*nwpr
+!-----------------------------------
+! BEWHERE the dpqdy and d2pqdvay!!! should be added here!
+!-------------------------------------
 !      write(*,*)'3E odd:   ',lokvares,displace
       fsrec: if(btest(firstvarres%status2,CSDLNK)) then
 !         write(*,*)'3E disfra record:',lokvares,displace,iws(lokvares+displace)

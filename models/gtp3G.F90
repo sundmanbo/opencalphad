@@ -407,7 +407,7 @@
    double precision val
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim} %+
-   integer qph,ics,oldstat,ipos,slen,lokph,lokcs
+   integer qph,ics,oldstat,ipos,slen,lokph,lokcs,phcsx
    character name*24
 !   write(*,*)'3G phnames: ',phnames(1:30),' >',phnames(1:1),'<'
    if(phnames(1:1).eq.'*') then
@@ -471,13 +471,28 @@
 !         write(*,*)'3G phase1: ',slen,' ',name
          if(name(1:1).eq.' ') goto 1000
 !         write(*,*)'3G phase2: ',name
-         call find_phase_by_name(name,qph,ics)
+!         call find_phase_by_name(name,qph,ics)
+! phcsx=-1 means that all composition sets should have new status
+         phcsx=-1
+         call find_phasex_by_name(name,phcsx,qph,ics)
          if(gx%bmperr.ne.0) then
-            write(*,*)'No phase called "',name(1:len_trim(name)),'"'
+!            write(*,*)'No phase called "',name(1:len_trim(name)),'"'
             gx%bmperr=0
          else
-            call change_phase_status(qph,ics,nystat,val,ceq)
-            if(gx%bmperr.ne.0) goto 1000
+! we may have to make a loop for all composition sets
+! A phase without composition set specification but with several composition 
+! sets should have all composition sets changed to the new status
+            if(ics.lt.0) then
+               slen=-ics
+!               write(*,*)'3G change several sets: ',qph,slen
+               do ics=1,slen
+                  call change_phase_status(qph,ics,nystat,val,ceq)
+                  if(gx%bmperr.ne.0) goto 1000
+               enddo
+            else
+               call change_phase_status(qph,ics,nystat,val,ceq)
+               if(gx%bmperr.ne.0) goto 1000
+            endif
          endif
          goto 500
    endif

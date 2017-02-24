@@ -4972,6 +4972,7 @@ CONTAINS
              do jj=1,noph()
                 do ic=1,noofcs(jj)
                    k3=test_phase_status(jj,ic,value,curceq)
+                   if(gx%bmperr.ne.0) goto 1000
                    if(k3.gt.0) then
 ! this phase is stable or fix
                       call get_phase_name(jj,ic,dummy)

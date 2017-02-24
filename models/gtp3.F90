@@ -127,7 +127,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! metlib package
   use metlib
 !
-! routines for inverting matrix etc
+! routines for inverting matrix, solving system of eqs, eigenvalues etc
 !  use lukasnum  ! for Lukas solver
   use ocnum      ! for LAPACK and BLAS
 !
@@ -141,7 +141,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! 2013.03.01 Release version 1
 ! 2015.01.07 Release version 2
 ! 2016.02.14 Release version 3
-! 2016.09.14 Prerelease version 4
+! 2017.02.10 Updated version 3 with OC version 4
 !
 !=================================================================
 !
@@ -780,8 +780,8 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   integer, private, parameter :: maxsvfun=500
 ! version number
 ! changes in the last digit means no change in SAVE/READ format
-  character*8, parameter :: gtpversion='GTP-4.10'
-  character*8, parameter ::   savefile='OCF-4.10'
+  character*8, parameter :: gtpversion='GTP-3.20'
+  character*8, parameter ::   savefile='OCF-3.20'
 !\end{verbatim}
 !=================================================================
 !\begin{verbatim}

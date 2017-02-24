@@ -67,6 +67,7 @@
 ! pph is set to number of phases participating, some may be suspended
    integer pph,zph,nystph,order(maxel),tbase,qbase,wbase,jj
 !
+!   write(*,*)'3Y in global_gridmin'
    if(btest(globaldata%status,GSNOGLOB)) then
       write(*,*)'3Y Grid minimization not allowed'
       gx%bmperr=4173; goto 1000
@@ -197,6 +198,9 @@
 !   write(*,*)'3Y Finding the gridpoints for the minimum: ',kp
    call find_gridmin(kp,nrel,xarr,garr,xknown,jgrid,phfrac,cmu,trace)
    if(gx%bmperr.ne.0) goto 1000
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!   write(*,*)'3Y gridpoints: ',kp
+!   gx%bmperr=4399; goto 1000
 ! The solution with nrel gridpoints are in jgrid, the amount of each in phfrac
 ! We later want the phases in ascending order and as the gridpoints are
 ! in ascending order of the phases we sort the gridpoints (and amounts)
@@ -1127,9 +1131,10 @@
         yf=[0.33D0,0.28D0,0.18D0,0.14D0,0.11D0]
 !        yf=[0.33D0,0.28D0,0.18D0,0.14D0,0.11D0] OK for fuel
 !        yf=[0.11D0,0.13D0,0.18D0,0.23D0,0.35D0]
-   logical gas,dense,verydense
+   logical gas,dense,verydense,gles
 !---------------
 ! handle special phases like ionic crystals, ionic liquids and ordere/disorder
+!   write(*,*)'3Y in generic_grid_generator'
    gas=.FALSE.
    if(test_phase_status_bit(iph,PHEXCB)) then
 ! crystalline phase with charged endmembers
@@ -1256,31 +1261,33 @@
       goto 800
    endif
 !-----------------------
+!   write(*,*)'3Y grid1: ',nend,dense
+   gles=.not.dense
    iiloop: do ii=1,nend
       ijs=1
       nendj=nend
-      if((dense .and. nend.gt.150) .or. nend.gt.50) then
+      if(nend.gt.150 .or. (gles .and. nend.gt.50)) then
          nendj=ii
          ijs=ii
       endif
       ijloop: do ij=ijs,nendj
          iks=1
          nendk=nend
-         if((dense .and. nend.gt.15) .or. nend.gt.13) then
+         if(nend.gt.15 .or. (gles .and. nend.gt.13)) then
             nendk=ij
             iks=ij
          endif
          ikloop: do ik=1,nendk
             ils=1
             nendl=nend
-            if((dense .and. nend.gt.12) .or. nend.gt.7) then
+            if(nend.gt.12 .or. (gles .and. nend.gt.7)) then
                nendl=ik
                ils=ik
             endif
             illoop: do il=ils,nendl
                ims=1
                nendm=nend
-               if((dense .and. nend.gt.7) .or. nend.gt.4) then
+               if(nend.gt.7 .or. (gles .and. nend.gt.4)) then
 ! with 4 endmembers 1024 gridpoints
                   nendm=il
                   ims=il
@@ -6155,6 +6162,43 @@
 1000 continue
    return
  end subroutine select_composition_set
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
+ subroutine verify_phase_varres_array(ieq,verbose)
+! This subroutine checks that the phase varres array is consistent
+! in equilibrium ieq.  For ieq=1 it also checks the free list
+   implicit none
+   integer ieq,verbose
+!\end{verbatim}
+   integer free,lokcs,lokph   
+   type(gtp_phase_varres), pointer :: vares
+   type(gtp_equilibrium_data), pointer :: ceq
+   ceq=>eqlista(ieq)
+   if(ieq.eq.1) then
+! check free list inside phase_varres records
+      if(csfree.lt.1 .or. csfree.gt.size(ceq%phase_varres)) then
+         write(*,*)'3Y ERROR: csfree value outside limits: ',csfree
+         goto 1000
+      endif
+      lokcs=csfree
+50    continue
+      if(lokcs.lt.1 .or. lokcs.gt.size(ceq%phase_varres)) then
+         write(*,*)'3Y ERROR: varres free list index outside limits: ',lokcs
+         goto 1000
+      endif
+      lokcs=ceq%phase_varres(lokcs)%nextfree
+      if(lokcs.lt.size(ceq%phase_varres)) goto 50
+!-------
+      write(*,*)'3Y varres free list seems OK.'
+   endif
+!-------
+! check each used varres record that it has a correct phase pointer etc.
+! UNFINISHED
+1000 continue
+      return
+ end subroutine verify_phase_varres_array
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 

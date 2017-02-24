@@ -930,7 +930,7 @@
 ! also update phasetuple array !! csfree,highcs
    TYPE(gtp_equilibrium_data), pointer :: ceq
    integer lokph,ncs,nsl,nkk,lokcs,lokcs1,nprop,lastcs,jl,nyttcs
-   integer leq,nydis,tuple,nz
+   integer leq,nydis,tuple,nz,jz
    character*4 pfix,sfix
    integer iva(maxconst)
    TYPE(gtp_phase_varres), pointer :: peq,neq,ndeq
@@ -1080,6 +1080,18 @@
             neq%mmyfr=peq%mmyfr
          endif
       endif
+      if(allocated(peq%dpqdy)) then
+! for ionic liquid, emergency bugfix 2017/02/16 Bo+Karl
+         if(.not.allocated(neq%dpqdy)) then
+            jz=size(peq%dpqdy)
+            allocate(neq%dpqdy(jz))
+            neq%dpqdy=peq%dpqdy
+            jz=size(peq%d2pqdvay)
+            allocate(neq%d2pqdvay(jz))
+            neq%d2pqdvay=peq%d2pqdvay
+         endif
+      endif
+! end bugfix
       if(.not.allocated(neq%constat)) then
 ! important!! constat has identification of the vacancy constituent !!
 !         write(*,*)'3B allocation 4: ',nz
@@ -1161,7 +1173,7 @@
          neq%disfra%varreslink=nydis
       endif disordered
    enddo alleq
-! end threadprotected code <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+! end threadprotected code <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< dpqdy
 !-------------------------------------------------
 !   write(*,*)'3B Link from ordred ',lastcs,&
 !        ' to disordered ',ceq%phase_varres(lastcs)%disfra%varreslink
@@ -1253,6 +1265,7 @@
    TYPE(gtp_phase_varres), pointer :: varres,disvarres
    integer ics,lokph,lokcs,ncs,nsl,nkk,lastcs,nprop,idisvarres,kcs,leq
 !
+   write(*,*)'In remove_compsets',iph
    if(iph.le.0 .or. iph.gt.noofph) then
       gx%bmperr=4050; goto 1000
    endif
@@ -1263,6 +1276,10 @@
       gx%bmperr=4093; goto 1000
    else
       ics=ncs
+   endif
+   if(btest(globaldata%status,GSNOREMCS)) then
+      write(*,*)'3B Not allowed to delete composition sets'
+      gx%bmperr=4211; goto 1000
    endif
 !   write(*,*)'3B Delete highest composition set: ',iph,lokph,ics
    if(noeq().gt.1) then
@@ -3945,12 +3962,14 @@
          allocate(cpv%sites(jz))
          cpv%sites=cp1%sites
 ! these are currently not allocated (ionic liquid model) Maybe not needed??
-!          jz=size(cp1%dsitesdy)
-!          allocate(cpv%dsitesdy(jz))
-!          cpv%dsitesdy=cp1%dsitesdy
-!          jz=size(cp1%d2sitesdy2)
-!          allocate(cpv%d2sitesdy2(jz))
-!          cpv%d2sitesdy2=cp1%d2sitesdy2
+         if(allocated(cp1%dpqdy)) then
+            jz=size(cp1%dpqdy)
+            allocate(cpv%dpqdy(jz))
+            cpv%dpqdy=cp1%dpqdy
+            jz=size(cp1%d2pqdvay)
+            allocate(cpv%d2pqdvay(jz))
+            cpv%d2pqdvay=cp1%d2pqdvay
+         endif
 ! the values in the following arrays are irrelevant, just allocate and zero
 !         write(*,*)'3B enter_eq 2D, after this segmentation fault',ipv,novarres
          cpv%nprop=cp1%nprop
