@@ -1364,13 +1364,14 @@
 ! am is the number of moles of real atoms of the phase
             lokcs=phlista(lokph)%linktocs(ics)
 ! skip phases that are not entered
-            if(ceq%phase_varres(lokcs)%phstate.eq.phdorm) cycle
+            if(ceq%phase_varres(lokcs)%phstate.eq.phdorm) cycle allcs
             am=ceq%phase_varres(lokcs)%amfu*&
                  ceq%phase_varres(lokcs)%abnorm(1)
 !            write(*,7)'3F sumprops 2: ',lokph,lokcs,am,&
 !                 ceq%phase_varres(lokcs)%abnorm(1),&
 !                 ceq%phase_varres(lokcs)%abnorm(2),props(5)
 7           format(a,2i5,6(1pe12.4))
+! valgrind complains this jump if for an uninitiallized valiable ??
             if(am.gt.zero) then
 ! properties are G, G.T=-S, G.P=V and moles and mass of real atoms
 ! Note gval(*,1) is per mole formula unit and ceq%phase_varres(lokcs)%abnorm(1)

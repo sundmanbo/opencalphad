@@ -1,4 +1,3 @@
-
 !
 ! gtp3C included in gtp3.F90
 !
@@ -234,14 +233,14 @@
       lokph=phases(jk)
       csloop: do ics=1,phlista(lokph)%noofcs
 !         write(*,17)'3C sort1: ',nent,(entph(iph),iph=1,nent)
-17       format(a,i3,2x,20i4)
+17       format(a,i3,2x,16(i4))
          lokcs=phlista(lokph)%linktocs(ics)
          csrec=>ceq%phase_varres(lokcs)
          if(csrec%phstate.ge.PHENTSTAB) then
             if(nent.eq.0) then
                nent=1;
                entph(nent)=lokcs
-!               write(*,*)'3C stable phase: ',nent,nent,lokcs
+!               write(*,*)'3C first phase stable: ',nent,nent,lokcs
             else
 ! FIX and STABLE phases first in order of amount
                do iph=1,nent
@@ -261,17 +260,18 @@
 18             format(a,2i4,1pe12.4)
                entph(iph)=lokcs
                nent=nent+1
-!               write(*,*)'3C stable phase: ',nent,lokcs
+!               write(*,*)'3C stable phase: ',nent,iph,lokcs
             endif
          elseif(csrec%phstate.eq.PHENTERED .or. &
               csrec%phstate.eq.PHENTUNST) then
             if(nent.eq.0) then
                nent=1
                entph(nent)=lokcs
-!               write(*,*)'3C unstable phase: ',nent,nent,lokcs
+!               write(*,69)'3C first phase unstable: ',nent,nent,lokcs,csrec%dgm
             else
 ! ENTERED, not stable, sort after all stable phase and with smallest DGM first
                do iph=1,nent
+! bypass all stable phases
                   if(ceq%phase_varres(entph(iph))%amfu.gt.zero) cycle
                   if(csrec%dgm.lt.ceq%phase_varres(entph(iph))%dgm) cycle
 ! this is the place for this phase, shift later phases down
@@ -281,16 +281,17 @@
                   exit
                enddo
 ! according to new fortran standard loop variable at exit is high limit+1
-!               write(*,18)'3C inserted entered phase ',iph,lokcs,csrec%dgm
+!               write(*,18)'3C inserted ustable phase ',iph,lokcs,csrec%dgm
                entph(iph)=lokcs
                nent=nent+1
-!               write(*,*)'3C unstable phase: ',iph,nent,lokcs
+!               write(*,69)'3C unstable phase: ',iph,nent,lokcs,csrec%dgm
+69             format(a,3i4,1pe12.4)
             endif
          elseif(csrec%phstate.eq.PHDORM) then
             if(ndorm.eq.0) then
                ndorm=ndorm+1
                dorph(ndorm)=lokcs
-!               write(*,*)'3C dormant phase: ',ndorm,ndorm,lokcs
+!               write(*,*)'3C first dormant phase: ',ndorm,ndorm,lokcs
             else
 ! DORMANT sort after with smallest (least nagative) DGM first
                do iph=1,ndorm
@@ -308,8 +309,7 @@
             endif
          elseif(csrec%phstate.eq.PHSUS) then
 ! skip composition set number and pre/suffixes at present ....
-            susph(nsusp:)=phlista(lokph)%name(1:&
-                 len_trim(phlista(lokph)%name))//', '
+            susph(nsusp:)=trim(phlista(lokph)%name)//', '
             nsusp=len_trim(susph)+2
          endif
       enddo csloop

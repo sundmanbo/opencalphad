@@ -2681,6 +2681,7 @@ contains
 ! P phases sorted: stable/ unstable in driving force order/ dormant the same
              chshort='P'
              call list_sorted_phases(lut,ceq)
+             if(btest(ceq%status,EQFAIL)) write(lut,6305)'above'
           elseif(ch1.eq.'C') then
 !....................................................................
 ! global values and the chemical potentials
@@ -2905,7 +2906,7 @@ contains
           endif
           if(btest(ceq%status,EQFAIL)) then
              write(lut,6305)'below'
-6305         format(/' *** The results listed ',a,&
+6305         format(/' *** The listing ',a,&
                   ' are not a valid equilibrium as last calculation failed'/)
           elseif(btest(globaldata%status,GSNOPHASE)) then
              write(kou,*)'No results as no data'

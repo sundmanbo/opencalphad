@@ -13,6 +13,11 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2016.03.02 OC version 4.015: Some problems using save/read unformatted
+corrected and I modified the calculation of the second derivaties for
+a phase with an order/disorder transition.  This seems to improve the
+convergence but more testing needed.
+
 2016.02.24 OC version 4.014: I have fixed the dense option for the
 grid minimizer (NOTE ionic liquid and charged crystalline phases has
 no dense grid (yet)).  The SET STATUS PHASE command is slightly

@@ -963,7 +963,7 @@
 117 continue
 ! LINKED LIST of phase_varres records stored from lokeq+lokvares
    lokhighcs=lokeq+displace+3
-!   write(*,*)'3E highcs: ',highcs,csfree,lokhighcs
+   write(*,*)'3E highcs: ',highcs,csfree,lokhighcs
    iws(lokhighcs)=highcs
    lokvares=lokhighcs+1
    eqdis=displace+5
@@ -976,6 +976,22 @@
    compset: do j=1,highcs
 ! loop for all composition sets
       firstvarres=>ceq%phase_varres(j)
+      if(.not.allocated(firstvarres%yfr)) then
+! if this phase_varres is no longer used this should be unallocated
+         call wtake(lok,4,iws)
+         if(buperr.ne.0) then
+            gx%bmperr=4399; goto 1000
+         endif
+         write(*,*)'3E unused phase_varres:',j,highcs,lok
+! this is the free list
+         iws(lok+1)=firstvarres%nextfree
+! this should be phlink but set to illegal value
+         iws(lok+2)=-1
+! this links all phase varres records together
+         iws(lokvares)=lok
+         lokvares=lok
+         cycle compset
+      endif
       lokph=firstvarres%phlink
       if(btest(firstvarres%status2,CSDFS)) then
 ! this phase_varres/parres record belong to disordered fraction_set
@@ -989,7 +1005,7 @@
 !         mc=phlista(firstvarres%phlink)%tnooffr
 ! if this phase_varres has been removed this may be unallocated
          if(.not.allocated(firstvarres%yfr)) then
-            write(*,*)'3E highcs not updated when removing compset!',j,lokhighcs
+            write(*,*)'3E highcs not updated when removing compset!',j,highcs
 ! we should update??             iws(lokeq+displace+3)=highcs
             cycle compset
          endif
@@ -2252,6 +2268,7 @@
    endif
 ! link to first varres record stored here
    lokvares=iws(lokeq+displace+4)
+   write(*,*)'3E lokvares: ',lokvares,highcs,lokeq,displace+4
    eqdis=displace+5
 ! for equilibria 2 and higher phase_varees must be allocated!!
    if(eqnumber.gt.1) then
@@ -2268,7 +2285,7 @@
    endif
    compset: do j=1,highcs
       if(lokvares.le.100) then
-         write(*,*)'3E error linking phase_varres records ...',lokvares
+         write(*,*)'3E error linking phase_varres records ...',lokvares,j
          goto 1000
       endif
 !------------------------------------------
@@ -2279,6 +2296,13 @@
 !>>>>> 55:
       firstvarres%nextfree=iws(lokvares+1)
       lokph=iws(lokvares+2)
+      if(lokph.lt.0) then
+! this means this phase_varres record is not used
+! we have already save the free list link, just skip the rest
+         write(*,*)'3E found unused phase_varres record: ',j,lokvares
+         lokvares=iws(lokvares)
+         cycle compset
+      endif
       firstvarres%phlink=lokph
       firstvarres%status2=iws(lokvares+3)
       firstvarres%phstate=iws(lokvares+4)
@@ -2332,7 +2356,15 @@
       call loadrn(nsl,iws(lokvares+displace),firstvarres%sites)
       displace=displace+nsl*nwpr
 !-----------------------------------
-! BEWHERE the dpqdy and d2pqdvay!!! should be added here!
+! BEWHERE allocation of the dpqdy and d2pqdvay!!! 
+! They are not saved but should be allocated here! need lokph
+      if(btest(phlista(lokph)%status1,PHIONLIQ)) then
+!         write(*,*)'3E ionic liquid',lokph,eqnumber
+         allocate(firstvarres%dpqdy(mc))
+         allocate(firstvarres%d2pqdvay(mc))
+         firstvarres%dpqdy=zero
+         firstvarres%d2pqdvay=zero
+      endif
 !-------------------------------------
 !      write(*,*)'3E odd:   ',lokvares,displace
       fsrec: if(btest(firstvarres%status2,CSDLNK)) then
@@ -2481,7 +2513,7 @@
          enddo cloop
       endif
 !   else
-!      write(*,*)'3E no conditions'
+!      write(*,*)'3E no conditions on unformatted file'
    endif
 !----- experiments
    lok=iws(lokeq+conditionplace+1)

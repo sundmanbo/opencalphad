@@ -89,7 +89,7 @@ amend phase part comp-set y ,,
 <.1 >.5
 <.1 >.5
 
-set c t=600 p=1e5 n=1 x(ni)=.75
+set c t=300 p=1e5 n=1 x(ni)=.75
 
 c e
 
@@ -98,7 +98,7 @@ l r 2
 
 @&
 
-set ax 1 T 10 800 10
+set ax 1 T 10 800 5
 
 step 
 
@@ -115,7 +115,7 @@ c sym cp
 
 plot
 T
-y(part#2,*)
+y(part,*)
 title step5 fig 1
 render
 

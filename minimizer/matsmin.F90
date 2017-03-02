@@ -309,6 +309,7 @@ CONTAINS
     double precision fixpham(maxel),sumnp
     character statevar*40,encoded*60,name*24
 !
+    meqrec%status=0
     if(btest(globaldata%status,GSSILENT)) &
          meqrec%status=ibset(meqrec%status,MMQUIET)
     if(ocv()) write(*,*)"Entering calceq7",mode

@@ -1297,20 +1297,57 @@
 ! of constituents
 ! First sum all second derivatives into tmpd2g, moded=1 means only 1st deriv
 ! error calculating volumes for order/disorder, V0 in gval(1,2), VA in gval(1,3)
-!            write(*,623)'3X V0,VA 2: ',lprop,phres%gval(1,2),phres%gval(1,3)
+!             write(*,623)'3X V0,VA 2: ',lprop,phres%gval(1,2),phres%gval(1,3)
             noder6A: if(moded.gt.1) then
                nz=fracset%tnoofxfr
                allocate(tmpd2g(nz*(nz+1)/2,nprop))
                tmpd2g=zero
-               goto 666
+! remove this comment to obtain old code
+!               goto 666
+!--------------------------------------------------------------------------
+! now summation derived 2017-02-20
+! d2G/dy_is dy_jt = a_s a_t (d2G/dx_is dx_js + d2G/dx_is dx_jt +
+!                            d2G/dx_it dx_js + d2G/dx_it dx_jt)
+! first calculate the term within ( )
+               do ipy=1,lprop-1
+                  do i1=1,gz%nofc
+! note j1 and j2 are set to constituent index of i1,i2 in disordered sublattice
+! or second sublattice if interstital ?? Maybe not
+                     j1=fracset%y2x(i1)
+                     do i2=i1,gz%nofc
+                        j2=fracset%y2x(i2)
+                        tmpd2g(ixsym(j1,j2),ipy)=tmpd2g(ixsym(j1,j2),ipy)+&
+                             phres%d2gval(ixsym(i1,i2),ipy)
+                     enddo
+                  enddo
+               enddo
+! Then subtract this from saved2g
+               do ipy=1,lprop-1
+                  do i1=1,gz%nofc
+                     j1=fracset%y2x(i1)
+                     do i2=i1,gz%nofc
+                        j2=fracset%y2x(i2)
+!                        write(*,637)'3X sublf: ',ipy,i1,i2,nsit1,nsit2,&
+!                             gz%nofc,sublf
+                        phres%d2gval(ixsym(i1,i2),ipy)=&
+                             saved2g(ixsym(i1,i2),ipy)-&
+                             tmpd2g(ixsym(j1,j2),ipy)*&
+                             fracset%dxidyj(i1)*fracset%dxidyj(i2)
+                     enddo
+                  enddo
+               enddo
+               goto 667
+!----------------------- old code below not used
 !               if(nsl.gt.3) goto 666
-! ****************** probable BUG here with 2nd derivatives of ordered FCC
+! probable BUG here with 2nd derivatives of ordered FCC calculated as disordered
 ! But this is necessary for 2 sublattice ordered model !! ??
 ! DEBUG, problem with partitioning
 !               write(*,613)'3X sub: ',nz,gz%nofc,fracset%latd,fracset%y2x
 !613            format(a,3i3,2x,20i3)
 !               write(*,614)'3X dxi/dyj: ',fracset%dxidyj
 !614            format(a,(10f7.4))
+! Formula derived 2017-02-20
+! d2G/dy_isdy_jt = a_s a_t (d2G/dx_isdx_is + 2 d2G/dx_isdx_jt + d2G/dx_jsdx_jt)
 ! THIS IS ONLY DONE FOR ORDERING ON 2 SUBLATTICES
                do ipy=1,lprop-1
                   do i1=1,gz%nofc
@@ -1330,7 +1367,6 @@
 ! tmpd2g is now d2G/dxidxj calculated with disordered fractions
 ! subract that from saved d2G/dyidyj saved in saved2g taking into account
 ! the derivatives dxi/dyj (in fracset%dxidyj)
-666            continue
 ! original
 !               do ipy=1,lprop-1
 !                  do i1=1,gz%nofc
@@ -1347,6 +1383,7 @@
 !                     enddo
 !                  enddo
 !               enddo
+666            continue
 ! subract the corresponding d2G/dy1/dy2 calculated as disordered ...
 ! but multiplied with the product of the sites on the sublattices for
 ! the constituents used as derivatives
@@ -1377,6 +1414,7 @@
                      enddo
                   enddo
                enddo
+667            continue
                if(allocated(tmpd2g)) deallocate(tmpd2g)
             endif noder6A
 !---------------------

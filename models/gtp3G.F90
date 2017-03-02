@@ -246,12 +246,13 @@
    integer ists,lokph,lokcs,j,ip
    character text*24
 ! new code
+   ists=0
    call get_phase_compset(iph,ics,lokph,lokcs)
-   if(gx%bmperr.ne.0) goto 1000
+   if(gx%bmperr.ne.0) goto 900
    ists=ceq%phase_varres(lokcs)%phstate
    val=ceq%phase_varres(lokcs)%amfu
    goto 900
-!=============================================
+!============================================= code below redundant?
    ists=0
    ip=1
    val=-one
