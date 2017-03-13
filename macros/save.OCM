@@ -36,6 +36,9 @@ list symb
 calc symb
 
 
+@&
+@$ list the equilibrium status code
+l sh p
 
 @&
 @$ Save workspaces unformatted on a file, final Y to overwrite!!
@@ -61,17 +64,21 @@ unf
 steel7
 
 @&
-@$ The conditions are all there
-l c
+@$ Check we can list the equilibrium
+l r,,,,
 
 @&
-@$ and the symbols
+@$ Check the equilibrium status code
+l sh p
+
+@&
+@$ Check the symbols are there
 
 l sym
 
 
 @&
-@$ and all the parameters
+@$ and all the model parameters
 
 l d
 
@@ -79,12 +86,12 @@ l d
 
 @$ We can recalculate the equilibrium
 
-c e
+c n
 
 l,,,,
 
 @&
-@$ and continue calculate another equilibrium
+@$ and change conditions and calculate again
 
 set c t=800
 
@@ -111,7 +118,7 @@ new Y
 @&
 @$ ===================================================================
 @$ testing unformatted save and read using a PDB file
-@$ with disordered fraction set
+@$ with disordered fraction set and a second equilibrium
 
 r p more1
 
@@ -127,6 +134,21 @@ c e
 
 l r 2
 
+
+@&
+@$ Create a second equilibrium with different conditions
+
+enter equil second y
+
+l c
+
+@&
+
+set c t=3000 p=1e5 n=1 x(re)=.7
+
+c e
+
+l,,,
 
 @&
 @$ Save workspaces unformatted on a file, final Y to overwrite!!
@@ -158,17 +180,31 @@ more1
 
 
 @&
+@$ list the equilibria
 
-l c
-
-c e
-
-l r 2
+l eq
 
 @&
+@$ list the results for default equilibrium
 
-l d
+l r
 
+
+@&
+@$ list the results for the second equilibrium
+
+sel eq
+
+l,,,,
+
+@&
+@$ Set a new condition and calculate without grid minimizer
+
+set c t=2800
+
+c n
+
+l r 2
 
 set inter
 

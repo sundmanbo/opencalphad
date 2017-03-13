@@ -1150,13 +1150,22 @@ contains
           endif
           if(gx%bmperr.ne.0) goto 990
 !---------------------------------------------------------------
-       case(8) ! calculate equilibrium for current equilibrium ceq
+       case(8) ! calculate equilibrium for current equilibrium ceq using 
+! using the grid minimizer
           if(minimizer.eq.1) then
 ! Lukas minimizer, first argument=1 means use grid minimizer
 !           call calceq1(1,ceq)
              write(kou,*)'Not implemented yet'
           else
              call calceq2(1,ceq)
+             if(gx%bmperr.eq.4204) then
+! if the error code is "too many iterations" try without grid minimizer
+! it converges in many cases
+                write(*,2048)gx%bmperr
+2048            format('Error ',i5,', cleaning up and trying harder')
+                gx%bmperr=0
+                call calceq2(0,ceq)
+             endif
           endif
 ! calceq2 set appropriate bits for listing
           if(gx%bmperr.ne.0) then
@@ -2116,9 +2125,9 @@ contains
                 if(.not.btest(globaldata%status,GSADV)) then
 ! if expert/experienced bit is cleared ensure that experienced bit is set
                    globaldata%status=ibset(globaldata%status,GSOCC)
+                else
+                   write(kou,*)'Cannot be changed unless you have expert status'
                 endif
-             else
-                write(kou,*)'You must have expert status to toggle this!'
              endif
 !....................................................
           case(3) ! set bit phase ...

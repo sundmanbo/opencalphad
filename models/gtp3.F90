@@ -606,26 +606,29 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !\begin{verbatim}
 !-Bits in global status word (GS) in globaldata record
 ! level of user: beginner, occational, advanced; NOGLOB: no global gridmin calc
-! NOMERGE: no merge of gridmin result, NODATA: not any data, 
-! NOPHASE: no phase in system, NOACS: no automatic creation of composition set
+! NOMERGE: no merge of gridmin result, 
+! NODATA: not any data, 
+! NOPHASE: no phase in system, 
+! NOACS: no automatic creation of composition set
 ! NOREMCS: do not remove any redundant unstable composition sets
 ! NOSAVE: data changed after last save command
 ! VERBOSE: maximum of listing
 ! SETVERB: explicit setting of verbose
 ! SILENT: as little output as possible
-! NOAFTEREQ: no manipulations of results after equilirum calculation
+! NOAFTEREQ: no manipulations of results after equilibrium calculation
 ! XGRID: extra dense grid for all phases
 ! NOPAR: do not run in parallel
 ! NOSMGLOB do not test global equilibrium at node points
 ! NOTELCOMP the elements are not the components
 ! TGRID always check calculated equilibrium with grid minimizer
+! OGRID use old grid generator
 ! >>>> some of these should be moved to the gtp_equilibrium_data record
   integer, parameter :: &
-       GSBEG=0,     GSOCC=1,     GSADV=2,      GSNOGLOB=3, &
-       GSNOMERGE=4, GSNODATA=5,  GSNOPHASE=6,  GSNOACS=7, &
-       GSNOREMCS=8, GSNOSAVE=9,  GSVERBOSE=10, GSSETVERB=11,&
-       GSSILENT=12, GSNOAFTEREQ=13, GSXGRID=14,GSNOPAR=15, &
-       GSNOSMGLOB=16, GSNOTELCOMP=17, GSTGRID=18
+       GSBEG=0,       GSOCC=1,        GSADV=2,      GSNOGLOB=3, &
+       GSNOMERGE=4,   GSNODATA=5,     GSNOPHASE=6,  GSNOACS=7, &
+       GSNOREMCS=8,   GSNOSAVE=9,     GSVERBOSE=10, GSSETVERB=11,&
+       GSSILENT=12,   GSNOAFTEREQ=13, GSXGRID=14,   GSNOPAR=15, &
+       GSNOSMGLOB=16, GSNOTELCOMP=17, GSTGRID=18,   GSOGRID=19
 !----------------------------------------------------------------
 !-Bits in element record
   integer, parameter :: &

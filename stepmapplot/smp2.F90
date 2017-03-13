@@ -3021,7 +3021,8 @@ CONTAINS
 ! a single maptop record
        allocate(mapnode%next)
     else
-! there is more mapnode records ... 
+! there is more mapnode records ... allocation here means memory leak
+! I do not know how to fix ...
        allocate(maptop%next)
     endif
     newnode=>maptop%next
@@ -3860,6 +3861,7 @@ CONTAINS
     type(map_node), pointer :: maptop
     type(map_line), pointer :: mapline
     type(map_axis), dimension(*) :: axarr
+! memory leak as mapfix is allocated below ...
     type(map_fixph), pointer :: mapfix
 !\end{verbatim}
     type(map_node), pointer :: mapnode
@@ -5943,7 +5945,7 @@ CONTAINS
              if(curceq%phase_varres(lokcs)%phstate.ge.PHENTSTAB) then
                 if(jj.ge.3) then
                    if(eqindex.eq.lasteq) then
-! skip this point if it is the last
+! skip this point if it is the last 
                       plotp=plotp-1
 !                      write(*,*)'ocplot3 indexing error, skipping last point'
                    endif

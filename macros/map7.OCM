@@ -33,7 +33,7 @@ default
 
 @& calculate a first equilibrium at 1200 where we have both fcc phases 
 
-set c t=1200 p=1e5 n=1 w%(c)=.9 w%(cr)=5, w%(mo)=8 w%(v)=1
+set c t=1300 p=1e5 n=1 w%(c)=1 w%(cr)=5, w%(mo)=8 w%(v)=1
 
 c e
 
@@ -51,9 +51,9 @@ l ax
 map
 
 
-
-@$ It is normal to get a buffer overflow error here
-@$ but there is not yet any saving of results on file implemented
+@$ You may get a buffer overflow error here
+@$ but there is not yet any way saving of results on file implemented
+@$ Until then you have to restrict yourself to smaller diagrams
 @&
 
 

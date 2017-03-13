@@ -462,6 +462,15 @@ set range 2 401
 @&
 @$ Calculate once with gridminimizer, we may create composition sets
 @$ Calculate with gridminimizer disables parallel calculation
+
+@$ To speed up this a little we select the smaller grid in a little
+@$ complex way, first we must make us experts
+set bit global 2
+
+@$ Then we select the smaller grid
+set bit global 19
+
+@&
 @$ Note the composition of x(fcc,c) is in most cases the cubic carbide,
 @$ it is difficult to specify the austenite.  Evidently redundant composition
 @$ sets are not removed after the equilibrium calculation.  

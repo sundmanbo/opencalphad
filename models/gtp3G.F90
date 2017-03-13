@@ -483,8 +483,15 @@
 ! we may have to make a loop for all composition sets
 ! A phase without composition set specification but with several composition 
 ! sets should have all composition sets changed to the new status
+! UNLESS the status is FIX
             if(ics.lt.0) then
-               slen=-ics
+! we should never loop to set all composition sets to FIXED
+! if another composition set than 1 was to be set fixed ics is not negative
+               if(nystat.eq.PHFIXED) then
+                  slen=1
+               else
+                  slen=-ics
+               endif
 !               write(*,*)'3G change several sets: ',qph,slen
                do ics=1,slen
                   call change_phase_status(qph,ics,nystat,val,ceq)

@@ -146,8 +146,14 @@
 ! ng is set to remaining dimension of garr, on return the number of generated
 !    gridpoints, returned as xarr composition of these and
 ! ny and yarr not used here
-      call generic_grid_generator(0,iphx(zph),ng,nrel,xarr(1,iv),garr(iv),&
-           ny,yarr,gmax,ceq)
+      if(btest(globaldata%status,GSOGRID)) then
+! The possibility to use the old grid tested
+         call generate_grid(0,iphx(zph),ng,nrel,xarr(1,iv),garr(iv),&
+              ny,yarr,gmax,ceq)
+      else
+         call generic_grid_generator(0,iphx(zph),ng,nrel,xarr(1,iv),garr(iv),&
+              ny,yarr,gmax,ceq)
+      endif
       if(gx%bmperr.ne.0) then
          write(*,*)'3Y grid error ',zph,gx%bmperr
          exit phloop
@@ -270,8 +276,14 @@
 ! NOTE jbias is changed by subroutine ??
 ! ny is number of constituent fractions, yarr have the constituent fractions
 !      write(*,317)'3Y point: ',mode,jp,iphl(jp),(iphl(nr),nr=1,jp)
-      call generic_grid_generator(mode,iphx(zph),jbias,nrel,xarr,garr,&
-           ny,yarr,gmax,ceq)
+      if(btest(globaldata%status,GSOGRID)) then
+! The possibility to use the old grid tested
+         call generate_grid(mode,iphx(zph),ng,nrel,xarr(1,iv),garr(iv),&
+              ny,yarr,gmax,ceq)
+      else
+         call generic_grid_generator(mode,iphx(zph),jbias,nrel,xarr,garr,&
+              ny,yarr,gmax,ceq)
+      endif
       if(gx%bmperr.ne.0) goto 1000
 !      write(*,317)'3Y after0: ',mode,jp,nyz,ibias,jbias,iphl(jp),&
 !           (iphl(nr),nr=1,jp)
@@ -636,8 +648,8 @@
    logical trace,isendmem
    save sumngg,wrongngg
 !
-   write(*,*)'Illegal call to generate_grid: ',mode
-   stop
+!   write(*,*)'Illegal call to generate_grid: ',mode
+!   stop
 !   if(mode.gt.0) write(*,*)'3Y entering generate_grid: ',mode,iph,ngg
 !---------------------------------------------------------
 ! save current constitution in ydum
@@ -1124,15 +1136,22 @@
 ! these are for generating the constituion of gridpoint
    double precision, dimension(:,:), allocatable :: yendm
    double precision, dimension(:), allocatable :: yfra
-! these are factors to generate gridpoints
+! ----------------------------------------------------------------
+! these are the factors to generate gridpoints from endmember fractions
    double precision, dimension(5), parameter :: &
 !        yf=[0.33D0,0.28D0,0.18D0,0.08D0,0.03D0]
 !        yf=[0.33D0,0.28D0,0.18D0,0.08D0,0.03D0] to test with map3
-        yf=[0.33D0,0.28D0,0.18D0,0.14D0,0.11D0]
+! ok        yf=[0.33D0,0.28D0,0.18D0,0.14D0,0.11D0]
+! better but fails Fe-C at 1100 K and w(c)=0.03
+!        yf=[0.11D0,0.33D0,0.14D0,0.28D0,0.18D0]
+! include a small factor
+!        yf=[0.11D0,0.37D0,0.04D0,0.30D0,0.18D0]
+! Try to avoid several identical compositions
+        yf=[0.07D0,0.28D0,0.16D0,0.45D0,0.04D0]
 !        yf=[0.33D0,0.28D0,0.18D0,0.14D0,0.11D0] OK for fuel
 !        yf=[0.11D0,0.13D0,0.18D0,0.23D0,0.35D0]
+!------------------------------------------------------------------
    logical gas,dense,verydense,gles
-!---------------
 ! handle special phases like ionic crystals, ionic liquids and ordere/disorder
 !   write(*,*)'3Y in generic_grid_generator'
    gas=.FALSE.

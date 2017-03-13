@@ -3669,7 +3669,7 @@ CONTAINS
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
 
   FUNCTION EVALF(LROT,VAR)
-!      Calculates the value of an expression
+!      Calculates the value of an expression MEMORY LEAK 
 !
 ! VAR is array with values of symbols that can be referenced
     IMPLICIT DOUBLE PRECISION (A-H,O-Z)
@@ -3681,6 +3681,7 @@ CONTAINS
        type(putfun_node), pointer :: savecurrent
        type(putfun_save), pointer :: previous
     end TYPE PUTFUN_SAVE
+! these pointers are allocated creating memory leaks
     type(putfun_save), pointer :: topsave,temp
     PARAMETER (ZERO=0.0D0)
 !...If LROT<=0 there is no expression, return sero
@@ -3779,6 +3780,122 @@ CONTAINS
 800 EVALF=STACK(1)
 900 RETURN
   END FUNCTION EVALF
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
+
+  FUNCTION EVALF_X(LROT,VAR)
+!      Calculates the value of an expression
+!
+! VAR is array with values of symbols that can be referenced
+    IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+    DIMENSION VAR(*),STACK(20)
+    character ch1*1
+    type(putfun_node), pointer :: lrot,llink,current,mlink
+    TYPE PUTFUN_SAVE
+       integer right
+       type(putfun_node), pointer :: savecurrent
+       type(putfun_save), pointer :: previous
+    end TYPE PUTFUN_SAVE
+! memory leak allocating pointers
+!    type(putfun_save), target :: saverec
+    type(putfun_save), pointer  :: topsave,temp
+    PARAMETER (ZERO=0.0D0)
+!...If LROT<=0 there is no expression, return sero
+    IF(.not.associated(LROT)) THEN
+       STACK(1)=ZERO
+       GOTO 800
+    ENDIF
+!..INITIATE
+    LAST=0
+    LSTP=0
+    current=>LROT
+    nullify(topsave)
+!    read(*,72)ch1
+!72  format(a)
+!71  format(a,5i5,1pe16.6)
+!..New node, take is left link if any
+100 continue
+!    if(associated(current%right)) then
+!       write(*,71)'>>>> evalf 100A1: ',current%debug,current%kod,&
+!            current%left%debug,current%right%debug,current%links,current%value
+!    elseif(associated(current%left)) then
+!       write(*,71)'>>>> evalf 100A2: ',current%debug,current%kod,&
+!            current%left%debug,0,current%links,current%value
+!    else
+!       write(*,71)'>>>> evalf 100A3: ',current%debug,current%kod,&
+!            0,0,current%links,current%value
+!    endif
+! ERROR if I first set llink=>current%left and then tested llink if associated
+    if(associated(current%left)) then
+!       write(*,*)'Taking the left link and pushing current'
+       LAST=LAST+1
+       if(associated(topsave)) then
+          allocate(temp)
+          temp%previous=>topsave
+          topsave=>temp
+       else
+          allocate(topsave)
+          nullify(topsave%previous)
+       endif
+       topsave%savecurrent=>current
+!       write(*,71)'evalf 100D: ',topsave%savecurrent%debug,current%left%debug
+! mark that right link not visited
+       topsave%right=1
+       current=>current%left
+    ELSE
+!..If no left link the right link must be a data or unary negation
+       KOD=current%kod
+       LSTP=LSTP+1
+       IF(KOD.GT.0) then
+! unary operator, store the operation as a real
+          STACK(LSTP)=VAR(KOD)
+       else
+          stack(lstp)=current%value
+       endif
+!       write(*,71)'evalf 100X: ',current%debug,kod,lstp,0,0,stack(lstp)
+!..When coming here with LAST=0 the expression has been evaluated.
+!  If not check if right link of current node has been visited
+200    IF(LAST.LE.0) GOTO 800
+       current=>topsave%savecurrent
+!       write(*,71)'evalf 100YA: ',current%debug,topsave%right,current%kod
+       IF(topsave%right.gt.0) THEN
+!..Follow the right link
+          if(associated(current%right)) then
+             MLINK=>current%right
+!             write(*,71)'evalf 100YB: ',mlink%debug,mlink%kod
+!..Follow the left link of the right link but first mark that the right
+! link of current has been visited
+             topsave%right=-1
+             current=>MLINK
+!             write(*,71)'evalf 100Z: ',current%debug,current%kod,topsave%right
+             GOTO 100
+          ELSE
+!..unary operator, in some cases it can have a sign
+             CALL EUNARY(current%kod,STACK(LSTP))
+             STACK(LSTP)=current%value*STACK(LSTP)
+!             write(*,71)'evalf U: ',current%debug,current%kod,&
+!                  lstp,0,0,stack(lstp)
+          ENDIF
+       ELSE
+!..Binary operator with both left and right links evaluated
+          LSTP=LSTP-1
+!          write(*,73)'evalf B: ',current%debug,current%kod,lstp,&
+!               stack(lstp),stack(lstp+1)
+!73        format(a,3i3,2(1pe14.5))
+          CALL EBINRY(current%kod,STACK(LSTP),STACK(LSTP+1))
+       ENDIF
+       LAST=LAST-1
+       topsave=>topsave%previous
+       IF(LAST.LT.0) goto 900
+       IF(LAST.EQ.0) goto 800
+       goto 200
+    ENDIF
+!    write(*,*)'evalf 799: ',current%debug,current%kod,lstp,current%value
+    GOTO 100
+!..KLAR
+800 EVALF_X=STACK(1)
+900 RETURN
+  END FUNCTION EVALF_X
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
 

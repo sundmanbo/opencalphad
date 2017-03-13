@@ -165,6 +165,11 @@
 !----------------------------------------------------------------------
 ! allocate the workspace, words 3-102 for pointers and things listed above
 !   write(*,*)'3E allocating iws',miws
+   if(btest(globaldata%status,GSNOPHASE)) then
+      write(*,1)
+1     format('There is no data to save!')
+      goto 1001
+   endif
    allocate(iws(miws))
    call winit(miws,100,iws)
    if(buperr.ne.0) goto 1100
@@ -400,6 +405,7 @@
 991 format('Written workspace ',i10,' bytes unformatted on ',a)
 1000 continue
    deallocate(iws)
+1001 continue
    return
 1100 continue
    write(*,*)'3E Error storing record, nothing written on file',buperr,gx%bmperr
@@ -1469,27 +1475,6 @@
 1000 continue
    return
  end subroutine saveash
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\begin{verbatim}
- subroutine gtpread_old(filename,str)
-! read unformatted all data in the following order
-! header
-! element list
-! species list
-! phase list with sublattices, endmembers, interactions and parameters etc
-! tpfuns
-! state variable functions
-! references
-! equilibrium record(s) with conditions, componenets, phase_varres records etc
-!
-   implicit none
-   character*(*) filename,str
-!\end{verbatim}
-1000 continue
-   return
- end subroutine gtpread_old
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -3253,6 +3238,7 @@
    warning=.FALSE.
    silent=.FALSE.
    nphrej=0
+   nytypedef=0
    if(btest(globaldata%status,GSSILENT)) then
       silent=.TRUE.
 !      write(*,*)'3E reading database silent'

@@ -1265,7 +1265,7 @@
    TYPE(gtp_phase_varres), pointer :: varres,disvarres
    integer ics,lokph,lokcs,ncs,nsl,nkk,lastcs,nprop,idisvarres,kcs,leq
 !
-   write(*,*)'In remove_compsets',iph
+!   write(*,*)'In remove_compsets',iph
    if(iph.le.0 .or. iph.gt.noofph) then
       gx%bmperr=4050; goto 1000
    endif
@@ -3899,9 +3899,9 @@
 ! UNFINISHED vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 ! this is not good, csfree is not the last used phase_varres
 ! there may be allocated records after and unallocated before !!
-      if(highcs.ne.csfree-1) then
-         write(*,*)'3B Beware, problems with varres records!',csfree,highcs
-      endif
+!      if(highcs.ne.csfree-1) then
+!         write(*,*)'3B Beware, problems with varres records!',csfree,highcs
+!      endif
       novarres=highcs
 ! the next line should be removed when highcs correctly implemented
       novarres=csfree-1
@@ -4386,7 +4386,7 @@
                   call getrel(eqlin(jval),last,pyy)
                   call getint(eqlin(jval),last,iel)
                   if(buperr.ne.0) then
-                     write(*,*)'3B Incorrect values in plot_data',&
+                     write(*,*)'3B Incorrect values in plot_data: ',&
                           trim(eqlin(jval))
                      buperr=0
                   endif
@@ -4986,12 +4986,16 @@
          prev=lok
       endif
    enddo
-! verification
+! verification ??
    prev=2*noofph+2
 !   write(*,*)'3B high and free: ',high,free,reserved,highcs,csfree
 !   write(*,110)(firsteq%phase_varres(lok)%nextfree,lok=free,prev)
 110 format(12(i6))   
+!   write(*,120)free,csfree,high,&
+!        (firsteq%phase_varres(lok)%nextfree,lok=free,high)
+120 format('3B cs: ',3i5,(14i4))
    newhighcs=high
+   csfree=free
 1000 continue
  end function newhighcs
 

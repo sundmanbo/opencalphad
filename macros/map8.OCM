@@ -152,6 +152,14 @@ l,,,,
 map
 N
 
+
+@$ set c x(ni)=.9
+@$ c e
+@$
+@$ map
+@$ N
+
+
 plot
 
 
