@@ -2125,9 +2125,9 @@ contains
                 if(.not.btest(globaldata%status,GSADV)) then
 ! if expert/experienced bit is cleared ensure that experienced bit is set
                    globaldata%status=ibset(globaldata%status,GSOCC)
-                else
-                   write(kou,*)'Cannot be changed unless you have expert status'
                 endif
+             else
+                write(kou,*)'Cannot be changed unless you have expert status'
              endif
 !....................................................
           case(3) ! set bit phase ...
@@ -2915,7 +2915,7 @@ contains
           endif
           if(btest(ceq%status,EQFAIL)) then
              write(lut,6305)'below'
-6305         format(/' *** The listing ',a,&
+6305         format(/' *** The results ',a,&
                   ' are not a valid equilibrium as last calculation failed'/)
           elseif(btest(globaldata%status,GSNOPHASE)) then
              write(kou,*)'No results as no data'

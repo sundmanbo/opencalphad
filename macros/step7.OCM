@@ -42,6 +42,10 @@ ent sym prefcc=100*w(fcc,cr)+300*w(fcc,mo)+1600*w(fcc,n);
 ent sym prebcc=100*w(bcc,cr)+300*w(bcc,mo)+1600*w(bcc,n);
 
 
+@$ Sometimes a dense grid is needed here
+
+set adv dense
+
 set c t=1350
 
 c e

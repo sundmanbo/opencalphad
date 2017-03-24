@@ -1383,11 +1383,20 @@
    endif
    lokcs=phlista(lokph)%linktocs(ics)
    call get_phase_name(iph,ics,phname)
-   write(lut,110)phname,phlista(lokph)%models(1:40),&
-        phlista(lokph)%noofsubl,phlista(lokph)%status1,&
-        ceq%phase_varres(lokcs)%status2
-110 format(a,' model: ',a/'  Number of sublattices: ',i2,&
-        ', status: ',z8,1x,z8,5x)
+   if(btest(phlista(lokph)%status1,PHQCE)) then
+! this is for the quasichemical model, cqc
+      write(lut,111)phname,phlista(lokph)%models(1:40),&
+           ceq%phase_varres(lokcs)%qcbonds,phlista(lokph)%status1,&
+           ceq%phase_varres(lokcs)%status2
+111   format(a,' model: ',a/'  Number of bonds: ',F8.2,&
+           ', status: ',z8,1x,z8,5x)
+   else
+      write(lut,110)phname,phlista(lokph)%models(1:40),&
+           phlista(lokph)%noofsubl,phlista(lokph)%status1,&
+           ceq%phase_varres(lokcs)%status2
+110   format(a,' model: ',a/'  Number of sublattices: ',i2,&
+           ', status: ',z8,1x,z8,5x)
+   endif
    addrec=>phlista(lokph)%additions
    lastadd: do while(associated(addrec))
       call list_addition(lut,CHTD,phname,ftyp,addrec)
@@ -4658,7 +4667,7 @@
     integer last
 !    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-    character name1*24,text*80,name3*24,model*72,phtype*1,ch1*1
+    character name1*24,text*80,name3*24,model*72,phtype*1,ch1*1,cmodel*72
     integer nsl,defnsl,icon,ll,jp
     double precision sites(9)
     character (len=34) :: quest1='Number of sites on sublattice xx: '
@@ -4674,18 +4683,23 @@
     defnsl=1
     if(name1(1:4).eq.'GAS ') then
        phtype='G'
-       model='CEF-RKM'
+       model='IDEAL'
     elseif(name1(1:7).eq.'LIQUID ') then
        phtype='L'
-       model='CEF-RKM'
+       model='RKM'
     elseif(name1(1:9).eq.'IONIC_LIQ') then
        phtype='L'
        model='IONIC_LIQUID'
        defnsl=2
     else
        phtype='S'
-       model='CEF-RKM'
+       model='CEF'
     endif
+! NEW question about model, passed on to enter_phase
+    call gparcd('Model: ',cline,last,1,cmodel,model,q1help)
+    if(buperr.ne.0) goto 900
+    model=cmodel
+    call capson(model)
     call gparid('Number of sublattices: ',cline,last,nsl,defnsl,q1help)
     if(buperr.ne.0) goto 900
     if(nsl.le.0) then
@@ -4695,23 +4709,35 @@
        write(kou,*)'Maximum 9 sublattices'
        goto 1000
     endif
+    if(model(1:4).eq.'CQC ' .and. nsl.ne.1) then
+       write(*,*)'The liquid quasichemical model has just one set of sites'
+       gx%bmperr=4399; goto 1000
+    elseif(model(1:5).eq.'I2SL ' .and. nsl.ne.2) then
+       write(*,*)'A ionic liquid model must have two sublattices'
+       gx%bmperr=4399; goto 1000
+    endif
     icon=0
     sloop: do ll=1,nsl
 ! 'Number of sites on sublattice xx: '
 !  123456789.123456789.123456789.123
        once=.true.
 4042   continue
-       write(quest1(31:32),4043)ll
-4043   format(i2)
-       call gparrd(quest1,cline,last,sites(ll),one,q1help)
-       if(buperr.ne.0) goto 900
-       if(sites(ll).le.1.0D-6) then
-          write(kou,*)'Number of sites must be larger than 1.0D-6'
-          if(once) then
-             once=.false.
-             goto 4042
-          else
-             goto 1000
+       if(nsl.eq.1 .and. model(1:4).eq.'CQC ') then
+          call gparrd('Number of bonds: ',cline,last,sites(1),6.0D0,q1help)
+          if(buperr.ne.0) goto 900
+       else
+          write(quest1(31:32),4043)ll
+4043      format(i2)
+          call gparrd(quest1,cline,last,sites(ll),one,q1help)
+          if(buperr.ne.0) goto 900
+          if(sites(ll).le.1.0D-6) then
+             write(kou,*)'Number of sites must be larger than 1.0D-6'
+             if(once) then
+                once=.false.
+                goto 4042
+             else
+                goto 1000
+             endif
           endif
        endif
 ! This should be extended to allow several lines of input

@@ -8,25 +8,25 @@ all:
 
 
 metlib3.o:	utilities/metlib3.F90
-	gfortran -c utilities/metlib3.F90
+	gfortran -c -O2 utilities/metlib3.F90
 
 oclablas.o:	numlib/oclablas.F90
-	gfortran -c numlib/oclablas.F90
+	gfortran -c -O2 numlib/oclablas.F90
 
 ocnum.o:	numlib/ocnum.F90
-	gfortran -c numlib/ocnum.F90
+	gfortran -c -O2 numlib/ocnum.F90
 
 lmdif1lib.o:      numlib/lmdif1lib.F90
-	gfortran -c numlib/lmdif1lib.F90  
+	gfortran -c -O2 numlib/lmdif1lib.F90  
 
 gtp3.o:	models/gtp3.F90
-	gfortran -c -fopenmp models/gtp3.F90
+	gfortran -c -O2 -fopenmp models/gtp3.F90
 
 matsmin.o:	minimizer/matsmin.F90
-	gfortran -c -fopenmp -finit-local-zero minimizer/matsmin.F90
+	gfortran -c -fopenmp -O2 minimizer/matsmin.F90
 
 smp2.o:		stepmapplot/smp2.F90
-	gfortran -c stepmapplot/smp2.F90
+	gfortran -c -O2 stepmapplot/smp2.F90
 
 pmon6.o:	userif/pmon6.F90
 	gfortran -c -fopenmp userif/pmon6.F90

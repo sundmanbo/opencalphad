@@ -549,9 +549,9 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'Current equilibrium not global, gridmin found gridpoint below   ',&
        'Nodepoint not global, line ignored                              ',&
        'Illegal numerical value in equilibrium matrix                   ',&
-       '5                                                               ',&
-       '                                                                ',&
-       '                                                                ',&
+       'Wrong version of data on unformatted file                       ',&
+       'Error reserving space for unformatted save                      ',&
+       'Error saving unformatted data file                              ',&
        '                                                                ',&
        '                                                                ',&
 ! 4360
@@ -689,8 +689,9 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !\begin{verbatim}
 !-Bits in constat array for each constituent
 ! For each constituent: is suspended, is implicitly suspended, is vacancy
+! CONQCBOND the constituent is a binary quasichemical cluster
    integer, parameter :: &
-        CONSUS=0,CONIMSUS=1,CONVA=2
+        CONSUS=0,   CONIMSUS=1,  CONVA=2,    CONQCBOND=3
 !----------------------------------------------------------------
 !-Bits in state variable functions (svflista)
 ! SVFVAL symbol evaluated only explicitly (mode=1 in call)
@@ -1231,7 +1232,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! linktocs: array with indices to phase_varres records
 ! nooffr: array with number of constituents in each sublattice 
 ! Note that sites are stored in phase_varres as they may vary with the
-! constituion for ionic liquid)
+! constitution for ionic liquid)
      integer noofsubl,tnooffr
      integer, dimension(9) :: linktocs
      integer, dimension(:), allocatable :: nooffr
@@ -1401,7 +1402,8 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !-----------------------------------------------------------------
 !\begin{verbatim}
 ! this constant must be incremented when a change is made in gtp_phase_varres
-  INTEGER, parameter :: gtp_phase_varres_version=1
+! added quasichemical bonds
+  INTEGER, parameter :: gtp_phase_varres_version=2
   TYPE gtp_phase_varres
 ! Data here must be different in equilibria representing different experiments
 ! or calculated in parallel or results saved from step or map.
@@ -1447,7 +1449,10 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! amfu: is amount formula units of the composition set (calculated result)
 ! netcharge: is net charge of phase
 ! dgm: driving force
-     double precision amfu,netcharge,dgm
+! qcbonds: quasichemical bonds (NOT SAVED ON UNFORMATTED)
+     double precision amfu,netcharge,dgm,qcbonds
+! qcsro: current value of SRO
+     double precision, allocatable, dimension(:) :: qcsro
 ! Other properties may be that: gval(*,2) is TC, (*,3) is BMAG, see listprop
 ! nprop: the number of different properties (set in allocate)
 ! listprop(1): is number of calculated properties

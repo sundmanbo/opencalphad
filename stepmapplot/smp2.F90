@@ -1588,7 +1588,7 @@ CONTAINS
     call meq_sameset(irem,iadd,meqrec,meqrec%phr,inmap,ceq)
 !    if(ocv()) write(*,110)'meq_sameset calculated: ',&
     if(gx%bmperr.gt.0) then
-       write(*,*)'Filed to calculate with fix phase',gx%bmperr
+       write(*,*)'Failed to calculate with fix phase',gx%bmperr
        goto 1000
     elseif(iadd.gt.0 .or. irem.gt.0) then
        write(*,*)'Another phase want to be stable: ',iadd,irem

@@ -13,6 +13,16 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2017.03.24 OC version 4.017: The command "enter phase" is changed and
+now requires a model specifed, reading from TDB files not changed.
+Implementation of a new liquid quasichemical model has started an many
+minor changes, the convergence using the 4 sublattice FCC ordering
+model should be improved.  The format for save/read unformatted
+changed so old files cannot be read.  The linkpara and
+Makefile-parallel has been changed to compile without bound check and
+with optimization.  Thus they are more likely to crash, it is a way to
+discover bugs!
+
 2017.03.04 OC version 4.016: Tested a few variant of factors for
 generating the grid.  By request there is a global bit 19 that can be
 used to select the original grid minimizer.  This can be considered as

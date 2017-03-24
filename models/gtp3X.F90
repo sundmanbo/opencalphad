@@ -1,5 +1,5 @@
 !
-! gtp3X included in gtp3.F9029
+! gtp3X included in gtp3.F90
 !
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 !>     15. Calculate things
@@ -133,7 +133,7 @@
 ! to handle parameters with wildcard constituent and other things
    logical wildc,nevertwice,first,chkperm,ionicliq,iliqsave,iliqva,iliqneut
 ! debugging for partitioning and ordering
-!   integer clist(4)
+   integer idlist(9)
 ! calculate RT to normalize all Gibbs energies, ceq is current equilibrium
    rtg=globaldata%rgas*ceq%tpval(1)
    ceq%rtn=rtg
@@ -160,7 +160,7 @@
 !17 format(a,5i4,1pe15.6)
 ! for disordered fraction sets gz%nofc must be from disordered fraction record
 ! maybe these should not be allocated for moded=0 and 1
-!   if(ocv()) write(*,*)'3X First allocate: ',gz%nofc,nofc2
+!   write(*,*)'3X allocate: ',gz%nofc,nofc2
    allocate(dpyq(gz%nofc))
    allocate(d2pyq(nofc2))
 ! these return values from excess parameters that may depend on constitution
@@ -222,6 +222,10 @@
          gx%bmperr=4337; goto 1000
       endif
       floryhuggins=-1
+   elseif(btest(phlista(lokph)%status1,PHQCE)) then
+! corrected quasichemical model
+      call config_entropy_cqc(moded,phlista(lokph)%nooffr(1),&
+           phres,phlista(lokph),gz%tpv(1))
    else
 ! NOTE: for phases with disordered fraction set this is calculated
 ! ONLY for the ordered original constituent fraction set
@@ -341,7 +345,7 @@
       endif ftype
 !==========================================================
 !vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-! code below is an attempt to parallelize the calculation of each
+! code below is an abandonned test to parallelize the calculation of each
 ! endmember tree for a single phase ...
 ! It is commented away as there has been som many changes
 !
@@ -413,6 +417,8 @@
 !-----------------------------------------------------
             pyqloop: do ll=1,msl
                id=endmemrec%fraclinks(ll,epermut)
+! debugging 4SL with wildcards
+               idlist(ll)=id
 ! remove next line when all fixed
 !               if(ll.lt.5) clist(ll)=id
 ! id negative means wildcard, independent of the fraction in this sublattice
@@ -513,6 +519,9 @@
             enddo dpyqloop
             if(moded.le.1) goto 150
 !---------------------------------------------------- second derivatives
+! searching for bug with interaction wildcards in 4SL
+!            write(*,68)'3X d2P/dyi2A:',nofc2,(d2pyq(id),id=1,nofc2)
+!            d2pyq is all zero here
             d2pyqloop1: do ll=1,msl
                id1=endmemrec%fraclinks(ll,epermut)
                d2pyloop2: do lm=ll+1,msl
@@ -521,28 +530,38 @@
                      if(id2.gt.0) then
                         d2pyq(ixsym(id1,id2))=dpyq(id1)/gz%yfrem(lm)
                      else
-! wildcard in sublattice lm
-                        do iw=incffr(lm-1)+1,incffr(lm)
-                           d2pyq(ixsym(id1,iw))=dpyq(id1)
-                        enddo
+! wildcard in sublattice lm, real component in ll
+!                        do iw=incffr(lm)+1,incffr(lm)
+!                           d2pyq(ixsym(id1,iw))=dpyq(id1)
+!                        enddo
+! This should be zero!! /170324/BoS
+                        continue
                      endif
                   else
-! wildcard in sublattice ll
+! wildcard in sublattice ll, real component in lm
                      if(id2.gt.0) then
-                        do iw=incffr(ll-1)+1,incffr(ll)
-                           d2pyq(ixsym(id2,iw))=one
-                        enddo
+!                        do iw=incffr(ll-1)+1,incffr(ll)
+!                           d2pyq(ixsym(id2,iw))=one
+!                        enddo
+! This should be zero!! /170324/BoS
+                        continue
                      else
 ! wildcards in both sublattice ll and lm
-                        do iw1=incffr(ll-1)+1,incffr(ll)
-                           do iw2=incffr(lm-1)+1,incffr(lm)
-                              d2pyq(ixsym(iw1,iw2))=pyq
-                           enddo
-                        enddo
+!                        do iw1=incffr(ll-1)+1,incffr(ll)
+!                           do iw2=incffr(lm-1)+1,incffr(lm)
+!                              d2pyq(ixsym(iw1,iw2))=pyq
+!                           enddo
+!                        enddo
+! I think this should be zero too!! /170324/BoS
                      endif
                   endif
                enddo d2pyloop2
             enddo d2pyqloop1
+! searching for bug with interaction wildcards in 4SL
+!            write(*,67)'B:' ,pyq,(idlist(iw1),iw1=1,nsl)
+67          format('3X endmem',a,e12.4,9i4)
+!            write(*,68)'3X d2P/dyi2B:',nofc2,(d2pyq(id),id=1,nofc2)
+68          format(a,i3,5(1pe12.4)/,(16x,5e12.4))
 !---- jump here if moded is 0 or 1
 150         continue
 !            write(*,228)'3X d2pyq 0:',d2pyq
@@ -587,6 +606,7 @@
                else
                   ipy=1
                endif
+!================ here we calculate the endmember parameter ============
 ! calculate function and derivatives wrt T and P
 ! the results from eval_tpfun must also be different in different treads ...
                lokfun=proprec%degreelink(0)
@@ -597,7 +617,8 @@
 ! property 1 i.e. Gibbs energy, should be divided by RT
                   vals=vals/rtg
                endif prop1
-! debug
+!================ now we calculated the endmember parameter ============
+! take care of derivatives of fraction variables ...
 !               write(*,173)'3X endmember: ',endmemrec%antalem,ipy,pyq,vals(1)
 173            format(a,2i4,4(1pe12.4))
 ! multiply with py and derivatives. vals is composition independent
@@ -806,7 +827,7 @@
                      gx%bmperr=4341; goto 1000
                   endif
                   wildc=.TRUE.
-                  write(*,*)'3X wildcard found!'
+!                  write(*,*)'3X wildcard found!'
                   ymult=gz%yfrint(gz%intlevel)*(one-gz%yfrint(gz%intlevel))
                endif
 !               write(*,228)'3X d2pyq 1:',d2pyq
@@ -1239,8 +1260,8 @@
 !         write(*,611)'3X ftyp:',fractype,btest(phlista(lokph)%status1,phmfs),&
 !              btest(phmain%status2,csorder),first,lokph,phres%gval(1,1)
          if(first) then
-! calculate with next fraction type
-! alternative meithod: no need to calculate with all fractions as disordered
+! we have calculated for the first, now calculate for second fraction type
+! alternative method: no need to calculate with all fractions as disordered
             first=.false.
 !            write(*,*)'3X: next fraction type'
 !            goto 400
@@ -1348,7 +1369,7 @@
 !614            format(a,(10f7.4))
 ! Formula derived 2017-02-20
 ! d2G/dy_isdy_jt = a_s a_t (d2G/dx_isdx_is + 2 d2G/dx_isdx_jt + d2G/dx_jsdx_jt)
-! THIS IS ONLY DONE FOR ORDERING ON 2 SUBLATTICES
+! THIS IS ONLY DONE FOR ORDERING ON 2 SUBLATTICES (no longer at all)
                do ipy=1,lprop-1
                   do i1=1,gz%nofc
                      j1=fracset%y2x(i1)
@@ -1508,6 +1529,10 @@
 ! WE CAN JUMP HERE WITHOUT CALCULATING THE ORDERED PART AS DISORDERED
 400 continue
    enddo fractyp
+!   norfc=phlista(lokph)%tnooffr
+! 4SL FCC all correct here
+!   write(*,69)'3X d2G/dy2B:',norfc,(phres%d2gval(ixsym(j1,j1),1),j1=1,norfc)
+!69 format(a,i3,6(1pe12.4))
 !--------------------------------------------------------------
 ! finished loops for all fractypes, now add together G and all
 ! partial derivatives for all fractypes
@@ -1694,6 +1719,7 @@
 ! calculated before any other part of G so all must be calculated again ...
 ! The label here just to indicate this, there is no explict jump here
 500 continue
+!   write(*,69)'3X d2G/dy2C:',norfc,(phres%d2gval(ixsym(j1,j1),1),j1=1,norfc)
    if(btest(phmain%status2,CSADDG)) then
 ! we have an addition to G, at present just a constant /RT
       if(allocated(phmain%addg)) then
@@ -1807,6 +1833,8 @@
 !      read(*,297)ch1
 !297   format(a)
    endif
+! 4SL all correct here also!
+!   write(*,69)'3X d2G/dy2F:',norfc,(phres%d2gval(ixsym(j1,j1),1),j1=1,norfc)
 ! running out of memory??
    deallocate(dpyq)
    deallocate(d2pyq)
@@ -2453,6 +2481,9 @@
       enddo fractionloop
       phvar%gval(1,1)=phvar%gval(1,1)+phvar%sites(ll)*ss
    enddo sublatticeloop
+! looking for error calculating 4 sublattice ordered FCC
+!   write(*,69)kall,(phvar%d2gval(ixsym(jl,jl),1),jl=1,kall)
+69 format('3X d2G/dy2: ',i3,6(1pe12.4))
 ! set temperature derivative of G and dG/dy
    phvar%gval(2,1)=phvar%gval(1,1)/tval
    if(moded.gt.0) then
@@ -2779,6 +2810,201 @@
 1000 continue
    return
  end subroutine config_entropy_i2sl
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine config_entropy_cqc(moded,ncon,phvar,phrec,tval)
+! calculates configurational entropy/R for the corrected quasichemial liquid
+! moded=0 only G, =1 G and dG/dy, =2 G, dG/dy and d2G/dy1/dy2
+! ncon is number of constituents
+! phvar is pointer to phase_varres record
+! phvar is the phaserecord record
+! tval is current value of T
+   implicit none
+   integer moded,ncon
+   TYPE(gtp_phase_varres), pointer :: phvar
+   TYPE(gtp_phaserecord) :: phrec
+   double precision tval
+!\end{verbatim}
+! First A=(z/2)*(\sum_i (y_ii*ln(y_ii) + \sum_(j>=i) y_ij*ln(y_ij/2))
+! and calculate all x_i = y_ii + \sum_j a/(a+b)*y_ij
+! Then calculate the SRO: q_ij=(y_ij/(x_i*x_j)-1)*(x_i+x_j)**2
+! and B=\sum_i x_i*ln(x_i)*(1-z + \sum_(j>i) (z/2-1)*f(q_ij))
+! -S = A+B
+   integer icon,jcon,lokel,iel,nqij,kqij
+   double precision zhalf,yfra,ylog,cluster,ss,s2,stoi1,stoi2,xp,xs,gamma,x1,x2
+   double precision, allocatable, dimension(:) :: xval,qij,ycluster,&
+        dgamma,d2gamma
+   double precision, allocatable, dimension(:,:) :: dxval,dqij
+   integer, allocatable, dimension(:,:) :: qxij
+!
+   zhalf=5.0D-1*phvar%qcbonds
+   allocate(xval(noofel))
+   allocate(dxval(noofel,ncon))
+   allocate(ycluster(noofel))
+   xval=zero
+   dxval=zero
+!   write(*,*)'3X quasichemical!',zhalf
+!
+   ss=zero
+   nqij=0
+   do icon=1,ncon
+      yfra=phvar%yfr(icon)
+      if(yfra.lt.bmpymin) yfra=bmpymin
+      if(yfra.gt.one) yfra=one
+      cluster=one
+! if set the constituent is a binary cluster
+      if(btest(phvar%constat(icon),CONQCBOND)) cluster=5.0D-1
+      ylog=log(cluster*yfra)
+! gval(1:6,1) are G and derivator wrt T and P
+! dgval(1,1:N,1) are derivatives of G wrt fraction 1:N
+! dgval(2,1:N,1) are derivatives of G wrt fraction 1:N and T
+! dgval(3,1:N,1) are derivatives of G wrt fraction 1:N and P
+! d2dval(ixsym(N*(N+1)/2),1) are derivatives of G wrt fractions N and M
+! this is a symmetric matrix and index givem by ixsym(M,N)
+      ss=ss+yfra*ylog
+      if(moded.gt.0) then
+         phvar%dgval(1,icon,1)=zhalf*(one+ylog)
+         phvar%d2gval(ixsym(icon,icon),1)=zhalf/yfra
+      endif
+      phvar%gval(1,1)=phvar%gval(1,1)+zhalf*ss
+! jcon is set to the index of the species array
+      jcon=phrec%constitlist(icon)
+      lokel=splista(jcon)%ellinks(1)
+      if(btest(phvar%constat(icon),CONQCBOND)) then
+         nqij=nqij+1
+! if a bond cluster there must be two elements         
+! lokel is index in ellista of first element, iel is its alphabetical index
+         iel=ellista(lokel)%alphaindex
+         stoi1=splista(jcon)%stoichiometry(1)
+         stoi2=splista(jcon)%stoichiometry(2)
+         xval(iel)=xval(iel)+stoi1/(stoi1+stoi2)*yfra
+         dxval(iel,icon)=stoi1/(stoi1+stoi2)
+!         write(*,60)'3X qc 3A: ',iel,xval(iel),yfra
+         lokel=splista(jcon)%ellinks(2)
+         iel=ellista(lokel)%alphaindex
+         xval(iel)=xval(iel)+stoi2/(stoi1+stoi2)*yfra
+         ycluster(nqij)=yfra
+         dxval(iel,icon)=stoi2/(stoi1+stoi2)
+!         write(*,60)'3X qc 3B: ',iel,xval(iel),yfra
+      else
+         lokel=splista(jcon)%ellinks(1)
+         iel=ellista(lokel)%alphaindex
+         xval(iel)=xval(iel)+yfra
+         dxval(iel,icon)=one
+!         write(*,60)'3X qc 3C: ',iel,xval(iel),yfra
+      endif
+   enddo
+!----------------------------------------
+! now we know xval so we can calculate qij
+   allocate(qij(nqij))
+   allocate(qxij(nqij,2))
+   allocate(dqij(nqij,ncon))
+   qij=zero
+   dqij=zero
+   nqij=0
+   do icon=1,ncon
+      if(btest(phvar%constat(icon),CONQCBOND)) then
+! we fetch again the element indices, maybe we should save first time?
+         nqij=nqij+1
+         jcon=phrec%constitlist(icon)
+         lokel=splista(jcon)%ellinks(1)
+         iel=ellista(lokel)%alphaindex
+         x1=xval(iel)
+         qxij(nqij,1)=iel
+         lokel=splista(jcon)%ellinks(2)
+         iel=ellista(lokel)%alphaindex
+         qxij(nqij,2)=iel
+         x2=xval(iel)
+         xs=x1+x2
+         xp=x1*x2
+         yfra=phvar%yfr(icon)
+         if(yfra.lt.bmpymin) yfra=bmpymin
+         if(yfra.gt.one) yfra=one
+         qij(nqij)=(yfra/xp-one)*xs**2
+!         write(*,60)'3X qc 5:  ',nqij,yfra,xp,xs,qij(nqij)
+60       format(a,i3,3F8.5,4(1pe12.4))
+! this is the leading term in dqij/dyij ...maybe more
+         dqij(nqij,icon)=5.0D-1*xs**2/xp
+      endif
+   enddo
+! save values of SRO
+   if(.not.allocated(phvar%qcsro)) then
+      allocate(phvar%qcsro(nqij))
+   endif
+   phvar%qcsro=qij
+   if(moded.gt.0) then
+      do kqij=1,nqij
+         do icon=1,ncon
+            x1=xval(qxij(kqij,1))
+            x2=xval(qxij(kqij,2))
+            xs=x1+x2
+            xp=x1*x2
+            dqij(kqij,icon)=dqij(kqij,icon)-&
+                 (5.0D-1*ycluster(kqij)*(xs/xp)**2+2*qij(kqij)/xs)*&
+                 (x1*dxval(qxij(kqij,2),icon)+x2*dxval(qxij(kqij,1),icon))
+         enddo
+      enddo
+   endif
+!----------------------------------
+! now the correction factor, including f(q_ij), sufficient to loop over nqij!
+   gamma=one-2.0D0*zhalf
+   allocate(dgamma(ncon))
+   allocate(d2gamma(ncon*(ncon+1)))
+   dgamma=zero
+   do kqij=1,nqij
+! first model
+!      gamma=gamma+(zhalf-one)*qij(icon)**2
+! second model
+      gamma=gamma+(zhalf-one)*5.0D-1*(one+qij(kqij))*qij(kqij)**2
+      if(moded.eq.0) cycle
+      do icon=1,ncon
+         dgamma(icon)=dgamma(icon)+(zhalf-one)*qij(kqij)*&
+              (one+1.5D0*qij(kqij))*dqij(kqij,icon)
+         do jcon=icon+1,ncon
+            d2gamma(ixsym(icon,jcon))=d2gamma(ixsym(icon,jcon))+&
+                 (one+3.0D0*qij(kqij))*dqij(kqij,icon)*dqij(kqij,jcon)
+         enddo
+      enddo
+   enddo
+!--------------------------------------
+! Finally the correction term using gamma*\sum_i x_i*ln(x_i)
+! Some elements may not be dissolved in this phase ??
+   s2=zero
+   do iel=1,noofel
+      yfra=xval(iel)
+      if(yfra.le.bmpymin) yfra=bmpymin
+      if(yfra.gt.one) yfra=one
+      ylog=log(yfra)
+      s2=s2+gamma*yfra*ylog
+! WE MUST ALSO CALCULATE DERIVATIVES USING CHAIN RULE
+      if(moded.gt.0) then
+         do icon=1,ncon
+            phvar%dgval(1,icon,1)=phvar%dgval(1,icon,1)+&
+                 gamma*(one+ylog)*dxval(iel,icon)
+            do jcon=icon,ncon
+               phvar%d2gval(ixsym(icon,jcon),1)=&
+                    phvar%d2gval(ixsym(icon,jcon),1)+&
+                    dgamma(icon)*(one+ylog)*dxval(iel,jcon)+&
+                    dgamma(jcon)*(one+ylog)*dxval(iel,icon)
+            enddo
+         enddo
+      endif
+   enddo
+   if(moded.gt.0) then
+      do icon=1,ncon
+         phvar%dgval(1,icon,1)=phvar%dgval(1,icon,1)+dgamma(icon)*s2
+         do jcon=icon,ncon
+            phvar%d2gval(ixsym(icon,jcon),1)=&
+                 phvar%d2gval(ixsym(icon,jcon),1)+d2gamma(ixsym(icon,jcon))*s2
+         enddo
+      enddo
+   endif
+! MISSING we have to calculate derivatives wrt T!!!
+1000 continue
+   return
+ end subroutine config_entropy_cqc
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

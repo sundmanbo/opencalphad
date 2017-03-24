@@ -190,7 +190,7 @@
       call wtake(lok,rsize,iws)
       if(buperr.ne.0) then
          write(*,*)'3E Error reserving element record'
-         gx%bmperr=4399; goto 1100
+         gx%bmperr=4356; goto 1100
       endif
       call storc(lok+1,iws,ellista(i)%symbol)
       call storc(lok+2,iws,ellista(i)%name)
@@ -227,7 +227,7 @@
       call wtake(lok,rsize+splista(isp)%noofel*(1+nwpr),iws)
       if(buperr.ne.0) then
          write(*,*)'3E Error reserving species record'
-         gx%bmperr=4399; goto 1100
+         gx%bmperr=4356; goto 1100
       endif
 !      write(*,*)'3E refstatesymbol 2: ',ibug,iws(ibug),lok
       call storc(lok+1,iws,splista(isp)%symbol)
@@ -263,7 +263,7 @@
    call wtake(lok,freetpfun,iws)
    if(buperr.ne.0) then
       write(*,*)'3E Error reserving tpfun record'
-      gx%bmperr=4399; goto 1100
+      gx%bmperr=4356; goto 1100
    endif
    iws(7)=lok
    iws(8)=tpfun_expression_version
@@ -300,7 +300,7 @@
       call wtake(lok,1+nooftuples*5,iws)
       if(buperr.ne.0) then
          write(*,*)'3E Error reserving phase tuple record'
-         gx%bmperr=4399; goto 1100
+         gx%bmperr=4356; goto 1100
       endif
       iws(lok)=nooftuples
       do i=0,nooftuples-1
@@ -323,7 +323,7 @@
    call wtake(lok,rsize,iws)
    if(buperr.ne.0) then
       write(*,*)'3E Error reserving globaldata record'
-      gx%bmperr=4399; goto 1100
+      gx%bmperr=4356; goto 1100
    endif
    iws(last)=lok
    iws(lok+1)=globaldata%status
@@ -409,7 +409,7 @@
    return
 1100 continue
    write(*,*)'3E Error storing record, nothing written on file',buperr,gx%bmperr
-   gx%bmperr=4399
+   gx%bmperr=4357
    goto 1000
  end subroutine gtpsaveu
 
@@ -465,7 +465,7 @@
       if(buperr.ne.0) then
          write(*,*)'3E Error reserving phase record',trim(phlista(lokph)%name),&
               buperr
-         gx%bmperr=4399; goto 1000
+         gx%bmperr=4356; goto 1000
       endif
 ! link all phase records sequentially from phroot using iwsph
       iws(iwsph)=lok
@@ -556,7 +556,7 @@
          call wtake(lok,rsize,iws)
          if(buperr.ne.0) then
             write(*,*)'3E Error reserving endmember record'
-            gx%bmperr=4399; goto 1000
+            gx%bmperr=4356; goto 1000
          endif
 !         write(*,*)'3E emrec:    ',emrec%noofpermut,lok,rsize,emrec%antalem
 ! maintain the sequential link between all endmember records
@@ -586,7 +586,7 @@
             call wtake(lokpty,rsize,iws)
             if(buperr.ne.0) then
                write(*,*)'3E Error reserving endmember record'
-               gx%bmperr=4399; goto 1000
+               gx%bmperr=4356; goto 1000
             endif
 ! link the property recordds sequentially
             iws(nop)=lokpty
@@ -636,7 +636,7 @@
             call wtake(lok,rsize,iws)
             if(buperr.ne.0) then
                write(*,*)'3E Error reserving interaction record'
-               gx%bmperr=4399; goto 1000
+               gx%bmperr=4356; goto 1000
             endif
 ! store data
             iws(lok+3)=intrec%status
@@ -667,7 +667,7 @@
                call wtake(lokpty,rsize,iws)
                if(buperr.ne.0) then
                   write(*,*)'3E Error reserving inteaction property record'
-                  gx%bmperr=4399; goto 1000
+                  gx%bmperr=4356; goto 1000
                endif
 ! link the property records sequentially
                iws(nop)=lokpty
@@ -750,7 +750,7 @@
             call wtake(lok,rsize,iws)
             if(buperr.ne.0) then
                write(*,*)'3E Error reserving addition record'
-               gx%bmperr=4399; goto 1000
+               gx%bmperr=4356; goto 1000
             endif
             iws(lokpty)=lok
             lokpty=lok
@@ -765,7 +765,7 @@
             call wtake(lok,rsize,iws)
             if(buperr.ne.0) then
                write(*,*)'3E Error reserving addition record'
-               gx%bmperr=4399; goto 1000
+               gx%bmperr=4356; goto 1000
             endif
             iws(lokpty)=lok
             lokpty=lok
@@ -823,7 +823,7 @@
    call wtake(lokeq,rsize,iws)
    if(buperr.ne.0) then
       write(*,*)'3E Error reserving equilibrium record'
-      gx%bmperr=4399; goto 1000
+      gx%bmperr=4356; goto 1000
    endif
    if(lok1.eq.0) then
 ! return pointer to first
@@ -858,7 +858,7 @@
       call wtake(lok,1+nwch(kl),iws)
       if(buperr.ne.0) then
          write(*,*)'3E Error reserving condition record'
-         gx%bmperr=4399; goto 1000
+         gx%bmperr=4356; goto 1000
       endif
       call storc(lok+1,iws,text(1:kl))
       iws(lok)=kl
@@ -891,7 +891,7 @@
          call wtake(lok,2+nwch(kl),iws)
          if(buperr.ne.0) then
             write(*,*)'3E Error reserving experiments record'
-            gx%bmperr=4399; goto 1000
+            gx%bmperr=4356; goto 1000
          endif
          call storc(lok+2,iws,text(1:kl))
          iws(lok+1)=kl
@@ -935,7 +935,7 @@
          call wtake(lok,rsize+kl,iws)
          if(buperr.ne.0) then
             write(*,*)'3E Error reserving varres record',j,rsize+kl
-            gx%bmperr=4399; goto 1000
+            gx%bmperr=4356; goto 1000
          endif
 ! sequential link
          iws(lokcc)=lok
@@ -986,7 +986,7 @@
 ! if this phase_varres is no longer used this should be unallocated
          call wtake(lok,4,iws)
          if(buperr.ne.0) then
-            gx%bmperr=4399; goto 1000
+            gx%bmperr=4356; goto 1000
          endif
          write(*,*)'3E unused phase_varres:',j,highcs,lok
 ! this is the free list
@@ -1001,7 +1001,7 @@
       lokph=firstvarres%phlink
       if(btest(firstvarres%status2,CSDFS)) then
 ! this phase_varres/parres record belong to disordered fraction_set
-! A big tricky to find the number of sublattices and constituents ....
+! A bit tricky to find the number of sublattices and constituents ....
          lokcs=phlista(lokph)%linktocs(1)
          nsl=ceq%phase_varres(lokcs)%disfra%ndd
          mc=ceq%phase_varres(lokcs)%disfra%tnoofxfr
@@ -1028,14 +1028,16 @@
 ! constat(mc),yfr(mc),mmyfr(mc)+2 extra for nsl and mc 
       rsize=6+2*nwch(4)+3*nwpr+mc+2*mc*nwpr
 ! sites(nsl),disfralink,amfu,netcharge,dgm and link to ionliq dpqdy record!!
-      rsize=rsize+nsl*nwpr+1+4*nwpr+2
+! also added qcbonds!!
+!      rsize=rsize+nsl*nwpr+1+4*nwpr+2
+      rsize=rsize+nsl*nwpr+1+5*nwpr+2
 ! results g, dg, d2g some exra space
       rsize=rsize+6*nwpr+3*mc*nwpr+mc2*nwpr+5+2
       qsize=rsize
       call wtake(lok,rsize,iws)
       if(buperr.ne.0) then
          write(*,*)'3E Error reserving varres record',j,rsize,nsl,mc
-         gx%bmperr=4399; goto 1000
+         gx%bmperr=4356; goto 1000
       endif
       iws1=iws(1)
 !      lokph=firstvarres%phlink
@@ -1096,7 +1098,7 @@
          call wtake(lokdis,rsize,iws)
          if(buperr.ne.0) then
             write(*,*)'3E Error reserving disordered varres record',rsize
-            gx%bmperr=4399; goto 1000
+            gx%bmperr=4356; goto 1000
          endif
 !         write(*,202)'3E disfracset 1: ',j,lok,displace,lokdis,nsl,dmc
 202      format(a,10i6)
@@ -1158,17 +1160,19 @@
       call storr(lok+displace,iws,firstvarres%amfu)
       call storr(lok+displace+nwpr,iws,firstvarres%netcharge)
       call storr(lok+displace+2*nwpr,iws,firstvarres%dgm)
+! record size increased to save qcbonds ... and increment of displace below
+      call storr(lok+displace+3*nwpr,iws,firstvarres%qcbonds)
 ! Maybe firstvarres%nprop is not always initiated??
 ! it seems that additional compsets have an arbitrary value ...
       if(firstvarres%nprop.ne.20) then
-         iws(lok+displace+3*nwpr)=20
+         iws(lok+displace+4*nwpr)=20
       else
-         iws(lok+displace+3*nwpr)=firstvarres%nprop
+         iws(lok+displace+4*nwpr)=firstvarres%nprop
       endif
 !      write(*,303)'3E saving nprop: ',lok,displace+3*nwpr,lok+displace+3*nwpr,&
 !           iws(lok+displace+3*nwpr),trim(phlista(lokph)%name)
 303   format(a,4i8,2x,a)
-      displace=displace+3*nwpr+1
+      displace=displace+4*nwpr+1
 ! only save G and derivatives
       do i=1,6
          call storr(lok+displace+nwpr*(i-1),iws,firstvarres%gval(i,1))
@@ -1236,7 +1240,7 @@
    call wtake(loksvf,rsize,iws)
    if(buperr.ne.0) then
       write(*,*)'3E Error reserving state variable function record',rsize,iws(1)
-      gx%bmperr=4399; goto 1000
+      gx%bmperr=4356; goto 1000
    endif
    iws(loksvf)=nsvfun
    iws(loksvf+1)=3
@@ -1250,7 +1254,7 @@
       call wtake(lok,rsize,iws)
       if(buperr.ne.0) then
          write(*,*)'3E Error reserving state variable func record',rsize,iws(1)
-         gx%bmperr=4399; goto 1000
+         gx%bmperr=4356; goto 1000
       endif
 !      write(*,*)'3E storing svfun: ',text(1:ipos)
       iws(lok)=ipos
@@ -1278,7 +1282,7 @@
    call wtake(bibhead,rsize,iws)
    if(buperr.ne.0) then
       write(*,*)'3E Error reserving biblographiic record',rsize,iws(1)
-      gx%bmperr=4399; goto 1000
+      gx%bmperr=4356; goto 1000
    endif
    iws(bibhead)=reffree-1
    do ir=1,reffree-1
@@ -1301,7 +1305,7 @@
       call wtake(lok,rsize,iws)
       if(buperr.ne.0) then
          write(*,*)'3E Error reserving biblographiic record',rsize,iws(1)
-         gx%bmperr=4399; goto 1000
+         gx%bmperr=4356; goto 1000
       endif
       iws(lok)=jp
       call storc(lok+1,iws,longline(1:jp))
@@ -1333,7 +1337,7 @@
    call wtake(lok1,rsize,iws)
    if(buperr.ne.0) then
       write(*,*)'3E Error reserving assessment record',rsize,iws(1)
-      gx%bmperr=4399; goto 1000
+      gx%bmperr=4356; goto 1000
    endif
    if(iws(lok).eq.0) then
       iws(lok)=lok1
@@ -1355,7 +1359,7 @@
    call wtake(lok2,rsize,iws)
    if(buperr.ne.0) then
       write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
-      gx%bmperr=4399; goto 1000
+      gx%bmperr=4356; goto 1000
    endif
 !   write(*,*)'3E in saveash 1:',lok,lok1,lok2,i1
    iws(lok2)=i1
@@ -1371,7 +1375,7 @@
    call wtake(lok2,rsize,iws)
    if(buperr.ne.0) then
       write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
-      gx%bmperr=4399; goto 1000
+      gx%bmperr=4356; goto 1000
    endif
 !   write(*,*)'3E in saveash 2:',lok2,i1
    iws(lok2)=i1
@@ -1383,7 +1387,7 @@
    call wtake(lok2,rsize,iws)
    if(buperr.ne.0) then
       write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
-      gx%bmperr=4399; goto 1000
+      gx%bmperr=4356; goto 1000
    endif
    iws(lok2)=i1
 !   write(*,*)'3E in saveash 3:',lok2,i1
@@ -1395,7 +1399,7 @@
    call wtake(lok2,rsize,iws)
    if(buperr.ne.0) then
       write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
-      gx%bmperr=4399; goto 1000
+      gx%bmperr=4356; goto 1000
    endif
    iws(lok2)=i1
 !   write(*,*)'3E in saveash 4:',lok2,i1
@@ -1407,7 +1411,7 @@
    call wtake(lok2,rsize,iws)
    if(buperr.ne.0) then
       write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
-      gx%bmperr=4399; goto 1000
+      gx%bmperr=4356; goto 1000
    endif
    iws(lok2)=i1
 !   write(*,*)'3E in saveash 5:',lok2,i1
@@ -1419,7 +1423,7 @@
    call wtake(lok2,rsize,iws)
    if(buperr.ne.0) then
       write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
-      gx%bmperr=4399; goto 1000
+      gx%bmperr=4356; goto 1000
    endif
    iws(lok2)=i1
    call storrn(i1,iws(lok2+1),assrec%coeffmax)
@@ -1430,7 +1434,7 @@
    call wtake(lok2,rsize,iws)
    if(buperr.ne.0) then
       write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
-      gx%bmperr=4399; goto 1000
+      gx%bmperr=4356; goto 1000
    endif
    iws(lok2)=i1
    do i2=1,i1
@@ -1443,7 +1447,7 @@
    call wtake(lok2,rsize,iws)
    if(buperr.ne.0) then
       write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
-      gx%bmperr=4399; goto 1000
+      gx%bmperr=4356; goto 1000
    endif
    iws(lok2)=i1
    do i2=1,i1
@@ -1458,7 +1462,7 @@
       call wtake(lok2,rsize,iws)
       if(buperr.ne.0) then
          write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
-         gx%bmperr=4399; goto 1000
+         gx%bmperr=4356; goto 1000
       endif
       iws(lok2)=i1
       call storrn(i1,iws(lok2+1),assrec%wopt)
@@ -1525,7 +1529,7 @@
 !>>>>> 2: elementlist, follow link from iws(3)
    if(iws(4).ne.gtp_element_version) then
       write(*,*)'3E Element data structure not same:',iws(4),gtp_element_version
-      gx%bmperr=4399; goto 1000
+      gx%bmperr=4355; goto 1000
    endif
    nel=0
    last=iws(3)
@@ -1564,7 +1568,7 @@
 !>>>>> 3: specieslist
    if(iws(6).ne.gtp_species_version) then
       write(*,*)'3E Species version wrong: ',iws(5),gtp_species_version
-      gx%bmperr=4399; goto 1000
+      gx%bmperr=4355; goto 1000
    endif
    last=iws(5)
 ! VA is entered automatically at first index in splista when reinitiating 
@@ -1611,7 +1615,7 @@
    if(iws(8).ne.tpfun_expression_version) then
       write(*,*)'3E tpfun_expression_version not same',iws(8),&
            tpfun_expression_version
-      gx%bmperr=4399; goto 1000
+      gx%bmperr=4355; goto 1000
    endif
    isp=iws(last)
    i3=iws(isp)
@@ -1648,7 +1652,7 @@
    if(lok.gt.0) then
       if(iws(13).ne.gtp_phasetuple_version) then
          write(*,*)'3E wrong phasetuple version',gtp_phasetuple_version,iws(13)
-         gx%bmperr=4399; goto 1000
+         gx%bmperr=4355; goto 1000
       endif
       nooftuples=iws(lok)
       do i=1,nooftuples
@@ -1683,14 +1687,15 @@
    endif
 !---------- enter the first equilibrium record without experiments!!
    if(iws(17).ne.gtp_equilibrium_data_version) then
-      write(*,*)'3E Wrong equilibrium data version'
-      gx%bmperr=4399; goto 1000
+      write(*,*)'3E Wrong equilibrium data version',&
+           iws(17),gtp_equilibrium_data_version
+      gx%bmperr=4355; goto 1000
    elseif(iws(18).ne.gtp_component_version) then
-      write(*,*)'3E Wrong component version'
-      gx%bmperr=4399; goto 1000
+      write(*,*)'3E Wrong component version',iws(18),gtp_component_version
+      gx%bmperr=4355; goto 1000
    elseif(iws(19).ne.gtp_phase_varres_version) then
-      write(*,*)'3E Wrong phase varres version'
-      gx%bmperr=4399; goto 1000
+      write(*,*)'3E Wrong phase varres version',iws(19),gtp_phase_varres_version
+      gx%bmperr=4355; goto 1000
    endif
 ! link to first saved in equilibrium in iws(16). firsteq is eqlista(1)
    i=iws(16)
@@ -2408,11 +2413,13 @@
       call loadr(lokvares+displace,iws,firstvarres%amfu)
       call loadr(lokvares+displace+nwpr,iws,firstvarres%netcharge)
       call loadr(lokvares+displace+2*nwpr,iws,firstvarres%dgm)
-      displace=displace+3*nwpr
+! NEW value of qcbonds for quasichemical model, increment of displace!!
+      call loadr(lokvares+displace+3*nwpr,iws,firstvarres%qcbonds)
+      displace=displace+4*nwpr
       nprop=iws(lokvares+displace)
-      if(nprop.ne.20) then
-         write(*,303)'3E get nprop: ',lokvares,displace,lokvares+displace,&
-              nprop,trim(phlista(lokph)%name)
+      if(nprop.lt.20) then
+!         write(*,303)'3E get nprop: ',lokvares,displace,lokvares+displace,&
+!              nprop,trim(phlista(lokph)%name)
          nprop=20
       endif
 303   format(a,4i7,2x,a)

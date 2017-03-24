@@ -30,7 +30,8 @@ enter element MG Magnesium HCP_A3   2.4305E+01  4.9980E+03  3.2671E+01 2
       -5439.869+195.324057*T-34.3088*T*LN(T);  3.00000E+03  N
  ent tp GFCCMG fun  298.15 +GHSERMG +2600-.9*T;  3.00000E+03  N
  
- enter phase LIQUID  1 1.0     CU,MG ;
+ enter phase LIQUID  
+  CEF 1 1.0     CU,MG ;
 
    enter param G(LIQUID,CU;0) 298.15 +GLIQCU ;  3.20000E+03  N 91Din
    enter param G(LIQUID,MG;0) 298.15 +GLIQMG ;  3.00000E+03  N 91DIN
@@ -39,12 +40,14 @@ enter element MG Magnesium HCP_A3   2.4305E+01  4.9980E+03  3.2671E+01 2
    enter param G(LIQUID,CU,MG;2)  2.98150E+02 A04+A05*T;   6.00000E+03  N MYVAL
 
 
- enter phase CUMG2   2 1.0 CU;  2.0 MG;
+ enter phase CUMG2   
+ CEF 2 1.0 CU;  2.0 MG;
    enter param G(CUMG2,CU:MG;0) 298.15 +A30+A31*T+A32*T*LN(T)+
    A33*T**2+A34*T**(-1)+A35*T**3;   6.00000E+03   N MYVAL
 
 
- enter phase FCC_A1   2 1.0 CU MG; 1.0 VA;
+ enter phase FCC_A1  
+ CEF 2 1.0 CU MG; 1.0 VA;
  amend phase FCC_A1 magnetic  -3.0    2.80000E-01
 
    enter param G(FCC_A1,CU:VA;0) 298.15 +GHSERCU ;  3.20000E+03  N 91DIN
@@ -53,7 +56,8 @@ enter element MG Magnesium HCP_A3   2.4305E+01  4.9980E+03  3.2671E+01 2
    enter param G(FCC_A1,CU,MG:VA;1) 298.15 +A13 +A14*T;   6.00000E+03   N MYVAL
 
 
- enter phase HCP_A3  2 1.0 CU MG;  0.5 VA; 
+ enter phase HCP_A3  
+ CEF 2 1.0 CU MG;  0.5 VA; 
  amend phase HCP_A3 magnetic  -3.0    2.80000E-01
 
    enter param G(HCP_A3,CU:VA;0) 298.15 +GHCPCU ;  3.20000E+03  N 91DIN
@@ -62,7 +66,8 @@ enter element MG Magnesium HCP_A3   2.4305E+01  4.9980E+03  3.2671E+01 2
    enter param G(HCP_A3,CU,MG:VA;1) 298.15 +A23 +A24*T;   6.00000E+03  N MYVAL
 
 
- enter phase LAVES_C15   2 2.0 CU MG;   1.0 CU MG; 
+ enter phase LAVES_C15  
+ CEF  2 2.0 CU MG;   1.0 CU MG; 
 
    enter param G(LAVES_C15,CU:CU;0) 298.15 +45000+3*GHSERCU ;  
   6.00000E+03 N SL

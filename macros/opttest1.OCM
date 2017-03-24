@@ -7,7 +7,9 @@ set echo
 enter element A A  FCC 10. 0. 0. 
 enter element B B  FCC 10. 0. 0. 
  
-enter phase FCC   1  1.0  A B
+enter phase FCC   
+CEF
+1  1.0  A B
 
 @$ enter 100 optimizing coefficients
 

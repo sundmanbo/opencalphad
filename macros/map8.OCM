@@ -50,7 +50,9 @@ enter tp-sym LD2 fun 1 GA3B1-1.5*GA2B2+GA1B3-1.5*GSRO;,,,,,,
 @$ This is an fcc phase with lro but no explicit sro
 @$ described with the sublattice model
 
-enter phase PARTITIONED_FCC 4 .25 Fe NI; .25 Fe NI; .25 Fe NI; .25 Fe NI;
+enter phase PARTITIONED_FCC 
+CEF
+4 .25 Fe NI; .25 Fe NI; .25 Fe NI; .25 Fe NI;
 
 @$ we must set that this has FCC permutations before entering parameters
 set phase part bit fcc-perm
@@ -153,6 +155,7 @@ map
 N
 
 
+@$ skip this start point
 @$ set c x(ni)=.9
 @$ c e
 @$

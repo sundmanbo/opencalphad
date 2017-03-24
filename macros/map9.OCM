@@ -27,7 +27,9 @@ l tp *
 @$---------------
 @&
 
-enter phase fcc 4 
+enter phase fcc 
+CEF
+4 
 .25 RE W;
 .25 RE W;
 .25 RE W;
@@ -54,7 +56,9 @@ list data
 
 @&
 
-enter phase bcc 4 .25 RE W; .25 RE W; .25 RE W; .25 RE W;
+enter phase bcc 
+CEF
+4 .25 RE W; .25 RE W; .25 RE W; .25 RE W;
 
 @$ the BCC permutations are not yet implemented ....
 
@@ -86,7 +90,9 @@ list phase bcc data
 
 @$-------
 
-enter phase hcp 4 .25 RE W; .25 RE W; .25 RE W; .25 RE W;
+enter phase hcp 
+CEF
+4 .25 RE W; .25 RE W; .25 RE W; .25 RE W;
 @$ The HCP tetrahedron is the same as FCC
 set phase hcp bit fcc_perm
 
@@ -101,7 +107,9 @@ list phase hcp data
 @&
 @$-------
 
-ent phase A15 2 2 RE W; 6  RE W;
+ent phase A15 
+CEF
+2 2 RE W; 6  RE W;
 ent par G(A15,RE:RE) 298.15 0.185144*eVtoJ8;,,,14Pal                     A15.A
 ent par G(A15,RE:W) 298.15 0.19109475*eVtoJ8;,,,14Pal                   A15.AB
 ent par G(A15,W:RE) 298.15 0.02878425*eVtoJ8;,,,14Pal                   A15.BA
@@ -112,7 +120,10 @@ list phase A15 data
 @&
 @$--------
 
-ent phase sigma 5 2 RE W; 4 RE W; 8 RE W; 8 RE W; 8 RE W;
+ent phase sigma 
+CEF 
+5 2 RE W; 4 RE W; 8 RE W; 8 RE W; 8 RE W;
+
 ent par G(sigma,RE:RE:RE:RE:RE) 298.15 0.103465*eVtoJ30;,,,14Pal      sigma.A
 ent par G(sigma,W:RE:RE:RE:RE) 298.15 0.117920533*eVtoJ30;,,,14Pal sigma.BAAAA
 ent par G(sigma,RE:W:RE:RE:RE) 298.15 0.074164067*eVtoJ30;,,,14Pal sigma.ABAAA
@@ -151,7 +162,9 @@ list phase sigma data
 @&
 @$-------------
 
-ent phase chi 4 1 RE W; 4 RE W; 12 RE W; 12  RE W;
+ent phase chi 
+CEF
+4 1 RE W; 4 RE W; 12 RE W; 12  RE W;
 ent par G(chi,RE:RE:RE:RE) 298.15 0.057085*eVtoJ29;,,,14Pal              chi.A
 ent par G(chi,W:RE:RE:RE) 298.15 0.044341138*eVtoJ29;,,,14Pal         chi.BAAA
 ent par G(chi,RE:W:RE:RE) 298.15 0.010266552*eVtoJ29;,,,14Pal         chi.ABAA
@@ -174,7 +187,9 @@ list phase chi data
 @&
 @$----------
 
-ent phase mu 5 1 RE W; 6 RE W; 2 RE W; 2 RE W; 2  RE W;
+ent phase mu 
+CEF
+5 1 RE W; 6 RE W; 2 RE W; 2 RE W; 2  RE W;
 ent par G(mu,RE:RE:RE:RE:RE) 298.15 0.213904*eVtoJ13;,,,14Pal             mu.A
 ent par G(mu,W:RE:RE:RE:RE) 298.15 0.232698923*eVtoJ13;,,,14Pal       mu.BAAAA
 ent par G(mu,RE:RE:RE:RE:W) 298.15 0.237154846*eVtoJ13;,,,14Pal       mu.AAAAB
@@ -213,7 +228,9 @@ list phase mu data
 @&
 @$--------
 
-ent phase C14 3 2 RE W; 6 RE W; 4 RE W;
+ent phase C14 
+CEF
+3 2 RE W; 6 RE W; 4 RE W;
 ent par G(C14,RE:RE:RE) 298.15 0.286726*eVtoJ12;,,,14Pal                 C14.A
 ent par G(C14,RE:W:RE) 298.15 0.331349833*eVtoJ12;,,,14Pal             C14.ABA
 ent par G(C14,W:RE:RE) 298.15 0.203029667*eVtoJ12;,,,14Pal             C14.BAA
@@ -229,7 +246,9 @@ list phase C14 data
 
 @$-----------
 
-ent phase C15 2 8 RE W; 16 RE W;
+ent phase C15 
+CEF
+2 8 RE W; 16 RE W;
 ent par G(C15,RE:RE) 298.15 0.345061*eVtoJ24;,,,14Pal                    C15.A
 ent par G(C15,W:RE) 298.15 0.250001667*eVtoJ24;,,,14Pal                C15.A2B
 ent par G(C15,RE:W) 298.15 0.491933333*eVtoJ24;,,,14Pal                C15.AB2
@@ -241,7 +260,9 @@ list phase C15 data
 
 @$----------
 
-ent phase C36  5 4 RE W; 4 RE W; 4 RE W; 6 RE W; 6 RE W;
+ent phase C36  
+CEF
+5 4 RE W; 4 RE W; 4 RE W; 6 RE W; 6 RE W;
 ent par G(C36,RE:RE:RE:RE:RE) 298.15 0.31195*eVtoJ24;,,,14Pal        C36.A
 ent par G(C36,RE:RE:W:RE:RE) 298.15 0.337458833*eVtoJ24;,,,14Pal     C36.AABAA
 ent par G(C36,RE:W:RE:RE:RE) 298.15 0.250287833*eVtoJ24;,,,14Pal     C36.ABAAA

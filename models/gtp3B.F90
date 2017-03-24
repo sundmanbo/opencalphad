@@ -345,11 +345,15 @@
    integer iva(maxconst),endm(maxsubl),endm0(maxsubl+1)
    logical externalchargebalance,tupix
    integer iph,kkk,lokph,ll,nk,jl,jk,mm,lokcs,nkk,nyfas,loksp,tuple
+! logicals for models later stored in phase record
+   logical i2sl,cqc
 !   write(*,*)'3B enter enter_phase: ',trim(name),' ',trim(model)
    if(.not.allowenter(2)) then
       gx%bmperr=4125
       goto 1000
    endif
+   i2sl=.FALSE.
+   cqc=.FALSE.
 ! check input
    call capson(name)
 !   if(.not.ucletter(name)) then
@@ -395,10 +399,17 @@
    enddo knrtest
    nkk=nk
 !  write(6,*)' enter_phase 3: ',name,nsl,nkk,noofsp
-! check constituents exists as species
+! set bit for quasichemical and ionic liquid model!
+   call capson(model)
+   if(model(1:5).eq.'I2SL ' .or. model(1:13).eq.'IONIC_LIQUID ') then
+      i2sl=.TRUE.
+   elseif(model(1:4).eq.'CQC ') then
+      cqc=.TRUE.
+   endif
+! check constituents
    externalchargebalance=.false.
    constest: do jl=1,nkk
-      if(jl.eq.1 .and. model(1:13).eq.'IONIC_LIQUID ') then
+      if(jl.eq.1 .and. i2sl) then
 ! in this case * is allowed on first sublattice!!
          if(const(1)(1:2).eq.'* ') then
             kalpha(jl)=-99
@@ -451,6 +462,13 @@
             endif
          enddo
       endif
+! for quasichemical model check that costituents with name 'QC_' has 2 elements
+      if(cqc .and. const(jl)(1:3).eq.'QC_') then
+         if(splista(jk)%noofel.ne.2) then
+            write(*,*)'Quasichemical bond constituent must have 2 elements'
+            gx%bmperr=4399; goto 1000
+         endif
+      endif
       kconlok(jl)=jk
 !     write(6,73)' enter_phase 4B: ',jl,const(jl),jk,kconlok(jl),kalpha(jl)
 !73   format(A,i3,1x,A6,3I3)
@@ -477,7 +495,8 @@
    endif
    phlista(nyfas)%name=name
    phlista(nyfas)%status1=0
-   ionliq: if(model(1:13).eq.'IONIC_LIQUID ') then
+   ionliq: if(i2sl) then
+!   ionliq: if(model(1:13).eq.'IONIC_LIQUID ') then
 ! the external charge balance set above, not needed
 !      write(*,*)'3B  *** ionic liquid entered!!!'
       externalchargebalance=.FALSE.
@@ -608,9 +627,15 @@
 ! zero the phstate (means entered and not known (unknown) if stable)
    firsteq%phase_varres(lokcs)%phstate=0
 ! sites must be stored in phase_varres
-   do ll=1,nsl
-      firsteq%phase_varres(lokcs)%sites(ll)=sites(ll)
-   enddo
+   if(cqc) then
+! have one sublattice but bonds are in sites(1)
+      firsteq%phase_varres(lokcs)%sites(1)=one
+      firsteq%phase_varres(lokcs)%qcbonds=sites(1)
+   else
+      do ll=1,nsl
+         firsteq%phase_varres(lokcs)%sites(ll)=sites(ll)
+      enddo
+   endif
 ! make sure status word and some other links are set
    firsteq%phase_varres(lokcs)%status2=0
    firsteq%phase_varres(lokcs)%phtupx=tuple
@@ -672,6 +697,20 @@
    if(nkk.eq.nsl) then
 ! as many constiuents as sublattice
       phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHNOCV)
+   endif
+! quasichemical liquid: indicate status bit for bond clusters in phase_varres 
+   if(cqc) then
+      do jk=1,size(phlista(nyfas)%constitlist)
+! indexing is tricky ...
+         ll=phlista(nyfas)%constitlist(jk)
+         if(splista(ll)%symbol(1:3).eq.'QC_') then
+            firsteq%phase_varres(lokcs)%constat(jk)=&
+                 ibset(firsteq%phase_varres(lokcs)%constat(jk),CONQCBOND)
+!            write(*,*)'3B setting bond cluster bit',jk,CONQCBOND
+         endif
+      enddo
+! set CQC bit
+      phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHQCE)
    endif
 ! nullify links
    nullify(phlista(nyfas)%additions)
@@ -1059,6 +1098,8 @@
       neq%sites=peq%sites
       neq%abnorm=peq%abnorm
       neq%amfu=zero
+! copy quasichemical bonds!!
+      neq%qcbonds=peq%qcbonds
 !      write(*,311)'3B amfu: ',leq,iph,icsno,neq%amfu,neq%abnorm,peq%abnorm
 311   format(a,3i3,6(1pe12.4))
 ! NOTE: these allocations below because create_parrecords does not work ...
@@ -2101,12 +2142,13 @@
 ! mark that the phase has at least one parameter
       phlista(lokph)%status1=ibset(phlista(lokph)%status1,PHHASP)
    endif
+   if(allocated(intlinks)) deallocate(intlinks)
+   if(allocated(elinks)) deallocate(elinks)
 !  write(*,*)'3B enter_parameter 99: ',gx%bmperr
 !  write(*,1010)'enter_parameter 77: ',(phlista(lokph)%constitlist(i),i=1,6)
 !1010 format(A,6I3)
    return
  end subroutine enter_parameter
-! lfun
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -2124,7 +2166,7 @@
 !\end{verbatim} %+
    integer l2,ll,ib,again,clink,lshift,mshift,a211
    integer odd,inz,ip,iqq1,iqq2,isp,jb,jp,jsp,l3,level1,level2
-   integer level2perm,lj,loksp,lsp,niqq1,nl1,nl2,nll,np,nq,nz
+   integer level2perm,lj,loksp,lsp,niqq1,nl1,nl2,nll,np,nq,nz,iz,jz,kz
    integer, dimension(4) :: elal,esame
    integer, dimension(:,:), allocatable :: elinks
    integer, dimension(:,:), allocatable :: intlinks
@@ -2139,10 +2181,12 @@
 ! all possible cases has not been tested.  Do not try to simplify it by making
 ! it more messy, this subroutine is not important for calculating speed
 ! but the structure it creates is important for speed.
-! The corresponing routine for bcc permutations is even worse ...
+! The corresponing routine for bcc permutations is even worse ... unfinished ...
 !
 !-------------------------------------------------------------------
 !
+!   write(*,7)lokph,nsl,nint,noperm
+7  format('3B fp0: ',4i4)
 !   if(nint.eq.2) then
 !      write(*,501)'3B fccpermuts1: ',jord(1,1),jord(2,1),jord(1,2),jord(2,2)
 !   endif
@@ -2157,7 +2201,7 @@
    endif
 ! rearrange constituents in alphabetcal order in the sublattices,
 ! change interactions also!
-!   write(*,11)'3B fp1: ',(iord(i),i=1,4),nint,((jord(j,k),j=1,2),k=1,nint)
+!  write(*,11)'3B fp1: ',(iord(iz),iz=1,4),nint,((jord(jz,kz),jz=1,2),kz=1,nint)
 11 format(a,4i4,' interactions: ',i2,4i4)
    do l2=1,4
       if(iord(l2).gt.0) then
@@ -2167,7 +2211,7 @@
          elal(l2)=iord(l2)
       endif
    enddo
-!   write(*,11)'3B fp2: ',(elal(i),i=1,4),nint,((jord(j,k),j=1,2),k=1,nint)
+!  write(*,11)'3B fp2: ',(elal(iz),iz=1,4),nint,((jord(jz,kz),jz=1,2),kz=1,nint)
    again=1
    lagain: do while(again.ne.0)
 ! yet another messy sorting 
@@ -2232,7 +2276,7 @@
       endif
    enddo
    if(jord(1,1).ne.jord(1,2)) then
-! we can have a case AX:AY:A:A and it should not be changed to AXY:A:A:A
+! we can have a case AX:AY:A:A and it should not be changed to AXY:A:A:A !!!
       notsame=.true.
    else
       notsame=.false.
@@ -2265,8 +2309,8 @@
 !   if(nint.eq.2) then
 !      write(*,501)'3B fccpermuts2B: ',jord(1,1),jord(2,1),jord(1,2),jord(2,2)
 !   endif
-!   write(*,11)'3B fp3: ',(elal(i),i=1,4),nint,((jord(j,k),j=1,2),k=1,nint)
-!   write(*,11)'3B fp4: ',(iord(i),i=1,4)
+!  write(*,11)'3B fp3: ',(elal(iz),iz=1,4),nint,((jord(jz,kz),jz=1,2),kz=1,nint)
+!   write(*,11)'3B fp4: ',(iord(iz),iz=1,4)
 ! make sure that any interaction is connected to the first possible endmember
 ! for example A:A,B:B:B should be changed to A,B:A:B:B
 ! Also A,C:A,B:A:A should be A,B:A,C:A:A to have a unique record
@@ -2439,11 +2483,11 @@
 ! always skip debug output of endmembers for interaction parameters
    intperm(1)=0
 !   if(nint.eq.2) then
-!      write(*,501)'3B fccpermuts3: ',jord(1,1),jord(2,1),jord(1,2),jord(2,2)
+!      write(*,501)'3B fccpermuts3D: ',jord(1,1),jord(2,1),jord(1,2),jord(2,2)
 !   endif
-   if(nint.gt.0) goto 200
-! comment next line to have debug output
-!   goto 200
+   if(nint.eq.0) goto 200
+! uncomment next line to have debug output
+   goto 200
 !--------------------
 ! debug output of endmembers after rearranging
    carr='fp6: '
@@ -2474,13 +2518,13 @@
       if(ll.lt.4) carr(ib:ib)=':'
       ib=ib+1
    enddo
-!   write(*,19)carr(1:ib)
-!   write(*,19)'3B fp7: ',esame,noperm
-19 format(a,4i3,i5)
+   write(*,19)carr(1:ib)
+   write(*,19)' fp7: ',esame,noperm
+19 format('3B ',a,4i3,i5)
 ! More debug output: all endmember permutations
    do np=1,noperm
 ! listing indices in constituent list (stored in endmember record)
-!      write(*,31)np,(elinks(ll,np),ll=1,nsl)
+      write(*,31)np,(elinks(ll,np),ll=1,nsl)
 31    format('3B elinks: ',i3,3x,10i4)
    enddo
    do np=1,noperm
@@ -2499,7 +2543,7 @@
             ib=ib+2
          endif
       enddo
-!      write(*,33)np,carr
+      write(*,33)np,carr
 33    format('3B emperm ',i3,': ',a)
    enddo
 ! debug output of endmembers end
@@ -2584,36 +2628,47 @@
          call fccint211(a211,jord,lshift,intperm,intlinks)
          level1=7
       else
-! interaction with one of the single constituents
-! a single permutation follows the single different element in 4 sublattices
-! starting from sublattice 1.  There are 12 enemember permutations
+! 2017.03.15, looking for bug and had some difficulties to understand
+! here we set the first interaction with one of the single constituents
+! we have to find the permutation of the endmember component in 4 sublattices
+! starting from sublattice 1.  There are 12 endemember permutations
+!         write(*,666)a211,lshift,jord(1,1),jord(2,1),jord(1,2),jord(2,2)
+666      format('3B jord mm: ',2i4,2x,2i4,2x,2i4,' <<<<<<<<<<<<<<<<<<<<<<<<<<')
+! jord(1,1) is first interacting sublattice
+! jord(2,1) is first interacting constituent index counted from first sublattice
          intperm(1)=1
-!         intperm(2)=12
          intperm(2)=noperm
          l2=jord(1,1)
+! This is the endmember component of the interaction parameter
          ib=phlista(lokph)%constitlist(elinks(l2,1))
          intlinks(1,1)=jord(1,1)
          intlinks(2,1)=jord(2,1)
          do ll=2,noperm
             do l3=1,4
-               jb=phlista(lokph)%constitlist(elinks(l3,ll))
-               if(jb.eq.ib) goto 410
+! search all sublattices for the endmember constituent, ib, skipping wildcards
+               if(elinks(l3,ll).gt.0) then
+                  jb=phlista(lokph)%constitlist(elinks(l3,ll))
+! Here is the endmember componenent, add the interaction to same sublattice
+                  if(jb.eq.ib) goto 410
+               endif
             enddo
             write(*,*)'3B Cannot find endmember element for premutation ',ll,ib
             gx%bmperr=4271; goto 1000
 410         continue
             intlinks(1,ll)=l3
             mshift=(intlinks(1,ll)-intlinks(1,ll-1))*lshift
+! we have to calculate the index of the intreraction component in yarr 
             intlinks(2,ll)=intlinks(2,ll-1)+mshift
-!            write(*,422)ll,l3,jord(1,1),mshift,intlinks(1,ll),intlinks(2,ll)
+            write(*,422)ll,l3,jord(1,1),mshift,intlinks(1,ll),intlinks(2,ll)
          enddo
+! This is used to inserd the second interaction (if any)
          level1=8
       endif
 !----------
    case(24) ! A:B:C:D
       write(*,77)
 77    format(' *** CONGRATULATIONS, '/&
-           '     You must be the first to enter a parameter like this!!!')
+           '     You may be the first to enter a parameter like this!!!')
       intperm(1)=1
       intperm(2)=noperm
       l2=jord(1,1)
@@ -2736,7 +2791,7 @@
       enddo
 !      endif
 !-----------------------------------------------------------
-! This is the important one as it includes the reciprocal excess parameter
+! This is the important the BINARY reciprocal excess parameter
    case(6) ! AX:A:B:B or A:A:BX:B, 6 endmem and 2 level 1 permutations = 12
 ! AX:A:B:B: AX:AX:B:B: 1; 0 totally 6 permutations
 ! AX:A:B:B: AX:AY:B:B and AY:AX:B:B; 2 additional permutations, totally 24
@@ -2866,7 +2921,7 @@
                nll=intlinks(1,nz-11)
                nl2=intlinks(1,nz-12)
                intlinks(1,nz)=nll
-               write(*,73)'3B loop 6B: ',np,nll,nl2,nz
+!               write(*,73)'3B loop 6B: ',np,nll,nl2,nz
 73             format(a,10i4)
                call findconst(lokph,nll,jsp,intlinks(2,nz))
                if(gx%bmperr.ne.0) goto 1000
@@ -2882,17 +2937,17 @@
 !-----------------------------------------------------------
 ! Maybe this can wait a little ...
    case(7) ! AX:A:B:C or A:BX:B:C or A:B:CX:C
-!      write(*,*)'3B Not implemented yet 7'
+      write(*,*)'3B Permutation not yet implemented 7'
       gx%bmperr=4275
 !-----------------------------------------------------------
-! Maybe this can wait a little ...
-   case(8) ! A:A:BX;C or similar
-!      write(*,*)'3B Not implemented yet 8'
+! Maybe this can wait a little ... NO
+   case(8) ! A:A:BX:C or similar
+      write(*,*)'3B Permutation not yet implemented 8'
       gx%bmperr=4275
 !-----------------------------------------------------------
 ! Maybe this can wait a little ...
    case(9) ! AX:B:C:D or similar
-!      write(*,*)'3B Not implemented yet 9'
+      write(*,*)'3B Permutation not yet implemented 9'
       gx%bmperr=4275
    end select
 !-----------------------------------------------------------
