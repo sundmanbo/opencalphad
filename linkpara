@@ -15,14 +15,16 @@ copy numlib\ocnum.F90 .
 gfortran -c -O2 ocnum.F90
 del ocnum.F90
 
+copy numlib\lmdif1lib.F90 .
+gfortran -c -O2 lmdif1lib.F90
+del ocnum.F90
+
 copy models\gtp3*.F90 .
 gfortran -c -fopenmp -O2 gtp3.F90
 del gtp3*.F90
 
 copy minimizer\matsmin.F90 .
 gfortran -c -fopenmp -O2 matsmin.F90
-REM without -finit-local-zero there is a segmentation fault ...
-REM gfortran -c -fopenmp matsmin.F90
 del matsmin.F90
 
 copy numlib\lmdif1lib.F90 .
@@ -30,7 +32,7 @@ gfortran -c -O2 lmdif1lib.F90
 del lmdif1lib.F90
 
 copy stepmapplot\smp2.F90 .
-gfortran -c -O2 smp2.F90
+gfortran -c smp2.F90
 del smp2.F90
 
 copy userif\pmon6.F90 .

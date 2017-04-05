@@ -5689,12 +5689,14 @@
    logical notok,noremove,globalok,once
    character jpre*4,jsuf*4
    real, dimension(:), allocatable :: tmmyfr
+! THIS ROUTINE MUST BE CLEANED UP
 !
 !   write(*,*)'3Y in todo_after',mode
 !----------------------------------------------------------------
    if(btest(globaldata%status,GSNOAFTEREQ)) goto 1000
    nostart: if(mode.lt.0 .or. btest(globaldata%status,GSTGRID)) then
 ! if mode<0 the conditions did not allow gridmin before use it after
+      if(btest(globaldata%status,GSNOGLOB)) goto 200
 ! Problems with this calculation so global_equil_check is disabled inside ...
       write(*,3)
 3     format('Testing if any gridpoint is below the calculated equilibrium')
@@ -5703,6 +5705,7 @@
          goto 1000
       endif
       qq=1
+! this generates a grid for test
       globalok=global_equil_check1(qq,ceq)
 !      write(*,*)'3Y Back from GEC1'
       if(globalok) then

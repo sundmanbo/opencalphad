@@ -825,7 +825,7 @@ CONTAINS
     integer iremsave,zz,tupadd,tuprem,samephase,phloopaddrem1,phloopaddrem2
     integer phloopv
 ! replace always FALSE except when we must replace a phase as we have max stable
-    logical replace
+    logical replace,force
 ! number of iterations without adding or removing a phase
     replace=.FALSE.
     minadd=4
@@ -1026,10 +1026,12 @@ CONTAINS
        goto 1000
     endif
 !
+    force=.false.
     if(irem.gt.0 .or. iadd.gt.0) then
        if(iremsave.gt.0 .and. iadd.eq.iremsave) then
 ! if iadd=iremsave>0 there was a equil matrix error when removing iremsave
           irem=0
+          force=.true.
        elseif(meqrec%noofits-lastchange.lt.nochange) then
 !          write(*,221)' *** Phase set change not allowed: ',&
 !               meqrec%noofits,lastchange,nochange,irem,iadd
@@ -1055,7 +1057,8 @@ CONTAINS
              goto 200
           elseif(phloopaddrem1.gt.4) then
 ! reset this phase to a default constitution
-             write(*,*)'MM phloopaddrem: ',phloopaddrem2
+             if(.not.btest(meqrec%status,MMQUIET)) &
+                  write(*,*)'MM phloopaddrem: ',phloopaddrem2
              iadd=phloopaddrem2
              phloopv=phasetuple(iadd)%lokph
 !             if(ceq%phlista(phloopv)%tnooffr-ceq%phlista(phloopv)%noofsubl &
@@ -1164,7 +1167,7 @@ CONTAINS
        if(ocv()) write(*,223)'Phase to be added:   ',meqrec%phr(iadd)%iph,&
             meqrec%phr(iadd)%ics,meqrec%phr(iadd)%curd%dgm,meqrec%noofits
 223    format(a,2x,2i4,1pe15.4,i7)
-       if(meqrec%noofits-meqrec%phr(iadd)%itrem.lt.minadd) then
+       if(meqrec%noofits-meqrec%phr(iadd)%itrem.lt.minadd .and. .not.force) then
 ! if phase was just removed, do not add it before minadd iterations
 !          if(.not.btest(meqrec%status,MMQUIET))write(*,224)
           if(ocv()) write(*,224)meqrec%phr(iadd)%curd%phtupx,&
@@ -1427,11 +1430,12 @@ CONTAINS
     double precision, parameter :: ionliqyfact=3.0D-1
 !    double precision, parameter :: ionliqyfact=1.0D0
 ! to check if we are calculating a single almost stoichiometric phase ...
-    integer iz,tcol,pcol,nophasechange
+    integer iz,tcol,pcol,nophasechange,notagain
     double precision maxphasechange
     integer notf,dncol,iy,jy,iremsave,phasechangeok
     double precision, dimension(:), allocatable :: lastdeltaam
     logical vbug,stoikph
+    save notagain
 !
     stoikph=.true.
     nophasechange=0
@@ -1471,6 +1475,9 @@ CONTAINS
     level3=0
 ! this is set TRUE after 3 iterations
     phasechangeok=meqrec%noofits
+    if(phasechangeok.eq.1) then
+       notagain=0
+    endif
 ! debugging problem with changing axis in mapping
     if(ocv() .and. meqrec%tpindep(1)) write(*,*)'variable T: ',ceq%tpval(1)
 !-------------------------------------------------------------
@@ -1616,6 +1623,7 @@ CONTAINS
           if(.not.btest(meqrec%status,MMQUIET)) &
                write(*,*)'Error, restoring previously removed phase: ',iremsave
           iadd=iremsave
+          notagain=iremsave
           goto 1100
        endif
        if(vbug) then
@@ -1877,9 +1885,11 @@ CONTAINS
 !             write(*,363)'Phase with negative amount: ',jj,0,0,&
 !                  phf,phs,phr(jj)%prevam
 !             if(phf.lt.-1.0D-2) phf=zero
-             if(phr(jj)%prevam.lt.zero) then
+             if(jj.ne.notagain .and. phr(jj)%prevam.lt.zero) then
+!             if(phr(jj)%prevam.lt.zero) then
 ! remove this phase if negative amount previous iteration also
                 irem=jj
+!                write(*,*)'remove: ',meqrec%noofits,jj,notagain
 ! jumping to 1000 here means constitutions not changed in this iteration
                 goto 1000
              else
@@ -2315,6 +2325,21 @@ CONTAINS
 ! check if phase to be added is already stable as another composition set
 ! This check should maybe be above as maybe another phase want to be stable??
        if(same_composition(iadd,phr,meqrec,ceq,dgm)) iadd=0
+    endif
+! check if phase iadd is stoichiometric and if so check of any stable phase
+! phase that is stoichiometric has the same composition!!  IF SO
+! remove that phase at the same time ...
+    if(iadd.gt.0) then
+       samestoi: do nj=1,meqrec%nstph
+! loop through all stable phases for other phase with same stoichiometry
+          jj=meqrec%stphl(nj)
+! check if same composition ... how?
+          if(same_stoik(iadd,jj)) then
+!             write(*,*)'Same stoichiometry!',nj,jj
+             irem=jj
+             exit samestoi
+          endif
+       enddo samestoi
     endif
     if(meqrec%noofits.gt.2 .and. (irem.gt.0 .or. iadd.gt.0)) then
 ! if a phase have negative amount remove it or if a phase has positive

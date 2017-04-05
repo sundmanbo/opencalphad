@@ -13,6 +13,22 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2017.04.05 OC version 4.018: I am trying to make OC a bit faster for
+some interested users, if OC is compiled with the "-O2" option it is
+about 5 times faster compared with using "-finit-local-zero" and
+"-fbounds-check".  But it also creates some problem, the macros "step5"
+and "map5" fails.  I will look into that later.
+
+I also fixed a problem whith the minimizer changing the set of stable
+phases when the change involved the change of a stoichiometric phase
+to a allotrope.  Adding the new allotrope ment to have two stable
+phases with exactly the same composition which made the minimizer
+crazy.  So now there is a check removing the other allotrope at the
+same time.  It is a particular problem when dealing with a database
+with many stoichiometric phases.  The version is now included in the
+plot title and I added some lectures about OC in the documentation
+directory and changed some other small things.
+
 2017.03.24 OC version 4.017: The command "enter phase" is changed and
 now requires a model specifed, reading from TDB files not changed.
 Implementation of a new liquid quasichemical model has started an many

@@ -1057,6 +1057,42 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
+ logical function same_stoik(iph,jph)
+! return TRUE if phase iph and jph are both stoichiometric and have the
+! same composition  Used to check when adding a phase during equilibrium
+! calculation as it normally fails to have two such phases stable
+   implicit none
+   integer iph,jph
+!\end{verbatim}
+   integer loki,lokj,ll,kk
+   logical same
+!
+   same=.false.
+! iph and jph can be second or later composition sets
+!   write(*,*)'3F same_stoik 1: ',iph,jph,&
+!        phasetuple(iph)%lokph,phasetuple(jph)%lokph
+!   loki=phases(iph); lokj=phases(jph)
+   loki=phasetuple(iph)%lokph; lokj=phasetuple(jph)%lokph
+   if(.not.btest(phlista(loki)%status1,PHNOCV)) goto 1000
+   if(.not.btest(phlista(lokj)%status1,PHNOCV)) goto 1000
+   if(phlista(loki)%noofsubl.ne.phlista(lokj)%noofsubl) goto 1000
+   kk=0
+   do ll=1,phlista(loki)%noofsubl
+      if(firsteq%phase_varres(phlista(loki)%linktocs(1))%sites(ll).ne.&
+         firsteq%phase_varres(phlista(lokj)%linktocs(1))%sites(ll)) goto 1000
+      kk=kk+1
+      if(phlista(loki)%constitlist(kk).ne.&
+         phlista(lokj)%constitlist(kk)) goto 1000
+   enddo
+   same=.true.
+1000 continue
+   same_stoik=same
+   return
+ end function same_stoik
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
  subroutine calc_phase_molmass(iph,ics,xmol,wmass,totmol,totmass,amount,ceq)
 ! calculates mole fractions and mass fractions for a phase#set
 ! xmol and wmass are fractions of components in mol or mass

@@ -416,8 +416,9 @@
 !      write(*,*)'3D: conname: ',kel,lk3,typty,elnam
          call find_species_by_name(elnam,isp)
          if(gx%bmperr.ne.0) then
-            write(kou,*)'Unknown species ',elnam,&
-                 ' in parameter type MQ, please reenter',gx%bmperr
+! This is not an error, the species may simply not be selected !!!
+!            write(kou,*)'Unknown species ',trim(elnam),&
+!                 ' in parameter type MQ, please reenter',gx%bmperr
             parname=' '; gx%bmperr=0; goto 10
          endif
 ! convert from index to location, loksp
@@ -2462,8 +2463,9 @@ end subroutine get_condition
 ! the phase name yet but check the species exists !!!
          call find_species_by_name(elnam,isp)
          if(gx%bmperr.ne.0) then
-            write(kou,*)'Unknown species ',elnam,&
-                 ' in parameter type MQ, please reenter',gx%bmperr
+! This is not an error, the species may not be selected!!!
+!            write(kou,*)'Unknown species ',elnam,&
+!                 ' in parameter type MQ, please reenter',gx%bmperr
             gx%bmperr=0; goto 1000
          endif
 ! convert from index to location, loksp

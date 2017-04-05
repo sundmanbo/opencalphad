@@ -2414,13 +2414,14 @@ contains
              goto 990
           endif
           call gparc('Element symbol: ',cline,last,1,elsym,' ',q1help)
-          call gparc('Element full name: ',cline,last,1,name1,' ',q1help)
-          call gparc('Element reference phase: ',cline,last,1,name2,' ',q1help)
+          call gparcd('Element full name: ',cline,last,1,name1,elsym,q1help)
+          call gparc('Element reference phase: ',cline,last,1,&
+               name2,'SER ',q1help)
           call gparrd('Element mass (g/mol): ',cline,last,mass,one,q1help)
           if(buperr.ne.0) goto 990
-          call gparr('Element H298-H0: ',cline,last,h298,zero,q1help)
+          call gparrd('Element H298-H0: ',cline,last,h298,zero,q1help)
           if(buperr.ne.0) goto 990
-          call gparr('Element S298: ',cline,last,s298,one,q1help)
+          call gparrd('Element S298: ',cline,last,s298,one,q1help)
           if(buperr.ne.0) goto 990
           call enter_element(elsym,name1,name2,mass,h298,s298)
           if(gx%bmperr.ne.0) goto 990
@@ -2431,6 +2432,7 @@ contains
              goto 990
           endif
           call gparc('Species symbol: ',cline,last,1,name1,' ',q1help)
+! NOTE: add check species name legal!
           call gparc('Species stoichiometry: ',cline,last,1,name2,' ',q1help)
           call decode_stoik(name2,noelx,ellist,stoik)
           if(gx%bmperr.ne.0) goto 990
@@ -4139,7 +4141,8 @@ contains
        case(1)
 ! added ceq in the call to make it possible to handle change of reference states
 !2190      continue
-          call ocplot2(jp,axplot,plotfile,maptop,axarr,graphopt,plotform,ceq)
+          call ocplot2(jp,axplot,plotfile,maptop,axarr,graphopt,plotform,&
+               version,ceq)
           if(gx%bmperr.ne.0) goto 990
 ! always restore default plot file name!!
           plotfile='ocgnu'

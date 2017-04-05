@@ -289,7 +289,7 @@ CONTAINS
 ! inmap=1 turns off converge control of T
     integer, parameter :: inmap=1
     character ch1*1
-    logical firststep
+    logical firststep,onetime
 !
 !    write(*,*)'in map_setup'
     call get_all_conditions(savedconditions,-1,starteq)
@@ -348,6 +348,8 @@ CONTAINS
 ! and the thread ends
 ! If the node is new it is created and exits added and the thread ends.
 300 continue
+! this is to write a warning message once for each line
+    onetime=.true.   
     bytaxis=0
     firststep=.TRUE.
 ! THREADPROTECTED CALL the map_findline will copy the ceq from mapnode
@@ -652,8 +654,18 @@ CONTAINS
 !------------------------------------------------------------
     if(irem.gt.0 .and. iadd.gt.0) then
 ! if there is phase which wants to appear and another disappear then
+! first check if they are the composition sets of the same phase
 ! calculate with half the step 5 times. If axvalok=0 no previous axis value
-       write(*,*)'Phases want to appear/disappear: ',iadd,irem
+! BUG: Problems here for map5.OCM, when matsmin compiled with -O2
+! two extra composition sets of BCC and LIQUID wanted to appear.
+!  Will lok at that later ...
+       if(onetime) then
+          write(*,22)'SMP: phases appear and disappear at same time: ',&
+               iadd,irem,phasetuple(iadd)%lokph,phasetuple(irem)%lokph
+22        format(a,4i4)
+          onetime=.false.
+       endif
+!       write(*,*)
 ! restore constitutions
 !       write(*,*)'Restore constitutions 3',axvalok,ceq%tpval(1)
        call restore_constitutions(ceq,copyofconst)
@@ -4737,7 +4749,8 @@ CONTAINS
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
-  subroutine ocplot2(ndx,pltax,filename,maptop,axarr,graphopt,pform,ceq)
+  subroutine ocplot2(ndx,pltax,filename,maptop,axarr,graphopt,pform,&
+       version,ceq)
 ! Main plotting routine, generates a GNUPLOT data file for a step/map calc
 ! NOTE for isothermal section ocplot3 is used (when 2 axis with wildcards)
 ! ndx is mumber of plot axis, 
@@ -4750,7 +4763,7 @@ CONTAINS
 ! ceq is equilibrium record
     implicit none
     integer ndx
-    character pltax(*)*(*),filename*(*),pform*(*)
+    character pltax(*)*(*),filename*(*),pform*(*),version*(*)
     type(map_axis), dimension(*) :: axarr
     type(map_node), pointer :: maptop
     type(graphics_options) :: graphopt
@@ -4788,14 +4801,15 @@ CONTAINS
 !
 !    write(*,*)'In ocplot2, looking for segmentation fault 1'
     if(index(pltax(1),'*').gt.0 .and. index(pltax(2),'*').gt.0) then
-       call ocplot3(ndx,pltax,filename,maptop,axarr,graphopt,pform,ceq)
+       call ocplot3(ndx,pltax,filename,maptop,axarr,graphopt,pform,&
+            version,ceq)
        goto 1000
     endif
     moretops=.FALSE.
     seqx=0
     call date_and_time(date)
     mdate=" "//date(1:4)//'-'//date(5:6)//'-'//date(7:8)//" "
-    deftitle='Open Calphad 4.0 prerelease '//mdate//': with GNUPLOT'
+    deftitle='Open Calphad '//version//': '//mdate//': with GNUPLOT'
     if(graphopt%labeldefaults(1).eq.0) then
        title=deftitle
     else
@@ -5465,7 +5479,7 @@ CONTAINS
     call get_plot_conditions(encoded1,maptop%number_ofaxis,axarr,ceq)
 !
     call ocplot2B(np,nrv,nlinesep,linesep,pltax,xax,anpax,anpdim,anp,lid,&
-         title,filename,graphopt,pform,encoded1)
+         title,filename,graphopt,pform,version,encoded1)
 !    goto 900
 ! deallocate, not really needed for local arrays ??
     deallocate(anp)
@@ -5483,7 +5497,7 @@ CONTAINS
 
 !\begin{verbatim} %-
   subroutine ocplot2B(np,nrv,nlinesep,linesep,pltax,xax,anpax,anpdim,anp,lid,&
-       title,filename,graphopt,pform,conditions)
+       title,filename,graphopt,pform,version,conditions)
 ! called from icplot2 to generate the GNUPLOT file after extracting data
 ! np is number of columns (separate lines), if 1 no labelkey
 ! nrv is number of values to plot?
@@ -5504,7 +5518,7 @@ CONTAINS
     integer np,anpax,nlinesep
     integer ndx,nrv,linesep(*),anpdim
     character pltax(*)*(*),filename*(*),pform*(*),lid(*)*(*),title*(*)
-    character conditions*(*)
+    character conditions*(*),version*(*)
     type(graphics_options) :: graphopt
     double precision xax(*),anp(anpdim,*)
     type(graphics_textlabel), pointer :: textlabel
@@ -5824,7 +5838,8 @@ CONTAINS
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
-  subroutine ocplot3(ndx,pltax,filename,maptop,axarr,graphopt,pform,ceq)
+  subroutine ocplot3(ndx,pltax,filename,maptop,axarr,graphopt,pform,&
+       version,ceq)
 ! special to plot isothermal sections (two columns like x(*,cr) x(*,ni))
 ! ndx is mumber of plot axis, 
 ! pltax is text with plotaxis variables
@@ -5836,7 +5851,7 @@ CONTAINS
 ! pform is type of output (screen or postscript or gif)
     implicit none
     integer ndx
-    character pltax(*)*(*),filename*(*),pform*(*)
+    character pltax(*)*(*),filename*(*),pform*(*),version*(*)
     type(map_axis), dimension(*) :: axarr
     type(map_node), pointer :: maptop
     type(graphics_options) :: graphopt
@@ -6107,7 +6122,7 @@ CONTAINS
 !    write(*,502)(lineends(ii),ii=1,same)
 502 format(10i5)
     call ocplot3B(same,nofinv,lineends,2,xval,2,yval,2,zval,plotkod,pltax,&
-         lid,filename,graphopt,pform,encoded)
+         lid,filename,graphopt,pform,version,encoded)
     deallocate(xval)
     deallocate(yval)
     deallocate(plotkod)
@@ -6119,7 +6134,7 @@ CONTAINS
 
 !\begin{verbatim} %-
   subroutine ocplot3B(same,nofinv,lineends,nx1,xval,ny1,yval,nz1,zval,plotkod,&
-       pltax,lid,filename,graphopt,pform,conditions)
+       pltax,lid,filename,graphopt,pform,version,conditions)
 ! called by ocplot3 to write the GNUPLOT file for two wildcard columns
 ! same is the number of lines to plot
 ! nofinv number of invariants
@@ -6140,6 +6155,7 @@ CONTAINS
 ! conditions is a text with conditions for the calculation
     implicit none
     character pltax(*)*(*),filename*(*),pform*(*),lid(nx1,*)*(*),conditions*(*)
+    character version*(*)
     type(graphics_options) :: graphopt
     integer same,plotkod(*),nx1,ny1,nz1,nofinv
     integer lineends(*)
@@ -6158,7 +6174,7 @@ CONTAINS
 !
     call date_and_time(date)
     mdate=" "//date(1:4)//'-'//date(5:6)//'-'//date(7:8)//" "
-    deftitle='Open Calphad 4.0 prerelease '//mdate//': with GNUPLOT'
+    deftitle='Open Calphad '//version//': '//mdate//': with GNUPLOT'
     if(graphopt%labeldefaults(1).eq.0) then
        title=deftitle
     else
