@@ -134,6 +134,11 @@ contains
     return 
   end function c_noofcs
 
+  integer function c_ierr() bind(c, name='c_ierr')
+    c_ierr=gx%bmperr
+    return
+  end function c_ierr
+
   subroutine examine_gtp_equilibrium_data(c_ceq) &
        bind(c, name='examine_gtp_equilibrium_data')
     type(c_ptr), intent(in), value :: c_ceq
@@ -300,14 +305,20 @@ contains
 
 !\begin{verbatim}
   subroutine c_tqgpcn(n, c, constituentname, c_ceq) bind(c, name='c_tqgpcn')
-! get name of constitutent c in phase n
-    integer(c_int), intent(in) :: n  ! phase number
-    integer(c_int), intent(in) :: c  ! extended constituent index: 
-!                                      10*species_number + sublattice
-    character(c_char), intent(out) :: constituentname(24)
+! get name of consitutent c in phase n
+    implicit none
+    integer(c_int), intent(in), value :: n  ! phase number
+    integer(c_int), intent(in), value :: c  !IN: constituent index sequentially from first sublattice
+    character(c_char), intent(out) :: constituentname(24) !EXIT: costituent name
     type(c_ptr), intent(inout) :: c_ceq
 !\end{verbatim}
-    write(*,*) 'tqgpcn not implemented yet'
+    type(gtp_equilibrium_data), pointer :: ceq !IN: current equilibrium
+    character fstring*(24) !EXIT: costituent name
+    double precision mass
+    call c_f_pointer(c_ceq, ceq)
+    call get_constituent_name(n,c,fstring,mass)
+    call f_to_c_string(fstring, constituentname)
+    c_ceq = c_loc(ceq)
   end subroutine c_tqgpcn
 
 !\begin{verbatim}
@@ -401,6 +412,7 @@ contains
 !\end{verbatim}
     call c_f_pointer(c_ceq, ceq)
     call tqsetc(statvar, n1, n2, mvalue, cnum, ceq)
+    write(*,*) 'call tqsetc(',statvar, n1, n2, mvalue, cnum, 'ceq)'
     c_ceq = c_loc(ceq)
   end subroutine c_tqsetc
 
@@ -501,9 +513,9 @@ contains
     fstring = c_to_f_string(statvar)
     call tqgetv(fstring, n1, n2, n3, values, ceq)
 ! debug ...
-!    write(*,55)fstring(1:len_trim(fstring)),n1,n2,n3,(values(i),i=1,n3)
-!55  format(/'From c_tqgetv: ',a,': ',3i3,6(1pe12.4))
-!    write(*,*)
+    write(*,55)fstring(1:len_trim(fstring)),n1,n2,n3,(values(i),i=1,n3)
+55  format(/'From c_tqgetv: ',a,': ',3i3,6(1pe12.4))
+    write(*,*)
 ! end debug
     c_ceq = c_loc(ceq)
   end subroutine c_tqgetv
@@ -563,6 +575,7 @@ contains
     call c_f_pointer(c_ceq, ceq)
     call set_constitution(phasetuple(n1)%ixphase,phasetuple(n1)%compset,&
          yfra,extra,ceq)
+    write(*,*)'call set_constitution(',phasetuple(n1)%ixphase,phasetuple(n1)%compset,'yfra,extra,ceq)'
     c_ceq = c_loc(ceq)
   end subroutine c_tqsphc1
 
