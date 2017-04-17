@@ -229,6 +229,7 @@
    allocate(dorph(nooftuples))
    nstab=0; nent=0; ndorm=0; nsusp=1
    susph=' '
+   ch1=' '
    phloop: do jk=1,noofph
       lokph=phases(jk)
       csloop: do ics=1,phlista(lokph)%noofcs
@@ -267,7 +268,7 @@
             if(nent.eq.0) then
                nent=1
                entph(nent)=lokcs
-!               write(*,69)'3C first phase unstable: ',nent,nent,lokcs,csrec%dgm
+!              write(*,69)'3C first phase unstable: ',nent,nent,lokcs,csrec%dgm
             else
 ! ENTERED, not stable, sort after all stable phase and with smallest DGM first
                do iph=1,nent
@@ -350,6 +351,7 @@
       if(jl.gt.24) then
          csname=csname(1:12)//'..'//csname(jl-9:jl)
       endif
+      ch1='X'
       write(unit,112)phlista(lokph)%alphaindex,csrec%phtupx,csname, &
            csrec%amfu*csrec%abnorm(1),&
            csrec%abnorm(1),csrec%dgm,phlista(lokph)%status1,&
@@ -402,6 +404,7 @@
       if(jl.gt.24) then
          csname=csname(1:12)//'..'//csname(jl-9:jl)
       endif
+      ch1='D'
       write(unit,112)phlista(lokph)%alphaindex,csrec%phtupx,csname, &
            csrec%amfu*csrec%abnorm(1),&
            csrec%abnorm(1),csrec%dgm,phlista(lokph)%status1,&

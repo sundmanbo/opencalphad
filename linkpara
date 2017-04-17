@@ -15,10 +15,6 @@ copy numlib\ocnum.F90 .
 gfortran -c -O2 ocnum.F90
 del ocnum.F90
 
-copy numlib\lmdif1lib.F90 .
-gfortran -c -O2 lmdif1lib.F90
-del ocnum.F90
-
 copy models\gtp3*.F90 .
 gfortran -c -fopenmp -O2 gtp3.F90
 del gtp3*.F90

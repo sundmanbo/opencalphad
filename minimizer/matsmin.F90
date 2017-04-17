@@ -149,6 +149,14 @@ MODULE liboceq
   end TYPE map_fixph
 !\end{verbatim}
 !
+!\begin{verbatim}
+  TYPE saveddgdy
+     integer sameit,big1(2),big2(2)
+     double precision, allocatable, dimension(:,:) :: save1
+     double precision, allocatable, dimension(:,:) :: save2
+  end TYPE saveddgdy
+!\end{verbatim}
+!
 !--------------------------------------------------------------
 !
 ! IMPORTANT
@@ -2683,9 +2691,12 @@ CONTAINS
     double precision hmval,gref,tpvalsave(2)
     double precision, dimension(:), allocatable :: xcol,mamu,mamu1,zcol,qmat
     double precision, allocatable :: xxmm(:),wwnn(:),hval(:)
-    logical :: vbug=.FALSE.,calcmolmass,notdone
+    logical :: vbug=.FALSE.,calcmolmass,notdone,nosave
     double precision abug,bbug
     character encoded*32,name*32
+! For saving calculated terms in calc_dgdyterms
+    type(saveddgdy), target :: savedrec
+    type(saveddgdy), pointer :: saved
 !-------------------------------------------------------------------
 ! Formulating the equil equation in general:
 ! Variables (one column per variable):
@@ -2850,6 +2861,11 @@ CONTAINS
     lastcond=>ceq%lastcondition
     condition=>lastcond
     allocate(mamu(meqrec%nrel))
+! for saving partial dgdyterms, set nosave=.TRUE. to use old calc_dgdyterms1
+!    nosave=.TRUE.
+    nosave=.FALSE.
+    savedrec%sameit=0
+    saved=>savedrec
 350 continue
     cmode=0
     cmix=0
@@ -3548,8 +3564,15 @@ CONTAINS
 ! if sel=/=0 then skip all components except sel
                 if(sel.gt.0 .and. ie.ne.sel) cycle nallel
 ! multiply terms with the inverse phase matrix
-                call calc_dgdyterms1(meqrec%nrel,ie,meqrec%tpindep,&
-                     mamu,mag,mat,map,pmi,ceq%cmuval,meqrec%noofits)
+! This is called for each condition, maybe try to save values ...
+                if(nosave) then
+                   call calc_dgdyterms1(meqrec%nrel,ie,meqrec%tpindep,&
+                        mamu,mag,mat,map,pmi,ceq%cmuval,meqrec%noofits)
+                else
+! this routine which should work in parallel ...
+                   call calc_dgdyterms1P(meqrec%nrel,ie,meqrec%tpindep,&
+                        mamu,mag,mat,map,pmi,saved,meqrec%noofits)
+                endif
                 if(gx%bmperr.ne.0) goto 1000
 ! the call above calculates (A is "ie", z_ij is the inverted phase matrix): 
 ! mamu_A(B=1..nrel) = \sum_i \sum_j dM^a_A/dy_i dM^a_B/dy_j z^a_ij
@@ -3789,8 +3812,13 @@ CONTAINS
 ! calculate a term for each column to be multiplied with chemical potential
 ! we must sum xcol for all elemenets and add to zcol for element sel
 ! if sel=/=0 then we sum also zcol(sel) for all phases
-                call calc_dgdyterms1(meqrec%nrel,ie,meqrec%tpindep,&
-                     mamu,mag,mat,map,pmi,ceq%cmuval,meqrec%noofits)
+                if(nosave) then
+                   call calc_dgdyterms1(meqrec%nrel,ie,meqrec%tpindep,&
+                        mamu,mag,mat,map,pmi,ceq%cmuval,meqrec%noofits)
+                else
+                   call calc_dgdyterms1P(meqrec%nrel,ie,meqrec%tpindep,&
+                        mamu,mag,mat,map,pmi,saved,meqrec%noofits)
+                endif
                 if(gx%bmperr.ne.0) goto 1000
 !                write(*,355)'MM dgdy: ',mamu
                 ncol=1
@@ -4013,8 +4041,13 @@ CONTAINS
 ! if sel=/=0 then skip all components except sel
                 if(sel.gt.0 .and. ie.ne.sel) cycle
 ! multiply terms with the inverse phase matrix
-                call calc_dgdyterms1(meqrec%nrel,ie,meqrec%tpindep,&
-                     mamu,mag,mat,map,pmi,ceq%cmuval,meqrec%noofits)
+                if(nosave) then
+                   call calc_dgdyterms1(meqrec%nrel,ie,meqrec%tpindep,&
+                        mamu,mag,mat,map,pmi,ceq%cmuval,meqrec%noofits)
+                else
+                   call calc_dgdyterms1P(meqrec%nrel,ie,meqrec%tpindep,&
+                        mamu,mag,mat,map,pmi,saved,meqrec%noofits)
+                endif
                 if(gx%bmperr.ne.0) goto 1000
 !                write(*,*)'Calculated dgdyterms 3: ',mat
 ! the call above calculates (A is "ie", z_ij is the inverted phase matrix): 
@@ -4195,8 +4228,13 @@ CONTAINS
 ! calculate a term for each column to be multiplied with chemical potential
 ! we must sum xcol for all elemenets and add to zcol for element sel
 ! if sel=/=0 then we sum also zcol(sel) for all phases
-                call calc_dgdyterms1(meqrec%nrel,ie,meqrec%tpindep,&
-                     mamu,mag,mat,map,pmi,ceq%cmuval,meqrec%noofits)
+                if(nosave) then
+                   call calc_dgdyterms1(meqrec%nrel,ie,meqrec%tpindep,&
+                        mamu,mag,mat,map,pmi,ceq%cmuval,meqrec%noofits)
+                else
+                   call calc_dgdyterms1P(meqrec%nrel,ie,meqrec%tpindep,&
+                        mamu,mag,mat,map,pmi,saved,meqrec%noofits)
+                endif
                 if(gx%bmperr.ne.0) goto 1000
 !                write(*,*)'Calculated dgdyterms 4: ',mat
                 ncol=1
@@ -4339,6 +4377,13 @@ CONTAINS
 !    enddo
 !390 format('#:',i2,6(1pe12.4),6(4x,1pe12.4))
 1000 continue
+! we must deallocate all data in the savedrec
+    if(allocated(savedrec%save1)) then
+!       jj=size(saved%save1)
+       deallocate(savedrec%save1)
+!       write(*,*)'MM deallocated saved%save1',jj
+    endif
+    if(allocated(savedrec%save2)) deallocate(savedrec%save2)
     return
   end subroutine setup_equilmatrix
 
@@ -4355,7 +4400,7 @@ CONTAINS
     TYPE(gtp_equilibrium_data), pointer :: ceq
     TYPE(meq_setup) :: meqrec
 !\end{verbatim}
-    integer nrel,i2sly(2)
+    integer nrel,i2sly(2),info
     integer ik,iph,ics,jz,iz,jk,ierr,kk,kkk,ll,lokcs,ncc,loksp,ncl
     integer nd1,nd2,neq,nochange,nsl,nspel,nv,ncon,icon
 ! needed for call to get_phase_data
@@ -4366,6 +4411,8 @@ CONTAINS
 ! needed for call to get_species_data
     integer, dimension(maxspel) :: ielno
     double precision, dimension(maxspel) :: stoi
+! testing lapacl+blas inverting symmetric matrix
+    double precision, allocatable, dimension(:) :: lapack
     double precision spextra
 ! minimal y, charge
     double precision, parameter :: ymin=1.0D-12,ymingas=1.0D-30,qeps=1.0D-30
@@ -4378,8 +4425,11 @@ CONTAINS
     double precision qsp,sumsit,ykvot,ysum,qsum,spmass,yva,fion
     double precision, dimension(:,:), allocatable :: sumion
     character name*24
+    logical nolapack
 !
 !    write(*,*)'in meq_onephase: '
+    nolapack=.TRUE.
+!    nolapack=.FALSE.
     iph=pmi%iph
     ics=pmi%ics
     nrel=meqrec%nrel
@@ -4613,11 +4663,23 @@ CONTAINS
 ! dgval(3,1:N,1) are second derivatives of G wrt constituent 1:N and P
 ! d2gval(ixsym(N*(N+1)/2),1) are 2nd derivatives of G wrt constituents N and M
 ! Last index is other properties than G like TC, BMAGN etc.
+       if(.not.nolapack) then
+          if(pmi%chargebal.eq.1) then
+             neq=ncon+ll+1
+             allocate(lapack(neq*(neq+1)/2))
+          else
+             neq=ncon+ll
+             allocate(lapack(neq*(neq+1)/2))
+          endif
+          lapack=zero
+       endif
        pmat=zero
        do ik=1,nkl(1)
           do jk=ik,nkl(1)
-             pmat(ik,jk)=ceq%phase_varres(lokcs)%d2gval(ixsym(ik,jk),1)
+             ll=ixsym(ik,jk)
+             pmat(ik,jk)=ceq%phase_varres(lokcs)%d2gval(ll,1)
              if(jk.gt.ik) pmat(jk,ik)=pmat(ik,jk)
+             if(.not.nolapack) lapack(ll)=ceq%phase_varres(lokcs)%d2gval(ll,1)
           enddo
        enddo
        neq=nkl(1)
@@ -4628,6 +4690,7 @@ CONTAINS
        do jk=1,neq-1
           pmat(jk,neq)=one
           pmat(neq,jk)=one
+          if(.not.nolapack) lapack(ixsym(jk,neq))=one
        enddo
        if(pmi%chargebal.eq.1) then
 ! if external charge balance add one column and one row
@@ -4635,6 +4698,7 @@ CONTAINS
           do jk=1,nkl(1)
 ! this is the row
              pmat(jk,neq)=dqsum(jk)
+             if(.not.nolapack) lapack(ixsym(jk,neq+ll))=dqsum(jk)
 ! this is the column
              pmat(neq,jk)=dqsum(jk)
           enddo
@@ -4649,6 +4713,32 @@ CONTAINS
           enddo
 73        format(1x,6(1pe12.4))
           gx%bmperr=4205; goto 1000
+       endif
+       if(.not.nolapack) then
+! call lapack routine to invert symmetric matrix
+          do jk=1,neq
+             write(*,18)'3Y 1A',jk,(pmat(ik,jk),ik=1,neq)
+          enddo
+          do jk=1,neq
+             write(*,18)'3Y 2A',jk,(lapack(ixsym(ik,jk)),ik=1,neq)
+          enddo
+          call dpptrf('U',neq,lapack,info)
+          if(info.ne.0) then
+             write(*,*)'MM error in DPPTRF: ',info,neq,nd1
+             gx%bmperr=4399; goto 1000
+          else
+             call dpptri('U',neq,lapack,info)
+             write(*,*)'MM error in DPPTRI: ',info
+             gx%bmperr=4399; goto 1000
+! result retuned in lapack, compare with pmi%invmat
+             do jk=1,neq
+                write(*,18)'3Y 1B :',jk,(pmi%invmat(ik,jk),ik=1,neq)
+             enddo
+             do jk=1,neq
+                write(*,18)'3Y 2B :',jk,(lapack(ixsym(ik,jk)),ik=1,neq)
+             enddo
+          endif
+          stop
        endif
 !       do jk=1,neq
 !          write(*,18)'im: ',(pmi%invmat(ik,jk),ik=1,neq)
@@ -4922,6 +5012,16 @@ CONTAINS
        goto 1000
     endif
 ! calculate phase matrix elements, first and second derivatives
+    if(.not.nolapack) then
+       if(pmi%chargebal.eq.1) then
+          neq=ncon+ll+1
+          allocate(lapack(neq*(neq+1)/2))
+       else
+          neq=ncon+ll
+          allocate(lapack(neq*(neq+1)/2))
+       endif
+       lapack=zero
+    endif
     pmat=zero
     neq=ncon
     do ik=1,ncon
@@ -4938,6 +5038,7 @@ CONTAINS
 !$             goto 1000
 !$          endif
           pmat(ik,jk)=ceq%phase_varres(lokcs)%d2gval(ll,1)
+          if(.not.nolapack) lapack(ll)=ceq%phase_varres(lokcs)%d2gval(ll,1)
 ! remove next line when using an inversion for symmetric matrix
           if(jk.gt.ik) pmat(jk,ik)=pmat(ik,jk)
        enddo
@@ -4951,6 +5052,7 @@ CONTAINS
           kk=kk+1
           pmat(kk,neq+ll)=one
           pmat(neq+ll,kk)=one
+          if(.not.nolapack) lapack(ixsym(kk,neq+ll))=one
        enddo
 !       write(*,17)'row3: ',(pmat(ncon+ll,jj),jj=1,nd1)
     enddo
@@ -4964,6 +5066,7 @@ CONTAINS
        do jk=1,ncon
 ! this is the row
           pmat(jk,neq)=dqsum(jk)
+          if(.not.nolapack) lapack(ixsym(jk,neq+ll))=dqsum(jk)
 ! this is the column
           pmat(neq,jk)=dqsum(jk)
        enddo
@@ -5008,6 +5111,32 @@ CONTAINS
 !          write(*,73)(pmat(ik,jk),ik=1,neq)
 !       enddo
        gx%bmperr=4205; goto 1000
+    endif
+    if(.not.nolapack) then
+! call lapack routine to invert symmetric matrix
+       do jk=1,neq
+          write(*,18)'3Y 1A',jk,(pmat(ik,jk),ik=1,neq)
+       enddo
+       do jk=1,neq
+          write(*,18)'3Y 2A',jk,(lapack(ixsym(ik,jk)),ik=1,neq)
+       enddo
+       call dpptrf('U',neq,lapack,info)
+       if(info.ne.0) then
+          write(*,*)'MM error in DPPTRF: ',info,neq,nd1
+          gx%bmperr=4399; goto 1000
+       else
+          call dpptri('U',neq,lapack,info)
+          write(*,*)'MM error in DPPTRI: ',info
+          gx%bmperr=4399; goto 1000
+! result retuned in lapack, compare with pmi%invmat
+          do jk=1,neq
+             write(*,18)'3Y 1B :',jk,(pmi%invmat(ik,jk),ik=1,neq)
+          enddo
+          do jk=1,neq
+             write(*,18)'3Y 2B :',jk,(lapack(ixsym(ik,jk)),ik=1,neq)
+          enddo
+       endif
+       stop
     endif
 !    write(33,*)'Inverted'
 !    do jk=1,nd1
@@ -5324,7 +5453,7 @@ CONTAINS
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
-  subroutine calc_dgdyterms1(nrel,ia,tpindep,mamu,mag,mat,map,pmi,&
+  subroutine calc_dgdyterms1A(nrel,ia,tpindep,mamu,mag,mat,map,pmi,&
        curmux,noofits)
 ! any change must also be made in subroutine calc_dyterms2 and calc_dgdytermsh
 ! calculate the terms in the deltay expression for amounts of component ia
@@ -5336,6 +5465,9 @@ CONTAINS
 !
 ! it may not be very efficient but first get it right ....
 ! tpindep(1) is TRUE if T variable, tpindep(2) is TRUE if P are variable
+!
+! >>> ATTENTION, THIS SUBROUTINE WORKS BUT TAKES 80 % of execution time !! <<<
+!
     implicit none
     integer ia,nrel,noofits
     logical tpindep(2)
@@ -5371,9 +5503,10 @@ CONTAINS
 !    if(noofits.eq.1) then
 !       curmu=zero
 !    else
-    do iy=1,nrel
-       curmu(iy)=curmux(iy)
-    enddo
+! totally redundant
+!    do iy=1,nrel
+!       curmu(iy)=curmux(iy)
+!    enddo
 !    endif
 !-----------
 ! \sum_i \sum_j e_ij*dM_A/dy_i dG/dy_j
@@ -5404,7 +5537,485 @@ CONTAINS
     enddo
 1000 continue
     return
+  end subroutine calc_dgdyterms1A
+  
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+  subroutine calc_dgdyterms1B(nrel,ia,tpindep,mamu,mag,mat,map,pmi,&
+       curmux,noofits)
+! any change must also be made in subroutine calc_dyterms2 and calc_dgdytermsh
+! calculate the terms in the deltay expression for amounts of component ia
+!
+! DM_A = \sum_B mu_B*MAMU(B) - MAG - MAT*dt - MAP*dp
+!
+! where MAMU=\sum_i dM_A/dy_i*\sum_j invmat(i,j)*dM_B/dy_j
+!       c_iB=\sum_j invmat(i,j)*dM_B/dy_j etc etc
+!
+! it may not be very efficient but first get it right ....
+! tpindep(1) is TRUE if T variable, tpindep(2) is TRUE if P are variable
+!
+! >>> ATTENTION, FASTER VERSION ???
+!
+    implicit none
+    integer ia,nrel,noofits
+    logical tpindep(2)
+    double precision, dimension(*) :: mamu
+    double precision mag,mat,map
+    double precision curmux(*)
+! pmi is the phase data record for this phase
+    type(meq_phase), pointer :: pmi
+!\end{verbatim} %+
+! THIS IS THE ONE CURRENTLY USED IN THE MINIMIZATIONS
+! these are to be multiplied with mu(ib), nothing, deltaT, deltaP
+    integer iy,jy,ib,nocon
+    double precision sum,cig,cit,cip,cib,haha,hoho
+    double precision morr,curmu(maxel)
+    double precision, allocatable, dimension(:) :: zib
+!
+!    write(*,*)'entering calc_dgdyterms1: ',tpindep,ia
+! included in loop below ...
+!    mag=zero
+!    do ib=1,nrel
+!       sum=zero
+!       do jy=1,pmi%ncc
+!          cib=zero
+! for ionic liquid the inverted phase matrix is strange when neutrals included
+!          do iy=1,pmi%ncc
+!             cib=cib+pmi%invmat(iy,jy)*pmi%dxmol(ib,iy)
+!          enddo
+!          sum=sum+cib*pmi%dxmol(ia,jy)
+!       enddo
+!       mamu(ib)=sum
+! tafid bug
+!       mamu(ib)=-sum
+!    enddo
+!-----------
+!    if(noofits.eq.1) then
+!       curmu=zero
+!    else
+! totally redundant??
+!    do iy=1,nrel
+!       curmu(iy)=curmux(iy)
+!    enddo
+!    endif
+!-----------
+! \sum_i \sum_j e_ij*dM_A/dy_i dG/dy_j
+    mag=zero
+    mat=zero
+    map=zero
+!    if(tpindep(2)) then
+!       write(*,99)'MM d2G/dPdy: ',(pmi%curd%dgval(3,jy,1),jy=1,pmi%ncc)
+!99     format(a,6(1pe11.3))
+!    endif
+! This seems to work but takes longer time ...
+    nocon=pmi%ncc
+!    allocate(zib(nocon))
+!    zib=zero
+    do ib=1,nrel
+       sum=zero
+       do iy=1,nocon
+          cib=zero
+          cig=zero; cit=zero; cip=zero
+!          do jy=1,pmi%ncc
+!          do jy=iy,nocon
+          do jy=1,nocon
+! I inversed order of iy, jy, does it still converge??
+             haha=pmi%invmat(jy,iy)
+!          haha=pmi%invmat(ixsym(jy,iy))
+!             hoho=pmi%invmat(iy,jy)
+!             if(jy.gt.iy) then
+!                cib=cib+haha*pmi%dxmol(ib,jy)+hoho*pmi%dxmol(ib,nocon-jy+1)
+!                haha=haha+hoho
+!             else
+!               zib(iy)=zib(iy)+haha
+             cib=cib+haha*pmi%dxmol(ib,jy)
+!             endif
+             if(ib.eq.1) then
+!                if(abs(haha-pmi%invmat(iy,jy)).gt.zero) then
+!                   write(*,*)'MM pmi%invmat not symmetric!'
+!                else
+!               write(*,91)'MM pmi%invmat symmetric!',iy,jy,pmi%invmat(iy,jy)
+!                endif
+!91              format(a,2i4,1pe12.4)
+                cig=cig+haha*pmi%curd%dgval(1,jy,1)
+! always calculate cit because cp debug ?? dgval(2,jy,1) is d2G/dTdy_j
+                if(tpindep(1)) cit=cit+haha*pmi%curd%dgval(2,jy,1)
+                if(tpindep(2)) cip=cip+haha*pmi%curd%dgval(3,jy,1)
+             endif
+          enddo
+          morr=pmi%dxmol(ia,iy)
+! tafid bug
+!       morr=-pmi%dxmol(ia,iy)
+          sum=sum+cib*morr
+          if(ib.eq.1) then
+             mag=mag+morr*cig
+             if(tpindep(1)) mat=mat+morr*cit
+             if(tpindep(2)) map=map+morr*cip
+          endif
+!       zib(iy)=zib(iy)*morr
+       enddo
+       mamu(ib)=sum
+    enddo
+1000 continue
+    return
+  end subroutine calc_dgdyterms1B
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+  subroutine calc_dgdyterms1(nrel,ia,tpindep,mamu,mag,mat,map,pmi,&
+       curmux,noofits)
+! any change must also be made in subroutine calc_dyterms2 and calc_dgdytermsh
+! calculate the terms in the deltay expression for amounts of component ia
+!
+! DM_A = \sum_B mu_B*MAMU(B) - MAG - MAT*dt - MAP*dp
+!
+! where MAMU=\sum_i dM_A/dy_i*\sum_j invmat(i,j)*dM_B/dy_j
+!       c_iB=\sum_j invmat(i,j)*dM_B/dy_j etc etc
+!
+! it may not be very efficient but first get it right ....
+! tpindep(1) is TRUE if T variable, tpindep(2) is TRUE if P are variable
+!
+! >>> ATTENTION, FASTER VERSION ???
+! >>> ATTENTION not safe for parallelization ....
+!
+    implicit none
+    integer ia,nrel,noofits
+    logical tpindep(2)
+    double precision, dimension(*) :: mamu
+    double precision mag,mat,map
+    double precision curmux(*)
+! pmi is the phase data record for this phase
+    type(meq_phase), pointer :: pmi
+!\end{verbatim} %+
+! THIS IS THE ONE CURRENTLY USED IN THE MINIMIZATIONS
+! these are to be multiplied with mu(ib), nothing, deltaT, deltaP
+    integer iy,jy,ib,nocon
+! initial values for saved results
+    integer :: sameit=0,big1p=0,big2p=0,big1n=0,big2n=0
+    double precision sum,cig,cit,cip,cib,haha,hoho
+    double precision morr,curmu(maxel)
+    double precision, allocatable, dimension(:) :: zib
+    double precision, allocatable, dimension(:,:) :: maybesave
+    double precision, allocatable, dimension(:,:) ::  save1
+    double precision, allocatable, dimension(:,:) ::  save2
+    save sameit,big1p,big1n,big2p,big2n
+    save save1,save2
+    logical big
+!
+!-----------
+! \sum_i \sum_j e_ij*dM_A/dy_i dG/dy_j
+!    goto 100
+!
+    if(noofits.ne.sameit) then
+! new iteration, discard saved values
+       big1p=0; big1n=0
+       big2p=0; big2n=0
+       sameit=noofits
+       goto 100
+    endif
+! use save values for the phases with many constituents
+!                if(test_phase_status_bit(phasetuple(phr(jj)%iph)%ixphase,&
+    if(10*pmi%iph+pmi%ics.eq.big1p) then
+!       write(*,13)'MM using saved values 1:',noofits,sameit,big1p,big1n,ia
+13     format(a,2i5,5x,2i5,5x,3i5)
+       mag=zero
+       mat=zero
+       map=zero
+       do ib=1,nrel
+          mamu(ib)=zero
+       enddo
+       do iy=1,big1n
+          morr=pmi%dxmol(ia,iy)
+          do ib=1,nrel
+             mamu(ib)=mamu(ib)+save1(ib,iy)*morr
+          enddo
+          mag=mag+save1(nrel+1,iy)*morr
+          if(tpindep(1)) mat=mat+save1(nrel+2,iy)*morr
+          if(tpindep(2)) map=map+save1(nrel+3,iy)*morr
+       enddo
+       goto 1000
+    elseif(10*pmi%iph+pmi%ics.eq.big2p) then
+!       write(*,13)'MM using saved values 2:',noofits,sameit,big2p,big2n,ia
+       mag=zero
+       mat=zero
+       map=zero
+       do ib=1,nrel
+          mamu(ib)=zero
+       enddo
+       do iy=1,big2n
+          morr=pmi%dxmol(ia,iy)
+          do ib=1,nrel
+             mamu(ib)=mamu(ib)+save2(ib,iy)*morr
+          enddo
+          mag=mag+save2(nrel+1,iy)*morr
+          if(tpindep(1)) mat=mat+save2(nrel+2,iy)*morr
+          if(tpindep(2)) map=map+save2(nrel+3,iy)*morr
+       enddo
+       goto 1000
+    endif
+!------------------------------------ calculate as usual
+100 continue
+!----------------------------------
+    mag=zero
+    mat=zero
+    map=zero
+!    if(tpindep(2)) then
+!       write(*,99)'MM d2G/dPdy: ',(pmi%curd%dgval(3,jy,1),jy=1,pmi%ncc)
+!99     format(a,6(1pe11.3))
+!    endif
+! noofits=1 means phase is ideal, use only diagonal
+    nocon=pmi%ncc
+!    if(allocated(zib)) deallocate(zib)
+    allocate(zib(nrel))
+    if(nocon.gt.nrel) then
+       big=.TRUE.
+       if(allocated(maybesave)) deallocate(maybesave)
+       allocate(maybesave(nrel+3,nocon))
+    else
+       big=.FALSE.
+    endif
+    do ib=1,nrel
+       mamu(ib)=zero
+    enddo
+    do iy=1,nocon
+       zib=zero
+       cig=zero; cit=zero; cip=zero
+       do jy=1,nocon
+          haha=pmi%invmat(jy,iy)
+          do ib=1,nrel
+             zib(ib)=zib(ib)+haha*pmi%dxmol(ib,jy)
+          enddo
+          cig=cig+haha*pmi%curd%dgval(1,jy,1)
+! always calculate cit because cp debug ?? dgval(2,jy,1) is d2G/dTdy_j
+          if(tpindep(1)) cit=cit+haha*pmi%curd%dgval(2,jy,1)
+          if(tpindep(2)) cip=cip+haha*pmi%curd%dgval(3,jy,1)
+       enddo
+       morr=pmi%dxmol(ia,iy)
+       do ib=1,nrel
+          mamu(ib)=mamu(ib)+zib(ib)*morr
+          if(big) maybesave(ib,iy)=zib(ib)
+       enddo
+       mag=mag+morr*cig
+       if(tpindep(1)) mat=mat+morr*cit
+       if(tpindep(2)) map=map+morr*cip
+       if(big) then
+          maybesave(nrel+1,iy)=cig
+          maybesave(nrel+2,iy)=cit
+          maybesave(nrel+3,iy)=cip
+       endif
+    enddo
+!    goto 1000
+!
+! To speed up calculations we save same values
+! what must be saved is what should be multiplied with pmi%dxmol(ia,iy)
+    if(nocon.le.nrel) goto 1000
+    if(nocon.gt.big1n) then
+! save all data for this phase with a large number of constituents
+       big1p=10*pmi%iph+pmi%ics
+       big1n=nocon
+       if(allocated(save1)) deallocate(save1)
+       allocate(save1(nrel+3,nocon))
+       do iy=1,nocon
+          do ib=1,nrel+3
+             save1(ib,iy)=maybesave(ib,iy)
+          enddo
+       enddo
+!       write(*,*)'Saved 1 values for ',noofits,big1p,big1n
+    elseif(nocon.gt.big2n) then
+! save all data for this phases with a large number of constituents
+       big2p=10*pmi%iph+pmi%ics
+       big2n=nocon
+       if(allocated(save2)) deallocate(save2)
+       allocate(save2(nrel+3,nocon))
+       do iy=1,nocon
+          do ib=1,nrel+3
+             save2(ib,iy)=maybesave(ib,iy)
+          enddo
+       enddo
+!       write(*,*)'Saved 2 values for ',noofits,big2p,big2n
+    endif
+1000 continue
+    return
   end subroutine calc_dgdyterms1
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+  subroutine calc_dgdyterms1P(nrel,ia,tpindep,mamu,mag,mat,map,pmi,&
+       saved,noofits)
+! any change must also be made in subroutine calc_dyterms2 and calc_dgdytermsh
+! calculate the terms in the deltay expression for amounts of component ia
+!
+! adapted to parallel calculations
+!
+! DM_A = \sum_B mu_B*MAMU(B) - MAG - MAT*dt - MAP*dp
+!
+! where MAMU=\sum_i dM_A/dy_i*\sum_j invmat(i,j)*dM_B/dy_j
+!       c_iB=\sum_j invmat(i,j)*dM_B/dy_j etc etc
+!
+! it may not be very efficient but first get it right ....
+! tpindep(1) is TRUE if T variable, tpindep(2) is TRUE if P are variable
+!
+    implicit none
+    integer ia,nrel,noofits
+    logical tpindep(2)
+    double precision, dimension(*) :: mamu
+    double precision mag,mat,map
+    type(saveddgdy), pointer :: saved
+! pmi is the phase data record for this phase
+    type(meq_phase), pointer :: pmi
+!\end{verbatim} %+
+! THIS IS THE ONE CURRENTLY USED IN THE MINIMIZATIONS
+! these are to be multiplied with mu(ib), nothing, deltaT, deltaP
+    integer iy,jy,ib,nocon
+! initial values for saved results
+!    integer :: sameit=0,big1p=0,big2p=0,big1n=0,big2n=0
+    double precision sum,cig,cit,cip,cib,haha,hoho
+    double precision morr
+    double precision, allocatable, dimension(:) :: zib
+    double precision, allocatable, dimension(:,:) :: maybesave
+!    double precision, allocatable, dimension(:,:) ::  save1
+!    double precision, allocatable, dimension(:,:) ::  save2
+!    save sameit,big1p,big1n,big2p,big2n
+!    save save1,save2
+    logical big
+!
+!-----------
+! \sum_i \sum_j e_ij*dM_A/dy_i dG/dy_j
+!    goto 100
+!
+    if(noofits.ne.saved%sameit) then
+! new iteration, discard saved values
+       saved%big1=0; saved%big2=0
+       saved%sameit=noofits
+       goto 100
+    endif
+! use save values for the phases with many constituents
+!                if(test_phase_status_bit(phasetuple(phr(jj)%iph)%ixphase,&
+    if(10*pmi%iph+pmi%ics.eq.saved%big1(1)) then
+!       write(*,13)'MM using saved values 1:',noofits,saved%sameit,saved%big1
+13     format(a,2i5,5x,2i5,5x,3i5)
+       mag=zero
+       mat=zero
+       map=zero
+       do ib=1,nrel
+          mamu(ib)=zero
+       enddo
+       do iy=1,saved%big1(2)
+          morr=pmi%dxmol(ia,iy)
+          do ib=1,nrel
+             mamu(ib)=mamu(ib)+saved%save1(ib,iy)*morr
+          enddo
+          mag=mag+saved%save1(nrel+1,iy)*morr
+          if(tpindep(1)) mat=mat+saved%save1(nrel+2,iy)*morr
+          if(tpindep(2)) map=map+saved%save1(nrel+3,iy)*morr
+       enddo
+       goto 1000
+    elseif(10*pmi%iph+pmi%ics.eq.saved%big2(1)) then
+!       write(*,13)'MM using saved values 2:',noofits,saved%sameit,saved%big2
+       mag=zero
+       mat=zero
+       map=zero
+       do ib=1,nrel
+          mamu(ib)=zero
+       enddo
+       do iy=1,saved%big2(2)
+          morr=pmi%dxmol(ia,iy)
+          do ib=1,nrel
+             mamu(ib)=mamu(ib)+saved%save2(ib,iy)*morr
+          enddo
+          mag=mag+saved%save2(nrel+1,iy)*morr
+          if(tpindep(1)) mat=mat+saved%save2(nrel+2,iy)*morr
+          if(tpindep(2)) map=map+saved%save2(nrel+3,iy)*morr
+       enddo
+       goto 1000
+    endif
+!------------------------------------ calculate as usual
+100 continue
+!----------------------------------
+    mag=zero
+    mat=zero
+    map=zero
+!    if(tpindep(2)) then
+!       write(*,99)'MM d2G/dPdy: ',(pmi%curd%dgval(3,jy,1),jy=1,pmi%ncc)
+!99     format(a,6(1pe11.3))
+!    endif
+! noofits=1 means phase is ideal, use only diagonal
+    nocon=pmi%ncc
+!    if(allocated(zib)) deallocate(zib)
+    allocate(zib(nrel))
+    if(nocon.gt.nrel) then
+       big=.TRUE.
+       if(allocated(maybesave)) deallocate(maybesave)
+       allocate(maybesave(nrel+3,nocon))
+    else
+       big=.FALSE.
+    endif
+    do ib=1,nrel
+       mamu(ib)=zero
+    enddo
+    do iy=1,nocon
+       zib=zero
+       cig=zero; cit=zero; cip=zero
+       do jy=1,nocon
+          haha=pmi%invmat(jy,iy)
+          do ib=1,nrel
+             zib(ib)=zib(ib)+haha*pmi%dxmol(ib,jy)
+          enddo
+          cig=cig+haha*pmi%curd%dgval(1,jy,1)
+! always calculate cit because cp debug ?? dgval(2,jy,1) is d2G/dTdy_j
+          if(tpindep(1)) cit=cit+haha*pmi%curd%dgval(2,jy,1)
+          if(tpindep(2)) cip=cip+haha*pmi%curd%dgval(3,jy,1)
+       enddo
+       morr=pmi%dxmol(ia,iy)
+       do ib=1,nrel
+          mamu(ib)=mamu(ib)+zib(ib)*morr
+          if(big) maybesave(ib,iy)=zib(ib)
+       enddo
+       mag=mag+morr*cig
+       if(tpindep(1)) mat=mat+morr*cit
+       if(tpindep(2)) map=map+morr*cip
+       if(big) then
+          maybesave(nrel+1,iy)=cig
+          maybesave(nrel+2,iy)=cit
+          maybesave(nrel+3,iy)=cip
+       endif
+    enddo
+!    goto 1000
+!
+! To speed up calculations we save same values
+! what must be saved is what should be multiplied with pmi%dxmol(ia,iy)
+    if(nocon.le.nrel) goto 1000
+    if(nocon.gt.saved%big1(2)) then
+! save all data for this phase with a large number of constituents
+       saved%big1(1)=10*pmi%iph+pmi%ics
+       saved%big1(2)=nocon
+       if(allocated(saved%save1)) deallocate(saved%save1)
+       allocate(saved%save1(nrel+3,nocon))
+       do iy=1,nocon
+          do ib=1,nrel+3
+             saved%save1(ib,iy)=maybesave(ib,iy)
+          enddo
+       enddo
+!       write(*,*)'Saved 1 values for ',noofits,saved%big1
+    elseif(nocon.gt.saved%big2(2)) then
+! save all data for this phases with a large number of constituents
+       saved%big2(1)=10*pmi%iph+pmi%ics
+       saved%big2(2)=nocon
+       if(allocated(saved%save2)) deallocate(saved%save2)
+       allocate(saved%save2(nrel+3,nocon))
+       do iy=1,nocon
+          do ib=1,nrel+3
+             saved%save2(ib,iy)=maybesave(ib,iy)
+          enddo
+       enddo
+!       write(*,*)'Saved 2 values for ',noofits,big2p,big2n
+    endif
+1000 continue
+    return
+  end subroutine calc_dgdyterms1P
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -5430,14 +6041,6 @@ CONTAINS
        enddo
        mamu(ib)=sum
     enddo
-!-----------
-!    if(noofits.eq.1) then
-!       curmu=zero
-!    else
-!    do iy=1,nrel
-!       curmu(iy)=curmux(iy)
-!    enddo
-!    endif
 !-----------
 ! \sum_i \sum_j e_ij*dM_A/dy_i dG/dy_j
     cig=zero

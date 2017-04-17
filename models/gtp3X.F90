@@ -2838,6 +2838,7 @@
         dgamma,d2gamma
    double precision, allocatable, dimension(:,:) :: dxval,dqij
    integer, allocatable, dimension(:,:) :: qxij
+   logical iscluster
 !
    zhalf=5.0D-1*phvar%qcbonds
    allocate(xval(noofel))
@@ -2853,9 +2854,16 @@
       yfra=phvar%yfr(icon)
       if(yfra.lt.bmpymin) yfra=bmpymin
       if(yfra.gt.one) yfra=one
-      cluster=one
 ! if set the constituent is a binary cluster
-      if(btest(phvar%constat(icon),CONQCBOND)) cluster=5.0D-1
+      if(btest(phvar%constat(icon),CONQCBOND)) then
+         cluster=5.0D-1
+         iscluster=.TRUE.
+         write(*,*)'3X CQC0: ',iscluster,yfra
+      else
+         cluster=one
+         iscluster=.FALSE.
+      endif
+! entropy is y*ln(y) for single atoms, y*ln(y/2) for clusters
       ylog=log(cluster*yfra)
 ! gval(1:6,1) are G and derivator wrt T and P
 ! dgval(1,1:N,1) are derivatives of G wrt fraction 1:N
@@ -2868,11 +2876,11 @@
          phvar%dgval(1,icon,1)=zhalf*(one+ylog)
          phvar%d2gval(ixsym(icon,icon),1)=zhalf/yfra
       endif
-      phvar%gval(1,1)=phvar%gval(1,1)+zhalf*ss
 ! jcon is set to the index of the species array
       jcon=phrec%constitlist(icon)
       lokel=splista(jcon)%ellinks(1)
-      if(btest(phvar%constat(icon),CONQCBOND)) then
+!      if(btest(phvar%constat(icon),CONQCBOND)) then
+      if(iscluster) then
          nqij=nqij+1
 ! if a bond cluster there must be two elements         
 ! lokel is index in ellista of first element, iel is its alphabetical index
@@ -2904,6 +2912,8 @@
    qij=zero
    dqij=zero
    nqij=0
+   write(*,11)'3X CQC1: ',zhalf,xval(1),xval(2),ss
+11 format(a,6(1pe12.4))
    do icon=1,ncon
       if(btest(phvar%constat(icon),CONQCBOND)) then
 ! we fetch again the element indices, maybe we should save first time?
@@ -2922,7 +2932,7 @@
          yfra=phvar%yfr(icon)
          if(yfra.lt.bmpymin) yfra=bmpymin
          if(yfra.gt.one) yfra=one
-         qij(nqij)=(yfra/xp-one)*xs**2
+         qij(nqij)=(yfra/(2*xp)-one)*xs**2
 !         write(*,60)'3X qc 5:  ',nqij,yfra,xp,xs,qij(nqij)
 60       format(a,i3,3F8.5,4(1pe12.4))
 ! this is the leading term in dqij/dyij ...maybe more
@@ -2992,6 +3002,8 @@
          enddo
       endif
    enddo
+! now all is calculated
+   phvar%gval(1,1)=zhalf*ss+s2
    if(moded.gt.0) then
       do icon=1,ncon
          phvar%dgval(1,icon,1)=phvar%dgval(1,icon,1)+dgamma(icon)*s2
@@ -3001,6 +3013,8 @@
          enddo
       enddo
    endif
+! %gval
+   write(*,11)'3X CQC9: ',phvar%gval(1,1),gamma,ss,s2
 ! MISSING we have to calculate derivatives wrt T!!!
 1000 continue
    return

@@ -502,7 +502,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! 4310
        'Error that final : for constituents missing                     ',&
        'Empty line after FUNCTION keyword                               ',&
-       'Line woth PARAMETER keyword does not finish with !              ',&
+       'Line with PARAMETER keyword does not finish with !              ',&
        'Empty reference line on TDB file                                ',&
        'References must be surrounded by citation marks                 ',&
        'Function name must be on same line as FUNCTION keyword          ',&

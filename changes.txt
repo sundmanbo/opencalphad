@@ -13,6 +13,19 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2017.04.17 OC version 4.019: I have managed to make OC significantly
+faster for multicomponent systems, in some cases a factor of 4, by
+saving some intermediate values while generating the equilibrium
+matrix.  However, this may cause some troubles when running in
+parallel and maybe there are some memory leaks, I have not tested.  It
+is possible to restore the old way to calculate by changeing the
+logical variable NOSAVE in the subroutine meq_sameset to TRUE, line
+2866 in minimizer/matsmin.F90
+
+I have problems entering some reciprocal parameters for the 4
+sublattice FCC ordered phase.  I hope to fix that for the next
+release.
+
 2017.04.05 OC version 4.018: I am trying to make OC a bit faster for
 some interested users, if OC is compiled with the "-O2" option it is
 about 5 times faster compared with using "-finit-local-zero" and
@@ -58,8 +71,8 @@ grid minimizer (NOTE ionic liquid and charged crystalline phases has
 no dense grid (yet)).  The SET STATUS PHASE command is slightly
 changed.  If a user gives just a phase name and no specific
 composition set all composition sets for that phase will be given the
-new status.  A few other minor bugs fixed.  This should also work for
-the OCASI/TQ interface.
+new status (unless FIX).  A few other minor bugs fixed.  This should
+also work for the OCASI/TQ interface.
 
 2017.02.16 I reallize that the model package is still version 3, not 4
 so I have changed it to 3.20 rather than 4.10, although the text

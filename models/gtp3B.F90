@@ -1581,20 +1581,20 @@
 !\end{verbatim}
    character notext*20,funexp*1024
    integer iord(maxsubl),jord(2,maxsubl)
-   integer again,kkk,ll,kk1,mint,kk,lokint,iz,it,kint,ib,jl,zz
-   integer lj,i1,i2,newint,ifri,lokcs,noperm,firstint,listfun
+   integer again,kkk,ll,kk1,mint,kk,lokint,iz,it,kint,ib,jl,zz,highint
+   integer lj,i1,i2,newint,ifri,lokcs,noperm,firstint,listfun,ii
    integer, dimension(24) :: intperm
    integer, dimension(:,:), allocatable :: elinks
    integer, dimension(:,:), allocatable :: intlinks
    type(gtp_endmember), pointer :: newem,endmemrec,lastem
-   type(gtp_interaction), pointer :: intrec,lastint,newintrec
+   type(gtp_interaction), pointer :: intrec,lastint,newintrec,donotforget
 !   type(gtp_interaction), allocatable, target :: newintrec
    type(gtp_property), pointer :: proprec,lastprop
    TYPE(gtp_fraction_set) :: disfra
    logical ionliq
 !
    if(gx%bmperr.ne.0) then
-      write(*,*)'3B Error ',gx%bmperr,' already set calling enter_parameter!'
+      write(*,*)'3B Error ',gx%bmperr,' set calling enter_parameter, cleared!'
       gx%bmperr=0
    endif
 ! listfun used when calling this routine just to list a parameter
@@ -1742,10 +1742,13 @@
 ! try to keep end member records in some order of constituents ...
 90 continue
 !   if(fractyp.eq.2) then
-!   write(*,92)'3B: endmembers: ',(iord(ii),ii=1,nsl)
-!   write(*,92)'3B: interactions: ',(jord(2,ii),ii=1,nint)
+! looking for bug entering 4 sublattice interaction parammeters ...
+!   write(*,116)'3B: endm & int: ',(iord(ii),ii=1,nsl),&
+!        (jord(1,ii),jord(2,ii),ii=1,nint)
+116 format(a,4i3' : ',2i3,2x,2i3)
 !   endif
    nullify(lastem)
+!---------------------------------------------
 ! check that interactions are in sublattice and alphabetical order!!
    again=0
    intcheck: do lokint=2,nint
@@ -1773,6 +1776,7 @@
    enddo intcheck
 !   write(*,*)'3B Again: ',again
    if(again.eq.1) goto 90
+!---------------------------------------------
 ! Make sure the endmember has the alphabetically lowest constituent
 ! and that the interaction is not the same as the endmember
 !   write(*,92)'3B endmembers: ',(iord(i),i=1,nsl)
@@ -1829,7 +1833,8 @@
          endif
       endif placeib
    enddo placeibloop
-! there may be permutations for ordered phases  ... implemented for fcc
+!---------------------------------------------
+! there may be permutations for ordered phases  ... implemented for fcc only
    intperm=0
    ftyp1: if(fractyp.eq.1) then
       if(btest(phlista(lokph)%status1,PHFORD)) then
@@ -1867,6 +1872,8 @@
    endif
 !   write(*,91)'3B enter_param 90: ',fractyp,nsl,(iord(ii),ii=1,nsl)
 91 format(a,i2,i3,10i4)
+!---------------------------------------------
+! find endmember record, maybe create
    ionliq=btest(phlista(lokph)%status1,PHIONLIQ)
    findem: do while(associated(endmemrec))
       if(.NOT.ionliq) then
@@ -1929,6 +1936,8 @@
 ! if lfun=-1 we want to list the function and not create anything
    if(lfun.lt.0) goto 900
 !
+!---------------------------------------------
+! create endmember record
 100 continue
 ! we have not found any endmember record so we have to insert a record here
 ! lokem may be nonzero if we exited from findem loop to this label
@@ -1951,7 +1960,7 @@
    endmemrec=>newem
 !---------------------------------------------------
 ! Here we have found or created the endmember record
-! look for or create interaction record, no wildcards in interactions
+! look for or create interaction record, NO WILDCARDS IN INTERACTIONS
 ! Interacting elements should be in sublattice and alphabetical order!!
 200 continue
 !   write(*,*)'3B enter_parameter mint3: ',mint,nint
@@ -1975,7 +1984,6 @@
          endmemrec%intpointer=>newintrec
          intrec=>newintrec
          lastint=>intrec
-!         mint=mint+1
          newint=1
 !         write(*,*)'3B created interaction:  ',newint,mint
       else
@@ -1989,8 +1997,12 @@
 ! interaction records should be ordered according to the sublattice
 ! with the interaction.  For interaction with permutations use the 
 ! sublattice of the first permutation
+! WE MUST store interactions in sublattice order and in order of constituent
+      highint=0
       findint: do while(mint.le.nint)
-!         write(*,*)'3B At findint: ',mint,nint,newint
+!         write(*,307)'3B At findint: ',mint,nint,newint,highint,&
+!              intrec%sublattice(1),intrec%fraclink(1),jord(1,mint),jord(2,mint)
+307      format(a,4i4,2x,2i3,2x,2i3)
          if(intrec%sublattice(1).eq.jord(1,mint) .and. &
               intrec%fraclink(1).eq.jord(2,mint)) then
 ! found an interaction with same constituent (maybe just created)
@@ -2000,10 +2012,15 @@
             endif
             lastint=>intrec
             intrec=>intrec%highlink
+! BUG!! This creates problem entering L(liquid,c,cr,v;0/1/2)
+!            highint=1
+! BUG !! but it is necessary to create 24 SRO parameter for 4 sublattice FCC
             mint=mint+1
             newint=1
             if(.not.associated(intrec)) exit findint
          else
+! nint is parameter interaction level, mint is ?
+! Problems here when entering 24 reciprocal parameter for SRO in FCC
             if(mint.eq.nint) then
 ! error when storing permutations because newint=0 below.  Moved it to the end
 ! but that gave error L(liq,C,Cr,V) was stored as L(Liq,C,Cr,Fe,V)
@@ -2033,14 +2050,18 @@
       if(mint.le.nint) then
 ! if lfun=-1 and parameter does not exist just skip away
          if(lfun.eq.-1) goto 900
-!         write(*,303)'3B  Linking at 310:',mint,nint,newint,firstint
+!         write(*,303)'3B  Linking at 310:',mint,nint,newint,firstint,highint
          call create_interaction(newintrec,mint,jord,intperm,intlinks)
          if(gx%bmperr.ne.0) goto 1000
-         if(newint.eq.1) then
-!            write(*,*)'3B Linking as higher'
+!         if(newint.eq.1) then
+         if(newint.eq.1 .or. highint.eq.1) then
+!            write(*,*)'3B Linking as higher',mint,highint
+! We may have a high link already! Set it as nextlink!
+            donotforget=>lastint%highlink
             lastint%highlink=>newintrec
+            newintrec%nextlink=>donotforget
          elseif(associated(intrec)) then
-!            write(*,*)'3B Linking as previous'
+!            write(*,*)'3B Linking as previous',mint,highint
             newintrec%nextlink=>intrec
 !            write(*,*)'3B Ho ho said the sixth'
             if(associated(lastint)) then
@@ -2050,9 +2071,9 @@
 !               write(*,*)'3B No previous interaction on this level'
                endmemrec%intpointer=>newintrec
             endif
-!            write(*,*)'3B Ho ho said the sixth'
+!            write(*,*)'3B Ho ho said the seventh'
          else
-!            write(*,*)'3B Linking as next'
+!            write(*,*)'3B Linking as next',mint
             lastint%nextlink=>newintrec
          endif
 ! redundant as newint set to 1 below ...
