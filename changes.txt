@@ -13,14 +13,23 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2017.04.22 OC version 4.020: I have added that OC can have a macro
+file name as "inline" argument when started.  Thus invoking OC with a
+line "OC4 dothis" where "dothis" is a macro file with extention OCM
+this macro file will start executing directly (after executing an
+inital startup macro if you have any).  
+
+I have also fixed the rather subtle bug when entering reciprocal
+parameters and some more minor things.
+
 2017.04.17 OC version 4.019: I have managed to make OC significantly
 faster for multicomponent systems, in some cases a factor of 4, by
 saving some intermediate values while generating the equilibrium
 matrix.  However, this may cause some troubles when running in
 parallel and maybe there are some memory leaks, I have not tested.  It
-is possible to restore the old way to calculate by changeing the
-logical variable NOSAVE in the subroutine meq_sameset to TRUE, line
-2866 in minimizer/matsmin.F90
+is possible to restore the old way to calculate by changing the
+logical variable NOSAVE in the subroutine meq_sameset to TRUE, around
+line 2866 in minimizer/matsmin.F90
 
 I have problems entering some reciprocal parameters for the 4
 sublattice FCC ordered phase.  I hope to fix that for the next

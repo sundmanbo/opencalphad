@@ -151,9 +151,12 @@ MODULE liboceq
 !
 !\begin{verbatim}
   TYPE saveddgdy
-     integer sameit,big1(2),big2(2)
+     integer sameit,big(2,5),order(5)
      double precision, allocatable, dimension(:,:) :: save1
      double precision, allocatable, dimension(:,:) :: save2
+     double precision, allocatable, dimension(:,:) :: save3
+     double precision, allocatable, dimension(:,:) :: save4
+     double precision, allocatable, dimension(:,:) :: save5
   end TYPE saveddgdy
 !\end{verbatim}
 !
@@ -4377,13 +4380,16 @@ CONTAINS
 !    enddo
 !390 format('#:',i2,6(1pe12.4),6(4x,1pe12.4))
 1000 continue
-! we must deallocate all data in the savedrec
+! we must ?? deallocate all data in the savedrec
     if(allocated(savedrec%save1)) then
 !       jj=size(saved%save1)
        deallocate(savedrec%save1)
 !       write(*,*)'MM deallocated saved%save1',jj
     endif
     if(allocated(savedrec%save2)) deallocate(savedrec%save2)
+    if(allocated(savedrec%save3)) deallocate(savedrec%save3)
+    if(allocated(savedrec%save4)) deallocate(savedrec%save4)
+    if(allocated(savedrec%save5)) deallocate(savedrec%save5)
     return
   end subroutine setup_equilmatrix
 
@@ -5697,6 +5703,7 @@ CONTAINS
     double precision sum,cig,cit,cip,cib,haha,hoho
     double precision morr,curmu(maxel)
     double precision, allocatable, dimension(:) :: zib
+! ATTENTION, these are not really used, see calc_dgdyterms1P !!!!
     double precision, allocatable, dimension(:,:) :: maybesave
     double precision, allocatable, dimension(:,:) ::  save1
     double precision, allocatable, dimension(:,:) ::  save2
@@ -5810,7 +5817,9 @@ CONTAINS
 !
 ! To speed up calculations we save same values
 ! what must be saved is what should be multiplied with pmi%dxmol(ia,iy)
+!    write(*,*)'Checking for saving ',noofits,10*pmi%iph+pmi%ics,nocon
     if(nocon.le.nrel) goto 1000
+! ATTENTION this not really used any longer, see calc_dgdyterms1P !!!
     if(nocon.gt.big1n) then
 ! save all data for this phase with a large number of constituents
        big1p=10*pmi%iph+pmi%ics
@@ -5835,6 +5844,8 @@ CONTAINS
           enddo
        enddo
 !       write(*,*)'Saved 2 values for ',noofits,big2p,big2n
+!    else
+!       write(*,*)'dgdy not saved: ',noofits,10*pmi%iph+pmi%ics,nocon
     endif
 1000 continue
     return
@@ -5869,7 +5880,7 @@ CONTAINS
 !\end{verbatim} %+
 ! THIS IS THE ONE CURRENTLY USED IN THE MINIMIZATIONS
 ! these are to be multiplied with mu(ib), nothing, deltaT, deltaP
-    integer iy,jy,ib,nocon
+    integer iy,jy,ib,nocon,jj
 ! initial values for saved results
 !    integer :: sameit=0,big1p=0,big2p=0,big1n=0,big2n=0
     double precision sum,cig,cit,cip,cib,haha,hoho
@@ -5886,52 +5897,70 @@ CONTAINS
 ! \sum_i \sum_j e_ij*dM_A/dy_i dG/dy_j
 !    goto 100
 !
+!    write(*,*)'Enter calc_dgdyterms1P'
     if(noofits.ne.saved%sameit) then
 ! new iteration, discard saved values
-       saved%big1=0; saved%big2=0
+       saved%order=0
        saved%sameit=noofits
        goto 100
     endif
+! skip for small system ... segmentation fault when using -O2
+    if(nrel.le.3) goto 100
+!    write(*,*)'MM calc_dgdy: ',noofits,pmi%iph
 ! use save values for the phases with many constituents
 !                if(test_phase_status_bit(phasetuple(phr(jj)%iph)%ixphase,&
-    if(10*pmi%iph+pmi%ics.eq.saved%big1(1)) then
-!       write(*,13)'MM using saved values 1:',noofits,saved%sameit,saved%big1
-13     format(a,2i5,5x,2i5,5x,3i5)
-       mag=zero
-       mat=zero
-       map=zero
-       do ib=1,nrel
-          mamu(ib)=zero
-       enddo
-       do iy=1,saved%big1(2)
-          morr=pmi%dxmol(ia,iy)
+! We can have saved up to 5 sets
+    do jj=1,5
+       if(10*pmi%iph+pmi%ics.eq.saved%big(1,jj)) then
+!          write(*,13)'MM using saved values 1:',noofits,jj,saved%big(1,jj)
+13        format(a,2i5,5x,2i5,5x,3i5)
+          mag=zero
+          mat=zero
+          map=zero
           do ib=1,nrel
-             mamu(ib)=mamu(ib)+saved%save1(ib,iy)*morr
+             mamu(ib)=zero
           enddo
-          mag=mag+saved%save1(nrel+1,iy)*morr
-          if(tpindep(1)) mat=mat+saved%save1(nrel+2,iy)*morr
-          if(tpindep(2)) map=map+saved%save1(nrel+3,iy)*morr
-       enddo
-       goto 1000
-    elseif(10*pmi%iph+pmi%ics.eq.saved%big2(1)) then
-!       write(*,13)'MM using saved values 2:',noofits,saved%sameit,saved%big2
-       mag=zero
-       mat=zero
-       map=zero
-       do ib=1,nrel
-          mamu(ib)=zero
-       enddo
-       do iy=1,saved%big2(2)
-          morr=pmi%dxmol(ia,iy)
-          do ib=1,nrel
-             mamu(ib)=mamu(ib)+saved%save2(ib,iy)*morr
+          do iy=1,saved%big(2,jj)
+             morr=pmi%dxmol(ia,iy)
+             do ib=1,nrel
+! Clumsy but I have to allocate savej differently for each phase ...
+                if(jj.eq.1) then
+                   mamu(ib)=mamu(ib)+saved%save1(ib,iy)*morr
+                elseif(jj.eq.2) then
+                   mamu(ib)=mamu(ib)+saved%save2(ib,iy)*morr
+                elseif(jj.eq.3) then
+                   mamu(ib)=mamu(ib)+saved%save3(ib,iy)*morr
+                elseif(jj.eq.4) then
+                   mamu(ib)=mamu(ib)+saved%save4(ib,iy)*morr
+                elseif(jj.eq.5) then
+                   mamu(ib)=mamu(ib)+saved%save5(ib,iy)*morr
+                endif
+             enddo
+             if(jj.eq.1) then
+                mag=mag+saved%save1(nrel+1,iy)*morr
+                if(tpindep(1)) mat=mat+saved%save1(nrel+2,iy)*morr
+                if(tpindep(2)) map=map+saved%save1(nrel+3,iy)*morr
+             elseif(jj.eq.2) then
+                mag=mag+saved%save2(nrel+1,iy)*morr
+                if(tpindep(1)) mat=mat+saved%save2(nrel+2,iy)*morr
+                if(tpindep(2)) map=map+saved%save2(nrel+3,iy)*morr
+             elseif(jj.eq.3) then
+                mag=mag+saved%save3(nrel+1,iy)*morr
+                if(tpindep(1)) mat=mat+saved%save3(nrel+2,iy)*morr
+                if(tpindep(2)) map=map+saved%save3(nrel+3,iy)*morr
+             elseif(jj.eq.4) then
+                mag=mag+saved%save4(nrel+1,iy)*morr
+                if(tpindep(1)) mat=mat+saved%save4(nrel+2,iy)*morr
+                if(tpindep(2)) map=map+saved%save4(nrel+3,iy)*morr
+             elseif(jj.eq.5) then
+                mag=mag+saved%save5(nrel+1,iy)*morr
+                if(tpindep(1)) mat=mat+saved%save5(nrel+2,iy)*morr
+                if(tpindep(2)) map=map+saved%save5(nrel+3,iy)*morr
+             endif
           enddo
-          mag=mag+saved%save2(nrel+1,iy)*morr
-          if(tpindep(1)) mat=mat+saved%save2(nrel+2,iy)*morr
-          if(tpindep(2)) map=map+saved%save2(nrel+3,iy)*morr
-       enddo
-       goto 1000
-    endif
+          goto 1000
+       endif
+    enddo
 !------------------------------------ calculate as usual
 100 continue
 !----------------------------------
@@ -5946,7 +5975,9 @@ CONTAINS
     nocon=pmi%ncc
 !    if(allocated(zib)) deallocate(zib)
     allocate(zib(nrel))
-    if(nocon.gt.nrel) then
+!    if(nocon.gt.nrel) then
+    if(nocon.ge.nrel) then
+! do not save array for phases with fewer constituents than constituents
        big=.TRUE.
        if(allocated(maybesave)) deallocate(maybesave)
        allocate(maybesave(nrel+3,nocon))
@@ -5987,33 +6018,88 @@ CONTAINS
 !
 ! To speed up calculations we save same values
 ! what must be saved is what should be multiplied with pmi%dxmol(ia,iy)
-    if(nocon.le.nrel) goto 1000
-    if(nocon.gt.saved%big1(2)) then
+!    write(*,13)'Calculated dgdy: ',nocon,nrel,10*pmi%iph+pmi%ics
+!    write(*,14)'Order: ',big,saved%order
+!14  format(a,l2,5i4)
+!    if(nocon.le.nrel) goto 1000
+!    if(nocon.le.10) goto 1000
+    if(.not.big) goto 1000
+! somewhat clumy way to save phases with most constuent ... but why not
+    do jj=1,5
+       if(saved%order(jj).eq.0) exit
+       if(saved%order(5).gt.0 .and. nocon.gt.saved%order(jj)) exit
+    enddo
+! new Fortran standard when exiting loop jj>5 unless exit condition in if
+! if jj>5 this phase has less constituents than all saved, if not save in savej
+    if(jj.le.5) then
 ! save all data for this phase with a large number of constituents
-       saved%big1(1)=10*pmi%iph+pmi%ics
-       saved%big1(2)=nocon
-       if(allocated(saved%save1)) deallocate(saved%save1)
-       allocate(saved%save1(nrel+3,nocon))
-       do iy=1,nocon
-          do ib=1,nrel+3
-             saved%save1(ib,iy)=maybesave(ib,iy)
+       saved%big(1,jj)=10*pmi%iph+pmi%ics
+       saved%big(2,jj)=nocon
+       saved%order(jj)=nocon
+!       write(*,13)'Saving dgdy: ',saved%big(1,jj),saved%big(2,jj)
+! Clumsy but I do not think one can allocate different sizes of savej
+       if(jj.eq.1) then
+          if(allocated(saved%save1)) deallocate(saved%save1)
+          allocate(saved%save1(nrel+3,nocon))
+          do iy=1,nocon
+             do ib=1,nrel+3
+                saved%save1(ib,iy)=maybesave(ib,iy)
+             enddo
           enddo
-       enddo
-!       write(*,*)'Saved 1 values for ',noofits,saved%big1
-    elseif(nocon.gt.saved%big2(2)) then
-! save all data for this phases with a large number of constituents
-       saved%big2(1)=10*pmi%iph+pmi%ics
-       saved%big2(2)=nocon
-       if(allocated(saved%save2)) deallocate(saved%save2)
-       allocate(saved%save2(nrel+3,nocon))
-       do iy=1,nocon
-          do ib=1,nrel+3
-             saved%save2(ib,iy)=maybesave(ib,iy)
+       elseif(jj.eq.2) then
+          if(allocated(saved%save2)) deallocate(saved%save2)
+          allocate(saved%save2(nrel+3,nocon))
+          do iy=1,nocon
+             do ib=1,nrel+3
+                saved%save2(ib,iy)=maybesave(ib,iy)
+             enddo
           enddo
-       enddo
-!       write(*,*)'Saved 2 values for ',noofits,big2p,big2n
+       elseif(jj.eq.3) then
+          if(allocated(saved%save3)) deallocate(saved%save3)
+          allocate(saved%save3(nrel+3,nocon))
+          do iy=1,nocon
+             do ib=1,nrel+3
+                saved%save3(ib,iy)=maybesave(ib,iy)
+             enddo
+          enddo
+       elseif(jj.eq.4) then
+          if(allocated(saved%save4)) deallocate(saved%save4)
+          allocate(saved%save4(nrel+3,nocon))
+          do iy=1,nocon
+             do ib=1,nrel+3
+                saved%save4(ib,iy)=maybesave(ib,iy)
+             enddo
+          enddo
+       elseif(jj.eq.5) then
+          if(allocated(saved%save5)) deallocate(saved%save5)
+          allocate(saved%save5(nrel+3,nocon))
+          do iy=1,nocon
+             do ib=1,nrel+3
+                saved%save5(ib,iy)=maybesave(ib,iy)
+             enddo
+          enddo
+       endif
+!       write(*,16)'MM order: ',noofits,saved%big(1,jj),nocon,saved%order
+16     format(a,3i5,5x,5i5)
+       goto 1000
     endif
+!    elseif(nocon.gt.saved%big2(2)) then
+! save all data for this phases with a large number of constituents
+!       saved%big2(1)=10*pmi%iph+pmi%ics
+!       saved%big2(2)=nocon
+!       if(allocated(saved%save2)) deallocate(saved%save2)
+!       allocate(saved%save2(nrel+3,nocon))
+!       do iy=1,nocon
+!          do ib=1,nrel+3
+!             saved%save2(ib,iy)=maybesave(ib,iy)
+!          enddo
+!       enddo
+!       write(*,*)'Saved 2 values for ',noofits,big2p,big2n
+!    else
+!       write(*,*)'dgdy not saved: ',noofits,10*pmi%iph+pmi%ics,nocon
+!    endif
 1000 continue
+!    write(*,*)'Exit calc_dgdyterms1P'
     return
   end subroutine calc_dgdyterms1P
 

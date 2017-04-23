@@ -4703,6 +4703,9 @@
     if(buperr.ne.0) goto 900
     model=cmodel
     call capson(model)
+    if(model(1:5).eq.'I2SL ') then
+       defnsl=2
+    endif
     call gparid('Number of sublattices: ',cline,last,nsl,defnsl,q1help)
     if(buperr.ne.0) goto 900
     if(nsl.le.0) then
@@ -4729,6 +4732,9 @@
           call gparrd('Number of bonds: ',cline,last,sites(1),6.0D0,q1help)
           if(buperr.ne.0) goto 900
        else
+          if(model(1:5).eq.'I2SL ') write(kou,4020)
+4020      format('The ionic liquid model will adjust the number of sites',&
+               ' based on electroneutrality')
           write(quest1(31:32),4043)ll
 4043      format(i2)
           call gparrd(quest1,cline,last,sites(ll),one,q1help)

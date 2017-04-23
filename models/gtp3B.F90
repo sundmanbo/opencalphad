@@ -1588,6 +1588,7 @@
    integer, dimension(:,:), allocatable :: intlinks
    type(gtp_endmember), pointer :: newem,endmemrec,lastem
    type(gtp_interaction), pointer :: intrec,lastint,newintrec,donotforget
+   type(gtp_interaction), pointer :: linktohigh
 !   type(gtp_interaction), allocatable, target :: newintrec
    type(gtp_property), pointer :: proprec,lastprop
    TYPE(gtp_fraction_set) :: disfra
@@ -1964,6 +1965,7 @@
 ! Interacting elements should be in sublattice and alphabetical order!!
 200 continue
 !   write(*,*)'3B enter_parameter mint3: ',mint,nint
+   nullify(linktohigh)
    lokint=0
    someint: if(nint.gt.0) then
 ! when there are interaction records the ideal bit must be cleared
@@ -1997,8 +1999,10 @@
 ! interaction records should be ordered according to the sublattice
 ! with the interaction.  For interaction with permutations use the 
 ! sublattice of the first permutation
-! WE MUST store interactions in sublattice order and in order of constituent
+! WE MUST store interactions in sublattice order and in constituent order
+! highint eventually not used ...
       highint=0
+      nullify(linktohigh)
       findint: do while(mint.le.nint)
 !         write(*,307)'3B At findint: ',mint,nint,newint,highint,&
 !              intrec%sublattice(1),intrec%fraclink(1),jord(1,mint),jord(2,mint)
@@ -2008,16 +2012,23 @@
 ! found an interaction with same constituent (maybe just created)
             if(mint.eq.nint) then
 !               write(*,*)'3B same interaction, level: ',mint
+               nullify(linktohigh)
                goto 400
             endif
             lastint=>intrec
+            linktohigh=>intrec
             intrec=>intrec%highlink
+!            write(*,*)'3B linktohigh: ',linktohigh%sublattice(1),&
+!                 linktohigh%fraclink(1)
 ! BUG!! This creates problem entering L(liquid,c,cr,v;0/1/2)
 !            highint=1
 ! BUG !! but it is necessary to create 24 SRO parameter for 4 sublattice FCC
             mint=mint+1
             newint=1
-            if(.not.associated(intrec)) exit findint
+            if(.not.associated(intrec)) then
+!               write(*,*)'3B exit findint here'
+               exit findint
+            endif
          else
 ! nint is parameter interaction level, mint is ?
 ! Problems here when entering 24 reciprocal parameter for SRO in FCC
@@ -2030,11 +2041,14 @@
 ! we must store interactions in sublattice order and in order of constituent
 ! in jord(2,mint) otherwise we will never be able to find a permutation. 
             if(intrec%sublattice(1).gt.jord(1,mint)) then
-!               write(*,*)'3B insering interaction before existing'
+!               write(*,*)'3B insering interaction before existing',&
+!                    associated(linktohigh)
                exit findint
             endif
+            nullify(linktohigh)
             lastint=>intrec
             intrec=>intrec%nextlink
+!            write(*,*)'3B exit? ',associated(intrec),associated(linktohigh)
             if(.not.associated(intrec)) exit findint
             firstint=1
 ! more records on this interaction level ?
@@ -2046,20 +2060,33 @@
 ! we must create at least one interactionrecord, newint=0 if same level
 ! If intrec is associated the nextint link should be set to this
 310    continue
-!      write(*,*)'3B At 310',mint,nint
+!      write(*,*)'3B At 310',mint,nint,newint,highint
       if(mint.le.nint) then
 ! if lfun=-1 and parameter does not exist just skip away
          if(lfun.eq.-1) goto 900
-!         write(*,303)'3B  Linking at 310:',mint,nint,newint,firstint,highint
+!         write(*,303)'3B create at 310:',mint,nint,newint,firstint,highint,&
+!              jord(1,mint),jord(2,mint)
          call create_interaction(newintrec,mint,jord,intperm,intlinks)
          if(gx%bmperr.ne.0) goto 1000
-!         if(newint.eq.1) then
-         if(newint.eq.1 .or. highint.eq.1) then
-!            write(*,*)'3B Linking as higher',mint,highint
+! suddenly interaction record has wrong links??
+!       write(*,*)'3B sub/comp: ',newintrec%sublattice(1),newintrec%fraclink(1)
+         if(newint.eq.1) then
+!           write(*,*)'3B Linking as higher',mint,highint,associated(linktohigh)
 ! We may have a high link already! Set it as nextlink!
+!            write(*,*)'3B Using lastint'
             donotforget=>lastint%highlink
             lastint%highlink=>newintrec
             newintrec%nextlink=>donotforget
+         elseif(associated(linktohigh)) then
+!            write(*,*)'3B Using linktohigh'
+!          write(*,*)'3B low: ',linktohigh%sublattice(1),linktohigh%fraclink(1)
+!            write(*,*)'3B low: ',newintrec%sublattice(1),newintrec%fraclink(1)
+            donotforget=>linktohigh%highlink
+!            write(*,*)'3B low: ',donotforget%sublattice(1),&
+!                 donotforget%fraclink(1)
+            linktohigh%highlink=>newintrec
+            newintrec%nextlink=>donotforget
+            nullify(linktohigh)
          elseif(associated(intrec)) then
 !            write(*,*)'3B Linking as previous',mint,highint
             newintrec%nextlink=>intrec
@@ -2071,7 +2098,7 @@
 !               write(*,*)'3B No previous interaction on this level'
                endmemrec%intpointer=>newintrec
             endif
-!            write(*,*)'3B Ho ho said the seventh'
+!            write(*,*)'3B Ha ha said the seventh'
          else
 !            write(*,*)'3B Linking as next',mint
             lastint%nextlink=>newintrec
@@ -2082,6 +2109,7 @@
          lastint=>intrec
          mint=mint+1
 ! there may be more interaction records .... but they must all be created
+!         write(*,*)'gtp3B maybe create more records ...',associated(linktohigh)
          newint=1
          goto 310
       endif

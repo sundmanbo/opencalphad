@@ -13,21 +13,33 @@ PROGRAM pmain1
   character linkdate*12,version*8
   TYPE(gtp_equilibrium_data), pointer :: ceq
 ! these will be used later for dimensioning things and efaults
-  integer intvar(10)
+  integer i,narg,intvar(10)
   double precision dblvar(10)
+  character arginline(12)*64,arg*64
 !
 ! the next line overwritten with current linkdate by linkocdate
-  linkdate='01-01-2015'
+  linkdate='2015-01-01'
 ! this is the overall version identifier
-  version='  4.019 '
+  version='  4.020 '
 ! intvar and dblvar will eventually be used for allocations and defaults
   intvar(1)=30
   call init_gtp(intvar,dblvar)
   if(gx%bmperr.ne.0) then
      stop 'Error initiating GTP data structures'
   endif
+! exttract arguments from the line of invocation
+  narg=iargc()
+  if(narg.gt.12) then
+     write(*,*)'OC accepts max 12 inline arguments'
+!  else
+!     write(*,*)'Inline arguments: ',narg
+  endif
+  do i=1,narg
+     call getarg(i,arginline(i))
+!     write(*,*)trim(arginline(i))
+  enddo
 !  
-  call oc_command_monitor(version,linkdate)
+  call oc_command_monitor(version,linkdate,narg,arginline)
 !
 ! This is the data structure for the default equilibrium
 ! additional code can be added below for some particular application.

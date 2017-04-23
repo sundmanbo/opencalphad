@@ -376,6 +376,7 @@
       iws(27)=gtp_assessment_version
       lok=26
       call saveash(lok,iws)
+      if(gx%bmperr.ne.0) goto 1100
    endif
 ! free list for phase_varres records
 !   write(*,*)'3E Phase_varres first free/highcs: ',csfree,highcs
@@ -1334,6 +1335,7 @@
 20 continue
 ! next, status, varcoef, first, and 8 allocatable arrays
    rsize=4+2*nwch(64)+10
+   write(*,*)'3E allocating assessment head record',rsize
    call wtake(lok1,rsize,iws)
    if(buperr.ne.0) then
       write(*,*)'3E Error reserving assessment record',rsize,iws(1)
@@ -1361,7 +1363,7 @@
       write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
       gx%bmperr=4356; goto 1000
    endif
-!   write(*,*)'3E in saveash 1:',lok,lok1,lok2,i1
+   write(*,*)'3E in saveash 1:',lok,lok1,lok2,i1
    iws(lok2)=i1
 ! Hm assrec%eqlista(i2)%p1 is a pointer to an element in the global eqlists
 !   ceq=>assrec%eqlista(1)%p1
@@ -1370,95 +1372,101 @@
    enddo
    iws(lok1+disp+1)=lok2
 ! coeffvalues
-   i1=size(assrec%coeffvalues)
-   rsize=1+nwpr*i1
-   call wtake(lok2,rsize,iws)
-   if(buperr.ne.0) then
-      write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
-      gx%bmperr=4356; goto 1000
-   endif
-!   write(*,*)'3E in saveash 2:',lok2,i1
-   iws(lok2)=i1
-   call storrn(i1,iws(lok2+1),assrec%coeffvalues)
-   iws(lok1+disp+2)=lok2
+   if(allocated(assrec%coeffvalues)) then
+      i1=size(assrec%coeffvalues)
+      rsize=1+nwpr*i1
+      call wtake(lok2,rsize,iws)
+      if(buperr.ne.0) then
+         write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
+         gx%bmperr=4356; goto 1000
+      endif
+      write(*,*)'3E in saveash 2:',lok2,i1,rsize
+      iws(lok2)=i1
+      call storrn(i1,iws(lok2+1),assrec%coeffvalues)
+      iws(lok1+disp+2)=lok2
 ! coeffscale
-   i1=size(assrec%coeffscale)
-   rsize=1+nwpr*i1
-   call wtake(lok2,rsize,iws)
-   if(buperr.ne.0) then
-      write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
-      gx%bmperr=4356; goto 1000
-   endif
-   iws(lok2)=i1
-!   write(*,*)'3E in saveash 3:',lok2,i1
-   call storrn(i1,iws(lok2+1),assrec%coeffscale)
-   iws(lok1+disp+3)=lok2
+      i1=size(assrec%coeffscale)
+      rsize=1+nwpr*i1
+      call wtake(lok2,rsize,iws)
+      if(buperr.ne.0) then
+         write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
+         gx%bmperr=4356; goto 1000
+      endif
+      iws(lok2)=i1
+      write(*,*)'3E in saveash 3:',lok2,i1
+      call storrn(i1,iws(lok2+1),assrec%coeffscale)
+      iws(lok1+disp+3)=lok2
 ! coeffstart
-   i1=size(assrec%coeffstart)
-   rsize=1+nwpr*i1
-   call wtake(lok2,rsize,iws)
-   if(buperr.ne.0) then
-      write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
-      gx%bmperr=4356; goto 1000
-   endif
-   iws(lok2)=i1
-!   write(*,*)'3E in saveash 4:',lok2,i1
-   call storrn(i1,iws(lok2+1),assrec%coeffstart)
-   iws(lok1+disp+4)=lok2
+      i1=size(assrec%coeffstart)
+      rsize=1+nwpr*i1
+      call wtake(lok2,rsize,iws)
+      if(buperr.ne.0) then
+         write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
+         gx%bmperr=4356; goto 1000
+      endif
+      iws(lok2)=i1
+      write(*,*)'3E in saveash 4:',lok2,i1
+      call storrn(i1,iws(lok2+1),assrec%coeffstart)
+      iws(lok1+disp+4)=lok2
 ! coeffmin
-   i1=size(assrec%coeffmin)
-   rsize=1+nwpr*i1
-   call wtake(lok2,rsize,iws)
-   if(buperr.ne.0) then
-      write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
-      gx%bmperr=4356; goto 1000
-   endif
-   iws(lok2)=i1
-!   write(*,*)'3E in saveash 5:',lok2,i1
-   call storrn(i1,iws(lok2+1),assrec%coeffmin)
-   iws(lok1+disp+5)=lok2
+      i1=size(assrec%coeffmin)
+      rsize=1+nwpr*i1
+      call wtake(lok2,rsize,iws)
+      if(buperr.ne.0) then
+         write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
+         gx%bmperr=4356; goto 1000
+      endif
+      iws(lok2)=i1
+      write(*,*)'3E in saveash 5:',lok2,i1
+      call storrn(i1,iws(lok2+1),assrec%coeffmin)
+      iws(lok1+disp+5)=lok2
 ! coeffmax
-   i1=size(assrec%coeffmax)
-   rsize=1+nwpr*i1
-   call wtake(lok2,rsize,iws)
-   if(buperr.ne.0) then
-      write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
-      gx%bmperr=4356; goto 1000
-   endif
-   iws(lok2)=i1
-   call storrn(i1,iws(lok2+1),assrec%coeffmax)
-   iws(lok1+disp+6)=lok2
+      i1=size(assrec%coeffmax)
+      rsize=1+nwpr*i1
+      call wtake(lok2,rsize,iws)
+      if(buperr.ne.0) then
+         write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
+         gx%bmperr=4356; goto 1000
+      endif
+      iws(lok2)=i1
+      call storrn(i1,iws(lok2+1),assrec%coeffmax)
+      iws(lok1+disp+6)=lok2
 ! coeffindices
-   i1=size(assrec%coeffindex)
-   rsize=1+i1
-   call wtake(lok2,rsize,iws)
-   if(buperr.ne.0) then
-      write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
-      gx%bmperr=4356; goto 1000
-   endif
-   iws(lok2)=i1
-   do i2=1,i1
-      iws(lok2+i2)=assrec%coeffindex(i2-1)
-   enddo
-   iws(lok1+disp+7)=lok2
+      i1=size(assrec%coeffindex)
+      rsize=1+i1
+      call wtake(lok2,rsize,iws)
+      if(buperr.ne.0) then
+         write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
+         gx%bmperr=4356; goto 1000
+      endif
+      write(*,*)'3E in saveash 6:',lok2,i1
+      iws(lok2)=i1
+      do i2=1,i1
+         iws(lok2+i2)=assrec%coeffindex(i2-1)
+      enddo
+      iws(lok1+disp+7)=lok2
 ! coeffstate
-   i1=size(assrec%coeffstate)
-   rsize=1+i1
-   call wtake(lok2,rsize,iws)
-   if(buperr.ne.0) then
-      write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
-      gx%bmperr=4356; goto 1000
+      i1=size(assrec%coeffstate)
+      rsize=1+i1
+      call wtake(lok2,rsize,iws)
+      if(buperr.ne.0) then
+         write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
+         gx%bmperr=4356; goto 1000
+      endif
+      iws(lok2)=i1
+      do i2=1,i1
+         iws(lok2+i2)=assrec%coeffstate(i2-1)
+      enddo
+      iws(lok1+disp+8)=lok2
+   else
+! pointers are zero
+      write(*,*)'3E no coefficients allocated'
    endif
-   iws(lok2)=i1
-   do i2=1,i1
-      iws(lok2+i2)=assrec%coeffstate(i2-1)
-   enddo
-   iws(lok1+disp+8)=lok2
 ! maybe work array should not be saved?
    if(allocated(assrec%wopt)) then
       i1=size(assrec%wopt)
       rsize=1+nwpr*i1
-!      write(*,*)'3E saving assessment record: ',lok1,rsize
+      write(*,*)'3E saving assessment record: ',lok1,rsize
       call wtake(lok2,rsize,iws)
       if(buperr.ne.0) then
          write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
@@ -1468,9 +1476,10 @@
       call storrn(i1,iws(lok2+1),assrec%wopt)
       iws(lok1+disp+9)=lok2
    else
+      write(*,*)'3E no work array allocated'
       iws(lok1+disp+9)=0
    endif
-! check if there are several
+! check if there are several assessment records
    if(.not.associated(assrec,firstash)) then
       assrec=>assrec%nextash
       write(*,*)'3E more than one assessment records'
@@ -2644,7 +2653,10 @@
       enddo
    endif
    lok2=iws(lok1+disp+2)
-   if(iws(lok2).gt.0) then
+   if(lok2.le.0) then
+      write(*,*)'3E no coefficient values saved'
+      goto 777
+   else
 ! coeffvalues
 !      lok2=iws(lok2)
       i1=iws(lok2)
@@ -2710,7 +2722,8 @@
          assrec%coeffstate(i2-1)=iws(lok2+i2)
       enddo
    endif
-! maybe work array should not be saved?
+777 continue
+! maybe work array has been daved also?
    lok2=iws(lok1+disp+9)
    if(lok2.gt.0) then
       if(iws(lok2).gt.0) then
