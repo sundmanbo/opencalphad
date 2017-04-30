@@ -13,6 +13,23 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2017.04.22 OC version 4.021: When the conditions does not allow using
+the global gridminimizer before an equilibrium calculation there is
+normally a test AFTER the calculation using the grid minimizer.  If
+this find a gridpoint below the calculated equilibrium then there is
+automatically a new calculation with this gridpoint added as a stable
+phase.  Thus can also be made by setting the global bit 18 when using
+the "c n" command (the "c n" command will use the previous results as
+start point).  One can prevent this check by setting the global bit
+20. (These things will be added to the "SET ADVANCED" command when I
+have time...).  One must be expert to set these bits, to become expert
+set the global bit 2.
+
+This feature is available also in the OCASI/TQ interface.  During
+simulation one normally does not use the gridminimizer at each
+calculation but setting bit 18 at each 20ieth timestep makes it
+possible to detect if the equilibrium is correct.
+
 2017.04.22 OC version 4.020: I have added that OC can have a macro
 file name as "inline" argument when started.  Thus invoking OC with a
 line "OC4 dothis" where "dothis" is a macro file with extention OCM

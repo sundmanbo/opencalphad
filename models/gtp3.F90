@@ -552,7 +552,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'Wrong version of data on unformatted file                       ',&
        'Error reserving space for unformatted save                      ',&
        'Error saving unformatted data file                              ',&
-       '                                                                ',&
+       'Recalculate as gridpoint below current equilibrium              ',&
        '                                                                ',&
 ! 4360
        '                                                                ',&
@@ -620,15 +620,17 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! NOPAR: do not run in parallel
 ! NOSMGLOB do not test global equilibrium at node points
 ! NOTELCOMP the elements are not the components
-! TGRID always check calculated equilibrium with grid minimizer
+! TGRID check calculated equilibrium with grid minimizer
 ! OGRID use old grid generator
+! NORECALC do not recalculate equilibria even if global test fails
 ! >>>> some of these should be moved to the gtp_equilibrium_data record
   integer, parameter :: &
        GSBEG=0,       GSOCC=1,        GSADV=2,      GSNOGLOB=3, &
        GSNOMERGE=4,   GSNODATA=5,     GSNOPHASE=6,  GSNOACS=7, &
        GSNOREMCS=8,   GSNOSAVE=9,     GSVERBOSE=10, GSSETVERB=11,&
        GSSILENT=12,   GSNOAFTEREQ=13, GSXGRID=14,   GSNOPAR=15, &
-       GSNOSMGLOB=16, GSNOTELCOMP=17, GSTGRID=18,   GSOGRID=19
+       GSNOSMGLOB=16, GSNOTELCOMP=17, GSTGRID=18,   GSOGRID=19, &
+       GSNORECALC=20
 !----------------------------------------------------------------
 !-Bits in element record
   integer, parameter :: &
@@ -1176,7 +1178,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! the same phase and other compsets are added at the end.
 ! BUT if a compset>1 is deleted tuples with higher index will be shifted down!
      integer lokph,compset,ixphase,lokvares,nextcs
-!     integer phaseix,compset,ixphase,lokvares,nextcs
+! >>>>>>>>>>>> old     integer phaseix,compset,ixphase,lokvares,nextcs
   end TYPE gtp_phasetuple
 !\end{verbatim}
   TYPE(gtp_phasetuple), target, allocatable :: PHASETUPLE(:)

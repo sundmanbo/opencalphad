@@ -456,7 +456,7 @@ contains
 ! local environment
     ochome=' '
     call get_environment_variable('OCHOME ',ochome)
-    write(*,*)'OCHOME: ',trim(ochome)
+!    write(*,*)'OCHOME: ',trim(ochome)
     startupmacro=.FALSE.
     if(ochome(1:1).eq.' ') then
        inquire(file='ochelp.hlp ',exist=logok)

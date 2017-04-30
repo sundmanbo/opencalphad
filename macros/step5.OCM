@@ -1,5 +1,30 @@
-@$ Calculate y and Cp as function of T for the ordered FCC FeNi3
+new Y
+@$ ===================================================================
 @$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$ step5.OCM
+@$ Calculate y and Cp as function of T for the ordered FCC FeNi3
+@$ ===================================================================
 @&
 
 set echo
@@ -138,6 +163,7 @@ N
 title step5 fig 3
 render
 
+@&
 set inter
 
 

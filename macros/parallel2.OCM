@@ -1,3 +1,26 @@
+new Y
+@$ ================================================================
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$ parallel2.OCM
 @$ testing enter many equilibria and calculate in parallel
 @&
 @$ The calculate all command using the grid minimizer does not calculate
@@ -6,6 +29,8 @@
 @$
 @$ I also allow the user to output extra data for each equlibrium
 @$ according to a suggestion by Andre
+@$ ================================================================
+@&
 set echo
 
 r t steel1
@@ -506,10 +531,9 @@ calc /out=outseq all N
 set bit glo 15
 
 
+
+@&
 set inter
 
-2378
-
-8320
 
 

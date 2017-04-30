@@ -1,3 +1,24 @@
+new Y
+@$ =================================================================
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$ parallel1.OCM
 @$ testing parallelization
 @$ If you run this macro without using oc3P version it
 @$ will be executed sequentially.
@@ -10,6 +31,7 @@
 @$ but I have tested to change a few equilibria and recalculate so a few
 @$ equilibria with phase changes seems to work.  Any help fixing this is
 @$ appreciated.
+@$ =================================================================
 @$
 set echo
 
@@ -184,6 +206,7 @@ set bit glo 15
 c a N 1
 
 
+@&
 set inter
 
  

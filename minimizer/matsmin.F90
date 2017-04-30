@@ -187,7 +187,7 @@ CONTAINS
     TYPE(meq_setup), pointer :: meqrec
     type(map_fixph), pointer :: mapfix
     double precision starting,finish2
-    integer starttid,endoftime,ij
+    integer starttid,endoftime,ij,addtuple
 !--------------------------------
     allocate(meqrec1)
     meqrec=>meqrec1
@@ -195,6 +195,8 @@ CONTAINS
     nullify(mapfix)
     call cpu_time(starting)
     call system_clock(count=starttid)
+! we may return here if gridcheck found a gridpoint below
+100 continue
     call calceq7(mode,meqrec,mapfix,ceq)
     call system_clock(count=endoftime)
     call cpu_time(finish2)
@@ -211,17 +213,24 @@ CONTAINS
        ij=1
 ! if meqrec%status indicate no initial startvalues set ij<0 to indicate test
        if(btest(meqrec%status,MMNOSTARTVAL)) ij=-ij
-! OC went into a loop for a complex alloy calcumation here
-!       write(*,*)'Calling todo_after: ',btest(meqrec%status,MMNOSTARTVAL),mode
-       call todo_after_found_equilibrium(ij,ceq)
-!    else
-!       write(*,1020)gx%bmperr
-!1020   format('Error return from equilibrium calculation ',i5)
+! OC went into a loop for a complex alloy calcumation here (once long ago ...)
+!       write(*,*)'MM calling todo_after: 2',&
+!            btest(meqrec%status,MMNOSTARTVAL),mode
+       call todo_after_found_equilibrium(ij,addtuple,ceq)
+       if(gx%bmperr.ne.0) then
+          if(gx%bmperr.eq.4358) then
+! gridpoint below current equilibrium found and set as stable (maybe new
+! composition set).  Recalculate
+             gx%bmperr=0
+!             write(*,*)'Recalculating with this phase as stable 2: ',addtuple
+             goto 100
+          endif
+       endif
     endif
 ! maybe memory leak 2
 !    write(*,*)'MM deallocate 2'
     deallocate(meqrec1)
-!    write(*,*)'MM deallocated'
+!    write(*,*)'MM deallocated meqrec1'
     return
   end subroutine calceq2
 
@@ -242,7 +251,7 @@ CONTAINS
     TYPE(meq_setup), pointer :: meqrec
     type(map_fixph), pointer :: mapfix
     double precision starting,finish2
-    integer starttid,endoftime,ij
+    integer starttid,endoftime,ij,addtuple
 !--------------------------------
     allocate(meqrec1)
     meqrec=>meqrec1
@@ -251,6 +260,8 @@ CONTAINS
     nullify(mapfix)
     call cpu_time(starting)
     call system_clock(count=starttid)
+! we may return here if gricheck found a new phase stable
+100 continue
     call calceq7(mode,meqrec,mapfix,ceq)
     call system_clock(count=endoftime)
     call cpu_time(finish2)
@@ -263,7 +274,14 @@ CONTAINS
        ij=1
 ! if meqrec%status indicate no initial startvalues set ij<0 to indicate test
        if(btest(meqrec%status,MMNOSTARTVAL)) ij=-ij
-       call todo_after_found_equilibrium(ij,ceq)
+!       write(*,*)'MM Calling todo_after calceq3'
+       call todo_after_found_equilibrium(ij,addtuple,ceq)
+       if(gx%bmperr.eq.4358) then
+! gridcheck after found a new phase stable!  recalculate
+          gx%bmperr=0
+!          write(*,*)'Recalculate with new phase added as stable 3:',addtuple
+          goto 100
+       endif
        if(confirm) then
           write(*,1010)meqrec%noofits,finish2-starting,endoftime-starttid
 1010      format('Equilibrium calculation ',i4', its, ',&
@@ -384,6 +402,7 @@ CONTAINS
        if(ocv()) write(*,*)'checked massbalance'
 !------------------------------------
     endif
+!    write(*,*)'In Calceq7 2'
     meqrec%nrel=noel()
 ! set some initial values
     meqrec%maxsph=noel()+2
@@ -548,6 +567,7 @@ CONTAINS
 !----------------------------
 !    call list_conditions(kou,ceq)
 ! skip if mode2=0 or global gridminimizer if bit set
+!    write(*,*)'In Calceq7 4'
     if(mode2.eq.0 .or. btest(globaldata%status,GSNOGLOB)) then
 ! if errout set then grimin probably called to handel bad start point
       if(errout.eq.0) goto 110
@@ -2472,6 +2492,7 @@ CONTAINS
     deallocate(svar)
     if(vbug) write(*,*)'Final return from meq_sameset'
 !    if(gx%bmperr.ne.0) write(*,*)'Error return from meq_sameset',gx%bmperr
+!    write(*,*)'Leaving meq_sameset'
     return
 ! too many iterations
 1200 continue

@@ -2507,11 +2507,12 @@ CONTAINS
 !\end{verbatim}
     type(gtp_condition), pointer :: lastcond,pcond
     integer iremsave,iaddsave,iph,ics,jj,jph,kph,phfix,seqx,jax,haha
-    integer what,type,cmix(10),maxstph,noplot,mode
+    integer what,type,cmix(10),maxstph,noplot,mode,addtuple
     double precision, parameter :: addedphase_amount=1.0D-2
     double precision value,axval,axvalsave
     type(gtp_state_variable), pointer :: svrrec
     logical global
+    double precision, allocatable, dimension(:) :: yfra
 ! turns off converge control for T
     integer, parameter :: inmap=1
 !
@@ -2688,7 +2689,7 @@ CONTAINS
 ! check that the node point is global using grid minimizer
 ! ceq is not destroyed
        mode=0
-       global=global_equil_check1(mode,ceq)
+       global=global_equil_check1(mode,addtuple,yfra,ceq)
        if(.not.global) then
           write(*,*)'gridminimizer found node point not global'
 ! set this line as INACTIVE and do not generate any start points

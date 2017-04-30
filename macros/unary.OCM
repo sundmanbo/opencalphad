@@ -1,5 +1,19 @@
 @$==========================================================================
+new Y
 @$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$ unary.OCM
 @$ This is calculation for a single element, pure Fe
 @$ Just to check it can change stable phase 
 @$ step in T and P-T diagram does not work
@@ -86,5 +100,5 @@ c e
 l,,,,
 
 @$ With this value of H we have FCC stable at 1615.28 K 
-
+@&
 set inter

@@ -1,4 +1,27 @@
+new Y
+@$ ==============================================================
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$ allcost.OCM
 @$ Testing a calculation with 20 elements, 191 phases
+@$ ==============================================================
 
 set echo
 
@@ -78,5 +101,6 @@ l sh p
 
 @$ NOTE THE DATABASE IS NOT RELIABLE FOR THIS SYSTEM
 
+@&
 set inter
 
