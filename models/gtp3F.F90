@@ -153,6 +153,13 @@
 ! CURRENTLY if x(*,*) and x(*,A) mole fractions only in stable phases
 ! Proposal: use * for all phases, use *S o $ or something else for all stable??
 !
+! >>>>>>>>>>>>>>>> there is a segmentation fault in this subroutine when
+! called from ocplot2 in the map11.OCM
+! for the second plot as part of all.OCM
+! but not when called by itself.  SUCK
+! probably caused by the fact that the number of composition sets are different
+! >>>>>>>>>>>>>>>>
+!
    implicit none
    TYPE(gtp_equilibrium_data), pointer :: ceq
    character statevar*(*),encoded*(*)

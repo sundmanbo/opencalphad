@@ -154,7 +154,7 @@ contains
 ! array with constituents in sublattices when entering a phase
 !    character, dimension(maxconst) :: const*24
 ! for macro and logfile and repeating questions
-    logical logok,stop_on_error,once,wildcard,twice,startupmacro
+    logical logok,stop_on_error,once,wildcard,twice,startupmacro,temporary
 ! unit for logfile input, 0 means no logfile
     integer logfil
 ! remember default for calculate phase
@@ -179,7 +179,7 @@ contains
 !----------------------------------------------------------------
 ! here are all commands and subcommands
 !    character (len=64), dimension(6) :: oplist
-    integer, parameter :: ncbas=30,nclist=21,ncalc=9,ncent=21,ncread=6
+    integer, parameter :: ncbas=30,nclist=21,ncalc=12,ncent=21,ncread=6
     integer, parameter :: ncam1=18,ncset=24,ncadv=6,ncstat=6,ncdebug=6
     integer, parameter :: nselect=6,nlform=6,noptopt=9,nsetbit=6
     integer, parameter :: ncamph=12,nclph=6,nccph=6,nrej=9,nsetph=6
@@ -238,7 +238,8 @@ contains
     character (len=16), dimension(ncalc) :: ccalc=&
          ['TPFUN_SYMBOLS   ','PHASE           ','NO_GLOBAL       ',&
          'TRANSITION      ','QUIT            ','GLOBAL_GRIDMIN  ',&
-         'SYMBOL          ','EQUILIBRIUM     ','ALL_EQUILIBRIA  ']
+         'SYMBOL          ','EQUILIBRIUM     ','ALL_EQUILIBRIA  ',&
+         'WITH_CHECK_AFTER','                ','                ']
 !-------------------
 ! subcommands to CALCULATE PHASE
     character (len=16), dimension(nccph) :: ccph=&
@@ -302,7 +303,7 @@ contains
 ! subsubcommands to SET ADVANCED
     character (len=16), dimension(ncadv) :: cadv=&
          ['EQUILIB_TRANSF  ','QUIT            ','EXTRA_PROPERTY  ',&
-          'DENSE_GRID_ONOFF','                ','                ']
+          'DENSE_GRID_ONOFF','SMALL_GRID_ONOFF','                ']
 !         123456789.123456---123456789.123456---123456789.123456
 ! subsubcommands to SET BITS
     character (len=16), dimension(nsetbit) :: csetbit=&
@@ -886,7 +887,8 @@ contains
 ! calculate subcommands
 !         ['TPFUN_SYMBOLS   ','PHASE           ','NO_GLOBAL       ',&
 !         'TRANSITION      ','QUIT            ','GLOBAL_GRIDMIN  ',&
-!         'SYMBOL          ','EQUILIBRIUM     ','ALL_EQUILIBRIA  ']
+!         'SYMBOL          ','EQUILIBRIUM     ','ALL_EQUILIBRIA  ',&
+!         'WITH_CHECK_AFTER','                ','                ']
     CASE(2)
        kom2=submenu(cbas(kom),cline,last,ccalc,ncalc,8)
        SELECT CASE(kom2)
@@ -1342,6 +1344,31 @@ contains
           else
              write(kou,*)'You must first SET RANGE of experimental equilibria'
           endif
+!---------------------------------------------------------------
+       case(10) ! calculate with_check_after
+! this is same as "calculate no_grid" but with automatic grid check after
+! we must set global bit 18 and then clear it
+! If bit 20 is set we will clear it now and set it afterwards
+          if(btest(globaldata%status,GSNORECALC)) then
+             globaldata%status=ibclr(globaldata%status,GSNORECALC)
+             temporary=.TRUE.
+          else
+             temporary=.FALSE.
+          endif
+          globaldata%status=ibset(globaldata%status,GSTGRID)
+! calculate with no grid before but check after
+          call calceq2(0,ceq)
+          if(gx%bmperr.ne.0) then
+             ceq%status=ibset(ceq%status,EQFAIL)
+          endif
+! reset bit GSTGRID and maybe GSNORECALC
+          globaldata%status=ibclr(globaldata%status,GSTGRID)
+          if(temporary) &
+               globaldata%status=ibset(globaldata%status,GSNORECALC)
+!-------------------------------------------------------
+       case(11) ! not used (yet)
+!-------------------------------------------------------
+       case(12) ! not used (yet)
        END SELECT
 !=================================================================
 ! SET SUBCOMMANDS
@@ -1524,15 +1551,25 @@ contains
 ! this sets bit 14 of global status word, also if bit 2 (expert) not set
              if(btest(globaldata%status,GSXGRID)) then
                 globaldata%status=ibclr(globaldata%status,GSXGRID)
-                write(*,3110)'reset'
-3110            format('Dense grid ',a)
+                write(kou,3110)'Dense','reset'
+3110            format(a,' grid ',a)
              else
+! clear GSOGRID if set
+                globaldata%status=ibclr(globaldata%status,GSOGRID)
                 globaldata%status=ibset(globaldata%status,GSXGRID)
-                write(*,3110)'dense grid set'
+                write(kou,3110)'Dense','set'
              endif
 !.................................................................
-          case(5) ! nothing yet
-             write(*,*)'Not implemented yet'
+          case(5) ! SET ADVANCED SMALL_GRID_ONOFF
+             if(btest(globaldata%status,GSOGRID)) then
+                globaldata%status=ibclr(globaldata%status,GSOGRID)
+                write(kou,3110)'Small','reset'
+             else
+! clear GSXGRID if set
+                globaldata%status=ibclr(globaldata%status,GSXGRID)
+                globaldata%status=ibset(globaldata%status,GSOGRID)
+                write(kou,3110)'Small','set'
+             endif
 !.................................................................
           case(6) ! nothing yet
              write(*,*)'Not implemented yet'

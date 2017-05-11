@@ -185,22 +185,19 @@ l,,,,
 @$ This is not the global equilibrium we we calculated in the beginning
 @$ We have G=-57639.4 J
 @&
-@$ We can set that OC checks the equilibrium AFTER the calculation this way
-@$ First bit 2 to make us experts, then bit 18 to use grid test after
-
-set bit glob 2
-set bit glob 18
-
-@$ This very clumsy way will be fixed in a future release ...
+@$ Instead of "c n" we can use "calculate with_check_after"
+@$ and then OC will use the current equilibrium as start values to calculate
+@$  and then use the grid minimizer to check if there are any point below
 @&
 
-c n
+c w
 
 l ,,,,
 
 @$ We now have a more stable equilibrium with the FCC#2 phase
 @$ and G=-57673.8 J, 34 J less than previous metastable equilibrium
-@$ The use of tests after the equilibrium is useful for 
+@$
+@$ The use of a grid test "after" the equilibrium calculation is useful for 
 @$ simulations as the "c n" is much faster but now and again
 @$ it must be checked with a grid.
 @&

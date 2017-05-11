@@ -1430,6 +1430,7 @@ CONTAINS
     integer kk,kkz,level3,mph,negam,negamph,nj,nk,nl
     integer nz1,nz2
     TYPE(meq_phase), pointer :: pmi
+! Using SAVE not possible for parallel calculations here once is just warning
     logical, save :: once=.true.
 !    character ch1*1
 !    double precision, dimension(maxel) :: ccm
@@ -1466,6 +1467,7 @@ CONTAINS
     integer notf,dncol,iy,jy,iremsave,phasechangeok
     double precision, dimension(:), allocatable :: lastdeltaam
     logical vbug,stoikph
+! NOTE using save cannot be reconciled with parallel calculations
     save notagain
 !
     stoikph=.true.
@@ -5693,6 +5695,7 @@ CONTAINS
 !\begin{verbatim}
   subroutine calc_dgdyterms1(nrel,ia,tpindep,mamu,mag,mat,map,pmi,&
        curmux,noofits)
+! THIS SUBROUTINE IS NO LONGER USED!!  Cannot be used in parallel
 ! any change must also be made in subroutine calc_dyterms2 and calc_dgdytermsh
 ! calculate the terms in the deltay expression for amounts of component ia
 !
@@ -5728,6 +5731,7 @@ CONTAINS
     double precision, allocatable, dimension(:,:) :: maybesave
     double precision, allocatable, dimension(:,:) ::  save1
     double precision, allocatable, dimension(:,:) ::  save2
+! NOTE THIS SUBROUTINE IS NO LONGER USED!!
     save sameit,big1p,big1n,big2p,big2n
     save save1,save2
     logical big

@@ -74,7 +74,7 @@ RENDER
 @$
 
 set c t=1400
-set c x(cr)=.1
+set c x(cr)=.12
 c e
 l,,,,
 
@@ -94,7 +94,7 @@ RENDER
 @$
 @$
 
-set c t=2200 x(cr)=.7
+set c t=2050 x(cr)=.7
 l c
 c e
 

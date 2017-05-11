@@ -4919,21 +4919,37 @@ CONTAINS
 ! come back here if there is another localtop in plotlink!
 77  continue
 ! change all "done" marks in mapnodes to zero
+!    write(*,*)'SMP at label 77A: ',localtop%lines
     ikol=0
     do nrv=1,localtop%lines
        localtop%linehead(nrv)%done=0
     enddo
-    mapnode=>localtop%next
-    do while(.not.associated(mapnode,localtop))
+! we sometimes have a segmentation fault when several maptops ...
+    if(associated(localtop%next)) then
+       mapnode=>localtop%next
+    else
+       write(*,*)'Mapnode next link missing 1'
+       goto 79
+    endif
+!    write(*,*)'SMP at label 77B: ',localtop%lines
+    thisloop: do while(.not.associated(mapnode,localtop))
        do nrv=1,mapnode%lines
           mapnode%linehead(nrv)%done=0
        enddo
+       if(.not.associated(mapnode%next)) then
+          write(*,*)'Mapnode next link missing 2'
+          exit thisloop
+       endif
        mapnode=>mapnode%next
-    enddo
+    enddo thisloop
 !-----------
+79  continue
     results=>localtop%saveceq
     mapnode=>localtop
     line=1
+! looking for segmentation fault running map11.OCM as part of all.OCM in oc4P
+! This error may be due to having created (or not created) composition sets ...
+!    write(*,*)'ocplot2 after label 79'
 ! extract the names of stable phases for this lone
 
 !    write(*,*)'mapnode index: ',mapnode%seqx
@@ -4943,6 +4959,8 @@ CONTAINS
        mapline=>localtop%linehead(line)
 ! initiate novalues to false for each line
        novalues=.false.
+! We have a segmentation fault sfter this in oc4P when running map11.OCM
+! at the end of running all macros.  
 !       write(*,*)'In ocplot2, looking for segmentation fault 3'
 ! skip line if EXCLUDEDLINE set
        if(btest(mapline%status,EXCLUDEDLINE)) then
@@ -4983,10 +5001,12 @@ CONTAINS
 ! extract the names of stable phases to phaseline from the first equilibrium
 ! Note that the information of the fix phases are not saved
           if(first) then
+! segmentation fault after here
 !             write(*,*)'In ocplot2, looking for segmentation fault 4A'
              first=.false.
              kk=1
              do jj=1,noph()
+!                write(*,*)'In ocplot2, segmentation fault 4Ax',jj,noofcs(jj)
                 do ic=1,noofcs(jj)
                    k3=test_phase_status(jj,ic,value,curceq)
                    if(gx%bmperr.ne.0) goto 1000
@@ -5017,6 +5037,7 @@ CONTAINS
              if(allocated(linzero)) linzero=0
           endif
 ! no wildcards allowed on this axis
+!          write(*,*)'In ocplot2, segmentation fault 4Ay'
           statevar=pltax(notanp)
           call meq_get_state_varorfun_value(statevar,value,encoded1,curceq)
 !          write(*,*)'SMP axis variable 1: ',trim(encoded1),value
@@ -5037,6 +5058,7 @@ CONTAINS
 ! second axis
           statevar=pltax(anpax)
 !          varofun=.FALSE.
+!          write(*,*)'In ocplot2, segmentation fault after 4B ',wildcard
           if(wildcard) then
 ! NEW ignore data for this equilibrium if NOVALUES is TRUE
 ! because selphase not equal to the stable phase found above
@@ -5046,11 +5068,15 @@ CONTAINS
                 np=1
              else
 !                write(*,*)'Getting a wildcard value 1: ',nr,trim(statevar)
+!                write(*,*)'On ocplot2, segmentation fault 4C1',nooftup()
+! segmentation fault is inside this call for map11.OCM
+! probably because new composition set created
                 call get_many_svar(statevar,yyy,nzp,np,encoded2,curceq)
+!                write(*,*)'On ocplot2, segmentation fault 4C2'
 ! compiling without -finit-local-zero gives a segmentation fault here
 ! running the MAP11 macro
                 qp=np
-!             write(*,*)'wildcard value 1: ',nr,trim(statevar)
+!                write(*,*)'wildcard value 1: ',nr,trim(statevar)
 !                write(*,223)'Values: ',np,(yyy(i),i=1,np)
 223             format(a,i3,8F8.4)
                 if(gx%bmperr.ne.0) then
@@ -5058,6 +5084,7 @@ CONTAINS
                    goto 1000
                 endif
              endif
+!             write(*,*)'On ocplot2, segmentation fault 4D1'
 !             write(*,213)trim(encoded2),np,(yyy(ic),ic=1,np)
 213          format('windcard: ',a,i3,6(1pe12.4))
 !             write(*,16)'val: ',kp,nr,gx%bmperr,(yyy(i),i=1,np)
@@ -5065,6 +5092,7 @@ CONTAINS
              anpmin=1.0D20
              anpmax=-1.0D20
              lcolor=0
+!             write(*,*)'On ocplot2, segmentation fault before 4D2',np
              do jj=1,np
                 if(last) then
                    if(linzero(jj).ne.0) then
@@ -5151,6 +5179,7 @@ CONTAINS
        enddo plot1
 220    continue
 ! finished one line
+!       write(*,*)'In ocplot2, segmentation fault 4F'
        if(nax.gt.1) then
 !------------------ special for invariant lines
 ! for phase diagram always move to the new line 
@@ -5213,6 +5242,7 @@ CONTAINS
 335                format(a,i3,' <',a,'> ',3(1pe14.6))
 ! axis with possible wildcard
                    statevar=pltax(anpax)
+!                   write(*,*)'In ocplot2, segmentation fault 4H'
                    if(wildcard) then
 ! this cannot be a state variable derivative
 !                    write(*,*)'Getting a wildcard value 2: ',nr,statevar(1:20)

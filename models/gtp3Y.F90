@@ -5868,7 +5868,7 @@
 ! this set is dormant, ignore this stable ste and give no error
                write(*,*)'3Y phase has dormant comp.set, skip entering',&
                     ceq%phase_varres(lokics)%phtupx
-! temporarily do not jump out to check creation of new set
+! if there is a dormant composition set do not enter a new
                goto 200
             elseif(ceq%phase_varres(lokics)%phstate.eq.PHENTERED) then
 ! This composition set is entered but not stable, set it as stable and

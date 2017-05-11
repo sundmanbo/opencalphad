@@ -123,7 +123,9 @@
 !\end{verbatim}
 !
    character id*40,comment*72
-   integer, parameter :: miws=1000000
+!   integer, parameter :: miws=2000000
+! size of workspace for unformatted storage
+   integer miws
    integer, allocatable, dimension(:) :: iws
    integer i,isp,jph,lokph,lut,last,lok,rsize,displace,ibug,ffun,lokeq
 ! these depend on hardware, bytes/word and words/double. Defined in metlib3
@@ -170,6 +172,10 @@
 1     format('There is no data to save!')
       goto 1001
    endif
+! dimension iws depending on number of equuilibria stored
+! 7000 is for a 6 component system with 50 phases
+   miws=1000000+7000*eqfree
+   write(*,*)'3E allocating workspace: ',miws
    allocate(iws(miws))
    call winit(miws,100,iws)
    if(buperr.ne.0) goto 1100
@@ -331,8 +337,6 @@
    call storr(lok+3,iws,globaldata%rgas)
    call storr(lok+3+nwpr,iws,globaldata%rgasuser)
    call storr(lok+3+2*nwpr,iws,globaldata%pnorm)
-!   call wrkchk(rsize,miws,iws)
-!   write(*,*)'3E used workspace up to ',rsize
 !   goto 900
 ! unfinished
 !------------- state variable functions
@@ -350,6 +354,9 @@
    if(gx%bmperr.ne.0) goto 1100
    iws(22)=lok
    iws(23)=gtp_biblioref_version
+! document use of workspace
+   call wrkchk(rsize,miws,iws)
+   write(*,*)'3E used ',rsize,' words out of ',miws,' for storing static data'
 !-------------------------------------------------------
 ! write the equilibrium records
 ! conditions, components, phase_varres for all composition sets etc
@@ -358,8 +365,7 @@
 !   write(lut)gtp_equilibrium_data_version,gtp_component_version,&
 !        gtp_phase_varres_version
    lokeq=0
-! we should eventually have a loop to save all equilibria
-!   call saveequil(lokeq,iws,firsteq)
+! all equilibria are saved here
    call saveequil(lokeq,iws)
    if(gx%bmperr.ne.0) goto 1100
 ! finished saving equilibria
@@ -402,6 +408,9 @@
       write(kou,990)buperr
 990   format(/' *** WARNING *** , workspace save error: ',i7/)
    endif
+   write(kou,989)rsize+5+last,miws,1.0D2*real(rsize+5+last)/real(miws)
+989 format('Used ',i8,' words out of ',i8,', ',&
+         F6.2,'% for unformatted memory save')
    write(kou,991)nbpw*(rsize+5+last),trim(filename)
 991 format('Written workspace ',i10,' bytes unformatted on ',a)
 1000 continue
@@ -801,12 +810,20 @@
 !   TYPE(gtp_condition), pointer :: condrec
    integer i,isp,j,k,kl,lokcs,lokph,mc,mc2,nsl,lokeq,rsize,displace,lokvares
    integer lokdis,disz,lok,qsize,eqdis,iws1,dcheck,lokcc,seqz,offset,dmc
-   integer loklast,eqnumber,lokhighcs
+   integer loklast,eqnumber,lokhighcs,ceqsize
    type(gtp_equilibrium_data), pointer :: ceq
 ! loop to save all equilibria
    eqnumber=0
 17 continue
    eqnumber=eqnumber+1
+   if(eqnumber.eq.1) then
+! calculate the size of the first equilibrium record saved
+      ceqsize=iws(1)
+   elseif(eqnumber.eq.2) then
+      ceqsize=iws(1)-ceqsize
+      write(*,18)ceqsize
+18    format(' 3E Saving an equilibrium record requires ',i8,' words')
+   endif
    ceq=>eqlista(eqnumber)
 ! check if enything entered ...
    if(.not.allocated(ceq%complist)) then
@@ -970,7 +987,8 @@
 117 continue
 ! LINKED LIST of phase_varres records stored from lokeq+lokvares
    lokhighcs=lokeq+displace+3
-   write(*,*)'3E highcs: ',highcs,csfree,lokhighcs
+   write(*,118)'3E highcs: ',eqnumber,highcs,csfree,lokhighcs
+118 format(a,3i5,i10)
    iws(lokhighcs)=highcs
    lokvares=lokhighcs+1
    eqdis=displace+5
@@ -5271,7 +5289,7 @@
          endif
          if(modelname(1:5).eq.'I2SL ') phtype='Y'
 !
-         write(*,*)'3E enter phase: ',trim(name1),' ',subord,havedisorder
+!         write(*,*)'3E enter phase: ',trim(name1),' ',subord,havedisorder
          call enter_phase(name1,nsl,knr,const,stoik,modelname,phtype)
 !      write(*,*)'readpdb 9A: ',gx%bmperr
          if(gx%bmperr.ne.0) then

@@ -44,6 +44,10 @@ set c w(zn)=.06 w(zr)=.007
 
 l c
 
+@$ Set small grid
+
+set adv small
+
 @&
 @$ Just calculate with gridmin, some warnings
 

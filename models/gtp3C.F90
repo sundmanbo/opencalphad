@@ -4091,7 +4091,7 @@
    write(text(ip:),112)nphstoi
 ! NOTE format 100 adds an initial space on the line
 !   write(lut,100)trim(text)
-! Accordung to Ted
+! According to Ted
    write(lut,99)trim(text)
 !------------------ system components including electrons for charged phases
    ip=1
@@ -4366,6 +4366,7 @@
 270      format(9i5)
       endif
 ! For all mixtures we should write the constituents of all sublattices
+! problem here for UC2_C11A, constituent in first sublattice ignored
       i3=0
       do isubl=1,phlista(lokph)%noofsubl
          constext=' '
@@ -4382,8 +4383,11 @@
                ip=1
             endif
          enddo
+!         write(*,271)'3C constext: ',trim(constext),isubl,i2,i3,ip
+!271      format(a,a,4i4)
          ip=len_trim(constext)
-         if(ip.gt.1) then
+! for a single component names ip=1 here ...
+         if(ip.gt.1 .or. constext(1:1).ne.' ') then
             write(lut,100)trim(constext)
          endif
       enddo
