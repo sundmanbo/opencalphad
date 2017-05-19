@@ -13,7 +13,7 @@
 \begin{document}
 
 \begin{center}
-{\Large \bf Getting started with OpenCaplhad}
+{\Large \bf Getting started with OpenCalphad}
 
 Bo Sundman, \today
 
@@ -21,7 +21,7 @@ Opencalphad (OC) is a free software with GNU GPL license.  The last
 version is available at the following web site:\\
 http://www.opencalphad.org or the
 
-A development version is available at the opencalpad repository at::\\
+A development version is available at the opencalphad repository at::\\
 http://www.github.com/sundmanbo/opencalphad
 
 You can contact me at: bo.sundman@gmail.com
@@ -65,12 +65,12 @@ There is also an extensive documentation provided with the software:
 \begin{itemize}
 \item Install-OC-Windows-MinGW on Windows using MinGW.
 \item Install-OC-Windows-Cygwin on Windows using Cygwin (in French).
-\item Install-OC-Linux on Linux using GNU.
+\item Install-OC-Linux-or-macOS on Linux or macOS using GNU.
 \end{itemize}
 \item news-OC4 about features and user interface.
 \item UG, User Guide and manual.
 \item OC-macros, describing the test macro files.
-\item GTP, General Thermodynamic Pacakage describing the model package.
+\item GTP, General Thermodynamic Package describing the model package.
 \item HMS, Hillert's Minimizer describing the equilibrium calculations.
 \item SMP, StepMapPlot describing calculation and plotting of diagrams.
 \item OCASI, OC Application Software Interface (draft).
@@ -162,7 +162,7 @@ useful.
   list~data} command.  You can list on a file by using the switch {\em
   list~/output=filename ...}.  If you want to write a TDB file use the
   command {\em list~data~TDB}.
-  
+
 \item You can enter thermodynamic data from a macro file as well as
   commands for calculations.  In order to document errors or problems
   please send a complete macro file with data and commands reproducing
@@ -206,7 +206,7 @@ useful.
 \item For users with FactSage background there is a command {\em
   set~input\_amount} which allows the user to set the overall
   composition by specifying the amount of moles of different species
-  in the system.  The software converts this to {\em condtions} on the
+  in the system.  The software converts this to {\em conditions} on the
   amounts of the components.
 
 \item You can only use components to set conditions on the amounts,
@@ -239,7 +239,7 @@ useful.
 \item The grid minimizer that calculates start points for the general
   minimizer is powerful but a bit primitive.  If you have ideas how to
   improve it you are welcome to provide advice or code.  There is
-  a command to have a denser grid (about 10 times more gridpoints) using
+  a command to have a denser grid (about 10 times more grid points) using
   the command {\em set~advanced~dense}
 
 \item You should always check the results with you favorite
@@ -249,7 +249,7 @@ useful.
 \item If the calculation does not converge directly try to use the
   command {\em ``c~n''} two or more times to continue to iterate from
   the set of phases you have.  The {\em ``c~e''} command will run the
-  grid minimiser and, therefore, will normally give the same result
+  grid minimizer and, therefore, will normally give the same result
   each time.
 
 \item You can also try to change the number of iterations and
@@ -292,7 +292,7 @@ useful.
   {\em set~phase~``name''~default\_constitution~$\cdots$ }.
 
 \item There are several options to calculate things:
-  \begin{itemize} 
+  \begin{itemize}
   \item {\em calculate~all} calculates all equilibria set by the {\rm
     set~range} command.  It is intended for equilibria with
     experiments and used in assessments but can be used to calculate a
@@ -440,7 +440,7 @@ This part is unfinished and very rudimentary.
 \begin{itemize}
 \item You can calculate property diagram (one independent axis
   variable) or phase diagrams (two or more independent axis variables).
-  The command to set an independent axis is 
+  The command to set an independent axis is
 
   {\em set~axis~1~``state~variable''~``min value''~``max
     value''~``increment''}.  The state variable used must be a
@@ -484,7 +484,7 @@ table~\ref{tab:statevar}.
 \begin{table}[!h]
 \caption{A very preliminary table with the state variables and their
   internal representation.  Some model parameter properties are also
-  included.  The final ``z'' in Sz etc is the optional normallizing
+  included.  The final ``z'' in Sz etc is the optional normalizing
   letter M, W, V or F}\label{tab:statevar}
 \begin{tabular}{|llccll|}\hline
 Symbol & Id & \multicolumn{2}{c}{Index} & Normalizing & Meaning\\
@@ -495,7 +495,7 @@ P      & 2  & -         & -    & - & Pressure\\
 MU     & 3  & component & -/phase  & - & Chemical potential\\
 AC     & 4  & component & -/phase  & - & Activity\\
 LNAC   & 5  & component & -/phase  & - & LN(activity)\\\hline
-\multicolumn{6}{|c|}{Extensive and normallized properties}\\\hline
+\multicolumn{6}{|c|}{Extensive and normalized properties}\\\hline
 U      & 10 & -/phase\#set & - & - & Internal energy for system\\
 UM     & 11 & -/phase\#set & - & M & Internal energy per mole\\
 UW     & 12 & -/phase\#set & - & W & Internal energy per mass\\
@@ -556,7 +556,7 @@ owners.
 There is a fairly extensive documentation of the source code in the
 directory ``documentation'' and if you look at the code itself there
 are some comments there too.  I have spent a lot of effort to make the
-datastructures general and flexible to handle multicomponent and
+data structures general and flexible to handle multicomponent and
 multiphase systems.  But there was quite a lot of redundancy
 introduced during the development that eventually will be removed.
 
@@ -581,7 +581,7 @@ compile and run these.
 
 There is a Fortran version of the TQ library and also an isoC version
 that can be called from C++/C routines.  The isoC binding makes it
-possible to access data directly from the datastructures defined
+possible to access data directly from the data structures defined
 inside the OC software.  There are some test programs for this also.
 
 Use only subroutines in the TQ library to access the OC software, do
@@ -601,7 +601,7 @@ and calculate again seems to work.  I have tested on a PC with 4 CPU
 and the clock time is about 3.5 times faster compared to calculate
 them sequentially.
 
-Parallization can be implemented in several levels in OC, for example
+Parallelization can be implemented in several levels in OC, for example
 the grid minimizer, but the ability to calculate many separate
 equilibria in parallel is a key feature to implement full
 thermodynamic calculations in simulations.
@@ -611,4 +611,3 @@ thermodynamic calculations in simulations.
 {\large \bf Have fun and help make OC useful!}
 
 \end{document}
-
