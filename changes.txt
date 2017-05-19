@@ -13,7 +13,7 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
-2017.05.17 OC version 4.023: There was a severe memory leak as the
+2017.05.19 OC version 4.023: There was a severe memory leak as the
 memory used by the TP functions was not deallocated with the NEW
 command.  This has now been removed.  Applications that used repeated
 NEW commands could crash due to lack of free memory.
