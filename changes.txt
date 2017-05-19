@@ -13,13 +13,23 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
-2017.05.10 OC version 4.022: I have added a new subcommand to
-calculate, "calculate with_check_after" or just "c w" which means the
-grid minimizer will not be used before but after.  In the case there
-is a gridpoint below the calculated equilibrium that phase is
-automatically added and a new calculation made.  The user does not
-have to play around with bits.  With the "set advanced" you can now
-also set the small grid, also to avoid playing around with bits.
+2017.05.17 OC version 4.023: There was a severe memory leak as the
+memory used by the TP functions was not deallocated with the NEW
+command.  This has now been removed.  Applications that used repeated
+NEW commands could crash due to lack of free memory.
+
+A number of bugs has also meen eliminated, some caused by unititiated
+variables where valgrid again proved to be a useful tool.
+
+2017.05.10 OC version 4.022: I have added a new calculate subcommand
+"calculate with_check_after" or just "c w" which means the grid
+minimizer will not be used before but after the iterative calculation.
+As start values the iterative algorithm will use the previously
+calculated results.  If the grid minimizer finds a phase with a
+gridpoint below the calculated equilibrium that phase is automatically
+added as stable and a new calculation made to find the global
+equilibrium.  The "set advanced" command can now be used to set a
+smaller grid.
 
 2017.04.30 OC version 4.021: When the conditions does not allow using
 the global gridminimizer before an equilibrium calculation there is

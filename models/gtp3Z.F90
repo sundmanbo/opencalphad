@@ -1799,15 +1799,29 @@
 ! deallocates all arrays associated with a TP function
 !\end{verbatim}
    implicit none
-   integer j,nr
+   TYPE(tpfun_expression), pointer :: exprot
+   integer j,nr,nexp,nc
+!   write(*,*)'3Z freetpfun: ',freetpfun
    do j=1,freetpfun-1
       nr=tpfuns(j)%noofranges
       if(nr.gt.0) then
+! modified 170517 due to memory leaks when read/write unformatted
+         do nc=1,nr
+            exprot=>tpfuns(j)%funlinks(nc)
+!            write(*,*)'3Z Deallocating TP function',j,nc
+            deallocate(exprot%tpow)
+            deallocate(exprot%ppow)
+            deallocate(exprot%wpow)
+            deallocate(exprot%plevel)
+            deallocate(exprot%link)
+            deallocate(exprot%coeffs)
+         enddo
+!
          deallocate(tpfuns(j)%funlinks)
          deallocate(tpfuns(j)%limits)
-!         deallocate(tpfuns(j)%funlinks)
       endif
    enddo
+   deallocate(tpfuns)
 1000 continue
    return
  end subroutine tpfun_deallocate
@@ -2722,11 +2736,11 @@
          funref=tpfexpr%link(i2)
          if(funref.eq.1) then
 ! this is a constant R, multiply the coefficient with 8.31451 and set link=0
-            write(*,*)'3Z Replacing R with its value in function ',lfun
+!            write(*,*)'3Z Replacing R with its value in function ',lfun
             tpfexpr%coeffs(i2)=8.31451*tpfexpr%coeffs(i2)
             tpfexpr%link(i2)=0
          elseif(funref.eq.2) then
-            write(*,*)'3Z Deleting use of RTLNP for gas in function ',lfun
+!            write(*,*)'3Z Deleting use of RTLNP for gas in function ',lfun
             tpfexpr%link(i2)=0
             tpfexpr%coeffs(i2)=zero
          elseif(funref.gt.0) then

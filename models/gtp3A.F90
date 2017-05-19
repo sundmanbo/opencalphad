@@ -2406,6 +2406,7 @@ end function find_phasetuple_by_indices
    double precision dblvar(*)
 !\end{verbatim}
 !   integer jl
+   write(*,*)'3A in deallocate_gtp'
    deallocate(ellista, STAT = allocateStatus)
    if (allocateStatus /= 0) then
      write(kou,*) 'Error during deallocation of ellista'
@@ -2426,6 +2427,7 @@ end function find_phasetuple_by_indices
    deallocate(propid)
    deallocate(eqlista)
    deallocate(svflista)
+   write(*,*)'3A Deallocate TP funs'
    call tpfun_deallocate
 1000 continue
    return

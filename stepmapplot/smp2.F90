@@ -291,7 +291,7 @@ CONTAINS
     character ch1*1
     logical firststep,onetime
 !
-!    write(*,*)'in map_setup'
+    write(*,*)'in map_setup'
     call get_all_conditions(savedconditions,-1,starteq)
     if(gx%bmperr.ne.0) then
        write(kou,*)'Cannot save current conditions'
@@ -357,7 +357,7 @@ CONTAINS
     call map_findline(maptop,axarr,mapfix,mapline)
     if(gx%bmperr.ne.0) goto 1000
 ! if no line we are finished!
-!    write(*,*)'Back from map_findline 1'
+!    write(*,*)'Back from map_findline 1: ',associated(mapline)
 ! segmentation fault crash later ...
     if(.not.associated(mapline)) goto 900
 !    write(*,*)'We will start calculate line: ',mapline%lineid,mapline%axandir
@@ -381,6 +381,7 @@ CONTAINS
 ! composition sets created in other threads.  But we must also specify 
 ! phases set fix due to the mapping to replace axis conditions.  
 ! We must provide an array of phase tuples with fix phases. 
+!    write(*,*)'Calling calceq7 for new line: ',mapline%lineid
     if(ocv()) write(*,*)'Calling calceq7 for new line: ',mapline%lineid
 ! mode=-1 means no gridminimization and do not deallocate phr
     mapline%problems=0
@@ -402,7 +403,7 @@ CONTAINS
 !    endif
 !    write(*,*)'Calling calceq7 with T=',ceq%tpval(1),mapline%axandir
     call calceq7(mode,meqrec,mapfix,ceq)
-!    write(*,*)'Back from calceq7 ',gx%bmperr
+!    write(*,*)'Back from calceq7A ',gx%bmperr
     if(gx%bmperr.ne.0) then
 ! error 4187 is to set T or P to less than 0.1
        if(gx%bmperr.eq.4187) then
@@ -475,7 +476,7 @@ CONTAINS
 ! look for a new line to follow
        goto 300
     endif
-!    write(*,*)'back from calceq7'
+!    write(*,*)'back from calceq7B'
 !--------------------------------
 ! limit the maximum change in T and P, should be small during step/map
     meqrec%tpmaxdelta(1)=2.0D1
@@ -659,6 +660,8 @@ CONTAINS
 ! BUG: Problems here for map5.OCM, when matsmin compiled with -O2
 ! two extra composition sets of BCC and LIQUID wanted to appear.
 !  Will lok at that later ...
+! We can also have a stoichiometic phase with ALLOTROPIC transformation
+! which will change form one to another at a fix T
        if(onetime) then
           write(*,22)'SMP: phases appear and disappear at same time: ',&
                iadd,irem,phasetuple(iadd)%lokph,phasetuple(irem)%lokph
@@ -763,6 +766,8 @@ CONTAINS
 ! then check if we have already found this node point and if not
 ! generate new start points with and without the phase
        call map_calcnode(irem,iadd,maptop,mapline,mapline%meqrec,axarr,ceq)
+! segmentation fault in map_calcnode 170518 !!
+!       write(*,*)'Back from map_calcnode',gx%bmperr
        if(gx%bmperr.ne.0) then
 ! if error one can try to calculate using a shorter step or other things ...
 !          write(*,*)'Error return from map_calcnode: ',gx%bmperr
@@ -2507,12 +2512,14 @@ CONTAINS
 !\end{verbatim}
     type(gtp_condition), pointer :: lastcond,pcond
     integer iremsave,iaddsave,iph,ics,jj,jph,kph,phfix,seqx,jax,haha
-    integer what,type,cmix(10),maxstph,noplot,mode,addtuple
+    integer what,type,cmix(10),maxstph,noplot,mode,addtupleindex
     double precision, parameter :: addedphase_amount=1.0D-2
-    double precision value,axval,axvalsave
+    double precision value,axval,axvalsave,tx
     type(gtp_state_variable), pointer :: svrrec
     logical global
     double precision, allocatable, dimension(:) :: yfra
+    type(gtp_equilibrium_data), target :: tceq
+    type(gtp_equilibrium_data), pointer :: pceq
 ! turns off converge control for T
     integer, parameter :: inmap=1
 !
@@ -2643,6 +2650,7 @@ CONTAINS
 ! mark that the phase is fix, we have to be careful not to exceed size
 ! Sigh, the fixed phases must be in sequential order ??? ... not done here
 ! ... maybe not needed ??
+!    write(*,*)'added fix phase: ',phfix
     meqrec%nfixph=meqrec%nfixph+1
     if(meqrec%nfixph.gt.size(meqrec%fixpham)) then
        write(*,*)'Too many phases set fixed during mapping',&
@@ -2668,7 +2676,7 @@ CONTAINS
 !
     call meq_sameset(irem,iadd,meqrec,meqrec%phr,inmap,ceq)
 !
-!    write(*,202)'Calculated with fix phase: ',gx%bmperr,irem,iadd,ceq%tpval
+!   write(*,202)'Calculated node with fix phase: ',gx%bmperr,irem,iadd,ceq%tpval
 202 format(a,3i4,2(1pe12.4))
 !-------------------------------------------------
 ! trouble if error or another phase wants to be stable/dissapear
@@ -2687,9 +2695,22 @@ CONTAINS
 ! It worked to calculate with a new fix phase releasing all axis condition!!!
 ! *************************************************************
 ! check that the node point is global using grid minimizer
-! ceq is not destroyed
+! ceq is copied inside global_equil_check and not destroyed??.
+! mode=0 means do not recalculate if gridpoint below is found
        mode=0
-       global=global_equil_check1(mode,addtuple,yfra,ceq)
+!       write(*,*)'NOT Calling global check'
+!       global=.TRUE.
+!       write(*,*)'Check if nodepoint global'
+! make a copy of the whole equilibrium record and set a pointer to the copy
+! Does this really make a copy of the conditions etc inside ceq?
+!       tceq=ceq
+!       pceq=>tceq
+!       write(*,*)'SMP value of T: ',pceq%tpval(1)
+! SEGMENTATION FAULT and other strange errors after this call
+! very difficult to find ... puhhhhh
+! --- BUT THERE is still a segmentation fault
+!       global=global_equil_check1(mode,addtupleindex,yfra,pceq)
+       global=global_equil_check1(mode,addtupleindex,yfra,ceq)
        if(.not.global) then
           write(*,*)'gridminimizer found node point not global'
 ! set this line as INACTIVE and do not generate any start points
@@ -2751,6 +2772,7 @@ CONTAINS
 ! When we are there we have successfully calculated an equilibrium with a
 ! new phase set create a node with this equilibrium and necessary line records
 500 continue
+!    write(*,*)'Successful calculation of a node point',phfix
 ! phfix is set negative if phase should be removed
 ! NOTE the phase set fix in the node may not be the same which
 ! wanted to disappear/appear when calling the map_calcnode!!
@@ -2761,8 +2783,6 @@ CONTAINS
 ! if the user wants to have global minimization during mapping this is
 ! time to test if the current equilibrium is the global one.  We can use
 ! a temporary ceq record and chech the set of phases and chemical potentials
-!
-! >>> add test of the global equilibrium here ... it has been added elsewhere
 !
     haha=0
     if(maptop%tieline_inplane.lt.0) then
@@ -2839,6 +2859,7 @@ CONTAINS
 !            mapline%meqrec%phr(mapline%meqrec%stphl(jj))%ics,&
 !            jj=1,mapline%meqrec%nstph)
     endif
+!    write(*,*)'Storing last point on line',phfix,maptop%tieline_inplane
     call map_store(mapline,axarr,maptop%number_ofaxis,maptop%saveceq)
     if(gx%bmperr.ne.0) then
 !       if(gx%bmperr.eq.4300) write(*,*)'Node point ignored'
@@ -2851,6 +2872,7 @@ CONTAINS
 !--------------------
 ! now store all axis values as prescribed vaules in the condition records
 ! A rather clumsy way and cannot handle expressions ...
+    lastcond=>ceq%lastcondition
     pcond=>lastcond
 600 continue    
        pcond=>pcond%next
@@ -2895,6 +2917,7 @@ CONTAINS
     if(gx%bmperr.ne.0) then
        if(ocv()) write(*,*)'Error return from map_newnode: ',gx%bmperr
     endif
+!    write(*,*)'Back from map_newnode'
 ! all done??
 1000 continue
     return
@@ -5422,15 +5445,19 @@ CONTAINS
           if(ic.gt.nnp) goto 690
           if(nonzero(ic).eq.0) then
 ! shift all values from ic+1 to np
-             if(nnp.ge.maxanp) then
+             if(nnp.gt.maxanp) then
                 write(kou,*)'Too many points in anp array 1',maxanp,nv,nnp
                 overflow=.TRUE.
                 nnp=maxanp
              endif
-             if(nv.ge.maxval) then
+             if(nv.gt.maxval) then
                 write(kou,*)'Too many points in anp array 2',maxval,nv
                 overflow=.TRUE.
                 nv=maxval
+             endif
+             if(.not.allocated(lid)) then
+                write(*,*)'SMP allocating lid: ',np
+                allocate(lid(np+5))
              endif
              do jj=ic,nnp-1
                 do nnv=1,nv
@@ -5445,7 +5472,7 @@ CONTAINS
           endif
 ! there is no more space in arrays to plot
           if(overflow) then
-             write(*,*)'overflow',nv,nnp
+             write(*,*)'plot data overflow',nv,nnp
              goto 690
           endif
           goto 650

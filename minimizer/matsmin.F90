@@ -5925,6 +5925,7 @@ CONTAINS
 !    write(*,*)'Enter calc_dgdyterms1P'
     if(noofits.ne.saved%sameit) then
 ! new iteration, discard saved values
+       saved%big=0
        saved%order=0
        saved%sameit=noofits
        goto 100

@@ -141,7 +141,8 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! 2013.03.01 Release version 1
 ! 2015.01.07 Release version 2
 ! 2016.02.14 Release version 3
-! 2017.02.10 Updated version 3 with OC version 4
+! 2017.02.10 Release version 4
+! after version on github numbered 4.011, incremented for each update
 !
 !=================================================================
 !
@@ -784,10 +785,10 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   integer, private, parameter :: maxprop=50
 ! max number of state variable functions
   integer, private, parameter :: maxsvfun=500
-! version number
-! changes in the last digit means no change in SAVE/READ format
+! version number of GTP (not OC)
   character*8, parameter :: gtpversion='GTP-3.20'
-  character*8, parameter ::   savefile='OCF-3.20'
+! THIS MUST BE CHANGED WHENEVER THE UNFORMATTED FILE FORMAT CHANGES!!!
+  character*8, parameter :: savefile='OCF-3.20'
 !\end{verbatim}
 !=================================================================
 !\begin{verbatim}

@@ -3954,7 +3954,7 @@
 
 !\begin{verbatim}
  subroutine save_datformat(filename,kod,ceq)
-! writes a DAT format file. kod is not used (yet)
+! writes a SOLGASMIX DAT format file. kod is not used (yet)
    implicit none
    integer kod
    character filename*(*)
@@ -3962,8 +3962,8 @@
 !\end{verbatim}
    integer ntpf,last,i1,i2,i3,npows,lut,ip,jp,nstoi,lokph,isp,f1,nphstoi,nphmix
    integer, dimension(:), allocatable :: ncon,phmix,phstoi,estoi
-   integer nelectrons,lokcs,nsubl,isubl,mphstoi,k1,lcase,mult(10)
-   logical logok,nogas,ionliq,wildcard
+   integer nelectrons,lokcs,nsubl,isubl,mphstoi,k1,lcase,mult(10),check
+   logical logok,nogas,ionliq,wildcard,iliqwild
    character ch1*1,line*16,text*512,powers*80,model*24,constext*80,elsym*2
    type(gtp_tpfun2dat), dimension(:), allocatable :: tpfc
    type(gtp_endmember), pointer :: endmember
@@ -4000,6 +4000,7 @@
 !76    format(' ranges, TP function number s ',i5,' *****************')
 !      call list_tpascoef(kou,text,i1,npows,tpfc)
 !   enddo
+   lut=21
    open(lut,file=filename,access='sequential',status='unknown')
    write(*,*)'Writing on file: ',trim(filename)
    text='System'
@@ -4224,10 +4225,10 @@
       endif
 ! UNFINISHED: Magnetism? A suffix M ...
       write(lut,200)phlista(lokph)%name,trim(model)
-!200   format(1x,a,5x,40('=')/1x,a)
 ! According to Ted
-200   format(a,5x,40('=')/a)
+200   format(a,5x,'= PHASE ='/a)
 !-------------------- we must repeat this endmember loop for interactions
+      check=0
       endmember=>phlista(lokph)%ordered
 ! endmember parameters
       do while(associated(endmember))
@@ -4239,15 +4240,20 @@
          ip=1
 !         jp=1
          valency=zero
+         iliqwild=.false.
+         wildcard=.false.
          sloop: do isubl=1,nsubl
 ! this is the loop for the constituents in sublattices
             isp=endmember%fraclinks(isubl,1)
             if(isp.eq.-99) then
 ! this means wildcard in this sublattice
-               write(*,*)'3C Beware! Parameter with wildcard constituent'
                wildcard=.true.
                constext(ip:)='*:'
                ip=ip+2
+               if(ionliq .and. wildcard .and. isubl.eq.1) then
+                  iliqwild=.true.
+                  wildcard=.false.
+               endif
 ! Hm we should add stoichiometric factors for all constituents in this subl
 ! For ionliq this means neutrals on sublattice 2
 !>> QUESTION >> the DAT format repeats all neutrals for all cations
@@ -4305,6 +4311,10 @@
                endif
             enddo
          enddo sloop
+         if(wildcard) then
+            write(*,*)'3C Beware! Parameter with wildcard: ',&
+                 trim(phlista(lokph)%name),',',trim(constext)
+         endif
 ! for the parameters follow the property link
          property=>endmember%propointer
          if(associated(property)) then
@@ -4319,7 +4329,7 @@
             f1=property%degreelink(0)
 !            write(*,*)'TP function pointer is ',f1
             if(f1.gt.0) then
-               if(ionliq .and. wildcard) then
+               if(ionliq .and. iliqwild) then
 !                  write(lut,207)
 !207               format(' *** A neutral should be repeated for each cation',&
 !                       ' multipled with its valency')
@@ -4476,6 +4486,7 @@
 ! repeat the endmember loop again for interaction parameters (and magnetism??)
 ! I still have to figure out how to reference interacting constituents
 ! for the moment just terminate with a line starting with 0
+      write(*,*)'3C NO EXCESS PARAMETER OUTPUT'
       write(lut,300)
 300   format(' 0')
    enddo phases1
@@ -4489,7 +4500,7 @@
          cycle phases2
       endif
       mphstoi=mphstoi+1
-      write(*,*)'3C parameters for compound ',trim(phlista(lokph)%name)
+!      write(*,*)'3C parameters for compound ',trim(phlista(lokph)%name)
       lokcs=phlista(lokph)%linktocs(1)
       varres=>ceq%phase_varres(lokcs)
       nsubl=1

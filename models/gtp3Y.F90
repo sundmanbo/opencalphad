@@ -4953,28 +4953,15 @@
    iphx=0
    kphl=0
    ifri=0
+   pph=0
    wrongfrac=.true.
-!   loop1: do iph=1,nrph
-! this loop just to calculate how many points will be generated for allocation
-!      if(test_phase_status(iph,1,amount,pceq).le.PHDORM) cycle loop1
-!      ifri=ifri+1
-!      iphx(ifri)=iph
-!      kphl(ifri)=firstpoint
-! not used: nrel, xarr, garr, yarr, gmax
-!      call generate_grid(-1,iph,ngg,nrel,xarr,garr,ny,yarr,gmax,pceq)
-!      if(gx%bmperr.ne.0) goto 1000
-!      kphl(ifri)=ngg
-!      sumng=sumng+ngg
-!   enddo loop1
-!   write(*,*)'3Y Generated gridpoints for check:  ',sumng
-!
    ggloop: do iph=1,nrph
 ! include all phases with any composition set entered (but only once!)
       do ics=1,noofcs(iph)
 ! new: -3 suspended, -2 dormant, -1,0,1 entered, 2 fixed
 ! ignore phases whith no composition set entered
 ! If a phase+compset FIX one should never be here as conditions wrong
-         if(test_phase_status(iph,ics,amount,ceq).gt.PHDORM) then
+         if(test_phase_status(iph,ics,amount,pceq).gt.PHDORM) then
             pph=pph+1
             iphx(pph)=iph
             cycle ggloop
@@ -4990,18 +4977,13 @@
 ! calculate the composition and G for the gridpoints
    ii=1
    loop2: do ifri=1,pph
-!      if(iph.gt.0) then
-!         write(*,*)'3y GG: ',ifri,iph,ii
-! generate_grid restore original composition before ending
-!         call generate_grid(0,iph,ngg,nrel,xarr(1,ii),garr(ii),&
-!              ny,yarr,gmax,pceq)
       ngg=maxgrid-ii
 !         write(*,*)'3Y calling generic_grid 2: ',iph,ngg
 !>>>>>>> important: changes here must be made also in global_gridmin
       if(btest(globaldata%status,GSOGRID)) then
 ! The possibility to use the old grid tested
          call generate_grid(0,iphx(ifri),ngg,nrel,xarr(1,ii),&
-              garr(ii),ny,yarr,gmax,ceq)
+              garr(ii),ny,yarr,gmax,pceq)
       else
          call generic_grid_generator(0,iphx(ifri),ngg,nrel,xarr(1,ii),&
               garr(ii),ny,yarr,gmax,pceq)
@@ -5025,8 +5007,6 @@
          iph=iph+1
 !         ny=ny+kphl(iph)
          nyfas=kphl(iph)
-!         write(*,*)'3Y Incrementing iph: ',iph,kphl(iph),ifri,ny
-!         write(*,*)'3Y phase: ',trim(phlista(phases(iphx(iph)))%name)
       endif
       gmax=zero
       sumx=0.0E0
@@ -5036,13 +5016,6 @@
       enddo
 !      if(ifri.eq.sumng) write(*,*)'3Y OK ',ifri,iph
       if(abs(sumx-1.0E0).gt.1.0E-4) then
-! skip this warning message ...
-!         if(wrongfrac) then
-!            write(*,69)'3Y Some gridpoint fractions wrong',&
-!                 iph,ifri,sumx,garr(ifri)
-!69          format(a,i3,i7,2(1pe14.6))
-!            wrongfrac=.false.
-!         endif
          cycle loop4
       endif
 !      write(*,75)'3Y check: ',ifri,iph,garr(ifri),gmax,garr(ifri)-gmax
@@ -5057,21 +5030,11 @@
 ! if the phase is stoichiometric and stable this is a rounding off problem
 ! find the phase record using the phase tuple
          lokcs=phasetuple(iph)%lokvares
-         if(ceq%phase_varres(lokcs)%phstate.ge.PHENTSTAB) then
+         if(pceq%phase_varres(lokcs)%phstate.ge.PHENTSTAB) then
 ! if number of constituent fractions equal to sublattice the composition is fix
-            nz=size(ceq%phase_varres(lokcs)%sites)-&
-                 size(ceq%phase_varres(lokcs)%yfr)
+            nz=size(pceq%phase_varres(lokcs)%sites)-&
+                 size(pceq%phase_varres(lokcs)%yfr)
             if(nz.eq.0) cycle loop4
-!            else
-! This gridpoint is for a solution phase that is stable and has a grid point
-! below current equilibrium plane.  Could be the cubic carbide/austenit case 
-!               global=.FALSE.
-!               if(notglobwarning2) then
-!                  write(kou,87)iph,(xarr(ngg,ifri),ngg=1,nrel)
-!                  gx%bmperr=4352
-!                  notglobwarning2=.FALSE.
-!               endif
-!            endif
          endif
          if(dgtest.lt.dgmax) cycle loop4
          dgmax=dgtest
@@ -5111,16 +5074,9 @@
 !         write(*,*)'3Y Trying to extract constitution, ngg:'
 !         ny=-100
          if(btest(globaldata%status,GSOGRID)) then
-! The possibility to use the old grid tested
-!            call generate_grid(ifri,iphx(iph),ngg,nrel,xarr,&
-!                 garr,ny,yarr,gmax,ceq)
-!         else
-!            call generic_grid_generator(ifri,iphx(iph),ngg,nrel,&
-!                 xarr,garr,ny,yarr,gmax,pceq)
-!         endif
 ! we do not have ifri and iphx here
             call generate_grid(gpz-nggz,iphz,nggz,nrel,xarr,&
-                 garr,ny,yarr,gmax,ceq)
+                 garr,ny,yarr,gmax,pceq)
          else
             call generic_grid_generator(gpz-nggz,iphz,nggz,nrel,&
                  xarr,garr,ny,yarr,gmax,pceq)

@@ -394,6 +394,12 @@
       filename(len_trim(filename)+1:)='.ocu'
    endif
    lut=21
+!**********************************************************
+! IMPORTANT savefile
+! is a variable in gtp3.F90
+! which MUST BE CHANGED whenever there is a change in the unformatted
+! file layout
+!***********************************************************
    open(lut,file=filename,access='sequential',status='unknown',&
            form='unformatted',iostat=gx%bmperr,err=1000)
    id='This is a save file for OC version:    '
@@ -987,7 +993,7 @@
 117 continue
 ! LINKED LIST of phase_varres records stored from lokeq+lokvares
    lokhighcs=lokeq+displace+3
-   write(*,118)'3E highcs: ',eqnumber,highcs,csfree,lokhighcs
+!   write(*,118)'3E highcs: ',eqnumber,highcs,csfree,lokhighcs
 118 format(a,3i5,i10)
    iws(lokhighcs)=highcs
    lokvares=lokhighcs+1
@@ -1539,6 +1545,12 @@
 !   write(*,*)'3E opening file: ',trim(filename),' for unformatted read'
 !
    read(lin)id,version,comment,noofel,noofsp,noofph,nooftuples,last
+!**********************************************************
+! IMPORTANT savefile
+! is a variable in gtp3.F90
+! which MUST BE CHANGED whenever there is a change in the unformatted
+! file layout
+!***********************************************************
    if(version.ne.savefile) then
       write(*,11)id,version,savefile
 11     format('File not same version as program: ',A/a,' : ',a)
@@ -2285,7 +2297,7 @@
    endif
 ! link to first varres record stored here
    lokvares=iws(lokeq+displace+4)
-   write(*,*)'3E lokvares: ',lokvares,highcs,lokeq,displace+4
+!   write(*,*)'3E lokvares: ',lokvares,highcs,lokeq,displace+4
    eqdis=displace+5
 ! for equilibria 2 and higher phase_varees must be allocated!!
    if(eqnumber.gt.1) then
@@ -2881,8 +2893,9 @@
 !   write(*,*)'3E No segmentation error E'
 !------ tpfunction expressions and other lists
 !>>>>> 20: delete tpfuns
-!   write(*,*)'3E Delete TP funs, just deallocate??'
-   call delete_all_tpfuns
+!   write(*,*)'3E Delete TP funs, just deallocate??',freetpfun
+!   call delete_all_tpfuns
+   call tpfun_deallocate
 !   write(*,*)'3E Back from deleting all TP funs, this is fun!!'
 !------ tpfunction expressions and other lists
 !>>>>> 30: delete state variable functions
@@ -3304,6 +3317,8 @@
    newfun=0
    nfail=0
    nrefs=0
+! always is a dummy variable
+   always=0
    nooftypedefs=0
 ! nophase set false after reading a PHASE keyword, 
 ! expecting next keyword to be CONSTITUENT
@@ -5651,7 +5666,8 @@
 ! ignore error 4096 meaning "no such constituent" or "... in a sublattice"
 !            write(*,*)'readpdb entparerr: ',gx%bmperr,' >',&
 !                 funname(1:len_trim(funname))
-            if(gx%bmperr.eq.7778 .and. .not.silent) &
+!            if(gx%bmperr.eq.7778 .and. .not.silent) &
+            if(gx%bmperr.eq.4153 .and. .not.silent) &
                  write(*,*)'3E Error 7778 at line: ',nl
             gx%bmperr=0
 !         elseif(dodis.eq.1) then
