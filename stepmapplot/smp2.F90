@@ -5872,9 +5872,11 @@ CONTAINS
 !-------------------------------------------------------------------
 ! execute the GNUPLOT command file
     gnuplotline='gnuplot '//pfc(1:kkk)//' & '
-! Uncomment the following line for OS having gnuplot5 and comment the above line with gnuplotline='gnuplot '//pfc(1:kkk)//' & '
+! Uncomment the following line for OS having gnuplot5 and 
+! comment the above line with gnuplotline='gnuplot '//pfc(1:kkk)//' & '
 !  gnuplotline='gnuplot5 '//pfc(1:kkk)//' & '
-! Reason - Choose the gnuplot command as per the Operating System's existing command "gnuplot", "gnuplot5"etc..
+! Reason - Choose the gnuplot command as per the Operating System's 
+! existing command "gnuplot", "gnuplot5"etc..
 ! Or, give the path of the gnuplot file as described below:
 ! if gnuplot cannot be started with gnuplot give normal path ...
 !    gnuplotline='"c:\program files\gnuplot\bin\wgnuplot.exe" '//pfc(1:kkk)//' '
