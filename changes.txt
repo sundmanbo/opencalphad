@@ -13,9 +13,9 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
-2017.06.04 OC version 4.024: The main addition is a video how to
-install OC on Windows and Linux in the documentation directory.  This
-can also be found at https://www.youtube.com/watch?v=rsBDRJ-LYvI
+2017.06.04 OC version 4.024: Many small changes.  The main addition is
+a video how to install OC on Windows and Linux at:
+https://www.youtube.com/watch?v=rsBDRJ-LYvI
 
 2017.05.19 OC version 4.023: There was a severe memory leak as the
 memory used by the TP functions was not deallocated with the NEW
