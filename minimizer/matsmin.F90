@@ -1464,6 +1464,7 @@ CONTAINS
 ! to check if we are calculating a single almost stoichiometric phase ...
     integer iz,tcol,pcol,nophasechange,notagain
     double precision maxphasechange
+    double precision, allocatable, dimension(:) :: loopfact
     integer notf,dncol,iy,jy,iremsave,phasechangeok
     double precision, dimension(:), allocatable :: lastdeltaam
     logical vbug,stoikph
@@ -1517,21 +1518,29 @@ CONTAINS
 ! return here until converged or phase set change
 100 continue
     meqrec%noofits=meqrec%noofits+1
-    if(nophasechange.gt.100 .and. maxphasechange.lt.1.0E-10) then
+    if(nophasechange.gt.100) then
+       if(maxphasechange.lt.1.0E-10) then
 ! if we have not changed the set of stable phases for many iterations
 ! and the changes in phase amounts is small maybe we are calculationg an
 ! almost stoichiometric phase?  Changes in MU can be large!
-       if(stoikph .and. meqrec%nphase.gt.1) then
-          write(*,30)nophasechange
-30        format('Same set of phases for ',i3,' iterations and negligable',&
-               ' changes of amounts, '/'probably almost stoichiometric',&
-               ' phases. NOTE: potentials are uncertain.')
-          stoikph=.false.
+          if(stoikph .and. meqrec%nphase.gt.1) then
+             write(*,30)nophasechange
+30           format('Same set of phases for ',i3,' iterations and negligable',&
+                  ' changes of amounts, '/'probably almost stoichiometric',&
+                  ' phases. NOTE: potentials are uncertain.')
+!+ these lines temporarily skipped
+             stoikph=.false.
 ! if this happends during step/map give error message
-          if(inmap.eq.1) gx%bmperr=4398
+             if(inmap.eq.1) gx%bmperr=4398
+          endif
+          converged=0
+          goto 1000
+!       else
+! maybe use this to improve concergence??
+!          if(.not.allocated(loopfact)) then
+!             allocate(loopfact(meqrec%nrel))
+!          endif
        endif
-       converged=0
-       goto 1000
     endif
     nophasechange=nophasechange+1
 ! this is magic ....
@@ -1697,10 +1706,19 @@ CONTAINS
              cycle setmu
           endif
        endif
-       if(abs(svar(iz)-ceq%cmuval(ik)).gt.ceq%xconv) then
-          if(vbug) write(*,387)'Unconverged pot: ',iz,ik,svar(iz),&
-               ceq%cmuval(ik),abs(svar(iz)-ceq%cmuval(ik)),ceq%xconv
-387       format(a,2i3,2(1pe14.6),2(1pe12.4))
+!       if(abs(svar(iz)-ceq%cmuval(ik)).gt.ceq%xconv) then
+       if(abs(svar(iz)-ceq%cmuval(ik)).gt.abs(ceq%xconv*ceq%cmuval(ik))) then
+!          if(vbug) write(*,387)'Unconverged pot: ',iz,ik,&
+          if(nophasechange.gt.100) then
+! Attempt to improve convergence for a 15 component system ... failed
+!             xxx=0.25D0*(3.0D0*svar(iz)+1.0D0*ceq%cmuval(ik))
+!             write(*,387)'Uncnv pot: ',iz,ik,&
+!                  svar(iz),ceq%cmuval(ik),xxx,abs(svar(iz)-ceq%cmuval(ik)),&
+!                  abs(ceq%xconv*ceq%cmuval(ik))
+387          format(a,2i3,3(1pe14.5),2(1pe10.2))
+! take mean value ... DO NOT TRY THIS IF IT IS NOT ALMOST CONVERGED!!!
+!             svar(iz)=xxx
+          endif
           converged=7
        endif
        ceq%cmuval(ik)=svar(iz)
@@ -2384,6 +2402,11 @@ CONTAINS
 !--------------------------------------------------------------------
 !    write(*,*)'Iterations and convergence: ',meqrec%noofits,converged
 !--------------------------------------------------------------------
+! check convergence
+!    if(meqrec%noofits.gt.400) then
+!       write(*,778)'Test converged: ',meqrec%noofits,converged
+!778    format(a,2i4)
+!    endif
     if(vbug) write(*,*)'Convergence criteria: ',converged
 ! converged=1 or 2 means constituent fraction in metastable phase not converged
 !    write(*,*)'Convergence criteria: ',converged
@@ -7942,7 +7965,6 @@ CONTAINS
     call set_constitution(phr(jj)%iph,phr(jj)%ics,yarr,qq,ceq)
     if(gx%bmperr.ne.0) goto 1000
 !  >>>>>>>>>>>>>>>>>> for all phases <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-! check convergence
     meqrec%noofits=meqrec%noofits+1
     if(converged.gt.3) then
        if(meqrec%noofits.le.ceq%maxiter) goto 100

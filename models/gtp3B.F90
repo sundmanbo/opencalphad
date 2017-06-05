@@ -1028,7 +1028,7 @@
 !   call create_parrecords(lokph,nyttcs,nsl,nkk,maxcalcprop,iva,firsteq)
    call create_parrecords(lokph,nyttcs,nsl,nkk,maxcalcprop,iva,firsteq)
    if(gx%bmperr.ne.0) goto 1000
-!   write(*,*)'3B add_cs: ',nyttcs
+!   write(*,*)'3B added composition set: ',nyttcs,csfree
 ! add new tuple at the end and save tuple index
    tuple=nooftuples+1
 !   phasetuple(tuple)%phaseix=phases(iph)
@@ -1173,6 +1173,7 @@
 88    format(a,i2,2x,Z16,2x,10(1x,i3))
 ! if there is a disordered fraction set one must copy the fraction set record
 ! and add a new parrecords to this. lokcs1 is first composition set
+! do not forget to increment novarres and highcs
       disordered: if(btest(phlista(lokph)%status1,phmfs)) then
 ! copy the old fraction set record to the new
 !------------------------ does this work??? disfra has a lot of data
@@ -1199,7 +1200,9 @@
 !            write(kou,170)trim(eqlista(leq)%eqname),leq,lokcs1,nydis
 !170         format('3B New composition set in equilibrium ',a,i4,&
 !                 ' with lokcs and nydis index: ',2i4)
+! ??????????? but the disordered fraction set is empty??
          endif
+!         write(*,*)'3B disordered phase_varres: ',leq,nydis,csfree
          ndeq=>eqlista(leq)%phase_varres(nydis)
          ndeq%phlink=lokph
          ndeq%prefix=' '
@@ -1228,6 +1231,7 @@
 !      lokcs=phlista(lokph)%linktocs(jl)
 !      write(*,7)lokcs,firsteq%phase_varres(lokcs)%mmyfr
 !   enddo
+!   write(*,*)'3B value of csfree,highcs: ',csfree,highcs
    return
  end subroutine enter_composition_set
 
@@ -3895,10 +3899,11 @@
       write(*,*)'3B: not allowed enter equilibrium: ',name
       gx%bmperr=4153; goto 1000
    endif
+! if name is empty or has a non-alphabetical letter first generate a name ??
    name2=name
    call capson(name2)
-   if(ocv()) write(*,*)'3B In routine to enter equilibria: ',&
-        name,noofph,eqfree
+!   write(*,3)'3B In enter equilibria: ',name,noofph,eqfree,csfree,highcs
+3  format(a,6i5)
    if(.not.proper_symbol_name(name2,0)) then
 ! the name must start with a letter A-Z and contain letters, numbers and _
       gx%bmperr=4122
@@ -4776,7 +4781,7 @@
    integer ieq,ipv,jz,iz,jl,jk,novarres,oldeq
    logical okname
 !
-!   write(*,*)'In copy_equilibrium',len_trim(name)
+!   write(*,*)'In copy_equilibrium2',trim(name),eqfree
    nullify(neweq)
    if(.not.allowenter(3)) then
 !      write(*,*)'3B Not allowed enter a copy'
@@ -4848,12 +4853,12 @@
 ! do not copy comment but set it to blanks
    eqlista(ieq)%comment=' '
 ! component list and matrix, if second or higher equilibrium copy content
-!   write(*,*)'3B: entereq 1A: ',maxel,noofel
+!   write(*,*)'3B: copyeq 1A: ',maxel,noofel
    allocate(eqlista(ieq)%complist(noofel))
    allocate(eqlista(ieq)%compstoi(noofel,noofel))
    allocate(eqlista(ieq)%invcompstoi(noofel,noofel))
    allocate(eqlista(ieq)%cmuval(noofel))
-!   write(*,*)'3B: entereq 1B: ',noofel
+!   write(*,*)'3B: copyeq 1B: ',noofel
 ! careful here because FIRSTEQ has other dimensions than the other
    do jl=1,noofel
       eqlista(ieq)%complist(jl)=ceq%complist(jl)
@@ -4867,7 +4872,6 @@
 ! what about the weight?
    eqlista(ieq)%weight=ceq%weight
 !   write(*,*)'3B copyeq 1: ',ceq%weight,eqlista(ieq)%weight
-!   write(*,*)'3B: entereq 2: ',noofel
    do jl=1,noofel
       eqlista(ieq)%complist(jl)%splink=eqlista(oldeq)%complist(jl)%splink
       eqlista(ieq)%complist(jl)%phlink=firsteq%complist(jl)%phlink
@@ -4895,10 +4899,12 @@
 ! For phase lokph the index to phase_varres is in phlista(lokph)%linktocs(ics)
 ! for ieq>1 allocate the current number of phase_varres records plus 10
 ! for extra composition sets added later
+! 170524: It seems that phase_varres for disordered fraction sets are not
+!          included in novarres in novarres or highcs!!
    novarres=highcs
 ! the next line should be deleted when highcs implemented
    novarres=csfree-1
-!   write(*,*)'3B: entereq 3: ',highcs,novarres
+!   write(*,*)'3B: copyeq 3: ',highcs,novarres
 ! BEWARE: allocation: calculating with one phase with 8 composition sets
 ! and disordered fractions sets !!!
    iz=max(noofph,novarres)
@@ -4917,10 +4923,17 @@
 ! the disordered with 8 y-fractions.  
 ! A simple dimensioning problem: 1 phase, 8 compsets, disordered fracset
 ! requires 17 phase_varres.  Before the "max" above I had dimensioned for 2
+! BEWARE: I am not sure novarres is correct ...
+!   copypv: do ipv=1,min(novarres+3,size(ceq%phase_varres))
    copypv: do ipv=1,novarres
       eqlista(ieq)%phase_varres(ipv)=eqlista(oldeq)%phase_varres(ipv)
 ! in matsmin nprop seemed suddenly to be zero in copied equilibria ....
 !      write(*,*)'3B copyeq 2: ',ieq,ipv,eqlista(ieq)%phase_varres(ipv)%nprop
+! Bug 170524 ... disordered phase_varres had no 
+!      write(*,833)'3B copyeq: ',oldeq,ipv,novarres,&
+!           eqlista(oldeq)%phase_varres(ipv)%disfra%varreslink,&
+!           eqlista(ieq)%phase_varres(ipv)%disfra%varreslink
+833 format(a,2i3,i5,2i3,10i5)
    enddo copypv
 900 continue
 !   write(*,*)'3B To copy conditions:'
@@ -4972,7 +4985,7 @@
 1000 continue
 !   write(*,*)'3B exit copy_equilibrium'
    return
- end subroutine copy_equilibrium2
+ end subroutine copy_equilibrium2 !csfree
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 

@@ -175,6 +175,10 @@
       endif
    endif
 ! we must calculate the function
+!   write(*,35)'3Z new TPval:',lrot,tpfuns(lrot)%forcenewcalc,&
+!        tpres(lrot)%forcenewcalc,&
+!        abs(tpres(lrot)%tpused(1)-tpval(1)),abs(tpres(lrot)%tpused(2)-tpval(2))
+35 format(a,3i5,2(1pe12.4))
    nr=tpfuns(lrot)%noofranges
    if(nr.eq.1) then
       exprot=>tpfuns(lrot)%funlinks(1)
@@ -201,13 +205,14 @@
 901   format('Error ',i5,' evaluating tp function: ',a)
       goto 1000
    endif
-   tpres(lrot)%tpused(1)=tpval(1)
-   tpres(lrot)%tpused(2)=tpval(2)
 990 continue
 !   new: do i=1,6
 !      tpres(lrot)%results(i)=result(i)
 !   enddo new
    tpres(lrot)%results=result
+   tpres(lrot)%forcenewcalc=tpfuns(lrot)%forcenewcalc
+   tpres(lrot)%tpused(1)=tpval(1)
+   tpres(lrot)%tpused(2)=tpval(2)
 22  format(A,i3,4(1PE11.2))
 1000 continue
    return

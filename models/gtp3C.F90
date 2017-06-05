@@ -3954,7 +3954,7 @@
 
 !\begin{verbatim}
  subroutine save_datformat(filename,kod,ceq)
-! writes a SOLGASMIX DAT format file. kod is not used (yet)
+! writes a SOLGASMIX DAT format file. kod is not yet finished
    implicit none
    integer kod
    character filename*(*)
@@ -3963,16 +3963,20 @@
    integer ntpf,last,i1,i2,i3,npows,lut,ip,jp,nstoi,lokph,isp,f1,nphstoi,nphmix
    integer, dimension(:), allocatable :: ncon,phmix,phstoi,estoi
    integer nelectrons,lokcs,nsubl,isubl,mphstoi,k1,lcase,mult(10),check
-   logical logok,nogas,ionliq,wildcard,iliqwild
+   integer cation,anion,firstcation,ilevel,intconst(9),intconstx(9),ideg
+   logical logok,nogas,ionliq,wildcard,iliqwild,excessparam
    character ch1*1,line*16,text*512,powers*80,model*24,constext*80,elsym*2
    type(gtp_tpfun2dat), dimension(:), allocatable :: tpfc
-   type(gtp_endmember), pointer :: endmember
+   type(gtp_endmember), pointer :: endmember,nextcation,samecation
    double precision, allocatable, dimension(:) :: constcomp,constcompiliq
-   double precision valency(9),ccc
+   double precision valency(9),ccc,cationval
 ! we must probably create a stack
-!   type(gtp_interaction), dimension(5), pointer :: nint
+   type intstack
+      type(gtp_interaction), pointer :: intlink
+   end type intstack
+   type(intstack), dimension(5) :: saveint
+   type(gtp_interaction), pointer :: intparam
    type(gtp_phase_varres), pointer :: varres
-   type(gtp_interaction), pointer :: hint
    type(gtp_property), pointer :: property
    inquire(file=filename,exist=logok)
    if(logok) then
@@ -4224,66 +4228,150 @@
          endif
       endif
 ! UNFINISHED: Magnetism? A suffix M ...
-      write(lut,200)phlista(lokph)%name,trim(model)
+      write(lut,201)phlista(lokph)%name,trim(model)
 ! According to Ted
-200   format(a,5x,'= PHASE ='/a)
+201   format(a,5x,'= MIXTURE PHASE ='/a)
 !-------------------- we must repeat this endmember loop for interactions
       check=0
       endmember=>phlista(lokph)%ordered
-! endmember parameters
-      do while(associated(endmember))
+      if(associated(phlista(lokph)%disordered)) then
+! skip writing ordered part 
+         write(*,*)'BEWARE skipping ordered part of :',trim(phlista(lokph)%name)
+         endmember=>phlista(lokph)%disordered
+      endif
+! endmember parameters, when they are done loop for excess parameters
+      excessparam=.FALSE.
+! when all endmembers written then set excesspara=.true. and jump back here
+207   continue
+      if(ionliq) then
+         nextcation=>endmember%nextem
+         cation=endmember%fraclinks(1,1)
+         firstcation=cation
+         iliqwild=.false.
+         if(firstcation.eq.-99) iliqwild=.true.
+      endif
+! i1 is the index of this phase of this phase in the SOLGASMIX order
+      allend: do while(associated(endmember))
 ! we have to generate two lines by extracting the endmember and constituents
+! we may have to do this loop several times for the same phase to list
+! the endmembers in correct order, at least for the ionic liquid phase
+! For the ionic liquid all endmembers with the same cation must come together
          constcomp=zero
          if(ionliq) constcompiliq=zero
          constext=' '
          text=' '
          ip=1
-!         jp=1
          valency=zero
-         iliqwild=.false.
          wildcard=.false.
-         sloop: do isubl=1,nsubl
+         if(.not.ionliq) then
+!--------------------------------------------------------------------
+! for all other mixtures except ionic liquid ... note there are some tests
+! of ionliq here as this loop originally was also for ionic liquids ...
+            sloop1: do isubl=1,nsubl
 ! this is the loop for the constituents in sublattices
-            isp=endmember%fraclinks(isubl,1)
-            if(isp.eq.-99) then
+               isp=endmember%fraclinks(isubl,1)
+               intconst(isubl)=isp
+               if(isp.eq.-99) then
 ! this means wildcard in this sublattice
-               wildcard=.true.
-               constext(ip:)='*:'
-               ip=ip+2
-               if(ionliq .and. wildcard .and. isubl.eq.1) then
-                  iliqwild=.true.
-                  wildcard=.false.
-               endif
+                  wildcard=.true.
+                  constext(ip:)='*:'
+                  ip=ip+2
+!                  if(ionliq .and. wildcard .and. isubl.eq.1) then
+!                     iliqwild=.true.
+!                     wildcard=.false.
+!                  endif
 ! Hm we should add stoichiometric factors for all constituents in this subl
 ! For ionliq this means neutrals on sublattice 2
 !>> QUESTION >> the DAT format repeats all neutrals for all cations
 !>>>>>>>>>>>>>> with the stoichiometry of the cation !!!
-               if(ionliq) valency(1)=one
-               cycle sloop
-            endif
-            isp=phlista(lokph)%constitlist(isp)
-            if(btest(splista(isp)%status,SPVA)) then
-!               write(*,*)'3C vacancy'
-               valency(isubl)=zero
+!                  if(ionliq) valency(1)=one
+                  cycle sloop1
+               endif
+               isp=phlista(lokph)%constitlist(isp)
+               if(btest(splista(isp)%status,SPVA)) then
+                  valency(isubl)=zero
 ! according to the example I have the stoichiometry should be 1 for (cation:VA)
-!               if(ionliq) valency(2)=-valency(1)
-               if(ionliq) valency(2)=-one
-            else
-               valency(isubl)=splista(isp)%charge
-               if(abs(valency(isubl)).lt.1.0D-6) valency(isubl)=zero
-            endif
-            if(ionliq .and. isubl.eq.2) then
-               do i3=1,noofel
-                  constcomp(i3)=-constcomp(i3)*valency(2)
-               enddo
-            elseif(estoi(i1).lt.0) then
+                  if(ionliq) valency(2)=-one
+               else
+                  valency(isubl)=splista(isp)%charge
+                  if(abs(valency(isubl)).lt.1.0D-6) valency(isubl)=zero
+               endif
+               if(ionliq .and. isubl.eq.2) then
+                  do i3=1,noofel
+                     constcomp(i3)=-constcomp(i3)*valency(2)
+                  enddo
+               elseif(estoi(i1).lt.0) then
 ! charged sublattice phase
-               constcomp(-estoi(i1))=constcomp(-estoi(i1))+&
-                    valency(isubl)*varres%sites(isubl)
+                  constcomp(-estoi(i1))=constcomp(-estoi(i1))+&
+                       valency(isubl)*varres%sites(isubl)
 !               write(*,901)'3C e-stoik:',isubl,-estoi(i1),&
 !                    valency(isubl),varres%sites(isubl),constcomp(-estoi(i1))
-901            format(a,2i3,3F10.2)
+901               format(a,2i3,3F10.2)
+               endif
+               call lower_case_species_name(constext,ip,isp)
+               constext(ip:ip+1)=':'
+               ip=ip+1
+               do i2=1,splista(isp)%noofel
+! this is a loop for the components of the endmember constituents
+                  i3=ellista(splista(isp)%ellinks(i2))%alphaindex
+                  if(i3.eq.0) then
+! skip vacancies
+                     continue
+                  elseif(ionliq) then
+                     if(isubl.eq.1) then
+                        constcomp(i3)=constcomp(i3)+&
+                             splista(isp)%stoichiometry(i2)
+                     else
+                        constcomp(i3)=constcomp(i3)+&
+                             splista(isp)%stoichiometry(i2)*valency(1)
+                     endif
+                  else
+                     constcomp(i3)=constcomp(i3)+&
+                          splista(isp)%stoichiometry(i2)*varres%sites(isubl)
+                  endif
+               enddo
+            enddo sloop1
+         else
+!--------------------------------------------------------------------
+! This is exclusivly for inonic liquids, loop second sublattice first ...
+! this is the loop for the constituents in sublattices
+! Hm we should add stoichiometric factors for all constituents in this subl
+            if(.not.iliqwild) then
+               isp=phlista(lokph)%constitlist(cation)
+               intconst(1)=cation
+               valency(1)=splista(isp)%charge
+               cationval=valency(1)
+               do i2=1,splista(isp)%noofel
+! this is a loop for the components of the endmember constituents
+                  i3=ellista(splista(isp)%ellinks(i2))%alphaindex
+                  if(i3.eq.0) then
+! skip vacancies
+                     continue
+                  else
+                     constcomp(i3)=constcomp(i3)+&
+                          splista(isp)%stoichiometry(i2)
+                  endif
+               enddo
+               call lower_case_species_name(constext,ip,isp)
+               constext(ip:ip+1)=':'
+               ip=ip+1
+            else
+               valency(1)=one
             endif
+            anion=endmember%fraclinks(2,1)
+            intconst(2)=anion
+            isp=phlista(lokph)%constitlist(anion)
+            if(btest(splista(isp)%status,SPVA)) then
+! according to the example I have the stoichiometry should be 1 for (cation:VA)
+               valency(2)=-one
+            else
+               valency(2)=splista(isp)%charge
+               if(abs(valency(2)).lt.1.0D-6) valency(2)=zero
+            endif
+! This is values in the stoichiometry line ....
+            do i3=1,noofel
+               constcomp(i3)=-constcomp(i3)*valency(2)
+            enddo
             call lower_case_species_name(constext,ip,isp)
             constext(ip:ip+1)=':'
             ip=ip+1
@@ -4293,77 +4381,144 @@
                if(i3.eq.0) then
 ! skip vacancies
                   continue
-               elseif(ionliq) then
-                  if(isubl.eq.1) then
-                     constcomp(i3)=constcomp(i3)+splista(isp)%stoichiometry(i2)
-                  else
-                     constcomp(i3)=constcomp(i3)+&
-                          splista(isp)%stoichiometry(i2)*valency(1)
-                  endif
                else
-                  constcomp(i3)=constcomp(i3)+splista(isp)%stoichiometry(i2)*&
-                       varres%sites(isubl)
-!                  if(estoi(i1).lt.0) then
-!                     write(*,901)'3C c-stoik:',isubl,i3,&
-!                          splista(isp)%stoichiometry(i2),varres%sites(isubl),&
-!                          constcomp(i3)
-!                  endif
+                  constcomp(i3)=constcomp(i3)+&
+                       splista(isp)%stoichiometry(i2)*valency(1)
                endif
             enddo
-         enddo sloop
-         if(wildcard) then
-            write(*,*)'3C Beware! Parameter with wildcard: ',&
-                 trim(phlista(lokph)%name),',',trim(constext)
+!            write(*,907)'3C Ionliq endmember: ',constext(1:ip-2),&
+!                 (constcomp(i3),i3=1,noofel)
+!907         format(a,a/10F6.3)
+!--------------------------------------------------------------------
          endif
+         endorexcess: if(excessparam) then
+! we can have several excess parameters for each endmember
+            intparam=>endmember%intpointer
+            ilevel=0
+            do while(associated(intparam))
+! we must save intparam to be able to follow nextlink
+               ilevel=ilevel+1
+               saveint(ilevel)%intlink=>intparam%nextlink
+               isp=intparam%fraclink(1)
+               intconst(nsubl+ilevel)=isp
+               isp=phlista(lokph)%constitlist(isp)
+               property=>intparam%propointer
+               propint: if(associated(property)) then
+                  write(*,908)'3C interaction parameter',ilevel,&
+                       constext(1:ip-2),intparam%sublattice(1),&
+                       trim(splista(isp)%symbol),property%degree,&
+                       (intconst(k1),k1=1,nsubl+ilevel)
+908               format(a,i2,2x,a,i4,2x,a,2x,i2,4x,10i4)
+! write the identification of the excess parameter ....
+                  if(property%proptype.ne.1) then
+                     write(*,*)'3C interaction property not G!'
+                     exit propint
+                  endif
+! The list of constituents (in intconst) must be in ascending order
+                  call intsort(intconst,nsubl+ilevel,intconstx)
+! write interaction level (2=binary, 3=ternary ...)
+! Then constituent indices in acending order (maybe rearrange intconst)
+! finally the degree (number of Redlich-Kister parameters)
+                  write(lut,208)ilevel+1,(intconstx(k1),k1=1,nsubl+ilevel),&
+                       property%degree+1
+208               format(10i5)
+! write the expression of the excess parameter .... (Redlich-Kister ??)
+                  do ideg=0,property%degree
+                     f1=property%degreelink(ideg)
+                     call list_tpascoef(lut,text,f1,npows,tpfc)
+                  enddo
+               endif propint
+! Take link to higher
+               intparam=>intparam%highlink
+               do while(ilevel.gt.0 .and. .not.associated(intparam))
+! go down the saved links
+                  intparam=>saveint(ilevel)%intlink
+                  ilevel=ilevel-1
+               enddo
+            enddo
+         else
+! here we are writing endmembers, we have generated the endmember symbol,
+! write its parameter expression
+            if(wildcard) then
+               write(*,*)'3C Beware! Parameter with wildcard: ',&
+                    trim(phlista(lokph)%name),',',trim(constext)
+            endif
 ! for the parameters follow the property link
-         property=>endmember%propointer
-         if(associated(property)) then
+            property=>endmember%propointer
+            propem: if(associated(property)) then
 ! some endmembers may not have a property record!!
+               if(property%proptype.ne.1) then
+                  write(*,*)'3C endmember property is not G!'
+                  exit propem
+               endif
 ! this line should be written together with the type of coefficients and ranges
 ! it may require several lines
-            write(text,210)constcomp
-!210         format(50F7.1)
+               write(text,210)constcomp
 ! according to Ted
-210         format(50F6.1)
+210            format(50F6.1)
 ! what about several properties??
-            f1=property%degreelink(0)
+               f1=property%degreelink(0)
 !            write(*,*)'TP function pointer is ',f1
-            if(f1.gt.0) then
-               if(ionliq .and. iliqwild) then
-!                  write(lut,207)
-!207               format(' *** A neutral should be repeated for each cation',&
-!                       ' multipled with its valency')
-                  do k1=1,phlista(lokph)%nooffr(1)
-! find the charge of all cations
-                     isp=phlista(lokph)%constitlist(k1)
-                     ccc=splista(isp)%charge
-! write the endmember without the first *: and final : with factor ccc
-                     write(lut,211)constext(3:ip-2),ccc
-!211                  format(1x,a,40x,' * ',F12.2)
+               if(f1.gt.0) then
+                  if(ionliq .and. iliqwild) then
+                     write(lut,211)constext(1:ip-2),ccc
 ! According to Ted
 211                  format(a,40x,' * ',F12.2)
 ! use one of the "extra" coefficient function!
                      jp=ntpf+1
                      call tpmult(f1,jp,ccc,tpfc)
                      call list_tpascoef(lut,text,jp,npows,tpfc)
-                  enddo
-               else
-! write the endmember without the final :
-!                  write(lut,100)constext(1:ip-2)
+                  else
 ! according to Ted
-                  write(lut,99)constext(1:ip-2)
-                  call list_tpascoef(lut,text,f1,npows,tpfc)
+                     write(lut,99)constext(1:ip-2)
+                     call list_tpascoef(lut,text,f1,npows,tpfc)
+                  endif
+               else
+                  write(*,*)'3 C missing function for endmember property',&
+                       constext(3:ip-2)
+               endif
+            endif propem
+         endif endorexcess
+! take next endmember
+         if(.not.ionliq) then
+            endmember=>endmember%nextem
+         else
+! find next endmember with the same cation, 
+! if none set endmember=>nextcation
+! if nextcation has same cation as firstcation we have finished!
+240         continue
+            iliqwild=.false.
+!            write(*,241)'ionliq done:   ',firstcation,cation,&
+!                 endmember%fraclinks(1,1),endmember%fraclinks(2,1)
+            endmember=>endmember%nextem
+            if(associated(endmember)) then
+!               write(*,241)'ionliq ass:    ',firstcation,cation,&
+!                    endmember%fraclinks(1,1),endmember%fraclinks(2,1)
+241            format(a,2i3,2x,2i3)
+               if(endmember%fraclinks(1,1).eq.-99) then
+                  iliqwild=.true.
+! ccc  is the valency of the cation used to multiply the neutral parameter
+                  ccc=cationval
+               elseif(endmember%fraclinks(1,1).ne.cation) then
+                  goto 240
                endif
             else
-               write(*,*)'3 C missing function for endmember property',&
-                    constext(3:ip-2)
+               endmember=>nextcation
+               nextcation=>nextcation%nextem
+               cation=endmember%fraclinks(1,1)
+!               write(*,241)'ionliq notaass: ',firstcation,cation,&
+!                    endmember%fraclinks(1,1),endmember%fraclinks(2,1)
+! we have looped through all cations
+               if(cation.eq.firstcation) exit allend
+! there were just one cation but some neutrals (already listed)
+               if(endmember%fraclinks(1,1).eq.-99) exit allend
             endif
          endif
-         endmember=>endmember%nextem
-      enddo
+      enddo allend
 ! ------------------- end of endmembers, constituents and excess parameters ??
       if(model(1:4).eq.'IDMX') cycle phases1
-! For sublattice phases we write number of sublattices and sites
+      if(excessparam) goto 297
+! After endmembers for sublattice phases write number of sublattices and sites
       if(model(1:4).eq.'SUBL') then
          write(lut,250)nsubl
          write(lut,260)(ceq%phase_varres(lokcs)%sites(isubl),isubl=1,nsubl)
@@ -4483,10 +4638,20 @@
             if(len_trim(text(isp:)).gt.0) write(lut,99)trim(text(isp:))
          enddo
       endif
+!...................... repeat loop for excess parameters
+297   continue
+      if(.not.excessparam) then
 ! repeat the endmember loop again for interaction parameters (and magnetism??)
 ! I still have to figure out how to reference interacting constituents
-! for the moment just terminate with a line starting with 0
-      write(*,*)'3C NO EXCESS PARAMETER OUTPUT'
+!         write(*,*)'3C looking for excess parameters'
+         excessparam=.true.
+         endmember=>phlista(lokph)%ordered
+         if(associated(phlista(lokph)%disordered)) then
+            endmember=>phlista(lokph)%disordered
+         endif
+         goto 207
+      endif
+! terminate the excess parameters for this phase with a line starting with 0
       write(lut,300)
 300   format(' 0')
    enddo phases1
@@ -4507,7 +4672,7 @@
       ionliq=.false.
       nsubl=phlista(lokph)%noofsubl
       write(lut,500)phlista(lokph)%name
-500   format(1x,a,5x,20('='),' compound')
+500   format(1x,a,25x,'= COMPOUND PHASE =')
 ! there is just one endmember!!
       endmember=>phlista(lokph)%ordered
       constext=' '
@@ -4579,15 +4744,47 @@
    enddo
 !
 900 continue
-   write(*,*)' *** WARNING: DAT format not fully implemented'
+   write(*,*)'3C written data for ',noofph,' compounds'
 ! 
 1000 continue
+! Finished SOLGASMIX outpur
    if(allocated(tpfc)) deallocate(tpfc)
    write(*,1010)trim(filename)
-1010 format(/'Output finished on ',a)
+1010 format('3C Output finished on ',a/)
    close(lut)
    return
  end subroutine save_datformat
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
+ subroutine intsort(intc,nint,intx)
+! This is just another stupid sorting subroutine   
+   implicit none
+   integer intc(*),intx(*),nint
+!\end{verbatim}
+   integer byte,jj
+   if(nint.lt.2) then
+      write(*,*)'3C intsort called with too few constituents',nint
+      stop
+   endif
+   do byte=1,nint
+      intx(byte)=intc(byte)
+   enddo
+   do while(byte.gt.0)
+! values in intx are never zero
+      byte=0
+      do jj=2,nint
+         if(intx(jj-1).gt.intx(jj)) then
+            byte=intx(jj)
+            intx(jj-1)=intx(jj)
+            intx(jj)=byte
+         endif
+      enddo
+   enddo
+1000 continue
+   return
+ end subroutine intsort
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 

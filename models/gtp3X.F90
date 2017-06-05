@@ -280,11 +280,11 @@
 ! if phsubo set skip subtracting the ordered part as disordered, just add
                   goto 106
                endif
-! the phase can totally disorder, disordered skip ordered part
+! the phase can totally disorder, if disordered skip ordered part
 ! the CSORDER bit set by calc_disfrac called from set_constitution
                if(btest(phmain%status2,CSORDER)) then
 ! the phase is ordered, we have to calculate this part twice
-!                  write(*,*)'3X Setting nevetwice false'
+!                  write(*,*)'3X Setting nevertwice false'
                   nevertwice=.false.
 ! independent if ordered or disordered always calculate first fraction set
                else
@@ -3268,11 +3268,12 @@
    double precision xxx
 ! copy fractions, loop through all ordered sublattices in phvar
 ! and store fraction from lokdis
-!   write(*,*)'3X dis2: 1'
+!   write(*,*)'3X dis2: 1',lokdcs
    kk=0
 ! this was never assigned!! BOS 16.11.04
    lokdcs=disrec%varreslink
-!   write(*,*)'3X lokdcs: ',lokdcs,allocated(ceq%phase_varres(lokdcs)%yfr)
+!   write(*,*)'3X lokdcs: ',lokdcs,ceq%eqno,&
+!        allocated(ceq%phase_varres(lokdcs)%yfr)
 ! here copy: 
 ! y(ord,1,1)=y(dis,1); y(ord,1,2)=y(dis,2); y(ord,1,3)=y(dis,3); 
 ! y(ord,2,1)=y(dis,1); y(ord,2,2)=y(dis,2); y(ord,2,3)=y(dis,3); 

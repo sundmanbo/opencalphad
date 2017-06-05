@@ -1125,7 +1125,7 @@ contains
           if(gx%bmperr.ne.0) goto 990
 ! debug output
 !          write(*,2101)totam,(xknown(j1),j1=1,noel())
-!2101      format('N&x: ',F6.3,9F8.5)
+!2101      format('UI N&x: ',F6.3,9F8.5)
 ! generate grid and find the phases and constitutions for the minimum.
 ! Note: global_gridmin calculates for total 1 mole of atoms, not totam
 !          call global_gridmin(1,ceq%tpval,totam,xknown,nv,iphl,icsl,&

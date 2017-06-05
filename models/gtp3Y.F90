@@ -1161,7 +1161,7 @@
 !------------------------------------------------------------------
    logical gas,dense,verydense,gles,trace
 ! handle special phases like ionic crystals, ionic liquids and ordere/disorder
-!   write(*,*)'3Y in generic_grid_generator'
+!   write(*,*)'3Y in generic_grid_generator',iph
    gas=.FALSE.
 ! to have some output
 !   if(mode.gt.0 .and. ny.eq.-100) then
@@ -1296,8 +1296,8 @@
       goto 800
    endif
 !-----------------------
-!   write(*,*)'3Y grid1: ',nend,dense
    gles=.not.dense
+!   write(*,*)'3Y grid1: ',nend,mode,dense,gles
    iiloop: do ii=1,nend
       ijs=1
       nendj=nend
@@ -1305,6 +1305,7 @@
          nendj=ii
          ijs=ii
       endif
+!      write(*,*)'3Y ii:',ii,ijs,nendj
       ijloop: do ij=ijs,nendj
          iks=1
          nendk=nend
@@ -1353,7 +1354,7 @@
                              iph,gx%bmperr
                         goto 1000
                      endif
-!                     write(*,23)'3Y imloop1: ',ng,ii,ij,ik,il,im,garr(ng),yfra
+!                     write(*,23)'3Y imloop2: ',ng,ii,ij,ik,il,im,garr(ng),yfra
                   elseif(mode.eq.ng) then
 ! when mode>0 we just want to know the constituent fractions
                      goto 900
@@ -4797,7 +4798,7 @@
 !      call generate_grid(mode,iph,ign,nrel,xarr,garr,ny,yarr,gmax,ceq)
       call generic_grid_generator(mode,iph,ign,nrel,xarr,garr,ny,yarr,gmax,ceq)
       if(gx%bmperr.ne.0) goto 1000
-!      write(*,451)(yarr(i),i=1,ny)
+      write(*,451)(yarr(i),i=1,ny)
 451   format('3Y fractions: ',6(F10.6))
       call set_constitution(iph,1,yarr,qq,ceq)
       if(gx%bmperr.ne.0) goto 1000
@@ -5030,12 +5031,17 @@
 ! if the phase is stoichiometric and stable this is a rounding off problem
 ! find the phase record using the phase tuple
          lokcs=phasetuple(iph)%lokvares
-         if(pceq%phase_varres(lokcs)%phstate.ge.PHENTSTAB) then
+         nz=size(pceq%phase_varres(lokcs)%sites)-&
+              size(pceq%phase_varres(lokcs)%yfr)
+         if(nz.eq.0) then
+            if(pceq%phase_varres(lokcs)%phstate.ge.PHENTSTAB) cycle loop4
 ! if number of constituent fractions equal to sublattice the composition is fix
-            nz=size(pceq%phase_varres(lokcs)%sites)-&
-                 size(pceq%phase_varres(lokcs)%yfr)
-            if(nz.eq.0) cycle loop4
+! If this is a test at a node point we may have an allotropic phase whicj is
+! stable, then the driving force should be small ... check if dgm is very small
+            write(*,*)'3Y DGM: ',pceq%phase_varres(lokcs)%dgm,pceq%tpval(1)
+            if(pceq%phase_varres(lokcs)%dgm.lt.2.0D-1) cycle loop4
          endif
+! This phase should be stable, maybe there are others?
          if(dgtest.lt.dgmax) cycle loop4
          dgmax=dgtest
 ! This gridpoint is the currently lowest below the current G plane
@@ -5096,10 +5102,10 @@
 ! but we will not try to recalculate
          if(notglobwarning1) then
 ! write this once only
-            write(kou,87)trim(phlista(phases(iphz))%name),&
+            write(kou,87)trim(phlista(phases(iphz))%name),pceq%tpval(1),&
                  (xarr(ngg,gpz),ngg=1,nrel)
-87          format(/' *** Equilibrium not global, phase ',a,&
-                 ' is stable with mole fractions:'/(2x,14F6.3))
+87          format(/' *** Equilibrium not global, ',a,&
+                 ' is stable at T=',F8.2,', mole fractions:'/(1x,13F6.3))
             notglobwarning1=.FALSE.
          endif
       endif addornot

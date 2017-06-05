@@ -70,7 +70,7 @@ set c t=2000
 c e
 l,,,,
 
-@$ Now liquid is stable and G=-127520 J
+@$ Now liquid is stable and G=-127.518 kJ
 @$ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-
 @&
 @$ set condition on H and remove condition on T

@@ -1,13 +1,8 @@
 ! Data structures and routines for step/map/plot (using gnuplot)
 !
-! Modifications:
-! For step there are 3 initial short steps after phase change
-! ?? Conditions saved in node points (not fix phase but axis values)
-! ?? Conditions saved in line equilibria
-!
 MODULE ocsmp
 !
-! Copyright 2012-2016, Bo Sundman, France
+! Copyright 2012-2017, Bo Sundman, France
 !
 !    This program is free software; you can redistribute it and/or modify
 !    it under the terms of the GNU General Public License as published by
@@ -653,15 +648,20 @@ CONTAINS
        goto 300
     endif
 !------------------------------------------------------------
+379 continue
     if(irem.gt.0 .and. iadd.gt.0) then
+! We can also have a stoichiometic phase with ALLOTROPIC transformation
+! which will change form one to another at a fix T
+       if(allotropes(irem,iadd,ceq)) then
+          irem=0
+          goto 379
+       endif
 ! if there is phase which wants to appear and another disappear then
 ! first check if they are the composition sets of the same phase
 ! calculate with half the step 5 times. If axvalok=0 no previous axis value
 ! BUG: Problems here for map5.OCM, when matsmin compiled with -O2
 ! two extra composition sets of BCC and LIQUID wanted to appear.
 !  Will lok at that later ...
-! We can also have a stoichiometic phase with ALLOTROPIC transformation
-! which will change form one to another at a fix T
        if(onetime) then
           write(*,22)'SMP: phases appear and disappear at same time: ',&
                iadd,irem,phasetuple(iadd)%lokph,phasetuple(irem)%lokph
@@ -849,7 +849,7 @@ CONTAINS
     endif
     return
   end subroutine map_setup
-
+  
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
