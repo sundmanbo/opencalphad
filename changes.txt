@@ -13,6 +13,13 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2017.06.20 OC version 4.025: Refined the check of external charge
+balance.  Previously phases like (La+3)2(O-2)3 had the external change
+balance bit set which sometimes caused "phase matrix ill-conditioned"
+due to round off errors.  Phases which cannot be electrically neutral
+due to the selection of elements, like (Cs+2)2(O-2)3 are automatically
+suspended when read from the database.
+
 2017.06.04 OC version 4.024: Many small changes.  The main addition is
 a video how to install OC on Windows and Linux at:
 https://www.youtube.com/watch?v=rsBDRJ-LYvI

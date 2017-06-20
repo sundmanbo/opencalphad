@@ -160,6 +160,13 @@ MODULE liboceq
   end TYPE saveddgdy
 !\end{verbatim}
 !
+! Added for debugging converge problems
+TYPE meqdebug
+   integer mconverged,nvs,typ(10)
+   integer :: flag=0
+   double precision val(10),dif(10)
+end type meqdebug
+type(meqdebug) :: cerr
 !--------------------------------------------------------------
 !
 ! IMPORTANT
@@ -171,7 +178,7 @@ MODULE liboceq
 ! NOTE: abnorm(1) and abnorm(2) are set by call to set_constitution
 !
 CONTAINS
-  
+
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
@@ -1518,23 +1525,29 @@ CONTAINS
 ! return here until converged or phase set change
 100 continue
     meqrec%noofits=meqrec%noofits+1
+    cerr%flag=0
+! nonzero flag means error output below
+!    cerr%flag=1
     if(nophasechange.gt.100) then
        if(maxphasechange.lt.1.0E-10) then
 ! if we have not changed the set of stable phases for many iterations
 ! and the changes in phase amounts is small maybe we are calculationg an
 ! almost stoichiometric phase?  Changes in MU can be large!
           if(stoikph .and. meqrec%nphase.gt.1) then
-             write(*,30)nophasechange
-30           format('Same set of phases for ',i3,' iterations and negligable',&
-                  ' changes of amounts, '/'probably almost stoichiometric',&
-                  ' phases. NOTE: potentials are uncertain.')
+             write(*,30)nophasechange,converged,cerr%nvs
+30           format('Slow converge its ',i3,', type',2i3)
+             if(cerr%flag.ne.0) then
+                write(*,31)(cerr%typ(iz),cerr%val(iz),cerr%dif(iz),&
+                     iz=1,cerr%nvs)
+31              format('MM 31: ',3(i3,1pe12.4,e10.2))
+             endif
 !+ these lines temporarily skipped
              stoikph=.false.
 ! if this happends during step/map give error message
              if(inmap.eq.1) gx%bmperr=4398
           endif
-          converged=0
-          goto 1000
+!+          converged=0
+!+          goto 1000
 !       else
 ! maybe use this to improve concergence??
 !          if(.not.allocated(loopfact)) then
@@ -1543,6 +1556,8 @@ CONTAINS
        endif
     endif
     nophasechange=nophasechange+1
+    cerr%nvs=0
+    cerr%mconverged=0
 ! this is magic ....
 !    nmagic=nmagic+1
 !    if(mod(nmagic,5).eq.0) ymagic=0.5*ymagic
@@ -1720,6 +1735,7 @@ CONTAINS
 !             svar(iz)=xxx
           endif
           converged=7
+          cerr%mconverged=converged
        endif
        ceq%cmuval(ik)=svar(iz)
 ! svar(iz) is mu/RT, chemput is mu
@@ -1738,6 +1754,7 @@ CONTAINS
 ! but causes problem calculating phase diagrams ... inmap=1 for step/map
       if(inmap.eq.0 .and. abs(svar(ioff)).gt.1.0D1*ceq%xconv) then
           converged=8
+          cerr%mconverged=converged
        endif
 ! limit changes in T to +/-half its current value
        if(abs(svar(ioff)/ceq%tpval(1)).gt.0.2D0) then
@@ -1767,6 +1784,7 @@ CONTAINS
 !       svar(ioff)=1.0D2*svar(ioff)
        if(abs(svar(ioff)).gt.1.0D4*ceq%xconv) then
           converged=8
+          cerr%mconverged=converged
        endif
 !       write(*,389)'HMS pv: ',ioff,converged,svar(ioff),ceq%tpval(2)
 389    format(a,2i3,4(1pe12.4))
@@ -1867,7 +1885,10 @@ CONTAINS
 !                     meqrec%noofits,jph,jj,phs,lastdeltaam(jph),deltaam
 3               format(a,3i3,6(1pe12.4))
              endif
-             if(converged.lt.6) converged=6
+             if(converged.lt.6) then
+                converged=6
+                cerr%mconverged=converged
+             endif
 ! desperate fix, change sign of deltaam
 !             deltaam=-deltaam
              if(vbug) write(*,381)'Phase amount change: ',meqrec%noofits,jj,&
@@ -2138,6 +2159,7 @@ CONTAINS
 ! for unstable phases the corrections must be smaller than ...????
                    if(converged.lt.3) then
                       converged=3
+                      cerr%mconverged=converged
                       yss=ys
                       yst=phr(jj)%curd%yfr(nj)
                    endif
@@ -2147,12 +2169,14 @@ CONTAINS
 !                        phr(jj)%curd%yfr(nj)
                    if(converged.lt.2) then
                       converged=2
+                      cerr%mconverged=converged
                       yss=ys
                       yst=phr(jj)%curd%yfr(nj)
                    endif
                 else
                    if(converged.eq.0) then
                       converged=1
+                      cerr%mconverged=converged
                       yss=ys
                       yst=phr(jj)%curd%yfr(nj)
                    endif
@@ -2161,6 +2185,7 @@ CONTAINS
 ! large correction in fraction of constituent fraction of stable phase
 !                write(*,*)'mm converged 4A: ',jj,nj,ys
                 converged=4
+                cerr%mconverged=converged
                 yss=ys
                 yst=phr(jj)%curd%yfr(nj)
              endif
@@ -2174,7 +2199,10 @@ CONTAINS
 ! check if the change in any fraction is larger than the fraction ...
              if(ycorr(nj).gt.phr(jj)%curd%yfr(nj)) then
 !                write(*,612)'MM y2: ',jj,nj,ycorr(nj),phr(jj)%curd%yfr(nj)
-                if(converged.lt.4) converged=4
+                if(converged.lt.4) then
+                   converged=4
+                   cerr%mconverged=converged
+                endif
              endif
           endif
 ! why jump to 77??
@@ -2352,7 +2380,10 @@ CONTAINS
     if(chargerr.gt.ceq%xconv) then
        if(ocv()) write(*,654)'Charge error: ',signerr,chargerr,ceq%xconv
 654    format(a,6(1pe12.4))
-       if(converged.lt.6) converged=6
+       if(converged.lt.6) then
+          converged=6
+          cerr%mconverged=converged
+       endif
     endif
 !-------------------------------------------------------
     if(converged.eq.3) then
@@ -2695,9 +2726,19 @@ CONTAINS
 !       write(*,11)'MM row: ',nrow,cvalue,totam,(smat(nrow,ncol),ncol=1,nz2)
 ! relative check for convergence if cvalue>1.0
        conv: if(abs(totam-cvalue).gt.ceq%xconv*max(1.0d0,abs(cvalue)))then
-          if(converged.lt.5) converged=5
-!          write(*,266)'Unconverged condition N or N(A): ',sel,cvalue,totam
-266       format(a,i3,4(1pe12.4))
+          if(converged.lt.5) then
+             converged=5
+!             write(*,*)'1: converged=5',cerr%nvs
+             cerr%mconverged=converged
+             if(cerr%nvs.lt.10) then
+                cerr%nvs=cerr%nvs+1
+                cerr%typ(cerr%nvs)=5
+                cerr%val(cerr%nvs)=cvalue
+                cerr%dif(cerr%nvs)=totam-cvalue
+!             write(*,266)'Unconverged condition N or N(A): ',sel,cvalue,totam
+266          format(a,i3,4(1pe12.4))
+             endif
+          endif
        endif conv
     enddo elloop1
 !----------------------------------------------------------
@@ -3118,10 +3159,21 @@ CONTAINS
           if(abs(totam-cvalue/ceq%rtn).gt.ceq%xconv*abs(cvalue)) then
 !          if(abs(totam-cvalue).gt.ceq%xconv*abs(cvalue)) then
 !                  write(*,75)'Unconverged volume: ',ceq%tpval(1),&
-             if(vbug) write(*,75)'Unconverged volume: ',ceq%tpval(1),&
-                  totam,cvalue,totam-cvalue,ceq%xconv*abs(cvalue)
+!             if(vbug) write(*,75)'Unconverged volume: ',ceq%tpval(1),&
+!             write(*,75)'Unconverged volume: ',ceq%tpval(1),&
+!                  totam,cvalue,totam-cvalue,ceq%xconv*abs(cvalue)
 !                  totam,cvalue/ceq%rtn,totam-cvalue/ceq%rtn
-             if(converged.lt.5) converged=5
+             if(converged.lt.5) then
+                converged=5
+!                write(*,*)'2: converged=5',cerr%nvs
+                cerr%mconverged=converged
+                if(cerr%nvs.lt.10) then
+                   cerr%nvs=cerr%nvs+1
+                   cerr%typ(cerr%nvs)=5
+                   cerr%val(cerr%nvs)=cvalue
+                   cerr%dif(cerr%nvs)=totam-cvalue
+                endif
+             endif
           endif
 ! we have one more equation to add to the equilibrium matrix
           nrow=nrow+1
@@ -3290,9 +3342,19 @@ CONTAINS
 !          write(*,75)'RHS: ',xcol(nz2),totam,cvalue,ceq%rtn,cvalue/ceq%rtn
 ! test if condition converged, use relative error 
           if(abs(totam-cvalue/ceq%rtn).gt.ceq%xconv*abs(cvalue)) then
-             if(vbug) write(*,75)'Unconverged enthalpy: ',ceq%tpval(1),&
-                  totam,cvalue/ceq%rtn,totam-cvalue/ceq%rtn
-             if(converged.lt.5) converged=5
+!             write(*,75)'Unconverged enthalpy: ',ceq%tpval(1),&
+!                  totam,cvalue/ceq%rtn,totam-cvalue/ceq%rtn
+             if(converged.lt.5) then
+                converged=5
+!                write(*,*)'3: converged=5',cerr%nvs
+                cerr%mconverged=converged
+                if(cerr%nvs.lt.10) then
+                   cerr%nvs=cerr%nvs+1
+                   cerr%typ(cerr%nvs)=5
+                   cerr%val(cerr%nvs)=cvalue/ceq%rtn
+                   cerr%dif(cerr%nvs)=totam-cvalue/ceq%rtn
+                endif
+             endif
           endif
 ! we have one more equation to add to the equilibrium matrix
           nrow=nrow+1
@@ -3486,9 +3548,19 @@ CONTAINS
 !               ceq%tpval(1)
 ! test if condition converged, use relative error 
           if(abs(hmval-cvalue/ceq%rtn).gt.ceq%xconv*abs(cvalue)) then
-!             write(*,75)'Unconverged enthalpy: ',&
-!                  hmval*ceq%rtn,cvalue,hmval-cvalue/ceq%rtn
-             if(converged.lt.5) converged=5
+             write(*,75)'Unconverged enthalpy: ',&
+                  hmval*ceq%rtn,cvalue,hmval-cvalue/ceq%rtn
+             if(converged.lt.5) then
+                converged=5 
+!                write(*,*)'4: converged=5',cerr%nvs
+                cerr%mconverged=converged
+                if(cerr%nvs.lt.10) then
+                   cerr%nvs=cerr%nvs+1
+                   cerr%typ(cerr%nvs)=5
+                   cerr%val(cerr%nvs)=hmval
+                   cerr%dif(cerr%nvs)=hmval-cvalue/ceq%rtn
+                endif
+             endif
           endif
 ! we have one more equation to add to the equilibrium matrix
           nrow=nrow+1
@@ -3766,14 +3838,25 @@ CONTAINS
 ! relative check for convergence if cvalue>1.0
 !          if(abs(totam-cvalue).gt.ceq%xconv*max(1.0d0,abs(cvalue))) then
           if(abs(evalue-cvalue).gt.ceq%xconv*max(1.0d0,abs(cvalue))) then
-             if(converged.lt.5) converged=5
+             if(converged.lt.5) then
+                converged=5
+                cerr%mconverged=converged
+                if(cerr%nvs.lt.10) then
+                   cerr%nvs=cerr%nvs+1
+                   cerr%typ(cerr%nvs)=5
+                   cerr%val(cerr%nvs)=cvalue
+                   cerr%dif(cerr%nvs)=evalue-cvalue
+                endif
+!                write(*,*)'5: converged=5',cerr%nvs
+             endif
+!          endif
              if(vbug) then
                 if(sel.eq.0) then
                    write(*,266)'Unconverged condition N or N(A): ',sel,&
-                        cvalue,evalue,totalmol
+                        cvalue,evalue,evalue-cvalue
                 else
                    write(*,266)'Unconverged condition N or N(A): ',sel,&
-                        cvalue,evalue
+                        cvalue,evalue,evalue-cvalue
                 endif
              endif
           endif
@@ -4036,10 +4119,20 @@ CONTAINS
 ! check on convergence
 !          if(abs(xxmm(sel)-cvalue).gt.ceq%xconv) then
           if(abs(evalue-cvalue).gt.ceq%xconv) then
-             if(converged.lt.5) converged=5
+             if(converged.lt.5) then
+                converged=5
+!                write(*,*)'6: converged=5',cerr%nvs
+                cerr%mconverged=converged
+                if(cerr%nvs.lt.10) then
+                   cerr%nvs=cerr%nvs+1
+                   cerr%typ(cerr%nvs)=5
+                   cerr%val(cerr%nvs)=xxmm(sel)
+                   cerr%dif(cerr%nvs)=xxmm(sel)-cvalue
+                endif
+             endif
 !             write(*,266)'Unconverged condition x(A): ',sel,cvalue,evalue
-             if(vbug) write(*,266)'Unconverged condition x(A): ',sel,&
-                  cvalue,evalue
+!             if(vbug) write(*,266)'Unconverged condition x(A): ',sel,&
+!                  cvalue,evalue
           endif
        endif
 ! finished conditions on N and X with indices
@@ -4192,9 +4285,18 @@ CONTAINS
           deallocate(xcol)
 ! check convergence
           if(abs(totam-cvalue).gt.ceq%xconv) then
-!            write(*,266)'Unconverged condition B(A): ',sel,&
-!                  cvalue,zval
-             if(converged.lt.5) converged=5
+!            write(*,266)'Unconverged condition B(A): ',sel,cvalue,zval
+             if(converged.lt.5) then
+                converged=5
+!                write(*,*)'7: converged=5',cerr%nvs
+                cerr%mconverged=converged
+                if(cerr%nvs.lt.10) then
+                   cerr%nvs=cerr%nvs+1
+                   cerr%typ(cerr%nvs)=5
+                   cerr%val(cerr%nvs)=cvalue
+                   cerr%dif(cerr%nvs)=totam-cvalue
+                endif
+             endif
           endif
           if(vbug) then
              if(sel.eq.0) then
@@ -4386,7 +4488,18 @@ CONTAINS
 ! check on convergence
 !          write(*,266)'massbalance condition w(A): ',sel,cvalue,wwnn(sel)
           if(abs(wwnn(sel)-cvalue).gt.ceq%xconv) then
-             if(converged.lt.5) converged=5
+             if(converged.lt.5) then
+                converged=5
+!                write(*,*)'8: converged=5',cerr%nvs
+                cerr%mconverged=converged
+                if(cerr%nvs.lt.10) then
+                   cerr%nvs=cerr%nvs+1
+                   cerr%typ(cerr%nvs)=5
+                   cerr%val(cerr%nvs)=wwnn(sel)
+                   cerr%dif(cerr%nvs)=wwnn(sel)-cvalue
+                endif
+!                write(*,*)'8B: converged=5',cerr%nvs
+             endif
 !             write(*,266)'Unconverged condition w(A): ',sel,cvalue,wwnn(sel)
 266          format(a,i3,3(1pe14.6))
 !             write(*,267)'wwnn: ',(wwnn(ncol),ncol=1,noel())
@@ -7943,6 +8056,13 @@ CONTAINS
 ! large correction in fraction of constituent fraction of stable phase
 !             write(*,*)'mm converged 4B: ',jj,nj,ys
              converged=4
+             cerr%mconverged=converged
+             if(cerr%nvs.lt.10) then
+                cerr%nvs=cerr%nvs+1
+                cerr%typ(cerr%nvs)=4
+                cerr%val(cerr%nvs)=zero
+                cerr%dif(cerr%nvs)=abs(ys)
+             endif
 !             yss=ys
 !             yst=phr(jj)%curd%yfr(nj)
           endif
@@ -8099,6 +8219,13 @@ CONTAINS
 !          write(*,103)'chempot: ',svar(jj),ovar(jj),svar(jj)-ovar(jj)
 103       format(a,3(1pe12.4))
           converged=7
+          cerr%mconverged=converged
+          if(cerr%nvs.lt.10) then
+             cerr%nvs=cerr%nvs+1
+             cerr%typ(cerr%nvs)=7
+             cerr%val(cerr%nvs)=svar(jj)
+             cerr%dif(cerr%nvs)=ovar(jj)
+          endif
        endif
        ovar(jj)=svar(jj)
     enddo

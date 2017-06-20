@@ -344,7 +344,7 @@
    integer kconlok(maxconst),kalpha(maxconst),iord(maxconst),klok(maxconst)
    integer iva(maxconst),endm(maxsubl),endm0(maxsubl+1)
    logical externalchargebalance,tupix
-   integer iph,kkk,lokph,ll,nk,jl,jk,mm,lokcs,nkk,nyfas,loksp,tuple
+   integer iph,kkk,lokph,ll,nk,jl,jk,mm,lokcs,nkk,nyfas,loksp,tuple,bothcharge
 ! logicals for models later stored in phase record
    logical i2sl,cqc
 !   write(*,*)'3B enter enter_phase: ',trim(name),' ',trim(model)
@@ -454,8 +454,7 @@
 !                 const(jl)(1:len_trim(const(jl))),name(1:len_trim(name))
 314         format('3B Species: ',4i4,' "',a,'" in ',a)
             if(kalpha(mm).eq.kalpha(jl)) then
-               write(*,315)name(1:len_trim(name)),&
-                    const(jl)(1:len_trim(const(jl))),ll
+               write(*,315)trim(name),trim(const(jl)),ll
 315            format(' *** Error, the ',a,' phase has constituent ',a,&
                     ' twice in sublattice ',i2)
                gx%bmperr=4258; goto 1000
@@ -472,12 +471,15 @@
       kconlok(jl)=jk
 !     write(6,73)' enter_phase 4B: ',jl,const(jl),jk,kconlok(jl),kalpha(jl)
 !73   format(A,i3,1x,A6,3I3)
-! mark that PHEXCB bit must be set if species has a charge 
+! mark that PHEXCB bit must be set if species has variable charge 
       if(splista(jk)%charge.ne.zero) then
          externalchargebalance=.true.
       endif
    enddo constest
-! reserve a new phase record and store data there and in other records
+!   goto 370
+! we should have the check if the phase can be neutral here ....
+!--------------------------------------------------------------------------
+370 continue
 ! the first phase entered is the reference phase created by init_gtp
    if(noofph.eq.0 .and. phtype(1:1).eq.'Z') then
 ! phtyp=Z is the reference phase
@@ -512,6 +514,9 @@
       call sort_ionliqconst(lokph,0,knr,kconlok,klok)
       if(gx%bmperr.ne.0) goto 1000
    else ! else link is for all other phases except ionic liquid
+! external chargebalance THIS SET BELOW
+!      if(externalchargebalance) &
+!           phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHEXCB)
 ! sort the constituents in each sublattice according to alphaspindex
 !  write(6,70)5,(kalpha(i),i=1,nkk)
 !  write(6,70)5,(kconlok(i),i=1,nkk)
@@ -645,8 +650,14 @@
 ! If one has made NEW the links are not always zero
 ! set some phase bits (PHGAS and PHLIQ set above)
 ! external charge balance etc.
+!   goto 600
+! ------------------------------------------------------------
+! code below moved to the beginning to avoid enetring phases with net charge
+   bothcharge=0
    if(externalchargebalance) then
-! do not set this if all endmembers have zero charge  m2o3(Ce+3,La+3)2(O-2)3
+      kkk=0
+      bothcharge=-100
+! do not set PHEXCB if all endmembers have zero charge  m2o3(Ce+3,La+3)2(O-2)3
       jl=1
       endch=zero
       do ll=1,nsl
@@ -657,19 +668,40 @@
          jl=jl+phlista(nyfas)%nooffr(ll)
       enddo
       endm0(nsl+1)=phlista(nyfas)%tnooffr+1
-400   continue
-!      write(*,405)'3B netcharge ',trim(name),endch,(endm(ll),ll=1,nsl)
-!405   format(a,a,1pe12.4,9i4)
-      if(abs(endch).gt.1.0D-6) goto 420
+500   continue
+!      write(*,*)'3B checking external chargebalance for: ',trim(name),&
+!           btest(phlista(nyfas)%status1,PHEXCB)
+      if(abs(endch).gt.1.0D-6) then
+! A clumsy check, with ZRO2_TETR we may have (U+4)1(O-2,VA)2
+! with one neutral and one charged (+4) endmember. It should be allowed ...
+! We will set this bit any time but we have to check if the phase have
+! endmembers with both charges
+!         write(*,*)'3B charge balance needed for ',trim(name),endch
+         phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHEXCB)
+         if(bothcharge.eq.-100) then
+            if(endch.lt.zero) then
+               bothcharge=-1
+            else
+               bothcharge=1
+            endif
+         elseif(bothcharge.lt.0) then
+            if(endch.gt.zero) bothcharge=0
+         else
+            if(endch.lt.zero) bothcharge=0
+         endif
+      else
+! kkk counts number of neutral endmembers
+         kkk=kkk+1
+      endif
       ll=nsl
-410   continue
+510   continue
       if(endm(ll).lt.endm0(ll+1)-1) then
          jk=phlista(nyfas)%constitlist(endm(ll))
          endch=endch-splista(jk)%charge*sites(ll)
          endm(ll)=endm(ll)+1
          jk=phlista(nyfas)%constitlist(endm(ll))
          endch=endch+splista(jk)%charge*sites(ll)
-         goto 400
+         goto 500
       elseif(ll.gt.1) then
          jk=phlista(nyfas)%constitlist(endm(ll))
          endch=endch-splista(jk)%charge*sites(ll)
@@ -677,17 +709,30 @@
          jk=phlista(nyfas)%constitlist(endm(ll))
          endch=endch+splista(jk)%charge*sites(ll)
          ll=ll-1
-         goto 410
+         goto 510
       endif
 !      write(*,*)'3B charge balance not needed for ',trim(name)
-      goto 430
+!      goto 530
 ! jump here if any endmember has a net charge
-420   continue
-!      write(*,*)'3B charge balance needed for ',trim(name)
-      phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHEXCB)
+!520   continue
 ! jump here if all neutral
-430   continue
+!530   continue
    endif
+! if a phase with charged constituents cannot be neutral suspend it
+! If bothcharge=0 no charged endmember or there are both + and - charges,
+!           do not suspend
+! If bothcharge=-100 there are no charged endmember, do not suspend
+! If kkk>0 there is at least one neutral, do not suspend
+   if(bothcharge.ne.0) then
+      if(kkk.eq.0) then
+         write(*,531)trim(name),bothcharge,nkk
+531      format(' *** WARNING: the phase ',a,2i5,' suspended'/&
+              14x,'as it cannot be electrically neutral')
+         firsteq%phase_varres(lokcs)%phstate=PHSUS
+      endif
+   endif
+!--------------------------------------- end moved
+600 continue
 ! set net charge to zero
    firsteq%phase_varres(lokcs)%netcharge=zero
    if(nsl.eq.1) then
