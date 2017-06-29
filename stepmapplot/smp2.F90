@@ -1,13 +1,8 @@
 ! Data structures and routines for step/map/plot (using gnuplot)
 !
-! Modifications:
-! For step there are 3 initial short steps after phase change
-! ?? Conditions saved in node points (not fix phase but axis values)
-! ?? Conditions saved in line equilibria
-!
 MODULE ocsmp
 !
-! Copyright 2012-2016, Bo Sundman, France
+! Copyright 2012-2017, Bo Sundman, France
 !
 !    This program is free software; you can redistribute it and/or modify
 !    it under the terms of the GNU General Public License as published by
@@ -291,7 +286,7 @@ CONTAINS
     character ch1*1
     logical firststep,onetime
 !
-!    write(*,*)'in map_setup'
+    write(*,*)'in map_setup'
     call get_all_conditions(savedconditions,-1,starteq)
     if(gx%bmperr.ne.0) then
        write(kou,*)'Cannot save current conditions'
@@ -357,7 +352,7 @@ CONTAINS
     call map_findline(maptop,axarr,mapfix,mapline)
     if(gx%bmperr.ne.0) goto 1000
 ! if no line we are finished!
-!    write(*,*)'Back from map_findline 1'
+!    write(*,*)'Back from map_findline 1: ',associated(mapline)
 ! segmentation fault crash later ...
     if(.not.associated(mapline)) goto 900
 !    write(*,*)'We will start calculate line: ',mapline%lineid,mapline%axandir
@@ -381,6 +376,7 @@ CONTAINS
 ! composition sets created in other threads.  But we must also specify 
 ! phases set fix due to the mapping to replace axis conditions.  
 ! We must provide an array of phase tuples with fix phases. 
+!    write(*,*)'Calling calceq7 for new line: ',mapline%lineid
     if(ocv()) write(*,*)'Calling calceq7 for new line: ',mapline%lineid
 ! mode=-1 means no gridminimization and do not deallocate phr
     mapline%problems=0
@@ -402,7 +398,7 @@ CONTAINS
 !    endif
 !    write(*,*)'Calling calceq7 with T=',ceq%tpval(1),mapline%axandir
     call calceq7(mode,meqrec,mapfix,ceq)
-!    write(*,*)'Back from calceq7 ',gx%bmperr
+!    write(*,*)'Back from calceq7A ',gx%bmperr
     if(gx%bmperr.ne.0) then
 ! error 4187 is to set T or P to less than 0.1
        if(gx%bmperr.eq.4187) then
@@ -475,7 +471,7 @@ CONTAINS
 ! look for a new line to follow
        goto 300
     endif
-!    write(*,*)'back from calceq7'
+!    write(*,*)'back from calceq7B'
 !--------------------------------
 ! limit the maximum change in T and P, should be small during step/map
     meqrec%tpmaxdelta(1)=2.0D1
@@ -652,7 +648,14 @@ CONTAINS
        goto 300
     endif
 !------------------------------------------------------------
+379 continue
     if(irem.gt.0 .and. iadd.gt.0) then
+! We can also have a stoichiometic phase with ALLOTROPIC transformation
+! which will change form one to another at a fix T
+       if(allotropes(irem,iadd,ceq)) then
+          irem=0
+          goto 379
+       endif
 ! if there is phase which wants to appear and another disappear then
 ! first check if they are the composition sets of the same phase
 ! calculate with half the step 5 times. If axvalok=0 no previous axis value
@@ -763,6 +766,8 @@ CONTAINS
 ! then check if we have already found this node point and if not
 ! generate new start points with and without the phase
        call map_calcnode(irem,iadd,maptop,mapline,mapline%meqrec,axarr,ceq)
+! segmentation fault in map_calcnode 170518 !!
+!       write(*,*)'Back from map_calcnode',gx%bmperr
        if(gx%bmperr.ne.0) then
 ! if error one can try to calculate using a shorter step or other things ...
 !          write(*,*)'Error return from map_calcnode: ',gx%bmperr
@@ -844,7 +849,7 @@ CONTAINS
     endif
     return
   end subroutine map_setup
-
+  
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
@@ -2507,11 +2512,14 @@ CONTAINS
 !\end{verbatim}
     type(gtp_condition), pointer :: lastcond,pcond
     integer iremsave,iaddsave,iph,ics,jj,jph,kph,phfix,seqx,jax,haha
-    integer what,type,cmix(10),maxstph,noplot,mode
+    integer what,type,cmix(10),maxstph,noplot,mode,addtupleindex
     double precision, parameter :: addedphase_amount=1.0D-2
-    double precision value,axval,axvalsave
+    double precision value,axval,axvalsave,tx
     type(gtp_state_variable), pointer :: svrrec
     logical global
+    double precision, allocatable, dimension(:) :: yfra
+    type(gtp_equilibrium_data), target :: tceq
+    type(gtp_equilibrium_data), pointer :: pceq
 ! turns off converge control for T
     integer, parameter :: inmap=1
 !
@@ -2642,6 +2650,7 @@ CONTAINS
 ! mark that the phase is fix, we have to be careful not to exceed size
 ! Sigh, the fixed phases must be in sequential order ??? ... not done here
 ! ... maybe not needed ??
+!    write(*,*)'added fix phase: ',phfix
     meqrec%nfixph=meqrec%nfixph+1
     if(meqrec%nfixph.gt.size(meqrec%fixpham)) then
        write(*,*)'Too many phases set fixed during mapping',&
@@ -2667,7 +2676,7 @@ CONTAINS
 !
     call meq_sameset(irem,iadd,meqrec,meqrec%phr,inmap,ceq)
 !
-!    write(*,202)'Calculated with fix phase: ',gx%bmperr,irem,iadd,ceq%tpval
+!   write(*,202)'Calculated node with fix phase: ',gx%bmperr,irem,iadd,ceq%tpval
 202 format(a,3i4,2(1pe12.4))
 !-------------------------------------------------
 ! trouble if error or another phase wants to be stable/dissapear
@@ -2686,9 +2695,22 @@ CONTAINS
 ! It worked to calculate with a new fix phase releasing all axis condition!!!
 ! *************************************************************
 ! check that the node point is global using grid minimizer
-! ceq is not destroyed
+! ceq is copied inside global_equil_check and not destroyed??.
+! mode=0 means do not recalculate if gridpoint below is found
        mode=0
-       global=global_equil_check1(mode,ceq)
+!       write(*,*)'NOT Calling global check'
+!       global=.TRUE.
+!       write(*,*)'Check if nodepoint global'
+! make a copy of the whole equilibrium record and set a pointer to the copy
+! Does this really make a copy of the conditions etc inside ceq?
+!       tceq=ceq
+!       pceq=>tceq
+!       write(*,*)'SMP value of T: ',pceq%tpval(1)
+! SEGMENTATION FAULT and other strange errors after this call
+! very difficult to find ... puhhhhh
+! --- BUT THERE is still a segmentation fault
+!       global=global_equil_check1(mode,addtupleindex,yfra,pceq)
+       global=global_equil_check1(mode,addtupleindex,yfra,ceq)
        if(.not.global) then
           write(*,*)'gridminimizer found node point not global'
 ! set this line as INACTIVE and do not generate any start points
@@ -2750,6 +2772,7 @@ CONTAINS
 ! When we are there we have successfully calculated an equilibrium with a
 ! new phase set create a node with this equilibrium and necessary line records
 500 continue
+!    write(*,*)'Successful calculation of a node point',phfix
 ! phfix is set negative if phase should be removed
 ! NOTE the phase set fix in the node may not be the same which
 ! wanted to disappear/appear when calling the map_calcnode!!
@@ -2760,8 +2783,6 @@ CONTAINS
 ! if the user wants to have global minimization during mapping this is
 ! time to test if the current equilibrium is the global one.  We can use
 ! a temporary ceq record and chech the set of phases and chemical potentials
-!
-! >>> add test of the global equilibrium here ... it has been added elsewhere
 !
     haha=0
     if(maptop%tieline_inplane.lt.0) then
@@ -2838,6 +2859,7 @@ CONTAINS
 !            mapline%meqrec%phr(mapline%meqrec%stphl(jj))%ics,&
 !            jj=1,mapline%meqrec%nstph)
     endif
+!    write(*,*)'Storing last point on line',phfix,maptop%tieline_inplane
     call map_store(mapline,axarr,maptop%number_ofaxis,maptop%saveceq)
     if(gx%bmperr.ne.0) then
 !       if(gx%bmperr.eq.4300) write(*,*)'Node point ignored'
@@ -2850,6 +2872,7 @@ CONTAINS
 !--------------------
 ! now store all axis values as prescribed vaules in the condition records
 ! A rather clumsy way and cannot handle expressions ...
+    lastcond=>ceq%lastcondition
     pcond=>lastcond
 600 continue    
        pcond=>pcond%next
@@ -2894,6 +2917,7 @@ CONTAINS
     if(gx%bmperr.ne.0) then
        if(ocv()) write(*,*)'Error return from map_newnode: ',gx%bmperr
     endif
+!    write(*,*)'Back from map_newnode'
 ! all done??
 1000 continue
     return
@@ -4918,21 +4942,37 @@ CONTAINS
 ! come back here if there is another localtop in plotlink!
 77  continue
 ! change all "done" marks in mapnodes to zero
+!    write(*,*)'SMP at label 77A: ',localtop%lines
     ikol=0
     do nrv=1,localtop%lines
        localtop%linehead(nrv)%done=0
     enddo
-    mapnode=>localtop%next
-    do while(.not.associated(mapnode,localtop))
+! we sometimes have a segmentation fault when several maptops ...
+    if(associated(localtop%next)) then
+       mapnode=>localtop%next
+    else
+       write(*,*)'Mapnode next link missing 1'
+       goto 79
+    endif
+!    write(*,*)'SMP at label 77B: ',localtop%lines
+    thisloop: do while(.not.associated(mapnode,localtop))
        do nrv=1,mapnode%lines
           mapnode%linehead(nrv)%done=0
        enddo
+       if(.not.associated(mapnode%next)) then
+          write(*,*)'Mapnode next link missing 2'
+          exit thisloop
+       endif
        mapnode=>mapnode%next
-    enddo
+    enddo thisloop
 !-----------
+79  continue
     results=>localtop%saveceq
     mapnode=>localtop
     line=1
+! looking for segmentation fault running map11.OCM as part of all.OCM in oc4P
+! This error may be due to having created (or not created) composition sets ...
+!    write(*,*)'ocplot2 after label 79'
 ! extract the names of stable phases for this lone
 
 !    write(*,*)'mapnode index: ',mapnode%seqx
@@ -4942,6 +4982,8 @@ CONTAINS
        mapline=>localtop%linehead(line)
 ! initiate novalues to false for each line
        novalues=.false.
+! We have a segmentation fault sfter this in oc4P when running map11.OCM
+! at the end of running all macros.  
 !       write(*,*)'In ocplot2, looking for segmentation fault 3'
 ! skip line if EXCLUDEDLINE set
        if(btest(mapline%status,EXCLUDEDLINE)) then
@@ -4982,10 +5024,12 @@ CONTAINS
 ! extract the names of stable phases to phaseline from the first equilibrium
 ! Note that the information of the fix phases are not saved
           if(first) then
+! segmentation fault after here
 !             write(*,*)'In ocplot2, looking for segmentation fault 4A'
              first=.false.
              kk=1
              do jj=1,noph()
+!                write(*,*)'In ocplot2, segmentation fault 4Ax',jj,noofcs(jj)
                 do ic=1,noofcs(jj)
                    k3=test_phase_status(jj,ic,value,curceq)
                    if(gx%bmperr.ne.0) goto 1000
@@ -5016,6 +5060,7 @@ CONTAINS
              if(allocated(linzero)) linzero=0
           endif
 ! no wildcards allowed on this axis
+!          write(*,*)'In ocplot2, segmentation fault 4Ay'
           statevar=pltax(notanp)
           call meq_get_state_varorfun_value(statevar,value,encoded1,curceq)
 !          write(*,*)'SMP axis variable 1: ',trim(encoded1),value
@@ -5036,6 +5081,7 @@ CONTAINS
 ! second axis
           statevar=pltax(anpax)
 !          varofun=.FALSE.
+!          write(*,*)'In ocplot2, segmentation fault after 4B ',wildcard
           if(wildcard) then
 ! NEW ignore data for this equilibrium if NOVALUES is TRUE
 ! because selphase not equal to the stable phase found above
@@ -5045,11 +5091,15 @@ CONTAINS
                 np=1
              else
 !                write(*,*)'Getting a wildcard value 1: ',nr,trim(statevar)
+!                write(*,*)'On ocplot2, segmentation fault 4C1',nooftup()
+! segmentation fault is inside this call for map11.OCM
+! probably because new composition set created
                 call get_many_svar(statevar,yyy,nzp,np,encoded2,curceq)
+!                write(*,*)'On ocplot2, segmentation fault 4C2'
 ! compiling without -finit-local-zero gives a segmentation fault here
 ! running the MAP11 macro
                 qp=np
-!             write(*,*)'wildcard value 1: ',nr,trim(statevar)
+!                write(*,*)'wildcard value 1: ',nr,trim(statevar)
 !                write(*,223)'Values: ',np,(yyy(i),i=1,np)
 223             format(a,i3,8F8.4)
                 if(gx%bmperr.ne.0) then
@@ -5057,6 +5107,7 @@ CONTAINS
                    goto 1000
                 endif
              endif
+!             write(*,*)'On ocplot2, segmentation fault 4D1'
 !             write(*,213)trim(encoded2),np,(yyy(ic),ic=1,np)
 213          format('windcard: ',a,i3,6(1pe12.4))
 !             write(*,16)'val: ',kp,nr,gx%bmperr,(yyy(i),i=1,np)
@@ -5064,6 +5115,7 @@ CONTAINS
              anpmin=1.0D20
              anpmax=-1.0D20
              lcolor=0
+!             write(*,*)'On ocplot2, segmentation fault before 4D2',np
              do jj=1,np
                 if(last) then
                    if(linzero(jj).ne.0) then
@@ -5150,6 +5202,7 @@ CONTAINS
        enddo plot1
 220    continue
 ! finished one line
+!       write(*,*)'In ocplot2, segmentation fault 4F'
        if(nax.gt.1) then
 !------------------ special for invariant lines
 ! for phase diagram always move to the new line 
@@ -5212,6 +5265,7 @@ CONTAINS
 335                format(a,i3,' <',a,'> ',3(1pe14.6))
 ! axis with possible wildcard
                    statevar=pltax(anpax)
+!                   write(*,*)'In ocplot2, segmentation fault 4H'
                    if(wildcard) then
 ! this cannot be a state variable derivative
 !                    write(*,*)'Getting a wildcard value 2: ',nr,statevar(1:20)
@@ -5391,15 +5445,19 @@ CONTAINS
           if(ic.gt.nnp) goto 690
           if(nonzero(ic).eq.0) then
 ! shift all values from ic+1 to np
-             if(nnp.ge.maxanp) then
+             if(nnp.gt.maxanp) then
                 write(kou,*)'Too many points in anp array 1',maxanp,nv,nnp
                 overflow=.TRUE.
                 nnp=maxanp
              endif
-             if(nv.ge.maxval) then
+             if(nv.gt.maxval) then
                 write(kou,*)'Too many points in anp array 2',maxval,nv
                 overflow=.TRUE.
                 nv=maxval
+             endif
+             if(.not.allocated(lid)) then
+                write(*,*)'SMP allocating lid: ',np
+                allocate(lid(np+5))
              endif
              do jj=ic,nnp-1
                 do nnv=1,nv
@@ -5414,7 +5472,7 @@ CONTAINS
           endif
 ! there is no more space in arrays to plot
           if(overflow) then
-             write(*,*)'overflow',nv,nnp
+             write(*,*)'plot data overflow',nv,nnp
              goto 690
           endif
           goto 650
@@ -5813,8 +5871,13 @@ CONTAINS
     appfil=0
 !-------------------------------------------------------------------
 ! execute the GNUPLOT command file
-!
     gnuplotline='gnuplot '//pfc(1:kkk)//' & '
+! Uncomment the following line for OS having gnuplot5 and 
+! comment the above line with gnuplotline='gnuplot '//pfc(1:kkk)//' & '
+!  gnuplotline='gnuplot5 '//pfc(1:kkk)//' & '
+! Reason - Choose the gnuplot command as per the Operating System's 
+! existing command "gnuplot", "gnuplot5"etc..
+! Or, give the path of the gnuplot file as described below:
 ! if gnuplot cannot be started with gnuplot give normal path ...
 !    gnuplotline='"c:\program files\gnuplot\bin\wgnuplot.exe" '//pfc(1:kkk)//' '
     k3=len_trim(gnuplotline)+1

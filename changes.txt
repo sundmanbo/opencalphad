@@ -13,6 +13,75 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2017.06.20 OC version 4.025: Refined the check of external charge
+balance.  Previously phases like (La+3)2(O-2)3 had the external change
+balance bit set which sometimes caused "phase matrix ill-conditioned"
+due to round off errors.  Phases which cannot be electrically neutral
+due to the selection of elements, like (Cs+2)2(O-2)3 are automatically
+suspended when read from the database.
+
+2017.06.04 OC version 4.024: Many small changes.  The main addition is
+a video how to install OC on Windows and Linux at:
+https://www.youtube.com/watch?v=rsBDRJ-LYvI
+
+2017.05.19 OC version 4.023: There was a severe memory leak as the
+memory used by the TP functions was not deallocated with the NEW
+command.  This has now been removed.  Applications that used repeated
+NEW commands could crash due to lack of free memory.
+
+A number of bugs has also meen eliminated, some caused by unititiated
+variables where valgrid again proved to be a useful tool.
+
+2017.05.10 OC version 4.022: I have added a new calculate subcommand
+"calculate with_check_after" or just "c w" which means the grid
+minimizer will not be used before but after the iterative calculation.
+As start values the iterative algorithm will use the previously
+calculated results.  If the grid minimizer finds a phase with a
+gridpoint below the calculated equilibrium that phase is automatically
+added as stable and a new calculation made to find the global
+equilibrium.  The "set advanced" command can now be used to set a
+smaller grid.
+
+2017.04.30 OC version 4.021: When the conditions does not allow using
+the global gridminimizer before an equilibrium calculation there is
+normally a test AFTER the calculation using the grid minimizer.  If
+this test finds a gridpoint below the calculated equilibrium then
+there is now automatically a new calculation made with this gridpoint
+added as a stable phase.  The grid calculation after can also be
+forced by setting the global bit 18 for example when using the "c n"
+command (the "c n" command will use the previous results as start
+point).  One can prevent this recalculation by setting the global bit
+20. (These things will be added to the "SET ADVANCED" command when I
+have time...).  One must be expert to set these bits, to become expert
+set the global bit 2.
+
+This feature is available also in the OCASI/TQ interface.  During a
+simulation one normally does not use the gridminimizer at each
+calculation but setting bit 18 now and again makes it possible to
+detect if an equilibrium is correct.
+
+2017.04.22 OC version 4.020: I have added that OC can have a macro
+file name as "inline" argument when started.  Thus invoking OC with a
+line "OC4 dothis" where "dothis" is a macro file with extention OCM
+this macro file will start executing directly (after executing an
+inital startup macro if you have any).  
+
+I have also fixed the rather subtle bug when entering reciprocal
+parameters and some more minor things.
+
+2017.04.17 OC version 4.019: I have managed to make OC significantly
+faster for multicomponent systems, in some cases a factor of 4, by
+saving some intermediate values while generating the equilibrium
+matrix.  However, this may cause some troubles when running in
+parallel and maybe there are some memory leaks, I have not tested.  It
+is possible to restore the old way to calculate by changing the
+logical variable NOSAVE in the subroutine meq_sameset to TRUE, around
+line 2866 in minimizer/matsmin.F90
+
+I have problems entering some reciprocal parameters for the 4
+sublattice FCC ordered phase.  I hope to fix that for the next
+release.
+
 2017.04.05 OC version 4.018: I am trying to make OC a bit faster for
 some interested users, if OC is compiled with the "-O2" option it is
 about 5 times faster compared with using "-finit-local-zero" and
@@ -58,8 +127,8 @@ grid minimizer (NOTE ionic liquid and charged crystalline phases has
 no dense grid (yet)).  The SET STATUS PHASE command is slightly
 changed.  If a user gives just a phase name and no specific
 composition set all composition sets for that phase will be given the
-new status.  A few other minor bugs fixed.  This should also work for
-the OCASI/TQ interface.
+new status (unless FIX).  A few other minor bugs fixed.  This should
+also work for the OCASI/TQ interface.
 
 2017.02.16 I reallize that the model package is still version 3, not 4
 so I have changed it to 3.20 rather than 4.10, although the text

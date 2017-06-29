@@ -1,4 +1,27 @@
+new Y
+@$ ==================================================================
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$ opttest1.OCM
 @$ setup file for simple assessment
+@$ ==================================================================
 
 set echo
 
@@ -176,8 +199,7 @@ l opt,,
 @&
 @$ Test removing all data, this used to cause segmentation error
 
-@$ new Y
-
+@&
 set inter
 
  

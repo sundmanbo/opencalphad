@@ -1169,8 +1169,8 @@
 ! the free list is created when starting OC, each record points to the next
 ! After composition sets has been entered and deleted it may be different
 ! highcs should always be the index of the highest used record
-!   write(*,*)'3G looking for free varres record 1:',lokcs,csfree
    csfree=firsteq%phase_varres(lokcs)%nextfree
+!   write(*,*)'3G looking for free varres record 1:',lokcs,csfree
 ! wrong ...   if(csfree.gt.highcs) highcs=csfree
 ! The varres record used will be, csfree is updated
 !   write(*,*)'3G looking for free varres record 2:',lokcs,csfree
@@ -1482,7 +1482,7 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine new_phase_varres_record(iph,phvar,ceq)
+ subroutine new_phase_varres_record_unused(iph,phvar,ceq)
 ! this subroutine returnes a copy of the phase variable structure for iph
 ! >>>>>>>>>>>>>
 ! this subroutine is probably redundant since the structure 
@@ -1557,7 +1557,7 @@
    endif
 1000 continue
    return
- end subroutine new_phase_varres_record
+ end subroutine new_phase_varres_record_unused
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -1639,7 +1639,7 @@
    character id*1
 !\end{verbatim}
 ! ceq probably not needed as firsteq is declared as pointer
-   TYPE(gtp_equilibrium_data), target :: ceq
+!   TYPE(gtp_equilibrium_data), target :: ceq
    TYPE(gtp_fraction_set), target :: fsdata
 ! jsp(i) contains species locations of disordered constituent i
 ! jy2x(i) is the disordered fraction to which site fraction i should be added
@@ -1657,7 +1657,7 @@
    endif
 ! this subroutine can only be called when there is only one equilibrium
 ! Hm, does this create a copy of firsteq?? YES ... clumsy
-   ceq=firsteq
+!   ceq=firsteq
    lokph=phases(iph)
 ! phase must not have any suspended constituents nor any composition sets
    if(phlista(lokph)%noofcs.gt.1) then
@@ -1863,6 +1863,7 @@
 !   call create_parrecords(nyttcs,nnn,mmm,nprop,iva,firsteq)
    call create_parrecords(lokph,nyttcs,nnn,mmm,maxcalcprop,iva,firsteq)
    if(gx%bmperr.ne.0) goto 1000
+!   write(*,*)'3G created disordered phase_varres: ',nyttcs,csfree
    fsdata%varreslink=nyttcs
 ! note ceq is firsteq but declared target
 !   write(*,*)'3G disordered fraction set',nyttcs
@@ -1916,7 +1917,7 @@
 1000 continue
    return
 ! nydis
- end subroutine add_fraction_set
+ end subroutine add_fraction_set  ! no ceq
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

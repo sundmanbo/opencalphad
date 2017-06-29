@@ -1,8 +1,22 @@
-
-set echo
-
+new Y
 @$===============================================================
 @$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$ testcond1.OCM
 @$ Testing combining combination of various condition
 @$ for a ternary system C-Cr-Fe
 @$ 
@@ -10,11 +24,13 @@ set echo
 @$
 @$ There are also tests of entering, listing
 @$ and calculating mobility data
-@$ and the matrix to convert these to diffusion
-@$ coefficients.
+@$ and to calculate the Darken stability matrix 
+@$ to convert these to diffusion coefficients.
 @&
 @$===============================================================
 @$ 
+
+set echo
 
 r t steel1 c fe cr
 
@@ -371,6 +387,6 @@ diff
 @&
 
 @$ That is all for now
-
+@&
 set inter
 

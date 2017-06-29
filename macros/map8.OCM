@@ -1,4 +1,26 @@
-@$ 
+new Y
+@$ ====================================================================
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$ map8.OCM
 @$ Calculate a phase diagram for FCC ordering in the Fe-Ni system
 @$ using partition and permutations
 @$
@@ -8,6 +30,7 @@
 @$ We also set the bit 23 of the phase not to subtract the ordered part
 @& as disordered.  This the disordered part has just a regular parameter,
 @$ we do not have to add the ordered part as disordered as in map4.OCM.
+@$ =========================================================================
 @&
 
 set echo
@@ -172,7 +195,6 @@ title map8 fig 2
 
 
 @&
-
 set inter
 
 

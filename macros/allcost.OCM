@@ -1,4 +1,27 @@
+new Y
+@$ ==============================================================
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$ allcost.OCM
 @$ Testing a calculation with 20 elements, 191 phases
+@$ ==============================================================
 
 set echo
 
@@ -20,6 +43,10 @@ set c w(si)=.07 w(sn)=.003 w(ti)=.002 w(v)=.0008 w(y)=.00014
 set c w(zn)=.06 w(zr)=.007
 
 l c
+
+@$ Set small grid
+
+set adv small
 
 @&
 @$ Just calculate with gridmin, some warnings
@@ -78,5 +105,6 @@ l sh p
 
 @$ NOTE THE DATABASE IS NOT RELIABLE FOR THIS SYSTEM
 
+@&
 set inter
 

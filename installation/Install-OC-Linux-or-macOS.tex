@@ -12,7 +12,7 @@
 
 \begin{document}
 \begin{center}
-{\Large \bf Installation of OpenCalphad on Linux}
+{\Large \bf Installation of OpenCalphad on Linux or macOS}
 
 Bo Sundman, \today
 
@@ -24,12 +24,12 @@ Fortran compilers and the GNUPLOT software if you do not already have
 them.  The OC development team cannot offer you any help for that,
 please ask some local experts if you need help.
 
-The descrcipton below applies when installing OC on a ``vanilla''
+The description below applies when installing OC on a ``vanilla''
 Linux system, the guides available are:
 \begin{itemize}
 \item Install-OC-Windows-MinGW
 \item Installation de OC sous Windows avec Cygwin (in French)
-\item Install-OC-Linux
+\item Install-OC-Linux-or-macOS
 \end{itemize}
 
 Step by step installation:
@@ -44,40 +44,43 @@ Step by step installation:
   another Fortran compiler you must be sure it is compatible with GNU
   Fortran 4.8 or later.
 
-\item Rename the file ``Makefile-sequential'' to Makefile
-
-\item If you have access to several CPUs you can test OC with
-  parallelization using Open MP.  In that case you should rename
-  ``Makefile-parallel'' to Makefile
-
 \item open a terminal window and use ``cd'' (change directory) to the
-  direcory where you unzipped OC.  Type ``make'' to run the Makefile.
-  {\bf If you have errors running the make command files please
+  directory where you unzipped OC.
+
+  \begin{itemize}
+  \item run ``make -f Makefile-sequential'' to build a serial version of OpenCalphad...
+
+  \item ... or if you have access to several CPUs you can test OC with
+    parallelization using Open MP.  In that case run ``make -f Makefile-parallel'' to build a OpenCalphad
+  \end{itemize}
+
+\item {\bf If you have errors running the make command files please
     contact a local expert.}
 
 \item For the graphics you must download and install the free GNUPLOT
-  software, for example from SoureForge.
+  software, for example from SourceForge.
 
   Make sure your PATH includes the directory with the GNUPLOT program.
   If you do not know how to set your PATH ask a local expert.
 
 \item Creating a home directory for OC
+
   \begin{itemize}
   \item Create a directory called OCHOME, usually at your home
-    directory ``mkfile OCHOME''
-    
+    directory ``mkdir OCHOME''
+
   \item Copy the file ochelp.hlp to this directory
 
-  \item Create an environment variable called OCHOME with the parth
+  \item Create an environment variable called OCHOME with the path
     to your OCHOME directory.  If you do not know how create an
-    environment variable please as a local expert.
+    environment variable please ask a local expert.
 
   \item Later you may also add a macro file called ``start.OCM''
-    that you want to run everytime you start OC on this directory.
+    that you want to run every time you start OC on this directory.
     You can also create a subdirectory called ``databases'' that you
     can search when you give the command ``read tdb'' in OC if you
     prefix the file name by ``ocbase/''
-  \end{itemize} 
+  \end{itemize}
 
 \item Look in ``after-installation'' for help using OC.
 

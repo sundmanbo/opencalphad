@@ -141,7 +141,8 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! 2013.03.01 Release version 1
 ! 2015.01.07 Release version 2
 ! 2016.02.14 Release version 3
-! 2017.02.10 Updated version 3 with OC version 4
+! 2017.02.10 Release version 4
+! after version on github numbered 4.011, incremented for each update
 !
 !=================================================================
 !
@@ -502,7 +503,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! 4310
        'Error that final : for constituents missing                     ',&
        'Empty line after FUNCTION keyword                               ',&
-       'Line woth PARAMETER keyword does not finish with !              ',&
+       'Line with PARAMETER keyword does not finish with !              ',&
        'Empty reference line on TDB file                                ',&
        'References must be surrounded by citation marks                 ',&
        'Function name must be on same line as FUNCTION keyword          ',&
@@ -552,7 +553,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'Wrong version of data on unformatted file                       ',&
        'Error reserving space for unformatted save                      ',&
        'Error saving unformatted data file                              ',&
-       '                                                                ',&
+       'Recalculate as gridpoint below current equilibrium              ',&
        '                                                                ',&
 ! 4360
        '                                                                ',&
@@ -620,15 +621,17 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! NOPAR: do not run in parallel
 ! NOSMGLOB do not test global equilibrium at node points
 ! NOTELCOMP the elements are not the components
-! TGRID always check calculated equilibrium with grid minimizer
+! TGRID check calculated equilibrium with grid minimizer
 ! OGRID use old grid generator
+! NORECALC do not recalculate equilibria even if global test fails
 ! >>>> some of these should be moved to the gtp_equilibrium_data record
   integer, parameter :: &
        GSBEG=0,       GSOCC=1,        GSADV=2,      GSNOGLOB=3, &
        GSNOMERGE=4,   GSNODATA=5,     GSNOPHASE=6,  GSNOACS=7, &
        GSNOREMCS=8,   GSNOSAVE=9,     GSVERBOSE=10, GSSETVERB=11,&
        GSSILENT=12,   GSNOAFTEREQ=13, GSXGRID=14,   GSNOPAR=15, &
-       GSNOSMGLOB=16, GSNOTELCOMP=17, GSTGRID=18,   GSOGRID=19
+       GSNOSMGLOB=16, GSNOTELCOMP=17, GSTGRID=18,   GSOGRID=19, &
+       GSNORECALC=20
 !----------------------------------------------------------------
 !-Bits in element record
   integer, parameter :: &
@@ -782,10 +785,10 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   integer, private, parameter :: maxprop=50
 ! max number of state variable functions
   integer, private, parameter :: maxsvfun=500
-! version number
-! changes in the last digit means no change in SAVE/READ format
+! version number of GTP (not OC)
   character*8, parameter :: gtpversion='GTP-3.20'
-  character*8, parameter ::   savefile='OCF-3.20'
+! THIS MUST BE CHANGED WHENEVER THE UNFORMATTED FILE FORMAT CHANGES!!!
+  character*8, parameter :: savefile='OCF-3.20'
 !\end{verbatim}
 !=================================================================
 !\begin{verbatim}
@@ -1176,7 +1179,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! the same phase and other compsets are added at the end.
 ! BUT if a compset>1 is deleted tuples with higher index will be shifted down!
      integer lokph,compset,ixphase,lokvares,nextcs
-!     integer phaseix,compset,ixphase,lokvares,nextcs
+! >>>>>>>>>>>> old     integer phaseix,compset,ixphase,lokvares,nextcs
   end TYPE gtp_phasetuple
 !\end{verbatim}
   TYPE(gtp_phasetuple), target, allocatable :: PHASETUPLE(:)

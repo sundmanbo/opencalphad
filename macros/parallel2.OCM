@@ -1,3 +1,26 @@
+new Y
+@$ ================================================================
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$ parallel2.OCM
 @$ testing enter many equilibria and calculate in parallel
 @&
 @$ The calculate all command using the grid minimizer does not calculate
@@ -6,6 +29,8 @@
 @$
 @$ I also allow the user to output extra data for each equlibrium
 @$ according to a suggestion by Andre
+@$ ================================================================
+@&
 set echo
 
 r t steel1
@@ -463,12 +488,9 @@ set range 2 401
 @$ Calculate once with gridminimizer, we may create composition sets
 @$ Calculate with gridminimizer disables parallel calculation
 
-@$ To speed up this a little we select the smaller grid in a little
-@$ complex way, first we must make us experts
-set bit global 2
+@$ To speed up this a little we select the smaller grid
 
-@$ Then we select the smaller grid
-set bit global 19
+set adv small
 
 @&
 @$ Note the composition of x(fcc,c) is in most cases the cubic carbide,
@@ -494,9 +516,10 @@ calc /out=outpara all N
 @&
 @$ Run without parallel with output on file for comparison
 @$ Bit 2 makes me an expert, bit 15 turns off parallel
-@$ ------------------------ BE PATIENT -----------------------------
 set bit glo 2
 set bit glo 15
+
+@$ ------------------------ BE PATIENT -----------------------------
 
 calc /out=outseq all N
 
@@ -506,10 +529,9 @@ calc /out=outseq all N
 set bit glo 15
 
 
+
+@&
 set inter
 
-2378
-
-8320
 
 

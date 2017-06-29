@@ -2921,6 +2921,7 @@ CONTAINS
 !       endif
 !    endif
 !    CALL GPARFD('Macro filename: ',LINE,LAST,1,FIL,MACFIL,USEEXT,FILHLP)
+!    write(*,*)'In MACBEG: ',trim(line),last
     CALL GPARC('Macro filename: ',LINE,LAST,1,FIL,MACFIL,nohelp)
     CALL FXDFLT(FIL,MACEXT)
 !    if (LEN_TRIM(fil).gt.0) call tcgffn(fil)

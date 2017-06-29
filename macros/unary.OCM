@@ -1,5 +1,19 @@
 @$==========================================================================
+new Y
 @$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$ unary.OCM
 @$ This is calculation for a single element, pure Fe
 @$ Just to check it can change stable phase 
 @$ step in T and P-T diagram does not work
@@ -56,7 +70,7 @@ set c t=2000
 c e
 l,,,,
 
-@$ Now liquid is stable and G=-127520 J
+@$ Now liquid is stable and G=-127.518 kJ
 @$ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-
 @&
 @$ set condition on H and remove condition on T
@@ -86,5 +100,5 @@ c e
 l,,,,
 
 @$ With this value of H we have FCC stable at 1615.28 K 
-
+@&
 set inter

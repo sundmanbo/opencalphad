@@ -2406,6 +2406,7 @@ end function find_phasetuple_by_indices
    double precision dblvar(*)
 !\end{verbatim}
 !   integer jl
+   write(*,*)'3A in deallocate_gtp'
    deallocate(ellista, STAT = allocateStatus)
    if (allocateStatus /= 0) then
      write(kou,*) 'Error during deallocation of ellista'
@@ -2426,9 +2427,43 @@ end function find_phasetuple_by_indices
    deallocate(propid)
    deallocate(eqlista)
    deallocate(svflista)
+   write(*,*)'3A Deallocate TP funs'
    call tpfun_deallocate
 1000 continue
    return
  END subroutine deallocate_gtp
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+  logical function allotropes(irem,iadd,ceq)
+! This function return TRUE if the phases indicated by IREM and IADD
+! both have fixed and identical composition, i.e. they are allotropes
+! Such a transition can cause problems during a STEP command.
+    implicit none
+    TYPE(gtp_equilibrium_data), pointer :: ceq
+    integer iadd,irem
+!\end{verbatim}
+    integer lokph1,lokph2,nofr,jj
+    logical allo
+    allo=.false.
+    write(*,*)'checking if two phases are allotropes',irem,iadd
+    lokph1=phases(irem)
+    nofr=phlista(lokph1)%tnooffr
+    if(nofr-phlista(lokph1)%noofsubl.eq.0) then
+       lokph2=phases(iadd)
+       if(nofr-phlista(lokph2)%noofsubl.eq.0) then
+          do jj=1,nofr
+             if(phlista(lokph1)%constitlist(jj).ne.&
+                  phlista(lokph2)%constitlist(jj)) goto 1000
+          enddo
+          allo=.true.
+          write(*,*)'The phases are allotropes!',ceq%tpval(1)
+       endif
+    endif
+1000 continue
+    allotropes=allo
+    return
+  end function allotropes
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\

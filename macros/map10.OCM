@@ -1,4 +1,28 @@
+new Y
+@$ ====================================================================
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$ map10.OCM
 @$ Calculating the isothermal section at 1200 K for Cr-Fe-Ni
+@$ ====================================================================
 @&
 
 set echo
@@ -58,6 +82,8 @@ title map 10 fig 3
 @$ There is no Gibbs triagle diagram option yet
 
 
+
+@&
 set inter
 
 

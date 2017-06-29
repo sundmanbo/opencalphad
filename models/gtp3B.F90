@@ -344,7 +344,7 @@
    integer kconlok(maxconst),kalpha(maxconst),iord(maxconst),klok(maxconst)
    integer iva(maxconst),endm(maxsubl),endm0(maxsubl+1)
    logical externalchargebalance,tupix
-   integer iph,kkk,lokph,ll,nk,jl,jk,mm,lokcs,nkk,nyfas,loksp,tuple
+   integer iph,kkk,lokph,ll,nk,jl,jk,mm,lokcs,nkk,nyfas,loksp,tuple,bothcharge
 ! logicals for models later stored in phase record
    logical i2sl,cqc
 !   write(*,*)'3B enter enter_phase: ',trim(name),' ',trim(model)
@@ -454,8 +454,7 @@
 !                 const(jl)(1:len_trim(const(jl))),name(1:len_trim(name))
 314         format('3B Species: ',4i4,' "',a,'" in ',a)
             if(kalpha(mm).eq.kalpha(jl)) then
-               write(*,315)name(1:len_trim(name)),&
-                    const(jl)(1:len_trim(const(jl))),ll
+               write(*,315)trim(name),trim(const(jl)),ll
 315            format(' *** Error, the ',a,' phase has constituent ',a,&
                     ' twice in sublattice ',i2)
                gx%bmperr=4258; goto 1000
@@ -472,12 +471,15 @@
       kconlok(jl)=jk
 !     write(6,73)' enter_phase 4B: ',jl,const(jl),jk,kconlok(jl),kalpha(jl)
 !73   format(A,i3,1x,A6,3I3)
-! mark that PHEXCB bit must be set if species has a charge 
+! mark that PHEXCB bit must be set if species has variable charge 
       if(splista(jk)%charge.ne.zero) then
          externalchargebalance=.true.
       endif
    enddo constest
-! reserve a new phase record and store data there and in other records
+!   goto 370
+! we should have the check if the phase can be neutral here ....
+!--------------------------------------------------------------------------
+370 continue
 ! the first phase entered is the reference phase created by init_gtp
    if(noofph.eq.0 .and. phtype(1:1).eq.'Z') then
 ! phtyp=Z is the reference phase
@@ -512,6 +514,9 @@
       call sort_ionliqconst(lokph,0,knr,kconlok,klok)
       if(gx%bmperr.ne.0) goto 1000
    else ! else link is for all other phases except ionic liquid
+! external chargebalance THIS SET BELOW
+!      if(externalchargebalance) &
+!           phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHEXCB)
 ! sort the constituents in each sublattice according to alphaspindex
 !  write(6,70)5,(kalpha(i),i=1,nkk)
 !  write(6,70)5,(kconlok(i),i=1,nkk)
@@ -645,8 +650,14 @@
 ! If one has made NEW the links are not always zero
 ! set some phase bits (PHGAS and PHLIQ set above)
 ! external charge balance etc.
+!   goto 600
+! ------------------------------------------------------------
+! code below moved to the beginning to avoid enetring phases with net charge
+   bothcharge=0
    if(externalchargebalance) then
-! do not set this if all endmembers have zero charge  m2o3(Ce+3,La+3)2(O-2)3
+      kkk=0
+      bothcharge=-100
+! do not set PHEXCB if all endmembers have zero charge  m2o3(Ce+3,La+3)2(O-2)3
       jl=1
       endch=zero
       do ll=1,nsl
@@ -657,19 +668,40 @@
          jl=jl+phlista(nyfas)%nooffr(ll)
       enddo
       endm0(nsl+1)=phlista(nyfas)%tnooffr+1
-400   continue
-!      write(*,405)'3B netcharge ',trim(name),endch,(endm(ll),ll=1,nsl)
-!405   format(a,a,1pe12.4,9i4)
-      if(abs(endch).gt.1.0D-6) goto 420
+500   continue
+!      write(*,*)'3B checking external chargebalance for: ',trim(name),&
+!           btest(phlista(nyfas)%status1,PHEXCB)
+      if(abs(endch).gt.1.0D-6) then
+! A clumsy check, with ZRO2_TETR we may have (U+4)1(O-2,VA)2
+! with one neutral and one charged (+4) endmember. It should be allowed ...
+! We will set this bit any time but we have to check if the phase have
+! endmembers with both charges
+!         write(*,*)'3B charge balance needed for ',trim(name),endch
+         phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHEXCB)
+         if(bothcharge.eq.-100) then
+            if(endch.lt.zero) then
+               bothcharge=-1
+            else
+               bothcharge=1
+            endif
+         elseif(bothcharge.lt.0) then
+            if(endch.gt.zero) bothcharge=0
+         else
+            if(endch.lt.zero) bothcharge=0
+         endif
+      else
+! kkk counts number of neutral endmembers
+         kkk=kkk+1
+      endif
       ll=nsl
-410   continue
+510   continue
       if(endm(ll).lt.endm0(ll+1)-1) then
          jk=phlista(nyfas)%constitlist(endm(ll))
          endch=endch-splista(jk)%charge*sites(ll)
          endm(ll)=endm(ll)+1
          jk=phlista(nyfas)%constitlist(endm(ll))
          endch=endch+splista(jk)%charge*sites(ll)
-         goto 400
+         goto 500
       elseif(ll.gt.1) then
          jk=phlista(nyfas)%constitlist(endm(ll))
          endch=endch-splista(jk)%charge*sites(ll)
@@ -677,17 +709,30 @@
          jk=phlista(nyfas)%constitlist(endm(ll))
          endch=endch+splista(jk)%charge*sites(ll)
          ll=ll-1
-         goto 410
+         goto 510
       endif
 !      write(*,*)'3B charge balance not needed for ',trim(name)
-      goto 430
+!      goto 530
 ! jump here if any endmember has a net charge
-420   continue
-!      write(*,*)'3B charge balance needed for ',trim(name)
-      phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHEXCB)
+!520   continue
 ! jump here if all neutral
-430   continue
+!530   continue
    endif
+! if a phase with charged constituents cannot be neutral suspend it
+! If bothcharge=0 no charged endmember or there are both + and - charges,
+!           do not suspend
+! If bothcharge=-100 there are no charged endmember, do not suspend
+! If kkk>0 there is at least one neutral, do not suspend
+   if(bothcharge.ne.0) then
+      if(kkk.eq.0) then
+         write(*,531)trim(name),bothcharge,nkk
+531      format(' *** WARNING: the phase ',a,2i5,' suspended'/&
+              14x,'as it cannot be electrically neutral')
+         firsteq%phase_varres(lokcs)%phstate=PHSUS
+      endif
+   endif
+!--------------------------------------- end moved
+600 continue
 ! set net charge to zero
    firsteq%phase_varres(lokcs)%netcharge=zero
    if(nsl.eq.1) then
@@ -1028,7 +1073,7 @@
 !   call create_parrecords(lokph,nyttcs,nsl,nkk,maxcalcprop,iva,firsteq)
    call create_parrecords(lokph,nyttcs,nsl,nkk,maxcalcprop,iva,firsteq)
    if(gx%bmperr.ne.0) goto 1000
-!   write(*,*)'3B add_cs: ',nyttcs
+!   write(*,*)'3B added composition set: ',nyttcs,csfree
 ! add new tuple at the end and save tuple index
    tuple=nooftuples+1
 !   phasetuple(tuple)%phaseix=phases(iph)
@@ -1173,6 +1218,7 @@
 88    format(a,i2,2x,Z16,2x,10(1x,i3))
 ! if there is a disordered fraction set one must copy the fraction set record
 ! and add a new parrecords to this. lokcs1 is first composition set
+! do not forget to increment novarres and highcs
       disordered: if(btest(phlista(lokph)%status1,phmfs)) then
 ! copy the old fraction set record to the new
 !------------------------ does this work??? disfra has a lot of data
@@ -1199,7 +1245,9 @@
 !            write(kou,170)trim(eqlista(leq)%eqname),leq,lokcs1,nydis
 !170         format('3B New composition set in equilibrium ',a,i4,&
 !                 ' with lokcs and nydis index: ',2i4)
+! ??????????? but the disordered fraction set is empty??
          endif
+!         write(*,*)'3B disordered phase_varres: ',leq,nydis,csfree
          ndeq=>eqlista(leq)%phase_varres(nydis)
          ndeq%phlink=lokph
          ndeq%prefix=' '
@@ -1228,6 +1276,7 @@
 !      lokcs=phlista(lokph)%linktocs(jl)
 !      write(*,7)lokcs,firsteq%phase_varres(lokcs)%mmyfr
 !   enddo
+!   write(*,*)'3B value of csfree,highcs: ',csfree,highcs
    return
  end subroutine enter_composition_set
 
@@ -1581,20 +1630,21 @@
 !\end{verbatim}
    character notext*20,funexp*1024
    integer iord(maxsubl),jord(2,maxsubl)
-   integer again,kkk,ll,kk1,mint,kk,lokint,iz,it,kint,ib,jl,zz
-   integer lj,i1,i2,newint,ifri,lokcs,noperm,firstint,listfun
+   integer again,kkk,ll,kk1,mint,kk,lokint,iz,it,kint,ib,jl,zz,highint
+   integer lj,i1,i2,newint,ifri,lokcs,noperm,firstint,listfun,ii
    integer, dimension(24) :: intperm
    integer, dimension(:,:), allocatable :: elinks
    integer, dimension(:,:), allocatable :: intlinks
    type(gtp_endmember), pointer :: newem,endmemrec,lastem
-   type(gtp_interaction), pointer :: intrec,lastint,newintrec
+   type(gtp_interaction), pointer :: intrec,lastint,newintrec,donotforget
+   type(gtp_interaction), pointer :: linktohigh
 !   type(gtp_interaction), allocatable, target :: newintrec
    type(gtp_property), pointer :: proprec,lastprop
    TYPE(gtp_fraction_set) :: disfra
    logical ionliq
 !
    if(gx%bmperr.ne.0) then
-      write(*,*)'3B Error ',gx%bmperr,' already set calling enter_parameter!'
+      write(*,*)'3B Error ',gx%bmperr,' set calling enter_parameter, cleared!'
       gx%bmperr=0
    endif
 ! listfun used when calling this routine just to list a parameter
@@ -1742,10 +1792,13 @@
 ! try to keep end member records in some order of constituents ...
 90 continue
 !   if(fractyp.eq.2) then
-!   write(*,92)'3B: endmembers: ',(iord(ii),ii=1,nsl)
-!   write(*,92)'3B: interactions: ',(jord(2,ii),ii=1,nint)
+! looking for bug entering 4 sublattice interaction parammeters ...
+!   write(*,116)'3B: endm & int: ',(iord(ii),ii=1,nsl),&
+!        (jord(1,ii),jord(2,ii),ii=1,nint)
+116 format(a,4i3' : ',2i3,2x,2i3)
 !   endif
    nullify(lastem)
+!---------------------------------------------
 ! check that interactions are in sublattice and alphabetical order!!
    again=0
    intcheck: do lokint=2,nint
@@ -1773,6 +1826,7 @@
    enddo intcheck
 !   write(*,*)'3B Again: ',again
    if(again.eq.1) goto 90
+!---------------------------------------------
 ! Make sure the endmember has the alphabetically lowest constituent
 ! and that the interaction is not the same as the endmember
 !   write(*,92)'3B endmembers: ',(iord(i),i=1,nsl)
@@ -1829,7 +1883,8 @@
          endif
       endif placeib
    enddo placeibloop
-! there may be permutations for ordered phases  ... implemented for fcc
+!---------------------------------------------
+! there may be permutations for ordered phases  ... implemented for fcc only
    intperm=0
    ftyp1: if(fractyp.eq.1) then
       if(btest(phlista(lokph)%status1,PHFORD)) then
@@ -1867,6 +1922,8 @@
    endif
 !   write(*,91)'3B enter_param 90: ',fractyp,nsl,(iord(ii),ii=1,nsl)
 91 format(a,i2,i3,10i4)
+!---------------------------------------------
+! find endmember record, maybe create
    ionliq=btest(phlista(lokph)%status1,PHIONLIQ)
    findem: do while(associated(endmemrec))
       if(.NOT.ionliq) then
@@ -1929,6 +1986,8 @@
 ! if lfun=-1 we want to list the function and not create anything
    if(lfun.lt.0) goto 900
 !
+!---------------------------------------------
+! create endmember record
 100 continue
 ! we have not found any endmember record so we have to insert a record here
 ! lokem may be nonzero if we exited from findem loop to this label
@@ -1951,10 +2010,11 @@
    endmemrec=>newem
 !---------------------------------------------------
 ! Here we have found or created the endmember record
-! look for or create interaction record, no wildcards in interactions
+! look for or create interaction record, NO WILDCARDS IN INTERACTIONS
 ! Interacting elements should be in sublattice and alphabetical order!!
 200 continue
 !   write(*,*)'3B enter_parameter mint3: ',mint,nint
+   nullify(linktohigh)
    lokint=0
    someint: if(nint.gt.0) then
 ! when there are interaction records the ideal bit must be cleared
@@ -1975,7 +2035,6 @@
          endmemrec%intpointer=>newintrec
          intrec=>newintrec
          lastint=>intrec
-!         mint=mint+1
          newint=1
 !         write(*,*)'3B created interaction:  ',newint,mint
       else
@@ -1989,21 +2048,39 @@
 ! interaction records should be ordered according to the sublattice
 ! with the interaction.  For interaction with permutations use the 
 ! sublattice of the first permutation
+! WE MUST store interactions in sublattice order and in constituent order
+! highint eventually not used ...
+      highint=0
+      nullify(linktohigh)
       findint: do while(mint.le.nint)
-!         write(*,*)'3B At findint: ',mint,nint,newint
+!         write(*,307)'3B At findint: ',mint,nint,newint,highint,&
+!              intrec%sublattice(1),intrec%fraclink(1),jord(1,mint),jord(2,mint)
+307      format(a,4i4,2x,2i3,2x,2i3)
          if(intrec%sublattice(1).eq.jord(1,mint) .and. &
               intrec%fraclink(1).eq.jord(2,mint)) then
 ! found an interaction with same constituent (maybe just created)
             if(mint.eq.nint) then
 !               write(*,*)'3B same interaction, level: ',mint
+               nullify(linktohigh)
                goto 400
             endif
             lastint=>intrec
+            linktohigh=>intrec
             intrec=>intrec%highlink
+!            write(*,*)'3B linktohigh: ',linktohigh%sublattice(1),&
+!                 linktohigh%fraclink(1)
+! BUG!! This creates problem entering L(liquid,c,cr,v;0/1/2)
+!            highint=1
+! BUG !! but it is necessary to create 24 SRO parameter for 4 sublattice FCC
             mint=mint+1
             newint=1
-            if(.not.associated(intrec)) exit findint
+            if(.not.associated(intrec)) then
+!               write(*,*)'3B exit findint here'
+               exit findint
+            endif
          else
+! nint is parameter interaction level, mint is ?
+! Problems here when entering 24 reciprocal parameter for SRO in FCC
             if(mint.eq.nint) then
 ! error when storing permutations because newint=0 below.  Moved it to the end
 ! but that gave error L(liq,C,Cr,V) was stored as L(Liq,C,Cr,Fe,V)
@@ -2013,11 +2090,14 @@
 ! we must store interactions in sublattice order and in order of constituent
 ! in jord(2,mint) otherwise we will never be able to find a permutation. 
             if(intrec%sublattice(1).gt.jord(1,mint)) then
-!               write(*,*)'3B insering interaction before existing'
+!               write(*,*)'3B insering interaction before existing',&
+!                    associated(linktohigh)
                exit findint
             endif
+            nullify(linktohigh)
             lastint=>intrec
             intrec=>intrec%nextlink
+!            write(*,*)'3B exit? ',associated(intrec),associated(linktohigh)
             if(.not.associated(intrec)) exit findint
             firstint=1
 ! more records on this interaction level ?
@@ -2029,18 +2109,35 @@
 ! we must create at least one interactionrecord, newint=0 if same level
 ! If intrec is associated the nextint link should be set to this
 310    continue
-!      write(*,*)'3B At 310',mint,nint
+!      write(*,*)'3B At 310',mint,nint,newint,highint
       if(mint.le.nint) then
 ! if lfun=-1 and parameter does not exist just skip away
          if(lfun.eq.-1) goto 900
-!         write(*,303)'3B  Linking at 310:',mint,nint,newint,firstint
+!         write(*,303)'3B create at 310:',mint,nint,newint,firstint,highint,&
+!              jord(1,mint),jord(2,mint)
          call create_interaction(newintrec,mint,jord,intperm,intlinks)
          if(gx%bmperr.ne.0) goto 1000
+! suddenly interaction record has wrong links??
+!       write(*,*)'3B sub/comp: ',newintrec%sublattice(1),newintrec%fraclink(1)
          if(newint.eq.1) then
-!            write(*,*)'3B Linking as higher'
+!           write(*,*)'3B Linking as higher',mint,highint,associated(linktohigh)
+! We may have a high link already! Set it as nextlink!
+!            write(*,*)'3B Using lastint'
+            donotforget=>lastint%highlink
             lastint%highlink=>newintrec
+            newintrec%nextlink=>donotforget
+         elseif(associated(linktohigh)) then
+!            write(*,*)'3B Using linktohigh'
+!          write(*,*)'3B low: ',linktohigh%sublattice(1),linktohigh%fraclink(1)
+!            write(*,*)'3B low: ',newintrec%sublattice(1),newintrec%fraclink(1)
+            donotforget=>linktohigh%highlink
+!            write(*,*)'3B low: ',donotforget%sublattice(1),&
+!                 donotforget%fraclink(1)
+            linktohigh%highlink=>newintrec
+            newintrec%nextlink=>donotforget
+            nullify(linktohigh)
          elseif(associated(intrec)) then
-!            write(*,*)'3B Linking as previous'
+!            write(*,*)'3B Linking as previous',mint,highint
             newintrec%nextlink=>intrec
 !            write(*,*)'3B Ho ho said the sixth'
             if(associated(lastint)) then
@@ -2050,9 +2147,9 @@
 !               write(*,*)'3B No previous interaction on this level'
                endmemrec%intpointer=>newintrec
             endif
-!            write(*,*)'3B Ho ho said the sixth'
+!            write(*,*)'3B Ha ha said the seventh'
          else
-!            write(*,*)'3B Linking as next'
+!            write(*,*)'3B Linking as next',mint
             lastint%nextlink=>newintrec
          endif
 ! redundant as newint set to 1 below ...
@@ -2061,6 +2158,7 @@
          lastint=>intrec
          mint=mint+1
 ! there may be more interaction records .... but they must all be created
+!         write(*,*)'gtp3B maybe create more records ...',associated(linktohigh)
          newint=1
          goto 310
       endif
@@ -3846,10 +3944,11 @@
       write(*,*)'3B: not allowed enter equilibrium: ',name
       gx%bmperr=4153; goto 1000
    endif
+! if name is empty or has a non-alphabetical letter first generate a name ??
    name2=name
    call capson(name2)
-   if(ocv()) write(*,*)'3B In routine to enter equilibria: ',&
-        name,noofph,eqfree
+!   write(*,3)'3B In enter equilibria: ',name,noofph,eqfree,csfree,highcs
+3  format(a,6i5)
    if(.not.proper_symbol_name(name2,0)) then
 ! the name must start with a letter A-Z and contain letters, numbers and _
       gx%bmperr=4122
@@ -4727,7 +4826,7 @@
    integer ieq,ipv,jz,iz,jl,jk,novarres,oldeq
    logical okname
 !
-!   write(*,*)'In copy_equilibrium',len_trim(name)
+!   write(*,*)'In copy_equilibrium2',trim(name),eqfree
    nullify(neweq)
    if(.not.allowenter(3)) then
 !      write(*,*)'3B Not allowed enter a copy'
@@ -4799,12 +4898,12 @@
 ! do not copy comment but set it to blanks
    eqlista(ieq)%comment=' '
 ! component list and matrix, if second or higher equilibrium copy content
-!   write(*,*)'3B: entereq 1A: ',maxel,noofel
+!   write(*,*)'3B: copyeq 1A: ',maxel,noofel
    allocate(eqlista(ieq)%complist(noofel))
    allocate(eqlista(ieq)%compstoi(noofel,noofel))
    allocate(eqlista(ieq)%invcompstoi(noofel,noofel))
    allocate(eqlista(ieq)%cmuval(noofel))
-!   write(*,*)'3B: entereq 1B: ',noofel
+!   write(*,*)'3B: copyeq 1B: ',noofel
 ! careful here because FIRSTEQ has other dimensions than the other
    do jl=1,noofel
       eqlista(ieq)%complist(jl)=ceq%complist(jl)
@@ -4818,7 +4917,6 @@
 ! what about the weight?
    eqlista(ieq)%weight=ceq%weight
 !   write(*,*)'3B copyeq 1: ',ceq%weight,eqlista(ieq)%weight
-!   write(*,*)'3B: entereq 2: ',noofel
    do jl=1,noofel
       eqlista(ieq)%complist(jl)%splink=eqlista(oldeq)%complist(jl)%splink
       eqlista(ieq)%complist(jl)%phlink=firsteq%complist(jl)%phlink
@@ -4846,10 +4944,12 @@
 ! For phase lokph the index to phase_varres is in phlista(lokph)%linktocs(ics)
 ! for ieq>1 allocate the current number of phase_varres records plus 10
 ! for extra composition sets added later
+! 170524: It seems that phase_varres for disordered fraction sets are not
+!          included in novarres in novarres or highcs!!
    novarres=highcs
 ! the next line should be deleted when highcs implemented
    novarres=csfree-1
-!   write(*,*)'3B: entereq 3: ',highcs,novarres
+!   write(*,*)'3B: copyeq 3: ',highcs,novarres
 ! BEWARE: allocation: calculating with one phase with 8 composition sets
 ! and disordered fractions sets !!!
    iz=max(noofph,novarres)
@@ -4868,10 +4968,17 @@
 ! the disordered with 8 y-fractions.  
 ! A simple dimensioning problem: 1 phase, 8 compsets, disordered fracset
 ! requires 17 phase_varres.  Before the "max" above I had dimensioned for 2
+! BEWARE: I am not sure novarres is correct ...
+!   copypv: do ipv=1,min(novarres+3,size(ceq%phase_varres))
    copypv: do ipv=1,novarres
       eqlista(ieq)%phase_varres(ipv)=eqlista(oldeq)%phase_varres(ipv)
 ! in matsmin nprop seemed suddenly to be zero in copied equilibria ....
 !      write(*,*)'3B copyeq 2: ',ieq,ipv,eqlista(ieq)%phase_varres(ipv)%nprop
+! Bug 170524 ... disordered phase_varres had no 
+!      write(*,833)'3B copyeq: ',oldeq,ipv,novarres,&
+!           eqlista(oldeq)%phase_varres(ipv)%disfra%varreslink,&
+!           eqlista(ieq)%phase_varres(ipv)%disfra%varreslink
+833 format(a,2i3,i5,2i3,10i5)
    enddo copypv
 900 continue
 !   write(*,*)'3B To copy conditions:'
@@ -4923,7 +5030,7 @@
 1000 continue
 !   write(*,*)'3B exit copy_equilibrium'
    return
- end subroutine copy_equilibrium2
+ end subroutine copy_equilibrium2 !csfree
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 

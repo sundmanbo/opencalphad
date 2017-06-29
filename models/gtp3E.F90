@@ -123,7 +123,9 @@
 !\end{verbatim}
 !
    character id*40,comment*72
-   integer, parameter :: miws=1000000
+!   integer, parameter :: miws=2000000
+! size of workspace for unformatted storage
+   integer miws
    integer, allocatable, dimension(:) :: iws
    integer i,isp,jph,lokph,lut,last,lok,rsize,displace,ibug,ffun,lokeq
 ! these depend on hardware, bytes/word and words/double. Defined in metlib3
@@ -170,6 +172,10 @@
 1     format('There is no data to save!')
       goto 1001
    endif
+! dimension iws depending on number of equuilibria stored
+! 7000 is for a 6 component system with 50 phases
+   miws=1000000+7000*eqfree
+   write(*,*)'3E allocating workspace: ',miws
    allocate(iws(miws))
    call winit(miws,100,iws)
    if(buperr.ne.0) goto 1100
@@ -331,8 +337,6 @@
    call storr(lok+3,iws,globaldata%rgas)
    call storr(lok+3+nwpr,iws,globaldata%rgasuser)
    call storr(lok+3+2*nwpr,iws,globaldata%pnorm)
-!   call wrkchk(rsize,miws,iws)
-!   write(*,*)'3E used workspace up to ',rsize
 !   goto 900
 ! unfinished
 !------------- state variable functions
@@ -350,6 +354,9 @@
    if(gx%bmperr.ne.0) goto 1100
    iws(22)=lok
    iws(23)=gtp_biblioref_version
+! document use of workspace
+   call wrkchk(rsize,miws,iws)
+   write(*,*)'3E used ',rsize,' words out of ',miws,' for storing static data'
 !-------------------------------------------------------
 ! write the equilibrium records
 ! conditions, components, phase_varres for all composition sets etc
@@ -358,8 +365,7 @@
 !   write(lut)gtp_equilibrium_data_version,gtp_component_version,&
 !        gtp_phase_varres_version
    lokeq=0
-! we should eventually have a loop to save all equilibria
-!   call saveequil(lokeq,iws,firsteq)
+! all equilibria are saved here
    call saveequil(lokeq,iws)
    if(gx%bmperr.ne.0) goto 1100
 ! finished saving equilibria
@@ -376,6 +382,7 @@
       iws(27)=gtp_assessment_version
       lok=26
       call saveash(lok,iws)
+      if(gx%bmperr.ne.0) goto 1100
    endif
 ! free list for phase_varres records
 !   write(*,*)'3E Phase_varres first free/highcs: ',csfree,highcs
@@ -387,6 +394,12 @@
       filename(len_trim(filename)+1:)='.ocu'
    endif
    lut=21
+!**********************************************************
+! IMPORTANT savefile
+! is a variable in gtp3.F90
+! which MUST BE CHANGED whenever there is a change in the unformatted
+! file layout
+!***********************************************************
    open(lut,file=filename,access='sequential',status='unknown',&
            form='unformatted',iostat=gx%bmperr,err=1000)
    id='This is a save file for OC version:    '
@@ -401,6 +414,9 @@
       write(kou,990)buperr
 990   format(/' *** WARNING *** , workspace save error: ',i7/)
    endif
+   write(kou,989)rsize+5+last,miws,1.0D2*real(rsize+5+last)/real(miws)
+989 format('Used ',i8,' words out of ',i8,', ',&
+         F6.2,'% for unformatted memory save')
    write(kou,991)nbpw*(rsize+5+last),trim(filename)
 991 format('Written workspace ',i10,' bytes unformatted on ',a)
 1000 continue
@@ -800,12 +816,20 @@
 !   TYPE(gtp_condition), pointer :: condrec
    integer i,isp,j,k,kl,lokcs,lokph,mc,mc2,nsl,lokeq,rsize,displace,lokvares
    integer lokdis,disz,lok,qsize,eqdis,iws1,dcheck,lokcc,seqz,offset,dmc
-   integer loklast,eqnumber,lokhighcs
+   integer loklast,eqnumber,lokhighcs,ceqsize
    type(gtp_equilibrium_data), pointer :: ceq
 ! loop to save all equilibria
    eqnumber=0
 17 continue
    eqnumber=eqnumber+1
+   if(eqnumber.eq.1) then
+! calculate the size of the first equilibrium record saved
+      ceqsize=iws(1)
+   elseif(eqnumber.eq.2) then
+      ceqsize=iws(1)-ceqsize
+      write(*,18)ceqsize
+18    format(' 3E Saving an equilibrium record requires ',i8,' words')
+   endif
    ceq=>eqlista(eqnumber)
 ! check if enything entered ...
    if(.not.allocated(ceq%complist)) then
@@ -969,7 +993,8 @@
 117 continue
 ! LINKED LIST of phase_varres records stored from lokeq+lokvares
    lokhighcs=lokeq+displace+3
-   write(*,*)'3E highcs: ',highcs,csfree,lokhighcs
+!   write(*,118)'3E highcs: ',eqnumber,highcs,csfree,lokhighcs
+118 format(a,3i5,i10)
    iws(lokhighcs)=highcs
    lokvares=lokhighcs+1
    eqdis=displace+5
@@ -1334,6 +1359,7 @@
 20 continue
 ! next, status, varcoef, first, and 8 allocatable arrays
    rsize=4+2*nwch(64)+10
+   write(*,*)'3E allocating assessment head record',rsize
    call wtake(lok1,rsize,iws)
    if(buperr.ne.0) then
       write(*,*)'3E Error reserving assessment record',rsize,iws(1)
@@ -1361,7 +1387,7 @@
       write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
       gx%bmperr=4356; goto 1000
    endif
-!   write(*,*)'3E in saveash 1:',lok,lok1,lok2,i1
+   write(*,*)'3E in saveash 1:',lok,lok1,lok2,i1
    iws(lok2)=i1
 ! Hm assrec%eqlista(i2)%p1 is a pointer to an element in the global eqlists
 !   ceq=>assrec%eqlista(1)%p1
@@ -1370,95 +1396,101 @@
    enddo
    iws(lok1+disp+1)=lok2
 ! coeffvalues
-   i1=size(assrec%coeffvalues)
-   rsize=1+nwpr*i1
-   call wtake(lok2,rsize,iws)
-   if(buperr.ne.0) then
-      write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
-      gx%bmperr=4356; goto 1000
-   endif
-!   write(*,*)'3E in saveash 2:',lok2,i1
-   iws(lok2)=i1
-   call storrn(i1,iws(lok2+1),assrec%coeffvalues)
-   iws(lok1+disp+2)=lok2
+   if(allocated(assrec%coeffvalues)) then
+      i1=size(assrec%coeffvalues)
+      rsize=1+nwpr*i1
+      call wtake(lok2,rsize,iws)
+      if(buperr.ne.0) then
+         write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
+         gx%bmperr=4356; goto 1000
+      endif
+      write(*,*)'3E in saveash 2:',lok2,i1,rsize
+      iws(lok2)=i1
+      call storrn(i1,iws(lok2+1),assrec%coeffvalues)
+      iws(lok1+disp+2)=lok2
 ! coeffscale
-   i1=size(assrec%coeffscale)
-   rsize=1+nwpr*i1
-   call wtake(lok2,rsize,iws)
-   if(buperr.ne.0) then
-      write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
-      gx%bmperr=4356; goto 1000
-   endif
-   iws(lok2)=i1
-!   write(*,*)'3E in saveash 3:',lok2,i1
-   call storrn(i1,iws(lok2+1),assrec%coeffscale)
-   iws(lok1+disp+3)=lok2
+      i1=size(assrec%coeffscale)
+      rsize=1+nwpr*i1
+      call wtake(lok2,rsize,iws)
+      if(buperr.ne.0) then
+         write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
+         gx%bmperr=4356; goto 1000
+      endif
+      iws(lok2)=i1
+      write(*,*)'3E in saveash 3:',lok2,i1
+      call storrn(i1,iws(lok2+1),assrec%coeffscale)
+      iws(lok1+disp+3)=lok2
 ! coeffstart
-   i1=size(assrec%coeffstart)
-   rsize=1+nwpr*i1
-   call wtake(lok2,rsize,iws)
-   if(buperr.ne.0) then
-      write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
-      gx%bmperr=4356; goto 1000
-   endif
-   iws(lok2)=i1
-!   write(*,*)'3E in saveash 4:',lok2,i1
-   call storrn(i1,iws(lok2+1),assrec%coeffstart)
-   iws(lok1+disp+4)=lok2
+      i1=size(assrec%coeffstart)
+      rsize=1+nwpr*i1
+      call wtake(lok2,rsize,iws)
+      if(buperr.ne.0) then
+         write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
+         gx%bmperr=4356; goto 1000
+      endif
+      iws(lok2)=i1
+      write(*,*)'3E in saveash 4:',lok2,i1
+      call storrn(i1,iws(lok2+1),assrec%coeffstart)
+      iws(lok1+disp+4)=lok2
 ! coeffmin
-   i1=size(assrec%coeffmin)
-   rsize=1+nwpr*i1
-   call wtake(lok2,rsize,iws)
-   if(buperr.ne.0) then
-      write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
-      gx%bmperr=4356; goto 1000
-   endif
-   iws(lok2)=i1
-!   write(*,*)'3E in saveash 5:',lok2,i1
-   call storrn(i1,iws(lok2+1),assrec%coeffmin)
-   iws(lok1+disp+5)=lok2
+      i1=size(assrec%coeffmin)
+      rsize=1+nwpr*i1
+      call wtake(lok2,rsize,iws)
+      if(buperr.ne.0) then
+         write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
+         gx%bmperr=4356; goto 1000
+      endif
+      iws(lok2)=i1
+      write(*,*)'3E in saveash 5:',lok2,i1
+      call storrn(i1,iws(lok2+1),assrec%coeffmin)
+      iws(lok1+disp+5)=lok2
 ! coeffmax
-   i1=size(assrec%coeffmax)
-   rsize=1+nwpr*i1
-   call wtake(lok2,rsize,iws)
-   if(buperr.ne.0) then
-      write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
-      gx%bmperr=4356; goto 1000
-   endif
-   iws(lok2)=i1
-   call storrn(i1,iws(lok2+1),assrec%coeffmax)
-   iws(lok1+disp+6)=lok2
+      i1=size(assrec%coeffmax)
+      rsize=1+nwpr*i1
+      call wtake(lok2,rsize,iws)
+      if(buperr.ne.0) then
+         write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
+         gx%bmperr=4356; goto 1000
+      endif
+      iws(lok2)=i1
+      call storrn(i1,iws(lok2+1),assrec%coeffmax)
+      iws(lok1+disp+6)=lok2
 ! coeffindices
-   i1=size(assrec%coeffindex)
-   rsize=1+i1
-   call wtake(lok2,rsize,iws)
-   if(buperr.ne.0) then
-      write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
-      gx%bmperr=4356; goto 1000
-   endif
-   iws(lok2)=i1
-   do i2=1,i1
-      iws(lok2+i2)=assrec%coeffindex(i2-1)
-   enddo
-   iws(lok1+disp+7)=lok2
+      i1=size(assrec%coeffindex)
+      rsize=1+i1
+      call wtake(lok2,rsize,iws)
+      if(buperr.ne.0) then
+         write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
+         gx%bmperr=4356; goto 1000
+      endif
+      write(*,*)'3E in saveash 6:',lok2,i1
+      iws(lok2)=i1
+      do i2=1,i1
+         iws(lok2+i2)=assrec%coeffindex(i2-1)
+      enddo
+      iws(lok1+disp+7)=lok2
 ! coeffstate
-   i1=size(assrec%coeffstate)
-   rsize=1+i1
-   call wtake(lok2,rsize,iws)
-   if(buperr.ne.0) then
-      write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
-      gx%bmperr=4356; goto 1000
+      i1=size(assrec%coeffstate)
+      rsize=1+i1
+      call wtake(lok2,rsize,iws)
+      if(buperr.ne.0) then
+         write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
+         gx%bmperr=4356; goto 1000
+      endif
+      iws(lok2)=i1
+      do i2=1,i1
+         iws(lok2+i2)=assrec%coeffstate(i2-1)
+      enddo
+      iws(lok1+disp+8)=lok2
+   else
+! pointers are zero
+      write(*,*)'3E no coefficients allocated'
    endif
-   iws(lok2)=i1
-   do i2=1,i1
-      iws(lok2+i2)=assrec%coeffstate(i2-1)
-   enddo
-   iws(lok1+disp+8)=lok2
 ! maybe work array should not be saved?
    if(allocated(assrec%wopt)) then
       i1=size(assrec%wopt)
       rsize=1+nwpr*i1
-!      write(*,*)'3E saving assessment record: ',lok1,rsize
+      write(*,*)'3E saving assessment record: ',lok1,rsize
       call wtake(lok2,rsize,iws)
       if(buperr.ne.0) then
          write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
@@ -1468,9 +1500,10 @@
       call storrn(i1,iws(lok2+1),assrec%wopt)
       iws(lok1+disp+9)=lok2
    else
+      write(*,*)'3E no work array allocated'
       iws(lok1+disp+9)=0
    endif
-! check if there are several
+! check if there are several assessment records
    if(.not.associated(assrec,firstash)) then
       assrec=>assrec%nextash
       write(*,*)'3E more than one assessment records'
@@ -1512,6 +1545,12 @@
 !   write(*,*)'3E opening file: ',trim(filename),' for unformatted read'
 !
    read(lin)id,version,comment,noofel,noofsp,noofph,nooftuples,last
+!**********************************************************
+! IMPORTANT savefile
+! is a variable in gtp3.F90
+! which MUST BE CHANGED whenever there is a change in the unformatted
+! file layout
+!***********************************************************
    if(version.ne.savefile) then
       write(*,11)id,version,savefile
 11     format('File not same version as program: ',A/a,' : ',a)
@@ -2258,7 +2297,7 @@
    endif
 ! link to first varres record stored here
    lokvares=iws(lokeq+displace+4)
-   write(*,*)'3E lokvares: ',lokvares,highcs,lokeq,displace+4
+!   write(*,*)'3E lokvares: ',lokvares,highcs,lokeq,displace+4
    eqdis=displace+5
 ! for equilibria 2 and higher phase_varees must be allocated!!
    if(eqnumber.gt.1) then
@@ -2644,7 +2683,10 @@
       enddo
    endif
    lok2=iws(lok1+disp+2)
-   if(iws(lok2).gt.0) then
+   if(lok2.le.0) then
+      write(*,*)'3E no coefficient values saved'
+      goto 777
+   else
 ! coeffvalues
 !      lok2=iws(lok2)
       i1=iws(lok2)
@@ -2710,7 +2752,8 @@
          assrec%coeffstate(i2-1)=iws(lok2+i2)
       enddo
    endif
-! maybe work array should not be saved?
+777 continue
+! maybe work array has been daved also?
    lok2=iws(lok1+disp+9)
    if(lok2.gt.0) then
       if(iws(lok2).gt.0) then
@@ -2850,8 +2893,9 @@
 !   write(*,*)'3E No segmentation error E'
 !------ tpfunction expressions and other lists
 !>>>>> 20: delete tpfuns
-!   write(*,*)'3E Delete TP funs, just deallocate??'
-   call delete_all_tpfuns
+!   write(*,*)'3E Delete TP funs, just deallocate??',freetpfun
+!   call delete_all_tpfuns
+   call tpfun_deallocate
 !   write(*,*)'3E Back from deleting all TP funs, this is fun!!'
 !------ tpfunction expressions and other lists
 !>>>>> 30: delete state variable functions
@@ -3273,6 +3317,8 @@
    newfun=0
    nfail=0
    nrefs=0
+! always is a dummy variable
+   always=0
    nooftypedefs=0
 ! nophase set false after reading a PHASE keyword, 
 ! expecting next keyword to be CONSTITUENT
@@ -5258,7 +5304,7 @@
          endif
          if(modelname(1:5).eq.'I2SL ') phtype='Y'
 !
-         write(*,*)'3E enter phase: ',trim(name1),' ',subord,havedisorder
+!         write(*,*)'3E enter phase: ',trim(name1),' ',subord,havedisorder
          call enter_phase(name1,nsl,knr,const,stoik,modelname,phtype)
 !      write(*,*)'readpdb 9A: ',gx%bmperr
          if(gx%bmperr.ne.0) then
@@ -5620,7 +5666,8 @@
 ! ignore error 4096 meaning "no such constituent" or "... in a sublattice"
 !            write(*,*)'readpdb entparerr: ',gx%bmperr,' >',&
 !                 funname(1:len_trim(funname))
-            if(gx%bmperr.eq.7778 .and. .not.silent) &
+!            if(gx%bmperr.eq.7778 .and. .not.silent) &
+            if(gx%bmperr.eq.4153 .and. .not.silent) &
                  write(*,*)'3E Error 7778 at line: ',nl
             gx%bmperr=0
 !         elseif(dodis.eq.1) then

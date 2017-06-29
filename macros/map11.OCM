@@ -1,10 +1,30 @@
+new Y
 @$=================================================================
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$ map11.OCM
+@$ Calculation of the Cr-Fe binary
+@$=================================================================
+@&
 
 set echo
 
-@$ Calculation of the Cr-Fe binary
-@$
-@$=================================================================
 @$ First the low T miscibility gap and sigma phase
 @$
 
@@ -54,7 +74,7 @@ RENDER
 @$
 
 set c t=1400
-set c x(cr)=.1
+set c x(cr)=.12
 c e
 l,,,,
 
@@ -74,7 +94,7 @@ RENDER
 @$
 @$
 
-set c t=2200 x(cr)=.7
+set c t=2050 x(cr)=.7
 l c
 c e
 
@@ -109,4 +129,6 @@ text n .2 2000 y
 
 title map 11 fig 4
 
+
+@&
 set interactive

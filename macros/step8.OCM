@@ -1,5 +1,30 @@
-@$ Abiabatic flame temoperature for propane, C3H8
-
+new Y
+@$ =============================================================
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$ step8.OCM
+@$ Adiabatic flame temperature for propane, C3H8
+@$ Also a P-V diagram for the gas
+@$ =============================================================
+@&
 set echo
 
 r t CHO-gas
@@ -339,6 +364,7 @@ P
 title step 8 fig 10
 
 
+
 @$ A nice hyperbolic curve
 @&
 
@@ -390,5 +416,7 @@ l,,,,,
 @$ 3*n(c)-8*n(h)=0
 
 @$ That is all for now !!
+
+@&
 set inter
 

@@ -42,16 +42,18 @@ MODULE cmon1oc
 !
 contains
 !
-  subroutine oc_command_monitor(version,linkdate)
+  subroutine oc_command_monitor(version,linkdate,narg,argline)
 ! command monitor
     implicit none
 !
-! passed as date when program was linked
-    character linkdate*(*),version*(*)
+! linkdat is date when program was linked
+! argline and narg are inline arguments
+    character linkdate*(*),version*(*),argline(*)*64
+    integer narg
 ! various symbols and texts
     character :: ocprompt*4='OC4:'
     character name1*24,name2*24,line*80,model*72,chshort
-    integer, parameter :: ocmonversion=30
+    integer, parameter :: ocmonversion=31
 ! element symbol and array of element symbols for database use
     character elsym*2,ellist(maxel)*2
 ! more texts for various purposes
@@ -101,7 +103,7 @@ contains
 ! used for element data and R*T
     double precision h298,s298,rgast
 ! temporary reals
-    double precision xxx,xxy,totam
+    double precision xxx,xxy,xxz,totam
 ! input data for grid minimizer
     double precision, dimension(maxel) :: xknown,aphl
 ! arrays for grid minimization results
@@ -152,7 +154,7 @@ contains
 ! array with constituents in sublattices when entering a phase
 !    character, dimension(maxconst) :: const*24
 ! for macro and logfile and repeating questions
-    logical logok,stop_on_error,once,wildcard,twice
+    logical logok,stop_on_error,once,wildcard,twice,startupmacro,temporary
 ! unit for logfile input, 0 means no logfile
     integer logfil
 ! remember default for calculate phase
@@ -177,7 +179,7 @@ contains
 !----------------------------------------------------------------
 ! here are all commands and subcommands
 !    character (len=64), dimension(6) :: oplist
-    integer, parameter :: ncbas=30,nclist=21,ncalc=9,ncent=21,ncread=6
+    integer, parameter :: ncbas=30,nclist=21,ncalc=12,ncent=21,ncread=6
     integer, parameter :: ncam1=18,ncset=24,ncadv=6,ncstat=6,ncdebug=6
     integer, parameter :: nselect=6,nlform=6,noptopt=9,nsetbit=6
     integer, parameter :: ncamph=12,nclph=6,nccph=6,nrej=9,nsetph=6
@@ -236,7 +238,8 @@ contains
     character (len=16), dimension(ncalc) :: ccalc=&
          ['TPFUN_SYMBOLS   ','PHASE           ','NO_GLOBAL       ',&
          'TRANSITION      ','QUIT            ','GLOBAL_GRIDMIN  ',&
-         'SYMBOL          ','EQUILIBRIUM     ','ALL_EQUILIBRIA  ']
+         'SYMBOL          ','EQUILIBRIUM     ','ALL_EQUILIBRIA  ',&
+         'WITH_CHECK_AFTER','                ','                ']
 !-------------------
 ! subcommands to CALCULATE PHASE
     character (len=16), dimension(nccph) :: ccph=&
@@ -300,7 +303,7 @@ contains
 ! subsubcommands to SET ADVANCED
     character (len=16), dimension(ncadv) :: cadv=&
          ['EQUILIB_TRANSF  ','QUIT            ','EXTRA_PROPERTY  ',&
-          'DENSE_GRID_ONOFF','                ','                ']
+          'DENSE_GRID_ONOFF','SMALL_GRID_ONOFF','                ']
 !         123456789.123456---123456789.123456---123456789.123456
 ! subsubcommands to SET BITS
     character (len=16), dimension(nsetbit) :: csetbit=&
@@ -372,7 +375,7 @@ contains
     nvcoeff=0
     iexit=0
     iexit(2)=1
-!
+! present the software
     write(kou,10)version,trim(linkdate),ocmonversion,gtpversion,hmsversion,&
          smpversion
 10  format(/'Open Calphad (OC) software version ',a,', linked ',a,/&
@@ -383,7 +386,7 @@ contains
          'step/map/plot software version ',A,', ',&
          'LAPACK and BLAS numerical routines'/'and LMDIF from ANL ',&
          '(Argonne, USA) is used by the assessment procedure'/)
-!aa
+!
 !$    write(kou,11)
 11  format('Linked with OpenMp for parallel execution')
 !
@@ -454,6 +457,8 @@ contains
 ! local environment
     ochome=' '
     call get_environment_variable('OCHOME ',ochome)
+!    write(*,*)'OCHOME: ',trim(ochome)
+    startupmacro=.FALSE.
     if(ochome(1:1).eq.' ') then
        inquire(file='ochelp.hlp ',exist=logok)
        if(.not.logok) then
@@ -478,16 +483,19 @@ contains
        cline=trim(ochome)//'/start.OCM '
        inquire(file=cline,exist=logok)
        if(logok) then
-!          write(*,*)'there is an initiation file!',trim(cline)
+!          write(*,*)'there is an initiation file: ',trim(cline)
           last=0
+! This just open the file and sets input unit to file
           call macbeg(cline,last,logok)
+          startupmacro=.TRUE.
 !       else
 !          write(*,*)'No initiation file'
        endif
     endif
 !
 ! finished initiallization
-88  continue
+!88  continue
+!
 !
 !============================================================
 ! return here for next command
@@ -498,7 +506,18 @@ contains
     call ocmon_reset_options(optionsset)
 ! initiate command level for help routines
     call helplevel1('Initiate help level for OC')
+! handling of inline arguments ONCE
+    if(.not.startupmacro .and. narg.gt.0) then
+! at present accept only one argument assumed to be a macro file name
+       narg=0
+       cline=argline(1)
+       last=0
+       call macbeg(cline,last,logok)
+!       write(*,*)'Jumping to 99 to execute macro'
+!       goto 99
+    endif
 ! read the command line with gparc to have output on logfile
+! NOTE read from macro file if set.
     last=len(aline)
     aline=' '
     cline=' '
@@ -570,6 +589,8 @@ contains
        endif
     endif
 !
+! jump here if there is an inline argument
+! 99  continue
     SELECT CASE(kom)
 ! command selection
 !=================================================================
@@ -866,7 +887,8 @@ contains
 ! calculate subcommands
 !         ['TPFUN_SYMBOLS   ','PHASE           ','NO_GLOBAL       ',&
 !         'TRANSITION      ','QUIT            ','GLOBAL_GRIDMIN  ',&
-!         'SYMBOL          ','EQUILIBRIUM     ','ALL_EQUILIBRIA  ']
+!         'SYMBOL          ','EQUILIBRIUM     ','ALL_EQUILIBRIA  ',&
+!         'WITH_CHECK_AFTER','                ','                ']
     CASE(2)
        kom2=submenu(cbas(kom),cline,last,ccalc,ncalc,8)
        SELECT CASE(kom2)
@@ -1103,7 +1125,7 @@ contains
           if(gx%bmperr.ne.0) goto 990
 ! debug output
 !          write(*,2101)totam,(xknown(j1),j1=1,noel())
-!2101      format('N&x: ',F6.3,9F8.5)
+!2101      format('UI N&x: ',F6.3,9F8.5)
 ! generate grid and find the phases and constitutions for the minimum.
 ! Note: global_gridmin calculates for total 1 mole of atoms, not totam
 !          call global_gridmin(1,ceq%tpval,totam,xknown,nv,iphl,icsl,&
@@ -1294,19 +1316,20 @@ contains
              endif gridmin
 ! repeat this until leak is zero, if leak negative never stop.
              leak=leak-1
+             call cpu_time(xxz)
              if(leak.ne.0) then
                 call system_clock(count=ll)
-                xxy=ll-j1; xxy=xxy/i2
-                write(*,669)i2,ll-j1,xxy
-669             format(/' *** Number of equlibria calculated ',2i10,F8.3/)
+                xxy=ll-j1
+                write(*,669)i2,(xxz-xxx)/i2,xxy/i2
+669        format(/'Calculated equlibria, average CPU and clock time',&
+                i5,F12.8,F8.4)
                 goto 2060
              endif
 !
              call system_clock(count=ll)
-             call cpu_time(xxy)
-             write(kou,664)i2,jp,xxy-xxx,ll-j1
+             write(kou,664)i2,jp,xxz-xxx,ll-j1
 664          format('Calculated ',i5,' equilibria out of ',i5/&
-                  'Total time: ',1pe12.4,' s and ',i7,' clockcycles')
+                  'Total CPU time: ',1pe12.4,' s and ',i7,' clockcycles')
 ! this unit may have been used to extract calculated data for plotting
              if(plotunit0.gt.0) then
                 write(kou,670)
@@ -1321,6 +1344,31 @@ contains
           else
              write(kou,*)'You must first SET RANGE of experimental equilibria'
           endif
+!---------------------------------------------------------------
+       case(10) ! calculate with_check_after
+! this is same as "calculate no_grid" but with automatic grid check after
+! we must set global bit 18 and then clear it
+! If bit 20 is set we will clear it now and set it afterwards
+          if(btest(globaldata%status,GSNORECALC)) then
+             globaldata%status=ibclr(globaldata%status,GSNORECALC)
+             temporary=.TRUE.
+          else
+             temporary=.FALSE.
+          endif
+          globaldata%status=ibset(globaldata%status,GSTGRID)
+! calculate with no grid before but check after
+          call calceq2(0,ceq)
+          if(gx%bmperr.ne.0) then
+             ceq%status=ibset(ceq%status,EQFAIL)
+          endif
+! reset bit GSTGRID and maybe GSNORECALC
+          globaldata%status=ibclr(globaldata%status,GSTGRID)
+          if(temporary) &
+               globaldata%status=ibset(globaldata%status,GSNORECALC)
+!-------------------------------------------------------
+       case(11) ! not used (yet)
+!-------------------------------------------------------
+       case(12) ! not used (yet)
        END SELECT
 !=================================================================
 ! SET SUBCOMMANDS
@@ -1503,15 +1551,25 @@ contains
 ! this sets bit 14 of global status word, also if bit 2 (expert) not set
              if(btest(globaldata%status,GSXGRID)) then
                 globaldata%status=ibclr(globaldata%status,GSXGRID)
-                write(*,3110)'reset'
-3110            format('Dense grid ',a)
+                write(kou,3110)'Dense','reset'
+3110            format(a,' grid ',a)
              else
+! clear GSOGRID if set
+                globaldata%status=ibclr(globaldata%status,GSOGRID)
                 globaldata%status=ibset(globaldata%status,GSXGRID)
-                write(*,3110)'dense grid set'
+                write(kou,3110)'Dense','set'
              endif
 !.................................................................
-          case(5) ! nothing yet
-             write(*,*)'Not implemented yet'
+          case(5) ! SET ADVANCED SMALL_GRID_ONOFF
+             if(btest(globaldata%status,GSOGRID)) then
+                globaldata%status=ibclr(globaldata%status,GSOGRID)
+                write(kou,3110)'Small','reset'
+             else
+! clear GSXGRID if set
+                globaldata%status=ibclr(globaldata%status,GSXGRID)
+                globaldata%status=ibset(globaldata%status,GSOGRID)
+                write(kou,3110)'Small','set'
+             endif
 !.................................................................
           case(6) ! nothing yet
              write(*,*)'Not implemented yet'
@@ -1523,6 +1581,9 @@ contains
 ! end of macro excution (can be nested)
        case(5) ! set INTERACTIVE
           call macend(cline,last,logok)  
+! if this was the startupmacro set it false and possibly read an inline macro ..
+! NOTE a startup macro can call other macros ...
+          if(kiu.eq.kiud) startupmacro=.false.
 !          write(*,*)'Macro terminated'
 !-----------------------------------------------------------
        case(6) ! set REFERENCE_STATE
@@ -3183,14 +3244,18 @@ contains
 ! if there is an assessment record set nvcoeff ...
           if(allocated(firstash%eqlista)) then
              write(*,*)'There is an assessment record'
-             nvcoeff=0
-             kl=size(firstash%coeffvalues)-1
-             do j1=0,kl
-                if(firstash%coeffstate(j1).ge.10) then
-                   nvcoeff=nvcoeff+1
-                endif
-             enddo
-             write(kou,3730)nvcoeff
+             if(allocated(firstash%coeffvalues)) then
+                nvcoeff=0
+                kl=size(firstash%coeffvalues)-1
+                do j1=0,kl
+                   if(firstash%coeffstate(j1).ge.10) then
+                      nvcoeff=nvcoeff+1
+                   endif
+                enddo
+                write(kou,3730)nvcoeff
+             else
+                write(*,*)'No coefficents allocated'
+             endif
           endif
 !---------------------------------------------------------
        case(2) ! read TDB
