@@ -659,7 +659,7 @@ contains
 !       write(*,*)'in tqgetv n,x,w: ',n1,n2,n3
        if(n2.eq.0) then
           if(n1.lt.0) then
-! mole �fraction of all components, no phase specification
+! mole fraction of all components, no phase specification
              statevar=stavar(1:1)//'(*) '
 !             write(*,*)'tqgetv 3: ',mjj,statevar(1:len_trim(statevar))
              call get_many_svar(statevar,values,mjj,n3,encoded,ceq)
@@ -836,7 +836,7 @@ contains
 ! This subroutine returns the sublattices and constitution of a phase
 ! n1 is phase tuple index
 ! nsub is the number of sublattices (1 if no sublattices)
-! cinsub is an array with the number of const�tuents in each sublattice
+! cinsub is an array with the number of constituents in each sublattice
 ! spix is an array with the species index of the constituents in all sublattices
 ! sites is an array of the site ratios for all sublattices.  
 ! yfrac is the constituent fractions in same order as in spix
