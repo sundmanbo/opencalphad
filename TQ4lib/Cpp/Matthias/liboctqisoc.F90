@@ -412,7 +412,7 @@ contains
 !\end{verbatim}
     call c_f_pointer(c_ceq, ceq)
     call tqsetc(statvar, n1, n2, mvalue, cnum, ceq)
-    write(*,*) 'call tqsetc(',statvar, n1, n2, mvalue, cnum, 'ceq)'
+    !write(*,*) 'call tqsetc(',statvar, n1, n2, mvalue, cnum, 'ceq)'
     c_ceq = c_loc(ceq)
   end subroutine c_tqsetc
 
@@ -513,9 +513,9 @@ contains
     fstring = c_to_f_string(statvar)
     call tqgetv(fstring, n1, n2, n3, values, ceq)
 ! debug ...
-    write(*,55)fstring(1:len_trim(fstring)),n1,n2,n3,(values(i),i=1,n3)
+    !write(*,55)fstring(1:len_trim(fstring)),n1,n2,n3,(values(i),i=1,n3)
 55  format(/'From c_tqgetv: ',a,': ',3i3,6(1pe12.4))
-    write(*,*)
+    !write(*,*)
 ! end debug
     c_ceq = c_loc(ceq)
   end subroutine c_tqgetv
@@ -575,7 +575,7 @@ contains
     call c_f_pointer(c_ceq, ceq)
     call set_constitution(phasetuple(n1)%ixphase,phasetuple(n1)%compset,&
          yfra,extra,ceq)
-    write(*,*)'call set_constitution(',phasetuple(n1)%ixphase,phasetuple(n1)%compset,'yfra,extra,ceq)'
+    !write(*,*)'call set_constitution(',phasetuple(n1)%ixphase,phasetuple(n1)%compset,'yfra,extra,ceq)'
     c_ceq = c_loc(ceq)
   end subroutine c_tqsphc1
 
