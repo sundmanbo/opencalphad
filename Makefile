@@ -1,14 +1,17 @@
 OBJS=metlib3.o oclablas.o ocnum.o gtp3.o matsmin.o lmdif1lib.o smp2.o pmon6.o  
 VER=oc4A
-TQPATHold=./TQ3lib-clean
 TQPATH=./TQ4lib/Cpp
-TQPATHC=$(TQPATH)/C/cexample1
+TQPATHC=$(TQPATH)
 TQPATHCPP=$(TQPATH)/Matthias
 CFLAGS=-fbounds-check -finit-local-zero
+#UNCOMMENT THE NEXT LINE IF YOU WANT TO COMPILE OPENCALPHAD IN PARALLEL
+#CFLAGS+=-O2 -fopenmp
 
 #==============================================================================#
 
 #Available compilation flags: all, tq, examples, clean
+
+.PHONY : all tq tqexamples clean
 
 #Compiles OpenCalphad to use as standalone Thermodynamic Equilibrium Calculation
 #software.
@@ -20,26 +23,25 @@ all:
 	ar sq lib$(VER)eq.a $(OBJS)
 	gfortran -o $(VER) $(CFLAGS) pmain1.F90 lib$(VER)eq.a
 
-#Compiles the TQ interfaces of OpenCalphad, so third party software can interact
-#with OpenCalphad. Interfaces are provided in C++ and Fortran, and additional
-#interfaces are available in C and Python.
+#Compiles the OCASI interfaces of OpenCalphad, so third party software can
+#interact with OpenCalphad. Interfaces are provided in C++ and Fortran, and
+#additional interfaces are available in C and Python.
 
 tq: 
 	make $(OBJS) liboctq.o liboctqisoc.o
-	#make $(OBJS) liboctq.o liboctqc.o liboctqisoc.o
 	ar sq liboctq-f90.a liboctq.o $(OBJS) liboctq.o
-	#ar sq liboctq-c.a liboctqc.o liboctq.o $(OBJS)
 	ar sq liboctq-isoc.a liboctqisoc.o liboctq.o $(OBJS)
 
 #Compiles the TQ interface and various examples. 
 
-examples:
+tqexamples:
+	make tq
 	make -C $(TQPATH)
 
 #Removes all binary files that were created in the compiling step.
 
 clean:
-	rm -f *.a *.o *.mod $(VER)
+	rm -f *.a *.o *.mod $(VER) linkoc
 	make -C $(TQPATH) clean
 
 #==============================================================================#
@@ -70,9 +72,6 @@ pmon6.o:	userif/pmon6.F90
 	
 liboctq.o:	$(TQPATH)/liboctq.F90
 	gfortran -c -g $(CFLAGS) $(TQPATH)/liboctq.F90
-
-liboctqc.o:	$(TQPATHC)/liboctqc.F90
-	gfortran -c $(CFLAGS) $(TQPATHC)/liboctqc.F90
 
 liboctqisoc.o:	$(TQPATHCPP)/liboctqisoc.F90
 	gfortran -c -g $(CFLAGS) $(TQPATHCPP)/liboctqisoc.F90
