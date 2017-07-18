@@ -598,13 +598,13 @@
    longline(jp:)=refx
    jp=len_trim(longline)+1
 !    write(*,252)2,jp,longline(1:jp)
-252 format('ep: ',2i3,'>',a,'<')
+252 format('3D ep: ',2i3,'>',a,'<')
 !
    call capson(longline(1:jp))
-!   write(*,*)'epi: ',longline(1:jp)
+!   write(*,*)'3D epi: ',longline(1:jp)
    call enter_tpfun(parname,longline,lfun,.FALSE.)
    if(gx%bmperr.ne.0) goto 1000
-!   write(*,290)'enter_par 7: ',lokph,nsl,nint,ideg,lfun,refx
+!   write(*,290)'3D enter_par 7: ',lokph,nsl,nint,ideg,lfun,refx
 290 format(a,5i4,1x,a)
 !
    call enter_parameter(lokph,typty,fractyp,nsl,endm,nint,lint,ideg,lfun,refx)

@@ -1368,7 +1368,7 @@
  subroutine create_endmember(lokph,newem,noperm,nsl,endm,elinks)
 ! create endmember record with nsl sublattices with endm as constituents
 ! noperm is number of permutations
-! endm is the basic endmember
+! endm is the basic endmember (if there are permutations)
 ! elinks are the links to constituents for all permutations
    implicit none
    integer endm(*)
@@ -1376,17 +1376,18 @@
    integer, dimension(nsl,noperm) ::elinks
    integer lokph,noperm,nsl
 !\end{verbatim}
-   integer is,ndemr,noemr
+   integer is,ndemr,noemr,nn
    allocate(newem)
    nullify(newem%nextem)
    allocate(newem%fraclinks(nsl,noperm))
-!   write(*,7)noperm,nsl,(elinks(i,1),i=1,4),(endm(i),i=1,nsl)
-7  format('ce1: ',2i4,2x,4i5,2x10i4)
    if(noperm.eq.1) then
       do is=1,nsl 
          newem%fraclinks(is,1)=endm(is)
       enddo
    else
+!      write(*,*)'3G permutations: ',noperm,nsl
+!      write(*,7)((elinks(is,nn),is=1,4),nn=1,noperm)
+7     format('3G ce1: ',4(4i3,2x))
       newem%fraclinks=elinks
    endif
 ! zero or set values

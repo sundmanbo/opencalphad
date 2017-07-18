@@ -356,11 +356,11 @@ CONTAINS
        if(gx%bmperr.eq.4203 .or. gx%bmperr.eq.4204) then
 ! this means system matrix error and too many iterations respectivly
           write(kou,3)gx%bmperr
-3         format('Error code ',i5,' reset before calling grid minimizer')
+3         format('Error code ',i5,' reset before calling global minimizer')
           gx%bmperr=0
           errout=kou
        else
-          write(kou,*)'Error code ',gx%bmperr,' prevents using grid minimizer'
+          write(kou,*)'Error code ',gx%bmperr,' prevents using global minimizer'
           goto 1000
        endif
     endif
@@ -395,8 +395,9 @@ CONTAINS
 !               (gx%bmperr.ge.4176 .and. gx%bmperr.le.4185)) goto 1000
 ! if mode=0 we should not use grid minimizer
           if(mode.ne.0 .or. .not.btest(meqrec%status,MMQUIET)) &
-               write(*,*) &
-               'Grid minimizer cannot be used for the current set of conditions'
+               write(*,9)
+9         format('Warning: global minimizer cannot be used for the current',&
+               ' set of conditions')
           gx%bmperr=0
           gridtest=.true.
           meqrec%typesofcond=2
@@ -737,7 +738,7 @@ CONTAINS
 !       write(*,57)(meqrec%iphl(icc),meqrec%icsl(icc),meqrec%aphl(icc),&
 !            icc=1,meqrec%nv)
 57     format('Start phase set: ',10(i3,i2,F6.2))
-       if(ocv()) write(*,*)'No gridminimization, using current phase set',&
+       if(ocv()) write(*,*)'No global minimization, using current phase set',&
             meqrec%nv
     endif
 ! copy ceq%complist%chempot(1) to ceq%cmuval
@@ -1535,16 +1536,18 @@ CONTAINS
 ! almost stoichiometric phase?  Changes in MU can be large!
           if(stoikph .and. meqrec%nphase.gt.1) then
              write(*,30)nophasechange,converged,cerr%nvs
-30           format('Slow converge its ',i3,', type',2i3)
+30           format('Slow converge at ',i3,', reason',2i3)
              if(cerr%flag.ne.0) then
                 write(*,31)(cerr%typ(iz),cerr%val(iz),cerr%dif(iz),&
                      iz=1,cerr%nvs)
 31              format('MM 31: ',3(i3,1pe12.4,e10.2))
              endif
-!+ these lines temporarily skipped
+! write message only once
              stoikph=.false.
-! if this happends during step/map give error message
-             if(inmap.eq.1) gx%bmperr=4398
+! if this happends during step/map give error message to force smaller steps
+             if(inmap.eq.1 .and. meqrec%noofits.eq.ceq%maxiter) then
+                gx%bmperr=4359; goto 1000
+             endif
           endif
 !+          converged=0
 !+          goto 1000

@@ -3114,7 +3114,7 @@
          'TYPE_DEFINITION     ','LIST_OF_REFERENCES  ',&
          'ADD_REFERENCES      ','ASSESSED_SYSTEMS    ',&
          'DATABASE_INFORMATION','VERSION             ',&
-         'DEFAULT_COMMAND     ','                    ']
+         'DEFAULT_COMMAND     ','DEFINE              ']
 !   
    character word*64
    integer j,ks,kt
@@ -3128,6 +3128,7 @@
       kt=ks+index(text(ks:),' ')-1
 ! the abbreviation of the keyword must be at least 3 character, max kwl
       if(kt-ks.lt.3 .or. kt-ks.ge.kwl) then
+!         write(*,*)'3E too long keyword: ',trim(text),kt-ks,kwl
          j=0; goto 1000
       endif
    endif
@@ -3148,12 +3149,14 @@
       if(word(1:kt).eq.keyword(j)(1:kt)) goto 100
    enddo
    j=0
+!   write(*,99)j,nextc,text(1:nextc),trim(text)
+99 format('3E Not a keyword: ',2i3,'>',a,'<'/1x,a)
    goto 1000
 ! found keyword at start of line, set nextc to be positioned at the final space
 100 continue
    nextc=ks+kt
-!   write(*,101)j,nextc,text(1:nextc)
-!101 format('Found keyword: ',2i3,'>',a,'<')
+!   write(*,101)j,nextc,text(1:nextc),trim(text)
+101 format('3E Found keyword: ',2i3,'>',a,'<'/1x,a)
 1000 continue
    istdbkeyword=j
    return
@@ -3348,6 +3351,13 @@
 ! handle all TDB keywords except function
 120 continue
    keyw=istdbkeyword(line,nextc)
+   if(.not.onlyfun) then
+!      write(*,71)'3E back from istdbkeyword',keyw
+      if(keyw.eq.0) then
+         write(*,122)trim(line)
+122      format(/' *** Warning, ignoring line: "',a,'"'/)
+      endif
+   endif
    if(keyw.eq.0) then
       ip=1
       if(.not.eolch(line,ip)) then
@@ -3367,6 +3377,7 @@
    ip=1
    longline(ip:)=line
    ip=len_trim(longline)+1
+!   write(*,71)'3E line 1 ',ip,trim(longline)
 !   write(*,*)'3E new keyword ',ip,'>',longline(1:40)
    do while(index(longline,'!').le.0)
       read(21,110,err=2200)line
@@ -3382,6 +3393,8 @@
          endif
       endif
    enddo
+!   write(*,71)'3E line 2 ',ip,trim(longline)
+71 format(a,i4,1x,a)
    if(dodis.eq.1) then
 ! if dodis=1 only read data for disordred phases
 ! PHASE=3, CONSTITUENT=4, PARAMETER=6 ... BIBLIOGRAPHIC REFERENCES=8,9
@@ -4460,6 +4473,10 @@
          write(*,*)'3E WARNING: ignoring default command: ',trim(name1)
       endif
 794   continue
+!--------------------------------- DEFINE
+      case(14) !ignore without warning
+         write(*,*)'3E ignoring DEFINE keyword'
+         continue
    end select
 !-------------------------------------------------------- end select
    if(gx%bmperr.ne.0 .and. .not.silent) then
@@ -4756,6 +4773,12 @@
 120 continue
    keyw=ispdbkeyword(line,nextc)
 !   write(*,*)'Keyword? ',trim(line),keyw,nophase
+   if(.not.onlyfun) then
+      if(keyw.eq.0) then
+         write(*,123)trim(line)
+123      format(//' *** Warning, not a PDB keyword: ',a)
+      endif
+   endif
    if(keyw.eq.0) then
       ip=1
       if(.not.eolch(line,ip)) then

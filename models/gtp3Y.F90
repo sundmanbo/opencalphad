@@ -5783,7 +5783,7 @@
       if(globalok) then
 ! if TRUE equilibrium OK or it could not be tested
          if(gx%bmperr.ne.0) then
-            write(*,*)'3Y Testing equilibrium with gridminimizer failed'
+            write(*,*)'3Y Testing equilibrium with global minimizer failed'
             goto 1000
          endif
 !         write(*,*)'3Y Grid minimizer test of equilibrium OK'

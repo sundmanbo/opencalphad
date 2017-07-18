@@ -286,7 +286,7 @@ CONTAINS
     character ch1*1
     logical firststep,onetime
 !
-    write(*,*)'in map_setup'
+!    write(*,*)'in map_setup'
     call get_all_conditions(savedconditions,-1,starteq)
     if(gx%bmperr.ne.0) then
        write(kou,*)'Cannot save current conditions'
@@ -503,9 +503,17 @@ CONTAINS
 !
     call meq_sameset(irem,iadd,mapline%meqrec,mapline%meqrec%phr,inmap,ceq)
     if(gx%bmperr.ne.0) then
-       write(*,*)'Error in meq_sameset called from smp',gx%bmperr
-!       goto 1000
-! check if there are more lines
+!       write(*,*)'Error in meq_sameset called from smp',gx%bmperr
+! if error 4359 (slow convergence), 4204 (too many its) take smaller step ...
+       if(gx%bmperr.eq.4359 .or. gx%bmperr.eq.4204) then
+! I am not sure there is really any change for the equilibrium calculated ...
+!          write(*,*)'Trying half step',mapline%number_of_equilibria,halfstep
+          gx%bmperr=0
+          mapline%axfact=1.0D-2
+          call map_halfstep(halfstep,axvalok,mapline,axarr,ceq)
+          if(gx%bmperr.eq.0) goto 321
+       endif
+! give up this line, reset error code and check if there are more lines
        gx%bmperr=0
        goto 805
     endif
@@ -5170,7 +5178,11 @@ CONTAINS
 ! THIRD ?? Skipping
 !                write(*,212)'SMP skip last evaluated symbol: ',&
 !                     trim(statevar),curceq%tpval(1),nv,nr
-                nv=nv-1; goto 215
+                if(trim(statevar).ne.trim(encoded1)) then
+! If "statevar" not equal to "encoded1" skip last point
+! This is a clumsy way to avoid negative CP=H.T values at end of lines ...
+                   nv=nv-1; goto 215
+                endif
              endif
 !             if(gx%bmperr.ne.0) goto 1000
              anp(1,nv)=value
@@ -6915,6 +6927,7 @@ CONTAINS
                 write(*,*)'Error at first equilibrium: ',gx%bmperr,&
                      mapline%axandir
              endif
+!             write(*,*)'SMP error: ',gx%bmperr
 ! if step turn on grid minimizer
              write(*,*)'Turn on grid minimizer'
              if(maptop%number_ofaxis.eq.1) then

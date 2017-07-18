@@ -770,7 +770,8 @@ contains
 ! maybe we will use more terms later ....
                 allocate(ceq%phase_varres(lokcs)%addg(1))
              endif
-             call gparrd('Addition to G in J/FU: ',cline,last,xxx,xxy,q1help)
+             call gparrd('Addition to G in J/FU (formula units): ',&
+                  cline,last,xxx,xxy,q1help)
              ceq%phase_varres(lokcs)%addg(1)=xxx
 ! set bit that this should be calculated
              ceq%phase_varres(lokcs)%status2=&
@@ -1199,7 +1200,7 @@ contains
 ! rather complex to handle both parallel on non-parallel and with/without 
 ! griminimizer ...
           if(allocated(firstash%eqlista)) then
-             call gparcd('With gridminimizer? ',cline,last,1,ch1,'N',q1help)
+             call gparcd('With global minimizer? ',cline,last,1,ch1,'N',q1help)
 ! mode=0 is without grid minimizer 
              mode=1
              if(ch1.eq.'N' .or. ch1.eq.'n') mode=0
@@ -2120,7 +2121,7 @@ contains
                      ' 3  Conditions and results not consistent',/'-'/&
                      ' 4  Last equilibrium calculation failed',/&
                      ' 5  No automatic generation of composition sets',/&
-                     ' 6  Equilibrim tested by gridminimizer',/&
+                     ' 6  Equilibrim tested by global minimizer',/&
                      ' 7  Current results are from a grid minimization'/)
                 goto 3610
              endif
@@ -2153,8 +2154,8 @@ contains
                      ' 0  user is a beginner'/&
                      ' 1  user is experienced'/&
                      ' 2  user is an expert'/&
-                     ' 3  gridminimizer will not be used'/'-'/&
-                     ' 4  gridminimizer must not merge comp.sets.'/&
+                     ' 3  global minimizer will not be used'/'-'/&
+                     ' 4  global minimizer must not merge comp.sets.'/&
                      ' 5  there are no data'/&
                      ' 6  there are no phases'/&
                      ' 7  comp.sets must not be created automatically'/'-'/&
@@ -2536,7 +2537,9 @@ contains
              write(kou,*)'You must have entered your system first'
              goto 100
           endif
-          call gparc('Name: ',cline,last,1,text,' ',q1help)
+! generate a default names line EQ_x ehere x is eqfree
+          call geneqname(quest)
+          call gparcd('Name: ',cline,last,1,text,quest,q1help)
           if(buperr.ne.0) goto 100
           call enter_equilibrium(text,ieq)
           if(gx%bmperr.ne.0) goto 990

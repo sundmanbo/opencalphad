@@ -401,7 +401,7 @@
          maxprec=0
          epermut=0
          sameint=0
-!         write(*,*)'3X: start endmember list'
+!         write(*,*)'3X: start endmember list',endmemrec%noofpermut
          empermut: do while(epermut.lt.endmemrec%noofpermut)
             epermut=epermut+1
 ! calculate py, calculate parameter, calculate contribution to G etc
@@ -432,6 +432,8 @@
 ! gz%endcon is used for interaction parameters below
                gz%endcon(ll)=id
                pyq=pyq*gz%yfrem(ll)
+!               write(*,33)ll,epermut,id,gz%yfrem(ll),pyq
+33             format('3X py: ',i3,2i5,2(1pe12.4))
                if(ionicliq .and. ll.eq.2) then
 ! For ionic liquid we must check when Va or neutral in second sublattice
 ! i2slx(1) is index of vacancy, i2slx(2) is first neutral

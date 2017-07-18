@@ -13,6 +13,10 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2017.07.18 OC version 4.026: A number of minor changes and bugfixes.
+Mapping should be a bit better.  I have also started implementing
+option B for handling permutation of BCC phases.
+
 2017.06.20 OC version 4.025: Refined the check of external charge
 balance.  Previously phases like (La+3)2(O-2)3 had the external change
 balance bit set which sometimes caused "phase matrix ill-conditioned"

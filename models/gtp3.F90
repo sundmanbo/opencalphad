@@ -534,7 +534,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'Too many parameter properties for this phase                    ',&
        'Internal error, listprop not allocated                          ',&
 ! 4340
-       'Max level 2 interactions allowed                                ',&
+       'Max two levels of interactions allowed                          ',&
        'Wildcard parameters not allowed in 2nd sublattice of I2SL model ',&
        'Illegal interaction parameter                                   ',&
        'Ternary cation interactions not yet implemented in I2SL         ',&
@@ -554,7 +554,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'Error reserving space for unformatted save                      ',&
        'Error saving unformatted data file                              ',&
        'Recalculate as gridpoint below current equilibrium              ',&
-       '                                                                ',&
+       'Slow convergence with same set of stable phases                 ',&
 ! 4360
        '                                                                ',&
        '                                                                ',&
