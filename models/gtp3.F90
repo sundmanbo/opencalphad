@@ -462,7 +462,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'Internal error, unknown case for permutations                   ',&
        'Internal error, too complicated                                 ',&
        'Internal error generating fcc permutations                      ',&
-       'This excess parameter not yet implemented in option F           ',&
+       'This excess parameter not yet implemented in option F or B      ',&
        'Internal error generating permutations for option F             ',&
        'BCC permutations (option B) not yet implemented                 ',&
        'Subcommand error when enter many_equilibria                     ',&
@@ -1022,7 +1022,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   TYPE gtp_interaction
 ! this record constitutes the parameter tree. There are links to NEXT
 ! interaction on the same level (i.e. replace current fraction) and
-! to HIGHER interactions (i.e. includes current interaction)
+! to HIGHER interactions (i.e. includes current fraction)
 ! There can be several permutations of the interactions (both sublattice
 ! and fraction permuted, like interaction in B2 (Al:Al,Fe) and (Al,Fe:Al))
 ! The number of permutations of interactions can be the same, more or fewer

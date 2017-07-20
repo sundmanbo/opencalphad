@@ -1256,11 +1256,11 @@
    integer permut,emperm,nz,nq,lqq,ii,ll
 !
 !   write(*,5)'create interaction:',mint,lint(1,mint),lint(2,mint),&
-!        (intperm(i),i=1,6)
+!        (intperm(ii),ii=1,6)
 5  format(a,i5,2x,2i3,2x6i3)
    allocate(intrec)
-! note that the order of values in intperm here is not the same as in 
-! fccpermuts or bccpermuts.  Intlinks is the same
+! note that the order of values in intperm here is not the same in 
+! fccpermuts or bccpermuts ??  Intlinks is the same
    permut=intperm(1)
    if(permut.le.0) then
 ! This is a default for no permutations, store 1's

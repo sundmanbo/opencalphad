@@ -13,9 +13,30 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2017.07.21 OC version 4.027: The implementation of option B is now
+almost finished but beware of bugs and that I have not implemented all
+possible parameters, only those that seems most useful.  I also found
+that many parameters for option F (for FCC and HCP) ordering are
+missing.  
+
+Using a partitioned description for a phase in a TDB file requires
+that the TYPE_DEF with the DISORDERD_PART must come before the
+disordered phase is listed in the file.  If not that will also give a
+warning but if not corrected the calculations will be wrong.
+
+I have added a check for unknown keywords in the TDB file as some are
+using TDB files from MatCalc and these include keywords realated to
+diffusion and interface energies that I cannot handle (yet).  If I get
+a documentation how they should be implemented I will try.  Anyway
+this check will often give warnings that can be ignored when reading a
+TDB file.
+
 2017.07.18 OC version 4.026: A number of minor changes and bugfixes.
 Mapping should be a bit better.  I have also started implementing
-option B for handling permutation of BCC phases.
+option B for handling permutation of parameters in BCC phases with 4
+sublattice ordering.  This means one only has to enter the unique
+pararameters which significantly reduces the number of parameters in a
+TDB file for example.
 
 2017.06.20 OC version 4.025: Refined the check of external charge
 balance.  Previously phases like (La+3)2(O-2)3 had the external change
@@ -33,7 +54,7 @@ memory used by the TP functions was not deallocated with the NEW
 command.  This has now been removed.  Applications that used repeated
 NEW commands could crash due to lack of free memory.
 
-A number of bugs has also meen eliminated, some caused by unititiated
+A number of bugs has also meen eliminated, some caused by uninititiated
 variables where valgrid again proved to be a useful tool.
 
 2017.05.10 OC version 4.022: I have added a new calculate subcommand
