@@ -1323,12 +1323,25 @@
 !             write(*,623)'3X V0,VA 2: ',lprop,phres%gval(1,2),phres%gval(1,3)
             noder6A: if(moded.gt.1) then
                nz=fracset%tnoofxfr
-               allocate(tmpd2g(nz*(nz+1)/2,nprop))
-               tmpd2g=zero
+!               allocate(tmpd2g(nz*(nz+1)/2,nprop))
+!               tmpd2g=zero
 ! remove this comment to obtain old code
 !               goto 666
 !--------------------------------------------------------------------------
-! now summation derived 2017-02-20
+! simplest way of correcting 2nd deruvatives, Gord(y=x) in phres%d2gval
+! phres%d2gval(i,j) = saved2g(i,j) - phres%d2gval(i,j)
+               do ipy=1,lprop-1
+                  do i1=1,gz%nofc
+                     do i2=i1,gz%nofc
+                        phres%d2gval(ixsym(i1,i2),ipy)=&
+                             saved2g(ixsym(i1,i2),ipy)-&
+                             phres%d2gval(ixsym(i1,i2),ipy)
+                     enddo
+                  enddo
+               enddo
+               goto 667
+!----------------------- old code below not used
+!vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 ! d2G/dy_is dy_jt = a_s a_t (d2G/dx_is dx_js + d2G/dx_is dx_jt +
 !                            d2G/dx_it dx_js + d2G/dx_it dx_jt)
 ! first calculate the term within ( )
@@ -1360,7 +1373,6 @@
                   enddo
                enddo
                goto 667
-!----------------------- old code below not used
 !               if(nsl.gt.3) goto 666
 ! probable BUG here with 2nd derivatives of ordered FCC calculated as disordered
 ! But this is necessary for 2 sublattice ordered model !! ??
@@ -1437,6 +1449,8 @@
                      enddo
                   enddo
                enddo
+!^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+! old code above not used
 667            continue
                if(allocated(tmpd2g)) deallocate(tmpd2g)
             endif noder6A

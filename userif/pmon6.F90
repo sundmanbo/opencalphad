@@ -1555,7 +1555,7 @@ contains
                 write(kou,3110)'Dense','reset'
 3110            format(a,' grid ',a)
              else
-! clear GSOGRID if set
+! set GSXGRIS and clear GSOGRID if set
                 globaldata%status=ibclr(globaldata%status,GSOGRID)
                 globaldata%status=ibset(globaldata%status,GSXGRID)
                 write(kou,3110)'Dense','set'
@@ -1566,7 +1566,7 @@ contains
                 globaldata%status=ibclr(globaldata%status,GSOGRID)
                 write(kou,3110)'Small','reset'
              else
-! clear GSXGRID if set
+! set GSOGRID and clear GSXGRID if set
                 globaldata%status=ibclr(globaldata%status,GSXGRID)
                 globaldata%status=ibset(globaldata%status,GSOGRID)
                 write(kou,3110)'Small','set'

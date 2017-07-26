@@ -683,12 +683,15 @@
          endif
       endif
       goto 1000
-   elseif(test_phase_status_bit(iph,PHFORD)) then
+   elseif(test_phase_status_bit(iph,PHFORD) .or. &
+        test_phase_status_bit(iph,PHBORD)) then
 ! this phase has 4 sublattice fcc/hcp tetrahedral ordering,
 ! this reduces the number of gridpoints UNFINISHED: NOT IMPLEMENTED YET
+!      write(*,*)'3Y calling ordered grid 1'
       call generate_fccord_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,gmax,ceq)
 ! do not jump to 1000 until the fccord routine implemented correctly
-!      goto 1000
+!      write(*,*)'3Y back from fccord_grid 1, jump to 1000',ngg
+      goto 1000
    elseif((btest(globaldata%status,GSXGRID) .or. & 
             test_phase_status_bit(iph,PHXGRID)) .and. &
         .not.test_phase_status_bit(iph,PHGAS)) then
@@ -843,6 +846,8 @@
 !   endif
 150 continue
 !---------------------------------------
+! jump here from generate_fccord_grid
+170 continue
 ! now generate all combinations of endmembers
 !   write(*,*)'3Y endmembers and gridpoints: ',nend,ngg
 !   read(*,11)ch1
@@ -856,7 +861,7 @@
 !      write(*,180)'3Y yfra: ',1,iend,nkl(1),endm(1,iend),yfra(endm(1,iend))
 180   format(a,4i3,6(1pe16.7))
       isendmem=.TRUE.
-! initiate the loop veriables below for endmembers and fractions
+! initiate the loop variables below for endmembers and fractions
       ibas=2
       ibin=1
       iter=1
@@ -872,6 +877,8 @@
 !         write(*,201)ibas,ngg,(yfra(is),is=1,inkl(nsl))
 201      format('3Y ggz: ',i2,i4,5(F10.6))
          if(ocv()) write(*,*)'3Y Calculating gridpoint: ',ngg
+         if(ngg.gt.0 .and. mod(ngg,40000).eq.0) &
+              write(*,*)'3Y calculated ',ngg,' gridpoints 1'
          call calc_gridpoint(iph,yfra,nrel,xarr(1,ngg),garr(ngg),ceq)
          if(gx%bmperr.ne.0) goto 1000
          if(garr(ngg).gt.gmax) gmax=garr(ngg)
@@ -1160,7 +1167,7 @@
 !        yf=[0.11D0,0.13D0,0.18D0,0.23D0,0.35D0]
 !------------------------------------------------------------------
    logical gas,dense,verydense,gles,trace
-! handle special phases like ionic crystals, ionic liquids and ordere/disorder
+! handle special phases like ionic crystals, ionic liquids and order/disorder
 !   write(*,*)'3Y in generic_grid_generator',iph
    gas=.FALSE.
 ! to have some output
@@ -1180,14 +1187,15 @@
 ! This is the ionic liquid, requires a special grid, also used for dense
       call generate_ionliq_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,gmax,ceq)
       goto 1000
-!   elseif(test_phase_status_bit(iph,PHFORD)) then
-! this phase has 4 sublattice fcc/hcp tetrahedral ordering,
-! this reduces the number of gridpoints UNFINISHED: NOT IMPLEMENTED YET
-!      call generate_fccord_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,gmax,ceq)
-! do not jump to 1000 until the fccord routine implemented correctly
-!      goto 1000
    elseif(test_phase_status_bit(iph,PHGAS)) then
       gas=.TRUE.
+   elseif(test_phase_status_bit(iph,PHFORD) .or. &
+        test_phase_status_bit(iph,PHBORD)) then
+!      write(*,*)'3Y calling ordered grid 2'
+      call generate_fccord_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,gmax,ceq)
+!      write(*,*)'3Y back from fccord_grid 2, jump to 1000',ngg
+!      goto 200
+      goto 1000  !???
    elseif((btest(globaldata%status,GSXGRID) .or. & 
             test_phase_status_bit(iph,PHXGRID)) .and. &
         .not.test_phase_status_bit(iph,PHGAS)) then
@@ -1257,6 +1265,8 @@
 !      write(*,22)ii,(yendm(ij,ii),ij=1,incl(nsl))
 22    format(i3,20F4.1)
 !   enddo
+! jump here from generate_fccord_grid
+200 continue
 ! now generate an grid depending on nend mixing up to 5 different endmembers.
 ! up to for 4 endmembers 4*4*4*4*4=1024
 ! 5 to 7 endmembers      7*7*7*7 =2401
@@ -1282,6 +1292,8 @@
                write(*,*)'3Y Too many gridpoints 7',ng,maxng,iph
                gx%bmperr=4399; goto 1000
             endif
+            if(ng.gt.0 .and. mod(ng,40000).eq.0) &
+            write(*,*)'3Y calculated ',ng,' gridpoints 2'
             call calc_gridpoint(iph,yfra,nrel,xarr(1,ng),garr(ng),ceq)
             if(gx%bmperr.ne.0) then
                write(*,*)'3Y error calculating gridpoint: ',&
@@ -1313,7 +1325,7 @@
             nendk=ij
             iks=ij
          endif
-         ikloop: do ik=1,nendk
+         ikloop: do ik=iks,nendk
             ils=1
             nendl=nend
             if(nend.gt.12 .or. (gles .and. nend.gt.7)) then
@@ -1336,8 +1348,8 @@
                           yf(5)*yendm(is,im)
                   enddo
                   ng=ng+1
-!                  write(*,23)'3Y imloop1: ',ng,ii,ij,ik,il,im,0.0D0,yfra
-23                format(a,i5,5i3,': ',1pe12.4,0p10F5.2)
+!                  write(*,323)'3Y imloop1: ',ng,ii,ij,ik,il,im,0.0D0,yfra
+323                format(a,i5,5i3,': ',1pe12.4,0p10F5.2)
                   if(mode.eq.0) then
 ! strange bug in map3, maxng was zero sometimes ...
                      if(ng.gt.maxng) then
@@ -1348,13 +1360,15 @@
                            gx%bmperr=4399; goto 1000
                         endif
                      endif
+                     if(ng.gt.0 .and. mod(ng,40000).eq.0) &
+                          write(*,*)'3Y calculated ',ng,' gridpoints 3'
                      call calc_gridpoint(iph,yfra,nrel,xarr(1,ng),garr(ng),ceq)
                      if(gx%bmperr.ne.0) then
                         write(*,*)'3Y error calculating gridpoint: ',&
                              iph,gx%bmperr
                         goto 1000
                      endif
-!                     write(*,23)'3Y imloop2: ',ng,ii,ij,ik,il,im,garr(ng),yfra
+!                     write(*,323)'3Y imloop2: ',ng,ii,ij,ik,il,im,garr(ng),yfra
                   elseif(mode.eq.ng) then
 ! when mode>0 we just want to know the constituent fractions
                      goto 900
@@ -1649,6 +1663,8 @@
       if(mode.eq.0) then
 ! this is fór a single endmember
 !         write(*,201)'3Y end: ',ngg,(yfra(is),is=1,inkl(nsl))
+         if(ngg.gt.0 .and. mod(ngg,40000).eq.0) &
+              write(*,*)'3Y calculated ',ngg,' gridpoints 4'
          call calc_gridpoint(iph,yfra,nrel,xarr(1,ngg),garr(ngg),ceq)
          if(gx%bmperr.ne.0) goto 1000
          if(garr(ngg).gt.gmax) gmax=garr(ngg)
@@ -1675,6 +1691,8 @@
 ! the error was due to wrong size allocated to xarr which is strange as it
 ! is done elsewhere but the error disapperared when I allocated a larger
 ! xarr although the allocated one did not seem too small. 
+            if(ngg.gt.0 .and. mod(ngg,40000).eq.0) &
+            write(*,*)'3Y calculated ',ngg,' gridpoints 5'
             call calc_gridpoint(iph,yfra,nrel,xarr(1,ngg),garr(ngg),ceq)
 !            call calc_gridpoint2(iph,yfra,endm,nrel,xarr(1,ngg),garr(ngg),ceq)
 !            call calc_gridpoint2(iph,yfra,endm,nrel,xbrr,garr(ngg),ceq)
@@ -1715,6 +1733,8 @@
                ngg=ngg+1
                if(mode.eq.0) then
 ! this is for 0.96*y1 + 0.03*y2+0.01*y3
+                  if(ngg.gt.0 .and. mod(ngg,40000).eq.0) &
+                       write(*,*)'3Y calculated ',ngg,' gridpoints 6'
                   call calc_gridpoint(iph,yfra,nrel,xarr(1,ngg),garr(ngg),ceq)
                   if(gx%bmperr.ne.0) goto 1000
                   if(garr(ngg).gt.gmax) gmax=garr(ngg)
@@ -2029,6 +2049,8 @@
       if(mode.eq.0) then
 ! this is fór a single endmember
 !         write(*,201)'3Y end: ',ngg,(yfra(is),is=1,inkl(nsl))
+         if(ngg.gt.0 .and. mod(ngg,40000).eq.0) &
+              write(*,*)'3Y calculated ',ngg,' gridpoints 7'
          call calc_gridpoint(iph,yfra,nrel,xarr(1,ngg),garr(ngg),ceq)
          if(gx%bmperr.ne.0) goto 1000
          if(garr(ngg).gt.gmax) gmax=garr(ngg)
@@ -2055,6 +2077,8 @@
 ! the error was due to wrong size allocated to xarr which is strange as it
 ! is done elsewhere but the error disapperared when I allocated a larger
 ! xarr although the allocated one did not seem too small. 
+            if(ngg.gt.0 .and. mod(ngg,40000).eq.0) &
+                 write(*,*)'3Y calculated ',ngg,' gridpoints 8'
             call calc_gridpoint(iph,yfra,nrel,xarr(1,ngg),garr(ngg),ceq)
             if(gx%bmperr.ne.0) goto 1000
             if(garr(ngg).gt.gmax) gmax=garr(ngg)
@@ -2093,6 +2117,8 @@
                ngg=ngg+1
                if(mode.eq.0) then
 ! this is for 0.96*y1 + 0.03*y2+0.01*y3
+                  if(ngg.gt.0 .and. mod(ngg,40000).eq.0) &
+                       write(*,*)'3Y calculated ',ngg,' gridpoints 9'
                   call calc_gridpoint(iph,yfra,nrel,xarr(1,ngg),garr(ngg),ceq)
                   if(gx%bmperr.ne.0) goto 1000
                   if(garr(ngg).gt.gmax) gmax=garr(ngg)
@@ -2413,6 +2439,8 @@
                enddo
                ngg=ngg+1
                if(mode.eq.0) then
+                  if(ngg.gt.0 .and. mod(ngg,40000).eq.0) &
+                       write(*,*)'3Y calculated ',ngg,' gridpoints 10'
                   call calc_gridpoint(iph,yfra,nrel,xarr(1,ngg),garr(ngg),ceq)
                   if(gx%bmperr.ne.0) goto 1000
                   if(garr(ngg).gt.gmax) gmax=garr(ngg)
@@ -2465,6 +2493,8 @@
                enddo
                ngg=ngg+1
                if(mode.eq.0) then
+                  if(ngg.gt.0 .and. mod(ngg,40000).eq.0) &
+                       write(*,*)'3Y calculated ',ngg,' gridpoints 11'
                   call calc_gridpoint(iph,yfra,nrel,xarr(1,ngg),garr(ngg),ceq)
                   if(gx%bmperr.ne.0) goto 1000
                   if(garr(ngg).gt.gmax) gmax=garr(ngg)
@@ -2512,6 +2542,8 @@
                enddo
                ngg=ngg+1
                if(mode.eq.0) then
+                  if(ngg.gt.0 .and. mod(ngg,40000).eq.0) &
+                       write(*,*)'3Y calculated ',ngg,' gridpoints 12'
                   call calc_gridpoint(iph,yfra,nrel,xarr(1,ngg),garr(ngg),ceq)
                   if(gx%bmperr.ne.0) goto 1000
                   if(garr(ngg).gt.gmax) gmax=garr(ngg)
@@ -2564,8 +2596,8 @@
 
 !\begin{verbatim} %-
  subroutine generate_fccord_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,gmax,ceq)
-! This generates grid for a phase with 4 sublattice fcc/hcp ordering
-! mode<0 just number of gridpoints in ngg, needed for allocations
+! This generates grid for a phase with 4 sublattice fcc/bcc/hcp ordering
+! NO LONGER USED: mode<0 just number of gridpoints in ngg, for allocations
 ! mode=0 calculate mole fraction and G for all gridpoints
 ! mode>0 return constitution for gridpoint mode in yarr
    implicit none
@@ -2575,56 +2607,256 @@
    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim} %+
    logical, save :: once=.TRUE.
-   integer i,j,k,l,m,n,e
-   integer, dimension(:,:), allocatable :: endm
+   integer nsl,maxng,mend,nend,kend,ncon,i1,i2,i3,i4,ij,ik,ls,gridlimit
+   integer nkl(1000),knr(1000),incl(0:9)
+   integer, allocatable, dimension(:,:) :: endm
+   double precision, allocatable, dimension(:,:) :: yendm
+   double precision, allocatable, dimension(:) :: yfra
+   double precision, allocatable, dimension(:) :: ysave
+   double precision ydum(1000),ysame(1000),sites(9),qq(5)
+   integer, parameter, dimension(3,4) :: &
+        limits=reshape([150,50,20, 100,30,15, 20,10,7, 12,7,4],shape(limits))
+! from generic_grid_generator
+!   logical dense,gles,defgrid
+   double precision, dimension(5), parameter :: &
+        yf=[0.07D0,0.28D0,0.16D0,0.45D0,0.04D0]
+   integer ii,ijs,iks,il,ils,im,ims,is,nendj,nendk,nendl,nendm,ng
 ! NOTHING IMPLEMENTED YET
-   if(once) write(*,17)
-17 format('3Y Special grid for FCC/HCP 4SL ordering not implemented yet')
-   once=.FALSE.
-! number of constituents in the first 4 sublattices
-   n=5
-! first calculate the middle value in a Pascal triangle for row n+3
-   j=1
-   k=1
-   l=1
-! n+3 can be odd or even
-   if(mod(n+3,2).eq.0) then
-      m=(n+3)/2
-   else
-      m=(n+2)/2
+!   write(*,*)'3Y in generate_fccord_grid ',ngg
+   if(mode.lt.0) then
+      write(*,*)'3Y mode <0 not allowed'
+      gx%bmperr=4399; goto 1000
    endif
-   do i=1,n+3
-      j=j*i
-      if(i.le.m) then
-         k=k*i
-      else
-         l=l*(n+4-i)
-      endif
+! check that F or B bit set
+   if(.not.(test_phase_status_bit(iph,PHFORD) .or. &
+        test_phase_status_bit(iph,PHBORD))) then
+      write(*,*)'3Y calling ordered grid without F or B bit'
+      gx%bmperr=4399; goto 1000
+   endif
+!
+! get phase model
+   call get_phase_data(iph,1,nsl,nkl,knr,ydum,sites,qq,ceq)
+   if(gx%bmperr.ne.0) goto 1010
+! max number of gridpoints allowed, ngg returned as number of gridpoints...
+   maxng=ngg
+   ngg=0
+! incl(ii) set to number of constituents up to including sublattice ii
+   incl(0)=0
+   nend=1
+   do ij=1,nsl
+      nend=nend*nkl(ij)
+      incl(ij)=incl(ij-1)+nkl(ij)
    enddo
-! This is the number of unique permutations
-   e=j/(k*l)
-   allocate(endm(4,e))
-   e=0
-   do i=1,n
-      do j=i,n
-         do k=j,n
-            do l=k,n
-               e=e+1
-               endm(1,e)=i
-               endm(2,e)=j
-               endm(3,e)=k
-               endm(4,e)=l
-            enddo
+   ncon=incl(nsl)
+! nend is number of endmembers, endm(1..nsl,ii) are constituent index of ii
+! yendm(1..nsl,ii) has the constituent fractions for endmember ii
+! yfra is used to generate a constitutuon from a combination of endmembers
+   allocate(endm(nsl,nend))
+   allocate(yendm(ncon,nend))
+   yendm=1.0D-12
+   allocate(yfra(ncon))
+   allocate(ysave(ncon))
+   do ij=1,ncon
+      ysave(ij)=ydum(ij)
+   enddo
+! set endm(1..nsl,1) to first constituent index for each sublattice
+!   do ij=1,nsl
+!      endm(ij,1)=incl(ij-1)+1
+!      yendm(endm(ij,1),1)=one
+!   enddo
+! loop to increment the constituents to generate all endmembers
+! We should avoid all permutations according to BCC
+! A:A:A:A 
+! A:A:A:B   ingnore all permutations of B in sublattices
+! A:A:A:C - A:A:A:X
+! A:A:B:B - A:A:B:X
+! A:A:C:C - A:A:X:X
+! A:B:A:B - A:B:A:X <<<<<<< special for BCC
+! A:C:A:C - A:X:A:X
+! A:B:B:C - A:B:B:X
+! A:B:C:C - A:B:X:X
+! A:C:C:C - A:X:X:X
+! B:B:B:B 
+! B:B:B:C - B:B:B:X 
+! etc
+! X:X:X:X
+! endm(1..nsl,1) set to first in all sublattices
+! ordering always on the first 4 sublattices
+! endm(1..nsl,jj) contains constituent indices in sublattice 1..nsl
+   kend=1
+   do i1=1,nkl(1)
+      endm(1,kend)=incl(0)+i1
+      do i2=i1,nkl(2)
+         endm(2,kend)=incl(1)+i2
+         do i3=i2,nkl(3) 
+            endm(3,kend)=incl(2)+i3
+            s4: do i4=i3,nkl(4)
+               endm(4,kend)=incl(3)+i4
+               rest: do ls=5,nsl
+                  if(endm(ls,nend).lt.incl(ls)) then
+                     endm(ls,kend)=incl(ls-1)+1
+                     cycle rest
+                  else
+                     endm(ls,kend)=endm(ls,1)
+                  endif
+               enddo rest
+               do ik=1,nsl
+                  yendm(endm(ik,kend),kend)=one
+               enddo
+               kend=kend+1
+               do ls=1,nsl
+                  endm(ls,kend)=endm(ls,kend-1)
+               enddo
+            enddo s4
          enddo
       enddo
    enddo
-!  write(*,*)'Endmembers ',e
-!  do i=1,e
-!     write(*,30)(endm(j,i),j=1,4)
-!  enddo
-30 format(4i3)
+! kend has been incremented one too much
+   nend=kend-1
+! output adapted to 5 sublattices
+!   if(mode.eq.0) then
+!      write(*,17)'3Y ordend: ',((endm(ls,mend),ls=1,nsl),mend=1,nend)
+17 format(a,4(i4,4i3)/,(11x,i4,4i3,i4,4i3,i4,4i3,i4,4i3))
+!      do i2=1,nend
+!         write(*,18)i2,(endm(ls,i2),ls=1,nsl),(yendm(i1,i2),i1=1,nsl)
+18       format('3Y yendm: ',i5,2x,4i3,2x,4F6.3)
+!      enddo
+!   endif
+!
+! copied from generic_grid_generator
+!
+! now generate an grid depending on nend mixing up to 5 different endmembers.
+! up to for 4 endmembers 4*4*4*4*4=1024
+! 5 to 7 endmembers      7*7*7*7 =2401
+! 7 to 13 endmembers     13*13*13=2197
+! max 50 endmembers      50*50 = 2500
+! for N>50 endmembers          = N
+! FOR DENSE about 10 times more
+! up to 7 endmembers 7*7*7*7*7 = 16807
+! 8 to 12 endmembers 12*12*12*12 = 20736
+! 13 to 15 endmembers 15*15*15  =33750
+! max 150 endmembers 150*150 = 22500
+! for N>150                  = N
+!--------------------------------------
+!   dense=.FALSE.
+!   gles=.FALSE.
+!   defgrid=.TRUE.
+   if(btest(globaldata%status,GSOGRID)) then
+      gridlimit=3
+   elseif(btest(globaldata%status,GSXGRID) .or. & 
+        test_phase_status_bit(iph,PHXGRID)) then
+      gridlimit=1
+   else
+      gridlimit=2
+   endif
+!   write(*,*)'3Y in generate_ordered_grid ',iph,nend,gridlimit,&
+!        btest(globaldata%status,GSOGRID)
+   ng=0
+!-----------------------
+   iiloop: do ii=1,nend
+      ijs=1
+      nendj=nend
+      if(nend.ge.limits(gridlimit,1)) then
+!      if(nend.eq.150 .or. (gles .and. nend.gt.40)) then
+         nendj=ii
+         ijs=ii
+      endif
+!      write(*,*)'3Y ii:',ii,ijs,nendj
+      ijloop: do ij=ijs,nendj
+         iks=1
+         nendk=nend
+         if(nend.ge.limits(gridlimit,2)) then
+!         if(nend.gt.15 .or. (gles .and. nend.gt.13)) then
+            nendk=ij
+            iks=ij
+         endif
+         ikloop: do ik=iks,nendk
+            ils=1
+            nendl=nend
+            if(nend.ge.limits(gridlimit,3)) then
+!            if((nend.gt.12 .or. (gles .and. nend.gt.7)) then
+               nendl=ik
+               ils=ik
+            endif
+            illoop: do il=ils,nendl
+!            illoop: do il=1,nendl
+               ims=1
+               nendm=nend
+               if(nend.ge.limits(gridlimit,4)) then
+!               if(nend.gt.7 .or. (gles .and. nend.gt.4)) then
+! with 4 endmembers 1024 gridpoints
+                  nendm=il
+                  ims=il
+               endif
+               imloop: do im=ims,nendm
+! sum up the weighted fractions from the different endmembers
+                  do is=1,ncon
+                     yfra(is)=yf(1)*yendm(is,ii)+yf(2)*yendm(is,ij)+&
+                          yf(3)*yendm(is,ik)+yf(4)*yendm(is,il)+&
+                          yf(5)*yendm(is,im)
+                  enddo
+                  ng=ng+1
+                  if(mode.eq.0) then
+!                     write(*,322)'3Y imloop: ',ng,ii,ij,ik,il,im
+322                  format(a,i8,5i4)
+!                     write(*,323)'3Y imloop1: ',ng,ii,ij,ik,il,im,0.0D0,yfra
+323                  format(a,i5,5i3,': ',1pe12.4,0p20F5.2)
+! strange bug in map3, maxng was zero sometimes ...
+                     if(ng.gt.maxng) then
+                        if(maxng.lt.100) then
+                           write(*,*)'3Y max gripoints wrong 6: ',maxng,iph,mode
+                        else
+                           write(*,*)'3Y Too many gridpoints 6',ng,maxng,iph
+                           gx%bmperr=4399; goto 1000
+                        endif
+                     endif
+                     if(ng.gt.0 .and. mod(ng,30000).eq.0) &
+                          write(*,*)'3Y calculated ',ng,' gridpoints 13'
+                     call calc_gridpoint(iph,yfra,nrel,xarr(1,ng),garr(ng),ceq)
+                     if(gx%bmperr.ne.0) then
+                        write(*,*)'3Y error calculating gridpoint: ',&
+                             iph,gx%bmperr
+                        goto 1000
+                     endif
+!                     write(*,323)'3Y imloop2: ',ng,ii,ij,ik,il,im,garr(ng),yfra
+                  elseif(mode.eq.ng) then
+! when mode>0 we just want to know the constituent fractions
+                     goto 900
+                  endif
+               enddo imloop
+            enddo illoop
+         enddo ikloop
+      enddo ijloop
+   enddo iiloop
+!   do ii=1,ng
+!      write(*,700)ii,garr(ii),(xarr(ij,ii),ij=1,nrel)
+700   format('3Y gp: ',i5,1pe12.4,9(0pF6.3))
+!   enddo
+800 continue
+   if(mode.gt.0) then
+      write(*,*)'3Y could not find gridpoint ',mode,' in phase ',iph,ng
+      gx%bmperr=4399
+   else
+      ngg=ng
+   endif
+   goto 1000
+!--------------------------------------------
+! we found the gridpoint we were looking for
+900 continue
+   ny=ncon
+   do ii=1,ny
+      yarr(ii)=yfra(ii)
+   enddo
+!
+!
 1000 continue
+   if(mode.eq.0) then
+! restore the composition
+      call set_constitution(iph,1,ysave,qq,ceq)
+   endif
+1010 continue
    return
+! dense gles
  end subroutine generate_fccord_grid
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
@@ -2711,6 +2943,8 @@
          if(mode.eq.0) then
 ! if mode=0 calculate G for this endmember
 !         write(*,*)'3Y a single neutral endmember for ',iph,mode
+            if(ngg.gt.0 .and. mod(ngg,40000).eq.0) &
+                 write(*,*)'3Y calculated ',ngg,' gridpoints 14'
             call calc_gridpoint(iph,ydum,nrel,xarr(1,ngg),garr(ngg),ceq)
             if(gx%bmperr.ne.0) goto 1000
             if(garr(ngg).gt.gmax) gmax=garr(ngg)
@@ -3260,6 +3494,8 @@
             write(*,*)'3Y too many gripoints 3',ngg,maxngg,iph
             gx%bmperr=4399; goto 1000
          endif
+         if(ngg.gt.0 .and. mod(ngg,40000).eq.0) &
+              write(*,*)'3Y calculated ',ngg,' gridpoints 15'
          call calc_gridpoint(iph,y4,nrel,xarr(1,ngg),garr(ngg),ceq)
          if(gx%bmperr.ne.0) goto 1000
 ! created a bug here, used ngg instead of nm .... suck

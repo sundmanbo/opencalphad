@@ -13,6 +13,18 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2017.07.26 OC version 4.028: I have finally managed to handle the
+phase diagram for Al-Ni with the 4 sublattice model for FCC and BCC
+ordering.  There has been an error calculating the second derivatives
+of G that have cause severe convergence problems.  I am not sure they
+are correct but the convergence is now good.  Option B is also
+finished although some parameters are still not allowed but I added a
+few more parameters for option F (permutations in 4 sublattice
+ordering model for FCC and HCP).  Beware, there may be errors!! Check
+that the disordered state is properly disordered, exactly the same
+constituent fractions in all sublattices and report problems (before I
+forget the code).
+
 2017.07.21 OC version 4.027: The implementation of option B is now
 almost finished but beware of bugs and that I have not implemented all
 possible parameters, only those that seems most useful.  I also found

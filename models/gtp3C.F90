@@ -1752,7 +1752,8 @@
          endif
          prplink=0
          if(associated(endmemrec%propointer)) prplink=1
-         write(kou,207)endmemrec%antalem,endmemrec%noofpermut,intpq,prplink
+         if(parlist.eq.1) write(kou,207)endmemrec%antalem,&
+              endmemrec%noofpermut,intpq,prplink
 207      format('3C Endmember check: permut, interaction, pty: ',4i5)
       endif
       endmemrec=>endmemrec%nextem
@@ -1909,7 +1910,7 @@
                nz=size(intrec%sublattice)
                lqq=intrec%noofip(size(intrec%noofip))
                if(lqq.ne.nz) then
-                  write(*,*)'Not same: ',intrec%antalint,nz,lqq
+                  write(*,*)'3C Not same 1: ',intrec%antalint,nz,lqq
                endif
 !               write(*,301)nz,intrec%noofip
 301            format('noofip: ',10i3)
@@ -1925,9 +1926,10 @@
             endif
             prplink=0
             if(associated(intrec%propointer)) prplink=1
-            write(*,302)intrec%antalint,nz,nint,iqhigh,iqnext,prplink
-302         format('3C Interaction check: permut, level, high, next, pty: ',&
-                 i5,i4,i3,i4,i4,i4)
+            if(parlist.eq.1) write(*,302)intrec%antalint,&
+                 nz,nint,iqhigh,iqnext,prplink
+302         format('3C Inter check 1: id, permut, level, high, next, pty: ',&
+                 i5,i3,i3,i4,i4,i2)
          endif
          intrec=>intrec%highlink
          empty: do while(.not.associated(intrec))
@@ -2409,14 +2411,16 @@
             proprec=>proprec%nextpr
          enddo ptyloop2
 ! list temporarily the number of permutations
-         if(intrec%noofip(1).gt.1 .or. intrec%noofip(2).gt.1) then
+         if(btest(phlista(lokph)%status1,PHFORD).or. &
+              btest(phlista(lokph)%status1,PHBORD)) then
+!         if(intrec%noofip(1).gt.1 .or. intrec%noofip(2).gt.1) then
             if(nint.eq.1) then
                nz=intrec%noofip(2)
             else
                nz=size(intrec%sublattice)
                lqq=intrec%noofip(size(intrec%noofip))
                if(lqq.ne.nz) then
-                  write(*,*)'Not same: ',intrec%antalint,nz,lqq
+                  write(*,*)'3C Not same 2: ',intrec%antalint,nz,lqq
                endif
 !               write(*,301)nz,intrec%noofip
 301            format('noofip: ',10i3)
@@ -2431,7 +2435,7 @@
                iqnext=intrec%nextlink%antalint
             endif
             write(*,302)intrec%antalint,nz,nint,iqhigh,iqnext
-302         format('@$ Interaction, permutations, level, high, next: ',5i5)
+302         format('3C Interaction check 2: permut, level, high, next: ',5i4)
          endif
          intrec=>intrec%highlink
          empty: do while(.not.associated(intrec))

@@ -1226,6 +1226,11 @@ CONTAINS
           endif
           goto 200
        endif
+!       if(iadd.eq.abs(iremsave)) then
+!          write(*,*)'Phase just removed, do not add: ',iadd
+!          iremsave=0
+!          goto 200
+!       endif
 ! make sure iremsave is zero
        iremsave=0
        if(meqrec%nstph.eq.meqrec%maxsph) then
@@ -1861,7 +1866,7 @@ CONTAINS
 !          write(*,43)'Deltaam: ',meqrec%noofits,jj,deltaam,lastdeltaam(jph),&
 !               phr(jj)%curd%amfu
 43        format(a,2i3,6(1pe12.4))
-! avoid too large changes in phase amount, just made things worse
+! tried to avoid too large changes in phase amount, just made things worse
 !          if(meqrec%noofits.lt.3 .and. &
 !               abs(deltaam).gt.0.5D0*phr(jj)%curd%amfu) then
 !             deltaam=sign(0.1D0*phr(jj)%curd%amfu,deltaam)
@@ -1920,6 +1925,14 @@ CONTAINS
 ! n(o)=2 and n(u)=1 at low T
              maxphasechange=abs(deltaam)
           endif
+! special test for Al-Ni fcc/fcc#2 two-phase
+! Calculations with Al-Ni T=1000, x(al)=.2 gives just a single FCC phase
+! possible problems that we change the amounts of the wrong composition set?
+! HOWEVER, I found the error is the second derivatives are wrong!!
+!          if(meqrec%noofits.lt.10) deltaam=0.1*deltaam
+!          write(*,383)'MM phase change: ',meqrec%noofits,jj,&
+!               phr(jj)%iph,phr(jj)%ics,phr(jj)%curd%amfu,deltaam,svar(ioff)
+!383       format(a,2i3,2x,2i3,3(1pe12.4))
           phf=phr(jj)%curd%amfu-deltaam
           if(phs.gt.0.2D0 .and. phf.le.zero) then
 ! violent change of phase fractions in Siglis case, liquid change from 1 to 0
@@ -2347,7 +2360,8 @@ CONTAINS
 ! >>>>>>>>>>>>>>>>>> HERE the new constitution is set <<<<<<<<<<<<<<<<<<<<<
 !       if(meqrec%noofits.le.2) write(*,83)'dy2: ',jj,phr(jj)%iph,kk,&
 !            (yarr(nj),nj=1,phr(jj)%ncc)
-!       write(*,111)'YARR: ',jj,(yarr(nj),nj=1,phr(jj)%ncc)
+!       write(*,114)'YARR: ',jj,phr(jj)%ics,(yarr(nj),nj=1,phr(jj)%ncc)
+114       format(a,2i3,8(F7.4))
        call set_constitution(phr(jj)%iph,phr(jj)%ics,yarr,qq,ceq)
        if(gx%bmperr.ne.0) goto 1000
 !  >>>>>>>>>>>>>>>>>> for all phases <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<

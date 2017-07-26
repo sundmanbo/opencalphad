@@ -1426,9 +1426,9 @@ CONTAINS
           endif
 ! ========================================== tie-lines in plane and one phase
        else ! we have just a single phase stable we must move in some direction
+          write(*,*)'Tie-line in plane and single phase,',&
+               ' I have not checked yet if this works ... '
           call map_startline(meqrec,axactive,ieq,nax,axarr,tmpline,ceq)
-!          write(*,*)'Tie-line in plane and single phase,',&
-!               ' no check yet if this works ... '
        endif stablephases
 ! ============================================= no tie-lines in plane
     else !tie-lines NOT in the plane
