@@ -2692,15 +2692,26 @@
             endm(3,kend)=incl(2)+i3
             s4: do i4=i3,nkl(4)
                endm(4,kend)=incl(3)+i4
-               rest: do ls=5,nsl
+               extra: if(nsl.gt.4) then
+                  rest: do ls=5,nsl
 ! Hm, problems to loop over constituents in sublattices 5..nsl
-                  if(endm(ls,nend).lt.incl(ls)) then
-                     endm(ls,kend)=incl(ls-1)+1
-                  else
-                     endm(ls,kend)=endm(ls,1)
-                  endif
-!                  write(*,16)'3Y yendm 2: ',kend,(endm(ik,kend),ik=1,nsl)
-16                format(a,15i5)
+                     if(endm(ls,nend).lt.incl(ls)) then
+                        endm(ls,kend)=incl(ls-1)+1
+                     else
+                        endm(ls,kend)=endm(ls,1)
+                     endif
+!                     write(*,16)'3Y yendm 2: ',kend,(endm(ik,kend),ik=1,nsl)
+16                   format(a,15i5)
+                     do ik=1,nsl
+                        yendm(endm(ik,kend),kend)=one
+                     enddo
+                  enddo rest
+                  kend=kend+1
+                  do iz=1,nsl
+                     endm(iz,kend)=endm(iz,kend-1)
+                  enddo
+               else
+!                  write(*,16)'3Y yendm 3: ',kend,(endm(ik,kend),ik=1,nsl)
                   do ik=1,nsl
                      yendm(endm(ik,kend),kend)=one
                   enddo
@@ -2708,13 +2719,14 @@
                   do iz=1,nsl
                      endm(iz,kend)=endm(iz,kend-1)
                   enddo
-               enddo rest
+               endif extra
             enddo s4
          enddo
       enddo
    enddo
 ! kend has been incremented one too much
    nend=kend-1
+!   write(*,*)'3Y ordered endmemb: ',nend
 ! output adapted to 5 sublattices
 !   if(mode.eq.0) then
 !      write(*,17)'3Y ordend: ',((endm(ls,mend),ls=1,nsl),mend=1,nend)
