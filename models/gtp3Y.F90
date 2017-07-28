@@ -2607,7 +2607,7 @@
    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim} %+
    logical, save :: once=.TRUE.
-   integer nsl,maxng,mend,nend,kend,ncon,i1,i2,i3,i4,ij,ik,ls,gridlimit
+   integer nsl,maxng,mend,nend,kend,ncon,i1,i2,i3,i4,ij,ik,iz,ls,gridlimit
    integer nkl(1000),knr(1000),incl(0:9)
    integer, allocatable, dimension(:,:) :: endm
    double precision, allocatable, dimension(:,:) :: yendm
@@ -2660,10 +2660,10 @@
       ysave(ij)=ydum(ij)
    enddo
 ! set endm(1..nsl,1) to first constituent index for each sublattice
-!   do ij=1,nsl
-!      endm(ij,1)=incl(ij-1)+1
+   do ij=1,nsl
+      endm(ij,1)=incl(ij-1)+1
 !      yendm(endm(ij,1),1)=one
-!   enddo
+   enddo
 ! loop to increment the constituents to generate all endmembers
 ! We should avoid all permutations according to BCC
 ! A:A:A:A 
@@ -2693,20 +2693,22 @@
             s4: do i4=i3,nkl(4)
                endm(4,kend)=incl(3)+i4
                rest: do ls=5,nsl
+! Hm, problems to loop over constituents in sublattices 5..nsl
                   if(endm(ls,nend).lt.incl(ls)) then
                      endm(ls,kend)=incl(ls-1)+1
-                     cycle rest
                   else
                      endm(ls,kend)=endm(ls,1)
                   endif
+!                  write(*,16)'3Y yendm 2: ',kend,(endm(ik,kend),ik=1,nsl)
+16                format(a,15i5)
+                  do ik=1,nsl
+                     yendm(endm(ik,kend),kend)=one
+                  enddo
+                  kend=kend+1
+                  do iz=1,nsl
+                     endm(iz,kend)=endm(iz,kend-1)
+                  enddo
                enddo rest
-               do ik=1,nsl
-                  yendm(endm(ik,kend),kend)=one
-               enddo
-               kend=kend+1
-               do ls=1,nsl
-                  endm(ls,kend)=endm(ls,kend-1)
-               enddo
             enddo s4
          enddo
       enddo

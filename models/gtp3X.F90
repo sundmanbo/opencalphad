@@ -88,7 +88,7 @@
 ! empermut and ipermut permutation of fractions for phases with option F and B
 ! permrecord, maxprec and sameint to handle permutation in the interaction tree
    integer, parameter :: permstacklimit=150
-   integer fractype,epermut,ipermut,typty,pmq,maxprec
+   integer fractype,epermut,ipermut,typty,pmq,maxprec,already
    integer sameint(5)
    integer, dimension(permstacklimit) :: lastpmq,maxpmq
 !   character bug*60
@@ -802,6 +802,20 @@
                ic=intrec%fraclink(ipermut)
                gz%intlat(gz%intlevel)=intlat
                gz%intcon(gz%intlevel)=ic
+! if intlat or ic is zero give error message and skip
+               if(intlat.le.0 .or. ic.le.0) then
+                  if(already.eq.0 .or. intrec%antalint.ne.already) then
+                     already=intrec%antalint
+                     write(*,231)'3X error: ',phlista(lokph)%alphaindex,&
+                          (idlist(iw1),iw1=1,nsl),&
+                          (gz%intlat(iw1),gz%intcon(iw1),iw1=1,gz%intlevel)
+                     write(*,231)'3X intp: ',intrec%antalint,gz%intlevel,&
+                          ipermut,intlat,ic,pmq,maxpmq(pmq)
+231                  format(a,10i5)
+!                     call whatparam(lokph,
+                  endif
+                  goto 290
+               endif
                gz%yfrint(gz%intlevel)=phres%yfr(ic)
 !               write(*,*)'3X excess 2: ',ionicliq,iliqsave
                if(ionicliq .and. iliqsave) then

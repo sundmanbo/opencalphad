@@ -2036,12 +2036,10 @@
       if(.not.associated(intrec)) then
 ! no interaction record for this endmember, create one unless lfun=-1
 ! It seems this record is created but never used so it remains empty
+! create_interaction routine is in gtp3G.F90
          if(lfun.eq.-1) goto 900
          call create_interaction(newintrec,mint,jord,intperm,intlinks)
          if(gx%bmperr.ne.0) goto 1000
-!         write(*,203)'3B created interaction 9:',mint,nint,&
-!              jord(1,mint),jord(2,mint),newintrec%antalint
-203      format(a,2i3,2x,i3,i5,i7)
          endmemrec%intpointer=>newintrec
          intrec=>newintrec
          lastint=>intrec
@@ -2127,8 +2125,6 @@
 ! in gtp3G
          call create_interaction(newintrec,mint,jord,intperm,intlinks)
          if(gx%bmperr.ne.0) goto 1000
-! suddenly interaction record has wrong links??
-!       write(*,*)'3B sub/comp: ',newintrec%sublattice(1),newintrec%fraclink(1)
          if(newint.eq.1) then
 !           write(*,*)'3B Linking as higher',mint,highint,associated(linktohigh)
 ! We may have a high link already! Set it as nextlink!
@@ -3058,7 +3054,7 @@
 ! trying to understand what I did 3 years ago ....
 ! Parameter is actually a reciprocal one ... A:A:BX:CY
    case(8) ! A:A:BX:C or similar, 12 endmember permutations
-      write(*,*)'3B noperm, intperm(1..2): ',noperm,intperm(1),intperm(2)
+!      write(*,*)'3B noperm, intperm(1..2): ',noperm,intperm(1),intperm(2)
 !      do mint=1,noperm
 !         write(*,661)mint,(elinks(ls,mint),ls=1,4)
 !      enddo
@@ -3115,6 +3111,8 @@
       intlinks(1,nz)=4
       call findconst(lokph,intlinks(1,nz),isp2,intlinks(2,nz))
       if(gx%bmperr.ne.0) goto 1000
+!
+      nz=nz+1
       intlinks(1,nz)=4
       call findconst(lokph,intlinks(1,nz),isp2,intlinks(2,nz))
       if(gx%bmperr.ne.0) goto 1000

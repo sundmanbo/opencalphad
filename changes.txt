@@ -13,6 +13,9 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2017.07.26 OC version 4.029: Fixed a small bug dealing with ordering
+and permutations.
+
 2017.07.26 OC version 4.028: I have finally managed to handle the
 phase diagram for Al-Ni with the 4 sublattice model for FCC and BCC
 ordering.  There has been an error calculating the second derivatives
