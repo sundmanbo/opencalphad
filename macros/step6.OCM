@@ -65,7 +65,8 @@ render
 plot
 x(mo)
 gm(*)
-yr
+scale
+y
 N
 -5000
 1000

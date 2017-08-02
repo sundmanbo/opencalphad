@@ -84,7 +84,7 @@ plot
 
 
 title map6 fig 3
-yr
+scale y
 n
 1700
 1800
@@ -94,7 +94,7 @@ plot
 
 
 title map6 fig4
-yr
+scale y
 n
 1150
 1250

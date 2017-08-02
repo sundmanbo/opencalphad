@@ -877,8 +877,9 @@
 !         write(*,201)ibas,ngg,(yfra(is),is=1,inkl(nsl))
 201      format('3Y ggz: ',i2,i4,5(F10.6))
          if(ocv()) write(*,*)'3Y Calculating gridpoint: ',ngg
-         if(ngg.gt.0 .and. mod(ngg,40000).eq.0) &
-              write(*,*)'3Y calculated ',ngg,' gridpoints 1'
+         if(ngg.gt.0 .and. mod(ngg,30000).eq.0) &
+              write(*,*)'3Y calculated ',ngg,' gridpoints for ',&
+              trim(phlista(lokph)%name)
          call calc_gridpoint(iph,yfra,nrel,xarr(1,ngg),garr(ngg),ceq)
          if(gx%bmperr.ne.0) goto 1000
          if(garr(ngg).gt.gmax) gmax=garr(ngg)
@@ -1142,7 +1143,7 @@
 ! local loop variables etc
    integer ii,ij,ik,il,im,in,is,ie,incl(0:maxsubl),maxng,ng,ncon
    integer nend,nendj,nendk,nendl,nendm
-   integer ijs,iks,ils,ims
+   integer ijs,iks,ils,ims,lokph
 ! these are for call of get_phase_data
    integer nsl,nkl(maxsubl),knr(maxconst)
    double precision ydum(maxconst),sites(maxsubl),qq(5)
@@ -1292,8 +1293,11 @@
                write(*,*)'3Y Too many gridpoints 7',ng,maxng,iph
                gx%bmperr=4399; goto 1000
             endif
-            if(ng.gt.0 .and. mod(ng,40000).eq.0) &
-            write(*,*)'3Y calculated ',ng,' gridpoints 2'
+            if(ng.gt.0 .and. mod(ng,30000).eq.0) then
+               lokph=phases(iph)
+               write(*,*)'3Y calculated ',ng,' gridpoints for ',&
+                    trim(phlista(lokph)%name)
+            endif
             call calc_gridpoint(iph,yfra,nrel,xarr(1,ng),garr(ng),ceq)
             if(gx%bmperr.ne.0) then
                write(*,*)'3Y error calculating gridpoint: ',&
@@ -1360,8 +1364,9 @@
                            gx%bmperr=4399; goto 1000
                         endif
                      endif
-                     if(ng.gt.0 .and. mod(ng,40000).eq.0) &
-                          write(*,*)'3Y calculated ',ng,' gridpoints 3'
+                     if(ng.gt.0 .and. mod(ng,30000).eq.0) &
+                          write(*,*)'3Y calculated ',ng,' gridpoints for ',&
+                          trim(phlista(lokph)%name)
                      call calc_gridpoint(iph,yfra,nrel,xarr(1,ng),garr(ng),ceq)
                      if(gx%bmperr.ne.0) then
                         write(*,*)'3Y error calculating gridpoint: ',&
@@ -1663,8 +1668,9 @@
       if(mode.eq.0) then
 ! this is fór a single endmember
 !         write(*,201)'3Y end: ',ngg,(yfra(is),is=1,inkl(nsl))
-         if(ngg.gt.0 .and. mod(ngg,40000).eq.0) &
-              write(*,*)'3Y calculated ',ngg,' gridpoints 4'
+         if(ngg.gt.0 .and. mod(ngg,30000).eq.0) &
+              write(*,*)'3Y calculated ',ngg,' gridpoints 4',&
+              trim(phlista(lokph)%name)
          call calc_gridpoint(iph,yfra,nrel,xarr(1,ngg),garr(ngg),ceq)
          if(gx%bmperr.ne.0) goto 1000
          if(garr(ngg).gt.gmax) gmax=garr(ngg)
@@ -1691,8 +1697,9 @@
 ! the error was due to wrong size allocated to xarr which is strange as it
 ! is done elsewhere but the error disapperared when I allocated a larger
 ! xarr although the allocated one did not seem too small. 
-            if(ngg.gt.0 .and. mod(ngg,40000).eq.0) &
-            write(*,*)'3Y calculated ',ngg,' gridpoints 5'
+            if(ngg.gt.0 .and. mod(ngg,30000).eq.0) &
+                 write(*,*)'3Y calculated ',ngg,' gridpoints for ',&
+                 trim(phlista(lokph)%name)
             call calc_gridpoint(iph,yfra,nrel,xarr(1,ngg),garr(ngg),ceq)
 !            call calc_gridpoint2(iph,yfra,endm,nrel,xarr(1,ngg),garr(ngg),ceq)
 !            call calc_gridpoint2(iph,yfra,endm,nrel,xbrr,garr(ngg),ceq)
@@ -1733,8 +1740,9 @@
                ngg=ngg+1
                if(mode.eq.0) then
 ! this is for 0.96*y1 + 0.03*y2+0.01*y3
-                  if(ngg.gt.0 .and. mod(ngg,40000).eq.0) &
-                       write(*,*)'3Y calculated ',ngg,' gridpoints 6'
+                  if(ngg.gt.0 .and. mod(ngg,30000).eq.0) &
+                       write(*,*)'3Y calculated ',ngg,' gridpoints for ',&
+                       trim(phlista(lokph)%name)
                   call calc_gridpoint(iph,yfra,nrel,xarr(1,ngg),garr(ngg),ceq)
                   if(gx%bmperr.ne.0) goto 1000
                   if(garr(ngg).gt.gmax) gmax=garr(ngg)
@@ -2049,8 +2057,9 @@
       if(mode.eq.0) then
 ! this is fór a single endmember
 !         write(*,201)'3Y end: ',ngg,(yfra(is),is=1,inkl(nsl))
-         if(ngg.gt.0 .and. mod(ngg,40000).eq.0) &
-              write(*,*)'3Y calculated ',ngg,' gridpoints 7'
+         if(ngg.gt.0 .and. mod(ngg,30000).eq.0) &
+              write(*,*)'3Y calculated ',ngg,' gridpoints for ',&
+              trim(phlista(lokph)%name)
          call calc_gridpoint(iph,yfra,nrel,xarr(1,ngg),garr(ngg),ceq)
          if(gx%bmperr.ne.0) goto 1000
          if(garr(ngg).gt.gmax) gmax=garr(ngg)
@@ -2077,8 +2086,9 @@
 ! the error was due to wrong size allocated to xarr which is strange as it
 ! is done elsewhere but the error disapperared when I allocated a larger
 ! xarr although the allocated one did not seem too small. 
-            if(ngg.gt.0 .and. mod(ngg,40000).eq.0) &
-                 write(*,*)'3Y calculated ',ngg,' gridpoints 8'
+            if(ngg.gt.0 .and. mod(ngg,30000).eq.0) &
+                 write(*,*)'3Y calculated ',ngg,' gridpoints for ',&
+                 trim(phlista(lokph)%name)
             call calc_gridpoint(iph,yfra,nrel,xarr(1,ngg),garr(ngg),ceq)
             if(gx%bmperr.ne.0) goto 1000
             if(garr(ngg).gt.gmax) gmax=garr(ngg)
@@ -2117,8 +2127,9 @@
                ngg=ngg+1
                if(mode.eq.0) then
 ! this is for 0.96*y1 + 0.03*y2+0.01*y3
-                  if(ngg.gt.0 .and. mod(ngg,40000).eq.0) &
-                       write(*,*)'3Y calculated ',ngg,' gridpoints 9'
+                  if(ngg.gt.0 .and. mod(ngg,30000).eq.0) &
+                       write(*,*)'3Y calculated ',ngg,' gridpoints for ',&
+                       trim(phlista(lokph)%name)              
                   call calc_gridpoint(iph,yfra,nrel,xarr(1,ngg),garr(ngg),ceq)
                   if(gx%bmperr.ne.0) goto 1000
                   if(garr(ngg).gt.gmax) gmax=garr(ngg)
@@ -2439,8 +2450,9 @@
                enddo
                ngg=ngg+1
                if(mode.eq.0) then
-                  if(ngg.gt.0 .and. mod(ngg,40000).eq.0) &
-                       write(*,*)'3Y calculated ',ngg,' gridpoints 10'
+                  if(ngg.gt.0 .and. mod(ngg,30000).eq.0) &
+                       write(*,*)'3Y calculated ',ngg,' gridpoints for ',&
+                       trim(phlista(lokph)%name)              
                   call calc_gridpoint(iph,yfra,nrel,xarr(1,ngg),garr(ngg),ceq)
                   if(gx%bmperr.ne.0) goto 1000
                   if(garr(ngg).gt.gmax) gmax=garr(ngg)
@@ -2493,8 +2505,9 @@
                enddo
                ngg=ngg+1
                if(mode.eq.0) then
-                  if(ngg.gt.0 .and. mod(ngg,40000).eq.0) &
-                       write(*,*)'3Y calculated ',ngg,' gridpoints 11'
+                  if(ngg.gt.0 .and. mod(ngg,30000).eq.0) &
+                       write(*,*)'3Y calculated ',ngg,' gridpoints for ',&
+                       trim(phlista(lokph)%name)              
                   call calc_gridpoint(iph,yfra,nrel,xarr(1,ngg),garr(ngg),ceq)
                   if(gx%bmperr.ne.0) goto 1000
                   if(garr(ngg).gt.gmax) gmax=garr(ngg)
@@ -2542,8 +2555,9 @@
                enddo
                ngg=ngg+1
                if(mode.eq.0) then
-                  if(ngg.gt.0 .and. mod(ngg,40000).eq.0) &
-                       write(*,*)'3Y calculated ',ngg,' gridpoints 12'
+                  if(ngg.gt.0 .and. mod(ngg,30000).eq.0) &
+                       write(*,*)'3Y calculated ',ngg,' gridpoints for ',&
+                       trim(phlista(lokph)%name)
                   call calc_gridpoint(iph,yfra,nrel,xarr(1,ngg),garr(ngg),ceq)
                   if(gx%bmperr.ne.0) goto 1000
                   if(garr(ngg).gt.gmax) gmax=garr(ngg)
@@ -2607,8 +2621,8 @@
    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim} %+
    logical, save :: once=.TRUE.
-   integer nsl,maxng,mend,nend,kend,ncon,i1,i2,i3,i4,ij,ik,iz,ls,gridlimit
-   integer nkl(1000),knr(1000),incl(0:9)
+   integer nsl,maxng,mend,nend,kend,ncon,i1,i2,i3,i4,i5,ij,ik,iz,ls,gridlimit
+   integer nkl(1000),knr(1000),incl(0:9),loksp,lokph
    integer, allocatable, dimension(:,:) :: endm
    double precision, allocatable, dimension(:,:) :: yendm
    double precision, allocatable, dimension(:) :: yfra
@@ -2659,9 +2673,10 @@
    do ij=1,ncon
       ysave(ij)=ydum(ij)
    enddo
-! set endm(1..nsl,1) to first constituent index for each sublattice
+! set endm(1..nsl,1) to first constituent in each sublattice
    do ij=1,nsl
-      endm(ij,1)=incl(ij-1)+1
+      endm(ij,1)=incl(ij)
+!      endm(ij,1)=incl(ij-1)+1
 !      yendm(endm(ij,1),1)=one
    enddo
 ! loop to increment the constituents to generate all endmembers
@@ -2683,33 +2698,49 @@
 ! endm(1..nsl,1) set to first in all sublattices
 ! ordering always on the first 4 sublattices
 ! endm(1..nsl,jj) contains constituent indices in sublattice 1..nsl
+! skip vacancies in the ordered sublattices ...
    kend=1
-   do i1=1,nkl(1)
+   sl1: do i1=1,nkl(1)
       endm(1,kend)=incl(0)+i1
-      do i2=i1,nkl(2)
+      if(btest(splista(knr(endm(1,kend)))%status,SPVA)) then
+!         write(*,*)'Skipping vacancies in ordered sublattices: ',&
+!              trim(splista(knr(endm(1,kend)))%symbol),kend,knr(endm(1,kend))
+         cycle sl1
+      endif
+      sl2: do i2=i1,nkl(2)
          endm(2,kend)=incl(1)+i2
-         do i3=i2,nkl(3) 
+         if(btest(splista(knr(endm(2,kend)))%status,SPVA)) cycle sl2
+         sl3: do i3=i2,nkl(3) 
             endm(3,kend)=incl(2)+i3
-            s4: do i4=i3,nkl(4)
+            if(btest(splista(knr(endm(3,kend)))%status,SPVA)) cycle sl3
+            sl4: do i4=i3,nkl(4)
                endm(4,kend)=incl(3)+i4
+               if(btest(splista(knr(endm(4,kend)))%status,SPVA)) cycle sl4
                extra: if(nsl.gt.4) then
+!                  write(*,16)'3Y endm 1: ',0,kend,(endm(ik,kend),ik=1,nsl)
                   rest: do ls=5,nsl
-! Hm, problems to loop over constituents in sublattices 5..nsl
-                     if(endm(ls,nend).lt.incl(ls)) then
-                        endm(ls,kend)=incl(ls-1)+1
-                     else
-                        endm(ls,kend)=endm(ls,1)
-                     endif
-!                     write(*,16)'3Y yendm 2: ',kend,(endm(ik,kend),ik=1,nsl)
-16                   format(a,15i5)
-                     do ik=1,nsl
-                        yendm(endm(ik,kend),kend)=one
-                     enddo
+! Hm, problems to loop over constituents in sublattices nsl>4
+                     sl5: do i5=1,nkl(ls)
+!                        write(*,16)'3Y endm 2: ',i5,ls,kend,&
+!                             (endm(ik,kend),ik=1,nsl),incl(ls)
+                        if(endm(ls,kend).ge.incl(ls)) then
+! reset the constiuent in sublattice ls to the first in this sublattice
+                           endm(ls,kend)=incl(ls-1)+1
+                        else
+                           endm(ls,kend)=endm(ls,1)+1
+                        endif
+                        do ik=1,nsl
+                           yendm(endm(ik,kend),kend)=one
+                        enddo
+!                        write(*,16)'3Y endm 3: ',i5,ls,kend,&
+!                             (endm(ik,kend),ik=1,nsl),0
+16                      format(a,3i5,4i4,2i7)
+                        kend=kend+1
+                        do iz=1,nsl
+                           endm(iz,kend)=endm(iz,kend-1)
+                        enddo
+                     enddo sl5
                   enddo rest
-                  kend=kend+1
-                  do iz=1,nsl
-                     endm(iz,kend)=endm(iz,kend-1)
-                  enddo
                else
 !                  write(*,16)'3Y yendm 3: ',kend,(endm(ik,kend),ik=1,nsl)
                   do ik=1,nsl
@@ -2720,21 +2751,32 @@
                      endm(iz,kend)=endm(iz,kend-1)
                   enddo
                endif extra
-            enddo s4
-         enddo
-      enddo
-   enddo
+            enddo sl4
+         enddo sl3
+      enddo sl2
+   enddo sl1
+   if(mode.eq.0 .and. test_phase_status_bit(iph,PHBORD)) then
+! for BCC ordered phase add endmember with same constituents in first and third
+! sublattices and loop in the others like A:B-X:A:B-X and B:C-X:B:C-X
+      write(*,*)'For BCC ordered phase no gridpoints for B32 ordering'
+   endif
 ! kend has been incremented one too much
    nend=kend-1
 !   write(*,*)'3Y ordered endmemb: ',nend
-! output adapted to 5 sublattices
 !   if(mode.eq.0) then
-!      write(*,17)'3Y ordend: ',((endm(ls,mend),ls=1,nsl),mend=1,nend)
-17 format(a,4(i4,4i3)/,(11x,i4,4i3,i4,4i3,i4,4i3,i4,4i3))
+! output adapted to 5 sublattices
+!      if(nsl.eq.5) then
+!         write(*,17)'3Y orded:',nend,((endm(ls,mend),ls=1,nsl),mend=1,nend)
+17       format(a,i3,4(i4,4i3)/,(12x,i4,4i3,i4,4i3,i4,4i3,i4,4i3))
 !      do i2=1,nend
 !         write(*,18)i2,(endm(ls,i2),ls=1,nsl),(yendm(i1,i2),i1=1,nsl)
 18       format('3Y yendm: ',i5,2x,4i3,2x,4F6.3)
 !      enddo
+!      elseif(nsl.eq.4) then
+! output adapted to 4 sublattices
+!         write(*,19)'3Y ordend: ',((endm(ls,mend),ls=1,nsl),mend=1,nend)
+19       format(a,4(i4,3i3)/,(11x,i4,3i3,i4,3i3,i4,3i3,i4,3i3))
+!      endif
 !   endif
 !
 ! copied from generic_grid_generator
@@ -2824,8 +2866,11 @@
                            gx%bmperr=4399; goto 1000
                         endif
                      endif
-                     if(ng.gt.0 .and. mod(ng,30000).eq.0) &
-                          write(*,*)'3Y calculated ',ng,' gridpoints 13'
+                     if(ng.gt.0 .and. mod(ng,30000).eq.0) then
+                          lokph=phases(iph)
+                          write(*,*)'3Y calculated ',ng,' gridpoints for ',&
+                          trim(phlista(lokph)%name)
+                       endif
                      call calc_gridpoint(iph,yfra,nrel,xarr(1,ng),garr(ng),ceq)
                      if(gx%bmperr.ne.0) then
                         write(*,*)'3Y error calculating gridpoint: ',&
@@ -2957,8 +3002,9 @@
          if(mode.eq.0) then
 ! if mode=0 calculate G for this endmember
 !         write(*,*)'3Y a single neutral endmember for ',iph,mode
-            if(ngg.gt.0 .and. mod(ngg,40000).eq.0) &
-                 write(*,*)'3Y calculated ',ngg,' gridpoints 14'
+            if(ngg.gt.0 .and. mod(ngg,30000).eq.0) &
+                 write(*,*)'3Y calculated ',ngg,' gridpoints for ',&
+                 trim(phlista(lokph)%name)
             call calc_gridpoint(iph,ydum,nrel,xarr(1,ngg),garr(ngg),ceq)
             if(gx%bmperr.ne.0) goto 1000
             if(garr(ngg).gt.gmax) gmax=garr(ngg)
@@ -3508,8 +3554,9 @@
             write(*,*)'3Y too many gripoints 3',ngg,maxngg,iph
             gx%bmperr=4399; goto 1000
          endif
-         if(ngg.gt.0 .and. mod(ngg,40000).eq.0) &
-              write(*,*)'3Y calculated ',ngg,' gridpoints 15'
+         if(ngg.gt.0 .and. mod(ngg,30000).eq.0) &
+              write(*,*)'3Y calculated ',ngg,' gridpoints for ',&
+              trim(phlista(lokph)%name)
          call calc_gridpoint(iph,y4,nrel,xarr(1,ngg),garr(ngg),ceq)
          if(gx%bmperr.ne.0) goto 1000
 ! created a bug here, used ngg instead of nm .... suck

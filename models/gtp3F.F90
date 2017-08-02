@@ -141,12 +141,12 @@
 
 !\begin{verbatim}
  subroutine get_many_svar(statevar,values,mjj,kjj,encoded,ceq)
-! called with a state variable name with woldcards allowed like NP(*), X(*,CR)
+! called with a state variable name with wildcards allowed like NP(*), X(*,CR)
 ! mjj is dimension of values, kjj is number of values returned
 ! encoded used to specify if phase data in phasetuple order ('Z')
 ! >>>> BIG question: How to do with phases that are note stable?
 ! If I ask for w(*,Cr) I only want the fraction in stable phases
-! but whenthis is used for GNUPLOT the values are written in a matix
+! but when this is used for GNUPLOT the values are written in a matix
 ! and the same column in that phase must be the same phase ...
 ! so I have to have the same number of phases from each equilibria.
 !
@@ -158,6 +158,10 @@
 ! for the second plot as part of all.OCM
 ! but not when called by itself.  SUCK
 ! probably caused by the fact that the number of composition sets are different
+! >>>>>>>>>>>>>>>>
+! A new segmentation fault for map2 when plotting with 2 maptops and the
+! first does not have a new composition set LIQUID_AUTO#2 created in the 
+! second map.  I do not understand how that has ever worked??
 ! >>>>>>>>>>>>>>>>
 !
    implicit none
@@ -283,6 +287,7 @@
          endif
       elseif(indices(2).eq.-3) then
 ! if indices(1)>=0 then indices(2)<0 must means a loop for all phase+compset
+!         write(*,*)'3F seg.fault ',noofph
          do k2=1,noofph
             indices(2)=k2
             call get_phase_record(indices(2),lokph)
@@ -374,8 +379,7 @@
    elseif(indices(1).eq.-3) then
 ! loop for phase+compset as indices(1+2)
 ! here we must be careful not to destroy original indices, use modind
-!      write(*,*)'3F get_many NP(*) etc 1: ',gx%bmperr,indices(3)
-!      write(*,*)'Loop for many phases',indices(1)
+!      write(*,*)'3F get_many NP(*) etc 1: ',gx%bmperr,indices(3),noofph
       phloop: do k1=1,noofph
          modind(1)=k1
          modind(2)=0
@@ -411,6 +415,7 @@
             elseif(indices(3).gt.0) then
 ! This is typically listing of w(*,cr), only in stable range of phases
                modind(3)=indices(3)
+!               write(*,*)'3F statevar 1A: ',modind(1),modind(2),modind(3)
                call get_phase_compset(modind(1),modind(2),lokph,lokcs)
                if(gx%bmperr.ne.0) goto 1000
                call encode_state_variable3(encoded,enpos,istv,modind,&
@@ -418,14 +423,38 @@
                if(gx%bmperr.ne.0) goto 1000
                enpos=enpos+1
                jj=jj+1
+!               write(*,*)'3F statevar 1B: ',trim(encoded),jj,&
+!                    lokph,ceq%phase_varres(lokcs)%phlink
+!               write(*,*)'3F statevar 1B: ',jj,&
+!                    lokph,ceq%phase_varres(lokcs)%phlink
                if(jj.gt.mjj) goto 1100
+!--------------------------------------------------------------
+! Beware of segmentation faults at next call to state_variable_val3 !!!
+! This code should take care of the problem when new composition sets
+! have been created in different step/map commands and we then try
+! to extract wildcard state variables from these to plot.
+! ceq here can be a previous local ceq used for the step/map 
+! without a compset created later.
+!               write(*,333)'3F this composition set may not exist',&
+!                    lokcs,ceq%phase_varres(lokcs)%phstate,PHENTSTAB,&
+!                    ceq%phase_varres(lokcs)%phlink,lokph
+333            format(a,i4,2x,2i3,2x,2i4)
+               if(.not.allocated(ceq%phase_varres(lokcs)%yfr)) then
+! if yfr is not allocated the composition set does not exist, skip this phase
+!                  write(*,*)'3F this composition set does not exist',&
+!                       ceq%phase_varres(lokcs)%phstate,PHENTSTAB
+                  values(jj)=xnan; goto 600
+               endif
+!--------------------------------------------------------------
                if(ceq%phase_varres(lokcs)%phstate.lt.PHENTSTAB) then
-! if phase is unstable set dummy value
+! if phase is not stable (phstate= -2, -1 or 0)set dummy value
                   values(jj)=xnan
                else
                   call state_variable_val3(istv,modind,iref,&
                        iunit,values(jj),ceq)
                endif
+!               write(*,*)'3F statevar 1C: ',jj,values(jj)
+!               write(*,*)'3F statevar 1C: ',trim(encoded),jj,values(jj)
 !               write(*,73)'3F listing w(*,A): ',istv,modind,iref,iunit,&
 !                    ceq%phase_varres(lokcs)%phstate,jj,values(jj)
 73             format(a,i5,2x,4i3,2x,2i4,2i5,1pe12.4)
@@ -467,6 +496,7 @@
                write(*,17)'3F Illegal set of indices 4',(indices(jl),jl=1,4)
                gx%bmperr=4317; goto 1000
             endif
+600         continue
             if(gx%bmperr.ne.0) then
                write(*,19)'3F error 3',modind,gx%bmperr
 19             format(a,4i4,i7)
@@ -480,7 +510,7 @@
       gx%bmperr=4317; goto 1000
    endif
 1000 continue
-! possible memory leak, nullify does not release memory
+! possible memory leak, BUT nullify does not release memory
    nullify(svr)
    kjj=jj
    return

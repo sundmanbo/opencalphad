@@ -58,7 +58,7 @@ contains
     character elsym*2,ellist(maxel)*2
 ! more texts for various purposes
     character text*72,string*256,ch1*1,selection*27,funstring*1024
-    character axplot(3)*24,axplotdef(3)*24,quest*20
+    character axplot(2)*24,axplotdef(2)*24,quest*20
     character plotform*32,longstring*2048,optres*40
 ! separate file names for remembering and providing a default
     character ocmfile*64,ocufile*64,tdbfile*64,ocdfile*64,filename*64
@@ -173,7 +173,7 @@ contains
     type(gtp_phase_add), pointer :: addrec
 !
     character actual_arg(2)*16
-    character cline*128,option*80,aline*128,plotfile*64,eqname*24
+    character cline*128,option*80,aline*128,plotfile*72,eqname*24
 ! variable phase tuple
     type(gtp_phasetuple), pointer :: phtup
 !----------------------------------------------------------------
@@ -349,8 +349,8 @@ contains
 !-------------------
 ! subcommands to PLOT OPTIONS/ GRAPHICS OPTIONS
     character (len=16), dimension(nplt) :: cplot=&
-         ['RENDER          ','XRANGE          ','YRANGE          ',&
-         'XTEXT           ','YTEXT           ','TITLE           ',&
+        ['RENDER          ','SCALE_RANGES    ','                ',&
+         'AXIS_LABELS     ','                ','TITLE           ',&
          'GRAPHICS_FORMAT ','OUTPUT_FILE     ','GIBBS_TRIANGLE  ',&
          'QUIT            ','POSITION_OF_KEYS','APPEND          ',&
          'TEXT            ','TIE_LINES       ','KEEP            ',&
@@ -434,8 +434,8 @@ contains
 ! default axis limits set to be 0 and 1
     maxax=5
     noofaxis=0
-! state variable for plot axis
-    do j1=1,3
+! state variable for plot axis (only 2)
+    do j1=1,2
        axplotdef(j1)=' '
     enddo
 ! remove any results from step and map
@@ -3604,7 +3604,7 @@ contains
 15010  format(/'This is OpenCalphad (OC), a free software for ',&
             'thermodynamic calculations'/&
             'described by B Sundman, U R Kattner, M Palumbo and S G Fries, ',&
-            'Integrating'/'Materials and Manu Innov (2015) 4:1 and ',&
+            'Integrating'/'Materials and Manuf. Innov. (2015) 4:1 and ',&
             'B Sundman, X-G Lu and H Ohtani,'/'Comp Mat Sci, Vol 101 ',&
             '(2015) 127-137 and B Sundman et al., Comp Mat Sci, '/&
             'Vol 125 (2016) 188-196'//&
@@ -3619,7 +3619,7 @@ contains
             'The full license text is provided with the software'/&
             'or can be obtained from the Free Software Foundation ',&
             'http://www.fsf.org'//&
-            'Copyright 2011-2016, Bo Sundman, France.'/&
+            'Copyright 2011-2017, Bo Sundman, Gif sur Yvette, France.'/&
             'Contact person Bo Sundman, bo.sundman@gmail.com'/&
             'This version linked ',a/)
 !=================================================================
@@ -3905,6 +3905,7 @@ contains
           graphopt%gibbstriangle=.FALSE.
           graphopt%labelkey='upper right'
           graphopt%appendfile=' '
+! the textlabelrecords are NOT deallocated ... but very small
           nullify(graphopt%firsttextlabel)
 !-----------------------------------------------------------
 !
@@ -3914,7 +3915,7 @@ contains
 !
        case(9)
           continue
-       end SELECT
+       end SELECT !delete
 !=================================================================
 ! STEP, must be tested if compatible with assessments
 !         ['NORMAL          ','SEPARATE        ','QUIT            ',&
@@ -4188,13 +4189,13 @@ contains
 ! plot options subcommand, default is PLOT, NONE does not work ...
 21100   continue
        if(plotform(1:1).eq.'P') then
-          write(kou,21110)plotfile(1:len_trim(plotfile))
+          write(kou,21110)trim(plotfile)
 21110     format(/' *** Graphics format is PS on: ',a,'.ps ')
        elseif(plotform(1:1).eq.'G') then
-          write(kou,21111)plotfile(1:len_trim(plotfile))
+          write(kou,21111)trim(plotfile)
 21111     format(/' *** Graphics format is GIF on: ',a,'.gif ')
        elseif(plotform(1:1).eq.'A') then
-          write(kou,21113)plotfile(1:len_trim(plotfile))
+          write(kou,21113)trim(plotfile)
 21113     format(/' *** Graphics format is PDF on: ',a,'.pdf ')
        endif
        write(kou,21112)
@@ -4209,10 +4210,18 @@ contains
        case(1)
 ! added ceq in the call to make it possible to handle change of reference states
 !2190      continue
-          call ocplot2(jp,axplot,plotfile,maptop,axarr,graphopt,plotform,&
-               version,ceq)
+! use the graphics record to transfer data ...
+          graphopt%pltax(1)=axplot(1)
+          graphopt%pltax(2)=axplot(2)
+          graphopt%filename=' '
+          graphopt%filename=plotfile
+          graphopt%pform=plotform
+          call ocplot2(jp,maptop,axarr,graphopt,version,ceq)
+!          call ocplot2(jp,axplot,plotfile,maptop,axarr,graphopt,plotform,&
+!               version,ceq)
           if(gx%bmperr.ne.0) goto 990
 ! always restore default plot file name!!
+          graphopt%filename='ocgnu '
           plotfile='ocgnu'
 !          call gparc('Hardcopy (P for postscript)?',&
 !               cline,last,1,form,'none',q1help)
@@ -4221,8 +4230,31 @@ contains
 !             call ocplot2(jp,axplot,plotfile,maptop,axarr,graphopt,form,ceq)
 !          endif
 !-----------------------------------------------------------
-! XRANGE
+! RANGE of both X and Y
        case(2)
+          call gparcd('For X or Y axis? ',cline,last,1,ch1,'X',q1help)
+          if(ch1.eq.'X' .or. ch1.eq.'x') then
+!             if(graphopt%axistype(1).eq.1) then
+!                write(kou,*)'The x axis set to linear'
+!                graphopt%axistype(1)=0
+!             else
+!                graphopt%axistype(1)=1
+!             endif
+             goto 21120
+          elseif(ch1.eq.'Y' .or. ch1.eq.'y') then
+!             if(graphopt%axistype(2).eq.1) then
+!                write(kou,*)'The y axis set to linear'
+!                graphopt%axistype(2)=0
+!             else
+!                graphopt%axistype(2)=1
+!             endif
+             goto 21130
+          else
+             write(kou,*)'Please answerc X or Y'
+          endif
+          goto 21100
+!............................................
+21120     continue
           call gparcd('Default limits',cline,last,1,ch1,'N',q1help)
           if(ch1.eq.'Y' .or. ch1.eq.'y') then
              graphopt%rangedefaults(1)=0
@@ -4258,8 +4290,9 @@ contains
           endif
           goto 21100
 !-----------------------------------------------------------
-! YRANGE
-       case(3)
+! no longer used ....
+!       case(3)
+21130     continue
           call gparcd('Default limits',cline,last,1,ch1,'N',q1help)
           if(ch1.eq.'Y' .or. ch1.eq.'y') then
              graphopt%rangedefaults(2)=0
@@ -4294,12 +4327,17 @@ contains
           endif
           goto 21100
 !-----------------------------------------------------------
-! XTEXT
+! unused
+       case(3)
+          write(*,*)'Not implemented yet'
+          goto 21100
+!-----------------------------------------------------------
+! AXIS_TEXT
        case(4)
           write(*,*)'Not implemented yet'
           goto 21100
 !-----------------------------------------------------------
-! YTEXT
+! no longer used
        case(5)
           write(*,*)'Not implemented yet'
           goto 21100
@@ -4389,7 +4427,7 @@ contains
           graphopt%appendfile=' '
           goto 21100
 !-----------------------------------------------------------
-! PLOT TEXT 
+! TEXT anywhere on plot
        case(13)
           labelp=>graphopt%firsttextlabel
           if(associated(labelp)) then

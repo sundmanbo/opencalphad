@@ -1540,14 +1540,14 @@ CONTAINS
 ! and the changes in phase amounts is small maybe we are calculationg an
 ! almost stoichiometric phase?  Changes in MU can be large!
           if(stoikph .and. meqrec%nphase.gt.1) then
-             write(*,30)nophasechange,converged,cerr%nvs
-30           format('Slow converge at ',i3,', reason',2i3)
+             write(*,30)nophasechange,converged,cerr%nvs,ceq%tpval(1)
+30           format('Slow converge at ',3i3,F10.2)
              if(cerr%flag.ne.0) then
                 write(*,31)(cerr%typ(iz),cerr%val(iz),cerr%dif(iz),&
                      iz=1,cerr%nvs)
 31              format('MM 31: ',3(i3,1pe12.4,e10.2))
              endif
-! write message only once
+! write message only (once for each minimization)
              stoikph=.false.
 ! if this happends during step/map give error message to force smaller steps
              if(inmap.eq.1 .and. meqrec%noofits.eq.ceq%maxiter) then

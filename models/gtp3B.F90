@@ -3160,7 +3160,7 @@
       enddo
 !
       pch(ip-1:)=';0)'
-      write(*,503)trim(pch)
+!      write(*,503)trim(pch)
 503   format(/'3B *** This parameter ',a,' just implemented 8')
 !   write(*,*)'3B FCC permutation not yet implemented 8'
 !      gx%bmperr=4275

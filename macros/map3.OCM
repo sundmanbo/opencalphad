@@ -63,7 +63,7 @@ render
 plot
 w%(*,c)
 T_C
-xr
+scale x
 n
 0
 7
@@ -108,11 +108,11 @@ plot
 
 
 title map 3 fig 5
-xr
+scale x
 n
 0
 2.5
-yr
+scale y
 n
 700
 1200

@@ -174,7 +174,7 @@
    endif
 ! dimension iws depending on number of equuilibria stored
 ! 7000 is for a 6 component system with 50 phases
-   miws=1000000+7000*eqfree
+   miws=2000000+50000*eqfree
    write(*,*)'3E allocating workspace: ',miws
    allocate(iws(miws))
    call winit(miws,100,iws)
@@ -647,11 +647,17 @@
 ! very complex for permutations ...
 ! look in gtp3G, create_interaction, for use of intrec%noofip
 ! noofip,sublattice(noofip),fraclink(noofip) 
+!            write(*,*)'3E save link: ',intrec%antalint,intrec%noofip(2)
             fipsize=size(intrec%noofip)
-            rsize=7+fipsize+2*intrec%noofip(2)
+            if(level.eq.1) then
+               rsize=7+fipsize+2*intrec%noofip(fipsize)
+            else
+               rsize=7+fipsize+2*intrec%noofip(2)
+            endif
             call wtake(lok,rsize,iws)
             if(buperr.ne.0) then
-               write(*,*)'3E Error reserving interaction record'
+               write(*,*)'3E Error reserving interaction record',&
+                    buperr,rsize,fipsize
                gx%bmperr=4356; goto 1000
             endif
 ! store data
@@ -664,10 +670,21 @@
                iws(lok+displace+i)=intrec%noofip(i)
             enddo
             displace=displace+fipsize
-            do i=1,intrec%noofip(2)
-               iws(lok+displace+2*i-1)=intrec%sublattice(i)
-               iws(lok+displace+2*i)=intrec%fraclink(i)
-            enddo
+! intrec%noofip(2) is OK for 1st order, for 2nd order we must use
+! intrec%noofip(fipsize)
+!            write(*,*)'3E fipsize: ',level,fipsize,&
+!                 intrec%noofip(2),intrec%noofip(fipsize)
+            if(level.ne.1) then
+               do i=1,intrec%noofip(2)
+                  iws(lok+displace+2*i-1)=intrec%sublattice(i)
+                  iws(lok+displace+2*i)=intrec%fraclink(i)
+               enddo
+            elseif(level.eq.1) then
+               do i=1,intrec%noofip(fipsize)
+                  iws(lok+displace+2*i-1)=intrec%sublattice(i)
+                  iws(lok+displace+2*i)=intrec%fraclink(i)
+               enddo
+            endif
 !            write(*,11)'3E interaction: ',intrec%antalint,higher,lok,noi,&
 !                 intrec%noofip(2),intrec%sublattice(1),intrec%fraclink(1)
 11          format(a,i3,l3,10i5)
@@ -958,7 +975,7 @@
          endif
          call wtake(lok,rsize+kl,iws)
          if(buperr.ne.0) then
-            write(*,*)'3E Error reserving varres record',j,rsize+kl
+            write(*,*)'3E Error reserving varres record 1',j,rsize+kl
             gx%bmperr=4356; goto 1000
          endif
 ! sequential link
@@ -1040,8 +1057,9 @@
 ! we should update??             iws(lokeq+displace+3)=highcs
             cycle compset
          endif
-         mc=size(firstvarres%yfr)
-!         write(*,*)'3E mc: ',trim(phlista(lokph)%name),mc
+! wow, firstvarres%yfr is dimensioned to 1000
+         mc=phlista(firstvarres%phlink)%tnooffr
+!         write(*,*)'3E mc: ',trim(phlista(lokph)%name),mc,size(firstvarres%yfr)
       endif
       if(btest(firstvarres%status2,CSDLNK)) then
 ! the offset here shold be the place to store the disfra record ...
@@ -1061,15 +1079,14 @@
       qsize=rsize
       call wtake(lok,rsize,iws)
       if(buperr.ne.0) then
-         write(*,*)'3E Error reserving varres record',j,rsize,nsl,mc
+         write(*,*)'3E Error reserving varres record 2',j,rsize,nsl,mc
          gx%bmperr=4356; goto 1000
       endif
       iws1=iws(1)
 !      lokph=firstvarres%phlink
 !      write(*,107)'3E saving: ',j,lok,rsize,mc,nsl,trim(phlista(lokph)%name)
-!      write(*,107)'3E saving: ',j,phasetuple(j)%ixphase,nsl,&
-!      trim(phlista(lokph)%name)
-107   format(a,5i7,2x,a)
+!      write(*,107)'3E saving: ',j,phasetuple(j)%ixphase,nsl,0,0
+107   format(a,i3,2i10,i4,i3,2x,a)
 ! link from lokvares and use iws(lok) to link to next
       iws(lokvares)=lok
       lokvares=lok
@@ -1087,6 +1104,8 @@
       displace=displace+nwch(4)
       call storrn(3,iws(lok+displace),firstvarres%abnorm)
       displace=displace+3*nwpr
+!      write(*,*)'3E sizes:',allocated(firstvarres%constat),&
+!           size(firstvarres%constat),size(firstvarres%yfr),mc
       do i=1,mc
          iws(lok+displace+i-1)=firstvarres%constat(i)
       enddo
@@ -1909,7 +1928,7 @@
          level=0
          inttree: if(lokint.gt.0) then
 !>>>>> 9A: first interaction record
-            call readintrec(lokint,iws,emrec%intpointer)
+            call readintrec(lokint,iws,level,emrec%intpointer)
             intrec=>emrec%intpointer
 300         continue
 ! push before going to higher
@@ -1918,7 +1937,7 @@
             stack(level)%noi=lokint
 ! iws(lokint+1) is link to higher interaction
             higher: if(iws(lokint+1).gt.0) then
-               call readintrec(iws(lokint+1),iws,intrec%highlink)
+               call readintrec(iws(lokint+1),iws,level,intrec%highlink)
                intrec=>intrec%highlink
 ! problem pushing ....
                lokint=iws(lokint+1)
@@ -1936,7 +1955,7 @@
                lokint=iws(stack(level)%noi)
                level=level-1
                if(lokint.gt.0) then
-                  call readintrec(lokint,iws,intrec%nextlink)
+                  call readintrec(lokint,iws,level,intrec%nextlink)
                   intrec=>intrec%nextlink
                else
                   goto 350
@@ -2119,10 +2138,10 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine readintrec(lokint,iws,intrec)
+ subroutine readintrec(lokint,iws,level,intrec)
 ! allocates and reads an interaction record
    implicit none
-   integer lokint,iws(*)
+   integer lokint,iws(*),level
    type(gtp_interaction), pointer :: intrec
 !\end{verbatim}
    integer fipsize,noofperm,i,displace,lokpty,lokalint
@@ -2149,11 +2168,15 @@
       intrec%noofip(i)=iws(lokalint+displace+i)
    enddo
    displace=displace+fipsize
-   noofperm=intrec%noofip(2)
+   if(level.eq.0) then
+      noofperm=intrec%noofip(2)
+   elseif(level.eq.1) then
+      noofperm=intrec%noofip(fipsize)
+   endif
    allocate(intrec%sublattice(noofperm))
    allocate(intrec%fraclink(noofperm))
+!   write(*,*)'3E allocate link: ',intrec%antalint,intrec%noofip(2)
    do i=1,noofperm
-!      read(lin)intrec%sublattice(i),intrec%fraclink(i)
       intrec%sublattice(i)=iws(lokalint+displace+2*i-1)
       intrec%fraclink(i)=iws(lokalint+displace+2*i)
    enddo
@@ -2870,6 +2893,10 @@
             deallocate(phdyn%d2gval)
 !            write(*,*)'3E No segmentation error C7',j,k
          endif
+! set phstate and phlink to zero to avoid segmentation fault when plotting
+! after several MAP or STEP commands with different composition sets
+         phdyn%phstate=0
+         phdyn%phlink=0
       enddo
 !      write(*,*)'3E No segmentation error C8',j
 !      deallocate(ceq%phase_varres)

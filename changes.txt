@@ -13,6 +13,28 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2017.08.02 OC version 4.030: Started modifying the plotting to improve
+STEP/MAP.  The call to ocplot2 simplified as most data are now stored
+in the graphopt record.  BEWARE: the sub-commands to set the range of
+an axis is now called SCALE_RANGES and asks for the axis, previously
+there were individual sub-commands for the x and y axis.
+
+I have added a map13 macro to calculate the Al-Ni system using the 4
+sublattice model with partitioning and permutations.  There are
+spurious segmentation faults when plotting after using several
+STEP/MAP commands.  If you find this please send me a macro and data
+file.
+
+The speed pf calculations with OC 4.030 has been compared with the
+first release of version 3 in 2016 and the current version is almost 3
+times faster to calculate an equilibrium, without using
+parallelization.  When parallelization can be used the clock time is
+further reduced by a factor 3.
+
+This is now a prerelease of version 5, I do not plan to make any
+significant additions.  The rest of the year will be devoted to update
+the documentation, the user guides and related things.
+
 2017.07.26 OC version 4.029: Fixed a small bug dealing with ordering
 and permutations.
 
@@ -40,7 +62,7 @@ disordered phase is listed in the file.  If not that will also give a
 warning but if not corrected the calculations will be wrong.
 
 I have added a check for unknown keywords in the TDB file as some are
-using TDB files from MatCalc and these include keywords realated to
+using TDB files from MatCalc and these include keywords related to
 diffusion and interface energies that I cannot handle (yet).  If I get
 a documentation how they should be implemented I will try.  Anyway
 this check will often give warnings that can be ignored when reading a

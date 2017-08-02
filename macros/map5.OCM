@@ -114,7 +114,7 @@ render
 plot
 x(*,mo)
 T
-yr
+scale y
 N
 1500
 1900
