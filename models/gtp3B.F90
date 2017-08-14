@@ -1421,9 +1421,12 @@
 ! note that the index to phase_varres is the same in all equilibria!!!!
    alleq: do leq=1,noeq()
       varres=>eqlista(leq)%phase_varres(lastcs)
+! there can be unallocated phase_varres records below lastcs
+      if(.not.allocated(varres%sites)) cycle alleq
       deallocate(varres%constat)
       deallocate(varres%yfr)
-      deallocate(varres%mmyfr)
+! this is not allways allocated
+      if(allocated(varres%mmyfr)) deallocate(varres%mmyfr)
       deallocate(varres%sites)
 ! these may not be allocated ...
 !      write(*,*)'3B delete varres dsitesdy: ',leq,lokcs,size(varres%dsitesdy)
@@ -3752,9 +3755,9 @@
 ! sets appropriate links to constituents for the 12 perumations of
 ! A:A:B:C (l1=1), A:B:B:C (l1=2) and A:B:C:C (l1=3)
    implicit none
+   integer l1,nsl,lshift
    integer, dimension(nsl,*) :: elinks
    integer, dimension(*) :: iord
-   integer l1,nsl,lshift
 !\end{verbatim} %+
    integer odd,np,ll,ib
 ! l1=1; keep 1 and change 3o4 and 2o3 6 times; then change 1o2 and
@@ -3862,9 +3865,9 @@
 ! the other 3 sublattice, then changes the constituent in the first sublattice
 ! and goes on changing in the other 3 until all configurations done
    implicit none
+   integer nsl,lshift
    integer, dimension(nsl,*) :: elinks
    integer, dimension(*) :: iord
-   integer nsl,lshift
 !\end{verbatim}
    integer np,ll,odd,ib
 ! odd is either 0 or 1

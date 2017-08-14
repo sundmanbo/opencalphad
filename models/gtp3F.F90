@@ -1438,6 +1438,13 @@
             lokcs=phlista(lokph)%linktocs(ics)
 ! skip phases that are not entered
             if(ceq%phase_varres(lokcs)%phstate.eq.phdorm) cycle allcs
+! segmentation fault here ?? during plotting using several STEP/MAP
+! when new comp.sets may be allocated
+! skip composition sets with no allocated yfr ....
+            if(.not.allocated(ceq%phase_varres(lokcs)%yfr)) then
+!               write(*,*)'3F skipping unallocated comp.set.',lokcs
+               cycle allcs
+            endif
             am=ceq%phase_varres(lokcs)%amfu*&
                  ceq%phase_varres(lokcs)%abnorm(1)
 !            write(*,7)'3F sumprops 2: ',lokph,lokcs,am,&
@@ -1848,8 +1855,9 @@
          if(gx%bmperr.ne.0) goto 1000
          jp=len_trim(stsymb)+1
       else
-! always use composition set 1
+! always use composition set 1 and assume sublattice 1 ??
          ics=1
+         sublat=1
          call get_phase_name(indices(1),ics,stsymb(jp:))
          if(gx%bmperr.ne.0) goto 1000
          jp=len_trim(stsymb)+1

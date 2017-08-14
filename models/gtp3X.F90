@@ -983,7 +983,7 @@
                      if(ionicliq) then
 !                        write(*,214)'3X Multiply with y_va: ',&
 !                             iliqsave,ic,intlat,yionva,pyq
-214                     format(a,l,2i3,4(1pe12.4))
+214                     format(a,l2,2i3,4(1pe12.4))
                         if(iliqsave .and. intlat.eq.1.and.yionva.gt.zero) then
 ! for compatibility with substitutional liquids, multiply interactions 
 ! of cations (in 1st subl) when vacancies in 2nd with the vacancy fraction
@@ -999,7 +999,7 @@
                pyq=pyq*ymult
                proprec=>intrec%propointer
 !               write(*,218)'3X pyq: ',associated(proprec),ymult,pyq
-218            format(a,l,2(1pe12.4))
+218            format(a,l2,2(1pe12.4))
 ! list values of pyq, dpyg, d2pyg
 !               write(*,228)'3X pyq:',pyq
 !               write(*,228)'3X dpy:',dpyq
@@ -1253,7 +1253,7 @@
 !      write(*,303)'3X Nevertwice: ',nevertwice,&
 !           btest(phlista(lokph)%status1,phsubo),&
 !           first,fractype,phres%gval(1,1)
-303   format(a,3(1x,L),i3,4(1pe12.4))
+303   format(a,3(1x,l1),i3,4(1pe12.4))
 !      write(*,623)'3X order/disorder: ',lprop,phres%gval(1,2),phres%gval(1,3)
       if(nevertwice) goto 400
 ! UNIFINISHED ??

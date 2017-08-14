@@ -207,11 +207,11 @@ CONTAINS
     call calceq7(mode,meqrec,mapfix,ceq)
     call system_clock(count=endoftime)
     call cpu_time(finish2)
-1000 continue
+!1000 continue
     if(gx%bmperr.eq.0) then
        if(.not.btest(globaldata%status,GSSILENT)) &
             write(*,1010)meqrec%noofits,finish2-starting,endoftime-starttid
-1010   format('Equilibrium calculation ',i4' its, ',&
+1010   format('Equilibrium calculation ',i4,' its, ',&
             1pe12.4,' s and ',i7,' clockcycles')
 ! Here we have now an equilibrium calculated.  Do a cleanup of the structure
 ! for phases with several compsets the call below shifts the stable one
@@ -272,7 +272,7 @@ CONTAINS
     call calceq7(mode,meqrec,mapfix,ceq)
     call system_clock(count=endoftime)
     call cpu_time(finish2)
-1000 continue
+!1000 continue
     if(gx%bmperr.eq.0) then
 ! Here we have now an equilibrium calculated.  Do a cleanup of the structure
 ! for phases with several compsets the call below shifts the stable one
@@ -291,7 +291,7 @@ CONTAINS
        endif
        if(confirm) then
           write(*,1010)meqrec%noofits,finish2-starting,endoftime-starttid
-1010      format('Equilibrium calculation ',i4', its, ',&
+1010      format('Equilibrium calculation ',i4,', its, ',&
                1pe12.4,' s and ',i7,' clockcycles')
        endif
     elseif(confirm) then
@@ -338,12 +338,12 @@ CONTAINS
 ! max number of potential conditions
     integer, parameter :: mmu=20
 ! dimension cmix(22) allows 5 terms: 2+4*5 
-    integer what,mjj,ij,cmix(22),cmode,mufixel(mmu),mufixref(mmu),errout
+    integer mjj,ij,cmix(22),cmode,mufixel(mmu),mufixref(mmu),errout
     integer fixph(2,maxel),oldorder(mmu),kst
 ! just for debugging
-    integer idum(1000)
+!    integer idum(1000)
     double precision fixpham(maxel),sumnp
-    character statevar*40,encoded*60,name*24
+!    character statevar*40
 !
     meqrec%status=0
     if(btest(globaldata%status,GSSILENT)) &
@@ -447,7 +447,7 @@ CONTAINS
        call apply_condition_value(condition,cmode,cvalue,cmix,ccf,ceq)
        if(gx%bmperr.ne.0) goto 1000
 !       write(*,71)'MM apply 1: ',cmode,cvalue,cmix,ccf(1)
-71     format(a,i3,1pe14.4,10i4/5(1pe12.4))
+!71     format(a,i3,1pe14.4,10i4/5(1pe12.4))
 ! cmix(1)=0 for inactive conditions
 ! cmix(1)=1 fix T, =2, fix P, =3 fix MU/AC/LNAC, =4 fix phase, =5 anything else
 ! if condition on T, P, potential or fix phase reduce maxsph
@@ -711,10 +711,10 @@ CONTAINS
        endif
 !       write(*,55)'Initial phases set stable: ',mostcon,&
 !            (mostconph(1,icc),mostconph(2,icc),icc=1,mostcon)
-55     format(a,i3,10(2i3,2x))
+!55     format(a,i3,10(2i3,2x))
        meqrec%nv=mostcon
 !       write(*,56)(mostconph(1,icc),icc=1,mostcon)
-56     format('Setting start phases: ',20(i3))
+!56     format('Setting start phases: ',20(i3))
        do icc=1,mostcon
           call get_phase_compset(mostconph(2,icc),1,lokph,lokcs)
 !          ceq%phase_varres(lokcs)%amfu=one/mostcon
@@ -737,7 +737,7 @@ CONTAINS
 !       endif
 !       write(*,57)(meqrec%iphl(icc),meqrec%icsl(icc),meqrec%aphl(icc),&
 !            icc=1,meqrec%nv)
-57     format('Start phase set: ',10(i3,i2,F6.2))
+!57     format('Start phase set: ',10(i3,i2,F6.2))
        if(ocv()) write(*,*)'No global minimization, using current phase set',&
             meqrec%nv
     endif
@@ -1074,7 +1074,7 @@ CONTAINS
        elseif(meqrec%noofits-lastchange.lt.nochange) then
 !          write(*,221)' *** Phase set change not allowed: ',&
 !               meqrec%noofits,lastchange,nochange,irem,iadd
-221       format(a,10i4)
+!221       format(a,10i4)
           goto 200
        endif
        if(iadd.gt.0) then
@@ -1119,7 +1119,7 @@ CONTAINS
 !          elseif(meqrec%phr(iadd)%curd%netcharge.gt.1.0D-8) then
 !             write(*,231)'Adding phase with net charge: ',iadd,&
 !                  meqrec%phr(iadd)%curd%phtupx,meqrec%phr(iadd)%curd%netcharge
-231          format(a,2i5,1pe14.6)
+!231          format(a,2i5,1pe14.6)
           endif
        endif
        tupadd=0
@@ -1416,7 +1416,7 @@ CONTAINS
     endif
 !    write(*,37)'mu1: ',(ceq%complist(jj)%chempot(1),jj=1,meqrec%nrel)
 !    write(*,37)'mu2: ',(ceq%complist(jj)%chempot(2),jj=1,meqrec%nrel)
-37  format(a,6(1pe12.4))
+!37  format(a,6(1pe12.4))
 !-------------
 998 continue 
    if(.not.formap) then
@@ -1466,7 +1466,7 @@ CONTAINS
     double precision yvar1,yvar2
     double precision maxphch
     double precision sum
-    double precision tmdum,wmdum,dumdum,xdum(20),wdum(20)
+!    double precision dumdum,wdum(20)
 !    double precision, dimension(:), allocatable :: xcol
     double precision, dimension(:), allocatable :: cit
 !    double precision, dimension(:,:), allocatable :: cpmat
@@ -1477,7 +1477,7 @@ CONTAINS
 ! to check if we are calculating a single almost stoichiometric phase ...
     integer iz,tcol,pcol,nophasechange,notagain
     double precision maxphasechange
-    double precision, allocatable, dimension(:) :: loopfact
+!    double precision, allocatable, dimension(:) :: loopfact
     integer notf,dncol,iy,jy,iremsave,phasechangeok
     double precision, dimension(:), allocatable :: lastdeltaam
     logical vbug,stoikph
@@ -1575,7 +1575,7 @@ CONTAINS
 !    write(*,*)'Iteration: ',meqrec%noofits,' ----------------------------- '
     if(ocv()) write(*,199)meqrec%noofits,ceq%tpval(1),meqrec%nstph,&
          (meqrec%stphl(jz),jz=1,meqrec%nstph)
-199 format(/'Equil iter: ',i3,f8.2', stable phases: ',i3,2x,10i3)
+199 format(/'Equil iter: ',i3,f8.2,', stable phases: ',i3,2x,10i3)
     if(meqrec%noofits.gt.ceq%maxiter) goto 1200
     converged=0
     if(vbug) write(*,*)'Iteration: ',meqrec%noofits,converged
@@ -1634,7 +1634,7 @@ CONTAINS
 !    write(*,*)'Back from setup_equilmatrix',tcol
 !=====================================================================
 ! debug output of equil matrix, last column is right hand side
-380 continue
+!380 continue
 !    open(33,file='eqmat.dat ',access='sequential',status='unknown')
 !    write(33,*)'Equilibrium matrix',nz1
 !    do iz=1,nz1
@@ -1738,7 +1738,7 @@ CONTAINS
 !             write(*,387)'Uncnv pot: ',iz,ik,&
 !                  svar(iz),ceq%cmuval(ik),xxx,abs(svar(iz)-ceq%cmuval(ik)),&
 !                  abs(ceq%xconv*ceq%cmuval(ik))
-387          format(a,2i3,3(1pe14.5),2(1pe10.2))
+!387          format(a,2i3,3(1pe14.5),2(1pe10.2))
 ! take mean value ... DO NOT TRY THIS IF IT IS NOT ALMOST CONVERGED!!!
 !             svar(iz)=xxx
           endif
@@ -1795,7 +1795,7 @@ CONTAINS
           cerr%mconverged=converged
        endif
 !       write(*,389)'HMS pv: ',ioff,converged,svar(ioff),ceq%tpval(2)
-389    format(a,2i3,4(1pe12.4))
+!389    format(a,2i3,4(1pe12.4))
        if(abs(svar(ioff)/ceq%tpval(2)).gt.0.2D0) then
           svar(ioff)=sign(0.2D0*ceq%tpval(2),svar(ioff))
        endif
@@ -1865,7 +1865,7 @@ CONTAINS
 ! Sigli convergence problem, bad guess of start amount of phases??
 !          write(*,43)'Deltaam: ',meqrec%noofits,jj,deltaam,lastdeltaam(jph),&
 !               phr(jj)%curd%amfu
-43        format(a,2i3,6(1pe12.4))
+!43        format(a,2i3,6(1pe12.4))
 ! tried to avoid too large changes in phase amount, just made things worse
 !          if(meqrec%noofits.lt.3 .and. &
 !               abs(deltaam).gt.0.5D0*phr(jj)%curd%amfu) then
@@ -1994,7 +1994,7 @@ CONTAINS
 ! store the new phase fraction (moles formula units)
        phr(jj)%curd%amfu=phf
     enddo phamount2 ! end of loop for jph=1,meqrec%nstph
-555 continue
+!555 continue
 !
     if(vbug) write(*,*)'finished updating phase amounts: ',&
          meqrec%noofits,phasechangeok,irem
@@ -2049,7 +2049,7 @@ CONTAINS
           jph=kk
           kk=min(kk+1,meqrec%nstph)
 !          if(meqrec%noofits.le.2) write(*,83)'dy1: ',jj,jph,kk
-83        format(a,3i3,6(1pe12.4))
+!83        format(a,3i3,6(1pe12.4))
        else ! phase is not stable
 ! calculate driving force for unstable phases. First calculate the sum
 ! of the current phase composition and the calculated chemical potentials
@@ -2125,7 +2125,7 @@ CONTAINS
 !                write(*,*)'ycorr: ',nl,ceq%complist(nl)%chempot(1)/ceq%rtn
 !                write(*,612)'MM y1: ',nk,nl,&
 !                     ceq%complist(nl)%chempot(1)/ceq%rtn,ceq%cmuval(nl)
-612             format(a,2i4,6(1pe12.4))
+!612             format(a,2i4,6(1pe12.4))
                 pv=pv+ceq%complist(nl)%chempot(1)/ceq%rtn*phr(jj)%dxmol(nl,nk)
 !                write(*,111)'pvx: ',nj,pv,ceq%complist(nl)%chempot(1),&
 !                     ceq%rtn,phr(jj)%dxmol(nl,nk)
@@ -2136,7 +2136,7 @@ CONTAINS
              ys=ys+phr(jj)%invmat(nj,nk)*pv
 !             write(*,111)'pvx: ',nj,ys,pv,phr(1)%curd%dgval(1,nk,1),&
 !                  phr(1)%invmat(nj,nk)
-111          format(a,i2,6(1pe12.4))
+!111          format(a,i2,6(1pe12.4))
           enddo
           if(phr(jj)%chargebal.eq.1) then
 ! For charged phases add a term 
@@ -2319,7 +2319,7 @@ CONTAINS
              yarr(nj)=yprev+ionliqyfact*ycorr(nj)*yfact
 !             yarr(nj)=yprev+ycorr(nj)*yfact
 !             write(*,281)'ycorr: ',nj,yfact,yprev,yarr(nj)
-281           format(a,i3,6(1pe12.4))
+!281           format(a,i3,6(1pe12.4))
           else
              yarr(nj)=yprev+ycorr(nj)*yfact
           endif
@@ -2361,7 +2361,7 @@ CONTAINS
 !       if(meqrec%noofits.le.2) write(*,83)'dy2: ',jj,phr(jj)%iph,kk,&
 !            (yarr(nj),nj=1,phr(jj)%ncc)
 !       write(*,114)'YARR: ',jj,phr(jj)%ics,(yarr(nj),nj=1,phr(jj)%ncc)
-114       format(a,2i3,8(F7.4))
+!114       format(a,2i3,8(F7.4))
        call set_constitution(phr(jj)%iph,phr(jj)%ics,yarr,qq,ceq)
        if(gx%bmperr.ne.0) goto 1000
 !  >>>>>>>>>>>>>>>>>> for all phases <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
@@ -2592,16 +2592,16 @@ CONTAINS
     TYPE(meq_phase), pointer :: pmi
 ! cmix dimensioned for 2 terms ...
     integer tcol,pcol,dncol
-    integer cmix(22),cmode,stvix,stvnorm,sel,sph,scs,jph,jj,ie,je,ke,ncol
-    integer notf,nz2,nrow,nterms,mterms,moffs,ncol2
-    double precision cvalue,totam,pham,mag,mat,map,xxx,zval,xval,ccf(5),evalue
+    integer sel,jph,jj,ie,je,ncol
+    integer nz2,nrow
+    double precision cvalue,totam,pham,mag,mat,map,xxx
 ! the next line of values are a desperate search for a solution
-    double precision totalmol,totalmass,check1,check2,amount,mag1,mat1,map1
-    double precision hmval
-    double precision, dimension(:), allocatable :: xcol,mamu,mamu1,zcol,qmat
+!    double precision amount
+!    double precision hmval
+    double precision, dimension(:), allocatable :: xcol,mamu
 !    double precision, allocatable :: xxmm(:),wwnn(:),hval(:)
-    logical :: vbug=.FALSE.,calcmolmass,notdone
-    character encoded*32,name*32
+!    logical :: calcmolmass
+!    character encoded*32
 !-------------------------------------------------------------------
 ! Formulating the equil equation in general:
 ! Variables (one column per variable):
@@ -2666,12 +2666,12 @@ CONTAINS
 !    do nrow=1,nz1
 !       write(*,11)'MM smat1: ',nrow,(smat(nrow,ncol),ncol=1,nz2)
 !    enddo
-11  format(a,i2,6(1pe12.4))
+!11  format(a,i2,6(1pe12.4))
 !------------------------------------------------------------
 ! insert code to calculate N(A)=fix for all elements in this phase
 !
 !    case(11) ! N or X with or without indices and normalization
-1100   continue
+!1100   continue
     nrow=1
 ! conditions are N(A)=fix for all elements
     elloop1: do sel=1,meqrec%nrel
@@ -2753,14 +2753,14 @@ CONTAINS
                 cerr%val(cerr%nvs)=cvalue
                 cerr%dif(cerr%nvs)=totam-cvalue
 !             write(*,266)'Unconverged condition N or N(A): ',sel,cvalue,totam
-266          format(a,i3,4(1pe12.4))
+!266          format(a,i3,4(1pe12.4))
              endif
           endif
        endif conv
     enddo elloop1
 !----------------------------------------------------------
 ! all conditions set
-380 continue
+!380 continue
 ! there was a strange error that the matrix had been changed on return ...
 !    do nrow=1,nz1
 !       write(*,11)'MM smat2: ',nrow,(smat(nrow,ncol),ncol=1,nz2)
@@ -2791,7 +2791,7 @@ CONTAINS
     TYPE(meq_phase), pointer :: pmi
 ! cmix dimensioned for 2 terms ...
     integer cmix(22),cmode,stvix,stvnorm,sel,sph,scs,jph,jj,ie,je,ke,ncol
-    integer notf,nz2,nrow,nterms,mterms,moffs,ncol2,lokph,iph
+    integer notf,nz2,nrow,nterms,mterms,moffs,ncol2,iph
     double precision cvalue,totam,pham,mag,mat,map,xxx,zval,xval,ccf(5),evalue
 ! the next line of values are a desperate search for a solution
     double precision totalmol,totalmass,check1,check2,amount,mag1,mat1,map1
@@ -2799,7 +2799,7 @@ CONTAINS
     double precision, dimension(:), allocatable :: xcol,mamu,mamu1,zcol,qmat
     double precision, allocatable :: xxmm(:),wwnn(:),hval(:)
     logical :: vbug=.FALSE.,calcmolmass,notdone,nosave
-    double precision abug,bbug
+    double precision bbug
     character encoded*32,name*32
 ! For saving calculated terms in calc_dgdyterms
     type(saveddgdy), target :: savedrec
@@ -2863,7 +2863,7 @@ CONTAINS
 !            write(*,12)'pha: ',jph,meqrec%nstph,jj,&
 !            phr(jj)%iph,phr(jj)%ics,&
 !            phr(jj)%curd%amfu,phr(jj)%curd%gval(1,1)
-12     format(a,5i3,6(1pe12.4))
+!12     format(a,5i3,6(1pe12.4))
 ! column nz2 is the right hand side of the equation, to molar G
        smat(jph,nz2)=phr(jj)%curd%gval(1,1)
 !       write(*,313)'Gm: ',0,0,jph,nz2,smat(jph,nz2),ceq%tpval(1)
@@ -2944,7 +2944,7 @@ CONTAINS
        endif
 !       if(meqrec%noofits.le.2) &
 !            write(*,13)'Row: ',jph,jj,(smat(jph,je),je=1,nz2)
-13     format(a,2i2,7(1pe10.2))
+!13     format(a,2i2,7(1pe10.2))
     enddo allstableph
 ! we have generated meqrec%nstph rows with ncol columns and rhs in column nz2
 ! The columns for delta_phase-amounts should be zero
@@ -4595,7 +4595,7 @@ CONTAINS
     double precision, dimension(maxspel) :: stoi
 ! testing lapacl+blas inverting symmetric matrix
     double precision, allocatable, dimension(:) :: lapack
-    double precision spextra
+!    double precision spextra
 ! minimal y, charge
     double precision, parameter :: ymin=1.0D-12,ymingas=1.0D-30,qeps=1.0D-30
 ! derivative of moles of component wrt y_ks
@@ -5370,9 +5370,9 @@ CONTAINS
 ! 
 ! d(N_A\mu_A)/dy_i = dP/dy_i\sum_jb_Aj + v_i
 !
-    integer i1,i2,icon,jcon,loksp,nspel,ielno(10),el,allions,nobug
+    integer icon,jcon,loksp,nspel,ielno(10),el,allions,nobug
     double precision stoi(10),spmass,qsp1,qsp2,add1,add2,yva,sumcat,bug
-    double precision bugfix,spextra
+    double precision bugfix
 !tafidbug
 !    write(*,*)'Skipping liquid correction'
 !    goto 1000
@@ -5663,7 +5663,7 @@ CONTAINS
 ! these are to be multiplied with mu(ib), nothing, deltaT, deltaP
     integer iy,jy,ib
     double precision sum,cig,cit,cip,cib
-    double precision morr,curmu(maxel)
+    double precision morr
 !
 !    write(*,*)'entering calc_dgdyterms1: ',tpindep,ia
     mag=zero
@@ -5751,9 +5751,9 @@ CONTAINS
 ! THIS IS THE ONE CURRENTLY USED IN THE MINIMIZATIONS
 ! these are to be multiplied with mu(ib), nothing, deltaT, deltaP
     integer iy,jy,ib,nocon
-    double precision sum,cig,cit,cip,cib,haha,hoho
-    double precision morr,curmu(maxel)
-    double precision, allocatable, dimension(:) :: zib
+    double precision sum,cig,cit,cip,cib,haha
+    double precision morr
+!    double precision, allocatable, dimension(:) :: zib
 !
 !    write(*,*)'entering calc_dgdyterms1: ',tpindep,ia
 ! included in loop below ...
@@ -5877,8 +5877,8 @@ CONTAINS
     integer iy,jy,ib,nocon
 ! initial values for saved results
     integer :: sameit=0,big1p=0,big2p=0,big1n=0,big2n=0
-    double precision sum,cig,cit,cip,cib,haha,hoho
-    double precision morr,curmu(maxel)
+    double precision cig,cit,cip,haha
+    double precision morr
     double precision, allocatable, dimension(:) :: zib
 ! ATTENTION, these are not really used, see calc_dgdyterms1P !!!!
     double precision, allocatable, dimension(:,:) :: maybesave
@@ -6061,7 +6061,7 @@ CONTAINS
     integer iy,jy,ib,nocon,jj
 ! initial values for saved results
 !    integer :: sameit=0,big1p=0,big2p=0,big1n=0,big2n=0
-    double precision sum,cig,cit,cip,cib,haha,hoho
+    double precision cig,cit,cip,haha
     double precision morr
     double precision, allocatable, dimension(:) :: zib
     double precision, allocatable, dimension(:,:) :: maybesave
@@ -6355,7 +6355,7 @@ CONTAINS
 ! these are to be multiplied with mu(ib), nothing, deltaT, deltaP
 ! CHARRGE BALANCE TERM ADDED 150610!!!
     integer iy,jy,ib,neq
-    double precision sum,cig,cit,cip,cib,qscale
+    double precision sum,cig,cit,cip,cib
     double precision morr,curmu(maxel),maq
 !
 !    write(*,9)'in calc_dgdytermsh: ',ia,0,0,pmi%chargebal
@@ -6469,7 +6469,7 @@ CONTAINS
 ! these are to be multiplied with mu(ib), nothing, deltaT, deltaP
 ! CHARGE BALANCE TERM ADDED 150610!!!
     integer iy,jy,ib,neq
-    double precision sum,sum1,cig,cit,cip,cib,qscale
+    double precision sum,sum1,cig,cit,cip,cib
 ! these variables are probably redundant
     double precision morr,curmu(maxel),maq,maq1
 !
@@ -6597,10 +6597,10 @@ CONTAINS
    character text*(*)
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-   integer jl,iterm,indx(4),symsym
+   integer iterm,symsym
    TYPE(gtp_condition), pointer :: last,current
    type(gtp_state_variable), pointer :: svrrec
-   double precision wone,xxx
+   double precision xxx
    character actual_arg*16
 !
    if(ip.le.0) ip=1
@@ -6847,7 +6847,7 @@ CONTAINS
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
 ! THIS SUBROUTINE MOVED FROM gtp3D
-   character encoded*60
+!   character encoded*60
    double precision argval(20)
    type(gtp_state_variable), target :: tsvr,tsvr2
    type(gtp_state_variable), pointer :: svr,svr2
@@ -7167,7 +7167,7 @@ CONTAINS
 ! variables needed to calculate phase inverse
     TYPE(meq_setup), allocatable, target :: meqrec1
     TYPE(meq_setup), pointer :: meqrec
-    TYPE(meq_phase), pointer :: pmi
+ !   TYPE(meq_phase), pointer :: pmi
     TYPE(gtp_condition), pointer :: pcond
     integer iel,mph,jj,nterm
     double precision xxx
@@ -7290,7 +7290,7 @@ CONTAINS
     TYPE(meq_phase), pointer :: pmi
     integer jy,jel,jz
     double precision x1,x2,x3
-    double precision mag,mat,map,dmsum,dpham,dhdy,musum,dy,hconfig
+    double precision mag,mat,map,dpham,musum,dy,hconfig
     double precision, allocatable :: mamu(:)
 !
 ! THE MASTER VERSION OF THIS TABLE in GTP3C.F90
@@ -7651,7 +7651,7 @@ CONTAINS
    integer lut,pun
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-   integer mode,istv,ip,slen,jj,last,kk
+   integer ip,slen,jj,last,kk
    character tval*24,symbol*24,encoded*24,date*12
    double precision xxx,xarr(6)
 !   write(*,*)'MM calc/list extra: ',ceq%eqname
@@ -7910,7 +7910,7 @@ CONTAINS
 ! cpot are the (calculated) chemical potentials
 ! tyst is TRUE means no outut
     implicit none
-    integer mode
+!    integer mode
     TYPE(meq_setup) :: meqrec
     double precision tpval(*),xknown(*),cpot(*),gval
     TYPE(gtp_equilibrium_data), pointer :: ceq
@@ -7952,13 +7952,13 @@ CONTAINS
 ! ceq is a datastructure with all relevant thermodynamic data
 ! ovar are the chemical potentials
     implicit none
-    integer phase
+!    integer phase
     double precision tpval(*),xknown(*),ovar(*)
     TYPE(meq_setup) :: meqrec
     TYPE(meq_phase), dimension(*), target :: phr
     TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-    integer nz1,nz2,tcol,pcol,dncol,converged,ierr,jj,nj,nk,nl
+    integer nz1,nz2,converged,ierr,jj,nj,nk,nl
     TYPE(meq_phase), pointer :: pmi
     double precision, allocatable :: smat(:,:),svar(:),yarr(:),ycorr(:)
     double precision chargefact,chargerr,pv,qq(5),ys,ycormax2
@@ -8179,15 +8179,15 @@ CONTAINS
     TYPE(meq_phase), dimension(*), target :: phr
     TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-    integer nz1,nz2,tcol,pcol,dncol,converged,ierr,jj,nj,nk,nl,is,jt
+    integer nz1,nz2,converged,ierr,jj,nj,nk,nl,is,jt
     integer lokph,nkl(maxsubl),first(maxsubl+1),current(maxsubl),nsl,nend
     integer deriv(maxsubl),ql,mend
     TYPE(meq_phase), pointer :: pmi
     double precision, allocatable :: smat(:,:),svar(:),yarr(:),delta(:)
 ! dmuenddy is derivatives of mu for endmembers wrt all constituents
-    double precision, allocatable :: dmuenddy(:,:),diffcoeff(:,:),muend(:)
-    double precision, allocatable :: py(:),diffs(:,:),delta2(:,:)
-    double precision chargefact,chargerr,pv,qq(5),ys,ycormax2,muall,mob1,mob2
+    double precision, allocatable :: dmuenddy(:,:),muend(:)
+    double precision, allocatable :: py(:)
+    double precision chargefact,chargerr,pv,qq(5),ys,ycormax2,muall
     double precision sumsum
 ! number of variables is number of components + one stable phase
     nz1=meqrec%nrel+1
@@ -8234,7 +8234,7 @@ CONTAINS
     do jj=1,meqrec%nrel
        if(abs(svar(jj)-ovar(jj)).gt.1.0D1*ceq%xconv) then
 !          write(*,103)'chempot: ',svar(jj),ovar(jj),svar(jj)-ovar(jj)
-103       format(a,3(1pe12.4))
+!103       format(a,3(1pe12.4))
           converged=7
           cerr%mconverged=converged
           if(cerr%nvs.lt.10) then
@@ -8247,7 +8247,7 @@ CONTAINS
        ovar(jj)=svar(jj)
     enddo
 !    write(*,111)'svar3: ',0,(svar(jj),jj=1,nz1)
-111 format(a,i2,6(1pe12.4))
+!111 format(a,i2,6(1pe12.4))
 ! check dxmol ... seems OK
 !    do nk=1,phr(1)%ncc
 !       write(*,111)'dxmol: ',nk,(phr(1)%dxmol(nl,nk),nl=1,meqrec%nrel)
@@ -8316,7 +8316,7 @@ CONTAINS
 ! >>>>>>>>>>>>>>>>>> HERE the new constitution is set <<<<<<<<<<<<<<<<<<<<<
 !    write(*,112)'YC: ',jj,(delta(nj),nj=1,phr(jj)%ncc)
 !    write(*,112)'YY: ',meqrec%noofits,converged,(yarr(nj),nj=1,phr(jj)%ncc)
-112 format(a,2i3,8F8.5)
+!112 format(a,2i3,8F8.5)
     call set_constitution(phr(jj)%iph,phr(jj)%ics,yarr,qq,ceq)
     if(gx%bmperr.ne.0) goto 1000
 !-------------------------- end of iteration
@@ -8418,7 +8418,7 @@ CONTAINS
              mugrad(nl)=dmuenddy(is,jt)*ceq%rtn
           enddo loop4
 !          write(*,777)'dd: ',(ceq%rtn*dmuenddy(is,jt),jt=1,noofend)
-777       format(a,6(1pe12.4))
+!777       format(a,6(1pe12.4))
        enddo loop3
 ! UNFINISHED ?? I do not divide by N
 !       write(*,777)'mu: ',(muend(is),is=1,noofend)
@@ -8444,7 +8444,7 @@ CONTAINS
        allocate(py(noofend))
        py=one
 !       write(*,611)'first: ',nsl,(first(nj),nj=1,nsl)
-611    format(a,i2,2x,10i3)
+!611    format(a,i2,2x,10i3)
 ! all partials have this term
        muend=muall
 ! The partial Gibbs energy, for each sublattice add one dG/dy_is
@@ -8497,7 +8497,7 @@ CONTAINS
 ! loop for all constituent endmembers n_J
              mend=mend+1
 !             write(*,773)'Endmember: ',mend,(deriv(nl),nl=1,nsl)
-773          format(a,i3,2x,10i3)
+!773          format(a,i3,2x,10i3)
              lattloop: do nl=1,nsl
 ! loop for all sublattices, skip sublattices with a single constituent??
 !                if(nkl(nl).eq.1) cycle lattloop
@@ -8543,7 +8543,7 @@ CONTAINS
              mugrad(nl)=dmuenddy(is,jt)*ceq%rtn
           enddo loop8
 !          write(*,705)'dmu: ',(dmuenddy(is,jt),jt=1,noofend)
-705       format(a,6(1pe12.4))
+!705       format(a,6(1pe12.4))
        enddo loop7
     endif substitutional
 !-------------------
@@ -8559,7 +8559,7 @@ CONTAINS
 ! 800 + cs where cs is the constituent index counted over all sublattices ??
 ! list additional properties:
 !    write(*,400)'props: ',(pmi%curd%listprop(jt),jt=2,pmi%curd%listprop(1)-1)
-400 format(/a,12i6)
+!400 format(/a,12i6)
 ! HM, the disordered mobilities has 800+disordered index
 ! the ordered has 800+ordered index ... one should not use both ...
     ql=0
@@ -8572,7 +8572,7 @@ CONTAINS
 !          mobval(jj)=exp(pmi%curd%gval(1,jt)/ceq%rtn)/ceq%rtn
           mobval(jj)=pmi%curd%gval(1,jt)
 !          write(*,410)jj,jt,pmi%curd%gval(1,jt)
-410       format('MM Mobility for ',i3,' in pos ',i2,', value: ',3(1pe14.6))
+!410       format('MM Mobility for ',i3,' in pos ',i2,', value: ',3(1pe14.6))
        endif
     enddo
     if(ql.lt.noofend) then
@@ -8638,7 +8638,7 @@ CONTAINS
 ! cpot are the (calculated) chemical potentials
 ! tyst is TRUE means keep quiet
     implicit none
-    integer mode
+!    integer mode
     TYPE(meq_setup) :: meqrec
 !    double precision tpval(*),xknown(*),cpot(*)
     TYPE(gtp_equilibrium_data), pointer :: ceq
@@ -8689,7 +8689,7 @@ CONTAINS
     meqrec%noofits=0
 ! this replaces call to meq_sameset as we will never change stable phase
 !    call equilph1c(meqrec,meqrec%phr,tpval,xknown,cpot,ceq)
-1000 continue
+!1000 continue
     return
   end subroutine equilph1_meqrec
 

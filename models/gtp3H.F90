@@ -752,7 +752,7 @@
 ! it is no error if no CTA, NTA or BMAG but then magnetic contribution is zero
        write(*,12)trim(phlista(lokph)%name)
 12     format('3H Warning: Magnetic addition for phase ',a,&
-            ' not calculated as '/10x&
+            ' not calculated as '/10x,&
             'values for CTA, NTA or BMAG, magnetic G are zero')
       goto 1000
    else

@@ -865,6 +865,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! and results.  Note that during calculations which can be parallelized
 ! the results can be different for each parallel process
      character*(lenfnsym) symbol
+! Why are limits declared as pointers?? They cannot be properly deallocated
 ! limits are the low temperature limit for each range
 ! funlinks links to expression records for each range
 ! each range can have its own function, status indicate if T and P or T and V

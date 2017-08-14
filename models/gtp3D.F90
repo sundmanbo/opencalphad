@@ -935,7 +935,7 @@
 ! return here to deconde another condition on the same line
 50 continue
    nterm=0
-   allterms=zero
+   allterms=0
 !==========================================================================
 ! return here to decode anther state variable term for condition
 ! step 1 extract the state variable termintade by + - = > < or :=
@@ -1084,7 +1084,7 @@
    endif
 ! convert to old state variable format
 !   write(*,12)svr%argtyp,svr%phase,svr%compset,svr%component,svr%constituent
-12 format('Decoded: '5i5)
+12 format('Decoded: ',5i5)
    indices=0
    if(svr%argtyp.eq.1) then
       indices(1)=svr%component

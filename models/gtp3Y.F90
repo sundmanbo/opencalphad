@@ -69,6 +69,7 @@
    integer pph,zph,nystph,order(maxel),tbase,qbase,wbase,jj
 !
 !   write(*,*)'3Y in global_gridmin'
+!   nystph=0
    if(btest(globaldata%status,GSNOGLOB)) then
       write(*,*)'3Y Grid minimization not allowed'
       gx%bmperr=4173; goto 1000
@@ -1907,13 +1908,13 @@
    call get_phase_data(iph,1,nsl,nkl,knr,ydum,sites,qq,ceq)
    if(gx%bmperr.ne.0) goto 1000
 ! calculate the number of endmembers and index of first constituent in subl ll
+   lokph=phases(iph)
    if(btest(phlista(lokph)%status1,PHIONLIQ)) then
       write(*,*)'We should not be in dense_grid!'
       gx%bmperr=4399; goto 1000
    endif
    nend=1
    inkl(0)=0
-   lokph=phases(iph)
    do ll=1,nsl
 !      if(btest(phlista(lokph)%status1,PHIONLIQ) .and. ll.eq.2) then
 ! multiply with charged anions and Va only, add neutrals
@@ -2758,7 +2759,7 @@
    if(mode.eq.0 .and. test_phase_status_bit(iph,PHBORD)) then
 ! for BCC ordered phase add endmember with same constituents in first and third
 ! sublattices and loop in the others like A:B-X:A:B-X and B:C-X:B:C-X
-      write(*,*)'For BCC ordered phase no gridpoints for B32 ordering'
+      write(*,*)'3Y Grid minimizer has no gridpoints for B32 ordering'
    endif
 ! kend has been incremented one too much
    nend=kend-1
@@ -4034,7 +4035,7 @@
    integer, dimension(jerr) :: removed
    real gmin(nrel),dg,dgmin,gplan,gy,gvvp
 ! gridpoints that has less difference with the plane than this limit is ignored
-   real, parameter :: dgminlim=1.0D-6
+   real, parameter :: dgminlim=1.0E-6
    logical checkremoved,linglderr,grindingon,failadd
    character ch1*1
 ! if trace then open file to write grid
@@ -4162,7 +4163,7 @@
 123 format('3Y: ',i2,1pe12.4,10(0pf6.3))
 ! looking for tbase calculation error
 !   if(trace) write(*,770)(jgrid(je),je=1,nrel)
-!770 format('Initial set of gridpoints: '(/15i5))
+!770 format('Initial set of gridpoints: ',(/15i5))
    do je=1,nrel
       if(one-xmat(je,je).lt.1.0d-12) then
          cmu(je)=dble(gmin(je))
@@ -4597,7 +4598,7 @@
 986   format('3Y None of the ',i3,' removed gridpoints below final surface')
    endif
    if(trace) write(*,771)(jgrid(je),je=1,nrel)
-771 format('3Y Final set of gridpoints: '(/15i5))
+771 format('3Y Final set of gridpoints: ',(/15i5))
 !   xtx=0
 !   do iii=1,nrel
 !      write(*,987)jgrid(iii),phfrac(iii),(xarr(i,jgrid(iii)),i=1,nrel)
@@ -6540,34 +6541,34 @@
  end subroutine switch_compsets2
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
-
+!
 !\begin{verbatim} %-
- subroutine shiftcompsets2(lokph,ceq)
+! subroutine shiftcompsets2(lokph,ceq)
 ! check if the composition sets of phase lokph
 ! should be shifted to fit the default constitution better
-   integer lokph
-   type(gtp_equilibrium_data), pointer :: ceq
+!   integer lokph
+!   type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-   integer kk,lokics,lokjcs,fit
+!   integer kk,lokics,lokjcs,fit
 ! A fraction with a maximum set (mmyfr>0) must be below that value
 ! A fraction with a minimum set (mmyfr<0) should be above that value
-   write(*,*)'3Y Not implemented testing defaults'
-   fit=0
-   do kk=1,size(ceq%phase_varres(lokics)%yfr)
-      write(*,*)'3Y defconst: ',kk,ceq%phase_varres(lokics)%mmyfr(kk)
-      if(ceq%phase_varres(lokics)%mmyfr(kk).gt.0.0D0) then
+!   write(*,*)'3Y Not implemented testing defaults'
+!   fit=0
+!   do kk=1,size(ceq%phase_varres(lokics)%yfr)
+!      write(*,*)'3Y defconst: ',kk,ceq%phase_varres(lokics)%mmyfr(kk)
+!      if(ceq%phase_varres(lokics)%mmyfr(kk).gt.0.0D0) then
 ! A fraction with a maximum set (mmyfr>0) must be below that value
-         if(ceq%phase_varres(lokjcs)%yfr(kk).gt.&
-              ceq%phase_varres(lokics)%mmyfr(kk)) fit=fit+5
+!         if(ceq%phase_varres(lokjcs)%yfr(kk).gt.&
+!              ceq%phase_varres(lokics)%mmyfr(kk)) fit=fit+5
 ! A fraction with a minimum set (mmyfr<0) should be above that value
-      elseif(ceq%phase_varres(lokics)%mmyfr(kk).lt.0.0D0) then
-         if(ceq%phase_varres(lokjcs)%yfr(kk).lt.&
-              abs(ceq%phase_varres(lokics)%mmyfr(kk))) fit=fit+1
-      endif
-   enddo
-1000 continue
-   return
- end subroutine shiftcompsets2
+!      elseif(ceq%phase_varres(lokics)%mmyfr(kk).lt.0.0D0) then
+!         if(ceq%phase_varres(lokjcs)%yfr(kk).lt.&
+!              abs(ceq%phase_varres(lokics)%mmyfr(kk))) fit=fit+1
+!      endif
+!   enddo
+!1000 continue
+!   return
+! end subroutine shiftcompsets2
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 

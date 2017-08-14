@@ -4199,7 +4199,7 @@
       lrot=0
       call enter_tpfun(funname,longline,lrot,.TRUE.)
 !          write(*,17)lokph,typty,nsl,lrot,(endm(i),i=1,nsl)
-17 format('readtdb 17: '4i3,5x,10i3)
+17 format('readtdb 17: ',4i3,5x,10i3)
 !         write(*,404)'readtdb entpar: ',refx,fractyp,nint,ideg
 404   format(a,a,i3,2x,10i3)
       if(gx%bmperr.ne.0) then
@@ -4292,7 +4292,7 @@
                   do ix=1,nphrej
                      if(ordpartph(disparttc).eq.phreject(ix)) then
                         write(*,86)trim(longline(ip+1:))
-86  format('3E TYPE_DEF ignored as ordered phase rejected: 'a)
+86  format('3E TYPE_DEF ignored as ordered phase rejected: ',a)
                         disparttc=disparttc-1
                         goto 88
                      endif
@@ -4599,7 +4599,7 @@
    if(buperr.ne.0 .or. gx%bmperr.ne.0) then
       if(gx%bmperr.eq.0) gx%bmperr=buperr
       if(.not.silent) write(kou,1002)gx%bmperr,nl
-1002   format('Error ',i5', occured at TDB file line ',i7)
+1002   format('Error ',i5,', occured at TDB file line ',i7)
 !      write(*,*)'Do you want to continue at your own risk anyway?'
 !      read(*,1008)ch1
 !1008  format(a)
@@ -5693,7 +5693,7 @@
 !      lrot=0
       call enter_tpfun(funname,longline,lrot,.TRUE.)
 !          write(*,17)lokph,typty,nsl,lrot,(endm(i),i=1,nsl)
-17 format('readpdb 17: '4i3,5x,10i3)
+17 format('readpdb 17: ',4i3,5x,10i3)
 !         write(*,404)'readpdb entpar: ',refx,fractyp,nint,ideg
 404   format(a,a,i3,2x,10i3)
       if(gx%bmperr.ne.0) then
@@ -6010,7 +6010,7 @@
    if(buperr.ne.0 .or. gx%bmperr.ne.0) then
       if(gx%bmperr.eq.0) gx%bmperr=buperr
       if(.not.silent) write(kou,1002)gx%bmperr,nl
-1002   format('Error ',i5', occured at TDB file line ',i7)
+1002   format('Error ',i5,', occured at TDB file line ',i7)
 !      write(*,*)'Do you want to continue at your own risk anyway?'
 !      read(*,1008)ch1
 !1008  format(a)

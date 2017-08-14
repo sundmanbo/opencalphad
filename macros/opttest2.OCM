@@ -1038,8 +1038,9 @@ enter comment CUM2+MG EUTECTIC - 31JON
 @$ ==========================================
 enter equilibrium EQ_805_CMELT  YES
 set status phase *=sus
-set status PHASE LIQUID L_C15=FIX 1
-set cond P=P0
+set status PHASE LIQUID = ENT 1
+set status PHASE L_C15=FIX 0
+set cond P=P0 N=1
 set cond X(LIQUID,MG)-X(L_C15,MG)=0
 enter experiment T=1093.15:5
 enter experiment X(MG)=.33333:.01
@@ -1048,8 +1049,9 @@ enter comment C15 - CONGRUENT MELTING - 31JON
 @$ ==========================================
 enter equilibrium EQ_806_CMELT  YES
 set status phase *=sus
-set status PHASE LIQUID L_C15=FIX 1
-set cond P=P0
+set status PHASE LIQUID = ENT 1
+set status PHASE L_C15=FIX 0
+set cond P=P0 N=1
 set cond X(LIQUID,MG)-X(L_C15,MG)=0
 enter experiment T=1066.15:5
 enter experiment X(MG)=.33333:.01
@@ -1215,6 +1217,18 @@ sel eq 546
 
 l,,,,
 @&
+@$ we must help the program by calculate liquid with correct composition
+
+c ph liq 1 n
+.66
+
+
+c ph lav 0 n
+.99
+.01
+
+
+@$ Then calculate without grid minimizer
 
 c n
 

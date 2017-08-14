@@ -360,7 +360,7 @@
 !            write(unit,111)jk,csrec%phtupx,csname, &
 !                 csrec%abnorm(1),csrec%dgm,&
 !                 phlista(lokph)%status1,ceq%phase_varres(lokcs)%status2,ch1
-!111         format(2i4,1x,a24,'       0.0',1x0PF8.2,1PE10.2,2(0p,z8),a1)
+!111         format(2i4,1x,a24,'       0.0',1x,0PF8.2,1PE10.2,2(0p,z8),a1)
       if(csrec%dgm.lt.zero) then
          jph=jph+1
          if(jph.gt.10) then
@@ -5061,7 +5061,9 @@
 617          format(6x,'Prescribed min and max: ',2(1pe12.4))
           elseif(firstash%coeffstate(i1).gt.13) then
              write(lut,*)'Wrong coefficent state, set to 10'
-             firstash%coeffstate(i2)=10
+!?? 
+!             firstash%coeffstate(i2)=10
+             firstash%coeffstate(i1)=10
           endif
        elseif(firstash%coeffstate(i1).gt.0) then
 ! fix variable status

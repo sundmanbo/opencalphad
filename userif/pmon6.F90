@@ -138,12 +138,18 @@ contains
     double precision dblv(10)
 !-------------------
 ! variables for assessment using VA05AD
-    integer :: nopt=100,iprint=1,ient,mexp=0,nvcoeff,nwc
-    integer iexit(5)
-    double precision :: dstep=1.0D-4,dmax2=1.0D2,acc=1.0D-3
-    integer, parameter :: maxw=5000
+!    integer :: nopt=100,iprint=1,ient,mexp=0,nvcoeff,nwc
+!    integer iexit(5)
+!    double precision :: dstep=1.0D-4,dmax2=1.0D2,acc=1.0D-3
+!    integer, parameter :: maxw=5000
+! variables for lmdif
+    integer, parameter :: lwam=2500
+    integer :: nopt=100, mexp=0,nvcoeff
+    integer iwam(lwam)
+    double precision wam(lwam)
+    double precision :: acc=1.0D-3
 ! occational segmentation fault when deallocating www ....
-    double precision, dimension(maxw) :: www
+!    double precision, dimension(maxw) :: www
 !    double precision, dimension(:), allocatable :: www
     double precision, dimension(:), allocatable :: coefs
     double precision, dimension(:), allocatable :: errs
@@ -294,7 +300,7 @@ contains
          'NUMERIC_OPTIONS ','AXIS            ','INPUT_AMOUNTS   ',&
          'VERBOSE         ','AS_START_EQUILIB','BIT             ',&
          'VARIABLE_COEFF  ','SCALED_COEFF    ','OPTIMIZING_COND ',&
-         'RANGE_EXPER_EQU ','FIXED_COEFF     ','                ']
+         'RANGE_EXPER_EQU ','FIXED_COEFF     ','T_AND_P         ']
 ! subsubcommands to SET STATUS
     character (len=16), dimension(ncstat) :: cstatus=&
          ['ELEMENT         ','SPECIES         ','PHASE           ',&
@@ -371,10 +377,11 @@ contains
     logfil=0
     defcp=1
     seqxyz=0
-! defaults for optimizer, iexit(2)=1 means listing scaled coefficients (Va05AD)
+! defaults for optimizer
     nvcoeff=0
-    iexit=0
-    iexit(2)=1
+! iexit(2)=1 means listing scaled coefficients (Va05AD)
+!    iexit=0
+!    iexit(2)=1
 ! present the software
     write(kou,10)version,trim(linkdate),ocmonversion,gtpversion,hmsversion,&
          smpversion
@@ -415,7 +422,7 @@ contains
     chshort='A'
 ! set default minimizer, 2 is matsmin, 1 does not work ...
     minimizer=2
-! set default optimimzer, 1 is LMDIF, 2 is VA05AD
+! set default optimimzer, 1 is LMDIF, 2 is VA05AD (no longer available)
     optimizer=1
 ! by default no stop on error and no logfile
     stop_on_error=.false.
@@ -591,7 +598,7 @@ contains
 !
 ! jump here if there is an inline argument
 ! 99  continue
-    SELECT CASE(kom)
+    main: SELECT CASE(kom)
 ! command selection
 !=================================================================
     CASE DEFAULT
@@ -607,10 +614,10 @@ contains
 !         'LIST           ','                ','                ']
     CASE(1) ! AMEND
 ! disable continue optimization
-       iexit=0
-       iexit(2)=1
+!       iexit=0
+!       iexit(2)=1
        kom2=submenu(cbas(kom),cline,last,cam1,ncam1,4)
-       SELECT CASE(kom2)
+       amend: SELECT CASE(kom2)
        CASE DEFAULT
           write(kou,*)'No such answer'
           goto 100
@@ -677,7 +684,7 @@ contains
           if(gx%bmperr.ne.0) goto 990
 !
           kom3=submenu(cbas(kom),cline,last,camph,ncamph,2)
-          SELECT CASE(kom3)
+          amendphase: SELECT CASE(kom3)
 !....................................................
           CASE DEFAULT
              write(kou,*)'Amend phase subcommand error'
@@ -779,7 +786,7 @@ contains
 !....................................................
           case(12) ! amend phase ??
              write(kou,*)'Not implemented yet'
-          END SELECT
+          END SELECT amendphase
 !-------------------------
        case(5) ! amend parameter
           write(kou,*)'Not implemented yet, only ENTER PARAMETER'
@@ -883,7 +890,7 @@ contains
 !-------------------------
        case(18) ! Nothing defined
           write(*,*)'Not implemented yet'
-       END SELECT
+       END SELECT amend
 !=================================================================
 ! calculate subcommands
 !         ['TPFUN_SYMBOLS   ','PHASE           ','NO_GLOBAL       ',&
@@ -892,7 +899,7 @@ contains
 !         'WITH_CHECK_AFTER','                ','                ']
     CASE(2)
        kom2=submenu(cbas(kom),cline,last,ccalc,ncalc,8)
-       SELECT CASE(kom2)
+       calculate: SELECT CASE(kom2)
        CASE DEFAULT
           write(kou,*)'No such calculate command'
           goto 100
@@ -972,7 +979,7 @@ contains
                   ' Pa, results in J/F.U.')
           endif
           rgast=globaldata%rgas*ceq%tpval(1)
-          SELECT CASE(kom3)
+          calcphase: SELECT CASE(kom3)
 !.......................................................
           CASE DEFAULT
              write(kou,*)'Calculate phase subcommand error'
@@ -1091,7 +1098,7 @@ contains
 !.......................................................
           case(6) !
              write(*,*)'Not implemeneted yet'
-          END SELECT
+          END SELECT calcphase
 ! set bits to warn that listings may be inconsistent
           ceq%status=ibclr(ceq%status,EQNOEQCAL)
           ceq%status=ibset(ceq%status,EQINCON)
@@ -1370,7 +1377,7 @@ contains
        case(11) ! not used (yet)
 !-------------------------------------------------------
        case(12) ! not used (yet)
-       END SELECT
+       END SELECT calculate
 !=================================================================
 ! SET SUBCOMMANDS
 !         ['CONDITION       ','STATUS          ','ADVANCED        ',&
@@ -1383,11 +1390,11 @@ contains
 !         'EXPERIMENT_EQUIL','FIXED_COEFF     ','                ']
     CASE(3) ! SET SUBCOMMANDS
 ! disable continue optimization
-       iexit=0
-       iexit(2)=1
+!       iexit=0
+!       iexit(2)=1
        kom2=submenu(cbas(kom),cline,last,cset,ncset,1)
        if(kom2.le.0) goto 100
-       SELECT CASE(kom2)
+       set: SELECT CASE(kom2)
        CASE DEFAULT
           write(kou,*)'Set subcommand error'
 !-----------------------------------------------------------------------
@@ -1401,7 +1408,7 @@ contains
        CASE(2) ! set status for elements, species, phases, constituents
           name1='STATUS of'
           kom3=submenu(name1,cline,last,cstatus,ncstat,3)
-          SELECT CASE(kom3)
+          setstatus: SELECT CASE(kom3)
 !.................................................................
           CASE DEFAULT
              write(kou,*)'Set status subcommand error'
@@ -1491,13 +1498,13 @@ contains
 !.................................................................
           case(6) ! set status subcommand status for ?
              write(kou,*)'Not implemented yet'
-          END SELECT
+          END SELECT setstatus
 !-----------------------------------------------------------
        case(3) ! set ADVANCED
 ! default is DENSE_GRID
           name1='advanced command'
           kom3=submenu(name1,cline,last,cadv,ncadv,4)
-          select case(kom3)
+          advanced: select case(kom3)
 !.................................................................
           CASE DEFAULT
              write(kou,*)'Set advanced subcommand error'
@@ -1574,7 +1581,7 @@ contains
 !.................................................................
           case(6) ! nothing yet
              write(*,*)'Not implemented yet'
-          end select
+          end select advanced
 !-----------------------------------------------------------
        case(4) ! set LEVEL, not sure what it will be used for ...
           write(kou,*)'Not implemented yet'
@@ -1650,7 +1657,7 @@ contains
              endif
           endif
           kom3=submenu(cbas(kom),cline,last,csetph,nsetph,2)
-          SELECT CASE(kom3)
+          setphase: SELECT CASE(kom3)
           CASE DEFAULT
              write(kou,*)'Set phase status subcommand error'
              goto 100
@@ -1792,7 +1799,7 @@ contains
 !............................................................
           case(6) ! SET PHASE ... CONSTITUTION iph and ics set above
              call ask_phase_new_constitution(cline,last,iph,ics,lokcs,ceq)
-       END SELECT
+          END SELECT setphase
 !-------------------------------------------------------------
        case(10) ! set UNIT (for state variables)
           write(kou,*)'Not implemented yet'
@@ -2100,7 +2107,7 @@ contains
 !               cline,last,ll,-1,q1help)
 !         ['EQUILIBRIUM     ','GLOBAL          ','PHASE           ',&
           kom3=submenu('Set which status word?',cline,last,csetbit,nsetbit,2)
-          SELECT CASE(kom3)
+          setbit: SELECT CASE(kom3)
           CASE DEFAULT
              write(kou,*)'SET BIT subcommand error'
 !................................................................
@@ -2194,7 +2201,7 @@ contains
 !....................................................
           case(3) ! set bit phase ...
              write(*,*)'Please use set phase ... bit '
-          end select
+          end select setbit
 !-------------------------
        case(19) ! set variable_coefficent, 0 to 99
           if(.not.btest(firstash%status,AHCOEF)) then
@@ -2280,12 +2287,13 @@ contains
 !             nvcoeff=nvcoeff+1
 !          endif
 !-------------------------
-       case(21) ! set optimizing_conditions, more will be added
-          call gparrd('DSTEP (VA05AD): ',cline,last,xxx,dstep,q1help)
-          dstep=xxx
-          call gparrd('DMAX (VA05AD): ',cline,last,xxx,dmax2,q1help)
-          dmax2=xxx
-          call gparrd('ACC (VA05AD): ',cline,last,xxx,acc,q1help)
+       case(21) ! set optimizing_conditions
+          write(*,*)'LMDIF has no conditions to change ...'
+!          call gparrd('DSTEP (VA05AD): ',cline,last,xxx,dstep,q1help)
+!          dstep=xxx
+!          call gparrd('DMAX (VA05AD): ',cline,last,xxx,dmax2,q1help)
+!          dmax2=xxx
+          call gparrd('Accuracy: ',cline,last,xxx,acc,q1help)
           acc=xxx
 !-------------------------
        case(22) ! set range_experimental_equilibria
@@ -2346,6 +2354,8 @@ contains
                 if(i2.lt.i1) then
                    i2=i1
                    write(kou,*)'Illegal range, setting fixed just: ',i1
+                elseif(i2.ge.size(firstash%coeffstate)) then
+                   i2=size(firstash%coeffstate)-1
                 endif
              elseif(i1.ge.size(firstash%coeffstate)) then
 ! coefficients have indices 0 to size(firstash%coeffstate)-1
@@ -2399,11 +2409,16 @@ contains
           write(kou,3730)nvcoeff
 3730      format('Number of variable coefficients are now ',i3)
 !------------------------- 
-       case(24) ! unused
-          write(*,*)'Not implemeneted yet'
-       END SELECT
+       case(24) ! T_AND_P start values, NOT CONDITIONS!!
+          call gparrd('New value of T: ',cline,last,xxx,1.0D3,q1help)
+          if(buperr.ne.0) goto 100
+          ceq%tpval(1)=xxx
+          call gparrd('New value of P: ',cline,last,xxx,1.0D5,q1help)
+          if(buperr.ne.0) goto 100
+          ceq%tpval(2)=xxx
+       END SELECT set
 !=================================================================
-! enter with subcommand for element, species etc
+! ENTER with subcommand for element, species etc
 !         ['TPFUN_SYMBOL    ','ELEMENT         ','SPECIES         ',&
 !         'PHASE           ','PARAMETER       ','BIBLIOGRAPHY    ',&
 !         'CONSTITUTION    ','EXPERIMENT      ','QUIT            ',&
@@ -2412,10 +2427,10 @@ contains
 !         'MATERIAL        ','                ','                ']
     CASE(4)
 ! disable continue optimization
-       iexit=0
-       iexit(2)=1
+!       iexit=0
+!       iexit(2)=1
        kom2=submenu(cbas(kom),cline,last,center,ncent,11)
-       SELECT CASE(kom2)
+       enter: SELECT CASE(kom2)
        CASE DEFAULT
           write(kou,*)'Enter subcommand error'
 !---------------------------------------------------------------
@@ -2688,7 +2703,7 @@ contains
 !----------------------------------------------------------------
 ! enter unused
        case(21)
-       END SELECT
+       END SELECT enter
 !=================================================================
 ! exit
     CASE(5)
@@ -2712,7 +2727,7 @@ contains
        kom2=submenu(cbas(kom),cline,last,clist,nclist,12)
        if(kom2.le.0) goto 100
        lut=optionsset%lut
-       SELECT CASE(kom2)
+       list: SELECT CASE(kom2)
 !-----------------------------------------------------------
        CASE DEFAULT
           write(kou,*)'LIST FORMAT subcommand error'
@@ -2787,7 +2802,7 @@ contains
           call find_phase_by_name(name1,iph,ics)
           if(gx%bmperr.ne.0) goto 990
           kom3=submenu('List what for phase?',cline,last,clph,nclph,2)
-          SELECT CASE(kom3)
+          listphase: SELECT CASE(kom3)
 !...............................................................
           CASE DEFAULT
              write(kou,*)'list phase subcommand error'
@@ -2812,7 +2827,7 @@ contains
              write(kou,6070)'For ',ceq%eqno,ceq%eqname
 6070      format(a,'equilibrium: ',i3,', ',a)
              call list_phase_model(iph,ics,lut,' ',ceq)
-          END SELECT
+          END SELECT listphase
 !------------------------------
        case(4,17)  ! list state variable or parameter identifier value, loop.
 !6099      continue
@@ -3126,7 +3141,7 @@ contains
                name1(1:2),name1(3:4)
 600       format(/'Listing of optimization results: date ',a4,'.',a2,'.',a2,&
                ' : ',a2,'h',a2)
-          SELECT CASE(kom2)
+          listopt: SELECT CASE(kom2)
 !..........................................................
              case DEFAULT
                 write(kou,*)'No such option'
@@ -3157,7 +3172,7 @@ contains
 !...........................................................
              case(9) ! unused
                 write(*,*)'Not implemented yet'
-             end SELECT
+             end SELECT listopt
 !------------------------------
 ! list model parameter values, part of case(4)
 !       case(17)
@@ -3167,11 +3182,11 @@ contains
        case(18)
           i2=4204
           call gparid('Error code: ',cline,last,i1,i2,q1help)
-          if(i1.ge.4000 .and. i1.lt.4399) then
+          if(i1.ge.4000 .and. i1.le.nooferm) then
              write(kou,4999)i1,bmperrmess(i1)
 4999         format('The error code ',i4', means: '/a)
           else
-             write(kou,*)'No a standard OC error message'
+             write(kou,*)'Not a standard OC error message'
           endif
 !------------------------------
 ! list ??
@@ -3185,7 +3200,7 @@ contains
 ! list ??
        case(21)
           write(*,*)'Not implemented yet'
-       end SELECT
+       end SELECT list
 !=================================================================
 ! quit
     case(7)
@@ -3203,13 +3218,13 @@ contains
           stop 'Have a nice day'
        endif
 !=================================================================
-! read subcommand
+! READ subcommand
 !        ['UNFORMATTED     ','TDB             ','QUIT            ',&
 !         'DIRECT          ','                ','                ']
     case(8)
 ! disable continue optimization
-       iexit=0
-       iexit(2)=1
+!       iexit=0
+!       iexit(2)=1
        if(noel().ne.0) then
           write(kou,*)'You already have data, read destroys your current data'
           write(kou,*)'You must give a NEW Y command to remove data first'
@@ -3225,7 +3240,7 @@ contains
 !          endif
        endif
        kom2=submenu(cbas(kom),cline,last,cread,ncread,2)
-       SELECT CASE(kom2)
+       read: SELECT CASE(kom2)
 !-----------------------------------------------------------
        CASE DEFAULT
           write(kou,*)'Read subcommand error'
@@ -3272,7 +3287,7 @@ contains
 ! if tdbfle starts with "ocbase/" replace that with content of ocbase!!
           name1=tdbfile(1:7)
           call capson(name1)
-          if(name1(1:7).eq.'OCBASE/' .or. name1(1:7).eq.'OCBASE\') then
+          if(name1(1:7).eq.'OCBASE/' .or. name1(1:8).eq.'OCBASE\ ') then
              tdbfile=trim(ocbase)//tdbfile(7:)
              write(*,*)'database file: ',trim(tdbfile)
           endif
@@ -3282,7 +3297,8 @@ contains
              write(kou,*)'No database with this name'
              goto 990
           elseif(jp.eq.0) then
-             write(Kou,*)'No elements in the database'
+             write(kou,*)'No elements in the database'
+             goto 100
           endif
           write(kou,8203)jp,(ellist(kl),kl=1,jp)
 8203      format('Database has ',i2,' elements: ',18(a,1x)/(1x,28(1x,a)))
@@ -3391,9 +3407,9 @@ contains
 !-----------------------------------------------------------
        case(6) ! read ??
           write(*,*)'Nothing yet'
-       end SELECT
+       end SELECT read
 !=================================================================
-! save in various formats (NOT TDB, MACRO and LATEX, use LIST DATA)
+! SAVE in various formats (NOT TDB, MACRO and LATEX, use LIST DATA)
 ! It is a bit inconsistent as one READ TDB but not SAVE TDB ...
 !        ['TDB             ','SOLGASMIX       ','UNFORMATTED     ',&
 !         'DIRECT          ','                ','QUIT            ']
@@ -3406,7 +3422,7 @@ contains
 ! Do not ask this question for TDB and SOLGASMIX files
           call gparc('Comment line: ',cline,last,5,model,' ',q1help)
        endif
-       SELECT CASE(kom2)
+       save: SELECT CASE(kom2)
 !-----------------------------------------------------------
        CASE DEFAULT
           write(kou,*)'save subcommand error'
@@ -3462,7 +3478,7 @@ contains
              call gparcd('File exists, overwrite?',cline,last,1,ch1,'N',q1help)
              if(ch1.ne.'Y') then
                 write(*,133)
-133             format('You can use another file name')
+133             format('Please use another file name')
                 ocufile=' '
                 goto 132
              endif
@@ -3500,7 +3516,7 @@ contains
 !-----------------------------------------------------------
        case(6) ! save quit, do nothing
           continue
-       end SELECT
+       end SELECT save
 !=================================================================
 ! help ... just list the commands
     case(10)
@@ -3540,8 +3556,8 @@ contains
 !       write(*,*)'No segmentation fault 3'
        mexp=0
        nvcoeff=0
-       iexit=0
-       iexit(2)=1
+!       iexit=0
+!       iexit(2)=1
 !       write(*,*)'No Segmentation fault 4'
 !----- deleting map results ...
 !       write(*,*)'Deleting map results'
@@ -3626,7 +3642,7 @@ contains
 ! debug subcommands
     case(16)
        kom2=submenu(cbas(kom),cline,last,cdebug,ncdebug,1)
-       SELECT CASE (kom2)
+       debug: SELECT CASE (kom2)
 !------------------------------
        CASE DEFAULT
           write(kou,*)'Debug subcommand error ',kom2
@@ -3709,12 +3725,12 @@ contains
 ! debug unused
        case(6)
           write(*,*)'Neither here'
-       END SELECT
+       END SELECT debug
 !=================================================================
 ! select command
     case(17)
        kom2=submenu(cbas(kom),cline,last,cselect,nselect,1)
-       SELECT CASE(kom2)
+       selct: SELECT CASE(kom2)
 !-----------------------------------------------------------
        CASE DEFAULT
           write(kou,*)'Select subcommand error'
@@ -3800,28 +3816,29 @@ contains
           if(ch1.eq.'Y') then
              optimizer=1
           else
-             call gparcd('Do you want to use VA05AD?',&
-                  cline,last,1,ch1,'Y',q1help)
-             if(ch1.eq.'Y') then
-                optimizer=2
-             endif
+             write(*,*)'Sorry VA05AD is no longer available'
+!             call gparcd('Do you want to use VA05AD?',&
+!                  cline,last,1,ch1,'Y',q1help)
+!             if(ch1.eq.'Y') then
+!                optimizer=2
+!             endif
           endif
           write(kou,*)'You have selected ',optimizers(optimizer)
 !-----------------------------------------------------------
        case(6)
           goto 100
-       END SELECT
+       END SELECT selct
 !=================================================================
-! delete not much implemented ...
+! DELETE not much implemented ...
 !         ['ELEMENTS        ','SPECIES         ','PHASE           ',&
 !          'QUIT            ','COMPOSITION_SET ','EQUILIBRIUM     ',&
 !          'STEP_MAP_RESULTS','                ','                ']
     CASE(18)
 ! disable continue optimization
-       iexit=0
-       iexit(2)=1
+!       iexit=0
+!       iexit(2)=1
        kom2=submenu(cbas(kom),cline,last,crej,nrej,3)
-       SELECT CASE(kom2)
+       delete: SELECT CASE(kom2)
 !-----------------------------------------------------------
        CASE DEFAULT
           write(kou,*)'Delete subcommand error'
@@ -3915,7 +3932,7 @@ contains
 !
        case(9)
           continue
-       end SELECT !delete
+       end SELECT delete
 !=================================================================
 ! STEP, must be tested if compatible with assessments
 !         ['NORMAL          ','SEPARATE        ','QUIT            ',&
@@ -3952,7 +3969,7 @@ contains
           endif
        endif
        kom2=submenu('Options?',cline,last,cstepop,nstepop,1)
-       SELECT CASE(kom2)
+       step: SELECT CASE(kom2)
 !-----------------------------------------------------------
        CASE DEFAULT
           write(kou,*)'No such step option'
@@ -4031,7 +4048,7 @@ contains
 ! STEP unused
        case(6)
           write(kou,*)'Not implemented yet'
-       end SELECT
+       end SELECT step
 !=================================================================
 ! MAP, must be tested if compatible with assessments
     case(20)
@@ -4170,6 +4187,7 @@ contains
              graphopt%appendfile=' '
              graphopt%gibbstriangle=.FALSE.
              graphopt%labelkey='top right'
+             plotform=' '
 ! more options to restore ...
           endif
 ! remember axis as default
@@ -4197,11 +4215,13 @@ contains
        elseif(plotform(1:1).eq.'A') then
           write(kou,21113)trim(plotfile)
 21113     format(/' *** Graphics format is PDF on: ',a,'.pdf ')
+       else
+          plotfile='ocgnu '
        endif
        write(kou,21112)
 21112  format(/'Note: give only one option per line!')
        kom2=submenu('Options?',cline,last,cplot,nplt,1)
-       SELECT CASE(kom2)
+       plotoption: SELECT CASE(kom2)
 !-----------------------------------------------------------
        CASE DEFAULT
           write(kou,*)'No such plot option'
@@ -4230,7 +4250,7 @@ contains
 !             call ocplot2(jp,axplot,plotfile,maptop,axarr,graphopt,form,ceq)
 !          endif
 !-----------------------------------------------------------
-! RANGE of both X and Y
+! SCALE_RANGE of both X and Y
        case(2)
           call gparcd('For X or Y axis? ',cline,last,1,ch1,'X',q1help)
           if(ch1.eq.'X' .or. ch1.eq.'x') then
@@ -4290,8 +4310,6 @@ contains
           endif
           goto 21100
 !-----------------------------------------------------------
-! no longer used ....
-!       case(3)
 21130     continue
           call gparcd('Default limits',cline,last,1,ch1,'N',q1help)
           if(ch1.eq.'Y' .or. ch1.eq.'y') then
@@ -4337,7 +4355,7 @@ contains
           write(*,*)'Not implemented yet'
           goto 21100
 !-----------------------------------------------------------
-! no longer used
+! unused
        case(5)
           write(*,*)'Not implemented yet'
           goto 21100
@@ -4375,7 +4393,31 @@ contains
           endif
 !-----------------------------------------------------------
 ! PLOT OUTPUT_FILE, always asked when changing terminal
+21140     continue
           call gparcd('Plot file',cline,last,1,plotfile,'ocgnu',q1help)
+          if(plotfile(1:6).ne.'ocgnu ') then
+             if(index(plotfile,'.').le.0) then
+! add extenstion depending on format
+                if(plotform(1:1).eq.'A') then
+                   filename=trim(plotfile)//'.pdf'
+                elseif(plotform(1:1).eq.'P') then
+                   filename=trim(plotfile)//'.ps '
+                elseif(plotform(1:1).eq.'G') then
+                   filename=trim(plotfile)//'.gif '
+                endif
+             endif
+             inquire(file=filename,exist=logok)
+             if(logok) then
+                call gparcd('File exists, overwrite?',&
+                     cline,last,1,ch1,'N',q1help)
+                if(ch1.ne.'Y') then
+                   write(*,133)
+                   plotfile=' '
+                   goto 21140
+                endif
+                write(*,134)trim(ocufile)
+             endif
+          endif
           goto 21100
 !-----------------------------------------------------------
 ! PLOT GIBBS_TRIANGLE
@@ -4565,7 +4607,7 @@ contains
 ! unused
        case(18)
           goto 21100
-       end SELECT
+       end SELECT plotoption
 !=================================================================
 ! HPCALC
     case(22)
@@ -4589,19 +4631,19 @@ contains
        nopt=i1
 !       write(*,606)'dead 1',mexp,nvcoeff,iexit
 606    format(a,10i4)
-! some optimires have no CONTINUE
-       if(optimizer.eq.1) iexit(4)=0
-       continue: if(mexp.gt.0 .and. iexit(4).eq.2) then
+! some optimizers have no CONTINUE
+!       if(optimizer.eq.1) iexit(4)=0
+!       continue: if(mexp.gt.0 .and. iexit(4).eq.2) then
 ! iexit(4) from previous optimize allows continue with same Jacobian
-          call gparcd('Continue with same Jacobian? ',cline,last,1,&
-               ch1,'Y',q1help)
-          if(ch1.eq.'Y') then
-             ient=1
-             goto 987
-          endif
-       endif continue
+!          call gparcd('Continue with same Jacobian? ',cline,last,1,&
+!               ch1,'Y',q1help)
+!          if(ch1.eq.'Y') then
+!             ient=1
+!             goto 987
+!          endif
+!       endif continue
 ! Initiate arrays when new optimization
-       ient=0
+!       ient=0
        if(.not.allocated(firstash%eqlista)) then
           write(kou,*)'There are no equilibria with experiments!'
           goto 100
@@ -4659,14 +4701,14 @@ contains
 ! caculate how big www is needed, it depends on mexp and nvcoeff
 ! Size of www from VA05AD 
 !             M*N         +(M+N)*N               +N      
-       nwc=mexp*nvcoeff+(mexp+nvcoeff)*nvcoeff+nvcoeff
+!       nwc=mexp*nvcoeff+(mexp+nvcoeff)*nvcoeff+nvcoeff
 !               +M   +N      +N*N            +N+M+N
-       j1=nwc+mexp+nvcoeff+nvcoeff*nvcoeff+2*nvcoeff+mexp
+!       j1=nwc+mexp+nvcoeff+nvcoeff*nvcoeff+2*nvcoeff+mexp
 !       allocate(www(j1))
-       if(maxw.lt.j1) then
-          write(*,*)'Too big problem, increase maxw, current value',maxw
-          goto 100
-       endif
+!       if(maxw.lt.j1) then
+!          write(*,*)'Too big problem, increase maxw, current value',maxw
+!          goto 100
+!       endif
 ! JUMP HERE IF CONTINUE optimization
 987    continue
 ! mexp    Number of experiments
@@ -4680,14 +4722,18 @@ contains
 569       format('Cannot optimize with zero experiments or coefficients',2i5)
           goto 100
        endif
-       write(*,558)mexp,nvcoeff,maxw
+       write(*,558)mexp,nvcoeff
 558    format(/'>>>   Start of optimization   >>>'/&
             'Experiments, coefficients and workspace: ',3(1x,i5))
 !
-       iprint=1
+!       iprint=1
 ! There is a va05ad emulator called lmdif ...
-       call va05ad(mexp,nvcoeff,errs,coefs,dstep,dmax2,acc,nopt,iprint,www,&
-            ient,iexit)
+!       call va05ad(mexp,nvcoeff,errs,coefs,dstep,dmax2,acc,nopt,iprint,www,&
+!            ient,iexit)
+! integer, parameter :: lwam=2500
+! integar iwam(lwam)
+! double precision wam(lwam)
+       call lmdif1(mexp,nvcoeff,coefs,errs,acc,nopt,iwam,wam,lwam)
 !       write(kou,559)iprint,iexit
 !559    format(/'Back from optimization',10i3/)
 ! we must copy the current scaled coefficients back to firstash%coeffvalues
@@ -4728,7 +4774,7 @@ contains
        write(kou,*)'Not implemented yet'
 !=================================================================
 !
-    END SELECT
+    END SELECT main
 ! command executed, prompt for another command unless error code
     if(gx%bmperr.eq.0) goto 100
 !============================================================
@@ -4938,7 +4984,7 @@ contains
           read(21,210,end=220)dummy
 210       format(a)
           goto 200
-! write not allowed after fininfg EOF, we must backspace
+! write not allowed after finding EOF, we must backspace
 220       continue
           backspace(21)
 ! write a header

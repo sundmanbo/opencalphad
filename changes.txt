@@ -13,6 +13,14 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2017.08.10 OC version 4.031: I found that changing an optimizing
+parameter did not automatically force a recalculation of all TP
+functions and model parameters depending on this but that is now fixed.
+
+Alex van der Walle pointed out some non-standard Fortran statements
+that has now been corrected.  He also provided a Makefile that should
+be simpler to use, it is included as Makefile-simple.
+
 2017.08.02 OC version 4.030: Started modifying the plotting to improve
 STEP/MAP.  The call to ocplot2 simplified as most data are now stored
 in the graphopt record.  BEWARE: the sub-commands to set the range of

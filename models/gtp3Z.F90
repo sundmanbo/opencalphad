@@ -147,12 +147,11 @@
 ! one should signal if T is lower than lowest limit or higher than highest
 ! used  saved reults if same T and P
 !
-! SURPRICE: removing the do loops reduces CPU time with 0.1 seconds ...
    if(lrot.le.0) then
       result=zero
       goto 1000
    elseif(btest(tpfuns(lrot)%status,TPCONST)) then
-! TP symbol is a constant, value stored in tpfuns(lrot)%linits(1)
+! TP symbol is a constant, value stored in tpfuns(lrot)%limits(1)
       result=zero
       result(1)=tpfuns(lrot)%limits(1)
 ! wow, we must not forget to store the constant in tpres(lrot)%results!
@@ -160,6 +159,8 @@
    else
 ! check if previous values can be used
       if(tpres(lrot)%forcenewcalc.eq.tpfuns(lrot)%forcenewcalc) then
+!         write(*,*)'3Z not recalculated: ',lrot,tpres(lrot)%forcenewcalc,&
+!              tpfuns(lrot)%forcenewcalc
          if(abs(tpres(lrot)%tpused(1)-tpval(1)).le.&
               mini*tpres(lrot)%tpused(1) .and. &
               (abs(tpres(lrot)%tpused(2)-tpval(2)).le.&
@@ -168,11 +169,13 @@
             goto 1000
          endif
 !      else
+!         write(*,*)'3Z forced recalc: ',lrot,tpres(lrot)%forcenewcalc,&
+!              tpfuns(lrot)%forcenewcalc
+      endif
 ! new values must be calculated
 !         write(*,23)'3Z new T,P: ',lrot,tpres(lrot)%tpused,tpval
 !23       format(a,i4,4(1pe12.4))
 !         result=zero
-      endif
    endif
 ! we must calculate the function
 !   write(*,35)'3Z new TPval:',lrot,tpfuns(lrot)%forcenewcalc,&
@@ -1043,7 +1046,7 @@
          dfdt=dfdt*tpval(2)**ipow
          ff=ff*tpval(2)**ipow
       endif
-!...power of symbols is handeled belown
+!...power of symbols is handeled below
 !       ipow=exprot%wpow(ic)
       ipow=exprot%plevel(ic)
 !...igore this at present, should never be set ...
@@ -1063,7 +1066,9 @@
          if(abs(tpres(link4)%tpused(1)-tpval(1)).lt.&
               mini*tpres(link4)%tpused(1) .and. &
               abs(tpres(link4)%tpused(2)-tpval(2)).lt.&
-              mini*tpres(link4)%tpused(2)) then
+              mini*tpres(link4)%tpused(2) .and. &
+! added test of forcenewcalc ...
+              tpres(link4)%forcenewcalc.eq.tpfuns(link4)%forcenewcalc) then
 ! function in link3-1000 is evaluated, multiply it with ff
             sym1=tpres(link4)%results(1)
             dsym1dt=tpres(link4)%results(2)
@@ -1081,6 +1086,7 @@
          else
 ! we must first evaluate link3, after that is done we come here again
 ! and take the else path below
+            tpres(link4)%forcenewcalc=tpfuns(link4)%forcenewcalc
             exprot%wpow(ic)=-1000+link
             link=link3-1000
             link4=link3
@@ -1107,7 +1113,10 @@
          linkif: if(abs(tpres(link)%tpused(1)-tpval(1)).lt.&
               mini*tpres(link)%tpused(1) .and. &
               abs(tpres(link)%tpused(2)-tpval(2)).lt.&
-              mini*tpres(link)%tpused(2)) then
+!              mini*tpres(link)%tpused(2)) then
+              mini*tpres(link)%tpused(2) .and. &
+! added this check as it seems new assessment coefficients are nor used!!
+              tpres(link)%forcenewcalc.eq.tpfuns(link)%forcenewcalc) then
 ! Valgrid complained about uninitial variable in if above, I do not know which
             jpow=exprot%wpow(ic)
 !---------------------------------------------
@@ -1117,7 +1126,10 @@
                jpowev: if(abs(tpres(link2)%tpused(1)-tpval(1)).lt.&
                     mini*tpres(link2)%tpused(1) .and. &
                     abs(tpres(link2)%tpused(2)-tpval(2)).lt.&
-                    mini*tpres(link2)%tpused(2)) then
+!                    mini*tpres(link2)%tpused(2)) then
+                    mini*tpres(link2)%tpused(2) .and. &
+! added this check as it seems new assessment coefficients are nor used!!
+                  tpres(link2)%forcenewcalc.eq.tpfuns(link2)%forcenewcalc) then
 ! both functions are evaluated, multiply the two functions here
 ! one function is in tpres(link)%results, the other in tpres(link2)%results
                   sym1=tpres(link)%results(1)
@@ -1140,8 +1152,10 @@
                   symval(1)=sym1*sym2
                else
 ! function link2 must be evaluated, push and calculate
+                  tpres(link2)%forcenewcalc=tpfuns(link2)%forcenewcalc
                   if(btest(tpfuns(link2)%status,TPCONST)) then
-!                     write(*,*)'Link to a constant 1'
+!                     write(*,*)'3Z Link to a constant 1',&
+!                          link2,tpfuns(link2)%limits(1)
                      becareful=link2
                      nullify(nyrot)
                   else
@@ -1202,9 +1216,10 @@
 ! which will call ct1efn again but this is handelled automatically?????
 ! One should add some check that two TP functions does not call each other
 ! to infinite depth.  Same as done above
+            tpres(link)%forcenewcalc=tpfuns(link)%forcenewcalc
             if(btest(tpfuns(link)%status,TPCONST)) then
 ! the function is a constant!!
-!               write(*,*)'Link to a constant 2'
+!               write(*,*)'3Z Link to a constant 2',link,tpfuns(link)%limits(1)
                becareful=link
             else
                call nested_tpfun(link,tpval,nyrot)
@@ -1295,16 +1310,21 @@
             if(abs(tpres(link2)%tpused(1)-tpval(1)).lt.&
                  mini*tpres(link2)%tpused(1) .and. &
                  abs(tpres(link2)%tpused(2)-tpval(2)).lt.&
-                 mini*tpres(link2)%tpused(2)) then
+!                 mini*tpres(link2)%tpused(2)) then
+                 mini*tpres(link2)%tpused(2) .and. &
+! added this check as it seems new assessment coefficients are nor used!!
+                 tpres(link2)%forcenewcalc.eq.tpfuns(link2)%forcenewcalc) then
                symval=tpres(link2)%results
             else
 ! one must evaluaste another function, it is recursive through eval_tpfun
 ! which will call ct1efn again but this is handelled automatically?????
 ! One should add some check that two TP functions does not call each other
 ! to infinite depth
+               tpres(link2)%forcenewcalc=tpfuns(link2)%forcenewcalc
                if(btest(tpfuns(link2)%status,TPCONST)) then
 ! the function is a constant!!
-!                  write(*,*)'The link is a constant 3'
+!                  write(*,*)'3Z link to a constant 3',link2,&
+!                       tpfuns(link2)%limits(1)
                   becareful=link2
                else
                   call nested_tpfun(link2,tpval,nyrot)
@@ -1899,7 +1919,7 @@
       call capson(lsym)
       do jss=1,freetpfun-1
 !         write(*,17)jss,lsym,tpfuns(jss)%symbol
-17       format('enter_tpfun: ',i5,' >,'a,'=',a,'?')
+17       format('enter_tpfun: ',i5,' >,',a,'=',a,'?')
          if(lsym.eq.tpfuns(jss)%symbol) then
             if(btest(tpfuns(jss)%status,TPNOTENT)) then
 ! function name already entered, now enter expression, this is from TDB files
@@ -2351,10 +2371,13 @@
 !\end{verbatim} %+
    implicit none
    integer mrot
+! it seems difficult to force recalculating all TP functions !!!
+!   write(*,*)'3Z GLAVESCUMG: ',tpfuns(125)%forcenewcalc
    do mrot=1,freetpfun-1
       tpfuns(mrot)%forcenewcalc=tpfuns(mrot)%forcenewcalc+1
    enddo
-!   write(*,*)'3Z all tpfuns will be recalculated'
+!   write(*,*)'3Z all tpfuns will be recalculated: ',freetpfun-1
+!   write(*,*)'3Z GLAVESCUMG: ',tpfuns(125)%forcenewcalc
    return
  end subroutine force_recalculate_tpfuns
 
@@ -3014,7 +3037,7 @@
    endif
    ctpf(mfun)%cfun%tbreaks=zero
    ctpf(mfun)%cfun%coefs=zero
-   ctpf(mfun)%cfun%tpows=zero
+   ctpf(mfun)%cfun%tpows=0
    do i1=1,ctpf(mfun)%nranges
       ctpf(mfun)%cfun%tbreaks(i1)=ctpf(lfun)%cfun%tbreaks(i1)
       do i2=1,maxnc
