@@ -70,6 +70,7 @@ n
 title map 3 fig 2
 out
 stable
+Y
 render
 
 @$---------------------------------------------------------
@@ -120,6 +121,7 @@ pos
 top left
 text 
 1.2 1100 
+0
 n 
 austenite
 

@@ -745,6 +745,8 @@
    endif
 ! quasichemical liquid: indicate status bit for bond clusters in phase_varres 
    if(cqc) then
+! clear the ideal bit
+      phlista(nyfas)%status1=ibclr(phlista(nyfas)%status1,PHID)
       do jk=1,size(phlista(nyfas)%constitlist)
 ! indexing is tricky ...
          ll=phlista(nyfas)%constitlist(jk)
@@ -1546,7 +1548,7 @@
 !
 !   write(*,*)'3B Free list 1: ',csfree,highcs,lokcs
 ! update phasetuple array, overwrite tuple.  This means tuples may change phase
-! NOTE the first tuple for a phase+compset will never change position.  Only
+! NOTE the first tuple for a phase+compset=1 will never change position.  Only
 ! those created later may be shifted ... but that may be complicated enough ...
 !   write(*,*)'3B Shifting phase tuples above deleted: ',tuple,nooftuples
 !   write(*,770)'3B1:',(jl,phasetuple(jl),jl=tuple-1,nooftuples)

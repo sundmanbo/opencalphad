@@ -13,6 +13,26 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2017.09.13 OC version 4.033: A whole month without updates!  This time
+there is a big thing, the "corrected quasichemical model" for liquids
+has been implemented (adding some new bugs).  The model was published
+2009 in Acta Mat by Hillert, Selleby and myself but it has never been
+available in any software as TC never approved of it.  Now we will try
+to use this model to assess a real system this time.  
+
+OC is now being compiled and used on several different
+hardware/OS/Fortran compilers by different users.  In some cases there
+are errors like "segmentation faults" that I cannot reproduce running
+the same macro file on my DELL with Windows and GNU Fortran.  I have
+also discovered differences with the GNU Fortran on my MAC/Linux and
+on Windows.  As the you as user have access the source code please try
+to detect more precisely where the error occurs so I can fix the code
+to avoid also bugs in the compilers and OS.
+
+2017.08.10 OC version 4.032: Added that one can change the relative
+lengths of the plot axis and the axis labels.  The texts in the plot
+can also be written at an angle.
+
 2017.08.10 OC version 4.031: I found that changing an optimizing
 parameter did not automatically force a recalculation of all TP
 functions and model parameters depending on this but that is now fixed.
@@ -30,8 +50,8 @@ there were individual sub-commands for the x and y axis.
 I have added a map13 macro to calculate the Al-Ni system using the 4
 sublattice model with partitioning and permutations.  There are
 spurious segmentation faults when plotting after using several
-STEP/MAP commands.  If you find this please send me a macro and data
-file.
+STEP/MAP commands.  If you find this please send me a macro that
+reproduces the error and necessary data file.
 
 The speed pf calculations with OC 4.030 has been compared with the
 first release of version 3 in 2016 and the current version is almost 3

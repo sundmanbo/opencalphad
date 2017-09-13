@@ -119,13 +119,14 @@ plot
 text
 0.46
 1000
+0
 n
 {/Symbol s}
-text n .03 1300 y 
+text n .03 1300 0 y 
 
-text n .4 1400 y 
+text n .4 1400 0 y 
 
-text n .2 2000 y 
+text n .2 2000 0 y 
 
 title map 11 fig 4
 

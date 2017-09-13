@@ -63,11 +63,12 @@ plot
 text
 0.47
 0.07
+0
 n
 {/Symbol s}
-text n 0.6 0.02 y
+text n 0.6 0.02 0 y
 
-text n 0.5 0.25 y
+text n 0.5 0.25 -30 y
 
 title map 10 fig 2
 

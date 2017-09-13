@@ -53,7 +53,7 @@ contains
 ! various symbols and texts
     character :: ocprompt*4='OC4:'
     character name1*24,name2*24,line*80,model*72,chshort
-    integer, parameter :: ocmonversion=31
+    integer, parameter :: ocmonversion=32
 ! element symbol and array of element symbols for database use
     character elsym*2,ellist(maxel)*2
 ! more texts for various purposes
@@ -355,7 +355,7 @@ contains
 !-------------------
 ! subcommands to PLOT OPTIONS/ GRAPHICS OPTIONS
     character (len=16), dimension(nplt) :: cplot=&
-        ['RENDER          ','SCALE_RANGES    ','                ',&
+        ['RENDER          ','SCALE_RANGES    ','RATIOS_XY       ',&
          'AXIS_LABELS     ','                ','TITLE           ',&
          'GRAPHICS_FORMAT ','OUTPUT_FILE     ','GIBBS_TRIANGLE  ',&
          'QUIT            ','POSITION_OF_KEYS','APPEND          ',&
@@ -1915,6 +1915,23 @@ contains
              dmin=zero
              dmax=one
           endif
+! reset to default plot options
+! plot ranges and their defaults
+          graphopt%gibbstriangle=.FALSE.
+          graphopt%rangedefaults=0
+          graphopt%labeldefaults=0
+          graphopt%plotmin=zero
+          graphopt%dfltmin=zero
+          graphopt%plotmax=one
+          graphopt%dfltmax=one
+          graphopt%appendfile=' '
+          graphopt%status=0
+          graphopt%labelkey='top right'
+          nullify(graphopt%firsttextlabel)
+          nullify(textlabel)
+          plotfile='ocgnu'
+          plotform=' '
+! end reset plot defaults
           call gparcd('Condition varying along axis: ',cline,last,1,&
                text,name1,q1help)
           call capson(text)
@@ -1928,6 +1945,8 @@ contains
              if(noofaxis.gt.1) then
                 noofaxis=noofaxis-1
                 write(kou,*)'One axis removed'
+! remove axplotdef for all axis!!! one may change from PD to step sep
+                axplotdef=' '
              endif
              goto 100
           else ! add or change axis variable
@@ -1968,6 +1987,8 @@ contains
 ! This is probably the only reference needed for the axis condition
                 axarr(iax)%seqz=pcond%seqz
                 axarr(iax)%more=0
+! remove axplotdef for all axis!!! 
+                axplotdef=' '
              else ! a condition given as text
 ! check if axis variable is a condition, maybe create it if allowed
 !                write(*,*)'decoding axis condition: ',text(1:20)
@@ -2007,6 +2028,8 @@ contains
                 axarr(iax)%seqz=pcond%seqz
 !                write(*,*)'Condition sequential index: ',axarr(iax)%seqz
                 axarr(iax)%more=0
+! remove axplotdef for all axis!!! 
+                axplotdef=' '
              endif
           endif removeaxis
 !          dmin=axvalold(1,iax)
@@ -2150,7 +2173,7 @@ contains
 3708         continue
 ! subroutine TOPHLP forces return with ? in position cline(last:last)
              write(kou,3709)globaldata%status
-3709         format('Current global status word: ',z8)
+3709         format('Current global status word (hexadecimal): ',z8)
              call gparid('Toggle global status bit (from 0-31, -1 quits):',&
                   cline,last,ll,-1,tophlp)
              if(cline(1:1).eq.'?') then
@@ -2176,7 +2199,7 @@ contains
                      '15  calculations in parallel is not allowed'/'-'/&
                      '16  no global test at node points durung STEP/MAP'/&
                      '17  the components are not the elements'/&
-                     '18  test calcúlated equilibrium with the grid minimizer')
+                     '18  test calculated equilibrium with the grid minimizer')
                 goto 3708
              endif
              if(ll.lt.0 .or. ll.gt.31) then
@@ -3960,6 +3983,19 @@ contains
 ! delete equilibria associated with STEP/MAP
              call delete_equilibria('_MAP*',ceq)
              seqxyz=0
+! remove all graphopt settings
+             graphopt%gibbstriangle=.FALSE.
+             graphopt%rangedefaults=0
+             graphopt%labeldefaults=0
+             graphopt%plotmin=zero
+             graphopt%dfltmin=zero
+             graphopt%plotmax=one
+             graphopt%dfltmax=one
+             graphopt%appendfile=' '
+             graphopt%status=0
+             graphopt%labelkey='top right'
+             nullify(graphopt%firsttextlabel)
+             nullify(textlabel)
           else
              seqxyz(1)=maptop%next%seqx
              seqxyz(2)=maptop%seqy
@@ -4077,6 +4113,19 @@ contains
              endif
 ! initiate indexing nodes and lines
              seqxyz=0
+! remove all graphopt settings
+             graphopt%gibbstriangle=.FALSE.
+             graphopt%rangedefaults=0
+             graphopt%labeldefaults=0
+             graphopt%plotmin=zero
+             graphopt%dfltmin=zero
+             graphopt%plotmax=one
+             graphopt%dfltmax=one
+             graphopt%appendfile=' '
+             graphopt%status=0
+             graphopt%labelkey='top right'
+             nullify(graphopt%firsttextlabel)
+             nullify(textlabel)
           else
 ! start indexing new noes/lines from previous 
 !             write(*,*)'mapnode: ',maptop%seqx,maptop%previous%seqx,&
@@ -4188,6 +4237,8 @@ contains
              graphopt%gibbstriangle=.FALSE.
              graphopt%labelkey='top right'
              plotform=' '
+! remember that labeldefaults(1) is the title!!!
+             graphopt%labeldefaults(iax+1)=0
 ! more options to restore ...
           endif
 ! remember axis as default
@@ -4215,7 +4266,8 @@ contains
        elseif(plotform(1:1).eq.'A') then
           write(kou,21113)trim(plotfile)
 21113     format(/' *** Graphics format is PDF on: ',a,'.pdf ')
-       else
+       elseif(index(plotfile,'.plt ').le.0) then
+! this is the default plot file name
           plotfile='ocgnu '
        endif
        write(kou,21112)
@@ -4234,6 +4286,7 @@ contains
           graphopt%pltax(1)=axplot(1)
           graphopt%pltax(2)=axplot(2)
           graphopt%filename=' '
+!          write(*,*)' >>>>>>>>>>>>> ',trim(plotfile)
           graphopt%filename=plotfile
           graphopt%pform=plotform
           call ocplot2(jp,maptop,axarr,graphopt,version,ceq)
@@ -4250,7 +4303,7 @@ contains
 !             call ocplot2(jp,axplot,plotfile,maptop,axarr,graphopt,form,ceq)
 !          endif
 !-----------------------------------------------------------
-! SCALE_RANGE of both X and Y
+! SCALE_RANGE of either X or Y
        case(2)
           call gparcd('For X or Y axis? ',cline,last,1,ch1,'X',q1help)
           if(ch1.eq.'X' .or. ch1.eq.'x') then
@@ -4270,7 +4323,7 @@ contains
 !             endif
              goto 21130
           else
-             write(kou,*)'Please answerc X or Y'
+             write(kou,*)'Please answer X or Y'
           endif
           goto 21100
 !............................................
@@ -4345,14 +4398,39 @@ contains
           endif
           goto 21100
 !-----------------------------------------------------------
-! unused
+! RATIOS of axis, normal values 1,1
        case(3)
-          write(*,*)'Not implemented yet'
+          call gparrd('X-axis plot ratio',cline,last,xxx,graphopt%xsize,q1help)
+          if(xxx.le.0.1) then
+             write(*,*)'Ratio set to 0.1'
+             xxx=0.1D0
+          endif
+          graphopt%xsize=xxx
+          call gparrd('Y-axis plot ratio',cline,last,xxx,graphopt%ysize,q1help)
+          if(xxx.le.0.1) then
+             write(*,*)'Ratio set to 0.1'
+             xxx=0.1D0
+          endif
+          graphopt%ysize=xxx
+!          write(*,*)'Not implemented yet'
           goto 21100
 !-----------------------------------------------------------
-! AXIS_TEXT
+! AXIS_LABELS
        case(4)
-          write(*,*)'Not implemented yet'
+          call gparcd('For X or Y axis? ',cline,last,1,ch1,'X',q1help)
+          if(ch1.eq.'X' .or. ch1.eq.'x') then
+             call gparcd('Axis label: ',cline,last,5,&
+                  graphopt%plotlabels(2),axplot(1),q1help)
+! remember that plotlabel(1) is the title
+             graphopt%labeldefaults(2)=len(graphopt%plotlabels(2))
+          elseif(ch1.eq.'Y' .or. ch1.eq.'y') then
+             call gparcd('Axis label: ',cline,last,5,&
+                  graphopt%plotlabels(3),axplot(2),q1help)
+! remember that plotlabel(1) is the title
+             graphopt%labeldefaults(3)=len(graphopt%plotlabels(3))
+          else
+             write(kou,*)'Please answer X or Y'
+          endif
           goto 21100
 !-----------------------------------------------------------
 ! unused
@@ -4404,6 +4482,10 @@ contains
                    filename=trim(plotfile)//'.ps '
                 elseif(plotform(1:1).eq.'G') then
                    filename=trim(plotfile)//'.gif '
+                else
+! just changing name of the GNUPLOT command file
+                   filename=trim(plotfile)//'.plt '
+                   plotfile=filename
                 endif
              endif
              inquire(file=filename,exist=logok)
@@ -4415,7 +4497,7 @@ contains
                    plotfile=' '
                    goto 21140
                 endif
-                write(*,134)trim(ocufile)
+                write(*,134)trim(filename)
              endif
           endif
           goto 21100
@@ -4478,8 +4560,9 @@ contains
                 jp=0
                 do while(associated(labelp))
                    jp=jp+1
-                   write(kou,2310)jp,labelp%xpos,labelp%ypos,labelp%textline
-2310               format(i3,2(1pe12.4),5x,a)
+                   write(kou,2310)jp,labelp%xpos,labelp%ypos,labelp%angle,&
+                        labelp%textline
+2310               format(i3,2(1pe12.4),2x,i4,5x,a)
                    labelp=>labelp%nexttextlabel
                 enddo
                 call gparid('Which text index?',cline,last,kl,1,q1help)
@@ -4498,11 +4581,14 @@ contains
                      labelp%xpos,q1help)
                 call gparrd('New Y position: ',cline,last,xxy,&
                      labelp%ypos,q1help)
+                call gparid('New angle (degrees): ',cline,last,j1,&
+                     labelp%angle,q1help)
                 if(buperr.ne.0) then
                    write(*,*)'Error reading coordinates'; goto 100
                 endif
                 labelp%xpos=xxx
                 labelp%ypos=xxy
+                labelp%angle=j1
 ! ask for more options
                 goto 21100
              endif
@@ -4510,6 +4596,7 @@ contains
 ! input a new label
           call gparrd('X position: ',cline,last,xxx,zero,q1help)
           call gparrd('Y position: ',cline,last,xxy,zero,q1help)
+          call gparid('Angle (degree): ',cline,last,j1,0,q1help)
           if(buperr.ne.0) then
              write(*,*)'Error reading coordinates'; goto 100
           endif
@@ -4543,6 +4630,7 @@ contains
           allocate(textlabel)
           textlabel%xpos=xxx
           textlabel%ypos=xxy
+          textlabel%angle=j1
           textlabel%textline=trim(text)
           if(associated(graphopt%firsttextlabel)) then
              textlabel%nexttextlabel=>graphopt%firsttextlabel

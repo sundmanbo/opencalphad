@@ -2754,6 +2754,130 @@
    do iel=1,noofel
 ! this is the reference phase for component iel
       phref=ceq%complist(iel)%phlink
+      if(kstv.eq.3) then
+! added when starting to handle P as variable.  V should not depend
+! on a reference state unless all have the same phase as reference
+!         write(*,*)'3F Reference for: ',iel,phref
+! removed as we should allow different reference stated for G and H
+         if(allcomp.eq.0) then
+            if(phref.gt.0) then
+               allcomp=phref
+            else
+! at least one component has no reference phase, ignore all refernce states
+               aref=zero
+               goto 900
+            endif
+         elseif(phref.ne.allcomp) then
+! different reference phases for the components, ignore the reference state
+!            write(*,*)'3F Ignoring reference state as not same for all'
+            aref=zero
+            goto 900
+! phref is same, continue the loop
+! ignore any user defined reference state for the other components
+         endif
+      endif
+! UNFINISHED ?? For integral properties, kstv=1..
+100   continue
+      if(phref.gt.0) then
+! we should use the phase index, not location in call below
+!         write(*,*)'3F ref.ph: ',phref,phlista(phref)%alphaindex
+         phref=phlista(phref)%alphaindex
+! special endmember call that returns G, G.T, G.P, G.T.T, G.T.P and G.P.P
+!         write(*,73)'3F R state: ',iel,phref,ceq%complist(iel)%endmember
+73       format(a,2i3,2x,10i4)
+!         write(*,*)'3F callcg_endmember 3: ',phref
+         call calcg_endmember6(phref,ceq%complist(iel)%endmember,gref,ceq)
+         if(gx%bmperr.ne.0) then
+            write(*,*)'3F Error return: ',gx%bmperr
+            goto 1000
+         endif
+         if(iph.gt.0) then
+! multiply with mole fractions of phase iph,ics
+            call calc_phase_molmass(iph,ics,xmol,wmass,tmol,tmass,bmult,ceq)
+         else
+! multiply with overall mole fractions
+            call calc_molmass(xmol,wmass,tmol,tmass,ceq)
+         endif
+! note xxx, bref and gref are arrays
+         xxx=bref+xmol(iel)*gref
+!         write(*,70)'3F rs: ',bref,gref,xxx,(xmol(ij),ij=1,noofel)
+70       format(a,6(1pe12.4)/,2(7x,6e12.4/),8(0pF8.4))
+         bref=xxx
+      else
+! this is not really needed, it is bref that is used below
+         gref=zero
+      endif
+   enddo
+! calculate the correct correction depending on kstv
+   if(kstv.eq.1) then
+! U = G - T*G.T - P*G.P
+      aref=bref(1)-ceq%tpval(1)*bref(2)-ceq%tpval(2)*bref(3)
+   elseif(kstv.eq.2) then
+! S = - G.T
+      aref=-bref(2)
+      
+   elseif(kstv.eq.3) then
+! V
+      aref=bref(3)
+      
+   elseif(kstv.eq.4) then
+! H = G - T*G.T
+      aref=bref(1)-ceq%tpval(1)*bref(2)
+      
+   elseif(kstv.eq.5) then
+! A = G - P*G.P
+      aref=bref(1)-ceq%tpval(2)*bref(3)
+      
+   elseif(kstv.eq.6) then
+! G
+      aref=bref(1)
+   endif
+900 continue
+!   write(*,75)kstv,aref
+75 format('3F ref:',i3,6(1pe12.4))
+1000 continue
+   return
+ end subroutine calculate_reference_state
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim} -
+ subroutine calculate_reference_state_old(kstv,iph,ics,aref,ceq)
+! Calculate the user defined reference state for extensive properties
+! kstv is the typde of property: 1 U, 2 S, 3 V, 4 H, 5 A, 6 G
+! It can be phase specific (iph.ne.0) or global (iph=0)
+! IMPORTANT
+! For integral quantitites (like calculated here) the reference state
+! is ignored unless all components have the same phase as reference (like Hmix)
+   implicit none
+   integer kstv,iph,ics
+   double precision aref
+   type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+! BIG BUG, the values of %gval is not restored!!
+! kstv=1  2  3  4  5  6 other values cared for elsewhere
+!      U  S  V  H  A  G
+   integer iel,phref,allcomp
+   double precision gref(6),bref(6),xmol(maxel),wmass(maxel),xxx(6)
+   double precision tmol,tmass,bmult
+!
+!   write(*,*)'Reference states not implemented yet'; goto 1000
+!   write(*,*)'3F reference state:',kstv,iph,ics
+   if(kstv.lt.1 .or. kstv.gt.6) then
+!      write(*,*)'3F No reference state for kstv: ',kstv
+      goto 1000
+   endif
+   aref=zero
+   bref=zero
+   gref=zero
+   xxx=zero
+   allcomp=0
+! loop for all components to extract the value of their reference states
+! Multiply that with the overall composition (iph=0) or the phase composition
+   xmol=zero
+   do iel=1,noofel
+! this is the reference phase for component iel
+      phref=ceq%complist(iel)%phlink
 !      write(*,*)'3F Reference for: ',iel,phref
 ! added when starting to handle P as variable.  V should not depend
 ! on a reference state unless all have the same phase as reference
@@ -2835,7 +2959,7 @@
 75 format('3F ref:',i3,6(1pe12.4))
 1000 continue
    return
- end subroutine calculate_reference_state
+ end subroutine calculate_reference_state_old
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

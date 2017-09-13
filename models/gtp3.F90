@@ -657,6 +657,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! FACT,  not create comp. sets (NOCS), Helmholz energy model (HELM),
 ! Model without 2nd derivatives (PHNODGDY2), Elastic model A,
 ! Subtract ordered part (PHSUBO), Flory-Huggins model (PHFHV)
+! Multi-use bit (together with some other) PHMULTI
   integer, parameter :: &
        PHHID=0,     PHIMHID=1,  PHID=2,    PHNOCV=3, &     ! 1 2 4 8 : 0/F
        PHHASP=4,    PHFORD=5,   PHBORD=6,  PHSORD=7, &     ! 
@@ -664,7 +665,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        PHAQ1=12,    PHDILCE=13, PHQCE=14,  PHCVMCE=15,&    ! 
        PHEXCB=16,   PHXGRID=17, PHFACTCE=18, PHNOCS=19,&   !
        PHHELM=20,   PHNODGDY2=21, PHELMA=22, PHSUBO=23,&   ! 
-       PHFHV=24                                            !
+       PHFHV=24,    PHMULTI=25                             !
 ! 
 !----------------------------------------------------------------
 !-Bits in constituent fraction (phase_varres) record STATUS2

@@ -2844,12 +2844,15 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine config_entropy_cqc(moded,ncon,phvar,phrec,tval)
-! calculates configurational entropy/R for the corrected quasichemial liquid
+ subroutine config_entropy_cqc_classicqc(moded,ncon,phvar,phrec,tval)
+!
+! calculates configurational entropy/R for the classical quasichemial liquid
+! DO NOT CHANGE ANYTHING!!
+!
 ! moded=0 only G, =1 G and dG/dy, =2 G, dG/dy and d2G/dy1/dy2
 ! ncon is number of constituents
 ! phvar is pointer to phase_varres record
-! phvar is the phaserecord record
+! phrec is the phase record
 ! tval is current value of T
    implicit none
    integer moded,ncon
@@ -2862,23 +2865,28 @@
 ! Then calculate the SRO: q_ij=(y_ij/(x_i*x_j)-1)*(x_i+x_j)**2
 ! and B=\sum_i x_i*ln(x_i)*(1-z + \sum_(j>i) (z/2-1)*f(q_ij))
 ! -S = A+B
-   integer icon,jcon,lokel,iel,nqij,kqij
-   double precision zhalf,yfra,ylog,cluster,ss,s2,stoi1,stoi2,xp,xs,gamma,x1,x2
+   integer icon,loksp,lokel,iel,nqij,kqij,qcmodel
+   double precision zhalf,yfra,ylog,cluster,sbonds,scorr,stoi1,stoi2
+   double precision xp,xs,gamma,x1,x2
    double precision, allocatable, dimension(:) :: xval,qij,ycluster,&
         dgamma,d2gamma
    double precision, allocatable, dimension(:,:) :: dxval,dqij
    integer, allocatable, dimension(:,:) :: qxij
    logical iscluster
+   double precision, parameter :: half=0.5D0
 !
-   zhalf=5.0D-1*phvar%qcbonds
+! qcmodel=1 is classical qc without LRO, 2 is q**2, 3 is 0.5*(1+q)*q**2
+   qcmodel=1
+!
+   zhalf=half*phvar%qcbonds
    allocate(xval(noofel))
    allocate(dxval(noofel,ncon))
    allocate(ycluster(noofel))
    xval=zero
    dxval=zero
-!   write(*,*)'3X quasichemical!',zhalf
+!   write(*,*)'3X classical quasichemical!',zhalf
 !
-   ss=zero
+   sbonds=zero
    nqij=0
    do icon=1,ncon
       yfra=phvar%yfr(icon)
@@ -2886,9 +2894,9 @@
       if(yfra.gt.one) yfra=one
 ! if set the constituent is a binary cluster
       if(btest(phvar%constat(icon),CONQCBOND)) then
-         cluster=5.0D-1
+         cluster=half
          iscluster=.TRUE.
-         write(*,*)'3X CQC0: ',iscluster,yfra
+!         write(*,*)'3X CQC0: ',qcmodel,iscluster,yfra
       else
          cluster=one
          iscluster=.FALSE.
@@ -2901,33 +2909,37 @@
 ! dgval(3,1:N,1) are derivatives of G wrt fraction 1:N and P
 ! d2dval(ixsym(N*(N+1)/2),1) are derivatives of G wrt fractions N and M
 ! this is a symmetric matrix and index givem by ixsym(M,N)
-      ss=ss+yfra*ylog
+      sbonds=sbonds+zhalf*yfra*ylog
       if(moded.gt.0) then
          phvar%dgval(1,icon,1)=zhalf*(one+ylog)
-         phvar%d2gval(ixsym(icon,icon),1)=zhalf/yfra
+         phvar%d2gval(ixsym(icon,icon),1)=zhalf/(yfra)
+! These should be the correct derivatives but with these it does not converge!!
+!         phvar%dgval(1,icon,1)=zhalf*(one/cluster+ylog)
+!         phvar%d2gval(ixsym(icon,icon),1)=zhalf/(cluster*yfra)
+! DO NOT CHANGE ANYTHING!!
       endif
-! jcon is set to the index of the species array
-      jcon=phrec%constitlist(icon)
-      lokel=splista(jcon)%ellinks(1)
+! loksp is set to the index of the species array
+      loksp=phrec%constitlist(icon)
+      lokel=splista(loksp)%ellinks(1)
 !      if(btest(phvar%constat(icon),CONQCBOND)) then
       if(iscluster) then
          nqij=nqij+1
+         ycluster(nqij)=yfra
 ! if a bond cluster there must be two elements         
 ! lokel is index in ellista of first element, iel is its alphabetical index
          iel=ellista(lokel)%alphaindex
-         stoi1=splista(jcon)%stoichiometry(1)
-         stoi2=splista(jcon)%stoichiometry(2)
+         stoi1=splista(loksp)%stoichiometry(1)
+         stoi2=splista(loksp)%stoichiometry(2)
          xval(iel)=xval(iel)+stoi1/(stoi1+stoi2)*yfra
          dxval(iel,icon)=stoi1/(stoi1+stoi2)
 !         write(*,60)'3X qc 3A: ',iel,xval(iel),yfra
-         lokel=splista(jcon)%ellinks(2)
+         lokel=splista(loksp)%ellinks(2)
          iel=ellista(lokel)%alphaindex
          xval(iel)=xval(iel)+stoi2/(stoi1+stoi2)*yfra
-         ycluster(nqij)=yfra
          dxval(iel,icon)=stoi2/(stoi1+stoi2)
 !         write(*,60)'3X qc 3B: ',iel,xval(iel),yfra
       else
-         lokel=splista(jcon)%ellinks(1)
+         lokel=splista(loksp)%ellinks(1)
          iel=ellista(lokel)%alphaindex
          xval(iel)=xval(iel)+yfra
          dxval(iel,icon)=one
@@ -2935,117 +2947,285 @@
       endif
    enddo
 !----------------------------------------
-! now we know xval so we can calculate qij
+! We do not need qij = y_ij/(2x_ix_j) - 1
+! The correction term is composition independent 1-z
+   gamma=one-2.0D0*zhalf
+! Some elements may not be dissolved in this phase ??
+   scorr=zero
+   do iel=1,noofel
+      yfra=xval(iel)
+      if(yfra.le.bmpymin) yfra=bmpymin
+      if(yfra.gt.one) yfra=one
+      ylog=log(yfra)
+      scorr=scorr+yfra*ylog
+! WE MUST ALSO CALCULATE DERIVATIVES OF x_i USING CHAIN RULE
+! DO NOT CHANGE ANYTHING!!
+      if(moded.gt.0) then
+         do icon=1,ncon
+            phvar%dgval(1,icon,1)=phvar%dgval(1,icon,1)+&
+                 gamma*(one+ylog)*dxval(iel,icon)
+            do loksp=icon,ncon
+               phvar%d2gval(ixsym(icon,loksp),1)=&
+                    phvar%d2gval(ixsym(icon,loksp),1)+&
+                    gamma*dxval(iel,icon)*dxval(iel,loksp)/yfra
+            enddo
+         enddo
+      endif
+   enddo
+! now all is calculated gval(1,1)=G; gval(2,1)=S etc
+! DO NOT CHANGE ANYTHING!!
+   phvar%gval(1,1)=sbonds+gamma*scorr
+   phvar%gval(2,1)=(sbonds+gamma*scorr)/tval
+   write(*,12)'3X QC1: ',qcmodel,phvar%gval(1,1),phvar%gval(2,1),gamma,&
+        zhalf,sbonds,scorr
+12 format(a,i2,6(1pe11.3))
+!
+1000 continue
+   return
+ end subroutine config_entropy_cqc_classicqc
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine config_entropy_cqc(moded,ncon,phvar,phrec,tval)
+!
+! 3rd attempt to calculate config entropy/R for the new quasichemial liquid
+!
+! moded=0 only G, =1 G and dG/dy, =2 G, dG/dy and d2G/dy1/dy2
+! ncon is number of constituents
+! phvar is pointer to phase_varres record
+! phrec is the phase record
+! tval is current value of T
+   implicit none
+   integer moded,ncon
+   TYPE(gtp_phase_varres), pointer :: phvar
+   TYPE(gtp_phaserecord) :: phrec
+   double precision tval
+!\end{verbatim}
+! First A=(z/2)*(\sum_i (y_ii*ln(y_ii) + \sum_(j>=i) y_ij*ln(y_ij/2))
+! and calculate all x_i = y_ii + \sum_j a/(a+b)*y_ij
+! Then calculate the SRO: q_ij=(y_ij/(x_i*x_j)-1)*(x_i+x_j)**2
+! and B=\sum_i x_i*ln(x_i)*(1-z + \sum_(j>i) (z/2-1)*f(q_ij))
+! -S = A+B
+   integer icon,loksp,lokel,iel,nqij,kqij,qcmodel,pqij
+   double precision zhalf,yfra,ylog,cluster,sbonds,scorr,stoi1,stoi2
+   double precision xp,xs,gamma,x1,x2
+   double precision, allocatable, dimension(:) :: xval,qij,dgamma,d2gamma
+   double precision, allocatable, dimension(:,:) :: dxval,dqij,d2qij
+   integer, allocatable, dimension(:,:) :: qxij,qyij
+   integer, allocatable, dimension(:) ::constx,ely
+   logical iscluster
+   double precision, parameter :: half=0.5D0
+!
+! qcmodel=1 is classical qc without LRO, 2 is q**2, 3 is 0.5*(1+q)*q**2
+   qcmodel=3
+!
+   if(ncon.gt.3) stop 'ONLY FOR BINARY QUASCHEMICAL'
+   zhalf=half*phvar%qcbonds
+   allocate(xval(noofel))
+   allocate(dxval(noofel,ncon))
+   allocate(ely(ncon))
+! this assumes the liquid dissolves all components
+   allocate(constx(noofel))
+   xval=zero
+   dxval=zero
+!
+! STEP 1: Calculate the entropy from mixing the bond fractions, y_ii and y_ij   
+! NOTE all constituents are a single atom, bonds are A_aB_b with a+b=1
+   sbonds=zero
+   nqij=0
+   do icon=1,ncon
+      yfra=phvar%yfr(icon)
+      if(yfra.lt.bmpymin) yfra=bmpymin
+      if(yfra.gt.one) yfra=one
+! if set the constituent is a binary cluster
+      if(btest(phvar%constat(icon),CONQCBOND)) then
+         cluster=half
+         iscluster=.TRUE.
+!         write(*,*)'3X CQC0: ',qcmodel,iscluster,yfra
+      else
+         cluster=one
+         iscluster=.FALSE.
+      endif
+! entropy is y*ln(y) for single atoms, y*ln(y/2) for clusters
+      ylog=log(cluster*yfra)
+! gval(1:6,1) are G and derivator wrt T and P
+! dgval(1,1:N,1) are derivatives of G wrt fraction 1:N
+! dgval(2,1:N,1) are derivatives of G wrt fraction 1:N and T
+! dgval(3,1:N,1) are derivatives of G wrt fraction 1:N and P
+! d2dval(ixsym(N*(N+1)/2),1) are derivatives of G wrt fractions N and M
+! this is a symmetric matrix and index givem by ixsym(M,N)
+      sbonds=sbonds+zhalf*yfra*ylog
+      if(moded.gt.0) then
+! derivatives of y_ij should be simple but IGNORE the CLUSTER value!!
+!         phvar%dgval(1,icon,1)=zhalf*(one/cluster+ylog)
+!         phvar%d2gval(ixsym(icon,icon),1)=zhalf/(cluster*yfra)
+         phvar%dgval(1,icon,1)=zhalf*(one+ylog)
+         phvar%d2gval(ixsym(icon,icon),1)=zhalf/(yfra)
+      endif
+! loksp is set to the index of the species array
+      loksp=phrec%constitlist(icon)
+      lokel=splista(loksp)%ellinks(1)
+!      if(btest(phvar%constat(icon),CONQCBOND)) then
+      if(iscluster) then
+         nqij=nqij+1
+! in a bond cluster there must be two elements         
+! lokel is ellista record index, iel is its alphabetical index
+         iel=ellista(lokel)%alphaindex
+         stoi1=splista(loksp)%stoichiometry(1)
+         stoi2=splista(loksp)%stoichiometry(2)
+         xval(iel)=xval(iel)+stoi1/(stoi1+stoi2)*yfra
+         dxval(iel,icon)=stoi1/(stoi1+stoi2)
+!         write(*,60)'3X qc 3A: ',iel,xval(iel),yfra
+         lokel=splista(loksp)%ellinks(2)
+         iel=ellista(lokel)%alphaindex
+         xval(iel)=xval(iel)+stoi2/(stoi1+stoi2)*yfra
+         dxval(iel,icon)=stoi2/(stoi1+stoi2)
+!         write(*,60)'3X qc 3B: ',iel,xval(iel),yfra
+      else
+         lokel=splista(loksp)%ellinks(1)
+         iel=ellista(lokel)%alphaindex
+! save the crossindices of the constituent and element
+         ely(icon)=iel
+         constx(iel)=icon
+         xval(iel)=xval(iel)+yfra
+         dxval(iel,icon)=one
+!         write(*,60)'3X qc 3C: ',iel,xval(iel),yfra
+      endif
+   enddo
+!   write(*,12)'3X CQC step 1 OK',qcmodel,sbonds,xval
+!   write(*,12)'3X dx:',qcmodel,(dxval(iel,1),dxval(iel,2),dxval(iel,3),iel=1,2)
+!----------------------------------------
+! STEP 2: The correction term, we have a single cluster qij
    allocate(qij(nqij))
-   allocate(qxij(nqij,2))
    allocate(dqij(nqij,ncon))
+   icon=ncon*(ncon+1)/2
+   allocate(d2qij(nqij,icon))
+   allocate(qxij(nqij,2))
+   allocate(qyij(nqij,2))
    qij=zero
    dqij=zero
+   d2qij=zero
    nqij=0
-   write(*,11)'3X CQC1: ',zhalf,xval(1),xval(2),ss
-11 format(a,6(1pe12.4))
+! STEP 2A: Calculate the SRO: q_ij = y_ij/(2*x_ix_j) -1
+! we have calculated all x_i above
    do icon=1,ncon
       if(btest(phvar%constat(icon),CONQCBOND)) then
-! we fetch again the element indices, maybe we should save first time?
          nqij=nqij+1
-         jcon=phrec%constitlist(icon)
-         lokel=splista(jcon)%ellinks(1)
+         loksp=phrec%constitlist(icon)
+         lokel=splista(loksp)%ellinks(1)
          iel=ellista(lokel)%alphaindex
          x1=xval(iel)
          qxij(nqij,1)=iel
-         lokel=splista(jcon)%ellinks(2)
+         qyij(nqij,1)=constx(iel)
+! second element         
+         lokel=splista(loksp)%ellinks(2)
          iel=ellista(lokel)%alphaindex
          qxij(nqij,2)=iel
+         qyij(nqij,2)=constx(iel)
          x2=xval(iel)
          xs=x1+x2
          xp=x1*x2
          yfra=phvar%yfr(icon)
          if(yfra.lt.bmpymin) yfra=bmpymin
          if(yfra.gt.one) yfra=one
-         qij(nqij)=(yfra/(2*xp)-one)*xs**2
-!         write(*,60)'3X qc 5:  ',nqij,yfra,xp,xs,qij(nqij)
-60       format(a,i3,3F8.5,4(1pe12.4))
-! this is the leading term in dqij/dyij ...maybe more
-         dqij(nqij,icon)=5.0D-1*xs**2/xp
+! SRO contribution for this cluster ONLY FOR BINARY, otherwise multiply with xs
+! NOTE SRO can be negative if we have demixing
+         qij(nqij)=yfra/(2*xp)-one
+! This derivative is for the cluster itself
+         dqij(nqij,ncon)=one/(2*xp)-(qij(nqij)+one)*xs/xp
       endif
    enddo
-! save values of SRO
-   if(.not.allocated(phvar%qcsro)) then
-      allocate(phvar%qcsro(nqij))
-   endif
-   phvar%qcsro=qij
-   if(moded.gt.0) then
-      do kqij=1,nqij
-         do icon=1,ncon
-            x1=xval(qxij(kqij,1))
-            x2=xval(qxij(kqij,2))
-            xs=x1+x2
-            xp=x1*x2
+!   write(*,12)'3X CQC order: ',qcmodel,qij,dqij
+! We have to make a second loop though all constituents to calculate dqij
+   pqij=0
+   do icon=1,ncon
+      if(btest(phvar%constat(icon),CONQCBOND)) then
+! This is not needed as long as we calculate a binary but when we have
+! several clusters we have x_i = y_ii + \sum_i\sum_j 0.5 y_ij
+         pqij=pqij+1
+!         dqij(pqij,icon)=dqij(pqij,icon)-...
+         continue
+      else
+! A constituent for a single element
+         do kqij=1,nqij
             dqij(kqij,icon)=dqij(kqij,icon)-&
-                 (5.0D-1*ycluster(kqij)*(xs/xp)**2+2*qij(kqij)/xs)*&
-                 (x1*dxval(qxij(kqij,2),icon)+x2*dxval(qxij(kqij,1),icon))
+                 (qij(kqij)+one)/xval(ely(icon))*dxval(ely(icon),icon)
          enddo
-      enddo
-   endif
-!----------------------------------
-! now the correction factor, including f(q_ij), sufficient to loop over nqij!
-   gamma=one-2.0D0*zhalf
+      endif
+   enddo
+!   write(*,12)'3X CQC dqij: ',nqij,qij,dqij
+!-----------------------------------
+! STEP 3A: The correction term is 1-z + (z/2-1) 0.5 \sum_ij (q_ij+1)*q_ij**2
    allocate(dgamma(ncon))
-   allocate(d2gamma(ncon*(ncon+1)))
+   icon=ncon*(ncon+1)/2
+   allocate(d2gamma(icon))
+   gamma=zero
    dgamma=zero
+   d2gamma=zero
    do kqij=1,nqij
-! first model
-!      gamma=gamma+(zhalf-one)*qij(icon)**2
-! second model
-      gamma=gamma+(zhalf-one)*5.0D-1*(one+qij(kqij))*qij(kqij)**2
-      if(moded.eq.0) cycle
+      gamma=gamma+0.5*(zhalf-one)*(one+qij(kqij))*qij(kqij)**2
       do icon=1,ncon
-         dgamma(icon)=dgamma(icon)+(zhalf-one)*qij(kqij)*&
-              (one+1.5D0*qij(kqij))*dqij(kqij,icon)
-         do jcon=icon+1,ncon
-            d2gamma(ixsym(icon,jcon))=d2gamma(ixsym(icon,jcon))+&
-                 (one+3.0D0*qij(kqij))*dqij(kqij,icon)*dqij(kqij,jcon)
+         dgamma(icon)=dgamma(icon)+&
+              (zhalf-one)*qij(kqij)*(one+1.5D0*qij(kqij))*dqij(kqij,icon)
+         do loksp=icon,ncon
+            d2gamma(ixsym(icon,loksp))=d2gamma(ixsym(icon,loksp))+&
+                 (zhalf-one)*(one+3.0d0*qij(kqij))*&
+                 dqij(kqij,icon)*dqij(kqij,loksp)
+! we ignore d2qij
          enddo
       enddo
    enddo
-!--------------------------------------
-! Finally the correction term using gamma*\sum_i x_i*ln(x_i)
+!   write(*,12)'3X CQC gamma: ',qcmodel,gamma,dgamma
+!   write(*,12)'3X d2g: ',qcmodel,d2gamma
+   if(btest(phrec%status1,PHMULTI)) then
+! setting this to zero means classical model with correction 1-z
+      gamma=zero
+   endif
+! These are set to zero because they are wrong in some way I do not understand
+   dgamma=zero
+   d2gamma=zero
+! STEP 3B sum_i x_i ln(x_i)
 ! Some elements may not be dissolved in this phase ??
-   s2=zero
+   scorr=zero
    do iel=1,noofel
       yfra=xval(iel)
       if(yfra.le.bmpymin) yfra=bmpymin
       if(yfra.gt.one) yfra=one
       ylog=log(yfra)
-      s2=s2+gamma*yfra*ylog
-! WE MUST ALSO CALCULATE DERIVATIVES USING CHAIN RULE
-      if(moded.gt.0) then
+      scorr=scorr+yfra*ylog
+   enddo
+! now all is calculated gval(1,1)=G; gval(2,1)=S etc
+   phvar%gval(1,1)=sbonds+(one-2.0D0*zhalf+gamma)*scorr
+   phvar%gval(2,1)=(sbonds+(one-2.0D0*zhalf+gamma)*scorr)/tval
+   if(moded.gt.0) then
+! Derivatives of gamma*\sum_i x_i ln(x_i)
+      do iel=1,noofel
+         yfra=xval(iel)
+         if(yfra.le.bmpymin) yfra=bmpymin
+         if(yfra.gt.one) yfra=one
+         ylog=log(yfra)
          do icon=1,ncon
             phvar%dgval(1,icon,1)=phvar%dgval(1,icon,1)+&
-                 gamma*(one+ylog)*dxval(iel,icon)
-            do jcon=icon,ncon
-               phvar%d2gval(ixsym(icon,jcon),1)=&
-                    phvar%d2gval(ixsym(icon,jcon),1)+&
-                    dgamma(icon)*(one+ylog)*dxval(iel,jcon)+&
-                    dgamma(jcon)*(one+ylog)*dxval(iel,icon)
+                 (one-2.0D0*zhalf+gamma)*(one+ylog)*dxval(iel,icon)+&
+                 dgamma(icon)*scorr
+            do loksp=icon,ncon
+               phvar%d2gval(ixsym(icon,loksp),1)=&
+                    phvar%d2gval(ixsym(icon,loksp),1)+&
+                    (one-2.0D0*zhalf+gamma)*dxval(iel,icon)*&
+                    dxval(iel,loksp)/yfra+&
+                    dgamma(icon)*(one+ylog)*dxval(iel,loksp)+&
+                    dgamma(loksp)*(one+ylog)*dxval(iel,icon)+&
+                    d2gamma(ixsym(icon,loksp))*scorr
             enddo
-         enddo
-      endif
-   enddo
-! now all is calculated
-   phvar%gval(1,1)=zhalf*ss+s2
-   if(moded.gt.0) then
-      do icon=1,ncon
-         phvar%dgval(1,icon,1)=phvar%dgval(1,icon,1)+dgamma(icon)*s2
-         do jcon=icon,ncon
-            phvar%d2gval(ixsym(icon,jcon),1)=&
-                 phvar%d2gval(ixsym(icon,jcon),1)+d2gamma(ixsym(icon,jcon))*s2
          enddo
       enddo
    endif
-! %gval
-   write(*,11)'3X CQC9: ',phvar%gval(1,1),gamma,ss,s2
-! MISSING we have to calculate derivatives wrt T!!!
+!   write(*,12)'3X CQC9: ',qcmodel,phvar%gval(1,1),phvar%gval(2,1),gamma,&
+!        zhalf,sbonds,scorr
+!   write(*,12)'3X d2G: ',ncon*(ncon+1)/2,(phvar%d2gval(icon,1),icon=1,6)
+12 format(a,i2,6(1pe11.3))
+!
 1000 continue
    return
  end subroutine config_entropy_cqc
