@@ -1,21 +1,28 @@
-OBJS=liboctq.o liboctqisoc.o
-EXE=tqintf
-LIBS=../..
+EXE=tqcpptest1
+LIBS=../../..
+CFLAGS=-lstdc++
+#UNCOMMENT THE NEXT LINE IF YOU WANT TO COMPILE OPENCALPHAD IN PARALLEL
+#CFLAGS+=-fopenmp
+
+#==============================================================================#
+
+#Available compilation flags: all, clean
 
 .PHONY : all clean
+
+#Compiles OpenCalphad's OCASI examples as standalone binary executable
+#software.
 
 all:
 	make $(EXE)
 
+#Removes all binary files that were created in the compiling step.
+
 clean:
 	rm -f *.o *.mod $(EXE)
 
-liboctq.o:	../liboctq.F90
-	gfortran -c -g -I$(LIBS) ../liboctq.F90
-
-liboctqisoc.o:	liboctqisoc.F90
-	gfortran -c -g -I$(LIBS) liboctqisoc.F90
+#==============================================================================#
 
 $(EXE): $(OBJS)
-	gcc -o $(EXE) -lstdc++ $(EXE).cpp liboctqisoc.o liboctq.o ../../liboceq.a -lgfortran -lm
-	gcc -c -I../.. $(EXE).cpp
+	g++ -o $(EXE) $(CFLAGS) $(EXE).cpp -L$(LIBS) -loctq-isoc -lgfortran -lm
+	g++ -c -I../.. $(EXE).cpp
