@@ -13,6 +13,20 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2017.09.13 OC version 4.034: This time I have added a possibility to
+edit the command line a la emacs and also to keep a short history of
+commands.  That is always possible on Windows and as I am frustrated
+with the fact that my MAC does not have the same I managed to find a C
+routine that can read input character by character and allow editing.
+To have this you have to follow the guide Why-and-Howto-stall-getkey
+that is provided in the documentation directory.  Do not attempt this
+unless you are an experienced UNIX user.
+
+Otherwise some bugs has been fixed and modifications of the
+quasichemical model.  I have also added possibilities to define more
+GNUPLOT terminals, both in the source code and interactivly.  I am a
+bit disappointed that the MAC does not have so many.
+
 2017.09.13 OC version 4.033: A whole month without updates!  This time
 there is a big thing, the "corrected quasichemical model" for liquids
 has been implemented (adding some new bugs).  The model was published

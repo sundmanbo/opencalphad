@@ -5,7 +5,7 @@ all: $(EXE)
 
 
 pmain1.F90: linkocdate.F90
-	gfortran -O2 -o linkoc linkocdate.F90
+	gfortran -o linkoc linkocdate.F90
 	./linkoc
 
 metlib3.o:	utilities/metlib3.F90

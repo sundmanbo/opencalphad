@@ -3047,6 +3047,9 @@
 17 format(a,i3,2x,a,i3)
    call gparc('Symbol name: ',cline,last,ichar('='),name2,' ',q1help)
    call capson(name2)
+   if(name2(1:1).eq.' ') then
+      gx%bmperr=4137; goto 1000
+   endif
 !   write(*,*)'3F enter_svfun: ',last,name2,':',cline(1:10)
    if(.not.proper_symbol_name(name2,0)) goto 1000
    do ks=1,nsvfun

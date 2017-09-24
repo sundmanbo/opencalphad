@@ -24,7 +24,7 @@ gtp3.o:	models/gtp3.F90
 	gfortran -c -O2 -fopenmp models/gtp3.F90
 
 matsmin.o:	minimizer/matsmin.F90
-	gfortran -c -O2 -fopenmp -finit-local-zero minimizer/matsmin.F90
+	gfortran -c -O2 -fopenmp minimizer/matsmin.F90
 
 smp2.o:		stepmapplot/smp2.F90
 	gfortran -c -O2 stepmapplot/smp2.F90

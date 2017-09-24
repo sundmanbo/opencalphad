@@ -259,7 +259,7 @@ contains
          'CONSTITUTION    ','EXPERIMENT      ','QUIT            ',&
          'EQUILIBRIUM     ','SYMBOL          ','OPTIMIZE_COEFF  ',&
          'COPY_OF_EQUILIB ','COMMENT         ','MANY_EQUILIBRIA ',&
-         'MATERIAL        ','PLOT_DATA       ','                ',&
+         'MATERIAL        ','PLOT_DATA       ','GNUPLOT_TERMINAL',&
          '                ','                ','                ']
 !-------------------
 ! subcommands to READ
@@ -416,6 +416,28 @@ contains
     nullify(textlabel)
     plotfile='ocgnu'
     plotform=' '
+! default plot terminal, replaces plotform
+    graphopt%gnutermsel=1
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+! Edit these as they may not be available on your systems
+    graphopt%gnutermid(1)='SCREEN '
+    graphopt%gnuterminal(1)='xterm persist '
+    graphopt%filext(1)='  '
+    graphopt%gnutermid(2)='PS  '
+    graphopt%gnuterminal(2)='postscript color solid '
+    graphopt%filext(2)='ps  '
+    graphopt%gnutermid(3)='PDF '
+    graphopt%gnuterminal(3)='pdf color solid'
+    graphopt%filext(3)='pdf  '
+    graphopt%gnutermid(4)='GIF  '
+    graphopt%gnuterminal(4)='gif '
+    graphopt%filext(4)='gif  '
+    graphopt%gnutermax=4
+    graphopt%gnutermid(5)=' '
+    graphopt%gnutermid(6)=' '
+    graphopt%gnutermid(7)=' '
+    graphopt%gnutermid(8)=' '
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 ! default list unit
     optionsset%lut=kou
 ! default for list short
@@ -1930,6 +1952,8 @@ contains
           nullify(graphopt%firsttextlabel)
           nullify(textlabel)
           plotfile='ocgnu'
+! default plot terminal, replaces plotform
+          graphopt%gnutermsel=1
           plotform=' '
 ! end reset plot defaults
           call gparcd('Condition varying along axis: ',cline,last,1,&
@@ -2447,7 +2471,8 @@ contains
 !         'CONSTITUTION    ','EXPERIMENT      ','QUIT            ',&
 !         'EQUILIBRIUM     ','SYMBOL          ','OPTIMIZE_COEFF  ',&
 !         'COPY_OF_EQUILIB ','COMMENT         ','MANY_EQUILIBRIA ',&
-!         'MATERIAL        ','                ','                ']
+!         'MATERIAL        ','PLOT_DATA       ','GNUPLOT_TERMINAL',&
+!         '                ','                ','                ']
     CASE(4)
 ! disable continue optimization
 !       iexit=0
@@ -2702,9 +2727,42 @@ contains
              write(kou,*)'No plotdata file for dataset ',i1
           endif
 !---------------------------------------------------------------
-! enter not used
+! ENTER GNUPLOT_TERMINAL
        case(18)
-          write(*,*)'Not implemeneted yet'
+          write(kou,172)graphopt%gnutermax
+172       format('GNUPLOT terminals are:',i2)
+          write(kou,173)(i2,graphopt%gnutermid(i2),&
+               trim(graphopt%gnuterminal(i2)),i2=1,graphopt%gnutermax)
+173       format(i2,2x,a,' > set terminal ',a)
+          write(kou,174)
+174       format('Enter or change a GNUPLOT termial ')
+          call gparc('Termminal id (8 chars):',cline,last,1,text,' ',q1help)
+          call capson(text)
+          if(text(1:1).eq.' ') goto 100
+          do i1=1,graphopt%gnutermax
+             if(text(1:8).eq.graphopt%gnutermid(i1)) goto 176
+          enddo
+! gnutermid not found, a new terminal
+          if(graphopt%gnutermax.ge.8) then
+             write(kou,*)'There can max be 8 terminals'
+             goto 100
+          endif
+          i1=graphopt%gnutermax+1
+          graphopt%gnutermax=i1
+! enter a new set terminal id and definition
+176       continue
+          graphopt%gnutermid(i1)=text(1:8)
+          call gparc('Text after set terminal:',cline,last,5,text,' ',q1help)
+          graphopt%gnuterminal(i1)=text
+          if(i1.ne.1) then
+! SCREEN has no file extention
+             call gparc('File extention:',cline,last,1,text,' ',q1help)
+             graphopt%filext(i1)=text(1:4)
+          endif
+          write(*,179)i1,graphopt%gnutermid(i1),trim(graphopt%gnuterminal(i1)),&
+               trim(graphopt%filext(i1))
+179       format('New terminal definition for plot '/&
+               i2,2x,a,'set terminal ',a/4x,'with file extention: ',a)
 !----------------------------------------------------------------
 ! enter not used
        case(19)
@@ -4169,6 +4227,8 @@ contains
        if(gx%bmperr.ne.0) goto 990
 !=================================================================
 ! PLOT
+! Always specify the axis when giving this command, default is previous!!
+! Sunbommands comes after
     case(21)
        if(.not.associated(maptop)) then
           write(kou,*)'You must give a STEP or MAP command before PLOT'
@@ -4212,7 +4272,6 @@ contains
 !      7 TEXT TERMINATED BY SPACE OR "," BUT IGNORING SUCH INSIDE ( )
 !    >31, THE CHAR(JTYP) IS USED AS TERMINATING CHARACTER
 !------------------------------------------------------------------------
-! return here after each subcommand
 21000      continue
           if(iax.eq.1) then
              call gparcd('Horizontal axis variable',&
@@ -4236,10 +4295,12 @@ contains
              graphopt%appendfile=' '
              graphopt%gibbstriangle=.FALSE.
              graphopt%labelkey='top right'
+! default plot terminal, replaces plotform
+             graphopt%gnutermsel=1
              plotform=' '
 ! remember that labeldefaults(1) is the title!!!
              graphopt%labeldefaults(iax+1)=0
-! more options to restore ...
+! more options to restore ... ???
           endif
 ! remember axis as default
           axplotdef(iax)=axplot(iax)
@@ -4255,21 +4316,43 @@ contains
 !          write(*,*)'There is no maptopsave'
        endif
 !-----------------------------------------------------------
-! plot options subcommand, default is PLOT, NONE does not work ...
+! PLOT with subcommand, default is PLOT, NONE does not work ...
+! subcommands to PLOT OPTIONS/ GRAPHICS OPTIONS
+!    character (len=16), dimension(nplt) :: cplot=&
+!        ['RENDER          ','SCALE_RANGES    ','RATIOS_XY       ',&
+!         'AXIS_LABELS     ','                ','TITLE           ',&
+!         'GRAPHICS_FORMAT ','OUTPUT_FILE     ','GIBBS_TRIANGLE  ',&
+!         'QUIT            ','POSITION_OF_KEYS','APPEND          ',&
+!         'TEXT            ','TIE_LINES       ','KEEP            ',&
+!         'LOGSCALE        ','                ','                ']
+!-------------------
+! return here after each subcommand
 21100   continue
-       if(plotform(1:1).eq.'P') then
-          write(kou,21110)trim(plotfile)
-21110     format(/' *** Graphics format is PS on: ',a,'.ps ')
-       elseif(plotform(1:1).eq.'G') then
-          write(kou,21111)trim(plotfile)
-21111     format(/' *** Graphics format is GIF on: ',a,'.gif ')
-       elseif(plotform(1:1).eq.'A') then
-          write(kou,21113)trim(plotfile)
-21113     format(/' *** Graphics format is PDF on: ',a,'.pdf ')
-       elseif(index(plotfile,'.plt ').le.0) then
-! this is the default plot file name
-          plotfile='ocgnu '
+       if(graphopt%gnutermsel.lt.1 .or. &
+            graphopt%gnutermsel.gt.graphopt%gnutermax) then
+          write(kou,*)'No such graphics terminal: ',graphopt%gnutermsel
+       elseif(graphopt%gnutermsel.ne.1) then
+          write(kou,2910)trim(graphopt%gnutermid(graphopt%gnutermsel)),&
+               trim(plotfile),trim(graphopt%filext(graphopt%gnutermsel))
+2910      format(/' *** Graphics format is ',a,' on file: ',a,'.',a)
        endif
+!       if(index(plotfile,'.plt ').le.0) then
+! this is the default plot file name
+!          plotfile='ocgnu '
+!       endif
+!       if(plotform(1:1).eq.'P') then
+!          write(kou,21110)trim(plotfile)
+!21110     format(/' *** Graphics format is PS on: ',a,'.ps ')
+!       elseif(plotform(1:1).eq.'G') then
+!          write(kou,21111)trim(plotfile)
+!21111     format(/' *** Graphics format is GIF on: ',a,'.gif ')
+!       elseif(plotform(1:1).eq.'A') then
+!          write(kou,21113)trim(plotfile)
+!21113     format(/' *** Graphics format is PDF on: ',a,'.pdf ')
+!       elseif(index(plotfile,'.plt ').le.0) then
+! this is the default plot file name
+!          plotfile='ocgnu '
+!       endif
        write(kou,21112)
 21112  format(/'Note: give only one option per line!')
        kom2=submenu('Options?',cline,last,cplot,nplt,1)
@@ -4288,12 +4371,12 @@ contains
           graphopt%filename=' '
 !          write(*,*)' >>>>>>>>>>>>> ',trim(plotfile)
           graphopt%filename=plotfile
-          graphopt%pform=plotform
           call ocplot2(jp,maptop,axarr,graphopt,version,ceq)
 !          call ocplot2(jp,axplot,plotfile,maptop,axarr,graphopt,plotform,&
 !               version,ceq)
           if(gx%bmperr.ne.0) goto 990
-! always restore default plot file name!!
+! always restore default plot file name and plot option to screem
+          graphopt%gnutermsel=1
           graphopt%filename='ocgnu '
           plotfile='ocgnu'
 !          call gparc('Hardcopy (P for postscript)?',&
@@ -4453,41 +4536,62 @@ contains
 ! when setting graphics format always also ask for plot file
        case(7,8)
           if(kom2.eq.7) then
-             call gparcd('Graphics format (ACROBAT(PDF)/PS/GIF/SCREEEN)',&
-                  cline,last,1,ch1,'SCREEN',q1help)
-             if(ch1.eq.'a' .or. ch1.eq.'A') then
-                write(kou,*)'Graphics format set to ACROBAT PDF'
-                plotform='A'
-             elseif(ch1.eq.'p' .or. ch1.eq.'P') then
-                write(kou,*)'Graphics format set to PS'
-                plotform='P'
-             elseif(ch1.eq.'g' .or. ch1.eq.'G') then
-                write(kou,*)'Graphics format set to GIF'
-                plotform='G'
-             else
-                write(kou,*)'Graphics format set to SCREEN'
-                plotform=' '
+! subroutine TOPHLP forces return with ? in position cline(1:1)
+29130        continue
+             call gparid('Graphics format index:',cline,last,i1,1,tophlp)
+!             if(cline(1:1).eq.'?'
+             if(cline(1:1).eq.'?' .or. &
+                  i1.lt.1 .or. i1.gt.graphopt%gnutermax) then
+                write(kou,29133)
+29133           format('Avalable graphics formats are:')
+                write(kou,29135)(i1,graphopt%gnutermid(i1),&
+                     i1=1,graphopt%gnutermax)
+29135           format(i3,2x,a)
+                goto 29130
              endif
           endif
+          graphopt%gnutermsel=i1
+          write(kou,*)'Graphics format set to: ',graphopt%gnutermid(i1)
+!          if(kom2.eq.7) then
+!             call gparcd('Graphics format (ACROBAT(PDF)/PS/GIF/SCREEEN)',&
+!                  cline,last,1,ch1,'SCREEN',q1help)
+!             if(ch1.eq.'a' .or. ch1.eq.'A') then
+!                write(kou,*)'Graphics format set to ACROBAT PDF'
+!                plotform='A'
+!             elseif(ch1.eq.'p' .or. ch1.eq.'P') then
+!                write(kou,*)'Graphics format set to PS'
+!                plotform='P'
+!             elseif(ch1.eq.'g' .or. ch1.eq.'G') then
+!                write(kou,*)'Graphics format set to GIF'
+!                plotform='G'
+!             else
+!                write(kou,*)'Graphics format set to SCREEN'
+!                plotform=' '
+!             endif
+!          endif
 !-----------------------------------------------------------
-! PLOT OUTPUT_FILE, always asked when changing terminal
+! PLOT OUTPUT_FILE, always asked when changing graphics terminal
 21140     continue
           call gparcd('Plot file',cline,last,1,plotfile,'ocgnu',q1help)
           if(plotfile(1:6).ne.'ocgnu ') then
              if(index(plotfile,'.').le.0) then
+                if(graphopt%gnutermsel.ne.1) then
+                   filename=trim(plotfile)//'.'//&
+                        graphopt%filext(graphopt%gnutermsel)
 ! add extenstion depending on format
-                if(plotform(1:1).eq.'A') then
-                   filename=trim(plotfile)//'.pdf'
-                elseif(plotform(1:1).eq.'P') then
-                   filename=trim(plotfile)//'.ps '
-                elseif(plotform(1:1).eq.'G') then
-                   filename=trim(plotfile)//'.gif '
+!                if(plotform(1:1).eq.'A') then
+!                   filename=trim(plotfile)//'.pdf'
+!                elseif(plotform(1:1).eq.'P') then
+!                   filename=trim(plotfile)//'.ps '
+!                elseif(plotform(1:1).eq.'G') then
+!                   filename=trim(plotfile)//'.gif '
                 else
 ! just changing name of the GNUPLOT command file
                    filename=trim(plotfile)//'.plt '
                    plotfile=filename
                 endif
              endif
+!             filename=trim(plotfile)//'.plt '
              inquire(file=filename,exist=logok)
              if(logok) then
                 call gparcd('File exists, overwrite?',&
