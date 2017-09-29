@@ -273,7 +273,7 @@ CONTAINS
 !
 !     End of DGETRI
 !
- END SUBROUTINE DGETRI
+  END SUBROUTINE DGETRI
 !
 !=
 !
@@ -966,7 +966,8 @@ CONTAINS
       END IF
       DDOT = DTEMP
       RETURN
-      END
+      END FUNCTION DDOT
+!
 !> \brief \b DGEMM
 !
 !  =========== DOCUMENTATION ===========
@@ -1350,7 +1351,8 @@ CONTAINS
 !
 !     End of DGEMM .
 !
-      END
+   END SUBROUTINE DGEMM
+!
 !> \brief \b DGEMV
 !
 !  =========== DOCUMENTATION ===========
@@ -1680,7 +1682,8 @@ CONTAINS
 !
 !     End of DGEMV .
 !
-      END
+    END SUBROUTINE DGEMV
+!
 !> \brief \b DGETRF
 !
 !  =========== DOCUMENTATION ===========
@@ -1904,7 +1907,8 @@ CONTAINS
 !
 !     End of DGETRF
 !
-      END
+      END SUBROUTINE DGETRF
+!
 !> \brief \b DGETRF2
 !
 !  =========== DOCUMENTATION ===========
@@ -2172,7 +2176,8 @@ CONTAINS
 !
 !     End of DGETRF2
 !
-      END
+      END SUBROUTINE DGETRF2
+!
 !> \brief \b DGETRS
 !
 !  =========== DOCUMENTATION ===========
@@ -2476,7 +2481,8 @@ CONTAINS
 !  .. Executable Statements ..
       DISNAN = DLAISNAN(DIN,DIN)
       RETURN
-      END
+      END FUNCTION DISNAN
+!
 !> \brief \b DLAISNAN tests input for NaN by comparing two arguments for inequality.
 !
 !  =========== DOCUMENTATION ===========
@@ -2567,7 +2573,8 @@ CONTAINS
 !  .. Executable Statements ..
       DLAISNAN = (DIN1.NE.DIN2)
       RETURN
-      END
+      END FUNCTION DLAISNAN
+!
 !> \brief \b DLAMCH
 !
 !  =========== DOCUMENTATION ===========
@@ -2710,7 +2717,8 @@ CONTAINS
 !
 !     End of DLAMCH
 !
-      END
+      END FUNCTION DLAMCH
+!
 !***********************************************************************
 !> \brief \b DLAMC3
 !> \details
@@ -2754,7 +2762,7 @@ CONTAINS
 !
 !     End of DLAMC3
 !
-      END
+      END FUNCTION DLAMC3
 !
 !***********************************************************************
 !> \brief \b DLAMRG creates a permutation list to merge the entries of two independently sorted sets into a single set sorted in ascending order.
@@ -2927,7 +2935,8 @@ CONTAINS
 !
 !     End of DLAMRG
 !
-      END
+      END  SUBROUTINE DLAMRG
+!
 !> \brief \b DLASWP performs a series of row interchanges on a general rectangular matrix.
 !
 !  =========== DOCUMENTATION ===========
@@ -3118,7 +3127,8 @@ CONTAINS
 !
 !     End of DLASWP
 !
-      END
+      END  SUBROUTINE DLASWP
+!
 !> \brief \b DLASYF computes a partial factorization of a real symmetric matrix using the Bunch-Kaufman diagonal pivoting method.
 !
 !  =========== DOCUMENTATION ===========
@@ -3934,7 +3944,7 @@ CONTAINS
 !
 !     End of DLASYF
 !
-      END
+      END  SUBROUTINE DLASYF
 !> \brief \b DSCAL
 !
 !  =========== DOCUMENTATION ===========
@@ -4044,7 +4054,8 @@ CONTAINS
          END DO
       END IF
       RETURN
-      END
+      END SUBROUTINE DSCAL
+!
 !> \brief \b DSWAP
 !
 !  =========== DOCUMENTATION ===========
@@ -4166,7 +4177,8 @@ CONTAINS
          END DO
       END IF
       RETURN
-      END
+      END SUBROUTINE DSWAP
+!
 !> \brief \b DSYMV
 !
 !  =========== DOCUMENTATION ===========
@@ -4499,7 +4511,8 @@ CONTAINS
 !
 !     End of DSYMV .
 !
-      END
+      END  SUBROUTINE DSYMV
+!
 !> \brief \b DSYR
 !
 !  =========== DOCUMENTATION ===========
@@ -4762,7 +4775,8 @@ CONTAINS
 !
 !     End of DSYR  .
 !
-      END
+      END SUBROUTINE DSYR
+!
 !> \brief \b DSYTF2 computes the factorization of a real symmetric indefinite matrix, using the diagonal pivoting method (unblocked algorithm).
 !
 !  =========== DOCUMENTATION ===========
@@ -5368,7 +5382,7 @@ CONTAINS
 !
 !     End of DSYTF2
 !
-      END
+      END SUBROUTINE DSYTF2
 !> \brief \b DSYTRF
 !
 !  =========== DOCUMENTATION ===========
@@ -5727,7 +5741,7 @@ CONTAINS
 !
 !     End of DSYTRF
 !
-      END
+      END SUBROUTINE DSYTRF
 !> \brief \b DSYTRI
 !
 !  =========== DOCUMENTATION ===========
@@ -6104,7 +6118,7 @@ CONTAINS
 !
 !     End of DSYTRI
 !
-      END
+      END SUBROUTINE DSYTRI
 !> \brief \b DTRSM
 !
 !  =========== DOCUMENTATION ===========
@@ -6547,7 +6561,8 @@ CONTAINS
 !
 !     End of DTRSM .
 !
-      END
+      END SUBROUTINE DTRSM
+!
 !> \brief \b IDAMAX
 !
 !  =========== DOCUMENTATION ===========
@@ -6653,7 +6668,8 @@ CONTAINS
          END DO
       END IF
       RETURN
-      END
+      END FUNCTION IDAMAX
+
 !> \brief \b IEEECK
 !
 !  =========== DOCUMENTATION ===========
@@ -6733,7 +6749,7 @@ CONTAINS
 !> \ingroup auxOTHERauxiliary
 !
 !  =====================================================================
-      INTEGER          FUNCTION IEEECK( ISPEC, ZERO, ONE )
+      INTEGER FUNCTION IEEECK( ISPEC, ZERO, ONE )
 !
 !  -- LAPACK auxiliary routine (version 3.4.0) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -6852,7 +6868,8 @@ CONTAINS
       END IF
 !
       RETURN
-      END
+      END FUNCTION IEEECK
+!
 !> \brief \b ILAENV
 !
 !  =========== DOCUMENTATION ===========
@@ -7873,7 +7890,8 @@ CONTAINS
 !
 !     ==== End of IPARMQ ====
 !
-      END
+      END FUNCTION IPARMQ
+!
 !> \brief \b LSAME
 !
 !  =========== DOCUMENTATION ===========
@@ -7998,7 +8016,7 @@ CONTAINS
 !
 !     End of LSAME
 !
-      END
+      END FUNCTION LSAME
 !> \brief \b LSAMEN
 !
 !  =========== DOCUMENTATION ===========
@@ -8070,7 +8088,7 @@ CONTAINS
 !> \ingroup auxOTHERauxiliary
 !
 !  =====================================================================
-      LOGICAL          FUNCTION LSAMEN( N, CA, CB )
+      LOGICAL FUNCTION LSAMEN( N, CA, CB )
 !
 !  -- LAPACK auxiliary routine (version 3.4.0) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -8115,7 +8133,7 @@ CONTAINS
 !
 !     End of LSAMEN
 !
-      END
+      END FUNCTION LSAMEN
 !> \brief \b XERBLA
 !
 !  =========== DOCUMENTATION ===========

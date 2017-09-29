@@ -118,7 +118,7 @@ l eq
 plot
 
 
-yr
+scale y
 n
 1550
 1600

@@ -13,6 +13,110 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2017.09.13 OC version 4.034: This time I have added a possibility to
+edit the command line a la emacs and also to keep a short history of
+commands.  That is always possible on Windows and as I am frustrated
+with the fact that my MAC does not have the same I managed to find a C
+routine that can read input character by character and allow editing.
+To have this you have to follow the guide Why-and-Howto-stall-getkey
+that is provided in the documentation directory.  Do not attempt this
+unless you are an experienced UNIX user.
+
+Otherwise some bugs has been fixed and modifications of the
+quasichemical model.  I have also added possibilities to define more
+GNUPLOT terminals, both in the source code and interactivly.  I am a
+bit disappointed that the MAC does not have so many.
+
+2017.09.13 OC version 4.033: A whole month without updates!  This time
+there is a big thing, the "corrected quasichemical model" for liquids
+has been implemented (adding some new bugs).  The model was published
+2009 in Acta Mat by Hillert, Selleby and myself but it has never been
+available in any software as TC never approved of it.  Now we will try
+to use this model to assess a real system this time.  
+
+OC is now being compiled and used on several different
+hardware/OS/Fortran compilers by different users.  In some cases there
+are errors like "segmentation faults" that I cannot reproduce running
+the same macro file on my DELL with Windows and GNU Fortran.  I have
+also discovered differences with the GNU Fortran on my MAC/Linux and
+on Windows.  As the you as user have access the source code please try
+to detect more precisely where the error occurs so I can fix the code
+to avoid also bugs in the compilers and OS.
+
+2017.08.10 OC version 4.032: Added that one can change the relative
+lengths of the plot axis and the axis labels.  The texts in the plot
+can also be written at an angle.
+
+2017.08.10 OC version 4.031: I found that changing an optimizing
+parameter did not automatically force a recalculation of all TP
+functions and model parameters depending on this but that is now fixed.
+
+Alex van der Walle pointed out some non-standard Fortran statements
+that has now been corrected.  He also provided a Makefile that should
+be simpler to use, it is included as Makefile-simple.
+
+2017.08.02 OC version 4.030: Started modifying the plotting to improve
+STEP/MAP.  The call to ocplot2 simplified as most data are now stored
+in the graphopt record.  BEWARE: the sub-commands to set the range of
+an axis is now called SCALE_RANGES and asks for the axis, previously
+there were individual sub-commands for the x and y axis.
+
+I have added a map13 macro to calculate the Al-Ni system using the 4
+sublattice model with partitioning and permutations.  There are
+spurious segmentation faults when plotting after using several
+STEP/MAP commands.  If you find this please send me a macro that
+reproduces the error and necessary data file.
+
+The speed pf calculations with OC 4.030 has been compared with the
+first release of version 3 in 2016 and the current version is almost 3
+times faster to calculate an equilibrium, without using
+parallelization.  When parallelization can be used the clock time is
+further reduced by a factor 3.
+
+This is now a prerelease of version 5, I do not plan to make any
+significant additions.  The rest of the year will be devoted to update
+the documentation, the user guides and related things.
+
+2017.07.26 OC version 4.029: Fixed a small bug dealing with ordering
+and permutations.
+
+2017.07.26 OC version 4.028: I have finally managed to handle the
+phase diagram for Al-Ni with the 4 sublattice model for FCC and BCC
+ordering.  There has been an error calculating the second derivatives
+of G that have cause severe convergence problems.  I am not sure they
+are correct but the convergence is now good.  Option B is also
+finished although some parameters are still not allowed but I added a
+few more parameters for option F (permutations in 4 sublattice
+ordering model for FCC and HCP).  Beware, there may be errors!! Check
+that the disordered state is properly disordered, exactly the same
+constituent fractions in all sublattices and report problems (before I
+forget the code).
+
+2017.07.21 OC version 4.027: The implementation of option B is now
+almost finished but beware of bugs and that I have not implemented all
+possible parameters, only those that seems most useful.  I also found
+that many parameters for option F (for FCC and HCP) ordering are
+missing.  
+
+Using a partitioned description for a phase in a TDB file requires
+that the TYPE_DEF with the DISORDERD_PART must come before the
+disordered phase is listed in the file.  If not that will also give a
+warning but if not corrected the calculations will be wrong.
+
+I have added a check for unknown keywords in the TDB file as some are
+using TDB files from MatCalc and these include keywords related to
+diffusion and interface energies that I cannot handle (yet).  If I get
+a documentation how they should be implemented I will try.  Anyway
+this check will often give warnings that can be ignored when reading a
+TDB file.
+
+2017.07.18 OC version 4.026: A number of minor changes and bugfixes.
+Mapping should be a bit better.  I have also started implementing
+option B for handling permutation of parameters in BCC phases with 4
+sublattice ordering.  This means one only has to enter the unique
+pararameters which significantly reduces the number of parameters in a
+TDB file for example.
+
 2017.06.20 OC version 4.025: Refined the check of external charge
 balance.  Previously phases like (La+3)2(O-2)3 had the external change
 balance bit set which sometimes caused "phase matrix ill-conditioned"
@@ -29,7 +133,7 @@ memory used by the TP functions was not deallocated with the NEW
 command.  This has now been removed.  Applications that used repeated
 NEW commands could crash due to lack of free memory.
 
-A number of bugs has also meen eliminated, some caused by unititiated
+A number of bugs has also meen eliminated, some caused by uninititiated
 variables where valgrid again proved to be a useful tool.
 
 2017.05.10 OC version 4.022: I have added a new calculate subcommand

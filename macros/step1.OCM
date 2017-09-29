@@ -158,7 +158,8 @@ render
 plot
 T
 cp
-yr
+scale
+y
 N
 0
 300

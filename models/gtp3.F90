@@ -462,7 +462,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'Internal error, unknown case for permutations                   ',&
        'Internal error, too complicated                                 ',&
        'Internal error generating fcc permutations                      ',&
-       'This excess parameter not yet implemented in option F           ',&
+       'This excess parameter not yet implemented in option F or B      ',&
        'Internal error generating permutations for option F             ',&
        'BCC permutations (option B) not yet implemented                 ',&
        'Subcommand error when enter many_equilibria                     ',&
@@ -534,7 +534,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'Too many parameter properties for this phase                    ',&
        'Internal error, listprop not allocated                          ',&
 ! 4340
-       'Max level 2 interactions allowed                                ',&
+       'Max two levels of interactions allowed                          ',&
        'Wildcard parameters not allowed in 2nd sublattice of I2SL model ',&
        'Illegal interaction parameter                                   ',&
        'Ternary cation interactions not yet implemented in I2SL         ',&
@@ -554,7 +554,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'Error reserving space for unformatted save                      ',&
        'Error saving unformatted data file                              ',&
        'Recalculate as gridpoint below current equilibrium              ',&
-       '                                                                ',&
+       'Slow convergence with same set of stable phases                 ',&
 ! 4360
        '                                                                ',&
        '                                                                ',&
@@ -657,6 +657,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! FACT,  not create comp. sets (NOCS), Helmholz energy model (HELM),
 ! Model without 2nd derivatives (PHNODGDY2), Elastic model A,
 ! Subtract ordered part (PHSUBO), Flory-Huggins model (PHFHV)
+! Multi-use bit (together with some other) PHMULTI
   integer, parameter :: &
        PHHID=0,     PHIMHID=1,  PHID=2,    PHNOCV=3, &     ! 1 2 4 8 : 0/F
        PHHASP=4,    PHFORD=5,   PHBORD=6,  PHSORD=7, &     ! 
@@ -664,7 +665,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        PHAQ1=12,    PHDILCE=13, PHQCE=14,  PHCVMCE=15,&    ! 
        PHEXCB=16,   PHXGRID=17, PHFACTCE=18, PHNOCS=19,&   !
        PHHELM=20,   PHNODGDY2=21, PHELMA=22, PHSUBO=23,&   ! 
-       PHFHV=24                                            !
+       PHFHV=24,    PHMULTI=25                             !
 ! 
 !----------------------------------------------------------------
 !-Bits in constituent fraction (phase_varres) record STATUS2
@@ -865,6 +866,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! and results.  Note that during calculations which can be parallelized
 ! the results can be different for each parallel process
      character*(lenfnsym) symbol
+! Why are limits declared as pointers?? They cannot be properly deallocated
 ! limits are the low temperature limit for each range
 ! funlinks links to expression records for each range
 ! each range can have its own function, status indicate if T and P or T and V
@@ -1022,7 +1024,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   TYPE gtp_interaction
 ! this record constitutes the parameter tree. There are links to NEXT
 ! interaction on the same level (i.e. replace current fraction) and
-! to HIGHER interactions (i.e. includes current interaction)
+! to HIGHER interactions (i.e. includes current fraction)
 ! There can be several permutations of the interactions (both sublattice
 ! and fraction permuted, like interaction in B2 (Al:Al,Fe) and (Al,Fe:Al))
 ! The number of permutations of interactions can be the same, more or fewer

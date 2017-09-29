@@ -63,13 +63,14 @@ render
 plot
 w%(*,c)
 T_C
-xr
+scale x
 n
 0
 7
 title map 3 fig 2
 out
 stable
+Y
 render
 
 @$---------------------------------------------------------
@@ -108,11 +109,11 @@ plot
 
 
 title map 3 fig 5
-xr
+scale x
 n
 0
 2.5
-yr
+scale y
 n
 700
 1200
@@ -120,6 +121,7 @@ pos
 top left
 text 
 1.2 1100 
+0
 n 
 austenite
 

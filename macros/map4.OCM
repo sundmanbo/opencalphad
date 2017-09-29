@@ -61,7 +61,7 @@ plot
 
 
 title map4 fig 3
-xrange 
+scale x
 N 
 .58 
 .78
@@ -71,7 +71,7 @@ plot
 
 
 title map4 fig 4
-yr
+scale y
 N
 2500
 3200
@@ -121,10 +121,10 @@ l,,,,
 plot
 
 
-xr
+scale x
 N
 .64 .68
-yr n 3100 3150
+scale y n 3100 3150
 
 
 @$ As can be seen the step on the U rich side is quite big

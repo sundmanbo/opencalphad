@@ -360,7 +360,7 @@
 !            write(unit,111)jk,csrec%phtupx,csname, &
 !                 csrec%abnorm(1),csrec%dgm,&
 !                 phlista(lokph)%status1,ceq%phase_varres(lokcs)%status2,ch1
-!111         format(2i4,1x,a24,'       0.0',1x0PF8.2,1PE10.2,2(0p,z8),a1)
+!111         format(2i4,1x,a24,'       0.0',1x,0PF8.2,1PE10.2,2(0p,z8),a1)
       if(csrec%dgm.lt.zero) then
          jph=jph+1
          if(jph.gt.10) then
@@ -1509,7 +1509,7 @@
 !\end{verbatim} %+
    integer typty,parlist,typspec,lokph,nsl,nk,ip,ll,jnr,ics,lokcs
    integer nint,ideg,ij,kk,iel,ncsum,kkx,kkk,jdeg,iqnext,iqhigh,lqq,nz,ik
-   integer intpq,linkcon,ftyp
+   integer intpq,linkcon,ftyp,prplink
    character text*2048,phname*24,prop*32,funexpr*1024
    character special*8
 !   integer, dimension(2,3) :: lint
@@ -1743,13 +1743,18 @@
          call wrice2(lut,2,12,78,1,funexpr(1:ip))
          proprec=>proprec%nextpr
       enddo ptyloop
-      if(endmemrec%noofpermut.gt.1) then
+      if(btest(phlista(lokph)%status1,PHFORD).or. &
+           btest(phlista(lokph)%status1,PHBORD)) then
+!      if(endmemrec%noofpermut.gt.1) then
          intpq=0
          if(associated(endmemrec%intpointer)) then
             intpq=endmemrec%intpointer%antalint
          endif
-!         write(kou,207)endmemrec%antalem,endmemrec%noofpermut,intpq
-207      format('@$ Endmember, permutations, interaction: ',3i5)
+         prplink=0
+         if(associated(endmemrec%propointer)) prplink=1
+         if(parlist.eq.1) write(kou,207)endmemrec%antalem,&
+              endmemrec%noofpermut,intpq,prplink
+207      format('3C Endmember check: permut, interaction, pty: ',4i5)
       endif
       endmemrec=>endmemrec%nextem
    enddo endmemberlist
@@ -1895,15 +1900,17 @@
             enddo degree
             proprec=>proprec%nextpr
          enddo ptyloop2
-! list temporarily the number of permutations
-         if(intrec%noofip(1).gt.1 .or. intrec%noofip(2).gt.1) then
+! list temporarily the number of permutations for FCC and BCC ordering
+         if(btest(phlista(lokph)%status1,PHFORD).or. &
+              btest(phlista(lokph)%status1,PHBORD)) then
+!         if(intrec%noofip(1).gt.1 .or. intrec%noofip(2).gt.1) then
             if(nint.eq.1) then
                nz=intrec%noofip(2)
             else
                nz=size(intrec%sublattice)
                lqq=intrec%noofip(size(intrec%noofip))
                if(lqq.ne.nz) then
-                  write(*,*)'Not same: ',intrec%antalint,nz,lqq
+                  write(*,*)'3C Not same 1: ',intrec%antalint,nz,lqq
                endif
 !               write(*,301)nz,intrec%noofip
 301            format('noofip: ',10i3)
@@ -1917,8 +1924,12 @@
             if(associated(intrec%nextlink)) then
                iqnext=intrec%nextlink%antalint
             endif
-            write(*,302)intrec%antalint,nz,nint,iqhigh,iqnext
-302         format('@$ Interaction, permutations, level, high, next: ',5i5)
+            prplink=0
+            if(associated(intrec%propointer)) prplink=1
+            if(parlist.eq.1) write(*,302)intrec%antalint,&
+                 nz,nint,iqhigh,iqnext,prplink
+302         format('3C Inter check 1: id, permut, level, high, next, pty: ',&
+                 i5,i3,i3,i4,i4,i2)
          endif
          intrec=>intrec%highlink
          empty: do while(.not.associated(intrec))
@@ -2400,14 +2411,16 @@
             proprec=>proprec%nextpr
          enddo ptyloop2
 ! list temporarily the number of permutations
-         if(intrec%noofip(1).gt.1 .or. intrec%noofip(2).gt.1) then
+         if(btest(phlista(lokph)%status1,PHFORD).or. &
+              btest(phlista(lokph)%status1,PHBORD)) then
+!         if(intrec%noofip(1).gt.1 .or. intrec%noofip(2).gt.1) then
             if(nint.eq.1) then
                nz=intrec%noofip(2)
             else
                nz=size(intrec%sublattice)
                lqq=intrec%noofip(size(intrec%noofip))
                if(lqq.ne.nz) then
-                  write(*,*)'Not same: ',intrec%antalint,nz,lqq
+                  write(*,*)'3C Not same 2: ',intrec%antalint,nz,lqq
                endif
 !               write(*,301)nz,intrec%noofip
 301            format('noofip: ',10i3)
@@ -2422,7 +2435,7 @@
                iqnext=intrec%nextlink%antalint
             endif
             write(*,302)intrec%antalint,nz,nint,iqhigh,iqnext
-302         format('@$ Interaction, permutations, level, high, next: ',5i5)
+302         format('3C Interaction check 2: permut, level, high, next: ',5i4)
          endif
          intrec=>intrec%highlink
          empty: do while(.not.associated(intrec))
@@ -5048,7 +5061,9 @@
 617          format(6x,'Prescribed min and max: ',2(1pe12.4))
           elseif(firstash%coeffstate(i1).gt.13) then
              write(lut,*)'Wrong coefficent state, set to 10'
-             firstash%coeffstate(i2)=10
+!?? 
+!             firstash%coeffstate(i2)=10
+             firstash%coeffstate(i1)=10
           endif
        elseif(firstash%coeffstate(i1).gt.0) then
 ! fix variable status

@@ -114,7 +114,7 @@ render
 plot
 x(*,mo)
 T
-yr
+scale y
 N
 1500
 1900
@@ -129,12 +129,12 @@ plot
 
 title map 5 fig 4
 text 
-.47 1700 y
+.47 1700 0 y
 
 text
-n .4 1530 y
+n .4 1530 0 y
 
-text n .1 1850 y
+text n .1 1850 0 y
 
 
 @$ Change to greek
@@ -148,10 +148,12 @@ y
 {/Symbol s}
 
 
+
 text
 y
 2
 {/Symbol m}
+
 
 
 

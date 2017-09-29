@@ -64,16 +64,16 @@ plot
 
 title map6 fig 2
 text 
-0.1 2000 y
+0.1 2000 0 y
 
 text n
-.5 1500 y
+.5 1500 0 y
 
 text n
-.05 1200 y
+.05 1200 0 y
 
 text n
-.46 1160 y
+.46 1160 0 y
 {/Symbol s}
 text n
 .75 1200 y
@@ -84,7 +84,7 @@ plot
 
 
 title map6 fig 3
-yr
+scale y
 n
 1700
 1800
@@ -94,7 +94,7 @@ plot
 
 
 title map6 fig4
-yr
+scale y
 n
 1150
 1250

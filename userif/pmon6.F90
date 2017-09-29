@@ -53,12 +53,12 @@ contains
 ! various symbols and texts
     character :: ocprompt*4='OC4:'
     character name1*24,name2*24,line*80,model*72,chshort
-    integer, parameter :: ocmonversion=31
+    integer, parameter :: ocmonversion=32
 ! element symbol and array of element symbols for database use
     character elsym*2,ellist(maxel)*2
 ! more texts for various purposes
     character text*72,string*256,ch1*1,selection*27,funstring*1024
-    character axplot(3)*24,axplotdef(3)*24,quest*20
+    character axplot(2)*24,axplotdef(2)*24,quest*20
     character plotform*32,longstring*2048,optres*40
 ! separate file names for remembering and providing a default
     character ocmfile*64,ocufile*64,tdbfile*64,ocdfile*64,filename*64
@@ -138,12 +138,18 @@ contains
     double precision dblv(10)
 !-------------------
 ! variables for assessment using VA05AD
-    integer :: nopt=100,iprint=1,ient,mexp=0,nvcoeff,nwc
-    integer iexit(5)
-    double precision :: dstep=1.0D-4,dmax2=1.0D2,acc=1.0D-3
-    integer, parameter :: maxw=5000
+!    integer :: nopt=100,iprint=1,ient,mexp=0,nvcoeff,nwc
+!    integer iexit(5)
+!    double precision :: dstep=1.0D-4,dmax2=1.0D2,acc=1.0D-3
+!    integer, parameter :: maxw=5000
+! variables for lmdif
+    integer, parameter :: lwam=2500
+    integer :: nopt=100, mexp=0,nvcoeff
+    integer iwam(lwam)
+    double precision wam(lwam)
+    double precision :: acc=1.0D-3
 ! occational segmentation fault when deallocating www ....
-    double precision, dimension(maxw) :: www
+!    double precision, dimension(maxw) :: www
 !    double precision, dimension(:), allocatable :: www
     double precision, dimension(:), allocatable :: coefs
     double precision, dimension(:), allocatable :: errs
@@ -173,7 +179,7 @@ contains
     type(gtp_phase_add), pointer :: addrec
 !
     character actual_arg(2)*16
-    character cline*128,option*80,aline*128,plotfile*64,eqname*24
+    character cline*128,option*80,aline*128,plotfile*72,eqname*24
 ! variable phase tuple
     type(gtp_phasetuple), pointer :: phtup
 !----------------------------------------------------------------
@@ -253,7 +259,7 @@ contains
          'CONSTITUTION    ','EXPERIMENT      ','QUIT            ',&
          'EQUILIBRIUM     ','SYMBOL          ','OPTIMIZE_COEFF  ',&
          'COPY_OF_EQUILIB ','COMMENT         ','MANY_EQUILIBRIA ',&
-         'MATERIAL        ','PLOT_DATA       ','                ',&
+         'MATERIAL        ','PLOT_DATA       ','GNUPLOT_TERMINAL',&
          '                ','                ','                ']
 !-------------------
 ! subcommands to READ
@@ -294,7 +300,7 @@ contains
          'NUMERIC_OPTIONS ','AXIS            ','INPUT_AMOUNTS   ',&
          'VERBOSE         ','AS_START_EQUILIB','BIT             ',&
          'VARIABLE_COEFF  ','SCALED_COEFF    ','OPTIMIZING_COND ',&
-         'RANGE_EXPER_EQU ','FIXED_COEFF     ','                ']
+         'RANGE_EXPER_EQU ','FIXED_COEFF     ','T_AND_P         ']
 ! subsubcommands to SET STATUS
     character (len=16), dimension(ncstat) :: cstatus=&
          ['ELEMENT         ','SPECIES         ','PHASE           ',&
@@ -349,8 +355,8 @@ contains
 !-------------------
 ! subcommands to PLOT OPTIONS/ GRAPHICS OPTIONS
     character (len=16), dimension(nplt) :: cplot=&
-         ['RENDER          ','XRANGE          ','YRANGE          ',&
-         'XTEXT           ','YTEXT           ','TITLE           ',&
+        ['RENDER          ','SCALE_RANGES    ','RATIOS_XY       ',&
+         'AXIS_LABELS     ','                ','TITLE           ',&
          'GRAPHICS_FORMAT ','OUTPUT_FILE     ','GIBBS_TRIANGLE  ',&
          'QUIT            ','POSITION_OF_KEYS','APPEND          ',&
          'TEXT            ','TIE_LINES       ','KEEP            ',&
@@ -371,10 +377,11 @@ contains
     logfil=0
     defcp=1
     seqxyz=0
-! defaults for optimizer, iexit(2)=1 means listing scaled coefficients (Va05AD)
+! defaults for optimizer
     nvcoeff=0
-    iexit=0
-    iexit(2)=1
+! iexit(2)=1 means listing scaled coefficients (Va05AD)
+!    iexit=0
+!    iexit(2)=1
 ! present the software
     write(kou,10)version,trim(linkdate),ocmonversion,gtpversion,hmsversion,&
          smpversion
@@ -409,13 +416,35 @@ contains
     nullify(textlabel)
     plotfile='ocgnu'
     plotform=' '
+! default plot terminal, replaces plotform
+    graphopt%gnutermsel=1
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+! Edit these as they may not be available on your systems
+    graphopt%gnutermid(1)='SCREEN '
+    graphopt%gnuterminal(1)='xterm persist '
+    graphopt%filext(1)='  '
+    graphopt%gnutermid(2)='PS  '
+    graphopt%gnuterminal(2)='postscript color solid '
+    graphopt%filext(2)='ps  '
+    graphopt%gnutermid(3)='PDF '
+    graphopt%gnuterminal(3)='pdf color solid'
+    graphopt%filext(3)='pdf  '
+    graphopt%gnutermid(4)='GIF  '
+    graphopt%gnuterminal(4)='gif '
+    graphopt%filext(4)='gif  '
+    graphopt%gnutermax=4
+    graphopt%gnutermid(5)=' '
+    graphopt%gnutermid(6)=' '
+    graphopt%gnutermid(7)=' '
+    graphopt%gnutermid(8)=' '
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 ! default list unit
     optionsset%lut=kou
 ! default for list short
     chshort='A'
 ! set default minimizer, 2 is matsmin, 1 does not work ...
     minimizer=2
-! set default optimimzer, 1 is LMDIF, 2 is VA05AD
+! set default optimimzer, 1 is LMDIF, 2 is VA05AD (no longer available)
     optimizer=1
 ! by default no stop on error and no logfile
     stop_on_error=.false.
@@ -434,8 +463,8 @@ contains
 ! default axis limits set to be 0 and 1
     maxax=5
     noofaxis=0
-! state variable for plot axis
-    do j1=1,3
+! state variable for plot axis (only 2)
+    do j1=1,2
        axplotdef(j1)=' '
     enddo
 ! remove any results from step and map
@@ -591,7 +620,7 @@ contains
 !
 ! jump here if there is an inline argument
 ! 99  continue
-    SELECT CASE(kom)
+    main: SELECT CASE(kom)
 ! command selection
 !=================================================================
     CASE DEFAULT
@@ -607,10 +636,10 @@ contains
 !         'LIST           ','                ','                ']
     CASE(1) ! AMEND
 ! disable continue optimization
-       iexit=0
-       iexit(2)=1
+!       iexit=0
+!       iexit(2)=1
        kom2=submenu(cbas(kom),cline,last,cam1,ncam1,4)
-       SELECT CASE(kom2)
+       amend: SELECT CASE(kom2)
        CASE DEFAULT
           write(kou,*)'No such answer'
           goto 100
@@ -677,7 +706,7 @@ contains
           if(gx%bmperr.ne.0) goto 990
 !
           kom3=submenu(cbas(kom),cline,last,camph,ncamph,2)
-          SELECT CASE(kom3)
+          amendphase: SELECT CASE(kom3)
 !....................................................
           CASE DEFAULT
              write(kou,*)'Amend phase subcommand error'
@@ -770,7 +799,8 @@ contains
 ! maybe we will use more terms later ....
                 allocate(ceq%phase_varres(lokcs)%addg(1))
              endif
-             call gparrd('Addition to G in J/FU: ',cline,last,xxx,xxy,q1help)
+             call gparrd('Addition to G in J/FU (formula units): ',&
+                  cline,last,xxx,xxy,q1help)
              ceq%phase_varres(lokcs)%addg(1)=xxx
 ! set bit that this should be calculated
              ceq%phase_varres(lokcs)%status2=&
@@ -778,7 +808,7 @@ contains
 !....................................................
           case(12) ! amend phase ??
              write(kou,*)'Not implemented yet'
-          END SELECT
+          END SELECT amendphase
 !-------------------------
        case(5) ! amend parameter
           write(kou,*)'Not implemented yet, only ENTER PARAMETER'
@@ -882,7 +912,7 @@ contains
 !-------------------------
        case(18) ! Nothing defined
           write(*,*)'Not implemented yet'
-       END SELECT
+       END SELECT amend
 !=================================================================
 ! calculate subcommands
 !         ['TPFUN_SYMBOLS   ','PHASE           ','NO_GLOBAL       ',&
@@ -891,7 +921,7 @@ contains
 !         'WITH_CHECK_AFTER','                ','                ']
     CASE(2)
        kom2=submenu(cbas(kom),cline,last,ccalc,ncalc,8)
-       SELECT CASE(kom2)
+       calculate: SELECT CASE(kom2)
        CASE DEFAULT
           write(kou,*)'No such calculate command'
           goto 100
@@ -971,7 +1001,7 @@ contains
                   ' Pa, results in J/F.U.')
           endif
           rgast=globaldata%rgas*ceq%tpval(1)
-          SELECT CASE(kom3)
+          calcphase: SELECT CASE(kom3)
 !.......................................................
           CASE DEFAULT
              write(kou,*)'Calculate phase subcommand error'
@@ -1090,7 +1120,7 @@ contains
 !.......................................................
           case(6) !
              write(*,*)'Not implemeneted yet'
-          END SELECT
+          END SELECT calcphase
 ! set bits to warn that listings may be inconsistent
           ceq%status=ibclr(ceq%status,EQNOEQCAL)
           ceq%status=ibset(ceq%status,EQINCON)
@@ -1199,7 +1229,7 @@ contains
 ! rather complex to handle both parallel on non-parallel and with/without 
 ! griminimizer ...
           if(allocated(firstash%eqlista)) then
-             call gparcd('With gridminimizer? ',cline,last,1,ch1,'N',q1help)
+             call gparcd('With global minimizer? ',cline,last,1,ch1,'N',q1help)
 ! mode=0 is without grid minimizer 
              mode=1
              if(ch1.eq.'N' .or. ch1.eq.'n') mode=0
@@ -1369,7 +1399,7 @@ contains
        case(11) ! not used (yet)
 !-------------------------------------------------------
        case(12) ! not used (yet)
-       END SELECT
+       END SELECT calculate
 !=================================================================
 ! SET SUBCOMMANDS
 !         ['CONDITION       ','STATUS          ','ADVANCED        ',&
@@ -1382,11 +1412,11 @@ contains
 !         'EXPERIMENT_EQUIL','FIXED_COEFF     ','                ']
     CASE(3) ! SET SUBCOMMANDS
 ! disable continue optimization
-       iexit=0
-       iexit(2)=1
+!       iexit=0
+!       iexit(2)=1
        kom2=submenu(cbas(kom),cline,last,cset,ncset,1)
        if(kom2.le.0) goto 100
-       SELECT CASE(kom2)
+       set: SELECT CASE(kom2)
        CASE DEFAULT
           write(kou,*)'Set subcommand error'
 !-----------------------------------------------------------------------
@@ -1400,7 +1430,7 @@ contains
        CASE(2) ! set status for elements, species, phases, constituents
           name1='STATUS of'
           kom3=submenu(name1,cline,last,cstatus,ncstat,3)
-          SELECT CASE(kom3)
+          setstatus: SELECT CASE(kom3)
 !.................................................................
           CASE DEFAULT
              write(kou,*)'Set status subcommand error'
@@ -1490,13 +1520,13 @@ contains
 !.................................................................
           case(6) ! set status subcommand status for ?
              write(kou,*)'Not implemented yet'
-          END SELECT
+          END SELECT setstatus
 !-----------------------------------------------------------
        case(3) ! set ADVANCED
 ! default is DENSE_GRID
           name1='advanced command'
           kom3=submenu(name1,cline,last,cadv,ncadv,4)
-          select case(kom3)
+          advanced: select case(kom3)
 !.................................................................
           CASE DEFAULT
              write(kou,*)'Set advanced subcommand error'
@@ -1554,7 +1584,7 @@ contains
                 write(kou,3110)'Dense','reset'
 3110            format(a,' grid ',a)
              else
-! clear GSOGRID if set
+! set GSXGRIS and clear GSOGRID if set
                 globaldata%status=ibclr(globaldata%status,GSOGRID)
                 globaldata%status=ibset(globaldata%status,GSXGRID)
                 write(kou,3110)'Dense','set'
@@ -1565,7 +1595,7 @@ contains
                 globaldata%status=ibclr(globaldata%status,GSOGRID)
                 write(kou,3110)'Small','reset'
              else
-! clear GSXGRID if set
+! set GSOGRID and clear GSXGRID if set
                 globaldata%status=ibclr(globaldata%status,GSXGRID)
                 globaldata%status=ibset(globaldata%status,GSOGRID)
                 write(kou,3110)'Small','set'
@@ -1573,7 +1603,7 @@ contains
 !.................................................................
           case(6) ! nothing yet
              write(*,*)'Not implemented yet'
-          end select
+          end select advanced
 !-----------------------------------------------------------
        case(4) ! set LEVEL, not sure what it will be used for ...
           write(kou,*)'Not implemented yet'
@@ -1649,7 +1679,7 @@ contains
              endif
           endif
           kom3=submenu(cbas(kom),cline,last,csetph,nsetph,2)
-          SELECT CASE(kom3)
+          setphase: SELECT CASE(kom3)
           CASE DEFAULT
              write(kou,*)'Set phase status subcommand error'
              goto 100
@@ -1791,7 +1821,7 @@ contains
 !............................................................
           case(6) ! SET PHASE ... CONSTITUTION iph and ics set above
              call ask_phase_new_constitution(cline,last,iph,ics,lokcs,ceq)
-       END SELECT
+          END SELECT setphase
 !-------------------------------------------------------------
        case(10) ! set UNIT (for state variables)
           write(kou,*)'Not implemented yet'
@@ -1907,6 +1937,25 @@ contains
              dmin=zero
              dmax=one
           endif
+! reset to default plot options
+! plot ranges and their defaults
+          graphopt%gibbstriangle=.FALSE.
+          graphopt%rangedefaults=0
+          graphopt%labeldefaults=0
+          graphopt%plotmin=zero
+          graphopt%dfltmin=zero
+          graphopt%plotmax=one
+          graphopt%dfltmax=one
+          graphopt%appendfile=' '
+          graphopt%status=0
+          graphopt%labelkey='top right'
+          nullify(graphopt%firsttextlabel)
+          nullify(textlabel)
+          plotfile='ocgnu'
+! default plot terminal, replaces plotform
+          graphopt%gnutermsel=1
+          plotform=' '
+! end reset plot defaults
           call gparcd('Condition varying along axis: ',cline,last,1,&
                text,name1,q1help)
           call capson(text)
@@ -1920,6 +1969,8 @@ contains
              if(noofaxis.gt.1) then
                 noofaxis=noofaxis-1
                 write(kou,*)'One axis removed'
+! remove axplotdef for all axis!!! one may change from PD to step sep
+                axplotdef=' '
              endif
              goto 100
           else ! add or change axis variable
@@ -1960,6 +2011,8 @@ contains
 ! This is probably the only reference needed for the axis condition
                 axarr(iax)%seqz=pcond%seqz
                 axarr(iax)%more=0
+! remove axplotdef for all axis!!! 
+                axplotdef=' '
              else ! a condition given as text
 ! check if axis variable is a condition, maybe create it if allowed
 !                write(*,*)'decoding axis condition: ',text(1:20)
@@ -1999,6 +2052,8 @@ contains
                 axarr(iax)%seqz=pcond%seqz
 !                write(*,*)'Condition sequential index: ',axarr(iax)%seqz
                 axarr(iax)%more=0
+! remove axplotdef for all axis!!! 
+                axplotdef=' '
              endif
           endif removeaxis
 !          dmin=axvalold(1,iax)
@@ -2099,7 +2154,7 @@ contains
 !               cline,last,ll,-1,q1help)
 !         ['EQUILIBRIUM     ','GLOBAL          ','PHASE           ',&
           kom3=submenu('Set which status word?',cline,last,csetbit,nsetbit,2)
-          SELECT CASE(kom3)
+          setbit: SELECT CASE(kom3)
           CASE DEFAULT
              write(kou,*)'SET BIT subcommand error'
 !................................................................
@@ -2120,7 +2175,7 @@ contains
                      ' 3  Conditions and results not consistent',/'-'/&
                      ' 4  Last equilibrium calculation failed',/&
                      ' 5  No automatic generation of composition sets',/&
-                     ' 6  Equilibrim tested by gridminimizer',/&
+                     ' 6  Equilibrim tested by global minimizer',/&
                      ' 7  Current results are from a grid minimization'/)
                 goto 3610
              endif
@@ -2142,7 +2197,7 @@ contains
 3708         continue
 ! subroutine TOPHLP forces return with ? in position cline(last:last)
              write(kou,3709)globaldata%status
-3709         format('Current global status word: ',z8)
+3709         format('Current global status word (hexadecimal): ',z8)
              call gparid('Toggle global status bit (from 0-31, -1 quits):',&
                   cline,last,ll,-1,tophlp)
              if(cline(1:1).eq.'?') then
@@ -2153,8 +2208,8 @@ contains
                      ' 0  user is a beginner'/&
                      ' 1  user is experienced'/&
                      ' 2  user is an expert'/&
-                     ' 3  gridminimizer will not be used'/'-'/&
-                     ' 4  gridminimizer must not merge comp.sets.'/&
+                     ' 3  global minimizer will not be used'/'-'/&
+                     ' 4  global minimizer must not merge comp.sets.'/&
                      ' 5  there are no data'/&
                      ' 6  there are no phases'/&
                      ' 7  comp.sets must not be created automatically'/'-'/&
@@ -2168,7 +2223,7 @@ contains
                      '15  calculations in parallel is not allowed'/'-'/&
                      '16  no global test at node points durung STEP/MAP'/&
                      '17  the components are not the elements'/&
-                     '18  test calcúlated equilibrium with the grid minimizer')
+                     '18  test calculated equilibrium with the grid minimizer')
                 goto 3708
              endif
              if(ll.lt.0 .or. ll.gt.31) then
@@ -2193,7 +2248,7 @@ contains
 !....................................................
           case(3) ! set bit phase ...
              write(*,*)'Please use set phase ... bit '
-          end select
+          end select setbit
 !-------------------------
        case(19) ! set variable_coefficent, 0 to 99
           if(.not.btest(firstash%status,AHCOEF)) then
@@ -2279,12 +2334,13 @@ contains
 !             nvcoeff=nvcoeff+1
 !          endif
 !-------------------------
-       case(21) ! set optimizing_conditions, more will be added
-          call gparrd('DSTEP (VA05AD): ',cline,last,xxx,dstep,q1help)
-          dstep=xxx
-          call gparrd('DMAX (VA05AD): ',cline,last,xxx,dmax2,q1help)
-          dmax2=xxx
-          call gparrd('ACC (VA05AD): ',cline,last,xxx,acc,q1help)
+       case(21) ! set optimizing_conditions
+          write(*,*)'LMDIF has no conditions to change ...'
+!          call gparrd('DSTEP (VA05AD): ',cline,last,xxx,dstep,q1help)
+!          dstep=xxx
+!          call gparrd('DMAX (VA05AD): ',cline,last,xxx,dmax2,q1help)
+!          dmax2=xxx
+          call gparrd('Accuracy: ',cline,last,xxx,acc,q1help)
           acc=xxx
 !-------------------------
        case(22) ! set range_experimental_equilibria
@@ -2345,6 +2401,8 @@ contains
                 if(i2.lt.i1) then
                    i2=i1
                    write(kou,*)'Illegal range, setting fixed just: ',i1
+                elseif(i2.ge.size(firstash%coeffstate)) then
+                   i2=size(firstash%coeffstate)-1
                 endif
              elseif(i1.ge.size(firstash%coeffstate)) then
 ! coefficients have indices 0 to size(firstash%coeffstate)-1
@@ -2398,23 +2456,29 @@ contains
           write(kou,3730)nvcoeff
 3730      format('Number of variable coefficients are now ',i3)
 !------------------------- 
-       case(24) ! unused
-          write(*,*)'Not implemeneted yet'
-       END SELECT
+       case(24) ! T_AND_P start values, NOT CONDITIONS!!
+          call gparrd('New value of T: ',cline,last,xxx,1.0D3,q1help)
+          if(buperr.ne.0) goto 100
+          ceq%tpval(1)=xxx
+          call gparrd('New value of P: ',cline,last,xxx,1.0D5,q1help)
+          if(buperr.ne.0) goto 100
+          ceq%tpval(2)=xxx
+       END SELECT set
 !=================================================================
-! enter with subcommand for element, species etc
+! ENTER with subcommand for element, species etc
 !         ['TPFUN_SYMBOL    ','ELEMENT         ','SPECIES         ',&
 !         'PHASE           ','PARAMETER       ','BIBLIOGRAPHY    ',&
 !         'CONSTITUTION    ','EXPERIMENT      ','QUIT            ',&
 !         'EQUILIBRIUM     ','SYMBOL          ','OPTIMIZE_COEFF  ',&
 !         'COPY_OF_EQUILIB ','COMMENT         ','MANY_EQUILIBRIA ',&
-!         'MATERIAL        ','                ','                ']
+!         'MATERIAL        ','PLOT_DATA       ','GNUPLOT_TERMINAL',&
+!         '                ','                ','                ']
     CASE(4)
 ! disable continue optimization
-       iexit=0
-       iexit(2)=1
+!       iexit=0
+!       iexit(2)=1
        kom2=submenu(cbas(kom),cline,last,center,ncent,11)
-       SELECT CASE(kom2)
+       enter: SELECT CASE(kom2)
        CASE DEFAULT
           write(kou,*)'Enter subcommand error'
 !---------------------------------------------------------------
@@ -2536,7 +2600,9 @@ contains
              write(kou,*)'You must have entered your system first'
              goto 100
           endif
-          call gparc('Name: ',cline,last,1,text,' ',q1help)
+! generate a default names line EQ_x ehere x is eqfree
+          call geneqname(quest)
+          call gparcd('Name: ',cline,last,1,text,quest,q1help)
           if(buperr.ne.0) goto 100
           call enter_equilibrium(text,ieq)
           if(gx%bmperr.ne.0) goto 990
@@ -2661,9 +2727,42 @@ contains
              write(kou,*)'No plotdata file for dataset ',i1
           endif
 !---------------------------------------------------------------
-! enter not used
+! ENTER GNUPLOT_TERMINAL
        case(18)
-          write(*,*)'Not implemeneted yet'
+          write(kou,172)graphopt%gnutermax
+172       format('GNUPLOT terminals are:',i2)
+          write(kou,173)(i2,graphopt%gnutermid(i2),&
+               trim(graphopt%gnuterminal(i2)),i2=1,graphopt%gnutermax)
+173       format(i2,2x,a,' > set terminal ',a)
+          write(kou,174)
+174       format('Enter or change a GNUPLOT termial ')
+          call gparc('Termminal id (8 chars):',cline,last,1,text,' ',q1help)
+          call capson(text)
+          if(text(1:1).eq.' ') goto 100
+          do i1=1,graphopt%gnutermax
+             if(text(1:8).eq.graphopt%gnutermid(i1)) goto 176
+          enddo
+! gnutermid not found, a new terminal
+          if(graphopt%gnutermax.ge.8) then
+             write(kou,*)'There can max be 8 terminals'
+             goto 100
+          endif
+          i1=graphopt%gnutermax+1
+          graphopt%gnutermax=i1
+! enter a new set terminal id and definition
+176       continue
+          graphopt%gnutermid(i1)=text(1:8)
+          call gparc('Text after set terminal:',cline,last,5,text,' ',q1help)
+          graphopt%gnuterminal(i1)=text
+          if(i1.ne.1) then
+! SCREEN has no file extention
+             call gparc('File extention:',cline,last,1,text,' ',q1help)
+             graphopt%filext(i1)=text(1:4)
+          endif
+          write(*,179)i1,graphopt%gnutermid(i1),trim(graphopt%gnuterminal(i1)),&
+               trim(graphopt%filext(i1))
+179       format('New terminal definition for plot '/&
+               i2,2x,a,'set terminal ',a/4x,'with file extention: ',a)
 !----------------------------------------------------------------
 ! enter not used
        case(19)
@@ -2685,7 +2784,7 @@ contains
 !----------------------------------------------------------------
 ! enter unused
        case(21)
-       END SELECT
+       END SELECT enter
 !=================================================================
 ! exit
     CASE(5)
@@ -2709,7 +2808,7 @@ contains
        kom2=submenu(cbas(kom),cline,last,clist,nclist,12)
        if(kom2.le.0) goto 100
        lut=optionsset%lut
-       SELECT CASE(kom2)
+       list: SELECT CASE(kom2)
 !-----------------------------------------------------------
        CASE DEFAULT
           write(kou,*)'LIST FORMAT subcommand error'
@@ -2784,7 +2883,7 @@ contains
           call find_phase_by_name(name1,iph,ics)
           if(gx%bmperr.ne.0) goto 990
           kom3=submenu('List what for phase?',cline,last,clph,nclph,2)
-          SELECT CASE(kom3)
+          listphase: SELECT CASE(kom3)
 !...............................................................
           CASE DEFAULT
              write(kou,*)'list phase subcommand error'
@@ -2809,7 +2908,7 @@ contains
              write(kou,6070)'For ',ceq%eqno,ceq%eqname
 6070      format(a,'equilibrium: ',i3,', ',a)
              call list_phase_model(iph,ics,lut,' ',ceq)
-          END SELECT
+          END SELECT listphase
 !------------------------------
        case(4,17)  ! list state variable or parameter identifier value, loop.
 !6099      continue
@@ -3123,7 +3222,7 @@ contains
                name1(1:2),name1(3:4)
 600       format(/'Listing of optimization results: date ',a4,'.',a2,'.',a2,&
                ' : ',a2,'h',a2)
-          SELECT CASE(kom2)
+          listopt: SELECT CASE(kom2)
 !..........................................................
              case DEFAULT
                 write(kou,*)'No such option'
@@ -3154,7 +3253,7 @@ contains
 !...........................................................
              case(9) ! unused
                 write(*,*)'Not implemented yet'
-             end SELECT
+             end SELECT listopt
 !------------------------------
 ! list model parameter values, part of case(4)
 !       case(17)
@@ -3164,11 +3263,11 @@ contains
        case(18)
           i2=4204
           call gparid('Error code: ',cline,last,i1,i2,q1help)
-          if(i1.ge.4000 .and. i1.lt.4399) then
+          if(i1.ge.4000 .and. i1.le.nooferm) then
              write(kou,4999)i1,bmperrmess(i1)
 4999         format('The error code ',i4', means: '/a)
           else
-             write(kou,*)'No a standard OC error message'
+             write(kou,*)'Not a standard OC error message'
           endif
 !------------------------------
 ! list ??
@@ -3182,7 +3281,7 @@ contains
 ! list ??
        case(21)
           write(*,*)'Not implemented yet'
-       end SELECT
+       end SELECT list
 !=================================================================
 ! quit
     case(7)
@@ -3200,13 +3299,13 @@ contains
           stop 'Have a nice day'
        endif
 !=================================================================
-! read subcommand
+! READ subcommand
 !        ['UNFORMATTED     ','TDB             ','QUIT            ',&
 !         'DIRECT          ','                ','                ']
     case(8)
 ! disable continue optimization
-       iexit=0
-       iexit(2)=1
+!       iexit=0
+!       iexit(2)=1
        if(noel().ne.0) then
           write(kou,*)'You already have data, read destroys your current data'
           write(kou,*)'You must give a NEW Y command to remove data first'
@@ -3222,7 +3321,7 @@ contains
 !          endif
        endif
        kom2=submenu(cbas(kom),cline,last,cread,ncread,2)
-       SELECT CASE(kom2)
+       read: SELECT CASE(kom2)
 !-----------------------------------------------------------
        CASE DEFAULT
           write(kou,*)'Read subcommand error'
@@ -3269,7 +3368,7 @@ contains
 ! if tdbfle starts with "ocbase/" replace that with content of ocbase!!
           name1=tdbfile(1:7)
           call capson(name1)
-          if(name1(1:7).eq.'OCBASE/' .or. name1(1:7).eq.'OCBASE\') then
+          if(name1(1:7).eq.'OCBASE/' .or. name1(1:8).eq.'OCBASE\ ') then
              tdbfile=trim(ocbase)//tdbfile(7:)
              write(*,*)'database file: ',trim(tdbfile)
           endif
@@ -3279,7 +3378,8 @@ contains
              write(kou,*)'No database with this name'
              goto 990
           elseif(jp.eq.0) then
-             write(Kou,*)'No elements in the database'
+             write(kou,*)'No elements in the database'
+             goto 100
           endif
           write(kou,8203)jp,(ellist(kl),kl=1,jp)
 8203      format('Database has ',i2,' elements: ',18(a,1x)/(1x,28(1x,a)))
@@ -3388,9 +3488,9 @@ contains
 !-----------------------------------------------------------
        case(6) ! read ??
           write(*,*)'Nothing yet'
-       end SELECT
+       end SELECT read
 !=================================================================
-! save in various formats (NOT TDB, MACRO and LATEX, use LIST DATA)
+! SAVE in various formats (NOT TDB, MACRO and LATEX, use LIST DATA)
 ! It is a bit inconsistent as one READ TDB but not SAVE TDB ...
 !        ['TDB             ','SOLGASMIX       ','UNFORMATTED     ',&
 !         'DIRECT          ','                ','QUIT            ']
@@ -3403,7 +3503,7 @@ contains
 ! Do not ask this question for TDB and SOLGASMIX files
           call gparc('Comment line: ',cline,last,5,model,' ',q1help)
        endif
-       SELECT CASE(kom2)
+       save: SELECT CASE(kom2)
 !-----------------------------------------------------------
        CASE DEFAULT
           write(kou,*)'save subcommand error'
@@ -3459,7 +3559,7 @@ contains
              call gparcd('File exists, overwrite?',cline,last,1,ch1,'N',q1help)
              if(ch1.ne.'Y') then
                 write(*,133)
-133             format('You can use another file name')
+133             format('Please use another file name')
                 ocufile=' '
                 goto 132
              endif
@@ -3497,7 +3597,7 @@ contains
 !-----------------------------------------------------------
        case(6) ! save quit, do nothing
           continue
-       end SELECT
+       end SELECT save
 !=================================================================
 ! help ... just list the commands
     case(10)
@@ -3537,8 +3637,8 @@ contains
 !       write(*,*)'No segmentation fault 3'
        mexp=0
        nvcoeff=0
-       iexit=0
-       iexit(2)=1
+!       iexit=0
+!       iexit(2)=1
 !       write(*,*)'No Segmentation fault 4'
 !----- deleting map results ...
 !       write(*,*)'Deleting map results'
@@ -3601,7 +3701,7 @@ contains
 15010  format(/'This is OpenCalphad (OC), a free software for ',&
             'thermodynamic calculations'/&
             'described by B Sundman, U R Kattner, M Palumbo and S G Fries, ',&
-            'Integrating'/'Materials and Manu Innov (2015) 4:1 and ',&
+            'Integrating'/'Materials and Manuf. Innov. (2015) 4:1 and ',&
             'B Sundman, X-G Lu and H Ohtani,'/'Comp Mat Sci, Vol 101 ',&
             '(2015) 127-137 and B Sundman et al., Comp Mat Sci, '/&
             'Vol 125 (2016) 188-196'//&
@@ -3616,14 +3716,14 @@ contains
             'The full license text is provided with the software'/&
             'or can be obtained from the Free Software Foundation ',&
             'http://www.fsf.org'//&
-            'Copyright 2011-2016, Bo Sundman, France.'/&
+            'Copyright 2011-2017, Bo Sundman, Gif sur Yvette, France.'/&
             'Contact person Bo Sundman, bo.sundman@gmail.com'/&
             'This version linked ',a/)
 !=================================================================
 ! debug subcommands
     case(16)
        kom2=submenu(cbas(kom),cline,last,cdebug,ncdebug,1)
-       SELECT CASE (kom2)
+       debug: SELECT CASE (kom2)
 !------------------------------
        CASE DEFAULT
           write(kou,*)'Debug subcommand error ',kom2
@@ -3706,12 +3806,12 @@ contains
 ! debug unused
        case(6)
           write(*,*)'Neither here'
-       END SELECT
+       END SELECT debug
 !=================================================================
 ! select command
     case(17)
        kom2=submenu(cbas(kom),cline,last,cselect,nselect,1)
-       SELECT CASE(kom2)
+       selct: SELECT CASE(kom2)
 !-----------------------------------------------------------
        CASE DEFAULT
           write(kou,*)'Select subcommand error'
@@ -3797,28 +3897,29 @@ contains
           if(ch1.eq.'Y') then
              optimizer=1
           else
-             call gparcd('Do you want to use VA05AD?',&
-                  cline,last,1,ch1,'Y',q1help)
-             if(ch1.eq.'Y') then
-                optimizer=2
-             endif
+             write(*,*)'Sorry VA05AD is no longer available'
+!             call gparcd('Do you want to use VA05AD?',&
+!                  cline,last,1,ch1,'Y',q1help)
+!             if(ch1.eq.'Y') then
+!                optimizer=2
+!             endif
           endif
           write(kou,*)'You have selected ',optimizers(optimizer)
 !-----------------------------------------------------------
        case(6)
           goto 100
-       END SELECT
+       END SELECT selct
 !=================================================================
-! delete not much implemented ...
+! DELETE not much implemented ...
 !         ['ELEMENTS        ','SPECIES         ','PHASE           ',&
 !          'QUIT            ','COMPOSITION_SET ','EQUILIBRIUM     ',&
 !          'STEP_MAP_RESULTS','                ','                ']
     CASE(18)
 ! disable continue optimization
-       iexit=0
-       iexit(2)=1
+!       iexit=0
+!       iexit(2)=1
        kom2=submenu(cbas(kom),cline,last,crej,nrej,3)
-       SELECT CASE(kom2)
+       delete: SELECT CASE(kom2)
 !-----------------------------------------------------------
        CASE DEFAULT
           write(kou,*)'Delete subcommand error'
@@ -3902,6 +4003,7 @@ contains
           graphopt%gibbstriangle=.FALSE.
           graphopt%labelkey='upper right'
           graphopt%appendfile=' '
+! the textlabelrecords are NOT deallocated ... but very small
           nullify(graphopt%firsttextlabel)
 !-----------------------------------------------------------
 !
@@ -3911,7 +4013,7 @@ contains
 !
        case(9)
           continue
-       end SELECT
+       end SELECT delete
 !=================================================================
 ! STEP, must be tested if compatible with assessments
 !         ['NORMAL          ','SEPARATE        ','QUIT            ',&
@@ -3939,6 +4041,19 @@ contains
 ! delete equilibria associated with STEP/MAP
              call delete_equilibria('_MAP*',ceq)
              seqxyz=0
+! remove all graphopt settings
+             graphopt%gibbstriangle=.FALSE.
+             graphopt%rangedefaults=0
+             graphopt%labeldefaults=0
+             graphopt%plotmin=zero
+             graphopt%dfltmin=zero
+             graphopt%plotmax=one
+             graphopt%dfltmax=one
+             graphopt%appendfile=' '
+             graphopt%status=0
+             graphopt%labelkey='top right'
+             nullify(graphopt%firsttextlabel)
+             nullify(textlabel)
           else
              seqxyz(1)=maptop%next%seqx
              seqxyz(2)=maptop%seqy
@@ -3948,7 +4063,7 @@ contains
           endif
        endif
        kom2=submenu('Options?',cline,last,cstepop,nstepop,1)
-       SELECT CASE(kom2)
+       step: SELECT CASE(kom2)
 !-----------------------------------------------------------
        CASE DEFAULT
           write(kou,*)'No such step option'
@@ -4027,7 +4142,7 @@ contains
 ! STEP unused
        case(6)
           write(kou,*)'Not implemented yet'
-       end SELECT
+       end SELECT step
 !=================================================================
 ! MAP, must be tested if compatible with assessments
     case(20)
@@ -4056,6 +4171,19 @@ contains
              endif
 ! initiate indexing nodes and lines
              seqxyz=0
+! remove all graphopt settings
+             graphopt%gibbstriangle=.FALSE.
+             graphopt%rangedefaults=0
+             graphopt%labeldefaults=0
+             graphopt%plotmin=zero
+             graphopt%dfltmin=zero
+             graphopt%plotmax=one
+             graphopt%dfltmax=one
+             graphopt%appendfile=' '
+             graphopt%status=0
+             graphopt%labelkey='top right'
+             nullify(graphopt%firsttextlabel)
+             nullify(textlabel)
           else
 ! start indexing new noes/lines from previous 
 !             write(*,*)'mapnode: ',maptop%seqx,maptop%previous%seqx,&
@@ -4099,6 +4227,8 @@ contains
        if(gx%bmperr.ne.0) goto 990
 !=================================================================
 ! PLOT
+! Always specify the axis when giving this command, default is previous!!
+! Sunbommands comes after
     case(21)
        if(.not.associated(maptop)) then
           write(kou,*)'You must give a STEP or MAP command before PLOT'
@@ -4142,7 +4272,6 @@ contains
 !      7 TEXT TERMINATED BY SPACE OR "," BUT IGNORING SUCH INSIDE ( )
 !    >31, THE CHAR(JTYP) IS USED AS TERMINATING CHARACTER
 !------------------------------------------------------------------------
-! return here after each subcommand
 21000      continue
           if(iax.eq.1) then
              call gparcd('Horizontal axis variable',&
@@ -4166,7 +4295,12 @@ contains
              graphopt%appendfile=' '
              graphopt%gibbstriangle=.FALSE.
              graphopt%labelkey='top right'
-! more options to restore ...
+! default plot terminal, replaces plotform
+             graphopt%gnutermsel=1
+             plotform=' '
+! remember that labeldefaults(1) is the title!!!
+             graphopt%labeldefaults(iax+1)=0
+! more options to restore ... ???
           endif
 ! remember axis as default
           axplotdef(iax)=axplot(iax)
@@ -4182,22 +4316,47 @@ contains
 !          write(*,*)'There is no maptopsave'
        endif
 !-----------------------------------------------------------
-! plot options subcommand, default is PLOT, NONE does not work ...
+! PLOT with subcommand, default is PLOT, NONE does not work ...
+! subcommands to PLOT OPTIONS/ GRAPHICS OPTIONS
+!    character (len=16), dimension(nplt) :: cplot=&
+!        ['RENDER          ','SCALE_RANGES    ','RATIOS_XY       ',&
+!         'AXIS_LABELS     ','                ','TITLE           ',&
+!         'GRAPHICS_FORMAT ','OUTPUT_FILE     ','GIBBS_TRIANGLE  ',&
+!         'QUIT            ','POSITION_OF_KEYS','APPEND          ',&
+!         'TEXT            ','TIE_LINES       ','KEEP            ',&
+!         'LOGSCALE        ','                ','                ']
+!-------------------
+! return here after each subcommand
 21100   continue
-       if(plotform(1:1).eq.'P') then
-          write(kou,21110)plotfile(1:len_trim(plotfile))
-21110     format(/' *** Graphics format is PS on: ',a,'.ps ')
-       elseif(plotform(1:1).eq.'G') then
-          write(kou,21111)plotfile(1:len_trim(plotfile))
-21111     format(/' *** Graphics format is GIF on: ',a,'.gif ')
-       elseif(plotform(1:1).eq.'A') then
-          write(kou,21113)plotfile(1:len_trim(plotfile))
-21113     format(/' *** Graphics format is PDF on: ',a,'.pdf ')
+       if(graphopt%gnutermsel.lt.1 .or. &
+            graphopt%gnutermsel.gt.graphopt%gnutermax) then
+          write(kou,*)'No such graphics terminal: ',graphopt%gnutermsel
+       elseif(graphopt%gnutermsel.ne.1) then
+          write(kou,2910)trim(graphopt%gnutermid(graphopt%gnutermsel)),&
+               trim(plotfile),trim(graphopt%filext(graphopt%gnutermsel))
+2910      format(/' *** Graphics format is ',a,' on file: ',a,'.',a)
        endif
+!       if(index(plotfile,'.plt ').le.0) then
+! this is the default plot file name
+!          plotfile='ocgnu '
+!       endif
+!       if(plotform(1:1).eq.'P') then
+!          write(kou,21110)trim(plotfile)
+!21110     format(/' *** Graphics format is PS on: ',a,'.ps ')
+!       elseif(plotform(1:1).eq.'G') then
+!          write(kou,21111)trim(plotfile)
+!21111     format(/' *** Graphics format is GIF on: ',a,'.gif ')
+!       elseif(plotform(1:1).eq.'A') then
+!          write(kou,21113)trim(plotfile)
+!21113     format(/' *** Graphics format is PDF on: ',a,'.pdf ')
+!       elseif(index(plotfile,'.plt ').le.0) then
+! this is the default plot file name
+!          plotfile='ocgnu '
+!       endif
        write(kou,21112)
 21112  format(/'Note: give only one option per line!')
        kom2=submenu('Options?',cline,last,cplot,nplt,1)
-       SELECT CASE(kom2)
+       plotoption: SELECT CASE(kom2)
 !-----------------------------------------------------------
        CASE DEFAULT
           write(kou,*)'No such plot option'
@@ -4206,10 +4365,19 @@ contains
        case(1)
 ! added ceq in the call to make it possible to handle change of reference states
 !2190      continue
-          call ocplot2(jp,axplot,plotfile,maptop,axarr,graphopt,plotform,&
-               version,ceq)
+! use the graphics record to transfer data ...
+          graphopt%pltax(1)=axplot(1)
+          graphopt%pltax(2)=axplot(2)
+          graphopt%filename=' '
+!          write(*,*)' >>>>>>>>>>>>> ',trim(plotfile)
+          graphopt%filename=plotfile
+          call ocplot2(jp,maptop,axarr,graphopt,version,ceq)
+!          call ocplot2(jp,axplot,plotfile,maptop,axarr,graphopt,plotform,&
+!               version,ceq)
           if(gx%bmperr.ne.0) goto 990
-! always restore default plot file name!!
+! always restore default plot file name and plot option to screem
+          graphopt%gnutermsel=1
+          graphopt%filename='ocgnu '
           plotfile='ocgnu'
 !          call gparc('Hardcopy (P for postscript)?',&
 !               cline,last,1,form,'none',q1help)
@@ -4218,8 +4386,31 @@ contains
 !             call ocplot2(jp,axplot,plotfile,maptop,axarr,graphopt,form,ceq)
 !          endif
 !-----------------------------------------------------------
-! XRANGE
+! SCALE_RANGE of either X or Y
        case(2)
+          call gparcd('For X or Y axis? ',cline,last,1,ch1,'X',q1help)
+          if(ch1.eq.'X' .or. ch1.eq.'x') then
+!             if(graphopt%axistype(1).eq.1) then
+!                write(kou,*)'The x axis set to linear'
+!                graphopt%axistype(1)=0
+!             else
+!                graphopt%axistype(1)=1
+!             endif
+             goto 21120
+          elseif(ch1.eq.'Y' .or. ch1.eq.'y') then
+!             if(graphopt%axistype(2).eq.1) then
+!                write(kou,*)'The y axis set to linear'
+!                graphopt%axistype(2)=0
+!             else
+!                graphopt%axistype(2)=1
+!             endif
+             goto 21130
+          else
+             write(kou,*)'Please answer X or Y'
+          endif
+          goto 21100
+!............................................
+21120     continue
           call gparcd('Default limits',cline,last,1,ch1,'N',q1help)
           if(ch1.eq.'Y' .or. ch1.eq.'y') then
              graphopt%rangedefaults(1)=0
@@ -4255,8 +4446,7 @@ contains
           endif
           goto 21100
 !-----------------------------------------------------------
-! YRANGE
-       case(3)
+21130     continue
           call gparcd('Default limits',cline,last,1,ch1,'N',q1help)
           if(ch1.eq.'Y' .or. ch1.eq.'y') then
              graphopt%rangedefaults(2)=0
@@ -4291,12 +4481,42 @@ contains
           endif
           goto 21100
 !-----------------------------------------------------------
-! XTEXT
-       case(4)
-          write(*,*)'Not implemented yet'
+! RATIOS of axis, normal values 1,1
+       case(3)
+          call gparrd('X-axis plot ratio',cline,last,xxx,graphopt%xsize,q1help)
+          if(xxx.le.0.1) then
+             write(*,*)'Ratio set to 0.1'
+             xxx=0.1D0
+          endif
+          graphopt%xsize=xxx
+          call gparrd('Y-axis plot ratio',cline,last,xxx,graphopt%ysize,q1help)
+          if(xxx.le.0.1) then
+             write(*,*)'Ratio set to 0.1'
+             xxx=0.1D0
+          endif
+          graphopt%ysize=xxx
+!          write(*,*)'Not implemented yet'
           goto 21100
 !-----------------------------------------------------------
-! YTEXT
+! AXIS_LABELS
+       case(4)
+          call gparcd('For X or Y axis? ',cline,last,1,ch1,'X',q1help)
+          if(ch1.eq.'X' .or. ch1.eq.'x') then
+             call gparcd('Axis label: ',cline,last,5,&
+                  graphopt%plotlabels(2),axplot(1),q1help)
+! remember that plotlabel(1) is the title
+             graphopt%labeldefaults(2)=len(graphopt%plotlabels(2))
+          elseif(ch1.eq.'Y' .or. ch1.eq.'y') then
+             call gparcd('Axis label: ',cline,last,5,&
+                  graphopt%plotlabels(3),axplot(2),q1help)
+! remember that plotlabel(1) is the title
+             graphopt%labeldefaults(3)=len(graphopt%plotlabels(3))
+          else
+             write(kou,*)'Please answer X or Y'
+          endif
+          goto 21100
+!-----------------------------------------------------------
+! unused
        case(5)
           write(*,*)'Not implemented yet'
           goto 21100
@@ -4316,25 +4536,74 @@ contains
 ! when setting graphics format always also ask for plot file
        case(7,8)
           if(kom2.eq.7) then
-             call gparcd('Graphics format (ACROBAT(PDF)/PS/GIF/SCREEEN)',&
-                  cline,last,1,ch1,'SCREEN',q1help)
-             if(ch1.eq.'a' .or. ch1.eq.'A') then
-                write(kou,*)'Graphics format set to ACROBAT PDF'
-                plotform='A'
-             elseif(ch1.eq.'p' .or. ch1.eq.'P') then
-                write(kou,*)'Graphics format set to PS'
-                plotform='P'
-             elseif(ch1.eq.'g' .or. ch1.eq.'G') then
-                write(kou,*)'Graphics format set to GIF'
-                plotform='G'
-             else
-                write(kou,*)'Graphics format set to SCREEN'
-                plotform=' '
+! subroutine TOPHLP forces return with ? in position cline(1:1)
+29130        continue
+             call gparid('Graphics format index:',cline,last,i1,1,tophlp)
+!             if(cline(1:1).eq.'?'
+             if(cline(1:1).eq.'?' .or. &
+                  i1.lt.1 .or. i1.gt.graphopt%gnutermax) then
+                write(kou,29133)
+29133           format('Avalable graphics formats are:')
+                write(kou,29135)(i1,graphopt%gnutermid(i1),&
+                     i1=1,graphopt%gnutermax)
+29135           format(i3,2x,a)
+                goto 29130
              endif
           endif
+          graphopt%gnutermsel=i1
+          write(kou,*)'Graphics format set to: ',graphopt%gnutermid(i1)
+!          if(kom2.eq.7) then
+!             call gparcd('Graphics format (ACROBAT(PDF)/PS/GIF/SCREEEN)',&
+!                  cline,last,1,ch1,'SCREEN',q1help)
+!             if(ch1.eq.'a' .or. ch1.eq.'A') then
+!                write(kou,*)'Graphics format set to ACROBAT PDF'
+!                plotform='A'
+!             elseif(ch1.eq.'p' .or. ch1.eq.'P') then
+!                write(kou,*)'Graphics format set to PS'
+!                plotform='P'
+!             elseif(ch1.eq.'g' .or. ch1.eq.'G') then
+!                write(kou,*)'Graphics format set to GIF'
+!                plotform='G'
+!             else
+!                write(kou,*)'Graphics format set to SCREEN'
+!                plotform=' '
+!             endif
+!          endif
 !-----------------------------------------------------------
-! PLOT OUTPUT_FILE, always asked when changing terminal
+! PLOT OUTPUT_FILE, always asked when changing graphics terminal
+21140     continue
           call gparcd('Plot file',cline,last,1,plotfile,'ocgnu',q1help)
+          if(plotfile(1:6).ne.'ocgnu ') then
+             if(index(plotfile,'.').le.0) then
+                if(graphopt%gnutermsel.ne.1) then
+                   filename=trim(plotfile)//'.'//&
+                        graphopt%filext(graphopt%gnutermsel)
+! add extenstion depending on format
+!                if(plotform(1:1).eq.'A') then
+!                   filename=trim(plotfile)//'.pdf'
+!                elseif(plotform(1:1).eq.'P') then
+!                   filename=trim(plotfile)//'.ps '
+!                elseif(plotform(1:1).eq.'G') then
+!                   filename=trim(plotfile)//'.gif '
+                else
+! just changing name of the GNUPLOT command file
+                   filename=trim(plotfile)//'.plt '
+                   plotfile=filename
+                endif
+             endif
+!             filename=trim(plotfile)//'.plt '
+             inquire(file=filename,exist=logok)
+             if(logok) then
+                call gparcd('File exists, overwrite?',&
+                     cline,last,1,ch1,'N',q1help)
+                if(ch1.ne.'Y') then
+                   write(*,133)
+                   plotfile=' '
+                   goto 21140
+                endif
+                write(*,134)trim(filename)
+             endif
+          endif
           goto 21100
 !-----------------------------------------------------------
 ! PLOT GIBBS_TRIANGLE
@@ -4386,7 +4655,7 @@ contains
           graphopt%appendfile=' '
           goto 21100
 !-----------------------------------------------------------
-! PLOT TEXT 
+! TEXT anywhere on plot
        case(13)
           labelp=>graphopt%firsttextlabel
           if(associated(labelp)) then
@@ -4395,8 +4664,9 @@ contains
                 jp=0
                 do while(associated(labelp))
                    jp=jp+1
-                   write(kou,2310)jp,labelp%xpos,labelp%ypos,labelp%textline
-2310               format(i3,2(1pe12.4),5x,a)
+                   write(kou,2310)jp,labelp%xpos,labelp%ypos,labelp%angle,&
+                        labelp%textline
+2310               format(i3,2(1pe12.4),2x,i4,5x,a)
                    labelp=>labelp%nexttextlabel
                 enddo
                 call gparid('Which text index?',cline,last,kl,1,q1help)
@@ -4415,11 +4685,14 @@ contains
                      labelp%xpos,q1help)
                 call gparrd('New Y position: ',cline,last,xxy,&
                      labelp%ypos,q1help)
+                call gparid('New angle (degrees): ',cline,last,j1,&
+                     labelp%angle,q1help)
                 if(buperr.ne.0) then
                    write(*,*)'Error reading coordinates'; goto 100
                 endif
                 labelp%xpos=xxx
                 labelp%ypos=xxy
+                labelp%angle=j1
 ! ask for more options
                 goto 21100
              endif
@@ -4427,6 +4700,7 @@ contains
 ! input a new label
           call gparrd('X position: ',cline,last,xxx,zero,q1help)
           call gparrd('Y position: ',cline,last,xxy,zero,q1help)
+          call gparid('Angle (degree): ',cline,last,j1,0,q1help)
           if(buperr.ne.0) then
              write(*,*)'Error reading coordinates'; goto 100
           endif
@@ -4460,6 +4734,7 @@ contains
           allocate(textlabel)
           textlabel%xpos=xxx
           textlabel%ypos=xxy
+          textlabel%angle=j1
           textlabel%textline=trim(text)
           if(associated(graphopt%firsttextlabel)) then
              textlabel%nexttextlabel=>graphopt%firsttextlabel
@@ -4524,7 +4799,7 @@ contains
 ! unused
        case(18)
           goto 21100
-       end SELECT
+       end SELECT plotoption
 !=================================================================
 ! HPCALC
     case(22)
@@ -4548,19 +4823,19 @@ contains
        nopt=i1
 !       write(*,606)'dead 1',mexp,nvcoeff,iexit
 606    format(a,10i4)
-! some optimires have no CONTINUE
-       if(optimizer.eq.1) iexit(4)=0
-       continue: if(mexp.gt.0 .and. iexit(4).eq.2) then
+! some optimizers have no CONTINUE
+!       if(optimizer.eq.1) iexit(4)=0
+!       continue: if(mexp.gt.0 .and. iexit(4).eq.2) then
 ! iexit(4) from previous optimize allows continue with same Jacobian
-          call gparcd('Continue with same Jacobian? ',cline,last,1,&
-               ch1,'Y',q1help)
-          if(ch1.eq.'Y') then
-             ient=1
-             goto 987
-          endif
-       endif continue
+!          call gparcd('Continue with same Jacobian? ',cline,last,1,&
+!               ch1,'Y',q1help)
+!          if(ch1.eq.'Y') then
+!             ient=1
+!             goto 987
+!          endif
+!       endif continue
 ! Initiate arrays when new optimization
-       ient=0
+!       ient=0
        if(.not.allocated(firstash%eqlista)) then
           write(kou,*)'There are no equilibria with experiments!'
           goto 100
@@ -4618,14 +4893,14 @@ contains
 ! caculate how big www is needed, it depends on mexp and nvcoeff
 ! Size of www from VA05AD 
 !             M*N         +(M+N)*N               +N      
-       nwc=mexp*nvcoeff+(mexp+nvcoeff)*nvcoeff+nvcoeff
+!       nwc=mexp*nvcoeff+(mexp+nvcoeff)*nvcoeff+nvcoeff
 !               +M   +N      +N*N            +N+M+N
-       j1=nwc+mexp+nvcoeff+nvcoeff*nvcoeff+2*nvcoeff+mexp
+!       j1=nwc+mexp+nvcoeff+nvcoeff*nvcoeff+2*nvcoeff+mexp
 !       allocate(www(j1))
-       if(maxw.lt.j1) then
-          write(*,*)'Too big problem, increase maxw, current value',maxw
-          goto 100
-       endif
+!       if(maxw.lt.j1) then
+!          write(*,*)'Too big problem, increase maxw, current value',maxw
+!          goto 100
+!       endif
 ! JUMP HERE IF CONTINUE optimization
 987    continue
 ! mexp    Number of experiments
@@ -4639,14 +4914,18 @@ contains
 569       format('Cannot optimize with zero experiments or coefficients',2i5)
           goto 100
        endif
-       write(*,558)mexp,nvcoeff,maxw
+       write(*,558)mexp,nvcoeff
 558    format(/'>>>   Start of optimization   >>>'/&
             'Experiments, coefficients and workspace: ',3(1x,i5))
 !
-       iprint=1
+!       iprint=1
 ! There is a va05ad emulator called lmdif ...
-       call va05ad(mexp,nvcoeff,errs,coefs,dstep,dmax2,acc,nopt,iprint,www,&
-            ient,iexit)
+!       call va05ad(mexp,nvcoeff,errs,coefs,dstep,dmax2,acc,nopt,iprint,www,&
+!            ient,iexit)
+! integer, parameter :: lwam=2500
+! integar iwam(lwam)
+! double precision wam(lwam)
+       call lmdif1(mexp,nvcoeff,coefs,errs,acc,nopt,iwam,wam,lwam)
 !       write(kou,559)iprint,iexit
 !559    format(/'Back from optimization',10i3/)
 ! we must copy the current scaled coefficients back to firstash%coeffvalues
@@ -4687,7 +4966,7 @@ contains
        write(kou,*)'Not implemented yet'
 !=================================================================
 !
-    END SELECT
+    END SELECT main
 ! command executed, prompt for another command unless error code
     if(gx%bmperr.eq.0) goto 100
 !============================================================
@@ -4897,7 +5176,7 @@ contains
           read(21,210,end=220)dummy
 210       format(a)
           goto 200
-! write not allowed after fininfg EOF, we must backspace
+! write not allowed after finding EOF, we must backspace
 220       continue
           backspace(21)
 ! write a header

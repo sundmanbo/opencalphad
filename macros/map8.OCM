@@ -140,7 +140,7 @@ l sh a
 
 @&
 
-set c t=100 p=1e5 n=1 x(ni)=.6
+set c t=150 p=1e5 n=1 x(ni)=.65
 
 c e
 

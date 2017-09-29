@@ -4508,7 +4508,7 @@ CONTAINS
          OPER(33)/'_EDIT     '/,OPER(34)/'_BACK     '/, &
          OPER(35)/'_NOOP     '/,OPER(36)/'_TRACE    '/, &
          OPER(37)/'_END      '/,OPER(38)/'_RUN      '/, &
-         OPER(39)/'          '/,OPER(40)/'          '/
+         OPER(39)/'QUIT      '/,OPER(40)/'FIN       '/
 !
     WRITE(*,*)'REVERSE POLISH CALCULATOR'
     NAXOP=24
@@ -4829,7 +4829,8 @@ CONTAINS
     GOTO 100
 !...BACK
 440 WRITE(*,*)'NOT IMPLEMENTED'
-    GOTO 100
+    RETURN
+!    GOTO 100
 441 WRITE(*,401)KPROG,PROG(KPROG)
     IF(KPROG.GT.1) KPROG=KPROG-2
     OK=.FALSE.
@@ -4859,16 +4860,20 @@ CONTAINS
     ENDIF
     OK=.FALSE.
     GOTO 100
+!...QUIT
 490 CONTINUE
+    RETURN
+!...FIN
 500 CONTINUE
-    GOTO 100
+    RETURN
+!    GOTO 100
   END SUBROUTINE HPCALC
 
   SUBROUTINE HPHLP
     WRITE(*,10)
 10  FORMAT(' This is a revese polish calculator'/&
          ' Input are numbers, + - * / and ^ and OPCODEs.',&
-         ' Use HELP to list OPCODEs.'/' Several numbers an operations',&
+         ' Use HELP to list OPCODEs.'/' Several numbers and operations',&
          ' can be given on one line.'/' The content of the X register',&
          ' is displayed after each operation'//&
          ' Example input: 30000 8 1273 * / chs 1.5 3 ^ + exp 2 *'/&

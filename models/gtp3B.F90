@@ -43,7 +43,7 @@
    gx%bmperr=4033
    goto 1000
 200 continue
-! check element not already entered
+! check if element already entered
    symb2=symb(1:2)
 !    write(*,202)'3B new element 1: ',symb,symb2
 202 format(a,'"',a,'"',a,'"')
@@ -745,6 +745,8 @@
    endif
 ! quasichemical liquid: indicate status bit for bond clusters in phase_varres 
    if(cqc) then
+! clear the ideal bit
+      phlista(nyfas)%status1=ibclr(phlista(nyfas)%status1,PHID)
       do jk=1,size(phlista(nyfas)%constitlist)
 ! indexing is tricky ...
          ll=phlista(nyfas)%constitlist(jk)
@@ -1421,9 +1423,12 @@
 ! note that the index to phase_varres is the same in all equilibria!!!!
    alleq: do leq=1,noeq()
       varres=>eqlista(leq)%phase_varres(lastcs)
+! there can be unallocated phase_varres records below lastcs
+      if(.not.allocated(varres%sites)) cycle alleq
       deallocate(varres%constat)
       deallocate(varres%yfr)
-      deallocate(varres%mmyfr)
+! this is not allways allocated
+      if(allocated(varres%mmyfr)) deallocate(varres%mmyfr)
       deallocate(varres%sites)
 ! these may not be allocated ...
 !      write(*,*)'3B delete varres dsitesdy: ',leq,lokcs,size(varres%dsitesdy)
@@ -1543,7 +1548,7 @@
 !
 !   write(*,*)'3B Free list 1: ',csfree,highcs,lokcs
 ! update phasetuple array, overwrite tuple.  This means tuples may change phase
-! NOTE the first tuple for a phase+compset will never change position.  Only
+! NOTE the first tuple for a phase+compset=1 will never change position.  Only
 ! those created later may be shifted ... but that may be complicated enough ...
 !   write(*,*)'3B Shifting phase tuples above deleted: ',tuple,nooftuples
 !   write(*,770)'3B1:',(jl,phasetuple(jl),jl=tuple-1,nooftuples)
@@ -1631,7 +1636,7 @@
    character notext*20,funexp*1024
    integer iord(maxsubl),jord(2,maxsubl)
    integer again,kkk,ll,kk1,mint,kk,lokint,iz,it,kint,ib,jl,zz,highint
-   integer lj,i1,i2,newint,ifri,lokcs,noperm,firstint,listfun,ii
+   integer lj,i1,i2,newint,ifri,lokcs,noperm,firstint,listfun,ii,iq,jq
    integer, dimension(24) :: intperm
    integer, dimension(:,:), allocatable :: elinks
    integer, dimension(:,:), allocatable :: intlinks
@@ -1678,7 +1683,8 @@
 17     continue
       kkk=kkk+phlista(lokph)%nooffr(ll)
    enddo sublloop
-!   write(*,*)'3B enter_parameter 2B: ',(iord(ll),ll=1,nsl)
+!   write(*,13)'3B enter_parameter 2B: ',(iord(ll),ll=1,nsl)
+13 format(a,10i4)
 !  if(nint.eq.2) write(*,*)'enter_parameter 2C: ************************ '
 ! end member constituents found, check interaction
 ! interactions are in sublattice order in lint
@@ -1718,8 +1724,8 @@
 !      write(*,*)'3B enter_param error: ',nint,mint,lint(1,mint),lint(2,mint)
       gx%bmperr=4067; goto 1000
    endif
-!   write(*,33)'3B epar 1: ',nint,((lint(i,j),i=1,2),j=1,nint)
-33 format(a,i3,' : ',3(2i3,2x))
+!   write(*,33)'3B epar 1: ',nint,((lint(iq,jq),iq=1,2),jq=1,nint)
+33 format(a,i3,' : ',3(2i4,3x))
    goto 90
 !----------------
 ! code below is for disordered fraction types, use fractset record
@@ -1829,9 +1835,10 @@
 !---------------------------------------------
 ! Make sure the endmember has the alphabetically lowest constituent
 ! and that the interaction is not the same as the endmember
-!   write(*,92)'3B endmembers: ',(iord(i),i=1,nsl)
+!   write(*,92)'3B endmembers 1: ',(iord(iq),iq=1,nsl)
 92 format(a,10i4)
-!   write(*,92)'3B interactions: ',(jord(2,i),i=1,nint)
+!   write(*,93)'3B interaction 1: ',(jord(1,iq),jord(2,iq),iq=1,nint)
+93 format(a,5(i6,i4))
    placeibloop: do kint=1,nint
 ! ll is the sublattice with interaction
       ll=jord(1,kint)
@@ -1883,6 +1890,8 @@
          endif
       endif placeib
    enddo placeibloop
+!   write(*,92)'3B endmembers 2: ',(iord(iq),iq=1,nsl)
+!   write(*,93)'3B interaction 2: ',(jord(1,iq),jord(2,iq),iq=1,nint)
 !---------------------------------------------
 ! there may be permutations for ordered phases  ... implemented for fcc only
    intperm=0
@@ -1893,8 +1902,7 @@
               intperm,intlinks)
          if(gx%bmperr.ne.0) goto 1000
 ! make sure iord is alphabtically ordered to find the correct parameter
-! endm() are species index, iord() are constituent index (overal all subl)
-! elinks are constituent index, iord(*,1) is identical to elinks(*,1)
+! iord(*) and elinks(*,1) are constituent indices, not species indices
          do jl=1,nsl
             iord(jl)=elinks(jl,1)
          enddo
@@ -1903,7 +1911,10 @@
               intperm,intlinks)
          if(gx%bmperr.ne.0) goto 1000
 ! make sure iord is alphabtically ordered to find the correct parameter
-! endm() are species index, iord() are constituent index (overal all subl)
+! iord(*) and elinks(*,1) are constituent indices, not species indices
+!         write(*,76)'3B iord   ',(iord(jl),jl=1,nsl)
+!         write(*,76)'3B elinks ',(elinks(jl,1),jl=1,nsl)
+76       format(a,9i4)
          do jl=1,nsl
             iord(jl)=elinks(jl,1)
          enddo
@@ -1991,6 +2002,7 @@
 100 continue
 ! we have not found any endmember record so we have to insert a record here
 ! lokem may be nonzero if we exited from findem loop to this label
+! this subroutine is in gtp3G (why?)
    call create_endmember(lokph,newem,noperm,nsl,iord,elinks)
 !    write(*,*)'3B enter_par: created endmember ',new
    if(gx%bmperr.ne.0) goto 1000
@@ -2028,15 +2040,15 @@
 202   format(/a,7i4,4x,10i4)
       if(.not.associated(intrec)) then
 ! no interaction record for this endmember, create one unless lfun=-1
+! It seems this record is created but never used so it remains empty
+! create_interaction routine is in gtp3G.F90
          if(lfun.eq.-1) goto 900
          call create_interaction(newintrec,mint,jord,intperm,intlinks)
          if(gx%bmperr.ne.0) goto 1000
-!         write(*,*)'3B created interaction 9:',mint,nint
          endmemrec%intpointer=>newintrec
          intrec=>newintrec
          lastint=>intrec
          newint=1
-!         write(*,*)'3B created interaction:  ',newint,mint
       else
 !         write(*,*)'3B existing interaction: ',intrec%status
          newint=0
@@ -2115,10 +2127,9 @@
          if(lfun.eq.-1) goto 900
 !         write(*,303)'3B create at 310:',mint,nint,newint,firstint,highint,&
 !              jord(1,mint),jord(2,mint)
+! in gtp3G
          call create_interaction(newintrec,mint,jord,intperm,intlinks)
          if(gx%bmperr.ne.0) goto 1000
-! suddenly interaction record has wrong links??
-!       write(*,*)'3B sub/comp: ',newintrec%sublattice(1),newintrec%fraclink(1)
          if(newint.eq.1) then
 !           write(*,*)'3B Linking as higher',mint,highint,associated(linktohigh)
 ! We may have a high link already! Set it as nextlink!
@@ -2242,7 +2253,7 @@
    endif
    if(allocated(intlinks)) deallocate(intlinks)
    if(allocated(elinks)) deallocate(elinks)
-!  write(*,*)'3B enter_parameter 99: ',gx%bmperr
+!   write(*,*)'3B enter_parameter deallocated: ',gx%bmperr
 !  write(*,1010)'enter_parameter 77: ',(phlista(lokph)%constitlist(i),i=1,6)
 !1010 format(A,6I3)
    return
@@ -2263,8 +2274,10 @@
    integer lokph,nsl,noperm,nint
 !\end{verbatim} %+
    integer l2,ll,ib,again,clink,lshift,mshift,a211
-   integer odd,inz,ip,iqq1,iqq2,isp,jb,jp,jsp,l3,level1,level2
+   integer odd,inz,ip,iqq1,iqq2,isp,jb,jp,jsp,l3,level1,level2,isp2
    integer level2perm,lj,loksp,lsp,niqq1,nl1,nl2,nll,np,nq,nz,iz,jz,kz
+   integer ls,mint
+   character pch*64
    integer, dimension(4) :: elal,esame
    integer, dimension(:,:), allocatable :: elinks
    integer, dimension(:,:), allocatable :: intlinks
@@ -2655,7 +2668,7 @@
 ! Now the 1st level interactions ... store in intlinks(1..2)
    allocate(intlinks(2,100))
 ! intperm(1)=number of interaction permutations on level 1 for each endmember
-!   on level 1 each endmember perumtation has the same
+!   on level 1 each endmember permutation has the same
 ! intperm(2)=total number of permutation links for level 1
 ! intperm(3..) used for 2nd level
    select case(noperm)
@@ -2757,9 +2770,9 @@
             mshift=(intlinks(1,ll)-intlinks(1,ll-1))*lshift
 ! we have to calculate the index of the intreraction component in yarr 
             intlinks(2,ll)=intlinks(2,ll-1)+mshift
-            write(*,422)ll,l3,jord(1,1),mshift,intlinks(1,ll),intlinks(2,ll)
+!           write(*,422)'X',ll,l3,jord(1,1),mshift,intlinks(1,ll),intlinks(2,ll)
          enddo
-! This is used to inserd the second interaction (if any)
+! This is used to insert the second interaction (if any)
          level1=8
       endif
 !----------
@@ -2787,9 +2800,10 @@
          intlinks(1,ll)=l3
          mshift=(intlinks(1,ll)-intlinks(1,ll-1))*lshift
          intlinks(2,ll)=intlinks(2,ll-1)+mshift
-!         write(*,422)ll,l3,jord(1,1),mshift,intlinks(1,ll),intlinks(2,ll)
-422      format('3B spec: ',3i3,2x,i10,2x,2i10)
+!         write(*,422)'Y',ll,l3,jord(1,1),mshift,intlinks(1,ll),intlinks(2,ll)
+422      format('3B option F spec ',a,': ',3i3,2x,i7,2x,2i7)
       enddo
+! level1=9 means not implemented
       level1=9
    end select
 500 continue
@@ -2808,6 +2822,9 @@
 !      write(*,*)'3B shortcut'
       intperm(3)=1
       intperm(4)=1
+! intperm(4+intperm(3)) should be total number of permutations!!
+! intperm(2) is number of endmeber+first interaction permutations
+      intperm(5)=2*intperm(2)
       nz=intperm(2)
       loksp=phlista(lokph)%constitlist(jord(2,2))
       isp=splista(loksp)%alphaindex
@@ -3035,17 +3052,127 @@
 !-----------------------------------------------------------
 ! Maybe this can wait a little ...
    case(7) ! AX:A:B:C or A:BX:B:C or A:B:CX:C
-      write(*,*)'3B Permutation not yet implemented 7'
+      write(*,*)'3B FCC permutation not yet implemented 7'
       gx%bmperr=4275
 !-----------------------------------------------------------
 ! Maybe this can wait a little ... NO
-   case(8) ! A:A:BX:C or similar
-      write(*,*)'3B Permutation not yet implemented 8'
-      gx%bmperr=4275
+! trying to understand what I did 3 years ago ....
+! Parameter is actually a reciprocal one ... A:A:BX:CY
+   case(8) ! A:A:BX:C or similar, 12 endmember permutations
+!      write(*,*)'3B noperm, intperm(1..2): ',noperm,intperm(1),intperm(2)
+!      do mint=1,noperm
+!         write(*,661)mint,(elinks(ls,mint),ls=1,4)
+!      enddo
+661   format('3B em permutation: ',i4,(i6,3i4))
+! permutations: 12
+! endmember  1st order    2nd order
+! A:A:B:C    A:A:BX:C     A:A:BX:CY
+! A:A:C:B    A:A:C:BX     A:A:CY:BX
+! A:C:A:B    A:C:A:BX     A:CY:A:BX
+! A:C:B:A    A:C:BX:A     A:CY:BX:A
+! A:B:C:A    A:BX:C:A     A:BX;CY:A
+! A:B:A:C etc
+! B:A:A:C
+! B:A:C:A
+! B:C:A:A
+! C:B:A:A
+! C:A:B:A
+! C:A:A:B 
+! The good news: there are no new permutations!!
+      intperm(3)=1
+      intperm(4)=1
+      intperm(5)=12
+      nz=intperm(2)
+!      loksp=phlista(lokph)%constitlist(jord(2,2))
+!      isp=splista(loksp)%alphaindex
+      loksp=phlista(lokph)%constitlist(jord(2,2))
+      isp2=splista(loksp)%alphaindex
+! jord(2,*) are constituent indices, must be converted to species
+!      write(*,*)'3B jord: ',jord(1,1),jord(2,1),jord(1,2),jord(2,2)
+! B moves as 3, 4, 4, 3, 2, 2, 1, 1, 1, 2, 3, 4
+! C moves as 4, 3, 2, 2, 3, 4, 4, 3, 2, 1, 1, 1
+! do it the hard way ...
+      nz=nz+1
+      intlinks(1,nz)=4
+      call findconst(lokph,intlinks(1,nz),isp2,intlinks(2,nz))
+      if(gx%bmperr.ne.0) goto 1000
+      nz=nz+1
+      intlinks(1,nz)=3
+      call findconst(lokph,intlinks(1,nz),isp2,intlinks(2,nz))
+      if(gx%bmperr.ne.0) goto 1000
+      nz=nz+1
+      intlinks(1,nz)=2
+      call findconst(lokph,intlinks(1,nz),isp2,intlinks(2,nz))
+      if(gx%bmperr.ne.0) goto 1000
+      nz=nz+1
+      intlinks(1,nz)=2
+      call findconst(lokph,intlinks(1,nz),isp2,intlinks(2,nz))
+      if(gx%bmperr.ne.0) goto 1000
+      nz=nz+1
+      intlinks(1,nz)=3
+      call findconst(lokph,intlinks(1,nz),isp2,intlinks(2,nz))
+      if(gx%bmperr.ne.0) goto 1000
+      nz=nz+1
+      intlinks(1,nz)=4
+      call findconst(lokph,intlinks(1,nz),isp2,intlinks(2,nz))
+      if(gx%bmperr.ne.0) goto 1000
+!
+      nz=nz+1
+      intlinks(1,nz)=4
+      call findconst(lokph,intlinks(1,nz),isp2,intlinks(2,nz))
+      if(gx%bmperr.ne.0) goto 1000
+      nz=nz+1
+      intlinks(1,nz)=3
+      call findconst(lokph,intlinks(1,nz),isp2,intlinks(2,nz))
+      if(gx%bmperr.ne.0) goto 1000
+      nz=nz+1
+      intlinks(1,nz)=2
+      call findconst(lokph,intlinks(1,nz),isp2,intlinks(2,nz))
+      if(gx%bmperr.ne.0) goto 1000
+      nz=nz+1
+      intlinks(1,nz)=1
+      call findconst(lokph,intlinks(1,nz),isp2,intlinks(2,nz))
+      if(gx%bmperr.ne.0) goto 1000
+      nz=nz+1
+      intlinks(1,nz)=1
+      call findconst(lokph,intlinks(1,nz),isp2,intlinks(2,nz))
+      if(gx%bmperr.ne.0) goto 1000
+      nz=nz+1
+      intlinks(1,nz)=1
+      call findconst(lokph,intlinks(1,nz),isp2,intlinks(2,nz))
+      if(gx%bmperr.ne.0) goto 1000
+! Code below is just to check the constituents are correctly sorted
+! NOTE jord(2,*) is phase constituent index, not species index
+      pch='G('//trim(phlista(lokph)%name)//','
+      ip=len_trim(pch)+1
+      mint=1
+      do ls=1,4
+         if(elal(ls).lt.0) then
+            pch(ip:)='*:'
+         else
+            pch(ip:)=trim(splista(species(elal(ls)))%symbol)//':'
+         endif
+         ip=len_trim(pch)+1
+         if(mint.le.nint .and. jord(1,mint).eq.ls) then
+            loksp=phlista(lokph)%constitlist(jord(2,mint))
+            isp=splista(loksp)%alphaindex
+!         write(*,*)'3B test 1: ',mint,jord(1,mint),jord(2,mint),isp
+!         write(*,*)'3B test 2: ',species(jord(2,mint))
+            pch(ip-1:)=','//trim(splista(species(isp))%symbol)//':'
+            ip=len_trim(pch)+1
+            mint=mint+1
+         endif
+      enddo
+!
+      pch(ip-1:)=';0)'
+!      write(*,503)trim(pch)
+503   format(/'3B *** This parameter ',a,' just implemented 8')
+!   write(*,*)'3B FCC permutation not yet implemented 8'
+!      gx%bmperr=4275
 !-----------------------------------------------------------
 ! Maybe this can wait a little ...
    case(9) ! AX:B:C:D or similar
-      write(*,*)'3B Permutation not yet implemented 9'
+      write(*,*)'3B FCC permutation not yet implemented 9'
       gx%bmperr=4275
    end select
 !-----------------------------------------------------------
@@ -3630,9 +3757,9 @@
 ! sets appropriate links to constituents for the 12 perumations of
 ! A:A:B:C (l1=1), A:B:B:C (l1=2) and A:B:C:C (l1=3)
    implicit none
+   integer l1,nsl,lshift
    integer, dimension(nsl,*) :: elinks
    integer, dimension(*) :: iord
-   integer l1,nsl,lshift
 !\end{verbatim} %+
    integer odd,np,ll,ib
 ! l1=1; keep 1 and change 3o4 and 2o3 6 times; then change 1o2 and
@@ -3740,9 +3867,9 @@
 ! the other 3 sublattice, then changes the constituent in the first sublattice
 ! and goes on changing in the other 3 until all configurations done
    implicit none
+   integer nsl,lshift
    integer, dimension(nsl,*) :: elinks
    integer, dimension(*) :: iord
-   integer nsl,lshift
 !\end{verbatim}
    integer np,ll,odd,ib
 ! odd is either 0 or 1
@@ -3795,22 +3922,1028 @@
 ! finds all bcc permutations needed for this parameter
    implicit none
    integer lokph,nsl,noperm,nint
+! iord are the endmember constituent indices
+! intperm has dimension 24 and contain propagation of interactions ?? 
    integer, dimension(*) :: iord,intperm
+! jord(1,int) is the interaction subl. and jord(2,int) the constituent index
    integer, dimension(2,*) :: jord
+! these must be allocated here and will be stored in the parameter records
+! giving the constituent indices for permutations of endmembers and interactions
    integer, dimension(:,:), allocatable :: elinks
    integer, dimension(:,:), allocatable :: intlinks
 !\end{verbatim}
+   integer ls,l1,l2,l3,loksp,c1,c2,c3,mint,ip,nsame
+   integer elal(9),unshift(9),orgem(4),esame(4)
+   character pch*64
+   logical notdone
 ! I assume the ordering is in the first 4 sublattices, that could be changed
    if(nsl.lt.4) then
       write(*,*)'3B There must be at least 4 sublattices for bcc option'
       gx%bmperr=4267; goto 1000
    endif
 ! unifinished
-   write(*,*)'3B BCC permutations not implemented yet'
-   gx%bmperr=4277
+!   write(*,*)'3B implementation of BCC permutations not finished'
+!   gx%bmperr=4277
+! In BCC the tetrahedron is unsymmetrical, I assume sublattice 1 and 2
+! are NEXT-nearest neighbours and also sublattice 3 and 4, i.e.
+! G_A:B:C:D = u_AC + u_AD + u_BC + u_BD + v_AB + v_CD where
+! u_ij is the nearest neighbour bond (nnb) energy and v_ij the nnnb energy
+! NOTE that endmember permutations are different from FCC/HCP
+! NOTE that reciprocal parameters have their permutation in its own record
+! (not propagated from the first order interaction)
+!
+! we must rearrange constituents in alphabetcal order in the sublattices
+! and change interactions also!  Note we can exchange between sublattice 1&2
+! and 3&4 but not between 1&3 for example.
+   if(nint.gt.2) then
+      write(*,*)'3B Maximum 2nd level interaction with option F'
+      gx%bmperr=4268; goto 1000
+   endif
+! list elal and jord on entering
+!   write(*,10)'3B bccperm 1: ',(iord(l2),l2=1,4),(jord(1,l2),jord(2,l2),l2=1,2)
+10 format(a,4i4,5x,2i3,3x,2i3)
+! rearrange constituents in alphabetical order in the sublattices,
+! change interactions also!
+! iord is the lowest constituent index in each sublattice (incl interactions)
+! rearrange to make have the lowest index in sublattice 1
+! NOTE: wildcards have index -99, they should come last!
+   c1=10000
+   do ls=1,nsl
+      if(iord(ls).gt.0) then
+         loksp=phlista(lokph)%constitlist(iord(ls))
+         elal(ls)=splista(loksp)%alphaindex
+         if(elal(ls).lt.c1) then
+            c1=elal(ls)
+            l1=ls
+         endif
+      else
+! this branch if wildcard, iord(ls)=-99
+         elal(ls)=iord(ls)
+      endif
+   enddo
+! save origional sublattice of endmember constituent in orgem
+! in order to shift interactions!!
+   orgem=0
+   unshift=elal
+! c1 in sublattice l1 is lowest component index, if l1>1 shift c1 to subl. 1
+   if(l1.eq.1) then
+! sublattice 1&2 OK but we may have to rearrange sublattice 3&4
+      c2=elal(3)
+      c3=elal(4)
+      if(c3.gt.0) then
+! c3 negative means wildcard and do nothing
+         if(c2.eq.c1 .and. c3.eq.c1) then
+            if(elal(2).ne.c1) then
+! elements in subl 1,3 and 4 same, move 2 last
+               elal(4)=elal(2)
+               elal(2)=c3
+               orgem(2)=4
+               orgem(4)=2
+            endif
+         elseif(c2.eq.c1) then
+! element in 1 and 3 same, if 4 lower than 2 shift!
+            if(c3.lt.elal(2)) then
+               elal(4)=elal(2)
+               elal(2)=c3
+               orgem(4)=2
+               orgem(2)=4
+            endif
+         elseif(c3.lt.c2) then
+            elal(4)=c2
+            elal(3)=c3
+            orgem(3)=4
+            orgem(4)=3
+         endif
+      endif
+   elseif(l1.eq.2) then
+! if l1=2 then just shift constituents in sublattice 1 and 2
+      c2=elal(1)
+      elal(1)=c1
+      elal(l1)=c2
+      orgem(1)=2
+      orgem(2)=1
+! we may have to rearrange sublattice 3&4
+      c2=elal(3)
+      c3=elal(4)
+      if(c3.gt.0 .and. c3.lt.c2) then
+! c3 negative means wildcard
+         elal(4)=c2
+         elal(3)=c3
+         orgem(3)=4
+         orgem(4)=3
+      endif
+   elseif(l1.gt.2) then
+! if l1=3 or 4 we must move the constituent in position (7-l1) also
+! note if l1=3 then 7-l1=4; l1=4 then 7-l1=3
+      c2=elal(1)
+      elal(1)=elal(l1)
+      c3=elal(2)
+      elal(2)=elal(7-l1)
+      orgem(1)=l1
+      orgem(2)=7-l1
+      if(c3.gt.0 .and. c3.lt.c2) then
+! c3 negative means wildcard
+         elal(3)=c3
+         elal(4)=c2
+         orgem(3)=2
+         orgem(4)=1
+      else
+         elal(3)=c2
+         elal(4)=c3
+         orgem(3)=1
+         orgem(4)=2
+      endif
+   endif
+!   write(*,9)'3B sorted 1: ',(unshift(ls),ls=1,4),(elal(ls),ls=1,4),l1
+! Now the alphabetically first constituent is in sublattice 1
+! If 3 elements are equal they should be ordered A:A:A:B or A:B:B:B 
+! in all other cases the alphabetical order is OK ??
+! ?? if 2 pairs are equal they should be ordered A:A:B:B or A:B:A:B
+! ?? if 2 or less equal the alphabetical order is OK
+   nsame=0
+! problem with NI:FE:NI:FE becomes FE:NI:NI:NI !!
+   if(elal(2).eq.elal(1)) then
+      if(elal(3).eq.elal(1)) then
+! all is OK.  We should have correct alphabetical order in sublattice 3&4
+         continue
+      endif
+   elseif(elal(3).eq.elal(1)) then
+! elal(2) =/= elal(1), if elal(3)=elal(4)=elal(1) shift elal(2) to elal(4)
+      if(elal(4).eq.elal(1)) then
+! change A:B:A:A to A:A:A:B
+         c2=elal(2)
+         elal(2)=elal(4)
+         elal(4)=c2
+         orgem(4)=2
+         nsame=1
+      elseif(elal(4).lt.elal(2)) then
+! change A:C:A:B to A:B:A:C
+         c2=elal(2)
+         elal(2)=elal(4)
+         elal(4)=c2
+         orgem(4)=2
+         nsame=2
+      endif
+   endif
+! shift interactions also!!! orgem(ls) is original sublattice of endmember
+! interactions must not be wildcard
+!   write(*,9)'3B sorted 2: ',(unshift(ls),ls=1,4),(elal(ls),ls=1,4),nsame
+9  format(a,4i4,5x,9i4)
+!   write(*,12)'3B orgem: ',orgem,(jord(1,mint),jord(2,mint),mint=1,nint)
+12 format(a,4i4,5x,4i4)
+   do mint=1,nint
+      latloop2: do ls=1,4
+         if(jord(1,mint).eq.orgem(ls)) then
+! interaction has changed to sublattice ls
+!            write(*,13)'3B noshift: ',mint,ls,jord(1,mint),jord(2,mint)
+            jord(1,mint)=ls
+            loksp=phlista(lokph)%constitlist(jord(2,mint))
+            jord(2,mint)=splista(loksp)%alphaindex
+!            write(*,13)'3B shifted: ',mint,ls,jord(1,mint),jord(2,mint)
+            exit latloop2
+         endif
+! we come here if interaction in same sublattice but we must change jord(2,mint)
+         loksp=phlista(lokph)%constitlist(jord(2,mint))
+         jord(2,mint)=splista(loksp)%alphaindex
+!         write(*,13)'3B changed: ',mint,ls,jord(1,mint),jord(2,mint)
+      enddo latloop2
+   enddo
+!   write(*,13)'3B interactions: ',(jord(1,mint),jord(2,mint),mint=1,nint)
+13 format(a,2(2i5,5x))
+! make sure jord are in sublattice order
+   if(nint.gt.1) then
+      if(jord(1,1).gt.jord(1,2)) then
+         l1=jord(1,1)
+         jord(1,1)=jord(1,2)
+         jord(1,2)=l1
+         c1=jord(2,1)
+         jord(2,1)=jord(2,2)
+         jord(2,2)=c1
+      endif
+   endif
+   if(nint.eq.2) then
+! we have two interactions
+      if(jord(1,1).ne.jord(1,2) .and. elal(jord(1,1)).eq.elal(jord(1,2))) then
+! the interactions are not in the same sublattice but we have the same
+! endmember component for the interactions!
+         if(jord(2,2).lt.jord(2,1)) then
+! The second interacting component is lower alphabetically, in some cases
+! we should shift the alphabetical lowest interacting component first
+            if(jord(1,1)+jord(1,2).eq.3 .or. jord(1,1)+jord(1,2).eq.7) then
+! 1) if both interactions are in sublattice 1&2 or 3&4: A,C:A,B => A,B:A,C
+               l1=jord(2,1)
+               jord(2,1)=jord(2,2)
+               jord(2,2)=l1
+!               write(*,*)'3B shifting 1 interaction component to first'
+            elseif(elal(3-jord(1,1)).eq.elal(7-jord(1,2))) then
+! 2) if the endmember constituents in the other sublattices the same
+!                          A,C:D:A,B:D => A,B:D:A,C:D
+               l1=jord(2,1)
+               jord(2,1)=jord(2,2)
+               jord(2,2)=l1
+!               write(*,*)'3B shifting 2 interaction component to first'
+            endif
+         endif
+      endif
+   endif
+!   write(*,10)'3B bccperm 4: ',(elal(l2),l2=1,4),(jord(1,l2),jord(2,l2),l2=1,2)
+!-------------------------------------------------------------------------
+! now we can start generating permutations <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+! elal(1..4) are now species in alphabetical order (>4 not changed)
+! jord(1,int) is sublattice and jord(2,int) is species of interaction int=0,1,2
+! wildcards always at the end
+! Always generate the endmember permutations
+   call bccendmem(lokph,nsl,elal,noperm,elinks)
+   if(gx%bmperr.ne.0) goto 1000
+   if(nint.ge.1) then
+! if first level interaction generate the necessary permutations
+      call bccint1(lokph,nsl,elal,noperm,elinks,nint,jord,intperm,intlinks)
+      if(gx%bmperr.ne.0) goto 1000
+      if(nint.ge.2) then
+! if second level interaction generate the necessary permutations
+!         write(*,*)'3B calling bccint2',jord(1,2),jord(2,2)
+         call bccint2(lokph,nsl,elal,noperm,elinks,nint,jord,intperm,intlinks)
+!         write(*,*)'3B back from bccint2',gx%bmperr
+         if(gx%bmperr.ne.0) goto 1000
+         if(nint.gt.2) then
+            write(*,*)'3B Max two level of interactions for BCC permutations'
+            gx%bmperr=4275
+         endif
+      endif
+   endif
+!   if(gx%bmperr.ne.0) goto 1000
 1000 continue
+! unifinished
    return
  end subroutine bccpermuts
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine bccendmem(lokph,nsl,elal,noperm,elinks)
+! generate an bcc endmember with all permutations
+   implicit none
+   integer lokph,nsl,noperm
+! elal are the endmember species indices
+   integer, dimension(*) :: elal
+! these must be allocated here and will be stored in the parameter records
+! giving the sublattice and constituent indices for each permutation
+! of an endmembers
+   integer, dimension(:,:), allocatable :: elinks
+!   integer, dimension(:,:), allocatable :: intlinks
+!\end{verbatim}
+! endmember perm
+! A:A:A:A     1
+! A:A:A:B     4 
+! A:A:B:B B2  2 A:A:B:B B:B:A:A 
+! A:B:A:B B32 4 A:B:A:B A:B:B:A B:A:A:B B:A:B:A
+! A:B:B:B     4
+! A:A:B:C     4 A:A:B:C A:A:C:B B:C:A:A C:B:A:A
+! A:B:A:C     8 A:B:A:C A:B:C:A B:A:A:C B:A:C:A A:C:A:B A:C:B:A C:A:A:B C:A:B:A
+! Note the parameter below requires 3 sets of permutations
+! A:B:C:D B2  8 A:B:C:D A:B:D:C B:A:C:D B:A:D:C C:D:A:B C:D:B:A D:C:A:B D:C:B:A
+! G(BCC,A:B:C:D) = u_AC+u_AD+u_BC+u_BD+v_AB+v_CD, u nn bond, v nnn bond
+! A:C:B:D     8
+! G(BCC,A:C:B:D) = u_AB+u_AD+u_CB+u_CD+v_AC+v_BD
+! A:D:B:C     8
+! G(BCC,A:D:B:C) = u_AB+u_AC+u_DB+u_DC+v_AD+v_BC
+   integer ls,ip,mperm,cix
+   integer, parameter, dimension(16) :: prm4=[1,2,3,4,4,3,1,2,2,1,4,3,3,4,2,1]
+   integer, parameter, dimension(32) :: prm8=[1,2,3,4,1,2,4,3,2,1,3,4,2,1,4,3,&
+        3,4,1,2,3,4,2,1,4,3,1,2,4,3,2,1]
+   character pch*64
+!
+!   nperm=0
+! elal(i) ordered c1<=c2 and c1<=c3 and c3<=c4 and c2<=c4 but maybe c3<=c2
+!   if(elal(2).ne.elal(1)) then
+! 2 different elements in sublattice 1&2: A:B
+!      if(elal(3).ne.elal(4)) then
+! 2 different elements in sublattice 3&4: X:Y
+!         if(elal(3).ne.elal(1)) then
+!            if(elal(3).ne.elal(2)) then
+! A:B:C:D = A:B:C:D A:B:D:C B:A:C:D B:A:C:D C:D:A:B C:D:B:A D:C:A:B D:C:B:A
+!               nperm=8
+!            else
+! A:B:B:C = A:B:B:C A:B:C:B B:A:B:C B:A:C:B B:C:A:B B:C:B:A C:B:A:B C:B:B:A
+!               nperm=8
+!            endif
+!         elseif(elal(4).ne.elal(2)) then
+! A:B:A:C = A:B:A:C A:B:C:A B:A:A:C B:A:C:A A:C:A:B A:C:B:A C:A:A:B C:A:B:A
+!            nperm=8
+!         else
+! A:B:A:B = A:B:A:B A:B:B:A B:A:A:B B:A:B:A
+!            nperm=4
+!         endif
+!      elseif(elal(3).eq.elal(2)) then
+! same constituents in sublattice 2
+! A:B:B:B = A:B:B:B B:A:B:B B:B:A:B B:B:B:A
+!         nperm=4
+!      else
+! A:B:C:C = A:B:C:C B:A:C:C C:C:A:B C:C:B:A
+!         nperm=4
+!      endif
+!   elseif(elal(3).eq.elal(4)) then
+! same elements in sublattice 1&2: A:A, and in sublattice 3&4: X:Y
+!      if(elal(3).eq.elal(1)) then
+! A:A:A:A
+!         nperm=1
+!      else
+! A:A:B:B = A:A:B:B, B:B:A:A
+!         nperm=2
+!      endif
+!   else
+! A:A:B:C = A:A:B:C A:A:C:B B:C:A:A C:B:A:A
+!      nperm=4
+!   endif
+!------------------------------- same in simpler way
+   mperm=0
+! find the number of permutations
+   if(elal(1).eq.elal(2)) then
+      if(elal(3).eq.elal(4)) then
+         if(elal(3).eq.elal(1)) then
+! A:A:A:A
+            mperm=1
+         else
+! A:A:B:B
+            mperm=2
+         endif
+      else
+! A:A:A:B = ...
+! A:A:B:C = A:A:B:C A:A:C:B B:C:A:A C:B:A:A
+         mperm=4
+      endif
+   elseif(elal(3).eq.elal(4)) then
+!      if(elal(3).eq.elal(2)) then
+! A:B:B:B = A:B:B:B B:A:B:B B:B:A:B B:B:B:A
+         mperm=4
+!      else
+! A:B:C:C = A:B:C:C B:A:C:C C:C:A:B C:C:B:A
+!         mperm=4
+!      endif
+   elseif(elal(3).eq.elal(1) .and. elal(4).eq.elal(2)) then
+! A:B:A:B =
+      mperm=4
+   else
+! A:B:A:C =
+! A:B:B:C =
+! A:B:C:D =
+      mperm=8
+   endif
+! Code below is just to check the constituents are correctly sorted
+   pch='G(BORD,'
+   ip=8
+   do ls=1,4
+      if(elal(ls).lt.0) then
+         pch(ip:)='*:'
+      else
+! splista is ordered as the species are entered, thus splista(1) is VA
+! species(i) is the índex in splista of elements in alphabetcal order
+         pch(ip:)=trim(splista(species(elal(ls)))%symbol)//':'
+      endif
+      ip=len_trim(pch)+1
+! when we are here there are no interactions
+!      if(mint.le.nint .and. jord(1,mint).eq.ls) then
+!         pch(ip-1:)=','//trim(splista(species(jord(2,mint)))%symbol)//':'
+!         ip=len_trim(pch)+1
+!         mint=mint+1
+!      endif
+   enddo
+!
+   pch(ip-1:)=';0)'
+!   write(*,14)'3B sorted endmember: ',trim(pch),mperm
+14 format(a,a,i6)
+! now generate values in elinks
+   noperm=mperm
+   allocate(elinks(nsl,noperm))
+! elal is species index, it has to be converted to constituent index
+   select case(noperm)
+   case default
+      write(*,*)'3B unknown permutation for bcc endmember: ',noperm
+      gx%bmperr=4269
+!------------
+   case(1) ! A:A:A:A
+      do ls=1,4
+! findconst find the constituent index of species elal(ls) in sublattice ls
+! for wildcards elal(ls)=-99 that is propagated
+         call findconst(lokph,ls,elal(ls),cix)
+         if(gx%bmperr.ne.0) goto 1000
+         elinks(ls,1)=cix
+      enddo
+!---------------
+   case(2) ! A:A:B:B B:B:A:A
+      do ls=1,4
+         call findconst(lokph,ls,elal(ls),cix)
+         if(gx%bmperr.ne.0) goto 1000
+         elinks(ls,1)=cix
+      enddo
+      do ls=1,2
+         call findconst(lokph,ls,elal(ls+2),cix)
+         if(gx%bmperr.ne.0) goto 1000
+         elinks(ls,2)=cix
+      enddo
+      do ls=3,4
+         call findconst(lokph,ls,elal(ls-2),cix)
+         if(gx%bmperr.ne.0) goto 1000
+         elinks(ls,2)=cix
+      enddo
+!--------------
+   case(4) ! several different cases but can be treated the same ???
+! A:B:A:B B:A:A:B B:A:B:A A:B:B:A  1234 4312 2143 3421
+! A:B:C:C C:C:A:B B:A:C:C C:C:B:A  1234 4312 2143 3421 
+! A:B:B:B B:B:A:B B:A:B:B B:B:B:A  1234 4312 2143 3421 
+!  prm4=[1,2,3,4, 4,3,1,2, 2,1,4,3, 3,4,2,1]
+      do mperm=0,noperm-1
+         do ls=1,4
+            call findconst(lokph,ls,elal(prm4(ls+4*mperm)),cix)
+            if(gx%bmperr.ne.0) goto 1000
+            elinks(ls,mperm+1)=cix
+         enddo
+!         write(*,66)mperm,(elinks(ls,mperm+1),ls=1,4)
+66       format('3B bccperm: ',i2,5x,4i4)
+      enddo
+!--------------
+   case(8) ! several cases all treated the same
+! A:B:C:D A:B:D:C B:A:C:D B:A:C:D, C:D:A:B C:D:B:A D:C:A:B D:C:B:A
+! 1234 1243 2134 2143              3412 ...
+! A:B:B:C A:B:C:B B:A:B:C B:A:C:B, B:C:A:B B:C:B:A C:B:A:B C:B:B:A
+! 1234 1243 2134 2134
+! A:B:A:C A:B:C:A B:A:A:C B:A:C:A, A:C:A:B A:C:B:A C:A:A:B C:A:B:A
+! 1234 1243 2134
+!  prm8=[1,2,3,4, 1,2,4,3, 2,1,3,4, 2,1,4,3,&
+!        3,4,1,2, 3,4,2,1, 4,3,1,2, 4,3,2,1]
+      do mperm=0,7
+         do ls=1,4
+            call findconst(lokph,ls,elal(prm8(4*mperm+ls)),cix)
+            if(gx%bmperr.ne.0) goto 1000
+            elinks(ls,mperm+1)=cix
+         enddo
+      enddo
+   end select
+!--------------------
+! constiuents in sublattice 5 to nsl are the same in all permutations
+!   write(*,77)((elinks(ls,mperm),ls=1,4),mperm=1,noperm)
+77 format('3B perm:',4(4i4,2x))
+!   write(*,*)'3B adding constituents: ',nsl,noperm
+   do mperm=1,noperm
+      do ls=5,nsl
+! these constituents are the same for all permutations
+         call findconst(lokph,ls,elal(ls),cix)
+         if(gx%bmperr.ne.0) goto 1000
+!         elinks(ls,mperm)=elal(ls)
+         elinks(ls,mperm)=cix
+!         write(*,*)'3B notperm: ',elal(ls),cix
+      enddo
+   enddo
+!-----------------------
+1000 continue
+   return
+ end subroutine bccendmem
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine bccint1(lokph,nsl,elal,noperm,elinks,nint,jord,intperm,intlinks)
+! generate all bcc permutations for a first order interaction
+   implicit none
+! on entry noperm is the number of permutation of the endmember
+! on exit  noperm is the number of permutation of the interaction
+   integer lokph,nsl,noperm,nint
+! elal are the endmember species indices
+   integer, dimension(*) :: elal
+! intperm has dimension 24 and contain propagation of interactions ?? 
+   integer, dimension(*) :: intperm
+! jord(1,int) is the interaction subl. and jord(2,int) the constituent index
+   integer, dimension(2,*) :: jord
+! these contain the already allocated permutation of the endmember
+!   integer, dimension(:,:), allocatable :: elinks
+   integer, dimension(nsl,*) :: elinks
+! intlinks will be allocated here and will be stored in the parameter records
+! giving the constituent indices for permutations of the interactions
+! It may be reallocated if the interaction is second level
+   integer, dimension(:,:), allocatable :: intlinks
+!\end{verbatim}
+   integer mint,ls,ip,nperm,mperm,cix,incperm,intem,lq,mq,subint(4)
+   character pch*64
+! this is quite simple, the species jord(1,2) in sublattice jord(1,1) should
+! be repeated for all permutations of the endmember in jord(1,1)
+!  noperm=1: 1,1,1,1
+!  noperm=2: 1,1,2,2, 2,2,1,1
+!  nopermg=4: prm4=[1,2,3,4, 4,3,1,2, 2,1,4,3, 3,4,2,1]
+!  noperm=8: prm8=[1,2,3,4, 1,2,4,3, 2,1,3,4, 2,1,4,3,&
+!                  3,4,1,2, 3,4,2,1, 4,3,1,2, 4,3,2,1]
+   integer, parameter :: prm4(16)=[1,2,3,4, 4,3,1,2, 2,1,4,3, 3,4,2,1]
+   integer, parameter :: prm8(32)=[1,2,3,4, 1,2,4,3, 2,1,3,4, 2,1,4,3,&
+                                   3,4,1,2, 3,4,2,1, 4,3,1,2, 4,3,2,1]
+! This is related to the order in prm4
+   integer, parameter :: &
+        prmint4(4,4)=reshape([1,3,2,4,2,4,1,3,3,2,4,1,4,1,3,2],shape(prmint4))
+!
+!   integer, parameter :: prmint4(4,4)=[[1,3,2,4],[2,4,1,3],[3,2,4,1],[4,1,3,2]]
+  integer, parameter, dimension(8,4) :: &
+       prmint8=reshape([1,1,2,2,3,4,3,4, 2,2,1,1,4,3,4,3,&
+                        3,4,3,4,1,1,2,2, 4,3,4,3,2,2,1,1], shape(prmint8))
+! intperm(1)=number of interaction permutations on level 1 for each endmember
+!   on level 1 each endmember permutation has the same
+! intperm(2)=total number of permutation links for level 1
+! intperm(3..) used for 2nd level
+! intlinks(1,iperm) is sublattice with interaction for permutation iperm
+! intlinks(2,iperm) is constituent index for permutation iperm
+!
+! noperm will be updated!!
+   nperm=noperm
+!   write(*,*)'3B in bccint1: ',jord(1,1),jord(2,1)
+! allocate sufficient number of sublattice/constituent pairs for permutations
+   allocate(intlinks(2,100))
+! incperm is incremented for each permutation stored in  intlinks
+   incperm=0
+!
+   select case(nperm)
+   case default
+      write(*,*)'illegal endmember permutation in bccint1',nperm
+      gx%bmperr=4269
+!-------------------------
+   case(1) ! same component and interaction in all 4 sublattices
+! this is the number of interaction permutation for each endmember
+      intperm(1)=4
+! intperm(2) is intperm(1) multiplied with number of endmember permutation, 1
+      intperm(2)=4
+      do ls=1,4
+         call findconst(lokph,ls,jord(2,1),cix)
+         if(gx%bmperr.ne.0) goto 1000
+         incperm=incperm+1
+         intlinks(1,incperm)=ls
+         intlinks(2,incperm)=cix
+      enddo
+      if(incperm.ne.intperm(2)) stop 'internal error 3B:17'
+!-------------------------
+   case(2) ! A:A:B:B and B:B:A:A, two endmembers
+! intperm(1) is the number of permutations for each endmember
+      intperm(1)=2
+! intperm(2) depends on the number of endmember permutations, here 2, thus 4 ??
+      intperm(2)=4
+      if(jord(1,1).eq.1) then
+! for first endmember 2 permutations of interaction with A
+         do ls=1,2
+            call findconst(lokph,ls,jord(2,1),cix)
+            if(gx%bmperr.ne.0) goto 1000
+            incperm=incperm+1
+            intlinks(1,incperm)=ls
+            intlinks(2,incperm)=cix
+         enddo
+! for second endmember 2 permutations of interaction with A
+         do ls=3,4
+            call findconst(lokph,ls,jord(2,1),cix)
+            if(gx%bmperr.ne.0) goto 1000
+            incperm=incperm+1
+            intlinks(1,incperm)=ls
+            intlinks(2,incperm)=cix
+         enddo
+      elseif(jord(1,1).eq.3) then
+! for first endmember 2 permutations of interaction with B
+         do ls=3,4
+            call findconst(lokph,ls,jord(2,1),cix)
+            if(gx%bmperr.ne.0) goto 1000
+            incperm=incperm+1
+            intlinks(1,incperm)=ls
+            intlinks(2,incperm)=cix
+         enddo
+! for second endmember 2 permutations of interaction with B
+         do ls=1,2
+            call findconst(lokph,ls,jord(2,1),cix)
+            if(gx%bmperr.ne.0) goto 1000
+            incperm=incperm+1
+            intlinks(1,incperm)=ls
+            intlinks(2,incperm)=cix
+         enddo
+      else
+         write(*,*)'3B interaction on wring sublattice',jord(1,1)
+         gx%bmperr=4399; goto 1000
+      endif
+      if(incperm.ne.intperm(2)) stop 'internal error 3B:18'
+!-------------------------
+   case(4) ! many different permutations,
+! there are at least 2 identical species
+! A:B:A:B B:A:A:B B:A:B:A A:B:B:A  1234 4312 2143 3421
+! A:B:C:C C:C:A:B B:A:C:C C:C:B:A  1234 4312 2143 3421 
+! A:B:B:B B:B:A:B B:A:B:B B:B:B:A  1234 4312 2143 3421 
+! A:A:B:C C:B:A:A A:A:C:B B:C:A:A  
+! set intem to the endmember species index of the sublattice with interaction
+      intem=elal(jord(1,1))
+      subint=0
+      ip=0
+      do ls=1,4
+         if(elal(ls).eq.intem) then
+            subint(ls)=1; ip=ip+1
+         endif
+      enddo
+! ip can be 1, 2 or 3
+      select case(ip)
+      case default
+         write(*,*)'3B illegal case for interaction',ip
+         gx%bmperr=4269; goto 1000
+!..................
+      case(1) ! interaction with a component that appears only once: AX:B:B:B
+! intperm(1) is the number of permutations for each endmember
+         intperm(1)=1
+! intperm(2) depends on the number of endmember permutations, here 4, thus 4 ??
+         intperm(2)=4
+         incperm=0
+! find the sublattice with the endmember
+         do ip=1,4
+            if(subint(ip).eq.1) lq=ip
+         enddo
+! if ls=1 the endmember varies 1, 3, 2, 4
+!       2                      2, 4, 1, 3
+!       3                      3, 2, 4, 1
+!       4                      4, 1, 3, 2
+! probably one can permute the endmembers in a smarter way ....
+!  noperm=4: prm4=[1,2,3,4, 4,3,1,2, 2,1,4,3, 3,4,2,1]
+!                  A:B:C:D  D:C:A:B  B:A:D:C  C:D:B:A
+! prmint4(1..4,1) =  1, 3, 2, 4 etc.
+         do ls=1,4
+            call findconst(lokph,prmint4(ls,lq),jord(2,1),cix)
+            if(gx%bmperr.ne.0) goto 1000
+            incperm=incperm+1
+            intlinks(1,incperm)=prmint4(ls,lq)
+            intlinks(2,incperm)=cix
+         enddo
+!..................
+      case(2) ! interaction with a component that appears twice: AX:B:A:B
+! intperm(1) is the number of permutations for each endmember
+         intperm(1)=2
+! intperm(2) depends on the number of endmember permutations, here 4, thus 8 ??
+         intperm(2)=8
+!  noperm=4: prm4=[1,2,3,4, 4,3,1,2, 2,1,4,3, 3,4,2,1]
+!                  A:B:A:B  B:A:A:B  B:A:B;A  A;B;B;A
+! find the sublattice with the endmember
+         lq=0; mq=0
+         do ip=1,4
+            if(subint(ip).eq.1) then
+               if(lq.eq.0) then
+                  lq=ip
+               else
+                  mq=ip
+               endif
+            endif
+         enddo
+! create 2 links for each endmember permutation
+         do ls=1,4
+            call findconst(lokph,prmint4(ls,lq),jord(2,1),cix)
+            if(gx%bmperr.ne.0) goto 1000
+            incperm=incperm+1
+            intlinks(1,incperm)=prmint4(ls,lq)
+            intlinks(2,incperm)=cix
+            call findconst(lokph,prmint4(ls,mq),jord(2,1),cix)
+            if(gx%bmperr.ne.0) goto 1000
+            incperm=incperm+1
+            intlinks(1,incperm)=prmint4(ls,mq)
+            intlinks(2,incperm)=cix
+         enddo
+!..................
+      case(3) ! interaction with a component that appears 3 times: A:BX:B:B
+! intperm(1) is the number of permutations for each endmember
+         intperm(1)=3
+! intperm(2) depends on the number of endmember permutations, here 4, thus 12??
+         intperm(2)=12
+! create 3 links for each endmember permutation
+         do ls=1,4
+            do lq=1,4
+! subint(lq) is zero for the sublattice with endmember without interaction
+               if(subint(lq).ne.0) then
+                  call findconst(lokph,prmint4(ls,lq),jord(2,1),cix)
+                  if(gx%bmperr.ne.0) goto 1000
+                  incperm=incperm+1
+                  intlinks(1,incperm)=prmint4(ls,lq)
+                  intlinks(2,incperm)=cix
+               endif
+            enddo
+         enddo
+      end select
+      if(incperm.ne.intperm(2)) stop 'internal error 3B:20'
+!----------------------------------------
+   case(8) ! many different permutations
+! A:B:C:D A:B:D:C B:A:C:D B:A:C:D, C:D:A:B C:D:B:A D:C:A:B D:C:B:A
+! A:B:B:C A:B:C:B B:A:B:C B:A:C:B, B:C:A:B B:C:B:A C:B:A:B C:B:B:A
+! A:B:A:C A:B:C:A B:A:A:C B:A:C:A, A:C:A:B A:C:B:A C:A:A:B C:A:B:A
+!  noperm=8: prm8=[1,2,3,4, 1,2,4,3, 2,1,3,4, 2,1,4,3,&
+!                  3,4,1,2, 3,4,2,1, 4,3,1,2, 4,3,2,1]
+!  integer, parameter, dimension(4,8) :: prmint8=[1,1,2,2,3,4,3,4,&
+!                                                 2,2,1,1,4,3,4,3,&
+!                                                 3,4,3,4,1,1,2,2,&
+!                                                 4,3,4,3,2,2,1,1]
+      intem=elal(jord(1,1))
+      subint=0
+      ip=0
+      do ls=1,4
+         if(elal(ls).eq.intem) then
+            subint(ls)=1; ip=ip+1
+         endif
+      enddo
+! ip can be 1 or 2
+      select case(ip)
+      case default
+         write(*,*)'3B illegal case for interaction',ip
+         gx%bmperr=4269; goto 1000
+!..................
+      case(1)
+! intperm(1) is the number of permutations for each endmember
+         intperm(1)=1
+! intperm(2) depends on the number of endmember permutations, here 8, thus 4 ??
+         intperm(2)=8
+         incperm=0
+! find the sublattice with the odd endmember (other 3 same)
+         do ip=1,4
+            if(subint(ip).eq.0) lq=ip
+         enddo
+! create 1 link for each endmember permutation
+         do ls=1,8
+            call findconst(lokph,prmint8(ls,lq),jord(2,1),cix)
+            if(gx%bmperr.ne.0) goto 1000
+            incperm=incperm+1
+            intlinks(1,incperm)=prmint4(ls,lq)
+            intlinks(2,incperm)=cix
+         enddo
+!..................
+      case(2)
+! intperm(1) is the number of permutations for each endmember
+         intperm(1)=2
+! intperm(2) depends on the number of endmember permutations, here 8, thus 16??
+         intperm(2)=16
+         incperm=0
+! create 1 link for each endmember permutation
+         do ls=1,8
+            do lq=1,4
+               if(subint(lq).ne.0) then
+                  call findconst(lokph,prmint4(ls,lq),jord(2,1),cix)
+                  if(gx%bmperr.ne.0) goto 1000
+                  incperm=incperm+1
+                  intlinks(1,incperm)=prmint4(ls,lq)
+                  intlinks(2,incperm)=cix
+               endif
+            enddo
+         enddo
+      end select
+      if(incperm.ne.intperm(2)) stop 'internal error 3B:21'
+   end select
+! The interacting sublattice may have changed: correct jord(1,1)
+!   write(*,*)'3B correct interacting sublattice: ',jord(1,1),intlinks(1,1)
+   if(jord(1,1).ne.intlinks(1,1)) then
+! important!! if jord(1,2) same as jord(1,1) that must be changed too!!
+      if(jord(1,2).eq.jord(1,1)) then
+         jord(1,2)=intlinks(1,1)
+      endif
+      jord(1,1)=intlinks(1,1)
+   endif
+!----------------------------------------
+! Just a check output
+   mperm=1
+   mint=1
+   pch='G(BORD,'
+   ip=8
+   do ls=1,4
+      if(elal(ls).lt.0) then
+         pch(ip:)='*:'
+      else
+! splista is ordered as the species are entered, thus splista(1) is VA
+! species(i) is the índex in splista of elements in alphabetcal order
+         pch(ip:)=trim(splista(species(elal(ls)))%symbol)//':'
+      endif
+      ip=len_trim(pch)+1
+      if(mint.le.1 .and. jord(1,mint).eq.ls) then
+         pch(ip-1:)=','//trim(splista(species(jord(2,mint)))%symbol)//':'
+         ip=len_trim(pch)+1
+         mint=mint+1
+      endif
+   enddo
+   pch(ip-1:)=';0)'
+!   write(*,14)'3B sorted interaction 1: ',trim(pch),&
+!        intperm(1),intperm(2),incperm
+14 format(a,a,3i5)
+1000 continue
+   return
+ end subroutine bccint1
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine bccint2(lokph,nsl,elal,noperm,elinks,nint,jord,intperm,intlinks)
+! generate all bcc permutations needed for a ternary or reciprocal parameter
+   implicit none
+! on entry noperm is the number of permutations of the first interaction
+! on exit  noperm is the number of permutations of the second interaction
+   integer lokph,nsl,noperm,nint
+! elal are the endmember species indices
+   integer, dimension(*) :: elal
+! intperm has dimension 24 and contain propagation of interactions ?? 
+   integer, dimension(*) :: intperm
+! jord(1,int) is the interaction subl. and jord(2,int) the constituent index
+   integer, dimension(2,*) :: jord
+! elinks are the permutations of the endmember
+!   integer, dimension(:,:), allocatable :: elinks
+   integer, dimension(nsl,*) :: elinks
+! on entry intlinks are the permutations of the first interaction
+! on exit  intlinks are the permutations of the second interaction
+! it must be deallocated and reallocated using int1links
+   integer, dimension(:,:), allocatable :: int1links
+   integer, dimension(:,:), allocatable :: intlinks
+!\end{verbatim}
+   integer mint,ls,ip,nperm,mperm,cix,incperm,intem,lq,mq,subint(4)
+   integer loksp,np,nz,isp,sub1,shift
+   character pch*64
+! when we are here we have already generated endmember permutations
+! and permutations for the first interaction.
+! elal are the constituent indices for the first (ordered) endmember
+! elinks are constituent indices for endmember permutations
+! jord(1,*) are sublattices, jord(2,*) are species indices of interactions
+! intperm(1) is the number of permutations for first interaction
+! intperm(2) is total number of interaction links for first interaction
+! intperm(3..) should be set here:
+! intperm(3) to number of different sets of permutations of 2nd interaction
+!            this can be 1 if all equal, otherwise same as intperm(2) (??)
+! intperm(3+i) to number of permutation for set i of second interaction
+! intperm(4+intperm(2)) to total number of permutations
+! intlinks are pairs of sublattice/constituent for permutations 
+! intlinks(1:2,1..intperm(2)) already set
+! noperm should be set to the number of permutations of this interaction ??
+! 
+   write(*,7)'3B entering bccint2',jord(1,1),jord(1,2),jord(2,2),&
+        nint,noperm,intperm(1),intperm(2),(elal(ls),ls=1,4)
+7  format(a,3i4,2x,4i4,2x,4i4,2x,5i4)
+   mperm=0
+   notternary: if(jord(1,1).ne.jord(1,2)) then
+! reciprocal parameter, suck, complicated, noperm is endmember permuations
+! elal(*) are species indices of endmembers
+! jord(2,*) are species indices of interactions
+      if(elal(jord(1,1)).eq.elal(jord(1,2)) .and. &
+           jord(2,1).eq.jord(2,2)) then
+! we have interaction between the same two elements in two subl A,B:A,B:C:D
+! the endmember permutation determine what is C and D and sublattices
+!----------------------
+         select case(noperm)
+         case default
+            write(*,*)'3B illegal value of noperm in bccint2'
+            gx%bmperr=4277; goto 1000
+!----------------------
+         case(1) ! A:A:A:A interaction AX:AX:A:A or AX:A:AX:A
+            write(*,*)'3B BCC reciprocal AX:AX:A:A not implemented'
+            gx%bmperr=4277; goto 1000
+!----------------------
+         case(2) ! A:A:B:B interaction AX:AX:B:B or A:A:BX:BX
+! int1: AX:A:B:B  A:AX:B:B B:B:AX:A   B:B:A:AX
+! int2: AX:AX:B:B   none   B:B:AX:AX    none
+! This can handle A,B:A,B:*:*
+            intperm(3)=2
+            intperm(4)=1
+            intperm(5)=0
+            intperm(6)=2
+            nz=intperm(2)
+            loksp=phlista(lokph)%constitlist(jord(2,2))
+            isp=splista(loksp)%alphaindex
+            write(*,*)'3B reciprocal AB;AB:C:C',intperm(5),jord(1,2)
+            if(jord(1,2).eq.2) then
+               intlinks(1,nz+1)=2
+               call findconst(lokph,intlinks(1,nz+1),isp,intlinks(2,nz+1))
+               if(gx%bmperr.ne.0) goto 1000
+               intlinks(1,nz+2)=4
+               call findconst(lokph,intlinks(1,nz+2),isp,intlinks(2,nz+2))
+               if(gx%bmperr.ne.0) goto 1000
+            else
+               intlinks(1,nz+1)=4
+               call findconst(lokph,intlinks(1,nz+1),isp,intlinks(2,nz+1))
+               if(gx%bmperr.ne.0) goto 1000
+               intlinks(1,nz+2)=2
+               call findconst(lokph,intlinks(1,nz+2),isp,intlinks(2,nz+2))
+               if(gx%bmperr.ne.0) goto 1000
+            endif
+!----------------------
+         case(4) ! A:B:A:B and
+            write(*,*)'3B BCC reciprocal interaction not implemented 3'
+            gx%bmperr=4277
+!----------------------
+         case(8) ! several
+            write(*,*)'3B BCC reciprocal interaction not implemented 4'
+            gx%bmperr=4277
+         end select
+!----------------------
+      elseif(elal(jord(1,1)).eq.elal(jord(1,2)) .or. &
+           jord(2,1).eq.jord(2,2)) then
+! in interacting sublattices the endmembers or interactions are the same
+! common case 2: A,B:A,C:D:D (where D can be wildcard, A, B or C)
+! common case 3: A,C:B,C:D:D (where D can be wildcard, A, B or C)
+! 4 permutations: AB:AC:D:D AC:AB:D:D D:D:AB:AC D:D:AC:AB or
+! 8 permutations: AB:D:AC:D D:AB:AC:D AB:D:D:AC D:AB:D:AC 
+!                 AC:D:AB:D D:AC:D:AB AC:D:D:AB D:AC:D:AB
+         select case(noperm)
+         case default
+            write(*,*)'3B illegal value of noperm in bccint2'
+            gx%bmperr=4277; goto 1000
+!----------------------
+         case(1) ! A:A:A:A interaction AX:AY:A:A or AX:A:AY:A
+            write(*,*)'3B BCC reciprocal AX:AX:A:A not implemented'
+            gx%bmperr=4277; goto 1000
+!----------------------
+         case(2) ! A:A:B:B interaction AX:AY:B:B or A:A:BX:BY
+! int1: AX:A:B:B  A:AX:B:B   B:B:AX:A   B:B:A:AX
+! int2: AX:AY:B:B AY:AX:B:B  B:B:AX:AY  B:B:AY:AX 
+            intperm(3)=1
+            intperm(4)=1
+            intperm(5)=4
+            nz=intperm(2)
+            loksp=phlista(lokph)%constitlist(jord(2,2))
+            isp=splista(loksp)%alphaindex
+            write(*,*)'3B reciprocal AB;AB:C:C',intperm(5),jord(1,2)
+            if(jord(1,2).eq.2) then
+               intlinks(1,nz+1)=2
+               call findconst(lokph,intlinks(1,nz+1),isp,intlinks(2,nz+1))
+               if(gx%bmperr.ne.0) goto 1000
+               intlinks(1,nz+2)=1
+               call findconst(lokph,intlinks(1,nz+2),isp,intlinks(2,nz+2))
+               if(gx%bmperr.ne.0) goto 1000
+               intlinks(1,nz+3)=4
+               call findconst(lokph,intlinks(1,nz+3),isp,intlinks(2,nz+3))
+               if(gx%bmperr.ne.0) goto 1000
+               intlinks(1,nz+4)=3
+               call findconst(lokph,intlinks(1,nz+4),isp,intlinks(2,nz+4))
+               if(gx%bmperr.ne.0) goto 1000
+            else
+               intlinks(1,nz+1)=4
+               call findconst(lokph,intlinks(1,nz+1),isp,intlinks(2,nz+1))
+               if(gx%bmperr.ne.0) goto 1000
+               intlinks(1,nz+2)=3
+               call findconst(lokph,intlinks(1,nz+2),isp,intlinks(2,nz+2))
+               intlinks(1,nz+3)=2
+               if(gx%bmperr.ne.0) goto 1000
+               call findconst(lokph,intlinks(1,nz+3),isp,intlinks(2,nz+3))
+               if(gx%bmperr.ne.0) goto 1000
+               intlinks(1,nz+4)=1
+               call findconst(lokph,intlinks(1,nz+4),isp,intlinks(2,nz+4))
+               if(gx%bmperr.ne.0) goto 1000
+            endif
+!----------------------
+         case(4) ! A:B:A:B and
+            write(*,*)'3B BCC reciprocal interaction not implemented 10'
+            gx%bmperr=4277
+!----------------------
+         case(8) ! several
+            write(*,*)'3B BCC reciprocal interaction not implemented 11'
+            gx%bmperr=4277
+         end select
+!----------------------
+      else
+! in subl with interactions neither interaction elements nor endmember sames
+! like A,B:B,C:D:E
+         write(*,*)'3B BCC reciprocal interaction not implemented 20'
+         gx%bmperr=4277
+      endif
+!-------------------------------------------------------------
+   else ! this is the ternary permutation
+! if second interaction in same sublattice as first it is simple!!
+! A,B,C:X:Y:Z has exactly the same permutations as A,B:X:Y:Z      
+! NOT STORED CORRECTLY, bug when listing, also for option F!!! (never tested)
+      intperm(3)=1
+      intperm(4)=1
+! intperm(4+intperm(3)) should be total number of permutations!!
+! intperm(2) is number of endmeber+first interaction permutations
+      intperm(5)=2*intperm(2)
+      nz=intperm(2)
+      loksp=phlista(lokph)%constitlist(jord(2,2))
+      isp=splista(loksp)%alphaindex
+      write(*,*)'3B ternary: ',trim(splista(species(jord(2,2)))%symbol),&
+           nz,intlinks(1,1),isp
+      do np=1,intperm(2)
+         intlinks(1,nz+np)=intlinks(1,np)
+         call findconst(lokph,intlinks(1,np),isp,intlinks(2,nz+np))
+         if(gx%bmperr.ne.0) goto 1000
+      enddo
+   endif notternary
+! Code below is just to check the constituents are correctly sorted
+900 continue
+   mint=1
+   pch='G(BORD,'
+   ip=8
+   do ls=1,4
+      if(elal(ls).lt.0) then
+         pch(ip:)='*:'
+      else
+! splista is ordered as the species are entered, thus splista(1) is VA
+! species(i) is the índex in splista of elements in alphabetcal order
+         pch(ip:)=trim(splista(species(elal(ls)))%symbol)//':'
+      endif
+      ip=len_trim(pch)+1
+910   continue
+      if(mint.le.nint .and. jord(1,mint).eq.ls) then
+         pch(ip-1:)=','//trim(splista(species(jord(2,mint)))%symbol)//':'
+         ip=len_trim(pch)+1
+         mint=mint+1
+         goto 910
+      endif
+   enddo
+   pch(ip-1:)=';0)'
+   write(*,14)'3B sorted interaction 2: ',trim(pch),intperm(4+intperm(3))
+14 format(a,a,4i5)
+1000 continue
+   return
+ end subroutine bccint2
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -3922,6 +5055,22 @@
 1000 continue
    return
  end subroutine tdbrefs
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine geneqname(text)
+! creates a equilibrium name like EQ_x where x is the freeq in text
+   implicit none
+   character text*(*)
+!\end{verbatim}
+   integer ip
+   text='EQ_'
+   ip=4
+   call wriint(text,ip,eqfree)
+!   write(*,*)'3B eqname: ',trim(text),len_trim(text),eqfree
+1000 continue
+ end subroutine geneqname
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

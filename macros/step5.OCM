@@ -161,7 +161,8 @@ title step5 fig 2
 plot
 T
 cp
-yr
+scale
+y
 N
 0
 10

@@ -22,7 +22,7 @@ new Y
 @$ map9.OCM
 @$ OC macro file for RE-W system, 
 @$ M Palumbo, S G Fries, T Hammerschmidt et al, 
-@$                       Comp. Mat. Sci, Vol 81 (2014) 439-445; 
+@$                       Comp. Mat. Sci, Vol 81 (2014) 433-445; 
 @$ ===================================================================
 @&
 
@@ -330,7 +330,7 @@ list short
 
 @$ Calculate the stable phase diagram
 
-set c t=4000 p=1e5 n=1 x(w)=.4
+set c t=2000 p=1e5 n=1 x(w)=.2
 
 c e
 

@@ -1079,7 +1079,7 @@
    nooftuples=nooftuples+1
    tuple=iph
 !   write(*,771)iph,phasetuple(iph),phlista(noofph)%name
-771 format('3G tuple: ',i5': ',4(i8,1x),2x,a)
+771 format('3G tuple: ',i5,': ',4(i8,1x),2x,a)
 ! link to first compset set when phase_varres record connected
 !   write(*,777)'3G phase tuple position: ',iph,noofph,lokph,lokcs,tuple
 777 format(a,10i5)
@@ -1256,11 +1256,11 @@
    integer permut,emperm,nz,nq,lqq,ii,ll
 !
 !   write(*,5)'create interaction:',mint,lint(1,mint),lint(2,mint),&
-!        (intperm(i),i=1,6)
-5  format(a,i5,2x,2i3,2x6i3)
+!        (intperm(ii),ii=1,6)
+5  format(a,i5,2x,2i3,2x,6i3)
    allocate(intrec)
-! note that the order of values in intperm here is not the same as in 
-! fccpermuts or bccpermuts.  Intlinks is the same
+! note that the order of values in intperm here is not the same in 
+! fccpermuts or bccpermuts ??  Intlinks is the same
    permut=intperm(1)
    if(permut.le.0) then
 ! This is a default for no permutations, store 1's
@@ -1368,25 +1368,26 @@
  subroutine create_endmember(lokph,newem,noperm,nsl,endm,elinks)
 ! create endmember record with nsl sublattices with endm as constituents
 ! noperm is number of permutations
-! endm is the basic endmember
+! endm is the basic endmember (if there are permutations)
 ! elinks are the links to constituents for all permutations
    implicit none
    integer endm(*)
-   type(gtp_endmember), pointer :: newem
-   integer, dimension(nsl,noperm) ::elinks
    integer lokph,noperm,nsl
+   type(gtp_endmember), pointer :: newem
+   integer, dimension(nsl,noperm) :: elinks
 !\end{verbatim}
-   integer is,ndemr,noemr
+   integer is,ndemr,noemr,nn
    allocate(newem)
    nullify(newem%nextem)
    allocate(newem%fraclinks(nsl,noperm))
-!   write(*,7)noperm,nsl,(elinks(i,1),i=1,4),(endm(i),i=1,nsl)
-7  format('ce1: ',2i4,2x,4i5,2x10i4)
    if(noperm.eq.1) then
       do is=1,nsl 
          newem%fraclinks(is,1)=endm(is)
       enddo
    else
+!      write(*,*)'3G permutations: ',noperm,nsl
+!      write(*,7)((elinks(is,nn),is=1,4),nn=1,noperm)
+7     format('3G ce1: ',4(4i3,2x))
       newem%fraclinks=elinks
    endif
 ! zero or set values

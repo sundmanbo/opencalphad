@@ -6,24 +6,24 @@ MODULE LIBOCEQPLUS
 !
 contains
 !
-  SUBROUTINE VA05AD(M,N,F,X,DSTEP,DMAX,ACC,MAXFUN,IPRINT,W,&
-       IENT,IEXIT)
+!  SUBROUTINE VA05AD(M,N,F,X,DSTEP,DMAX,ACC,MAXFUN,IPRINT,W,&
+!       IENT,IEXIT)
 ! M is number of errors
 ! N is number of variables
-   IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-    INTEGER, PARAMETER :: LP=6
-    integer, parameter :: lwa=2500
-    DIMENSION F(*),X(*),W(*)
-    DIMENSION IEXIT(*)
-    dimension iwa(lwa),wa(lwa)
-    tol=acc
-    info=maxfun
-    write(*,17)
-17  format(/25x,'Starting optimization using LMDIF')
-    call lmdif1(m,n,x,f,tol,info,iwa,wa,lwa)
-    return
-  end subroutine va05ad
-
+!   IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+!    INTEGER, PARAMETER :: LP=6
+!    integer, parameter :: lwa=2500
+!    DIMENSION F(*),X(*),W(*)
+!    DIMENSION IEXIT(*)
+!    dimension iwa(lwa),wa(lwa)
+!    tol=acc
+!    info=maxfun
+!    write(*,17)
+!17  format(/25x,'Starting optimization using LMDIF')
+!    call lmdif1(m,n,x,f,tol,info,iwa,wa,lwa)
+!    return
+!  end subroutine va05ad
+!
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
   subroutine calfun(m,n,x,f,info,niter)
@@ -54,6 +54,7 @@ contains
 19        format('Scaled param:   ',4(1pe16.8)/5(1pe16.8))
        endif
     else
+! This routine is in the matsmin.F90 file
        call assessment_calfun(m,n,f,x)
 !       write(*,*)'Just calculating: ',niter
 !       write(*,16)x

@@ -65,7 +65,8 @@ render
 plot
 x(*,cu)
 T
-xr
+scale
+x
 N
 0
 0.2
