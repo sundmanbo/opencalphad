@@ -27,42 +27,51 @@ MODULE cmon1oc
 !
   use ocsmp
 !  use liboceq
+! 
+! parallel processing, set in gtp3.F90
+!$  use omp_lib
 !
   implicit none
 !
 ! option record
   TYPE ocoptions
+! unit for listing, default is kou (screen)
      integer lut
   end TYPE ocoptions
   type(ocoptions) :: optionsset
 !
 contains
 !
-  subroutine oc_command_monitor(version,linkdate)
+  subroutine oc_command_monitor(version,linkdate,narg,argline)
 ! command monitor
     implicit none
 !
+! linkdat is date when program was linked
+! argline and narg are inline arguments
+    character linkdate*(*),version*(*),argline(*)*64
+    integer narg
 ! various symbols and texts
-    character symbol*24,name1*24,name2*24,name3*24,line*80,model*72,chshort
-    integer, parameter :: ocmonversion=21
-! element symbol and array of element symbols
+    character :: ocprompt*4='OC4:'
+    character name1*24,name2*24,line*80,model*72,chshort
+    integer, parameter :: ocmonversion=32
+! element symbol and array of element symbols for database use
     character elsym*2,ellist(maxel)*2
 ! more texts for various purposes
-    character text*72,string*256,chc*3,phtype*1,ch1*1,defansw*16,selection*27
-    character axplot(3)*24,axplotdef(3)*24
-    character xquest*24,plotform*32,longstring*2048
+    character text*72,string*256,ch1*1,selection*27,funstring*1024
+    character axplot(2)*24,axplotdef(2)*24,quest*20
+    character plotform*32,longstring*2048,optres*40
 ! separate file names for remembering and providing a default
-    character ocmfile*64,ocufile*64,tdbfile*64,ocdfile*64,texfile*64
+    character ocmfile*64,ocufile*64,tdbfile*64,ocdfile*64,filename*64
+! home for OC and default directory for databases
+    character ochome*64,ocbase*64
 ! prefix and suffix for composition sets
     character prefix*4,suffix*4
 ! element mass
     double precision mass
-! constituent indices in a phase
-    integer, dimension(maxconst) :: knr
 ! constituent fractions of a phase
     double precision, dimension(maxconst) :: yarr
 ! stoichiometry of a specis and sublattice sites of a phase
-    double precision, dimension(maxsubl) :: stoik,sites
+    double precision, dimension(maxsubl) :: stoik
 ! calculated vaules of a function (G, G.T, G.P, G.T.T; G.T.P and G.P.P)
     double precision val(6)
 ! estimated chemical potentials after a grid minimization and TP for ref states
@@ -75,79 +84,112 @@ contains
     double precision dinc,dmin,dmax
 ! plot ranges, texts and defaults
     type(graphics_options) :: graphopt
+! plot texts
+!    type(graphics_textlabel), allocatable, target :: textlabel
+    type(graphics_textlabel), pointer :: textlabel
+    type(graphics_textlabel), pointer :: labelp
 ! axis data structures
     type(map_axis), dimension(5) :: axarr
 ! if more than one start equilibrium these are linked using the ceq%next index
     type(gtp_equilibrium_data), pointer :: starteq
 ! for map results
     type(map_node), pointer :: maptop,mapnode,maptopsave
-    type(map_line) :: mapline
-    integer noofaxis,noofstarteq
+!    type(map_line) :: mapline
+! seqxyz has initial values of seqx, seqy and seqz
+    integer noofaxis,noofstarteq,seqxyz(3)
 ! this should be removed
 !    TYPE(ssm_node), pointer :: resultlist
 !<<<<<<<--------------------------------------------------------------
 ! used for element data and R*T
     double precision h298,s298,rgast
 ! temporary reals
-    double precision xxx,xxy,totam
-! array for constituent in endmember and interaction, parameter property type
-    integer endm(10),lint(2,3),typty
+    double precision xxx,xxy,xxz,totam
 ! input data for grid minimizer
     double precision, dimension(maxel) :: xknown,aphl
 ! arrays for grid minimization results
     integer, dimension(maxel) :: iphl,icsl,nyphl
 ! selected kommand and subcommands
-    integer kom,kom1,kom2,kom3,kom4
+    integer kom,kom2,kom3,kom4
 ! selected output mode for results and the default, list output unit lut
     integer listresopt,lrodef,lut,afo
 ! integers used for elements, phases, composition sets, equilibria, defaults
     integer iel,iph,ics,ieq,idef
+! for gradients in MU and interdiffusivities
+    integer nend
+! dimension of mugrad for 16x16 matrix 
+    double precision mugrad(300),mobilities(20)
 !-------------------
+! selection of minimizer and optimizer
+    integer minimizer,optimizer
+! plot unit for experimental data used in enter many_equilibria
+    integer :: plotdataunit(9)=0,plotunit0=0
 ! temporary integer variables in loops etc
-    integer jl,i1,i2,iax
+    integer i1,i2,j1,iax
 ! more temporary integers
-    integer jp,kl,svss,language,last
+    integer jp,kl,svss,language,last,leak
 ! and more temporary integers
     integer ll,lokcs,lokph,lokres,loksp,lrot,maxax
 ! and more temporary integers
-    integer minimizer,mode,ndl,neqdef,noelx,nofc,nopl,nops,nsl,nv,nystat
+    integer mode,ndl,neqdef,noelx,nofc,nopl,nops,nv,nystat
 ! temporary matrix
-    double precision latpos(3,3)
+!    double precision latpos(3,3)
+! used to call init_gtp for the NEW command
+    integer intv(10)
+    double precision dblv(10)
+!-------------------
+! variables for assessment using VA05AD
+!    integer :: nopt=100,iprint=1,ient,mexp=0,nvcoeff,nwc
+!    integer iexit(5)
+!    double precision :: dstep=1.0D-4,dmax2=1.0D2,acc=1.0D-3
+!    integer, parameter :: maxw=5000
+! variables for lmdif
+    integer, parameter :: lwam=2500
+    integer :: nopt=100, mexp=0,nvcoeff
+    integer iwam(lwam)
+    double precision wam(lwam)
+    double precision :: acc=1.0D-3
+! occational segmentation fault when deallocating www ....
+!    double precision, dimension(maxw) :: www
+!    double precision, dimension(:), allocatable :: www
+    double precision, dimension(:), allocatable :: coefs
+    double precision, dimension(:), allocatable :: errs
+!    external new_assessment_calfun
 !-------------------
 ! loop variable when entering constituents of a phase
     integer icon
 ! array with constituents in sublattices when entering a phase
-    character, dimension(maxconst) :: const*24
-! passed as date when program was linked
-    character linkdate*(*),version*(*)
+!    character, dimension(maxconst) :: const*24
 ! for macro and logfile and repeating questions
-    logical logok,stop_on_error,once,wildcard,twice
+    logical logok,stop_on_error,once,wildcard,twice,startupmacro,temporary
 ! unit for logfile input, 0 means no logfile
     integer logfil
 ! remember default for calculate phase
-    integer defcp,defnsl
+    integer defcp
 ! for state variables as conditions
-    integer istv,indices(4,10),iref,unit
+    integer istv
     double precision coeffs(10)
+    TYPE(gtp_state_variable), target :: stvrvar
     TYPE(gtp_state_variable), pointer :: stvr
-    TYPE(gtp_state_variable), dimension(10) :: stvarr
+!    TYPE(gtp_state_variable), dimension(10) :: stvarr
     TYPE(gtp_condition), pointer :: pcond,firstc
 ! current equilibrium records
     TYPE(gtp_equilibrium_data), pointer :: ceq,neweq
     TYPE(gtp_phase_varres), pointer :: parres
-!
-    character (len=34) :: quest1='Number of sites on sublattice xx: '
+! addition record used for listing calculated values
+    type(gtp_phase_add), pointer :: addrec
 !
     character actual_arg(2)*16
-    character cline*128,option*80,aline*128,plotfile*64,eqname*24
+    character cline*128,option*80,aline*128,plotfile*72,eqname*24
+! variable phase tuple
+    type(gtp_phasetuple), pointer :: phtup
 !----------------------------------------------------------------
 ! here are all commands and subcommands
 !    character (len=64), dimension(6) :: oplist
-    integer, parameter :: ncbas=27,nclist=15,ncalc=9,ncent=15,ncread=6
-    integer, parameter :: ncam1=12,ncset=18,ncadv=3,ncstat=6,ncdebug=6
-    integer, parameter :: nselect=6,nlform=6
-    integer, parameter :: ncamph=12,nclph=6,nccph=3,nrej=6,nsetph=6
-    integer, parameter :: nsetphbits=15,ncsave=6,nplt=12,nstepop=6
+    integer, parameter :: ncbas=30,nclist=21,ncalc=12,ncent=21,ncread=6
+    integer, parameter :: ncam1=18,ncset=24,ncadv=6,ncstat=6,ncdebug=6
+    integer, parameter :: nselect=6,nlform=6,noptopt=9,nsetbit=6
+    integer, parameter :: ncamph=12,nclph=6,nccph=6,nrej=9,nsetph=6
+    integer, parameter :: nsetphbits=15,ncsave=6,nplt=18,nstepop=6
 ! basic commands
     character (len=16), dimension(ncbas), parameter :: cbas=&
        ['AMEND           ','CALCULATE       ','SET             ',&
@@ -157,7 +199,8 @@ contains
         'NEW             ','MACRO           ','ABOUT           ',&
         'DEBUG           ','SELECT          ','DELETE          ',&
         'STEP            ','MAP             ','PLOT            ',&
-        'HPCALC          ','FIN             ','                ',&
+        'HPCALC          ','FIN             ','OPTIMIZE        ',&
+        '                ','                ','                ',&
         '                ','                ','                ']
 ! in French
 !        'MODIFIEZ        ','CALCULEZ        ','REGLEZ          ',&
@@ -173,31 +216,41 @@ contains
 !-------------------
 ! subcommands to LIST
     character (len=16), dimension(nclist) :: clist=&
-        ['DATA            ','SHORT           ','PHASE           ',&
+         ['DATA            ','SHORT           ','PHASE           ',&
          'STATE_VARIABLES ','BIBLIOGRAPHY    ','MODEL_PARAM_ID  ',&
          'AXIS            ','TPFUN_SYMBOLS   ','QUIT            ',&
          'PARAMETER       ','EQUILIBRIA      ','RESULTS         ',&
-         'CONDITIONS      ','SYMBOLS         ','LINE_EQUILIBRIA ']
+         'CONDITIONS      ','SYMBOLS         ','LINE_EQUILIBRIA ',&
+         'OPTIMIZATION    ','MODEL_PARAM_VAL ','ERROR_MESSAGE   ',&
+         '                ','                ','                ']
 !-------------------
 ! subsubcommands to LIST DATA
     character (len=16), dimension(nlform) :: llform=&
         ['SCREEN          ','TDB             ','MACRO           ',&
-         'LATEX           ','ODB             ','                ']
+         'LATEX           ','PDB             ','                ']
 !-------------------
 ! subsubcommands to LIST PHASE
     character (len=16), dimension(nclph) :: clph=&
         ['DATA            ','CONSTITUTION    ','MODEL           ',&
          '                ','                ','                ']
 !-------------------
+! subsubcommands to LIST OPTIMIZE results
+    character (len=16), dimension(noptopt) :: optopt=&
+        ['SHORT           ','LONG            ','COEFFICIENTS    ',&
+         'GRAPHICS        ','DEBUG           ','MACRO           ',&
+         '                ','                ','                ']
+!-------------------
 ! subcommands to CALCULATE
     character (len=16), dimension(ncalc) :: ccalc=&
          ['TPFUN_SYMBOLS   ','PHASE           ','NO_GLOBAL       ',&
          'TRANSITION      ','QUIT            ','GLOBAL_GRIDMIN  ',&
-         'SYMBOL          ','EQUILIBRIUM     ','ALL_EQUILIBRIA  ']
+         'SYMBOL          ','EQUILIBRIUM     ','ALL_EQUILIBRIA  ',&
+         'WITH_CHECK_AFTER','                ','                ']
 !-------------------
 ! subcommands to CALCULATE PHASE
     character (len=16), dimension(nccph) :: ccph=&
-         ['ONLY_G          ','G_AND_DGDY      ','ALL_DERIVATIVES ']
+         ['ONLY_G          ','G_AND_DGDY      ','ALL_DERIVATIVES ',&
+          'CONSTITUTION_ADJ','DIFFUSION_COEFF ','                ']
 !-------------------
 ! subcommands to ENTER
     character (len=16), dimension(ncent) :: center=&
@@ -205,17 +258,19 @@ contains
          'PHASE           ','PARAMETER       ','BIBLIOGRAPHY    ',&
          'CONSTITUTION    ','EXPERIMENT      ','QUIT            ',&
          'EQUILIBRIUM     ','SYMBOL          ','OPTIMIZE_COEFF  ',&
-         'COPY_OF_EQUILIB ','                ','                ']
+         'COPY_OF_EQUILIB ','COMMENT         ','MANY_EQUILIBRIA ',&
+         'MATERIAL        ','PLOT_DATA       ','GNUPLOT_TERMINAL',&
+         '                ','                ','                ']
 !-------------------
 ! subcommands to READ
     character (len=16), dimension(ncread) :: cread=&
-         ['UNFORMATTED     ','TDB             ','QUIT            ',&
-         'DIRECT          ','                ','                ']
+        ['UNFORMATTED     ','TDB             ','QUIT            ',&
+         'DIRECT          ','PDB             ','                ']
 !-------------------
 ! subcommands to SAVE
 ! note SAVE TDB, MACRO, LATEX part of LIST DATA !!
     character (len=16), dimension(ncsave) :: csave=&
-        ['UNFORMATTED     ','                ','                ',&
+        ['TDB             ','SOLGASMIX       ','UNFORMATTED     ',&
          'DIRECT          ','                ','QUIT            ']
 !-------------------
 ! subcommands to AMEND first level
@@ -224,23 +279,28 @@ contains
          ['SYMBOL          ','ELEMENT         ','SPECIES         ',&
          'PHASE           ','PARAMETER       ','BIBLIOGRAPHY    ',&
          'TPFUN_SYMBOL    ','CONSTITUTION    ','QUIT            ',&
-         'COMPONENTS      ','GENERAL         ','DEBYE_MODEL     ']
+         'COMPONENTS      ','GENERAL         ','CP_MODEL        ',&
+         'ALL_OPTIM_COEFF ','EQUILIBRIUM     ','                ',&
+         'LINE            ','                ','                ']
 !-------------------
 ! subsubcommands to AMEND PHASE
     character (len=16), dimension(ncamph) :: camph=&
-         ['MAGNETIC_CONTRIB','COMPOSITION_SET ','DISORDERED_FRACS',&
-         'GLAS_TRANSITION ','QUIT            ','DEFAULT_CONSTIT ',&
-         'DEBYE_CP_MODEL  ','EINSTEIN_CP_MDL ','INDEN_WEI_MAGMOD',&
-         'ELASTIC_MODEL_A ','                ','                ']
+!         ['MAGNETIC_CONTRIB','COMPOSITION_SET ','DISORDERED_FRACS',&
+         ['MAGNETIC_INDEN  ','COMPOSITION_SET ','DISORDERED_FRACS',&
+         'TWOSTATE_MODEL_1','QUIT            ','DEFAULT_CONSTIT ',&
+         'DEBYE_CP_MODEL  ','EINSTEIN_CP_MDL ','XIONG_INDEN_MAGN',&
+         'ELASTIC_MODEL_1 ','GADDITION       ','                ']
 !-------------------
-! subcommands to SET.  
+! subcommands to SET
     character (len=16), dimension(ncset) :: cset=&
          ['CONDITION       ','STATUS          ','ADVANCED        ',&
          'LEVEL           ','INTERACTIVE     ','REFERENCE_STATE ',&
          'QUIT            ','ECHO            ','PHASE           ',&
          'UNITS           ','LOG_FILE        ','WEIGHT          ',&
          'NUMERIC_OPTIONS ','AXIS            ','INPUT_AMOUNTS   ',&
-         'VERBOSE         ','AS_START_EQUILIB','BIT             ']
+         'VERBOSE         ','AS_START_EQUILIB','BIT             ',&
+         'VARIABLE_COEFF  ','SCALED_COEFF    ','OPTIMIZING_COND ',&
+         'RANGE_EXPER_EQU ','FIXED_COEFF     ','T_AND_P         ']
 ! subsubcommands to SET STATUS
     character (len=16), dimension(ncstat) :: cstatus=&
          ['ELEMENT         ','SPECIES         ','PHASE           ',&
@@ -248,12 +308,18 @@ contains
 !        123456789.123456---123456789.123456---123456789.123456
 ! subsubcommands to SET ADVANCED
     character (len=16), dimension(ncadv) :: cadv=&
-         ['EQUILIB_TRANSF  ','QUIT            ','                ']
+         ['EQUILIB_TRANSF  ','QUIT            ','EXTRA_PROPERTY  ',&
+          'DENSE_GRID_ONOFF','SMALL_GRID_ONOFF','                ']
 !         123456789.123456---123456789.123456---123456789.123456
+! subsubcommands to SET BITS
+    character (len=16), dimension(nsetbit) :: csetbit=&
+         ['EQUILIBRIUM     ','GLOBAL          ','PHASE           ',&
+          '                ','                ','                ']
+!          123456789.123456---123456789.123456---123456789.123456
 ! subsubcommands to SET PHASE
     character (len=16), dimension(nsetph) :: csetph=&
-         ['QUIT            ','STATUS          ','DEFAULT_CONSTITU',&
-          'AMOUNT          ','BITS            ','                ']
+         ['QUIT            ','STATUS          ','DEFAULT_CONSTIT ',&
+          'AMOUNT          ','BITS            ','CONSTITUTION    ']
 !         123456789.123456---123456789.123456---123456789.123456
 !-------------------
 ! subsubsubcommands to SET PHASE BITS
@@ -261,7 +327,7 @@ contains
          ['FCC_PERMUTATIONS','BCC_PERMUTATIONS','IONIC_LIQUID_MDL',&
          'AQUEOUS_MODEL   ','QUASICHEMICAL   ','FCC_CVM_TETRADRN',&
          'FACT_QUASICHEMCL','NO_AUTO_COMP_SET','QUIT            ',&
-         '                ','                ','                ',&
+         'EXTRA_DENSE_GRID','FLORY_HUGGINS   ','                ',&
          '                ','                ','                ']
 !         123456789.123456---123456789.123456---123456789.123456
 !-------------------
@@ -274,44 +340,62 @@ contains
 ! subcommands to DEBUG
     character (len=16), dimension(ncdebug) :: cdebug=&
          ['FREE_LISTS      ','STOP_ON_ERROR   ','ELASTICITY      ',&
-         '                ','                ','                ']
+          'TEST1           ','TEST2           ','                ']
 !-------------------
 ! subcommands to SELECT, maybe some should be CUSTOMMIZE ??
     character (len=16), dimension(nselect) :: cselect=&
          ['EQUILIBRIUM     ','MINIMIZER       ','GRAPHICS        ',&
-         'LANGUAGE        ','                ','                ']
+         'LANGUAGE        ','OPTIMIZER       ','                ']
 !-------------------
 ! subcommands to DELETE
     character (len=16), dimension(nrej) :: crej=&
          ['ELEMENTS        ','SPECIES         ','PHASE           ',&
-          'QUIT            ','COMPOSITION_SET ','EQUILIBRIUM     ']
+          'QUIT            ','COMPOSITION_SET ','EQUILIBRIUM     ',&
+          'STEP_MAP_RESULTS','                ','                ']
 !-------------------
-! subcommands to PLOT OPTIONS
+! subcommands to PLOT OPTIONS/ GRAPHICS OPTIONS
     character (len=16), dimension(nplt) :: cplot=&
-         ['RENDER          ','XRANGE          ','YRANGE          ',&
-         'XTEXT           ','YTEXT           ','TITLE           ',&
+        ['RENDER          ','SCALE_RANGES    ','RATIOS_XY       ',&
+         'AXIS_LABELS     ','                ','TITLE           ',&
          'GRAPHICS_FORMAT ','OUTPUT_FILE     ','GIBBS_TRIANGLE  ',&
-         'QUIT            ','POSITION_OF_KEYS','                ']
+         'QUIT            ','POSITION_OF_KEYS','APPEND          ',&
+         'TEXT            ','TIE_LINES       ','KEEP            ',&
+         'LOGSCALE        ','                ','                ']
 !-------------------
 !        123456789.123456---123456789.123456---123456789.123456
 ! minimizers
     character (len=16), dimension(2) :: minimizers=&
          ['LUKAS_HILLERT   ','SUNDMAN_HILLERT ']
 !------------------------------------------------------------------------
+! optimizers
+    character (len=16), dimension(2) :: optimizers=&
+         ['LMDIF           ','VA05AD          ']
+!------------------------------------------------------------------------
 !
 ! some defaults
     language=1
     logfil=0
     defcp=1
-!
-    write(kou,10)version,linkdate(1:len_trim(linkdate)),ocmonversion,&
-         gtpversion,hmsversion,smpversion
-10  format(/'Open Calphad (OC) software version ',a,' linked ',a,/&
+    seqxyz=0
+! defaults for optimizer
+    nvcoeff=0
+! iexit(2)=1 means listing scaled coefficients (Va05AD)
+!    iexit=0
+!    iexit(2)=1
+! present the software
+    write(kou,10)version,trim(linkdate),ocmonversion,gtpversion,hmsversion,&
+         smpversion
+10  format(/'Open Calphad (OC) software version ',a,', linked ',a,/&
          'with command line monitor version ',i2//&
          'This program is available with a GNU General Public License.'/&
-         'It includes the General Thermodynamic Package, version ',A/&
-         "and Hillert's equilibrium calculation algorithm version ",A/&
-         'and step/map/plot software version ',A/)
+         'It includes the General Thermodynamic Package, version ',A,','/&
+         "Hillert's equilibrium calculation algorithm version ",A,','/&
+         'step/map/plot software version ',A,', ',&
+         'LAPACK and BLAS numerical routines'/'and LMDIF from ANL ',&
+         '(Argonne, USA) is used by the assessment procedure'/)
+!
+!$    write(kou,11)
+11  format('Linked with OpenMp for parallel execution')
 !
 ! jump here after NEW to reinitiallize all local variables also
 20  continue
@@ -325,17 +409,43 @@ contains
     graphopt%dfltmin=zero
     graphopt%plotmax=one
     graphopt%dfltmax=one
+    graphopt%appendfile=' '
+    graphopt%status=0
     graphopt%labelkey='top right'
+    nullify(graphopt%firsttextlabel)
+    nullify(textlabel)
     plotfile='ocgnu'
     plotform=' '
+! default plot terminal, replaces plotform
+    graphopt%gnutermsel=1
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+! Edit these as they may not be available on your systems
+    graphopt%gnutermid(1)='SCREEN '
+    graphopt%gnuterminal(1)='xterm persist '
+    graphopt%filext(1)='  '
+    graphopt%gnutermid(2)='PS  '
+    graphopt%gnuterminal(2)='postscript color solid '
+    graphopt%filext(2)='ps  '
+    graphopt%gnutermid(3)='PDF '
+    graphopt%gnuterminal(3)='pdf color solid'
+    graphopt%filext(3)='pdf  '
+    graphopt%gnutermid(4)='GIF  '
+    graphopt%gnuterminal(4)='gif '
+    graphopt%filext(4)='gif  '
+    graphopt%gnutermax=4
+    graphopt%gnutermid(5)=' '
+    graphopt%gnutermid(6)=' '
+    graphopt%gnutermid(7)=' '
+    graphopt%gnutermid(8)=' '
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 ! default list unit
     optionsset%lut=kou
 ! default for list short
     chshort='A'
-! initiate on-line help
-    call init_help('ochelp.hlp ')
 ! set default minimizer, 2 is matsmin, 1 does not work ...
     minimizer=2
+! set default optimimzer, 1 is LMDIF, 2 is VA05AD (no longer available)
+    optimizer=1
 ! by default no stop on error and no logfile
     stop_on_error=.false.
     logfil=0
@@ -343,7 +453,7 @@ contains
 ! in init_gtp the first equilibrium record is created and 
 ! firsteq has been set to that
 !
-25  continue
+!25  continue
 ! default values of T and P.  NOTE these are not set as conditions
     firsteq%tpval(1)=1.0D3
     firsteq%tpval(2)=1.0D5
@@ -353,9 +463,9 @@ contains
 ! default axis limits set to be 0 and 1
     maxax=5
     noofaxis=0
-! state variable for plot axis
-    do jl=1,3
-       axplotdef(jl)=' '
+! state variable for plot axis (only 2)
+    do j1=1,2
+       axplotdef(j1)=' '
     enddo
 ! remove any results from step and map
     nullify(maptop)
@@ -369,9 +479,52 @@ contains
 ! set default equilibrium to 1 and current equilibrium (CEQ) to firsteq
     neqdef=1
     ceq=>firsteq
-! >>> we should remove all equilibria !!
+! >>> we should remove all equilibria !! ??
 ! here one should read a user initialisation file as a macro
 ! file can be at current directory or at home directory
+! initiate on-line help
+! local environment
+    ochome=' '
+    call get_environment_variable('OCHOME ',ochome)
+!    write(*,*)'OCHOME: ',trim(ochome)
+    startupmacro=.FALSE.
+    if(ochome(1:1).eq.' ') then
+       inquire(file='ochelp.hlp ',exist=logok)
+       if(.not.logok) then
+          write(*,*)'Warning, no help file'
+       else
+! help file on local directory?
+          call init_help('ochelp.hlp ')
+       endif
+    else
+! both LINUX and WINDOWS accept / as separator between directory and file names
+!       write(*,*)'Help file: ',trim(ochome)//'\ochelp.hlp '
+       call init_help(trim(ochome)//'/ochelp.hlp ')
+! default directory for databases
+       ocbase=trim(ochome)//'/databases'
+       inquire(file=trim(ocbase),exist=logok)
+!       if(logok) then
+!          write(*,*)'There is a database directory: ',trim(ocbase)
+!       else
+!          write(*,*)'No database directory'
+!       endif
+! running a initial macro file
+       cline=trim(ochome)//'/start.OCM '
+       inquire(file=cline,exist=logok)
+       if(logok) then
+!          write(*,*)'there is an initiation file: ',trim(cline)
+          last=0
+! This just open the file and sets input unit to file
+          call macbeg(cline,last,logok)
+          startupmacro=.TRUE.
+!       else
+!          write(*,*)'No initiation file'
+       endif
+    endif
+!
+! finished initiallization
+!88  continue
+!
 !
 !============================================================
 ! return here for next command
@@ -382,16 +535,32 @@ contains
     call ocmon_reset_options(optionsset)
 ! initiate command level for help routines
     call helplevel1('Initiate help level for OC')
+! handling of inline arguments ONCE
+    if(.not.startupmacro .and. narg.gt.0) then
+! at present accept only one argument assumed to be a macro file name
+       narg=0
+       cline=argline(1)
+       last=0
+       call macbeg(cline,last,logok)
+!       write(*,*)'Jumping to 99 to execute macro'
+!       goto 99
+    endif
 ! read the command line with gparc to have output on logfile
+! NOTE read from macro file if set.
     last=len(aline)
     aline=' '
     cline=' '
-    call gparc('OC3: ',aline,last,5,cline,' ',tophlp)
-    jl=1
+    call gparc(ocprompt,aline,last,5,cline,' ',tophlp)
+    j1=1
+    if(len_trim(cline).gt.80) then
+       write(kou,101)
+101    format(' *** Warning: long input lines may be truncated',&
+            ' and cause errors')
+    endif
 ! with empty line just prompt again
-    if(eolch(cline,jl)) goto 100
+    if(eolch(cline,j1)) goto 100
 ! with macro command character just prompt again
-    if(cline(jl:jl).eq.'@') goto 100
+    if(cline(j1:j1).eq.'@') goto 100
     kom=ncomp(cline,cbas,ncbas,last)
 !  write(kou,*)'kom= ',kom,last
     if(kom.le.0) then
@@ -449,7 +618,9 @@ contains
        endif
     endif
 !
-    SELECT CASE(kom)
+! jump here if there is an inline argument
+! 99  continue
+    main: SELECT CASE(kom)
 ! command selection
 !=================================================================
     CASE DEFAULT
@@ -460,10 +631,15 @@ contains
 !       ['SYMBOL          ','ELEMENT         ','SPECIES         ',&
 !        'PHASE           ','PARAMETER       ','BIBLIOGRAPHY    ',&
 !        'TPFUN_SYMBOL    ','CONSTITUTION    ','QUIT            ',&
-!        'COMPONENTS      ','GENERAL         ','                ']
-    CASE(1)
+!        'COMPONENTS      ','GENERAL         ','                ',&
+!         'ALL_OPTIM_COEFF','EQUILIBRIUM     ','                ',&
+!         'LIST           ','                ','                ']
+    CASE(1) ! AMEND
+! disable continue optimization
+!       iexit=0
+!       iexit(2)=1
        kom2=submenu(cbas(kom),cline,last,cam1,ncam1,4)
-       SELECT CASE(kom2)
+       amend: SELECT CASE(kom2)
        CASE DEFAULT
           write(kou,*)'No such answer'
           goto 100
@@ -477,6 +653,14 @@ contains
           write(kou,*)'No such symbol'
           goto 100
 1020      continue
+          if(btest(svflista(svss)%status,SVCONST)) then
+! if symbol is just a numeric constant we can change its value
+             actual_arg=' '
+             xxx=evaluate_svfun_old(svss,actual_arg,1,ceq)
+             call gparrd('Give new value; ',cline,last,xxy,xxx,q1help)
+             call set_putfun_constant(svss,xxy)
+             goto 100
+          endif
 ! If the user answers anything but y or Y the bits are cleared
 ! symbol can be evaluated only explicitly (like variables in TC)
           call gparcd('Should the symbol only be evaluated explicitly?',&
@@ -500,7 +684,7 @@ contains
           else
              svflista(svss)%status=ibclr(svflista(svss)%status,SVFEXT)
              svflista(svss)%eqnoval=0
-! this cannot be cleared here, there may be other
+! this cannot be cleared, there may be other threadprotected symbols
 !           ceq%status=ibclr(ceq%status,EQNOTHREAD)
           endif
 !-------------------------
@@ -512,9 +696,9 @@ contains
 !-------------------------
 ! subsubcommands to AMEND PHASE
 !       ['MAGNETIC_CONTRIB','COMPOSITION_SET ','DISORDERED_FRACS',&
-!        'GLAS_TRANSITION ','QUIT            ','DEFAULT_CONSTIT ',&
-!        'DEBYE_CP_MODEL  ','EINSTEIN_CP_MDL ','INDEN_WEI_MAGNET',&
-!        'ELASTIC_MODEL_A ','                ','                ']
+!        'TWOSTATE_MODEL_1   ','QUIT            ','DEFAULT_CONSTIT ',&
+!        'DEBYE_CP_MODEL  ','EINSTEIN_CP_MDL ','XIONG_INDEN_MAGM',&
+!        'ELASTIC_MODEL_1 ','GADDITION       ','                ']
        case(4) ! amend phase subcommands
           call gparc('Phase name: ',cline,last,1,name1,' ',q1help)
           if(buperr.ne.0) goto 990
@@ -522,7 +706,7 @@ contains
           if(gx%bmperr.ne.0) goto 990
 !
           kom3=submenu(cbas(kom),cline,last,camph,ncamph,2)
-          SELECT CASE(kom3)
+          amendphase: SELECT CASE(kom3)
 !....................................................
           CASE DEFAULT
              write(kou,*)'Amend phase subcommand error'
@@ -530,10 +714,16 @@ contains
           case(1) ! amend phase <name> magnetic contribution
              idef=-3
              call gparid('Antiferromagnetic factor: ',&
-                  cline,last,jl,idef,q1help)
+                  cline,last,j1,idef,q1help)
              if(buperr.ne.0) goto 990
              call get_phase_record(iph,lokph)
-             call add_magrec_inden(lokph,1,jl)
+             if(j1.eq.-1) then
+! Inden magnetic for BCC
+                call add_addrecord(lokph,'Y',indenmagnetic)
+             else
+! Inden magnetic for FCC
+                call add_addrecord(lokph,'N',indenmagnetic)
+             endif
 !....................................................
           case(2) ! amend phase <name> composition set add/remove
              call gparcd('Add new set? ',cline,last,1,ch1,'Y ',q1help)
@@ -562,54 +752,69 @@ contains
              idef=1
              call gpari('Sum up to sublattice: ',cline,last,ndl,idef,q1help)
              if(buperr.ne.0) goto 990
-! ch1 is parameter suffix, jl=0 means never completely disordred (sigma)
+! ch1 is parameter suffix, j1=0 means never completely disordred (sigma)
              call gparcd('Can the phase be totally disordered? ',cline,last,&
                   1,ch1,'N',q1help)
              if(buperr.ne.0) goto 990
              if(ch1.eq.'N') then
 ! like sigma
-                jl=0
+                j1=0
              else
 ! like FCC ordering
-                jl=1
+                j1=1
              endif
              ch1='D'
-             call add_fraction_set(iph,ch1,ndl,jl)
+             call add_fraction_set(iph,ch1,ndl,j1)
              if(gx%bmperr.ne.0) goto 990
 !....................................................
-          case(4) ! amend phase <name> glas_transition
-             call add_addrecord(iph,glastransmodela)
+          case(4) ! amend phase <name> twostate model 1
+             call add_addrecord(iph,' ',twostatemodel1)
 !....................................................
           case(5) ! amend phase quit
              goto 100
 !....................................................
           case(6) ! amend phase <name> default_constitution
+! to change default constitution of any composition set give #comp.set.
              call ask_default_constitution(cline,last,iph,ics,ceq)
 !....................................................
           case(7) ! amend phase <name> Debye model
-             call add_addrecord(iph,debyecp)
+             call add_addrecord(iph,' ',debyecp)
 !....................................................
           case(8) ! amend phase einstein cp model
-             call add_addrecord(iph,einsteincp)
+             call add_addrecord(iph,' ',einsteincp)
 !....................................................
-          case(9) ! amend phase wei_inden_magnetic_model
-             call add_addrecord(iph,weimagnetic)
+          case(9) ! amend phase Inden-Xiong magnetic_model
+             call gparcd('BCC type phase: ',cline,last,1,ch1,'N',q1help)
+             call add_addrecord(iph,ch1,xiongmagnetic)
 !....................................................
           case(10) ! amend phase elastic model
-             call add_addrecord(iph,elasticmodela)
+             call add_addrecord(iph,' ',elasticmodel1)
 !....................................................
-          case(11) ! amend phase ??
-             write(kou,*)'Not implemented yet'
+          case(11) ! AMEND PHASE GADDITION
+! add a constant term to G, value in J/FU
+             lokcs=phasetuple(iph)%lokvares
+             if(allocated(ceq%phase_varres(lokcs)%addg)) then
+                xxy=ceq%phase_varres(lokcs)%addg(1)
+             else
+! maybe we will use more terms later ....
+                allocate(ceq%phase_varres(lokcs)%addg(1))
+             endif
+             call gparrd('Addition to G in J/FU (formula units): ',&
+                  cline,last,xxx,xxy,q1help)
+             ceq%phase_varres(lokcs)%addg(1)=xxx
+! set bit that this should be calculated
+             ceq%phase_varres(lokcs)%status2=&
+                  ibset(ceq%phase_varres(lokcs)%status2,CSADDG)
 !....................................................
           case(12) ! amend phase ??
              write(kou,*)'Not implemented yet'
-          END SELECT
+          END SELECT amendphase
 !-------------------------
        case(5) ! amend parameter
           write(kou,*)'Not implemented yet, only ENTER PARAMETER'
 !-------------------------
        case(6) ! amend bibliography
-          call enter_reference_interactivly(cline,last,1,jl)
+          call enter_reference_interactivly(cline,last,1,j1)
 !-------------------------
        case(7) ! amend TPFUN symbol
           write(kou,*)' *** Dangerous if you have several equilibria!'
@@ -620,10 +825,10 @@ contains
           endif
           if(idef.eq.0) then
 ! it is a function , this call just read the function starting with low T etc.
-             call enter_tpfun_interactivly(cline,last,string,jp)
+             call enter_tpfun_interactivly(cline,last,funstring,jp)
 ! this stores the tpfun, lrot<0 means the symbol already exists
              lrot=-1
-             call enter_tpfun(name1,string,lrot,.FALSE.)
+             call enter_tpfun(name1,funstring,lrot,.FALSE.)
              if(gx%bmperr.ne.0) goto 990
 ! mark functions not calculated.  This should be done in all ceq ...
              ceq%eq_tpres(lrot)%tpused(1)=-one
@@ -646,49 +851,136 @@ contains
           continue
 !-------------------------
        case(10) ! amend components
+          write(*,*)'WARNING: not fully implemented yet'
+!          goto 100
           if(associated(ceq%lastcondition)) then
-             write(kou,*)'Warning, your conditions may not be valid after this'
+             write(kou,*)'Warning: All your conditions will be removed'
           endif
-          call amend_components(cline,last,ceq)
+          i2=1
+          line=' '
+          do i1=1,noel()
+             call get_component_name(i1,line(i2:),ceq)
+             i2=len_trim(line)+2
+          enddo
+          aline=' '
+          call gparcd('Give all new components: ',cline,last,&
+               5,aline,line,q1help)
+! option is a character with the new components ...
+          call amend_components(aline,ceq)
+          if(gx%bmperr.ne.0) goto 990
 !-------------------------
        case(11) ! amend general
           call amend_global_data(cline,last)
 !-------------------------
-       case(12) ! Nothing defined
-          continue
-       END SELECT
+       case(12) ! amend Cp_model (Heat capacity)
+          write(*,*)'Not implemented yet'
+!-------------------------
+       case(13) ! amend ALL_OPTIM_COEFF, (rescale or recover)
+          call gparcd('Should the coefficients be rescaled?',&
+               cline,last,1,ch1,'N',q1help)
+          if(ch1.eq.'y' .or. ch1.eq.'Y') then
+! set start values to current values
+             firstash%coeffstart=firstash%coeffvalues*firstash%coeffscale
+             firstash%coeffscale=firstash%coeffstart
+             firstash%coeffvalues=one
+          else
+             call gparcd('Do you want to recover the coefficients values?',&
+                  cline,last,1,ch1,'N',q1help)
+             if(ch1.eq.'y' .or. ch1.eq.'Y') then
+! set current values back to start values
+                firstash%coeffvalues=one
+                firstash%coeffstart=firstash%coeffscale
+             else
+                write(kou,557)
+557             format('Nothing done as there are no other amend option',&
+                     'for coefficients')
+             endif
+          endif
+!-------------------------
+       case(14) ! AMEND EQUILIBRIUM intended to add to experimental list
+          write(*,*)'Not implemented yet'
+!-------------------------
+       case(15) ! Nothing defined
+          write(*,*)'Not implemented yet'
+!-------------------------
+       case(16) ! AMEND LINEs of calculated equilibria
+! possible amendment of all stored equilibria as ACTIVE or INACTIVE
+          call amend_stored_equilibria(axarr,maptop)
+!-------------------------
+       case(17) ! Nothing defined
+          write(*,*)'Not implemented yet'
+!-------------------------
+       case(18) ! Nothing defined
+          write(*,*)'Not implemented yet'
+       END SELECT amend
 !=================================================================
 ! calculate subcommands
+!         ['TPFUN_SYMBOLS   ','PHASE           ','NO_GLOBAL       ',&
+!         'TRANSITION      ','QUIT            ','GLOBAL_GRIDMIN  ',&
+!         'SYMBOL          ','EQUILIBRIUM     ','ALL_EQUILIBRIA  ',&
+!         'WITH_CHECK_AFTER','                ','                ']
     CASE(2)
        kom2=submenu(cbas(kom),cline,last,ccalc,ncalc,8)
-       SELECT CASE(kom2)
+       calculate: SELECT CASE(kom2)
        CASE DEFAULT
           write(kou,*)'No such calculate command'
           goto 100
 !-------------------------
        CASE(1) ! calculate TPFUN symbols , use current values of T and P
-          write(*,*)'Output unit: ',optionsset%lut
-!          if(optionsset%lut.ne.kou) then
-!             lut=optionsset%lut
-!          else
-!             lut=kou
-!          endif
-          write(lut,2011)notpf(),ceq%tpval
-2011      format(/'Calculating ',i3,' functions for T,P=',F10.2,1PE15.7/&
-               3x,'No   F',11x,'F.T',9x,'F.P',9x,'F.T.T',7x,'F.T.P',7x,'F.P.P')
-          call cpu_time(starting)
-          do jl=1,notpf()
-             call eval_tpfun(jl,ceq%tpval,val,ceq%eq_tpres)
+          call gparcd('name: ',cline,last,5,name1,'*',q1help)
+          lrot=0
+          iel=index(name1,'*')             
+          if(iel.gt.1) name1(iel:)=' '
+! as TP functions call each other force recalculation and calculate all
+! even if just a single function is requested
+          call change_optcoeff(-1,zero)
+          do j1=1,notpf()
+             call eval_tpfun(j1,ceq%tpval,val,ceq%eq_tpres)
              if(gx%bmperr.gt.0) goto 990
-             write(lut,2012)jl,val
-2012         format(I5,1x,6(1PE12.4))
           enddo
-          call cpu_time(ending)
+          if(name1(1:1).ne.'*') then
+             once=.TRUE.
+2009         continue
+             call find_tpfun_by_name(name1,lrot)
+!             write(*,*)'cui: ',lrot,iel,gx%bmperr
+             if(gx%bmperr.ne.0) then
+                if(iel.eq.0) goto 990
+                gx%bmperr=0
+             else
+! found function number from lrot ???
+                j1=lrot
+                call eval_tpfun(j1,ceq%tpval,val,ceq%eq_tpres)
+                if(gx%bmperr.gt.0) goto 990
+                if(once) then
+                   once=.FALSE.
+                   write(lut,2011)100000,ceq%tpval
+                endif
+                write(lut,2012)j1,val
+!                call list_tpfun(lrot,0,longstring)
+!                call wrice2(lut,0,12,78,1,longstring)
+                if(iel.gt.1) goto 2009
+             endif
+          else
+             write(lut,2011)notpf(),ceq%tpval
+2011         format(/'Calculating ',i4,' functions for T,P=',F10.2,1PE15.7/&
+                  3x,'No   F',11x,'F.T',9x,'F.P',9x,'F.T.T',&
+                  7x,'F.T.P',7x,'F.P.P')
+!             call cpu_time(starting)
+             do j1=1,notpf()
+                call eval_tpfun(j1,ceq%tpval,val,ceq%eq_tpres)
+                if(gx%bmperr.gt.0) goto 990
+                write(lut,2012)j1,val
+2012            format(I5,1x,6(1PE12.4))
+             enddo
+!             call cpu_time(ending)
+          endif
 !          write(kou,2013)ending-starting
-2013      format('CPU time used: ',1pe15.6)
+!2013      format('CPU time used: ',1pe15.6)
 !---------------------------------------------------------------
-       case(2) ! calculate phase, _all _only_g or _g_and_dgdy, separated later
-          ! asks for phase name and constitution
+       case(2) ! calculate phase, _all _only_g or _g_and_dgdy, etc
+! asks for phase name and constitution.  DO NOT ALLOW * by setting iph=-1
+! before calling!
+          iph=-1
           call ask_phase_constitution(cline,last,iph,ics,lokcs,ceq)
           if(gx%bmperr.ne.0) goto 990
 ! if iph<0 then * has been given as phase name
@@ -696,42 +988,143 @@ contains
              write(kou,*)'Cannot loop for all phases'
              goto 100
           endif
-! use current value of T and P
-          rgast=globaldata%rgas*ceq%tpval(1)
 !
           kom3=submenu('Calculate what for phase?',cline,last,ccph,nccph,defcp)
 !        if(kom2.le.0) goto 100
-!       ph-a ph-G ph-G+dg/dy
+!        ph-a ph-G ph-G+dg/dy
           defcp=kom3
           lut=optionsset%lut
-          SELECT CASE(kom3)
+! use current value of T and P
+          if(kom3.ne.4) then
+             write(*,2015)ceq%tpval
+2015         format('Using T=',F9.2,' K and P=',1pe14.6,&
+                  ' Pa, results in J/F.U.')
+          endif
+          rgast=globaldata%rgas*ceq%tpval(1)
+          calcphase: SELECT CASE(kom3)
 !.......................................................
           CASE DEFAULT
              write(kou,*)'Calculate phase subcommand error'
 !.......................................................
-          case(1) ! calculate phase < > only G
+          case(1) ! calculate case < > only G
              call calcg(iph,ics,0,lokres,ceq)
              if(gx%bmperr.ne.0) goto 990
              parres=>ceq%phase_varres(lokres)
-             write(lut,2031)(rgast*parres%gval(jl,1),jl=1,4)
-             write(lut,2032)parres%gval(1,1)/parres%abnorm(1),parres%abnorm(1)
-2031         format('G/N, dG/dT:',4(1PE16.8))
-2032         format('G/N/RT, N:',2(1PE16.8))
+             write(lut,2031)(rgast*parres%gval(j1,1),j1=1,4)
+! G=H-T*S; H=G+T*S; S=-G.T; H = G + T*(-G.T) = G - T*G.T
+             write(lut,2032)parres%gval(1,1)/parres%abnorm(1),&
+                  (parres%gval(1,1)-ceq%tpval(1)*parres%gval(2,1))*rgast,&
+                  parres%abnorm(1)
+2031         format(/'G, dG/dT dG/dP d2G/dT2:',4(1PE14.6))
+2032         format('G/RT, H, atoms/F.U:',3(1PE14.6))
+! also list contributions from calculated additions ...!!!
+             call list_addition_values(lut,parres)
 !.......................................................
           case(2) ! calculate phase < >  G and dG/dy
              call calcg(iph,ics,1,lokres,ceq)
              if(gx%bmperr.ne.0) goto 990
              parres=>ceq%phase_varres(lokres)
              nofc=noconst(iph,ics,firsteq)
-             write(lut,2031)(rgast*parres%gval(jl,1),jl=1,4)
-             write(lut,2041)(rgast*parres%dgval(1,jl,1),jl=1,nofc)
-2041         format('dG/dy:   ',4(1PE16.8))
+             write(lut,2031)(rgast*parres%gval(j1,1),j1=1,4)
+             write(lut,2041)(rgast*parres%dgval(1,j1,1),j1=1,nofc)
+2041         format('dG/dy:   ',4(1PE16.8),(/9x,4e16.8))
 !.......................................................
-          case(3) ! calculate phase < > all
+          case(3) ! calculate phase < > all derivatives
              call tabder(iph,ics,ceq)
+             write(*,*)' NOTE THAT dG/dy_i is NOT THE CHEMICAL POTENTIAL of i!'
              if(gx%bmperr.ne.0) goto 990
-          END SELECT
-!----------------------------------
+!.......................................................
+          case(4,5) ! calculate phase with constitution_adjustment
+! or derivatives of chemical potentials and mobility data
+! convert to phase tuple here as that is used in the application call
+             do jp=1,nooftup()
+!                if(phasetuple(jp)%phaseix.eq.iph .and. &
+                if(phasetuple(jp)%ixphase.eq.iph .and. &
+                     phasetuple(jp)%compset.eq.ics) then
+!                   write(*,*)'This is phase tuple ',jp
+                   goto 2044
+                endif
+             enddo
+             write(*,*)'No such tuple'
+             goto 100
+2044         continue
+             phtup=>phasetuple(jp)
+! Get current composition of the phase
+             call calc_phase_molmass(iph,ics,xknown,aphl,totam,xxy,xxx,ceq)
+! ask for overall composition
+             totam=one
+             quest='Mole fraction of XX:'
+             do nv=1,noel()-1
+                if(totam.gt.zero) then
+! assume elements as components
+                   call get_component_name(nv,elsym,ceq)
+                   quest(18:19)=elsym
+! prompt with current mole fraction:
+                   call gparrd(quest,cline,last,xxy,xknown(nv),q1help)
+                   if(buperr.ne.0) then
+                      buperr=0; xxy=zero
+                   endif
+                   if(xxy.gt.totam) then
+                      write(kou,*)'Fraction too large, set to ',totam
+                      xxy=totam
+                   endif
+                else
+                   xxy=zero
+                endif
+                xknown(nv)=xxy
+                totam=totam-xxy
+! yarr is used here to provide an array for the chemical potentials
+                yarr(nv)=ceq%cmuval(nv)
+             enddo
+! after loop nv=noel()
+             call get_component_name(nv,elsym,ceq)
+             write(kou,2088)elsym,totam
+2088         format('Mole fraction of ',a,' set to ',F8.5)
+             xknown(nv)=totam
+             yarr(nv)=ceq%cmuval(nv)
+! use current T and P
+             if(kom3.eq.4) then
+! constituent adjustment, the FALSE means not quiet
+                call equilph1b(phtup,ceq%tpval,xknown,xxx,yarr,.FALSE.,ceq)
+                if(gx%bmperr.ne.0) goto 990
+                write(kou,2087)xxx,(yarr(nv),nv=1,noel())
+2087            format(/'Calculated Gibbs energy/RT: ',1pe14.6,&
+                     ' and the chemical potentials/RT:'/6(1pe12.4))
+             else
+!.............................................
+! calculate phase diffusion: chem.pot derivatives and mobilities
+! mugrad(I,J) are derivatives of the chemical potential of endmember I
+!         with respect to endmember J
+! mobilities(i) is mobility of component i
+                mugrad=zero
+                mobilities=zero
+! derivatives of mu and mobilities, the FALSE means not quiet
+                call equilph1d(phtup,ceq%tpval,xknown,yarr,.FALSE.,&
+                     nend,mugrad,mobilities,ceq)
+                if(gx%bmperr.ne.0) goto 990
+                write(kou,2096)nend
+2096            format(/'Chemical potential derivative matrix, dG_I/dn_J for ',&
+                     i3,' endmembers')
+                write(kou,2094)(nv,nv=1,nend)
+2094            format(3x,6(6x,i6)/(3x,6i12))
+                do nv=0,nend-1
+! An extra LF is generated when just 6 components!! use ll, kp j1, i2
+                   write(kou,2095)nv+1,(mugrad(nend*nv+jp),jp=1,nend)
+!2095               format(i3,6(1pe12.4)/(3x,6e12.4))
+2095               format(i3,6(1pe12.4)/(3x,6e12.4))
+                enddo
+                write(kou,2098)noel()
+2098            format(/'Mobility values mols/m2/s ?? for',i3,' components')
+                write(kou,2095)1,(mobilities(jp),jp=1,noel())
+             endif
+!.......................................................
+          case(6) !
+             write(*,*)'Not implemeneted yet'
+          END SELECT calcphase
+! set bits to warn that listings may be inconsistent
+          ceq%status=ibclr(ceq%status,EQNOEQCAL)
+          ceq%status=ibset(ceq%status,EQINCON)
+!---------------------------------- end of calculate phase
        case(3) ! calculate equilibrium without initial global minimization
           if(minimizer.eq.1) then
 ! Lukas minimizer, first argument=0 means do not use grid minimizer
@@ -742,66 +1135,16 @@ contains
 ! check that invmat allocated and stored
 !           write(*,*)'inverted y: ',ceq%phase_varres(2)%cinvy(1,1)
           endif
+          if(gx%bmperr.ne.0) then
+             ceq%status=ibset(ceq%status,EQFAIL)
+             goto 990
+          endif
 !----------------------------------
        case(4) ! calculate transition
-! set a phase fix and remove one condition.  One must have calculated an
-! equilibrium
-          write(kou,2090)
-2090      format('To calculate when a phase will appear/disappear',&
-               ' by releasing a condition.')
-          if(btest(ceq%status,EQNOEQCAL)) then
-             write(kou,2095)
-2095         format('You must make an equilibrium calculation before using',&
-                  ' this command.')
-             goto 100
-          endif
-          call gparc('Phase name: ',cline,last,1,name1,' ',q1help)
-          call find_phase_by_name(name1,iph,ics)
+          call calctrans(cline,last,ceq)
+! clear this bit so there there will be no warning the listing is inconsistent
           if(gx%bmperr.ne.0) goto 990
-          jl=test_phase_status(iph,ics,xxx,ceq)
-          if(jl.eq.PHFIXED) then
-             write(kou,*)'Phase status already fixed'
-             goto 100
-          endif
-          call list_conditions(kou,ceq)
-          write(kou,2097)
-2097      format('You must release one condition, give its number')
-          call gparid('Condition number',cline,last,jl,1,q1help)
-          if(jl.le.0 .or. jl.gt.noel()+2) then
-             write(kou,*)'No such condition'
-             goto 100
-          endif
-! this finds condition with given number
-          call locate_condition(jl,pcond,ceq)
-          if(gx%bmperr.ne.0) goto 990
-          if(pcond%active.eq.0) then
-! the condition is active, deactivate it!
-             pcond%active=1
-          else
-             write(kou,*)'This condition is not active!'
-             goto 100
-          endif
-! Condition released, now set the phase as fix with zero moles
-          call change_phase_status(iph,ics,PHFIXED,xxx,ceq)
-          if(gx%bmperr.ne.0) goto 990
-! Calculate equilibrium
-          call calceq2(1,ceq)
-          if(gx%bmperr.ne.0) goto 990
-! get the value of the released condition and set it to the new value
-          stvr=>pcond%statvar(1)
-          call state_variable_val(stvr,xxx,ceq)
-          if(gx%bmperr.ne.0) goto 990
-          write(kou,2099)xxx
-2099      format('The transition occurs at ',1pe16.8/'Now set as condition')
-          pcond%prescribed=xxx
-          pcond%active=0
-! set phase back as entered and stable
-          write(*,*)'Set phase back as entered'
-          call change_phase_status(iph,ics,PHENTSTAB,zero,ceq)
-          if(gx%bmperr.ne.0) goto 990
-!
-!          write(*,*)'Not implemented yet'
-          goto 100
+          ceq%status=ibclr(ceq%status,EQINCON)
 !----------------------------------
        case(5) ! quit
           goto 100
@@ -811,28 +1154,40 @@ contains
           call extract_massbalcond(ceq%tpval,xknown,totam,ceq)
           if(gx%bmperr.ne.0) goto 990
 ! debug output
-!          write(*,2101)totam,(xknown(jl),jl=1,noel())
-2101      format('N&x: ',F6.3,9F8.5)
+!          write(*,2101)totam,(xknown(j1),j1=1,noel())
+!2101      format('UI N&x: ',F6.3,9F8.5)
 ! generate grid and find the phases and constitutions for the minimum.
 ! Note: global_gridmin calculates for total 1 mole of atoms, not totam
 !          call global_gridmin(1,ceq%tpval,totam,xknown,nv,iphl,icsl,&
+! iphl is dimensioned (1:maxel), maxel=100, it is destroyed inside merge_grid ..
+!          call global_gridmin(1,ceq%tpval,xknown,nv,iphl,icsl,&
+!               aphl,nyphl,yarr,cmu,iphl,ceq)
           call global_gridmin(1,ceq%tpval,xknown,nv,iphl,icsl,&
-               aphl,nyphl,yarr,cmu,ceq)
+               aphl,nyphl,cmu,ceq)
           if(gx%bmperr.ne.0) goto 990
-          write(kou,2102)nv,(iphl(jl),icsl(jl),jl=1,nv)
-2102      format('Stable ',i2,': ',11(i4,i2))
-! we must multiply the amount of the stable phases with totam
-          do jl=1,nv
-             call get_phase_compset(iphl(jl),icsl(jl),lokph,lokcs)
+!          write(kou,2102)nv,(iphl(j1),icsl(j1),j1=1,nv)
+! we should write phase tuples ...
+          write(kou,2102)nv,(iphl(j1),icsl(j1),j1=1,nv)
+2102      format('Number of stable phases ',i2/13(i4,i2))
+! In some cases "c n" converges better if we scale with the total amount here
+          do j1=1,nv
+             call get_phase_compset(iphl(j1),icsl(j1),lokph,lokcs)
              ceq%phase_varres(lokcs)%amfu=totam*ceq%phase_varres(lokcs)%amfu
           enddo
+! if set clear this bit so we can list the equilibrium
+          if(btest(ceq%status,EQNOEQCAL)) ceq%status=ibclr(ceq%status,EQNOEQCAL)
 !2103      format('Stable phase ',2i4,': ',a)
 !---------------------------------------------------------------
        case(7) ! calculate symbol
 !          call evaluate_all_svfun(kou,ceq)
 ! to calculate derivatives this must be in the minimizer module
           call gparcd('Name ',cline,last,1,name1,'*',q1help)
+! always calculate all state variable functions as they may depend on eachother
+          call meq_evaluate_all_svfun(-1,ceq)
+! ignore error
+          if(gx%bmperr.ne.0) gx%bmperr=0
           if(name1(1:1).eq.'*') then
+! this calculate them again ... and lists the values
              call meq_evaluate_all_svfun(lut,ceq)
           else
              call capson(name1)
@@ -847,24 +1202,221 @@ contains
           endif
           if(gx%bmperr.ne.0) goto 990
 !---------------------------------------------------------------
-       case(8) ! calculate equilibrium for current equilibrium ceq
+       case(8) ! calculate equilibrium for current equilibrium ceq using 
+! using the grid minimizer
           if(minimizer.eq.1) then
-! Lukas minimizer, first argiment=1 means use grid minimizer
+! Lukas minimizer, first argument=1 means use grid minimizer
 !           call calceq1(1,ceq)
              write(kou,*)'Not implemented yet'
           else
              call calceq2(1,ceq)
+             if(gx%bmperr.eq.4204) then
+! if the error code is "too many iterations" try without grid minimizer
+! it converges in many cases
+                write(*,2048)gx%bmperr
+2048            format('Error ',i5,', cleaning up and trying harder')
+                gx%bmperr=0
+                call calceq2(0,ceq)
+             endif
           endif
-          if(gx%bmperr.ne.0) goto 990
+! calceq2 set appropriate bits for listing
+          if(gx%bmperr.ne.0) then
+             ceq%status=ibset(ceq%status,EQFAIL)
+             goto 990
+          endif
 !---------------------------------------------------------------
        case(9) ! calculate all equilibria
-          write(kou,*)'Not implemented yet'
-       END SELECT
+! rather complex to handle both parallel on non-parallel and with/without 
+! griminimizer ...
+          if(allocated(firstash%eqlista)) then
+             call gparcd('With global minimizer? ',cline,last,1,ch1,'N',q1help)
+! mode=0 is without grid minimizer 
+             mode=1
+             if(ch1.eq.'N' .or. ch1.eq.'n') mode=0
+! Seach for memory leaks
+             call gparid('How many times? ',cline,last,leak,1,q1help)
+! allow output file, if idef>1 no output
+             idef=leak
+             lut=optionsset%lut
+             jp=0
+             i2=0
+! if compiled with parallel and gridminimizser set then calculate
+! sequentially to create composition sets
+! TEST THIS IN PARALLEL !!!
+             call cpu_time(xxx)
+             call system_clock(count=j1)
+! OPENMP parallel start
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+! for parallelizing:
+! YOU MUST UNCOMMENT USE OMP_LIB IN GTP3.F90 or PMON6.F90
+! YOU MUST USE THE SWICH -fopenmp FOR COMPILATION AND WHEN LINKING
+!<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+!             gridmin: if(mode.eq.1) then
+!
+! return here until leak is zero, a negative leak will never stop
+2060         continue
+             gridmin: if(mode.eq.1 .or. &
+                  btest(globaldata%status,GSNOPAR)) then
+! if we use grid minimizer do not use parallel even if compiled with OpenMP
+                do i1=1,size(firstash%eqlista)
+                   neweq=>firstash%eqlista(i1)%p1
+                   jp=jp+1
+                   if(neweq%weight.eq.zero) then
+                      write(kou,2050)neweq%eqno,neweq%eqname
+2050                  format('Zero weight equilibrium ',i4,2x,a)
+                   else
+                      i2=i2+1
+                      call calceq3(mode,.FALSE.,neweq)
+                      if(gx%bmperr.ne.0) then
+                         write(kou,2051)gx%bmperr,neweq%eqname,mode
+2051                     format(' *** Error code ',i5,' for equilibrium ',&
+                              a,' reset',i2)
+                         gx%bmperr=0
+                      elseif(idef.eq.1) then
+                         write(lut,2052)neweq%eqno,&
+                              neweq%eqname(1:len_trim(neweq%eqname)),&
+                              neweq%tpval(1)
+2052                     format('Calculated equilibrium ',i5,2x,a,', T=',F8.2)
+                      endif
+                   endif
+! extra symbol calculations ....
+!                   write(*,*)'Listing extra'
+                   if(idef.eq.1) then
+                      call list_equilibrium_extra(lut,neweq,plotunit0)
+                      if(gx%bmperr.ne.0) then
+                         write(kou,*)'Error ',gx%bmperr,' reset'
+                         gx%bmperr=0
+                      endif
+                   endif
+                enddo
+             else
+! We calculate without grid minimizer, if parallel we must turn off
+! creating/removing composition sets!! not safe to do that!!
+!$             globaldata%status=ibset(globaldata%status,GSNOACS)
+!$             globaldata%status=ibset(globaldata%status,GSNOREMCS)
+!        !$OMP for an OMP directive
+!        !$ as sentinel
+! NOTE: $OMP  threadprivate(gx) declared in TPFUN4.F90 ??
+!$OMP parallel do private(neweq)
+                do i1=1,size(firstash%eqlista)
+! the error code must be set to zero for each thread ?? !!
+                   jp=jp+1
+                   gx%bmperr=0
+                   neweq=>firstash%eqlista(i1)%p1
+                   if(neweq%weight.eq.zero) then
+                      write(kou,2050)neweq%eqno,neweq%eqname
+                   else
+! write output only for idef=1
+!$                     if(.TRUE. .and. idef.eq.1) then
+!$                      write(*,663)'Equil/loop/thread/maxth/error: ',&
+!$                             neweq%eqname,i1,omp_get_thread_num(),&
+!$                             omp_get_num_threads(),gx%bmperr
+663                   format(a,a,5i5)
+! calceq3 gives no output
+!$                        call calceq3(mode,.FALSE.,neweq)
+!$                     else
+! note first argument zero means do not use grid minimizer
+                          call calceq3(mode,.FALSE.,neweq)
+!$                     endif
+                      i2=i2+1
+                      if(gx%bmperr.ne.0) then
+                         write(kou,2051)gx%bmperr,neweq%eqname,mode
+                         write(*,*)'Error: ',gx%bmperr
+                         gx%bmperr=0
+                      elseif(idef.eq.1) then
+                         write(lut,2052)neweq%eqno,&
+                              neweq%eqname(1:len_trim(neweq%eqname)),&
+                              neweq%tpval(1)
+                      endif
+                   endif
+! Listing extra'
+                   if(idef.eq.1) then
+                      call list_equilibrium_extra(lut,neweq,plotunit0)
+                      if(gx%bmperr.ne.0) then
+!                         write(kou,*)'*** Error ',gx%bmperr,' reset'
+                         gx%bmperr=0
+                      endif
+                   endif
+                enddo
+!- $OMP end parallel do not needed???
+! OPENMP parallel end loop
+! allow composition sets to be created again
+!$             globaldata%status=ibclr(globaldata%status,GSNOACS)
+!$             globaldata%status=ibclr(globaldata%status,GSNOREMCS)
+             endif gridmin
+! repeat this until leak is zero, if leak negative never stop.
+             leak=leak-1
+             call cpu_time(xxz)
+             if(leak.ne.0) then
+                call system_clock(count=ll)
+                xxy=ll-j1
+                write(*,669)i2,(xxz-xxx)/i2,xxy/i2
+669        format(/'Calculated equlibria, average CPU and clock time',&
+                i5,F12.8,F8.4)
+                goto 2060
+             endif
+!
+             call system_clock(count=ll)
+             write(kou,664)i2,jp,xxz-xxx,ll-j1
+664          format('Calculated ',i5,' equilibria out of ',i5/&
+                  'Total CPU time: ',1pe12.4,' s and ',i7,' clockcycles')
+! this unit may have been used to extract calculated data for plotting
+             if(plotunit0.gt.0) then
+                write(kou,670)
+670             format('Closing a GNUPLOT file oc_many0.plt'/&
+                     'that may need some editing before plotting')
+                write(plotunit0,665)
+665             format('e'/'pause mouse'/)
+                close(plotunit0)
+! UNFINISHED possibly we could reopen the file again and make oopies 
+! of tha data to avoid manual editing
+             endif
+          else
+             write(kou,*)'You must first SET RANGE of experimental equilibria'
+          endif
+!---------------------------------------------------------------
+       case(10) ! calculate with_check_after
+! this is same as "calculate no_grid" but with automatic grid check after
+! we must set global bit 18 and then clear it
+! If bit 20 is set we will clear it now and set it afterwards
+          if(btest(globaldata%status,GSNORECALC)) then
+             globaldata%status=ibclr(globaldata%status,GSNORECALC)
+             temporary=.TRUE.
+          else
+             temporary=.FALSE.
+          endif
+          globaldata%status=ibset(globaldata%status,GSTGRID)
+! calculate with no grid before but check after
+          call calceq2(0,ceq)
+          if(gx%bmperr.ne.0) then
+             ceq%status=ibset(ceq%status,EQFAIL)
+          endif
+! reset bit GSTGRID and maybe GSNORECALC
+          globaldata%status=ibclr(globaldata%status,GSTGRID)
+          if(temporary) &
+               globaldata%status=ibset(globaldata%status,GSNORECALC)
+!-------------------------------------------------------
+       case(11) ! not used (yet)
+!-------------------------------------------------------
+       case(12) ! not used (yet)
+       END SELECT calculate
 !=================================================================
-    CASE(3) ! set subcommands
+! SET SUBCOMMANDS
+!         ['CONDITION       ','STATUS          ','ADVANCED        ',&
+!         'LEVEL           ','INTERACTIVE     ','REFERENCE_STATE ',&
+!         'QUIT            ','ECHO            ','PHASE           ',&
+!         'UNITS           ','LOG_FILE        ','WEIGHT          ',&
+!         'NUMERIC_OPTIONS ','AXIS            ','INPUT_AMOUNTS   ',&
+!         'VERBOSE         ','AS_START_EQUILIB','BIT             ',&
+!         'VARIABLE_COEFF  ','SCALED_COEFF    ','OPTIMIZING_COND ',&
+!         'EXPERIMENT_EQUIL','FIXED_COEFF     ','                ']
+    CASE(3) ! SET SUBCOMMANDS
+! disable continue optimization
+!       iexit=0
+!       iexit(2)=1
        kom2=submenu(cbas(kom),cline,last,cset,ncset,1)
        if(kom2.le.0) goto 100
-       SELECT CASE(kom2)
+       set: SELECT CASE(kom2)
        CASE DEFAULT
           write(kou,*)'Set subcommand error'
 !-----------------------------------------------------------------------
@@ -878,7 +1430,7 @@ contains
        CASE(2) ! set status for elements, species, phases, constituents
           name1='STATUS of'
           kom3=submenu(name1,cline,last,cstatus,ncstat,3)
-          SELECT CASE(kom3)
+          setstatus: SELECT CASE(kom3)
 !.................................................................
           CASE DEFAULT
              write(kou,*)'Set status subcommand error'
@@ -921,15 +1473,15 @@ contains
                 string(len_trim(string)+2:)=line
                 goto 3017
              endif
-3018         continue
+!3018         continue
 ! exttract first letter after = (if any)
-             jl=ll
-             call getext(string,jl,1,name1,' ',iph)
+             j1=ll
+             call getext(string,j1,1,name1,' ',iph)
              ch1=name1(1:1)
 ! if user has given "=e 0" then keep the amount is cline
-             cline=string(jl:)
+             cline=string(j1:)
              string(ll:)=' '
-!             write(*,*)'s1: ',jl,cline(1:len_trim(cline))
+!             write(*,*)'s1: ',j1,cline(1:len_trim(cline))
              if(ch1.eq.' ') then
 ! if ll==1 then input was finished by equal sign, ask for status
                 call gparcd(&
@@ -968,12 +1520,13 @@ contains
 !.................................................................
           case(6) ! set status subcommand status for ?
              write(kou,*)'Not implemented yet'
-          END SELECT
+          END SELECT setstatus
 !-----------------------------------------------------------
        case(3) ! set ADVANCED
+! default is DENSE_GRID
           name1='advanced command'
-          kom3=submenu(name1,cline,last,cadv,ncadv,2)
-          select case(kom3)
+          kom3=submenu(name1,cline,last,cadv,ncadv,4)
+          advanced: select case(kom3)
 !.................................................................
           CASE DEFAULT
              write(kou,*)'Set advanced subcommand error'
@@ -1014,16 +1567,54 @@ contains
           case(2) ! quit
              continue
 !.................................................................
-          case(3) ! nothing yet
+          case(3) ! SET ADVANCED EXTRTA_PROPERTY for a species
+             call gparc('Species symbol: ',cline,last,1,name1,' ',q1help)
+             call find_species_record(name1,loksp)
+             if(gx%bmperr.ne.0) goto 100
+             xxy=one
+             call gparrd('Property value: ',cline,last,xxx,xxy,q1help)
+             if(buperr.eq.0) then
+                call enter_species_property(loksp,xxx)
+             endif
+!.................................................................
+          case(4) ! SET ADVANCED DENSE_GRID_ONOFF
+! this sets bit 14 of global status word, also if bit 2 (expert) not set
+             if(btest(globaldata%status,GSXGRID)) then
+                globaldata%status=ibclr(globaldata%status,GSXGRID)
+                write(kou,3110)'Dense','reset'
+3110            format(a,' grid ',a)
+             else
+! set GSXGRIS and clear GSOGRID if set
+                globaldata%status=ibclr(globaldata%status,GSOGRID)
+                globaldata%status=ibset(globaldata%status,GSXGRID)
+                write(kou,3110)'Dense','set'
+             endif
+!.................................................................
+          case(5) ! SET ADVANCED SMALL_GRID_ONOFF
+             if(btest(globaldata%status,GSOGRID)) then
+                globaldata%status=ibclr(globaldata%status,GSOGRID)
+                write(kou,3110)'Small','reset'
+             else
+! set GSOGRID and clear GSXGRID if set
+                globaldata%status=ibclr(globaldata%status,GSXGRID)
+                globaldata%status=ibset(globaldata%status,GSOGRID)
+                write(kou,3110)'Small','set'
+             endif
+!.................................................................
+          case(6) ! nothing yet
              write(*,*)'Not implemented yet'
-          end select
+          end select advanced
 !-----------------------------------------------------------
-       case(4) ! set LEVEL
+       case(4) ! set LEVEL, not sure what it will be used for ...
           write(kou,*)'Not implemented yet'
 !-----------------------------------------------------------
 ! end of macro excution (can be nested)
        case(5) ! set INTERACTIVE
           call macend(cline,last,logok)  
+! if this was the startupmacro set it false and possibly read an inline macro ..
+! NOTE a startup macro can call other macros ...
+          if(kiu.eq.kiud) startupmacro=.false.
+!          write(*,*)'Macro terminated'
 !-----------------------------------------------------------
        case(6) ! set REFERENCE_STATE
           call gparc('Component name: ',cline,last,1,name1,' ',q1help)
@@ -1038,8 +1629,12 @@ contains
              call find_phase_by_name(name1,iph,ics)
              if(gx%bmperr.ne.0) goto 100
 ! temperature * means always to use current temperature
-             call gparr('Temperature: /*/: ',cline,last,xxx,zero,q1help)
-             if(xxx.le.zero) then
+             xxy=-one
+             call gparr('Temperature: /*/: ',cline,last,xxx,xxy,q1help)
+             if(buperr.ne.0) then
+                buperr=0
+                tpa(1)=-one
+             elseif(xxx.le.zero) then
                 tpa(1)=-one
              else
                 tpa(1)=xxx
@@ -1054,7 +1649,7 @@ contains
           endif
           call set_reference_state(iel,iph,tpa,ceq)
           if(gx%bmperr.eq.0) then
-             write(kou,3104)
+!             write(kou,3104)
 3104         format(' You may have to make a new calculation before the',&
                   ' correct values'/&
                   ' of chemical potentials or other properties are shown.')
@@ -1066,11 +1661,11 @@ contains
        case(8) ! set ECHO
           call gparcd('On?',cline,last,1,ch1,'Y',q1help)
           if(ch1.eq.'Y' .or. ch1.eq.'y') then
-             jl=1
+             j1=1
           else
-             jl=0
+             j1=0
           endif
-          call set_echo(jl)
+          call set_echo(j1)
 !-----------------------------------------------------------
        case(9) ! set PHASE subcommands (constitution, status)
           call gparc('Phase name: ',cline,last,1,name1,' ',q1help)
@@ -1084,7 +1679,7 @@ contains
              endif
           endif
           kom3=submenu(cbas(kom),cline,last,csetph,nsetph,2)
-          SELECT CASE(kom3)
+          setphase: SELECT CASE(kom3)
           CASE DEFAULT
              write(kou,*)'Set phase status subcommand error'
              goto 100
@@ -1092,10 +1687,10 @@ contains
           case(1) ! quit
              continue
 !............................................................
-! copied from 3045
+! begin code copied from 3045
           case(2) ! SET PHASE STATUS <phase> <status>
              if(iph.gt.0) then
-                jl=get_phase_status(iph,ics,text,i1,xxx,ceq)
+                j1=get_phase_status(iph,ics,text,i1,xxx,ceq)
                 if(gx%bmperr.ne.0) goto 100
                 if(xxx.ge.zero) then
                    write(kou,3046)text(1:i1),xxx
@@ -1129,7 +1724,7 @@ contains
              call change_phase_status(iph,ics,nystat,xxx,ceq)
              if(gx%bmperr.ne.0) goto 100
              if(iph.gt.0) then
-                jl=get_phase_status(iph,ics,text,i1,xxy,ceq)
+                j1=get_phase_status(iph,ics,text,i1,xxy,ceq)
                 if(gx%bmperr.ne.0) goto 100
                 if(xxy.ge.zero) then
                    write(kou,3048)text(1:i1),xxy
@@ -1142,10 +1737,10 @@ contains
              else
                 write(kou,*)'New status set for all phases'
              endif
-! end copied from 3045
+! end code copied from 3045
 !............................................................
           case(3:4) !set phase default_constitution wildcard allod, also AMOUNT
-             write(*,*)'SET PHASE AMOUNT or DEFAULT_CONST',kom3,iph,ics
+!             write(*,*)'SET PHASE AMOUNT or DEFAULT_CONST',kom3,iph,ics
              if(kom3.eq.3) then
 ! set default constituntion of phase
 !                call set_default_constitution(iph,ics,ceq)
@@ -1159,15 +1754,30 @@ contains
 ! subsubsub command
           case(5) ! set phase bits
              if(iph.lt.0) then
-                write(kou,*)'Wildcard not allowed'
+                write(kou,*)'Wildcards not allowed in this case'
                 goto 100
              endif
              call get_phase_record(iph,lokph)
              kom4=submenu('Set which bit?',cline,last,csetphbits,nsetphbits,9)
              SELECT CASE(kom4)
              CASE DEFAULT
-                write(kou,*)'Set phase bit subcommand error'
-                goto 100
+! allow any bit changes for experts ...
+                if(btest(globaldata%status,GSADV)) then
+                   call getint(cline,last,ll)
+                   if(ll.ge.0 .and. ll.le.31) then
+                      write(kou,*)'Ahh, you are an expert ... changing bit: ',ll
+                      if(test_phase_status_bit(lokph,ll)) then
+                         call clear_phase_status_bit(lokph,ll)
+                         write(kou,*)'Clearing bit ',ll
+                      else
+                         call set_phase_status_bit(lokph,ll)
+                      endif
+                   else
+                      write(kou,*)'Illegal bit number',ll
+                   endif
+                else
+                   write(kou,*)'Set phase bit subcommand error'
+                endif
 !............................................................
              case(1) ! FCC_PERMUTATIONS FORD
 ! if check returns .true. it is not allowed to set FORD or BORD
@@ -1178,7 +1788,8 @@ contains
                 call set_phase_status_bit(lokph,PHBORD)
              case(3) ! IONIC_LIQUID_MDL this may require tests and 
 ! other bits changed ..
-                call set_phase_status_bit(lokph,PHIONLIQ)
+                write(kou,*)'Cannot be set interactivly yet, only from TDB'
+!                call set_phase_status_bit(lokph,PHIONLIQ)
              case(4) ! AQUEOUS_MODEL   
                 write(*,*)'Not implemented yet'
 !                call set_phase_status_bit(lokph,PHAQ1)
@@ -1191,19 +1802,28 @@ contains
              case(7) ! FACT_QUASICHEMCL
                 write(*,*)'Not implemented yet'
 !                call set_phase_status_bit(lokph,PHFACTCE)
-             case(8) ! NO_AUTO_COMP_SET, not allod to create compsets automatic
+             case(8) ! NO_AUTO_COMP_SET, do not create compsets automatically
                 call set_phase_status_bit(lokph,PHNOCS)
              case(9) ! QUIT
-! just quit
-                write(kou,*)'No bit changed'
-                continue
+                write(kou,*)'No other bits changed'
+             case(10) ! EXTRA_DENSE_GRID, this can be toggled ...
+                if(test_phase_status_bit(lokph,PHXGRID)) then
+                   write(kou,*)'Bit already set, is cleared'
+                   call clear_phase_status_bit(lokph,PHXGRID)
+                else
+                   write(kou,*)'Extra gridpoints for this phase.'
+                   call set_phase_status_bit(lokph,PHXGRID)
+                endif
+             case(11) ! Flory-Huggins polymer model
+                call set_phase_status_bit(lokph,PHFHV)
+                call clear_phase_status_bit(lokph,PHID)
              end SELECT
 !............................................................
-          case(6)
-             write(kou,*)'Not implemented yet'
-          END SELECT
+          case(6) ! SET PHASE ... CONSTITUTION iph and ics set above
+             call ask_phase_new_constitution(cline,last,iph,ics,lokcs,ceq)
+          END SELECT setphase
 !-------------------------------------------------------------
-       case(10) ! set UNIT
+       case(10) ! set UNIT (for state variables)
           write(kou,*)'Not implemented yet'
 !-------------------------------------------------------------
        case(11) ! set LOG_FILE
@@ -1224,7 +1844,45 @@ contains
           endif
 !-------------------------------------------------------------
        case(12) ! set weight
-          write(kou,*)'Not implemented yet'
+          if(.not.allocated(firstash%eqlista)) then
+             write(kou,*)'There are no experimental equilibria'
+             goto 100
+          endif
+          call gparrd('Weight ',cline,last,xxx,one,q1help)
+          if(buperr.ne.0) goto 100
+          call gparcd('Equilibria (abbrev name) ',cline,last,&
+               1,name1,'CURRENT',q1help)
+          if(name1(1:8).eq.'CURRENT ') then
+             if(ceq%eqname(1:20).eq.'DEFAULT_EQUILIBRIUM ') then
+                write(kou,*)'You cannot change the weight for the default'
+             else
+                ceq%weight=abs(xxx)
+! mark that list optimize may not work
+                mexp=0
+             endif
+          elseif(name1(1:1).eq.'*') then
+! set this weight for all
+             i2=0
+             do i1=1,size(firstash%eqlista)
+                firstash%eqlista(i1)%p1%weight=xxx
+                i2=i2+1
+             enddo
+             write(kou,*)'Changed weight for ',i2,' equilibria'
+          else
+! set this weight to all equilibria with name abbriviations fitting name1
+             call capson(name1)
+             i2=0
+             do i1=1,size(firstash%eqlista)
+                if(index(firstash%eqlista(i1)%p1%eqname,&
+                     name1(1:len_trim(name1))).gt.0) then
+                   firstash%eqlista(i1)%p1%weight=xxx
+                   i2=i2+1
+! mark that list optimize may not work
+                   mexp=0
+                endif
+             enddo
+             write(kou,*)'Changed weight for ',i2,' equilibria'
+          endif
 !-------------------------------------------------------------
 ! turn on/off global minimization, creating composition sets
 ! convergence limits, iterations, minimum constituent fraction, etc
@@ -1259,11 +1917,7 @@ contains
              write(kou,*)'Axis must be set in sequential order',&
                   ', axis number set to ',iax
 !          elseif(iax.lt.i1) then
-! replacing an existing axis, get the current as defualt
-!             call encode(...)
-! deallocate axarr ?? redundant ??
-!             deallocate(axarr(iax)%indices)
-!             deallocate(axarr(iax)%coeffs)
+! replacing an existing axis, reset defaults ... ???
           endif
 ! as condition one may give a condition number followed by :
 ! or a single state variable like T, x(o) etc.
@@ -1283,6 +1937,25 @@ contains
              dmin=zero
              dmax=one
           endif
+! reset to default plot options
+! plot ranges and their defaults
+          graphopt%gibbstriangle=.FALSE.
+          graphopt%rangedefaults=0
+          graphopt%labeldefaults=0
+          graphopt%plotmin=zero
+          graphopt%dfltmin=zero
+          graphopt%plotmax=one
+          graphopt%dfltmax=one
+          graphopt%appendfile=' '
+          graphopt%status=0
+          graphopt%labelkey='top right'
+          nullify(graphopt%firsttextlabel)
+          nullify(textlabel)
+          plotfile='ocgnu'
+! default plot terminal, replaces plotform
+          graphopt%gnutermsel=1
+          plotform=' '
+! end reset plot defaults
           call gparcd('Condition varying along axis: ',cline,last,1,&
                text,name1,q1help)
           call capson(text)
@@ -1296,12 +1969,14 @@ contains
              if(noofaxis.gt.1) then
                 noofaxis=noofaxis-1
                 write(kou,*)'One axis removed'
+! remove axplotdef for all axis!!! one may change from PD to step sep
+                axplotdef=' '
              endif
              goto 100
           else ! add or change axis variable
              i1=len_trim(text)
              if(text(i1:i1).eq.':') then
-! condition given as an index in the condition list terminated by :
+! condition given as an index in the condition list terminated by : like "1:"
                 i1=1
                 call getrel(text,i1,xxx)
                 if(buperr.ne.0) then
@@ -1336,11 +2011,14 @@ contains
 ! This is probably the only reference needed for the axis condition
                 axarr(iax)%seqz=pcond%seqz
                 axarr(iax)%more=0
+! remove axplotdef for all axis!!! 
+                axplotdef=' '
              else ! a condition given as text
 ! check if axis variable is a condition, maybe create it if allowed
 !                write(*,*)'decoding axis condition: ',text(1:20)
-!                call decode_state_variable2(text,istv,indices,iref,unit,&
-!                     stvr,ceq)
+                stvr=>stvrvar
+! this call also accept state variable functions like t_c, cp (if entered)
+! UNIFINISHED: but it also accepts unknown texts ... 
                 call decode_state_variable(text,stvr,ceq)
                 if(gx%bmperr.ne.0) goto 990
 !                write(*,*)'check if this state variable is a condition'
@@ -1374,6 +2052,8 @@ contains
                 axarr(iax)%seqz=pcond%seqz
 !                write(*,*)'Condition sequential index: ',axarr(iax)%seqz
                 axarr(iax)%more=0
+! remove axplotdef for all axis!!! 
+                axplotdef=' '
              endif
           endif removeaxis
 !          dmin=axvalold(1,iax)
@@ -1400,9 +2080,8 @@ contains
           endif
           axarr(iax)%axmax=xxx
 !          axval(2,iax)=xxx
-! default step 1/40
-!          dinc=axvalold(3,iax)
-!          dinc=0.025*(axval(2,iax)-axval(1,iax))
+! default step 1/100 of difference ?? several diagram failed ...
+! default step 1/40 of difference
           dinc=0.025*(axarr(iax)%axmax-axarr(iax)%axmin)
           call gparrd('Increment:',cline,last,xxx,dinc,q1help)
           if(buperr.ne.0) goto 100
@@ -1410,23 +2089,32 @@ contains
 ! iax can be smaller than noofaxis if an existing axis has been changed
           if(iax.gt.noofaxis) noofaxis=iax
 !  write(*,3602)(axval(i,iax),i=1,3)
-3602      format(/'axlimits: ',3(1pe12.4))
+!3602      format(/'axlimits: ',3(1pe12.4))
 !-------------------------------------------------------------
        case(15) ! set input amounts
           call set_input_amounts(cline,last,ceq)
 !-------------------------
        case(16) ! SET VERBOSE
-! This toggles verbose for all commands.  If on turn it off
-          if(btest(globaldata%status,GSVERBOSE)) then
-             globaldata%status=ibclr(globaldata%status,GSVERBOSE)
+! This toggles verbose for all commands.
+! it is always turned of fwhen a command is finished ...
+!          write(kou,3603)'on/off',globaldata%status,GSVERBOSE
+          if(btest(globaldata%status,GSSILENT)) then
+! turn off VERBOSE and turn on SILENT
+!             globaldata%status=ibclr(globaldata%status,GSVERBOSE)
+             globaldata%status=ibclr(globaldata%status,GSSILENT)
+             write(kou,3603)'off',globaldata%status
           else
-             globaldata%status=ibset(globaldata%status,GSVERBOSE)
+! turn on VERBOSE
+!             globaldata%status=ibset(globaldata%status,GSVERBOSE)
+             globaldata%status=ibset(globaldata%status,GSSILENT)
+             write(kou,3603)'on',globaldata%status,GSSILENT
           endif
-          if(ocv()) then
-             write(kou,*)'Verbose mode on'
-          else
-             write(kou,*)'Verbose mode off'
-          endif
+3603      format('Silent is turned ',a,2x,z8,i5)
+!          if(ocv()) then
+!             write(kou,*)'Verbose mode on'
+!          else
+!             write(kou,*)'Verbose mode off'
+!          endif
 !-------------------------
 ! the current set of condition sill be used as start equilibrium for map/step
 ! Calculate the equilibrium and ask for a direction.
@@ -1462,42 +2150,335 @@ contains
           write(*,*)'A copy of current equilibrium linked as start eqilibrium'
 !-------------------------
        case(18) ! SET BIT (all kinds of bits) just global implemented
-          write(kou,3710)globaldata%status
-3710      format('Toggles global status word ',z8,' (only for experts): '/&
-               'Bit Used for'/' 0  set if user is a beginner'/&
-               ' 1  set if occational user'/' 2  set if expert'/&
-               ' 3  set if gridminimizer not allowed'/&
-               ' 4  set if gridminimizer is not allowed to merge comp.sets.'/&
-               ' 5  set if these is no data'/' 6  set if there is no phases'/&
-               ' 7  set if not allowed to create comp.sets automatically'/&
-               ' 8  set if not allowed to delete comp.sets automatically'/&
-               ' 9  set if data changed since last save'/&
-               '10  set if verbose'/'11  explicit setting of verbose'/&
-               '12  set if very silent'/&
-               '13  set if no cleanup after an equilibrium calculation')
-          call gparid('Toggle bit (from 0-31, -1 quits):',&
-               cline,last,ll,-1,q1help)
-          if(ll.lt.0 .or. ll.gt.31) then
-             write(kou,*)'No bit changed'
-          elseif(btest(globaldata%status,2) .or. ll.le.2) then
-! user must have expert bit set to change any other bit than the user type bit
-             if(btest(globaldata%status,ll)) then
-                globaldata%status=ibclr(globaldata%status,ll)
-                write(*,3711)'cleared',globaldata%status
-3711            format('Bit ',a,', new value: ',z8)
+!          call gparid('Toggle bit (from 0-31, -1 quits):',&
+!               cline,last,ll,-1,q1help)
+!         ['EQUILIBRIUM     ','GLOBAL          ','PHASE           ',&
+          kom3=submenu('Set which status word?',cline,last,csetbit,nsetbit,2)
+          setbit: SELECT CASE(kom3)
+          CASE DEFAULT
+             write(kou,*)'SET BIT subcommand error'
+!................................................................
+          case(1) ! equilibrium status word
+!        EQNOTHREAD=0, EQNOGLOB=1, EQNOEQCAL=2,  EQINCON=3, &
+!        EQFAIL=4,     EQNOACS=5,  EQGRIDTEST=6, EQGRIDCAL=7
+3610         continue
+!             write(kou,*)'Current equlibrium status: ',ceq%status
+             write(kou,3612)ceq%status
+             call gparid('Which bit? ',cline,last,ll,-1,tophlp)
+             if(cline(1:1).eq.'?') then
+                write(kou,3612)ceq%status
+3612            format('Toggles equilibrium status word, currently: ',z8,/&
+                     'Bit If set means',/&
+                     ' 0  No threads allowed (no parallel calculation)',/&
+                     ' 1  No global minimization allowed',/&
+                     ' 2  No equilibrium has been calculated',/&
+                     ' 3  Conditions and results not consistent',/'-'/&
+                     ' 4  Last equilibrium calculation failed',/&
+                     ' 5  No automatic generation of composition sets',/&
+                     ' 6  Equilibrim tested by global minimizer',/&
+                     ' 7  Current results are from a grid minimization'/)
+                goto 3610
+             endif
+             if(ll.lt.0 .or. ll.gt.7) then
+                write(kou,*)'No such bit, no bit changed'
              else
-                globaldata%status=ibset(globaldata%status,ll)
-                write(*,3711)'set',globaldata%status
+                if(btest(ceq%status,ll)) then
+                   ceq%status=ibclr(ceq%status,ll)
+                   write(kou,*)'Bit cleared'
+                else
+                   ceq%status=ibset(ceq%status,ll)
+                   write(kou,*)'Bit set'
+                endif
+             endif
+!             write(*,*)'Not implemented yet'
+!................................................................
+! maybe change order of questions, maybe check name exits etc ....
+          case(2) ! global status word
+3708         continue
+! subroutine TOPHLP forces return with ? in position cline(last:last)
+             write(kou,3709)globaldata%status
+3709         format('Current global status word (hexadecimal): ',z8)
+             call gparid('Toggle global status bit (from 0-31, -1 quits):',&
+                  cline,last,ll,-1,tophlp)
+             if(cline(1:1).eq.'?') then
+                write(kou,3710)globaldata%status
+3710            format('Toggles global status word ',z8,&
+                     ' (only experts should change these) '/&
+                     'Bit If set means:'/&
+                     ' 0  user is a beginner'/&
+                     ' 1  user is experienced'/&
+                     ' 2  user is an expert'/&
+                     ' 3  global minimizer will not be used'/'-'/&
+                     ' 4  global minimizer must not merge comp.sets.'/&
+                     ' 5  there are no data'/&
+                     ' 6  there are no phases'/&
+                     ' 7  comp.sets must not be created automatically'/'-'/&
+                     ' 8  comp.sets must not be deleted automatically'/&
+                     ' 9  data has changed since last save'/&
+                     '10  verbose is on'/&
+                     '11  verbose is permanently on'/'-'/&
+                     '12  no warnings'/&
+                     '13  no cleanup after an equilibrium calculation'/&
+                     '14  denser grid used in grid minimizer'/&
+                     '15  calculations in parallel is not allowed'/'-'/&
+                     '16  no global test at node points durung STEP/MAP'/&
+                     '17  the components are not the elements'/&
+                     '18  test calculated equilibrium with the grid minimizer')
+                goto 3708
+             endif
+             if(ll.lt.0 .or. ll.gt.31) then
+                write(kou,*)'No bit changed'
+             elseif(btest(globaldata%status,GSADV) .or. ll.le.2) then
+! user must have expert bit set to change any other bit than the user type bit
+                if(btest(globaldata%status,ll)) then
+                   globaldata%status=ibclr(globaldata%status,ll)
+                   write(*,3711)'cleared',globaldata%status
+3711               format('Bit ',a,', new value of status word: ',z8)
+                else
+                   globaldata%status=ibset(globaldata%status,ll)
+                   write(*,3711)'set',globaldata%status
+                endif
+                if(.not.btest(globaldata%status,GSADV)) then
+! if expert/experienced bit is cleared ensure that experienced bit is set
+                   globaldata%status=ibset(globaldata%status,GSOCC)
+                endif
+             else
+                write(kou,*)'Cannot be changed unless you have expert status'
+             endif
+!....................................................
+          case(3) ! set bit phase ...
+             write(*,*)'Please use set phase ... bit '
+          end select setbit
+!-------------------------
+       case(19) ! set variable_coefficent, 0 to 99
+          if(.not.btest(firstash%status,AHCOEF)) then
+             write(kou,*)'No optimizing coefficents'
+             goto 100
+          endif
+          call gpari('Coeffient index/range: ',cline,last,i1,-1,q1help)
+          if(i1.lt.0 .or. i1.ge.size(firstash%coeffstate)) then
+!             write(*,*)'Dimension ',size(firstash%coeffstate)
+! coefficients have indices 0 to size(firstash%coeffstate)-1
+             write(kou,*)'No such coefficient'
+             goto 100
+          endif
+! upper limit must be negative and must follow directly on same line
+!          write(*,*)'pmon: ',last,': ',cline(last:last)
+          if(last.lt.len(cline) .and. cline(last:last).eq.'-') then
+! pick up upper range limit as a negative value, 
+! the question should thus never be asked ...
+             last=last-1
+             call gpari('Upper index (as negative): ',cline,last,i2,-i1,q1help)
+             if(i2.lt.0) then
+! a negative value, its positive value must be >=i1
+                i2=-i2
+                if(i2.lt.i1) then
+                   i2=i1
+                   write(kou,*)'Illegal range, setting variable just: ',i1
+                endif
+!             elseif(i1.ge.size(firstash%coeffstate)) then
+! coefficients have indices 0 to size(firstash%coeffstate)-1
+!                i2=size(firstash%coeffstate)-1
+!                write(kou,*)'Setting all coefficients fixed after ',i1
+             else
+! any other value ignored
+                i2=i1
+                write(kou,*)'Not understood, setting variable just: ',i1
              endif
           else
-             write(kou,*)'You must have expert status to set this!'
+             i2=i1
           endif
-       END SELECT
+!          write(*,*)'pmon: ',i1,i2
+! possible loop if i2>i1
+          j1=i1
+3740      continue
+          xxy=firstash%coeffvalues(j1)*firstash%coeffscale(j1)
+          if(i1.eq.i2) then
+! when setting a single coefficinet variable ask for value
+             call gparrd('Start value: ',cline,last,xxx,xxy,q1help)
+             if(buperr.ne.0) goto 100
+! set new value
+             call change_optcoeff(firstash%coeffindex(j1),xxx)
+             if(gx%bmperr.ne.0) goto 100
+             firstash%coeffvalues(j1)=one
+             firstash%coeffscale(j1)=xxx
+             firstash%coeffstart(j1)=xxx
+! current value may be scaled  ??????????
+!             xxy=firstash%coeffvalues(j1)*firstash%coeffscale(j1)
+!             call gparrd('Start value: ',cline,last,xxx,xxy,q1help)
+!             if(buperr.ne.0) goto 100
+          else
+! set coefficient variable with current value
+             xxx=xxy
+          endif
+! set new value
+          call change_optcoeff(firstash%coeffindex(j1),xxx)
+          if(gx%bmperr.ne.0) goto 100
+          firstash%coeffvalues(j1)=one
+          firstash%coeffscale(j1)=xxx
+          firstash%coeffstart(j1)=xxx
+! mark an optimized coefficient without min/max
+          if(firstash%coeffstate(j1).lt.10) then
+             nvcoeff=nvcoeff+1
+          endif
+          firstash%coeffstate(j1)=10
+          if(i2.gt.j1) then
+             j1=j1+1
+             goto 3740
+          endif
+          write(kou,*)'Number of variable coefficients are ',nvcoeff
+!------------------------- 
+       case(20) ! set scaled_coefficient
+          write(*,*)'Not implemeneted yet'
+!          if(firstash%coeffstate(i1).lt.10) then
+!             nvcoeff=nvcoeff+1
+!          endif
+!-------------------------
+       case(21) ! set optimizing_conditions
+          write(*,*)'LMDIF has no conditions to change ...'
+!          call gparrd('DSTEP (VA05AD): ',cline,last,xxx,dstep,q1help)
+!          dstep=xxx
+!          call gparrd('DMAX (VA05AD): ',cline,last,xxx,dmax2,q1help)
+!          dmax2=xxx
+          call gparrd('Accuracy: ',cline,last,xxx,acc,q1help)
+          acc=xxx
+!-------------------------
+       case(22) ! set range_experimental_equilibria
+          if(allocated(firstash%eqlista)) then
+             write(kou,*)'Experimental equilibria already entered'
+             goto 100
+          endif
+          call gparid('First equilibrium number: ',cline,last,i1,2,q1help)
+          j1=noeq()
+          call gparid('Last equilibrium number: ',cline,last,i2,j1,q1help)
+          if(i2.lt.i1) then
+             write(kou,*)'No equilibria?'
+             goto 100
+          endif
+! allocate the firstash%eqlista array and store equilibrium numbers
+          j1=i2-i1+1
+          firstash%firstexpeq=i1
+          write(*,*)'Allocating firstash%eqlista ',j1,i1
+          allocate(firstash%eqlista(j1))
+          do i2=1,j1
+             firstash%eqlista(i2)%p1=>eqlista(i1)
+             i1=i1+1
+          enddo
+! close the plotdataunits!
+          do i1=1,9
+             if(plotdataunit(i1).gt.0) then
+                write(plotdataunit(i1),22)
+22              format('e'/'pause mouse'/)
+                close(plotdataunit(i1))
+                plotdataunit(i1)=0
+             endif
+          enddo
+!          write(*,*)'Not implemeneted yet'
+!-------------------------
+       case(23) ! set fixed_coefficient
+          if(.not.btest(firstash%status,AHCOEF)) then
+             write(kou,*)'No optimizing coefficents'
+             goto 100
+          endif
+! lower limit or range
+          call gpari('Coeffient index/range: ',cline,last,i1,-1,q1help)
+          if(i1.lt.0 .or. i1.ge.size(firstash%coeffstate)) then
+!             write(*,*)'Dimension ',size(firstash%coeffstate)
+! coefficients have indices 0 to size(firstash%coeffstate)-1
+             write(kou,*)'No such coefficient'
+             goto 100
+          endif
+! allow writing range on same line as 5-7 but also as 5 -7 on separate lines
+!          write(*,*)'pmon1: ',last,': ',cline(last:last)
+          frange: if(last.lt.len(cline) .and. cline(last:last).eq.'-') then
+             last=last-1
+! upper limit must be negative
+             call gpari('Upper index limit (as negative): ',&
+                  cline,last,i2,-i1,q1help)
+             if(i2.lt.0) then
+! a negative value, its positive value must be >=i1
+                i2=-i2
+                if(i2.lt.i1) then
+                   i2=i1
+                   write(kou,*)'Illegal range, setting fixed just: ',i1
+                elseif(i2.ge.size(firstash%coeffstate)) then
+                   i2=size(firstash%coeffstate)-1
+                endif
+             elseif(i1.ge.size(firstash%coeffstate)) then
+! coefficients have indices 0 to size(firstash%coeffstate)-1
+                i2=size(firstash%coeffstate)-1
+                write(kou,*)'Setting all coefficients fixed after ',i1
+             else
+! any other value ignored
+                i2=i1
+                write(kou,*)'Not understood, setting fixed just: ',i1
+             endif
+          else
+             i2=i1
+          endif frange
+! possible loop if i2>i1
+          j1=i1
+!          write(*,*)'pmon2: ',i1,j1
+3720      continue
+          xxy=firstash%coeffvalues(j1)*firstash%coeffscale(j1)
+          if(i1.eq.i2) then
+! A single coefficient, when fixing a single coefficinet ask for value
+             call gparrd('Start value: ',cline,last,xxx,xxy,q1help)
+             if(buperr.ne.0) goto 100
+! set new value
+             call change_optcoeff(firstash%coeffindex(j1),xxx)
+             if(gx%bmperr.ne.0) goto 100
+             firstash%coeffvalues(j1)=one
+             firstash%coeffscale(j1)=xxx
+             firstash%coeffstart(j1)=xxx
+          else
+             call get_value_of_constant_index(firstash%coeffindex(j1),xxx)
+          endif
+! set as fixed without changing any min/max values (first time)
+!          write(*,*)'pmon3: ',xxx,firstash%coeffstate(j1)
+          if(firstash%coeffstate(j1).gt.13) then
+             write(kou,*)'Coefficient state wrong, set to 1'
+             firstash%coeffstate(j1)=1
+             nvcoeff=nvcoeff-1
+          elseif(firstash%coeffstate(j1).ge.10) then
+             firstash%coeffstate(j1)=max(1,firstash%coeffstate(j1)-10)
+             nvcoeff=nvcoeff-1
+          elseif(xxx.ne.zero) then
+! mark that the coefficient is fixed and nonzero 
+             firstash%coeffstate(j1)=1
+          else
+             firstash%coeffstate(j1)=0
+          endif
+          if(i2.gt.j1) then
+             j1=j1+1
+             goto 3720
+          endif
+          write(kou,3730)nvcoeff
+3730      format('Number of variable coefficients are now ',i3)
+!------------------------- 
+       case(24) ! T_AND_P start values, NOT CONDITIONS!!
+          call gparrd('New value of T: ',cline,last,xxx,1.0D3,q1help)
+          if(buperr.ne.0) goto 100
+          ceq%tpval(1)=xxx
+          call gparrd('New value of P: ',cline,last,xxx,1.0D5,q1help)
+          if(buperr.ne.0) goto 100
+          ceq%tpval(2)=xxx
+       END SELECT set
 !=================================================================
-! enter subcommand for element, species etc
+! ENTER with subcommand for element, species etc
+!         ['TPFUN_SYMBOL    ','ELEMENT         ','SPECIES         ',&
+!         'PHASE           ','PARAMETER       ','BIBLIOGRAPHY    ',&
+!         'CONSTITUTION    ','EXPERIMENT      ','QUIT            ',&
+!         'EQUILIBRIUM     ','SYMBOL          ','OPTIMIZE_COEFF  ',&
+!         'COPY_OF_EQUILIB ','COMMENT         ','MANY_EQUILIBRIA ',&
+!         'MATERIAL        ','PLOT_DATA       ','GNUPLOT_TERMINAL',&
+!         '                ','                ','                ']
     CASE(4)
+! disable continue optimization
+!       iexit=0
+!       iexit(2)=1
        kom2=submenu(cbas(kom),cline,last,center,ncent,11)
-       SELECT CASE(kom2)
+       enter: SELECT CASE(kom2)
        CASE DEFAULT
           write(kou,*)'Enter subcommand error'
 !---------------------------------------------------------------
@@ -1521,11 +2502,11 @@ contains
              call capson(name2)
              if(compare_abbrev(name2,'FUNCTION ')) then
 ! this call just read the function
-                call enter_tpfun_interactivly(cline,last,string,jp)
+                call enter_tpfun_interactivly(cline,last,funstring,jp)
                 if(gx%bmperr.ne.0) goto 990
 ! here the function is stored
                 lrot=0
-                call enter_tpfun(name1,string,lrot,.FALSE.)
+                call enter_tpfun(name1,funstring,lrot,.FALSE.)
                 if(gx%bmperr.ne.0) goto 990
              elseif(compare_abbrev(name2,'CONSTANT ')) then
 ! Enter a numeric constant
@@ -1558,13 +2539,14 @@ contains
              goto 990
           endif
           call gparc('Element symbol: ',cline,last,1,elsym,' ',q1help)
-          call gparc('Element full name: ',cline,last,1,name1,' ',q1help)
-          call gparc('Element reference phase: ',cline,last,1,name2,' ',q1help)
+          call gparcd('Element full name: ',cline,last,1,name1,elsym,q1help)
+          call gparc('Element reference phase: ',cline,last,1,&
+               name2,'SER ',q1help)
           call gparrd('Element mass (g/mol): ',cline,last,mass,one,q1help)
           if(buperr.ne.0) goto 990
-          call gparr('Element H298-H0: ',cline,last,h298,zero,q1help)
+          call gparrd('Element H298-H0: ',cline,last,h298,zero,q1help)
           if(buperr.ne.0) goto 990
-          call gparr('Element S298: ',cline,last,s298,one,q1help)
+          call gparrd('Element S298: ',cline,last,s298,one,q1help)
           if(buperr.ne.0) goto 990
           call enter_element(elsym,name1,name2,mass,h298,s298)
           if(gx%bmperr.ne.0) goto 990
@@ -1575,6 +2557,7 @@ contains
              goto 990
           endif
           call gparc('Species symbol: ',cline,last,1,name1,' ',q1help)
+! NOTE: add check species name legal!
           call gparc('Species stoichiometry: ',cline,last,1,name2,' ',q1help)
           call decode_stoik(name2,noelx,ellist,stoik)
           if(gx%bmperr.ne.0) goto 990
@@ -1586,128 +2569,99 @@ contains
              gx%bmperr=4125
              goto 990
           endif
-          call gparc('Phase name: ',cline,last,1,name1,' ',q1help)
-! ionic liquid require special sorting of constituents on anion sublattice
-          call capson(name1)
-          defnsl=1
-          if(name1(1:4).eq.'GAS ') then
-             phtype='G'
-             model='CEF-RKM'
-          elseif(name1(1:7).eq.'LIQUID ') then
-             phtype='L'
-             model='CEF-RKM'
-          elseif(name1(1:9).eq.'IONIC_LIQ') then
-             phtype='L'
-             model='IONIC_LIQUID'
-             defnsl=2
-          else
-             phtype='S'
-             model='CEF-RKM'
-          endif
-          call gparid('Number of sublattices: ',cline,last,nsl,defnsl,q1help)
-          if(buperr.ne.0) goto 990
-          if(nsl.le.0) then
-             write(kou,*)'At least one configurational space!!!'
-             goto 100
-          elseif(nsl.ge.10) then
-             write(kou,*)'Maximum 9 sublattices'
-             goto 100
-          endif
-          icon=0
-          sloop: do ll=1,nsl
-! 'Number of sites on sublattice xx: '
-!  123456789.123456789.123456789.123
-             once=.true.
-4042         continue
-             write(quest1(31:32),4043)ll
-4043         format(i2)
-             call gparrd(quest1,cline,last,sites(ll),one,q1help)
-             if(buperr.ne.0) goto 990
-             if(sites(ll).le.1.0D-2) then
-                write(kou,*)'Number of sites must be larger than 0.01'
-                if(once) then
-                   once=.false.
-                   goto 4042
-                else
-                   goto 100
-                endif
-             endif
-! This should be extended to allow several lines of input
-! 4 means up to ;
-             once=.true.
-4045         continue
-             call gparc('All Constituents: ',cline,last,4,text,';',q1help)
-             if(buperr.ne.0) goto 990
-             knr(ll)=0
-             jp=1
-4047         continue
-             if(eolch(text,jp)) goto 4049
-             if(model(1:13).eq.'IONIC_LIQUID ' .and. ll.eq.1 &
-                  .and. knr(1).eq.0) then
-! a very special case: a single "*" is allowed on 1st sublattice for ionic liq
-                if(text(jp:jp).eq.'*') then
-                   icon=icon+1
-                   const(icon)='*'
-                   knr(1)=1
-                   cycle sloop
-                endif
-             endif
-             call getname(text,jp,name3,1,ch1)
-             if(buperr.eq.0) then
-                icon=icon+1
-                const(icon)=name3
-                knr(ll)=knr(ll)+1
-! increment jp to bypass a separating , 
-                jp=jp+1
-                goto 4047
-             elseif(once) then
-                write(kou,*)'Input error ',buperr,', at ',jp,', please reenter'
-                buperr=0; once=.false.; goto 4045
-             else
-                goto 100
-             endif
-             buperr=0
-4049         continue
-          enddo sloop
-          call enter_phase(name1,nsl,knr,const,sites,model,phtype)
-          if(gx%bmperr.ne.0) goto 990
+          call enterphase(cline,last)
 !---------------------------------------------------------------
        case(5) ! enter parameter is always allowed
           call enter_parameter_interactivly(cline,last,0)
           if(gx%bmperr.ne.0) goto 990
 !---------------------------------------------------------------
        case(6) ! enter bibliography
-          call enter_reference_interactivly(cline,last,0,jl)
+          call enter_reference_interactivly(cline,last,0,j1)
           if(gx%bmperr.ne.0) goto 990
-          write(kou,*)'Bibliography number is ',jl
+          write(kou,*)'Bibliography number is ',j1
 !---------------------------------------------------------------
        case(7) ! enter constitution
           call ask_phase_constitution(cline,last,iph,ics,lokcs,ceq)
           if(gx%bmperr.ne.0) goto 990
 !---------------------------------------------------------------
        case(8) ! enter experiment
-          write(kou,*)'Not implemented yet'
+! almost the same as set_condition ...
+          if(btest(globaldata%status,GSNOPHASE)) then
+             write(kou,*)'You have no data!'
+             goto 100
+          endif
+          call enter_experiment(cline,last,ceq)
 !---------------------------------------------------------------
        case(9)  ! enter QUIT
           goto 100
 !---------------------------------------------------------------
        case(10) ! enter equilibrium is always allowed if there are phases
           if(.not.allowenter(3)) then
-             write(kou,*)'There must be at least one phase'
+             write(kou,*)'You must have entered your system first'
              goto 100
           endif
-          call gparc('Name: ',cline,last,1,text,' ',q1help)
+! generate a default names line EQ_x ehere x is eqfree
+          call geneqname(quest)
+          call gparcd('Name: ',cline,last,1,text,quest,q1help)
           if(buperr.ne.0) goto 100
           call enter_equilibrium(text,ieq)
           if(gx%bmperr.ne.0) goto 990
+! by default also select this equilibrium
+          write(kou,303)ieq
+303       format('Equilibrium number is ',i3)
+          call gparcd('Select this equilibrium: ',cline,last,1,ch1,'Y',q1help)
+          if(ch1.eq.'Y' .or. ch1.eq.'y') then
+             call selecteq(ieq,ceq)
+          endif
 !---------------------------------------------------------------
        case(11) ! enter symbol (for state variables expressions)
           call enter_svfun(cline,last,ceq)
           if(gx%bmperr.ne.0) goto 990
 !---------------------------------------------------------------
-! enter optimizing coefficients
+! enter optimizing coefficients called A00 to A99 (or whatever set as max)
        case(12)
-          call enter_optvars
+          if(.not.allocated(firstash%coeffstate)) then
+             call gparid('Number of coefficients: ',cline,last,i1,100,q1help)
+             if(buperr.ne.0) goto 100
+             i1=i1-1
+             if(i1.lt.1) then
+                write(*,*)'You must have at least 1 coefficient'
+                goto 100
+             elseif(i1.gt.99) then
+                write(*,*)'You cannot have more than 100 coefficient'
+                goto 100
+             endif
+             allocate(firstash%coeffvalues(0:i1))
+             allocate(firstash%coeffscale(0:i1))
+             allocate(firstash%coeffstart(0:i1))
+             allocate(firstash%coeffmin(0:i1))
+             allocate(firstash%coeffmax(0:i1))
+             allocate(firstash%coeffindex(0:i1))
+             allocate(firstash%coeffstate(0:i1))
+! coeffvalues should be of the order of one
+             firstash%coeffvalues=one
+             firstash%coeffscale=zero
+             firstash%coeffstart=zero
+             firstash%coeffmin=zero
+             firstash%coeffmax=zero
+             firstash%coeffindex=0
+             firstash%coeffstate=0
+! create the corresponding TP constants for coeffvalues
+             call enter_optvars(j1)
+             call makeoptvname(name1,i1)
+             write(kou,556)name1(1:3),i1
+556          format(/'Coefficients entered with symbols A00 to ',a/&
+                  'Note that indices are from 0 to ',i2)
+             do i2=0,i1
+                firstash%coeffindex(i2)=j1+i2
+             enddo
+             firstash%status=ibset(firstash%status,AHCOEF)
+          else
+             write(kou,553)size(firstash%coeffstate)
+553          format('You have already ',i3,' optimizing coefficents entered')
+          endif
+!          write(*,551)firstash%status
+!551       format('Assessment status word: ',z8)
 !---------------------------------------------------------------
 ! enter copy of equilibrium (for test!)
        case(13)
@@ -1718,13 +2672,119 @@ contains
           if(gx%bmperr.ne.0) goto 990
           write(kou,*)'New equilibrium no: ',neweq%eqno
 !---------------------------------------------------------------
-! enter not used
+! enter COMMENT for current equilibrium
        case(14)
+          write(*,*)'Current equilibrium name: ',ceq%eqname
+          call gparc('One line text: ',cline,last,5,text,' ',q1help)
+          ceq%comment=text
 !---------------------------------------------------------------
-! enter not used
+! enter MANY_EQUILIBRIA
+! The plotdataunit array should be zero at first call, then the unit is opened
+! (if there are any plot_data commands).  It will remain open until
+! a set range command is given
        case(15)
-          goto 100
-       END SELECT
+          call enter_many_equil(cline,last,plotdataunit)
+!---------------------------------------------------------------
+! enter MATERIAL
+! ask for database, then major element, mass/mole fraction of elements
+! read the database; jump possibly to SCHEIL/STEP calculation 
+! or simply ask for T and calculate equilibrium; 
+       case(16)
+          call enter_material(cline,last,nv,xknown,ceq)
+          if(gx%bmperr.ne.0) goto 990
+          xxy=firsteq%tpval(1)
+          call gparrd('Temperature ',cline,last,xxx,xxy,q1help)
+! set T and P
+          cline='P=1E5 T='
+          i1=len_trim(cline)+1
+          call wrinum(cline,i1,10,0,xxx)
+          i1=0
+          call set_condition(cline,i1,ceq)
+! calculate the equilibrium
+          call calceq2(1,ceq)
+          if(gx%bmperr.ne.0) then
+             ceq%status=ibset(ceq%status,EQFAIL)
+             goto 990
+          endif
+!---------------------------------------------------------------
+! enter PLOT DATA
+! the file ocmanyi.plt with unit plotdataunit(i) must already be open!
+! it is opened in the enter_many_equilibria if there is a plot_data command
+       case(17)
+          call gparid('Dataset number:',cline,last,i1,1,q1help)
+! here only the normal plotdata units 1 to 9 are legal
+          if(i1.gt.0 .and. i1.lt.10) then
+             if(plotdataunit(i1).lt.10) then
+                write(kou,*)'No plotdata file for this dataset'
+                goto 100
+             endif
+             call gparrd('X coordinate:',cline,last,xxx,zero,q1help)
+             call gparrd('Y coordinate:',cline,last,xxy,one,q1help)
+             call gparid('Symbol:',cline,last,i2,1,q1help)
+             write(plotdataunit(i1),171)i1,xxx,xxy,i2
+171          format(i3,2(1pe14.6),i5,' have a nice day')
+          else
+             write(kou,*)'No plotdata file for dataset ',i1
+          endif
+!---------------------------------------------------------------
+! ENTER GNUPLOT_TERMINAL
+       case(18)
+          write(kou,172)graphopt%gnutermax
+172       format('GNUPLOT terminals are:',i2)
+          write(kou,173)(i2,graphopt%gnutermid(i2),&
+               trim(graphopt%gnuterminal(i2)),i2=1,graphopt%gnutermax)
+173       format(i2,2x,a,' > set terminal ',a)
+          write(kou,174)
+174       format('Enter or change a GNUPLOT termial ')
+          call gparc('Termminal id (8 chars):',cline,last,1,text,' ',q1help)
+          call capson(text)
+          if(text(1:1).eq.' ') goto 100
+          do i1=1,graphopt%gnutermax
+             if(text(1:8).eq.graphopt%gnutermid(i1)) goto 176
+          enddo
+! gnutermid not found, a new terminal
+          if(graphopt%gnutermax.ge.8) then
+             write(kou,*)'There can max be 8 terminals'
+             goto 100
+          endif
+          i1=graphopt%gnutermax+1
+          graphopt%gnutermax=i1
+! enter a new set terminal id and definition
+176       continue
+          graphopt%gnutermid(i1)=text(1:8)
+          call gparc('Text after set terminal:',cline,last,5,text,' ',q1help)
+          graphopt%gnuterminal(i1)=text
+          if(i1.ne.1) then
+! SCREEN has no file extention
+             call gparc('File extention:',cline,last,1,text,' ',q1help)
+             graphopt%filext(i1)=text(1:4)
+          endif
+          write(*,179)i1,graphopt%gnutermid(i1),trim(graphopt%gnuterminal(i1)),&
+               trim(graphopt%filext(i1))
+179       format('New terminal definition for plot '/&
+               i2,2x,a,'set terminal ',a/4x,'with file extention: ',a)
+!----------------------------------------------------------------
+! enter not used
+       case(19)
+          write(*,*)'Not implemeneted yet'
+! this is at amend components
+!          i2=1
+!          line=' '
+!          do i1=1,noel()
+!             call get_component_name(i1,line(i2:),ceq)
+!             i2=len_trim(line)+2
+!          enddo
+!          call gparcd('Give all new components: ',cline,last,&
+!               5,option,line,q1help)
+!          call enter_components(option,ceq)
+!          if(gx%bmperr.ne.0) goto 990
+!----------------------------------------------------------------
+! enter unused
+       case(20)
+!----------------------------------------------------------------
+! enter unused
+       case(21)
+       END SELECT enter
 !=================================================================
 ! exit
     CASE(5)
@@ -1737,59 +2797,84 @@ contains
           stop 'Ha en bra dag'
        endif
 !=================================================================
-! list subcommands
-    CASE(6)
+! list with subcommands
+!        ['DATA            ','SHORT           ','PHASE           ',&
+!         'STATE_VARIABLES ','BIBLIOGRAPHY    ','MODEL_PARAM_ID  ',&
+!         'AXIS            ','TPFUN_SYMBOLS   ','QUIT            ',&
+!         'PARAMETER       ','EQUILIBRIA      ','RESULTS         ',&
+!         'CONDITIONS      ','SYMBOLS         ','LINE_EQUILIBRIA ',&
+!         'OPTIMIZATION    ','MODEL_PARAM_VAL ','                ']
+    CASE(6) ! LIST
        kom2=submenu(cbas(kom),cline,last,clist,nclist,12)
        if(kom2.le.0) goto 100
        lut=optionsset%lut
-       SELECT CASE(kom2)
+       list: SELECT CASE(kom2)
 !-----------------------------------------------------------
        CASE DEFAULT
           write(kou,*)'LIST FORMAT subcommand error'
           goto 100
 !-----------------------------------------------------------
-       case(1) ! list data for everything, not dependent on equilibrium!!
+       case(1) ! list data, not dependent on equilibrium!!
 ! NOTE output file for SCREEN can be set by /output=
 ! LIST DATA SCREEN/TDB/MACRO/LaTeX
+! it is also possible to give SAVE TDB 
           kom3=submenu('Output format?',cline,last,llform,nlform,1)
           if(kom.gt.0) then
              call list_many_formats(cline,last,kom3,kou)
+             if(gx%bmperr.ge.4000 .and. gx%bmperr.le.nooferm) then
+                write(kou,*)bmperrmess(gx%bmperr)
+             elseif(gx%bmperr.ne.0) then
+                write(kou,*)'Error code ',gx%bmperr
+             endif
           else
              write(kou,*)'Unknown format'
           endif
 !-----------------------------------------------------------
        case(2) ! list short with status bits
-          call gparcd('Option ',cline,last,1,ch1,chshort,q1help)
+          call gparcd('Option (A/C/M/P)',cline,last,1,ch1,chshort,q1help)
           call capson(ch1)
           write(lut,6022)ceq%eqname,globaldata%rgasuser,&
-               globaldata%pnorm,globaldata%status
+               globaldata%pnorm,globaldata%status,ceq%status
 6022      format('Equilibrium name',9x,'Gas constant Pressure norm',&
-               22x,'Status'/1x,a,1pe12.4,2x,1pe12.4,20x,z8)
-! options are
+               5x,'Status Global   Equilib'/&
+               1x,a,1pe12.4,2x,1pe12.4,10x,z8,2x,z8)
+!....................................................................
+! options are A=all phases; P=some phases; C=components; M=phase models
           if(ch1.eq.'A') then
 ! A all
              chshort='A'
              call list_all_elements(lut)
              call list_all_species(lut)
              call list_all_phases(lut,ceq)
+!....................................................................
           elseif(ch1.eq.'P') then
 ! just the phases
 ! P phases sorted: stable/ unstable in driving force order/ dormant the same
              chshort='P'
              call list_sorted_phases(lut,ceq)
+             if(btest(ceq%status,EQFAIL)) write(lut,6305)'above'
           elseif(ch1.eq.'C') then
+!....................................................................
 ! global values and the chemical potentials
              chshort='C'
              write(kou,*)
              call list_global_results(lut,ceq)
-             write(lut,6303)'Some component data ....................'
-             jl=1
+!             write(lut,6303)'Some component data ....................'
+             write(lut,6303)'Some data for components ...............'
+             j1=1
              if(listresopt.ge.4 .and. listresopt.le.7) then
-                jl=2
+                j1=2
              endif
-             call list_components_result(lut,jl,ceq)
+             call list_components_result(lut,j1,ceq)
+!....................................................................
+          elseif(ch1.eq.'M') then
+! list models for all phases
+             do iph=1,noph()
+                call list_phase_model(iph,1,lut,' ',ceq)
+             enddo
+!....................................................................
           else
-             write(kou,*)'Only option A and P implemented'
+             write(kou,*)'Only option A, C, M and P implemented'
           endif
 !-----------------------------------------------------------
        case(3) ! list phase subcommands
@@ -1798,13 +2883,13 @@ contains
           call find_phase_by_name(name1,iph,ics)
           if(gx%bmperr.ne.0) goto 990
           kom3=submenu('List what for phase?',cline,last,clph,nclph,2)
-          SELECT CASE(kom3)
+          listphase: SELECT CASE(kom3)
 !...............................................................
           CASE DEFAULT
              write(kou,*)'list phase subcommand error'
 !...............................................................
           CASE(1) ! list phase data
-             call list_phase_data(iph,lut)
+             call list_phase_data(iph,' ',lut)
 !...............................................................
 ! list phase constitution
           case(2) ! list phase constitution
@@ -1813,19 +2898,20 @@ contains
 !             if(buperr.ne.0) goto 990
 !  call list_phase_results(iph,ics,mode,kou,firsteq)
              write(lut,6051)ceq%eqno,ceq%eqname
-6051         format('Output for equilibrium: ',i3,', ',a)
+6051         format(/'Output for equilibrium: ',i3,', ',a,5x,a4,'.',a2,'.',a2)
              mode=110
-             call list_phase_results(iph,ics,mode,lut,ceq)
+             once=.TRUE.
+             call list_phase_results(iph,ics,mode,lut,once,ceq)
              if(gx%bmperr.ne.0) goto 990
 !...............................................................
           case(3) ! list phase model (including disordered fractions)
              write(kou,6070)'For ',ceq%eqno,ceq%eqname
 6070      format(a,'equilibrium: ',i3,', ',a)
-             call list_phase_model(iph,ics,lut,ceq)
-          END SELECT
+             call list_phase_model(iph,ics,lut,' ',ceq)
+          END SELECT listphase
 !------------------------------
-       case(4)  ! list state variable or parameter identifier value, loop.
-6099      continue
+       case(4,17)  ! list state variable or parameter identifier value, loop.
+!6099      continue
           if(btest(ceq%status,EQNOEQCAL) .or. btest(ceq%status,EQFAIL)) then
              write(lut,6101)
 6101         format(' *** Warning,',&
@@ -1835,17 +2921,21 @@ contains
 6102         format(' *** Warning, values can be inconsistent with',&
                 ' current conditions')
           endif
+          once=.TRUE.
 6105      continue
 ! NOTE: 4th argument is 5 because otherwise , will terminate reading cline
 ! and state variables like x(fcc,cr) will not work.
           if(kom2.eq.4) then
              call gparc('State variable: ',cline,last,5,line,' ',q1help)
           else
-             write(kou,*)'Remember always to give the phase!'
+             if(once) then
+                write(kou,*)'Remember always to specify the phase!'
+                once=.FALSE.
+             endif
              call gparc('Parameter ident: ',cline,last,5,line,' ',q1help)
           endif
-          jl=1
-          if(eolch(line,jl)) goto 100
+          j1=1
+          if(eolch(line,j1)) goto 100
           model=' '
           if(index(line,'*').gt.0) then
 ! generate many values
@@ -1900,7 +2990,7 @@ contains
 ! we just want the expression, remove the value including the = sign
              jp=index(text,'=')
              text(jp:)=' '
-!             write(kou,6132)iax,axvar(iax),(axval(jl,iax),jl=1,3)
+!             write(kou,6132)iax,axvar(iax),(axval(j1,iax),j1=1,3)
              write(lut,6132)iax,text(1:24),&
                   axarr(iax)%axmin,axarr(iax)%axmax,axarr(iax)%axinc
 6132         format(i2,2x,a,3(1pe12.4))
@@ -1919,7 +3009,11 @@ contains
                 if(iel.eq.0) goto 990
                 gx%bmperr=0
              else
-                call list_tpfun(lrot,0,longstring)
+                longstring=' '
+                write(longstring,6142)lrot
+6142            format(i5)
+                jp=len_trim(longstring)+2
+                call list_tpfun(lrot,0,longstring(jp:))
                 call wrice2(lut,0,12,78,1,longstring)
                 if(iel.gt.1) goto 6140
              endif
@@ -1935,34 +3029,67 @@ contains
        case(11) ! list equilibria (not result)
           do iel=1,noeq()
              if(associated(ceq,eqlista(iel))) then
-                write(lut,6202)iel,eqlista(iel)%eqname
-6202            format(i5,2x,'**',2x,a)
+                name1='**'
              else
-                write(lut,6203)iel,eqlista(iel)%eqname,eqlista(iel)%tpval(1)
-6203            format(i5,6x,a,F8.2)
+                name1=' '
              endif
+!             j1=len_trim(eqlista(iel)%comment)
+             if(eqlista(iel)%weight.le.zero) then
+                write(lut,6202)iel,name1(1:2),eqlista(iel)%eqname,&
+                     eqlista(iel)%tpval(1),eqlista(iel)%comment(1:33)
+6202            format(i4,1x,a2,1x,a,' T=',F8.2,', ',a)
+             else
+                write(lut,6203)iel,name1(1:2),eqlista(iel)%eqname,&
+                     eqlista(iel)%tpval(1),eqlista(iel)%weight,&
+                     eqlista(iel)%comment(1:20)
+6203            format(i4,1x,a2,1x,a,' T=',F8.2,', weight=',F5.2,', ',a)
+             endif
+!             if(j1.gt.1) then
+!                write(lut,6204)eqlista(iel)%comment(1:j1)
+!6204            format(12x,a)
+!             endif
           enddo
 !------------------------------
        case(12) ! list results
+! if no calculation made skip
+          if(btest(ceq%status,EQNOEQCAL)) then
+             write(*,6277)ceq%status
+6277         format(' *** No results as no equilibrium calculated! ',z8)
+             goto 100
+          elseif(btest(ceq%status,EQGRIDCAL)) then
+             write(kou,*)' *** Last calculation was not a full equilibrium'
+          endif
           call gparid('Output mode: ',cline,last,listresopt,lrodef,q1help)
-          lrodef=listresopt
-          write(lut,6051)ceq%eqno,ceq%eqname
-!  if(btest(globaldata%status,GSEQFAIL)) then
+          if(buperr.ne.0) then
+             write(kou,*)'No such mode, using default'
+             buperr=0
+             listresopt=lrodef
+          endif
+          if(listresopt.gt.0 .and. listresopt.le.9) then
+             lrodef=listresopt
+          endif
+          call date_and_time(optres,name1)
+          write(lut,6051)ceq%eqno,ceq%eqname,optres(1:4),optres(5:6),optres(7:8)
+! write comment line if any
+          if(len_trim(ceq%comment).gt.0) then
+             write(lut,6308)trim(ceq%comment)
+6308         format(3x,a)
+          endif
           if(btest(ceq%status,EQFAIL)) then
-             write(lut,6305)
-6305         format(/' *** The results listed are not a valid equilibrium',&
-                  ' as last calculation failed'/)
+             write(lut,6305)'below'
+6305         format(/' *** The results ',a,&
+                  ' are not a valid equilibrium as last calculation failed'/)
           elseif(btest(globaldata%status,GSNOPHASE)) then
              write(kou,*)'No results as no data'
              goto 100
 !  elseif(btest(globaldata%status,GSNOEQCAL)) then
           elseif(btest(ceq%status,EQNOEQCAL)) then
-             write(lut,6307)
-6307         format(/' *** The results listed does not represent',&
+             write(lut,6307)'below'
+6307         format(/' *** The results listed ',a,'does not represent',&
                   ' a calculated equilibrium'/)
           elseif(btest(ceq%status,EQINCON)) then
-             write(lut,6306)
-6306         format(/' *** The results listed may be inconsistent',&
+             write(lut,6306)'below'
+6306         format(/' *** The results listed ',a,' may be inconsistent',&
                   ' with the current conditions'/)
           endif
           write(lut,6302)'Conditions .............................'
@@ -1971,51 +3098,67 @@ contains
           call list_conditions(lut,ceq)
           write(lut,6303)'Some global data, reference state SER ..'
           call list_global_results(lut,ceq)
-          write(lut,6303)'Some component data ....................'
-          jl=1
+!          write(lut,6303)'Some component data ....................'
+          write(lut,6303)'Some data for components ...............'
+          j1=1
           if(listresopt.ge.4 .and. listresopt.le.7) then
-             jl=2
+! j1=2 means mass fractions
+             j1=2
           endif
-          call list_components_result(lut,jl,ceq)
-          write(lut,6303)'Some Phase data ........................'
-! mode >1000 lists stable phases only
+          call list_components_result(lut,j1,ceq)
+! Phase output starts with newline
+!         write(lut,6304,advance='no')'Some Phase data ........................'
+          write(lut,6304,advance='no')'Some data for phases ...................'
+6304      format(/a,20('.'),':')
           if(listresopt.le.1) then
-! stable phases with mole fractions
+! 1: stable phases with mole fractions in value order 
              mode=1000
           elseif(listresopt.eq.2) then
-! stable phases with mole fractions and constitution
+! 2: stable phases with mole fractions and constitution in value order
              mode=1010
           elseif(listresopt.eq.3) then
-! stable phases with mole fractions in alphabetical order
-             mode=1100
+! 3: stable phases with mole fractions and constitution in alphabetical order
+             mode=1110
           elseif(listresopt.eq.4) then
-! stable phases with mass fractions
+! 4: stable phases with mass fractions in value order
              mode=1001
           elseif(listresopt.eq.5) then
-! stable phases with mass fractions in alphabetical order
+! 5: stable phases with mass fractions in alphabetical order
              mode=1101
           elseif(listresopt.eq.6) then
-! stable phases with mass fractions and constitution
+! 6: stable phases with mass fractions and constitution in value order
              mode=1011
           elseif(listresopt.eq.7) then
-! all phases with mass fractions
+! 7: all phases with mass fractions in value order
              mode=1
           elseif(listresopt.eq.8) then
-! all phases with mole fractions and constitution
+! 9: all phases with mole fractions in alphabetical order
              mode=110
           elseif(listresopt.eq.9) then
-! all phases with mole fractions and constitution in alphabetical order
+! 9: all phases with mole fractions an constitutions in value order
              mode=10
           else
 ! all phase with with mole fractions
              mode=0
           endif
           ics=1
+          once=.TRUE.
           do iph=1,noph()
              ics=0
 6310         continue
              ics=ics+1
-             call list_phase_results(iph,ics,mode,lut,ceq)
+! moved to gtp3C
+!             if(listresopt.ge.4 .and. listresopt.le.7) then
+! use phase amount in mass
+!                write(lut,6308)'Mass      '
+!6308            format('Name                Status ',a,' Volume',&
+!                 '    Form.U    At/FU     DGM    X/W:')
+!                     '    Form.U    At/FU     DGM   Frac:')
+!             else
+! use phase amount in mole
+!                write(lut,6308)'Moles     '
+!             endif
+             call list_phase_results(iph,ics,mode,lut,once,ceq)
              if(gx%bmperr.ne.0) then
 ! if error take next phase
                 gx%bmperr=0
@@ -2024,14 +3167,33 @@ contains
                 goto 6310
              endif
           enddo
+! list experiments if any
+          if(associated(ceq%lastexperiment)) then
+             write(lut,491)ceq%weight
+!491          format(/'Weight ',F6.2)
+491          format('Weight ',F6.2)
+! list all experiments ........................................
+             call meq_list_experiments(lut,ceq)
+             write(lut,*)
+!          else
+!             write(*,*)'No experiments found'
+          endif
+! list if anyting should be calculated or listed separately (not their values)
+          if(allocated(ceq%eqextra)) then
+             write(lut,492)ceq%eqextra(1)(1:len_trim(ceq%eqextra(1))),&
+                  ceq%eqextra(2)(1:len_trim(ceq%eqextra(2)))
+492          format('Calculate: ',a/'List: ',a)
+!          else
+!             write(*,*)'No extra lines'
+          endif
 ! make sure phases with positive DGM listed
           call list_phases_with_positive_dgm(mode,lut,ceq)
           if(btest(ceq%status,EQFAIL)) then
-             write(lut,6305)
+             write(lut,6305)'above'
           elseif(btest(ceq%status,EQNOEQCAL)) then
-             write(lut,6307)
+             write(lut,6307)'above'
           elseif(btest(ceq%status,EQINCON)) then
-             write(lut,6306)
+             write(lut,6306)'above'
           endif
 !------------------------------
        case(13) ! list conditions
@@ -2045,7 +3207,81 @@ contains
        case(15)
 ! temporary listing of all stored equilibria as test
           call list_stored_equilibria(lut,axarr,maptop)
-       end SELECT
+!------------------------------
+! list optimization, several suboptions
+       case(16)
+          if(.not.allocated(firstash%coeffstate)) then
+             write(kou,*)'No listing as no optimizing parameters'
+             goto 100
+          endif
+          call date_and_time(optres,name1)
+          kom2=submenu('List ',cline,last,optopt,noptopt,1)
+! allow output file
+          lut=optionsset%lut
+          write(lut,600)optres(1:4),optres(5:6),optres(7:8),&
+               name1(1:2),name1(3:4)
+600       format(/'Listing of optimization results: date ',a4,'.',a2,'.',a2,&
+               ' : ',a2,'h',a2)
+          listopt: SELECT CASE(kom2)
+!..........................................................
+             case DEFAULT
+                write(kou,*)'No such option'
+!...........................................................
+             case(1) ! short
+               call listoptshort(lut,mexp,errs)
+!...........................................................
+             case(2) ! long
+                write(*,*)'Not implemented yet'
+!...........................................................
+             case(3) ! coefficent values
+                call listoptcoeff(lut)
+!...........................................................
+             case(4) ! graphics
+                write(*,*)'Not implemented yet'
+!...........................................................
+             case(5) ! debug
+                write(*,*)'Not implemented yet'
+!...........................................................
+             case(6) ! MACRO include experiments
+                write(*,*)'Not implemented yet'
+!...........................................................
+             case(7) ! unused
+                write(*,*)'Not implemented yet'
+!...........................................................
+             case(8) ! unused
+                write(*,*)'Not implemented yet'
+!...........................................................
+             case(9) ! unused
+                write(*,*)'Not implemented yet'
+             end SELECT listopt
+!------------------------------
+! list model parameter values, part of case(4)
+!       case(17)
+!          write(*,*)'Not implemented yet'
+!------------------------------
+! list error message
+       case(18)
+          i2=4204
+          call gparid('Error code: ',cline,last,i1,i2,q1help)
+          if(i1.ge.4000 .and. i1.le.nooferm) then
+             write(kou,4999)i1,bmperrmess(i1)
+4999         format('The error code ',i4', means: '/a)
+          else
+             write(kou,*)'Not a standard OC error message'
+          endif
+!------------------------------
+! list ??
+       case(19)
+          write(*,*)'Not implemented yet'
+!------------------------------
+! list ??
+       case(20)
+          write(*,*)'Not implemented yet'
+!------------------------------
+! list ??
+       case(21)
+          write(*,*)'Not implemented yet'
+       end SELECT list
 !=================================================================
 ! quit
     case(7)
@@ -2063,23 +3299,29 @@ contains
           stop 'Have a nice day'
        endif
 !=================================================================
-! read subcommand
+! READ subcommand
+!        ['UNFORMATTED     ','TDB             ','QUIT            ',&
+!         'DIRECT          ','                ','                ']
     case(8)
+! disable continue optimization
+!       iexit=0
+!       iexit(2)=1
        if(noel().ne.0) then
           write(kou,*)'You already have data, read destroys your current data'
-          call gparcd('Do you want to continue? ',cline,last,1,ch1,'N',q1help)
-          if(.not.(ch1.eq.'y' .or. ch1.eq.'Y')) then
-             write(kou,*)'Command ignored, to read answer yes' 
-             goto 100
-          else
+          write(kou,*)'You must give a NEW Y command to remove data first'
+!          call gparcd('Do you want to continue? ',cline,last,1,ch1,'N',q1help)
+!          if(.not.(ch1.eq.'y' .or. ch1.eq.'Y')) then
+!             write(kou,*)'Command ignored, to read answer yes' 
+          goto 100
+!       else
 ! all records must be removed and init_gtp is called.  This is fragile ...
-             call new_gtp
-             if(gx%bmperr.ne.0) goto 990
-             write(kou,*)'All previous data deleted'
-          endif
+!             call new_gtp
+!             if(gx%bmperr.ne.0) goto 990
+!             write(kou,*)'All previous data deleted'
+!          endif
        endif
        kom2=submenu(cbas(kom),cline,last,cread,ncread,2)
-       SELECT CASE(kom2)
+       read: SELECT CASE(kom2)
 !-----------------------------------------------------------
        CASE DEFAULT
           write(kou,*)'Read subcommand error'
@@ -2098,24 +3340,49 @@ contains
              write(kou,8110)text(1:kl)
           endif
 8110      format(/'Savefile text: ',a/)
+! if there is an assessment record set nvcoeff ...
+          if(allocated(firstash%eqlista)) then
+             write(*,*)'There is an assessment record'
+             if(allocated(firstash%coeffvalues)) then
+                nvcoeff=0
+                kl=size(firstash%coeffvalues)-1
+                do j1=0,kl
+                   if(firstash%coeffstate(j1).ge.10) then
+                      nvcoeff=nvcoeff+1
+                   endif
+                enddo
+                write(kou,3730)nvcoeff
+             else
+                write(*,*)'No coefficents allocated'
+             endif
+          endif
 !---------------------------------------------------------
        case(2) ! read TDB
           if(tdbfile(1:1).ne.' ') then
+! set tdbfil as default
              text=tdbfile
              call gparcd('File name: ',cline,last,1,tdbfile,text,q1help)
           else
              call gparc('File name: ',cline,last,1,tdbfile,' ',q1help)
           endif
+! if tdbfle starts with "ocbase/" replace that with content of ocbase!!
+          name1=tdbfile(1:7)
+          call capson(name1)
+          if(name1(1:7).eq.'OCBASE/' .or. name1(1:8).eq.'OCBASE\ ') then
+             tdbfile=trim(ocbase)//tdbfile(7:)
+             write(*,*)'database file: ',trim(tdbfile)
+          endif
 ! this call checks the file exists and returns the elements
-          call checktdb(tdbfile,jp,ellist)
+          call checkdb(tdbfile,'.tdb',jp,ellist)
           if(gx%bmperr.ne.0) then
              write(kou,*)'No database with this name'
              goto 990
           elseif(jp.eq.0) then
-             write(Kou,*)'No elements in the database'
+             write(kou,*)'No elements in the database'
+             goto 100
           endif
           write(kou,8203)jp,(ellist(kl),kl=1,jp)
-8203      format('Database has ',i2,' elements: ',20(a,1x))
+8203      format('Database has ',i2,' elements: ',18(a,1x)/(1x,28(1x,a)))
           write(kou,8205)
 8205      format('Give the elements to select, finish with empty line')
           jp=1
@@ -2158,35 +3425,116 @@ contains
              endif
           endif
 ! also list the bibliography
+          write(kou,*)
           call list_bibliography(' ',kou)
           write(kou,*)
+          if(firsteq%multiuse.ne.0) then
+             write(*,8221)
+8221         format(/' *** There were warnings from reading the database'/&
+                  ' *** If you run a macro file please scroll back and check!'/)
+          endif
 !-----------------------------------------------------------
 !8300      continue
        case(3) ! read quit
           goto 100
 !-----------------------------------------------------------
        case(4) ! read direct
-          write(*,*)'Not implemented yet'
+          write(*,*)'Read direct not implemented yet'
 !-----------------------------------------------------------
-       case(5) ! read ??
-          goto 100
+       case(5) ! read PDB 
+          if(tdbfile(1:1).ne.' ') then
+             text=tdbfile
+             call gparcd('File name: ',cline,last,1,tdbfile,text,q1help)
+          else
+             call gparc('File name: ',cline,last,1,tdbfile,' ',q1help)
+          endif
+! this call checks the file exists and returns the elements
+          call checkdb(tdbfile,'.pdb',jp,ellist)
+          if(gx%bmperr.ne.0) then
+             write(kou,*)'No PDB database with this name'
+             goto 990
+          elseif(jp.eq.0) then
+             write(Kou,*)'No elements in the database'
+          endif
+          write(kou,8203)jp,(ellist(kl),kl=1,jp)
+          write(kou,8205)
+          jp=1
+          selection='Select elements /all/:'
+8217      continue
+          call gparc(selection,cline,last,1,ellist(jp),' ',q1help)
+          if(ellist(jp).ne.'  ') then
+             call capson(ellist(jp))
+             jp=jp+1
+             if(jp.gt.size(ellist)) then
+                write(kou,*)'Max number of elements selected: ',size(ellist)
+             else
+                selection='Select elements /no more/:'
+                goto 8217
+             endif
+          else
+             jp=jp-1
+          endif
+          if(jp.eq.0) then
+             write(kou,*)'All elements selected'
+          else
+             write(*,8220)jp,(ellist(iel),iel=1,jp)
+          endif
+! later we can add possible options
+          name1=' '
+          call readpdb(tdbfile,jp,ellist,name1)
+! also list the bibliography
+          call list_bibliography(' ',kou)
+          write(kou,*)
 !-----------------------------------------------------------
        case(6) ! read ??
-          goto 100
-       end SELECT
+          write(*,*)'Nothing yet'
+       end SELECT read
 !=================================================================
-! save in various formats
-    case(9)
-       kom2=submenu(cbas(kom),cline,last,csave,ncsave,1)
+! SAVE in various formats (NOT TDB, MACRO and LATEX, use LIST DATA)
+! It is a bit inconsistent as one READ TDB but not SAVE TDB ...
+!        ['TDB             ','SOLGASMIX       ','UNFORMATTED     ',&
+!         'DIRECT          ','                ','QUIT            ']
+    CASE(9)
+! default i 3, unformatted
+       kom2=submenu(cbas(kom),cline,last,csave,ncsave,3)
        if(kom2.le.0 .or. kom2.gt.ncsave) goto 100
 !
-       call gparc('Comment line: ',cline,last,5,model,' ',q1help)
-       SELECT CASE(kom2)
+       if(kom2.gt.2) then
+! Do not ask this question for TDB and SOLGASMIX files
+          call gparc('Comment line: ',cline,last,5,model,' ',q1help)
+       endif
+       save: SELECT CASE(kom2)
 !-----------------------------------------------------------
        CASE DEFAULT
           write(kou,*)'save subcommand error'
 !-----------------------------------------------------------
-       case(1) ! save unformatted
+       case(1) ! save TDB, same as list data TDB
+! format 2 is TDB, see list data ...
+          kom3=2
+          call list_many_formats(cline,last,kom3,kou)
+          if(gx%bmperr.ge.4000 .and. gx%bmperr.le.nooferm) then
+             write(kou,*)bmperrmess(gx%bmperr)
+          elseif(gx%bmperr.ne.0) then
+             write(kou,*)'Error code ',gx%bmperr
+          endif
+!-----------------------------------------------------------
+       case(2) ! SOLGASMIX
+          text=' '
+          call gparc('File name: ',cline,last,1,filename,text,q1help)
+          kl=max(index(filename,'.dat '),index(filename,'.DAT '))
+          if(kl.le.0) then
+             kl=len_trim(filename)+1
+             if(kl.eq.1) then
+                write(*,*)'Too short file name'
+                goto 100
+             endif
+             filename(kl:)='.DAT '
+          endif
+          kl=1
+          call save_datformat(filename,kl,ceq)   
+!-----------------------------------------------------------
+       case(3) ! save unformatted
+132       continue
           if(ocufile(1:1).ne.' ') then
              text=ocufile
              call gparcd('File name: ',cline,last,1,ocufile,text,q1help)
@@ -2202,10 +3550,22 @@ contains
              jp=kl
           endif
           if(kl.le.0 .and. jp.le.0) then
-             write(kou,*)'Missing file name'
+             write(kou,*)'Missing file name, nothing saved'
              goto 100
           endif
           if(jp.gt.0) ocufile(jp+1:)='.ocu '
+          inquire(file=ocufile,exist=logok)
+          if(logok) then
+             call gparcd('File exists, overwrite?',cline,last,1,ch1,'N',q1help)
+             if(ch1.ne.'Y') then
+                write(*,133)
+133             format('Please use another file name')
+                ocufile=' '
+                goto 132
+             endif
+             write(*,134)trim(ocufile)
+134          format(/'Overwriting previous results on ',a/)
+          endif
           text='U '//model
           call gtpsave(ocufile,text)
 !-----------------------------------------------------------
@@ -2225,16 +3585,19 @@ contains
              jp=kl
           endif
           if(kl.le.0 .and. jp.le.0) then
-             write(kou,*)'Missing file name'
+             write(kou,*)'Missing file name, nothing saved'
              goto 100
           endif
           if(jp.gt.0) ocdfile(jp+1:)='.ocd '
           text='M '//model
           call gtpsave(ocdfile,text)
 !-----------------------------------------------------------
-       case(6) ! save quit
+       case(5) ! 
+          write(kou,*)'Not implemented yet'
+!-----------------------------------------------------------
+       case(6) ! save quit, do nothing
           continue
-       end SELECT
+       end SELECT save
 !=================================================================
 ! help ... just list the commands
     case(10)
@@ -2248,11 +3611,11 @@ contains
 !=================================================================
 ! back / goto, return to calling (main) program
     case(12)
-       call gparcd('Are you sure?',cline,last,1,ch1,'N',q1help)
-       if(ch1.eq.'y' .or. ch1.eq.'Y') then
-          write(*,*)'Welcome back!'
-          return
-       endif
+!       call gparcd('Are you sure?',cline,last,1,ch1,'N',q1help)
+!       if(ch1.eq.'y' .or. ch1.eq.'Y') then
+!          write(*,*)'Welcome back!'
+!       endif
+       return
 !=================================================================
 ! NEW command, same as reinitiate
     case(13)
@@ -2263,6 +3626,39 @@ contains
           write(kou,*)'*** NO CHANGE, upper case Y needed for NEW'
           goto 100
        endif
+!------remove assessment data
+!       write(*,*)'No segmentation fault 1'
+       if(allocated(firstash%eqlista)) then
+          write(*,*)' *** Warning, assessment data not removed'
+       endif
+!       write(*,*)'No segmentation fault 2'
+       if(allocated(firstash%eqlista)) deallocate(firstash%eqlista)
+       deallocate(firstash)
+!       write(*,*)'No segmentation fault 3'
+       mexp=0
+       nvcoeff=0
+!       iexit=0
+!       iexit(2)=1
+!       write(*,*)'No Segmentation fault 4'
+!----- deleting map results ...
+!       write(*,*)'Deleting map results'
+       if(associated(maptopsave)) then
+! this is necessary only if no plot of last step/map made ...
+!          write(kou,*)'We link to maptopsave'
+          maptop%plotlink=>maptopsave
+          nullify(maptopsave)
+       endif
+       seqxyz=0
+       call delete_mapresults(maptop)
+! remove any results from step and map
+       if(associated(maptop)) then
+!          write(*,*)'maptop nullified: ',maptop%next%seqx
+          maptop%next%seqx=0
+          maptop%next%seqy=0
+          nullify(maptop)
+       endif
+       nullify(mapnode)
+       nullify(maptopsave)
 !----- deallocate local axis records
        do jp=1,noofaxis
           if(allocated(axarr(jp)%axcond)) deallocate(axarr(jp)%axcond)
@@ -2270,15 +3666,27 @@ contains
 !          deallocate(axarr(jp)%coeffs)
        enddo
        noofaxis=0
-       if(associated(maptop)) then
-          deallocate(maptop)
-       endif
+! remove some more defaults ...
+       defcp=1
+! deallocate does not work on pointers!!!
        nullify(starteq)
+       noofstarteq=0
        graphopt%rangedefaults=0
+       graphopt%tielines=0
+       graphopt%status=0
+       graphopt%axistype=0
+       graphopt%tielines=0
+       graphopt%gibbstriangle=.FALSE.
+       graphopt%labelkey='top right'
+       graphopt%appendfile=' '
+       nullify(graphopt%firsttextlabel)
 !
 ! this routine fragile, inside new_gtp init_gtp is called
+!       write(*,*)'No segmentation fault 7'
        call new_gtp
        write(kou,*)'All data removed'
+       call init_gtp(intv,dblv)
+       write(kou,*)'Workspaces initiated'
 !       ceq=>firsteq
        goto 20
 !=================================================================
@@ -2290,45 +3698,72 @@ contains
 ! about
     case(15)
        write(kou,15010)linkdate
-15010  format(/'This is Open Calphad (OC), a free software for ',&
+15010  format(/'This is OpenCalphad (OC), a free software for ',&
             'thermodynamic calculations'/&
-            'described in the open access journal:'/&
-            'Integrating Materials and Manufacturing Innovation (2015) 4:1'/&
-            'It is available for download at http://www.opencalphad.com'//&
+            'described by B Sundman, U R Kattner, M Palumbo and S G Fries, ',&
+            'Integrating'/'Materials and Manuf. Innov. (2015) 4:1 and ',&
+            'B Sundman, X-G Lu and H Ohtani,'/'Comp Mat Sci, Vol 101 ',&
+            '(2015) 127-137 and B Sundman et al., Comp Mat Sci, '/&
+            'Vol 125 (2016) 188-196'//&
+            'It is available for download at http://www.opencalphad.org or'/&
+            'the sundmanbo/opencalphad repository at http://www.github.com'//&
             'This software is protected by the GNU General Public License'/&
             'You may freely distribute copies as long as you also provide ',&
-            'the source code.'/'The software is provided "as is" without ',&
-            'any warranty of any kind, either'/'expressed or implied.'/&
-            'The full license text is provided with the software or can be ',&
-            'obtained from'/'the Free Software Foundation ',&
+            'the source code'/'and use the GNU GPL license also for your own',&
+            ' additions and modifications.'//&
+            'The software is provided "as is" without any warranty of any ',&
+            'kind, either'/'expressed or implied.  ',&
+            'The full license text is provided with the software'/&
+            'or can be obtained from the Free Software Foundation ',&
             'http://www.fsf.org'//&
-            'Copyright 2010-2015, several persons.'/&
+            'Copyright 2011-2017, Bo Sundman, Gif sur Yvette, France.'/&
             'Contact person Bo Sundman, bo.sundman@gmail.com'/&
             'This version linked ',a/)
 !=================================================================
 ! debug subcommands
     case(16)
-!       write(*,*)'Calculating equilibrium record size'
-       kom2=ceqsize(ceq)
-       write(kou,*)'Equilibrium record size: ',kom2
        kom2=submenu(cbas(kom),cline,last,cdebug,ncdebug,1)
-       SELECT CASE (kom2)
+       debug: SELECT CASE (kom2)
 !------------------------------
        CASE DEFAULT
           write(kou,*)'Debug subcommand error ',kom2
 !------------------------------
 ! debug free lists
        CASE(1)
+          write(*,*)'Check components masses'
+          call compmassbug(ceq)
+!          write(*,*)'Calculating equilibrium record size'
+!          kom3=ceqsize(ceq)
+!          write(kou,*)'Current equilibrium record memory use: ',kom3
 ! list all tuples
+          write(kou,1617)
+1617      format('Phase tuples content:'/&
+               'Tuple lokph   compset ixphase lokvares nextcs phase name')
           do jp=1,nooftup()
-             write(kou,16020)jp,phasetuple(jp)%phase,phasetuple(jp)%compset
-16020        format(i3,': ',2i4)
+             call get_phasetup_name(jp,name1)
+! this is a check that %ihaseix and lokvares are correct
+!             if(phasetuple(jp)%compset.eq.1) then
+!                call get_phase_compset(jp,1,lokph,lokcs)
+!             else
+!                call get_phase_compset(phasetuple(jp)%ixphase,&
+!                     phasetuple(jp)%compset,lokph,lokcs)
+!             endif
+!             write(kou,16020)jp,phasetuple(jp),name1,lokph,lokcs
+             write(kou,16020)jp,phasetuple(jp),name1,&
+                  ceq%phase_varres(phasetuple(jp)%lokvares)%disfra%varreslink
+!16020        format(i3,': ',2i7,2i9,3x,a/i12,18x,i7)
+16020        format(i3,': ',2i7,2i9,i6,3x,a,2x,i6)
           enddo
           call list_free_lists(kou)
 !------------------------------
 ! debug stop_on_error
        CASE(2)
-          stop_on_error=.true.
+          if(stop_on_error) then
+             stop_on_error=.FALSE.
+             write(kou,*)'No longer stop on error'
+          else
+             stop_on_error=.true.
+          endif
 !------------------------------
 ! debug elasticity (this is temporary)
        CASE(3)
@@ -2349,12 +3784,34 @@ contains
 !          call gparrd('lattice par (3,2):',cline,last,latpos(3,2),xxy,nohelp)
 !          call gparrd('lattice par (3,3):',cline,last,latpos(3,3),xxx,nohelp)
 !          call set_lattice_parameters(iph,ics,latpos,ceq)
-       END SELECT
+!----------------------------------
+! debug test1 (whatever)
+       case(4)
+!          write(*,*)'Nothing here'
+          do i1=1,nosp()
+             call get_species_location(i1,loksp,name1)
+             if(gx%bmperr.ne.0) goto 990
+             call get_species_component_data(loksp,i2,iphl,stoik,xxx,&
+                  xxy,ceq)
+             if(gx%bmperr.ne.0) goto 990
+             write(kou,1670)i1,loksp,name1,xxx,xxy,(iphl(j1),stoik(j1),j1=1,i2)
+1670         format(2i4,1x,a12,1x,2F6.2,2x,10(i3,1x,F7.4))
+          enddo
+!          call delete_all_conditions(0,ceq)
+!---------------------------------
+! debug test2 (whatever)
+       case(5)
+          write(*,*)'Nothing here'
+!---------------------------------
+! debug unused
+       case(6)
+          write(*,*)'Neither here'
+       END SELECT debug
 !=================================================================
 ! select command
     case(17)
        kom2=submenu(cbas(kom),cline,last,cselect,nselect,1)
-       SELECT CASE(kom2)
+       selct: SELECT CASE(kom2)
 !-----------------------------------------------------------
        CASE DEFAULT
           write(kou,*)'Select subcommand error'
@@ -2376,10 +3833,25 @@ contains
              call selecteq(i1,ceq)
              if(gx%bmperr.ne.0) goto 990
              neqdef=i1
+          elseif(compare_abbrev(text,'PREVIOUS ')) then
+             i1=max(ceq%eqno-1,1)
+             call selecteq(i1,ceq)
+             if(gx%bmperr.ne.0) goto 990
+             neqdef=i1
+          elseif(compare_abbrev(text,'LAST ')) then
+             i1=noeq()
+             call selecteq(i1,ceq)
+             if(gx%bmperr.ne.0) goto 990
+             neqdef=i1
+          elseif(compare_abbrev(text,'FIRST ')) then
+             i1=1
+             call selecteq(i1,ceq)
+             if(gx%bmperr.ne.0) goto 990
+             neqdef=i1
           else
 ! check if number
-             jl=1
-             call getint(text,jl,i1)
+             j1=1
+             call getint(text,j1,i1)
              if(buperr.ne.0) then
                 buperr=0
 ! findeq accepts PREVIOUS and FIRST (same as DEFAULT)
@@ -2397,35 +3869,57 @@ contains
           write(kou,*)'Current equilibrium ',ceq%eqname
 !-----------------------------------------------------------
        CASE(2) ! select minimizer
-          call gparcd('Give name of minimizer?',&
-               cline,last,1,text,'LUKAS ',q1help)
-          call capson(text)
-          jl=len_trim(text)
-!  write(*,*)'input: ',text(1:16),jl
-          if((text(1:jl).eq.minimizers(1)(1:jl))) then
-             minimizer=1
-          else
-             minimizer=2
-          endif
+          write(kou,*)'Sorry, only one available: ',minimizers(2)
+!          call gparcd('Give name of minimizer?',&
+!               cline,last,1,text,'LUKAS ',q1help)
+!          call capson(text)
+!          j1=len_trim(text)
+!  write(*,*)'input: ',text(1:16),j1
+!          if((text(1:j1).eq.minimizers(1)(1:j1))) then
+!             minimizer=1
+!          else
+!             minimizer=2
+!          endif
           write(kou,*)'Selected minimizer: ',minimizers(minimizer)
 !-----------------------------------------------------------
        case(3) ! select graphics
           write(kou,*)'Not implemented yet'
 !-----------------------------------------------------------
-       case(4) ! select languegae, at present only 1 English and 2 French
+       case(4) ! select language, at present only 1 English and 2 French
           write(kou,*)'Not implemented yet'
 !-----------------------------------------------------------
-       case(5)
-          goto 100
+       case(5) ! select optimizer
+          write(kou,845)optimizers(optimizer)
+          write(kou,844)optimizers
+844       format('Available optimizers: '/,(2x,a,2x,a,2x,a))
+845       format('Current optimizer is: '/,2x,a)
+          call gparcd('Do you want to use LMDIF?',cline,last,1,ch1,'Y',q1help)
+          if(ch1.eq.'Y') then
+             optimizer=1
+          else
+             write(*,*)'Sorry VA05AD is no longer available'
+!             call gparcd('Do you want to use VA05AD?',&
+!                  cline,last,1,ch1,'Y',q1help)
+!             if(ch1.eq.'Y') then
+!                optimizer=2
+!             endif
+          endif
+          write(kou,*)'You have selected ',optimizers(optimizer)
 !-----------------------------------------------------------
        case(6)
           goto 100
-       END SELECT
+       END SELECT selct
 !=================================================================
-! delete
-    case(18)
+! DELETE not much implemented ...
+!         ['ELEMENTS        ','SPECIES         ','PHASE           ',&
+!          'QUIT            ','COMPOSITION_SET ','EQUILIBRIUM     ',&
+!          'STEP_MAP_RESULTS','                ','                ']
+    CASE(18)
+! disable continue optimization
+!       iexit=0
+!       iexit(2)=1
        kom2=submenu(cbas(kom),cline,last,crej,nrej,3)
-       SELECT CASE(kom2)
+       delete: SELECT CASE(kom2)
 !-----------------------------------------------------------
        CASE DEFAULT
           write(kou,*)'Delete subcommand error'
@@ -2464,16 +3958,70 @@ contains
           call remove_composition_set(iph,.FALSE.)
           if(gx%bmperr.ne.0) goto 990
 !-----------------------------------------------------------
-! delete equilibrium
+! delete equilibria
        case(6)
-          call gparcd('Equilibrium name: ',cline,last,1,name1,'_MAP* ',q1help)
+          call gparc('Equilibrium name or abbr.:',cline,last,1,name1,' ',q1help)
           if(buperr.ne.0) goto 990
-          call delete_equilibrium(name1,ceq)
+          call delete_equilibria(name1,ceq)
           if(gx%bmperr.ne.0) goto 990
-       end SELECT
+!-----------------------------------------------------------
+! delete step_map_results
+       case(7)
+          if(associated(maptopsave)) then
+! this is necessary only if no plot of last step/map made ...
+             maptop%plotlink=>maptopsave
+             nullify(maptopsave)
+             write(*,*)'maptopsave nullified'
+          endif
+          seqxyz=0
+! this does not delete _mapnode and _mapline equilibria ???
+          call delete_mapresults(maptop)
+! remove any results from step and map
+          if(associated(maptop)) then
+             write(*,*)'maptop nullified: ',maptop%next%seqx
+             maptop%next%seqx=0
+             maptop%next%seqy=0
+             nullify(maptop)
+          endif
+          nullify(mapnode)
+          nullify(maptopsave)
+!----- deallocate local axis records
+          do jp=1,noofaxis
+             if(allocated(axarr(jp)%axcond)) deallocate(axarr(jp)%axcond)
+          enddo
+          noofaxis=0
+! remove some more defaults ...
+          defcp=1
+! deallocate does not work on pointers!!!
+          nullify(starteq)
+          noofstarteq=0
+          graphopt%rangedefaults=0
+          graphopt%tielines=0
+          graphopt%status=0
+          graphopt%axistype=0
+          graphopt%tielines=0
+          graphopt%gibbstriangle=.FALSE.
+          graphopt%labelkey='upper right'
+          graphopt%appendfile=' '
+! the textlabelrecords are NOT deallocated ... but very small
+          nullify(graphopt%firsttextlabel)
+!-----------------------------------------------------------
+!
+       case(8)
+          continue
+!-----------------------------------------------------------
+!
+       case(9)
+          continue
+       end SELECT delete
 !=================================================================
-! step
+! STEP, must be tested if compatible with assessments
+!         ['NORMAL          ','SEPARATE        ','QUIT            ',&
+!          'CONDITIONAL     ','                ','                ']
     case(19)
+! disable continue optimization
+!       iexit=0
+!       iexit(2)=1
        if(noofaxis.ne.1) then
           write(kou,*)'You must set exactly one independent axis variable',&
                ' for a step calculation.'
@@ -2481,7 +4029,8 @@ contains
        endif
 ! check if adding results
        if(associated(maptop)) then
-          write(kou,*)'There are some results already from step or map'
+          write(kou,833)
+833       format('There are previous results from step or map')
           call gparcd('Delete them?',cline,last,1,ch1,'Y',q1help)
           if(ch1.eq.'y' .or. ch1.eq.'Y') then
 ! there should be a more careful deallocation to free memory
@@ -2489,19 +4038,35 @@ contains
              nullify(maptop)
              nullify(maptopsave)
              write(kou,*)'Previous results removed'
+! delete equilibria associated with STEP/MAP
+             call delete_equilibria('_MAP*',ceq)
+             seqxyz=0
+! remove all graphopt settings
+             graphopt%gibbstriangle=.FALSE.
+             graphopt%rangedefaults=0
+             graphopt%labeldefaults=0
+             graphopt%plotmin=zero
+             graphopt%dfltmin=zero
+             graphopt%plotmax=one
+             graphopt%dfltmax=one
+             graphopt%appendfile=' '
+             graphopt%status=0
+             graphopt%labelkey='top right'
+             nullify(graphopt%firsttextlabel)
+             nullify(textlabel)
           else
+             seqxyz(1)=maptop%next%seqx
+             seqxyz(2)=maptop%seqy
              maptopsave=>maptop
              nullify(maptop)
-             write(kou,*)'Previous results kept'
+!             write(kou,*)'Previous results kept'
           endif
-! this should preferably be done directly after map/step, but kept for debug
-          call delete_equilibrium('_MAP*',ceq)
        endif
        kom2=submenu('Options?',cline,last,cstepop,nstepop,1)
-       SELECT CASE(kom2)
+       step: SELECT CASE(kom2)
 !-----------------------------------------------------------
        CASE DEFAULT
-          write(kou,*)'No such plot option'
+          write(kou,*)'No such step option'
 !-----------------------------------------------------------
 ! STEP NORMAL
        case(1)
@@ -2513,7 +4078,14 @@ contains
           if(.not.associated(starteq)) then
              starteq=>ceq
           endif
-          call map_setup(maptop,noofaxis,axarr,starteq)
+! can one have several STEP commands??
+          if(associated(maptop)) then
+             write(*,*)'Deleting previous step/map results missing'
+          endif
+! seqzyz are initial values for creating equilibria for lines and nodes
+! if previous results should be kept it should not be zeroed, see above
+!          seqxyz=0
+          call map_setup(maptop,noofaxis,axarr,seqxyz,starteq)
 ! mark that interactive listing of conditions and results may be inconsistent
           ceq%status=ibset(ceq%status,EQINCON)
           if(.not.associated(maptop)) then
@@ -2532,7 +4104,12 @@ contains
 ! STEP SEPARATE
        case(2) ! calculate for each entered phase separately
           starteq=>ceq
-          call step_separate(maptop,noofaxis,axarr,starteq)
+! can one have several STEP commands??
+          if(associated(maptop)) then
+             write(*,*)'Deleting previous step/map results missing'
+          endif
+!          seqxyz=0
+          call step_separate(maptop,noofaxis,axarr,seqxyz,starteq)
 ! mark that interactive listing of conditions and results may be inconsistent
           ceq%status=ibset(ceq%status,EQINCON)
           if(.not.associated(maptop)) then
@@ -2565,10 +4142,13 @@ contains
 ! STEP unused
        case(6)
           write(kou,*)'Not implemented yet'
-       end SELECT
+       end SELECT step
 !=================================================================
-! map
+! MAP, must be tested if compatible with assessments
     case(20)
+! disable continue optimization
+!       iexit=0
+!       iexit(2)=1
        if(noofaxis.lt.2) then
           write(kou,*)'You must set two axis with independent variables'
           goto 100
@@ -2577,24 +4157,46 @@ contains
 20014   format('The map command is fragile, please send problematic diagrams',&
             ' to the',/'OC development team'/)
        if(associated(maptop)) then
-          write(kou,*)'There are some results already form step or map'
+          write(kou,833)
           call gparcd('Reinitiate?',cline,last,1,ch1,'Y',q1help)
           if(ch1.eq.'y' .or. ch1.eq.'Y') then
              deallocate(maptop%saveceq)
              nullify(maptop)
              nullify(maptopsave)
-! this should preferably be done directly after map/step, but kept for debug
-             call delete_equilibrium('_MAP*',ceq)
+! this removes all previous equilibria associated with STEP/MAP commands
+             call delete_equilibria('_MAP*',ceq)
              if(gx%bmperr.ne.0) then
                 write(kou,*)'Error removing old MAP equilibria'
                 goto 990
              endif
+! initiate indexing nodes and lines
+             seqxyz=0
+! remove all graphopt settings
+             graphopt%gibbstriangle=.FALSE.
+             graphopt%rangedefaults=0
+             graphopt%labeldefaults=0
+             graphopt%plotmin=zero
+             graphopt%dfltmin=zero
+             graphopt%plotmax=one
+             graphopt%dfltmax=one
+             graphopt%appendfile=' '
+             graphopt%status=0
+             graphopt%labelkey='top right'
+             nullify(graphopt%firsttextlabel)
+             nullify(textlabel)
           else
+! start indexing new noes/lines from previous 
+!             write(*,*)'mapnode: ',maptop%seqx,maptop%previous%seqx,&
+!                  maptop%next%seqx
+             seqxyz(1)=maptop%next%seqx
+             seqxyz(2)=maptop%seqy
+!             seqxyz(3) can be used for something else ...
              maptopsave=>maptop
              nullify(maptop)
+!             write(*,*)'seqxyz: ',seqxyz
           endif
-! this should preferably be done directly after map/step, but kept for debug
-          call delete_equilibrium('_MAP*',ceq)
+! this should never be done ! It destroys the possibility to find old nodes
+!          call delete_equilibria('_MAP*',ceq)
        endif
 ! maptop is returned as main map/step record for results
 ! noofaxis is current number of axis, axarr is array with axis data
@@ -2603,7 +4205,8 @@ contains
           starteq=>ceq
           starteq%next=0
        endif
-       call map_setup(maptop,noofaxis,axarr,starteq)
+! maptop is first nullified inside map_setup, then alloctated to return result
+       call map_setup(maptop,noofaxis,axarr,seqxyz,starteq)
        if(.not.associated(maptop)) then
 ! if one has errors in map_setup maptop may not be initiated, if one
 ! has saved previous calculations in maptopsave restore those
@@ -2612,6 +4215,10 @@ contains
              maptop=>maptopsave
              nullify(maptopsave)
           endif
+       elseif(associated(maptopsave)) then
+          write(Kou,*)'Set link to previous map results'
+          maptop%plotlink=>maptopsave
+          nullify(maptopsave)
        endif
 ! remove start equilibria
        nullify(starteq)
@@ -2619,7 +4226,9 @@ contains
        ceq%status=ibset(ceq%status,EQINCON)
        if(gx%bmperr.ne.0) goto 990
 !=================================================================
-! plot
+! PLOT
+! Always specify the axis when giving this command, default is previous!!
+! Sunbommands comes after
     case(21)
        if(.not.associated(maptop)) then
           write(kou,*)'You must give a STEP or MAP command before PLOT'
@@ -2662,7 +4271,7 @@ contains
 !      6 TEXT UP TO AND INCLUDING ";"
 !      7 TEXT TERMINATED BY SPACE OR "," BUT IGNORING SUCH INSIDE ( )
 !    >31, THE CHAR(JTYP) IS USED AS TERMINATING CHARACTER
-!2100      continue
+!------------------------------------------------------------------------
 21000      continue
           if(iax.eq.1) then
              call gparcd('Horizontal axis variable',&
@@ -2673,16 +4282,25 @@ contains
           endif
           if(buperr.ne.0) goto 990
           if(index(axplot(iax),'*').gt.0) then
-             if(wildcard) then
-                write(*,*)'Wildcards allowed for one axis only'
-                goto 21000
-             else
+!             if(wildcard) then
+!                write(*,*)'Wildcards allowed for one axis only'
+!                goto 21000
+!             else
                 wildcard=.TRUE.
-             endif
+!             endif
           endif
           if(axplotdef(iax).ne.axplot(iax)) then
-! if not same axis variable remove any ranges defined !!!
+! RESTORE DEFAULTS if not same axis variables !!! 
              graphopt%rangedefaults(iax)=0
+             graphopt%appendfile=' '
+             graphopt%gibbstriangle=.FALSE.
+             graphopt%labelkey='top right'
+! default plot terminal, replaces plotform
+             graphopt%gnutermsel=1
+             plotform=' '
+! remember that labeldefaults(1) is the title!!!
+             graphopt%labeldefaults(iax+1)=0
+! more options to restore ... ???
           endif
 ! remember axis as default
           axplotdef(iax)=axplot(iax)
@@ -2692,36 +4310,74 @@ contains
 ! first argument is the number of plot axis, always 2 at present
        jp=2
        if(associated(maptopsave)) then
-          write(*,*)'We link to maptopsave'
+          write(kou,*)'We link to maptopsave'
           maptop%plotlink=>maptopsave
 !       else
 !          write(*,*)'There is no maptopsave'
        endif
 !-----------------------------------------------------------
-! plot options subcommand, default is PLOT, NONE does not work ...
+! PLOT with subcommand, default is PLOT, NONE does not work ...
+! subcommands to PLOT OPTIONS/ GRAPHICS OPTIONS
+!    character (len=16), dimension(nplt) :: cplot=&
+!        ['RENDER          ','SCALE_RANGES    ','RATIOS_XY       ',&
+!         'AXIS_LABELS     ','                ','TITLE           ',&
+!         'GRAPHICS_FORMAT ','OUTPUT_FILE     ','GIBBS_TRIANGLE  ',&
+!         'QUIT            ','POSITION_OF_KEYS','APPEND          ',&
+!         'TEXT            ','TIE_LINES       ','KEEP            ',&
+!         'LOGSCALE        ','                ','                ']
+!-------------------
+! return here after each subcommand
 21100   continue
-       if(plotform(1:1).eq.'P') then
-          write(kou,21110)plotfile(1:len_trim(plotfile))
-21110     format(/'Graphics output in postscript format on file: ',a,'.ps ')
-       elseif(plotform(1:1).eq.'G') then
-          write(kou,21111)plotfile(1:len_trim(plotfile))
-21111     format(/'Graphics output in GIF format on: ',a,'.gif ')
+       if(graphopt%gnutermsel.lt.1 .or. &
+            graphopt%gnutermsel.gt.graphopt%gnutermax) then
+          write(kou,*)'No such graphics terminal: ',graphopt%gnutermsel
+       elseif(graphopt%gnutermsel.ne.1) then
+          write(kou,2910)trim(graphopt%gnutermid(graphopt%gnutermsel)),&
+               trim(plotfile),trim(graphopt%filext(graphopt%gnutermsel))
+2910      format(/' *** Graphics format is ',a,' on file: ',a,'.',a)
        endif
+!       if(index(plotfile,'.plt ').le.0) then
+! this is the default plot file name
+!          plotfile='ocgnu '
+!       endif
+!       if(plotform(1:1).eq.'P') then
+!          write(kou,21110)trim(plotfile)
+!21110     format(/' *** Graphics format is PS on: ',a,'.ps ')
+!       elseif(plotform(1:1).eq.'G') then
+!          write(kou,21111)trim(plotfile)
+!21111     format(/' *** Graphics format is GIF on: ',a,'.gif ')
+!       elseif(plotform(1:1).eq.'A') then
+!          write(kou,21113)trim(plotfile)
+!21113     format(/' *** Graphics format is PDF on: ',a,'.pdf ')
+!       elseif(index(plotfile,'.plt ').le.0) then
+! this is the default plot file name
+!          plotfile='ocgnu '
+!       endif
        write(kou,21112)
 21112  format(/'Note: give only one option per line!')
        kom2=submenu('Options?',cline,last,cplot,nplt,1)
-       SELECT CASE(kom2)
+       plotoption: SELECT CASE(kom2)
 !-----------------------------------------------------------
        CASE DEFAULT
           write(kou,*)'No such plot option'
 !-----------------------------------------------------------
-! no more options to plot, just RENDER!
+! RENDER no more options to plot ...
        case(1)
 ! added ceq in the call to make it possible to handle change of reference states
 !2190      continue
-          call ocplot2(jp,axplot,plotfile,maptop,axarr,graphopt,plotform,ceq)
+! use the graphics record to transfer data ...
+          graphopt%pltax(1)=axplot(1)
+          graphopt%pltax(2)=axplot(2)
+          graphopt%filename=' '
+!          write(*,*)' >>>>>>>>>>>>> ',trim(plotfile)
+          graphopt%filename=plotfile
+          call ocplot2(jp,maptop,axarr,graphopt,version,ceq)
+!          call ocplot2(jp,axplot,plotfile,maptop,axarr,graphopt,plotform,&
+!               version,ceq)
           if(gx%bmperr.ne.0) goto 990
-! always restore default plot file name!!
+! always restore default plot file name and plot option to screem
+          graphopt%gnutermsel=1
+          graphopt%filename='ocgnu '
           plotfile='ocgnu'
 !          call gparc('Hardcopy (P for postscript)?',&
 !               cline,last,1,form,'none',q1help)
@@ -2730,8 +4386,31 @@ contains
 !             call ocplot2(jp,axplot,plotfile,maptop,axarr,graphopt,form,ceq)
 !          endif
 !-----------------------------------------------------------
-! XRANGE
+! SCALE_RANGE of either X or Y
        case(2)
+          call gparcd('For X or Y axis? ',cline,last,1,ch1,'X',q1help)
+          if(ch1.eq.'X' .or. ch1.eq.'x') then
+!             if(graphopt%axistype(1).eq.1) then
+!                write(kou,*)'The x axis set to linear'
+!                graphopt%axistype(1)=0
+!             else
+!                graphopt%axistype(1)=1
+!             endif
+             goto 21120
+          elseif(ch1.eq.'Y' .or. ch1.eq.'y') then
+!             if(graphopt%axistype(2).eq.1) then
+!                write(kou,*)'The y axis set to linear'
+!                graphopt%axistype(2)=0
+!             else
+!                graphopt%axistype(2)=1
+!             endif
+             goto 21130
+          else
+             write(kou,*)'Please answer X or Y'
+          endif
+          goto 21100
+!............................................
+21120     continue
           call gparcd('Default limits',cline,last,1,ch1,'N',q1help)
           if(ch1.eq.'Y' .or. ch1.eq.'y') then
              graphopt%rangedefaults(1)=0
@@ -2767,8 +4446,7 @@ contains
           endif
           goto 21100
 !-----------------------------------------------------------
-! YRANGE
-       case(3)
+21130     continue
           call gparcd('Default limits',cline,last,1,ch1,'N',q1help)
           if(ch1.eq.'Y' .or. ch1.eq.'y') then
              graphopt%rangedefaults(2)=0
@@ -2803,12 +4481,42 @@ contains
           endif
           goto 21100
 !-----------------------------------------------------------
-! XTEXT
-       case(4)
-          write(*,*)'Not implemented yet'
+! RATIOS of axis, normal values 1,1
+       case(3)
+          call gparrd('X-axis plot ratio',cline,last,xxx,graphopt%xsize,q1help)
+          if(xxx.le.0.1) then
+             write(*,*)'Ratio set to 0.1'
+             xxx=0.1D0
+          endif
+          graphopt%xsize=xxx
+          call gparrd('Y-axis plot ratio',cline,last,xxx,graphopt%ysize,q1help)
+          if(xxx.le.0.1) then
+             write(*,*)'Ratio set to 0.1'
+             xxx=0.1D0
+          endif
+          graphopt%ysize=xxx
+!          write(*,*)'Not implemented yet'
           goto 21100
 !-----------------------------------------------------------
-! YTEXT
+! AXIS_LABELS
+       case(4)
+          call gparcd('For X or Y axis? ',cline,last,1,ch1,'X',q1help)
+          if(ch1.eq.'X' .or. ch1.eq.'x') then
+             call gparcd('Axis label: ',cline,last,5,&
+                  graphopt%plotlabels(2),axplot(1),q1help)
+! remember that plotlabel(1) is the title
+             graphopt%labeldefaults(2)=len(graphopt%plotlabels(2))
+          elseif(ch1.eq.'Y' .or. ch1.eq.'y') then
+             call gparcd('Axis label: ',cline,last,5,&
+                  graphopt%plotlabels(3),axplot(2),q1help)
+! remember that plotlabel(1) is the title
+             graphopt%labeldefaults(3)=len(graphopt%plotlabels(3))
+          else
+             write(kou,*)'Please answer X or Y'
+          endif
+          goto 21100
+!-----------------------------------------------------------
+! unused
        case(5)
           write(*,*)'Not implemented yet'
           goto 21100
@@ -2828,21 +4536,74 @@ contains
 ! when setting graphics format always also ask for plot file
        case(7,8)
           if(kom2.eq.7) then
-             call gparcd('Plot terminal',cline,last,1,ch1,'SCREEN',q1help)
-             if(ch1.eq.'p' .or. ch1.eq.'P') then
-                write(kou,*)'Plotting set to postscript'
-                plotform='P'
-             elseif(ch1.eq.'g' .or. ch1.eq.'G') then
-                write(kou,*)'Plotting set to gif'
-                plotform='G'
-             else
-                write(kou,*)'Plotting set to screen'
-                plotform=' '
+! subroutine TOPHLP forces return with ? in position cline(1:1)
+29130        continue
+             call gparid('Graphics format index:',cline,last,i1,1,tophlp)
+!             if(cline(1:1).eq.'?'
+             if(cline(1:1).eq.'?' .or. &
+                  i1.lt.1 .or. i1.gt.graphopt%gnutermax) then
+                write(kou,29133)
+29133           format('Avalable graphics formats are:')
+                write(kou,29135)(i1,graphopt%gnutermid(i1),&
+                     i1=1,graphopt%gnutermax)
+29135           format(i3,2x,a)
+                goto 29130
              endif
           endif
+          graphopt%gnutermsel=i1
+          write(kou,*)'Graphics format set to: ',graphopt%gnutermid(i1)
+!          if(kom2.eq.7) then
+!             call gparcd('Graphics format (ACROBAT(PDF)/PS/GIF/SCREEEN)',&
+!                  cline,last,1,ch1,'SCREEN',q1help)
+!             if(ch1.eq.'a' .or. ch1.eq.'A') then
+!                write(kou,*)'Graphics format set to ACROBAT PDF'
+!                plotform='A'
+!             elseif(ch1.eq.'p' .or. ch1.eq.'P') then
+!                write(kou,*)'Graphics format set to PS'
+!                plotform='P'
+!             elseif(ch1.eq.'g' .or. ch1.eq.'G') then
+!                write(kou,*)'Graphics format set to GIF'
+!                plotform='G'
+!             else
+!                write(kou,*)'Graphics format set to SCREEN'
+!                plotform=' '
+!             endif
+!          endif
 !-----------------------------------------------------------
-! PLOT OUTPUT_FILE, always asked when changing terminal
+! PLOT OUTPUT_FILE, always asked when changing graphics terminal
+21140     continue
           call gparcd('Plot file',cline,last,1,plotfile,'ocgnu',q1help)
+          if(plotfile(1:6).ne.'ocgnu ') then
+             if(index(plotfile,'.').le.0) then
+                if(graphopt%gnutermsel.ne.1) then
+                   filename=trim(plotfile)//'.'//&
+                        graphopt%filext(graphopt%gnutermsel)
+! add extenstion depending on format
+!                if(plotform(1:1).eq.'A') then
+!                   filename=trim(plotfile)//'.pdf'
+!                elseif(plotform(1:1).eq.'P') then
+!                   filename=trim(plotfile)//'.ps '
+!                elseif(plotform(1:1).eq.'G') then
+!                   filename=trim(plotfile)//'.gif '
+                else
+! just changing name of the GNUPLOT command file
+                   filename=trim(plotfile)//'.plt '
+                   plotfile=filename
+                endif
+             endif
+!             filename=trim(plotfile)//'.plt '
+             inquire(file=filename,exist=logok)
+             if(logok) then
+                call gparcd('File exists, overwrite?',&
+                     cline,last,1,ch1,'N',q1help)
+                if(ch1.ne.'Y') then
+                   write(*,133)
+                   plotfile=' '
+                   goto 21140
+                endif
+                write(*,134)trim(filename)
+             endif
+          endif
           goto 21100
 !-----------------------------------------------------------
 ! PLOT GIBBS_TRIANGLE
@@ -2858,7 +4619,7 @@ contains
 !-----------------------------------------------------------
 ! PLOT QUIT
        case(10)
-!return to command level
+! just return to command level
 !-----------------------------------------------------------
 ! PLOT position of line labels (keys)
        case(11)
@@ -2869,11 +4630,176 @@ contains
           graphopt%labelkey=line
           goto 21100
 !-----------------------------------------------------------
-! PLOT not used
+! PLOT APPEND a gnuplot file
        case(12)
+          write(kou,*)'Give a file name with graphics in GNUPLOT format'
+          call gparcd('File name',cline,last,1,text,'  ',q1help)
+! check it is OK and add .plt if necessary ...
+          jp=index(text,'.plt ')
+          if(jp.le.0) then
+             jp=len_trim(text)
+             text(jp+1:)='.plt'
+          endif
+          open(23,file=text,status='old',access='sequential',err=21300)
+          close(23)
+          graphopt%appendfile=text
+          goto 21100
+! error opening file, remove any previous appended file
+21300     continue
+          if(graphopt%appendfile(1:1).ne.' ') then
+             write(*,21304)trim(graphopt%appendfile)
+21304        format('Removing append file: ',a)
+          else
+             write(kou,*)'No such file name: ',trim(text)
+          endif
+          graphopt%appendfile=' '
           goto 21100
 !-----------------------------------------------------------
-       end SELECT
+! TEXT anywhere on plot
+       case(13)
+          labelp=>graphopt%firsttextlabel
+          if(associated(labelp)) then
+             call gparcd('Modify existing text?',cline,last,1,ch1,'NO',q1help)
+             if(ch1.eq.'y' .or. ch1.eq.'Y') then
+                jp=0
+                do while(associated(labelp))
+                   jp=jp+1
+                   write(kou,2310)jp,labelp%xpos,labelp%ypos,labelp%angle,&
+                        labelp%textline
+2310               format(i3,2(1pe12.4),2x,i4,5x,a)
+                   labelp=>labelp%nexttextlabel
+                enddo
+                call gparid('Which text index?',cline,last,kl,1,q1help)
+                if(kl.lt.1 .or. kl.gt.jp) then
+                   write(*,*)'No such text label'
+                   goto 100
+                endif
+                labelp=>graphopt%firsttextlabel
+                do jp=2,kl
+                   labelp=>labelp%nexttextlabel
+                enddo
+                call gparcd('New text: ',cline,last,5,text,&
+                     labelp%textline,q1help)
+                labelp%textline=trim(text)
+                call gparrd('New X position: ',cline,last,xxx,&
+                     labelp%xpos,q1help)
+                call gparrd('New Y position: ',cline,last,xxy,&
+                     labelp%ypos,q1help)
+                call gparid('New angle (degrees): ',cline,last,j1,&
+                     labelp%angle,q1help)
+                if(buperr.ne.0) then
+                   write(*,*)'Error reading coordinates'; goto 100
+                endif
+                labelp%xpos=xxx
+                labelp%ypos=xxy
+                labelp%angle=j1
+! ask for more options
+                goto 21100
+             endif
+          endif
+! input a new label
+          call gparrd('X position: ',cline,last,xxx,zero,q1help)
+          call gparrd('Y position: ',cline,last,xxy,zero,q1help)
+          call gparid('Angle (degree): ',cline,last,j1,0,q1help)
+          if(buperr.ne.0) then
+             write(*,*)'Error reading coordinates'; goto 100
+          endif
+          line=' '
+          if(noofaxis.eq.2) then
+! Calculate the equilibria at the specific point
+             write(kou,*)'This is possible only when you plot with'//&
+                  ' the same axis as you calculated!'
+             call gparcd('Do you want to calculate the equilibrium? ',&
+                  cline,last,1,ch1,'Y',q1help)
+             if(ch1.eq.'y' .or. ch1.eq.'Y') then
+! Check if plotted diagram (axplot) has same axis as calculated (axarr)??
+! Or better, calculate using the plot axis ...
+                line=' '
+                call calc_diagram_point(axarr,axplot,xxx,xxy,line,ceq)
+                if(gx%bmperr.ne.0) then
+                   write(*,*)'Calculation failed ',gx%bmperr
+                   gx%bmperr=0
+                   line=' '
+                endif
+! when implemented add the stable phase names to "line" as default for text
+             endif
+          endif
+! There is no gparcd which allows editing the existing text ... emacs!!
+          call gparcd('Text: ',cline,last,5,text,line,q1help)
+          if(text(1:1).eq.' ') then
+             write(*,*)'Label ignored'
+             goto 21100
+          endif
+! I know one should never allocate pointers but this is the only way ???
+          allocate(textlabel)
+          textlabel%xpos=xxx
+          textlabel%ypos=xxy
+          textlabel%angle=j1
+          textlabel%textline=trim(text)
+          if(associated(graphopt%firsttextlabel)) then
+             textlabel%nexttextlabel=>graphopt%firsttextlabel
+             write(*,*)trim(graphopt%firsttextlabel%textline)
+          else
+             nullify(textlabel%nexttextlabel)
+          endif
+          graphopt%firsttextlabel=>textlabel
+! the record is now linked from graphopt, nullify the pointer ...
+          nullify(textlabel)
+! also clean the cline character otherwise labels may be overwritten
+          cline=' '
+          last=len(cline)
+          goto 21100
+!-----------------------------------------------------------
+! PLOT TIE_LINES increment
+       case(14)
+          call gparid('Tie-line increment?',cline,last,kl,0,q1help)
+          if(kl.lt.0) kl=0
+          graphopt%tielines=kl
+!          write(*,*)'No implemented yet'
+          goto 21100
+!-----------------------------------------------------------
+! PLOT KEEP does not work ...
+       case(15)
+          if(btest(graphopt%status,GRKEEP)) then
+             graphopt%status=ibclr(graphopt%status,GRKEEP)
+!             write(kou,*)'Graphics window closes with mouse'
+          else
+             graphopt%status=ibset(graphopt%status,GRKEEP)
+!             write(kou,*)'Graphics window must be closed separately'
+          endif
+          write(*,*)'Not implemented yet'
+          goto 21100
+!-----------------------------------------------------------
+! LOGSCALE
+       case(16)
+          call gparcd('For x or y axis? ',cline,last,1,ch1,'x',q1help)
+          if(ch1.eq.'x') then
+             if(graphopt%axistype(1).eq.1) then
+                write(kou,*)'The x axis set to linear'
+                graphopt%axistype(1)=0
+             else
+                graphopt%axistype(1)=1
+             endif
+          elseif(ch1.eq.'y') then
+             if(graphopt%axistype(2).eq.1) then
+                write(kou,*)'The y axis set to linear'
+                graphopt%axistype(2)=0
+             else
+                graphopt%axistype(2)=1
+             endif
+          else
+             write(kou,*)'Please answer x or y'
+          endif
+          goto 21100
+!-----------------------------------------------------------
+! unused
+       case(17)
+          goto 21100
+!-----------------------------------------------------------
+! unused
+       case(18)
+          goto 21100
+       end SELECT plotoption
 !=================================================================
 ! HPCALC
     case(22)
@@ -2890,33 +4816,167 @@ contains
 !     if(ch1.eq.'y' .or. ch1.eq.'Y') then
        stop 'Au revoir'
 !=================================================================
-! no command defined yet
+! OPTIMIZE and CONTINUE.  Current optimizer is optimizers(optimizer)
     case(24)
-       write(kou,*)'Not implemented yet'
+       call gparid('Number of iterations: ',cline,last,i1,nopt,q1help)
+       if(buperr.ne.0) goto 100
+       nopt=i1
+!       write(*,606)'dead 1',mexp,nvcoeff,iexit
+606    format(a,10i4)
+! some optimizers have no CONTINUE
+!       if(optimizer.eq.1) iexit(4)=0
+!       continue: if(mexp.gt.0 .and. iexit(4).eq.2) then
+! iexit(4) from previous optimize allows continue with same Jacobian
+!          call gparcd('Continue with same Jacobian? ',cline,last,1,&
+!               ch1,'Y',q1help)
+!          if(ch1.eq.'Y') then
+!             ient=1
+!             goto 987
+!          endif
+!       endif continue
+! Initiate arrays when new optimization
+!       ient=0
+       if(.not.allocated(firstash%eqlista)) then
+          write(kou,*)'There are no equilibria with experiments!'
+          goto 100
+       endif
+!       write(*,*)'dead 2A',mexp,nvcoeff
+!       if(allocated(www)) then
+!          write(*,*)'Deallocating www: ',size(www),www(1)
+!          deallocate(www)
+!       endif
+!       write(*,*)'dead 2B',mexp,nvcoeff
+       if(allocated(coefs)) deallocate(coefs)
+!       write(*,*)'dead 2C',mexp,nvcoeff
+       if(allocated(errs))  deallocate(errs)
+!       write(*,*)'dead 3',mexp,nvcoeff
+! size of errors array, sum experiments for all equilibria
+       mexp=0
+       do i1=1,size(firstash%eqlista)
+! skip equilibria with zero weight
+          if(firstash%eqlista(i1)%p1%weight.eq.zero) cycle
+          if(associated(firstash%eqlista(i1)%p1%lastexperiment)) then
+             i2=firstash%eqlista(i1)%p1%lastexperiment%seqz
+             mexp=mexp+i2
+          else
+             write(*,*)'No experiment in equilibrium ',i1
+          endif
+       enddo
+!       write(*,*)'Number of experiments: ',mexp
+       allocate(errs(mexp))
+! copy the variable coefficients to coefs
+       if(nvcoeff.le.0) then
+          write(*,*)'No coefficients to optimize'
+          nvcoeff=0
+       else
+          i2=0
+          allocate(coefs(nvcoeff))
+          do i1=0,size(firstash%coeffstate)-1
+             if(firstash%coeffstate(i1).ge.10) then
+                i2=i2+1
+                if(i2.gt.nvcoeff) then
+                   write(kou,*)'More variable coefficients than expected',&
+                        i2,nvcoeff
+                   goto 100
+                endif
+                coefs(i2)=firstash%coeffvalues(i1)
+!                   write(*,*)'Set scaled coefficient ',i2,' to ',&
+!                        firstash%coeffvalues(i1)
+             endif
+          enddo
+          if(i2.lt.nvcoeff) then
+             write(kou,*)'Internal error for variable coefficients',&
+                  i2,nvcoeff
+             goto 100
+          endif
+       endif
+! caculate how big www is needed, it depends on mexp and nvcoeff
+! Size of www from VA05AD 
+!             M*N         +(M+N)*N               +N      
+!       nwc=mexp*nvcoeff+(mexp+nvcoeff)*nvcoeff+nvcoeff
+!               +M   +N      +N*N            +N+M+N
+!       j1=nwc+mexp+nvcoeff+nvcoeff*nvcoeff+2*nvcoeff+mexp
+!       allocate(www(j1))
+!       if(maxw.lt.j1) then
+!          write(*,*)'Too big problem, increase maxw, current value',maxw
+!          goto 100
+!       endif
+! JUMP HERE IF CONTINUE optimization
+987    continue
+! mexp    Number of experiments
+! nvcoeff Number of coefficients to be optimized
+! errs Array with differences with experiments and calculated values
+! coefs Array with coefficients
+! VA05AD variables: dstep, dmax2, acc, iterations, output unit, workspace
+!                   entry mode, exit mode
+       if(mexp.le.0 .or. nvcoeff.le.0) then
+          write(kou,569)mexp,nvcoeff
+569       format('Cannot optimize with zero experiments or coefficients',2i5)
+          goto 100
+       endif
+       write(*,558)mexp,nvcoeff
+558    format(/'>>>   Start of optimization   >>>'/&
+            'Experiments, coefficients and workspace: ',3(1x,i5))
+!
+!       iprint=1
+! There is a va05ad emulator called lmdif ...
+!       call va05ad(mexp,nvcoeff,errs,coefs,dstep,dmax2,acc,nopt,iprint,www,&
+!            ient,iexit)
+! integer, parameter :: lwam=2500
+! integar iwam(lwam)
+! double precision wam(lwam)
+       call lmdif1(mexp,nvcoeff,coefs,errs,acc,nopt,iwam,wam,lwam)
+!       write(kou,559)iprint,iexit
+!559    format(/'Back from optimization',10i3/)
+! we must copy the current scaled coefficients back to firstash%coeffvalues
+       i2=1
+       do i1=0,size(firstash%coeffstate)-1
+          if(firstash%coeffstate(i1).ge.10) then
+             firstash%coeffvalues(i1)=coefs(i2)
+!             write(*,558)i2,i1,firstash%coeffvalues(i1)
+!558          format('Saving scaled coefficient ',i3,' to ',i3,1pe12.4)
+             i2=i2+1
+          endif
+       enddo
+! calculated errors 
+!       write(*,*)'Errors: ',(errs(j1),j1=1,mexp)
 !=================================================================
-! no command defined yet
-    case(25)
+! unused
+    CASE(25)
        write(kou,*)'Not implemented yet'
 !=================================================================
 ! unused
-    case(26)
+    CASE(26)
        write(kou,*)'Not implemented yet'
 !=================================================================
 ! unused
-    case(27)
+    CASE(27)
+       write(kou,*)'Not implemented yet'
+!=================================================================
+! unused
+    CASE(28)
+       write(kou,*)'Not implemented yet'
+!=================================================================
+! unused
+    CASE(29)
+       write(kou,*)'Not implemented yet'
+!=================================================================
+! unused
+    CASE(30)
        write(kou,*)'Not implemented yet'
 !=================================================================
 !
-    END SELECT
+    END SELECT main
 ! command executed, prompt for another command unless error code
     if(gx%bmperr.eq.0) goto 100
 !============================================================
 ! handling errors
 990 continue
-    write(kou,*)
-    write(kou,*)'Error codes: ',gx%bmperr,buperr
+    write(kou,991)gx%bmperr,buperr
+991 format(/'Error codes: ',2i6)
     if(gx%bmperr.ge.4000 .and. gx%bmperr.le.nooferm) then
-       write(kou,*)bmperrmess(gx%bmperr)
+       write(kou,992)trim(bmperrmess(gx%bmperr))
+992    format('Message: ',a/)
     else
        write(kou,*)'No defined error message, maybe I/O error'
     endif
@@ -2955,7 +5015,7 @@ contains
     once=.true.
     submenu=0
 !  write(kou,10)'submenu 1: ',query(1:lenq),last,cline(last:last+5)
-10  format(a,a,i4,': ',a)
+!10  format(a,a,i4,': ',a)
 100 continue
     if(kdef.lt.1 .or. kdef.gt.ncomnd) then
 ! no default answer
@@ -2981,7 +5041,7 @@ contains
        else
 ! skip one character, if next is , take default answer
 ! write(*,102)'submenu 7: ',last,cline(1:last+5)
-102       format(a,i5,'"',a,'"')
+!102       format(a,i5,'"',a,'"')
 !        last=last+1
           if(cline(last:last).eq.',') then
              submenu=kdef
@@ -3116,7 +5176,7 @@ contains
           read(21,210,end=220)dummy
 210       format(a)
           goto 200
-! write not allowed after fininfg EOF, we must backspace
+! write not allowed after finding EOF, we must backspace
 220       continue
           backspace(21)
 ! write a header
@@ -3166,39 +5226,177 @@ contains
        optionsset%lut=kou
        write(*,*)'ouput unit reset to screen',optionsset%lut
     endif
-1000 continue
+!1000 continue
     return
   end subroutine ocmon_reset_options
+
+
+!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\begin{verbatim}
+  subroutine listoptshort(lut,mexp,errs)
+! short listing of optimizing variables and result
+    integer lut,mexp
+    double precision errs(*)
+!    type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+    type(gtp_equilibrium_data), pointer :: neweq
+    integer i1,i2,j1,j2,j3
+    character name1*24,line*80
+    double precision xxx
+!
+    write(lut,610)
+610 format(/'List of coefficents with non-zero values'/&
+         'Name  Current value   Start value    Scaling factor',&
+         ' RSD')
+    name1=' '
+    do i1=0,size(firstash%coeffstate)-1
+!       write(*,611)i1,firstash%coeffstate(i1)
+!611                format('Coefficient ',i2,' state ',i2)
+       coeffstate: if(firstash%coeffstate(i1).ge.10) then
+! optimized variable, read from TP constant array
+          call get_value_of_constant_index(firstash%coeffindex(i1),xxx)
+          call makeoptvname(name1,i1)
+          write(lut,615)name1(1:3),xxx,&
+               firstash%coeffstart(i1),firstash%coeffscale(i1),zero
+615       format(a,2x,4(1pe15.6))
+          if(firstash%coeffstate(i1).eq.11) then
+! there is a prescribed minimum
+             write(lut,616)' minimum ',firstash%coeffmin(i1)
+616          format(6x,'Prescribed ',a,': ',1pe12.4)
+          elseif(firstash%coeffstate(i1).eq.12) then
+! there is a prescribed minimum
+             write(lut,616)' maximum ',firstash%coeffmax(i1)
+          elseif(firstash%coeffstate(i1).eq.13) then
+! there is a prescribed minimum
+             write(lut,617)firstash%coeffmin(i1),firstash%coeffmax(i1)
+617          format(6x,'Prescribed min and max: ',2(1pe12.4))
+          elseif(firstash%coeffstate(i1).gt.13) then
+             write(lut,*)'Wrong coefficent state, set to 10'
+             firstash%coeffstate(i2)=10
+          endif
+       elseif(firstash%coeffstate(i1).gt.0) then
+! fix variable status
+          call get_value_of_constant_index(firstash%coeffindex(i1),xxx)
+          call makeoptvname(name1,i1)
+          write(lut,615)name1(1:3),xxx
+       elseif(firstash%coeffscale(i1).ne.0) then
+! coefficient with negative status, status set to 1
+          call get_value_of_constant_index(firstash%coeffindex(i1),xxx)
+          write(lut,619)i1,firstash%coeffscale(i1),xxx,zero
+619       format('Wrong state for coefficient ',i3,4(1pe12.4))
+          firstash%coeffstate(i1)=1
+       endif coeffstate
+    enddo
+! list all experiments, only possible after first optimize
+    if(mexp.eq.0) then
+       write(lut,666)
+666    format(/'No optimization so no results'/)
+       goto 1000
+    endif
+    write(lut,620)size(firstash%eqlista),mexp
+620 format(/'List of ',i5,' equilibria with ',i5,&
+         ' experimental data values'/&
+         'Equil name    Weight Experiment $ calculated',24x,&
+         'Error')
+    j3=0
+    experim: do i1=1,size(firstash%eqlista)
+! skip equilibria with zero weight
+       neweq=>firstash%eqlista(i1)%p1
+       if(neweq%weight.eq.zero) cycle experim
+       name1=neweq%eqname(1:12)
+       if(associated(neweq%lastexperiment)) then
+          i2=neweq%lastexperiment%seqz
+          do j2=1,i2
+             j1=1
+             line=' '
+! this subroutine returns experiment and calculated value: "H=1000:200 $ 5000"
+             call meq_get_one_experiment(j1,line,j2,neweq)
+             j3=j3+1
+             write(lut,622)name1(1:12),neweq%weight,line(1:45),&
+                  errs(j3)
+622          format(a,2x,F5.2,2x,a,1x,1pe12.4)
+! list the equilibrium name just for the first (or only) experiment
+             name1=' '
+          enddo
+       endif
+    enddo experim
+1000 continue
+    return
+  end subroutine listoptshort
+
+!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\begin{verbatim}
+  subroutine calctrans(cline,last,ceq)
+! calculate a phase transition
+    character cline*(*)
+    integer last
+    type(gtp_equilibrium_data), pointer :: ceq
+!\end
+    character name1*30
+    integer j1,iph,ics
+    double precision xxx
+    type(gtp_condition), pointer :: pcond
+    type(gtp_state_variable), pointer :: stvr
+!
+    write(kou,2090)
+2090 format('To calculate when a phase will appear/disappear',&
+          ' by releasing a condition.')
+    if(btest(ceq%status,EQNOEQCAL)) then
+       write(kou,2095)
+2095   format('You must make an equilibrium calculation before using',&
+            ' this command.')
+       goto 1000
+    endif
+    call gparc('Phase name: ',cline,last,1,name1,' ',q1help)
+    call find_phase_by_name(name1,iph,ics)
+    if(gx%bmperr.ne.0) goto 1000
+    j1=test_phase_status(iph,ics,xxx,ceq)
+    if(j1.eq.PHFIXED) then
+       write(kou,*)'Phase status already fixed'
+       goto 1000
+    endif
+    call list_conditions(kou,ceq)
+    write(kou,2097)
+2097 format('You must release one condition, give its number')
+    call gparid('Condition number',cline,last,j1,1,q1help)
+    if(j1.le.0 .or. j1.gt.noel()+2) then
+       write(kou,*)'No such condition'
+       goto 1000
+    endif
+! this finds condition with given number
+    call locate_condition(j1,pcond,ceq)
+    if(gx%bmperr.ne.0) goto 1000
+    if(pcond%active.eq.0) then
+! the condition is active, deactivate it!
+       pcond%active=1
+    else
+       write(kou,*)'This condition is not active!'
+       goto 1000
+    endif
+! Condition released, now set the phase as fix with zero moles
+    call change_phase_status(iph,ics,PHFIXED,xxx,ceq)
+    if(gx%bmperr.ne.0) goto 1000
+! Calculate equilibrium
+    call calceq2(1,ceq)
+    if(gx%bmperr.ne.0) goto 1000
+! get the value of the released condition and set it to the new value
+    stvr=>pcond%statvar(1)
+    call state_variable_val(stvr,xxx,ceq)
+    if(gx%bmperr.ne.0) goto 1000
+    write(kou,2099)xxx
+2099 format('The transition occurs at ',1pe16.8,', set as condition')
+    pcond%prescribed=xxx
+    pcond%active=0
+! set phase back as entered and stable
+!    write(*,*)'Set phase back as entered'
+    call change_phase_status(iph,ics,PHENTSTAB,zero,ceq)
+1000 continue
+    return
+  end subroutine calctrans
 
 !\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
 END MODULE cmon1oc
 
-! ====================================================================
-! Feature:
-! Parameters that depend on a constituent like mobilities and the new
-! Bohr magneton number.  Previously only average Bohr magneton numbers
-! have been used.
-! The Bohr magneton number of Fe in FCC can be a function of composition i.e.
-! BMAGN&FE(BCC) = x_Fe*BMAGN&FE(BCC,FE)+x_CR*BMAGN&FE(BCC,CR)+
-!                 X_FE*X_CR*BMAGN(BCC,CR,FE)+ ...
-! A similar function BMAGN&CR(BCC)= ....
-! The identifications "&FE" or "&CR" are stored in the property record.
-!
-! Each property has a unique number but usually only a few are needed
-! When calculating for a phase the there is an internal propertytype counter
-! incremented for each property found.  This keeps track of the actual
-! property that has been calculated for each value of the property counter.
-! Property type 1 is always the Gibbs energy.
-!
-! ===========================================================
-! Parallellizing
-! Fraction values may be different for the same phase if there are
-! parallell calculation of equilibria.  
-! Note that the number of sites for a sublattice are normally static 
-! but for ionic liquids they are dynamic.
-! Function values must also be stored separate in each thread
-! as they are calculated for different values of T and P.
-! The error code must be separate in each thread as it may
-! not be fatal but can be handelled by the process
-! 

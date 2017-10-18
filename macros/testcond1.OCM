@@ -1,0 +1,392 @@
+new Y
+@$===============================================================
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$ testcond1.OCM
+@$ Testing combining combination of various condition
+@$ for a ternary system C-Cr-Fe
+@$ 
+@$ There is a test to calculate NPLE conditions
+@$
+@$ There are also tests of entering, listing
+@$ and calculating mobility data
+@$ and to calculate the Darken stability matrix 
+@$ to convert these to diffusion coefficients.
+@&
+@$===============================================================
+@$ 
+
+set echo
+
+r t steel1 c fe cr
+
+
+set c t=2000 p=1e5 n=1 x(c)=.1 x(cr)=.1
+
+c e
+
+l,,,,,
+
+@$ Just calculate a first equilibrium
+@&
+@$ Replace carbon mole fraction with lnac (=mu/RT)
+
+set c lnac(c)
+
+set c x(c)=none
+
+c e
+
+l,,,,
+
+@$ We have the same equilibrium with different conditions,
+@$ lnac(c)=-5.14107979
+@&
+@$----------------------------------------------
+@$ Change the value of the lnac condition
+
+set c lnac(c)=-6
+
+c e
+
+l,,,,,
+
+@$ Lower carbon activity decreases carbon content, 
+@$ x(c)=.05484
+@&
+@$------------------------------------
+@$ Change to condition on mass of Cr
+
+set c b(cr)
+
+set c x(cr)=none
+
+c e
+
+l,,,,,
+
+@$ Same equilibrium with different condition
+@&
+@$ And then again with the mass fraction condition
+set c w(cr)
+
+set c b(cr)=none
+
+c e
+
+l,,,,,
+
+@$ still the same equilibrium with different conditions, 
+@$ w(cr)=0.0979989 and x(cr)=0.1
+@&
+@$ Set the composition of the liquid as condition
+
+set c w(liquid,cr)
+
+set c w(cr)=none
+
+l,,,,
+
+c e
+l,,,,,
+@$ The calculated results should be identical with previous
+@&
+@$-----------------------------------------
+@$ Change the value of the mass fraction
+
+set cond w(liquid,cr)=0.1
+
+c e
+
+l,,,,,
+
+@$ Note the carbon content changes also, x(c)=.05519
+@&
+@$------------------------------------------
+@$ Now change reference state for carbon chemical potential
+
+set ref c gra * ,,,,
+
+l c
+
+@$ Note that the condition on lnac(c) does not change!!
+@&
+
+l,,,,
+
+@$ Change of reference state does not
+@$ change the condition lnac(c)=-6
+@$ but the listed value lnac(c)=-3.2347
+@&
+@$---------------------------------------------
+@$ When we calculate we get another equilibrium!
+
+c e
+
+l,,,,
+
+@$ At the calculation the conditon lnac(c)=-6 is used
+@$ Carbon content much lower as reference state is graphite,
+@$ x(c)=.00432
+@&
+@$-------------------------------------------------------
+@$ We can set back the previous (listed) chemical potential, 
+@$ referred to graphite at 2000 K
+set c lnac(c)=-3.2347
+
+c e
+
+l ,,,,
+
+@$ And we get back the previous carbon content x(c)=0.05519
+@&
+@$ -------------------------------------------------------
+@$ Set graphite as fix
+
+set stat ph gra=fix 0
+
+set cond lnac(c)=none
+
+c e
+
+l ,,,,
+
+@$ The carbon activity should be unity, IT IS!!!  
+@$ And the Carbon content has increased, x(c)=.26637
+@$ Note the activity of Cr is 2.2858E-5 referred to SER
+@$ Change reference state to BCC at current T
+@&
+@$--------------------------------------------------
+
+l r 4
+
+@$ listing also with mass fractions
+@&
+@$--------------------------------------------------
+@$ set reference state for Cr
+
+set ref cr bcc * ,,,,
+
+l,,,,,
+
+@$ The new chromium activity listed is
+@$ ac(cr)=1.4341E-2 referred to BCC at 2000 K
+@$ There is a warning that conditions may be inconsistent with listing
+@&
+
+c e
+
+l,,,,,
+
+@$ But nothing changes when we calculate as Cr activity not a condition
+@&
+@$---------------------------------------------------
+@$ Set activity of Cr as condition
+
+set c ac(cr)
+
+set c w(liquid,cr)=none
+
+l,,,,,,
+
+c e
+
+l,,,,,
+
+@$ The equilibrium is the same but with other conditions
+@$ Note we have now one single extensive condition on N=1.
+@$ All other conditions are potentials.  We cannot have
+@$ all conditions as potentials.  Why?
+@&
+@$---------------------------------------------------------
+@$ list the (dimensionless) driving force for BCC, 
+l st dgm(bcc)
+
+@$ The value is -0.29495365, list the constitution of bcc
+l ph bcc
+?
+
+@&
+@$---------------------------------------------------
+@$ Increase the activity of Cr
+
+set c ac(cr)=.1
+
+c e
+
+l r 1
+
+@$ The Cr content is now x(cr)=.51629
+
+l st dgm(bcc)
+
+@$ The bcc has become less stable, -0.99442471 Why? 
+l ph bcc,,,,
+
+@$ The Cr content of metastable bcc has increased !!
+@&
+@$-----------------------------------------------------------------
+@$ Now insulate the system for heat exchange
+@$ that is done by changing the condition on T to enthalpy
+set c h
+
+@$ This walue of H is referred to current reference states
+@$ but for enthalpies it is better to use SER as is result listing
+@$ That is called HS with the suffix S for SER
+
+set c hs
+
+set c t=none
+
+c e
+
+l,,,,
+
+@$ The calculated equilibrium is same as before
+@$ It is a BUG that OC does not add the suffix S for the condition on H.
+@$ That will be fixed in the future ...
+@&
+@$-----------------------------------------------------------
+@$ Increase the enthalpy, that should increase T
+set c hs
+90000
+
+c e
+
+l,,,,
+
+@$ Temperature becomes 2139 with this addition of heat
+@&
+@$ ==============================================================
+@$ Something different
+@$ Calculate NPLE (Negligible Partition Local Equilibrium)
+@&
+@$ First clean up the last set of conditions
+set c ac(cr)=none h=none
+set status phase *=sus
+
+@&
+@$ Set conditions for a tie-line between FCC and BCC with
+@$  x(cr)=.2 in BCC
+set status phase fcc_a1 bcc_a2 = ent 1
+set c t=1000 p=1e5 n=1 x(c)=.02 x(bcc_a2,cr)=.2
+
+l c
+
+c e
+
+l r 1
+
+@$ This is the stable tie-line between FCC and BCC
+@$ (Ortho-equilibrium) when BCC has x(cr)=.2.  FCC has less Cr 
+@$ and its x(c)=.032961.  Now we want to find the NPLE
+@$ composition of C in FCC (when FCC has the same Cr content
+@$  as BCC and the current chemical potential for C)
+@& 
+@$--------------------------------------------------------------
+@$ To calculate this remove the bcc phase and calculate with just
+@$ the FCC with the same Cr content as bcc, x(fcc,cr)=.2 for the
+@$ same carbon activity.  That is NPLE conditions for growing FCC
+
+set status phase bcc_a2=d
+set status phase fcc_a1=ent 1
+set c ac(c)
+
+set c x(c)=none x(bcc_a2,cr)=none
+set c x(fcc,cr)=.2
+
+l c 
+@&
+
+c n
+
+l,,,,
+
+@$ This is the content of C in an FCC with same Cr fraction
+@$ as BCC and with the same carbon activity as the tie-line.
+@$ The carbon content in FCC is now x(c)=.030725
+@$ We are inside the two-phase region as BCC would like to be
+@$ stable (it has a small positive driving force, +4.90E-4) but
+@$ it is dormant and cannot be included in the stable phase set.
+@$ 
+@$ The calculation kindly provided by Shaojie Song
+@$ who discovered a bug!
+@$ Report one yourself and get cited!
+
+@&
+@$ ==============================================================
+@$ 
+@$ Testing entering mobility data, list and calculate
+@$ The values are just made up
+
+enter parameter mq&c(fcc,fe:c) 298.15 -1000+5*T; 6000 N me
+
+enter parameter mq&c(fcc,cr:c) 298.15 -2000+7*T; 6000 N me
+enter parameter mq&c(fcc,fe:va) 298.15 -10000+3*T; 6000 N me
+enter parameter mq&c(fcc,cr:va) 298.15 -5000; 6000 N me
+
+list ph fcc data
+
+@$
+@$ Note there are 4 parameters called MQ&C
+@&
+ 
+enter symbol mobc = exp(mq&c(fcc)/rt);
+
+l sym
+
+cal sym *
+
+@$ We cannot calculate the MOBC symbol unless the phase
+@$ has been calculated with the mobility parameters.
+@&
+@$ It is enough to calculate the phase
+
+cal ph fcc ,,,,,
+
+l sym
+
+cal sym *
+
+@$ the value of a parameter identifier can also be obtained directly
+@$ DO NOT FORGET THE PHASE!
+
+list model-para-val
+mq&c(fcc)
+
+
+@$
+@&
+@$ There is also a command to calculate the potential derivative
+@$ matrix (note it is symmetrical) which is needed to convert
+@$ the mobilities to diffusion coefficients.
+@& 
+
+cal ph fcc
+
+Y
+diff
+
+
+
+
+@&
+
+@$ That is all for now
+@&
+set inter
+

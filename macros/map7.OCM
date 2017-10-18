@@ -1,0 +1,131 @@
+new Y
+@$ =============================================================
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$ map7.OCM
+@$ Calculate an (incomplete) isopleth for a HSS
+@$ =============================================================
+@&
+
+set echo
+
+r t steel1 c cr fe mo v
+
+@$ There will be a cubic carbide stable in this system
+@$ create a composition set of the fcc phase for that
+amend phase 
+fcc
+
+Y
+MC
+
+NONE
+<.5
+
+>.5
+>.5
+<.5
+
+@$ amend the default composition also of the austenite
+amend phase
+fcc
+default
+<.1
+>.5
+<.1
+<.1
+<.1
+>.9
+
+@& calculate a first equilibrium at 1200 where we have both fcc phases 
+
+set c t=1300 p=1e5 n=1 w%(c)=1 w%(cr)=5, w%(mo)=8 w%(v)=1
+
+c e
+
+l r 4
+
+@&
+
+set axis 1 w%(c) 0 1.2 ,,,
+set axis 2 T 800 1800 25
+
+l ax
+
+@&
+
+map
+
+
+@$ You may get a buffer overflow error here
+@$ but there is not yet any way saving of results on file implemented
+@$ Until then you have to restrict yourself to smaller diagrams
+@&
+
+
+plot
+
+
+title map7 fig 1
+
+@$ add some labels
+
+plot
+
+
+text
+0.4 1000 y
+
+text
+n .55 1300 y 
+
+text
+n .5 1450 y
+
+text 
+n 0.15 1400 y
+
+text 
+n 0.9 1600 y
+
+
+@$ We can list all calculated equilibria
+
+l l
+
+@&
+
+@$ or all node points
+
+l eq
+
+plot
+
+
+scale y
+n
+1550
+1600
+title map7 fig 2
+
+
+
+@&
+set inter
+

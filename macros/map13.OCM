@@ -1,0 +1,48 @@
+new Y
+
+r t alni-4slx
+
+@&
+
+set c t=1000 p=1E5 n=1 x(al)=.2
+
+c e
+
+l , 2
+
+@&
+
+set ax 1 x(al) 0 1 ,,
+
+set ax 2 t 200 2000 25
+
+map
+
+
+plot
+
+
+
+
+@$ set inter
+
+
+set c t=1000 x(al)=.3
+
+c e
+
+l,,,,,
+
+@&
+
+map
+n
+
+
+plot
+
+
+
+
+set inter
+

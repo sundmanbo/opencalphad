@@ -21,6 +21,8 @@
    call find_element_by_name(elname,iel)
    if(gx%bmperr.ne.0) goto 1000
    lokel=elements(iel)
+   write(*,*)'3G Changing element status not yet implemented'
+   goto 1000
    if(btest(ellista(iel)%status,elsus)) then
 ! element already suspended, quit it should be suspended again ....
       if(nystat.eq.1) goto 1000
@@ -76,6 +78,8 @@
    integer loksp
    call find_species_record(spname,loksp)
    if(gx%bmperr.ne.0) goto 1000
+   write(*,*)'3G Changing species status not yet implemented'
+   goto 1000
    if(btest(splista(loksp)%status,spsus)) then
 ! species already suspended, quit if it should be suspended again ....
       if(nystat.eq.1) goto 1000
@@ -191,7 +195,7 @@
          write(*,16)'3G: PHSTATE not correct: ',iph,ics,j,ip,&
               ceq%phase_varres(lokcs)%status2
 16       format(a,4i3,2x,z16)
-         gx%bmperr=7777
+         gx%bmperr=4324
       case(phfixed) ! fix 2
          text='FIXED'
          ip=5
@@ -242,12 +246,13 @@
    integer ists,lokph,lokcs,j,ip
    character text*24
 ! new code
+   ists=0
    call get_phase_compset(iph,ics,lokph,lokcs)
-   if(gx%bmperr.ne.0) goto 1000
+   if(gx%bmperr.ne.0) goto 900
    ists=ceq%phase_varres(lokcs)%phstate
    val=ceq%phase_varres(lokcs)%amfu
    goto 900
-!=============================================
+!============================================= code below redundant?
    ists=0
    ip=1
    val=-one
@@ -314,10 +319,10 @@
    integer lokcs,j
    if(bit.lt.0 .or. bit.gt.31) then
       write(*,*)'Illegal phase bit number'
-      gx%bmperr=7777; goto 1000
+      gx%bmperr=4325; goto 1000
    elseif(lokph.le.0 .or. lokph.gt.noofph) then
       write(*,*)'Illegal phase in call to set_phase_status_bit'
-      gx%bmperr=7777; goto 1000
+      gx%bmperr=4326; goto 1000
    endif
 !   write(*,99)'sphs1bit: ',lokph,bit,phlista(lokph)%status1
 99 format(a,2i3,z8)
@@ -346,7 +351,7 @@
    integer lokcs,j
    if(bit.lt.0 .or. bit.gt.31) then
       write(*,*)'Illegal phase bit number'
-      gx%bmperr=7777; goto 1000
+      gx%bmperr=4325; goto 1000
    endif
    phlista(lokph)%status1=ibclr(phlista(lokph)%status1,bit)
    if(bit.eq.PHHID) then
@@ -403,9 +408,11 @@
    double precision val
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim} %+
-   integer qph,ics,oldstat,ipos,slen,lokph,lokcs
+   integer qph,ics,oldstat,ipos,slen,lokph,lokcs,phcsx
    character name*24
+!   write(*,*)'3G phnames: ',phnames(1:30),' >',phnames(1:1),'<'
    if(phnames(1:1).eq.'*') then
+!      write(*,*)'3G star'
       if(phnames(2:2).eq.'S') then
          oldstat=-3
       elseif(phnames(2:2).eq.'D') then
@@ -418,11 +425,12 @@
          oldstat=1
       elseif(phnames(2:2).eq.' ') then
          qph=-1
+!         write(*,*)'3G star',qph,ics,nystat,val
          call change_phase_status(qph,ics,nystat,val,ceq)
          goto 1000
       else
-         write(*,*)'No such selection of phase status after *'
-         gx%bmperr=7222; goto 1000
+         write(*,*)'Illegal selection of old phase status after *'
+         gx%bmperr=4327; goto 1000
       endif
 ! loop for all phases to find those with correct old status
       do qph=1,noofph
@@ -464,13 +472,35 @@
 !         write(*,*)'3G phase1: ',slen,' ',name
          if(name(1:1).eq.' ') goto 1000
 !         write(*,*)'3G phase2: ',name
-         call find_phase_by_name(name,qph,ics)
+!         call find_phase_by_name(name,qph,ics)
+! phcsx=-1 means that all composition sets should have new status
+         phcsx=-1
+         call find_phasex_by_name(name,phcsx,qph,ics)
          if(gx%bmperr.ne.0) then
-            write(*,*)'No phase called "',name(1:len_trim(name)),'"'
+!            write(*,*)'No phase called "',name(1:len_trim(name)),'"'
             gx%bmperr=0
          else
-            call change_phase_status(qph,ics,nystat,val,ceq)
-            if(gx%bmperr.ne.0) goto 1000
+! we may have to make a loop for all composition sets
+! A phase without composition set specification but with several composition 
+! sets should have all composition sets changed to the new status
+! UNLESS the status is FIX
+            if(ics.lt.0) then
+! we should never loop to set all composition sets to FIXED
+! if another composition set than 1 was to be set fixed ics is not negative
+               if(nystat.eq.PHFIXED) then
+                  slen=1
+               else
+                  slen=-ics
+               endif
+!               write(*,*)'3G change several sets: ',qph,slen
+               do ics=1,slen
+                  call change_phase_status(qph,ics,nystat,val,ceq)
+                  if(gx%bmperr.ne.0) goto 1000
+               enddo
+            else
+               call change_phase_status(qph,ics,nystat,val,ceq)
+               if(gx%bmperr.ne.0) goto 1000
+            endif
          endif
          goto 500
    endif
@@ -481,9 +511,38 @@
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim} %-
+ subroutine change_phtup_status(phtupx,nystat,val,ceq)
+! change the status of a phase tuple. Also used when setting phase fix etc.
+! nystat:-4 hidden, -3 suspended, -2 dormant, -1,0,1 entered, 2 fix
+! qph can be -1 meaning all or a specifix phase index. ics compset
+! 
+   implicit none
+   integer phtupx,nystat
+   double precision val
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim} %+
+   integer lokph,iph,ics
+   if(phtupx.lt.0) then
+! change status for all phases to nystat
+      call change_many_phase_status('* ',nystat,val,ceq)
+   else
+!      lokph=phasetuple(phtupx)%phaseix
+      lokph=phasetuple(phtupx)%lokph
+      iph=phlista(lokph)%alphaindex
+      ics=phasetuple(phtupx)%compset
+!   write(*,77)'3G Test: ',phlista(lokph)%name,phtupx,lokph,iph,phases(iph)
+!77 format(a,a,10i5)
+      call change_phase_status(iph,ics,nystat,val,ceq)
+   endif
+1000 continue
+   return
+ end subroutine change_phtup_status
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim} %-
  subroutine change_phase_status(qph,ics,nystat,val,ceq)
 ! change the status of a phase. Also used when setting phase fix etc.
-! old: 0=entered, 1=suspended, 2=dormant, 3=fix, 4=hidden,5=not hidden
 ! nystat:-4 hidden, -3 suspended, -2 dormant, -1,0,1 entered, 2 fix
 ! qph can be -1 meaning all or a specifix phase index. ics compset
 ! 
@@ -596,8 +655,11 @@
          ceq%phase_varres(lokcs)%netcharge=zero
          ceq%phase_varres(lokcs)%dgm=zero
       elseif(nystat.eq.phfixed) then
+! to allow MAPPHASEFIX=3
+!      elseif(nystat.ge.phfixed) then
 ! set fix with amount val
 !         write(*,*)'Setting phase as fix'
+!         if(nystat.eq.3) write(*,*)'Phase set mapphasefix'
          ceq%phase_varres(lokcs)%phstate=phfixed
 !z         ceq%phase_varres(lokcs)%status2=&
 !z              ibclr(ceq%phase_varres(lokcs)%status2,CSSUS)
@@ -683,7 +745,7 @@
    character*(*) property,unit
 !\end{verbatim}
    write(*,*)'Not implemented yet'
-   gx%bmperr=7777
+   gx%bmperr=4078
 1000 continue
    return
  end subroutine set_unit
@@ -697,7 +759,7 @@
    integer lut,iph,ics,long
 !\end{verbatim}
    write(*,*)'Not implemented yet'
-   gx%bmperr=7777
+   gx%bmperr=4078
 ! header with abbreviations
 !    call list_abbrev(lut)
 ! first conditions ...
@@ -774,6 +836,7 @@
 !\begin{verbatim}
  subroutine elements2components(nspel,stoi,ncmp,cmpstoi,ceq)
 ! converts a stoichiometry array for a species from elements to components
+! ?? I do not understand this subroutine, is it really used anywhere ??
    implicit none
    integer nspel,ncmp
    double precision stoi(*),cmpstoi(*)
@@ -821,6 +884,77 @@
 !>     13. Internal stuff
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
  
+!\begin{verbatim}
+ subroutine termterm(string,ich,kpos,lpos,value)
+! search for first occurance of + - = > or <
+! if + or - then also extract possible value after sign
+! value is coefficient for NEXT term (if any)
+! kpos is last character in THIS state variable, lpos where NEXT may start
+   implicit none
+   character string*(*)
+   integer kpos,ich,lpos
+   double precision value
+!\end{verbatim}
+   integer ipos,jpos,i1
+   character ch1*1
+   character (len=1), dimension(6), parameter :: chterm=&
+        ['+','-','=','<','>',':']
+!
+   ich=0
+   sloop: do ipos=1,len_trim(string)
+      ch1=string(ipos:ipos)
+      do i1=1,6
+         if(ch1.eq.chterm(i1)) then
+            kpos=ipos; ich=i1; exit sloop
+         endif
+      enddo
+   enddo sloop
+! different actions depending on ich
+!   write(*,17)'3G termterm: ',trim(string),string(1:kpos),ich,kpos
+17 format(a,' "',a,'" >',a,'< ',2i3)
+   select case(ich)
+   case default
+      write(*,*)'3G wrong ich case: ',ich
+   case(0)
+! no terminator, just return with position pointer after the text
+      continue
+      kpos=len_trim(string)+1
+   case(1,2)
+! there is a - or + sign, collect value in front of next term
+      lpos=kpos+1
+      call getrel(string,lpos,value)
+      if(buperr.ne.0) then
+! a sign not followed by number means unity
+         buperr=0; value=one
+      else
+! lpos first character after number, a number must be followed by a "*"
+         if(string(lpos:lpos).ne.'*') then
+            write(*,*)'3G syntax error missing *: ',string(1:lpos+5),lpos
+            gx%bmperr=4130
+         else
+            lpos=lpos+1
+         endif
+      endif
+      if(ich.eq.2) value=-value
+   case(3,4,5)
+! there is an = sign, or > or <, just set back the pointer
+      kpos=ipos
+      lpos=0
+   case(6)
+! there is an : sign, meaning a condition number, must be followed by =
+      if(string(kpos+1:kpos+1).ne.'=') then
+         gx%bmperr=4328; goto 1000
+      endif
+      kpos=ipos+1
+      lpos=0
+   end select
+1000 continue
+!   write(*,17)'3G termterm: ',trim(string),string(1:lpos),ich,lpos
+   return
+ end subroutine termterm
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
 !\begin{verbatim}
  subroutine alphaelorder
 ! arrange new element in alphabetical order
@@ -942,25 +1076,10 @@
 !  write(6,*)'alphaphorder 4: ',lokph,iph,noofph
    phases(iph)=noofph
    phlista(noofph)%alphaindex=iph
-!  write(6,*)'alphaphorder 3: ',iph,(phases(k),k=1,noofph)
-! update phasetuple array
-!   write(*,*)'3G New phase alphabetic order: ',iph
-   do j=nooftuples,iph,-1
-      phasetuple(j+1)%phase=phasetuple(j)%phase
-      phasetuple(j+1)%compset=phasetuple(j)%compset
-! we must also change the tuple index in phase_varres!!
-      lokcs=phlista(phasetuple(j)%phase)%linktocs(1)
-      firsteq%phase_varres(lokcs)%phtupx=j+1
-!      write(*,777)'3G shifted phase in phasetuple',&
-!           phasetuple(j)%phase,lokcs,j+1
-   enddo
-! insert the first compset of new phase in phasetuple position iph
-   phasetuple(iph)%phase=noofph
-   phasetuple(iph)%compset=1
    nooftuples=nooftuples+1
    tuple=iph
-!   write(*,771)(phasetuple(j)%phase,phasetuple(j)%compset,j=1,nooftuples)
-771 format('3G: ',10(2i3,1x))
+!   write(*,771)iph,phasetuple(iph),phlista(noofph)%name
+771 format('3G tuple: ',i5,': ',4(i8,1x),2x,a)
 ! link to first compset set when phase_varres record connected
 !   write(*,777)'3G phase tuple position: ',iph,noofph,lokph,lokcs,tuple
 777 format(a,10i5)
@@ -1020,7 +1139,7 @@
 
 !\begin{verbatim}
  subroutine create_parrecords(lokph,lokcs,nsl,nc,nprop,iva,ceq)
-! fractions and results arrays for a phase for parallell calculations
+! fractions and results arrays for a phase for parallel calculations
 ! location is returned in lokcs
 ! nsl is sublattices, nc number of constituents, nprop max number if propert,
 ! iva is an array which is set as constituent status word (to indicate VA)
@@ -1036,7 +1155,7 @@
    integer lokph,lokcs, nsl, nc, nprop
 !\end{verbatim}
    integer ic,nnc
-! find free record, free list maintained in FIRSTEQ
+! find free record, free list csfree maintained in FIRSTEQ only!
 !   write(*,*)'3G maxcalcprop: ',nprop
    lokcs=csfree
    if(csfree.le.0) then
@@ -1045,20 +1164,32 @@
 ! when reserving the last free record.  The same for the other free lists
       gx%bmperr=4094; goto 1000
    endif
-! the free list of phase_varres record only maintained in firsteq
-! all equilibria have identical allocation of phase_varres records
-!   write(*,*)'3G allocating varres record ',lokcs
+! the free list of phase_varres record is only maintained in firsteq
+! but all equilibria have identical allocation of phase_varres records
+! the free list is created when starting OC, each record points to the next
+! After composition sets has been entered and deleted it may be different
+! highcs should always be the index of the highest used record
    csfree=firsteq%phase_varres(lokcs)%nextfree
-   if(csfree.gt.highcs) highcs=csfree
+!   write(*,*)'3G looking for free varres record 1:',lokcs,csfree
+! wrong ...   if(csfree.gt.highcs) highcs=csfree
+! The varres record used will be, csfree is updated
+!   write(*,*)'3G looking for free varres record 2:',lokcs,csfree
    firsteq%phase_varres(lokcs)%nextfree=0
    firsteq%phase_varres(lokcs)%status2=0
+   ic=newhighcs(.true.)
+   if(lokcs.gt.highcs) highcs=lokcs
 ! added integer status array constat. Set CONVA bit from iva array
 !   write(*,*)'Allocate constat 2: ',nc,lokcs
    if(.not.allocated(ceq%phase_varres(lokcs)%constat)) then
+! remove CSDEL if set
+   firsteq%phase_varres(lokcs)%status2=&
+        ibclr(firsteq%phase_varres(lokcs)%status2,CSDEL)
 ! already allocated error for the Al-Ni case, why?
 ! Maybe if composition set has been deleted without releasing allocated arrays?
       allocate(ceq%phase_varres(lokcs)%constat(nc))
    endif
+!   write(*,*)'3G compset: ',trim(phlista(lokph)%name),nc,lokcs,&
+!        size(ceq%phase_varres(lokcs)%constat)
 !    write(*,33)nc,(iva(i),i=1,nc)
    do ic=1,nc
       ceq%phase_varres(lokcs)%constat(ic)=iva(ic)
@@ -1084,7 +1215,7 @@
       endif
    endif
 !
-! result arrays for a phase for use in parallell processing
+! result arrays for a phase for use in parallel processing
    ceq%phase_varres(lokcs)%nprop=nprop
    allocate(ceq%phase_varres(lokcs)%listprop(nprop))
    allocate(ceq%phase_varres(lokcs)%gval(6,nprop))
@@ -1125,11 +1256,11 @@
    integer permut,emperm,nz,nq,lqq,ii,ll
 !
 !   write(*,5)'create interaction:',mint,lint(1,mint),lint(2,mint),&
-!        (intperm(i),i=1,6)
-5  format(a,i5,2x,2i3,2x6i3)
+!        (intperm(ii),ii=1,6)
+5  format(a,i5,2x,2i3,2x,6i3)
    allocate(intrec)
-! note that the order of values in intperm here is not the same as in 
-! fccpermuts or bccpermuts.  Intlinks is the same
+! note that the order of values in intperm here is not the same in 
+! fccpermuts or bccpermuts ??  Intlinks is the same
    permut=intperm(1)
    if(permut.le.0) then
 ! This is a default for no permutations, store 1's
@@ -1203,7 +1334,7 @@
 !      write(*,17)'level 2 permutations: ',nz,emperm,nq,lqq
    else
       write(*,*)'Create_interaction called with too many permutations'
-      gx%bmperr=7777; goto 1000
+      gx%bmperr=4329; goto 1000
    endif
    if(permut.eq.0) then
 ! this is again a default when there are no permutations
@@ -1237,25 +1368,26 @@
  subroutine create_endmember(lokph,newem,noperm,nsl,endm,elinks)
 ! create endmember record with nsl sublattices with endm as constituents
 ! noperm is number of permutations
-! endm is the basic endmember
+! endm is the basic endmember (if there are permutations)
 ! elinks are the links to constituents for all permutations
    implicit none
    integer endm(*)
-   type(gtp_endmember), pointer :: newem
-   integer, dimension(nsl,noperm) ::elinks
    integer lokph,noperm,nsl
+   type(gtp_endmember), pointer :: newem
+   integer, dimension(nsl,noperm) :: elinks
 !\end{verbatim}
-   integer is,ndemr,noemr
+   integer is,ndemr,noemr,nn
    allocate(newem)
    nullify(newem%nextem)
    allocate(newem%fraclinks(nsl,noperm))
-!   write(*,7)noperm,nsl,(elinks(i,1),i=1,4),(endm(i),i=1,nsl)
-7  format('ce1: ',2i4,2x,4i5,2x10i4)
    if(noperm.eq.1) then
       do is=1,nsl 
          newem%fraclinks(is,1)=endm(is)
       enddo
    else
+!      write(*,*)'3G permutations: ',noperm,nsl
+!      write(*,7)((elinks(is,nn),is=1,4),nn=1,noperm)
+7     format('3G ce1: ',4(4i3,2x))
       newem%fraclinks=elinks
    endif
 ! zero or set values
@@ -1351,11 +1483,11 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine new_phase_varres_record(iph,phvar,ceq)
+ subroutine new_phase_varres_record_unused(iph,phvar,ceq)
 ! this subroutine returnes a copy of the phase variable structure for iph
 ! >>>>>>>>>>>>>
 ! this subroutine is probably redundant since the structure 
-! gtp_equilibrium_data was introduced.  Each parallell tread should have
+! gtp_equilibrium_data was introduced.  Each parallel tread should have
 ! its own gtp_equilibrium_data record.
 ! >>>>>>>>>>>>>>>>>>>>>>>>>>
 ! The programmer can enter fraction in this structure and use it in calls
@@ -1366,7 +1498,7 @@
 ! >>>> unfinished
 ! >>>> for calculation of the same phase in separate threads
    integer iph
-   TYPE(gtp_equilibrium_data) :: ceq
+   TYPE(gtp_equilibrium_data), pointer :: ceq
    TYPE(gtp_phase_varres) :: phvar
 !\end{verbatim}
    integer tnooffr,lokph,lokcs,nsl,lokdis
@@ -1426,27 +1558,29 @@
    endif
 1000 continue
    return
- end subroutine new_phase_varres_record
+ end subroutine new_phase_varres_record_unused
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
  subroutine new_disordered_phase_variable_record(lokdis,phvar,phdis,ceq)
-! Does this really work????
+! Does this really work???? phdis has no value when entering ...
 ! creates a copy of the disordered phase variable record lokdis
 ! and set links from ordered phvar
 !   ?????????????? does this work ??????????  is it necessary ????
 ! can one just make an assignment ????
    implicit none
-   TYPE(gtp_equilibrium_data) :: ceq
+   TYPE(gtp_equilibrium_data), pointer :: ceq
    TYPE(gtp_phase_varres) :: phvar
    TYPE(gtp_phase_varres), target :: phdis
    integer lokdis
 !\end{verbatim}
    integer tnooffr,nsl
+! phdis not assigned when calling this routine??
 !
    phdis%nextfree=0
    phdis%phlink=ceq%phase_varres(lokdis)%phlink
+   write(*,*)'In new_disordered_phase_variable_record: ',lokdis,phdis%phlink
 !   write(*,*)'disord 1 ',phdis%phlink,phase_varres(lokdis)%phlink
    phdis%status2=ceq%phase_varres(lokdis)%status2
    nsl=size(ceq%phase_varres(lokdis)%sites)
@@ -1463,8 +1597,9 @@
    phdis%sites=ceq%phase_varres(lokdis)%sites
 ! save link to the phdis record, two links ... why? just because it is messy
 !   write(*,*)'disord 2 ',phdis%phlink,phase_varres(lokdis)%phlink
-   phvar%disfra%phdapointer=>phdis
+!??   phvar%disfra%phdapointer=>phdis
 ! why setting it to zero here??? it should be an index to phase_varres record
+   write(*,*)'3G ndpvr: ',lokdis,phvar%disfra%varreslink
    phvar%disfra%varreslink=0
 !   phvar%disordered=>phdis
 !   write(*,*)'disord 3 ',phdis%phlink,phase_varres(lokdis)%phlink
@@ -1505,7 +1640,7 @@
    character id*1
 !\end{verbatim}
 ! ceq probably not needed as firsteq is declared as pointer
-   TYPE(gtp_equilibrium_data), target :: ceq
+!   TYPE(gtp_equilibrium_data), target :: ceq
    TYPE(gtp_fraction_set), target :: fsdata
 ! jsp(i) contains species locations of disordered constituent i
 ! jy2x(i) is the disordered fraction to which site fraction i should be added
@@ -1523,7 +1658,7 @@
    endif
 ! this subroutine can only be called when there is only one equilibrium
 ! Hm, does this create a copy of firsteq?? YES ... clumsy
-   ceq=firsteq
+!   ceq=firsteq
    lokph=phases(iph)
 ! phase must not have any suspended constituents nor any composition sets
    if(phlista(lokph)%noofcs.gt.1) then
@@ -1729,9 +1864,11 @@
 !   call create_parrecords(nyttcs,nnn,mmm,nprop,iva,firsteq)
    call create_parrecords(lokph,nyttcs,nnn,mmm,maxcalcprop,iva,firsteq)
    if(gx%bmperr.ne.0) goto 1000
+!   write(*,*)'3G created disordered phase_varres: ',nyttcs,csfree
    fsdata%varreslink=nyttcs
 ! note ceq is firsteq but declared target
-   fsdata%phdapointer=>ceq%phase_varres(nyttcs)
+!   write(*,*)'3G disordered fraction set',nyttcs
+!*?   fsdata%phdapointer=>ceq%phase_varres(nyttcs)
    firsteq%phase_varres(nyttcs)%phlink=lokph
    firsteq%phase_varres(nyttcs)%prefix=' '
    firsteq%phase_varres(nyttcs)%suffix=' '
@@ -1756,7 +1893,7 @@
       if(gx%bmperr.ne.0) goto 1000
       fsdata%varreslink=nydis
 ! set pointer also
-      fsdata%phdapointer=firsteq%phase_varres(nydis)
+!*?      fsdata%phdapointer=firsteq%phase_varres(nydis)
       firsteq%phase_varres(nydis)%phlink=lokph
       firsteq%phase_varres(nydis)%prefix=' '
       firsteq%phase_varres(nydis)%suffix=' '
@@ -1781,7 +1918,7 @@
 1000 continue
    return
 ! nydis
- end subroutine add_fraction_set
+ end subroutine add_fraction_set  ! no ceq
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -1790,7 +1927,7 @@
 ! attempt to create a new disordered record  ??? this can probably be done
 ! with just one statement .. but as it works I am not changing right now
    implicit none
-   TYPE(gtp_equilibrium_data) :: ceq
+   TYPE(gtp_equilibrium_data), pointer :: ceq
    TYPE(gtp_fraction_set) :: disrec
    integer lokcs
 !\end{verbatim}
@@ -1802,7 +1939,7 @@
    discopy%tnoofxfr=disrec%tnoofxfr
    discopy%tnoofyfr=disrec%tnoofyfr
    discopy%varreslink=disrec%varreslink
-   discopy%phdapointer=>disrec%phdapointer
+!*?   discopy%phdapointer=>disrec%phdapointer
    discopy%totdis=disrec%totdis
    discopy%id=disrec%id
    allocate(discopy%dsites(disrec%ndd))
@@ -1859,7 +1996,7 @@
 ! SUSPEND phases with all constituents in a sublattice suspended
 !   dimension lokcs(9)
    implicit none
-   TYPE(gtp_equilibrium_data) :: ceq
+   TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim} %+
    integer lokph,lokcs,ncc,kk,kkl,nek,icon,ll,loksp,jl
 !
@@ -2059,6 +2196,7 @@
 !     real, dimension(:), allocatable :: mmyfr
 !     double precision, dimension(:), allocatable :: sites
    if(allocated(varres%constat)) sum=sum+size(varres%constat)
+   write(*,*)'varressum+yfr: ',sum,size(varres%constat),3*size(varres%yfr)
    if(allocated(varres%yfr)) sum=sum+3*size(varres%yfr)
 !   write(*,*)'In vssize 2',sum
 ! for ionic liquid derivatives of sites wrt fractions (it is the charge), 
@@ -2069,7 +2207,7 @@
 !     double precision, dimension(:), allocatable :: d2pqdvay
    if(allocated(varres%dpqdy)) sum=sum+size(varres%dpqdy)
    if(allocated(varres%d2pqdvay)) sum=sum+size(varres%d2pqdvay)
-!   write(*,*)'In vssize 3',sum
+   write(*,*)'varressum+ionliq',sum,size(varres%dpqdy),size(varres%d2pqdvay)
 ! for extra fraction sets, better to go via phase record index above
 ! this TYPE(gtp_fraction_set) variable is a bit messy.  Declaring it in this
 ! way means the record is stored inside this record.
@@ -2081,7 +2219,7 @@
    if(allocated(varres%disfra%splink)) sum=sum+size(varres%disfra%splink)
    if(allocated(varres%disfra%y2x)) sum=sum+size(varres%disfra%y2x)
    if(allocated(varres%disfra%dxidyj)) sum=sum+size(varres%disfra%dxidyj)
-!   write(*,*)'In vssize 4',sum
+   write(*,*)'varresum incl disfra and pointer: ',sum,varres%disfra%varreslink
 ! It seems difficult to get the phdapointer in disfra record to work
 ! ---
 ! arrays for storing calculated results for each phase (composition set)
@@ -2105,7 +2243,7 @@
 !     integer nprop,ncc
 !     integer, dimension(:), allocatable :: listprop
    if(allocated(varres%listprop)) sum=sum+2+size(varres%listprop)
-!   write(*,*)'In vssize 5',sum
+   write(*,*)'varresum + listprop: ',sum,size(varres%listprop)
 ! gval etc are for all composition dependent properties, gval(*,1) for G
 ! gval(*,1): is G, G.T, G.P, G.T.T, G.T.P and G.P.P
 ! dgval(1,j,1): is first derivatives of G wrt fractions j
@@ -2118,7 +2256,8 @@
    if(allocated(varres%gval)) sum=sum+2*size(varres%gval)
    if(allocated(varres%dgval)) sum=sum+2*size(varres%dgval)
    if(allocated(varres%d2gval)) sum=sum+2*size(varres%d2gval)
-!   write(*,*)'In vssize 6',sum
+   write(*,*)'varresum + gvals: ',sum,2*size(varres%gval),&
+        2*size(varres%dgval),2*size(varres%d2gval)
 ! added for strain/stress, current values of lattice parameters
 !     double precision, dimension(3,3) :: curlat
 ! saved values from last equilibrium calculation
@@ -2128,6 +2267,7 @@
    if(allocated(varres%cinvy)) sum=sum+18+2*size(varres%cinvy)
    if(allocated(varres%cxmol)) sum=sum+18+2*size(varres%cxmol)
    if(allocated(varres%cdxmol)) sum=sum+18+2*size(varres%cdxmol)
+   write(*,*)'varresum + saved: ',sum
 !
 1000 continue
    vssize=sum
@@ -2151,7 +2291,7 @@
 ! svfunres: the values of state variable functions valid for this equilibrium
 !     double precision, dimension(:), allocatable :: svfunres
    sum=18+2*size(ceq%svfunres)
-!   write(*,*)'In ceqsize 2',sum
+   write(*,*)'total + svfunres: ',sum,size(ceq%svfunres)
 ! the experiments are used in assessments and stored like conditions 
 ! lastcondition: link to condition list
 ! lastexperiment: link to experiment list
@@ -2168,20 +2308,20 @@
 ! a gtp_component record is about 20 words, invcompstoi same as compsoti
    if(allocated(ceq%complist)) sum=sum+20*size(ceq%complist)+&
         4*size(ceq%compstoi)
-!   write(*,*)'In ceqsize 3',sum
+   write(*,*)'total + complist:',sum,20*size(ceq%complist),4*size(ceq%compstoi)
 ! one record for each phase+composition set that can be calculated
 ! phase_varres: here all calculated data for the phase is stored
 !     TYPE(gtp_phase_varres), dimension(:), allocatable :: phase_varres
 ! each phase_varres record is different for each phase
    vsum=0
-! csfree is first free phase_varres record
-   do ivs=1,csfree
+! highcs is highest used free phase_varres record
+   do ivs=1,highcs
       vss=vssize(ceq%phase_varres(ivs))
-!      write(*,*)'Phase varres: ',ivs,vss
+      write(*,*)'Phase varres: ',ivs,vss
       vsum=vsum+vss
    enddo
    sum=sum+vsum
-!   write(*,*)'In ceqsize 4',sum
+   write(*,*)'total + varres',sum,vsum
 ! index to the tpfun_parres array is the same as in the global array tpres 
 ! eq_tpres: here local calculated values of TP functions are stored
 !     TYPE(tpfun_parres), dimension(:), pointer :: eq_tpres
@@ -2191,6 +2331,7 @@
 ! duplicated here for easy acces by application software
 !     double precision, dimension(:), allocatable :: cmuval
    if(allocated(ceq%cmuval)) sum=sum+2*size(ceq%cmuval)
+   write(*,*)'total + cmuval: ',sum,2*size(ceq%cmuval)
 ! xconc: convergence criteria for constituent fractions and other things
 !     double precision xconv
 ! delta-G value for merging gridpoints in grid minimizer
@@ -2206,8 +2347,8 @@
 !     integer, allocatable :: fixph(:,:)
 !     double precision, allocatable :: savesysmat(:,:)
    sum=sum+3+size(ceq%fixmu)+size(ceq%fixph)+size(ceq%savesysmat)
-! these are normally not used any more
-!   sum=sum+size(ceq%fixmu)+size(ceq%fixph)+size(ceq%savesysmat)
+   write(*,*)'total + savesysmat:',sum,size(ceq%fixmu),size(ceq%fixph),&
+        size(ceq%savesysmat)
    ceqsize=sum
 1000 continue
    return

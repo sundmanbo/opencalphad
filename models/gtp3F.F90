@@ -6,6 +6,71 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
+ subroutine get_stable_state_var_value(statevar,value,encoded,ceq)
+! called with a state variable character
+! If the state variable includes a phase it checks if the phase is stable ...
+   implicit none
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+   character statevar*(*),encoded*(*)
+   double precision value
+!\end{verbatim} %+
+   integer lokcs,ics,ip
+!   type(gtp_state_variable), pointer :: svr
+   type(gtp_state_variable), target :: svrvar
+   type(gtp_state_variable), pointer :: svr
+   character modstatevar*28
+!
+! memory leak fix
+   svr=>svrvar
+   call decode_state_variable(statevar,svr,ceq)
+   if(gx%bmperr.ne.0) goto 1000
+! check if state variable inclused a phase
+! argtyp=0: no arguments
+! argtyp=1: component
+! argtyp=2: phase+compset
+! argtyp=3: phase+compset+component
+! argtyp=4: phase+compset+constituent
+   modstatevar=statevar
+!   write(*,*)'3F stable: ',modstatevar,svr%argtyp,phlista(svr%phase)%noofcs
+   if(svr%argtyp.eq.2) then
+! if compset > 1 specified do nothing
+      if(svr%compset.ne.1) goto 1000
+!      svr%phase,svr%compset
+      lokcs=phlista(svr%phase)%linktocs(svr%compset)
+!      write(*,*)'3F phase: ',svr%compset,phlista(svr%phase)%noofcs,&
+!           ceq%phase_varres(lokcs)%phstate,PHENTSTAB
+      if(ceq%phase_varres(lokcs)%phstate.ne.PHENTSTAB) then
+! phase+compset is not stable, chek if there is other stable compset
+         loop: do ics=1,phlista(svr%phase)%noofcs
+            lokcs=phlista(svr%phase)%linktocs(ics)
+!            write(*,*)'3F looping: ',ics,lokcs,ceq%phase_varres(lokcs)%phstate
+            if(ceq%phase_varres(lokcs)%phstate.eq.PHENTSTAB) then
+! add a composition set index after phase name
+               ip=index(modstatevar,',')
+               if(ip.eq.0) ip=index(modstatevar,')')
+! maybe there is a #1 ??
+               if(modstatevar(ip-2:ip-2).eq.'#') then
+                  modstatevar(ip-1:ip-1)=char(ics+ichar('0'))
+               else
+                  modstatevar(ip:)='#'//char(ics+ichar('0'))
+                  modstatevar(ip+2:)=statevar(ip:)
+               endif
+!               write(*,*)'3F Modfied statevar: ',modstatevar
+               exit loop
+            endif
+         enddo loop
+      endif
+   endif
+   call get_state_var_value(modstatevar,value,encoded,ceq)
+1000 continue
+! possible memory leak
+   nullify(svr)
+   return
+ end subroutine get_stable_state_var_value
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim} %-
  subroutine get_state_var_value(statevar,value,encoded,ceq)
 ! called with a state variable character
    implicit none
@@ -15,11 +80,14 @@
 !\end{verbatim}
 !   integer indices(4)
    integer iunit,ip,lrot,mode
+! memory leak
+   type(gtp_state_variable), target :: svrvar
    type(gtp_state_variable), pointer :: svr
    character actual_arg(2)*16,name*16
 !
-!   write(*,*)'3F In state_variable_value: ',statevar
+!   write(*,*)'3F In get_state_variable_value: ',statevar
    iunit=0
+   svr=>svrvar
    call decode_state_variable(statevar,svr,ceq)
 !   write(*,20)statevar(1:len_trim(statevar)),svr%oldstv,svr%norm,&
 !        svr%argtyp,svr%component
@@ -36,8 +104,8 @@
       call capson(name)
       call find_svfun(name,lrot,ceq)
       if(gx%bmperr.ne.0) then
-         write(*,*)'3F Neither state variable or symbol'
-         gx%bmperr=8888; goto 1000
+!         write(*,*)'3F Neither state variable or symbol'
+         goto 1000
       else
 ! get the value of the symbol, may involve other symbols and state variablse
 ! The actual_arg is a facility not yet implemented and not allowed here
@@ -56,13 +124,16 @@
       call state_variable_val(svr,value,ceq)
       if(gx%bmperr.ne.0) goto 1000
       ip=1
+      encoded=' '
       call encode_state_variable(encoded,ip,svr,ceq)
       if(gx%bmperr.ne.0) then
-         write(*,*)'3F encode error: ',gx%bmperr
+         write(*,*)'3F encode error: ',trim(encoded),gx%bmperr
          gx%bmperr=0; encoded='dummy'
       endif
    endif
 1000 continue
+! possible memory leak
+   nullify(svr)
    return
  end subroutine get_state_var_value
 
@@ -70,14 +141,28 @@
 
 !\begin{verbatim}
  subroutine get_many_svar(statevar,values,mjj,kjj,encoded,ceq)
-! called with a state variable name with woldcards allowed like NP(*), X(*,CR)
+! called with a state variable name with wildcards allowed like NP(*), X(*,CR)
 ! mjj is dimension of values, kjj is number of values returned
 ! encoded used to specify if phase data in phasetuple order ('Z')
-! >>>> BIG problem: How to do with phases that are note stable?
+! >>>> BIG question: How to do with phases that are note stable?
 ! If I ask for w(*,Cr) I only want the fraction in stable phases
-! but whenthis is used for GNUPLOT the values are written in a matix
+! but when this is used for GNUPLOT the values are written in a matix
 ! and the same column in that phase must be the same phase ...
 ! so I have to have the same number of phases from each equilibria.
+!
+! CURRENTLY if x(*,*) and x(*,A) mole fractions only in stable phases
+! Proposal: use * for all phases, use *S o $ or something else for all stable??
+!
+! >>>>>>>>>>>>>>>> there is a segmentation fault in this subroutine when
+! called from ocplot2 in the map11.OCM
+! for the second plot as part of all.OCM
+! but not when called by itself.  SUCK
+! probably caused by the fact that the number of composition sets are different
+! >>>>>>>>>>>>>>>>
+! A new segmentation fault for map2 when plotting with 2 maptops and the
+! first does not have a new composition set LIQUID_AUTO#2 created in the 
+! second map.  I do not understand how that has ever worked??
+! >>>>>>>>>>>>>>>>
 !
    implicit none
    TYPE(gtp_equilibrium_data), pointer :: ceq
@@ -88,6 +173,8 @@
    integer indices(4),modind(4)
    double precision xnan,xxx
    integer jj,lokph,lokcs,k1,k2,k3,iref,jl,iunit,istv,enpos
+! memory leak
+   type(gtp_state_variable), target :: svrvar
    type(gtp_state_variable), pointer :: svr
 !   logical phtupord
 ! calculate the NaN bit pattern
@@ -107,8 +194,8 @@
 !      phtupord=.TRUE.
 !   endif
 ! called from minimizer for testing
-!   write(*,*)'gmv 1: ',statevar(1:20)
-!   call decode_state_variable(statevar,istv,indices,iref,iunit,svr,ceq)
+!   write(*,*)'3Y gmv 1: ',trim(statevar)
+   svr=>svrvar
    call decode_state_variable(statevar,svr,ceq)
    if(gx%bmperr.ne.0) then
       write(*,*)'3F Failed decode statevar in get_many_svar',gx%bmperr
@@ -134,13 +221,10 @@
       indices(1)=svr%phase
       indices(2)=svr%compset
       indices(3)=svr%constituent
-!   else
-!      write(*,*)'state variable has illegal argtyp: ',svr%argtyp
-!      gx%bmperr=7775; goto 1000
    endif
 !
-!   write(*,20)istv,indices,iref,gx%bmperr
-20 format('gmsvar 1: ',i5,4i4,3i7)
+!   write(*,20)istv,indices,iref,iunit,gx%bmperr
+20 format('3F many 1: ',i5,4i4,3i7)
 ! -----------------------------------------
 ! Indices 1: one or all components (-1)
 !          Indices 2+3: 0 or phase+set 
@@ -199,10 +283,11 @@
 ! indices(3) must be -2, -1 or >=0 so if we are here there is an error
             write(*,17)'3F Illegal set of indices 1',(indices(jl),jl=1,4)
 17          format(a,4i4)
-            gx%bmperr=7777; goto 1000
+            gx%bmperr=4317; goto 1000
          endif
       elseif(indices(2).eq.-3) then
 ! if indices(1)>=0 then indices(2)<0 must means a loop for all phase+compset
+!         write(*,*)'3F seg.fault ',noofph
          do k2=1,noofph
             indices(2)=k2
             call get_phase_record(indices(2),lokph)
@@ -234,10 +319,12 @@
       else
 ! if indices(1)>=0 then indices(2) must be -3 or >=0, so if here it is error
          write(*,17)'3F Illegal set of indices 2',(indices(jl),jl=1,4)
-         gx%bmperr=7777; goto 1000
+         gx%bmperr=4317; goto 1000
       endif
    elseif(indices(1).eq.-1) then
 ! loop for component as first indices, 2+3 can be fix phase+compset
+! NOTE: loop for x(*,*) is below with indices(1).eq.-3
+!      write(*,*)'3F indices: ',indices
       if(indices(2).ge.0) then
          do k1=1,noofel
             indices(1)=k1
@@ -270,11 +357,13 @@
                   enpos=enpos+1
                   if(test_phase_status(indices(2),indices(3),xxx,ceq).le. &
                        PHENTSTAB) then
+! xnan means "no value"
                      values(jj)=xnan
                   elseif(ceq%phase_varres(lokcs)%dgm.lt.zero) then
 ! the phase must not have negative driving force
                      values(jj)=xnan
                   else
+! here the value is extracted
                      call state_variable_val3(istv,indices,iref,&
                           iunit,values(jj),ceq)
                      if(gx%bmperr.ne.0) goto 1000
@@ -285,13 +374,12 @@
       else
 ! if we come here it must be an error
          write(*,17)'3F Illegal set of indices 3',(indices(jl),jl=1,4)
-         gx%bmperr=7777; goto 1000
+         gx%bmperr=4317; goto 1000
       endif
    elseif(indices(1).eq.-3) then
 ! loop for phase+compset as indices(1+2)
 ! here we must be careful not to destroy original indices, use modind
-!      write(*,*)'get_many NP(*) 1: ',gx%bmperr,indices(3)
-!      write(*,*)'Loop for many phases',indices(1)
+!      write(*,*)'3F get_many NP(*) etc 1: ',gx%bmperr,indices(3),noofph
       phloop: do k1=1,noofph
          modind(1)=k1
          modind(2)=0
@@ -300,8 +388,6 @@
          if(gx%bmperr.ne.0) goto 1000
          csloop: do k2=1,phlista(lokph)%noofcs
             modind(2)=k2
-            jj=jj+1
-            if(jj.gt.mjj) goto 1100
             call get_phase_compset(modind(1),modind(2),lokph,lokcs)
             if(gx%bmperr.ne.0) goto 1000
             if(indices(3).eq.0) then
@@ -311,6 +397,8 @@
                     iunit,iref,ceq)
                if(gx%bmperr.ne.0) goto 1000
                enpos=enpos+1
+               jj=jj+1
+               if(jj.gt.mjj) goto 1100
                if(ceq%phase_varres(lokcs)%phstate.lt.PHENTSTAB) then
                   values(jj)=xnan
                else
@@ -327,19 +415,49 @@
             elseif(indices(3).gt.0) then
 ! This is typically listing of w(*,cr), only in stable range of phases
                modind(3)=indices(3)
+!               write(*,*)'3F statevar 1A: ',modind(1),modind(2),modind(3)
                call get_phase_compset(modind(1),modind(2),lokph,lokcs)
                if(gx%bmperr.ne.0) goto 1000
                call encode_state_variable3(encoded,enpos,istv,modind,&
                     iunit,iref,ceq)
                if(gx%bmperr.ne.0) goto 1000
                enpos=enpos+1
+               jj=jj+1
+!               write(*,*)'3F statevar 1B: ',trim(encoded),jj,&
+!                    lokph,ceq%phase_varres(lokcs)%phlink
+!               write(*,*)'3F statevar 1B: ',jj,&
+!                    lokph,ceq%phase_varres(lokcs)%phlink
+               if(jj.gt.mjj) goto 1100
+!--------------------------------------------------------------
+! Beware of segmentation faults at next call to state_variable_val3 !!!
+! This code should take care of the problem when new composition sets
+! have been created in different step/map commands and we then try
+! to extract wildcard state variables from these to plot.
+! ceq here can be a previous local ceq used for the step/map 
+! without a compset created later.
+!               write(*,333)'3F this composition set may not exist',&
+!                    lokcs,ceq%phase_varres(lokcs)%phstate,PHENTSTAB,&
+!                    ceq%phase_varres(lokcs)%phlink,lokph
+333            format(a,i4,2x,2i3,2x,2i4)
+               if(.not.allocated(ceq%phase_varres(lokcs)%yfr)) then
+! if yfr is not allocated the composition set does not exist, skip this phase
+!                  write(*,*)'3F this composition set does not exist',&
+!                       ceq%phase_varres(lokcs)%phstate,PHENTSTAB
+                  values(jj)=xnan; goto 600
+               endif
+!--------------------------------------------------------------
                if(ceq%phase_varres(lokcs)%phstate.lt.PHENTSTAB) then
-! if phase is unstable set dummy value
+! if phase is not stable (phstate= -2, -1 or 0)set dummy value
                   values(jj)=xnan
                else
                   call state_variable_val3(istv,modind,iref,&
                        iunit,values(jj),ceq)
                endif
+!               write(*,*)'3F statevar 1C: ',jj,values(jj)
+!               write(*,*)'3F statevar 1C: ',trim(encoded),jj,values(jj)
+!               write(*,73)'3F listing w(*,A): ',istv,modind,iref,iunit,&
+!                    ceq%phase_varres(lokcs)%phstate,jj,values(jj)
+73             format(a,i5,2x,4i3,2x,2i4,2i5,1pe12.4)
                if(gx%bmperr.ne.0) goto 1000
             elseif(ceq%phase_varres(lokcs)%phstate.lt.PHENTSTAB) then
 ! loop for all components or constitunets of stable phases
@@ -353,6 +471,8 @@
                        iunit,iref,ceq)
                   if(gx%bmperr.ne.0) goto 1000
                   enpos=enpos+1
+                  jj=jj+1
+                  if(jj.gt.mjj) goto 1100
                   call state_variable_val3(istv,modind,iref,&
                        iunit,values(jj),ceq)
                   if(gx%bmperr.ne.0) goto 1000
@@ -365,6 +485,8 @@
                        iunit,iref,ceq)
                   if(gx%bmperr.ne.0) goto 1000
                   enpos=enpos+1
+                  jj=jj+1
+                  if(jj.gt.mjj) goto 1100
                   call state_variable_val3(istv,modind,iref,&
                        iunit,values(jj),ceq)
                   if(gx%bmperr.ne.0) goto 1000
@@ -372,8 +494,9 @@
             else
 ! error if here
                write(*,17)'3F Illegal set of indices 4',(indices(jl),jl=1,4)
-               gx%bmperr=7777; goto 1000
+               gx%bmperr=4317; goto 1000
             endif
+600         continue
             if(gx%bmperr.ne.0) then
                write(*,19)'3F error 3',modind,gx%bmperr
 19             format(a,4i4,i7)
@@ -384,14 +507,16 @@
    else
 ! error if here
       write(*,17)'3F Illegal set of indices 5',(indices(jl),jl=1,4)
-      gx%bmperr=7777; goto 1000
+      gx%bmperr=4317; goto 1000
    endif
 1000 continue
+! possible memory leak, BUT nullify does not release memory
+   nullify(svr)
    kjj=jj
    return
 1100 continue
    write(*,*)'3F Overflow in array to get_state_variables'
-   gx%bmperr=7777; goto 1000
+   gx%bmperr=4317; goto 1000
  end subroutine get_many_svar
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
@@ -478,6 +603,7 @@
    character argument*60,arg1*24,arg2*24,ch1*1,lstate*60,propsym*60
    integer typty
    logical deblist
+!   write(*,*)'3F in decode ',trim(statevar),istv
 ! initiate svr internal variables
    deblist=.FALSE.
 !   deblist=.TRUE.
@@ -485,7 +611,8 @@
    if(deblist) write(*,*)'3F entering decode_statevariable: ',&
         statevar(1:len_trim(statevar))
 !   write(*,*)'3F svr allocated'
-   allocate(svr)
+! memory leak
+!   allocate(svr)
 !   write(*,*)'3F svr assignment start'
    svr%oldstv=0
    svr%norm=0
@@ -519,14 +646,16 @@
    if(deblist) write(*,*)'3F decode_state_var 1: ',lstate(1:20)
 ! compare first character
    ch1=lstate(1:1)
+!   write(*,*)'3F decoding: ',trim(lstate),is,' ',ch1
    do is=1,noos
       if(ch1.eq.svid(is)(1:1)) goto 50
    enddo
 ! it may be a property, parameter identifier
+   if(deblist) write(*,*)'3F jump to 600!'
    goto 600
 !------------------------------------------------------------
 50 continue
-   if(deblist) write(*,*)'3F dsv 1: ',is,lstate(1:30)
+   if(deblist) write(*,*)'3F dsv 1: ',is,ch1
    if(is.eq.1) then
       if(lstate(2:2).ne.' ') then
 ! it must be a property like TC or THET
@@ -658,7 +787,7 @@
 ! NOTE: for N and B the second character has been checked and jp incremented
 !       if equal to P.  The third (for NP and BP forth) character must 
 !       be normallizing (MWVF), a space or a (, otherwise it is a property
-   if(deblist) write(*,*)'3F lstate: ',lstate(1:20)
+   if(deblist) write(*,*)'3F lstate: ',lstate(1:20),jp
 ! these have no normalizing: Q, X, W, Y
    nomalize: if(is.le.14 .or. is.eq.16 .or. is.eq.18) then
 ! ZM      x1   (phase)                             per mole components
@@ -688,10 +817,14 @@
    if(lstate(jp:jp).eq.'S') then
       jp=jp+1
       iref=-1
+   elseif(lstate(jp:jp).eq.'R') then
+      write(*,*)'Ignoring suffix "R" on ',trim(statevar),&
+           ', user reference is default'
+      jp=jp+1
    endif
 !---------------------------------------------------------------------
 ! extract arguments if any. If arguments then lstate(jp:jp) should be (
-! Typically G(fcc#2), N(Cr), BP(fcc), Y(sigma#2,cr#3), TC(BCC#2)
+! Typically H(fcc#2), N(Cr), BP(fcc), Y(sigma#2,cr#3), TC(BCC#2)
 !300 continue
    if(deblist) write(*,*)'3F args: ',jp,lstate(1:jp+10)
    narg=0
@@ -912,7 +1045,7 @@
    else
 ! unknown propery
       write(*,*)'3F Unknown state variable or property',typty
-      gx%bmperr=7777; goto 1000
+      gx%bmperr=4318; goto 1000
    endif
    svr%oldstv=istv
    svr%statevarid=istv
@@ -955,7 +1088,44 @@
 ! No such component
 1170 continue
    gx%bmperr=4106; goto 1000
- end subroutine decode_state_variable3
+!
+ end subroutine decode_state_variable3 !allocate
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ logical function same_stoik(iph,jph)
+! return TRUE if phase iph and jph are both stoichiometric and have the
+! same composition  Used to check when adding a phase during equilibrium
+! calculation as it normally fails to have two such phases stable
+   implicit none
+   integer iph,jph
+!\end{verbatim}
+   integer loki,lokj,ll,kk
+   logical same
+!
+   same=.false.
+! iph and jph can be second or later composition sets
+!   write(*,*)'3F same_stoik 1: ',iph,jph,&
+!        phasetuple(iph)%lokph,phasetuple(jph)%lokph
+!   loki=phases(iph); lokj=phases(jph)
+   loki=phasetuple(iph)%lokph; lokj=phasetuple(jph)%lokph
+   if(.not.btest(phlista(loki)%status1,PHNOCV)) goto 1000
+   if(.not.btest(phlista(lokj)%status1,PHNOCV)) goto 1000
+   if(phlista(loki)%noofsubl.ne.phlista(lokj)%noofsubl) goto 1000
+   kk=0
+   do ll=1,phlista(loki)%noofsubl
+      if(firsteq%phase_varres(phlista(loki)%linktocs(1))%sites(ll).ne.&
+         firsteq%phase_varres(phlista(lokj)%linktocs(1))%sites(ll)) goto 1000
+      kk=kk+1
+      if(phlista(loki)%constitlist(kk).ne.&
+         phlista(lokj)%constitlist(kk)) goto 1000
+   enddo
+   same=.true.
+1000 continue
+   same_stoik=same
+   return
+ end function same_stoik
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -966,13 +1136,14 @@
 ! totmol is total number of moles and totmass total mass of components.
 ! amount is number of moles of components per formula unit.
    implicit none
-   TYPE(gtp_equilibrium_data) :: ceq
+   TYPE(gtp_equilibrium_data), pointer :: ceq
    integer iph,ics
    double precision, dimension(*) :: xmol,wmass
    double precision amount,totmol,totmass
 !\end{verbatim}
-   integer ic,jc,lokph,lokcs,ll,iel,lokel,ie,kk,loksp
-   double precision as,yz,xsum,wsum
+   integer ic,jc,lokph,lokcs,ll,iel,lokel,ie,kk,loksp,nspel
+   integer compnos(maxspel)
+   double precision as,yz,xsum,wsum,stoi(maxspel),smass,qsp
    double precision, dimension(maxel) :: x2mol,w2mass
 !
    do ic=1,noofel
@@ -993,45 +1164,49 @@
          if(.not.btest(ceq%phase_varres(lokcs)%constat(ic),CONSUS)) then
             yz=ceq%phase_varres(lokcs)%yfr(ic)
             loksp=phlista(lokph)%constitlist(ic)
-! isq just for debug output
-!            isq=splista(loksp)%alphaindex
-!             write(*,11)'3F cpm 3: ',lokph,lokcs,loksp,splista(loksp)%noofel
-!11           format(a,5i3)
-            do iel=1,splista(loksp)%noofel
-               lokel=splista(loksp)%ellinks(iel)
-               ie=ellista(lokel)%alphaindex
-               if(ie.ne.0) then
-                  xmol(ie)=xmol(ie)+&
-                       as*yz*splista(loksp)%stoichiometry(iel)
-               endif
-            enddo
-!            if(ie.gt.0) then
-!               write(*,711)ic,loksp,isq,lokel,ie,yz,xmol(ie)
-!            else
-!               write(*,711)ic,loksp,isq,lokel,ie,yz
-!            endif
-!711         format('3F cpmm: ',5i9,2F7.4)
+            if(.not.btest(globaldata%status,GSNOTELCOMP)) then
+! the elements are the components
+               do iel=1,splista(loksp)%noofel
+                  lokel=splista(loksp)%ellinks(iel)
+                  ie=ellista(lokel)%alphaindex
+                  if(ie.ne.0) then
+                     xmol(ie)=xmol(ie)+&
+                          as*yz*splista(loksp)%stoichiometry(iel)
+                  endif
+               enddo
+            else
+! when we have other components than the elements
+! we must convert the element stoichiometry to component stoichiometry
+!               write(*,*)'3F other components than elements'
+               call get_species_component_data(loksp,nspel,compnos,stoi,&
+                    smass,qsp,ceq)
+               do iel=1,nspel
+                  xmol(compnos(iel))=xmol(compnos(iel))+as*yz*stoi(iel)
+               enddo
+            endif
          endif
       enddo allcons
    enddo allsubl
 ! normallize, All ok here
 !   write(*,713)'A',noofel,(xmol(iq),iq=1,noofel)
-713 format('3F x:',a,i2,10f7.4)
+713 format('3F x:',a,i2,10f8.4)
 !800 continue
    xsum=zero
    wsum=zero
 ! here xmol(i) is equal to the number of moles of element i per formula unit
 ! set wmass(i) to the mass of of element i per mole formula unit and sum
    do ic=1,noofel
-      wmass(ic)=xmol(ic)*ellista(elements(ic))%mass
+!      wmass(ic)=xmol(ic)*ellista(elements(ic))%mass
+      wmass(ic)=xmol(ic)*ceq%complist(ic)%mass
       xsum=xsum+xmol(ic)
       wsum=wsum+wmass(ic)
    enddo
-!   write(*,713)'F',noofel,xsum,(xmol(iq),iq=1,noofel)
+!   write(*,713)'3F cpmm: ',noofel,xsum,(xmol(ic),ic=1,noofel)
    do ic=1,noofel
       xmol(ic)=xmol(ic)/xsum
       wmass(ic)=wmass(ic)/wsum
    enddo
+!   write(*,713)'3F cpmm: ',noofel,xsum,(xmol(ic),ic=1,noofel)
 ! This is the current number of formula unit of the phase, zero if not stable
    amount=ceq%phase_varres(lokcs)%amfu
 ! ceq%phase_varres(lokcs)%abnorm(1) is moles atoms for one formula unit
@@ -1093,10 +1268,10 @@
    implicit none
    integer iph
    double precision xmol(*)
-   TYPE(gtp_equilibrium_data) :: ceq
+   TYPE(gtp_equilibrium_data),pointer :: ceq
 !\end{verbatim}
-   integer ic,lokph,lokcs,ll,kk,loksp,lokel,iel,ie
-   double precision as,yz,xsum
+   integer ic,lokph,lokcs,ll,kk,loksp,lokel,iel,ie,compnos(maxspel),nspel
+   double precision as,yz,xsum,smass,qsp,stoi(maxspel)
    do ic=1,noofel
       xmol(ic)=zero
    enddo
@@ -1110,14 +1285,27 @@
          if(.not.btest(ceq%phase_varres(lokcs)%constat(ic),CONSUS)) then
             yz=ceq%phase_varres(lokcs)%yfr(ic)
             loksp=phlista(lokph)%constitlist(ic)
-            do iel=1,splista(loksp)%noofel
-               lokel=splista(loksp)%ellinks(iel)
-               ie=ellista(lokel)%alphaindex
-               if(ie.ne.0) then
-                  xmol(ie)=xmol(ie)+&
-                       as*yz*splista(loksp)%stoichiometry(iel)
-               endif
-            enddo
+            if(.not.btest(globaldata%status,GSNOTELCOMP)) then
+! the elements are the components
+               do iel=1,splista(loksp)%noofel
+                  lokel=splista(loksp)%ellinks(iel)
+                  ie=ellista(lokel)%alphaindex
+                  if(ie.ne.0) then
+                     xmol(ie)=xmol(ie)+&
+                          as*yz*splista(loksp)%stoichiometry(iel)
+                  endif
+               enddo
+            else
+! when we have other components than the elements
+! we must convert the element stoichiometry to component stoichiometry
+!               write(*,*)'3F other components than elements'
+               call get_species_component_data(loksp,nspel,compnos,stoi,&
+                    smass,qsp,ceq)
+               do iel=1,nspel
+                  xmol(compnos(iel))=xmol(compnos(iel))+as*yz*stoi(iel)
+               enddo
+            endif
+
          endif
       enddo allcons
    enddo allsubl
@@ -1142,7 +1330,7 @@
    implicit none
    double precision, dimension(*) :: xmol,wmass
    double precision totmol,totmass
-   TYPE(gtp_equilibrium_data) :: ceq
+   TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
    double precision am,amult,tmol,tmass
    double precision, dimension(maxel) :: xph,wph
@@ -1232,7 +1420,7 @@
 ! summing up G, S, V, N and B for all phases with positive amount
 ! Check if this is correct
    implicit none
-   TYPE(gtp_equilibrium_data) :: ceq
+   TYPE(gtp_equilibrium_data), pointer :: ceq
    double precision props(5)
 !\end{verbatim}
    integer lokph,lokcs,ics
@@ -1249,24 +1437,40 @@
 ! am is the number of moles of real atoms of the phase
             lokcs=phlista(lokph)%linktocs(ics)
 ! skip phases that are not entered
-            if(ceq%phase_varres(lokcs)%phstate.eq.phdorm) cycle
+            if(ceq%phase_varres(lokcs)%phstate.eq.phdorm) cycle allcs
+! segmentation fault here ?? during plotting using several STEP/MAP
+! when new comp.sets may be allocated
+! skip composition sets with no allocated yfr ....
+            if(.not.allocated(ceq%phase_varres(lokcs)%yfr)) then
+!               write(*,*)'3F skipping unallocated comp.set.',lokcs
+               cycle allcs
+            endif
             am=ceq%phase_varres(lokcs)%amfu*&
                  ceq%phase_varres(lokcs)%abnorm(1)
 !            write(*,7)'3F sumprops 2: ',lokph,lokcs,am,&
 !                 ceq%phase_varres(lokcs)%abnorm(1),&
 !                 ceq%phase_varres(lokcs)%abnorm(2),props(5)
 7           format(a,2i5,6(1pe12.4))
+! valgrind complains this jump if for an uninitiallized valiable ??
             if(am.gt.zero) then
 ! properties are G, G.T=-S, G.P=V and moles and mass of real atoms
 ! Note gval(*,1) is per mole formula unit and ceq%phase_varres(lokcs)%abnorm(1)
 ! is the number of real atoms per formula unit
+!               write(*,13)'3F props1:',lokcs,props(1),props(2),props(3),am,&
+!                    ceq%phase_varres(lokcs)%abnorm(1)
                props(1)=props(1)+am*ceq%phase_varres(lokcs)%gval(1,1)/&
                     ceq%phase_varres(lokcs)%abnorm(1)
+!               write(*,10)props(1),am,ceq%phase_varres(lokcs)%gval(1,1),&
+!                    ceq%phase_varres(lokcs)%abnorm(1)
+10             format('3F props: ',6(1pe12.4))
                props(2)=props(2)+am*ceq%phase_varres(lokcs)%gval(2,1)/&
                     ceq%phase_varres(lokcs)%abnorm(1)
                props(3)=props(3)+am*ceq%phase_varres(lokcs)%gval(3,1)/&
                     ceq%phase_varres(lokcs)%abnorm(1)
                props(4)=props(4)+am
+!               write(*,13)'3F props2:',lokcs,props(1),props(2),props(3),&
+!                    props(4),ceq%phase_varres(lokcs)%gval(3,1)
+13             format(a,i3,6(1pe12.4))
 ! ceq%phase_varres(lokcs)%abnorm(2) should be the current mass
 ! %abnorm(2) is actual mass, its should be multiplied with %amfu, not am!!
 ! This value is calculated in set_constitution ... check there if problems
@@ -1300,6 +1504,7 @@
    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim} %+
    integer istv,indices(4),iunit,iref
+!   write(*,*)'3F ************* encode: '
    iref=svr%phref
    iunit=svr%unit
 ! if svr%oldstv>=10 then istv should be 10*(svr%oldstv-5)+svr%norm
@@ -1325,9 +1530,6 @@
       indices(1)=svr%phase
       indices(2)=svr%compset
       indices(3)=svr%constituent
-!   else
-!      write(*,*)'3F state variable has illegal argtyp: ',svr%argtyp
-!      gx%bmperr=7775; goto 1000
    endif
    call encode_state_variable3(text,ip,istv,indices,iunit,iref,ceq)
 1000 continue
@@ -1354,16 +1556,18 @@
    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
    integer jp,ics,kstv,iph,norm,sublat
+   double precision mass
 !
    character stsymb*60
    character*1, dimension(4), parameter :: cnorm=['M','W','V','F']
 !
+   sublat=0
+!   write(*,*)'3F encode: ',istv
    if(istv.le.0) then
 ! this is a parameter property symbol: TC (-2), BM (-3), MQ&FE(FCC) (-4) etc
 ! translate to 21, 22, 23 ...
       kstv=19-istv
       goto 200
-!      gx%bmperr=4116; goto 1000
    endif
 ! T or P
    if(istv.le.2) then
@@ -1398,8 +1602,12 @@
          if(gx%bmperr.ne.0) goto 1000
          jp=len_trim(stsymb)+1
          stsymb(jp:jp)=','; jp=jp+1
-         call get_phase_constituent_name(indices(1),indices(2),&
-              stsymb(jp:),sublat)
+!         call get_phase_constituent_name(indices(1),indices(2),&
+!              stsymb(jp:),sublat)
+! I am not sure if indices(2) is constituent numbered for each sublattice
+! or numbered from the beginning, assume the latter !!
+         call get_constituent_name(indices(1),indices(2),&
+              stsymb(jp:),mass)
          if(gx%bmperr.ne.0) goto 1000
          jp=len_trim(stsymb)+1
          if(sublat.gt.1) then
@@ -1463,6 +1671,7 @@
       kstv=-istv
    endif
 ! this call creates the symbol or gives an error
+!   write(*,*)'3F parameter property symbol: ',kstv,iph,ics
    call find_defined_property(stsymb,1,kstv,iph,ics)
    if(gx%bmperr.ne.0) goto 1000
    jp=len_trim(stsymb)+1
@@ -1483,8 +1692,10 @@
          jp=len_trim(stsymb)+1
          stsymb(jp:jp)=','
          jp=jp+1
-         call get_phase_constituent_name(indices(1),indices(3),&
-              stsymb(jp:),sublat)
+!         call get_phase_constituent_name(indices(1),indices(3),&
+!              stsymb(jp:),sublat)
+         call get_constituent_name(indices(1),indices(3),&
+              stsymb(jp:),mass)
          if(gx%bmperr.ne.0) goto 1000
 ! sublattice is the last argument
          jp=len_trim(stsymb)+1
@@ -1545,6 +1756,10 @@
    endif noind
 !
 800 continue
+   if(ip+jp.gt.len(text)) then
+      write(*,*)'State variable value output exceed character variable length'
+      gx%bmperr=4319; goto 1000
+   endif
    text(ip:ip+jp-1)=stsymb
    ip=ip+jp
    if(text(ip:ip).eq.' ') then
@@ -1576,6 +1791,7 @@
    integer jp,ics,kstv,iph,norm,sublat
    integer, dimension(4) :: indices
    integer istv,ip,iunit,iref
+   double precision mass
 !
    character stsymb*60
    character*1, dimension(4), parameter :: cnorm=['M','W','V','F']
@@ -1639,14 +1855,17 @@
          if(gx%bmperr.ne.0) goto 1000
          jp=len_trim(stsymb)+1
       else
-! always use composition set 1
+! always use composition set 1 and assume sublattice 1 ??
          ics=1
+         sublat=1
          call get_phase_name(indices(1),ics,stsymb(jp:))
          if(gx%bmperr.ne.0) goto 1000
          jp=len_trim(stsymb)+1
          stsymb(jp:jp)=','; jp=jp+1
-         call get_phase_constituent_name(indices(1),indices(2),&
-              stsymb(jp:),sublat)
+!         call get_phase_constituent_name(indices(1),indices(2),&
+!              stsymb(jp:),sublat)
+         call get_constituent_name(indices(1),indices(2),&
+              stsymb(jp:),mass)
          if(gx%bmperr.ne.0) goto 1000
          jp=len_trim(stsymb)+1
          if(sublat.gt.1) then
@@ -1729,8 +1948,10 @@
          jp=len_trim(stsymb)+1
          stsymb(jp:jp)=','
          jp=jp+1
-         call get_phase_constituent_name(indices(1),indices(3),&
-              stsymb(jp:),sublat)
+!         call get_phase_constituent_name(indices(1),indices(3),&
+!              stsymb(jp:),sublat)
+         call get_constituent_name(indices(1),indices(3),&
+              stsymb(jp:),mass)
          if(gx%bmperr.ne.0) goto 1000
          jp=len_trim(stsymb)+1
          if(sublat.gt.1) then
@@ -1814,6 +2035,8 @@
 !
    iref=svr%phref
    iunit=svr%unit
+! searching for experimental bug
+!   write(*,*)'3F state_variable_val: ',svr%statevarid,iref,iunit
 !   if(svr%oldstv.gt.10) then
 !      istv=10*(svr%oldstv-5)+svr%norm
 !   else
@@ -1837,14 +2060,14 @@
       indices(3)=svr%constituent
    elseif(svr%argtyp.ne.0) then
       write(*,*)'3F state variable has illegal argtyp: ',svr%argtyp
-      gx%bmperr=7775; goto 1000
+      gx%bmperr=4320; goto 1000
    endif
 !   write(*,910)'3F svv: ',istv,indices,iref,iunit,value
 910 format(a,i3,2x,4i3,2i3,1pe14.6)
    call state_variable_val3(istv,indices,iref,iunit,value,ceq)
    if(gx%bmperr.ne.0) then
-      write(*,920)'3F error: ',gx%bmperr,istv,svr%oldstv,svr%argtyp
-920   format(a,i5,2x,2i4,i2)
+!      write(*,920)'3F error 7: ',gx%bmperr,istv,svr%oldstv,svr%argtyp
+!920   format(a,i5,2x,2i15,i2)
 !   else
 !      write(*,*)'3F value: ',value
    endif
@@ -1871,12 +2094,12 @@
 !\end{verbatim}
    double precision props(5),xmol(maxel),wmass(maxel),stoi(10),cmpstoi(10)
    double precision vt,vp,amult,vg,vs,vv,div,aref,vn,bmult,tmass,tmol
-   double precision qsp,gref,spmass,rmult,tsave,rtn
-   integer kstv,norm,lokph,lokcs,icx,jp,ncmp,ic,iprop,loksp,nspel
+   double precision qsp,gref,spmass,rmult,tsave,rtn,spextra
+   integer kstv,norm,lokph,lokcs,icx,jp,ncmp,ic,iprop,loksp,nspel,iq
    integer endmember(maxsubl),ielno(maxspel)
    value=zero
    ceq%rtn=globaldata%rgas*ceq%tpval(1)
-!   write(*,10)'3F svval: ',istv,indices,iref,iunit,gx%bmperr,value
+!   write(*,10)'3F svval3: ',istv,indices,iref,iunit,gx%bmperr,value
 10 format(a,i4,4i4,3i5,1PE17.6)
    potentials: if(istv.lt.0) then
 ! negative istv indicate parameter property symbols
@@ -1891,7 +2114,8 @@
    elseif(istv.eq.2) then
 ! this is P
       value=ceq%tpval(2)
-   else
+   elseif(istv.le.5) then
+! the check of reference state state is made at label 500 
       if(istv.eq.3) then
 ! MUx(component) or MU(phase,constituent), x can be S for SER
          goto 500
@@ -1902,6 +2126,10 @@
 ! LNACx(component) or LNAC(phase,constituent)
          goto 500
       endif
+! wrong or state variable not implemented
+      write(*,10)'3F not impl: ',istv,indices,iref,iunit,gx%bmperr,value
+      goto 1100
+   else
 ! wrong or state variable not implemented
       write(*,10)'3F not impl: ',istv,indices,iref,iunit,gx%bmperr,value
       goto 1100
@@ -1936,6 +2164,7 @@
       amult=ceq%rtn
 !      write(*,*)'3F stv B: ',vt,vp,amult
       if(indices(1).eq.0) then
+! global value for the whole system
          vg=props(1)
          vs=-props(2)
          vv=props(3)
@@ -1957,6 +2186,8 @@
 ! for phase specific the aref should be independent of amult and div ??
 ! for system wide these are unity
          rmult=one
+!         write(*,555)'3F pp: ',vg,props
+555      format(a,6(1pe12.4))
       else
 ! phase specific, indices are phase and composition set
          call get_phase_compset(indices(1),indices(2),lokph,lokcs)
@@ -2001,16 +2232,23 @@
 !      aref=zero
       if(iref.eq.0) then
 ! iref=0 means user defined reference state >>>> unfinished
+!??????????????????????????????????
+! UNFINISHED
+! If O has reference state but no other elements then ignore refstate
+! for integral quantities UNLESS all components has the same reference
+! state ....
 !         write(*,52)'3F Ref state:',iref,kstv,indices(1),indices(2),rmult
 52       format(a,4i4,1pe12.4)
+! IMPORTANT !!! calculate reference state may destroy valies in %gval
          call calculate_reference_state(kstv,indices(1),indices(2),aref,ceq)
          if(gx%bmperr.ne.0) goto 1000
+! value here seems OK
 !         write(*,53)'3F Reference state:',iref,aref,rmult
       elseif(iref.lt.0) then
          aref=zero
       else
 ! positive value of iref is undefined
-         write(*,*)'3F Reference state undefined',iref
+         write(*,*)'3F Reference state undefined: ',iref
          aref=zero
       endif
 ! if phase specific the scaling for phase specific must be compensated
@@ -2028,8 +2266,10 @@
       elseif(kstv.eq.3) then
 ! 3: V = G.P
          value=amult*(vv-aref)/div
+!         write(*,54)amult,vv,aref,div,value
       elseif(kstv.eq.4) then
 ! 4: H = G + TS = G - T*G.T
+! Problem with vg here when reference state is set
          if(ocv()) write(*,177)'3F H:',vg+vt*vs,aref,amult,div,rmult
 177      format(a,6(1pe12.4))
          value=amult*(vg+vt*vs-aref)/div
@@ -2056,7 +2296,8 @@
          value=ceq%phase_varres(lokcs)%dgm/div
       elseif(kstv.eq.10) then
 ! 10: Q (stability, thermodynamic factor), not implemented
-         gx%bmperr=4081; goto 1000
+!         gx%bmperr=4081; goto 1000
+         call calc_qf(lokcs,value,ceq)
 !      else
 !         write(*,*)'3F svval after 10:',kstv
       endif kstv1
@@ -2120,6 +2361,9 @@
             call calc_phase_molmass(indices(1),indices(2),&
                  xmol,wmass,tmol,tmass,bmult,ceq)
             icx=3
+!            write(*,92)'3F cpmm: ',indices(icx),tmol,tmass,bmult,&
+!                 wmass(1),wmass(2),wmass(3)
+92          format(a,i3,3(1pe12.4),3(0pF8.5))
          endif
          if(gx%bmperr.ne.0) goto 1000
 !         write(*,13)'3F gsvv 19: ',norm,(xmol(iq),iq=1,noofel)
@@ -2128,12 +2372,16 @@
 ! total moles of component
             vn=xmol(indices(icx))
             amult=tmol
+! added next line 2015-08-20 to get correct N(sigma,mo)
+            bmult=tmol
 !            write(*,777)kstv,icx,indices(icx),norm,vn,amult,bmult
 !777         format('3F N(i): ',4i4,3(1pe12.4))
          else
 ! total mass of component
             vn=wmass(indices(icx))
             amult=tmass
+! added next line 2015-08-20 to get correct N(sigma,mo)
+            bmult=tmass
          endif
 !         write(*,13)'3F gsvv 8: ',norm,vn,amult,bmult,tmol,tmass
 13       format(a,i3,7(1PE10.2))
@@ -2156,6 +2404,9 @@
             else
                value=zero
             endif
+! problem when plotting w(*,C) for phase fix with 0 amount
+!            value=wmass(indices(icx))
+            value=vn
 ! percent %
             if(iunit.eq.100) value=1.0D2*value
          elseif(norm.eq.3) then
@@ -2197,16 +2448,19 @@
 ! >>> this can easily be generallized ... next time around ...
 ! here with state variable <0, syetm and user defined properties
 200   continue
+!   write(*,*)'3F svv3 at 200:',kstv
    select case(kstv)
    case default
       write(kou,*)'Unknown parameter identifier: ',kstv
 !.......................................
    case(2:5,7,9:19) 
+!-------------------------------------------------------------------
 ! 2: TC (Curie/Neel Temperature)
 ! 3: BM (Average Bohr magneton number)
 ! 4: CTA just Curie Temperature
 ! 5: NTA just Neel temperature
 ! 7: THET Debye or Einstein temperature
+! 8: MQ& mobility
 ! 9: RHO electrical resistivity
 ! 10: MAGS Magnetic suseptibility
 ! 11: GTT Glas transition temperature
@@ -2218,6 +2472,9 @@
 ! 17: EC11 Elastic constant C11
 ! 18: EC12 Elastic constant C12
 ! 19: EC44 Elastic constant C44
+! 20: Flory-Huggins model parameter
+!-------------------------------------------------------------------
+!
       call get_phase_compset(indices(1),indices(2),lokph,lokcs)
       if(gx%bmperr.ne.0) goto 1000
 ! nprop is number of properties calculated.  Property 1 is always G
@@ -2229,14 +2486,20 @@
          endif
       enddo find1
 !.......................................
-   case(6,8) 
+   case(6,8,20) 
 ! 6: IBM& Individual Bohr magneton number
 ! 8: MQ& mobility value
+! 20: FHV  Flory Huggins volume
+!      write(*,*)'3F svv3 mob1: ',indices(1),indices(2),iprop
       call get_phase_compset(indices(1),indices(2),lokph,lokcs)
       if(gx%bmperr.ne.0) goto 1000
 ! property is kstv*100+indices(3) (constituent identifier)
       iprop=100*kstv+indices(3)
+!      write(*,485)'3F svv3 mob2: ',indices(1),indices(2),iprop,&
+!           ceq%phase_varres(lokcs)%nprop
+485   format(a,2i3,10i5)
       find2: do jp=2,ceq%phase_varres(lokcs)%nprop
+!         write(*,485)'3F calcprop: ',ceq%phase_varres(lokcs)%listprop(jp)
          if(ceq%phase_varres(lokcs)%listprop(jp).eq.iprop) then
             value=ceq%phase_varres(lokcs)%gval(1,jp)
             goto 1000
@@ -2251,13 +2514,16 @@
 500 continue
 !   ceq%rtn=globaldata%rgas*ceq%tpval(1)
 ! if one argument that is a component, if two these are phase and constituent
+! here indices(2) is considered to specify a reference state ...???
 !   write(*,502)'3F refstate 500: ',iref,indices(1),indices(2)
 502 format(a,10i4)
    if(indices(2).ne.0) then
+! This has nothing to do with reference state ... ??? see else link for that
+! I wonder if this code is ever used ...
       lokph=phases(indices(1))
       loksp=phlista(lokph)%constitlist(indices(2))
 ! split the species in elements, convert to components, add chemical potentials
-      call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp)
+      call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp,spextra)
       if(gx%bmperr.ne.0) goto 1000
       if(qsp.ne.zero) then
 !         write(*,*)'3F Cannot calculate potential of charged species'
@@ -2274,37 +2540,33 @@
       enddo
 ! >>>> subtract reference state: i.e. calculate G for the phase with 
 ! just this constituent.  Note indices(1) is phase record, change to index
-!      write(*,*)'3F refphase: ',indices(1),phlista(indices(1))%alphaindex
+!      write(*,*)'3F refphase: ',indices(1),phlista(indices(1))%alphaindex,value
       ic=phlista(indices(1))%alphaindex
       endmember(1)=indices(2)
+!      write(*,*)'3F callcg_endmember 1: ',indices(1)
       call calcg_endmember(indices(1),endmember,gref,ceq)
       if(gx%bmperr.ne.0) goto 1000
       value=value-gref*ceq%rtn
-      write(*,511)'3F refstate: ',endmember(1),indices(1),gref,value
+!      write(*,511)'3F refstate: ',endmember(1),indices(1),gref,value
 511   format(a,2i3,6(1pe14.6))
 ! possibly convert to AC or LNAC
       goto 700
    else
-! MU(i) should be in position i, not indexed by splink ??
-! loop through components, different components in each equilibrium
-!      do ic=1,noofel
-!         write(*,*)'3F state var value: ',indices(1),ceq%complist(ic)%splink,&
-!              ceq%complist(ic)%chempot(1)
-!         if(indices(1).eq.ceq%complist(ic)%splink) then
+!      write(*,*)'3F elselink: ',indices
       if(indices(1).le.0 .or. indices(1).gt.noofel) then
 !         write(*,*)'3F Asking for nonexisting chemical potential'
          gx%bmperr=4171; goto 1000
       endif
-! iref=0 is default meaning SER, if iref<0 user user defined reference state
+! iref=0 is default meaning user defined reference state,
+! if iref<0 use SER as reference state, ignoring user defined reference state
+!
 ! If a component has a defined reference state that is in complist(indices(1))
-!      write(*,*)'3F Reference state: ',iref,ceq%complist(indices(1))%phlink
-!      write(*,*)'3F Reference state: ',iref
       if(iref.eq.0 .and. ceq%complist(indices(1))%phlink.ne.0) then
 !         write(*,*)'3F Reference state: ',indices(1),indices(2),&
 !              ceq%complist(indices(1))%phlink
 ! phlink is phase, endmember is enmember, tpref<0 means current T
 ! we should also have a stoichiometry factor ??
-         endmember(1)=indices(2)
+!         endmember(1)=indices(2)
          tsave=ceq%tpval(1)
          if(ceq%complist(indices(1))%tpref(1).gt.zero) then
 ! reference state is at a fixed T, negative tpref(1) means current T
@@ -2314,11 +2576,13 @@
 !              ceq%complist(indices(1))%phlink,&
 !              ceq%complist(indices(1))%endmember
          ic=ceq%complist(indices(1))%phlink
+!         ic=phlista(ic)%alphaindex
 !         write(*,*)'3F refphase: ',indices(1),ic,phlista(indices(1))%alphaindex
 !         ic=phlista(indices(1))%alphaindex
-         ic=phlista(ic)%alphaindex
 ! the first index should be phase index, not location
-         call calcg_endmember(ic,ceq%complist(indices(1))%endmember,gref,ceq)
+! We may have to restore gval after this!!!
+!         write(*,*)'3F callcg_endmember 2: ',-ic
+         call calcg_endmember(-ic,ceq%complist(indices(1))%endmember,gref,ceq)
          if(gx%bmperr.ne.0) then
             write(*,*)'3F Error calculating refstate for chemical pot'
             goto 1000
@@ -2327,12 +2591,14 @@
          rtn=globaldata%rgas*ceq%tpval(1)
          ceq%tpval(1)=tsave
          aref=ceq%complist(indices(1))%chempot(1)
-         value=ceq%complist(indices(1))%chempot(1)-gref*rtn
-!         write(*,513)'3F gref: ',indices(1),value,aref,gref*rtn,rtn
+!         value=ceq%complist(indices(1))%chempot(1)-gref*rtn
+         value=aref-gref*rtn
+!         write(*,513)'3F gref: ',indices(1),value/rtn,aref/rtn,gref,rtn
 513      format(a,i3,5(1pe14.6))
+         ceq%complist(indices(1))%chempot(2)=value
       else
-! this value should always be referenced to SER
-! the value in chempot(2) is probably redundant now
+! the value in chempot(1) should always be referenced to SER
+! the value in chempot(2) should always be for the user reference
          value=ceq%complist(indices(1))%chempot(1)
       endif
 !      write(*,*)'3F chempot: ',indices(1),&
@@ -2361,35 +2627,93 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!-\begin{verbatim}
- subroutine state_var_value_derivative_old(svr1,svr2,value,ceq)
-! THIS SUBROUTINE MOVED TO MINIMIZER
-! subroutine state_var_value_derivative(istv,indices,iref,iunit,&
-!      istv2,indices2,iref2,iunit2,value,ceq)
-! calculates a state variable value derivative NOT IMPLEMENTED YET
-! istv and istv2 are state variable type (integer)
-! indices and indices2 are possible specifiers
-! iref and iref2 are possible reference state
-! iunit and iunit2 are units, (K, oC, J, cal etc)
-! value is calculated value
+!\begin{verbatim}
+ subroutine calc_qf(lokcs,value,ceq)
+! calculates eigenvalues of the second derivative matrix, stability function
+! lokcs is index of phase_varres
+! value calculated value returned
 ! ceq is current equilibrium
+! For ionic liquid and charged crystalline phases one should
+! calculate eigenvectors to find neutral directions.
    implicit none
-   TYPE(gtp_state_variable), pointer :: svr1,svr2
-   TYPE(gtp_equilibrium_data) :: ceq
-!   integer :: istv,iref,iunit,istv2,iref2,iunit2
-!   integer, dimension(4) :: indices,indices2
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+   integer :: lokcs
    double precision value
-!-\end{verbatim}
+!\end{verbatim}
+   integer info,nofc,nofc2,nmax,ii,jj,lokph,nsl,cc,rr,zz
+   double precision, allocatable :: d2g(:),eigenv(:),work(:)
+   double precision dummy(1,1)
+   integer, allocatable :: skip(:)
+! number of constituents
+! ignore sublattices with single constituents ....
+   nofc=size(ceq%phase_varres(lokcs)%yfr)
+   lokph=ceq%phase_varres(lokcs)%phlink
+   nsl=phlista(lokph)%noofsubl
+   allocate(skip(nsl+1))
+   info=1
+   nmax=0
+   do ii=1,nsl
+      if(phlista(lokph)%nooffr(ii).eq.1) then
+         nmax=nmax+1
+         skip(nmax)=info
+!         write(*,*)'QF skipping column/row ',info
+      endif
+      info=info+phlista(lokph)%nooffr(ii)
+   enddo
+   if(nmax.eq.nsl) then
+! phase has no variable composition
+      value=one
+      goto 1000
+   endif
+   skip(nmax+1)=phlista(lokph)%tnooffr+1
+!   write(*,*)'QF dimension: ',nofc,nmax
+   nofc=nofc-nmax
+   nofc2=nofc*(nofc+1)/2
+   allocate(d2g(nofc2))
+   allocate(eigenv(nofc))
+   allocate(work(3*nofc))
+   nsl=1
+   cc=0
+   rr=0
+   row: do ii=1,nofc+nmax
+      if(ii.eq.skip(nsl)) then
+! skip this column
+         nsl=nsl+1
+         cycle row
+      endif
+      cc=cc+1
+      rr=cc-1
+      column: do jj=ii,nofc+nmax
+         do zz=1,nmax
+            if(jj.eq.skip(zz)) cycle column
+         enddo
+         rr=rr+1
+!         write(*,17)'QF assigning ',ii,jj,' to ',cc,rr
+!17       format(a,2i4,a,2i4)
+         d2g(ixsym(cc,rr))=ceq%phase_varres(lokcs)%d2gval(ixsym(ii,jj),1)
+      enddo column
+   enddo row
 !
-   value=zero
-   write(*,17)svr1%statevarid,svr1%argtyp,svr2%statevarid,svr2%argtyp
-17 format('3F: state_var_value_derivative: ',10i4)
-! this must be calculated in the minimizer
-!   call meq_state_var_value_derivative(svr1,svr2,value,ceq)
-   gx%bmperr=4078
+!-------------------------------------------------------------------
+! uncomment the call to dspev in order to make Q work
+! AND link to LAPACK
+!-------------------------------------------------------------------
+! use LAPACK routine, note d2g is destroyed inside dspev
+!   write(*,*)'LAPACK routine DSPEV not implemented'
+   call dspev('N','U',nofc,d2g,eigenv,dummy,1,work,info)
+!   info=-1000
+   if(info.eq.0) then
+!      write(*,120)(eigenv(ii),ii=1,nofc)
+!120   format('Eigenvalues: ',6(1pe10.2))
+! return the most negative value
+      value=eigenv(1)
+   else
+      write(*,*)'Error calculating eigenvalues of phase matrix',info
+      gx%bmperr=4321
+   endif
 1000 continue
    return
- end subroutine state_var_value_derivative_old
+ end subroutine calc_qf
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -2398,14 +2722,18 @@
 ! Calculate the user defined reference state for extensive properties
 ! kstv is the typde of property: 1 U, 2 S, 3 V, 4 H, 5 A, 6 G
 ! It can be phase specific (iph.ne.0) or global (iph=0)
+! IMPORTANT
+! For integral quantitites (like calculated here) the reference state
+! is ignored unless all components have the same phase as reference (like Hmix)
    implicit none
    integer kstv,iph,ics
    double precision aref
    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
+! BIG BUG, the values of %gval is not restored!!
 ! kstv=1  2  3  4  5  6 other values cared for elsewhere
 !      U  S  V  H  A  G
-   integer iel,phref
+   integer iel,phref,allcomp
    double precision gref(6),bref(6),xmol(maxel),wmass(maxel),xxx(6)
    double precision tmol,tmass,bmult
 !
@@ -2419,12 +2747,37 @@
    bref=zero
    gref=zero
    xxx=zero
+   allcomp=0
 ! loop for all components to extract the value of their reference states
 ! Multiply that with the overall composition (iph=0) or the phase composition
    xmol=zero
    do iel=1,noofel
 ! this is the reference phase for component iel
       phref=ceq%complist(iel)%phlink
+      if(kstv.eq.3) then
+! added when starting to handle P as variable.  V should not depend
+! on a reference state unless all have the same phase as reference
+!         write(*,*)'3F Reference for: ',iel,phref
+! removed as we should allow different reference stated for G and H
+         if(allcomp.eq.0) then
+            if(phref.gt.0) then
+               allcomp=phref
+            else
+! at least one component has no reference phase, ignore all refernce states
+               aref=zero
+               goto 900
+            endif
+         elseif(phref.ne.allcomp) then
+! different reference phases for the components, ignore the reference state
+!            write(*,*)'3F Ignoring reference state as not same for all'
+            aref=zero
+            goto 900
+! phref is same, continue the loop
+! ignore any user defined reference state for the other components
+         endif
+      endif
+! UNFINISHED ?? For integral properties, kstv=1..
+100   continue
       if(phref.gt.0) then
 ! we should use the phase index, not location in call below
 !         write(*,*)'3F ref.ph: ',phref,phlista(phref)%alphaindex
@@ -2432,6 +2785,7 @@
 ! special endmember call that returns G, G.T, G.P, G.T.T, G.T.P and G.P.P
 !         write(*,73)'3F R state: ',iel,phref,ceq%complist(iel)%endmember
 73       format(a,2i3,2x,10i4)
+!         write(*,*)'3F callcg_endmember 3: ',phref
          call calcg_endmember6(phref,ceq%complist(iel)%endmember,gref,ceq)
          if(gx%bmperr.ne.0) then
             write(*,*)'3F Error return: ',gx%bmperr
@@ -2478,6 +2832,7 @@
 ! G
       aref=bref(1)
    endif
+900 continue
 !   write(*,75)kstv,aref
 75 format('3F ref:',i3,6(1pe12.4))
 1000 continue
@@ -2486,36 +2841,179 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\begin{verbatim} -
+ subroutine calculate_reference_state_old(kstv,iph,ics,aref,ceq)
+! Calculate the user defined reference state for extensive properties
+! kstv is the typde of property: 1 U, 2 S, 3 V, 4 H, 5 A, 6 G
+! It can be phase specific (iph.ne.0) or global (iph=0)
+! IMPORTANT
+! For integral quantitites (like calculated here) the reference state
+! is ignored unless all components have the same phase as reference (like Hmix)
+   implicit none
+   integer kstv,iph,ics
+   double precision aref
+   type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+! BIG BUG, the values of %gval is not restored!!
+! kstv=1  2  3  4  5  6 other values cared for elsewhere
+!      U  S  V  H  A  G
+   integer iel,phref,allcomp
+   double precision gref(6),bref(6),xmol(maxel),wmass(maxel),xxx(6)
+   double precision tmol,tmass,bmult
+!
+!   write(*,*)'Reference states not implemented yet'; goto 1000
+!   write(*,*)'3F reference state:',kstv,iph,ics
+   if(kstv.lt.1 .or. kstv.gt.6) then
+!      write(*,*)'3F No reference state for kstv: ',kstv
+      goto 1000
+   endif
+   aref=zero
+   bref=zero
+   gref=zero
+   xxx=zero
+   allcomp=0
+! loop for all components to extract the value of their reference states
+! Multiply that with the overall composition (iph=0) or the phase composition
+   xmol=zero
+   do iel=1,noofel
+! this is the reference phase for component iel
+      phref=ceq%complist(iel)%phlink
+!      write(*,*)'3F Reference for: ',iel,phref
+! added when starting to handle P as variable.  V should not depend
+! on a reference state unless all have the same phase as reference
+      if(allcomp.eq.0) then
+         if(phref.gt.0) then
+            allcomp=phref
+!            write(*,*)'3F Setting allcomp: ',allcomp
+         else
+! at least one component has no reference phase, ignore all refernce states
+            aref=zero
+            goto 900
+         endif
+      elseif(phref.ne.allcomp) then
+! different reference phases for the components, ignore the reference state
+!         writing(*,*)'3F Ignoring reference state as not same for all'
+         aref=zero
+         goto 900
+!      else
+! phref is same, continue the loop
+! ignore any user defined reference state for the other components
+      endif
+! UNFINISHED ?? For integral properties, kstv=1..
+      if(phref.gt.0) then
+! we should use the phase index, not location in call below
+!         write(*,*)'3F ref.ph: ',phref,phlista(phref)%alphaindex
+         phref=phlista(phref)%alphaindex
+! special endmember call that returns G, G.T, G.P, G.T.T, G.T.P and G.P.P
+!         write(*,73)'3F R state: ',iel,phref,ceq%complist(iel)%endmember
+73       format(a,2i3,2x,10i4)
+!         write(*,*)'3F callcg_endmember 3: ',phref
+         call calcg_endmember6(phref,ceq%complist(iel)%endmember,gref,ceq)
+         if(gx%bmperr.ne.0) then
+            write(*,*)'3F Error return: ',gx%bmperr
+            goto 1000
+         endif
+         if(iph.gt.0) then
+! multiply with mole fractions of phase iph,ics
+            call calc_phase_molmass(iph,ics,xmol,wmass,tmol,tmass,bmult,ceq)
+         else
+! multiply with overall mole fractions
+            call calc_molmass(xmol,wmass,tmol,tmass,ceq)
+         endif
+! note xxx, bref and gref are arrays
+         xxx=bref+xmol(iel)*gref
+!         write(*,70)'3F rs: ',bref,gref,xxx,(xmol(ij),ij=1,noofel)
+70       format(a,6(1pe12.4)/,2(7x,6e12.4/),8(0pF8.4))
+         bref=xxx
+      else
+! this is not really needed, it is bref that is used below
+         gref=zero
+      endif
+   enddo
+! calculate the correct correction depending on kstv
+   if(kstv.eq.1) then
+! U = G - T*G.T - P*G.P
+      aref=bref(1)-ceq%tpval(1)*bref(2)-ceq%tpval(2)*bref(3)
+   elseif(kstv.eq.2) then
+! S = - G.T
+      aref=-bref(2)
+      
+   elseif(kstv.eq.3) then
+! V
+      aref=bref(3)
+      
+   elseif(kstv.eq.4) then
+! H = G - T*G.T
+      aref=bref(1)-ceq%tpval(1)*bref(2)
+      
+   elseif(kstv.eq.5) then
+! A = G - P*G.P
+      aref=bref(1)-ceq%tpval(2)*bref(3)
+      
+   elseif(kstv.eq.6) then
+! G
+      aref=bref(1)
+   endif
+900 continue
+!   write(*,75)kstv,aref
+75 format('3F ref:',i3,6(1pe12.4))
+1000 continue
+   return
+ end subroutine calculate_reference_state_old
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
  subroutine sortinphtup(n,m,xx)
+! subroutine sortinphtup(n,m,xx,ceq)
 ! subroutine to sort the values in xx which are in phase and compset order
 ! in phase tuple order.  This is needed by the TQ interface
 ! The number of values belonging to the phase is m (for example composition)
+! argument ceq added as new composition sets can be created ...
    integer n,m
-   double precision xx(n*m)
+!   double precision xx(n*m)
+   double precision xx(*)
+!   type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
 !
    integer iz,jz,kz,lz,lokph,aha
    double precision, dimension(:), allocatable :: dum
 ! I assume the values are NP(*), maybe there are other cases ...
-   allocate(dum(n*m))
+! Karl had overflow error in dum ... no problem to make it a little larger
+! but then I cannot set xx=dum below ...
+   allocate(dum(n*m+10))
+!   write(*,*)'3F corrected sortinphtup',n,m
+!   write(*,10)'3F in: ',(xx(iz),iz=1,n*m)
+10 format(a,10(f7.4))
    kz=0
    do iz=1,noofph
       lokph=phases(iz)
-      do jz=1,noofcs(lokph)
+      do jz=1,phlista(lokph)%noofcs
+!         if(jz.gt.1) then
 ! in xx the values are sequentially for all composition sets for this phase
 ! But they should be stored in tuple order and compset 2 etc comes at the end
 ! the index to the tuple is in %phtups
 ! phlista(lokph)%linktocs(jz) is index of phase_varres record for compset
 ! firsteq%phase_varres(..)%phtupx is index of phase tuple for compset
 ! There can be m values (for example compositions) for each phase
+! BUG FIXED: Sigli example gives hard error here
+! index '0' of array 'firsteq' below lower boundary of 1
          aha=(firsteq%phase_varres(phlista(lokph)%linktocs(jz))%phtupx-1)*m
+!         if(aha.ne.kz) then
+!            write(*,*)'3F shifting from, to, values: ',kz,aha,m
+!         endif
          do lz=1,m
             dum(aha+lz)=xx(kz+lz)
          enddo
          kz=kz+m
       enddo
    enddo
-   xx=dum
+!   xx=dum
+   do iz=1,n*m
+      xx(iz)=dum(iz)
+   enddo
    deallocate(dum)
+!   write(*,10)'3F ut: ',(xx(iz),iz=1,n*m)
 1000 continue
    return
  end subroutine sortinphtup
@@ -2531,12 +3029,14 @@
    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim} %+
    integer, parameter :: npfs=20
-   integer ks,maxsym,ipos,jt,js,kdot,nsymb
+   integer ks,maxsym,ipos,jt,js,kdot,nsymb,allowch
    character name2*16,pfsym(npfs)*60,string*128,pfsymdenom*60
 !   integer istv(npfs),indstv(4,npfs),iref(npfs),iunit(npfs),lokv(npfs)
    integer iarr(10,npfs),lokv(npfs)
+! memory leak
+   type(gtp_state_variable), target :: svrvar
    type(gtp_state_variable), pointer :: svr
-   type(putfun_node), pointer :: lrot
+   type(putfun_node), pointer :: lrot,datanod
 !    
 ! maxsym is negative to allow the user to enter abs(maxs) symbols
 ! pfsym are the entered symbols
@@ -2547,6 +3047,9 @@
 17 format(a,i3,2x,a,i3)
    call gparc('Symbol name: ',cline,last,ichar('='),name2,' ',q1help)
    call capson(name2)
+   if(name2(1:1).eq.' ') then
+      gx%bmperr=4137; goto 1000
+   endif
 !   write(*,*)'3F enter_svfun: ',last,name2,':',cline(1:10)
    if(.not.proper_symbol_name(name2,0)) goto 1000
    do ks=1,nsvfun
@@ -2554,13 +3057,15 @@
          gx%bmperr=4136; goto 1000
       endif
    enddo
+! added allowch to handle symbols including & and #
+   allowch=1
 ! TO BE IMPLEMENTED: enter symbols with dummy arguments like CP(@P1)=HM(@P1).T
 ! where @Pi is a phase, @Ci is a component and @Si is a species
 ! these dummy variables must be defined in symbol name ?? why ?? maybe not
    call gparc('Expression, end with ";" :',cline,last,6,string,';',q1help)
    maxsym=-npfs
    ipos=1
-   call putfun(string,ipos,maxsym,pfsym,lokv,lrot,nsymb)
+   call putfun(string,ipos,maxsym,pfsym,lokv,lrot,allowch,nsymb)
    if(pfnerr.ne.0) then
       pfnerr=0; gx%bmperr=4134; goto 1000
    endif
@@ -2569,10 +3074,11 @@
 ! like Curie temperature etc.  The symbols are in pfsym(1..nsymb)
 !
 !   write(*,11)nsymb,(pfsym(js)(1:len_trim(pfsym(js))),js=1,nsymb)
-11 format('3F: args ',i2,': ',10(1x,a,','))
+11 format('3F args: ',i2,': ',10(1x,a,','))
 ! identify symbols as state variables, if derivative there is a dot
    iarr=0
    jt=0
+   svr=>svrvar
    do js=1,nsymb
       kdot=index(pfsym(js),'.')
       if(kdot.gt.0) then
@@ -2580,8 +3086,8 @@
 !         write(*,*)'3F Found dot derivative: ',kdot,pfsym(js)
 ! Only allow a single symbol in this case!!!
          if(nsymb.gt.1) then
-            write(*,*)'3F Only a single symbol allowed!'
-            gx%bmperr=7777; goto 1000
+!            write(*,*)'3F Only a single symbol allowed!'
+            gx%bmperr=4320; goto 1000
          endif
          jt=1
 ! denominator, variable after . for with the derivative is taken
@@ -2621,8 +3127,7 @@
             gx%bmperr=0
             do ks=1,nsvfun
                if(pfsym(js).eq.svflista(ks)%name) then
-!                  write(*,*)'3F found other function: ',&
-!                       pfsym(js)(1:len_trim(pfsym(js)))
+!                  write(*,*)'3F found another function: ',trim(pfsym(js))
                   iarr(1,js)=-ks
                   goto 390
                endif
@@ -2631,10 +3136,17 @@
                  pfsym(js)(1:len_trim(pfsym(js))),'"'
             gx%bmperr=4135; goto 1000
          else
-!            write(*,*)'3F decoded 1: ',pfsym(js)
-!            write(*,*)'3F decoded 2: ',svr%statev
+! This can be a parameter identifier like mobility: mq&fe(fcc)
+!            write(*,*)'3F decoded 1: ',trim(pfsym(js)),svr%oldstv
+!            write(*,*)'3F decoded 2: ',svr%statevarid
+! to avoid confusing this with another function index subtract 1000
 ! Store in the old way in iarr
-            iarr(1,js)=svr%oldstv
+!            iarr(1,js)=svr%oldstv-1000
+            if(svr%oldstv.lt.0) then
+               iarr(1,js)=svr%oldstv-1000
+            else
+               iarr(1,js)=svr%oldstv
+            endif
             iarr(2,js)=svr%norm
             iarr(3,js)=svr%unit
             iarr(4,js)=svr%phref
@@ -2650,11 +3162,47 @@
 ! for derivatives two iarr arrays
 ! Found bug in store_putfun if just a variable entered, coefficient set to 0.0
    call store_putfun(name2,lrot,nsymb+jt,iarr)
+   if(nsymb.eq.0) then
+! this is just a constant numeric value ... store it locally
+      if(.not.associated(lrot%left) .and. .not.associated(lrot%left)) then
+!         write(*,*)'3F just a constant!!'
+! set bit to allow change the value but do not allow R to be changed
+         if(nsvfun.gt.3) then
+            svflista(nsvfun)%status=ibset(svflista(nsvfun)%status,SVCONST)
+         endif
+      endif
+   endif
 1000 continue
+! possible memory leak
+   nullify(svr)
    return
  end subroutine enter_svfun
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim} %-
+ subroutine set_putfun_constant(svfix,value)
+! changes the value of a putfun constant
+! svfix is index, value is new value
+   implicit none
+   integer svfix
+   double precision value
+!\end{verbatim} %+
+   type(putfun_node), pointer :: lrot
+   if(.not.btest(svflista(svfix)%status,SVCONST)) then
+      write(*,*)'Symbol is not a constant'
+      gx%bmperr=4323
+   else
+      lrot=>svflista(svfix)%linkpnode
+      write(*,*)'3F current and new: ',lrot%value,value
+      lrot%value=value
+   endif
+1000 continue
+   return
+ end subroutine set_putfun_constant
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
 !\begin{verbatim} %-
  subroutine store_putfun(name,lrot,nsymb,iarr)
 ! enter an expression of state variables with name name with address lrot
@@ -2664,10 +3212,10 @@
    implicit none
    character name*(*)
    type(putfun_node), pointer :: lrot
-   integer nsymb,idot
+   integer nsymb
    integer iarr(10,*)
 !\end{verbatim} %+
-   integer jf,jg
+   integer jf,jg,idot
 !   write(*,*)'3F: store_putfun ',nsvfun
    nsvfun=nsvfun+1
    if(nsymb.gt.0) then
@@ -2759,10 +3307,11 @@
 !\end{verbatim} %+
 ! name must be in UPPER CASE and exact match required
    do lrot=1,nsvfun
+!      write(*,*)'3F find_svfun: ',name,svflista(lrot)%name,lrot
       if(name.eq.svflista(lrot)%name) goto 500
    enddo
-   write(*,*)'3F No such symbol: ',name
-   gx%bmperr=8888; goto 1000
+   write(*,*)'3F No such state variable: ',name
+   gx%bmperr=4188; goto 1000
 !
 500 continue
 ! nothing more to do!
@@ -2782,9 +3331,10 @@
 !\end{verbatim}
 ! copied svflista(lrot)%formal_arguments(2..5,jt) to indices as gfortran error
 !   integer indstv(4)
+   type(gtp_state_variable), target :: svr2
    type(gtp_state_variable), pointer :: svr
    character symbols(20)*32,afterdot*32
-   integer js,jt,ip,istv,kl
+   integer js,jt,ip,istv,kl,mm
 !    write(*,*)'3F list_svfun 1:',svflista(lrot)%narg
    if(lrot.le.0 .or. lrot.gt.nsvfun) then
       gx%bmperr=4140; goto 1000
@@ -2798,13 +3348,24 @@
       ip=1
       symbols(js)=' '
       istv=svflista(lrot)%formal_arguments(1,jt)
-      if(istv.lt.0) then
-! function refer to another function
+!      write(*,*)'3F list_svfun: ',istv,js,jt
+      if(istv.gt.-1000 .and. istv.lt.0) then
+! istv<-1000 means this is a parameter property identifier
+! function refer to another function (assuming never to have 1000 symbols ...
          symbols(js)=svflista(-istv)%name
       else
 ! the 1:10 was a new bug discovered in GNU fortran 4.7 and later
+         svr=>svr2
          call make_stvrec(svr,svflista(lrot)%formal_arguments(1:10,jt))
+         if(gx%bmperr.ne.0) then
+            write(*,*)'3F failed creating state variable record'
+            goto 1000
+         endif
          call encode_state_variable(symbols(js),ip,svr,ceq)
+         if(gx%bmperr.ne.0) then
+            write(*,*)'3F failed encode state variable'
+            goto 1000
+         endif
          if(svflista(lrot)%formal_arguments(10,jt).ne.0) then
 ! a derivative!!!
 !            write(*,111)'3F A dot derivative of ',js,jt,symbols(js)
@@ -2812,10 +3373,12 @@
             jt=jt+1
             afterdot=' '
             ip=1
+            svr=>svr2
             call make_stvrec(svr,svflista(lrot)%formal_arguments(1:10,jt))
             call encode_state_variable(afterdot,ip,svr,ceq)
 !            write(*,111)'3F wrt state variable  ',js,jt,afterdot
-            symbols(js)=symbols(js)(1:len_trim(symbols(js)))//'.'//afterdot
+!            symbols(js)=symbols(js)(1:len_trim(symbols(js)))//'.'//afterdot
+            symbols(js)=trim(symbols(js))//'.'//afterdot
 !            write(*,111)'3F alltogether ',js,jt,symbols(js)
          endif
       endif
@@ -2824,6 +3387,8 @@
    kl=len_trim(svflista(lrot)%name)
    text(ipos:ipos+kl+1)=svflista(lrot)%name(1:kl)//'= '
    ipos=ipos+kl+2
+!   write(*,502)'3F wrtfun: ',jt,(trim(symbols(mm)),mm=1,jt)
+502 format(a,i3,10(' "',a,'", '))
    call wrtfun(text,ipos,svflista(lrot)%linkpnode,symbols)
 ! where is pfnerr defined??
    if(pfnerr.ne.0) then
@@ -2846,13 +3411,22 @@
    type(gtp_state_variable), pointer :: svr
    integer iarr(10)
 !\end{verbatim}
-   integer jt,norm
+   integer jt,norm,currid
 !
-   allocate(svr)
-   if(iarr(1).lt.10) then
+! memory leak
+!   allocate(svr)
+   if(iarr(1).lt.-1000) then
+! Handling of parameter property symbols like TC, BMAGN etc
+! NOTE inside symbols  -1000 used to separate from other symbols 
+      currid=iarr(1)+1000
+      svr%statevarid=currid
+   elseif(iarr(1).le.0) then
+      write(*,*)'3F illegal argument to make_stvrec: ',iarr(1)
+   elseif(iarr(1).lt.10) then
 ! This is T, P, MU, AC, LNAC
 !         1  2  3   4   5
       svr%statevarid=iarr(1)
+      currid=iarr(1)
    else
 ! This is U, S, V, H, A,  G,  NP, BP, DG, Q,   N,  X,  B,  W,  Y   symbol
 !         6  7  8  9  10, 11, 12, 13, 14, 15,  16, 17, 18, 19. 20   new code
@@ -2864,12 +3438,13 @@
       if(jt.eq.16 .and. norm.eq.1) jt=17
       if(jt.eq.18 .and. norm.eq.2) jt=19
       svr%statevarid=jt
+      currid=iarr(1)
 !      write(*,*)'3F make: ',iarr(1),jt
    endif
 !   write(*,11)iarr
 11 format('3F Arguments: ',10i5)
-! Not implemented handling of property symbols like TC, BMAGN etc
-   svr%oldstv=iarr(1)
+!   svr%oldstv=iarr(1)
+   svr%oldstv=currid
    svr%norm=iarr(2)
    svr%unit=iarr(3)
    svr%phref=iarr(4)
@@ -2914,7 +3489,7 @@
  subroutine evaluate_all_svfun_old(kou,ceq)
 ! THIS SUBROUTINE MOVED TO MINIMIZER but kept for initiallizing
 ! cannot be used for state variable functions that are derivatives ...
-! evaluate and list values of all functions
+! evaluate and list values of all functions but it is still used somewhere
    implicit none
    integer kou
    TYPE(gtp_equilibrium_data), pointer :: ceq
@@ -2950,10 +3525,12 @@
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
    double precision argval(20)
-   type(gtp_state_variable), pointer :: svr,svr2
+   type(gtp_state_variable), target :: svr2
+   type(gtp_state_variable), pointer :: svr
    integer jv,jt,istv,ieq
    double precision value
    argval=zero
+   value=zero
 !    write(*,*)'3F evaluate_svfun ',lrot,svflista(lrot)%narg,svflista(lrot)%name
 ! locate function
    if(lrot.le.0 .or. lrot.gt.nsvfun) then
@@ -2977,6 +3554,7 @@
 !          write(*,*)'3F evaluate_svfun symbol',ieq,value
       else
 ! the 1:10 was a new bug discovered in GNU fortran 4.7 and later
+         svr=>svr2
          call make_stvrec(svr,svflista(lrot)%formal_arguments(1:10,jt))
          if(gx%bmperr.ne.0) goto 1000
          if(svflista(lrot)%formal_arguments(10,jt).eq.0) then
@@ -3032,10 +3610,10 @@
       endif
    endif modeval
 ! save value in current equilibrium
-!   write(*,*)'3F eval_svfun: ',lrot,value,size(ceq%svfunres)
-   ceq%svfunres(lrot)=value
-   evaluate_svfun_old=value
+   if(lrot.gt.0) ceq%svfunres(lrot)=value
 1000 continue
+!   write(*,*)'3F eval_svfun: ',lrot,value,size(ceq%svfunres)
+   evaluate_svfun_old=value
    return
  end function evaluate_svfun_old
 

@@ -23,6 +23,15 @@ MODULE METLIB
 !
 ! Error codes (buperr)
 !  1001 Too small stack for sorting integers
+!  1002 Too small workspace
+!  1003 Pointer outside workspace
+!  1004 Free areas not in increasing order
+!  1005 Too small or too big free area
+!  1006 No space available
+!  1007 Free workspace destroyed
+!  1008 Attempt to reserve one word or less
+!  1009 Released area inside free area
+!  1010 Too large character or real arrays in LOADC/STORC or LOADRN/STORRN
 !  1030  NO SUCH TYPE OPTION
 !  1031 Empty line, expected number
 !  1032  PARAMETER VALUE MISSING
@@ -87,6 +96,8 @@ MODULE METLIB
 !    COMMON/TCMACRO/IUL,IUN(5),MACEXT
     integer, private :: IUL,IUN(5)
     character MACEXT*3
+! nbpw is number if bytes per INTEGER
+    integer, parameter :: nbpw=4,nwpr=2
     parameter (MACEXT='OCM')
 !    parameter (MACEXT='BMM')
 !
@@ -144,6 +155,8 @@ CONTAINS
 ! subroutines and functions
 ! UCLETTER TRUE if letter is letter is apper case A-Z
 ! CAPSON   coverts a text to upper case
+! SORTRD   sorts an array or double reals in ascending order
+! SORTDD   sorts an array or double reals in ascending order
 ! SORTIN   sorts an array of integers
 ! GETREL   extract a double number from a text
 ! GETRELS  extract a double number from a text
@@ -154,48 +167,118 @@ CONTAINS
 ! BIGLET   converts a letter to upper case
 ! EOLCH    TRUE if text is empty
 ! GETNAME  extracts a name with characters
-! IXSYM    index of a symmetric array
+! IXSYM    index of a symmetric array stored as a single array
 ! WRICE    writes a text over several lines
+! WRICE2   writes a text over several lines
 ! CWRICEND finds the place to insert newlines in a text
-!      NGPSBS  Substitutes symbols with values
-!      NGHELP  Standard HELP command
-!      NGOPFI  Opens help file
-!      FILDOC  Routine to read documentation of a command from file
-!      FILHLP  Routine to read help text for a question from a file
-!      FILINF  Routine for the INFORMATION command
-!      NGGOTO  Standard check of a GOTO command
-!      GPAROP  Input of options
-!      NXTRCT  Checks if the next nonblank character is one of a given set
-!      NCOMP   Command interpreter.
-!      NGHIST  Executes a history command
-!      LABBR   Comparares an abbreviation to a full name
-!      GPARQ   Routine to give information before prompting
-!      GPARL   Routine to ask for multi-line input
-!      GPARLD  Routine to ask for multi-line input with default value
-!      GPARI   Routine to ask for an integer value from a string.
-!      GPARID  Same as GPARI but default value is given also.
-!      GPARR   Routine to ask for a real     value from a string.
-!      GPARRD  Same as GPARR but default value is given also.
-!      GPARC   Routine to ask for a string   value from a string.
-!      GPARCD  Same as GPARC but default value is given also.
-!      GETEXT  Extracts a text from a character string.
-!      GETINM  Decodes an integer from a string and skipps a final ,.
-!      GETREM  Decodes a real     from a string and skipps a final ,.
-!      GETINT  Decodes an integer from a string.
-!      GETOCT  Decodes an octal value without sign from a string
-!      GETHEX  Decodes a hexadecimal value without sign from a string
-!      NOHELP  Default help routine.
-!      TOPHLP  Help routine that forces return to calling program on ?
-!      FISEPA  Finds the first character not a digit, letter or _
-!      WRIHEX  Edits a hexadecimal number into a string.
-!      SSORT   SORTS A CHARACTER ARRAY WITHOUT MOVING DATA
-!      FDMTP   Extracts a sequence surrounded by parenthesis
-!      YESCHK  Returns TRUE if argument is Y or y
-!      KNDEX   As INDEX but starts from a given position
-!      CPSSTR  Compress tabs and multiple spaces in a string to a single space
-!      UNTAB   Replace all tab characters in a string with spaces
-!
-  
+! NGPSBS  Substitutes symbols with values
+! NGHELP  Standard HELP command
+! NGOPFI  writes an error message
+! FILDOC  Routine to read documentation of a command from file
+! FILHLP  Routine to read help text for a question from a file
+! FILINF  Routine for the INFORMATION command
+! NGGOTO  Standard check of a GOTO command
+! GPAROP  Input of options
+! NXTRCT  Checks if the next nonblank character is one of a given set
+! NCOMP   Command interpreter accepting abbreviations
+! NGHIST  Executes a history command
+! LABBR   Comparares an abbreviation to a full name
+! GPARQ   Routine to give information before prompting
+! GPARLD  Routine to ask for multi-line input with default value
+! GPARL   (extry) Routine to ask for multi-line input
+! GQARID  Same as GPARI but default value is given also.
+! GQARI   Routine to ask for an integer value from a string.
+! GQARRD  Same as GPARR but default value is given also.
+! GQARR   Routine to ask for a real     value from a string.
+! GQARCD  Same as GPARC but default value is given also.
+! GQARC   Routine to ask for a string   value from a string.
+! SET_ECHO set echo of commands
+! GETEXT  Extracts a text from a character string.
+! GETINM  Decodes an integer from a string and skipps a final ,.
+! GETREM  Decodes a real     from a string and skipps a final ,.
+! GETINT  Decodes an integer from a string.
+! GETOCT  Decodes an octal value without sign from a string
+! GETHEX  Decodes a hexadecimal value without sign from a string
+! NOHELP  Default help routine.
+! TOPHLP  Help routine that forces return to calling program on ?
+! FISEPA  Finds the first character not a digit, letter or _
+! WRIHEX  Edits a hexadecimal number into a string.
+! SSORT   SORTS A CHARACTER ARRAY WITHOUT MOVING DATA
+! FDMTP   Extracts a sequence surrounded by parenthesis
+! YESCHK  Returns TRUE if argument is Y or y
+! KNDEX   As INDEX but starts from a given position
+! CPSSTR  Compress tabs and multiple spaces in a string to a single space
+! UNTAB   Replace all tab characters in a string with spaces
+! GPARID calls GQARID after replacing environment variables
+! GPARI  calls GQARI after replacing environment variables
+! GPARR  calls GQARR after replacing environment variables
+! GPARRD calls GQARRD
+! GPARC  calls GQARC
+! GPARCD  calls GQARCD
+! openlogfile opens a log file 
+! GPTCM1 handles macro directives
+! GQEXENV exchanges macro variables with actual values
+! MACBEG starts a macro
+! TESTB, setb clrb obsolete, use btest etc
+! BOUTXT writes a promt
+! BINTXT read a command line
+! IONOFF sets ionoff to zero
+! COMND  stop
+! TCQFFB stop
+! FXDFLT add a file extention if none
+! GPARFD stop
+! INIIO  sets default io routine units
+! PUTFUN enters a function as a binary tree
+! NYBIN  creates a binary bode in symbol tree
+! NYUNI  creates a unary node
+! NYLP   handles an opening parenthesis in a function
+! NYRP   handles a closing parenthesis in a function
+! NYVAR  handles a symbol in a function
+! NYDAT  insets a data node
+! EVALF  evaluates a function stored as a binary tree
+! EUNARY evaluates a unary node
+! EBINRY evaluates a binary node
+! AIVAN  Evaluates IVANTSSOV's solution of error function
+! PF_BSUM calculates a sum
+! PF_HS  calculates Heaviside function
+! PF_ERF calculates the error function
+! WRTFUN writes a function stored as a binary tree
+! WRTLPQ writes an opening parenthesis
+! WRTRPQ writes a closing parenthesis
+! WRTBIQ writes a binary operator
+! WRTDAQ writes a numeric value
+! DELFUN deletes a function (not implemented??)
+! CONS   concatinates two characters (unused??)
+! GZRFUN interactive input of a function
+! EXPHLP help text for entering function
+! PUTPRP creates a prompt for a function including variables
+! HPCALC HP calculator
+! HPHLP  some help using the HP calculator
+! init_help initiates help for OC
+! helplevel1 reset helplevel to 1
+! q2help  help for submenus
+! q1help  help for questions
+! q3help  help in submenues
+! winit   initates integer workspace
+! wold    read a file to workspace
+! wsave   write workspace to file
+! wpatch  interactive patching a workspace
+! wphelp  help for wpatch
+! wrkchk  check integrety of workspace
+! wlist   list free areas
+! wtrest  reserves the rest of a workspace
+! wtake   reserves a record in workspace
+! wrels   returns a record to workspace
+! nwch    number of words needed to store a character
+! storc   stores a character in workspace
+! loadc   extracts a character from workspace
+! storr   stores a double in workspace
+! loadr   extracts a double from workspace
+! storrn  stores an array of doubles in workspace
+! loadrn  extract an array of doubles from workspace
+! storr1  stores a double in workspace
+! loadr1  extracts a double from workspace
+! 
   LOGICAL FUNCTION ucletter(ch1)
 ! returns TRUE if the character is A to Z
     character ch1*1
@@ -981,7 +1064,6 @@ CONTAINS
     PARAMETER (MC=100)
     DIMENSION INDX(MC)
 !    EXTERNAL FILHLP
-!    INCLUDE 'metlib.inc'
     CALL GPARC('COMMAND: ',LINE,LAST,1,CMD,'*',FILHLP)
     IF(CMD(1:1).EQ.'*') THEN
 !...LIST ALL COMMANDS IN UNIX ALPHABETICAL ORDER
@@ -1037,7 +1119,6 @@ CONTAINS
 ! ====================
   SUBROUTINE FILDOC(STRING)
 !...Reads documentation of commands from a file to the terminal
-!    INCLUDE 'metlib.inc'
     CHARACTER STRING*(*)
     CHARACTER LINE*80,CH1*1,PAUSE*2
     LOGICAL EXACT
@@ -1176,7 +1257,6 @@ CONTAINS
 ! ====================
   SUBROUTINE FILINF(ILINE,LAST)
 !...EXECUTES AN INFORMATION COMMAND
-!    INCLUDE 'metlib.inc'
     CHARACTER ILINE*(*),LINE*80,SUBJCT*40,SUBDEF*7,CH1*1
 !    CHARACTER BIGLET*1
 !    EXTERNAL NOHELP
@@ -1243,7 +1323,6 @@ CONTAINS
 ! routine to execute a GOTO_MODULE command
 !========================================================
   SUBROUTINE NGGOTO(LINE,LAST,NPROG,PROGS,JUMP)
-!    INCLUDE 'metlib.inc'
 ! Compares input with given module names. Used in all module monitors.
 ! RETURNS JUMP>0 if legal program name given, otherwise JUMP<=0
     CHARACTER LINE*(*),PROG*40,PROGS(NPROG)*(*)
@@ -1304,7 +1383,6 @@ CONTAINS
 !       Note that numeric values are legal but are stored as texts also
 !       Max length is 40 characters
 ! IN OPTDEF THE DEFAULT VALUE OF THE OPTION IS STORED
-!    INCLUDE 'metlib.inc'
 !    LOGICAL EOLCH,ONCE,DV
     LOGICAL ONCE,DV
     DATA CH1/'=',':'/
@@ -1387,7 +1465,6 @@ CONTAINS
     CHARACTER*1 CHHIST,CHMAC
 !    LOGICAL EXAKT,EOLCH,YESLOG
     LOGICAL EXAKT,YESLOG
-!    INCLUDE 'metlib.inc'
 !    CHARACTER LSTCMD*40
     PARAMETER (CHSEP='_',CHSEP2='-',CHLAST='Z',CHSYS='@',CHHELP='?')
     PARAMETER (CHHIST='!',CHMAC='#')
@@ -1553,7 +1630,6 @@ CONTAINS
     CHARACTER LINE*(*),CH1*1
     LOGICAL IED
 !
-!    INCLUDE 'metlib.inc'
     CHARACTER*1 CHHIST,CHHELP,CHEDIT
     PARAMETER (CHHIST='!',CHHELP='?',CHEDIT='*')
     LAST=LAST+1
@@ -1706,7 +1782,6 @@ CONTAINS
 ! ================================
   SUBROUTINE GPARQ(PROMPT,LINE,LAST)
 !....ROUTINE TO GIVE ADDITIONAL PROMPTING BEFORE THE NORMAL QUESTION
-!    INCLUDE 'metlib.inc'
     CHARACTER PROMPT*(*),LINE*(*)
 !    LOGICAL EOLCH
     LAST=LAST+1
@@ -2059,11 +2134,15 @@ CONTAINS
 !      4 TEXT TERMINATED BY ";"
 !      5 TEXT UP TO END-OF-LINE
 !      6 TEXT UP TO AND INCLUDING ";"
+!      7 text terminated by space but if first char is ', " up to next ' or "
+!      8 text terminated by space but if first char is (, {, [ or < all text
+!             until matching ), }, ] or >. Possibly including more ( ) etc.
 !    >31, THE CHAR(JTYP) IS USED AS TERMINATING CHARACTER
     IMPLICIT DOUBLE PRECISION (A-H,O-Z)
     CHARACTER SVAR*(*),CH1*1,CH2*1,CDEF*(*),STRING*(*)
+    character*1, parameter ::  par(4)=['(','{','[','<']
+    character*1, parameter :: ipar(4)=[')','}',']','>']
 !    LOGICAL EOLCH,SG2ERR
-!    INCLUDE 'metlib.inc'
 3   IF(JTYP.LE.0) THEN
 !       CALL ST2ERR(1030,'GETEXT','NO SUCH TYPE OPTION')
        buperr=1030
@@ -2092,6 +2171,72 @@ CONTAINS
     CH1=SVAR(I:I)
 !...IF FIRST CHARACTER IS "," PUT DEFAULT VALUE IF ANY
     IF(CH1.EQ.',') GOTO 910
+! handle ITYP=7 and 8 separately
+    if(jtyp.eq.7) then
+       if(ch1.eq."'") then
+          j=index(svar(i+1:),"'")
+          if(j.eq.0) then
+! no matching ', return whole string, position after last character
+             string=svar(i:len_trim(svar))
+             last=len_trim(svar)
+             lenc=last-i
+             buperr=1032
+          else
+! return string without ', position after last '
+             string=svar(i+1:i+j-1)
+             last=i+j+1
+             lenc=j-1
+          endif
+       elseif(ch1.eq.'"') then
+          j=index(svar(i+1:),'"')
+          if(j.eq.0) then
+! no matching ", return whole string, position after last character
+             string=svar(i:len_trim(svar))
+             last=len_trim(svar)
+             lenc=last-i
+             buperr=1032
+          else
+! return string without ", position after last "
+             string=svar(i+1:i+j-1)
+             last=i+j+1
+             lenc=j-1
+          endif
+       endif
+       goto 900
+    elseif(jtyp.eq.8) then
+! check if first character is ( { or [
+       do j=1,4
+          if(ch1.eq.par(j)) goto 17
+       enddo
+       write(*,*)'no open parenthesis ',ch1
+! if not ( { [ or < continue with original code
+       goto 33
+! we must scan svar character by character until matching ipar(j)          
+17     continue
+       level=1
+       k=i
+       write(*,*)'jtyp 8, found ',par(j),', in position: ',k
+20     k=k+1
+       if(k.gt.len(svar)) goto 920
+       ch1=svar(k:k)
+       if(ch1.eq.par(j)) then
+! if we find a new ( { [ or < increase level
+          level=level+1
+       elseif(ch1.eq.ipar(j)) then
+          level=level-1
+          if(level.eq.0) then
+! we have found matching ) } ] or >
+             string=svar(i+1:k-1)
+             last=k+1
+             lenc=k-i-2
+             goto 900
+          endif
+       endif
+       goto 20
+    endif
+!-------------------------------
+! here original code continue
+33  continue
 !...FETCH THE VALUE FROM SVAR
     LAST=I
     L1=0
@@ -2125,6 +2270,7 @@ CONTAINS
        LENC=0
     ENDIF
     LAST=L1
+!
 900 RETURN
 !...SET DEFAULT VALUE
 910 IF(CDEF.NE.CNONE) THEN
@@ -2136,6 +2282,7 @@ CONTAINS
     ENDIF
 !...NO ANSWER AND NO DEFAULT VALUE, ERROR RETURN
 !920 CALL ST2ERR(1032,'GETEXT','TEXT VALUE MISSING')
+920 continue
     buperr=1032
     GOTO 900
   END SUBROUTINE GETEXT
@@ -2169,7 +2316,6 @@ CONTAINS
 !...DECODES AN INTEGER FROM A TEXT
 !      IT MAY BE PRECCEDED BY SPACES AND A + OR -
     IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-!    INCLUDE 'metlib.inc'
 !    INTEGER GPS
 !    LOGICAL EOLCH
     CHARACTER SVAR*(*)
@@ -2200,7 +2346,6 @@ CONTAINS
 ! ======================
   SUBROUTINE GETOCT(LINE,IP,IVAL)
 !...DECODE AN OCTAL NUMBER
-!    INCLUDE 'metlib.inc'
 !    LOGICAL EOLCH
     CHARACTER LINE*(*)
     IERR=0
@@ -2229,7 +2374,6 @@ CONTAINS
 ! ===========
   SUBROUTINE GETHEX(LINE,IP,IVAL)
 !...DECODE A HEXADECIMAL NUMBER
-!    INCLUDE 'metlib.inc'
 !    LOGICAL EOLCH
     CHARACTER LINE*(*),CH1*1
     IERR=0
@@ -2306,7 +2450,6 @@ CONTAINS
 ! ========================
   SUBROUTINE WRIHEX(STR,IVAL)
 !...TO WRITE AN INTEGER AS HEXADECIMAL
-!    INCLUDE 'metlib.inc'
 !    LOGICAL TESTB
     CHARACTER STR*(*)
     J=IVAL
@@ -2479,7 +2622,6 @@ CONTAINS
 !========
   SUBROUTINE GPARID(PROMT,SVAR,LAST,IVAL,IDEF,HELP)
     IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-!    INCLUDE 'metlib.inc'
     CHARACTER PROMT*(*),SVAR*(*)
     CHARACTER SLIN*512
     EXTERNAL HELP
@@ -2494,7 +2636,6 @@ CONTAINS
 !
   SUBROUTINE GPARI(PROMT,SVAR,LAST,IVAL,IDEF,HELP)
     IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-!    INCLUDE 'metlib.inc'
     CHARACTER PROMT*(*),SVAR*(*)
     CHARACTER SLIN*80
     EXTERNAL HELP
@@ -2511,7 +2652,6 @@ CONTAINS
 !
   SUBROUTINE GPARR(PROMT,SVAR,LAST,VAL,RDEF,HELP)
     IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-!    INCLUDE 'metlib.inc'
     CHARACTER PROMT*(*),SVAR*(*)
     CHARACTER SLIN*80
     EXTERNAL HELP
@@ -2528,7 +2668,6 @@ CONTAINS
 !
   SUBROUTINE GPARRD(PROMT,SVAR,LAST,VAL,RDEF,HELP)
     IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-!    INCLUDE 'metlib.inc'
     CHARACTER PROMT*(*),SVAR*(*)
     CHARACTER SLIN*80
     EXTERNAL HELP
@@ -2545,7 +2684,6 @@ CONTAINS
 !
   SUBROUTINE GPARC(PROMT,SVAR,LAST,JTYP,SVAL,CDEF,HELP)
     IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-!    INCLUDE 'metlib.inc'
     CHARACTER PROMT*(*),SVAR*(*),CDEF*(*),SVAL*(*)
     CHARACTER SLIN*80
     EXTERNAL HELP
@@ -2564,7 +2702,6 @@ CONTAINS
 !
   SUBROUTINE GPARCD(PROMT,SVAR,LAST,JTYP,SVAL,CDEF,HELP)
     IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-!    INCLUDE 'metlib.inc'
     CHARACTER PROMT*(*),SVAR*(*),CDEF*(*),SVAL*(*)
     CHARACTER SLIN*80
     EXTERNAL HELP
@@ -2611,7 +2748,6 @@ CONTAINS
   SUBROUTINE GPTCM1(IFLAG,SVAR,LAST,SLIN)
 !...handling of MACRO directives like @& @? and @# etc
     IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-!    INCLUDE 'metlib.inc'
     CHARACTER SVAR*(*),slin*(*)
     CHARACTER PP*30,CH1*1
 !    CHARACTER ENVIR(9)*60,LABEL*8,LABLIN*60,SYMBOL*60
@@ -2715,7 +2851,6 @@ CONTAINS
 !       REFERENCES ARE FOR EXAMPLE ##4
 !    CHARACTER SVAR*(*),ENVIR(*)*(*),CH1*1,LABLIN*60,LABEL*8
     CHARACTER SVAR*(*),CH1*1,LABLIN*60,LABEL*8
-!    INCLUDE 'metlib.inc'
 !    COMMON/TCMACRO/IUL,IUN(5),MACEXT
 !    CHARACTER*3 MACEXT
     CHARACTER HOLDER*200
@@ -2754,9 +2889,9 @@ CONTAINS
   SUBROUTINE MACBEG(LINE,LAST,OK)
 !....subroutine to execute set-interactive allowing nesting of macros
 !
-! addera lablar i macro så man kan ange MACRO fil LABEL
+! addera lablar i macro sa man kan ange MACRO fil LABEL
 ! och vid stop som @? eller @& man kan interaktivt ange GOTO label
-! Också en generisk subrutin som gör att man kan få fram ett variabelvärde
+! Ocksa en generisk subrutin som gor att man kan fa fram ett variabelvarde
 ! call macsymval(package,symbol,ival,rval,cval)
 !
     CHARACTER LINE*(*),MACFIL*256,FIL*256,CH1*1
@@ -2770,7 +2905,6 @@ CONTAINS
 !    character*128 binfil(3)
 !    character*128 terfil(3)
 !    EXTERNAL FILHLP
-!    INCLUDE 'metlib.inc'
     SAVE FIRST,LUN
     DATA FIRST/.TRUE./
     IF(FIRST) THEN
@@ -2787,6 +2921,7 @@ CONTAINS
 !       endif
 !    endif
 !    CALL GPARFD('Macro filename: ',LINE,LAST,1,FIL,MACFIL,USEEXT,FILHLP)
+!    write(*,*)'In MACBEG: ',trim(line),last
     CALL GPARC('Macro filename: ',LINE,LAST,1,FIL,MACFIL,nohelp)
     CALL FXDFLT(FIL,MACEXT)
 !    if (LEN_TRIM(fil).gt.0) call tcgffn(fil)
@@ -2881,8 +3016,13 @@ CONTAINS
 
   subroutine bintxt(lin,line)
     character line*(*)
-    read(lin,10)line
+    integer iostatus
+    read(lin,10,iostat=iostatus)line
 10  format(a)
+    if(iostatus.lt.0) then
+! reading beyond EOL
+       line='fin '
+    endif
     return
   end subroutine bintxt
 
@@ -2919,7 +3059,6 @@ CONTAINS
   end subroutine GPARFD
 
   subroutine iniio
-!    include 'metlib.inc'
 !    write(*,*)'iniio: ',koud,kiud,lerd
     kou=koud
     kiu=kiud
@@ -2936,12 +3075,13 @@ CONTAINS
 !
 ! MODULE PUTFUNLIB
 !
-  SUBROUTINE PUTFUN(STRING,L,MAXS,SYMBOL,LOKV,LROT,NV)
+  SUBROUTINE PUTFUN(STRING,L,MAXS,SYMBOL,LOKV,LROT,ALLOWCH,NV)
 !...READS AN EXPRESSION FROM STRING POSITION L AND CREATES AN BINARY TREE
     IMPLICIT DOUBLE PRECISION (A-H,O-Z)
     CHARACTER STRING*(*),CH*1,SYMBOL(*)*(*),MESSG*40
     PARAMETER (ZERO=0.0D0)
     DIMENSION LOKV(*)
+    integer allowch
 !    type(putfun_symlink) :: symlist
     LOGICAL NOTPP
     TYPE(putfun_node), pointer :: LROT,NYNOD,NONOD,DUMMY,dummy2
@@ -2984,7 +3124,6 @@ CONTAINS
 !      -1    Whole number (stored as real in node)
 !      0     Real constant stored in node
 !      >0    Symbol variable, INT(value) is the index ????
-!    INCLUDE 'metlib.inc'
 !..INITIERA
     PUTFUNVAR=0
     NOTPP=.TRUE.
@@ -3052,7 +3191,7 @@ CONTAINS
 ! not a number, it must be a symbol or unary operator
        L=LQ
 !       write(*,*)'PUTFUN buperror: ',l
-       CALL NYVAR(STRING,L,IOPUNI,negmark,MAXS,SYMBOL,LOKV,dummy2)
+       CALL NYVAR(STRING,L,IOPUNI,negmark,MAXS,SYMBOL,LOKV,allowch,dummy2)
        IF(pfnerr.ne.0) GOTO 900
 !       write(*,*)'After nyvar: ',iopuni,symbol(1)
        IF(IOPUNI.GT.0) THEN
@@ -3150,6 +3289,7 @@ CONTAINS
 !...INSERTS A NEW OPNODE IN THE TREE
     TYPE(putfun_node), pointer :: binnod,temp
     LOGICAL NOTPP
+    integer, parameter :: zero=0.0d0
 ! ENTRY:
 !      KOD    IS OPERATION CODE: 1 +, 2 -, 3 *, 4 /, 5 **
 ! EXIT: 
@@ -3337,7 +3477,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-  SUBROUTINE NYVAR(TEXT,L,IOPUNI,negmark,MAXS,SYMBOL,LOKV,dummy2)
+  SUBROUTINE NYVAR(TEXT,L,IOPUNI,negmark,MAXS,SYMBOL,LOKV,allowch,dummy2)
 !  SUBROUTINE NYVAR(TEXT,L,IOPUNI,negmark,MAXS,SYMBOL,LOKV,symlist)
 ! insert a symbol
     IMPLICIT DOUBLE PRECISION (A-H,O-Z)
@@ -3346,6 +3486,7 @@ CONTAINS
     PARAMETER (ZERO=0.0D0)
     LOGICAL DEL2
     DIMENSION LOKV(*)
+    integer allowch
     type(putfun_node), pointer :: dummy2
     parameter (one=1.0d0)
 !    type(putfun_symlink) :: symlist
@@ -3367,6 +3508,14 @@ CONTAINS
        IF(CH.GE.'A' .AND. CH.LE.'Z') THEN
           NAME(K:K)=CH
           K=K+1
+       ELSEIF(K.GT.1 .AND. allowch.EQ.1) THEN
+! allowch=1 means allow & and # in symbol names
+          if(ch.eq.'#' .or. ch.eq.'&') then
+             name(k:k)=ch
+             k=k+1
+          else
+             goto 200
+          endif
        ELSE
           GOTO 200
        ENDIF
@@ -3521,7 +3670,7 @@ CONTAINS
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
 
   FUNCTION EVALF(LROT,VAR)
-!      Calculates the value of an expression
+!      Calculates the value of an expression MEMORY LEAK 
 !
 ! VAR is array with values of symbols that can be referenced
     IMPLICIT DOUBLE PRECISION (A-H,O-Z)
@@ -3533,6 +3682,7 @@ CONTAINS
        type(putfun_node), pointer :: savecurrent
        type(putfun_save), pointer :: previous
     end TYPE PUTFUN_SAVE
+! these pointers are allocated creating memory leaks
     type(putfun_save), pointer :: topsave,temp
     PARAMETER (ZERO=0.0D0)
 !...If LROT<=0 there is no expression, return sero
@@ -3634,6 +3784,122 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
 
+  FUNCTION EVALF_X(LROT,VAR)
+!      Calculates the value of an expression
+!
+! VAR is array with values of symbols that can be referenced
+    IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+    DIMENSION VAR(*),STACK(20)
+    character ch1*1
+    type(putfun_node), pointer :: lrot,llink,current,mlink
+    TYPE PUTFUN_SAVE
+       integer right
+       type(putfun_node), pointer :: savecurrent
+       type(putfun_save), pointer :: previous
+    end TYPE PUTFUN_SAVE
+! memory leak allocating pointers
+!    type(putfun_save), target :: saverec
+    type(putfun_save), pointer  :: topsave,temp
+    PARAMETER (ZERO=0.0D0)
+!...If LROT<=0 there is no expression, return sero
+    IF(.not.associated(LROT)) THEN
+       STACK(1)=ZERO
+       GOTO 800
+    ENDIF
+!..INITIATE
+    LAST=0
+    LSTP=0
+    current=>LROT
+    nullify(topsave)
+!    read(*,72)ch1
+!72  format(a)
+!71  format(a,5i5,1pe16.6)
+!..New node, take is left link if any
+100 continue
+!    if(associated(current%right)) then
+!       write(*,71)'>>>> evalf 100A1: ',current%debug,current%kod,&
+!            current%left%debug,current%right%debug,current%links,current%value
+!    elseif(associated(current%left)) then
+!       write(*,71)'>>>> evalf 100A2: ',current%debug,current%kod,&
+!            current%left%debug,0,current%links,current%value
+!    else
+!       write(*,71)'>>>> evalf 100A3: ',current%debug,current%kod,&
+!            0,0,current%links,current%value
+!    endif
+! ERROR if I first set llink=>current%left and then tested llink if associated
+    if(associated(current%left)) then
+!       write(*,*)'Taking the left link and pushing current'
+       LAST=LAST+1
+       if(associated(topsave)) then
+          allocate(temp)
+          temp%previous=>topsave
+          topsave=>temp
+       else
+          allocate(topsave)
+          nullify(topsave%previous)
+       endif
+       topsave%savecurrent=>current
+!       write(*,71)'evalf 100D: ',topsave%savecurrent%debug,current%left%debug
+! mark that right link not visited
+       topsave%right=1
+       current=>current%left
+    ELSE
+!..If no left link the right link must be a data or unary negation
+       KOD=current%kod
+       LSTP=LSTP+1
+       IF(KOD.GT.0) then
+! unary operator, store the operation as a real
+          STACK(LSTP)=VAR(KOD)
+       else
+          stack(lstp)=current%value
+       endif
+!       write(*,71)'evalf 100X: ',current%debug,kod,lstp,0,0,stack(lstp)
+!..When coming here with LAST=0 the expression has been evaluated.
+!  If not check if right link of current node has been visited
+200    IF(LAST.LE.0) GOTO 800
+       current=>topsave%savecurrent
+!       write(*,71)'evalf 100YA: ',current%debug,topsave%right,current%kod
+       IF(topsave%right.gt.0) THEN
+!..Follow the right link
+          if(associated(current%right)) then
+             MLINK=>current%right
+!             write(*,71)'evalf 100YB: ',mlink%debug,mlink%kod
+!..Follow the left link of the right link but first mark that the right
+! link of current has been visited
+             topsave%right=-1
+             current=>MLINK
+!             write(*,71)'evalf 100Z: ',current%debug,current%kod,topsave%right
+             GOTO 100
+          ELSE
+!..unary operator, in some cases it can have a sign
+             CALL EUNARY(current%kod,STACK(LSTP))
+             STACK(LSTP)=current%value*STACK(LSTP)
+!             write(*,71)'evalf U: ',current%debug,current%kod,&
+!                  lstp,0,0,stack(lstp)
+          ENDIF
+       ELSE
+!..Binary operator with both left and right links evaluated
+          LSTP=LSTP-1
+!          write(*,73)'evalf B: ',current%debug,current%kod,lstp,&
+!               stack(lstp),stack(lstp+1)
+!73        format(a,3i3,2(1pe14.5))
+          CALL EBINRY(current%kod,STACK(LSTP),STACK(LSTP+1))
+       ENDIF
+       LAST=LAST-1
+       topsave=>topsave%previous
+       IF(LAST.LT.0) goto 900
+       IF(LAST.EQ.0) goto 800
+       goto 200
+    ENDIF
+!    write(*,*)'evalf 799: ',current%debug,current%kod,lstp,current%value
+    GOTO 100
+!..KLAR
+800 EVALF_X=STACK(1)
+900 RETURN
+  END FUNCTION EVALF_X
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
+
   SUBROUTINE EUNARY(KOD,X)
     IMPLICIT DOUBLE PRECISION (A-H,O-Z)
     PARAMETER (ONE=1.0D0)
@@ -3662,6 +3928,7 @@ CONTAINS
 
   SUBROUTINE EBINRY(KOD,X,Y)
     IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+    ZERO=0.0D0
     IF(KOD.EQ.1) X=X+Y
     IF(KOD.EQ.2) X=X-Y
     IF(KOD.EQ.3) X=X*Y
@@ -3715,6 +3982,7 @@ CONTAINS
     RETURN
   END FUNCTION AIVAN
 
+  FUNCTION PF_BSUM(FA)
 !.. 1993-10-06 20:10:56 /BJ
 !
 !                                 ( sin(n*pi*f) )^2  
@@ -3725,7 +3993,6 @@ CONTAINS
 !   less than ?% for 0.01 < F < 0.99
 !
 !
-  FUNCTION PF_BSUM(FA)
 !      SUBROUTINE FUNCTION BSUM
     IMPLICIT DOUBLE PRECISION(A-H,O-Z)
     PARAMETER(ZERO=0.0D+00,PI=3.14159D0)
@@ -3794,6 +4061,7 @@ CONTAINS
    CHARACTER STRING*(*),SYMBOL(*)*(*)
 !    string=' '
 !    ipos=1
+!   write(*,*)'wrtfun: ',trim(symbol(1))
 !...Quick return if no expression
     IF(.not.associated(LROT)) THEN
        CALL CONS(STRING,IPOS,'0')
@@ -4021,6 +4289,7 @@ CONTAINS
 !..a name of a variable, the name is in SYMBOL(KOD), skip trailing spaces
 ! if negated surround by ( )
 !       CALL CONS(STRING,IPOS,SYMBOL(KOD))
+!       write(*,*)'wrtdaq symbol: ',kod,trim(symbol(kod))
        if(val.lt.zero) then
           CALL CONS(STRING,IPOS,'(')
           CALL CONS(STRING,IPOS,SYMBOL(KOD))
@@ -4038,8 +4307,7 @@ CONTAINS
 !   delete a putfun expression :: not converted to structures
     IMPLICIT DOUBLE PRECISION (A-H,O-Z)
     DIMENSION IWS(*),LINK(20)
-    LOGICAL SG2ERR
-!    INCLUDE 'metlib.inc'
+!    LOGICAL SG2ERR
     NOD=LROT
     IF(NOD.LE.2 .OR. NOD.GT.IWS(2)) GOTO 800
     IF(NOD.LE.0) GOTO 900
@@ -4240,7 +4508,7 @@ CONTAINS
          OPER(33)/'_EDIT     '/,OPER(34)/'_BACK     '/, &
          OPER(35)/'_NOOP     '/,OPER(36)/'_TRACE    '/, &
          OPER(37)/'_END      '/,OPER(38)/'_RUN      '/, &
-         OPER(39)/'          '/,OPER(40)/'          '/
+         OPER(39)/'QUIT      '/,OPER(40)/'FIN       '/
 !
     WRITE(*,*)'REVERSE POLISH CALCULATOR'
     NAXOP=24
@@ -4561,7 +4829,8 @@ CONTAINS
     GOTO 100
 !...BACK
 440 WRITE(*,*)'NOT IMPLEMENTED'
-    GOTO 100
+    RETURN
+!    GOTO 100
 441 WRITE(*,401)KPROG,PROG(KPROG)
     IF(KPROG.GT.1) KPROG=KPROG-2
     OK=.FALSE.
@@ -4591,16 +4860,20 @@ CONTAINS
     ENDIF
     OK=.FALSE.
     GOTO 100
+!...QUIT
 490 CONTINUE
+    RETURN
+!...FIN
 500 CONTINUE
-    GOTO 100
+    RETURN
+!    GOTO 100
   END SUBROUTINE HPCALC
 
   SUBROUTINE HPHLP
     WRITE(*,10)
 10  FORMAT(' This is a revese polish calculator'/&
          ' Input are numbers, + - * / and ^ and OPCODEs.',&
-         ' Use HELP to list OPCODEs.'/' Several numbers an operations',&
+         ' Use HELP to list OPCODEs.'/' Several numbers and operations',&
          ' can be given on one line.'/' The content of the X register',&
          ' is displayed after each operation'//&
          ' Example input: 30000 8 1273 * / chs 1.5 3 ^ + exp 2 *'/&
@@ -4679,9 +4952,12 @@ CONTAINS
 ! This routine is called from all gparx routines 
 ! when the user types a ?
 ! prompt is never used ...
+    implicit none
     character*(*) prompt,line
-    character hline*80
-    character subsec(3)*9
+    character hline*80,mtxt*80
+    character subsec(4)*10,saved(4)*16
+    integer nsaved(4)
+    integer izz,jj,kk,kkk,level,nl,l2,np1,np2,nsub
 !
 !    write(*,*)'called on-line help',helprec%okinit
 !    if(helprec%okinit.ne.0) then
@@ -4693,16 +4969,17 @@ CONTAINS
 !    enddo
 !10  format(i3,': ',a)
 !
-    subsec(1)='\section{'
-    subsec(2)='\subsecti'
-    subsec(3)='\subsubse'
+    subsec(1)='%\section{'
+    subsec(2)='%\subsecti'
+    subsec(3)='%\subsubse'
+    subsec(4)='%\subsubsu'
     if(helprec%okinit.eq.0) then
        write(kou,*)'Sorry no help file'
        goto 1000
     endif
-! list current search path:
+! for debugging list current search path:
 !    do nl=1,helprec%level
-!       write(*,17)'Search for: ',nl,helprec%cpath(nl)(1:24)
+!       write(*,17)'Search levels: ',nl,helprec%cpath(nl)(1:24)
 !17     format(a,i3,2x,a)
 !    enddo
 !
@@ -4712,7 +4989,7 @@ CONTAINS
     np1=0
     nsub=1
     if(helprec%type.eq.'latex   ') then
-! plain LaTeX file, search for \section{' with command
+! plain LaTeX file, search for "%\section{" with command
 100    continue
        if(level.gt.helprec%level) then
           level=level-1
@@ -4723,9 +5000,8 @@ CONTAINS
 110    continue
        read(31,120,end=700)hline
 120    format(a)
+121    format('- ',a)
        nl=nl+1
-! skip comment lines
-       if(hline(1:1).eq.'%') goto 110
        kk=index(hline,subsec(nsub))
        if(nsub.gt.1) then
           izz=index(hline,subsec(nsub-1))
@@ -4733,7 +5009,7 @@ CONTAINS
           izz=0
        endif
        if(kk.gt.0) then
-!          write(*,*)'found section: ',hline(1:30)
+!          write(*,*)'found section: ',hline(1:30),nl
           call capson(hline)
 !          kk=kk+8
           kk=index(hline,'SECTION{')+8
@@ -4742,23 +5018,57 @@ CONTAINS
              np1=0
              goto 700
           endif
-! remove everything from }
+! remove everything after and including } in the help file
           jj=index(hline,'}')-1
           hline(jj+1:)=' '
-!          write(*,*)'Command: ',kk,jj,' >',hline(kk:jj),'< '
+          mtxt=hline(kk:jj)
+!127       kkk=index(mtxt,'-')
+!          if(kkk.gt.0) then
 ! NOTE that in LaTeX files the underscore _ is replaced by \_
 ! this means one will not find commands with underscore ....
-!          write(*,130)level,hline(kk:jj),helprec%cpath(level)(1:l2)
-130       format('comparing: ',i3,': ',a,' with ',a)
-          if(hline(kk:kk+l2-1).eq.helprec%cpath(level)(1:l2)) then
+!             mtxt(kkk:kkk)='_'
+!             goto 127
+!          endif
+!          write(*,*)'found mtxt: ',mtxt
+          do jj=1,4
+             if(level.gt.jj) then
+! remove previous command if any from the search text
+                kkk=nsaved(jj)
+                if(mtxt(1:kkk+1) .eq. saved(jj)(1:kkk+1)) then
+!                   write(*,*)'Removing ',mtxt(1:kkk)
+                   mtxt=mtxt(kkk+2:)
+                endif
+             endif
+          enddo
+!          write(*,130)level,mtxt(1:12),helprec%cpath(level)(1:l2),nl
+!          write(*,130)level,hline(kk:jj),helprec%cpath(level)(1:l2),nl
+130       format('comparing: ',i3,': ',a,' with ',a,' line ',i4)
+!          if(hline(kk:kk+l2-1).eq.helprec%cpath(level)(1:l2)) then
+          if(mtxt(1:12).eq.helprec%cpath(level)(1:l2)) then
 ! found one level, save line number for first line
              np1=nl
+!             write(*,*)'We found one level at line: ',np1
+             saved(level)=helprec%cpath(level)
+             nsaved(level)=len_trim(saved(level))
              np2=0
              level=level+1
-             if(index(helprec%cpath(level),' what? ').gt.0) then
-! if next "command/question" finishes with "what?" skip that
-! because it is a submenu question
+             if(level.gt.helprec%level) then
+! we have no more input from user, list the text to next %\section or %\sub...
+                level=level-1
+                goto 100
+             endif
+! look for start line of next level
+!             write(*,133)level,helprec%cpath(level)
+133          format('Next cpath: ',i3,': ',a)
+             if(index(helprec%cpath(level),'COMMAND: ').gt.0 .or. &
+                  index(helprec%cpath(level),' what? ').gt.0) then
+! if next "command/question" starts with COMMAND. or finishes with "what?" 
+! skip that because it is a submenu question and if this is
+! the last command line then just return as user interface will help
+!                write(*,*)'level and helprec%level',level,helprec%level,nsub
+                if(level.ge.helprec%level) goto 900
                 level=level+1
+                goto 100
              endif
              if(nsub.lt.3) nsub=nsub+1
              goto 100
@@ -4784,14 +5094,20 @@ CONTAINS
 ! we should write lines from np1 to np2 from help file
 700 continue
     if(np1.gt.0) then
+       if(np2.lt.np1) then
+          write(*,*)'Help text range error: ',np1,np2
+          goto 900
+       endif
 ! HERE ONE SHOULD OPEN A NEW WINDOW TO DISPLAY THE HELP TEXT BELOW, FOR EXAMPLE
 !       call displayhelp(helprec%filename,np1,np2)
+! write a blank line
+       write(kou,*)
 ! OR IF A HELP WINDOW IS ALREADY OPEN ONE SHOULD FOCUS THE TEXT IN THAT WINDOW
 ! ON LINES NP1 to NP2.
 ! IN THE HELP WINDOW THE USER SHOULD BE ABLE TO SCROLL THE WHOLE HELP TEXT
 ! AND MAYBE MAKE NEW SEACHES.  THE USER CAN CLOSE THE WINDOW WHEN HE WANTS
-       write(*,798)'OPEN HELP WINDOW TO DISPLAY HELP TEXT: ',np1,np2
-798    format(a,2i5)
+       write(*,798)np1,np2
+798    format(' >>> We should open a help window to display text: ',2i5)
        rewind(31)
        nl=0
 800    continue
@@ -4800,7 +5116,13 @@ CONTAINS
        if(nl.ge.np2) then
           goto 900
        elseif(nl.ge.np1) then
-          write(*,120)hline(1:len_trim(hline))
+! do not write lines starting with \ (backslash, ascii 92),
+! they are LaTeX commands.  Ignore all except \item
+          if(ichar(hline(1:1)).ne.92) then
+             write(*,120)hline(1:len_trim(hline))
+          elseif(hline(2:5).eq.'item') then
+             write(*,121)hline(6:len_trim(hline))
+          endif
        endif
        goto 800
     else
@@ -4883,5 +5205,609 @@ CONTAINS
     ENDIF
 900 RETURN
   END SUBROUTINE Q3HELP
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+!
+! WPACK
+!
+  SUBROUTINE WINIT(NWT,NWR,IWS)
+!...INITIATES A WORKSPACE
+! ENTRY: NWT IS THE DIMENSION OF THE WORKSPACE
+!        NWR IS THE NUMBER OF WORDS TO BE EXCLUDED IN THE BEGINNING
+!        IWS IS THE WORKSPACE
+! EXIT:  THE FREE LIST IS INITIATED IN IWS
+! ERRORS: NWR LESSER THAN ZERO
+!         NWT LESSER THAN NWR+100
+    DIMENSION IWS(*)
+    IF(NWR.LT.0) GOTO 910
+    IF(NWT.LT.NWR+100) GOTO 920
+    NWRES=NWR+3
+!...IWS(1) IS PUT TO THE FIRST FREE AREA IN THE WORKSPACE AND IWS(2)
+!      TO THE SIZE OF THE WORKSPACE. THE APPLICATION PROGRAM MUST NOT
+!      CHANGE THESE LOCATIONS!
+    IWS(1)=NWRES
+    IWS(2)=NWT
+!...PUT ALL WORDS FROM 3 TO NWRES TO ZERO
+!      THIS INCLUDES THE FIRST WORD IN THE FREE AREA
+    DO IFRI=3,NWRES
+       IWS(IFRI)=0
+    enddo
+!...THE SECOND WORD IN THE FREE AREA IS PUT THE THE NUMBER OF FREE WORDS THIS
+!      NUMBER IS NWT-NWR-(TWO WORDS IN THE BEGINNING)-(TWO WORDS IN THE END)
+    IWS(NWRES+1)=NWT-NWR-4
+900 RETURN
+910 buperr=1008
+    goto 900
+920 buperr=1002
+    GOTO 900
+  END SUBROUTINE WINIT
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+  
+  SUBROUTINE WOLD(FIL,NW,IWS)
+!...READS A FILE INTO A WORKSPACE. THE FILE MUST HAVE BEEN WRITTEN BY WSAVE
+! ENTRY: FIL A CHARACTER WITH A LEGAL FILE NAME
+!        NW THE DIMENSION OF IWS
+!        IWS THE WORKSPACE
+! CALLS: WRKCHK TO CHECK THE FREE LIST
+! EXIT:  THE CONTENT OF THE FILE IS IN IWS. THE DIMENSION OF IWS IS SET TO
+!            NW AND THE LAST FREE AREA IS CORRECTED
+    CHARACTER FIL*(*)
+    DIMENSION IWS(*)
+    OPEN(UNIT=LUN,FILE=FIL,ACCESS='SEQUENTIAL',STATUS='OLD',&
+         IOSTAT=IERR,ERR=910,FORM='UNFORMATTED')
+    READ(LUN,END=100,ERR=100)J,(IWS(K),K=1,J)
+!...CHECK THE WORKSPACE
+    CALL WRKCHK(LAST,NW,IWS)
+100 CLOSE(LUN)
+900 RETURN
+910 continue
+    GOTO 100
+  END SUBROUTINE WOLD
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+  SUBROUTINE WSAVE(FIL,NW,IWS)
+!...WRITES A WORKSPACE ON A FILE
+! ENTRY: FIL IS A CHARACTER WITH A LEGAL FILE NAME
+!        NW IS THE DIMENSION OF THE WORKSPACE
+!        IWS IS THE WORKSPACE
+! CALLS: WRKCHK TO CHECK THE WORKSPACE
+! ERROR: IF THE WORKSPACE IS INCORRECT IT CANNOT BE SAVED
+    DIMENSION IWS(*)
+!    LOGICAL SG2ERR
+    CHARACTER FIL*(*)
+    I=IWS(2)
+    CALL WRKCHK(LAST,I,IWS)
+!    IF(SG2ERR(IERR)) GOTO 900
+    if(buperr.ne.0) goto 900
+    OPEN(UNIT=LUN,FILE=FIL,ACCESS='SEQUENTIAL',STATUS='UNKNOWN',&
+         IOSTAT=IERR,ERR=910,FORM='UNFORMATTED')
+    WRITE(LUN,ERR=910)LAST,(IWS(I),I=1,LAST)
+800 CLOSE(LUN)
+900 RETURN
+910 continue
+    GOTO 800
+  END SUBROUTINE WSAVE
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+  SUBROUTINE WPATCH(NW,IWS)
+!...ROUTINE TO PATCH A WORKSPACE
+    IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+    DIMENSION IWS(*)
+    CHARACTER LINE*80,CHX*(NBPW),CHHEX*(2*NBPW)
+!    EXTERNAL WPHLP
+!    LOGICAL SG1ERR,SG2ERR,EOLCH
+    IF(IWS(2).NE.NW) THEN
+       WRITE(KOU,*)' WORKSPACE DIMENSION INCORRECT, SET TO ',NW
+       IWS(2)=NW
+    ENDIF
+    CALL WRKCHK(IDUM,NW,IWS)
+!    IF(SG1ERR(IERR)) THEN
+    if(buperr.ne.0) then
+       WRITE(KOU,*)' YOU MAY ATTEMPT TO CORRECT THE FREE LIST'
+!       CALL RESERR
+       buperr=0
+    ENDIF
+10  WRITE(KOU,*)' ADDRESS: '
+!      READ(KIU,*)LINE
+    CALL BINTXT(KIU,LINE)
+    IP=1
+    CALL GETINT(LINE,IP,IADR)
+!    IF(SG2ERR(IERR)) THEN
+    if(buperr.ne.0) then
+!       CALL RESERR
+       buperr=0
+       IF(LINE(1:1).EQ.'?') CALL WPHLP(IP,LINE)
+       IF(LINE(1:1).EQ.'@') GOTO 900
+       WRITE(KOU,20)
+20     FORMAT(' TYPE ? FOR HELP'/)
+       GOTO 10
+    ENDIF
+    WRITE(KOU,30)
+30  FORMAT(' ADDRESS           INTEGER  CHAR  HEXADEC.  REAL VALUE'/)
+100 IF(IADR.LT.1 .OR. IADR.GT.NW) THEN
+       WRITE(KOU,*)'OUTSIDE WORKSPACE',1,NW
+       GOTO 900
+    ENDIF
+    CALL LOADR(1,IWS(IADR),X)
+    CALL LOADC(NBPW,IWS(IADR),CHX)
+    CALL WRIHEX(CHHEX,IWS(IADR))
+    DO J=1,NBPW
+!...MACHDEP REPLACEMENT OF NON-PRINTABLE ASCII CHARACTERS WITH A PERIOD
+       IF(LLT(CHX(J:J),' ') .OR. LGT(CHX(J:J),'~')) CHX(J:J)='.'
+    enddo
+    WRITE(KOU,110,ERR=911)IADR,IWS(IADR),CHX,CHHEX,X
+110 FORMAT('$',I7,5X,I15,2X,A,2X,A,2X,E15.8)
+111 CALL GPARR('NEW VALUE: ',LINE,IP,Z,RNONE,WPHLP)
+!    IF(SG2ERR(IERR)) THEN
+!...      NOT A DIGIT: EXIT, STORE AS BYTES, OCTAL OR IGNORE
+    if(buperr.ne.0) then
+       buperr=0
+!       CALL RESERR
+       IF(LINE(1:1).EQ.'@') GOTO 900
+       IF(LINE(1:2).EQ.'EX'.OR.LINE(1:2).EQ.'ex') GOTO 900
+       IF(LINE(1:1).EQ.'"') THEN
+          CALL STORC(NBPW,IWS(IADR),LINE(2:))
+          IADR=IADR+1
+       ELSEIF(LINE(1:1).EQ.'&') THEN
+! OCTAL VALUE
+          IP=2
+          CALL GETOCT(LINE,IP,IVAL)
+          if(buperr.ne.0) then
+             buperr=0
+!          IF(SG2ERR(IERR)) THEN
+!             CALL RESERR
+             WRITE(KOU,*)'VALUE AFTER & NOT OCTAL'
+          ELSE
+             IWS(IADR)=IVAL
+             IADR=IADR+1
+          ENDIF
+       ELSEIF(LINE(1:1).EQ.'#') THEN
+! HEXADECIMAL VALUE
+          IP=2
+          CALL GETHEX(LINE,IP,IVAL)
+!          IF(SG2ERR(IERR)) THEN
+!             CALL RESERR
+          if(buperr.ne.0) then
+             buperr=0
+             WRITE(KOU,*)'VALUE AFTER # NOT HEXADECIMAL'
+          ELSE
+             IWS(IADR)=IVAL
+             IADR=IADR+1
+          ENDIF
+       ELSEIF(EOLCH(LINE,IP)) THEN
+          IADR=IADR+1
+       ELSE
+          WRITE(KOU,20)
+       ENDIF
+    ELSE
+! DIGIT
+       IF(LINE(IP:IP).EQ.'/') THEN
+! NEW ADDRESS
+          IADR=INT(Z)
+       ELSEIF(INDEX(LINE,'.').GT.0) THEN
+! REAL VALUE
+          CALL STORR(1,IWS(IADR),Z)
+          IADR=IADR+NWPR
+       ELSE
+! INTEGER VALUE
+          IWS(IADR)=INT(Z)
+          IADR=IADR+1
+       ENDIF
+    ENDIF
+! SKIP REST OF LINE
+    IP=LEN(LINE)
+    GOTO 100
+900 CALL WRKCHK(IDUM,NW,IWS)
+    RETURN
+911 continue
+    GOTO 111
+  END SUBROUTINE WPATCH
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+  SUBROUTINE WPHLP(ITYP,LINE)
+!...HELP ROUTINE FOR WPATCH
+    CHARACTER LINE*(*)
+    WRITE(KOU,10)
+10  FORMAT(' YOU MAY PATCH THE WORKSPACE.'/&
+         ' THE VALUE AT THE SPECIFIED ADDRESS IN THE WORKSPACE',&
+         ' IS DISPLAYED AS'/' INTEGER, CHAR (NON-PRINTABLE',&
+         ' CHAR REPLACED BY .) HEXADECIMAL AND REAL.'//&
+         ' THE FOLLOWING INPUT IS LEGAL:'/&
+         ' <CR>            VALUE IN NEXT ADDRESS IS DISPLAYED'/&
+         ' <NUMBER>        <NUMBER> IS STORED AT THE ADDRESS'/&
+         '        A REAL NUMBER MUST INCLUDE A PERIOD (.)'/&
+         ' <NUMBER>/       <NUMBER> IS TAKEN AS NEW ADDRESS'/&
+         ' &<OCTAL NUMBER> <NUMBER> STORED AS OCTAL'/&
+         ' #<HEX NUMBER>   <NUMBER> STORED AS HEXADECIMAL'/&
+         ' "<TEXT>         <TEXT> STORED AS BYTES',&
+         ' (BYTES FOR ONE WORD ONLY)'/&
+         ' @ OR EXIT       EXIT'/&
+         ' ?               THIS TEXT'/&
+         ' <ANYTHING ELSE> IGNORED'/)
+    RETURN
+  END SUBROUTINE WPHLP
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+  SUBROUTINE WRKCHK(LAST,NW,IWS)
+!...CHECKS THE FREE LIST IN A WORKSPACE
+! ENTRY: NW IS THE DIMENSION
+!        IWS IS THE WORKSPACE
+! EXIT:  LAST IS PUT TO THE LAST WORD USED IN THE WORKSPACE
+! ERRORS: ANY ERROR IN THE FREE LIST (POINTER OUTSIDE WORKSPACE ETC)
+    DIMENSION IWS(*)
+    IF(NW.LT.100) GOTO 910
+    IWS(2)=NW
+!...SERACH THE FREE LIST STARTING IN WORD 1
+!      (THERE MUST ALWAYS BE A FREE AREA!)
+    LOK=IWS(1)
+!...A FREE AREA MUST LIE BETWEEN 2 AND THE DIMENSION
+100 IF(LOK.LE.2 .OR. LOK.GE.NW) GOTO 920
+    LAST=LOK
+    LOK=IWS(LOK)
+!...IN THE LAST FREE AREA LOK=0
+    IF(LOK.EQ.0) GOTO 200
+!...THE FREE AREAS ARE ALWAYS ORDERD INCREASINGLY
+    IF(LOK.LT.LAST+2) GOTO 930
+    LFR=IWS(LAST+1)
+!...A FREE AREA IS AT LEAST TWO WORDS AND NOT PAST THE NEXT AREA
+    IF(LFR.LT.2 .OR. LAST+LFR.GT.LOK) GOTO 940
+    GOTO 100
+!...THE FREE AREA SEEMS CORRECT
+200 LFR=LAST+1
+    IWS(LFR)=NW-LFR
+    LAST=LFR
+900 RETURN
+910 continue
+    buperr=1002
+    GOTO 900
+920 continue
+    buperr=1003
+    GOTO 900
+930 continue 
+    buperr=1004
+   GOTO 900
+940 continue
+    buperr=1005
+    GOTO 900
+  END SUBROUTINE WRKCHK
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+  SUBROUTINE WLIST(IWS)
+!...LISTS THE FREE AREAS
+    DIMENSION IWS(*)
+    N=1
+    NW=0
+    WRITE(KOU,10)IWS(2)
+10  FORMAT(/' MAP OF THE FREE SPACE CONTAINING',I12,' WORDS')
+100 N=IWS(N)
+    IF(N.LE.0) GOTO 200
+    NWP=IWS(N+1)
+    NW=NW+NWP
+    WRITE(KOU,110)N,NWP
+110 FORMAT(' FROM ',I12,' ARE ',I12,' WORDS FREE')
+    GOTO 100
+200 WRITE(KOU,210)NW
+210 FORMAT(/' TOTAL NUMBER OF FREE WORDS ARE',I12/)
+    RETURN
+  END SUBROUTINE WLIST
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+  SUBROUTINE WTREST(NYB,NW,IWS)
+!...RESERVES THE LAST PART OF THE WORKSPACE
+! ENTRY: IWS IS A WORKSPACE
+! EXIT:  NYB IS A POINTER TO THE RESERVED PART
+!        NW IS THE NUMBER OF RESERVED WORDS
+    DIMENSION IWS(*)
+    LOK=1
+100 LAST=LOK
+    LOK=IWS(LAST)
+    IF(LOK.GT.0) GOTO 100
+    NW=IWS(LAST+1)
+    CALL WTAKE(NYB,NW,IWS)
+900 RETURN
+  END SUBROUTINE WTREST
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+  SUBROUTINE WTAKE(NYB,NW,IWS)
+!......RESERVS NW WORDS IN THE WORKSPACE
+! ENTRY: NW IS THE NUMBER OF WORDS TO BE RESERVED
+!        IWS IS THE WORKSPACE
+! EXIT:  NYB POINTS TO THE FIRST WORD THAT IS RESERVED
+! ERROR: TOO SMALL OR TOO LARGE NUMBER OF WORDS TO BE RESERVED
+    DIMENSION IWS(*)
+!...THE FREE LIST START IN THE FIRST WORD
+!      IN EACH FREE AREA THE FIRST WORD POINTS TO THE NEXT FREE AREA
+!      AND THE SECOND GIVES THE NUMBER OF WORDS IN THIS AREA
+!      THE FREE LIST ENDS WITH THE POINTER EQUAL TO ZERO
+    IF(NW.LT.2) GOTO 910
+    LOKB=1
+4   LOKA=IWS(LOKB)
+5   IF(LOKA.LE.0) GOTO 920
+    IF(LOKA.GE.IWS(2)) GOTO 930
+    IF(IWS(LOKA+1)-NW) 10,20,30
+!...TOO SMALL AREA, CONTINUE WITH THE NEXT
+10  LOKB=LOKA
+    GOTO 4
+!...EXACT FIT WITH THE REQUESTED NUMBER OF WORDS
+!      IF IWS(LOKA)=0 IT IS THE LAST FREE AREA OF THE WORKSPACE.
+!      AS WRELS WILL NOT WORK PROPERLY IF THERE IS NOT A FREE AREA AFTER THE
+!      LAST RESERVED A POINTER IS SET. IN WINIT THE SIZE OF THE LAST FREE AREA
+!      WAS DECREASED BY TWO TO LEAVE A UNRESERVABLE FREE AREA LAST
+20  IF(IWS(LOKA).GT.0) THEN
+       IWS(LOKB)=IWS(LOKA)
+    ELSE
+       GOTO 31
+    ENDIF
+    GOTO 50
+!...LARGER AREA THAN REQUESTED
+!      A FREE AREA MUST BE AT LEAST TWO WORDS, IF THIS AREA IS AT LEAST
+!      TWO WORDS LARGER THAN THE REQUEST IT IS DIVIDED, OTHERWISE SKIPPED
+30  IF(IWS(LOKA+1)-NW-2.LT.0) GOTO 10
+31  NEXT=LOKA+NW
+    IWS(NEXT)=IWS(LOKA)
+    IWS(NEXT+1)=IWS(LOKA+1)-NW
+    IWS(LOKB)=NEXT
+50  NYB=LOKA
+!...THE RESERVED AREA IS ZEROED
+    LOKB=NYB+NW-1
+    DO LOKA=NYB,LOKB
+       IWS(LOKA)=0
+    enddo
+900 RETURN
+910 continue
+    buperr=1008
+    GOTO 900
+920 continue
+    buperr=1006
+    GOTO 900
+930 continue
+    buperr=1007
+    GOTO 900
+  END SUBROUTINE WTAKE
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+  SUBROUTINE WRELS(IDP,NW,IWS)
+!......Returns NW words beginning from IDP to the free workspace list
+!      The free workspace list is in increasing order
+!      IWS(1) points to the first free space
+!      IWS(2) gives the total number of words in the workspace
+    DIMENSION IWS(*)
+!......Check that the released space is at lest 2 words and that it is
+!      inside the workspace (That is between 3 and IWS(2))
+    IF(IDP.LT.3.OR.IDP.GE.IWS(2).OR.NW.LT.2.OR.NW.GE.IWS(2)) GOTO 910
+    LOKC=IDP
+    LOKB=1
+100 LOKA=LOKB
+    LOKB=IWS(LOKA)
+    IF(LOKB.LE.0) GOTO 920
+    IF(LOKB.LT.LOKC) GOTO 100
+!..LOKA is the address of the nearest free space below LOKC
+    IF(LOKA.EQ.1) GOTO 120
+!..Check if the two areas can be merged
+    IF(LOKA+IWS(LOKA+1)-LOKC) 120,110,930
+!..The released space follows directly on LOKA => Merge LOKA and LOKC
+110 LOKC=LOKA
+    IWS(LOKC+1)=IWS(LOKC+1)+NW
+    GOTO 130
+!..Set the pointer from LOKC to LOKB and from LOKA to LOKC
+120 IWS(LOKC)=LOKB
+    IWS(LOKA)=LOKC
+    IWS(LOKC+1)=NW
+!..Check if LOKC now can be merged with LOKB!
+130 IF(LOKC+IWS(LOKC+1)-LOKB) 900,140,940
+!..Merge LOKC and LOKB
+140 IWS(LOKC)=IWS(LOKB)
+    IWS(LOKC+1)=IWS(LOKC+1)+IWS(LOKB+1)
+900 RETURN
+!...ERRORS
+! TOO SMALL OR OUTSIDE WORKSPACE
+910 buperr=1008
+    GOTO 900
+! ABOVE HIGHEST FREE WORKSPACE
+920 buperr=1008
+    GOTO 900
+! FIRST PART ALREADY FREE
+930 GOTO 920
+! LAST PART ALREADY FREE
+940 GOTO 920
+  END SUBROUTINE WRELS
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+  INTEGER FUNCTION NWCH(NB)
+! subroutine nwch
+! number of words to store a character with nb bytes
+! nbpw is the number of bytes in a word.  If not even multiple add 1 word
+    i=nb/nbpw
+    if(mod(nb,nbpw).gt.0) then
+       i=i+1
+    endif
+    nwch=i
+    return
+  end FUNCTION NWCH
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+  SUBROUTINE STORC(N,IWS,text)
+! Stores a text character in an integer workspace at position N
+! The length of the character to store is len(text)
+    integer n,iws(*),llen
+    character text*(*)
+! maximal size of character, note used also to store functions and bibliography
+    integer, parameter :: maxchar=2048,maxequiv=512
+! NOTE BELOW DIMENSIONING BLEOW, maxchar=nbpw*maxequiv
+!    character (len=:), allocatable :: localtxt
+!    integer, allocatable, dimension(:) :: localint
+    character*(maxchar) localtxt,localtxt2
+! assumed 32 bit integres, 8 bits/character, 4 characters/word =nbpw
+    integer localint(maxequiv),localint2(maxequiv)
+! equivalence can only be made between local unallocated variables
+    equivalence (localtxt,localint)
+!    equivalence (localtxt2,localint2)
+    if(maxchar.ne.nbpw*maxequiv) then
+       write(*,*)'METLIB utility error: maxchar and maxequiv do not match'
+       stop
+    endif
+    llen=len(text)
+    if(llen.gt.maxchar) then
+       write(*,*)'Cannot store texts larger than ',maxchar,' characters'
+       buperr=1010; goto 900
+    endif
+! due to the equivalence this stores the character bit map into localint2 !!
+! the localtext will be padded with spaces after text
+    localtxt=text
+! number of words to store rounding off?? integers are 4 bytes (32 bits)
+    now=nwch(llen)
+    do j=1,now
+       iws(n+j-1)=localint(j)
+    enddo
+!    localint2=localint
+!    write(*,800)llen,now,text(1:llen),localtxt(1:llen),localtxt2(1:llen)
+!800 format('storc: ',2i4,3('"',a),'"')
+900 continue
+    return
+  end SUBROUTINE STORC
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+  SUBROUTINE LOADC(N,IWS,text)
+! copies a text from an integer workspace at position N into a character
+! The number of characters to copy is len(text)
+    integer n,iws(*),llen
+    character text*(*)
+!    character (len=:), allocatable :: localtxt
+!    integer, allocatable, dimension(:) :: localint
+! maximal size of character, note used also to store functions and bibliography
+    integer, parameter :: maxchar=2048,maxequiv=512
+! NOTE BELOW DIMENSIONING BELOW, maxchar=nbpw*maxequiv
+    character*(maxchar) localtxt
+! assumed 32 bit integer, 8 bits character, 4 characters/word
+    integer localint(maxequiv)
+! equivalence can obly be made between local unallocated variables
+    equivalence (localtxt,localint)
+    llen=len(text)
+    if(llen.gt.maxchar) then
+       write(*,*)'Attempt to extract a text larger than ',maxchar
+       buperr=1010;; goto 900
+    endif
+    now=nwch(llen)
+    do j=1,now
+       localint(j)=iws(n+j-1)
+    enddo
+!    write(*,800)llen,now,localtxt(1:llen)
+!800 format('LOADC: ',2i3,' "',a,'"')
+    text=localtxt(1:llen)
+900 continue
+    return
+  end SUBROUTINE LOADC
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+  SUBROUTINE STORR(N,IWS,VALUE)
+!...STORES A REAL NUMBER IN A WORKSPACE
+    IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+    DIMENSION IWS(*)
+    INTEGER JWS(2),int(2)
+    DOUBLE PRECISION WS
+    EQUIVALENCE (WS,JWS),(int,aws)
+! move the exact bit pattern from real VALUE to integer IWS(N)
+    WS=VALUE
+    IWS(N)=JWS(1)
+    IWS(N+1)=JWS(2)
+!    int=jws
+!    write(*,17)value,ws,aws
+17  format('storr: ',3(1pe14.6),/10x,4i14)
+    RETURN
+  END SUBROUTINE STORR
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+  SUBROUTINE LOADR(N,IWS,VALUE)
+!...LOADS A REAL NUMBER FROM A WORKSPACE
+    IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+    DIMENSION IWS(*)
+    INTEGER JWS(2)
+    DOUBLE PRECISION WS
+    EQUIVALENCE (WS,JWS)
+! move the exact bit pattern from integer IWS(N) to real VALUE
+    JWS(1)=IWS(N)
+    JWS(2)=IWS(N+1)
+    VALUE=WS
+    RETURN
+  END SUBROUTINE LOADR
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+  SUBROUTINE STORRN(N,IWS,ARR)
+    IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+    DIMENSION IWS(*),ARR(*)
+    integer, parameter :: maxr=256
+    double precision dlocal(maxr)
+    integer ilocal(maxr*nwpr)
+    equivalence (dlocal,ilocal)
+    if(n.gt.256) then
+       write(*,*)'STORRN cannot handle arrays larger than ',maxr
+       buperr=1010; goto 900
+    endif
+    do i=1,n
+       dlocal(i)=arr(i)
+    enddo
+    DO I=1,N*nwpr
+       iws(I)=ilocal(I)
+    enddo
+900 continue
+    RETURN
+  END SUBROUTINE STORRN
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+  SUBROUTINE LOADRN(N,IWS,ARR)
+    IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+    DIMENSION IWS(*),ARR(*)
+    integer, parameter :: maxr=256
+    double precision dlocal(maxr)
+    integer ilocal(maxr*nwpr)
+    equivalence (dlocal,ilocal)
+    if(n.gt.256) then
+       write(*,*)'LOADRN cannot handle arrays larger than ',maxr
+       buperr=1010; goto 900
+    endif
+    do i=1,n*nwpr
+       ilocal(i)=iws(i)
+    enddo
+    DO I=1,N
+       ARR(I)=dlocal(I)
+    enddo
+900 continue
+    RETURN
+  END SUBROUTINE LOADRN
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+  SUBROUTINE STORR1(ARR,VAL)
+    IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+    ARR=VAL
+    RETURN
+  END SUBROUTINE STORR1
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+  SUBROUTINE LOADR1(ARR,VAL)
+    IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+    VAL=ARR
+    RETURN
+  END SUBROUTINE LOADR1
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
 
 END MODULE METLIB

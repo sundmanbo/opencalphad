@@ -1,0 +1,556 @@
+This file contains information on Open Calphad (OC) version 4+
+
+For general information please read the readme-general.pdf 
+
+The installation and use of OC requires some general knowledge about
+compilation and linking of software.  If you are not familiar with
+such procedures please ask a local guru.  We who are providing this
+software do not have time to answer such questions.  
+
+If you want a thermodynamic software that can install itself and which
+does not require any understanding of thermodynamics please contact a
+commercial vendor.
+
+In the list below the most recent changes come first.
+
+2017.09.13 OC version 4.034: This time I have added a possibility to
+edit the command line a la emacs and also to keep a short history of
+commands.  That is always possible on Windows and as I am frustrated
+with the fact that my MAC does not have the same I managed to find a C
+routine that can read input character by character and allow editing.
+To have this you have to follow the guide Why-and-Howto-stall-getkey
+that is provided in the documentation directory.  Do not attempt this
+unless you are an experienced UNIX user.
+
+Otherwise some bugs has been fixed and modifications of the
+quasichemical model.  I have also added possibilities to define more
+GNUPLOT terminals, both in the source code and interactivly.  I am a
+bit disappointed that the MAC does not have so many.
+
+2017.09.13 OC version 4.033: A whole month without updates!  This time
+there is a big thing, the "corrected quasichemical model" for liquids
+has been implemented (adding some new bugs).  The model was published
+2009 in Acta Mat by Hillert, Selleby and myself but it has never been
+available in any software as TC never approved of it.  Now we will try
+to use this model to assess a real system this time.  
+
+OC is now being compiled and used on several different
+hardware/OS/Fortran compilers by different users.  In some cases there
+are errors like "segmentation faults" that I cannot reproduce running
+the same macro file on my DELL with Windows and GNU Fortran.  I have
+also discovered differences with the GNU Fortran on my MAC/Linux and
+on Windows.  As the you as user have access the source code please try
+to detect more precisely where the error occurs so I can fix the code
+to avoid also bugs in the compilers and OS.
+
+2017.08.10 OC version 4.032: Added that one can change the relative
+lengths of the plot axis and the axis labels.  The texts in the plot
+can also be written at an angle.
+
+2017.08.10 OC version 4.031: I found that changing an optimizing
+parameter did not automatically force a recalculation of all TP
+functions and model parameters depending on this but that is now fixed.
+
+Alex van der Walle pointed out some non-standard Fortran statements
+that has now been corrected.  He also provided a Makefile that should
+be simpler to use, it is included as Makefile-simple.
+
+2017.08.02 OC version 4.030: Started modifying the plotting to improve
+STEP/MAP.  The call to ocplot2 simplified as most data are now stored
+in the graphopt record.  BEWARE: the sub-commands to set the range of
+an axis is now called SCALE_RANGES and asks for the axis, previously
+there were individual sub-commands for the x and y axis.
+
+I have added a map13 macro to calculate the Al-Ni system using the 4
+sublattice model with partitioning and permutations.  There are
+spurious segmentation faults when plotting after using several
+STEP/MAP commands.  If you find this please send me a macro that
+reproduces the error and necessary data file.
+
+The speed pf calculations with OC 4.030 has been compared with the
+first release of version 3 in 2016 and the current version is almost 3
+times faster to calculate an equilibrium, without using
+parallelization.  When parallelization can be used the clock time is
+further reduced by a factor 3.
+
+This is now a prerelease of version 5, I do not plan to make any
+significant additions.  The rest of the year will be devoted to update
+the documentation, the user guides and related things.
+
+2017.07.26 OC version 4.029: Fixed a small bug dealing with ordering
+and permutations.
+
+2017.07.26 OC version 4.028: I have finally managed to handle the
+phase diagram for Al-Ni with the 4 sublattice model for FCC and BCC
+ordering.  There has been an error calculating the second derivatives
+of G that have cause severe convergence problems.  I am not sure they
+are correct but the convergence is now good.  Option B is also
+finished although some parameters are still not allowed but I added a
+few more parameters for option F (permutations in 4 sublattice
+ordering model for FCC and HCP).  Beware, there may be errors!! Check
+that the disordered state is properly disordered, exactly the same
+constituent fractions in all sublattices and report problems (before I
+forget the code).
+
+2017.07.21 OC version 4.027: The implementation of option B is now
+almost finished but beware of bugs and that I have not implemented all
+possible parameters, only those that seems most useful.  I also found
+that many parameters for option F (for FCC and HCP) ordering are
+missing.  
+
+Using a partitioned description for a phase in a TDB file requires
+that the TYPE_DEF with the DISORDERD_PART must come before the
+disordered phase is listed in the file.  If not that will also give a
+warning but if not corrected the calculations will be wrong.
+
+I have added a check for unknown keywords in the TDB file as some are
+using TDB files from MatCalc and these include keywords related to
+diffusion and interface energies that I cannot handle (yet).  If I get
+a documentation how they should be implemented I will try.  Anyway
+this check will often give warnings that can be ignored when reading a
+TDB file.
+
+2017.07.18 OC version 4.026: A number of minor changes and bugfixes.
+Mapping should be a bit better.  I have also started implementing
+option B for handling permutation of parameters in BCC phases with 4
+sublattice ordering.  This means one only has to enter the unique
+pararameters which significantly reduces the number of parameters in a
+TDB file for example.
+
+2017.06.20 OC version 4.025: Refined the check of external charge
+balance.  Previously phases like (La+3)2(O-2)3 had the external change
+balance bit set which sometimes caused "phase matrix ill-conditioned"
+due to round off errors.  Phases which cannot be electrically neutral
+due to the selection of elements, like (Cs+2)2(O-2)3 are automatically
+suspended when read from the database.
+
+2017.06.04 OC version 4.024: Many small changes.  The main addition is
+a video how to install OC on Windows and Linux at:
+https://www.youtube.com/watch?v=rsBDRJ-LYvI
+
+2017.05.19 OC version 4.023: There was a severe memory leak as the
+memory used by the TP functions was not deallocated with the NEW
+command.  This has now been removed.  Applications that used repeated
+NEW commands could crash due to lack of free memory.
+
+A number of bugs has also meen eliminated, some caused by uninititiated
+variables where valgrid again proved to be a useful tool.
+
+2017.05.10 OC version 4.022: I have added a new calculate subcommand
+"calculate with_check_after" or just "c w" which means the grid
+minimizer will not be used before but after the iterative calculation.
+As start values the iterative algorithm will use the previously
+calculated results.  If the grid minimizer finds a phase with a
+gridpoint below the calculated equilibrium that phase is automatically
+added as stable and a new calculation made to find the global
+equilibrium.  The "set advanced" command can now be used to set a
+smaller grid.
+
+2017.04.30 OC version 4.021: When the conditions does not allow using
+the global gridminimizer before an equilibrium calculation there is
+normally a test AFTER the calculation using the grid minimizer.  If
+this test finds a gridpoint below the calculated equilibrium then
+there is now automatically a new calculation made with this gridpoint
+added as a stable phase.  The grid calculation after can also be
+forced by setting the global bit 18 for example when using the "c n"
+command (the "c n" command will use the previous results as start
+point).  One can prevent this recalculation by setting the global bit
+20. (These things will be added to the "SET ADVANCED" command when I
+have time...).  One must be expert to set these bits, to become expert
+set the global bit 2.
+
+This feature is available also in the OCASI/TQ interface.  During a
+simulation one normally does not use the gridminimizer at each
+calculation but setting bit 18 now and again makes it possible to
+detect if an equilibrium is correct.
+
+2017.04.22 OC version 4.020: I have added that OC can have a macro
+file name as "inline" argument when started.  Thus invoking OC with a
+line "OC4 dothis" where "dothis" is a macro file with extention OCM
+this macro file will start executing directly (after executing an
+inital startup macro if you have any).  
+
+I have also fixed the rather subtle bug when entering reciprocal
+parameters and some more minor things.
+
+2017.04.17 OC version 4.019: I have managed to make OC significantly
+faster for multicomponent systems, in some cases a factor of 4, by
+saving some intermediate values while generating the equilibrium
+matrix.  However, this may cause some troubles when running in
+parallel and maybe there are some memory leaks, I have not tested.  It
+is possible to restore the old way to calculate by changing the
+logical variable NOSAVE in the subroutine meq_sameset to TRUE, around
+line 2866 in minimizer/matsmin.F90
+
+I have problems entering some reciprocal parameters for the 4
+sublattice FCC ordered phase.  I hope to fix that for the next
+release.
+
+2017.04.05 OC version 4.018: I am trying to make OC a bit faster for
+some interested users, if OC is compiled with the "-O2" option it is
+about 5 times faster compared with using "-finit-local-zero" and
+"-fbounds-check".  But it also creates some problem, the macros "step5"
+and "map5" fails.  I will look into that later.
+
+I also fixed a problem whith the minimizer changing the set of stable
+phases when the change involved the change of a stoichiometric phase
+to a allotrope.  Adding the new allotrope ment to have two stable
+phases with exactly the same composition which made the minimizer
+crazy.  So now there is a check removing the other allotrope at the
+same time.  It is a particular problem when dealing with a database
+with many stoichiometric phases.  The version is now included in the
+plot title and I added some lectures about OC in the documentation
+directory and changed some other small things.
+
+2017.03.24 OC version 4.017: The command "enter phase" is changed and
+now requires a model specifed, reading from TDB files not changed.
+Implementation of a new liquid quasichemical model has started an many
+minor changes, the convergence using the 4 sublattice FCC ordering
+model should be improved.  The format for save/read unformatted
+changed so old files cannot be read.  The linkpara and
+Makefile-parallel has been changed to compile without bound check and
+with optimization.  Thus they are more likely to crash, it is a way to
+discover bugs!
+
+2017.03.04 OC version 4.016: Tested a few variant of factors for
+generating the grid.  By request there is a global bit 19 that can be
+used to select the original grid minimizer.  This can be considered as
+a "less dense" grid.  I also added in the user interface and in
+liboctq.F90 that if a calculation fails due to "too many iterations",
+it calculates once again not using the grid minimizer.  For some
+reason that seems to work better than just increasing the number of
+iterations.
+
+2017.03.02 OC version 4.015: Some problems using save/read unformatted
+corrected and I modified the calculation of the second derivaties for
+a phase with an order/disorder transition.  This seems to improve the
+convergence but more testing needed.
+
+2017.02.24 OC version 4.014: I have fixed the dense option for the
+grid minimizer (NOTE ionic liquid and charged crystalline phases has
+no dense grid (yet)).  The SET STATUS PHASE command is slightly
+changed.  If a user gives just a phase name and no specific
+composition set all composition sets for that phase will be given the
+new status (unless FIX).  A few other minor bugs fixed.  This should
+also work for the OCASI/TQ interface.
+
+2017.02.16 I reallize that the model package is still version 3, not 4
+so I have changed it to 3.20 rather than 4.10, although the text
+documentation still calls it version 4.  It is only the OC version
+number that is 4.  GTP is still waiting for the complete revision that
+I have hoped to do for several years...
+
+2017.02.15 Some major and many minor changes to make OC work with a
+multicomponent fuel simulation for CEA.  A large memory leak when
+reading databases was also removed using valgrind.
+
+2017.02.09 I have written a new gridminimizer which is easier to
+understand and fine-tune than the one I wrote 4 years ago.  I am not
+sure it is better but at least I can now vary the intervals between
+the gridpoints.  
+
+2017.01.31 I have added a simple volume model using two paramaters
+V=V0(x)*exp(VA(x,T)) same as in TC but without the bulk modulus
+parameter.  I have also modified the reading of TDB files to be more
+compatible with TC. A number of small bugs fixed also and I must start
+rewriting the grid minimizer.
+
+2017.01.26 Corrected a severe bug in the gridminimizer for ionic
+liquid.  Version 4 of OC is now finished and I will start in version 5.
+
+2017.01.25 I have worked with the ordering models to prepare a
+discussion with Roger Reed and his student.  I have problems
+calculating the 2nd derivatives of the ordered phase "as disordered"
+which causes a converge problem when I use the 4 sublattice model.  I
+tried a fix but then the calculations did not converge for the 2
+sublattice model so I must derive the correct expression for the 2nd
+derivatives.  TC has also problems with the same cases.
+
+2017.01.17 Fixed a bug calculating ionic liquid with interactions
+between vacancies and neutrals and another bug that one could not use
+STEP several times to have several curves.  Some fixes when reading
+the TDB files also.
+
+2017.01.09 Many small and large changes.  Reading TDB files has been
+improved so it handles some more TYPE_DEFS and also parameters for
+neutrals in the ionic liquid model and phases with a disordered phase
+set better.  But it is still necessary to have the typ_defs in a
+specific order (which is also acceptable to TC itself).  The
+gridminimizer has some changes but if they are improvements I am not
+sure.  A bug calculating excess parameters with neutrals in the ionic
+liquid has been removed.
+
+2017.01.04 Fixed a bug that the amount of the set of stable phases
+generated by the grid minimizer were wrong when the number of atoms
+varied a lot in the phases. 
+
+2017.01.01 There is a new grid minimizer for the ionic liquid that
+works well for the 15 component system.  It treats the cations and
+anions separately to limit the number of gridpoints generated.  Some
+progress also for writing the DAT file format.
+
+2016.12.05 Problems calculating the equilibrium for a 15 component
+system has required several small modifications to find the correct
+results.  I have fixed a problem when a phase with charged species did
+not need external phase balance because all cations and anions had the
+same change.  I discovered a problem that deleted composition sets did
+not restore the free list for phase_varres records.  That is not fixed
+as it is a bit complicated.  Markus Piro has helped me to understand
+the DAT format but that part is not yet finished.
+
+2016.12.05 I have stated writing code for output in DAT
+(ChemSage/Solgasmix) formats.  It is a bit complicated with the TDB
+functions that can call each other and have different temperature
+ranges.
+
+2016.11.30 It is now possible to save (unformatted) several equilibria
+and the assessment record.  It means OC now can save an assessment on
+a file similar to the PAR file for PARROT.  It is possible to continue
+the assessment from the saved file.  The NEW command does not remove
+the assessment record, it gives a warning but it seems not to cause
+problems.
+
+2016.11.23 A new macro to test SAVE is included.  Many small changes
+and bugixes in particular I now use the old WPACK storc/loadc routines
+rather than a new feature in Fortran 2003/8 to allocating a character,
+which is not avalable in GNU Fortran 4.8.  I have also fixed some
+problems calculating dot derivatives.
+
+2016.11.18 The unformatted save is now almost finished.  I can save
+the static data structure except some minor things and the first
+equilibrium record with all calculated results and read all back and
+continue calculating.  The first use of this feature is to save copies
+of assessments when one has several equilibria and also weights and
+model parameters.
+
+Later I will try to extend it also to save results from STEP and MAP
+calculations but for that I probably have to use direct (random) files
+as I may run out of memory.
+
+2016.11.15 I have started implementing save unformatted/direct by
+converting the Fortran datastructure to the old integer format and
+then write that on a file.  So far elements, species and TP functions
+can be saved.  I think this is an absolutely necessary feature in
+order to use OC in assessments.
+
+2016.11.03 A general cleanup, the old macro directories have been
+removed and the macro files for version 4 are directly on the maros/
+directory.  The reading of parameters from TDB and PDB files have been
+made more flexible.  Some problems using the order/disorder model have
+also been fixed.  Work on the OCASI subroutines is ongoing but not yet
+finished.
+
+Christophe Sigli has provided an update of his Scheil simulation and
+was happy that the new LAPACK/BLAS routines made his calculations
+faster.  I have also added a second F90 example using TQ.
+
+2016.10.22 Several updates have been made for the new PDB database
+format.  There is a separate documentation for that available at the
+github repository SGTE-PDB.  The macro map12 use this format.
+
+I have also added the Inden-Xiong magnetic model with the "effective"
+magnetic moment and separate Curie and Neel temperatures.
+
+2016.09.22 Small fix in SMP and some changes in the documentation.
+
+2016.09.20 Hard work on updating the documentation, I have done all
+except the step/map/plot which I want to edit like a paper and the
+OCASI documentation where I have to write some new code.  I have
+started writing installation guides for different OS with the help of
+Philippe Zeller.
+
+An environment variable OCHOME has been introduced and on the directory
+indicated by this variable one should have the ochelp.hlp file and one
+can have a start.OCM file that is executed when the program starts and
+an OCHOME/database directory which is searched for TDB databases if
+user start the database name with "ocbase/" or "ocbase\"
+
+Whenever I find a something difficult to explain in the documentation
+I try to change the code but that will affect other parts of the
+documentation.  Updating OC and the documentation in parallel is a bit
+like playing a piece of 4 handed piano music all alone.
+
+2016.09.13 The amend phase command can now add a constant G to a phase.
+
+2016.09.10 A major change of the numerics has been made.  Now LAPACK
+and BLAS are used for all numerical operations.  This has decreased
+the computation time with almost 20%.  I provide a subset of LAPACK
+and BLAS with OC compiled without specific adjustments to your
+hardware.  If you have access to a LAPACK and BLAS library fitted to
+your hardware please replace compiling the file oclablas.F90 by your
+own library.
+
+There are changes in all files compiling and linking OC.  If you want
+to use your own LAPACK and BLAS routines you must make additional
+changes to link that library and also changes in the ocnum.F90 to use
+that library.
+
+There is now also a possibility to calculate the eigenvalues of the
+stability matrix using using Q(phase) and if the lowest value is
+negative it means the calculation represents an unstable equilibrium
+inside the spinodal.  Some minor improvements of STEP and MAP has also
+been made.
+
+2016.08.29 It is now possible to define other components than the
+elements and calculate.  However, quasi-binary and ternary are still
+problematic.  But I think the OC datastructure is now stable.  Time to
+implement the unformatted save/read command.  And all documentation...
+The paper about OCASI has been accepted for publication.
+
+2016.08.29 A new directory TQ4lib has been added with updates of the
+OC/TQ application software interface.  As yet only one test program
+for F90 and one for C++ has been updated.
+
+2016.08.26 A profiling showed that the routine to invert the phase
+matrix takes 25% of the calculation time.  A test has been made to use
+LAPACK/BLAS and the time of calculation an equilibrium has decreased
+almost 20%!  Additionally several minor things has been changed.
+
+2016.08.22 The record gtp_phasetuple has been modified.  Originally it
+had only two indices, the phase index and the composition set number.
+Later it has been extended to include the phase location, index of the
+result record and an index to higher composition sets.  Unfortunately
+I named the phase index "phaseix" and the location "ixphase" and I
+have messed up which is what myself several times.  So now I renamed
+the phase location "lokph" and have made all necessary changes in the
+OC code EXCEPT for OCASI/TQ.
+
+Thus those who use the OCASI interface must test if they have any
+problems.  There are several subroutines using the phase tuple in
+OCASI and some of them may need modifications.  I will test OCASI as
+soon as possible but the application software may also need changes.
+
+2016.08.22 It is now possible to enter a new set of components but
+there are some problems not yet solved, in parts of the code the
+elements are still used, for example the size of the system is still
+calculated as the number of moles of elements.  But I leave such
+things until I am 69 years old.
+
+2016.08.20 I have added the possibility to use expressions for
+conditions on the total amount of an element.  It is sometimes
+interesting to keep the ratio of the amounts of two elements fixed
+when changing the overall composition.
+
+2016.08.17 It is now possible to use parameter identifiers including
+characters like & and # in expressions for symbols.  I have also added
+in a macro file how to enter mobility data and calculate the matrix of
+derivatives of the potentials, dmu_i/dx_j, needed to convert the
+mobilities to diffusion coefficients.
+
+2016.08.08 A major step to complete the OC software, P can be used as
+variable and V can be set as condition, provided there are volume
+data.  The macro step8 include some calculations with variable P.  A
+complex bug with reference state also removed.  And probably new
+added.
+
+2016.08.06 Still adding some minor features and bugfixes.  I am
+looking for some unexpected trouble occuring when P is variable.  The
+big thing to implement next is user defined components.
+
+2016.07.30 A number of small features added.  Isothermal ternary
+diagrams have their invariants plotted.  One can select a point in a
+phase diagram and add a text, by default the stable phases from an
+equilibrium calculation at that point.  When plotting the constitution
+of a phase all other phases are ignored, previously they added spurios
+lines.  A bug when calculating the constitution of an ordered phase
+for a given composition fixed.
+
+2016.07.19 I have implemented that the MAP command checks if the
+equilibrium at a node point is a global minimum and if not the line
+leading to this nodepoint is inactivated and no exit lines generated.
+With this change the map7 macro works (almost) perfectly (the isopleth
+for the HSS steel).  Calculating isothermal sections are almost
+finished, the plotting is still rudimentary but there is a test macro.
+The next big thing is to save results on file.  And then 1000 minor
+things to fix.
+
+2016.07.13 I have decided that this update is now a prerelease of OC
+version 4.
+
+2016.07.10 With a lot of help from Jacques Lechelle and others the
+mapping now seems to work much better, also the multicomponent
+isopleths.  I have even started to think about how to calculate and
+plot isothermal ternary diagrams.  But there are still things to fix
+with the step command also.  And with assessments and with ...
+
+2016.07.04 I have finally started to improve the calculation of phase
+diagrams and this version has some significant improvements.  Main
+changes has been to determine the step axis and length to avoid
+problems. The mapping is still very fragile and depend a lot on the
+starting point but now miscibility gaps are almost closed (Cr-Mo) and
+the mapping can cross a congruent melting point (U-O).  I discovered
+that most lines are calculated twice so I will remove that and
+implement a global minimization at nodepoints to check they are
+stable.  The isopleth calculations are also better but require global
+tests.  I have tried to add a command AMEND LINE to remove lines that
+are wrong but if one has made two or more maps it crashes.  I should
+not delete mapnodes.
+
+2016.06.17 A major revision of the datastructure has been made with
+help of valgrind to avoid uninitiallized variables and memory leaks.
+In particular the array eq_tpres was changed from pointer to
+allocatable.  This had some unexpected consquences as the memory used
+during step and map increased.  I do not really understand why.  But
+it required that I improved the cleanup of memory for the NEW command
+and I now delete all memory used to store equilibria during step/map.
+
+A good consequence of this is that I can now run all macro files with
+the same supermacro all.OCM, I do not run ot of memory any more.  I
+also added that I do not store more than 1500 equilibria during
+step/map, if more I must write results on a file which is still not
+implemented.  This affects the step7.OCM macro which terminates due to
+too many equilibria calculated.  So I have to implement save on
+files... some time in the future.
+
+2016.06.17 I have run valgrid on a few examples and found and
+corrected several cases where uninitiated variables were used.  I also
+found several cases of lost memory and I reallized I have to rethink a
+bit about using pointers.  When I started writing OC I did not know
+that one should never allocate pointer variables ... . But these
+allocations are only in the static memory, they do not eat memory
+while calculating.  Hopefully the code is a bit more stable.  And I
+have to start fixing the problems with step and map.
+
+2016.06.14 Most of the problems setting conditions on chemical
+potentials in combination with other conditions should now be solved.
+It is also possible to set a reference state.  There is a new macro
+file for testing this.
+
+2016.06.07 Some development for new STEP/MAP routines made but no real
+improvements.  Fixed a bug setting chemical potentials together with
+conditions on mole fractions.  There is still a bug changing the
+reference state of a component.
+
+2016.03.17 A rather complicated bug related to deleting redundant
+phase tuples after an equilibrium calculation probably fixed.  It
+occured for an FCC phase with a disordered fraction set.  In the macro
+opttest2.OCM I have added an example of plotting an appended figure
+with data.  I have also added a command "calulate phase ... const-adj"
+to calculate the constitution of the phase when the mole fractions are
+known.  It is mainly intended for OCASI applications.
+
+2016.03.16 Some minor changes in all documentation files.  For
+plotting there is now a possibility to APPEND a GNUPLOT command file
+to be superimposed on a calculated diagram.  This should be useful for
+assessments.  An attempt to implement the Flory-Huggins model for
+polymers has been made but it is not finished.
+
+2016.03.08 Some commands have been modified, set fixed and set
+variable now accepts ranges of coefficients.  There is a command "list
+opt coeff" which list just the coefficients.  You can specify an
+abbreviated TP function name to be calculated.
+
+2016.03.07 There are several problems entering TP functions, please be
+careful and check the listing of the functions, the listing is true to
+the way the function is calculated.  You cannot use
+parentheses except around arguments to EXP and LOG and negative
+powers.  Separate complicated functions in several functions.  Never have
+more than two symbols multiplied together.
+
+2016.02.12 Removed extention on linkmake and linkpara to make it easier
+to rename these files.
+
+2016.03.03 Fixed some errors when entering TP functions interactivly.
+Modified slightly the listing of many equilibria.  Empty lines in the
+enter_many_equil command and TAB characters the row lines accepted.
+

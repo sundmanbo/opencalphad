@@ -12,7 +12,7 @@ program octq1
   character filename*60,phnames(maxph)*24
   character condition*60,line*80,statevar*60,quest*60,ch1*1
   character target*60,phcsname*36
-  double precision value,dummy,tp(2),mel(maxel),rest
+  double precision value,temp,tp(2),mel(maxel),rest
   double precision xf(maxel),pxf(10*maxph),npf(maxph),mu(maxel)
   type(gtp_equilibrium_data), pointer :: ceq
 !
@@ -53,7 +53,7 @@ program octq1
   tp(2)=1.0D5
   rest=one
   do n=1,nel-1
-     xf(n)=0.2D0/dble(nel)
+     xf(n)=0.4D0/dble(nel)
      rest=rest-xf(n)
   enddo
   xf(nel)=rest
@@ -63,15 +63,15 @@ program octq1
   write(*,105)
 105 format(/'Give conditions:')
   ip=len(line)
-  dummy=tp(1)
-  call gparrd('Temperature: ',line,ip,tp(1),dummy,nohelp)
+  temp=tp(1)
+  call gparrd('Temperature: ',line,ip,tp(1),temp,nohelp)
   if(buperr.ne.0) goto 1000
   if(tp(1).lt.1.0d0) then
      write(*,*)'Temperature must be larger than 1 K'
      tp(1)=1.0D0
   endif
-  dummy=tp(2)
-  call gparrd('Pressure: ',line,ip,tp(2),dummy,nohelp)
+  temp=tp(2)
+  call gparrd('Pressure: ',line,ip,tp(2),temp,nohelp)
   if(buperr.ne.0) goto 1000
   if(tp(2).lt.1.0d0) then
      write(*,*)'Pressure must be larger than 1 Pa'
@@ -79,8 +79,8 @@ program octq1
   endif
   do n=1,nel-1
      quest='Mole fraction of '//cnam(n)(1:len_trim(cnam(n)))//':'
-     dummy=xf(n)
-     call gparrd(quest,line,ip,xf(n),dummy,nohelp)
+     temp=xf(n)
+     call gparrd(quest,line,ip,xf(n),temp,nohelp)
      if(buperr.ne.0) goto 1000
      if(xf(n).lt.1.0d-6) then
         write(*,*)'Fraction must be larger than 1.0D-6'
@@ -117,13 +117,13 @@ program octq1
 ! PHFIXED prescribed to be stable
 ! suspend all phases
   value=0.0D0
-  call tqphsts(-1,PHSUS,value,ceq)
+  call tqphtupsts(-1,PHSUS,value,ceq)
   if(gx%bmperr.ne.0) then
      write(*,*)'Error setting phases suspended'
      goto 1000
   endif
 ! restore phase 2 (1 is gas, 2 is ionic liquid)
-  call tqphsts(2,PHENTERED,value,ceq)
+  call tqphtupsts(2,PHENTERED,value,ceq)
   if(gx%bmperr.ne.0) then
      write(*,*)'Error setting phase 2 entered'
      goto 1000

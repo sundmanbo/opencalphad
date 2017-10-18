@@ -1,0 +1,90 @@
+new Y
+@$ ====================================================================
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$ map10.OCM
+@$ Calculating the isothermal section at 1200 K for Cr-Fe-Ni
+@$ ====================================================================
+@&
+
+set echo
+
+r t saf2507
+fe cr ni
+
+set c t=1200 p=1e5 n=1 x(cr)=.3 x(ni)=.05
+
+c e
+
+l,,,,
+
+
+@&
+
+set ax 1 x(cr) 0 1 ,,,,
+set ax 2 x(ni) 0 1 ,,,,
+
+map
+
+
+@$ this diagram has no potential axis, that requires some special care
+@&
+
+@$ The graphics for this kind of diagram is not fully developed 
+@$ The lines for the invariants are missing
+@$ Some graphical options set by user are ignored
+
+plot
+
+
+title map 10 fig 1
+
+plot
+
+
+text
+0.47
+0.07
+0
+n
+{/Symbol s}
+text n 0.6 0.02 0 y
+
+text n 0.5 0.25 -30 y
+
+title map 10 fig 2
+
+
+plot
+
+
+tie_line 2
+title map 10 fig 3
+
+
+@$ There is no Gibbs triagle diagram option yet
+
+
+
+@&
+set inter
+
+

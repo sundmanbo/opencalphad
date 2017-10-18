@@ -35,6 +35,9 @@
    allocate(phlista(0:maxph))
    allocate(phases(0:maxph))
    allocate(phasetuple(0:2*maxph))
+   do jl=1,2*maxph
+      phasetuple%nextcs=0
+   enddo
 ! phases(0) is refrence phase, evidently this index is never set
    phases(0)=0
 !---------------------------
@@ -114,8 +117,8 @@
    enddo
 ! NOTE last phase_varres record used for copy in shiftcompsets
    firsteq%phase_varres(2*maxph)%nextfree=-1
-! csfree is not declared ... how can that be?? where is it declared ??
-   csfree=1
+! csfree and highcs are declared in gtp3.F90
+   csfree=1; highcs=0
 ! convergence criteria for constituent fractions, 1e-6 works most often
 ! But one should take care to equilibrate fractions smaller than xconv!!!
    firsteq%xconv=1.0D-6
@@ -268,23 +271,54 @@
 !.......................................
 ! This is yet another elastic "constant" 19
    npid=npid+1
-   if(npid.gt.maxprop) then
-      write(*,*)'Too many parameter identifiers, increase maxprop'
-      gx%bmperr=7777; goto 1000
-   endif
    propid(npid)%symbol='EC44 '
    propid(npid)%note='Elast const C44'
    propid(npid)%status=0
 ! The elastic constant may depend on T and P
 !.......................................
+! Flory-Huggins molar volume parameter 20
+   npid=npid+1
+   propid(npid)%symbol='FHV '
+   propid(npid)%note='Flory-Hugg. vol '
+   propid(npid)%status=0
+! FHV is specific för a constituent
+   propid(npid)%status=ibset(propid(npid)%status,IDCONSUFFIX)
+!....................................... 21
+! Molar volume at T=298.15, 1 bar
+   npid=npid+1
+   propid(npid)%symbol='V0 '
+   propid(npid)%note='Volume at T0, P0 '
+   propid(npid)%status=0
+! Constant independent on temperature or pressure
+   propid(npid)%status=ibset(propid(npid)%status,IDNOTP)
+!....................................... 22
+! Thermal expansion at 1 bar
+   npid=npid+1
+   propid(npid)%symbol='VA '
+   propid(npid)%note='Thermal expansion '
+   propid(npid)%status=0
+! Only T dependent
+   propid(npid)%status=ibset(propid(npid)%status,IDONLYT)
+!....................................... 23
+! Bulk modulus as function of T and P
+   npid=npid+1
+   propid(npid)%symbol='VB '
+   propid(npid)%note='Bulk modulus '
+   propid(npid)%status=0
+! This IF statement should be at the last parameter identifier, maxprop=50?
+   if(npid.gt.maxprop) then
+!      write(*,*)'Too many parameter identifiers, increase maxprop'
+      gx%bmperr=4250; goto 1000
+   endif
+!.......................................
 ! IMPORTRANT: When adding more parameter identifiers one should never
-! use a name ending in D as that would be taken as a "disordered"
-! The number of defined properties, should be less than maxprop
+! NEVER USE A NAME ENDING IN D as that would be taken as a "disordered"
+! The number of defined properties, should be less than maxprop (=50?)
 ! IMPORTANT: In the addition records one must use the parameter identifier
 ! to extract the calculated composition dependent values
+! IMPORTANT: in gtp3F new variables must be added to be able to list/plot them
    ndefprop=npid
 !-------------------------------------------------
-   highcs=0
 ! globaldata record; set gas constant mm
    globaldata%status=0
 ! set beginner, no data, no phase, no equilibrium calculated
@@ -293,10 +327,12 @@
    globaldata%status=ibset(globaldata%status,GSNODATA)
    globaldata%status=ibset(globaldata%status,GSNOPHASE)
    firsteq%status=ibset(firsteq%status,EQNOEQCAL)
+! set that dense grid is used by default
+!   globaldata%status=ibset(globaldata%status,GSXGRID)
 ! set gas constant and some default values
    globaldata%name='current'
    globaldata%rgas=8.31451D0
-! more recent value
+! more recent value not used as all TDB file used the old
 !   globaldata%rgas=8.3144621D0
 ! old value of gas constant
    globaldata%rgasuser=8.31451D0
@@ -353,13 +389,37 @@
 !      goto 1000
 !   endif
 ! we evaluate all symbols to avoid some problems ... no output
-!   call meq_evaluate_all_svfun(-1,ceq) cannot be used as in minimizer ...
+!  call meq_evaluate_all_svfun(-1,ceq) cannot be used as it is in minimizer ...
    call evaluate_all_svfun_old(-1,firsteq)
+! assment initiallizing
+!   write(*,*)'3A Initiallizing firstash'
+   call assessmenthead(firstash)
+   firstash%status=0
+!   write(*,*)'firstash allocated: ',firstash%status
+!   nullify(firstash%prevash)
+!   nullify(firstash%nextash)
+   firstash%nextash=>firstash
+   firstash%prevash=>firstash
+! set that dense grid used by default
+!   globaldata%status=ibset(globaldata%status,GSXGRID)
+! removed line above as that caused crash in parallel2 WHY????
 ! finished initiating
 1000 continue
 !   write(*,*)'exit from init_gtp'
    return
  END subroutine init_gtp
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine assessmenthead(ash)
+! create an assessment head record
+   type(gtp_assessmenthead), pointer :: ash
+!\end{verbatim}
+   allocate(ash)
+   ash%status=0
+   return
+ end subroutine assessmenthead
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 !>     2. Number of things
@@ -606,7 +666,7 @@
       endif
    enddo
    if(isp.eq.0) then
-!    write(*,*)'in find_species_by_name'
+!      write(*,*)'in find_species_by_name'
       gx%bmperr=4051
       loksp=0
    endif
@@ -650,7 +710,7 @@
       endif
    enddo
    if(isp.le.0) then
-!   write(*,*)'Error in find_species_record "',name,'"'
+!      write(*,*)'Error in find_species_record "',name,'"'
       gx%bmperr=4051
       loksp=0
    else
@@ -693,7 +753,7 @@
    implicit none
    integer loksp
    character name*(*)
-!\end{verbatim} %+
+!\end{verbatim}
    character symbol*24
    symbol=name
    call capson(symbol)
@@ -702,7 +762,8 @@
 !17     format(a,i3,' "',a,'" "',a,'"')
       if(symbol.eq.splista(loksp)%symbol) goto 1000
    enddo
-!    write(*,*)'in find_species_record'
+! This message cannot be written as it is used when reading a TDB file ...
+!   write(kou,*)'Exact match to species name requited'
    gx%bmperr=4051
    loksp=0
 1000 continue
@@ -711,7 +772,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim} %-
+!\begin{verbatim}
  subroutine find_phasetuple_by_name(name,phcsx)
 ! finds a phase with name "name", returns phase tuple index
 ! handles composition sets either with prefix/suffix or #digit
@@ -721,6 +782,9 @@
    integer phcsx
 !\end{verbatim} %+
    integer iph,ics
+   iph=0
+   ics=0
+   phcsx=0
    call find_phasex_by_name(name,phcsx,iph,ics)
 1000 continue
    return
@@ -738,6 +802,7 @@
    integer iph,ics
 !\end{verbatim} %+
    integer phcsx
+   phcsx=0
    call find_phasex_by_name(name,phcsx,iph,ics)
 1000 continue
    return
@@ -746,22 +811,53 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim} %-
- subroutine find_phasex_by_name(name,phcsx,iph,ics)
+ integer function find_phasetuple_by_indices(iph,ics)
+! subroutine find_phasetuple_by_indices(iph,ics)
+! find phase tuple index given phase index and composition set number
+   integer iph,ics
+!\end{verbatim} %+
+   integer ij
+   ij=iph
+   if(ij.gt.0 .and. ij.le.nooftuples) then
+      do while(ij.gt.0)
+         if(ics.eq.phasetuple(ij)%compset) then
+            find_phasetuple_by_indices=ij
+            goto 1000
+         else
+            ij=phasetuple(ij)%nextcs
+         endif
+      enddo
+   endif
+   write(*,*)'Wrong arguments to find_phasetuple_by_indices: ',iph,ics,ij
+   gx%bmperr=4073
+1000 continue
+ return
+end function find_phasetuple_by_indices
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim} %-
+ subroutine find_phasex_by_name(name,phcsx,iph,zcs)
 ! finds a phase with name "name", returns index and tuplet of phase.
 ! All phases checked and error return if name is ambiguous
 ! handles composition sets either with prefix/suffix or #digit or both
 ! if no # check all composition sets for prefix/suffix
+! special if phcsx = -1 and there are several composition sets then
+! zcs is set to -(number of composition sets).  Used when changing status
+! phcsx, iph and zcs are values to return!
    implicit none
    character name*(*)
-   integer phcsx,iph,ics
+   integer phcsx,iph,zcs
 !\end{verbatim} %+
    character name1*36,csname*36,name2*24,name3*24
    TYPE(gtp_phase_varres), pointer :: csrec
-   integer kp,kcs,lokph,jcs,lokcs,first1,fcs,lcs,lenam
+   integer kp,kcs,lokph,jcs,lokcs,first1,fcs,lcs,ics,lenam,allsets
+! set ics to an illegal value
+   ics=-1
+   allsets=phcsx
 ! convert to upper case locally
    name1=name
    call capson(name1)
-!   write(*,*)'3A find phase: ',name1
 ! composition set as #digit
    kp=index(name1,'#')
    if(kp.gt.0) then
@@ -771,13 +867,14 @@
       if(ics.lt.1 .or. ics.gt.9) then
          gx%bmperr=4093; goto 1000
       endif
+      allsets=ics
       name1(kp:)=' '
       kcs=ics
    else
       ics=1
       kcs=0
    endif
-!   write(*,17)name(1:len_trim(name)),ics,kcs,kp
+!   write(*,17)trim(name),ics,kcs,kp,noofph
 17 format('3A find_phase 3: ',a,2x,10i4)
    first1=0
    loop1: do lokph=1,noofph
@@ -830,6 +927,7 @@
             elseif(first1.eq.0) then
                first1=lokph
                ics=jcs
+               allsets=ics
             else
 ! ambiguous phase name
                gx%bmperr=4121; goto 1000
@@ -856,9 +954,22 @@
       goto 1000
    endif
 300 continue
+! first1 is lokph for phase
    iph=phlista(first1)%alphaindex
-! ics set above
-   phcsx=firsteq%phase_varres(phlista(first1)%linktocs(ics))%phtupx
+   if(allsets.eq.-1) then
+! special to set status: return -(number of composition sets) in zcs if >1
+! DO NOT CHANGE PHCSX
+      lcs=phlista(first1)%noofcs
+      if(lcs.gt.1) then
+         ics=-lcs; zcs=-lcs
+      else
+         ics=1; zcs=1
+      endif
+   else
+! ics set above, return it in zcs
+      zcs=ics
+      phcsx=firsteq%phase_varres(phlista(first1)%linktocs(ics))%phtupx
+   endif
    gx%bmperr=0
 1000 continue
    return
@@ -866,125 +977,6 @@
    gx%bmperr=4073
    goto 1000
  END subroutine find_phasex_by_name
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\begin{verbatim} %-
- subroutine find_phasex_by_name_old(name,phcsx,iph,ics)
-! finds a phase with name "name", returns address of phase, first fit accepted
-! handles composition sets either with prefix/suffix or #digit
-! no pre/suffix nor # always return first composition set
-   implicit none
-   character name*(*)
-   integer phcsx,iph,ics
-!\end{verbatim} %+
-! THIS SHOULD BE REWRITTEN ...
-   character name1*36,csname*36,name2*24,name3*24
-   TYPE(gtp_phase_varres), pointer :: csrec
-   integer kp,kcs,lokph,jcs,lokcs,first1,first2
-! convert to upper case locally
-   name1=name
-   call capson(name1)
-!   write(*,*)'find phase: ',name1
-! composition set as #digit
-   kp=index(name1,'#')
-   if(kp.gt.0) then
-      ics=ichar(name1(kp+1:kp+1))-ichar('0')
-! negative ics should give error, 0 should be the same as 1
-      if(ics.eq.0) ics=1
-      if(ics.lt.1 .or. ics.gt.9) then
-         gx%bmperr=4093; goto 1000
-      endif
-      name1(kp:)=' '
-      kcs=ics
-   else
-      ics=1
-      kcs=0
-   endif
-   write(*,17)ics,kcs,kp
-17 format('3A find_phase 3: ',10i4)
-   first1=0
-   first2=0
-   loop1: do lokph=1,noofph
-      name2=phlista(lokph)%name
-!      write(*,*)'find_phase 2: ',name1,name2
-      if(compare_abbrev(name1,name2)) then
-         if(ics.le.phlista(lokph)%noofcs) then
-!            goto 300
-            if(first1.eq.0) then
-               first1=lokph
-            else
-! phase name is ambiguous
-               gx%bmperr=4121
-               goto 1000
-            endif
-         else
-!            write(*,18)ics,phlista(lokph)%noofcs
-!18  format('find_phase 4: ',2i4)
-            gx%bmperr=4072; goto 1000
-         endif
-      endif
-! if there are composition sets check name including prefix/suffix
-!      write(*,*)'find_phase 5: ',lokph,phlista(lokph)%noofcs
-      csno: do jcs=2,phlista(lokph)%noofcs
-         lokcs=phlista(lokph)%linktocs(jcs)
-!         write(*,*)'3A: find phase: ',jcs,lokcs,phlista(lokph)%noofcs
-         csrec=>firsteq%phase_varres(lokcs)
-         kp=len_trim(csrec%prefix)
-         if(kp.gt.0) then
-            csname=csrec%prefix(1:kp)//'_'//name2
-         else
-            csname=name2
-         endif
-!         write(*,*)'find phase: ',kp
-         kp=len_trim(csrec%suffix)
-         if(kp.gt.0) csname=csname(1:len_trim(csname))//'_'//&
-              csrec%suffix(1:kp)
-!         write(*,244)ics,kcs,jcs,kp,name1(1:len_trim(name1)),&
-!              csname(1:len_trim(csname))
-244      format('3A: find_phase: ',4i3,'<',a,'>=?=<',a,'>')
-         if(compare_abbrev(name1,csname)) then
-            if(first2.eq.0) then
-! if user has provided both #<digit> and pre/suffix these must be consistent
-               if(kcs.gt.0 .and. kcs.ne.jcs) then
-! automatically created composition sets all have the suffix _AUTO but
-! can have several numbers
-!               write(*,*)'3A: mix? ',jcs,phlista(lokph)%noofcs
-                  if(jcs.eq.phlista(lokph)%noofcs) goto 1100
-                  cycle csno
-               endif
-               first2=jcs
-            else
-! ambiguous phase name
-               gx%bmperr=4121; goto 1000
-            endif
-!            ics=jcs
-!            goto 300
-         endif
-      enddo csno
-   enddo loop1
-   if(first1.eq.0) then
-! no phase found
-      gx%bmperr=4050
-      goto 1000
-   endif
-300 continue
-   if(first2.eq.0) then
-      ics=1
-   else
-      ics=first2
-   endif
-!   iph=phlista(lokph)%alphaindex
-!   phcsx=firsteq%phase_varres(phlista(lokph)%linktocs(ics))%phtupx
-   iph=phlista(first1)%alphaindex
-   phcsx=firsteq%phase_varres(phlista(first1)%linktocs(ics))%phtupx
-   gx%bmperr=0
-1000 continue
-   return
-1100 continue
-   gx%bmperr=4073
-   goto 1000
- END subroutine find_phasex_by_name_old
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -1095,61 +1087,6 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine find_constituent(iph,spname,mass,icon)
-! find the constituent "spname" of a phase. spname can have a sublattice #digit
-! Return the index of the constituent in icon.  Additionally the mass
-! of the species is returned.
-   implicit none
-   character*(*) spname
-   double precision mass
-   integer iph,icon
-!\end{verbatim}
-   character spname1*24
-   integer lokph,kp,ll,kk,loksp,ls,first
-   lokph=phases(iph)
-   kp=index(spname,'#')
-   if(kp.gt.0) then
-      ls=ichar(spname(kp+1:kp+1))-ichar('0')
-      spname1=spname(1:kp-1)
-   else
-      ls=0
-      spname1=spname
-   endif
-   call capson(spname1)
-   icon=0
-   first=0
-   lloop: do ll=1,phlista(lokph)%noofsubl
-      sploop: do kk=1,phlista(lokph)%nooffr(ll)
-         icon=icon+1
-         if(ls.eq.0 .or. ls.eq.ll) then
-            loksp=phlista(lokph)%constitlist(icon)
-! constituent icon is the requested one
-!             write(*,55)ll,kk,icon,spname1(1:3),splista(loksp)%symbol(1:3)
-!55           format('find_const 7: ',3i3,1x,a,2x,a)
-            if(compare_abbrev(spname1,splista(loksp)%symbol)) then
-               if(first.eq.0) then
-                  first=loksp
-               else
-                  gx%bmperr=4121
-                  goto 1000
-               endif
-               goto 1000
-            endif
-         endif
-      enddo sploop
-   enddo lloop
-   if(first.eq.0) then
-      gx%bmperr=4096
-   else
-      mass=splista(first)%mass
-   endif
-1000 continue
-   return
- end subroutine find_constituent
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\begin{verbatim}
  subroutine findeq(name,ieq)
 ! finds the equilibrium with name "name" and returns its index
 ! ieq should be the current equilibrium
@@ -1162,13 +1099,16 @@
    name2=name
    call capson(name2)
 ! Accept abbreviations of PREVIOUS and FIRST (DEFAULT is the same as the first)
-!   write(*,*)'3A equil: ',name2(1:20),ieq
+   jeq=0
    if(compare_abbrev(name2,'PREVIOUS ')) then
       jeq=max(1,ieq-1); goto 200
    elseif(compare_abbrev(name2,'FIRST ')) then
       jeq=1; goto 200
+   elseif(compare_abbrev(name2,'DEFAULT ')) then
+      jeq=1; goto 200
+!   elseif(compare_abbrev(name2,'LAST ')) then
+!      jeq=1; goto 200
    endif
-   jeq=0
 100 jeq=jeq+1
 !    write(*,*)'findeq 2: ',jeq,name2
    if(jeq.ge.eqfree) then
@@ -1272,6 +1212,66 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\begin{verbatim}
+ subroutine find_constituent(iph,spname,mass,icon)
+! find the constituent "spname" of a phase. spname can have a sublattice #digit
+! Return the index of the constituent in icon.  Additionally the mass
+! of the species is returned.
+   implicit none
+   character*(*) spname
+   double precision mass
+   integer iph,icon
+!\end{verbatim}
+! BUG found, asking for a constituent N it returned the constituent NB !!!
+! Must search for exact match!!!
+   character spname1*24
+   integer lokph,kp,ll,kk,loksp,ls,first
+   lokph=phases(iph)
+   kp=index(spname,'#')
+   if(kp.gt.0) then
+      ls=ichar(spname(kp+1:kp+1))-ichar('0')
+      spname1=spname(1:kp-1)
+   else
+      ls=0
+      spname1=spname
+   endif
+   call capson(spname1)
+   icon=0
+   first=0
+   lloop: do ll=1,phlista(lokph)%noofsubl
+      sploop: do kk=1,phlista(lokph)%nooffr(ll)
+         icon=icon+1
+         if(ls.eq.0 .or. ls.eq.ll) then
+            loksp=phlista(lokph)%constitlist(icon)
+! constituent icon is the requested one ??
+!            write(*,55)ll,kk,icon,trim(spname1),trim(splista(loksp)%symbol)
+55          format('find_const 7: ',3i3,1x,a,2x,a)
+            if(compare_abbrev(spname1,splista(loksp)%symbol)) then
+               if(trim(spname1).eq.trim(splista(loksp)%symbol)) then
+! if exact match accept
+                  first=loksp; goto 90
+               elseif(first.eq.0) then
+                  first=loksp
+               else
+                  gx%bmperr=4121
+                  goto 1000
+               endif
+            endif
+         endif
+      enddo sploop
+   enddo lloop
+90 continue
+   if(first.eq.0) then
+      gx%bmperr=4096
+   else
+      mass=splista(first)%mass
+   endif
+1000 continue
+   return
+ end subroutine find_constituent
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
 !\begin{verbatim} %-
  subroutine get_constituent_name(iph,iseq,spname,mass)
 ! find the constituent with sequential index iseq in phase iph
@@ -1293,44 +1293,12 @@
       spname=splista(loksp)%symbol
       mass=splista(loksp)%mass
    else
-      write(*,*)'No such constituent'
-      gx%bmperr=7777
+!      write(*,*)'No such constituent'
+      gx%bmperr=4096
    endif
 1000 continue
    return
  end subroutine get_constituent_name
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\begin{verbatim}
- subroutine get_phase_constituent_name(iph,icon,name,sublat)
-! return the name of constituent icon of phase iph
-! redundant?
-   implicit none
-   character*(*) name
-   integer iph,icon,sublat
-!\end{verbatim}
-   integer lokph,sumc
-   if(iph.le.0 .or. iph.gt.noofph) then
-      gx%bmperr=4050; goto 1000
-   endif
-   lokph=phases(iph)
-   if(icon.le.0 .or. icon.gt.phlista(lokph)%tnooffr) then
-      gx%bmperr=4096; goto 1000
-   endif
-!   loksp=phlista(lokph)%constitlist(icon)
-!   name=splista(loksp)%symbol
-   name=splista(phlista(lokph)%constitlist(icon))%symbol
-! sublattice
-   sublat=1
-   sumc=phlista(lokph)%nooffr(sublat)
-   do while(icon.gt.sumc)
-      sublat=sublat+1
-      sumc=sumc+phlista(lokph)%nooffr(sublat)
-   enddo
-1000 continue
-   return
- end subroutine get_phase_constituent_name
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -1371,7 +1339,7 @@
    else
       name=splista(ceq%complist(icomp)%splink)%symbol
       if(buperr.ne.0) then
-         write(*,*)'gcn buperr: ',buperr
+         write(*,*)'3A gcn buperr: ',trim(name),buperr
          gx%bmperr=buperr
       endif
    endif
@@ -1387,9 +1355,9 @@
    implicit none
    character spsym*(*)
    integer isp
-!\end{verbatim}
+!\end{verbatim} %+
    if(isp.le.0 .or. isp.gt.noofsp) then
-!       write(*,*)'in get_species_name'
+!      write(*,*)'in get_species_name'
       gx%bmperr=4051; goto 1000
    endif
 !   loksp=species(isp)
@@ -1400,23 +1368,43 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\begin{verbatim} %-
+ subroutine get_species_location(isp,loksp,spsym)
+! return species location and name, isp is species number
+   implicit none
+   character spsym*(*)
+   integer isp,loksp
+!\end{verbatim}
+   if(isp.le.0 .or. isp.gt.noofsp) then
+!      write(*,*)'in get_species_name'
+      gx%bmperr=4051; goto 1000
+   endif
+   loksp=species(isp)
+   spsym=splista(loksp)%symbol
+!   spsym=splista(species(isp))%symbol
+1000 return
+ end subroutine get_species_location
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
 !\begin{verbatim}
- subroutine get_species_data(loksp,nspel,ielno,stoi,smass,qsp)
+ subroutine get_species_data(loksp,nspel,ielno,stoi,smass,qsp,extra)
 ! return species data, loksp is from a call to find_species_record
 ! nspel: integer, number of elements in species
 ! ielno: integer array, element indices
-! stoi: double array, stocichiometric factors
+! stoi: double array, stoichiometric factors
 ! smass: double, mass of species
 ! qsp: double, charge of the species
+! extra: some additional information ...
    implicit none
    integer, dimension(*) :: ielno
    double precision, dimension(*) :: stoi(*)
    integer loksp,nspel
-   double precision smass,qsp
-!\end{verbatim}
+   double precision smass,qsp,extra
+!\end{verbatim} %+
    integer jl,iel
    if(loksp.le.0 .or. loksp.gt.noofsp) then
-!       write(*,*)'in get_species_data'
+!      write(*,*)'in get_species_data'
       gx%bmperr=4051; goto 1000
    endif
    nspel=splista(loksp)%noofel
@@ -1427,8 +1415,104 @@
    enddo elements
    smass=splista(loksp)%mass
    qsp=splista(loksp)%charge
+   extra=splista(loksp)%extra
 1000 return
  end subroutine get_species_data
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim} %-
+ subroutine get_species_component_data(loksp,nspel,compnos,stoi,smass,qsp,ceq)
+! return species data, loksp is from a call to find_species_record
+! Here we return stoichiometry using components 
+! nspel: integer, number of components in species
+! compno: integer array, component (species) indices
+! stoi: double array, stoichiometric factors
+! smass: double, mass of species
+! qsp: double, charge of the species
+   implicit none
+   integer, dimension(*) :: compnos
+   double precision, dimension(*) :: stoi(*)
+   integer loksp,nspel
+   double precision smass,qsp
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   integer jl,iel,jk,ncomp,locomp
+   integer, allocatable :: components(:)
+   double precision, allocatable :: compstoi(:)
+   double precision qextra
+!
+! if the components are the elements then use get_species_data
+   if(.not.btest(globaldata%status,GSNOTELCOMP)) then
+      call get_species_data(loksp,nspel,compnos,stoi,smass,qsp,qextra)
+      qextra=zero
+      goto 1000
+!   else
+!      write(*,11)globaldata%status,GSNOTELCOMP
+!11    format('3A using other components than elements',Z8,i4)
+   endif
+   allocate(components(noofel))
+   allocate(compstoi(noofel))
+   components=0
+   compstoi=zero
+   if(loksp.le.0 .or. loksp.gt.noofsp) then
+!      write(*,*)'in get_species_data'
+      gx%bmperr=4051; goto 1000
+   endif
+   nspel=splista(loksp)%noofel
+   elements: do jl=1,nspel
+! splista(loksp)%ellinks is the location of the element record in ellista
+! To find the element index in alphabetical order use the %alphaindex
+      iel=ellista(splista(loksp)%ellinks(jl))%alphaindex
+! ignore vacancies
+      if(iel.le.0) cycle elements
+      allcomp: do jk=1,noofel
+! this is a loop for all components
+! locomp is the species record of the component
+         if(abs(ceq%invcompstoi(jk,iel)).gt.1.0D-12) then
+! the stoichiometry of this component is nonzero for this element
+! add to compstoi(jk)
+! convert the element to components using the inverted stoichiometry matrix
+! for example elements Ca O Si
+! components CaO SiO2 O
+! matrix  components/elemenets    Ca   O    Si
+!         CaO                     1    1    0
+!         SiO2                    0    2    1
+!         O                       0    1    0
+! inverted matrix                 CaO SiO2  O
+!                          Ca     1    0    -1  invmat(1,1) (2,1) (3,1)
+!                          O      0    1    0
+!                          Si     0    1    -2
+! for Ca return 2 components,  1 * CaO -1 * O
+! for SiO return 2 components  1*SiO   -1 * O
+            compstoi(jk)=compstoi(jk)+&
+                 splista(loksp)%stoichiometry(jl)*ceq%invcompstoi(jk,iel)
+            qsp=splista(loksp)%charge
+         endif
+      enddo allcomp
+   enddo elements
+! return components with nonzero stoichiometry.  
+! Note stoichiometry can be negative
+! There are always as many components as elements
+   smass=zero
+   nspel=0
+   reduce: do jk=1,noofel
+      if(abs(compstoi(jk)).gt.1.0D-12) then
+         nspel=nspel+1
+         compnos(nspel)=jk
+         stoi(nspel)=compstoi(jk)
+         smass=smass+stoi(nspel)*ceq%complist(jk)%mass
+! maybe save species charge in the component record??
+! the lines below needed only if a component is charged !! hopefully never ...
+         locomp=ceq%complist(jk)%splink
+         qsp=qsp+stoi(nspel)*splista(locomp)%charge
+         if(splista(locomp)%charge.ne.zero) then
+            write(*,*)'3A charge: ',loksp,qsp,stoi(nspel),splista(locomp)%charge
+         endif
+      endif
+   enddo reduce
+1000 return
+ end subroutine get_species_component_data
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -1442,7 +1526,7 @@
 !\end{verbatim}
    if(component.le.0 .or. component.gt.noofel) then
       write(*,*)'Calling mass_of with illegal component number: ',component
-      gx%bmperr=7777; goto 1000
+      gx%bmperr=4251; goto 1000
    endif
 ! return in kg
    mass_of=ceq%complist(component)%mass
@@ -1451,23 +1535,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim}
- subroutine get_phasetup_name(phtuple,name)
-! Given the phase tuple this subroutine returns the name with pre- and suffix
-! for composition sets added and also a \# followed by a digit 2-9 for
-! composition sets higher than 1.
-   implicit none
-   character name*(*)
-   type(gtp_phasetuple) :: phtuple
-!\end{verbatim} %+
-   call get_phase_name(phtuple%phase,phtuple%compset,name)
-1000 continue
-   return
- end subroutine get_phasetup_name
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\begin{verbatim} %-
+!\begin{verbatim} %
  subroutine get_phase_name(iph,ics,name)
 ! Given the phase index and composition set number this subroutine returns
 ! the name with pre- and suffix for composition sets added and also 
@@ -1475,7 +1543,7 @@
    implicit none
    character name*(*)
    integer iph,ics
-!\end{verbatim}
+!\end{verbatim} %+
    character phname*36
    integer lokph,lokcs,kp
    call get_phase_compset(iph,ics,lokph,lokcs)
@@ -1503,6 +1571,65 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\begin{verbatim} %-
+ subroutine get_phasetup_name(phtupx,name)
+! phasetuple(phtupx)%phase is index to phlista
+! the name has pre- and suffix for composition sets added and also 
+! a \# followed by a digit 2-9 for composition sets higher than 1.
+   implicit none
+   character name*(*)
+   integer phtupx
+!\end{verbatim} %+
+   integer phx,phy
+!   phx=phlista(phasetuple(phtupx)%phaseix)%alphaindex
+   phx=phlista(phasetuple(phtupx)%lokph)%alphaindex
+   call get_phase_name(phx,phasetuple(phtupx)%compset,name)
+1000 continue
+   return
+ end subroutine get_phasetup_name
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine get_phasetup_name_old(phtuple,name)
+! Given the phase tuple this subroutine returns the name with pre- and suffix
+! for composition sets added and also a \# followed by a digit 2-9 for
+! composition sets higher than 1.
+   implicit none
+   character name*(*)
+   type(gtp_phasetuple) :: phtuple
+!\end{verbatim} %+
+!
+! PROBABLY REDUNDANT and wrong ...
+!
+!   call get_phase_name(phtuple%phaseix,phtuple%compset,name)
+   call get_phase_name(phtuple%ixphase,phtuple%compset,name)
+1000 continue
+   return
+ end subroutine get_phasetup_name_old
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim} %-
+ subroutine get_phasetup_record(phtx,lokcs,ceq)
+! return lokcs when phase tuple known
+   implicit none
+   integer phtx,lokcs
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   if(phtx.lt.1 .or. phtx.gt.nooftuples) then
+!      write(*,*)'Wrong tuple index',phtx
+      gx%bmperr=4252; goto 1000
+   endif
+   write(*,*)'Calling get_phasetup_record is redundant'
+   stop
+!   lokcs=phlista(phasetuple(phtx)%phaseix)%linktocs(phasetuple(phtx)%compset)
+1000 continue
+   return
+ end subroutine get_phasetup_record
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
 !\begin{verbatim}
  subroutine get_phase_data(iph,ics,nsl,nkl,knr,yarr,sites,qq,ceq)
 ! return the structure of phase iph and constituntion of comp.set ics
@@ -1520,7 +1647,7 @@
    double precision, dimension(*) :: yarr,sites,qq
    integer iph,ics,nsl
    TYPE(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim}
+!\end{verbatim} %+
    integer lokph,lokcs,kkk,ll,jj,loksp
    double precision vsum,qsum,ql,vl,yz
 !
@@ -1557,15 +1684,18 @@
    qsum=zero
    kkk=0
    if(.not.btest(ceq%phase_varres(lokcs)%status2,CSCONSUS)) then
+! CSCONSUS set if a constituent is suspended ... not implemented yet
       sublat: do ll=1,nsl
          nkl(ll)=phlista(lokph)%nooffr(ll)
 ! we get strange error "index 1 or array ceq above bound of 0"
          if(size(ceq%phase_varres(lokcs)%sites).lt.1) then
-            write(*,*)'Strange error when step: ',iph,ics,lokcs,ll
-            gx%bmperr=8765; goto 1000
+!            write(*,*)'Strange error when step: ',iph,ics,lokcs,ll
+            gx%bmperr=4253; goto 1000
          endif
 !         write(*,17)'3 A Strange error: ',iph,ics,lokcs,ll,&
 !              size(ceq%phase_varres(lokcs)%sites)
+! another strange error "below lower bound of 4 ..."
+! I do not now how to check for a lower boundary ... 
 17       format(a,10i6)
          sites(ll)=ceq%phase_varres(lokcs)%sites(ll)
          ql=zero
@@ -1602,15 +1732,43 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\begin{verbatim} %-
+ subroutine get_phase_structure(lokph,nsl,nkl)
+! return the number of sblattices and constituents in each.
+! nsl: integer, number of sublattices
+! nkl: integer array, number of constituents in each sublattice
+! USED when calculating derivatives of chemical potentials and diffusion coef
+   implicit none
+   integer, dimension(*) :: nkl
+   integer lokph,nsl
+!\end{verbatim}
+   integer ii
+   if(lokph.le.0 .or. lokph.gt.noofph) then
+!      write(*,*)'You are way off your head'
+      gx%bmperr=4050; goto 1000
+   endif
+   nsl=phlista(lokph)%noofsubl
+   do ii=1,nsl
+      nkl(ii)=phlista(lokph)%nooffr(ii)
+   enddo
+1000 continue
+   return
+ end subroutine get_phase_structure
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
 !\begin{verbatim}
  integer function get_phtuplearray(phcs)
 ! copies the internal phase tuple array to external software
 ! function value set to number of tuples
    type(gtp_phasetuple), dimension(*) :: phcs
-!\end{verbatim}
+!\end{verbatim} %+
    integer iz
    do iz=1,nooftuples
+! phasetuple(iz)%phase is lokph!!!  .... probably never used ...
       phcs(iz)=phasetuple(iz)
+!      phcs(iz)%phase=phasetuple(iz)%phase
+!      phcs(iz)%compset=phasetuple(iz)%compset
    enddo
 1000 continue
    get_phtuplearray=nooftuples
@@ -1618,43 +1776,17 @@
  end function get_phtuplearray
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-!>     5. Set things
+
+!\begin{verbatim} %-
+ integer function noofphasetuples()
+! number of phase tuples
+!\end{verbatim}
+   noofphasetuples=nooftuples
+   return
+ end function noofphasetuples
+
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-!
-!-\begin{verbatim}
-! subroutine set_mean_constitution(iph,ics,ceq)
-! sets a start constitution 1/ns in all sublattices where ns is the number
-! of constituents in the sublattice.
-!   implicit none
-!   integer iph,ics
-!   TYPE(gtp_equilibrium_data), pointer :: ceq
-!-\end{verbatim}
-!   integer, dimension(maxsubl) :: knl
-!   double precision, dimension(maxsubl) :: sites
-!   integer, dimension(maxconst) :: knr
-!   double precision, dimension(maxconst) :: yarr
-!   double precision, dimension(5) :: qq
-!   double precision df
-!   integer nsl,kkk,ll,jl
-!   call get_phase_data(iph,ics,nsl,knl,knr,yarr,sites,qq,ceq)
-!   if(gx%bmperr.ne.0) goto 1000
-!   kkk=0
-!   do ll=1,nsl
-!      if(knl(ll).gt.1) then
-!         df=one/dble(knl(ll))
-!         do jl=1,knl(ll)
-!            kkk=kkk+1
-!            yarr(kkk)=df
-!         enddo
-!      endif
-!   enddo
-!   write(*,17)iph,ics,(yarr(j),j=1,kkk)
-!17 format('Default cons: ',2i3,5(1pe12.4))
-!   call set_constitution(iph,ics,yarr,qq,ceq)
-!1000 continue
-!   return
-! end subroutine set_mean_constitution
-!
+!>     5. Set things
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
@@ -1668,12 +1800,14 @@
    integer iph,ics
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-   integer lokph,lokcs,ll,ml,ic,loksp,jl,locva
-   double precision charge,spat,asite,bsite,badd,yz,yva,sumat,asum,bsum
+   integer lokph,lokcs,ll,ml,ic,loksp,jl,locva,zl,zel
+   double precision charge,spat,asite,bsite,badd,yz,yva,sumat,asum,bsum,csum
 !   double precision charge1,bion1,ionsites(2)
-   double precision charge1,bion1
+   double precision charge1,bion1,compsum,comp1
 ! The mass is not calculated correctly in version 2, attempt to fix
    double precision bliq1
+! This is needed if we have other components than the elements
+   double precision, allocatable :: compam(:),elam(:),iliqcats(:)
 !   TYPE(gtp_fraction_set), pointer :: disrec
    logical ionicliq
 !   write(*,*)'In set_constitution ...'
@@ -1696,6 +1830,17 @@
       locva=0
    endif
 !----
+   if(btest(globaldata%status,GSNOTELCOMP)) then
+      allocate(elam(noofel))
+      allocate(compam(noofel))
+      elam=zero
+      compam=zero
+      if(ionicliq) then
+! we must save the amounts on sublattice 1 as we do not know the sites
+         allocate(iliqcats(noofel))
+         iliqcats=zero
+      endif
+   endif
    if(ocv()) write(*,8)'3Ay:',iph,ics,&
         (yfra(ic),ic=1,phlista(lokph)%tnooffr)
 8  format(a,2i2,6(1pe11.3))
@@ -1733,7 +1878,7 @@
          ic=ic+phlista(lokph)%nooffr(ll)
       enddo
 !--------
-      ll=1; ml=0; asum=zero; bsum=zero; charge=zero
+      ll=1; ml=0; asum=zero; bsum=zero; csum=zero; charge=zero
       if(ionicliq) then
 ! For ionic liquid we do not know the number of sites
          asite=one
@@ -1773,10 +1918,28 @@
 !            write(*,56)'3A badd: ',iph,loksp,splista(loksp)%mass,yz,bsite,badd
 56          format(a,2i3,6(1pe12.4))
             sumat=zero
-! This is not adopted for other components than the elements
+! This is summing atoms per formula unit of the phase
             do jl=1,splista(loksp)%noofel
                sumat=sumat+splista(loksp)%stoichiometry(jl)
             enddo
+!--------------------------------------------------------------
+            if(btest(globaldata%status,GSNOTELCOMP)) then
+! When there are other components than the elements we must sum the number
+! of each atom, not just the total. elam was alloctated and zeroed above
+               do jl=1,splista(loksp)%noofel
+! NOTE that the ellinks specify the location, not alphabetically!!
+! we must use %alphaindex to have the alphabetical index of the element ?? YES
+                  zel=ellista(splista(loksp)%ellinks(jl))%alphaindex
+! FOR IONIC LIQUID MODEL asite is unity and must be updatated below!!
+                  elam(zel)=elam(zel)+yz*splista(loksp)%stoichiometry(jl)*asite
+!                  write(*,14)'3A elam: ',zel,yz,&
+!                     splista(loksp)%stoichiometry(jl),(elam(zl),zl=1,noofel),&
+!                       trim(splista(loksp)%symbol)
+!14                format(a,i2,5(1pe11.3),2x,a)
+               enddo
+!               write(*,*)'3A NOTELCOMP: ',compsum,trim(splista(loksp)%symbol)
+!               csum=csum+yz*compsum
+            endif
             spat=spat+yz*sumat
 ! check sum number of atoms for ionic liquid
 !            if(sumat.gt.1) then
@@ -1807,16 +1970,24 @@
                   badd=zero
 ! initiate vacancy and neutral indices beyond last index (already done??)
                   phlista(lokph)%i2slx=phlista(lokph)%tnooffr+1
+                  if(btest(globaldata%status,GSNOTELCOMP)) then
+                     iliqcats=elam
+                     elam=zero
+                  endif
                elseif(ll.eq.2) then
 ! P=\sum_j (-v_j)y_j + Qy_Va. Note charge is total charge and valences 
 ! on 2nd sublattice is negative
 ! Now we know number of sites on sublattice 1, update asum and bsum
+! Cryptic programming ... sumat is here set to sites on first sublattice
                   sumat=-charge+charge1*yva
                   ceq%phase_varres(lokcs)%sites(1)=sumat
 !                  write(*,*)'Ionic 1: ',ceq%phase_varres(lokcs)%sites(1)
                   asum=asum*sumat
                   bsum=bion1*sumat
                   charge=zero
+                  if(btest(globaldata%status,GSNOTELCOMP)) then
+                     elam=elam+sumat*iliqcats
+                  endif
 !                  write(*,88)'3A iliq: ',ll,badd,bion1,bsum,sumat,yva
 ! new way to calculate mass of ionic liquid
                   bsum=sumat*bliq1+ceq%phase_varres(lokcs)%sites(2)*badd
@@ -1825,8 +1996,8 @@
 66                format(a,i3,6(1pe12.4))
                   badd=zero
                else
-                  write(*,*)'Ionic liquid must have two sublattices',ll
-                  gx%bmperr=7777; goto 1000
+!                  write(*,*)'Ionic liquid must have two sublattices',ll
+                  gx%bmperr=4255; goto 1000
                endif
             endif ionliq
 ! note: for ionic liquid previous values of asum and bsum are updated 
@@ -1854,8 +2025,36 @@
 ! save charge, number of moles and mass of real atoms per formula unit
 !   write(*,33)'3A isum:',lokcs,0,charge,asum,bsum,asite,spat
    ceq%phase_varres(lokcs)%netcharge=charge
-   ceq%phase_varres(lokcs)%abnorm(1)=asum
    ceq%phase_varres(lokcs)%abnorm(2)=bsum
+   if(btest(globaldata%status,GSNOTELCOMP)) then
+! Now we can convert the amount of atoms to amount of components
+! use ceq%invcompstoi to convert to components
+!      write(*,279)'3A elsm: ',iph,asum,(elam(zl),zl=1,noofel)
+279   format(a,i3,6(1pe12.4))
+      csum=zero
+      do zl=1,noofel
+         comp1=zero
+!         write(*,278)'3A inv: ',(ceq%invcompstoi(zl,zel),zel=1,noofel)
+278      format(a,6(1pe12.4))
+         do zel=1,noofel
+            comp1=comp1+ceq%invcompstoi(zl,zel)*elam(zel)
+         enddo
+         compam(zl)=comp1
+         csum=csum+compam(zl)
+      enddo
+!      write(*,277)'3A cpam: ',iph,csum,(compam(zl),zl=1,noofel)
+277   format(a,i3,6(1pe12.4))
+! abnorm(3) is the number of moles of user defined components
+!      write(*,299)'3A comp/FU: ',iph,ics,asum,csum
+299   format(a,2i3,4(1pe12.4))
+      ceq%phase_varres(lokcs)%abnorm(1)=csum
+      ceq%phase_varres(lokcs)%abnorm(3)=asum
+   else
+! if elements are constituents then set abnorm(3)=abnorm(1)
+      ceq%phase_varres(lokcs)%abnorm(1)=asum
+      ceq%phase_varres(lokcs)%abnorm(3)=asum
+   endif
+!   write(*,*)'3A sety: ',lokcs,ceq%phase_varres(lokcs)%abnorm(1)
    if(ionicliq .and. locva.gt.0) then
 ! the ionic liquid vacancy charge is the number of sites on second subl.
       ceq%phase_varres(lokcs)%dpqdy(locva)=ceq%phase_varres(lokcs)%sites(2)
@@ -1874,6 +2073,7 @@
 ! set disordered fractions if any
    if(btest(phlista(lokph)%status1,phmfs)) then
 !now set disordered fractions if any
+!      write(*,*)'3A disordered fractions for: ',lokph,lokcs
       call calc_disfrac(lokph,lokcs,ceq)
       if(gx%bmperr.ne.0) goto 1000
    endif
@@ -1901,8 +2101,15 @@
    double precision tpsave(2),molat,saveg(6)
 ! iph negative means remove current reference state
    if(iph.lt.0) then
+      if(allocated(ceq%complist(icomp)%endmember)) then
+! I do not understand the code here any longer but this gave error
+! as unallocated when I tried to ser reference state back to SER
+         deallocate(ceq%complist(icomp)%endmember)
+!      else
+!         write(*,4)icomp,ceq%complist(icomp)%phlink
+!4        format('3A This component has no previous reference state: ',2i4)
+      endif
       ceq%complist(icomp)%phlink=0
-      deallocate(ceq%complist(icomp)%endmember)
       ceq%complist(icomp)%tpref=zero
       ceq%complist(icomp)%refstate='SER (default)'
       goto 1000
@@ -2023,10 +2230,12 @@
    endif
 !----------------------------------------------
    if(noendm.eq.0) then
-! if no endmember found this phase cannt be reference phase
-      write(*,*)'This phase cannot be reference state for for this component'
-      gx%bmperr=7777; goto 900
+! if no endmember found this phase cannot be reference phase
+!      write(*,*)'This phase cannot be reference state for for this component'
+      gx%bmperr=4256; goto 900
    endif
+! mark that conditions and equilibrium may not be consistent
+   ceq%status=ibset(ceq%status,EQINCON)
 ! endmemx and endmemxy redundant
 !   write(*,808)'3G reference state endmember',lokph,endmemxy,jendsave
 808 format(a,i3,2x,10i3)
@@ -2034,6 +2243,7 @@
    ceq%complist(icomp)%phlink=lokph
    if(.not.allocated(ceq%complist(icomp)%endmember)) then
 ! if the user changes reference state do not allocate again
+!      write(*,*)'3A Allocating endmember for this reference state'
       allocate(ceq%complist(icomp)%endmember(nsl))
    endif
    ceq%complist(icomp)%endmember=jendsave
@@ -2045,6 +2255,7 @@
    ceq%complist(icomp)%tpref=tpval
    ceq%complist(icomp)%refstate=phlista(lokph)%name
 ! restore original constitution of compset 1
+!   write(*,*)'3A gval: ',gval
 900 continue
    ceq%tpval=tpsave
    jerr=gx%bmperr; gx%bmperr=0
@@ -2065,3 +2276,194 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\begin{verbatim}
+ subroutine amend_components(line,ceq)
+! amend the set of components
+   implicit none
+   character line*(*)
+   type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   integer c1,c2,c3,i1,i2,nspel,ierr,lokph,lokcs
+   integer, allocatable :: ielno(:),loksp(:)
+   double precision, allocatable :: stoi(:),smass(:),yarr(:)
+   double precision qsp,extra,qq(5)
+   double precision, allocatable :: matrix(:,:),imat(:,:)
+   character name*24
+   type(gtp_condition), pointer :: pcond,qcond,last
+   type(gtp_equilibrium_data), pointer :: curceq
+!
+   allocate(loksp(noofel))
+   allocate(ielno(noofel))
+   allocate(stoi(noofel))
+   allocate(smass(noofel))
+   allocate(matrix(noofel,noofel))
+   matrix=zero
+   c2=1
+   do c1=1,noel()
+      c3=c2+index(line(c2:),' ')
+      name=line(c2:c3-1)
+!      write(*,*)'3A name: "',trim(name),'"',c3,c1,' "',trim(line(c3:)),'"'
+      c2=c3
+      call find_species_record_exact(name,loksp(c1))
+      if(gx%bmperr.ne.0) goto 1000
+      call get_species_data(loksp(c1),nspel,ielno,stoi,&
+           smass(c1),qsp,extra)
+      if(qsp.gt.zero) then
+         write(*,*)'Charged species must not be components'
+         gx%bmperr=4399; goto 1000
+      endif
+      do i1=1,nspel
+         matrix(ielno(i1),c1)=stoi(i1)
+      enddo
+!      do i1=1,nspel
+!         matrix(c1,ielno(i1))=stoi(i1)
+!      enddo
+   enddo
+!   do c1=1,noofel
+!      write(*,70)'3A mat: ',c1,(matrix(c2,c1),c2=1,noofel)
+!   enddo
+70 format(a,i1,6(1pe12.4))
+! check that the matrix has an inverse
+   allocate(imat(noofel,noofel))
+   call mdinvold(noofel,noofel+1,matrix,imat,noofel,ierr)
+   if(ierr.eq.0) then
+      write(*,*)'Error inverting component matrix'
+      gx%bmperr=4399; goto 1000
+   endif
+!   do c1=1,noofel
+!      write(*,70)'3A imt: ',c1,(imat(c2,c1),c2=1,noofel)
+!   enddo
+!   gx%bmperr=4399
+!   write(*,*)'3A *** All seems OK so far ... but only testing yet'
+!   goto 1000
+!----------------------------------------------------------
+! We have a new set of components!!
+! At present (and maybe forever) use the same components in all equilibria ...
+   do c1=1,noofel
+      do c2=1,noofel
+         ceq%compstoi(c2,c1)=matrix(c2,c1)
+         ceq%invcompstoi(c2,c1)=imat(c2,c1)
+! set bit GSNOTELCOMP if there are non-zero off-diagonal terms in invcompstoi 
+         if(c1.ne.c2 .and. imat(c2,c1).ne.zero) then
+            globaldata%status=ibset(globaldata%status,GSNOTELCOMP)
+         endif
+      enddo
+!   enddo
+! enter the components, no alphabetical order ... ??
+!   do c1=1,noofel
+      ceq%complist(c1)%splink=loksp(c1)
+      ceq%complist(c1)%phlink=0
+      ceq%complist(c1)%tpref(1)=2.9815D2
+      ceq%complist(c1)%tpref(2)=1.0D5
+      ceq%complist(c1)%mass=smass(c1)
+   enddo
+! delete all conditions and experiments in all equilibria
+! the argument 0 means only conditions and experiments deleted, 
+! not the ceq itself
+!   write(*,*)'3A deleting all conditions in all equilibria',eqfree-1
+   do c1=1,eqfree-1
+      curceq=>eqlista(c1)
+      call delete_all_conditions(0,curceq)
+! delete if there are some extra things
+      if(allocated(curceq%eqextra)) deallocate(curceq%eqextra)
+   enddo
+! we must go through all (stoichiometric?) phases and set a new
+! value for abnorm(1) and (3)
+!   write(*,*)'3A update asum and csum for all phases'
+   do c1=1,noofph
+! the value stored in phases(i) is the location of phase record!!
+      lokph=phases(c1)
+      do c2=1,phlista(lokph)%noofcs
+         lokcs=phlista(lokph)%linktocs(c2)
+         c3=size(ceq%phase_varres(lokcs)%yfr)
+         if(.not.allocated(yarr)) then
+            allocate(yarr(c3))
+         endif
+         yarr=ceq%phase_varres(lokcs)%yfr
+! this will update abnorm(1) and (3) for THIS equilibrium ... loop for all??
+         call set_constitution(c1,c2,yarr,qq,ceq)
+      enddo
+      deallocate(yarr)
+   enddo
+1000 continue
+! deallocate temporary things (maybe default?)
+   deallocate(loksp)
+   deallocate(ielno)
+   deallocate(stoi)
+   deallocate(smass)
+   deallocate(matrix)
+   return
+ end subroutine amend_components
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine deallocate_gtp(intvar,dblvar)
+! deallocate the data structure
+   implicit none
+   integer allocatestatus
+   integer intvar(*)
+   double precision dblvar(*)
+!\end{verbatim}
+!   integer jl
+   write(*,*)'3A in deallocate_gtp'
+   deallocate(ellista, STAT = allocateStatus)
+   if (allocateStatus /= 0) then
+     write(kou,*) 'Error during deallocation of ellista'
+     goto 1000
+   else
+     write(kou,*) 'Deallocation of data ',  allocateStatus
+   endif
+!   flush(6)
+   deallocate(elements)
+! deallocate records for species
+   deallocate(splista)
+   deallocate(species)
+! deallocate records for phases
+   deallocate(phlista)
+   deallocate(phases)
+   deallocate(phasetuple)
+   deallocate(bibrefs)
+   deallocate(propid)
+   deallocate(eqlista)
+   deallocate(svflista)
+   write(*,*)'3A Deallocate TP funs'
+   call tpfun_deallocate
+1000 continue
+   return
+ END subroutine deallocate_gtp
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+  logical function allotropes(irem,iadd,ceq)
+! This function return TRUE if the phases indicated by IREM and IADD
+! both have fixed and identical composition, i.e. they are allotropes
+! Such a transition can cause problems during a STEP command.
+    implicit none
+    TYPE(gtp_equilibrium_data), pointer :: ceq
+    integer iadd,irem
+!\end{verbatim}
+    integer lokph1,lokph2,nofr,jj
+    logical allo
+    allo=.false.
+    write(*,*)'checking if two phases are allotropes',irem,iadd
+    lokph1=phases(irem)
+    nofr=phlista(lokph1)%tnooffr
+    if(nofr-phlista(lokph1)%noofsubl.eq.0) then
+       lokph2=phases(iadd)
+       if(nofr-phlista(lokph2)%noofsubl.eq.0) then
+          do jj=1,nofr
+             if(phlista(lokph1)%constitlist(jj).ne.&
+                  phlista(lokph2)%constitlist(jj)) goto 1000
+          enddo
+          allo=.true.
+          write(*,*)'The phases are allotropes!',ceq%tpval(1)
+       endif
+    endif
+1000 continue
+    allotropes=allo
+    return
+  end function allotropes
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\

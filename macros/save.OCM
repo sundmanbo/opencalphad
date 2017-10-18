@@ -1,0 +1,237 @@
+new YES
+
+@$ ====================================================================
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$ save.OCM
+@$ testing unformatted save and read
+@$ ====================================================================
+@$
+@&
+@$ read a TDB file and make a calculation
+
+r t steel7
+
+@&
+
+l sh a
+
+@&
+@$ Set reference state for Cr
+
+set ref cr bcc * 1e5
+
+set c t=1200 p=1e5 n=1 x(c)=.05 x(cr)=.05 x(mo)=.05 x(si)=.003 x(v)=.01
+
+c e
+
+@&
+
+l,,,,
+
+@&
+@$ enter some state variable functions
+
+enter symb cp = h.t;
+
+enter symb htr = hm(liq)-hm(bcc);
+
+enter symb gcr = ac(cr)/x(bcc,cr);
+
+@&
+
+list symb
+
+calc symb
+
+
+@&
+@$ list the equilibrium status code
+l sh p
+
+@&
+@$ Save workspaces unformatted on a file, final Y to overwrite!!
+
+save
+unf
+testing
+steel7
+Y
+
+@&
+@$ Reinitiate the program and delete all data and results
+
+new Y
+
+l d,,,
+
+@&
+@$ Read the the unformatted file with data and the last calculation
+
+read
+unf
+steel7
+
+@&
+@$ Check we can list the equilibrium
+l r,,,,
+
+@&
+@$ Check the equilibrium status code
+l sh p
+
+@&
+@$ Check the symbols are there
+
+l sym
+
+
+@&
+@$ and all the model parameters
+
+l d
+
+@&
+
+@$ We can recalculate the equilibrium
+
+c n
+
+l,,,,
+
+@&
+@$ and change conditions and calculate again
+
+set c t=800
+
+c e
+
+l,,,,,
+
+@&
+@$ Just to test that one can set the fraction of any component
+@$ as the "rest" or "balance"
+
+c p liq 1 n 
+.02
+.05
+rest
+.08
+.005
+.01
+all
+
+
+new Y
+
+@&
+@$ ===================================================================
+@$ testing unformatted save and read using a PDB file
+@$ with disordered fraction set and a second equilibrium
+
+r p more1
+
+@&
+
+l sh a
+
+@$ Calculate an equilibrium
+
+set c t=1000 p=1e5 n=1 x(re)=.3
+
+c e
+
+l r 2
+
+
+@&
+@$ Create a second equilibrium with different conditions
+
+enter equil second y
+
+l c
+
+@&
+
+set c t=3000 p=1e5 n=1 x(re)=.7
+
+c e
+
+l,,,
+
+@&
+@$ Save workspaces unformatted on a file, final Y to overwrite!!
+
+
+l d
+
+@&
+
+save
+unf
+testing
+more1
+Y
+
+@&
+@$ Reinitiate the program and delete all data and results
+
+new Y
+
+l d,,,
+
+@&
+@$ Read the the unformatted file with data and the last calculation
+
+read
+unf
+more1
+
+
+@&
+@$ list the equilibria
+
+l eq
+
+@&
+@$ list the results for default equilibrium
+
+l r
+
+
+@&
+@$ list the results for the second equilibrium
+
+sel eq
+
+l,,,,
+
+@&
+@$ Set a new condition and calculate without grid minimizer
+
+set c t=2800
+
+c n
+
+l r 2
+@&
+set inter
+

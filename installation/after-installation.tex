@@ -1,0 +1,77 @@
+\documentclass[12pt]{article}
+\usepackage[latin1]{inputenc}
+\usepackage{graphicx,subfigure}
+\topmargin -1mm
+\oddsidemargin -1mm
+\evensidemargin -1mm
+\textwidth 165mm
+\textheight 220mm
+\parskip 2mm
+\parindent 3mm
+%\pagestyle{empty}
+
+\begin{document}
+\begin{center}
+{\Large \bf Help and Documentation}
+
+Bo Sundman, \today
+
+\end{center}
+
+After a successful installation you can find further information how
+to use OC below.
+\begin{itemize}
+\item In the documentation directory there are several PDF files with
+  different kinds of information in addition to the installation
+  guides.
+
+  The ``Getting\_started'' file shows how to operate the program.
+  Also look at the ``OC-macro'' documentation which describes several
+  macro files which you have on a directory ``macro/ocv4''.  These are
+  useful to test the software and gives some ideas how to use it.
+  There is also a ``news-OC4'' for a summary of the features of OC.
+
+  The documentation of the source code is also in this directory
+  ``gtp3'' for the model package and ``hms2'' for the minimizer.  The
+  other software documentation, ``smp2'' for the step/map/plot
+  routines, ``assess'' for the assessment module and ``ocasi'' for the
+  application software interface are very preliminary.
+
+\item In the manual directory there is a preliminary user guide
+  ``ochelp'' The user guide is also available in the file
+  ``ochelp.hlp'' in LaTeX format because it is used for the on line
+  help.  The user guide is still very primitive as many commands are
+  changing or not yet implemented.
+
+\item The source code is in the directories ``minimizer, models,
+  numlib, stepmapplot, userif'' and ``utilities''.
+
+\item The TQ4lib directory has a few examples for using the software
+  interface for Fortran and C/C++.  An attempt to implement isoC
+  binding to C++ has been made.
+
+\item Contributions of new and improved source code are welcome.  You
+  can do this using the github repository.  Contact Bo Sundman if you
+  want to know more.
+
+\item the command line interface has a ``VAX/VMS'' flavor which
+  reflects the age of the developer.  It means the commands are
+  ``verbs'' like {\em set, list, calculate, enter} etc.  After the
+  verb several objects are usually possible like {\em set~condition}
+  or {set~status} etc.
+
+  Each command and subcommand can be abbreviated, usually 3 characters
+  are sufficient.
+
+  If you want a graphical user interface you are welcome to develop
+  it.
+\end{itemize}
+
+You are welcome to help providing a better installation guide also!
+
+\bigskip
+
+{\large \bf Have fun and help make OC useful!}
+
+\end{document}
+

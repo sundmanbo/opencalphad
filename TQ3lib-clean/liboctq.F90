@@ -23,9 +23,6 @@
 ! with a 2-dimensional array with first index phase number and second
 ! the comp.set number.
 !
-! For constituents an EXTENDED CONSTITUENT INDEX is sometimes used 
-! and equal to 10*species_number + sublattice
-!
 ! 150520 BOS added a few subroutines for single phase data and calculations
 ! 141210 BOS changed to use phase tuples
 ! 140128 BOS added D2G and phase specific V and G
@@ -67,11 +64,11 @@
 module liboctq
 !
 ! access to main OC library for equilibrium calculations and models
-  use liboceq
+  use liboceqplus
 !
   implicit none
 !
-  integer, parameter :: maxc=20,maxp=100
+  integer, parameter :: maxc=maxel,maxp=maxph
 !
 ! This is for storage and use of components
   integer nel
@@ -214,7 +211,7 @@ contains
     character phasename*(*)      !EXIT: phase name, max 24+8 for pre/suffix
     type(gtp_equilibrium_data), pointer :: ceq !IN: current equilibrium
 !\end{verbatim}
-    call get_phase_name(phcs(phcsx)%phase,phcs(phcsx)%compset,phasename)
+    call get_phasetup_name(phcsx,phasename)
 1000 continue
     return
   end subroutine tqgpn
@@ -239,9 +236,11 @@ contains
 !\begin{verbatim}
   subroutine tqgpcn(n,c,constituentname,ceq)
 ! get name of consitutent c in phase n
+! NOTE An identical routine with different constituent index is tqgpcn2
     implicit none
     integer n !IN: phase number
-    integer c !IN: extended constituent index: 10*species_number+sublattice
+!NO  integer c !IN: extended constituent index: 10*species_number+sublattice
+    integer c !IN: sequantial constituent index over all sublattices
     character constituentname*(24) !EXIT: costituent name
     type(gtp_equilibrium_data), pointer :: ceq !IN: current equilibrium
 !\end{verbatim}
@@ -254,11 +253,32 @@ contains
 !\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
 
 !\begin{verbatim}
+  subroutine tqgpcn2(n,c,constituentname,ceq)
+! get name of consitutent c in phase n
+! NOTE An identical routine with different constituent index is tqgpcn
+    implicit none
+    integer n !IN: phase number (not phase tuple)
+    integer c !IN: constituent index sequentially over all sublattices
+    character constituentname*(24) !EXIT: costituent name
+    type(gtp_equilibrium_data), pointer :: ceq !IN: current equilibrium
+!\end{verbatim}
+    double precision mass
+    call get_constituent_name(n,c,constituentname,mass)
+!    write(*,*)'tqgpcn not implemented yet'
+!    gx%bmperr=8888
+1000 continue
+    return
+  end subroutine tqgpcn2
+
+!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
+
+!\begin{verbatim}
   subroutine tqgpci(n,c,constituentname,ceq)
 ! get index of constituent with name in phase n
     implicit none
     integer n !IN: phase index
-    integer c !EXIT: extended constituent index: 10*species_number+sublattice
+!NO  integer c !IN: extended constituent index: 10*species_number+sublattice
+    integer c !IN: sequantial constituent index over all sublattices
     character constituentname*(*)
     type(gtp_equilibrium_data), pointer :: ceq  !IN: current equilibrium
 !\end{verbatim}
@@ -276,7 +296,8 @@ contains
 !? missing argument number of elements????
     implicit none
     integer n !IN: phase number
-    integer c !IN: extended constituent index: 10*species_number+sublattice
+!NO  integer c !IN: extended constituent index: 10*species_number+sublattice
+    integer c !IN: sequantial constituent index over all sublattices
     double precision stoi(*) !EXIT: stoichiometry of elements 
     double precision mass    !EXIT: total mass
     type(gtp_equilibrium_data), pointer :: ceq  !IN: current equilibrium
@@ -326,7 +347,7 @@ contains
 !\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
 
 !\begin{verbatim}
-  subroutine tqphsts(tup,newstat,val,ceq)
+  subroutine tqphtupsts(tup,newstat,val,ceq)
 ! set status of phase tuple, 
     integer tup,newstat
     double precision val
@@ -334,21 +355,20 @@ contains
 !\end{verbatim}
     integer n
     if(tup.le.0) then
+! change status of all phases
        do n=1,ntup
-          call change_phase_status(phcs(n)%phase,phcs(n)%compset,&
-               newstat,val,ceq)
+          call change_phtup_status(n,newstat,val,ceq)
           if(gx%bmperr.ne.0) goto 1000
        enddo
     elseif(tup.le.ntup) then
-       call change_phase_status(phcs(tup)%phase,phcs(tup)%compset,&
-            newstat,val,ceq)
+       call change_phtup_status(tup,newstat,val,ceq)
     else
-       write(*,*)'Illegal phase tuple index'
+       write(*,*)'Illegal phase tuple index',tup
        gx%bmperr=5001
     endif
 1000 continue
     return
-  end subroutine tqphsts
+  end subroutine tqphtupsts
 
 !\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
 
@@ -371,12 +391,21 @@ contains
     type(gtp_equilibrium_data), pointer :: ceq  ! IN: current equilibrium
 !\end{verbatim}
     integer ip
-    character cline*60,selvar*4
+    character cline*60,selvar*4,cval*24
 !
 !    write(*,11)'In tqsetc ',stavar(1:len_trim(stavar)),n1,n2,value
 11  format(a,a,2i5,1pe14.6)
     cline=' '
-    selvar=stavar
+! extract a value after an =
+    ip=index(stavar,'=')
+    if(ip.gt.0) then
+       selvar=stavar(1:ip-1)
+       cval=stavar(ip:)
+!       write(*,*)'Value after = :',cval
+    else
+       selvar=stavar
+       cval=' '
+    endif
     call capson(selvar)
     select case(selvar)
     case default
@@ -384,30 +413,55 @@ contains
        gx%bmperr=8888; goto 1000
 ! Potentials T and P
     case('T   ','P   ')
-       write(cline,110)selvar(1:1),value
-110    format(' ',a,'=',E15.8)
-! Total amount or amount of a component in moles
-    case('N   ')
-       if(n1.gt.0) then
-!          call get_component_name(n1,name,ceq)
-!          if(gx%bmperr.ne.0) goto 1000
-          write(cline,112)selvar(1:1),cnam(n1)(1:len_trim(cnam(n1))),value
-112       format(' ',a,'(',a,')=',E15.8)
+       if(cval(1:1).eq.'=') then
+          cline=' '//stavar
        else
           write(cline,110)selvar(1:1),value
+110       format(' ',a,'=',E15.8)
+       endif
+! Total amount or amount of a component in moles
+    case('N   ')
+       if(cval(1:1).eq.'=') then
+          cline=' '//stavar
+       else
+          if(n1.gt.0) then
+!          call get_component_name(n1,name,ceq)
+!          if(gx%bmperr.ne.0) goto 1000
+             write(cline,112)selvar(1:1),cnam(n1)(1:len_trim(cnam(n1))),value
+112       format(' ',a,'(',a,')=',E15.8)
+!          write(*,*)'Setting condition: ',cline(1:len_trim(cline))
+          else
+             write(cline,110)selvar(1:1),value
+          endif
        endif
 ! Overall fraction of a component 
     case('X   ','W   ')
 ! ?? fraction of phase component not implemented, n1 must be component number
 !       call get_component_name(n1,cnam,ceq)
 !       if(gx%bmperr.ne.0) goto 1000
-       write(cline,120)selvar(1:1),cnam(n1)(1:len_trim(cnam(n1))),value
-120    format(1x,a,'(',a,')=',1pE15.8)
+       if(cval(1:1).eq.'=') then
+          cline=' '//stavar
+       else
+          write(cline,120)selvar(1:1),cnam(n1)(1:len_trim(cnam(n1))),value
+120       format(1x,a,'(',a,')=',1pE15.8)
+       endif
+    case('H  ','V  ')
+! enthalpy or volume of system
+       if(cval(1:1).eq.'=') then
+          cline=' '//stavar
+       else
+          write(cline,130)selvar(1:1),value
+130       format(1x,a,'=',1pE15.8)
+       endif
+! case ....
 ! ?? MORE CONDITIONS WILL BE ADDED ...
     end select
 !    write(*,*)'tqsetc condition: ',cline(1:len_trim(cline))
     ip=1
     call set_condition(cline,ip,ceq)
+    if(gx%bmperr.ne.0) then
+       write(*,*)'Error setting condition: ',cline(1:len_trim(cline)),ip
+    endif
 1000 continue
     return
   end subroutine tqsetc
@@ -423,16 +477,20 @@ contains
     integer n1,n2,mode
     character target*(*)
     double precision value
+    logical confirm
     type(gtp_equilibrium_data), pointer :: ceq  !IN: current equilibrium
 !\end{verbatim}
 ! mode=1 means start values using global gridminimization
-    mode=1
     if(n1.lt.0) then
 ! this means calculate without grid minimuzer
-       write(*,*)'No grid minimizer'
        mode=0
+       confirm=.FALSE.
+! calcqeq3 is silent, no phase changes etc.
+       call calceq3(mode,confirm,ceq)
+    else
+       mode=1
+       call calceq2(mode,ceq)
     endif
-    call calceq2(mode,ceq)
     if(gx%bmperr.ne.0) goto 1000
 ! there may be new composition sets, update tup and phcs
 ! this call updates both the number of tuples and the phcs array
@@ -503,11 +561,11 @@ contains
 ! *3 S, V, H, A, G, NP, BP, N, B and DG can have suffixes M, W, V, F also
 !--------------------------------------------------------------------
 ! special addition for TQ interface: d2G/dyidyj
-! D2G + extended phase index
+! D2G + phase tuple
 !--------------------------------------------------------------------
 !\end{verbatim}
     integer ics,mjj,nph,ki,kj,lp,lokph,lokcs
-    character statevar*60,encoded*1024,name*24,selvar*4,norm*4
+    character statevar*60,encoded*2048,name*24,selvar*4,norm*4
 ! mjj should be the dimension of the array values ...
     mjj=n3
     selvar=stavar
@@ -541,18 +599,27 @@ contains
        write(*,*)'Unknown state variable: ',stavar(1:20),'>:<',selvar
        gx%bmperr=8888; goto 1000
 !--------------------------------------------------------------------
+! T or P
+    case('T  ','P  ')
+       call get_state_var_value(selvar,values(1),encoded,ceq)
+!--------------------------------------------------------------------
 ! chemical potential for a component
     case('MU  ')
-       if(n1.le.0) then
+       if(n1.lt.-1 .or. n1.eq.0) then
           write(*,*)'tqgetv 17: component number must be positive'
           gx%bmperr=8888; goto 1000
-       endif
-!       call get_component_name(n1,name,ceq)
-!       if(gx%bmperr.ne.0) goto 1000
-       statevar=stavar(1:2)//'('//cnam(n1)(1:len_trim(cnam(n1)))//') '
+       elseif(n1 .eq.-1) then
+! hopefully this returns all composition sets for all phases ... YES!
+          statevar='MU(*) '
+          call get_many_svar(statevar,values,mjj,n3,encoded,ceq)
+       elseif(n1.le.noel()) then
+          statevar=stavar(1:2)//'('//cnam(n1)(1:len_trim(cnam(n1)))//') '
 !       write(*,*)'tqgetv 4: ',statevar(1:len_trim(statevar))
 ! we must use index value(1) as the subroutine expect a single variable
-       call get_state_var_value(statevar,values(1),encoded,ceq)
+          call get_state_var_value(statevar,values(1),encoded,ceq)
+       else
+          write(*,*)'No such component'
+       endif
 !--------------------------------------------------------------------
 ! Amount of moles of components in a phaase
     case('NP  ')
@@ -568,15 +635,7 @@ contains
 ! it can be for example compositions, then it should be number of components
           call sortinphtup(n3,1,values)
        else
-! NOTE in this case n1 is a phase tuple index
-!          ics=mod(n1,10)
-!          nph=n1/10
-!          if(nph.eq.0 .or. ics.eq.0) then
-!             write(*,*)'You must use extended phase index'
-!             gx%bmperr=8887; goto 1000
-!          endif
-!          call get_phase_name(nph,ics,name)
-          call get_phase_name(phcs(n1)%phase,phcs(n1)%compset,name)
+          call get_phase_name(phcs(n1)%phaseix,phcs(n1)%compset,name)
           if(gx%bmperr.ne.0) goto 1000
           statevar='NP('//name(1:len_trim(name))//') '
           call get_state_var_value(statevar,values(1),encoded,ceq)
@@ -640,16 +699,7 @@ contains
           endif
        elseif(n2.lt.0) then
 ! this means all components in one phase
-! NOTE in this case n1 is a phasetuple index
-!          ics=mod(n1,10)
-!          nph=n1/10
-!          if(nph.eq.0 .or. ics.eq.0) then
-!             write(*,*)'You must use extended phase index'
-!             gx%bmperr=8887; goto 1000
-!          endif
-!          call get_phase_name(nph,ics,name)
-!          write(*,*)'Phase: ',phcs(n1)%phase,phcs(n1)%compset
-          call get_phase_name(phcs(n1)%phase,phcs(n1)%compset,name)
+          call get_phase_name(phcs(n1)%phaseix,phcs(n1)%compset,name)
           if(gx%bmperr.ne.0) goto 1000
 ! added for composition sets
 !          if(ics.gt.1) then
@@ -660,15 +710,7 @@ contains
           call get_many_svar(statevar,values,mjj,n3,encoded,ceq)
        else
 ! one component (n2) of one phase (n1)
-! NOTE in this case n1 is 10*phase number + composition set number
-!          ics=mod(n1,10)
-!          nph=n1/10
-!          if(nph.eq.0 .or. ics.eq.0) then
-!             write(*,*)'You must use extended phase index'
-!             gx%bmperr=8887; goto 1000
-!          endif
-!          call get_phase_name(nph,ics,name)
-          call get_phase_name(phcs(n1)%phase,phcs(n1)%compset,name)
+          call get_phase_name(phcs(n1)%phaseix,phcs(n1)%compset,name)
           if(gx%bmperr.ne.0) goto 1000
           statevar=stavar(1:1)//'('//name(1:len_trim(name))//','
           call get_component_name(n2,name,ceq)
@@ -689,15 +731,7 @@ contains
        endif
        if(n1.gt.0) then
 ! Volume for a specific phase
-! NOTE in this case n1 is 10*phase number + composition set number
-!          ics=mod(n1,10)
-!          nph=n1/10
-!          if(nph.eq.0 .or. ics.eq.0) then
-!             write(*,*)'You must use extended phase index'
-!             gx%bmperr=8887; goto 1000
-!          endif
-!          call get_phase_name(nph,ics,name)
-          call get_phase_name(phcs(n1)%phase,phcs(n1)%compset,name)
+          call get_phase_name(phcs(n1)%phaseix,phcs(n1)%compset,name)
           if(gx%bmperr.ne.0) goto 1000
           statevar=statevar(1:ki)//'('//name(1:len_trim(name))//') '
 !          call get_state_var_value(statevar,values(ics),encoded,ceq)
@@ -705,6 +739,31 @@ contains
           n3=1
        else
 ! Total volume
+          call get_state_var_value(statevar,values(1),encoded,ceq)
+          n3=1
+       endif
+!--------------------------------------------------------------------
+! Enthalpy
+    case('H   ')
+! phase specifier not allowed
+       if(norm(1:1).ne.' ') then
+          statevar='H'//norm
+          ki=2
+       else
+          statevar='H '
+          ki=1
+       endif
+!       write(*,*)'tqgetv 1: ',n1,ki
+       if(n1.gt.0) then
+! Gibbs energy for a specific phase
+          call get_phase_name(phcs(n1)%phaseix,phcs(n1)%compset,name)
+          if(gx%bmperr.ne.0) goto 1000
+          statevar=statevar(1:ki)//'('//name(1:len_trim(name))//') '
+!          write(*,*)'tqgetv 3: ',statevar
+          call get_state_var_value(statevar,values(1),encoded,ceq)
+          n3=1
+       else
+! Total Gibbs energy 
           call get_state_var_value(statevar,values(1),encoded,ceq)
           n3=1
        endif
@@ -722,16 +781,7 @@ contains
 !       write(*,*)'tqgetv 1: ',n1,ki
        if(n1.gt.0) then
 ! Gibbs energy for a specific phase
-! NOTE in this case n1 is 10*phase number + composition set number
-!          ics=mod(n1,10)
-!          nph=n1/10
-!          if(nph.eq.0 .or. ics.eq.0) then
-!             write(*,*)'You must use extended phase index'
-!             gx%bmperr=8887; goto 1000
-!          endif
-!          write(*,*)'tqgetv 2: ',nph,ics
-!          call get_phase_name(nph,ics,name)
-          call get_phase_name(phcs(n1)%phase,phcs(n1)%compset,name)
+          call get_phase_name(phcs(n1)%phaseix,phcs(n1)%compset,name)
           if(gx%bmperr.ne.0) goto 1000
           statevar=statevar(1:ki)//'('//name(1:len_trim(name))//') '
 !          write(*,*)'tqgetv 3: ',statevar
@@ -745,14 +795,7 @@ contains
 !--------------------------------------------------------------------
 ! Mobilities
     case('MQ   ')
-!       ics=mod(n1,10)
-!       nph=n1/10
-!       if(nph.eq.0 .or. ics.eq.0) then
-!          write(*,*)'You must use extended phase index: 10*phase+compset'
-!          gx%bmperr=8887; goto 1000
-!       endif
-!       call get_phase_name(nph,ics,name)
-       call get_phase_name(phcs(n1)%phase,phcs(n1)%compset,name)
+       call get_phase_name(phcs(n1)%phaseix,phcs(n1)%compset,name)
        if(gx%bmperr.ne.0) goto 1000
        statevar=stavar(1:len_trim(stavar))//'('//name(1:len_trim(name))//')'
 !       write(*,*)'statevar: ',statevar
@@ -760,19 +803,10 @@ contains
 !--------------------------------------------------------------------
 ! Second derivatives of the Gibbs energy of a phase
     case('D2G   ')
-!       ics=mod(n1,10)
-!       nph=n1/10
-!       if(nph.eq.0 .or. ics.eq.0) then
-!          write(*,*)'You must use extended phase index: 10*phase+compset'
-!          gx%bmperr=8887; goto 1000
-!       endif
-!       write(*,*)'D2G 1: ',nph,ics
-!       call get_phase_compset(nph,ics,lokph,lokcs)
-       call get_phase_compset(phcs(n1)%phase,phcs(n1)%compset,lokph,lokcs)
+       call get_phase_compset(phcs(n1)%phaseix,phcs(n1)%compset,lokph,lokcs)
        if(gx%bmperr.ne.0) goto 1000
 !       write(*,*)'D2G 2: ',lokph,lokcs
 ! this gives wrong value!!
-!       n3=ceq%phase_varres(lokcs)%ncc
        n3=size(ceq%phase_varres(lokcs)%yfr)
 !       write(*,*)'D2G 3: ',n3
        kj=(n3*(n3+1))/2
@@ -806,7 +840,7 @@ contains
     double precision sites(*),yfrac(*),extra(*)
     type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-    call get_phase_data(phcs(n1)%phase,phcs(n1)%compset,&
+    call get_phase_data(phcs(n1)%phaseix,phcs(n1)%compset,&
          nsub,cinsub,spix,yfrac,sites,extra,ceq)
 1000 continue
     return
@@ -830,7 +864,7 @@ contains
     double precision yfra(*),extra(*)
     type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-    call set_constitution(phcs(n1)%phase,phcs(n1)%compset,&
+    call set_constitution(phcs(n1)%phaseix,phcs(n1)%compset,&
          yfra,extra,ceq)
 1000 continue
     return
@@ -875,10 +909,10 @@ contains
 !\end{verbatim}
     integer ij,lokres,nofc
 !    write(*,*)'tqcph1 1: ',ceq%eqname
-!    write(*,*)'tqcph1 2',phcs(n1)%phase,phcs(n1)%compset
+!    write(*,*)'tqcph1 2',phcs(n1)%phaseix,phcs(n1)%compset
 !----------------------------------------------------------------------
 ! THIS IS NO EQUILIBRIUM, JUST G AND DERIVATIVES FOR CURRENT T, P AND Y
-    call calcg(phcs(n1)%phase,phcs(n1)%compset,n2,lokres,ceq)
+    call calcg(phcs(n1)%phaseix,phcs(n1)%compset,n2,lokres,ceq)
 !----------------------------------------------------------------------
 !    write(*,*)'tqcph1 3A',lokres,gx%bmperr
 ! this should work but gave segmentation fault, find this a more cumbersum way
@@ -947,10 +981,10 @@ contains
 !\end{verbatim}
     integer ij,lokres,nofc
 !    write(*,*)'tqcph1 1: ',ceq%eqname
-!    write(*,*)'tqcph1 2',phcs(n1)%phase,phcs(n1)%compset
+!    write(*,*)'tqcph1 2',phcs(n1)%phaseix,phcs(n1)%compset
 !----------------------------------------------------------------------
 ! THIS IS NO EQUILIBRIUM, JUST G AND DERIVATIVES FOR CURRENT T, P AND Y
-    call calcg(phcs(n1)%phase,phcs(n1)%compset,n2,lokres,ceq)
+    call calcg(phcs(n1)%phaseix,phcs(n1)%compset,n2,lokres,ceq)
 !----------------------------------------------------------------------
 !    write(*,*)'tqcph1 3A',lokres,gx%bmperr
 ! this should work but gave segmentation fault, find this a more cumbersum way

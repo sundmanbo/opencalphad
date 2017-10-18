@@ -1,4 +1,0 @@
-gfortran -c liboctqc.F90
-gcc -c tqexc1.c
-
-gfortran -o tqexc1 tqexc1.o liboctqc.o liboctq.o liboceq.a

@@ -1,0 +1,88 @@
+new Y
+@$ =========================================================
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$ map1.OCM
+@$ Calculate the phase diagram for Ag-Cu
+@$ =========================================================
+@&
+
+set echo
+
+r t agcu
+
+
+set cond t=1000 p=1e5 n=1 x(cu)=.2
+
+c e
+
+l r 1
+
+@&
+
+set ax 1 x(cu) 0 1 0.025
+set ax 2 t 800 1500 10
+
+l ax
+
+l sh
+
+set ref ag fcc,,,,,
+set ref cu fcc,,,,,
+
+@&
+
+map
+
+@&
+
+plot
+x(*,cu)
+T
+title map 1 fig 1
+render
+
+
+plot
+x(*,cu)
+T
+scale
+x
+N
+0
+0.2
+title map 1 fig 2
+
+
+plot
+T
+x(*,cu)
+title map 1 fig 3
+render
+
+plot
+ac(cu)
+T
+title map 1 fig 4
+render
+
+set inter

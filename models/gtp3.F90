@@ -4,7 +4,7 @@
 !
 MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !
-! Copyright 2011-2015, Bo Sundman, France
+! Copyright 2011-2017, Bo Sundman, France
 !
 !    This program is free software; you can redistribute it and/or modify
 !    it under the terms of the GNU General Public License as published by
@@ -124,12 +124,15 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !--------------------------------------------------------------------------
 !
 ! EXTERNAL MODULES
-! routines for inverting matrix etc
-  use lukasnum
-! TP functions, tpfunlib makes USE of metlib
-  use tpfunlib
+! metlib package
+  use metlib
+!
+! routines for inverting matrix, solving system of eqs, eigenvalues etc
+!  use lukasnum  ! for Lukas solver
+  use ocnum      ! for LAPACK and BLAS
+!
 ! for parallel processing
-!  use OMP_LIB
+!$  use OMP_LIB
 !
 !--------------------------------------------------------------------------
 !
@@ -137,6 +140,9 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! date       item
 ! 2013.03.01 Release version 1
 ! 2015.01.07 Release version 2
+! 2016.02.14 Release version 3
+! 2017.02.10 Release version 4
+! after version on github numbered 4.011, incremented for each update
 !
 !=================================================================
 !
@@ -146,8 +152,9 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! error messages
 ! numbers 4000 to 4220 defined.  gx%bmperr is set to message index
 ! A lot of error flags set have no messages ....
-  integer, parameter :: nooferm=4220
+  integer, parameter :: nooferm=4399
   character (len=64), dimension(4000:nooferm) :: bmperrmess
+! The first 30 error messages mainly for TP functions
   data bmperrmess(4000:4199)&
       /'Too many coefficients in a TP function.                         ',&
        'Illegal character in a TP function, digit expected.             ',&
@@ -181,6 +188,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'Symbol referenced in a parameter does not exist                 ',&
        'Missing separator between phase and constituent array in paramet',&
        'Cannot enter disordered fraction set when several composition se',&
+! These error mainly in GTP
 ! 4030
        'Cannot enter disordered fraction set when suspended constituents',&
        'Wildcards in interaction parameters not yet implemented         ',&
@@ -197,7 +205,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'Too many species                                                ',&
        'No such element                                                 ',&
        'Text position outside text                                      ',&
-       'Species symbol must start with letter A-Z                       ',&
+       'Species symbol contain illegal letter or not letter A-Z as first',&
        'No elements or too many elements in species formula             ',&
        'Unknown element in species formula                              ',&
        'Negative stoichiometric factor in species                       ',&
@@ -254,16 +262,16 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'Illegal composition set number                                  ',&
        'No more records for phases or composition sets.                 ',&
        'Hidden phase cannot be ENTERED, SUSPENDED, DORMANT or FIXED     ',&
-       'No such constituents or ambiguous name                          ',&
+       'Ambiguous or unknown constituent                                ',&
        'Too many argument to a state variable                           ',&
        'This state variable must have two arguments                     ',&
        'First character of a state variable is wrong                    ',&
 ! 4100
        'State variable starting with M not followed by U                ',&
        'State variable starting with L not followed by NAC              ',&
-       'Missing ( for arguments for state variable                      ',&
+       'Missing ( for arguments of state variable                       ',&
        'Missing ) after arguments of state variable                     ',&
-       'Unknown phase used as state varible argument                    ',&
+       'Unknown phase used as state variable argument                   ',&
        'Unknown constituent used as state variable argument             ',&
        'Unknown component used as state variable argument               ',&
        'State variable starting with D not followed by G                ',&
@@ -272,10 +280,10 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! 4110
        'This state variable cannot not have two arguments               ',&
        'This state variable must have an argument                       ',&
-       'Impossible reference state for this constituent                 ',&
-       'No such property for this phase                                 ',&
-       'Cannot calculate property value per volume as no volume data    ',&
-       'Property per formula unit only for a single phase               ',&
+       'Impossible reference state for this component                   ',&
+       'No such property calculated for this phase                      ',&
+       'Property normallized by volume impossible as no volume data     ',&
+       'Property per formula unit is phase specific                     ',&
        'State variable number must be larger than zero                  ',&
        'Only state variable Y can have 3 indices                        ',&
        'Illegal normalization of state variable                         ',&
@@ -293,13 +301,13 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'Illegal value for a state variable                              ',&
 ! 4130 line below
        'Factor in front of a condition must be followed by *            ',&
-       'No such condition                                               ',&
+       'No such condition or experiment                                 ',&
        'Function name must start with a letter A-Z                      ',&
        'Function name and expression must be separated by "="           ',&
        'Error in function expression (putfun)                           ',&
        'Unknown symbol used in function                                 ',&
        'Symbol with this name already entered                           ',&
-       'Symbol name must start with letter A-Z                          ',&
+       'Symbol name must start with letter A-Z and not be reserved      ',&
        'Illegal character in symbol name                                ',&
        'Cannot check name of unknown kind of symbol                     ',&
 ! 4140
@@ -340,40 +348,40 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'Request for non-existing chemical potential                     ',&
        'Removing current data not implemented                           ',&
        'Grid minimization not allowed                                   ',&
-       'Illegal composition in call to grid minimization                ',&
+       'Grid minimizer cannot be used with the current set of conditions',&
        'Too many gridpoints                                             ',&
-       'No phases and no gridpoints in call to grid minimization        ',&
-       'Grid minimizer want to create composition set but is not allowed',&
+       'No phases and no gridpoints for grid minimization               ',&
+       'Grid minimizer wants but must not create composition sets       ',&
        'Non-existing fix phase                                          ',&
-       'State variable N or B cannot have two indices for grid minimizer',&
+       'N, X, B or W cannot have two indices for use of grid minimizer  ',&
 ! 4180
        'Condition on B is not allowed for grid minimizer                ',&
-       'Element has no composition in grid minimizer                    ',&
+       'An element has no composition in grid minimizer                 ',&
        'Too complicated mass balance conditions                         ',&
        'Two mass balance conditions for same element                    ',&
        'Cannot handle conditions on both N and B                        ',&
        'No mole fractions when summing composition                      ',&
        'Error in TDB file, missing function                             ',&
-       'Temperature (K) or pressure (Pa) must be larger than 0.1        ',&
-       '                                                                ',&
-       '                                                                ',&
+       'Temperature (K) or pressure (Pa) values must be larger than 0.1 ',&
+       'No such state variable                                          ',&
+       'Too many conditions on potentials                               ',&
 ! 4190
-       '                                                                ',&
-       '                                                                ',&
-       '                                                                ',&
-       '                                                                ',&
-       '                                                                ',&
-       '                                                                ',&
-       '                                                                ',&
-       '                                                                ',&
-       '                                                                ',&
-       '                                                                '/
-! 4200 errors in minimizer
-  data bmperrmess(4200:4220)&
+       'File already exist, overwriting not allowed                     ',&
+       'Activity conditions must be larger than zero                    ',&
+       'Cannot handle two fix phases                                    ',&
+       'Too many stable phases                                          ',&
+       'This phase must not be stable                                   ',&
+       'Attempt to remove the only stable phase                         ',&
+       'Enthalpy condition on unstable phase                            ',&
+       'Illegal wildcard constituent in ionic liquid model              ',&
+       'No equilibrium calculated, cannot calculate dot derivative      ',&
+       'Error calculating equilibrium matrix for dot derivative         '/
+! 4200 mainly errors in minimizer
+  data bmperrmess(4200:4399)&
       /'No phase that can be set stable                                 ',&
        'Attempt to set too many phases as stable                        ',&
        'Total amount is negative                                        ',&
-       'Error solving system matrix                                     ',&
+       'Error solving equilibrium matrix                                ',&
        'Too many iterations                                             ',&
        'Phase matrix singular                                           ',&
        'Cannot handle models without analytical second derivativatives  ',&
@@ -382,38 +390,248 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'Error setting up system matrix, too many equations              ',&
 ! 4210
        'Phase change not allowed due to step/map constraints            ',&
-       '                                                                ',&
-       '                                                                ',&
-       '                                                                ',&
-       '                                                                ',&
-       '                                                                ',&
-       '                                                                ',&
+       'Attempt to delete composition sets when many equilibria         ',&
+       'Too many equation in equilibrium matrix                         ',&
+       'Derivatives with respect to T and P only are allowed            ',&
+       'Error creating system matrix in initiate meqrec subroutine      ',&
+       'This dot derivative not yet implemented                         ',&
+       'Wildcard not allowed in dot derivative                          ',&
        'Use "calculate symbol" for state variable symbols               ',&
+       'This experiment is not acivated                                 ',&
+       'Too many equilibria in STEP/MAP, save on file not implemented   ',&
+! mainly errors in STEP/MAP
+! 4220 step/map
+       'STEP/MAP error calculating node point, trying to decrease step  ',&
+       'STEP/MAP error calculating node point, axis condition not found ',&
+       'STEP/MAP error calculating node point, another phase stable     ',&
+       'STEP/MAP error calculating node point, too many stable phases   ',&
+       'Cannot find start equilibrium for step/map                      ',&
+       'Startpoint for step/map outside axis limits                     ',&
+       'Cannot yet handle nodepoints with more than 2 exits             ',&
+       'Phase set changed in start point                                ',&
+       'Only two axis implemented currently                             ',&
+       'Axis direction error, no such axis                              ',&
+! 4230
+       'STEP/MAP tries to set the only stable phase as fix              ',&
+       'Too many stable phases during mapping                           ',&
+       'Another phase wants to be stable at node point                  ',&
+       'No phase change searching along an axis for a start point       ',&
+       'Internal error handling fix phases at node point                ',&
+       'Too many phases set fix during mapping                          ',&
+       'Mapping cannot handle expressions as conditions                 ',&
+       'Node with no exit lines                                         ',&
+       'Attempt to remove the only stable phase                         ',&
+       'Yet another never never error                                   ',&
+! 4240
+       'Too many fix phases during mapping                              ',&
+       'More than one entered phase                                     ',&
+       'Not a single entered phase                                      ',&
+       'Whops, mapping without conditions ...                           ',&
+       'I give up on this line                                          ',&
+       'Unknown problem                                                 ',&
+       'Two phases compete to be stable                                 ',&
+       'Nothing to plot in ocplot                                       ',&
+       'No data so no plot                                              ',&
+       'No experiments                                                  ',&
+! more error messages for GTP and other modules
+! 4250
+       'Too many parameter identifiers, increase maxprop                ',&
+       'Calling mass_of with illegal component number                   ',&
+       'No such phase tuple index                                       ',&
+       'Internal error, not a single lattice for a phase                ',&
+       'Illegal phase index                                             ',&
+       'The partially ionic liquid model must have two sublattices      ',&
+       'This phase cannot be reference phase for this component         ',&
+       'Internal error, constituent index outside range                 ',&
+       'Same constituent twice in one sublattice                        ',&
+       'Too many phases, increase dimension of phlista                  ',&
+! 4260
+       'The partially ionic liquid model has only cations in first subl.',&
+       'Illegal parameter with wildcards mixed with cations             ',&
+       'The partially ionic liquid model not only wildcard on 2nd subl. ',&
+       'The partially ionic liquid model has no catioons on 2nd subl.   ',&
+       'Only neutrals on 2nd sublattice of I2SL if wildcard on first    ',&
+       'Illegal interaction parameter                                   ',&
+       'Same constituent twice in interaction parameter                 ',&
+       'There must be at least 4 sublattices for a phase with F/B option',&
+       'Maximum two interaction levels using the F option               ',&
+       'Internal error, unknown case for endmember permutation          ',&
+! 4270
+       'Interaction must be on first sublattice using option F or B     ',&
+       'Cannot find endmember element for permutation                   ',&
+       'Internal error, unknown case for permutations                   ',&
+       'Internal error, too complicated                                 ',&
+       'Internal error generating fcc permutations                      ',&
+       'This excess parameter not yet implemented in option F or B      ',&
+       'Internal error generating permutations for option F             ',&
+       'BCC permutations (option B) not yet implemented                 ',&
+       'Subcommand error when enter many_equilibria                     ',&
+       'Too many columns when entering many_equilibria row              ',&
+! 4280
+       'Table row missing in colum when entering many_equilbria         ',&
+       'Number expected after specifying fix phase                      ',&
+       'Phase name expected after status command                        ',&
+       'Too many equilibra, increase dimension of eqlista               ',&
+       'Equilibrium name must start with a letter A-Z                   ',&
+       'Cannot overwrite the default equilibrium                        ',&
+       'Illegal use of wildcard                                         ',&
+       'Error in constituent dependence for parameter idenifier         ',&
+       'Yet another never never error                                   ',&
+       'Charge must be given as /+ or /-                                ',&
+! 4290
+       'Error in parameter identifier                                   ',&
+       'Phase missing in parameter                                      ',&
+       'No such property name or index                                  ',&
+       'Illegal to have a symbol as value of T or P                     ',&
+       'Illegal to set a fix phase as experiment                        ',&
+       'Calling locate_condition with illegal index                     ',&
+       'Calling apply_condition with illegal option                     ',&
+       'Species names must be surrounded by ( ) for set input_amounts   ',&
+       'Illegal to enter property to a species that is an element       ',&
+       'Saved file not same version as program                          ',&
+! 4300
+       'Data record format on save file not the same as in program      ',&
+       'Bibliographic record too long on save file                      ',&
+       'Error reading records for a phase from save file                ',&
+       'Failed entering function from save file                         ',&
+       'Too long line on save file                                      ',&
+       'No element symbol after ELEMENT keyword in TDB file             ',&
+       'No information after SPECIES keyword on TDB file                ',&
+       'No terminator after FUNCTION keyword on TDB file                ',&
+       'The CONSTITUENT keyword must follow directly after PHASE keyword',&
+       'Error extracting constituents for a phase                       ',&
+! 4310
+       'Error that final : for constituents missing                     ',&
+       'Empty line after FUNCTION keyword                               ',&
+       'Line with PARAMETER keyword does not finish with !              ',&
+       'Empty reference line on TDB file                                ',&
+       'References must be surrounded by citation marks                 ',&
+       'Function name must be on same line as FUNCTION keyword          ',&
+       'End of file while searching for end of keyword in TDB file      ',&
+       'Indices error in old state variable format                      ',&
+       'Unknown state variable or property                              ',&
+       'Character variable length insufficient for output of values     ',&
+! 4320
+       'State variable has illegal argument type                        ',&
+       'Error calculating eigenvalues of phase matrix                   ',&
+       'Only a single symbol allowed                                    ',&
+       'Symbol must be a constant                                       ',&
+       'Value of PHSTATE not correct                                    ',&
+       'Illegal bit number for phase status                             ',&
+       'Illegal phase for setting status bit                            ',&
+       'Illegal selection of old phase status                           ',&
+       'Condition specified by number must be followed by :=            ',&
+       'Calling create_interaction with too many permutations           ',&
+! 4330
+       'No such addition type                                           ',&
+       'Cp model not yet implemented                                    ',&
+       'Magnetic model with separate Curie and Neel T not yet implement ',&
+       'Glas model not yet implemented                                  ',&
+       'Not implemented this way                                        ',&
+       'Parameter identifier not found                                  ',&
+       'Value for model parameter identifier not found                  ',&
+       'Flory-Huggins model must have one lattice and site              ',&
+       'Too many parameter properties for this phase                    ',&
+       'Internal error, listprop not allocated                          ',&
+! 4340
+       'Max two levels of interactions allowed                          ',&
+       'Wildcard parameters not allowed in 2nd sublattice of I2SL model ',&
+       'Illegal interaction parameter                                   ',&
+       'Ternary cation interactions not yet implemented in I2SL         ',&
+       'Too many phases for the global gridminimizer                    ',&
+       'Global minimization with a fix phase not possible               ',&
+       'Internal problems in grid minimizer                             ',&
+       'Interaction levels more than 5 levels deep                      ',&
+       'A TP function with this name already entered                    ',&
+       'Illegal value of TP function index                              ',&
+! 4350
+       'A never never error evaluating a TP function                    ',&
+       'Cannot find this TP function                                    ',&
+       'Current equilibrium not global, gridmin found gridpoint below   ',&
+       'Nodepoint not global, line ignored                              ',&
+       'Illegal numerical value in equilibrium matrix                   ',&
+       'Wrong version of data on unformatted file                       ',&
+       'Error reserving space for unformatted save                      ',&
+       'Error saving unformatted data file                              ',&
+       'Recalculate as gridpoint below current equilibrium              ',&
+       'Slow convergence with same set of stable phases                 ',&
+! 4360
        '                                                                ',&
        '                                                                ',&
-! 4220
-       '                                                                '/
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '5                                                               ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+! 4370
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '5                                                               ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+! 4380
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '5                                                               ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+! 4390
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       '5                                                               ',&
+       '                                                                ',&
+       '                                                                ',&
+       '                                                                ',&
+       'No message assigned                                             '/
 ! last used error codes above
 !
 !=================================================================
 !
+! Bits are numbered 0-31
 !\begin{verbatim}
 !-Bits in global status word (GS) in globaldata record
 ! level of user: beginner, occational, advanced; NOGLOB: no global gridmin calc
-! NOMERGE: no merge of gridmin result, NODATA: not any data, 
-! NOPHASE: no phase in system, NOACS: no automatic creation of composition set
+! NOMERGE: no merge of gridmin result, 
+! NODATA: not any data, 
+! NOPHASE: no phase in system, 
+! NOACS: no automatic creation of composition set
 ! NOREMCS: do not remove any redundant unstable composition sets
 ! NOSAVE: data changed after last save command
 ! VERBOSE: maximum of listing
 ! SETVERB: explicit setting of verbose
 ! SILENT: as little output as possible
-! NOAFTEREQ: no manipulations of results after equilirum calculation
+! NOAFTEREQ: no manipulations of results after equilibrium calculation
+! XGRID: extra dense grid for all phases
+! NOPAR: do not run in parallel
+! NOSMGLOB do not test global equilibrium at node points
+! NOTELCOMP the elements are not the components
+! TGRID check calculated equilibrium with grid minimizer
+! OGRID use old grid generator
+! NORECALC do not recalculate equilibria even if global test fails
 ! >>>> some of these should be moved to the gtp_equilibrium_data record
   integer, parameter :: &
-       GSBEG=0,     GSOCC=1,     GSADV=2,      GSNOGLOB=3, &
-       GSNOMERGE=4, GSNODATA=5,  GSNOPHASE=6,  GSNOACS=7, &
-       GSNOREMCS=8, GSNOSAVE=9,  GSVERBOSE=10, GSSETVERB=11,&
-       GSSILENT=12, GSNOAFTEREQ=13
+       GSBEG=0,       GSOCC=1,        GSADV=2,      GSNOGLOB=3, &
+       GSNOMERGE=4,   GSNODATA=5,     GSNOPHASE=6,  GSNOACS=7, &
+       GSNOREMCS=8,   GSNOSAVE=9,     GSVERBOSE=10, GSSETVERB=11,&
+       GSSILENT=12,   GSNOAFTEREQ=13, GSXGRID=14,   GSNOPAR=15, &
+       GSNOSMGLOB=16, GSNOTELCOMP=17, GSTGRID=18,   GSOGRID=19, &
+       GSNORECALC=20
 !----------------------------------------------------------------
 !-Bits in element record
   integer, parameter :: &
@@ -427,6 +645,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        SPION=4, SPSYS=5
 !\end{verbatim}
 !----------------------------------------------------------------
+! PHSUBO and PHSORD not used. PHBORD (and others) not implemented
 !\begin{verbatim}
 !-Bits in phase record
 ! hidden, implictly hidden, ideal, no concentration variation (NOCV),
@@ -434,16 +653,19 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! F option (FORD), B option (BORD), Sigma ordering (SORD),
 ! multiple/disordered fraction sets (MFS), gas, liquid, ionic liquid, 
 ! aqueous, dilute config. entropy (DILCE), quasichemical (QCE), CVM,
+! explicit charge balance needed (EXCB), extra dense grid (XGRID)
 ! FACT,  not create comp. sets (NOCS), Helmholz energy model (HELM),
 ! Model without 2nd derivatives (PHNODGDY2), Elastic model A,
-! explicit charge balance needed (XCB),
+! Subtract ordered part (PHSUBO), Flory-Huggins model (PHFHV)
+! Multi-use bit (together with some other) PHMULTI
   integer, parameter :: &
-       PHHID=0,     PHIMHID=1,  PHID=2,    PHNOCV=3, &     ! 1 2 4 8
-       PHHASP=4,    PHFORD=5,   PHBORD=6,  PHSORD=7, &
-       PHMFS=8,     PHGAS=9,    PHLIQ=10,  PHIONLIQ=11, &   
-       PHAQ1=12,    PHDILCE=13, PHQCE=14,  PHCVMCE=15,&
-       PHFACTCE=16, PHNOCS=17,  PHHELM=18, PHNODGDY2=19,&
-       PHELMA=20,   PHEXCB=21
+       PHHID=0,     PHIMHID=1,  PHID=2,    PHNOCV=3, &     ! 1 2 4 8 : 0/F
+       PHHASP=4,    PHFORD=5,   PHBORD=6,  PHSORD=7, &     ! 
+       PHMFS=8,     PHGAS=9,    PHLIQ=10,  PHIONLIQ=11, &  ! 
+       PHAQ1=12,    PHDILCE=13, PHQCE=14,  PHCVMCE=15,&    ! 
+       PHEXCB=16,   PHXGRID=17, PHFACTCE=18, PHNOCS=19,&   !
+       PHHELM=20,   PHNODGDY2=21, PHELMA=22, PHSUBO=23,&   ! 
+       PHFHV=24,    PHMULTI=25                             !
 ! 
 !----------------------------------------------------------------
 !-Bits in constituent fraction (phase_varres) record STATUS2
@@ -455,25 +677,32 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !     specify constituent status)
 ! CSORDER: set if fractions are ordered (only used for BCC/FCC ordering
 !     with a disordered fraction set).
-! CSSTABLE: set if phase is stable after an equilibrium calculation
+! CSABLE: set if phase is stable after an equilibrium calculation ?? needed
 ! CSAUTO set if composition set created during calculations
 ! CSDEFCON set if there is a default constitution
+! CSTEMPAR set if created by grid minimizer and can be suspended afterwards
+!       when running parallel
+! CSDEL set if record is not used but has been and then deleted (by gridmin)
+! CSADDG means there are terms to be added to G 
    integer, parameter :: &
         CSDFS=0,    CSDLNK=1,  CSDUM2=2,    CSDUM3=3, &
-        CSCONSUS=4, CSORDER=5, CSSTABLE=6, CSAUTO=7, &
-        CSDEFCON=8
+        CSCONSUS=4, CSORDER=5, CSABLE=6,    CSAUTO=7, &
+        CSDEFCON=8, CSTEMPAR=9,CSDEL=10,    CSADDG=11
 !\end{verbatim}
 !----------------------------------------------------------------
 !\begin{verbatim}
 !-Bits in constat array for each constituent
 ! For each constituent: is suspended, is implicitly suspended, is vacancy
+! CONQCBOND the constituent is a binary quasichemical cluster
    integer, parameter :: &
-        CONSUS=0,CONIMSUS=1,CONVA=2
+        CONSUS=0,   CONIMSUS=1,  CONVA=2,    CONQCBOND=3
 !----------------------------------------------------------------
 !-Bits in state variable functions (svflista)
 ! SVFVAL symbol evaluated only explicitly (mode=1 in call)
+! SVFEXT symbol external ???
+! SVCONST symbol is a constant (can be changed with AMEND)
    integer, parameter :: &
-        SVFVAL=0,SVFEXT=1
+        SVFVAL=0, SVFEXT=1, SVCONST=2
 !----------------------------------------------------------------
 !-Bits in gtp_equilibrium_data record
 ! EQNOTHREAD set if equilibrium must be calculated before threading 
@@ -485,21 +714,27 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! EQFAIL set if last calculation failed
 ! EQNOACS set if no automatic composition sets ?? not used !! see GSNOACS
 ! EQGRIDTEST set if grid minimizer should be used after equilibrium
+! EQGRIDCAL set if last calculation was using only gridminimizer
    integer, parameter :: &
-        EQNOTHREAD=0, EQNOGLOB=1, EQNOEQCAL=2, EQINCON=3, &
-        EQFAIL=4,     EQNOACS=5,  EQGRIDTEST=6
+        EQNOTHREAD=0, EQNOGLOB=1, EQNOEQCAL=2,  EQINCON=3, &
+        EQFAIL=4,     EQNOACS=5,  EQGRIDTEST=6, EQGRIDCAL=7
 !----------------------------------------------------------------
 !-Bits in parameter property type record (gtp_propid)
-! constant (no T or P dependence), only P, property has an element suffix
-! (like mobility), property has a constituent suffix
+! constant (no T or P dependence), only P, only T, property has an 
+! element suffix (like mobility), property has a constituent suffix
    integer, parameter :: &
-        IDNOTP=0, IDONLYP=1, IDELSUFFIX=2, IDCONSUFFIX=3
+        IDNOTP=0, IDONLYP=1, IDONLYT=2, IDELSUFFIX=3, IDCONSUFFIX=4
 !----------------------------------------------------------------
 !- Bits in condition status word (some set in onther ways??)
 ! singlevar means T=, x(el)= etc, singlevalue means value is a number
 ! phase means the condition is a fix phase
   integer, parameter :: &
        ACTIVE=0,SINGLEVAR=1,SINGLEVALUE=2,PHASE=3
+!----------------------------------------------------------------
+!- Bits in assessment head record status
+! ahcoef means coefficients enetered
+  integer, parameter :: &
+       AHCOEF=0
 !
 ! >>> Bits for symbols and TP functions missing ???
 !\end{verbatim}
@@ -527,30 +762,34 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !\begin{verbatim}
 ! Parameters defining the size of arrays etc.
 ! max elements, species, phases, sublattices, constituents (ideal phase)
-  integer, parameter :: maxel=100,maxsp=1000,maxph=800,maxsubl=10,maxconst=1000
-! maximum number of consitutents in non-ideal phase
+!  integer, parameter :: maxel=100,maxsp=1000,maxph=600,maxsubl=10,maxconst=1000
+! NOTE increasing maxph to 600 and maxtpf to 80*maxph made the equilibrium
+! record very big and created problems storing equilibria at STEP/MAP!!!
+  integer, parameter :: maxel=100,maxsp=1000,maxph=400,maxsubl=10,maxconst=1000
+! maximum number of constituents in non-ideal phase
   integer, parameter :: maxcons2=100
-! maximum number of elsements in a species
+! maximum number of elements in a species
   integer, parameter :: maxspel=10
 ! maximum number of references
   integer, private, parameter :: maxrefs=1000
 ! maximum number of equilibria
-  integer, private, parameter :: maxeq=500
+  integer, private, parameter :: maxeq=900
 ! some dp values, default precision of Y and default minimum value of Y
 ! zero and one set in tpfun
   double precision, private, parameter :: YPRECD=1.0D-6,YMIND=1.0D-30
 ! dimension for push/pop in calcg, max composition dependent interaction
   integer, private, parameter :: maxpp=1000,maxinter=3
-! max number of TP symbols
+! max number of TP symbols, TOO BIG VALUE MAKES SAVE AT STEP/MAP DIFFICULT
   integer, private, parameter :: maxtpf=20*maxph
+!  integer, private, parameter :: maxtpf=80*maxph
 ! max number of properties (G, TC, BMAG MQ%(...) etc)
   integer, private, parameter :: maxprop=50
 ! max number of state variable functions
   integer, private, parameter :: maxsvfun=500
-! version number
-! changes in last 2 digits means no change in SAVE/READ format
-  character*8, parameter :: gtpversion='GTP-3.00'
-  character*8, parameter ::   savefile='OCF-3.00'
+! version number of GTP (not OC)
+  character*8, parameter :: gtpversion='GTP-3.20'
+! THIS MUST BE CHANGED WHENEVER THE UNFORMATTED FILE FORMAT CHANGES!!!
+  character*8, parameter :: savefile='OCF-3.20'
 !\end{verbatim}
 !=================================================================
 !\begin{verbatim}
@@ -558,12 +797,13 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! This is a way to try to organize them.  Each addtion has a unique
 ! number identifying it when created, listed or calculated.  These
 ! numbers are defined here
-  integer, public, parameter :: indenmagnetic=1
-  integer, public, parameter :: debyecp=2
-  integer, public, parameter :: weimagnetic=3
-  integer, public, parameter :: einsteincp=4
-  integer, public, parameter :: elasticmodela=5
-  integer, public, parameter :: glastransmodela=6
+  integer, public, parameter :: INDENMAGNETIC=1
+  integer, public, parameter :: XIONGMAGNETIC=2
+  integer, public, parameter :: DEBYECP=3
+  integer, public, parameter :: EINSTEINCP=4
+  integer, public, parameter :: TWOSTATEMODEL1=5
+  integer, public, parameter :: ELASTICMODEL1=6
+  integer, public, parameter :: VOLMOD1=7
 ! Note that additions often use extra parameters like Curie or Debye
 ! temperatures defined by parameter identifiers stored in gtp_propid
 !\end{verbatim}
@@ -571,7 +811,96 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !
 ! below here are data structures and global data in this module
 !
+! First those belonging to the TPFUN package
+!
 !=================================================================
+! VARIABLES and STRUCTURES originally in TPFUN
+! length of a function symbol
+  integer, parameter :: lenfnsym=16
+  integer, private :: freetpfun
+  double precision, parameter :: zero=0.0D0,one=1.0D0
+!
+!\begin{verbatim}
+  TYPE gtp_parerr
+! This record contains the global error code.  In parallel processing each
+! parallel processes has its own error code copied to this if nonzero
+! it should be replaced by gtperr for separate errors in treads
+     INTEGER :: bmperr
+  END TYPE gtp_parerr
+  TYPE(gtp_parerr) :: gx
+! needed to have error code as private in threads
+!$OMP  threadprivate(gx)
+!\end{verbatim}
+!-----------------------------------------------------------------
+!\begin{verbatim}
+  integer, parameter :: tpfun_expression_version=1
+  TYPE tpfun_expression
+! Coefficients, T and P powers, unary functions and links to other functions
+     integer noofcoeffs,nextfrex
+     double precision, dimension(:), pointer :: coeffs
+! each coefficient kan have powers of T and P/V and links to other TPFUNS
+! and be multiplied with a following LOG or EXP term. 
+     integer, dimension(:), pointer :: tpow
+     integer, dimension(:), pointer :: ppow
+     integer, dimension(:), pointer :: wpow
+     integer, dimension(:), pointer :: plevel
+     integer, dimension(:), pointer :: link
+  END TYPE tpfun_expression
+! These records are allocated when needed, not stored in arrays
+!\end{verbatim}
+!-----------------------------------------------------------------
+!\begin{verbatim}
+! BITS in TPFUN
+! TPCONST     set if a constant value
+! TPOPTCON    set if optimizing value
+! TPNOTENT    set if referenced but not entered (when reading TDB files)
+! TPVALUE     set if evaluated only explicitly (keeping its value)
+  integer, parameter :: &
+       TPCONST=0,    TPOPTCON=1,   TPNOTENT=2,    TPVALUE=3
+!\end{verbatim}
+!-----------------------------------------------------------------
+!\begin{verbatim}
+  integer, parameter :: tpfun_root_version=1
+  TYPE tpfun_root
+! Root of a TP function including name with links to coefficients and codes
+! and results.  Note that during calculations which can be parallelized
+! the results can be different for each parallel process
+     character*(lenfnsym) symbol
+! Why are limits declared as pointers?? They cannot be properly deallocated
+! limits are the low temperature limit for each range
+! funlinks links to expression records for each range
+! each range can have its own function, status indicate if T and P or T and V
+! forcenewcalc force new calculation when optimizing variable changed
+     integer noofranges,nextfree,status,forcenewcalc
+     double precision, dimension(:), pointer :: limits
+     TYPE(tpfun_expression), dimension(:), pointer :: funlinks
+     double precision hightlimit
+  END TYPE tpfun_root
+! These records are stored in arrays as the actual function is global but each
+! equilibrium has its own result array (tpfun_parres) depending on the local
+! values of T and P/V.  The same indiex is used in the global and local arrays.
+! allocated in init_gtp
+  TYPE(tpfun_root), private, dimension(:), pointer :: tpfuns
+!\end{verbatim}
+
+!-----------------------------------------------------------------
+!\begin{verbatim}
+  integer, parameter :: tpfun_parres_version=1
+  TYPE tpfun_parres
+! Contains TP results, 6 double for results and 2 doubles for T and P 
+! values used to calculate the results
+! Note that during calculations which can be parallelized the
+! results can be different for each tread
+     integer forcenewcalc
+     double precision, dimension(2) :: tpused
+     double precision, dimension(6) :: results
+  END TYPE tpfun_parres
+! This array is local to the gtp_equilibrium_data record
+! index is the same as the function
+!\end{verbatim}
+!
+! =============================== end of TPFUN data structures
+!
 !\begin{verbatim}
   TYPE gtp_global_data
 ! status should contain bits how advanced the user is and other defaults
@@ -595,7 +924,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! data for each element: symbol, name, reference state, mass, h298-h0, s298
      character :: symbol*2,name*12,ref_state*24
      double precision :: mass,h298_h0,s298
-! splink: index of corresponing species in array splink
+! splink: index of corresponding species in array splink
 ! Status bits are stored in the integer status
 ! alphaindex: the alphabetical order of this elements
 ! refstatesymbol: indicates H0 (1), H298 (0, default) or G (2) for endmembers
@@ -610,16 +939,16 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! this constant must be incremented whenever a change is made in gtp_species
   INTEGER, parameter :: gtp_species_version=1
   TYPE gtp_species
-! data for each species: symnol, mass, charge, status
+! data for each species: symbol, mass, charge, extra, status
 ! mass is in principle redundant as calculated from element mass
+! extra can be used for somethinig extra ... like a Flory-Huggins segment length
      character :: symbol*24
-     double precision :: mass,charge
+     double precision :: mass,charge,extra
 ! alphaindex: the alphabetical order of this species
 ! noofel: number of elements
      integer :: noofel,status,alphaindex
 ! Use an integer array ellinks to indicate the elements in the species
 ! The corresponing stoichiometry is in the array stochiometry
-! ???? these should not be pointers, changed to allocatable ????
      integer, dimension(:), allocatable :: ellinks
      double precision, dimension(:), allocatable :: stoichiometry
   END TYPE gtp_species
@@ -633,10 +962,10 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   INTEGER, parameter :: gtp_component_version=1
   TYPE gtp_components
 ! The components are simply an array of indices to species records
-! the components must be "orthogonal".  There is always a "systems components"
-! that by default is the elements.
-! Later one may implement that the user can define a different "system set"
-! and also specific sets for each phase.
+! the components must be "orthogonal".  There is always a set of "systems
+! components" that by default is the elements.
+! Later one may implement that the user can define a different "user set"
+! and maybe also specific sets for each phase.
 ! The reference state is set as a phase and value of T and P.
 ! The name of the phase and its link and the link to the constituent is stored
 ! the endmember array is for the reference phase to calculate GREF
@@ -695,7 +1024,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   TYPE gtp_interaction
 ! this record constitutes the parameter tree. There are links to NEXT
 ! interaction on the same level (i.e. replace current fraction) and
-! to HIGHER interactions (i.e. includes current interaction)
+! to HIGHER interactions (i.e. includes current fraction)
 ! There can be several permutations of the interactions (both sublattice
 ! and fraction permuted, like interaction in B2 (Al:Al,Fe) and (Al,Fe:Al))
 ! The number of permutations of interactions can be the same, more or fewer
@@ -703,7 +1032,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! The necessary information is stored in noofip.  It is not easy to keep
 ! track of permutations during calculations, the smart way to store the last
 ! permutation calculated is in this record ... but that will not work for
-! parallell calculations as this record is static ...
+! parallel calculations as this record is static ...
 ! status: may be useful eventually
 ! antalint: sequential number of interaction record, to follow the structure
 ! order: for permutations one must have a sequential number in each node
@@ -718,7 +1047,8 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
      TYPE(gtp_interaction), pointer :: nextlink,highlink
      integer, dimension(:), allocatable :: sublattice,fraclink,noofip
   END TYPE gtp_interaction
-! allocated dynamically and linked from endmember records
+! allocated dynamically and linked from endmember records and other
+! interaction records (in a binary tree)
 !\end{verbatim}
 !-----------------------------------------------------------------
 !\begin{verbatim}
@@ -759,7 +1089,11 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! reference: can be used for search of reference
 ! refspec: free text
      character*16 reference
-     character*64, dimension(:), allocatable :: refspec
+!     character*64, dimension(:), allocatable :: refspec
+! this is Fortran 2003/2008 standard, not available in GNU 4.8
+!     character(len=:), allocatable :: nyrefspec
+! Use wpack routines!!!
+     integer, dimension(:), allocatable :: wprefspec
   END TYPE gtp_biblioref
 ! allocated in init_gtp
   TYPE(gtp_biblioref), private, allocatable :: bibrefs(:)
@@ -811,6 +1145,8 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
      TYPE(tpfun_expression), dimension(:), pointer :: explink
      TYPE(gtp_phase_add), pointer :: nextadd
      type(gtp_elastic_modela), pointer :: elastica
+! calculated contribution to G, G.T, G.P, G.T.T, G.T.P and G.P.P
+     double precision, dimension(6) :: propval
   END TYPE gtp_phase_add
 ! allocated when needed and linked from phase record
 !\end{verbatim}
@@ -838,20 +1174,25 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   INTEGER, parameter :: gtp_phasetuple_version=1
   TYPE gtp_phasetuple
 ! for handling a single array with phases and composition sets
-! first index is phase index, second index is composition set
+! ixphase is phase index, compset is composition set index
+! ADDED also index in phlista (lokph) and phase_varres (lokvares) and
+! nextcs which is nonzero if there is a higher composition set of the phase
 ! A tuplet index always refer to the same phase+compset.  New tuples with
 ! the same phase and other compsets are added at the end.
-     integer phase,compset
+! BUT if a compset>1 is deleted tuples with higher index will be shifted down!
+     integer lokph,compset,ixphase,lokvares,nextcs
+! >>>>>>>>>>>> old     integer phaseix,compset,ixphase,lokvares,nextcs
   end TYPE gtp_phasetuple
 !\end{verbatim}
-  TYPE(gtp_phasetuple), allocatable :: PHASETUPLE(:)
+  TYPE(gtp_phasetuple), target, allocatable :: PHASETUPLE(:)
 ! -----------------------------------------------------------------
 ! NOTE: if one wants to model bond energies beteween sites in a phase
 ! like in a 3 sublattice sigma one can enter parameters like
 ! G(sigma,A:B:*) which will mean the bond energy between an A atom in
 ! first sublattice and B in the second.  The parameter G(sigma,B:A:*)
-! will be different.  Such parameters are added to the Gibbs energy
-! even if there are also endmember parameters like G(sigma,A:B:C)
+! will be different.  Such parameters, multiplied with the fractions of
+! the constutuents, are added to the Gibbs energy even if there are 
+! also endmember parameters like G(sigma,A:B:C)
 ! -----------------------------------------------------------------
 !\begin{verbatim}
 ! a smart way to have an array of pointers used in gtp_phase
@@ -867,12 +1208,12 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! in alphabetical order through the array phases(i)
 ! sublista is now removed and all data included in phlista
 ! sublattice and constituent data (they should be merged)
-! The constitent link is the index to the splista(i), same function
+! The constituent link is the index to the splista(i), same function
 ! as LOKSP in iws.  Species in alphabetcal order is in species(i)
 ! One can allocate a dynamic array for the constituent list, done
 ! by subroutine create_constitlist.
 ! Note that the phase has a dynamic status word status2 in gtp_phase_varres
-! which can be differnt in different parallell calculations.
+! which can be differnt in different parallel calculations.
 ! This status word has the FIX/ENT/SUS/DORM status bits for example
 ! name: phase name, note composition sets can have pre and suffixes
 ! model: free text
@@ -896,12 +1237,12 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! linktocs: array with indices to phase_varres records
 ! nooffr: array with number of constituents in each sublattice 
 ! Note that sites are stored in phase_varres as they may vary with the
-! constituion for ionic liquid)
-! constitlist: indices of species that are constituents (in all soblattices)
+! constitution for ionic liquid)
      integer noofsubl,tnooffr
      integer, dimension(9) :: linktocs
      integer, dimension(:), allocatable :: nooffr
 ! number of sites in phase_varres record as it can vary with composition
+! constitlist: indices of species that are constituents (in all sublattices)
      integer, dimension(:), allocatable :: constitlist
 ! used in ionic liquid:
 ! i2slx(1) is index of Va, i2slx(2) is index if last anion (both can be zero)
@@ -924,11 +1265,11 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !-----------------------------------------------------------------
 !\begin{verbatim}
 ! this constant must be incremented when a change is made in gtp_state_variable
-  INTEGER, parameter :: gtp_state_variable_version=2
+  INTEGER, parameter :: gtp_state_variable_version=1
   TYPE gtp_state_variable
 ! this is to specify a formal or real argument to a function of state variables
 ! statev/istv: state variable index
-! phref/iref: if a specified reference state (for chemical potentials)
+! phref/iref: if a specified reference state (for chemical potential
 ! unit/iunit: 100 for percent, no other defined at present
 ! argtyp together with the next 4 integers represent the indices(4), only 0-4
 ! argtyp=0: no indices (T or P)
@@ -936,6 +1277,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! argtyp=2: phase and compset
 ! argtyp=3: phase and compset and component
 ! argtyp=4: phase and compset and constituent
+! ?? what is norm ??
      integer statevarid,norm,unit,phref,argtyp
 ! these integers represent the previous indices(4)
      integer phase,compset,component,constituent
@@ -973,20 +1315,21 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! iref: part of the state variable (iref can be comp.set number)
 ! iunit: ? confused with unit?
 ! seqz is a sequential index of conditions, used for axis variables
-! symlink: index of symbol for prescribed value (1) and uncertainity (2)
+! experimettype: inequality (< 0 or > 0) and/or percentage (-101, 100 or 101)
+! symlink: index of symbol for prescribed value (1) and uncertainty (2)
 ! condcoeff: there is a coefficient and set of indices for each term
 ! prescribed: the prescribed value
 ! NOTE: if there is a symlink value that is the prescribed value
 ! current: the current value (not used?)
-! uncertainity: the uncertainity (for experiments)
-     integer :: noofterms,statev,active,iunit,nid,iref,seqz
+! uncertainty: the uncertainty (for experiments)
+     integer :: noofterms,statev,active,iunit,nid,iref,seqz,experimenttype
 !    TYPE(putfun_node), pointer :: symlink1,symlink2
 ! better to let condition symbol be index in svflista array
      integer symlink1,symlink2
      integer, dimension(:,:), allocatable :: indices
      double precision, dimension(:), allocatable :: condcoeff
-     double precision prescribed, current, uncertainity
-! currently this is not used but it will be
+     double precision prescribed, current, uncertainty
+! currently this is not used but it will be ???
      TYPE(gtp_state_variable), dimension(:), allocatable :: statvar
      TYPE(gtp_condition), pointer :: next, previous
   end TYPE gtp_condition
@@ -1005,12 +1348,14 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !   (like @P, @C and @S
 ! status: can be used for various things
 ! status bit SVFVAL=0 means value evaluated only when called with mode=1
+! SVCONST bit set if symbol is just a constant value (linknode is zero)
 ! eqnoval: used to specify the equilibrium the value should be taken from
 !    (for handling what is called "variables" in TC)
 ! name: name of symbol
      integer narg,nactarg,status,eqnoval
      type(putfun_node), pointer :: linkpnode
      character name*16
+     double precision value
 ! this array has identification of state variable (and other function) symbols 
      integer, dimension(:,:), pointer :: formal_arguments
   end TYPE gtp_putfun_lista
@@ -1026,13 +1371,13 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! this constant must be incremented when a change is made in gtp_fraction_set
   INTEGER, parameter :: gtp_fraction_set_version=1
   TYPE gtp_fraction_set
-! info about disordred fractions for some phases like ordered fcc, sigma etc
+! info about disordered fractions for some phases like ordered fcc, sigma etc
 ! latd: the number of sublattices added to first disordred sublattice
 ! ndd: sublattices for this fraction set, 
 ! tnoofxfr: number of disordered fractions
 ! tnoofyfr: same for ordered fractions (=same as in phlista).
 ! varreslink: index of disordered phase_varres, 
-! phdapointer: pointer to the same phase_varres record as varreslink
+! phdapointer (not needed): pointer to the same phase_varres record
 !    (Note that there is a bit set indicating that the sublattices should 
 !    be taken from this record)
 ! totdis: 0 indicates no total disorder (sigma), 1=fcc, bcc or hcp
@@ -1045,7 +1390,6 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! dxidyj: are the the coeff to multiply the y fractions to get the disordered
 !        xfra(y2x(i))=xfra(y2x(i))+dxidyj(i)*yfra(i)
 ! disordered fractions stored in the phase_varres record with index varreslink
-!    (also pointed to by phdapointer).  Maybe phdapointer is redundant??
 ! arrays originally declared as pointers now changed to allocatable
      integer latd,ndd,tnoofxfr,tnoofyfr,varreslink,totdis
      character*1 id
@@ -1054,11 +1398,8 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
      integer, dimension(:), allocatable :: splink
      integer, dimension(:), allocatable :: y2x
      double precision, dimension(:), allocatable :: dxidyj
-! factor needed when reading from TDB file for sigma etc.
+! formula unit factor needed when calculating G for disordered sigma
      double precision fsites
-! in parallel processing the disordered phase_varres record is linked
-! by this pointer,  used in parcalcg and calcg_internal
-     TYPE(gtp_phase_varres), pointer :: phdapointer
   END TYPE gtp_fraction_set
 ! these records are declared in the phase_varres record as DISFRA for 
 ! each composition set and linked from the phase_varres record
@@ -1066,22 +1407,25 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !-----------------------------------------------------------------
 !\begin{verbatim}
 ! this constant must be incremented when a change is made in gtp_phase_varres
-  INTEGER, parameter :: gtp_phase_varres_version=1
+! added quasichemical bonds
+  INTEGER, parameter :: gtp_phase_varres_version=2
   TYPE gtp_phase_varres
 ! Data here must be different in equilibria representing different experiments
 ! or calculated in parallel or results saved from step or map.
 ! nextfree: In unused phase_varres record it is the index to next free record
 !    The global integer csfree is the index of the first free record
+!    The global integer highcs is the higest varres index used
 ! phlink: is index of phase record for this phase_varres record
-! status2: has phase status bits like ENT/FIX/SUS/DORM
+! status2: has composition set status bits CSxyz
 ! phstate: indicate state: fix/stable/entered/unknown/dormant/suspended/hidden
 !                           2   1      0        -1      -2      -3       -4
 ! phtupx: phase tuple index
      integer nextfree,phlink,status2,phstate,phtupx
-! abnorm(1): amount moles of atoms for a formula unit of the composition set
-! abnorm(2): mass/formula unit (both set by call to set_constitution)
+! abnorm(1): moles of components per formula unit of the phase/composition set
+! abnorm(2): mass of components per formula unit
+! abnorm(3): moles atoms per formula unit (all abnorm set by SET_CONSTITUTION)
 ! prefix and suffix are added to the name for composition sets 2 and higher
-     double precision, dimension(2) :: abnorm
+     double precision, dimension(3) :: abnorm
      character*4 prefix,suffix
 ! constat: array with status word for each constituent, any can be suspended
 ! yfr: the site fraction array
@@ -1106,19 +1450,19 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! way means the record is stored inside this record.
      type(gtp_fraction_set) :: disfra
 ! ---
-! arrays for storing calculated results for each phase (composition set)
+! stored calculated results for each phase (composition set)
 ! amfu: is amount formula units of the composition set (calculated result)
 ! netcharge: is net charge of phase
 ! dgm: driving force
-     double precision amfu,netcharge,dgm
+! qcbonds: quasichemical bonds (NOT SAVED ON UNFORMATTED)
+     double precision amfu,netcharge,dgm,qcbonds
+! qcsro: current value of SRO
+     double precision, allocatable, dimension(:) :: qcsro
 ! Other properties may be that: gval(*,2) is TC, (*,3) is BMAG, see listprop
 ! nprop: the number of different properties (set in allocate)
-!- ncc: total number of site fractions (redundant but used in some subroutines)
-! BEWHARE: ncc seems to be wrong using TQ test program fenitq.F90 ???
 ! listprop(1): is number of calculated properties
 ! listprop(2:listprop(1)): identifies the property stored in gval(1,ipy) etc
 !   2=TC, 3=BMAG. Properties defined in the gtp_propid record
-!-     integer nprop,ncc
      integer nprop
      integer, dimension(:), allocatable :: listprop
 ! gval etc are for all composition dependent properties, gval(*,1) for G
@@ -1136,17 +1480,19 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
      double precision, dimension(:,:), allocatable :: cinvy
      double precision, dimension(:), allocatable :: cxmol
      double precision, dimension(:,:), allocatable :: cdxmol
+! terms added to G if bit CSADDG nonzero
+     double precision, dimension(:), allocatable :: addg
   END TYPE gtp_phase_varres
-! this record is created inside the gtp_equilibrium record
+! this record is created inside the gtp_equilibrium_data record
 !\end{verbatim}
 !-----------------------------------------------------------------
 !\begin{verbatim}
 ! this must be incremented when a change is made in gtp_equilibrium_data
-  INTEGER, parameter :: gtp_equilibrium_data_version=2
+  INTEGER, parameter :: gtp_equilibrium_data_version=1
   TYPE gtp_equilibrium_data
 ! this contains all data specific to an equilibrium like conditions,
 ! status, constitution and calculated values of all phases etc
-! Several equilibria may be calculated simultaneously in parallell threads
+! Several equilibria may be calculated simultaneously in parallel threads
 ! so each equilibrium must be independent 
 ! NOTE: the error code must be local to each equilibria!!!!
 ! During step and map each equilibrium record with results is saved
@@ -1159,11 +1505,14 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! eqno: sequential number assigned when created
 ! next: index of next equilibrium in a sequence during step/map calculation.
 ! eqname: name of equilibrium
+! comment: a free text, for example reference for experimental data.
 ! tpval(1) is T, tpval(2) is P, rgas is R, rtn is R*T
 ! rtn: value of R*T
+! weight: weight value for this experiment, default unity
      integer status,multiuse,eqno,next
-     character eqname*24
+     character eqname*24,comment*72
      double precision tpval(2),rtn
+     double precision :: weight=one
 ! svfunres: the values of state variable functions valid for this equilibrium
      double precision, dimension(:), allocatable :: svfunres
 ! the experiments are used in assessments and stored like conditions 
@@ -1171,29 +1520,33 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! lastexperiment: link to experiment list
      TYPE(gtp_condition), pointer :: lastcondition,lastexperiment
 ! components and conversion matrix from components to elements
-! complist: array with components
+! complist: array with components (species index or location)??
 ! compstoi: stoichiometric matrix of compoents relative to elements
 ! invcompstoi: inverted stoichiometric matrix
      TYPE(gtp_components), dimension(:), allocatable :: complist
      double precision, dimension(:,:), allocatable :: compstoi
      double precision, dimension(:,:), allocatable :: invcompstoi
 ! one record for each phase+composition set that can be calculated
-! phase_varres: here all calculated data for the phase is stored
+! phase_varres: here all calculated data for the phases are stored
      TYPE(gtp_phase_varres), dimension(:), allocatable :: phase_varres
 ! index to the tpfun_parres array is the same as in the global array tpres 
 ! eq_tpres: here local calculated values of TP functions are stored
-     TYPE(tpfun_parres), dimension(:), pointer :: eq_tpres
+! should be allocatable, not a pointer
+     TYPE(tpfun_parres), dimension(:), allocatable :: eq_tpres
 ! current values of chemical potentials stored in component record but
 ! duplicated here for easy acces by application software
      double precision, dimension(:), allocatable :: cmuval
-! xconc: convergence criteria for constituent fractions and other things
+! xconv: convergence criteria for constituent fractions and other things
      double precision xconv
 ! delta-G value for merging gridpoints in grid minimizer
-! smaller value creates problem for test step3.BMM, MC and austenite merged
+! smaller value creates problem for test step3.OCM, MC and austenite merged
      double precision :: gmindif=-5.0D-2
 ! maxiter: maximum number of iterations allowed
      integer maxiter
-! this is to save a copy of the last calculated system matrix, needed
+! This is to store additional things not really invented yet ...
+! It may be used in ENTER MANY_EQUIL for things to calculate and list
+     character (len=80), dimension(:), allocatable :: eqextra
+! this is to save a copy of the last calculated system matrix, needed ??
 ! to calculate dot derivatives, initiate to zero
      integer :: sysmatdim=0,nfixmu=0,nfixph=0
      integer, allocatable :: fixmu(:)
@@ -1220,7 +1573,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   INTEGER, parameter :: gtp_parcalc_version=1
   TYPE gtp_parcalc
 ! This record contains temporary data that must be separate in different
-! parallell processes when calculating G and derivatives for any phase.
+! parallel processes when calculating G and derivatives for any phase.
 ! There is nothing here that need to be saved after the calculation is finished
 ! global variables used when calculating G and derivaties
 ! sublattice with interaction, interacting constituent, endmember constituents
@@ -1311,6 +1664,44 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !\end{verbatim}
 !------------------------------------------------------------------
 !\begin{verbatim}
+! a smart way to have an array of pointers used in gtp_assessmenthead
+  TYPE equilibrium_array
+     type(gtp_equilibrium_data), pointer :: p1
+  end TYPE equilibrium_array
+  INTEGER, parameter :: gtp_assessment_version=1
+  TYPE gtp_assessmenthead
+! This record should summarize the essential information about assessment data
+! using GTP.  How it should link to other information is not clear.  
+! status is status word, AHCOEF is used
+! varcoef is the number of variable coefficients
+! firstexpeq is the first equilibrium with experimental data
+     integer status,varcoef,firstexpeq
+     character*64 general,special
+     type(gtp_assessmenthead), pointer :: nextash,prevash
+! This is list of pointers to equilibria to be used in the assessnent
+! size(eqlista) is the number of equilibria with experimental data
+     type(equilibrium_array), dimension(:), allocatable :: eqlista
+! These are the coefficients values that are optimized,
+! current values, scaling, start values and optionally min and max
+     double precision, dimension(:), allocatable :: coeffvalues
+     double precision, dimension(:), allocatable :: coeffscale
+     double precision, dimension(:), allocatable :: coeffstart
+     double precision, dimension(:), allocatable :: coeffmin
+     double precision, dimension(:), allocatable :: coeffmax
+! These are the corresponding TP-function constants indices
+     integer, dimension(:), allocatable :: coeffindex
+! This array indicate currently optimized variables:
+!  0=fix, 1=fix with min, 2=fix with max, 3=fix with min and max
+!  10=optimized, 11=opt with min, 12=opt with max, 13=opt with min and max
+     integer, dimension(:), allocatable :: coeffstate
+! Work arrays ...
+     double precision, dimension(:), allocatable :: wopt
+  end TYPE gtp_assessmenthead
+! this record is allocated when necessary
+  type(gtp_assessmenthead), pointer :: firstash,lastash
+!\end{verbatim}
+!------------------------------------------------------------------
+!\begin{verbatim}
   INTEGER, parameter :: gtp_applicationhead_version=1
   TYPE gtp_applicationhead
 ! This record should summarize the essential information about an application
@@ -1332,19 +1723,37 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! this record is allocated when necessary
   type(gtp_applicationhead), pointer :: firstapp,lastapp
 !\end{verbatim}
-!-----------------------------------------------------------------
+!------------------------------------------------------------------
+!\begin{verbatim}
+  TYPE gtp_tpfun_as_coeff
+! this is a TPFUN converted to coefficents without any references to other
+! functions.
+     double precision, dimension(:), allocatable :: tbreaks
+     double precision, dimension(:,:), allocatable :: coefs
+     integer, dimension(:,:), allocatable :: tpows
+! this is used only during conversion
+!     type(gtp_tpfun_as_coeff), pointer :: nextcrec
+  end type gtp_tpfun_as_coeff
 !
-! a global array to provide information about composition sets
-! phcs(nph) is the composition set counter for phase nph
-!  integer, dimension(maxph) :: phcs ----- removed as redundant ??
-!
+  INTEGER, parameter :: gtp_tpfun2dat_version=1
+  TYPE gtp_tpfun2dat
+! this is a temporary storage of TP functions converted to arrays of
+! coefficients.  Allocated as an array when necessary and the index in
+! this array is the same index as for the TPfun
+     integer nranges
+!     type(gtp_tpfun_as_coeff) :: tpfuncoef
+     type(gtp_tpfun_as_coeff) :: cfun
+  end type gtp_tpfun2dat
+!\end{verbatim}
 !===================================================================
 !
 ! Below are private global variables like free lists etc.
 !
 !===================================================================
-
+!
 ! Several arrays with lists have a free list: csfree,addrecs,eqfree,reffree
+! it is not really consistent how to handle deleted equilibria etc
+! as the eqlista or phase_varres arrays  may have "holes" with deleted data
 !
 !\begin{verbatim}
 ! counters for elements, species and phases initiated to zero
@@ -1359,7 +1768,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   integer, private :: reffree,eqfree
 ! maximum number of properties calculated for a phase
   integer, private :: maxcalcprop=20
-! highest used phase_varres record (for saving on file)
+! highcs is highest used phase_varres record (for copy equil etc)
   integer, private :: highcs
 ! Trace for debugging (not used)
   logical, private :: ttrace
@@ -1400,6 +1809,9 @@ include "gtp3X.F90"
 
 ! 17-18: Grid minimizer and miscellaneous
 include "gtp3Y.F90"
+
+! 19: Assessment subroutine 
+include "gtp3Z.F90"
 
 
 END MODULE GENERAL_THERMODYNAMIC_PACKAGE

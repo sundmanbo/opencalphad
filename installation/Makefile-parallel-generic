@@ -1,0 +1,73 @@
+# Adjustable options...........................................
+# Choose GGC_PREFIX by uncommenting the most suitable option (only one!) in the list below
+#GCC_PREFIX=
+GCC_PREFIX=x86_64-w64-mingw32-
+#GCC_PREFIX=i686-w64-mingw32-
+
+# COMPILERS (adjust if necessary)
+CPREP=${GCC_PREFIX}cpp
+CC=${GCC_PREFIX}gcc 
+FORTRANC=${GCC_PREFIX}gfortran
+#ARCHIVER=ar
+ARCHIVER=${GCC_PREFIX}ar
+
+# Adjust the most suitable options in the following list if desired
+PERMISSIVE=-finit-local-zero
+RIGOROUS=-Wuninitialized
+OPTIMIZE=
+#OPTIMIZE=-O3
+
+COMPILE_OPT=${PERMISSIVE} ${OPTIMIZE}
+#COMPILE_OPT=${RIGOROUS}
+
+# Comment the "static" option below to link libraries dynamically. 
+LINK_OPT=
+LINK_OPT=-static
+
+EXE=oc4P
+
+############################################################################
+# Nothing to be changed below this line.
+OBJS=metlib3.o oclablas.o ocnum.o gtp3.o matsmin.o lmdif1lib.o smp2.o pmon6.o  
+
+all:
+	${FORTRANC} -o linkoc.exe ${LINK_OPT} linkocdate.F90
+	./linkoc.exe
+	make $(EXE)
+
+
+metlib3.o:	utilities/metlib3.F90
+	${FORTRANC} -c utilities/metlib3.F90
+
+oclablas.o:	numlib/oclablas.F90
+	${FORTRANC} -c numlib/oclablas.F90
+
+ocnum.o:	numlib/ocnum.F90
+	${FORTRANC} -c numlib/ocnum.F90
+
+lmdif1lib.o:      numlib/lmdif1lib.F90
+	${FORTRANC} -c numlib/lmdif1lib.F90  
+
+gtp3.o:	models/gtp3.F90
+	${FORTRANC} -c -fopenmp models/gtp3.F90
+
+matsmin.o:	minimizer/matsmin.F90
+	${FORTRANC} -c -fopenmp ${COMPILE_OPT}  minimizer/matsmin.F90
+
+smp2.o:		stepmapplot/smp2.F90
+	${FORTRANC} -c stepmapplot/smp2.F90
+
+pmon6.o:	userif/pmon6.F90
+	${FORTRANC} -c -fopenmp userif/pmon6.F90
+
+ 
+
+$(EXE): 
+	make $(OBJS)
+# liboceq.a
+	${ARCHIVER} sq liboceq.a metlib3.o oclablas.o ocnum.o gtp3.o matsmin.o lmdif1lib.o
+# oc4A
+	${FORTRANC} -o $(EXE)  ${LINK_OPT} -fopenmp pmain1.F90 pmon6.o smp2.o liboceq.a -lwinpthread
+
+clean:
+	rm -r *.o *.mod linkoc liboceq.a $(EXE) 

@@ -13,7 +13,7 @@ program octq4
   character filename*60,phnames(maxph)*24
   character condition*60,line*80,statevar*60,quest*60,ch1*1
   character target*60,phcsname*36,selel(maxel)*2
-  double precision value,dummy,tp(2),mel(maxel)
+  double precision value,temp,tp(2),mel(maxel)
   double precision xf(maxel),pxf(10*maxph),npf(maxph),mu(maxel)
   double precision yfr(100),sites(10),extra(5)
 ! with 20 constituents dimension of d2gdy2 is 20*(20+1)/2, upper triangle

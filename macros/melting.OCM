@@ -1,0 +1,208 @@
+new YES
+
+@$ =========================================================
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$ melting.OCM
+@$ Calculating multicomponent single equilibria
+@$ Including the melting point of the alloy
+@$
+@$ At the end test using the grid minimizer after "c n"
+@$ to detect any gripoint below the current equilibrium
+@$ =========================================================
+@&
+
+set echo
+
+r t steel7
+
+@$ -------------------------------------------------------------
+@&
+set c t=1173 p=1e5 n=1 x(c)=.04 x(cr)=.06, x(mo)=.05 x(si)=.003 x(v)=.01
+
+c e
+
+l ,,,
+
+@$ The equilibrium has two FCC phases, one represent cunbic carbide
+@$ Check result with a denser grid
+@$ -------------------------------------------------------------
+@&
+
+set advanced 
+dense
+
+c e
+
+l ,,,
+
+@$ The denser grid has about 10 times more gridpoints.  Result the same
+@$ -------------------------------------------------------------
+@&
+@$ We can also list the constitution of the phases
+
+l , 2
+
+@$ Note how the carbon content is different in the two FCC phases
+@$ -------------------------------------------------------------
+@&
+@$ Now calculate the melting T of this alloy 
+@$ by setting liquid fix and remove condition on T
+c tran
+liq
+1
+
+l , 1
+
+@$ Note that the grid minimizer could not be used for this calculation
+@$ but is is automatically called afterwards to check if there is any
+@$ gridpoint below the calculated equilibrium. The melting T is 1501 K.
+@&
+@$ -------------------------------------------------------------
+@$ Turn off the dense grid as it is not really necessary here
+
+set adv dense
+
+@&
+@$ Test setting a condition on the carbon content of the metallic FCC
+@$ Note that the metallic FCC (austenite) is the second composition set !!!
+set c x%(fcc#2,c)
+
+set c x(c)=none
+
+c e
+
+l,,,,
+
+@$ This is the same equilibrium calculated with different conditions
+@$ The liquid is not listed but has a very small driving force as
+@&
+@$ shown in the next command, -0.00000000172
+l sh p
+
+
+@&
+@$ Now decrease the carbon content of the austenite
+set c x%(fcc#2,c)=3
+
+c e
+
+l,,,,
+
+@$ Note that the total amount of C also decreases
+@$ to 0.03618 in mole fraction
+@$ and the liquid is no longer stable.
+@&
+@$-------------------------------------------------------------
+@$ Calculate the new melting T for a steel with 3 mole percent C in the fcc
+@$ now using the "set phase ... status" command
+@$ and remove the condition on T
+
+set ph liq 
+status 
+fix 0
+
+set c t=none
+
+l c
+
+@&
+c e
+
+l,,,,
+
+@$ The melting T with the new carbon content is 1518.89 K
+@$ -------------------------------------------------------------
+@&
+@$ Now set condition on current H and remove condition on N
+
+set c H
+
+set c N=none
+
+c e
+l r 1
+
+@$ We have the same quilibrium with different conditions
+@$ -------------------------------------------------------------
+@&
+@$ Now decrease H a little
+set c H=40000
+c e
+
+l,,,,
+
+@$ Note the size of the system has changed, N=0.84874 !!
+@$ -------------------------------------------------------------
+@&
+
+@$ Now test a new feature, recalculating an equilibrium if the gridtest
+@$ after a calculation shows a new phase should be stable
+
+@$ First reinitiate and read the database again
+
+new Y
+
+r t steel7
+
+set c t=2000 p=1e5 n=1 x(c)=.04 x(cr)=.06, x(mo)=.05 x(si)=.003 x(v)=.01
+
+@&
+
+c e
+
+l,,,,
+
+@$ nothing particular, we have just the liquid stable
+@$ If we now set T=1173 and calculate without the grid minimizer ...
+@&
+@$ OC will not discover that the FCC phase should have a second comp.set
+
+set c T=1173
+
+c n
+
+l,,,,
+
+@$ We have FCC, M6 and M7C3 stable and there is no FCC#2 phase,
+@$ This is not the global equilibrium we we calculated in the beginning
+@$ We have G=-57639.4 J
+@&
+@$ Instead of "c n" we can use "calculate with_check_after"
+@$ and then OC will use the current equilibrium as start values to calculate
+@$  and then use the grid minimizer to check if there are any point below
+@&
+
+c w
+
+l ,,,,
+
+@$ We now have a more stable equilibrium with the FCC#2 phase
+@$ and G=-57673.8 J, 34 J less than previous metastable equilibrium
+@$
+@$ The use of a grid test "after" the equilibrium calculation is useful for 
+@$ simulations as the "c n" is much faster but now and again
+@$ it must be checked with a grid.
+@&
+@$ ------------------------------------------------------------------
+@$ That is all for now
+@&
+set inter
+

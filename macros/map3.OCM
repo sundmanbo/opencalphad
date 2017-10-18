@@ -1,0 +1,133 @@
+new Y
+@$ =================================================================
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$ map3.OCM
+@$ Calculate the stable C-Fe phase diagram
+@$ =================================================================
+@&
+
+set echo
+
+r t steel1
+fe c
+
+
+set cond t=1000 p=1e5 n=1 x(c)=.2
+
+c e
+
+l r 1
+
+@&
+
+set ax 1 x(c) 0 1 ,,,
+set ax 2 t 500 2000 10
+
+l ax
+
+l sh
+
+
+@&
+
+map
+
+
+@&
+
+plot
+x(*,c)
+T
+title map 3 fig 1
+render
+
+plot
+w%(*,c)
+T_C
+scale x
+n
+0
+7
+title map 3 fig 2
+out
+stable
+Y
+render
+
+@$---------------------------------------------------------
+@$ Calculate the metastable Fe-C with cementite
+set st ph *=sus
+set st ph fcc bcc liquid cem=ent 0
+
+l c
+
+set c x(c)=.1
+
+c e
+
+l,,,,,
+
+map
+
+
+
+@$ Plot the metastable Fe-C diagram
+plot
+
+
+title map 3 fig 3
+
+
+@$ now overlay the stable
+plot
+
+
+title map 3 fig 4
+append stable
+
+
+plot
+
+
+title map 3 fig 5
+scale x
+n
+0
+2.5
+scale y
+n
+700
+1200
+pos
+top left
+text 
+1.2 1100 
+0
+n 
+austenite
+
+
+
+
+
+@&
+set inter

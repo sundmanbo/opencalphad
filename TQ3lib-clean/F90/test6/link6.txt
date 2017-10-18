@@ -1,0 +1,13 @@
+REM linking test6
+
+REM If you have error that omp_ routines are missing recompile
+REM OC without including OMPlib
+
+copy ..\..\..\liboceq.a
+
+copy ..\..\..\liboceqplus.mod
+
+gfortran -c liboctq.F90
+
+gfortran -o test6 localeq.F90 liboctq.o liboceq.a
+

@@ -1,0 +1,105 @@
+new Y
+@$ ===========================================================
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$ map6.OCM
+@$ Calculate an isopleth for Cr-Fe-Ni at 8 mass% Ni
+@$ ===========================================================
+@&
+
+set echo
+
+r t saf2507
+cr fe ni
+ 
+set c t=2000 p=1e5 w(cr)=.2 w(ni)=.08 n=1
+
+c e
+l
+
+4
+
+@&
+
+set ax 1 w(cr) 0 1 0.01
+set ax 2 t 800 2200 25
+
+
+
+map
+
+
+@&
+
+plot
+w(CR)
+T
+title map 6 fig 1
+render
+ 
+ 
+@$ add some labels
+plot
+
+
+title map6 fig 2
+text 
+0.1 2000 0 y
+
+text n
+.5 1500 0 y
+
+text n
+.05 1200 0 y
+
+text n
+.46 1160 0 y
+{/Symbol s}
+text n
+.75 1200 y
+
+
+
+plot
+
+
+title map6 fig 3
+scale y
+n
+1700
+1800
+
+
+plot
+
+
+title map6 fig4
+scale y
+n
+1150
+1250
+
+
+
+@&
+ set interactive

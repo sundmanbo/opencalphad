@@ -1,0 +1,12 @@
+REM Copy libraries (compiled without OpenMP) from OC directory
+copy ..\..\..\liboceq.a .
+copy ..\..\..\liboceqplus.mod .
+
+REM Copy tqlibrary from directory above
+copy ..\liboctq.F90 .
+
+REM Compile and link
+gfortran -c liboctq.F90
+
+gfortran -o tqex2 TQ2-feni.F90 liboctq.o liboceq.a
+
