@@ -3,10 +3,11 @@
 //#include "octqc.h"
 #include "OC-isoC.h"
 #include <string>
-#include <stdlib.h>
+#include <cstdlib>
 #include <iostream>
 #include <cstring>
 #include <vector>
+#include <cstdio>
 
 /* 160829 Bo Sundman revision 
 This is the C++ connection to the Fortran libocisoc.F90 library 
