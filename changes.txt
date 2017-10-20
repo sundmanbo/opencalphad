@@ -13,6 +13,9 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2017.10.20 OC version 4.035: After a few weeks of work and vacations
+a small bugfix in the TDB2DAT code for excess parameters.
+
 2017.09.13 OC version 4.034: This time I have added a possibility to
 edit the command line a la emacs and also to keep a short history of
 commands.  That is always possible on Windows and as I am frustrated

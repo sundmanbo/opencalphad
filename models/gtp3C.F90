@@ -3974,7 +3974,7 @@
    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
    integer ntpf,last,i1,i2,i3,npows,lut,ip,jp,nstoi,lokph,isp,f1,nphstoi,nphmix
-   integer, dimension(:), allocatable :: ncon,phmix,phstoi,estoi
+   integer, dimension(:), allocatable :: ncon,phmix,phstoi,estoi,jj
    integer nelectrons,lokcs,nsubl,isubl,mphstoi,k1,lcase,mult(10),check
    integer cation,anion,firstcation,ilevel,intconst(9),intconstx(9),ideg
    logical logok,nogas,ionliq,wildcard,iliqwild,excessparam
@@ -4409,7 +4409,7 @@
             intparam=>endmember%intpointer
             ilevel=0
             do while(associated(intparam))
-! we must save intparam to be able to follow nextlink
+! we must save intparam%nextlink to be able to follow the parameter tree
                ilevel=ilevel+1
                saveint(ilevel)%intlink=>intparam%nextlink
                isp=intparam%fraclink(1)
@@ -4417,28 +4417,44 @@
                isp=phlista(lokph)%constitlist(isp)
                property=>intparam%propointer
                propint: if(associated(property)) then
-                  write(*,908)'3C interaction parameter',ilevel,&
-                       constext(1:ip-2),intparam%sublattice(1),&
-                       trim(splista(isp)%symbol),property%degree,&
-                       (intconst(k1),k1=1,nsubl+ilevel)
+!                  write(*,908)'3C interaction parameter',ilevel,&
+!                       constext(1:ip-2),intparam%sublattice(1),&
+!                       trim(splista(isp)%symbol),property%degree,&
+!                       (intconst(k1),k1=1,nsubl+ilevel)
 908               format(a,i2,2x,a,i4,2x,a,2x,i2,4x,10i4)
+
 ! write the identification of the excess parameter ....
                   if(property%proptype.ne.1) then
                      write(*,*)'3C interaction property not G!'
-                     exit propint
+                     stop
                   endif
-! The list of constituents (in intconst) must be in ascending order
+! The list of constituents (in intconst) arranged in ascending order
                   call intsort(intconst,nsubl+ilevel,intconstx)
 ! write interaction level (2=binary, 3=ternary ...)
 ! Then constituent indices in acending order (maybe rearrange intconst)
 ! finally the degree (number of Redlich-Kister parameters)
-                  write(lut,208)ilevel+1,(intconstx(k1),k1=1,nsubl+ilevel),&
-                       property%degree+1
-208               format(10i5)
+!                  write(*,907)'3C solgasorder: ',nsubl+ilevel,&
+!                       (intconstx(k1),k1=1,nsubl+ilevel),property%degree+1
+                  write(lut,208)nsubl+ilevel,&
+                       (intconstx(k1),k1=1,nsubl+ilevel),property%degree+1
+907               format(a,10i5)
+208               format(i5/10i5)
 ! write the expression of the excess parameter .... (Redlich-Kister ??)
                   do ideg=0,property%degree
                      f1=property%degreelink(ideg)
-                     call list_tpascoef(lut,text,f1,npows,tpfc)
+! excess parameters has just the coefficients
+!                     call list_tpascoef(lut,text,f1,npows,tpfc)
+                     if(tpfc(f1)%nranges.gt.1) then
+                        write(*,*)'3C excess parameter with T-ranges!'
+                        stop
+                     endif
+! This gave compiler error on MacOS 10.13 ??? GNU Fortran 5.2 ...
+!                     write(lut,311)(tpfc(f1)%cfun%coefs(jj,1),jj=1,6)
+                     write(lut,311)tpfc(f1)%cfun%coefs(1,1),&
+                          tpfc(f1)%cfun%coefs(2,1),tpfc(f1)%cfun%coefs(3,1),&
+                          tpfc(f1)%cfun%coefs(4,1),tpfc(f1)%cfun%coefs(5,1),&
+                          tpfc(f1)%cfun%coefs(6,1)
+311                  format(6(1x,G15.8))
                   enddo
                endif propint
 ! Take link to higher
@@ -4773,6 +4789,7 @@
 !\begin{verbatim}
  subroutine intsort(intc,nint,intx)
 ! This is just another stupid sorting subroutine   
+! intc is not changed
    implicit none
    integer intc(*),intx(*),nint
 !\end{verbatim}
@@ -4790,8 +4807,8 @@
       do jj=2,nint
          if(intx(jj-1).gt.intx(jj)) then
             byte=intx(jj)
-            intx(jj-1)=intx(jj)
-            intx(jj)=byte
+            intx(jj)=intx(jj-1)
+            intx(jj-1)=byte
          endif
       enddo
    enddo

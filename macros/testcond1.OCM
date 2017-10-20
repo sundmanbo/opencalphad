@@ -371,7 +371,25 @@ mq&c(fcc)
 
 @$
 @&
-@$ There is also a command to calculate the potential derivative
+@$ There is also a command that calculates the constituent fractions
+@$ and chemical potentials in a single phase when specifying set of
+@$ mole fractions ignoring any other phases.  
+@$ It can be convenient when simulating diffusion in an ordered phase
+
+cal ph fcc 
+
+Y
+const
+
+
+@&
+
+l,,,,
+
+c n
+
+@& 
+@$ There is a command similar command to calculate the potential derivative
 @$ matrix (note it is symmetrical) which is needed to convert
 @$ the mobilities to diffusion coefficients.
 @& 
