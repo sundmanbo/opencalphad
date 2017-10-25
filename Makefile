@@ -44,6 +44,9 @@ clean:
 	rm -f *.a *.o *.mod $(VER) linkoc
 	make -C $(TQPATH) clean
 
+cpp:
+	g++ -o $(TQPATHCPP)/main -lstdc++ -std=c++11 $(TQPATHCPP)/liboctqcpp.cpp liboctq-isoc.a -lgfortran -lm
+	g++ -c $(TQPATHCPP)/liboctqcpp.cpp 
 #==============================================================================#
 
 metlib3.o:	utilities/metlib3.F90

@@ -24,5 +24,5 @@ clean:
 #==============================================================================#
 
 $(EXE): $(OBJS)
-	g++ -o $(EXE) $(CFLAGS) $(EXE).cpp -L$(LIBS) -loctq-isoc -lgfortran -lm
+	g++ -o $(EXE) $(CFLAGS) $(EXE).cpp -L$(LIBS) ../../../liboctq-isoc.a -lgfortran -lm
 	g++ -c -I../.. $(EXE).cpp

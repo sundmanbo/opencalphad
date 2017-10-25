@@ -10,7 +10,7 @@ extern"C" int  c_maxc;
 extern"C" int  c_maxp;
 extern"C" char * c_cnam[24];
 extern"C" char * cnames[25];
-extern"C" int  c_ntup;
+extern"C" int c_ntup;
 extern"C" int c_noofcs(int);
 extern"C" int c_ierr(void);
 extern"C"
@@ -48,172 +48,40 @@ extern"C"
 class liboctqcpp
 {
     public:
+    void * ceq2;
     int ntup;
     int nel;
-    vector<string> cnames;
-    vector<string> cnam;
-    void tqini(int n, void * ceq)
-    {
-        //==============
-        c_tqini(n, ceq);
-        //==============
-    };
-
-    void tqrfil(string fname, void * ceq)
-    {
-        char *filename = strcpy((char*)malloc(fname.length()+1),fname.c_str());
-        //======================
-        c_tqrfil(filename, ceq);
-        //======================
-        ntup = c_ntup;
-        nel = c_nel;
-        cnam.resize(nel);
-        for(int i = 0; i < nel; i++)
-        cnam[i] = c_cnam[i];
-    };
-
-    void tqrpfil(string fname, vector<string> elnames, void * ceq)
-    {
-        char *filename = strcpy((char*)malloc(fname.length()+1), fname.c_str());
-        char *selel[elnames.size()];
-        for(int i = 0; i < elnames.size(); i++)
-        {
-            char *tempchar
-                 = strcpy((char*)malloc(elnames[i].length()+1), elnames[i].c_str());
-            selel[i] = tempchar;
-        }
-        //==============================================
-        c_tqrpfil(filename, elnames.size(), selel, ceq);
-        //==============================================
-        ntup = c_ntup;
-        nel = c_nel;
-        for(int i = 0; i < nel; i++)
-        cnam[i] = c_cnam[i];
-    };
-
-    void tqgcom(int, char **, void *)
-    {
-
-    };
-
-    void tqgnp(int, void *)
-    {
-
-    };
-
-    void tqgpn(int, char *, void *)
-    {
-
-    };
-
-    void tqgpi(int *, char *, void *)
-    {
-
-    };
-
-    void tqgpcn2(int, int, char *, void *)
-    {
-
-    };
-
-    void tqgpcn(int, int, char *, void *)
-    {
-
-    };
-
-    void tqgpci(int, int *, char *, void *)
-    {
-
-    };
-
-    void tqgpcs(int, int, double *, double *, void *)
-    {
-
-    };
-
-    void tqgccf(int, int *, char *, double *, double *, void *)
-    {
-
-    };
-
-    void tqgnpc(int, int *, void *)
-    {
-
-    };
-
-    void tqphtupsts(int, int, double, void *)
-    {
-
-    };
-
-    void tqsetc(char *, int, int, double, int *, void *)
-    {
-
-    };
-
-    void tqce(char *, int, int, double *, void *)
-    {
-
-    };
-
-    void tqgetv(char *, int, int, int *, double *, void *)
-    {
-
-    };
-
-    void tqgphc1(int, int * , int *, int *, double *, double *, double *, void *)
-    {
-
-    };
-
-    void tqsphc1(int, double *, double *, void *)
-    {
-
-    };
-
-    void tqcph1(int, int, int *, double *, double *, double *, double *, double *, void *)
-    {
-
-    };
-
-    void tqcph2(int, int, int *, int *, void *)
-    {
-
-    };
-
-    void tqdceq(char *)
-    {
-
-    };
-
-    void tqcceq(char *, int *, void *, void *)
-    {
-
-    };
-
-    void tqselceq(char *, void *)
-    {
-
-    };
-
-    void reset_conditions(char *, void *)
-    {
-
-    };
-
-    void Change_Status_Phase(char *, int, double, void *)
-    {
-
-    };
-
-    void tqlr(int, void *)
-    {
-
-    };
-
-    void tqlc(int, void *)
-    {
-
-    };
-
+    std::vector<std::string> cnames2;
+    std::vector<std::string> cnam2;
+    void tqini(int n, void * ceq);
+    std::vector<std::string> tqrfil(std::string fname, void * ceq);
+    std::vector<std::string> tqrpfil(std::string fname, std::vector<std::string> elnames, void * ceq);
+    std::vector<std::string> tqgcom(void * ceq);
+    int tqgnp(void * ceq);
+    std::string tqgpn(int i, void * ceq);
+    int tqgpi(std::string pname, void * ceq);
+    void tqgpcn2(int, int, char *, void *);
+    void tqgpcn(int, int, char *, void *);
+    void tqgpci(int, int *, char *, void *);
+    void tqgpcs(int, int, double *, double *, void *);
+    void tqgccf(int, int *, char *, double *, double *, void *);
+    void tqgnpc(int, int *, void *);
+    void tqphtupsts(int, int, double, void *);
+    void tqsetc(std::string, int, int, double, void *);
+    void tqce(void *);
+    double tqgetv(std::string, int, int, void *);
+    std::vector<double> tqgetv(std::string, int, int, int, void *);
+    void tqgphc1(int, int * , int *, int *, double *, double *, double *, void *);
+    void tqsphc1(int, double *, double *, void *);
+    void tqcph1(int, int, int *, double *, double *, double *, double *, double *, void *);
+    void tqcph2(int, int, int *, int *, void *);
+    void tqdceq(char *);
+    void tqcceq(char *, int *, void *, void *);
+    void tqselceq(char *, void *);
+    void reset_conditions(char *, void *);
+    void Change_Status_Phase(char *, int, double, void *);
+    void tqlr(int, void *);
+    void tqlc(int, void *);
+    std::vector<double> PhaseFractions(void *);
+    std::vector<double> ConstituentFractions(int phase, void *ceq);
 };

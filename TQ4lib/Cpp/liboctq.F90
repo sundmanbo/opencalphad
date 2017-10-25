@@ -103,7 +103,7 @@ contains
 ! This call initiates the OC package
     call init_gtp(intv,dblv)
     ceq=>firsteq
-    write(*,*)'tqini created: ',ceq%eqname
+    !write(*,*)'tqini created: ',ceq%eqname
 1000 continue
     return
   end subroutine tqini
