@@ -2,6 +2,7 @@
 using namespace std;
 
 #define MAXEL 24;
+#define MAXPH 20
 
 void liboctqcpp::tqini(int n, void * ceq)
 {
@@ -184,9 +185,33 @@ std::vector<double> liboctqcpp::tqgetv(string par, int n1, int n2, int n3, void 
     return results;
 };
 
-void liboctqcpp::tqgphc1(int, int * , int *, int *, double *, double *, double *, void *)
+std::vector<double> liboctqcpp::tqgphc1(int phIdx, std::vector<int>& ncons,
+                                        std::vector<int>& sites, double& moles,
+                                        void * ceq)
 {
-
+    int nlat;
+    int nlatc[MAXPH];//TODO: MAXPH is misleading
+    int conlista[MAXPH];
+    double yfr[MAXPH];
+    double site[MAXPH];
+    double extra[MAXPH];
+    //==============================================================
+    c_tqgphc1(phIdx, &nlat, nlatc, conlista, yfr, site, extra, ceq);
+    //==============================================================
+    ncons.resize(nlat);
+    sites.resize(nlat);
+    int nc = 0;
+    for(unsigned int i = 0; i < ncons.size(); i++)
+    {
+        ncons[i] = nlatc[i];
+        sites[i] = site[i];
+        nc += nlatc[i];
+    }
+    vector<double> y(nc, 0);
+    for(unsigned int i = 0; i < nc; i++)
+    y[i] = yfr[i];
+    moles = extra[0];
+    return y;
 };
 
 void liboctqcpp::tqsphc1(int, double *, double *, void *)
@@ -437,6 +462,34 @@ int main(int argc, char *argv[])
         }
         cout << "]" << " [" << &ceq << "]" <<
         endl;
+    }
+
+    std::vector<int> ncons;
+    std::vector<int> sites;
+    double moles;
+
+    for(int k = 0; k < phasetuples; k++)
+    {
+    std::vector<double> y = OCASI.tqgphc1(k+1, ncons, sites, moles, &ceq);
+
+    cout << "-> Extended Constituent Fractions for " << PhNames[k]
+         << " [" << moles << " moles of atoms/formula unit]";
+    int consti = 0;
+    for(unsigned int i = 0; i < ncons.size(); i++)
+    {
+        cout << " [";
+        for(int j = 0; j < ncons[i]; j++)
+        {
+            cout << "Const. " << consti << ": " << y[consti];
+            if(j < ncons[i]-1)
+            {
+                cout << ", ";
+            }
+            consti += 1;
+        }
+        cout << "]_(" << sites[i] << ")";
+    }
+    cout << endl;
     }
 
     return 0;
