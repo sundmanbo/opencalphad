@@ -154,11 +154,9 @@ void liboctqcpp::tqsetc(string par, int n1, int n2, double val, void * ceq)
 void liboctqcpp::tqce(void * ceq)
 {
     char target[60] = " ";
-    int null1 = 0;
-    int null2 = 0;
     double val;
     //======================================
-    c_tqce(target, null1, null2, &val, ceq);
+    c_tqce(target, 0, 0, &val, ceq);
     //======================================
 };
 
@@ -243,9 +241,9 @@ void liboctqcpp::tqlc(int, void *)
 
 std::vector<double> liboctqcpp::PhaseFractions(void *ceq)
 {
-    int nph = c_ntup; //TODO: Remove c_ntup
+    int nph = tqgnp(ceq);
     std::vector<double> results(nph);
-    results = tqgetv("NP", -1, 0,nph, ceq);
+    results = tqgetv("NP", -1, 0, nph, ceq);
     return results;
 };
 
@@ -253,7 +251,7 @@ std::vector<double> liboctqcpp::ConstituentFractions(int phase, void *ceq)
 {
     int nel = c_nel; //TODO: Remove c_ntup
     std::vector<double> results(nel);
-    results = tqgetv("X", phase, -1,nel, ceq);
+    results = tqgetv("X", phase, -1, nel, ceq);
     return results;
 };
 
@@ -287,14 +285,13 @@ int main(int argc, char *argv[])
 
 */
     vector<string> Elements;
-    Elements.push_back("C");
     Elements.push_back("CR");
     Elements.push_back("FE");
-    Elements.push_back("MN");
 
     //================================================================
     std::vector<std::string> elnames2
     = OCASI.tqrpfil("TQ4lib/Cpp/Matthias/FECRMNC.TDB", Elements, &ceq);
+    //= OCASI.tqrpfil("TQ4lib/Cpp/Matthias/steel1.TDB", Elements, &ceq);
     //================================================================
 
     cout << "-> Element Data: [";
@@ -329,16 +326,16 @@ int main(int argc, char *argv[])
     //=================================
     cout << "-> Number of phasetuples: [" << phasetuples << "]" << endl;
 
-    std::vector<std::string> PhNames(c_ntup);
+    std::vector<std::string> PhNames(phasetuples);
 
     cout << "-> Phase Data: [";
-    for(int i = 0; i < c_ntup; i++)
+    for(int i = 0; i < phasetuples; i++)
     {
         //==========================
         PhNames[i]=OCASI.tqgpn(i+1, &ceq);
         cout << PhNames[i];
         //==========================
-        if(i < c_ntup-1)
+        if(i < phasetuples-1)
         {
             cout << ", ";
         }
@@ -361,7 +358,7 @@ int main(int argc, char *argv[])
     cout << "-> Set Temperature to: [" << T << "]" << " [" << &ceq << "]" << endl;
     cout << "-> Set Ambient Pressure to: [" << P << "]" << " [" << &ceq << "]" << endl;
     cout << "-> Set Moles to: [" << N << "]" << " [" << &ceq << "]" << endl;
-    cout << "-> Set X(CR) to: [" << XCR << "]" << " [" << &ceq << "]" << endl;
+    cout << "-> Set X(1) to: [" << XCR << "]" << " [" << &ceq << "]" << endl;
 
     //=========================================
     T = OCASI.tqgetv("T", 0, 0, &ceq);
@@ -373,7 +370,7 @@ int main(int argc, char *argv[])
     cout << "-> Temperature set to: [" << T << "]" << " [" << &ceq << "]" << endl;
     cout << "-> Ambient Pressure set to: [" << P << "]" << " [" << &ceq << "]" << endl;
     cout << "-> Moles set to: [" << N << "]" << " [" << &ceq << "]" << endl;
-    cout << "-> X(CR) set to: [" << XCR << "]" << " [" << &ceq << "]" << endl;
+    cout << "-> X(1) set to: [" << XCR << "]" << " [" << &ceq << "]" << endl;
 
     //===============
     OCASI.tqce(&ceq);
@@ -385,6 +382,28 @@ int main(int argc, char *argv[])
     //===========================
     OCASI.PhaseFractions(&ceq);
     //===========================
+
+    //=================================
+    phasetuples = OCASI.tqgnp(&ceq);
+    //=================================
+    cout << "-> Number of phasetuples: [" << phasetuples << "]" << endl;
+
+    PhNames.resize(phasetuples);
+
+    cout << "-> Phase Data: [";
+    for(int i = 0; i < phasetuples; i++)
+    {
+        //==========================
+        PhNames[i]=OCASI.tqgpn(i+1, &ceq);
+        cout << PhNames[i];
+        //==========================
+        if(i < phasetuples-1)
+        {
+            cout << ", ";
+        }
+    }
+    cout << "]" << " [" << &ceq << "]" <<
+    endl;
 
     cout << "-> Phase Fractions: [";
     for (unsigned int i = 0; i < EquPhFr.size(); i++)

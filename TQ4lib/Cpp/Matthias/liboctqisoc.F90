@@ -185,7 +185,7 @@ module liboctqisoc
 
     subroutine c_tqgpn(n,phasename, c_ceq) bind(c, name='c_tqgpn')
         integer(c_int), intent(in), value :: n
-        character(kind=c_char, len=1), intent(inout) :: phasename(24)
+        character(kind=c_char, len=1), intent(inout) :: phasename(36)
         type(c_ptr), intent(inout) :: c_ceq
         type(gtp_equilibrium_data), pointer :: ceq
         character(len=24) :: fstring
@@ -359,12 +359,17 @@ module liboctqisoc
         type(gtp_equilibrium_data), pointer :: ceq
         character(len=24) :: fstring
         !integer :: n
-        !integer :: i
+        integer :: i
         call c_f_pointer(c_ceq, ceq)
         fstring = c_to_f_string(statvar)
         !========================================
         call tqgetv(fstring, n1,n2,n3,values,ceq)
         !========================================
+        !write(*,*)'tqgetv(',fstring,n1,n2,n3
+        !do i=1,13
+        !    write(*,*)'.',values(i)
+        !end do
+        !write(*,*)' '
         c_ceq = c_loc(ceq)
     end subroutine c_tqgetv
 
