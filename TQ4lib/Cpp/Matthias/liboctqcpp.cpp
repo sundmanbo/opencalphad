@@ -214,14 +214,72 @@ std::vector<double> liboctqcpp::tqgphc1(int phIdx, std::vector<int>& ncons,
     return y;
 };
 
-void liboctqcpp::tqsphc1(int, double *, double *, void *)
+void liboctqcpp::tqsphc1(int phidx, std::vector<double> y, void * ceq)
 {
-
+    double extra[MAXPH];
+    double yfr[y.size()];
+    for(int i = 0; i < y.size(); i++)
+    yfr[i] = y[i];
+    //================================
+    c_tqsphc1(phidx, yfr, extra, ceq);
+    //================================
 };
 
-void liboctqcpp::tqcph1(int, int, int *, double *, double *, double *, double *, double *, void *)
+double liboctqcpp::tqcph1(int phidx, std::vector<double>& G_TP,
+                          std::vector<double>& G_Y, std::vector<double>& G_YT,
+                          std::vector<double>& G_YP, std::vector<double>& G_YY,
+                          void * ceq)
 {
+    int n2 = 2;
+    int n3;
+    double gtp[6];
+    double dgdy[100];
+    double d2gdydt[100];
+    double d2gdydp[100];
+    double d2gdy2[100];
+    //=================================================================
+    c_tqcph1(phidx, n2, &n3, gtp, dgdy, d2gdydt, d2gdydp, d2gdy2, ceq);
+    //=================================================================
+    double G = gtp[0];
+    G_TP.resize(5);
+    G_Y.resize(n3);
+    G_YT.resize(n3);
+    G_YP.resize(n3);
+    int yy = n3*(n3+1.)/2.;
+    G_YY.resize(yy);
+    for(int i = 0; i < 5; i++)
+    G_TP[i] = gtp[i+1];
+    //GibbsEnergy_TP[0] G.T
+    //GibbsEnergy_TP[1] G.P
+    //GibbsEnergy_TP[2] G.T.T
+    //GibbsEnergy_TP[3] G.T.P
+    //GibbsEnergy_TP[4] G.P.P
 
+    for(int i = 0; i < n3; i++)
+    {
+        G_Y[i] = dgdy[i];
+        //GibbsEnergy_Y[0] G.Y0
+        //GibbsEnergy_Y[1] G.Y1
+
+        G_YT[i] = d2gdydt[i];
+        //GibbsEnergy_YT[0] G.Y0.T
+        //GibbsEnergy_YT[1] G.Y1.T
+
+        G_YP[i] = d2gdydp[i];
+        //GibbsEnergy_YP[0] G.Y0.P
+        //GibbsEnergy_YP[1] G.Y1.P
+    }
+
+    for(int i = 0; i < yy; i++)
+    G_YY[i] = d2gdy2[i];
+    //GibbsEnergy_YY[0] G.Y0.Y0
+    //GibbsEnergy_YY[0] G.Y0.Y1
+    //GibbsEnergy_YY[0] G.Y1.Y1
+    //GibbsEnergy_YY[0] G.Y1.Y2
+    //GibbsEnergy_YY[0] G.Y2.Y2
+    //GibbsEnergy_YY[0] G.Y2.Y3
+
+    return G;
 };
 
 void liboctqcpp::tqcph2(int, int, int *, int *, void *)
@@ -491,6 +549,97 @@ int main(int argc, char *argv[])
     }
     cout << endl;
     }
+
+    cout << "-> For Phase " << PhNames[1] << ":" << endl;
+
+    vector<double> Y2;
+    Y2.push_back(0.197577);
+    Y2.push_back(0.802423);
+    Y2.push_back(1);
+
+    //=========================
+    OCASI.tqsphc1(2, Y2, &ceq);
+    //=========================
+
+    cout << "-> Set Constituents to: [";
+    for(int i = 0; i < Y2.size(); i++)
+    {
+        cout << i << ": " << Y2[i];
+        if(i < Y2.size()-1)
+        {
+            cout << ", ";
+        }
+    }
+    cout << "]" << endl;
+
+    std::vector<double> G_TP;
+    std::vector<double> G_Y;
+    std::vector<double> G_YT;
+    std::vector<double> G_YP;
+    std::vector<double> G_YY;
+
+    double G =
+    //=================================================
+    OCASI.tqcph1(2, G_TP, G_Y, G_YT, G_YP, G_YY, &ceq);
+    //=================================================
+
+    cout << "-> Read Gibbs Energy G: [" << G << "]" << endl;
+    cout << "-> Read Gibbs Data G: [";
+    for(int i = 0; i < 5; i++)
+    {
+        cout << G_TP[i];
+        if(i < 4)
+        {
+            cout << ", ";
+        }
+    }
+    cout << "]" << endl;
+
+    cout << "-> Read Gibbs Data dGdY: [";
+    for(unsigned int i = 0; i < G_Y.size(); i++)
+    {
+        cout << G_Y[i];
+        if(i < G_Y.size()-1)
+        {
+            cout << ", ";
+        }
+    }
+    cout << "]" << endl;
+
+    cout << "-> Read Gibbs Data d2GdYdT: [";
+    for(unsigned int i = 0; i < G_YT.size(); i++)
+    {
+        cout << G_YT[i];
+        if(i < G_YT.size()-1)
+        {
+            cout << ", ";
+        }
+    }
+    cout << "]" << endl;
+
+    cout << "-> Read Gibbs Data d2GdYdP: [";
+    for(unsigned int i = 0; i < G_YP.size(); i++)
+    {
+        cout << G_YP[i];
+        if(i < G_YP.size()-1)
+        {
+            cout << ", ";
+        }
+    }
+    cout << "]" << endl;
+
+    int kk=G_Y.size()*(G_Y.size()+1)/2;
+
+    cout << "-> Read Gibbs Data d2GdY2: [";
+    for(int i = 0; i < kk; i++)
+    {
+        cout << G_YY[i];
+        if(i < kk-1)
+        {
+            cout << ", ";
+        }
+    }
+    cout << "]" << endl;
 
     return 0;
 }

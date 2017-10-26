@@ -72,8 +72,11 @@ class liboctqcpp
     double tqgetv(std::string, int, int, void *);
     std::vector<double> tqgetv(std::string, int, int, int, void *);
     std::vector<double> tqgphc1(int phIdx, std::vector<int>& ncons, std::vector<int>& sites, double& moles, void * ceq);
-    void tqsphc1(int, double *, double *, void *);
-    void tqcph1(int, int, int *, double *, double *, double *, double *, double *, void *);
+    void tqsphc1(int phidx, std::vector<double> y, void * ceq);
+    double tqcph1(int phidx, std::vector<double>& G_TP,
+                  std::vector<double>& G_Y, std::vector<double>& G_YT,
+                  std::vector<double>& G_YP, std::vector<double>& G_YY,
+                  void * ceq);
     void tqcph2(int, int, int *, int *, void *);
     void tqdceq(char *);
     void tqcceq(char *, int *, void *, void *);
