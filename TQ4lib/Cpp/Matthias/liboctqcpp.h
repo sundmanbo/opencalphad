@@ -18,8 +18,8 @@ extern"C"
     void c_tqini(int, void *);
     void c_tqrfil(char *, void *);
     void c_tqrpfil(char *, int, char **, void *);
-    void c_tqgcom(int, char **, void *);
-    void c_tqgnp(int, void *);
+    void c_tqgcom(int *, char *, void *);
+    void c_tqgnp(int *, void *);
     void c_tqgpn(int, char *, void *);
     void c_tqgpi(int *, char *, void *);
     void c_tqgpcn2(int, int, char *, void *);
@@ -51,8 +51,8 @@ class liboctqcpp
     void * ceq2;
     int ntup;
     int nel;
-    std::vector<std::string> cnames2;
-    std::vector<std::string> cnam2;
+    std::vector<std::string> cnames;
+    std::vector<std::string> cnam;
     void tqini(int n, void * ceq);
     std::vector<std::string> tqrfil(std::string fname, void * ceq);
     std::vector<std::string> tqrpfil(std::string fname, std::vector<std::string> elnames, void * ceq);

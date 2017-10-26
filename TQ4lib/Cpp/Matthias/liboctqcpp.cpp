@@ -1,6 +1,8 @@
 #include "liboctqcpp.h"
 using namespace std;
 
+#define MAXEL 24;
+
 void liboctqcpp::tqini(int n, void * ceq)
 {
     //==============
@@ -14,12 +16,16 @@ std::vector<std::string> liboctqcpp::tqrfil(std::string fname, void * ceq)
     //======================
     c_tqrfil(filename, ceq);
     //======================
+
     ntup = c_ntup;
     nel = c_nel;
-    cnam2.resize(nel);
+    cnam.resize(nel);
     for(int i = 0; i < nel; i++)
-    cnam2[i] = c_cnam[i];
-    return cnam2;
+    cnam[i] = c_cnam[i];
+
+    //=================
+    return tqgcom(ceq);
+    //=================
 };
 
 std::vector<std::string> liboctqcpp::tqrpfil(std::string fname, std::vector<std::string> elnames, void * ceq)
@@ -35,25 +41,40 @@ std::vector<std::string> liboctqcpp::tqrpfil(std::string fname, std::vector<std:
     //==============================================
     c_tqrpfil(filename, elnames.size(), selel, ceq);
     //==============================================
+
     ntup = c_ntup;
     nel = c_nel;
-    cnam2.resize(nel);
+    cnam.resize(nel);
     for(int i = 0; i < nel; i++)
-    cnam2[i] = c_cnam[i];
-    return cnam2;
+    cnam[i] = c_cnam[i];
+
+    //=================
+    return tqgcom(ceq);
+    //=================
 };
 
 std::vector<std::string> liboctqcpp::tqgcom(void * ceq)
 {
-    int n=c_nel; //TODO: remove c_nel
-    char *elnames[24];
+    int n = MAXEL;
+    char elnames[24];
     std::vector<std::string> result;
     //=======================
-    //c_tqgcom(n, elnames, ceq); //TODO: FIX TQGCOM
+    c_tqgcom(&n, elnames, ceq);
     //=======================
     result.resize(n);
     for(int i = 0; i < n; i++)
-    result[i] = c_cnam[i];//elnames[i]; //TODO: remove c_cnam
+    {
+        char temp[3];
+        for(int j = 0; j < 2; j++)
+        {
+            temp[j] = elnames[j+i*2];
+            if(temp[j] == ' ')
+            temp[j] = 0;
+        }
+        temp[2] = 0;
+        string temp2(temp);
+        result[i] = temp2;
+    }
     return result;
 };
 
@@ -61,8 +82,7 @@ int liboctqcpp::tqgnp(void * ceq)
 {
     int n;
     //==============
-    //c_tqgnp(n, ceq); //TODO: FIX TQGNP
-    n = c_ntup;  //TODO: remove c_ntup
+    c_tqgnp(&n, ceq);
     //==============
     return n;
 };
@@ -264,14 +284,17 @@ int main(int argc, char *argv[])
         }
     }
     cout << "]" << " [" << &ceq << "]" << endl;
+
 */
     vector<string> Elements;
+    Elements.push_back("C");
     Elements.push_back("CR");
     Elements.push_back("FE");
+    Elements.push_back("MN");
 
     //================================================================
     std::vector<std::string> elnames2
-    = OCASI.tqrpfil("TQ4lib/Cpp/Matthias/steel1.TDB", Elements, &ceq);
+    = OCASI.tqrpfil("TQ4lib/Cpp/Matthias/FECRMNC.TDB", Elements, &ceq);
     //================================================================
 
     cout << "-> Element Data: [";

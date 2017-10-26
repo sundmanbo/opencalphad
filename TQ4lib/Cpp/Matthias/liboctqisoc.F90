@@ -149,7 +149,7 @@ module liboctqisoc
     subroutine c_tqgcom(n,components,c_ceq) bind(c, name='c_tqgcom')
         integer(c_int), intent(inout) :: n
         type(c_ptr), intent(inout) :: c_ceq
-        character(kind=c_char, len=1), dimension(n*24) :: components
+        character(kind=c_char, len=1), intent(out) :: components(n*3)
         integer, target :: nc
         character(len=24) :: fcomponents(n)
         type(gtp_equilibrium_data), pointer :: ceq
@@ -158,14 +158,14 @@ module liboctqisoc
         !================================
         call tqgcom(nc, fcomponents, ceq)
         !================================
-        l = len(fcomponents(1))
-        do i = 1, nc
-            do j = 1, l
-                components((i-1)*l+j)(1:1) = fcomponents(i)(j:j)
+        l=1
+        do i=1,nc
+            do j = 1, 2
+                components(l)(1:1) = fcomponents(i)(j:j)
+                l=l+1
             end do
-            ! null termination
-            components(i*l) = c_null_char
         end do
+        components(i*2-1) = c_null_char
         c_ceq = c_loc(ceq)
         n = nc
     end subroutine c_tqgcom
@@ -177,10 +177,10 @@ module liboctqisoc
         type(gtp_equilibrium_data), pointer :: ceq
         call c_f_pointer(c_ceq, ceq)
         !=================
-        call tqgnp(nc, ceq)
+        call tqgnp(n, ceq)
         !=================
         c_ceq = c_loc(ceq)
-        n = nc
+
     end subroutine c_tqgnp
 
     subroutine c_tqgpn(n,phasename, c_ceq) bind(c, name='c_tqgpn')
