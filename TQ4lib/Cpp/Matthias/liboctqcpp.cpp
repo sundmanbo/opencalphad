@@ -54,14 +54,24 @@ std::vector<std::string> liboctqcpp::tqrpfil(std::string fname, std::vector<std:
     //=================
 };
 
+int liboctqcpp::tqgcn(void * ceq)
+{
+    int n = MAXEL;
+    char elnames[24];
+    //=========================
+    c_tqgcom(&n, elnames, ceq);
+    //=========================
+    return n;
+};
+
 std::vector<std::string> liboctqcpp::tqgcom(void * ceq)
 {
     int n = MAXEL;
     char elnames[24];
     std::vector<std::string> result;
-    //=======================
+    //=========================
     c_tqgcom(&n, elnames, ceq);
-    //=======================
+    //=========================
     result.resize(n);
     for(int i = 0; i < n; i++)
     {
@@ -82,9 +92,9 @@ std::vector<std::string> liboctqcpp::tqgcom(void * ceq)
 int liboctqcpp::tqgnp(void * ceq)
 {
     int n;
-    //==============
+    //===============
     c_tqgnp(&n, ceq);
-    //==============
+    //===============
     return n;
 };
 
@@ -92,9 +102,9 @@ std::string liboctqcpp::tqgpn(int i, void * ceq)
 {
     char phname[24];
     std::string result;
-    //=====================
+    //======================
     c_tqgpn(i, phname, ceq);
-    //=====================
+    //======================
     result = phname;
     return result;
 };
@@ -147,18 +157,18 @@ void liboctqcpp::tqsetc(string par, int n1, int n2, double val, void * ceq)
 {
     int cnum;
     char *name = strcpy((char*)malloc(par.length()+1), par.c_str());
-    //=========================================
+    //======================================
     c_tqsetc(name, n1, n2, val, &cnum, ceq);
-    //=========================================
+    //======================================
 };
 
 void liboctqcpp::tqce(void * ceq)
 {
     char target[60] = " ";
     double val;
-    //======================================
+    //==============================
     c_tqce(target, 0, 0, &val, ceq);
-    //======================================
+    //==============================
 };
 
 double liboctqcpp::tqgetv(string par, int n1, int n2, void * ceq)
@@ -177,9 +187,9 @@ std::vector<double> liboctqcpp::tqgetv(string par, int n1, int n2, int n3, void 
     std::vector<double> results(n3);
     char *name = strcpy((char*)malloc(par.length()+1), par.c_str());
     double val[n3];
-    //=======================================
+    //====================================
     c_tqgetv(name, n1, n2, &n3, val, ceq);
-    //=======================================
+    //====================================
     for(int i = 0; i < n3; i++)
     results[i] = val[i];
     return results;
@@ -326,17 +336,29 @@ std::vector<double> liboctqcpp::PhaseFractions(void *ceq)
 {
     int nph = tqgnp(ceq);
     std::vector<double> results(nph);
-    results = tqgetv("NP", -1, 0, nph, ceq);
+    results =
+    //----------------------------
+    tqgetv("NP", -1, 0, nph, ceq);
+    //----------------------------
     return results;
 };
 
 std::vector<double> liboctqcpp::ConstituentFractions(int phase, void *ceq)
 {
-    int nel = c_nel; //TODO: Remove c_ntup
+    int nel = tqgcn(ceq);
     std::vector<double> results(nel);
-    results = tqgetv("X", phase, -1, nel, ceq);
+    results =
+    //-------------------------------
+    tqgetv("X", phase, -1, nel, ceq);
+    //-------------------------------
     return results;
 };
+
+/*******************************************************************************
+ * The following routine is for testing the interface functionality and produces
+ * debug output. However it also demonstrates a usecase and can be used as a
+ * starting point for a new implementation of OpenCalphad C++ interface.
+*******************************************************************************/
 
 int main(int argc, char *argv[])
 {

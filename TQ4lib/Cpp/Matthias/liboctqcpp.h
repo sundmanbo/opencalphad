@@ -56,6 +56,7 @@ class liboctqcpp
     void tqini(int n, void * ceq);
     std::vector<std::string> tqrfil(std::string fname, void * ceq);
     std::vector<std::string> tqrpfil(std::string fname, std::vector<std::string> elnames, void * ceq);
+    int tqgcn(void * ceq);
     std::vector<std::string> tqgcom(void * ceq);
     int tqgnp(void * ceq);
     std::string tqgpn(int i, void * ceq);
