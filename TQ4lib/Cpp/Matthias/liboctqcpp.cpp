@@ -112,25 +112,39 @@ std::string liboctqcpp::tqgpn(int i, void * ceq)
 int liboctqcpp::tqgpi(std::string pname, void * ceq)
 {
     char *phasename = strcpy((char*)malloc(pname.length()+1), pname.c_str());
-    int *i;
+    int i;
     //=========================
-    c_tqgpi(i, phasename, ceq);
+    c_tqgpi(&i, phasename, ceq);
     //=========================
+    return i;
 };
 
-void liboctqcpp::tqgpcn2(int, int, char *, void *)
+std::string liboctqcpp::tqgpcn2(int phidx, int i, void * ceq)
 {
-
+    //---------------------------
+    return tqgpcn(phidx, i, ceq);
+    //---------------------------
 };
 
-void liboctqcpp::tqgpcn(int, int, char *, void *)
+std::string liboctqcpp::tqgpcn(int phidx, int i, void * ceq)
 {
-
+    char constituentname[24];
+    std::string result;
+    //=======================================
+    c_tqgpcn(phidx, i, constituentname, ceq);
+    //=======================================
+    result = constituentname;
+    return result;
 };
 
-void liboctqcpp::tqgpci(int, int *, char *, void *)
+int liboctqcpp::tqgpci(int phidx, std::string cname, void * ceq)
 {
-
+    int c;
+    char *constituent = strcpy((char*)malloc(cname.length()+1), cname.c_str());
+    //====================================
+    c_tqgpci(phidx, &c, constituent, ceq); //TODO: c_tqgpci is not implemented in liboctq.F90!!
+    //====================================
+    return c;
 };
 
 void liboctqcpp::tqgpcs(int, int, double *, double *, void *)
@@ -334,22 +348,18 @@ void liboctqcpp::tqlc(int, void *)
 
 std::vector<double> liboctqcpp::PhaseFractions(void *ceq)
 {
-    int nph = tqgnp(ceq);
-    std::vector<double> results(nph);
-    results =
+    std::vector<double> results =
     //----------------------------
-    tqgetv("NP", -1, 0, nph, ceq);
+    tqgetv("NP", -1, 0, tqgnp(ceq), ceq);
     //----------------------------
     return results;
 };
 
 std::vector<double> liboctqcpp::ConstituentFractions(int phase, void *ceq)
 {
-    int nel = tqgcn(ceq);
-    std::vector<double> results(nel);
-    results =
+    std::vector<double> results =
     //-------------------------------
-    tqgetv("X", phase, -1, nel, ceq);
+    tqgetv("X", phase, -1, tqgcn(ceq), ceq);
     //-------------------------------
     return results;
 };
@@ -436,10 +446,18 @@ int main(int argc, char *argv[])
     cout << "-> Phase Data: [";
     for(int i = 0; i < phasetuples; i++)
     {
-        //==========================
-        PhNames[i]=OCASI.tqgpn(i+1, &ceq);
-        cout << PhNames[i];
-        //==========================
+        PhNames[i] =
+        //=====================
+        OCASI.tqgpn(i+1, &ceq);
+        //=====================
+
+        cout << PhNames[i] << "[" <<
+
+        //==================
+        OCASI.tqgpi(PhNames[i], &ceq)
+        //==================
+
+        << "]";
         if(i < phasetuples-1)
         {
             cout << ", ";
@@ -550,6 +568,11 @@ int main(int argc, char *argv[])
 
     for(int k = 0; k < phasetuples; k++)
     {
+    if(k == phasetuples-1)
+    {
+        cout << "TQGPCN CANNOT BE CALLED FOR PHASE BCC_A2_AUTO#2, BECAUSE IT WILL BREAK!" << endl;
+        break;
+    }
     std::vector<double> y = OCASI.tqgphc1(k+1, ncons, sites, moles, &ceq);
 
     cout << "-> Extended Constituent Fractions for " << PhNames[k]
@@ -560,7 +583,19 @@ int main(int argc, char *argv[])
         cout << " [";
         for(int j = 0; j < ncons[i]; j++)
         {
-            cout << "Const. " << consti << ": " << y[consti];
+            string cname =
+            //==============================
+            OCASI.tqgpcn(k+1, consti+1, &ceq);
+            //==============================
+
+            cout << cname << "[" <<
+
+            //============================
+            //OCASI.tqgpci(k+1, cname, &ceq)
+            j+1
+            //============================
+
+            << "]: " << y[consti];
             if(j < ncons[i]-1)
             {
                 cout << ", ";

@@ -239,11 +239,16 @@ module liboctqisoc
         type(gtp_equilibrium_data), pointer :: ceq
         character fstring*(24)
         double precision mass
+        integer :: i
         call c_f_pointer(c_ceq, ceq)
         !==========================================
         call get_constituent_name(n,c,fstring,mass)
         !==========================================
-        call f_to_c_string(fstring, constituentname)
+        !call f_to_c_string(fstring, constituentname)
+        do i=1,len(trim(fstring))
+            constituentname(i)(1:1) = fstring(i:i)
+            constituentname(i+1)(1:1) = c_null_char
+        end do
         c_ceq = c_loc(ceq)
     end subroutine c_tqgpcn
 
@@ -365,11 +370,6 @@ module liboctqisoc
         !========================================
         call tqgetv(fstring, n1,n2,n3,values,ceq)
         !========================================
-        !write(*,*)'tqgetv(',fstring,n1,n2,n3
-        !do i=1,13
-        !    write(*,*)'.',values(i)
-        !end do
-        !write(*,*)' '
         c_ceq = c_loc(ceq)
     end subroutine c_tqgetv
 

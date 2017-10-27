@@ -61,9 +61,9 @@ class liboctqcpp
     int tqgnp(void * ceq);
     std::string tqgpn(int i, void * ceq);
     int tqgpi(std::string pname, void * ceq);
-    void tqgpcn2(int, int, char *, void *);
-    void tqgpcn(int, int, char *, void *);
-    void tqgpci(int, int *, char *, void *);
+    std::string tqgpcn(int phidx, int i, void * ceq);
+    std::string tqgpcn2(int phidx, int i, void * ceq);
+    int tqgpci(int phidx, std::string cname, void * ceq);
     void tqgpcs(int, int, double *, double *, void *);
     void tqgccf(int, int *, char *, double *, double *, void *);
     void tqgnpc(int, int *, void *);
