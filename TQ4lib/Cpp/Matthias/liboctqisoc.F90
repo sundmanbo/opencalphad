@@ -281,7 +281,7 @@ module liboctqisoc
         c_ceq=c_loc(ceq)
     end subroutine c_tqgpcs
 
-    subroutine c_tqgccf(n1,n2,elnames,stoi,mass,c_ceq)
+    subroutine c_tqgccf(n1,n2,elnames,stoi,mass,c_ceq) bind(c, name='c_tqgccf')
         integer(c_int), intent(in) :: n1
         integer(c_int), intent(out) :: n2
         character(c_char), intent(out) :: elnames(2)
@@ -310,9 +310,9 @@ module liboctqisoc
 
     subroutine c_tqphtupsts(phtupx,newstat,val,c_ceq) &
             bind(c, name='c_tqphtupsts')
-        integer(c_int), intent(in) :: phtupx
-        integer(c_int), intent(in) :: newstat
-        real(c_double), intent(in) :: val
+        integer(c_int), intent(in), value :: phtupx
+        integer(c_int), intent(in), value :: newstat
+        real(c_double), intent(in), value :: val
         type(c_ptr), intent(inout) :: c_ceq
         type(gtp_equilibrium_data), pointer :: ceq
         call c_f_pointer(c_ceq,ceq)

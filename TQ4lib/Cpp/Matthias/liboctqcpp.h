@@ -65,8 +65,9 @@ class liboctqcpp
     std::string tqgpcn2(int phidx, int i, void * ceq);
     int tqgpci(int phidx, std::string cname, void * ceq);
     void tqgpcs(int, int, double *, double *, void *);
-    void tqgccf(int, int *, char *, double *, double *, void *);
-    void tqgnpc(int, int *, void *);
+    std::vector<double> tqgpcs(int phidx, int con, double& mass, void * ceq);
+    void tqgccf(int comp, void * ceq);
+    int tqgnpc(int phidx, void * ceq);
     void tqphtupsts(int, int, double, void *);
     void tqsetc(std::string, int, int, double, void *);
     void tqce(void *);
@@ -78,12 +79,12 @@ class liboctqcpp
                   std::vector<double>& G_Y, std::vector<double>& G_YT,
                   std::vector<double>& G_YP, std::vector<double>& G_YY,
                   void * ceq);
-    void tqcph2(int, int, int *, int *, void *);
-    void tqdceq(char *);
-    void tqcceq(char *, int *, void *, void *);
-    void tqselceq(char *, void *);
-    void reset_conditions(char *, void *);
-    void Change_Status_Phase(char *, int, double, void *);
+    int tqcph2(int phidx, int type, void * ceq);
+    void tqdceq(std::string);
+    int tqcceq(std::string name, void * newceq, void * ceq);
+    void tqselceq(std::string, void *);
+    void reset_conditions(std::string condition, double newval, void * ceq);
+    void Change_Status_Phase(std::string phname, int newstatus, double val, void * ceq);
     void tqlr(int, void *);
     void tqlc(int, void *);
     std::vector<double> PhaseFractions(void *);

@@ -11,7 +11,7 @@ void liboctqcpp::tqini(int n, void * ceq)
     //==============
 };
 
-std::vector<std::string> liboctqcpp::tqrfil(std::string fname, void * ceq)
+vector<string> liboctqcpp::tqrfil(string fname, void * ceq)
 {
     char *filename = strcpy((char*)malloc(fname.length()+1),fname.c_str());
     //======================
@@ -29,7 +29,7 @@ std::vector<std::string> liboctqcpp::tqrfil(std::string fname, void * ceq)
     //=================
 };
 
-std::vector<std::string> liboctqcpp::tqrpfil(std::string fname, std::vector<std::string> elnames, void * ceq)
+vector<string> liboctqcpp::tqrpfil(string fname, vector<string> elnames, void * ceq)
 {
     char *filename = strcpy((char*)malloc(fname.length()+1), fname.c_str());
     char *selel[elnames.size()];
@@ -64,11 +64,11 @@ int liboctqcpp::tqgcn(void * ceq)
     return n;
 };
 
-std::vector<std::string> liboctqcpp::tqgcom(void * ceq)
+vector<string> liboctqcpp::tqgcom(void * ceq)
 {
     int n = MAXEL;
     char elnames[24];
-    std::vector<std::string> result;
+    vector<string> result;
     //=========================
     c_tqgcom(&n, elnames, ceq);
     //=========================
@@ -98,10 +98,10 @@ int liboctqcpp::tqgnp(void * ceq)
     return n;
 };
 
-std::string liboctqcpp::tqgpn(int i, void * ceq)
+string liboctqcpp::tqgpn(int i, void * ceq)
 {
     char phname[24];
-    std::string result;
+    string result;
     //======================
     c_tqgpn(i, phname, ceq);
     //======================
@@ -109,7 +109,7 @@ std::string liboctqcpp::tqgpn(int i, void * ceq)
     return result;
 };
 
-int liboctqcpp::tqgpi(std::string pname, void * ceq)
+int liboctqcpp::tqgpi(string pname, void * ceq)
 {
     char *phasename = strcpy((char*)malloc(pname.length()+1), pname.c_str());
     int i;
@@ -119,25 +119,25 @@ int liboctqcpp::tqgpi(std::string pname, void * ceq)
     return i;
 };
 
-std::string liboctqcpp::tqgpcn2(int phidx, int i, void * ceq)
+string liboctqcpp::tqgpcn2(int phidx, int i, void * ceq)
 {
     //---------------------------
     return tqgpcn(phidx, i, ceq);
     //---------------------------
 };
 
-std::string liboctqcpp::tqgpcn(int phidx, int i, void * ceq)
+string liboctqcpp::tqgpcn(int phidx, int i, void * ceq)
 {
     char constituentname[24];
-    std::string result;
+    string result;
     //=======================================
-    c_tqgpcn(phidx, i, constituentname, ceq);
+    c_tqgpcn(phidx, i, constituentname, ceq); //TODO: c_tqgpcn is not implemented in liboctq.F90!!
     //=======================================
     result = constituentname;
     return result;
 };
 
-int liboctqcpp::tqgpci(int phidx, std::string cname, void * ceq)
+int liboctqcpp::tqgpci(int phidx, string cname, void * ceq)
 {
     int c;
     char *constituent = strcpy((char*)malloc(cname.length()+1), cname.c_str());
@@ -147,24 +147,48 @@ int liboctqcpp::tqgpci(int phidx, std::string cname, void * ceq)
     return c;
 };
 
-void liboctqcpp::tqgpcs(int, int, double *, double *, void *)
+vector<double> liboctqcpp::tqgpcs(int phidx, int con, double& mass, void * ceq)
 {
-
+    vector<double> result;
+    double * stoi;
+    c_tqgpcs(phidx, con, stoi, &mass, ceq);
+    return result;
 };
 
-void liboctqcpp::tqgccf(int, int *, char *, double *, double *, void *)
+void liboctqcpp::tqgccf(int comp, void * ceq)
 {
-
+    int nel;
+    char * elnames;
+    double stoi;
+    double mass;
+    //===============================================
+    c_tqgccf(comp, &nel, elnames, &stoi, &mass, ceq); //TODO: c_tqgccf is not implemented in liboctq.F90
+    //===============================================
 };
 
-void liboctqcpp::tqgnpc(int, int *, void *)
+int liboctqcpp::tqgnpc(int phidx, void * ceq)
 {
-
+    int nc;
+    //========================
+    c_tqgnpc(phidx, &nc, ceq); //TODO: c_tqgnpc is not implemented in liboctq.F90
+    //========================
+    return nc;
 };
 
-void liboctqcpp::tqphtupsts(int, int, double, void *)
+void liboctqcpp::tqphtupsts(int phidx, int newstatus, double val, void * ceq)
 {
+    // phidx < 0 means "all phases"
+    // newstatus -4 hidden
+    // newstatus -3 suspended
+    // newstatus -2 dormant
+    // newstatus -1 TODO: entered?
+    // newstatus  0 TODO: entered?
+    // newstatus  1 entered
+    // newstatus  2 fix
 
+    //=====================================
+    c_tqphtupsts(phidx, newstatus, val, ceq);
+    //=====================================
 };
 
 void liboctqcpp::tqsetc(string par, int n1, int n2, double val, void * ceq)
@@ -196,9 +220,9 @@ double liboctqcpp::tqgetv(string par, int n1, int n2, void * ceq)
     return val;
 };
 
-std::vector<double> liboctqcpp::tqgetv(string par, int n1, int n2, int n3, void * ceq)
+vector<double> liboctqcpp::tqgetv(string par, int n1, int n2, int n3, void * ceq)
 {
-    std::vector<double> results(n3);
+    vector<double> results(n3);
     char *name = strcpy((char*)malloc(par.length()+1), par.c_str());
     double val[n3];
     //====================================
@@ -209,8 +233,8 @@ std::vector<double> liboctqcpp::tqgetv(string par, int n1, int n2, int n3, void 
     return results;
 };
 
-std::vector<double> liboctqcpp::tqgphc1(int phIdx, std::vector<int>& ncons,
-                                        std::vector<int>& sites, double& moles,
+vector<double> liboctqcpp::tqgphc1(int phIdx, vector<int>& ncons,
+                                        vector<int>& sites, double& moles,
                                         void * ceq)
 {
     int nlat;
@@ -238,7 +262,7 @@ std::vector<double> liboctqcpp::tqgphc1(int phIdx, std::vector<int>& ncons,
     return y;
 };
 
-void liboctqcpp::tqsphc1(int phidx, std::vector<double> y, void * ceq)
+void liboctqcpp::tqsphc1(int phidx, vector<double> y, void * ceq)
 {
     double extra[MAXPH];
     double yfr[y.size()];
@@ -249,9 +273,9 @@ void liboctqcpp::tqsphc1(int phidx, std::vector<double> y, void * ceq)
     //================================
 };
 
-double liboctqcpp::tqcph1(int phidx, std::vector<double>& G_TP,
-                          std::vector<double>& G_Y, std::vector<double>& G_YT,
-                          std::vector<double>& G_YP, std::vector<double>& G_YY,
+double liboctqcpp::tqcph1(int phidx, vector<double>& G_TP,
+                          vector<double>& G_Y, vector<double>& G_YT,
+                          vector<double>& G_YP, vector<double>& G_YY,
                           void * ceq)
 {
     int n2 = 2;
@@ -306,58 +330,83 @@ double liboctqcpp::tqcph1(int phidx, std::vector<double>& G_TP,
     return G;
 };
 
-void liboctqcpp::tqcph2(int, int, int *, int *, void *)
+int liboctqcpp::tqcph2(int phidx, int type, void * ceq)
 {
-
+    int lokres; //ceq%phase_varres(lokres)% with all results
+    int n3;
+    //=======================================
+    c_tqcph2(phidx, type, &n3, &lokres, ceq);
+    //=======================================
+    return lokres;
 };
 
-void liboctqcpp::tqdceq(char *)
+void liboctqcpp::tqdceq(string name)
 {
-
+    char *ceqname = strcpy((char*)malloc(name.length()+1), name.c_str());
+    //================
+    c_tqdceq(ceqname);
+    //================
 };
 
-void liboctqcpp::tqcceq(char *, int *, void *, void *)
+int liboctqcpp::tqcceq(string name, void * newceq, void * ceq)
 {
-
+    char *ceqname = strcpy((char*)malloc(name.length()+1), name.c_str());
+    int n1;
+    //==================================
+    c_tqcceq(ceqname, &n1, newceq, ceq);
+    //==================================
+    return n1;
 };
 
-void liboctqcpp::tqselceq(char *, void *)
+void liboctqcpp::tqselceq(string name, void * ceq)
 {
-
+    char *ceqname = strcpy((char*)malloc(name.length()+1), name.c_str());
+    //=======================
+    c_tqselceq(ceqname, ceq);
+    //=======================
 };
 
-void liboctqcpp::reset_conditions(char *, void *)
+void liboctqcpp::reset_conditions(string condition, double newval, void * ceq)
 {
-
+    char *cond = strcpy((char*)malloc(condition.length()+1), condition.c_str());
+    //============================
+    c_reset_conditions(cond, ceq); //TODO: send newval to liboctq.F90
+    //============================
 };
 
-void liboctqcpp::Change_Status_Phase(char *, int, double, void *)
+void liboctqcpp::Change_Status_Phase(string phname, int newstatus, double val, void * ceq)
 {
-
+    //--------------------------------------------------
+    tqphtupsts(tqgpi(phname, ceq), newstatus, val, ceq);
+    //--------------------------------------------------
 };
 
-void liboctqcpp::tqlr(int, void *)
+void liboctqcpp::tqlr(int lut, void * ceq)
 {
-
+    //===============
+    c_tqlr(lut, ceq);
+    //===============
 };
 
-void liboctqcpp::tqlc(int, void *)
+void liboctqcpp::tqlc(int lut, void * ceq)
 {
-
+    //===============
+    c_tqlc(lut, ceq);
+    //===============
 };
 
-std::vector<double> liboctqcpp::PhaseFractions(void *ceq)
+vector<double> liboctqcpp::PhaseFractions(void *ceq)
 {
-    std::vector<double> results =
+    vector<double> results =
     //----------------------------
     tqgetv("NP", -1, 0, tqgnp(ceq), ceq);
     //----------------------------
     return results;
 };
 
-std::vector<double> liboctqcpp::ConstituentFractions(int phase, void *ceq)
+vector<double> liboctqcpp::ConstituentFractions(int phase, void *ceq)
 {
-    std::vector<double> results =
+    vector<double> results =
     //-------------------------------
     tqgetv("X", phase, -1, tqgcn(ceq), ceq);
     //-------------------------------
@@ -372,18 +421,37 @@ std::vector<double> liboctqcpp::ConstituentFractions(int phase, void *ceq)
 
 int main(int argc, char *argv[])
 {
+    /* Bugtracker:
+    1) OCASI.tqgetv("N", 0, 0, &ceq) returns 0 even though it was set to 1.0
+    2) OCASI.tqgetv("X", 1, 0, &ceq) returns 0 even though it was set to 0.3
+    3) OCASI.tqgpci(4, "CR", &ceq) breaks, when phase 4 is BCC_A2_AUTO#2
+    4) OCASI.tqgccf only returns "tqgccf not implemented yet"
+    5) OCASI.tqgnpc only returns "tqgnpc not implemented yet"
+    6) OCASI.tqgpci only returns "tqgpci not implemented yet"
+    7) OCASI.tqgpcs only returns "tqgpcs not implemented yet"
+    8) OCASI.reset_conditions only resets a single condition, even though its
+       name implies different. Additionally it uses the console!!! to ask for a
+       new value for the condition.
+    9) OCASI.tqcph2 breaks with an error
+   10) OCASI.tqcceq("test", &newceq, &ceq) seems to copy ceq, but not all
+       information! OCASI.tqgpn(1, &newceq) seems to have no information, and
+       OCASI.tqlc(0,&newceq) crashes.
+   11) tqdceq, tqcceq and tqselceq require a CEQ-name! Where is it set?
+    */
+
     liboctqcpp OCASI;
-    int n = 0;
     void * ceq = 0;
 
     //=================
-    OCASI.tqini(n,&ceq);
+    OCASI.tqini(0,&ceq);
     //=================
 
     cout << "-> Adress of ceq-Storage: [" << &ceq << "]" << endl;
-/*
+
+/*  uncomment this for reading full database with all elemens
+
     //=====================================================
-    std::vector<std::string> elnames
+    vector<string> elnames
     = OCASI.tqrfil("TQ4lib/Cpp/Matthias/FECRMNC.TDB", ceq);
     //=====================================================
 
@@ -396,18 +464,16 @@ int main(int argc, char *argv[])
             cout << ", ";
         }
     }
-    cout << "]" << " [" << &ceq << "]" << endl;
+    cout << "]" << " [" << &ceq << "]" << endl;*/
 
-*/
     vector<string> Elements;
     Elements.push_back("CR");
     Elements.push_back("FE");
+    vector<string> elnames2 =
 
-    //================================================================
-    std::vector<std::string> elnames2
-    = OCASI.tqrpfil("TQ4lib/Cpp/Matthias/FECRMNC.TDB", Elements, &ceq);
-    //= OCASI.tqrpfil("TQ4lib/Cpp/Matthias/steel1.TDB", Elements, &ceq);
-    //================================================================
+    //===============================================================
+    OCASI.tqrpfil("TQ4lib/Cpp/Matthias/FECRMNC.TDB", Elements, &ceq);
+    //===============================================================
 
     cout << "-> Element Data: [";
     for(int i = 0; i < elnames2.size(); i++)
@@ -419,11 +485,11 @@ int main(int argc, char *argv[])
         }
     }
     cout << "]" << " [" << &ceq << "]" << endl;
+    vector<string> elnames3 =
 
-    //===============================
-    std::vector<std::string> elnames3
-    = OCASI.tqgcom(&ceq);
-    //===============================
+    //=================
+    OCASI.tqgcom(&ceq);
+    //=================
 
     cout << "-> Element Data: [";
     for(int i = 0; i < elnames3.size(); i++)
@@ -435,18 +501,19 @@ int main(int argc, char *argv[])
         }
     }
     cout << "]" << " [" << &ceq << "]" << endl;
+    int phasetuples =
 
-    //=================================
-    int phasetuples = OCASI.tqgnp(&ceq);
-    //=================================
+    //================
+    OCASI.tqgnp(&ceq);
+    //================
+
     cout << "-> Number of phasetuples: [" << phasetuples << "]" << endl;
-
-    std::vector<std::string> PhNames(phasetuples);
-
+    vector<string> PhNames(phasetuples);
     cout << "-> Phase Data: [";
     for(int i = 0; i < phasetuples; i++)
     {
         PhNames[i] =
+
         //=====================
         OCASI.tqgpn(i+1, &ceq);
         //=====================
@@ -500,26 +567,36 @@ int main(int argc, char *argv[])
     //===============
 
     cout << "-> Calculated Equilibrium [" << ceq << "]" << endl;
-    std::vector<double> EquPhFr =
+    vector<double> EquPhFr =
 
     //===========================
     OCASI.PhaseFractions(&ceq);
     //===========================
 
-    //=================================
-    phasetuples = OCASI.tqgnp(&ceq);
-    //=================================
+    phasetuples =
+
+    //================
+    OCASI.tqgnp(&ceq);
+    //================
+
     cout << "-> Number of phasetuples: [" << phasetuples << "]" << endl;
-
     PhNames.resize(phasetuples);
-
     cout << "-> Phase Data: [";
     for(int i = 0; i < phasetuples; i++)
     {
-        //==========================
-        PhNames[i]=OCASI.tqgpn(i+1, &ceq);
-        cout << PhNames[i];
-        //==========================
+        PhNames[i] =
+
+        //=====================
+        OCASI.tqgpn(i+1, &ceq);
+        //=====================
+
+        cout << PhNames[i] << "[" <<
+
+        //===========================
+        OCASI.tqgpi(PhNames[i], &ceq)
+        //===========================
+
+        << "]";
         if(i < phasetuples-1)
         {
             cout << ", ";
@@ -544,7 +621,7 @@ int main(int argc, char *argv[])
     if(EquPhFr[phase] > 0.0)
     {
         cout << "-> Constituent Fractions for " << PhNames[phase] << " [";
-        std::vector<double> ConFr =
+        vector<double> ConFr =
 
         //==========================================
         OCASI.ConstituentFractions(phase+1, &ceq);
@@ -562,8 +639,8 @@ int main(int argc, char *argv[])
         endl;
     }
 
-    std::vector<int> ncons;
-    std::vector<int> sites;
+    vector<int> ncons;
+    vector<int> sites;
     double moles;
 
     for(int k = 0; k < phasetuples; k++)
@@ -573,7 +650,7 @@ int main(int argc, char *argv[])
         cout << "TQGPCN CANNOT BE CALLED FOR PHASE BCC_A2_AUTO#2, BECAUSE IT WILL BREAK!" << endl;
         break;
     }
-    std::vector<double> y = OCASI.tqgphc1(k+1, ncons, sites, moles, &ceq);
+    vector<double> y = OCASI.tqgphc1(k+1, ncons, sites, moles, &ceq);
 
     cout << "-> Extended Constituent Fractions for " << PhNames[k]
          << " [" << moles << " moles of atoms/formula unit]";
@@ -591,7 +668,7 @@ int main(int argc, char *argv[])
             cout << cname << "[" <<
 
             //============================
-            //OCASI.tqgpci(k+1, cname, &ceq)
+            //OCASI.tqgpci(k+1, cname, &ceq) // TODO: not yet implemented
             j+1
             //============================
 
@@ -629,11 +706,11 @@ int main(int argc, char *argv[])
     }
     cout << "]" << endl;
 
-    std::vector<double> G_TP;
-    std::vector<double> G_Y;
-    std::vector<double> G_YT;
-    std::vector<double> G_YP;
-    std::vector<double> G_YY;
+    vector<double> G_TP;
+    vector<double> G_Y;
+    vector<double> G_YT;
+    vector<double> G_YP;
+    vector<double> G_YY;
 
     double G =
     //=================================================
@@ -697,6 +774,74 @@ int main(int argc, char *argv[])
         }
     }
     cout << "]" << endl;
+
+    OCASI.tqgccf(1, &ceq);
+    OCASI.tqgnpc(1, &ceq);
+    OCASI.tqgpci(1, "CR", &ceq);
+    OCASI.tqphtupsts(1, -2, 0.0, &ceq);
+    double mass;
+    OCASI.tqgpcs(1, 1, mass, & ceq);
+    //OCASI.tqcph2(1, 0, &ceq);
+    OCASI.tqlr(0, &ceq);
+    OCASI.tqlc(0, &ceq);
+    OCASI.reset_conditions("T", 1000.0, &ceq);
+    OCASI.tqlc(0, &ceq);
+
+
+
+    int * newceq = 0;
+    //==================================
+    OCASI.tqcceq("test", &newceq, &ceq);
+    //==================================
+
+    cout << "-> Copy CEQ@" << &ceq << " to NEWCEQ@" << &newceq << endl;
+    vector<string> elnames4 =
+
+    //=================
+    OCASI.tqgcom(&newceq);
+    //=================
+
+    cout << "-> Element Data: [";
+    for(int i = 0; i < elnames4.size(); i++)
+    {
+        cout << elnames4[i];
+        if(i < elnames4.size()-1)
+        {
+            cout << ", ";
+        }
+    }
+    cout << "]" << " [" << &newceq << "]" << endl;
+    phasetuples =
+
+    //================
+    OCASI.tqgnp(&newceq);
+    //================
+
+    cout << "-> Number of phasetuples: [" << phasetuples << "]" << endl;
+    PhNames.resize(phasetuples);
+    cout << "-> Phase Data: [";
+    for(int i = 0; i < phasetuples; i++)
+    {
+        PhNames[i] =
+
+        //=====================
+        OCASI.tqgpn(i+1, &newceq);
+        //=====================
+
+        cout << PhNames[i] << "[" <<
+
+        //===========================
+        OCASI.tqgpi(PhNames[i], &newceq)
+        //===========================
+
+        << "]";
+        if(i < phasetuples-1)
+        {
+            cout << ", ";
+        }
+    }
+    cout << "]" << " [" << &newceq << "]" <<
+    endl;
 
     return 0;
 }
