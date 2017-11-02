@@ -4,9 +4,29 @@ using namespace std;
 
 int main(int argc, char *argv[])
 {
+    /* Bugtracker:
+    1) No equilph1d(phtup,ceq%tpval,xknown,mu,.TRUE.,nend,mugrad,mobilities,ceq)
+       function in liboctq.F90
+    */
+
     liboctqcpp OCASI;
     void * ceq = 0;
     string filename = "TQ4lib/Cpp/Matthias/feni/FENI.TDB";
+
+    cout << endl;
+    cout << "Calculation of equilibria and mobility data in Fe-Ni system" << endl;
+    cout << endl;
+
+    cout << "Fictitious ln(mobility data) in the TDB file:" << endl;
+    cout << "PARAMETER MQ&FE(LIQUID,FE;0) 298.15 -10000*IQRT-18; 6000 N BOS !" << endl;
+    cout << "PARAMETER MQ&FE(LIQUID,NI;0) 298.15 -12000*IQRT-19; 6000 N BOS !" << endl;
+    cout << "PARAMETER MQ&NI(LIQUID,NI;0) 298.15 -11000*IQRT-18; 6000 N BOS !" << endl;
+    cout << "PARAMETER MQ&NI(LIQUID,FE;0) 298.15 -13000*IQRT-19; 6000 N BOS !" << endl;
+    cout << "PARAMETER MQ&FE(FCC_A1,FE:VA;0) 298.15 -30000*IQRT-30; 6000 N BOS !" << endl;
+    cout << "PARAMETER MQ&FE(FCC_A1,NI:VA;0) 298.15 -32000*IQRT-32; 6000 N BOS !" << endl;
+    cout << "PARAMETER MQ&NI(FCC_A1,NI:VA;0) 298.15 -33000*IQRT-32; 6000 N BOS !" << endl;
+    cout << "PARAMETER MQ&NI(FCC_A1,FE:VA;0) 298.15 -25000*IQRT-31; 6000 N BOS !" << endl;
+    cout << endl;
 
     OCASI.tqini(0,&ceq);
 
@@ -81,7 +101,7 @@ int main(int argc, char *argv[])
         for(int j = 0; j < nel; j++)
         {
             cout << OCASI.tqgcom(&ceq)[j] << ": "
-                 << OCASI.tqgetv("X", j+1, 0, &ceq);
+                 << OCASI.tqgetv("X", i+1, -1, 4, &ceq)[j];
             if(j < nel-1)
             {
                 cout << ", ";
@@ -128,9 +148,12 @@ int main(int argc, char *argv[])
       2 -1.2100E+04  1.2100E+04
 
     LN(mobility) values for  2 components
-      1 -3.4728E+01 -3.4988E+01
+      1 -3.4728E+01 -3.4988E+01*/
 
-    Any more calculations? /N/: */
+    cout << endl;
+    cout << "Any more calculations? /N/:" << endl;
+    cout << endl;
+    cout << "Auf wiedersehen" << endl;
 
     return 0;
 }

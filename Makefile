@@ -41,7 +41,7 @@ tqexamples:
 	gfortran -o $(TQPATHF)/feni/tqex2 $(TQPATHF)/feni/TQ2-feni.F90 liboctq-f90.a
 	g++ -o $(TQPATHCPP)/crfe/tqex1 $(TQPATHCPP)/crfe/tqex1.cpp liboctqcpp.a -lgfortran
 	g++ -o $(TQPATHCPP)/feni/tqex2 $(TQPATHCPP)/feni/tqex2.cpp liboctqcpp.a -lgfortran
-	g++ -o $(TQPATHCPP)/tqex3 $(TQPATHCPP)/liboctqcpp_test.cpp liboctqcpp.a -lgfortran
+	g++ -o $(TQPATHCPP)/tqex3 $(TQPATHCPP)/tqex3.cpp liboctqcpp.a -lgfortran
 
 #Removes all binary files that were created in the compiling step.
 

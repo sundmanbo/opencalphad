@@ -182,7 +182,7 @@ program octq1
   call tqgetv(statevar,n,n2,n4,pxf,ceq)
   if(gx%bmperr.ne.0) goto 1000
 ! mus is the chemical potential relative to SER
-  statevar='MUS'
+  statevar='MU'
   n4=size(mus)
   call tqgetv(statevar,n,n2,n4,mus,ceq)
   if(gx%bmperr.ne.0) goto 1000
