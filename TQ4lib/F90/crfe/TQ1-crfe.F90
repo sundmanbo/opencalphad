@@ -22,7 +22,7 @@ program octq1
   if(gx%bmperr.ne.0) goto 1000
 !
 ! read database file
-  filename='crfe '
+  filename='TQ4lib/F90/crfe/crfe '
   write(*,*)'Reading all elements from the database file: ',trim(filename)
   call tqrfil(filename,ceq)
   if(gx%bmperr.ne.0) goto 1000
@@ -103,13 +103,13 @@ program octq1
   enddo
 !
 ! set reference state for the elements (components) to BCC at current T
-  do n=1,nel
-     phcsname='BCC_A2'
-     tpref(1)=-one
-     tpref(2)=1.0D5
-     call tqcref(n,phcsname,tpref,ceq)
-     if(gx%bmperr.ne.0) goto 600
-  enddo
+!  do n=1,nel
+!     phcsname='BCC_A2'
+!     tpref(1)=-one
+!     tpref(2)=1.0D5
+!     call tqcref(n,phcsname,tpref,ceq)
+!     if(gx%bmperr.ne.0) goto 600
+!  enddo
 !
 ! calculate the equilibria
 ! n1=0 means call grid minimizer
@@ -217,12 +217,12 @@ program octq1
   write(*,*)
   ip=len(line)
   call gparcd('Any more calculations?',line,ip,1,ch1,'N',nohelp)
-  if(ch1.ne.'N') then
+!  if(ch1.ne.'N') then
 ! set silent!
-     write(*,*)'Turning on silent mode, less output from OC'
-     call tqquiet(.TRUE.)
-     goto 100
-  endif
+!     write(*,*)'Turning on silent mode, less output from OC'
+!     call tqquiet(.TRUE.)
+!     goto 100
+!  endif
 ! 
 ! end of program
 1000 continue

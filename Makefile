@@ -1,7 +1,7 @@
 OBJS=metlib3.o oclablas.o ocnum.o gtp3.o matsmin.o lmdif1lib.o smp2.o pmon6.o  
 VER=oc4A
 TQPATH=./TQ4lib/Cpp
-TQPATHC=$(TQPATH)
+TQPATHF=./TQ4lib/F90
 TQPATHCPP=$(TQPATH)/Matthias
 CFLAGS=-fbounds-check -finit-local-zero
 #UNCOMMENT THE NEXT LINE IF YOU WANT TO COMPILE OPENCALPHAD IN PARALLEL
@@ -28,16 +28,20 @@ all:
 #additional interfaces are available in C and Python.
 
 tq: 
-	make $(OBJS) liboctq.o liboctqisoc.o
+	make $(OBJS) liboctq.o liboctqisoc.o liboctqcpp.o
 	ar sq liboctq-f90.a liboctq.o $(OBJS) liboctq.o
 	ar sq liboctq-isoc.a liboctqisoc.o liboctq.o $(OBJS)
+	ar sq liboctqcpp.a liboctqcpp.o liboctqisoc.o liboctq.o $(OBJS)
 
 #Compiles the TQ interface and various examples. 
 
 tqexamples:
 	make tq
-	g++ -o $(TQPATHCPP)/main -lstdc++ -std=c++11 $(TQPATHCPP)/liboctqcpp.cpp liboctq-isoc.a -lgfortran -lm
-	g++ -c $(TQPATHCPP)/liboctqcpp.cpp 
+	gfortran -o $(TQPATHF)/crfe/tqex1 $(TQPATHF)/crfe/TQ1-crfe.F90 liboctq-f90.a
+	gfortran -o $(TQPATHF)/feni/tqex2 $(TQPATHF)/feni/TQ2-feni.F90 liboctq-f90.a
+	g++ -o $(TQPATHCPP)/crfe/tqex1 $(TQPATHCPP)/crfe/tqex1.cpp liboctqcpp.a -lgfortran
+	g++ -o $(TQPATHCPP)/feni/tqex2 $(TQPATHCPP)/feni/tqex2.cpp liboctqcpp.a -lgfortran
+	g++ -o $(TQPATHCPP)/tqex3 $(TQPATHCPP)/liboctqcpp_test.cpp liboctqcpp.a -lgfortran
 
 #Removes all binary files that were created in the compiling step.
 
@@ -76,3 +80,6 @@ liboctq.o:	$(TQPATH)/liboctq.F90
 
 liboctqisoc.o:	$(TQPATHCPP)/liboctqisoc.F90
 	gfortran -c -g $(CFLAGS) $(TQPATHCPP)/liboctqisoc.F90
+
+liboctqcpp.o:	$(TQPATHCPP)/liboctqcpp.cpp
+	g++ -c -g $(CFLAGS) $(TQPATHCPP)/liboctqcpp.cpp
