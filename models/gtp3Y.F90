@@ -81,6 +81,7 @@
 !   trace=.true.
    toomany=.false.
    trace=.FALSE.
+!   trace=.TRUE.
    if(trace) write(*,*)'3Y Trace set TRUE'
    savetp=ceq%tpval
    ceq%tpval=tp

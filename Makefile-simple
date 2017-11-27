@@ -1,4 +1,4 @@
-OBJS=metlib3.o oclablas.o ocnum.o gtp3.o matsmin.o lmdif1lib.o smp2.o pmon6.o  
+OBJS=metlib4.o oclablas.o ocnum.o gtp3.o matsmin.o lmdif1lib.o smp2.o pmon6.o  
 EXE=oc4A
 
 FC=gfortran
@@ -13,8 +13,8 @@ all:
 	make $(EXE)
 
 
-metlib3.o:	utilities/metlib3.F90
-	$(FC) $(FCOPT) utilities/metlib3.F90
+metlib4.o:	utilities/metlib4.F90
+	$(FC) $(FCOPT) utilities/metlib4.F90
 
 oclablas.o:	numlib/oclablas.F90
 	$(FC) $(FCOPT) numlib/oclablas.F90
@@ -42,7 +42,7 @@ pmon6.o:	userif/pmon6.F90
 $(EXE): 
 	make $(OBJS)
 # liboceq.a
-	ar sq liboceq.a metlib3.o oclablas.o ocnum.o gtp3.o matsmin.o lmdif1lib.o 
+	ar sq liboceq.a metlib4.o oclablas.o ocnum.o gtp3.o matsmin.o lmdif1lib.o 
 # oc4A
 	$(FC) -o $(EXE) -fbounds-check  pmain1.F90 pmon6.o smp2.o liboceq.a
 

@@ -1295,7 +1295,7 @@
       text2=' '
 ! skip the first two functions which are R and RTLNP (using R)
 ! write RTLNP in correct TDB form here
-      text2='FUNCTION RTLNP 10 8.31451*R*LN(1.0D-5*P); 20000 N !'
+      text2='FUNCTION RTLNP 10 R*T*LN(1.0D-5*P); 20000 N !'
       write(unit,112)text2(1:len_trim(text2))
 112   format(a)
 !
@@ -3966,24 +3966,26 @@
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim}
- subroutine save_datformat(filename,kod,ceq)
+ subroutine save_datformat(filename,version,kod,ceq)
 ! writes a SOLGASMIX DAT format file. kod is not yet finished
    implicit none
    integer kod
-   character filename*(*)
+   character filename*(*),version*(*)
    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
    integer ntpf,last,i1,i2,i3,npows,lut,ip,jp,nstoi,lokph,isp,f1,nphstoi,nphmix
-   integer, dimension(:), allocatable :: ncon,phmix,phstoi,estoi,jj
+   integer, dimension(:), allocatable :: ncon,phmix,phstoi,estoi
    integer nelectrons,lokcs,nsubl,isubl,mphstoi,k1,lcase,mult(10),check
    integer cation,anion,firstcation,ilevel,intconst(9),intconstx(9),ideg
-   logical logok,nogas,ionliq,wildcard,iliqwild,excessparam
+   integer lokdis,wildp
+   logical logok,nogas,ionliq,wildcard,iliqwild,excessparam,skipfc
    character ch1*1,line*16,text*512,powers*80,model*24,constext*80,elsym*2
+   character date*12,hour*12
    type(gtp_tpfun2dat), dimension(:), allocatable :: tpfc
    type(gtp_endmember), pointer :: endmember,nextcation,samecation
    double precision, allocatable, dimension(:) :: constcomp,constcompiliq
    double precision valency(9),ccc,cationval
-! we must probably create a stack
+! we must probably create a stack for excess parameters
    type intstack
       type(gtp_interaction), pointer :: intlink
    end type intstack
@@ -4026,7 +4028,11 @@
       text(ip:)=trim(ellista(elements(i1))%symbol)//'-'
       ip=len_trim(text)+1
    enddo
-   text(ip-1:)=' generated from TDB file by OC'
+   date=' '
+   hour=' '
+   call date_and_time(date,hour)
+   text(ip-1:)=' generated from TDB file by OC '//version//' '//date(1:4)//&
+        '.'//date(5:6)//'.'//date(7:8)//' : '//hour(1:2)//'.'//hour(3:4)
    write(lut,100)trim(text)
 99 format(a)
 100 format(1x,a)
@@ -4049,10 +4055,11 @@
    nphstoi=0
    do i1=1,noofph
       lokph=phasetuple(i1)%lokph
+      skipfc=.false.
       if(phlista(lokph)%nooffs.gt.1) then
          write(*,105)trim(phlista(lokph)%name)
-105      format('Cannot handle phase ',a,' with several fraction sets')
-         gx%bmperr=4399; goto 1000
+105      format('Phase ',a,' has several fraction sets, only disorderd saved')
+         skipfc=.true.
       endif
       ncon(i1)=phlista(lokph)%tnooffr-phlista(lokph)%noofsubl
       if(ncon(i1).eq.0) then
@@ -4070,10 +4077,22 @@
 ! should ncon be the number of endmembers?? YES
 ! NOTE for ionic liquid with neutrals the DAT format requires that the neutrals
 ! are repeated for each cation, thus the same equation here!!
+! if skipfc is TRUE only for disordered fraction set
          i3=1
-         do i2=1,phlista(lokph)%noofsubl
-            i3=i3*phlista(lokph)%nooffr(i2)
-         enddo
+         if(skipfc) then
+            lokcs=phlista(lokph)%linktocs(1)
+            varres=>ceq%phase_varres(lokcs)
+! there must be a disfra record, 
+! the number of sublattices and constituents in each sublattice found there
+            do i2=1,varres%disfra%latd
+               i3=i3*varres%disfra%nooffr(i2)
+            enddo
+!            stop 'disorderd fraction set'
+         else
+            do i2=1,phlista(lokph)%noofsubl
+               i3=i3*phlista(lokph)%nooffr(i2)
+            enddo
+         endif
          ncon(i1)=i3
       endif
    enddo
@@ -4099,7 +4118,7 @@
          ip=len_trim(text)+1
          if(ip.gt.72) then
 !            write(lut,100)trim(text)
-! Accordung to Ted
+! According to Ted
             write(lut,99)trim(text)
             ip=1
          endif
@@ -4174,7 +4193,10 @@
       write(lut,100)trim(text)
    endif
 !---------------------------------T powers, always the same line 
-   if(npows.eq.9) then
+!   if(npows.eq.9) then
+! 10 here are the allowed powers: 0 1 100 2 3 -1 ; 7 -9 -2 -3
+! Those after the ; are special. 100 means T*ln(T)
+   if(npows.eq.10) then
 ! the first 7 digits should be 9 1..6
 !      write(lut,140)trim(powers(36:))
 !      write(lut,140)trim(powers(36:))
@@ -4186,7 +4208,7 @@
 ! According to Ted
 140   format('6    1  2  3  4  5  6  ')
    else
-      write(*,*)'Please fix the T powers manually'
+      write(*,*)' *** ERROR: please fix the T powers manually',npows
       stop
    endif
 !-------------------------------------- end of header section
@@ -4196,6 +4218,11 @@
    phases1: do i1=1,noofph
 !      if(i1.gt.1) exit phases
       lokph=phasetuple(i1)%lokph
+      skipfc=.false.
+      if(phlista(lokph)%nooffs.gt.1) then
+! skip first composition set
+         skipfc=.true.
+      endif
       if(i1.eq.phstoi(mphstoi)) then
 !         write(*,*)'3C skipping stoichiometric ',trim(phlista(lokph)%name)
          mphstoi=mphstoi+1
@@ -4205,22 +4232,14 @@
       endif
       lokcs=phlista(lokph)%linktocs(1)
       varres=>ceq%phase_varres(lokcs)
+! if disordered fraction set, set varres to point to disordered phase_varres
+      if(skipfc) then
+         varres=>ceq%phase_varres(varres%disfra%varreslink)
+      endif
       nsubl=1
       ionliq=.false.
 ! phase model
-      if(btest(phlista(lokph)%status1,PHFORD)) then
-         write(*,141)trim(phlista(lokph)%name)
-141      format('Phase ',a,' has FCC permutated parameters, ignored')
-         cycle phases1
-      elseif(btest(phlista(lokph)%status1,PHBORD)) then
-         write(*,142)trim(phlista(lokph)%name)
-142      format('Phase ',a,' has BCC permutated parameters, ignored')
-         cycle phases1
-      elseif(btest(phlista(lokph)%status1,PHMFS)) then
-         write(*,143)trim(phlista(lokph)%name)
-143      format('Phase ',a,' has disorded fraction sets, ignored')
-         cycle phases1
-      elseif(btest(phlista(lokph)%status1,PHIONLIQ)) then
+      if(btest(phlista(lokph)%status1,PHIONLIQ)) then
          model='SUBI'
          nsubl=2
          ionliq=.true.
@@ -4239,6 +4258,26 @@
          else
             model='RKMP'
          endif
+         if(btest(phlista(lokph)%status1,PHFORD)) then
+! NOTE varres is the disordered fraction set
+            nsubl=size(varres%sites)
+!            nsubl=varres%disfra%latd
+            write(*,141)trim(phlista(lokph)%name),nsubl
+141         format('Phase ',a,' has FCC permutated parameters, ignore ordered',&
+                 i3)
+!         cycle phases1
+         elseif(btest(phlista(lokph)%status1,PHBORD)) then
+            nsubl=size(varres%sites)
+            write(*,142)trim(phlista(lokph)%name),nsubl
+142         format('Phase ',a,' has BCC permutated parameters, ignore ordered',&
+                 i3)
+!         cycle phases1
+         elseif(btest(phlista(lokph)%status1,PHMFS)) then
+            nsubl=size(varres%sites)
+            write(*,143)trim(phlista(lokph)%name),nsubl
+143         format('Phase ',a,' has disorded fraction sets, ignore ordered',i3)
+!         cycle phases1
+         endif
       endif
 ! UNFINISHED: Magnetism? A suffix M ...
       write(lut,201)phlista(lokph)%name,trim(model)
@@ -4248,10 +4287,16 @@
       check=0
       endmember=>phlista(lokph)%ordered
       if(associated(phlista(lokph)%disordered)) then
-! skip writing ordered part 
+! skip writing ordered part, nsubl set above!!
+!         if(.not.skipfc) then
+!            write(*,*)'3C We have disorderd fraction set but skipfc not set!'
+!         else
+!            write(*,*)'3C Skipfc set correctly',nsubl
+!         endif
          write(*,*)'BEWARE skipping ordered part of :',trim(phlista(lokph)%name)
          endmember=>phlista(lokph)%disordered
       endif
+!      write(*,*)'3C first the endmembers',nsubl
 ! endmember parameters, when they are done loop for excess parameters
       excessparam=.FALSE.
 ! when all endmembers written then set excesspara=.true. and jump back here
@@ -4671,8 +4716,7 @@
 297   continue
       if(.not.excessparam) then
 ! repeat the endmember loop again for interaction parameters (and magnetism??)
-! I still have to figure out how to reference interacting constituents
-!         write(*,*)'3C looking for excess parameters'
+!         write(*,*)'3C Now the excess parameters',nsubl
          excessparam=.true.
          endmember=>phlista(lokph)%ordered
          if(associated(phlista(lokph)%disordered)) then
@@ -4773,7 +4817,7 @@
    enddo
 !
 900 continue
-   write(*,*)'3C written data for ',noofph,' compounds'
+   write(*,*)'3C written data for ',noofph,' mixtures and compounds'
 ! 
 1000 continue
 ! Finished SOLGASMIX outpur
@@ -4795,7 +4839,7 @@
 !\end{verbatim}
    integer byte,jj
    if(nint.lt.2) then
-      write(*,*)'3C intsort called with too few constituents',nint
+      write(*,*)'*** ERROR: intsort called with too few constituents',nint
       stop
    endif
    do byte=1,nint

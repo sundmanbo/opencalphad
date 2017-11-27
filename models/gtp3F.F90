@@ -3591,8 +3591,8 @@
       if(ceq%eqno.eq.ieq) then
          value=evalf(svflista(lrot)%linkpnode,argval)
          if(pfnerr.ne.0) then
-            write(*,*)'evaluate_svfun putfunerror ',pfnerr
-            gx%bmperr=4141; goto 1000
+            write(*,*)'3F evaluate_svfun putfunerror 1',pfnerr
+            gx%bmperr=4141; pfnerr=0; buperr=0; goto 1000
          endif
          ceq%svfunres(lrot)=value
 !         write(*,350)'evaluate svfun 3: ',ieq,lrot,value
@@ -3605,8 +3605,8 @@
 ! if mode=1 always evaluate
       value=evalf(svflista(lrot)%linkpnode,argval)
       if(pfnerr.ne.0) then
-         write(*,*)'evaluate_svfun putfunerror ',pfnerr
-         gx%bmperr=4141; goto 1000
+         write(*,*)'3F evaluate_svfun putfunerror 2',pfnerr
+         gx%bmperr=4141; pfnerr=0; buperr=0; goto 1000
       endif
    endif modeval
 ! save value in current equilibrium

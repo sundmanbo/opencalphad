@@ -2666,7 +2666,7 @@ CONTAINS
 !    do nrow=1,nz1
 !       write(*,11)'MM smat1: ',nrow,(smat(nrow,ncol),ncol=1,nz2)
 !    enddo
-!11  format(a,i2,6(1pe12.4))
+11  format(a,i2,6(1pe11.3))
 !------------------------------------------------------------
 ! insert code to calculate N(A)=fix for all elements in this phase
 !
@@ -2716,7 +2716,7 @@ CONTAINS
 ! pmi%xmol(sel) is the M per formula unit, not mole fraction !!!!
        jj=size(pmi%xmol)
 !       write(*,411)'xmol: ',jj,pmi%sumxmol,(pmi%xmol(ncol2),ncol2=1,jj)
-!411    format(a,i2,6(1pe12.4))
+!411    format(a,i2,6(1pe11.3))
        totam=pham*pmi%xmol(sel)/pmi%sumxmol
        xcol(ncol)=pham*pmi%xmol(sel)
 ! right hand side (rhs) contribution is
@@ -2743,6 +2743,8 @@ CONTAINS
 !       write(*,11)'MM row: ',nrow,cvalue,totam,(smat(nrow,ncol),ncol=1,nz2)
 ! relative check for convergence if cvalue>1.0
        conv: if(abs(totam-cvalue).gt.ceq%xconv*max(1.0d0,abs(cvalue)))then
+!          write(*,212)'MM totam: ',abs(totam-cvalue),totam,cvalue,ceq%xconv
+212       format(a,6(1pe12.4))
           if(converged.lt.5) then
              converged=5
 !             write(*,*)'1: converged=5',cerr%nvs
@@ -4772,7 +4774,7 @@ CONTAINS
 ! lokcs is set inside this subroutine
        call calcg(iph,ics,2,lokcs,ceq)
        if (gx%bmperr.ne.0) then
-          write(*,91),'calcg error in meq_onephase ',iph,gx%bmperr,ceq%eqno
+          write(*,91)'calcg error in meq_onephase ',iph,gx%bmperr,ceq%eqno
 91        format(a,3i5)
           goto 1000
        endif
@@ -6926,22 +6928,22 @@ CONTAINS
       if(ceq%eqno.eq.ieq) then
          value=evalf(svflista(lrot)%linkpnode,argval)
          if(pfnerr.ne.0) then
-            write(*,*)'evaluate_svfun putfunerror ',pfnerr
-            gx%bmperr=4141; goto 1000
+            write(*,*)'MM evaluate_svfun putfunerror 1',pfnerr
+            gx%bmperr=4141; pfnerr=0; buperr=0; goto 1000
          endif
          ceq%svfunres(lrot)=value
-         write(*,350)'evaluate svfun 3: ',ieq,lrot,value
+         write(*,350)'MM evaluate svfun 3: ',ieq,lrot,value
       else
          value=eqlista(ieq)%svfunres(lrot)
-         write(*,350)'evaluate svfun 7: ',ieq,lrot,value
+         write(*,350)'MM evaluate svfun 7: ',ieq,lrot,value
       endif
    else
 ! if mode=1 always evaluate
 !      write(*,*)'in meq_evaluate_svfun 5',argval(1)
       value=evalf(svflista(lrot)%linkpnode,argval)
       if(pfnerr.ne.0) then
-         write(*,*)'evaluate_svfun putfunerror ',pfnerr
-         gx%bmperr=4141; goto 1000
+         write(*,*)'MM evaluate_svfun putfunerror 8',pfnerr
+         gx%bmperr=4141; pfnerr=0; buperr=0; goto 1000
       endif
 !      write(*,350)'HMS evaluate svfun 8: ',ieq,lrot,value,ceq%tpval(1)
    endif modeval
@@ -7996,6 +7998,9 @@ CONTAINS
 !       write(*,111)'smat4: ',nk,(smat(nk,jj),jj=1,nz2)
 !    enddo
 !    goto 1000
+!    if(converged.ne.0) then
+!       write(*,*)'MM equilph1c: ',converged,xknown(1),xknown(2)
+!    endif
 ! solve the equilibrium matrix, some chemical potentials may be missing
     call lingld(nz1,nz2,smat,svar,nz1,ierr)
     if(ierr.ne.0) then
@@ -8046,7 +8051,9 @@ CONTAINS
 ! ovar(nl) is used instead of complist(nl)%chempot(1) as we do not want to
 ! change the global values of the chemical potential
              pv=pv+ovar(nl)*phr(jj)%dxmol(nl,nk)
-!             write(*,111)'pv1: ',nj,pv,ovar(nl),&
+!             write(*,111)'pv1c: ',nj,pv,ovar(nl),&
+!                  ceq%rtn,phr(jj)%dxmol(nl,nk)
+!             write(*,111)'pv1c: ',nj,pv,ovar(nl),&
 !                  ceq%rtn,phr(jj)%dxmol(nl,nk)
           enddo
 !          write(*,119)'cph1: ',jj,nj,nk,ys,pv,phr(jj)%curd%dgval(1,nk,1),&
@@ -8096,8 +8103,10 @@ CONTAINS
 !            yarr(nj),phr(jj)%curd%yfr(nj),ycorr(nj),ys
     enddo moody
 ! >>>>>>>>>>>>>>>>>> HERE the new constitution is set <<<<<<<<<<<<<<<<<<<<<
-!    write(*,112)'YC: ',jj,(ycorr(nj),nj=1,phr(jj)%ncc)
-!    write(*,112)'YY: ',meqrec%noofits,(yarr(nj),nj=1,phr(jj)%ncc)
+!    write(*,112)'YC equilph1c: ',jj,(ycorr(nj),nj=1,phr(jj)%ncc)
+!    if(converged.ne.0) then
+!       write(*,112)'YY equilph1c: ',meqrec%noofits,(yarr(nj),nj=1,phr(jj)%ncc)
+!    endif
 112 format(a,i3,8F8.5)
     call set_constitution(phr(jj)%iph,phr(jj)%ics,yarr,qq,ceq)
     if(gx%bmperr.ne.0) goto 1000
@@ -8218,6 +8227,14 @@ CONTAINS
 !    call setup_equilmatrix(meqrec,phr,nz1,smat,tcol,pcol,dncol,converged,ceq)
     call setup_comp2cons(meqrec,phr,nz1,smat,tpval,xknown,converged,ceq)
     if(gx%bmperr.ne.0) goto 1000
+! searching a bug ... what else?
+!    if(converged.ne.0) then
+!       write(*,103)'MM equilph1e: ',converged,(xknown(nk),nk=1,nz1-1)
+103    format(a,i5,5F8.4)
+! ignore if setup_comp2cons set converged to 5??
+!       converged=0
+!       stop
+!    endif
 !    write(*,*)'after setup_comp2cons: ',converged
 ! debug output as the matrix had changed efter return from subroutine ...
 !    do nk=1,nz1
@@ -8247,7 +8264,7 @@ CONTAINS
        ovar(jj)=svar(jj)
     enddo
 !    write(*,111)'svar3: ',0,(svar(jj),jj=1,nz1)
-!111 format(a,i2,6(1pe12.4))
+111 format(a,i2,6(1pe12.4))
 ! check dxmol ... seems OK
 !    do nk=1,phr(1)%ncc
 !       write(*,111)'dxmol: ',nk,(phr(1)%dxmol(nl,nk),nl=1,meqrec%nrel)
@@ -8264,7 +8281,7 @@ CONTAINS
     if(phr(jj)%xdone.eq.1) goto 1000
 !----------------------------------------------------
     ycormax2=zero
-!    write(*,*)'cc: ',jj
+!    write(*,*)'MM1e correcting constitution: ',meqrec%noofits,converged
 ! loop for all constituents
     moody: do nj=1,phr(jj)%ncc
        ys=zero
@@ -8275,13 +8292,16 @@ CONTAINS
 ! When a chemical potential is fixed use meqrec%mufixval
 ! phr(jj)%dxmol(nl,nk) is the derivative of component nl
 ! wrt constituent nk
-             pv=pv+ceq%complist(nl)%chempot(1)/ceq%rtn*phr(jj)%dxmol(nl,nk)
+!             pv=pv+ceq%complist(nl)%chempot(1)/ceq%rtn*phr(jj)%dxmol(nl,nk)
+! using ceq%complist(nl)*chempot(1) DOES NOT CONVERGE, 
+! use ovar(nl) (as in eqilph1c)
+             pv=pv+ovar(nl)*phr(jj)%dxmol(nl,nk)
 !             pv=pv+ceq%cmuval(nl)*phr(jj)%dxmol(nl,nk)
 !             pv=pv+svar(nl)*phr(jj)%dxmol(nl,nk)
           enddo
           pv=pv-phr(jj)%curd%dgval(1,nk,1)
           ys=ys+phr(jj)%invmat(nj,nk)*pv
-!          write(*,111)'pv: ',nj,ys,pv,phr(1)%curd%dgval(1,nk,1),&
+!          write(*,111)'pv1e: ',nj,ys,pv,phr(1)%curd%dgval(1,nk,1),&
 !               phr(1)%invmat(nj,nk)
        enddo
        if(phr(jj)%chargebal.eq.1) then
@@ -8314,15 +8334,20 @@ CONTAINS
        yarr(nj)=phr(jj)%curd%yfr(nj)+delta(nj)
     enddo moody
 ! >>>>>>>>>>>>>>>>>> HERE the new constitution is set <<<<<<<<<<<<<<<<<<<<<
-!    write(*,112)'YC: ',jj,(delta(nj),nj=1,phr(jj)%ncc)
+!    write(*,112)'YC: ',jj,converged,(delta(nj),nj=1,phr(jj)%ncc)
+!    write(*,112)'YC1e: ',converged,meqrec%noofits,(yarr(nj),nj=1,phr(jj)%ncc)
 !    write(*,112)'YY: ',meqrec%noofits,converged,(yarr(nj),nj=1,phr(jj)%ncc)
-!112 format(a,2i3,8F8.5)
+112 format(a,2i3,8F8.5)
     call set_constitution(phr(jj)%iph,phr(jj)%ics,yarr,qq,ceq)
     if(gx%bmperr.ne.0) goto 1000
 !-------------------------- end of iteration
 ! check convergence
     meqrec%noofits=meqrec%noofits+1
     if(converged.gt.3) then
+       if(meqrec%noofits.le.20) then
+          write(*,112)'MM1e y: ',meqrec%noofits,0,(yarr(nj),nj=1,phr(jj)%ncc)
+          goto 100
+       endif
        if(meqrec%noofits.le.ceq%maxiter) goto 100
        gx%bmperr=4204
 !       write(*,*)'Too many iterations',ceq%maxiter

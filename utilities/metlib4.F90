@@ -20,9 +20,9 @@ MODULE METLIB
 !    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 !
 !--------------------------------------------------------------------------
-! For character by character input allowing emacs editing not needed in Windows
+! For character by character input allowing emacs editing
 !
-!  use M_getkey
+  use M_getkey
 !
 !--------------------------------------------------------------------------
 !
@@ -3032,7 +3032,7 @@ CONTAINS
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin verbatim
-  subroutine bintxt_linux(lin,cline)
+  subroutine bintxt(lin,cline)
 !  subroutine bintxt_getkey(lin,cline)
 ! subroutine to read a line with history and editing on LINUX a la emacs
 !
@@ -3098,7 +3098,7 @@ CONTAINS
 ! read one character at a time without echo
 100 continue
 ! read one character at a time without echo and allow editing and history
-!    ch1=getkey()
+    ch1=getkey()
 !    write(*,*)'got from getkey: ',ichar(ch1)
 ! handle control character
     if(ichar(ch1).ge.32 .and. ichar(ch1).lt.127) then
@@ -3289,11 +3289,11 @@ CONTAINS
 1000 continue
 !      call system('stty echo ')
     return
-  end subroutine bintxt_linux
+  end subroutine bintxt
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 !  
-  subroutine bintxt(lin,line)
+  subroutine bintxt_nogetkey(lin,line)
 !  subroutine bintxt(lin,line)
 ! with or without without getley
     character line*(*)
@@ -3305,7 +3305,7 @@ CONTAINS
        line='fin '
     endif
     return
-  end subroutine bintxt
+  end subroutine bintxt_nogetkey
 
   function ionoff(subr)
     character subr*(*)

@@ -13,6 +13,19 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2017.11.26 OC version 4.036: After my PC crashed I worked with OC for
+a month on my Mac but I have now installed all on a new DELL.  Several
+modifications for Linux and Mac has been made, some maybe not
+consistent with previous versions.  Be careful when installing this
+version.  There is now two versions of the metlib library, metlib3.F90
+is the same as before but metlib4.F90 includes the GETKEY routine to
+allow editing of the command line on Linux/MacOS.  This also requires
+compilation of the getkey.cc routine in the utilities/GETKEY
+directory.
+
+I am working on a bug converting TDB to DAT files, I hope to finish
+that soon.  All other changes are minor.
+
 2017.10.20 OC version 4.035: After a few weeks of work and vacations
 a small bugfix in the TDB2DAT code for excess parameters.
 

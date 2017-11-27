@@ -147,7 +147,7 @@
 ! Mixed Curie/Neel Temperature, set bits that TC and BM cannot depend on T 2
    npid=npid+1
    propid(npid)%symbol='TC '
-   propid(npid)%note='Comb Curie/Neel T' 
+   propid(npid)%note='Combined Curie/Neel T' 
    propid(npid)%status=0
 ! TC cannot depend on T but on P
    propid(npid)%status=ibset(propid(npid)%status,IDONLYP)
@@ -155,7 +155,7 @@
 ! Average Bohr magneton number 3
    npid=npid+1
    propid(npid)%symbol='BMAG '
-   propid(npid)%note='Aver Bohr magn no'
+   propid(npid)%note='Average Bohr magneton numb'
    propid(npid)%status=0
 ! BM cannot depend on either T or P ??
    propid(npid)%status=ibset(propid(npid)%status,IDNOTP)
@@ -179,7 +179,7 @@
 ! Individual Bohr magneton number 6
    npid=npid+1
    propid(npid)%symbol='IBM '
-   propid(npid)%note='Ind. Bohr magn no'
+   propid(npid)%note='Individual Bohr magneton numb'
    propid(npid)%status=0
 ! IBM cannot depend on either T or P and it is individual
    propid(npid)%status=ibset(propid(npid)%status,IDCONSUFFIX)
@@ -188,7 +188,7 @@
 ! Debye or Einstein temperature 7
    npid=npid+1
    propid(npid)%symbol='THETA '
-   propid(npid)%note='Debye or Einst temp'
+   propid(npid)%note='Debye or Einstein temp'
    propid(npid)%status=0
 ! THETA cannot depend on T but on P
    propid(npid)%status=ibset(propid(npid)%status,IDONLYP)
@@ -196,94 +196,108 @@
 ! logarithm of individual mobility 8
    npid=npid+1
    propid(npid)%symbol='MQ '
-   propid(npid)%note='LN mob. of const.'
+   propid(npid)%note='LN mobility1 of component'
    propid(npid)%status=0
 ! MQ is specific för a constituent
    propid(npid)%status=ibset(propid(npid)%status,IDCONSUFFIX)
 !.......................................
-! Electrical resistivity 9
+! logarithm of individual mobility 9
+   npid=npid+1
+   propid(npid)%symbol='MF '
+   propid(npid)%note='LN mobility2 of component'
+   propid(npid)%status=0
+! MF is specific för a constituent
+   propid(npid)%status=ibset(propid(npid)%status,IDCONSUFFIX)
+!.......................................
+! logarithm of individual mobility 10
+   npid=npid+1
+   propid(npid)%symbol='MG '
+   propid(npid)%note='LN mobility3 of component'
+   propid(npid)%status=0
+! MG is specific för a constituent
+   propid(npid)%status=ibset(propid(npid)%status,IDCONSUFFIX)
+!.......................................
+! Electrical resistivity 11
    npid=npid+1
    propid(npid)%symbol='RHO '
    propid(npid)%note='Elect resistivity'
    propid(npid)%status=0
 !.......................................
-! Magnetic suseptibility 10
+! Magnetic suseptibility 12
    npid=npid+1
    propid(npid)%symbol='MSUS '
    propid(npid)%note='Magn suseptibility'
    propid(npid)%status=0
 !.......................................
-! Glas trasition temperature 11 
+! Liquid two-state model 13
    npid=npid+1
-   propid(npid)%symbol='GTT '
-   propid(npid)%note='Glas trans temperature'
+   propid(npid)%symbol='G2   '
+   propid(npid)%note='Liquid two state parameter'
    propid(npid)%status=0
-! Cannot depend on temperature 
-   propid(npid)%status=ibset(propid(npid)%status,IDONLYP)
 !.......................................
-! Viscosity 12
+! Viscosity 14
    npid=npid+1
    propid(npid)%symbol='VISCA '
    propid(npid)%note='Viscosity'
    propid(npid)%status=0
 !.......................................
-! Lattice parameter in direction X 13
+! Lattice parameter in direction X 15
    npid=npid+1
    propid(npid)%symbol='LPX '
-   propid(npid)%note='Lat par X axis'
+   propid(npid)%note='Lattice param X axis'
    propid(npid)%status=0
 ! lattice parameters may depend on T and P
 !.......................................
-! Lattice parameter in direction Y 14
+! Lattice parameter in direction Y 16
    npid=npid+1
    propid(npid)%symbol='LPY '
-   propid(npid)%note='Lat par Y axis'
+   propid(npid)%note='Lattice param Y axis'
    propid(npid)%status=0
 ! lattice parameters may depend on T and P
 !.......................................
-! Lattice parameter in direction Z 15
+! Lattice parameter in direction Z 17
    npid=npid+1
    propid(npid)%symbol='LPZ '
-   propid(npid)%note='Lat par Z axis'
+   propid(npid)%note='Lattice param Z axis'
    propid(npid)%status=0
 ! lattice parameters may depend on T and P
 !.......................................
-! This is an angle for non-cubic lattices 16
+! This is an angle for non-cubic lattices 18
    npid=npid+1
    propid(npid)%symbol='LPTH '
-   propid(npid)%note='Lat angle TH'
+   propid(npid)%note='Lattice angle TH'
    propid(npid)%status=0
 ! Angle may depend on T and P 
 !.......................................
-! This is an elastic "constant" 17
+! This is an elastic "constant" 19
    npid=npid+1
    propid(npid)%symbol='EC11 '
-   propid(npid)%note='Elast const C11'
+   propid(npid)%note='Elastic const C11'
    propid(npid)%status=0
 ! The elastic constant may depend on T and P
 !.......................................
-! This is another elastic "constant" 18
+! This is another elastic "constant" 20
    npid=npid+1
    propid(npid)%symbol='EC12 '
-   propid(npid)%note='Elast const C12'
+   propid(npid)%note='Elastic const C12'
    propid(npid)%status=0
 ! The elastic constant may depend on T and P
 !.......................................
-! This is yet another elastic "constant" 19
+! This is yet another elastic "constant" 21
    npid=npid+1
    propid(npid)%symbol='EC44 '
-   propid(npid)%note='Elast const C44'
+   propid(npid)%note='Elastic const C44'
    propid(npid)%status=0
 ! The elastic constant may depend on T and P
 !.......................................
-! Flory-Huggins molar volume parameter 20
+! Flory-Huggins molar volume parameter 22
    npid=npid+1
    propid(npid)%symbol='FHV '
-   propid(npid)%note='Flory-Hugg. vol '
+   propid(npid)%note='Flory-Huggins volume ratio '
    propid(npid)%status=0
 ! FHV is specific för a constituent
    propid(npid)%status=ibset(propid(npid)%status,IDCONSUFFIX)
-!....................................... 21
+!....................................... 23
 ! Molar volume at T=298.15, 1 bar
    npid=npid+1
    propid(npid)%symbol='V0 '
@@ -291,7 +305,7 @@
    propid(npid)%status=0
 ! Constant independent on temperature or pressure
    propid(npid)%status=ibset(propid(npid)%status,IDNOTP)
-!....................................... 22
+!....................................... 24
 ! Thermal expansion at 1 bar
    npid=npid+1
    propid(npid)%symbol='VA '
@@ -299,11 +313,17 @@
    propid(npid)%status=0
 ! Only T dependent
    propid(npid)%status=ibset(propid(npid)%status,IDONLYT)
-!....................................... 23
+!....................................... 25
 ! Bulk modulus as function of T and P
    npid=npid+1
    propid(npid)%symbol='VB '
    propid(npid)%note='Bulk modulus '
+   propid(npid)%status=0
+!....................................... 26
+! Thermal conductivity as function of T and P
+   npid=npid+1
+   propid(npid)%symbol='LAMB '
+   propid(npid)%note='Thermal conductivity '
    propid(npid)%status=0
 ! This IF statement should be at the last parameter identifier, maxprop=50?
    if(npid.gt.maxprop) then

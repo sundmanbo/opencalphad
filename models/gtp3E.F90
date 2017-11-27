@@ -4273,7 +4273,8 @@
             km=index(longline,' DIS_PART ')
             never=1
             if(km.eq.0) then
-               km=index(longline,' NEVER ')
+! Allow for NEVER_DIS ...
+               km=index(longline,' NEVER')
 ! this is for disordered SIGMA etc.
                if(km.gt.0) then
                   never=-1

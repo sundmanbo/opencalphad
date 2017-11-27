@@ -5114,7 +5114,8 @@ CONTAINS
              write(*,212)'SMP skipping a point, error evaluating: ',&
                   statevar(1:10),curceq%tpval(1),nv,nr
 212          format(a,a,f10.2,2i5)
-             gx%bmperr=0
+! buperr resets putfun error 
+             gx%bmperr=0; buperr=0
              nv=nv-1; goto 215
           endif
           xax(nv)=value

@@ -23,7 +23,7 @@
 
 !\begin{verbatim}
  subroutine addition_selector(addrec,moded,phres,lokph,mc,ceq)
-! called when finding an addtion record while calculating G for a phase
+! called when finding an addition record while calculating G for a phase
 ! addrec is addition record
 ! moded is 0, 1 or 2 if no, first or 2nd order derivatives should be calculated
 ! phres is ?
@@ -59,8 +59,8 @@
       write(kou,*)' Elastic model not implemented yet'
       gx%bmperr=4399
    case(twostatemodel1) ! Two state model
-      write(kou,*)' Two state model not implemented yet'
-      gx%bmperr=4333
+      call calc_twostate_model1(moded,phres,addrec,lokph,mc,ceq)
+!      gx%bmperr=4333
    case(volmod1) ! Simple volume model depending on V0, VA and VB
       call calc_volmod1(moded,phres,addrec,lokph,mc,ceq)
 !      write(kou,*)' Two state model not implemented yet'
@@ -127,7 +127,7 @@
       call create_einsteincp(newadd)
    case(elasticmodel1) ! Elastic model 1
       call create_elastic_model_a(newadd)
-   case(twostatemodel1) ! Two state model 1
+   case(twostatemodel1) ! Liquid 2 state model
       call create_twostate_model1(newadd)
    case(volmod1) ! Volume model 1
       call create_volmod1(newadd)
@@ -1317,15 +1317,97 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine create_twostate_model1(newadd)
-! not implemented
+ subroutine create_twostate_model1(addrec)
+! newadd is location where pointer to new addition record should be stored
    implicit none
-   type(gtp_phase_add), pointer :: newadd
+   type(gtp_phase_add), pointer :: addrec
 !\end{verbatim}
-   write(kou,*)'Not implemented yet'; gx%bmperr=4078
+   integer typty
+! this is bad programming as it cannot be deallocated but it will never be ...
+   allocate(addrec)
+! nullify pointer to next addition
+   nullify(addrec%nextadd)
+! I am not sure what is is used for
+   addrecs=addrecs+1
+   addrec%addrecno=addrecs
+! property needed
+   allocate(addrec%need_property(1))
+   call need_propertyid('G2  ',typty)
+   addrec%need_property(1)=typty
+! type of addition
+   addrec%type=twostatemodel1
+! store zero.  Used to extract current value of this property
+   addrec%propval=zero
 1000 continue
+   write(*,*)'Created two state record'
    return
  end subroutine create_twostate_model1
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine calc_twostate_model1(moded,phres,addrec,lokph,mc,ceq)
+! moded is 0, 1 or 2 if no, first or 2nd order derivatives should be calculated
+! addrec is addition record
+! phres is phase_varres record
+! lokph is phase location
+! mc is number of constitution fractions
+! ceq is current equilibrium record
+   implicit none
+   integer moded,lokph,mc
+   TYPE(GTP_PHASE_ADD), pointer :: addrec
+   TYPE(GTP_PHASE_VARRES), pointer :: phres
+   TYPE(GTP_EQUILIBRIUM_DATA), pointer :: ceq
+!\end{verbatim}
+   ! two state model for extrapolating liquid to low T
+   ! DG = d(H-RT) + RT( dln(d)+(1-d)ln(1-d))
+   ! where d is "liquid like" atoms.  H is enthalpy to form defects
+   ! At equilibrium
+   !
+   ! d = exp(-H/RT) / (1 + e(-H/RT) )
+   !
+   ! G^liq - G^amorph = G^amorph - RT ln(1+exp(-DG_d/RT)
+   ! DG_d is the enthalpy of forming 1 mole of defects in the glassy state
+   !
+   !------------------------------
+   ! The value of Gd for the phase is calculated and stored in ??
+   !
+   integer jj,noprop,ig2
+   double precision g2val,dg2
+! number of properties calculatied
+   noprop=phres%listprop(1)-1
+! locate the G2 property record   
+   findix: do jj=2,noprop
+      if(phres%listprop(jj).eq.addrec%need_property(1)) then
+! current values of G2 is stored in phres%gval(1,ig2)
+         ig2=jj; g2val=phres%gval(1,ig2); exit findix
+      endif
+   enddo findix
+   dg2=log(one+exp(-g2val/ceq%rtn))
+! NOTE values in gval(*,1) are divided by RT
+! G
+   phres%gval(1,1)=phres%gval(1,1)-dg2
+! G.T
+   phres%gval(2,1)=phres%gval(2,1)+&
+        globaldata%rgas*(ceq%tpval(1)*phres%gval(2,ig2)-dg2)/ceq%rtn**2
+! G.P   is zero
+! G.T.T 
+   phres%gval(4,1)=phres%gval(4,1)+phres%gval(4,ig2)/ceq%rtn-&
+        2.0D0*globaldata%rgas*(ceq%tpval(1)*phres%gval(2,ig2)-dg2)/ceq%rtn**3
+! G.T.P
+! G.P.P
+! save local values
+   addrec%propval(1)=dg2
+   addrec%propval(2)=globaldata%rgas*(ceq%tpval(1)*phres%gval(2,ig2)-dg2)/&
+        ceq%rtn**2
+   addrec%propval(3)=zero
+   addrec%propval(4)=phres%gval(4,ig2)/ceq%rtn-&
+        2.0D0*globaldata%rgas*(ceq%tpval(1)*phres%gval(2,ig2)-dg2)/ceq%rtn**3
+   addrec%propval(5)=zero
+   addrec%propval(6)=zero
+1000 continue
+   return
+ end subroutine calc_twostate_model1
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -1471,7 +1553,8 @@
            ' the X direction.')
 !---------------------------------------------
    case(twostatemodel1) ! Two state  model 1
-      write(unit,*)'Two state model 1, not implemented yet'
+      write(unit,510)
+510   format('  + Liquid 2 state model DG=G(liq)-G(sol)= -RTln(1+exp(-G2/RT)')
 !---------------------------------------------
    case(volmod1) ! Volume model 1
       if(unit.eq.kou) then

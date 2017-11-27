@@ -1111,7 +1111,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! symbol: property identifier like G for Gibbs energy
 ! note: short description for listings
 ! prop_elsymb: additional for element dependent properties like mobilities
-     character symbol*4,note*16,prop_elsymb*2
+     character symbol*4,note*28,prop_elsymb*2
 ! Each property has a unique value of idprop.  Status can state if a property
 ! has a constituent specifier or if it can depend on T or P
      integer status
@@ -1377,13 +1377,10 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! tnoofxfr: number of disordered fractions
 ! tnoofyfr: same for ordered fractions (=same as in phlista).
 ! varreslink: index of disordered phase_varres, 
-! phdapointer (not needed): pointer to the same phase_varres record
-!    (Note that there is a bit set indicating that the sublattices should 
-!    be taken from this record)
 ! totdis: 0 indicates no total disorder (sigma), 1=fcc, bcc or hcp
 ! id: parameter suffix, D for disordered
 ! dsites: number of sites in sublattices, disordred fractions stored in
-!    another phase_varres record linked from phdapointer
+!    another phase_varres record with index varreslink (above)
 ! splink: pointers to species record for the constituents
 ! nooffr: the number of fractions in each sublattice
 ! y2x: the conversion from sublattice constituents to disordered and

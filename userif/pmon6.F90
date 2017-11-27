@@ -190,6 +190,7 @@ contains
     integer, parameter :: nselect=6,nlform=6,noptopt=9,nsetbit=6
     integer, parameter :: ncamph=12,nclph=6,nccph=6,nrej=9,nsetph=6
     integer, parameter :: nsetphbits=15,ncsave=6,nplt=18,nstepop=6
+    integer, parameter :: ninf=9
 ! basic commands
     character (len=16), dimension(ncbas), parameter :: cbas=&
        ['AMEND           ','CALCULATE       ','SET             ',&
@@ -287,7 +288,7 @@ contains
     character (len=16), dimension(ncamph) :: camph=&
 !         ['MAGNETIC_CONTRIB','COMPOSITION_SET ','DISORDERED_FRACS',&
          ['MAGNETIC_INDEN  ','COMPOSITION_SET ','DISORDERED_FRACS',&
-         'TWOSTATE_MODEL_1','QUIT            ','DEFAULT_CONSTIT ',&
+         'LIQUID_2_STATEML','QUIT            ','DEFAULT_CONSTIT ',&
          'DEBYE_CP_MODEL  ','EINSTEIN_CP_MDL ','XIONG_INDEN_MAGN',&
          'ELASTIC_MODEL_1 ','GADDITION       ','                ']
 !-------------------
@@ -352,6 +353,12 @@ contains
          ['ELEMENTS        ','SPECIES         ','PHASE           ',&
           'QUIT            ','COMPOSITION_SET ','EQUILIBRIUM     ',&
           'STEP_MAP_RESULTS','                ','                ']
+!-------------------
+! subcommands to INFORMATION
+    character (len=16), dimension(ninf) :: cinf=&
+         ['ELEMENTS        ','SPECIES         ','PHASE           ',&
+          'QUIT            ','COMPOSITION_SET ','EQUILIBRIUM     ',&
+          'CHANGES         ','                ','                ']
 !-------------------
 ! subcommands to PLOT OPTIONS/ GRAPHICS OPTIONS
     character (len=16), dimension(nplt) :: cplot=&
@@ -3531,7 +3538,7 @@ contains
              filename(kl:)='.DAT '
           endif
           kl=1
-          call save_datformat(filename,kl,ceq)   
+          call save_datformat(filename,version,kl,ceq)   
 !-----------------------------------------------------------
        case(3) ! save unformatted
 132       continue
@@ -3604,9 +3611,66 @@ contains
        call q3help(cline,last,cbas,ncbas)
        goto 100
 !=================================================================
-! information
+! subcommands to INFORMATION ... very little implemented
+!        ['ELEMENTS         ','SPECIES         ','PHASE           ',&
+!         'QUIT             ','COMPOSITION_SET ','EQUILIBRIUM     ',&
+!         'CHANGES          ','                ','                ']
     case(11)
-       write(kou,*)'Not implemented yet'
+       kom2=submenu(cbas(kom),cline,last,cinf,ninf,7)
+       information: select case(kom2)
+!-------------------------------------------------------
+          CASE DEFAULT
+             write(*,*)'Information subcommand error'
+!--------------------------------------------------------
+          case(1)
+             write(kou,210)
+210          format('The elements are those from the periodic chart.'/&
+                  'Normally the components are the same as the elemets but',&
+                  ' the user',/'can define any rthogonal set of species as',&
+                  ' components.')
+!--------------------------------------------------------
+          case(2)
+             write(kou,211)
+211          format('Species are molecular like aggregates of elements with',&
+                  ' fixed stoichiometry.',/'The elements are the simplest',&
+                  ' species.  The constituents of a phase',/' are a subset of',&
+                  ' the species.')
+!--------------------------------------------------------
+! phases info
+          case(3)
+             write(*,*)'Not written yet'
+!--------------------------------------------------------
+! quit
+          case(4)
+!--------------------------------------------------------
+! composition set
+          case(5)
+             write(*,*)'Not written yet'
+!--------------------------------------------------------
+! equilibrium
+          case(6)
+             write(*,*)'Not written yet'
+!--------------------------------------------------------
+! changes
+          case(7)
+             open(31,file='changes.txt ',access='sequential',err=990,&
+                  iostat=buperr)
+             do while(.TRUE.)
+                do i1=1,40
+                   read(31,17,end=244,err=990)line
+                   write(kou,17)trim(line)
+                enddo
+                write(kou,*)'Press return to continue'
+                read(kiu,17)ch1
+             enddo
+244          close(31)
+!--------------------------------------------------------
+          case(8)
+             write(*,*)'Not written yet'
+!--------------------------------------------------------
+          case(9)
+             write(*,*)'Not written yet'
+          end select information
        goto 100
 !=================================================================
 ! back / goto, return to calling (main) program
@@ -5004,6 +5068,7 @@ contains
     character defansw*16,query1*64,text*256
     integer last,kdef,ncomnd,kom2,lend,lenq
 !\end{verbatim}
+!    external q2help
     logical once
     lenq=len_trim(query)
     if(query(lenq:lenq).eq.'?') then
@@ -5013,6 +5078,8 @@ contains
        lenq=lenq+6
     endif
     once=.true.
+! this is to force loading of q2help on MacOS (did not help)
+!    if(.not.once) call q2help(query,cline)
     submenu=0
 !  write(kou,10)'submenu 1: ',query(1:lenq),last,cline(last:last+5)
 !10  format(a,a,i4,': ',a)
