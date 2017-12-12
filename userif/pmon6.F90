@@ -271,8 +271,8 @@ contains
 ! subcommands to SAVE
 ! note SAVE TDB, MACRO, LATEX part of LIST DATA !!
     character (len=16), dimension(ncsave) :: csave=&
-        ['TDB             ','SOLGASMIX       ','UNFORMATTED     ',&
-         'DIRECT          ','                ','QUIT            ']
+        ['TDB             ','SOLGASMIX       ','QUIT            ',&
+         'DIRECT          ','UNFORMATTED     ','                ']
 !-------------------
 ! subcommands to AMEND first level
 ! many of these should be subcommands to PHASE
@@ -1944,7 +1944,7 @@ contains
              dmin=zero
              dmax=one
           endif
-! reset to default plot options
+! reset default plot options
 ! plot ranges and their defaults
           graphopt%gibbstriangle=.FALSE.
           graphopt%rangedefaults=0
@@ -3497,17 +3497,17 @@ contains
           write(*,*)'Nothing yet'
        end SELECT read
 !=================================================================
-! SAVE in various formats (NOT TDB, MACRO and LATEX, use LIST DATA)
+! SAVE in various formats (NOT MACRO and LATEX, use LIST DATA)
 ! It is a bit inconsistent as one READ TDB but not SAVE TDB ...
-!        ['TDB             ','SOLGASMIX       ','UNFORMATTED     ',&
-!         'DIRECT          ','                ','QUIT            ']
+!        ['TDB             ','SOLGASMIX       ','QUIT            ',&
+!         'DIRECT          ','UNFORMATTED     ','                ']
     CASE(9)
 ! default i 3, unformatted
-       kom2=submenu(cbas(kom),cline,last,csave,ncsave,3)
+       kom2=submenu(cbas(kom),cline,last,csave,ncsave,5)
        if(kom2.le.0 .or. kom2.gt.ncsave) goto 100
 !
-       if(kom2.gt.2) then
-! Do not ask this question for TDB and SOLGASMIX files
+       if(kom2.gt.3) then
+! Do not ask this question for QUIT, TDB and SOLGASMIX files
           call gparc('Comment line: ',cline,last,5,model,' ',q1help)
        endif
        save: SELECT CASE(kom2)
@@ -3540,7 +3540,33 @@ contains
           kl=1
           call save_datformat(filename,version,kl,ceq)   
 !-----------------------------------------------------------
-       case(3) ! save unformatted
+       case(3) ! save quit, do nothing
+          continue
+!-----------------------------------------------------------
+       case(4) ! save DIRECT
+          if(ocdfile(1:1).ne.' ') then
+             text=ocdfile
+             call gparcd('File name: ',cline,last,1,ocdfile,text,q1help)
+          else
+             call gparc('File name: ',cline,last,1,ocdfile,' ',q1help)
+          endif
+          jp=0
+          kl=index(ocdfile,'.')
+          if(kl.le.0) then
+             jp=len_trim(ocdfile)
+          elseif(ocdfile(kl+1:kl+1).eq.' ') then
+! just ending a filename with . not accepted as extention
+             jp=kl
+          endif
+          if(kl.le.0 .and. jp.le.0) then
+             write(kou,*)'Missing file name, nothing saved'
+             goto 100
+          endif
+          if(jp.gt.0) ocdfile(jp+1:)='.ocd '
+          text='M '//model
+          call gtpsave(ocdfile,text)
+!-----------------------------------------------------------
+       case(5) ! save unformatted
 132       continue
           if(ocufile(1:1).ne.' ') then
              text=ocufile
@@ -3576,33 +3602,8 @@ contains
           text='U '//model
           call gtpsave(ocufile,text)
 !-----------------------------------------------------------
-       case(4) ! save DIRECT
-          if(ocdfile(1:1).ne.' ') then
-             text=ocdfile
-             call gparcd('File name: ',cline,last,1,ocdfile,text,q1help)
-          else
-             call gparc('File name: ',cline,last,1,ocdfile,' ',q1help)
-          endif
-          jp=0
-          kl=index(ocdfile,'.')
-          if(kl.le.0) then
-             jp=len_trim(ocdfile)
-          elseif(ocdfile(kl+1:kl+1).eq.' ') then
-! just ending a filename with . not accepted as extention
-             jp=kl
-          endif
-          if(kl.le.0 .and. jp.le.0) then
-             write(kou,*)'Missing file name, nothing saved'
-             goto 100
-          endif
-          if(jp.gt.0) ocdfile(jp+1:)='.ocd '
-          text='M '//model
-          call gtpsave(ocdfile,text)
-!-----------------------------------------------------------
-       case(5) ! 
+       case(6) ! 
           write(kou,*)'Not implemented yet'
-!-----------------------------------------------------------
-       case(6) ! save quit, do nothing
           continue
        end SELECT save
 !=================================================================
@@ -4354,17 +4355,26 @@ contains
 !             endif
           endif
           if(axplotdef(iax).ne.axplot(iax)) then
-! RESTORE DEFAULTS if not same axis variables !!! 
-             graphopt%rangedefaults(iax)=0
-             graphopt%appendfile=' '
+! if new axis then reset default plot options
+! plot ranges and their defaults
              graphopt%gibbstriangle=.FALSE.
+             graphopt%rangedefaults(iax)=0
+! labeldefaults(1) is the title!!!
+             graphopt%labeldefaults(1)=0
+             graphopt%plotmin=zero
+             graphopt%dfltmin=zero
+             graphopt%plotmax=one
+             graphopt%dfltmax=one
+             graphopt%appendfile=' '
+!             graphopt%status=0
              graphopt%labelkey='top right'
+!             nullify(graphopt%firsttextlabel)
+!             nullify(textlabel)
+             plotfile='ocgnu'
 ! default plot terminal, replaces plotform
              graphopt%gnutermsel=1
              plotform=' '
-! remember that labeldefaults(1) is the title!!!
-             graphopt%labeldefaults(iax+1)=0
-! more options to restore ... ???
+             write(*,*)'Plot options reset'
           endif
 ! remember axis as default
           axplotdef(iax)=axplot(iax)

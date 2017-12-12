@@ -13,6 +13,10 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2017.12.12 OC version 4.037: a large number of bugs most of them
+connected with creating and copying equilibrium record corrected.
+These caused spurious segmentation faults.
+
 2017.11.26 OC version 4.036: After my PC crashed I worked with OC for
 a month on my Mac but I have now installed all on a new DELL.  Several
 modifications for Linux and Mac has been made, some maybe not

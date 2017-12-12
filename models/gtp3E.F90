@@ -3324,6 +3324,7 @@
       silent=.TRUE.
 !      write(*,*)'3E reading database silent'
    endif
+   write(*,*)'3E reading a TDB file'
    if(ocv()) write(*,*)'3E reading a TDB file'
    if(.not.(index(filename,'.tdb').gt.0 &
        .or. index(filename,'.TDB').gt.0)) then
@@ -3381,8 +3382,12 @@
    if(.not.onlyfun) then
 !      write(*,71)'3E back from istdbkeyword',keyw
       if(keyw.eq.0) then
-         write(*,122)trim(line)
-122      format(/' *** Warning, ignoring line: "',a,'"'/)
+         if(trim(line).eq.' DEFINE_SYSTEM_DEFAULT ELEMENT 2 !') then
+            goto 100
+         else
+            write(*,122)trim(line)
+122         format(/' *** Warning, ignoring line: "',a,'"'/)
+         endif
       endif
    endif
    if(keyw.eq.0) then
@@ -4225,7 +4230,7 @@
 ! error 4154 means missing reference
             if(gx%bmperr.ne.4154 .and. .not.silent) then
                write(*,409)gx%bmperr,nl
-409            format('3E WARNING ',i6,' for parameter around line: ',i7,&
+409            format('3E WARNING ',i6,', no bibliography around line: ',i7,&
                     ', continuing')
                warning=.TRUE.
             endif
@@ -4694,7 +4699,7 @@
 
 !\begin{verbatim}
  subroutine readpdb(filename,nel,selel,options)
-! reading data from a TDB file with selection of elements
+! reading data from a PDB file with selection of elements
 !-------------------------------------------------------
 ! Not all TYPE_DEFS implemented
 !-------------------------------------------------------
@@ -6159,6 +6164,7 @@
 110 format(a)
    nl=nl+1
 ! One should remove TAB characters !! ??
+   call replacetab(line,ipp)
    ipp=1
    if(eolch(line,ipp)) goto 100
    if(line(ipp:ipp).eq.'$') goto 100
@@ -6167,9 +6173,10 @@
    if(ipp.ne.1) goto 100
 !
 ! ignore /- and VA
-   if(line(kk+1:kk+2).eq.'/-' .or. line(kk+1:kk+2).eq.'VA') goto 100
+   if(eolch(line,kk)) goto 100
+   if(line(kk:kk+1).eq.'/-' .or. line(kk:kk+1).eq.'VA') goto 100
    nel=nel+1
-   selel(nel)=line(kk+1:kk+2)
+   selel(nel)=line(kk:kk+1)
 !      write(*,111)nl,line(1:20)
 !111   format('Read line ',i5,': ',a)
    goto 100

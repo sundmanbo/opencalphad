@@ -70,8 +70,8 @@
    ceq%phase_varres(lokcs)%amfu=xxx
 ! ask if we should set the current constitution, ignore default
 !   write(*,*)'3D we are here!'
-   call gparcd('Current, default (D) or new (N) constitution?',cline,last,&
-        1,ch1,chd,q1help)
+   call gparcd('Current (Y), default (D) or new (N) constitution?',&
+        cline,last,1,ch1,chd,q1help)
    if(ch1.eq.'Y' .or. ch1.eq.'y') then
       chd='Y'
 ! set the old constitution explicitly!!

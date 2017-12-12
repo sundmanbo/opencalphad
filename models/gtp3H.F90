@@ -1246,7 +1246,7 @@
    integer, parameter :: ncc=6
    integer typty
 !
-! G/RT = 3*ln( 1 - exp( THET/T ) ) 
+! G/RT = 1.5*R*THET + 3*ln( 1 - exp( -THET/T ) ) 
 ! No need to use TPFUN
 !
 ! gtp_phase_add has variables:
@@ -1264,6 +1264,7 @@
    if(gx%bmperr.ne.0) goto 1000
    allocate(newadd%need_property(1))
    newadd%need_property(1)=typty
+   nullify(newadd%nextadd)
 1000 continue
    return
  end subroutine create_einsteincp
@@ -1280,7 +1281,7 @@
 ! mc number of variable fractions
 ! ceq equilibrum record
 !
-! G = 3*R*T*ln( 1 - exp( THET/T ) ) 
+! G = 1.5*R*THET + 3*R*T*ln( 1 - exp( THET/T ) ) 
 ! This is easier to handle inside the calc routine without TPFUN
 !
    implicit none
@@ -1300,15 +1301,25 @@
    gx%bmperr=4336; goto 1000
 100 continue
 ! thet is in gval(ith,1), derivatives in dgval(*,ith,*) and d2gval(ith,*)
-! G/RT = 3*ln( 1 - exp( THET/T ) ) 
+! G/RT = 1.5*THET/T + 3*R*LN(1+exp( -THET/T )) 
 ! NOTE DIRIVATES CALCULATED FOR G/RT
    del1=phres%gval(ith,1)/ceq%tpval(1)
-   del2=exp(del1)
+   del2=exp(-del1)
    del3=1.0d0-del2
-   gein=3.0D0*log(del3)
-   dgeindt=3.0D0*(del1/ceq%tpval(1))*(del2/del3)
+   gein=1.5D0*del1+3.0D0*log(del3)
+   dgeindt=3.0D0*log(del3)/ceq%tpval(1)-&
+        3.0D0*globaldata%rgas*del1*del2/(one-del2)
+   d2geindt2= 3.0D0*globaldata%rgas*phres%gval(ith,1)**2*del2/ceq%tpval(1)**3
 !   d2geindt2=3.0D0*(del1**2/ceq%tpval(1))*(del2/del3**2)
-   d2geindt2=dgeindt*del1/del3
+   phres%gval(1,1)=phres%gval(1,1)+gein
+   phres%gval(2,1)=phres%gval(1,1)+dgeindt
+!   phres%gval(3,1)=phres%gval(1,1)
+   phres%gval(4,1)=phres%gval(1,1)+d2geindt2
+!   phres%gval(5,1)=phres%gval(1,1)
+!   phres%gval(6,1)=phres%gval(1,1)
+   addrec%propval(1)=gein
+   addrec%propval(2)=dgeindt
+   addrec%propval(4)=d2geindt2
 ! Missing implem of derivatives wrt fractions of thet.  thet cannot depend on T
 1000 continue
    return
@@ -1545,7 +1556,7 @@
 !---------------------------------------------
    case(einsteincp) ! Einstein Cp model
       write(unit,400)
-400   format(2x,'+ Einstein Cp model:'/4x,'G = 3*R*T*LN(1-THET/T)')
+400   format(2x,'+ Einstein Cp model: G = 1.5*R*THET + 3*R*T*ln(1-exp(THET/T))')
 !---------------------------------------------
    case(elasticmodel1) ! Elastic model 1
       write(unit,500)
@@ -1554,7 +1565,7 @@
 !---------------------------------------------
    case(twostatemodel1) ! Two state  model 1
       write(unit,510)
-510   format('  + Liquid 2 state model DG=G(liq)-G(sol)= -RTln(1+exp(-G2/RT)')
+510   format('  + Liquid 2 state model DG=G(liq)-G(am)= -RTln(1+exp(-G2/RT)')
 !---------------------------------------------
    case(volmod1) ! Volume model 1
       if(unit.eq.kou) then

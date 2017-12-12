@@ -100,7 +100,7 @@ list data ,,
 
 @&
 
-we have to create composition sets manually
+@$ we have to create composition sets manually
 
 @$ this default constitution is Fe3Ni_L12
 amend phase part comp-set y , ,

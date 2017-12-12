@@ -5254,6 +5254,7 @@ CONTAINS
 !    enddo
 !10  format(i3,': ',a)
 !
+    nsaved=0
     subsec(1)='%\section{'
     subsec(2)='%\subsecti'
     subsec(3)='%\subsubse'

@@ -517,12 +517,12 @@
 !                     write(*,117)'3X Saved ionliq G at Va id: ',&
 !                          id,yionva,saveg(1,1)
 117                  format(a,i3,6(1pe12.4))
-                  elseif(id.eq.phlista(lokph)%i2slx(2)) then
-! we have a neutral in second sublattice
+                  elseif(id.eq.phlista(lokph)%i2slx(2) .and. jonva.eq.0) then
+! we have NO vacancy but a neutral in second sublattice
                      iliqva=.FALSE.
                      yionva=-one
                      jonva=0
-                     if(.not.iliqsave) then
+                     why1: if(.not.iliqsave) then
 ! We may have model without Va, for exampel (Ca+2)p(O-2,SiO4-4,SiO2)q, if so
 ! we must save all calculated values as the rest should be multiplied with Q
 !                        nprop=phmain%nprop
@@ -539,8 +539,10 @@
                         phres%d2gval=zero
                         iliqsave=.TRUE.
 !                        write(*,117)'3X Saved ionliq G at neutral id: ',&
-!                           id,yionva,saveg(1,1)
-                     endif
+!                             id,yionva,saveg(1,1)
+!                     else
+!                        write(*,*)'3X neutral: ',jonva,yionva,iliqva
+                     endif why1
                   endif
                endif
             enddo pyqloop
@@ -616,6 +618,7 @@
 68          format(a,i3,5(1pe12.4)/,(16x,5e12.4))
 !---- jump here if moded is 0 or 1
 150         continue
+! d2pyq contains 2nd serivatives of endmember fractions.
 !            write(*,228)'3X d2pyq 0:',d2pyq
 !            write(*,*)'3X Config G 4A: ',phres%gval(1,1)*rtg
 !            write(*,154)'3X endmember permutation: ',epermut,(clist(i),i=1,4)
@@ -898,163 +901,168 @@
                endif
 !               write(*,228)'3X d2pyq 1:',d2pyq
 !---------------------------------
-               noder3A: if(moded.gt.0) then
+!               write(*,*)'3X ionic liquid: ',iliqsave,yionva
+               cationintandva: if(.not.iliqsave) then
+! iliqsave is TRUE when interaction in first sublattice and Va in second
+!                  write(*,228)'3X d2pyq 7:',d2pyq
+                  modedx: if(moded.gt.0) then
 ! ...................................... loop for first derivatives
+                     iloop1: do id=1,gz%nofc
+                        if(moded.gt.1) then
+! ...................................... second derivatives
+! For all models except ionic liquids 2nd derivatives are simple ...
+                           iloop2B: do jd=id+1,gz%nofc
+                              d2pyq(ixsym(id,jd))=d2pyq(ixsym(id,jd))*ymult
+                           enddo iloop2B
+                           d2pyq(ixsym(id,ic))=dpyq(id)
+                        endif
+! I FORGOT THIS LINE WHEN TRYING TO FIX IONIC LIQUID !!! TOTAL MESS !!!
+                        dpyq(id)=dpyq(id)*ymult
+                     enddo iloop1
+                  endif modedx
+               else ! here we have cation interaction with Va in second subl.
+! SPECIAL FOR IONIC LIQUID
+! This is needed for interactions from endmembers with Va in second sublattice
+! as the model must be compatibel with a regular solution, like
+! (Mo+4,Pd+2,Rh+3)p(Va)q must be identical to (Mo,Pd,Rh) and
+! (Fe+2)p(Va,C)q must be identical to (Fe,C)
+! This requires that each cation fracition is multiplied with fraction of Va
+! Instead of just yA+yB+yVa one must have yA+yB+yVa**2
 !                  write(*,228)'3X pyq  0:',pyq
 !                  write(*,228)'3X dpyq 1:',dpyq
 !                  write(*,228)'3X divers:',ymult,yionva,gz%yfrem(1)
-                  iloop1: do id=1,gz%nofc
-                     if(moded.gt.1) then
-! ...................................... second derivatives
-                        if(iliqsave .and. intlat.eq.1) then
+                  if(jonva.le.0 .and. intlat.eq.1) then
+                     write(*,*)'Illegal cation interaction with neutral'
+                     gx%bmperr=4342; goto 1000
+                  endif
+! ...................................... loop for first derivatives
+                  iliqloop1: do id=1,gz%nofc
+                     seconder2: if(moded.gt.1) then
+! CODE BELOW IS UNCERTAIN
 ! This IF loop is only executed when Va in second sublattice, i.e. when cation
 ! interactions which should also be multiplied with the power of yionva
 ! which is gz%intlevel+1
 ! jonva=phlista(lokph)%i2slx(1) is index of vacancy, i2slx(2) is first neutral
-                           if(jonva.le.0) then
-                              write(*,*)'3X illegal interaction'
-                              gx%bmperr=4342; goto 1000
-                           endif
-!                           iloop2A: do jd=id,gz%nofc
-! for ionic liquids pyq can contain powers of Va, for such a case jd must loop
-! from id, not id+1.
-!                              d2pyq(ixsym(id,jd))=&
-!                                   (gz%intlevel+1)*d2pyq(ixsym(id,jd))*ymult
-!                              write(*,209)'3X d2pyq 2: ',id,jd,ixsym(id,jd),&
-!                                   gz%intlevel+1,d2pyq(ixsym(id,jd)),ymult
-209                           format(a,4i3,6(1pe12.4))
-! code above wrong
-! CODE BELOW IS UNCERTAIN
-                           if(id.eq.ic) then
-! derivative wrt new interaction, ic, and Va
-                              d2pyq(ixsym(ic,jonva))=&
-                                   (gz%intlevel+1)*gz%yfrem(1)*yionva
-!                              write(*,209)'3X d2pyq A: ',ic,jonva,&
-!                                   ixsym(ic,jonva),gz%intlevel+1,&
-!                                   d2pyq(ixsym(ic,jonva)),gz%yfrem(1),yionva
-                           elseif(id.eq.jonva) then
-! double derivative wrt Va
-                              d2pyq(ixsym(jonva,jonva))=&
-                 (gz%intlevel+1)*dpyq(jonva)*gz%yfrint(gz%intlevel)/yionva
-!                              write(*,209)'3X d2pyq B: ',jonva,jonva,&
-!                                   ixsym(jonva,jonva),gz%intlevel+1,&
-!                                   d2pyq(ixsym(jonva,jonva)),dpyq(jonva),&
-!                                   gz%yfrint(gz%intlevel),yionva
-!                           elseif(id.lt.jonva) then
-                           elseif(id.le.phlista(lokph)%nooffr(1)) then
-! two derivatives for all other anions ...
-                              d2pyq(ixsym(id,ic))=dpyq(id)*yionva
-!                              write(*,209)'3X d2pyq C: ',id,ic,&
-!                                   ixsym(id,ic),0,&
-!                                   d2pyq(ixsym(id,ic)),dpyq(id),&
-!                                   yionva
-                              d2pyq(ixsym(id,jonva))=(gz%intlevel+1)*ymult
-!                              write(*,209)'3X d2pyq D: ',id,jonva,&
-!                                   ixsym(id,jonva),gz%intlevel+1,&
-!                                   d2pyq(ixsym(id,jonva)),ymult
-! no 2nd derivatves wrt neutrals
-                           endif
-!                           write(*,228)'3X d2pyq 7:',d2pyq
-!                           enddo iloop2A
-! END VERY UNCERTAIN CODE, the rest seems to work ...
-                        else
-! For all other models and cases it is simply ...
-                           iloop2B: do jd=id+1,gz%nofc
-                              d2pyq(ixsym(id,jd))=d2pyq(ixsym(id,jd))*ymult
-                           enddo iloop2B
-                        endif
-! NOTE "ic" has been set above as the interacting constituent
-                        if(iliqsave) then
-                           if(intlat.eq.1 .and. yionva.gt.zero) then
-                              continue
-! This already done ...
-! For ionic liquid model the 2nd derivatives must be multipled with yionva
-!                              if(id.eq.phlista(lokph)%i2slx(1)) then
-! This is the vacancy, all 2nd derivatives multiplied with a factor
-!                                 d2pyq(ixsym(id,ic))=&
-!                                      (gz%intlevel+1)*d2pyq(ixsym(id,ic))
-!                               write(*,209)'3X d2pyq 3: ',id,ic,ixsym(id,ic),&
-!                                      gz%intlevel+1,d2pyq(ixsym(id,ic))
-!                              endif
+! index of the constituent in first sublattice is gz%endcon(1)
+! index of the constituent in second sublattice is gz%endcon(2) = jonva
+! index of interaction constituents are in gz%intcon(gz%intlevel+)
+! pyq, dpyq and d2pyq set for the endmember
+!
+! NOTE: some 2nd derivatives wrong for (Fe+2)p(Va,C)q and more ...
+! NOT tested (Ca+2)p(O-2,SiO4-4,SiO2)q
+! ...................................... loop for second derivatives
+                        iloop2X: do jd=id+1,gz%nofc
+                           if(jd.le.phlista(lokph)%nooffr(1)) then
+! both id and jd are cations, interaction must be multiplied with yionva
+                              d2pyq(ixsym(id,jd))=&
+                                   d2pyq(ixsym(id,jd))*ymult*yionva
+!                              write(*,215)gz%intlevel,ic,id,jd,&
+!                                   d2pyq(ixsym(id,jd)),ymult,&
+!                                   d2pyq(ixsym(id,jd))*ymult*yionva
+215                           format('3X d2pyq: ',4i3,4(1pe12.4))
+                           elseif(jd.lt.jonva) then
+! if jd<jonva derivative wrt anion and cation or two cations, jd must be anion
+                              d2pyq(ixsym(id,jd))=&
+                                   d2pyq(ixsym(id,jd))*ymult
+                           elseif(jd.eq.jonva) then
+! calculate also d2pyq(ixsym(jonva,jonva)) the only nonzero diagonal element
+                              d2pyq(ixsym(id,jd))=(gz%intlevel+1)/gz%intlevel*&
+                                   d2pyq(ixsym(id,jd))*ymult
                            else
-                              d2pyq(ixsym(id,ic))=dpyq(id)*yionva
-!                              write(*,209)'3X d2pyq 4: ',id,ic,ixsym(id,ic),&
-!                                   0,d2pyq(ixsym(id,ic)),yionva
+! second derivatives with two neutrals
+                              d2pyq(ixsym(id,jd))=&
+                                   d2pyq(ixsym(id,jd))*ymult
                            endif
-                        else
-                           d2pyq(ixsym(id,ic))=dpyq(id)
-                        endif
+                        end do iloop2X
+!                        write(*,216)'3X dpyq: ',id,jd,dpyq
+!                        write(*,217)'3X d2pyq:',d2pyq
+216                     format(a,2i3,6(1pe10.2))
+217                     format(a,6(1pe10.2))
+                     endif seconder2
+! assigning d2pyq before updating dpyq ??
+9991                 continue
+                     d2pyq(ixsym(ic,id))=dpyq(id)
+! ........ this is the first derivative, must be exact NO CHANGE 17.12.06/BoS
+! ic is the constituent index of the interaction
+                     if(dpyq(id).ne.zero) then
+                        dpyq(id)=dpyq(id)*ymult
+!                        write(*,216)'3X this dpyq1:',id,ic,dpyq(id),ymult
+                     elseif(d2pyq(ixsym(id,jonva)).ne.zero) then
+! this is adding more first order derivatives ???
+                        dpyq(id)=dpyq(jonva)*ymult
+!                        write(*,216)'3X this dpyq2:',id,jonva,dpyq(id),ymult
                      endif
-! ................................. this is the first derivative, must be exact
-! very messy for the ionic liquid here ...
-                     dpyq(id)=dpyq(id)*ymult
-                     if(ionicliq .and. iliqsave) then
-!                        write(*,202)'3X Extra va power: ',id,gz%intlevel,&
-!                             gz%intlat(gz%intlevel),dpyq(id)
-202                     format(a,3i3,4(1pe12.4))
-                        if(id.eq.phlista(lokph)%i2slx(1) .and. &
-                             gz%intlat(gz%intlevel).eq.1) then
-! for vacancies there is an additional factor if interaction in first subl
-                           dpyq(id)=(gz%intlevel+1)*dpyq(id)
-!                           write(*,197)gz%intlevel,gz%intcon(gz%intlevel)
-197                        format('3X: Va inter: ',5i3)
-                        endif
+                     if(id.eq.phlista(lokph)%i2slx(1) .and. &
+                          gz%intlat(gz%intlevel).eq.1) then
+! for vacancies there is an additional power  in first subl
+                        dpyq(id)=(gz%intlevel+1)*dpyq(id)
+! should maybe be:
+!                        dpyq(id)=(gz%intlevel+1)/gzintlevel*dpyq(id)
+!                        write(*,197)gz%intlevel,gz%intcon(gz%intlevel)
+197                     format('3X: Va inter: ',5i3)
                      endif
-                  enddo iloop1
+!                     write(*,216)'3X d2pyq1: ',ic,id,d2pyq(ixsym(ic,id))
+                  enddo iliqloop1
+! This is a special 2nd derivative wrt Va twice
+                  d2pyq(ixsym(jonva,jonva))=dpyq(jonva)/yionva
+!                  write(*,216)'3X all dpyq:',gz%intlevel,ic,dpyq
+!                  write(*,216)'3X all d2pyq:',gz%intlevel,ic,d2pyq
+! END SPECIAL FOR IONIC LIQUID
+!---------------------------------------------------------------------
+               endif cationintandva
 ! we must check if any endmember is wildcard like L(*:A,B)
 ! Hopefully this works also for ionic liquid interaction between neutrals
-                  do ll=1,msl
-                     if(ll.ne.intlat) then
-                        if(gz%endcon(ll).lt.0) then
-                           do iw=incffr(ll-1)+1,incffr(ll)
-                              d2pyq(ixsym(iw,ic))=pyq
-                           enddo
-                        endif
+               do ll=1,msl
+                  if(ll.ne.intlat) then
+                     if(gz%endcon(ll).lt.0) then
+                        do iw=incffr(ll-1)+1,incffr(ll)
+                           d2pyq(ixsym(iw,ic))=pyq
+                        enddo
                      endif
-                  enddo
-                  wildcard: if(wildc) then
+                  endif
+               enddo
+               wildcard: if(wildc) then
 ! The interacting constituent is a wildcard ... calculate the contribution
 ! to second derivate from all fractions in intlat, remember incffr(0)=0.
 ! Ionic liquids should never have wildcards as intercations ... ?
-                     do iw=incffr(intlat-1)+1,incffr(intlat)
-                        if(iw.ne.ic) then
-                           d2pyq(ixsym(iw,ic))=dpyq(iw)
-                        endif
+                  do iw=incffr(intlat-1)+1,incffr(intlat)
+                     if(iw.ne.ic) then
+                        d2pyq(ixsym(iw,ic))=dpyq(iw)
+                     endif
 !                        write(*,213)'3X 529: ',iw,ic,ixsym(iw,ic),&
 !                             gz%intlevel,intlat,incffr(intlat)
-                        dpyq(iw)=pyq*gz%yfrint(gz%intlevel)
+                     dpyq(iw)=pyq*gz%yfrint(gz%intlevel)
 !                        dpyq(jd)=pyq*gz%yfrint(gz%intlevel)
-                     enddo
-213                  format(a,10i5)
-                     dpyq(ic)=pyq*(one-gz%yfrint(gz%intlevel))
-                  else
+                  enddo
+213               format(a,10i5)
+                  dpyq(ic)=pyq*(one-gz%yfrint(gz%intlevel))
+               else ! not a wildcard
 ! this is the normal first derivative of pyq*y(ic) with respect to y(ic)=ymult
-                     dpyq(ic)=pyq
-                     if(ionicliq) then
+                  dpyq(ic)=pyq
+                  if(ionicliq) then
 !                        write(*,214)'3X Multiply with y_va: ',&
 !                             iliqsave,ic,intlat,yionva,pyq
-214                     format(a,l2,2i3,4(1pe12.4))
-                        if(iliqsave .and. intlat.eq.1.and.yionva.gt.zero) then
+214                  format(a,l2,2i3,4(1pe12.4))
+                     if(iliqsave .and. intlat.eq.1.and.yionva.gt.zero) then
 ! for compatibility with substitutional liquids, multiply interactions 
 ! of cations (in 1st subl) when vacancies in 2nd with the vacancy fraction
-                           dpyq(ic)=pyq*yionva
-                        endif
+                        dpyq(ic)=pyq*yionva
+                     endif
                      endif
                   endif wildcard
 !                  write(*,228)'3X dpyq: ',(dpyq(ll),ll=1,4)
 228               format(a,6(1pe12.4))
-               endif noder3A
 ! pyq calculated identically for wildcards as ymult set differently above
 ! It should work for ionic liquids as ymult has been multiplied with yionva
-               pyq=pyq*ymult
-               proprec=>intrec%propointer
+                  pyq=pyq*ymult
+                  proprec=>intrec%propointer
 !               write(*,218)'3X pyq: ',associated(proprec),ymult,pyq
-218            format(a,l2,2(1pe12.4))
+218               format(a,l2,2(1pe12.4))
 ! list values of pyq, dpyg, d2pyg
 !               write(*,228)'3X pyq:',pyq
 !               write(*,228)'3X dpy:',dpyq
 !               write(*,228)'3X d2py:',d2pyq
-219            format(a,6(1pe12.4))
+219               format(a,6(1pe12.4))
 !..............................
                intprop: do while(associated(proprec))
 ! calculate interaction parameter, can depend on composition
@@ -4268,10 +4276,9 @@
 ! copy fractions, loop through all ordered sublattices in phvar
 ! and store fraction from lokdis
 !   write(*,*)'3X dis2: 1',lokdcs
-   kk=0
 ! this was never assigned!! BOS 16.11.04
    lokdcs=disrec%varreslink
-!   write(*,*)'3X lokdcs: ',lokdcs,ceq%eqno,&
+!   write(*,*)'3X lokdcs: ',ceq%eqno,lokdcs,disrec%latd,&
 !        allocated(ceq%phase_varres(lokdcs)%yfr)
 ! here copy: 
 ! y(ord,1,1)=y(dis,1); y(ord,1,2)=y(dis,2); y(ord,1,3)=y(dis,3); 
@@ -4279,18 +4286,23 @@
 !   write(*,*)'3X dis2: 2',disrec%latd,disrec%nooffr(1)
 !   write(*,*)'3X dis2: 3',phdis%yfr(1)
 !   write(*,*)'3X disordery2: ',lokdcs
+   kk=0
+! latd is the number of sublattices to be added to first disordered sublattice
    do ll=1,disrec%latd
       do is=1,disrec%nooffr(1)
+! the number of constituents in first disordered sublattice same as in ordered
          kk=kk+1
 !         phvar%yfr(kk)=phdis%yfr(is)
 !         xxx=phdis%yfr(is)
          xxx=ceq%phase_varres(lokdcs)%yfr(is)
+! phvar is the phase_varres record of the ordered phase
          phvar%yfr(kk)=xxx
       enddo
    enddo
 !   write(*,*)'3X dis2: 4',disrec%ndd
    if(disrec%ndd.eq.2) then
 ! one can have 2 sets of ordered subl. like (Al,Fe)(Al,Fe)...(C,Va)(C,Va)...
+! BUT NEVER TESTED
       nis=disrec%nooffr(1)
       nsl=size(phvar%sites)
 !      write(*,*)'3X dis2: 5',nis,nsl

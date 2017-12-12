@@ -97,6 +97,8 @@ MODULE METLIB
 ! all COMMON removed
 ! This is for environment variables used in MACROs
   character, private :: ENVIR(9)*60
+! this is for debugging
+  integer :: buglevel=0
 !
 !    COMMON/TCMACRO/IUL,IUN(5),MACEXT
     integer, private :: IUL,IUN(5)
@@ -5209,6 +5211,8 @@ CONTAINS
     character*(*) prompt,line
     character helpquest*16
     integer savedlevel
+!
+!    if(buglevel.eq.1) write(*,*)'metlib: In q2help'
     savedlevel=helprec%level-1
 ! If the ? is followed by a text push that text on the helprec%cpath
     ip=2
@@ -5254,6 +5258,8 @@ CONTAINS
 !    enddo
 !10  format(i3,': ',a)
 !
+!    if(buglevel.eq.1) write(*,*)'metlib: in q1help'
+    nsaved=0
     subsec(1)='%\section{'
     subsec(2)='%\subsecti'
     subsec(3)='%\subsubse'
@@ -5315,6 +5321,7 @@ CONTAINS
 !             goto 127
 !          endif
 !          write(*,*)'found mtxt: ',mtxt
+!         segmentation fault here due to nsaved not zeroed
           do jj=1,4
              if(level.gt.jj) then
 ! remove previous command if any from the search text

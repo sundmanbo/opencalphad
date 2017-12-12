@@ -5105,7 +5105,7 @@ CONTAINS
              if(allocated(linzero)) linzero=0
           endif
 ! no wildcards allowed on this axis
-!          write(*,*)'In ocplot2, segmentation fault 4Ay'
+!          write(*,*)'In ocplot2, segmentation fault 4Ay1',nr,nv
           statevar=pltax(notanp)
           call meq_get_state_varorfun_value(statevar,value,encoded1,curceq)
 !          write(*,*)'SMP axis variable 1: ',trim(encoded1),value
@@ -5121,6 +5121,7 @@ CONTAINS
           xax(nv)=value
 !          write(*,201)'at 202: ',nr,nv,curceq%tpval(1),value
 !          xax(nv)=curceq%tpval(1)
+! macro step1 run in parallel plotting cp has segm fault after this line
 !          write(*,*)'After label 200: ',mapline%lineid,nr,nv
           if(xax(nv).lt.xmin) xmin=xax(nv)
           if(xax(nv).gt.xmax) xmax=xax(nv)
@@ -5142,7 +5143,7 @@ CONTAINS
 ! segmentation fault is inside this call for map11.OCM
 ! probably because new composition set created
                 call get_many_svar(statevar,yyy,nzp,np,encoded2,curceq)
-!                write(*,*)'In ocplot2, segmentation fault before 4C2: '
+!                write(*,*)'In ocplot2, segmentation fault search: '
 ! compiling without -finit-local-zero gives a segmentation fault here
 ! running the MAP11 macro
                 qp=np
@@ -5205,6 +5206,8 @@ CONTAINS
 ! UNFINISHED PROBLEM WITH NEGATIVE CP HERE 
 ! try skipping this value (below) if last equilibrium on the line 
 !             varofun=.TRUE.
+!             write(*,*)'SMP: calling meq_get_state_varofun ',trim(statevar)
+! there is a segmentation fault in this call
              call meq_get_state_varorfun_value(statevar,value,encoded1,curceq)
 !             write(*,*)'SMP axis variable 2: ',statevar(1:3),value
              if(gx%bmperr.ne.0) then
@@ -5225,6 +5228,7 @@ CONTAINS
              endif
 !             if(gx%bmperr.ne.0) goto 1000
              anp(1,nv)=value
+! macro test step1 run in parallel has segme fault plotting cp before this line
 !             write(*,201)'at 19: ',nr,nv,curceq%tpval(1),value
 !             write(*,19)'Bug: ',nr,nv,seqx,xax(nv),anp(1,nv)
 19           format(a,3i4,2(1pe12.4))

@@ -71,7 +71,8 @@
 ! allow empty reference state
       if(.not.ucletter(refstate(1:1))) then
 ! error here when 1/2_MOLE_O2(G) etc ....
-         refstate='GAS_'//refstate
+         model=refstate
+         refstate='GAS_'//trim(model)
 !         gx%bmperr=4036
 !         goto 1000
       endif
@@ -1338,7 +1339,7 @@
 !
 !\begin{verbatim} %-
  subroutine remove_composition_set(iph,force)
-! the last composition set is deleted, update csfree and highcs
+! the last composition set of phase iph is deleted, update csfree and highcs
 ! SPURIOUS ERRORS OCCUR IN THIS SUBROUTINE
 !
 ! >>>>>>>>>>>>>>>>>>>>>>>>>>>> NOTE <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< !
@@ -1357,7 +1358,7 @@
    TYPE(gtp_phase_varres), pointer :: varres,disvarres
    integer ics,lokph,lokcs,ncs,nsl,nkk,lastcs,nprop,idisvarres,kcs,leq
 !
-!   write(*,*)'In remove_compsets',iph
+!   write(*,*)'3B In remove_compsets',iph,csfree,highcs
    if(iph.le.0 .or. iph.gt.noofph) then
       gx%bmperr=4050; goto 1000
    endif
@@ -1403,7 +1404,7 @@
          endif
       endif
    enddo loop
-!   write(*,*)'3B Delete composition set',iph,ics,lokph,tuple
+!   write(*,*)'3B remove composition set: ',iph,ics,lokph,tuple
    if(tuple.le.0) then
 !      write(*,*)'No such tuple!!'
       gx%bmperr=4252; goto 1000
@@ -1420,7 +1421,8 @@
 ! delete compset ics, shift higher down (not necessary)
 ! deallocate data in lokcs and return records to free list
 !-------------------------------------
-! note that the index to phase_varres is the same in all equilibria!!!!
+! We must remove the composition set in all equilibria
+! the index to phase_varres is the same in all equilibria!!!!
    alleq: do leq=1,noeq()
       varres=>eqlista(leq)%phase_varres(lastcs)
 ! there can be unallocated phase_varres records below lastcs
@@ -1488,6 +1490,7 @@
 ! UNFINISHED this is not correct ....
       idisvarres=newhighcs(.false.)
       if(idisvarres.eq.highcs) highcs=idisvarres-1
+      write(*,*)'3B removed varres: ',idisvarres,csfree,highcs
    endif
 ! link the free phase_varres into the free list
 !vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
@@ -5088,7 +5091,7 @@
 ! allocate
    TYPE(gtp_phase_varres), pointer :: cpv,cp1
    character name2*64
-   integer ieq,ipv,nc,jz,iz,jl,jk,novarres
+   integer ieq,ipv,nc,jz,iz,jl,jk,novarres,lokdis,needcs
    if(.not.allowenter(3)) then
       write(*,*)'3B: not allowed enter equilibrium: ',name
       gx%bmperr=4153; goto 1000
@@ -5097,7 +5100,7 @@
    name2=name
    call capson(name2)
 !   write(*,3)'3B In enter equilibria: ',name,noofph,eqfree,csfree,highcs
-3  format(a,6i5)
+3  format(a,1x,a,6i5)
    if(.not.proper_symbol_name(name2,0)) then
 ! the name must start with a letter A-Z and contain letters, numbers and _
       gx%bmperr=4122
@@ -5127,6 +5130,7 @@
 ! component list and matrix, if second or higher equilibrium copy content
    if(ocv()) write(*,*)'3B: entereq 1: ',maxel,ieq,noofel
    if(ieq.eq.1) then
+! allocate large arrays as we do not know what system will be calculated
       allocate(eqlista(ieq)%complist(maxel))
       allocate(eqlista(ieq)%compstoi(maxel,maxel))
       allocate(eqlista(ieq)%invcompstoi(maxel,maxel))
@@ -5143,8 +5147,11 @@
       enddo
 ! Maybe valgrind complained of this ... it can have to do with -finit-local-zero
       eqlista(ieq)%status=0
+      eqlista(ieq)%status=ibset(eqlista(ieq)%status,EQNOEQCAL)
    else
       eqlista(ieq)%status=0
+! we should set some status bits ...
+      eqlista(ieq)%status=ibset(eqlista(ieq)%status,EQNOEQCAL)
       allocate(eqlista(ieq)%complist(noofel))
 ! copy mass of components, maybe other components?
       do jl=1,noofel
@@ -5210,10 +5217,17 @@
       novarres=csfree-1
       iz=noofph
 !^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-! for ieq>1 allocate the current number of phase_varres records plus 10
+! for ieq>1 allocate an estimated number of phase_varres records
 ! for extra composition sets added later
 !      allocate(eqlista(ieq)%phase_varres(iz+10))
-      allocate(eqlista(ieq)%phase_varres(2*maxph))
+      needcs=2*noofph+2*noofel+10
+      if(csfree.gt.needcs .or. highcs.gt.needcs) then
+         write(*,*)'3B Error allocating phase_varres: ',needcs,csfree,highcs
+         needcs=max(csfree,highcs)+10
+      endif
+! the +10 should cater for compostion sets created due to miscibility gaps
+! and also disordered fractions sets
+      allocate(eqlista(ieq)%phase_varres(needcs))
 !      write(*,*)'3B enter_eq 2B, after this segmentation fault'
 !      write(*,*)'3B varres: ',ieq,size(eqlista(ieq)%phase_varres),iz
       if(ocv()) write(*,*)'3B varres: ',ieq,size(eqlista(ieq)%phase_varres)
@@ -5221,6 +5235,8 @@
 ! note, the SELECT_ELEMENT_REFERENCE phase has phase number 0
 ! and phase_varres index 1, the number of phase_varres records is not the
 ! same as number of phases ....
+      novarres=needcs
+! copy also unused varres records, we do not really how many is used ...
       copypv: do ipv=1,novarres
 ! note eqlista(1) is identical to firsteq
          if(.not.allocated(firsteq%phase_varres(ipv)%yfr)) then
@@ -5242,6 +5258,11 @@
          nc=size(cp1%yfr)
 ! note SIZE gives rubbish unless array is allocated
          if(ocv()) write(*,*)'3B copy yfr 1: ',nc
+! yfr may be allocated if this composition set is a disordered fraction set
+         if(allocated(cpv%yfr)) then
+            write(*,*)'3B fractions already allocated: ',ieq,ipv
+            cycle copypv
+         endif
          allocate(cpv%yfr(nc))
          cpv%yfr=cp1%yfr
 ! problems with phase_varres in equilibrium 2 ...
@@ -5291,20 +5312,21 @@
 ! copy the disordered fraction record, that should take care of all
 ! array allocations inside the disfra record ???
          cpv%disfra=cp1%disfra
+!-------------------------------------------------------------------
+! attempt to correct segmentation fault 2017.12.09/BoS
+! This is correct but the varres records for the disordered fraction sets
+! will be copied in this loop anyway
 !         disordered: if(cpv%disfra%varreslink.gt.0) then
 ! if there is a disordered phase_varres record that must be taken care of
 !            lokdis=cpv%disfra%varreslink
 !            eqlista(ieq)%phase_varres(lokdis)%abnorm=&
 !                 eqlista(1)%phase_varres(lokdis)%abnorm
-! !!!! WOW it really seems to copy a whole tructure just by = !!!
+! !!!! WOW it really seems to copy a whole phase_varres record just by = !!!
 !            eqlista(ieq)%phase_varres(lokdis)=eqlista(1)%phase_varres(lokdis)
-! BUT THEN I HAVE TO CHANGE EVERYTHING ABOVE ... NEXT RELEASE ...
-!            write(*,*)'3B copied dis: ',lokdis
-!            write(*,77)eqlista(ieq)%phase_varres(lokdis)%yfr(2),&
-!                 eqlista(1)%phase_varres(lokdis)%yfr(2)
-!77          format('enter eq: ',2(1pe15.6))
-!            continue
+! BUT THEN I SHOULD CHANGE EVERYTHING ABOVE ... NEXT RELEASE ...
+!            write(*,*)'3B copied disordered from: ',lokdis,ipv
 !         endif disordered
+!-------------------------------------------------------------------
       enddo copypv
 !      write(*,*)'3B enter_eq 2E, after this segmentation fault'
    endif alleq
@@ -5887,6 +5909,8 @@
 !   write(*,*)'In delete_equilibria ',cureq,trim(name)
    ik=index(name,'*')-1
    if(ik.lt.0) ik=min(24,len(name))
+   novarres=highcs
+!   write(*,*)'3B delete equilibria: ',eqfree-1,highcs,csfree
    do ieq=eqfree-1,2,-1
 ! we cannot have "holes" in the free list??  Delete from the end...
       if(ieq.eq.cureq) exit 
@@ -5898,9 +5922,8 @@
       deallocate(eqlista(ieq)%invcompstoi)
       deallocate(eqlista(ieq)%cmuval)
 !
-      novarres=highcs
 ! the next line should be removed when highcs implemented
-      novarres=csfree-1
+!      novarres=csfree-1
 !      write(*,*)'3B deallocationg phase_varres'
       do ipv=1,novarres
 ! can happen it is not allocated when previous errors
@@ -5978,7 +6001,7 @@
 !   write(*,*)'In copy_equilibrium2',trim(name),eqfree
    nullify(neweq)
    if(.not.allowenter(3)) then
-!      write(*,*)'3B Not allowed enter a copy'
+!      write(*,*)'3B Not allowed to copy or enter equilibria'
       gx%bmperr=4153; goto 1000
    endif
 !   write(*,*)'3B allow enter OK'
@@ -6095,15 +6118,18 @@
 ! for extra composition sets added later
 ! 170524: It seems that phase_varres for disordered fraction sets are not
 !          included in novarres in novarres or highcs!!
-   novarres=highcs
-! the next line should be deleted when highcs implemented
-   novarres=csfree-1
-!   write(*,*)'3B: copyeq 3: ',highcs,novarres
 ! BEWARE: allocation: calculating with one phase with 8 composition sets
 ! and disordered fractions sets !!!
-   iz=max(noofph,novarres)
-   allocate(eqlista(ieq)%phase_varres(2*iz))
-!   write(*,*)'3B eqlista%phase_varres: ',size(eqlista(ieq)%phase_varres)
+   if(oldeq.eq.1) then
+! the first equilibria has many phase_varres record as we do not what system
+! we will have.  If we copy that we create as many varres as in the enter_equil
+      iz=2*noofph+2*noofel+10
+   else
+! When we copy other equilibria we copy the same number as in the origin
+      iz=size(ceq%phase_varres)
+   endif
+   allocate(eqlista(ieq)%phase_varres(iz))
+!   write(*,*)'3B copy_equil allocates: ',oldeq,ieq,iz,highcs,csfree
 ! now copy the current content of ceq%phase_varres to this equilibrium
 ! note, the SELECT_ELEMENT_REFERENCE phase has phase number 0
 ! and phase_varres index 1, the number of phase_varres records is not the
@@ -6119,7 +6145,9 @@
 ! requires 17 phase_varres.  Before the "max" above I had dimensioned for 2
 ! BEWARE: I am not sure novarres is correct ...
 !   copypv: do ipv=1,min(novarres+3,size(ceq%phase_varres))
-   copypv: do ipv=1,novarres
+!   copypv: do ipv=1,novarres
+! THIS CREATED ALL TROUBLE ... I did not copy all varres records used!!
+   copypv: do ipv=1,iz
       eqlista(ieq)%phase_varres(ipv)=eqlista(oldeq)%phase_varres(ipv)
 ! in matsmin nprop seemed suddenly to be zero in copied equilibria ....
 !      write(*,*)'3B copyeq 2: ',ieq,ipv,eqlista(ieq)%phase_varres(ipv)%nprop

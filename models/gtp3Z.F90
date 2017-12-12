@@ -2673,8 +2673,8 @@
       enddo
    enddo
    buffer=' '
-   write(*,12)npows,(usedpow(i1),i1=1,npows)
-   write(buffer,11)npows,(usedpow(i1),i1=1,npows)
+!   write(*,12)npows,(usedpow(i1),i1=1,npows)
+!   write(buffer,11)npows,(usedpow(i1),i1=1,npows)
 11 format(12i5)
 12 format('3Z power2: ',i3,12i4)
    text=buffer
@@ -2697,15 +2697,19 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim} %-
- subroutine list_tpascoef(lut,text,i1,npows,ctpf)
+ subroutine list_tpascoef(lut,text,i1,npows,factor,ctpf)
 ! writes a parameter in DAT format
    implicit none
    integer lut,i1,npows
    character text*(*)
+! this is a factor that may be multiplied with all coefficients for
+! phases like sigma which has only a disordered part. Also ionic liquid
+   double precision factor
    type(gtp_tpfun2dat) :: ctpf(*)
 !\end{verbatim}
    integer i2,i3,ip,kk,mm
    ip=len_trim(text)
+! this is the endmember ??
    if(ip.gt.74) then
       write(lut,698)4,ctpf(i1)%nranges,text(1:74)
       write(lut,699)trim(text(75:))
@@ -2723,7 +2727,7 @@
            ctpf(i1)%cfun%coefs(10,i2).eq.zero .and. &
            ctpf(i1)%cfun%coefs(11,i2).eq.zero) then
          write(lut,700)ctpf(i1)%cfun%tbreaks(i2),&
-              (ctpf(i1)%cfun%coefs(i3,i2),i3=1,6)
+              (factor*ctpf(i1)%cfun%coefs(i3,i2),i3=1,6)
       else
 ! There are some special powers, write only non-zero coefficients
 !         write(lut,705)ctpf(i1)%cfun%tbreaks(i2),&
@@ -2731,7 +2735,7 @@
 !              (ctpf(i1)%cfun%coefs(i3,i2),&
 !              ctpf(i1)%cfun%tpows(i3,i2),i3=7,npows)
          write(lut,710)ctpf(i1)%cfun%tbreaks(i2),&
-              (ctpf(i1)%cfun%coefs(i3,i2),i3=1,6)
+              (factor*ctpf(i1)%cfun%coefs(i3,i2),i3=1,6)
          mm=0
 ! The 6 first powers are the default 0 1 100 2 3 -1
 ! Possible extra powers are 7 -9 -2 -3 unkown         
@@ -2745,13 +2749,13 @@
          do kk=7,npows
             if(ctpf(i1)%cfun%coefs(kk,i2).ne.zero) then
                if(mm.eq.1) then
-                  write(lut,731)ctpf(i1)%cfun%coefs(kk,i2),&
+                  write(lut,731)factor*ctpf(i1)%cfun%coefs(kk,i2),&
                        ctpf(i1)%cfun%tpows(kk,i2)
                   mm=mm-1
                elseif(mm.lt.0) then
                   write(*,*)'3Z wrong number of coefficeints!!!'
                else
-                  write(lut,731,advance='no')ctpf(i1)%cfun%coefs(kk,i2),&
+                  write(lut,731,advance='no')factor*ctpf(i1)%cfun%coefs(kk,i2),&
                        ctpf(i1)%cfun%tpows(kk,i2)
                   mm=mm-1
                endif
@@ -2778,9 +2782,6 @@
 ! convert TPfun lfun to an array of coefficients with powers of T
 ! if this TP function already converted just return
 ! if this TP function calls another TP function not converted return error
-!
-! *** REWRITE THIS USING A LINKED LIST FOR EACH T range
-! *** That makse is less confusing when breaking a T-range in several parts
 !
    implicit none
    integer lfun
@@ -2829,224 +2830,15 @@
    enddo
 ! convert the TPfun "lfun" to coefficents and powers
    call tpf2cx(ctpf,lfun,nrange,ctpf(lfun)%cfun)
-   write(*,*)'3Z tp2c: ',tpfuns(lfun)%symbol,nrange
-   do i1=1,nrange
-      write(*,200)(ctpf(lfun)%cfun%coefs(i2,i1),i2=1,6)
-   enddo
+!   write(*,*)'3Z tp2c: ',tpfuns(lfun)%symbol,nrange
+!   call tpwrite('z2',lfun,nrange,ctpf(lfun)%cfun)
+!   do i1=1,nrange
+!      write(*,200)(ctpf(lfun)%cfun%coefs(i2,i1),i2=1,6)
+!   enddo
 200 format(10F12.3)
 1000 continue
    return
  end subroutine tpf2c
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-! each term has a coefficent and an array of integers
-! tpow is power of T
-! ppow is power of P
-! wpow is power of linked symbol, the link is in link
-! plevel is level of parenthesis ??
-! link is link to another function if >0 or a unary function if <0
-!      accept only -2 which is taken as LN(T)
-!\begin{verbatim} %-
- subroutine tpf2cx_old(ctpf,lfun,nrange,cfun1)
-   !
-   ! THIS is the original routine that failed in some cases ...
-   !
-! convert TPfun lfun to an array of coefficients with powers of T
-! if this TP function already converted just return
-! if this TP function calls another TP function not converted return error
-   implicit none
-   integer lfun,nrange
-   type(gtp_tpfun_as_coeff) :: cfun1
-   type(gtp_tpfun2dat) :: ctpf(*)
-!   type(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim} %+
-   integer, parameter :: maxnc=12,maxnr=20
-   integer i1a,i1b,i2,i3,i4,nc1,funref,iadd,nrangeb,ncc,caddnr(maxnr),nrr,jadd
-   integer caddid(maxnr)
-   type(tpfun_root), pointer :: tpfroot
-   type(tpfun_expression), pointer :: tpfexpr
-   type(gtp_tpfun_as_coeff), dimension(:), allocatable :: cadd
-   double precision ccc
-   logical skipnext
-!----------
-!  TYPE gtp_tpfun_as_coeff
-! record for a TPFUN converted to coefficents without any references to other
-! functions.  Note ranges may change when adding functions!!
-!     double precision, dimension(:), allocatable :: tbreaks
-!     double precision, dimension(:,:), allocatable :: coefs
-!     integer, dimension(:,:), allocatable :: tpows
-!  end type gtp_tpfun_as_coeff
-!----------
-! Now convert !!
-! allocate a record for all ranges and coefficients
-   iadd=0
-   tpfroot=>tpfuns(lfun)
-   if(nrange.gt.maxnr) then
-      write(*,*)'3Z too many T ranges!',nrange
-      stop 13
-   endif
-!   write(*,*)'3Z converting ',lfun
-! allocate and zero cfun1 data
-   allocate(cfun1%tbreaks(maxnr))
-   allocate(cfun1%coefs(maxnc,maxnr))
-   allocate(cfun1%tpows(maxnc,maxnr))
-   cfun1%tbreaks=zero
-   cfun1%coefs=zero
-   cfun1%tpows=-100
-! T ranges, low T limit ignored.  NOTE the number of ranges may change!
-   do i1a=2,nrange
-      cfun1%tbreaks(i1a-1)=tpfroot%limits(i1a)
-   enddo
-   cfun1%tbreaks(nrange)=tpfroot%hightlimit
-   nrangeb=nrange
-! functions
-! NOTE nrange may change below if referenced functions have a smaller range
-! not so good to have a loop ...
-! i1a is range index for original TPfun
-! i1b is range index for TPfun converted to coefficients as referenced
-!                        functions may have shorter range
-!   do i1b=1,nrange
-!      tpfexpr=>tpfroot%funlinks(i1b)
-!      nc1=tpfexpr%noofcoeffs
-!      do i1a=1,nc1
-!         write(*,30)i1a,tpfexpr%coeffs(i1a),tpfexpr%tpow(i1a),&
-!              tpfexpr%ppow(i1a),tpfexpr%wpow(i1a),tpfexpr%plevel(i1a),&
-!              tpfexpr%link(i1a)
-!      enddo
-!   enddo
-!30 format('3Z term: ',i3,1pe12.4,5i7)
-   i1a=0
-   i1b=0
-   jadd=0
-100 continue
-   i1a=i1a+1
-   i1b=i1b+1
-   if(i1a.gt.nrange) goto 700
-      jadd=jadd+i1a
-      tpfexpr=>tpfroot%funlinks(i1a)
-      nc1=tpfexpr%noofcoeffs
-!      write(*,*)'TPfun ranges: ',i1a,i1b,nrangeb,jadd
-      skipnext=.false.
-! maybe needed? YES!
-      iadd=0
-      trange: do i2=1,nc1
-         cfun1%coefs(i2,i1b)=tpfexpr%coeffs(i2)
-         cfun1%tpows(i2,i1b)=tpfexpr%tpow(i2)
-! assume link to unary LN function just means LN(T)
-         funref=tpfexpr%link(i2)
-         if(skipnext) then
-! skip this term as it should just contains the ln(T)
-            if(tpfexpr%plevel(i2).ne.1 .or. tpfexpr%link(i2).ne.0 &
-                 .or. tpfexpr%tpow(i2).ne.1) then
-               write(*,*)'3Z WARNING probable TPFUN error in: ',&
-                    trim(tpfroot%symbol),lfun
-               gx%bmperr=4393; goto 1000
-            endif
-            cfun1%coefs(i2,i1b)=zero
-            cfun1%tpows(i2,i1b)=-100
-            skipnext=.false.
-!            cycle trange
-         endif
-         if(funref.lt.0) then
-! this is assumed to be a link to LN(T)
-            if(funref.ne.-2) then
-               write(*,*)'3Z TPFUN with other unary function than LN(T): ',&
-                    trim(tpfroot%symbol),lfun
-               gx%bmperr=4393; goto 1000
-            elseif(tpfexpr%tpow(i2).eq.1) then
-! Tln(T) will have tpows = 100, we skip the next term with the T
-               cfun1%tpows(i2,i1b)=tpfexpr%tpow(i2)+99
-               skipnext=.true.
-            endif
-         elseif(funref.gt.0) then
-            if(ctpf(funref)%nranges.gt.0) then
-! this range has a reference to a converted TPfunction,
-! store this separately, possibly multiplied with coefficent and T powers
-! and link all such functions to be added using cfun1%nextcrec
-! examples:  +22*GHSERCR, ff*exp(qq*irt) ... the latter will not work ...
-               ccc=tpfexpr%coeffs(i2)
-!               write(*,*)'3Z term, link, factor: ',i2,funref,ccc
-! only allow a constant coefficent, no T or P powers, no unary function ...
-               if(tpfexpr%tpow(i2).ne.0 .or. tpfexpr%ppow(i2).ne.0 .or. &
-                    tpfexpr%wpow(i2).ne.0 .or. tpfexpr%plevel(i2).ne.0) then
-                  write(*,*)'3Z Too complicated function: ',trim(tpfroot%symbol)
-                  gx%bmperr=4399; goto 1000
-               endif
-! this term should be ignored as it replaced by the function
-               cfun1%coefs(i2,i1b)=zero
-               cfun1%tpows(i2,i1b)=-100
-! we must create a new coefficient array with the funref coefficents
-! multiplied with the current coef, there can be several levels ...
-               if(.not.allocated(cadd)) then
-                  allocate(cadd(5))
-                  iadd=0
-                  caddnr=0
-               endif
-               iadd=iadd+1
-               cadd(iadd)=ctpf(funref)%cfun
-               caddnr(iadd)=ctpf(funref)%nranges
-               caddid(iadd)=funref
-!               write(*,800)'3Z aa: ',funref,iadd,(cadd(iadd)%coefs(i3,1),&
-!                    cadd(iadd)%tpows(i3,1),i3=1,3)
-! multiply all terms in funref with the coefficient of this term
-               do i3=1,maxnc
-                  do i4=1,ctpf(funref)%nranges
-                     cadd(iadd)%coefs(i3,i4)=ccc*cadd(iadd)%coefs(i3,i4)
-                  enddo
-               enddo
-!               write(*,800)'3Z bb: ',funref,iadd,(cadd(iadd)%coefs(i3,1),&
-!                    cadd(iadd)%tpows(i3,1),i3=1,3)
-            endif
-         endif
-! we have gone through all terms for the TPfun for this range
-      enddo trange
-! Check if there were function links in this range
-      if(iadd.gt.0) then
-! If iadd>1 we must first add together all the different functions referenced
-! and possibly split the T range if these function have a different ranges
-         ncc=3
-         do i3=iadd,2,-1
-            nrr=caddnr(i3-1)
-!            write(*,*)'3Z there are coefficients to add!!',i3-1,iadd,nrr
-! add terms and adjust all ranges in cadd(i3-1)
-            call adjustranges(nrr,cadd(i3-1),caddnr(i3),cadd(i3))
-            if(gx%bmperr.ne.0) then
-               write(*,*)'Error occured adding: ',caddid(i3-1),caddid(i3)
-               goto 1000
-            endif
-! note nrr may be updatad
-            caddnr(i3-1)=nrr
-! we may have more functions to add ...
-         enddo
-!         call tpwrite('++',0,caddnr(1),cadd(1))
-! we have now added all links, now add the sum of all cadd to cfun1 range i1a
-! adjust1ranges creates breakpoints only in the current range, i1a, of cfun1
-! and adds the coefficients from cadd(1) to this
-!         write(*,*)'3Z calling adjust1: ',i1a,jadd,i1b,nrangeb
-!         call tpwrite('>1',lfun,nrangeb,ctpf(lfun)%cfun)
-!         call tpwrite('>2',0,caddnr(1),cadd(1))
-         call adjust1range(jadd,nrangeb,cfun1,caddnr(1),cadd(1))
-! if additional ranges needed nrangeb changed 
-! increment i1b but not i1a and nrange
-! why -1 ??
-         jadd=nrangeb-i1a-1
-         i1b=i1b+nrangeb-2
-!         write(*,*)'3Z after adjust1: ',i1a,jadd,i1b,nrangeb
-!         call tpwrite('<<',lfun,nrangeb,ctpf(lfun)%cfun)
-         deallocate(cadd)
-      endif
-      goto 100
-! we have gone through all ranges
-700 continue
-!   write(*,*)'3Z 700: ',i1a,nrange,nrangeb
-   ctpf(lfun)%nranges=nrangeb
-!   write(*,*)'3Z converted function with ranges: ',lfun,nrangeb
-! Listing the final function
-!      call tpwrite('cc',lfun,nrange,ctpf(lfun)%cfun)
-1000 continue
-   return
- end subroutine tpf2cx_old
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -3068,6 +2860,7 @@
    type(gtp_tpfun2dat) :: ctpf(*)
 !   type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim} %+
+! max no of coefficent, max no of ranges ...
    integer, parameter :: maxnc=12,maxnr=20
    integer i1a,i1b,i2,i3,i4,nc1,funref,iadd,nrangeb,ncc,caddnr(maxnr),nrr,jadd
    integer caddid(maxnr)
@@ -3142,6 +2935,9 @@
          cfun1%tpows(i2,i1b)=tpfexpr%tpow(i2)
 ! assume link to unary LN function just means LN(T)
          funref=tpfexpr%link(i2)
+!         write(*,113)'3Z cc: ',i1a,i1b,i2,funref,&
+!              cfun1%coefs(i2,i1b),cfun1%tpows(i2,i1b)
+!113      format(a,4i4,E20.8,i5)
          if(skipnext) then
 ! skip this term as it should just contains the ln(T)
             if(tpfexpr%plevel(i2).ne.1 .or. tpfexpr%link(i2).ne.0 &
@@ -3173,6 +2969,9 @@
 ! and link all such functions to be added using cfun1%nextcrec
 ! examples:  +22*GHSERCR, ff*exp(qq*irt) ... the latter will not work ...
                ccc=tpfexpr%coeffs(i2)
+!               write(*,32)'3Z link: ',tpfuns(lfun)%symbol,&
+!                    i2,funref,ccc,trim(tpfuns(funref)%symbol)
+!32             format(a,a,2i4,F6.2,2x,a)
 !               write(*,*)'3Z term, link, factor: ',i2,funref,ccc
 ! only allow a constant coefficent, no T or P powers, no unary function ...
                if(tpfexpr%tpow(i2).ne.0 .or. tpfexpr%ppow(i2).ne.0 .or. &
@@ -3202,7 +3001,7 @@
 ! multiply all terms in funref with the coefficient of this term
 ! within the current T-range               
 ! It may be necessary to increase the T-ranges of ctpf
-               write(*,*)'3Z addranges: ',ctpf(funref)%nranges,ccc
+!               write(*,*)'3Z addranges: ',ctpf(funref)%nranges,ccc
                do i3=1,maxnc
                   do i4=1,ctpf(funref)%nranges
                      cadd(iadd)%coefs(i3,i4)=ccc*cadd(iadd)%coefs(i3,i4)
@@ -3219,10 +3018,12 @@
 ! If iadd>1 we must first add together all the different functions referenced
 ! and possibly split the T range if these function have a different ranges
          ncc=3
-         write(*,*)'3Z ajusting ranges?',iadd
+!         write(*,*)'3Z adjusting ranges?',iadd
+! This loop only if there are two or more function references within a range
          do i3=iadd,2,-1
             nrr=caddnr(i3)
-            write(*,*)'3Z there are coefficients to add!!',i3,iadd,nrr
+!            write(*,16)'3Z there are coefficients to add!!',i3,iadd,nrr
+16          format(a,6i4)
 ! add terms and adjust all ranges in cadd(i3-1)
             call adjustranges(nrr,cadd(i3-1),caddnr(i3),cadd(i3))
             if(gx%bmperr.ne.0) then
@@ -3246,7 +3047,7 @@
 ! why -1 ??
          jadd=nrangeb-i1a-1
          i1b=i1b+nrangeb-2
-!         write(*,*)'3Z after adjust1: ',i1a,jadd,i1b,nrangeb
+!         write(*,*)'3Z after adjust1x: ',i1a,jadd,i1b,nrangeb
 !         call tpwrite('<<',lfun,nrangeb,ctpf(lfun)%cfun)
          deallocate(cadd)
       endif
@@ -3257,7 +3058,7 @@
    ctpf(lfun)%nranges=nrangeb
 !   write(*,*)'3Z converted function with ranges: ',lfun,nrangeb
 ! Listing the final function
-!      call tpwrite('cc',lfun,nrange,ctpf(lfun)%cfun)
+!   call tpwrite('z1',lfun,nrange,ctpf(lfun)%cfun)
 1000 continue
    return
  end subroutine tpf2cx
@@ -3349,6 +3150,9 @@
       thigh1=ctp1%tbreaks(nr1)
       j2=nr1-1
    endif
+!   write(*,7)'adjust1range: ',nrange,nr1,nr2,j2,&
+!        ctp1%tbreaks(nr1),ctp2%tbreaks(nr2)
+7  format(a,4i4,2F10.2)
    allocate(ctp3%tbreaks(1))
    allocate(ctp3%coefs(maxnc,1))
    allocate(ctp3%tpows(maxnc,1))
@@ -3360,11 +3164,9 @@
 16 format(/a,2i3,3F10.2)
 100 continue
    split: do while(i2.lt.nr2)
-!      if(ctp2%tbreaks(i2).ge.tlow1) then
 ! fine-tuning needed when breakpoints identical in parameter and GHSERxx
       if(ctp2%tbreaks(i2)-tlow1.gt.tenth) then
-!         write(*,16)'3Z check breakpoint ',nrange,j2,ctp2%tbreaks(i2),thigh1
-!         if(ctp2%tbreaks(i2)-thigh1.lt.tenth) then
+!         write(*,16)'3Z check breakpoint ',nrange,i2,ctp2%tbreaks(i2),thigh1
 ! fine-tuning needed when breakpoints identical in parameter and GHSERxx
          if(abs(ctp2%tbreaks(i2)-thigh1).lt.tenth) then
 ! breakpoints are identical
@@ -3384,36 +3186,48 @@
                   ctp1%tpows(i3,k1+1)=ctp1%tpows(i3,k1)
                enddo
             enddo
-! now add coeffs from ctp1 range k1 and ctp2 in range i2 to cpt3 range 1
+            nrange=nrange+1
+!            call tpwrite('up',0,nrange,ctp1)
+! now add coeffs from ctp1 range k1 and ctp2 in range i2 to ctp3 range 1
 ! then replace range k1 in ctp1 by range 1 of ctp3
             ctp3%tpows=-100
             ctp3%coefs=zero
-!            write(*,*)'3Z add7: ',nr1,i2,nrange
-!            call tpwrite('vv',0,nrange,ctp1)
+! the range in ctp1 that should be added to is j2+1 ??
+!            j2=j2+1
+!            write(*,*)'3Z add7: ',nr1,i2,nrange,j2
+!            call tpwrite('v1',0,nrange,ctp1)
+!            call tpwrite('v2',0,nr2,ctp2)
             call add1tpcoeffs(j2,ctp1,i2,ctp2,1,ctp3)
+!            call tpwrite('v3',0,1,ctp3)
             do j3=1,maxnc
                ctp1%coefs(j3,j2)=ctp3%coefs(j3,1)
                ctp1%tpows(j3,j2)=ctp3%tpows(j3,1)
             enddo
             tlow1=min(ctp2%tbreaks(i2),thigh1)
             ctp1%tbreaks(j2)=tlow1
-!            call tpwrite('zz',0,nrange,ctp1)
+!            call tpwrite('q1',0,nrange,ctp1)
 ! we have added one range to ctp1
             nosplit=.false.
-            nrange=nrange+1
+!            nrange=nrange+1
+!            write(*,*)'adjust1range 6:',nrange,j2,ctp1%tbreaks(j2)
          else
             mrange=nrange-1
             goto 800
          endif
+!      else
+!         write(*,731)'adjust1range 7:',i2,nr2,ctp2%tbreaks(i2),tlow1
+731      format(a,2i3,2F10.2)
       endif
       i2=i2+1
       j2=j2+1
    enddo split
    mrange=nrange
 800 continue
+!   write(*,*)'Why??',nrange,mrange,nr1,nr2,nosplit
+!   call tpwrite('w0',0,nrange,ctp1)
 ! just add the terms (for the last range)
-   ctp3%tpows=-100
-   ctp3%coefs=zero
+!   ctp3%tpows=-100
+!   ctp3%coefs=zero
    if(nosplit) then
 ! we have not split the range, store cp3 in range nr1
       mrange=nr1
@@ -3423,12 +3237,14 @@
 900 format(/a,3i3,2F10.2)
 !   call tpwrite('w1',0,nrange,ctp1)
 !   call tpwrite('w2',0,nr2,ctp2)
-   call add1tpcoeffs(mrange,ctp1,i2,ctp2,1,ctp3)
+!   call add1tpcoeffs(mrange,ctp1,i2,ctp2,1,ctp3)
+   call add1tpcoeffs(nrange,ctp1,i2,ctp2,1,ctp3)
+!   call tpwrite('w3',0,1,ctp3)
    do j3=1,maxnc
-      ctp1%coefs(j3,mrange)=ctp3%coefs(j3,1)
-      ctp1%tpows(j3,mrange)=ctp3%tpows(j3,1)
+      ctp1%coefs(j3,nrange)=ctp3%coefs(j3,1)
+      ctp1%tpows(j3,nrange)=ctp3%tpows(j3,1)
    enddo
-!   call tpwrite('yy',0,nrange,ctp1)
+!   call tpwrite('w4',0,nrange,ctp1)
 1000 continue
 !   if(nr3.gt.nr0) then
 !      write(*,*)'3Z inserted ',nrange-nr0,' ranges'
@@ -3462,6 +3278,8 @@
    integer i1,i2,i3,k1,k2,nr3
    double precision tmax
    type(gtp_tpfun_as_coeff) :: ctp3
+!
+!   write(*,*)'In adjustranges, tmax: ',ctp1%tbreaks(nr1),ctp2%tbreaks(nr2)
    tmax=max(ctp1%tbreaks(nr1),ctp2%tbreaks(nr2))
    i1=1
    i2=1
@@ -3471,7 +3289,7 @@
    allocate(ctp3%tpows(maxnc,maxnr))
    ctp3%tpows=-100
 !----------------------------------------------------------------
-   write(*,79)'3Z adding and adjusting ranges: ',nr1,nr2
+!   write(*,79)'3Z adding and adjusting ranges: ',nr1,nr2
 79 format(a,2i2)
 100 continue
    i3=i3+1
@@ -3529,7 +3347,8 @@
 
 !\begin{verbatim} %-
  subroutine add1tpcoeffs(i1,ctp1,i2,ctp2,i3,ctp3)
-! ctp3 is created with added coefficents from ctp1 and cp2 with same tpower 
+! ctp3 is created with added coefficents from range i1 in ctp1 
+! and range i2 in cp2 with same tpower.  Normally i3=1
    implicit none
    integer i1,i2,i3
    type(gtp_tpfun_as_coeff) :: ctp1,ctp2,ctp3
@@ -3544,13 +3363,16 @@
 !   write(*,17)(ctp3%tpows(j3,i3),j3=1,maxnc)
 17 format('3Z tpows: ',10i5)
    j3=0
+!   call tpwrite('x0',0,i1,ctp1)
    do j1=1,maxnc
-      if(ctp1%tpows(j1,i1).gt.-100) then
+!      if(ctp1%tpows(j1,i1).gt.-100) then
          j3=j3+1
          ctp3%coefs(j3,i3)=ctp1%coefs(j1,i1)
          ctp3%tpows(j3,i3)=ctp1%tpows(j1,i1)
-      endif
+!      endif
    enddo
+!   call tpwrite('x1',0,1,ctp3)
+!   call tpwrite('x2',0,i2,ctp2)
 !   write(*,*)'3Z no terms in ctp1?',j3
    f2: do j2=1,maxnc
       if(ctp2%tpows(j2,i2).gt.-100) then
@@ -3562,19 +3384,18 @@
          enddo
 ! there is a t-power in ctp2 not already present in ctp3
 !         write(*,*)'3Z have we managed to add?',j2,j3
-         j3=j3+1
-         if(j3.gt.maxnc) then
-            write(*,*)'3Z too many coefficients when adding two',&
-                 ' functions '
-            write(*,70)(ctp3%tpows(k1,i3),k1=1,maxnc)
-70          format('3Z ii: ',10i5)
-            gx%bmperr=4390; goto 1000
-         endif
-!         write(*,*)'3Z now we are adding!',j3,ctp2%tpows(j2,i2)
-         ctp3%coefs(j3,i3)=ctp2%coefs(j2,i2)
-         ctp3%tpows(j3,i3)=ctp2%tpows(j2,i2)
+         newpower: do j3=1,maxnc
+            if(ctp3%tpows(j3,i3).le.-100) then
+!               write(*,*)'3Z now we insert!',j3,ctp2%tpows(j2,i2),&
+!                    ctp2%coefs(j2,i2)
+               ctp3%coefs(j3,i3)=ctp2%coefs(j2,i2)
+               ctp3%tpows(j3,i3)=ctp2%tpows(j2,i2)
+               exit newpower 
+            endif
+         enddo newpower
       endif
    enddo f2
+!   call tpwrite('x3',0,1,ctp3)
 ! that is all??
 !   write(*,16)'3Z add1tp7: ',i1,i2,i3,ctp3%coefs(1,i3),ctp2%coefs(1,i2)
 ! the loops above may miss terms with same power ... suck
@@ -3590,6 +3411,7 @@
          enddo
       endif
    enddo
+!   call tpwrite('x4',0,1,ctp3)
 1000 continue
 !   write(*,*)'3Z Exit add1tpcoefs'
    return
@@ -3682,25 +3504,25 @@
       elseif(tpow1(i1).eq.7) then
 ! all powers from here are special ... if coeff(i1)=zero ignore on output
          cord(7)=cord(7)+coeff1(i1)
-         write(*,77)i1,7,tpfuns(lfun)%symbol
+!         write(*,77)i1,7,tpfuns(lfun)%symbol
 77       format('3Z moving coefficient ',i2,' to ',i2,': ',a)
          coeff1(i1)=zero
          if(lastc.lt.7) lastc=7
       elseif(tpow1(i1).eq.-9) then
          cord(8)=cord(8)+coeff1(i1)
-         write(*,77)i1,8,tpfuns(lfun)%symbol
+!         write(*,77)i1,8,tpfuns(lfun)%symbol
          coeff1(i1)=zero
          if(lastc.lt.8) lastc=8
       elseif(tpow1(i1).eq.-2) then
 ! it seems power -2 occors in the TAFID database
          cord(9)=cord(9)+coeff1(i1)
-         write(*,77)i1,9,tpfuns(lfun)%symbol
+!         write(*,77)i1,9,tpfuns(lfun)%symbol
          coeff1(i1)=zero
          if(lastc.lt.9) lastc=9
       elseif(tpow1(i1).eq.-3) then
 ! it seems power -3 occors in the TAFID database for C (carbon)
          cord(10)=cord(10)+coeff1(i1)
-         write(*,77)i1,10,tpfuns(lfun)%symbol
+!         write(*,77)i1,10,tpfuns(lfun)%symbol
          coeff1(i1)=zero
          if(lastc.lt.10) lastc=10
       elseif(tpow1(i1).le.-100) then
@@ -3740,7 +3562,7 @@
    tpow1(8)=-9
    tpow1(9)=-2
    tpow1(10)=-3
-   write(*,80)'3Z sorted: ',tpfuns(lfun)%symbol,nc1,(tpow1(i1),i1=1,lastc)
+!   write(*,80)'3Z sorted: ',tpfuns(lfun)%symbol,nc1,(tpow1(i1),i1=1,lastc)
 80 format(a,1x,a,': ',i3,11i5)
 ! tpow1(11) keep its value.  No provision for more than one extra power!!
 1000 continue

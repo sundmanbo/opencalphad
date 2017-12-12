@@ -331,7 +331,22 @@ l,,,,
 @$ ==============================================================
 @$ 
 @$ Testing entering mobility data, list and calculate
-@$ The values are just made up
+@$ list all possible model parameter identifiers
+
+l ?
+model-para-id
+
+@$ The user can enter parameters using these identifier
+@$ in the same way as the Gibbs energy parameters and OC
+@$ will calculate its value for the current set of condition
+@$ as part of the equilibrium.
+@$ Some of these refer to models that are implemented like the
+@$ magnetic model, some are still tentative and some are
+@$ intended to be used by application software like the mobility
+@&
+
+
+@$ The values below are just made up
 
 enter parameter mq&c(fcc,fe:c) 298.15 -1000+5*T; 6000 N me
 
@@ -382,14 +397,11 @@ Y
 const
 
 
-@&
 
-l,,,,
 
-c n
 
 @& 
-@$ There is a command similar command to calculate the potential derivative
+@$ There is also a command to calculate the potential derivative
 @$ matrix (note it is symmetrical) which is needed to convert
 @$ the mobilities to diffusion coefficients.
 @& 

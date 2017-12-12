@@ -1615,7 +1615,10 @@
          if(ilist(ll).gt.0) then
             if(parlist.eq.2) then
 ! what is disfra here??!!
-               endm(ll)=disfra%splink(ilist(ll))
+!               write(*,*)'3C disfra?: ',disfra%splink(ilist(ll)),&
+!                    disfrap%splink(ilist(ll))
+!               endm(ll)=disfra%splink(ilist(ll))
+               endm(ll)=disfrap%splink(ilist(ll))
             else
                endm(ll)=phlista(lokph)%constitlist(ilist(ll))
             endif
@@ -1752,6 +1755,7 @@
          endif
          prplink=0
          if(associated(endmemrec%propointer)) prplink=1
+! keep this output for the moment
          if(parlist.eq.1) write(kou,207)endmemrec%antalem,&
               endmemrec%noofpermut,intpq,prplink
 207      format('3C Endmember check: permut, interaction, pty: ',4i5)
@@ -1926,6 +1930,7 @@
             endif
             prplink=0
             if(associated(intrec%propointer)) prplink=1
+! keep this output for the moment
             if(parlist.eq.1) write(*,302)intrec%antalint,&
                  nz,nint,iqhigh,iqnext,prplink
 302         format('3C Inter check 1: id, permut, level, high, next, pty: ',&
@@ -3643,10 +3648,12 @@
    implicit none
    integer lut
 !\end{verbatim}
-   character special*32,tdep*1,pdep*1
+!   character special*32,tdep*1,pdep*1
+   character special*26,tdep*1,pdep*1
    integer typty,kk
    write(lut,10)
-10 format('Index Ident  T P Specification',23x,' Status Note')
+10 format('Indx Ident T P Specification',15x,' Status Note')
+!10 format('Index Ident  T P Specification',23x,' Status Note')
 !10 format('Index  Symbol Specification',26x,' Status Note')
    do typty=1,ndefprop
       special=' '
@@ -3676,8 +3683,8 @@
          pdep='-'
       endif
       write(lut,50)typty,propid(typty)%symbol,tdep,pdep,special,&
-           propid(typty)%status,propid(typty)%note
-50    format(i5,2x,a,2x,a,1x,a,2x,a,2x,z8,1x,a)
+           propid(typty)%status,trim(propid(typty)%note)
+50    format(i4,1x,a,2x,a,1x,a,1x,a,1x,z8,1x,a)
    enddo
 1000 continue
    return
@@ -3977,22 +3984,24 @@
    integer, dimension(:), allocatable :: ncon,phmix,phstoi,estoi
    integer nelectrons,lokcs,nsubl,isubl,mphstoi,k1,lcase,mult(10),check
    integer cation,anion,firstcation,ilevel,intconst(9),intconstx(9),ideg
-   integer lokdis,wildp
+   integer lokdis,wildp,havemag,offset,nn
    logical logok,nogas,ionliq,wildcard,iliqwild,excessparam,skipfc
    character ch1*1,line*16,text*512,powers*80,model*24,constext*80,elsym*2
    character date*12,hour*12
    type(gtp_tpfun2dat), dimension(:), allocatable :: tpfc
    type(gtp_endmember), pointer :: endmember,nextcation,samecation
    double precision, allocatable, dimension(:) :: constcomp,constcompiliq
-   double precision valency(9),ccc,cationval
+   double precision valency(9),ccc,cationval,factor,disfactor
+   TYPE(gtp_phase_add), pointer :: addrec
 ! we must probably create a stack for excess parameters
    type intstack
       type(gtp_interaction), pointer :: intlink
    end type intstack
    type(intstack), dimension(5) :: saveint
    type(gtp_interaction), pointer :: intparam
-   type(gtp_phase_varres), pointer :: varres
+   type(gtp_phase_varres), pointer :: varres,disvarres
    type(gtp_property), pointer :: property
+!
    inquire(file=filename,exist=logok)
    if(logok) then
       line=' '
@@ -4057,8 +4066,10 @@
       lokph=phasetuple(i1)%lokph
       skipfc=.false.
       if(phlista(lokph)%nooffs.gt.1) then
-         write(*,105)trim(phlista(lokph)%name)
-105      format('Phase ',a,' has several fraction sets, only disorderd saved')
+         lokcs=phlista(lokph)%linktocs(1)
+!         write(*,105)trim(phlista(lokph)%name),&
+!              ceq%phase_varres(lokcs)%disfra%ndd
+105      format('Phase ',a,' only disordered saved ',i3)
          skipfc=.true.
       endif
       ncon(i1)=phlista(lokph)%tnooffr-phlista(lokph)%noofsubl
@@ -4082,16 +4093,36 @@
          if(skipfc) then
             lokcs=phlista(lokph)%linktocs(1)
             varres=>ceq%phase_varres(lokcs)
+! this is to check how the ordered phase constituents
+!            ip=0
+!            do i2=1,phlista(lokph)%noofsubl
+!               write(*,*)'3CA: ',lokph,(phlista(lokph)%constitlist(ip+nn),&
+!                    nn=1,phlista(lokph)%nooffr(i2))
+!               ip=ip+phlista(lokph)%nooffr(i2)
+!               i3=i3*phlista(lokph)%nooffr(i2)
+!            enddo
+!            write(*,*)'3C number of endmembers 1: ',lokph,i3
+            disvarres=>ceq%phase_varres(varres%disfra%varreslink)
+!            write(*,*)'3ZZ: ',disvarres%sites(1),disvarres%sites(2)
 ! there must be a disfra record, 
 ! the number of sublattices and constituents in each sublattice found there
-            do i2=1,varres%disfra%latd
+            ip=0
+            i3=1
+            do i2=1,varres%disfra%ndd
+!               write(*,*)'3ZB: ',varres%disfra%nooffr(2),&
+!                    (varres%disfra%splink(nn+ip),&
+!                    nn=1,varres%disfra%nooffr(i2))
+!               ip=ip+varres%disfra%nooffr(i2)
                i3=i3*varres%disfra%nooffr(i2)
             enddo
-!            stop 'disorderd fraction set'
+!            write(*,*)'3C number of endmembers 2: ',lokph,i3
+            disfactor=varres%disfra%fsites
+!            write(*,*)'3ZC factor: ',disfactor,varres%disfra%latd
          else
             do i2=1,phlista(lokph)%noofsubl
                i3=i3*phlista(lokph)%nooffr(i2)
             enddo
+            disfactor=one
          endif
          ncon(i1)=i3
       endif
@@ -4219,6 +4250,8 @@
 !      if(i1.gt.1) exit phases
       lokph=phasetuple(i1)%lokph
       skipfc=.false.
+! havemag nonzero if there are magnetic parameters
+      havemag=0
       if(phlista(lokph)%nooffs.gt.1) then
 ! skip first composition set
          skipfc=.true.
@@ -4227,13 +4260,15 @@
 !         write(*,*)'3C skipping stoichiometric ',trim(phlista(lokph)%name)
          mphstoi=mphstoi+1
          cycle phases1
-      else
-         write(*,*)'3C parameters for mixture ',trim(phlista(lokph)%name)
+!      else
+!         write(*,*)'3C parameters for mixture ',trim(phlista(lokph)%name)
       endif
       lokcs=phlista(lokph)%linktocs(1)
       varres=>ceq%phase_varres(lokcs)
 ! if disordered fraction set, set varres to point to disordered phase_varres
       if(skipfc) then
+         varres=>ceq%phase_varres(lokcs)
+!         write(*,*)'3C disordered part: ',varres%disfra%ndd
          varres=>ceq%phase_varres(varres%disfra%varreslink)
       endif
       nsubl=1
@@ -4253,37 +4288,55 @@
 ! there are phases with other bits which will not work but they are rarely set
 ! now for sublattices ...
          nsubl=phlista(lokph)%noofsubl
-         if(nsubl.gt.1) then
-            model='SUBL'
-         else
-            model='RKMP'
-         endif
+         offset=nsubl
          if(btest(phlista(lokph)%status1,PHFORD)) then
 ! NOTE varres is the disordered fraction set
             nsubl=size(varres%sites)
-!            nsubl=varres%disfra%latd
-            write(*,141)trim(phlista(lokph)%name),nsubl
+!            write(*,141)trim(phlista(lokph)%name),nsubl
 141         format('Phase ',a,' has FCC permutated parameters, ignore ordered',&
                  i3)
 !         cycle phases1
          elseif(btest(phlista(lokph)%status1,PHBORD)) then
             nsubl=size(varres%sites)
-            write(*,142)trim(phlista(lokph)%name),nsubl
+!            write(*,142)trim(phlista(lokph)%name),nsubl
 142         format('Phase ',a,' has BCC permutated parameters, ignore ordered',&
                  i3)
 !         cycle phases1
          elseif(btest(phlista(lokph)%status1,PHMFS)) then
             nsubl=size(varres%sites)
-            write(*,143)trim(phlista(lokph)%name),nsubl
+!            write(*,143)trim(phlista(lokph)%name),nsubl
 143         format('Phase ',a,' has disorded fraction sets, ignore ordered',i3)
 !         cycle phases1
          endif
+         if(nsubl.gt.1) then
+            model='SUBL'
+         else
+            model='RKMP'
+         endif
+! magnetism?
+         addrec=>phlista(lokph)%additions
+         lastadd: do while(associated(addrec))
+! no need to increment CHTD except for magnetism
+!            write(*,*)'3C additions?: ',phlista(lokph)%name,addrec%type
+            if(addrec%type.eq.1) then
+               havemag=3
+               model(5:5)='M'
+!               write(*,*)'3C magnetic phase: ',phlista(lokph)%name
+            elseif(addrec%type.ne.7) then
+! ignore addrec%type=7 which is volume model               
+               write(*,*)'3C WARNING addition type: ',addrec%type,' ignored'
+            endif
+            addrec=>addrec%nextadd
+         enddo lastadd
       endif
-! UNFINISHED: Magnetism? A suffix M ...
-      write(lut,201)phlista(lokph)%name,trim(model)
+      write(*,180)trim(phlista(lokph)%name),trim(model),nsubl,factor
+180   format('3C mixture: ',a,' with model ',a,i5,F12.4)
+      write(lut,201)phlista(lokph)%name,nsubl,trim(model)
 ! According to Ted
-201   format(a,5x,'= MIXTURE PHASE ='/a)
+201   format(a,5x,'= MIXTURE PHASE =',i3/a)
 !-------------------- we must repeat this endmember loop for interactions
+!                     and also for magnetic parameters
+205   continue
       check=0
       endmember=>phlista(lokph)%ordered
       if(associated(phlista(lokph)%disordered)) then
@@ -4293,7 +4346,8 @@
 !         else
 !            write(*,*)'3C Skipfc set correctly',nsubl
 !         endif
-         write(*,*)'BEWARE skipping ordered part of :',trim(phlista(lokph)%name)
+!         write(*,*)'BEWARE skipping ordered part of :',&
+!              trim(phlista(lokph)%name),nsubl,offset
          endmember=>phlista(lokph)%disordered
       endif
 !      write(*,*)'3C first the endmembers',nsubl
@@ -4308,6 +4362,8 @@
          iliqwild=.false.
          if(firstcation.eq.-99) iliqwild=.true.
       endif
+      lokcs=phlista(lokph)%linktocs(1)
+      varres=>ceq%phase_varres(lokcs)
 ! i1 is the index of this phase of this phase in the SOLGASMIX order
       allend: do while(associated(endmember))
 ! we have to generate two lines by extracting the endmember and constituents
@@ -4327,7 +4383,13 @@
 ! of ionliq here as this loop originally was also for ionic liquids ...
             sloop1: do isubl=1,nsubl
 ! this is the loop for the constituents in sublattices
-               isp=endmember%fraclinks(isubl,1)
+               if(skipfc) then
+! for isubl=2 we should use the constituents in the last sublattce
+                  isp=endmember%fraclinks(isubl,1)
+!                  write(*,*)'3C constituent 1: ',isp,offset
+               else
+                  isp=endmember%fraclinks(isubl,1)
+               endif
                intconst(isubl)=isp
                if(isp.eq.-99) then
 ! this means wildcard in this sublattice
@@ -4345,7 +4407,17 @@
 !                  if(ionliq) valency(1)=one
                   cycle sloop1
                endif
-               isp=phlista(lokph)%constitlist(isp)
+               if(skipfc) then
+! which index should be used to find the constituent in last sublattice
+!                  write(*,*)'3C disordered species: ',isp
+!                  nn=phlista(lokph)%constitlist(isp)
+                  i3=firsteq%phase_varres(lokcs)%disfra%splink(isp)
+!                  write(*,*)'3C disordered species: ',isp,nn,i3
+                  isp=i3
+!                  write(*,*)'3C species: ',splista(isp)%symbol
+               else
+                  isp=phlista(lokph)%constitlist(isp)
+               endif
                if(btest(splista(isp)%status,SPVA)) then
                   valency(isubl)=zero
 ! according to the example I have the stoichiometry should be 1 for (cation:VA)
@@ -4384,8 +4456,15 @@
                              splista(isp)%stoichiometry(i2)*valency(1)
                      endif
                   else
-                     constcomp(i3)=constcomp(i3)+&
-                          splista(isp)%stoichiometry(i2)*varres%sites(isubl)
+! here the stoichiometry of the endmember is added together
+                     if(skipfc) then
+                        constcomp(i3)=constcomp(i3)+&
+                             splista(isp)%stoichiometry(i2)*&
+                             varres%disfra%dsites(isubl)
+                     else
+                        constcomp(i3)=constcomp(i3)+&
+                             splista(isp)%stoichiometry(i2)*varres%sites(isubl)
+                     endif
                   endif
                enddo
             enddo sloop1
@@ -4447,7 +4526,7 @@
 !            write(*,907)'3C Ionliq endmember: ',constext(1:ip-2),&
 !                 (constcomp(i3),i3=1,noofel)
 !907         format(a,a/10F6.3)
-!--------------------------------------------------------------------
+!------------------ end special ionic liquid
          endif
          endorexcess: if(excessparam) then
 ! we can have several excess parameters for each endmember
@@ -4480,6 +4559,7 @@
 ! finally the degree (number of Redlich-Kister parameters)
 !                  write(*,907)'3C solgasorder: ',nsubl+ilevel,&
 !                       (intconstx(k1),k1=1,nsubl+ilevel),property%degree+1
+! write an excess parameter
                   write(lut,208)nsubl+ilevel,&
                        (intconstx(k1),k1=1,nsubl+ilevel),property%degree+1
 907               format(a,10i5)
@@ -4495,6 +4575,7 @@
                      endif
 ! This gave compiler error on MacOS 10.13 ??? GNU Fortran 5.2 ...
 !                     write(lut,311)(tpfc(f1)%cfun%coefs(jj,1),jj=1,6)
+! write another excess parameter
                      write(lut,311)tpfc(f1)%cfun%coefs(1,1),&
                           tpfc(f1)%cfun%coefs(2,1),tpfc(f1)%cfun%coefs(3,1),&
                           tpfc(f1)%cfun%coefs(4,1),tpfc(f1)%cfun%coefs(5,1),&
@@ -4525,7 +4606,8 @@
                   write(*,*)'3C endmember property is not G!'
                   exit propem
                endif
-! this line should be written together with the type of coefficients and ranges
+! this line with the stoichiometry of the endmember should be written
+! together with the type of coefficients and ranges
 ! it may require several lines
                write(text,210)constcomp
 ! according to Ted
@@ -4534,6 +4616,7 @@
                f1=property%degreelink(0)
 !            write(*,*)'TP function pointer is ',f1
                if(f1.gt.0) then
+                  factor=one
                   if(ionliq .and. iliqwild) then
                      write(lut,211)constext(1:ip-2),ccc
 ! According to Ted
@@ -4541,11 +4624,12 @@
 ! use one of the "extra" coefficient function!
                      jp=ntpf+1
                      call tpmult(f1,jp,ccc,tpfc)
-                     call list_tpascoef(lut,text,jp,npows,tpfc)
+                     call list_tpascoef(lut,text,jp,npows,factor,tpfc)
                   else
-! according to Ted
+! according to Ted: endmember symbol 
+!                     write(*,99)constext(1:ip-2)
                      write(lut,99)constext(1:ip-2)
-                     call list_tpascoef(lut,text,f1,npows,tpfc)
+                     call list_tpascoef(lut,text,f1,npows,factor,tpfc)
                   endif
                else
                   write(*,*)'3 C missing function for endmember property',&
@@ -4595,24 +4679,43 @@
 ! After endmembers for sublattice phases write number of sublattices and sites
       if(model(1:4).eq.'SUBL') then
          write(lut,250)nsubl
-         write(lut,260)(ceq%phase_varres(lokcs)%sites(isubl),isubl=1,nsubl)
+         if(skipfc) then
+            write(lut,260)(varres%disfra%dsites(isubl),isubl=1,nsubl)
+         else
+            write(lut,260)(ceq%phase_varres(lokcs)%sites(isubl),isubl=1,nsubl)
 250      format(1x,i4)
 260      format(1x,8F9.5)
+         endif
       endif
+!      write(*,*)'3C here 8: ',phlista(lokph)%name,model
       if(model(1:4).eq.'SUBL' .or. model(1:4).eq.'SUBI') then
 ! number of constituents in each sublattice
-         write(lut,270)(phlista(lokph)%nooffr(isubl),isubl=1,nsubl)
-270      format(9i5)
+         if(skipfc) then
+            write(lut,270)(varres%disfra%nooffr(isubl),isubl=1,nsubl)
+         else
+            write(lut,270)(phlista(lokph)%nooffr(isubl),isubl=1,nsubl)
+270         format(9i5)
+         endif
       endif
 ! For all mixtures we should write the constituents of all sublattices
 ! problem here for UC2_C11A, constituent in first sublattice ignored
       i3=0
-      do isubl=1,phlista(lokph)%noofsubl
+!      do isubl=1,phlista(lokph)%noofsubl
+      do isubl=1,nsubl
          constext=' '
          ip=1
-         do i2=1,phlista(lokph)%nooffr(isubl)
+         if(skipfc) then
+            nn=varres%disfra%nooffr(isubl)
+         else
+            nn=phlista(lokph)%nooffr(isubl)
+         endif
+         do i2=1,nn
             i3=i3+1
-            isp=phlista(lokph)%constitlist(i3)
+            if(skipfc) then
+               isp=firsteq%phase_varres(lokcs)%disfra%splink(i3)
+            else
+               isp=phlista(lokph)%constitlist(i3)
+            endif
             jp=ip
             call lower_case_species_name(constext,ip,isp)
             ip=jp+25
@@ -4675,17 +4778,24 @@
             write(lut,99)trim(constext)
          endif
       endif
-      if(phlista(lokph)%noofsubl.gt.1) then
+!      if(phlista(lokph)%noofsubl.gt.1) then
+      if(nsubl.gt.1) then
 ! A very strange output of integers representing endmembers
          jp=1
          mult=1
-         do isubl=phlista(lokph)%noofsubl,1,-1
+!         do isubl=phlista(lokph)%noofsubl,1,-1
+         do isubl=nsubl,1,-1
             mult(isubl)=jp
-            jp=jp*phlista(lokph)%nooffr(isubl)
+            if(skipfc) then
+               jp=jp*varres%disfra%nooffr(isubl)
+            else
+               jp=jp*phlista(lokph)%nooffr(isubl)
+            endif
          enddo
 !         write(*,278)'3C mult2: ',jp,(mult(ip),ip=1,phlista(lokph)%noofsubl)
 278      format(a,10i4)
-         do isubl=1,phlista(lokph)%noofsubl
+!         do isubl=1,phlista(lokph)%noofsubl
+         do isubl=1,nsubl
             text=' '
             ip=3
             k1=0
@@ -4699,10 +4809,14 @@
                   i2=i2+1
                   i3=i3+1
                   if(i3.lt.mult(isubl)) goto 292
-               if(k1.gt.phlista(lokph)%nooffr(isubl)) k1=0
-               if(k1.eq.phlista(lokph)%nooffr(isubl) .and. isubl.gt.1) k1=0
+               if(skipfc) then
+                  if(k1.gt.varres%disfra%nooffr(isubl)) k1=0
+                  if(k1.eq.varres%disfra%nooffr(isubl) .and. isubl.gt.1) k1=0
+               else
+                  if(k1.gt.phlista(lokph)%nooffr(isubl)) k1=0
+                  if(k1.eq.phlista(lokph)%nooffr(isubl) .and. isubl.gt.1) k1=0
+               endif
             if(i2.lt.jp) goto 290
-!            if(i2.lt.phlista(lokph)%nooffr(isubl)) goto 290
 ! According to Markus Piro one should have 19 values per line, 18*4+3=75
             isp=1
             do while(len_trim(text(isp:))-76.gt.0)
@@ -4724,6 +4838,8 @@
          endif
          goto 207
       endif
+! if magnetic we should loop again
+      if(havemag.ne.0) write(*,*)'3C we should loop for magnetic parameters'
 ! terminate the excess parameters for this phase with a line starting with 0
       write(lut,300)
 300   format(' 0')
@@ -4731,28 +4847,63 @@
 !-------------------------------------------------------
 ! now data for stoichiometric phases
    mphstoi=1
+   write(*,*)'3C loop for compounds'
    phases2: do i1=1,noofph
       lokph=phasetuple(i1)%lokph
       if(i1.ne.phstoi(mphstoi)) then
 !         write(*,*)'3C skipping mixture ',trim(phlista(lokph)%name)
          cycle phases2
       endif
+      skipfc=.FALSE.
+      factor=one
+      if(phlista(lokph)%nooffs.gt.1) then
+! skip first composition set
+         skipfc=.true.
+      endif
+! magnetism?
+      addrec=>phlista(lokph)%additions
+      lastadd2: do while(associated(addrec))
+! no need to increment CHTD except for magnetism
+!         write(*,*)'3C additions?: ',phlista(lokph)%name,addrec%type
+         if(addrec%type.eq.1) then
+            havemag=3
+            write(*,*)'3C magnetic phase: ',phlista(lokph)%name
+!         else
+!            write(*,*)'3C WARNING addition type: ',addrec%type,' ignored'
+         endif
+         addrec=>addrec%nextadd
+      enddo lastadd2
       mphstoi=mphstoi+1
-!      write(*,*)'3C parameters for compound ',trim(phlista(lokph)%name)
       lokcs=phlista(lokph)%linktocs(1)
       varres=>ceq%phase_varres(lokcs)
       nsubl=1
       ionliq=.false.
       nsubl=phlista(lokph)%noofsubl
-      write(lut,500)phlista(lokph)%name
-500   format(1x,a,25x,'= COMPOUND PHASE =')
+      if(skipfc) then
+         factor=varres%disfra%fsites
+         varres=>ceq%phase_varres(varres%disfra%varreslink)
+         if(btest(phlista(lokph)%status1,PHMFS)) then
+            nsubl=size(varres%sites)
+         endif
+         endmember=>phlista(lokph)%disordered
+      else
 ! there is just one endmember!!
-      endmember=>phlista(lokph)%ordered
+         endmember=>phlista(lokph)%ordered
+      endif
+      write(*,*)'3C subl and factor: ',trim(phlista(lokph)%name),nsubl,&
+           factor
       constext=' '
+! write on file
+      write(lut,500)phlista(lokph)%name,factor
+500   format(1x,a,5x,'= COMPOUND PHASE = ',F12.4)
       ip=1
       constcomp=zero
       sloop2: do isubl=1,nsubl
 ! this is the loop for the constituents in sublattices
+         if(.not.associated(endmember)) then
+            write(*,*)'3C no parameter!!'
+            cycle sloop2
+         endif
          isp=endmember%fraclinks(isubl,1)
          if(isp.eq.-99) then
 ! this means wildcard in this sublattice
@@ -4791,7 +4942,8 @@
 ! what about several properties??
          f1=property%degreelink(0)
          if(f1.gt.0) then
-            call list_tpascoef(lut,text,f1,npows,tpfc)
+!            factor=one
+            call list_tpascoef(lut,text,f1,npows,factor,tpfc)
          else
             write(*,*)'missing endmember parameter'
          endif

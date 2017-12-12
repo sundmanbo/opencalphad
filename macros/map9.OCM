@@ -62,8 +62,11 @@ CEF
 set phase fcc bit fcc_perm
 
 ent par G(fcc,RE:RE:RE:RE) 298.15 0.062787*eVtoJ;,,,14Pal                fcc.A
+@$ The L1_2 ordering parameter on the Re side
 ent par G(fcc,W:RE:RE:RE) 298.15 0.11703575*eVtoJ;,,,14Pal             L12.A3B
+@$ The L1_0 ordering parameter
 ent par G(fcc,W:W:RE:RE) 298.15 0.2098125*eVtoJ;,,,14Pal                L10.AB 
+@$ The L1_2 ordering parameter on the W side
 ent par G(fcc,W:W:W:RE) 298.15 0.33351125*eVtoJ;,,,14Pal               L12.AB3 
 ent par G(fcc,W:W:W:W) 298.15 0.474125*eVtoJ;,,,14Pal                    fcc.B 
 @$-----------
@@ -83,23 +86,18 @@ enter phase bcc
 CEF
 4 .25 RE W; .25 RE W; .25 RE W; .25 RE W;
 
-@$ the BCC permutations are not yet implemented ....
+@$ mark that we have parameter permutations according to bcc tetrahedrons
+set phase bcc bit bcc_perm
 
 ent par G(bcc,RE:RE:RE:RE) 298.15 0.320286*eVtoJ;,,,14Pal                bcc.A
+@$ The D03 ordering parameter on Re side
 ent par G(bcc,W:RE:RE:RE) 298.15 0.21785575*eVtoJ;,,,14Pal             D03.A3B
-ent par G(bcc,RE:W:RE:RE) 298.15 0.21785575*eVtoJ;,,,14Pal             D03.A3B
-ent par G(bcc,RE:RE:W:RE) 298.15 0.21785575*eVtoJ;,,,14Pal             D03.A3B
-ent par G(bcc,RE:RE:RE:W) 298.15 0.21785575*eVtoJ;,,,14Pal             D03.A3B
-ent par G(bcc,W:RE:W:RE) 298.15 0.1385725*eVtoJ;,,,14Pal                B32.AB
-ent par G(bcc,RE:W:W:RE) 298.15 0.1385725*eVtoJ;,,,14Pal                B32.AB
-ent par G(bcc,W:RE:RE:W) 298.15 0.1385725*eVtoJ;,,,14Pal                B32.AB
-ent par G(bcc,RE:W:RE:W) 298.15 0.1385725*eVtoJ;,,,14Pal                B32.AB
+@$ The B2 ordering parameter, sublattice 1&2 are next nearest neighbours
 ent par G(bcc,W:W:RE:RE) 298.15 0.0971185*eVtoJ;,,,14Pal                 B2.AB
-ent par G(bcc,RE:RE:W:W) 298.15 0.0971185*eVtoJ;,,,14Pal                 B2.AB
+@$ The B32 ordering parameter
+ent par G(bcc,W:RE:W:RE) 298.15 0.1385725*eVtoJ;,,,14Pal                B32.AB
+@$ The D03 ordering parameter on W side
 ent par G(bcc,W:W:W:RE) 298.15 0.04742525*eVtoJ;,,,14Pal               D03.AB3
-ent par G(bcc,W:W:RE:W) 298.15 0.04742525*eVtoJ;,,,14Pal               D03.AB3
-ent par G(bcc,W:RE:W:W) 298.15 0.04742525*eVtoJ;,,,14Pal               D03.AB3
-ent par G(bcc,RE:W:W:W) 298.15 0.04742525*eVtoJ;,,,14Pal               D03.AB3
 ent par G(bcc,W:W:W:W) 298.15 0*eVtoJ;,,,14Pal                           bcc.B
 @$-----------
 

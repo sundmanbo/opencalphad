@@ -2630,6 +2630,9 @@
    double precision, allocatable, dimension(:) :: yfra
    double precision, allocatable, dimension(:) :: ysave
    double precision ydum(1000),ysame(1000),sites(9),qq(5)
+! this generates >3000 gridpoints for a binary (A,B)(A,B)(A,B)(A,B)
+!   integer, parameter, dimension(3,4) :: &
+!        limits=reshape([150,50,20, 100,30,15, 20,10,7, 12,7,4],shape(limits))
    integer, parameter, dimension(3,4) :: &
         limits=reshape([150,50,20, 100,30,15, 20,10,7, 12,7,4],shape(limits))
 ! from generic_grid_generator
@@ -2748,6 +2751,8 @@
                   do ik=1,nsl
                      yendm(endm(ik,kend),kend)=one
                   enddo
+!                  write(*,16)'3Y endm 4: ',0,ls,kend,&
+!                       (endm(ik,kend),ik=1,nsl),0
                   kend=kend+1
                   do iz=1,nsl
                      endm(iz,kend)=endm(iz,kend-1)
@@ -2760,7 +2765,8 @@
    if(mode.eq.0 .and. test_phase_status_bit(iph,PHBORD)) then
 ! for BCC ordered phase add endmember with same constituents in first and third
 ! sublattices and loop in the others like A:B-X:A:B-X and B:C-X:B:C-X
-      write(*,*)'3Y Grid minimizer has no gridpoints for B32 ordering'
+      write(*,*)'3Y Grid minimizer has no gridpoints for B32 ordering',kend-1
+!      stop 'too many gridpoints'
    endif
 ! kend has been incremented one too much
    nend=kend-1
@@ -2917,6 +2923,7 @@
    endif
 1010 continue
    return
+   write(*,*)'3Y finished generate_fccord_grid: ',mode
 ! dense gles
  end subroutine generate_fccord_grid
 

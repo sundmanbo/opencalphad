@@ -1395,7 +1395,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
      integer, dimension(:), allocatable :: splink
      integer, dimension(:), allocatable :: y2x
      double precision, dimension(:), allocatable :: dxidyj
-! formula unit factor needed when calculating G for disordered sigma
+! formula unit factor needed when calculating G for disordered sigma etc
      double precision fsites
   END TYPE gtp_fraction_set
 ! these records are declared in the phase_varres record as DISFRA for 
