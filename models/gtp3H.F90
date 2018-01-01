@@ -41,27 +41,34 @@
       write(kou,*)'No such addition type ',addrec%type,lokph
       gx%bmperr=4330
    case(indenmagnetic) ! Inden magnetic
+      addrec%propval=zero
       call calc_magnetic_inden(moded,phres,addrec,lokph,mc,ceq)
    case(debyecp) ! Debye Cp
+      addrec%propval=zero
       call calc_debyecp(moded,phres,addrec,lokph,mc,ceq)
       write(kou,*)' Debye Cp model not implemented yet'
       gx%bmperr=4331
    case(xiongmagnetic) ! Inden-Xiong
+      addrec%propval=zero
       call calc_xiongmagnetic(moded,phres,addrec,lokph,mc,ceq)
 !     write(kou,*)'Inden magnetic model with sep TC and TN not implemented yet'
 !      gx%bmperr=4332
    case(einsteincp) ! Einstein Cp
+      addrec%propval=zero
       call calc_einsteincp(moded,phres,addrec,lokph,mc,ceq)
       write(kou,*)' Einstein Cp model not implemented yet'
       gx%bmperr=4331
    case(elasticmodel1) ! Elastic model !
+      addrec%propval=zero
       call calc_elastica(moded,phres,addrec,lokph,mc,ceq)
       write(kou,*)' Elastic model not implemented yet'
       gx%bmperr=4399
    case(twostatemodel1) ! Two state model
+      addrec%propval=zero
       call calc_twostate_model1(moded,phres,addrec,lokph,mc,ceq)
 !      gx%bmperr=4333
    case(volmod1) ! Simple volume model depending on V0, VA and VB
+      addrec%propval=zero
       call calc_volmod1(moded,phres,addrec,lokph,mc,ceq)
 !      write(kou,*)' Two state model not implemented yet'
 !      gx%bmperr=4333
@@ -1592,9 +1599,11 @@
 !
    lokph=phres%phlink
    addrec=>phlista(lokph)%additions
-   do while(associated(addrec)) 
-      write(lut,77)addrec%type,(addrec%propval(j1),j1=1,4)
+   do while(associated(addrec))
+!      write(lut,77)addrec%type,(addrec%propval(j1),j1=1,4)
 77    format('Addition type ',i2,': ',4(1pe12.4))
+      write(lut,78)additioname(addrec%type),(addrec%propval(j1),j1=1,4)
+78    format('Addition ',a,': ',4(1pe11.3))
       addrec=>addrec%nextadd
    enddo
 1000 continue

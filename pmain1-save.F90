@@ -20,17 +20,18 @@ PROGRAM pmain1
 ! the next line overwritten with current linkdate by linkocdate
   linkdate='2015-01-01'
 ! this is the overall version identifier
-  version='  4.037 '
+  version='  4.038 '
 ! intvar and dblvar will eventually be used for allocations and defaults
   intvar(1)=30
   call init_gtp(intvar,dblvar)
   if(gx%bmperr.ne.0) then
      stop 'Error initiating GTP data structures'
   endif
-! exttract arguments from the line of invocation
+! extract arguments from the line of invocation
   narg=iargc()
   if(narg.gt.12) then
      write(*,*)'OC accepts max 12 inline arguments'
+     narg=12
 !  else
 !     write(*,*)'Inline arguments: ',narg
   endif

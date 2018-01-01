@@ -804,8 +804,15 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   integer, public, parameter :: TWOSTATEMODEL1=5
   integer, public, parameter :: ELASTICMODEL1=6
   integer, public, parameter :: VOLMOD1=7
+! name of additions:
+  character(len=24) , public, dimension(8), parameter :: additioname=&
+       ['Inden-Hillert magn model','Inden-Xiong magn model  ',&
+       'Debye CP model          ','Einstein Cp model       ',&
+       'Liquid 2-state model    ','Elastic model A         ',&
+       'Volume model            ','                        ']
+!       123456789.123456789.1234   123456789.123456789.1234
 ! Note that additions often use extra parameters like Curie or Debye
-! temperatures defined by parameter identifiers stored in gtp_propid
+! temperatures defined by model parameter identifiers stored in gtp_propid
 !\end{verbatim}
 ! =================================================================
 !

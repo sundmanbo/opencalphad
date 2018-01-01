@@ -5678,6 +5678,10 @@ CONTAINS
        pfh=filename(1:kk)//'.'//graphopt%filext(graphopt%gnutermsel)
        write(21,840)trim(graphopt%gnuterminal(graphopt%gnutermsel)),trim(pfh)
 840    format('set terminal ',a/'set output "',a,'"')
+    else
+! terminal 1 is screen without any output file
+       write(21,841)trim(graphopt%gnuterminal(graphopt%gnutermsel))
+841    format('set terminal ',a)
     endif
 !    if(pform(1:1).eq.'P') then
 !       pfh=filename(1:kk)//'.'//'ps '
@@ -6373,6 +6377,10 @@ CONTAINS
        pfh=filename(1:kk)//'.'//graphopt%filext(graphopt%gnutermsel)
        write(21,840)trim(graphopt%gnuterminal(graphopt%gnutermsel)),trim(pfh)
 840    format('set terminal ',a/'set output "',a,'"')
+    else
+! terminal 1 is screen without any output file
+       write(21,841)trim(graphopt%gnuterminal(graphopt%gnutermsel))
+841    format('set terminal ',a)
     endif
 !    if(pform(1:1).eq.'P') then
 !       pfh=filename(1:kk)//'.'//'ps '

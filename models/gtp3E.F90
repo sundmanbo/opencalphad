@@ -3384,6 +3384,8 @@
       if(keyw.eq.0) then
          if(trim(line).eq.' DEFINE_SYSTEM_DEFAULT ELEMENT 2 !') then
             goto 100
+         elseif(trim(line).eq.'DEFINE_SYSTEM_DEFAULT ELEMENT 2 !') then
+            goto 100
          else
             write(*,122)trim(line)
 122         format(/' *** Warning, ignoring line: "',a,'"'/)

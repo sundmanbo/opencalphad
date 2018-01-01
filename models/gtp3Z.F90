@@ -2697,10 +2697,10 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim} %-
- subroutine list_tpascoef(lut,text,i1,npows,factor,ctpf)
+ subroutine list_tpascoef(lut,text,paratyp,i1,npows,factor,ctpf)
 ! writes a parameter in DAT format
    implicit none
-   integer lut,i1,npows
+   integer lut,i1,npows,paratyp
    character text*(*)
 ! this is a factor that may be multiplied with all coefficients for
 ! phases like sigma which has only a disordered part. Also ionic liquid
@@ -2711,10 +2711,10 @@
    ip=len_trim(text)
 ! this is the endmember ??
    if(ip.gt.74) then
-      write(lut,698)4,ctpf(i1)%nranges,text(1:74)
+      write(lut,698)paratyp,ctpf(i1)%nranges,text(1:74)
       write(lut,699)trim(text(75:))
    else
-      write(lut,698)4,ctpf(i1)%nranges,trim(text)
+      write(lut,698)paratyp,ctpf(i1)%nranges,trim(text)
    endif
 !698 format(i4,i3,a)
 ! According to Ted
@@ -2986,13 +2986,19 @@
 ! multiplied with the current coef within the current T-range
 ! It may be necessary to increase the number of T-ranges
                if(.not.allocated(cadd)) then
-                  allocate(cadd(5))
+! we have more than 6 functions added in soma cases ...
+!                  allocate(cadd(6))
+                  allocate(cadd(10))
                   iadd=0
                   caddnr=0
                endif
 ! call a new function to add the coefficents of funref
 ! to ctpf(
                iadd=iadd+1
+               if(iadd.gt.7) then
+                  write(*,*)'3Z many added functions in: ',&
+                       trim(tpfuns(lfun)%symbol),': ',iadd,funref
+               endif
                cadd(iadd)=ctpf(funref)%cfun
                caddnr(iadd)=ctpf(funref)%nranges
                caddid(iadd)=funref
@@ -3085,7 +3091,7 @@
 
  subroutine tpmult(lfun,mfun,ccc,ctpf)
 ! multiples all terms in cfpf(lfun) with the factor ccc and returns that
-! in ctpf(mult)
+! in ctpf(mfun)
 ! cfun is not changed
    implicit none
    integer lfun,mfun
@@ -3314,7 +3320,7 @@
    elseif(ctp2%tbreaks(i2).lt.ctp1%tbreaks(i1)) then
 ! we must create a breakpoint at the lowest tbreaks
       ctp3%tbreaks(i3)=ctp2%tbreaks(i2)
-      write(*,180)'3Z breakpoint in cpt2: ',i2,ctp2%tbreaks(i2),ctp1%tbreaks(i1)
+!     write(*,180)'3Z breakpoint in ctp2: ',i2,ctp2%tbreaks(i2),ctp1%tbreaks(i1)
       if(i2.lt.nr2) then
          i2=i2+1
       elseif(i1.lt.nr1) then
@@ -3322,7 +3328,7 @@
       endif
    else
       ctp3%tbreaks(i3)=ctp1%tbreaks(i1)
-      write(*,180)'3Z breakpoint in cpt1: ',i1,ctp1%tbreaks(i1),ctp2%tbreaks(i2)
+!     write(*,180)'3Z breakpoint in ctp1: ',i1,ctp1%tbreaks(i1),ctp2%tbreaks(i2)
       if(i1.lt.nr1) then
          i1=i1+1
       elseif(i2.lt.nr2) then
@@ -3477,80 +3483,84 @@
    double precision coeff1(*)
 !\end{verbatim}
    integer, parameter :: maxnc=12
-   integer i1,i2,lastc
+   integer z1,i2,lastc
    double precision xxx,cord(maxnc)
    cord=zero
    lastc=0
-!   write(*,80)'3Z sort: ',tpfuns(lfun)%symbol,nc1,(tpow1(i1),i1=1,nc1)
-   loop1: do i1=1,nc1
-      if(tpow1(i1).eq.0) then
-         cord(1)=cord(1)+coeff1(i1)
+!   write(*,80)'3Z sort: ',tpfuns(lfun)%symbol,nc1,(tpow1(z1),z1=1,nc1)
+   loop1: do z1=1,nc1
+      if(tpow1(z1).eq.0) then
+         cord(1)=cord(1)+coeff1(z1)
          if(lastc.lt.1) lastc=1
-      elseif(tpow1(i1).eq.1) then
-         cord(2)=cord(2)+coeff1(i1)
+      elseif(tpow1(z1).eq.1) then
+         cord(2)=cord(2)+coeff1(z1)
          if(lastc.lt.2) lastc=2
-      elseif(tpow1(i1).eq.100) then
-         cord(3)=cord(3)+coeff1(i1)
+      elseif(tpow1(z1).eq.100) then
+         cord(3)=cord(3)+coeff1(z1)
          if(lastc.lt.3) lastc=3
-      elseif(tpow1(i1).eq.2) then
-         cord(4)=cord(4)+coeff1(i1)
+      elseif(tpow1(z1).eq.2) then
+         cord(4)=cord(4)+coeff1(z1)
          if(lastc.lt.4) lastc=4
-      elseif(tpow1(i1).eq.3) then
-         cord(5)=cord(5)+coeff1(i1)
+      elseif(tpow1(z1).eq.3) then
+         cord(5)=cord(5)+coeff1(z1)
          if(lastc.lt.5) lastc=5
-      elseif(tpow1(i1).eq.-1) then
-         cord(6)=cord(6)+coeff1(i1)
+      elseif(tpow1(z1).eq.-1) then
+         cord(6)=cord(6)+coeff1(z1)
          if(lastc.lt.6) lastc=6
-      elseif(tpow1(i1).eq.7) then
-! all powers from here are special ... if coeff(i1)=zero ignore on output
-         cord(7)=cord(7)+coeff1(i1)
-!         write(*,77)i1,7,tpfuns(lfun)%symbol
+      elseif(tpow1(z1).eq.7) then
+! all powers from here are special ... if coeff(z1)=zero ignore on output
+         cord(7)=cord(7)+coeff1(z1)
+!         write(*,77)z1,7,tpfuns(lfun)%symbol
 77       format('3Z moving coefficient ',i2,' to ',i2,': ',a)
-         coeff1(i1)=zero
+         coeff1(z1)=zero
          if(lastc.lt.7) lastc=7
-      elseif(tpow1(i1).eq.-9) then
-         cord(8)=cord(8)+coeff1(i1)
-!         write(*,77)i1,8,tpfuns(lfun)%symbol
-         coeff1(i1)=zero
+      elseif(tpow1(z1).eq.-9) then
+         cord(8)=cord(8)+coeff1(z1)
+!         write(*,77)z1,8,tpfuns(lfun)%symbol
+         coeff1(z1)=zero
          if(lastc.lt.8) lastc=8
-      elseif(tpow1(i1).eq.-2) then
+      elseif(tpow1(z1).eq.-2) then
 ! it seems power -2 occors in the TAFID database
-         cord(9)=cord(9)+coeff1(i1)
-!         write(*,77)i1,9,tpfuns(lfun)%symbol
-         coeff1(i1)=zero
+         cord(9)=cord(9)+coeff1(z1)
+!         write(*,77)z1,9,tpfuns(lfun)%symbol
+         coeff1(z1)=zero
          if(lastc.lt.9) lastc=9
-      elseif(tpow1(i1).eq.-3) then
+      elseif(tpow1(z1).eq.-3) then
 ! it seems power -3 occors in the TAFID database for C (carbon)
-         cord(10)=cord(10)+coeff1(i1)
-!         write(*,77)i1,10,tpfuns(lfun)%symbol
-         coeff1(i1)=zero
+         cord(10)=cord(10)+coeff1(z1)
+!         write(*,77)z1,10,tpfuns(lfun)%symbol
+         coeff1(z1)=zero
          if(lastc.lt.10) lastc=10
-      elseif(tpow1(i1).le.-100) then
+      elseif(tpow1(z1).le.-100) then
 ! ignore this term
          continue
       else
 ! unusual power, store in extra terms
-         if(tpow1(11).ne.-100) then
-            write(*,89)'Two different odd powers, cannot sort coefficient',&
-                 tpow1(11),tpow1(i1)
-89          format(a,2i4)
-            stop ' *** power problems!'
+         if(tpow1(z1).ne.tpow1(11)) then
+            if(tpow1(11).ne.-100) then
+               write(*,89)'Two different odd powers, cannot sort coefficient',&
+                    tpow1(11),tpow1(z1),cord(11),coeff1(z1)
+89             format(a,2i4,2x,2E16.8)
+               stop ' *** power problems!'
+            endif
+         else
+! same special power in position 11
+            write(*,90)' *** Warning! function ',lfun,tpfuns(lfun)%symbol,&
+                 ' with unexpected power: ',lfun,z1,tpow1(z1),coeff1(z1)
+90          format(a,i5,': ',a,2x,2i5,2x,e16.8)
+            cord(11)=cord(11)+coeff1(z1)
+            coeff1(z1)=zero
+            tpow1(11)=tpow1(z1)
+            if(lastc.lt.11) lastc=11
          endif
-         write(*,90)' *** Warning! function with unexpected power: ',lfun,i1,&
-              tpow1(i1)
-90       format(a,3i5)
-         cord(11)=cord(11)+coeff1(i1)
-         coeff1(i1)=zero
-         tpow1(11)=tpow1(i1)
-         if(lastc.lt.11) lastc=11
       endif
    enddo loop1
 ! return coefficients in order
-   do i1=1,11
-      tpow1(i1)=-100
+   do z1=1,11
+      tpow1(z1)=-100
    enddo
-   do i1=1,nc1
-      coeff1(i1)=cord(i1)
+   do z1=1,nc1
+      coeff1(z1)=cord(z1)
    enddo
    tpow1(1)=0
    tpow1(2)=1
@@ -3562,7 +3572,7 @@
    tpow1(8)=-9
    tpow1(9)=-2
    tpow1(10)=-3
-!   write(*,80)'3Z sorted: ',tpfuns(lfun)%symbol,nc1,(tpow1(i1),i1=1,lastc)
+!   write(*,80)'3Z sorted: ',tpfuns(lfun)%symbol,nc1,(tpow1(z1),z1=1,lastc)
 80 format(a,1x,a,': ',i3,11i5)
 ! tpow1(11) keep its value.  No provision for more than one extra power!!
 1000 continue

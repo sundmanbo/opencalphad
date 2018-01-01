@@ -3984,14 +3984,19 @@
    integer, dimension(:), allocatable :: ncon,phmix,phstoi,estoi
    integer nelectrons,lokcs,nsubl,isubl,mphstoi,k1,lcase,mult(10),check
    integer cation,anion,firstcation,ilevel,intconst(9),intconstx(9),ideg
-   integer lokdis,wildp,havemag,offset,nn
-   logical logok,nogas,ionliq,wildcard,iliqwild,excessparam,skipfc
-   character ch1*1,line*16,text*512,powers*80,model*24,constext*80,elsym*2
+   integer lokdis,wildp,havemag,offset,nn,paratyp,maxideg,wildloop,intconsty(9)
+! iset is sets of interaction constituents generated for wildcards
+   integer, allocatable, dimension(:,:) :: iset
+   logical logok,nogas,ionliq,wildcard,iliqwild,excessparam,skipfc,magloop
+   character ch1*1,line*16,powers*80,model*24,constext*80,elsym*2
+! overflow in text line before label 210
+   character text*2048
    character date*12,hour*12
    type(gtp_tpfun2dat), dimension(:), allocatable :: tpfc
    type(gtp_endmember), pointer :: endmember,nextcation,samecation
    double precision, allocatable, dimension(:) :: constcomp,constcompiliq
-   double precision valency(9),ccc,cationval,factor,disfactor
+   double precision valency(9),ccc,cationval,factor,disfactor,aff,partc,parbm
+   double precision extcpar(0:7),exbmpar(0:7)
    TYPE(gtp_phase_add), pointer :: addrec
 ! we must probably create a stack for excess parameters
    type intstack
@@ -4000,7 +4005,7 @@
    type(intstack), dimension(5) :: saveint
    type(gtp_interaction), pointer :: intparam
    type(gtp_phase_varres), pointer :: varres,disvarres
-   type(gtp_property), pointer :: property
+   type(gtp_property), pointer :: property,nextprop,savedproperty
 !
    inquire(file=filename,exist=logok)
    if(logok) then
@@ -4014,6 +4019,7 @@
    endif
    ntpf=freetpfun-1
 ! allocate coefficient arrays for all TP functions (incl parameters) and 5 extra
+   write(*,*)'3C Allocating for TP functions: ',ntpf+5
    allocate(tpfc(ntpf+5))
 !   write(*,*)'TPfuns and parameters: ',ntpf
 ! in this call all tpfuns are converted to arrays of coefficients
@@ -4062,8 +4068,13 @@
    if(phlista(lokph)%name(1:3).eq.'GAS') nogas=.false.
    nphmix=0
    nphstoi=0
-   do i1=1,noofph
+   phloop1: do i1=1,noofph
       lokph=phasetuple(i1)%lokph
+      if(ceq%phase_varres(phlista(lokph)%linktocs(1))%phstate.eq.PHSUS) then
+! skip phases with suspended default composition set
+         write(*,*)'3C skipping phase loop 1: ',phlista(lokph)%name
+         cycle phloop1
+      endif
       skipfc=.false.
       if(phlista(lokph)%nooffs.gt.1) then
          lokcs=phlista(lokph)%linktocs(1)
@@ -4124,15 +4135,16 @@
             enddo
             disfactor=one
          endif
+!         write(*,*)'3C nonsuspended phase constituents: ',i1,i3
          ncon(i1)=i3
       endif
-   enddo
+   enddo phloop1
 ! now can we write the line with overall phase information ... suck
    ip=1
    write(text(ip:),110)noofel+nelectrons
    ip=len_trim(text)+1
 ! number of mixture phases and for each mixture the number of endmembers
-! if nogas is TRUE add 1 with zero endmembers first
+! if nogas is TRUE add a phase with zero endmembers first
    if(nogas) then
       write(text(ip:),109)nphmix+1,0
       ip=len_trim(text)+1
@@ -4144,6 +4156,13 @@
 112   format(i5)
    endif
    ph1: do i1=1,noofph
+      lokph=phasetuple(i1)%lokph
+      if(ceq%phase_varres(phlista(lokph)%linktocs(1))%phstate.eq.PHSUS) then
+!         write(*,*)'3C skipping phase loop 2: ',phlista(lokph)%name
+         cycle ph1
+      endif
+! Write the number of constituents in mixures (including gas if present)      
+!      write(*,*)'3C mixture constituents: ',i1,ncon(i1)
       if(ncon(i1).gt.0) then
          write(text(ip:),112)ncon(i1)
          ip=len_trim(text)+1
@@ -4155,12 +4174,13 @@
          endif
       endif
    enddo ph1
-! number of stoichiometric phases using i5
+! finally the number of stoichiometric phases using i5
    write(text(ip:),112)nphstoi
 ! NOTE format 100 adds an initial space on the line
 !   write(lut,100)trim(text)
 ! According to Ted
    write(lut,99)trim(text)
+!   write(*,*)'3C elements mm: ',trim(text)
 !------------------ system components including electrons for charged phases
    ip=1
    text=' '
@@ -4196,6 +4216,8 @@
       write(lut,100)trim(text)
    endif
 ! allocate an array for constituent stoichiometry
+   if(noofel+nelectrons.gt.50) &
+        write(*,*)'Allocating constituent array: ',noofel+nelectrons
    allocate(constcomp(noofel+nelectrons))
 !----------------------------- system component mass, electrons 0.00054858???
    ip=1
@@ -4225,9 +4247,10 @@
    endif
 !---------------------------------T powers, always the same line 
 !   if(npows.eq.9) then
-! 10 here are the allowed powers: 0 1 100 2 3 -1 ; 7 -9 -2 -3
+! 10 here are the allowed powers: 0 1 100 2 3 -1 ; 7 -9 -2 -3  any
+!                                 1 2   3 4 5  6   7  8  9  10  11
 ! Those after the ; are special. 100 means T*ln(T)
-   if(npows.eq.10) then
+   if(npows.le.11) then
 ! the first 7 digits should be 9 1..6
 !      write(lut,140)trim(powers(36:))
 !      write(lut,140)trim(powers(36:))
@@ -4239,7 +4262,7 @@
 ! According to Ted
 140   format('6    1  2  3  4  5  6  ')
    else
-      write(*,*)' *** ERROR: please fix the T powers manually',npows
+      write(*,*)' *** ERROR: too many different T powers: ',npows
       stop
    endif
 !-------------------------------------- end of header section
@@ -4247,13 +4270,19 @@
 ! First the endmembers
    mphstoi=1
    phases1: do i1=1,noofph
-!      if(i1.gt.1) exit phases
       lokph=phasetuple(i1)%lokph
       skipfc=.false.
+      if(ceq%phase_varres(phlista(lokph)%linktocs(1))%phstate.eq.PHSUS) then
+! skip phases with suspended default composition set
+         write(*,*)'3C skipping phase loop 3: ',phlista(lokph)%name
+         cycle phases1
+      endif
 ! havemag nonzero if there are magnetic parameters
+! magloop set to TRUE to list magnetic excess parameters
       havemag=0
+      magloop=.FALSE.
       if(phlista(lokph)%nooffs.gt.1) then
-! skip first composition set
+! skip first ordered fraction set
          skipfc=.true.
       endif
       if(i1.eq.phstoi(mphstoi)) then
@@ -4319,6 +4348,7 @@
 ! no need to increment CHTD except for magnetism
 !            write(*,*)'3C additions?: ',phlista(lokph)%name,addrec%type
             if(addrec%type.eq.1) then
+               aff=addrec%aff
                havemag=3
                model(5:5)='M'
 !               write(*,*)'3C magnetic phase: ',phlista(lokph)%name
@@ -4329,13 +4359,22 @@
             addrec=>addrec%nextadd
          enddo lastadd
       endif
-      write(*,180)trim(phlista(lokph)%name),trim(model),nsubl,factor
-180   format('3C mixture: ',a,' with model ',a,i5,F12.4)
+      write(*,180)trim(phlista(lokph)%name),trim(model),nsubl,ncon(i1),factor
+180   format('3C mixture: ',a,' with model ',a,2i4,F12.4)
       write(lut,201)phlista(lokph)%name,nsubl,trim(model)
 ! According to Ted
 201   format(a,5x,'= MIXTURE PHASE =',i3/a)
+      if(havemag.ne.0) then
+         if(aff.eq.one) then
+! Inden BCC magnetism
+            write(lut,202)-aff,0.4
+         else
+! Inden FCC, HCP and other structures
+            write(lut,202)-one/aff,0.28
+         endif
+202      format(F8.6,2x,F10.6)
+      endif
 !-------------------- we must repeat this endmember loop for interactions
-!                     and also for magnetic parameters
 205   continue
       check=0
       endmember=>phlista(lokph)%ordered
@@ -4360,7 +4399,11 @@
          cation=endmember%fraclinks(1,1)
          firstcation=cation
          iliqwild=.false.
-         if(firstcation.eq.-99) iliqwild=.true.
+         if(firstcation.eq.-99) then
+            iliqwild=.true.
+         else
+            ccc=one
+         endif
       endif
       lokcs=phlista(lokph)%linktocs(1)
       varres=>ceq%phase_varres(lokcs)
@@ -4495,6 +4538,7 @@
             else
                valency(1)=one
             endif
+! what about neutrals?
             anion=endmember%fraclinks(2,1)
             intconst(2)=anion
             isp=phlista(lokph)%constitlist(anion)
@@ -4518,21 +4562,25 @@
                if(i3.eq.0) then
 ! skip vacancies
                   continue
+               elseif(ionliq .and. iliqwild) then
+! For neutrals in ionic liquid we must multiply with ccc (the cation valency)
+                  constcomp(i3)=constcomp(i3)+&
+                       splista(isp)%stoichiometry(i2)*valency(1)*ccc
                else
                   constcomp(i3)=constcomp(i3)+&
                        splista(isp)%stoichiometry(i2)*valency(1)
                endif
             enddo
-!            write(*,907)'3C Ionliq endmember: ',constext(1:ip-2),&
-!                 (constcomp(i3),i3=1,noofel)
-!907         format(a,a/10F6.3)
+!            write(*,917)'3C Ionliq endmember: ',constext(1:ip-2),iliqwild,ccc,&
+!                 valency(2),(constcomp(i3),i3=1,noofel)
+917         format(a,a,L3,2F10.2/10F7.3)
 !------------------ end special ionic liquid
          endif
          endorexcess: if(excessparam) then
 ! we can have several excess parameters for each endmember
             intparam=>endmember%intpointer
             ilevel=0
-            do while(associated(intparam))
+            intree: do while(associated(intparam))
 ! we must save intparam%nextlink to be able to follow the parameter tree
                ilevel=ilevel+1
                saveint(ilevel)%intlink=>intparam%nextlink
@@ -4540,18 +4588,62 @@
                intconst(nsubl+ilevel)=isp
                isp=phlista(lokph)%constitlist(isp)
                property=>intparam%propointer
-               propint: if(associated(property)) then
-!                  write(*,908)'3C interaction parameter',ilevel,&
-!                       constext(1:ip-2),intparam%sublattice(1),&
-!                       trim(splista(isp)%symbol),property%degree,&
+! Check if endmember contains wildcard
+               if(wildcard .and. associated(property)) then
+                  write(*,903)'3C Expanding wildcard interaction: ',&
+                       trim(phlista(lokph)%name),trim(constext),&
+                       (intconst(k1),k1=1,nsubl+ilevel)
+903               format(a,a,',',a,2x,6i4)
+! we should make a loop fof all constituents in sublattice with wildcard
+! and write the same parameter for all.  There can be several wildcards!!
+! like G(C1_MO2,Zr+2:*:*), where *=(O-2,Va) in both cases
+! wildloop expanded constituent sets returned in iset, allocated inside
+                  call expand_wildcards(intconst,nsubl+ilevel,&
+                       wildloop,iset,lokph)
+!                  wildloop=1
+! replace current intconst with values in iset and loop below back to 310
+                  do k1=1,nsubl+ilevel
+                     intconsty(k1)=intconst(k1)
+                     intconst(k1)=iset(k1,wildloop)
+                  enddo
+!                  write(*,324)'3C wildloop1: ',wildloop,&
 !                       (intconst(k1),k1=1,nsubl+ilevel)
-908               format(a,i2,2x,a,i4,2x,a,2x,i2,4x,10i4)
-
-! write the identification of the excess parameter ....
-                  if(property%proptype.ne.1) then
-                     write(*,*)'3C interaction property not G!'
-                     stop
+                  savedproperty=>property
+               else
+                  wildloop=0
+               endif
+! return here with new set of constituents in intconst if wildloop not zero
+310            continue
+               maxideg=-1
+               extcpar=zero; exbmpar=zero
+               intproploop: do while(associated(property))
+! Check type of excess parameter and what kind to be listed ....
+                  if(magloop) then
+                     if(property%proptype.eq.2) then
+                        ! this is Curie/Neel temperature
+                        do ideg=0,property%degree
+                           f1=property%degreelink(ideg)
+                           extcpar(ideg)=tpfc(f1)%cfun%coefs(1,1)
+                        enddo
+!                        write(*,*)'3C excess TC: ',f1,partc
+                        paratyp=17
+                        if(ideg.gt.maxideg) maxideg=ideg
+                     elseif(property%proptype.eq.3) then
+                        ! This is BMAGN
+                        do ideg=0,property%degree
+                           f1=property%degreelink(ideg)
+                           exbmpar(ideg)=tpfc(f1)%cfun%coefs(1,1)
+                        enddo
+                        paratyp=17
+                        if(ideg.gt.maxideg) maxideg=ideg
+                     endif
+                     property=>property%nextpr
+                     cycle intproploop
+                  elseif(property%proptype.ne.1) then
+! we should have a loop here also as G not always first parameter
+                     continue
                   endif
+! write the identification of the excess parameter ....
 ! The list of constituents (in intconst) arranged in ascending order
                   call intsort(intconst,nsubl+ilevel,intconstx)
 ! write interaction level (2=binary, 3=ternary ...)
@@ -4565,24 +4657,69 @@
 907               format(a,10i5)
 208               format(i5/10i5)
 ! write the expression of the excess parameter .... (Redlich-Kister ??)
-                  do ideg=0,property%degree
+                  alldegs: do ideg=0,property%degree
                      f1=property%degreelink(ideg)
 ! excess parameters has just the coefficients
 !                     call list_tpascoef(lut,text,f1,npows,tpfc)
+                     if(f1.lt.1) then
+! This means one RK parameter is zero!! L(FCC,NB:C,Va,1) is zero !!1
+!                        write(*,*)'3C No function?: ',f1,ideg,property%degree
+                        write(*,*)'3C zero RK paramameter: ',&
+                             tpfuns(property%degreelink(property%degree))%symbol
+                        write(lut,307)0.0D0,0.0D0,0.0D0,0.0D0,0.0D0,0.0D0
+307                     format(6(1x,G15.8))
+                        cycle alldegs
+                     endif
                      if(tpfc(f1)%nranges.gt.1) then
                         write(*,*)'3C excess parameter with T-ranges!'
                         stop
                      endif
 ! This gave compiler error on MacOS 10.13 ??? GNU Fortran 5.2 ...
 !                     write(lut,311)(tpfc(f1)%cfun%coefs(jj,1),jj=1,6)
-! write another excess parameter
+! write another excess parameter.  What about magnetism and paratype???
                      write(lut,311)tpfc(f1)%cfun%coefs(1,1),&
                           tpfc(f1)%cfun%coefs(2,1),tpfc(f1)%cfun%coefs(3,1),&
                           tpfc(f1)%cfun%coefs(4,1),tpfc(f1)%cfun%coefs(5,1),&
                           tpfc(f1)%cfun%coefs(6,1)
 311                  format(6(1x,G15.8))
-                  enddo
-               endif propint
+                  enddo alldegs
+                  property=>property%nextpr
+               enddo intproploop
+!               if(wildloop.gt.0) write(*,*)'3C wildloop2: ',wildloop
+! magnetic excess parameter not written above but here
+!               write(*,*)'3C exit intproploop',magloop,paratyp,&
+!                    associated(property)
+               if(magloop .and. paratyp.eq.17) then
+                  paratyp=4
+                  call intsort(intconst,nsubl+ilevel,intconstx)
+!                  write(*,907)'3C solgasorder: ',nsubl+ilevel,&
+!                       (intconstx(k1),k1=1,nsubl+ilevel),1
+                  write(lut,208)nsubl+ilevel,&
+                       (intconstx(k1),k1=1,nsubl+ilevel),maxideg
+                  write(lut,323)(extcpar(ideg),exbmpar(ideg),ideg=0,maxideg-1)
+323               format(2F12.3)
+! end of output of magnetic excess parameter
+               endif
+! If this is a wildcard parameter maybe it should be written several times
+               if(wildcard) then
+                  if(wildloop.gt.1) then
+                     wildloop=wildloop-1
+                     do k1=1,nsubl+ilevel
+                        intconst(k1)=iset(k1,wildloop)
+                     enddo
+!                     write(*,324)'3C next expanded: ',wildloop,&
+!                          (intconst(k1),k1=1,nsubl+ilevel)
+324                  format(a,i3,2x,10i4)
+                     property=>savedproperty
+                     goto 310
+                  else
+! deallocate iset and restore intconst as we may have higher interactions ...
+                     deallocate(iset)
+                     do k1=1,nsubl+ilevel
+                        intconst(k1)=intconsty(k1)
+                     enddo
+                  endif
+               endif
 ! Take link to higher
                intparam=>intparam%highlink
                do while(ilevel.gt.0 .and. .not.associated(intparam))
@@ -4590,46 +4727,107 @@
                   intparam=>saveint(ilevel)%intlink
                   ilevel=ilevel-1
                enddo
-            enddo
+            enddo intree
          else
 ! here we are writing endmembers, we have generated the endmember symbol,
-! write its parameter expression
-            if(wildcard) then
-               write(*,*)'3C Beware! Parameter with wildcard: ',&
-                    trim(phlista(lokph)%name),',',trim(constext)
-            endif
 ! for the parameters follow the property link
             property=>endmember%propointer
+            if(wildcard .and. associated(property)) then
+               write(*,*)'3C ERROR! Endmember parameter with wildcard: ',&
+                    trim(phlista(lokph)%name),',',trim(constext)
+            endif
+! return here if we find a magnetic property first
+333         continue
             propem: if(associated(property)) then
 ! some endmembers may not have a property record!!
+               partc=zero; parbm=zero
                if(property%proptype.ne.1) then
-                  write(*,*)'3C endmember property is not G!'
-                  exit propem
+! for magnetism we can have proptype 1 and 2 (TC and BMAGN)
+! They can be before the G parameter in the TDB file.
+                  if(havemag.ne.0) then
+                     if(property%proptype.eq.2) then
+                        ! this is Curie/Neel temperature
+                        f1=property%degreelink(0)
+                        partc=tpfc(f1)%cfun%coefs(1,1)
+!                        write(*,*)'3C endmember TC: ',f1,partc
+                        paratyp=16
+                     elseif(property%proptype.eq.3) then
+                        ! This is BMAGN
+                        f1=property%degreelink(0)
+                        parbm=tpfc(f1)%cfun%coefs(1,1)
+!                        write(*,*)'3C endmember BMAGN: ',f1,partc
+                        paratyp=16
+                     else
+                        write(*,*)'3C skipping magnetic endmember property: ',&
+                             property%proptype
+                        exit propem
+                     endif
+                  else
+                     write(*,*)'3C illegal endmember property: ',&
+                          property%proptype
+                     exit propem
+                  endif
+                  if(associated(property%nextpr)) then
+                     property=>property%nextpr
+                     goto 333
+                  endif
+               else
+                  paratyp=4
                endif
 ! this line with the stoichiometry of the endmember should be written
 ! together with the type of coefficients and ranges
 ! it may require several lines
                write(text,210)constcomp
 ! according to Ted
-210            format(50F6.1)
-! what about several properties??
+!210            format(50F6.1)
+210            format(60F6.2)
+! property record has property=1 it is G; take care of magnetic properties
+               magprop: if(havemag.gt.0) then
+                  nextprop=>property%nextpr
+334               continue
+                  if(associated(nextprop)) then
+                     if(nextprop%proptype.eq.2) then
+                        ! this is Curie/Neel temperature
+                        f1=nextprop%degreelink(0)
+                        partc=tpfc(f1)%cfun%coefs(1,1)
+!                        write(*,*)'3C endmember TC2: ',f1,partc
+                        paratyp=16
+                     elseif(nextprop%proptype.eq.3) then
+                        ! This is BMAGN
+                        f1=nextprop%degreelink(0)
+                        parbm=tpfc(f1)%cfun%coefs(1,1)
+!                        write(*,*)'3C endmember BMAGN2: ',f1,partc
+                        paratyp=16
+                     else
+                        write(*,*)'3C ignoring endmember property: ',&
+                             nextprop%proptype
+                     endif
+                  else
+                     exit magprop
+                  endif
+                  nextprop=>nextprop%nextpr
+                  goto 334
+               endif magprop
+! property record has still property=1 it is G
                f1=property%degreelink(0)
-!            write(*,*)'TP function pointer is ',f1
                if(f1.gt.0) then
                   factor=one
                   if(ionliq .and. iliqwild) then
                      write(lut,211)constext(1:ip-2),ccc
 ! According to Ted
 211                  format(a,40x,' * ',F12.2)
-! use one of the "extra" coefficient function!
+! We must multiply tpfc(f1) with ccc, store in tpfc(jp) coefficient function!
                      jp=ntpf+1
                      call tpmult(f1,jp,ccc,tpfc)
-                     call list_tpascoef(lut,text,jp,npows,factor,tpfc)
+                     call list_tpascoef(lut,text,paratyp,jp,npows,factor,tpfc)
+                     if(paratyp.eq.16) write(lut,222)partc,parbm
+222                  format(2G15.8)
                   else
 ! according to Ted: endmember symbol 
 !                     write(*,99)constext(1:ip-2)
                      write(lut,99)constext(1:ip-2)
-                     call list_tpascoef(lut,text,f1,npows,factor,tpfc)
+                     call list_tpascoef(lut,text,paratyp,f1,npows,factor,tpfc)
+                     if(paratyp.eq.16) write(lut,222)partc,parbm
                   endif
                else
                   write(*,*)'3 C missing function for endmember property',&
@@ -4832,14 +5030,28 @@
 ! repeat the endmember loop again for interaction parameters (and magnetism??)
 !         write(*,*)'3C Now the excess parameters',nsubl
          excessparam=.true.
+! if magnetic we have FIRST loop all excess parameters for magnetic parameters
+         if(havemag.ne.0) magloop=.TRUE.
+! and then again for the G parameters .... SUCK
          endmember=>phlista(lokph)%ordered
          if(associated(phlista(lokph)%disordered)) then
             endmember=>phlista(lokph)%disordered
          endif
+!         if(magloop) write(*,*)'3C First magnetic excess parameters'
+         goto 207
+      elseif(magloop) then
+! First finish the magetic excess parameter parameters with a zero
+         write(lut,555)
+555      format(' 0',30x,' = end of magnetic excess parameters')
+! here we write the Gibbs energy excess parameters
+         magloop=.FALSE.
+         endmember=>phlista(lokph)%ordered
+         if(associated(phlista(lokph)%disordered)) then
+            endmember=>phlista(lokph)%disordered
+         endif
+!         write(*,*)'3C Gibbs energy excess parameters after magnetic'
          goto 207
       endif
-! if magnetic we should loop again
-      if(havemag.ne.0) write(*,*)'3C we should loop for magnetic parameters'
 ! terminate the excess parameters for this phase with a line starting with 0
       write(lut,300)
 300   format(' 0')
@@ -4850,6 +5062,11 @@
    write(*,*)'3C loop for compounds'
    phases2: do i1=1,noofph
       lokph=phasetuple(i1)%lokph
+      if(ceq%phase_varres(phlista(lokph)%linktocs(1))%phstate.eq.PHSUS) then
+! skip phases with suspended default composition set
+         write(*,*)'3C skipping phase loop 4: ',phlista(lokph)%name
+         cycle phases2
+      endif
       if(i1.ne.phstoi(mphstoi)) then
 !         write(*,*)'3C skipping mixture ',trim(phlista(lokph)%name)
          cycle phases2
@@ -4890,8 +5107,8 @@
 ! there is just one endmember!!
          endmember=>phlista(lokph)%ordered
       endif
-      write(*,*)'3C subl and factor: ',trim(phlista(lokph)%name),nsubl,&
-           factor
+      write(*,477)trim(phlista(lokph)%name),nsubl,factor
+477   format('3C Compound: ',a,i5,F15.6)
       constext=' '
 ! write on file
       write(lut,500)phlista(lokph)%name,factor
@@ -4901,13 +5118,13 @@
       sloop2: do isubl=1,nsubl
 ! this is the loop for the constituents in sublattices
          if(.not.associated(endmember)) then
-            write(*,*)'3C no parameter!!'
+            write(*,*)'3C no parameter!! ',phlista(lokph)%name
             cycle sloop2
          endif
          isp=endmember%fraclinks(isubl,1)
          if(isp.eq.-99) then
 ! this means wildcard in this sublattice
-            write(*,*)'3C Beware! Wildcard in a stoichiometric compound!!!'
+            write(*,*)'3C *** ERROR! Wildcard in a stoichiometric compound!!!'
             constext(ip:)='*:'
             ip=ip+2
             cycle sloop2
@@ -4915,7 +5132,7 @@
 ! Hm we should add stoichiometric factors for all constituents in this subl
          isp=phlista(lokph)%constitlist(isp)
          if(btest(splista(isp)%status,SPVA)) then
-            write(*,*)'3C vacancy in stoichiometric compound!!'
+            write(*,*)'3C Warning: vacancy in stoichiometric compound!!'
          endif
          write(constext(ip:),99)trim(splista(isp)%symbol)//':'
          ip=len_trim(constext)+1
@@ -4943,7 +5160,7 @@
          f1=property%degreelink(0)
          if(f1.gt.0) then
 !            factor=one
-            call list_tpascoef(lut,text,f1,npows,factor,tpfc)
+            call list_tpascoef(lut,text,paratyp,f1,npows,factor,tpfc)
          else
             write(*,*)'missing endmember parameter'
          endif
@@ -4980,6 +5197,72 @@
    return
  end subroutine save_datformat
 
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
+ subroutine expand_wildcards(intconst,nconst,wildloop,iset,lokph)
+! Expand a wildcard constituent with all constituents it replaces
+! There can be several wildcards
+! intconst is the original set of constuents including the wildcards (-99)
+! nconst is the number of constituents
+! wildloop is set to the number of times the interaction is repeated
+! iset is a matrix with the expanded constituents
+! phrecord is the phase record where one can find the phase structure
+   implicit none
+   integer intconst(*)
+   integer, allocatable, dimension(:,:) :: iset
+   integer nconst,wildloop,lokph
+!\end{verbatim}
+   integer la,lb,lc,lz,ja,jb,jc,jz,ka,kb,nexp
+   integer, allocatable, dimension(:) :: multi
+!   write(*,10)'3C in expand_wildcard: ',nconst,(intconst(la),la=1,nconst)
+10 format(a,i3,2x,10i4)
+   nexp=1
+   allocate(multi(phlista(lokph)%noofsubl))
+   multi=1
+   do la=1,phlista(lokph)%noofsubl
+      if(intconst(la).eq.-99) then
+         multi(la)=nexp
+         nexp=nexp*phlista(lokph)%nooffr(la)
+      endif
+   enddo
+!   write(*,*)'3C expand: ',nconst,nexp
+   allocate(iset(nconst,nexp))
+! initiate iset to original constituents (with wildcards)
+   do la=1,nexp
+      do ja=1,nconst
+         iset(ja,la)=intconst(ja)
+      enddo
+   enddo
+!   do ja=1,nexp
+!      write(*,10)'3C before expanded: ',ja,(iset(la,ja),la=1,nconst)
+!   enddo
+! loop several times expanding one sublattice with wildcard each time
+   ja=1
+   lat1: do la=1,phlista(lokph)%noofsubl
+      if(iset(la,1).eq.-99) then
+         ka=1
+         do while(ka.lt.nexp)
+            jc=ja
+            do jb=1,phlista(lokph)%nooffr(la)
+               do jz=1,multi(la)
+                  iset(la,ka)=jc
+                  ka=ka+1
+               enddo
+               jc=jc+1
+            enddo
+         enddo
+      endif
+      ja=ja+phlista(lokph)%nooffr(la)
+   enddo lat1
+   wildloop=nexp
+!   do ja=1,wildloop
+!      write(*,10)'3C after expanded:  ',ja,(iset(la,ja),la=1,nconst)
+!   enddo
+1000 continue
+   return
+ end subroutine expand_wildcards
+ 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim}
@@ -5049,7 +5332,13 @@
       endif
    enddo
 ! species may have a charge
-   if(abs(splista(isp)%charge).gt.1-0D-6) then
+   if(splista(isp)%charge.eq.one) then
+      name(jp:jp)='+'
+      jp=jp+1
+   elseif(splista(isp)%charge.eq.-one) then
+      name(jp:jp)='-'
+      jp=jp+1
+   elseif(abs(splista(isp)%charge).gt.1-0D-6) then
       call wrinum(name,jp,6,1,splista(isp)%charge)
    endif
 !   write(*,*)'3C suck: lower case name: ',trim(name)

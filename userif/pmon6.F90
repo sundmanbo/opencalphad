@@ -53,7 +53,7 @@ contains
 ! various symbols and texts
     character :: ocprompt*4='OC4:'
     character name1*24,name2*24,line*80,model*72,chshort
-    integer, parameter :: ocmonversion=32
+    integer, parameter :: ocmonversion=33
 ! element symbol and array of element symbols for database use
     character elsym*2,ellist(maxel)*2
 ! more texts for various purposes
@@ -404,6 +404,33 @@ contains
 !$    write(kou,11)
 11  format('Linked with OpenMp for parallel execution')
 !
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+! Default gnuterminals, edit these as they may not be same on your systems
+! Screen
+    graphopt%gnutermid=' '
+    i1=1
+    graphopt%gnutermid(i1)='SCREEN '
+! MAX 80 characters to set terminal ....
+    graphopt%gnuterminal(i1)='wxt size 1200,800 '
+    graphopt%filext(i1)='  '
+! Postscript
+    i1=2
+    graphopt%gnutermid(i1)='PS  '
+    graphopt%gnuterminal(i1)='postscript color solid '
+    graphopt%filext(i1)='ps  '
+! Adobe Portable Document Format (PDF)
+    i1=3
+    graphopt%gnutermid(i1)='PDF '
+! NOTE size is in inch
+    graphopt%gnuterminal(i1)='pdf color solid size 6,4 enhanced fontscale 0.45'
+    graphopt%filext(i1)='pdf  '
+! Graphics Interchange Format (GIF)
+    i1=4
+    graphopt%gnutermid(i1)='GIF  '
+    graphopt%gnuterminal(i1)='gif '
+    graphopt%filext(i1)='gif  '
+    graphopt%gnutermax=i1
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 ! jump here after NEW to reinitiallize all local variables also
 20  continue
 ! clear file names
@@ -425,26 +452,6 @@ contains
     plotform=' '
 ! default plot terminal, replaces plotform
     graphopt%gnutermsel=1
-!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-! Edit these as they may not be available on your systems
-    graphopt%gnutermid(1)='SCREEN '
-    graphopt%gnuterminal(1)='xterm persist '
-    graphopt%filext(1)='  '
-    graphopt%gnutermid(2)='PS  '
-    graphopt%gnuterminal(2)='postscript color solid '
-    graphopt%filext(2)='ps  '
-    graphopt%gnutermid(3)='PDF '
-    graphopt%gnuterminal(3)='pdf color solid'
-    graphopt%filext(3)='pdf  '
-    graphopt%gnutermid(4)='GIF  '
-    graphopt%gnuterminal(4)='gif '
-    graphopt%filext(4)='gif  '
-    graphopt%gnutermax=4
-    graphopt%gnutermid(5)=' '
-    graphopt%gnutermid(6)=' '
-    graphopt%gnutermid(7)=' '
-    graphopt%gnutermid(8)=' '
-!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 ! default list unit
     optionsset%lut=kou
 ! default for list short
@@ -519,7 +526,7 @@ contains
        cline=trim(ochome)//'/start.OCM '
        inquire(file=cline,exist=logok)
        if(logok) then
-!          write(*,*)'there is an initiation file: ',trim(cline)
+          write(*,*)'Reading your startup macro: ',trim(cline)
           last=0
 ! This just open the file and sets input unit to file
           call macbeg(cline,last,logok)
@@ -2747,7 +2754,11 @@ contains
           call capson(text)
           if(text(1:1).eq.' ') goto 100
           do i1=1,graphopt%gnutermax
-             if(text(1:8).eq.graphopt%gnutermid(i1)) goto 176
+             if(text(1:8).eq.graphopt%gnutermid(i1)) then
+                string=graphopt%gnuterminal(i1)
+                write(*,*)'Modifying terminal ',graphopt%gnutermid(i1)
+                goto 176
+             endif
           enddo
 ! gnutermid not found, a new terminal
           if(graphopt%gnutermax.ge.8) then
@@ -2756,10 +2767,11 @@ contains
           endif
           i1=graphopt%gnutermax+1
           graphopt%gnutermax=i1
+          string=' '
 ! enter a new set terminal id and definition
 176       continue
           graphopt%gnutermid(i1)=text(1:8)
-          call gparc('Text after set terminal:',cline,last,5,text,' ',q1help)
+          call gparc('Text after set terminal:',cline,last,5,text,string,q1help)
           graphopt%gnuterminal(i1)=text
           if(i1.ne.1) then
 ! SCREEN has no file extention
@@ -4358,7 +4370,9 @@ contains
 ! if new axis then reset default plot options
 ! plot ranges and their defaults
              graphopt%gibbstriangle=.FALSE.
-             graphopt%rangedefaults(iax)=0
+!             graphopt%rangedefaults(iax)=0
+             graphopt%rangedefaults(1)=0
+             graphopt%rangedefaults(2)=0
 ! labeldefaults(1) is the title!!!
              graphopt%labeldefaults(1)=0
              graphopt%plotmin=zero
@@ -4366,6 +4380,8 @@ contains
              graphopt%plotmax=one
              graphopt%dfltmax=one
              graphopt%appendfile=' '
+! remove all texts ... loosing some memory ...
+             nullify(graphopt%firsttextlabel)
 !             graphopt%status=0
              graphopt%labelkey='top right'
 !             nullify(graphopt%firsttextlabel)
@@ -4376,7 +4392,7 @@ contains
              plotform=' '
              write(*,*)'Plot options reset'
           endif
-! remember axis as default
+! remember most recent axis as default
           axplotdef(iax)=axplot(iax)
        enddo
 !       call gparcd('GNUPLOT file name',cline,last,1,plotfile,'ocgnu',q1help)
@@ -4483,7 +4499,7 @@ contains
              write(kou,*)'Please answer X or Y'
           endif
           goto 21100
-!............................................
+!............................................ user limits X axis (1)
 21120     continue
           call gparcd('Default limits',cline,last,1,ch1,'N',q1help)
           if(ch1.eq.'Y' .or. ch1.eq.'y') then
@@ -4519,7 +4535,7 @@ contains
              graphopt%dfltmax(1)=xxx
           endif
           goto 21100
-!-----------------------------------------------------------
+!---------------------------------------------- user limits Y axis (2)
 21130     continue
           call gparcd('Default limits',cline,last,1,ch1,'N',q1help)
           if(ch1.eq.'Y' .or. ch1.eq.'y') then
@@ -4555,7 +4571,7 @@ contains
           endif
           goto 21100
 !-----------------------------------------------------------
-! RATIOS of axis, normal values 1,1
+! RATIOS of axis, normal values 1,1 (probably quite useless....)
        case(3)
           call gparrd('X-axis plot ratio',cline,last,xxx,graphopt%xsize,q1help)
           if(xxx.le.0.1) then
@@ -4781,8 +4797,9 @@ contains
           line=' '
           if(noofaxis.eq.2) then
 ! Calculate the equilibria at the specific point
-             write(kou,*)'This is possible only when you plot with'//&
-                  ' the same axis as you calculated!'
+             write(kou,22100)
+22100        format(' *** Note: the positioning of the text will use ',/&
+                  ' axis variables for which the diagram was calculated!')
              call gparcd('Do you want to calculate the equilibrium? ',&
                   cline,last,1,ch1,'Y',q1help)
              if(ch1.eq.'y' .or. ch1.eq.'Y') then
@@ -5075,10 +5092,11 @@ contains
 !  implicit double precision (a-h,o-z)
     implicit none
     character cline*(*),ccomnd(*)*(*),query*(*)
-    character defansw*16,query1*64,text*256
-    integer last,kdef,ncomnd,kom2,lend,lenq
+    integer last,kdef,ncomnd
 !\end{verbatim}
 !    external q2help
+    character defansw*16,query1*64,text*256
+    integer kom2,lend,lenq
     logical once
     lenq=len_trim(query)
     if(query(lenq:lenq).eq.'?') then
@@ -5089,10 +5107,13 @@ contains
     endif
     once=.true.
 ! this is to force loading of q2help on MacOS (did not help)
-!    if(.not.once) call q2help(query,cline)
     submenu=0
+! if cline(last:last) is "," skip one character
 !  write(kou,10)'submenu 1: ',query(1:lenq),last,cline(last:last+5)
 !10  format(a,a,i4,': ',a)
+    if(last.lt.len(cline)) then
+       if(cline(last:last).eq.',') last=last+1
+    endif
 100 continue
     if(kdef.lt.1 .or. kdef.gt.ncomnd) then
 ! no default answer
@@ -5107,28 +5128,40 @@ contains
        endif
     else
 ! there is a default answer
+! this eolch skips spaces.  If only spaces it returns TRUE
        if(eolch(cline,last)) then
-! there is no user input passed to this subroutine
+! there is no user input passed to this subroutine, write the question
           defansw=ccomnd(kdef)
           lend=len_trim(defansw)+1
 ! note fourth argument 5 copes whole of cline into text
+!          write(*,102)'submenu 6: ',last,trim(cline)
           call gparcd(query1(1:lenq),cline,last,5,text,defansw,q2help)
           if(buperr.ne.0) goto 1000
           cline=text
        else
-! skip one character, if next is , take default answer
-! write(*,102)'submenu 7: ',last,cline(1:last+5)
-!102       format(a,i5,'"',a,'"')
-!        last=last+1
+! if first character is , take default answer
+!          write(*,102)'submenu 7: ',last,trim(cline)
+102       format(a,i5,'"',a,'"')
           if(cline(last:last).eq.',') then
+! a , means accept default answer
              submenu=kdef
              goto 1000
           else
-             cline=cline(last:)
+             defansw=ccomnd(kdef)
+             lend=len_trim(defansw)+1
+! note fourth argument 5 copes whole of cline into text
+! gparcd skips one character, backspace last, it does not matter if it is ,
+             last=last-1
+!             write(*,102)'submenu 8: ',last,trim(cline)
+             call gparcd(query1(1:lenq),cline,last,5,text,defansw,q2help)
+             if(buperr.ne.0) goto 1000
+             cline=text
+!             cline=cline(last:)
           endif
        endif
     endif
 !
+!    write(*,102)'submenu 9: ',last,trim(cline)
     kom2=ncomp(cline,ccomnd,ncomnd,last)
     if(kom2.le.0) then
        if(once) then
@@ -5154,6 +5187,7 @@ contains
           write(*,*)'Warning, exceeded helprec%level limit'
        endif
     endif
+!    write(*,102)'submenu last: ',last,trim(cline)
 1000 continue
     return
   end function submenu

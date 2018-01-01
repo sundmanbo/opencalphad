@@ -13,8 +13,28 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2018.01.01 OC version 4.038: A small change in the user interface to
+handle "," between commands and answers. It is recommended to just use
+a space to separate a command and argument but questions where you
+accept the default answer can be answered by a "," on the command
+line.  But the treatment of a "," between the command and argument has
+not been correct.  You may have to change some of your macro files to
+fit the new way the user interface works.
+
+I have also added names for the "additions" to the Gibbs energy from
+magnetic, volume, liquid 2-state, low temperature heat capacity models
+and others.  The contribution for those which are included for a phase
+are listed with the command "CALCULATE PHASE ... ONLY-G".
+
+For the graphics the user may now define his prefered plot devices
+using the command "ENTER GNUPLOT_TERMINAL".  This allows you to modify
+the defaults and add new devices.  I have also tried to improve the
+graphics a bit but there are many things in GNUPLOT I have not
+understood.  Anyone who knows how to make triangular diagrams are
+welcome to help.
+
 2017.12.12 OC version 4.037: a large number of bugs most of them
-connected with creating and copying equilibrium record corrected.
+connected with creating and copying equilibrium records corrected.
 These caused spurious segmentation faults.
 
 2017.11.26 OC version 4.036: After my PC crashed I worked with OC for
@@ -24,11 +44,11 @@ consistent with previous versions.  Be careful when installing this
 version.  There is now two versions of the metlib library, metlib3.F90
 is the same as before but metlib4.F90 includes the GETKEY routine to
 allow editing of the command line on Linux/MacOS.  This also requires
-compilation of the getkey.cc routine in the utilities/GETKEY
+compilation of the getkey.c routine in the utilities/GETKEY
 directory.
 
-I am working on a bug converting TDB to DAT files, I hope to finish
-that soon.  All other changes are minor.
+I am still working on problems converting TDB to DAT files, I hope to
+finish that soon.  All other changes are minor.
 
 2017.10.20 OC version 4.035: After a few weeks of work and vacations
 a small bugfix in the TDB2DAT code for excess parameters.
@@ -59,9 +79,9 @@ hardware/OS/Fortran compilers by different users.  In some cases there
 are errors like "segmentation faults" that I cannot reproduce running
 the same macro file on my DELL with Windows and GNU Fortran.  I have
 also discovered differences with the GNU Fortran on my MAC/Linux and
-on Windows.  As the you as user have access the source code please try
-to detect more precisely where the error occurs so I can fix the code
-to avoid also bugs in the compilers and OS.
+on Windows.  As you have access the source code please try to detect
+more precisely where the error occurs so I can fix the code to avoid
+also bugs in the compilers and OS.
 
 2017.08.10 OC version 4.032: Added that one can change the relative
 lengths of the plot axis and the axis labels.  The texts in the plot
