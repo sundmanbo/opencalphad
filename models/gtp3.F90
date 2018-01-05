@@ -787,7 +787,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! max number of state variable functions
   integer, private, parameter :: maxsvfun=500
 ! version number of GTP (not OC)
-  character*8, parameter :: gtpversion='GTP-3.20'
+  character*8, parameter :: gtpversion='GTP-3.21'
 ! THIS MUST BE CHANGED WHENEVER THE UNFORMATTED FILE FORMAT CHANGES!!!
   character*8, parameter :: savefile='OCF-3.20'
 !\end{verbatim}

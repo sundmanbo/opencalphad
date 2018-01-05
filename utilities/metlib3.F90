@@ -20,9 +20,13 @@ MODULE METLIB
 !    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 !
 !--------------------------------------------------------------------------
-! For character by character input allowing emacs editing not needed in Windows
-!
-!  use M_getkey
+#ifdef win
+! nothing special
+#else  
+! LINUX: For character by character input allowing emacs editing
+! uncomment the next line and run the Makefile on the GETKEY directory 
+  use M_getkey
+#endif
 !
 !--------------------------------------------------------------------------
 !
@@ -97,8 +101,6 @@ MODULE METLIB
 ! all COMMON removed
 ! This is for environment variables used in MACROs
   character, private :: ENVIR(9)*60
-! this is for debugging
-  integer :: buglevel=0
 !
 !    COMMON/TCMACRO/IUL,IUN(5),MACEXT
     integer, private :: IUL,IUN(5)
@@ -3034,9 +3036,27 @@ CONTAINS
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin verbatim
-  subroutine bintxt_linux(lin,cline)
-!  subroutine bintxt_getkey(lin,cline)
-! subroutine to read a line with history and editing on LINUX a la emacs
+  subroutine bintxt(lin,cline)
+! subroutine to read a command line with or without arguments
+    character cline*(*)
+    integer lin
+!\end verbatim
+#ifdef win
+! On Windows command line editing is provided by the OS
+    call bintxt_nogetkey(lin,cline)
+#else
+! LINUX: to have command line editing uncomment the line above and comment the 
+! line with the call bintxt_nogetkey
+    call bintxt_getkey(lin,cline)
+#endif
+    return
+  end subroutine bintxt
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin verbatim
+  subroutine bintxt_getkey(lin,cline)
+! LINUX: subroutine to read a line with history and editing a la emacs
 !
     character cline*(*)
     integer lin
@@ -3099,8 +3119,12 @@ CONTAINS
     hlast=myhistory%hpos+1
 ! read one character at a time without echo
 100 continue
-! read one character at a time without echo and allow editing and history
-!    ch1=getkey()
+#ifdef win
+! on Windows se do not use this routine and getkey is not defined
+#else
+! LINUX: read one character at a time without echo and allow editing history
+    ch1=getkey()
+#endif
 !    write(*,*)'got from getkey: ',ichar(ch1)
 ! handle control character
     if(ichar(ch1).ge.32 .and. ichar(ch1).lt.127) then
@@ -3146,6 +3170,9 @@ CONTAINS
           ip=ip-1
        endif
 !............. OK
+    case(ctrlc)
+! terminate the program
+       stop 'User break'
     case(ctrle)
 ! move cursor after last character
 !       if(ip.eq.1) then
@@ -3291,14 +3318,16 @@ CONTAINS
 1000 continue
 !      call system('stty echo ')
     return
-  end subroutine bintxt_linux
+  end subroutine bintxt_getkey
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 !  
-  subroutine bintxt(lin,line)
-!  subroutine bintxt(lin,line)
-! with or without without getley
+!\begin{verbatim}
+  subroutine bintxt_nogetkey(lin,line)
+! Reading a command line on Windows with editing provided by the OS
     character line*(*)
+    integer lin
+!\end{verbatim}
     integer iostatus
     read(lin,10,iostat=iostatus)line
 10  format(a)
@@ -3307,7 +3336,7 @@ CONTAINS
        line='fin '
     endif
     return
-  end subroutine bintxt
+  end subroutine bintxt_nogetkey
 
   function ionoff(subr)
     character subr*(*)
@@ -5211,8 +5240,6 @@ CONTAINS
     character*(*) prompt,line
     character helpquest*16
     integer savedlevel
-!
-!    if(buglevel.eq.1) write(*,*)'metlib: In q2help'
     savedlevel=helprec%level-1
 ! If the ? is followed by a text push that text on the helprec%cpath
     ip=2
@@ -5258,7 +5285,6 @@ CONTAINS
 !    enddo
 !10  format(i3,': ',a)
 !
-!    if(buglevel.eq.1) write(*,*)'metlib: in q1help'
     nsaved=0
     subsec(1)='%\section{'
     subsec(2)='%\subsecti'
@@ -5321,7 +5347,6 @@ CONTAINS
 !             goto 127
 !          endif
 !          write(*,*)'found mtxt: ',mtxt
-!         segmentation fault here due to nsaved not zeroed
           do jj=1,4
              if(level.gt.jj) then
 ! remove previous command if any from the search text

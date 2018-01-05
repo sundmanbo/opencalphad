@@ -411,7 +411,12 @@ contains
     i1=1
     graphopt%gnutermid(i1)='SCREEN '
 ! MAX 80 characters to set terminal ....
-    graphopt%gnuterminal(i1)='wxt size 1200,800 '
+#ifdef win
+    graphopt%gnuterminal(i1)='wxt size 900,600 '
+#else
+! On LINUX
+    graphopt%gnuterminal(i1)='qt size 900,600 '
+#endif
     graphopt%filext(i1)='  '
 ! Postscript
     i1=2
@@ -421,8 +426,13 @@ contains
 ! Adobe Portable Document Format (PDF)
     i1=3
     graphopt%gnutermid(i1)='PDF '
+#ifdef win
 ! NOTE size is in inch
     graphopt%gnuterminal(i1)='pdf color solid size 6,4 enhanced fontscale 0.45'
+#else
+! On LINUX
+    graphopt%gnuterminal(i1)='pdfcairo '
+#endif
     graphopt%filext(i1)='pdf  '
 ! Graphics Interchange Format (GIF)
     i1=4
@@ -446,6 +456,7 @@ contains
     graphopt%appendfile=' '
     graphopt%status=0
     graphopt%labelkey='top right'
+! This generate some memory loss
     nullify(graphopt%firsttextlabel)
     nullify(textlabel)
     plotfile='ocgnu'
@@ -497,7 +508,7 @@ contains
 ! here one should read a user initialisation file as a macro
 ! file can be at current directory or at home directory
 ! initiate on-line help
-! local environment
+! local environment: please create OCHOME as an environment variable
     ochome=' '
     call get_environment_variable('OCHOME ',ochome)
 !    write(*,*)'OCHOME: ',trim(ochome)
@@ -2750,7 +2761,7 @@ contains
 173       format(i2,2x,a,' > set terminal ',a)
           write(kou,174)
 174       format('Enter or change a GNUPLOT termial ')
-          call gparc('Termminal id (8 chars):',cline,last,1,text,' ',q1help)
+          call gparc('Terminal id (8 chars):',cline,last,1,text,' ',q1help)
           call capson(text)
           if(text(1:1).eq.' ') goto 100
           do i1=1,graphopt%gnutermax

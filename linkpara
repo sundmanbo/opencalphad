@@ -4,7 +4,7 @@ del *.o
 del *.mod
 
 copy utilities\metlib3.F90 .
-gfortran -c -O2 metlib3.F90
+gfortran -c -O2 -Dwin metlib3.F90
 del metlib3.F90
 
 copy numlib\oclablas.F90 .
@@ -32,7 +32,7 @@ gfortran -c smp2.F90
 del smp2.F90
 
 copy userif\pmon6.F90 .
-gfortran -c -fopenmp pmon6.F90
+gfortran -c -fopenmp -Dwin pmon6.F90
 del pmon6.F90
 
 gfortran -o linkoc linkocdate.F90

@@ -25,7 +25,7 @@ new Y
 
 set echo
 
-r t ou
+r t OU
 
 
 set c t=3200 p=1e5 n=1 x(o)=.4

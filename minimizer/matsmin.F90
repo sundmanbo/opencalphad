@@ -39,7 +39,7 @@ MODULE liboceq
 !$  use omp_lib
 !
   implicit none
-  character*8, parameter :: hmsversion='HMS-2.10'
+  character*8, parameter :: hmsversion='HMS-2.11'
 !
 !-------------------------------------------------------
 ! for single equilibrium

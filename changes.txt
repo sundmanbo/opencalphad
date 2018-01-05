@@ -13,6 +13,30 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2018.01.39 OC version 4.039: Handling some Linux/Windows pecularities:
+
+Testing OC on a Linux computer with GNUPLOT 5.2 indicate that the
+terminal "wxt" used on Windows is not understood.  On Linus the "qt"
+terminal should be used but my Antivirus program prevents me to use
+the "qt" terminal on Windows.  This has forced me to include #ifdef
+statements in the pmon6.F90 file.  Linking on Windows should use the
+"linkmake" or "linkpara" command files which select -Dwin for the
+compilation of pmon6.F90.  Linking on Linux using any of the Makefiles
+will automatically include the qt and pdfcairo terminals.
+
+Using Makefile-simple is the simplest way to compile and link OC.  For
+those who understands makefiles (I do not) one can select various
+compiler options in this file, default is -O2.
+
+A new Makefile called Makefile+getkey allows emacs-line editing of the
+command line including history (ctrl-P/ctrl-N).  But it also requires
+a separate compilation of the getkey routine in the utilities/GETKEY
+directory depending on your UNIX dialect.  An expert can handle that.
+
+The Makefile-sequential and Makefile-parallel are now now obsolete but
+will be kept for a while.  They now include the option -Dwin when
+compiling metlib3,F90 to avoid the emacs-style command editing.
+
 2018.01.01 OC version 4.038: A small change in the user interface to
 handle "," between commands and answers. It is recommended to just use
 a space to separate a command and argument but questions where you
@@ -567,7 +591,7 @@ occured for an FCC phase with a disordered fraction set.  In the macro
 opttest2.OCM I have added an example of plotting an appended figure
 with data.  I have also added a command "calulate phase ... const-adj"
 to calculate the constitution of the phase when the mole fractions are
-known.  It is mainly intended for OCASI applications.
+known.  This is a test for a subroutine intended for OCASI applications.
 
 2016.03.16 Some minor changes in all documentation files.  For
 plotting there is now a possibility to APPEND a GNUPLOT command file
@@ -592,5 +616,5 @@ to rename these files.
 
 2016.03.03 Fixed some errors when entering TP functions interactivly.
 Modified slightly the listing of many equilibria.  Empty lines in the
-enter_many_equil command and TAB characters the row lines accepted.
+enter_many_equil command and TAB characters in the row lines are accepted.
 
