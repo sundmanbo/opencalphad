@@ -164,6 +164,7 @@ plot
 
 title map8 fig 1
 
+@&
 
 
 set c x(ni)=.45

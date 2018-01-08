@@ -105,12 +105,13 @@ l,,,,
 map
 n
 
-pl
+plot
 X(*,CR)
 T
 title map 11 fig 3
 RENDER
 
+@&
 @$ add same text, also in greek
 
 plot

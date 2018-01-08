@@ -30,9 +30,9 @@ copy numlib\lmdif1lib.F90
 gfortran -c lmdif1lib.F90
 del lmdif1lib.F90
 
-copy stepmapplot\smp2.F90 .
+copy stepmapplot\smp2*.F90 .
 gfortran -c  smp2.F90
-del smp2.F90
+del smp2*.F90
 
 copy userif\pmon6.F90 .
 gfortran -c -Dwin pmon6.F90

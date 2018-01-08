@@ -62,6 +62,7 @@ title map 1 fig 1
 render
 
 
+@&
 plot
 x(*,cu)
 T
@@ -73,12 +74,14 @@ N
 title map 1 fig 2
 
 
+@&
 plot
 T
 x(*,cu)
 title map 1 fig 3
 render
 
+@&
 plot
 ac(cu)
 T

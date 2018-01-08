@@ -55,6 +55,7 @@ y(gas,*)
 title step3 fig 1
 render
 
+@&
 @$-------------------------------------------------------
 @$ Move the position of the identification
 plot
@@ -64,6 +65,7 @@ position bottom left
 title step3 fig 2
 render
 
+@&
 @$-------------------------------------------------------
 @$ Plot the enthalpy content
 plot
@@ -72,6 +74,7 @@ H
 title step3 fig 3
 render
 
+@&
 @$-------------------------------------------------------
 @$ Enter symbol for heat capacity and plot the heat capacity
 ent symb cp=h.t;
@@ -82,6 +85,7 @@ cp
 title step3 fig 4
 render
 
+@&
 @$ Note the strong contribution to the heat capacity from the variation
 @$ of the constituent fractions
 @$-------------------------------------------------------

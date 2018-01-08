@@ -2000,9 +2000,15 @@
          lokem=iws(lokem)
          nullify(addlink)
 510      continue
+         if(iws(lokem+1).ge.1 .and. iws(lokem+1).le.8) then
 ! all phases has volume addition ...
-         if(iws(lokem+1).ne.7) write(*,*)'3E An addition type ',&
-              iws(lokem+1),' for ',trim(phlista(jph)%name)
+            if(iws(lokem+1).ne.7) write(*,515)iws(lokem+1),&
+                 additioname(iws(lokem+1)),trim(phlista(jph)%name)
+515            format('3E An addition type ',i3,', ',a,' for ',a)
+         elseif(iws(lokem+1).ne.0) then
+            write(*,515)iws(lokem+1),'Unknown type            ',&
+                    trim(phlista(jph)%name)
+         endif
          if(iws(lokem+1).eq.INDENMAGNETIC) then
             call create_magrec_inden(nyaddlink,iws(lokem+2))
             if(gx%bmperr.ne.0) goto 1000

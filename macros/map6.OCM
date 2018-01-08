@@ -58,6 +58,7 @@ title map 6 fig 1
 render
  
  
+@&
 @$ add some labels
 plot
 
@@ -79,6 +80,7 @@ text n
 .75 1200 y
 
 
+@&
 
 plot
 
@@ -90,6 +92,7 @@ n
 1800
 
 
+@&
 plot
 
 

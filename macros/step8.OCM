@@ -140,6 +140,7 @@ T
 title step 8 fig 1
 
 
+@&
 @$ The maximum T is about 8 moles of O
 
 plot
@@ -147,6 +148,7 @@ ac(o)
 T
 title step 8 fig 2
 
+@&
 
 @$ We can see how the T varies with the oxygen potential
 @$ It is rather constant for a large range of activities
@@ -158,6 +160,7 @@ y(gas,*)
 title step 8 fig 3
 
 
+@&
 @$ At present we can only plot constiton species one by one (or all)
 plot
 n(o)
@@ -166,30 +169,35 @@ title step 8 fig 4
 
 
 
+@&
 plot
 n(o)
 y(gas,c1o1)
 title step 8 fig 5
 
 
+@&
 plot
 n(o)
 y(gas,c1o2)
 title step 8 fig 6
 
 
+@&
 plot
 n(o)
 y(gas,o2)
 title step 8 fig 7
 
 
+@&
 plot
 n(o)
 y(gas,h2)
 title step 8 fig 8
 
 
+@&
 @$ How the H2O1 content depend on T
 plot
 T
@@ -364,6 +372,7 @@ P
 title step 8 fig 10
 
 
+@&
 
 @$ A nice hyperbolic curve
 @&
@@ -376,6 +385,7 @@ log
 y
 title step 8 fig 11
 
+@&
 @$
 @$===============================================================
 @$ Yet another test

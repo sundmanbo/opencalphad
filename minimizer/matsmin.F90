@@ -6204,10 +6204,14 @@ CONTAINS
 !    if(nocon.le.10) goto 1000
     if(.not.big) goto 1000
 ! somewhat clumy way to save phases with most constuent ... but why not
-    do jj=1,5
-       if(saved%order(jj).eq.0) exit
-       if(saved%order(5).gt.0 .and. nocon.gt.saved%order(jj)) exit
-    enddo
+    free: do jj=1,5
+       if(saved%order(jj).eq.0) then
+! segmentation fault created due to not using all  saved%savej
+          if(jj.lt.5) saved%order(jj+1)=0
+          exit free
+       endif
+       if(nocon.gt.saved%order(jj)) exit free
+    enddo free
 ! new Fortran standard when exiting loop jj>5 unless exit condition in if
 ! if jj>5 this phase has less constituents than all saved, if not save in savej
     if(jj.le.5) then
@@ -7153,7 +7157,7 @@ CONTAINS
 
 !\begin{verbatim}
   subroutine meq_state_var_value_derivative(svr1,svr2,value,ceq)
-! calculates a state variable value derivative (in some cases)
+! calculates a state variable value, dot derivative, (in some cases)
 ! svr1 and svr2 identifies the state variables in (dstv1/dstv2)
 ! check that svr2 2 is a condition
 ! value is calculated value
@@ -7172,9 +7176,14 @@ CONTAINS
     integer iel,mph,jj,nterm
     double precision xxx
     double precision, allocatable :: svar(:)
+    character dum*80
 !
     value=zero
-!    write(*,*)'In meq_state_var_value_derivative: ',svr2%statevarid
+!    if(svr2%statevarid.ne.1) then
+! This if statement added trying to avoid spurious error (caused by -O2??)
+       write(dum,*)'In meq_state_var_value_derivative:',&
+            svr2%statevarid,ceq%tpval(1)
+!    endif
 ! we must check if there is a condition on svr2
     pcond=>ceq%lastcondition
     if(.not.associated(pcond)) then
@@ -7257,10 +7266,13 @@ CONTAINS
        write(*,*)'Sorry, derivates of this variable not implemented'
        gx%bmperr=4215; goto 1000
     endif
-! meqrec deallocated when this routine terminates ?? NO but meqrec1
-    deallocate(meqrec1)
-!    gx%bmperr=4078
 1000 continue
+! meqrec1 deallocated automatically?
+    if(allocated(meqrec1)) deallocate(meqrec1)
+!    if(svr2%statevarid.ne.1) then
+! This if statement added trying to avoid spurious error (caused by -O2??)
+       write(dum,*)'MM exit meq_state_var_value_derivative',value
+!    endif
     return
   end subroutine meq_state_var_value_derivative
 

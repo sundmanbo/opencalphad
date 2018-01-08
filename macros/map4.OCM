@@ -49,6 +49,7 @@ title map 4 fig 1
 render
 
 
+@&
 plot
 x(*,o)
 T
@@ -57,6 +58,7 @@ position bottom left
 render
 
 
+@&
 plot
 
 
@@ -67,6 +69,7 @@ N
 .78
 render
 
+@&
 plot
 
 
@@ -78,6 +81,7 @@ N
 
 
 
+@&
 @$-------------------------------------------------------------
 @$ As a final touch calculate the congruent melting of UO2
 @$ First calculate an equilibrium in the liquid (or solid) above it

@@ -85,6 +85,7 @@ title map 5 fig 1
 render
 
 
+@&
 
 @$--------------------------------------------------------------------
 @$ we must calculate the gamma loop separately
@@ -110,6 +111,7 @@ title map 5 fig 2
 render
 
 
+@&
 @$ Set range (scaling) of T
 plot
 x(*,mo)
@@ -121,6 +123,7 @@ N
 title map5 fig 3
 render
 
+@&
 
 @$ Add some labels
 
@@ -137,7 +140,8 @@ n .4 1530 0 y
 text n .1 1850 0 y
 
 
-@$ Change to greek
+@&
+@$ Change to greek phase names
 plot
 
 

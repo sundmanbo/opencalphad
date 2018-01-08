@@ -3245,20 +3245,24 @@ CONTAINS
     case(return,tab)
 ! save line (if not empty) finish editing and return current line
        cline=line
-       if(len_trim(line).eq.0 .or. &
-            line(1:ip+1).eq.myhistory%hline(myhistory%hpos)(1:ip+1)) then
+       if(len_trim(line).eq.0) then
           continue
-!            write(*,*)'Not saving same or empty line'
-       else
-          if(myhistory%hpos.eq.histlines) then
-! history full, the oldest history line deleted
-             do jj=2,histlines
-                myhistory%hline(jj-1)=myhistory%hline(jj)
-             enddo
+!            write(*,*)'Not saving empty line'
+       elseif(myhistory%hpos.gt.0) then
+          if(line(1:ip+1).eq.myhistory%hline(myhistory%hpos)(1:ip+1)) then
+             continue
+!            write(*,*)'Not saving same line'
           else
-             myhistory%hpos=myhistory%hpos+1
+             if(myhistory%hpos.eq.histlines) then
+! history full, the oldest history line deleted
+                do jj=2,histlines
+                   myhistory%hline(jj-1)=myhistory%hline(jj)
+                enddo
+             else
+                myhistory%hpos=myhistory%hpos+1
+             endif
+             myhistory%hline(myhistory%hpos)=line
           endif
-          myhistory%hline(myhistory%hpos)=line
        endif
 ! write a CR on screen ... maybe also LF ?? NO!!
        if(ichar(ch1).eq.return) write(kou,*)

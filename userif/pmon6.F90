@@ -57,7 +57,7 @@ contains
 ! element symbol and array of element symbols for database use
     character elsym*2,ellist(maxel)*2
 ! more texts for various purposes
-    character text*72,string*256,ch1*1,selection*27,funstring*1024
+    character text*72,string*256,ch1*1,chz*1,selection*27,funstring*1024
     character axplot(2)*24,axplotdef(2)*24,quest*20
     character plotform*32,longstring*2048,optres*40
 ! separate file names for remembering and providing a default
@@ -397,9 +397,9 @@ contains
          'This program is available with a GNU General Public License.'/&
          'It includes the General Thermodynamic Package, version ',A,','/&
          "Hillert's equilibrium calculation algorithm version ",A,','/&
-         'step/map/plot software version ',A,', ',&
-         'LAPACK and BLAS numerical routines'/'and LMDIF from ANL ',&
-         '(Argonne, USA) is used by the assessment procedure'/)
+         'step/map/plot software version ',A,' for GNUPLOT graphics,'/&
+         'numerical routines extracted from from LAPACK and BLAS and'/&
+         'the assessment procedure uses LMDIF from ANL (Argonne, USA)'/)
 !
 !$    write(kou,11)
 11  format('Linked with OpenMp for parallel execution')
@@ -449,6 +449,7 @@ contains
     graphopt%gibbstriangle=.FALSE.
     graphopt%rangedefaults=0
     graphopt%labeldefaults=0
+    graphopt%tielines=0
     graphopt%plotmin=zero
     graphopt%dfltmin=zero
     graphopt%plotmax=one
@@ -1967,6 +1968,7 @@ contains
           graphopt%gibbstriangle=.FALSE.
           graphopt%rangedefaults=0
           graphopt%labeldefaults=0
+          graphopt%tielines=0
           graphopt%plotmin=zero
           graphopt%dfltmin=zero
           graphopt%plotmax=one
@@ -3365,11 +3367,12 @@ contains
           endif
           call gtpread(ocufile,text)
           if(gx%bmperr.ne.0) goto 990
-          kl=len_trim(text)
-          if(kl.gt.1) then
-             write(kou,8110)text(1:kl)
-          endif
-8110      format(/'Savefile text: ',a/)
+! This is written by the gtpread subroutine
+!          kl=len_trim(text)
+!          if(kl.gt.1) then
+!             write(kou,8110)text(1:kl)
+!          endif
+!8110      format(/'Savefile text: ',a/)
 ! if there is an assessment record set nvcoeff ...
           if(allocated(firstash%eqlista)) then
              write(*,*)'There is an assessment record'
@@ -3763,7 +3766,6 @@ contains
        graphopt%tielines=0
        graphopt%status=0
        graphopt%axistype=0
-       graphopt%tielines=0
        graphopt%gibbstriangle=.FALSE.
        graphopt%labelkey='top right'
        graphopt%appendfile=' '
@@ -4087,7 +4089,6 @@ contains
           graphopt%tielines=0
           graphopt%status=0
           graphopt%axistype=0
-          graphopt%tielines=0
           graphopt%gibbstriangle=.FALSE.
           graphopt%labelkey='upper right'
           graphopt%appendfile=' '
@@ -4133,6 +4134,7 @@ contains
              graphopt%gibbstriangle=.FALSE.
              graphopt%rangedefaults=0
              graphopt%labeldefaults=0
+             graphopt%tielines=0
              graphopt%plotmin=zero
              graphopt%dfltmin=zero
              graphopt%plotmax=one
@@ -4263,6 +4265,7 @@ contains
              graphopt%gibbstriangle=.FALSE.
              graphopt%rangedefaults=0
              graphopt%labeldefaults=0
+             graphopt%tielines=0
              graphopt%plotmin=zero
              graphopt%dfltmin=zero
              graphopt%plotmax=one
@@ -4386,6 +4389,7 @@ contains
              graphopt%rangedefaults(2)=0
 ! labeldefaults(1) is the title!!!
              graphopt%labeldefaults(1)=0
+             graphopt%tielines=0
              graphopt%plotmin=zero
              graphopt%dfltmin=zero
              graphopt%plotmax=one
@@ -4709,13 +4713,15 @@ contains
 !-----------------------------------------------------------
 ! PLOT GIBBS_TRIANGLE
        case(9)
-          write(*,*)'Not implemented yet'
-!          call gparcd('Triangular diagram?',cline,last,5,ch1,'NO',q1help)
-!          if(ch1.eq.'y') then
-!             graphopt%gibbstriangle=.TRUE.
-!          else
+!          write(*,*)'Not implemented yet'
+          chz='Y'
+          if(graphopt%gibbstriangle) chz='N'
+          call gparcd('A Gibbs triangle diagram?',cline,last,5,ch1,chz,q1help)
+          if(ch1.eq.'y' .or. ch1.eq.'Y') then
+             graphopt%gibbstriangle=.TRUE.
+          else
              graphopt%gibbstriangle=.FALSE.
-!          endif
+          endif
           goto 21100
 !-----------------------------------------------------------
 ! PLOT QUIT
@@ -4809,8 +4815,9 @@ contains
           if(noofaxis.eq.2) then
 ! Calculate the equilibria at the specific point
              write(kou,22100)
-22100        format(' *** Note: the positioning of the text will use ',/&
-                  ' axis variables for which the diagram was calculated!')
+22100        format(' *** Note: the positioning of the text will use the ',&
+                  'axis variables for which',/11x,'the diagram was calculated',&
+                  ' even if you plot with other variables!')
              call gparcd('Do you want to calculate the equilibrium? ',&
                   cline,last,1,ch1,'Y',q1help)
              if(ch1.eq.'y' .or. ch1.eq.'Y') then
