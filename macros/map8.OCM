@@ -78,7 +78,13 @@ CEF
 4 .25 Fe NI; .25 Fe NI; .25 Fe NI; .25 Fe NI;
 
 @$ we must set that this has FCC permutations before entering parameters
-set phase part bit fcc-perm
+@$ OLDset phase part bit
+
+amend phase part-fcc
+?
+fcc-perm
+
+@&
 
 @$ we must add disordered set before entering parameters
 amend phase part dis 4 yes

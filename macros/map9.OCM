@@ -59,7 +59,11 @@ CEF
 .25 RE W;
 
 @$ mark that we have parameter permutations according to fcc tetrahedrons
-set phase fcc bit fcc_perm
+amend phase fcc
+?
+fcc_perm
+
+@&
 
 ent par G(fcc,RE:RE:RE:RE) 298.15 0.062787*eVtoJ;,,,14Pal                fcc.A
 @$ The L1_2 ordering parameter on the Re side
@@ -87,7 +91,7 @@ CEF
 4 .25 RE W; .25 RE W; .25 RE W; .25 RE W;
 
 @$ mark that we have parameter permutations according to bcc tetrahedrons
-set phase bcc bit bcc_perm
+amend phase bcc bcc_perm
 
 ent par G(bcc,RE:RE:RE:RE) 298.15 0.320286*eVtoJ;,,,14Pal                bcc.A
 @$ The D03 ordering parameter on Re side
@@ -115,7 +119,8 @@ enter phase hcp
 CEF
 4 .25 RE W; .25 RE W; .25 RE W; .25 RE W;
 @$ The HCP tetrahedron is the same as FCC
-set phase hcp bit fcc_perm
+
+amend phase hcp fcc_perm
 
 ent par G(hcp,RE:RE:RE:RE) 298.15 0*eVtoJ;,,,14Pal                       hcp.A
 ent par G(hcp,W:RE:RE:RE) 298.15 0.12874775*eVtoJ;,,,14Pal           D0_19.A3B

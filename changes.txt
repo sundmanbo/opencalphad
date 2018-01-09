@@ -13,20 +13,33 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
-2018.01.xx OC version 4.040: Plotting Gibbs Triangles implemented
-during a delayed train trip.  It is still very rudimentary but gives
-at least some indication of what is possilble.  The map10 macro now
-includes some triagular ternary isopleths.  The size of the smp2.F90
-file has also forced me to split it in two.
+2018.01.09 OC version 4.041: I have started on the udate of the user
+guide and realized that the commands are quite messy, in particular
+about entering phases some specific model features.  So I moved many
+things that were set by "set phase ... bit X" to "amend phase ... X".
+It concerned mainly things like BCC/FCC_PERMUT in my macro files as
+most other calculate systems read from a database.  The users may have
+to modify their macro files.
+
+I have also cleaned up some of the code related to symbols.  I added that
+"dot derivatives" are only calculated when requested explicitly and
+fixed some problems with symbols that should be evaluated for a
+specific equilibrium.
+
+2018.01.08 OC version 4.040: Plotting Gibbs Triangles has been
+implemented during a delayed train trip.  It is still very rudimentary
+but gives at least some indication of what is possilble.  The map10
+macro now includes some triagular ternary isopleths.  The size of the
+smp2.F90 file has also forced me to split it in two.
 
 A spurious segmentation fault error in matsmin has been corrected.  It
-was caused by some code introduecd to speed up the calculation of new
+was caused by some code introduced to speed up the calculation of new
 fractions of the phases at each iteration in the subroutine
 calc_dgdyterms1p.  This speedup should be further tested.  An error in
 metlib3 when saving the first line of history has been corrected also,
 it occured sometimes when starting OC followed by a macro file name.
 
-On LINUX I have fould that plotting several diagrams after each other
+On LINUX I have found that plotting several diagrams after each other
 without a pause often are overwritten.  Thus I have modified the macro
 files to have a pause (@&) in the macro file after each plot.  This
 means one has to press RETURN in the command window after each plot.

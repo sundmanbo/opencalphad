@@ -6923,21 +6923,21 @@ CONTAINS
 ! If mode=0 and SVFVAL set return the stored value
       value=ceq%svfunres(lrot)
 !      write(*,350)'HMS evaluate svfun 2: ',0,lrot,value
-350   format(a,2i4,4(1pe12.4))
+350   format(a,2i4,4(1pe13.5))
    elseif(mode.eq.0 .and. btest(svflista(lrot)%status,SVFEXT)) then
 ! if mode=0 and SVFEXT set use value from equilibrium eqno
       ieq=svflista(lrot)%eqnoval
       if(ceq%eqno.eq.ieq) then
          value=evalf(svflista(lrot)%linkpnode,argval)
          if(pfnerr.ne.0) then
-            write(*,*)'evaluate_svfun putfunerror ',pfnerr
+            write(*,*)'MM evaluate_svfun putfunerror ',pfnerr
             gx%bmperr=4141; goto 1000
          endif
          ceq%svfunres(lrot)=value
-         write(*,350)'evaluate svfun 3: ',ieq,lrot,value
+!         write(*,350)'MM evaluated here: ',ieq,lrot,value
       else
          value=eqlista(ieq)%svfunres(lrot)
-         write(*,350)'evaluate svfun 7: ',ieq,lrot,value
+!         write(*,350)'MM value from equilbrium: ',ieq,lrot,value
       endif
    else
 ! if mode=1 always evaluate

@@ -698,8 +698,8 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
         CONSUS=0,   CONIMSUS=1,  CONVA=2,    CONQCBOND=3
 !----------------------------------------------------------------
 !-Bits in state variable functions (svflista)
-! SVFVAL symbol evaluated only explicitly (mode=1 in call)
-! SVFEXT symbol external ???
+! SVFVAL symbol evaluated only explicitly (mode=1 in call) all dot derivatives
+! SVFEXT symbol taken from equilibrium %eqnoval (external)
 ! SVCONST symbol is a constant (can be changed with AMEND)
    integer, parameter :: &
         SVFVAL=0, SVFEXT=1, SVCONST=2
@@ -1366,7 +1366,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! this array has identification of state variable (and other function) symbols 
      integer, dimension(:,:), pointer :: formal_arguments
   end TYPE gtp_putfun_lista
-! this is the global array with state variable functions
+! this is the global array with state variable functions, "symbols"
   TYPE(gtp_putfun_lista), dimension(:), allocatable :: svflista
 ! NOTE the value of a function is stored locally in each equilibrium record
 ! in array svfunres.

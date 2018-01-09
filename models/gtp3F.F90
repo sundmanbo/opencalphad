@@ -3052,11 +3052,13 @@
    endif
 !   write(*,*)'3F enter_svfun: ',last,name2,':',cline(1:10)
    if(.not.proper_symbol_name(name2,0)) goto 1000
+! nsvfun is a global variable giving current number of state variable functions
    do ks=1,nsvfun
       if(name2.eq.svflista(ks)%name) then
          gx%bmperr=4136; goto 1000
       endif
    enddo
+   kdot=0
 ! added allowch to handle symbols including & and #
    allowch=1
 ! TO BE IMPLEMENTED: enter symbols with dummy arguments like CP(@P1)=HM(@P1).T
@@ -3119,6 +3121,7 @@
          iarr(8,js+1)=svr%component
          iarr(9,js+1)=svr%constituent
       else
+! NOT a derivative
          call decode_state_variable(pfsym(js),svr,ceq)
          if(gx%bmperr.ne.0) then
 ! symbol not a state variable, may be another function
@@ -3162,8 +3165,9 @@
 ! for derivatives two iarr arrays
 ! Found bug in store_putfun if just a variable entered, coefficient set to 0.0
    call store_putfun(name2,lrot,nsymb+jt,iarr)
+! The call above updates the global value of nsvfun so it means the new symbol
    if(nsymb.eq.0) then
-! this is just a constant numeric value ... store it locally
+! this is just a constant numeric value ... store it locally.  Why .and. ??
       if(.not.associated(lrot%left) .and. .not.associated(lrot%left)) then
 !         write(*,*)'3F just a constant!!'
 ! set bit to allow change the value but do not allow R to be changed
@@ -3172,7 +3176,13 @@
          endif
       endif
    endif
+   if(kdot.gt.0) then
+! this is a dot derivative, set bit
+      svflista(nsvfun)%status=ibset(svflista(nsvfun)%status,SVFVAL)
+   endif
 1000 continue
+! NOTE eqnoval should be zeroed
+! NOTE svfval should be set if only calculated when explicitly referenced
 ! possible memory leak
    nullify(svr)
    return
@@ -3194,7 +3204,7 @@
       gx%bmperr=4323
    else
       lrot=>svflista(svfix)%linkpnode
-      write(*,*)'3F current and new: ',lrot%value,value
+!      write(*,*)'3F current and new: ',lrot%value,value
       lrot%value=value
    endif
 1000 continue
@@ -3208,16 +3218,17 @@
 ! enter an expression of state variables with name name with address lrot
 ! nsymb is number of formal arguments
 ! iarr identifies these
-! idot if derivative
    implicit none
    character name*(*)
    type(putfun_node), pointer :: lrot
    integer nsymb
    integer iarr(10,*)
 !\end{verbatim} %+
+! idot set if if derivative
    integer jf,jg,idot
 !   write(*,*)'3F: store_putfun ',nsvfun
    nsvfun=nsvfun+1
+   svflista(nsvfun)%status=0
    if(nsymb.gt.0) then
       allocate(svflista(nsvfun)%formal_arguments(10,nsymb))
       idot=10
@@ -3235,12 +3246,11 @@
    endif
    svflista(nsvfun)%name=name
    svflista(nsvfun)%linkpnode=>lrot
-   svflista(nsvfun)%status=0
    svflista(nsvfun)%narg=nsymb
 ! this is the number of actual argument needed (like @P, @C and @S)
    svflista(nsvfun)%nactarg=0
 ! eqnoval indicate which equilibrium to use to get its value.
-! default is 0 meaning current equilibria, can be changed by AMEND SYMBOL
+! default is 0 meaning any equilibria, can be changed by AMEND SYMBOL
    svflista(nsvfun)%eqnoval=0
 1000 continue
    return
@@ -3384,9 +3394,29 @@
       endif
       if(jt.lt.svflista(lrot)%narg) goto 100
 500 continue
-   kl=len_trim(svflista(lrot)%name)
-   text(ipos:ipos+kl+1)=svflista(lrot)%name(1:kl)//'= '
-   ipos=ipos+kl+2
+! add special information
+   text(ipos:)=' '
+   if(svflista(lrot)%eqnoval.gt.0) then
+! symbol should only be evaluated in equilibrium EQNOVAL
+!      call wriint(text,js,svflista(lrot)%eqnoval)
+      write(text(ipos:ipos+3),470)svflista(lrot)%eqnoval
+470   format(i4)
+   endif
+   js=ipos+4
+   ipos=ipos+7
+   if(btest(svflista(lrot)%status,SVCONST)) then
+! symbol is a constant (can be amended)
+      text(js:js)='C'; js=js+1
+   endif
+   if(btest(svflista(lrot)%status,SVFVAL)) then
+! symbol calculated only when explicitly referenced
+      text(js:js)='X'; js=js+1
+   endif
+! name and expression
+!   kl=len_trim(svflista(lrot)%name)
+!   text(ipos:ipos+kl+1)=svflista(lrot)%name(1:kl)//'= '
+   text(ipos:)=trim(svflista(lrot)%name)//'='
+   ipos=len_trim(text)+2
 !   write(*,502)'3F wrtfun: ',jt,(trim(symbols(mm)),mm=1,jt)
 502 format(a,i3,10(' "',a,'", '))
    call wrtfun(text,ipos,svflista(lrot)%linkpnode,symbols)
@@ -3469,7 +3499,8 @@
    character text*256
    integer ks,ipos
    write(kou,17)
-17 format('List of all state variable symbols'/' No Name = expression ;')
+17 format('List of all state variable symbols'/' No Special Name= expression ;')
+!17 format('List of all state variable symbols'/' No        Name= expression ;')
    do ks=1,nsvfun
       ipos=1
       call list_svfun(text,ipos,ks,ceq)
@@ -3579,12 +3610,12 @@
 300 continue
 !    write(*,333)'evaluate_svfun ',svflista(lrot)%name,argval(1),argval(2)
 !333 format(a,a,2(1PE15.6))
-!   write(*,340)'evaluate svfun 1: ',mode,lrot
+!   write(*,340)'3F evaluate svfun 1: ',mode,lrot
 340 format(a,5i4)
    modeval: if(mode.eq.0 .and. btest(svflista(lrot)%status,SVFVAL)) then
 ! If mode=0 and SVFVAL set return the stored value
       value=ceq%svfunres(lrot)
-!      write(*,350)'evaluate svfun 2: ',0,lrot,value
+!      write(*,350)'3F evaluate svfun 2: ',0,lrot,value
    elseif(mode.eq.0 .and. btest(svflista(lrot)%status,SVFEXT)) then
 ! if mode=0 and SVFEXT set use value from equilibrium eqno
       ieq=svflista(lrot)%eqnoval
@@ -3595,11 +3626,11 @@
             gx%bmperr=4141; pfnerr=0; buperr=0; goto 1000
          endif
          ceq%svfunres(lrot)=value
-!         write(*,350)'evaluate svfun 3: ',ieq,lrot,value
+!         write(*,350)'3F evaluate svfun 3: ',ieq,lrot,value
       else
          value=eqlista(ieq)%svfunres(lrot)
       endif
-!      write(*,350)'evaluate svfun 4: ',ieq,lrot,value
+!      write(*,350)'3F evaluate svfun 4: ',ieq,lrot,value
 350 format(a,2i3,1pe12.4)
    else
 ! if mode=1 always evaluate

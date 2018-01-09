@@ -188,7 +188,7 @@ contains
     integer, parameter :: ncbas=30,nclist=21,ncalc=12,ncent=21,ncread=6
     integer, parameter :: ncam1=18,ncset=24,ncadv=6,ncstat=6,ncdebug=6
     integer, parameter :: nselect=6,nlform=6,noptopt=9,nsetbit=6
-    integer, parameter :: ncamph=12,nclph=6,nccph=6,nrej=9,nsetph=6
+    integer, parameter :: ncamph=18,nclph=6,nccph=6,nrej=9,nsetph=6
     integer, parameter :: nsetphbits=15,ncsave=6,nplt=18,nstepop=6
     integer, parameter :: ninf=9
 ! basic commands
@@ -271,8 +271,8 @@ contains
 ! subcommands to SAVE
 ! note SAVE TDB, MACRO, LATEX part of LIST DATA !!
     character (len=16), dimension(ncsave) :: csave=&
-        ['TDB             ','SOLGASMIX       ','QUIT            ',&
-         'DIRECT          ','UNFORMATTED     ','                ']
+        ['TDB             ','SOLGAS          ','QUIT            ',&
+         'DIRECT          ','UNFORMATTED     ','PDB             ']
 !-------------------
 ! subcommands to AMEND first level
 ! many of these should be subcommands to PHASE
@@ -280,17 +280,18 @@ contains
          ['SYMBOL          ','ELEMENT         ','SPECIES         ',&
          'PHASE           ','PARAMETER       ','BIBLIOGRAPHY    ',&
          'TPFUN_SYMBOL    ','CONSTITUTION    ','QUIT            ',&
-         'COMPONENTS      ','GENERAL         ','CP_MODEL        ',&
+         'COMPONENTS      ','GENERAL         ','                ',&
          'ALL_OPTIM_COEFF ','EQUILIBRIUM     ','                ',&
          'LINE            ','                ','                ']
 !-------------------
 ! subsubcommands to AMEND PHASE
     character (len=16), dimension(ncamph) :: camph=&
-!         ['MAGNETIC_CONTRIB','COMPOSITION_SET ','DISORDERED_FRACS',&
-         ['MAGNETIC_INDEN  ','COMPOSITION_SET ','DISORDERED_FRACS',&
-         'LIQUID_2_STATEML','QUIT            ','DEFAULT_CONSTIT ',&
-         'DEBYE_CP_MODEL  ','EINSTEIN_CP_MDL ','XIONG_INDEN_MAGN',&
-         'ELASTIC_MODEL_1 ','GADDITION       ','                ']
+         ['MAGNETIC_CONTRIB','COMPOSITION_SET ','DISORDERED_FRACS',&
+         'LIQUID_2_STATEML','                ','DEFAULT_CONSTIT ',&
+         'LOWT_CP_MODEL   ','FCC_PERMUTATIONS','BCC_PERMUTATIONS',&
+         'ELASTIC_MODEL_1 ','GADDITION       ','AQUEUS_MODEL    ',&
+         'QUASICHEM_MODEL ','FCC_CVM_TETRAHDR','FLORY_HUGG_MODEL',&
+         '                ','                ','QUIT            ']
 !-------------------
 ! subcommands to SET
     character (len=16), dimension(ncset) :: cset=&
@@ -324,12 +325,21 @@ contains
 !         123456789.123456---123456789.123456---123456789.123456
 !-------------------
 ! subsubsubcommands to SET PHASE BITS
+! Moset of these now selected by AMEND PHASE ... 
+!    character (len=16), dimension(nsetphbits) :: csetphbits=&
+!         ['FCC_PERMUTATIONS','BCC_PERMUTATIONS','IONIC_LIQUID_MDL',&
+!         'AQUEOUS_MODEL   ','QUASICHEMICAL   ','FCC_CVM_TETRADRN',&
+!         'FACT_QUASICHEMCL','NO_AUTO_COMP_SET','QUIT            ',&
+!         'EXTRA_DENSE_GRID','FLORY_HUGGINS   ','                ',&
+!         '                ','                ','                ']
+! The bits can still be set here by numbers but the text is no longer shwon
     character (len=16), dimension(nsetphbits) :: csetphbits=&
-         ['FCC_PERMUTATIONS','BCC_PERMUTATIONS','IONIC_LIQUID_MDL',&
-         'AQUEOUS_MODEL   ','QUASICHEMICAL   ','FCC_CVM_TETRADRN',&
-         'FACT_QUASICHEMCL','NO_AUTO_COMP_SET','QUIT            ',&
-         'EXTRA_DENSE_GRID','FLORY_HUGGINS   ','                ',&
+         ['                ','                ','                ',&
+         '                ','                ','                ',&
+         '                ','NO_AUTO_COMP_SET','QUIT            ',&
+         'EXTRA_DENSE_GRID','                ','                ',&
          '                ','                ','                ']
+
 !         123456789.123456---123456789.123456---123456789.123456
 !-------------------
 ! subcommands to STEP
@@ -366,7 +376,7 @@ contains
          'AXIS_LABELS     ','                ','TITLE           ',&
          'GRAPHICS_FORMAT ','OUTPUT_FILE     ','GIBBS_TRIANGLE  ',&
          'QUIT            ','POSITION_OF_KEYS','APPEND          ',&
-         'TEXT            ','TIE_LINES       ','KEEP            ',&
+         'TEXT            ','TIE_LINES       ','                ',&
          'LOGSCALE        ','                ','                ']
 !-------------------
 !        123456789.123456---123456789.123456---123456789.123456
@@ -698,14 +708,15 @@ contains
           endif
 ! symbols can be evaluated in just a particular equilibrium
 ! like H298 for experimental data on H(T)-H298
-! BEWARE: if equilibria are calculated in threads this must be calculated first
-! even in parallel threads
+! BEWARE: if equilibria are calculated in threads this must be calculated
+! before the parallelization, testing bit EQNOTHREAD
           call gparcd(&
                'Should the symbol be evaluated for this equilibrium only?',&
                cline,last,1,ch1,'N',q1help)
           if(ch1.eq.'y' .or. ch1.eq.'Y') then
              svflista(svss)%status=ibset(svflista(svss)%status,SVFEXT)
              svflista(svss)%eqnoval=neqdef
+! set status bit that this equilibrium must be calculated before parallel calc
              ceq%status=ibset(ceq%status,EQNOTHREAD)
           else
              svflista(svss)%status=ibclr(svflista(svss)%status,SVFEXT)
@@ -720,35 +731,46 @@ contains
        case(3) ! amend species
           write(kou,*)'Not implemented yet'
 !-------------------------
-! subsubcommands to AMEND PHASE
-!       ['MAGNETIC_CONTRIB','COMPOSITION_SET ','DISORDERED_FRACS',&
-!        'TWOSTATE_MODEL_1   ','QUIT            ','DEFAULT_CONSTIT ',&
-!        'DEBYE_CP_MODEL  ','EINSTEIN_CP_MDL ','XIONG_INDEN_MAGM',&
-!        'ELASTIC_MODEL_1 ','GADDITION       ','                ']
        case(4) ! amend phase subcommands
           call gparc('Phase name: ',cline,last,1,name1,' ',q1help)
           if(buperr.ne.0) goto 990
           call find_phase_by_name(name1,iph,ics)
           if(gx%bmperr.ne.0) goto 990
+! sometimes lokph is used below
+          call get_phase_record(iph,lokph)
 !
           kom3=submenu(cbas(kom),cline,last,camph,ncamph,2)
           amendphase: SELECT CASE(kom3)
+! subsubcommands to AMEND PHASE
+!         ['MAGNETIC_CONTRIB','COMPOSITION_SET ','DISORDERED_FRACS',&
+!         'LIQUID_2_STATEML','QUIT            ','DEFAULT_CONSTIT ',&
+!         'LOWT_CP_MODEL   ','FCC_PERMUTATIONS','BCC_PERMUTATIONS',&
+!         'ELASTIC_MODEL_1 ','GADDITION       ','AQUEUS_MODEL    ',&
+!         'QUASICHEM_MODEL ','FCC_CVM_TETRAHDR','FLORY_HUGG_MODEL',&
+!         '                ','                ','                ']
 !....................................................
           CASE DEFAULT
              write(kou,*)'Amend phase subcommand error'
 !....................................................
           case(1) ! amend phase <name> magnetic contribution
              idef=-3
+! zero value of antiferromagnetic factor means Xiong-Inden model
              call gparid('Antiferromagnetic factor: ',&
                   cline,last,j1,idef,q1help)
              if(buperr.ne.0) goto 990
-             call get_phase_record(iph,lokph)
-             if(j1.eq.-1) then
-! Inden magnetic for BCC
-                call add_addrecord(lokph,'Y',indenmagnetic)
+             if(j1.eq.0) then
+! Xiong modification of Inden-Hillert-Jarl magnetic model
+                call gparcd('BCC type phase: ',cline,last,1,ch1,'N',q1help)
+                call add_addrecord(lokph,ch1,xiongmagnetic)
              else
+!                call get_phase_record(iph,lokph)
+                if(j1.eq.-1) then
+! Inden magnetic for BCC
+                   call add_addrecord(lokph,'Y',indenmagnetic)
+                else
 ! Inden magnetic for FCC
-                call add_addrecord(lokph,'N',indenmagnetic)
+                   call add_addrecord(lokph,'N',indenmagnetic)
+                endif
              endif
 !....................................................
           case(2) ! amend phase <name> composition set add/remove
@@ -793,28 +815,35 @@ contains
              call add_fraction_set(iph,ch1,ndl,j1)
              if(gx%bmperr.ne.0) goto 990
 !....................................................
-          case(4) ! amend phase <name> twostate model 1
-             call add_addrecord(iph,' ',twostatemodel1)
+          case(4) ! amend phase <name> liquid 2 state model
+             call add_addrecord(lokph,' ',twostatemodel1)
 !....................................................
-          case(5) ! amend phase quit
+          case(5) ! amend phase ... unused
              goto 100
 !....................................................
           case(6) ! amend phase <name> default_constitution
 ! to change default constitution of any composition set give #comp.set.
              call ask_default_constitution(cline,last,iph,ics,ceq)
 !....................................................
-          case(7) ! amend phase <name> Debye model
-             call add_addrecord(iph,' ',debyecp)
+          case(7) ! amend phase <name> LowT_CP_model
+             call gparcd('Einstein CP model? ',cline,last,1,ch1,'Y ',q1help)
+             if(ch1.eq.'Y') then
+                call add_addrecord(lokph,' ',einsteincp)
+             else
+                write(kou,*)'Debye CP model selected'
+                call add_addrecord(lokph,' ',debyecp)
+             endif
 !....................................................
-          case(8) ! amend phase einstein cp model
-             call add_addrecord(iph,' ',einsteincp)
+          case(8) ! amend phase ... FCC_PERMUTATIONS
+             if(check_minimal_ford(lokph)) goto 100
+             call set_phase_status_bit(lokph,PHFORD)
 !....................................................
-          case(9) ! amend phase Inden-Xiong magnetic_model
-             call gparcd('BCC type phase: ',cline,last,1,ch1,'N',q1help)
-             call add_addrecord(iph,ch1,xiongmagnetic)
+          case(9) ! amend phase ... BCC_PERMUTATIONS
+                if(check_minimal_ford(lokph)) goto 100
+                call set_phase_status_bit(lokph,PHBORD)
 !....................................................
           case(10) ! amend phase elastic model
-             call add_addrecord(iph,' ',elasticmodel1)
+             call add_addrecord(lokph,' ',elasticmodel1)
 !....................................................
           case(11) ! AMEND PHASE GADDITION
 ! add a constant term to G, value in J/FU
@@ -832,10 +861,35 @@ contains
              ceq%phase_varres(lokcs)%status2=&
                   ibset(ceq%phase_varres(lokcs)%status2,CSADDG)
 !....................................................
-          case(12) ! amend phase ??
+          case(12) ! amend phase ... aqueous model
+             write(*,*)'Not implemented yet'
+!             call set_phase_status_bit(lokph,PHAQ1)
+!....................................................
+          case(13) ! amend phase ... quasicemichal model (several)
              write(kou,*)'Not implemented yet'
+! Future model bits
+!                call set_phase_status_bit(lokph,PHQCE)
+!                call set_phase_status_bit(lokph,PHFACTCE)
+!....................................................
+          case(14) ! amend phase ... FCC_CVM_TETRAHEDRON MODEL
+             write(kou,*)'Not implemented yet'
+!                call set_phase_status_bit(lokph,PHCVMCE)
+!....................................................
+          case(15) ! amend phase ... FLORY_HUGGINS_MODEL
+             write(kou,*)'Not implemented yet'
+!             call set_phase_status_bit(lokph,PHFHV)
+!             call clear_phase_status_bit(lokph,PHID)
+!....................................................
+          case(16) ! amend phase ??
+             write(kou,*)'Not implemented yet'
+!....................................................
+          case(17) ! amend phase ??
+             write(kou,*)'Not implemented yet'
+!....................................................
+          case(18) ! amend phase ... quit
+             goto 100
           END SELECT amendphase
-!-------------------------
+!------------------------- end of amend phase
        case(5) ! amend parameter
           write(kou,*)'Not implemented yet, only ENTER PARAMETER'
 !-------------------------
@@ -898,7 +952,7 @@ contains
        case(11) ! amend general
           call amend_global_data(cline,last)
 !-------------------------
-       case(12) ! amend Cp_model (Heat capacity)
+       case(12) ! amend unused
           write(*,*)'Not implemented yet'
 !-------------------------
        case(13) ! amend ALL_OPTIM_COEFF, (rescale or recover)
@@ -1785,7 +1839,7 @@ contains
              endif
              call get_phase_record(iph,lokph)
              kom4=submenu('Set which bit?',cline,last,csetphbits,nsetphbits,9)
-             SELECT CASE(kom4)
+             phasebit: SELECT CASE(kom4)
              CASE DEFAULT
 ! allow any bit changes for experts ...
                 if(btest(globaldata%status,GSADV)) then
@@ -1808,13 +1862,16 @@ contains
              case(1) ! FCC_PERMUTATIONS FORD
 ! if check returns .true. it is not allowed to set FORD or BORD
                 if(check_minimal_ford(lokph)) goto 100
+                write(*,*)' *** WARNING: Depreceated command, use AMEND PHASE'
                 call set_phase_status_bit(lokph,PHFORD)
              case(2) ! BCC_PERMUTATIONS BORD
                 if(check_minimal_ford(lokph)) goto 100
+                write(*,*)' *** WARNING: Depreceated command, use AMEND PHASE'
                 call set_phase_status_bit(lokph,PHBORD)
              case(3) ! IONIC_LIQUID_MDL this may require tests and 
 ! other bits changed ..
-                write(kou,*)'Cannot be set interactivly yet, only from TDB'
+                write(*,*)' *** WARNING: set by enter phase <name> I2SL'
+!                write(kou,*)'Cannot be set interactivly yet, only from TDB'
 !                call set_phase_status_bit(lokph,PHIONLIQ)
              case(4) ! AQUEOUS_MODEL   
                 write(*,*)'Not implemented yet'
@@ -1843,7 +1900,7 @@ contains
              case(11) ! Flory-Huggins polymer model
                 call set_phase_status_bit(lokph,PHFHV)
                 call clear_phase_status_bit(lokph,PHID)
-             end SELECT
+             end SELECT phasebit
 !............................................................
           case(6) ! SET PHASE ... CONSTITUTION iph and ics set above
              call ask_phase_new_constitution(cline,last,iph,ics,lokcs,ceq)
@@ -2484,6 +2541,8 @@ contains
 3730      format('Number of variable coefficients are now ',i3)
 !------------------------- 
        case(24) ! T_AND_P start values, NOT CONDITIONS!!
+          write(kou,3750)
+3750      format('NOTE: these are only local values, not conditions!')
           call gparrd('New value of T: ',cline,last,xxx,1.0D3,q1help)
           if(buperr.ne.0) goto 100
           ceq%tpval(1)=xxx
@@ -2692,8 +2751,12 @@ contains
 !---------------------------------------------------------------
 ! enter copy of equilibrium (for test!)
        case(13)
-          call gparc('Name: ',cline,last,1,text,' ',q1help)
+          call gparc('Name of new equilibrium: ',cline,last,1,text,' ',q1help)
           if(buperr.ne.0) goto 100
+          if(text(1:1).eq.' ') then
+             write(*,*)'You must specify a unique name'
+             goto 100
+          endif
           call copy_equilibrium(neweq,text,ceq)
 !          write(*,*)'Back from copy equilibrium'
           if(gx%bmperr.ne.0) goto 990
@@ -3525,8 +3588,8 @@ contains
 !=================================================================
 ! SAVE in various formats (NOT MACRO and LATEX, use LIST DATA)
 ! It is a bit inconsistent as one READ TDB but not SAVE TDB ...
-!        ['TDB             ','SOLGASMIX       ','QUIT            ',&
-!         'DIRECT          ','UNFORMATTED     ','                ']
+!        ['TDB             ','SOLGAS          ','QUIT            ',&
+!         'DIRECT          ','UNFORMATTED     ','PDB             ']
     CASE(9)
 ! default i 3, unformatted
        kom2=submenu(cbas(kom),cline,last,csave,ncsave,5)
@@ -3551,7 +3614,7 @@ contains
              write(kou,*)'Error code ',gx%bmperr
           endif
 !-----------------------------------------------------------
-       case(2) ! SOLGASMIX
+       case(2) ! SOLGAS
           text=' '
           call gparc('File name: ',cline,last,1,filename,text,q1help)
           kl=max(index(filename,'.dat '),index(filename,'.DAT '))
@@ -3628,8 +3691,8 @@ contains
           text='U '//model
           call gtpsave(ocufile,text)
 !-----------------------------------------------------------
-       case(6) ! 
-          write(kou,*)'Not implemented yet'
+       case(6) ! PDB
+          write(kou,*)'PDB output not yet implemented'
           continue
        end SELECT save
 !=================================================================
@@ -4867,16 +4930,8 @@ contains
 !          write(*,*)'No implemented yet'
           goto 21100
 !-----------------------------------------------------------
-! PLOT KEEP does not work ...
+! PLOT unused
        case(15)
-          if(btest(graphopt%status,GRKEEP)) then
-             graphopt%status=ibclr(graphopt%status,GRKEEP)
-!             write(kou,*)'Graphics window closes with mouse'
-          else
-             graphopt%status=ibset(graphopt%status,GRKEEP)
-!             write(kou,*)'Graphics window must be closed separately'
-          endif
-          write(*,*)'Not implemented yet'
           goto 21100
 !-----------------------------------------------------------
 ! LOGSCALE

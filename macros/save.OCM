@@ -147,7 +147,7 @@ new Y
 @$ testing unformatted save and read using a PDB file
 @$ with disordered fraction set and a second equilibrium
 
-r p more1
+r p MoRe1
 
 @&
 
