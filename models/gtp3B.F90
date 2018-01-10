@@ -323,6 +323,167 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
+  subroutine enterphase(cline,last)
+! interactive entering of phase
+    character cline*(*)
+    integer last
+!    type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+    character name1*24,text*256,name3*24,model*72,phtype*1,ch1*1,cmodel*72
+    integer nsl,defnsl,icon,ll,jp
+    double precision sites(9)
+    character (len=34) :: quest1='Number of sites on sublattice xx: '
+! constituent indices in a phase
+    integer, dimension(maxconst) :: knr
+! array with constituents in sublattices when entering a phase
+    character, dimension(maxconst) :: const*24
+    logical once
+!
+    call gparc('Phase name: ',cline,last,1,name1,' ',q1help)
+! ionic liquid require special sorting of constituents on anion sublattice
+    call capson(name1)
+    defnsl=1
+    if(name1(1:4).eq.'GAS ') then
+       phtype='G'
+       model='IDEAL'
+    elseif(name1(1:7).eq.'LIQUID ') then
+       phtype='L'
+       model='RKM'
+    elseif(name1(1:9).eq.'IONIC_LIQ') then
+       phtype='L'
+       model='IONIC_LIQUID'
+       defnsl=2
+    else
+       phtype='S'
+       model='CEF'
+    endif
+! NEW question about model, passed on to enter_phase
+    call gparcd('Model: ',cline,last,1,cmodel,model,q1help)
+    if(buperr.ne.0) goto 900
+    model=cmodel
+    call capson(model)
+    if(model(1:5).eq.'I2SL ') then
+       defnsl=2
+    endif
+    sites=one
+    if(model.eq.'IDEAL ' .or. model.eq.'RKM ' .or. model.eq.'CQC ') then
+! ideal, regular and quasichemical models have 1 sublattice with 1 site
+       nsl=1
+    elseif(model.eq.'I2SL ') then
+       nsl=2
+    else
+       call gparid('Number of sublattices: ',cline,last,nsl,defnsl,q1help)
+       if(buperr.ne.0) goto 900
+    endif
+    if(nsl.le.0) then
+       write(kou,*)'At least one configurational space!!!'
+       goto 1000
+    elseif(nsl.ge.10) then
+       write(kou,*)'Maximum 9 sublattices'
+       goto 1000
+    endif
+    if(model(1:4).eq.'CQC ' .and. nsl.ne.1) then
+       write(*,*)'The liquid quasichemical model has just one set of sites'
+       gx%bmperr=4399; goto 1000
+    elseif(model(1:5).eq.'I2SL ' .and. nsl.ne.2) then
+       write(*,*)'A ionic liquid model must have two sublattices'
+       gx%bmperr=4399; goto 1000
+    endif
+    icon=0
+    sloop: do ll=1,nsl
+! 'Number of sites on sublattice xx: '
+!  123456789.123456789.123456789.123
+       once=.true.
+4042   continue
+       if(nsl.eq.1 .and. model(1:4).eq.'CQC ') then
+          call gparrd('Number of bonds: ',cline,last,sites(1),6.0D0,q1help)
+          if(buperr.ne.0) goto 900
+       elseif(model(1:5).ne.'I2SL ') then
+!             if(once) write(kou,4020)
+!4020         format('The ionic liquid model will adjust the number of sites',&
+!                  ' based on electroneutrality')
+!             once=.false.
+!          else
+          write(quest1(31:32),4043)ll
+4043      format(i2)
+          call gparrd(quest1,cline,last,sites(ll),one,q1help)
+          if(buperr.ne.0) goto 900
+          if(sites(ll).le.1.0D-6) then
+             write(kou,*)'Number of sites must be larger than 1.0D-6'
+             if(once) then
+                once=.false.
+                goto 4042
+             else
+                goto 1000
+             endif
+          endif
+       endif
+! This should be extended to allow several lines of input
+! 4 means up to ;
+       once=.true.
+4045   continue
+       if(nsl.eq.1) then
+          call gparc('Constituents: ',cline,last,4,text,';',q1help)
+       else
+          call gparc('Sublattice constituents: ',&
+               cline,last,4,text,';',q1help)
+       endif
+       if(buperr.ne.0) goto 900
+       if(text(1:1).eq.';') then
+! the user has not specified any constituents          
+          if(once) then
+             write(*,*)'3B No constituents? Try again'
+             once=.false.; goto 4045
+          else
+             write(*,4057)
+4057         format('3B There must be at least one constituent in',&
+                  ' each sublattice')
+             goto 1000
+          endif
+       endif
+       knr(ll)=0
+       jp=1
+4047   continue
+       if(eolch(text,jp)) goto 4049
+       if(model(1:13).eq.'IONIC_LIQUID ' .and. ll.eq.1 &
+            .and. knr(1).eq.0) then
+! a very special case: a single "*" is allowed on 1st sublattice for ionic liq
+          if(text(jp:jp).eq.'*') then
+             icon=icon+1
+             const(icon)='*'
+             knr(1)=1
+             cycle sloop
+          endif
+       endif
+       call getname(text,jp,name3,1,ch1)
+       if(buperr.eq.0) then
+          icon=icon+1
+          const(icon)=name3
+          knr(ll)=knr(ll)+1
+!          write(*,66)'constituent: ',knr(ll),icon,jp,const(icon)
+66        format(a,3i3,a)
+! increment jp to bypass a separating , 
+          jp=jp+1
+          goto 4047
+       elseif(once) then
+!          write(kou,*)'Input error ',buperr,', at ',jp,', please reenter'
+          buperr=0; once=.false.; goto 4045
+       else
+          goto 1000
+       endif
+       buperr=0
+4049   continue
+    enddo sloop
+    call enter_phase(name1,nsl,knr,const,sites,model,phtype)
+    if(gx%bmperr.ne.0) goto 1000
+900 continue
+    if(buperr.ne.0) gx%bmperr=buperr
+1000 continue
+  end subroutine enterphase
+
+!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\begin{verbatim}
  subroutine enter_phase(name,nsl,knr,const,sites,model,phtype)
 ! creates the data structure for a new phase
 ! name: character*24, name of phase

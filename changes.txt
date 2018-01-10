@@ -13,18 +13,23 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
-2018.01.09 OC version 4.041: I have started on the udate of the user
-guide and realized that the commands are quite messy, in particular
-about entering phases some specific model features.  So I moved many
-things that were set by "set phase ... bit X" to "amend phase ... X".
-It concerned mainly things like BCC/FCC_PERMUT in my macro files as
-most other calculate systems read from a database.  The users may have
-to modify their macro files.
+2018.01.09 OC version 4.041: There is a new ochelp.hlp and an
+ochelp5.pdf.  This verson is rather a prerelease of version 5.
+
+When I started on the udate of the user guide I realized that the
+commands are quite messy, in particular about entering phases with
+some specific model features.  So I moved many things that were set by
+"set phase ... bit X" to "amend phase ... X".  It concerned things
+like BCC/FCC_PERMUT in my macro files as most other macros calculate
+systems read from a database.  The users may have to modify their
+macro files entering data.
 
 I have also cleaned up some of the code related to symbols.  I added that
 "dot derivatives" are only calculated when requested explicitly and
 fixed some problems with symbols that should be evaluated for a
 specific equilibrium.
+
+Finally the Linux/Mac command history function has been corrected.
 
 2018.01.08 OC version 4.040: Plotting Gibbs Triangles has been
 implemented during a delayed train trip.  It is still very rudimentary

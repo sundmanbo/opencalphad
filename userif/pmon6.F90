@@ -394,6 +394,8 @@ contains
     logfil=0
     defcp=1
     seqxyz=0
+! initiate command line history
+    myhistory%hpos=0
 ! defaults for optimizer
     nvcoeff=0
 ! iexit(2)=1 means listing scaled coefficients (Va05AD)

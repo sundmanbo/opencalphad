@@ -911,15 +911,15 @@ CONTAINS
   END FUNCTION EOLCH
 
   subroutine getname(text,ip,name,mode,ch1)
-! this should be incorporated in metlib
+! this should be incorporated in metlib, reading a species name 
     character text*(*),name*(*),ch1*1
 ! Always a letter A-Z as first character
-! mode=0 is normal, letters, numbers, "." and "_" allowed
+! mode=0 is normal, letters, numbers, "." and "_" allowed ?? should . be allowed
 ! mode=1 used for species names with "/", "+" and "-" allowed also
     ch1=biglet(text(ip:ip))
     if(ch1.lt.'A' .or. ch1.gt.'Z') then
        write(*,17)ichar(ch1),ch1,text(1:24),ip
-17     format('getname error: ',i5,' "',a,'" in "',a,'" at ',i4)
+17     format('GETNAME error: ',i5,' "',a,'" in "',a,'" at ',i4)
        buperr=1101; goto 1000
     endif
     jp=ip
@@ -3248,21 +3248,20 @@ CONTAINS
        if(len_trim(line).eq.0) then
           continue
 !            write(*,*)'Not saving empty line'
-       elseif(myhistory%hpos.gt.0) then
-          if(line(1:ip+1).eq.myhistory%hline(myhistory%hpos)(1:ip+1)) then
-             continue
-!            write(*,*)'Not saving same line'
-          else
-             if(myhistory%hpos.eq.histlines) then
+       elseif(myhistory%hpos.gt.0 .and. &
+            line(1:ip+1).eq.myhistory%hline(myhistory%hpos)(1:ip+1)) then
+          continue
+!          write(*,*)'Not saving same line'
+       else
+          if(myhistory%hpos.eq.histlines) then
 ! history full, the oldest history line deleted
-                do jj=2,histlines
-                   myhistory%hline(jj-1)=myhistory%hline(jj)
-                enddo
-             else
-                myhistory%hpos=myhistory%hpos+1
-             endif
-             myhistory%hline(myhistory%hpos)=line
+             do jj=2,histlines
+                myhistory%hline(jj-1)=myhistory%hline(jj)
+             enddo
+          else
+             myhistory%hpos=myhistory%hpos+1
           endif
+          myhistory%hline(myhistory%hpos)=line
        endif
 ! write a CR on screen ... maybe also LF ?? NO!!
        if(ichar(ch1).eq.return) write(kou,*)
@@ -3337,7 +3336,8 @@ CONTAINS
 10  format(a)
     if(iostatus.lt.0) then
 ! reading a macro beyond EOL/EOF ??
-       line='fin '
+       write(*,*)' *** WARNING: MACRO ENDS WITHOUT SET INTERACTIVE!'
+       line='set inter '
     endif
     return
   end subroutine bintxt_nogetkey
@@ -5275,8 +5275,9 @@ CONTAINS
     implicit none
     character*(*) prompt,line
     character hline*80,mtxt*80
-    character subsec(4)*10,saved(4)*16
-    integer nsaved(4)
+    integer, parameter :: maxlevel=20
+    character subsec(4)*10,saved(maxlevel)*16
+    integer nsaved(maxlevel)
     integer izz,jj,kk,kkk,level,nl,l2,np1,np2,nsub
 !
 !    write(*,*)'called on-line help',helprec%okinit
@@ -5309,6 +5310,7 @@ CONTAINS
     level=3
     np1=0
     nsub=1
+!    savelevel=1
     if(helprec%type.eq.'latex   ') then
 ! plain LaTeX file, search for "%\section{" with command
 100    continue
@@ -5316,8 +5318,8 @@ CONTAINS
           level=level-1
        endif
        l2=len_trim(helprec%cpath(level))
-!       write(*,107)level,l2,helprec%cpath(level)(1:l2)
-107    format('Command/question: ',2i3,': ',a)
+!       write(*,107)level,l2,nsub,helprec%cpath(level)(1:l2)
+107    format('Search: ',3i5,': ',a)
 110    continue
        read(31,120,end=700)hline
 120    format(a)
@@ -5332,7 +5334,7 @@ CONTAINS
        if(kk.gt.0) then
 !          write(*,*)'found section: ',hline(1:30),nl
           call capson(hline)
-!          kk=kk+8
+          kk=kk+8
           kk=index(hline,'SECTION{')+8
           if(kk.le.8) then
              write(*,*)'Help file error, not correct LaTeX',kk
@@ -5350,14 +5352,18 @@ CONTAINS
 !             mtxt(kkk:kkk)='_'
 !             goto 127
 !          endif
-!          write(*,*)'found mtxt: ',mtxt
-          do jj=1,4
+!          write(*,*)'found mtxt: ',trim(mtxt),level
+! I do not understand what this does ...
+          do jj=1,maxlevel
              if(level.gt.jj) then
 ! remove previous command if any from the search text
                 kkk=nsaved(jj)
-                if(mtxt(1:kkk+1) .eq. saved(jj)(1:kkk+1)) then
-!                   write(*,*)'Removing ',mtxt(1:kkk)
-                   mtxt=mtxt(kkk+2:)
+                if(kkk.gt.0) then
+                   if(mtxt(1:kkk+1) .eq. saved(jj)(1:kkk+1)) then
+!                      write(*,*)'Removing ',mtxt(1:kkk),kkk
+! ??                  mtxt=mtxt(kkk+2:)
+                      mtxt=mtxt(kkk+2:)
+                   endif
                 endif
              endif
           enddo
@@ -5368,7 +5374,10 @@ CONTAINS
           if(mtxt(1:12).eq.helprec%cpath(level)(1:l2)) then
 ! found one level, save line number for first line
              np1=nl
-!             write(*,*)'We found one level at line: ',np1
+!             write(*,*)'We found one level at line: ',np1,nsub
+             nsub=nsub+1
+! we cannot store more levels ... quit
+             if(level.gt.maxlevel) goto 700
              saved(level)=helprec%cpath(level)
              nsaved(level)=len_trim(saved(level))
              np2=0
@@ -5438,11 +5447,24 @@ CONTAINS
           goto 900
        elseif(nl.ge.np1) then
 ! do not write lines starting with \ (backslash, ascii 92),
-! they are LaTeX commands.  Ignore all except \item
+! they are LaTeX commands.  Ignore all LaTeX commands except \item
+! the backslash is not easy to put in a text character ...
+! A line starting with "%\subs" supress all text from position 1 to the {
           if(ichar(hline(1:1)).ne.92) then
-             write(*,120)hline(1:len_trim(hline))
+             if(hline(1:1).eq.'%' .and. ichar(hline(2:2)).eq.92 .and.&
+                  hline(3:6).eq.'subs') then
+                izz=index(hline,'{')+1
+                jj=1
+                do while(jj.gt.0)
+                   jj=index(hline,'}')
+                   if(jj.gt.0) hline(jj:jj)=' '
+                enddo
+                write(*,120)trim(hline(izz:))
+             else
+                write(*,120)trim(hline)
+             endif
           elseif(hline(2:5).eq.'item') then
-             write(*,121)hline(6:len_trim(hline))
+             write(*,121)trim(hline(6:))
           endif
        endif
        goto 800
