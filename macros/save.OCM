@@ -18,15 +18,14 @@ new YES
 @$
 @$
 @$
-@$
-@$
-@$
 @$ save.OCM
 @$ testing unformatted save and read
 @$ ====================================================================
 @$
 @&
 @$ read a TDB file and make a calculation
+
+set echo
 
 r t steel7
 
@@ -51,6 +50,8 @@ l,,,,
 @$ enter some state variable functions
 
 enter symb cp = h.t;
+
+calc sym cp
 
 enter symb htr = hm(liq)-hm(bcc);
 

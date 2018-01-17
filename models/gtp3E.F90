@@ -1302,6 +1302,7 @@
       endif
 !      write(*,*)'3E storing svfun: ',text(1:ipos)
       iws(lok)=ipos
+! NOTE position 1-7 is equilibrium number and status
       call storc(lok+1,iws,text(1:ipos))
       iws(loksvf+lrot)=lok
    enddo
@@ -1406,7 +1407,7 @@
       write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
       gx%bmperr=4356; goto 1000
    endif
-   write(*,*)'3E in saveash 1:',lok,lok1,lok2,i1
+!   write(*,*)'3E in saveash 1:',lok,lok1,lok2,i1
    iws(lok2)=i1
 ! Hm assrec%eqlista(i2)%p1 is a pointer to an element in the global eqlists
 !   ceq=>assrec%eqlista(1)%p1
@@ -1423,7 +1424,7 @@
          write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
          gx%bmperr=4356; goto 1000
       endif
-      write(*,*)'3E in saveash 2:',lok2,i1,rsize
+!      write(*,*)'3E in saveash 2:',lok2,i1,rsize
       iws(lok2)=i1
       call storrn(i1,iws(lok2+1),assrec%coeffvalues)
       iws(lok1+disp+2)=lok2
@@ -1436,7 +1437,7 @@
          gx%bmperr=4356; goto 1000
       endif
       iws(lok2)=i1
-      write(*,*)'3E in saveash 3:',lok2,i1
+!      write(*,*)'3E in saveash 3:',lok2,i1
       call storrn(i1,iws(lok2+1),assrec%coeffscale)
       iws(lok1+disp+3)=lok2
 ! coeffstart
@@ -1448,7 +1449,7 @@
          gx%bmperr=4356; goto 1000
       endif
       iws(lok2)=i1
-      write(*,*)'3E in saveash 4:',lok2,i1
+!      write(*,*)'3E in saveash 4:',lok2,i1
       call storrn(i1,iws(lok2+1),assrec%coeffstart)
       iws(lok1+disp+4)=lok2
 ! coeffmin
@@ -1460,7 +1461,7 @@
          gx%bmperr=4356; goto 1000
       endif
       iws(lok2)=i1
-      write(*,*)'3E in saveash 5:',lok2,i1
+!      write(*,*)'3E in saveash 5:',lok2,i1
       call storrn(i1,iws(lok2+1),assrec%coeffmin)
       iws(lok1+disp+5)=lok2
 ! coeffmax
@@ -1482,7 +1483,7 @@
          write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
          gx%bmperr=4356; goto 1000
       endif
-      write(*,*)'3E in saveash 6:',lok2,i1
+!      write(*,*)'3E in saveash 6:',lok2,i1
       iws(lok2)=i1
       do i2=1,i1
          iws(lok2+i2)=assrec%coeffindex(i2-1)
@@ -1509,7 +1510,7 @@
    if(allocated(assrec%wopt)) then
       i1=size(assrec%wopt)
       rsize=1+nwpr*i1
-      write(*,*)'3E saving assessment record: ',lok1,rsize
+      write(*,*)'3E saving assessment record: (assrec%wopt)',lok1,rsize
       call wtake(lok2,rsize,iws)
       if(buperr.ne.0) then
          write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
@@ -1519,7 +1520,7 @@
       call storrn(i1,iws(lok2+1),assrec%wopt)
       iws(lok1+disp+9)=lok2
    else
-      write(*,*)'3E no work array allocated'
+      write(*,*)'3E no work array (assrec%wopt) allocated'
       iws(lok1+disp+9)=0
    endif
 ! check if there are several assessment records
@@ -1779,7 +1780,7 @@
    call readequil(i,iws,-1)
    if(gx%bmperr.ne.0) goto 1000
 !-------------------------------------------------------------------
-! read assessment hear recods
+! read assessment head recods
    if(iws(27).ne.gtp_assessment_version) then
       write(*,*)'3E wrong assemmenst record version',iws(27),&
            gtp_assessment_version
@@ -2616,7 +2617,7 @@
 !
 1000 continue
    if(eqfree.gt.2) write(*,1010)eqfree-1
-1010 format('Read ',i4,' equilibria')
+1010 format('3E Read ',i4,' equilibria')
    return
  end subroutine readequil
 
@@ -2630,21 +2631,39 @@
    implicit none
    integer loksvf,iws(*)
 !\end{verbatim}
-   integer nsvfun,i,ip,lok
+   integer nsvfun,i,ip,lok,eqno
    character*512 text
    nsvfun=iws(loksvf)
+! first 3 symbols are R, RT and T_C
    do i=iws(loksvf+1)+1,nsvfun
       lok=iws(loksvf+i)
       ip=iws(lok)
       text=' '
       call loadc(lok+1,iws,text(1:ip))
-!      write(*,*)'3E Entering saved svf: ',text(1:ip)
-      ip=0
+!      write(*,*)'3E Entering saved svf: "',text(1:ip),'"'
+! NOTE: position 1-7 are equilibrium number and status
+      ip=7
       call enter_svfun(text,ip,firsteq)
       if(gx%bmperr.ne.0) then
          write(*,*)'3E Error entering saved svf',gx%bmperr
          if(gx%bmperr.ne.4136) goto 1000
          gx%bmperr=0
+      endif
+! if this function should be evaluated at a particular equilibrium that is
+! in position 1-5.  Extra status in position 6 and 7
+!      write(*,*)'3E read symbol: ',i,': ',text(1:ip)
+! symbol is a constant (can be amended)
+      if(text(6:6).eq.'C') svflista(i)%status=ibset(svflista(i)%status,SVCONST)
+! symbol should only be evaluated when explicitly requested
+      if(text(7:7).eq.'X') svflista(i)%status=ibset(svflista(i)%status,SVFVAL)
+      ip=0
+      call getint(text,ip,eqno)
+      if(buperr.ne.0) then
+         buperr=0
+      else
+! symbol should be evaluated at a specific equilibrium (eqno)
+         svflista(i)%status=ibset(svflista(i)%status,SVFEXT)
+         svflista(i)%eqnoval=eqno
       endif
    enddo
 1000 continue
@@ -2681,7 +2700,8 @@
 ! reading assessment records
    integer lok,iws(*)
 !\end{verbatim}
-   integer lok1,lok2,last,rsize,i1,i2,disp
+   integer lok1,lok2,last,rsize,i1,i2,disp,kk
+   double precision xxx
    type(gtp_assessmenthead), pointer :: assrec
    type(gtp_equilibrium_data), pointer :: ceq
 !
@@ -2768,6 +2788,16 @@
       allocate(assrec%coeffindex(0:i1-1))
       do i2=1,i1
          assrec%coeffindex(i2-1)=iws(lok2+i2)
+      enddo
+! store these values in tpfun ...
+      do kk=0,i1-1
+!         write(*,333)'3E storing as TP funs ',kk,assrec%coeffindex(kk),&
+!              assrec%coeffvalues(kk),assrec%coeffscale(kk)
+333      format(a,2i4,6(1pe12.4))
+! firstash or assrec??
+         xxx=assrec%coeffvalues(kk)*assrec%coeffscale(kk)
+         call change_optcoeff(assrec%coeffindex(kk),xxx)
+         if(gx%bmperr.ne.0) goto 1000
       enddo
    endif
    lok2=iws(lok1+disp+8)

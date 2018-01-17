@@ -13,6 +13,15 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2018.01.17 OC version 4.042: IMPORTANT! Change for the STEP command!
+I have changed the order of questions for the STEP command.  Now the
+program will first ask if it should be
+NORMAL/SEPARATE/CONDITIONAL/QUIT before asking if any previous results
+should be kept.
+
+Many changes and bugs fixed in order to run the complete CuMg
+assessment example (opttest2 is the start of that).
+
 2018.01.09 OC version 4.041: There is a new ochelp.hlp and an
 ochelp5.pdf.  This verson is rather a prerelease of version 5.
 

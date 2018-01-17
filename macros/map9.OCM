@@ -392,6 +392,7 @@ l,,,,
 
 @$ when using step delete previous map results
 step
+normal
 Y
 
 plot
@@ -434,9 +435,9 @@ set stat ph *=ent 0
 
 c e
 
-step 
-Y
+step
 sep
+Y
 
 
 plot

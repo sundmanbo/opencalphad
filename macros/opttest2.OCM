@@ -1255,11 +1255,13 @@ c e
 
 step
 
+
 plot
 x(mg)
 hm
 
 
+@&
 @$ plot together with a data file with experimental data
 plot
 x(mg)

@@ -342,6 +342,10 @@
     call gparc('Phase name: ',cline,last,1,name1,' ',q1help)
 ! ionic liquid require special sorting of constituents on anion sublattice
     call capson(name1)
+! check legal phase name allowed
+    if(.not.proper_symbol_name(name1,0)) then
+       write(*,*)'3B Illegal phase name'; goto 1000
+    endif
     defnsl=1
     if(name1(1:4).eq.'GAS ') then
        phtype='G'

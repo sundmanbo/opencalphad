@@ -1,3 +1,4 @@
+
 !***************************************************************
 ! General Thermodynamic Package (GTP)
 ! for thermodynamic modelling and calculations
@@ -699,10 +700,11 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !----------------------------------------------------------------
 !-Bits in state variable functions (svflista)
 ! SVFVAL symbol evaluated only explicitly (mode=1 in call) all dot derivatives
-! SVFEXT symbol taken from equilibrium %eqnoval (external)
+! SVFEXT symbol taken from equilibrium %eqnoval (external?)
 ! SVCONST symbol is a constant (can be changed with AMEND)
+! SVFTPF symbol is a TP function, current value returned
    integer, parameter :: &
-        SVFVAL=0, SVFEXT=1, SVCONST=2
+        SVFVAL=0, SVFEXT=1, SVCONST=2,SVFTPF=3
 !----------------------------------------------------------------
 !-Bits in gtp_equilibrium_data record
 ! EQNOTHREAD set if equilibrium must be calculated before threading 
@@ -1354,10 +1356,11 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! nactarg: number of actual parameter specifications needed in call
 !   (like @P, @C and @S
 ! status: can be used for various things
-! status bit SVFVAL=0 means value evaluated only when called with mode=1
+! status bit SVFVAL=1 means value evaluated only when called with mode=1
 ! SVCONST bit set if symbol is just a constant value (linknode is zero)
 ! eqnoval: used to specify the equilibrium the value should be taken from
-!    (for handling what is called "variables" in TC)
+!    (for handling what is called "variables" in TC, SVFEXT set also)
+! SVFTPF set if symbol is a TP function, eqnoval is TPFUN index
 ! name: name of symbol
      integer narg,nactarg,status,eqnoval
      type(putfun_node), pointer :: linkpnode

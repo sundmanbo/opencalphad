@@ -175,8 +175,8 @@ mac parallel2
 @$ *********************************************************
 @$ Assessment of fictitious binary experimental data
 @& *********************************************************
-@$ crashes when run here, works by itself...
-@$ mac opttest1
+
+mac opttest1
 
 @$ *********************************************************
 @$ Assessment start of the Cu-Mg case study

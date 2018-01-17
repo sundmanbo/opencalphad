@@ -6,25 +6,7 @@ MODULE LIBOCEQPLUS
 !
 contains
 !
-!  SUBROUTINE VA05AD(M,N,F,X,DSTEP,DMAX,ACC,MAXFUN,IPRINT,W,&
-!       IENT,IEXIT)
-! M is number of errors
-! N is number of variables
-!   IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-!    INTEGER, PARAMETER :: LP=6
-!    integer, parameter :: lwa=2500
-!    DIMENSION F(*),X(*),W(*)
-!    DIMENSION IEXIT(*)
-!    dimension iwa(lwa),wa(lwa)
-!    tol=acc
-!    info=maxfun
-!    write(*,17)
-!17  format(/25x,'Starting optimization using LMDIF')
-!    call lmdif1(m,n,x,f,tol,info,iwa,wa,lwa)
-!    return
-!  end subroutine va05ad
 !
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
   subroutine calfun(m,n,x,f,info,niter)
 ! M is number of errors
@@ -47,7 +29,7 @@ contains
           write(*,17)f
 17        format('Errors: '/6(1pe13.5))
           write(*,*)
-       else
+       elseif(niter.gt.0) then
           write(*,18)niter,sum
 18        format(/'After ',i4,' iterations the sum of squares',1pe14.6)
           write(*,19)x
@@ -190,7 +172,6 @@ contains
 !
 !     call lmdif.
 !
-!    maxfev = 200*(n + 1)
     info=0
 ! several of these moved to lmdif ... as well as allocating workspace
     ftol = tol
@@ -841,6 +822,8 @@ contains
     iflag = 0
 !    if (nprint .gt. 0) call fcn(m,n,x,fvec,iflag)
     if (nprint .gt. 0) call calfun(m,n,x,fvec,iflag,-nfev)
+! Add that calfun called once if maxprev=0 to calculate all errors
+    if (maxprev .eq. 0) call calfun(m,n,x,fvec,1,0)
     return
 !
 !     last card of subroutine lmdif.

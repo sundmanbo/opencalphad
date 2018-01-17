@@ -6610,7 +6610,7 @@ CONTAINS
    if(ip.le.0) ip=1
    text(ip:)=' '
    if(.not.associated(ceq%lastexperiment)) then
-!      write(*,*)'MM No experiments'
+      write(*,*)'MM No experiments'
       gx%bmperr=4249; goto 1000
    endif
    last=>ceq%lastexperiment
@@ -6648,29 +6648,6 @@ CONTAINS
 !      write(*,*)'MM This experiment has a state variable record',&
 !           allocated(current%statvar),allocated(current%indices),iterm
       symsym=0
-! these are not needed??
-!      do jl=1,4
-!         indx(jl)=current%indices(jl,iterm)
-!      enddo
-!      if(abs(current%condcoeff(iterm)-one).gt.1.0D-10) then
-!         wone=current%condcoeff(iterm)+one
-!         if(abs(wone).lt.1.0D-10) then
-!            text(ip:ip)='-'
-!            ip=ip+1
-!         else
-! not +1 or -1, write number
-!            call wrinum(text,ip,8,1,current%condcoeff(iterm))
-!            text(ip:ip)='*'
-!            ip=ip+1
-!         endif
-!      elseif(iterm.gt.1) then
-! must be a + in front of second and later terms
-!         text(ip:ip)='+'
-!         ip=ip+1
-!      endif
-! why is ceq needed?? BECAUSE COMPONENTS CAN BE DIFFERENT   ... hm?? !! 
-!   call encode_state_variable2(text,ip,current%statev,indx,&
-!        current%iunit,current%iref,ceq)
       svrrec=>current%statvar(1)
       call encode_state_variable(text,ip,svrrec,ceq)
       if(iterm.lt.current%noofterms) then
@@ -6742,7 +6719,7 @@ CONTAINS
       ip=ip+5
       gx%bmperr=0
    else
-!   write(*,*)'MM experimental state variable value: ',xxx
+!      write(*,*)'MM experimental state variable value: ',ip,xxx
       text(ip:)=' $'
       ip=ip+3
 !      call wrinum(text,ip,12,0,xxx)
@@ -6772,7 +6749,14 @@ CONTAINS
    nsvfun=nosvf()
    if(kou.gt.0) write(kou,75)
 75 format('No  Name ',12x,'Value')
-   do kf=1,nsvfun
+   all: do kf=1,nsvfun
+! skip functions with bit SVFVAL set      
+      if(btest(svflista(kf)%status,SVFVAL)) then
+!         write(*,*)'MM only explit evaluation of: ',trim(svflista(kf)%name)
+!         if(kou.gt.0) write(kou,77)kf,svflista(kf)%name,svflista(kf)%value,'*'
+         if(kou.gt.0) write(kou,77)kf,svflista(kf)%name,ceq%svfunres(kf),'*'
+         cycle all
+      endif
 ! actual arguments needed if svflista(kf)%nactarg>0
       val=meq_evaluate_svfun(kf,actual_arg,0,ceq)
       if(gx%bmperr.ne.0) then
@@ -6786,10 +6770,10 @@ CONTAINS
          endif
          gx%bmperr=0
       elseif(kou.gt.0) then
-         write(kou,77)kf,svflista(kf)%name,val
-77    format(i3,1x,a,1x,1PE15.8)
+         write(kou,77)kf,svflista(kf)%name,val,' '
+77       format(i3,1x,a,1x,1PE15.8,a)
       endif
-   enddo
+   enddo all
 1000 continue
    return
  end subroutine meq_evaluate_all_svfun
@@ -6813,7 +6797,7 @@ CONTAINS
    call get_state_var_value(statevar,value,encoded,ceq)
    if(gx%bmperr.ne.0) then
 ! if error try using meq_evaluate_svfun try calling meq_evaluate_svfun
-!      write(*,*)'In meq_get_state_varofun 2: ',gx%bmperr
+!      write(*,*)'In meq_get_state_varofun 2: ',trim(statevar),gx%bmperr
       olderr=gx%bmperr
       gx%bmperr=0
       encoded=statevar
@@ -6919,8 +6903,10 @@ CONTAINS
       if(jt.lt.svflista(lrot)%narg) goto 100
 ! all arguments evaluated (or no arguments needed)
 300 continue
+!   write(*,*)'MM in meq_evaluate_svfun 76: ',lrot,mode
    modeval: if(mode.eq.0 .and. btest(svflista(lrot)%status,SVFVAL)) then
-! If mode=0 and SVFVAL set return the stored value
+! If mode=0 and SVFVAL set then return the stored value
+!      write(*,*)'MM in meq_evaluate_svfun: ',lrot
       value=ceq%svfunres(lrot)
 !      write(*,350)'HMS evaluate svfun 2: ',0,lrot,value
 350   format(a,2i4,4(1pe13.5))
@@ -6950,6 +6936,7 @@ CONTAINS
 !      write(*,350)'HMS evaluate svfun 8: ',ieq,lrot,value,ceq%tpval(1)
    endif modeval
 ! save value in current equilibrium
+!   write(*,*)'MM meq_evaluate_svfun 77:',lrot,value
    ceq%svfunres(lrot)=value
 1000 continue
    meq_evaluate_svfun=value
@@ -6970,7 +6957,7 @@ CONTAINS
 !\end{verbatim}
     TYPE(meq_phase), pointer :: pmi
     integer iph,ics,kst,ie,mph,lokph,lokcs,nz1,tcol,pcol,dncol,converged
-    integer ierr,nz2,jel
+    integer ierr,nz2,jel,ztableph1,ztableph2,ztableph3
     double precision, allocatable :: smat(:,:)
     double precision xxx
 !
@@ -7006,6 +6993,7 @@ CONTAINS
 ! this means T and P are fixed (not independent)
     meqrec%tpindep=.FALSE.
     mph=0
+    ztableph1=0
 ! loop for all phases, we must set values of phase number etc
 ! meqrec%phr is later called "pmi"
     meqrec%nstph=0
@@ -7027,6 +7015,9 @@ CONTAINS
              meqrec%phr(mph)%curd=>ceq%phase_varres(lokcs)
              if(kst.ge.PHENTSTAB) then
 ! this phase has the stable bit set
+                ztableph1=ztableph1+1
+                ztableph2=lokcs
+                ztableph3=iph
                 meqrec%phr(mph)%stable=1
                 meqrec%nstph=meqrec%nstph+1
 ! store the index of the phase in phr, not the phase number 
@@ -7043,6 +7034,28 @@ CONTAINS
           endif
        enddo
     enddo
+    if(ztableph1.eq.1) then
+! if there is a single stable phase, does it have fixed composition?
+!       write(*,*)'MM a single stable phase',ztableph2
+       if(size(ceq%phase_varres(ztableph2)%sites)-&
+            size(ceq%phase_varres(ztableph2)%yfr).eq.0) then
+!          write(*,*)'MM fixed composition: ',ztableph2
+          xxx=-ceq%tpval(1)*ceq%phase_varres(ztableph2)%gval(4,1)
+! The problem here was created somewhere else when the function for a phase
+! to be optimized were changed, probably when trying to create
+! already existing MAPNODE records.  That error not found !!
+! Calculate G for this phase !!!
+!          call calcg(ztableph3,1,2,ztableph2,ceq)
+          allocate(svar(1))
+! ATTENTION: THIS IS A VERY TEMPORARY FIX!!!!
+! gval(4,1) is the CP of a stoichiometric compound
+          svar(1)=-ceq%tpval(1)*ceq%phase_varres(ztableph2)%gval(4,1)
+!          write(*,321)'MM fixed composition: ',ztableph2,&
+!               lokcs,xxx,svar(1),ceq%tpval(1)
+!321       format(a,2i5,4(1pe12.4))
+          goto 1000
+       endif
+    endif
     meqrec%nphase=mph
 ! copy current values of ceq%complist%chempot(1) to ceq%cmuval, why??
     do ie=1,meqrec%nrel
@@ -7133,7 +7146,7 @@ CONTAINS
     smat(nz1,nz1)=one
     smat(nz1,nz2)=one
 ! check matrix and rhs
-!    write(*,*)'Equil matrix and solution in initiate_meqrec'
+!    write(*,*)'Equil matrix and solution in MM initiate_meqrec'
 !    do jel=1,nz1
 !       write(*,89)jel,(smat(jel,nz2),nz2=1,nz1+1)
 !    enddo
@@ -7141,10 +7154,11 @@ CONTAINS
 ! solve equil matrix 
     call lingld(nz1,nz1+1,smat,svar,nz1,ierr)
     if(ierr.ne.0) then
-       write(*,*)'initiate_meqrec error in lingld',ierr,nz1
+       write(*,*)'MM initiate_meqrec: error in lingld',ierr,nz1,ceq%eqno
 !       do jel=1,nz1
 !          write(*,89)jel,(smat(jel,nz2),nz2=1,nz1+1)
 !       enddo
+!       write(*,89)0,(svar(jel),jel=1,nz1)
        gx%bmperr=4214; goto 1000
 !    else
     endif
@@ -7217,16 +7231,22 @@ CONTAINS
 ! this routine also calculated Delta-amount of phases and delta-mu
     allocate(meqrec1)
     meqrec=>meqrec1
+!    write(*,88)'MM calling initiate_meqrec',svr2%statevarid,ceq%eqno
+88  format(a,2i4)
     call initiate_meqrec(svr2,svar,meqrec,ceq)
     if(gx%bmperr.ne.0) goto 1000
     iel=size(svar)
 !    write(*,18)(svar(jj),jj=1,iel)
 18  format('svar: ',6(1pe12.4)(6x,6e12.4))
+    if(iel.eq.1) then
+! iel=1 means a single stoichiometrc phase stable, svar(1) is CP/RT/T ??
+       value=svar(1)*ceq%rtn
+       goto 1000
+    endif
 !---------------
 !100 continue
 ! if no phase specified loop over all stable phases
 !    write(*,*)'We have initiad meqrec: ',svr1%statevarid
-!    if(svr1%statevarid.eq.9) then
     if(svr1%statevarid.ge.6 .and. svr2%statevarid.lt.15) then
 ! This is derivatives of U, S, etc, H has svr1%statevarid=9, oldstv=40
 ! TO BE DONE: implement H(phase).T and normalizing 
@@ -7497,18 +7517,18 @@ CONTAINS
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
-  subroutine assessment_calfun(nexp,nvcoeff,f,x)
+  subroutine assessment_calfun(nexp,nvcoeff,errs,x)
 ! nexp is number of experiments, nvcoeff number of coefficients
-! f is the differences between experiments and value calculated by model
+! errs is the differences between experiments and value calculated by model
 ! returned by this subroutine
 ! x are the current model parameter values set by VA05AD
     implicit none
     integer nexp,nvcoeff
-    double precision F(*),X(*)
+    double precision errs(*),X(*)
 !    type(gtp_assessmenthead), pointer :: ash
 !\end{verbatim}
 ! firstash is the data structure for assessment head (globally declared) 
-   integer i1,i2,iexp,symsym
+   integer i1,i2,iexp,symsym,mode
     double precision xxx,yyy
     type(gtp_equilibrium_data), pointer :: equil
     type(gtp_condition), pointer :: experiment
@@ -7516,10 +7536,6 @@ CONTAINS
     character text*24
 !
 !    write(*,*)'MM in assessment_calfun',nexp,nvcoeff
-!    write(*,*)'MM In assessment_calfun',size(ash%eqlista)
-!    write(*,*)'MM In assessment_calfun',size(ash%coeffstate)
-!    write(*,*)'MM coeffstate: ',ash%coeffstate
-!    write(*,*)'firstash: ',size(firstash%eqlista)
 ! 1. copy values of X to the TP coefficinets, loop through all
     i2=1
     do i1=0,size(firstash%coeffstate)-1
@@ -7541,7 +7557,7 @@ CONTAINS
     if(.not.allocated(firstash%eqlista)) then
        write(kou,*)' *** Warning: no experimental data!'
        do i1=1,nexp
-          f(i1)=zero
+          errs(i1)=zero
        enddo
        goto 1000
 !    else
@@ -7556,21 +7572,29 @@ CONTAINS
 ! loop through all equilibria with experiments
 ! each can be calculated in parallel
     iexp=0
+    if(gx%bmperr.ne.0) then
+       write(*,*)'In assessment_calfun: resting error code: ',gx%bmperr
+       gx%bmperr=0
+    endif
     eqloop: do i1=1,size(firstash%eqlista)
        if(firstash%eqlista(i1)%p1%weight.eq.zero) then
 !          write(*,29)i1,firstash%eqlista(i1)%p1%eqname
-29     format('MM Skipping equilibrium number ',i3,' and name: ',a)
+29        format('MM Skipping equilibrium number ',i3,' and name: ',a)
           cycle eqloop
        endif
-!       write(*,30)i1,firstash%eqlista(i1)%p1%eqname
-30     format('MM Equilibrium number ',i3,' and name: ',a)
+!       write(*,30)i1,trim(firstash%eqlista(i1)%p1%eqname)
+30     format('MM Assessment_calfun equilibrium number ',i3,' and name: ',a)
        equil=>firstash%eqlista(i1)%p1
 ! Force recalculation of all TP functions and parameters by changing saved T
        equil%eq_tpres%tpused(1)=equil%tpval(1)+one
 ! calculate the equilibria without grid minimizer
-       call calceq3(0,.FALSE.,equil)
+!       write(*,*)'MM calculating equil: ',equil%eqno
+! mode=-1 do not use gridmin and check after ...
+       mode=-1
+       call calceq3(mode,.FALSE.,equil)
        if(gx%bmperr.ne.0) then
-          write(kou,*)' *** Error calculating: ',equil%eqname,gx%bmperr
+          write(kou,*)' *** Error calculating: ',equil%eqno,': ',equil%eqname,&
+               gx%bmperr
           gx%bmperr=0
           cycle
 !       else
@@ -7605,38 +7629,38 @@ CONTAINS
           endif nostv
           if(gx%bmperr.ne.0) then
              write(kou,*)' *** Error calculating experiment ',&
-                  trim(equil%eqname),symsym,gx%bmperr
+                  equil%eqno,': ',trim(equil%eqname),symsym,gx%bmperr
              gx%bmperr=0
-             f(iexp)=zero
+             errs(iexp)=zero
              goto 590
           endif
-!        write(*,510)'MM f',iexp,experiment%prescribed,xxx,&
+!          write(*,510)'MM errs',iexp,experiment%prescribed,xxx,&
 !               experiment%uncertainty,equil%weight
-510          format(a,i4,6(1pe12.4))
+510       format(a,i4,6(1pe12.4))
           if(experiment%experimenttype.eq.0) then
 ! take the difference between prescribed value
-             f(iexp)=(experiment%prescribed-xxx)*equil%weight/&
+             errs(iexp)=(experiment%prescribed-xxx)*equil%weight/&
                   experiment%uncertainty
 !             write(*,*)'MM least.sq: ',iexp,f(iexp)
           elseif(experiment%experimenttype.eq.100) then
 ! relative error
              yyy=1.0D-2*experiment%uncertainty*experiment%prescribed
-             f(iexp)=(experiment%prescribed-xxx)*equil%weight/yyy
+             errs(iexp)=(experiment%prescribed-xxx)*equil%weight/yyy
           elseif(experiment%experimenttype.eq.-1) then
 ! less than, uncertainty is penalty function factor
              if(xxx.gt.experiment%prescribed) then
-                f(iexp)=(xxx-experiment%prescribed)*equil%weight/&
+                errs(iexp)=(xxx-experiment%prescribed)*equil%weight/&
                      experiment%uncertainty
              else
-                f(iexp)=zero
+                errs(iexp)=zero
              endif
           elseif(experiment%experimenttype.eq.1) then
 ! larger than, uncertainty is penalty function factor
              if(xxx.lt.experiment%prescribed) then
-                f(iexp)=(xxx-experiment%prescribed)*equil%weight/&
+                errs(iexp)=(xxx-experiment%prescribed)*equil%weight/&
                      experiment%uncertainty
              else
-                f(iexp)=zero
+                errs(iexp)=zero
              endif
           endif
 590       if(.not.associated(experiment,equil%lastexperiment)) then
@@ -7644,7 +7668,7 @@ CONTAINS
              goto 500
           endif
 ! done all experiments for this equilibrium
-    enddo eqloop
+       enddo eqloop
 !    write(*,*)'MM experiments: ',iexp,nexp
 1000 continue
     return

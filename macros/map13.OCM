@@ -1,5 +1,7 @@
 @$
+new Y
 @$
+@$ ===========================================================
 @$
 @$
 @$
@@ -26,8 +28,8 @@
 @$ with 4 sublattice order/disorder models for FCC, BCC (and HCP)
 @$ using partitioning and permutation of parameters
 @$ =================================================================== 
-@$
-new Y
+
+set echo
 
 r t alni-4slx
 

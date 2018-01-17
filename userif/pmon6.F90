@@ -144,10 +144,11 @@ contains
 !    integer, parameter :: maxw=5000
 ! variables for lmdif
     integer, parameter :: lwam=2500
-    integer :: nopt=100, mexp=0,nvcoeff
+    integer :: nopt1=100, mexp=0,nvcoeff,nopt
     integer iwam(lwam)
     double precision wam(lwam)
     double precision :: acc=1.0D-3
+    logical :: updatemexp=.true.
 ! occational segmentation fault when deallocating www ....
 !    double precision, dimension(maxw) :: www
 !    double precision, dimension(:), allocatable :: www
@@ -161,6 +162,7 @@ contains
 !    character, dimension(maxconst) :: const*24
 ! for macro and logfile and repeating questions
     logical logok,stop_on_error,once,wildcard,twice,startupmacro,temporary
+    logical listzero
 ! unit for logfile input, 0 means no logfile
     integer logfil
 ! remember default for calculate phase
@@ -1312,11 +1314,16 @@ contains
 ! griminimizer ...
           if(allocated(firstash%eqlista)) then
              call gparcd('With global minimizer? ',cline,last,1,ch1,'N',q1help)
-! mode=0 is without grid minimizer 
+! mode=0 is without grid minimizer ?? mode=-1 ??
              mode=1
              if(ch1.eq.'N' .or. ch1.eq.'n') mode=0
+!             if(ch1.eq.'N' .or. ch1.eq.'n') mode=-1
 ! Seach for memory leaks
              call gparid('How many times? ',cline,last,leak,1,q1help)
+! Minimize output
+             listzero=.false.
+!             call gparcd('List zero weight? ',cline,last,1,chz,'Y',q1help)
+!             if(chz.eq.'N') listzero=.true.
 ! allow output file, if idef>1 no output
              idef=leak
              lut=optionsset%lut
@@ -1344,15 +1351,15 @@ contains
                    neweq=>firstash%eqlista(i1)%p1
                    jp=jp+1
                    if(neweq%weight.eq.zero) then
-                      write(kou,2050)neweq%eqno,neweq%eqname
+                      if(listzero) write(kou,2050)neweq%eqno,neweq%eqname
 2050                  format('Zero weight equilibrium ',i4,2x,a)
                    else
                       i2=i2+1
                       call calceq3(mode,.FALSE.,neweq)
                       if(gx%bmperr.ne.0) then
-                         write(kou,2051)gx%bmperr,neweq%eqname,mode
+                         write(kou,2051)gx%bmperr,neweq%eqno,neweq%eqname
 2051                     format(' *** Error code ',i5,' for equilibrium ',&
-                              a,' reset',i2)
+                              i5,': ',a,' reset ')
                          gx%bmperr=0
                       elseif(idef.eq.1) then
                          write(lut,2052)neweq%eqno,&
@@ -1386,7 +1393,7 @@ contains
                    gx%bmperr=0
                    neweq=>firstash%eqlista(i1)%p1
                    if(neweq%weight.eq.zero) then
-                      write(kou,2050)neweq%eqno,neweq%eqname
+                      if(listzero) write(kou,2050)neweq%eqno,neweq%eqname
                    else
 ! write output only for idef=1
 !$                     if(.TRUE. .and. idef.eq.1) then
@@ -1402,8 +1409,8 @@ contains
 !$                     endif
                       i2=i2+1
                       if(gx%bmperr.ne.0) then
-                         write(kou,2051)gx%bmperr,neweq%eqname,mode
-                         write(*,*)'Error: ',gx%bmperr
+                         write(kou,2051)gx%bmperr,neweq%eqno,neweq%eqname
+!                         write(*,*)'Error: ',gx%bmperr
                          gx%bmperr=0
                       elseif(idef.eq.1) then
                          write(lut,2052)neweq%eqno,&
@@ -1933,17 +1940,20 @@ contains
              write(kou,*)'There are no experimental equilibria'
              goto 100
           endif
+! NOTE mexp must be updated to the correct number of EXPERIMENTS
+! that is done by OPTIMIZE
+          updatemexp=.true.
+          mexp=0
           call gparrd('Weight ',cline,last,xxx,one,q1help)
           if(buperr.ne.0) goto 100
           call gparcd('Equilibria (abbrev name) ',cline,last,&
                1,name1,'CURRENT',q1help)
+! THINK HOW TO UPDATE MEXP!!! <<<<<<<<<<<<<<<<<<
           if(name1(1:8).eq.'CURRENT ') then
              if(ceq%eqname(1:20).eq.'DEFAULT_EQUILIBRIUM ') then
-                write(kou,*)'You cannot change the weight for the default'
+                write(kou,*)'You cannot set weight for the default equilibrium'
              else
                 ceq%weight=abs(xxx)
-! mark that list optimize may not work
-                mexp=0
              endif
           elseif(name1(1:1).eq.'*') then
 ! set this weight for all
@@ -1952,21 +1962,46 @@ contains
                 firstash%eqlista(i1)%p1%weight=xxx
                 i2=i2+1
              enddo
-             write(kou,*)'Changed weight for ',i2,' equilibria'
+             write(kou,3066)i2
           else
-! set this weight to all equilibria with name abbriviations fitting name1
-             call capson(name1)
-             i2=0
-             do i1=1,size(firstash%eqlista)
-                if(index(firstash%eqlista(i1)%p1%eqname,&
-                     name1(1:len_trim(name1))).gt.0) then
+             ll=1
+             call getint(name1,ll,i1)
+             bupp: if(buperr.eq.0) then
+! user provide a singe number or a range, if range the negative number also
+                call getint(name1,ll,i2)
+                if(buperr.ne.0) then
+! it was a single number                   
+                   buperr=0
                    firstash%eqlista(i1)%p1%weight=xxx
-                   i2=i2+1
-! mark that list optimize may not work
-                   mexp=0
+                   write(*,*)'Changing weight for equilibrium ',i1
+                else
+                   i2=-i2
+                   ll=0
+                   setwei: do j1=i1,i2
+                      firstash%eqlista(j1)%p1%weight=xxx
+                      if(gx%bmperr.ne.0) then
+                         gx%bmperr=0
+                         exit setwei
+                      endif
+                      ll=ll+1
+                   enddo setwei
+                   write(kou,3066)ll
                 endif
-             enddo
-             write(kou,*)'Changed weight for ',i2,' equilibria'
+             else
+! set this weight to all equilibria with name abbriviations fitting name1
+                buperr=0
+                call capson(name1)
+                i2=0
+                do i1=1,size(firstash%eqlista)
+                   if(index(firstash%eqlista(i1)%p1%eqname,&
+                        name1(1:len_trim(name1))).gt.0) then
+                      firstash%eqlista(i1)%p1%weight=xxx
+                      i2=i2+1
+                   endif
+                enddo
+                write(kou,3066)i2
+             endif bupp
+3066         format('Changed weight fot ',i5,' equilibria')
           endif
 !-------------------------------------------------------------
 ! turn on/off global minimization, creating composition sets
@@ -2380,7 +2415,7 @@ contains
 3740      continue
           xxy=firstash%coeffvalues(j1)*firstash%coeffscale(j1)
           if(i1.eq.i2) then
-! when setting a single coefficinet variable ask for value
+! when setting a single coefficient variable ask for value
              call gparrd('Start value: ',cline,last,xxx,xxy,q1help)
              if(buperr.ne.0) goto 100
 ! set new value
@@ -2542,9 +2577,9 @@ contains
           write(kou,3730)nvcoeff
 3730      format('Number of variable coefficients are now ',i3)
 !------------------------- 
-       case(24) ! T_AND_P start values, NOT CONDITIONS!!
-          write(kou,3750)
-3750      format('NOTE: these are only local values, not conditions!')
+       case(24) ! T_AND_P start values?, NOT CONDITIONS!!
+          write(kou,3750)ceq%tpval
+3750      format('NOTE: these are only local values, not conditions',2(1pe12.4))
           call gparrd('New value of T: ',cline,last,xxx,1.0D3,q1help)
           if(buperr.ne.0) goto 100
           ceq%tpval(1)=xxx
@@ -2659,7 +2694,11 @@ contains
           endif
           call enterphase(cline,last)
 !---------------------------------------------------------------
-       case(5) ! enter parameter is always allowed
+       case(5) ! enter parameter only if there are phases
+          if(btest(globaldata%status,GSNOPHASE)) then
+             write(kou,*)'You must enter some phase before'
+             goto 100
+          endif
           call enter_parameter_interactivly(cline,last,0)
           if(gx%bmperr.ne.0) goto 990
 !---------------------------------------------------------------
@@ -2751,8 +2790,13 @@ contains
 !          write(*,551)firstash%status
 !551       format('Assessment status word: ',z8)
 !---------------------------------------------------------------
-! enter copy of equilibrium (for test!)
+! enter copy_of equilibrium (for test!)
        case(13)
+! Check if there is any phases, otherwise not allowed
+          if(btest(globaldata%status,GSNOPHASE)) then
+             write(kou,*)'Not allowed unless you have data!'
+             goto 100
+          endif
           call gparc('Name of new equilibrium: ',cline,last,1,text,' ',q1help)
           if(buperr.ne.0) goto 100
           if(text(1:1).eq.' ') then
@@ -3149,9 +3193,8 @@ contains
 !------------------------------
        case(12) ! list results
 ! if no calculation made skip
-          if(btest(ceq%status,EQNOEQCAL)) then
-             write(*,6277)ceq%status
-6277         format(' *** No results as no equilibrium calculated! ',z8)
+          if(btest(globaldata%status,GSNOPHASE)) then
+             write(kou,*)'No results as no data'
              goto 100
           elseif(btest(ceq%status,EQGRIDCAL)) then
              write(kou,*)' *** Last calculation was not a full equilibrium'
@@ -3176,9 +3219,6 @@ contains
              write(lut,6305)'below'
 6305         format(/' *** The results ',a,&
                   ' are not a valid equilibrium as last calculation failed'/)
-          elseif(btest(globaldata%status,GSNOPHASE)) then
-             write(kou,*)'No results as no data'
-             goto 100
 !  elseif(btest(globaldata%status,GSNOEQCAL)) then
           elseif(btest(ceq%status,EQNOEQCAL)) then
              write(lut,6307)'below'
@@ -3195,6 +3235,11 @@ contains
           call list_conditions(lut,ceq)
           write(lut,6303)'Some global data, reference state SER ..'
           call list_global_results(lut,ceq)
+          if(btest(ceq%status,EQNOEQCAL)) then
+             write(*,6277)ceq%status
+6277         format(' *** No results as no equilibrium calculated! ',z8)
+             goto 6363
+          endif
 !          write(lut,6303)'Some component data ....................'
           write(lut,6303)'Some data for components ...............'
           j1=1
@@ -3265,6 +3310,7 @@ contains
              endif
           enddo
 ! list experiments if any
+6363      continue
           if(associated(ceq%lastexperiment)) then
              write(lut,491)ceq%weight
 !491          format(/'Weight ',F6.2)
@@ -3275,6 +3321,7 @@ contains
 !          else
 !             write(*,*)'No experiments found'
           endif
+          if(btest(ceq%status,EQNOEQCAL)) goto 100
 ! list if anyting should be calculated or listed separately (not their values)
           if(allocated(ceq%eqextra)) then
              write(lut,492)ceq%eqextra(1)(1:len_trim(ceq%eqextra(1))),&
@@ -3325,6 +3372,10 @@ contains
                 write(kou,*)'No such option'
 !...........................................................
              case(1) ! short
+!                if(updatemexp) then
+!                   write(*,*)'You must OPTIMIZE first'
+!                   goto 100
+!                endif
                call listoptshort(lut,mexp,errs)
 !...........................................................
              case(2) ! long
@@ -3440,7 +3491,7 @@ contains
 !8110      format(/'Savefile text: ',a/)
 ! if there is an assessment record set nvcoeff ...
           if(allocated(firstash%eqlista)) then
-             write(*,*)'There is an assessment record'
+             write(*,*)'Reading the assessment record'
              if(allocated(firstash%coeffvalues)) then
                 nvcoeff=0
                 kl=size(firstash%coeffvalues)-1
@@ -3790,8 +3841,10 @@ contains
 !       write(*,*)'No segmentation fault 2'
        if(allocated(firstash%eqlista)) deallocate(firstash%eqlista)
        deallocate(firstash)
-!       write(*,*)'No segmentation fault 3'
+!       write(*,*)'No segmentation fault 3, deallocate errs '
+       if(mexp.gt.0) deallocate(errs)
        mexp=0
+       updatemexp=.true.
        nvcoeff=0
 !       iexit=0
 !       iexit(2)=1
@@ -4073,7 +4126,7 @@ contains
 ! disable continue optimization
 !       iexit=0
 !       iexit(2)=1
-       kom2=submenu(cbas(kom),cline,last,crej,nrej,3)
+       kom2=submenu(cbas(kom),cline,last,crej,nrej,6)
        delete: SELECT CASE(kom2)
 !-----------------------------------------------------------
        CASE DEFAULT
@@ -4181,6 +4234,8 @@ contains
                ' for a step calculation.'
           goto 100
        endif
+! IMPORTANT I have changed the order between option and reinitiate!!
+       kom2=submenu('Options?',cline,last,cstepop,nstepop,1)
 ! check if adding results
        if(associated(maptop)) then
           write(kou,833)
@@ -4217,7 +4272,7 @@ contains
 !             write(kou,*)'Previous results kept'
           endif
        endif
-       kom2=submenu('Options?',cline,last,cstepop,nstepop,1)
+!       kom2=submenu('Options?',cline,last,cstepop,nstepop,1)
        step: SELECT CASE(kom2)
 !-----------------------------------------------------------
        CASE DEFAULT
@@ -4926,7 +4981,7 @@ contains
 !-----------------------------------------------------------
 ! PLOT TIE_LINES increment
        case(14)
-          call gparid('Tie-line increment?',cline,last,kl,0,q1help)
+          call gparid('Tie-line plot increment?',cline,last,kl,3,q1help)
           if(kl.lt.0) kl=0
           graphopt%tielines=kl
 !          write(*,*)'No implemented yet'
@@ -4984,8 +5039,9 @@ contains
 !=================================================================
 ! OPTIMIZE and CONTINUE.  Current optimizer is optimizers(optimizer)
     case(24)
-       call gparid('Number of iterations: ',cline,last,i1,nopt,q1help)
+       call gparid('Number of iterations: ',cline,last,i1,nopt1,q1help)
        if(buperr.ne.0) goto 100
+       nopt1=i1
        nopt=i1
 !       write(*,606)'dead 1',mexp,nvcoeff,iexit
 606    format(a,10i4)
@@ -5030,6 +5086,7 @@ contains
        enddo
 !       write(*,*)'Number of experiments: ',mexp
        allocate(errs(mexp))
+       updatemexp=.false.
 ! copy the variable coefficients to coefs
        if(nvcoeff.le.0) then
           write(*,*)'No coefficients to optimize'
@@ -5056,25 +5113,12 @@ contains
              goto 100
           endif
        endif
-! caculate how big www is needed, it depends on mexp and nvcoeff
-! Size of www from VA05AD 
-!             M*N         +(M+N)*N               +N      
-!       nwc=mexp*nvcoeff+(mexp+nvcoeff)*nvcoeff+nvcoeff
-!               +M   +N      +N*N            +N+M+N
-!       j1=nwc+mexp+nvcoeff+nvcoeff*nvcoeff+2*nvcoeff+mexp
-!       allocate(www(j1))
-!       if(maxw.lt.j1) then
-!          write(*,*)'Too big problem, increase maxw, current value',maxw
-!          goto 100
-!       endif
-! JUMP HERE IF CONTINUE optimization
+! JUMP HERE IF CONTINUE optimization  ... if implemented
 987    continue
 ! mexp    Number of experiments
 ! nvcoeff Number of coefficients to be optimized
 ! errs Array with differences with experiments and calculated values
 ! coefs Array with coefficients
-! VA05AD variables: dstep, dmax2, acc, iterations, output unit, workspace
-!                   entry mode, exit mode
        if(mexp.le.0 .or. nvcoeff.le.0) then
           write(kou,569)mexp,nvcoeff
 569       format('Cannot optimize with zero experiments or coefficients',2i5)
@@ -5084,16 +5128,7 @@ contains
 558    format(/'>>>   Start of optimization   >>>'/&
             'Experiments, coefficients and workspace: ',3(1x,i5))
 !
-!       iprint=1
-! There is a va05ad emulator called lmdif ...
-!       call va05ad(mexp,nvcoeff,errs,coefs,dstep,dmax2,acc,nopt,iprint,www,&
-!            ient,iexit)
-! integer, parameter :: lwam=2500
-! integar iwam(lwam)
-! double precision wam(lwam)
        call lmdif1(mexp,nvcoeff,coefs,errs,acc,nopt,iwam,wam,lwam)
-!       write(kou,559)iprint,iexit
-!559    format(/'Back from optimization',10i3/)
 ! we must copy the current scaled coefficients back to firstash%coeffvalues
        i2=1
        do i1=0,size(firstash%coeffstate)-1
@@ -5104,8 +5139,6 @@ contains
              i2=i2+1
           endif
        enddo
-! calculated errors 
-!       write(*,*)'Errors: ',(errs(j1),j1=1,mexp)
 !=================================================================
 ! unused
     CASE(25)
@@ -5429,13 +5462,15 @@ contains
     type(gtp_equilibrium_data), pointer :: neweq
     integer i1,i2,j1,j2,j3
     character name1*24,line*80
-    double precision xxx
+    double precision xxx,sum
+    type(gtp_condition), pointer :: experiment
 !
     write(lut,610)
 610 format(/'List of coefficents with non-zero values'/&
          'Name  Current value   Start value    Scaling factor',&
          ' RSD')
     name1=' '
+    j2=0
     do i1=0,size(firstash%coeffstate)-1
 !       write(*,611)i1,firstash%coeffstate(i1)
 !611                format('Coefficient ',i2,' state ',i2)
@@ -5446,6 +5481,7 @@ contains
           write(lut,615)name1(1:3),xxx,&
                firstash%coeffstart(i1),firstash%coeffscale(i1),zero
 615       format(a,2x,4(1pe15.6))
+          j2=j2+1
           if(firstash%coeffstate(i1).eq.11) then
 ! there is a prescribed minimum
              write(lut,616)' minimum ',firstash%coeffmin(i1)
@@ -5474,39 +5510,61 @@ contains
           firstash%coeffstate(i1)=1
        endif coeffstate
     enddo
-! list all experiments, only possible after first optimize
+! list all experiments, only possible if there are experiments
     if(mexp.eq.0) then
        write(lut,666)
-666    format(/'No optimization so no results'/)
+666    format(/'No experiments so no results'/)
        goto 1000
     endif
+! list experiments, mexp is number of EXPERIMENTS, not equilibria!!
     write(lut,620)size(firstash%eqlista),mexp
 620 format(/'List of ',i5,' equilibria with ',i5,&
          ' experimental data values'/&
-         'Equil name    Weight Experiment $ calculated',24x,&
+         '  No Equil name    Weight Experiment $ calculated',19x,&
          'Error')
     j3=0
-    experim: do i1=1,size(firstash%eqlista)
+    allequil: do i1=1,size(firstash%eqlista)
 ! skip equilibria with zero weight
        neweq=>firstash%eqlista(i1)%p1
-       if(neweq%weight.eq.zero) cycle experim
+       if(neweq%weight.eq.zero) cycle allequil
        name1=neweq%eqname(1:12)
-       if(associated(neweq%lastexperiment)) then
+! LOOP for all experiments for this equilibrium (maybe none??)
+       experiment=>neweq%lastexperiment%next
+       if(.not.associated(experiment)) cycle allequil
+700    continue
           i2=neweq%lastexperiment%seqz
           do j2=1,i2
+! j1 is position in line to write experiment
              j1=1
              line=' '
 ! this subroutine returns experiment and calculated value: "H=1000:200 $ 5000"
              call meq_get_one_experiment(j1,line,j2,neweq)
              j3=j3+1
-             write(lut,622)name1(1:12),neweq%weight,line(1:45),&
+             write(lut,622)neweq%eqno,name1(1:12),neweq%weight,line(1:40),&
                   errs(j3)
-622          format(a,2x,F5.2,2x,a,1x,1pe12.4)
+622          format(i4,1x,a,2x,F5.2,1x,a,1x,1pe12.4)
 ! list the equilibrium name just for the first (or only) experiment
              name1=' '
           enddo
-       endif
-    enddo experim
+          experiment=>experiment%next
+590       if(.not.associated(experiment,neweq%lastexperiment)) then
+             experiment=>experiment%next
+             goto 700
+          endif
+    enddo allequil
+! list sum of squares
+    sum=zero
+    do j1=1,mexp
+       sum=sum+errs(j1)**2
+    enddo
+    j1=mexp-j2
+    if(j1.gt.0) then
+       write(lut,621)sum,mexp,j2,sum/j1
+    else
+       write(lut,621)sum,mexp,j2,zero
+    endif
+621 format(/'Final sum of squared errors: ',1pe16.5/'Experiments: ',i3,&
+         ', coefficents: ',i3,': Normalized error: ',1pe16.5)
 1000 continue
     return
   end subroutine listoptshort

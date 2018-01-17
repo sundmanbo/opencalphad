@@ -5318,6 +5318,8 @@ CONTAINS
           level=level-1
        endif
        l2=len_trim(helprec%cpath(level))
+! Strange error comaprin the first 12 characters of helprec%cpath .. with mtext
+! below.  Maybe better to assign this to a 12 character variable?
 !       write(*,107)level,l2,nsub,helprec%cpath(level)(1:l2)
 107    format('Search: ',3i5,': ',a)
 110    continue
@@ -5367,11 +5369,11 @@ CONTAINS
                 endif
              endif
           enddo
-!          write(*,130)level,mtxt(1:12),helprec%cpath(level)(1:l2),nl
+!          write(*,130)level,mtxt(1:12),helprec%cpath(level)(1:12),nl
 !          write(*,130)level,hline(kk:jj),helprec%cpath(level)(1:l2),nl
-130       format('comparing: ',i3,': ',a,' with ',a,' line ',i4)
+130       format('comparing: ',i3,': "',a,'" with "',a,'" line ',i4)
 !          if(hline(kk:kk+l2-1).eq.helprec%cpath(level)(1:l2)) then
-          if(mtxt(1:12).eq.helprec%cpath(level)(1:l2)) then
+          if(mtxt(1:12).eq.helprec%cpath(level)(1:12)) then
 ! found one level, save line number for first line
              np1=nl
 !             write(*,*)'We found one level at line: ',np1,nsub
