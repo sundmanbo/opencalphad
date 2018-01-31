@@ -695,7 +695,7 @@
    elseif(ch1.eq.';') then
       goto 900
    endif after
-     write(*,777)'error ct1xfn: ',ch1,ip,string(ip-10:ip+10)
+   write(*,777)'error ct1xfn: ',ch1,ip,string(max(1,ip-10):ip+10)
 777 format(a,'>',a,'<',i3,'>',a,'<')
    gx%bmperr=4005
    goto 1000

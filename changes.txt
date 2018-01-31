@@ -13,11 +13,21 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2018.01.31 OC version 4.043: I have improved the mapping of phase
+diagrams with tie-lines in the plane (i.e. most binary diagrams and
+isothermal sections).  However there are still problems and I will try
+to improve these diagrams in future releases.  The previous mapping is
+used for isopleths and can be selected by setting global bit 21 if you
+are an expert.
+
+There has been many additional changes and bugfixes.
+
 2018.01.17 OC version 4.042: IMPORTANT! Change for the STEP command!
 I have changed the order of questions for the STEP command.  Now the
-program will first ask if it should be
-NORMAL/SEPARATE/CONDITIONAL/QUIT before asking if any previous results
-should be kept.
+program will first ask if the stepping should be
+NORMAL/SEPARATE/CONDITIONAL/QUIT
+before asking if any previous results should be kept.  The conditional
+step is not yet implemented.
 
 Many changes and bugs fixed in order to run the complete CuMg
 assessment example (opttest2 is the start of that).

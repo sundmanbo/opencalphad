@@ -5,7 +5,7 @@
 !
 MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !
-! Copyright 2011-2017, Bo Sundman, France
+! Copyright 2011-2018, Bo Sundman, France
 !
 !    This program is free software; you can redistribute it and/or modify
 !    it under the terms of the GNU General Public License as published by
@@ -557,7 +557,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'Recalculate as gridpoint below current equilibrium              ',&
        'Slow convergence with same set of stable phases                 ',&
 ! 4360
-       '                                                                ',&
+       'Too large change on axis, terminating mapping                   ',&
        '                                                                ',&
        '                                                                ',&
        '                                                                ',&
@@ -625,6 +625,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! TGRID check calculated equilibrium with grid minimizer
 ! OGRID use old grid generator
 ! NORECALC do not recalculate equilibria even if global test fails
+! OLDMAP use old map algorithm
 ! >>>> some of these should be moved to the gtp_equilibrium_data record
   integer, parameter :: &
        GSBEG=0,       GSOCC=1,        GSADV=2,      GSNOGLOB=3, &
@@ -632,7 +633,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        GSNOREMCS=8,   GSNOSAVE=9,     GSVERBOSE=10, GSSETVERB=11,&
        GSSILENT=12,   GSNOAFTEREQ=13, GSXGRID=14,   GSNOPAR=15, &
        GSNOSMGLOB=16, GSNOTELCOMP=17, GSTGRID=18,   GSOGRID=19, &
-       GSNORECALC=20
+       GSNORECALC=20, GSOLDMAP=21
 !----------------------------------------------------------------
 !-Bits in element record
   integer, parameter :: &
@@ -659,6 +660,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! Model without 2nd derivatives (PHNODGDY2), Elastic model A,
 ! Subtract ordered part (PHSUBO), Flory-Huggins model (PHFHV)
 ! Multi-use bit (together with some other) PHMULTI
+! Xion magnetic model with average Bohr magneton number PHBMAV
   integer, parameter :: &
        PHHID=0,     PHIMHID=1,  PHID=2,    PHNOCV=3, &     ! 1 2 4 8 : 0/F
        PHHASP=4,    PHFORD=5,   PHBORD=6,  PHSORD=7, &     ! 
@@ -666,7 +668,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        PHAQ1=12,    PHDILCE=13, PHQCE=14,  PHCVMCE=15,&    ! 
        PHEXCB=16,   PHXGRID=17, PHFACTCE=18, PHNOCS=19,&   !
        PHHELM=20,   PHNODGDY2=21, PHELMA=22, PHSUBO=23,&   ! 
-       PHFHV=24,    PHMULTI=25                             !
+       PHFHV=24,    PHMULTI=25, PHBMAV=26                  !
 ! 
 !----------------------------------------------------------------
 !-Bits in constituent fraction (phase_varres) record STATUS2

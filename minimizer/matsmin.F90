@@ -5,7 +5,7 @@
 !
 MODULE liboceq
 !
-! Copyright 2012-2017, Bo Sundman, France
+! Copyright 2012-2018, Bo Sundman, France
 !
 !    This program is free software; you can redistribute it and/or modify
 !    it under the terms of the GNU General Public License as published by
@@ -114,8 +114,6 @@ MODULE liboceq
 ! fix phases and amounts
      integer, dimension(:,:), allocatable :: fixph
      double precision, dimension(:), allocatable :: fixpham
-! fix phases during mapping: phase index and composition set index, zero amount
-!     type(gtp_phasetuple), dimension(:), allocatable :: nodefixph
 ! indices of axis conditions that has been inactivated
 !     integer, dimension(:), allocatable :: inactiveaxis
 ! iphl, icsl: phase and composition sets of intial guess of stable phases
@@ -789,30 +787,27 @@ CONTAINS
           meqrec%icsl(ij)=0
        enddo
        if(ocv()) write(*,64)'Fix phase in mapfix record: ',mapfix%nfixph,&
-            mapfix%fixph(1)%ixphase,mapfix%fixph(1)%compset,&
-            mapfix%fixph(1)%lokvares
+            mapfix%fixph(1)%ixphase,mapfix%fixph(1)%compset
+! this is never assigned           mapfix%fixph(1)%lokvares
 64     format(a,i3,5x,2i5,5x,i5)
        meqrec%nfixph=mapfix%nfixph
        meqrec%nv=0
        do ij=1,meqrec%nfixph
-!          meqrec%fixph(1,ij)=mapfix%fixph(ij)%phaseix
           meqrec%fixph(1,ij)=mapfix%fixph(ij)%ixphase
           meqrec%fixph(2,ij)=mapfix%fixph(ij)%compset
           meqrec%fixpham(ij)=zero
           meqrec%nv=meqrec%nv+1
-!          meqrec%iphl(meqrec%nv)=mapfix%fixph(ij)%phaseix
           meqrec%iphl(meqrec%nv)=mapfix%fixph(ij)%ixphase
           meqrec%icsl(meqrec%nv)=mapfix%fixph(ij)%compset
        enddo
-!       write(*,64)'MM: Number of stable phase from mapfix: ',mapfix%nstabph
        do ij=1,mapfix%nstabph
           meqrec%nv=meqrec%nv+1
-!          meqrec%iphl(meqrec%nv)=mapfix%stableph(ij)%phaseix
           meqrec%iphl(meqrec%nv)=mapfix%stableph(ij)%ixphase
           meqrec%icsl(meqrec%nv)=mapfix%stableph(ij)%compset
           meqrec%aphl(meqrec%nv)=mapfix%stablepham(ij)
-!          write(*,*)'MM: Amount: ',ij,mapfix%stablepham(ij)
+!          write(*,*)'MM: Phase amount: ',ij,mapfix%stablepham(ij)
        enddo
+!       write(*,64)'MM: Total number of stable phases: ',meqrec%nv
     endif
 !------------------------------- 
 ! zero start of link to phases set temporarily dormant ....
@@ -1667,19 +1662,21 @@ CONTAINS
        enddo
     endif
 228 format(a,6(1pe12.4),(8x,6e12.4))
-! This is an emergy check that the smat matrix does not contain
+! This is an emergecy check that the smat matrix does not contain
 ! values >1E+50.  We should test for Infinity and NaN but how??
     do iz=1,nz1
        do jz=1,nz2
           if(abs(smat(iz,jz)).gt.1.0D+50) then
-             write(*,*)'Illegal numerical value in equilibrium matrix',iz,jz
+             write(*,118)iz,jz
+118          format('meq_sameset has illegal values in equilibrium matrix',2i4)
              gx%bmperr=4354; goto 990
           endif
        enddo
     enddo
     call lingld(nz1,nz2,smat,svar,nz1,ierr)
     if(ierr.ne.0) then
-       if(vbug) write(*,*)'Error solving equil matrix',meqrec%noofits,ierr
+       if(vbug) write(*,*)'Error solving equil matrix 1',meqrec%noofits,ierr,&
+            iremsave
        if(iremsave.gt.0) then
 ! equil matrix wrong at first iteration after removing a phase
 ! This can be caused by having no phase with solubility of an element
@@ -8035,7 +8032,7 @@ CONTAINS
 ! solve the equilibrium matrix, some chemical potentials may be missing
     call lingld(nz1,nz2,smat,svar,nz1,ierr)
     if(ierr.ne.0) then
-       write(*,*)'Error solving equilibrium matrix',ierr
+       write(*,*)'Error solving equilibrium matrix 2',ierr
        gx%bmperr=4203; goto 1000
     endif
 ! check that svar(1..meqrec%nrel) has converged
@@ -8264,7 +8261,7 @@ CONTAINS
 ! solve the equilibrium matrix, some chemical potentials may be missing
     call lingld(nz1,nz2,smat,svar,nz1,ierr)
     if(ierr.ne.0) then
-       write(*,*)'Error solving equilibrium matrix',ierr
+       write(*,*)'Error solving equilibrium matrix 3',ierr
        gx%bmperr=4203; goto 1000
     endif
 ! check that svar(1..meqrec%nrel) has converged

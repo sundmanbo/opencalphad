@@ -2168,6 +2168,22 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatiom}
+ logical function fixedcomposition(iph)
+! returns TRUE if phase cannot vary its composition
+   integer iph
+!\end{verbatim}
+   if(phlista(iph)%tnooffr-phlista(iph)%noofsubl.eq.0) then
+      fixedcomposition=.true.
+   else
+      fixedcomposition=.false.
+   endif
+1000 continue
+   return
+ end function fixedcomposition
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatiom}
  logical function ocv()
 ! returns TRUE if GSVERBOSE bit is set
 !\end{verbatim}

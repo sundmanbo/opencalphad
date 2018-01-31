@@ -547,7 +547,7 @@
                endif
             enddo pyqloop
             if(moded.eq.0) goto 150
-!---------------------------------------------------- first derivatives
+!---------------------------------------------------- first derivatives of py
             dpyqloop: do ll=1,msl
 ! here pyq is known, same loop as above to calculate dpyq(i)=pyq/y_i
                id=endmemrec%fraclinks(ll,epermut)
@@ -572,7 +572,7 @@
                endif
             enddo dpyqloop
             if(moded.le.1) goto 150
-!---------------------------------------------------- second derivatives
+!---------------------------------------------------- second derivatives of py
 ! searching for bug with interaction wildcards in 4SL
 !            write(*,68)'3X d2P/dyi2A:',nofc2,(d2pyq(id),id=1,nofc2)
 !            d2pyq is all zero here
@@ -672,6 +672,7 @@
 ! property 1 i.e. Gibbs energy, should be divided by RT
                   vals=vals/rtg
                endif prop1
+!               write(*,*)'3X property type: ',typty,ipy,vals(1)
 !================ now we calculated the endmember parameter ============
 ! take care of derivatives of fraction variables ...
 !               write(*,173)'3X endmember: ',endmemrec%antalem,ipy,pyq,vals(1)
@@ -696,9 +697,9 @@
                do itp=1,6
                   phres%gval(itp,ipy)=phres%gval(itp,ipy)+pyq*vals(itp)
                enddo
-! strange values of mobilities for ordered phases ...
+! strange values of mobilities for ordered phases ... EINSTEIN
 !               if(ipy.ne.1) then
-!               write(*,173)'3X gval:      ',phmain%listprop(ipy),ipy,&
+!                  write(*,173)'3X gval:      ',phmain%listprop(ipy),ipy,&
 !                    phres%gval(1,ipy),pyq,vals(1)
 !               endif
                proprec=>proprec%nextpr
@@ -1208,32 +1209,46 @@
                            phres%dgval(itp,gz%iq(2),ipy)=&
                                 phres%dgval(itp,gz%iq(2),ipy)&
                                 +pyq*dvals(itp,gz%iq(2))
-                           if(ionicliq) then
+! to many indentations--------------------------------------------
+         catx: if(ionicliq) then
 ! for ionic liquid when interactions involve cations there is a contribution
 ! due to the vacancy fraction multiplied with the cations yc1*yc2*yva**2
 ! we are dealing with binary RK interactions, gz%intlevel=1, check if 
 ! interaction is in first sublattice (between cations) and vacancy in second
-                              if(iliqva .and. jonva.gt.0) then
-                                 if(gz%intlat(1).eq.1) then
+            if(iliqva .and. jonva.gt.0) then
+               if(gz%intlat(1).eq.1) then
 ! add pyq multipled with the derivative with respect to vacancy fraction
 ! This should be done for d2gval also but I skip that at present ...
-                                    phres%dgval(itp,jonva,ipy)=&
-                                         phres%dgval(itp,jonva,ipy)+&
-                                         pyq*dvals(itp,jonva)
-!                                 write(*,*)'3X jonva:',jonva,pyq,dvals(1,jonva)
-                                 elseif(gz%intlat(1).eq.2 .and. &
-                                      gz%iq(2).gt.jonva) then
+                  phres%dgval(itp,jonva,ipy)=&
+                       phres%dgval(itp,jonva,ipy)+pyq*dvals(itp,jonva)
+!                       write(*,*)'3X jonva:',jonva,pyq,dvals(1,jonva)
+               elseif(gz%intlat(1).eq.2 .and. gz%iq(2).gt.jonva) then
 ! This fixed the problem with Pd-Ru-Te in the fuel (+ fix in cgint)
-!                 write(*,55)'3X (C:Va,K)',iliqva,gz%intlat(1),jonva,gz%iq(1),&
-!                      gz%iq(2),gz%endcon(1),pyq,dvals(itp,gz%endcon(1))
-55               format(a,l2,5i3,4(1pe12.4))
-                                    icat=gz%endcon(1)
-                                    phres%dgval(itp,icat,ipy)=&
-                                         phres%dgval(itp,icat,ipy)+&
-                                         pyq*dvals(itp,icat)
-                                 endif
-                              endif
-                           endif
+!                write(*,55)'3X (C:Va,K)',iliqva,gz%intlat(1),jonva,gz%iq(1),&
+!                     gz%iq(2),gz%endcon(1),pyq,dvals(itp,gz%endcon(1))
+55                format(a,l2,5i3,4(1pe12.4))
+               icat=gz%endcon(1)
+               if(icat.gt.0) then
+                  phres%dgval(itp,icat,ipy)=&
+                    phres%dgval(itp,icat,ipy)+pyq*dvals(itp,icat)
+!               else
+! wow, icat can be -99 meaning interaction between neutrals ....
+! but then just skip as the assignment above is not relevant
+! Error occured for ionic liquid with:
+! 1    2    3   4    5    6    7    8    9    10  11
+! BA+2 CE+3 CS+ GD+3 LA+3 MO+4 PD+2 PU+3 RU+4 U+4 ZR+4 :               
+! I- MOO4-2 O-2 VA CEO2 CS2TE CSO2 I2 MOO3 O  PUO2 TE TEO2
+! 12 13     14  15 16   17    18   19 20   21 22   23 24
+! we come here with: BA+2:VA,TE; PD+2:VA,TE; RU+4:VA,TE; *:CS2TE,TE
+! gz%intlat(1)=2 OK; jonva=15 OK; gz%iq(1)=17(Cs2Te); gz%iq(2)=23(Te); 
+! gz%endcon(1)=-99
+!                  write(*,55)'3X Instroini:',iliqva,gz%intlat(1),jonva,&
+!                       gz%iq(1),gz%iq(2),gz%endcon(1),pyq
+               endif
+            endif
+         endif
+      endif catx
+! increase indendation-----------------------------------------
                         enddo
                      endif cdex1
 ! end contribution to derivates from composition dependent parameters
@@ -1897,6 +1912,9 @@
 ! moded is 0, 1 or 2 if derivatives should be calculated, phres is pointer
 ! to result arrays, lokadd is the addition record, listprop is needed to
 ! find where TC and BM are stored, gz%nofc are number of constituents
+! EINSTEIN
+!      write(*,*)'3X calling addition selector',phres%gval(1,2)
+!      write(*,1001)'Addto: ',gx%bmperr,(phres%gval(j1,1),j1=1,4)
       call addition_selector(addrec,moded,phres,lokph,gz%nofc,ceq)
       if(gx%bmperr.ne.0) goto 1000
 ! NOTE that the addition record is not in the dynamic data struturce
@@ -1934,10 +1952,10 @@
       deallocate(dfhv)
       deallocate(d2fhv)
    endif
-!    write(*,1001)gx%bmperr,(phres%gval(i,1),i=1,4)
+!   write(*,1001)'Total: ',gx%bmperr,(phres%gval(j1,1),j1=1,4)
 !    write(*,1002)(phres%dgval(1,i,1),i=1,3)
 !    write(*,1003)(phres%d2gval(i,1),i=1,6)
-1001 format('3X calcg g: ',i5,4(1PE15.7))
+1001 format('3X ',a,i5,4(1PE12.4))
 1002 format('3X calcg dg:  ',3(1PE15.7))
 1003 format('3X calcg d2g: ',6(1PE11.3))
    return

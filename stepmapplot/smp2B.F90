@@ -978,12 +978,16 @@
 ! set ylabel
 ! set xrange
 ! set yrange
+! set terminal
+! set size
 ! set key
        if(appline(1:10).eq.'set title ' .or.&
             appline(1:11).eq.'set xlabel ' .or.&
             appline(1:11).eq.'set ylabel ' .or.&
             appline(1:11).eq.'set xrange ' .or.&
             appline(1:11).eq.'set yrange ' .or.&
+            appline(1:11).eq.'set terminal ' .or.&
+            appline(1:11).eq.'set size ' .or.&
             appline(1:8).eq. 'set key ') then
 !          write(*,*)'ignoring append line ',trim(appline)
           goto 1710
@@ -1752,6 +1756,8 @@
 ! set xlabel
 ! set ylabel
 ! set xrange
+! set terminal
+! set size
 ! set yrange
 ! set key
        if(appline(1:10).eq.'set title ' .or.&
@@ -1759,6 +1765,8 @@
             appline(1:11).eq.'set ylabel ' .or.&
             appline(1:11).eq.'set xrange ' .or.&
             appline(1:11).eq.'set yrange ' .or.&
+            appline(1:11).eq.'set terminal ' .or.&
+            appline(1:11).eq.'set size ' .or.&
             appline(1:8).eq. 'set key ') then
 !          write(*,*)'ignoring append line ',trim(appline)
           goto 200
@@ -2293,19 +2301,19 @@
              write(kou,105)mapnode%linehead(kl)%lineid,&
                   mapnode%linehead(kl)%number_of_equilibria,&
                   mapnode%linehead(kl)%termerr
-105          format('  Line ',i3,' with ',i3,&
+105          format('  Line ',i3,' with ',i5,&
                   ' equilibria ended with error: ',i6)
           else
              write(kou,110)mapnode%linehead(kl)%lineid,&
                   mapnode%linehead(kl)%number_of_equilibria
-110          format('  Line ',i3,' with ',i3,&
+110          format('  Line ',i3,' with ',i5,&
                   ' equilibria ending at axis limit')
           endif
        else
           ll=mapnode%linehead(kl)%end%seqx
           write(kou,120)mapnode%linehead(kl)%lineid,&
                mapnode%linehead(kl)%number_of_equilibria,ll
-120       format('  Line ',i3,' with ',i3,' equilibria ending at node ',i3)
+120       format('  Line ',i3,' with ',i5,' equilibria ending at node ',i3)
        endif
        if(btest(mapnode%linehead(kl)%status,EXCLUDEDLINE)) then
           write(*,*)'Line excluded'
@@ -2428,19 +2436,19 @@
              write(kou,105)mapnode%linehead(kl)%lineid,&
                   mapnode%linehead(kl)%number_of_equilibria,&
                   mapnode%linehead(kl)%termerr,status,trim(phline)
-105          format('  Line ',i3,' with ',i3,&
+105          format('  Line ',i3,' with ',i5,&
                   ' equilibria ended with error: ',i6,'.  ',a,' with phases:'/a)
           else
              write(kou,110)mapnode%linehead(kl)%lineid,&
                   mapnode%linehead(kl)%number_of_equilibria,status,trim(phline)
-110          format('  Line ',i3,' with ',i3,&
+110          format('  Line ',i3,' with ',i5,&
                   ' equilibria ending at axis limit.  ',a,' with phases: ',/a)
           endif
        else
           ll=mapnode%linehead(kl)%end%seqx
           write(kou,120)mapnode%linehead(kl)%lineid,&
                mapnode%linehead(kl)%number_of_equilibria,ll,status,trim(phline)
-120       format('  Line ',i3,' with ',i3,' equilibria ending at node ',i3,&
+120       format('  Line ',i3,' with ',i5,' equilibria ending at node ',i3,&
                '.  ',a,' with phases: ',/a)
        endif
 !       write(*,*)'mapnode%linehead%first: '

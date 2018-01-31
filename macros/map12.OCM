@@ -45,6 +45,7 @@ map
 plot
 
 
+title map 12 fig 1
 
 
 @&
@@ -58,11 +59,12 @@ text
 0
 Y
 
+title map 12 fig 2
 
 
 
 
-@&
+
 set inter
 
 

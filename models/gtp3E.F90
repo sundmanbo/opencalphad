@@ -2005,7 +2005,7 @@
 ! all phases has volume addition ...
             if(iws(lokem+1).ne.7) write(*,515)iws(lokem+1),&
                  additioname(iws(lokem+1)),trim(phlista(jph)%name)
-515            format('3E An addition type ',i3,', ',a,' for ',a)
+515            format('3E Addition type ',i3,', ',a,' for ',a)
          elseif(iws(lokem+1).ne.0) then
             write(*,515)iws(lokem+1),'Unknown type            ',&
                     trim(phlista(jph)%name)

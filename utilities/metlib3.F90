@@ -3,7 +3,7 @@
 !
 MODULE METLIB
 !
-! Copyright 1980-2015, Bo Sundman and others, bo.sundman@gmail.com 
+! Copyright 1980-2018, Bo Sundman and others, bo.sundman@gmail.com 
 ! 
 !    This program is free software; you can redistribute it and/or modify
 !    it under the terms of the GNU General Public License as published by

@@ -56,7 +56,7 @@ set ax 2 t
 map
 
 
-pl
+plot
 X(*,CR)
 T
 title map 11 fig 1
@@ -73,8 +73,8 @@ RENDER
 @$
 @$
 
-set c t=1400
-set c x(cr)=.12
+set c t=1300
+set c x(cr)=.05
 c e
 l,,,,
 
@@ -83,7 +83,7 @@ l,,,,
 map
 n
 
-pl
+plot
 X(*,CR)
 T
 title map 11 fig 2
@@ -94,7 +94,7 @@ RENDER
 @$
 @$
 
-set c t=2050 x(cr)=.7
+set c t=2050 x(cr)=.2
 l c
 c e
 

@@ -1,7 +1,7 @@
 !
 MODULE cmon1oc
 !
-! Copyright 2012-2015, Bo Sundman, France
+! Copyright 2012-2018, Bo Sundman, France
 !
 !    This program is free software; you can redistribute it and/or modify
 !    it under the terms of the GNU General Public License as published by
@@ -59,7 +59,7 @@ contains
 ! more texts for various purposes
     character text*72,string*256,ch1*1,chz*1,selection*27,funstring*1024
     character axplot(2)*24,axplotdef(2)*24,quest*20
-    character plotform*32,longstring*2048,optres*40
+    character longstring*2048,optres*40
 ! separate file names for remembering and providing a default
     character ocmfile*64,ocufile*64,tdbfile*64,ocdfile*64,filename*64
 ! home for OC and default directory for databases
@@ -241,7 +241,7 @@ contains
     character (len=16), dimension(noptopt) :: optopt=&
         ['SHORT           ','LONG            ','COEFFICIENTS    ',&
          'GRAPHICS        ','DEBUG           ','MACRO           ',&
-         '                ','                ','                ']
+         'EXPERIMENTS     ','                ','                ']
 !-------------------
 ! subcommands to CALCULATE
     character (len=16), dimension(ncalc) :: ccalc=&
@@ -435,7 +435,7 @@ contains
 ! Postscript
     i1=2
     graphopt%gnutermid(i1)='PS  '
-    graphopt%gnuterminal(i1)='postscript color solid '
+    graphopt%gnuterminal(i1)='postscript color solid fontscale 0.8'
     graphopt%filext(i1)='ps  '
 ! Adobe Portable Document Format (PDF)
     i1=3
@@ -451,33 +451,22 @@ contains
 ! Graphics Interchange Format (GIF)
     i1=4
     graphopt%gnutermid(i1)='GIF  '
-    graphopt%gnuterminal(i1)='gif '
+    graphopt%gnuterminal(i1)='gif enhanced fontscale 0.7'
     graphopt%filext(i1)='gif  '
+    graphopt%gnutermax=i1
+! Portable graphics format (PNG)
+    i1=5
+    graphopt%gnutermid(i1)='PNG  '
+    graphopt%gnuterminal(i1)='png enhanced fontscale 0.7'
+    graphopt%filext(i1)='png  '
     graphopt%gnutermax=i1
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 ! jump here after NEW to reinitiallize all local variables also
 20  continue
 ! clear file names
     ocmfile=' '; ocufile=' '; tdbfile=' '
-! plot ranges and their defaults
-    graphopt%gibbstriangle=.FALSE.
-    graphopt%rangedefaults=0
-    graphopt%labeldefaults=0
-    graphopt%tielines=0
-    graphopt%plotmin=zero
-    graphopt%dfltmin=zero
-    graphopt%plotmax=one
-    graphopt%dfltmax=one
-    graphopt%appendfile=' '
-    graphopt%status=0
-    graphopt%labelkey='top right'
-! This generate some memory loss
-    nullify(graphopt%firsttextlabel)
-    nullify(textlabel)
-    plotfile='ocgnu'
-    plotform=' '
-! default plot terminal, replaces plotform
-    graphopt%gnutermsel=1
+! reset plot ranges and their defaults
+    call reset_plotoptions(graphopt,plotfile,textlabel)
 ! default list unit
     optionsset%lut=kou
 ! default for list short
@@ -489,6 +478,7 @@ contains
 ! by default no stop on error and no logfile
     stop_on_error=.false.
     logfil=0
+    buperr=0
 !
 ! in init_gtp the first equilibrium record is created and 
 ! firsteq has been set to that
@@ -581,7 +571,11 @@ contains
        narg=0
        cline=argline(1)
        last=0
-       call macbeg(cline,last,logok)
+!       if(cline(1:1).eq.'<') then
+!          write(*,*)'OC reads can start a macro from the command line'
+!       else
+          call macbeg(cline,last,logok)
+!       endif
 !       write(*,*)'Jumping to 99 to execute macro'
 !       goto 99
     endif
@@ -765,6 +759,11 @@ contains
              if(j1.eq.0) then
 ! Xiong modification of Inden-Hillert-Jarl magnetic model
                 call gparcd('BCC type phase: ',cline,last,1,ch1,'N',q1help)
+                call gparcd('Using effective Bohr magnetons: ',&
+                     cline,last,1,ch1,'N',q1help)
+                if(ch1.ne.'N') then
+                   call set_phase_status_bit(lokph,PHBMAV)
+                endif
                 call add_addrecord(lokph,ch1,xiongmagnetic)
              else
 !                call get_phase_record(iph,lokph)
@@ -831,7 +830,7 @@ contains
 !....................................................
           case(7) ! amend phase <name> LowT_CP_model
              call gparcd('Einstein CP model? ',cline,last,1,ch1,'Y ',q1help)
-             if(ch1.eq.'Y') then
+             if(ch1.eq.'Y' .or. ch1.eq.'y') then
                 call add_addrecord(lokph,' ',einsteincp)
              else
                 write(kou,*)'Debye CP model selected'
@@ -1695,7 +1694,11 @@ contains
           end select advanced
 !-----------------------------------------------------------
        case(4) ! set LEVEL, not sure what it will be used for ...
-          write(kou,*)'Not implemented yet'
+          call gparcd('I am an expert of OC: ',cline,last,1,ch1,'N',q1help)
+          if(ch1.eq.'Y') then
+             globaldata%status=ibset(globaldata%status,2)
+             write(*,*)'Congratulations!'
+          endif
 !-----------------------------------------------------------
 ! end of macro excution (can be nested)
        case(5) ! set INTERACTIVE
@@ -1946,14 +1949,16 @@ contains
           mexp=0
           call gparrd('Weight ',cline,last,xxx,one,q1help)
           if(buperr.ne.0) goto 100
-          call gparcd('Equilibria (abbrev name) ',cline,last,&
+! The weight must be 0 or positive
+          xxx=abs(xxx)
+          call gparcd('Equilibria (abbrev name) or range: ',cline,last,&
                1,name1,'CURRENT',q1help)
 ! THINK HOW TO UPDATE MEXP!!! <<<<<<<<<<<<<<<<<<
           if(name1(1:8).eq.'CURRENT ') then
              if(ceq%eqname(1:20).eq.'DEFAULT_EQUILIBRIUM ') then
                 write(kou,*)'You cannot set weight for the default equilibrium'
              else
-                ceq%weight=abs(xxx)
+                ceq%weight=xxx
              endif
           elseif(name1(1:1).eq.'*') then
 ! set this weight for all
@@ -1965,6 +1970,7 @@ contains
              write(kou,3066)i2
           else
              ll=1
+!             write(*,*)'trying to extract a number from: ',trim(name1)
              call getint(name1,ll,i1)
              bupp: if(buperr.eq.0) then
 ! user provide a singe number or a range, if range the negative number also
@@ -1972,36 +1978,41 @@ contains
                 if(buperr.ne.0) then
 ! it was a single number                   
                    buperr=0
-                   firstash%eqlista(i1)%p1%weight=xxx
-                   write(*,*)'Changing weight for equilibrium ',i1
-                else
-                   i2=-i2
-                   ll=0
-                   setwei: do j1=i1,i2
-                      firstash%eqlista(j1)%p1%weight=xxx
-                      if(gx%bmperr.ne.0) then
-                         gx%bmperr=0
-                         exit setwei
-                      endif
-                      ll=ll+1
-                   enddo setwei
-                   write(kou,3066)ll
+                   i2=-i1
                 endif
+                i2=-i2
+                ll=0
+!                setwei: do j1=i1,i2
+                setwei: do j1=1,size(firstash%eqlista)
+                   if(firstash%eqlista(j1)%p1%eqno.ge.i1 .and. &
+                        firstash%eqlista(j1)%p1%eqno.le.i2) then
+                      firstash%eqlista(j1)%p1%weight=xxx
+!                      write(*,*)'Changing weight for equilibrium ',&
+!                           firstash%eqlista(j1)%p1%eqno
+                      ll=ll+1
+                   endif
+                enddo setwei
+                write(kou,3066)ll
              else
 ! set this weight to all equilibria with name abbriviations fitting name1
                 buperr=0
                 call capson(name1)
-                i2=0
-                do i1=1,size(firstash%eqlista)
-                   if(index(firstash%eqlista(i1)%p1%eqname,&
-                        name1(1:len_trim(name1))).gt.0) then
-                      firstash%eqlista(i1)%p1%weight=xxx
-                      i2=i2+1
-                   endif
-                enddo
+                if(name1(1:1).ne.' ') then
+                   write(*,*)'Equilibra with names matching: ',trim(name1)
+                   i2=0
+                   do i1=1,size(firstash%eqlista)
+                      if(index(firstash%eqlista(i1)%p1%eqname,&
+                           name1(1:len_trim(name1))).gt.0) then
+                         firstash%eqlista(i1)%p1%weight=xxx
+                         i2=i2+1
+                      endif
+                   enddo
+                else
+                   write(*,*)'No name given'
+                endif
                 write(kou,3066)i2
              endif bupp
-3066         format('Changed weight fot ',i5,' equilibria')
+3066         format('Changed weight for ',i5,' equilibria')
           endif
 !-------------------------------------------------------------
 ! turn on/off global minimization, creating composition sets
@@ -2058,25 +2069,7 @@ contains
              dmax=one
           endif
 ! reset default plot options
-! plot ranges and their defaults
-          graphopt%gibbstriangle=.FALSE.
-          graphopt%rangedefaults=0
-          graphopt%labeldefaults=0
-          graphopt%tielines=0
-          graphopt%plotmin=zero
-          graphopt%dfltmin=zero
-          graphopt%plotmax=one
-          graphopt%dfltmax=one
-          graphopt%appendfile=' '
-          graphopt%status=0
-          graphopt%labelkey='top right'
-          nullify(graphopt%firsttextlabel)
-          nullify(textlabel)
-          plotfile='ocgnu'
-! default plot terminal, replaces plotform
-          graphopt%gnutermsel=1
-          plotform=' '
-! end reset plot defaults
+          call reset_plotoptions(graphopt,plotfile,textlabel)
           call gparcd('Condition varying along axis: ',cline,last,1,&
                text,name1,q1help)
           call capson(text)
@@ -2344,7 +2337,11 @@ contains
                      '15  calculations in parallel is not allowed'/'-'/&
                      '16  no global test at node points durung STEP/MAP'/&
                      '17  the components are not the elements'/&
-                     '18  test calculated equilibrium with the grid minimizer')
+                     '18  test equilibrium after calculation'/&
+                     '19  use old grid minimizer'/&
+                     '20  do not recalculate even if global test fails'/&
+                     '21  use old map algorithm'/&
+                     '22-31 unused')
                 goto 3708
              endif
              if(ll.lt.0 .or. ll.gt.31) then
@@ -2597,7 +2594,7 @@ contains
 !         'MATERIAL        ','PLOT_DATA       ','GNUPLOT_TERMINAL',&
 !         '                ','                ','                ']
     CASE(4)
-! disable continue optimization
+! disable continue assessment optimization (not reelevant)
 !       iexit=0
 !       iexit(2)=1
        kom2=submenu(cbas(kom),cline,last,center,ncent,11)
@@ -3350,9 +3347,17 @@ contains
 ! list lines, output of calculated and stored equilibria
        case(15)
 ! temporary listing of all stored equilibria as test
+! IDEA: Add question for symbols and state variables to be listed!!
+! Add a heading to make spece for more dara
+! ceq #; Next;      T;  axis value; 0-n user symbols;           
+!  9999  9999  20000.00 +1.2345E+00 1.2345E+00 1.2345E+00 1.2345E+00 1.2345E+00
           call list_stored_equilibria(lut,axarr,maptop)
 !------------------------------
 ! list optimization, several suboptions
+!    character (len=16), dimension(noptopt) :: optopt=&
+!        ['SHORT           ','LONG            ','COEFFICIENTS    ',&
+!         'GRAPHICS        ','DEBUG           ','MACRO           ',&
+!         'EXPERIMENTS     ','                ','                ']
        case(16)
           if(.not.allocated(firstash%coeffstate)) then
              write(kou,*)'No listing as no optimizing parameters'
@@ -3393,7 +3398,7 @@ contains
              case(6) ! MACRO include experiments
                 write(*,*)'Not implemented yet'
 !...........................................................
-             case(7) ! unused
+             case(7) ! experiments with weight>0
                 write(*,*)'Not implemented yet'
 !...........................................................
              case(8) ! unused
@@ -3880,14 +3885,6 @@ contains
 ! deallocate does not work on pointers!!!
        nullify(starteq)
        noofstarteq=0
-       graphopt%rangedefaults=0
-       graphopt%tielines=0
-       graphopt%status=0
-       graphopt%axistype=0
-       graphopt%gibbstriangle=.FALSE.
-       graphopt%labelkey='top right'
-       graphopt%appendfile=' '
-       nullify(graphopt%firsttextlabel)
 !
 ! this routine fragile, inside new_gtp init_gtp is called
 !       write(*,*)'No segmentation fault 7'
@@ -3907,9 +3904,9 @@ contains
     case(15)
        write(kou,15010)linkdate
 15010  format(/'This is OpenCalphad (OC), a free software for ',&
-            'thermodynamic calculations'/&
-            'described by B Sundman, U R Kattner, M Palumbo and S G Fries, ',&
-            'Integrating'/'Materials and Manuf. Innov. (2015) 4:1 and ',&
+            'thermodynamic calculations as'/&
+            'described in B Sundman, U R Kattner, M Palumbo and S G Fries, ',&
+            'Integrating'/'Materials and Manuf. Innov. (2015) 4:1; ',&
             'B Sundman, X-G Lu and H Ohtani,'/'Comp Mat Sci, Vol 101 ',&
             '(2015) 127-137 and B Sundman et al., Comp Mat Sci, '/&
             'Vol 125 (2016) 188-196'//&
@@ -3924,7 +3921,7 @@ contains
             'The full license text is provided with the software'/&
             'or can be obtained from the Free Software Foundation ',&
             'http://www.fsf.org'//&
-            'Copyright 2011-2017, Bo Sundman, Gif sur Yvette, France.'/&
+            'Copyright 2011-2018, Bo Sundman, Gif sur Yvette, France.'/&
             'Contact person Bo Sundman, bo.sundman@gmail.com'/&
             'This version linked ',a/)
 !=================================================================
@@ -4203,15 +4200,7 @@ contains
 ! deallocate does not work on pointers!!!
           nullify(starteq)
           noofstarteq=0
-          graphopt%rangedefaults=0
-          graphopt%tielines=0
-          graphopt%status=0
-          graphopt%axistype=0
-          graphopt%gibbstriangle=.FALSE.
-          graphopt%labelkey='upper right'
-          graphopt%appendfile=' '
-! the textlabelrecords are NOT deallocated ... but very small
-          nullify(graphopt%firsttextlabel)
+          call reset_plotoptions(graphopt,plotfile,textlabel)
 !-----------------------------------------------------------
 !
        case(8)
@@ -4251,19 +4240,7 @@ contains
              call delete_equilibria('_MAP*',ceq)
              seqxyz=0
 ! remove all graphopt settings
-             graphopt%gibbstriangle=.FALSE.
-             graphopt%rangedefaults=0
-             graphopt%labeldefaults=0
-             graphopt%tielines=0
-             graphopt%plotmin=zero
-             graphopt%dfltmin=zero
-             graphopt%plotmax=one
-             graphopt%dfltmax=one
-             graphopt%appendfile=' '
-             graphopt%status=0
-             graphopt%labelkey='top right'
-             nullify(graphopt%firsttextlabel)
-             nullify(textlabel)
+             call reset_plotoptions(graphopt,plotfile,textlabel)
           else
              seqxyz(1)=maptop%next%seqx
              seqxyz(2)=maptop%seqy
@@ -4382,21 +4359,9 @@ contains
 ! initiate indexing nodes and lines
              seqxyz=0
 ! remove all graphopt settings
-             graphopt%gibbstriangle=.FALSE.
-             graphopt%rangedefaults=0
-             graphopt%labeldefaults=0
-             graphopt%tielines=0
-             graphopt%plotmin=zero
-             graphopt%dfltmin=zero
-             graphopt%plotmax=one
-             graphopt%dfltmax=one
-             graphopt%appendfile=' '
-             graphopt%status=0
-             graphopt%labelkey='top right'
-             nullify(graphopt%firsttextlabel)
-             nullify(textlabel)
+             call reset_plotoptions(graphopt,plotfile,textlabel)
           else
-! start indexing new noes/lines from previous 
+! start indexing new nodes/lines from previous 
 !             write(*,*)'mapnode: ',maptop%seqx,maptop%previous%seqx,&
 !                  maptop%next%seqx
              seqxyz(1)=maptop%next%seqx
@@ -4503,31 +4468,9 @@ contains
           if(axplotdef(iax).ne.axplot(iax)) then
 ! if new axis then reset default plot options
 ! plot ranges and their defaults
-             graphopt%gibbstriangle=.FALSE.
-!             graphopt%rangedefaults(iax)=0
-             graphopt%rangedefaults(1)=0
-             graphopt%rangedefaults(2)=0
-! labeldefaults(1) is the title!!!
-             graphopt%labeldefaults(1)=0
-             graphopt%tielines=0
-             graphopt%plotmin=zero
-             graphopt%dfltmin=zero
-             graphopt%plotmax=one
-             graphopt%dfltmax=one
-             graphopt%appendfile=' '
-! remove all texts ... loosing some memory ...
-             nullify(graphopt%firsttextlabel)
-!             graphopt%status=0
-             graphopt%labelkey='top right'
-!             nullify(graphopt%firsttextlabel)
-!             nullify(textlabel)
-             plotfile='ocgnu'
-! default plot terminal, replaces plotform
-             graphopt%gnutermsel=1
-             plotform=' '
-             write(*,*)'Plot options reset'
+             call reset_plotoptions(graphopt,plotfile,textlabel)
           endif
-! remember most recent axis as default
+! remember most recent axis as default (and to avoid reset)
           axplotdef(iax)=axplot(iax)
        enddo
 !       call gparcd('GNUPLOT file name',cline,last,1,plotfile,'ocgnu',q1help)
@@ -4561,23 +4504,6 @@ contains
                trim(plotfile),trim(graphopt%filext(graphopt%gnutermsel))
 2910      format(/' *** Graphics format is ',a,' on file: ',a,'.',a)
        endif
-!       if(index(plotfile,'.plt ').le.0) then
-! this is the default plot file name
-!          plotfile='ocgnu '
-!       endif
-!       if(plotform(1:1).eq.'P') then
-!          write(kou,21110)trim(plotfile)
-!21110     format(/' *** Graphics format is PS on: ',a,'.ps ')
-!       elseif(plotform(1:1).eq.'G') then
-!          write(kou,21111)trim(plotfile)
-!21111     format(/' *** Graphics format is GIF on: ',a,'.gif ')
-!       elseif(plotform(1:1).eq.'A') then
-!          write(kou,21113)trim(plotfile)
-!21113     format(/' *** Graphics format is PDF on: ',a,'.pdf ')
-!       elseif(index(plotfile,'.plt ').le.0) then
-! this is the default plot file name
-!          plotfile='ocgnu '
-!       endif
        write(kou,21112)
 21112  format(/'Note: give only one option per line!')
        kom2=submenu('Options?',cline,last,cplot,nplt,1)
@@ -4597,8 +4523,6 @@ contains
 !          write(*,*)' >>>>>>>>>>>>> ',trim(plotfile)
           graphopt%filename=plotfile
           call ocplot2(jp,maptop,axarr,graphopt,version,ceq)
-!          call ocplot2(jp,axplot,plotfile,maptop,axarr,graphopt,plotform,&
-!               version,ceq)
           if(gx%bmperr.ne.0) goto 990
 ! always restore default plot file name and plot option to screem
           graphopt%gnutermsel=1
@@ -4777,23 +4701,6 @@ contains
           endif
           graphopt%gnutermsel=i1
           write(kou,*)'Graphics format set to: ',graphopt%gnutermid(i1)
-!          if(kom2.eq.7) then
-!             call gparcd('Graphics format (ACROBAT(PDF)/PS/GIF/SCREEEN)',&
-!                  cline,last,1,ch1,'SCREEN',q1help)
-!             if(ch1.eq.'a' .or. ch1.eq.'A') then
-!                write(kou,*)'Graphics format set to ACROBAT PDF'
-!                plotform='A'
-!             elseif(ch1.eq.'p' .or. ch1.eq.'P') then
-!                write(kou,*)'Graphics format set to PS'
-!                plotform='P'
-!             elseif(ch1.eq.'g' .or. ch1.eq.'G') then
-!                write(kou,*)'Graphics format set to GIF'
-!                plotform='G'
-!             else
-!                write(kou,*)'Graphics format set to SCREEN'
-!                plotform=' '
-!             endif
-!          endif
 !-----------------------------------------------------------
 ! PLOT OUTPUT_FILE, always asked when changing graphics terminal
 21140     continue
@@ -4803,13 +4710,6 @@ contains
                 if(graphopt%gnutermsel.ne.1) then
                    filename=trim(plotfile)//'.'//&
                         graphopt%filext(graphopt%gnutermsel)
-! add extenstion depending on format
-!                if(plotform(1:1).eq.'A') then
-!                   filename=trim(plotfile)//'.pdf'
-!                elseif(plotform(1:1).eq.'P') then
-!                   filename=trim(plotfile)//'.ps '
-!                elseif(plotform(1:1).eq.'G') then
-!                   filename=trim(plotfile)//'.gif '
                 else
 ! just changing name of the GNUPLOT command file
                    filename=trim(plotfile)//'.plt '
@@ -5449,7 +5349,6 @@ contains
     return
   end subroutine ocmon_reset_options
 
-
 !\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
 !\begin{verbatim}
@@ -5468,7 +5367,7 @@ contains
     write(lut,610)
 610 format(/'List of coefficents with non-zero values'/&
          'Name  Current value   Start value    Scaling factor',&
-         ' RSD')
+         ' Rel.Stand.Dev.')
     name1=' '
     j2=0
     do i1=0,size(firstash%coeffstate)-1
@@ -5639,6 +5538,41 @@ contains
 1000 continue
     return
   end subroutine calctrans
+
+!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\begin{verbatim}
+  subroutine reset_plotoptions(graphopt,plotfile,textlabel)
+! if new axis then reset default plot options
+! plot ranges and their defaults
+    character plotfile*(*)
+    type(graphics_options) :: graphopt
+    type(graphics_textlabel), pointer :: textlabel
+!\end{verbatim}
+    graphopt%gibbstriangle=.FALSE.
+    graphopt%rangedefaults=0
+! axistype 0 is linear, 1 is logarithmic
+    graphopt%axistype=0
+! labeldefaults(1) is the title!!!
+    graphopt%labeldefaults=0
+    graphopt%tielines=0
+    graphopt%plotmin=zero
+    graphopt%dfltmin=zero
+    graphopt%plotmax=one
+    graphopt%dfltmax=one
+    graphopt%appendfile=' '
+    graphopt%status=0
+! remove all texts ... loosing some memory ...
+    nullify(graphopt%firsttextlabel)
+    graphopt%labelkey='top right'
+    nullify(graphopt%firsttextlabel)
+    nullify(textlabel)
+    plotfile='ocgnu'
+! default plot terminal
+    graphopt%gnutermsel=1
+!    write(*,*)'Plot options reset'
+    return
+  end subroutine reset_plotoptions
 
 !\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 

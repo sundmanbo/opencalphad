@@ -613,11 +613,11 @@
 ! we must use suffix S to have values referred to SER
    call get_state_var_value('GS ',x1,encoded,ceq)
    call get_state_var_value('HS ',x2,encoded,ceq)
-   call get_state_var_value('SS ',x3,encoded,ceq)
+   call get_state_var_value('S ',x3,encoded,ceq)
    if(.not.gtp_error_message(0)) then
       write(lut,12)x1,x1/xn,x2,x3
-12    format('G= ',1pe12.5,' J, G/N= ',1pe11.4,' J/mol, H= ',1pe11.4,&
-           ' J, S= ',1pe11.4,' J/K')
+12    format('GS= ',1pe12.5,' J, GS/N= ',1pe11.4,' J/mol, HS= ',1pe11.4,&
+           ' J, S= ',F8.3,' J/K')
    endif
 1000 continue
    return
@@ -3991,13 +3991,15 @@
    character ch1*1,line*16,powers*80,model*24,constext*80,elsym*2
 ! overflow in text line before label 210
    character text*2048
-   character date*12,hour*12
+   character date*12,hour*12,phunique*4,phdummy*4
    type(gtp_tpfun2dat), dimension(:), allocatable :: tpfc
    type(gtp_endmember), pointer :: endmember,nextcation,samecation
    double precision, allocatable, dimension(:) :: constcomp,constcompiliq
    double precision valency(9),ccc,cationval,factor,disfactor,aff,partc,parbm
    double precision extcpar(0:7),exbmpar(0:7)
+   double precision, parameter :: maxcc=1.0D2
    TYPE(gtp_phase_add), pointer :: addrec
+   integer warnings
 ! we must probably create a stack for excess parameters
    type intstack
       type(gtp_interaction), pointer :: intlink
@@ -4034,6 +4036,8 @@
 !76    format(' ranges, TP function number s ',i5,' *****************')
 !      call list_tpascoef(kou,text,i1,npows,tpfc)
 !   enddo
+   warnings=0
+   disfactor=one
    lut=21
    open(lut,file=filename,access='sequential',status='unknown')
    write(*,*)'Writing on file: ',trim(filename)
@@ -4266,6 +4270,9 @@
       stop
    endif
 !-------------------------------------- end of header section
+! SOLGASMIX phase names must start with 4 unique letters, when TDB files
+! has phases with same first 4 charatres add a prefix
+   phunique='P000'
 ! data for mixtures
 ! First the endmembers
    mphstoi=1
@@ -4359,10 +4366,32 @@
             addrec=>addrec%nextadd
          enddo lastadd
       endif
-      write(*,180)trim(phlista(lokph)%name),trim(model),nsubl,ncon(i1),factor
-180   format('3C mixture: ',a,' with model ',a,2i4,F12.4)
-      write(lut,201)phlista(lokph)%name,nsubl,trim(model)
+! prepare a dummy prefix
+      phdummy=phlista(lokph)%name(1:4)
+      jp=0
+      do i3=1,noofph
+         if(i3.ne.lokph .and. phdummy.eq.phlista(i3)%name(1:4)) jp=1
+      enddo
+      if(jp.gt.0) then
+         call incunique(phunique)
+         phdummy=phunique
+!         write(*,*)'3C prefixing TDB phase name ',&
+!              phdummy//'_'//trim(phlista(lokph)%name),i1,lokph
+      else
+         phdummy=' '
+      endif
 ! According to Ted
+      if(phdummy(1:1).eq.' ') then
+         write(*,180)trim(phlista(lokph)%name),trim(model),&
+              nsubl,ncon(i1),disfactor
+180      format('3C mixture: ',a,' with model ',a,2i4,F12.4,a)
+         write(lut,201)phlista(lokph)%name,nsubl,trim(model)
+      else
+         warnings=warnings+1
+         write(*,180)phdummy//'_'//trim(phlista(lokph)%name),trim(model),&
+              nsubl,ncon(i1),disfactor,' with name change'
+         write(lut,201)phdummy//'_'//phlista(lokph)%name,nsubl,trim(model)
+      endif
 201   format(a,5x,'= MIXTURE PHASE =',i3/a)
       if(havemag.ne.0) then
          if(aff.eq.one) then
@@ -4778,9 +4807,17 @@
 ! together with the type of coefficients and ranges
 ! it may require several lines
                write(text,210)constcomp
+! Check if any value in contcomp is greated than 1000, could give overflow
+               do i3=1,noofel
+                  if(constcomp(i3).gt.maxcc) then
+                     warnings=warnings+1
+                     write(*,206)trim(phlista(lokph)%name)
+206                  format('3C *** Warning: stoichiometry factor >100: ',a)
+                  endif
+               enddo
 ! according to Ted
 !210            format(50F6.1)
-210            format(60F6.2)
+210            format(60F8.2)
 ! property record has property=1 it is G; take care of magnetic properties
                magprop: if(havemag.gt.0) then
                   nextprop=>property%nextpr
@@ -5059,7 +5096,9 @@
 !-------------------------------------------------------
 ! now data for stoichiometric phases
    mphstoi=1
-   write(*,*)'3C loop for compounds'
+!   write(*,*)
+!   write(*,*)'3C loop for compounds ',nphstoi
+!
    phases2: do i1=1,noofph
       lokph=phasetuple(i1)%lokph
       if(ceq%phase_varres(phlista(lokph)%linktocs(1))%phstate.eq.PHSUS) then
@@ -5068,9 +5107,11 @@
          cycle phases2
       endif
       if(i1.ne.phstoi(mphstoi)) then
-!         write(*,*)'3C skipping mixture ',trim(phlista(lokph)%name)
+!         write(*,*)'3C skipping mixture ',trim(phlista(lokph)%name),&
+!              i1,mphstoi,phstoi(mphstoi)
          cycle phases2
       endif
+      mphstoi=mphstoi+1
       skipfc=.FALSE.
       factor=one
       if(phlista(lokph)%nooffs.gt.1) then
@@ -5090,7 +5131,6 @@
          endif
          addrec=>addrec%nextadd
       enddo lastadd2
-      mphstoi=mphstoi+1
       lokcs=phlista(lokph)%linktocs(1)
       varres=>ceq%phase_varres(lokcs)
       nsubl=1
@@ -5107,12 +5147,34 @@
 ! there is just one endmember!!
          endmember=>phlista(lokph)%ordered
       endif
-      write(*,477)trim(phlista(lokph)%name),nsubl,factor
-477   format('3C Compound: ',a,i5,F15.6)
-      constext=' '
+! prepare a dummy prefix for compounds ... NOT NECESSARY
+!      phdummy=phlista(lokph)%name(1:4)
+!      jp=0
+!      do i3=1,noofph
+!         if(i3.ne.lokph .and. phdummy.eq.phlista(i3)%name(1:4)) jp=1
+!      enddo
+!      if(jp.gt.0) then
+!         warnings=warnings+1
+!         call incunique(phunique)
+!         phdummy=phunique
+!         write(*,*)'3C prefixing TDB phase name ',&
+!              phdummy//'_'//trim(phlista(lokph)%name),i1
+!      else
+!         phdummy=' '
+!      endif
+      phdummy=' '
+      if(phdummy(1:1).eq.' ') then
+         write(*,477)trim(phlista(lokph)%name),nsubl,factor
+477      format('3C Compound: ',a,i5,F15.6,a)
 ! write on file
-      write(lut,500)phlista(lokph)%name,factor
-500   format(1x,a,5x,'= COMPOUND PHASE = ',F12.4)
+         write(lut,500)phlista(lokph)%name,factor
+500      format(1x,a,5x,'= COMPOUND PHASE = ',F12.4)
+      else
+         write(*,477)phdummy//'_'//trim(phlista(lokph)%name),nsubl,factor,&
+              ' with name change'
+         write(lut,500)phdummy//'_'//phlista(lokph)%name,factor
+      endif
+      constext=' '
       ip=1
       constcomp=zero
       sloop2: do isubl=1,nsubl
@@ -5156,6 +5218,13 @@
 ! this line should be written together with the type of coefficients and ranges
 ! it may require several lines
          write(text,210)constcomp
+! Check if any value in contcomp is greated than 1000, could give overflow
+         do i3=1,noofel
+            if(constcomp(i3).gt.maxcc) then
+               warnings=warnings+1
+               write(*,206)trim(phlista(lokph)%name)
+            endif
+         enddo
 ! what about several properties??
          f1=property%degreelink(0)
          if(f1.gt.0) then
@@ -5186,7 +5255,11 @@
    enddo
 !
 900 continue
-   write(*,*)'3C written data for ',noofph,' mixtures and compounds'
+   write(*,700)noofph,nphmix,nphstoi
+700 format('3C written data for ',i4,' phases: ',i3,' mixtures and ',&
+         i4,' compounds')
+   if(warnings.gt.0) write(*,701)warnings
+701 format(' *** Attention: there were ',i3,' warnings!')
 ! 
 1000 continue
 ! Finished SOLGASMIX outpur
@@ -5198,6 +5271,35 @@
  end subroutine save_datformat
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
+ subroutine incunique(text)
+   character text*(*)
+!\end{verbatim}
+   integer j1,j2,j3
+   j1=len(text)
+!   write(*,*)'3C phunique 1: ',text
+   loop: do while(j1.ge.1)
+      j2=ichar(text(j1:j1))-ichar('0')
+! this position is not a number, exit
+      if(j2.lt.0) exit loop
+      if(j2.lt.9) then
+! increment the number and exit
+         text(j1:j1)=char(j2+1+ichar('0'))
+         exit loop
+      elseif(j2.eq.9) then
+         text(j1:j1)='0'
+         j1=j1-1
+      else
+! this position is not a number, exit
+         exit loop
+      endif
+   enddo loop
+!   write(*,*)'3C phunique 2: ',text
+   return
+ end subroutine incunique
+
+ !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim}
  subroutine expand_wildcards(intconst,nconst,wildloop,iset,lokph)
