@@ -90,9 +90,9 @@ render
 @$--------------------------------------------------------------------
 @$ we must calculate the gamma loop separately
 
-set c t=1400 x(mo)=.001
+set c t=1400 x(mo)=.002
 
-c n
+c e
 
 l,,,,,
 
@@ -118,7 +118,7 @@ x(*,mo)
 T
 scale y
 N
-1500
+1400
 1900
 title map5 fig 3
 render

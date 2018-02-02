@@ -2457,8 +2457,8 @@ end function find_phasetuple_by_indices
 
 !\begin{verbatim}
   logical function allotropes(irem,iadd,ceq)
-! This function return TRUE if the phases indicated by IREM and IADD
-! both have fixed and identical composition, i.e. they are allotropes
+! This function return TRUE if the phases indicated by IREM and IADD both have
+! fixed and identical composition, i.e. they are componds and allotropes
 ! Such a transition can cause problems during a STEP command.
     implicit none
     TYPE(gtp_equilibrium_data), pointer :: ceq
@@ -2467,7 +2467,7 @@ end function find_phasetuple_by_indices
     integer lokph1,lokph2,nofr,jj
     logical allo
     allo=.false.
-    write(*,*)'checking if two phases are allotropes',irem,iadd
+    write(*,*)'3A checking if two phases are allotropes',irem,iadd
     lokph1=phases(irem)
     nofr=phlista(lokph1)%tnooffr
     if(nofr-phlista(lokph1)%noofsubl.eq.0) then
@@ -2478,7 +2478,7 @@ end function find_phasetuple_by_indices
                   phlista(lokph2)%constitlist(jj)) goto 1000
           enddo
           allo=.true.
-          write(*,*)'The phases are allotropes!',ceq%tpval(1)
+!          write(*,*)'The phases are allotropes!',ceq%tpval(1)
        endif
     endif
 1000 continue

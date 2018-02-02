@@ -1659,6 +1659,11 @@
          gx%bmperr=4118; goto 1000
       endif
    endif
+   if(iref.lt.0) then
+! we can have reference states for G H etc.
+      stsymb(jp:jp)='S'
+      jp=jp+1
+   endif
    goto 500
 !----------------- 
 ! parameter property symbols

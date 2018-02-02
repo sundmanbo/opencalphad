@@ -23,7 +23,7 @@ MODULE ocsmp
   use liboceqplus
 !
   implicit none
-  character*8, parameter :: smpversion='SMP-2.20'
+  character*8, parameter :: smpversion='SMP-2.11'
 !
 ! note the type map_fixph declared in matsmin.F90 (in liboceq)
 !
@@ -525,6 +525,7 @@ CONTAINS
 !
 !    call list_conditions(kou,ceq)
 !
+!    write(*,*)'Calling meq_sameset ',mapline%more
     call meq_sameset(irem,iadd,mapline%meqrec,mapline%meqrec%phr,inmap,ceq)
     if(gx%bmperr.ne.0) then
 !       write(*,*)'Error in meq_sameset called from smp',gx%bmperr
@@ -566,8 +567,10 @@ CONTAINS
        mapline%problems=0
        nrestore=0
 !       mapline%lasterr=0
+!       write(*,*)'Calling map_store ',mapline%more
        call map_store(mapline,axarr,nax,maptop%saveceq)
-       if(gx%bmperr.ne.0) then
+!       if(gx%bmperr.ne.0) then  missing text of mapline%more ??
+       if(gx%bmperr.ne.0 .or. mapline%more.eq.0) then
 ! Test if we are running out of memory 
           if(gx%bmperr.eq.4219) goto 1000
 ! or that a line has a too big jump
@@ -584,6 +587,7 @@ CONTAINS
 !       write(*,*)'hms: taking a step'
        call map_step(maptop,mapline,mapline%meqrec,mapline%meqrec%phr,&
             axvalok,nax,axarr,ceq)
+!       write(*,*)'Back from map_step 1',mapline%more
        if(gx%bmperr.ne.0) then
           write(*,*)'Error return from map_step 1: ',gx%bmperr
           gx%bmperr=0
@@ -608,7 +612,7 @@ CONTAINS
           write(*,*)'Error stepping to next equilibria, ',gx%bmperr
        endif
 ! any error code will be cleared inside map_lineend.
-!       write(*,*)'Calling map_lineend 2'
+!       write(*,*)'Calling map_lineend 1'
        call map_lineend(mapline,axarr(abs(mapline%axandir))%lastaxval,ceq)
 ! look for a new line to follow
        goto 300
@@ -1147,6 +1151,14 @@ CONTAINS
              allocate(mapnode%linehead(jp)%stableph(1))
              mapnode%linehead(jp)%nstabph=1
              mapnode%linehead(jp)%stableph=tmpline(1)%stableph
+! WOW I forgot to allocate stablepham
+             if(allocated(tmpline(1)%stableph)) then
+                kp=size(tmpline(1)%stableph)
+                allocate(mapnode%linehead(jp)%stablepham(kp))
+             else
+                write(*,*)'SMP: no stablepham array allocated'
+                stop
+             endif
              if(ocv()) write(*,25)'We have saved a startpoint for map:',&
 !                  axactive,mapnode%linehead(jp)%linefixph(1)%phaseix,&
                   axactive,mapnode%linehead(jp)%linefixph(1)%ixphase,&
@@ -1717,7 +1729,7 @@ CONTAINS
     type(map_axis), dimension(nax) :: axarr
     type(map_ceqresults), pointer :: saveceq
 !\end{verbatim}
-    integer place,jph,jj,tip
+    integer place,jph,jj
     type(meq_setup), pointer :: meqrec
     type(gtp_state_variable), target :: axstv1
     type(gtp_state_variable), pointer :: axstv
@@ -1736,15 +1748,12 @@ CONTAINS
           if(mapline%number_of_equilibria.gt.3) then
              if(abs(axarr(jj)%lastaxval-value).gt.&
                   1.0D-1*(axarr(jj)%axmax-axarr(jj)%axmin)) then
-                tip=tieline_inplane(nax,axarr,mapline%lineceq)
+!                  2.0D-2*(axarr(jj)%axmax-axarr(jj)%axmin)) then
                 write(*,17)'map_step found large step in axis: ',&
-                     mapline%number_of_equilibria,jj,tip,&
+                     mapline%number_of_equilibria,jj,&
                      mapline%axandir,axarr(jj)%lastaxval,value
-17              format(a,4i3,2(1pe14.6))
-! should we give error here? Yes if tie-lines in the plane
-                if(tip.gt.0) then
-                   gx%bmperr=4360; goto 1000
-                endif
+17              format(a,3i3,2(1pe14.6))
+!                gx%bmperr=4360; goto 1000
              endif
           endif
        endif
@@ -2100,7 +2109,8 @@ CONTAINS
 !\end{verbatim}
 ! User can set GSOLDMAP 
 ! When not tielines inplane select old map
-    if(btest(globaldata%status,GSOLDMAP) .or. maptop%tieline_inplane.lt.0) then
+!    if(btest(globaldata%status,GSOLDMAP) .or. maptop%tieline_inplane.lt.0) then
+    if(btest(globaldata%status,GSOLDMAP)) then
        call map_step1(maptop,mapline,meqrec,phr,axvalok,nax,axarr,ceq)
     else
        call map_step2(maptop,mapline,meqrec,phr,axvalok,nax,axarr,ceq)
@@ -2144,7 +2154,7 @@ CONTAINS
     type(gtp_state_variable), target :: svrtarget
     logical tnip
 !
-!    write(*,*)'In map_step: ',mapline%number_of_equilibria
+!    write(*,*)'In map_step1: ',mapline%number_of_equilibria
 !================================================================== new step
 ! tnip emergency to stop mapping outside limit for non-active axis
     tnip=.FALSE.
@@ -2492,7 +2502,9 @@ CONTAINS
 !                   write(*,*)'Incrementing mapline%axfact: ',mapline%axfact
 !          mapline%axfact=min(one,1.2D0*mapline%axfact)
 ! Trying to male axfact decrease less (like line above) makes map worse
-          mapline%axfact=min(one,2.0D0*mapline%axfact)
+!          mapline%axfact=min(one,2.0D0*mapline%axfact)
+! factor above works well but sometimes too big increase
+          mapline%axfact=min(one,1.5D0*mapline%axfact)
        endif
 !======================================================================
 ! if the new axis value exceeds the min or max limit calculate for the limit
@@ -2553,7 +2565,6 @@ CONTAINS
 
 !\begin{verbatim}
   subroutine map_step2(maptop,mapline,meqrec,phr,axvalok,nax,axarr,ceq)
-! This was added 2018.01.31 to handle tie-lines in plane bettar
 ! used for map and step, mapping is to step with all but one axis replaced
 ! by a fix phase condition.  Map with tie-ines in plane special
 ! For map check if we should change independent (active) step axis.
@@ -2579,9 +2590,9 @@ CONTAINS
 !\end{verbatim}
     type(gtp_condition), pointer :: pcond
     integer seqz,jaxwc,jax,cmode,cmix(10),nyax,oldax,maybecongruent,mapeqno
-    integer istv,indices(4),iref,iunit,ip,i1,i2,i3,miscgap
+    integer istv,indices(4),iref,iunit,ip,i1,i2,i3,jxxx
     double precision value,dax1(5),dax2(5),axval(5),axval2(5)
-    double precision laxfact,xxx,yyy,zzz,bigincfix
+    double precision laxfact,xxx,yyy,bigincfix
     double precision preval(5),curval(5),prefixval(5),curfixval(5)
     double precision, parameter :: endfact=1.0D-6
 ! trying to change step axis for mapping with tie-lines in plane
@@ -2603,7 +2614,6 @@ CONTAINS
     tnip=.FALSE.
     laxfact=one
     maybecongruent=0
-    miscgap=0
     if(nax.eq.1) then
 !================================================================== new step
 ! this is for STEP with one axis
@@ -2702,10 +2712,6 @@ CONTAINS
        endif
 !----------------------------- below tie-line in/not in plane separate new step
        tip1: if(maptop%tieline_inplane.gt.0) then
-! Tie-lines in plane are complicated!! Check if we are mapping a miscibility gap
-          if(mapline%linefixph(1)%ixphase.eq.mapline%stableph(1)%ixphase) then
-             miscgap=1
-          endif
 ! if we have tie-lines in plane we must find the value of the axis condition
 ! for the fix phase or if it is a phase or component dependent state variable
           svrtarget=svrrec
@@ -2715,6 +2721,7 @@ CONTAINS
 ! The value in mapline%axvals is for the entered phase, extract the value
 ! for the fix phase.  
 ! NOTE: If we change fix/entered phase we must change axvals/axvals2
+             jxxx=jax
              svrtarget%argtyp=3
              svrtarget%phase=mapline%linefixph(1)%ixphase
              svrtarget%compset=mapline%linefixph(1)%compset
@@ -2749,7 +2756,6 @@ CONTAINS
 ! for axis with inactive condition check if next step would pass min/max limit
 ! If so reduce the step in the active axis but do not change active axis!!
 ! xxx is last axis value, mapline%axvals2(jax) is previous
-! BUT nothing happends here ...
                    if(mapeqno-mapline%axchange.gt.3) then
                       if(2*xxx-mapline%axvals2(jax).lt.axarr(jax)%axmin) then
                          nyax=jax
@@ -2757,48 +2763,8 @@ CONTAINS
                          nyax=jax
                       endif
                    endif
-!---------------------------------------- reduce identation
-! Be careful if we have miscibility gaps, jax is extensive variable
-      if(miscgap.ne.0) then
-! we should make sure we step in composition close to maximum ...
-! but changing axis can be complicated ...
-! Wow, REMEMBER fcc/L1_2 two-phase region is also a miscibility gap ...
-         yyy=abs(fixph_dxy(1,jax)-entph_dxy(1,jax))
-         if(yyy.lt.axarr(jax)%axinc) then
-!         if(yyy.lt.2*axarr(jax)%axinc) then
-            laxfact=5.0D-3
-!            laxfact=5.0D-2
-         elseif(yyy.lt.5*axarr(jax)%axinc) then
-!            laxfact=1.0D-2
-            laxfact=5.0D-2
-         elseif(yyy.lt.10*axarr(jax)%axinc) then
-            laxfact=2.0D-1
-         endif
-!         write(*,43)'misc gaps',jaxwc,mapline%stableph(1)%ixphase,&
-!              entph_dxy(1,jax),yyy,laxfact,ceq%tpval(1)
-      endif
-43    format(a,2i3,4(1pe11.3))
-! New test if we are close to axis limits
-!      write(*,43)'At axis limit?',jaxwc,jax,fixph_dxy(1,jax),entph_dxy(1,jax),&
-!           axarr(jax)%axmin+axarr(jax)%axinc,axarr(jax)%axmax-axarr(jax)%axinc
-      if(fixph_dxy(1,jax).lt.axarr(jax)%axmin+axarr(jax)%axinc .and.&
-           entph_dxy(1,jax).lt.axarr(jax)%axmin+axarr(jax)%axinc) then
-! if jaxwc.ne.jax we should change axis to jax
-! if entph(1,jax).lt.fixph(1,jax) we should change fix phase         
-! For the moment just decrease the step!!
-!         write(*,43)'both close to axis limit!',jaxwc,jax,fixph_dxy(1,jax),&
-!              entph_dxy(1,jax),axarr(jax)%axmin+axarr(jax)%axinc
-         laxfact=1.0D-1
-      elseif(fixph_dxy(1,jax).gt.axarr(jax)%axmax-axarr(jax)%axinc .and.&
-           entph_dxy(1,jax).gt.axarr(jax)%axmax-axarr(jax)%axinc) then
-!         write(*,43)'both close to axis limit!',jaxwc,jax,fixph_dxy(1,jax),&
-!              entph_dxy(1,jax),axarr(jax)%axmax-axarr(jax)%axinc
-         laxfact=1.0D-1
-      endif
-!--------------------------------------
+! nothing happends here ...
                    if(nyax.gt.0) then
-                      write(*,43)'Line close to axis limit',jaxwc,nyax,&
-                           mapline%axvals2(nyax),mapline%axvals(nyax)
 ! This restriction needed to calculate two-phase regions with almost 
 ! verical lines (in T) and with one composition close to the axis limit
 ! and the other quite far away (like U4O9-GAS in U-O system)
@@ -2845,6 +2811,15 @@ CONTAINS
        endif tip1
     enddo loopaxis
 !-------------------------------------------------------------
+! for understanding what is happening ....
+!    if(maptop%tieline_inplane.gt.0) then
+!       write(*,59)'tieline: ',mapeqno,jaxwc,jxxx,nyax,&
+!            mapline%stableph(1)%ixphase,mapline%linefixph(1)%ixphase,&
+!            mapline%axvals(jxxx),mapline%axvals2(jxxx),&
+!            mapline%axvals(3-jxxx),preval(jxxx),prefixval(jxxx)
+!59          format(a,i4,3i2,2i3,2F10.5,f10.2,2(f10.5))
+!    endif
+! list last calculated tie-line
 ! we should check for the step length accordingly
     value=axval(jaxwc)
     if(mapeqno.eq.1) then
@@ -2852,13 +2827,13 @@ CONTAINS
        laxfact=1.0D-3
     else
        tip2: if(maptop%tieline_inplane.gt.0) then
-          if(.not.allocated(mapline%stablepham)) exit tip2
 ! We have tielines in plane
 ! check if we should reduce axis step or change axis with active condition
 !          xxx=abs(dax2(jaxwc))
 ! xxx is set to the slope for the current independent axis and fix phase
           xxx=abs(dax1(jaxwc))
           nyfixph=.false.
+!          if(nyax.ne.0) write(*,*)'Attention 1: ',mapeqno,nyax,jaxwc
           if(nyax.eq.0) then
              nyax=jaxwc
              do jax=1,nax
@@ -2873,22 +2848,17 @@ CONTAINS
                       if(abs(dax2(jax)).gt.2*xxx) then
 ! dependent axis changes more! change independent axis
 !                         xxx=abs(dax2(jax))
-!                         write(*,*)'Change axis and fix phase!',nyax,&
-!                              mapline%linefixph(1)%ixphase
+                         write(*,58)'Change axis and fix phase!',jax,&
+                              mapline%linefixph(1)%ixphase,dax2(jax),xxx
+58                       format(a,2i3,2(1pe12.4))
                          nyfixph=.true.
                          nyax=jax
-                      elseif(abs(dax1(jax)).gt.1.5*xxx) then
+!                      elseif(abs(dax1(jax)).gt.1.5*xxx) then
+                      elseif(abs(dax1(jax)).gt.2*xxx) then
 ! dependent axis for fix phase changes more, change axis and fix phase!
-!                         write(*,44)'Change axis to: ',jax,mapeqno,&
-!                              ceq%tpval(1),dax1(jax),xxx,&
-!                              mapline%axvals(jaxwc),mapline%axvals2(jaxwc)
-44                       format(a,2i3,6(1pe11.3))
-                    if(abs(mapline%axvals(jaxwc)-mapline%axvals2(jaxwc)).lt.&
-                         axarr(jaxwc)%axinc) then
-!                       write(*,*)'Compositions close, do not chage axis!'
-                    else
-                       nyax=jax
-                    endif
+                         write(*,58)'Change axis !',jax,0,dax1(jax),xxx
+!                         xxx=abs(dax1(jax))
+                         nyax=jax
                       endif
                    endif
                 else
@@ -2900,21 +2870,38 @@ CONTAINS
 !                   call state_variable_val(svrrec,axval(jax),ceq)
 !                   if(gx%bmperr.ne.0) goto 1000
 ! If independent axis is an extensive variable check for fix phase change
+! This does not seem to change anything!!!
                    if(svrrec%oldstv.ge.10) then
-                      if(abs(dax2(jax)).gt.abs(dax1(jax))) then
+                      if(mapeqno-mapline%axchange.gt.3 .and. &
+                           abs(dax2(jax)).gt.abs(dax1(jax))) then
 ! dependent axis for fix phase changes more, change axis and fix phase!
                          nyfixph=.true.
-!                         write(*,101)'Change fix phase!',mapeqno,jaxwc,&
-!                              nyax,mapline%linefixph(1)%ixphase,&
-!                              mapline%stableph(1)%ixphase,nyfixph,&
-!                              dax1(jaxwc),dax2(jaxwc)
-!                         xxx=abs(dax1(jax))
+ !                        write(*,101)'Change fix phase?',mapeqno,jaxwc,&
+ !                             nyax,mapline%linefixph(1)%ixphase,&
+ !                             mapline%stableph(1)%ixphase,nyfixph,&
+ !                             dax2(jax),dax1(jax)
                       endif
                    endif
                 endif
              enddo
           endif
-          if(nyax.ne.jaxwc) then
+          limits: if(nyax.eq.jaxwc .and. jaxwc.ne.jxxx .and. &
+               mapeqno-mapline%axchange.gt.3 .and. .not.nyfixph) then
+! No changes, check if we are close to the end of the extensive variable axis
+             if(2*mapline%axvals(jxxx)-preval(jxxx).gt.&
+                  axarr(jxxx)%axmax) then
+                write(*,*)'Change axis to: ',jxxx,&
+                     2*mapline%axvals(jxxx)-preval(jxxx)
+                nyax=jxxx
+             elseif(2*mapline%axvals(jxxx)-preval(jxxx).lt.&
+                  axarr(jxxx)%axmin) then
+                write(*,*)'Change axis to: ',jxxx,&
+                     2*mapline%axvals(jxxx)-preval(jxxx)
+                nyax=jxxx
+             endif
+          endif limits
+!          if(nyax.ne.jaxwc) write(*,*)'Attention 2: ',mapeqno,nyax,jaxwc
+          newaxis: if(nyax.ne.jaxwc) then
 ! We have to change the axis with active condition
 !             write(*,101)'Slope 3: ',mapeqno,jaxwc,nyax,&
 !                  mapline%linefixph(1)%ixphase,&
@@ -2985,7 +2972,7 @@ CONTAINS
              value=mapline%axvals(jaxwc)
              if(ocv()) write(*,16)'Axis, old and new condition: ',&
                   mapline%axandir,value,xxx,ceq%tpval(1)
-          endif
+          endif newaxis
 ! 
 !-----------------------------------------------------------------
        elseif(maptop%tieline_inplane.lt.0) then
@@ -5438,6 +5425,7 @@ CONTAINS
              endif
              call map_step(maptop,mapline,mapline%meqrec,mapline%meqrec%phr,&
                   axvalok,noofaxis,axarr,ceq)
+!             write(*,*)'Back from map_step 2 ',mapline%more
              if(gx%bmperr.ne.0) then
 ! if error just terminate line
                 write(*,*)'Error return from map_step 2: ',gx%bmperr
@@ -5447,6 +5435,7 @@ CONTAINS
              if(mapline%more.ge.0) goto 380
           endif
 333       continue
+!          write(*,*)'Calling map_linend 2'
           call map_lineend(mapline,axarr(abs(mapline%axandir))%lastaxval,ceq)
           if(firstline) then
 ! follow the axis in the other direction

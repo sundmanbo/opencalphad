@@ -13,14 +13,37 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2018.02.02 OC version 4.044: By popular demand the SHOW command has
+now been implemented.  It combines 3 commands, "LIST STATE_VARIABLE",
+"LIST MODEL_PARAM_VALUE" (i.e. properties like Curie T) and "CALCULATE
+SYMBOL".  The original commands remain.  After SHOW you can give
+several symbols, state variables etc on the same line (separated by
+spaces) and get their values listed on separate lines.  You can also
+use state variables with wildcards like X(FCC,*).  However, I
+discovered a problem that I am not sure I can fix very quickly, the
+command "SHOW X(*,CR)" (and similar) asking for the composition of CR
+in all phases lists the CR content in all stable phases but the
+heading with state variable symbols sometimes lists all phases.
+
+By request I also changed the prompt of OC to be --->OC4: to make it
+easier so separate the input lines on the screen from output.  This is
+for a test, if you do not like it is easy to change in the
+userif/pmon6.F90 file.
+
+I am now almost satisfied with the mapping of phase diagrams with
+tie-lines in the plane but there are always things to improve.  The
+mapping is sensitive to the startpoint and I have not implemented
+automatic start points.  For the graphics there is nore to do and
+feedback is nice to have.
+
 2018.01.31 OC version 4.043: I have improved the mapping of phase
 diagrams with tie-lines in the plane (i.e. most binary diagrams and
 isothermal sections).  However there are still problems and I will try
-to improve these diagrams in future releases.  The previous mapping is
-used for isopleths and can be selected by setting global bit 21 if you
-are an expert.
+to improve these diagrams in the next releases.  The previous mapping
+is used for isopleths and can be selected by setting global bit 21 if
+you are an expert.
 
-There has been many additional changes and bugfixes.
+There has been many other changes and bugfixes.
 
 2018.01.17 OC version 4.042: IMPORTANT! Change for the STEP command!
 I have changed the order of questions for the STEP command.  Now the

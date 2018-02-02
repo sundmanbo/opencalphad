@@ -51,7 +51,7 @@ contains
     character linkdate*(*),version*(*),argline(*)*64
     integer narg
 ! various symbols and texts
-    character :: ocprompt*4='OC4:'
+    character :: ocprompt*8='--->OC4:'
     character name1*24,name2*24,line*80,model*72,chshort
     integer, parameter :: ocmonversion=33
 ! element symbol and array of element symbols for database use
@@ -203,7 +203,7 @@ contains
         'DEBUG           ','SELECT          ','DELETE          ',&
         'STEP            ','MAP             ','PLOT            ',&
         'HPCALC          ','FIN             ','OPTIMIZE        ',&
-        '                ','                ','                ',&
+        'SHOW            ','                ','                ',&
         '                ','                ','                ']
 ! in French
 !        'MODIFIEZ        ','CALCULEZ        ','REGLEZ          ',&
@@ -652,6 +652,9 @@ contains
        endif
     endif
 !
+!================================================ separating main commands
+!------------------------- separating subcommands
+!......................... separating subsubcommands
 ! jump here if there is an inline argument
 ! 99  continue
     main: SELECT CASE(kom)
@@ -661,14 +664,14 @@ contains
        write(kou,*)'No such command'
        goto 100
 !=================================================================
+    CASE(1) ! AMEND
 ! amend subcommands
 !       ['SYMBOL          ','ELEMENT         ','SPECIES         ',&
 !        'PHASE           ','PARAMETER       ','BIBLIOGRAPHY    ',&
 !        'TPFUN_SYMBOL    ','CONSTITUTION    ','QUIT            ',&
 !        'COMPONENTS      ','GENERAL         ','                ',&
-!         'ALL_OPTIM_COEFF','EQUILIBRIUM     ','                ',&
-!         'LIST           ','                ','                ']
-    CASE(1) ! AMEND
+!        'ALL_OPTIM_COEFF ','EQUILIBRIUM     ','                ',&
+!        'LINE            ','                ','                ']
 ! disable continue optimization
 !       iexit=0
 !       iexit(2)=1
@@ -759,7 +762,7 @@ contains
              if(j1.eq.0) then
 ! Xiong modification of Inden-Hillert-Jarl magnetic model
                 call gparcd('BCC type phase: ',cline,last,1,ch1,'N',q1help)
-                call gparcd('Using effective Bohr magnetons: ',&
+                call gparcd('Using individual Bohr magnetons: ',&
                      cline,last,1,ch1,'N',q1help)
                 if(ch1.ne.'N') then
                    call set_phase_status_bit(lokph,PHBMAV)
@@ -917,7 +920,7 @@ contains
              ceq%eq_tpres(lrot)%tpused(1)=-one
              ceq%eq_tpres(lrot)%tpused(2)=-one
           elseif(idef.eq.2) then
-             write(*,*)'You cannot change optimizing coefficients'
+             write(*,*)'You cannot change an optimizing coefficients'
              goto 100
           else
 ! it is a constant, you can change if
@@ -1273,6 +1276,7 @@ contains
 ! this calculate them again ... and lists the values
              call meq_evaluate_all_svfun(lut,ceq)
           else
+! This code is also used in SHOW (command 25)
              call capson(name1)
              call find_svfun(name1,istv,ceq)
              if(gx%bmperr.ne.0) goto 990
@@ -2335,11 +2339,11 @@ contains
                      '13  no cleanup after an equilibrium calculation'/&
                      '14  denser grid used in grid minimizer'/&
                      '15  calculations in parallel is not allowed'/'-'/&
-                     '16  no global test at node points durung STEP/MAP'/&
+                     '16  no global test at node points during STEP/MAP'/&
                      '17  the components are not the elements'/&
-                     '18  test equilibrium after calculation'/&
-                     '19  use old grid minimizer'/&
-                     '20  do not recalculate even if global test fails'/&
+                     '18  global test of equilibrium AFTER calculation'/&
+                     '19  use old grid minimizer'/'-'/&
+                     '20  do not recalculate if global test AFTER fails'/&
                      '21  use old map algorithm'/&
                      '22-31 unused')
                 goto 3708
@@ -2942,9 +2946,15 @@ contains
 !         'PARAMETER       ','EQUILIBRIA      ','RESULTS         ',&
 !         'CONDITIONS      ','SYMBOLS         ','LINE_EQUILIBRIA ',&
 !         'OPTIMIZATION    ','MODEL_PARAM_VAL ','                ']
-    CASE(6) ! LIST
-       kom2=submenu(cbas(kom),cline,last,clist,nclist,12)
-       if(kom2.le.0) goto 100
+! SHOW is the same as LIST STATE_VARIABLES including also CALC SYMBOL !!
+! SHOW is cammand 25
+    CASE(6,25) ! LIST and SHOW
+       if(kom.eq.25) then
+          kom2=4
+       else
+          kom2=submenu(cbas(kom),cline,last,clist,nclist,12)
+          if(kom2.le.0) goto 100
+       endif
        lut=optionsset%lut
        list: SELECT CASE(kom2)
 !-----------------------------------------------------------
@@ -3048,7 +3058,8 @@ contains
              call list_phase_model(iph,ics,lut,' ',ceq)
           END SELECT listphase
 !------------------------------
-       case(4,17)  ! list state variable or parameter identifier value, loop.
+! THIS IS ALSO THE SHOW command (kom=25)
+       case(4,17)  ! list state_variable or model_parameter_value, or SHOW
 !6099      continue
           if(btest(ceq%status,EQNOEQCAL) .or. btest(ceq%status,EQFAIL)) then
              write(lut,6101)
@@ -3060,38 +3071,77 @@ contains
                 ' current conditions')
           endif
           once=.TRUE.
+! LOOP here for list state_variables or model_parameter_values or SHOW
 6105      continue
-! NOTE: 4th argument is 5 because otherwise , will terminate reading cline
+!          write(*,*)'At label 6105: ',last,' "',trim(cline),'"',kom,kom2
+! NOTE: 4th argument is 5 because otherwise a "," will terminate reading cline
 ! and state variables like x(fcc,cr) will not work.
-          if(kom2.eq.4) then
-             call gparc('State variable: ',cline,last,5,line,' ',q1help)
+          if(kom.eq.25) then
+! the command is SHOW             
+             call gparc('property: ',cline,last,5,line,' ',q1help)
           else
-             if(once) then
-                write(kou,*)'Remember always to specify the phase!'
-                once=.FALSE.
+! the command is LIST STATE_VARIABLES
+             if(kom2.eq.4) then
+                call gparc('State variable: ',cline,last,5,line,' ',q1help)
+             else
+! the command is LIST MODEL_PARAMETER_VALUE                
+                if(once) then
+                   write(kou,*)'Remember always to specify the phase!'
+                   once=.FALSE.
+                endif
+                call gparc('Parameter ident: ',cline,last,5,line,' ',q1help)
              endif
-             call gparc('Parameter ident: ',cline,last,5,line,' ',q1help)
           endif
+! if line empty return to command level
           j1=1
           if(eolch(line,j1)) goto 100
+! model is used to return texts
           model=' '
-          if(index(line,'*').gt.0) then
+! we should extract the text from last up to first space and save rest in cline
+          j1=index(line,' ')
+          name1=line(1:j1)
+          call capson(name1)
+! note gparc etc increment last before looking for answer, keep space in cline
+          cline=line(j1:)
+          last=1
+          if(index(name1,'*').gt.0) then
 ! generate many values
 ! i1 values are resturned in yarr with dimension maxconst. 
 ! longstring are the state variable symbols for the values ...
-             call get_many_svar(line,yarr,maxconst,i1,longstring,ceq)
+             call get_many_svar(name1,yarr,maxconst,i1,longstring,ceq)
              if(gx%bmperr.eq.0) then
-! not a nice output FIX!!
-                write(lut,*)longstring(1:len_trim(longstring))
+! not a nice output, we should include the state variables FIX!!
+                write(lut,6106)i1,longstring(1:len_trim(longstring))
+6106            Format('Listing of ',i3,' state variables:'/a)
                 write(lut,6107)(yarr(i2),i2=1,i1)
 6107            format('Values: ',5(1pe14.6)/(8x,5(1pe14.6)))
+                if(index(name1,'*,').gt.0) write(*,6121)trim(name1)
+6121            format('Please note that ',a,&
+                     ' is listed as zero for unstable phases!')
              endif
           else
-! in model the state variable is returned as generated by the program
-             call get_state_var_value(line,xxx,model,ceq)
+! the value of a state variable or model parameter variable is returned
+             call get_state_var_value(name1,xxx,model,ceq)
              if(gx%bmperr.eq.0) then
                 write(lut,6108)model(1:len_trim(model)),xxx
 6108            format(1x,a,'=',1PE15.7)
+             else
+                gx%bmperr=0
+! If error then try to calculate a symbol ...
+! below copied from calculate symbol, first calculate all symbols ignore errors
+! calculate all symbols ignoring errors (note dot derivatives not calculated)
+                call meq_evaluate_all_svfun(-1,ceq)
+                if(gx%bmperr.ne.0) gx%bmperr=0
+                call capson(line)
+                call find_svfun(name1,istv,ceq)
+                if(gx%bmperr.ne.0) goto 990
+                mode=1
+                actual_arg=' '
+                xxx=meq_evaluate_svfun(istv,actual_arg,mode,ceq)
+                if(gx%bmperr.ne.0) goto 990
+                write(kou,2047)trim(name1),xxx
+! this format statement elsewhere
+!2047            format(a,'= ',1pe16.8)
              endif
           endif
           if(gx%bmperr.ge.4000 .and. gx%bmperr.le.nooferm) then
@@ -3100,7 +3150,15 @@ contains
              write(lut,*)'Error code ',gx%bmperr
           endif
           gx%bmperr=0
-          goto 6105
+! try to pick up more properties etc from cline if not empty
+          if(.not.eolch(cline,last)) then
+! there are more symbols, state variables or model_parameters in cline
+             last=last-1
+             goto 6105
+          elseif(kom.ne.25) then
+! for list state_variables and list model_parameter_value ask for more
+             goto 6105
+          endif
 !-----------------------------------------------------------
        case(5) ! list data bibliography
           call gparcd('Bibliographic id:',cline,last,1,name1,'ALL',q1help)
@@ -3408,7 +3466,7 @@ contains
                 write(*,*)'Not implemented yet'
              end SELECT listopt
 !------------------------------
-! list model parameter values, part of case(4)
+! list model_parameter_values, part of case(4)
 !       case(17)
 !          write(*,*)'Not implemented yet'
 !------------------------------
@@ -5040,9 +5098,9 @@ contains
           endif
        enddo
 !=================================================================
-! unused
-    CASE(25)
-       write(kou,*)'Not implemented yet'
+! SHOW but immpemented as a special case of LIST STATE_VARIABLES
+!    CASE(25)
+!       write(kou,*)'Not implemented yet'
 !=================================================================
 ! unused
     CASE(26)

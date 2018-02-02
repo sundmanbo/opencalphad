@@ -82,21 +82,32 @@ set st ph fcc bcc liquid cem=ent 0
 
 l c
 
-set c x(c)=.1
+set c x(c)=.2 t=1200
 
 c e
 
 l,,,,,
 
+@&
+@$ Change the axis as we are not interested in high C content
+
+set ax 1 x(c) 0 .4 ,,,
+
+
+l ax
+
+
+@&
 map
 
 
 
 @$ Plot the metastable Fe-C diagram
 plot
-
-
+w%(*,C)
+t_c
 title map 3 fig 3
+
 
 
 @&
@@ -109,6 +120,17 @@ append stable
 
 
 @&
+@$ Scale the X-axis
+plot
+
+
+scale
+x
+n
+0
+7
+
+@$
 plot
 
 

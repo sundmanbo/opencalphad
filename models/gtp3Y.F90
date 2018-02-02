@@ -5410,8 +5410,8 @@
 ! write this once only
             write(kou,87)trim(phlista(phases(iphz))%name),pceq%tpval(1),&
                  (xarr(ngg,gpz),ngg=1,nrel)
-87          format(/' *** Equilibrium not global, ',a,&
-                 ' is stable at T=',F8.2,', mole fractions:'/(1x,13F6.3))
+87          format(/' *** Gridtest found equilibrium not global, ',a,&
+                 ' is stable at T=',F8.2/5x,'with mole fractions:'/(1x,13F6.3))
             notglobwarning1=.FALSE.
          endif
       endif addornot

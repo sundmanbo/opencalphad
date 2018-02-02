@@ -2325,6 +2325,8 @@
        if(.not.allocated(results%savedceq)) then
           write(*,*)'Cannot find link to saved equilibria! '
        else
+          write(kou,140)
+140       format('Saved ceq     link       T            X')
           ceqloop: do while(ll.gt.0)
              thisceq=>results%savedceq(ll)
              do jax=1,nax
@@ -2335,7 +2337,7 @@
                 if(gx%bmperr.ne.0) goto 1000
              enddo
              write(kou,150)ll,thisceq%next,thisceq%tpval(1),axxx
-150          format('     Saved ceq ',2i5,f8.2,5(1pe14.6))
+150          format(2i9,f9.2,5(1pe13.5))
              ll=thisceq%next
           enddo ceqloop
        endif
@@ -2437,46 +2439,46 @@
                   mapnode%linehead(kl)%number_of_equilibria,&
                   mapnode%linehead(kl)%termerr,status,trim(phline)
 105          format('  Line ',i3,' with ',i5,&
-                  ' equilibria ended with error: ',i6,'.  ',a,' with phases:'/a)
+                  ' equilibria ended with error: ',i6/2x,a,' with phases: ',a)
           else
              write(kou,110)mapnode%linehead(kl)%lineid,&
                   mapnode%linehead(kl)%number_of_equilibria,status,trim(phline)
 110          format('  Line ',i3,' with ',i5,&
-                  ' equilibria ending at axis limit.  ',a,' with phases: ',/a)
+                  ' equilibria ending at axis limit.'/2x,a,' with phases: ',a)
           endif
        else
           ll=mapnode%linehead(kl)%end%seqx
           write(kou,120)mapnode%linehead(kl)%lineid,&
                mapnode%linehead(kl)%number_of_equilibria,ll,status,trim(phline)
-120       format('  Line ',i3,' with ',i5,' equilibria ending at node ',i3,&
-               '.  ',a,' with phases: ',/a)
+120       format('  Line ',i3,' with ',i5,' equilibria ending at node ',i3/&
+               2x,a,' with phases: ',a)
        endif
 !       write(*,*)'mapnode%linehead%first: '
        ll=mapnode%linehead(kl)%first
 !       write(*,*)'axis conditions: ',ll,axarr(1)%seqz,axarr(2)%seqz
-       if(.not.btest(mapnode%linehead(kl)%status,EXCLUDEDLINE)) then
-          if(.not.allocated(results%savedceq)) then
-             write(*,*)'Cannot find link to saved equilibria! '
-          else
+!       if(.not.btest(mapnode%linehead(kl)%status,EXCLUDEDLINE)) then
+!          if(.not.allocated(results%savedceq)) then
+!             write(*,*)'Cannot find link to saved equilibria! '
+!          else
 !             write(*,*)'Loop for all equlibria'
-             do while(ll.gt.0)
-                thisceq=>results%savedceq(ll)
+!             do while(ll.gt.0)
+!                thisceq=>results%savedceq(ll)
 !                write(*,*)'thisceq pointer set',ll
-                do jax=1,nax
-                   call locate_condition(axarr(jax)%seqz,pcond,thisceq)
-                   if(gx%bmperr.ne.0) goto 1000
+!                do jax=1,nax
+!                   call locate_condition(axarr(jax)%seqz,pcond,thisceq)
+!                   if(gx%bmperr.ne.0) goto 1000
 !                   write(*,*)'local_condition NOT OK'
-                   svrrec=>pcond%statvar(1)
-                   call state_variable_val(svrrec,axxx(jax),thisceq)
-                   if(gx%bmperr.ne.0) goto 1000
+!                   svrrec=>pcond%statvar(1)
+!                   call state_variable_val(svrrec,axxx(jax),thisceq)
+!                   if(gx%bmperr.ne.0) goto 1000
 !                   write(*,*)'state variable found OK'
-                enddo
-                write(kou,150)ll,thisceq%next,thisceq%tpval(1),axxx
-150             format('     Saved ceq ',2i5,f8.2,5(1pe14.6))
-                ll=thisceq%next
-             enddo
-          endif
-       endif
+!                enddo
+!                write(kou,150)ll,thisceq%next,thisceq%tpval(1),axxx
+!150             format('     Saved ceq ',2i5,f8.2,5(1pe14.6))
+!                ll=thisceq%next
+!             enddo
+!          endif
+!       endif
 ! if deleted ask for Restore, else ask for Keep or Delete
        last=len(cline)
        if(btest(mapnode%linehead(kl)%status,EXCLUDEDLINE)) then
