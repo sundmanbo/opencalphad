@@ -54,4 +54,4 @@ $(EXE):
 	$(FC) -o $(EXE) $(FCOPT) pmain1.F90 pmon6.o smp2.o liboceq.a getkey.o
 
 clean:
-	rm -r *.o *.mod linkoc liboceq.a oc4P
+	rm -r *.o *.mod linkoc liboceq.a oc5P

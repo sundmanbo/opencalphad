@@ -1,5 +1,5 @@
 OBJS=metlib3.o oclablas.o ocnum.o gtp3.o matsmin.o lmdif1lib.o smp2.o pmon6.o
-EXE=oc4P
+EXE=oc5P
 
 all: $(EXE)
 
@@ -45,4 +45,4 @@ $(EXE): $(OBJS) pmain1.F90
 	gfortran -o $(EXE) -O2 -fopenmp  pmain1.F90 pmon6.o smp2.o liboceq.a getkey.o
 
 clean:
-	rm -r *.o *.mod linkoc liboceq.a oc4P
+	rm -r *.o *.mod linkoc liboceq.a oc5P

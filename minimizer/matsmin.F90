@@ -7187,13 +7187,13 @@ CONTAINS
     integer iel,mph,jj,nterm
     double precision xxx
     double precision, allocatable :: svar(:)
-    character dum*80
+    character dum*128
 !
     value=zero
 !    if(svr2%statevarid.ne.1) then
 ! This if statement added trying to avoid spurious error (caused by -O2??)
-       write(dum,*)'In meq_state_var_value_derivative:',&
-            svr2%statevarid,ceq%tpval(1)
+!       write(dum,*)'In meq_state_var_value_derivative:',&
+!            svr2%statevarid,ceq%tpval(1)
 !    endif
 ! we must check if there is a condition on svr2
     pcond=>ceq%lastcondition
@@ -7254,13 +7254,13 @@ CONTAINS
           if(meqrec%phr(mph)%curd%amfu.gt.zero) then
 ! the hope is that the phase amounts in svar are in the same order as
 ! in svar as ordered in meqrec%phr ...
-! UNFINISHED PROBLEMS fixing Cp for step1.OCM ....
+! SEGMENTATION FAULT on LINIX with -O2 unless write statement at 69 is there
              call meq_calc_phase_derivative(svr1,svr2,meqrec,mph,iel,&
                   svar,jj,xxx,ceq)
              if(gx%bmperr.ne.0) goto 1000
              jj=jj+1
-!             write(*,69)'MM der: ',mph,ceq%tpval(1),value,xxx,&
-!                  meqrec%phr(mph)%curd%amfu
+             write(dum,69)'MM der: ',mph,ceq%tpval(1),value,xxx,&
+                  meqrec%phr(mph)%curd%amfu
 69           format(a,i3,6(1pe14.6))
           else
              xxx=zero
