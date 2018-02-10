@@ -311,7 +311,7 @@
    propid(npid)%symbol='VA '
    propid(npid)%note='Thermal expansion '
    propid(npid)%status=0
-! Only T dependent
+! Not P dependent, only T dependent
    propid(npid)%status=ibset(propid(npid)%status,IDONLYT)
 !....................................... 25
 ! Bulk modulus as function of T and P
@@ -325,9 +325,17 @@
    propid(npid)%symbol='LAMB '
    propid(npid)%note='Thermal conductivity '
    propid(npid)%status=0
+!....................................... 27
+! From MatCalc databases
+   npid=npid+1
+   propid(npid)%symbol='HMVA '
+   propid(npid)%note='Enth of vacancy formation '
+   propid(npid)%status=0
+! this paramter does not depend on T
+   propid(npid)%status=ibset(propid(npid)%status,IDONLYP)
 ! This IF statement should be at the last parameter identifier, maxprop=50?
    if(npid.gt.maxprop) then
-!      write(*,*)'Too many parameter identifiers, increase maxprop'
+      write(*,*)'Too many parameter identifiers, increase maxprop'
       gx%bmperr=4250; goto 1000
    endif
 !.......................................

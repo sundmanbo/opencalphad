@@ -356,6 +356,30 @@ plot
 
 
 title map 9 fig 1
+text
+.02 5000
+1
+0
+y
+
+text n
+.22 5000
+1
+0
+y
+
+text n
+.4 5000
+1
+0
+y
+
+text n
+.8 4000 1 0 y
+
+text n
+.6 2610 1 0 y
+
 render
 
 @&

@@ -23,7 +23,7 @@ MODULE ocsmp
   use liboceqplus
 !
   implicit none
-  character*8, parameter :: smpversion='SMP-2.11'
+  character*8, parameter :: smpversion='SMP-2.21'
 !
 ! note the type map_fixph declared in matsmin.F90 (in liboceq)
 !
@@ -204,7 +204,7 @@ MODULE ocsmp
   TYPE graphics_textlabel
 ! To put labels on a graph we must store these in a list
      TYPE(graphics_textlabel), pointer :: nexttextlabel
-     double precision xpos,ypos
+     double precision xpos,ypos,textfontscale
      integer angle
      character*40 textline
   end type graphics_textlabel
@@ -233,9 +233,9 @@ MODULE ocsmp
 ! these define realative plot size for X and Y, normally 1.0 or less
      double precision :: xsize=1.0D0,ysize=1.0D0
 ! labeldefaults(i) for axis i 0 means default text, 1 text in plotlabels
-! linetype 0 is black full line, >100 is symbols
+! linetype 0 is color full line, >100 is symbols
 ! tielines>0 means plot a tieline every tielines calculated equilibrium
-     integer :: labeldefaults(3),linetype,tielines=0
+     integer :: labeldefaults(3),linetype,linett=1,tielines=0
 ! plotlabel(1) is heading, 2 is x-axis text, 3 is y-axis text 
      character*64, dimension(3) :: plotlabels
 ! if true plot a triangular diagram (isothermal section)
@@ -297,7 +297,8 @@ CONTAINS
     type(meq_setup), pointer :: meqrec
     type(map_fixph), pointer :: mapfix
     double precision starting,finish2,axvalok,dgm,tsave,xxx,yyy,zzz
-    integer starttid,endoftime,bytdir,seqz,nrestore,termerr
+    integer starttid,endoftime,bytdir,seqz,nrestore,termerr,lastimethiserror
+
 ! save current conditions
     character savedconditions*1024
 ! for copy of constituions
@@ -319,6 +320,7 @@ CONTAINS
 !       write(*,*)'Saved: ',trim(savedconditions)
     endif
     nrestore=0
+    lastimethiserror=0
 ! first transform start points to start equilibria on zero phase lines
 ! All axis conditions except one are converted to fix phase conditions 
 ! (if there is just one axis skip this)
@@ -532,11 +534,15 @@ CONTAINS
 ! if error 4359 (slow convergence), 4204 (too many its) take smaller step ...
        if(gx%bmperr.eq.4359 .or. gx%bmperr.eq.4204) then
 ! I am not sure there is really any change for the equilibrium calculated ...
-!          write(*,*)'Trying half step',mapline%number_of_equilibria,halfstep
-          gx%bmperr=0
-          mapline%axfact=1.0D-2
-          call map_halfstep(halfstep,axvalok,mapline,axarr,ceq)
-          if(gx%bmperr.eq.0) goto 321
+!          write(*,*)'Trying half step',mapline%number_of_equilibria,halfstep,&
+!               lastimethiserror
+          if(mapline%meqrec%noofits-lastimethiserror.gt.10) then
+             lastimethiserror=mapline%meqrec%noofits
+             gx%bmperr=0
+             mapline%axfact=1.0D-2
+             call map_halfstep(halfstep,axvalok,mapline,axarr,ceq)
+             if(gx%bmperr.eq.0) goto 321
+          endif
        endif
 ! give up this line, reset error code and check if there are more lines
        gx%bmperr=0
@@ -2848,8 +2854,8 @@ CONTAINS
                       if(abs(dax2(jax)).gt.2*xxx) then
 ! dependent axis changes more! change independent axis
 !                         xxx=abs(dax2(jax))
-                         write(*,58)'Change axis and fix phase!',jax,&
-                              mapline%linefixph(1)%ixphase,dax2(jax),xxx
+!                         write(*,58)'Change axis and fix phase!',jax,&
+!                              mapline%linefixph(1)%ixphase,dax2(jax),xxx
 58                       format(a,2i3,2(1pe12.4))
                          nyfixph=.true.
                          nyax=jax
@@ -2885,18 +2891,34 @@ CONTAINS
                 endif
              enddo
           endif
+! This is all for tie-lines in the plane!!
           limits: if(nyax.eq.jaxwc .and. jaxwc.ne.jxxx .and. &
                mapeqno-mapline%axchange.gt.3 .and. .not.nyfixph) then
+! Problems in U-O system with gas and U3O8 when gas is almost pure O
+! If the entered (not fixed) phase cannot vary its composition 
+! that is bad but do nothing here
+             if(fixedcomposition(mapline%stableph(1)%ixphase)) then
+!                write(*,*)'Continue as entered phase has fixed composition!'
+                exit limits
+             endif
+! check if phase compositions are close
+             if(abs(mapline%axvals(jxxx)-mapline%axvals2(jxxx)).gt.&
+                  axarr(jxxx)%axinc) then
+!                write(*,69)'Continue as phase compositions not close',&
+!                     mapline%axvals(jxxx),mapline%axvals2(jxxx)
+69              format(a,2F10.6)
+! They are not ... do nothing
+                exit limits
+             endif
 ! No changes, check if we are close to the end of the extensive variable axis
              if(2*mapline%axvals(jxxx)-preval(jxxx).gt.&
                   axarr(jxxx)%axmax) then
-                write(*,*)'Change axis to: ',jxxx,&
-                     2*mapline%axvals(jxxx)-preval(jxxx)
+                write(*,91)'high',jxxx,2*mapline%axvals(jxxx)-preval(jxxx)
                 nyax=jxxx
+91              format('At ',a,' limit, change axis to: ',i2,F10.6)
              elseif(2*mapline%axvals(jxxx)-preval(jxxx).lt.&
                   axarr(jxxx)%axmin) then
-                write(*,*)'Change axis to: ',jxxx,&
-                     2*mapline%axvals(jxxx)-preval(jxxx)
+                write(*,91)'low',jxxx,2*mapline%axvals(jxxx)-preval(jxxx)
                 nyax=jxxx
              endif
           endif limits

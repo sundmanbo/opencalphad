@@ -42,5 +42,5 @@ del liboceq.a
 
 ar sq liboceq.a metlib3.o ocnum.o oclablas.o gtp3.o matsmin.o lmdif1lib.o
 
-gfortran -o oc4P -fopenmp -O2 pmain1.F90 pmon6.o smp2.o liboceq.a
+gfortran -o oc5P -fopenmp -O2 pmain1.F90 pmon6.o smp2.o liboceq.a
 

@@ -3996,10 +3996,10 @@
    type(gtp_endmember), pointer :: endmember,nextcation,samecation
    double precision, allocatable, dimension(:) :: constcomp,constcompiliq
    double precision valency(9),ccc,cationval,factor,disfactor,aff,partc,parbm
-   double precision extcpar(0:7),exbmpar(0:7)
+   double precision extcpar(0:7),exbmpar(0:7),xxx
    double precision, parameter :: maxcc=1.0D2
    TYPE(gtp_phase_add), pointer :: addrec
-   integer warnings
+   integer warnings,decimals
 ! we must probably create a stack for excess parameters
    type intstack
       type(gtp_interaction), pointer :: intlink
@@ -4251,10 +4251,10 @@
    endif
 !---------------------------------T powers, always the same line 
 !   if(npows.eq.9) then
-! 10 here are the allowed powers: 0 1 100 2 3 -1 ; 7 -9 -2 -3  any
+! 10 here are the allowed powers: 0 1 100 2 3 -1 ; 7 -9 -2  any any
 !                                 1 2   3 4 5  6   7  8  9  10  11
 ! Those after the ; are special. 100 means T*ln(T)
-   if(npows.le.11) then
+   if(npows.le.15) then
 ! the first 7 digits should be 9 1..6
 !      write(lut,140)trim(powers(36:))
 !      write(lut,140)trim(powers(36:))
@@ -4266,7 +4266,7 @@
 ! According to Ted
 140   format('6    1  2  3  4  5  6  ')
    else
-      write(*,*)' *** ERROR: too many different T powers: ',npows
+      write(*,*)'3C too many different T powers: ',npows
       stop
    endif
 !-------------------------------------- end of header section
@@ -4808,11 +4808,21 @@
 ! it may require several lines
                write(text,210)constcomp
 ! Check if any value in contcomp is greated than 1000, could give overflow
+! Check also if two decimals not enough
                do i3=1,noofel
                   if(constcomp(i3).gt.maxcc) then
                      warnings=warnings+1
-                     write(*,206)trim(phlista(lokph)%name)
-206                  format('3C *** Warning: stoichiometry factor >100: ',a)
+                     write(*,206)trim(phlista(lokph)%name),i3,constcomp(i3)
+206                  format('3C *** Warning stoichiometry factor >100: ',&
+                          a,i4,F10.2)
+                  endif
+                  decimals=int(1.0D2*constcomp(i3))
+                  xxx=1.0D-2*dble(decimals)
+                  if(xxx-constcomp(i3).ne.zero) then
+                     warnings=warnings+1
+                     write(*,203)trim(constext),i3,constcomp(i3)
+203                  format('3C *** Warning stoichiometry with >2 decimals: ',&
+                          a,i4,F10.6)
                   endif
                enddo
 ! according to Ted

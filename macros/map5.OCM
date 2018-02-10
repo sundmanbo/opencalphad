@@ -132,12 +132,15 @@ plot
 
 title map 5 fig 4
 text 
-.47 1700 0 y
+.47 1700
+1
+0
+y
 
 text
-n .4 1530 0 y
+n .4 1530 1 0 y
 
-text n .1 1850 0 y
+text n .1 1850 1 0 y
 
 
 @&
@@ -153,10 +156,12 @@ y
 
 
 
+
 text
 y
 2
 {/Symbol m}
+
 
 
 

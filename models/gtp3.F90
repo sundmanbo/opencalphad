@@ -657,7 +657,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! aqueous, dilute config. entropy (DILCE), quasichemical (QCE), CVM,
 ! explicit charge balance needed (EXCB), extra dense grid (XGRID)
 ! FACT,  not create comp. sets (NOCS), Helmholz energy model (HELM),
-! Model without 2nd derivatives (PHNODGDY2), Elastic model A,
+! Model with no 2nd derivatives (PHNODGDY2), Elastic model A,
 ! Subtract ordered part (PHSUBO), Flory-Huggins model (PHFHV)
 ! Multi-use bit (together with some other) PHMULTI
 ! Xion magnetic model with average Bohr magneton number PHBMAV
@@ -1736,7 +1736,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !\begin{verbatim}
   TYPE gtp_tpfun_as_coeff
 ! this is a TPFUN converted to coefficents without any references to other
-! functions.
+! functions.  Each function can have several T ranges and coefficents for T**n
      double precision, dimension(:), allocatable :: tbreaks
      double precision, dimension(:,:), allocatable :: coefs
      integer, dimension(:,:), allocatable :: tpows

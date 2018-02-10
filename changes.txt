@@ -13,6 +13,13 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2018.02.10 *** OC version 5: This is a prerelease of version 5. ***
+With the significant improvements of calculation of phase diagrams
+with tie-lines in the plane, the new SHOW command, the possibility to
+write DAT files for FactSage and many other things it is time to
+release a new version.  Most of the documentation has not been
+updated.
+
 2018.02.02 OC version 4.044: By popular demand the SHOW command has
 now been implemented.  It combines 3 commands, "LIST STATE_VARIABLE",
 "LIST MODEL_PARAM_VALUE" (i.e. properties like Curie T) and "CALCULATE

@@ -45,7 +45,7 @@ l , 2
 
 set ax 1 x(al) 0 1 ,,
 
-set ax 2 t 200 2000 25
+set ax 2 t 400 2000 25
 
 map
 
@@ -79,6 +79,26 @@ plot
 title map13 fig 2
 
 @&
+@$ Add some phase labels
+plot
+
+
+title map13 fig 3
+text
+0.2
+1900 
+1
+0
+y
+
+text n 0.05 1400 1 0 y
+
+text n 0.23 1200 1 90 y
+
+text n 0.45 1500 1 0 y
+
+
+
 @$ =================================================================== 
 @$ Now we got the whole diagram!  Be happy!
 
