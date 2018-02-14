@@ -33,6 +33,12 @@ fe c
 
 set cond t=1000 p=1e5 n=1 x(c)=.2
 
+set ref-state c
+graph
+
+
+
+
 c e
 
 l r 1
@@ -146,8 +152,8 @@ n
 pos
 top left
 text 
-1.2 1100 
-1
+1 1100 
+1.5
 0
 n 
 austenite
@@ -155,4 +161,17 @@ austenite
 
 
 @&
+@$ Finally, plot the metastable diagram with enthalpy axis !!
+
+plot
+x(*,c)
+HM(*)
+tie 3
+
+
+
+@&
+@$ Note: plotting with composition axis chenged to activity
+@$ will plot the (vertical) 3-phase lines at wrong activity .... why?
+
 set inter

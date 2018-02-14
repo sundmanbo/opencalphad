@@ -1416,12 +1416,18 @@
 ! number of properties calculatied
    noprop=phres%listprop(1)-1
 ! locate the G2 property record   
+   ig2=0
    findix: do jj=2,noprop
       if(phres%listprop(jj).eq.addrec%need_property(1)) then
 ! current values of G2 is stored in phres%gval(1,ig2)
          ig2=jj; g2val=phres%gval(1,ig2); exit findix
       endif
    enddo findix
+   if(jj.gt.noprop) then
+! if jj>noprop it means we have not found the requested property
+      write(*,*)'Cannot found value for G2 parameter'
+      gx%bmperr=4399; goto 1000
+   endif
    dg2=log(one+exp(-g2val/ceq%rtn))
 ! NOTE values in gval(*,1) are divided by RT
 ! G

@@ -4926,8 +4926,8 @@ CONTAINS
 ! maybe some common ending
        goto 900
     endif
-!---------------------------------------------- no analythical 2nd derivatives
-! phases with models with no analythical second derivatives ....
+!---------------------------------------------- no analytical 2nd derivatives
+! phases with models with no analytical second derivatives ....
 !    if(phase_model(iph,ics,PHNODGDY2,ceq)) then
 !    if(test_phase_status_bit(iph,PHNODGDY2,ceq)) then
     if(test_phase_status_bit(iph,PHNODGDY2)) then
@@ -6889,7 +6889,8 @@ CONTAINS
 !            write(*,77)'meq_eval: ',&
 !                 (svflista(lrot)%formal_arguments(ii,jt),ii=1,10)
 ! This routine need access to the subroutines in the minimizer
-            call meq_state_var_value_derivative(svr,svr2,value,ceq)
+!            call meq_state_var_value_derivative(svr,svr2,value,ceq)
+            call meq_state_var_dot_derivative(svr,svr2,value,ceq)
             if(gx%bmperr.ne.0) goto 1000
          endif
       endif
@@ -7167,7 +7168,8 @@ CONTAINS
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
-  subroutine meq_state_var_value_derivative(svr1,svr2,value,ceq)
+  subroutine meq_state_var_dot_derivative(svr1,svr2,value,ceq)
+!  subroutine meq_state_var_value_derivative(svr1,svr2,value,ceq)
 ! calculates a state variable value, dot derivative, (in some cases)
 ! svr1 and svr2 identifies the state variables in (dstv1/dstv2)
 ! check that svr2 2 is a condition
@@ -7185,7 +7187,7 @@ CONTAINS
  !   TYPE(meq_phase), pointer :: pmi
     TYPE(gtp_condition), pointer :: pcond
     integer iel,mph,jj,nterm
-    double precision xxx
+    double precision xxx,sumam
     double precision, allocatable :: svar(:)
     character dum*128
 !
@@ -7244,21 +7246,69 @@ CONTAINS
 !100 continue
 ! if no phase specified loop over all stable phases
 !    write(*,*)'We have initiad meqrec: ',svr1%statevarid
-    if(svr1%statevarid.ge.6 .and. svr2%statevarid.lt.15) then
+    if(svr1%statevarid.eq.3 .and. svr2%statevarid.eq.1) then
+! This is MU(X).T
+! it should simply be svar(svr1.%component) !!
+!       write(*,*)'MM: MU(A).T: ',svr1%argtyp,svr1%component
+       iel=svr1%component
+       call meq_calc_phase_derivative(svr1,svr2,meqrec,mph,iel,&
+            svar,jj,xxx,ceq)
+       value=xxx*ceq%rtn
+! there can be a suffix S ??
+!       gx%bmperr=4215; goto 1000
+    elseif(svr1%statevarid.ge.6 .and. svr1%statevarid.lt.15) then
 ! This is derivatives of U, S, etc, H has svr1%statevarid=9, oldstv=40
 ! TO BE DONE: implement H(phase).T and normalizing 
        iel=0
        jj=1
+       sumam=zero
+! Tis if statement should be included in the loop below
+       if(svr1%argtyp.eq.2) then
+! if argtyp=2 then just a single phase
+!          write(*,*)'MM svr1%argtyp 1: ',svr1%argtyp,svr1%phase,svr1%compset
+          fph: do mph=1,meqrec%nphase
+!             write(*,*)'fphloop: ',mph,meqrec%phr(mph)%iph,meqrec%phr(mph)%ics
+! what is meqrec%iphl(mph) ???
+!             if(meqrec%iphl(mph).eq.svr1%phase .and.&
+!                  meqrec%icsl(mph).eq.svr1%compset) exit fph
+             if(meqrec%phr(mph)%iph.eq.svr1%phase .and.&
+                  meqrec%phr(mph)%ics.eq.svr1%compset) exit fph
+          enddo fph
+66        if(mph.gt.meqrec%nphase) then
+             gx%bmperr=4050; goto 1000
+          endif
+!          write(*,*)'MM svr1%argtyp 2: ',svr1%argtyp,mph
+          call meq_calc_phase_derivative(svr1,svr2,meqrec,mph,iel,&
+               svar,jj,xxx,ceq)
+          if(gx%bmperr.ne.0) goto 1000
+!          write(*,*)'MM HM(phase).T: ',xxx,meqrec%phr(mph)%curd%abnorm(1),&
+!               meqrec%phr(mph)%curd%amfu
+          if(svr1%norm.eq.1) then
+! xxx is HM for one formula unit.  if %norm=1 return HM.T 
+             value=xxx/meqrec%phr(mph)%curd%abnorm(1)
+          elseif(meqrec%phr(mph)%curd%amfu.eq.zero) then
+! elseif %amfu=0 return H.T=0
+             value=zero
+          else
+! else returm HM.T*NP(alpha) ???
+             value=xxx*meqrec%phr(mph)%curd%amfu/meqrec%phr(mph)%curd%abnorm(1)
+          endif
+          goto 77
+       endif
        do mph=1,meqrec%nphase
 ! ignore phases with zero amount
           if(meqrec%phr(mph)%curd%amfu.gt.zero) then
 ! the hope is that the phase amounts in svar are in the same order as
 ! in svar as ordered in meqrec%phr ...
-! SEGMENTATION FAULT on LINIX with -O2 unless write statement at 69 is there
+! SEGMENTATION FAULT on LINUX with -O2 unless write statement at 69 is there
+! It happends in macro step1 if you run all macros.  No error if just step1
+! STRANGE !!!
              call meq_calc_phase_derivative(svr1,svr2,meqrec,mph,iel,&
                   svar,jj,xxx,ceq)
              if(gx%bmperr.ne.0) goto 1000
+          sumam=sumam+meqrec%phr(mph)%curd%amfu*meqrec%phr(mph)%curd%abnorm(1)
              jj=jj+1
+! this dummy write statement is to avoid SEGMENTATION FAULT when -O2
              write(dum,69)'MM der: ',mph,ceq%tpval(1),value,xxx,&
                   meqrec%phr(mph)%curd%amfu
 69           format(a,i3,6(1pe14.6))
@@ -7267,20 +7317,30 @@ CONTAINS
           endif
           value=value+xxx
        enddo
+       if(svr1%norm.eq.1) then
+! normallize with respect to number of moles of atoms
+!          write(*,*)'MM sumam: ',value,sumam
+          value=value/sumam
+       endif
+77     continue
     elseif(svr1%statevarid.eq.17) then
 ! This should be x(phase,element).T
+!       write(*,*)'MM: X(PHASE,A).T not implemented',svr1%argtyp,svr1%phase,&
+!            svr1%compset,svr1%component
        do mph=1,meqrec%nphase
           if(svr1%phase.eq.meqrec%phr(mph)%iph .and. &
                svr1%compset.eq.meqrec%phr(mph)%ics) then
              call meq_slope(mph,svr1,meqrec,value,ceq)
-             write(*,*)'Not implemented x(phase,element).T'
+             write(*,*)'meq_slope: Not implemented x(phase,element).T'
              gx%bmperr=4215; goto 1000
           endif
        enddo
-       write(*,*)'No such phase'
-       gx%bmperr=4050
+!       write(*,*)'No such phase'
+!       gx%bmperr=4050
     else
-       write(*,*)'Sorry, derivates of this variable not implemented'
+       write(*,900)svr1%statevarid,svr1%argtyp,svr1%phase,svr1%compset,&
+            svr1%component
+900    format('MM: this dot derivative not implemented',6i5)
        gx%bmperr=4215; goto 1000
     endif
 1000 continue
@@ -7291,7 +7351,7 @@ CONTAINS
        write(dum,*)'MM exit meq_state_var_value_derivative',value
 !    endif
     return
-  end subroutine meq_state_var_value_derivative
+  end subroutine meq_state_var_dot_derivative
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
     
@@ -7355,7 +7415,9 @@ CONTAINS
     elseif(iel.eq.0) then
 ! independent of element, return for phase
        musum=zero
+!       write(*,*)'MM derivative: ',iph,pmi%ncc
        do jy=1,pmi%ncc
+! This is the loop to handle the contribution from each phase dZ/dyi
           dy=zero
           call calc_dgdyterms2(jy,meqrec%nrel,mamu,mag,mat,map,pmi)
           if(gx%bmperr.ne.0) goto 1000
@@ -7375,7 +7437,7 @@ CONTAINS
           dy=dy-mat
 !          write(*,666)'dy: ',mat,dy
 ! here we check which state variable we take derivative of, H is 9
-!          write(*,*)svr1%statevarid
+!          write(*,*)'MM svr1: ',svr1%statevarid,svr1%norm
           select case(svr1%statevarid)
           case default
 ! state variables 1..5 are potentials, 14-15 not possible to derivate
@@ -7414,42 +7476,62 @@ CONTAINS
           musum=musum+hconfig*dy
 !          write(*,*)'musum: ',musum,dy
        enddo
-       x3=ceq%rtn*pmi%curd%amfu*musum
+       x1=zero; x2=zero
 !       write(*,765)'x3= ',ceq%rtn,pmi%curd%amfu,musum
+       if(svr1%norm.eq.1 .and. svr1%argtyp.eq.2) then
+! for HM(phase).T the change in of phase amount should be ignored
+          dpham=zero
+          x3=musum*ceq%rtn
+       else
+! extract the change in phase amount (for stable phases!!!)
 ! we have to take care of fixed chemical potentials, the number of
-! elements+1-(#fixed mu) should be the index of dpham
+! elements+1-(#fixed mu) should be the index of dpham,
+! the change in phase amount
 ! The way of indexing with jj is dangerous ...
-       dpham=svar(meqrec%nrel+jj)
+          dpham=svar(meqrec%nrel+jj)
+! for current amount
+          x3=musum*ceq%rtn*pmi%curd%amfu
+       endif
 !       write(*,665)'dpham: ',meqrec%nrel,jj,svar(meqrec%nrel+jj-1),&
 !            svar(meqrec%nrel+jj)
 665    format(a,2i3,6(1pe14.6))
-! here we check which state variable we take derivative of
+! here we again select the state variable we take derivative of, H is 9
+!       write(*,*)'MM svr2: ',svr1%statevarid,svr1%norm
        select case(svr1%statevarid)
        case default
 ! state variables 1..5 are potentials, 14-15 not possible to derivate
           write(*,*)'Illegal state variable id:',svr1%statevarid
           gx%bmperr=4188; goto 1000
        case(6) !U = G + TS - PV
-          write(*,*)'Not implemeneted yet: ',svr1%statevarid
+          write(*,*)'Not implemented yet: ',svr1%statevarid
+          gx%bmperr=4215
        case(7) !S = -dG/dT
           x1=-ceq%rtn*dpham*pmi%curd%gval(2,1)
           x2=-ceq%rtn*pmi%curd%amfu*ceq%tpval(1)*pmi%curd%gval(4,1)
-          write(*,*)'Not implemeneted yet: ',svr1%statevarid
+          write(*,*)'Not implemented yet: ',svr1%statevarid
+          gx%bmperr=4215
        case(8) !V = dG/dP
-          write(*,*)'Not implemeneted yet: ',svr1%statevarid
+          write(*,*)'Not implemented yet: ',svr1%statevarid
+          gx%bmperr=4215
        case(9) !H = G + TS = G - T G.T
 ! x1 is change in phase amount times H
-          x1=-ceq%rtn*dpham*(pmi%curd%gval(1,1)-ceq%tpval(1)*pmi%curd%gval(2,1))
+          x1=-ceq%rtn*dpham*&
+                  (pmi%curd%gval(1,1)-ceq%tpval(1)*pmi%curd%gval(2,1))
 !          write(*,666)'x1: ',ceq%rtn,dpham,pmi%curd%gval(1,1),&
 !               ceq%tpval(1)*pmi%curd%gval(2,1),x1
 ! x2 is phase_amount * dH/dT = .. -T*d2G/dT2 = -T
-          x2=-ceq%rtn*pmi%curd%amfu*ceq%tpval(1)*pmi%curd%gval(4,1)
+          if(dpham.ne.zero) then
+             x2=-ceq%rtn*pmi%curd%amfu*ceq%tpval(1)*pmi%curd%gval(4,1)
+          elseif(svr1%norm.eq.1) then
+! compared with Thermo-Calc this seems correct, it is just HM(phase).T
+             x2=-ceq%rtn*ceq%tpval(1)*pmi%curd%gval(4,1)
+          endif
        case(10) !A = G - PV
           write(*,*)'Not implemeneted yet: ',svr1%statevarid
        case(11) !G itself
           x1=-ceq%rtn*dpham*pmi%curd%gval(1,1)
           x2=ceq%rtn*pmi%curd%amfu*pmi%curd%gval(2,1)
-          write(*,*)'G.T: ',x1,x2
+!          write(*,*)'G.T: ',x1,x2
        case(12) !NP phase amount
           write(*,*)'Not implemeneted yet: ',svr1%statevarid
        case(13) !BP phase mass
@@ -7473,15 +7555,17 @@ CONTAINS
 !       endif
 ! x3 is phase amount times change in configuration
 !       x3=ceq%rtn*pmi%curd%amfu*musum
-!       write(*,666)'CP= ',x1,x2,x3,x1+x2+x3,dpham
-666    format(a,6(1pe14.6))
+! only derivativs wrt T are allowed!!
+!       write(*,666)'CP= ',svr1%norm,x1,x2,x3,x1+x2+x3,dpham,pmi%curd%amfu
+666    format(a,i3,6(1pe12.4))
 ! just to show the error
 !       value=x2
        value=x1+x2+x3
-   else
-! something for a specific element
-       write(*,*)'Element specific not implemented'
-       gx%bmperr=4215
+    else
+! the derivative of the chemical potential of iel wrt T
+       value=svar(iel)
+!       write(*,*)'Chemical potential: ',iel,value
+!       gx%bmperr=4215
     endif
 !
 1000 continue

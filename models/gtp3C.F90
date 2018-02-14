@@ -3050,10 +3050,12 @@
       call sort_ionliqconst(lokph,1,knr,constlist,klok)
       if(gx%bmperr.ne.0) then
          write(*,*)'3C Error return from sort_ionliqconst ',gx%bmperr
+!         write(*,65)lord,(klok(ll),ll=1,lord)
+!65       format('3C constarr: ',i5,5x,5i3)
+         write(*,64)trim(constarr)
+64       format('3C constarr: ',a)
          goto 1000
       endif
-!      write(*,65)lord,(klok(ll),ll=1,lord)
-65    format('3C from sort: ',i5,5x,5i3)
       lord=0
       endm(1)=klok(1)
       do jsp=2,knr(1)

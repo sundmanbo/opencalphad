@@ -1170,6 +1170,12 @@
 !        yf=[0.11D0,0.13D0,0.18D0,0.23D0,0.35D0]
 !------------------------------------------------------------------
    logical gas,dense,verydense,gles,trace
+! bugfix by Clement Instroini 18.02.14
+   if(iph.lt.1 .or. iph.gt.noofph) then
+      gx%bmperr=4050; goto 1000
+   else
+      lokph=phases(iph)
+   endif
 ! handle special phases like ionic crystals, ionic liquids and order/disorder
 !   write(*,*)'3Y in generic_grid_generator',iph
    gas=.FALSE.
@@ -2983,6 +2989,8 @@
 ! get the phase data
    call get_phase_data(iph,1,nsl,nkl,knr,ydum,sites,qq,ceq)
    if(gx%bmperr.ne.0) goto 1000
+! bugfix by Clement Introini
+   lokph=phases(iph)
 !
 ! I will handle this in a very clumsy way by generate all endmembers
 ! with their charge and then try to combine them to get neutral gridpoints.
@@ -5573,25 +5581,48 @@
     implicit none
     TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-    integer phtup,nextset,lokcs1,lokcs2,ic,ll,lokph,ss
+    integer phtup,nextset,lokcs1,lokcs2,ic,ll,lokph,ss,ts
+! max 9 sublattices
+    integer iymin(9),iymax(9)
+    double precision ymax(9),ymin(9),ysame
     double precision, allocatable :: yarr(:)
+!    write(*,*)'3Y Check if two composition sets are same: ',ceq%tpval(1)
     allph: do phtup=1,nooftup()
        nextset=phasetuple(phtup)%nextcs
        if(nextset.eq.0) cycle allph
+       lokph=phasetuple(phtup)%lokph
        lokcs1=phasetuple(phtup)%lokvares
        lokcs2=phasetuple(nextset)%lokvares
-       do ic=1,size(ceq%phase_varres(lokcs1)%yfr)
-          if(abs(ceq%phase_varres(lokcs1)%yfr(ic)-&
-               ceq%phase_varres(lokcs2)%yfr(ic)).gt.1.0D-2) then
+       ymin=one
+       ymax=zero
+       iymin=0
+       iymax=0
+       ts=size(ceq%phase_varres(lokcs1)%yfr)
+       ll=1
+       do ic=1,ts
+          ysame=ceq%phase_varres(lokcs1)%yfr(ic)
+          if(abs(ysame-ceq%phase_varres(lokcs2)%yfr(ic)).gt.1.0D-2) then
 !             write(*,66)'3Y two compsets not same:',lokcs1,lokcs2,ceq%tpval(1)
+!          write(*,77)'3Y d1:',lokcs1,(ceq%phase_varres(lokcs1)%yfr(ss),ss=1,ts)
+!          write(*,77)'3Y d2:',lokcs2,(ceq%phase_varres(lokcs2)%yfr(ss),ss=1,ts)
              cycle allph
+          else
+             if(ic.gt.phlista(lokph)%nooffr(ll)) ll=ll+1
+             if(ysame.lt.ymin(ll)) then
+                iymin(ll)=ic; ymin(ll)=ysame
+             endif
+             if(ysame.gt.ymax(ll)) then
+                iymax(ll)=ic; ymax(ll)=ysame
+             endif
           endif
        enddo
 ! These two composition sets have identical compositions, skip if both stable
-!       write(*,66)'3Y two compsets same:',lokcs1,lokcs2,ceq%tpval(1)
-66     format(a,2i3,f10.2)
+!       write(*,66)'3Y two compsets same:',lokcs1,lokcs2,ceq%tpval(1),&
+!            (ymin(ic),ymax(ic),ic=1,ll)
+66     format(a,2i3,f8.2,2x,(8F6.3))
        if(ceq%phase_varres(lokcs1)%phstate.ge.PHENTSTAB) then
           if(ceq%phase_varres(lokcs2)%phstate.ge.PHENTSTAB) cycle allph
+!          write(*,77)'3Y s1:',lokcs1,(ceq%phase_varres(lokcs1)%yfr(ss),ss=1,ts)
 ! set the constitution of lokcs2 to one-the stable
 ! or maybe to its default??
           lokph=phasetuple(phtup)%lokph
@@ -5600,21 +5631,23 @@
              if(phlista(lokph)%nooffr(ll).eq.1) then
                 ic=ic+1; cycle phsubl1
              endif
+             ysame=0.1/real(phlista(lokph)%nooffr(ll))
              do ss=1,phlista(lokph)%nooffr(ll)
                 ic=ic+1
-!                if(ceq%phase_varres(lokcs1)%yfr(ic).gt.5.0D-1) then
-!                   ceq%phase_varres(lokcs2)%yfr(ic)=1.0D-1
-!                else
-!                   ceq%phase_varres(lokcs2)%yfr(ic)=9.0D-1
-!                endif
-                ceq%phase_varres(lokcs2)%yfr(ic)=&
-                     one-ceq%phase_varres(lokcs1)%yfr(ic)
+                if(ic.eq.iymin(ll)) then
+                   ceq%phase_varres(lokcs2)%yfr(ic)=0.9
+                else
+                   ceq%phase_varres(lokcs2)%yfr(ic)=ysame
+                endif
              enddo
           enddo phsubl1
-!          write(*,77)'3Y: nyy:',ic,(ceq%phase_varres(lokcs2)%yfr(ss),ss=1,ic)
+!          write(*,77)'3Y s1:',lokcs1,(ceq%phase_varres(lokcs1)%yfr(ss),ss=1,ts)
+!          write(*,77)'3Y s2:',lokcs2,(ceq%phase_varres(lokcs2)%yfr(ss),ss=1,ts)
 77        format(a,i3,8F6.3)
-       elseif(ceq%phase_varres(lokcs2)%phstate.ge.PHENTSTAB) then
-! set the constitution of lokcs2 to one-the stable
+       else
+! lokcs1 is not stable, change its constitution away from lokcs2
+!       elseif(ceq%phase_varres(lokcs2)%phstate.ge.PHENTSTAB) then
+! set the constitution of lokcs1 to one-the lokcs2
 ! or maybe to its default??
           lokph=phasetuple(phtup)%lokph
           ic=0
@@ -5622,18 +5655,20 @@
              if(phlista(lokph)%nooffr(ll).eq.1) then
                 ic=ic+1; cycle phsubl2
              endif
+! very strange, if I divide with real(phlista(lokph)%nooffr(ll)-1) 
+! the metastable exrapolation is still there !!
+             ysame=0.1/real(phlista(lokph)%nooffr(ll))
              do ss=1,phlista(lokph)%nooffr(ll)
                 ic=ic+1
-!                if(ceq%phase_varres(lokcs2)%yfr(ic).gt.5.0D-1) then
-!                   ceq%phase_varres(lokcs1)%yfr(ic)=1.0D-1
-!                else
-!                   ceq%phase_varres(lokcs1)%yfr(ic)=9.0D-1
-!                endif
-                ceq%phase_varres(lokcs1)%yfr(ic)=&
-                     one-ceq%phase_varres(lokcs2)%yfr(ic)
+                if(ic.eq.iymin(ll)) then
+                   ceq%phase_varres(lokcs1)%yfr(ic)=0.9
+                else
+                   ceq%phase_varres(lokcs1)%yfr(ic)=ysame
+                endif
              enddo
           enddo phsubl2
-!          write(*,77)'3Y: nyy:',ic,(ceq%phase_varres(lokcs1)%yfr(ss),ss=1,ic)
+!          write(*,77)'3Y z1:',lokcs1,(ceq%phase_varres(lokcs1)%yfr(ss),ss=1,ts)
+!          write(*,77)'3Y z2:',lokcs2,(ceq%phase_varres(lokcs2)%yfr(ss),ss=1,ts)
 !       else
 !          write(*,*)'Both compsets unstable'
        endif

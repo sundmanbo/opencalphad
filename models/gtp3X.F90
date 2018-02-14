@@ -144,6 +144,7 @@
 ! this is used for the Flory-Huggins model
    floryhuggins=0
    chkperm=.false.
+   already=0
    if(btest(phlista(lokph)%status1,PHFORD) .or. &
         btest(phlista(lokph)%status1,PHBORD)) then
       chkperm=.true.
@@ -856,7 +857,7 @@
                ic=intrec%fraclink(ipermut)
                gz%intlat(gz%intlevel)=intlat
                gz%intcon(gz%intlevel)=ic
-! if intlat or ic is zero give error message and skip
+! if intlat or ic is zero or less give error message and skip
                if(intlat.le.0 .or. ic.le.0) then
                   if(already.eq.0 .or. intrec%antalint.ne.already) then
                      already=intrec%antalint
@@ -866,7 +867,6 @@
                      write(*,231)'3X intp: ',intrec%antalint,gz%intlevel,&
                           ipermut,intlat,ic,pmq,maxpmq(pmq)
 231                  format(a,10i5)
-!                     call whatparam(lokph,
                   endif
                   goto 290
                endif
@@ -2180,6 +2180,11 @@
    dvals=zero
    d2vals=zero
    rtg=gz%rgast
+! to avoid warnings from -Wmaybe-uninitiated
+   icat=0
+   ivax=0
+   dvax0=zero
+   dvax1=zero
 !   write(*,*)'3X in cgint',lokph
    if(lokpty%degree.eq.0) then
 !----------------------------------------------------------------------

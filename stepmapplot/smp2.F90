@@ -863,8 +863,8 @@ CONTAINS
     endif
 ! we have finished a line
 805 continue
-    write(*,808)mapline%number_of_equilibria,ceq%tpval(1)
-808 format('Finished line with ',i5,' equilibria at T=',F8.2)
+    write(kou,808)mapline%number_of_equilibria,ceq%tpval(1)
+808 format('Finished line with ',i5,' equilibria at T=',0pF8.2,' ??')
     mapline%problems=0
     mapline%lasterr=0
     goto 300

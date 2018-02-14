@@ -2045,7 +2045,8 @@
              do while(sumpp.lt.lineends(jj))
                 sumpp=sumpp+1
                 write(21,549)xval(kk,sumpp),yval(kk,sumpp)
-549             format(2f12.6,4i7)
+!549             format(2e15.6,4i7)
+549             format(2(1pe15.6),4i7)
 ! plotkod -101 means tieline
                 if(plotkod(sumpp).eq.-101) write(21,552)
 552             format(1x)

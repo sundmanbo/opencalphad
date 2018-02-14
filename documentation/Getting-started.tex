@@ -67,12 +67,12 @@ There is also an extensive documentation provided with the software:
 \item Install-OC-Windows-Cygwin on Windows using Cygwin (in French).
 \item Install-OC-Linux-or-macOS on Linux or macOS using GNU.
 \end{itemize}
-\item news-OC4 about features and user interface.
+\item news-OC5 about features and user interface.
 \item UG, User Guide and manual.
-\item OC-macros, describing the test macro files.
+\item OC-macros, examples how to use OC.
 \item GTP, General Thermodynamic Package describing the model package.
 \item HMS, Hillert's Minimizer describing the equilibrium calculations.
-\item SMP, StepMapPlot describing calculation and plotting of diagrams.
+\item SMP, StepMapPlot describing calculation and plotting of diagrams (draft).
 \item OCASI, OC Application Software Interface (draft).
 \item Assessments using OC (draft).
 \end{itemize}
@@ -481,10 +481,10 @@ The state variables are very important for setting conditions and
 listings.  Those recognized by OC are given in
 table~\ref{tab:statevar}.
 
-\begin{table}[!h]
+\begin{table}[!ht]
 \caption{A very preliminary table with the state variables and their
-  internal representation.  Some model parameter properties are also
-  included.  The final ``z'' in Sz etc is the optional normalizing
+  internal representation.  Some model parameter identifiers are also
+  included.  The suffix ``z'' in Sz etc is the optional normalizing
   letter M, W, V or F}\label{tab:statevar}
 \begin{tabular}{|llccll|}\hline
 Symbol & Id & \multicolumn{2}{c}{Index} & Normalizing & Meaning\\
@@ -520,7 +520,7 @@ Y      & 130 & phase\#set & const\#subl & -& Constituent fraction\\\hline
 \multicolumn{6}{|c|}{Some model parameter identifiers}\\\hline
 TC     & - & phase\#set & - & - & Curie temperature\\
 BMAG   & - & phase\#set & - & - & Aver. Bohr magneton number\\
-MQ\&X  & - & phase\#set & constituent X & - & Mobility\\
+MQ\&X  & - & phase\#set & constituent X & - & Mobility of X\\
 THET   & - & phase\#set & - & - & Debye temperature\\\hline
 \end{tabular}
 \end{table}

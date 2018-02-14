@@ -1288,7 +1288,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! argtyp=2: phase and compset
 ! argtyp=3: phase and compset and component
 ! argtyp=4: phase and compset and constituent
-! ?? what is norm ??
+! ?? what is norm ?? normalizing like M in HM ?
      integer statevarid,norm,unit,phref,argtyp
 ! these integers represent the previous indices(4)
      integer phase,compset,component,constituent

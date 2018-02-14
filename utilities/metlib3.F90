@@ -3125,6 +3125,7 @@ CONTAINS
 ! LINUX: read one character at a time without echo and allow editing history
     ch1=getkey()
 #endif
+110  continue
 !    write(*,*)'got from getkey: ',ichar(ch1)
 ! handle control character
     if(ichar(ch1).ge.32 .and. ichar(ch1).lt.127) then
@@ -3150,6 +3151,7 @@ CONTAINS
     endif
 !=======================  
 !    write(*,*)'control character: ',ichar(ch1)
+120 continue
     select case(ichar(ch1))
     case default
 ! ignore
@@ -3162,6 +3164,7 @@ CONTAINS
           write(kou,10,advance='no')tbackspace
        enddo
        ip=1
+#ifdef win
 !............. OK
     case(backspace,backspace2) ! ctrlb leftarrow (also up/down/right arrow)
 ! move cursor one step back
@@ -3169,6 +3172,38 @@ CONTAINS
           write(kou,10,advance='no')tbackspace
           ip=ip-1
        endif
+#else 
+!............. NEW handle arrow key on Linix/Mac
+    case(backspace) ! try to handle arrow keys sequence of 27, 91, A/B/C/D
+       ch1=getkey()
+       if(ichar(ch1).ne.91) goto 110
+       ch1=getkey()
+       if(ch1.eq.'A') then
+!          write(*,*)'Arrow up'
+          ch1=char(ctrlp)
+       elseif(ch1.eq.'B') then
+!          write(*,*)'Arrow down'
+          ch1=char(ctrln)
+       elseif(ch1.eq.'C') then
+!          write(*,*)'Arrow forward'
+          ch1=char(forward)
+       elseif(ch1.eq.'D') then
+!          write(*,*)'Arrow backward'
+          ch1=char(backspace2)
+       else !page up/down which has similar sequences etc ignored
+          goto 100
+!          write(*,*)'Input messed up ...'
+       endif
+       goto 120
+!...............OK
+!    case(backspace,backspace2) ! ctrlb leftarrow (also up/down/right arrow)
+    case(backspace2) ! ctrlb leftarrow (also up/down/right arrow)
+! move cursor one step back
+       if(ip.gt.1) then
+          write(kou,10,advance='no')tbackspace
+          ip=ip-1
+       endif
+#endif
 !............. OK
     case(ctrlc)
 ! terminate the program

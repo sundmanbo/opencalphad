@@ -1,4 +1,4 @@
-This file contains information on Open Calphad (OC) version 4+
+This file contains information on Open Calphad (OC) version 5 and older
 
 For general information please read the readme-general.pdf 
 
@@ -13,12 +13,35 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2018.02.14 OC version 5.001: For this first update I have added new
+versions of the "getting-started", "news-OC5" and the "OC5-Macros".
+The remaining documentation is still old.
+
+I have also implemented the "dot derivative" MU(A).T to calculate the
+T derivative of the chemical potential of A.  This is also known as
+the (negative of the) partial entropy.  The partial enthalpy is
+property that can be measured and is obtained as "MU(A)-T*MU(A).T"
+(the same as H = G+T*S = G-T*G.T).  I am looking at implementing
+X(LIQ,A).T which can be useful simulating phase transformations.
+These dot derivatives can be calculated without numerical derivation
+using the second derivatives from an equilibrium calculation.
+
+For LINUX users I have also included the arrow keys on most modern
+keyboard to be used for command line editing. Arrow up means previous
+line in history, down means next history line, arrow forward means
+forward one step on current line and arrow backward means back one
+step on current line.  On modern keyboards these keys give a sequence
+of characters, not a single one.  On older computers they may not
+work.  If you have redefined your keyboard you may have surprises.
+
 2018.02.10 *** OC version 5: This is a prerelease of version 5. ***
 With the significant improvements of calculation of phase diagrams
 with tie-lines in the plane, the new SHOW command, the possibility to
-write DAT files for FactSage and many other things it is time to
-release a new version.  Most of the documentation has not been
-updated.
+write DAT files for FactSage, command line editing on Linux and many
+other things it is time to release a new version.  Most of the
+documentation has not been updated.
+
+********************************************************************
 
 2018.02.02 OC version 4.044: By popular demand the SHOW command has
 now been implemented.  It combines 3 commands, "LIST STATE_VARIABLE",

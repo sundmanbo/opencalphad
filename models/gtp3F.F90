@@ -3450,6 +3450,7 @@
 !
 ! memory leak
 !   allocate(svr)
+   currid=0
    if(iarr(1).lt.-1000) then
 ! Handling of parameter property symbols like TC, BMAGN etc
 ! NOTE inside symbols  -1000 used to separate from other symbols 

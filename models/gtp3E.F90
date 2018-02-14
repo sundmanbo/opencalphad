@@ -2179,6 +2179,9 @@
       noofperm=intrec%noofip(2)
    elseif(level.eq.1) then
       noofperm=intrec%noofip(fipsize)
+   else
+      write(*,*)'3E too many interaction levels for permutations'
+      gx%bmperr=4399; goto 1000
    endif
    allocate(intrec%sublattice(noofperm))
    allocate(intrec%fraclink(noofperm))
@@ -2197,6 +2200,7 @@
 !      write(*,*)'3E Back from readproprec 2'
 ! if there are no property records proprec is still nullified
    endif
+1000 continue
    return
  end subroutine readintrec
 
