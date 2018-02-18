@@ -6072,8 +6072,10 @@ CONTAINS
 ! \sum_i \sum_j e_ij*dM_A/dy_i dG/dy_j
 !    goto 100
 !
-!    write(*,*)'Enter calc_dgdyterms1P'
+!    write(*,*)'Enter calc_dgdyterms1P: ',noofits
     if(noofits.ne.saved%sameit) then
+! do not save when calculating dot derivatives, can cause segmentation fault ..
+       if(noofits.lt.0) goto 100
 ! new iteration, discard saved values
        saved%big=0
        saved%order=0
@@ -6088,8 +6090,9 @@ CONTAINS
 ! We can have saved up to 5 sets
     do jj=1,5
        if(10*pmi%iph+pmi%ics.eq.saved%big(1,jj)) then
-!          write(*,13)'MM using saved values 1:',noofits,jj,saved%big(1,jj)
-13        format(a,2i5,5x,2i5,5x,3i5)
+!          write(*,13)'MM using saved values 1:',noofits,jj,saved%big(1,jj),&
+!               saved%big(2,jj),pmi%iph,pmi%ics
+!13        format(a,2i5,5x,2i5,5x,3i5)
           mag=zero
           mat=zero
           map=zero
@@ -6098,6 +6101,10 @@ CONTAINS
           enddo
           do iy=1,saved%big(2,jj)
              morr=pmi%dxmol(ia,iy)
+!             write(*,17)'MM loop for iy=',iy,ia,ib,nrel,&
+!                  size(saved%save1),size(saved%save2),size(saved%save3),&
+!                  size(saved%save4),size(saved%save5)
+!17           format(a,3i3,2x,i3,2x,5i3,2x,5i3)
              do ib=1,nrel
 ! Clumsy but I have to allocate savej differently for each phase ...
                 if(jj.eq.1) then
@@ -6112,6 +6119,7 @@ CONTAINS
                    mamu(ib)=mamu(ib)+saved%save5(ib,iy)*morr
                 endif
              enddo
+!             write(*,*)'MM add derivative wrt T and P',jj
              if(jj.eq.1) then
                 mag=mag+saved%save1(nrel+1,iy)*morr
                 if(tpindep(1)) mat=mat+saved%save1(nrel+2,iy)*morr
@@ -6134,9 +6142,11 @@ CONTAINS
                 if(tpindep(2)) map=map+saved%save5(nrel+3,iy)*morr
              endif
           enddo
+!          write(*,*)'MM exit calc_dgdyterms1P'
           goto 1000
        endif
     enddo
+!    write(*,*)'MM calculate as usual'
 !------------------------------------ calculate as usual
 100 continue
 !----------------------------------
@@ -6153,7 +6163,7 @@ CONTAINS
     allocate(zib(nrel))
 !    if(nocon.gt.nrel) then
     if(nocon.ge.nrel) then
-! do not save array for phases with fewer constituents than constituents
+! do not save array for phases with fewer constituents than elements
        big=.TRUE.
        if(allocated(maybesave)) deallocate(maybesave)
        allocate(maybesave(nrel+3,nocon))
@@ -7189,7 +7199,7 @@ CONTAINS
     integer iel,mph,jj,nterm
     double precision xxx,sumam
     double precision, allocatable :: svar(:)
-    character dum*128
+!    character dum*128
 !
     value=zero
 !    if(svr2%statevarid.ne.1) then
@@ -7232,6 +7242,8 @@ CONTAINS
     meqrec=>meqrec1
 !    write(*,88)'MM calling initiate_meqrec',svr2%statevarid,ceq%eqno
 88  format(a,2i4)
+! indicate this is not an iteration by setting iteration number to -1
+    meqrec%noofits=-1
     call initiate_meqrec(svr2,svar,meqrec,ceq)
     if(gx%bmperr.ne.0) goto 1000
     iel=size(svar)
@@ -7309,8 +7321,9 @@ CONTAINS
           sumam=sumam+meqrec%phr(mph)%curd%amfu*meqrec%phr(mph)%curd%abnorm(1)
              jj=jj+1
 ! this dummy write statement is to avoid SEGMENTATION FAULT when -O2
-             write(dum,69)'MM der: ',mph,ceq%tpval(1),value,xxx,&
-                  meqrec%phr(mph)%curd%amfu
+! The segmentation fault persists also in oc5P if this write removed!!
+!             write(dum,69)'MM der: ',mph,ceq%tpval(1),value,xxx,&
+!                  meqrec%phr(mph)%curd%amfu
 69           format(a,i3,6(1pe14.6))
           else
              xxx=zero
@@ -7348,7 +7361,7 @@ CONTAINS
     if(allocated(meqrec1)) deallocate(meqrec1)
 !    if(svr2%statevarid.ne.1) then
 ! This if statement added trying to avoid spurious error (caused by -O2??)
-       write(dum,*)'MM exit meq_state_var_value_derivative',value
+!       write(dum,*)'MM exit meq_state_var_value_derivative',value
 !    endif
     return
   end subroutine meq_state_var_dot_derivative

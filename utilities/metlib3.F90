@@ -86,6 +86,8 @@ MODULE METLIB
   integer :: buperr=0,iox(10)
 ! LSTCMD is the last command given. Saved by NCOMP, used by help routines
   character, private :: lstcmd*40
+! LUN unsed for macros and SAVE files
+  integer :: lun=50
 ! LOGFIL is nonzero if a log file is set
   integer, private :: logfil=0
 ! global values for history
@@ -162,7 +164,7 @@ MODULE METLIB
   TYPE CHISTORY
 ! to save the last 20 lines of commands
      character*80 hline(histlines)
-     integer hpos
+     integer :: hpos=0
   END TYPE CHISTORY
   type(chistory) :: myhistory
 !  
@@ -2924,12 +2926,13 @@ CONTAINS
 !    character*128 binfil(3)
 !    character*128 terfil(3)
 !    EXTERNAL FILHLP
-    SAVE FIRST,LUN
+!    SAVE FIRST,LUN
+    SAVE FIRST
     DATA FIRST/.TRUE./
     IF(FIRST) THEN
        FIRST=.FALSE.
        IUL=0
-       lun=50
+!       lun=50
     ENDIF
     MACFIL=' '
     useext=macext
@@ -2945,7 +2948,7 @@ CONTAINS
     CALL FXDFLT(FIL,MACEXT)
 !    if (LEN_TRIM(fil).gt.0) call tcgffn(fil)
     IF(BUPERR.NE.0) GOTO 910
-!    write(*,*)'open macro: ',iul
+    write(*,*)'open macro: ',lun,iul
 !    LUN=50
     OPEN(LUN,FILE=FIL,ACCESS='SEQUENTIAL',STATUS='OLD', &
          FORM='FORMATTED',IOSTAT=IERR,ERR=910)
@@ -2958,15 +2961,18 @@ CONTAINS
        OK=.FALSE.
        GOTO 900
     ENDIF
-    CALL GPARC(' ',LINE,LAST,1,CH1,'Y',FILHLP)
-    IF(CH1.NE.'Y') THEN
-       CALL SETB(1,IOX(8))
-    ELSEIF(CH1.EQ.'&') THEN
-       CALL CLRB(1,IOX(8))
-    ENDIF
+    write(*,*)'Command input set: ',kiu,iul
+! this is to suprees "press return to continue" but not implemented ...
+!    CALL GPARC(' ',LINE,LAST,1,CH1,'Y',FILHLP)
+!    IF(CH1.NE.'Y') THEN
+!       CALL SETB(1,IOX(8))
+!    ELSEIF(CH1.EQ.'&') THEN
+!       CALL CLRB(1,IOX(8))
+!    ENDIF
     OK=.TRUE.
     KIU=LUN
     LUN=LUN+1
+    write(*,*)'Command input is: ',kiu
     GOTO 900
 !
     ENTRY MACEND(LINE,LAST,OK)
@@ -2995,6 +3001,7 @@ CONTAINS
     LAST=LAST-1
 900 RETURN
 910 OK=.FALSE.
+    write(*,*)'Error ',ierr,' opening macro file: ',trim(fil)
     buperr=1000+ierr
     GOTO 900
   END SUBROUTINE MACBEG
@@ -3283,12 +3290,15 @@ CONTAINS
        if(len_trim(line).eq.0) then
           continue
 !            write(*,*)'Not saving empty line'
-       elseif(myhistory%hpos.gt.0 .and. &
-            line(1:ip+1).eq.myhistory%hline(myhistory%hpos)(1:ip+1)) then
+       elseif(myhistory%hpos.le.0) then
+! saving the first line as
+          myhistory%hpos=1
+          myhistory%hline(myhistory%hpos)=line
+       elseif(line(1:ip+1).eq.myhistory%hline(myhistory%hpos)(1:ip+1)) then
           continue
 !          write(*,*)'Not saving same line'
        else
-          if(myhistory%hpos.eq.histlines) then
+          if(myhistory%hpos.ge.histlines) then
 ! history full, the oldest history line deleted
              do jj=2,histlines
                 myhistory%hline(jj-1)=myhistory%hline(jj)

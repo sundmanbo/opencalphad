@@ -1,3 +1,4 @@
+@$
 new Y
 @$ ================================================================
 @$
@@ -64,9 +65,21 @@ enter element MG Magnesium HCP_A3   2.4305E+01  4.9980E+03  3.2671E+01 2
    enter param G(LIQUID,CU,MG;2)  2.98150E+02 A04+A05*T;   6.00000E+03  N MYVAL
 
 
+@$ OC BUG: The coefficent for T*ln(T) disappear sometimes when plotting
+@$ Test if it is the third term??
+@$ enter phase CUMG2   
+@$ CEF 2 1.0 CU;  2.0 MG;
+@$   enter param G(CUMG2,CU:MG;0) 298.15 +A30+A31*T+A99*T*LN(T)+A32*T*LN(T)+
+@$   A33*T**2+A34*T**(-1)+A35*T**3;   6.00000E+03   N MYVAL
+
+
+@$ OC BUG: enter T*LN(T) as a separate TP function ...
+@$ THIS seems to work ... bug will be fixed when I understand how it happen
+enter TP TLNT fun 1 T*LN(T); 20000 N
+
  enter phase CUMG2   
  CEF 2 1.0 CU;  2.0 MG;
-   enter param G(CUMG2,CU:MG;0) 298.15 +A30+A31*T+A32*T*LN(T)+
+   enter param G(CUMG2,CU:MG;0) 298.15 +A30+A31*T+A32*TLNT+
    A33*T**2+A34*T**(-1)+A35*T**3;   6.00000E+03   N MYVAL
 
 
@@ -97,7 +110,7 @@ enter element MG Magnesium HCP_A3   2.4305E+01  4.9980E+03  3.2671E+01 2
   6.00000E+03 N SL
    enter param G(LAVES_C15,MG:CU;0) 298.15 +34720+2*GHSERMG +GHSERCU; 
   6.00000E+03   N SL
-   enter param G(LAVES_C15,CU:MG;0) 298.15 +A40+A41*T+A42*T*LN(T)
+   enter param G(LAVES_C15,CU:MG;0) 298.15 +A40+A41*T+A42*TLNT
   +A43*T**2+A44*T**(-1)+A45*T**3;   6.00000E+03   N MYVAL
    enter param G(LAVES_C15,MG:MG;0) 298.15 +17700+3*GFCCMG ;   
   6.00000E+03   N SL
@@ -115,9 +128,9 @@ enter element MG Magnesium HCP_A3   2.4305E+01  4.9980E+03  3.2671E+01 2
  l data
 
 
+@&
 @$ POP file converted to oc macro from test.POP
 @$
-set echo 
 
 enter symbol P0=101325
 @$ ==========================================
@@ -126,9 +139,10 @@ set status phase *=sus
 set status PHASE LAVES_C15=ENT 1
 set cond P=P0 T=298.15 N(MG)=1 N(CU)=2
 @$ enter symbol CP=HM.T;
-enter symbol CP1=H.T;
-enter symbol CP=CP1/N;
-enter experiment CP=24.4:.1
+enter symbol CPM2=HM(LAVES).T;
+enter symbol CPM1=HM(CUMG2).T;
+@$ enter symbol CP3=0.3333*H.T;
+enter experiment CPLAV=24.4:.1
 @$ we cannot enter plot_data before the first enter many_equilibria
 @$ enter plot_data 1 298.15 24.4 8 Feufel
 enter comment C15 - CP 298 - FEUFEL
@@ -138,7 +152,7 @@ enter comment C15 - CP 298 - FEUFEL
 enter many_equilibria
 ENT 1        LAVES_C15
 condition P=P0 T=@1 N(MG)=1 N(CU)=2
-experiment CP=@2:.1
+experiment CPM2=@2:.1
 comment FEUFEL C15 - CP DSC
 plot_data 1 @1 @2 8 Feufel
 @$ The plot_data command saves the whole line 
@@ -154,29 +168,29 @@ plot_data 1 @1 @2 8 Feufel
 @$ will be nicer after they have some editing
 @&
 table_start
-EQ_T1_2_CP15 100 17
-EQ_T1_3_CP15 343 24.90
-EQ_T1_4_CP15 363 25.24
-EQ_T1_5_CP15 383 25.37
-EQ_T1_6_CP15 403 25.44
-EQ_T1_7_CP15 423 25.50
-EQ_T1_8_CP15 443 25.60
-EQ_T1_9_CP15 463 25.64
-EQ_T1_10_CP15 483 25.74
-EQ_T1_11_CP15 503 25.82
-EQ_T1_12_CP15 523 25.83
-EQ_T1_13_CP15 543 25.87
-EQ_T1_14_CP15 563 25.94
-EQ_T1_15_CP15 583 26.03
-EQ_T1_16_CP15 603 26.18
-EQ_T1_17_CP15 623 26.23
-EQ_T1_18_CP15 643 26.31
-EQ_T1_19_CP15 663 26.39
-EQ_T1_20_CP15 683 26.64
-EQ_T1_21_CP15 703 26.75
-EQ_T1_22_CP15 723 26.95
-EQ_T1_23_CP15 743 27.47
-EQ_T1_24_CP15 763 27.43
+EQ_T1_2_CP15_F 100 17
+EQ_T1_3_CP15_F 343 24.90
+EQ_T1_4_CP15_F 363 25.24
+EQ_T1_5_CP15_F 383 25.37
+EQ_T1_6_CP15_F 403 25.44
+EQ_T1_7_CP15_F 423 25.50
+EQ_T1_8_CP15_F 443 25.60
+EQ_T1_9_CP15_F 463 25.64
+EQ_T1_10_CP15_F 483 25.74
+EQ_T1_11_CP15_F 503 25.82
+EQ_T1_12_CP15_F 523 25.83
+EQ_T1_13_CP15_F 543 25.87
+EQ_T1_14_CP15_F 563 25.94
+EQ_T1_15_CP15_F 583 26.03
+EQ_T1_16_CP15_F 603 26.18
+EQ_T1_17_CP15_F 623 26.23
+EQ_T1_18_CP15_F 643 26.31
+EQ_T1_19_CP15_F 663 26.39
+EQ_T1_20_CP15_F 683 26.64
+EQ_T1_21_CP15_F 703 26.75
+EQ_T1_22_CP15_F 723 26.95
+EQ_T1_23_CP15_F 743 27.47
+EQ_T1_24_CP15_F 763 27.43
 table_end
 @$
 @&
@@ -184,7 +198,7 @@ table_end
 enter many_equilibria
 ENT 1        LAVES_C15
 condition P=P0 T=@2  N(MG)=1 N(CU)=2
-experiment CP=@3:.1
+experiment CPM2=@3:.1
 comment C15 - PHONON CALC - CRIVELLO
 plot_data 1 @2 @3 2 Crivello
 table_start
@@ -294,7 +308,7 @@ table_end
 enter many_equilibria
 ENT 1        CUMG2
 condition P=P0 T=@1 N(MG)=2 N(CU)=1
-experiment CP=@2:.1
+experiment CPM1=@2:.1
 comment CUMG2 - CP - FEUFEL
 plot_data 2 @1 @2 8 Feufel
 table_start
@@ -431,32 +445,32 @@ experiment AC(MG)=@6:20%
 comment LIQ - MG PRESSURE - GARG
 plot_data 3 @3 @7 9 Garg
 table_start
-EQ_T6_270_MUL_G 270 0.11   1173   8.52514919    -2.1844     0.0065   -49053.0
-EQ_T6_271_MUL_G 271 0.11   1200   8.333333333   -2.1543     0.0070   -49490.3
-EQ_T6_272_MUL_G 272 0.11   1300   7.692307692   -2.0536     0.0088   -51109.8
-EQ_T6_273_MUL_G 273 0.11   1342   7.451564829   -2.0159     0.0096   -51790.0
-EQ_T6_274_MUL_G 274 0.18   1148   8.710801394   -1.7634     0.0172   -38753.7
-EQ_T6_275_MUL_G 275 0.18   1232   8.116883117   -1.6820     0.0208   -39670.3
-EQ_T6_276_MUL_G 276 0.22   1013   9.871668312   -1.6637     0.0217   -32263.4
-EQ_T6_277_MUL_G 277 0.22   1100   9.090909091   -1.5645     0.0273   -32946.3
-EQ_T6_278_MUL_G 278 0.22   1221   8.19000819    -1.4501     0.0355   -33896.0
-EQ_T6_279_MUL_G 279 0.29   1073   9.319664492   -1.2135     0.0612   -24926.4
-EQ_T6_280_MUL_G 280 0.29   1100   9.090909091   -1.1881     0.0648   -25018.9
-EQ_T6_281_MUL_G 281 0.29   1188   8.417508418   -1.1133     0.0770   -25320.4
-EQ_T6_282_MUL_G 282 0.37   1085   9.216589862   -0.8874     0.1296   -18432.3
-EQ_T6_283_MUL_G 283 0.37   1100   9.090909091   -0.8767     0.1328   -18462.2
-EQ_T6_284_MUL_G 284 0.37   1139   8.779631255   -0.8503     0.1412   -18539.8
-EQ_T6_285_MUL_G 285 0.42   1048   9.541984733   -0.7958     0.1600   -15966.9
-EQ_T6_286_MUL_G 286 0.42   1100   9.090909091   -0.7652     0.1717   -16113.2
-EQ_T6_287_MUL_G 287 0.5    1049   9.532888465   -0.6406     0.2288   -12863.9
-EQ_T6_288_MUL_G 288 0.5    1100   9.090909091   -0.6194     0.2402   -13042.6
-EQ_T6_289_MUL_G 289 0.66    845  11.83431953    -0.3770     0.4197   -6098.9
-EQ_T6_290_MUL_G 290 0.66    900  11.11111111    -0.3597     0.4369   -6196.8
-EQ_T6_291_MUL_G 291 0.66   1022   9.784735812   -0.3278     0.4701   -6414.0
-EQ_T6_292_MUL_G 292 0.76    913  10.95290252    -0.1985     0.6332   -3469.1
-EQ_T6_293_MUL_G 293 0.76   1003   9.970089731   -0.1877     0.6491   -3603.5
-EQ_T6_294_MUL_G 294 0.9     892  11.21076233    -0.0718     0.8475   -1226.8
-EQ_T6_295_MUL_G 295 0.9    1003   9.970089731   -0.0669     0.8573   -1284.2
+EQ_T6_270_ACL_G 270 0.11   1173   8.52514919    -2.1844     0.0065   -49053.0
+EQ_T6_271_ACL_G 271 0.11   1200   8.333333333   -2.1543     0.0070   -49490.3
+EQ_T6_272_ACL_G 272 0.11   1300   7.692307692   -2.0536     0.0088   -51109.8
+EQ_T6_273_ACL_G 273 0.11   1342   7.451564829   -2.0159     0.0096   -51790.0
+EQ_T6_274_ACL_G 274 0.18   1148   8.710801394   -1.7634     0.0172   -38753.7
+EQ_T6_275_ACL_G 275 0.18   1232   8.116883117   -1.6820     0.0208   -39670.3
+EQ_T6_276_ACL_G 276 0.22   1013   9.871668312   -1.6637     0.0217   -32263.4
+EQ_T6_277_ACL_G 277 0.22   1100   9.090909091   -1.5645     0.0273   -32946.3
+EQ_T6_278_ACL_G 278 0.22   1221   8.19000819    -1.4501     0.0355   -33896.0
+EQ_T6_279_ACL_G 279 0.29   1073   9.319664492   -1.2135     0.0612   -24926.4
+EQ_T6_280_ACL_G 280 0.29   1100   9.090909091   -1.1881     0.0648   -25018.9
+EQ_T6_281_ACL_G 281 0.29   1188   8.417508418   -1.1133     0.0770   -25320.4
+EQ_T6_282_ACL_G 282 0.37   1085   9.216589862   -0.8874     0.1296   -18432.3
+EQ_T6_283_ACL_G 283 0.37   1100   9.090909091   -0.8767     0.1328   -18462.2
+EQ_T6_284_ACL_G 284 0.37   1139   8.779631255   -0.8503     0.1412   -18539.8
+EQ_T6_285_ACL_G 285 0.42   1048   9.541984733   -0.7958     0.1600   -15966.9
+EQ_T6_286_ACL_G 286 0.42   1100   9.090909091   -0.7652     0.1717   -16113.2
+EQ_T6_287_ACL_G 287 0.5    1049   9.532888465   -0.6406     0.2288   -12863.9
+EQ_T6_288_ACL_G 288 0.5    1100   9.090909091   -0.6194     0.2402   -13042.6
+EQ_T6_289_ACL_G 289 0.66    845  11.83431953    -0.3770     0.4197   -6098.9
+EQ_T6_290_ACL_G 290 0.66    900  11.11111111    -0.3597     0.4369   -6196.8
+EQ_T6_291_ACL_G 291 0.66   1022   9.784735812   -0.3278     0.4701   -6414.0
+EQ_T6_292_ACL_G 292 0.76    913  10.95290252    -0.1985     0.6332   -3469.1
+EQ_T6_293_ACL_G 293 0.76   1003   9.970089731   -0.1877     0.6491   -3603.5
+EQ_T6_294_ACL_G 294 0.9     892  11.21076233    -0.0718     0.8475   -1226.8
+EQ_T6_295_ACL_G 295 0.9    1003   9.970089731   -0.0669     0.8573   -1284.2
 table_end
 @$
 @$=================================
@@ -728,10 +742,11 @@ enter plot_data 8 0.5 -2600 3 07Wol
 enter comment FCC_A1 - SQS - 07WOL
 @$
 @$=================================
+@$ BOSSE: CHANGED FIX PHASE, eq 504 strange and removed
 enter many_equilibria
-FIX 1        LIQ
-ENT 1        @3
-condition P=P0 N=1 X(MG)=@4
+ENT 1        LIQ
+FIX 0        @3
+condition P=P0 N=1 X(LIQ,MG)=@4
 experiment T=@5:5
 comment LIQUIDUS @7
 plot_data 9 @4 @5 7 @7
@@ -739,7 +754,7 @@ table_start
 EQ_T14_501_XLIQ_F 501   ALF   FCC_A1       0.026   1338   9      08SAH
 EQ_T14_502_XLIQ_F 502   ALF   FCC_A1       0.075   1263   9      08SAH
 EQ_T14_503_XLIQ_F 503   ALF   FCC_A1       0.132   1174   9      08SAH
-EQ_T14_504_XLIQ_F 504   ALF   FCC_A1,L_C15 0.223   1009   9      08SAH
+@$ EQ_T14_504_XLIQ_F 504   ALF   FCC_A1,L_C15 0.223   1009   9      08SAH
 EQ_T14_505_XLIQ_C 505   ALC   L_C15        0.283   1062   9      08SAH
 EQ_T14_506_XLIQ_C 506   ALC   L_C15        0.339   1070   9      08SAH
 EQ_T14_507_XLIQ_C 507   ALC   L_C15        0.351   1070   9      08SAH
@@ -763,9 +778,9 @@ table_end
 @$
 @$=================================
 enter many_equilibria
-FIX 1        LIQ
-ENT 1        @3
-condition P=P0 N=1 X(MG)=@4
+ENT 1        LIQ
+FIX 0        @3
+condition P=P0 N=1 X(LIQ,MG)=@4
 experiment T=@5:5
 comment LIQUIDUS @7
 plot_data 9 @4 @5 8 @7
@@ -887,9 +902,9 @@ table_end
 @$
 @$=================================
 enter many_equilibria
-FIX 1        LIQ
-ENT 1        @3
-condition P=P0 N=1 X(MG)=@4
+ENT 1        LIQ
+FIX 0        @3
+condition P=P0 N=1 X(LIQ,MG)=@4
 experiment T=@5:5
 comment LIQUIDUS @7
 plot_data 9 @4 @5 2 @7
@@ -907,9 +922,9 @@ table_end
 @$
 @$=================================
 enter many_equilibria
-FIX 1        LIQ
-ENT 1        @3
-condition P=P0 N=1 X(MG)=@4
+ENT 1        LIQ
+FIX 0        @3
+condition P=P0 N=1 X(LIQ,MG)=@4
 experiment T=@5:5
 comment LIQUIDUS @7
 plot_data 9 @4 @5 6 @7
@@ -1078,7 +1093,8 @@ enter comment CUMG2 - CONGRUENT MELTING - 78BAG
 @$
 @$=================================
 enter many_equilibria
-ENT 1        @3,@4
+ENT 1        @3
+FIX 0        @4
 condition P=P0 N=1 X(MG)=@9 T=@6
 experiment X(L_C15,MG)=@5:0.001
 plot_data 9 @5 @6 12 @8
@@ -1143,20 +1159,57 @@ set range 2
 
 
 @&
+@$ list the symbols entered
+l sym
+
+
+
 @$ setting weight zero for all experiments
 
 set wei 0 *
 
 @&
 
-@$ Select experiments with MU and H for liquid only
+save unf
+CuMg assessment step1
+cumg1
+Y
 
-set wei 1 MUL
+@$ Check phase diagram with all parameters zero
+
+mac plot-diag
+
+
+
+@&
+
+@$ Cu-Mg assment: step 1: H in liquid
+@$
+
+new Y
+
+set echo
+
+read u
+cumg1
+
+
+@&
+@$ Select experiments with H for liquid from Sommer and Garg
+@$ 
+
+set wei 1 ACL
 
 set wei 1 HLIQ
 
+set wei 0 HLIQ_B
+
+set wei 0 HLIQ_H
+
 @&
 @$ Calculate all non-zero experiments
+
+
 
 calc all n
 
@@ -1166,19 +1219,16 @@ calc all n
 l ph liq data
 
 @&
-@$ Set start values for the coefficients
+@$ Vary the T-independent regular parameter 
+@$ If I start from zero the parameter is not considered!!! <<<<<<<<<<<
 
-set var 0 10000
-
-set var 1 -1
-
-set var 2 10000
+set var 0 1
 
 list opt
 
 
 @&
-@$ Optimize the parameters
+@$ Optimize the just one parameter
 
 opt 100
 
@@ -1194,103 +1244,61 @@ list opt
 l tp
 
 
+@$ PARROT gives -32795.4708; with OC and same data I get -32795.5407
 @&
-@$ List all equilibria
+@$ Plot
 
-l eq
-
-@&
-@$ Select one of them by name or number
-
-sel eq 270
-
-@$ List this equilibrium
-
-l,,,,
+macro plot-hliq
 
 @&
-@$ Just to test calculation of the congruent melting
+@$ -----------------------------------------------
+@$ Vary the subregular T-independent parameter
 
-set fix 40 -200000
+set var 2 1
 
-sel eq 546
+opt 100
 
-l,,,,
+l opt
+
+l tp
+
+macro plot-hliq
+
+@$ -----------------------------------------------
 @&
-@$ we must help the program by calculate liquid with correct composition
+@$ Vary the T-dependent regular parameter
 
-c ph liq 1 n
-.66
+set var 1 0.1
 
+opt 100
 
-c ph lav 0 n
-.99
-.01
+l tp
 
-
-@$ Then calculate without grid minimizer
-
-c n
-
-l,,,,
+@$ TC gives -34743; -4.1502; -9650    sum of errors 14.963
+@$ OC gives -34742; -4.1419; -9651    sum or errors 14.963
 
 @&
-@$ Calculate the enthalpy curve and overlay experiments
-
-sel eq 1
-
-set c t=1100 p=15 n=1 x(mg)=.1
-
-set ref cu liq ,,,,,
-
-set ref mg liq ,,,,,
-
-set ax 1 x(mg) 0 1 ,,
-
-set status ph *=s
-
-set status ph liq=e 1
-
-c e
-
-step
-
-
-plot
-x(mg)
-hm
+macro plot-hliq
 
 
 @&
-@$ plot together with a data file with experimental data
-plot
-x(mg)
-hm
-append
-hliq.plt
-
+macro plot-diag
 
 
 @&
-@$ The experimental data file has been edited manually from files
-@$ created when we executed the command "enter Many_equilibria"
-@$ The program saved lines with plot_data on various files to be plotted. 
-@$ The one with enthalpy of mixing had dataset number 5 and is called 
-@$ oc_many5.plt
-@$ It needs some editing to display the references for the data 
-@$ but we can append it as it is also.
+@$ Fix the liquid parameters
 
-plot
+set fix 0-3
 
+@$ Remove equilibria created by STEP/MAP
 
-append
-oc_many5
+delete equil  _*
 
+save unf
+done step 1
+cumg2
+Y
 
+set inter
 
-
-
-@$ Now continue on your own ...
-
-set interactive 
 

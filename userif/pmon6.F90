@@ -147,8 +147,9 @@ contains
     integer :: nopt1=100, mexp=0,nvcoeff,nopt
     integer iwam(lwam)
     double precision wam(lwam)
-    double precision :: acc=1.0D-3
+    double precision :: optacc=1.0D-3
     logical :: updatemexp=.true.
+    double precision err0(2)
 ! occational segmentation fault when deallocating www ....
 !    double precision, dimension(maxw) :: www
 !    double precision, dimension(:), allocatable :: www
@@ -2460,13 +2461,13 @@ contains
 !          endif
 !-------------------------
        case(21) ! set optimizing_conditions
-          write(*,*)'LMDIF has no conditions to change ...'
+!          write(*,*)'LMDIF has no conditions to change ...'
 !          call gparrd('DSTEP (VA05AD): ',cline,last,xxx,dstep,q1help)
 !          dstep=xxx
 !          call gparrd('DMAX (VA05AD): ',cline,last,xxx,dmax2,q1help)
 !          dmax2=xxx
-          call gparrd('Accuracy: ',cline,last,xxx,acc,q1help)
-          acc=xxx
+          call gparrd('LMDIF accuracy: ',cline,last,xxx,optacc,q1help)
+          optacc=xxx
 !-------------------------
        case(22) ! set range_experimental_equilibria
           if(allocated(firstash%eqlista)) then
@@ -3442,7 +3443,12 @@ contains
 !                   write(*,*)'You must OPTIMIZE first'
 !                   goto 100
 !                endif
-               call listoptshort(lut,mexp,errs)
+                if(allocated(errs)) then
+                   call listoptshort(lut,mexp,errs)
+                else
+                   call listoptcoeff(lut)
+                   write(kou,*)'No current optimization'
+                endif
 !...........................................................
              case(2) ! long
                 write(*,*)'Not implemented yet'
@@ -5110,11 +5116,61 @@ contains
 569       format('Cannot optimize with zero experiments or coefficients',2i5)
           goto 100
        endif
-       write(*,558)mexp,nvcoeff
-558    format(/'>>>   Start of optimization   >>>'/&
-            'Experiments, coefficients and workspace: ',3(1x,i5))
+       write(*,558)mexp,nvcoeff,lwam
+558    format(/'*************************************************************'/&
+            '>>>   Start of optimization using LMDIF'/&
+            '>>>   with ',i4,' experiments and ',i3,' coefficients ',/&
+            '>>>   and allocated workspace ',i5/&
+            '*************************************************************')
 !
-       call lmdif1(mexp,nvcoeff,coefs,errs,acc,nopt,iwam,wam,lwam)
+       j1=nopt
+       call lmdif1(mexp,nvcoeff,coefs,errs,optacc,nopt,iwam,wam,lwam,err0)
+!
+! on return nopt is set to a message, calculate final sum of errots
+       xxx=zero
+       do i2=1,mexp
+          xxx=xxx+errs(i2)**2
+       enddo
+       err0(2)=xxx
+! some nice output .....
+       write(kou,5010)err0
+5010   format('**************************************************************'/&
+            'Sum of errors changed from ',1pe14.6,' to ',1pe14.6)
+       if(j1.eq.0) then
+          write(*,*)'Dry run with zero iterations'
+       elseif(nopt.eq.0) then
+          write(kou,5000)nopt
+5000      format(/'*** No optimization due to improper input parameters',i3/)
+       elseif(nopt.eq.1) then
+          write(kou,5001)optacc,nopt
+5001      format(/'Relative error of sum of squares is within ',1pe10.2,2x,i3/)
+       elseif(nopt.eq.2) then
+          write(kou,5002)optacc,nopt
+5002      format(/'Relative error of parameters is within ',1pe10.2,2x,i3/)
+       elseif(nopt.eq.3) then
+          write(kou,5003)nopt
+5003      format(/'Successful optimization, minimum sum of errors found',i3/)
+       elseif(nopt.eq.4) then
+          write(kou,5004)nopt
+5004      format(/'*** Sum of squares does not decrease',i3/)
+       elseif(nopt.eq.5) then
+          write(kou,5005)nopt
+5005      format(/'*** Maximum calls of function exceeded',i3/)
+       elseif(nopt.eq.6) then
+          write(kou,5006)optacc,nopt
+5006      format(/'*** Cannot reduce error, requested accuracy ',1pe10.2,&
+               ' too small',i3/)
+! '*** Cannot reduce error, requested accuracy 123456789. too small__6
+       elseif(nopt.eq.6) then
+          write(kou,5007)optacc,nopt
+5007      format(/'*** Cannot improve result, requested accuracy ',1pe10.2,&
+               ' too small',i3/)
+       else
+          write(kou,5008)nopt
+5008      format('*** Unknown error',i3)
+       endif
+       write(kou,5020)
+5020   format('**************************************************************'/)
 ! we must copy the current scaled coefficients back to firstash%coeffvalues
        i2=1
        do i1=0,size(firstash%coeffstate)-1
@@ -5549,7 +5605,7 @@ contains
        write(lut,621)sum,mexp,j2,zero
     endif
 621 format(/'Final sum of squared errors: ',1pe16.5/'Experiments: ',i3,&
-         ', coefficents: ',i3,': Normalized error: ',1pe16.5)
+         ', coefficents: ',i3,', normalized error: ',1pe16.5/)
 1000 continue
     return
   end subroutine listoptshort

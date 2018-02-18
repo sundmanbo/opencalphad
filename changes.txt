@@ -13,6 +13,11 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2018.02.18 OC version 5.002: Several tests using for example -lefence
+and -Wmaybe-uninitiate compiler directive on Linux has cleand up some
+spurious errors and increased the stability.  The assessment macro has
+also been extended and modified.
+
 2018.02.14 OC version 5.001: For this first update I have added new
 versions of the "getting-started", "news-OC5" and the "OC5-Macros".
 The remaining documentation is still old.
