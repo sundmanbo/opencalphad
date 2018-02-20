@@ -2840,6 +2840,8 @@ CONTAINS
 ! zero all values in equil matrix, dimension (nz1)x(nz1)
     nz2=nz1+1
     smat=zero
+! CCI Bugfixes by Clemnet Introini indicated by CCI    2018.02.20
+    evalue=zero
 !    dncol=0
 !    write(*,*)'in setup_equil: ',converged,nz1,meqrec%tpindep
     if(converged.ge.0) then
@@ -5558,6 +5560,8 @@ CONTAINS
     double precision, parameter :: xdiff=0.05D0
     double precision, dimension(maxel) :: xmol1,xmol2,wmass
     double precision amount,totmol,totmass,xdiffm,xdiffc
+! CCI
+    same_composition=.FALSE.
 ! check if any other compset of the phase stable with same composition
     call calc_phase_molmass(phr(jj)%iph,phr(jj)%ics,xmol1,wmass,&
          totmol,totmass,amount,ceq)
@@ -5623,7 +5627,7 @@ CONTAINS
 ! try to reset this composition set to default constition
     call set_default_constitution(phr(jj)%iph,phr(jj)%ics,ceq)
     if(gx%bmperr.ne.0) goto 1000
-    goto 1000
+!    goto 1000
 !
 1000 continue
     return
@@ -7268,6 +7272,7 @@ CONTAINS
        value=xxx*ceq%rtn
 ! there can be a suffix S ??
 !       gx%bmperr=4215; goto 1000
+! CCI already corrected
     elseif(svr1%statevarid.ge.6 .and. svr1%statevarid.lt.15) then
 ! This is derivatives of U, S, etc, H has svr1%statevarid=9, oldstv=40
 ! TO BE DONE: implement H(phase).T and normalizing 
@@ -7421,6 +7426,8 @@ CONTAINS
     allocate(mamu(meqrec%nrel))
     pmi=>meqrec%phr(iph)
     value=zero
+! CCI
+    hconfig=zero
     if(iel.lt.0) then
 ! sum for all elements
        write(*,*)'sum over elements not implemented'
@@ -7533,12 +7540,17 @@ CONTAINS
 !          write(*,666)'x1: ',ceq%rtn,dpham,pmi%curd%gval(1,1),&
 !               ceq%tpval(1)*pmi%curd%gval(2,1),x1
 ! x2 is phase_amount * dH/dT = .. -T*d2G/dT2 = -T
+! CCI changed order of tests, does not work for step1
           if(dpham.ne.zero) then
              x2=-ceq%rtn*pmi%curd%amfu*ceq%tpval(1)*pmi%curd%gval(4,1)
           elseif(svr1%norm.eq.1) then
+!xCCI          if(svr1%norm.eq.1) then
 ! compared with Thermo-Calc this seems correct, it is just HM(phase).T
              x2=-ceq%rtn*ceq%tpval(1)*pmi%curd%gval(4,1)
+!xCCI          else
+!xCCI             x2=-ceq%rtn*pmi%curd%amfu*ceq%tpval(1)*pmi%curd%gval(4,1)
           endif
+! CCI end of correction
        case(10) !A = G - PV
           write(*,*)'Not implemeneted yet: ',svr1%statevarid
        case(11) !G itself

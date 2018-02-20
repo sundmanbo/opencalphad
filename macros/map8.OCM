@@ -173,7 +173,7 @@ title map8 fig 1
 @&
 
 
-set c x(ni)=.4 t=200
+set c x(ni)=.4
 
 c e
 

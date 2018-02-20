@@ -5583,13 +5583,13 @@
 !\end{verbatim}
     integer phtup,nextset,lokcs1,lokcs2,ic,ll,lokph,ss,ts
 ! max 9 sublattices
-    integer iymin(9),iymax(9)
+    integer iymin(9),iymax(9),qq
     double precision ymax(9),ymin(9),ysame
     double precision, allocatable :: yarr(:)
 !    write(*,*)'3Y Check if two composition sets are same: ',ceq%tpval(1)
     allph: do phtup=1,nooftup()
        nextset=phasetuple(phtup)%nextcs
-       if(nextset.eq.0) cycle allph
+       if(nextset.le.0) cycle allph
        lokph=phasetuple(phtup)%lokph
        lokcs1=phasetuple(phtup)%lokvares
        lokcs2=phasetuple(nextset)%lokvares
@@ -5597,8 +5597,10 @@
        ymax=zero
        iymin=0
        iymax=0
-       ts=size(ceq%phase_varres(lokcs1)%yfr)
+!       ts=ceq%phase_varres(lokcs1)%tnoofr
+       ts=phlista(lokph)%tnooffr
        ll=1
+       qq=phlista(lokph)%nooffr(1)
        do ic=1,ts
           ysame=ceq%phase_varres(lokcs1)%yfr(ic)
           if(abs(ysame-ceq%phase_varres(lokcs2)%yfr(ic)).gt.1.0D-2) then
@@ -5607,7 +5609,15 @@
 !          write(*,77)'3Y d2:',lokcs2,(ceq%phase_varres(lokcs2)%yfr(ss),ss=1,ts)
              cycle allph
           else
-             if(ic.gt.phlista(lokph)%nooffr(ll)) ll=ll+1
+! map8 gave segmentation fault here, fixed ??
+!             write(*,10)'3Y qq: ',phtup,nextset,ic,qq,ll,ts,&
+!                  phlista(lokph)%nooffr(ll),size(phlista(lokph)%nooffr),&
+!                  size(ceq%phase_varres(lokcs2)%yfr)
+!10           format(a,10i5)
+             if(ic.gt.qq) then
+                ll=ll+1
+                qq=qq+phlista(lokph)%nooffr(ll)
+             endif
              if(ysame.lt.ymin(ll)) then
                 iymin(ll)=ic; ymin(ll)=ysame
              endif

@@ -2171,6 +2171,17 @@
 ! we have not found any endmember record so we have to insert a record here
 ! lokem may be nonzero if we exited from findem loop to this label
 ! this subroutine is in gtp3G (why?)
+! elinks is allocated in bccpermut or fccpermut.  If no permutation it is not
+! allocated which may cause segentation faults
+   if(noperm.gt.1) then
+      if(.not.allocated(elinks)) then
+         write(*,*)'3B permutations but no elinks!'
+         gx%bmperr=4399; goto 1000
+      endif
+   elseif(.not.allocated(elinks)) then
+! allocate a dummy elinks to avoid segmentation fault compiling with -lefence
+         allocate(elinks(1,1))
+   endif
    call create_endmember(lokph,newem,noperm,nsl,iord,elinks)
 !    write(*,*)'3B enter_par: created endmember ',new
    if(gx%bmperr.ne.0) goto 1000
@@ -2211,6 +2222,15 @@
 ! It seems this record is created but never used so it remains empty
 ! create_interaction routine is in gtp3G.F90
          if(lfun.eq.-1) goto 900
+         if(intperm(1).gt.0) then
+            if(.not.allocated(intlinks)) then
+               write(*,*)'3B permutations but no intlinks!'
+               gx%bmperr=4399; goto 1000
+            endif
+         elseif(.not.allocated(intlinks)) then
+! allocate a dummy intlinks to avoid segmentation fault compiling with -lefence
+            allocate(intlinks(1,1))
+         endif
          call create_interaction(newintrec,mint,jord,intperm,intlinks)
          if(gx%bmperr.ne.0) goto 1000
          endmemrec%intpointer=>newintrec
@@ -2296,6 +2316,15 @@
 !         write(*,303)'3B create at 310:',mint,nint,newint,firstint,highint,&
 !              jord(1,mint),jord(2,mint)
 ! in gtp3G
+         if(intperm(1).gt.0) then
+            if(.not.allocated(intlinks)) then
+               write(*,*)'3B permutations but no intlinks!'
+               gx%bmperr=4399; goto 1000
+            endif
+         elseif(.not.allocated(intlinks)) then
+! allocate a dummy intlinks to avoid segmentation fault compiling with -lefence
+            allocate(intlinks(1,1))
+         endif
          call create_interaction(newintrec,mint,jord,intperm,intlinks)
          if(gx%bmperr.ne.0) goto 1000
          if(newint.eq.1) then

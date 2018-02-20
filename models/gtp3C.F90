@@ -4500,13 +4500,16 @@
                   valency(isubl)=splista(isp)%charge
                   if(abs(valency(isubl)).lt.1.0D-6) valency(isubl)=zero
                endif
+! here we cannot have ionic liquid here!
                if(ionliq .and. isubl.eq.2) then
+                  write(*,*)'3C we cannot have an ionic liquid here!'
                   do i3=1,noofel
                      constcomp(i3)=-constcomp(i3)*valency(2)
                   enddo
                elseif(estoi(i1).lt.0) then
-! charged sublattice phase
-                  constcomp(-estoi(i1))=constcomp(-estoi(i1))+&
+! charged sublattice phase.  Electronic stoichiometry should be positive!
+!                  constcomp(-estoi(i1))=constcomp(-estoi(i1))+&
+                  constcomp(-estoi(i1))=constcomp(-estoi(i1))-&
                        valency(isubl)*varres%sites(isubl)
 !               write(*,901)'3C e-stoik:',isubl,-estoi(i1),&
 !                    valency(isubl),varres%sites(isubl),constcomp(-estoi(i1))
@@ -4522,6 +4525,7 @@
 ! skip vacancies
                      continue
                   elseif(ionliq) then
+                     write(*,*)'#C we should never be here if ionic liquid 2'
                      if(isubl.eq.1) then
                         constcomp(i3)=constcomp(i3)+&
                              splista(isp)%stoichiometry(i2)
@@ -4820,11 +4824,11 @@
                   endif
                   decimals=int(1.0D2*constcomp(i3))
                   xxx=1.0D-2*dble(decimals)
-                  if(xxx-constcomp(i3).ne.zero) then
+                  if(abs(xxx-constcomp(i3)).gt.1.0D-6) then
                      warnings=warnings+1
-                     write(*,203)trim(constext),i3,constcomp(i3)
+                     write(*,203)trim(constext),i3,constcomp(i3),xxx
 203                  format('3C *** Warning stoichiometry with >2 decimals: ',&
-                          a,i4,F10.6)
+                          a,i4,2F10.6)
                   endif
                enddo
 ! according to Ted
@@ -4944,8 +4948,9 @@
 270         format(9i5)
          endif
       endif
-! For all mixtures we should write the constituents of all sublattices
+! For all phases with sublattices we should write the constituents of each
 ! problem here for UC2_C11A, constituent in first sublattice ignored
+      if(nsubl.eq.1) goto 280
       i3=0
 !      do isubl=1,phlista(lokph)%noofsubl
       do isubl=1,nsubl
@@ -4980,6 +4985,7 @@
             write(lut,100)trim(constext)
          endif
       enddo
+280   continue
       if(model(1:4).eq.'SUBI') then
 ! There should be a line with just a "2" ???
          write(lut,272)

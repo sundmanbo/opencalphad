@@ -167,7 +167,7 @@ plot
 x(*,c)
 HM(*)
 tie 3
-
+title map 3 fig 6
 
 
 @&
