@@ -126,7 +126,7 @@ contains
 ! temporary integer variables in loops etc
     integer i1,i2,j1,iax
 ! more temporary integers
-    integer jp,kl,svss,language,last,leak
+    integer jp,kl,svss,language,last,leak,j3
 ! and more temporary integers
     integer ll,lokcs,lokph,lokres,loksp,lrot,maxax
 ! and more temporary integers
@@ -1367,10 +1367,20 @@ contains
                               i5,': ',a,' reset ')
                          gx%bmperr=0
                       elseif(idef.eq.1) then
+! extract names of stable phases
+                         jp=1
+                         line=' '
+                         do j3=1,nooftup()
+                            phtup=>phasetuple(j3)
+         if(neweq%phase_varres(phtup%lokvares)%phstate.ge.PHENTSTAB) then
+             call get_phasetup_name(j3,line(jp:))
+             jp=len_trim(line)+2
+          endif
+                         enddo
                          write(lut,2052)neweq%eqno,&
                               neweq%eqname(1:len_trim(neweq%eqname)),&
-                              neweq%tpval(1)
-2052                     format('Calculated equilibrium ',i5,2x,a,', T=',F8.2)
+                              neweq%tpval(1),trim(line)
+2052                     format(i5,2x,a,', T=',F8.2,', ',a)
                       endif
                    endif
 ! extra symbol calculations ....
@@ -1418,9 +1428,19 @@ contains
 !                         write(*,*)'Error: ',gx%bmperr
                          gx%bmperr=0
                       elseif(idef.eq.1) then
+! extract names of stable phases
+                         jp=1
+                         line=' '
+                         do j3=1,nooftup()
+                            phtup=>phasetuple(j3)
+         if(neweq%phase_varres(phtup%lokvares)%phstate.ge.PHENTSTAB) then
+             call get_phasetup_name(j3,line(jp:))
+             jp=len_trim(line)+2
+          endif
+                         enddo
                          write(lut,2052)neweq%eqno,&
                               neweq%eqname(1:len_trim(neweq%eqname)),&
-                              neweq%tpval(1)
+                              neweq%tpval(1),trim(line)
                       endif
                    endif
 ! Listing extra'
@@ -1731,6 +1751,9 @@ contains
 ! temperature * means always to use current temperature
              xxy=-one
              call gparr('Temperature: /*/: ',cline,last,xxx,xxy,q1help)
+!             write(*,*)'problem: ',buperr,xxx,xxy,one
+! when calling gparr the default was not "set" as default and rubbish returned
+! now the default is always the default even if not shown
              if(buperr.ne.0) then
                 buperr=0
                 tpa(1)=-one
@@ -2345,11 +2368,12 @@ contains
                      '15  calculations in parallel is not allowed'/'-'/&
                      '16  no global test at node points during STEP/MAP'/&
                      '17  the components are not the elements'/&
-                     '18  global test of equilibrium AFTER calculation'/&
+                     '18  test if equilibrium global AFTER calculation'/&
                      '19  use old grid minimizer'/'-'/&
                      '20  do not recalculate if global test AFTER fails'/&
                      '21  use old map algorithm'/&
-                     '22-31 unused')
+                     '22  do not generate automatic startpoints for MAP'/&
+                     '23-31 unused')
                 goto 3708
              endif
              if(ll.lt.0 .or. ll.gt.31) then
@@ -2418,7 +2442,14 @@ contains
 ! possible loop if i2>i1
           j1=i1
 3740      continue
+!          write(*,*)'pmon: ',i1,i2,j1
           xxy=firstash%coeffvalues(j1)*firstash%coeffscale(j1)
+! this coefficeint is not used, igore unless i1=i2
+          if(i2.gt.i1 .and. firstash%coeffstate(j1).eq.0) goto 3745
+          if(firstash%coeffstate(j1).lt.10) then
+             nvcoeff=nvcoeff+1
+          endif
+          firstash%coeffstate(j1)=10
           if(i1.eq.i2) then
 ! when setting a single coefficient variable ask for value
              call gparrd('Start value: ',cline,last,xxx,xxy,q1help)
@@ -2434,21 +2465,17 @@ contains
 !             call gparrd('Start value: ',cline,last,xxx,xxy,q1help)
 !             if(buperr.ne.0) goto 100
           else
-! set coefficient variable with current value
+! coefficient used, set it variable with current value
              xxx=xxy
-          endif
 ! set new value
-          call change_optcoeff(firstash%coeffindex(j1),xxx)
-          if(gx%bmperr.ne.0) goto 100
-          firstash%coeffvalues(j1)=one
-          firstash%coeffscale(j1)=xxx
-          firstash%coeffstart(j1)=xxx
+!          call change_optcoeff(firstash%coeffindex(j1),xxx)
+!          if(gx%bmperr.ne.0) goto 100
+!          firstash%coeffvalues(j1)=one
+!          firstash%coeffscale(j1)=xxx
+!          firstash%coeffstart(j1)=xxx
 ! mark an optimized coefficient without min/max
-          if(firstash%coeffstate(j1).lt.10) then
-             nvcoeff=nvcoeff+1
           endif
-          firstash%coeffstate(j1)=10
-          if(i2.gt.j1) then
+3745      if(i2.gt.j1) then
              j1=j1+1
              goto 3740
           endif
@@ -3443,10 +3470,10 @@ contains
 !                   write(*,*)'You must OPTIMIZE first'
 !                   goto 100
 !                endif
+                call listoptcoeff(lut)
                 if(allocated(errs)) then
                    call listoptshort(lut,mexp,errs)
                 else
-                   call listoptcoeff(lut)
                    write(kou,*)'No current optimization'
                 endif
 !...........................................................
@@ -5506,51 +5533,6 @@ contains
     double precision xxx,sum
     type(gtp_condition), pointer :: experiment
 !
-    write(lut,610)
-610 format(/'List of coefficents with non-zero values'/&
-         'Name  Current value   Start value    Scaling factor',&
-         ' Rel.Stand.Dev.')
-    name1=' '
-    j2=0
-    do i1=0,size(firstash%coeffstate)-1
-!       write(*,611)i1,firstash%coeffstate(i1)
-!611                format('Coefficient ',i2,' state ',i2)
-       coeffstate: if(firstash%coeffstate(i1).ge.10) then
-! optimized variable, read from TP constant array
-          call get_value_of_constant_index(firstash%coeffindex(i1),xxx)
-          call makeoptvname(name1,i1)
-          write(lut,615)name1(1:3),xxx,&
-               firstash%coeffstart(i1),firstash%coeffscale(i1),zero
-615       format(a,2x,4(1pe15.6))
-          j2=j2+1
-          if(firstash%coeffstate(i1).eq.11) then
-! there is a prescribed minimum
-             write(lut,616)' minimum ',firstash%coeffmin(i1)
-616          format(6x,'Prescribed ',a,': ',1pe12.4)
-          elseif(firstash%coeffstate(i1).eq.12) then
-! there is a prescribed minimum
-             write(lut,616)' maximum ',firstash%coeffmax(i1)
-          elseif(firstash%coeffstate(i1).eq.13) then
-! there is a prescribed minimum
-             write(lut,617)firstash%coeffmin(i1),firstash%coeffmax(i1)
-617          format(6x,'Prescribed min and max: ',2(1pe12.4))
-          elseif(firstash%coeffstate(i1).gt.13) then
-             write(lut,*)'Wrong coefficent state, set to 10'
-             firstash%coeffstate(i2)=10
-          endif
-       elseif(firstash%coeffstate(i1).gt.0) then
-! fix variable status
-          call get_value_of_constant_index(firstash%coeffindex(i1),xxx)
-          call makeoptvname(name1,i1)
-          write(lut,615)name1(1:3),xxx
-       elseif(firstash%coeffscale(i1).ne.0) then
-! coefficient with negative status, status set to 1
-          call get_value_of_constant_index(firstash%coeffindex(i1),xxx)
-          write(lut,619)i1,firstash%coeffscale(i1),xxx,zero
-619       format('Wrong state for coefficient ',i3,4(1pe12.4))
-          firstash%coeffstate(i1)=1
-       endif coeffstate
-    enddo
 ! list all experiments, only possible if there are experiments
     if(mexp.eq.0) then
        write(lut,666)

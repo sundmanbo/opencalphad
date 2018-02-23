@@ -2948,7 +2948,7 @@ CONTAINS
     CALL FXDFLT(FIL,MACEXT)
 !    if (LEN_TRIM(fil).gt.0) call tcgffn(fil)
     IF(BUPERR.NE.0) GOTO 910
-    write(*,*)'open macro: ',lun,iul
+!    write(*,*)'open macro: ',lun,iul
 !    LUN=50
     OPEN(LUN,FILE=FIL,ACCESS='SEQUENTIAL',STATUS='OLD', &
          FORM='FORMATTED',IOSTAT=IERR,ERR=910)
@@ -2961,7 +2961,7 @@ CONTAINS
        OK=.FALSE.
        GOTO 900
     ENDIF
-    write(*,*)'Command input set: ',kiu,iul
+!    write(*,*)'Command input set: ',kiu,iul
 ! this is to suprees "press return to continue" but not implemented ...
 !    CALL GPARC(' ',LINE,LAST,1,CH1,'Y',FILHLP)
 !    IF(CH1.NE.'Y') THEN
@@ -2972,7 +2972,7 @@ CONTAINS
     OK=.TRUE.
     KIU=LUN
     LUN=LUN+1
-    write(*,*)'Command input is: ',kiu
+!    write(*,*)'Command input is: ',kiu
     GOTO 900
 !
     ENTRY MACEND(LINE,LAST,OK)

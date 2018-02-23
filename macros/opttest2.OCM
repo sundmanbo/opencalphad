@@ -142,7 +142,7 @@ set cond P=P0 T=298.15 N(MG)=1 N(CU)=2
 enter symbol CPM2=HM(LAVES).T;
 enter symbol CPM1=HM(CUMG2).T;
 @$ enter symbol CP3=0.3333*H.T;
-enter experiment CPLAV=24.4:.1
+enter experiment CPM2=24.4:.1
 @$ we cannot enter plot_data before the first enter many_equilibria
 @$ enter plot_data 1 298.15 24.4 8 Feufel
 enter comment C15 - CP 298 - FEUFEL

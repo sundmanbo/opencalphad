@@ -1795,6 +1795,7 @@
    call wrinum(longline,jp,8,0,xx)
    if(buperr.ne.0) goto 1000
    call gparcd('Any more ranges',cline,ip,1,ch1,'N',nohelp)
+!   write(*,*)'3Z ch1: ',ch1
    if(ch1.eq.'n' .or. ch1.eq.'N') then
       longline(jp:)=' N'
       jp=jp+3
@@ -2630,6 +2631,45 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\begin{verbatim} %-
+ subroutine findtpused(lfun,string)
+! this routine finds which other TPFUNS (including parameters) that
+! use the TPFUN lfun.  It is used when listing optimizing coefficients
+   implicit none
+   integer lfun
+   character string*(*)
+!\end{verbatim}
+   integer jp,kfun,nr,nc,j1
+   type(tpfun_expression), pointer :: exprot
+   string=' '
+   jp=1
+   loop1: do kfun=1,freetpfun-1
+      if(kfun.eq.lfun) cycle
+      loop2: do nr=1,tpfuns(kfun)%noofranges
+         exprot=>tpfuns(kfun)%funlinks(nr)
+         if(.not.associated(exprot)) cycle loop2
+         nc=exprot%noofcoeffs
+         loop3: do j1=1,nc
+            if(exprot%link(j1).eq.lfun) then
+!               write(*,*)'3Z found: ',trim(tpfuns(kfun)%symbol),kfun
+               string(jp:)=tpfuns(kfun)%symbol
+               jp=len_trim(string)+2
+               cycle loop1
+            endif
+         enddo loop3
+      enddo loop2
+   enddo loop1
+!   write(*,*)'3Z where: ',trim(string)
+1000 continue
+   return
+ end subroutine findtpused
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+!
+! Below are a couple of routines to generate SOLGASMIX DAT files
+!
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+ 
 !\begin{verbatim}
  subroutine tpfun2coef(ctpf,ntpf,npows,text)
 ! called by saveadatformat in gtp3C to generate SOLGASMIX DAT files

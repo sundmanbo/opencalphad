@@ -2195,6 +2195,7 @@ end function find_phasetuple_by_indices
 ! negative tpval means current temperature, else use tpval(1)
       ceq%tpval(1)=tpval(1)
    endif
+!   write(*,*)'3A tp: ',tpval(1),ceq%tpval(1)
    ceq%tpval(2)=tpval(2)
    do ie=1,6
       saveg(ie)=ceq%phase_varres(lokres)%gval(ie,1)
@@ -2206,7 +2207,7 @@ end function find_phasetuple_by_indices
    endmemx=0
 200 continue
 !   write(*,*)'3G endm: ',(jend(jj),jj=1,nsl)
-!   write(*,17)'3G srs y: ',(yarr(jj),jj=1,ny)
+!   write(*,17)'3G srs y: ',iph,(yarr(jj),jj=1,ny)
    call set_constitution(iph,1,yarr,qq,ceq)
    if(gx%bmperr.ne.0) goto 900
 ! this subroutine converts site fractions in phase iph, compset 1
@@ -2214,7 +2215,7 @@ end function find_phasetuple_by_indices
    endmemx=endmemx+1
    call calc_phase_mol(iph,xmol,ceq)
    if(gx%bmperr.ne.0) goto 900
-!   write(*,17)'3G srs xem: ',(xmol(ie),ie=1,nrel)
+!   write(*,17)'3A srs xem: ',iph,(xmol(ie),ie=1,nrel)
    do jj=1,nrel
       if(abs(xmol(jj)-xcomp(jj)).gt.1.0D-12) goto 250
    enddo
@@ -2223,10 +2224,10 @@ end function find_phasetuple_by_indices
    call calcg(iph,1,0,lokres,ceq)
    if(gx%bmperr.ne.0) goto 900
    gval=ceq%phase_varres(lokres)%gval(1,1)/qq(1)
-!   write(*,222)'3G, srs gval: ',qq(1),gval,gmin
-222 format(a,F10.3,2(1pe12.4))
+!   write(*,222)'3A srs gval: ',iph,qq(1),gval,gmin,ceq%tpval(1)
+222 format(a,i3,F10.3,3(1pe12.4))
    if(gval.lt.gmin) then
-! we should check i electrically neutral ??
+! we should check if electrically neutral ??
       noendm=noendm+1
       gmin=gval
       jendsave=jend

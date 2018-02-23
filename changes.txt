@@ -13,6 +13,12 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2018.02.23 OC version 5.004: Many changes has been made in the
+assessment part of OC as a PhD student at Toulouse, Eva Lawrene, has
+started to work on this with support from Christine Gueneau at CEA.
+Finally there is hope to have a better software for developing
+thermodynamic databases.
+
 2018.02.20 OC version 5.003: Some contributions from Clement Introini
 eliminating uninitiated variables added.  The TDB to DAT file
 converter tested to convert correctly Ce-O-Pu-U from the TAFID

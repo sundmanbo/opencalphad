@@ -5516,23 +5516,24 @@
 !    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
     type(gtp_equilibrium_data), pointer :: neweq
-    integer i1,i2,j1,j2,j3
-    character name1*24,line*80
+    integer i1,i2,j1,j2,j3,k1
+    character name1*24,where*80
     double precision xxx
 !
     write(lut,610)
 610 format(/'List of coefficents with non-zero values'/&
-         'Name  Current value   Start value    Scaling factor',&
-         ' RSD')
+         'Name  Current value  Start value   Scaling factor RSD',10x,&
+         'Used in')
     name1=' '
     do i1=0,size(firstash%coeffstate)-1
        coeffstate: if(firstash%coeffstate(i1).ge.10) then
 ! optimized variable, read from TP constant array
           call get_value_of_constant_index(firstash%coeffindex(i1),xxx)
           call makeoptvname(name1,i1)
+          call findtpused(firstash%coeffindex(i1),where)
           write(lut,615)name1(1:3),xxx,&
-               firstash%coeffstart(i1),firstash%coeffscale(i1),zero
-615       format(a,2x,4(1pe15.6))
+               firstash%coeffstart(i1),firstash%coeffscale(i1),zero,trim(where)
+615       format(a,2x,4(1pe14.5),2x,a)
           if(firstash%coeffstate(i1).eq.11) then
 ! there is a prescribed minimum
              write(lut,616)' minimum ',firstash%coeffmin(i1)
@@ -5554,7 +5555,9 @@
 ! fix variable status
           call get_value_of_constant_index(firstash%coeffindex(i1),xxx)
           call makeoptvname(name1,i1)
-          write(lut,615)name1(1:3),xxx
+          call findtpused(firstash%coeffindex(i1),where)
+          write(lut,618)name1(1:3),xxx,trim(where)
+618       format(a,2x,1pe14.5,44x,a)
        elseif(firstash%coeffscale(i1).ne.0) then
 ! coefficient with negative status, status set to 1
           call get_value_of_constant_index(firstash%coeffindex(i1),xxx)

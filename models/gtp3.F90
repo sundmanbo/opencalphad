@@ -604,28 +604,29 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !
 !=================================================================
 !
-! Bits are numbered 0-31
+! STATUS BITS are numbered 0-31
 !\begin{verbatim}
 !-Bits in global status word (GS) in globaldata record
 ! level of user: beginner, occational, advanced; NOGLOB: no global gridmin calc
 ! NOMERGE: no merge of gridmin result, 
 ! NODATA: not any data, 
 ! NOPHASE: no phase in system, 
-! NOACS: no automatic creation of composition set
+! NOACS: no automatic creation of composition set for any phase
 ! NOREMCS: do not remove any redundant unstable composition sets
 ! NOSAVE: data changed after last save command
 ! VERBOSE: maximum of listing
-! SETVERB: explicit setting of verbose
+! SETVERB: permanent setting of verbose
 ! SILENT: as little output as possible
 ! NOAFTEREQ: no manipulations of results after equilibrium calculation
 ! XGRID: extra dense grid for all phases
 ! NOPAR: do not run in parallel
 ! NOSMGLOB do not test global equilibrium at node points
 ! NOTELCOMP the elements are not the components
-! TGRID check calculated equilibrium with grid minimizer
+! TGRID use grid minimizer to test if global after calculating equilibrium
 ! OGRID use old grid generator
-! NORECALC do not recalculate equilibria even if global test fails
+! NORECALC do not recalculate equilibria even if global test after fails
 ! OLDMAP use old map algorithm
+! NOAUTOSP do not generate automatic start points for mapping
 ! >>>> some of these should be moved to the gtp_equilibrium_data record
   integer, parameter :: &
        GSBEG=0,       GSOCC=1,        GSADV=2,      GSNOGLOB=3, &
@@ -633,34 +634,54 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        GSNOREMCS=8,   GSNOSAVE=9,     GSVERBOSE=10, GSSETVERB=11,&
        GSSILENT=12,   GSNOAFTEREQ=13, GSXGRID=14,   GSNOPAR=15, &
        GSNOSMGLOB=16, GSNOTELCOMP=17, GSTGRID=18,   GSOGRID=19, &
-       GSNORECALC=20, GSOLDMAP=21
+       GSNORECALC=20, GSOLDMAP=21,    GSNOAUTOSP=22
 !----------------------------------------------------------------
 !-Bits in element record
   integer, parameter :: &
        ELSUS=0
 !----------------------------------------------------------------
 !-Bits in species record
-! Suspended, implicitly suspended, species is element, species is vacancy
-! species have charge, species is (system) component
+! Suspended,
+! implicitly suspended, 
+! species is element, 
+! species is vacancy
+! species have charge, 
+! species is (system) component
   integer, parameter :: &
        SPSUS=0, SPIMSUS=1, SPEL=2, SPVA=3, &
        SPION=4, SPSYS=5
 !\end{verbatim}
 !----------------------------------------------------------------
-! PHSUBO and PHSORD not used. PHBORD (and others) not implemented
+! Many not implemented
 !\begin{verbatim}
-!-Bits in phase record
-! hidden, implictly hidden, ideal, no concentration variation (NOCV),
-! Phase has parameters entered (PHHASP), 
-! F option (FORD), B option (BORD), Sigma ordering (SORD),
-! multiple/disordered fraction sets (MFS), gas, liquid, ionic liquid, 
-! aqueous, dilute config. entropy (DILCE), quasichemical (QCE), CVM,
-! explicit charge balance needed (EXCB), extra dense grid (XGRID)
-! FACT,  not create comp. sets (NOCS), Helmholz energy model (HELM),
-! Model with no 2nd derivatives (PHNODGDY2), Elastic model A,
-! Subtract ordered part (PHSUBO), Flory-Huggins model (PHFHV)
-! Multi-use bit (together with some other) PHMULTI
-! Xion magnetic model with average Bohr magneton number PHBMAV
+!-Bits in phase record:
+! HID phase is hidden (not implemented)
+! IMHID phase is implictly hidden (not implemented)
+! ID phase is ideal, substitutional and no iteraction
+! NOCV phase has no concentration variation (I am not sure it is set)
+! HASP phase has at least one parameter entered
+! FORD phase has 4 sublattice FCC ordering with parameter permutations
+! BORD phase has 4 sublattice BCC ordering with parameter permutations
+! SORD phase has TCP type ordering (like for sigma)
+! MFS phase has a disordered fraction set
+! GAS this is the gas phase (first in phase list) 
+! LIQ phase is liquid (can be several but listed first after gas)
+! IONLIQ phase has ionic liquid model (I2SL)
+! AQ1 phase has aqueous model (not implemented)
+! DILCE phase has dilute configigurational entropy (not implemented)
+! QCE phase has quasichemical SRO configurational entropy (not implemented)
+! CVMCE phase has some CVM ordering entropy (not implemented)
+! EXCB phase need explicit charge balance (has ions)
+! XGRID use extra dense grid for this phase
+! FACTCE phase has FACT quasichemical SRO model (not implemented)
+! NOCS not allowed to create composition sets for this phase
+! HELM parameters are for a Helmholz energy model (not implemented),
+! PHNODGDY2 phase has model with no analytical 2nd derivatives
+! ELMA phase has elastic model A (not implemented)
+! PHSUBO ordering model with ordered part subtracted (is it used??)
+! FHV phase has Flory-Huggins model for polymers
+! MULTI may be used with care
+! BMAV Xion magnetic model with average Bohr magneton number
   integer, parameter :: &
        PHHID=0,     PHIMHID=1,  PHID=2,    PHNOCV=3, &     ! 1 2 4 8 : 0/F
        PHHASP=4,    PHFORD=5,   PHBORD=6,  PHSORD=7, &     ! 
@@ -695,8 +716,11 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !----------------------------------------------------------------
 !\begin{verbatim}
 !-Bits in constat array for each constituent
-! For each constituent: is suspended, is implicitly suspended, is vacancy
-! CONQCBOND the constituent is a binary quasichemical cluster
+! For each constituent: 
+! SUS constituent is suspended (not implemented)
+! IMSUS is implicitly suspended, 
+! VA is vacancy
+! QCBOND the constituent is a binary quasichemical cluster
    integer, parameter :: &
         CONSUS=0,   CONIMSUS=1,  CONVA=2,    CONQCBOND=3
 !----------------------------------------------------------------
@@ -736,7 +760,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        ACTIVE=0,SINGLEVAR=1,SINGLEVALUE=2,PHASE=3
 !----------------------------------------------------------------
 !- Bits in assessment head record status
-! ahcoef means coefficients enetered
+! ahcoef means coefficients entered
   integer, parameter :: &
        AHCOEF=0
 !

@@ -1126,7 +1126,7 @@
 !    write(*,*)'Writing repeat, rows, columns ',repeat,nrv,np+2
     do nv=1,nrv
        write(21,1820)nv,xax(nv),(anp(jj,nv),jj=1,np)
-1820    format(i4,1000(1pe14.6))
+1820    format(i4,1000(1pe16.6))
        if(nv.eq.linesep(ksep)) then
 ! an empty line in the dat file means a MOVE to the next point.
           if(nv.lt.nrv) then
@@ -2046,7 +2046,7 @@
                 sumpp=sumpp+1
                 write(21,549)xval(kk,sumpp),yval(kk,sumpp)
 !549             format(2e15.6,4i7)
-549             format(2(1pe15.6),4i7)
+549             format(2(1pe16.6),4i7)
 ! plotkod -101 means tieline
                 if(plotkod(sumpp).eq.-101) write(21,552)
 552             format(1x)

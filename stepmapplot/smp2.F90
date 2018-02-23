@@ -306,6 +306,7 @@ CONTAINS
 ! inactive are indices of axis conditions inactivated by phases set fixed
 ! inactive not used ...
     integer iadd,irem,isp,seqx,seqy,mode,halfstep,jj,ij,inactive(4),bytaxis
+    integer ceqlista
 ! inmap=1 turns off converge control of T
     integer, parameter :: inmap=1
     character ch1*1
@@ -330,19 +331,38 @@ CONTAINS
     inactive=0
 !
     if(ocv()) write(*,*)'Entering map_setup',nax
+! if automatic statpoints requested they are generatet here
+    call auto_startpoints(maptop,nax,axarr,seqxyz,starteq)
+    ceq=>starteq
+    iadd=1
+21  continue
+!    write(*,*)'Start equilibrium: ',trim(ceq%eqname),&
+!         ceq%eqno,ceq%next,ceq%multiuse
+    if(ceq%next.gt.0) then
+       ceq=>eqlista(ceq%next)
+       iadd=iadd+1
+       goto 21
+    endif
+!    write(*,*)'There are ',iadd,' start equilibria'
+! save index to next start point
+    ceqlista=starteq%next
 ! loop to change all start equilibria to start points
 ! Store the start points in map_node records started from maptop
 100 continue
        ceq=>starteq
-!       write(*,*)'calling map_startpoint'
+107    continue
+!       write(*,*)'calling map_startpoint',ceq%eqno
+!       read(*,106)ch1
+106    format(a)
        call map_startpoint(maptop,nax,axarr,seqxyz,inactive,ceq)
 !       write(*,*)'back from map_startpoint'
        if(gx%bmperr.ne.0) then
           if(ceq%next.gt.0) then
              write(*,101)ceq%next,gx%bmperr
 101          format('Failed calculate a start point: ',i4,i7)
-             ceq=>eqlista(ceq%next)
-             gx%bmperr=0; goto 100
+!             ceq=>eqlista(ceq%next)
+!             gx%bmperr=0; goto 100
+             gx%bmperr=0; goto 900
           endif
        endif
 ! error if no startpoints 
@@ -864,13 +884,21 @@ CONTAINS
 ! we have finished a line
 805 continue
     write(kou,808)mapline%number_of_equilibria,ceq%tpval(1)
-808 format('Finished line with ',i5,' equilibria at T=',0pF8.2,' ??')
+808 format('Finished line with ',i5,' equilibria at T=',0pF8.2,' ')
     mapline%problems=0
     mapline%lasterr=0
     goto 300
 !-----------------------------------------------------
-! we come here when there are no more lines to calculate, maybe save on file?
+! we come here when there are no more lines to calculate
+! but there may be more start equilibria
 900 continue
+! we should be able to jump back to label 107 with next start equilibrium
+    if(ceqlista.gt.0) then
+       write(*,*)'At label 900: ',ceqlista
+       ceq=>eqlista(ceqlista)
+       ceqlista=ceq%next
+       goto 107
+    endif
 !-----------------------------------------------------
 1000 continue
 !--------------------------------------------------
@@ -1336,6 +1364,7 @@ CONTAINS
           write(*,*)'Tie-lines in the plane and start equilibrium with',&
                ' several stable phases'
           jax=0
+!          call list_conditions(kou,ceq)
           do iax=1,nax
              call locate_condition(axarr(iax)%seqz,pcond,ceq)
 ! skip axis already removed
@@ -1515,18 +1544,44 @@ CONTAINS
 ! turns off converge control for T
     integer, parameter :: inmap=1
 !
-!    write(*,*)'In map_startline, find a phase to set fix'
+    write(*,*)'In map_startline, find a phase to set fix',ceq%eqno
 ! start in negative direction unless direction given
     idir=-1
     if(ceq%multiuse.ne.0) then
        if(abs(ceq%multiuse).gt.nax) then
-          write(*,*)'Error in direction, no such axis, ',ceq%multiuse
-          gx%bmperr=4229; goto 1000
+          write(*,*)'Error in direction, no such axis, ',ceq%eqno,ceq%multiuse
+! this can happen for startpoints.  21 is lower left, 22 is lower right
+! 23 is upper left, 24 is upper right and 30 is in the middle          
+! Try to generate several directions for each, at present just one
+          if(ceq%multiuse.eq.21) then
+! directions +1 and +2
+             call list_conditions(kou,ceq)
+             jax=1; idir=1
+          elseif(ceq%multiuse.eq.22) then
+! directions +1 and -2
+             call list_conditions(kou,ceq)
+             jax=2; idir=-1
+          elseif(ceq%multiuse.eq.23) then
+! directions -1 and +2
+             call list_conditions(kou,ceq)
+             jax=1; idir=-1
+          elseif(ceq%multiuse.eq.24) then
+! directions -1 and -2
+             call list_conditions(kou,ceq)
+             jax=2; idir=-1
+          elseif(ceq%multiuse.eq.30) then
+! all 4 directions ...
+             call list_conditions(kou,ceq)
+          else
+             write(*,*)'Error in direction, no such axis, ',ceq%multiuse
+             gx%bmperr=4229; goto 1000
+          endif
+       else
+          if(jax.gt.0) idir=1
+          jax=abs(ceq%multiuse)
+          call locate_condition(axarr(jax)%seqz,pcond,ceq)
+          if(gx%bmperr.ne.0) goto 1000
        endif
-       if(jax.gt.0) idir=1
-       jax=abs(ceq%multiuse)
-       call locate_condition(axarr(jax)%seqz,pcond,ceq)
-       if(gx%bmperr.ne.0) goto 1000
     else
        jax=0
        do iax=1,nax
@@ -2572,7 +2627,7 @@ CONTAINS
 !\begin{verbatim}
   subroutine map_step2(maptop,mapline,meqrec,phr,axvalok,nax,axarr,ceq)
 ! used for map and step, mapping is to step with all but one axis replaced
-! by a fix phase condition.  Map with tie-ines in plane special
+! by a fix phase condition.  Map with tie-lines in plane special
 ! For map check if we should change independent (active) step axis.
 ! For tie-lines in plance check if we should change fix phase
 ! Set condition for the next equilibrium along the axis.  New phases can appear.
@@ -5497,6 +5552,160 @@ CONTAINS
 1000 continue
     return
   end subroutine step_separate
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+  subroutine auto_startpoints(maptop,noofaxis,axarr,seqxyz,starteq)
+! Calculates 5 equilibria and store them as start points for mapping
+! maptop map node record
+! noofaxis must be 2
+! axarr array of axis records
+! seqxyz indices for map and line records
+! starteq equilibrium record for starting
+    implicit none
+    integer noofaxis,seqxyz(*)
+    type(map_axis), dimension(noofaxis) :: axarr
+    TYPE(gtp_equilibrium_data), pointer :: starteq
+    TYPE(map_node), pointer :: maptop
+!\end{verbatim}
+! genrate one startpoint in each corner and one in the center
+! For the corner add one directions along each axis
+! For the center add 4 directions, totally 12 lines
+! For isothermal sections one corner startpoint will be lost     
+! startpoint 0.02x, 0.02y; direction +x and +y
+! startpoint 0.94x, 0.02y; direction -x and +y
+! startpoint 0.94x, 0.94y; direction -x and -y (lost in isothermal section)
+! startpoint 0.02x, 0.94y; direction +x and -y
+! startpoint 0.3x, 0.3y; all 4 directions (should work also in isothermal)
+    integer seqz1,seqz2,j1,j2,mode,nss
+    double precision xx1,xx2
+    TYPE(gtp_equilibrium_data), pointer :: ceq,neweq
+    type(gtp_condition), pointer :: pcond1,pcond2
+    double precision, dimension(2), parameter :: x1=[0.02,0.92]
+    double precision, dimension(2), parameter :: x2=[0.02,0.92]
+    character*24 eqname
+!
+    if(noofaxis.ne.2 .or. &
+         btest(globaldata%status,GSNOAUTOSP)) goto 1000
+    goto 1000
+! the rest here works but not converting the startpoint to lines.
+!    write(*,*)'Trying to generate 12 startpoints for mapping'
+    ceq=>starteq
+    mode=1
+    eqname='_STARTEQ_00'
+    nss=0
+! loop for corners
+100 continue
+    cycle1: do j1=1,2
+       cycle2: do j2=1,2
+          nss=nss+1
+          xx1=axarr(1)%axmin+x1(j1)*(axarr(1)%axmax-axarr(1)%axmin)
+          seqz1=axarr(1)%seqz
+          call locate_condition(seqz1,pcond1,ceq)
+          if(gx%bmperr.ne.0) then
+             write(*,*)'SMP failed find first condition ',j1,j2
+             gx%bmperr=0
+             cycle cycle2
+          endif
+! first argument 1 means get value, 0 means set value
+          call condition_value(0,pcond1,xx1,ceq)
+          if(gx%bmperr.ne.0) then
+             write(*,*)'Error setting start point condition',gx%bmperr
+             gx%bmperr=0; cycle cycle2
+          endif
+!-----------
+          xx2=axarr(2)%axmin+x2(j2)*(axarr(2)%axmax-axarr(2)%axmin)
+          seqz2=axarr(2)%seqz
+          call locate_condition(seqz2,pcond2,ceq)
+          if(gx%bmperr.ne.0) then
+             write(*,*)'SMP failed find 2nd condition ',j1,j2
+             gx%bmperr=0
+             cycle cycle2
+          endif
+! first argument 1 means get value, 0 means set value
+          call condition_value(0,pcond2,xx2,ceq)
+          if(gx%bmperr.ne.0) then
+             write(*,*)'Error setting start point condition',gx%bmperr
+             gx%bmperr=0; cycle cycle2
+          endif
+! calculate equilibrium
+!          write(*,130)'SMP startpoint: ',nss,xx1,xx2
+130       format(a,i3,2(1pe14.4))
+!          call list_conditions(kou,ceq)
+!          cycle cycle2
+          call calceq2(mode,ceq)
+          if(gx%bmperr.ne.0) then
+             write(*,*)'SMP failed calculate startpoint'
+             gx%bmperr=0
+          else
+! enter a start equilibrum with two directions
+             call incunique(eqname(10:11))
+             call copy_equilibrium(neweq,eqname,ceq)
+             if(gx%bmperr.ne.0) then
+                write(*,*)'Failed to store start equilibrium',gx%bmperr
+                gx%bmperr=0; cycle cycle2
+             endif
+!             write(*,*)'start equilibrium: ',trim(eqname),neweq%eqno
+             neweq%multiuse=20+nss
+! create the list, ceq is always same equilibrium as stareq
+             neweq%next=ceq%next
+             starteq%next=neweq%eqno
+          endif
+       enddo cycle2
+    enddo cycle1
+! a start point in the middle
+500 continue
+    xx1=0.7*axarr(1)%axmin+0.3*axarr(1)%axmax
+    seqz1=axarr(1)%seqz
+    call locate_condition(seqz1,pcond1,ceq)
+    if(gx%bmperr.ne.0) then
+       write(*,*)'SMP failed find first condition',3,3
+       gx%bmperr=0
+       goto 1000
+    endif
+! first argument 1 means get value, 0 means set value
+    call condition_value(0,pcond1,xx1,ceq)
+    if(gx%bmperr.ne.0) then
+       write(*,*)'Error setting first central point condition',gx%bmperr
+       gx%bmperr=0; goto 1000
+    endif
+    xx2=0.6*axarr(2)%axmin+0.4*axarr(2)%axmax
+    seqz2=axarr(2)%seqz
+    call locate_condition(seqz2,pcond2,ceq)
+    if(gx%bmperr.ne.0) then
+       write(*,*)'SMP failed find 2nd condition ',j1,j2
+       gx%bmperr=0
+       goto 1000
+    endif
+! first argument 1 means get value, 0 means set value
+    call condition_value(0,pcond2,xx2,ceq)
+    if(gx%bmperr.ne.0) then
+       write(*,*)'Error setting second central point condition',gx%bmperr
+       gx%bmperr=0; goto 1000
+    endif
+! calculate equilibrium
+!    write(*,130)'SMP startpoint: ',5,xx1,xx2
+!    call list_conditions(kou,ceq)
+    call calceq2(mode,ceq)
+    if(gx%bmperr.ne.0) then
+       write(*,*)'SMP failed calculate startpoint'
+       gx%bmperr=0
+    else
+! enter a start equilibrum with two directions
+       call incunique(eqname(10:11))
+       call copy_equilibrium(neweq,eqname,ceq)
+       if(gx%bmperr.ne.0) then
+          write(*,*)'Failed to store start equilibrium',gx%bmperr
+          gx%bmperr=0; goto 1000
+       endif
+       neweq%multiuse=30 
+       neweq%next=starteq%next
+       starteq%next=neweq%eqno
+    endif
+1000 continue
+    return
+  end subroutine auto_startpoints
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
