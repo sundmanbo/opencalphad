@@ -2336,6 +2336,7 @@
    tpfuns(lrot)%status=ibset(tpfuns(lrot)%status,TPCONST)
 200 continue
    tpfuns(lrot)%limits(1)=value
+   nullify(tpfuns(lrot)%funlinks)
 1000 continue
    return
  end subroutine enter_tpconstant

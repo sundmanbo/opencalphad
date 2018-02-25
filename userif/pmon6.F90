@@ -3291,9 +3291,12 @@ contains
              buperr=0
              listresopt=lrodef
           endif
-          if(listresopt.gt.0 .and. listresopt.le.9) then
+! CCI extending the number of listing options
+!          if(listresopt.gt.0 .and. listresopt.le.9) then
+          if(listresopt.gt.0 .and. listresopt.le.11) then
              lrodef=listresopt
           endif
+! CCI end          
           call date_and_time(optres,name1)
           write(lut,6051)ceq%eqno,ceq%eqname,optres(1:4),optres(5:6),optres(7:8)
 ! write comment line if any
@@ -3365,6 +3368,15 @@ contains
           elseif(listresopt.eq.9) then
 ! 9: all phases with mole fractions an constitutions in value order
              mode=10
+          elseif(listresopt.eq.10) then
+! CCI
+! 10: stable phases with constituent fractions time FU of hase in value order
+! SOLGASMIX type output
+             mode=10000
+          elseif(listresopt.eq.11) then
+! 11: stable phases with constituent fractions time FU of hase in value order
+             mode=10010
+! CCI end             
           else
 ! all phase with with mole fractions
              mode=0

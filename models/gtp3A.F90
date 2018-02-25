@@ -419,13 +419,14 @@
 ! we evaluate all symbols to avoid some problems ... no output
 !  call meq_evaluate_all_svfun(-1,ceq) cannot be used as it is in minimizer ...
    call evaluate_all_svfun_old(-1,firsteq)
-! assment initiallizing
-!   write(*,*)'3A Initiallizing firstash'
+! assessment initiallizing
+!   write(*,*)'3A Initiallizing firstash', firstash is a pointer ...
    call assessmenthead(firstash)
-   firstash%status=0
+!   firstash%status=0
 !   write(*,*)'firstash allocated: ',firstash%status
 !   nullify(firstash%prevash)
 !   nullify(firstash%nextash)
+! create the beginnings of a circular list
    firstash%nextash=>firstash
    firstash%prevash=>firstash
 ! set that dense grid used by default
@@ -441,9 +442,11 @@
 
 !\begin{verbatim}
  subroutine assessmenthead(ash)
-! create an assessment head record
+! create an assessment head record and do more (later)
    type(gtp_assessmenthead), pointer :: ash
+!   type(gtp_assessmenthead), allocatable :: ash
 !\end{verbatim}
+! it is not good to allocate a pointer, memory loss!!
    allocate(ash)
    ash%status=0
    return
@@ -2458,6 +2461,8 @@ end function find_phasetuple_by_indices
    deallocate(svflista)
    write(*,*)'3A Deallocate TP funs'
    call tpfun_deallocate
+!CCI added this
+   deallocate(firstash)
 1000 continue
    return
  END subroutine deallocate_gtp

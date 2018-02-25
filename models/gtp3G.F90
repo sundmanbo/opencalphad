@@ -410,7 +410,8 @@
 !\end{verbatim} %+
    integer qph,ics,oldstat,ipos,slen,lokph,lokcs,phcsx
    character name*24
-!   write(*,*)'3G phnames: ',phnames(1:30),' >',phnames(1:1),'<'
+! CCI correted size of phnames
+!   write(*,*)'3G phnames: ',trim(phnames),' >',phnames(1:1),'<'
    if(phnames(1:1).eq.'*') then
 !      write(*,*)'3G star'
       if(phnames(2:2).eq.'S') then

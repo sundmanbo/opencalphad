@@ -5285,7 +5285,7 @@
 ! allocate
    TYPE(gtp_phase_varres), pointer :: cpv,cp1
    character name2*64
-   integer ieq,ipv,nc,jz,iz,jl,jk,novarres,lokdis,needcs
+   integer ieq,ipv,nc,jz,iz,jl,jk,novarres,lokdis,needcs,lokph
    if(.not.allowenter(3)) then
       write(*,*)'3B: not allowed enter equilibrium: ',name
       gx%bmperr=4153; goto 1000
@@ -5443,13 +5443,20 @@
          cpv=>eqlista(ieq)%phase_varres(ipv)
          cpv%nextfree=cp1%nextfree
          cpv%phlink=cp1%phlink
+         cpv%phstate=cp1%phstate
          cpv%status2=cp1%status2
          cpv%abnorm=cp1%abnorm
          cpv%prefix=cp1%prefix
          cpv%suffix=cp1%suffix
          cpv%phtupx=cp1%phtupx
+! Be careful, in first equilibrium these arrays are dimentioned very large
 ! allocate and copy arrays
-         nc=size(cp1%yfr)
+         lokph=cp1%phlink
+         if(lokph.le.0) then
+            nc=1
+         else
+            nc=phlista(lokph)%tnooffr
+         endif
 ! note SIZE gives rubbish unless array is allocated
          if(ocv()) write(*,*)'3B copy yfr 1: ',nc
 ! yfr may be allocated if this composition set is a disordered fraction set

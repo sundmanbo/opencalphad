@@ -613,11 +613,14 @@
 ! we must use suffix S to have values referred to SER
    call get_state_var_value('GS ',x1,encoded,ceq)
    call get_state_var_value('HS ',x2,encoded,ceq)
-   call get_state_var_value('S ',x3,encoded,ceq)
+! CCI changed format of S
+!   call get_state_var_value('S ',x3,encoded,ceq)
+   call get_state_var_value('SS ',x3,encoded,ceq)
    if(.not.gtp_error_message(0)) then
       write(lut,12)x1,x1/xn,x2,x3
-12    format('GS= ',1pe12.5,' J, GS/N= ',1pe11.4,' J/mol, HS= ',1pe11.4,&
-           ' J, S= ',F8.3,' J/K')
+12    format('GS= ',1pe12.5,' J, GS/N=',1pe11.4,' J/mol, HS=',1pe11.4,&
+           ' J, SS=',1pe10.3,' J/K')
+!CCI end
    endif
 1000 continue
    return
@@ -793,6 +796,7 @@
 ! 10th digit:   0=only composition,   10=also constitution
 ! 100th digit:  0=value order,        100=alphabetical order
 ! 1000th digit: 0=all phases,         1000=only stable phases
+! 10000th digit: 1= constituent fractions times formula unit of phase (Solgas)
    implicit none
    integer iph,jcs,mode,lut
    logical once
@@ -802,6 +806,9 @@
    character (len=24), dimension(:), allocatable :: consts
 !    character*24, allocatable (:) :: consts
    double precision xmol(maxel),wmass(maxel),totmol,totmass,amount,abv,mindgm
+!CCI moles per Formula Unit
+   double precision totmolperFU
+!CCI
    double precision, dimension(:), allocatable :: ymol
    integer lokph,lokcs,kode,nz,jl,nk,ll,ip,kstat
    mindgm=1.0D-10
@@ -889,6 +896,9 @@
    if(gx%bmperr.ne.0) then
       write(*,*)'Error: ',gx%bmperr; goto 1000
    endif
+!CCI
+   totmolperFU=ceq%phase_varres(lokcs)%amfu
+!CCI   
 !   write(*,99)'xmol: ',xmol
 !99 format(a,6(1pe12.4))
    kode=mod(mode,10)
@@ -961,6 +971,12 @@
    if(.not.btest(phlista(lokph)%status1,PHGAS)) then
       if(mod(mode/10,10).le.0) goto 900
    endif
+   if(mode.ge.10000) then
+! CCI modification warning!
+      write(lut,309)
+309   format(' *** NOTE: values below are constituent fractions',&
+           ' times formula unit of phase!')
+   endif
    write(lut,310,advance='no')
 310  format(' Constitution: ')
 !---------------
@@ -1003,6 +1019,11 @@
          endif
          ymol(jl)=ceq%phase_varres(lokcs)%yfr(nk+jl)
       enddo
+!CCI for mode >= 10000
+      if(mode.ge.10000) then
+         ymol=ymol*totmolperFU
+      endif
+!CCI end
       call format_phase_composition(mode,nz,consts,ymol,lut)
       deallocate(consts)
       deallocate(ymol)

@@ -1724,14 +1724,18 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! These are the corresponding TP-function constants indices
      integer, dimension(:), allocatable :: coeffindex
 ! This array indicate currently optimized variables:
-!  0=fix, 1=fix with min, 2=fix with max, 3=fix with min and max
+!  -1=unused, 0=fix, 1=fix with min, 2=fix with max, 3=fix with min and max
 !  10=optimized, 11=opt with min, 12=opt with max, 13=opt with min and max
      integer, dimension(:), allocatable :: coeffstate
 ! Work arrays ...
      double precision, dimension(:), allocatable :: wopt
   end TYPE gtp_assessmenthead
-! this record is allocated when necessary
-  type(gtp_assessmenthead), pointer :: firstash,lastash
+! this record should be allocated for assessments when necessary
+  type(gtp_assessmenthead), allocatable :: ashrecord
+!  type(gtp_assessmenthead), pointer :: firstash,lastash
+! but this is later allocated, to avoid memory loss ashrecord should be used
+! and then this pointer should be set to that record
+  type(gtp_assessmenthead), pointer :: firstash
 !\end{verbatim}
 !------------------------------------------------------------------
 !\begin{verbatim}

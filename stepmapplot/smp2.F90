@@ -301,7 +301,7 @@ CONTAINS
 
 ! save current conditions
     character savedconditions*1024
-! for copy of constituions
+! for saving a copy of constitutions
     double precision, allocatable, dimension(:) :: copyofconst
 ! inactive are indices of axis conditions inactivated by phases set fixed
 ! inactive not used ...
@@ -448,7 +448,6 @@ CONTAINS
     if(gx%bmperr.ne.0) then
 ! error 4187 is to set T or P to less than 0.1
        if(gx%bmperr.eq.4187) then
-          write(*,*)'We are here 1'
           goto 306
        endif
        if(mapline%number_of_equilibria.eq.0) then
@@ -959,12 +958,14 @@ CONTAINS
 ! replace all but one axis conditions with fix phases.  In ceq we have
 ! a calculated equilibrium with all conditions. make sure it works
 ! (without global minimization).  We will save the meq_setup record!
+!    write(*,*)'meq_startpoint: allocating meqrec'
     allocate(meqrec)
 ! We must use mode=-1 for map_replaceaxis below has to calculate several equil
 ! and the phr array must not be deallocated.  mapfix will be used later to
 ! indicate fix and stable phases for different lines (maybe ...)
     mode=-1
     nullify(mapfix)
+!    write(*,*)'meq_startpoint: after allocating meqrec 1'
     call calceq7(mode,meqrec,mapfix,ceq)
     if(gx%bmperr.ne.0) then
        write(*,*)'Error calling calceq7 in map_startpoint',gx%bmperr
@@ -1354,6 +1355,7 @@ CONTAINS
 !========================================================== tie-lines in plane
     tieline_in_plane: if(tip.eq.1) then
 ! We have tie-lines in the plane, only one stable phase in addition to fix
+!       write(*,*)'map_replaceaxis: allocate: tmpline(1)%stableph(1)'
        allocate(tmpline(1)%stableph(1))
        allocate(tmpline(1)%stablepham(1))
        allocate(axis_withnocond(nax))
@@ -1544,7 +1546,7 @@ CONTAINS
 ! turns off converge control for T
     integer, parameter :: inmap=1
 !
-    write(*,*)'In map_startline, find a phase to set fix',ceq%eqno
+!    write(*,*)'In map_startline, find a phase to set fix',ceq%eqno
 ! start in negative direction unless direction given
     idir=-1
     if(ceq%multiuse.ne.0) then
@@ -1734,6 +1736,7 @@ CONTAINS
        deallocate(tmpline(1)%stableph)
        deallocate(tmpline(1)%stablepham)
     endif
+!    write(*,*)'map_startline: allocate 2: ',nstabphdim
     allocate(tmpline(1)%stableph(nstabphdim))
     allocate(tmpline(1)%stablepham(nstabphdim))
     ll=0
@@ -2017,6 +2020,7 @@ CONTAINS
 !----------------------------------------------------------
 ! now we calculate the same equilibrium but with different axis condition!
     irem=0
+    iadd=0
 ! add=-1 turn on verbose in meq_sameset
 !    iadd=-1
 !    if(bytax) then
@@ -3800,10 +3804,12 @@ CONTAINS
 ! Always add the new record as the next link to maptop
     if(associated(mapnode,maptop)) then
 ! a single maptop record
+!       write(*,*)'allocate mapnone%next 1'
        allocate(mapnode%next)
     else
 ! there is more mapnode records ... allocation here means memory leak
 ! I do not know how to fix ...
+!       write(*,*)'allocate mapnone%next 2'
        allocate(maptop%next)
     endif
     newnode=>maptop%next
@@ -4920,7 +4926,7 @@ CONTAINS
     type(map_ceqresults), pointer :: ceqres
     integer size
 !\end{verbatim}
-    if(ocv()) write(*,*)'In create saveceq'
+!    write(*,*)'In create saveceq',size
     allocate(ceqres)
     ceqres%size=size
     ceqres%free=1
@@ -4937,9 +4943,10 @@ CONTAINS
     TYPE(map_node), pointer :: maptop
 !\end{verbatim}
     type(map_ceqresults), pointer :: saveceq
-    TYPE(map_node), pointer :: current
+    TYPE(map_node), pointer :: current,nexttop
+    TYPE(map_line), pointer :: linehead
     TYPE(gtp_equilibrium_data), pointer :: ceq
-    integer ieq
+    integer ieq,jj
 !    integer place,lastused
 !
     if(.not.associated(maptop)) then
@@ -4955,14 +4962,29 @@ CONTAINS
 ! all mapnodes has a pointer to first where the saveceq is allocated
     current=>maptop
     do while(associated(current))
-!       write(*,*)'deleting map results: ',current%saveceq%free-1
+       write(*,*)'deleting map results: ',current%saveceq%free-1
        deallocate(current%saveceq%savedceq)
-       current=>current%plotlink
+       nexttop=>current%plotlink
+       write(*,*)'SMP: cleaning up more'
+       if(allocated(current%linehead)) then
+          do jj=1,current%lines
+! should these be deallocated explicitly??
+             linehead=>current%linehead(jj)
+             if(allocated(linehead%axvals)) deallocate(linehead%axvals)
+             if(allocated(linehead%axvals2)) deallocate(linehead%axvals2)
+             if(allocated(linehead%axvalx)) deallocate(linehead%axvalx)
+          enddo
+          deallocate(current%linehead)
+       endif
+       write(*,*)'do not deallocate current ...'
+! do not deallocate maptop record ...
+!       deallocate(current)
+       current=>nexttop
     enddo
-!    write(*,*)'SMP: deleting _MAPx equilibria'
+    write(*,*)'SMP: deleting _MAPx equilibria'
     ceq=>firsteq
     call delete_equilibria('_MAP*',ceq)
-!    write(*,*)'Done delete_mapresults'
+    write(*,*)'Done delete_mapresults'
 1000 continue
     return
   end subroutine delete_mapresults

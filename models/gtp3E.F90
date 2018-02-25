@@ -1547,19 +1547,39 @@
 ! first equilibrium record with conditions, componenets, phase_varres etc
 ! state variable functions
 ! equilibrium record(s) with conditions, componenets, phase_varres, experim etc
-!
+! CCI changed to use iso_fortran_env to find file unit number for C++
+   use :: iso_fortran_env
+! CCI
    implicit none
    character*(*) filename,str
 !\end{verbatim}
    character id*40,version*8,comment*72
    integer i,i1,i2,i3,isp,jph,kontroll,nel,ivers,lin,last,lok,displace,jfun
    integer, allocatable :: iws(:)
+! CCI
+   logical is_op
+! CCI
 !   type(gtp_equilibrium_data), pointer :: ceq
 10  format(i8)
    if(index(filename,'.').eq.0) then
       filename(len_trim(filename)+1:)='.ocu'
    endif
-   lin=21
+!CCI The previous commented lines are removed by the following lines 
+!CCI that enable to find the first available logical unit. 
+!CCI Such an approach can generalized in order to enable the 
+!CCI opening file by several threads in the same time. 
+!CCI To do this, the following lines should in a dedicated subroutine.
+!CCI   lin=21
+   lunit: do lin=8,99  
+      inquire(lin,opened=is_op)
+      if(.not.is_op) exit lunit
+   enddo lunit 
+   if( lin.eq.100 ) then
+      write(*,*)'3E Error, no logical unit available for opening file: ',&
+           trim(filename)
+      goto 1000
+   endif
+! CCI end change   
    open(lin,file=filename,access='sequential',status='old',&
         form='unformatted',iostat=gx%bmperr,err=1100)
 !   write(*,*)'3E opening file: ',trim(filename),' for unformatted read'
@@ -1796,6 +1816,8 @@
 !   close(lin)
 !
 1000 continue
+!CCI free the iws memory (should be done automatically?)
+   if(allocated(iws)) deallocate(iws)
    return
 ! error opening files
 1100 continue

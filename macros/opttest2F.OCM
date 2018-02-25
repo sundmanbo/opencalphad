@@ -1,0 +1,297 @@
+@$===================================================================
+@$===================================================================
+@$======= step 5: fit H formation of the Laves phase
+@$===================================================================
+@$===================================================================
+
+@$ Consider Laves phase formation
+
+new Y
+
+set echo
+
+r u
+opttest2-cumg5
+
+@&
+@$ Check we do not have any experimental equilibria
+
+l opt short
+
+
+@&
+@$ Check which parameters we should optimize for the Laves phase
+
+l ph laves_c15 data
+
+@&
+@$----------------------------------------------------------
+@$ Include experiments HC15_K for the enthalpy of formation
+@$ and set the previously fixed enthalpy as variable
+@$----------------------------------------------------------
+set wei 1 HC15_K
+
+set var 40
+
+@&
+@$-----------------------------------------------------
+@$ Calculate the experimental equilibria with gridminimizer
+@$-----------------------------------------------------
+c a y 1
+
+c a n 1
+
+@&
+
+opt 0
+
+@&
+
+l opt
+
+@&
+
+opt 100
+
+@$----------------------------------------------------
+@$ We have one experimental datum and one variable coefficient
+@$ A perfect fit
+@$----------------------------------------------------
+@&
+
+l opt
+
+@$ Here the error is OK, almost zero 
+@&
+
+macro opttest2-map-diagram
+
+@$----------------------------------------------------
+@$ The Laves phase is too stable
+@$ Optimize the entropy of formation together with the
+@$ congruent melting
+@$----------------------------------------------------
+@&
+
+set var 41 400
+
+set wei 1 CMELT
+
+l opt
+
+
+@&
+
+sel eq 546
+
+c e
+
+l,,,,
+
+@$-----------------------------------------------------------
+@$ The calculation failed and we cannot use the grid minimizer
+@$ because of the constions.  Note that LAVES is set as FIX
+@$ and the condition that x(mg) should be the same in liquid and laves.
+@$
+@$ As T is too small try to set
+@$ a new start value for T with the command SET T_AND_P ...
+@$ This does not set a condition on T, just a start value
+@$-----------------------------------------------------------
+
+set t_and_p
+1000
+1e5
+
+@&
+@$-----------------------------------------------------------
+@$ Also ensure that the liquid and Laves composition is correct
+@$ Use the command CALC PHASE for that
+@$-----------------------------------------------------------
+
+calc ph
+liq
+1
+n
+.333
+
+
+calc ph
+lav
+
+n
+.99
+.01
+
+
+@&
+@$ Then try to calculate the equilibrium again!
+
+c n
+
+l,,,,,
+
+@$----------------------------------------------------
+@$ Now we have a reasonable equilibrium.  Note the composition
+@$ is the same in both phases but the T is too high.
+@$ We will optimize the coefficients to fit that.
+@$----------------------------------------------------
+@&
+@$ We have to check the previous equilibrium also
+
+sel eq prev
+
+l,,,,,
+
+@$ This represent the same congruent melting.  We do not need it.
+@&
+
+set wei 0
+
+
+@&
+@$----------------------------------------------------
+@$ Oprimize the enthalpy and congruent melting
+@$----------------------------------------------------
+
+opt 0
+
+@&
+l opt
+
+@&
+opt 100
+
+@&
+l opt
+
+@&
+@$ plot the phase diagram
+
+mac  opttest2-map-diagram
+
+@&
+@$---------------------------------------------------------
+@$ Sometimes some parts are missing, add a start point
+@$ and MAP withou removing what is already calculated
+@$---------------------------------------------------------
+set c t=1000 p=1e5 n=1 x(mg)=.4
+c e
+l,,,,
+
+@&
+map
+N
+
+
+plot
+
+
+@$ remove the appended data ...
+app
+
+
+@&
+plot
+
+
+append oc_many9
+
+
+
+@&
+@$---------------------------------------------------------
+@$ Add some tie-line data between liquid and Laves
+@$---------------------------------------------------------
+
+set wei 1 XLIQ_C
+
+@&
+
+c a y 1
+
+@&
+@$ Optimize all these
+
+opt 0
+
+@&
+
+l opt
+
+@&
+@$ Calculate all equilibria
+c a n 1
+
+@&
+@$ Optimize a dry run
+
+opt 0
+
+@&
+
+l opt
+
+@&
+@$ Optimize the coefficients
+
+opt 100
+
+@&
+
+l opt
+
+@&
+
+mac  opttest2-map-diagram
+
+
+@&
+@$ If some lines are missing you can try to add them as before
+
+@&
+@$------------------------------------------------------
+@$ Also plot the heat capacity
+@$ NOTE to do this we must remove axis 2 as that is set!!
+@$------------------------------------------------------
+
+set axis 2 none
+
+@&
+
+mac  opttest2-plot-cplaves
+
+
+
+@&
+@$------------------------------------------------------
+@$ We have some differences because the
+@$ constitution varies. Verify the stoichiometry is correct
+@$------------------------------------------------------
+
+plot
+T
+y(laves,*)
+
+
+
+@$ The fraction of defects influences the heat capacity
+@&
+@$---------------------------------------------------------
+@$ Clean up for next step
+
+set fix 0-99
+
+l opt
+
+@&
+
+set wei 0 *
+
+del step_map
+
+save unf
+Done liquid and CuMg2 and Laves_C15
+opttest2-cumg6
+Y
+
+set inter

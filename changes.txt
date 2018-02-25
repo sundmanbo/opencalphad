@@ -13,6 +13,13 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2018.02.26 OC version 5.005: Running valgrind again shows a lot of
+problems that has to be fixed, in particular memory leaks when using
+STEP and MAP.  It will take some time but some are corrected in this
+release.  The opttest2 macro has been extended.  LIST RESULT has two
+additional options, 10 and 11, to list constitution based on amount of
+the phase.
+
 2018.02.23 OC version 5.004: Many changes has been made in the
 assessment part of OC as a PhD student at Toulouse, Eva Lawrene, has
 started to work on this with support from Christine Gueneau at CEA.

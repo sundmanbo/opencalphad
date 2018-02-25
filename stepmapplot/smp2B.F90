@@ -37,7 +37,9 @@
     character pfh*64,dummy*24,applines(10)*128,appline*128
     double precision, dimension(:,:), allocatable :: anp
     double precision, dimension(:), allocatable :: xax,yyy
-    integer, parameter :: maxval=10000
+! Too big??
+!    integer, parameter :: maxval=10000
+    integer, parameter :: maxval=2000
     integer, dimension(:), allocatable :: nonzero,linzero,linesep
 !    integer, dimension(:), allocatable :: linesep
 ! encoded2 stores returned text from get_many ... 2048 is too short ...
@@ -103,10 +105,12 @@
 ! allocate as many items in linesep as there are mapnodes.
 ! Hm, if merging plots the number of separators needed can be any value
     jj=100+10*maptop%next%seqx+1
+!    write(*,*)'SMP: Allocating linesep: ',jj
     allocate(linesep(jj))
     nax=maptop%number_ofaxis
     linesep=0
 ! allocate texts to identify the lines on the gnuplot file
+!    write(*,*)'SMP: Allocating phaseline: ',jj
     allocate(phaseline(jj))
 !    if(maptop%number_ofaxis.gt.1) then
 !       write(*,*)'Warning: may not not handle map graphics correctly',jj
@@ -114,6 +118,7 @@
 !
     giveup=0
     nrv=maxval
+!    write(*,*)'SMP: allocating xax: ',nrv
     allocate(xax(nrv))
 ! to insert MOVE at axis terminations
     nlinesep=1
@@ -142,9 +147,13 @@
 ! wildcards allowed only on one axis, we do not know how many columns needed
 ! allocate as many array elements as columns
           anpdim=np
+!          write(*,*)'SMP: allocating anp1: ',np*nrv
           allocate(anp(np,nrv))
+!          write(*,*)'SMP: allocating anp2: ',np
           allocate(nonzero(np))
+!          write(*,*)'SMP: allocating nonzero: ',np
           allocate(linzero(np))
+!          write(*,*)'SMP: allocating yyy: ',np
           allocate(yyy(np))
 ! nzp should be dimension of yyy, np returns the number of values in yyy
           nzp=np
@@ -169,6 +178,7 @@
     enddo
     if(.not.wildcard) then
        anpdim=1
+!       write(*,*)'SMP: allocating anp2: ',np
        allocate(anp(1,nrv))
        wildcard=.FALSE.
        nnp=1
@@ -380,8 +390,8 @@
                       if(anp(jj,nv).lt.anpmin) anpmin=anp(jj,nv)
 ! extract state variable jj
                       if(.not.allocated(lid)) then
+!                         write(*,*)'Allocating lid: ',np+5
                          allocate(lid(np+5))
-!                         write(*,*)'Allocate lid: ',np
                       endif
 ! getext( , ,2, , , ) returns next text item up to a space
                       call getext(encoded2,lcolor,2,encoded1,'x',lhpos)
@@ -708,7 +718,7 @@
                 nv=maxval
              endif
              if(.not.allocated(lid)) then
-                write(*,*)'SMP allocating lid: ',np
+!                write(*,*)'SMP allocating lid 3: ',np
                 allocate(lid(np+5))
              endif
              do jj=ic,nnp-1
@@ -760,6 +770,7 @@
     if(.not.allocated(lid)) then
 !       if(np.ge.1) then
 ! lid should always be allocated if np>1, but ... one never knows 
+!       write(*,*)'SMP: allocate lid 4: ',np
        allocate(lid(np))
        do i=1,np
           lid(i)='calculated '
