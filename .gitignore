@@ -11,7 +11,5 @@
 *.dat
 *.plt
 *.toc
-oc4A
-oc4P
-linkoc
+*.ocu
 pmain1.F90

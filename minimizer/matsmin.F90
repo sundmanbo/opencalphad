@@ -190,14 +190,15 @@ CONTAINS
 !\end{verbatim} %+
     TYPE(meq_setup), allocatable, target :: meqrec1
     TYPE(meq_setup), pointer :: meqrec
-    type(map_fixph), pointer :: mapfix
+    type(map_fixph), allocatable :: mapfix
+!    type(map_fixph), pointer :: mapfix
     double precision starting,finish2
     integer starttid,endoftime,ij,addtuple
 !--------------------------------
     allocate(meqrec1)
     meqrec=>meqrec1
     meqrec%status=0
-    nullify(mapfix)
+    if(allocated(mapfix)) deallocate(mapfix)
     call cpu_time(starting)
     call system_clock(count=starttid)
 ! we may return here if gridcheck found a gridpoint below
@@ -254,7 +255,8 @@ CONTAINS
 !\end{verbatim}
     TYPE(meq_setup), allocatable, target :: meqrec1
     TYPE(meq_setup), pointer :: meqrec
-    type(map_fixph), pointer :: mapfix
+    type(map_fixph), allocatable :: mapfix
+!    type(map_fixph), pointer :: mapfix
     double precision starting,finish2
     integer starttid,endoftime,ij,addtuple
 !--------------------------------
@@ -262,7 +264,8 @@ CONTAINS
     meqrec=>meqrec1
     meqrec%status=0
     if(.not.confirm) meqrec%status=ibset(meqrec%status,MMQUIET)
-    nullify(mapfix)
+    if(allocated(mapfix)) deallocate(mapfix)
+!    nullify(mapfix)
     call cpu_time(starting)
     call system_clock(count=starttid)
 ! we may return here if gricheck found a new phase stable
@@ -317,7 +320,8 @@ CONTAINS
     implicit none
     integer mode
     TYPE(meq_setup), pointer :: meqrec
-    type(map_fixph), pointer :: mapfix
+    type(map_fixph), allocatable :: mapfix
+!    type(map_fixph), pointer :: mapfix
     TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
     TYPE(gtp_condition), pointer :: condition,lastcond
@@ -778,7 +782,8 @@ CONTAINS
        meqrec%aphl(meqrec%nv)=meqrec%fixpham(mjj)
     enddo addfixph
 !------------------------------- special for mapping
-    if(associated(mapfix)) then
+    if(allocated(mapfix)) then
+!    if(associated(mapfix)) then
 ! the stable and fix phases copied from mapfix record.
        do ij=1,meqrec%nv
 !          write(*,64)'Removing already stable phase: ',ij,meqrec%iphl(ij),&
@@ -786,8 +791,9 @@ CONTAINS
           meqrec%iphl(ij)=0
           meqrec%icsl(ij)=0
        enddo
-       if(ocv()) write(*,64)'Fix phase in mapfix record: ',mapfix%nfixph,&
-            mapfix%fixph(1)%ixphase,mapfix%fixph(1)%compset
+!       if(ocv()) write(*,64)'Fix phase in mapfix record: ',mapfix%nfixph,&
+!       write(*,64)'MM mapfix record: ',mapfix%nfixph,&
+!            mapfix%fixph(1)%ixphase,mapfix%fixph(1)%compset
 ! this is never assigned           mapfix%fixph(1)%lokvares
 64     format(a,i3,5x,2i5,5x,i5)
        meqrec%nfixph=mapfix%nfixph
@@ -807,6 +813,8 @@ CONTAINS
           meqrec%aphl(meqrec%nv)=mapfix%stablepham(ij)
 !          write(*,*)'MM: Phase amount: ',ij,mapfix%stablepham(ij)
        enddo
+! mapfix will be deallocated in calling routine if all goes well!!
+!       deallocate(mapfix)
 !       write(*,64)'MM: Total number of stable phases: ',meqrec%nv
     endif
 !------------------------------- 
@@ -1122,9 +1130,16 @@ CONTAINS
        xxx=0.0D0
        if(iadd.gt.0) tupadd=meqrec%phr(iadd)%curd%phtupx
        if(irem.gt.0) tuprem=meqrec%phr(irem)%curd%phtupx
-       if(.not.btest(meqrec%status,MMQUIET)) &
+       if(.not.btest(meqrec%status,MMQUIET)) then
+          if(formap) then
+            write(*,*)'Change of direction at first equilibrium'
+         elseif(ceq%eqno.ne.1) then
+            write(*,219)meqrec%noofits,tupadd,tuprem,' at ',ceq%eqno
+219         format('Phase change: its/add/remove: ',3i5,a,i5)
+         else
             write(*,219)meqrec%noofits,tupadd,tuprem
-219    format('Phase change: its/add/remove: ',5i5,1pe12.4)
+         endif
+      endif
        if(formap) then
 ! when called during mapping the set of phases must not change!
           if(ocv()) write(*,*)'Phase change not allowed',ceq%tpval(1)
@@ -6163,7 +6178,12 @@ CONTAINS
 !    endif
 ! noofits=1 means phase is ideal, use only diagonal
     nocon=pmi%ncc
-!    if(allocated(zib)) deallocate(zib)
+! previously the if(allocated(zib) ... was commented away but then 
+! I had a jump due to uninital variable at the line
+!       if(saved%order(jj).eq.0) then
+! below when calculating the dotderivative H.T because i had not set
+! any values in saved%order .... above as noofits=-1 ... cpmplicated ... suck
+    if(allocated(zib)) deallocate(zib)
     allocate(zib(nrel))
 !    if(nocon.gt.nrel) then
     if(nocon.ge.nrel) then
@@ -6204,6 +6224,10 @@ CONTAINS
           maybesave(nrel+3,iy)=cip
        endif
     enddo
+    if(noofits.lt.0) then
+!      write(*,*)'Do not save in dgdyterms1P',noofits
+       goto 1000
+    endif
 !    goto 1000
 !
 ! To speed up calculations we save same values
@@ -7445,7 +7469,7 @@ CONTAINS
           if(meqrec%nfixmu.gt.0) then
 ! if there are fixed potentials such elements should be ignored here
 ! as there is no value in svar (value is zero as fixed)
-             write(*,*)'Dot derivatives and potential condition not implemented'
+           write(*,*)'Dot derivatives with potential condition not implemented'
              goto 1000
           endif
 ! sum the contribution for the potentials
@@ -7470,6 +7494,8 @@ CONTAINS
           case(8) !V = G.P
              write(*,*)'Not implemented yet: ',svr1%statevarid
           case(9) !H = G + TS = G - T G.T
+! this gives contribution also when plotting H(liq).T and HM(liq).T in step1
+! but it is identical to Thermo-Calc .... thus correct
              hconfig=pmi%curd%dgval(1,jy,1)-ceq%tpval(1)*pmi%curd%dgval(2,jy,1)
           case(10) !A = G - PV = G - P G.P
              write(*,*)'Not implemented yet: ',svr1%statevarid
@@ -7534,7 +7560,7 @@ CONTAINS
           write(*,*)'Not implemented yet: ',svr1%statevarid
           gx%bmperr=4215
        case(9) !H = G + TS = G - T G.T
-! x1 is change in phase amount times H
+! x1 is change in phase amount times H.  Skip this if svr1%norm.eq.1 
           x1=-ceq%rtn*dpham*&
                   (pmi%curd%gval(1,1)-ceq%tpval(1)*pmi%curd%gval(2,1))
 !          write(*,666)'x1: ',ceq%rtn,dpham,pmi%curd%gval(1,1),&
@@ -7542,13 +7568,20 @@ CONTAINS
 ! x2 is phase_amount * dH/dT = .. -T*d2G/dT2 = -T
 ! CCI changed order of tests, does not work for step1
           if(dpham.ne.zero) then
+! there is a change in phase amounts
              x2=-ceq%rtn*pmi%curd%amfu*ceq%tpval(1)*pmi%curd%gval(4,1)
           elseif(svr1%norm.eq.1) then
 !xCCI          if(svr1%norm.eq.1) then
 ! compared with Thermo-Calc this seems correct, it is just HM(phase).T
              x2=-ceq%rtn*ceq%tpval(1)*pmi%curd%gval(4,1)
+!             write(*,444)'Phase: ',iph,x1,x2,x3
+!444          format(a,i3,3(1pe14.6))
 !xCCI          else
 !xCCI             x2=-ceq%rtn*pmi%curd%amfu*ceq%tpval(1)*pmi%curd%gval(4,1)
+          else
+! This is H.T or H(phase).T, should be (amount of phase)*HM.T
+! when there is no change of amount of phase
+             x2=-ceq%rtn*pmi%curd%amfu*ceq%tpval(1)*pmi%curd%gval(4,1)
           endif
 ! CCI end of correction
        case(10) !A = G - PV

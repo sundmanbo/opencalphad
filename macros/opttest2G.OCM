@@ -20,6 +20,10 @@ set wei 0 *
 
 set fix 0-99
 
+l eq
+
+@&
+
 l opt
 
 @&
@@ -81,7 +85,10 @@ opt 100
 l opt
 
 @&
-@$ mapping phase diagram
+@$ ------------------------------------------------------
+@$ sometimes mapping phase diagram memory crash here
+@$ problems with memory leaks during STEP/MAP
+@$ ------------------------------------------------------
 
 mac opttest2-map-diagram
 

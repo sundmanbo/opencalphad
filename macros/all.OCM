@@ -179,11 +179,11 @@ mac parallel2
 mac opttest1
 
 @$ *********************************************************
-@$ Assessment start of the Cu-Mg case study
+@$ Assessment start of the Cu-Mg case study must be run by itself
 @& *********************************************************
-
-mac opttest2
-
+@$
+@$ mac opttest2
+@$
 @$ *********************************************************
 @$ that is all
 @& *********************************************************

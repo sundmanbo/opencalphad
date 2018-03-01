@@ -1154,10 +1154,24 @@
    if(gx%bmperr.ne.0) goto 1000
    ic=0
 !
-! bug here when calculating Cr-Fe because we create new composition set ...
+! bug here when calculating MAP11 because we create new composition sets
+! when we map the different lines
    if(ocv()) write(*,14)'3F cpm: ',iph,ics,lokph,lokcs
 14 format(a,10i5)
    allsubl: do ll=1,phlista(lokph)%noofsubl
+! an error here in MAP11.OCM as the number of composition sets varied
+! in the different map commands
+      if(.not.allocated(ceq%phase_varres(lokcs)%sites)) then
+         if(ics.eq.2) then
+! fix to allow list and amend lines from mapping when a phase
+! may have added composition sets ...
+            call get_phase_compset(iph,1,lokph,lokcs)
+         else
+            write(*,*)'phase ',trim(phlista(lokph)%name),&
+                 ' has no composition set ',ics
+         endif
+         amount=zero; gx%bmperr=4072; goto 700
+      endif
       as=ceq%phase_varres(lokcs)%sites(ll)
       allcons: do kk=1,phlista(lokph)%nooffr(ll)
          ic=ic+1
@@ -1207,10 +1221,12 @@
       wmass(ic)=wmass(ic)/wsum
    enddo
 !   write(*,713)'3F cpmm: ',noofel,xsum,(xmol(ic),ic=1,noofel)
-! This is the current number of formula unit of the phase, zero if not stable
+! This is the current number of formula unit of the phase, 
+! It is zero if not stable
    amount=ceq%phase_varres(lokcs)%amfu
 ! ceq%phase_varres(lokcs)%abnorm(1) is moles atoms for one formula unit
 ! ceq%phase_varres(lokcs)%abnorm(2) is mass for one formula unit
+700 continue
    totmol=amount*xsum
    totmass=amount*wsum
 !   write(*,717)'3F z:',noofel,lokcs,totmol,totmass,amount,&
@@ -1233,6 +1249,7 @@
 !   enddo
 !298 format('3F: ',6(1pe12.4))
    goto 1000
+!---------------------------------------------
 ! what is this ... converting to user defined components ... (not implemented)
    x2mol=zero
    w2mass=zero

@@ -5392,10 +5392,16 @@
 ! For phase lokph the index to phase_varres is in phlista(lokph)%linktocs(ics)
    if(ocv()) write(*,*)'3B: entereq 2: ',maxph
    alleq: if(ieq.eq.1) then
-! %multiuse is used for axis and direction of a start equilibrium
-      allocate(eqlista(ieq)%phase_varres(2*maxph))
+      needcs=2*maxph
+      allocate(eqlista(ieq)%phase_varres(needcs))
       firsteq=>eqlista(ieq)
+! %multiuse is used for axis and direction of a start equilibrium
       firsteq%multiuse=0
+! we should also set phstate in all phase_varres to 0 to avoid uninitiated
+! test of phase status in test_phase_status!!
+      do ipv=1,needcs
+         firsteq%phase_varres(ipv)%phstate=0
+      enddo
 ! endif is at label 900, no need for goto
 !      goto 900
    else
@@ -5414,6 +5420,8 @@
 ! for ieq>1 allocate an estimated number of phase_varres records
 ! for extra composition sets added later
 !      allocate(eqlista(ieq)%phase_varres(iz+10))
+! I had a case with 4 components, 1 phase+disordered fraction set
+! and with 4 compositon sets!!
       needcs=2*noofph+2*noofel+10
       if(csfree.gt.needcs .or. highcs.gt.needcs) then
          write(*,*)'3B Error allocating phase_varres: ',needcs,csfree,highcs
@@ -5435,7 +5443,7 @@
 ! note eqlista(1) is identical to firsteq
          if(.not.allocated(firsteq%phase_varres(ipv)%yfr)) then
 ! UNFINISHED this handels unallocated records below novarres
-!            write(*,*)'3B error creating varres record',ipv
+!            write(*,*)'3B problem creating varres record',ipv
 ! BUT what about allocated after !!! no problem so far but .............
             cycle copypv
          endif
@@ -5453,7 +5461,9 @@
 ! allocate and copy arrays
          lokph=cp1%phlink
          if(lokph.le.0) then
-            nc=1
+! maybe problem here for SELECT_ELEMENT_REFERENCE ??
+!            write(*,*)'No phase? ',ipv
+            nc=noofel
          else
             nc=phlista(lokph)%tnooffr
          endif

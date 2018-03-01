@@ -1221,9 +1221,15 @@
       do i=1,6
          call storr(lok+displace+nwpr*(i-1),iws,firstvarres%gval(i,1))
       enddo
+! problem here with SELECT_ELEMENT_REFERENCE phase ...
+!      write(*,304)'3E bug: ',trim(phlista(lokph)%name),mc,&
+!           size(firstvarres%dgval)
+!304   format(a,a,5i5)
+! in the ENTER_EQUILIBRIUM the incorrect size of dgval was allocated !!! fixed
       displace=displace+6*nwpr
       do i=1,3
          do k=1,mc
+!            write(*,*)'indices: ',i,k
             call storr(lok+displace,iws,firstvarres%dgval(i,k,1))
             displace=displace+nwpr
          enddo
@@ -2947,6 +2953,9 @@
 !      write(*,*)'3E No segmentation error C5',j
       deallocate(ceq%invcompstoi)
 !      write(*,*)'3E No segmentation error C6',j
+! remove valgrind memory leak for conditions
+      call delete_all_conditions(0,ceq)
+! clean upp phase_varres records
       do k=1,size(ceq%phase_varres)
          phdyn=>ceq%phase_varres(k)
          if(allocated(phdyn%gval)) then
@@ -3114,8 +3123,12 @@
    addition: do while(associated(addlink))
 !>>>>> 12: additions
       nextadd=>addlink%nextadd
-      if(addlink%type.eq.1 .or. addlink%type.eq.7) then
-!>>>>> 12A: delete magnetic, volume addition ...
+      if(addlink%type.eq.1) then
+!>>>>> 12A: delete magnetic addition ...
+         deallocate(addlink%explink)
+         deallocate(addlink)
+      elseif(addlink%type.eq.7) then
+!>>>>> 12A: delete volume addition ...
          deallocate(addlink)
       else
          write(*,*)'3E Cannot delete unknown addition type ',addlink%type
@@ -3133,6 +3146,8 @@
    phlista(lokph)%nooffs=0
 !   write(*,*)'all done'
 1000 continue
+! remove valgrind leak
+   deallocate(stack)
    return
  end subroutine delphase
 
@@ -3378,6 +3393,7 @@
    logical silent,thisphaserejected
 !  mmyfr noofph
 ! if warning is true at the end pause before listing bibliography
+   nsl=0
    warning=.FALSE.
    silent=.FALSE.
    nphrej=0

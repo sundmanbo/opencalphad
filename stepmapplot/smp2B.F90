@@ -1284,7 +1284,7 @@
        write(*,*)'No data to plot'
        goto 1000
     endif
-    write(*,17)
+!    write(*,17)
 17  format(//'Using ocplot3')
 ! extract the axis variables
     jph=index(pltax(1),'*')
@@ -2337,6 +2337,7 @@
     integer kl,ll,jax,nax
     double precision, dimension(:), allocatable :: axxx
     type(gtp_state_variable), pointer :: svrrec
+    logical once
 !
     if(.not.associated(maptop)) then
        write(kou,*)'No stored equilibria'
@@ -2396,21 +2397,34 @@
        if(.not.allocated(results%savedceq)) then
           write(*,*)'Cannot find link to saved equilibria! '
        else
+          once=.true.
           write(kou,140)
 140       format('Saved ceq     link       T            X')
           ceqloop: do while(ll.gt.0)
              thisceq=>results%savedceq(ll)
              do jax=1,nax
                 call locate_condition(axarr(jax)%seqz,pcond,thisceq)
-                if(gx%bmperr.ne.0) goto 1000
+                if(gx%bmperr.ne.0) goto 300
                 svrrec=>pcond%statvar(1)
                 call state_variable_val(svrrec,axxx(jax),thisceq)
-                if(gx%bmperr.ne.0) goto 1000
+                if(gx%bmperr.ne.0)then
+                   if(once) then
+                   write(*,*)' *** Error ',gx%bmperr,&
+                        ' reset, data may be missing'
+                      once=.false.
+                   endif
+                   gx%bmperr=0
+                endif
              enddo
              write(kou,150)ll,thisceq%next,thisceq%tpval(1),axxx
 150          format(2i9,f9.2,5(1pe13.5))
              ll=thisceq%next
           enddo ceqloop
+       endif
+300    continue
+       if(gx%bmperr.ne.0) then
+          write(*,*)' *** Error ',gx%bmperr,' reset, data maybe missing'
+          gx%bmperr=0
        endif
     enddo
 !    write(kou,160)mapnode%seqx,mapnode%previous%seqx

@@ -295,7 +295,8 @@ CONTAINS
     type(map_line), pointer :: mapline
 ! should this meqrec be a pointer or not??
     type(meq_setup), pointer :: meqrec
-    type(map_fixph), pointer :: mapfix
+    type(map_fixph), allocatable :: mapfix
+!    type(map_fixph), pointer :: mapfix
     double precision starting,finish2,axvalok,dgm,tsave,xxx,yyy,zzz
     integer starttid,endoftime,bytdir,seqz,nrestore,termerr,lastimethiserror
 
@@ -380,7 +381,7 @@ CONTAINS
 85     format('Previous step/map results saved'/&
             'New mapnode/line equilibria indices will start from: ',i3,i5)
 !       maptop%seqy=0
-!    write(*,*)'savesize: ',size(maptop%saveceq%savedceq)
+!       write(*,*)'savesize: ',size(maptop%saveceq%savedceq)
 !-------------------------------
 ! return here for each new line to be calculated
 ! NOTE we can start a new thread for each line, when a node is found
@@ -398,7 +399,7 @@ CONTAINS
     call map_findline(maptop,axarr,mapfix,mapline)
     if(gx%bmperr.ne.0) goto 1000
 ! if no line we are finished!
-!    write(*,*)'Back from map_findline 1: ',associated(mapline)
+!   write(*,*)'Back from map_findline 1: ',associated(mapline),allocated(mapfix)
 ! segmentation fault crash later ...
     if(.not.associated(mapline)) goto 900
 !    write(*,*)'We will start calculate line: ',mapline%lineid,mapline%axandir
@@ -517,6 +518,8 @@ CONTAINS
        goto 300
     endif
 !    write(*,*)'back from calceq7B'
+! if all has gone well deallocate mapfix
+    if(allocated(mapfix)) deallocate(mapfix)
 !--------------------------------
 ! limit the maximum change in T and P, should be small during step/map
     meqrec%tpmaxdelta(1)=2.0D1
@@ -947,7 +950,8 @@ CONTAINS
     TYPE(map_line), dimension(2) :: tmpline
     TYPE(map_node), pointer :: mapnode,tmpnode
 !    type(gtp_phasetuple) :: phfix
-    type(map_fixph), pointer :: mapfix
+    type(map_fixph), allocatable :: mapfix
+!    type(map_fixph), pointer :: mapfix
     type(gtp_phasetuple), dimension(:), allocatable :: mapfixph
     integer mode,axactive,iax,jp,ieq,naxvar,seqx,kp,zz,kpos,seqy
     character eqname*24
@@ -964,7 +968,8 @@ CONTAINS
 ! and the phr array must not be deallocated.  mapfix will be used later to
 ! indicate fix and stable phases for different lines (maybe ...)
     mode=-1
-    nullify(mapfix)
+    if(allocated(mapfix)) deallocate(mapfix)
+!    nullify(mapfix)
 !    write(*,*)'meq_startpoint: after allocating meqrec 1'
     call calceq7(mode,meqrec,mapfix,ceq)
     if(gx%bmperr.ne.0) then
@@ -1259,6 +1264,9 @@ CONTAINS
        deallocate(meqrec%phr)
     endif
     mapnode%meqrec=meqrec
+! trying to reduce memory loss
+    deallocate(meqrec)
+!    write(*,*)'We are here 15!'
 ! NOTE: The phr array has been deallocated, maybe it should be kept ...
 ! but then we must change mode to -1 in the call to calceq7 above
 !---------------------
@@ -1479,7 +1487,7 @@ CONTAINS
                 tmpline(1)%stableph(1)%compset=meqrec%phr(jj)%ics
                 tmpline(1)%nstabph=tmpline(1)%nstabph+1
 !                tmpline(1)%nstabph=1
-! why exit??
+! why exit?? Maybe because there can only be a single phase!!
 !                exit
              enddo
              if(tmpline(1)%nstabph.eq.0) then
@@ -4648,8 +4656,9 @@ CONTAINS
     type(map_node), pointer :: maptop
     type(map_line), pointer :: mapline
     type(map_axis), dimension(*) :: axarr
+    type(map_fixph), allocatable :: mapfix
 ! memory leak as mapfix is allocated below ...
-    type(map_fixph), pointer :: mapfix
+!    type(map_fixph), pointer :: mapfix
 !\end{verbatim}
     type(map_node), pointer :: mapnode
     type(gtp_condition), pointer :: pcond
@@ -4757,6 +4766,9 @@ CONTAINS
 !    write(*,*)'tielines: ',maptop%tieline_inplane
     if(maptop%tieline_inplane.lt.0) then
 ! ISOPLETH
+       if(allocated(mapfix)) then
+          deallocate(mapfix)
+       endif
        allocate(mapfix)
 ! with only 2 axis we have just 1 fix phase for mapping
        allocate(mapfix%fixph(1))
@@ -4799,7 +4811,6 @@ CONTAINS
        enddo
        write(kou,520)mapline%lineid,mapline%lineceq%tpval(1),phaseset(1:ip)
 520    format(/'Line ',i3,' T=',F8.2,' with: ',a)
-!       nullify(mapfix)
 !-------------------------------------------------------------
     elseif(maptop%tieline_inplane.gt.0) then
 ! TIE-LINES IN PLANE, NOTE: meqrec not allocated!!
@@ -4820,6 +4831,10 @@ CONTAINS
 !            ' tie-lines in plane, node:',&
 !            mapnode%seqx,nyline,mapnode%linehead(nyline)%nstabph
 !505    format(a,a,10i4)
+       if(allocated(mapfix)) then
+!          write(*,*)'Deallocating mapfix'
+          deallocate(mapfix)
+       endif
        allocate(mapfix)
        allocate(mapfix%fixph(1))
        allocate(mapfix%stableph(1))
@@ -4911,7 +4926,7 @@ CONTAINS
                mapnode%linehead(1)%nstabph
        endif
 ! for step calculation mapfix is not needed
-       nullify(mapfix)
+!       nullify(mapfix)
     endif
 1000 continue
     return
@@ -4943,7 +4958,7 @@ CONTAINS
     TYPE(map_node), pointer :: maptop
 !\end{verbatim}
     type(map_ceqresults), pointer :: saveceq
-    TYPE(map_node), pointer :: current,nexttop
+    TYPE(map_node), pointer :: current,nexttop,mapnode,delnode
     TYPE(map_line), pointer :: linehead
     TYPE(gtp_equilibrium_data), pointer :: ceq
     integer ieq,jj
@@ -4953,7 +4968,7 @@ CONTAINS
        write(*,*)'No step or map results to delete'
        goto 1000
     endif
-    current=>maptop
+!    current=>maptop
 !    deloop: do while(associated(current))
 !       write(*,*)'Number of stored equilibria: ',current%saveceq%free-1
 !       current=>current%plotlink
@@ -4962,29 +4977,44 @@ CONTAINS
 ! all mapnodes has a pointer to first where the saveceq is allocated
     current=>maptop
     do while(associated(current))
-       write(*,*)'deleting map results: ',current%saveceq%free-1
-       deallocate(current%saveceq%savedceq)
-       nexttop=>current%plotlink
-       write(*,*)'SMP: cleaning up more'
-       if(allocated(current%linehead)) then
-          do jj=1,current%lines
-! should these be deallocated explicitly??
-             linehead=>current%linehead(jj)
-             if(allocated(linehead%axvals)) deallocate(linehead%axvals)
-             if(allocated(linehead%axvals2)) deallocate(linehead%axvals2)
-             if(allocated(linehead%axvalx)) deallocate(linehead%axvalx)
-          enddo
-          deallocate(current%linehead)
+       if(allocated(current%saveceq%savedceq)) then
+          write(*,*)'deleting step/map line equilibria: ',current%saveceq%free-1
+          deallocate(current%saveceq%savedceq)
        endif
-       write(*,*)'do not deallocate current ...'
-! do not deallocate maptop record ...
-!       deallocate(current)
+       nexttop=>current%plotlink
+       mapnode=>current%next
+       do while(.not.associated(mapnode,current))
+!          write(*,*)'SMP: cleaning up more'
+          if(allocated(mapnode%linehead)) then
+             do jj=1,mapnode%lines
+! should these be deallocated explicitly??
+                linehead=>mapnode%linehead(jj)
+                if(allocated(linehead%axvals)) deallocate(linehead%axvals)
+                if(allocated(linehead%axvals2)) deallocate(linehead%axvals2)
+                if(allocated(linehead%axvalx)) deallocate(linehead%axvalx)
+             enddo
+             deallocate(mapnode%linehead)
+          endif
+          delnode=>mapnode
+          mapnode=>mapnode%next
+          deallocate(delnode)
+       enddo
+       delnode=>current
        current=>nexttop
+! deallocate the last mapnode
+       if(associated(current)) deallocate(delnode)
     enddo
-    write(*,*)'SMP: deleting _MAPx equilibria'
+! this is maybe meaningless or actually BAD
+!    do while(associated(current))
+!       delnode=>current
+!       current=>current%next
+!       deallocate(delnode)
+!    enddo
+    write(*,*)'Deleting _MAPx equilibria'
+!    if(associated(maptop)) write(*,*)'maptop associated'
     ceq=>firsteq
     call delete_equilibria('_MAP*',ceq)
-    write(*,*)'Done delete_mapresults'
+!    write(*,*)'Done delete_mapresults ',associated(maptop)
 1000 continue
     return
   end subroutine delete_mapresults
@@ -5298,7 +5328,8 @@ CONTAINS
     type(gtp_phasetuple), dimension(:), allocatable :: entphcs
     integer, dimension(:), allocatable :: stsphcs
     type(map_line), pointer :: mapline
-    type(map_fixph), pointer :: mapfix
+    type(map_fixph), allocatable :: mapfix
+!    type(map_fixph), pointer :: mapfix
 !    TYPE(map_node), pointer :: curtop
     type(meq_setup), pointer :: meqrec
     type(gtp_condition), pointer :: pcond
@@ -5468,6 +5499,7 @@ CONTAINS
 ! find a stored line to calculate
 ! in this subroutine we have only one axis variable
 200       continue
+          write(*,*)'Calling findline'
           call map_findline(maptop,axarr,mapfix,mapline)
           if(gx%bmperr.ne.0) goto 500
 !          write(*,*)'Back from map_findline 2'

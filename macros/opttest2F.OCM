@@ -171,35 +171,6 @@ mac  opttest2-map-diagram
 
 @&
 @$---------------------------------------------------------
-@$ Sometimes some parts are missing, add a start point
-@$ and MAP withou removing what is already calculated
-@$---------------------------------------------------------
-set c t=1000 p=1e5 n=1 x(mg)=.4
-c e
-l,,,,
-
-@&
-map
-N
-
-
-plot
-
-
-@$ remove the appended data ...
-app
-
-
-@&
-plot
-
-
-append oc_many9
-
-
-
-@&
-@$---------------------------------------------------------
 @$ Add some tie-line data between liquid and Laves
 @$---------------------------------------------------------
 
@@ -244,9 +215,6 @@ l opt
 
 mac  opttest2-map-diagram
 
-
-@&
-@$ If some lines are missing you can try to add them as before
 
 @&
 @$------------------------------------------------------

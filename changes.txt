@@ -13,12 +13,33 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2018.03.01 OC version 5.006: A visit at CEA Cadarache gave inspiration
+as they were happy with the speed of calculations and in particular
+the possibility to save/read complex calculations on UNFORMATTED
+Fortran files duiring simulations.
+
+I have managed to reduce the memory loss during STEP/MAP using
+valgrind.  Evidently the Fortran compiler allows and the run time
+system manages to deallocate data that has been allocated by a pointer
+variable, a few years ago I was told that was not possible.  That
+simplifies eliminating memory leaks as I must sometimes allocate
+records for a pointer when creating lists.
+
+But running all tests I had strange crashes with the NEW command when
+releasing allocated memory.  I had to make some careful modifications
+also in the command monitor.  It crashed differently on Windows and
+Linux but finally I managed to run all tests on both machines without
+running out of memory and no segmentaton faults.  Previously I always
+had "allocation larger than available memory" at the end of the new
+large opttest2 macro.  But reducing memory leaks during assessments is
+still on the to-do list.
+
 2018.02.26 OC version 5.005: Running valgrind again shows a lot of
-problems that has to be fixed, in particular memory leaks when using
+problems that have to be fixed, in particular memory leaks when using
 STEP and MAP.  It will take some time but some are corrected in this
 release.  The opttest2 macro has been extended.  LIST RESULT has two
-additional options, 10 and 11, to list constitution based on amount of
-the phase.
+additional options, 10 and 11, to list constitution based on the
+amount of the phase similar to FactSage output.
 
 2018.02.23 OC version 5.004: Many changes has been made in the
 assessment part of OC as a PhD student at Toulouse, Eva Lawrene, has

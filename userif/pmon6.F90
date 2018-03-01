@@ -468,6 +468,7 @@ contains
     ocmfile=' '; ocufile=' '; tdbfile=' '
 ! reset plot ranges and their defaults
     call reset_plotoptions(graphopt,plotfile,textlabel)
+    axplotdef=' '
 ! default list unit
     optionsset%lut=kou
 ! default for list short
@@ -2101,6 +2102,7 @@ contains
           endif
 ! reset default plot options
           call reset_plotoptions(graphopt,plotfile,textlabel)
+          axplotdef=' '
           call gparcd('Condition varying along axis: ',cline,last,1,&
                text,name1,q1help)
           call capson(text)
@@ -3970,15 +3972,21 @@ contains
        endif
        seqxyz=0
        call delete_mapresults(maptop)
+!       write(*,*)'Back from delete_mapresults'
 ! remove any results from step and map
-       if(associated(maptop)) then
+!       if(associated(maptop)) then
 !          write(*,*)'maptop nullified: ',maptop%next%seqx
-          maptop%next%seqx=0
-          maptop%next%seqy=0
-          nullify(maptop)
-       endif
+!          maptop%next%seqx=0
+!          maptop%next%seqy=0
+!          maptop%seqx=0
+!          maptop%seqy=0
+!          nullify(maptop)
+!       endif
+!       write(*,*)'we are here'
+       nullify(maptop)
        nullify(mapnode)
        nullify(maptopsave)
+       seqxyz=0
 !----- deallocate local axis records
        do jp=1,noofaxis
           if(allocated(axarr(jp)%axcond)) deallocate(axarr(jp)%axcond)
@@ -4288,12 +4296,15 @@ contains
 ! this does not delete _mapnode and _mapline equilibria ???
           call delete_mapresults(maptop)
 ! remove any results from step and map
-          if(associated(maptop)) then
-             write(*,*)'maptop nullified: ',maptop%next%seqx
-             maptop%next%seqx=0
-             maptop%next%seqy=0
-             nullify(maptop)
-          endif
+!          if(associated(maptop)) then
+!             write(*,*)'maptop nullified: ',maptop%next%seqx
+!             maptop%next%seqx=0
+!             maptop%next%seqy=0
+!             maptop%seqx=0
+!             maptop%seqy=0
+!             nullify(maptop)
+!          endif
+          nullify(maptop)
           nullify(mapnode)
           nullify(maptopsave)
 !----- deallocate local axis records
@@ -4307,6 +4318,7 @@ contains
           nullify(starteq)
           noofstarteq=0
           call reset_plotoptions(graphopt,plotfile,textlabel)
+          axplotdef=' '
 !-----------------------------------------------------------
 !
        case(8)
@@ -4338,7 +4350,8 @@ contains
           call gparcd('Delete them?',cline,last,1,ch1,'Y',q1help)
           if(ch1.eq.'y' .or. ch1.eq.'Y') then
 ! there should be a more careful deallocation to free memory
-             deallocate(maptop%saveceq)
+             call delete_mapresults(maptop)
+!             deallocate(maptop%saveceq)
              nullify(maptop)
              nullify(maptopsave)
              write(kou,*)'Previous results removed'
@@ -4347,6 +4360,7 @@ contains
              seqxyz=0
 ! remove all graphopt settings
              call reset_plotoptions(graphopt,plotfile,textlabel)
+             axplotdef=' '
           else
              seqxyz(1)=maptop%next%seqx
              seqxyz(2)=maptop%seqy
@@ -4453,19 +4467,22 @@ contains
           write(kou,833)
           call gparcd('Reinitiate?',cline,last,1,ch1,'Y',q1help)
           if(ch1.eq.'y' .or. ch1.eq.'Y') then
-             deallocate(maptop%saveceq)
+             call delete_mapresults(maptop)
+!             deallocate(maptop%saveceq)
              nullify(maptop)
              nullify(maptopsave)
 ! this removes all previous equilibria associated with STEP/MAP commands
-             call delete_equilibria('_MAP*',ceq)
-             if(gx%bmperr.ne.0) then
-                write(kou,*)'Error removing old MAP equilibria'
-                goto 990
-             endif
+! already done by delete_mapresults
+!             call delete_equilibria('_MAP*',ceq)
+!             if(gx%bmperr.ne.0) then
+!                write(kou,*)'Error removing old MAP equilibria'
+!                goto 990
+!             endif
 ! initiate indexing nodes and lines
              seqxyz=0
 ! remove all graphopt settings
              call reset_plotoptions(graphopt,plotfile,textlabel)
+             axplotdef=' '
           else
 ! start indexing new nodes/lines from previous 
 !             write(*,*)'mapnode: ',maptop%seqx,maptop%previous%seqx,&
@@ -4572,9 +4589,10 @@ contains
 !             endif
           endif
           if(axplotdef(iax).ne.axplot(iax)) then
-! if new axis then reset default plot options
+! if new axis variable then reset default plot options
 ! plot ranges and their defaults
              call reset_plotoptions(graphopt,plotfile,textlabel)
+!             axplotdef(3-iax)=' '
           endif
 ! remember most recent axis as default (and to avoid reset)
           axplotdef(iax)=axplot(iax)

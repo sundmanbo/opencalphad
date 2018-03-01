@@ -4392,9 +4392,13 @@
 ! prepare a dummy prefix
       phdummy=phlista(lokph)%name(1:4)
       jp=0
-      do i3=1,noofph
-         if(i3.ne.lokph .and. phdummy.eq.phlista(i3)%name(1:4)) jp=1
-      enddo
+      name2: do i3=1,noofph
+         if(i3.ne.lokph .and. phdummy.eq.phlista(i3)%name(1:4)) then
+!            write(*,*)'Duplicate name',i3,lokph,phdummy,' ? ',&
+!                 phlista(i3)%name(1:4)
+            jp=1; exit name2
+         endif
+      enddo name2
       if(jp.gt.0) then
          call incunique(phunique)
          phdummy=phunique
