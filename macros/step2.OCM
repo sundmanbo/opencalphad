@@ -69,6 +69,7 @@ title step2 fig 1
 render
 
 
+@&
 @$ plot the stability function, the lowest eigenvalue 
 
 plot

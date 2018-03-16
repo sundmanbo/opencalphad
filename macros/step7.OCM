@@ -61,6 +61,8 @@ position top left
 title step 7 fig 2
 render
 
+@&
+@$ enter symbols for the PRE (Pitting Resistance Equivalence)
 ent sym prefcc=100*w(fcc,cr)+300*w(fcc,mo)+1600*w(fcc,n);
 
 ent sym prebcc=100*w(bcc,cr)+300*w(bcc,mo)+1600*w(bcc,n);
@@ -89,18 +91,21 @@ np(*)
 title step 7 fig 3
 render
 
+@&
 plot
 w(n)
 prefcc
 position off
 title step 7 fig 4
 
+@&
 plot
 w(n)
 prebcc
 title step 7 fig 5
 render
 
+@&
 @$ step with 50% ferrite
 
 set stat ph bcc=fix 0.5

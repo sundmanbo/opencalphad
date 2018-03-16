@@ -1,4 +1,35 @@
+@$
 new Y
+@$
+@$ ===========================================================
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$ Calculating Al-Ni binary phase diagram
+@$ with 4 sublattice order/disorder models for FCC, BCC (and HCP)
+@$ using partitioning and permutation of parameters
+@$ =================================================================== 
+
+set echo
 
 r t alni-4slx
 
@@ -14,7 +45,7 @@ l , 2
 
 set ax 1 x(al) 0 1 ,,
 
-set ax 2 t 200 2000 25
+set ax 2 t 400 2000 25
 
 map
 
@@ -22,9 +53,12 @@ map
 plot
 
 
+title map13 fig 1
 
-
-@$ set inter
+@&
+@$ =================================================================== 
+@$ only the FCC/FCC_L12 ... mapping is not very stable, sorry
+@$ Add a start point between L1_2 and B2
 
 
 set c t=1000 x(al)=.3
@@ -42,7 +76,31 @@ n
 plot
 
 
+title map13 fig 2
 
+@&
+@$ Add some phase labels
+plot
+
+
+title map13 fig 3
+text
+0.2
+1900 
+1
+0
+y
+
+text n 0.05 1400 1 0 y
+
+text n 0.23 1200 1 90 y
+
+text n 0.45 1500 1 0 y
+
+
+
+@$ =================================================================== 
+@$ Now we got the whole diagram!  Be happy!
 
 set inter
 

@@ -70,8 +70,8 @@
    ceq%phase_varres(lokcs)%amfu=xxx
 ! ask if we should set the current constitution, ignore default
 !   write(*,*)'3D we are here!'
-   call gparcd('Current, default (D) or new (N) constitution?',cline,last,&
-        1,ch1,chd,q1help)
+   call gparcd('Current (Y), default (D) or new (N) constitution?',&
+        cline,last,1,ch1,chd,q1help)
    if(ch1.eq.'Y' .or. ch1.eq.'y') then
       chd='Y'
 ! set the old constitution explicitly!!
@@ -338,7 +338,8 @@
    character cline*(*)
 !\end{verbatim}
    character name1*24,name2*24,longline*256,refx*16,elnam*24
-   character name3*64,ch1*1,line*64,parname*64
+! funame only 16 first characters will be used
+   character name3*64,ch1*1,line*64,parname*64,funame*24
    integer typty,lint(2,5),fractyp,typty1,kp,lp1,kel,kq,iel,isp,lk3,lp2
    integer jph,ics,lokph,ll,k4,nint,jp,lsc,ideg,kk,lfun,nsl,loksp
    integer, dimension(maxsubl) :: endm(maxsubl)
@@ -387,10 +388,12 @@
    write(kou,*)'unknown parameter type, please reenter: ',&
         name1(1:len_trim(name1))
    parname=' '; goto 10
-!
+! typty is the parameter symbol index
 70 continue
    typty1=typty
    iel=0; isp=0
+! the beginning of the TP function name
+   funame='_'//propid(typty1)%symbol(1:1)
    if(kel.gt.0) then
 ! there is a specifier, check if correct element or species
       kel=index(elnam,'#')
@@ -460,6 +463,21 @@
       endif
    endif
    lokph=phases(jph)
+! add the full phase name to the function name.  Remove any _ or numbers ,,,
+   funame(3:)=phlista(lokph)%name
+!   write(*,*)'3D funame 1: ',trim(funame),', ',name2
+   ll=4
+74 continue
+   if(funame(ll:ll).eq.'_') then
+      funame(ll:)=funame(ll+1:)
+      goto 74
+   elseif(ll.lt.9) then
+      ll=ll+1
+      goto 74
+   endif
+! eliminate anything from position 9
+   funame(9:)=' '
+!   write(*,*)'3D funame 2: ',trim(funame)
 ! if the parameter symbol has a constituent specification check that now
    if(isp.gt.0) then
       k4=0
@@ -493,20 +511,29 @@
    if(gx%bmperr.ne.0) goto 1000
 !   write(*,83)'3D after d_c: ',name3(1:lp1),nint,(lint(2,kp),kp=1,nint)
 83 format(a,a,i5,2x,5i4)
+   kp=len_trim(funame)
+   funame(kp+1:)=name3
+   call capson(funame)
 ! finally remove all non-alphabetical characters in the function name by _
-   kp=0
+   kp=3
 100 continue
    kp=kp+1
 105 continue
-   ch1=parname(kp:kp)
+!   ch1=parname(kp:kp)
+   ch1=funame(kp:kp)
 ! should use ??
 !   if(ucletter(ch1)) goto 100
    if(ch1.ge.'A' .and. ch1.le.'Z') goto 100
    if(ch1.ne.' ') then
-      parname(kp:)=parname(kp+1:)
-      goto 105
+!      parname(kp:)=parname(kp+1:)
+      funame(kp:)=funame(kp+1:)
+      if(kp.lt.16) goto 105
    endif
-   parname='_'//parname
+   funame(17:)=' '
+   kp=len_trim(funame)
+   if(kp.lt.16) funame(kp+1:kp+1)=char(ideg+ichar('0'))
+!   write(*,*)'3D funame 3: ',trim(funame),', ',trim(name3)
+!   parname='_'//parname
 !-------------------------------------------------
 ! if mode=0 enter the parameter, 
 ! if mode=1 just list the parameter
@@ -602,7 +629,9 @@
 !
    call capson(longline(1:jp))
 !   write(*,*)'3D epi: ',longline(1:jp)
-   call enter_tpfun(parname,longline,lfun,.FALSE.)
+!   call enter_tpfun(parname,longline,lfun,.FALSE.)
+!   write(*,*)'3D funame: ',trim(funame)
+   call enter_tpfun(funame,longline,lfun,.FALSE.)
    if(gx%bmperr.ne.0) goto 1000
 !   write(*,290)'3D enter_par 7: ',lokph,nsl,nint,ideg,lfun,refx
 290 format(a,5i4,1x,a)

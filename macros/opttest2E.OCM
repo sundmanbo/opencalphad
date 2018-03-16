@@ -1,0 +1,256 @@
+@$===================================================================
+@$===================================================================
+@$======= step 4: fit Cp of the Laves phase
+@$===================================================================
+@$===================================================================
+@$ Back from the break ...
+
+new Y
+
+set echo
+
+r u opttest2-cumg4
+
+@&
+@$ List previous results
+
+l opt
+
+@&
+@$ Ensure all expeimental equilibria has zero weight
+set wei 0 *
+
+@&
+@$ list the data for the Laves phas
+
+l ph laves_c15 data
+
+@&
+
+@$ Include experiments AC
+set wei 1 CP15_F
+
+set var 42 1
+
+c a n 1
+
+c a n 1
+
+@$ Sometimes there are problems, several calculate all may help
+@&
+
+opt 100
+
+@&
+
+l opt
+
+@&
+
+macro opttest2-plot-cplaves
+
+@$---------------------------------------------------------
+@$ There is a strange maximum of the Cp at low T.  Why?
+@$ Check the constitution of the Laves phase
+@$---------------------------------------------------------
+@&
+
+plot
+T
+y(laves,*)
+
+
+@$--------------------------------------------------------------------
+@$ The constitution to totally wrong, we should have almost pure Cu in first
+@$ sublattice at all T.
+@$ The drastic change in constitution gives a big contribution to Cp
+@$ because when entropy change so does Cp!
+@&
+@$ We must set a the enthalpy of fromation of the Laves phase
+@$ to enshuring that we have Cu in first and Mg in second
+@$--------------------------------------------------------------------
+
+l ph laves data
+
+
+set fix 40 -300000
+
+@& Set the T-independent parameter to a large negative value
+@&
+
+macro opttest2-plot-cplaves
+
+@$--------------------------------------------------------
+@$ There is still a maximum but at a higher T
+@$ Check how the constitution varies!
+@$--------------------------------------------------------
+plot
+T
+y(laves,*)
+
+@$--------------------------------------------------------------------
+@$ Now we have the correct constitution at least up to the melting point
+@$--------------------------------------------------------------------
+@&
+
+opt 0
+
+@$--------------------------------------------------------------------
+@$ Frequently many errors here ... we have to recalculate all equilibria
+@$ using the global gridminimizer
+@$--------------------------------------------------------------------
+@&
+@$ Use calc all with grid minimizer
+
+c a y 1
+
+
+opt 0
+
+@$ Now no errors.
+@&
+
+@$--------------------------------------------------------------------
+@$ Fit very bad, use more parameters
+@$ Here the start values of the parameters are critical
+@$ Consider that A43 is multipled with T**2, A44 with T**(-1)
+@$ and A45 with T**3
+@$--------------------------------------------------------------------
+
+set var 43 .01
+set var 44 1000
+set var 45 .0001
+
+list opt coef
+
+@&
+
+c a n 1
+
+@&
+@$---------------------------------------------------------------------
+@$ Check one equilibrium that constitution is OK, Cu in first, Mg in second
+@$---------------------------------------------------------------------
+
+sel eq 3
+l , 2
+
+@$---------------------------------------------------------------------
+@$ The constitution is reasonable for thie equilibrium
+@$---------------------------------------------------------------------
+@&
+@$ now optimize A42-A45
+
+opt 100
+
+l opt
+
+@&
+@$ run one more time
+
+opt 100
+
+l opt
+
+@$--------------------------------------------------------------
+@$ The sum or errors does not decrease, plot to check
+@$--------------------------------------------------------------
+@&
+
+mac opttest2-plot-cplaves
+
+@&
+@$---------------------------------------------------------
+@$ The Cp is OK but increase too mich at high T
+@$ Add a Cp estimation at high T (by phonon calculation)
+@$---------------------------------------------------------
+
+sel eq 125
+
+l,,,
+
+set wei 1
+
+
+c e
+
+l,,,,
+
+c sym cpm2
+
+@$---------------------------------------------------------
+@$ By adding this extimated Cp we can lower the Cp at high T
+@$---------------------------------------------------------
+@&
+
+opt 100
+
+@&
+
+l opt short
+
+@&
+@$ Plot the Cp
+
+mac opttest2-plot-cplaves
+
+
+@$ We have a reasonable fit to Cp
+@&
+@$---------------------------------------------------------
+@$ Use the AMEND ALL command to set the current values as start values
+@$ and optimize again.  This is important if the coefficents have
+@$ changed a lot
+@$---------------------------------------------------------
+
+amend all y
+
+@&
+
+opt 100
+
+@&
+
+l opt
+
+
+@&
+@$ Finally plot again and check the constitution
+
+mac opttest2-plot-cplaves
+
+@&
+
+plot
+T
+y(laves,*)
+
+
+
+@$---------------------------------------------------------
+@$ The constitution is perfectly ordered at all T
+@$---------------------------------------------------------
+@&
+@$ Clean up for next step
+
+set fix 0-99
+
+l opt
+
+set wei 0 *
+
+del step_map_result
+
+@$---------------------------------------------------------
+@$ Do not forget to remove STEP and MAP results before saving!
+@$---------------------------------------------------------
+@&
+
+save unf
+Done Cp for Laves_C15
+opttest2-cumg5
+Y
+
+set inter
+
+

@@ -1,0 +1,42 @@
+@$
+@$                      Cu2Mg (C15 Laves) heat capacity
+@$            Calculation and comparison to experiments
+@$
+
+sel eq 1
+
+set stat ph *=sus
+set stat ph laves=e 0
+
+set condition *:=none
+set condition t=1100 p=1e5 n=1 x(mg)=.3333333
+
+l cond
+
+@&
+set axis 1 t 10 2500 10
+calc eq
+l res 2
+
+
+step norm
+Y
+
+plot
+T
+CPM2
+append oc_many1
+scale y n 0 100
+axis-label x T/K
+axis-label y Heat capacity Cu2Mg (J.Mol-1.K-1)
+
+
+plot
+
+
+gra 3
+cp-laves
+Y
+
+
+set interactive

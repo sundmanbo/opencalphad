@@ -3,7 +3,7 @@
 !
 MODULE METLIB
 !
-! Copyright 1980-2015, Bo Sundman and others, bo.sundman@gmail.com 
+! Copyright 1980-2018, Bo Sundman and others, bo.sundman@gmail.com 
 ! 
 !    This program is free software; you can redistribute it and/or modify
 !    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,15 @@ MODULE METLIB
 !    You should have received a copy of the GNU General Public License
 !    along with this program; if not, write to the Free Software
 !    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+!
+!--------------------------------------------------------------------------
+#ifdef win
+! nothing special
+#else  
+! LINUX: For character by character input allowing emacs editing
+! uncomment the next line and run the Makefile on the GETKEY directory 
+  use M_getkey
+#endif
 !
 !--------------------------------------------------------------------------
 !
@@ -77,6 +86,8 @@ MODULE METLIB
   integer :: buperr=0,iox(10)
 ! LSTCMD is the last command given. Saved by NCOMP, used by help routines
   character, private :: lstcmd*40
+! LUN unsed for macros and SAVE files
+  integer :: lun=50
 ! LOGFIL is nonzero if a log file is set
   integer, private :: logfil=0
 ! global values for history
@@ -147,6 +158,16 @@ MODULE METLIB
   TYPE(putfun_node), private, pointer :: topnod,datanod,lastopnod
   integer pfnerr,debuginc
 !
+!
+  integer, parameter :: histlines=100
+!
+  TYPE CHISTORY
+! to save the last 20 lines of commands
+     character*80 hline(histlines)
+     integer :: hpos=0
+  END TYPE CHISTORY
+  type(chistory) :: myhistory
+!  
 ! end data structures for PUTFUN
 !^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -892,15 +913,15 @@ CONTAINS
   END FUNCTION EOLCH
 
   subroutine getname(text,ip,name,mode,ch1)
-! this should be incorporated in metlib
+! this should be incorporated in metlib, reading a species name 
     character text*(*),name*(*),ch1*1
 ! Always a letter A-Z as first character
-! mode=0 is normal, letters, numbers, "." and "_" allowed
+! mode=0 is normal, letters, numbers, "." and "_" allowed ?? should . be allowed
 ! mode=1 used for species names with "/", "+" and "-" allowed also
     ch1=biglet(text(ip:ip))
     if(ch1.lt.'A' .or. ch1.gt.'Z') then
        write(*,17)ichar(ch1),ch1,text(1:24),ip
-17     format('getname error: ',i5,' "',a,'" in "',a,'" at ',i4)
+17     format('GETNAME error: ',i5,' "',a,'" in "',a,'" at ',i4)
        buperr=1101; goto 1000
     endif
     jp=ip
@@ -2905,12 +2926,13 @@ CONTAINS
 !    character*128 binfil(3)
 !    character*128 terfil(3)
 !    EXTERNAL FILHLP
-    SAVE FIRST,LUN
+!    SAVE FIRST,LUN
+    SAVE FIRST
     DATA FIRST/.TRUE./
     IF(FIRST) THEN
        FIRST=.FALSE.
        IUL=0
-       lun=50
+!       lun=50
     ENDIF
     MACFIL=' '
     useext=macext
@@ -2926,7 +2948,7 @@ CONTAINS
     CALL FXDFLT(FIL,MACEXT)
 !    if (LEN_TRIM(fil).gt.0) call tcgffn(fil)
     IF(BUPERR.NE.0) GOTO 910
-!    write(*,*)'open macro: ',iul
+!    write(*,*)'open macro: ',lun,iul
 !    LUN=50
     OPEN(LUN,FILE=FIL,ACCESS='SEQUENTIAL',STATUS='OLD', &
          FORM='FORMATTED',IOSTAT=IERR,ERR=910)
@@ -2939,15 +2961,18 @@ CONTAINS
        OK=.FALSE.
        GOTO 900
     ENDIF
-    CALL GPARC(' ',LINE,LAST,1,CH1,'Y',FILHLP)
-    IF(CH1.NE.'Y') THEN
-       CALL SETB(1,IOX(8))
-    ELSEIF(CH1.EQ.'&') THEN
-       CALL CLRB(1,IOX(8))
-    ENDIF
+!    write(*,*)'Command input set: ',kiu,iul
+! this is to suprees "press return to continue" but not implemented ...
+!    CALL GPARC(' ',LINE,LAST,1,CH1,'Y',FILHLP)
+!    IF(CH1.NE.'Y') THEN
+!       CALL SETB(1,IOX(8))
+!    ELSEIF(CH1.EQ.'&') THEN
+!       CALL CLRB(1,IOX(8))
+!    ENDIF
     OK=.TRUE.
     KIU=LUN
     LUN=LUN+1
+!    write(*,*)'Command input is: ',kiu
     GOTO 900
 !
     ENTRY MACEND(LINE,LAST,OK)
@@ -2976,6 +3001,7 @@ CONTAINS
     LAST=LAST-1
 900 RETURN
 910 OK=.FALSE.
+    write(*,*)'Error ',ierr,' opening macro file: ',trim(fil)
     buperr=1000+ierr
     GOTO 900
   END SUBROUTINE MACBEG
@@ -3014,17 +3040,352 @@ CONTAINS
     return
   end subroutine boutxt
 
-  subroutine bintxt(lin,line)
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin verbatim
+  subroutine bintxt(lin,cline)
+! subroutine to read a command line with or without arguments
+    character cline*(*)
+    integer lin
+!\end verbatim
+#ifdef win
+! On Windows command line editing is provided by the OS
+    call bintxt_nogetkey(lin,cline)
+#else
+! LINUX: to have command line editing uncomment the line above and comment the 
+! line with the call bintxt_nogetkey
+    call bintxt_getkey(lin,cline)
+#endif
+    return
+  end subroutine bintxt
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin verbatim
+  subroutine bintxt_getkey(lin,cline)
+! LINUX: subroutine to read a line with history and editing a la emacs
+!
+    character cline*(*)
+    integer lin
+!\end verbatim
+!--------------------  
+! CONTROL CHARACTERS FROM KEYBOARD
+! DEL delete curret character
+    integer, parameter :: ctrla=1        ! CTRLA move cursor to first position
+    integer, parameter :: backspace2=2   ! CTRLB move cursor one step left
+    integer, parameter :: ctrlc=3        ! CTRLC terminate program
+    integer, parameter :: ctrld=4        ! CTRLD delete char at cursor
+    integer, parameter :: ctrle=5        ! CTRLE move cursor to last position
+    integer, parameter :: forward=6      ! CTRLF move cursor one step right
+    integer, parameter :: HELP=8         ! CTRLH give coordinates and update
+    integer, parameter :: TAB=9          ! CTRLI end of input
+    integer, parameter :: ctrlk=11       ! CTRLK delete to end of line
+    integer, parameter :: return=13      ! CTRLM end of input
+    integer, parameter :: DEL=127        ! DEL delete char left of cursor
+    integer, parameter :: mode=17        ! CTRLQ toggle insert/replace
+! on MAC same as UP DOWN FORWARD suck
+    integer, parameter :: backspace=27   ! CTRL[ previous in history
+!--------------------  
+! UP previous history line (if any)
+! DOWN and LF next history line (if any)
+    integer, parameter :: CTRLP=16       ! CTRLP previous in history
+!    integer, parameter :: UP=27         ! uparrow previous in history
+    integer, parameter :: LF=10          ! CTRLJ next in history
+    integer, parameter :: ctrln=14      ! CTRLN next in history
+!--------------------
+! backspace on a MAC screen
+    integer, parameter :: tbackspace=8
+!-----------
+!
+! ip is cursor position (>=1), lastp is last character on line (>=0)
+    integer ip,lastp,kiud,jj,kou,size,hlast
+    character line*128,ch1*1
+    logical endoftext
+! global structure myhistory
+!    type(chistory) :: myhistory
+    logical insert
+!
+    kiud=5; kou=6
+    size=1
+!
+!      write(*,*)'Reading input using getkey',lin,kiud
+    if(lin.ne.kiud) then
+! reading macro from file
+       read(lin,10)cline
+10     format(a)     
+       goto 1000
+    endif
+!
+! input trom terminal with editing
+!
+    insert=.TRUE.
+    ip=1
+    lastp=0
+    line=' '
+    endoftext=.true.
+    hlast=myhistory%hpos+1
+! read one character at a time without echo
+100 continue
+#ifdef win
+! on Windows se do not use this routine and getkey is not defined
+#else
+! LINUX: read one character at a time without echo and allow editing history
+    ch1=getkey()
+#endif
+110  continue
+!    write(*,*)'got from getkey: ',ichar(ch1)
+! handle control character
+    if(ichar(ch1).ge.32 .and. ichar(ch1).lt.127) then
+! printable character, write on screen and store inline     
+       if(ip.eq.lastp+1 .or. .not.insert) then
+          write(kou,10,advance='no')ch1
+          line(ip:ip)=ch1
+          if(ip.eq.lastp+1) lastp=lastp+1
+          ip=ip+1
+       else
+! insert a character inside a text
+          line(ip+1:)=line(ip:)
+          line(ip:ip)=ch1
+          lastp=lastp+1
+!          write(kou,10,advance='no')tbackspace
+          write(kou,10,advance='no')line(ip:lastp)
+          do jj=ip,lastp-1
+             write(kou,10,advance='no')tbackspace
+          enddo
+          ip=ip+1
+       endif
+       goto 100
+    endif
+!=======================  
+!    write(*,*)'control character: ',ichar(ch1)
+120 continue
+    select case(ichar(ch1))
+    case default
+! ignore
+!       write(*,*)'Ignoring ',ichar(ch1)
+       goto 100
+!............. OK
+    case(ctrla)
+! move cursor to first character
+       do jj=1,ip-1
+          write(kou,10,advance='no')tbackspace
+       enddo
+       ip=1
+#ifdef win
+!............. OK
+    case(backspace,backspace2) ! ctrlb leftarrow (also up/down/right arrow)
+! move cursor one step back
+       if(ip.gt.1) then
+          write(kou,10,advance='no')tbackspace
+          ip=ip-1
+       endif
+#else 
+!............. NEW handle arrow key on Linix/Mac
+    case(backspace) ! try to handle arrow keys sequence of 27, 91, A/B/C/D
+       ch1=getkey()
+       if(ichar(ch1).ne.91) goto 110
+       ch1=getkey()
+       if(ch1.eq.'A') then
+!          write(*,*)'Arrow up'
+          ch1=char(ctrlp)
+       elseif(ch1.eq.'B') then
+!          write(*,*)'Arrow down'
+          ch1=char(ctrln)
+       elseif(ch1.eq.'C') then
+!          write(*,*)'Arrow forward'
+          ch1=char(forward)
+       elseif(ch1.eq.'D') then
+!          write(*,*)'Arrow backward'
+          ch1=char(backspace2)
+       else !page up/down which has similar sequences etc ignored
+          goto 100
+!          write(*,*)'Input messed up ...'
+       endif
+       goto 120
+!...............OK
+!    case(backspace,backspace2) ! ctrlb leftarrow (also up/down/right arrow)
+    case(backspace2) ! ctrlb leftarrow (also up/down/right arrow)
+! move cursor one step back
+       if(ip.gt.1) then
+          write(kou,10,advance='no')tbackspace
+          ip=ip-1
+       endif
+#endif
+!............. OK
+    case(ctrlc)
+! terminate the program
+       stop 'User break'
+    case(ctrle)
+! move cursor after last character
+!       if(ip.eq.1) then
+!          jj=ip+1
+!       else
+!          jj=ip
+!       endif
+       jj=ip
+       do jj=jj,lastp
+          write(kou,10,advance='no')line(jj:jj)
+       enddo
+       ip=lastp+1
+!............. OK
+    case(ctrld)
+! delete character at cursor (ctrld)
+       if(ip.gt.lastp .or. lastp.eq.0) goto 100
+       jj=ip
+! remove the character at position jj and write the whole line from jj to end
+       line(jj:)=line(jj+1:)
+       write(kou,10,advance='no')line(jj:lastp)
+       do jj=lastp,ip,-1
+          write(kou,10,advance='no')tbackspace
+       enddo
+       lastp=lastp-1
+!............. OK
+    case(del)
+! delete character to the left of cursor (del), if ip=1 ignore
+       if(ip.eq.1) goto 100
+       write(kou,10,advance='no')tbackspace
+! remove the character at position jj and write the whole line from jj to end
+       jj=ip-1
+       line(jj:)=line(jj+1:)
+       write(kou,10,advance='no')line(jj:lastp)
+       ip=ip-1
+       lastp=lastp-1
+! NOTE lastp can be zero here
+! otherwise we should backspace lastp-ip positions
+       do jj=lastp+1,ip,-1
+          write(kou,10,advance='no')tbackspace
+       enddo
+!............. OK
+    case(ctrlk)
+! delete all characters from cursor to end of line
+       if(ip.le.lastp) then
+          line(ip:)=' '
+!          write(kou,10,advance='no')tbackspace
+          write(kou,10,advance='no')line(ip:lastp)
+          do jj=ip,lastp
+             write(kou,10,advance='no')tbackspace
+          enddo
+          lastp=ip-1
+       endif
+!.............
+    case(help) ! ctrlh
+       write(kou,77, advance='no')ip,lastp,line(1:lastp+1)
+77     format(/'Current local values are: ',2i4/a)
+!       write(kou,10,advance='no')'xyz'
+       do jj=lastp,ip,-1
+          write(kou,10,advance='no')tbackspace
+       enddo
+!.............
+    case(mode)  ! crtlQ
+! change inset mode
+       if(insert) then
+          insert=.FALSE.
+       else
+          insert=.TRUE.
+       endif
+!.............
+    case(return,tab)
+! save line (if not empty) finish editing and return current line
+       cline=line
+       if(len_trim(line).eq.0) then
+          continue
+!            write(*,*)'Not saving empty line'
+       elseif(myhistory%hpos.le.0) then
+! saving the first line as
+          myhistory%hpos=1
+          myhistory%hline(myhistory%hpos)=line
+       elseif(line(1:ip+1).eq.myhistory%hline(myhistory%hpos)(1:ip+1)) then
+          continue
+!          write(*,*)'Not saving same line'
+       else
+          if(myhistory%hpos.ge.histlines) then
+! history full, the oldest history line deleted
+             do jj=2,histlines
+                myhistory%hline(jj-1)=myhistory%hline(jj)
+             enddo
+          else
+             myhistory%hpos=myhistory%hpos+1
+          endif
+          myhistory%hline(myhistory%hpos)=line
+       endif
+! write a CR on screen ... maybe also LF ?? NO!!
+       if(ichar(ch1).eq.return) write(kou,*)
+       goto 1000
+!............. OK
+    case(forward)
+! move cursor one step right if we are not at lastp
+       if(ip.le.lastp) then
+          write(kou,10,advance='no')line(ip:ip)
+          ip=ip+1
+!          if(ip.eq.lastp) endoftext=.true.
+!       elseif(.not.endoftext) then
+!          write(kou,10,advance='no')line(ip:ip)
+!          endoftext=.true.
+       endif
+!.............
+    case(ctrlp)
+! copy previous history line to current
+! first remove anything on the line (not the question ...)
+       if(hlast.gt.1) then
+          do jj=1,ip-1
+             write(kou,10,advance='no')tbackspace
+          enddo
+          line=' '
+          write(kou,10,advance='no')line(1:lastp)
+          do jj=1,lastp
+             write(kou,10,advance='no')tbackspace
+          enddo
+          hlast=hlast-1
+          line=myhistory%hline(hlast)
+          lastp=len_trim(line)
+          ip=lastp+1
+          write(kou,10,advance='no')line(1:lastp)
+       endif
+!.............CTRLJ and CTRLN
+    case(lf,ctrln)
+! copy next history line to current
+       if(hlast.lt.myhistory%hpos) then
+          do jj=1,ip-1
+             write(kou,10,advance='no')tbackspace
+          enddo
+          line=' '
+          write(kou,10,advance='no')line(1:lastp)
+          do jj=1,lastp
+             write(kou,10,advance='no')tbackspace
+          enddo
+          hlast=hlast+1
+          line=myhistory%hline(hlast)
+          lastp=len_trim(line)
+          ip=lastp+1
+          write(kou,10,advance='no')line(1:lastp)
+       endif
+    end select
+!-----------------
+    goto 100
+!=================  
+1000 continue
+!      call system('stty echo ')
+    return
+  end subroutine bintxt_getkey
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+!  
+!\begin{verbatim}
+  subroutine bintxt_nogetkey(lin,line)
+! Reading a command line on Windows with editing provided by the OS
     character line*(*)
+    integer lin
+!\end{verbatim}
     integer iostatus
     read(lin,10,iostat=iostatus)line
 10  format(a)
     if(iostatus.lt.0) then
-! reading beyond EOL
-       line='fin '
+! reading a macro beyond EOL/EOF ??
+       write(*,*)' *** WARNING: MACRO ENDS WITHOUT SET INTERACTIVE!'
+       line='set inter '
     endif
     return
-  end subroutine bintxt
+  end subroutine bintxt_nogetkey
 
   function ionoff(subr)
     character subr*(*)
@@ -4930,8 +5291,9 @@ CONTAINS
     integer savedlevel
     savedlevel=helprec%level-1
 ! If the ? is followed by a text push that text on the helprec%cpath
-!    write(*,*)'q2help: ',savedlevel,line(1:20)
     ip=2
+! This is to force q2help to work ... otherwise segmentation fault ??!!!    
+    if(ip.lt.0) write(*,*)'q2help: ',savedlevel,line(1:20)
     if(.not.eolch(line,ip)) then
 !       write(*,*)helprec%level,helprec%cpath(helprec%level)
        helpquest=line(ip:)
@@ -4942,6 +5304,9 @@ CONTAINS
 !       write(*,11)helprec%level,(helprec%cpath(i)(1:8),i=1,helprec%level)
 11     format('q2help: ',i3,10(', ',a))
     endif
+! this is a dummy line needed to force the MacOS linker to find this routine
+    if(savedlevel.eq.helprec%level) write(*,*)'Inside q2help: ',trim(prompt)
+    if(ip.lt.0) write(*,*)'in q2help calling q1help'
 ! write help text from help file and then return with ?! to get submenu
     call q1help(prompt,line)
     line='?!'
@@ -4955,8 +5320,9 @@ CONTAINS
     implicit none
     character*(*) prompt,line
     character hline*80,mtxt*80
-    character subsec(4)*10,saved(4)*16
-    integer nsaved(4)
+    integer, parameter :: maxlevel=20
+    character subsec(4)*10,saved(maxlevel)*16
+    integer nsaved(maxlevel)
     integer izz,jj,kk,kkk,level,nl,l2,np1,np2,nsub
 !
 !    write(*,*)'called on-line help',helprec%okinit
@@ -4969,6 +5335,7 @@ CONTAINS
 !    enddo
 !10  format(i3,': ',a)
 !
+    nsaved=0
     subsec(1)='%\section{'
     subsec(2)='%\subsecti'
     subsec(3)='%\subsubse'
@@ -4988,6 +5355,7 @@ CONTAINS
     level=3
     np1=0
     nsub=1
+!    savelevel=1
     if(helprec%type.eq.'latex   ') then
 ! plain LaTeX file, search for "%\section{" with command
 100    continue
@@ -4995,8 +5363,10 @@ CONTAINS
           level=level-1
        endif
        l2=len_trim(helprec%cpath(level))
-!       write(*,107)level,l2,helprec%cpath(level)(1:l2)
-107    format('Command/question: ',2i3,': ',a)
+! Strange error comaprin the first 12 characters of helprec%cpath .. with mtext
+! below.  Maybe better to assign this to a 12 character variable?
+!       write(*,107)level,l2,nsub,helprec%cpath(level)(1:l2)
+107    format('Search: ',3i5,': ',a)
 110    continue
        read(31,120,end=700)hline
 120    format(a)
@@ -5011,7 +5381,7 @@ CONTAINS
        if(kk.gt.0) then
 !          write(*,*)'found section: ',hline(1:30),nl
           call capson(hline)
-!          kk=kk+8
+          kk=kk+8
           kk=index(hline,'SECTION{')+8
           if(kk.le.8) then
              write(*,*)'Help file error, not correct LaTeX',kk
@@ -5029,25 +5399,32 @@ CONTAINS
 !             mtxt(kkk:kkk)='_'
 !             goto 127
 !          endif
-!          write(*,*)'found mtxt: ',mtxt
-          do jj=1,4
+!          write(*,*)'found mtxt: ',trim(mtxt),level
+! I do not understand what this does ...
+          do jj=1,maxlevel
              if(level.gt.jj) then
 ! remove previous command if any from the search text
                 kkk=nsaved(jj)
-                if(mtxt(1:kkk+1) .eq. saved(jj)(1:kkk+1)) then
-!                   write(*,*)'Removing ',mtxt(1:kkk)
-                   mtxt=mtxt(kkk+2:)
+                if(kkk.gt.0) then
+                   if(mtxt(1:kkk+1) .eq. saved(jj)(1:kkk+1)) then
+!                      write(*,*)'Removing ',mtxt(1:kkk),kkk
+! ??                  mtxt=mtxt(kkk+2:)
+                      mtxt=mtxt(kkk+2:)
+                   endif
                 endif
              endif
           enddo
-!          write(*,130)level,mtxt(1:12),helprec%cpath(level)(1:l2),nl
+!          write(*,130)level,mtxt(1:12),helprec%cpath(level)(1:12),nl
 !          write(*,130)level,hline(kk:jj),helprec%cpath(level)(1:l2),nl
-130       format('comparing: ',i3,': ',a,' with ',a,' line ',i4)
+130       format('comparing: ',i3,': "',a,'" with "',a,'" line ',i4)
 !          if(hline(kk:kk+l2-1).eq.helprec%cpath(level)(1:l2)) then
-          if(mtxt(1:12).eq.helprec%cpath(level)(1:l2)) then
+          if(mtxt(1:12).eq.helprec%cpath(level)(1:12)) then
 ! found one level, save line number for first line
              np1=nl
-!             write(*,*)'We found one level at line: ',np1
+!             write(*,*)'We found one level at line: ',np1,nsub
+             nsub=nsub+1
+! we cannot store more levels ... quit
+             if(level.gt.maxlevel) goto 700
              saved(level)=helprec%cpath(level)
              nsaved(level)=len_trim(saved(level))
              np2=0
@@ -5117,11 +5494,24 @@ CONTAINS
           goto 900
        elseif(nl.ge.np1) then
 ! do not write lines starting with \ (backslash, ascii 92),
-! they are LaTeX commands.  Ignore all except \item
+! they are LaTeX commands.  Ignore all LaTeX commands except \item
+! the backslash is not easy to put in a text character ...
+! A line starting with "%\subs" supress all text from position 1 to the {
           if(ichar(hline(1:1)).ne.92) then
-             write(*,120)hline(1:len_trim(hline))
+             if(hline(1:1).eq.'%' .and. ichar(hline(2:2)).eq.92 .and.&
+                  hline(3:6).eq.'subs') then
+                izz=index(hline,'{')+1
+                jj=1
+                do while(jj.gt.0)
+                   jj=index(hline,'}')
+                   if(jj.gt.0) hline(jj:jj)=' '
+                enddo
+                write(*,120)trim(hline(izz:))
+             else
+                write(*,120)trim(hline)
+             endif
           elseif(hline(2:5).eq.'item') then
-             write(*,121)hline(6:len_trim(hline))
+             write(*,121)trim(hline(6:))
           endif
        endif
        goto 800

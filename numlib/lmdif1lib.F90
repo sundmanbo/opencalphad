@@ -6,25 +6,7 @@ MODULE LIBOCEQPLUS
 !
 contains
 !
-!  SUBROUTINE VA05AD(M,N,F,X,DSTEP,DMAX,ACC,MAXFUN,IPRINT,W,&
-!       IENT,IEXIT)
-! M is number of errors
-! N is number of variables
-!   IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-!    INTEGER, PARAMETER :: LP=6
-!    integer, parameter :: lwa=2500
-!    DIMENSION F(*),X(*),W(*)
-!    DIMENSION IEXIT(*)
-!    dimension iwa(lwa),wa(lwa)
-!    tol=acc
-!    info=maxfun
-!    write(*,17)
-!17  format(/25x,'Starting optimization using LMDIF')
-!    call lmdif1(m,n,x,f,tol,info,iwa,wa,lwa)
-!    return
-!  end subroutine va05ad
 !
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
   subroutine calfun(m,n,x,f,info,niter)
 ! M is number of errors
@@ -47,7 +29,7 @@ contains
           write(*,17)f
 17        format('Errors: '/6(1pe13.5))
           write(*,*)
-       else
+       elseif(niter.gt.0) then
           write(*,18)niter,sum
 18        format(/'After ',i4,' iterations the sum of squares',1pe14.6)
           write(*,19)x
@@ -57,14 +39,14 @@ contains
 ! This routine is in the matsmin.F90 file
        call assessment_calfun(m,n,f,x)
 !       write(*,*)'Just calculating: ',niter
-!       write(*,16)x
     endif
     return
   end subroutine calfun
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-  subroutine lmdif1(m,n,x,fvec,tol,info,iwa,wa,lwa)
+  subroutine lmdif1(m,n,x,fvec,tol,info,iwa,wa,lwa,err0)
+! call modified by Bo Sundman
 !  subroutine lmdif1(fcn,m,n,x,fvec,tol,info,iwa,wa,lwa)
     integer m,n,info,lwa
     integer iwa(n)
@@ -172,7 +154,8 @@ contains
 !     **********
     integer maxfev,mode,mp5n,nfev,nprint
 !      double precision epsfcn,factor,ftol,gtol,xtol,zero
-    double precision epsfcn,ftol,gtol,xtol
+! err0 contains intitial sum of error and last sum of errors
+    double precision epsfcn,ftol,gtol,xtol,err0(2)
 !      data factor,zero /1.0d2,0.0d0/
 ! zero already defined globally
     double precision :: factor=1.0D2,zero=0.0D0
@@ -190,7 +173,6 @@ contains
 !
 !     call lmdif.
 !
-!    maxfev = 200*(n + 1)
     info=0
 ! several of these moved to lmdif ... as well as allocating workspace
     ftol = tol
@@ -208,8 +190,9 @@ contains
 !                wa(n+1),wa(2*n+1),wa(3*n+1),wa(4*n+1),wa(5*n+1))
 ! remove fcn and reduce number of arguments and linker chokes ...
     call lmdif(m,n,x,fvec,tol,maxfev, &
-                mode,factor,nprint,info,nfev,iwa)
+                mode,factor,nprint,info,nfev,iwa,err0)
     if (info .eq. 8) info = 4
+!    write(*,*)'Return from lmdif with info= ',info
 10  continue
     return
 !
@@ -341,14 +324,14 @@ contains
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
   subroutine lmdif(m,n,x,fvec,xtol,maxfev, &
-       mode,factor,nprint,info,nfev,ipvt)
+       mode,factor,nprint,info,nfev,ipvt,err0)
 ! removed arguments as linker chokes ...
 !  subroutine lmdif(fcn,m,n,x,fvec,ftol,xtol,gtol,maxfev,epsfcn,diag, &
 !       mode,factor,nprint,info,nfev,fjac,ldfjac, &
 !       ipvt,qtf,wa1,wa2,wa3,wa4)
     integer m,n,maxfev,mode,nprint,info,nfev,ldfjac
     integer ipvt(n)
-    double precision ftol,xtol,gtol,epsfcn,factor
+    double precision ftol,xtol,gtol,epsfcn,factor,err0(2)
     double precision x(n),fvec(m)
 !    double precision x(n),fvec(m),diag(n),fjac(ldfjac,n),qtf(n), &
 !         wa1(n),wa2(n),wa3(n),wa4(m)
@@ -538,7 +521,7 @@ contains
     integer i,iflag,iter,j,l
     double precision actred,delta,dirder,epsmch,fnorm,fnorm1,gnorm, &
          par,pnorm,prered,ratio, &
-         sum,temp,temp1,temp2,xnorm
+         sum,temp,temp1,temp2,xnorm,bosum
 ! removed variables one line above 
 !         one,par,pnorm,prered,p1,p5,p25,p75,p0001,ratio, &
 ! if the functions dpmpar and enorm are declared here strange link error ...
@@ -571,9 +554,10 @@ contains
 !
 !     check the input parameters for errors.
 !
+!    write(*,*)'In lmdif, maxfev=',maxfev modified to run once if maxfev=0
     if (n .le. 0 .or. m .lt. n .or. ldfjac .lt. m &
          .or. ftol .lt. zero .or. xtol .lt. zero .or. gtol .lt. zero &
-         .or. maxfev .le. 0 .or. factor .le. zero) go to 300
+         .or. maxfev .lt. 0 .or. factor .le. zero) go to 300
     if (mode .ne. 2) go to 20
     do j = 1, n
        if (diag(j) .le. zero) go to 300
@@ -585,10 +569,19 @@ contains
 !     and calculate its norm.
 !
     iflag = 1
+!    write(*,*)'In lmdif, call to calfun'
 !    call fcn(m,n,x,fvec,iflag)
     call calfun(m,n,x,fvec,iflag,nfev)
+! calculate intial sum of errors
+    bosum=zero
+    do j=1,m
+       bosum=bosum+fvec(j)**2
+    enddo
+    err0(1)=bosum
+!--------------------------
     nfev = 1
     if (iflag .lt. 0) go to 300
+    if(maxfev .eq. 0) goto 300
     fnorm = enorm(m,fvec)
 !
 !     initialize levenberg-marquardt parameter and iteration counter.
@@ -841,6 +834,8 @@ contains
     iflag = 0
 !    if (nprint .gt. 0) call fcn(m,n,x,fvec,iflag)
     if (nprint .gt. 0) call calfun(m,n,x,fvec,iflag,-nfev)
+! Add that calfun called once if maxprev=0 to calculate all errors
+    if (maxprev .eq. 0) call calfun(m,n,x,fvec,1,0)
     return
 !
 !     last card of subroutine lmdif.

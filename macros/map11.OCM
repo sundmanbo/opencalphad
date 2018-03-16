@@ -56,7 +56,7 @@ set ax 2 t
 map
 
 
-pl
+plot
 X(*,CR)
 T
 title map 11 fig 1
@@ -67,14 +67,15 @@ RENDER
 @$ extrapolation of the sigma+bcc lines because the
 @$ two bcc phases merges at hight T and the 3-phase line
 @$ is not found when lowering the T.  
-@$ More work ineeded to fine-tune mapping!!
+@$ More work is needed to fine-tune mapping!!
+@&
 @$=================================================================
 @$ Then calculate the gamma loop
 @$
 @$
 
-set c t=1400
-set c x(cr)=.12
+set c t=1300
+set c x(cr)=.05
 c e
 l,,,,
 
@@ -83,7 +84,7 @@ l,,,,
 map
 n
 
-pl
+plot
 X(*,CR)
 T
 title map 11 fig 2
@@ -94,7 +95,7 @@ RENDER
 @$
 @$
 
-set c t=2050 x(cr)=.7
+set c t=2050 x(cr)=.2
 l c
 c e
 
@@ -105,12 +106,13 @@ l,,,,
 map
 n
 
-pl
+plot
 X(*,CR)
 T
 title map 11 fig 3
 RENDER
 
+@&
 @$ add same text, also in greek
 
 plot
@@ -119,14 +121,15 @@ plot
 text
 0.46
 1000
+1
 0
 n
 {/Symbol s}
-text n .03 1300 0 y 
+text n .03 1300 1 0 y 
 
-text n .4 1400 0 y 
+text n .4 1400 1 0 y 
 
-text n .2 2000 0 y 
+text n .2 2000 1 0 y 
 
 title map 11 fig 4
 

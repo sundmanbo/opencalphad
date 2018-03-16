@@ -1,4 +1,4 @@
-This file contains information on Open Calphad (OC) version 4+
+This file contains information on Open Calphad (OC) version 5 and older
 
 For general information please read the readme-general.pdf 
 
@@ -12,6 +12,223 @@ does not require any understanding of thermodynamics please contact a
 commercial vendor.
 
 In the list below the most recent changes come first.
+
+2018.03.01 OC version 5.006: A visit at CEA Cadarache gave inspiration
+as they were happy with the speed of calculations and in particular
+the possibility to save/read complex calculations on UNFORMATTED
+Fortran files duiring simulations.
+
+I have managed to reduce the memory loss during STEP/MAP using
+valgrind.  Evidently the Fortran compiler allows and the run time
+system manages to deallocate data that has been allocated by a pointer
+variable, a few years ago I was told that was not possible.  That
+simplifies eliminating memory leaks as I must sometimes allocate
+records for a pointer when creating lists.
+
+But running all tests I had strange crashes with the NEW command when
+releasing allocated memory.  I had to make some careful modifications
+also in the command monitor.  It crashed differently on Windows and
+Linux but finally I managed to run all tests on both machines without
+running out of memory and no segmentaton faults.  Previously I always
+had "allocation larger than available memory" at the end of the new
+large opttest2 macro.  But reducing memory leaks during assessments is
+still on the to-do list.
+
+2018.02.26 OC version 5.005: Running valgrind again shows a lot of
+problems that have to be fixed, in particular memory leaks when using
+STEP and MAP.  It will take some time but some are corrected in this
+release.  The opttest2 macro has been extended.  LIST RESULT has two
+additional options, 10 and 11, to list constitution based on the
+amount of the phase similar to FactSage output.
+
+2018.02.23 OC version 5.004: Many changes has been made in the
+assessment part of OC as a PhD student at Toulouse, Eva Lawrene, has
+started to work on this with support from Christine Gueneau at CEA.
+Finally there is hope to have a better software for developing
+thermodynamic databases.
+
+2018.02.20 OC version 5.003: Some contributions from Clement Introini
+eliminating uninitiated variables added.  The TDB to DAT file
+converter tested to convert correctly Ce-O-Pu-U from the TAFID
+database.
+
+2018.02.18 OC version 5.002: Several tests using for example
+-Wmaybe-uninitiate and -lefence compiler directive on Linux has cleand
+up some spurious errors and increased the stability.  The assessment
+macro has also been extended and modified.
+
+2018.02.14 OC version 5.001: For this first update I have added new
+versions of the "getting-started", "news-OC5" and the "OC5-Macros".
+The remaining documentation is still old.
+
+I have also implemented the "dot derivative" MU(A).T to calculate the
+T derivative of the chemical potential of A.  This is also known as
+the (negative of the) partial entropy.  The partial enthalpy is
+property that can be measured and is obtained as "MU(A)-T*MU(A).T"
+(the same as H = G+T*S = G-T*G.T).  I am looking at implementing
+X(LIQ,A).T which can be useful simulating phase transformations.
+These dot derivatives can be calculated without numerical derivation
+using the second derivatives from an equilibrium calculation.
+
+For LINUX users I have also included the arrow keys on most modern
+keyboard to be used for command line editing. Arrow up means previous
+line in history, down means next history line, arrow forward means
+forward one step on current line and arrow backward means back one
+step on current line.  On modern keyboards these keys give a sequence
+of characters, not a single one.  On older computers they may not
+work.  If you have redefined your keyboard you may have surprises.
+
+2018.02.10 *** OC version 5: This is a prerelease of version 5. ***
+With the significant improvements of calculation of phase diagrams
+with tie-lines in the plane, the new SHOW command, the possibility to
+write DAT files for FactSage, command line editing on Linux and many
+other things it is time to release a new version.  Most of the
+documentation has not been updated.
+
+********************************************************************
+
+2018.02.02 OC version 4.044: By popular demand the SHOW command has
+now been implemented.  It combines 3 commands, "LIST STATE_VARIABLE",
+"LIST MODEL_PARAM_VALUE" (i.e. properties like Curie T) and "CALCULATE
+SYMBOL".  The original commands remain.  After SHOW you can give
+several symbols, state variables etc on the same line (separated by
+spaces) and get their values listed on separate lines.  You can also
+use state variables with wildcards like X(FCC,*).  However, I
+discovered a problem that I am not sure I can fix very quickly, the
+command "SHOW X(*,CR)" (and similar) asking for the composition of CR
+in all phases lists the CR content in all stable phases but the
+heading with state variable symbols sometimes lists all phases.
+
+By request I also changed the prompt of OC to be --->OC4: to make it
+easier so separate the input lines on the screen from output.  This is
+for a test, if you do not like it is easy to change in the
+userif/pmon6.F90 file.
+
+I am now almost satisfied with the mapping of phase diagrams with
+tie-lines in the plane but there are always things to improve.  The
+mapping is sensitive to the startpoint and I have not implemented
+automatic start points.  For the graphics there is nore to do and
+feedback is nice to have.
+
+2018.01.31 OC version 4.043: I have improved the mapping of phase
+diagrams with tie-lines in the plane (i.e. most binary diagrams and
+isothermal sections).  However there are still problems and I will try
+to improve these diagrams in the next releases.  The previous mapping
+is used for isopleths and can be selected by setting global bit 21 if
+you are an expert.
+
+There has been many other changes and bugfixes.
+
+2018.01.17 OC version 4.042: IMPORTANT! Change for the STEP command!
+I have changed the order of questions for the STEP command.  Now the
+program will first ask if the stepping should be
+NORMAL/SEPARATE/CONDITIONAL/QUIT
+before asking if any previous results should be kept.  The conditional
+step is not yet implemented.
+
+Many changes and bugs fixed in order to run the complete CuMg
+assessment example (opttest2 is the start of that).
+
+2018.01.09 OC version 4.041: There is a new ochelp.hlp and an
+ochelp5.pdf.  This verson is rather a prerelease of version 5.
+
+When I started on the udate of the user guide I realized that the
+commands are quite messy, in particular about entering phases with
+some specific model features.  So I moved many things that were set by
+"set phase ... bit X" to "amend phase ... X".  It concerned things
+like BCC/FCC_PERMUT in my macro files as most other macros calculate
+systems read from a database.  The users may have to modify their
+macro files entering data.
+
+I have also cleaned up some of the code related to symbols.  I added that
+"dot derivatives" are only calculated when requested explicitly and
+fixed some problems with symbols that should be evaluated for a
+specific equilibrium.
+
+Finally the Linux/Mac command history function has been corrected.
+
+2018.01.08 OC version 4.040: Plotting Gibbs Triangles has been
+implemented during a delayed train trip.  It is still very rudimentary
+but gives at least some indication of what is possilble.  The map10
+macro now includes some triagular ternary isopleths.  The size of the
+smp2.F90 file has also forced me to split it in two.
+
+A spurious segmentation fault error in matsmin has been corrected.  It
+was caused by some code introduced to speed up the calculation of new
+fractions of the phases at each iteration in the subroutine
+calc_dgdyterms1p.  This speedup should be further tested.  An error in
+metlib3 when saving the first line of history has been corrected also,
+it occured sometimes when starting OC followed by a macro file name.
+
+On LINUX I have found that plotting several diagrams after each other
+without a pause often are overwritten.  Thus I have modified the macro
+files to have a pause (@&) in the macro file after each plot.  This
+means one has to press RETURN in the command window after each plot.
+
+2018.01.05 OC version 4.039: Handling some Linux/Windows pecularities:
+
+When testing OC on a Linux computer with GNUPLOT 5.2 indicate the
+terminal "wxt" used on Windows is unknown.  On Linus the "qt" terminal
+can be used but my Windows antivirus program prevents me to use the
+"qt" terminal.  This forced me to add preprocessor #ifdef statements
+in the pmon6.F90 file.  Linking on Windows should use the "linkmake"
+or "linkpara" command files which select -Dwin for the compilation of
+pmon6.F90.  Linking on Linux using any of the Makefiles will
+automatically include the qt and pdfcairo terminals.
+
+Using Makefile-simple is the simplest way to compile and link OC.  For
+those who understands makefiles (I do not) one can select various
+compiler options in this file, default is -O2.
+
+A new Makefile called Makefile+getkey includes emacs-style line
+editing of the command line including history (ctrl-P/ctrl-N).  But it
+requires a separate compilation of the getkey routine in the
+utilities/GETKEY directory editing the Makefile according to your UNIX
+dialect.  An expert can handle that.
+
+The Makefile-sequential and Makefile-parallel are now obsolete but
+will be kept for a while.  They include the option -Dwin when
+compiling metlib3,F90 to avoid the emacs-style command editing.
+
+2018.01.01 OC version 4.038: A small change in the user interface to
+handle "," between commands and answers. It is recommended to just use
+a space to separate a command and argument but questions where you
+accept the default answer can be answered by a "," on the command
+line.  But the treatment of a "," between the command and argument has
+not been correct.  You may have to change some of your macro files to
+fit the new way the user interface works.
+
+I have also added names for the "additions" to the Gibbs energy from
+magnetic, volume, liquid 2-state, low temperature heat capacity models
+and others.  The contribution for those which are included for a phase
+are listed with the command "CALCULATE PHASE ... ONLY-G".
+
+For the graphics the user may now define his prefered plot devices
+using the command "ENTER GNUPLOT_TERMINAL".  This allows you to modify
+the defaults and add new devices.  I have also tried to improve the
+graphics a bit but there are many things in GNUPLOT I have not
+understood.  Anyone who knows how to make triangular diagrams are
+welcome to help.
+
+2017.12.12 OC version 4.037: a large number of bugs most of them
+connected with creating and copying equilibrium records corrected.
+These caused spurious segmentation faults.
+
+2017.11.26 OC version 4.036: After my PC crashed I worked with OC for
+a month on my Mac but I have now installed all on a new DELL.  Several
+modifications for Linux and Mac has been made, some maybe not
+consistent with previous versions.  Be careful when installing this
+version.  There is now two versions of the metlib library, metlib3.F90
+is the same as before but metlib4.F90 includes the GETKEY routine to
+allow editing of the command line on Linux/MacOS.  This also requires
+compilation of the getkey.c routine in the utilities/GETKEY
+directory.
+
+I am still working on problems converting TDB to DAT files, I hope to
+finish that soon.  All other changes are minor.
+
+2017.10.20 OC version 4.035: After a few weeks of work and vacations
+a small bugfix in the TDB2DAT code for excess parameters.
 
 2017.09.13 OC version 4.034: This time I have added a possibility to
 edit the command line a la emacs and also to keep a short history of
@@ -39,9 +256,9 @@ hardware/OS/Fortran compilers by different users.  In some cases there
 are errors like "segmentation faults" that I cannot reproduce running
 the same macro file on my DELL with Windows and GNU Fortran.  I have
 also discovered differences with the GNU Fortran on my MAC/Linux and
-on Windows.  As the you as user have access the source code please try
-to detect more precisely where the error occurs so I can fix the code
-to avoid also bugs in the compilers and OS.
+on Windows.  As you have access the source code please try to detect
+more precisely where the error occurs so I can fix the code to avoid
+also bugs in the compilers and OS.
 
 2017.08.10 OC version 4.032: Added that one can change the relative
 lengths of the plot axis and the axis labels.  The texts in the plot
@@ -527,7 +744,7 @@ occured for an FCC phase with a disordered fraction set.  In the macro
 opttest2.OCM I have added an example of plotting an appended figure
 with data.  I have also added a command "calulate phase ... const-adj"
 to calculate the constitution of the phase when the mole fractions are
-known.  It is mainly intended for OCASI applications.
+known.  This is a test for a subroutine intended for OCASI applications.
 
 2016.03.16 Some minor changes in all documentation files.  For
 plotting there is now a possibility to APPEND a GNUPLOT command file
@@ -552,5 +769,5 @@ to rename these files.
 
 2016.03.03 Fixed some errors when entering TP functions interactivly.
 Modified slightly the listing of many equilibria.  Empty lines in the
-enter_many_equil command and TAB characters the row lines accepted.
+enter_many_equil command and TAB characters in the row lines are accepted.
 

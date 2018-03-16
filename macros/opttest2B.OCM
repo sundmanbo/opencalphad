@@ -1,0 +1,180 @@
+@$===================================================================
+@$===================================================================
+@$===================== Cu-Mg assment: step 1: fit Hmix in liquid
+@$===================================================================
+@$===================================================================
+
+@$
+
+new Y
+
+@$-----------------------------------------------------------------
+@$ The new command removes all data
+@$-----------------------------------------------------------------
+
+set echo
+
+read u
+opttest2-cumg1
+
+@$-----------------------------------------------------------------
+@$ Here we read back the data from the save command.
+@$-----------------------------------------------------------------
+@&
+
+set wei 1 ACL
+
+set wei 1 HLIQ
+
+set wei 0 HLIQ_B
+
+set wei 0 HLIQ_H
+
+@$-----------------------------------------------------------------
+@$ Here we Select experiments with H for liquid from Sommer and Garg
+@$ using abbreviations of the names of the equilibria
+@$-----------------------------------------------------------------
+@&
+@$ Calculate all non-zero experiments
+
+calc all
+n
+
+
+@$-----------------------------------------------------------------
+@$ The "calculate all" command calculates all equilibra in the range
+@$ given previously with non-zero weight.  We do not use the grid
+@$ minimizer as all equilibria are for a single phase (liquid).
+@$ There is a listing of all calculated equilibria and in this
+@$ list the first colimn is the (sequentially assigned) equilibrium
+@$ number, then the first 12 characters of the quilibrium name (which is
+@$ 24 characters long) then T and then a list of stable phases at each
+@$ equilibrium.
+@$-----------------------------------------------------------------
+@&
+@$ List the model for the liquid
+
+l ph liq data
+
+@&
+@$ Select the T-independent regular parameter of the liquid to be
+@$ optimized.  You must set a non-zero start value!!
+
+set var 0 1
+
+list opt
+
+@$------------------------------------------------------------------------
+@$ Note that the rightmost column "Used in" give the names of TP functions
+@$ where this coefficient is used.
+@$ For coefficients used directly in model parameters the TP function name
+@$ start with an underscore, then a letter indentifying the type of property,
+@$ G means a Gibbs energy, then 6 max letters from the phase name and after
+@$ the constituent in order oof sublattices but with all special characters
+@$ like , or : removed.  At the end the degree, 0-9.
+@$ The name is maximum 16 characters so it may be truncated.
+@$ But it is anyway useful in order to remember in phase the parameter is
+@$ associated with.
+@$ Calculation of RSD (Relative Standard Deviation) is not yet implemented.
+@$------------------------------------------------------------------------
+@&
+@$ Optimize just one parameter
+
+opt 100
+
+@$------------------------------------------------------------------------
+@$ The optimize command requires a maximum numer of iterations.
+@$ It lists at regular intervals the sum of errors squared
+@$ and the current values of the model parameters.
+@$------------------------------------------------------------------------
+@&
+@$ List the result
+
+list opt
+
+@$------------------------------------------------------------------------
+@$ This lists the final value of the model parameters and for
+@$ each experiment with non-zero weight the data and error.
+@$ The list may be long and you may have to scroll bacwards
+@$ to see all experiments and the parameter values
+@$------------------------------------------------------------------------
+@&
+@$ The optimizing coefficients are also TP sysmbols
+
+l tp
+
+
+@&
+@$ Plot the enthalpy of mixing in the liquid 
+
+macro opttest2-plot-hliq
+
+@&
+@$ -----------------------------------------------
+@$ Now vary also the subregular T-independent parameter
+
+set var 2 1
+
+opt 100
+
+@&
+
+l opt
+
+@$ -------------------------------------------------------
+@$ With two perameters the sum of errors decreased
+@$ -------------------------------------------------------
+@&
+@$ We can also list just the coefficients
+
+l opt coef
+
+@&
+@$ And plot the new fit to the experiments.
+
+macro opttest2-plot-hliq
+
+@&
+@$ -----------------------------------------------
+@$ Vary the T-dependent regular parameter
+@$ -----------------------------------------------
+
+set var 1 0.1
+
+@&
+
+opt 100
+
+l opt coef
+
+@&
+
+macro opttest2-plot-hliq
+
+
+@&
+@$ We can plot the phase diagram with the new liquid parameters
+
+macro opttest2-map-diagram
+
+@$-----------------------------------------------------------
+@$ The liquid is now very stable down to low T 
+@$ because we have not fitted any other parameters
+@$-----------------------------------------------------------
+@&
+@$-----------------------------------------------------------
+@$ Now we can make a break but before save the current results
+@$ Fix the liquid parameters
+
+set fix 0-3
+
+@$ Remove all equilibria created by STEP/MAP
+
+delete step_map
+
+save unf
+done step 1
+opttest2-cumg2
+Y
+
+set inter

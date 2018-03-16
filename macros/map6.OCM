@@ -58,27 +58,32 @@ title map 6 fig 1
 render
  
  
+@&
 @$ add some labels
 plot
 
 
 title map6 fig 2
 text 
-0.1 2000 0 y
+0.1 2000
+1
+0
+y
 
 text n
-.5 1500 0 y
+.5 1500 1 0 y
 
 text n
-.05 1200 0 y
+.05 1200 1 0 y
 
 text n
-.46 1160 0 y
+.46 1160 1 0 y
 {/Symbol s}
 text n
-.75 1200 y
+.75 1200 1 0 y
 
 
+@&
 
 plot
 
@@ -90,6 +95,7 @@ n
 1800
 
 
+@&
 plot
 
 

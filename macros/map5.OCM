@@ -85,13 +85,14 @@ title map 5 fig 1
 render
 
 
+@&
 
 @$--------------------------------------------------------------------
 @$ we must calculate the gamma loop separately
 
-set c t=1400 x(mo)=.001
+set c t=1400 x(mo)=.002
 
-c n
+c e
 
 l,,,,,
 
@@ -110,17 +111,19 @@ title map 5 fig 2
 render
 
 
+@&
 @$ Set range (scaling) of T
 plot
 x(*,mo)
 T
 scale y
 N
-1500
+1400
 1900
 title map5 fig 3
 render
 
+@&
 
 @$ Add some labels
 
@@ -129,15 +132,19 @@ plot
 
 title map 5 fig 4
 text 
-.47 1700 0 y
+.47 1700
+1
+0
+y
 
 text
-n .4 1530 0 y
+n .4 1530 1 0 y
 
-text n .1 1850 0 y
+text n .1 1850 1 0 y
 
 
-@$ Change to greek
+@&
+@$ Change to greek phase names
 plot
 
 
@@ -149,10 +156,12 @@ y
 
 
 
+
 text
 y
 2
 {/Symbol m}
+
 
 
 

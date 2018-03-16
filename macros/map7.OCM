@@ -84,27 +84,32 @@ plot
 
 title map7 fig 1
 
+@&
 @$ add some labels
 
 plot
 
 
 text
-0.4 1000 y
+0.4 1000
+1
+0
+y
 
 text
-n .55 1300 y 
+n .55 1300 1 0 y 
 
 text
-n .5 1450 y
+n .5 1450 1 0 y
 
 text 
-n 0.15 1400 y
+n 0.15 1400 1 0 y
 
 text 
-n 0.9 1600 y
+n 0.9 1600 1 0 y
 
 
+@&
 @$ We can list all calculated equilibria
 
 l l

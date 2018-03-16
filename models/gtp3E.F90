@@ -1221,9 +1221,15 @@
       do i=1,6
          call storr(lok+displace+nwpr*(i-1),iws,firstvarres%gval(i,1))
       enddo
+! problem here with SELECT_ELEMENT_REFERENCE phase ...
+!      write(*,304)'3E bug: ',trim(phlista(lokph)%name),mc,&
+!           size(firstvarres%dgval)
+!304   format(a,a,5i5)
+! in the ENTER_EQUILIBRIUM the incorrect size of dgval was allocated !!! fixed
       displace=displace+6*nwpr
       do i=1,3
          do k=1,mc
+!            write(*,*)'indices: ',i,k
             call storr(lok+displace,iws,firstvarres%dgval(i,k,1))
             displace=displace+nwpr
          enddo
@@ -1302,6 +1308,7 @@
       endif
 !      write(*,*)'3E storing svfun: ',text(1:ipos)
       iws(lok)=ipos
+! NOTE position 1-7 is equilibrium number and status
       call storc(lok+1,iws,text(1:ipos))
       iws(loksvf+lrot)=lok
    enddo
@@ -1406,7 +1413,7 @@
       write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
       gx%bmperr=4356; goto 1000
    endif
-   write(*,*)'3E in saveash 1:',lok,lok1,lok2,i1
+!   write(*,*)'3E in saveash 1:',lok,lok1,lok2,i1
    iws(lok2)=i1
 ! Hm assrec%eqlista(i2)%p1 is a pointer to an element in the global eqlists
 !   ceq=>assrec%eqlista(1)%p1
@@ -1423,7 +1430,7 @@
          write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
          gx%bmperr=4356; goto 1000
       endif
-      write(*,*)'3E in saveash 2:',lok2,i1,rsize
+!      write(*,*)'3E in saveash 2:',lok2,i1,rsize
       iws(lok2)=i1
       call storrn(i1,iws(lok2+1),assrec%coeffvalues)
       iws(lok1+disp+2)=lok2
@@ -1436,7 +1443,7 @@
          gx%bmperr=4356; goto 1000
       endif
       iws(lok2)=i1
-      write(*,*)'3E in saveash 3:',lok2,i1
+!      write(*,*)'3E in saveash 3:',lok2,i1
       call storrn(i1,iws(lok2+1),assrec%coeffscale)
       iws(lok1+disp+3)=lok2
 ! coeffstart
@@ -1448,7 +1455,7 @@
          gx%bmperr=4356; goto 1000
       endif
       iws(lok2)=i1
-      write(*,*)'3E in saveash 4:',lok2,i1
+!      write(*,*)'3E in saveash 4:',lok2,i1
       call storrn(i1,iws(lok2+1),assrec%coeffstart)
       iws(lok1+disp+4)=lok2
 ! coeffmin
@@ -1460,7 +1467,7 @@
          gx%bmperr=4356; goto 1000
       endif
       iws(lok2)=i1
-      write(*,*)'3E in saveash 5:',lok2,i1
+!      write(*,*)'3E in saveash 5:',lok2,i1
       call storrn(i1,iws(lok2+1),assrec%coeffmin)
       iws(lok1+disp+5)=lok2
 ! coeffmax
@@ -1482,7 +1489,7 @@
          write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
          gx%bmperr=4356; goto 1000
       endif
-      write(*,*)'3E in saveash 6:',lok2,i1
+!      write(*,*)'3E in saveash 6:',lok2,i1
       iws(lok2)=i1
       do i2=1,i1
          iws(lok2+i2)=assrec%coeffindex(i2-1)
@@ -1509,7 +1516,7 @@
    if(allocated(assrec%wopt)) then
       i1=size(assrec%wopt)
       rsize=1+nwpr*i1
-      write(*,*)'3E saving assessment record: ',lok1,rsize
+      write(*,*)'3E saving assessment record: (assrec%wopt)',lok1,rsize
       call wtake(lok2,rsize,iws)
       if(buperr.ne.0) then
          write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
@@ -1519,7 +1526,7 @@
       call storrn(i1,iws(lok2+1),assrec%wopt)
       iws(lok1+disp+9)=lok2
    else
-      write(*,*)'3E no work array allocated'
+      write(*,*)'3E no work array (assrec%wopt) allocated'
       iws(lok1+disp+9)=0
    endif
 ! check if there are several assessment records
@@ -1546,19 +1553,39 @@
 ! first equilibrium record with conditions, componenets, phase_varres etc
 ! state variable functions
 ! equilibrium record(s) with conditions, componenets, phase_varres, experim etc
-!
+! CCI changed to use iso_fortran_env to find file unit number for C++
+   use :: iso_fortran_env
+! CCI
    implicit none
    character*(*) filename,str
 !\end{verbatim}
    character id*40,version*8,comment*72
    integer i,i1,i2,i3,isp,jph,kontroll,nel,ivers,lin,last,lok,displace,jfun
    integer, allocatable :: iws(:)
+! CCI
+   logical is_op
+! CCI
 !   type(gtp_equilibrium_data), pointer :: ceq
 10  format(i8)
    if(index(filename,'.').eq.0) then
       filename(len_trim(filename)+1:)='.ocu'
    endif
-   lin=21
+!CCI The previous commented lines are removed by the following lines 
+!CCI that enable to find the first available logical unit. 
+!CCI Such an approach can generalized in order to enable the 
+!CCI opening file by several threads in the same time. 
+!CCI To do this, the following lines should in a dedicated subroutine.
+!CCI   lin=21
+   lunit: do lin=8,99  
+      inquire(lin,opened=is_op)
+      if(.not.is_op) exit lunit
+   enddo lunit 
+   if( lin.eq.100 ) then
+      write(*,*)'3E Error, no logical unit available for opening file: ',&
+           trim(filename)
+      goto 1000
+   endif
+! CCI end change   
    open(lin,file=filename,access='sequential',status='old',&
         form='unformatted',iostat=gx%bmperr,err=1100)
 !   write(*,*)'3E opening file: ',trim(filename),' for unformatted read'
@@ -1779,7 +1806,7 @@
    call readequil(i,iws,-1)
    if(gx%bmperr.ne.0) goto 1000
 !-------------------------------------------------------------------
-! read assessment hear recods
+! read assessment head recods
    if(iws(27).ne.gtp_assessment_version) then
       write(*,*)'3E wrong assemmenst record version',iws(27),&
            gtp_assessment_version
@@ -1795,6 +1822,8 @@
 !   close(lin)
 !
 1000 continue
+!CCI free the iws memory (should be done automatically?)
+   if(allocated(iws)) deallocate(iws)
    return
 ! error opening files
 1100 continue
@@ -2000,9 +2029,15 @@
          lokem=iws(lokem)
          nullify(addlink)
 510      continue
+         if(iws(lokem+1).ge.1 .and. iws(lokem+1).le.8) then
 ! all phases has volume addition ...
-         if(iws(lokem+1).ne.7) write(*,*)'3E An addition type ',&
-              iws(lokem+1),' for ',trim(phlista(jph)%name)
+            if(iws(lokem+1).ne.7) write(*,515)iws(lokem+1),&
+                 additioname(iws(lokem+1)),trim(phlista(jph)%name)
+515            format('3E Addition type ',i3,', ',a,' for ',a)
+         elseif(iws(lokem+1).ne.0) then
+            write(*,515)iws(lokem+1),'Unknown type            ',&
+                    trim(phlista(jph)%name)
+         endif
          if(iws(lokem+1).eq.INDENMAGNETIC) then
             call create_magrec_inden(nyaddlink,iws(lokem+2))
             if(gx%bmperr.ne.0) goto 1000
@@ -2172,6 +2207,9 @@
       noofperm=intrec%noofip(2)
    elseif(level.eq.1) then
       noofperm=intrec%noofip(fipsize)
+   else
+      write(*,*)'3E too many interaction levels for permutations'
+      gx%bmperr=4399; goto 1000
    endif
    allocate(intrec%sublattice(noofperm))
    allocate(intrec%fraclink(noofperm))
@@ -2190,6 +2228,7 @@
 !      write(*,*)'3E Back from readproprec 2'
 ! if there are no property records proprec is still nullified
    endif
+1000 continue
    return
  end subroutine readintrec
 
@@ -2610,7 +2649,7 @@
 !
 1000 continue
    if(eqfree.gt.2) write(*,1010)eqfree-1
-1010 format('Read ',i4,' equilibria')
+1010 format('3E Read ',i4,' equilibria')
    return
  end subroutine readequil
 
@@ -2624,21 +2663,39 @@
    implicit none
    integer loksvf,iws(*)
 !\end{verbatim}
-   integer nsvfun,i,ip,lok
+   integer nsvfun,i,ip,lok,eqno
    character*512 text
    nsvfun=iws(loksvf)
+! first 3 symbols are R, RT and T_C
    do i=iws(loksvf+1)+1,nsvfun
       lok=iws(loksvf+i)
       ip=iws(lok)
       text=' '
       call loadc(lok+1,iws,text(1:ip))
-!      write(*,*)'3E Entering saved svf: ',text(1:ip)
-      ip=0
+!      write(*,*)'3E Entering saved svf: "',text(1:ip),'"'
+! NOTE: position 1-7 are equilibrium number and status
+      ip=7
       call enter_svfun(text,ip,firsteq)
       if(gx%bmperr.ne.0) then
          write(*,*)'3E Error entering saved svf',gx%bmperr
          if(gx%bmperr.ne.4136) goto 1000
          gx%bmperr=0
+      endif
+! if this function should be evaluated at a particular equilibrium that is
+! in position 1-5.  Extra status in position 6 and 7
+!      write(*,*)'3E read symbol: ',i,': ',text(1:ip)
+! symbol is a constant (can be amended)
+      if(text(6:6).eq.'C') svflista(i)%status=ibset(svflista(i)%status,SVCONST)
+! symbol should only be evaluated when explicitly requested
+      if(text(7:7).eq.'X') svflista(i)%status=ibset(svflista(i)%status,SVFVAL)
+      ip=0
+      call getint(text,ip,eqno)
+      if(buperr.ne.0) then
+         buperr=0
+      else
+! symbol should be evaluated at a specific equilibrium (eqno)
+         svflista(i)%status=ibset(svflista(i)%status,SVFEXT)
+         svflista(i)%eqnoval=eqno
       endif
    enddo
 1000 continue
@@ -2675,7 +2732,8 @@
 ! reading assessment records
    integer lok,iws(*)
 !\end{verbatim}
-   integer lok1,lok2,last,rsize,i1,i2,disp
+   integer lok1,lok2,last,rsize,i1,i2,disp,kk
+   double precision xxx
    type(gtp_assessmenthead), pointer :: assrec
    type(gtp_equilibrium_data), pointer :: ceq
 !
@@ -2762,6 +2820,16 @@
       allocate(assrec%coeffindex(0:i1-1))
       do i2=1,i1
          assrec%coeffindex(i2-1)=iws(lok2+i2)
+      enddo
+! store these values in tpfun ...
+      do kk=0,i1-1
+!         write(*,333)'3E storing as TP funs ',kk,assrec%coeffindex(kk),&
+!              assrec%coeffvalues(kk),assrec%coeffscale(kk)
+333      format(a,2i4,6(1pe12.4))
+! firstash or assrec??
+         xxx=assrec%coeffvalues(kk)*assrec%coeffscale(kk)
+         call change_optcoeff(assrec%coeffindex(kk),xxx)
+         if(gx%bmperr.ne.0) goto 1000
       enddo
    endif
    lok2=iws(lok1+disp+8)
@@ -2885,6 +2953,9 @@
 !      write(*,*)'3E No segmentation error C5',j
       deallocate(ceq%invcompstoi)
 !      write(*,*)'3E No segmentation error C6',j
+! remove valgrind memory leak for conditions
+      call delete_all_conditions(0,ceq)
+! clean upp phase_varres records
       do k=1,size(ceq%phase_varres)
          phdyn=>ceq%phase_varres(k)
          if(allocated(phdyn%gval)) then
@@ -3052,8 +3123,12 @@
    addition: do while(associated(addlink))
 !>>>>> 12: additions
       nextadd=>addlink%nextadd
-      if(addlink%type.eq.1 .or. addlink%type.eq.7) then
-!>>>>> 12A: delete magnetic, volume addition ...
+      if(addlink%type.eq.1) then
+!>>>>> 12A: delete magnetic addition ...
+         deallocate(addlink%explink)
+         deallocate(addlink)
+      elseif(addlink%type.eq.7) then
+!>>>>> 12A: delete volume addition ...
          deallocate(addlink)
       else
          write(*,*)'3E Cannot delete unknown addition type ',addlink%type
@@ -3071,6 +3146,8 @@
    phlista(lokph)%nooffs=0
 !   write(*,*)'all done'
 1000 continue
+! remove valgrind leak
+   deallocate(stack)
    return
  end subroutine delphase
 
@@ -3316,6 +3393,7 @@
    logical silent,thisphaserejected
 !  mmyfr noofph
 ! if warning is true at the end pause before listing bibliography
+   nsl=0
    warning=.FALSE.
    silent=.FALSE.
    nphrej=0
@@ -3324,6 +3402,7 @@
       silent=.TRUE.
 !      write(*,*)'3E reading database silent'
    endif
+   write(*,*)'3E reading a TDB file'
    if(ocv()) write(*,*)'3E reading a TDB file'
    if(.not.(index(filename,'.tdb').gt.0 &
        .or. index(filename,'.TDB').gt.0)) then
@@ -3381,8 +3460,14 @@
    if(.not.onlyfun) then
 !      write(*,71)'3E back from istdbkeyword',keyw
       if(keyw.eq.0) then
-         write(*,122)trim(line)
-122      format(/' *** Warning, ignoring line: "',a,'"'/)
+         if(trim(line).eq.' DEFINE_SYSTEM_DEFAULT ELEMENT 2 !') then
+            goto 100
+         elseif(trim(line).eq.'DEFINE_SYSTEM_DEFAULT ELEMENT 2 !') then
+            goto 100
+         else
+            write(*,122)trim(line)
+122         format(/' *** Warning, ignoring line: "',a,'"'/)
+         endif
       endif
    endif
    if(keyw.eq.0) then
@@ -4225,7 +4310,7 @@
 ! error 4154 means missing reference
             if(gx%bmperr.ne.4154 .and. .not.silent) then
                write(*,409)gx%bmperr,nl
-409            format('3E WARNING ',i6,' for parameter around line: ',i7,&
+409            format('3E WARNING ',i6,', no bibliography around line: ',i7,&
                     ', continuing')
                warning=.TRUE.
             endif
@@ -4273,7 +4358,8 @@
             km=index(longline,' DIS_PART ')
             never=1
             if(km.eq.0) then
-               km=index(longline,' NEVER ')
+! Allow for NEVER_DIS ...
+               km=index(longline,' NEVER')
 ! this is for disordered SIGMA etc.
                if(km.gt.0) then
                   never=-1
@@ -4693,7 +4779,7 @@
 
 !\begin{verbatim}
  subroutine readpdb(filename,nel,selel,options)
-! reading data from a TDB file with selection of elements
+! reading data from a PDB file with selection of elements
 !-------------------------------------------------------
 ! Not all TYPE_DEFS implemented
 !-------------------------------------------------------
@@ -6158,6 +6244,7 @@
 110 format(a)
    nl=nl+1
 ! One should remove TAB characters !! ??
+   call replacetab(line,ipp)
    ipp=1
    if(eolch(line,ipp)) goto 100
    if(line(ipp:ipp).eq.'$') goto 100
@@ -6166,9 +6253,10 @@
    if(ipp.ne.1) goto 100
 !
 ! ignore /- and VA
-   if(line(kk+1:kk+2).eq.'/-' .or. line(kk+1:kk+2).eq.'VA') goto 100
+   if(eolch(line,kk)) goto 100
+   if(line(kk:kk+1).eq.'/-' .or. line(kk:kk+1).eq.'VA') goto 100
    nel=nel+1
-   selel(nel)=line(kk+1:kk+2)
+   selel(nel)=line(kk:kk+1)
 !      write(*,111)nl,line(1:20)
 !111   format('Read line ',i5,': ',a)
    goto 100

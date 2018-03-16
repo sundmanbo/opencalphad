@@ -1,50 +1,53 @@
 OBJS=metlib3.o oclablas.o ocnum.o gtp3.o matsmin.o lmdif1lib.o smp2.o pmon6.o  
-EXE=oc4A
+EXE=oc5A
 
 FC=gfortran
-FCOPT=-c -fbounds-check -finit-local-zero
+FCOPT= -O2
+# for debugging
+#FCOPT= -fbounds-check -finit-local-zero
+# for parallel
+#FCOPT= -O2 -fopenmp
 
 #FC=ifort
-#FCOPT=-c -check bounds -zero
+#FCOPT= -check bounds -zero
 
-all:
-	$(FC) -o linkoc linkocdate.F90
-	./linkoc
-	make $(EXE)
-
+# compile and link everyting.  Use "clean" before if any file updated
+all:  $(OBJS) $(EXE)
 
 metlib3.o:	utilities/metlib3.F90
-	$(FC) $(FCOPT) utilities/metlib3.F90
+	$(FC) -c $(FCOPT) -Dwin utilities/metlib3.F90
 
 oclablas.o:	numlib/oclablas.F90
-	$(FC) $(FCOPT) numlib/oclablas.F90
+	$(FC) -c $(FCOPT) numlib/oclablas.F90
 
 ocnum.o:	numlib/ocnum.F90
-	$(FC) $(FCOPT) numlib/ocnum.F90
+	$(FC) -c $(FCOPT) numlib/ocnum.F90
 
 lmdif1lib.o:	numlib/lmdif1lib.F90
-	$(FC) $(FCOPT) numlib/lmdif1lib.F90
+	$(FC) -c $(FCOPT) numlib/lmdif1lib.F90
 
 gtp3.o: 	models/gtp3.F90
-	$(FC) $(FCOPT) models/gtp3.F90
+	$(FC) -c $(FCOPT) models/gtp3.F90
 
 matsmin.o:	minimizer/matsmin.F90
-	$(FC) $(FCOPT) minimizer/matsmin.F90
+	$(FC) -c $(FCOPT) minimizer/matsmin.F90
 
 smp2.o:		stepmapplot/smp2.F90
-	$(FC) $(FCOPT) stepmapplot/smp2.F90
+	$(FC) -c $(FCOPT) stepmapplot/smp2.F90
 
 pmon6.o:	userif/pmon6.F90
-	$(FC) $(FCOPT) userif/pmon6.F90
+	$(FC) -c $(FCOPT) userif/pmon6.F90
 
+# generate date of linking
+$(EXE):
+	$(FC) -o linkoc linkocdate.F90
+	./linkoc
 
-
-$(EXE): 
-	make $(OBJS)
-# liboceq.a
+# create library file
 	ar sq liboceq.a metlib3.o oclablas.o ocnum.o gtp3.o matsmin.o lmdif1lib.o 
-# oc4A
-	$(FC) -o $(EXE) -fbounds-check  pmain1.F90 pmon6.o smp2.o liboceq.a
 
+	$(FC) -o $(EXE) $(FCOPT) pmain1.F90 pmon6.o smp2.o liboceq.a
+
+# remove all files created by this makefile
 clean:
-	rm -r *.o *.mod linkoc liboceq.a oc4A  
+	rm -r *.o *.mod linkoc liboceq.a $(EXE)

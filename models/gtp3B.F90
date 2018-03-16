@@ -71,7 +71,8 @@
 ! allow empty reference state
       if(.not.ucletter(refstate(1:1))) then
 ! error here when 1/2_MOLE_O2(G) etc ....
-         refstate='GAS_'//refstate
+         model=refstate
+         refstate='GAS_'//trim(model)
 !         gx%bmperr=4036
 !         goto 1000
       endif
@@ -320,6 +321,171 @@
  END subroutine enter_species
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+  subroutine enterphase(cline,last)
+! interactive entering of phase
+    character cline*(*)
+    integer last
+!    type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+    character name1*24,text*256,name3*24,model*72,phtype*1,ch1*1,cmodel*72
+    integer nsl,defnsl,icon,ll,jp
+    double precision sites(9)
+    character (len=34) :: quest1='Number of sites on sublattice xx: '
+! constituent indices in a phase
+    integer, dimension(maxconst) :: knr
+! array with constituents in sublattices when entering a phase
+    character, dimension(maxconst) :: const*24
+    logical once
+!
+    call gparc('Phase name: ',cline,last,1,name1,' ',q1help)
+! ionic liquid require special sorting of constituents on anion sublattice
+    call capson(name1)
+! check legal phase name allowed
+    if(.not.proper_symbol_name(name1,0)) then
+       write(*,*)'3B Illegal phase name'; goto 1000
+    endif
+    defnsl=1
+    if(name1(1:4).eq.'GAS ') then
+       phtype='G'
+       model='IDEAL'
+    elseif(name1(1:7).eq.'LIQUID ') then
+       phtype='L'
+       model='RKM'
+    elseif(name1(1:9).eq.'IONIC_LIQ') then
+       phtype='L'
+       model='IONIC_LIQUID'
+       defnsl=2
+    else
+       phtype='S'
+       model='CEF'
+    endif
+! NEW question about model, passed on to enter_phase
+    call gparcd('Model: ',cline,last,1,cmodel,model,q1help)
+    if(buperr.ne.0) goto 900
+    model=cmodel
+    call capson(model)
+    if(model(1:5).eq.'I2SL ') then
+       defnsl=2
+    endif
+    sites=one
+    if(model.eq.'IDEAL ' .or. model.eq.'RKM ' .or. model.eq.'CQC ') then
+! ideal, regular and quasichemical models have 1 sublattice with 1 site
+       nsl=1
+    elseif(model.eq.'I2SL ') then
+       nsl=2
+    else
+       call gparid('Number of sublattices: ',cline,last,nsl,defnsl,q1help)
+       if(buperr.ne.0) goto 900
+    endif
+    if(nsl.le.0) then
+       write(kou,*)'At least one configurational space!!!'
+       goto 1000
+    elseif(nsl.ge.10) then
+       write(kou,*)'Maximum 9 sublattices'
+       goto 1000
+    endif
+    if(model(1:4).eq.'CQC ' .and. nsl.ne.1) then
+       write(*,*)'The liquid quasichemical model has just one set of sites'
+       gx%bmperr=4399; goto 1000
+    elseif(model(1:5).eq.'I2SL ' .and. nsl.ne.2) then
+       write(*,*)'A ionic liquid model must have two sublattices'
+       gx%bmperr=4399; goto 1000
+    endif
+    icon=0
+    sloop: do ll=1,nsl
+! 'Number of sites on sublattice xx: '
+!  123456789.123456789.123456789.123
+       once=.true.
+4042   continue
+       if(nsl.eq.1 .and. model(1:4).eq.'CQC ') then
+          call gparrd('Number of bonds: ',cline,last,sites(1),6.0D0,q1help)
+          if(buperr.ne.0) goto 900
+       elseif(model(1:5).ne.'I2SL ') then
+!             if(once) write(kou,4020)
+!4020         format('The ionic liquid model will adjust the number of sites',&
+!                  ' based on electroneutrality')
+!             once=.false.
+!          else
+          write(quest1(31:32),4043)ll
+4043      format(i2)
+          call gparrd(quest1,cline,last,sites(ll),one,q1help)
+          if(buperr.ne.0) goto 900
+          if(sites(ll).le.1.0D-6) then
+             write(kou,*)'Number of sites must be larger than 1.0D-6'
+             if(once) then
+                once=.false.
+                goto 4042
+             else
+                goto 1000
+             endif
+          endif
+       endif
+! This should be extended to allow several lines of input
+! 4 means up to ;
+       once=.true.
+4045   continue
+       if(nsl.eq.1) then
+          call gparc('Constituents: ',cline,last,4,text,';',q1help)
+       else
+          call gparc('Sublattice constituents: ',&
+               cline,last,4,text,';',q1help)
+       endif
+       if(buperr.ne.0) goto 900
+       if(text(1:1).eq.';') then
+! the user has not specified any constituents          
+          if(once) then
+             write(*,*)'3B No constituents? Try again'
+             once=.false.; goto 4045
+          else
+             write(*,4057)
+4057         format('3B There must be at least one constituent in',&
+                  ' each sublattice')
+             goto 1000
+          endif
+       endif
+       knr(ll)=0
+       jp=1
+4047   continue
+       if(eolch(text,jp)) goto 4049
+       if(model(1:13).eq.'IONIC_LIQUID ' .and. ll.eq.1 &
+            .and. knr(1).eq.0) then
+! a very special case: a single "*" is allowed on 1st sublattice for ionic liq
+          if(text(jp:jp).eq.'*') then
+             icon=icon+1
+             const(icon)='*'
+             knr(1)=1
+             cycle sloop
+          endif
+       endif
+       call getname(text,jp,name3,1,ch1)
+       if(buperr.eq.0) then
+          icon=icon+1
+          const(icon)=name3
+          knr(ll)=knr(ll)+1
+!          write(*,66)'constituent: ',knr(ll),icon,jp,const(icon)
+66        format(a,3i3,a)
+! increment jp to bypass a separating , 
+          jp=jp+1
+          goto 4047
+       elseif(once) then
+!          write(kou,*)'Input error ',buperr,', at ',jp,', please reenter'
+          buperr=0; once=.false.; goto 4045
+       else
+          goto 1000
+       endif
+       buperr=0
+4049   continue
+    enddo sloop
+    call enter_phase(name1,nsl,knr,const,sites,model,phtype)
+    if(gx%bmperr.ne.0) goto 1000
+900 continue
+    if(buperr.ne.0) gx%bmperr=buperr
+1000 continue
+  end subroutine enterphase
+
+!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
 !\begin{verbatim}
  subroutine enter_phase(name,nsl,knr,const,sites,model,phtype)
@@ -1338,7 +1504,7 @@
 !
 !\begin{verbatim} %-
  subroutine remove_composition_set(iph,force)
-! the last composition set is deleted, update csfree and highcs
+! the last composition set of phase iph is deleted, update csfree and highcs
 ! SPURIOUS ERRORS OCCUR IN THIS SUBROUTINE
 !
 ! >>>>>>>>>>>>>>>>>>>>>>>>>>>> NOTE <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< !
@@ -1357,7 +1523,7 @@
    TYPE(gtp_phase_varres), pointer :: varres,disvarres
    integer ics,lokph,lokcs,ncs,nsl,nkk,lastcs,nprop,idisvarres,kcs,leq
 !
-!   write(*,*)'In remove_compsets',iph
+!   write(*,*)'3B In remove_compsets',iph,csfree,highcs
    if(iph.le.0 .or. iph.gt.noofph) then
       gx%bmperr=4050; goto 1000
    endif
@@ -1403,7 +1569,7 @@
          endif
       endif
    enddo loop
-!   write(*,*)'3B Delete composition set',iph,ics,lokph,tuple
+!   write(*,*)'3B remove composition set: ',iph,ics,lokph,tuple
    if(tuple.le.0) then
 !      write(*,*)'No such tuple!!'
       gx%bmperr=4252; goto 1000
@@ -1420,7 +1586,8 @@
 ! delete compset ics, shift higher down (not necessary)
 ! deallocate data in lokcs and return records to free list
 !-------------------------------------
-! note that the index to phase_varres is the same in all equilibria!!!!
+! We must remove the composition set in all equilibria
+! the index to phase_varres is the same in all equilibria!!!!
    alleq: do leq=1,noeq()
       varres=>eqlista(leq)%phase_varres(lastcs)
 ! there can be unallocated phase_varres records below lastcs
@@ -1488,6 +1655,7 @@
 ! UNFINISHED this is not correct ....
       idisvarres=newhighcs(.false.)
       if(idisvarres.eq.highcs) highcs=idisvarres-1
+      write(*,*)'3B removed varres: ',idisvarres,csfree,highcs
    endif
 ! link the free phase_varres into the free list
 !vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
@@ -2003,6 +2171,17 @@
 ! we have not found any endmember record so we have to insert a record here
 ! lokem may be nonzero if we exited from findem loop to this label
 ! this subroutine is in gtp3G (why?)
+! elinks is allocated in bccpermut or fccpermut.  If no permutation it is not
+! allocated which may cause segentation faults
+   if(noperm.gt.1) then
+      if(.not.allocated(elinks)) then
+         write(*,*)'3B permutations but no elinks!'
+         gx%bmperr=4399; goto 1000
+      endif
+   elseif(.not.allocated(elinks)) then
+! allocate a dummy elinks to avoid segmentation fault compiling with -lefence
+         allocate(elinks(1,1))
+   endif
    call create_endmember(lokph,newem,noperm,nsl,iord,elinks)
 !    write(*,*)'3B enter_par: created endmember ',new
    if(gx%bmperr.ne.0) goto 1000
@@ -2043,6 +2222,15 @@
 ! It seems this record is created but never used so it remains empty
 ! create_interaction routine is in gtp3G.F90
          if(lfun.eq.-1) goto 900
+         if(intperm(1).gt.0) then
+            if(.not.allocated(intlinks)) then
+               write(*,*)'3B permutations but no intlinks!'
+               gx%bmperr=4399; goto 1000
+            endif
+         elseif(.not.allocated(intlinks)) then
+! allocate a dummy intlinks to avoid segmentation fault compiling with -lefence
+            allocate(intlinks(1,1))
+         endif
          call create_interaction(newintrec,mint,jord,intperm,intlinks)
          if(gx%bmperr.ne.0) goto 1000
          endmemrec%intpointer=>newintrec
@@ -2128,6 +2316,15 @@
 !         write(*,303)'3B create at 310:',mint,nint,newint,firstint,highint,&
 !              jord(1,mint),jord(2,mint)
 ! in gtp3G
+         if(intperm(1).gt.0) then
+            if(.not.allocated(intlinks)) then
+               write(*,*)'3B permutations but no intlinks!'
+               gx%bmperr=4399; goto 1000
+            endif
+         elseif(.not.allocated(intlinks)) then
+! allocate a dummy intlinks to avoid segmentation fault compiling with -lefence
+            allocate(intlinks(1,1))
+         endif
          call create_interaction(newintrec,mint,jord,intperm,intlinks)
          if(gx%bmperr.ne.0) goto 1000
          if(newint.eq.1) then
@@ -5088,7 +5285,7 @@
 ! allocate
    TYPE(gtp_phase_varres), pointer :: cpv,cp1
    character name2*64
-   integer ieq,ipv,nc,jz,iz,jl,jk,novarres
+   integer ieq,ipv,nc,jz,iz,jl,jk,novarres,lokdis,needcs,lokph
    if(.not.allowenter(3)) then
       write(*,*)'3B: not allowed enter equilibrium: ',name
       gx%bmperr=4153; goto 1000
@@ -5097,7 +5294,7 @@
    name2=name
    call capson(name2)
 !   write(*,3)'3B In enter equilibria: ',name,noofph,eqfree,csfree,highcs
-3  format(a,6i5)
+3  format(a,1x,a,6i5)
    if(.not.proper_symbol_name(name2,0)) then
 ! the name must start with a letter A-Z and contain letters, numbers and _
       gx%bmperr=4122
@@ -5127,6 +5324,7 @@
 ! component list and matrix, if second or higher equilibrium copy content
    if(ocv()) write(*,*)'3B: entereq 1: ',maxel,ieq,noofel
    if(ieq.eq.1) then
+! allocate large arrays as we do not know what system will be calculated
       allocate(eqlista(ieq)%complist(maxel))
       allocate(eqlista(ieq)%compstoi(maxel,maxel))
       allocate(eqlista(ieq)%invcompstoi(maxel,maxel))
@@ -5143,8 +5341,11 @@
       enddo
 ! Maybe valgrind complained of this ... it can have to do with -finit-local-zero
       eqlista(ieq)%status=0
+      eqlista(ieq)%status=ibset(eqlista(ieq)%status,EQNOEQCAL)
    else
       eqlista(ieq)%status=0
+! we should set some status bits ...
+      eqlista(ieq)%status=ibset(eqlista(ieq)%status,EQNOEQCAL)
       allocate(eqlista(ieq)%complist(noofel))
 ! copy mass of components, maybe other components?
       do jl=1,noofel
@@ -5191,10 +5392,16 @@
 ! For phase lokph the index to phase_varres is in phlista(lokph)%linktocs(ics)
    if(ocv()) write(*,*)'3B: entereq 2: ',maxph
    alleq: if(ieq.eq.1) then
-! %multiuse is used for axis and direction of a start equilibrium
-      allocate(eqlista(ieq)%phase_varres(2*maxph))
+      needcs=2*maxph
+      allocate(eqlista(ieq)%phase_varres(needcs))
       firsteq=>eqlista(ieq)
+! %multiuse is used for axis and direction of a start equilibrium
       firsteq%multiuse=0
+! we should also set phstate in all phase_varres to 0 to avoid uninitiated
+! test of phase status in test_phase_status!!
+      do ipv=1,needcs
+         firsteq%phase_varres(ipv)%phstate=0
+      enddo
 ! endif is at label 900, no need for goto
 !      goto 900
    else
@@ -5210,10 +5417,19 @@
       novarres=csfree-1
       iz=noofph
 !^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-! for ieq>1 allocate the current number of phase_varres records plus 10
+! for ieq>1 allocate an estimated number of phase_varres records
 ! for extra composition sets added later
 !      allocate(eqlista(ieq)%phase_varres(iz+10))
-      allocate(eqlista(ieq)%phase_varres(2*maxph))
+! I had a case with 4 components, 1 phase+disordered fraction set
+! and with 4 compositon sets!!
+      needcs=2*noofph+2*noofel+10
+      if(csfree.gt.needcs .or. highcs.gt.needcs) then
+         write(*,*)'3B Error allocating phase_varres: ',needcs,csfree,highcs
+         needcs=max(csfree,highcs)+10
+      endif
+! the +10 should cater for compostion sets created due to miscibility gaps
+! and also disordered fractions sets
+      allocate(eqlista(ieq)%phase_varres(needcs))
 !      write(*,*)'3B enter_eq 2B, after this segmentation fault'
 !      write(*,*)'3B varres: ',ieq,size(eqlista(ieq)%phase_varres),iz
       if(ocv()) write(*,*)'3B varres: ',ieq,size(eqlista(ieq)%phase_varres)
@@ -5221,11 +5437,13 @@
 ! note, the SELECT_ELEMENT_REFERENCE phase has phase number 0
 ! and phase_varres index 1, the number of phase_varres records is not the
 ! same as number of phases ....
+      novarres=needcs
+! copy also unused varres records, we do not really how many is used ...
       copypv: do ipv=1,novarres
 ! note eqlista(1) is identical to firsteq
          if(.not.allocated(firsteq%phase_varres(ipv)%yfr)) then
 ! UNFINISHED this handels unallocated records below novarres
-!            write(*,*)'3B error creating varres record',ipv
+!            write(*,*)'3B problem creating varres record',ipv
 ! BUT what about allocated after !!! no problem so far but .............
             cycle copypv
          endif
@@ -5233,15 +5451,29 @@
          cpv=>eqlista(ieq)%phase_varres(ipv)
          cpv%nextfree=cp1%nextfree
          cpv%phlink=cp1%phlink
+         cpv%phstate=cp1%phstate
          cpv%status2=cp1%status2
          cpv%abnorm=cp1%abnorm
          cpv%prefix=cp1%prefix
          cpv%suffix=cp1%suffix
          cpv%phtupx=cp1%phtupx
+! Be careful, in first equilibrium these arrays are dimentioned very large
 ! allocate and copy arrays
-         nc=size(cp1%yfr)
+         lokph=cp1%phlink
+         if(lokph.le.0) then
+! maybe problem here for SELECT_ELEMENT_REFERENCE ??
+!            write(*,*)'No phase? ',ipv
+            nc=noofel
+         else
+            nc=phlista(lokph)%tnooffr
+         endif
 ! note SIZE gives rubbish unless array is allocated
          if(ocv()) write(*,*)'3B copy yfr 1: ',nc
+! yfr may be allocated if this composition set is a disordered fraction set
+         if(allocated(cpv%yfr)) then
+            write(*,*)'3B fractions already allocated: ',ieq,ipv
+            cycle copypv
+         endif
          allocate(cpv%yfr(nc))
          cpv%yfr=cp1%yfr
 ! problems with phase_varres in equilibrium 2 ...
@@ -5291,20 +5523,21 @@
 ! copy the disordered fraction record, that should take care of all
 ! array allocations inside the disfra record ???
          cpv%disfra=cp1%disfra
+!-------------------------------------------------------------------
+! attempt to correct segmentation fault 2017.12.09/BoS
+! This is correct but the varres records for the disordered fraction sets
+! will be copied in this loop anyway
 !         disordered: if(cpv%disfra%varreslink.gt.0) then
 ! if there is a disordered phase_varres record that must be taken care of
 !            lokdis=cpv%disfra%varreslink
 !            eqlista(ieq)%phase_varres(lokdis)%abnorm=&
 !                 eqlista(1)%phase_varres(lokdis)%abnorm
-! !!!! WOW it really seems to copy a whole tructure just by = !!!
+! !!!! WOW it really seems to copy a whole phase_varres record just by = !!!
 !            eqlista(ieq)%phase_varres(lokdis)=eqlista(1)%phase_varres(lokdis)
-! BUT THEN I HAVE TO CHANGE EVERYTHING ABOVE ... NEXT RELEASE ...
-!            write(*,*)'3B copied dis: ',lokdis
-!            write(*,77)eqlista(ieq)%phase_varres(lokdis)%yfr(2),&
-!                 eqlista(1)%phase_varres(lokdis)%yfr(2)
-!77          format('enter eq: ',2(1pe15.6))
-!            continue
+! BUT THEN I SHOULD CHANGE EVERYTHING ABOVE ... NEXT RELEASE ...
+!            write(*,*)'3B copied disordered from: ',lokdis,ipv
 !         endif disordered
+!-------------------------------------------------------------------
       enddo copypv
 !      write(*,*)'3B enter_eq 2E, after this segmentation fault'
    endif alleq
@@ -5887,6 +6120,8 @@
 !   write(*,*)'In delete_equilibria ',cureq,trim(name)
    ik=index(name,'*')-1
    if(ik.lt.0) ik=min(24,len(name))
+   novarres=highcs
+!   write(*,*)'3B delete equilibria: ',eqfree-1,highcs,csfree
    do ieq=eqfree-1,2,-1
 ! we cannot have "holes" in the free list??  Delete from the end...
       if(ieq.eq.cureq) exit 
@@ -5898,9 +6133,8 @@
       deallocate(eqlista(ieq)%invcompstoi)
       deallocate(eqlista(ieq)%cmuval)
 !
-      novarres=highcs
 ! the next line should be removed when highcs implemented
-      novarres=csfree-1
+!      novarres=csfree-1
 !      write(*,*)'3B deallocationg phase_varres'
       do ipv=1,novarres
 ! can happen it is not allocated when previous errors
@@ -5978,7 +6212,7 @@
 !   write(*,*)'In copy_equilibrium2',trim(name),eqfree
    nullify(neweq)
    if(.not.allowenter(3)) then
-!      write(*,*)'3B Not allowed enter a copy'
+!      write(*,*)'3B Not allowed to copy or enter equilibria'
       gx%bmperr=4153; goto 1000
    endif
 !   write(*,*)'3B allow enter OK'
@@ -6095,15 +6329,18 @@
 ! for extra composition sets added later
 ! 170524: It seems that phase_varres for disordered fraction sets are not
 !          included in novarres in novarres or highcs!!
-   novarres=highcs
-! the next line should be deleted when highcs implemented
-   novarres=csfree-1
-!   write(*,*)'3B: copyeq 3: ',highcs,novarres
 ! BEWARE: allocation: calculating with one phase with 8 composition sets
 ! and disordered fractions sets !!!
-   iz=max(noofph,novarres)
-   allocate(eqlista(ieq)%phase_varres(2*iz))
-!   write(*,*)'3B eqlista%phase_varres: ',size(eqlista(ieq)%phase_varres)
+   if(oldeq.eq.1) then
+! the first equilibria has many phase_varres record as we do not what system
+! we will have.  If we copy that we create as many varres as in the enter_equil
+      iz=2*noofph+2*noofel+10
+   else
+! When we copy other equilibria we copy the same number as in the origin
+      iz=size(ceq%phase_varres)
+   endif
+   allocate(eqlista(ieq)%phase_varres(iz))
+!   write(*,*)'3B copy_equil allocates: ',oldeq,ieq,iz,highcs,csfree
 ! now copy the current content of ceq%phase_varres to this equilibrium
 ! note, the SELECT_ELEMENT_REFERENCE phase has phase number 0
 ! and phase_varres index 1, the number of phase_varres records is not the
@@ -6119,7 +6356,9 @@
 ! requires 17 phase_varres.  Before the "max" above I had dimensioned for 2
 ! BEWARE: I am not sure novarres is correct ...
 !   copypv: do ipv=1,min(novarres+3,size(ceq%phase_varres))
-   copypv: do ipv=1,novarres
+!   copypv: do ipv=1,novarres
+! THIS CREATED ALL TROUBLE ... I did not copy all varres records used!!
+   copypv: do ipv=1,iz
       eqlista(ieq)%phase_varres(ipv)=eqlista(oldeq)%phase_varres(ipv)
 ! in matsmin nprop seemed suddenly to be zero in copied equilibria ....
 !      write(*,*)'3B copyeq 2: ',ieq,ipv,eqlista(ieq)%phase_varres(ipv)%nprop

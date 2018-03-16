@@ -1,5 +1,5 @@
 OBJS=metlib3.o oclablas.o ocnum.o gtp3.o matsmin.o lmdif1lib.o smp2.o pmon6.o
-EXE=oc4A
+EXE=oc5A
 
 all: $(EXE)
 
@@ -9,7 +9,7 @@ pmain1.F90: linkocdate.F90
 	./linkoc
 
 metlib3.o:	utilities/metlib3.F90
-	gfortran -c utilities/metlib3.F90
+	gfortran -c -Dwin utilities/metlib3.F90
 
 oclablas.o:	numlib/oclablas.F90
 	gfortran -c numlib/oclablas.F90
@@ -38,4 +38,4 @@ $(EXE): $(OBJS) pmain1.F90
 	gfortran -o $(EXE) pmain1.F90 pmon6.o smp2.o liboceq.a
 
 clean:
-	rm -r *.o *.mod linkoc liboceq.a oc4A
+	rm -r *.o *.mod linkoc liboceq.a oc5A

@@ -371,9 +371,24 @@ mq&c(fcc)
 
 @$
 @&
+@$ There is a command to adjust the constitution of a single phase
+@$ to an overall composition by adjusting the fractions on the
+@$ different sublattices to minimize the Gibbs energy for that phase.
+@& 
+
+cal ph fcc
+
+Y
+const-adj
+
+
 @$ There is also a command to calculate the potential derivative
 @$ matrix (note it is symmetrical) which is needed to convert
-@$ the mobilities to diffusion coefficients.
+@$ the mobilities to diffusion coefficients.  With this command
+@$ we cannot have a condition on the activity of a component
+
+set cond ac(C)=none
+
 @& 
 
 cal ph fcc

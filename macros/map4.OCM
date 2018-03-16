@@ -25,7 +25,7 @@ new Y
 
 set echo
 
-r t ou
+r t OU
 
 
 set c t=3200 p=1e5 n=1 x(o)=.4
@@ -49,13 +49,44 @@ title map 4 fig 1
 render
 
 
+@&
 plot
 x(*,o)
 T
 title map4 fig 2
 position bottom left
+text 0.59 3300
+1
+0
+y
+
+text n
+0.9 3300 1 0 y
+
+text n
+0.66 2600 1 90 y
+
 render
 
+@$ To add a label at 700 K and high oxygen I need to calculate
+@$ that equilibria explicitly first!!
+set c t=700 x(o)=.8
+c e
+
+l,,,,
+
+@&
+plot
+
+
+text n
+0.8 700 1 0 y
+
+title map4 fig 2B
+
+
+
+@&
 
 plot
 
@@ -67,6 +98,7 @@ N
 .78
 render
 
+@&
 plot
 
 
@@ -78,13 +110,16 @@ N
 
 
 
+@&
 @$-------------------------------------------------------------
 @$ As a final touch calculate the congruent melting of UO2
 @$ First calculate an equilibrium in the liquid (or solid) above it
 
 l c
 
-set c x(u)=.33
+set c x(o)=.66 t=3300
+
+c e
 
 l,,,,,
 
@@ -107,7 +142,7 @@ l,,,,,
 @$ IT IS IMPORTANT TO USE THE COMPOSITION SETS THAT ARE STABLE ABOVE
 
 set c x(ionic,u)-x(c1_mo2,u)=0
-set c x(u)=none
+set c x(o)=none
 l c
 
 c e
@@ -127,7 +162,6 @@ N
 scale y n 3100 3150
 
 
-@$ As can be seen the step on the U rich side is quite big
 
 set interactive
 

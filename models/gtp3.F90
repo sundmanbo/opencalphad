@@ -1,10 +1,11 @@
+
 !***************************************************************
 ! General Thermodynamic Package (GTP)
 ! for thermodynamic modelling and calculations
 !
 MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !
-! Copyright 2011-2017, Bo Sundman, France
+! Copyright 2011-2018, Bo Sundman, France
 !
 !    This program is free software; you can redistribute it and/or modify
 !    it under the terms of the GNU General Public License as published by
@@ -556,7 +557,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'Recalculate as gridpoint below current equilibrium              ',&
        'Slow convergence with same set of stable phases                 ',&
 ! 4360
-       '                                                                ',&
+       'Too large change on axis, terminating mapping                   ',&
        '                                                                ',&
        '                                                                ',&
        '                                                                ',&
@@ -603,27 +604,29 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !
 !=================================================================
 !
-! Bits are numbered 0-31
+! STATUS BITS are numbered 0-31
 !\begin{verbatim}
 !-Bits in global status word (GS) in globaldata record
 ! level of user: beginner, occational, advanced; NOGLOB: no global gridmin calc
 ! NOMERGE: no merge of gridmin result, 
 ! NODATA: not any data, 
 ! NOPHASE: no phase in system, 
-! NOACS: no automatic creation of composition set
+! NOACS: no automatic creation of composition set for any phase
 ! NOREMCS: do not remove any redundant unstable composition sets
 ! NOSAVE: data changed after last save command
 ! VERBOSE: maximum of listing
-! SETVERB: explicit setting of verbose
+! SETVERB: permanent setting of verbose
 ! SILENT: as little output as possible
 ! NOAFTEREQ: no manipulations of results after equilibrium calculation
 ! XGRID: extra dense grid for all phases
 ! NOPAR: do not run in parallel
 ! NOSMGLOB do not test global equilibrium at node points
 ! NOTELCOMP the elements are not the components
-! TGRID check calculated equilibrium with grid minimizer
+! TGRID use grid minimizer to test if global after calculating equilibrium
 ! OGRID use old grid generator
-! NORECALC do not recalculate equilibria even if global test fails
+! NORECALC do not recalculate equilibria even if global test after fails
+! OLDMAP use old map algorithm
+! NOAUTOSP do not generate automatic start points for mapping
 ! >>>> some of these should be moved to the gtp_equilibrium_data record
   integer, parameter :: &
        GSBEG=0,       GSOCC=1,        GSADV=2,      GSNOGLOB=3, &
@@ -631,33 +634,54 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        GSNOREMCS=8,   GSNOSAVE=9,     GSVERBOSE=10, GSSETVERB=11,&
        GSSILENT=12,   GSNOAFTEREQ=13, GSXGRID=14,   GSNOPAR=15, &
        GSNOSMGLOB=16, GSNOTELCOMP=17, GSTGRID=18,   GSOGRID=19, &
-       GSNORECALC=20
+       GSNORECALC=20, GSOLDMAP=21,    GSNOAUTOSP=22
 !----------------------------------------------------------------
 !-Bits in element record
   integer, parameter :: &
        ELSUS=0
 !----------------------------------------------------------------
 !-Bits in species record
-! Suspended, implicitly suspended, species is element, species is vacancy
-! species have charge, species is (system) component
+! Suspended,
+! implicitly suspended, 
+! species is element, 
+! species is vacancy
+! species have charge, 
+! species is (system) component
   integer, parameter :: &
        SPSUS=0, SPIMSUS=1, SPEL=2, SPVA=3, &
        SPION=4, SPSYS=5
 !\end{verbatim}
 !----------------------------------------------------------------
-! PHSUBO and PHSORD not used. PHBORD (and others) not implemented
+! Many not implemented
 !\begin{verbatim}
-!-Bits in phase record
-! hidden, implictly hidden, ideal, no concentration variation (NOCV),
-! Phase has parameters entered (PHHASP), 
-! F option (FORD), B option (BORD), Sigma ordering (SORD),
-! multiple/disordered fraction sets (MFS), gas, liquid, ionic liquid, 
-! aqueous, dilute config. entropy (DILCE), quasichemical (QCE), CVM,
-! explicit charge balance needed (EXCB), extra dense grid (XGRID)
-! FACT,  not create comp. sets (NOCS), Helmholz energy model (HELM),
-! Model without 2nd derivatives (PHNODGDY2), Elastic model A,
-! Subtract ordered part (PHSUBO), Flory-Huggins model (PHFHV)
-! Multi-use bit (together with some other) PHMULTI
+!-Bits in phase record:
+! HID phase is hidden (not implemented)
+! IMHID phase is implictly hidden (not implemented)
+! ID phase is ideal, substitutional and no iteraction
+! NOCV phase has no concentration variation (I am not sure it is set)
+! HASP phase has at least one parameter entered
+! FORD phase has 4 sublattice FCC ordering with parameter permutations
+! BORD phase has 4 sublattice BCC ordering with parameter permutations
+! SORD phase has TCP type ordering (like for sigma)
+! MFS phase has a disordered fraction set
+! GAS this is the gas phase (first in phase list) 
+! LIQ phase is liquid (can be several but listed first after gas)
+! IONLIQ phase has ionic liquid model (I2SL)
+! AQ1 phase has aqueous model (not implemented)
+! DILCE phase has dilute configigurational entropy (not implemented)
+! QCE phase has quasichemical SRO configurational entropy (not implemented)
+! CVMCE phase has some CVM ordering entropy (not implemented)
+! EXCB phase need explicit charge balance (has ions)
+! XGRID use extra dense grid for this phase
+! FACTCE phase has FACT quasichemical SRO model (not implemented)
+! NOCS not allowed to create composition sets for this phase
+! HELM parameters are for a Helmholz energy model (not implemented),
+! PHNODGDY2 phase has model with no analytical 2nd derivatives
+! ELMA phase has elastic model A (not implemented)
+! PHSUBO ordering model with ordered part subtracted (is it used??)
+! FHV phase has Flory-Huggins model for polymers
+! MULTI may be used with care
+! BMAV Xion magnetic model with average Bohr magneton number
   integer, parameter :: &
        PHHID=0,     PHIMHID=1,  PHID=2,    PHNOCV=3, &     ! 1 2 4 8 : 0/F
        PHHASP=4,    PHFORD=5,   PHBORD=6,  PHSORD=7, &     ! 
@@ -665,7 +689,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        PHAQ1=12,    PHDILCE=13, PHQCE=14,  PHCVMCE=15,&    ! 
        PHEXCB=16,   PHXGRID=17, PHFACTCE=18, PHNOCS=19,&   !
        PHHELM=20,   PHNODGDY2=21, PHELMA=22, PHSUBO=23,&   ! 
-       PHFHV=24,    PHMULTI=25                             !
+       PHFHV=24,    PHMULTI=25, PHBMAV=26                  !
 ! 
 !----------------------------------------------------------------
 !-Bits in constituent fraction (phase_varres) record STATUS2
@@ -692,17 +716,21 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !----------------------------------------------------------------
 !\begin{verbatim}
 !-Bits in constat array for each constituent
-! For each constituent: is suspended, is implicitly suspended, is vacancy
-! CONQCBOND the constituent is a binary quasichemical cluster
+! For each constituent: 
+! SUS constituent is suspended (not implemented)
+! IMSUS is implicitly suspended, 
+! VA is vacancy
+! QCBOND the constituent is a binary quasichemical cluster
    integer, parameter :: &
         CONSUS=0,   CONIMSUS=1,  CONVA=2,    CONQCBOND=3
 !----------------------------------------------------------------
 !-Bits in state variable functions (svflista)
-! SVFVAL symbol evaluated only explicitly (mode=1 in call)
-! SVFEXT symbol external ???
+! SVFVAL symbol evaluated only explicitly (mode=1 in call) all dot derivatives
+! SVFEXT symbol taken from equilibrium %eqnoval (external?)
 ! SVCONST symbol is a constant (can be changed with AMEND)
+! SVFTPF symbol is a TP function, current value returned
    integer, parameter :: &
-        SVFVAL=0, SVFEXT=1, SVCONST=2
+        SVFVAL=0, SVFEXT=1, SVCONST=2,SVFTPF=3
 !----------------------------------------------------------------
 !-Bits in gtp_equilibrium_data record
 ! EQNOTHREAD set if equilibrium must be calculated before threading 
@@ -732,7 +760,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        ACTIVE=0,SINGLEVAR=1,SINGLEVALUE=2,PHASE=3
 !----------------------------------------------------------------
 !- Bits in assessment head record status
-! ahcoef means coefficients enetered
+! ahcoef means coefficients entered
   integer, parameter :: &
        AHCOEF=0
 !
@@ -787,7 +815,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! max number of state variable functions
   integer, private, parameter :: maxsvfun=500
 ! version number of GTP (not OC)
-  character*8, parameter :: gtpversion='GTP-3.20'
+  character*8, parameter :: gtpversion='GTP-3.21'
 ! THIS MUST BE CHANGED WHENEVER THE UNFORMATTED FILE FORMAT CHANGES!!!
   character*8, parameter :: savefile='OCF-3.20'
 !\end{verbatim}
@@ -804,8 +832,15 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   integer, public, parameter :: TWOSTATEMODEL1=5
   integer, public, parameter :: ELASTICMODEL1=6
   integer, public, parameter :: VOLMOD1=7
+! name of additions:
+  character(len=24) , public, dimension(8), parameter :: additioname=&
+       ['Inden-Hillert magn model','Inden-Xiong magn model  ',&
+       'Debye CP model          ','Einstein Cp model       ',&
+       'Liquid 2-state model    ','Elastic model A         ',&
+       'Volume model            ','                        ']
+!       123456789.123456789.1234   123456789.123456789.1234
 ! Note that additions often use extra parameters like Curie or Debye
-! temperatures defined by parameter identifiers stored in gtp_propid
+! temperatures defined by model parameter identifiers stored in gtp_propid
 !\end{verbatim}
 ! =================================================================
 !
@@ -1111,7 +1146,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! symbol: property identifier like G for Gibbs energy
 ! note: short description for listings
 ! prop_elsymb: additional for element dependent properties like mobilities
-     character symbol*4,note*16,prop_elsymb*2
+     character symbol*4,note*28,prop_elsymb*2
 ! Each property has a unique value of idprop.  Status can state if a property
 ! has a constituent specifier or if it can depend on T or P
      integer status
@@ -1277,7 +1312,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! argtyp=2: phase and compset
 ! argtyp=3: phase and compset and component
 ! argtyp=4: phase and compset and constituent
-! ?? what is norm ??
+! ?? what is norm ?? normalizing like M in HM ?
      integer statevarid,norm,unit,phref,argtyp
 ! these integers represent the previous indices(4)
      integer phase,compset,component,constituent
@@ -1347,10 +1382,11 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! nactarg: number of actual parameter specifications needed in call
 !   (like @P, @C and @S
 ! status: can be used for various things
-! status bit SVFVAL=0 means value evaluated only when called with mode=1
+! status bit SVFVAL=1 means value evaluated only when called with mode=1
 ! SVCONST bit set if symbol is just a constant value (linknode is zero)
 ! eqnoval: used to specify the equilibrium the value should be taken from
-!    (for handling what is called "variables" in TC)
+!    (for handling what is called "variables" in TC, SVFEXT set also)
+! SVFTPF set if symbol is a TP function, eqnoval is TPFUN index
 ! name: name of symbol
      integer narg,nactarg,status,eqnoval
      type(putfun_node), pointer :: linkpnode
@@ -1359,7 +1395,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! this array has identification of state variable (and other function) symbols 
      integer, dimension(:,:), pointer :: formal_arguments
   end TYPE gtp_putfun_lista
-! this is the global array with state variable functions
+! this is the global array with state variable functions, "symbols"
   TYPE(gtp_putfun_lista), dimension(:), allocatable :: svflista
 ! NOTE the value of a function is stored locally in each equilibrium record
 ! in array svfunres.
@@ -1377,13 +1413,10 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! tnoofxfr: number of disordered fractions
 ! tnoofyfr: same for ordered fractions (=same as in phlista).
 ! varreslink: index of disordered phase_varres, 
-! phdapointer (not needed): pointer to the same phase_varres record
-!    (Note that there is a bit set indicating that the sublattices should 
-!    be taken from this record)
 ! totdis: 0 indicates no total disorder (sigma), 1=fcc, bcc or hcp
 ! id: parameter suffix, D for disordered
 ! dsites: number of sites in sublattices, disordred fractions stored in
-!    another phase_varres record linked from phdapointer
+!    another phase_varres record with index varreslink (above)
 ! splink: pointers to species record for the constituents
 ! nooffr: the number of fractions in each sublattice
 ! y2x: the conversion from sublattice constituents to disordered and
@@ -1398,7 +1431,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
      integer, dimension(:), allocatable :: splink
      integer, dimension(:), allocatable :: y2x
      double precision, dimension(:), allocatable :: dxidyj
-! formula unit factor needed when calculating G for disordered sigma
+! formula unit factor needed when calculating G for disordered sigma etc
      double precision fsites
   END TYPE gtp_fraction_set
 ! these records are declared in the phase_varres record as DISFRA for 
@@ -1691,14 +1724,18 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! These are the corresponding TP-function constants indices
      integer, dimension(:), allocatable :: coeffindex
 ! This array indicate currently optimized variables:
-!  0=fix, 1=fix with min, 2=fix with max, 3=fix with min and max
+!  -1=unused, 0=fix, 1=fix with min, 2=fix with max, 3=fix with min and max
 !  10=optimized, 11=opt with min, 12=opt with max, 13=opt with min and max
      integer, dimension(:), allocatable :: coeffstate
 ! Work arrays ...
      double precision, dimension(:), allocatable :: wopt
   end TYPE gtp_assessmenthead
-! this record is allocated when necessary
-  type(gtp_assessmenthead), pointer :: firstash,lastash
+! this record should be allocated for assessments when necessary
+  type(gtp_assessmenthead), allocatable :: ashrecord
+!  type(gtp_assessmenthead), pointer :: firstash,lastash
+! but this is later allocated, to avoid memory loss ashrecord should be used
+! and then this pointer should be set to that record
+  type(gtp_assessmenthead), pointer :: firstash
 !\end{verbatim}
 !------------------------------------------------------------------
 !\begin{verbatim}
@@ -1727,7 +1764,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !\begin{verbatim}
   TYPE gtp_tpfun_as_coeff
 ! this is a TPFUN converted to coefficents without any references to other
-! functions.
+! functions.  Each function can have several T ranges and coefficents for T**n
      double precision, dimension(:), allocatable :: tbreaks
      double precision, dimension(:,:), allocatable :: coefs
      integer, dimension(:,:), allocatable :: tpows

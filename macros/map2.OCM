@@ -56,6 +56,7 @@ T
 title map 2 fig 1
 render
 
+@&
 set cond t=2500 x(mo)=.4
 c e
 
@@ -69,17 +70,20 @@ plot
 title map 2 fig 2
 
 
+@&
 
 plot
 
 
+@$ One more option for scale of text!
 text
 0.5 1400
+1
 0
 y
 
 text
-n 0.5 2800 0 y
+n 0.5 2800 1 0 y
 
 title map 2 fig 3
 

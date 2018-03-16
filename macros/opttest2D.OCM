@@ -1,0 +1,104 @@
+@$===================================================================
+@$===================================================================
+@$======= step 3: fit H formation of CuMg2 compound
+@$===================================================================
+@$===================================================================
+
+set echo
+
+new Y
+
+r u opttest2-cumg3
+
+@$---------------------------------------------------
+@$ Start by reading the unformatted file
+@$ and list previous results
+@$---------------------------------------------------
+@&
+
+l ph cumg2 data
+
+l opt coef
+
+@&
+
+set wei 0 *
+
+set wei 1 HCUMG2_K
+
+@$---------------------------------------------------
+@$ First set the weight of all experimenatal equilibria to zero
+@$ and then set the equilibrium with the enthalpy of
+@$ formation of the CuMg2 compoint to unity.
+@$ Optimize the T-independent coefficient for the CuMg2 phase
+@$---------------------------------------------------
+@&
+
+set var 30 1
+
+opt 100
+
+@&
+
+l opt
+
+@&
+
+macro opttest2-map-diagram
+
+@$---------------------------------------------------------
+@$ The CuMg2 phase is stable to very high T, add the entropy
+@$ of formation (the linear T dependent term)
+@$ to destabilize CuMg2
+@$ Use the experimental equilibrium for the congruent melting point
+@$---------------------------------------------------------
+
+l ph cumg2 data
+
+set var 31 1
+
+@&
+
+set wei 1 MELT2
+
+c all n 1
+
+@&
+
+opt 100
+
+@$---------------------------------------------------------
+@$ We are optimizing two experiments with 2 coefficent.
+@$ We get a good fit.
+@$---------------------------------------------------------
+@&
+list opt
+
+@&
+
+macro opttest2-map-diagram
+
+@&
+@$------------------------------------------------------
+@$ The CuMg2 phase is now reasonably fitted in the phase diagram
+@$ Take a break but first save !!
+@$------------------------------------------------------
+
+set fix 0-99
+
+l opt
+
+set wei 0 *
+
+del step_map
+
+@&
+
+save unf
+liq and cumg2 parameters OK
+opttest2-cumg4
+Y
+
+set inter
+
+

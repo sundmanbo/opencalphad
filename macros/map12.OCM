@@ -23,6 +23,8 @@ new Y
 @$ Calculating Mo-Re phase diagram from a database file in PDB format
 @$ =============================================================
 
+set echo
+
 read pdb MoRe1
 
 set c t=1000 p=1e5 n=1 x(re)=.3
@@ -43,8 +45,10 @@ map
 plot
 
 
+title map 12 fig 1
 
 
+@&
 @$ add a label and move the keys
 plot
 
@@ -52,13 +56,16 @@ plot
 pos left bottom
 text 
 .6 2400
+1
+0
 Y
 
+title map 12 fig 2
 
 
 
 
-@&
+
 set inter
 
 

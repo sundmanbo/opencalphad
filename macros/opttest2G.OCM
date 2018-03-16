@@ -1,0 +1,131 @@
+@$===================================================================
+@$===================================================================
+@$======= step 6: fit solubilities in FCC and HCP
+@$===================================================================
+@$===================================================================
+
+
+@$ Fit solubilities in FCC and HCP
+
+new Y
+
+set echo
+
+r u opttest2-cumg6
+
+@&
+@$ Remove any previous selections
+
+set wei 0 *
+
+set fix 0-99
+
+l eq
+
+@&
+
+l opt
+
+@&
+@$ Regular parameters in FCC and HCP
+
+set var 11 -10000
+
+set var 21 10000
+
+@&
+@$ Include experiments AFC and AH2
+set wei 1 MU3
+
+set wei 1 XFCC
+
+set wei 1 XLIQ_F
+
+set wei 1 XHCP
+
+set wei 1 XLIQ_H
+
+@&
+@$---------------------------------------------------------
+@$ Handling some converge problems
+
+c a y 1
+
+@&
+
+c a n 1
+
+@&
+opt 0
+
+@&
+
+l opt
+
+@&
+
+opt 100
+
+@&
+
+l opt
+
+@&
+@$---------------------------------------------------------
+@$ rescale the coefficients and optimize more
+@$---------------------------------------------------------
+amend ?
+all-coef
+y
+
+
+opt 100
+
+@&
+l opt
+
+@&
+@$ ------------------------------------------------------
+@$ sometimes mapping phase diagram memory crash here
+@$ problems with memory leaks during STEP/MAP
+@$ ------------------------------------------------------
+
+mac opttest2-map-diagram
+
+@$---------------------------------------------------------
+@$ We have now fitted the solubilities in FCC and HCP
+@$ and the compounds have correct melting T
+@$ but the solubility range of the Laves phase is too small
+@$---------------------------------------------------------
+@$ Clean up for next step
+
+set fix 0-99
+
+del step_map
+
+l opt
+
+set wei 0 *
+
+@&
+
+save unf
+Done liquid, CuMg2, Laves_C15, FCC and HCP
+opttest2-cumg7
+Y
+
+@&
+@$===================================================================
+@$===================================================================
+@$======= step 7: fit solubilities in Laves phase (not done)
+@$===================================================================
+@$===================================================================
+
+@$ At the end a total optimization of all parameters together with
+@$ most of the experimental data must be made.
+@$ IMPORTANT: The coefficients for the Cp should NOT be assessed
+@$ together with phase diagram data, they should remain fixed.
+
+set inter
+
+

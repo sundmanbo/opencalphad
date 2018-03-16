@@ -158,6 +158,7 @@ GM(*)
 title step 4 fig 1
 
 
+@&
 @$ the constitution of FeNi3
 
 plot
@@ -166,6 +167,7 @@ y(part#4,*)
 title step4 fig 2 L1_2
 
 
+@&
 plot
 
 
@@ -173,6 +175,7 @@ title step4 fig 3 L1_2
 position top left
 render
 
+@&
 @$ The constitution of the L1_0 phase (AlNi)
 plot
 
@@ -181,6 +184,7 @@ title step4 fig 4 L1_0
 position top left
 render
 
+@&
 @$ The calculation has sometimes failed for compositions
 @$ where the L1_2 or L1_0 ordering is not stable
 @&

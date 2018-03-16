@@ -59,11 +59,18 @@ CEF
 .25 RE W;
 
 @$ mark that we have parameter permutations according to fcc tetrahedrons
-set phase fcc bit fcc_perm
+amend phase fcc
+?
+fcc_perm
+
+@&
 
 ent par G(fcc,RE:RE:RE:RE) 298.15 0.062787*eVtoJ;,,,14Pal                fcc.A
+@$ The L1_2 ordering parameter on the Re side
 ent par G(fcc,W:RE:RE:RE) 298.15 0.11703575*eVtoJ;,,,14Pal             L12.A3B
+@$ The L1_0 ordering parameter
 ent par G(fcc,W:W:RE:RE) 298.15 0.2098125*eVtoJ;,,,14Pal                L10.AB 
+@$ The L1_2 ordering parameter on the W side
 ent par G(fcc,W:W:W:RE) 298.15 0.33351125*eVtoJ;,,,14Pal               L12.AB3 
 ent par G(fcc,W:W:W:W) 298.15 0.474125*eVtoJ;,,,14Pal                    fcc.B 
 @$-----------
@@ -83,23 +90,18 @@ enter phase bcc
 CEF
 4 .25 RE W; .25 RE W; .25 RE W; .25 RE W;
 
-@$ the BCC permutations are not yet implemented ....
+@$ mark that we have parameter permutations according to bcc tetrahedrons
+amend phase bcc bcc_perm
 
 ent par G(bcc,RE:RE:RE:RE) 298.15 0.320286*eVtoJ;,,,14Pal                bcc.A
+@$ The D03 ordering parameter on Re side
 ent par G(bcc,W:RE:RE:RE) 298.15 0.21785575*eVtoJ;,,,14Pal             D03.A3B
-ent par G(bcc,RE:W:RE:RE) 298.15 0.21785575*eVtoJ;,,,14Pal             D03.A3B
-ent par G(bcc,RE:RE:W:RE) 298.15 0.21785575*eVtoJ;,,,14Pal             D03.A3B
-ent par G(bcc,RE:RE:RE:W) 298.15 0.21785575*eVtoJ;,,,14Pal             D03.A3B
-ent par G(bcc,W:RE:W:RE) 298.15 0.1385725*eVtoJ;,,,14Pal                B32.AB
-ent par G(bcc,RE:W:W:RE) 298.15 0.1385725*eVtoJ;,,,14Pal                B32.AB
-ent par G(bcc,W:RE:RE:W) 298.15 0.1385725*eVtoJ;,,,14Pal                B32.AB
-ent par G(bcc,RE:W:RE:W) 298.15 0.1385725*eVtoJ;,,,14Pal                B32.AB
+@$ The B2 ordering parameter, sublattice 1&2 are next nearest neighbours
 ent par G(bcc,W:W:RE:RE) 298.15 0.0971185*eVtoJ;,,,14Pal                 B2.AB
-ent par G(bcc,RE:RE:W:W) 298.15 0.0971185*eVtoJ;,,,14Pal                 B2.AB
+@$ The B32 ordering parameter
+ent par G(bcc,W:RE:W:RE) 298.15 0.1385725*eVtoJ;,,,14Pal                B32.AB
+@$ The D03 ordering parameter on W side
 ent par G(bcc,W:W:W:RE) 298.15 0.04742525*eVtoJ;,,,14Pal               D03.AB3
-ent par G(bcc,W:W:RE:W) 298.15 0.04742525*eVtoJ;,,,14Pal               D03.AB3
-ent par G(bcc,W:RE:W:W) 298.15 0.04742525*eVtoJ;,,,14Pal               D03.AB3
-ent par G(bcc,RE:W:W:W) 298.15 0.04742525*eVtoJ;,,,14Pal               D03.AB3
 ent par G(bcc,W:W:W:W) 298.15 0*eVtoJ;,,,14Pal                           bcc.B
 @$-----------
 
@@ -117,7 +119,8 @@ enter phase hcp
 CEF
 4 .25 RE W; .25 RE W; .25 RE W; .25 RE W;
 @$ The HCP tetrahedron is the same as FCC
-set phase hcp bit fcc_perm
+
+amend phase hcp fcc_perm
 
 ent par G(hcp,RE:RE:RE:RE) 298.15 0*eVtoJ;,,,14Pal                       hcp.A
 ent par G(hcp,W:RE:RE:RE) 298.15 0.12874775*eVtoJ;,,,14Pal           D0_19.A3B
@@ -353,8 +356,33 @@ plot
 
 
 title map 9 fig 1
+text
+.02 5000
+1
+0
+y
+
+text n
+.22 5000
+1
+0
+y
+
+text n
+.4 5000
+1
+0
+y
+
+text n
+.8 4000 1 0 y
+
+text n
+.6 2610 1 0 y
+
 render
 
+@&
 
 @$ Calculate speciation in sigma across the whole diagram at 1000 K
 
@@ -388,6 +416,7 @@ l,,,,
 
 @$ when using step delete previous map results
 step
+normal
 Y
 
 plot
@@ -396,6 +425,7 @@ y(sigma,*)
 title map 9 fig 2
 render
 
+@&
 @$ also plot the Gibbs energy, enthalpy and heat capacity
 
 plot
@@ -404,11 +434,13 @@ gm
 title map 9 fig 3
 render
 
+@&
 plot
 x(w)
 hm
 title map 9 fig 4
 
+@&
 enter symbol
 cp
 hm.t;
@@ -420,15 +452,16 @@ cp
 title map 9 fig 5
 render
 
-@$ finally calculate the Gibbs energy curves for all phases at 3000 K
+@&
+@$ Calculate the Gibbs energy curves for all phases at 3000 K
 
 set stat ph *=ent 0
 
 c e
 
-step 
-Y
+step
 sep
+Y
 
 
 plot
@@ -438,12 +471,14 @@ position outside right
 title map 9 fig 6
 render
 
+@&
 plot
 x(w)
 hm(*)
 title map 9 fig 7
 render
 
+@&
 
 @$ Finally calculate the Gibbs energy of an endmember
 

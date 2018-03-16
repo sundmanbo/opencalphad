@@ -1,0 +1,130 @@
+@$================================================================
+@$================================================================
+@$===== STEP 2 Fit Cp for the CuMg2 compound
+@$================================================================
+@$================================================================
+@&
+
+new Y
+
+set echo
+
+read unf opttest2-cumg2
+
+@$ ----------------------------------------------------
+@$ As before we start by reading the unformatted file with previous results
+@$ ----------------------------------------------------
+@&
+
+set wei 0 *
+
+set wei 1 CP2
+
+@$ ----------------------------------------------------
+@$ These commands set the weight of all equilibria to zero
+@$ and then set the weight of those equilibria with "CP2" in the name
+@$ to unity.
+@$ ----------------------------------------------------
+@&
+@$ List assessed coefficients
+
+l opt coef
+
+@&
+@$ NOTE important to give "N" for no gridmin and "1" to calculate once
+calc all N 1
+
+@&
+
+@$ Optimize coefficent in front of T*ln(T) (constant Cp)
+set var 32 1
+opt 0
+
+@$ make a dry run to have the initial error
+@&
+
+opt 100
+
+@&
+
+l opt
+
+@&
+
+macro opttest2-plot-cpcumg2
+
+@$ -----------------------------------------------
+@$ The plot of the Cp is linear as we have just one parameter.
+@$ -----------------------------------------------
+@&
+@$ Now add linear T dependence, set a small value
+
+set var 33 .01
+
+opt 100
+
+@&
+
+l opt
+
+@&
+
+macro  opttest2-plot-cpcumg2
+
+@$ -----------------------------------------------
+@$ The Cp in the plot has now a small slope in T
+@$ -----------------------------------------------
+@&
+@$ Which more parameters can we vary?
+
+l ph cumg2 data
+
+@&
+@$ Add more coefficients for T**(-1) and T**2
+
+set var 34 1000
+set var 35 0.001
+
+opt 100
+
+@&
+
+l opt
+
+@&
+
+macro  opttest2-plot-cpcumg2
+
+@$ -----------------------------------------------
+@$ The plot of the Cp is now reasonable in the range 300-2000 K
+@$ -----------------------------------------------
+@&
+@$ -----------------------------------------------
+@$ we have finished this step, set variables fix and save
+
+set fix 32-35
+
+l opt
+
+@&
+@$ remove selected experimental equilibria
+
+set wei 0 *
+
+@&
+@$ Delete equilibria created during STEP/MAP
+
+del step_map
+
+save unf
+Done step 2
+opttest2-cumg3
+Y
+
+@$----------------------------------------------------
+@$ We can now take a coffee break
+@$----------------------------------------------------
+
+
+set inter
+

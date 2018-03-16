@@ -1,0 +1,39 @@
+@$
+@$                                     CuMg2 heat capacity
+@$               Calculation and comparison to experiments
+@$
+
+sel eq 1
+
+set stat ph *=sus
+set stat ph cumg2=e 1
+
+set condition *:=none
+set condition t=1100 p=1e5 n(cu)=1 n(mg)=2
+
+set axis 1 t 10 1500 10
+
+c n
+
+step sep
+Y
+
+plot
+T
+cpm1
+append oc_many2
+scale y n 0 100
+axis-label x T/K
+axis-label y Heat capacity CuMg2 (J.Mol-1.K-1)
+
+@&
+
+plot
+
+
+gra 3
+cp-cumg2
+Y
+
+
+set inter

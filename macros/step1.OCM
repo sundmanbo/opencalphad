@@ -123,6 +123,8 @@ plot
 ?
 position outside right
 title step 1 fig 2
+text
+1200 0.6 2 0 High Speed Steel
 render
 
 
@@ -167,7 +169,27 @@ title step 1 fig 6
 render
 
 @$ The plotted cp include latent heat
-@$ The negative heat capcities is a bug calculating the cp function
+@&
+@$ Now plot a PDF of this figure
+@$ First check available graphic devices
+
+enter gnu
+
+
+
+@&
+
+plot
+
+
+gra
+?
+3
+step1
+Y
+
+
+@&
 
 set inter
 

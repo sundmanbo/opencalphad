@@ -62,6 +62,7 @@ title step 6 fig 1
 render
 
 
+@&
 plot
 x(mo)
 gm(*)
@@ -76,20 +77,4 @@ render
 
 set inter
 
-@$ Problems plotting QF(bcc)
-
-plot
-x(bcc,mo)
-gm(bcc)
-title step6 fig 3
-
-
-plot
-
-q(bcc)
-title step6 fig 4
-
-
-@&
-set inter
 
