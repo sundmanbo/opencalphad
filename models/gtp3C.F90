@@ -4851,7 +4851,7 @@
                   xxx=1.0D-2*dble(decimals)
                   if(abs(xxx-constcomp(i3)).gt.1.0D-6) then
                      warnings=warnings+1
-                     write(*,203)trim(constext),i3,constcomp(i3),xxx
+                     write(*,203)trim(constext),i3,constcomp(i3)
 203                  format('3C *** Warning stoichiometry with >2 decimals: ',&
                           a,i4,2F10.6)
                   endif
@@ -5208,7 +5208,7 @@
       phdummy=' '
       if(phdummy(1:1).eq.' ') then
          write(*,477)trim(phlista(lokph)%name),nsubl,factor
-477      format('3C Compound: ',a,i5,F15.6,a)
+477      format('3C Compound: ',a,i3,F12.3,a)
 ! write on file
          write(lut,500)phlista(lokph)%name,factor
 500      format(1x,a,5x,'= COMPOUND PHASE = ',F12.4)
@@ -5307,8 +5307,13 @@
 1000 continue
 ! Finished SOLGASMIX outpur
    if(allocated(tpfc)) deallocate(tpfc)
-   write(*,1010)trim(filename)
-1010 format('3C Output finished on ',a/)
+   if(gx%bmperr.ne.0) then
+      write(*,1009)trim(filename),gx%bmperr
+1009  format(/' *** Output terminated on ',a,' due to error ',i5/)
+   else
+      write(*,1010)trim(filename)
+1010  format('3C Output finished on ',a/)
+   endif
    close(lut)
    return
  end subroutine save_datformat

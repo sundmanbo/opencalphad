@@ -2288,11 +2288,11 @@ contains
           if(gx%bmperr.ne.0) goto 990
           neweq%multiuse=ndl
           if(associated(starteq)) then
-             starteq%next=neweq%eqno
+             starteq%nexteq=neweq%eqno
           else
              starteq=>neweq
-             starteq%next=0
-             write(*,*)'Starteq next',starteq%next
+             starteq%nexteq=0
+             write(*,*)'Starteq next',starteq%nexteq
           endif
           write(*,*)'A copy of current equilibrium linked as start eqilibrium'
 !-------------------------
@@ -4502,7 +4502,7 @@ contains
 ! starteq is start equilibria, if empty set it to ceq
        if(.not.associated(starteq)) then
           starteq=>ceq
-          starteq%next=0
+          starteq%nexteq=0
        endif
 ! maptop is first nullified inside map_setup, then alloctated to return result
        call map_setup(maptop,noofaxis,axarr,seqxyz,starteq)

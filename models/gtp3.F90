@@ -875,6 +875,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
      double precision, dimension(:), pointer :: coeffs
 ! each coefficient kan have powers of T and P/V and links to other TPFUNS
 ! and be multiplied with a following LOG or EXP term. 
+! wpow seems to be used for temporary storage during evaluation also ...
      integer, dimension(:), pointer :: tpow
      integer, dimension(:), pointer :: ppow
      integer, dimension(:), pointer :: wpow
@@ -1536,13 +1537,15 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! status: not used yet?
 ! multiuse: used for various things like direction in start equilibria
 ! eqno: sequential number assigned when created
-! next: index of next equilibrium in a sequence during step/map calculation.
+! next: index of next free equilibrium record
+!       also index of next equilibrium in a list during step/map calculation.
 ! eqname: name of equilibrium
 ! comment: a free text, for example reference for experimental data.
 ! tpval(1) is T, tpval(2) is P, rgas is R, rtn is R*T
 ! rtn: value of R*T
 ! weight: weight value for this experiment, default unity
-     integer status,multiuse,eqno,next
+!     integer status,multiuse,eqno,next
+     integer status,multiuse,eqno,nexteq
      character eqname*24,comment*72
      double precision tpval(2),rtn
      double precision :: weight=one

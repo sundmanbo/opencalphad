@@ -145,7 +145,9 @@ MODULE ocsmp
      type(map_ceqresults), pointer :: saveceq
 ! copy of nodeceq in saveceq (composition sets not updated but needed for plot)
      integer savednodeceq
-! type_of_node not used?? should identify invariants when tie-line not in plane
+! type_of_node not used?? Maybe:
+! =1 step; =2 step_separate; =10 map_tieline_inplane; =11 map_isotherm
+! =20 map_isopleth
 ! lines are number of line records
 ! noofstph is number of stable phases (copied from meqrec)
 ! tieline_inplane is 1 if so, 0 if step, -1 if no tie-lines (only maptop)
@@ -339,14 +341,14 @@ CONTAINS
 21  continue
 !    write(*,*)'Start equilibrium: ',trim(ceq%eqname),&
 !         ceq%eqno,ceq%next,ceq%multiuse
-    if(ceq%next.gt.0) then
-       ceq=>eqlista(ceq%next)
+    if(ceq%nexteq.gt.0) then
+       ceq=>eqlista(ceq%nexteq)
        iadd=iadd+1
        goto 21
     endif
 !    write(*,*)'There are ',iadd,' start equilibria'
 ! save index to next start point
-    ceqlista=starteq%next
+    ceqlista=starteq%nexteq
 ! loop to change all start equilibria to start points
 ! Store the start points in map_node records started from maptop
 100 continue
@@ -358,10 +360,10 @@ CONTAINS
        call map_startpoint(maptop,nax,axarr,seqxyz,inactive,ceq)
 !       write(*,*)'back from map_startpoint'
        if(gx%bmperr.ne.0) then
-          if(ceq%next.gt.0) then
-             write(*,101)ceq%next,gx%bmperr
+          if(ceq%nexteq.gt.0) then
+             write(*,101)ceq%nexteq,gx%bmperr
 101          format('Failed calculate a start point: ',i4,i7)
-!             ceq=>eqlista(ceq%next)
+!             ceq=>eqlista(ceq%nexteq)
 !             gx%bmperr=0; goto 100
              gx%bmperr=0; goto 900
           endif
@@ -898,7 +900,7 @@ CONTAINS
     if(ceqlista.gt.0) then
        write(*,*)'At label 900: ',ceqlista
        ceq=>eqlista(ceqlista)
-       ceqlista=ceq%next
+       ceqlista=ceq%nexteq
        goto 107
     endif
 !-----------------------------------------------------
@@ -1884,9 +1886,9 @@ CONTAINS
 ! LIKELY PLACE FOR SEGMENTATION FAULT !!!
 !    write(*,*)'SMP storing equilibrium record: ',place
     saveceq%savedceq(place)=mapline%lineceq
-    saveceq%savedceq(place)%next=0
+    saveceq%savedceq(place)%nexteq=0
     if(mapline%last.gt.0) then
-       saveceq%savedceq(mapline%last)%next=place
+       saveceq%savedceq(mapline%last)%nexteq=place
     endif
     mapline%last=place
     mapline%number_of_equilibria=mapline%number_of_equilibria+1
@@ -4978,7 +4980,8 @@ CONTAINS
     current=>maptop
     do while(associated(current))
        if(allocated(current%saveceq%savedceq)) then
-          write(*,*)'deleting step/map line equilibria: ',current%saveceq%free-1
+          write(*,*)'SMP: deleting saved step/map line equilibria: ',&
+               current%saveceq%free-1
           deallocate(current%saveceq%savedceq)
        endif
        nexttop=>current%plotlink
@@ -5703,8 +5706,8 @@ CONTAINS
 !             write(*,*)'start equilibrium: ',trim(eqname),neweq%eqno
              neweq%multiuse=20+nss
 ! create the list, ceq is always same equilibrium as stareq
-             neweq%next=ceq%next
-             starteq%next=neweq%eqno
+             neweq%nexteq=ceq%nexteq
+             starteq%nexteq=neweq%eqno
           endif
        enddo cycle2
     enddo cycle1
@@ -5754,8 +5757,8 @@ CONTAINS
           gx%bmperr=0; goto 1000
        endif
        neweq%multiuse=30 
-       neweq%next=starteq%next
-       starteq%next=neweq%eqno
+       neweq%nexteq=starteq%nexteq
+       starteq%nexteq=neweq%eqno
     endif
 1000 continue
     return

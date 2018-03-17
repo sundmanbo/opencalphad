@@ -480,6 +480,19 @@ render
 
 @&
 
+@$ Plot the constitution of the chi phase
+
+plot
+x(w)
+y(chi,*)
+title map 9 fig 8
+
+
+list phase chi model
+
+
+
+@&
 @$ Finally calculate the Gibbs energy of an endmember
 
 c p

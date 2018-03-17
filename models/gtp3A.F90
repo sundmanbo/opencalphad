@@ -98,9 +98,9 @@
 ! dimension arrays for in first equilibrium record including phase_varres
    allocate(eqlista(maxeq))
    do jl=1,maxeq-1
-      eqlista(jl)%next=jl+1
+      eqlista(jl)%nexteq=jl+1
    enddo
-   eqlista(maxeq)%next=-1
+   eqlista(maxeq)%nexteq=-1
    eqfree=1
 ! create first equilibrium record incl complist
    call enter_equilibrium('DEFAULT_EQUILIBRIUM ',ieq)

@@ -1203,6 +1203,12 @@ set wei 0 *
 
 @&
 
+l eq
+
+
+@$ listing of all equilibria
+@&
+
 save unf
 CuMg assessment step1
 opttest2-cumg1

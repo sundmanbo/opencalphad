@@ -1132,19 +1132,19 @@ CONTAINS
        if(irem.gt.0) tuprem=meqrec%phr(irem)%curd%phtupx
        if(.not.btest(meqrec%status,MMQUIET)) then
           if(formap) then
-            write(*,*)'Change of direction at first equilibrium'
-         elseif(ceq%eqno.ne.1) then
-            write(*,219)meqrec%noofits,tupadd,tuprem,' at ',ceq%eqno
-219         format('Phase change: its/add/remove: ',3i5,a,i5)
-         else
-            write(*,219)meqrec%noofits,tupadd,tuprem
-         endif
-      endif
+             write(*,*)'Change direction of first axis increment'
+          elseif(ceq%eqno.ne.1) then
+             write(*,219)meqrec%noofits,tupadd,tuprem,' at equil: ',ceq%eqno
+219          format('Phase change: its/add/remove: ',3i5,a,i5)
+          else
+             write(*,219)meqrec%noofits,tupadd,tuprem
+          endif
+       endif
        if(formap) then
 ! when called during mapping the set of phases must not change!
           if(ocv()) write(*,*)'Phase change not allowed',ceq%tpval(1)
 ! Phase change not allowed due to step/map constraints
-! step/map should handle this by creating node points
+! step/map should handle this by creating a node point
           gx%bmperr=4210; goto 1000
        endif
     endif

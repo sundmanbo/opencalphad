@@ -123,11 +123,10 @@
 !\end{verbatim}
 !
    character id*40,comment*72
-!   integer, parameter :: miws=2000000
 ! size of workspace for unformatted storage
    integer miws
    integer, allocatable, dimension(:) :: iws
-   integer i,isp,jph,lokph,lut,last,lok,rsize,displace,ibug,ffun,lokeq
+   integer i,isp,jph,lokph,lut,last,lok,rsize,displace,ibug,ffun,lokeq,ccc
 ! these depend on hardware, bytes/word and words/double. Defined in metlib3
 !   integer, parameter :: nbpw=4,nwpr=2
 ! integer function nwch calculates the number of words to store a character
@@ -174,8 +173,31 @@
    endif
 ! dimension iws depending on number of equuilibria stored
 ! 7000 is for a 6 component system with 50 phases
-   miws=2000000+50000*eqfree
-   write(*,*)'3E allocating workspace: ',miws
+! steel1 with 6 elements:         30000 static and       6000 per equilibrium
+! TAFID 15 elements:              90000 for static and  30000 per equilibrium
+! TAFID 41 elements, 350 phases: 300000 for static and 120000 per equilibrium
+! estimate static: nel*nph*x; x=30: static=100000+nel*nph*30
+! equilibrium: 40*350*10 ... too small when few elements
+   ccc=max(20*noofel*noofph,10000)
+! eqfree may not be the higest used equilibrium record!!
+   i=eqfree
+   last=eqfree
+   do while(eqlista(i)%nexteq.gt.0)
+      if(eqlista(i)%nexteq.ne.i+1) then
+! if eqlista(i)%nexteq does not increment sequentially there are some holes!
+         last=eqlista(i)%nexteq
+         write(*,*)'3E Beware: unused equilibria before the last used,'&
+              ' cannot be saved'
+         gx%bmperr=4399; goto 1000
+      endif
+      i=eqlista(i)%nexteq
+   enddo
+!   
+   miws=100000+noofel*noofph*30+ccc*last
+!   miws=2000000+50000*eqfree
+!   write(*,*)'3E allocating workspace: ',miws
+   write(*,7)'3E allocating workspace: ',miws,30*noofel*noofph,ccc,last
+7  format(a,i10,10x,'(',i7,', ',i7,', ',i4,')')
    allocate(iws(miws))
    call winit(miws,100,iws)
    if(buperr.ne.0) goto 1100
@@ -881,7 +903,7 @@
    iws(lokeq+1)=ceq%status
    iws(lokeq+2)=ceq%multiuse
    iws(lokeq+3)=ceq%eqno
-   iws(lokeq+4)=ceq%next
+   iws(lokeq+4)=ceq%nexteq
    call storc(lokeq+5,iws,ceq%eqname)
    displace=5+nwch(24)
    call storc(lokeq+displace,iws,ceq%comment)
@@ -2284,7 +2306,7 @@
       write(*,*)'3E Should be same equilibrium number ',eqnumber,iws(lokeq+3)
    endif
    ceq%eqno=iws(lokeq+3)
-   ceq%next=iws(lokeq+4)
+   ceq%nexteq=iws(lokeq+4)
    call loadc(lokeq+5,iws,ceq%eqname)
 !   write(*,*)'3E Reading equilibrium with name: ',ceq%eqname
    displace=5+nwch(24)

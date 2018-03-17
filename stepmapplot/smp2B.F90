@@ -300,9 +300,13 @@
 !                            write(*,*)'Setting novalues TRUE',mapline%lineid
                          endif
                       endif
-! I think this phaseline is no longer used ??
-                      phaseline(nlinesep)(kk:)=dummy
-                      kk=len_trim(phaseline(nlinesep))+2
+                      if(.not.novalues) then
+! I think this phaseline is no longer used ?? YES it is
+!                         write(*,*)'SMP addto phaseline 1: ',trim(dummy),&
+!                              nlinesep
+                         phaseline(nlinesep)(kk:)=dummy
+                         kk=len_trim(phaseline(nlinesep))+2
+                      endif
                    endif
                 enddo
              enddo
@@ -342,7 +346,11 @@
              if(novalues) then
 !                write(*,*)'Ignoring equilibria without ',trim(selphase)
                 yyy=zero
-                np=1
+!                np=1
+! skip this equilibrium and take next equilibrium, we must increement nr!!
+                nv=nv-1
+                goto 199
+!                cycle plot1
              else
 !                write(*,*)'Getting a wildcard value 1: ',nr,trim(statevar)
 !                write(*,*)'In ocplot2, segmentation fault after 4C1: ',&
@@ -356,6 +364,7 @@
                 qp=np
 !                write(*,*)'wildcard value 1: ',nr,trim(statevar)
 !                write(*,223)'Values: ',np,(yyy(i),i=1,np)
+!                write(*,*)'SMP2B: number of values: ',trim(selphase),np,nv
 223             format(a,i3,8F8.4)
                 if(gx%bmperr.ne.0) then
                    write(*,*)'yaxis error: "',trim(statevar),'"'
@@ -423,7 +432,7 @@
                      statevar(1:10),curceq%tpval(1),nv,nr
                 nv=nv-1; goto 215
              endif
-             if(results%savedceq(nr)%next.eq.0) then
+             if(results%savedceq(nr)%nexteq.eq.0) then
 ! THIRD ?? Skipping
 !                write(*,212)'SMP skip last evaluated symbol: ',&
 !                     trim(statevar),curceq%tpval(1),nv,nr
@@ -450,9 +459,10 @@
 !             write(*,*)'SMP reset error code ',gx%bmperr
              gx%bmperr=0
           endif
-          nr=curceq%next
+199       continue
+          nr=curceq%nexteq
           if(nr.gt.0) then
-             if(results%savedceq(nr)%next.eq.0) then
+             if(results%savedceq(nr)%nexteq.eq.0) then
 !                write(*,*)'We have found last equilibria along the line: ',last
                 last=.TRUE.
              endif
@@ -496,6 +506,8 @@
                          k3=test_phase_status(jj,ic,value,curceq)
                          if(k3.gt.0) then
 ! this phase is stable or fix
+!                            write(*,*)'SMP addto phaseline 2: ',trim(dummy),&
+!                                 nlinesep
                             call get_phase_name(jj,ic,dummy)
                             phaseline(nlinesep)(kk:)=dummy
                             kk=len_trim(phaseline(nlinesep))+2
@@ -804,7 +816,7 @@
     if(graphopt%labeldefaults(3).ne.0) pltax(2)=graphopt%plotlabels(3)
 !    write(*,*)' >>>>>>>>**>>> plot file: ',trim(filename)
     call ocplot2B(np,nrv,nlinesep,linesep,pltax,xax,anpax,anpdim,anp,lid,&
-         title,filename,graphopt,version,encoded1)
+         phaseline,title,filename,graphopt,version,encoded1)
 !         title,filename,graphopt,pform,version,encoded1)
 !    goto 900
 ! deallocate, not really needed for local arrays ??
@@ -823,7 +835,7 @@
 
 !\begin{verbatim} %-
   subroutine ocplot2B(np,nrv,nlinesep,linesep,pltax,xax,anpax,anpdim,anp,lid,&
-       title,filename,graphopt,version,conditions)
+       phaseline,title,filename,graphopt,version,conditions)
 !       title,filename,graphopt,pform,version,conditions)
 ! called from icplot2 to generate the GNUPLOT file after extracting data
 ! np is number of columns (separate lines), if 1 no labelkey
@@ -846,7 +858,7 @@
     integer ndx,nrv,linesep(*),anpdim
 !    character pltax(*)*(*),filename*(*),pform*(*),lid(*)*(*),title*(*)
     character pltax(*)*(*),filename*(*),lid(*)*(*),title*(*)
-    character conditions*(*),version*(*)
+    character conditions*(*),version*(*),phaseline(*)*(*)
     type(graphics_options) :: graphopt
     double precision xax(*),anp(anpdim,*)
     type(graphics_textlabel), pointer :: textlabel
@@ -1143,7 +1155,7 @@
           if(nv.lt.nrv) then
              if(jj.gt.1) then
 ! phaseline is never used in the plot, just included in the file
-                write(21,1819)ksep
+                write(21,1819)ksep,trim(phaseline(ksep))
 1819            format('# end of line '//'# Line ',i5,&
                      ', with these stable phases:'/'# ',a)
              else
@@ -2244,8 +2256,8 @@
     k1=index(short,'#')
     if(k1.gt.0) then
        k2=index(full,'#')
-! full has no compset
        if(k2.le.0) then
+! full has no compset
 ! if short has #1 then the full phase without # should be accepted
 !          write(*,*)'full has no compset:  ',short(k1+1:k1+1),k2
           if(short(k1+1:k1+1).eq.'1') then
@@ -2416,9 +2428,9 @@
                    gx%bmperr=0
                 endif
              enddo
-             write(kou,150)ll,thisceq%next,thisceq%tpval(1),axxx
+             write(kou,150)ll,thisceq%nexteq,thisceq%tpval(1),axxx
 150          format(2i9,f9.2,5(1pe13.5))
-             ll=thisceq%next
+             ll=thisceq%nexteq
           enddo ceqloop
        endif
 300    continue

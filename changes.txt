@@ -13,10 +13,25 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2018.03.10 OC version 5.007: A minor bug concerning composition
+dependent ternary excess parameters in the ionic liquid fixed.  There
+is still a problem with composition dependent ternary cation
+interactions.  Another bug plotting constituent fractions also fixed.
+
+There is also an unfinished problem with the delete equilibrium
+routine, if there are "holes" in the eqlista array these may cause
+trouble.  Be careful and always delete equilibria from the end!
+
+The workspace allocated for UNFORMATTED save has been adjusted to the
+size of the current system as the large default size sometimes created
+memory problems.  If this causes problem you can modify the size,
+"miws" in the gtp3E.F90 file.
+
 2018.03.01 OC version 5.006: A visit at CEA Cadarache gave inspiration
 as they were happy with the speed of calculations and in particular
 the possibility to save/read complex calculations on UNFORMATTED
-Fortran files duiring simulations.
+Fortran files during simulations of nuclear fuels with more than 15
+components.
 
 I have managed to reduce the memory loss during STEP/MAP using
 valgrind.  Evidently the Fortran compiler allows and the run time
@@ -38,8 +53,8 @@ still on the to-do list.
 problems that have to be fixed, in particular memory leaks when using
 STEP and MAP.  It will take some time but some are corrected in this
 release.  The opttest2 macro has been extended.  LIST RESULT has two
-additional options, 10 and 11, to list constitution based on the
-amount of the phase similar to FactSage output.
+additional options, 10 and 11, to list a phase constitution based on
+the amount of the phase similar to FactSage output.
 
 2018.02.23 OC version 5.004: Many changes has been made in the
 assessment part of OC as a PhD student at Toulouse, Eva Lawrene, has

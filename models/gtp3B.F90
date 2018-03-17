@@ -5316,7 +5316,7 @@
    number=ieq
    if(ocv()) write(*,*)'3B create eq',eqfree,maxeq,ieq
 ! allocate data arrayes in equilibrium record
-   eqlista(ieq)%next=0
+   eqlista(ieq)%nexteq=0
    eqlista(ieq)%eqname=name2
    eqlista(ieq)%eqno=ieq
    eqlista(ieq)%weight=-one
@@ -6114,18 +6114,19 @@
 !\end{verbatim}
    type(gtp_equilibrium_data), pointer :: curceq
    type(gtp_condition), pointer :: lastcond,pcond,qcond
-   integer cureq,ieq,ik,novarres,ipv
+   integer cureq,ieq,ik,novarres,ipv,ndel
 !
    cureq=ceq%eqno
 !   write(*,*)'In delete_equilibria ',cureq,trim(name)
    ik=index(name,'*')-1
    if(ik.lt.0) ik=min(24,len(name))
    novarres=highcs
+   ndel=0
 !   write(*,*)'3B delete equilibria: ',eqfree-1,highcs,csfree
-   do ieq=eqfree-1,2,-1
-! we cannot have "holes" in the free list??  Delete from the end...
-      if(ieq.eq.cureq) exit 
-      if(eqlista(ieq)%eqname(1:ik).ne.name(1:ik)) exit
+   eqloop: do ieq=eqfree-1,2,-1
+! we cannot have "holes" in the free list??  NO! Delete from the end...
+      if(ieq.eq.cureq) exit eqloop
+      if(eqlista(ieq)%eqname(1:ik).ne.name(1:ik)) exit eqloop
 !      write(*,*)'3B Deleting equil: ',trim(eqlista(ieq)%eqname),ieq
       eqlista(ieq)%eqname=' '
       deallocate(eqlista(ieq)%complist)
@@ -6162,11 +6163,13 @@
 800      format(' *** Error ',i6,' deleting equilibrium ',i5)
          gx%bmperr=0
       endif
-   enddo
+      ndel=ndel+1
+      eqfree=eqfree-1
+   enddo eqloop
 ! we have deleted all equilibria until ieq+1
-   if(ocv()) write(*,900)ieq+1,eqfree-1
-!   write(*,900)ieq+1,eqfree-1
-900 format('Deleted all data in equilibria from ',i3,' to ',i3)
+   if(ocv()) write(*,900)ieq+1,eqfree
+   write(*,900)ndel,eqfree-1
+900 format('3B Deleted ',i3,' equilibria.  First free ',i3)
    eqfree=ieq+1
 1000 continue
    return
@@ -6275,7 +6278,7 @@
    endif
 !   write(*,*)'3B copy eq',eqfree,maxeq,ieq
 ! allocate data arrayes in equilibrium record
-   eqlista(ieq)%next=0
+   eqlista(ieq)%nexteq=0
    eqlista(ieq)%eqname=name2
    eqlista(ieq)%eqno=ieq
 ! do not copy comment but set it to blanks
