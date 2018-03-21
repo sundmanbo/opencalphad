@@ -54,6 +54,7 @@
     character date*8,mdate*12,title*128,backslash*2,lineheader*1024
     character deftitle*128,labelkey*64
     logical overflow,first,last,novalues,selectph,varofun,moretops
+    logical, allocatable, dimension(:) ::  nevernone
 ! textlabels
     type(graphics_textlabel), pointer :: textlabel
 ! line identification (title)
@@ -150,13 +151,22 @@
 !          write(*,*)'SMP: allocating anp1: ',np*nrv
           allocate(anp(np,nrv))
 !          write(*,*)'SMP: allocating anp2: ',np
+! nonzero indicates for each column if there is any nonzero value
+! columns with only zero values will be eliminated before plotting
           allocate(nonzero(np))
 !          write(*,*)'SMP: allocating nonzero: ',np
+! linzero indicate for the present block of equilibria for each column
+! if this column contain nonzero values
           allocate(linzero(np))
 !          write(*,*)'SMP: allocating yyy: ',np
           allocate(yyy(np))
-! nzp should be dimension of yyy, np returns the number of values in yyy
           nzp=np
+! nzp should be dimension of yyy, np returns the number of values in yyy
+! yyy is to extract state variable values for the column with wildcard
+! NOTE binary phase diagrams are plotted with wildcard axis like x(*,cr) vs T
+! nevernone is an attempt to remove columns that are zero by the value NaN
+          allocate(nevernone(np))
+          nevernone=.FALSE.
           nonzero=0
           wildcard=.TRUE.
           anpax=iax
@@ -342,12 +352,12 @@
 !          write(*,*)'In ocplot2, segmentation fault after 4B ',wildcard
           if(wildcard) then
 ! NEW ignore data for this equilibrium if NOVALUES is TRUE
-! because selphase not equal to the stable phase found above
+! because "selphase" not equal to the stable phase found above
              if(novalues) then
 !                write(*,*)'Ignoring equilibria without ',trim(selphase)
                 yyy=zero
 !                np=1
-! skip this equilibrium and take next equilibrium, we must increement nr!!
+! skip this equilibrium, nv=nv-1, and take next equilibrium, increement nr!!
                 nv=nv-1
                 goto 199
 !                cycle plot1
@@ -380,6 +390,9 @@
              anpmax=-1.0D20
              lcolor=0
 !             write(*,*)'On ocplot2, segmentation fault before 4D2',np
+! this is a loop for all values for this equilibria
+! Here we may try to replace zero values by RNONE ???
+!             write(*,*)'SMP2B RNONE: ',RNONE
              do jj=1,np
                 if(last) then
                    if(linzero(jj).ne.0) then
@@ -389,14 +402,38 @@
 !                      write(*,*)'SMP skipping a value for line ',nlinesep
                    endif
                 else
-                   anp(jj,nv)=yyy(jj)
+! trying to avoid plotting a line at zero for unstable/unused state variables 
+                   if(yyy(jj).eq.zero) then
+!                      if(nax.eq.1) then
+! FOR STEP calculations try to make the ending of a property at zero ...
+! This is for STEP 1 figure 3
+! BUT it did not work, many strange lines appeared in other plots ...
+!                         if(nv.gt.1 .and. abs(anp(jj,nv-1)).ne.zero) then
+! Hm, we cannot set anp(jj,nv) to zero because then all will be zero ...
+!                            anp(jj,nv-1)=zero
+!                         else
+!                            anp(jj,nv)=rnone
+!                         endif
+!                      else
+! for MAP calculations just ignore the point ... also for STEP ...
+                         anp(jj,nv)=rnone
+!                      endif
+                   else
+! Hm, jumps from zero to finite values in step1, fig 3 plotting w(phase,cr) ..
+!                      if(nv.gt.1 .and. anp(jj,nv-1).eq.rnone) then
+!                         anp(jj,nv-1)=zero
+!                      endif
+                      anp(jj,nv)=yyy(jj)
+                   endif
                    if(abs(yyy(jj)).gt.zero) then
                       nonzero(jj)=1
                       linzero(jj)=1
 ! save the first column with nonzero for use with invariants
                       if(ikol.eq.0) ikol=jj
                       if(anp(jj,nv).gt.anpmax) anpmax=anp(jj,nv)
-                      if(anp(jj,nv).lt.anpmin) anpmin=anp(jj,nv)
+!                      if(anp(jj,nv).lt.anpmin) anpmin=anp(jj,nv)
+                      if(anp(jj,nv).ne.rnone .and. &
+                           anp(jj,nv).lt.anpmin) anpmin=anp(jj,nv)
 ! extract state variable jj
                       if(.not.allocated(lid)) then
 !                         write(*,*)'Allocating lid: ',np+5
@@ -418,8 +455,8 @@
              enddo
 !             write(*,*)'OK Point: ',nr,nv,xax(nv)
           else
-! More than one state variable or function value like CP
-! UNFINISHED PROBLEM WITH NEGATIVE CP HERE 
+! A single state variable or function value like CP
+! I HAVE HAD PROBLEMS WITH NEGATIVE CP HERE 
 ! try skipping this value (below) if last equilibrium on the line 
 !             varofun=.TRUE.
 !             write(*,*)'SMP: calling meq_get_state_varofun ',trim(statevar)
@@ -476,7 +513,9 @@
 ! finished one line
 !       write(*,*)'In ocplot2, segmentation fault 4F'
        if(nax.gt.1) then
+!---------------------------------------------------------------
 !------------------ special for invariant lines
+!---------------------------------------------------------------
 ! for phase diagram always move to the new line 
           map1: if(nlinesep.ge.1) then
              if(linesep(nlinesep).lt.nv) then
@@ -535,8 +574,9 @@
                    xax(nv-2)=value
                    xax(nv-1)=value
                    xax(nv)=value
-!                   write(*,335)'New line: ',nlinesep,statevar(1:5),value
-335                format(a,i3,' <',a,'> ',3(1pe14.6))
+!                   write(*,335)'New line: ',nlinesep,nv,linesep(nlinesep),&
+!                        statevar(1:5),value
+335                format(a,3i4,' <',a,'> ',3(1pe14.6))
 ! axis with possible wildcard
                    statevar=pltax(anpax)
 !                   write(*,*)'In ocplot2, segmentation fault 4H'
@@ -548,7 +588,7 @@
 ! save one non-zero value per line, 3 lines
                       ic=0
                       do jj=1,np
-! we have put anp to zero above
+! we have put anp to zero above ??
 !                         anp(jj,nv-2)=zero
 !                         anp(jj,nv-1)=zero
 !                         anp(jj,nv)=zero
@@ -560,34 +600,20 @@
                             ic=ic+1
                          endif
                       enddo
+! for RNONE = NaN add empty line after invariant ...
+                      if(linesep(nlinesep).lt.nv) then
+! we should never have several linesep for the same value of nv!
+                         nlinesep=nlinesep+1
+                         linesep(nlinesep)=nv
+!                         write(*,*)'Empty line after invariant: ',nlinesep,nv
+                      endif
                    else
 ! if no wildcard there is no invariant line
 !                      write(*,*)'It can be an invariant point here!!'
                       nv=nv-3
                       goto 225
-!----------------------------------
-! code below until label 222 redundant
-                      np=1
-                      call meq_get_state_varorfun_value(statevar,&
-                           value,encoded1,curceq)
-                      if(gx%bmperr.ne.0) then
-! FOURTH Skipping never executed
-                      write(*,212)'SMP skipping a point, error evaluating: ',&
-                              statevar(1:10),curceq%tpval(1),nv,0
-                         nv=nv-1; goto 222
-                      endif
-!                      if(gx%bmperr.ne.0) goto 1000
-                      anp(1,nv)=value
-!                      write(*,201)'at 225: ',nr,nv,curceq%tpval(1),value
                    endif
-! this must be written on 3 lines terminated with an empty line
-                   nlinesep=nlinesep+1
-                   linesep(nlinesep)=nv
-!                   write(*,*)'adding empty line 1',nlinesep,linesep(nlinesep)
                 endif inv
-! code from "goto 225" at 17 lines above until here is never used
-!-------------------------------
-! exit here if error and skip point
 222             continue
              endif
           endif map1
@@ -1148,7 +1174,26 @@
     jj=0
 !    write(*,*)'Writing repeat, rows, columns ',repeat,nrv,np+2
     do nv=1,nrv
-       write(21,1820)nv,xax(nv),(anp(jj,nv),jj=1,np)
+!---------------------------------------------------------------
+!       write(21,1820)nv,xax(nv),(anp(jj,nv),jj=1,np)
+! trying to handle RNONE
+       write(21,2820,advance='no')nv,xax(nv)
+       do jj=1,np-1
+          if(anp(jj,nv).ne.rnone) then
+             write(21,2821,advance='no')anp(jj,nv)
+          else
+             write(21,2822,advance='no')
+          endif
+       enddo
+       if(anp(jj,nv).ne.rnone) then
+          write(21,2821)anp(jj,nv)
+       else
+          write(21,2822)
+       endif
+2820   format(i4,1pe16.6)
+2821   format(1pe16.6)
+2822   format(' NaN ')
+!---------------------------------------------------------------
 1820    format(i4,1000(1pe16.6))
        if(nv.eq.linesep(ksep)) then
 ! an empty line in the dat file means a MOVE to the next point.

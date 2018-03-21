@@ -13,6 +13,20 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2018.03.21 OC version 5.008: I have learned a bit more about GNUPLOT
+and managed to romve the line at zero in some STEP and MAP diagrams.
+It made figure 3 of step1 macro (plotting Cr content in stanle phases)
+slightly worse though as some lines ends without decending to zero.
+So there is more to learn ...
+
+I have also made the last fixes (I hope) of the TDB2DAT converter and
+tested converting the whole TAFID database (41 elements) with no
+obvious errors and even managed to calculate an equilibrium.  But
+there are certainly minor bugs here and there.  Entropy must never be
+zero.  As the TDB file may contain many unassessed endmember
+parameters there is a special check added to indicate missing
+endmembers.  But these must be added by someone knowing the database.
+
 2018.03.10 OC version 5.007: A minor bug concerning composition
 dependent ternary excess parameters in the ionic liquid fixed.  There
 is still a problem with composition dependent ternary cation

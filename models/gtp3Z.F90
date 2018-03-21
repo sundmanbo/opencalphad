@@ -2740,6 +2740,8 @@
 !\begin{verbatim} %-
  subroutine list_tpascoef(lut,text,paratyp,i1,npows,factor,ctpf)
 ! writes a parameter in DAT format
+! text contains the stoichiometries written with the format 1x,F11.6
+! it can be very long if there are many coefficients.
    implicit none
    integer lut,i1,npows,paratyp
    character text*(*)
@@ -2750,10 +2752,15 @@
 !\end{verbatim}
    integer i2,i3,ip,kk,mm
    ip=len_trim(text)
-! this is the endmember ??
-   if(ip.gt.74) then
-      write(lut,698)paratyp,ctpf(i1)%nranges,text(1:74)
-      write(lut,699)trim(text(75:))
+! this is the endmember stoichiometry, 12 characters per value, 6x12=72
+!   write(*,*)'3Z len_trim(text): ',ip
+   if(ip.gt.72) then
+      write(lut,698)paratyp,ctpf(i1)%nranges,text(1:72)
+      i2=73
+      do while(i2.lt.ip)
+         write(lut,699)trim(text(i2:i2+71))
+         i2=i2+72
+      enddo
    else
       write(lut,698)paratyp,ctpf(i1)%nranges,trim(text)
    endif
@@ -2917,7 +2924,7 @@
 ! max no of coefficent, max no of ranges ...
    integer, parameter :: maxnc=15,maxnr=20
    integer i1a,i1b,i2,i3,i4,nc1,funref,iadd,nrangeb,ncc,caddnr(maxnr),nrr,jadd
-   integer caddid(maxnr),krange
+   integer caddid(maxnr),krange,klink
    type(tpfun_root), pointer :: tpfroot
    type(tpfun_expression), pointer :: tpfexpr
    type(gtp_tpfun_as_coeff), dimension(:), allocatable :: cadd
@@ -3002,8 +3009,8 @@
 ! skip this term as it should just contains the ln(T)
             if(tpfexpr%plevel(i2).ne.1 .or. tpfexpr%link(i2).ne.0 &
                  .or. tpfexpr%tpow(i2).ne.1) then
-               write(*,*)'3Z WARNING check if TPFUN error in: ',&
-                    trim(tpfroot%symbol),lfun
+!               write(*,*)'3Z WARNING check if TPFUN error in: ',&
+!                    trim(tpfroot%symbol),lfun
 !               gx%bmperr=4393; goto 1000
             endif
             cfun1%coefs(i2,i1b)=zero
@@ -3011,16 +3018,16 @@
             skipnext=.false.
 !            cycle trange
          endif
-         if(funref.lt.0) then
+         funrefif: if(funref.lt.0) then
 ! this is assumed to be a link to LN(T) or SQRT
             if(funref.eq.-3) then
 ! this is to handle sqrt(t) which in a TDB file is EXP(0.5LN(T))
 ! check that link to function is SQRT
                fsqrt=tpfexpr%link(i2+1)
-               write(*,114)'Found SQRTT?: ',lfun,tpfuns(lfun)%symbol,&
-                    fsqrt,tpfuns(fsqrt)%symbol
+!               write(*,114)'Found SQRTT?: ',lfun,tpfuns(lfun)%symbol,&
+!                    fsqrt,tpfuns(fsqrt)%symbol
 114            format(a,i5,2x,a,i5,2x,a)
-! set T power to -17; this will be converted to 0.5 when writing
+! set T power to -8; this will be converted to 0.5 when writing !!!
                cfun1%tpows(i2,i1b)=-8
                skipnext=.true.
             elseif(funref.ne.-2) then
@@ -3033,7 +3040,7 @@
                skipnext=.true.
             endif
          elseif(funref.gt.0) then
-            if(ctpf(funref)%nranges.gt.0) then
+            funrefranges: if(ctpf(funref)%nranges.gt.0) then
 ! this range has a reference to a converted TPfunction,
 ! store this separately, possibly multiplied with coefficent and T powers
 ! and link all such functions to be added using cfun1%nextcrec
@@ -3042,16 +3049,48 @@
 !               write(*,32)'3Z link from: ',tpfuns(lfun)%symbol,&
 !                    i2,funref,ccc,trim(tpfuns(funref)%symbol)
 32             format(a,a,2i4,F6.2,' to ',a)
-!               write(*,*)'3Z term, link, factor: ',i2,funref,ccc
+!               write(*,333)'3Z term, link, factor: ',i2,funref,ccc,&
+! IMPORTRANT funref is also index in tpfuns!!!
+!                    trim(tpfroot%symbol),trim(tpfuns(funref)%symbol),&
+!                    ctpf(funref)%nranges,&
+!                    tpfuns(funref)%noofranges,size(tpfuns(funref)%limits)
+333            format(a,2i4,1pe11.2,2x,a,2x,a,5i5)
 ! only allow a constant coefficent, no T or P powers, no unary function ...
                if(tpfexpr%tpow(i2).ne.0 .or. tpfexpr%ppow(i2).ne.0 .or. &
                     tpfexpr%wpow(i2).ne.0 .and. &
                     (tpfexpr%plevel(i2).ne.0 .or. tpfexpr%plevel(i2).ne.1)) then
-! Accept function SQRT which has tpfexpr%plevel(i2)=1
+! Above the function SQRT which has tpfexpr%plevel(i2)=1 is accepted ...
+                  if(tpfuns(funref)%noofranges.eq.1) then
+! Now check if funref is just a constant, then multiply ccc with that!
+!                     write(*,334)'3Z trying to handle MEV factor ... ',&
+!                          trim(tpfuns(funref)%symbol),&
+!                          tpfuns(funref)%funlinks(1)%noofcoeffs,&
+!                          tpfuns(funref)%funlinks(1)%coeffs(1)
+!334                  format(a,a,i2,1pe11.2)
+! WOW wpow-1000 is link to another function!
+                     klink=tpfexpr%wpow(i2)-1000
+                     if(tpfuns(funref)%funlinks(1)%noofcoeffs.eq.1 .and.&
+                          tpfuns(klink)%funlinks(1)%noofcoeffs.eq.1) then
+                        ccc=ccc*tpfuns(funref)%funlinks(1)%coeffs(1)*&
+                             tpfuns(klink)%funlinks(1)%coeffs(1)
+!                        write(*,335)'3Z Wow! ',trim(tpfuns(funref)%symbol),&
+!                             trim(tpfuns(lfun)%symbol),i2,nc1,ccc,&
+!                             tpfuns(funref)%funlinks(1)%coeffs(1),&
+!                             klink,trim(tpfuns(klink)%symbol),&
+!                             tpfuns(klink)%funlinks(1)%coeffs(1)
+335                     format(a,2x,a,2x,a,2i3,2(1pe12.4),i3,2x,a,1pe12.4)
+!                        cfun1%coefs(i2,i1b)=ccc
+                        cfun1%coefs(i2,i1b)=ccc
+                        exit funrefif
+!                        goto 777
+                     endif
+                  endif
+! else give up
                   write(*,116)'3Z Too complicated function: ',&
                        trim(tpfroot%symbol),tpfexpr%tpow(i2),&
-                       tpfexpr%ppow(i2),tpfexpr%wpow(i2),tpfexpr%plevel(i2)
-116               format(a,a,5i5)
+                       tpfexpr%ppow(i2),tpfexpr%wpow(i2),tpfexpr%plevel(i2),&
+                       funref,trim(tpfuns(funref)%symbol)
+116               format(a,a,5i5,2x,a)
                   gx%bmperr=4399; goto 1000
                endif
 ! this term should be ignored as it replaced by the function
@@ -3060,6 +3099,7 @@
 ! we must create a new coefficient array with the funref coefficents
 ! multiplied with the current coef within the current T-range
 ! It may be necessary to increase the number of T-ranges
+777            continue
                if(.not.allocated(cadd)) then
 ! we have more than 6 functions added in soma cases ...
                   allocate(cadd(10))
@@ -3091,8 +3131,15 @@
                enddo
 !               write(*,800)'3Z bb: ',funref,iadd,(cadd(iadd)%coefs(i3,1),&
 !                    cadd(iadd)%tpows(i3,1),i3=1,3)
-            endif
-         endif
+            else
+! what about funref with no ranges?
+               write(*,*)'3Z funref has no ranges? ',&
+                    trim(tpfuns(funref)%symbol),ctpf(funref)%nranges
+               gx%bmperr=4399; goto 1000
+            endif funrefranges
+!         else
+! when funref=0 it is OK to do nothing !!
+         endif funrefif
 800      format(a,2i3,3(1pe12.4,i5))
 ! we have gone through all terms for the TPfun for this range
       enddo trange
@@ -3638,10 +3685,9 @@
 ! here tpow1(z1) cannot be -100: max 2 rare or unusual power like 3, 4, -8 ...
          if(free(1).eq.0 .or. tpow1(z1).eq.tpow1(10)) then
 ! store in unused or add to to same rare power position in position 10
-            write(*,90)tpfuns(lfun)%symbol,&
-                 lfun,10,z1,tpow1(z1),coeff1(z1)
-90          format('3Z function: ',a,&
-                 ' extra power: ',4i4,2x,e12.4)
+!            write(*,90)tpfuns(lfun)%symbol,&
+!                 lfun,10,z1,tpow1(z1),coeff1(z1)
+90          format('3Z function: ',a,' extra power: ',4i4,2x,1pe12.4)
             cord(10)=cord(10)+coeff1(z1)
             coeff1(z1)=zero
             tpow1(10)=tpow1(z1)
@@ -3650,8 +3696,8 @@
          elseif(free(2).eq.0 .or. tpow1(z1).eq.tpow1(11)) then
 ! store in unused or add to to same rare power position in position 11
 ! same special power in position 11
-            write(*,90)tpfuns(lfun)%symbol,&
-                 lfun,11,z1,tpow1(z1),coeff1(z1)
+!            write(*,90)tpfuns(lfun)%symbol,&
+!                 lfun,11,z1,tpow1(z1),coeff1(z1)
             cord(11)=cord(11)+coeff1(z1)
             coeff1(z1)=zero
             tpow1(11)=tpow1(z1)
@@ -3660,8 +3706,8 @@
          elseif(free(3).eq.0 .or. tpow1(z1).eq.tpow1(12)) then
 ! store in unused or add to to same rare power position in position 12
 ! same special power in position 12
-            write(*,90)tpfuns(lfun)%symbol,&
-                 lfun,11,z1,tpow1(z1),coeff1(z1)
+!            write(*,90)tpfuns(lfun)%symbol,&
+!                 lfun,11,z1,tpow1(z1),coeff1(z1)
             cord(12)=cord(12)+coeff1(z1)
             coeff1(z1)=zero
             tpow1(12)=tpow1(z1)

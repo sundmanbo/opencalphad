@@ -3403,10 +3403,11 @@
    integer typty,fractyp,lp1,lp2,ix,jph,kkk,lcs,nint,noelx
    logical onlyfun,nophase,ionliq,notent
    integer norew,newfun,nfail,nooftypedefs,nl,ipp,jp,jss,lrot,ip,jt
-   integer nsl,ll,kp,nr,nrr,mode,lokph,lokcs,km,nrefs,ideg,iph,ics
+   integer nsl,ll,kp,nr,nrr,mode,lokph,lokcs,km,nrefs,ideg,iph,ics,ndisph
 ! disparttc and dispartph to handle phases with disordered parts
    integer nofunent,disparttc,dodis,jl,nd1,thisdis,cbug,nphrej,never,always
    character*24 dispartph(maxorddis),ordpartph(maxorddis),phreject(maxrejph)*24
+   character*24 disph(20)
    integer orddistyp(maxorddis)
    logical warning
 ! set to TRUE if element present in database
@@ -3442,6 +3443,14 @@
    dodis=0
    open(21,file=filename,access='sequential',form='formatted',&
         err=1010,iostat=gx%bmperr,status='old')
+! add a check if there are any TYPE_DEFS with DIS_PART so such phases
+! are not entered
+   call any_disordered_part(21,ndisph,disph)
+!   if(ndisph.gt.0) then
+!      write(*,*)'3E ndisph: ',ndisph
+!      write(*,11)(trim(disph(ip)),ip=1,ndisph)
+!11    format('3E "',a,'" "',a,'" "',a,'" "',a,'"')
+!   endif
    onlyfun=.FALSE.
    tdbv=1
    norew=0
@@ -3741,6 +3750,20 @@
 !         write(*,*)'3E Found disordered part: ',name1,thisdis
 ! we skip the rest of the phase line ...
          goto 100
+      elseif(dodis.eq.0 .and. ndisph.gt.0) then
+! make use of initial read of TDB file to skip phases that are disordered parts
+!      write(*,*)'3E comparing "',trim(name1),'" with "',trim(disph(1)),'" etc'
+         do jt=1,ndisph
+            if(name1.eq.disph(jt)) then
+               write(*,*)'Skip phase ',trim(name1),' as disordered part',jt
+! do not enter this phase as it is a disordered part
+! all these must be set ...
+               thisdis=-1
+               nophase=.true.
+               thisphaserejected=.TRUE.
+               goto 100
+            endif
+         enddo
       elseif(dodis.eq.0 .and. disparttc.gt.0) then
 ! we must not enter phases that are disordered parts
          do jt=1,disparttc
@@ -3952,38 +3975,7 @@
             jl=0
             nd1=phlista(lokph)%noofsubl
          endif
-         goto 402
-!vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-! code below now redundant ...
-         if(dispartph(thisdis)(1:7).eq.'FCC_A1 ' .or. &
-              dispartph(thisdis)(1:7).eq.'BCC_A2 ' .or. &
-              dispartph(thisdis)(1:7).eq.'HCP_A3 ') then
-! if disordred phase is FCC, BCC or HCP then set jl=1 and nd1 to 2 or 4
-            if(phlista(lokph)%noofsubl.le.5) nd1=4
-            if(phlista(lokph)%noofsubl.le.3) nd1=2
-            if(.not.silent) write(kou,397) &
-                 ordpartph(thisdis)(1:len_trim(ordpartph(thisdis))),nd1
-            jl=1
-         elseif(dispartph(thisdis)(1:3).eq.'A1_' .or. &
-              dispartph(thisdis)(1:3).eq.'A2_' .or. &
-              dispartph(thisdis)(1:3).eq.'A3_') then
-! if disordred phase is FCC, BCC or HCP then set jl=1 and nd1 to 2 or 4
-            if(phlista(lokph)%noofsubl.le.5) nd1=4
-            if(phlista(lokph)%noofsubl.le.3) nd1=2
-            if(.not.silent) write(kou,397) trim(ordpartph(thisdis)),nd1
-            jl=1
-         elseif(dispartph(thisdis)(1:4).eq.'DIS_') then
-! disordered part of sigma, mu etc.
-            jl=0; nd1=phlista(lokph)%noofsubl
-!            write(kou,493)trim(ordpartph(thisdis)),nd1
-!493         format('3E Adding disordered phase: ',a,' summing all ',i3)
-         else
-! probably disordered part of sigma, mu etc.
-            jl=0; nd1=phlista(lokph)%noofsubl
-!            write(kou,493)trim(ordpartph(thisdis)),nd1
-         endif
-!------------- code above is redundant
-!^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+!         goto 402
 402      continue
          if(jl.eq.0 .and. .not.silent) write(kou,398)trim(ordpartph(thisdis))
 398      format(' 3E Assuming phase ',a,' cannot be completely disordered')
@@ -4009,6 +4001,7 @@
 !              dispartph(thisdis)(1:len_trim(dispartph(thisdis))),ch1,nd1,jl,xxx
 601      format('3E Add parameters from disordered part: ',a,5x,a,2x,2i3,F12.4)
       else
+!         write(*,*)'3E enter phase: ',name1
          call enter_phase(name1,nsl,knr,const,stoik,name2,phtype)
 !      write(*,*)'readtdb 9A: ',gx%bmperr
          if(gx%bmperr.ne.0) then
@@ -4332,7 +4325,7 @@
 ! error 4154 means missing reference
             if(gx%bmperr.ne.4154 .and. .not.silent) then
                write(*,409)gx%bmperr,nl
-409            format('3E WARNING ',i6,', no bibliography around line: ',i7,&
+409            format('3E WARNING ',i6,', around line: ',i7,&
                     ', continuing')
                warning=.TRUE.
             endif
@@ -4796,6 +4789,66 @@
    gx%bmperr=4316
    goto 1000
  end subroutine readtdb
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
+ subroutine any_disordered_part(lin,ndisph,disph)
+! reading data from a PDB file with selection of elements
+!-------------------------------------------------------
+! Not all TYPE_DEFS implemented
+!-------------------------------------------------------
+   implicit none
+   integer lin,ndisph
+   character disph(*)*(*)
+!\end{verbatim}
+   character line*128,longline*1024
+   integer ip,jp
+   ndisph=0
+   loop1: do while(.true.)
+      read(lin,100,end=900)line
+100   format(a)
+      ip=1
+      if(eolch(line,ip)) cycle loop1
+      if(line(ip:ip).eq.'$') cycle loop1
+      typedef: if(line(ip:ip+7).eq.'TYPE_DEF') then
+! search for ! meaning end of keyword
+         longline=line(ip:)
+         ip=len_trim(longline)
+         loop2: do while(longline(ip:ip).ne.'!')
+            read(lin,100,end=900)line
+            longline(ip+1:)=line
+            ip=len_trim(longline)
+         enddo loop2
+!         write(*,*)'3E type_def 1: ',longline(1:ip)
+! the important part is "GES" followed by "DIS_PART" or "NEVer" and a phase name
+         jp=index(longline,' GES ')
+         if(jp.le.0) exit typedef
+         ip=jp+6
+!         write(*,*)'3E type_def 2: ',trim(longline(ip:))
+! DISORDERED_PART or NEVER_DISORDERED
+         jp=index(longline(ip:),' DIS_PART')
+         if(jp.le.0) jp=index(longline(ip:),' NEV')
+         if(jp.le.0) exit typedef
+         ip=ip+jp+4
+! phase name after a space
+         jp=index(longline(ip:),' ')
+         ip=ip+jp
+         ndisph=ndisph+1
+         disph(ndisph)=longline(ip:)
+         ip=index(disph(ndisph),',')
+         if(ip.gt.0) disph(ndisph)(ip:)=' '
+         ip=index(disph(ndisph),'!')
+         if(ip.gt.0) disph(ndisph)(ip:)=' '
+!         write(*,*)'3E ndisph 2: "',trim(disph(ndisph)),'"',ndisph
+      endif typedef
+   enddo loop1
+! eof
+900 continue
+   rewind(lin)
+1000 continue
+   return
+ end subroutine any_disordered_part
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
