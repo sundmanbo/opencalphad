@@ -3495,7 +3495,8 @@
             goto 100
          elseif(trim(line).eq.'DEFINE_SYSTEM_DEFAULT ELEMENT 2 !') then
             goto 100
-         else
+         elseif(dodis.ne.1) then
+! do not give this warning when reading disordered phases ...
             write(*,122)trim(line)
 122         format(/' *** Warning, ignoring line: "',a,'"'/)
          endif

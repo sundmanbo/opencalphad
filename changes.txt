@@ -13,6 +13,12 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2018.03.23 OC version 5.009: With the help of Nathalie Dupin I found
+and fixed a bug in the grid minimizer which set the wrong constitution
+of the metastable ordered BCC.  The bug made it completely empty with
+vacancies on all sublattices.  This change may cause converge problems
+in other systems so please check and report any problems.
+
 2018.03.21 OC version 5.008: I have learned a bit more about GNUPLOT
 and managed to romve the line at zero in some STEP and MAP diagrams.
 It made figure 3 of step1 macro (plotting Cr content in stanle phases)

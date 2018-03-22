@@ -3654,7 +3654,11 @@
 ! number of real atoms less than 50%, a gridpoint with mainly vacancies ....
 !      gval=1.0E5
 !      gval=1.0E1
-      gval=max(1.0E2,real(ceq%phase_varres(lokres)%gval(1,1)/qq(1)))
+!      write(*,12)'3Y real atoms less than 0.5',lokres,qq(1),&
+!           ceq%phase_varres(lokres)%gval(1,1)/qq(1)
+12    format(a,i5,3(1pe12.4))
+      gval=1.0E3
+!      gval=max(1.0E2,real(ceq%phase_varres(lokres)%gval(1,1)/qq(1)))
    elseif(abs(qq(2)).gt.1.0D-14) then
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 ! the gridpoint has net charge, qq(2), make gval more positive. 
@@ -3671,6 +3675,7 @@
    else
       gval=real(ceq%phase_varres(lokres)%gval(1,1)/qq(1))
    endif
+!   write(*,12)'All gridpoints: ',lokres,qq(1),gval
 !    read(*,20)ch1
 20  format(a)
 1000 continue
@@ -5003,6 +5008,7 @@
 !\begin{verbatim}
  subroutine set_metastable_constitutions(ngg,nrel,kphl,ngrid,xarr,garr,&
       nr,iphl,cmu,ceq)
+! NO LONGER USED
 ! this subroutine goes through all the metastable phases
 ! after a global minimization and sets the constituion to the most
 ! favourable one.  Later care should be taken that composition set 2 
@@ -5178,7 +5184,12 @@
       dgmin=-1.0d12
       ip=0
 ! search for gripoint closeset to stable plane defined by cmu
-      do ig=ig1,ign
+      igloop: do ig=ig1,ign
+         if(garr(ig).ge.999.0) then
+! gridpoints in phases with more than 50% vacancies have their garr(ig)=1.0D3
+!            write(*,*)'Skipping gridpoint with too few atoms'
+            cycle igloop
+         endif
          gplan=zero
          do ie=1,nrel
             gplan=gplan+xarr(ie,ig)*cmu(ie)
@@ -5188,21 +5199,34 @@
             ip=ig
             dgmin=dg
          endif
-      enddo
-!      write(*,79)'3Y Least unstable gridpoint: ',zph,iph,ig1,ign,ip,dgmin
-79    format(a,5(i6,1x),1pe12.4)
+      enddo igloop
+!      write(*,79)'3Y metastable: ',trim(phlista(iph)%name),iph,zph,&
+!           ig1,ip,ign,dgmin
+79    format(a,a,2i4,3i6,1pe12.4)
+!      write(*,81)'3Y x: ',ip-nphl(zph),(xarr(ie,ip),ie=1,nrel)
+!      write(*,81)'3Y x: ',ip-ig1,(xarr(ie,ip),ie=1,nrel)
+81    format(a,i4,(10F6.3))
       if(ign.gt.ig1) then
-! retrieve constitution for this gridpoint and insert it in phase
-! must provide mode and iph. The subroutine returns ny and yarr
+! if ign=ig1 the phase has fixed constitution
+! otherwise retrieve constitution for this gridpoint and insert it in phase
+! we must provide mode and iph. The subroutine returns ny and yarr
 ! mode is the gridpoint in the phase
-         mode=ip-nphl(zph)
+!         mode=ip-nphl(zph)
+         mode=ip-ig1+1
 ! find the constitution of this gridpoint
 !      call generate_grid(mode,iph,ign,nrel,xarr,garr,ny,yarr,gmax,ceq)
 !         write(*,*)'3Y Get constitution of metastable phase ',iph,mode
          if(mode.gt.0) then
+! this call returnes the constitution of gridpoint "mode"
+! if mode=0 it generates the grid ... infinite loop
             call generic_grid_generator(mode,iph,ign,nrel,xarr,garr,&
                  ny,yarr,gmax,ceq)
-            if(gx%bmperr.ne.0) goto 1000
+            if(gx%bmperr.ne.0) then
+               write(*,120)trim(phlista(iph)%name)
+120            format('3Y Failed to set metastable constitution of ',a)
+               gx%bmperr=0; cycle phloop
+            endif
+!            write(*,81)'3Y y: ',mode,(yarr(ie),ie=1,ny)
             call set_constitution(iph,1,yarr,qq,ceq)
             if(gx%bmperr.ne.0) goto 1000
          endif

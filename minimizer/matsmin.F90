@@ -865,7 +865,7 @@ CONTAINS
     double precision, parameter :: addedphase_amount=1.0D-2
     double precision xxx,tpvalsave(2)
     integer iremsave,zz,tupadd,tuprem,samephase,phloopaddrem1,phloopaddrem2
-    integer phloopv
+    integer phloopv,noremove
 ! replace always FALSE except when we must replace a phase as we have max stable
     logical replace,force
 ! number of iterations without adding or removing a phase
@@ -875,6 +875,9 @@ CONTAINS
 ! minum number if iterations between any change of stable phase set
     samephase=0
     nochange=5
+! modification 180323/BoS
+! allow removing a phase after 2 iterations
+    noremove=2
     lastchange=0
 !
     if(ocv()) write(*,*)'entering meq_phaseset: '
@@ -1486,7 +1489,7 @@ CONTAINS
 !    double precision, parameter :: ionliqyfact=1.0D0
 ! to check if we are calculating a single almost stoichiometric phase ...
     integer iz,tcol,pcol,nophasechange,notagain
-    double precision maxphasechange
+    double precision maxphasechange,molesofatoms
 !    double precision, allocatable, dimension(:) :: loopfact
     integer notf,dncol,iy,jy,iremsave,phasechangeok
     double precision, dimension(:), allocatable :: lastdeltaam
@@ -1875,8 +1878,9 @@ CONTAINS
           endif
           deltaam=svar(ioff)
 ! Sigli convergence problem, bad guess of start amount of phases??
+! NOTE sign! -deltaam is the change in amount of phase, 
 !          write(*,43)'Deltaam: ',meqrec%noofits,jj,deltaam,lastdeltaam(jph),&
-!               phr(jj)%curd%amfu
+!               phr(jj)%curd%amfu,phr(jj)%curd%amfu-deltaam
 !43        format(a,2i3,6(1pe12.4))
 ! tried to avoid too large changes in phase amount, just made things worse
 !          if(meqrec%noofits.lt.3 .and. &
@@ -1909,8 +1913,6 @@ CONTAINS
                 converged=6
                 cerr%mconverged=converged
              endif
-! desperate fix, change sign of deltaam
-!             deltaam=-deltaam
              if(vbug) write(*,381)'Phase amount change: ',meqrec%noofits,jj,&
                   phs,deltaam
 381          format(a,2i3,4(1pe12.4))
@@ -1982,7 +1984,8 @@ CONTAINS
              phf=0.5D0*phr(jj)%curd%amfu
              gx%bmperr=4195; goto 1000
           else
-!             write(*,363)'Phase with negative amount: ',jj,0,0,&
+! trying to improve convergence by allowing phases to be removed quicker
+!             write(*,363)'Phase with negative amount: ',jj,meqrec%noofits,0,&
 !                  phf,phs,phr(jj)%prevam
 !             if(phf.lt.-1.0D-2) phf=zero
              if(jj.ne.notagain .and. phr(jj)%prevam.lt.zero) then
@@ -2083,7 +2086,14 @@ CONTAINS
              dgm=dgm+phr(jj)%curd%gval(3,1)*deltap
           endif
 ! scale dgm per mole atoms
-          dgm=gsurf-dgm/phr(jj)%curd%abnorm(1)
+          molesofatoms=phr(jj)%curd%abnorm(1)
+          if(molesofatoms.lt.0.5D0) then
+! problem when BCC becomes just vacancies
+!             write(*,*)'MM Phase: ',jj,' moles of atoms: ',molesofatoms
+             molesofatoms=0.5D0
+          endif
+!          dgm=gsurf-dgm/phr(jj)%curd%abnorm(1)
+          dgm=gsurf-dgm/molesofatoms
           if(dgm.gt.dgmmax) then
              if(phr(jj)%phasestatus.ge.PHENTUNST .and. &
                 phr(jj)%phasestatus.le.PHENTERED) then

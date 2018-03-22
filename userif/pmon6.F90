@@ -3645,19 +3645,34 @@ contains
           endif
           write(kou,8203)jp,(ellist(kl),kl=1,jp)
 8203      format('Database has ',i2,' elements: ',18(a,1x)/(1x,28(1x,a)))
+          ellist='  '
           write(kou,8205)
 8205      format('Give the elements to select, finish with empty line')
           jp=1
           selection='Select elements /all/:'
 8210      continue
-!          call gparc('Select elements/all/: ',&
           call gparc(selection,cline,last,1,ellist(jp),' ',q1help)
-          if(ellist(jp).ne.'  ') then
+          if(jp.eq.1 .and. cline(1:4).eq.'all ') then
+! this is if someone actually types "all".  If he types "ALL" that will be AL
+             jp=0
+          elseif(cline(1:1).eq.'q' .or. cline(1:1).eq.'Q') then
+! if user regets selection he can quit
+             write(*,*)'Quitting, nothing selected'
+             goto 100
+          elseif(ellist(jp).ne.'  ') then
              call capson(ellist(jp))
              jp=jp+1
              if(jp.gt.size(ellist)) then
                 write(kou,*)'Max number of elements selected: ',size(ellist)
              else
+                ll=last
+                if(eolch(cline,last)) then
+! if empty line list current selection and prompt for more
+                   write(*,8220)jp-1,(ellist(iel),iel=1,jp-1)
+                else
+! we must reset position in cline if there is more ...
+                   last=ll
+                endif
                 selection='Select elements /no more/:'
                 goto 8210
              endif
@@ -3703,6 +3718,7 @@ contains
        case(4) ! read direct
           write(*,*)'Read direct not implemented yet'
 !-----------------------------------------------------------
+! this should be merged with read TDB
        case(5) ! read PDB 
           if(tdbfile(1:1).ne.' ') then
              text=tdbfile
