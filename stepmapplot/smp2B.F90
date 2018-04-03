@@ -1317,7 +1317,7 @@
     integer ii,jj,point,plotp,lines,eqindex,lasteq,nooftup,lokcs,jph,same,kk
     integer, parameter :: maxval=2000,mazval=100
     double precision, allocatable :: xval(:,:),yval(:,:),zval(:,:),tieline(:,:)
-    integer offset,nofeq,sumpp,last,nofinv,ntieline,mtieline
+    integer offset,nofeq,sumpp,last,nofinv,ntieline,mtieline,noftielineblocks
     double precision xxx,yyy
 ! TO BE REPLACED BY GNUTERMSEL: pform
 !    character pform*8
@@ -1373,9 +1373,13 @@
     if(.not.allocated(curtop%linehead)) goto 500
     lines=size(curtop%linehead)
     results=>plottop%saveceq
+    noftielineblocks=0
     node: do ii=1,lines
        curline=>curtop%linehead(ii)
-!       write(*,*)'Data from line: ',curline%lineid,lines
+       if(btest(curline%status,EXCLUDEDLINE)) then
+          write(*,*)'Excluded line: ',ii,curline%lineid,lines
+          cycle node
+       endif
        eqindex=curline%first
        lasteq=curline%last
        if(eqindex.le.0 .or. eqindex.gt.lasteq) cycle node
@@ -1391,7 +1395,7 @@
        ntieline=0
 !       write(*,*)'Plotting tie-lines: ',graphopt%tielines
        if(graphopt%tielines.gt.0) then
-! the number of tie-lines to extract
+! estimate the number of tie-lines to extract
           mtieline=nofeq/graphopt%tielines
 !          write(*,*)'Number of tie-lines: ',mtieline
           allocate(tieline(4,mtieline+5))
@@ -1402,6 +1406,11 @@
 ! extract for each stable phase the state variable in pltax       
           point=point+1
           curceq=>results%savedceq(eqindex)
+          if(.not.associated(curceq)) then
+             write(*,*)'SMP error, equilibrium missing?: ',&
+                  curtop%seqx,curline%lineid,eqindex
+             cycle line
+          endif
 ! find the stable phases (max 3)
           plotp=plotp+1
           if(plotp.gt.maxval) then
@@ -1411,6 +1420,12 @@
           jj=1
           equil: do jph=1,nooftup
              lokcs=phasetuple(jph)%lokvares
+             call get_phasetup_name(jph,phname)
+! crash as lokcs not valid ... the 3rd of 4th time plotted ...
+!             write(*,321)'SMP bug? ',curtop%seqx,curline%lineid,eqindex,&
+!                  jph,lokcs,trim(phname)
+321          format(a,2i4,i5,2i4,' : ',a)
+! crash next line in alcrni-1200 mapping ...
              if(curceq%phase_varres(lokcs)%phstate.ge.PHENTSTAB) then
                 if(jj.ge.3) then
                    if(eqindex.eq.lasteq) then
@@ -1487,6 +1502,7 @@
        endif
 !       write(*,23)'phase line: ',same,plotp,trim(lid(1,same)),trim(lid(2,same))
 23     format(a,2i5,3x,a,' and ',a)
+       noftielineblocks=noftielineblocks+1
        if(ntieline.gt.0) then
 ! All tielines on the same line with a space in between
           same=same+1
@@ -1565,7 +1581,9 @@
 !------------------------------------------------
 ! there can be more maptops linked via plotlink
     if(associated(plottop%plotlink)) then
+       jj=plottop%seqx
        plottop=>plottop%plotlink
+       write(*,*)'ocplot3B current and next maptop: ',jj,plottop%seqx
        goto 100
     endif
 !========================================================
@@ -1769,17 +1787,23 @@
     write(21,133)labelkey
 133 format('set key ',a/&
          'set style line 1 lt 2 lc rgb "#000000" lw 2'/&
-         'set style line 2 lt 2 lc rgb "#804080" lw 2'/&
+!         'set style line 2 lt 2 lc rgb "#804080" lw 2'/&
+         'set style line 2 lt 2 lc rgb "#FF0000" lw 2'/&
          'set style line 3 lt 2 lc rgb "#00C000" lw 2'/&
-         'set style line 4 lt 2 lc rgb "#FF0000" lw 2'/&
+!         'set style line 3 lt 2 lc rgb "#00C000" lw 2'/&
+         'set style line 4 lt 2 lc rgb "#8F8F8F" lw 2'/&
          'set style line 5 lt 2 lc rgb "#0080FF" lw 2'/&
-         'set style line 6 lt 2 lc rgb "#C8C800" lw 2'/&
+!         'set style line 6 lt 2 lc rgb "#C8C800" lw 2'/&
+         'set style line 6 lt 2 lc rgb "#804080" lw 2'/&
          'set style line 7 lt 2 lc rgb "#4169E1" lw 2'/&
          'set style line 8 lt 2 lc rgb "#7CFF40" lw 2'/&
          'set style line 9 lt 2 lc rgb "#C0C0C0" lw 2'/&
          'set style line 10 lt 2 lc rgb "#00FFFF" lw 2'/&
-         'set style line 11 lt 2 lc rgb "#8F8F8F" lw 3'/&
-         'set style line 12 lt 2 lc rgb "#8F8F8F" lw 1')
+         'set style line 11 lt 2 lc rgb "goldenrod" lw 3'/&
+         'set style line 12 lt 2 lc rgb "goldenrod" lw 1')
+!         'set style line 11 lt 2 lc rgb "#0F00F0" lw 3'/&
+!         'set style line 12 lt 2 lc rgb "#0F00F0" lw 1')
+!         'set style line 12 lt 2 lc rgb "#8F8F8F" lw 1')
 ! The last two styles (11 and 12) are for invariants and tielines
 !
 ! ranges for x and y
@@ -1939,6 +1963,8 @@
 !       write(*,*)'Number of lines: ',2*same
 !    endif
     pair: do jj=1,2
+! maybe same must be incremented with the number of tieline blocks??
+! and ivariants??  They have separate plot commands ...
        point: do ii=1,same
           iz=iz+1
 ! plotkod -1 negative means ignore
@@ -1960,7 +1986,7 @@
           lcolor(iz)=nnv
           color(nnv)=lid(jj,ii)
 !          write(*,293)'Assigned: ',nnv,jj,ii,iz,trim(color(nnv))
-!293       format(a,4i5,' "',a,'"')
+293       format(a,4i5,' "',a,'"')
 295       continue
        enddo point
     enddo pair
@@ -2076,6 +2102,11 @@
              if(fcolor.gt.12) then
                 fcolor=mod(fcolor,10)
                 if(fcolor.eq.0) fcolor=10
+! Nath MoNiRe isother at 1500 K had some lines with no lcolor assignment!
+             elseif(fcolor.le.0) then
+                write(*,*)'ocplot3B: no assigned key!',ii,lcolor(ii),jj
+                lcolor(ii)=1
+                fcolor=1
              endif
              if(done(lcolor(ii)).eq.1) then
                 write(21,320)fcolor,backslash

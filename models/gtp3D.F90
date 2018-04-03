@@ -543,6 +543,9 @@
 !      write(*,*)'3D calling enter_parameter with lfun=',lfun
       call enter_parameter(lokph,typty,fractyp,nsl,endm,nint,lint,ideg,&
            lfun,refx)
+! this error means illegal reference ... 
+! irrelevant but I am not sure where it is set ...
+      if(gx%bmperr.eq.4154) gx%bmperr=0
       goto 1000
    endif
 ! continue here to enter the parameter

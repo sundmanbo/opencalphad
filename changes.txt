@@ -13,6 +13,15 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2018.04.03 OC version 5.010: I have increased the convergence criteria
+slightly due to a case Nathalie showed me, it means a few more
+iterations in some cases when the Gibbs energy surface is rather flat.
+I have also improved the way OC finds startpoints for mapping in
+isothermal sections and changed some of the colors used for plotting,
+tie-lines and invariant lines in isothermal sections are now golden.
+But one can still not start a mapping inside an invariant isothermal
+section, maybe in next release.
+
 2018.03.23 OC version 5.009: With the help of Nathalie Dupin I found
 and fixed a bug in the grid minimizer which set the wrong constitution
 of the metastable ordered BCC.  The bug made it completely empty with

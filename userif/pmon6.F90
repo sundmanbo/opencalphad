@@ -189,7 +189,7 @@ contains
 ! here are all commands and subcommands
 !    character (len=64), dimension(6) :: oplist
     integer, parameter :: ncbas=30,nclist=21,ncalc=12,ncent=21,ncread=6
-    integer, parameter :: ncam1=18,ncset=24,ncadv=6,ncstat=6,ncdebug=6
+    integer, parameter :: ncam1=18,ncset=24,ncadv=12,ncstat=6,ncdebug=6
     integer, parameter :: nselect=6,nlform=6,noptopt=9,nsetbit=6
     integer, parameter :: ncamph=18,nclph=6,nccph=6,nrej=9,nsetph=6
     integer, parameter :: nsetphbits=15,ncsave=6,nplt=18,nstepop=6
@@ -290,7 +290,7 @@ contains
 ! subsubcommands to AMEND PHASE
     character (len=16), dimension(ncamph) :: camph=&
          ['MAGNETIC_CONTRIB','COMPOSITION_SET ','DISORDERED_FRACS',&
-         'LIQUID_2_STATEML','                ','DEFAULT_CONSTIT ',&
+         'TWOSTATE_LIQUID ','                ','DEFAULT_CONSTIT ',&
          'LOWT_CP_MODEL   ','FCC_PERMUTATIONS','BCC_PERMUTATIONS',&
          'ELASTIC_MODEL_1 ','GADDITION       ','AQUEUS_MODEL    ',&
          'QUASICHEM_MODEL ','FCC_CVM_TETRAHDR','FLORY_HUGG_MODEL',&
@@ -314,7 +314,9 @@ contains
 ! subsubcommands to SET ADVANCED
     character (len=16), dimension(ncadv) :: cadv=&
          ['EQUILIB_TRANSF  ','QUIT            ','EXTRA_PROPERTY  ',&
-          'DENSE_GRID_ONOFF','SMALL_GRID_ONOFF','                ']
+          'GRID_DENSITY    ','SMALL_GRID_ONOFF','MAP_SPECIAL     ',&
+          '                ','                ','                ',&
+          '                ','                ','                ']
 !         123456789.123456---123456789.123456---123456789.123456
 ! subsubcommands to SET BITS
     character (len=16), dimension(nsetbit) :: csetbit=&
@@ -746,7 +748,7 @@ contains
           amendphase: SELECT CASE(kom3)
 ! subsubcommands to AMEND PHASE
 !         ['MAGNETIC_CONTRIB','COMPOSITION_SET ','DISORDERED_FRACS',&
-!         'LIQUID_2_STATEML','QUIT            ','DEFAULT_CONSTIT ',&
+!         'TWOSTATE_LIQUID ','QUIT            ','DEFAULT_CONSTIT ',&
 !         'LOWT_CP_MODEL   ','FCC_PERMUTATIONS','BCC_PERMUTATIONS',&
 !         'ELASTIC_MODEL_1 ','GADDITION       ','AQUEUS_MODEL    ',&
 !         'QUASICHEM_MODEL ','FCC_CVM_TETRAHDR','FLORY_HUGG_MODEL',&
@@ -824,7 +826,7 @@ contains
              call add_fraction_set(iph,ch1,ndl,j1)
              if(gx%bmperr.ne.0) goto 990
 !....................................................
-          case(4) ! amend phase <name> liquid 2 state model
+          case(4) ! amend phase <name> twostate_liquid model
              call add_addrecord(lokph,' ',twostatemodel1)
 !....................................................
           case(5) ! amend phase ... unused
@@ -1692,17 +1694,20 @@ contains
                 call enter_species_property(loksp,xxx)
              endif
 !.................................................................
-          case(4) ! SET ADVANCED DENSE_GRID_ONOFF
-! this sets bit 14 of global status word, also if bit 2 (expert) not set
-             if(btest(globaldata%status,GSXGRID)) then
+          case(4) ! SET ADVANCED GRID_DENSITY
+             call gparid('Level: ',cline,last,ll,1,q1help)
+             if(ll.eq.1) then
+! this clears GSXGRID, bit 14, of global status word
                 globaldata%status=ibclr(globaldata%status,GSXGRID)
                 write(kou,3110)'Dense','reset'
 3110            format(a,' grid ',a)
-             else
-! set GSXGRIS and clear GSOGRID if set
+             elseif(ll.eq.2) then
+! set GSXGRIS (and clear GSOGRID if set)
                 globaldata%status=ibclr(globaldata%status,GSOGRID)
                 globaldata%status=ibset(globaldata%status,GSXGRID)
                 write(kou,3110)'Dense','set'
+             else
+                write(*,*)'Only level 1 and 2 implemented'
              endif
 !.................................................................
           case(5) ! SET ADVANCED SMALL_GRID_ONOFF
@@ -1716,7 +1721,33 @@ contains
                 write(kou,3110)'Small','set'
              endif
 !.................................................................
-          case(6) ! nothing yet
+          case(6) ! MAP_SPECIAL
+!             if(nofixphfortip) then
+!                write(*,*)'Always using fix phase when mapping'
+!                nofixphfortip=.false.
+!             else
+!                write(*,*)'Map diagrams with tie-lines in phase ',&
+!                     'without fix phase'
+!                nofixphfortip=.true.
+!             endif
+             write(*,*)'Not implemented yet'
+!.................................................................
+          case(7) ! nothing yet
+             write(*,*)'Not implemented yet'
+!.................................................................
+          case(8) ! nothing yet
+             write(*,*)'Not implemented yet'
+!.................................................................
+          case(9) ! nothing yet
+             write(*,*)'Not implemented yet'
+!.................................................................
+          case(10) ! nothing yet
+             write(*,*)'Not implemented yet'
+!.................................................................
+          case(11) ! nothing yet
+             write(*,*)'Not implemented yet'
+!.................................................................
+          case(12) ! nothing yet
              write(*,*)'Not implemented yet'
           end select advanced
 !-----------------------------------------------------------
@@ -2733,6 +2764,7 @@ contains
              write(kou,*)'You must enter some phase before'
              goto 100
           endif
+! the last 0 means enter
           call enter_parameter_interactivly(cline,last,0)
           if(gx%bmperr.ne.0) goto 990
 !---------------------------------------------------------------
@@ -3252,7 +3284,7 @@ contains
 !------------------------------------------------------------
        case(9) ! list quit
 !------------------------------------------------------------
-       case(10) ! list parameter for a phase (just one)
+       case(10) ! list parameter for a phase (just one). Last 1 means list
           call enter_parameter_interactivly(cline,last,1)
 !-----------------------------------------------------------
        case(11) ! list equilibria (not result)
@@ -4357,6 +4389,11 @@ contains
                ' for a step calculation.'
           goto 100
        endif
+       ll=degrees_of_freedom(ceq)
+       if(ll.ne.0) then
+          write(*,*)'Degrees of freedom not zero',ll
+          goto 100
+       endif
 ! IMPORTANT I have changed the order between option and reinitiate!!
        kom2=submenu('Options?',cline,last,cstepop,nstepop,1)
 ! check if adding results
@@ -4469,9 +4506,7 @@ contains
 !=================================================================
 ! MAP, must be tested if compatible with assessments
     case(20)
-! disable continue optimization
-!       iexit=0
-!       iexit(2)=1
+! maybe disable continue optimization ??
        if(noofaxis.lt.2) then
           write(kou,*)'You must set two axis with independent variables'
           goto 100
@@ -4519,6 +4554,11 @@ contains
        if(.not.associated(starteq)) then
           starteq=>ceq
           starteq%nexteq=0
+       endif
+       ll=degrees_of_freedom(starteq)
+       if(ll.ne.0) then
+          write(*,*)'Degrees of freedom not zero ',ll
+          goto 100
        endif
 ! maptop is first nullified inside map_setup, then alloctated to return result
        call map_setup(maptop,noofaxis,axarr,seqxyz,starteq)

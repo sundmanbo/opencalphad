@@ -1780,6 +1780,7 @@
  subroutine enter_parameter(lokph,typty,fractyp,nsl,endm,nint,lint,ideg,&
       lfun,refx)
 ! enter a parameter for a phase from database or interactivly
+! enter_parameter_inter is in gtp3D for some unknown reason ...
 ! typty is the type of property, 1=G, 2=TC, ... , n*100+icon MQ&const#subl
 ! fractyp is fraction type, 1 is site fractions, 2 disordered fractions
 ! nsl is number of sublattices
@@ -1789,7 +1790,7 @@
 ! nint is number of interacting constituents (can be zero)
 ! lint is array of sublattice+constituent indices for interactions
 ! ideg is degree
-! lfun is link to function (integer index)
+! lfun is link to function (integer index) if -1 used for listing
 ! refx is reference (text)
 ! if this is a phase with permutations all interactions should be in
 ! the first or the first two identical sublattices (except interstitals)

@@ -20,7 +20,7 @@ PROGRAM pmain1
 ! the next line overwritten with current linkdate by linkocdate
   linkdate='2015-01-01'
 ! this is the overall version identifier
-  version='  5.009 '
+  version='  5.010 '
 ! intvar and dblvar will eventually be used for allocations and defaults
   intvar(1)=30
   call init_gtp(intvar,dblvar)

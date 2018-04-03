@@ -2201,12 +2201,16 @@ CONTAINS
                       yss=ys
                       yst=phr(jj)%curd%yfr(nj)
                    endif
-                elseif(abs(ys).gt.1.0D2*ceq%xconv) then
+! Bad converence in the Mo-Ni-Re system ... bad gridmimizer also
+!                elseif(abs(ys).gt.1.0D2*ceq%xconv) then
+                elseif(abs(ys).gt.2.0D1*ceq%xconv) then
 ! maybe accept 100 times larger correction than for stable phases
 !                   write(*,107)'metast ph ycorr: ',ys,&
 !                        phr(jj)%curd%yfr(nj)
-                   if(converged.lt.2) then
-                      converged=2
+!                   if(converged.lt.2) then
+!                      converged=2
+                   if(converged.lt.3) then
+                      converged=3
                       cerr%mconverged=converged
                       yss=ys
                       yst=phr(jj)%curd%yfr(nj)

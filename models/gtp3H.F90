@@ -1363,22 +1363,32 @@
 !\end{verbatim}
    integer typty
 ! this is bad programming as it cannot be deallocated but it will never be ...
+! maybe pointers can be deallocated?
    allocate(addrec)
 ! nullify pointer to next addition
    nullify(addrec%nextadd)
+!-----------------------------
+! The model consists of two contributions
+! The first is the harmonic vibrations of an ideal amprthous phase
+!     this requires a THETA representing the Einstein T
+! The second is a term - RT*(1+exp(G2/RT))
+! which represent the change from "solid like" to "liquid like"
+!-----------------------------
 ! I am not sure what is is used for
    addrecs=addrecs+1
    addrec%addrecno=addrecs
 ! property needed
-   allocate(addrec%need_property(1))
+   allocate(addrec%need_property(2))
    call need_propertyid('G2  ',typty)
    addrec%need_property(1)=typty
+   call need_propertyid('THETA  ',typty)
+   addrec%need_property(2)=typty
 ! type of addition
    addrec%type=twostatemodel1
 ! store zero.  Used to extract current value of this property
    addrec%propval=zero
 1000 continue
-   write(*,*)'Created two state record'
+   write(*,*)'Created two state liquid record'
    return
  end subroutine create_twostate_model1
 
@@ -1403,31 +1413,68 @@
 ! where d is "liquid like" atoms.  H is enthalpy to form defects
 ! At equilibrium
 !
-! d = exp(-H/RT) / (1 + e(-H/RT) )
+! d = exp(-H/RT) / (1 + e(-H/RT) ) is the integrated Einstein Cp -H/R is THET
 !
 ! G^liq - G^amorph = G^amorph - RT ln(1+exp(-DG_d/RT)
 ! DG_d is the enthalpy of forming 1 mole of defects in the glassy state
 !
 !------------------------------
-! The value of Gd for the phase is calculated and stored in ??
-!
-   integer jj,noprop,ig2
+! The value of Gd for the phase is calculated and added to G
+   integer jj,noprop,ig2,ith
+   double precision del1,del2,del3,del4,gein,dgeindt,d2geindt2
    double precision g2val,dg2
 ! number of properties calculatied
    noprop=phres%listprop(1)-1
-! locate the G2 property record   
+! locate the THET and G2 property record 
    ig2=0
+   ith=0
    findix: do jj=2,noprop
       if(phres%listprop(jj).eq.addrec%need_property(1)) then
 ! current values of G2 is stored in phres%gval(1,ig2)
-         ig2=jj; g2val=phres%gval(1,ig2); exit findix
+         ig2=jj; g2val=phres%gval(1,ig2)
+      elseif(phres%listprop(jj).eq.addrec%need_property(2)) then
+! current value of THET are stored in phres%gval(1,ith)
+         ith=jj
       endif
    enddo findix
-   if(jj.gt.noprop) then
-! if jj>noprop it means we have not found the requested property
-      write(*,*)'Cannot found value for G2 parameter'
+   if(ith.eq.0) then
+      write(*,*)'Cannot found value for amorphous THET'
       gx%bmperr=4399; goto 1000
    endif
+   if(ig2.eq.0) then
+      write(*,*)'Cannot found value for G2 two-state parameter'
+      gx%bmperr=4399; goto 1000
+   endif
+!----------------------------------
+! for the moment the composition dependence is ignored
+!------ THET part copied from calc_einstein
+! thet is in gval(1,ith), derivatives in dgval(*,ith,*) and d2gval(ith,*)
+! G/RT = 1.5*THET/T + 3*R*LN(exp(THET/T) - 1) 
+! NOTE ALL VALUES CALCULATED AS FOR G/RT
+   del1=phres%gval(1,ith)/ceq%tpval(1)
+! we should be careful with numeric overflow, for low T: del1 > 1000
+   del2=exp(del1)
+   del3=del2-one
+! del4 is del3/del2 to avoid numeric overflow
+   del4=one-exp(-del1)
+   write(*,70)'3H Cp amorphous 1:',ceq%tpval(1),phres%gval(1,ith),del1,del2,del3
+70 format(a,f8.2,6(1pe12.4))
+   gein=1.5D0*del1+3.0D0*log(del3)
+   dgeindt=3.0D0*(log(del3)-del1/del4)/ceq%tpval(1)
+! This is the Einstein Cp/RT (ir rather Cv/RT)
+   d2geindt2=-3.0D0*del2*( del1/del3/ceq%tpval(1) )**2
+   phres%gval(1,1)=phres%gval(1,1)+gein
+   phres%gval(2,1)=phres%gval(2,1)+dgeindt
+!   phres%gval(3,1)=phres%gval(3,1)
+   phres%gval(4,1)=phres%gval(4,1)+d2geindt2
+   write(*,70)'3H Cp amorphous 2:',ceq%tpval(1),gein,dgeindt,d2geindt2
+!   phres%gval(5,1)=phres%gval(5,1)
+!   phres%gval(6,1)=phres%gval(6,1)
+!   addrec%propval(1)=gein
+!   addrec%propval(2)=dgeindt
+!   addrec%propval(4)=d2geindt2
+!
+!------ two state part
    dg2=log(one+exp(-g2val/ceq%rtn))
 ! NOTE values in gval(*,1) are divided by RT
 ! G
@@ -1439,14 +1486,14 @@
 ! G.T.T 
    phres%gval(4,1)=phres%gval(4,1)+phres%gval(4,ig2)/ceq%rtn-&
         2.0D0*globaldata%rgas*(ceq%tpval(1)*phres%gval(2,ig2)-dg2)/ceq%rtn**3
-! G.T.P
-! G.P.P
+! G.T.P is zero
+! G.P.P is zero
 ! save local values
-   addrec%propval(1)=dg2
-   addrec%propval(2)=globaldata%rgas*(ceq%tpval(1)*phres%gval(2,ig2)-dg2)/&
-        ceq%rtn**2
+   addrec%propval(1)=gein-dg2
+   addrec%propval(2)=dgeindt+&
+        globaldata%rgas*(ceq%tpval(1)*phres%gval(2,ig2)-dg2)/ceq%rtn**2
    addrec%propval(3)=zero
-   addrec%propval(4)=phres%gval(4,ig2)/ceq%rtn-&
+   addrec%propval(4)=d2geindt2+phres%gval(4,ig2)/ceq%rtn-&
         2.0D0*globaldata%rgas*(ceq%tpval(1)*phres%gval(2,ig2)-dg2)/ceq%rtn**3
    addrec%propval(5)=zero
    addrec%propval(6)=zero
@@ -1605,7 +1652,7 @@
 !---------------------------------------------
    case(twostatemodel1) ! Two state  model 1
       write(unit,510)
-510   format('  + Liquid 2 state model DG=G(liq)-G(am)= -RTln(1+exp(-G2/RT)')
+510   format('  + Liquid 2 state model G(liq) = G(am)-RTln(1+exp(-G2/RT)')
 !---------------------------------------------
    case(volmod1) ! Volume model 1
       write(unit,520)chc

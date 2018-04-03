@@ -1304,7 +1304,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   INTEGER, parameter :: gtp_state_variable_version=1
   TYPE gtp_state_variable
 ! this is to specify a formal or real argument to a function of state variables
-! statev/istv: state variable index
+! statev/istv: state variable index >=9 is extensive
 ! phref/iref: if a specified reference state (for chemical potential
 ! unit/iunit: 100 for percent, no other defined at present
 ! argtyp together with the next 4 integers represent the indices(4), only 0-4
@@ -1365,11 +1365,11 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
      integer, dimension(:,:), allocatable :: indices
      double precision, dimension(:), allocatable :: condcoeff
      double precision prescribed, current, uncertainty
-! currently this is not used but it will be ???
+! confusing with record statevar and integer statev
      TYPE(gtp_state_variable), dimension(:), allocatable :: statvar
      TYPE(gtp_condition), pointer :: next, previous
   end TYPE gtp_condition
-! declared inside the gtp_equilibrium_data record
+! used inside the gtp_equilibrium_data record and elsewhere
 !\end{verbatim}
 !-----------------------------------------------------------------
 !\begin{verbatim}

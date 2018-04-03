@@ -3528,6 +3528,7 @@
       goto 1000
    endif
    if(noofel.eq.0) then
+! The CRLF indicates CR+LF at output
       text='CRLF No elements'
       goto 1000
    endif
@@ -3663,6 +3664,35 @@
 1000 return
  end subroutine get_all_conditions
 
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
+ integer function degrees_of_freedom(ceq)
+! returns the degrees of freedom
+   implicit none
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   TYPE(gtp_condition), pointer :: last,current,first
+   integer ntot
+!
+   ntot=-noofel-2
+   last=>ceq%lastcondition
+   if(.not.associated(last)) then
+      goto 1000
+   elseif(last%active.eq.0) then
+      ntot=ntot+1
+   endif
+   current=>last%next
+100 do while(.not.associated(current,last))
+      if(current%active.eq.0) ntot=ntot+1
+      current=>current%next
+   enddo
+1000 continue
+!   write(*,*)'3C degrees of freedom: ',ntot,noofel
+   degrees_of_freedom=ntot
+   return
+ end function degrees_of_freedom
+ 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim}
