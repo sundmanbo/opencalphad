@@ -2104,7 +2104,7 @@ CONTAINS
                 dgmmax=dgm
              endif
           endif
-          phr(jj)%prevdg=dgm
+          phr(jj)%prevdg=phr(jj)%curd%dgm
           phr(jj)%curd%dgm=dgm
        endif
 ! Update constituent fractions for ALL phases, stable or not
@@ -2193,36 +2193,82 @@ CONTAINS
 !             write(*,*)'Convergence criteria, phase/const: ',jj,nk
              if(phr(jj)%stable.eq.0) then
 ! Phase is not stable
-                if(abs(ys).gt.1.0D1*phr(jj)%curd%yfr(nj)) then
+! Handle convergence criteria different if inmap=1 or not
+                mapping7: if(inmap.eq.0) then
+! we are NOT in STEP/MAP, increase convergence criteria to handle
+! the Mo-Ni-Re 3 phase equilibria
+                   if(abs(ys).gt.1.0D1*phr(jj)%curd%yfr(nj)) then
 ! for unstable phases the corrections must be smaller than ...????
-                   if(converged.lt.3) then
-                      converged=3
-                      cerr%mconverged=converged
-                      yss=ys
-                      yst=phr(jj)%curd%yfr(nj)
-                   endif
-! Bad converence in the Mo-Ni-Re system ... bad gridmimizer also
-!                elseif(abs(ys).gt.1.0D2*ceq%xconv) then
-                elseif(abs(ys).gt.2.0D1*ceq%xconv) then
+                      if(converged.lt.3) then
+                         converged=3
+                         cerr%mconverged=converged
+                         yss=ys
+                         yst=phr(jj)%curd%yfr(nj)
+                      endif
+                   elseif(abs(ys).gt.1.0D2*ceq%xconv) then
+!                   elseif(abs(ys).gt.2.0D1*ceq%xconv) then
 ! maybe accept 100 times larger correction than for stable phases
 !                   write(*,107)'metast ph ycorr: ',ys,&
 !                        phr(jj)%curd%yfr(nj)
-!                   if(converged.lt.2) then
-!                      converged=2
-                   if(converged.lt.3) then
-                      converged=3
-                      cerr%mconverged=converged
-                      yss=ys
-                      yst=phr(jj)%curd%yfr(nj)
+!                      if(converged.lt.2) then
+!                         converged=2
+! BUT this creates problem with caos507 and parallel macros ... suck
+! STRANGE: reducing the number of iterations from 500 to 30 improves convergence
+! dubbelt suck
+!                      write(*,212)'MM conv: ',jj,phr(jj)%iph,phr(jj)%ics,nk,&
+!                           phr(jj)%curd%dgm,phr(jj)%prevdg,&
+!                           phr(jj)%curd%dgm-phr(jj)%prevdg,ys
+212                   format(a,3i3,i4,4(1pe12.4))
+!                      if(converged.lt.4) then
+!                         converged=4
+!                      if(converged.lt.2) then
+!                         converged=2
+! The the decrease in driving force is greater than 0.05 continue
+                      if(converged.lt.4 .and. &
+                           phr(jj)%curd%dgm-phr(jj)%prevdg.gt.5.0E-2) then
+                         converged=4
+                         cerr%mconverged=converged
+                         yss=ys
+                         yst=phr(jj)%curd%yfr(nj)
+                      endif
+                   else
+                      if(converged.eq.0) then
+                         converged=1
+                         cerr%mconverged=converged
+                         yss=ys
+                         yst=phr(jj)%curd%yfr(nj)
+                      endif
                    endif
                 else
-                   if(converged.eq.0) then
-                      converged=1
-                      cerr%mconverged=converged
-                      yss=ys
-                      yst=phr(jj)%curd%yfr(nj)
+! we are doing step/map NO CHANGE, use old convergence criteria
+! otherwise step1 and mmap4 are uncomplete with those above ...
+                   if(abs(ys).gt.1.0D1*phr(jj)%curd%yfr(nj)) then
+! for unstable phases the corrections must be smaller than ...????
+                      if(converged.lt.3) then
+                         converged=3
+                         cerr%mconverged=converged
+                         yss=ys
+                         yst=phr(jj)%curd%yfr(nj)
+                      endif
+                   elseif(abs(ys).gt.1.0D2*ceq%xconv) then
+! maybe accept 100 times larger correction than for stable phases
+!                   write(*,107)'metast ph ycorr: ',ys,&
+!                        phr(jj)%curd%yfr(nj)
+                      if(converged.lt.2) then
+                         converged=2
+                         cerr%mconverged=converged
+                         yss=ys
+                         yst=phr(jj)%curd%yfr(nj)
+                      endif
+                   else
+                      if(converged.eq.0) then
+                         converged=1
+                         cerr%mconverged=converged
+                         yss=ys
+                         yst=phr(jj)%curd%yfr(nj)
+                      endif
                    endif
-                endif
+                endif mapping7
              elseif(converged.lt.4) then
 ! large correction in fraction of constituent fraction of stable phase
 !                write(*,*)'mm converged 4A: ',jj,nj,ys

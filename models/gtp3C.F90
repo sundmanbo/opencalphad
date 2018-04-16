@@ -225,6 +225,7 @@
    TYPE(gtp_phase_varres), pointer :: csrec
    double precision am1,am2
 !
+   write(*,*)'3C list_sorted_phases'
    allocate(entph(nooftuples))
    allocate(dorph(nooftuples))
    nstab=0; nent=0; ndorm=0; nsusp=1
@@ -237,6 +238,7 @@
 17       format(a,i3,2x,16(i4))
          lokcs=phlista(lokph)%linktocs(ics)
          csrec=>ceq%phase_varres(lokcs)
+!         write(*,*)'3C sorting: ',trim(phlista(lokph)%name),' ',csrec%phstate
          if(csrec%phstate.ge.PHENTSTAB) then
             if(nent.eq.0) then
                nent=1;
@@ -725,21 +727,26 @@
 !            write(*,*)'ignoring phase with net charge: ',iph,ics
 !            cycle csloop
 !         endif
-         if(ceq%phase_varres(lokcs)%dgm.gt.1.0D-3) then
+         if(ceq%phase_varres(lokcs)%dgm.gt.1.0D-4) then
             if(once.eq.0) then
                allocate(phtupx(nooftuples))
             endif
             once=once+1
             if(once.eq.1) write(lut,109)
-109         format(/' *** There are phases which would like to be stable')
+109         format(/' *** There are phase(s) which would like to be stable:')
             phtupx(once)=ceq%phase_varres(lokcs)%phtupx
+            write(lut,78, advance='no')trim(phlista(lokph)%name),&
+                 ceq%phase_varres(lokcs)%dgm
+78          format(3x,a,1pe12.4)
 !            write(*,98)once,phtupx(once),phasetuple(phtupx(once))%phase,iph,&
 !                 lokcs,ceq%phase_varres(lokcs)%dgm,&
 !                 ceq%phase_varres(lokcs)%netcharge
-98          format('3C dgm: ',5i4,2(1pe12.4))
+98          format('3C dgm: ',5i4,2(1pe12.4),'; ')
          endif
       enddo csloop
    enddo
+   if(once.gt.0) write(*,*)
+! skip the listing below
    goto 1000
    if(once.gt.0) then
       write(lut,110)once
@@ -775,10 +782,10 @@
 ! now: kkz= -3,    -2,         -1,         0,           1,         2 
 ! means SUSPEND, DORMANT, ENTENTED/UNST, ENTERED, ENTERD/STABLE, FIXED
          kkz=ceq%phase_varres(lokcs+1)%phstate
-!         if(kkz.ge.PHDORM) then
-!            write(lut,120)name,phstate(kkz),ceq%phase_varres(lokcs+1)%dgm
+         if(kkz.ge.PHDORM) then
+            write(lut,120)name,phstate(kkz),ceq%phase_varres(lokcs+1)%dgm
 120         format('Phase: ',a,' Status: ',a,' Driving force:',1pe12.4)
-!         endif
+         endif
       enddo
    endif
 1000 continue
@@ -866,6 +873,7 @@
       kstat=4
 ! skip dormant phases unless positive driving force
 !      if(ceq%phase_varres(lokcs)%dgm.le.mindgm) goto 1000
+      goto 1000
    elseif(ceq%phase_varres(lokcs)%phstate.eq.PHSUS) then
 ! skip suspended phases
       status='Suspended'

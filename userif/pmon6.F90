@@ -315,7 +315,7 @@ contains
     character (len=16), dimension(ncadv) :: cadv=&
          ['EQUILIB_TRANSF  ','QUIT            ','EXTRA_PROPERTY  ',&
           'GRID_DENSITY    ','SMALL_GRID_ONOFF','MAP_SPECIAL     ',&
-          '                ','                ','                ',&
+          'TOGGLE_GLOBAL   ','                ','                ',&
           '                ','                ','                ']
 !         123456789.123456---123456789.123456---123456789.123456
 ! subsubcommands to SET BITS
@@ -610,6 +610,7 @@ contains
        last=1
        cline=' *'
        call q3help(cline,last,cbas,ncbas)
+       write(*,*)'An OS command must be prefixed by @'
        goto 100
     else
 ! check for options .... this does not work yet
@@ -837,13 +838,14 @@ contains
              call ask_default_constitution(cline,last,iph,ics,ceq)
 !....................................................
           case(7) ! amend phase <name> LowT_CP_model
-             call gparcd('Einstein CP model? ',cline,last,1,ch1,'Y ',q1help)
-             if(ch1.eq.'Y' .or. ch1.eq.'y') then
+!             call gparcd('Einstein CP model? ',cline,last,1,ch1,'Y ',q1help)
+!             if(ch1.eq.'Y' .or. ch1.eq.'y') then
                 call add_addrecord(lokph,' ',einsteincp)
-             else
-                write(kou,*)'Debye CP model selected'
-                call add_addrecord(lokph,' ',debyecp)
-             endif
+                write(*,*)'Einstein low temperature heat capacity model added'
+!             else
+!                write(kou,*)'Debye CP model selected'
+!                call add_addrecord(lokph,' ',debyecp)
+!             endif
 !....................................................
           case(8) ! amend phase ... FCC_PERMUTATIONS
              if(check_minimal_ford(lokph)) goto 100
@@ -1732,8 +1734,15 @@ contains
 !             endif
              write(*,*)'Not implemented yet'
 !.................................................................
-          case(7) ! nothing yet
-             write(*,*)'Not implemented yet'
+          case(7) ! TOGGLE_GLOBAL
+             if(btest(globaldata%status,GSNOGLOB)) then
+                globaldata%status=ibclr(globaldata%status,GSNOGLOB)
+                write(*,*)'Global minimizer turned on'
+             else
+                globaldata%status=ibset(globaldata%status,GSNOGLOB)
+                write(*,*)'Global minimizer turned off'
+             endif
+!             write(*,*)'Not implemented yet'
 !.................................................................
           case(8) ! nothing yet
              write(*,*)'Not implemented yet'
@@ -3160,6 +3169,15 @@ contains
 ! if line empty return to command level
           j1=1
           if(eolch(line,j1)) goto 100
+! check if there is a , before a ( as that is not allowed.  There are
+! state variables like x(fcc,cr) ...
+          j1=index(line,',')
+          if(j1.gt.0) then
+             if(j1.gt.index(line,'(')) then
+                write(*,*)'Please use only a space as separator!'
+                goto 100
+             endif
+          endif
 ! model is used to return texts
           model=' '
 ! we should extract the text from last up to first space and save rest in cline

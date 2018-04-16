@@ -1298,7 +1298,7 @@
 ! mc number of variable fractions
 ! ceq equilibrum record
 !
-! G = 1.5*R*THET + 3*R*T*ln( 1 - exp( THET/T ) ) 
+! G = 1.5*R*THET + 3*R*T*ln( 1 - exp( -THET/T ) ) 
 ! This is easier to handle inside the calc routine without TPFUN
 !
    implicit none
@@ -1307,8 +1307,10 @@
    type(gtp_phase_add), pointer :: addrec
    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-   integer ith,noprop
-   double precision del1,del2,del3,del4,gein,dgeindt,d2geindt2
+   integer ith,noprop,extreme
+   double precision kvot,expkvot,expmkvot,ln1mexpkvot,kvotexpkvotm1
+!   double precision del1,del2,del3,del4,gein,dgeindt,d2geindt2
+   double precision gein,dgeindt,d2geindt2
 !
    noprop=phres%listprop(1)-1
 !   write(*,*)'3H theta: ',phres%listprop(2),addrec%need_property(1)
@@ -1321,22 +1323,58 @@
    if(phres%gval(1,ith).le.one) then
       write(*,70)'3H Illegal THET for phase ',trim(phlista(lokph)%name),&
            phres%gval(1,ith)
-      goto 1000
+      gx%bmperr=4399; goto 1000
    endif
+! NOTE the parameter value is ln(thera)! take the exponential!
 ! thet is in gval(1,ith), derivatives in dgval(*,ith,*) and d2gval(ith,*)
 ! G/RT = 1.5*THET/T + 3*R*LN(exp(THET/T) - 1) 
 ! NOTE ALL VALUES CALCULATED AS FOR G/RT
-   del1=phres%gval(1,ith)/ceq%tpval(1)
-! we should be careful with numeric overflow, for low T: del1 > 1000
-   del2=exp(del1)
-   del3=del2-one
-! del4 is del3/del2 to avoid numeric overflow
-   del4=one-exp(-del1)
-!  write(*,70)'3H Cp einstein 1: ',ceq%tpval(1),phres%gval(1,ith),del1,del2,del3
-   gein=1.5D0*del1+3.0D0*log(del3)
-   dgeindt=3.0D0*(log(del3)-del1/del4)/ceq%tpval(1)
-! This is the Einstein Cp/RT (ir rather Cv/RT)
-   d2geindt2=-3.0D0*del2*( del1/del3/ceq%tpval(1) )**2
+! kvot=theta/T
+   kvot=exp(phres%gval(1,ith))/ceq%tpval(1)
+!   write(*,70)'3H phres: ',ceq%tpval(1),phres%gval(1,1),phres%gval(2,1),&
+!        phres%gval(3,1),phres%gval(4,1),kvot
+! we should be careful with numeric overflow, for small T or large T
+! no risk for overflow for exp(-kvot)
+   if(kvot.gt.1.0D2) then
+! T is very small, kvot very large, exp(kvot) may cause overflow, 
+! exp(-kvot) is very small, ln(1-exp(-kvot)) is close to zero
+! exp(kvot) may cause overflow, kvot/(exp(kvot)-1)=
+! kvot*exp(-kvot)/(1-exp(-kvot)) = (1-kvot+kvot**2/2-...)/(1-kvot/2+...) = 1
+      extreme=-1
+!      kvotexpkvotm1=one
+      expmkvot=zero
+      kvotexpkvotm1=zero
+      ln1mexpkvot=zero
+   elseif(kvot.lt.1.0D-2) then
+! T is very big, kvot is very small, exp(-kvot) approch 1, 1-exp(-kvot)=kvot
+! exp(-kvot) is close unity, ln(1-exp(-kvot))=ln(1-(1-kvot+kvot**2/2+...)) =
+!            ln(kvot-kvot**2/2+...)=ln(kvot)
+! exp(kvot) is close to unity: exp(kvot)-1 = kvot+kvot**2/2+ ...
+      extreme=1
+      expmkvot=exp(-kvot)
+      kvotexpkvotm1=kvot/(exp(kvot)-one)
+      ln1mexpkvot=log(one-expmkvot)
+   else
+! normal range of T and kvot
+      extreme=0
+      expmkvot=exp(-kvot)
+      kvotexpkvotm1=kvot/(exp(kvot)-one)
+      ln1mexpkvot=log(one-expmkvot)
+   endif
+! 
+   gein=1.5D0*kvot+3.0D0*ln1mexpkvot
+!   write(*,71)'3H Cp E1:',extreme,ceq%tpval(1),gein,ln1mexpkvot,expmkvot,&
+!        kvotexpkvotm1
+! first derivative wrt T taking care of overflow
+   dgeindt=3.0D0*(ln1mexpkvot-kvotexpkvotm1)/ceq%tpval(1)
+! This is d2G/dT**2/(RT) = -T**2/R*(Einstein Cp/RT) (or rather Cv/RT)
+   if(extreme.eq.-1) then
+! take care of overflow at low T, kvotexpkvotm1=expmkvot=0 set above
+      d2geindt2=zero
+   else
+      d2geindt2=-3.0D0*kvotexpkvotm1**2/(expmkvot*ceq%tpval(1)**2)
+   endif
+! return the values in phres%gval(*,1)
    phres%gval(1,1)=phres%gval(1,1)+gein
    phres%gval(2,1)=phres%gval(2,1)+dgeindt
 !   phres%gval(3,1)=phres%gval(3,1)
@@ -1346,9 +1384,10 @@
    addrec%propval(1)=gein
    addrec%propval(2)=dgeindt
    addrec%propval(4)=d2geindt2
-!   write(*,70)'3H Cp einstein 5: ',ceq%tpval(1),gein,dgeindt,d2geindt2
-70 format(a,F7.2,4(1pe12.2))
-! Missing implem of derivatives wrt fractions of thet.  thet cannot depend on T
+!   write(*,70)'3H Cp E3: ',ceq%tpval(1),gein,dgeindt,d2geindt2
+70 format(a,F7.2,5(1pe12.4))
+71 format(a,i3,1x,F7.2,5(1pe12.4))
+! Missing implem of derivatives wrt comp.dep of thet.  thet cannot depend on T
 1000 continue
    return
  end subroutine calc_einsteincp
@@ -1420,9 +1459,11 @@
 !
 !------------------------------
 ! The value of Gd for the phase is calculated and added to G
-   integer jj,noprop,ig2,ith
-   double precision del1,del2,del3,del4,gein,dgeindt,d2geindt2
-   double precision g2val,dg2
+   integer jj,noprop,ig2,ith,extreme
+!   double precision del1,del2,del3,del4,gein,dgeindt,d2geindt2
+   double precision gein,dgeindt,d2geindt2
+   double precision kvot,expkvot,expmkvot,ln1mexpkvot,kvotexpkvotm1
+   double precision g2val,dg2,expg2,expmg2,rt,tv,rg,dg2dt,dgxdt,d2g2dt2
 ! number of properties calculatied
    noprop=phres%listprop(1)-1
 ! locate the THET and G2 property record 
@@ -1438,65 +1479,123 @@
       endif
    enddo findix
    if(ith.eq.0) then
-      write(*,*)'Cannot found value for amorphous THET'
+      write(*,*)'Cannot find value for amorphous THET'
       gx%bmperr=4399; goto 1000
    endif
    if(ig2.eq.0) then
-      write(*,*)'Cannot found value for G2 two-state parameter'
+      write(*,*)'Cannot find value for G2 two-state parameter'
       gx%bmperr=4399; goto 1000
    endif
 !----------------------------------
 ! for the moment the composition dependence is ignored
-!------ THET part copied from calc_einstein
+!   write(*,19)'3H 2no1: ',phres%gval(1,1),phres%gval(2,1),phres%gval(4,1)
+!------ this THET part copied from calc_einstein
 ! thet is in gval(1,ith), derivatives in dgval(*,ith,*) and d2gval(ith,*)
 ! G/RT = 1.5*THET/T + 3*R*LN(exp(THET/T) - 1) 
 ! NOTE ALL VALUES CALCULATED AS FOR G/RT
-   del1=phres%gval(1,ith)/ceq%tpval(1)
-! we should be careful with numeric overflow, for low T: del1 > 1000
-   del2=exp(del1)
-   del3=del2-one
-! del4 is del3/del2 to avoid numeric overflow
-   del4=one-exp(-del1)
-   write(*,70)'3H Cp amorphous 1:',ceq%tpval(1),phres%gval(1,ith),del1,del2,del3
-70 format(a,f8.2,6(1pe12.4))
-   gein=1.5D0*del1+3.0D0*log(del3)
-   dgeindt=3.0D0*(log(del3)-del1/del4)/ceq%tpval(1)
-! This is the Einstein Cp/RT (ir rather Cv/RT)
-   d2geindt2=-3.0D0*del2*( del1/del3/ceq%tpval(1) )**2
+! kvot=theta/T
+! NOTE the stored value is ln(theta! !!!
+   kvot=exp(phres%gval(1,ith))/ceq%tpval(1)
+!   write(*,70)'3H phres: ',ceq%tpval(1),phres%gval(1,1),phres%gval(2,1),&
+!        phres%gval(3,1),phres%gval(4,1),kvot
+! we should be careful with numeric overflow, for small T or large T
+! no risk for overflow for exp(-kvot)
+!   expmkvot=exp(-kvot)
+!   ln1mexpkvot=log(one-expmkvot)
+   if(kvot.gt.1.0D2) then
+! T is very small, kvot very large, exp(kvot) may cause overflow, 
+! exp(-kvot) is very small, ln(1-exp(-kvot)) is close to zero
+! exp(kvot) may cause overflow, kvot/(exp(kvot)-1)=
+! kvot*exp(-kvot)/(1-exp(-kvot)) = (1-kvot+kvot**2/2-...)/(1-kvot/2+...) = 1
+      extreme=-1
+      expmkvot=zero
+      ln1mexpkvot=zero
+      kvotexpkvotm1=zero
+   elseif(kvot.lt.1.0D-2) then
+! T is very big, kvot is very small, exp(-kvot) approch 1, 1-exp(-kvot)=kvot
+! exp(-kvot) is close unity, ln(1-exp(-kvot))=ln(1-(1-kvot+kvot**2/2+...)) =
+!            ln(kvot-kvot**2/2+...)=ln(kvot)
+! exp(kvot) is close to unity: exp(kvot)-1 = kvot+kvot**2/2+ ...
+      extreme=1
+      expmkvot=exp(-kvot)
+      ln1mexpkvot=log(one-expmkvot)
+      kvotexpkvotm1=kvot/(exp(kvot)-one)
+   else
+! normal range of T and kvot
+      extreme=0
+      expmkvot=exp(-kvot)
+      ln1mexpkvot=log(one-expmkvot)
+      kvotexpkvotm1=kvot/(exp(kvot)-one)
+   endif
+! 
+   gein=1.5D0*kvot+3.0D0*ln1mexpkvot
+!   write(*,71)'3H Cp E1:',extreme,ceq%tpval(1),gein,ln1mexpkvot,expmkvot,&
+!        kvotexpkvotm1
+! first derivative wrt T taking care of overflow
+   dgeindt=3.0D0*(ln1mexpkvot-kvotexpkvotm1)/ceq%tpval(1)
+! This is d2G/dT**2/(RT) = -T**2/R*(Einstein Cp/RT) (or rather Cv/RT)
+   if(extreme.eq.-1) then
+! take care of overflow at low T
+      d2geindt2=zero
+   else
+      d2geindt2=-3.0D0*kvotexpkvotm1**2/(expmkvot*ceq%tpval(1)**2)
+   endif
+! return the values in phres%gval(*,1)
    phres%gval(1,1)=phres%gval(1,1)+gein
    phres%gval(2,1)=phres%gval(2,1)+dgeindt
 !   phres%gval(3,1)=phres%gval(3,1)
    phres%gval(4,1)=phres%gval(4,1)+d2geindt2
-   write(*,70)'3H Cp amorphous 2:',ceq%tpval(1),gein,dgeindt,d2geindt2
 !   phres%gval(5,1)=phres%gval(5,1)
 !   phres%gval(6,1)=phres%gval(6,1)
-!   addrec%propval(1)=gein
-!   addrec%propval(2)=dgeindt
-!   addrec%propval(4)=d2geindt2
-!
-!------ two state part
-   dg2=log(one+exp(-g2val/ceq%rtn))
-! NOTE values in gval(*,1) are divided by RT
+   addrec%propval(1)=gein
+   addrec%propval(2)=dgeindt
+   addrec%propval(4)=d2geindt2
+!   write(*,71)'3H Cp E3: ',extreme,ceq%tpval(1),gein,dgeindt,d2geindt2
+70 format(a,F7.2,5(1pe12.4))
+71 format(a,i3,1x,F7.2,5(1pe12.4))
+! Missing implem of derivatives wrt comp.dep of thet.  thet cannot depend on T
+!-------------------------- two state part DIVIDE BY RT
+   dg2dt=phres%gval(2,ig2)
+   dg2=zero; d2g2dt2=zero
+   if(g2val.eq.zero .and. dg2dt.eq.zero) then
+      write(*,*)'3H: G2 parameter zero, ignoring twostate model',g2val
+      goto 900
+   endif
+!   write(*,19)'3H +am ',phres%gval(1,1),phres%gval(2,1),phres%gval(4,1)
+19 format(a,6(1pe12.4))
+   rt=ceq%rtn
+   tv=ceq%tpval(1)
+   rg=globaldata%rgas
+   expmg2=exp(-g2val/rt)
+   expg2=one/expmg2
+   dg2=log(one+expmg2)
+!   write(*,19)'3H G2: ',g2val/rt,expmg2,dg2,dg2*rt
+! NOTE values added to gval(*,1) must be divided by RT
+! RT*ln(1+exp(-g2/RT))
 ! G
    phres%gval(1,1)=phres%gval(1,1)-dg2
+! (R*ln(1+g2val) + (g2/tv-dg2/dt)/(1+exp(-g2/RT)))/RT
 ! G.T
-   phres%gval(2,1)=phres%gval(2,1)+&
-        globaldata%rgas*(ceq%tpval(1)*phres%gval(2,ig2)-dg2)/ceq%rtn**2
+   dgxdt=(rg*dg2+(g2val/tv-dg2dt)/(expg2+one))/rt
+   phres%gval(2,1)=phres%gval(2,1)-dgxdt
 ! G.P   is zero
+!-------------------------- tentative:
+! (-d2g2/dt2+((g2/tv)**2+(dg2/dt)**2-2*g2/tv*dg2/dt)/(rt*(1+exp(-g2/rt))))/
+!   (1+exp(g2/RT))
 ! G.T.T 
-   phres%gval(4,1)=phres%gval(4,1)+phres%gval(4,ig2)/ceq%rtn-&
-        2.0D0*globaldata%rgas*(ceq%tpval(1)*phres%gval(2,ig2)-dg2)/ceq%rtn**3
+   d2g2dt2=(-phres%gval(4,ig2)+((g2val/tv)**2+(dg2dt)**2-&
+        2.0D0*(g2val/tv)*dg2dt)/(rt*(one+expmg2)))/(rt*(one+expg2))
+   phres%gval(4,1)=phres%gval(4,1)-d2g2dt2
+!   write(*,19)'3H dg2: ',dg2dt,phres%gval(4,ig2),g2val/tv,expmg2,expg2
 ! G.T.P is zero
 ! G.P.P is zero
-! save local values
+!   write(*,19)'3H 2st:',phres%gval(1,1),phres%gval(2,1),phres%gval(4,1)
+! save local values divided by RT?
+900 continue
+   addrec%propval=zero
    addrec%propval(1)=gein-dg2
-   addrec%propval(2)=dgeindt+&
-        globaldata%rgas*(ceq%tpval(1)*phres%gval(2,ig2)-dg2)/ceq%rtn**2
-   addrec%propval(3)=zero
-   addrec%propval(4)=d2geindt2+phres%gval(4,ig2)/ceq%rtn-&
-        2.0D0*globaldata%rgas*(ceq%tpval(1)*phres%gval(2,ig2)-dg2)/ceq%rtn**3
-   addrec%propval(5)=zero
-   addrec%propval(6)=zero
+   addrec%propval(2)=dgeindt-dgxdt
+   addrec%propval(4)=d2geindt2-d2g2dt2
 1000 continue
    return
  end subroutine calc_twostate_model1
@@ -1555,7 +1654,7 @@
    write(*,*)'3H No Debye temperature THET',lokph
    gx%bmperr=4336; goto 1000
 100 continue
-   write(*,*)'3H Not implemented yet'
+   write(*,*)'3H Deby low T heat capacity model not implemented'
    gx%bmperr=4078
 1000 continue
    return
@@ -1643,7 +1742,7 @@
 !---------------------------------------------
    case(einsteincp) ! Einstein Cp model
       write(unit,400)chc
-400   format(a,'+ Einstein Cp model: G = 1.5*R*THET + 3*R*T*ln(exp(THET/T)-1)')
+400   format(a,'+ Einstein Cp model: G= 1.5*R*THET + 3RTln(exp(THET/T)-1)')
 !---------------------------------------------
    case(elasticmodel1) ! Elastic model 1
       write(unit,500)
@@ -1652,7 +1751,7 @@
 !---------------------------------------------
    case(twostatemodel1) ! Two state  model 1
       write(unit,510)
-510   format('  + Liquid 2 state model G(liq) = G(am)-RTln(1+exp(-G2/RT)')
+510   format('  + Liquid 2 state model: G=G(liq)+G(am)-RTln(1+exp(-G2/RT)')
 !---------------------------------------------
    case(volmod1) ! Volume model 1
       write(unit,520)chc

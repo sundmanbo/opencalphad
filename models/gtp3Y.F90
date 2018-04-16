@@ -5272,6 +5272,10 @@
 !
 !   write(*,*)'3Y In global_equil_check1',mode
    global=.TRUE.
+   if(btest(globaldata%status,GSNOGLOB)) then
+      write(*,*)'3Y Ignoring call to global_equil_check as global turned off!'
+      goto 2000
+   endif
    notglobwarning1=.TRUE.
    notglobwarning2=.TRUE.
    addgridpoint=.TRUE.
@@ -5450,7 +5454,6 @@
       addtuple=iphz
       gx%bmperr=4352
    endif
-   global_equil_check1=global
 !   write(*,*)'3Y Deallocating, check due to segmentation fault ...'
    if(allocated(xarr)) then
       deallocate(xarr)
@@ -5458,6 +5461,8 @@
       deallocate(kphl)
       deallocate(iphx)
    endif
+2000 continue
+   global_equil_check1=global
    return
  end function global_equil_check1
 
@@ -6103,6 +6108,88 @@
  end subroutine todo_before
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
+ subroutine set_emergency_startpoint(mode,phl,amfu,ceq)
+! this is called if no previous equilibrium and if grid minimizer
+! cannot be used.  Select for each element a phase with as much of that
+! element as possible to set as stable. Set the remaining phases to a default
+! composition.  It will never create any compositon sets
+!
+   implicit none
+   integer mode,phl(*)
+   double precision amfu(*)
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   integer iph,lokph,lokcs,iel
+   integer, allocatable, dimension(:) :: selected
+   double precision, allocatable, dimension(:,:) :: maxel
+   double precision, allocatable, dimension(:) :: wmass
+   double precision totmol,totmass,am
+!
+   write(*,*)'In emergency startpoint: ',mode,noofel,noofph
+   allocate(selected(noofel))
+   allocate(maxel(noofel,noofph))
+   allocate(wmass(noofel))
+!   phl=0
+!   amfu=zero
+   maxel=zero
+   phloop1: do iph=1,noofph
+      lokph=phases(iph)
+      lokcs=phlista(iph)%linktocs(1)
+      if(ceq%phase_varres(lokcs)%phstate.le.PHDORM) cycle phloop1
+      if(phlista(iph)%tnooffr-phlista(iph)%noofsubl.eq.0) then
+         call calc_phase_molmass(iph,1,maxel(1,iph),wmass,totmol,totmass,am,ceq)
+         if(gx%bmperr.ne.0) goto 1000
+      else
+         write(*,*)'3Y TODO: Phases with variable composition not included yet'
+      endif
+! loop through all fractions to find limits            
+   enddo phloop1
+!   do iph=1,noofph
+!      write(*,100)iph,(maxel(iel,iph),iel=1,noofel)
+!   enddo
+100 format('3Y maxel: ',i3,6(F8.5))
+   selected=0
+   wmass=zero
+   phloop2: do iph=1,noofph
+      lokph=phases(iph)
+      lokcs=phlista(iph)%linktocs(1)
+      if(ceq%phase_varres(lokcs)%phstate.le.PHDORM) cycle phloop2
+      elloop1: do iel=1,noofel
+         if(maxel(iel,iph).gt.wmass(iel)) then
+            wmass(iel)=maxel(iel,iph)
+            selected(iel)=iph
+! we can only have one element selected per phase ...
+            cycle phloop2
+         endif
+      enddo elloop1
+   enddo phloop2
+!   write(*,*)'3Y Emergency startpoint testing',mode
+!   write(*,200)'3Y selected: ',(selected(iel),iel=1,noofel)
+200 format(a,10i4)
+! Now set default constitution of all non-selected and non-suspended phases
+   phloop3: do iph=1,noofph
+      lokph=phases(iph)
+      lokcs=phlista(iph)%linktocs(1)
+      if(ceq%phase_varres(lokcs)%phstate.le.PHDORM) cycle phloop3
+      do iel=1,noofel
+         if(iph.eq.selected(iel)) cycle phloop3
+      enddo
+!      write(*,*)'3Y TODO set default constitutions: ',iph
+      call set_default_constitution(iph,1,ceq)
+      if(gx%bmperr.ne.0) goto 1000
+   enddo phloop3
+   mode=noofel
+   do iph=1,mode
+      phl(iph)=selected(iph)
+   enddo
+!
+1000 continue
+   return
+ end subroutine set_emergency_startpoint
+
+ !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim}
  subroutine todo_after_found_equilibrium(mode,addtuple,ceq)

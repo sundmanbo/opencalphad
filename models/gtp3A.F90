@@ -2479,18 +2479,25 @@ end function find_phasetuple_by_indices
     integer iadd,irem
 !\end{verbatim}
     integer lokph1,lokph2,nofr,jj
+    double precision x1mol(maxel),x2mol(maxel),wmass(maxel),totmol,totmass,am
     logical allo
     allo=.false.
     write(*,*)'3A checking if two phases are allotropes',irem,iadd
     lokph1=phases(irem)
-    nofr=phlista(lokph1)%tnooffr
-    if(nofr-phlista(lokph1)%noofsubl.eq.0) then
-       lokph2=phases(iadd)
-       if(nofr-phlista(lokph2)%noofsubl.eq.0) then
-          do jj=1,nofr
-             if(phlista(lokph1)%constitlist(jj).ne.&
-                  phlista(lokph2)%constitlist(jj)) goto 1000
-          enddo
+    lokph2=phases(iadd)
+! check if both have fixed composition
+    if(phlista(lokph1)%noofsubl-phlista(lokph1)%tnooffr.eq.0 .and. &
+         phlista(lokph2)%noofsubl-phlista(lokph2)%tnooffr.eq.0) then
+! they have fixed composition but can be modelled differently
+! we have to calculate their mole fractions ...
+       call calc_phase_molmass(irem,1,x1mol,wmass,totmol,totmass,am,ceq)
+       call calc_phase_molmass(irem,1,x2mol,wmass,totmol,totmass,am,ceq)
+       if(gx%bmperr.ne.0) goto 1000
+       do jj=1,noofel
+          if(abs(x1mol(jj)-x2mol(jj)).gt.1.0D-6) exit
+       enddo
+! Fortran standard says jj>noofel if loop finish without exit
+       if(jj.gt.noofel) then
           allo=.true.
 !          write(*,*)'The phases are allotropes!',ceq%tpval(1)
        endif

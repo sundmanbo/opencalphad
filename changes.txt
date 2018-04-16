@@ -13,6 +13,11 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2018.04.17 OC version 5.011: The convergence criteria has been changed
+slightly again because there were troubles with some macros.
+Otherwise I have worked with the unary models and the mapping, without
+much success for the moment.
+
 2018.04.03 OC version 5.010: I have increased the convergence criteria
 slightly due to a case Nathalie showed me, it means a few more
 iterations in some cases when the Gibbs energy surface is rather flat.
