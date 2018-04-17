@@ -822,6 +822,7 @@ contains
              else
 ! like FCC ordering
                 j1=1
+                write(kou,*)'This phase can be totally disordered'
              endif
              ch1='D'
              call add_fraction_set(iph,ch1,ndl,j1)
@@ -829,6 +830,10 @@ contains
 !....................................................
           case(4) ! amend phase <name> twostate_liquid model
              call add_addrecord(lokph,' ',twostatemodel1)
+             write(kou,667)
+667          format('You must enter THET parameters for the Einstein',&
+                  ' T of the amorphous state'/'and G2 parameters for the',&
+                  ' transition to the liquid state.')
 !....................................................
           case(5) ! amend phase ... unused
              goto 100
@@ -3169,12 +3174,14 @@ contains
 ! if line empty return to command level
           j1=1
           if(eolch(line,j1)) goto 100
-! check if there is a , before a ( as that is not allowed.  There are
-! state variables like x(fcc,cr) ...
           j1=index(line,',')
           if(j1.gt.0) then
-             if(j1.gt.index(line,'(')) then
-                write(*,*)'Please use only a space as separator!'
+! check if there is a , before a ( as that is not allowed.  There are
+! state variables like x(fcc,cr) ... (this is not a strong test ...)
+             ll=index(line,'(')
+             if(ll.le.0 .or. ll.gt.j1) then
+                write(*,*)'Please use a space as separator',&
+                     ' except within ( ) as in x(liq,cr) !'
                 goto 100
              endif
           endif
@@ -3199,8 +3206,8 @@ contains
                 write(lut,6107)(yarr(i2),i2=1,i1)
 6107            format('Values: ',5(1pe14.6)/(8x,5(1pe14.6)))
                 if(index(name1,'*,').gt.0) write(*,6121)trim(name1)
-6121            format('Please note that ',a,&
-                     ' is listed as zero for unstable phases!')
+6121            format(' *** Note that for unstable phases ',a,&
+                     ' is not shown or listed as zero')
              endif
           else
 ! the value of a state variable or model parameter variable is returned

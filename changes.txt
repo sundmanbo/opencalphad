@@ -13,6 +13,11 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2018.04.18 OC version 5.012: A small but very irritating bug for the
+user i/f and another bug plotting isothermal section fixed.  But no
+fear, ther are a lot of more bugs to fix when mapping and plotting
+with tie-lines in the plane.
+
 2018.04.17 OC version 5.011: The convergence criteria has been changed
 slightly again because there were troubles with some macros.
 Otherwise I have worked with the unary models and the mapping, without

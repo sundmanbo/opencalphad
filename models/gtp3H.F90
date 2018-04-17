@@ -1463,7 +1463,7 @@
 !   double precision del1,del2,del3,del4,gein,dgeindt,d2geindt2
    double precision gein,dgeindt,d2geindt2
    double precision kvot,expkvot,expmkvot,ln1mexpkvot,kvotexpkvotm1
-   double precision g2val,dg2,expg2,expmg2,rt,tv,rg,dg2dt,dgxdt,d2g2dt2
+   double precision g2val,dg2,expg2,expmg2,rt,tv,rg,dg2dt,dgfdt,d2g2dt2
 ! number of properties calculatied
    noprop=phres%listprop(1)-1
 ! locate the THET and G2 property record 
@@ -1576,8 +1576,8 @@
    phres%gval(1,1)=phres%gval(1,1)-dg2
 ! (R*ln(1+g2val) + (g2/tv-dg2/dt)/(1+exp(-g2/RT)))/RT
 ! G.T
-   dgxdt=(rg*dg2+(g2val/tv-dg2dt)/(expg2+one))/rt
-   phres%gval(2,1)=phres%gval(2,1)-dgxdt
+   dgfdt=(rg*dg2+(g2val/tv-dg2dt)/(expg2+one))/rt
+   phres%gval(2,1)=phres%gval(2,1)-dgfdt
 ! G.P   is zero
 !-------------------------- tentative:
 ! (-d2g2/dt2+((g2/tv)**2+(dg2/dt)**2-2*g2/tv*dg2/dt)/(rt*(1+exp(-g2/rt))))/
@@ -1594,7 +1594,7 @@
 900 continue
    addrec%propval=zero
    addrec%propval(1)=gein-dg2
-   addrec%propval(2)=dgeindt-dgxdt
+   addrec%propval(2)=dgeindt-dgfdt
    addrec%propval(4)=d2geindt2-d2g2dt2
 1000 continue
    return

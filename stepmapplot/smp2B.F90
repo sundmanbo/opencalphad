@@ -1325,6 +1325,7 @@
     character xax1*8,xax2*24,yax1*8,yax2*24,axis1*32,axisx(2)*32,axisy(2)*32
     character phname*32,encoded*1024,axis*32
     character lid(2,maxsame)*24
+    integer nooflineends
 !
 ! xval and yval and ccordinates to plot, 
 ! points on one line is       xval(1,jj),yval(1,jj)
@@ -1341,6 +1342,7 @@
        write(*,*)'No data to plot'
        goto 1000
     endif
+    nooflineends=0
 !    write(*,17)
 17  format(//'Using ocplot3')
 ! extract the axis variables
@@ -1590,7 +1592,7 @@
     call get_plot_conditions(encoded,maptop%number_ofaxis,axarr,ceq)
 ! now we should have all data to plot in xval and yval arrays
 500 continue
-!    write(*,*)'found lines/points to plot: ',same,plotp
+!    write(*,*)'found lines/points to plot: ',same,plotp,nofinv
 !    write(*,502)(lineends(ii),ii=1,same)
 502 format(10i5)
 ! NOW pltax should be the the axis labels if set manually
@@ -1598,7 +1600,6 @@
     if(graphopt%labeldefaults(3).ne.0) pltax(2)=graphopt%plotlabels(3)
     call ocplot3B(same,nofinv,lineends,2,xval,2,yval,2,zval,plotkod,pltax,&
          lid,filename,graphopt,version,encoded)
-!         lid,filename,graphopt,pform,version,encoded)
     deallocate(xval)
     deallocate(yval)
     deallocate(plotkod)
@@ -1611,7 +1612,6 @@
 !\begin{verbatim} %-
   subroutine ocplot3B(same,nofinv,lineends,nx1,xval,ny1,yval,nz1,zval,plotkod,&
        pltax,lid,filename,graphopt,version,conditions)
-!       pltax,lid,filename,graphopt,pform,version,conditions)
 ! called by ocplot3 to write the GNUPLOT file for two wildcard columns
 ! same is the number of lines to plot
 ! nofinv number of invariants
@@ -1671,6 +1671,8 @@
     else
        labelkey=graphopt%labelkey
     endif
+! problems with identifying invariants and tie-lines lines
+    lcolor=0
 !
     if(index(filename,'.plt ').le.0) then 
        kk=len_trim(filename)
@@ -1969,27 +1971,32 @@
           iz=iz+1
 ! plotkod -1 negative means ignore
 ! plotkod -100 and -101 used for tie-lines
-          if(jj.eq.2 .and. plotkod(iz).eq.-1) cycle pair
-             do ic=1,nnv
-                if(trim(lid(jj,ii)).eq.trim(color(ic))) then
-                   if(iz.gt.maxcolor) then
-                      write(kou,*)'lcolor dimension overflow',iz
-                   else
-                      lcolor(iz)=ic
-                   endif
-                   goto 295
+          if(jj.eq.2 .and. plotkod(iz).eq.-1) then
+             write(*,*)'Ignoring this line ',jj,iz,plotkod(iz)
+!             cycle pair
+             cycle point
+          endif
+          do ic=1,nnv
+             if(trim(lid(jj,ii)).eq.trim(color(ic))) then
+                if(iz.gt.maxcolor) then
+                   write(kou,*)'lcolor dimension overflow',iz
+                else
+                   lcolor(iz)=ic
                 endif
-             enddo
+                goto 295
+             endif
+          enddo
 ! no match, increment nnv and assign that color to lcolor
 ! skip colors 11 and 12, reserved for invariants and tielines
           nnv=nnv+1
           lcolor(iz)=nnv
           color(nnv)=lid(jj,ii)
-!          write(*,293)'Assigned: ',nnv,jj,ii,iz,trim(color(nnv))
+!          write(*,293)'color select: ',nnv,jj,ii,iz,trim(color(nnv))
 293       format(a,4i5,' "',a,'"')
 295       continue
        enddo point
     enddo pair
+!    write(*,*)'Finished assigning colors',iz
 ! replace _ by - (in phase names)
     do kk=1,nnv
 297    continue
@@ -2001,13 +2008,17 @@
     enddo
 !---------------------------------------------------------------
 ! check for invariant and tieline and replace color!
-!    do ii=1,2*same
-!       write(*,*)'original: ',ii,lcolor(ii),trim(color(lcolor(ii)))
-!    enddo
+    do ii=1,2*same
+       if(lcolor(ii).le.0) then
+          write(*,*)'missing color in ',ii,' out of ',2*same
+!       else
+!          write(*,*)'original: ',ii,lcolor(ii),trim(color(lcolor(ii)))
+       endif
+    enddo
     lcolor1: do ii=1,2*same
        jj=lcolor(ii)
        if(trim(color(jj)).eq.'invariant') then
-!          write(*,*)'Changing ',ii,jj,' to 11'
+!          write(*,*)'found invariant ',ii,jj,2*same
           lcolor(ii)=11
           color(11)='invariant'
           do kk=ii+1,2*same
@@ -2016,18 +2027,27 @@
                 lcolor(kk)=11
              endif
           enddo
-          exit lcolor1
+! why exit?
+!          exit lcolor1
        endif
     enddo lcolor1
     lcolor2: do ii=1,2*same
        jj=lcolor(ii)
+       if(jj.le.0 .or. jj.gt.maxcolor) then
+! this is a line that should not be plotted ...
+          write(*,*)'smp2B: problem: ',ii,jj
+          lcolor(ii)=11
+          cycle lcolor2
+       endif
        if(trim(color(jj)).eq.'tieline') then
+!          write(*,*)'found tie-line ',ii,jj
           lcolor(ii)=12
           color(12)='tie-line'
           do kk=ii+1,2*same
              if(lcolor(kk).eq.jj) lcolor(kk)=12
           enddo
-          exit lcolor2
+! why exit?
+!          exit lcolor2
        endif
     enddo lcolor2
 !    do ii=1,2*same
@@ -2068,7 +2088,7 @@
        enddo
     endif
 !----------------------------------------------------------------
-! this is subroutine ocplot3B
+! this is subroutine ocplot3B for two extensive axis
 !----------------------------------------------------------------
 ! Here we generate the datafile with coordinates to plot
 ! if nx1 or ny1 is 1 plot all on other axis versus single axis coordinate

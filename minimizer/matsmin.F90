@@ -2104,6 +2104,8 @@ CONTAINS
                 dgmmax=dgm
              endif
           endif
+! The difference between previous and current DGM is used to check for
+! convergence below.  Very important to check if continue iterating!!
           phr(jj)%prevdg=phr(jj)%curd%dgm
           phr(jj)%curd%dgm=dgm
        endif
@@ -2223,7 +2225,8 @@ CONTAINS
 !                         converged=4
 !                      if(converged.lt.2) then
 !                         converged=2
-! The the decrease in driving force is greater than 0.05 continue
+! If the decrease in driving force is greater than 0.05
+! for a metastable phase continue iterating ...
                       if(converged.lt.4 .and. &
                            phr(jj)%curd%dgm-phr(jj)%prevdg.gt.5.0E-2) then
                          converged=4
