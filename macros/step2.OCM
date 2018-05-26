@@ -19,7 +19,7 @@ new Y
 @$
 @$
 @$ step2.COM
-@$ Calculating G curves for the phases in Ag-Cu
+@$ Calculating G curves, activity, log activity and stability function for the phases in Ag-Cu
 @$ ===================================================================
 @&
 
@@ -68,13 +68,36 @@ G(*)
 title step2 fig 1
 render
 
+@& Thermodynamic activity  curves  of different Ag phases at 1000 K
+plot
+x(cu)
+ac(ag)
+title step2 fig 2
+
+@& Logarithmic of thermodynamic activity = deltaG_{Ag}/RT = Deltamu/RT
+plot
+x(cu)
+lnac(ag)
+title step2 fig 3
+
+@& Thermodynamic activity  curves  of different Cu phases at 1000 K
+plot
+x(ag)
+ac(cu)
+title step2 fig 4
+
+@& Logarithmic of thermodynamic activity = deltaG_{Cu}/RT = Deltamu/RT
+plot
+x(ag)
+lnac(cu)
+title step2 fig 5
 
 @$ plot the stability function, the lowest eigenvalue 
 
 plot
 x(cu)
 Q(*)
-title step2 fig 2
+title step2 fig 6
 render
 
 
