@@ -693,7 +693,12 @@
       call generate_fccord_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,gmax,ceq)
 ! do not jump to 1000 until the fccord routine implemented correctly
 !      write(*,*)'3Y back from fccord_grid 1, jump to 1000',ngg
-      goto 1000
+! This routine return gx%bmperr=-1 if if cannot handle the gridgenerating
+      if(gx%bmperr.eq.-1) then
+         gx%bmperr=0
+      else
+         goto 1000
+      endif
    elseif((btest(globaldata%status,GSXGRID) .or. & 
             test_phase_status_bit(iph,PHXGRID)) .and. &
         .not.test_phase_status_bit(iph,PHGAS)) then
@@ -848,7 +853,7 @@
 !   endif
 150 continue
 !---------------------------------------
-! jump here from generate_fccord_grid
+! jump here from generate_fccord_grid  ... not any more ...
 170 continue
 ! now generate all combinations of endmembers
 !   write(*,*)'3Y endmembers and gridpoints: ',nend,ngg
@@ -1204,7 +1209,12 @@
       call generate_fccord_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,gmax,ceq)
 !      write(*,*)'3Y back from fccord_grid 2, jump to 1000',ngg
 !      goto 200
-      goto 1000  !???
+      if(gx%bmperr.eq.-1) then
+! if gx%bmperr is -1 on return use default grindgenerator
+         gx%bmperr=0
+      else
+         goto 1000
+      endif
    elseif((btest(globaldata%status,GSXGRID) .or. & 
             test_phase_status_bit(iph,PHXGRID)) .and. &
         .not.test_phase_status_bit(iph,PHGAS)) then
@@ -1274,7 +1284,7 @@
 !      write(*,22)ii,(yendm(ij,ii),ij=1,incl(nsl))
 22    format(i3,20F4.1)
 !   enddo
-! jump here from generate_fccord_grid
+! jump here from generate_fccord_grid ... not any longer ...
 200 continue
 ! now generate an grid depending on nend mixing up to 5 different endmembers.
 ! up to for 4 endmembers 4*4*4*4*4=1024
@@ -2673,6 +2683,11 @@
       incl(ij)=incl(ij-1)+nkl(ij)
    enddo
    ncon=incl(nsl)
+! if nend<15 there is a single constituent on the ordered sublattices
+   if(nend.lt.16) then
+      gx%bmperr=-1
+      goto 1010
+   endif
 ! nend is number of endmembers, endm(1..nsl,ii) are constituent index of ii
 ! yendm(1..nsl,ii) has the constituent fractions for endmember ii
 ! yfra is used to generate a constitutuon from a combination of endmembers
@@ -2927,9 +2942,9 @@
 ! restore the composition
       call set_constitution(iph,1,ysave,qq,ceq)
    endif
+! nothing done, just exit
 1010 continue
    return
-   write(*,*)'3Y finished generate_fccord_grid: ',mode
 ! dense gles
  end subroutine generate_fccord_grid
 

@@ -881,8 +881,10 @@
 !   write(lut)ceq%eqname,ceq%eqno,ceq%status,ceq%next
 ! status,multi,eqno,next,name,comment,tpval(2),rtn,weight,
 ! (links to cond,exper), complist(nel),(link to compstoi*(nel*nel))
-! highcs, (link to phase_varres), mu(nel), xconc,gmind,eqextra,maxiter
-   rsize=4+nwch(24)+nwch(72)+4*nwpr+2+2*noofel+4+3*nwpr
+! old: highcs, (link to phase_varres), mu(nel), xconc,gmind,eqextra,maxiter
+! highcs, (link to phase_varres),mu(nel),xconc, gdconv(2),gmind,eqextra,maxiter
+!   rsize=4+nwch(24)+nwch(72)+4*nwpr+2+2*noofel+4+3*nwpr
+   rsize=4+nwch(24)+nwch(72)+4*nwpr+2+2*noofel+4+5*nwpr
    call wtake(lokeq,rsize,iws)
    if(buperr.ne.0) then
       write(*,*)'3E Error reserving equilibrium record'
@@ -1267,11 +1269,15 @@
    csfree=highcs+1
 !-----------------------------------------
 ! mu(nel), xconc,gmind,eqextra,maxiter
+! MODIFIED: mu(nel), xconc, gdconv(2), gmind,eqextra,maxiter
    iws(lokeq+eqdis)=ceq%maxiter
    call storrn(noofel,iws(lokeq+eqdis+1),ceq%cmuval)
    eqdis=eqdis+1+noofel*nwpr
    call storr(lokeq+eqdis,iws,ceq%xconv)
-   call storr(lokeq+eqdis+nwpr,iws,ceq%gmindif)
+   call storr(lokeq+eqdis+nwpr,iws,ceq%gdconv(1))
+   call storr(lokeq+eqdis+2*nwpr,iws,ceq%gdconv(2))
+   call storr(lokeq+eqdis+3*nwpr,iws,ceq%gmindif)
+! last use of lokeq !!
 !   write(*,*)'3E NOT saving the character eqextra!'
 !   call storc(lokeq+displace+2*nwpr,iws,ceq%eqextra)
 !   write(*,*)'3E check rsize: ',rsize,eqdis+2*nwpr
@@ -2660,7 +2666,10 @@
    call loadrn(noofel,iws(lokeq+eqdis+1),ceq%cmuval)
    eqdis=eqdis+1+noofel*nwpr
    call loadr(lokeq+eqdis,iws,ceq%xconv)
-   call loadr(lokeq+eqdis+nwpr,iws,ceq%gmindif)
+! modifed 2018.05.28 by adding gdconv(2)
+   call loadr(lokeq+eqdis+nwpr,iws,ceq%gdconv(1))
+   call loadr(lokeq+eqdis+2*nwpr,iws,ceq%gdconv(2))
+   call loadr(lokeq+eqdis+3*nwpr,iws,ceq%gmindif)
 ! if elope negative continue reading next equilibrium
    if(elope.lt.0) then
 !      write(*,*)'3E read the next equilibrium'

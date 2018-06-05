@@ -894,7 +894,7 @@
     integer ii,jj,kk,lcolor,appfil,nnv,ic,repeat,ksep,nv,k3,kkk
     character pfc*64,pfh*64,backslash*2,appline*128
     character applines(20)*128,gnuplotline*80,labelkey*64,rotate*16
-    character labelfont*16
+    character labelfont*16,linespoints*12
 ! write the gnuplot command file with data appended
 !
 !    write(*,10)'in ocplot2B: ',np,anpax,nrv,pform(1:1),trim(title),&
@@ -923,8 +923,10 @@
     elseif(graphopt%gnutermsel.gt.1) then
 ! terminal 1 is screen without any output file
        pfh=filename(1:kk)//'.'//graphopt%filext(graphopt%gnutermsel)
-       write(21,840)trim(graphopt%gnuterminal(graphopt%gnutermsel)),trim(pfh)
-840    format('set terminal ',a/'set output "',a,'"')
+! set the screen as a comment ...
+       write(21,840)trim(graphopt%gnuterminal(1)),&
+            trim(graphopt%gnuterminal(graphopt%gnutermsel)),trim(pfh)
+840    format('#set terminal ',a/'set terminal ',a/'set output "',a,'"')
     else
 ! terminal 1 is screen without any output file
        write(21,841)trim(graphopt%gnuterminal(graphopt%gnutermsel))
@@ -960,16 +962,16 @@
          'set size ',F8.4', ',F8.4/&
          'set xlabel "',a,'"'/'set ylabel "',a,'"'/&
          'set key ',a/&
-         'set style line 1 lt 2 lc rgb "#000000" lw 2'/&
-         'set style line 2 lt 2 lc rgb "#FF0000" lw 2'/&
-         'set style line 3 lt 2 lc rgb "#00C000" lw 2'/&
-         'set style line 4 lt 2 lc rgb "#0080FF" lw 2'/&
-         'set style line 5 lt 2 lc rgb "#C8C800" lw 2'/&
-         'set style line 6 lt 2 lc rgb "#4169E1" lw 2'/&
-         'set style line 7 lt 2 lc rgb "#C0C0C0" lw 2'/&
-         'set style line 8 lt 2 lc rgb "#00FFFF" lw 2'/&
-         'set style line 9 lt 2 lc rgb "#804080" lw 2'/&
-         'set style line 10 lt 2 lc rgb "#7CFF40" lw 2')
+         'set style line 1 lt 2 lc rgb "#000000" lw 2 pt 10'/&
+         'set style line 2 lt 2 lc rgb "#4169E1" lw 2 pt 6'/&
+         'set style line 3 lt 2 lc rgb "#00C000" lw 2 pt 3'/&
+         'set style line 4 lt 2 lc rgb "#FF0000" lw 2 pt 2'/&
+         'set style line 5 lt 2 lc rgb "#0080FF" lw 2 pt 4'/&
+         'set style line 6 lt 2 lc rgb "#C8C800" lw 2 pt 5'/&
+         'set style line 7 lt 2 lc rgb "#C0C0C0" lw 2 pt 7'/&
+         'set style line 8 lt 2 lc rgb "#00FFFF" lw 2 pt 8'/&
+         'set style line 9 lt 2 lc rgb "#804080" lw 2 pt 9'/&
+         'set style line 10 lt 2 lc rgb "#7CFF40" lw 2 pt 1')
 !
     if(graphopt%rangedefaults(1).ne.0) then
 ! user defined ranges for x axis
@@ -1094,6 +1096,12 @@
        write(*,*)'Illegal line color',lcolor
        lcolor=1
     endif
+! if graphopt%linestyle=0 use lines, otherwise linespoints
+    if(graphopt%linestyle.eq.0) then
+       linespoints='lines'
+    else
+       linespoints='linespoints'
+    endif
 !    write(*,*)'ocplot2B linett: ',lcolor
 !    write(*,*)'backslash "',backslash,'" '
     if(anpax.eq.2) then
@@ -1103,24 +1111,31 @@
 ! last line tuple on a separate format statement, if np>2
 ! np is number of columns
        if(np.eq.1 .and. appfil.eq.0) then
-          write(21,880)lcolor,' ',' '
+          write(21,880)trim(linespoints),lcolor,' ',' '
        else
-          write(21,880)lcolor,trim(lid(1)),backslash
-880       format('plot "-" using 2:3 with lines ls ',i2,' title "'a,'"',a)
+!          write(21,880)lcolor,trim(lid(1)),backslash
+!880       format('plot "-" using 2:3 with lines ls ',i2,' title "'a,'"',a)
+          write(21,880)trim(linespoints),lcolor,trim(lid(1)),backslash
+880       format('plot "-" using 2:3 with ',a,' ls ',i2,' title "'a,'"',a)
        endif
        do ii=2,np-1
           lcolor=lcolor+1
           if(lcolor.gt.10) lcolor=1
-          write(21,882)ii+2,lcolor,trim(lid(ii)),backslash
-882       format('"" using 2:',i3,' with lines ls ',i2,' title "'a,'"',a)
+!          write(21,882)ii+2,lcolor,trim(lid(ii)),backslash
+!882       format('"" using 2:',i3,' with lines ls ',i2,' title "'a,'"',a)
+          write(21,882)ii+2,trim(linespoints),lcolor,trim(lid(ii)),backslash
+882       format('"" using 2:',i3,' with ',a,' ls ',i2,' title "'a,'"',a)
        enddo
        lcolor=lcolor+1
        if(lcolor.gt.10) lcolor=1
        if(appfil.eq.0) then
-          if(np.ge.2) write(21,882)np+2,lcolor,trim(lid(np)),' '
+!          if(np.ge.2) write(21,882)np+2,lcolor,trim(lid(np)),' '
+       if(np.ge.2) write(21,882)np+2,trim(linespoints),lcolor,trim(lid(np)),' '
        else
 ! write the last calculated curve if np>1
-          if(np.ge.2) write(21,882)ii+2,lcolor,trim(lid(ii)),backslash
+!          if(np.ge.2) write(21,882)ii+2,lcolor,trim(lid(ii)),backslash
+          if(np.ge.2) write(21,882)ii+2,trim(linespoints),&
+               lcolor,trim(lid(ii)),backslash
 ! we should append data, change plot "-" to just "" in appline(1)
           ii=index(applines(1),'plot "-"')
           applines(1)(1:ii+7)='""'
@@ -1249,8 +1264,9 @@
     if(graphopt%gnutermsel.eq.1) then
 ! if not hardcopy pause gnuplot.  Mouse means clicking in the graphics window
 ! will close it. I would like to have an option to keep the graphics window...
-       write(21,990)
-990    format('pause mouse')
+       write(21,990)trim(graphopt%plotend)
+!990    format('pause mouse')
+990    format(a)
     endif
     close(21)
 !    write(*,*)'In OCPLOT2B closed ',trim(pfc),kkk
@@ -1646,7 +1662,7 @@
     character labelkey*24,applines(10)*128,appline*128,pfc*80,pfh*80
     integer sumpp,np,appfil,ic,nnv,kkk,lcolor(maxcolor),iz,again
     integer done(maxcolor),foundinv,fcolor,k3
-    character color(maxcolor)*24,rotate*16,labelfont*16
+    character color(maxcolor)*24,rotate*16,labelfont*16,linespoints*12
 ! Gibbs triangle variables
     logical plotgt,appgt
     double precision sqrt3,xxx,yyy,xmax,ltic
@@ -1693,8 +1709,11 @@
     elseif(graphopt%gnutermsel.gt.1) then
 ! terminal 1 is screen without any output file
        pfh=filename(1:kk)//'.'//graphopt%filext(graphopt%gnutermsel)
-       write(21,840)trim(graphopt%gnuterminal(graphopt%gnutermsel)),trim(pfh)
-840    format('set terminal ',a/'set output "',a,'"')
+! set the screen as a comment ...
+       write(21,840)trim(graphopt%gnuterminal(1)),&
+            trim(graphopt%gnuterminal(graphopt%gnutermsel)),trim(pfh)
+840    format('#set terminal ',a/'set terminal ',a/'set output "',a,'"')
+! 840    format('set terminal ',a/'set output "',a,'"')
     else
 ! terminal 1 is screen without any output file
        write(21,841)trim(graphopt%gnuterminal(graphopt%gnutermsel))
@@ -1788,24 +1807,27 @@
     endif
     write(21,133)labelkey
 133 format('set key ',a/&
-         'set style line 1 lt 2 lc rgb "#000000" lw 2'/&
-!         'set style line 2 lt 2 lc rgb "#804080" lw 2'/&
-         'set style line 2 lt 2 lc rgb "#FF0000" lw 2'/&
-         'set style line 3 lt 2 lc rgb "#00C000" lw 2'/&
-!         'set style line 3 lt 2 lc rgb "#00C000" lw 2'/&
-         'set style line 4 lt 2 lc rgb "#8F8F8F" lw 2'/&
-         'set style line 5 lt 2 lc rgb "#0080FF" lw 2'/&
-!         'set style line 6 lt 2 lc rgb "#C8C800" lw 2'/&
-         'set style line 6 lt 2 lc rgb "#804080" lw 2'/&
-         'set style line 7 lt 2 lc rgb "#4169E1" lw 2'/&
-         'set style line 8 lt 2 lc rgb "#7CFF40" lw 2'/&
-         'set style line 9 lt 2 lc rgb "#C0C0C0" lw 2'/&
-         'set style line 10 lt 2 lc rgb "#00FFFF" lw 2'/&
-         'set style line 11 lt 2 lc rgb "goldenrod" lw 3'/&
-         'set style line 12 lt 2 lc rgb "goldenrod" lw 1')
-!         'set style line 11 lt 2 lc rgb "#0F00F0" lw 3'/&
-!         'set style line 12 lt 2 lc rgb "#0F00F0" lw 1')
-!         'set style line 12 lt 2 lc rgb "#8F8F8F" lw 1')
+         'set style line 1 lt 2 lc rgb "#000000" lw 2 pt 10'/&
+         'set style line 2 lt 2 lc rgb "#00C000" lw 2 pt 2'/&
+         'set style line 3 lt 2 lc rgb "#4169E1" lw 2 pt 7'/&
+         'set style line 4 lt 2 lc rgb "#FF0000" lw 2 pt 3'/&
+!         'set style line 5 lt 2 lc rgb "#8F8F8F" lw 2 pt 4'/&
+         'set style line 5 lt 2 lc rgb "#FF4500" lw 2 pt 4'/&
+         'set style line 6 lt 2 lc rgb "#0080FF" lw 2 pt 5'/&
+         'set style line 7 lt 2 lc rgb "#804080" lw 2 pt 6'/&
+!         'set style line 7 lt 2 lc rgb "#FF4500" lw 2 pt 6'/&
+         'set style line 8 lt 2 lc rgb "#00C000" lw 2 pt 8'/&
+         'set style line 9 lt 2 lc rgb "#C0C0C0" lw 2 pt 1'/&
+         'set style line 10 lt 2 lc rgb "#00FFFF" lw 2 pt 10'/&
+! orange is #FF4500
+! goldenrod hex: "DAA520", line 11 is invariant, 12 tieline
+!         'set style line 11 lt 2 lc rgb "goldenrod" lw 3'/&
+!         'set style line 11 lt 2 lc rgb "#DAA520" lw 3'/&
+!         'set style line 12 lt 2 lc rgb "goldenrod" lw 1')
+!         'set style line 11 lt 2 lc rgb "#804080" lw 3'/&
+!         'set style line 12 lt 2 lc rgb "#804080" lw 1')
+         'set style line 11 lt 2 lc rgb "#7CFF40" lw 3'/&
+         'set style line 12 lt 2 lc rgb "#7CFF40" lw 1')
 ! The last two styles (11 and 12) are for invariants and tielines
 !
 ! ranges for x and y
@@ -2104,13 +2126,26 @@
     if(kk.ne.0) then
        write(*,*)'Ignoring manipulation of line colors'
     endif
+! if graphopt%linestyle=0 use lines, otherwise linespoints
+    if(graphopt%linestyle.eq.0) then
+       linespoints='lines'
+    else
+       linespoints='linespoints'
+    endif
     done=0
     do kk=1,2
        do jj=1,same
           ii=ii+1
           if(ii.eq.1) then
-             write(21,309)lcolor(ii),trim(color(lcolor(ii))),backslash
-309          format('plot "-" using 1:2 with lines ls ',i2,' title "',a,'"',a)
+! no pointes on tie-lines and invariants!
+             if(lcolor(ii).gt.10) then
+                write(21,309)'lines',lcolor(ii),&
+                     trim(color(lcolor(ii))),backslash
+             else
+                write(21,309)trim(linespoints),lcolor(ii),&
+                     trim(color(lcolor(ii))),backslash
+             endif
+309          format('plot "-" using 1:2 with ',a,' ls ',i2,' title "',a,'"',a)
              done(lcolor(1))=1
           else
 ! the invariant "lines" are just a point and occur only once
@@ -2122,18 +2157,28 @@
              if(fcolor.gt.12) then
                 fcolor=mod(fcolor,10)
                 if(fcolor.eq.0) fcolor=10
-! Nath MoNiRe isother at 1500 K had some lines with no lcolor assignment!
+! fixed Nath MoNiRe isother at 1500 K had some lines with no lcolor assignment!
              elseif(fcolor.le.0) then
-                write(*,*)'ocplot3B: no assigned key!',ii,lcolor(ii),jj
                 lcolor(ii)=1
                 fcolor=1
              endif
              if(done(lcolor(ii)).eq.1) then
-                write(21,320)fcolor,backslash
-320             format('"" using 1:2 with lines ls ',i2,' notitle ',a)
+                if(lcolor(ii).gt.10) then
+                   write(21,320)'lines',fcolor,backslash
+                else
+                   write(21,320)trim(linespoints),fcolor,backslash
+                endif
+320             format('"" using 1:2 with ',a,' ls ',i2,' notitle ',a)
              else
-                write(21,310)fcolor,trim(color(lcolor(ii))),backslash
-310             format('"" using 1:2 with lines ls ',i2,' title "',a,'"',a)
+!                if(lcolor(ii).gt.10) then
+                if(fcolor.gt.10) then
+                   write(21,310)'lines',fcolor,&
+                        trim(color(lcolor(ii))),backslash
+                else
+                   write(21,310)trim(linespoints),fcolor,&
+                        trim(color(lcolor(ii))),backslash
+                endif
+310             format('"" using 1:2 with ',a,' ls ',i2,' title "',a,'"',a)
                 done(lcolor(ii))=1
              endif
           endif
@@ -2198,8 +2243,9 @@
 ! if not hardcopy pause gnuplot.  Mouse means clicking in the graphics window
 ! will close it. I would like to have an option to spawn the graphics window...
 ! so it is kept while continuing the program.
-       write(21,990)
-990    format('pause mouse')
+       write(21,990)trim(graphopt%plotend)
+990    format(a)
+!990    format('pause mouse')
 !990    format('e'//'pause mouse')
     endif
     close(21)

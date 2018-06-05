@@ -191,8 +191,8 @@ contains
     integer, parameter :: ncbas=30,nclist=21,ncalc=12,ncent=21,ncread=6
     integer, parameter :: ncam1=18,ncset=24,ncadv=12,ncstat=6,ncdebug=6
     integer, parameter :: nselect=6,nlform=6,noptopt=9,nsetbit=6
-    integer, parameter :: ncamph=18,nclph=6,nccph=6,nrej=9,nsetph=6
-    integer, parameter :: nsetphbits=15,ncsave=6,nplt=18,nstepop=6
+    integer, parameter :: ncamph=18,naddph=12,nclph=6,nccph=6,nrej=9,nsetph=6
+    integer, parameter :: nsetphbits=15,ncsave=6,nplt=21,nstepop=6
     integer, parameter :: ninf=9
 ! basic commands
     character (len=16), dimension(ncbas), parameter :: cbas=&
@@ -289,12 +289,26 @@ contains
 !-------------------
 ! subsubcommands to AMEND PHASE
     character (len=16), dimension(ncamph) :: camph=&
-         ['MAGNETIC_CONTRIB','COMPOSITION_SET ','DISORDERED_FRACS',&
-         'TWOSTATE_LIQUID ','                ','DEFAULT_CONSTIT ',&
-         'LOWT_CP_MODEL   ','FCC_PERMUTATIONS','BCC_PERMUTATIONS',&
-         'ELASTIC_MODEL_1 ','GADDITION       ','AQUEUS_MODEL    ',&
+         ['ADDITION        ','COMPOSITION_SET ','DISORDERED_FRACS',&
+         '                ','                ','DEFAULT_CONSTIT ',&
+         '                ','FCC_PERMUTATIONS','BCC_PERMUTATIONS',&
+         '                ','GADDITION       ','AQUEUS_MODEL    ',&
          'QUASICHEM_MODEL ','FCC_CVM_TETRAHDR','FLORY_HUGG_MODEL',&
          '                ','                ','QUIT            ']
+! original
+!         ['MAGNETIC_CONTRIB','COMPOSITION_SET ','DISORDERED_FRACS',&
+!         'TWOSTATE_LIQUID ','SCHOTTKY_ANOMATY','DEFAULT_CONSTIT ',&
+!         'LOWT_CP_MODEL   ','FCC_PERMUTATIONS','BCC_PERMUTATIONS',&
+!         'ELASTIC_MODEL_1 ','GADDITION       ','AQUEUS_MODEL    ',&
+!         'QUASICHEM_MODEL ','FCC_CVM_TETRAHDR','FLORY_HUGG_MODEL',&
+!         'CRYSTAL_BREAKDWN','SECOND_EINSTEIN ','QUIT            ']
+!-------------------
+! subsubsubcommands to PHASE ADDITION
+    character (len=16), dimension(naddph) :: caddph=&
+         ['MAGNETIC_CONTRIB','QUIT            ','                ',&
+         'TWOSTATE_LIQUID ','SCHOTTKY_ANOMATY','                ',&
+         'LOWT_CP_MODEL   ','                ','                ',&
+         'ELASTIC_MODEL_1 ','CRYSTAL_BREAKDWN','SECOND_EINSTEIN ']
 !-------------------
 ! subcommands to SET
     character (len=16), dimension(ncset) :: cset=&
@@ -382,7 +396,8 @@ contains
          'GRAPHICS_FORMAT ','OUTPUT_FILE     ','GIBBS_TRIANGLE  ',&
          'QUIT            ','POSITION_OF_KEYS','APPEND          ',&
          'TEXT            ','TIE_LINES       ','FONT_AND_COLOR  ',&
-         'LOGSCALE        ','                ','                ']
+         'LOGSCALE        ','LINE_WITH_POINTS','PAUSE_OPTIONS   ',&
+         '                ','                ','                ']
 !-------------------
 !        123456789.123456---123456789.123456---123456789.123456
 ! minimizers
@@ -415,7 +430,7 @@ contains
          'It includes the General Thermodynamic Package, version ',A,','/&
          "Hillert's equilibrium calculation algorithm version ",A,','/&
          'step/map/plot software version ',A,' for GNUPLOT graphics,'/&
-         'numerical routines extracted from from LAPACK and BLAS and'/&
+         'numerical routines extracted from LAPACK and BLAS and'/&
          'the assessment procedure uses LMDIF from ANL (Argonne, USA)'/)
 !
 !$    write(kou,11)
@@ -468,6 +483,8 @@ contains
 20  continue
 ! clear file names
     ocmfile=' '; ocufile=' '; tdbfile=' '
+! initiallize ploted, it is not done in reset_plotoptions
+    graphopt%plotend='pause mouse'
 ! reset plot ranges and their defaults
     call reset_plotoptions(graphopt,plotfile,textlabel)
     axplotdef=' '
@@ -746,43 +763,103 @@ contains
           call get_phase_record(iph,lokph)
 !
           kom3=submenu(cbas(kom),cline,last,camph,ncamph,2)
+!          write(*,*)'Amend phase subcommand: ',kom3
           amendphase: SELECT CASE(kom3)
 ! subsubcommands to AMEND PHASE
+!         ['ADDITION        ','COMPOSITION_SET ','DISORDERED_FRACS',&
+!         '                ','                ','DEFAULT_CONSTIT ',&
+!         '                ','FCC_PERMUTATIONS','BCC_PERMUTATIONS',&
+!         '                ','GADDITION       ','AQUEUS_MODEL    ',&
+!         'QUASICHEM_MODEL ','FCC_CVM_TETRAHDR','FLORY_HUGG_MODEL',&
+!         '                ','                ','QUIT            ']
+!---------- old
 !         ['MAGNETIC_CONTRIB','COMPOSITION_SET ','DISORDERED_FRACS',&
-!         'TWOSTATE_LIQUID ','QUIT            ','DEFAULT_CONSTIT ',&
+!         'TWOSTATE_LIQUID ','SCHOTTKY_ANOMALTY','DEFAULT_CONSTIT ',&
 !         'LOWT_CP_MODEL   ','FCC_PERMUTATIONS','BCC_PERMUTATIONS',&
 !         'ELASTIC_MODEL_1 ','GADDITION       ','AQUEUS_MODEL    ',&
 !         'QUASICHEM_MODEL ','FCC_CVM_TETRAHDR','FLORY_HUGG_MODEL',&
-!         '                ','                ','                ']
+!         'CRYSTAL_BREAKDWN','SECOND_EINSTEIN ','QUIT            ']
 !....................................................
           CASE DEFAULT
              write(kou,*)'Amend phase subcommand error'
 !....................................................
-          case(1) ! amend phase <name> magnetic contribution
-             idef=-3
-! zero value of antiferromagnetic factor means Xiong-Inden model
-             call gparid('Antiferromagnetic factor: ',&
-                  cline,last,j1,idef,q1help)
-             if(buperr.ne.0) goto 990
-             if(j1.eq.0) then
+          case(1) ! amend phase addition
+             kom4=submenu(cbas(kom),cline,last,caddph,naddph,1)
+!          write(*,*)'Amend phase addition: ',kom4
+!         ['MAGNETIC_CONTRIB','QUIT            ','                ',&
+!         'TWOSTATE_LIQUID ','SCHOTTKY_ANOMATY','                ',&
+!         'LOWT_CP_MODEL   ','                ','                ',&
+!         'ELASTIC_MODEL_A ','QUASICHEM_MODEL ','FCC_CVM_TETRAHDR']
+!
+             amendphaseadd: SELECT CASE(kom4)
+             case(1) ! amend phase <name> magnetic contribution
+                idef=-3
+! zero value of antiferromagnetic factor means Inden-Qing model
+                call gparid('Antiferromagnetic factor: ',&
+                     cline,last,j1,idef,q1help)
+                if(buperr.ne.0) goto 990
+                if(j1.eq.0) then
 ! Xiong modification of Inden-Hillert-Jarl magnetic model
-                call gparcd('BCC type phase: ',cline,last,1,ch1,'N',q1help)
-                call gparcd('Using individual Bohr magnetons: ',&
-                     cline,last,1,ch1,'N',q1help)
-                if(ch1.ne.'N') then
-                   call set_phase_status_bit(lokph,PHBMAV)
-                endif
-                call add_addrecord(lokph,ch1,xiongmagnetic)
-             else
-!                call get_phase_record(iph,lokph)
-                if(j1.eq.-1) then
-! Inden magnetic for BCC
-                   call add_addrecord(lokph,'Y',indenmagnetic)
+                   call gparcd('BCC type phase: ',cline,last,1,ch1,'N',q1help)
+                   call gparcd('Using individual Bohr magnetons: ',&
+                        cline,last,1,ch1,'N',q1help)
+                   if(ch1.ne.'N') then
+                      call set_phase_status_bit(lokph,PHBMAV)
+                   endif
+                   call add_addrecord(lokph,ch1,xiongmagnetic)
                 else
+                   if(j1.eq.-1) then
+! Inden magnetic for BCC
+                      call add_addrecord(lokph,'Y',indenmagnetic)
+                   else
 ! Inden magnetic for FCC
-                   call add_addrecord(lokph,'N',indenmagnetic)
+                      call add_addrecord(lokph,'N',indenmagnetic)
+                   endif
                 endif
-             endif
+!....................................................
+             case(2) ! QUIT
+                goto 100
+!....................................................
+             case(3) ! not used
+                continue
+!....................................................
+             case(4) ! amend phase <name> addition twostate_liquid model
+                call add_addrecord(lokph,' ',twostatemodel1)
+                write(kou,667)
+667             format('This addition require THET parameters for the',&
+                     ' Einstein T of the amorphous state'/'and G2 parameters',&
+                     ' for the transition to the liquid state.')
+!....................................................
+             case(5) ! amend phase <name> addition Schottky anomality
+                call add_addrecord(lokph,' ',schottkyanomality)
+                write(*,668)
+668             format('This addition requires the TSCH and CSCH parameters')
+!....................................................
+             case(6) ! not used
+!....................................................
+             case(7) ! amend phase <name> LowT_CP_model
+                call add_addrecord(lokph,' ',einsteincp)
+                write(*,*)'This addition requires the THET parameter'
+!....................................................
+             case(8) ! not used
+!....................................................
+             case(9) ! not used
+!....................................................
+             case(10) ! amend phase elastic model
+!                call add_addrecord(lokph,' ',elasticmodel1)
+                write(*,*)'This addition is not yet implemented'
+                !....................................................
+             case(11) ! amend phase ... add crystal breakdown
+                call add_addrecord(lokph,' ',crystalbreakdownmod)
+                write(*,671)
+671             format('This addition requires the CBT parameter')
+!....................................................
+             case(12) ! amend phase ... second Einstein
+                call add_addrecord(lokph,' ',secondeinstein)
+                write(*,672)
+672             format('This addition recures the THT2 and DCP2 parameters')
+             end select amendphaseadd
+!************************************ end of amend phase ... addition
 !....................................................
           case(2) ! amend phase <name> composition set add/remove
              call gparcd('Add new set? ',cline,last,1,ch1,'Y ',q1help)
@@ -828,29 +905,15 @@ contains
              call add_fraction_set(iph,ch1,ndl,j1)
              if(gx%bmperr.ne.0) goto 990
 !....................................................
-          case(4) ! amend phase <name> twostate_liquid model
-             call add_addrecord(lokph,' ',twostatemodel1)
-             write(kou,667)
-667          format('You must enter THET parameters for the Einstein',&
-                  ' T of the amorphous state'/'and G2 parameters for the',&
-                  ' transition to the liquid state.')
+          case(4) ! moved
 !....................................................
-          case(5) ! amend phase ... unused
-             goto 100
+          case(5) ! moved
 !....................................................
           case(6) ! amend phase <name> default_constitution
 ! to change default constitution of any composition set give #comp.set.
              call ask_default_constitution(cline,last,iph,ics,ceq)
 !....................................................
-          case(7) ! amend phase <name> LowT_CP_model
-!             call gparcd('Einstein CP model? ',cline,last,1,ch1,'Y ',q1help)
-!             if(ch1.eq.'Y' .or. ch1.eq.'y') then
-                call add_addrecord(lokph,' ',einsteincp)
-                write(*,*)'Einstein low temperature heat capacity model added'
-!             else
-!                write(kou,*)'Debye CP model selected'
-!                call add_addrecord(lokph,' ',debyecp)
-!             endif
+          case(7) ! moved
 !....................................................
           case(8) ! amend phase ... FCC_PERMUTATIONS
              if(check_minimal_ford(lokph)) goto 100
@@ -860,8 +923,7 @@ contains
                 if(check_minimal_ford(lokph)) goto 100
                 call set_phase_status_bit(lokph,PHBORD)
 !....................................................
-          case(10) ! amend phase elastic model
-             call add_addrecord(lokph,' ',elasticmodel1)
+          case(10) ! moved
 !....................................................
           case(11) ! AMEND PHASE GADDITION
 ! add a constant term to G, value in J/FU
@@ -898,11 +960,9 @@ contains
 !             call set_phase_status_bit(lokph,PHFHV)
 !             call clear_phase_status_bit(lokph,PHID)
 !....................................................
-          case(16) ! amend phase ??
-             write(kou,*)'Not implemented yet'
+          case(16) ! moved
 !....................................................
-          case(17) ! amend phase ??
-             write(kou,*)'Not implemented yet'
+          case(17) ! moved
 !....................................................
           case(18) ! amend phase ... quit
              goto 100
@@ -1489,8 +1549,9 @@ contains
                 write(kou,670)
 670             format('Closing a GNUPLOT file oc_many0.plt'/&
                      'that may need some editing before plotting')
-                write(plotunit0,665)
-665             format('e'/'pause mouse'/)
+                write(plotunit0,665)graphopt%plotend
+665             format('e'/a)
+!665             format('e'/'pause mouse'/)
                 close(plotunit0)
 ! UNFINISHED possibly we could reopen the file again and make oopies 
 ! of tha data to avoid manual editing
@@ -2105,6 +2166,11 @@ contains
           if(xxy.gt.1.0D-30) then
              ceq%xconv=xxy
           endif
+          xxx=ceq%gdconv(1)
+          call gparrd('Max cutoff driving force: ',cline,last,xxy,xxx,q1help)
+          if(xxy.gt.1.0D-5) then
+             ceq%gdconv(1)=xxy
+          endif
 !-------------------------------------------------------------
        case(14) ! set axis
           if(btest(globaldata%status,GSNOPHASE)) then
@@ -2567,8 +2633,9 @@ contains
 ! close the plotdataunits!
           do i1=1,9
              if(plotdataunit(i1).gt.0) then
-                write(plotdataunit(i1),22)
-22              format('e'/'pause mouse'/)
+                write(plotdataunit(i1),22)graphopt%plotend
+22              format('e'/a)
+!22              format('e'/'pause mouse'/)
                 close(plotdataunit(i1))
                 plotdataunit(i1)=0
              endif
@@ -4089,7 +4156,7 @@ contains
 !=================================================================
 ! about
     case(15)
-       write(kou,15010)linkdate
+       write(kou,15010)version,linkdate
 15010  format(/'This is OpenCalphad (OC), a free software for ',&
             'thermodynamic calculations as'/&
             'described in B Sundman, U R Kattner, M Palumbo and S G Fries, ',&
@@ -4110,7 +4177,7 @@ contains
             'http://www.fsf.org'//&
             'Copyright 2011-2018, Bo Sundman, Gif sur Yvette, France.'/&
             'Contact person Bo Sundman, bo.sundman@gmail.com'/&
-            'This version linked ',a/)
+            'This version ',a,' was compiled ',a/)
 !=================================================================
 ! debug subcommands
     case(16)
@@ -4697,7 +4764,8 @@ contains
 !         'GRAPHICS_FORMAT ','OUTPUT_FILE     ','GIBBS_TRIANGLE  ',&
 !         'QUIT            ','POSITION_OF_KEYS','APPEND          ',&
 !         'TEXT            ','TIE_LINES       ','FONT_AND_COLOR  ',&
-!         'LOGSCALE        ','                ','                ']
+!         'LOGSCALE        ','LINE_WITH_POINTS','PAUSE_OPTION    ']
+!         '                ','                ','                ']
 !-------------------
 ! return here after each subcommand
 21100   continue
@@ -4717,7 +4785,7 @@ contains
        CASE DEFAULT
           write(kou,*)'No such plot option'
 !-----------------------------------------------------------
-! RENDER no more options to plot ...
+! PLOT RENDER no more options to plot ...
        case(1)
 ! added ceq in the call to make it possible to handle change of reference states
 !2190      continue
@@ -4740,7 +4808,7 @@ contains
 !             call ocplot2(jp,axplot,plotfile,maptop,axarr,graphopt,form,ceq)
 !          endif
 !-----------------------------------------------------------
-! SCALE_RANGE of either X or Y
+! PLOT SCALE_RANGE of either X or Y
        case(2)
           call gparcd('For X or Y axis? ',cline,last,1,ch1,'X',q1help)
           if(ch1.eq.'X' .or. ch1.eq.'x') then
@@ -4835,7 +4903,7 @@ contains
           endif
           goto 21100
 !-----------------------------------------------------------
-! RATIOS of axis, normal values 1,1 (probably quite useless....)
+! PLOT RATIOS of axis, normal values 1,1 (probably quite useless....)
        case(3)
           call gparrd('X-axis plot ratio',cline,last,xxx,graphopt%xsize,q1help)
           if(xxx.le.0.1) then
@@ -4852,7 +4920,7 @@ contains
 !          write(*,*)'Not implemented yet'
           goto 21100
 !-----------------------------------------------------------
-! AXIS_LABELS
+! PLOT AXIS_LABELS
        case(4)
           call gparcd('For X or Y axis? ',cline,last,1,ch1,'X',q1help)
           if(ch1.eq.'X' .or. ch1.eq.'x') then
@@ -4960,6 +5028,9 @@ contains
           call gparcd('A Gibbs triangle diagram?',cline,last,5,ch1,chz,q1help)
           if(ch1.eq.'y' .or. ch1.eq.'Y') then
              graphopt%gibbstriangle=.TRUE.
+             write(*,22500)
+22500        format('The Gibbs triangle layout courtesy of',&
+                  ' Catalina Pineda Heresi at RUB, Germany')
           else
              graphopt%gibbstriangle=.FALSE.
           endif
@@ -5003,7 +5074,7 @@ contains
           graphopt%appendfile=' '
           goto 21100
 !-----------------------------------------------------------
-! TEXT anywhere on plot
+! PLOT TEXT anywhere on plot
        case(13)
           labelp=>graphopt%firsttextlabel
           if(associated(labelp)) then
@@ -5123,7 +5194,7 @@ contains
           write(*,*)'Sorry but this option not yet implemeted'
           goto 21100
 !-----------------------------------------------------------
-! LOGSCALE
+! PLOT LOGSCALE
        case(16)
           call gparcd('For x or y axis? ',cline,last,1,ch1,'x',q1help)
           if(ch1.eq.'x') then
@@ -5145,12 +5216,38 @@ contains
           endif
           goto 21100
 !-----------------------------------------------------------
-! PLOT unused
+! PLOT LINE_WITH_POINTS
        case(17)
+          call gparcd('Plot a symbol at each calculated point?',&
+               cline,last,1,ch1,'Y',q1help)
+          if(ch1.eq.'Y' .or. ch1.eq.'y') then
+             graphopt%linestyle=1
+          else
+             graphopt%linestyle=0
+          endif
+          goto 21100
+!-----------------------------------------------------------
+! PLOT PAUSE_OPTIONS
+       case(18)
+          write(kou,*)'Specify option after pause !'
+          call gparc('GNUPLOT pause option?',cline,last,5,text,' ',q1help)
+          if(len_trim(text).eq.0) then
+             write(kou,*)'Warning, plot will exit directly!'
+!             text='-1'
+          endif
+          graphopt%plotend='pause '//text
           goto 21100
 !-----------------------------------------------------------
 ! unused
-       case(18)
+       case(19)
+          goto 21100
+!-----------------------------------------------------------
+! unused
+       case(20)
+          goto 21100
+!-----------------------------------------------------------
+! unused
+       case(21)
           goto 21100
        end SELECT plotoption
 !=================================================================
@@ -5805,6 +5902,10 @@ contains
     plotfile='ocgnu'
 ! default plot terminal
     graphopt%gnutermsel=1
+! plot lines
+    graphopt%linestyle=0
+! do not reset plotend if set
+!    plotend=plotenddefault
 !    write(*,*)'Plot options reset'
     return
   end subroutine reset_plotoptions

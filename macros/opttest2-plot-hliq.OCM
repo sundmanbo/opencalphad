@@ -1,0 +1,49 @@
+@$
+@$             Mixing enthalpy in the liquid phase
+@$       Calculation and comparison to experiments
+@$
+
+@$ step and map is done in equilibrium 1
+select eq 1
+
+set stat phase *=sus
+set stat phase LIQUID=entered 0
+
+@$ This removes all conditions
+set condition *:=none
+
+set condition t=1100 p=1e5 n=1 x(mg)=.5
+set reference-state mg LIQUID * 1e5
+set reference-state cu LIQUID * 1e5
+set axis 1 x(mg) 0 1 ,,,
+calculate equilibrium
+
+step normal
+Y
+
+@&
+
+plot
+x(mg)
+HM
+append hliq
+axis-label y
+Mixing enthalpy (J.mol-1)
+scale y n -15000 0
+render
+
+@&
+
+@$ Plot on a PDF file
+@$ Note all previous things set in the plot menu remains
+@$ as long as the axis are the same!
+plot
+
+
+gra 3
+hliq1 Y
+render
+
+
+set interactive
+

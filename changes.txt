@@ -13,9 +13,52 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2018.06.05 OC version 5.013: A long time without updates!  I have
+worked on the unary models but there are still problems but I got some
+nice feedbacks from the Calphad meeting in Mexico.
+
+In this update I have modified the AMEND PHASE command separating out
+all the ADDITIONS like magnetism, Einstein solid, liquid twostate
+model etc so if you have macro files with AMEND PHASE you may need to
+edit them.  There is no change reading TDB files but it is not
+possible to enter an Einstein model or liquid two-state model from a
+TDB file because the way to do this has not been defined in the TDB
+file.  Just having a THETA or GD parameter in the TDB file is not
+enough.
+
+The number of additions seems to grow very fast with the development
+of new unaries.  The reading of TDB files has not changed but the TDB
+files cannot cope with these new models.  I will make an update of the
+PDB format to include these.
+
+Some convergence problems have been reported and I have increased the
+convergence criterium related to detecting if unstable phases will
+become stable.  I have also made it possible for the user to change
+this by adding a 3rd question in the command SET NUMERIC_OPTION.  The
+default is now 0.004.  Previously it was 0.05 but this value failed to
+find the stable set of phases in some cases.  The lower value will
+lead to a few more iterations.  You may restore the old value if you
+have no problems using that.
+
+The change also affects the UNFORMATTED save file, you will not be
+able to use UNFORMATTED files written with previous versions with the
+new version.  Always keep macro files to replace files that you want
+to save and read UNFORMATTED.
+
+The table with MODEL_PARAMETER_ID has also changed again and a new
+function has been added to obtain the index of a model parameter
+identifier, mpi=GET_MPI_INDEX(char) where char is a 4 character string
+with the model parameter identifier.  The value of "mpi" is needed to
+find the value of the model parameter in the
+ceq%phase_varres(lokph)%gval array.  The change makes it easier to
+handle future changes in the list of identifiers as this list will
+certainly grow.  Note that "mpi" for parameters with constituent index
+should be mulitiplied with 100 as the constituent index is stored in
+the first two digits.
+
 2018.04.18 OC version 5.012: A small but very irritating bug for the
-user i/f and another bug plotting isothermal section fixed.  But no
-fear, ther are a lot of more bugs to fix when mapping and plotting
+user i/f and another bug plotting isothermal sectione fixed.  But no
+fear, there are a lot of more bugs to fix when mapping and plotting
 with tie-lines in the plane.
 
 2018.04.17 OC version 5.011: The convergence criteria has been changed
@@ -825,3 +868,4 @@ to rename these files.
 Modified slightly the listing of many equilibria.  Empty lines in the
 enter_many_equil command and TAB characters in the row lines are accepted.
 
+Start documenting OC incremental updates ...

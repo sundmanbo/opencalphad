@@ -331,7 +331,11 @@ l,,,,
 @$ ==============================================================
 @$ 
 @$ Testing entering mobility data, list and calculate
-@$ The values are just made up
+@$ First list all model_parameter_identifires
+l m-p-i
+
+@&
+@$ Use MQ, the values are just made up
 
 enter parameter mq&c(fcc,fe:c) 298.15 -1000+5*T; 6000 N me
 

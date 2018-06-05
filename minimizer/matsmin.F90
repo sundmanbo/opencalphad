@@ -1489,7 +1489,7 @@ CONTAINS
 !    double precision, parameter :: ionliqyfact=1.0D0
 ! to check if we are calculating a single almost stoichiometric phase ...
     integer iz,tcol,pcol,nophasechange,notagain
-    double precision maxphasechange,molesofatoms
+    double precision maxphasechange,molesofatoms,factconv
 !    double precision, allocatable, dimension(:) :: loopfact
     integer notf,dncol,iy,jy,iremsave,phasechangeok
     double precision, dimension(:), allocatable :: lastdeltaam
@@ -2227,12 +2227,31 @@ CONTAINS
 !                         converged=2
 ! If the decrease in driving force is greater than 0.05
 ! for a metastable phase continue iterating ...
-                      if(converged.lt.4 .and. &
-                           phr(jj)%curd%dgm-phr(jj)%prevdg.gt.5.0E-2) then
-                         converged=4
-                         cerr%mconverged=converged
-                         yss=ys
-                         yst=phr(jj)%curd%yfr(nj)
+                      if(converged.lt.4) then
+!                           phr(jj)%curd%dgm-phr(jj)%prevdg.gt.5.0E-2) then
+! problem fining FCC phase in Al-Cu-Si at 849 K
+!                         write(*,213)'MM conv: ',jj,&
+!                              phr(jj)%curd%dgm-phr(jj)%prevdg
+!213                      format(a,i3,1pe12.4)
+!                         if(phr(jj)%curd%dgm-phr(jj)%prevdg.gt.4.0E-2) then
+!                         if(phr(jj)%curd%dgm-phr(jj)%prevdg.gt.1.0E-2) then
+! OK but small!!          if(phr(jj)%curd%dgm-phr(jj)%prevdg.gt.1.0E-3) then
+! max allowed!!           if(phr(jj)%curd%dgm-phr(jj)%prevdg.gt.4.0E-3) then
+                         if(phr(jj)%ncc.gt.10) then
+! Calculation with the COST507 database and 20 elements too many iterations
+! ... allow larger gdconv(1) 
+                            factconv=1.0D1
+                         else
+                            factconv=one
+                         endif
+                         if(phr(jj)%curd%dgm-phr(jj)%prevdg.gt.&
+                              factconv*ceq%gdconv(1)) then
+! Must be less than this  if(phr(jj)%curd%dgm-phr(jj)%prevdg.gt.5.0E-3) then
+                            converged=4
+                            cerr%mconverged=converged
+                            yss=ys
+                            yst=phr(jj)%curd%yfr(nj)
+                         endif
                       endif
                    else
                       if(converged.eq.0) then
@@ -8385,7 +8404,8 @@ CONTAINS
 ! create the meqrec structure
 !    write(*,17)'MM equilph1d calling equilph1e',(xknown(ii),ii=1,noel())
 17  format(a,10(F6.3))
-    call equilph1_meqrec(phtup,meqrec,.FALSE.,ceq)
+!    call equilph1_meqrec(phtup,meqrec,.FALSE.,ceq)
+    call equilph1_meqrec(phtup,meqrec,tyst,ceq)
     if(gx%bmperr.ne.0) goto 1000
 ! mabe we need RT ?
     ceq%rtn=globaldata%rgas*tpval(1)
@@ -8429,6 +8449,12 @@ CONTAINS
     double precision, allocatable :: py(:)
     double precision chargefact,chargerr,pv,qq(5),ys,ycormax2,muall
     double precision sumsum
+! ************** change in MODEL_PARAMETER_IDENTIFIER: MQ is now 1300!!
+! 800 + cs where cs is the constituent index counted over all sublattices ??
+! can be REDEFINED when new model parameter identifiers was added!!! 
+! we get the current value (set in gtp3A.F90) by calling getmqindex below
+    integer mqindex
+! mqindex is a constant set in gtpini in models/gtp3A.F90
 ! number of variables is number of components + one stable phase
     nz1=meqrec%nrel+1
     nz2=nz1+1
@@ -8797,28 +8823,40 @@ CONTAINS
 ! I will calculate the mob(end) as \sum_s \sum_c mq&c#s taking
 ! those values missing as zero ... ???
 ! the values of mq&c#s are in pmi%curd%gval(1,itp) where itp is
+! ************** change in MODEL_PARAMETER_IDENTIFIER: MQ is now 1300!!
 ! 800 + cs where cs is the constituent index counted over all sublattices ??
+! 1300 + cs where cs is the constituent index counted over all sublattices ??
 ! list additional properties:
 !    write(*,400)'props: ',(pmi%curd%listprop(jt),jt=2,pmi%curd%listprop(1)-1)
 !400 format(/a,12i6)
-! HM, the disordered mobilities has 800+disordered index
-! the ordered has 800+ordered index ... one should not use both ...
+! instead of 800 use the function mqindex('MQ  ')
     ql=0
+!    write(*,*)'In equi1ph1d: ',mqindex
+!    jt=getmqindex()
+    mqindex=get_mpi_index('MQ  ')
+    if(gx%bmperr.ne.0) then
+       write(*,*)'MM mqindex error: ',gx%bmperr,mqindex
+       goto 1000
+    endif
+! note that MQ has a composition index so it must be multiplied by 100
+    mqindex=100*mqindex
+!
     do jt=2,pmi%curd%listprop(1)
        is=pmi%curd%listprop(jt)
-       if(is.gt.800 .and. is.lt.900) then
-! there is a mobility for constituent (is-800) stored in pmi%curd%gval(1,jt)
-          jj=is-800
+       if(is.gt.mqindex .and. is.lt.mqindex+100) then
+! there is a mobility for constituent (is-mqindex) stored in pmi%curd%gval(1,jt)
+          jj=is-mqindex
           ql=ql+1
 !          mobval(jj)=exp(pmi%curd%gval(1,jt)/ceq%rtn)/ceq%rtn
           mobval(jj)=pmi%curd%gval(1,jt)
-!          write(*,410)jj,jt,pmi%curd%gval(1,jt)
-!410       format('MM Mobility for ',i3,' in pos ',i2,', value: ',3(1pe14.6))
+!          write(*,410)is,jj,jt,pmi%curd%gval(1,jt)
+!410       format('MM Mobility for ',2i4,' in pos ',i2,', value: ',3(1pe14.6))
        endif
     enddo
     if(ql.lt.noofend) then
        write(*,411)noofend-ql
-411    format(' *** Warning: Missing mobility data for ',i2,' endmembers')
+411    format(' *** Warning EQUILPH1E: Missing mobility data for ',i2,&
+            ' endmembers')
        goto 1000
     endif
     goto 1000

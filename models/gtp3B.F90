@@ -5578,6 +5578,8 @@
    allocate(eqlista(ieq)%svfunres(maxsvfun))
 ! convergence criteria PHTUPX
    eqlista(ieq)%xconv=firsteq%xconv
+   eqlista(ieq)%gdconv(1)=firsteq%gdconv(1)
+   eqlista(ieq)%gdconv(2)=firsteq%gdconv(2)
    eqlista(ieq)%maxiter=firsteq%maxiter
 1000 continue
    if(ocv()) write(*,*)'3B finished enter equilibrium',ieq
@@ -6195,7 +6197,7 @@
 
 !\begin{verbatim} %-
  subroutine copy_equilibrium2(neweq,number,name,ceq)
-! creates a new equilibrium which is a copy of ceq.  
+! creates a new equilibrium which is a copy of ceq. THIS IS STILL USED !! ??
 ! Allocates arrayes for conditions,
 ! components, phase data and results etc. from equilibrium ceq
 ! returns a pointer to the new equilibrium record
@@ -6414,6 +6416,10 @@
    eqlista(ieq)%svfunres=ceq%svfunres
 ! copy convergence criteria
    eqlista(ieq)%xconv=ceq%xconv
+   eqlista(ieq)%gdconv(1)=ceq%gdconv(1)
+   eqlista(ieq)%gdconv(2)=ceq%gdconv(2)
+! woops ... this is still used
+!   stop 'old copy_equilibrium ... we should never be here'
    eqlista(ieq)%maxiter=ceq%maxiter
 !   write(*,*)'3B finished copy equilibrium',ieq
    eqlista(ieq)%eqno=ieq

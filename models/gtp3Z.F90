@@ -422,7 +422,8 @@
    logical fromtdb
 !\end{verbatim} %+
 !   implicit double precision (a-h,o-z)
-   integer, parameter :: nunary=6
+   integer, parameter :: nunary=5
+!   integer, parameter :: nunary=6
    integer, parameter :: lenfnsym=16
    double precision, parameter :: zero=0.0D0,one=1.0D0
    integer i,j,jss,levelp,mterm,ipower,nterm
@@ -431,7 +432,9 @@
    logical zeroc
    character symbol*(lenfnsym),unary(nunary)*6
    character, parameter :: tsym='T ',psym='P '
-   DATA unary/'LOG   ','LN    ','EXP   ','ERF   ','ABOVE ','BELOW '/
+! NEIN is the Einstein function
+   DATA unary/'LOG   ','LN    ','EXP   ','ERF   ','XNEIN '/
+!   DATA unary/'LOG   ','LN    ','EXP   ','ERF   ','ABOVE ','BELOW '/
 !
 ! coeff(nterm)   double with coefficient
 ! koder(1,nterm) power of T
@@ -1375,7 +1378,7 @@
          endif
 ! now combine term1 and term2 using chain rule. link values are
 ! -1: LOG,   -2: LN,    -3: EXP, -4: ERF, only LN and EXP implemented below
-! -5: ABOVE, -6: BELOW are special functions for breakpoints
+! -5: NEIN,  is the Einstein function
          evunfun: if(unfun.eq.-1) then
 ! ff=ff*Log10(gg) added by Sheng Yen Li
             if(gg.le.zero) then

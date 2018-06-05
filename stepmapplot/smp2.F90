@@ -247,6 +247,8 @@ MODULE ocsmp
      integer :: labeldefaults(3),linetype,linett=1,tielines=0
 ! plotlabel(1) is heading, 2 is x-axis text, 3 is y-axis text 
      character*64, dimension(3) :: plotlabels
+! linestyle is 0 for lines, 1 for linespoints (pointinterval=0)
+     integer linestyle
 ! if true plot a triangular diagram (isothermal section)
      logical gibbstriangle
 ! the set key command in GNUPLOT specifies where the line id is written
@@ -267,6 +269,9 @@ MODULE ocsmp
 ! pltax are the state variables to be plotted
 ! NOT USED: pform is the graphics format replaced by gnutermsel
      character pltax(2)*24,pform*32
+! The default and current ending of a plot
+     character*12 :: plotenddefault='pause mouse '
+     character plotend*36
 ! many more options can easily be added when desired, linetypes etc
   end TYPE graphics_options
 !\end{verbatim}
@@ -559,18 +564,16 @@ CONTAINS
 ! give up
 !             goto 306
 !          endif
-          gx%bmperr=0
-!          if(mapline%firstinc.ne.zero) then
-! mapline%firstinc if nonzero the active axis conditioon may already
-! been incremented this, go back double the distance in the axis
-!             mapline%axandir=-mapline%axandir
-!             bytdir=1
-!          endif
-! first time here bytdir=0,  second time bytdir=1,
-! axandir has changed sign and take double negative step
-!          bytdir=bytdir+1
 ! Extract the current value of the axis state variable items using pcond
           jj=abs(mapline%axandir)
+!          write(*,*)'SMP: axandir: ',jj,gx%bmperr
+          gx%bmperr=0
+          if(jj.le.0 .or. jj.gt.2) then
+             write(*,*)'SMP error: no axis direction! Set to 1'
+             mapline%axandir=1
+             jj=1
+             call list_conditions(kou,ceq)
+          endif
           seqz=axarr(jj)%seqz
           call locate_condition(seqz,pcond,ceq)
           if(gx%bmperr.ne.0) goto 1000
@@ -1523,8 +1526,8 @@ CONTAINS
 100       continue
           if(meqrec%nstph.eq.3) then
 ! this is a unique case when we must create 3 lines
-             write(*,*)'Startpoint inside invariant not yet implemented'
-             gx%bmperr=4399; goto 1000
+!             write(*,*)'Startpoint inside invariant not yet implemented'
+!             gx%bmperr=4399; goto 1000
 !
 ! save some data ...??
 !             do jph=1,3
@@ -1540,6 +1543,7 @@ CONTAINS
              fixphaseloop: do jph=1,3
 ! all phases are already set as stable
                 kj=meqrec%stphl(jph)
+                write(*,*)'tmpline 1: ',jph,kj
                 if(jph.gt.1) then
                    allocate(tmpline(jph)%linefixph(1))
                    allocate(tmpline(jph)%stableph(1))
@@ -1551,12 +1555,20 @@ CONTAINS
 !                meqrec%fixpham(1)=zero
                 tmpline(jph)%nfixphases=1
                 tmpline(jph)%linefixph(1)=zerotup
+                write(*,*)'tmpline 2A: ',jph,kj
+                write(*,*)'tmpline 2C: ',allocated(meqrec%phr)
+                write(*,*)'tmpline 2B: ',meqrec%phr(kj)%iph
+                write(*,*)'tmpline 2C: ',allocated(tmpline(jph)%linefixph)
                 tmpline(jph)%linefixph(1)%ixphase=meqrec%phr(kj)%iph
+                write(*,*)'tmpline 3: ',jph,kj
                 tmpline(jph)%linefixph(1)%compset=meqrec%phr(kj)%ics
+                write(*,*)'tmpline 4: ',jph,kj
                 tmpline(jph)%nstabph=1
                 kph=jph+1
                 if(kph.gt.3) kph=1
                 sph=meqrec%stphl(kph)
+                tmpline(jph)%axandir=1
+                write(*,*)'tmpline',kph,sph,tmpline(jph)%axandir
                 tmpline(jph)%stableph(1)=zerotup
                 tmpline(jph)%stableph(1)%ixphase=meqrec%phr(sph)%iph
                 tmpline(jph)%stableph(1)%compset=meqrec%phr(sph)%ics
@@ -1564,6 +1576,7 @@ CONTAINS
 ! lines:  (fix,stable,forbidden) :  (1,2,3);   (2,3,1);   (3,1,2)
 ! we must mark the third phase as forbidden !!!
                 jj=meqrec%stphl(forbiddenix)
+                write(*,*)'tmpline 5',forbiddenix,jj
                 forbidden(jph)=zerotup
                 forbidden(jph)%ixphase=meqrec%phr(jj)%iph
                 forbidden(jph)%compset=meqrec%phr(jj)%ics
@@ -1769,6 +1782,8 @@ CONTAINS
        gx%bmperr=4228
     endif
 1000 continue
+    write(*,*)'Return from map_replaceaxis with conditions: '
+    call list_conditions(kou,ceq)
     return
   end subroutine map_replaceaxis
 
