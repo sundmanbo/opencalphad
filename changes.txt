@@ -13,6 +13,11 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2018.06.06 OC version 5.014: A very quick update due to a demo.  Some
+arguments to LMDIIF changed and increased storage in the grid
+minimizer for a system with 19 elements and a phase with 48 charged
+endmembers requiring more than 60000 gridpoints!
+
 2018.06.05 OC version 5.013: A long time without updates!  I have
 worked on the unary models but there are still problems but I got some
 nice feedbacks from the Calphad meeting in Mexico.

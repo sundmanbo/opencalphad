@@ -45,13 +45,13 @@ contains
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-  subroutine lmdif1(m,n,x,fvec,tol,info,iwa,wa,lwa,err0)
+  subroutine lmdif1(m,n,x,fvec,tol,info,iwa,wa,lwa,fjac,err0)
 ! call modified by Bo Sundman
 !  subroutine lmdif1(fcn,m,n,x,fvec,tol,info,iwa,wa,lwa)
     integer m,n,info,lwa
     integer iwa(n)
     double precision tol
-    double precision x(n),fvec(m),wa(lwa)
+    double precision x(n),fvec(m),wa(lwa),fjac(m,*)
 !    external fcn
 !     **********
 !
@@ -142,6 +142,8 @@ contains
 !       lwa is a positive integer input variable not less than
 !         m*n+5*n+m.
 !
+!       fjac added to calculate relative standard deviation (SD)
+!
 !     subprograms called
 !
 !       user-supplied ...... fcn
@@ -190,7 +192,7 @@ contains
 !                wa(n+1),wa(2*n+1),wa(3*n+1),wa(4*n+1),wa(5*n+1))
 ! remove fcn and reduce number of arguments and linker chokes ...
     call lmdif(m,n,x,fvec,tol,maxfev, &
-                mode,factor,nprint,info,nfev,iwa,err0)
+                mode,factor,nprint,info,nfev,fjac,iwa,err0)
     if (info .eq. 8) info = 4
 !    write(*,*)'Return from lmdif with info= ',info
 10  continue
@@ -324,7 +326,7 @@ contains
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
   subroutine lmdif(m,n,x,fvec,xtol,maxfev, &
-       mode,factor,nprint,info,nfev,ipvt,err0)
+       mode,factor,nprint,info,nfev,fjac,ipvt,err0)
 ! removed arguments as linker chokes ...
 !  subroutine lmdif(fcn,m,n,x,fvec,ftol,xtol,gtol,maxfev,epsfcn,diag, &
 !       mode,factor,nprint,info,nfev,fjac,ldfjac, &
@@ -332,13 +334,14 @@ contains
     integer m,n,maxfev,mode,nprint,info,nfev,ldfjac
     integer ipvt(n)
     double precision ftol,xtol,gtol,epsfcn,factor,err0(2)
-    double precision x(n),fvec(m)
+    double precision x(n),fvec(m),fjac(m,*)
+!    double precision x(n),fvec(m),diag(n),fjac(ldfjac,n),qtf(n), &
 !    double precision x(n),fvec(m),diag(n),fjac(ldfjac,n),qtf(n), &
 !         wa1(n),wa2(n),wa3(n),wa4(m)
 !    external fcn
 !     **********
     double precision, dimension(:), allocatable :: diag,qtf,wa1,wa2,wa3,wa4
-    double precision, dimension(:,:), allocatable :: fjac
+!    double precision, dimension(:,:), allocatable :: fjac
 !
 !     subroutine lmdif
 !
@@ -542,7 +545,8 @@ contains
     allocate(wa2(n))
     allocate(wa3(n))
     allocate(wa4(m))
-    allocate(fjac(ldfjac,n))
+! now included in call
+!    allocate(fjac(ldfjac,n))
 !
 !     epsmch is the machine precision.
 !

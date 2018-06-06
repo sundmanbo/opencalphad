@@ -38,9 +38,13 @@ set echo
 @$----------------------------------------------------------------
 @$ Enter 100 optimizing coefficient called A00 to A99
 @$ This must be done ebfore using them in parameters or functions.
+@$ Also the dimension of workspace (can be changed)
 @$----------------------------------------------------------------
-enter opt_coef 100
+enter opt_coef
+100
+2500
 
+@&
 @$----------------------------------------------------------------
 @$ enter the phases and parameters
 @$----------------------------------------------------------------

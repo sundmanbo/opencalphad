@@ -2973,7 +2973,7 @@
    double precision charge,ratio1,ratio2
    double precision, dimension(:), allocatable :: y1,y2,y3,y4,y5
    real xdum(nrel),gdum
-   integer, parameter :: ncf5=5,ncf3=3,alloneut=40000
+   integer, parameter :: ncf5=5,ncf3=3,alloneut=90000
    integer ncf,maxngg
 ! These are used to combine endmembers
    double precision, dimension(7), parameter :: nfact=&
@@ -3303,7 +3303,7 @@
    allocate(y2(ncc))
    allocate(y3(ncc))
    allocate(y4(ncc))
-!   write(*,*)'3Y allocate neutral: ',mode,alloneut,np
+!   write(*,*)'3Y allocated neutral: ',mode,alloneut,np
 ! loopf keeps track if several gridpoints belong together
 !   if(.not.(allocated(neutral))) then
 !      write(*,*)'3Y ionic liquid has not allocated neutral array'

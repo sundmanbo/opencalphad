@@ -70,12 +70,24 @@ render
 
 
 @&
+@$ --------------------------------------------------------
+@$ Plot of activity curves for components in each phase at 1000 K
+
+
+plot
+x(cu)
+ac(*)
+title step2 fig 2
+render
+
+
+@&
 @$ plot the stability function, the lowest eigenvalue 
 
 plot
 x(cu)
 Q(*)
-title step2 fig 2
+title step2 fig 3
 render
 
 

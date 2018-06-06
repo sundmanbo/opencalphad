@@ -143,10 +143,12 @@ contains
 !    double precision :: dstep=1.0D-4,dmax2=1.0D2,acc=1.0D-3
 !    integer, parameter :: maxw=5000
 ! variables for lmdif
-    integer, parameter :: lwam=2500
+!    integer, parameter :: lwam=2500
+    integer lwam
     integer :: nopt1=100, mexp=0,nvcoeff,nopt
-    integer iwam(lwam)
-    double precision wam(lwam)
+    integer, allocatable, dimension(:) :: iwam
+    double precision, allocatable, dimension(:) :: wam
+    double precision, allocatable, dimension(:,:) :: fjac
     double precision :: optacc=1.0D-3
     logical :: updatemexp=.true.
     double precision err0(2)
@@ -2934,6 +2936,12 @@ contains
              write(kou,553)size(firstash%coeffstate)
 553          format('You have already ',i3,' optimizing coefficents entered')
           endif
+          call gparid('Size of workspace: ',cline,last,lwam,2500,q1help)
+          if(lwam.gt.2000) lwam=2000
+          if(allocated(wam)) then
+             deallocate(wam)
+             deallocate(iwam)
+          endif
 !          write(*,551)firstash%status
 !551       format('Assessment status word: ',z8)
 !---------------------------------------------------------------
@@ -5359,7 +5367,14 @@ contains
             '*************************************************************')
 !
        j1=nopt
-       call lmdif1(mexp,nvcoeff,coefs,errs,optacc,nopt,iwam,wam,lwam,err0)
+       if(.not.allocated(iwam)) then
+! value of lwam set by user
+          allocate(iwam(lwam))
+          allocate(wam(lwam))
+       endif
+       if(allocated(fjac)) deallocate(fjac)
+       allocate(fjac(mexp,nvcoeff))
+       call lmdif1(mexp,nvcoeff,coefs,errs,optacc,nopt,iwam,wam,lwam,fjac,err0)
 !
 ! on return nopt is set to a message, calculate final sum of errots
        xxx=zero
@@ -5367,6 +5382,12 @@ contains
           xxx=xxx+errs(i2)**2
        enddo
        err0(2)=xxx
+! write the jacobian ??
+!       write(*,*)'fjac:'
+!       do i2=1,mexp
+!          write(*,563)(fjac(i2,ll),ll=1,nvcoeff)
+!       enddo
+563    format(6(1pe12.4))
 ! some nice output .....
        write(kou,5010)err0
 5010   format('**************************************************************'/&
