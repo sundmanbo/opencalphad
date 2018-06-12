@@ -4,6 +4,7 @@ MODULE LIBOCEQPLUS
 !
   use liboceq
 !
+!
 contains
 !
 !
@@ -37,16 +38,16 @@ contains
        endif
     else
 ! This routine is in the matsmin.F90 file
+! it returns the calculated value of the property to fit
        call assessment_calfun(m,n,f,x)
-!       write(*,*)'Just calculating: ',niter
     endif
     return
   end subroutine calfun
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-  subroutine lmdif1(m,n,x,fvec,tol,info,iwa,wa,lwa,fjac,err0)
-! call modified by Bo Sundman
+  subroutine lmdif1(m,n,x,fvec,tol,info,nfev,iwa,wa,lwa,fjac,err0)
+! call modified by Bo Sundman 2017
 !  subroutine lmdif1(fcn,m,n,x,fvec,tol,info,iwa,wa,lwa)
     integer m,n,info,lwa
     integer iwa(n)
@@ -164,6 +165,7 @@ contains
 ! number of iterations passed through infor
     maxfev=info
     info = 0
+!    write(*,*)'in lmdif1',maxfev,m,n
 !
 !     check the input parameters for errors.
 !
@@ -534,6 +536,7 @@ contains
     double precision :: one=1.0D0
     double precision :: p1=1.0D-1,p5=5.0D-1,p25=2.5D-1,p75=7.5D-1,p0001=1.0D-4
 !
+!    write(*,*)'in lmdif A: ',n,m
 ! replace removed arguments
     ldfjac=m
     ftol=xtol
@@ -558,7 +561,7 @@ contains
 !
 !     check the input parameters for errors.
 !
-!    write(*,*)'In lmdif, maxfev=',maxfev modified to run once if maxfev=0
+!    write(*,*)'In lmdif C: maxfev=',maxfev ! modified to run once if maxfev=0
     if (n .le. 0 .or. m .lt. n .or. ldfjac .lt. m &
          .or. ftol .lt. zero .or. xtol .lt. zero .or. gtol .lt. zero &
          .or. maxfev .lt. 0 .or. factor .le. zero) go to 300
@@ -577,6 +580,7 @@ contains
 !    call fcn(m,n,x,fvec,iflag)
     call calfun(m,n,x,fvec,iflag,nfev)
 ! calculate intial sum of errors
+!    write(*,*)'lmdif back from calfun',nfev
     bosum=zero
     do j=1,m
        bosum=bosum+fvec(j)**2

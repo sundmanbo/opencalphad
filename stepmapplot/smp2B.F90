@@ -1393,6 +1393,12 @@
     results=>plottop%saveceq
     noftielineblocks=0
     node: do ii=1,lines
+! up to version 5.014: (june 2018)
+!       curline=>curtop%linehead(ii)
+! because crash plotting a ternary with 2 start points I changed
+!       curline=>plottop%linehead(ii)
+! BUT the line above does not work for map10 and map3 (last plot of H)
+! so until further investigations I keep:
        curline=>curtop%linehead(ii)
        if(btest(curline%status,EXCLUDEDLINE)) then
           write(*,*)'Excluded line: ',ii,curline%lineid,lines

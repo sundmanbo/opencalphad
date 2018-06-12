@@ -5260,6 +5260,9 @@ CONTAINS
                current%saveceq%free-1
           deallocate(current%saveceq%savedceq)
        endif
+! adding this write avoided a segmentation fault ... no longer ...
+!       write(*,*)'SMP: are there more mapnode records?',&
+!            associated(current%plotlink),associated(current%next)
        nexttop=>current%plotlink
        mapnode=>current%next
        do while(.not.associated(mapnode,current))

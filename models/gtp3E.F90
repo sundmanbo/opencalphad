@@ -855,10 +855,11 @@
 !   TYPE(gtp_condition), pointer :: condrec
    integer i,isp,j,k,kl,lokcs,lokph,mc,mc2,nsl,lokeq,rsize,displace,lokvares
    integer lokdis,disz,lok,qsize,eqdis,iws1,dcheck,lokcc,seqz,offset,dmc
-   integer loklast,eqnumber,lokhighcs,ceqsize
+   integer loklast,eqnumber,lokhighcs,ceqsize,ceqsize2
    type(gtp_equilibrium_data), pointer :: ceq
 ! loop to save all equilibria
    eqnumber=0
+   ceqsize2=ceqrecsize()
 17 continue
    eqnumber=eqnumber+1
    if(eqnumber.eq.1) then
@@ -866,8 +867,8 @@
       ceqsize=iws(1)
    elseif(eqnumber.eq.2) then
       ceqsize=iws(1)-ceqsize
-      write(*,18)ceqsize
-18    format(' 3E Saving an equilibrium record requires ',i8,' words')
+      write(*,18)ceqsize,ceqsize2
+18    format(' 3E Saving an equilibrium record requires ',2i8,' words')
    endif
    ceq=>eqlista(eqnumber)
 ! check if enything entered ...
@@ -914,7 +915,7 @@
    call storr(lokeq+displace+2*nwpr,iws,ceq%weight)
    displace=displace+3*nwpr
 ! svfunres not stored
-!---- conditions, write as text and recreate when reading file
+!---- conditions, write as text and recreated when reading file
    call get_all_conditions(text,0,ceq)
    if(gx%bmperr.ne.0) goto 1000
    kl=index(text,'CRLF')-1
@@ -1412,7 +1413,10 @@
    endif
 20 continue
 ! next, status, varcoef, first, and 8 allocatable arrays
-   rsize=4+2*nwch(64)+10
+!   rsize=4+2*nwch(64)+10
+! added one location for pointer to RSD values
+!   rsize=4+2*nwch(64)+11
+   rsize=5+2*nwch(64)+11
    write(*,*)'3E allocating assessment head record',rsize
    call wtake(lok1,rsize,iws)
    if(buperr.ne.0) then
@@ -1429,8 +1433,10 @@
    iws(lok1+1)=assrec%status
    iws(lok1+2)=assrec%varcoef
    iws(lok1+3)=assrec%firstexpeq
-   call storc(lok1+4,iws,assrec%general)
-   disp=4+nwch(64)
+   iws(lok1+4)=assrec%firstexpeq
+!   call storc(lok1+4,iws,assrec%general)
+   call storc(lok1+5,iws,assrec%general)
+   disp=5+nwch(64)
    call storc(lok1+disp,iws,assrec%special)
    disp=disp+nwch(64)
 ! eqlista
@@ -1462,6 +1468,18 @@
       iws(lok2)=i1
       call storrn(i1,iws(lok2+1),assrec%coeffvalues)
       iws(lok1+disp+2)=lok2
+! relative standard deviation
+      i1=size(assrec%coeffvalues)
+      rsize=1+nwpr*i1
+      call wtake(lok2,rsize,iws)
+      if(buperr.ne.0) then
+         write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
+         gx%bmperr=4356; goto 1000
+      endif
+!      write(*,*)'3E in saveash 2 RSD:',lok2,i1,rsize
+      iws(lok2)=i1
+      call storrn(i1,iws(lok2+1),assrec%coeffrsd)
+      iws(lok1+disp+3)=lok2
 ! coeffscale
       i1=size(assrec%coeffscale)
       rsize=1+nwpr*i1
@@ -1473,7 +1491,8 @@
       iws(lok2)=i1
 !      write(*,*)'3E in saveash 3:',lok2,i1
       call storrn(i1,iws(lok2+1),assrec%coeffscale)
-      iws(lok1+disp+3)=lok2
+!      iws(lok1+disp+3)=lok2
+      iws(lok1+disp+4)=lok2
 ! coeffstart
       i1=size(assrec%coeffstart)
       rsize=1+nwpr*i1
@@ -1485,7 +1504,8 @@
       iws(lok2)=i1
 !      write(*,*)'3E in saveash 4:',lok2,i1
       call storrn(i1,iws(lok2+1),assrec%coeffstart)
-      iws(lok1+disp+4)=lok2
+!      iws(lok1+disp+4)=lok2
+      iws(lok1+disp+5)=lok2
 ! coeffmin
       i1=size(assrec%coeffmin)
       rsize=1+nwpr*i1
@@ -1497,7 +1517,8 @@
       iws(lok2)=i1
 !      write(*,*)'3E in saveash 5:',lok2,i1
       call storrn(i1,iws(lok2+1),assrec%coeffmin)
-      iws(lok1+disp+5)=lok2
+!      iws(lok1+disp+5)=lok2
+      iws(lok1+disp+6)=lok2
 ! coeffmax
       i1=size(assrec%coeffmax)
       rsize=1+nwpr*i1
@@ -1508,7 +1529,8 @@
       endif
       iws(lok2)=i1
       call storrn(i1,iws(lok2+1),assrec%coeffmax)
-      iws(lok1+disp+6)=lok2
+!      iws(lok1+disp+6)=lok2
+      iws(lok1+disp+7)=lok2
 ! coeffindices
       i1=size(assrec%coeffindex)
       rsize=1+i1
@@ -1522,7 +1544,8 @@
       do i2=1,i1
          iws(lok2+i2)=assrec%coeffindex(i2-1)
       enddo
-      iws(lok1+disp+7)=lok2
+!      iws(lok1+disp+7)=lok2
+      iws(lok1+disp+8)=lok2
 ! coeffstate
       i1=size(assrec%coeffstate)
       rsize=1+i1
@@ -1535,7 +1558,8 @@
       do i2=1,i1
          iws(lok2+i2)=assrec%coeffstate(i2-1)
       enddo
-      iws(lok1+disp+8)=lok2
+!      iws(lok1+disp+8)=lok2
+      iws(lok1+disp+9)=lok2
    else
 ! pointers are zero
       write(*,*)'3E no coefficients allocated'
@@ -1552,10 +1576,12 @@
       endif
       iws(lok2)=i1
       call storrn(i1,iws(lok2+1),assrec%wopt)
-      iws(lok1+disp+9)=lok2
+!      iws(lok1+disp+9)=lok2
+      iws(lok1+disp+10)=lok2
    else
       write(*,*)'3E no work array (assrec%wopt) allocated'
-      iws(lok1+disp+9)=0
+!      iws(lok1+disp+9)=0
+      iws(lok1+disp+10)=0
    endif
 ! check if there are several assessment records
    if(.not.associated(assrec,firstash)) then
@@ -2776,8 +2802,9 @@
    assrec%status=iws(lok1+1)
    assrec%varcoef=iws(lok1+2)
    assrec%firstexpeq=iws(lok1+3)
-   call loadc(lok1+4,iws,assrec%general)
-   disp=4+nwch(64)
+   assrec%lwam=iws(lok1+4)
+   call loadc(lok1+5,iws,assrec%general)
+   disp=5+nwch(64)
    call loadc(lok1+disp,iws,assrec%special)
    disp=disp+nwch(64)
    lok2=iws(lok1+disp+1)
@@ -2807,6 +2834,16 @@
       call loadrn(i1,iws(lok2+1),assrec%coeffvalues)
    endif
    lok2=iws(lok1+disp+3)
+! coeffrsd
+!      lok2=iws(lok2)
+   if(lok2.gt.0) then
+      i1=iws(lok2)
+      write(*,*)'3E In readash RSD: ',lok2,i1
+      allocate(assrec%coeffrsd(0:i1-1))
+      call loadrn(i1,iws(lok2+1),assrec%coeffrsd)
+   endif
+!   lok2=iws(lok1+disp+3)
+   lok2=iws(lok1+disp+4)
    if(iws(lok2).gt.0) then
 ! coeffscale
 !      lok2=iws(lok2)
@@ -2815,7 +2852,8 @@
       allocate(assrec%coeffscale(0:i1-1))
       call loadrn(i1,iws(lok2+1),assrec%coeffscale)
    endif
-   lok2=iws(lok1+disp+4)
+!   lok2=iws(lok1+disp+4)
+   lok2=iws(lok1+disp+5)
    if(iws(lok2).gt.0) then
 ! coeffstart
 !      lok2=iws(lok2)
@@ -2824,7 +2862,8 @@
       allocate(assrec%coeffstart(0:i1-1))
       call loadrn(i1,iws(lok2+1),assrec%coeffstart)
    endif
-   lok2=iws(lok1+disp+5)
+!   lok2=iws(lok1+disp+5)
+   lok2=iws(lok1+disp+6)
    if(iws(lok2).gt.0) then
 ! coeffmin
 !      lok2=iws(lok2)
@@ -2833,7 +2872,8 @@
       allocate(assrec%coeffmin(0:i1-1))
       call loadrn(i1,iws(lok2+1),assrec%coeffmin)
    endif
-   lok2=iws(lok1+disp+6)
+!   lok2=iws(lok1+disp+6)
+   lok2=iws(lok1+disp+7)
    if(iws(lok2).gt.0) then
 ! coeffmax
 !      lok2=iws(lok2)
@@ -2842,7 +2882,8 @@
       allocate(assrec%coeffmax(0:i1-1))
       call loadrn(i1,iws(lok2+1),assrec%coeffmax)
    endif
-   lok2=iws(lok1+disp+7)
+!   lok2=iws(lok1+disp+7)
+   lok2=iws(lok1+disp+8)
    if(iws(lok2).gt.0) then
 ! coeffindices
 !      lok2=iws(lok2)
@@ -2863,7 +2904,8 @@
          if(gx%bmperr.ne.0) goto 1000
       enddo
    endif
-   lok2=iws(lok1+disp+8)
+!   lok2=iws(lok1+disp+8)
+   lok2=iws(lok1+disp+9)
    if(iws(lok2).gt.0) then
 ! coeffstate
 !      lok2=iws(lok2)
@@ -2876,7 +2918,8 @@
    endif
 777 continue
 ! maybe work array has been daved also?
-   lok2=iws(lok1+disp+9)
+!   lok2=iws(lok1+disp+9)
+   lok2=iws(lok1+disp+10)
    if(lok2.gt.0) then
       if(iws(lok2).gt.0) then
 !         lok2=iws(lok2)
@@ -6400,6 +6443,61 @@
    return
  end subroutine gtpsavetm
 !
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+!
+!\begin{verbatim}
+ integer function ceqrecsize()
+! calculates the number of words needed to save an equilibrium record
+!\end{verbatim}
+   integer rsize,jj,seqz,kl,dmc,mc,mc2,nsl
+   type(gtp_equilibrium_data), pointer :: ceq
+   type(gtp_phase_varres), pointer :: firstvarres
+   TYPE(gtp_fraction_set), pointer :: fslink
+   character text*512
+!
+   write(*,*)'ceqrecsize not implemented',highcs
+   rsize=0
+   goto 1000
+   ceq=>firsteq
+   rsize=4+nwch(24)+nwch(72)+4*nwpr+2+2*noofel+4+5*nwpr
+   text=' '
+   call get_all_conditions(text,0,ceq)
+   rsize=rsize+nwch(index(text,'CRLF'))
+100 continue
+   text=' '
+   call get_one_experiment(jj,text,seqz,.FALSE.,ceq)
+   if(gx%bmperr.ne.0) then
+      kl=index(text,'$')-1
+      if(kl.le.0) then
+         kl=len_trim(text)
+      endif
+      rsize=rsize+2+nwch(kl)
+      goto 100
+   endif
+   gx%bmperr=0
+! ignore if a component has a defined reference state ...
+   rsize=rsize+(5+nwch(16)+1+6*nwpr)*noofel
+   do jj=1,highcs
+! loop for phase_varres records ..
+      firstvarres=>ceq%phase_varres(jj)
+      if(.not.allocated(firstvarres%yfr)) then
+         rsize=rsize+4
+      else
+         rsize=rsize+6+2*nwch(4)+3*nwpr+mc+2*mc*nwpr
+         rsize=rsize+6*nwpr+3*mc*nwpr+mc2*nwpr+5+2
+         if(btest(firstvarres%status2,CSDLNK)) then
+! there is a disordered fraction set ...
+            fslink=>firstvarres%disfra
+            nsl=fslink%ndd
+            rsize=8+nwch(1)+nsl+dmc+1+mc*(1+nwpr)+nsl*nwpr+nwpr
+         endif
+      endif
+   enddo
+1000 continue
+   ceqrecsize=rsize
+   return
+ end function ceqrecsize
+
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 !
  subroutine readtdbsilent

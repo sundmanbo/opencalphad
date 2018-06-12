@@ -165,6 +165,12 @@ TYPE meqdebug
    double precision val(10),dif(10)
 end type meqdebug
 type(meqdebug) :: cerr
+!
+! This is for returning the calculated value of an experimantal property
+! as we need an array to store the calculated values of the experimental  
+! properties in order to calculate the Relative Standarad Deviation (RSD)
+  double precision, allocatable, dimension(:) :: calcexp
+!
 !--------------------------------------------------------------
 !
 ! IMPORTANT
@@ -7738,36 +7744,43 @@ CONTAINS
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
-  subroutine assessment_calfun(nexp,nvcoeff,errs,x)
+  subroutine assessment_calfun(nexp,nvcoeff,errs,xyz)
 ! nexp is number of experiments, nvcoeff number of coefficients
 ! errs is the differences between experiments and value calculated by model
 ! returned by this subroutine
-! x are the current model parameter values set by VA05AD
+! xyz are the scaled current model parameter values
     implicit none
     integer nexp,nvcoeff
-    double precision errs(*),X(*)
+    double precision errs(*),XYZ(*)
 !    type(gtp_assessmenthead), pointer :: ash
 !\end{verbatim}
 ! firstash is the data structure for assessment head (globally declared) 
-   integer i1,i2,iexp,symsym,mode
-    double precision xxx,yyy
+    integer i1,i2,iexp,symsym,mode,jj,savix
+    double precision xxx,yyy,zzz
     type(gtp_equilibrium_data), pointer :: equil
     type(gtp_condition), pointer :: experiment
     type(gtp_state_variable), pointer :: svrrec
     character text*24
+    double precision xa(100)
 !
 !    write(*,*)'MM in assessment_calfun',nexp,nvcoeff
+!    if(allocated(calcexp)) write(*,*)'Calculating Jacobian'
 ! 1. copy values of X to the TP coefficinets, loop through all
     i2=1
     do i1=0,size(firstash%coeffstate)-1
 !       write(*,*)'MM2 Testing value of firstash%coeffstate',i1
        if(firstash%coeffstate(i1).ge.10) then
-!          write(*,*)'MM3 coefficient ',i1,i2,x(i2)
-          xxx=x(i2)*firstash%coeffscale(i1)
-!          write(*,16)i2,i1,xxx,x(i2),firstash%coeffscale(i1)
-16        format('MM4 Opt coeff ',2i4,' set to ',3(1pe12.4))
+!          write(*,*)'MM3 coefficient ',i1,i2,xyz(i2)
+! Attempt to handle that I divide by coef with scaling factor ...
+          zzz=xyz(i2)*firstash%coeffscale(i1)
+          xxx=xyz(i2)*firstash%coeffscale(i1)
+!          write(*,16)i2,i1,xxx,xyz(i2),firstash%coeffscale(i1)
+!16        format('MM4 Opt coeff ',2i4,' set to ',3(1pe12.4))
+          call get_value_of_constant_index(firstash%coeffindex(i1),zzz)
+          savix=i1
           call change_optcoeff(firstash%coeffindex(i1),xxx)
           if(gx%bmperr.ne.0) goto 1000
+          xa(i2)=xxx
           i2=i2+1
 !       else
 !          write(*,*)'MM5 coefficient not variable',i1
@@ -7775,6 +7788,7 @@ CONTAINS
     enddo
 ! 2. calculate all differences, skipping equilibria with weight zero
 ! the array firstash%eqlista contain pointers to equilibria with experiments
+700 continue
     if(.not.allocated(firstash%eqlista)) then
        write(kou,*)' *** Warning: no experimental data!'
        do i1=1,nexp
@@ -7824,7 +7838,7 @@ CONTAINS
 ! loop through all experiments, pointer set to first
        experiment=>equil%lastexperiment%next
 ! current value of the experiment
-500       continue
+500    continue
           iexp=iexp+1
 !          write(*,*)'MM Setting pointer to experiment ',&
 !               allocated(experiment%statvar),iexp
@@ -7858,6 +7872,13 @@ CONTAINS
 !          write(*,510)'MM errs',iexp,experiment%prescribed,xxx,&
 !               experiment%uncertainty,equil%weight
 510       format(a,i4,6(1pe12.4))
+          if(allocated(calcexp)) then
+! this is to enable calculating RSD at the end of an assessment
+! normally calcexp is not allocated!!
+             calcexp(iexp)=xxx
+!             write(*,555)'Jacobian: ',iexp,(xa(jj),jj=1,i2-1),xxx
+555          format(a,i3,6(1pe12.4))
+          endif
           if(experiment%experimenttype.eq.0) then
 ! take the difference between prescribed value
              errs(iexp)=(experiment%prescribed-xxx)*equil%weight/&
@@ -7885,12 +7906,18 @@ CONTAINS
              endif
           endif
 590       if(.not.associated(experiment,equil%lastexperiment)) then
+! if more experiments jump back to 500
              experiment=>experiment%next
              goto 500
           endif
 ! done all experiments for this equilibrium
-       enddo eqloop
+    enddo eqloop
 !    write(*,*)'MM experiments: ',iexp,nexp
+! We have to restore the last value of the last coefficient
+    if(allocated(calcexp)) then
+!       write(*,*)'MM restore savix: ',savix,zzz
+       call change_optcoeff(firstash%coeffindex(savix),zzz)
+    endif
 1000 continue
     return
   end subroutine assessment_calfun

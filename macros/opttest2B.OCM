@@ -86,6 +86,7 @@ opt 100
 @$ The optimize command requires a maximum numer of iterations.
 @$ It lists at regular intervals the sum of errors squared
 @$ and the current values of the model parameters.
+@$ At the end the final and initial sum of squares
 @$------------------------------------------------------------------------
 @&
 @$ List the result
@@ -122,7 +123,7 @@ opt 100
 l opt
 
 @$ -------------------------------------------------------
-@$ With two perameters the sum of errors decreased
+@$ With two parameters the sum of errors decreased
 @$ -------------------------------------------------------
 @&
 @$ We can also list just the coefficients

@@ -2584,8 +2584,10 @@
 ! just this constituent.  Note indices(1) is phase record, change to index
 !      write(*,*)'3F refphase: ',indices(1),phlista(indices(1))%alphaindex,value
       ic=phlista(indices(1))%alphaindex
+! set endmember=0 to allow vacancies ...
+      endmember=0
       endmember(1)=indices(2)
-!      write(*,*)'3F callcg_endmember 1: ',indices(1)
+      write(*,*)'3F callcg_endmember 1: ',indices(1),indices(2)
       call calcg_endmember(indices(1),endmember,gref,ceq)
       if(gx%bmperr.ne.0) goto 1000
       value=value-gref*ceq%rtn

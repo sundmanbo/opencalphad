@@ -5792,49 +5792,64 @@
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim}
-  subroutine listoptcoeff(lut)
+  subroutine listoptcoeff(mexp,error2,done,lut)
 ! listing of optimizing coefficients
-    integer lut
+    integer lut,mexp
+    double precision error2
+    logical done
 !    integer lut,mexp
 !    double precision errs(*)
 !    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
     type(gtp_equilibrium_data), pointer :: neweq
-    integer i1,i2,j1,j2,j3,k1
+    integer i1,i2,j1,j2,j3,k1,nvcoeff
     character name1*24,where*80
     double precision xxx
 !
     write(lut,610)
-610 format(/'List of coefficents with non-zero values'/&
+610 format(/'List of coefficients with non-zero values'/&
          'Name  Current value  Start value   Scaling factor RSD',10x,&
          'Used in')
     name1=' '
+    nvcoeff=0
     do i1=0,size(firstash%coeffstate)-1
        coeffstate: if(firstash%coeffstate(i1).ge.10) then
 ! optimized variable, read from TP constant array
           call get_value_of_constant_index(firstash%coeffindex(i1),xxx)
           call makeoptvname(name1,i1)
           call findtpused(firstash%coeffindex(i1),where)
+!          write(lut,615)name1(1:3),xxx,&
           write(lut,615)name1(1:3),xxx,&
-               firstash%coeffstart(i1),firstash%coeffscale(i1),zero,trim(where)
+!               firstash%coeffvalues(i1)*firstash%coeffscale(i1),&
+               firstash%coeffstart(i1),firstash%coeffscale(i1),&
+               firstash%coeffrsd(i1),trim(where)
 615       format(a,2x,4(1pe14.5),2x,a)
+          if(abs(xxx-firstash%coeffvalues(i1)*firstash%coeffscale(i1))&
+               .gt.1e-8) then
+             write(*,*)'Not same: ',xxx,&
+                  firstash%coeffvalues(i1)*firstash%coeffscale(i1)
+          endif
           if(firstash%coeffstate(i1).eq.11) then
 ! there is a prescribed minimum
              write(lut,616)' minimum ',firstash%coeffmin(i1)
 616          format(6x,'Prescribed ',a,': ',1pe12.4)
+             nvcoeff=nvcoeff+1
           elseif(firstash%coeffstate(i1).eq.12) then
 ! there is a prescribed maximum
              write(lut,616)' maximum ',firstash%coeffmax(i1)
+             nvcoeff=nvcoeff+1
           elseif(firstash%coeffstate(i1).eq.13) then
 ! there are prescribed minimum and maximum
              write(lut,617)firstash%coeffmin(i1),firstash%coeffmax(i1)
 617          format(6x,'Prescribed min and max: ',2(1pe12.4))
+             nvcoeff=nvcoeff+1
           elseif(firstash%coeffstate(i1).gt.13) then
-             write(lut,*)'Wrong coefficent state, set to 10'
+             write(lut,*)'Wrong coefficient state, set to 10'
 !?? 
 !             firstash%coeffstate(i2)=10
              firstash%coeffstate(i1)=10
           endif
+             nvcoeff=nvcoeff+1
        elseif(firstash%coeffstate(i1).gt.0) then
 ! fix variable status
           call get_value_of_constant_index(firstash%coeffindex(i1),xxx)
@@ -5850,6 +5865,23 @@
           firstash%coeffstate(i1)=1
        endif coeffstate
     enddo
+!    sum=zero
+!    do j1=1,mexp
+!       sum=sum+errs(j1)**2
+!    enddo
+    if(done) then
+! only if there are results
+       j1=mexp-nvcoeff
+       if(j1.gt.0) then
+          write(lut,621)error2,mexp,nvcoeff,j1,error2/j1
+       else
+          write(lut,621)error2,mexp,nvcoeff,0,zero
+       endif
+621    format(/'Final sum of squared errors: ',1pe16.5,&
+            ', using ',i4,' experiments and'/&
+            i3,' coefficients.  Degrees of freedom: ',i4,&
+            ', normalized error: ',1pe13.4/)
+    endif
 1000 continue
     return
   end subroutine listoptcoeff

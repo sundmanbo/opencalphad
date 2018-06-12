@@ -1717,17 +1717,19 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! status is status word, AHCOEF is used
 ! varcoef is the number of variable coefficients
 ! firstexpeq is the first equilibrium with experimental data
-     integer status,varcoef,firstexpeq
+! lwam is allocated workspace at last call to lmdif1
+     integer status,varcoef,firstexpeq,lwam
      character*64 general,special
      type(gtp_assessmenthead), pointer :: nextash,prevash
 ! This is list of pointers to equilibria to be used in the assessnent
 ! size(eqlista) is the number of equilibria with experimental data
      type(equilibrium_array), dimension(:), allocatable :: eqlista
 ! These are the coefficients values that are optimized,
-! current values, scaling, start values and optionally min and max
+! current values, scaling, start values, RSD and optionally min and max
      double precision, dimension(:), allocatable :: coeffvalues
      double precision, dimension(:), allocatable :: coeffscale
      double precision, dimension(:), allocatable :: coeffstart
+     double precision, dimension(:), allocatable :: coeffrsd
      double precision, dimension(:), allocatable :: coeffmin
      double precision, dimension(:), allocatable :: coeffmax
 ! These are the corresponding TP-function constants indices

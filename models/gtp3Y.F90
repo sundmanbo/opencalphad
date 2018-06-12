@@ -1159,6 +1159,8 @@
 ! these are for generating the constituion of gridpoint
    double precision, dimension(:,:), allocatable :: yendm
    double precision, dimension(:), allocatable :: yfra
+   integer :: warning1const=0
+   save warning1const
 ! ----------------------------------------------------------------
 ! these are the factors to generate gridpoints from endmember fractions
    double precision, dimension(5), parameter :: &
@@ -1210,7 +1212,7 @@
 !      write(*,*)'3Y back from fccord_grid 2, jump to 1000',ngg
 !      goto 200
       if(gx%bmperr.eq.-1) then
-! if gx%bmperr is -1 on return use default grindgenerator
+! if gx%bmperr is -1 means problems in fccord_grid, use default grindgenerator
          gx%bmperr=0
       else
          goto 1000
@@ -1376,7 +1378,11 @@
 ! strange bug in map3, maxng was zero sometimes ...
                      if(ng.gt.maxng) then
                         if(maxng.lt.100) then
-                           write(*,*)'3Y max gripoints wrong 6: ',maxng,iph,mode
+                           if(warning1const.ne.iph) then
+                              write(*,*)'3Y max gripoints wrong 6: ',&
+                                   maxng,iph,mode
+                              warning1const=iph
+                           endif
                         else
                            write(*,*)'3Y Too many gridpoints 6',ng,maxng,iph
                            gx%bmperr=4399; goto 1000
@@ -3800,7 +3806,7 @@
    if(gx%bmperr.ne.0) goto 1100
 ! set constitution to be just the endmember
 ! It is difficult to make this simpler as one can have magnetic contributions
-! to G, this it is not sufficient just to calculate the G function, one must
+! to G, thus it is not sufficient just to calculate the G function, one must
 ! calculate TC etc.
 !   write(*,16)'3Y call endmember: ',iph,nsl,(endmember(ll),ll=1,nsl)
    yfra=zero

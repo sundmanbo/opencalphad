@@ -13,10 +13,30 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2018.06.11 OC version 5.015: I have stared working on things needed
+for assessments, like calculating a correlation matrix and relative
+standard deviations (RSD) for the model parameters with the help of
+Eva who is working on a thesis about assessments.  In the middle of
+this I got strange segmentation errors at many different places but
+after compiling with -lefence and -fcheck=all on my Linux version it
+turned out that all was due to the fact I had given the wrong
+dimensions to the MDINV subroutine in a call in pmon6.F90 for the
+inverting a matrix to obtain the correlation matrix.  After correcting
+this the faults disappeared (for this time).  Lesson: an programming
+error can cause problems anywhere in the software.  However, the
+correlation matrix is wrong so Eva has to teach me more about
+statistics.  I have also added a few more commands to list results of
+an assessment.
+
+I also made a change for plotting isothermal sections when using
+several start points but I had to revise this as plotting with a
+single start point failed.  Strange ... I have to look at this again.
+
 2018.06.06 OC version 5.014: A very quick update due to a demo.  Some
 arguments to LMDIIF changed and increased storage in the grid
 minimizer for a system with 19 elements and a phase with 48 charged
-endmembers requiring more than 60000 gridpoints!
+endmembers requiring more than 60000 gridpoints!  I have to look again
+at the gridminimizer sometime.
 
 2018.06.05 OC version 5.013: A long time without updates!  I have
 worked on the unary models but there are still problems but I got some
