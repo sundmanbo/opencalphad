@@ -3,9 +3,9 @@ VER=oc4A
 TQPATH=./TQ4lib/Cpp
 TQPATHF=./TQ4lib/F90
 TQPATHCPP=$(TQPATH)/Matthias
-CFLAGS=-fbounds-check -finit-local-zero
+CFLAGS=-fbounds-check -finit-local-zero -O2
 #UNCOMMENT THE NEXT LINE IF YOU WANT TO COMPILE OPENCALPHAD IN PARALLEL
-#CFLAGS+=-O2 -fopenmp
+#CFLAGS+= -fopenmp
 
 #==============================================================================#
 
@@ -46,13 +46,12 @@ tqexamples:
 #Removes all binary files that were created in the compiling step.
 
 clean:
-	rm -f *.a *.o *.mod $(VER) linkoc
-	make -C $(TQPATH) clean
+	rm -f *.a *.o *.mod $(VER) linkoc $(TQPATHF)/crfe/tqex1 $(TQPATHF)/feni/tqex2 $(TQPATHCPP)/crfe/tqex1 $(TQPATHCPP)/feni/tqex2 $(TQPATHCPP)/tqex3
 
 #==============================================================================#
 
 metlib3.o:	utilities/metlib3.F90
-	gfortran -c $(CFLAGS) utilities/metlib3.F90
+	gfortran -c $(CFLAGS) -Dwin utilities/metlib3.F90
 
 oclablas.o:	numlib/oclablas.F90
 	gfortran -c $(CFLAGS) numlib/oclablas.F90
