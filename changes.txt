@@ -13,10 +13,132 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2018.06.11 OC version 5.015: I have stared working on things needed
+for assessments, like calculating a correlation matrix and relative
+standard deviations (RSD) for the model parameters with the help of
+Eva who is working on a thesis about assessments.  In the middle of
+this I got strange segmentation errors at many different places but
+after compiling with -lefence and -fcheck=all on my Linux version it
+turned out that all was due to the fact I had given the wrong
+dimensions to the MDINV subroutine in a call in pmon6.F90 for the
+inverting a matrix to obtain the correlation matrix.  After correcting
+this the faults disappeared (for this time).  Lesson: an programming
+error can cause problems anywhere in the software.  However, the
+correlation matrix is wrong so Eva has to teach me more about
+statistics.  I have also added a few more commands to list results of
+an assessment.
+
+I also made a change for plotting isothermal sections when using
+several start points but I had to revise this as plotting with a
+single start point failed.  Strange ... I have to look at this again.
+
+2018.06.06 OC version 5.014: A very quick update due to a demo.  Some
+arguments to LMDIIF changed and increased storage in the grid
+minimizer for a system with 19 elements and a phase with 48 charged
+endmembers requiring more than 60000 gridpoints!  I have to look again
+at the gridminimizer sometime.
+
+2018.06.05 OC version 5.013: A long time without updates!  I have
+worked on the unary models but there are still problems but I got some
+nice feedbacks from the Calphad meeting in Mexico.
+
+In this update I have modified the AMEND PHASE command separating out
+all the ADDITIONS like magnetism, Einstein solid, liquid twostate
+model etc so if you have macro files with AMEND PHASE you may need to
+edit them.  There is no change reading TDB files but it is not
+possible to enter an Einstein model or liquid two-state model from a
+TDB file because the way to do this has not been defined in the TDB
+file.  Just having a THETA or GD parameter in the TDB file is not
+enough.
+
+The number of additions seems to grow very fast with the development
+of new unaries.  The reading of TDB files has not changed but the TDB
+files cannot cope with these new models.  I will make an update of the
+PDB format to include these.
+
+Some convergence problems have been reported and I have increased the
+convergence criterium related to detecting if unstable phases will
+become stable.  I have also made it possible for the user to change
+this by adding a 3rd question in the command SET NUMERIC_OPTION.  The
+default is now 0.004.  Previously it was 0.05 but this value failed to
+find the stable set of phases in some cases.  The lower value will
+lead to a few more iterations.  You may restore the old value if you
+have no problems using that.
+
+The change also affects the UNFORMATTED save file, you will not be
+able to use UNFORMATTED files written with previous versions with the
+new version.  Always keep macro files to replace files that you want
+to save and read UNFORMATTED.
+
+The table with MODEL_PARAMETER_ID has also changed again and a new
+function has been added to obtain the index of a model parameter
+identifier, mpi=GET_MPI_INDEX(char) where char is a 4 character string
+with the model parameter identifier.  The value of "mpi" is needed to
+find the value of the model parameter in the
+ceq%phase_varres(lokph)%gval array.  The change makes it easier to
+handle future changes in the list of identifiers as this list will
+certainly grow.  Note that "mpi" for parameters with constituent index
+should be mulitiplied with 100 as the constituent index is stored in
+the first two digits.
+
+2018.04.18 OC version 5.012: A small but very irritating bug for the
+user i/f and another bug plotting isothermal sectione fixed.  But no
+fear, there are a lot of more bugs to fix when mapping and plotting
+with tie-lines in the plane.
+
+2018.04.17 OC version 5.011: The convergence criteria has been changed
+slightly again because there were troubles with some macros.
+Otherwise I have worked with the unary models and the mapping, without
+much success for the moment.
+
+2018.04.03 OC version 5.010: I have increased the convergence criteria
+slightly due to a case Nathalie showed me, it means a few more
+iterations in some cases when the Gibbs energy surface is rather flat.
+I have also improved the way OC finds startpoints for mapping in
+isothermal sections and changed some of the colors used for plotting,
+tie-lines and invariant lines in isothermal sections are now golden.
+But one can still not start a mapping inside an invariant isothermal
+section, maybe in next release.
+
+2018.03.23 OC version 5.009: With the help of Nathalie Dupin I found
+and fixed a bug in the grid minimizer which set the wrong constitution
+of the metastable ordered BCC.  The bug made it completely empty with
+vacancies on all sublattices.  This change may cause converge problems
+in other systems so please check and report any problems.
+
+2018.03.21 OC version 5.008: I have learned a bit more about GNUPLOT
+and managed to romve the line at zero in some STEP and MAP diagrams.
+It made figure 3 of step1 macro (plotting Cr content in stanle phases)
+slightly worse though as some lines ends without decending to zero.
+So there is more to learn ...
+
+I have also made the last fixes (I hope) of the TDB2DAT converter and
+tested converting the whole TAFID database (41 elements) with no
+obvious errors and even managed to calculate an equilibrium.  But
+there are certainly minor bugs here and there.  Entropy must never be
+zero.  As the TDB file may contain many unassessed endmember
+parameters there is a special check added to indicate missing
+endmembers.  But these must be added by someone knowing the database.
+
+2018.03.10 OC version 5.007: A minor bug concerning composition
+dependent ternary excess parameters in the ionic liquid fixed.  There
+is still a problem with composition dependent ternary cation
+interactions.  Another bug plotting constituent fractions also fixed.
+
+There is also an unfinished problem with the delete equilibrium
+routine, if there are "holes" in the eqlista array these may cause
+trouble.  Be careful and always delete equilibria from the end!
+
+The workspace allocated for UNFORMATTED save has been adjusted to the
+size of the current system as the large default size sometimes created
+memory problems.  If this causes problem you can modify the size,
+"miws" in the gtp3E.F90 file.
+
 2018.03.01 OC version 5.006: A visit at CEA Cadarache gave inspiration
 as they were happy with the speed of calculations and in particular
 the possibility to save/read complex calculations on UNFORMATTED
-Fortran files duiring simulations.
+Fortran files during simulations of nuclear fuels with more than 15
+components.
 
 I have managed to reduce the memory loss during STEP/MAP using
 valgrind.  Evidently the Fortran compiler allows and the run time
@@ -38,8 +160,8 @@ still on the to-do list.
 problems that have to be fixed, in particular memory leaks when using
 STEP and MAP.  It will take some time but some are corrected in this
 release.  The opttest2 macro has been extended.  LIST RESULT has two
-additional options, 10 and 11, to list constitution based on the
-amount of the phase similar to FactSage output.
+additional options, 10 and 11, to list a phase constitution based on
+the amount of the phase similar to FactSage output.
 
 2018.02.23 OC version 5.004: Many changes has been made in the
 assessment part of OC as a PhD student at Toulouse, Eva Lawrene, has
@@ -771,3 +893,4 @@ to rename these files.
 Modified slightly the listing of many equilibria.  Empty lines in the
 enter_many_equil command and TAB characters in the row lines are accepted.
 
+Start documenting OC incremental updates ...

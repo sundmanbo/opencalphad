@@ -123,11 +123,10 @@
 !\end{verbatim}
 !
    character id*40,comment*72
-!   integer, parameter :: miws=2000000
 ! size of workspace for unformatted storage
    integer miws
    integer, allocatable, dimension(:) :: iws
-   integer i,isp,jph,lokph,lut,last,lok,rsize,displace,ibug,ffun,lokeq
+   integer i,isp,jph,lokph,lut,last,lok,rsize,displace,ibug,ffun,lokeq,ccc
 ! these depend on hardware, bytes/word and words/double. Defined in metlib3
 !   integer, parameter :: nbpw=4,nwpr=2
 ! integer function nwch calculates the number of words to store a character
@@ -174,8 +173,31 @@
    endif
 ! dimension iws depending on number of equuilibria stored
 ! 7000 is for a 6 component system with 50 phases
-   miws=2000000+50000*eqfree
-   write(*,*)'3E allocating workspace: ',miws
+! steel1 with 6 elements:         30000 static and       6000 per equilibrium
+! TAFID 15 elements:              90000 for static and  30000 per equilibrium
+! TAFID 41 elements, 350 phases: 300000 for static and 120000 per equilibrium
+! estimate static: nel*nph*x; x=30: static=100000+nel*nph*30
+! equilibrium: 40*350*10 ... too small when few elements
+   ccc=max(20*noofel*noofph,10000)
+! eqfree may not be the higest used equilibrium record!!
+   i=eqfree
+   last=eqfree
+   do while(eqlista(i)%nexteq.gt.0)
+      if(eqlista(i)%nexteq.ne.i+1) then
+! if eqlista(i)%nexteq does not increment sequentially there are some holes!
+         last=eqlista(i)%nexteq
+         write(*,*)'3E Beware: unused equilibria before the last used,'&
+              ' cannot be saved'
+         gx%bmperr=4399; goto 1000
+      endif
+      i=eqlista(i)%nexteq
+   enddo
+!   
+   miws=100000+noofel*noofph*30+ccc*last
+!   miws=2000000+50000*eqfree
+!   write(*,*)'3E allocating workspace: ',miws
+   write(*,7)'3E allocating workspace: ',miws,30*noofel*noofph,ccc,last
+7  format(a,i10,10x,'(',i7,', ',i7,', ',i4,')')
    allocate(iws(miws))
    call winit(miws,100,iws)
    if(buperr.ne.0) goto 1100
@@ -833,10 +855,11 @@
 !   TYPE(gtp_condition), pointer :: condrec
    integer i,isp,j,k,kl,lokcs,lokph,mc,mc2,nsl,lokeq,rsize,displace,lokvares
    integer lokdis,disz,lok,qsize,eqdis,iws1,dcheck,lokcc,seqz,offset,dmc
-   integer loklast,eqnumber,lokhighcs,ceqsize
+   integer loklast,eqnumber,lokhighcs,ceqsize,ceqsize2
    type(gtp_equilibrium_data), pointer :: ceq
 ! loop to save all equilibria
    eqnumber=0
+   ceqsize2=ceqrecsize()
 17 continue
    eqnumber=eqnumber+1
    if(eqnumber.eq.1) then
@@ -844,8 +867,8 @@
       ceqsize=iws(1)
    elseif(eqnumber.eq.2) then
       ceqsize=iws(1)-ceqsize
-      write(*,18)ceqsize
-18    format(' 3E Saving an equilibrium record requires ',i8,' words')
+      write(*,18)ceqsize,ceqsize2
+18    format(' 3E Saving an equilibrium record requires ',2i8,' words')
    endif
    ceq=>eqlista(eqnumber)
 ! check if enything entered ...
@@ -859,8 +882,10 @@
 !   write(lut)ceq%eqname,ceq%eqno,ceq%status,ceq%next
 ! status,multi,eqno,next,name,comment,tpval(2),rtn,weight,
 ! (links to cond,exper), complist(nel),(link to compstoi*(nel*nel))
-! highcs, (link to phase_varres), mu(nel), xconc,gmind,eqextra,maxiter
-   rsize=4+nwch(24)+nwch(72)+4*nwpr+2+2*noofel+4+3*nwpr
+! old: highcs, (link to phase_varres), mu(nel), xconc,gmind,eqextra,maxiter
+! highcs, (link to phase_varres),mu(nel),xconc, gdconv(2),gmind,eqextra,maxiter
+!   rsize=4+nwch(24)+nwch(72)+4*nwpr+2+2*noofel+4+3*nwpr
+   rsize=4+nwch(24)+nwch(72)+4*nwpr+2+2*noofel+4+5*nwpr
    call wtake(lokeq,rsize,iws)
    if(buperr.ne.0) then
       write(*,*)'3E Error reserving equilibrium record'
@@ -881,7 +906,7 @@
    iws(lokeq+1)=ceq%status
    iws(lokeq+2)=ceq%multiuse
    iws(lokeq+3)=ceq%eqno
-   iws(lokeq+4)=ceq%next
+   iws(lokeq+4)=ceq%nexteq
    call storc(lokeq+5,iws,ceq%eqname)
    displace=5+nwch(24)
    call storc(lokeq+displace,iws,ceq%comment)
@@ -890,7 +915,7 @@
    call storr(lokeq+displace+2*nwpr,iws,ceq%weight)
    displace=displace+3*nwpr
 ! svfunres not stored
-!---- conditions, write as text and recreate when reading file
+!---- conditions, write as text and recreated when reading file
    call get_all_conditions(text,0,ceq)
    if(gx%bmperr.ne.0) goto 1000
    kl=index(text,'CRLF')-1
@@ -1245,11 +1270,15 @@
    csfree=highcs+1
 !-----------------------------------------
 ! mu(nel), xconc,gmind,eqextra,maxiter
+! MODIFIED: mu(nel), xconc, gdconv(2), gmind,eqextra,maxiter
    iws(lokeq+eqdis)=ceq%maxiter
    call storrn(noofel,iws(lokeq+eqdis+1),ceq%cmuval)
    eqdis=eqdis+1+noofel*nwpr
    call storr(lokeq+eqdis,iws,ceq%xconv)
-   call storr(lokeq+eqdis+nwpr,iws,ceq%gmindif)
+   call storr(lokeq+eqdis+nwpr,iws,ceq%gdconv(1))
+   call storr(lokeq+eqdis+2*nwpr,iws,ceq%gdconv(2))
+   call storr(lokeq+eqdis+3*nwpr,iws,ceq%gmindif)
+! last use of lokeq !!
 !   write(*,*)'3E NOT saving the character eqextra!'
 !   call storc(lokeq+displace+2*nwpr,iws,ceq%eqextra)
 !   write(*,*)'3E check rsize: ',rsize,eqdis+2*nwpr
@@ -1384,7 +1413,10 @@
    endif
 20 continue
 ! next, status, varcoef, first, and 8 allocatable arrays
-   rsize=4+2*nwch(64)+10
+!   rsize=4+2*nwch(64)+10
+! added one location for pointer to RSD values
+!   rsize=4+2*nwch(64)+11
+   rsize=5+2*nwch(64)+11
    write(*,*)'3E allocating assessment head record',rsize
    call wtake(lok1,rsize,iws)
    if(buperr.ne.0) then
@@ -1401,8 +1433,10 @@
    iws(lok1+1)=assrec%status
    iws(lok1+2)=assrec%varcoef
    iws(lok1+3)=assrec%firstexpeq
-   call storc(lok1+4,iws,assrec%general)
-   disp=4+nwch(64)
+   iws(lok1+4)=assrec%firstexpeq
+!   call storc(lok1+4,iws,assrec%general)
+   call storc(lok1+5,iws,assrec%general)
+   disp=5+nwch(64)
    call storc(lok1+disp,iws,assrec%special)
    disp=disp+nwch(64)
 ! eqlista
@@ -1434,6 +1468,18 @@
       iws(lok2)=i1
       call storrn(i1,iws(lok2+1),assrec%coeffvalues)
       iws(lok1+disp+2)=lok2
+! relative standard deviation
+      i1=size(assrec%coeffvalues)
+      rsize=1+nwpr*i1
+      call wtake(lok2,rsize,iws)
+      if(buperr.ne.0) then
+         write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
+         gx%bmperr=4356; goto 1000
+      endif
+!      write(*,*)'3E in saveash 2 RSD:',lok2,i1,rsize
+      iws(lok2)=i1
+      call storrn(i1,iws(lok2+1),assrec%coeffrsd)
+      iws(lok1+disp+3)=lok2
 ! coeffscale
       i1=size(assrec%coeffscale)
       rsize=1+nwpr*i1
@@ -1445,7 +1491,8 @@
       iws(lok2)=i1
 !      write(*,*)'3E in saveash 3:',lok2,i1
       call storrn(i1,iws(lok2+1),assrec%coeffscale)
-      iws(lok1+disp+3)=lok2
+!      iws(lok1+disp+3)=lok2
+      iws(lok1+disp+4)=lok2
 ! coeffstart
       i1=size(assrec%coeffstart)
       rsize=1+nwpr*i1
@@ -1457,7 +1504,8 @@
       iws(lok2)=i1
 !      write(*,*)'3E in saveash 4:',lok2,i1
       call storrn(i1,iws(lok2+1),assrec%coeffstart)
-      iws(lok1+disp+4)=lok2
+!      iws(lok1+disp+4)=lok2
+      iws(lok1+disp+5)=lok2
 ! coeffmin
       i1=size(assrec%coeffmin)
       rsize=1+nwpr*i1
@@ -1469,7 +1517,8 @@
       iws(lok2)=i1
 !      write(*,*)'3E in saveash 5:',lok2,i1
       call storrn(i1,iws(lok2+1),assrec%coeffmin)
-      iws(lok1+disp+5)=lok2
+!      iws(lok1+disp+5)=lok2
+      iws(lok1+disp+6)=lok2
 ! coeffmax
       i1=size(assrec%coeffmax)
       rsize=1+nwpr*i1
@@ -1480,7 +1529,8 @@
       endif
       iws(lok2)=i1
       call storrn(i1,iws(lok2+1),assrec%coeffmax)
-      iws(lok1+disp+6)=lok2
+!      iws(lok1+disp+6)=lok2
+      iws(lok1+disp+7)=lok2
 ! coeffindices
       i1=size(assrec%coeffindex)
       rsize=1+i1
@@ -1494,7 +1544,8 @@
       do i2=1,i1
          iws(lok2+i2)=assrec%coeffindex(i2-1)
       enddo
-      iws(lok1+disp+7)=lok2
+!      iws(lok1+disp+7)=lok2
+      iws(lok1+disp+8)=lok2
 ! coeffstate
       i1=size(assrec%coeffstate)
       rsize=1+i1
@@ -1507,7 +1558,8 @@
       do i2=1,i1
          iws(lok2+i2)=assrec%coeffstate(i2-1)
       enddo
-      iws(lok1+disp+8)=lok2
+!      iws(lok1+disp+8)=lok2
+      iws(lok1+disp+9)=lok2
    else
 ! pointers are zero
       write(*,*)'3E no coefficients allocated'
@@ -1524,10 +1576,12 @@
       endif
       iws(lok2)=i1
       call storrn(i1,iws(lok2+1),assrec%wopt)
-      iws(lok1+disp+9)=lok2
+!      iws(lok1+disp+9)=lok2
+      iws(lok1+disp+10)=lok2
    else
       write(*,*)'3E no work array (assrec%wopt) allocated'
-      iws(lok1+disp+9)=0
+!      iws(lok1+disp+9)=0
+      iws(lok1+disp+10)=0
    endif
 ! check if there are several assessment records
    if(.not.associated(assrec,firstash)) then
@@ -2284,7 +2338,7 @@
       write(*,*)'3E Should be same equilibrium number ',eqnumber,iws(lokeq+3)
    endif
    ceq%eqno=iws(lokeq+3)
-   ceq%next=iws(lokeq+4)
+   ceq%nexteq=iws(lokeq+4)
    call loadc(lokeq+5,iws,ceq%eqname)
 !   write(*,*)'3E Reading equilibrium with name: ',ceq%eqname
    displace=5+nwch(24)
@@ -2638,7 +2692,10 @@
    call loadrn(noofel,iws(lokeq+eqdis+1),ceq%cmuval)
    eqdis=eqdis+1+noofel*nwpr
    call loadr(lokeq+eqdis,iws,ceq%xconv)
-   call loadr(lokeq+eqdis+nwpr,iws,ceq%gmindif)
+! modifed 2018.05.28 by adding gdconv(2)
+   call loadr(lokeq+eqdis+nwpr,iws,ceq%gdconv(1))
+   call loadr(lokeq+eqdis+2*nwpr,iws,ceq%gdconv(2))
+   call loadr(lokeq+eqdis+3*nwpr,iws,ceq%gmindif)
 ! if elope negative continue reading next equilibrium
    if(elope.lt.0) then
 !      write(*,*)'3E read the next equilibrium'
@@ -2745,8 +2802,9 @@
    assrec%status=iws(lok1+1)
    assrec%varcoef=iws(lok1+2)
    assrec%firstexpeq=iws(lok1+3)
-   call loadc(lok1+4,iws,assrec%general)
-   disp=4+nwch(64)
+   assrec%lwam=iws(lok1+4)
+   call loadc(lok1+5,iws,assrec%general)
+   disp=5+nwch(64)
    call loadc(lok1+disp,iws,assrec%special)
    disp=disp+nwch(64)
    lok2=iws(lok1+disp+1)
@@ -2776,6 +2834,16 @@
       call loadrn(i1,iws(lok2+1),assrec%coeffvalues)
    endif
    lok2=iws(lok1+disp+3)
+! coeffrsd
+!      lok2=iws(lok2)
+   if(lok2.gt.0) then
+      i1=iws(lok2)
+      write(*,*)'3E In readash RSD: ',lok2,i1
+      allocate(assrec%coeffrsd(0:i1-1))
+      call loadrn(i1,iws(lok2+1),assrec%coeffrsd)
+   endif
+!   lok2=iws(lok1+disp+3)
+   lok2=iws(lok1+disp+4)
    if(iws(lok2).gt.0) then
 ! coeffscale
 !      lok2=iws(lok2)
@@ -2784,7 +2852,8 @@
       allocate(assrec%coeffscale(0:i1-1))
       call loadrn(i1,iws(lok2+1),assrec%coeffscale)
    endif
-   lok2=iws(lok1+disp+4)
+!   lok2=iws(lok1+disp+4)
+   lok2=iws(lok1+disp+5)
    if(iws(lok2).gt.0) then
 ! coeffstart
 !      lok2=iws(lok2)
@@ -2793,7 +2862,8 @@
       allocate(assrec%coeffstart(0:i1-1))
       call loadrn(i1,iws(lok2+1),assrec%coeffstart)
    endif
-   lok2=iws(lok1+disp+5)
+!   lok2=iws(lok1+disp+5)
+   lok2=iws(lok1+disp+6)
    if(iws(lok2).gt.0) then
 ! coeffmin
 !      lok2=iws(lok2)
@@ -2802,7 +2872,8 @@
       allocate(assrec%coeffmin(0:i1-1))
       call loadrn(i1,iws(lok2+1),assrec%coeffmin)
    endif
-   lok2=iws(lok1+disp+6)
+!   lok2=iws(lok1+disp+6)
+   lok2=iws(lok1+disp+7)
    if(iws(lok2).gt.0) then
 ! coeffmax
 !      lok2=iws(lok2)
@@ -2811,7 +2882,8 @@
       allocate(assrec%coeffmax(0:i1-1))
       call loadrn(i1,iws(lok2+1),assrec%coeffmax)
    endif
-   lok2=iws(lok1+disp+7)
+!   lok2=iws(lok1+disp+7)
+   lok2=iws(lok1+disp+8)
    if(iws(lok2).gt.0) then
 ! coeffindices
 !      lok2=iws(lok2)
@@ -2832,7 +2904,8 @@
          if(gx%bmperr.ne.0) goto 1000
       enddo
    endif
-   lok2=iws(lok1+disp+8)
+!   lok2=iws(lok1+disp+8)
+   lok2=iws(lok1+disp+9)
    if(iws(lok2).gt.0) then
 ! coeffstate
 !      lok2=iws(lok2)
@@ -2845,7 +2918,8 @@
    endif
 777 continue
 ! maybe work array has been daved also?
-   lok2=iws(lok1+disp+9)
+!   lok2=iws(lok1+disp+9)
+   lok2=iws(lok1+disp+10)
    if(lok2.gt.0) then
       if(iws(lok2).gt.0) then
 !         lok2=iws(lok2)
@@ -3381,10 +3455,11 @@
    integer typty,fractyp,lp1,lp2,ix,jph,kkk,lcs,nint,noelx
    logical onlyfun,nophase,ionliq,notent
    integer norew,newfun,nfail,nooftypedefs,nl,ipp,jp,jss,lrot,ip,jt
-   integer nsl,ll,kp,nr,nrr,mode,lokph,lokcs,km,nrefs,ideg,iph,ics
+   integer nsl,ll,kp,nr,nrr,mode,lokph,lokcs,km,nrefs,ideg,iph,ics,ndisph
 ! disparttc and dispartph to handle phases with disordered parts
    integer nofunent,disparttc,dodis,jl,nd1,thisdis,cbug,nphrej,never,always
    character*24 dispartph(maxorddis),ordpartph(maxorddis),phreject(maxrejph)*24
+   character*24 disph(20)
    integer orddistyp(maxorddis)
    logical warning
 ! set to TRUE if element present in database
@@ -3420,6 +3495,14 @@
    dodis=0
    open(21,file=filename,access='sequential',form='formatted',&
         err=1010,iostat=gx%bmperr,status='old')
+! add a check if there are any TYPE_DEFS with DIS_PART so such phases
+! are not entered
+   call any_disordered_part(21,ndisph,disph)
+!   if(ndisph.gt.0) then
+!      write(*,*)'3E ndisph: ',ndisph
+!      write(*,11)(trim(disph(ip)),ip=1,ndisph)
+!11    format('3E "',a,'" "',a,'" "',a,'" "',a,'"')
+!   endif
    onlyfun=.FALSE.
    tdbv=1
    norew=0
@@ -3464,7 +3547,8 @@
             goto 100
          elseif(trim(line).eq.'DEFINE_SYSTEM_DEFAULT ELEMENT 2 !') then
             goto 100
-         else
+         elseif(dodis.ne.1) then
+! do not give this warning when reading disordered phases ...
             write(*,122)trim(line)
 122         format(/' *** Warning, ignoring line: "',a,'"'/)
          endif
@@ -3719,6 +3803,20 @@
 !         write(*,*)'3E Found disordered part: ',name1,thisdis
 ! we skip the rest of the phase line ...
          goto 100
+      elseif(dodis.eq.0 .and. ndisph.gt.0) then
+! make use of initial read of TDB file to skip phases that are disordered parts
+!      write(*,*)'3E comparing "',trim(name1),'" with "',trim(disph(1)),'" etc'
+         do jt=1,ndisph
+            if(name1.eq.disph(jt)) then
+               write(*,*)'Skip phase ',trim(name1),' as disordered part',jt
+! do not enter this phase as it is a disordered part
+! all these must be set ...
+               thisdis=-1
+               nophase=.true.
+               thisphaserejected=.TRUE.
+               goto 100
+            endif
+         enddo
       elseif(dodis.eq.0 .and. disparttc.gt.0) then
 ! we must not enter phases that are disordered parts
          do jt=1,disparttc
@@ -3930,38 +4028,7 @@
             jl=0
             nd1=phlista(lokph)%noofsubl
          endif
-         goto 402
-!vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-! code below now redundant ...
-         if(dispartph(thisdis)(1:7).eq.'FCC_A1 ' .or. &
-              dispartph(thisdis)(1:7).eq.'BCC_A2 ' .or. &
-              dispartph(thisdis)(1:7).eq.'HCP_A3 ') then
-! if disordred phase is FCC, BCC or HCP then set jl=1 and nd1 to 2 or 4
-            if(phlista(lokph)%noofsubl.le.5) nd1=4
-            if(phlista(lokph)%noofsubl.le.3) nd1=2
-            if(.not.silent) write(kou,397) &
-                 ordpartph(thisdis)(1:len_trim(ordpartph(thisdis))),nd1
-            jl=1
-         elseif(dispartph(thisdis)(1:3).eq.'A1_' .or. &
-              dispartph(thisdis)(1:3).eq.'A2_' .or. &
-              dispartph(thisdis)(1:3).eq.'A3_') then
-! if disordred phase is FCC, BCC or HCP then set jl=1 and nd1 to 2 or 4
-            if(phlista(lokph)%noofsubl.le.5) nd1=4
-            if(phlista(lokph)%noofsubl.le.3) nd1=2
-            if(.not.silent) write(kou,397) trim(ordpartph(thisdis)),nd1
-            jl=1
-         elseif(dispartph(thisdis)(1:4).eq.'DIS_') then
-! disordered part of sigma, mu etc.
-            jl=0; nd1=phlista(lokph)%noofsubl
-!            write(kou,493)trim(ordpartph(thisdis)),nd1
-!493         format('3E Adding disordered phase: ',a,' summing all ',i3)
-         else
-! probably disordered part of sigma, mu etc.
-            jl=0; nd1=phlista(lokph)%noofsubl
-!            write(kou,493)trim(ordpartph(thisdis)),nd1
-         endif
-!------------- code above is redundant
-!^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+!         goto 402
 402      continue
          if(jl.eq.0 .and. .not.silent) write(kou,398)trim(ordpartph(thisdis))
 398      format(' 3E Assuming phase ',a,' cannot be completely disordered')
@@ -3987,6 +4054,7 @@
 !              dispartph(thisdis)(1:len_trim(dispartph(thisdis))),ch1,nd1,jl,xxx
 601      format('3E Add parameters from disordered part: ',a,5x,a,2x,2i3,F12.4)
       else
+!         write(*,*)'3E enter phase: ',name1
          call enter_phase(name1,nsl,knr,const,stoik,name2,phtype)
 !      write(*,*)'readtdb 9A: ',gx%bmperr
          if(gx%bmperr.ne.0) then
@@ -4310,7 +4378,7 @@
 ! error 4154 means missing reference
             if(gx%bmperr.ne.4154 .and. .not.silent) then
                write(*,409)gx%bmperr,nl
-409            format('3E WARNING ',i6,', no bibliography around line: ',i7,&
+409            format('3E WARNING ',i6,', around line: ',i7,&
                     ', continuing')
                warning=.TRUE.
             endif
@@ -4774,6 +4842,66 @@
    gx%bmperr=4316
    goto 1000
  end subroutine readtdb
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
+ subroutine any_disordered_part(lin,ndisph,disph)
+! reading data from a PDB file with selection of elements
+!-------------------------------------------------------
+! Not all TYPE_DEFS implemented
+!-------------------------------------------------------
+   implicit none
+   integer lin,ndisph
+   character disph(*)*(*)
+!\end{verbatim}
+   character line*128,longline*1024
+   integer ip,jp
+   ndisph=0
+   loop1: do while(.true.)
+      read(lin,100,end=900)line
+100   format(a)
+      ip=1
+      if(eolch(line,ip)) cycle loop1
+      if(line(ip:ip).eq.'$') cycle loop1
+      typedef: if(line(ip:ip+7).eq.'TYPE_DEF') then
+! search for ! meaning end of keyword
+         longline=line(ip:)
+         ip=len_trim(longline)
+         loop2: do while(longline(ip:ip).ne.'!')
+            read(lin,100,end=900)line
+            longline(ip+1:)=line
+            ip=len_trim(longline)
+         enddo loop2
+!         write(*,*)'3E type_def 1: ',longline(1:ip)
+! the important part is "GES" followed by "DIS_PART" or "NEVer" and a phase name
+         jp=index(longline,' GES ')
+         if(jp.le.0) exit typedef
+         ip=jp+6
+!         write(*,*)'3E type_def 2: ',trim(longline(ip:))
+! DISORDERED_PART or NEVER_DISORDERED
+         jp=index(longline(ip:),' DIS_PART')
+         if(jp.le.0) jp=index(longline(ip:),' NEV')
+         if(jp.le.0) exit typedef
+         ip=ip+jp+4
+! phase name after a space
+         jp=index(longline(ip:),' ')
+         ip=ip+jp
+         ndisph=ndisph+1
+         disph(ndisph)=longline(ip:)
+         ip=index(disph(ndisph),',')
+         if(ip.gt.0) disph(ndisph)(ip:)=' '
+         ip=index(disph(ndisph),'!')
+         if(ip.gt.0) disph(ndisph)(ip:)=' '
+!         write(*,*)'3E ndisph 2: "',trim(disph(ndisph)),'"',ndisph
+      endif typedef
+   enddo loop1
+! eof
+900 continue
+   rewind(lin)
+1000 continue
+   return
+ end subroutine any_disordered_part
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
@@ -6315,6 +6443,61 @@
    return
  end subroutine gtpsavetm
 !
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+!
+!\begin{verbatim}
+ integer function ceqrecsize()
+! calculates the number of words needed to save an equilibrium record
+!\end{verbatim}
+   integer rsize,jj,seqz,kl,dmc,mc,mc2,nsl
+   type(gtp_equilibrium_data), pointer :: ceq
+   type(gtp_phase_varres), pointer :: firstvarres
+   TYPE(gtp_fraction_set), pointer :: fslink
+   character text*512
+!
+   write(*,*)'ceqrecsize not implemented',highcs
+   rsize=0
+   goto 1000
+   ceq=>firsteq
+   rsize=4+nwch(24)+nwch(72)+4*nwpr+2+2*noofel+4+5*nwpr
+   text=' '
+   call get_all_conditions(text,0,ceq)
+   rsize=rsize+nwch(index(text,'CRLF'))
+100 continue
+   text=' '
+   call get_one_experiment(jj,text,seqz,.FALSE.,ceq)
+   if(gx%bmperr.ne.0) then
+      kl=index(text,'$')-1
+      if(kl.le.0) then
+         kl=len_trim(text)
+      endif
+      rsize=rsize+2+nwch(kl)
+      goto 100
+   endif
+   gx%bmperr=0
+! ignore if a component has a defined reference state ...
+   rsize=rsize+(5+nwch(16)+1+6*nwpr)*noofel
+   do jj=1,highcs
+! loop for phase_varres records ..
+      firstvarres=>ceq%phase_varres(jj)
+      if(.not.allocated(firstvarres%yfr)) then
+         rsize=rsize+4
+      else
+         rsize=rsize+6+2*nwch(4)+3*nwpr+mc+2*mc*nwpr
+         rsize=rsize+6*nwpr+3*mc*nwpr+mc2*nwpr+5+2
+         if(btest(firstvarres%status2,CSDLNK)) then
+! there is a disordered fraction set ...
+            fslink=>firstvarres%disfra
+            nsl=fslink%ndd
+            rsize=8+nwch(1)+nsl+dmc+1+mc*(1+nwpr)+nsl*nwpr+nwpr
+         endif
+      endif
+   enddo
+1000 continue
+   ceqrecsize=rsize
+   return
+ end function ceqrecsize
+
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 !
  subroutine readtdbsilent

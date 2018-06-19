@@ -132,7 +132,7 @@ plot
 
 title map 5 fig 4
 text 
-.47 1700
+.5 1700
 1
 0
 y

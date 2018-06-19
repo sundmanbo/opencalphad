@@ -1780,6 +1780,7 @@
  subroutine enter_parameter(lokph,typty,fractyp,nsl,endm,nint,lint,ideg,&
       lfun,refx)
 ! enter a parameter for a phase from database or interactivly
+! enter_parameter_inter is in gtp3D for some unknown reason ...
 ! typty is the type of property, 1=G, 2=TC, ... , n*100+icon MQ&const#subl
 ! fractyp is fraction type, 1 is site fractions, 2 disordered fractions
 ! nsl is number of sublattices
@@ -1789,7 +1790,7 @@
 ! nint is number of interacting constituents (can be zero)
 ! lint is array of sublattice+constituent indices for interactions
 ! ideg is degree
-! lfun is link to function (integer index)
+! lfun is link to function (integer index) if -1 used for listing
 ! refx is reference (text)
 ! if this is a phase with permutations all interactions should be in
 ! the first or the first two identical sublattices (except interstitals)
@@ -5316,7 +5317,7 @@
    number=ieq
    if(ocv()) write(*,*)'3B create eq',eqfree,maxeq,ieq
 ! allocate data arrayes in equilibrium record
-   eqlista(ieq)%next=0
+   eqlista(ieq)%nexteq=0
    eqlista(ieq)%eqname=name2
    eqlista(ieq)%eqno=ieq
    eqlista(ieq)%weight=-one
@@ -5577,6 +5578,8 @@
    allocate(eqlista(ieq)%svfunres(maxsvfun))
 ! convergence criteria PHTUPX
    eqlista(ieq)%xconv=firsteq%xconv
+   eqlista(ieq)%gdconv(1)=firsteq%gdconv(1)
+   eqlista(ieq)%gdconv(2)=firsteq%gdconv(2)
    eqlista(ieq)%maxiter=firsteq%maxiter
 1000 continue
    if(ocv()) write(*,*)'3B finished enter equilibrium',ieq
@@ -6114,18 +6117,19 @@
 !\end{verbatim}
    type(gtp_equilibrium_data), pointer :: curceq
    type(gtp_condition), pointer :: lastcond,pcond,qcond
-   integer cureq,ieq,ik,novarres,ipv
+   integer cureq,ieq,ik,novarres,ipv,ndel
 !
    cureq=ceq%eqno
 !   write(*,*)'In delete_equilibria ',cureq,trim(name)
    ik=index(name,'*')-1
    if(ik.lt.0) ik=min(24,len(name))
    novarres=highcs
+   ndel=0
 !   write(*,*)'3B delete equilibria: ',eqfree-1,highcs,csfree
-   do ieq=eqfree-1,2,-1
-! we cannot have "holes" in the free list??  Delete from the end...
-      if(ieq.eq.cureq) exit 
-      if(eqlista(ieq)%eqname(1:ik).ne.name(1:ik)) exit
+   eqloop: do ieq=eqfree-1,2,-1
+! we cannot have "holes" in the free list??  NO! Delete from the end...
+      if(ieq.eq.cureq) exit eqloop
+      if(eqlista(ieq)%eqname(1:ik).ne.name(1:ik)) exit eqloop
 !      write(*,*)'3B Deleting equil: ',trim(eqlista(ieq)%eqname),ieq
       eqlista(ieq)%eqname=' '
       deallocate(eqlista(ieq)%complist)
@@ -6162,11 +6166,13 @@
 800      format(' *** Error ',i6,' deleting equilibrium ',i5)
          gx%bmperr=0
       endif
-   enddo
+      ndel=ndel+1
+      eqfree=eqfree-1
+   enddo eqloop
 ! we have deleted all equilibria until ieq+1
-   if(ocv()) write(*,900)ieq+1,eqfree-1
-!   write(*,900)ieq+1,eqfree-1
-900 format('Deleted all data in equilibria from ',i3,' to ',i3)
+   if(ocv()) write(*,900)ieq+1,eqfree
+   write(*,900)ndel,eqfree-1
+900 format('3B Deleted ',i3,' equilibria.  First free ',i3)
    eqfree=ieq+1
 1000 continue
    return
@@ -6191,7 +6197,7 @@
 
 !\begin{verbatim} %-
  subroutine copy_equilibrium2(neweq,number,name,ceq)
-! creates a new equilibrium which is a copy of ceq.  
+! creates a new equilibrium which is a copy of ceq. THIS IS STILL USED !! ??
 ! Allocates arrayes for conditions,
 ! components, phase data and results etc. from equilibrium ceq
 ! returns a pointer to the new equilibrium record
@@ -6275,7 +6281,7 @@
    endif
 !   write(*,*)'3B copy eq',eqfree,maxeq,ieq
 ! allocate data arrayes in equilibrium record
-   eqlista(ieq)%next=0
+   eqlista(ieq)%nexteq=0
    eqlista(ieq)%eqname=name2
    eqlista(ieq)%eqno=ieq
 ! do not copy comment but set it to blanks
@@ -6410,6 +6416,10 @@
    eqlista(ieq)%svfunres=ceq%svfunres
 ! copy convergence criteria
    eqlista(ieq)%xconv=ceq%xconv
+   eqlista(ieq)%gdconv(1)=ceq%gdconv(1)
+   eqlista(ieq)%gdconv(2)=ceq%gdconv(2)
+! woops ... this is still used
+!   stop 'old copy_equilibrium ... we should never be here'
    eqlista(ieq)%maxiter=ceq%maxiter
 !   write(*,*)'3B finished copy equilibrium',ieq
    eqlista(ieq)%eqno=ieq

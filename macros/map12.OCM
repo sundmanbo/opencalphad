@@ -27,7 +27,7 @@ set echo
 
 read pdb MoRe1
 
-set c t=1000 p=1e5 n=1 x(re)=.3
+set c t=1000 p=1e5 n=1 x(re)=.9
 
 c e
 
@@ -38,6 +38,7 @@ l,,,,
 set ax 1 x(re) 0 1 ,,,
 
 set ax 2 t 300 4000 25
+
 
 map
 

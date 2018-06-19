@@ -165,6 +165,12 @@ TYPE meqdebug
    double precision val(10),dif(10)
 end type meqdebug
 type(meqdebug) :: cerr
+!
+! This is for returning the calculated value of an experimantal property
+! as we need an array to store the calculated values of the experimental  
+! properties in order to calculate the Relative Standarad Deviation (RSD)
+  double precision, allocatable, dimension(:) :: calcexp
+!
 !--------------------------------------------------------------
 !
 ! IMPORTANT
@@ -865,7 +871,7 @@ CONTAINS
     double precision, parameter :: addedphase_amount=1.0D-2
     double precision xxx,tpvalsave(2)
     integer iremsave,zz,tupadd,tuprem,samephase,phloopaddrem1,phloopaddrem2
-    integer phloopv
+    integer phloopv,noremove
 ! replace always FALSE except when we must replace a phase as we have max stable
     logical replace,force
 ! number of iterations without adding or removing a phase
@@ -875,6 +881,9 @@ CONTAINS
 ! minum number if iterations between any change of stable phase set
     samephase=0
     nochange=5
+! modification 180323/BoS
+! allow removing a phase after 2 iterations
+    noremove=2
     lastchange=0
 !
     if(ocv()) write(*,*)'entering meq_phaseset: '
@@ -1132,19 +1141,19 @@ CONTAINS
        if(irem.gt.0) tuprem=meqrec%phr(irem)%curd%phtupx
        if(.not.btest(meqrec%status,MMQUIET)) then
           if(formap) then
-            write(*,*)'Change of direction at first equilibrium'
-         elseif(ceq%eqno.ne.1) then
-            write(*,219)meqrec%noofits,tupadd,tuprem,' at ',ceq%eqno
-219         format('Phase change: its/add/remove: ',3i5,a,i5)
-         else
-            write(*,219)meqrec%noofits,tupadd,tuprem
-         endif
-      endif
+             write(*,*)'Change direction of first axis increment'
+          elseif(ceq%eqno.ne.1) then
+             write(*,219)meqrec%noofits,tupadd,tuprem,' at equil: ',ceq%eqno
+219          format('Phase change: its/add/remove: ',3i5,a,i5)
+          else
+             write(*,219)meqrec%noofits,tupadd,tuprem
+          endif
+       endif
        if(formap) then
 ! when called during mapping the set of phases must not change!
           if(ocv()) write(*,*)'Phase change not allowed',ceq%tpval(1)
 ! Phase change not allowed due to step/map constraints
-! step/map should handle this by creating node points
+! step/map should handle this by creating a node point
           gx%bmperr=4210; goto 1000
        endif
     endif
@@ -1486,7 +1495,7 @@ CONTAINS
 !    double precision, parameter :: ionliqyfact=1.0D0
 ! to check if we are calculating a single almost stoichiometric phase ...
     integer iz,tcol,pcol,nophasechange,notagain
-    double precision maxphasechange
+    double precision maxphasechange,molesofatoms,factconv
 !    double precision, allocatable, dimension(:) :: loopfact
     integer notf,dncol,iy,jy,iremsave,phasechangeok
     double precision, dimension(:), allocatable :: lastdeltaam
@@ -1875,8 +1884,9 @@ CONTAINS
           endif
           deltaam=svar(ioff)
 ! Sigli convergence problem, bad guess of start amount of phases??
+! NOTE sign! -deltaam is the change in amount of phase, 
 !          write(*,43)'Deltaam: ',meqrec%noofits,jj,deltaam,lastdeltaam(jph),&
-!               phr(jj)%curd%amfu
+!               phr(jj)%curd%amfu,phr(jj)%curd%amfu-deltaam
 !43        format(a,2i3,6(1pe12.4))
 ! tried to avoid too large changes in phase amount, just made things worse
 !          if(meqrec%noofits.lt.3 .and. &
@@ -1909,8 +1919,6 @@ CONTAINS
                 converged=6
                 cerr%mconverged=converged
              endif
-! desperate fix, change sign of deltaam
-!             deltaam=-deltaam
              if(vbug) write(*,381)'Phase amount change: ',meqrec%noofits,jj,&
                   phs,deltaam
 381          format(a,2i3,4(1pe12.4))
@@ -1982,7 +1990,8 @@ CONTAINS
              phf=0.5D0*phr(jj)%curd%amfu
              gx%bmperr=4195; goto 1000
           else
-!             write(*,363)'Phase with negative amount: ',jj,0,0,&
+! trying to improve convergence by allowing phases to be removed quicker
+!             write(*,363)'Phase with negative amount: ',jj,meqrec%noofits,0,&
 !                  phf,phs,phr(jj)%prevam
 !             if(phf.lt.-1.0D-2) phf=zero
              if(jj.ne.notagain .and. phr(jj)%prevam.lt.zero) then
@@ -2083,7 +2092,14 @@ CONTAINS
              dgm=dgm+phr(jj)%curd%gval(3,1)*deltap
           endif
 ! scale dgm per mole atoms
-          dgm=gsurf-dgm/phr(jj)%curd%abnorm(1)
+          molesofatoms=phr(jj)%curd%abnorm(1)
+          if(molesofatoms.lt.0.5D0) then
+! problem when BCC becomes just vacancies
+!             write(*,*)'MM Phase: ',jj,' moles of atoms: ',molesofatoms
+             molesofatoms=0.5D0
+          endif
+!          dgm=gsurf-dgm/phr(jj)%curd%abnorm(1)
+          dgm=gsurf-dgm/molesofatoms
           if(dgm.gt.dgmmax) then
              if(phr(jj)%phasestatus.ge.PHENTUNST .and. &
                 phr(jj)%phasestatus.le.PHENTERED) then
@@ -2094,7 +2110,9 @@ CONTAINS
                 dgmmax=dgm
              endif
           endif
-          phr(jj)%prevdg=dgm
+! The difference between previous and current DGM is used to check for
+! convergence below.  Very important to check if continue iterating!!
+          phr(jj)%prevdg=phr(jj)%curd%dgm
           phr(jj)%curd%dgm=dgm
        endif
 ! Update constituent fractions for ALL phases, stable or not
@@ -2183,32 +2201,102 @@ CONTAINS
 !             write(*,*)'Convergence criteria, phase/const: ',jj,nk
              if(phr(jj)%stable.eq.0) then
 ! Phase is not stable
-                if(abs(ys).gt.1.0D1*phr(jj)%curd%yfr(nj)) then
+! Handle convergence criteria different if inmap=1 or not
+                mapping7: if(inmap.eq.0) then
+! we are NOT in STEP/MAP, increase convergence criteria to handle
+! the Mo-Ni-Re 3 phase equilibria
+                   if(abs(ys).gt.1.0D1*phr(jj)%curd%yfr(nj)) then
 ! for unstable phases the corrections must be smaller than ...????
-                   if(converged.lt.3) then
-                      converged=3
-                      cerr%mconverged=converged
-                      yss=ys
-                      yst=phr(jj)%curd%yfr(nj)
-                   endif
-                elseif(abs(ys).gt.1.0D2*ceq%xconv) then
+                      if(converged.lt.3) then
+                         converged=3
+                         cerr%mconverged=converged
+                         yss=ys
+                         yst=phr(jj)%curd%yfr(nj)
+                      endif
+                   elseif(abs(ys).gt.1.0D2*ceq%xconv) then
+!                   elseif(abs(ys).gt.2.0D1*ceq%xconv) then
 ! maybe accept 100 times larger correction than for stable phases
 !                   write(*,107)'metast ph ycorr: ',ys,&
 !                        phr(jj)%curd%yfr(nj)
-                   if(converged.lt.2) then
-                      converged=2
-                      cerr%mconverged=converged
-                      yss=ys
-                      yst=phr(jj)%curd%yfr(nj)
+!                      if(converged.lt.2) then
+!                         converged=2
+! BUT this creates problem with caos507 and parallel macros ... suck
+! STRANGE: reducing the number of iterations from 500 to 30 improves convergence
+! dubbelt suck
+!                      write(*,212)'MM conv: ',jj,phr(jj)%iph,phr(jj)%ics,nk,&
+!                           phr(jj)%curd%dgm,phr(jj)%prevdg,&
+!                           phr(jj)%curd%dgm-phr(jj)%prevdg,ys
+212                   format(a,3i3,i4,4(1pe12.4))
+!                      if(converged.lt.4) then
+!                         converged=4
+!                      if(converged.lt.2) then
+!                         converged=2
+! If the decrease in driving force is greater than 0.05
+! for a metastable phase continue iterating ...
+                      if(converged.lt.4) then
+!                           phr(jj)%curd%dgm-phr(jj)%prevdg.gt.5.0E-2) then
+! problem fining FCC phase in Al-Cu-Si at 849 K
+!                         write(*,213)'MM conv: ',jj,&
+!                              phr(jj)%curd%dgm-phr(jj)%prevdg
+!213                      format(a,i3,1pe12.4)
+!                         if(phr(jj)%curd%dgm-phr(jj)%prevdg.gt.4.0E-2) then
+!                         if(phr(jj)%curd%dgm-phr(jj)%prevdg.gt.1.0E-2) then
+! OK but small!!          if(phr(jj)%curd%dgm-phr(jj)%prevdg.gt.1.0E-3) then
+! max allowed!!           if(phr(jj)%curd%dgm-phr(jj)%prevdg.gt.4.0E-3) then
+                         if(phr(jj)%ncc.gt.10) then
+! Calculation with the COST507 database and 20 elements too many iterations
+! ... allow larger gdconv(1) 
+                            factconv=1.0D1
+                         else
+                            factconv=one
+                         endif
+                         if(phr(jj)%curd%dgm-phr(jj)%prevdg.gt.&
+                              factconv*ceq%gdconv(1)) then
+! Must be less than this  if(phr(jj)%curd%dgm-phr(jj)%prevdg.gt.5.0E-3) then
+                            converged=4
+                            cerr%mconverged=converged
+                            yss=ys
+                            yst=phr(jj)%curd%yfr(nj)
+                         endif
+                      endif
+                   else
+                      if(converged.eq.0) then
+                         converged=1
+                         cerr%mconverged=converged
+                         yss=ys
+                         yst=phr(jj)%curd%yfr(nj)
+                      endif
                    endif
                 else
-                   if(converged.eq.0) then
-                      converged=1
-                      cerr%mconverged=converged
-                      yss=ys
-                      yst=phr(jj)%curd%yfr(nj)
+! we are doing step/map NO CHANGE, use old convergence criteria
+! otherwise step1 and mmap4 are uncomplete with those above ...
+                   if(abs(ys).gt.1.0D1*phr(jj)%curd%yfr(nj)) then
+! for unstable phases the corrections must be smaller than ...????
+                      if(converged.lt.3) then
+                         converged=3
+                         cerr%mconverged=converged
+                         yss=ys
+                         yst=phr(jj)%curd%yfr(nj)
+                      endif
+                   elseif(abs(ys).gt.1.0D2*ceq%xconv) then
+! maybe accept 100 times larger correction than for stable phases
+!                   write(*,107)'metast ph ycorr: ',ys,&
+!                        phr(jj)%curd%yfr(nj)
+                      if(converged.lt.2) then
+                         converged=2
+                         cerr%mconverged=converged
+                         yss=ys
+                         yst=phr(jj)%curd%yfr(nj)
+                      endif
+                   else
+                      if(converged.eq.0) then
+                         converged=1
+                         cerr%mconverged=converged
+                         yss=ys
+                         yst=phr(jj)%curd%yfr(nj)
+                      endif
                    endif
-                endif
+                endif mapping7
              elseif(converged.lt.4) then
 ! large correction in fraction of constituent fraction of stable phase
 !                write(*,*)'mm converged 4A: ',jj,nj,ys
@@ -7656,36 +7744,43 @@ CONTAINS
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
-  subroutine assessment_calfun(nexp,nvcoeff,errs,x)
+  subroutine assessment_calfun(nexp,nvcoeff,errs,xyz)
 ! nexp is number of experiments, nvcoeff number of coefficients
 ! errs is the differences between experiments and value calculated by model
 ! returned by this subroutine
-! x are the current model parameter values set by VA05AD
+! xyz are the scaled current model parameter values
     implicit none
     integer nexp,nvcoeff
-    double precision errs(*),X(*)
+    double precision errs(*),XYZ(*)
 !    type(gtp_assessmenthead), pointer :: ash
 !\end{verbatim}
 ! firstash is the data structure for assessment head (globally declared) 
-   integer i1,i2,iexp,symsym,mode
-    double precision xxx,yyy
+    integer i1,i2,iexp,symsym,mode,jj,savix
+    double precision xxx,yyy,zzz
     type(gtp_equilibrium_data), pointer :: equil
     type(gtp_condition), pointer :: experiment
     type(gtp_state_variable), pointer :: svrrec
     character text*24
+    double precision xa(100)
 !
 !    write(*,*)'MM in assessment_calfun',nexp,nvcoeff
+!    if(allocated(calcexp)) write(*,*)'Calculating Jacobian'
 ! 1. copy values of X to the TP coefficinets, loop through all
     i2=1
     do i1=0,size(firstash%coeffstate)-1
 !       write(*,*)'MM2 Testing value of firstash%coeffstate',i1
        if(firstash%coeffstate(i1).ge.10) then
-!          write(*,*)'MM3 coefficient ',i1,i2,x(i2)
-          xxx=x(i2)*firstash%coeffscale(i1)
-!          write(*,16)i2,i1,xxx,x(i2),firstash%coeffscale(i1)
-16        format('MM4 Opt coeff ',2i4,' set to ',3(1pe12.4))
+!          write(*,*)'MM3 coefficient ',i1,i2,xyz(i2)
+! Attempt to handle that I divide by coef with scaling factor ...
+          zzz=xyz(i2)*firstash%coeffscale(i1)
+          xxx=xyz(i2)*firstash%coeffscale(i1)
+!          write(*,16)i2,i1,xxx,xyz(i2),firstash%coeffscale(i1)
+!16        format('MM4 Opt coeff ',2i4,' set to ',3(1pe12.4))
+          call get_value_of_constant_index(firstash%coeffindex(i1),zzz)
+          savix=i1
           call change_optcoeff(firstash%coeffindex(i1),xxx)
           if(gx%bmperr.ne.0) goto 1000
+          xa(i2)=xxx
           i2=i2+1
 !       else
 !          write(*,*)'MM5 coefficient not variable',i1
@@ -7693,6 +7788,7 @@ CONTAINS
     enddo
 ! 2. calculate all differences, skipping equilibria with weight zero
 ! the array firstash%eqlista contain pointers to equilibria with experiments
+700 continue
     if(.not.allocated(firstash%eqlista)) then
        write(kou,*)' *** Warning: no experimental data!'
        do i1=1,nexp
@@ -7742,7 +7838,7 @@ CONTAINS
 ! loop through all experiments, pointer set to first
        experiment=>equil%lastexperiment%next
 ! current value of the experiment
-500       continue
+500    continue
           iexp=iexp+1
 !          write(*,*)'MM Setting pointer to experiment ',&
 !               allocated(experiment%statvar),iexp
@@ -7776,6 +7872,13 @@ CONTAINS
 !          write(*,510)'MM errs',iexp,experiment%prescribed,xxx,&
 !               experiment%uncertainty,equil%weight
 510       format(a,i4,6(1pe12.4))
+          if(allocated(calcexp)) then
+! this is to enable calculating RSD at the end of an assessment
+! normally calcexp is not allocated!!
+             calcexp(iexp)=xxx
+!             write(*,555)'Jacobian: ',iexp,(xa(jj),jj=1,i2-1),xxx
+555          format(a,i3,6(1pe12.4))
+          endif
           if(experiment%experimenttype.eq.0) then
 ! take the difference between prescribed value
              errs(iexp)=(experiment%prescribed-xxx)*equil%weight/&
@@ -7803,12 +7906,18 @@ CONTAINS
              endif
           endif
 590       if(.not.associated(experiment,equil%lastexperiment)) then
+! if more experiments jump back to 500
              experiment=>experiment%next
              goto 500
           endif
 ! done all experiments for this equilibrium
-       enddo eqloop
+    enddo eqloop
 !    write(*,*)'MM experiments: ',iexp,nexp
+! We have to restore the last value of the last coefficient
+    if(allocated(calcexp)) then
+!       write(*,*)'MM restore savix: ',savix,zzz
+       call change_optcoeff(firstash%coeffindex(savix),zzz)
+    endif
 1000 continue
     return
   end subroutine assessment_calfun
@@ -8322,7 +8431,8 @@ CONTAINS
 ! create the meqrec structure
 !    write(*,17)'MM equilph1d calling equilph1e',(xknown(ii),ii=1,noel())
 17  format(a,10(F6.3))
-    call equilph1_meqrec(phtup,meqrec,.FALSE.,ceq)
+!    call equilph1_meqrec(phtup,meqrec,.FALSE.,ceq)
+    call equilph1_meqrec(phtup,meqrec,tyst,ceq)
     if(gx%bmperr.ne.0) goto 1000
 ! mabe we need RT ?
     ceq%rtn=globaldata%rgas*tpval(1)
@@ -8366,6 +8476,12 @@ CONTAINS
     double precision, allocatable :: py(:)
     double precision chargefact,chargerr,pv,qq(5),ys,ycormax2,muall
     double precision sumsum
+! ************** change in MODEL_PARAMETER_IDENTIFIER: MQ is now 1300!!
+! 800 + cs where cs is the constituent index counted over all sublattices ??
+! can be REDEFINED when new model parameter identifiers was added!!! 
+! we get the current value (set in gtp3A.F90) by calling getmqindex below
+    integer mqindex
+! mqindex is a constant set in gtpini in models/gtp3A.F90
 ! number of variables is number of components + one stable phase
     nz1=meqrec%nrel+1
     nz2=nz1+1
@@ -8734,28 +8850,40 @@ CONTAINS
 ! I will calculate the mob(end) as \sum_s \sum_c mq&c#s taking
 ! those values missing as zero ... ???
 ! the values of mq&c#s are in pmi%curd%gval(1,itp) where itp is
+! ************** change in MODEL_PARAMETER_IDENTIFIER: MQ is now 1300!!
 ! 800 + cs where cs is the constituent index counted over all sublattices ??
+! 1300 + cs where cs is the constituent index counted over all sublattices ??
 ! list additional properties:
 !    write(*,400)'props: ',(pmi%curd%listprop(jt),jt=2,pmi%curd%listprop(1)-1)
 !400 format(/a,12i6)
-! HM, the disordered mobilities has 800+disordered index
-! the ordered has 800+ordered index ... one should not use both ...
+! instead of 800 use the function mqindex('MQ  ')
     ql=0
+!    write(*,*)'In equi1ph1d: ',mqindex
+!    jt=getmqindex()
+    mqindex=get_mpi_index('MQ  ')
+    if(gx%bmperr.ne.0) then
+       write(*,*)'MM mqindex error: ',gx%bmperr,mqindex
+       goto 1000
+    endif
+! note that MQ has a composition index so it must be multiplied by 100
+    mqindex=100*mqindex
+!
     do jt=2,pmi%curd%listprop(1)
        is=pmi%curd%listprop(jt)
-       if(is.gt.800 .and. is.lt.900) then
-! there is a mobility for constituent (is-800) stored in pmi%curd%gval(1,jt)
-          jj=is-800
+       if(is.gt.mqindex .and. is.lt.mqindex+100) then
+! there is a mobility for constituent (is-mqindex) stored in pmi%curd%gval(1,jt)
+          jj=is-mqindex
           ql=ql+1
 !          mobval(jj)=exp(pmi%curd%gval(1,jt)/ceq%rtn)/ceq%rtn
           mobval(jj)=pmi%curd%gval(1,jt)
-!          write(*,410)jj,jt,pmi%curd%gval(1,jt)
-!410       format('MM Mobility for ',i3,' in pos ',i2,', value: ',3(1pe14.6))
+!          write(*,410)is,jj,jt,pmi%curd%gval(1,jt)
+!410       format('MM Mobility for ',2i4,' in pos ',i2,', value: ',3(1pe14.6))
        endif
     enddo
     if(ql.lt.noofend) then
        write(*,411)noofend-ql
-411    format(' *** Warning: Missing mobility data for ',i2,' endmembers')
+411    format(' *** Warning EQUILPH1E: Missing mobility data for ',i2,&
+            ' endmembers')
        goto 1000
     endif
     goto 1000

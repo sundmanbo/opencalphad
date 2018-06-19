@@ -54,6 +54,7 @@
     character date*8,mdate*12,title*128,backslash*2,lineheader*1024
     character deftitle*128,labelkey*64
     logical overflow,first,last,novalues,selectph,varofun,moretops
+    logical, allocatable, dimension(:) ::  nevernone
 ! textlabels
     type(graphics_textlabel), pointer :: textlabel
 ! line identification (title)
@@ -150,13 +151,22 @@
 !          write(*,*)'SMP: allocating anp1: ',np*nrv
           allocate(anp(np,nrv))
 !          write(*,*)'SMP: allocating anp2: ',np
+! nonzero indicates for each column if there is any nonzero value
+! columns with only zero values will be eliminated before plotting
           allocate(nonzero(np))
 !          write(*,*)'SMP: allocating nonzero: ',np
+! linzero indicate for the present block of equilibria for each column
+! if this column contain nonzero values
           allocate(linzero(np))
 !          write(*,*)'SMP: allocating yyy: ',np
           allocate(yyy(np))
-! nzp should be dimension of yyy, np returns the number of values in yyy
           nzp=np
+! nzp should be dimension of yyy, np returns the number of values in yyy
+! yyy is to extract state variable values for the column with wildcard
+! NOTE binary phase diagrams are plotted with wildcard axis like x(*,cr) vs T
+! nevernone is an attempt to remove columns that are zero by the value NaN
+          allocate(nevernone(np))
+          nevernone=.FALSE.
           nonzero=0
           wildcard=.TRUE.
           anpax=iax
@@ -300,9 +310,13 @@
 !                            write(*,*)'Setting novalues TRUE',mapline%lineid
                          endif
                       endif
-! I think this phaseline is no longer used ??
-                      phaseline(nlinesep)(kk:)=dummy
-                      kk=len_trim(phaseline(nlinesep))+2
+                      if(.not.novalues) then
+! I think this phaseline is no longer used ?? YES it is
+!                         write(*,*)'SMP addto phaseline 1: ',trim(dummy),&
+!                              nlinesep
+                         phaseline(nlinesep)(kk:)=dummy
+                         kk=len_trim(phaseline(nlinesep))+2
+                      endif
                    endif
                 enddo
              enddo
@@ -338,11 +352,15 @@
 !          write(*,*)'In ocplot2, segmentation fault after 4B ',wildcard
           if(wildcard) then
 ! NEW ignore data for this equilibrium if NOVALUES is TRUE
-! because selphase not equal to the stable phase found above
+! because "selphase" not equal to the stable phase found above
              if(novalues) then
 !                write(*,*)'Ignoring equilibria without ',trim(selphase)
                 yyy=zero
-                np=1
+!                np=1
+! skip this equilibrium, nv=nv-1, and take next equilibrium, increement nr!!
+                nv=nv-1
+                goto 199
+!                cycle plot1
              else
 !                write(*,*)'Getting a wildcard value 1: ',nr,trim(statevar)
 !                write(*,*)'In ocplot2, segmentation fault after 4C1: ',&
@@ -356,6 +374,7 @@
                 qp=np
 !                write(*,*)'wildcard value 1: ',nr,trim(statevar)
 !                write(*,223)'Values: ',np,(yyy(i),i=1,np)
+!                write(*,*)'SMP2B: number of values: ',trim(selphase),np,nv
 223             format(a,i3,8F8.4)
                 if(gx%bmperr.ne.0) then
                    write(*,*)'yaxis error: "',trim(statevar),'"'
@@ -371,6 +390,9 @@
              anpmax=-1.0D20
              lcolor=0
 !             write(*,*)'On ocplot2, segmentation fault before 4D2',np
+! this is a loop for all values for this equilibria
+! Here we may try to replace zero values by RNONE ???
+!             write(*,*)'SMP2B RNONE: ',RNONE
              do jj=1,np
                 if(last) then
                    if(linzero(jj).ne.0) then
@@ -380,14 +402,38 @@
 !                      write(*,*)'SMP skipping a value for line ',nlinesep
                    endif
                 else
-                   anp(jj,nv)=yyy(jj)
+! trying to avoid plotting a line at zero for unstable/unused state variables 
+                   if(yyy(jj).eq.zero) then
+!                      if(nax.eq.1) then
+! FOR STEP calculations try to make the ending of a property at zero ...
+! This is for STEP 1 figure 3
+! BUT it did not work, many strange lines appeared in other plots ...
+!                         if(nv.gt.1 .and. abs(anp(jj,nv-1)).ne.zero) then
+! Hm, we cannot set anp(jj,nv) to zero because then all will be zero ...
+!                            anp(jj,nv-1)=zero
+!                         else
+!                            anp(jj,nv)=rnone
+!                         endif
+!                      else
+! for MAP calculations just ignore the point ... also for STEP ...
+                         anp(jj,nv)=rnone
+!                      endif
+                   else
+! Hm, jumps from zero to finite values in step1, fig 3 plotting w(phase,cr) ..
+!                      if(nv.gt.1 .and. anp(jj,nv-1).eq.rnone) then
+!                         anp(jj,nv-1)=zero
+!                      endif
+                      anp(jj,nv)=yyy(jj)
+                   endif
                    if(abs(yyy(jj)).gt.zero) then
                       nonzero(jj)=1
                       linzero(jj)=1
 ! save the first column with nonzero for use with invariants
                       if(ikol.eq.0) ikol=jj
                       if(anp(jj,nv).gt.anpmax) anpmax=anp(jj,nv)
-                      if(anp(jj,nv).lt.anpmin) anpmin=anp(jj,nv)
+!                      if(anp(jj,nv).lt.anpmin) anpmin=anp(jj,nv)
+                      if(anp(jj,nv).ne.rnone .and. &
+                           anp(jj,nv).lt.anpmin) anpmin=anp(jj,nv)
 ! extract state variable jj
                       if(.not.allocated(lid)) then
 !                         write(*,*)'Allocating lid: ',np+5
@@ -409,8 +455,8 @@
              enddo
 !             write(*,*)'OK Point: ',nr,nv,xax(nv)
           else
-! More than one state variable or function value like CP
-! UNFINISHED PROBLEM WITH NEGATIVE CP HERE 
+! A single state variable or function value like CP
+! I HAVE HAD PROBLEMS WITH NEGATIVE CP HERE 
 ! try skipping this value (below) if last equilibrium on the line 
 !             varofun=.TRUE.
 !             write(*,*)'SMP: calling meq_get_state_varofun ',trim(statevar)
@@ -423,7 +469,7 @@
                      statevar(1:10),curceq%tpval(1),nv,nr
                 nv=nv-1; goto 215
              endif
-             if(results%savedceq(nr)%next.eq.0) then
+             if(results%savedceq(nr)%nexteq.eq.0) then
 ! THIRD ?? Skipping
 !                write(*,212)'SMP skip last evaluated symbol: ',&
 !                     trim(statevar),curceq%tpval(1),nv,nr
@@ -450,9 +496,10 @@
 !             write(*,*)'SMP reset error code ',gx%bmperr
              gx%bmperr=0
           endif
-          nr=curceq%next
+199       continue
+          nr=curceq%nexteq
           if(nr.gt.0) then
-             if(results%savedceq(nr)%next.eq.0) then
+             if(results%savedceq(nr)%nexteq.eq.0) then
 !                write(*,*)'We have found last equilibria along the line: ',last
                 last=.TRUE.
              endif
@@ -466,7 +513,9 @@
 ! finished one line
 !       write(*,*)'In ocplot2, segmentation fault 4F'
        if(nax.gt.1) then
+!---------------------------------------------------------------
 !------------------ special for invariant lines
+!---------------------------------------------------------------
 ! for phase diagram always move to the new line 
           map1: if(nlinesep.ge.1) then
              if(linesep(nlinesep).lt.nv) then
@@ -496,6 +545,8 @@
                          k3=test_phase_status(jj,ic,value,curceq)
                          if(k3.gt.0) then
 ! this phase is stable or fix
+!                            write(*,*)'SMP addto phaseline 2: ',trim(dummy),&
+!                                 nlinesep
                             call get_phase_name(jj,ic,dummy)
                             phaseline(nlinesep)(kk:)=dummy
                             kk=len_trim(phaseline(nlinesep))+2
@@ -523,8 +574,9 @@
                    xax(nv-2)=value
                    xax(nv-1)=value
                    xax(nv)=value
-!                   write(*,335)'New line: ',nlinesep,statevar(1:5),value
-335                format(a,i3,' <',a,'> ',3(1pe14.6))
+!                   write(*,335)'New line: ',nlinesep,nv,linesep(nlinesep),&
+!                        statevar(1:5),value
+335                format(a,3i4,' <',a,'> ',3(1pe14.6))
 ! axis with possible wildcard
                    statevar=pltax(anpax)
 !                   write(*,*)'In ocplot2, segmentation fault 4H'
@@ -536,7 +588,7 @@
 ! save one non-zero value per line, 3 lines
                       ic=0
                       do jj=1,np
-! we have put anp to zero above
+! we have put anp to zero above ??
 !                         anp(jj,nv-2)=zero
 !                         anp(jj,nv-1)=zero
 !                         anp(jj,nv)=zero
@@ -548,34 +600,20 @@
                             ic=ic+1
                          endif
                       enddo
+! for RNONE = NaN add empty line after invariant ...
+                      if(linesep(nlinesep).lt.nv) then
+! we should never have several linesep for the same value of nv!
+                         nlinesep=nlinesep+1
+                         linesep(nlinesep)=nv
+!                         write(*,*)'Empty line after invariant: ',nlinesep,nv
+                      endif
                    else
 ! if no wildcard there is no invariant line
 !                      write(*,*)'It can be an invariant point here!!'
                       nv=nv-3
                       goto 225
-!----------------------------------
-! code below until label 222 redundant
-                      np=1
-                      call meq_get_state_varorfun_value(statevar,&
-                           value,encoded1,curceq)
-                      if(gx%bmperr.ne.0) then
-! FOURTH Skipping never executed
-                      write(*,212)'SMP skipping a point, error evaluating: ',&
-                              statevar(1:10),curceq%tpval(1),nv,0
-                         nv=nv-1; goto 222
-                      endif
-!                      if(gx%bmperr.ne.0) goto 1000
-                      anp(1,nv)=value
-!                      write(*,201)'at 225: ',nr,nv,curceq%tpval(1),value
                    endif
-! this must be written on 3 lines terminated with an empty line
-                   nlinesep=nlinesep+1
-                   linesep(nlinesep)=nv
-!                   write(*,*)'adding empty line 1',nlinesep,linesep(nlinesep)
                 endif inv
-! code from "goto 225" at 17 lines above until here is never used
-!-------------------------------
-! exit here if error and skip point
 222             continue
              endif
           endif map1
@@ -804,7 +842,7 @@
     if(graphopt%labeldefaults(3).ne.0) pltax(2)=graphopt%plotlabels(3)
 !    write(*,*)' >>>>>>>>**>>> plot file: ',trim(filename)
     call ocplot2B(np,nrv,nlinesep,linesep,pltax,xax,anpax,anpdim,anp,lid,&
-         title,filename,graphopt,version,encoded1)
+         phaseline,title,filename,graphopt,version,encoded1)
 !         title,filename,graphopt,pform,version,encoded1)
 !    goto 900
 ! deallocate, not really needed for local arrays ??
@@ -823,7 +861,7 @@
 
 !\begin{verbatim} %-
   subroutine ocplot2B(np,nrv,nlinesep,linesep,pltax,xax,anpax,anpdim,anp,lid,&
-       title,filename,graphopt,version,conditions)
+       phaseline,title,filename,graphopt,version,conditions)
 !       title,filename,graphopt,pform,version,conditions)
 ! called from icplot2 to generate the GNUPLOT file after extracting data
 ! np is number of columns (separate lines), if 1 no labelkey
@@ -846,7 +884,7 @@
     integer ndx,nrv,linesep(*),anpdim
 !    character pltax(*)*(*),filename*(*),pform*(*),lid(*)*(*),title*(*)
     character pltax(*)*(*),filename*(*),lid(*)*(*),title*(*)
-    character conditions*(*),version*(*)
+    character conditions*(*),version*(*),phaseline(*)*(*)
     type(graphics_options) :: graphopt
     double precision xax(*),anp(anpdim,*)
     type(graphics_textlabel), pointer :: textlabel
@@ -856,7 +894,7 @@
     integer ii,jj,kk,lcolor,appfil,nnv,ic,repeat,ksep,nv,k3,kkk
     character pfc*64,pfh*64,backslash*2,appline*128
     character applines(20)*128,gnuplotline*80,labelkey*64,rotate*16
-    character labelfont*16
+    character labelfont*16,linespoints*12
 ! write the gnuplot command file with data appended
 !
 !    write(*,10)'in ocplot2B: ',np,anpax,nrv,pform(1:1),trim(title),&
@@ -885,8 +923,10 @@
     elseif(graphopt%gnutermsel.gt.1) then
 ! terminal 1 is screen without any output file
        pfh=filename(1:kk)//'.'//graphopt%filext(graphopt%gnutermsel)
-       write(21,840)trim(graphopt%gnuterminal(graphopt%gnutermsel)),trim(pfh)
-840    format('set terminal ',a/'set output "',a,'"')
+! set the screen as a comment ...
+       write(21,840)trim(graphopt%gnuterminal(1)),&
+            trim(graphopt%gnuterminal(graphopt%gnutermsel)),trim(pfh)
+840    format('#set terminal ',a/'set terminal ',a/'set output "',a,'"')
     else
 ! terminal 1 is screen without any output file
        write(21,841)trim(graphopt%gnuterminal(graphopt%gnutermsel))
@@ -922,16 +962,16 @@
          'set size ',F8.4', ',F8.4/&
          'set xlabel "',a,'"'/'set ylabel "',a,'"'/&
          'set key ',a/&
-         'set style line 1 lt 2 lc rgb "#000000" lw 2'/&
-         'set style line 2 lt 2 lc rgb "#FF0000" lw 2'/&
-         'set style line 3 lt 2 lc rgb "#00C000" lw 2'/&
-         'set style line 4 lt 2 lc rgb "#0080FF" lw 2'/&
-         'set style line 5 lt 2 lc rgb "#C8C800" lw 2'/&
-         'set style line 6 lt 2 lc rgb "#4169E1" lw 2'/&
-         'set style line 7 lt 2 lc rgb "#C0C0C0" lw 2'/&
-         'set style line 8 lt 2 lc rgb "#00FFFF" lw 2'/&
-         'set style line 9 lt 2 lc rgb "#804080" lw 2'/&
-         'set style line 10 lt 2 lc rgb "#7CFF40" lw 2')
+         'set style line 1 lt 2 lc rgb "#000000" lw 2 pt 10'/&
+         'set style line 2 lt 2 lc rgb "#4169E1" lw 2 pt 6'/&
+         'set style line 3 lt 2 lc rgb "#00C000" lw 2 pt 3'/&
+         'set style line 4 lt 2 lc rgb "#FF0000" lw 2 pt 2'/&
+         'set style line 5 lt 2 lc rgb "#0080FF" lw 2 pt 4'/&
+         'set style line 6 lt 2 lc rgb "#C8C800" lw 2 pt 5'/&
+         'set style line 7 lt 2 lc rgb "#C0C0C0" lw 2 pt 7'/&
+         'set style line 8 lt 2 lc rgb "#00FFFF" lw 2 pt 8'/&
+         'set style line 9 lt 2 lc rgb "#804080" lw 2 pt 9'/&
+         'set style line 10 lt 2 lc rgb "#7CFF40" lw 2 pt 1')
 !
     if(graphopt%rangedefaults(1).ne.0) then
 ! user defined ranges for x axis
@@ -1056,6 +1096,12 @@
        write(*,*)'Illegal line color',lcolor
        lcolor=1
     endif
+! if graphopt%linestyle=0 use lines, otherwise linespoints
+    if(graphopt%linestyle.eq.0) then
+       linespoints='lines'
+    else
+       linespoints='linespoints'
+    endif
 !    write(*,*)'ocplot2B linett: ',lcolor
 !    write(*,*)'backslash "',backslash,'" '
     if(anpax.eq.2) then
@@ -1065,24 +1111,31 @@
 ! last line tuple on a separate format statement, if np>2
 ! np is number of columns
        if(np.eq.1 .and. appfil.eq.0) then
-          write(21,880)lcolor,' ',' '
+          write(21,880)trim(linespoints),lcolor,' ',' '
        else
-          write(21,880)lcolor,trim(lid(1)),backslash
-880       format('plot "-" using 2:3 with lines ls ',i2,' title "'a,'"',a)
+!          write(21,880)lcolor,trim(lid(1)),backslash
+!880       format('plot "-" using 2:3 with lines ls ',i2,' title "'a,'"',a)
+          write(21,880)trim(linespoints),lcolor,trim(lid(1)),backslash
+880       format('plot "-" using 2:3 with ',a,' ls ',i2,' title "'a,'"',a)
        endif
        do ii=2,np-1
           lcolor=lcolor+1
           if(lcolor.gt.10) lcolor=1
-          write(21,882)ii+2,lcolor,trim(lid(ii)),backslash
-882       format('"" using 2:',i3,' with lines ls ',i2,' title "'a,'"',a)
+!          write(21,882)ii+2,lcolor,trim(lid(ii)),backslash
+!882       format('"" using 2:',i3,' with lines ls ',i2,' title "'a,'"',a)
+          write(21,882)ii+2,trim(linespoints),lcolor,trim(lid(ii)),backslash
+882       format('"" using 2:',i3,' with ',a,' ls ',i2,' title "'a,'"',a)
        enddo
        lcolor=lcolor+1
        if(lcolor.gt.10) lcolor=1
        if(appfil.eq.0) then
-          if(np.ge.2) write(21,882)np+2,lcolor,trim(lid(np)),' '
+!          if(np.ge.2) write(21,882)np+2,lcolor,trim(lid(np)),' '
+       if(np.ge.2) write(21,882)np+2,trim(linespoints),lcolor,trim(lid(np)),' '
        else
 ! write the last calculated curve if np>1
-          if(np.ge.2) write(21,882)ii+2,lcolor,trim(lid(ii)),backslash
+!          if(np.ge.2) write(21,882)ii+2,lcolor,trim(lid(ii)),backslash
+          if(np.ge.2) write(21,882)ii+2,trim(linespoints),&
+               lcolor,trim(lid(ii)),backslash
 ! we should append data, change plot "-" to just "" in appline(1)
           ii=index(applines(1),'plot "-"')
           applines(1)(1:ii+7)='""'
@@ -1136,14 +1189,33 @@
     jj=0
 !    write(*,*)'Writing repeat, rows, columns ',repeat,nrv,np+2
     do nv=1,nrv
-       write(21,1820)nv,xax(nv),(anp(jj,nv),jj=1,np)
+!---------------------------------------------------------------
+!       write(21,1820)nv,xax(nv),(anp(jj,nv),jj=1,np)
+! trying to handle RNONE
+       write(21,2820,advance='no')nv,xax(nv)
+       do jj=1,np-1
+          if(anp(jj,nv).ne.rnone) then
+             write(21,2821,advance='no')anp(jj,nv)
+          else
+             write(21,2822,advance='no')
+          endif
+       enddo
+       if(anp(jj,nv).ne.rnone) then
+          write(21,2821)anp(jj,nv)
+       else
+          write(21,2822)
+       endif
+2820   format(i4,1pe16.6)
+2821   format(1pe16.6)
+2822   format(' NaN ')
+!---------------------------------------------------------------
 1820    format(i4,1000(1pe16.6))
        if(nv.eq.linesep(ksep)) then
 ! an empty line in the dat file means a MOVE to the next point.
           if(nv.lt.nrv) then
              if(jj.gt.1) then
 ! phaseline is never used in the plot, just included in the file
-                write(21,1819)ksep
+                write(21,1819)ksep,trim(phaseline(ksep))
 1819            format('# end of line '//'# Line ',i5,&
                      ', with these stable phases:'/'# ',a)
              else
@@ -1192,8 +1264,9 @@
     if(graphopt%gnutermsel.eq.1) then
 ! if not hardcopy pause gnuplot.  Mouse means clicking in the graphics window
 ! will close it. I would like to have an option to keep the graphics window...
-       write(21,990)
-990    format('pause mouse')
+       write(21,990)trim(graphopt%plotend)
+!990    format('pause mouse')
+990    format(a)
     endif
     close(21)
 !    write(*,*)'In OCPLOT2B closed ',trim(pfc),kkk
@@ -1260,7 +1333,7 @@
     integer ii,jj,point,plotp,lines,eqindex,lasteq,nooftup,lokcs,jph,same,kk
     integer, parameter :: maxval=2000,mazval=100
     double precision, allocatable :: xval(:,:),yval(:,:),zval(:,:),tieline(:,:)
-    integer offset,nofeq,sumpp,last,nofinv,ntieline,mtieline
+    integer offset,nofeq,sumpp,last,nofinv,ntieline,mtieline,noftielineblocks
     double precision xxx,yyy
 ! TO BE REPLACED BY GNUTERMSEL: pform
 !    character pform*8
@@ -1268,6 +1341,7 @@
     character xax1*8,xax2*24,yax1*8,yax2*24,axis1*32,axisx(2)*32,axisy(2)*32
     character phname*32,encoded*1024,axis*32
     character lid(2,maxsame)*24
+    integer nooflineends
 !
 ! xval and yval and ccordinates to plot, 
 ! points on one line is       xval(1,jj),yval(1,jj)
@@ -1284,6 +1358,7 @@
        write(*,*)'No data to plot'
        goto 1000
     endif
+    nooflineends=0
 !    write(*,17)
 17  format(//'Using ocplot3')
 ! extract the axis variables
@@ -1316,9 +1391,19 @@
     if(.not.allocated(curtop%linehead)) goto 500
     lines=size(curtop%linehead)
     results=>plottop%saveceq
+    noftielineblocks=0
     node: do ii=1,lines
+! up to version 5.014: (june 2018)
+!       curline=>curtop%linehead(ii)
+! because crash plotting a ternary with 2 start points I changed
+!       curline=>plottop%linehead(ii)
+! BUT the line above does not work for map10 and map3 (last plot of H)
+! so until further investigations I keep:
        curline=>curtop%linehead(ii)
-!       write(*,*)'Data from line: ',curline%lineid,lines
+       if(btest(curline%status,EXCLUDEDLINE)) then
+          write(*,*)'Excluded line: ',ii,curline%lineid,lines
+          cycle node
+       endif
        eqindex=curline%first
        lasteq=curline%last
        if(eqindex.le.0 .or. eqindex.gt.lasteq) cycle node
@@ -1334,7 +1419,7 @@
        ntieline=0
 !       write(*,*)'Plotting tie-lines: ',graphopt%tielines
        if(graphopt%tielines.gt.0) then
-! the number of tie-lines to extract
+! estimate the number of tie-lines to extract
           mtieline=nofeq/graphopt%tielines
 !          write(*,*)'Number of tie-lines: ',mtieline
           allocate(tieline(4,mtieline+5))
@@ -1345,6 +1430,11 @@
 ! extract for each stable phase the state variable in pltax       
           point=point+1
           curceq=>results%savedceq(eqindex)
+          if(.not.associated(curceq)) then
+             write(*,*)'SMP error, equilibrium missing?: ',&
+                  curtop%seqx,curline%lineid,eqindex
+             cycle line
+          endif
 ! find the stable phases (max 3)
           plotp=plotp+1
           if(plotp.gt.maxval) then
@@ -1354,6 +1444,12 @@
           jj=1
           equil: do jph=1,nooftup
              lokcs=phasetuple(jph)%lokvares
+             call get_phasetup_name(jph,phname)
+! crash as lokcs not valid ... the 3rd of 4th time plotted ...
+!             write(*,321)'SMP bug? ',curtop%seqx,curline%lineid,eqindex,&
+!                  jph,lokcs,trim(phname)
+321          format(a,2i4,i5,2i4,' : ',a)
+! crash next line in alcrni-1200 mapping ...
              if(curceq%phase_varres(lokcs)%phstate.ge.PHENTSTAB) then
                 if(jj.ge.3) then
                    if(eqindex.eq.lasteq) then
@@ -1430,6 +1526,7 @@
        endif
 !       write(*,23)'phase line: ',same,plotp,trim(lid(1,same)),trim(lid(2,same))
 23     format(a,2i5,3x,a,' and ',a)
+       noftielineblocks=noftielineblocks+1
        if(ntieline.gt.0) then
 ! All tielines on the same line with a space in between
           same=same+1
@@ -1508,14 +1605,16 @@
 !------------------------------------------------
 ! there can be more maptops linked via plotlink
     if(associated(plottop%plotlink)) then
+       jj=plottop%seqx
        plottop=>plottop%plotlink
+       write(*,*)'ocplot3B current and next maptop: ',jj,plottop%seqx
        goto 100
     endif
 !========================================================
     call get_plot_conditions(encoded,maptop%number_ofaxis,axarr,ceq)
 ! now we should have all data to plot in xval and yval arrays
 500 continue
-!    write(*,*)'found lines/points to plot: ',same,plotp
+!    write(*,*)'found lines/points to plot: ',same,plotp,nofinv
 !    write(*,502)(lineends(ii),ii=1,same)
 502 format(10i5)
 ! NOW pltax should be the the axis labels if set manually
@@ -1523,7 +1622,6 @@
     if(graphopt%labeldefaults(3).ne.0) pltax(2)=graphopt%plotlabels(3)
     call ocplot3B(same,nofinv,lineends,2,xval,2,yval,2,zval,plotkod,pltax,&
          lid,filename,graphopt,version,encoded)
-!         lid,filename,graphopt,pform,version,encoded)
     deallocate(xval)
     deallocate(yval)
     deallocate(plotkod)
@@ -1536,7 +1634,6 @@
 !\begin{verbatim} %-
   subroutine ocplot3B(same,nofinv,lineends,nx1,xval,ny1,yval,nz1,zval,plotkod,&
        pltax,lid,filename,graphopt,version,conditions)
-!       pltax,lid,filename,graphopt,pform,version,conditions)
 ! called by ocplot3 to write the GNUPLOT file for two wildcard columns
 ! same is the number of lines to plot
 ! nofinv number of invariants
@@ -1571,7 +1668,7 @@
     character labelkey*24,applines(10)*128,appline*128,pfc*80,pfh*80
     integer sumpp,np,appfil,ic,nnv,kkk,lcolor(maxcolor),iz,again
     integer done(maxcolor),foundinv,fcolor,k3
-    character color(maxcolor)*24,rotate*16,labelfont*16
+    character color(maxcolor)*24,rotate*16,labelfont*16,linespoints*12
 ! Gibbs triangle variables
     logical plotgt,appgt
     double precision sqrt3,xxx,yyy,xmax,ltic
@@ -1596,6 +1693,8 @@
     else
        labelkey=graphopt%labelkey
     endif
+! problems with identifying invariants and tie-lines lines
+    lcolor=0
 !
     if(index(filename,'.plt ').le.0) then 
        kk=len_trim(filename)
@@ -1616,8 +1715,11 @@
     elseif(graphopt%gnutermsel.gt.1) then
 ! terminal 1 is screen without any output file
        pfh=filename(1:kk)//'.'//graphopt%filext(graphopt%gnutermsel)
-       write(21,840)trim(graphopt%gnuterminal(graphopt%gnutermsel)),trim(pfh)
-840    format('set terminal ',a/'set output "',a,'"')
+! set the screen as a comment ...
+       write(21,840)trim(graphopt%gnuterminal(1)),&
+            trim(graphopt%gnuterminal(graphopt%gnutermsel)),trim(pfh)
+840    format('#set terminal ',a/'set terminal ',a/'set output "',a,'"')
+! 840    format('set terminal ',a/'set output "',a,'"')
     else
 ! terminal 1 is screen without any output file
        write(21,841)trim(graphopt%gnuterminal(graphopt%gnutermsel))
@@ -1711,18 +1813,27 @@
     endif
     write(21,133)labelkey
 133 format('set key ',a/&
-         'set style line 1 lt 2 lc rgb "#000000" lw 2'/&
-         'set style line 2 lt 2 lc rgb "#804080" lw 2'/&
-         'set style line 3 lt 2 lc rgb "#00C000" lw 2'/&
-         'set style line 4 lt 2 lc rgb "#FF0000" lw 2'/&
-         'set style line 5 lt 2 lc rgb "#0080FF" lw 2'/&
-         'set style line 6 lt 2 lc rgb "#C8C800" lw 2'/&
-         'set style line 7 lt 2 lc rgb "#4169E1" lw 2'/&
-         'set style line 8 lt 2 lc rgb "#7CFF40" lw 2'/&
-         'set style line 9 lt 2 lc rgb "#C0C0C0" lw 2'/&
-         'set style line 10 lt 2 lc rgb "#00FFFF" lw 2'/&
-         'set style line 11 lt 2 lc rgb "#8F8F8F" lw 3'/&
-         'set style line 12 lt 2 lc rgb "#8F8F8F" lw 1')
+         'set style line 1 lt 2 lc rgb "#000000" lw 2 pt 10'/&
+         'set style line 2 lt 2 lc rgb "#00C000" lw 2 pt 2'/&
+         'set style line 3 lt 2 lc rgb "#4169E1" lw 2 pt 7'/&
+         'set style line 4 lt 2 lc rgb "#FF0000" lw 2 pt 3'/&
+!         'set style line 5 lt 2 lc rgb "#8F8F8F" lw 2 pt 4'/&
+         'set style line 5 lt 2 lc rgb "#FF4500" lw 2 pt 4'/&
+         'set style line 6 lt 2 lc rgb "#0080FF" lw 2 pt 5'/&
+         'set style line 7 lt 2 lc rgb "#804080" lw 2 pt 6'/&
+!         'set style line 7 lt 2 lc rgb "#FF4500" lw 2 pt 6'/&
+         'set style line 8 lt 2 lc rgb "#00C000" lw 2 pt 8'/&
+         'set style line 9 lt 2 lc rgb "#C0C0C0" lw 2 pt 1'/&
+         'set style line 10 lt 2 lc rgb "#00FFFF" lw 2 pt 10'/&
+! orange is #FF4500
+! goldenrod hex: "DAA520", line 11 is invariant, 12 tieline
+!         'set style line 11 lt 2 lc rgb "goldenrod" lw 3'/&
+!         'set style line 11 lt 2 lc rgb "#DAA520" lw 3'/&
+!         'set style line 12 lt 2 lc rgb "goldenrod" lw 1')
+!         'set style line 11 lt 2 lc rgb "#804080" lw 3'/&
+!         'set style line 12 lt 2 lc rgb "#804080" lw 1')
+         'set style line 11 lt 2 lc rgb "#7CFF40" lw 3'/&
+         'set style line 12 lt 2 lc rgb "#7CFF40" lw 1')
 ! The last two styles (11 and 12) are for invariants and tielines
 !
 ! ranges for x and y
@@ -1882,31 +1993,38 @@
 !       write(*,*)'Number of lines: ',2*same
 !    endif
     pair: do jj=1,2
+! maybe same must be incremented with the number of tieline blocks??
+! and ivariants??  They have separate plot commands ...
        point: do ii=1,same
           iz=iz+1
 ! plotkod -1 negative means ignore
 ! plotkod -100 and -101 used for tie-lines
-          if(jj.eq.2 .and. plotkod(iz).eq.-1) cycle pair
-             do ic=1,nnv
-                if(trim(lid(jj,ii)).eq.trim(color(ic))) then
-                   if(iz.gt.maxcolor) then
-                      write(kou,*)'lcolor dimension overflow',iz
-                   else
-                      lcolor(iz)=ic
-                   endif
-                   goto 295
+          if(jj.eq.2 .and. plotkod(iz).eq.-1) then
+             write(*,*)'Ignoring this line ',jj,iz,plotkod(iz)
+!             cycle pair
+             cycle point
+          endif
+          do ic=1,nnv
+             if(trim(lid(jj,ii)).eq.trim(color(ic))) then
+                if(iz.gt.maxcolor) then
+                   write(kou,*)'lcolor dimension overflow',iz
+                else
+                   lcolor(iz)=ic
                 endif
-             enddo
+                goto 295
+             endif
+          enddo
 ! no match, increment nnv and assign that color to lcolor
 ! skip colors 11 and 12, reserved for invariants and tielines
           nnv=nnv+1
           lcolor(iz)=nnv
           color(nnv)=lid(jj,ii)
-!          write(*,293)'Assigned: ',nnv,jj,ii,iz,trim(color(nnv))
-!293       format(a,4i5,' "',a,'"')
+!          write(*,293)'color select: ',nnv,jj,ii,iz,trim(color(nnv))
+293       format(a,4i5,' "',a,'"')
 295       continue
        enddo point
     enddo pair
+!    write(*,*)'Finished assigning colors',iz
 ! replace _ by - (in phase names)
     do kk=1,nnv
 297    continue
@@ -1918,13 +2036,17 @@
     enddo
 !---------------------------------------------------------------
 ! check for invariant and tieline and replace color!
-!    do ii=1,2*same
-!       write(*,*)'original: ',ii,lcolor(ii),trim(color(lcolor(ii)))
-!    enddo
+    do ii=1,2*same
+       if(lcolor(ii).le.0) then
+          write(*,*)'missing color in ',ii,' out of ',2*same
+!       else
+!          write(*,*)'original: ',ii,lcolor(ii),trim(color(lcolor(ii)))
+       endif
+    enddo
     lcolor1: do ii=1,2*same
        jj=lcolor(ii)
        if(trim(color(jj)).eq.'invariant') then
-!          write(*,*)'Changing ',ii,jj,' to 11'
+!          write(*,*)'found invariant ',ii,jj,2*same
           lcolor(ii)=11
           color(11)='invariant'
           do kk=ii+1,2*same
@@ -1933,18 +2055,27 @@
                 lcolor(kk)=11
              endif
           enddo
-          exit lcolor1
+! why exit?
+!          exit lcolor1
        endif
     enddo lcolor1
     lcolor2: do ii=1,2*same
        jj=lcolor(ii)
+       if(jj.le.0 .or. jj.gt.maxcolor) then
+! this is a line that should not be plotted ...
+          write(*,*)'smp2B: problem: ',ii,jj
+          lcolor(ii)=11
+          cycle lcolor2
+       endif
        if(trim(color(jj)).eq.'tieline') then
+!          write(*,*)'found tie-line ',ii,jj
           lcolor(ii)=12
           color(12)='tie-line'
           do kk=ii+1,2*same
              if(lcolor(kk).eq.jj) lcolor(kk)=12
           enddo
-          exit lcolor2
+! why exit?
+!          exit lcolor2
        endif
     enddo lcolor2
 !    do ii=1,2*same
@@ -1985,7 +2116,7 @@
        enddo
     endif
 !----------------------------------------------------------------
-! this is subroutine ocplot3B
+! this is subroutine ocplot3B for two extensive axis
 !----------------------------------------------------------------
 ! Here we generate the datafile with coordinates to plot
 ! if nx1 or ny1 is 1 plot all on other axis versus single axis coordinate
@@ -2001,13 +2132,26 @@
     if(kk.ne.0) then
        write(*,*)'Ignoring manipulation of line colors'
     endif
+! if graphopt%linestyle=0 use lines, otherwise linespoints
+    if(graphopt%linestyle.eq.0) then
+       linespoints='lines'
+    else
+       linespoints='linespoints'
+    endif
     done=0
     do kk=1,2
        do jj=1,same
           ii=ii+1
           if(ii.eq.1) then
-             write(21,309)lcolor(ii),trim(color(lcolor(ii))),backslash
-309          format('plot "-" using 1:2 with lines ls ',i2,' title "',a,'"',a)
+! no pointes on tie-lines and invariants!
+             if(lcolor(ii).gt.10) then
+                write(21,309)'lines',lcolor(ii),&
+                     trim(color(lcolor(ii))),backslash
+             else
+                write(21,309)trim(linespoints),lcolor(ii),&
+                     trim(color(lcolor(ii))),backslash
+             endif
+309          format('plot "-" using 1:2 with ',a,' ls ',i2,' title "',a,'"',a)
              done(lcolor(1))=1
           else
 ! the invariant "lines" are just a point and occur only once
@@ -2019,13 +2163,28 @@
              if(fcolor.gt.12) then
                 fcolor=mod(fcolor,10)
                 if(fcolor.eq.0) fcolor=10
+! fixed Nath MoNiRe isother at 1500 K had some lines with no lcolor assignment!
+             elseif(fcolor.le.0) then
+                lcolor(ii)=1
+                fcolor=1
              endif
              if(done(lcolor(ii)).eq.1) then
-                write(21,320)fcolor,backslash
-320             format('"" using 1:2 with lines ls ',i2,' notitle ',a)
+                if(lcolor(ii).gt.10) then
+                   write(21,320)'lines',fcolor,backslash
+                else
+                   write(21,320)trim(linespoints),fcolor,backslash
+                endif
+320             format('"" using 1:2 with ',a,' ls ',i2,' notitle ',a)
              else
-                write(21,310)fcolor,trim(color(lcolor(ii))),backslash
-310             format('"" using 1:2 with lines ls ',i2,' title "',a,'"',a)
+!                if(lcolor(ii).gt.10) then
+                if(fcolor.gt.10) then
+                   write(21,310)'lines',fcolor,&
+                        trim(color(lcolor(ii))),backslash
+                else
+                   write(21,310)trim(linespoints),fcolor,&
+                        trim(color(lcolor(ii))),backslash
+                endif
+310             format('"" using 1:2 with ',a,' ls ',i2,' title "',a,'"',a)
                 done(lcolor(ii))=1
              endif
           endif
@@ -2090,8 +2249,9 @@
 ! if not hardcopy pause gnuplot.  Mouse means clicking in the graphics window
 ! will close it. I would like to have an option to spawn the graphics window...
 ! so it is kept while continuing the program.
-       write(21,990)
-990    format('pause mouse')
+       write(21,990)trim(graphopt%plotend)
+990    format(a)
+!990    format('pause mouse')
 !990    format('e'//'pause mouse')
     endif
     close(21)
@@ -2244,8 +2404,8 @@
     k1=index(short,'#')
     if(k1.gt.0) then
        k2=index(full,'#')
-! full has no compset
        if(k2.le.0) then
+! full has no compset
 ! if short has #1 then the full phase without # should be accepted
 !          write(*,*)'full has no compset:  ',short(k1+1:k1+1),k2
           if(short(k1+1:k1+1).eq.'1') then
@@ -2416,9 +2576,9 @@
                    gx%bmperr=0
                 endif
              enddo
-             write(kou,150)ll,thisceq%next,thisceq%tpval(1),axxx
+             write(kou,150)ll,thisceq%nexteq,thisceq%tpval(1),axxx
 150          format(2i9,f9.2,5(1pe13.5))
-             ll=thisceq%next
+             ll=thisceq%nexteq
           enddo ceqloop
        endif
 300    continue

@@ -46,14 +46,20 @@ l ,,,
 @$ -------------------------------------------------------------
 @&
 
-set advanced 
-dense
+set advanced
+?
+
+2
 
 c e
 
+@$ The denser grid has about 10 times more gridpoints, here 145000 compared
+@$ with 21000 with normal grid.  The result in this case is the same
+@$ but with complicated cases it is important to check.
+@&
+
 l ,,,
 
-@$ The denser grid has about 10 times more gridpoints.  Result the same
 @$ -------------------------------------------------------------
 @&
 @$ We can also list the constitution of the phases
@@ -78,7 +84,7 @@ l , 1
 @$ -------------------------------------------------------------
 @$ Turn off the dense grid as it is not really necessary here
 
-set adv dense
+set adv grid 1
 
 @&
 @$ Test setting a condition on the carbon content of the metallic FCC

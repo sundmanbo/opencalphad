@@ -1,7 +1,7 @@
 @$==========================================================================
 new Y
-@$
-@$
+
+set echo
 @$
 @$
 @$
@@ -19,8 +19,6 @@ new Y
 @$ step in T and P-T diagram does not work
 @&
 @$==========================================================================
-
-set echo
 
 r t steel1
 fe
@@ -77,9 +75,9 @@ l,,,,
 
 set c h
 
-l c
-
 set c t=none
+
+l c
 
 c e
 
@@ -90,6 +88,12 @@ l,,,,
 @$ Problem combining condition on H amd B, restore condition on N
 set c N=1
 set c B=none
+
+c e
+
+l,,,
+
+@&
 @$ Change value of H and calculate the equilibrium
 
 set c h

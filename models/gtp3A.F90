@@ -34,6 +34,7 @@
 ! allocate records for phases
    allocate(phlista(0:maxph))
    allocate(phases(0:maxph))
+   phases=0
    allocate(phasetuple(0:2*maxph))
    do jl=1,2*maxph
       phasetuple%nextcs=0
@@ -98,9 +99,9 @@
 ! dimension arrays for in first equilibrium record including phase_varres
    allocate(eqlista(maxeq))
    do jl=1,maxeq-1
-      eqlista(jl)%next=jl+1
+      eqlista(jl)%nexteq=jl+1
    enddo
-   eqlista(maxeq)%next=-1
+   eqlista(maxeq)%nexteq=-1
    eqfree=1
 ! create first equilibrium record incl complist
    call enter_equilibrium('DEFAULT_EQUILIBRIUM ',ieq)
@@ -123,6 +124,8 @@
 ! But one should take care to equilibrate fractions smaller than xconv!!!
    firsteq%xconv=1.0D-6
    firsteq%maxiter=500
+   firsteq%gdconv(1)=4.0D-3
+   firsteq%gdconv(2)=zero
 ! initiate tp functions
 !   write(*,*)'init_gtp: initiate TP fuctions'
    jl=maxtpf
@@ -139,9 +142,13 @@
    propid(npid)%status=0
 !============================================================
 ! VERY IMPORTANT: The properties defined below must not be equal to state
-! variables, if so they cannot be listed and other errors may occur
+! variables, or abbreviation of state variables.
+! If so they cannot be listed and other errors may occur
+! IMPORTANT any changes must be propagated to gtp3F: state_variable_val3 !!!
 !
-! ANY CHANGES HERE MUST BE MADE ALSO IN SUBROUTINE state_variable_val, pmod25c
+! ANY CHANGES HERE MUST BE MADE ALSO IN SUBROUTINE state_variable_val, ??pmod25c
+! IN THE RESULTS THE TYPE OF VARIABLE WILL BE STORED USING THE npid INDEX HERE
+! OLD SAVE FILES MAY HAVE OTHER MEANING OF npid !!
 !
 !============================================================
 ! Mixed Curie/Neel Temperature, set bits that TC and BM cannot depend on T 2
@@ -180,6 +187,7 @@
    npid=npid+1
    propid(npid)%symbol='IBM '
    propid(npid)%note='Individual Bohr magneton numb'
+!                     123456789.123456789.12345678-
    propid(npid)%status=0
 ! IBM cannot depend on either T or P and it is individual
    propid(npid)%status=ibset(propid(npid)%status,IDCONSUFFIX)
@@ -192,112 +200,7 @@
    propid(npid)%status=0
 ! THETA cannot depend on T but on P
    propid(npid)%status=ibset(propid(npid)%status,IDONLYP)
-!.......................................
-! logarithm of individual mobility 8
-   npid=npid+1
-   propid(npid)%symbol='MQ '
-   propid(npid)%note='LN mobility1 of component'
-   propid(npid)%status=0
-! MQ is specific för a constituent
-   propid(npid)%status=ibset(propid(npid)%status,IDCONSUFFIX)
-!.......................................
-! logarithm of individual mobility 9
-   npid=npid+1
-   propid(npid)%symbol='MF '
-   propid(npid)%note='LN mobility2 of component'
-   propid(npid)%status=0
-! MF is specific för a constituent
-   propid(npid)%status=ibset(propid(npid)%status,IDCONSUFFIX)
-!.......................................
-! logarithm of individual mobility 10
-   npid=npid+1
-   propid(npid)%symbol='MG '
-   propid(npid)%note='LN mobility3 of component'
-   propid(npid)%status=0
-! MG is specific för a constituent
-   propid(npid)%status=ibset(propid(npid)%status,IDCONSUFFIX)
-!.......................................
-! Electrical resistivity 11
-   npid=npid+1
-   propid(npid)%symbol='RHO '
-   propid(npid)%note='Elect resistivity'
-   propid(npid)%status=0
-!.......................................
-! Magnetic suseptibility 12
-   npid=npid+1
-   propid(npid)%symbol='MSUS '
-   propid(npid)%note='Magn suseptibility'
-   propid(npid)%status=0
-!.......................................
-! Liquid two-state model 13
-   npid=npid+1
-   propid(npid)%symbol='G2   '
-   propid(npid)%note='Liquid two state parameter'
-   propid(npid)%status=0
-!.......................................
-! Viscosity 14
-   npid=npid+1
-   propid(npid)%symbol='VISCA '
-   propid(npid)%note='Viscosity'
-   propid(npid)%status=0
-!.......................................
-! Lattice parameter in direction X 15
-   npid=npid+1
-   propid(npid)%symbol='LPX '
-   propid(npid)%note='Lattice param X axis'
-   propid(npid)%status=0
-! lattice parameters may depend on T and P
-!.......................................
-! Lattice parameter in direction Y 16
-   npid=npid+1
-   propid(npid)%symbol='LPY '
-   propid(npid)%note='Lattice param Y axis'
-   propid(npid)%status=0
-! lattice parameters may depend on T and P
-!.......................................
-! Lattice parameter in direction Z 17
-   npid=npid+1
-   propid(npid)%symbol='LPZ '
-   propid(npid)%note='Lattice param Z axis'
-   propid(npid)%status=0
-! lattice parameters may depend on T and P
-!.......................................
-! This is an angle for non-cubic lattices 18
-   npid=npid+1
-   propid(npid)%symbol='LPTH '
-   propid(npid)%note='Lattice angle TH'
-   propid(npid)%status=0
-! Angle may depend on T and P 
-!.......................................
-! This is an elastic "constant" 19
-   npid=npid+1
-   propid(npid)%symbol='EC11 '
-   propid(npid)%note='Elastic const C11'
-   propid(npid)%status=0
-! The elastic constant may depend on T and P
-!.......................................
-! This is another elastic "constant" 20
-   npid=npid+1
-   propid(npid)%symbol='EC12 '
-   propid(npid)%note='Elastic const C12'
-   propid(npid)%status=0
-! The elastic constant may depend on T and P
-!.......................................
-! This is yet another elastic "constant" 21
-   npid=npid+1
-   propid(npid)%symbol='EC44 '
-   propid(npid)%note='Elastic const C44'
-   propid(npid)%status=0
-! The elastic constant may depend on T and P
-!.......................................
-! Flory-Huggins molar volume parameter 22
-   npid=npid+1
-   propid(npid)%symbol='FHV '
-   propid(npid)%note='Flory-Huggins volume ratio '
-   propid(npid)%status=0
-! FHV is specific för a constituent
-   propid(npid)%status=ibset(propid(npid)%status,IDCONSUFFIX)
-!....................................... 23
+!....................................... 8
 ! Molar volume at T=298.15, 1 bar
    npid=npid+1
    propid(npid)%symbol='V0 '
@@ -305,7 +208,7 @@
    propid(npid)%status=0
 ! Constant independent on temperature or pressure
    propid(npid)%status=ibset(propid(npid)%status,IDNOTP)
-!....................................... 24
+!....................................... 9
 ! Thermal expansion at 1 bar
    npid=npid+1
    propid(npid)%symbol='VA '
@@ -313,34 +216,176 @@
    propid(npid)%status=0
 ! Not P dependent, only T dependent
    propid(npid)%status=ibset(propid(npid)%status,IDONLYT)
-!....................................... 25
+!....................................... 10
 ! Bulk modulus as function of T and P
    npid=npid+1
    propid(npid)%symbol='VB '
    propid(npid)%note='Bulk modulus '
    propid(npid)%status=0
-!....................................... 26
-! Thermal conductivity as function of T and P
+!.......................................
+! Liquid two-state model 11
+   npid=npid+1
+   propid(npid)%symbol='G2   '
+   propid(npid)%note='Liquid two state parameter'
+   propid(npid)%status=0
+!.......................................
+! Crystal Breakdown Temperaure 12
+   npid=npid+1
+   propid(npid)%symbol='CBT '
+   propid(npid)%note='Hickel T'
+   propid(npid)%status=0
+! CBT cannot depend on T but on P
+   propid(npid)%status=ibset(propid(npid)%status,IDONLYP)
+!.......................................
+! Activation energy of mobility 13
+   npid=npid+1
+   propid(npid)%symbol='MQ '
+   propid(npid)%note='Mobility activation energy'
+   propid(npid)%status=0
+! MQ is specific for a constituent
+   propid(npid)%status=ibset(propid(npid)%status,IDCONSUFFIX)
+! in subroutine equilph1e we use the index of MQ to find mobility values
+   mqindex=npid*100
+!.......................................
+! RT*ln(Frequency factor of mobility)  14
+   npid=npid+1
+   propid(npid)%symbol='MF '
+   propid(npid)%note='RT*ln(mobility freq.fact.)'
+   propid(npid)%status=0
+! MF is specific for a constituent
+   propid(npid)%status=ibset(propid(npid)%status,IDCONSUFFIX)
+!.......................................
+! Magnetic mobility factor 15
+   npid=npid+1
+   propid(npid)%symbol='MG '
+   propid(npid)%note='Magnetic mobility factor'
+   propid(npid)%status=0
+! MG is specific for a constituent
+   propid(npid)%status=ibset(propid(npid)%status,IDCONSUFFIX)
+!.......................................
+! Smooth unit step function (or second Einstein function) 16
+   npid=npid+1
+   propid(npid)%symbol='THT2 '
+   propid(npid)%note='Smooth step function T'
+   propid(npid)%status=0
+! THT2 cannot depend on T but on P
+   propid(npid)%status=ibset(propid(npid)%status,IDONLYP)
+!.......................................
+! Second Einstein delta CP 17
+   npid=npid+1
+   propid(npid)%symbol='DCP2 '
+   propid(npid)%note='Smooth step function value'
+   propid(npid)%status=0
+! DXP2 cannot depend on T but on P
+   propid(npid)%status=ibset(propid(npid)%status,IDONLYP)
+!.......................................
+! Viscosity 18
+   npid=npid+1
+   propid(npid)%symbol='VISC '
+   propid(npid)%note='Viscosity'
+   propid(npid)%status=0
+!.......................................
+! Lattice parameter in direction X 19
+   npid=npid+1
+   propid(npid)%symbol='LPX '
+   propid(npid)%note='Lattice param X axis'
+   propid(npid)%status=0
+! lattice parameters may depend on T and P
+!.......................................
+! Lattice parameter in direction Y 20
+   npid=npid+1
+   propid(npid)%symbol='LPY '
+   propid(npid)%note='Lattice param Y axis'
+   propid(npid)%status=0
+! lattice parameters may depend on T and P
+!.......................................
+! Lattice parameter in direction Z 21
+   npid=npid+1
+   propid(npid)%symbol='LPZ '
+   propid(npid)%note='Lattice param Z axis'
+   propid(npid)%status=0
+! lattice parameters may depend on T and P
+!.......................................
+! This is an angle for non-cubic lattices 22
+   npid=npid+1
+   propid(npid)%symbol='LPTH '
+   propid(npid)%note='Lattice angle TH'
+   propid(npid)%status=0
+! Angle may depend on T and P 
+!.......................................
+! This is an elastic "constant" 23
+   npid=npid+1
+   propid(npid)%symbol='EC11 '
+   propid(npid)%note='Elastic const C11'
+   propid(npid)%status=0
+! The elastic constant may depend on T and P
+!.......................................
+! This is another elastic "constant" 24
+   npid=npid+1
+   propid(npid)%symbol='EC12 '
+   propid(npid)%note='Elastic const C12'
+   propid(npid)%status=0
+! The elastic constant may depend on T and P
+!.......................................
+! This is yet another elastic "constant" 25
+   npid=npid+1
+   propid(npid)%symbol='EC44 '
+   propid(npid)%note='Elastic const C44'
+   propid(npid)%status=0
+! The elastic constant may depend on T and P
+!.......................................
+! Flory-Huggins molar volume parameter 26
+   npid=npid+1
+   propid(npid)%symbol='FHV '
+   propid(npid)%note='Flory-Huggins volume ratio '
+   propid(npid)%status=0
+! FHV is specific for a constituent
+   propid(npid)%status=ibset(propid(npid)%status,IDCONSUFFIX)
+!.......................................
+! Electrical resistivity 27
+   npid=npid+1
+   propid(npid)%symbol='RHO '
+   propid(npid)%note='Electric resistivity'
+   propid(npid)%status=0
+!....................................... 
+! Thermal conductivity as function of T and P 28
    npid=npid+1
    propid(npid)%symbol='LAMB '
    propid(npid)%note='Thermal conductivity '
    propid(npid)%status=0
-!....................................... 27
-! From MatCalc databases
+!.......................................
+! From MatCalc databases 29
    npid=npid+1
    propid(npid)%symbol='HMVA '
-   propid(npid)%note='Enth of vacancy formation '
+   propid(npid)%note='Enthalpy of vacancy form. '
    propid(npid)%status=0
-! this paramter does not depend on T
+! this parameter does not depend on T ??
+!   propid(npid)%status=ibset(propid(npid)%status,IDONLYP)
+!.......................................
+! Schottky anomality T 30
+   npid=npid+1
+   propid(npid)%symbol='TSCH '
+   propid(npid)%note='Schottky anomality T '
+   propid(npid)%status=0
+! this parameter does not depend on T ??
+   propid(npid)%status=ibset(propid(npid)%status,IDONLYP)
+!.......................................
+! Schottky anomality CP/R 31
+   npid=npid+1
+   propid(npid)%symbol='CSCH '
+   propid(npid)%note='Schottky anomality Cp/R. '
+   propid(npid)%status=0
+! this parameter does not depend on T ??
    propid(npid)%status=ibset(propid(npid)%status,IDONLYP)
 ! This IF statement should be at the last parameter identifier, maxprop=50?
    if(npid.gt.maxprop) then
       write(*,*)'Too many parameter identifiers, increase maxprop'
       gx%bmperr=4250; goto 1000
    endif
+! IMPORTANT any changes must be propagated to gtp3F: state_variable_val3 !!!
 !.......................................
-! IMPORTRANT: When adding more parameter identifiers one should never
-! NEVER USE A NAME ENDING IN D as that would be taken as a "disordered"
+! IMPORTRANT: When adding more parameter identifiers one should NEVER
+! NEVER USE A NAME ENDING IN D as that will be taken as a "disordered" part
 ! The number of defined properties, should be less than maxprop (=50?)
 ! IMPORTANT: In the addition records one must use the parameter identifier
 ! to extract the calculated composition dependent values
@@ -2479,18 +2524,31 @@ end function find_phasetuple_by_indices
     integer iadd,irem
 !\end{verbatim}
     integer lokph1,lokph2,nofr,jj
+    double precision x1mol(maxel),x2mol(maxel),wmass(maxel),totmol,totmass,am
     logical allo
     allo=.false.
     write(*,*)'3A checking if two phases are allotropes',irem,iadd
     lokph1=phases(irem)
-    nofr=phlista(lokph1)%tnooffr
-    if(nofr-phlista(lokph1)%noofsubl.eq.0) then
-       lokph2=phases(iadd)
-       if(nofr-phlista(lokph2)%noofsubl.eq.0) then
-          do jj=1,nofr
-             if(phlista(lokph1)%constitlist(jj).ne.&
-                  phlista(lokph2)%constitlist(jj)) goto 1000
-          enddo
+    lokph2=phases(iadd)
+! spurious segmentation faults here ...
+    if(lokph1.le.0 .or. lokph2.le.0) then
+! composition ses created during mapping are not included in phases array ??
+       write(*,*)'3A error checking allotropes: ',lokph1,lokph2
+       goto 1000
+    endif
+! check if both have fixed composition
+    if(phlista(lokph1)%noofsubl-phlista(lokph1)%tnooffr.eq.0 .and. &
+         phlista(lokph2)%noofsubl-phlista(lokph2)%tnooffr.eq.0) then
+! they have fixed composition but can be modelled differently
+! we have to calculate their mole fractions ...
+       call calc_phase_molmass(irem,1,x1mol,wmass,totmol,totmass,am,ceq)
+       call calc_phase_molmass(irem,1,x2mol,wmass,totmol,totmass,am,ceq)
+       if(gx%bmperr.ne.0) goto 1000
+       do jj=1,noofel
+          if(abs(x1mol(jj)-x2mol(jj)).gt.1.0D-6) exit
+       enddo
+! Fortran standard says jj>noofel if loop finish without exit
+       if(jj.gt.noofel) then
           allo=.true.
 !          write(*,*)'The phases are allotropes!',ceq%tpval(1)
        endif
@@ -2499,5 +2557,39 @@ end function find_phasetuple_by_indices
     allotropes=allo
     return
   end function allotropes
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+  integer function getmqindex()
+! This is necessary because mqindex is private, replaced by getmpiindex ...
+!\end{verbatim}
+    getmqindex=mqindex
+    return
+  end function getmqindex
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+  integer function get_mpi_index(mpi)
+! Return the index of a model parameter identifier
+    character mpi*(*)
+!\end{verbatim}
+! propid(jj)%symbol is *4
+    character text*4
+    integer jj
+    text=mpi
+    do jj=1,ndefprop
+       if(propid(jj)%symbol.eq.text) exit
+    enddo
+!
+    if(jj.gt.ndefprop) then
+       write(*,*)'3A no such model parameter identifier: ',trim(mpi)
+       gx%bmperr=4399; jj=-1
+    endif
+!    write(*,*)'3A get_mpi_index: ',text,ndefprop,jj
+    get_mpi_index=jj
+    return
+  end function get_mpi_index
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\

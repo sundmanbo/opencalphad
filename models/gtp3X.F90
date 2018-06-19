@@ -2382,24 +2382,39 @@
       ivax=0
       if(ionicliq) then
 !         write(*,*)'3X Comp.dep ternary ionic liquid parameter: ',iliqva
-         if(iliqva) then
+         if(gz%intlat(1).eq.2) then
+! Both interacting constituents in second sublattice, this should handle these:
+! TAFID problem: (5):(33,37,56) is (CA+2):(ALO2-,SIO4-4,SIO2) !!!
+! TAFID problem: (12):(33,37,56) is (MG+2):(ALO2-,SIO4-4,SIO2) !!!
+! TAFID problem: (9):(38,39,41)  is (Fe+2):(VA,B,C) !!
+! not tested: (Fe+2):(S-2,Va,S) or similar ... but it should be OK
+            continue
+         elseif(iliqva) then
 ! the endmember constituent in second sublattice is Va, no anions!!
             if(gz%intlat(1).eq.1 .and. gz%intlat(2).eq.1) then
 ! we have 3 cations interacting in first sublattice and Va in second
-! require treatment of extra vacancy fraction
-               write(*,*)'3X 3 interacting cations in liquid not implemented'
+! with composition dependence .... require treatment of extra vacancy fraction
+! TAFID not implemented: (Fe+2,Cr+2,Ni+1):(Va) for example ....
+! ternary term: y_Va*(y_Cr*L;0 +y_Fe*L;1 +y_Ni*L;2)
+    write(*,*)'3X unimplemented comp. dep. ternary cation interaction in liquid'
                gx%bmperr=4343; goto 1000
             elseif(gz%intlat(1).eq.1 .and. gz%intlat(2).eq.2) then
+! This is a reciprocal interaction, two cations, vacancy and neutral
                ivax=gz%endcon(2)
             endif
          elseif(gz%intcon(2).eq.phlista(lokph)%i2slx(1)) then
-! reciprocal interaction between anion and vacancy is the second sublattice
-! with 2 cations in first sublattice
+! reciprocal interaction between two cations in first sublattice and
+! an anion and vacancy is the second sublattice
 !            write(*,*)'3X reciprocal with 2 cations and anion and Va'
             ivax=gz%intcon(2)
             yionva=gz%yfrint(2)
          else
-            write(*,*)'3X: ionic liquid model parameter not implemented'
+! I do not know what kind of parameter this is
+            write(*,28)'3X: ionic liquid model parameter not implemented',&
+                 gz%intlevel,gz%endcon(1),gz%intcon(1),gz%intcon(2),&
+                 gz%endcon(2),gz%iq,iliqva
+28          format(a/'Level: ',i2,' constituents? ',i2,',',i2,',',i2,':',i2,&
+                 5x,5i3,2x,l2)
             gx%bmperr=4342; goto 1000
          endif
 ! other ternary parameters in ionic liquid OK, no extra vacancy fraction

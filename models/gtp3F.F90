@@ -2470,33 +2470,52 @@
 ! >>> this can easily be generallized ... next time around ...
 ! here with state variable <0, syetm and user defined properties
 200   continue
-!   write(*,*)'3F svv3 at 200:',kstv
+!   write(*,*)'3F svv3 at 200:',kstv,ndefprop
+   if(ndefprop.ne.31) then
+      write(*,*)'3F The model parameter identifiers has been changed!'
+      stop
+   endif
    select case(kstv)
    case default
       write(kou,*)'Unknown parameter identifier: ',kstv
-!.......................................
-   case(2:5,7,9:19) 
+! I need to separate out mpi's that have constituent index ...
 !-------------------------------------------------------------------
-! 2: TC (Curie/Neel Temperature)
-! 3: BM (Average Bohr magneton number)
-! 4: CTA just Curie Temperature
-! 5: NTA just Neel temperature
-! 7: THET Debye or Einstein temperature
-! 8: MQ& mobility
-! 9: RHO electrical resistivity
-! 10: MAGS Magnetic suseptibility
-! 11: GTT Glas transition temperature
-! 12: VISC viscosity
-! 13: LPX Lattice parameter in X direction
-! 14: LPY Lattice parameter in Y direction
-! 15: LPZ Lattice parameter in Z direction
-! 16: LPTH Lattice angle
-! 17: EC11 Elastic constant C11
-! 18: EC12 Elastic constant C12
-! 19: EC44 Elastic constant C44
-! 20: Flory-Huggins model parameter
+! These are model_parameter_ident in June 2018:
+!   1 G     T P                                   0 Energy
+!   2 TC    - P                                   2 Combined Curie/Neel T
+!   3 BMAG  - -                                   1 Average Bohr magneton numb
+!   4 CTA   - P                                   2 Curie temperature
+!   5 NTA   - P                                   2 Neel temperature
+!   6 IBM   - P &<constituent#sublattice>;       12 Individual Bohr magneton num
+!   7 THET  - P                                   2 Debye or Einstein temp
+!   8 V0    - -                                   1 Volume at T0, P0
+!   9 VA    T -                                   4 Thermal expansion
+!  10 VB    T P                                   0 Bulk modulus
+!  11 G2    T P                                   0 Liquid two state parameter
+!  12 CBT   - P                                   2 Crystal breakdown temp
+!  13 MQ    T P &<constituent#sublattice>;       10 Mobility activation energy
+!  14 MF    T P &<constituent#sublattice>;       10 RT*ln(mobility freq.fact.)
+!  15 MG    T P &<constituent#sublattice>;       10 Magnetic mobility factor
+!  16 THT2  - P                                   2 Smooth slope function T
+!  17 DCP2  - P                                   2 Smooth slope funtion step
+!  18 VISC  T P                                   0 Viscosity
+!  19 LPX   T P                                   0 Lattice param X axis
+!  20 LPY   T P                                   0 Lattice param Y axis
+!  21 LPZ   T P                                   0 Lattice param Z axis
+!  22 LPTH  T P                                   0 Lattice angle TH
+!  23 EC11  T P                                   0 Elastic const C11
+!  24 EC12  T P                                   0 Elastic const C12
+!  25 EC44  T P                                   0 Elastic const C44
+!  26 FHV   T P &<constituent#sublattice>;       10 Flory-Huggins volume ratio
+!  27 RHO   T P                                   0 Electric resistivity
+!  28 LAMB  T P                                   0 Thermal conductivity
+!  29 HMVA  T P                                   0 Enthalpy of vacancy form.
+!  30 TSCH  - P                                   2 Schottky anomality T
+!  31 CSCH  - P                                   2 Schottky anomality Cp/R.
+! I am not sure how to handle changes ...
 !-------------------------------------------------------------------
-!
+!...................................... without constituent index
+   case(1:5,7:12,16:25,27:31) 
       call get_phase_compset(indices(1),indices(2),lokph,lokcs)
       if(gx%bmperr.ne.0) goto 1000
 ! nprop is number of properties calculated.  Property 1 is always G
@@ -2507,11 +2526,12 @@
             goto 1000
          endif
       enddo find1
-!.......................................
-   case(6,8,20) 
+!....................................... with constituent index
+! These have a constituent index
+   case(6,13:15,26)
 ! 6: IBM& Individual Bohr magneton number
-! 8: MQ& mobility value
-! 20: FHV  Flory Huggins volume
+! 13-15: MQ& etc mobility values
+! 26: FHV  Flory Huggins volume
 !      write(*,*)'3F svv3 mob1: ',indices(1),indices(2),iprop
       call get_phase_compset(indices(1),indices(2),lokph,lokcs)
       if(gx%bmperr.ne.0) goto 1000
@@ -2564,8 +2584,10 @@
 ! just this constituent.  Note indices(1) is phase record, change to index
 !      write(*,*)'3F refphase: ',indices(1),phlista(indices(1))%alphaindex,value
       ic=phlista(indices(1))%alphaindex
+! set endmember=0 to allow vacancies ...
+      endmember=0
       endmember(1)=indices(2)
-!      write(*,*)'3F callcg_endmember 1: ',indices(1)
+      write(*,*)'3F callcg_endmember 1: ',indices(1),indices(2)
       call calcg_endmember(indices(1),endmember,gref,ceq)
       if(gx%bmperr.ne.0) goto 1000
       value=value-gref*ceq%rtn

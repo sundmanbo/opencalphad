@@ -13,6 +13,9 @@
 !  integer, public, parameter :: TWOSTATESMODEL1=5
 !  integer, public, parameter :: ELASTICMODEL1=6
 !  integer, public, parameter :: VOLMOD1=7
+!  integer, public, parameter :: CRYSTBREAKDOWNMOD=8
+!  integer, public, parameter :: SECONDEINSTEIN=9
+!  integer, public, parameter :: SCHOTTKYANOMALITY=10
 !------------------------------------
 ! For each addition XX there is a subroutine create_XX
 ! called from the add_addrecord
@@ -36,41 +39,59 @@
    TYPE(gtp_phase_varres), pointer :: phres
    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
+!   write(*,*)'3H select addition: ',addrec%type
    addition: select case(addrec%type)
    case default
       write(kou,*)'No such addition type ',addrec%type,lokph
       gx%bmperr=4330
-   case(indenmagnetic) ! Inden magnetic
+! !
+   case(indenmagnetic) ! Inden magnetic 
       addrec%propval=zero
       call calc_magnetic_inden(moded,phres,addrec,lokph,mc,ceq)
+! 2
    case(debyecp) ! Debye Cp
       addrec%propval=zero
       call calc_debyecp(moded,phres,addrec,lokph,mc,ceq)
       write(kou,*)' Debye Cp model not implemented yet'
       gx%bmperr=4331
+! 3
    case(xiongmagnetic) ! Inden-Xiong
       addrec%propval=zero
       call calc_xiongmagnetic(moded,phres,addrec,lokph,mc,ceq)
-!     write(kou,*)'Inden magnetic model with sep TC and TN not implemented yet'
+!     write(kou,*)'Inden-Qing-Xiong magn model not implemented yet'
 !      gx%bmperr=4332
+! 4
    case(einsteincp) ! Einstein Cp
       addrec%propval=zero
       call calc_einsteincp(moded,phres,addrec,lokph,mc,ceq)
-!      write(kou,*)'3H Einstein Cp model not implemented yet'
 !      gx%bmperr=4331
+! 5
    case(elasticmodel1) ! Elastic model !
       addrec%propval=zero
       call calc_elastica(moded,phres,addrec,lokph,mc,ceq)
       write(kou,*)' Elastic model not implemented yet'
       gx%bmperr=4399
+! 6
    case(twostatemodel1) ! Two state model
       addrec%propval=zero
       call calc_twostate_model1(moded,phres,addrec,lokph,mc,ceq)
-!      gx%bmperr=4333
+! 7
    case(volmod1) ! Simple volume model depending on V0, VA and VB
       addrec%propval=zero
       call calc_volmod1(moded,phres,addrec,lokph,mc,ceq)
-!      write(kou,*)' Two state model not implemented yet'
+! 8
+   case(crystalbreakdownmod) ! Limiting heat capacity of extrapolated solid
+      addrec%propval=zero
+      call calc_crystalbreakdownmod(moded,phres,addrec,lokph,mc,ceq)
+! 9
+   case(secondeinstein) ! Adding a second Einstein Cp
+      addrec%propval=zero
+      call calc_secondeinstein(moded,phres,addrec,lokph,mc,ceq)
+!      gx%bmperr=4333
+! 10
+   case(schottkyanomality) ! Adding a second Schottky anomality Cp
+      addrec%propval=zero
+      call calc_schottky_anomality(moded,phres,addrec,lokph,mc,ceq)
 !      gx%bmperr=4333
    end select addition
 1000 continue
@@ -111,6 +132,7 @@
    case default
       write(kou,*)'No addtion type ',addtyp,lokph
    case(indenmagnetic) ! Inden magnetic
+! 1
       if(extra(1:1).eq.'Y' .or. extra(1:1).eq.'y') then
 ! bcc model
          aff=-1
@@ -120,6 +142,7 @@
          call create_magrec_inden(newadd,aff)
       endif
    case(xiongmagnetic) ! Inden-Xiong.  Assume bcc if BCC part of phase name
+! 2
 !      bcc=.false.
 !      if(index('BCC',phlista(lokph)%name).gt.0) bcc=.true.
       if(extra(1:1).eq.'Y' .or. extra(1:1).eq.'y') then
@@ -130,15 +153,29 @@
 ! lokph because we need to check if average or individual Boghr magnetons
       call create_xiongmagnetic(newadd,lokph,bcc)
    case(debyecp) ! Debye Cp
+! 3
       call create_debyecp(newadd)
    case(einsteincp) ! Einstein Cp
+! 4
       call create_einsteincp(newadd)
    case(elasticmodel1) ! Elastic model 1
+! 5
       call create_elastic_model_a(newadd)
    case(twostatemodel1) ! Liquid 2 state model
+! 6
       call create_twostate_model1(newadd)
    case(volmod1) ! Volume model 1
+! 7
       call create_volmod1(newadd)
+   case(crystalbreakdownmod) ! Crystal Breakdown model
+! 8
+      call create_crystalbreakdownmod(newadd)
+   case(secondeinstein) ! Second Einstein T
+! 9
+      call create_secondeinstein(newadd)
+   case(schottkyanomality) ! Schottky anomality
+! 10
+      call create_schottky_anomality(newadd)
    end select addition
    if(gx%bmperr.ne.0) goto 1000
    if(associated(phlista(lokph)%additions)) then
@@ -530,7 +567,7 @@
               rt*ftao(1)*invb1**2*phres%dgval(1,j,ibm)*phres%dgval(1,k,ibm)+&
               rt*ftao(1)*invb1*phres%d2gval(ixsym(j,k),ibm)
 !          write(*,57)rt*ftao(4)*dtao(1,j)*dtao(1,k)*logb1,&
-!               rt*ftao(2)*d2tao(ixsym(j,k))*logb1,&
+!   R            rt*ftao(2)*d2tao(ixsym(j,k))*logb1,&
 !               rt*ftao(2)*dtao(1,j)*invb1*phres%dgval(1,k,ibm),&
 !               rt*ftao(2)*dtao(1,k)*invb1*phres%dgval(1,j,ibm),&
 !              -rt*ftao(1)*invb1**2*phres%dgval(1,j,ibm)*phres%dgval(1,k,ibm),&
@@ -1298,7 +1335,7 @@
 ! mc number of variable fractions
 ! ceq equilibrum record
 !
-! G = 1.5*R*THET + 3*R*T*ln( 1 - exp( THET/T ) ) 
+! G = 1.5*R*THET + 3*R*T*ln( 1 - exp( -THET/T ) ) 
 ! This is easier to handle inside the calc routine without TPFUN
 !
    implicit none
@@ -1307,8 +1344,10 @@
    type(gtp_phase_add), pointer :: addrec
    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-   integer ith,noprop
-   double precision del1,del2,del3,del4,gein,dgeindt,d2geindt2
+   integer ith,noprop,extreme,j1
+   double precision kvot,expkvot,expmkvot,ln1mexpkvot,kvotexpkvotm1,fact
+!   double precision del1,del2,del3,del4,gein,dgeindt,d2geindt2
+   double precision gein,dgeindt,d2geindt2
 !
    noprop=phres%listprop(1)-1
 !   write(*,*)'3H theta: ',phres%listprop(2),addrec%need_property(1)
@@ -1319,24 +1358,67 @@
    gx%bmperr=4336; goto 1000
 100 continue
    if(phres%gval(1,ith).le.one) then
-      write(*,70)'3H Illegal THET for phase ',trim(phlista(lokph)%name),&
+      write(*,69)'3H Illegal THET for phase ',trim(phlista(lokph)%name),&
            phres%gval(1,ith)
-      goto 1000
+69    format(a,a,1pe12.4)
+      gx%bmperr=4399; goto 1000
    endif
+! NOTE the parameter value is ln(thera)! take the exponential!
 ! thet is in gval(1,ith), derivatives in dgval(*,ith,*) and d2gval(ith,*)
 ! G/RT = 1.5*THET/T + 3*R*LN(exp(THET/T) - 1) 
 ! NOTE ALL VALUES CALCULATED AS FOR G/RT
-   del1=phres%gval(1,ith)/ceq%tpval(1)
-! we should be careful with numeric overflow, for low T: del1 > 1000
-   del2=exp(del1)
-   del3=del2-one
-! del4 is del3/del2 to avoid numeric overflow
-   del4=one-exp(-del1)
-!  write(*,70)'3H Cp einstein 1: ',ceq%tpval(1),phres%gval(1,ith),del1,del2,del3
-   gein=1.5D0*del1+3.0D0*log(del3)
-   dgeindt=3.0D0*(log(del3)-del1/del4)/ceq%tpval(1)
-! This is the Einstein Cp/RT (ir rather Cv/RT)
-   d2geindt2=-3.0D0*del2*( del1/del3/ceq%tpval(1) )**2
+! kvot=theta/T
+   kvot=exp(phres%gval(1,ith))/ceq%tpval(1)
+!   write(*,70)'3H phres: ',ceq%tpval(1),phres%gval(1,1),phres%gval(2,1),&
+!        phres%gval(3,1),phres%gval(4,1),kvot
+! we should be careful with numeric overflow, for small T or large T
+! no risk for overflow for exp(-kvot)
+   if(kvot.gt.1.0D2) then
+! T is very small, kvot very large, exp(kvot) may cause overflow, 
+! exp(-kvot) is very small, ln(1-exp(-kvot)) is close to zero
+! exp(kvot) may cause overflow, kvot/(exp(kvot)-1)=
+! kvot*exp(-kvot)/(1-exp(-kvot)) = (1-kvot+kvot**2/2-...)/(1-kvot/2+...) = 1
+      extreme=-1
+!      kvotexpkvotm1=one
+      expmkvot=zero
+      kvotexpkvotm1=zero
+      ln1mexpkvot=zero
+   elseif(kvot.lt.1.0D-2) then
+! T is very big, kvot is very small, exp(-kvot) approch 1, 1-exp(-kvot)=kvot
+! exp(-kvot) is close unity, ln(1-exp(-kvot))=ln(1-(1-kvot+kvot**2/2+...)) =
+!            ln(kvot-kvot**2/2+...)=ln(kvot)
+! exp(kvot) is close to unity: exp(kvot)-1 = kvot+kvot**2/2+ ...
+      extreme=1
+      expmkvot=exp(-kvot)
+      kvotexpkvotm1=kvot/(exp(kvot)-one)
+      ln1mexpkvot=log(one-expmkvot)
+   else
+! normal range of T and kvot
+      extreme=0
+      expmkvot=exp(-kvot)
+      kvotexpkvotm1=kvot/(exp(kvot)-one)
+      ln1mexpkvot=log(one-expmkvot)
+   endif
+! 
+   gein=1.5D0*kvot+3.0D0*ln1mexpkvot
+!   write(*,71)'3H Cp E1:',extreme,ceq%tpval(1),gein,ln1mexpkvot,expmkvot,&
+!        kvotexpkvotm1
+! first derivative wrt T taking care of overflow
+   dgeindt=3.0D0*(ln1mexpkvot-kvotexpkvotm1)/ceq%tpval(1)
+! This is d2G/dT**2/(RT) = -T**2/R*(Einstein Cp/RT) (or rather Cv/RT)
+   if(extreme.eq.-1) then
+! take care of overflow at low T, kvotexpkvotm1=expmkvot=0 set above
+      d2geindt2=zero
+   else
+      d2geindt2=-3.0D0*kvotexpkvotm1**2/(expmkvot*ceq%tpval(1)**2)
+   endif
+! first derivative for each constituent. The parameter value is ln(theta)
+! and we should divide by RT
+   fact=1.5D0*kvot+3.0D0*kvotexpkvotm1
+   do j1=1,mc
+      phres%dgval(1,j1,1)=phres%dgval(1,j1,1)+fact*phres%dgval(1,j1,ith)
+   enddo
+! return the values in phres%gval(*,1)
    phres%gval(1,1)=phres%gval(1,1)+gein
    phres%gval(2,1)=phres%gval(2,1)+dgeindt
 !   phres%gval(3,1)=phres%gval(3,1)
@@ -1346,12 +1428,329 @@
    addrec%propval(1)=gein
    addrec%propval(2)=dgeindt
    addrec%propval(4)=d2geindt2
-!   write(*,70)'3H Cp einstein 5: ',ceq%tpval(1),gein,dgeindt,d2geindt2
-70 format(a,F7.2,4(1pe12.2))
-! Missing implem of derivatives wrt fractions of thet.  thet cannot depend on T
+!   write(*,70)'3H Cp E3: ',ceq%tpval(1),gein,dgeindt,d2geindt2
+70 format(a,F7.2,5(1pe12.4))
+71 format(a,i3,1x,F7.2,5(1pe12.4))
+! Missing implem of derivatives wrt comp.dep of thet.  thet cannot depend on T
 1000 continue
    return
  end subroutine calc_einsteincp
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine create_schottky_anomality(newadd)
+! Adding a Schottky anomality to Cp
+   implicit none
+   type(gtp_phase_add), pointer :: newadd
+!\end{verbatim} %+
+   integer, parameter :: ncc=6
+   integer typty
+!
+! G/RT =  SAM * ln( 1 + exp( SAM/T ) ) 
+! No need to use TPFUN
+!
+! gtp_phase_add has variables:
+! integer :: type,addrecno,aff
+! integer, allocatable :: need_property
+! type(tpfun_expression), dimension, pointer :: explink
+! type(gtp_phase_add), pointer :: nextadd   
+! for spme additions one may create other records but they must have
+! the variables type and nextadd
+!------------------------------------------
+   allocate(newadd)
+! Schottky anomality uses THT2 and DCP2, same as second Einstein
+   newadd%type=schottkyanomality
+   allocate(newadd%need_property(2))
+   call need_propertyid('TSCH',typty)
+   if(gx%bmperr.ne.0) goto 1000
+   newadd%need_property(1)=typty
+   call need_propertyid('CSCH',typty)
+   if(gx%bmperr.ne.0) goto 1000
+   newadd%need_property(2)=typty
+   nullify(newadd%nextadd)
+1000 continue
+   return
+ end subroutine create_schottky_anomality
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine calc_schottky_anomality(moded,phres,addrec,lokph,mc,ceq)
+! Calculate the contibution due to a Schottky anomality
+! moded 0, 1 or 2
+! phres all results
+! addrec pointer to addition record
+! lokph phase record
+! mc number of variable fractions
+! ceq equilibrum record
+!
+! G = DCP2*T*ln( 1 + exp( -THT2/T ) ) 
+! dG/dT = DCP2*(ln(1+exp(-THT2/T))+(THT/T)*(1+exp(+THT2/T))**(-1)
+! d2G/dT2 = -DCP2*THT2**2*T**(-3)*exp(THT2/T)*(1+exp(+THT2/T))**(-2)
+!
+   implicit none
+   integer moded,lokph,mc
+   type(gtp_phase_varres), pointer :: phres
+   type(gtp_phase_add), pointer :: addrec
+   type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   integer ith,jth,noprop,extreme,j1
+   double precision kvot,expkvot,expmkvot,ln1pexpmkvot,kvotexpkvotp1,fact
+   double precision gsch,dgschdt,d2gschdt2,dcp2
+!
+   noprop=phres%listprop(1)-1
+!   write(*,*)'3H theta: ',phres%listprop(2),addrec%need_property(1)
+   ith=0
+   jth=0
+   findix: do j1=2,noprop
+      if(phres%listprop(j1).eq.addrec%need_property(1)) then
+         ith=j1
+      elseif(phres%listprop(j1).eq.addrec%need_property(2)) then
+         jth=j1
+      endif
+   enddo findix
+! ith is THT2 and jth is DCP2
+   if(ith.eq.0 .or. jth.eq.0) then
+!      write(*,*)'3H missing Schottky anomality parameter for phase ',&
+!           trim(phlista(lokph)%name)
+      goto 1000
+   endif
+! phres%gval(1,ith) and phres(1,jth) must not depend on T
+   kvot=exp(phres%gval(1,ith))/ceq%tpval(1)
+   dcp2=phres%gval(1,jth)
+   if(kvot.le.zero) goto 1000
+! we should be careful with numeric overflow, for small T or large T
+   if(kvot.gt.1.0D2) then
+! T is very small, kvot very large, exp(kvot) may cause overflow, 
+! exp(-kvot) is very small, ln(1-exp(-kvot)) is close to zero
+! exp(kvot) may cause overflow, kvot/(exp(kvot)-1)=
+! kvot*exp(-kvot)/(1-exp(-kvot)) = (1-kvot+kvot**2/2-...)/(1-kvot/2+...) = 1
+      extreme=-1
+      expmkvot=zero
+      kvotexpkvotp1=zero
+      ln1pexpmkvot=zero
+   elseif(kvot.lt.1.0D-2) then
+! T is very big, kvot is very small, exp(-kvot) approch 1, 1-exp(-kvot)=kvot
+! exp(-kvot) is close unity, ln(1-exp(-kvot))=ln(1-(1-kvot+kvot**2/2+...)) =
+!            ln(kvot-kvot**2/2+...)=ln(kvot)
+! exp(kvot) is close to unity: exp(kvot)-1 = kvot+kvot**2/2+ ...
+      extreme=1
+      expmkvot=exp(-kvot)
+      kvotexpkvotp1=kvot/(exp(kvot)+one)
+      ln1pexpmkvot=log(one+expmkvot)
+   else
+! normal range of T and kvot
+      extreme=0
+      expmkvot=exp(-kvot)
+      kvotexpkvotp1=kvot/(exp(kvot)+one)
+      ln1pexpmkvot=log(one+expmkvot)
+   endif
+! 
+! Note this is the G/RT value dcp2*ln(1+exp(tht2/T)
+! G = DCP2*T*ln( 1 + exp( -THT2/T ) ) 
+   gsch=dcp2*ln1pexpmkvot
+!   write(*,71)'3H Cp E1:',extreme,ceq%tpval(1),gein,ln1mexpkvot,expmkvot,&
+!        kvotexpkvotm1
+! first derivative wrt T taking care of overflow
+! dcp2*ln(1+exp(tht2))/T -(tht2/T**2)/exp
+! dG/dT = DCP2*(ln(1+exp(-THT2/T))+(THT/T)*(1+exp(+THT2/T))**(-1)
+   dgschdt=DCP2*(ln1pexpmkvot-kvotexpkvotp1)/ceq%tpval(1)
+! This is d2G/dT**2/(RT) = -T**2/R*(Einstein Cp/RT) (or rather Cv/RT)
+   if(extreme.eq.-1) then
+! take care of overflow at low T, kvotexpkvotm1=expmkvot=0 set above
+      d2gschdt2=zero
+   else
+! d2G/dT2 = -DCP2*THT2**2*T**(-3)*exp(THT2/T)*(1+exp(+THT2/T))**(-2)
+      d2gschdt2=-DCP2*kvotexpkvotp1**2/(expmkvot*ceq%tpval(1))
+   endif
+! first derivative for each constituent. The parameter value is ln(theta)
+! and we should divide by RT
+!   fact=1.5D0*kvot+3.0D0*kvotexpkvotm1
+!   do j1=1,mc
+!      phres%dgval(1,j1,1)=phres%dgval(1,j1,1)+fact*phres%dgval(1,j1,ith)
+!   enddo
+! return the values in phres%gval(*,1)
+   phres%gval(1,1)=phres%gval(1,1)+gsch
+   phres%gval(2,1)=phres%gval(2,1)+dgschdt
+!   phres%gval(3,1)=phres%gval(3,1)
+   phres%gval(4,1)=phres%gval(4,1)+d2gschdt2
+!   phres%gval(5,1)=phres%gval(5,1)
+!   phres%gval(6,1)=phres%gval(6,1)
+   addrec%propval(1)=gsch
+   addrec%propval(2)=dgschdt
+   addrec%propval(4)=d2gschdt2
+!   write(*,70)'3H Schottky: ',ceq%tpval(1),gsch,dgschdt,d2gschdt2
+70 format(a,F7.2,5(1pe12.4))
+71 format(a,i3,1x,F7.2,5(1pe12.4))
+! Missing implem of derivatives wrt comp.dep of thet.  thet cannot depend on T
+1000 continue
+   return
+ end subroutine calc_schottky_anomality
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine create_secondeinstein(newadd)
+   implicit none
+   type(gtp_phase_add), pointer :: newadd
+!\end{verbatim} %+
+   integer, parameter :: ncc=6
+   integer typty
+!
+! G/RT = DCP2*ln( 1 - exp( -THT2/T ) ) 
+! No need to use TPFUN
+!
+! gtp_phase_add has variables:
+! integer :: type,addrecno,aff
+! integer, allocatable :: need_property
+! type(tpfun_expression), dimension, pointer :: explink
+! type(gtp_phase_add), pointer :: nextadd   
+! for spme additions one may create other records but they must have
+! the variables type and nextadd
+!------------------------------------------
+   allocate(newadd)
+   newadd%type=secondeinstein
+! The second Einstein use THT2 and DCP2
+   allocate(newadd%need_property(2))
+   call need_propertyid('THT2',typty)
+   if(gx%bmperr.ne.0) goto 1000
+   newadd%need_property(1)=typty
+   call need_propertyid('DCP2',typty)
+   if(gx%bmperr.ne.0) goto 1000
+   newadd%need_property(2)=typty
+   nullify(newadd%nextadd)
+   write(*,*)'3H created 2nd Einstein: ',newadd%type
+1000 continue
+   return
+ end subroutine create_secondeinstein
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine calc_secondeinstein(moded,phres,addrec,lokph,mc,ceq)
+! Calculate the contibution due to Einste Cp model for low T
+! moded 0, 1 or 2
+! phres all results
+! addrec pointer to addition record
+! lokph phase record
+! mc number of variable fractions
+! ceq equilibrum record
+!
+! G = 1.5*R*THET + 3*R*T*ln( 1 - exp( -THET/T ) ) 
+! This is easier to handle inside the calc routine without TPFUN
+!
+   implicit none
+   integer moded,lokph,mc
+   type(gtp_phase_varres), pointer :: phres
+   type(gtp_phase_add), pointer :: addrec
+   type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   integer ith,jth,noprop,extreme,j1
+   double precision kvot,expkvot,expmkvot,ln1mexpkvot,kvotexpkvotm1,fact
+!   double precision del1,del2,del3,del4,gein,dgeindt,d2geindt2
+   double precision gein,dgeindt,d2geindt2,deltacp
+!
+   noprop=phres%listprop(1)-1
+!   write(*,*)'3H tht2: ',phres%listprop(2),addrec%need_property(1),&
+!        addrec%need_property(2)
+   ith=0; jth=0;
+   findix: do j1=2,noprop
+      if(phres%listprop(j1).eq.addrec%need_property(1)) then
+         ith=j1
+      elseif(phres%listprop(j1).eq.addrec%need_property(2)) then
+         jth=j1
+      endif
+   enddo findix
+   if(ith.eq.0 .or. jth.eq.0) then
+      write(*,*)'3H Missing second Einstein properties for phase ',&
+           trim(phlista(lokph)%name)
+      gx%bmperr=4336; goto 1000
+   endif
+100 continue
+   if(phres%gval(1,ith).le.one) then
+      write(*,70)'3H Illegal THET for phase ',trim(phlista(lokph)%name),&
+           phres%gval(1,ith)
+      gx%bmperr=4399; goto 1000
+   endif
+! NOTE the parameter value is ln(thera)! take the exponential!
+! thet is in gval(1,ith), derivatives in dgval(*,ith,*) and d2gval(ith,*)
+! G/RT = phres%gval(1,jth)*R*LN(exp(THET/T) - 1) 
+! NOTE ALL VALUES CALCULATED AS FOR G/RT
+   kvot=exp(phres%gval(1,ith))/ceq%tpval(1)
+!   write(*,70)'3H phres: ',ceq%tpval(1),phres%gval(1,1),phres%gval(2,1),&
+!        phres%gval(3,1),phres%gval(4,1),kvot
+! we should be careful with numeric overflow, for small T or large T
+! no risk for overflow for exp(-kvot)
+   if(kvot.gt.1.0D2) then
+! T is very small, kvot very large, exp(kvot) may cause overflow, 
+! exp(-kvot) is very small, ln(1-exp(-kvot)) is close to zero
+! exp(kvot) may cause overflow, kvot/(exp(kvot)-1)=
+! kvot*exp(-kvot)/(1-exp(-kvot)) = (1-kvot+kvot**2/2-...)/(1-kvot/2+...) = 1
+      extreme=-1
+!      kvotexpkvotm1=one
+      expmkvot=zero
+      kvotexpkvotm1=zero
+      ln1mexpkvot=zero
+   elseif(kvot.lt.1.0D-2) then
+! T is very big, kvot is very small, exp(-kvot) approch 1, 1-exp(-kvot)=kvot
+! exp(-kvot) is close unity, ln(1-exp(-kvot))=ln(1-(1-kvot+kvot**2/2+...)) =
+!            ln(kvot-kvot**2/2+...)=ln(kvot)
+! exp(kvot) is close to unity: exp(kvot)-1 = kvot+kvot**2/2+ ...
+      extreme=1
+      expmkvot=exp(-kvot)
+      kvotexpkvotm1=kvot/(exp(kvot)-one)
+      ln1mexpkvot=log(one-expmkvot)
+   else
+! normal range of T and kvot
+      extreme=0
+      expmkvot=exp(-kvot)
+      kvotexpkvotm1=kvot/(exp(kvot)-one)
+      ln1mexpkvot=log(one-expmkvot)
+   endif
+! 
+! The Delta Cp value is given in phres%gval(1,jth)  It can be negative!
+! and it can depend on P and composition !! NOT IMPLEMENTED !! BEWHERE
+! In normal Einstein deltacp=3.0
+   deltacp=phres%gval(1,jth)
+   gein=deltacp*ln1mexpkvot
+!   write(*,71)'3H Cp E1:',extreme,ceq%tpval(1),gein,ln1mexpkvot,expmkvot,&
+!        kvotexpkvotm1
+! first derivative wrt T taking care of overflow
+   dgeindt=deltacp*(ln1mexpkvot-kvotexpkvotm1)/ceq%tpval(1)
+! This is d2G/dT**2/(RT) = -T**2/R*(Einstein Cp/RT) (or rather Cv/RT)
+   if(extreme.eq.-1) then
+! take care of overflow at low T, kvotexpkvotm1=expmkvot=0 set above
+      d2geindt2=zero
+   else
+      d2geindt2=-deltacp*kvotexpkvotm1**2/(expmkvot*ceq%tpval(1)**2)
+   endif
+!   write(*,16)'3H 2nd Einstein: ',kvot,deltacp,d2geindt2
+16 format(a,6(1pe12.4))
+! first derivative for each constituent. The parameter value is ln(theta)
+! and we should divide by RT
+   fact=deltacp*kvotexpkvotm1
+   do j1=1,mc
+      phres%dgval(1,j1,1)=phres%dgval(1,j1,1)+fact*phres%dgval(1,j1,ith)
+   enddo
+! return the values in phres%gval(*,1)
+   phres%gval(1,1)=phres%gval(1,1)+gein
+   phres%gval(2,1)=phres%gval(2,1)+dgeindt
+!   phres%gval(3,1)=phres%gval(3,1)
+   phres%gval(4,1)=phres%gval(4,1)+d2geindt2
+!   phres%gval(5,1)=phres%gval(5,1)
+!   phres%gval(6,1)=phres%gval(6,1)
+   addrec%propval(1)=gein
+   addrec%propval(2)=dgeindt
+   addrec%propval(4)=d2geindt2
+!   write(*,70)'3H Cp E3: ',ceq%tpval(1),gein,dgeindt,d2geindt2
+70 format(a,F7.2,5(1pe12.4))
+71 format(a,i3,1x,F7.2,5(1pe12.4))
+! Missing implem of derivatives wrt comp.dep of tht2 and dcp2.
+! Neither tht2 nor dcp2 can depend on T
+1000 continue
+   return
+ end subroutine calc_secondeinstein
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -1363,29 +1762,41 @@
 !\end{verbatim}
    integer typty
 ! this is bad programming as it cannot be deallocated but it will never be ...
+! maybe pointers can be deallocated?
    allocate(addrec)
 ! nullify pointer to next addition
    nullify(addrec%nextadd)
+!-----------------------------
+! The model consists of two contributions
+! The first is the harmonic vibrations of an ideal amprthous phase
+!     this requires a THETA representing the Einstein T
+! The second is a term - RT*(1+exp(G2/RT))
+! which represent the change from "solid like" to "liquid like"
+!-----------------------------
 ! I am not sure what is is used for
    addrecs=addrecs+1
    addrec%addrecno=addrecs
 ! property needed
-   allocate(addrec%need_property(1))
+   allocate(addrec%need_property(2))
    call need_propertyid('G2  ',typty)
    addrec%need_property(1)=typty
+   call need_propertyid('THETA  ',typty)
+   addrec%need_property(2)=typty
 ! type of addition
    addrec%type=twostatemodel1
 ! store zero.  Used to extract current value of this property
    addrec%propval=zero
 1000 continue
-   write(*,*)'Created two state record'
+!   write(*,*)'Created two state liquid record'
    return
  end subroutine create_twostate_model1
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine calc_twostate_model1(moded,phres,addrec,lokph,mc,ceq)
+ subroutine calc_twostate_model_john(moded,phres,addrec,lokph,mc,ceq)
+! subroutine calc_twostate_model1(moded,phres,addrec,lokph,mc,ceq)
+! This routine works OK but I am testing a modification
 ! moded is 0, 1 or 2 if no, first or 2nd order derivatives should be calculated
 ! addrec is addition record
 ! phres is phase_varres record
@@ -1403,56 +1814,918 @@
 ! where d is "liquid like" atoms.  H is enthalpy to form defects
 ! At equilibrium
 !
-! d = exp(-H/RT) / (1 + e(-H/RT) )
+! d = exp(-H/RT) / (1 + e(-H/RT) ) is the integrated Einstein Cp -H/R is THET
 !
 ! G^liq - G^amorph = G^amorph - RT ln(1+exp(-DG_d/RT)
 ! DG_d is the enthalpy of forming 1 mole of defects in the glassy state
 !
 !------------------------------
-! The value of Gd for the phase is calculated and stored in ??
-!
-   integer jj,noprop,ig2
-   double precision g2val,dg2
+! The value of Gd for the phase is calculated and added to G
+   integer jj,noprop,ig2,ith,extreme,jth,kth
+!   double precision del1,del2,del3,del4,gein,dgeindt,d2geindt2
+   double precision gein,dgeindt,d2geindt2
+   double precision g2ein,dg2eindt,d2g2eindt2,theta2,dcpl
+   double precision kvot,expkvot,expmkvot,ln1mexpkvot,kvotexpkvotm1
+   double precision g2val,dg2,expg2,expmg2,rt,tv,rg,dg2dt,dgfdt,d2g2dt2
+! This is Johns original model
 ! number of properties calculatied
    noprop=phres%listprop(1)-1
-! locate the G2 property record   
+! locate the THET and G2 property record 
    ig2=0
+   ith=0
+   jth=0
+   kth=0
    findix: do jj=2,noprop
       if(phres%listprop(jj).eq.addrec%need_property(1)) then
 ! current values of G2 is stored in phres%gval(1,ig2)
-         ig2=jj; g2val=phres%gval(1,ig2); exit findix
+         ig2=jj;
+      elseif(phres%listprop(jj).eq.addrec%need_property(2)) then
+! current value of THET are stored in phres%gval(1,ith)
+         ith=jj
+! SECOND EINSTEIN CP CONTRBUTION ADDED SEPARATELY
+!      elseif(phres%listprop(jj).eq.14) then
+! current value of LIQUID THET are stored in with index 14 VISC
+!         jth=jj
+!         theta2=exp(phres%gval(1,jth))
+!         write(*,*)'3H found liquid theta: ',theta2
+!      elseif(phres%listprop(jj).eq.27) then
+! current value of LIQUID THET are stored in with index 14 VISC
+!         kth=jj
+!         dcpl=phres%gval(1,kth)
+!         write(*,*)'3H found liquid delta-cp: ',dcpl
       endif
    enddo findix
-   if(jj.gt.noprop) then
-! if jj>noprop it means we have not found the requested property
-      write(*,*)'Cannot found value for G2 parameter'
+   if(ith.eq.0) then
+      write(*,*)'Cannot find value for amorphous THET'
+      gein=zero; dgeindt=zero; d2geindt2=zero; goto 300
+!      gx%bmperr=4399; goto 1000
+   endif
+!----------------------------------
+! for the moment the composition dependence is ignored
+!   write(*,19)'3H 2no1: ',phres%gval(1,1),phres%gval(2,1),phres%gval(4,1)
+!------ this THET part copied from calc_einstein
+! thet is in gval(1,ith), derivatives in dgval(*,ith,*) and d2gval(ith,*)
+! G/RT = 1.5*THET/T + 3*R*LN(exp(THET/T) - 1) 
+! NOTE ALL VALUES CALCULATED AS FOR G/RT
+! kvot=theta/T
+! NOTE the stored value is ln(theta! !!!
+   kvot=exp(phres%gval(1,ith))/ceq%tpval(1)
+!   write(*,70)'3H phres: ',ceq%tpval(1),phres%gval(1,1),phres%gval(2,1),&
+!        phres%gval(3,1),phres%gval(4,1),kvot
+! we should be careful with numeric overflow, for small T or large T
+! no risk for overflow for exp(-kvot)
+!   expmkvot=exp(-kvot)
+!   ln1mexpkvot=log(one-expmkvot)
+   if(kvot.gt.1.0D2) then
+! T is very small, kvot very large, exp(kvot) may cause overflow, 
+! exp(-kvot) is very small, ln(1-exp(-kvot)) is close to zero
+! exp(kvot) may cause overflow, kvot/(exp(kvot)-1)=
+! kvot*exp(-kvot)/(1-exp(-kvot)) = (1-kvot+kvot**2/2-...)/(1-kvot/2+...) = 1
+      extreme=-1
+      expmkvot=zero
+      ln1mexpkvot=zero
+      kvotexpkvotm1=zero
+   elseif(kvot.lt.1.0D-2) then
+! T is very big, kvot is very small, exp(-kvot) approch 1, 1-exp(-kvot)=kvot
+! exp(-kvot) is close unity, ln(1-exp(-kvot))=ln(1-(1-kvot+kvot**2/2+...)) =
+!            ln(kvot-kvot**2/2+...)=ln(kvot)
+! exp(kvot) is close to unity: exp(kvot)-1 = kvot+kvot**2/2+ ...
+      extreme=1
+      expmkvot=exp(-kvot)
+      ln1mexpkvot=log(one-expmkvot)
+      kvotexpkvotm1=kvot/(exp(kvot)-one)
+   else
+! normal range of T and kvot
+      extreme=0
+      expmkvot=exp(-kvot)
+      ln1mexpkvot=log(one-expmkvot)
+      kvotexpkvotm1=kvot/(exp(kvot)-one)
+   endif
+! 
+   gein=1.5D0*kvot+3.0D0*ln1mexpkvot
+!   write(*,71)'3H Cp E1:',extreme,ceq%tpval(1),gein,ln1mexpkvot,expmkvot,&
+!        kvotexpkvotm1
+! first derivative wrt T taking care of overflow
+   dgeindt=3.0D0*(ln1mexpkvot-kvotexpkvotm1)/ceq%tpval(1)
+! This is d2G/dT**2/(RT) = -T**2/R*(Einstein Cp/RT) (or rather Cv/RT)
+   if(extreme.eq.-1) then
+! take care of overflow at low T
+      d2geindt2=zero
+   else
+      d2geindt2=-3.0D0*kvotexpkvotm1**2/(expmkvot*ceq%tpval(1)**2)
+   endif
+! return the values in phres%gval(*,1)
+   phres%gval(1,1)=phres%gval(1,1)+gein
+   phres%gval(2,1)=phres%gval(2,1)+dgeindt
+!   phres%gval(3,1)=phres%gval(3,1)
+   phres%gval(4,1)=phres%gval(4,1)+d2geindt2
+!   phres%gval(5,1)=phres%gval(5,1)
+!   phres%gval(6,1)=phres%gval(6,1)
+!   addrec%propval(1)=gein
+!   addrec%propval(2)=dgeindt
+!   addrec%propval(4)=d2geindt2
+!   write(*,71)'3H Cp E3: ',extreme,ceq%tpval(1),gein,dgeindt,d2geindt2
+70 format(a,F7.2,5(1pe12.4))
+71 format(a,i3,1x,F7.2,5(1pe12.4))
+!  thet cannot depend on T
+! Missing implem of derivatives wrt comp.dep of thet.
+   tv=ceq%tpval(1)
+!-------------------------- two state part DIVIDED BY RT
+! hump was an attempt to reduce the hump due to state change entropy
+! it does not seem to work ... in fact it is the same as scaling G^HT-G^LT
+! ****************** This is Johns orignal model *********************
+!   hump=1.0
+! Jump here if no Einstein solid
+300 continue
+   if(ig2.eq.0) then
+      write(*,*)'Cannot find value for G2 two-state parameter'
       gx%bmperr=4399; goto 1000
    endif
-   dg2=log(one+exp(-g2val/ceq%rtn))
-! NOTE values in gval(*,1) are divided by RT
+! NOTE g2val and derivatives not divided by RT !!
+   g2val=phres%gval(1,ig2); dg2dt=phres%gval(2,ig2)
+   dg2=zero; d2g2dt2=zero
+   if(g2val.eq.zero .and. dg2dt.eq.zero) then
+!      write(*,*)'3H: G2 parameter zero, ignoring bump',g2val
+      goto 900
+   endif
+!   write(*,19)'3H +am ',phres%gval(1,1),phres%gval(2,1),phres%gval(4,1)
+19 format(a,6(1pe11.3))
+   rt=ceq%rtn
+!   tv=ceq%tpval(1)
+   rg=globaldata%rgas
+!   expmg2=exp(-g2val/rt)
+!   if(g2val/rt.gt.2.0D2) then
+!      expmg2=exp(-g2val/(rt))
+!      expg2=one/expmg2
+!   elseif(g2val/rt.lt.1e-30) then
+!      expmg2=exp(-g2val/(rt))
+!      expg2=one/expmg2
+!   else
+      expmg2=exp(-g2val/(rt))
+      expg2=one/expmg2
+!   endif
+!   dg2=log(one+expmg2)
+   dg2=log(one+expmg2)
+!   write(*,19)'3H G2: ',g2val/rt,expmg2,dg2,dg2*rt
+! NOTE values added to gval(*,1) must be divided by RT
+! G = G - RT*ln(1+exp(-g2/RT))
 ! G
-   phres%gval(1,1)=phres%gval(1,1)-dg2
+!   phres%gval(1,1)=phres%gval(1,1)-dg2
+! (R*ln(1+g2val) + (g2/tv-dg2/dt)/(1+exp(-g2/RT)))/RT
 ! G.T
-   phres%gval(2,1)=phres%gval(2,1)+&
-        globaldata%rgas*(ceq%tpval(1)*phres%gval(2,ig2)-dg2)/ceq%rtn**2
+!   dgfdt=(rg*dg2+(g2val/tv-dg2dt)/(expg2+one))/(rt)
+   dgfdt=(rg*dg2+(g2val/tv-dg2dt)/(expg2+one))/(rt)
+!   phres%gval(2,1)=phres%gval(2,1)-dgfdt
 ! G.P   is zero
+! ****************** This is Johns orignal model *********************
+!-------------------------- tentative:
+! d2g2/dt2/(1+exp(g2/RT)+
+!   ((g2/tv)**2+(dg2/dt)**2-2*g2/tv*dg2/dt)*exp(g2/rt)/((1+exp(g2/RT)))**2/rt
 ! G.T.T 
-   phres%gval(4,1)=phres%gval(4,1)+phres%gval(4,ig2)/ceq%rtn-&
-        2.0D0*globaldata%rgas*(ceq%tpval(1)*phres%gval(2,ig2)-dg2)/ceq%rtn**3
-! G.T.P
-! G.P.P
-! save local values
-   addrec%propval(1)=dg2
-   addrec%propval(2)=globaldata%rgas*(ceq%tpval(1)*phres%gval(2,ig2)-dg2)/&
-        ceq%rtn**2
-   addrec%propval(3)=zero
-   addrec%propval(4)=phres%gval(4,ig2)/ceq%rtn-&
-        2.0D0*globaldata%rgas*(ceq%tpval(1)*phres%gval(2,ig2)-dg2)/ceq%rtn**3
-   addrec%propval(5)=zero
-   addrec%propval(6)=zero
+! This what my derivation gives:
+!   d2g2dt2=(phres%gval(4,ig2)/(one+expg2)+&
+! works after Qing checked the signs
+   d2g2dt2=(phres%gval(4,ig2)/(one+expg2)-&
+        ((g2val/tv)**2+(dg2dt)**2-2.0D0*(g2val/tv)*dg2dt)*expg2/&
+        (rt*(one+expg2)**2))/rt
+!   phres%gval(4,1)=phres%gval(4,1)+d2g2dt2
+! Maybe the error is here !!  YES now it works!
+!   phres%gval(4,1)=phres%gval(4,1)-d2g2dt2
+!   write(*,19)'3H dg2A: ',tv,  g2val/rt, one/(one+expg2),&
+!        -rg*tv**2*phres%gval(4,1),&
+!        -rg*tv**2*d2g2dt2,
+! The Eistein contribution is OK
+!   -rg*tv**2*d2geindt2
+!        -rg*tv*phres%gval(4,ig2)/(one+expg2),&
+!        -rg*tv*((g2val/tv)**2+(dg2dt)**2-2.0D0*(g2val/tv)*dg2dt)*expg2/&
+!        (rt*(one+expg2)**2)
+!   write(*,19)'3H dg2B: ',phres%gval(4,ig2)/(one+expg2),&
+!        (g2val/tv)**2+(dg2dt)**2-2.0D0*(g2val/tv)*dg2dt,&
+!        rt*(one+expg2)**2
+! G.T.P is zero
+! G.P.P is zero
+800 continue
+   phres%gval(1,1)=phres%gval(1,1)-dg2
+   phres%gval(2,1)=phres%gval(2,1)-dgfdt
+   phres%gval(4,1)=phres%gval(4,1)+d2g2dt2
+!   write(*,19)'3H 2st:',phres%gval(1,1),phres%gval(2,1),phres%gval(4,1)
+! save local values divided by RT?
+900 continue
+   addrec%propval=zero
+   addrec%propval(1)=gein-dg2
+   addrec%propval(2)=dgeindt-dgfdt
+   addrec%propval(4)=d2geindt2-d2g2dt2
+1000 continue
+   return
+ end subroutine calc_twostate_model_john
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine calc_twostate_model1(moded,phres,addrec,lokph,mc,ceq)
+! subroutine calc_twostate_modelny(moded,phres,addrec,lokph,mc,ceq)
+! The routine _john works OK but I am testing a modification
+! moded is 0, 1 or 2 if no, first or 2nd order derivatives should be calculated
+! addrec is addition record
+! phres is phase_varres record
+! lokph is phase location
+! mc is number of constitution fractions
+! ceq is current equilibrium record
+   implicit none
+   integer moded,lokph,mc
+   TYPE(GTP_PHASE_ADD), pointer :: addrec
+   TYPE(GTP_PHASE_VARRES), pointer :: phres
+   TYPE(GTP_EQUILIBRIUM_DATA), pointer :: ceq
+!\end{verbatim}
+! two state model for extrapolating liquid to low T
+! DG = d(H-RT) + RT( dln(d)+(1-d)ln(1-d))
+! where d is "liquid like" atoms.  H is enthalpy to form defects
+! At equilibrium
+!
+! d = exp(-H/RT) / (1 + e(-H/RT) ) is the integrated Einstein Cp -H/R is THET
+!
+! G^liq - G^amorph = G^amorph - RT ln(1+exp(-DG_d/RT)
+! DG_d is the enthalpy of forming 1 mole of defects in the glassy state
+!
+!------------------------------
+! The value of Gd for the phase is calculated and added to G
+   integer jj,noprop,ig2,ith,extreme,jth,kth
+!   double precision del1,del2,del3,del4,gein,dgeindt,d2geindt2
+   double precision gein,dgeindt,d2geindt2
+   double precision xi,hump
+   double precision, parameter :: humpfact=5.0D0
+!   double precision g2ein,dg2eindt,d2g2eindt2,theta2,dcpl
+   double precision kvot,expkvot,expmkvot,ln1mexpkvot,kvotexpkvotm1
+   double precision g2val,dg2,expg2,expmg2,rt,tv,rg,dg2dt,dgfdt,d2g2dt2
+! number of properties calculatied
+   noprop=phres%listprop(1)-1
+! locate the THET and G2 property record 
+   ig2=0
+   ith=0
+   jth=0
+   findix: do jj=2,noprop
+      if(phres%listprop(jj).eq.addrec%need_property(1)) then
+! current values of G2 is stored in phres%gval(1,ig2)
+         ig2=jj;
+      elseif(phres%listprop(jj).eq.addrec%need_property(2)) then
+! current value of THET are stored in phres%gval(1,ith)
+         ith=jj
+      elseif(phres%listprop(jj).eq.22) then
+! current value of DCP2 are stored in phres%gval(1,ith)
+         jth=jj
+      endif
+   enddo findix
+   if(ith.eq.0) then
+      write(*,*)'Cannot find value for amorphous THET'
+      gx%bmperr=4399; goto 1000
+   endif
+   if(ig2.eq.0) then
+      write(*,*)'Cannot find value for G2 two-state parameter'
+      gx%bmperr=4399; goto 1000
+   endif
+!----------------------------------
+! for the moment the composition dependence is ignored
+!   write(*,19)'3H 2no1: ',phres%gval(1,1),phres%gval(2,1),phres%gval(4,1)
+!------ this THET part copied from calc_einstein
+! thet is in gval(1,ith), derivatives in dgval(*,ith,*) and d2gval(ith,*)
+! G/RT = 1.5*THET/T + 3*R*LN(exp(THET/T) - 1) 
+! NOTE ALL VALUES CALCULATED AS FOR G/RT
+! kvot=theta/T
+! NOTE the stored value is ln(theta! !!!
+   kvot=exp(phres%gval(1,ith))/ceq%tpval(1)
+!   write(*,70)'3H phres: ',ceq%tpval(1),phres%gval(1,1),phres%gval(2,1),&
+!        phres%gval(3,1),phres%gval(4,1),kvot
+! we should be careful with numeric overflow, for small T or large T
+! no risk for overflow for exp(-kvot)
+!   expmkvot=exp(-kvot)
+!   ln1mexpkvot=log(one-expmkvot)
+   if(kvot.gt.1.0D2) then
+! T is very small, kvot very large, exp(kvot) may cause overflow, 
+! exp(-kvot) is very small, ln(1-exp(-kvot)) is close to zero
+! exp(kvot) may cause overflow, kvot/(exp(kvot)-1)=
+! kvot*exp(-kvot)/(1-exp(-kvot)) = (1-kvot+kvot**2/2-...)/(1-kvot/2+...) = 1
+      extreme=-1
+      expmkvot=zero
+      ln1mexpkvot=zero
+      kvotexpkvotm1=zero
+   elseif(kvot.lt.1.0D-2) then
+! T is very big, kvot is very small, exp(-kvot) approch 1, 1-exp(-kvot)=kvot
+! exp(-kvot) is close unity, ln(1-exp(-kvot))=ln(1-(1-kvot+kvot**2/2+...)) =
+!            ln(kvot-kvot**2/2+...)=ln(kvot)
+! exp(kvot) is close to unity: exp(kvot)-1 = kvot+kvot**2/2+ ...
+      extreme=1
+      expmkvot=exp(-kvot)
+      ln1mexpkvot=log(one-expmkvot)
+      kvotexpkvotm1=kvot/(exp(kvot)-one)
+   else
+! normal range of T and kvot
+      extreme=0
+      expmkvot=exp(-kvot)
+      ln1mexpkvot=log(one-expmkvot)
+      kvotexpkvotm1=kvot/(exp(kvot)-one)
+   endif
+! 
+   gein=1.5D0*kvot+3.0D0*ln1mexpkvot
+!   write(*,71)'3H Cp E1:',extreme,ceq%tpval(1),gein,ln1mexpkvot,expmkvot,&
+!        kvotexpkvotm1
+! first derivative wrt T taking care of overflow
+   dgeindt=3.0D0*(ln1mexpkvot-kvotexpkvotm1)/ceq%tpval(1)
+! This is d2G/dT**2/(RT) = -T**2/R*(Einstein Cp/RT) (or rather Cv/RT)
+   if(extreme.eq.-1) then
+! take care of overflow at low T
+      d2geindt2=zero
+   else
+      d2geindt2=-3.0D0*kvotexpkvotm1**2/(expmkvot*ceq%tpval(1)**2)
+   endif
+! return the values in phres%gval(*,1)
+   phres%gval(1,1)=phres%gval(1,1)+gein
+   phres%gval(2,1)=phres%gval(2,1)+dgeindt
+!   phres%gval(3,1)=phres%gval(3,1)
+   phres%gval(4,1)=phres%gval(4,1)+d2geindt2
+!   phres%gval(5,1)=phres%gval(5,1)
+!   phres%gval(6,1)=phres%gval(6,1)
+!   write(*,71)'3H Cp E3: ',extreme,ceq%tpval(1),gein,dgeindt,d2geindt2
+70 format(a,F7.2,5(1pe12.4))
+71 format(a,i3,1x,F7.2,5(1pe12.4))
+!  thet cannot depend on T
+!----------------------------------------------------------------
+!-------------------------- two state part DIVIDE BY RT
+! NOTE g2val and derivatives not divided by RT !!
+   rt=ceq%rtn
+   tv=ceq%tpval(1)
+   rg=globaldata%rgas
+   g2val=phres%gval(1,ig2); dg2dt=phres%gval(2,ig2)
+   dg2=zero; d2g2dt2=zero
+   expmg2=zero
+!   write(*,*)'3H gval1: ',g2val
+   if(g2val.eq.zero .and. dg2dt.eq.zero) then
+!      write(*,*)'3H: G2 parameter zero, ignoring bump',g2val
+      goto 900
+   endif
+   d2g2dt2=phres%gval(4,ig2)
+! hump is an attempt to reduce the hump due to state change entropy
+! This is testing a modification to prevent a hump
+! If G^d is positive we are in LT range and hump=0
+! If G^d is negative we are in HT rannge and 
+! by scaling G^d to vary between 0 and 1 when G^d is negative (xi>0.5)
+   xi=zero
+   hump=one
+   if(jth.gt.0) then
+      hump=phres%gval(1,jth)
+! there should be a chack if -200 < -g2val/rt or -g2val/rt > 200
+      xi=exp(-g2val/rt)/(one+exp(-g2val/rt))
+      write(*,19)'3H gval6: ',tv,g2val/rt,hump,xi
+      if(-g2val/rt.gt.200) then
+! Fraction liquid is very large 
+         xi=one
+         hump=one
+!      elseif(-g2val/rt.lt.-200) then
+! Fraction liquid is very small and can be ignored         
+!         hump=zero
+      else
+! This is the intermediate range when hump*xi should approach unity
+         if(-g2val/rt.lt.zero) then
+            hump=0.5*humpfact*hump*xi
+         else
+            hump=0.5*humpfact*hump*(one-xi)+(2*xi-one)
+         endif
+      endif
+   else
+! This is classical Schottky model
+      hump=one
+   endif
+!   write(*,19)'3H gval7: ',tv,g2val/rt,hump,xi,g2val*hump/rt
+   g2val=hump*g2val
+   dg2dt=hump*dg2dt
+   d2g2dt2=hump*d2g2dt2
+19 format(a,6(1pe11.3))
+! if g2val is positive we are in the amorphous region
+! if g2val is negative we are in the liquid region
+! The if statements here ensure expmg2 is between 1e-60 and 1e+60
+   if(-g2val/rt.gt.2.0D2) then
+! exp(200) >> 1, thus d2g=ln(1+exp(g2val))=g2val
+! and the derivatives are those above
+      dg2=g2val
+      dgfdt=dg2dt
+      d2g2dt2=d2g2dt2
+      goto 700
+   elseif(-g2val/rt.lt.-2.0D2) then
+! exp(-200)=0; ln(1)=0 and everything is zero
+      dg2=zero
+      dg2dt=zero
+      d2g2dt2=zero
+      goto 800
+   else
+! intermediate T range, we have to calculate
+      expmg2=exp(-g2val/rt)
+      expg2=one/expmg2
+      dg2=log(one+expmg2)
+   endif
+!   write(*,19)'3H gval8: ',g2val/rt,expmg2,dg2
+!   write(*,19)'3H dg2: ',tv,g2val,expmg2,dg2
+!   write(*,19)'3H G2: ',tv,xi,g2val/rt,expmg2,dg2,dg2*rt
+! NOTE values added to phres%gval(*,1) must be divided by RT
+! G = G - RT*ln(1+exp(-g2/RT))
+! G
+!   phres%gval(1,1)=phres%gval(1,1)-dg2
+! (R*ln(1+g2val) + (g2/tv-dg2/dt)/(1+exp(-g2/RT)))/RT
+! G.T
+   dgfdt=(rg*dg2+(g2val/tv-dg2dt)/(expg2+one))/rt
+!   dgfdt=dg2+(g2val/tv-dg2dt)/(expg2+one)
+! G.P   is zero
+!-------------------------- tentative:
+! d2g2/dt2/(1+exp(g2/RT)+
+!   ((g2/tv)**2+(dg2/dt)**2-2*g2/tv*dg2/dt)*exp(g2/rt)/((1+exp(g2/RT)))**2/rt
+! G.T.T 
+! Fixed sign problem
+!   d2g2dt2=(phres%gval(4,ig2)/(one+expg2)-&
+   d2g2dt2=(d2g2dt2/(one+expg2)-&
+        ((g2val/tv)**2+(dg2dt)**2-2.0D0*(g2val/tv)*dg2dt)*expg2/&
+        (rt*(one+expg2)**2))/rt
+700 continue
+   phres%gval(1,1)=phres%gval(1,1)-dg2
+   phres%gval(2,1)=phres%gval(2,1)-dgfdt
+   phres%gval(4,1)=phres%gval(4,1)+d2g2dt2
+! values of T, \xi, g, s and cp   
+800 continue
+!   write(*,19)'3H G9: ',tv,hump,dg2*rt,-dgfdt*rt,-d2g2dt2*rt*tv
+!   phres%gval(4,1)=phres%gval(4,1)-d2g2dt2
+!   write(*,19)'3H dg2A: ',tv,  g2val/rt, one/(one+expg2),&
+!        -rg*tv**2*phres%gval(4,1),&
+!        -rg*tv**2*d2g2dt2,
+! The Eistein contribution is OK
+!   -rg*tv**2*d2geindt2
+!        -rg*tv*phres%gval(4,ig2)/(one+expg2),&
+!        -rg*tv*((g2val/tv)**2+(dg2dt)**2-2.0D0*(g2val/tv)*dg2dt)*expg2/&
+!        (rt*(one+expg2)**2)
+!   write(*,19)'3H dg2B: ',phres%gval(4,ig2)/(one+expg2),&
+!        (g2val/tv)**2+(dg2dt)**2-2.0D0*(g2val/tv)*dg2dt,&
+!        rt*(one+expg2)**2
+! G.T.P is zero
+! G.P.P is zero
+!   write(*,19)'3H 2st:',phres%gval(1,1),phres%gval(2,1),phres%gval(4,1)
+! save local values divided by RT?
+900 continue
+   addrec%propval=zero
+   addrec%propval(1)=gein-dg2
+   addrec%propval(2)=dgeindt-dgfdt
+   addrec%propval(4)=d2geindt2-d2g2dt2
 1000 continue
    return
  end subroutine calc_twostate_model1
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine calc_twostate_model_old(moded,phres,addrec,lokph,mc,ceq)
+! Failed attempt to decrease the hump when the g2 parameter changes sign
+! moded is 0, 1 or 2 if no, first or 2nd order derivatives should be calculated
+! addrec is addition record
+! phres is phase_varres record
+! lokph is phase location
+! mc is number of constitution fractions
+! ceq is current equilibrium record
+   implicit none
+   integer moded,lokph,mc
+   TYPE(GTP_PHASE_ADD), pointer :: addrec
+   TYPE(GTP_PHASE_VARRES), pointer :: phres
+   TYPE(GTP_EQUILIBRIUM_DATA), pointer :: ceq
+!\end{verbatim}
+! two state model for extrapolating liquid to low T
+! DG = d(H-RT) + RT( dln(d)+(1-d)ln(1-d))
+! where d is "liquid like" atoms.  H is enthalpy to form defects
+! At equilibrium
+!
+! d = exp(-H/RT) / (1 + e(-H/RT) ) is the integrated Einstein Cp -H/R is THET
+!
+! G^liq - G^amorph = G^amorph - RT ln(1+exp(-DG_d/RT)
+! DG_d is the enthalpy of forming 1 mole of defects in the glassy state
+!
+!------------------------------
+! The value of Gd for the phase is calculated and added to G
+   integer jj,noprop,ig2,ith,extreme,m4
+!   double precision del1,del2,del3,del4,gein,dgeindt,d2geindt2
+   double precision gein,dgeindt,d2geindt2
+   double precision kvot,expkvot,expmkvot,ln1mexpkvot,kvotexpkvotm1
+   double precision g2val,dg2,expg2,expmg2,rt,tv,rg,dg2dt,dgfdt,d2g2dt2
+   double precision hump,fq,dfq,d2fq,addq,daddq,d2addq,dd
+! number of properties calculatied
+   noprop=phres%listprop(1)-1
+! locate the THET and G2 property record 
+   ig2=0
+   ith=0
+   findix: do jj=2,noprop
+      if(phres%listprop(jj).eq.addrec%need_property(1)) then
+! current values of G2 is stored in phres%gval(1,ig2)
+         ig2=jj;
+      elseif(phres%listprop(jj).eq.addrec%need_property(2)) then
+! current value of THET are stored in phres%gval(1,ith)
+         ith=jj
+      endif
+   enddo findix
+   if(ith.eq.0) then
+      write(*,*)'Cannot find value for amorphous THET'
+      gx%bmperr=4399; goto 1000
+   endif
+   if(ig2.eq.0) then
+      write(*,*)'Cannot find value for G2 two-state parameter'
+      gx%bmperr=4399; goto 1000
+   endif
+!----------------------------------
+! for the moment the composition dependence is ignored
+!   write(*,19)'3H 2no1: ',phres%gval(1,1),phres%gval(2,1),phres%gval(4,1)
+!------ this THET part copied from calc_einstein
+! thet is in gval(1,ith), derivatives in dgval(*,ith,*) and d2gval(ith,*)
+! G/RT = 1.5*THET/T + 3*R*LN(exp(THET/T) - 1) 
+! NOTE ALL VALUES CALCULATED AS FOR G/RT
+! kvot=theta/T
+! NOTE the stored value is ln(theta! !!!
+   kvot=exp(phres%gval(1,ith))/ceq%tpval(1)
+!   write(*,70)'3H phres: ',ceq%tpval(1),phres%gval(1,1),phres%gval(2,1),&
+!        phres%gval(3,1),phres%gval(4,1),kvot
+! we should be careful with numeric overflow, for small T or large T
+! no risk for overflow for exp(-kvot)
+!   expmkvot=exp(-kvot)
+!   ln1mexpkvot=log(one-expmkvot)
+   if(kvot.gt.1.0D2) then
+! T is very small, kvot very large, exp(kvot) may cause overflow, 
+! exp(-kvot) is very small, ln(1-exp(-kvot)) is close to zero
+! exp(kvot) may cause overflow, kvot/(exp(kvot)-1)=
+! kvot*exp(-kvot)/(1-exp(-kvot)) = (1-kvot+kvot**2/2-...)/(1-kvot/2+...) = 1
+      extreme=-1
+      expmkvot=zero
+      ln1mexpkvot=zero
+      kvotexpkvotm1=zero
+   elseif(kvot.lt.1.0D-2) then
+! T is very big, kvot is very small, exp(-kvot) approch 1, 1-exp(-kvot)=kvot
+! exp(-kvot) is close unity, ln(1-exp(-kvot))=ln(1-(1-kvot+kvot**2/2+...)) =
+!            ln(kvot-kvot**2/2+...)=ln(kvot)
+! exp(kvot) is close to unity: exp(kvot)-1 = kvot+kvot**2/2+ ...
+      extreme=1
+      expmkvot=exp(-kvot)
+      ln1mexpkvot=log(one-expmkvot)
+      kvotexpkvotm1=kvot/(exp(kvot)-one)
+   else
+! normal range of T and kvot
+      extreme=0
+      expmkvot=exp(-kvot)
+      ln1mexpkvot=log(one-expmkvot)
+      kvotexpkvotm1=kvot/(exp(kvot)-one)
+   endif
+! 
+   gein=1.5D0*kvot+3.0D0*ln1mexpkvot
+!   write(*,71)'3H Cp E1:',extreme,ceq%tpval(1),gein,ln1mexpkvot,expmkvot,&
+!        kvotexpkvotm1
+! first derivative wrt T taking care of overflow
+   dgeindt=3.0D0*(ln1mexpkvot-kvotexpkvotm1)/ceq%tpval(1)
+! This is d2G/dT**2/(RT) = -T**2/R*(Einstein Cp/RT) (or rather Cv/RT)
+   if(extreme.eq.-1) then
+! take care of overflow at low T
+      d2geindt2=zero
+   else
+      d2geindt2=-3.0D0*kvotexpkvotm1**2/(expmkvot*ceq%tpval(1)**2)
+   endif
+! return the values in phres%gval(*,1)
+   phres%gval(1,1)=phres%gval(1,1)+gein
+   phres%gval(2,1)=phres%gval(2,1)+dgeindt
+!   phres%gval(3,1)=phres%gval(3,1)
+   phres%gval(4,1)=phres%gval(4,1)+d2geindt2
+!   phres%gval(5,1)=phres%gval(5,1)
+!   phres%gval(6,1)=phres%gval(6,1)
+   addrec%propval(1)=gein
+   addrec%propval(2)=dgeindt
+   addrec%propval(4)=d2geindt2
+!   write(*,71)'3H Cp E3: ',extreme,ceq%tpval(1),gein,dgeindt,d2geindt2
+70 format(a,F7.2,5(1pe12.4))
+71 format(a,i3,1x,F7.2,5(1pe12.4))
+!  thet cannot depend on T
+! Missing implem of derivatives wrt comp.dep of thet.
+!-------------------------- two state part DIVIDE BY RT
+! NOTE g2val and derivatives not divided by RT !!
+   g2val=phres%gval(1,ig2)
+   dg2dt=phres%gval(2,ig2)
+   dg2=zero; d2g2dt2=zero
+   if(g2val.eq.zero .and. dg2dt.eq.zero) then
+      write(*,*)'3H: G2 parameter zero, ignoring twostate model',g2val
+      goto 900
+   endif
+!   write(*,19)'3H +am ',phres%gval(1,1),phres%gval(2,1),phres%gval(4,1)
+19 format(a,6(1pe11.3))
+   rt=ceq%rtn
+   tv=ceq%tpval(1)
+   rg=globaldata%rgas
+!   expmg2=exp(-g2val/rt)
+!   if(g2val/rt.gt.2.0D2) then
+!      expmg2=exp(-g2val/(rt))
+!      expg2=one/expmg2
+!   elseif(g2val/rt.lt.1e-30) then
+!      expmg2=exp(-g2val/(rt))
+!      expg2=one/expmg2
+!   else
+      expmg2=exp(-g2val/(rt))
+      expg2=one/expmg2
+!   endif
+!   dg2=log(one+expmg2)
+   dg2=log(one+expmg2)
+!   write(*,19)'3H G2: ',g2val/rt,expmg2,dg2,dg2*rt
+! NOTE values added to gval(*,1) must be divided by RT
+! G = G - RT*ln(1+exp(-g2/RT))
+! G
+   phres%gval(1,1)=phres%gval(1,1)-dg2
+! (R*ln(1+g2val) + (g2/tv-dg2/dt)/(1+exp(-g2/RT)))/RT
+! G.T
+!   dgfdt=(rg*dg2+(g2val/tv-dg2dt)/(expg2+one))/(rt)
+   dgfdt=(rg*dg2+(g2val/tv-dg2dt)/(expg2+one))/(rt)
+   phres%gval(2,1)=phres%gval(2,1)-dgfdt
+! G.P   is zero
+!-------------------------- tentative:
+! d2g2/dt2/(1+exp(g2/RT)+
+!   ((g2/tv)**2+(dg2/dt)**2-2*g2/tv*dg2/dt)*exp(g2/rt)/((1+exp(g2/RT)))**2/rt
+! G.T.T 
+! This what my derivation gives:
+!   d2g2dt2=(phres%gval(4,ig2)/(one+expg2)+&
+! Qing proposal, works after fixing the sign also below
+   d2g2dt2=(phres%gval(4,ig2)/(one+expg2)-&
+! This is which is the same as TC
+!   d2g2dt2=(-phres%gval(4,ig2)/(one+expg2)+&
+        ((g2val/tv)**2+(dg2dt)**2-2.0D0*(g2val/tv)*dg2dt)*expg2/&
+        (rt*(one+expg2)**2))/rt
+! Maybe the error is here !!  YES now it works!
+   phres%gval(4,1)=phres%gval(4,1)+d2g2dt2
+!   phres%gval(4,1)=phres%gval(4,1)-d2g2dt2
+! G.T.P is zero
+! G.P.P is zero
+! This is my addition to the two-state model to control the size of the hump
+!   goto 1000
+   hump=1.0D0
+   m4=2
+   fq=g2val/rt
+   dfq=dg2dt/rt-fq/tv
+   d2fq=phres%gval(4,ith)/rt-2.0D0/(rt*tv)*(dg2dt+g2val/tv)
+   dd=one+(2.0D-1*fq)**m4
+   addq=hump/dd
+   daddq=-m4*hump*fq**(m4-1)*dfq/dd**2
+   d2addq=-m4*hump*fq**(m4-2)*((m4-1)*dfq**2+fq*d2fq)/dd**2+&
+        2.0d0*m4**2*hump*fq**(2*m4-2)*dfq**2/dd**3
+! ignoring T dependence
+   d2addq=5.0D-5/dd
+   phres%gval(1,1)=phres%gval(1,1)+addq
+   phres%gval(2,1)=phres%gval(2,1)+daddq
+   phres%gval(4,1)=phres%gval(4,1)+d2addq
+   write(*,800)'3H added hump',tv,fq,dd,-rg*tv**2*d2addq
+800 format(a,6(1pe11.3))
+! save local values divided by RT?
+900 continue
+   addrec%propval=zero
+   addrec%propval(1)=gein-dg2
+   addrec%propval(2)=dgeindt-dgfdt
+   addrec%propval(4)=d2geindt2-d2g2dt2
+1000 continue
+   return
+ end subroutine calc_twostate_model_old
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine create_crystalbreakdownmod(addrec)
+! enters a record for the crystal breakdown
+   implicit none
+   type(gtp_phase_add), pointer :: addrec
+!\end{verbatim} %+
+   integer typty
+! reserve an addition record
+   allocate(addrec)
+! nullify link to next   
+   nullify(addrec%nextadd)
+! Set the type of addition and look for needed parameter properties
+   addrec%type=crystalbreakdownmod
+   allocate(addrec%need_property(1))
+   call need_propertyid('CBT ',typty)
+   if(gx%bmperr.ne.0) goto 1000
+   addrec%need_property(1)=typty
+! store zero.  Used to extract current value of this property
+   addrec%propval=zero
+!
+!   write(kou,*)'3H Not implemented yet'; gx%bmperr=4078
+!
+1000 continue
+   return
+ end subroutine create_crystalbreakdownmod
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine calc_crystalbreakdown_steep(moded,phres,addrec,lokph,mc,ceq)
+! calculates the metastable extrapolation above crystal breakdown T (CBT)
+! NOTE: values for function not saved, should be done to save calculation time.
+! moded: integer, 0=only G, S, Cp; 1=G and dG/dy; 2=Gm dG/dy and d2G/dy2
+! phres: pointer, to phase\_varres record
+! lokadd: pointer, to addition record
+! lokph: integer, phase record 
+! mc: integer, number of constituents
+! ceq: pointer, to gtp_equilibrium_data
+   implicit none
+   integer moded,lokph,mc
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+   TYPE(gtp_phase_add), pointer :: addrec
+   TYPE(gtp_phase_varres) :: phres
+!\end{verbatim}
+   integer ith,noprop,mc2,jj,jk,saveph
+   double precision cbt,rg,tval,rt,psi
+! BEWHARE: NOT IN PARALLEL
+   double precision, allocatable :: cbtgval(:),cbtdgval(:,:),cbtd2gval(:)
+   double precision, allocatable :: gsol(:),dgsol(:,:),d2gsol(:)
+   save saveph,cbtgval,cbtdgval,cbtd2gval
+   double precision x1,x2,x3
+! extract the current value of the crystal breakdown T
+   noprop=phres%listprop(1)-1
+   do ith=2,noprop
+      if(phres%listprop(ith).eq.addrec%need_property(1)) goto 100
+   enddo
+   write(*,*)'3H No value of CBT found for phase ',trim(phlista(lokph)%name)
+   gx%bmperr=4336; goto 1000
+100 continue
+   cbt=phres%gval(1,ith)
+! if current T lower than CBT just exit   
+   if(ceq%tpval(1).le.cbt) goto 1000
+! if T is higher we have to calculate everything for T=CBT ... HOW?   
+!   write(*,110)'3H T > CBT: ',lokph,saveph,ceq%tpval(1),cbt
+110 format(a,2i3,2F10.2)
+   if(lokph.ne.saveph) then
+      if(allocated(cbtgval)) then
+         write(*,*)'3H deallocating as ',lokph,' not same as ',saveph
+         deallocate(cbtgval)
+         deallocate(cbtdgval)
+         deallocate(cbtd2gval)
+      endif
+   endif
+   if(.not.allocated(cbtgval)) then
+      saveph=lokph
+      write(*,*)'3H Allocating cbt arrays',saveph
+      allocate(cbtgval(6))
+      allocate(cbtdgval(3,mc))
+      mc2=mc*(mc+1)
+      allocate(cbtd2gval(mc2))
+! assume current T is OK to save ...
+      do jj=1,6
+         cbtgval(jj)=phres%gval(jj,1)
+      enddo
+      write(*,101)'3H cbtgsol: ',cbtgval(1),cbtgval(2),cbtgval(4)
+      do jk=1,mc
+         do jj=1,3
+            cbtdgval(jj,mc)=phres%dgval(jj,mc,1)
+         enddo
+      enddo
+      do jk=1,mc2
+         cbtd2gval(jj)=phres%d2gval(jk,1)
+      enddo
+! we do not have to weight together when we stored!!
+      goto 1000
+   endif
+! for intermediate results, they are deallocated when leaving the routine
+   allocate(gsol(6))
+   allocate(dgsol(3,mc))
+   allocate(d2gsol(mc2))
+! Now we can weight together the values at CBT and current T. psi<1.0
+   tval=ceq%tpval(1)
+   psi=cbt/tval
+   rg=globaldata%rgas*tval
+   rt=rg*tval
+   x1=3.0d0*(-tval/cbt*log(tval)+tval/cbt*log(cbt)-log(tval)+&
+        2.0D0*tval/cbt+log(cbt)-2.0d0)
+   gsol(1)=((tval**(-2)/6.0D0+cbt/(3.0d0*tval)+0.5D0*cbt**2)*cbtgval(4)/cbt**4+&
+        (tval-cbt)*cbtgval(2)+cbtgval(1))*cbt/tval+x1*cbt/tval
+!        3.0d0*log(psi)+1.5d0*tval*(one/psi-psi)
+!   gsol(2)=(-(cbt/tval)**(-3)*cbt*cbtgval(4)/3.0d0+cbt*cbtgval(4)/3.0d0)/rt+&
+!        cbtgval(2)/rt
+   x1=-(cbt/tval)**3*cbt*cbtgval(4)/3.0d0
+   x2=cbt*cbtgval(4)/3.0d0
+   x3=cbtgval(2)
+   gsol(2)=(x1+x2+x3)*cbt/tval&
+        +3.0d0*(-log(tval)/cbt+log(cbt)/cbt-one/tval+one/cbt)*(cbt/tval)
+! This Cp curve is OK, but the decrease of the Cp from LT is too steep
+   x1=-3.0D0*(tval-cbt)/(cbt*tval**2)*(cbt/tval)
+   gsol(4)=(cbt/tval)**4*cbtgval(4)*(cbt/tval)+x1
+!        -3.0D0*(one/tval-one/cbt)/tval**3
+   write(*,101)'3H extra: ',tval,cbt/tval,x1,x2,x3,gsol(4)
+101 format(a,6(1pe10.2))
+! this is just for a pure element !!
+   phres%gval(1,1)=gsol(1)
+   phres%gval(2,1)=gsol(2)
+   phres%gval(4,1)=gsol(4)
+1000 continue
+   return
+ end subroutine calc_crystalbreakdown_steep
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine calc_crystalbreakdownmod(moded,phres,addrec,lokph,mc,ceq)
+! calculates the metastable extrapolation above crystal breakdown T (CBT)
+! NOTE: values for function not saved, should be done to save calculation time.
+! moded: integer, 0=only G, S, Cp; 1=G and dG/dy; 2=Gm dG/dy and d2G/dy2
+! phres: pointer, to phase\_varres record
+! lokadd: pointer, to addition record
+! lokph: integer, phase record 
+! mc: integer, number of constituents
+! ceq: pointer, to gtp_equilibrium_data
+   implicit none
+   integer moded,lokph,mc
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+   TYPE(gtp_phase_add), pointer :: addrec
+   TYPE(gtp_phase_varres) :: phres
+!\end{verbatim}
+   integer ith,noprop,mc2,jj,jk,saveph
+   double precision cbt,rg,tval,rt,psi
+! BEWHARE: NOT IN PARALLEL
+   double precision, allocatable :: cbtgval(:),cbtdgval(:,:),cbtd2gval(:)
+   double precision, allocatable :: gsol(:),dgsol(:,:),d2gsol(:)
+   save saveph,cbtgval,cbtdgval,cbtd2gval
+   double precision x1,x2,x3,dcpb
+! extract the current value of the crystal breakdown T
+   noprop=phres%listprop(1)-1
+   do ith=2,noprop
+      if(phres%listprop(ith).eq.addrec%need_property(1)) goto 100
+   enddo
+   write(*,*)'3H No value of CBT found for phase ',trim(phlista(lokph)%name)
+   gx%bmperr=4336; goto 1000
+100 continue
+   cbt=phres%gval(1,ith)
+! if current T lower than CBT just exit   
+   if(ceq%tpval(1).le.cbt) goto 1000
+! if T is higher we have to calculate everything for T=CBT ... HOW?   
+!   write(*,110)'3H T > CBT: ',lokph,saveph,ceq%tpval(1),cbt
+110 format(a,2i3,2F10.2)
+   if(lokph.ne.saveph) then
+      if(allocated(cbtgval)) then
+         write(*,*)'3H deallocating as ',lokph,' not same as ',saveph
+         deallocate(cbtgval)
+         deallocate(cbtdgval)
+         deallocate(cbtd2gval)
+      endif
+   endif
+   if(.not.allocated(cbtgval)) then
+      saveph=lokph
+      write(*,*)'3H Allocating cbt arrays',saveph
+      allocate(cbtgval(6))
+      allocate(cbtdgval(3,mc))
+      mc2=mc*(mc+1)
+      allocate(cbtd2gval(mc2))
+! assume current T is OK to save ...
+      do jj=1,6
+         cbtgval(jj)=phres%gval(jj,1)
+      enddo
+!      write(*,101)'3H cbtgsol: ',cbtgval(1),cbtgval(2),cbtgval(4)
+      do jk=1,mc
+         do jj=1,3
+            cbtdgval(jj,mc)=phres%dgval(jj,mc,1)
+         enddo
+      enddo
+      do jk=1,mc2
+         cbtd2gval(jj)=phres%d2gval(jk,1)
+      enddo
+! we do not have to weight together when we stored!!
+      goto 1000
+   endif
+! for intermediate results, they are deallocated when leaving the routine
+   allocate(gsol(6))
+   allocate(dgsol(3,mc))
+   allocate(d2gsol(mc2))
+! We should maybe approach zero as the Einstein  contribution is still there??
+!   dcpb=3.0d0
+   dcpb=zero
+! Now we can weight together the values at CBT and current T. psi<1.0
+   tval=ceq%tpval(1)
+   psi=cbt/tval
+   rg=globaldata%rgas*tval
+   rt=rg*tval
+   x1=dcpb*(-tval/cbt*log(tval)+tval/cbt*log(cbt)-log(tval)+&
+        2.0D0*tval/cbt+log(cbt)-2.0d0)
+!  gsol(1)=((tval**(-2)/6.0D0+cbt/(3.0d0*tval)+0.5D0*cbt**2)*cbtgval(4)/cbt**4+&
+!        (tval-cbt)*cbtgval(2)+cbtgval(1))*cbt/tval+x1*cbt/tval
+   gsol(1)=((tval**(-1)/2.0D0+cbt*tval/2.0d0+cbt**2)*cbtgval(4)/cbt**3+&
+        (tval-cbt)*cbtgval(2)+cbtgval(1))*cbt/tval+x1*cbt/tval
+!-----------------------------------------
+!   x1=-(cbt/tval)**3*cbt*cbtgval(4)/3.0d0
+!   x2=cbt*cbtgval(4)/2.0d0
+   x1=-(cbt/tval)**2*cbt*cbtgval(4)/2.0d0
+   x2=cbt*cbtgval(4)/2.0d0
+   x3=cbtgval(2)
+   gsol(2)=(x1+x2+x3)*cbt/tval&
+        +dcpb*(-log(tval)/cbt+log(cbt)/cbt-one/tval+one/cbt)*(cbt/tval)
+! This Cp curve is OK, but the decrease of the Cp from LT is too steep
+   x1=-dcpb*(tval-cbt)/(cbt*tval**2)*(cbt/tval)
+   gsol(4)=(cbt/tval)**3*cbtgval(4)*(cbt/tval)+x1
+!
+!   write(*,101)'3H extra: ',tval,cbt/tval,x1,x2,x3,gsol(4)
+101 format(a,6(1pe10.2))
+! this is just for a pure element !!
+   phres%gval(1,1)=gsol(1)
+   phres%gval(2,1)=gsol(2)
+   phres%gval(4,1)=gsol(4)
+1000 continue
+   return
+ end subroutine calc_crystalbreakdownmod
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -1508,7 +2781,7 @@
    write(*,*)'3H No Debye temperature THET',lokph
    gx%bmperr=4336; goto 1000
 100 continue
-   write(*,*)'3H Not implemented yet'
+   write(*,*)'3H Deby low T heat capacity model not implemented'
    gx%bmperr=4078
 1000 continue
    return
@@ -1519,6 +2792,7 @@
 !\begin{verbatim}
  subroutine list_addition(unit,CHTD,phname,ftyp,lokadd)
 ! list description of an addition for a phase on unit
+! used when writing databases files and phase data
    implicit none
    integer unit,ftyp
    character CHTD*1,phname*(*)
@@ -1596,20 +2870,32 @@
 !---------------------------------------------
    case(einsteincp) ! Einstein Cp model
       write(unit,400)chc
-400   format(a,'+ Einstein Cp model: G = 1.5*R*THET + 3*R*T*ln(exp(THET/T)-1)')
+400   format(a,'+ Einstein Cp model: G= 1.5*R*THET + 3RTln(exp(ln(THET)/T)-1)')
 !---------------------------------------------
    case(elasticmodel1) ! Elastic model 1
       write(unit,500)
 500   format(2x,'+ Elastic model 1, with P interpreted as a force in',&
            ' the X direction.')
 !---------------------------------------------
-   case(twostatemodel1) ! Two state  model 1
+   case(twostatemodel1) ! Liquid two state  model
       write(unit,510)
-510   format('  + Liquid 2 state model DG=G(liq)-G(am)= -RTln(1+exp(-G2/RT)')
+510   format('  + Liquid 2 state model: G=G(liq)+G(am)-RTln(1+exp(-G2/RT)')
 !---------------------------------------------
    case(volmod1) ! Volume model 1
       write(unit,520)chc
 520   format(a,'+ Volume model V=V0(x)*exp(VA(x,T))')
+!---------------------------------------------
+   case(crystalbreakdownmod) ! Crystal breakdown model
+      write(unit,530)chc
+530   format(a,'+ Crystal breakdown model used above current value of CBT')
+!---------------------------------------------
+   case(secondeinstein) ! Second Einstein Cp contribution
+      write(unit,540)chc
+540   format(a,'+ Second Einstein Cp contribution DCP2/R*T*ln(exp(ln(THT2)/T)-1)')
+!---------------------------------------------
+   case(schottkyanomality) ! Schottky Anomality
+      write(unit,550)chc
+550   format(a,'+ Schottky anomality DSCH/R*T*ln(1+exp(-ln(TSCH)/T)) ')
    end select addition
 1000 continue
    return

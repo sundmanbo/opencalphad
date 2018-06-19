@@ -693,7 +693,12 @@
       call generate_fccord_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,gmax,ceq)
 ! do not jump to 1000 until the fccord routine implemented correctly
 !      write(*,*)'3Y back from fccord_grid 1, jump to 1000',ngg
-      goto 1000
+! This routine return gx%bmperr=-1 if if cannot handle the gridgenerating
+      if(gx%bmperr.eq.-1) then
+         gx%bmperr=0
+      else
+         goto 1000
+      endif
    elseif((btest(globaldata%status,GSXGRID) .or. & 
             test_phase_status_bit(iph,PHXGRID)) .and. &
         .not.test_phase_status_bit(iph,PHGAS)) then
@@ -848,7 +853,7 @@
 !   endif
 150 continue
 !---------------------------------------
-! jump here from generate_fccord_grid
+! jump here from generate_fccord_grid  ... not any more ...
 170 continue
 ! now generate all combinations of endmembers
 !   write(*,*)'3Y endmembers and gridpoints: ',nend,ngg
@@ -1154,6 +1159,8 @@
 ! these are for generating the constituion of gridpoint
    double precision, dimension(:,:), allocatable :: yendm
    double precision, dimension(:), allocatable :: yfra
+   integer :: warning1const=0
+   save warning1const
 ! ----------------------------------------------------------------
 ! these are the factors to generate gridpoints from endmember fractions
    double precision, dimension(5), parameter :: &
@@ -1204,7 +1211,12 @@
       call generate_fccord_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,gmax,ceq)
 !      write(*,*)'3Y back from fccord_grid 2, jump to 1000',ngg
 !      goto 200
-      goto 1000  !???
+      if(gx%bmperr.eq.-1) then
+! if gx%bmperr is -1 means problems in fccord_grid, use default grindgenerator
+         gx%bmperr=0
+      else
+         goto 1000
+      endif
    elseif((btest(globaldata%status,GSXGRID) .or. & 
             test_phase_status_bit(iph,PHXGRID)) .and. &
         .not.test_phase_status_bit(iph,PHGAS)) then
@@ -1274,7 +1286,7 @@
 !      write(*,22)ii,(yendm(ij,ii),ij=1,incl(nsl))
 22    format(i3,20F4.1)
 !   enddo
-! jump here from generate_fccord_grid
+! jump here from generate_fccord_grid ... not any longer ...
 200 continue
 ! now generate an grid depending on nend mixing up to 5 different endmembers.
 ! up to for 4 endmembers 4*4*4*4*4=1024
@@ -1366,7 +1378,11 @@
 ! strange bug in map3, maxng was zero sometimes ...
                      if(ng.gt.maxng) then
                         if(maxng.lt.100) then
-                           write(*,*)'3Y max gripoints wrong 6: ',maxng,iph,mode
+                           if(warning1const.ne.iph) then
+                              write(*,*)'3Y max gripoints wrong 6: ',&
+                                   maxng,iph,mode
+                              warning1const=iph
+                           endif
                         else
                            write(*,*)'3Y Too many gridpoints 6',ng,maxng,iph
                            gx%bmperr=4399; goto 1000
@@ -2673,6 +2689,11 @@
       incl(ij)=incl(ij-1)+nkl(ij)
    enddo
    ncon=incl(nsl)
+! if nend<15 there is a single constituent on the ordered sublattices
+   if(nend.lt.16) then
+      gx%bmperr=-1
+      goto 1010
+   endif
 ! nend is number of endmembers, endm(1..nsl,ii) are constituent index of ii
 ! yendm(1..nsl,ii) has the constituent fractions for endmember ii
 ! yfra is used to generate a constitutuon from a combination of endmembers
@@ -2927,9 +2948,9 @@
 ! restore the composition
       call set_constitution(iph,1,ysave,qq,ceq)
    endif
+! nothing done, just exit
 1010 continue
    return
-   write(*,*)'3Y finished generate_fccord_grid: ',mode
 ! dense gles
  end subroutine generate_fccord_grid
 
@@ -2958,7 +2979,7 @@
    double precision charge,ratio1,ratio2
    double precision, dimension(:), allocatable :: y1,y2,y3,y4,y5
    real xdum(nrel),gdum
-   integer, parameter :: ncf5=5,ncf3=3,alloneut=40000
+   integer, parameter :: ncf5=5,ncf3=3,alloneut=90000
    integer ncf,maxngg
 ! These are used to combine endmembers
    double precision, dimension(7), parameter :: nfact=&
@@ -3288,7 +3309,7 @@
    allocate(y2(ncc))
    allocate(y3(ncc))
    allocate(y4(ncc))
-!   write(*,*)'3Y allocate neutral: ',mode,alloneut,np
+!   write(*,*)'3Y allocated neutral: ',mode,alloneut,np
 ! loopf keeps track if several gridpoints belong together
 !   if(.not.(allocated(neutral))) then
 !      write(*,*)'3Y ionic liquid has not allocated neutral array'
@@ -3654,7 +3675,11 @@
 ! number of real atoms less than 50%, a gridpoint with mainly vacancies ....
 !      gval=1.0E5
 !      gval=1.0E1
-      gval=max(1.0E2,real(ceq%phase_varres(lokres)%gval(1,1)/qq(1)))
+!      write(*,12)'3Y real atoms less than 0.5',lokres,qq(1),&
+!           ceq%phase_varres(lokres)%gval(1,1)/qq(1)
+12    format(a,i5,3(1pe12.4))
+      gval=1.0E3
+!      gval=max(1.0E2,real(ceq%phase_varres(lokres)%gval(1,1)/qq(1)))
    elseif(abs(qq(2)).gt.1.0D-14) then
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 ! the gridpoint has net charge, qq(2), make gval more positive. 
@@ -3671,6 +3696,7 @@
    else
       gval=real(ceq%phase_varres(lokres)%gval(1,1)/qq(1))
    endif
+!   write(*,12)'All gridpoints: ',lokres,qq(1),gval
 !    read(*,20)ch1
 20  format(a)
 1000 continue
@@ -3780,7 +3806,7 @@
    if(gx%bmperr.ne.0) goto 1100
 ! set constitution to be just the endmember
 ! It is difficult to make this simpler as one can have magnetic contributions
-! to G, this it is not sufficient just to calculate the G function, one must
+! to G, thus it is not sufficient just to calculate the G function, one must
 ! calculate TC etc.
 !   write(*,16)'3Y call endmember: ',iph,nsl,(endmember(ll),ll=1,nsl)
    yfra=zero
@@ -5003,6 +5029,7 @@
 !\begin{verbatim}
  subroutine set_metastable_constitutions(ngg,nrel,kphl,ngrid,xarr,garr,&
       nr,iphl,cmu,ceq)
+! NO LONGER USED
 ! this subroutine goes through all the metastable phases
 ! after a global minimization and sets the constituion to the most
 ! favourable one.  Later care should be taken that composition set 2 
@@ -5178,7 +5205,12 @@
       dgmin=-1.0d12
       ip=0
 ! search for gripoint closeset to stable plane defined by cmu
-      do ig=ig1,ign
+      igloop: do ig=ig1,ign
+         if(garr(ig).ge.999.0) then
+! gridpoints in phases with more than 50% vacancies have their garr(ig)=1.0D3
+!            write(*,*)'Skipping gridpoint with too few atoms'
+            cycle igloop
+         endif
          gplan=zero
          do ie=1,nrel
             gplan=gplan+xarr(ie,ig)*cmu(ie)
@@ -5188,21 +5220,34 @@
             ip=ig
             dgmin=dg
          endif
-      enddo
-!      write(*,79)'3Y Least unstable gridpoint: ',zph,iph,ig1,ign,ip,dgmin
-79    format(a,5(i6,1x),1pe12.4)
+      enddo igloop
+!      write(*,79)'3Y metastable: ',trim(phlista(iph)%name),iph,zph,&
+!           ig1,ip,ign,dgmin
+79    format(a,a,2i4,3i6,1pe12.4)
+!      write(*,81)'3Y x: ',ip-nphl(zph),(xarr(ie,ip),ie=1,nrel)
+!      write(*,81)'3Y x: ',ip-ig1,(xarr(ie,ip),ie=1,nrel)
+81    format(a,i4,(10F6.3))
       if(ign.gt.ig1) then
-! retrieve constitution for this gridpoint and insert it in phase
-! must provide mode and iph. The subroutine returns ny and yarr
+! if ign=ig1 the phase has fixed constitution
+! otherwise retrieve constitution for this gridpoint and insert it in phase
+! we must provide mode and iph. The subroutine returns ny and yarr
 ! mode is the gridpoint in the phase
-         mode=ip-nphl(zph)
+!         mode=ip-nphl(zph)
+         mode=ip-ig1+1
 ! find the constitution of this gridpoint
 !      call generate_grid(mode,iph,ign,nrel,xarr,garr,ny,yarr,gmax,ceq)
 !         write(*,*)'3Y Get constitution of metastable phase ',iph,mode
          if(mode.gt.0) then
+! this call returnes the constitution of gridpoint "mode"
+! if mode=0 it generates the grid ... infinite loop
             call generic_grid_generator(mode,iph,ign,nrel,xarr,garr,&
                  ny,yarr,gmax,ceq)
-            if(gx%bmperr.ne.0) goto 1000
+            if(gx%bmperr.ne.0) then
+               write(*,120)trim(phlista(iph)%name)
+120            format('3Y Failed to set metastable constitution of ',a)
+               gx%bmperr=0; cycle phloop
+            endif
+!            write(*,81)'3Y y: ',mode,(yarr(ie),ie=1,ny)
             call set_constitution(iph,1,yarr,qq,ceq)
             if(gx%bmperr.ne.0) goto 1000
          endif
@@ -5248,6 +5293,10 @@
 !
 !   write(*,*)'3Y In global_equil_check1',mode
    global=.TRUE.
+   if(btest(globaldata%status,GSNOGLOB)) then
+      write(*,*)'3Y Ignoring call to global_equil_check as global turned off!'
+      goto 2000
+   endif
    notglobwarning1=.TRUE.
    notglobwarning2=.TRUE.
    addgridpoint=.TRUE.
@@ -5426,7 +5475,6 @@
       addtuple=iphz
       gx%bmperr=4352
    endif
-   global_equil_check1=global
 !   write(*,*)'3Y Deallocating, check due to segmentation fault ...'
    if(allocated(xarr)) then
       deallocate(xarr)
@@ -5434,6 +5482,8 @@
       deallocate(kphl)
       deallocate(iphx)
    endif
+2000 continue
+   global_equil_check1=global
    return
  end function global_equil_check1
 
@@ -6079,6 +6129,88 @@
  end subroutine todo_before
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
+ subroutine set_emergency_startpoint(mode,phl,amfu,ceq)
+! this is called if no previous equilibrium and if grid minimizer
+! cannot be used.  Select for each element a phase with as much of that
+! element as possible to set as stable. Set the remaining phases to a default
+! composition.  It will never create any compositon sets
+!
+   implicit none
+   integer mode,phl(*)
+   double precision amfu(*)
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   integer iph,lokph,lokcs,iel
+   integer, allocatable, dimension(:) :: selected
+   double precision, allocatable, dimension(:,:) :: maxel
+   double precision, allocatable, dimension(:) :: wmass
+   double precision totmol,totmass,am
+!
+   write(*,*)'In emergency startpoint: ',mode,noofel,noofph
+   allocate(selected(noofel))
+   allocate(maxel(noofel,noofph))
+   allocate(wmass(noofel))
+!   phl=0
+!   amfu=zero
+   maxel=zero
+   phloop1: do iph=1,noofph
+      lokph=phases(iph)
+      lokcs=phlista(iph)%linktocs(1)
+      if(ceq%phase_varres(lokcs)%phstate.le.PHDORM) cycle phloop1
+      if(phlista(iph)%tnooffr-phlista(iph)%noofsubl.eq.0) then
+         call calc_phase_molmass(iph,1,maxel(1,iph),wmass,totmol,totmass,am,ceq)
+         if(gx%bmperr.ne.0) goto 1000
+      else
+         write(*,*)'3Y TODO: Phases with variable composition not included yet'
+      endif
+! loop through all fractions to find limits            
+   enddo phloop1
+!   do iph=1,noofph
+!      write(*,100)iph,(maxel(iel,iph),iel=1,noofel)
+!   enddo
+100 format('3Y maxel: ',i3,6(F8.5))
+   selected=0
+   wmass=zero
+   phloop2: do iph=1,noofph
+      lokph=phases(iph)
+      lokcs=phlista(iph)%linktocs(1)
+      if(ceq%phase_varres(lokcs)%phstate.le.PHDORM) cycle phloop2
+      elloop1: do iel=1,noofel
+         if(maxel(iel,iph).gt.wmass(iel)) then
+            wmass(iel)=maxel(iel,iph)
+            selected(iel)=iph
+! we can only have one element selected per phase ...
+            cycle phloop2
+         endif
+      enddo elloop1
+   enddo phloop2
+!   write(*,*)'3Y Emergency startpoint testing',mode
+!   write(*,200)'3Y selected: ',(selected(iel),iel=1,noofel)
+200 format(a,10i4)
+! Now set default constitution of all non-selected and non-suspended phases
+   phloop3: do iph=1,noofph
+      lokph=phases(iph)
+      lokcs=phlista(iph)%linktocs(1)
+      if(ceq%phase_varres(lokcs)%phstate.le.PHDORM) cycle phloop3
+      do iel=1,noofel
+         if(iph.eq.selected(iel)) cycle phloop3
+      enddo
+!      write(*,*)'3Y TODO set default constitutions: ',iph
+      call set_default_constitution(iph,1,ceq)
+      if(gx%bmperr.ne.0) goto 1000
+   enddo phloop3
+   mode=noofel
+   do iph=1,mode
+      phl(iph)=selected(iph)
+   enddo
+!
+1000 continue
+   return
+ end subroutine set_emergency_startpoint
+
+ !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim}
  subroutine todo_after_found_equilibrium(mode,addtuple,ceq)

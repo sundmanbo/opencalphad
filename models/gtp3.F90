@@ -527,7 +527,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'No such addition type                                           ',&
        'Cp model not yet implemented                                    ',&
        'Magnetic model with separate Curie and Neel T not yet implement ',&
-       'Glas model not yet implemented                                  ',&
+       'Addition model not yet implemented                              ',&
        'Not implemented this way                                        ',&
        'Parameter identifier not found                                  ',&
        'Value for model parameter identifier not found                  ',&
@@ -832,12 +832,16 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   integer, public, parameter :: TWOSTATEMODEL1=5
   integer, public, parameter :: ELASTICMODEL1=6
   integer, public, parameter :: VOLMOD1=7
+  integer, public, parameter :: CRYSTALBREAKDOWNMOD=8
+  integer, public, parameter :: SECONDEINSTEIN=9
+  integer, public, parameter :: SCHOTTKYANOMALITY=10
 ! name of additions:
-  character(len=24) , public, dimension(8), parameter :: additioname=&
+  character(len=24) , public, dimension(10), parameter :: additioname=&
        ['Inden-Hillert magn model','Inden-Xiong magn model  ',&
        'Debye CP model          ','Einstein Cp model       ',&
        'Liquid 2-state model    ','Elastic model A         ',&
-       'Volume model            ','                        ']
+       'Volume model A          ','Crystal Breakdown model ',&
+       'Second Einstein Cp      ','Schottky Anomality      ']
 !       123456789.123456789.1234   123456789.123456789.1234
 ! Note that additions often use extra parameters like Curie or Debye
 ! temperatures defined by model parameter identifiers stored in gtp_propid
@@ -875,6 +879,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
      double precision, dimension(:), pointer :: coeffs
 ! each coefficient kan have powers of T and P/V and links to other TPFUNS
 ! and be multiplied with a following LOG or EXP term. 
+! wpow seems to be used for temporary storage during evaluation also ...
      integer, dimension(:), pointer :: tpow
      integer, dimension(:), pointer :: ppow
      integer, dimension(:), pointer :: wpow
@@ -1303,7 +1308,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   INTEGER, parameter :: gtp_state_variable_version=1
   TYPE gtp_state_variable
 ! this is to specify a formal or real argument to a function of state variables
-! statev/istv: state variable index
+! statev/istv: state variable index >=9 is extensive
 ! phref/iref: if a specified reference state (for chemical potential
 ! unit/iunit: 100 for percent, no other defined at present
 ! argtyp together with the next 4 integers represent the indices(4), only 0-4
@@ -1364,11 +1369,11 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
      integer, dimension(:,:), allocatable :: indices
      double precision, dimension(:), allocatable :: condcoeff
      double precision prescribed, current, uncertainty
-! currently this is not used but it will be ???
+! confusing with record statevar and integer statev
      TYPE(gtp_state_variable), dimension(:), allocatable :: statvar
      TYPE(gtp_condition), pointer :: next, previous
   end TYPE gtp_condition
-! declared inside the gtp_equilibrium_data record
+! used inside the gtp_equilibrium_data record and elsewhere
 !\end{verbatim}
 !-----------------------------------------------------------------
 !\begin{verbatim}
@@ -1536,13 +1541,15 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! status: not used yet?
 ! multiuse: used for various things like direction in start equilibria
 ! eqno: sequential number assigned when created
-! next: index of next equilibrium in a sequence during step/map calculation.
+! next: index of next free equilibrium record
+!       also index of next equilibrium in a list during step/map calculation.
 ! eqname: name of equilibrium
 ! comment: a free text, for example reference for experimental data.
 ! tpval(1) is T, tpval(2) is P, rgas is R, rtn is R*T
 ! rtn: value of R*T
 ! weight: weight value for this experiment, default unity
-     integer status,multiuse,eqno,next
+!     integer status,multiuse,eqno,next
+     integer status,multiuse,eqno,nexteq
      character eqname*24,comment*72
      double precision tpval(2),rtn
      double precision :: weight=one
@@ -1570,7 +1577,9 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! duplicated here for easy acces by application software
      double precision, dimension(:), allocatable :: cmuval
 ! xconv: convergence criteria for constituent fractions and other things
-     double precision xconv
+! dgconv(1) is controlling decrease of DGM for unstable phases
+! dgconv(2) not used (yet)
+     double precision xconv,gdconv(2)
 ! delta-G value for merging gridpoints in grid minimizer
 ! smaller value creates problem for test step3.OCM, MC and austenite merged
      double precision :: gmindif=-5.0D-2
@@ -1708,17 +1717,19 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! status is status word, AHCOEF is used
 ! varcoef is the number of variable coefficients
 ! firstexpeq is the first equilibrium with experimental data
-     integer status,varcoef,firstexpeq
+! lwam is allocated workspace at last call to lmdif1
+     integer status,varcoef,firstexpeq,lwam
      character*64 general,special
      type(gtp_assessmenthead), pointer :: nextash,prevash
 ! This is list of pointers to equilibria to be used in the assessnent
 ! size(eqlista) is the number of equilibria with experimental data
      type(equilibrium_array), dimension(:), allocatable :: eqlista
 ! These are the coefficients values that are optimized,
-! current values, scaling, start values and optionally min and max
+! current values, scaling, start values, RSD and optionally min and max
      double precision, dimension(:), allocatable :: coeffvalues
      double precision, dimension(:), allocatable :: coeffscale
      double precision, dimension(:), allocatable :: coeffstart
+     double precision, dimension(:), allocatable :: coeffrsd
      double precision, dimension(:), allocatable :: coeffmin
      double precision, dimension(:), allocatable :: coeffmax
 ! These are the corresponding TP-function constants indices
@@ -1813,6 +1824,8 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   double precision :: bmpymin
 ! number of defined property types like TC, BMAG etc
   integer, private :: ndefprop
+! this is the index of mobility data, set in init_gtp in subroutine gtp3A
+  integer, private :: mqindex
 !\end{verbatim}
 
 CONTAINS

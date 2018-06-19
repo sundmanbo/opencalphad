@@ -28,7 +28,7 @@ set echo
 r t OU
 
 
-set c t=3200 p=1e5 n=1 x(o)=.4
+set c t=3200 p=1e5 n=1 x(o)=.3
 
 c e
 

@@ -2173,7 +2173,12 @@
 ! returns TRUE if phase cannot vary its composition
    integer iph
 !\end{verbatim}
-   if(phlista(iph)%tnooffr-phlista(iph)%noofsubl.eq.0) then
+   integer lokph
+   lokph=phases(iph)
+! Wow a bug! using iph instead of lokph!!
+   if(phlista(lokph)%tnooffr-phlista(lokph)%noofsubl.eq.0) then
+!      write(*,*)'3G fixedcomposition: ',iph,lokph,&
+!           phlista(lokph)%tnooffr,phlista(lokph)%noofsubl
       fixedcomposition=.true.
    else
       fixedcomposition=.false.

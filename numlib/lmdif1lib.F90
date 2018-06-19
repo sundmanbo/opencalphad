@@ -4,6 +4,7 @@ MODULE LIBOCEQPLUS
 !
   use liboceq
 !
+!
 contains
 !
 !
@@ -37,21 +38,21 @@ contains
        endif
     else
 ! This routine is in the matsmin.F90 file
+! it returns the calculated value of the property to fit
        call assessment_calfun(m,n,f,x)
-!       write(*,*)'Just calculating: ',niter
     endif
     return
   end subroutine calfun
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-  subroutine lmdif1(m,n,x,fvec,tol,info,iwa,wa,lwa,err0)
-! call modified by Bo Sundman
+  subroutine lmdif1(m,n,x,fvec,tol,info,nfev,iwa,wa,lwa,fjac,err0)
+! call modified by Bo Sundman 2017
 !  subroutine lmdif1(fcn,m,n,x,fvec,tol,info,iwa,wa,lwa)
     integer m,n,info,lwa
     integer iwa(n)
     double precision tol
-    double precision x(n),fvec(m),wa(lwa)
+    double precision x(n),fvec(m),wa(lwa),fjac(m,*)
 !    external fcn
 !     **********
 !
@@ -142,6 +143,8 @@ contains
 !       lwa is a positive integer input variable not less than
 !         m*n+5*n+m.
 !
+!       fjac added to calculate relative standard deviation (SD)
+!
 !     subprograms called
 !
 !       user-supplied ...... fcn
@@ -162,6 +165,7 @@ contains
 ! number of iterations passed through infor
     maxfev=info
     info = 0
+!    write(*,*)'in lmdif1',maxfev,m,n
 !
 !     check the input parameters for errors.
 !
@@ -190,7 +194,7 @@ contains
 !                wa(n+1),wa(2*n+1),wa(3*n+1),wa(4*n+1),wa(5*n+1))
 ! remove fcn and reduce number of arguments and linker chokes ...
     call lmdif(m,n,x,fvec,tol,maxfev, &
-                mode,factor,nprint,info,nfev,iwa,err0)
+                mode,factor,nprint,info,nfev,fjac,iwa,err0)
     if (info .eq. 8) info = 4
 !    write(*,*)'Return from lmdif with info= ',info
 10  continue
@@ -324,7 +328,7 @@ contains
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
   subroutine lmdif(m,n,x,fvec,xtol,maxfev, &
-       mode,factor,nprint,info,nfev,ipvt,err0)
+       mode,factor,nprint,info,nfev,fjac,ipvt,err0)
 ! removed arguments as linker chokes ...
 !  subroutine lmdif(fcn,m,n,x,fvec,ftol,xtol,gtol,maxfev,epsfcn,diag, &
 !       mode,factor,nprint,info,nfev,fjac,ldfjac, &
@@ -332,13 +336,14 @@ contains
     integer m,n,maxfev,mode,nprint,info,nfev,ldfjac
     integer ipvt(n)
     double precision ftol,xtol,gtol,epsfcn,factor,err0(2)
-    double precision x(n),fvec(m)
+    double precision x(n),fvec(m),fjac(m,*)
+!    double precision x(n),fvec(m),diag(n),fjac(ldfjac,n),qtf(n), &
 !    double precision x(n),fvec(m),diag(n),fjac(ldfjac,n),qtf(n), &
 !         wa1(n),wa2(n),wa3(n),wa4(m)
 !    external fcn
 !     **********
     double precision, dimension(:), allocatable :: diag,qtf,wa1,wa2,wa3,wa4
-    double precision, dimension(:,:), allocatable :: fjac
+!    double precision, dimension(:,:), allocatable :: fjac
 !
 !     subroutine lmdif
 !
@@ -531,6 +536,7 @@ contains
     double precision :: one=1.0D0
     double precision :: p1=1.0D-1,p5=5.0D-1,p25=2.5D-1,p75=7.5D-1,p0001=1.0D-4
 !
+!    write(*,*)'in lmdif A: ',n,m
 ! replace removed arguments
     ldfjac=m
     ftol=xtol
@@ -542,7 +548,8 @@ contains
     allocate(wa2(n))
     allocate(wa3(n))
     allocate(wa4(m))
-    allocate(fjac(ldfjac,n))
+! now included in call
+!    allocate(fjac(ldfjac,n))
 !
 !     epsmch is the machine precision.
 !
@@ -554,7 +561,7 @@ contains
 !
 !     check the input parameters for errors.
 !
-!    write(*,*)'In lmdif, maxfev=',maxfev modified to run once if maxfev=0
+!    write(*,*)'In lmdif C: maxfev=',maxfev ! modified to run once if maxfev=0
     if (n .le. 0 .or. m .lt. n .or. ldfjac .lt. m &
          .or. ftol .lt. zero .or. xtol .lt. zero .or. gtol .lt. zero &
          .or. maxfev .lt. 0 .or. factor .le. zero) go to 300
@@ -573,6 +580,7 @@ contains
 !    call fcn(m,n,x,fvec,iflag)
     call calfun(m,n,x,fvec,iflag,nfev)
 ! calculate intial sum of errors
+!    write(*,*)'lmdif back from calfun',nfev
     bosum=zero
     do j=1,m
        bosum=bosum+fvec(j)**2

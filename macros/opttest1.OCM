@@ -37,6 +37,7 @@ CEF
 @$ enter 100 optimizing coefficients
 
 enter opt 100
+2500
 
 @$ parameter to be optimized
 

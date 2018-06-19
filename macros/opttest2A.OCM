@@ -38,9 +38,13 @@ set echo
 @$----------------------------------------------------------------
 @$ Enter 100 optimizing coefficient called A00 to A99
 @$ This must be done ebfore using them in parameters or functions.
+@$ Also the dimension of workspace (can be changed)
 @$----------------------------------------------------------------
-enter opt_coef 100
+enter opt_coef
+100
+2500
 
+@&
 @$----------------------------------------------------------------
 @$ enter the phases and parameters
 @$----------------------------------------------------------------
@@ -93,7 +97,7 @@ enter TP TLNT fun 1 T*LN(T); 20000 N
 
  enter phase FCC_A1  
  CEF 2 1.0 CU MG; 1.0 VA;
- amend phase FCC_A1 magnetic  -3.0    2.80000E-01
+ amend phase FCC_A1 add magnetic  -3.0    2.80000E-01
 
    enter param G(FCC_A1,CU:VA;0) 298.15 +GHSERCU ;  3.20000E+03  N 91DIN
    enter param G(FCC_A1,MG:VA;0) 298.15 +GFCCMG ;  3.00000E+03  N 91DIN
@@ -103,7 +107,7 @@ enter TP TLNT fun 1 T*LN(T); 20000 N
 
  enter phase HCP_A3  
  CEF 2 1.0 CU MG;  0.5 VA; 
- amend phase HCP_A3 magnetic  -3.0    2.80000E-01
+ amend phase HCP_A3 add magnetic  -3.0    2.80000E-01
 
    enter param G(HCP_A3,CU:VA;0) 298.15 +GHCPCU ;  3.20000E+03  N 91DIN
    enter param G(HCP_A3,MG:VA;0) 298.15 +GHSERMG ;  3.00000E+03  N 91DIN
@@ -1201,6 +1205,12 @@ l sym
 
 set wei 0 *
 
+@&
+
+l eq
+
+
+@$ listing of all equilibria
 @&
 
 save unf
