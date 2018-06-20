@@ -23,6 +23,7 @@ vector<string> liboctqcpp::tqrfil(string fname, void * ceq)
     cnam.resize(nel);
     for(int i = 0; i < nel; i++)
     cnam[i] = c_cnam[i];
+    free(filename);
 
     //=================
     return tqgcom(ceq);
@@ -33,9 +34,10 @@ vector<string> liboctqcpp::tqrpfil(string fname, vector<string> elnames, void * 
 {
     char *filename = strcpy((char*)malloc(fname.length()+1), fname.c_str());
     char *selel[elnames.size()];
+    char *tempchar;
     for(int i = 0; i < elnames.size(); i++)
     {
-        char *tempchar
+        tempchar
              = strcpy((char*)malloc(elnames[i].length()+1), elnames[i].c_str());
         selel[i] = tempchar;
     }
@@ -48,7 +50,10 @@ vector<string> liboctqcpp::tqrpfil(string fname, vector<string> elnames, void * 
     cnam.resize(nel);
     for(int i = 0; i < nel; i++)
     cnam[i] = c_cnam[i];
-
+    free(filename);
+    free(tempchar);
+    //free(selel);
+    vector<string> asdf = tqgcom(ceq);
     //=================
     return tqgcom(ceq);
     //=================
@@ -116,6 +121,7 @@ int liboctqcpp::tqgpi(string pname, void * ceq)
     //=========================
     c_tqgpi(&i, phasename, ceq);
     //=========================
+    free(phasename);
     return i;
 };
 
@@ -144,6 +150,7 @@ int liboctqcpp::tqgpci(int phidx, string cname, void * ceq)
     //====================================
     c_tqgpci(phidx, &c, constituent, ceq); //TODO: c_tqgpci is not implemented in liboctq.F90!!
     //====================================
+    free(constituent);
     return c;
 };
 
@@ -152,6 +159,7 @@ vector<double> liboctqcpp::tqgpcs(int phidx, int con, double& mass, void * ceq)
     vector<double> result;
     double * stoi;
     c_tqgpcs(phidx, con, stoi, &mass, ceq);
+    free(stoi);
     return result;
 };
 
@@ -164,6 +172,7 @@ void liboctqcpp::tqgccf(int comp, void * ceq)
     //===============================================
     c_tqgccf(comp, &nel, elnames, &stoi, &mass, ceq); //TODO: c_tqgccf is not implemented in liboctq.F90
     //===============================================
+    free(elnames);
 };
 
 int liboctqcpp::tqgnpc(int phidx, void * ceq)
@@ -198,6 +207,7 @@ void liboctqcpp::tqsetc(string par, int n1, int n2, double val, void * ceq)
     //======================================
     c_tqsetc(name, n1, n2, val, &cnum, ceq);
     //======================================
+    free(name);
 };
 
 void liboctqcpp::tqce(void * ceq)
@@ -217,6 +227,7 @@ double liboctqcpp::tqgetv(string par, int n1, int n2, void * ceq)
     //=======================================
     c_tqgetv(name, n1, n2, &cnum, &val, ceq);
     //=======================================
+    free(name);
     return val;
 };
 
@@ -230,6 +241,7 @@ vector<double> liboctqcpp::tqgetv(string par, int n1, int n2, int n3, void * ceq
     //====================================
     for(int i = 0; i < n3; i++)
     results[i] = val[i];
+    free(name);
     return results;
 };
 
@@ -346,6 +358,7 @@ void liboctqcpp::tqdceq(string name)
     //================
     c_tqdceq(ceqname);
     //================
+    free(ceqname);
 };
 
 int liboctqcpp::tqcceq(string name, void * newceq, void * ceq)
@@ -364,6 +377,7 @@ void liboctqcpp::tqselceq(string name, void * ceq)
     //=======================
     c_tqselceq(ceqname, ceq);
     //=======================
+    free(ceqname);
 };
 
 void liboctqcpp::reset_conditions(string condition, double newval, void * ceq)
@@ -372,6 +386,7 @@ void liboctqcpp::reset_conditions(string condition, double newval, void * ceq)
     //============================
     c_reset_conditions(cond, ceq); //TODO: send newval to liboctq.F90
     //============================
+    free(cond);
 };
 
 void liboctqcpp::Change_Status_Phase(string phname, int newstatus, double val, void * ceq)

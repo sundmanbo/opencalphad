@@ -149,22 +149,23 @@ module liboctqisoc
     subroutine c_tqgcom(n,components,c_ceq) bind(c, name='c_tqgcom')
         integer(c_int), intent(inout) :: n
         type(c_ptr), intent(inout) :: c_ceq
-        character(kind=c_char, len=1), intent(out) :: components(n*3)
+        character(kind=c_char, len=1), intent(out) :: components(maxel*3)
         integer, target :: nc
-        character(len=24) :: fcomponents(n)
+        character(len=24) :: fcomponents(maxel)
         type(gtp_equilibrium_data), pointer :: ceq
         integer :: i,j,l
         call c_f_pointer(c_ceq, ceq)
         !================================
         call tqgcom(nc, fcomponents, ceq)
         !================================
-        l=1
-        do i=1,nc
+        l = 1
+        do i = 1, nc
             do j = 1, 2
                 components(l)(1:1) = fcomponents(i)(j:j)
                 l=l+1
             end do
         end do
+        ! null termination
         components(i*2-1) = c_null_char
         c_ceq = c_loc(ceq)
         n = nc
