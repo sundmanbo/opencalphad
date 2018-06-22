@@ -122,7 +122,7 @@
 ! added when implicit none
    double precision rtg,pyq,ymult,add1,sum,yionva,fsites,xxx,sublf
    integer nofc2,nprop,nsl,msl,lokdiseq,ll,id,id1,id2,lm,qz,floryhuggins
-   integer lokfun,itp,nz,intlat,ic,jd,jk,ic1,jpr,ipy,i1,j1
+   integer lokfun,itp,nz,intlat,ic,jd,jk,ic1,jpr,ipy,i1,j1,jj
    integer i2,j2,ider,is,kk,ioff,norfc,iw,iw1,iw2,lprop,jonva,icat
    integer nsit1,nsit2
 ! cqc configurational entropy
@@ -295,7 +295,9 @@
    yionva=zero
    nevertwice=.true.
    lprop=2
-   phmain%listprop(1)=1
+   phmain%listprop=0
+   phmain%listprop(1)=lprop
+!   write(*,168)'3X lprop0:',lprop,0,(phmain%listprop(jj),jj=1,10)
    fractype=0
 !   write(*,*)'3X calcg 99: ',lokph,cps%phtupx,cps%disfra%varreslink
 !--------------------------------------------------------------------
@@ -636,9 +638,14 @@
 ! a new property, save its typty in listprop and increment lprop
 ! note that the property index typty is not used as index in gval etc
 ! as that can be very large. lprop is incremented by 1 for each property
-! actually used in the model of the phase.
+! actually used in the model of the phase.  lprop is last free index
                   qz=lprop
+                  if(qz.gt.size(phmain%listprop)) then
+                     write(*,*)'Too many differnt parameter identifiers',qz
+                     gx%bmperr=4338; goto 1000
+                  endif
                   phmain%listprop(qz)=typty
+! a bit stupid to allocate listprop, it should have fixed allocation ...
                   if(allocated(phmain%listprop)) then
 !                  if(lprop.ge.nprop) then
 ! VERY STRANGE ERROR, nprop is suddenly zero ....
@@ -656,7 +663,11 @@
                   endif
                   lprop=lprop+1
                   phmain%listprop(1)=lprop
-!                  write(*,*)'3X lprop: ',lprop,typty,phmain%listprop(1)
+! listprop(1) is number of defined properties, listprop(2..) is property
+!                  write(*,168)'3X lprop: ',lprop,typty,&
+!                       (phmain%listprop(ipy),ipy=1,lprop)
+168               format(a,2i5,': ',10i5)
+! jump here is we already have found this property and know its ipy
 170               continue
                   ipy=qz
                else
@@ -667,7 +678,8 @@
 ! the results from eval_tpfun must also be different in different treads ...
                lokfun=proprec%degreelink(0)
                call eval_tpfun(lokfun,ceq%tpval,vals,ceq%eq_tpres)
-!               write(*,*)'3X calcg calling eval_tpfun 2: ',gx%bmperr,vals(1)
+!               write(*,167)'3X eval_tpfun: ',ipy,lokfun,pyq,vals(1),vals(1)/rtg
+167            format(a,2i5,6(1pe12.4))
                if(gx%bmperr.ne.0) goto 1000
                prop1: if(ipy.eq.1) then
 ! property 1 i.e. Gibbs energy, should be divided by RT
@@ -698,6 +710,9 @@
                do itp=1,6
                   phres%gval(itp,ipy)=phres%gval(itp,ipy)+pyq*vals(itp)
                enddo
+!              write(*,171)'3X phres7: ',ipy,phres%gval(1,1),phres%gval(1,ipy),&
+!                    pyq,vals(1)
+171            format(a,i3,6(1pe12.4))
 ! strange values of mobilities for ordered phases ... EINSTEIN
 !               if(ipy.ne.1) then
 !                  write(*,173)'3X gval:      ',phmain%listprop(ipy),ipy,&
@@ -2025,15 +2040,26 @@
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
    character name*24
-   double precision kappa,napfu,t,p,rtg,g,v,s,h,u,f,cp,alpha
-   integer tnk,lokph,nsl,lokres,lokcs,ll,ll2,kk1,kk2,kk3,kk4,loksp
+   double precision kappa,napfu,t,p,rtg,g,v,s,h,u,f,cp,alpha,cpu1,cpu2
+   integer tnk,lokph,nsl,lokres,lokcs,ll,ll2,kk1,kk2,kk3,kk4,loksp,times
 !
+! For time measurements
+   lokph=len(name)
+   call gparid('Number of times: ',name,lokph,times,1,q1help)
    lokph=phases(iph)
    nsl=phlista(lokph)%noofsubl
 ! calculate G and derivatives, lokres returns index of phase_varres
-   call calcg(iph,ics,2,lokres,ceq)
-   if(gx%bmperr.ne.0) then
-      goto 1000
+   call cpu_time(cpu1)
+   do loksp=1,times
+      call calcg(iph,ics,2,lokres,ceq)
+      if(gx%bmperr.ne.0) then
+         goto 1000
+      endif
+   enddo
+   call cpu_time(cpu2)
+   if(times.gt.1) then
+      write(*,11)times,cpu2-cpu1
+11    format('Total CPU time for ',i7,' calculations: ',1pe16.7,' seconds')
    endif
 ! number of moles of atoms per formula unit
    napfu=ceq%phase_varres(lokres)%abnorm(1)

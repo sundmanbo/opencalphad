@@ -130,10 +130,9 @@
  subroutine eval_tpfun(lrot,tpval,result,tpres)
 !    subroutine eval_tpfun(lrot,tpval,symval,result)
 ! evaluate a TP function with several T ranges
-!   implicit double precision (a-h,o-z)
    implicit none
    integer lrot
-   double precision tpval(2),result(6)
+   double precision tpval(2),result(6),xxx
 ! changes to avoid memory leak in valgrind
    TYPE(tpfun_parres), dimension(*) :: tpres
 !\end{verbatim}
@@ -152,20 +151,25 @@
       goto 1000
    elseif(btest(tpfuns(lrot)%status,TPCONST)) then
 ! TP symbol is a constant, value stored in tpfuns(lrot)%limits(1)
+! This takes care of updating assessment parameters!!
       result=zero
       result(1)=tpfuns(lrot)%limits(1)
 ! wow, we must not forget to store the constant in tpres(lrot)%results!
       goto 990
    else
 ! check if previous values can be used
+! tpfuns(lrot)%forcenewcalc is located with the function expression
+! tpres(lrot)%forcenewcalc is different for each ceq, there can be several
+! IT IS MEANINGLESS TO COMPARE THEM ... 
       if(tpres(lrot)%forcenewcalc.eq.tpfuns(lrot)%forcenewcalc) then
-!         write(*,*)'3Z not recalculated: ',lrot,tpres(lrot)%forcenewcalc,&
-!              tpfuns(lrot)%forcenewcalc
          if(abs(tpres(lrot)%tpused(1)-tpval(1)).le.&
               mini*tpres(lrot)%tpused(1) .and. &
               (abs(tpres(lrot)%tpused(2)-tpval(2)).le.&
               mini*tpres(lrot)%tpused(2))) then
             result=tpres(lrot)%results
+!            write(*,12)'3Z oldval: ',lrot,tpres(lrot)%forcenewcalc,&
+!                 tpfuns(lrot)%forcenewcalc,tpres(lrot)%results(1),tpval(1)
+12          format(a,i5,2i4,4(1pe12.4))
             goto 1000
          endif
 !      else
@@ -212,10 +216,15 @@
 !   new: do i=1,6
 !      tpres(lrot)%results(i)=result(i)
 !   enddo new
+!   xxx=tpres(lrot)%results(1)
    tpres(lrot)%results=result
    tpres(lrot)%forcenewcalc=tpfuns(lrot)%forcenewcalc
    tpres(lrot)%tpused(1)=tpval(1)
    tpres(lrot)%tpused(2)=tpval(2)
+! Searching for strange bug when entering parameter ...
+!   write(*,991)'3Z new value: ',lrot,tpres(lrot)%forcenewcalc,&
+!        tpres(lrot)%results(1),tpval(1),xxx
+991 format(a,2i5,6(1pe12.4))
 22  format(A,i3,4(1PE11.2))
 1000 continue
    return
@@ -1005,7 +1014,7 @@
    exprot=>inrot
    nullify(topsave)
    becareful=0
-!   write(*,*)'ct1efn 0: ',lrot,tpval(1)
+!   write(*,*)'ct1efn 0: ',tpval(1)
 !-----------------------------------------------
 ! return here for a linked function
 100 continue
@@ -1060,6 +1069,8 @@
 !>>>>>>>>>>>>> very uncertain code from here <<<<<<<<<<<<<<<<<<<<<<
       link=exprot%link(ic)
       link3=exprot%wpow(ic)
+! nonzero link4 inserted in the wrong term in step3.OCM ...
+      link4=0
 !       if(link.ne.0) write(*,201)'funev: ',lrot,ic,link,link3
 201    format(a,10i5)
       if(link.lt.0 .and. link3.gt.1000) then
@@ -1069,9 +1080,19 @@
          if(abs(tpres(link4)%tpused(1)-tpval(1)).lt.&
               mini*tpres(link4)%tpused(1) .and. &
               abs(tpres(link4)%tpused(2)-tpval(2)).lt.&
-              mini*tpres(link4)%tpused(2) .and. &
-! added test of forcenewcalc ...
-              tpres(link4)%forcenewcalc.eq.tpfuns(link4)%forcenewcalc) then
+              mini*tpres(link4)%tpused(2)) then
+! The test for forcenewcalc is not reasonable:
+! tpres%forcenewcalc is local for each equilibrium
+! tpfun(link4)%forcenewcalc is global for whole system.  If we calculate in
+!   parallel there is no reason they should be the same
+! It creates problem in testcond1.OCM after adding a mobility parameter
+!   although I do not understand why that should create the problem
+! I added it to be sure that updated assessment parameters should be used
+! but there seems no problem with that ...
+! Better to speed a few months to rerwrite the whole TPFUN package ...
+!              mini*tpres(link4)%tpused(2) .and. &
+! added test of forcenewcalc ... removed ??
+!              tpres(link4)%forcenewcalc.eq.tpfuns(link4)%forcenewcalc) then
 ! function in link3-1000 is evaluated, multiply it with ff
             sym1=tpres(link4)%results(1)
             dsym1dt=tpres(link4)%results(2)
@@ -1090,6 +1111,8 @@
 ! we must first evaluate link3, after that is done we come here again
 ! and take the else path below
             tpres(link4)%forcenewcalc=tpfuns(link4)%forcenewcalc
+! DANGER changing wpow
+!            write(*,22)'3Z wpow 1:      ',level,nc,ic,exprot%wpow(ic),link-1000
             exprot%wpow(ic)=-1000+link
             link=link3-1000
             link4=link3
@@ -1106,6 +1129,9 @@
          dfdp=dfdp*symval(1)+ff*symval(3)
          dfdt=dfdt*symval(1)+ff*symval(2)
          ff=ff*symval(1)
+! DANGER, restoring wpow, note also wpow pop below!
+!         write(*,22)'3Z wpow 2:      ',level,nc,ic,exprot%wpow(ic),link4
+22       format(a,7i7)
          exprot%wpow(ic)=link4
       endif
 !-------------------------------------------------------------
@@ -1180,8 +1206,10 @@
                   topsave%exprot=>exprot
                   topsave%level=level
                   topsave%saveic=ic-1; topsave%savenc=nc
+!                  write(*,22)'3Z wpow push 1: ',level,nc,ic,0,link4
                   topsave%savetp=link2; topsave%savelink4=link4
                   topsave%saveval=val
+                  link4=0
                   val=zero
                   if(becareful.gt.0) then
 ! save the constant value in val(1), then jump to 900
@@ -1242,8 +1270,10 @@
             topsave%exprot=>exprot
             topsave%level=level
             topsave%saveic=ic-1; topsave%savenc=nc
+!            write(*,22)'3Z wpow push 2: ',level,nc,ic,0,link4
             topsave%savetp=link; topsave%savelink4=link4
             topsave%saveval=val
+            link4=0
             val=zero
             if(becareful.gt.0) then
 ! save the constant value in val(1), then jump to 900
@@ -1348,8 +1378,11 @@
                topsave%exprot=>exprot
                topsave%level=level
                topsave%saveic=ic-1; topsave%savenc=nc
+! this searching for strange bug at midsummer 2018 ...
+!               write(*,22)'3Z wpow push 3: ',level,nc,ic,0,link4
                topsave%savetp=link2; topsave%savelink4=link4
                topsave%saveval=val
+               link4=0
                val=zero
                if(becareful.gt.0) then
 ! save the constant value in val(1), then jump to 900
@@ -1475,6 +1508,8 @@
 ! POP the coefficients and the rest
       ic=topsave%saveic; nc=topsave%savenc
       link2=topsave%savetp; link4=topsave%savelink4
+! For some unknown reason topsave%saveic is ic-1 !!! correct below
+!      write(*,22)'3Z wpow pop 1:  ',level,nc,ic,0,link4
       exprot=>topsave%exprot
 ! MEMORY LEAK avoided by deallocate topsave ??
 !      write(*,*)'Trying to remove memory leak'
@@ -1484,13 +1519,24 @@
 !      topsave=>topsave%previous
       topsave=>temp
       level=level-1
-! restart from coefficient ic
-       goto 200
+! restart from coefficient ic, note the value saved is ic-1 !!
+      if(ic.ge.0 .and. ic.lt.nc) then
+! restore value in %wpow !!!
+! without this an expression like VCRBCC*EXP(ZCRBCC) became
+! just EXP(ZRBCC) as the link to VCRBCC had been removed ...
+! BUT for macro step3 the link4 was inserted in the wrong term !!!
+         if(link4.gt.1000 .and. exprot%wpow(ic).lt.1000) then
+!            write(*,22)'3Z wpow save:   ',level+1,nc,ic,exprot%wpow(ic),link4
+! topsave%saveic is ic-1, I do not know why but this correction is added now!
+            exprot%wpow(ic+1)=link4
+         endif
+      endif
+      goto 200
     endif
 !
 1000 continue
    return
- end subroutine ct1efn !level
+ end subroutine ct1efn !level %wpow link4
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -2015,6 +2061,7 @@
       call ct1mfn(symbol,nrange,tlim,links,lrot)
    endif
 ! force functions to be recalculated
+!   write(*,*)'3Z calling force_recalculate from enter_tpfun'
    call force_recalculate_tpfuns
 1000 continue
    return
@@ -2362,7 +2409,7 @@
       endif
       tpfuns(lrot)%limits(1)=value
    endif
-! force recalculation of all functions. HOW?
+! force recalculation of all functions. HOW? the force_... does not work ...
    call force_recalculate_tpfuns
 1000 continue
    return
@@ -2380,8 +2427,9 @@
 !   write(*,*)'3Z GLAVESCUMG: ',tpfuns(125)%forcenewcalc
    do mrot=1,freetpfun-1
       tpfuns(mrot)%forcenewcalc=tpfuns(mrot)%forcenewcalc+1
+! I have no access to tpres here so I cannot see any current value ...
    enddo
-!   write(*,*)'3Z all tpfuns will be recalculated: ',freetpfun-1
+!   write(*,*)'3Z Force recalculate tpfuns: ',freetpfun-1
 !   write(*,*)'3Z GLAVESCUMG: ',tpfuns(125)%forcenewcalc
    return
  end subroutine force_recalculate_tpfuns
@@ -2669,6 +2717,39 @@
  end subroutine findtpused
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine list_tpfun_details(lfun)
+! listing the internal datastructure of all tpfuns
+! converts all TP functions to arrays of coefficients with powers of T
+   implicit none
+   integer lfun
+!\end{verbatim}
+   integer j1,j2,j3,nc
+   TYPE(tpfun_expression), pointer :: exprot
+   if(lfun.lt.0) then
+! list all ...
+      continue
+   elseif(lfun.ge.freetpfun) then
+      write(*,*)'No such function'
+   else
+      exprot=>tpfuns(lfun)%funlinks(1)
+      nc=exprot%noofcoeffs
+      write(*,100)tpfuns(lfun)%symbol,tpfuns(lfun)%noofranges,nc,&
+           firsteq%eq_tpres(lfun)%results(1)
+100   format('Name: ',a,2i5,(1pe12.4)/&
+           '    term  coefficent    tpow  ppow  wpow plevel  link')
+      do j1=1,nc
+         write(*,110)j1,exprot%coeffs(j1),exprot%tpow(j1),exprot%ppow(j1),&
+              exprot%wpow(j1),exprot%plevel(j1),exprot%link(j1)
+110      format('Term: ',i2,1pe12.4,2x,5i6)
+      enddo
+   endif
+1000 continue
+   return
+ end subroutine list_tpfun_details
+
+   !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 !
 ! Below are a couple of routines to generate SOLGASMIX DAT files
 !

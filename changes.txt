@@ -13,6 +13,26 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2018.06.xx OC version 5.016: Mobilities are among the many different
+kinds of model parameters that is available in OC but for simulating
+diffusion they must be converted to diffusion coefficients.  I am
+currently developing a new addition to calculate these using the
+themodynamic factor.  This is to simplify the use of OC for simulation
+of phase transformations, next week I will go to Bochum and meet Ingo
+and Matthias.
+
+I have spent some time deriving derivatives for the UNIQUAC model.
+This model, contrary to most fluid models, has an integral Gibbs
+energy expression even if I think the derived "activity coefficients"
+are the most used and modeling activity coefficients leads to
+inconsistencies.  Probably many modificatios has also been made since
+the model was published 1975.
+
+I have also found and fixed a rather dangerous bug in the TPPFUN
+package.  This package should be rewritten completely when I have
+time.  One has to very careful and not use complicated TP functions
+and check that the TPFUNs are listed correctly!
+
 2018.06.11 OC version 5.015: I have stared working on things needed
 for assessments, like calculating a correlation matrix and relative
 standard deviations (RSD) for the model parameters with the help of

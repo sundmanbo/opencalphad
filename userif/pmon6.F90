@@ -103,7 +103,7 @@ contains
 ! used for element data and R*T
     double precision h298,s298,rgast
 ! temporary reals
-    double precision xxx,xxy,xxz,totam
+    double precision xxx,xxy,xxz,totam,cpham
 ! input data for grid minimizer
     double precision, dimension(maxel) :: xknown,aphl
 ! arrays for grid minimization results
@@ -287,7 +287,7 @@ contains
 ! subsubcommands to AMEND PHASE
     character (len=16), dimension(ncamph) :: camph=&
          ['ADDITION        ','COMPOSITION_SET ','DISORDERED_FRACS',&
-         '                ','                ','DEFAULT_CONSTIT ',&
+         'UNIQUAC_MODEL   ','DIFFUSION       ','DEFAULT_CONSTIT ',&
          '                ','FCC_PERMUTATIONS','BCC_PERMUTATIONS',&
          '                ','GADDITION       ','AQUEUS_MODEL    ',&
          'QUASICHEM_MODEL ','FCC_CVM_TETRAHDR','FLORY_HUGG_MODEL',&
@@ -367,7 +367,7 @@ contains
 ! subcommands to DEBUG
     character (len=16), dimension(ncdebug) :: cdebug=&
          ['FREE_LISTS      ','STOP_ON_ERROR   ','ELASTICITY      ',&
-          'TEST1           ','TEST2           ','                ']
+          'TEST1           ','TPFUN           ','                ']
 !-------------------
 ! subcommands to SELECT, maybe some should be CUSTOMMIZE ??
     character (len=16), dimension(nselect) :: cselect=&
@@ -902,9 +902,13 @@ contains
              call add_fraction_set(iph,ch1,ndl,j1)
              if(gx%bmperr.ne.0) goto 990
 !....................................................
-          case(4) ! moved
+          case(4) ! UNIQUAC model
+             write(*,*)'Not implemented yet'
 !....................................................
-          case(5) ! moved
+          case(5) ! DIFUSION properties
+! copy the rest of the line to the subroutine
+             text=cline(last:)
+             call add_addrecord(lokph,text,DIFFCOEFS)
 !....................................................
           case(6) ! amend phase <name> default_constitution
 ! to change default constitution of any composition set give #comp.set.
@@ -1149,7 +1153,7 @@ contains
              endif
           else
              write(lut,2011)notpf(),ceq%tpval
-2011         format(/'Calculating ',i4,' functions for T,P=',F10.2,1PE15.7/&
+2011         format(/'Calculating ',i6,' functions for T,P=',F10.2,1PE15.7/&
                   3x,'No   F',11x,'F.T',9x,'F.P',9x,'F.T.T',&
                   7x,'F.T.P',7x,'F.P.P')
 !             call cpu_time(starting)
@@ -1188,6 +1192,8 @@ contains
                   ' Pa, results in J/F.U.')
           endif
           rgast=globaldata%rgas*ceq%tpval(1)
+! this is the number of moles formula units the user specified
+          cpham=ceq%phase_varres(lokcs)%amfu
           calcphase: SELECT CASE(kom3)
 !.......................................................
           CASE DEFAULT
@@ -1197,10 +1203,10 @@ contains
              call calcg(iph,ics,0,lokres,ceq)
              if(gx%bmperr.ne.0) goto 990
              parres=>ceq%phase_varres(lokres)
-             write(lut,2031)(rgast*parres%gval(j1,1),j1=1,4)
+             write(lut,2031)(cpham*rgast*parres%gval(j1,1),j1=1,4)
 ! G=H-T*S; H=G+T*S; S=-G.T; H = G + T*(-G.T) = G - T*G.T
-             write(lut,2032)parres%gval(1,1)/parres%abnorm(1),&
-                  (parres%gval(1,1)-ceq%tpval(1)*parres%gval(2,1))*rgast,&
+             write(lut,2032)cpham*parres%gval(1,1)/parres%abnorm(1),&
+                  cpham*(parres%gval(1,1)-ceq%tpval(1)*parres%gval(2,1))*rgast,&
                   parres%abnorm(1)
 2031         format(/'G, dG/dT dG/dP d2G/dT2:',4(1PE14.6))
 2032         format('G/RT, H, atoms/F.U:',3(1PE14.6))
@@ -1212,13 +1218,16 @@ contains
              if(gx%bmperr.ne.0) goto 990
              parres=>ceq%phase_varres(lokres)
              nofc=noconst(iph,ics,firsteq)
-             write(lut,2031)(rgast*parres%gval(j1,1),j1=1,4)
+             write(lut,2031)(cpham*rgast*parres%gval(j1,1),j1=1,4)
              write(lut,2041)(rgast*parres%dgval(1,j1,1),j1=1,nofc)
-2041         format('dG/dy:   ',4(1PE16.8),(/9x,4e16.8))
+2041         format('dG/dy:   ',4(1PE16.8),(/9x,4e16.8)/&
+                  ' NOTE THAT dG/dy_i is NOT THE CHEMICAL POTENTIAL of i!')
 !.......................................................
           case(3) ! calculate phase < > all derivatives
              call tabder(iph,ics,ceq)
-             write(*,*)' NOTE THAT dG/dy_i is NOT THE CHEMICAL POTENTIAL of i!'
+             write(*,2042)
+2042         format('Values are per mole formula unit'/&
+                  ' NOTE THAT dG/dy_i is NOT THE CHEMICAL POTENTIAL of i!')
              if(gx%bmperr.ne.0) goto 990
 !.......................................................
           case(4,5) ! calculate phase with constitution_adjustment
@@ -1275,7 +1284,7 @@ contains
                 call equilph1b(phtup,ceq%tpval,xknown,xxx,yarr,.FALSE.,ceq)
                 if(gx%bmperr.ne.0) goto 990
                 write(kou,2087)xxx,(yarr(nv),nv=1,noel())
-2087            format(/'Calculated Gibbs energy/RT: ',1pe14.6,&
+2087            format(/'Calculated Gibbs energy/FU/RT: ',1pe14.6,&
                      ' and the chemical potentials/RT:'/6(1pe12.4))
              else
 !.............................................
@@ -2875,6 +2884,21 @@ contains
           endif
 ! the last 0 means enter
           call enter_parameter_interactivly(cline,last,0)
+! Strange things may happen when entering parameters interactively 
+! This was due to an error in tpfun package ... not yet fixed ...
+! Recalculate all TP functions!!  TWICE!!
+          call change_optcoeff(-1,zero)
+          do j1=1,notpf()
+             call eval_tpfun(j1,ceq%tpval,val,ceq%eq_tpres)
+             if(gx%bmperr.gt.0) goto 990
+          enddo
+          call change_optcoeff(-1,zero)
+!          write(*,*)'pmon: A second time',notpf()
+!          do j1=1,notpf()
+!             call eval_tpfun(j1,ceq%tpval,val,ceq%eq_tpres)
+!             if(gx%bmperr.gt.0) goto 990
+!          enddo
+!          call force_recalculate_tpfuns
           if(gx%bmperr.ne.0) goto 990
 !---------------------------------------------------------------
        case(6) ! enter bibliography
@@ -3796,7 +3820,8 @@ contains
              text=ocufile
              call gparcd('File name: ',cline,last,1,ocufile,text,q1help)
           else
-             call gparc('File name: ',cline,last,1,ocufile,' ',q1help)
+             call gparfile('File name: ',cline,last,1,ocufile,' ',q1help)
+!             call gparc('File name: ',cline,last,1,ocufile,' ',q1help)
           endif
           call gtpread(ocufile,text)
           if(gx%bmperr.ne.0) goto 990
@@ -3829,7 +3854,8 @@ contains
              text=tdbfile
              call gparcd('File name: ',cline,last,1,tdbfile,text,q1help)
           else
-             call gparc('File name: ',cline,last,1,tdbfile,' ',q1help)
+             call gparfile('File name: ',cline,last,1,tdbfile,' ',q1help)
+!             call gparc('File name: ',cline,last,1,tdbfile,' ',q1help)
           endif
 ! if tdbfle starts with "ocbase/" replace that with content of ocbase!!
           name1=tdbfile(1:7)
@@ -3928,7 +3954,8 @@ contains
              text=tdbfile
              call gparcd('File name: ',cline,last,1,tdbfile,text,q1help)
           else
-             call gparc('File name: ',cline,last,1,tdbfile,' ',q1help)
+             call gparfile('File name: ',cline,last,1,tdbfile,' ',q1help)
+!             call gparc('File name: ',cline,last,1,tdbfile,' ',q1help)
           endif
 ! this call checks the file exists and returns the elements
           call checkdb(tdbfile,'.pdb',jp,ellist)
@@ -4002,7 +4029,8 @@ contains
 !-----------------------------------------------------------
        case(2) ! SOLGAS
           text=' '
-          call gparc('File name: ',cline,last,1,filename,text,q1help)
+          call gparfile('File name: ',cline,last,1,filename,text,q1help)
+!          call gparc('File name: ',cline,last,1,filename,text,q1help)
           kl=max(index(filename,'.dat '),index(filename,'.DAT '))
           if(kl.le.0) then
              kl=len_trim(filename)+1
@@ -4023,7 +4051,8 @@ contains
              text=ocdfile
              call gparcd('File name: ',cline,last,1,ocdfile,text,q1help)
           else
-             call gparc('File name: ',cline,last,1,ocdfile,' ',q1help)
+             call gparfile('File name: ',cline,last,1,ocdfile,' ',q1help)
+!             call gparc('File name: ',cline,last,1,ocdfile,' ',q1help)
           endif
           jp=0
           kl=index(ocdfile,'.')
@@ -4047,7 +4076,8 @@ contains
              text=ocufile
              call gparcd('File name: ',cline,last,1,ocufile,text,q1help)
           else
-             call gparc('File name: ',cline,last,1,ocufile,' ',q1help)
+             call gparfile('File name: ',cline,last,1,ocufile,' ',q1help)
+!             call gparc('File name: ',cline,last,1,ocufile,' ',q1help)
           endif
           jp=0
           kl=index(ocufile,'.')
@@ -4336,11 +4366,11 @@ contains
              write(kou,1670)i1,loksp,name1,xxx,xxy,(iphl(j1),stoik(j1),j1=1,i2)
 1670         format(2i4,1x,a12,1x,2F6.2,2x,10(i3,1x,F7.4))
           enddo
-!          call delete_all_conditions(0,ceq)
 !---------------------------------
-! debug test2 (whatever)
+! debug tpfun (whatever)
        case(5)
-          write(*,*)'Nothing here'
+          call gparid('Function index:',cline,last,ll,-1,nohelp)
+          call list_tpfun_details(ll)
 !---------------------------------
 ! debug unused
        case(6)
@@ -5132,7 +5162,8 @@ contains
 ! PLOT APPEND a gnuplot file
        case(12)
           write(kou,*)'Give a file name with graphics in GNUPLOT format'
-          call gparcd('File name',cline,last,1,text,'  ',q1help)
+          call gparfile('File name',cline,last,1,text,'  ',q1help)
+!          call gparcd('File name',cline,last,1,text,'  ',q1help)
 ! check it is OK and add .plt if necessary ...
           jp=index(text,'.plt ')
           if(jp.le.0) then
@@ -5507,10 +5538,11 @@ contains
           iflag=2
 ! penulitima argument zero means use machine precision to calculate derivative
           call fdjac2(mexp,nvcoeff,coefs,errs,fjac,mexp,iflag,zero,wam)
-          write(*,*)'pmon: fjac: ',nvcoeff,mexp,iflag
-          do i2=1,mexp
-             write(*,563)(fjac(i2,ll),ll=1,nvcoeff)
-          enddo
+! debug output ...
+!          write(*,*)'pmon: fjac: ',nvcoeff,mexp,iflag
+!          do i2=1,mexp
+!             write(*,563)(fjac(i2,ll),ll=1,nvcoeff)
+!          enddo
 563       format(6(1pe12.4))
 ! Next calculate M = (fjac)^T (fjac); ( ^T means transponat)
           if(allocated(mat1)) deallocate(mat1)
@@ -5550,7 +5582,7 @@ contains
        endif
 ! write the correlation matrix
        if(allocated(cormat)) then
-          write(*,*)'Correlation matrix is:'
+          write(*,*)'Correlation matrix (not correct) is:'
           do i2=1,nvcoeff
              write(kou,563)(cormat(i2,j2),j2=1,nvcoeff)
           enddo

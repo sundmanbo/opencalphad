@@ -799,7 +799,9 @@
       addlink=>phlista(lokph)%additions
       lokpty=phreclink+2
       addition: do while(associated(addlink))
-         if(addlink%type.eq.1) then
+! WHEN SAVING MORE ADDITION YOU MUST ALSO CHANGE READING UNFORMATTED readphases
+!         if(addlink%type.eq.1) then
+         if(addlink%type.eq.INDENMAGNETIC) then
 !>>>>> 12A: additions id, regenerate all when reading this
             rsize=3
             call wtake(lok,rsize,iws)
@@ -814,7 +816,11 @@
 !            write(*,*)'3E saving additions in: ',phreclink+2,lok,iws(lok+1),&
 !                 iws(lok+2)
 ! link the property recordds sequentially
-         elseif(addlink%type.eq.7) then
+         elseif(addlink%type.eq.EINSTEINCP) then                ! 4
+            write(*,*)'Not saving Einstein addition'          
+         elseif(addlink%type.eq.TWOSTATEMODEL1) then          ! 5
+            write(*,*)'Not saving liquid two-state addition'
+         elseif(addlink%type.eq.VOLMOD1) then                 ! 7  
 !>>>>> 12A: additions id, regenerate all when reading this
             rsize=3
             call wtake(lok,rsize,iws)
@@ -828,6 +834,8 @@
 !            iws(lok+2)=addlink%aff
 !            write(*,*)'3E saving additions in: ',phreclink+2,lok,iws(lok+1),&
 !                 iws(lok+2)
+         elseif(addlink%type.eq.DIFFCOEFS) then               ! 11
+            write(*,*)'Not saving Diffusion addition'
          else
             write(*,*)'3E unknown addition record type ',addlink%type
          endif
@@ -2083,7 +2091,7 @@
          lokem=iws(lokem)
          nullify(addlink)
 510      continue
-         if(iws(lokem+1).ge.1 .and. iws(lokem+1).le.8) then
+         if(iws(lokem+1).ge.1 .and. iws(lokem+1).le.11) then
 ! all phases has volume addition ...
             if(iws(lokem+1).ne.7) write(*,515)iws(lokem+1),&
                  additioname(iws(lokem+1)),trim(phlista(jph)%name)
@@ -4363,7 +4371,8 @@
 !         if(dodis.eq.1) write(*,*)'We are here 2'
          call enter_parameter(lokph,typty,fractyp,nsl,endm,nint,lint,ideg,&
               lrot,refx)
-         if(ocv()) write(*,407)'Entered parameter: ',lokph,typty,gx%bmperr
+         if(ocv()) write(*,407)'3E Entered parameter: ',lokph,typty,gx%bmperr
+!         write(*,407)'Entered parameter: ',lokph,typty,gx%bmperr
 407      format(a,3i5)
          if(gx%bmperr.ne.0) then
 ! error entering parameter, not fatal

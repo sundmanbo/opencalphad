@@ -87,11 +87,11 @@ enter element MG Magnesium HCP_A3   2.4305E+01  4.9980E+03  3.2671E+01 2
 @$   A33*T**2+A34*T**(-1)+A35*T**3;   6.00000E+03   N MYVAL
 @$ Temporarily avoid the bug by entering T*LN(T) as a separate TP function
 @$ The bug will be fixed when I understand how it happen
-enter TP TLNT fun 1 T*LN(T); 20000 N
+@$ enter TP TLNT fun 1 T*LN(T); 20000 N
 
  enter phase CUMG2   
  CEF 2 1.0 CU;  2.0 MG;
-   enter param G(CUMG2,CU:MG;0) 298.15 +A30+A31*T+A32*TLNT+
+   enter param G(CUMG2,CU:MG;0) 298.15 +A30+A31*T+A32*T*LN(T)+
    A33*T**2+A34*T**(-1)+A35*T**3;   6.00000E+03   N MYVAL
 
 
@@ -122,7 +122,7 @@ enter TP TLNT fun 1 T*LN(T); 20000 N
   6.00000E+03 N SL
    enter param G(LAVES_C15,MG:CU;0) 298.15 +34720+2*GHSERMG +GHSERCU; 
   6.00000E+03   N SL
-   enter param G(LAVES_C15,CU:MG;0) 298.15 +A40+A41*T+A42*TLNT
+   enter param G(LAVES_C15,CU:MG;0) 298.15 +A40+A41*T+A42*T*LN(T)
   +A43*T**2+A44*T**(-1)+A45*T**3;   6.00000E+03   N MYVAL
    enter param G(LAVES_C15,MG:MG;0) 298.15 +17700+3*GFCCMG ;   
   6.00000E+03   N SL

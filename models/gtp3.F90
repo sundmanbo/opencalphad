@@ -682,6 +682,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! FHV phase has Flory-Huggins model for polymers
 ! MULTI may be used with care
 ! BMAV Xion magnetic model with average Bohr magneton number
+! UNIQUAC The UNIQUAC fluid model
   integer, parameter :: &
        PHHID=0,     PHIMHID=1,  PHID=2,    PHNOCV=3, &     ! 1 2 4 8 : 0/F
        PHHASP=4,    PHFORD=5,   PHBORD=6,  PHSORD=7, &     ! 
@@ -689,7 +690,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        PHAQ1=12,    PHDILCE=13, PHQCE=14,  PHCVMCE=15,&    ! 
        PHEXCB=16,   PHXGRID=17, PHFACTCE=18, PHNOCS=19,&   !
        PHHELM=20,   PHNODGDY2=21, PHELMA=22, PHSUBO=23,&   ! 
-       PHFHV=24,    PHMULTI=25, PHBMAV=26                  !
+       PHFHV=24,    PHMULTI=25, PHBMAV=26,  PHUNIQUAC=27   !                  !
 ! 
 !----------------------------------------------------------------
 !-Bits in constituent fraction (phase_varres) record STATUS2
@@ -835,13 +836,15 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   integer, public, parameter :: CRYSTALBREAKDOWNMOD=8
   integer, public, parameter :: SECONDEINSTEIN=9
   integer, public, parameter :: SCHOTTKYANOMALITY=10
+  integer, public, parameter :: DIFFCOEFS=11
 ! name of additions:
-  character(len=24) , public, dimension(10), parameter :: additioname=&
+  character(len=24) , public, dimension(12), parameter :: additioname=&
        ['Inden-Hillert magn model','Inden-Xiong magn model  ',&
        'Debye CP model          ','Einstein Cp model       ',&
        'Liquid 2-state model    ','Elastic model A         ',&
        'Volume model A          ','Crystal Breakdown model ',&
-       'Second Einstein Cp      ','Schottky Anomality      ']
+       'Smooth CP step          ','Schottky Anomality      ',&
+       'Diffusion coefficients  ','                        ']
 !       123456789.123456789.1234   123456789.123456789.1234
 ! Note that additions often use extra parameters like Curie or Debye
 ! temperatures defined by model parameter identifiers stored in gtp_propid
@@ -879,7 +882,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
      double precision, dimension(:), pointer :: coeffs
 ! each coefficient kan have powers of T and P/V and links to other TPFUNS
 ! and be multiplied with a following LOG or EXP term. 
-! wpow seems to be used for temporary storage during evaluation also ...
+! wpow USED FOR MULTIPLYING WITH ANOTHER FUNCTION!!
      integer, dimension(:), pointer :: tpow
      integer, dimension(:), pointer :: ppow
      integer, dimension(:), pointer :: wpow
@@ -1185,6 +1188,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
      TYPE(tpfun_expression), dimension(:), pointer :: explink
      TYPE(gtp_phase_add), pointer :: nextadd
      type(gtp_elastic_modela), pointer :: elastica
+     type(gtp_diffusion_model), pointer :: diffcoefs
 ! calculated contribution to G, G.T, G.P, G.T.T, G.T.P and G.P.P
      double precision, dimension(6) :: propval
   END TYPE gtp_phase_add
@@ -1205,8 +1209,31 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
      double precision, dimension(6,6) :: cmat
 ! calculated elastic energy addition (with derivative to T and P?)
      double precision, dimension(6) :: eeadd
-! maybe more
+! maybe more ...
   end TYPE gtp_elastic_modela
+!\end{verbatim}
+!-----------------------------------------------------------------
+!\begin{verbatim}
+! addition record to calculate diffusion coefficients
+! declared as allocatable in gtp_phase_add
+! this constant must be incremented when a change is made in gtp_elastic_modela
+  INTEGER, parameter :: gtp_diffusion_model_version=1
+  TYPE gtp_diffusion_model
+! status bit 0 set means no calculation of this record
+! dilute, simple or magnetic
+     integer difftypemodel,status
+!  alpha values for magnetic diffusion (for interstitials in constituent order)
+     double precision, allocatable, dimension(:) :: alpha
+! indices of dependent constituent in each sublattices
+     integer, allocatable, dimension(:) :: depcon
+! indices of constituents with zerovolume
+     integer, allocatable, dimension(:) :: zvcon
+! calculated diffusion matrix
+     double precision, allocatable, dimension(:,:) :: dcoef
+! Maybe we need one for each composition set?? at least to save the matrix
+     type(gtp_diffusion_model), pointer :: nextcompset
+! maybe more ...
+  end TYPE gtp_diffusion_model
 !\end{verbatim}
 !-----------------------------------------------------------------
 !\begin{verbatim}

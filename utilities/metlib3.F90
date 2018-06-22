@@ -2703,6 +2703,27 @@ CONTAINS
 900 RETURN
   END SUBROUTINE GPARRD
 !
+  SUBROUTINE GPARFILE(PROMT,SVAR,LAST,JTYP,SVAL,CDEF,HELP)
+    IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+    CHARACTER PROMT*(*),SVAR*(*),CDEF*(*),SVAL*(*)
+    CHARACTER SLIN*80
+    EXTERNAL HELP
+!    CHARACTER ENVIR(9)*60
+!    COMMON /GENVIR/ENVIR
+!    CALL GQXENV(SVAR,ENVIR)
+    CALL GQXENV(SVAR)
+!Beware: you must give the full path unless the file is in current directory!
+    write(*,*)'Beware: you must give the full path unless',&
+         ' the file in in current directory!'
+100 CALL GQARC(PROMT,SVAR,LAST,JTYP,SVAL,CDEF,HELP)
+    IF(BUPERR.NE.0) GOTO 900
+    SLIN=SVAL(1:max(1,LEN_TRIM(sval)))
+!    CALL GPTCM2(IFLAG,SVAR,LAST,SLIN,ENVIR)
+    CALL GPTCM2(IFLAG,SVAR,LAST,SLIN)
+    IF (IFLAG.NE.0) GOTO 100
+900 RETURN
+  END SUBROUTINE GPARFILE
+!
   SUBROUTINE GPARC(PROMT,SVAR,LAST,JTYP,SVAL,CDEF,HELP)
     IMPLICIT DOUBLE PRECISION (A-H,O-Z)
     CHARACTER PROMT*(*),SVAR*(*),CDEF*(*),SVAL*(*)
@@ -2944,7 +2965,8 @@ CONTAINS
 !    endif
 !    CALL GPARFD('Macro filename: ',LINE,LAST,1,FIL,MACFIL,USEEXT,FILHLP)
 !    write(*,*)'In MACBEG: ',trim(line),last
-    CALL GPARC('Macro filename: ',LINE,LAST,1,FIL,MACFIL,nohelp)
+    CALL GPARFILE('Macro filename: ',LINE,LAST,1,FIL,MACFIL,nohelp)
+!    CALL GPARC('Macro filename: ',LINE,LAST,1,FIL,MACFIL,nohelp)
     CALL FXDFLT(FIL,MACEXT)
 !    if (LEN_TRIM(fil).gt.0) call tcgffn(fil)
     IF(BUPERR.NE.0) GOTO 910

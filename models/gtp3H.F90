@@ -2,7 +2,7 @@
 ! gtp3H included in gtp3.F90
 !
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
-!>     14. Additions
+!>     14. Additions and diffusion
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
 ! Additions have a unique number, given sequentially as implemented
 ! These are all defined in gtp3.F90
@@ -16,6 +16,7 @@
 !  integer, public, parameter :: CRYSTBREAKDOWNMOD=8
 !  integer, public, parameter :: SECONDEINSTEIN=9
 !  integer, public, parameter :: SCHOTTKYANOMALITY=10
+!  integer, public, parameter :: DIFFCOEFS=11
 !------------------------------------
 ! For each addition XX there is a subroutine create_XX
 ! called from the add_addrecord
@@ -87,11 +88,14 @@
    case(secondeinstein) ! Adding a second Einstein Cp
       addrec%propval=zero
       call calc_secondeinstein(moded,phres,addrec,lokph,mc,ceq)
-!      gx%bmperr=4333
 ! 10
    case(schottkyanomality) ! Adding a second Schottky anomality Cp
       addrec%propval=zero
       call calc_schottky_anomality(moded,phres,addrec,lokph,mc,ceq)
+! 11
+   case(diffcoefs) ! Calculating diffusion coefficients
+      addrec%propval=zero
+      call calc_diffusion(moded,phres,addrec,lokph,mc,ceq)
 !      gx%bmperr=4333
    end select addition
 1000 continue
@@ -129,8 +133,10 @@
 ! create addition record
 !   write(*,*)'3H adding addition record',lokph,addtyp
    addition: select case(addtyp)
+!-----------------------------------------
    case default
       write(kou,*)'No addtion type ',addtyp,lokph
+!-----------------------------------------
    case(indenmagnetic) ! Inden magnetic
 ! 1
       if(extra(1:1).eq.'Y' .or. extra(1:1).eq.'y') then
@@ -141,6 +147,7 @@
          aff=-3
          call create_magrec_inden(newadd,aff)
       endif
+!-----------------------------------------
    case(xiongmagnetic) ! Inden-Xiong.  Assume bcc if BCC part of phase name
 ! 2
 !      bcc=.false.
@@ -152,31 +159,45 @@
       endif
 ! lokph because we need to check if average or individual Boghr magnetons
       call create_xiongmagnetic(newadd,lokph,bcc)
+!-----------------------------------------
    case(debyecp) ! Debye Cp
 ! 3
       call create_debyecp(newadd)
+!-----------------------------------------
    case(einsteincp) ! Einstein Cp
 ! 4
       call create_einsteincp(newadd)
+!-----------------------------------------
    case(elasticmodel1) ! Elastic model 1
 ! 5
       call create_elastic_model_a(newadd)
+!-----------------------------------------
    case(twostatemodel1) ! Liquid 2 state model
 ! 6
       call create_twostate_model1(newadd)
+!-----------------------------------------
    case(volmod1) ! Volume model 1
 ! 7
       call create_volmod1(newadd)
+!-----------------------------------------
    case(crystalbreakdownmod) ! Crystal Breakdown model
 ! 8
       call create_crystalbreakdownmod(newadd)
+!-----------------------------------------
    case(secondeinstein) ! Second Einstein T
 ! 9
       call create_secondeinstein(newadd)
+!-----------------------------------------
    case(schottkyanomality) ! Schottky anomality
 ! 10
       call create_schottky_anomality(newadd)
+!-----------------------------------------
+   case(diffcoefs)  !  diffusion coefficients
+! 11 
+      call create_diffusion(newadd,lokph,extra)
+!-----------------------------------------
    end select addition
+!-----------------------------------------
    if(gx%bmperr.ne.0) goto 1000
    if(associated(phlista(lokph)%additions)) then
 !      write(*,*)'3H adding new addition record to phase  ',lokph,addtyp
@@ -2786,6 +2807,201 @@
 1000 continue
    return
  end subroutine calc_debyecp
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine create_diffusion(addrec,lokph,text)
+   implicit none
+   integer lokph
+   character text*(*)
+   type(gtp_phase_add), pointer :: addrec
+!\end{verbatim}
+   integer typty,jj,last,is,js,ks,loksp,loksp2,ll,nsl
+   character typ*24,quest*38,spname*24
+   double precision alpha
+   type(gtp_diffusion_model), pointer :: diffcoef
+   logical once
+! initiate
+   quest='Dependent constituent in sublattice X:'
+! reserve an addition record
+   allocate(addrec)
+! nullify pointer to next addition
+   nullify(addrec%nextadd)
+! Set the type of addition and look for needed parameter properties
+   addrec%type=diffcoefs
+! Some information is needed
+   last=1
+100 continue
+   call gparcd('Type of diffusion model: ',text,last,1,typ,'SIMPLE',nohelp)
+   call capson(typ)
+!   write(*,*)'3H typ: ',index('MAGNETIC',trim(typ)),trim(typ)
+   if(index('SIMPLE',trim(typ)).eq.1) then
+      write(*,*)'Simple diffusion  model selected'
+      jj=2
+   elseif(index('MAGNETIC',trim(typ)).eq.1) then
+      write(*,*)'Magnetic diffusion model selected'
+      jj=3
+   else
+      write(*,*)'Dilute diffusion model selected'
+      jj=1
+   endif
+! allocate diffusion record for data
+   allocate(addrec%diffcoefs)
+   diffcoef=>addrec%diffcoefs
+!   addrec%diffcoefs=>diffcoef
+! ???????????? must we have a diffusion record for each composition set??
+   diffcoef%difftypemodel=jj
+   diffcoef%status=0
+   nullify(diffcoef%nextcompset)
+! dependent component for each sublattice
+   nsl=phlista(lokph)%noofsubl
+   allocate(diffcoef%depcon(nsl))
+   is=1
+   do ll=1,nsl
+      quest(37:37)=char(ll+ichar('0'))
+      once=.true.
+200   continue
+      loksp=phlista(lokph)%constitlist(is)
+      spname=splista(loksp)%symbol
+      call gparcd(quest,text,last,1,typ,spname,nohelp)
+      call find_species_record(typ,loksp2)
+      if(gx%bmperr.ne.0) then
+         if(once) then
+            once=.false.
+            write(*,*)'No such species'
+         else
+            goto 1000
+         endif
+      endif
+! we must also check this species is a constient in the sublattice!!
+      if(loksp2.ne.loksp) then
+         do js=is,is+phlista(lokph)%nooffr(ll)-1
+            if(loksp2.eq.phlista(lokph)%constitlist(js)) goto 250
+         enddo
+         write(*,*)'This species is not a constituent of this sublattice'
+         if(once) goto 200
+         gx%bmperr=4399; goto 1000
+      endif
+250   continue
+! is is always the first constituent in each sublattice
+      diffcoef%depcon(ll)=loksp2
+      is=is+phlista(lokph)%nooffr(ll)
+   enddo
+! for jj=3 we must ask for ALPHA and ALPHA2 (with species names)
+   if(jj.eq.3) then
+      allocate(diffcoef%alpha(phlista(lokph)%nooffr(2)))
+      call gparrd('Value of ALPHA: ',text,last,alpha,0.3D0,nohelp)
+      diffcoef%alpha(1)=alpha
+      if(nsl.eq.2 .and. phlista(lokph)%nooffr(2).gt.1) then
+         ks=2
+         is=phlista(lokph)%nooffr(1)
+         loop: do ll=1,phlista(lokph)%nooffr(2)
+            loksp=phlista(lokph)%constitlist(is+ll)
+! if constituent is Va ignore!!
+            if(.not.btest(splista(loksp)%status,SPVA)) then
+               spname=splista(loksp)%symbol
+               quest='Value of ALPHA2&'//trim(spname)
+               call gparrd(quest,text,last,alpha,1.0D0,nohelp)
+               if(ks.le.size(diffcoef%alpha)) diffcoef%alpha(ks)=alpha
+               ks=ks+1
+            endif
+         enddo loop
+      endif
+!      write(*,*)'3H alpha: ',diffcoef%alpha
+   endif
+!   write(*,*)'3H depcon: ',diffcoef%depcon
+! This addition may use MQ, MF, MG and maybe more
+   allocate(addrec%need_property(3))
+   call need_propertyid('MQ  ',typty)
+   addrec%need_property(1)=typty
+   call need_propertyid('MF  ',typty)
+   addrec%need_property(2)=typty
+   call need_propertyid('MG  ',typty)
+   addrec%need_property(3)=typty
+   if(gx%bmperr.ne.0) goto 1000
+   write(*,*)'Diffusion record created'
+!   write(kou,*)'Not implemented yet'; gx%bmperr=4078
+1000 continue
+   return
+ end subroutine create_diffusion
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine diffusion_onoff(phasetup,bitval)
+! switches the bit which calculates diffusion coefficients on/off
+! if bitval 0 calculate is turned on, 1 turn off
+   implicit none
+   integer bitval
+   type(gtp_phasetuple) :: phasetup
+!\end{verbatim}
+   integer lokph
+   type(gtp_phase_add), pointer :: addrec
+   lokph=phasetup%lokph
+   addrec=>phlista(lokph)%additions
+   loop: do while(associated(addrec))
+      if(addrec%type.eq.DIFFCOEFS) then
+         if(bitval.eq.0) then
+            addrec%diffcoefs%status=ibclr(addrec%diffcoefs%status,0)
+         else
+            addrec%diffcoefs%status=ibset(addrec%diffcoefs%status,0)
+         endif
+         exit loop
+      endif
+   enddo loop
+1000 continue
+   return
+ end subroutine diffusion_onoff
+
+ !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine calc_diffusion(moded,phres,lokadd,lokph,mc,ceq)
+! calculates diffusion coefficients
+! NOTE: values for function not saved, should be done to save calculation time.
+! moded: integer, 0=only G, S, Cp; 1=G and dG/dy; 2=Gm dG/dy and d2G/dy2
+! phres: pointer, to phase\_varres record
+! lokadd: pointer, to addition record
+! lokph: integer, phase record 
+! mc: integer, number of constituents
+! ceq: pointer, to gtp_equilibrium_data
+   implicit none
+   integer moded,lokph,mc
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+   TYPE(gtp_phase_add), pointer :: lokadd
+   TYPE(gtp_phase_varres) :: phres
+!\end{verbatim}
+   type(gtp_diffusion_model), pointer :: diffcoef
+   diffcoef=>lokadd%diffcoefs
+!   write(*,*)'Diffusion phase and model: ',trim(phlista(lokph)%name),&
+!        diffcoef%difftypemodel
+!   write(*,*)'Dependent const: ',diffcoef%depcon
+!   write(*,*)'Alpha: ',diffcoef%alpha
+!   write(*,*)'Calculation on the diffusion record not implemented'
+1000 continue
+   return
+ end subroutine calc_diffusion
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine get_diffusion_matrix(phtup,mdm,dcval,ceq)
+! extracts calculated diffusion coefficients for a phase tuple
+! phtup phase tuple
+! dcval diffusion matrix
+! ceq: pointer, to gtp_equilibrium_data
+   implicit none
+   integer mdm
+   double precision dcval(mdm,*)
+   TYPE(gtp_phasetuple) :: phtup
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   TYPE(gtp_phase_add), pointer :: lokadd
+   TYPE(gtp_phase_varres) :: phres
+1000 continue
+   return
+ end subroutine get_diffusion_matrix
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

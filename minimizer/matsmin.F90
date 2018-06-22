@@ -8717,7 +8717,7 @@ CONTAINS
 ! UNFINISHED ?? I do not divide by N
 !       write(*,777)'mu: ',(muend(is),is=1,noofend)
 !-------------------
-    else ! not substitutional below
+    else ! not substitutional below (2 or more sublattices)
 ! now we have to handle sublattices and endmembers
 ! nsl is number of sublattices and nkl(1..nsl) the number of const in each
        noofend=1
@@ -8741,6 +8741,7 @@ CONTAINS
 !611    format(a,i2,2x,10i3)
 ! all partials have this term
        muend=muall
+!       write(*,*)'MM muall: ',muall,pmi%curd%gval(1,1)
 ! The partial Gibbs energy, for each sublattice add one dG/dy_is
        nend=0
        nj=0
@@ -8880,12 +8881,18 @@ CONTAINS
 !410       format('MM Mobility for ',2i4,' in pos ',i2,', value: ',3(1pe14.6))
        endif
     enddo
-    if(ql.lt.noofend) then
-       write(*,411)noofend-ql
-411    format(' *** Warning EQUILPH1E: Missing mobility data for ',i2,&
-            ' endmembers')
-       goto 1000
+    if(ql.ne.meqrec%nrel) then
+       write(*,*)'MM: WARNING found ',ql,' mobilities values out of',&
+            meqrec%nrel
     endif
+! we do not have mobility values for all endmembers, only for the number
+! of components
+!    if(ql.lt.noofend) then
+!       write(*,411)noofend-ql,noofend
+!411    format(' *** Warning EQUILPH1E: Missing mobility data for ',i2,&
+!            ' endmembers: ',i3)
+!       goto 1000
+!    endif
     goto 1000
 ! NO CALCULATION OF DIFFUSIVITIES HERE, JUST RETURN MOBILITY VALUES
 ! list T and x for current values
