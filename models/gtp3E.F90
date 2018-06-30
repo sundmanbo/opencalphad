@@ -1334,6 +1334,7 @@
 ! do not save the first three, R, RT and T_C
    symbols=' '
    do lrot=4,nsvfun
+      write(*,*)'3E saving svfun ',lrot
       ipos=1
       text=' '
       call list_svfun(text,ipos,lrot,ceq)

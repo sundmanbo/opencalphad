@@ -730,8 +730,10 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! SVFEXT symbol taken from equilibrium %eqnoval (external?)
 ! SVCONST symbol is a constant (can be changed with AMEND)
 ! SVFTPF symbol is a TP function, current value returned
+! SVFDOT symbol is a DOT function, partial derivative like cp=h.t
    integer, parameter :: &
-        SVFVAL=0, SVFEXT=1, SVCONST=2,SVFTPF=3
+        SVFVAL=0,     SVFEXT=1,     SVCONST=2,     SVFTPF=3,&
+        SVFDOT=4
 !----------------------------------------------------------------
 !-Bits in gtp_equilibrium_data record
 ! EQNOTHREAD set if equilibrium must be calculated before threading 
@@ -1423,7 +1425,8 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
      integer narg,nactarg,status,eqnoval
      type(putfun_node), pointer :: linkpnode
      character name*16
-     double precision value
+! THIS IS NOT REALLY USED, VALUES ARE STORED IN CEQ%SVFUNRES
+     double precision svfv
 ! this array has identification of state variable (and other function) symbols 
      integer, dimension(:,:), pointer :: formal_arguments
   end TYPE gtp_putfun_lista
@@ -1547,6 +1550,10 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
      double precision, dimension(:,:), allocatable :: cdxmol
 ! terms added to G if bit CSADDG nonzero
      double precision, dimension(:), allocatable :: addg
+! integer containing the iteration when invsaved updated
+     integer invsavediter
+! arrays to save time in calc_dgdyterms, do not need to be saved on unformatted
+     double precision, dimension(:,:), allocatable ::invsaved
   END TYPE gtp_phase_varres
 ! this record is created inside the gtp_equilibrium_data record
 !\end{verbatim}

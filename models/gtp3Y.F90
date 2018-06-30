@@ -66,7 +66,7 @@
 ! sort phases depending on number of gridpoints
    integer, dimension(:), allocatable :: gridpoints,phord,starttup
 ! pph is set to number of phases participating, some may be suspended
-   integer pph,zph,nystph,order(maxel),tbase,qbase,wbase,jj
+   integer pph,zph,nystph,order(maxel),tbase,qbase,wbase,jj,zz
 !
 !   write(*,*)'3Y in global_gridmin'
 !   nystph=0
@@ -6304,9 +6304,11 @@
                   write(*,*)'3Y error setting y of new comp.set'
                   goto 1000
                endif
+! set some positive amount
+               ceq%phase_varres(lokics)%amfu=1.0D-3
 ! I do not think the tuple has been created ... just set the phase index
                addtuple=ceq%phase_varres(lokics)%phtupx
-!               write(*,*)'3Y recalculate with new comp.set: ',addtuple,icsno
+               write(*,*)'3Y recalculate with: ',addtuple,icsno,lokics
                gx%bmperr=4358
                goto 1000
             elseif(ceq%phase_varres(lokics)%phstate.lt.PHENTUNST) then

@@ -1399,12 +1399,12 @@ contains
           endif
           if(gx%bmperr.ne.0) goto 990
 !---------------------------------------------------------------
-       case(8) ! calculate equilibrium for current equilibrium ceq using 
+       case(8) ! calculate equilibrium for current equilibrium ceq
 ! using the grid minimizer
           if(minimizer.eq.1) then
 ! Lukas minimizer, first argument=1 means use grid minimizer
 !           call calceq1(1,ceq)
-             write(kou,*)'Not implemented yet'
+             write(kou,*)'No longer available'
           else
              call calceq2(1,ceq)
              if(gx%bmperr.eq.4204) then
@@ -3162,6 +3162,7 @@ contains
           if(kom2.le.0) goto 100
        endif
        lut=optionsset%lut
+!       write(*,*)'PMON: show xliqni should come here ... YES ',kom,kom2
        list: SELECT CASE(kom2)
 !-----------------------------------------------------------
        CASE DEFAULT
@@ -3284,6 +3285,7 @@ contains
 ! and state variables like x(fcc,cr) will not work.
           if(kom.eq.25) then
 ! the command is SHOW             
+!             write(*,*)'PMON: show xliqni should come here ... YES '
              call gparc('property: ',cline,last,5,line,' ',q1help)
           else
 ! the command is LIST STATE_VARIABLES
@@ -3312,7 +3314,7 @@ contains
                 goto 100
              endif
           endif
-! model is used to return texts
+! model is just used to return texts
           model=' '
 ! we should extract the text from last up to first space and save rest in cline
           j1=index(line,' ')
@@ -3338,12 +3340,15 @@ contains
              endif
           else
 ! the value of a state variable or model parameter variable is returned
+! STRANGE the symbol xliqni is accepted in get_state_var_value ???
              call get_state_var_value(name1,xxx,model,ceq)
+!             write(*,*)'PMON: show xliqni should come here 6 ... ',gx%bmperr
              if(gx%bmperr.eq.0) then
                 write(lut,6108)model(1:len_trim(model)),xxx
 6108            format(1x,a,'=',1PE15.7)
              else
                 gx%bmperr=0
+!                write(*,*)'PMON: show xliqni should come here ... NO!!!'
 ! If error then try to calculate a symbol ...
 ! below copied from calculate symbol, first calculate all symbols ignore errors
 ! calculate all symbols ignoring errors (note dot derivatives not calculated)
@@ -3355,6 +3360,7 @@ contains
                 mode=1
                 actual_arg=' '
                 xxx=meq_evaluate_svfun(istv,actual_arg,mode,ceq)
+                write(*,*)'pmon: calling meq_evaluate_svfun',istv,xxx
                 if(gx%bmperr.ne.0) goto 990
                 write(kou,2047)trim(name1),xxx
 ! this format statement elsewhere
@@ -4902,6 +4908,22 @@ contains
 ! use the graphics record to transfer data ...
           graphopt%pltax(1)=axplot(1)
           graphopt%pltax(2)=axplot(2)
+          if(graphopt%gibbstriangle) then
+! if gibbstriangle make sure min is 0
+             graphopt%plotmin(1)=zero
+             graphopt%dfltmin(1)=zero
+             graphopt%plotmin(2)=zero
+             graphopt%dfltmin(2)=zero
+             if(graphopt%rangedefaults(1).ne.0 .or. &
+                  graphopt%rangedefaults(2).ne.0) then
+! if gibbstriangle and scaling make sure xmax and ymax are the same
+                xxx=min(graphopt%plotmax(1),graphopt%plotmax(2))
+                graphopt%plotmax(1)=xxx
+                graphopt%dfltmax(1)=xxx
+                graphopt%plotmax(2)=xxx
+                graphopt%dfltmax(2)=xxx
+             endif
+          endif
           graphopt%filename=' '
 !          write(*,*)' >>>>>>>>>>>>> ',trim(plotfile)
           graphopt%filename=plotfile
@@ -4951,6 +4973,10 @@ contains
              twice=.FALSE.
 21104        continue
              call gparrd('Low limit',cline,last,xxx,graphopt%dfltmin(1),q1help)
+             if(graphopt%gibbstriangle .and. xxx.ne.zero) then
+                write(*,*)'Lower limit of a Gibbs triangle plot must be zero'
+                goto 21100
+             endif
              graphopt%plotmin(1)=xxx
              graphopt%dfltmin(1)=xxx
              once=.TRUE.
@@ -4987,6 +5013,10 @@ contains
              twice=.FALSE.
 21107        continue
              call gparrd('Low limit',cline,last,xxx,graphopt%dfltmin(2),q1help)
+             if(graphopt%gibbstriangle .and. xxx.ne.zero) then
+                write(*,*)'Lower limit of a Gibbs triangle plot must be zero'
+                goto 21100
+             endif
              graphopt%plotmin(2)=xxx
              graphopt%dfltmin(2)=xxx
              once=.TRUE.

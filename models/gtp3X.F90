@@ -4421,7 +4421,7 @@
    double precision sumwdivm,anisum,abisum,restmass,divisor,dividend,abtot
    TYPE(gtp_condition), pointer :: current,last
    character encoded*16,actual_arg(1)*16,elsym*2,elname*16,refstat*16
-   integer nox,now,nc,jl,iref,iunit,ip,idf,ie,more,numberest,istv,localerr
+   integer nox,now,nc,jl,iref,iunit,ip,idf,ie,more,numberest,istv,localerr,zz
    logical allmassbal
 !
    do ie=1,noel()
@@ -4467,7 +4467,12 @@
 ! the value is a symbol, the node to the expression is in
 ! svflista(current%symlink1)%linkpnode
 ! NOTE THIS IS NOT THE SAME AS meq_evaluate_svfun but OK as no derivative
-         xxx=evaluate_svfun_old(current%symlink1,actual_arg,1,ceq)
+! BUT WE HAVE TO BE CAREFUL IF THIS MUST NOT BE EVALUATED!!
+         if(btest(svflista(current%symlink1)%status,SVFVAL)) then
+            xxx=ceq%svfunres(current%symlink1)
+         else
+            xxx=evaluate_svfun_old(current%symlink1,actual_arg,1,ceq)
+         endif
       else
          xxx=current%prescribed
       endif

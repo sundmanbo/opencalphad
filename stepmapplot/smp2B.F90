@@ -956,11 +956,14 @@
     else
        labelkey=graphopt%labelkey
     endif
+! OC logo oclogo added by Catalina Pineda
     write(21,860)trim(title),trim(conditions),graphopt%xsize,graphopt%ysize,&
          trim(pltax(1)),trim(pltax(2)),labelkey
 860 format('set title "',a,' \n ',a,'"'/&
          'set size ',F8.4', ',F8.4/&
          'set xlabel "',a,'"'/'set ylabel "',a,'"'/&
+         'set label "O" at screen 0.010, 0.027 font "Garamond bold,20"'/&
+         'set label "C" at screen 0.019, 0.027 font "Garamond bold,20"'/&
          'set key ',a/&
          'set style line 1 lt 2 lc rgb "#000000" lw 2 pt 10'/&
          'set style line 2 lt 2 lc rgb "#4169E1" lw 2 pt 6'/&
@@ -1726,7 +1729,7 @@
 841    format('set terminal ',a)
     endif
     if(graphopt%gibbstriangle) then
-       write(*,*)'Gibbs triangle diagrams are under development!'
+!       write(*,*)'Gibbs triangle diagrams are under development!'
 ! xmax should be the largest scale value of x and y axis (same length!!)
        xmax=one
        plotgt=.true.
@@ -1803,13 +1806,18 @@
          'set size ',F8.4', ',F8.4/&
          'set xlabel "',a,'"')
     if(plotgt) then
-! when Gibbs triangle the ylabel must be placed carefully
+! OC logo added by Catalina Pineda
+! when Gibbs triangle the ylabel and logo must be placed carefully
        write(21,131)trim(pltax(2)),0.15*xmax,0.33*xmax
-131    format('set label "',a,'" at ',F8.4,',',F8.4,' rotate by 60 ')
+131    format('set label "',a,'" at ',F8.4,',',F8.4,' rotate by 60 '/&
+         'set label "O" at screen 0.130, 0.027 font "Garamond bold,20"'/&
+         'set label "C" at screen 0.139, 0.027 font "Garamond bold,20"')
 ! we should also enforce same length of X and Y axis !!!
     else
        write(21,132)trim(pltax(2))
-132    format('set ylabel "',a,'"')
+132    format('set ylabel "',a,'"'/&
+         'set label "O" at screen 0.010, 0.027 font "Garamond bold,20"'/&
+         'set label "C" at screen 0.019, 0.027 font "Garamond bold,20"')
     endif
     write(21,133)labelkey
 133 format('set key ',a/&

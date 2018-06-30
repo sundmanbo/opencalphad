@@ -113,9 +113,18 @@
 !         write(*,*)'3F Found function: ',lrot
          actual_arg=' '
          mode=1
+         if(btest(svflista(lrot)%status,SVFDOT)) then
+            gx%bmperr=4399; goto 1000
+         endif
 ! this is OK if it is not a derivative
-         value=evaluate_svfun_old(lrot,actual_arg,mode,ceq)
-         if(gx%bmperr.eq.4217) goto 1000
+! BUT be careful!! it can be a value that must be calculated explicitly!!
+         if(btest(svflista(lrot)%status,SVFVAL)) then
+            value=ceq%svfunres(lrot)
+!            write(*,*)'3F Extracting saved value for: ',trim(name),value
+         else
+            value=evaluate_svfun_old(lrot,actual_arg,mode,ceq)
+            if(gx%bmperr.eq.4217) goto 1000
+         endif
          encoded=name
       endif
    else
@@ -3224,8 +3233,10 @@
       endif
    endif
    if(kdot.gt.0) then
-! this is a dot derivative, set bit
+! this is a dot derivative, set bits
       svflista(nsvfun)%status=ibset(svflista(nsvfun)%status,SVFVAL)
+      svflista(nsvfun)%status=ibset(svflista(nsvfun)%status,SVFDOT)
+      write(*,*)'3F setting bit: ',SVFDOT
    endif
 1000 continue
 ! NOTE eqnoval should be zeroed
@@ -3610,10 +3621,19 @@
    double precision value
    argval=zero
    value=zero
-!    write(*,*)'3F evaluate_svfun ',lrot,svflista(lrot)%narg,svflista(lrot)%name
+!   write(*,*)'3F evaluate_svfun ',lrot,svflista(lrot)%narg,svflista(lrot)%name
 ! locate function
    if(lrot.le.0 .or. lrot.gt.nsvfun) then
       gx%bmperr=4140; goto 1000
+   endif
+   if(btest(svflista(lrot)%status,SVFDOT)) then
+!      write(*,*)'3F Warning has SVFDOT set, return error ',lrot
+      gx%bmperr=4399; goto 1000
+   elseif(btest(svflista(lrot)%status,SVFVAL)) then
+! this symbol is constant unless evaluated explicitly 
+      value=ceq%svfunres(lrot)
+      write(*,*)'3F Warning has SVFVAL set: ',lrot,svflista(lrot)%name,value
+      goto 1000
    endif
    if(svflista(lrot)%narg.eq.0) goto 300
 ! get values of arguments

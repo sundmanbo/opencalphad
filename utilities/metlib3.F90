@@ -948,7 +948,7 @@ CONTAINS
 ! calculates the storage place of value at (i,j) for a symmetrix matrix
 ! storage order 11, 12, 22, 13, 23, 33, etc
     if(ix1.le.0 .or. ix2.le.0) then
-       bmperr=1000; goto 1000
+       buperr=1000; goto 1000
     endif
     if(ix1.gt.ix2) then
        ixsym=ix2+ix1*(ix1-1)/2
@@ -958,6 +958,17 @@ CONTAINS
 1000 continue
     return
   end function ixsym
+
+!  integer function ixsym2(ix1,ix2)
+! calculates the storage place of value at (i,j) for a symmetrix matrix
+! storage order 11, 12, 22, 13, 23, 33, etc
+! Slightly faster ....
+!    ixmin=min(ix1,ix2)
+!    ixmax=max(ix1,ix2)
+!    ixsym2=ixmin+ixmax*(ixmax-1)/2
+!1000 continue
+!    return
+!  end function ixsym2
 
   subroutine wrice(lut,margl1,margl2,maxl,str)
 ! writes str on unit lut with left margin largl1 for first line, margl2 for all

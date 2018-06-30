@@ -1525,7 +1525,8 @@
 ! without this an expression like VCRBCC*EXP(ZCRBCC) became
 ! just EXP(ZRBCC) as the link to VCRBCC had been removed ...
 ! BUT for macro step3 the link4 was inserted in the wrong term !!!
-         if(link4.gt.1000 .and. exprot%wpow(ic).lt.1000) then
+!         if(link4.gt.1000 .and. exprot%wpow(ic).lt.1000) then
+         if(link4.gt.1000 .and. exprot%wpow(ic+1).lt.1000) then
 !            write(*,22)'3Z wpow save:   ',level+1,nc,ic,exprot%wpow(ic),link4
 ! topsave%saveic is ic-1, I do not know why but this correction is added now!
             exprot%wpow(ic+1)=link4

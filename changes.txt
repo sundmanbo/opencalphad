@@ -13,7 +13,22 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
-2018.06.xx OC version 5.016: Mobilities are among the many different
+2018.06.30 OC version 5.017: Thanks to the inspiration from Catalina
+Pineda, an MSc student at ICAMS at RUB in Germany, there is now a OC
+logo on all OC plots.
+
+I have also a new calc_dgdyterms routine which saves intermediate
+values for all phases (previously only the 5 with most constituents
+were saved) in a new allocatable array in the phase_varres record.  It
+speeded up the allcost macro (with 20 components) some 20% (I noted
+75% of the CPU time was spent in this routine, now just 25%).  The
+fuelcalculations (with 15 components) were also slightly faster.  For
+most calculations this change has no effect.
+
+Finally a strange segmentation fault required half a days work to make
+it disapper by itself.
+
+2018.06.23 OC version 5.016: Mobilities are among the many different
 kinds of model parameters that is available in OC but for simulating
 diffusion they must be converted to diffusion coefficients.  I am
 currently developing a new addition to calculate these using the
