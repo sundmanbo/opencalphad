@@ -28,7 +28,7 @@ set echo
 @$ First the low T miscibility gap and sigma phase
 @$
 
-r t steel1
+r t ./steel1
 cr fe
  
 set c t=700 p=1e5 n=1 x(cr)=.2

@@ -2531,19 +2531,23 @@ end function find_phasetuple_by_indices
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
-  logical function allotropes(irem,iadd,ceq)
+  logical function allotropes(irem,iadd,iter,ceq)
 ! This function return TRUE if the phases indicated by IREM and IADD both have
 ! fixed and identical composition, i.e. they are componds and allotropes
 ! Such a transition can cause problems during a STEP command.
     implicit none
     TYPE(gtp_equilibrium_data), pointer :: ceq
-    integer iadd,irem
+    integer iadd,irem,iter
 !\end{verbatim}
     integer lokph1,lokph2,nofr,jj
     double precision x1mol(maxel),x2mol(maxel),wmass(maxel),totmol,totmass,am
     logical allo
     allo=.false.
-    write(*,*)'3A checking if two phases are allotropes',irem,iadd
+    goto 1000
+!    write(*,*)'3A checking allotropes',irem,iadd
+    write(*,10)iter,trim(phlista(phases(irem))%name),&
+         trim(phlista(phases(iadd))%name)
+10  format('3A checking allotropes',i5,2x,a,2x,a)
     lokph1=phases(irem)
     lokph2=phases(iadd)
 ! spurious segmentation faults here ...

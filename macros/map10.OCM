@@ -27,7 +27,7 @@ new Y
 
 set echo
 
-r t saf2507
+r t ./saf2507
 fe cr ni
 
 set c t=1200 p=1e5 n=1 x(cr)=.45 x(ni)=.5

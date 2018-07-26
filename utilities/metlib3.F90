@@ -27,6 +27,10 @@ MODULE METLIB
 ! uncomment the next line and run the Makefile on the GETKEY directory 
   use M_getkey
 #endif
+#ifdef tinyfd
+  ! use tinyfiledialogs
+  use ftinyopen
+#endif
 !
 !--------------------------------------------------------------------------
 !
@@ -41,6 +45,7 @@ MODULE METLIB
 !  1008 Attempt to reserve one word or less
 !  1009 Released area inside free area
 !  1010 Too large character or real arrays in LOADC/STORC or LOADRN/STORRN
+!  1020 No such file
 !  1030  NO SUCH TYPE OPTION
 !  1031 Empty line, expected number
 !  1032  PARAMETER VALUE MISSING
@@ -90,6 +95,8 @@ MODULE METLIB
   integer :: lun=50
 ! LOGFIL is nonzero if a log file is set
   integer, private :: logfil=0
+! prevent use of popup windows for open/save file
+  logical NOPOPUP
 ! global values for history
   CHARACTER, private :: HIST(20)*80
   integer, private :: LHL=0,LHM=0,LHP=0
@@ -107,6 +114,8 @@ MODULE METLIB
 !    COMMON/TCMACRO/IUL,IUN(5),MACEXT
     integer, private :: IUL,IUN(5)
     character MACEXT*3
+! character for PATH to macro file in order to open files inside macro
+    character macropath(5)*128
 ! nbpw is number if bytes per INTEGER
     integer, parameter :: nbpw=4,nwpr=2
     parameter (MACEXT='OCM')
@@ -157,8 +166,9 @@ MODULE METLIB
 ! datanod is last data node
   TYPE(putfun_node), private, pointer :: topnod,datanod,lastopnod
   integer pfnerr,debuginc
+! end data structures for PUTFUN
 !
-!
+! HISTORY data (used on LINUX)
   integer, parameter :: histlines=100
 !
   TYPE CHISTORY
@@ -168,7 +178,6 @@ MODULE METLIB
   END TYPE CHISTORY
   type(chistory) :: myhistory
 !  
-! end data structures for PUTFUN
 !^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 CONTAINS
@@ -2714,7 +2723,72 @@ CONTAINS
 900 RETURN
   END SUBROUTINE GPARRD
 !
-  SUBROUTINE GPARFILE(PROMT,SVAR,LAST,JTYP,SVAL,CDEF,HELP)
+  SUBROUTINE GPARFILE(PROMT,SVAR,LAST,JTYP,SVAL,CDEF,TYP,HELP)
+! to ask for a file name using command line or external window
+! prompt is question
+! svar is a character variable which may already contain an answer
+! last is position in svar to start searching for an answer
+!      JTYP DEFINES THE TERMINATION OF A STRING
+!      1 TEXT TERMINATED BY SPACE OR ","
+!      2 TEXT TERMINATED BY SPACE
+!      3 TEXT TERMINATED BY ";" OR "."
+!      4 TEXT TERMINATED BY ";"
+!      5 TEXT UP TO END-OF-LINE
+!      6 TEXT UP TO AND INCLUDING ";"
+!      7 TEXT TERMINATED BY SPACE OR "," BUT IGNORING SUCH INSIDE ( )
+!    >31, THE CHAR(JTYP) IS USED AS TERMINATING CHARACTER
+! sval is the answer either extracted from SVAR or obtained by user input
+! cdef is a default answer
+! typ  is default file extenion, at present only:
+!  1=".TDB", 2=".UNF", 3=".OCM"
+! help is a help routine    
+    IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+    CHARACTER PROMT*(*),SVAR*(*),CDEF*(*),SVAL*(*)
+    CHARACTER SLIN*80
+    EXTERNAL HELP
+    integer typ,typeahead
+#ifdef tinyfd
+! only if we use tinyfiledialogs
+    typeahead=last
+!    write(*,*)'M3 gparfile: ',kou,koud,last,eolch(svar,last)
+    if(nopopup .or. kiu.ne.kiud .or. .not.eolch(svar,typeahead)) then
+#endif
+! If we are not connected to a terminal (reading a macro file) use line input
+! Also if there are "type ahead" use the line input
+! This call exchanges any macro variables in SVAR for defined macro values
+       CALL GQXENV(SVAR)
+! If interactive
+       if(kiu.eq.kiud) write(*,*)'Beware: you must give the full path unless',&
+            ' the file is in current directory!'
+100    CALL GQARC(PROMT,SVAR,LAST,JTYP,SVAL,CDEF,HELP)
+       IF(BUPERR.NE.0) GOTO 900
+       SLIN=SVAL(1:max(1,LEN_TRIM(sval)))
+! This call handles ? @ and other things in SVAR
+       CALL GPTCM2(IFLAG,SVAR,LAST,SLIN)
+       IF (IFLAG.NE.0) GOTO 100
+       if(iul.ge.1) then
+          if(sval(1:2).eq.'./') then
+! we are running a macro and if SVAL(1:2) is './' replace this with MACROPATH'
+             sval=trim(macropath(iul))//sval(3:)
+          elseif(sval(1:3).eq.'../') then
+! we are running a macro and if SVAL(1:3) is '../' prefix with MACROPATH'
+             sval=trim(macropath(iul))//sval
+!             write(*,*)'M3 add path: ',trim(sval),iul
+!          else
+!             write(*,*)'M3 assuming full path: ',trim(sval),iul
+          endif
+       endif
+#ifdef tinyfd
+    else
+! open a window to browse directories and files using tinyfiledialogs
+       call getfilename(typ,sval)
+       if(sval(1:1).eq.' ') buperr=1020
+    endif
+#endif    
+900 RETURN
+  END SUBROUTINE GPARFILE
+!
+  SUBROUTINE GPARFILE_OLD(PROMT,SVAR,LAST,JTYP,SVAL,CDEF,HELP)
     IMPLICIT DOUBLE PRECISION (A-H,O-Z)
     CHARACTER PROMT*(*),SVAR*(*),CDEF*(*),SVAL*(*)
     CHARACTER SLIN*80
@@ -2722,18 +2796,20 @@ CONTAINS
 !    CHARACTER ENVIR(9)*60
 !    COMMON /GENVIR/ENVIR
 !    CALL GQXENV(SVAR,ENVIR)
+! This call exchanges any macro variables in SVAR for defined macro values
     CALL GQXENV(SVAR)
 !Beware: you must give the full path unless the file is in current directory!
     write(*,*)'Beware: you must give the full path unless',&
-         ' the file in in current directory!'
+         ' the file is in current directory!'
 100 CALL GQARC(PROMT,SVAR,LAST,JTYP,SVAL,CDEF,HELP)
     IF(BUPERR.NE.0) GOTO 900
     SLIN=SVAL(1:max(1,LEN_TRIM(sval)))
 !    CALL GPTCM2(IFLAG,SVAR,LAST,SLIN,ENVIR)
+! This call handles ? @ and other things in SVAR
     CALL GPTCM2(IFLAG,SVAR,LAST,SLIN)
     IF (IFLAG.NE.0) GOTO 100
 900 RETURN
-  END SUBROUTINE GPARFILE
+  END SUBROUTINE GPARFILE_OLD
 !
   SUBROUTINE GPARC(PROMT,SVAR,LAST,JTYP,SVAL,CDEF,HELP)
     IMPLICIT DOUBLE PRECISION (A-H,O-Z)
@@ -2942,7 +3018,7 @@ CONTAINS
   SUBROUTINE MACBEG(LINE,LAST,OK)
 !....subroutine to execute set-interactive allowing nesting of macros
 !
-! addera lablar i macro sa man kan ange MACRO fil LABEL
+! IDEA: addera lablar i macro sa man kan ange MACRO fil LABEL
 ! och vid stop som @? eller @& man kan interaktivt ange GOTO label
 ! Ocksa en generisk subrutin som gor att man kan fa fram ett variabelvarde
 ! call macsymval(package,symbol,ival,rval,cval)
@@ -2953,6 +3029,7 @@ CONTAINS
 !    COMMON/TCMACRO/IUL,IUN(5),MACEXT
 !    character*3 MACEXT,USEEXT
     character*3 USEEXT
+    character*1 dirsep,backslash
 !    common/bincdb/binfil
 !    common/tercdb/terfil
 !    character*128 binfil(3)
@@ -2976,8 +3053,10 @@ CONTAINS
 !    endif
 !    CALL GPARFD('Macro filename: ',LINE,LAST,1,FIL,MACFIL,USEEXT,FILHLP)
 !    write(*,*)'In MACBEG: ',trim(line),last
-    CALL GPARFILE('Macro filename: ',LINE,LAST,1,FIL,MACFIL,nohelp)
+! added that extension should be OCM by the argument "3"
+    CALL GPARFILE('Macro filename: ',LINE,LAST,1,FIL,MACFIL,3,nohelp)
 !    CALL GPARC('Macro filename: ',LINE,LAST,1,FIL,MACFIL,nohelp)
+! add default extension if needed
     CALL FXDFLT(FIL,MACEXT)
 !    if (LEN_TRIM(fil).gt.0) call tcgffn(fil)
     IF(BUPERR.NE.0) GOTO 910
@@ -2985,6 +3064,7 @@ CONTAINS
 !    LUN=50
     OPEN(LUN,FILE=FIL,ACCESS='SEQUENTIAL',STATUS='OLD', &
          FORM='FORMATTED',IOSTAT=IERR,ERR=910)
+! we can have macros nested 5 livels deep
     IF(IUL.LT.5) THEN
        IUL=IUL+1
        IUN(IUL)=KIU
@@ -2994,6 +3074,28 @@ CONTAINS
        OK=.FALSE.
        GOTO 900
     ENDIF
+! extract the PATH to this macro file, needed to open files inside the macro
+    backslash=char(92)
+!    write(*,*)'M3 macro file: ',trim(fil),' bacslash: ',backslash
+    if(index(fil,backslash).gt.0) then
+       dirsep=backslash
+    else
+       dirsep='/'
+    endif
+!    write(*,*)'M3 macro file: ',trim(fil),' backslash: ',backslash,iul
+    ll=1
+    kk=0
+    do while(ll.gt.0)
+       kk=ll+kk
+       ll=index(fil(kk:),dirsep)
+    enddo
+! we have found the position of the actual filename.  Save the path incl dirsep
+    if(kk.gt.1) then
+       macropath(iul)=fil(1:kk-1)
+    else
+       macropath(iul)=' '
+    endif
+    write(*,*)'Macro path saved: ',iul,': ',trim(macropath(iul))
 !    write(*,*)'Command input set: ',kiu,iul
 ! this is to suprees "press return to continue" but not implemented ...
 !    CALL GPARC(' ',LINE,LAST,1,CH1,'Y',FILHLP)
@@ -3032,7 +3134,9 @@ CONTAINS
     IF(EOLCH(LINE,LAST)) GOTO 900
     OK=.TRUE.
     LAST=LAST-1
-900 RETURN
+900 continue
+!    write(*,*)'Leaving macbeg/macend'
+    RETURN
 910 OK=.FALSE.
     write(*,*)'Error ',ierr,' opening macro file: ',trim(fil)
     buperr=1000+ierr

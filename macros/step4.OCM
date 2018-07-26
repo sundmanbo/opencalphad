@@ -21,7 +21,8 @@ new Y
 @$ 
 @$ 
 @$ step4.OCM 
-@$ Calculate G curves in the ordered FCC in the Fe-Ni system
+@$ Enter data interactively and
+@$ calculate G curves in the ordered FCC in the Fe-Ni system
 @$ ================================================================
 @$
 @&
@@ -72,6 +73,8 @@ CEF
 @&
 @$ we must add disordered set before entering parameters
 amend phase part dis 4 yes
+
+@$ We do not use the F option which would reduce the number of parameters
 
 enter param G(part,Fe:Fe:Fe:Ni),,GA3B1; 6000 N test
 enter param G(part,Fe:Fe:Ni:Fe),,GA3B1; 6000 N test

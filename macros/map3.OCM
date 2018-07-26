@@ -27,7 +27,7 @@ new Y
 
 set echo
 
-r t steel1
+r t ./steel1
 fe c
 
 
@@ -67,6 +67,9 @@ title map 3 fig 1
 render
 
 @&
+
+@$ Again this plot will be written on the WORKING DIRECTORY
+@$ and will be appended from there later
 plot
 w%(*,c)
 T_C
@@ -118,6 +121,7 @@ title map 3 fig 3
 
 @&
 @$ now overlay the stable
+@$ NOTE the stable.plt file was saved on the WORKING DIRECTORY
 plot
 
 
@@ -162,6 +166,7 @@ austenite
 
 @&
 @$ Finally, plot the metastable diagram with enthalpy axis !!
+@$ the state variable H(*) means the enthalpy of each phase
 
 plot
 x(*,c)

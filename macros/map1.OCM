@@ -28,7 +28,7 @@ new Y
 
 set echo
 
-r t agcu
+r t ./agcu
 
 
 set cond t=1000 p=1e5 n=1 x(cu)=.2

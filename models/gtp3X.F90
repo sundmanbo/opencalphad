@@ -4717,7 +4717,7 @@
    TYPE(gtp_equilibrium_data), pointer :: ceq
    double precision, allocatable, dimension(:) :: copyofconst
 !\end{verbatim} %+
-   integer varresx,nz,ij,syfr
+   integer varresx,nz,ij,syfr,allsize
 ! calculate dimension of copyofconst
    nz=0
 ! skippa varres with index 1, that is the reference phase
@@ -4727,26 +4727,36 @@
 ! NOTE size( ... ) can return reasonable value even if not allocated !!!
 ! BUT why is phas_varres(varresx)%yfr it not allocated ???
 ! evidently the composition set for varresx is created ... maybe removed??
-         syfr=size(ceq%phase_varres(varresx)%yfr)
+         syfr=size(ceq%phase_varres(varresx)%yfr)+1
       else
-         syfr=0
+         syfr=1
       endif
 !      write(*,12)'3X Varres record and size: ',varresx,1+syfr,nz
 12    format(a,3i5)
-      nz=nz+1+syfr
+      nz=nz+2+syfr
    enddo
-!   write(*,*)'3X In save_constitution',nz,highcs
-   allocate(copyofconst(nz))
-   nz=1
+   allsize=nz+1
+!   write(*,*)'3X In save_constitution',highcs,allsize
+   allocate(copyofconst(allsize))
+! modification due to problems, save allocated size in first word
+   copyofconst(1)=allsize
+   nz=2
 !   do varresx=2,csfree-1
    do varresx=2,highcs
-! save 1+sfr values for each composition set
+! save 1+syfr values for each composition set
 ! segmentation fault in this loop for stepbug (>20 elements COST507)
 ! crash happends when higher composition sets are stored ...
+! SAVE also the amount of the phase, DGM and the size of yfr!!
       copyofconst(nz)=ceq%phase_varres(varresx)%amfu
+      copyofconst(nz+1)=ceq%phase_varres(varresx)%dgm
+! varresx is 1 higher than phase index
+!      if(copyofconst(nz).gt.zero) &
+!           write(*,*)'3X saving amount: ',varresx-1,nz,copyofconst(nz)
+      nz=nz+1
       if(allocated(ceq%phase_varres(varresx)%yfr)) then
          syfr=size(ceq%phase_varres(varresx)%yfr)
       else
+!         write(*,*)'3X no fractions for: ',varresx-1,nz+1
          syfr=0
       endif
 !      write(*,16)'3X Storing varres record: ',varresx,syfr,size(copyofconst),nz
@@ -4754,13 +4764,14 @@
 ! the segmentation fault seems not to be the allocation of copyofconst but
 ! rather that we cannot access the yfr in ceq%phase_varres(varresx)
 ! for the extra composition sets created by gridmin
+      copyofconst(nz+1)=syfr
+      nz=nz+1
       do ij=1,syfr
          copyofconst(nz+ij)=ceq%phase_varres(varresx)%yfr(ij)
       enddo
-!      write(*,17)varresx,nz,1+syfr,(copyofconst(ij),ij=nz,nz+syfr)
-17    format('3X s:',3i4,10(F6.3))
       nz=nz+1+syfr
    enddo
+!   write(*,*)'3x saved size in word 1: ',highcs,allsize,nz-1
 1000 continue
    return
  end subroutine save_constitutions
@@ -4776,26 +4787,46 @@
    TYPE(gtp_equilibrium_data), pointer :: ceq
    double precision copyofconst(*)
 !\end{verbatim}
-   integer nz,varresx,ij,syfr
-   nz=1
+   integer nz,varresx,ij,syfr,savedsyfr,sizeofcopy
+! size of copyofconst in first word
+   sizeofcopy=int(copyofconst(1))
+!   write(*,*)'3X restoring amounts: ',highcs,sizeofcopy
 ! skippa varres with index 1, that is the reference phase
 !   do varresx=2,csfree-1
+   nz=2
    do varresx=2,highcs
+! note varresx is index of phase_varres, always 1 bigger than phase index
+!      if(copyofconst(nz).gt.zero) &
+!           write(*,*)'3X restore amount: ',varresx-1,nz,copyofconst(nz)
       ceq%phase_varres(varresx)%amfu=copyofconst(nz)
+      ceq%phase_varres(varresx)%dgm=copyofconst(nz+1)
       if(allocated(ceq%phase_varres(varresx)%yfr)) then
          syfr=size(ceq%phase_varres(varresx)%yfr)
       else
          syfr=0
       endif
+! fraction records may have been allocated!! use saved syfr
+      nz=nz+2
+      savedsyfr=int(copyofconst(nz))
+      if(savedsyfr.eq.0 .or. savedsyfr.ne.syfr) then
+         ceq%phase_varres(varresx)%dgm=-one
+!         write(*,12)'Restore saved size for phase: ',varresx-1,nz-2,syfr,&
+!              int(copyofconst(nz)),copyofconst(nz-2),&
+!              ceq%phase_varres(varresx)%dgm
+12       format(a,4i5,2(1pe12.4))
+         syfr=savedsyfr
+      endif
       do ij=1,syfr
          ceq%phase_varres(varresx)%yfr(ij)=copyofconst(nz+ij)
       enddo
-!      write(*,17)varresx,nz,syfr,ceq%phase_varres(varresx)%amfu,&
+!      write(*,17)varresx-1,nz,syfr,ceq%phase_varres(varresx)%amfu,&
 !           (ceq%phase_varres(varresx)%yfr(ij),ij=1,syfr)
 17    format('3X r:',i2,2i3,6(1pe12.4))
-      nz=nz+1+size(ceq%phase_varres(varresx)%yfr)
+      nz=nz+1+syfr
+      if(nz-1.gt.sizeofcopy) write(*,*)'3X problem restore:',varresx,nz
    enddo
 1000 continue
+!   gx%bmperr=4399
    return
  end subroutine restore_constitutions
 

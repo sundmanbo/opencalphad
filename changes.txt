@@ -13,6 +13,40 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2018.06.25 OC version 5.018: In this version of OC I have added a
+cross platform read/save popup window so the user can search
+directories to find databases and other files.  I am happy for any
+feedback.
+
+In general I do not like GUI but providing full paths to files on a
+command line is a pain so better to browse in a separate window.  I am
+using a small C program called TINYFILEDIALOGS by Guillaume Vareille.
+I have some problems with the Linux version, I use CentOS and I am not
+really happy with the layout of the popup window.  I had to use
+iso-c-binding to link it to my Fortran code and this limits the
+flexibility a bit.
+
+The compiling and linking is also a bit complicated on Linux as you
+have to run a separate Makefile on the utilities/TINYFILEDIALOGS
+directory, similar as for the GETKEY feature.
+
+If you have problems with the popup window you can turn off this
+feature with the command SET ADVANCED POPUP.  You can use the same
+command to turn it on again.  The popup window is disabled when you
+run a macro file.
+
+There are subtle complications for example if you open a macro file on
+another directory using the popup window and this macro opens files
+then you must prefix the file name in the macro with "./" if the file
+is on the same directory as the macro file.  That will work because
+when you open a macro file OC will save its path and replace the "./"
+with the saved path.  Without the "./" OC will try to open the file on
+the directory where you started OC as that is the working directory.
+If the file to be opend is on a higher directoty you will prefix that
+with "../" and that work as it will be prefixed with the saved path to
+the macro file.  You can of course always give the full path to the
+file but that is clumsy.
+
 2018.06.30 OC version 5.017: Thanks to the inspiration from Catalina
 Pineda, an MSc student at ICAMS at RUB in Germany, there is now a OC
 logo on all OC plots.

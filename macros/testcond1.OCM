@@ -32,7 +32,7 @@ new Y
 
 set echo
 
-r t steel1 c fe cr
+r t ./steel1 c fe cr
 
 
 set c t=2000 p=1e5 n=1 x(c)=.1 x(cr)=.1

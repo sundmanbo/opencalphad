@@ -1,0 +1,5 @@
+gcc -c tinyfiledialogs.c
+gcc -c tinyopen.c
+
+gfortran -o fopen main.F90 tinyopen.o tinyfiledialogs.c -lcomdlg32 -lole32
+

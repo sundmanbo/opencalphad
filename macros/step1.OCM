@@ -26,7 +26,7 @@ new Y
 
 set echo
 
-r t steel1
+r t ./steel1
 
 set c t=1200 p=1e5 n=1 w(c)=.009 w(cr)=.045, w(mo)=.1,w(si)=.001 w(v)=.009
 
@@ -189,6 +189,7 @@ step1
 Y
 
 
+@$ NOTE the PDF file will be saved in the working directory
 @&
 
 set inter

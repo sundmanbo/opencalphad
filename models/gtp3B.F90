@@ -1504,6 +1504,7 @@
 !
 !\begin{verbatim} %-
  subroutine remove_composition_set(iph,force)
+! subroutine delete_composition_set(iph,force)
 ! the last composition set of phase iph is deleted, update csfree and highcs
 ! SPURIOUS ERRORS OCCUR IN THIS SUBROUTINE
 !

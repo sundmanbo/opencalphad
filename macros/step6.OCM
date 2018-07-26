@@ -29,7 +29,7 @@ new Y
 
 set echo
 
-r t steel1
+r t ./steel1
 fe mo
 
 

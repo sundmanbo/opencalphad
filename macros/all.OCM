@@ -6,183 +6,183 @@ set echo
 @$ Equilibria in pure Fe
 @$ *********************************************************
 
-mac unary
+mac ./unary
 
 @$ *********************************************************
 @$ Test setting various conditions for a C-Cr-Fe system
 @& *********************************************************
 
-mac testcond1
+mac ./testcond1
 
 @$ *********************************************************
 @$ Equilibria and melting T of a 6 component high speed steel (HSS)
 @& *********************************************************
 
-mac melting
+mac ./melting
 
 @$ *********************************************************
 @$ Testing a single calculation and save/read it unformatted
 @& *********************************************************
 
-mac save
+mac ./save
 
 @$ *********************************************************
 @$ Diagrams for phase fractions, compositions, heat content of a HSS
 @& *********************************************************
 
-mac step1
+mac ./step1
 
 @$ *********************************************************
 @$ Diagrams for Gibbs energy curves for Ag-Cu
 @& *********************************************************
 
-mac step2
+mac ./step2
 
 @$ *********************************************************
 @$ Diagrams for gas phase speciation, heat content and heat capacity 
 @& *********************************************************
 
-mac step3
+mac ./step3
 
 @$ *********************************************************
 @$ Diagrams for constituion and Gibbs energy curves for ordered FCC in Fe-Ni
 @& *********************************************************
 
-mac step4
+mac ./step4
 
 @$ *********************************************************
 @$ Diagrams for constitution and heat capacity for ordered FCC in Fe-Ni
 @& *********************************************************
 
-mac step5
+mac ./step5
 
 @$ *********************************************************
 @$ Diagram for Gibbs energy curves for Fe-Mo
 @& *********************************************************
 
-mac step6
+mac ./step6
 
 @$ *********************************************************
 @$ Diagram for phase fractions and PRE for a duplex stainless steel
 @& *********************************************************
 
-mac step7
+mac ./step7
 
 @$ *********************************************************
 @$ Adiabatic flame temperature for C3H8 as funktion of N(O)
 @& *********************************************************
 
-mac step8
+mac ./step8
 
 @$ *********************************************************
 @$ Phase diagram for Ag-Cu with various axis
 @& *********************************************************
 
-mac map1
+mac ./map1
 
 @$ *********************************************************
 @$ Phase diagram for Cr-Mo
 @& *********************************************************
 
-mac map2
+mac ./map2
 
 @$ *********************************************************
 @$ Phase diagram for C-Fe
 @& *********************************************************
 
-mac map3
+mac ./map3
 
 @$ *********************************************************
 @$ Phase diagram for O-U
 @& *********************************************************
 
-mac map4
+mac ./map4
 
 @$ *********************************************************
 @$ Phase diagram for Fe-Mo
 @& *********************************************************
 
-mac map5
+mac ./map5
 
 @$ *********************************************************
 @$ The isopleth phase diagram for an 18-8 stainless steel
 @& *********************************************************
 
-mac map6
+mac ./map6
 
 @$ *********************************************************
 @$ Almost complete isopleth calculation of a HSS
 @& *********************************************************
 
-mac map7
+mac ./map7
 
 @$ *********************************************************
 @$ Metastable phase diagram for ordered FCC in Fe-Ni
 @& *********************************************************
 
-mac map8
+mac ./map8
 
 @$ *********************************************************
 @$ Metastable Re-W phase diagram based on First Principles data
 @& *********************************************************
 
-mac map9
+mac ./map9
 
 @$ *********************************************************
 @$ An isothermal section of Cr-Fe-Ni
 @& *********************************************************
 
-mac map10
+mac ./map10
 
 @$ *********************************************************
 @$ The Cr-Fe binary phase diagram
 @& *********************************************************
 
-mac map11
+mac ./map11
 
 @$ *********************************************************
 @$ The Mo-Re binary phase diagram using database in PDB format
 @& *********************************************************
 
-mac map12
+mac ./map12
 
 @$ *********************************************************
 @$ The Al-Ni binary phase diagram with 4 sublattice order/disorder models
 @& *********************************************************
 
-mac map13
+mac ./map13
 
 @$ *********************************************************
 @$ Calculation for 20 elements and 191 phases using COST507
 @& *********************************************************
 
-mac allcost
+mac ./allcost
 
 @$ *********************************************************
 @$ Calculating 21 equilibria in parallel
 @$ First test of parallel calculations
 @& *********************************************************
 
-mac parallel1
+mac ./parallel1
 
 @$ *********************************************************
 @$ Enter a table with many equilibria and calculate all
 @$ Can be used to test parallel calculations
 @& *********************************************************
 
-mac parallel2
+mac ./parallel2
 
 @$ *********************************************************
 @$ Assessment of fictitious binary experimental data
 @& *********************************************************
 
-mac opttest1
+mac ./opttest1
 
 @$ *********************************************************
 @$ Assessment start of the Cu-Mg case study must be run by itself
 @& *********************************************************
 @$
-@$ mac opttest2
+@$ mac ./opttest2
 @$
 @$ *********************************************************
 @$ that is all

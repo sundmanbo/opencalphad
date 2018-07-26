@@ -60,6 +60,7 @@ contains
     character text*72,string*256,ch1*1,chz*1,selection*27,funstring*1024
     character axplot(2)*24,axplotdef(2)*24,quest*20
     character longstring*2048,optres*40
+    character workingdir*128
 ! separate file names for remembering and providing a default
     character ocmfile*64,ocufile*64,tdbfile*64,ocdfile*64,filename*64
 ! home for OC and default directory for databases
@@ -82,8 +83,11 @@ contains
 ! axis variables and limits
 ! default values used for axis variables
     double precision dinc,dmin,dmax
-! plot ranges, texts and defaults
+! plot ranges, texts and defaults for graphics
     type(graphics_options) :: graphopt
+    integer grunit
+! path to start directory stored inside metlib!!
+!    character macropath*128
 ! plot texts
 !    type(graphics_textlabel), allocatable, target :: textlabel
     type(graphics_textlabel), pointer :: textlabel
@@ -326,7 +330,7 @@ contains
     character (len=16), dimension(ncadv) :: cadv=&
          ['EQUILIB_TRANSF  ','QUIT            ','EXTRA_PROPERTY  ',&
           'GRID_DENSITY    ','SMALL_GRID_ONOFF','MAP_SPECIAL     ',&
-          'TOGGLE_GLOBAL   ','                ','                ',&
+          'TOGGLE_GLOBAL   ','POPUP_WINDOWS   ','                ',&
           '                ','                ','                ']
 !         123456789.123456---123456789.123456---123456789.123456
 ! subsubcommands to SET BITS
@@ -411,6 +415,13 @@ contains
     logfil=0
     defcp=1
     seqxyz=0
+! nopoup is declared in metlib3.F90 and dis/allow popup windows for read/save
+    nopopup=.FALSE.
+! save the working directory (where OC is started)
+    call getcwd(workingdir)
+!    write(*,*)'Working directory is: ',trim(workingdir)
+! this is used to save the path to any directory where a macro is started
+!    macropath=' '
 ! initiate command line history
     myhistory%hpos=0
 ! defaults for optimizer
@@ -565,6 +576,7 @@ contains
 ! This just open the file and sets input unit to file
           call macbeg(cline,last,logok)
           startupmacro=.TRUE.
+!          macropath=string
 !       else
 !          write(*,*)'No initiation file'
        endif
@@ -593,9 +605,8 @@ contains
 !          write(*,*)'OC reads can start a macro from the command line'
 !       else
           call macbeg(cline,last,logok)
+!          macropath=string
 !       endif
-!       write(*,*)'Jumping to 99 to execute macro'
-!       goto 99
     endif
 ! read the command line with gparc to have output on logfile
 ! NOTE read from macro file if set.
@@ -731,9 +742,12 @@ contains
 ! BEWARE: if equilibria are calculated in threads this must be calculated
 ! before the parallelization, testing bit EQNOTHREAD
           call gparcd(&
-               'Should the symbol be evaluated for this equilibrium only?',&
+               'Should the symbol be evaluated for a specific equilibrium?',&
                cline,last,1,ch1,'N',q1help)
           if(ch1.eq.'y' .or. ch1.eq.'Y') then
+             ll=ceq%eqno
+             call gparid('Specify equilibrium number:',cline,last,&
+                  neqdef,ll,q1help)
              svflista(svss)%status=ibset(svflista(svss)%status,SVFEXT)
              svflista(svss)%eqnoval=neqdef
 ! set status bit that this equilibrium must be calculated before parallel calc
@@ -1848,8 +1862,14 @@ contains
              endif
 !             write(*,*)'Not implemented yet'
 !.................................................................
-          case(8) ! nothing yet
-             write(*,*)'Not implemented yet'
+          case(8) ! Toggle popup windows
+! nopopup is declared in metlib3.F90 module
+             if(nopopup) then
+                nopopup=.FALSE.
+             else
+                nopopup=.TRUE.
+                write(kou,*)'Popup windows for read/save turned off'
+             endif
 !.................................................................
           case(9) ! nothing yet
              write(*,*)'Not implemented yet'
@@ -1879,6 +1899,7 @@ contains
 ! if this was the startupmacro set it false and possibly read an inline macro ..
 ! NOTE a startup macro can call other macros ...
           if(kiu.eq.kiud) startupmacro=.false.
+!          macropath=' '
 !          write(*,*)'Macro terminated'
 !-----------------------------------------------------------
        case(6) ! set REFERENCE_STATE
@@ -3360,7 +3381,7 @@ contains
                 mode=1
                 actual_arg=' '
                 xxx=meq_evaluate_svfun(istv,actual_arg,mode,ceq)
-                write(*,*)'pmon: calling meq_evaluate_svfun',istv,xxx
+                write(*,*)'pmon error: calling meq_evaluate_svfun',istv,xxx
                 if(gx%bmperr.ne.0) goto 990
                 write(kou,2047)trim(name1),xxx
 ! this format statement elsewhere
@@ -3446,6 +3467,8 @@ contains
           call enter_parameter_interactivly(cline,last,1)
 !-----------------------------------------------------------
        case(11) ! list equilibria (not result)
+          write(*,6212)
+6212      format('Number  Name',24x,'T   Weight Comment')
           do iel=1,noeq()
              if(associated(ceq,eqlista(iel))) then
                 name1='**'
@@ -3456,12 +3479,14 @@ contains
              if(eqlista(iel)%weight.le.zero) then
                 write(lut,6202)iel,name1(1:2),eqlista(iel)%eqname,&
                      eqlista(iel)%tpval(1),eqlista(iel)%comment(1:33)
-6202            format(i4,1x,a2,1x,a,' T=',F8.2,', ',a)
+!6202            format(i4,1x,a2,1x,a,' T=',F8.2,', ',a)
+6202            format(i4,1x,a2,1x,a,F8.2,7x,a)
              else
                 write(lut,6203)iel,name1(1:2),eqlista(iel)%eqname,&
                      eqlista(iel)%tpval(1),eqlista(iel)%weight,&
                      eqlista(iel)%comment(1:20)
-6203            format(i4,1x,a2,1x,a,' T=',F8.2,', weight=',F5.2,', ',a)
+!6203            format(i4,1x,a2,1x,a,' T=',F8.2,', weight=',F5.2,', ',a)
+6203            format(i4,1x,a2,1x,a,F8.2,F5.2,2x,a)
              endif
 !             if(j1.gt.1) then
 !                write(lut,6204)eqlista(iel)%comment(1:j1)
@@ -3826,7 +3851,8 @@ contains
              text=ocufile
              call gparcd('File name: ',cline,last,1,ocufile,text,q1help)
           else
-             call gparfile('File name: ',cline,last,1,ocufile,' ',q1help)
+! added that extenstion should be "UNF"
+             call gparfile('File name: ',cline,last,1,ocufile,' ',2,q1help)
 !             call gparc('File name: ',cline,last,1,ocufile,' ',q1help)
           endif
           call gtpread(ocufile,text)
@@ -3860,10 +3886,13 @@ contains
              text=tdbfile
              call gparcd('File name: ',cline,last,1,tdbfile,text,q1help)
           else
-             call gparfile('File name: ',cline,last,1,tdbfile,' ',q1help)
+! added that extension should be TDB
+             call gparfile('File name: ',cline,last,1,tdbfile,' ',1,q1help)
 !             call gparc('File name: ',cline,last,1,tdbfile,' ',q1help)
           endif
 ! if tdbfle starts with "ocbase/" replace that with content of ocbase!!
+!          write(*,*)'PMON tdbfile: ',trim(tdbfile)
+! check for replacement of OCBASE probably redundant now ...
           name1=tdbfile(1:7)
           call capson(name1)
           if(name1(1:7).eq.'OCBASE/' .or. name1(1:8).eq.'OCBASE\ ') then
@@ -3960,7 +3989,8 @@ contains
              text=tdbfile
              call gparcd('File name: ',cline,last,1,tdbfile,text,q1help)
           else
-             call gparfile('File name: ',cline,last,1,tdbfile,' ',q1help)
+! The default extenson PDB is 6
+             call gparfile('File name: ',cline,last,1,tdbfile,' ',6,q1help)
 !             call gparc('File name: ',cline,last,1,tdbfile,' ',q1help)
           endif
 ! this call checks the file exists and returns the elements
@@ -4035,7 +4065,8 @@ contains
 !-----------------------------------------------------------
        case(2) ! SOLGAS
           text=' '
-          call gparfile('File name: ',cline,last,1,filename,text,q1help)
+! no default extension defined
+          call gparfile('File name: ',cline,last,1,filename,text,0,q1help)
 !          call gparc('File name: ',cline,last,1,filename,text,q1help)
           kl=max(index(filename,'.dat '),index(filename,'.DAT '))
           if(kl.le.0) then
@@ -4057,7 +4088,8 @@ contains
              text=ocdfile
              call gparcd('File name: ',cline,last,1,ocdfile,text,q1help)
           else
-             call gparfile('File name: ',cline,last,1,ocdfile,' ',q1help)
+! specifying ouput file
+             call gparfile('File name: ',cline,last,1,ocdfile,' ',-1,q1help)
 !             call gparc('File name: ',cline,last,1,ocdfile,' ',q1help)
           endif
           jp=0
@@ -4082,7 +4114,8 @@ contains
              text=ocufile
              call gparcd('File name: ',cline,last,1,ocufile,text,q1help)
           else
-             call gparfile('File name: ',cline,last,1,ocufile,' ',q1help)
+! output file name
+             call gparfile('File name: ',cline,last,1,ocufile,' ',-1,q1help)
 !             call gparc('File name: ',cline,last,1,ocufile,' ',q1help)
           endif
           jp=0
@@ -4856,7 +4889,36 @@ contains
 ! if new axis variable then reset default plot options
 ! plot ranges and their defaults
              call reset_plotoptions(graphopt,plotfile,textlabel)
-!             axplotdef(3-iax)=' '
+! check that axis variable is a correct state variable or symbol
+! Code copied from show variable (case(4,17) around line 3273)
+             if(index(axplot(iax),'*').gt.0) then
+! generate many values
+! the values are returned in yarr with dimension maxconst. 
+! longstring are the state variable symbols for the values ...
+                call get_many_svar(axplot(iax),yarr,maxconst,i1,longstring,ceq)
+                if(gx%bmperr.ne.0) then
+! if error go back to command level
+                   write(kou,*)'Illegal axis variable!  Error code: ',gx%bmperr
+                   goto 100
+!                else
+!                   write(*,*)'pmon test value: ',yarr(1)
+                endif
+             else
+! the value of a state variable or model parameter variable is returned
+! STRANGE the symbol xliqni is accepted in get_state_var_value ???
+                call get_state_var_value(axplot(iax),xxx,model,ceq)
+                if(gx%bmperr.ne.0) then
+! if error check if it is a complicated symbol like CP=H.T
+                   gx%bmperr=0
+! If error then try to calculate a symbol ...
+                   call capson(axplot(iax))
+                   call find_svfun(axplot(iax),istv,ceq)
+                   if(gx%bmperr.ne.0) then
+                      write(kou,*)'Illegal axis variable, error: ',gx%bmperr
+                      goto 100
+                   endif
+                endif
+             endif
           endif
 ! remember most recent axis as default (and to avoid reset)
           axplotdef(iax)=axplot(iax)
@@ -5116,10 +5178,10 @@ contains
           if(kom2.eq.7) then
 ! subroutine TOPHLP forces return with ? in position cline(1:1)
 29130        continue
-             call gparid('Graphics format index:',cline,last,i1,1,tophlp)
+             call gparid('Graphics format index:',cline,last,grunit,1,tophlp)
 !             if(cline(1:1).eq.'?'
              if(cline(1:1).eq.'?' .or. &
-                  i1.lt.1 .or. i1.gt.graphopt%gnutermax) then
+                  grunit.lt.1.or.grunit.gt.graphopt%gnutermax) then
                 write(kou,29133)
 29133           format('Avalable graphics formats are:')
                 write(kou,29135)(i1,graphopt%gnutermid(i1),&
@@ -5127,12 +5189,15 @@ contains
 29135           format(i3,2x,a)
                 goto 29130
              endif
+             graphopt%gnutermsel=grunit
+             write(kou,*)'Graphics format set to: ',graphopt%gnutermid(grunit)
           endif
-          graphopt%gnutermsel=i1
-          write(kou,*)'Graphics format set to: ',graphopt%gnutermid(i1)
 !-----------------------------------------------------------
-! PLOT OUTPUT_FILE, always asked when changing graphics terminal
+! PLOT OUTPUT_FILE, always asked when changing graphics terminal type
 21140     continue
+! DO NOT USE tinyfiledialog here ...
+! Graphics output: -1=output, 1=TDB, 2=UNF, 3=OCM)
+!          call gparfile('Plot file name: ',cline,last,1,plotfile,' ',-1,q1help)
           call gparcd('Plot file',cline,last,1,plotfile,'ocgnu',q1help)
           if(plotfile(1:6).ne.'ocgnu ') then
              if(index(plotfile,'.').le.0) then
@@ -5192,7 +5257,8 @@ contains
 ! PLOT APPEND a gnuplot file
        case(12)
           write(kou,*)'Give a file name with graphics in GNUPLOT format'
-          call gparfile('File name',cline,last,1,text,'  ',q1help)
+! append plot file, specifying extension PLT
+          call gparfile('File name',cline,last,1,text,'  ',5,q1help)
 !          call gparcd('File name',cline,last,1,text,'  ',q1help)
 ! check it is OK and add .plt if necessary ...
           jp=index(text,'.plt ')
@@ -5226,7 +5292,7 @@ contains
                    jp=jp+1
                    write(kou,2310)jp,labelp%xpos,labelp%ypos,&
                         labelp%textfontscale,labelp%angle,&
-                        labelp%textline
+                        trim(labelp%textline)
 2310               format(i3,2(1pe12.4),2x,0pF5.2,2x,i4,5x,a)
                    labelp=>labelp%nexttextlabel
                 enddo
@@ -6053,6 +6119,7 @@ contains
        if(neweq%weight.eq.zero) cycle allequil
        name1=neweq%eqname(1:12)
 ! LOOP for all experiments for this equilibrium (maybe none??)
+       if(.not.associated(neweq%lastexperiment)) cycle allequil
        experiment=>neweq%lastexperiment%next
        if(.not.associated(experiment)) cycle allequil
 700    continue

@@ -3997,7 +3997,7 @@
 
 !\begin{verbatim}
  subroutine list_equilibria_details(mode,teq)
-! not used yet ...
+! not used yet ... ??
    implicit none
    TYPE(gtp_equilibrium_data), pointer :: teq
    integer mode

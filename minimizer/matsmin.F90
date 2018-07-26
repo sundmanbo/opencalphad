@@ -60,7 +60,7 @@ MODULE liboceq
 ! ncc: the number of constituents (same as idim??)
 ! stable: is 1 for a stable phase
 ! xdone: set to 1 for stoichiometric phases after calculating xmol first time
-! dormlink: used to link phases that temporarily been set dormant
+! dormlink: link to next phase that has temporarily been set dormant
      integer iph,ics,idim,stable,ncc,xdone,dormlink
 ! value of phase status (-1,0=ent, 1=stable, 2=fix, -2=dorm, -3=sus, -4 hidden)
      integer phasestatus
@@ -159,12 +159,12 @@ MODULE liboceq
 !\end{verbatim}
 !
 ! Added for debugging converge problems
-TYPE meqdebug
-   integer mconverged,nvs,typ(10)
-   integer :: flag=0
-   double precision val(10),dif(10)
-end type meqdebug
-type(meqdebug) :: cerr
+  TYPE meqdebug
+     integer mconverged,nvs,typ(10)
+     integer :: flag=0
+     double precision val(10),dif(10)
+  end type meqdebug
+  type(meqdebug) :: cerr
 !
 ! This is for returning the calculated value of an experimantal property
 ! as we need an array to store the calculated values of the experimental  
@@ -1123,8 +1123,6 @@ CONTAINS
 ! set phase dormant ... Hm I do not understand meqrec%phr any longer ...
 !                phloopv=phasetuple(iadd)%lokvares
 !                ceq%phase_varres(phloopv)%phstate=PHDORM
-!                meqrec%phr(mph)%dormlink=0
-!                meqrec%dormlink=
 !             endif
              iadd=0
              phloopaddrem1=0
@@ -1396,13 +1394,17 @@ CONTAINS
        enddo
     endif
 ! restore phases set dormant
+! At present there is no code to set a phase dormant in matsmin
+! but I am adding code in smp2 to set phases dormant as they create problem
+! during step/map
     jj=meqrec%dormlink
 1200 continue
     if(jj.ne.0) then
-       if(.not.btest(meqrec%status,MMQUIET)) &
+!       if(.not.btest(meqrec%status,MMQUIET)) &
             write(*,*)'Restore from dormant: ',jj,meqrec%phr(jj)%iph,&
             meqrec%phr(jj)%ics
        meqrec%phr(jj)%phasestatus=PHENTUNST
+       meqrec%phr(jj)%curd%phstate=PHENTUNST
        jj=meqrec%phr(jj)%dormlink
        goto 1200
     endif
@@ -7111,7 +7113,7 @@ CONTAINS
 ! subroutine
 !\begin{verbatim}
  double precision function meq_evaluate_svfun(lrot,actual_arg,mode,ceq)
-! envaluate all funtions as they may depend on each other
+! evaluates all funtions as they may depend on each other
 ! actual_arg are names of phases, components or species as @Pi, @Ci and @Si
 ! needed in some deferred formal parameters  (NOT IMPLEMENTED YET)
 ! if mode=1 always evaluate, if mode=0 several options
@@ -7131,7 +7133,8 @@ CONTAINS
    value=zero
    argval=zero
    nsvfun=nosvf()
-!   write(*,*)'in meq_evaluate_svfun 1',lrot,nsvfun,mode
+! HERE ALL SYMBOLS ARE EVALUATED
+!   write(*,*)'in meq_evaluate_svfun 1 ',lrot,nsvfun,mode
 ! locate function
    if(lrot.le.0 .or. lrot.gt.nsvfun) then
       gx%bmperr=4140; goto 1000
@@ -7151,7 +7154,7 @@ CONTAINS
 ! if eqnoval nonzero it indicates from which equilibrium to get its value
          ieq=svflista(lrot)%eqnoval
 !********************************************************************
-! Note!! it should be evaluated!! Not implemented ...
+! Note!! it should be evaluated!! Not implemented ... ???
 !********************************************************************
          if(ieq.eq.0) then
             value=ceq%svfunres(-istv)
@@ -7190,11 +7193,19 @@ CONTAINS
       if(jt.lt.svflista(lrot)%narg) goto 100
 ! all arguments evaluated (or no arguments needed)
 300 continue
-!   write(*,*)'MM in meq_evaluate_svfun 76: ',lrot,mode
+!      write(*,*)'MM in meq_evaluate_svfun 300: ',lrot,mode,&
+!           svflista(lrot)%eqnoval,&
+!           btest(svflista(lrot)%status,SVFVAL),&
+!           btest(svflista(lrot)%status,SVFEXT)
    modeval: if(mode.eq.0 .and. btest(svflista(lrot)%status,SVFVAL)) then
 ! If mode=0 and SVFVAL set then return the stored value
-!      write(*,*)'MM in meq_evaluate_svfun: ',lrot
-      value=ceq%svfunres(lrot)
+      ieq=svflista(lrot)%eqnoval
+      if(ieq.gt.0) then
+         value=eqlista(ieq)%svfunres(-istv)
+      else
+         value=ceq%svfunres(lrot)
+      endif
+!      write(*,*)'MM in meq_evaluate_svfun 19:',lrot,ieq,value
 !      write(*,350)'HMS evaluate svfun 2: ',0,lrot,value,svflista(lrot)%svfv
 350   format(a,2i4,4(1pe13.5))
    elseif(mode.eq.0 .and. btest(svflista(lrot)%status,SVFEXT)) then
@@ -7202,19 +7213,30 @@ CONTAINS
       ieq=svflista(lrot)%eqnoval
       if(ceq%eqno.eq.ieq) then
          value=evalf(svflista(lrot)%linkpnode,argval)
+!         write(*,*)'MM called evalf: ',lrot,ieq,argval(1)
          if(pfnerr.ne.0) then
             write(*,*)'MM evaluate_svfun putfunerror ',pfnerr
             gx%bmperr=4141; goto 1000
          endif
-         ceq%svfunres(lrot)=value
+         eqlista(ieq)%svfunres(-istv)=value
+!         ceq%svfunres(lrot)=value
 !         write(*,350)'MM evaluated here: ',ieq,lrot,value
       else
          value=eqlista(ieq)%svfunres(lrot)
 !         write(*,350)'MM value from equilbrium: ',ieq,lrot,value
       endif
+!      write(*,*)'MM in meq_evaluate_svfun  20: ',lrot,ieq,ceq%eqno,value
    else
-! if mode=1 always evaluate
+! if mode=1 always evaluate except if specified eqilibrium!!
 !      write(*,*)'in meq_evaluate_svfun 5',argval(1)
+      if(svflista(lrot)%eqnoval.gt.0 .and. &
+           svflista(lrot)%eqnoval.ne.ceq%eqno) then
+!         text=svflista(symsym)%name
+         write(*,360)trim(svflista(lrot)%name),svflista(lrot)%eqnoval,ceq%eqno
+360      format('Attempt to evaluate symbol ',a,&
+              ' for the wrong equilibrium:',2i5)
+         gx%bmperr=4399; goto 1000
+      endif
       value=evalf(svflista(lrot)%linkpnode,argval)
       if(pfnerr.ne.0) then
          write(*,*)'evaluate_svfun putfunerror ',pfnerr
@@ -7223,8 +7245,14 @@ CONTAINS
 !      write(*,350)'HMS evaluate svfun 8: ',ieq,lrot,value,ceq%tpval(1)
    endif modeval
 ! save value in current equilibrium
-!   write(*,*)'MM meq_evaluate_svfun 77:',lrot,value
-   ceq%svfunres(lrot)=value
+   ieq=svflista(lrot)%eqnoval
+!   write(*,*)'MM meq_evaluate_svfun 77:',lrot,ieq,value
+   if(ceq%eqno.eq.ieq) then
+!      write(*,*)'MM meq_evaluate_svfun 79:',lrot,ieq,istv,value
+      eqlista(ieq)%svfunres(-istv)=value
+   else
+      ceq%svfunres(lrot)=value
+   endif
 1000 continue
    meq_evaluate_svfun=value
    return
@@ -7991,14 +8019,19 @@ CONTAINS
        mode=-1
        call calceq3(mode,.FALSE.,equil)
        if(gx%bmperr.ne.0) then
-          write(kou,*)' *** Error calculating: ',equil%eqno,': ',equil%eqname,&
-               gx%bmperr
+          write(kou,33)gx%bmperr,equil%eqno,trim(equil%eqname)
+33        format(' *** Error ',i5,' calculating equilibrium no: ',i5,&
+               ' with name ',a)
           gx%bmperr=0
           cycle
 !       else
 !          write(*,*)'Equilibrium calculated for ',equil%eqname
        endif
 ! loop through all experiments, pointer set to first
+       if(.not.associated(equil%lastexperiment)) then
+!          write(*,*)'No experiments for equilibrium ',equil%eqno
+          cycle eqloop
+       endif
        experiment=>equil%lastexperiment%next
 ! current value of the experiment
 500    continue
@@ -8082,6 +8115,7 @@ CONTAINS
        call change_optcoeff(firstash%coeffindex(savix),zzz)
     endif
 1000 continue
+!    write(*,*)'Exit assessment_calfun'
     return
   end subroutine assessment_calfun
 
@@ -9154,7 +9188,7 @@ CONTAINS
     meqrec%phr(1)%idim=0
 ! number of constituents !!!
     meqrec%phr(1)%ncc=size(ceq%phase_varres(phtup%lokvares)%yfr)
-    meqrec%dormlink=0! 
+    meqrec%dormlink=0
     meqrec%status=0
     if(tyst) then
        meqrec%status=ibset(meqrec%status,MMQUIET)

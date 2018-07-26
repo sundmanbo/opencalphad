@@ -465,7 +465,6 @@ CONTAINS
     integer starttid,endoftime,bytdir,seqz,nrestore,termerr,lastimethiserror
     type(gtp_state_variable), pointer :: svrrec,svr2
     type(gtp_state_variable), target :: svrtarget
-
 ! save current conditions
     character savedconditions*1024
 ! for saving a copy of constitutions
@@ -477,7 +476,7 @@ CONTAINS
 ! inmap=1 turns off converge control of T
     integer, parameter :: inmap=1
     character ch1*1
-    logical firststep,onetime
+    logical firststep,onetime,noderrmess
 !
 !    write(*,*)'in map_doallines'
 !-------------------------------
@@ -519,6 +518,7 @@ CONTAINS
 ! ?? We may have incompatibility between ceq and meqrec if new compsets added
 ! maybe meqrec should not be a pointer?
     meqrec=>mapline%meqrec
+    noderrmess=.true.
 ! No grid minimization and the phr is not deallocated with mode<0
 ! It is necessary to generate new meqrec for each line as there may be new
 ! composition sets created in other threads.  But we must also specify 
@@ -826,7 +826,7 @@ CONTAINS
     if(irem.gt.0 .and. iadd.gt.0) then
 ! We can also have a stoichiometic phase with ALLOTROPIC transformation
 ! which will change form one to another at a fix T
-       if(allotropes(irem,iadd,ceq)) then
+       if(allotropes(irem,iadd,meqrec%noofits,ceq)) then
           irem=0
           goto 379
        endif
@@ -863,10 +863,10 @@ CONTAINS
           call map_force_changeaxis(maptop,mapline,mapline%meqrec,nax,axarr,&
                axvalok,ceq)
           if(gx%bmperr.eq.0) goto 320
-          call map_lineend(mapline,zero,ceq)
+          call map_lineend(mapline,axvalok,ceq)
        else
 ! there is an error, take another line
-          call map_lineend(mapline,zero,ceq)
+          call map_lineend(mapline,axvalok,ceq)
        endif
 !-----------------------------------------------------
 ! a new phase stable or a stable wants to disappear
@@ -945,24 +945,25 @@ CONTAINS
              endif
 !
              write(*,561)gx%bmperr,ceq%tpval(1),axvalok
-561       format('Repeated error 9, try to change axis',i5,F8.2,1pe14.6)
+561          format('Repeated error 9, try to change axis',i5,F8.2,1pe14.6)
              write(*,*)'Trying to change axis with acitive condition'
              gx%bmperr=0
              bytaxis=1
              call map_force_changeaxis(maptop,mapline,mapline%meqrec,&
                   nax,axarr,axvalok,ceq)
              if(gx%bmperr.eq.0) goto 320
-             call map_lineend(mapline,zero,ceq)
+             call map_lineend(mapline,axvalok,ceq)
           else
-! there is a persistent error, take another line
-             call map_lineend(mapline,zero,ceq)
+! there is a persistent error, take another line, set error code
+             if(gx%bmperr.eq.0) gx%bmperr=4399
+             call map_lineend(mapline,axvalok,ceq)
           endif
        endif
        if(mapline%more.eq.0) then
 ! This is the last equilibrium at axis limit
           if(irem.gt.0) then
 ! terminate the line and check if there are other lines to calculate
-             call map_lineend(mapline,zero,ceq)
+             call map_lineend(mapline,axvalok,ceq)
              goto 300
           elseif(iadd.gt.0) then
              if(ocv()) write(*,*)'New phase at axis limit, IGNORE',iadd
@@ -983,6 +984,11 @@ CONTAINS
        call map_calcnode(irem,iadd,maptop,mapline,mapline%meqrec,axarr,ceq)
 ! segmentation fault in map_calcnode 170518 !!
 !       write(*,*)'Back from map_calcnode',gx%bmperr
+       if((gx%bmperr.ne.0 .or. irem.ne.0 .or. iadd.ne.0).and. noderrmess) then
+          write(*,777)gx%bmperr,irem,iadd,ceq%tpval(1)
+777       format('SMP problem calculating node: ',3i5,F8.2)
+          noderrmess=.false.
+       endif
        if(gx%bmperr.ne.0) then
 ! if error one can try to calculate using a shorter step or other things ...
 !          write(*,*)'Error return from map_calcnode: ',gx%bmperr
@@ -991,7 +997,7 @@ CONTAINS
 ! and we should not generate any startpoint.             
              write(*,*)'Setting line inactive',mapline%lineid
              mapline%status=ibset(mapline%status,EXCLUDEDLINE)
-             call map_lineend(mapline,zero,ceq)
+             call map_lineend(mapline,axvalok,ceq)
              goto 805
           endif
           if(meqrec%tpindep(1)) then
@@ -1026,12 +1032,13 @@ CONTAINS
              call map_force_changeaxis(maptop,mapline,mapline%meqrec,&
                   nax,axarr,axvalok,ceq)
              if(gx%bmperr.eq.0) goto 320
-             call map_lineend(mapline,zero,ceq)
+             call map_lineend(mapline,axvalok,ceq)
           else
 !             write(*,*)' *** Repeated errors calling map_calcnode,',&
 !                  ' terminate line',gx%bmperr,halfstep
 ! terminate line and follow another line, error reset inside map_lineend
-             call map_lineend(mapline,zero,ceq)
+             if(gx%bmperr.eq.0) gx%bmperr=4399
+             call map_lineend(mapline,axvalok,ceq)
           endif
        endif
        axvalok=zero
@@ -2927,7 +2934,7 @@ CONTAINS
     integer seqz,jaxwc,jax,cmode,cmix(10),nyax,oldax,maybecongruent,mapeqno
     integer istv,indices(4),iref,iunit,ip,i1,i2,i3,jxxx
     double precision value,dax1(5),dax2(5),axval(5),axval2(5)
-    double precision laxfact,xxx,yyy,bigincfix
+    double precision laxfact,xxx,yyy,bigincfix,maxstep
     double precision preval(5),curval(5),prefixval(5),curfixval(5)
     double precision, parameter :: endfact=1.0D-6
 ! trying to change step axis for mapping with tie-lines in plane
@@ -2936,6 +2943,7 @@ CONTAINS
     type(gtp_state_variable), pointer :: svrrec,svr2
     type(gtp_state_variable), target :: svrtarget
     logical tnip,nyfixph
+    save maxstep
 !
     mapeqno=mapline%number_of_equilibria
 !    write(*,*)'In map_step: ',mapeqno,meqrec%nv
@@ -2965,10 +2973,17 @@ CONTAINS
        if(ocv()) write(*,16)'In map_step: ',mapeqno,mapline%axandir,value
 16     format(a,2i3,6(1pe14.6))
        if(mapline%evenvalue.ne.zero) then
-! If there is a value in mapline%evenvalue this is the first step in a new
+! If there is a value in mapline%evenvalue this is the first steps in a new
 ! region, take 3 very small steps before using that as next value on axis!
           if(mapeqno.lt.3) then
+             if(mapeqno.eq.1) then
+                maxstep=mapline%evenvalue-value
+!                write(*,*)'SMP maxstep: ',mapeqno,maxstep
+             endif
              value=value+1.0D-3*(mapline%evenvalue-value)
+          elseif(mapline%evenvalue.ne.zero .and. mapeqno.lt.6) then
+! take a few more small steps ...
+             value=value+2.0D-1*maxstep
           else
              value=mapline%evenvalue
              mapline%evenvalue=zero
@@ -2977,6 +2992,7 @@ CONTAINS
 ! just take a step in axis variable.  mapline%axandir is -1 or +1
           value=value+axarr(1)%axinc*mapline%axandir
        endif
+!       write(*,*)'Next axis value: ',value
        mapline%more=1
        if(value.le.axarr(1)%axmin) then
           value=axarr(1)%axmin

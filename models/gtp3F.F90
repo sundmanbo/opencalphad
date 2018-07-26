@@ -3621,6 +3621,7 @@
    double precision value
    argval=zero
    value=zero
+! calculate symbol * does not come here for H298 ...
 !   write(*,*)'3F evaluate_svfun ',lrot,svflista(lrot)%narg,svflista(lrot)%name
 ! locate function
    if(lrot.le.0 .or. lrot.gt.nsvfun) then

@@ -31,7 +31,7 @@ new Y
 
 set echo
 
-r t alni-4slx
+r t ./alni-4slx
 
 @&
 
