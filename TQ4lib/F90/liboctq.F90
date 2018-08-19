@@ -473,6 +473,21 @@ contains
 !\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
 
 !\begin{verbatim}
+  subroutine toggle_dense_grid()
+    if(btest(globaldata%status,GSXGRID)) then
+       globaldata%status=ibclr(globaldata%status,GSXGRID)
+       write(*,3110)'reset'
+3110   format('Dense grid ',a)
+    else
+       globaldata%status=ibset(globaldata%status,GSXGRID)
+       write(*,3110)'dense grid set'
+    endif
+    return
+  end subroutine toggle_dense_grid
+
+  !\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
+
+!\begin{verbatim}
   subroutine tqce(target,n1,n2,value,ceq)
 ! calculate quilibrium with possible target
 ! Target can be empty or a state variable with indices n1 and n2
@@ -839,6 +854,84 @@ contains
 1000 continue
     return
   end subroutine tqgetv
+
+!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
+
+  subroutine tqgetg(lokres,n1,n2,values,ceq)
+    implicit none
+    integer n1,n2,lokres
+    double precision values(*)
+    type(gtp_equilibrium_data), pointer :: ceq  !IN: current equilibrium
+!    
+    double precision napfu, rgast
+    integer count
+    integer jl,size
+    TYPE(gtp_phase_varres), pointer :: parres
+!
+    count = 1
+!
+    napfu=ceq%phase_varres(lokres)%abnorm(1)
+    rgast=globaldata%rgas*ceq%tpval(1)
+    parres=>ceq%phase_varres(lokres)
+!  
+!    write(*,100)(rgast*parres%gval(jl,1),jl=1,4)
+!    write(*,200)parres%gval(1,1)/parres%abnorm(1),parres%abnorm(1)
+100 format('G/N, dG/dT:',4(1PE16.8))
+200 format('G/N/RT, N:',2(1PE16.8))
+!   G_m^\alpha = G_M^\alpha/N^\alpha, \frac{\partial G_m^\alpha}{\partial T},
+! \frac{\partial G_m^\alpha}{\partial P},
+! \frac{\partial^2 G_m^\alpha}{\partial T^2}
+    values(count:count+3) = rgast*parres%gval(1:4,1)/napfu
+    count = count + 4
+    if (n1>0) then
+!      1/N^\alpha * \frac{\partial G_M^\alpha}{\partial y_i}
+       values(count:count+n1-1) = rgast*parres%dgval(1,1:n1,1)/napfu
+       count = count + n1
+       if (n2>0) then
+!         1/N^\alpha * \frac{\partial^2 G_M^\alpha}{\partial y_i\partial y_j}
+          values(count:count+n2-1) = rgast*parres%d2gval(1:n2,1)/napfu
+       endif
+    endif
+  end subroutine tqgetg
+
+!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
+
+  subroutine tqgdmat(phtupx,tpval,xknown,cpot,tyst,nend,mugrad,mobval,&
+       consnames,n1,ceq)
+! equilibrates the constituent fractions of a phase for mole fractions xknown
+! and calculates the Darken matrix and unreduced diffusivities
+! phtup is phase tuple
+! tpval is T and P
+! ceq is a datastructure with all relevant thermodynamic data
+! cpot are the (calculated) chemical potentials
+! tyst is TRUE means no outut
+! nend is the number of values returned in mugrad
+! mugrad are the derivatives of the chemical potentials wrt mole fractions??
+! mobval are the mobilities
+    implicit none
+    integer phtupx                  ! IN: index in phase tuple array
+    integer nend
+    logical tyst
+    double precision tpval(*),xknown(*),cpot(*),mugrad(*),mobval(*)
+    character*24, dimension(*) :: consnames 
+    integer n1
+    TYPE(gtp_phasetuple), pointer :: phtup
+    TYPE(gtp_equilibrium_data), pointer :: ceq
+
+    integer iph, ics, ll
+    double precision mass
+    character*24 spname
+             
+    phtup=>phasetuple(phtupx)    
+    call equilph1d(phtup,tpval,xknown,cpot,tyst,nend,mugrad,mobval,ceq)
+    
+    iph=phasetuple(phtupx)%ixphase
+    ics=1   
+    n1 = noconst(iph,ics,firsteq)
+    do ll=1,n1
+       call get_constituent_name(iph,ll,consnames(ll),mass)
+    enddo
+  end subroutine tqgdmat
 
 !\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
 

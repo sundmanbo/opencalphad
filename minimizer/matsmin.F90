@@ -144,6 +144,8 @@ MODULE liboceq
      type(gtp_phasetuple), dimension(:), allocatable :: fixph
      type(gtp_phasetuple), dimension(:), allocatable :: stableph
      double precision, dimension(:), allocatable :: stablepham
+! new 180814 to have nonzero fix phase amounts  ... not yet uses
+     double precision, dimension(:), allocatable :: fixpham
   end TYPE map_fixph
 !\end{verbatim}
 !
@@ -790,7 +792,11 @@ CONTAINS
     enddo addfixph
 !------------------------------- special for mapping
     if(allocated(mapfix)) then
-!    if(associated(mapfix)) then
+!       if(allocated(mapfix%fixpham)) then
+!          write(*,*)'MM mapfix record: ',mapfix%fixpham
+!       else
+!          write(*,*)'expect segmentation fault as mapfx%fixpham no allocated'
+!       endif
 ! the stable and fix phases copied from mapfix record.
        do ij=1,meqrec%nv
 !          write(*,64)'Removing already stable phase: ',ij,meqrec%iphl(ij),&
@@ -809,9 +815,19 @@ CONTAINS
           meqrec%fixph(1,ij)=mapfix%fixph(ij)%ixphase
           meqrec%fixph(2,ij)=mapfix%fixph(ij)%compset
           meqrec%fixpham(ij)=zero
+          if(allocated(mapfix%fixpham)) then
+! now 180814 fix phases may have nonzero amount
+             meqrec%fixpham(ij)=mapfix%fixpham(ij)
+             write(*,*)'MM mapfix: ',ij,mapfix%fixpham(ij)
+          endif
           meqrec%nv=meqrec%nv+1
           meqrec%iphl(meqrec%nv)=mapfix%fixph(ij)%ixphase
           meqrec%icsl(meqrec%nv)=mapfix%fixph(ij)%compset
+! 180814 not sufficient to set aphl 
+! because around line 1010 amfu is set to zero fix mapfix ... removed that!!
+!          meqrec%aphl(meqrec%nv)=mapfix%fixpham(ij)
+! I am not sure what value for mph  here
+!          meqrec%phr(mph)%curd%amfu=zero
        enddo
        do ij=1,mapfix%nstabph
           meqrec%nv=meqrec%nv+1
@@ -895,6 +911,8 @@ CONTAINS
 !    meqrec%nphase=totalphcs(ceq)
     meqrec%nphase=nonsusphcs(ceq)
     if(gx%bmperr.ne.0) goto 1000
+! Nathalie had an error here "already allocated"
+    if(allocated(meqrec%phr)) deallocate(meqrec%phr)
     allocate(meqrec%phr(meqrec%nphase))
 ! order the inital set of stable phases in ascending order
 ! VERY CLUMSY SORTING
@@ -993,14 +1011,14 @@ CONTAINS
 !                   write(*,*)'aphl for fix phase: ',krem,mph,&
 !                        meqrec%fixpham(krem)
                       if(meqrec%phr(mph)%curd%phstate.ne.PHFIXED) then
-! this is a phase set fix by mapping, set amount to zero
+! this is a phase set fix by mapping, set amount to zero unless mapfix%fixpham 
+!                         if(.not.allocated(mapfix%fixpham)) then
+! 180814 tried to remove setting fix phase amount to zero
                          meqrec%phr(mph)%curd%amfu=zero
-!                   else
-! phases set fix by user have their amount in meqrec%phr(mph)%curd%amfu 
-!                      write(*,*)'User set fixed phase:',mph,&
-!                           meqrec%phr(mph)%curd%amfu
+!                         endif
                       endif
                    else
+! this is setting non-zero fixed amount of a phase as condition
                       meqrec%phr(mph)%curd%amfu=meqrec%aphl(meqrec%nstph)
                    endif
 ! set "previous values"
@@ -6960,10 +6978,10 @@ CONTAINS
 ! uncertainty can also be a symbol
    text(ip:ip)=':'
    ip=ip+1
-!   write(*,*)'MM experiment line 3: ',text(1:ip),ip
+!   write(*,*)'MM experiment line 3: ',text(1:ip),ip,current%symlink2
    if(current%symlink2.gt.0) then
 ! the value is a symbol
-      text(ip:)=svflista(current%symlink1)%name
+      text(ip:)=svflista(current%symlink2)%name
       ip=len_trim(text)+1
    else
 !      call wrinum(text,ip,10,0,current%uncertainty)
@@ -7015,32 +7033,35 @@ CONTAINS
 
 !\begin{verbatim}
  subroutine meq_evaluate_all_svfun(kou,ceq)
-! evaluate and list values of all state variable functions
+! evaluate (and list if kou>0) the values of all state variable functions
    implicit none
    integer kou
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
 ! THIS SUBROUTINE MOVED FROM gtp3D
 ! if kou<0 no output
-   character actual_arg(10)*24
+   character actual_arg(10)*24,star*2
    integer kf,nsvfun
    double precision val
    nsvfun=nosvf()
    if(kou.gt.0) write(kou,75)
 75 format('No  Name ',12x,'Value')
    all: do kf=1,nsvfun
-! skip functions with bit SVFVAL set      
+! functions with bit SVFVAL set will be ignored by meq_evaluate_svfun      
 !      write(*,*)'MM meq_svfun: ',kf,svflista(kf)%name,&
 !           btest(svflista(kf)%status,SVFVAL),ceq%svfunres(kf)
-      if(btest(svflista(kf)%status,SVFVAL)) then
+      star='  '
+      if(btest(svflista(kf)%status,SVFVAL)) star='**'
+      if(btest(svflista(kf)%status,SVFEXT)) star='--'
+!      if(btest(svflista(kf)%status,SVFVAL)) then
 !         write(*,*)'MM only explit evaluation of: ',trim(svflista(kf)%name)
 !         if(kou.gt.0) write(kou,77)kf,svflista(kf)%name,svflista(kf)%value,'*'
 !         if(kou.gt.0) write(kou,77)kf,svflista(kf)%name,ceq%svfunres(kf),'*'
-         if(kou.gt.0) write(kou,78)kf,svflista(kf)%name,ceq%svfunres(kf),'**'
+!         if(kou.gt.0) write(kou,78)kf,svflista(kf)%name,ceq%svfunres(kf),'**'
 78       format(i3,1x,a,1x,1PE15.7,1x,a)
 !78       format(i3,1x,a,1x,1PE15.8,a,' SVFVAL set')
-         cycle all
-      endif
+!         cycle all
+!      endif
 ! actual arguments needed if svflista(kf)%nactarg>0
       val=meq_evaluate_svfun(kf,actual_arg,0,ceq)
 !      write(*,*)'MM meq_svfun evaluate: ',val
@@ -7055,10 +7076,10 @@ CONTAINS
          endif
          gx%bmperr=0
       elseif(kou.gt.0) then
-         write(kou,77)kf,svflista(kf)%name,val,' '
-77       format(i3,1x,a,1x,1PE15.7,a)
+         write(kou,77)kf,svflista(kf)%name,val,star
+77       format(i3,1x,a,1x,1PE15.7,' ',a)
       endif
-! save the value in current equilibrium ...
+! save the value in current equilibrium ... probably already done ...
       ceq%svfunres(kf)=val
    enddo all
 1000 continue
@@ -7090,7 +7111,8 @@ CONTAINS
       gx%bmperr=0
       encoded=statevar
       call capson(encoded)
-      call find_svfun(encoded,lrot,ceq)
+!      call find_svfun(encoded,lrot,ceq)
+      call find_svfun(encoded,lrot)
       if(gx%bmperr.ne.0) then
 ! if error here return previous error code
 !         write(*,*)'In meq_get_state_varofun 3: ',gx%bmperr
@@ -7130,10 +7152,13 @@ CONTAINS
    integer jv,jt,istv,ieq,nsvfun
    double precision value
 !
+!   write(*,*)'MM: meq_evaluate_svfun all symbols calculated'
    value=zero
    argval=zero
    nsvfun=nosvf()
-! HERE ALL SYMBOLS ARE EVALUATED
+   ieq=0
+   istv=0
+! FIRST ALL SYMBOLS ARE EVALUATED HERE
 !   write(*,*)'in meq_evaluate_svfun 1 ',lrot,nsvfun,mode
 ! locate function
    if(lrot.le.0 .or. lrot.gt.nsvfun) then
@@ -7149,7 +7174,7 @@ CONTAINS
       istv=svflista(lrot)%formal_arguments(1,jt)
 !      write(*,*)'in meq_evaluate_svfun 3A',jt,istv
       if(istv.gt.-1000 .and. istv.lt.0) then
-! istv values between -1000 and -1 are indices to functions
+! istv values between -1000 and -1 are (negative) indices to functions
 ! istv values less than -1000 are parameter identication symbols
 ! if eqnoval nonzero it indicates from which equilibrium to get its value
          ieq=svflista(lrot)%eqnoval
@@ -7193,66 +7218,84 @@ CONTAINS
       if(jt.lt.svflista(lrot)%narg) goto 100
 ! all arguments evaluated (or no arguments needed)
 300 continue
-!      write(*,*)'MM in meq_evaluate_svfun 300: ',lrot,mode,&
-!           svflista(lrot)%eqnoval,&
+!      write(*,'(a,5i5,2l2)')'MM in meq_evaluate_svfun 300: ',lrot,mode,ieq,&
+!           svflista(lrot)%eqnoval,istv,&
 !           btest(svflista(lrot)%status,SVFVAL),&
 !           btest(svflista(lrot)%status,SVFEXT)
-   modeval: if(mode.eq.0 .and. btest(svflista(lrot)%status,SVFVAL)) then
-! If mode=0 and SVFVAL set then return the stored value
-      ieq=svflista(lrot)%eqnoval
-      if(ieq.gt.0) then
-         value=eqlista(ieq)%svfunres(-istv)
-      else
-         value=ceq%svfunres(lrot)
-      endif
-!      write(*,*)'MM in meq_evaluate_svfun 19:',lrot,ieq,value
-!      write(*,350)'HMS evaluate svfun 2: ',0,lrot,value,svflista(lrot)%svfv
-350   format(a,2i4,4(1pe13.5))
-   elseif(mode.eq.0 .and. btest(svflista(lrot)%status,SVFEXT)) then
-! if mode=0 and SVFEXT set use value from equilibrium eqno
+   modeval: if(mode.eq.0 .and. btest(svflista(lrot)%status,SVFEXT)) then
+! if mode=0 and SVFEXT=TRUE use value from equilibrium svflista(lrot)%eqnoval
+!      write(*,*)'MM symbol mode=0 SVFEXT=TRUE: ',lrot,ieq,istv,argval(1)
       ieq=svflista(lrot)%eqnoval
       if(ceq%eqno.eq.ieq) then
          value=evalf(svflista(lrot)%linkpnode,argval)
-!         write(*,*)'MM called evalf: ',lrot,ieq,argval(1)
+!         write(*,*)'MM symbol calculated: ',lrot,ieq,istv,argval(1)
          if(pfnerr.ne.0) then
             write(*,*)'MM evaluate_svfun putfunerror ',pfnerr
             gx%bmperr=4141; goto 1000
          endif
+! why store value in svfunres(-istv) ???
          eqlista(ieq)%svfunres(-istv)=value
-!         ceq%svfunres(lrot)=value
+! we should store the value in the function restult for this equilibrium
+         ceq%svfunres(lrot)=value
 !         write(*,350)'MM evaluated here: ',ieq,lrot,value
       else
          value=eqlista(ieq)%svfunres(lrot)
+         ceq%svfunres(lrot)=value
 !         write(*,350)'MM value from equilbrium: ',ieq,lrot,value
       endif
+   elseif(mode.eq.0 .and. btest(svflista(lrot)%status,SVFVAL)) then
+! If mode=0 and SVFVAL set then return the stored value
+! do not evaluate, just return the stored value
+!      if(ieq.gt.0) then
+!?         value=eqlista(ieq)%svfunres(-istv)
+!         value=eqlista(ieq)%svfunres(lrot)
+!      else
+         value=ceq%svfunres(lrot)
+!      endif
+!      write(*,*)'MM in meq_evaluate_svfun 19:',lrot,ieq,value
+!      write(*,350)'HMS evaluate svfun 2: ',0,lrot,value,svflista(lrot)%svfv
+350   format(a,2i4,4(1pe13.5))
 !      write(*,*)'MM in meq_evaluate_svfun  20: ',lrot,ieq,ceq%eqno,value
    else
-! if mode=1 always evaluate except if specified eqilibrium!!
+! if mode=1 always evaluate except if wrong eqilibrium!!
 !      write(*,*)'in meq_evaluate_svfun 5',argval(1)
-      if(svflista(lrot)%eqnoval.gt.0 .and. &
-           svflista(lrot)%eqnoval.ne.ceq%eqno) then
-!         text=svflista(symsym)%name
-         write(*,360)trim(svflista(lrot)%name),svflista(lrot)%eqnoval,ceq%eqno
+      if(svflista(lrot)%eqnoval.eq.0) then
+         value=evalf(svflista(lrot)%linkpnode,argval)
+         if(pfnerr.ne.0) then
+            write(*,*)'evaluate_svfun putfunerror ',pfnerr
+            gx%bmperr=4141; goto 1000
+         endif
+         ceq%svfunres(lrot)=value
+      elseif(svflista(lrot)%eqnoval.eq.ceq%eqno) then
+         value=evalf(svflista(lrot)%linkpnode,argval)
+!         write(*,350)'HMS evaluate svfun 8: ',ieq,lrot,value,ceq%tpval(1)
+         if(pfnerr.ne.0) then
+            write(*,*)'evaluate_svfun putfunerror ',pfnerr
+            gx%bmperr=4141; goto 1000
+         endif
+         ceq%svfunres(lrot)=value
+      else
+         ieq=svflista(lrot)%eqnoval
+         value=eqlista(ieq)%svfunres(lrot)
+         write(*,360)trim(svflista(lrot)%name),ieq,ceq%eqno
 360      format('Attempt to evaluate symbol ',a,&
               ' for the wrong equilibrium:',2i5)
-         gx%bmperr=4399; goto 1000
+         ceq%svfunres(lrot)=value
       endif
-      value=evalf(svflista(lrot)%linkpnode,argval)
-      if(pfnerr.ne.0) then
-         write(*,*)'evaluate_svfun putfunerror ',pfnerr
-         gx%bmperr=4141; goto 1000
-      endif
-!      write(*,350)'HMS evaluate svfun 8: ',ieq,lrot,value,ceq%tpval(1)
    endif modeval
-! save value in current equilibrium
-   ieq=svflista(lrot)%eqnoval
-!   write(*,*)'MM meq_evaluate_svfun 77:',lrot,ieq,value
-   if(ceq%eqno.eq.ieq) then
+! save value in current equilibrium or that
+!   ieq=svflista(lrot)%eqnoval
+!   write(*,389)'MM meq_evaluate_svfun 77:',lrot,ieq,ceq%eqno,istv,value
+!389 format(a,4i5,1pe12.4)
+!   if(ceq%eqno.eq.ieq) then
+! evaluated this is current equilibrium
 !      write(*,*)'MM meq_evaluate_svfun 79:',lrot,ieq,istv,value
-      eqlista(ieq)%svfunres(-istv)=value
-   else
-      ceq%svfunres(lrot)=value
-   endif
+!      ceq%svfunres(lrot)=value
+!   else
+! ??      eqlista(ieq)%svfunres(-istv)=value
+!      eqlista(ieq)%svfunres(-istv)=value
+!   else
+!   endif
 1000 continue
    meq_evaluate_svfun=value
    return
@@ -7946,7 +7989,7 @@ CONTAINS
 !    type(gtp_assessmenthead), pointer :: ash
 !\end{verbatim}
 ! firstash is the data structure for assessment head (globally declared) 
-    integer i1,i2,iexp,symsym,mode,jj,savix
+    integer i1,i2,iexp,symsym,mode,jj,savix,next
     double precision xxx,yyy,zzz
     type(gtp_equilibrium_data), pointer :: equil
     type(gtp_condition), pointer :: experiment
@@ -7995,6 +8038,39 @@ CONTAINS
 !21        format('MM Equilibrium number ',i3,' and name: ',a)
 !       enddo
     endif
+! Seach for any symbol that should be calculated at a particulat equilibrium
+! For example a reference enthalpy.  This equilibrium must be calculated
+! before any parallel calculation of the others
+    next=-1
+    do while(next.ne.0)
+       call find_symbol_with_equilno(next,i1)
+!       write(*,*)' ******* checking for equilibrium to be calculated first'
+       if(i1.gt.0) then
+          if(firstash%eqlista(i1)%p1%weight.gt.zero) then
+             equil=>firstash%eqlista(i1)%p1
+!             write(*,*)' ******* equilibrium to be calculated first: ',i1
+! Force recalculation of all TP functions and parameters by changing saved T
+! This does not change the value of T used for the equilibrium
+             equil%eq_tpres%tpused(1)=equil%tpval(1)+one
+! calculate the equilibria without grid minimizer
+             mode=-1
+             call calceq3(mode,.FALSE.,equil)
+             if(gx%bmperr.ne.0) then
+                write(kou,33)gx%bmperr,equil%eqno,trim(equil%eqname)
+                gx%bmperr=0
+             endif
+             text=' '
+! evaluate symbol "next" (which is current!!) with force 
+             xxx=evaluate_svfun_old(next,text,1,equil)
+             if(gx%bmperr.ne.0) then
+                gx%bmperr=0
+                xxx=meq_evaluate_svfun(next,text,1,equil)
+             endif
+! we do not need the value here, it is stored at the symbol
+!             write(*,*)'MM Symbol at equil: ',next,i1,gx%bmperr,xxx
+          endif
+       endif
+    enddo
 ! loop through all equilibria with experiments
 ! each can be calculated in parallel
     iexp=0
@@ -8064,6 +8140,13 @@ CONTAINS
              gx%bmperr=0
              errs(iexp)=zero
              goto 590
+          endif
+          if(experiment%symlink2.gt.0) then
+! added check if uncertainity is a symbol
+!            xxx=evaluate_svfun_old(istv,'  ',mode,ceq)
+!             xxx=evaluate_svfun_old(symsym,text,1,equil)
+             experiment%uncertainty=&
+                  evaluate_svfun_old(experiment%symlink2,' ',1,equil)
           endif
 !          write(*,510)'MM errs',iexp,experiment%prescribed,xxx,&
 !               experiment%uncertainty,equil%weight

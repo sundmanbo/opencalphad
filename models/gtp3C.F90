@@ -3310,8 +3310,9 @@
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim}
- subroutine list_experiments(lut,ceq)
+ subroutine list_experiments_old(lut,ceq)
 ! list all experiments into text
+! REPLACED BY MEQ_LIST_EXPERIMENTS
    implicit none
    integer lut
    TYPE(gtp_equilibrium_data), pointer :: ceq
@@ -3342,7 +3343,7 @@
 1000 continue
    gx%bmperr=0
    return
- end subroutine list_experiments
+ end subroutine list_experiments_old
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
@@ -3459,9 +3460,10 @@
    text(ip:ip)=':'
    ip=ip+1
 !   write(*,*)'3C experiment line 3: ',text(1:ip),ip
+!   write(*,*)'3C uncertainty: ',current%symlink2
    if(current%symlink2.gt.0) then
 ! the value is a symbol
-      text(ip:)=svflista(current%symlink1)%name
+      text(ip:)=svflista(current%symlink2)%name
       ip=len_trim(text)+1
    else
 !      call wrinum(text,ip,10,0,current%uncertainty)
@@ -5825,8 +5827,8 @@
                firstash%coeffrsd(i1),trim(where)
 615       format(a,2x,4(1pe14.5),2x,a)
           if(abs(xxx-firstash%coeffvalues(i1)*firstash%coeffscale(i1))&
-               .gt.1e-8) then
-             write(*,*)'Not same: ',xxx,&
+               .gt.1e-4) then
+             write(*,*)'3C scaled and current: ',xxx,&
                   firstash%coeffvalues(i1)*firstash%coeffscale(i1)
           endif
           if(firstash%coeffstate(i1).eq.11) then

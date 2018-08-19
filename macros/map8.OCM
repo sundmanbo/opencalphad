@@ -139,7 +139,7 @@ amend phase part comp-set y , ,
 @$ ordered part
 
 @$ NOTE the SET BIT command has changed!!
-set bit glob 2
+set bit glob 2 Y
 set phase part-fcc bit 23
 23
 

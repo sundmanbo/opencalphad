@@ -727,7 +727,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !----------------------------------------------------------------
 !-Bits in state variable functions (svflista)
 ! SVFVAL symbol evaluated only explicitly (mode=1 in call) all dot derivatives
-! SVFEXT symbol taken from equilibrium %eqnoval (external?)
+! SVFEXT symbol value taken from equilibrium %eqnoval
 ! SVCONST symbol is a constant (can be changed with AMEND)
 ! SVFTPF symbol is a TP function, current value returned
 ! SVFDOT symbol is a DOT function, partial derivative like cp=h.t

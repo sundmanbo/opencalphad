@@ -41,7 +41,7 @@ enter opt 100
 
 @$ parameter to be optimized
 
-enter parameter G(FCC,A,B) 298.15 A10+A11*T; 6000 N myref
+enter parameter G(FCC,A,B) 298.15 A10+A11*T+A12*T*LN(T)+A13*T**2; 6000 N myref
 
 l d
 
@@ -53,154 +53,273 @@ current assessment;
 
 l d
 
+@$ We will need some symbols, the heat capacity
+enter symbol cp1=hm.T;
+
+@$ We have also enthalpy differences so we need a symbol for the
+@$ enthalpy at a fix T, 298.15 K.  We first enter the symbols
+@$ and will show later how to use them
+enter symbol h298=hm;
+
+enter symbol hdiff=hm-h298;
+
+l symb
+
+@$ Note that the "dot derivative" is prefixed by the "special" letter D
+@&
+@$ We will also use a symbol to specify the experimental uncertainty
+@$ of the heat capacities
+
+enter symbol dcp=1;
+
 @$----------------------------------------------------
-@$ step 2: optimizing coefficients
+@&
+@$ step 2: set start values for the optimizing coefficients
+@$ sometimes these are very important, sometimes one can start from zero
 
 set 
 variable 
-10 
-10000
+11
+10
 
-set fix 11 -2
+set var 12 -10
 
-@&
+set var 13 0.001
+
 @$ list the optimizing variables
 list opt short
 
+@$ Note the experimental information is not sufficient to determine H298
+@$ that means A10 cannot be optimized
 @&
-@$ The coefficienta are TP constants 
+@$ The coefficients are TP constants 
 l tp
 
 
 @&
 @$----------------------------------------------------
-@$ step 3: experiments, enter equilibrium automatically select the new
+@$ step 3: experiments, enter equilibrium <name> Y where Y means the
+@$ following command will refer to the new equilibrium
 @$ first experimental equilibrium, will be equil 2
 
 enter equil FCC1_ZA Y
-set c t=1000 p=1e5 n=1 x(b)=.6
+enter comment the reference enthalpy
+set c t=298.15 p=1e5 n=1 x(b)=.5
 
 c n
 l,,,,,
 @&
+@$ list equilibria, we have now two and the ** indicate "current"
+l eq
 
-enter experiment h=10000:200
-enter comment the first experimental equilibria
+@$
+@$ specify that the symbol H298 should be calculated at this equilibrium
+amend symbol H298
+y
+y
+2
+
+l symb
+
+@$ Note that H298 now is prefixed by the equilibrium number and an X
+@&
 c n
 l,,,,,
 
-@$ enter a second experiment
-enter experiment s=6.1
-0.2
+
+c symb h298
+
+show hm h298
+
+@&
+@$ At this equilibrium we also provide experimental values of
+@$ S298 = SM  (integrated Cp from 0 K) and CP
+
+enter experiment SM=17:1
+
+enter experiment CP1=18:1
+
+c n
+
+l,,,
+
+
+@$----------------------------------------------------
+@&
+@$ enter a second experiment, the enthalpy difference 
+enter equil FCC2_ZB Y
+set c t=800 p=1e5 n=1 x(b)=.5
+
+enter experiment hdiff=2000:10000
+
+c n
+
+l,,,,
+
+c symb *
+
+show hm h298 hdiff
+
+@$ Note H298 is still the value calculated at 298.15 K
+@&
+
+enter experiment cp1=20:dcp
+
+
+enter experiment hdiff=9000:500
 
 @$ Calculate without gridminimizer
 c n
+
 l,,,,
 
+@$ The experiments are also listed
+@&
 l equil
-@$ second experiment ........................................ 3
-enter equil FCC2_ZA Y
+
+
+@$ There are now 3 equilibria
+@&
+
+@$ a third experiment (4th equilibria)............................. 3
+enter equil FCC3_ZC Y
 set c t=1000 p=1e5 n=1 x(b)=.5
-enter experiment h=15000:100
-enter comment another experimental equilibria
+enter experiment hdiff=15000:500
+enter experiment cp1=22:dcp
 
 l equil
-@$ third experiment ........................................ 4
-enter equil FCC3_ZB Y
-set c t=800 p=1e5 n=1 x(b)=.5
-enter experiment h=17000:100
-enter comment the final experimental equilibria
+@$ Forth experiment an enthalpy of mixing.......................... 4
+enter equil FCC4_ZD Y
+set c t=1200 p=1e5 n=1 x(b)=.5
+enter experiment hdiff=20000:500
+enter experiment cp1=24:dcp
+
 
 l equil
 
 @&
 
 @$ This command tells OC which equilibria has experiments
+@$ The last experiment is by default
 set range_exp
 2
-4
+
 
 @$ Calculate all experimental equilibria without grid minimizer
 
 c all N
 
-@&
-@$ List optimization to check the coefficients
-list opt,,
 
 @&
-@$ Now optimize, sometimes segmentation fault ...
-opt
-100
+
+l opt short
+
+
+@$ As we have not optimized the coefficients this command gives nothing
+@$ except the current values of the coefficients.
+@$ The column labeld RSD should be the "Relative Standard Deviation"
+@$ but at present that is not calculated correctly
+@$ The last column lists the model parameter where the coefficent is used
+@$ is a kind of shorthand, _G means an endmember parameter followed by the
+@$ first 4 character of the phase and then the constituents and the degree
 
 @&
-@$ Now we can also see the experimental data and the errors
-list opt,,
+@$ We optimize zere times to calculate with the initial parameters
+
+opt 0
+
+l opt short
+
+
+@$ The total error with the start values of the coefficients is 3745
+@$ The normalized error, 750, is the total error divided by the 
+@$ degrees of freedom.  The temperature dependence of Cp should 
+@$ normally increase with T.   Now we optimize!
+@&
+
+opt 100
 
 @&
-@$ List the data again
-l data
 
-@$
-@$ Remove equilibria with "za" in their name and list all equilibria
-set wei 0 za
+l opt short
 
-l eq
 
-@$ Calculate all xperimental equilibria without gridminimmizer
-
-c all N 1
-
+@$ The sum of errors has decreased to 11.5
+@$ The coefficent A11 is positive and A12 is negative as one should expect.
+@$ The negative value of A13 indicates that Cp increases with T
+@$ As already mentioned there is no experimenatal data to determine H298
+@$ at x(b)=.5.  That value depend on the enthalpy of mixing or formation
+@$ relative the pure elements.
+@$ A normallized error around one means that we have fitted the experiments
+@$ on the average within the experimental uncertainty.
+@$ We should not attept to make this value zero!
 @&
-@$ Optimize with new set of experiments
-opt,,
 
-l opt,,
-
-@&
-@$ Rescale the parameters, creates trouble here ???
-
-amend all
+@$ Rescale the parameters if they have changed a lot
+amend opt
 y
+
+l opt chort
+
+@&
+
+opt 100
+
+l opt short
+
+@$ No change
+@&
+
+
+@$ Save the results to take a coffee break
+
+@$ Answer Y if file already exist
+save unf ./opttest1
+Y
+
+new Y
+
+@$ ******************************************************************
+@$ rerun the optimization with larger experimental uncertainties for Cp
+@&
+
+read unf ./opttest1
+
+l opt short
+
+@&
+l symb
+
+
+@$ Assuming the experiment of Cp are less reliable than HDIFF we can
+@$ increase their uncertainty of the Cp values.
+@&
+
+amend symb dcp 100
+
+
+l symb
+
+
+@&
+@$ optimize again
+
+opt 0
 
 l opt
 
 @&
-@$ List data just to remember
-l data
 
-@&
-@$ Set back the equilibria "za" with low weight
-set we 0.1 za
-
-l eq
-
-l opt,,
-
-@&
-@$ Optimize again
-opt ,
-
-l opt,,
-
-@&
-@$ Rescale the parameters, creates no trouble here ???
-
-amend all
-y
-
-l opt,,
-
-
-@&
 opt 100
 
-l opt,,
+l opt short
 
-@&
-@$ Test removing all data, this used to cause segmentation error
 
-@&
+@$ The parameter do not change much but total sum of errors is now 4.9
+@$ The calculated Cp values has increased and better fit to HDIFF
+
 set inter
+
+
 
  

@@ -701,27 +701,34 @@ CONTAINS
              meqrec%phr(mapline%nodfixph)%phasestatus=PHENTUNST
           endif
        endif
-       mapline%problems=0
-       nrestore=0
-!       mapline%lasterr=0
-!       write(*,*)'Calling map_store ',mapline%more
+!       mapline%problems=0
+!       nrestore=0
        call map_store(mapline,axarr,nax,maptop%saveceq)
-!       if(gx%bmperr.ne.0) then  missing text of mapline%more ??
        if(gx%bmperr.ne.0 .or. mapline%more.eq.0) then
 ! Test if we are running out of memory 
           if(gx%bmperr.eq.4219) goto 1000
-! or that a line has a too big jump
+          if(gx%bmperr.eq.4360) then
+! too big difference in some axis, take halfstep
+!             write(*,*)'Take a half step',halfstep
+             gx%bmperr=0; halfstep=halfstep+1
+             call map_halfstep(halfstep,0,axvalok,mapline,axarr,ceq)
+             if(gx%bmperr.eq.0) goto 321
+          endif
 ! terminate line any error code will be cleared inside map_lineend. 
 !          write(*,*)'Calling map_lineend 1'
           call map_lineend(mapline,axarr(abs(mapline%axandir))%lastaxval,ceq)
           goto 300
        endif
+! stored last calculated equilibrium 
+       mapline%problems=0
+       nrestore=0
 ! check which axis variable changes most rapidly, maybe change step axis
 ! (for tie-lines in plane check axis values for all phases)
 ! and take a step in this axis variable making sure it inside the limits
 ! and continue, else terminate and take another start equilibrium
 ! Normally do not change the phase kept fix.
 !       write(*,*)'hms: taking a step'
+! jump here if too large change in any axis
        call map_step(maptop,mapline,mapline%meqrec,mapline%meqrec%phr,&
             axvalok,nax,axarr,ceq)
 !       write(*,*)'Back from map_step 1',mapline%more,&
@@ -778,7 +785,7 @@ CONTAINS
 552       format(a,3i3,2(1pe12.4))
           call map_halfstep(halfstep,0,axvalok,mapline,axarr,ceq)
           if(gx%bmperr.eq.0) then
-! jump back without setting halfstep=0, setting iadd=-1 turn on debug output 
+! jump back without setting halfstep=0, setting iadd=-1 turns on debug output 
 !          iadd=-1
              goto 321
           endif
@@ -2056,6 +2063,51 @@ CONTAINS
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
+  subroutine map_checkstep(mapline,value,jj,axarr,nax,saveceq)
+! check if step too large
+! mapline is line record
+! axarr is array with axis records
+! nax is number of axis
+! saveceq is record for saved equilibria
+    implicit none
+    integer nax
+    type(map_line), pointer :: mapline
+    type(map_axis), dimension(nax) :: axarr
+    type(map_ceqresults), pointer :: saveceq
+!\end{verbatim}
+    integer place,jph,jj
+    type(meq_setup), pointer :: meqrec
+    type(gtp_state_variable), target :: axstv1
+    type(gtp_state_variable), pointer :: axstv
+    double precision value
+    character ch1*1
+    logical saveonfile
+! pointer to last calculated (can be zero) and last free
+! store last calulated axis values in axarr(iax)%lastaxval
+!    write(*,*)'In map_store',mapline%start%number_ofaxis,nax
+!    do jj=1,nax
+!       axstv1=axarr(jj)%axcond(1)
+!       axstv=>axstv1
+!       call state_variable_val(axstv,value,mapline%lineceq)
+!       if(gx%bmperr.gt.0) goto 1000
+!       if(nax.gt.1) then
+! when several axis check if any has a big change ...
+!    if(mapline%number_of_equilibria.gt.3) then
+    if(abs(axarr(jj)%lastaxval-value).gt.&
+         1.0D-1*(axarr(jj)%axmax-axarr(jj)%axmin)) then
+       write(*,17)jj,mapline%axandir,mapline%number_of_equilibria,&
+            axarr(jj)%lastaxval,value
+17     format(' *** Too large change in axis: ',2i3,' at ',i4,&
+            2(1pe14.6))
+       gx%bmperr=4360; goto 1000
+    endif
+1000 continue
+    return
+  end subroutine map_checkstep
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
   subroutine map_store(mapline,axarr,nax,saveceq)
 ! store a calculated equilibrium
 ! mapline is line record
@@ -2073,6 +2125,7 @@ CONTAINS
     type(gtp_state_variable), target :: axstv1
     type(gtp_state_variable), pointer :: axstv
     double precision value
+    character ch1*1
     logical saveonfile
 ! pointer to last calculated (can be zero) and last free
 ! store last calulated axis values in axarr(iax)%lastaxval
@@ -2082,20 +2135,25 @@ CONTAINS
        axstv=>axstv1
        call state_variable_val(axstv,value,mapline%lineceq)
        if(gx%bmperr.gt.0) goto 1000
-       if(nax.gt.1) then
+! this check could be moved before store to take halfstep??
+       if(nax.gt.1 .and. mapline%number_of_equilibria.gt.3) &
+            call map_checkstep(mapline,value,jj,axarr,nax,saveceq)
+       if(gx%bmperr.ne.0) goto 1000
+!       if(nax.gt.1) then
 ! when several axis check if any has a big change ...
-          if(mapline%number_of_equilibria.gt.3) then
-             if(abs(axarr(jj)%lastaxval-value).gt.&
-                  1.0D-1*(axarr(jj)%axmax-axarr(jj)%axmin)) then
+!          if(mapline%number_of_equilibria.gt.3) then
+!             if(abs(axarr(jj)%lastaxval-value).gt.&
+!                  1.0D-1*(axarr(jj)%axmax-axarr(jj)%axmin)) then
 !                  2.0D-2*(axarr(jj)%axmax-axarr(jj)%axmin)) then
-                write(*,17)'map_step found large step in axis: ',&
-                     mapline%number_of_equilibria,jj,&
-                     mapline%axandir,axarr(jj)%lastaxval,value
-17              format(a,3i3,2(1pe14.6))
+!                write(*,17)' *** map_store large step in axis: ',&
+!                     mapline%number_of_equilibria,jj,&
+!                     mapline%axandir,axarr(jj)%lastaxval,value
+!17              format(a,3i3,2(1pe14.6))
 !                gx%bmperr=4360; goto 1000
-             endif
-          endif
-       endif
+!                read(*,'(a)')ch1
+!             endif
+!          endif
+!        endif
        axarr(jj)%lastaxval=value
     enddo
 !    write(*,18)'stored: ',mapline%number_of_equilibria,(axarr(jj)%lastaxval,&
@@ -5651,6 +5709,8 @@ CONTAINS
           if(ocv()) write(*,67)'First call to map_half, value:',value,axvalok
 67        format(a,2(1pe14.6))
           mapline%evenvalue=value
+       elseif(halfstep.gt.3) then
+          gx%bmperr=4399
        endif
        if(mapline%axfact.le.1.0D-6) then
 ! error initiallizing axfact ???

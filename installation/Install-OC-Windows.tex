@@ -1,0 +1,147 @@
+\documentclass[12pt]{article}
+\usepackage[latin1]{inputenc}
+\usepackage{graphicx,subfigure}
+\topmargin -1mm
+\oddsidemargin -1mm
+\evensidemargin -1mm
+\textwidth 165mm
+\textheight 220mm
+\parskip 2mm
+\parindent 3mm
+%\pagestyle{empty}
+
+\begin{document}
+\begin{center}
+{\Large \bf Installation of OpenCalphad on Windows}
+
+Bo Sundman, \today
+
+\end{center}
+
+There is no automatic installation routine for OC, you must compile
+the software yourself after downloading.  You may also have to install
+Fortran and C compilers and the GNUPLOT software if you do not already
+have them.  The OC development team cannot offer you any help for
+that, please ask some local experts if you need help.
+
+On Windows you can use a native Fortran compiler like Microsoft
+Developer Studio or Intel but there is no installation guide for that.
+Maybe you can use some of the information below.  Usually you have to
+pay for these so you may be able to get some help from the vendor if
+you have problems.
+
+You can also use the free MSYS2/MinGW or Cygwin system which emulates
+(in slightly different ways) a linux OS on Windows.  This guide is for
+MSYS2/MinGW.  There is a French guide for Cygwin which is more
+elaborate (and it does not require that you understand much French).
+
+The descrcipton below applies when installing OC on Windows using
+MSYS2/MinGW, the other guides available are (probably not updated):
+\begin{itemize}
+\item Install-OC-parallel-Windows-French
+\item Install-OC-Linux-or-macOS
+\end{itemize}
+
+Step by step installation:
+
+\begin{enumerate}
+\item Download OC from http://opencalphad.org or the sundmanbo
+  repository at http://github.com to some directory on your computer.
+
+\item The OC software is written in the new Fortran standard and
+  requires a compiler like GNU Fortran 4.8 or similar.  It also uses
+  some library routines written in C.
+
+\item If you have not already installed MSYS2/MinGW and the Fortran
+  compiler you must do that from https://SourgeForge.net or some
+  similar site.  If you have MSYS2/MinGW but not the Fortran compiler
+  you must add that.  This software is free.
+
+\item Open a terminal window.  If you do not know what is a terminal
+  window on Windows you should ask a local expert.  Keep him or her
+  with you until you finished the installation.
+
+\item In the terminal window you may have to use ``cd'' (change
+  directory) until you reach the direcory where you dowloaded OC.
+
+\item Unzipp OC, this will create a directory opencalphad-master or
+  opencalphad-versionX.
+
+\item cd to this directory in your terminal window.
+
+\item It will also be convenient to go to this directory in a file
+  explorer window.  You will find several files and directories.
+  There is a readme.pdf file which tells you to look in the
+  installation directory for this file.
+
+\item In this directory rename the file ``linkmake'' to linkmake.cmd
+  so it can be executed.
+
+\item If your computer have several kernels you can use OC with
+  parallelization using Open MP.  In that case you should use the
+  linkfile ``linkpara'' below (after renaming it to linkpara.cmd).
+
+\item Then exectute the file you just renamed by typing its name in
+  the terminal window.
+
+\item {\bf If you have errors running the linkmake or linkpara command
+  files please ask a local expert for help.}
+
+\item From version 5.018 OC has a popup window for opening files to
+  make it easy to search for files.  This is in the
+  ``tinyfiledialogs'' which is compiled together with OC.  If you have
+  problems with this or do not want this feature try compiling using
+  ``linkmake-notinyfd'' or ``linkpara-notinyfd'' instead.
+
+\item For the graphics you must download and install the free GNUPLOT
+  software, you can find that on SoureForge.
+
+  Make sure your PATH includes the directory with the GNUPLOT program.
+  You can check this by simply typing GNUPLOT in the terminal window.
+  If you get the message ``gnuplot is not recognized ...'' ask your
+  local expert to fix the path or installation of gnuplot.
+
+\item The steps below are not necessary but may enhance the use of OC
+  by creating a home directory for OC
+  \begin{itemize} 
+    \item Create a directory called OCHOME at you home directory,
+      usually\\
+      ``C:${\backslash}$Users${\backslash}$yourname''.
+
+    \item Create an environment variable for your account called
+      OCHOME with the path to your OCHOME directory as value.  If you
+      do not know how to create an environment variable please ask a
+      local expert.
+      
+% On my Swedish Windows system I create a environment variable by
+% clicking on the Windows icon and then type ``miljö'' and select
+% ``Redigera miljövariabler för kontot''
+
+      Normally you have to restart your computer to make the
+      environment variable available.
+
+    \item Copy the file ochelp.hlp to this directory
+    
+    \item Later you may also add a macro file on this directory called
+      ``start.OCM'' that will be run everytime you start OC.  You may
+      also create a direcory called ``databases'' with databases you
+      use.  Such databases will be searched if you prefix the database
+      name with ``ocdata/'' in the command ``read tdb''
+
+    \item If you want to start the OC program from any directory copy
+      also the executable to OCHOME and add the path to OCHOME to your
+      \%PATH\%
+  \end{itemize}
+
+\item Look in ``after-installation'' for help to use OC.
+
+\end{enumerate}
+
+You are welcome to help providing a better installation guide also!
+
+\bigskip
+
+{\large \bf Have fun and help make OC useful!}
+
+\end{document}
+

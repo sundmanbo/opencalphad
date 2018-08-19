@@ -180,6 +180,7 @@ mac ./opttest1
 
 @$ *********************************************************
 @$ Assessment start of the Cu-Mg case study must be run by itself
+@$ on the directory with the macro files
 @& *********************************************************
 @$
 @$ mac ./opttest2

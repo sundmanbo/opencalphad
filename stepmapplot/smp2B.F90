@@ -33,8 +33,9 @@
     type(map_node), pointer :: mapnode,invar,localtop
     type(map_line), pointer :: mapline
     logical wildcard
+    integer, parameter :: mofapl=50
     character ch1*1,gnuplotline*256,pfd*64,pfc*64
-    character pfh*64,dummy*24,applines(10)*128,appline*128
+    character pfh*64,dummy*24,applines(mofapl)*128,appline*128
     double precision, dimension(:,:), allocatable :: anp
     double precision, dimension(:), allocatable :: xax,yyy
 ! Too big??
@@ -46,7 +47,7 @@
 ! selphase used when plotting data just for a selected phase like y(fcc,*)
     character statevar*64,encoded1*1024,encoded2*4096,selphase*24
     character*64, dimension(:), allocatable :: phaseline
-    integer i,ic,jj,k3,kk,kkk,lokcs,nnp,np,nrv,nv,nzp,ip,nstep,nnv
+    integer i,ic,jj,k3,kk,kkk,lokcs,nnp,np,nrv,nv,nzp,ip,nstep,nnv,nofapl
     integer nr,line,next,seqx,nlinesep,ksep,iax,anpax,notanp,appfil
     double precision xmax,xmin,ymax,ymin,value,anpmin,anpmax
 ! lhpos is last used position in lineheader
@@ -891,9 +892,10 @@
 !\end{verbatim}
 !----------------------------------------------------------------------
 ! internal
-    integer ii,jj,kk,lcolor,appfil,nnv,ic,repeat,ksep,nv,k3,kkk
+    integer ii,jj,kk,lcolor,appfil,nnv,ic,repeat,ksep,nv,k3,kkk,nofapl
+    integer, parameter :: mofapl=50
     character pfc*64,pfh*64,backslash*2,appline*128
-    character applines(20)*128,gnuplotline*80,labelkey*64,rotate*16
+    character applines(mofapl)*128,gnuplotline*80,labelkey*64,rotate*16
     character labelfont*16,linespoints*12
 ! write the gnuplot command file with data appended
 !
@@ -1036,6 +1038,13 @@
 1710   continue
        read(appfil,1720,end=1750)appline
 1720   format(a)
+
+! note if append file is GIBBSTRIANGLE
+       if(appline(1:10).eq.'# GIBBSTRI') then
+          write(*,*)'Warning: appended file is in Gibbstriangle format,',&
+               ' plot may be strange!'
+          goto 1710
+       endif
 !------------------------------------------------------------------
 ! ignore some lines with "set" in the append file
 ! set title
@@ -1060,6 +1069,7 @@
        endif
 !------------------------------------------------------------------
        if(index(appline,'plot "-"').gt.0) then
+! here we save the actual plot commands from the appendfile!!
           applines(1)=appline
           ic=1
 1730      continue
@@ -1070,9 +1080,16 @@
 ! continuation lines
              read(appfil,1720,end=1750)appline
              ic=ic+1
-             applines(ic)=appline
+             if(ic.ge.mofapl) then
+                write(*,*)'Too many header lines in append file',ic
+             else
+                applines(ic)=appline
+             endif
              goto 1730
           endif
+! debug output of saved plot command
+          nofapl=ic
+!          write(*,*)(trim(applines(jj)),jj=1,nofapl)
 !          write(*,*)'appline: ',trim(appline),ic
 !          close(appfil)
 !          appfil=0
@@ -1142,7 +1159,8 @@
 ! we should append data, change plot "-" to just "" in appline(1)
           ii=index(applines(1),'plot "-"')
           applines(1)(1:ii+7)='""'
-          do ii=1,ic
+          write(*,*)'Inserting the plot commands form append file',nofapl
+          do ii=1,nofapl
              write(21,884)trim(applines(ii))
 884          format(a)
           enddo
@@ -1176,7 +1194,8 @@
 ! we should append data, change plot "-" to just "" in appline(1)
           ii=index(applines(1),'plot "-"')
           applines(1)(1:ii+7)='""'
-          do ii=1,ic
+!          write(*,*)'Adding the plot commands from append file',nofapl,ic
+          do ii=1,nofapl
              write(21,884)trim(applines(ii))
           enddo
        endif
@@ -1664,11 +1683,11 @@
     integer lineends(*)
     double precision xval(nx1,*),yval(ny1,*),zval(nz1,*)
 !\end{verbatim}
-    integer, parameter :: maxcolor=200
-    integer ii,jj,kk,jph,offset,n1
+    integer, parameter :: maxcolor=200,mofapl=50
+    integer ii,jj,kk,jph,offset,n1,nofapl
     type(graphics_textlabel), pointer :: textlabel
     character gnuplotline*64,date*12,mdate*12,title*128,deftitle*64,backslash*2
-    character labelkey*24,applines(10)*128,appline*128,pfc*80,pfh*80
+    character labelkey*24,applines(mofapl)*128,appline*128,pfc*80,pfh*80
     integer sumpp,np,appfil,ic,nnv,kkk,lcolor(maxcolor),iz,again
     integer done(maxcolor),foundinv,fcolor,k3
     character color(maxcolor)*24,rotate*16,labelfont*16,linespoints*12
@@ -1929,7 +1948,16 @@
 200   continue
        read(appfil,210,end=290)appline
 210   format(a)
-       if(appline(1:16).eq.'# GIBBSTRIANGLE ') appgt=.true.
+!       if(appline(1:1).eq.'#') then
+!          write(*,*)'input: ',trim(appline),appgt
+!       endif
+       if(appline(1:15).eq.'# GIBBSTRIANGLE') then
+          appgt=.true.
+          if(.not.plotgt) then
+             write(*,*)'Append file is in Gibbstriangle format'
+             goto 280
+          endif
+       endif
 !------------------------------------------------------------------
 ! ignore some lines with "set" in the append file
 ! set title
@@ -1955,6 +1983,19 @@
        endif
 !------------------------------------------------------------------
        if(index(appline,'plot "-"').gt.0) then
+! this is ocplot3B, reading plot command lines
+          if(plotgt) then
+! check if append file has square or triangular coordinates ...
+             if(.not.appgt) then
+! If GIBBSTRIANGLE they must be converted unless already a triangle ....
+                write(*,*)'Please use append file with Gibbs triangle'
+                goto 280
+             endif
+          elseif(appgt) then
+! a triangular append file must be transformed to square ...
+             write(*,*)'Please use append file with square coordinates'
+             goto 280
+          endif
           applines(1)=appline
           ic=1
 230       continue
@@ -1965,21 +2006,20 @@
 ! continuation lines
              read(appfil,210,end=290)appline
              ic=ic+1
-             applines(ic)=appline
+             if(ic.ge.mofapl) then
+                write(*,*)'Too many head lines in append file',ic
+             else
+                applines(ic)=appline
+             endif
              goto 230
           endif
+          nofapl=ic
           goto 290
+       else
+! ignore all lines intil "plot "-" ...
+          goto 200
        endif
 ! These are coordinate lines
-       if(plotgt) then
-          if(.not.appgt) then
-! If GIBBSTRIANGLE they must be converted unless already a triangle ....
-             write(*,*)'Convert append file to Gibbs triangle coordinates'
-          endif
-       elseif(appgt) then
-! a triangular append file must be transformed to square ...
-          write(*,*)'Convert triangular append file square coordinates'
-       endif
        write(21,210)trim(appline)
        nnv=nnv+1
        goto 200
@@ -1989,6 +2029,8 @@
        close(appfil)
        appfil=0
 290    continue
+! do not close the append file, we have to read the data also!
+!       write(*,*)'Finished reading appendfile head: ',nofapl,ic
     endif
 ! coordinate the content of lid with the colors
 !    do ii=1,same
@@ -1998,7 +2040,7 @@
     iz=0
     color(1)=' '
 !    if(2*same.gt.maxcolor) then
-!       write(*,*)'Number of lines: ',2*same
+!       write(*,*)'Number of lines: ',2*same,maxcolor
 !    endif
     pair: do jj=1,2
 ! maybe same must be incremented with the number of tieline blocks??
@@ -2163,9 +2205,9 @@
              done(lcolor(1))=1
           else
 ! the invariant "lines" are just a point and occur only once
-! the last line for the plot command has no backslash
+! the last line for the plot command has no backslash --- except if append file
 !             if(ii.eq.2*(same-nofinv)+nofinv) backslash=' '
-             if(ii.eq.2*same) backslash=' '
+             if(ii.eq.2*same .and. appfil.eq.0) backslash=' '
 ! we can only use linestyles 1 to 10 except for invariants and tie-lines
              fcolor=lcolor(ii)
              if(fcolor.gt.12) then
@@ -2198,6 +2240,16 @@
           endif
        enddo
     enddo
+! if we have an append file we must add the plotcommands in applines(1:nofapl)
+! we made sure a few lines above that there is a backslash at last line above
+    if(appfil.gt.0) then
+! replace the 'plot "-" ' by just '"" ' 
+       applines(1)='"" '//applines(1)(9:)
+!       write(*,*)'from append file',nofapl,trim(applines(1))
+       do ii=1,nofapl
+          write(21,'(a)')trim(applines(ii))
+       enddo
+    endif
 !    goto 500
 ! loop for all line coordinates
 !    sumpp=0

@@ -1213,9 +1213,7 @@ l eq
 @$ listing of all equilibria
 @&
 
-save unf
-CuMg assessment step1
-opttest2-cumg1
+save unf ./opttest2-cumg1.ocu
 Y
 
 @$-----------------------------------------------------------------
@@ -1229,9 +1227,12 @@ Y
 @$ Note that axis and calculated diagrams are not saved
 @$-----------------------------------------------------------------
 @&
-@$ Check phase diagram with all parameters zero
+@$ Please read the text above carefully!!
+@$-----------------------------------------------------------------
+@&
+@$ Check the phase diagram with all parameters zero !!
 
-mac opttest2-map-diagram
+mac ./opttest2-map-diagram
 
 
 

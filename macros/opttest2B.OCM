@@ -14,8 +14,7 @@ new Y
 
 set echo
 
-read u
-opttest2-cumg1
+read unf ./opttest2-cumg1
 
 @$-----------------------------------------------------------------
 @$ Here we read back the data from the save command.
@@ -108,7 +107,7 @@ l tp
 @&
 @$ Plot the enthalpy of mixing in the liquid 
 
-macro opttest2-plot-hliq
+macro ./opttest2-plot-hliq
 
 @&
 @$ -----------------------------------------------
@@ -133,7 +132,7 @@ l opt coef
 @&
 @$ And plot the new fit to the experiments.
 
-macro opttest2-plot-hliq
+macro ./opttest2-plot-hliq
 
 @&
 @$ -----------------------------------------------
@@ -150,13 +149,13 @@ l opt coef
 
 @&
 
-macro opttest2-plot-hliq
+macro ./opttest2-plot-hliq
 
 
 @&
 @$ We can plot the phase diagram with the new liquid parameters
 
-macro opttest2-map-diagram
+macro ./opttest2-map-diagram
 
 @$-----------------------------------------------------------
 @$ The liquid is now very stable down to low T 
@@ -173,9 +172,7 @@ set fix 0-3
 
 delete step_map
 
-save unf
-done step 1
-opttest2-cumg2
+save unf ./opttest2-cumg2
 Y
 
 set inter

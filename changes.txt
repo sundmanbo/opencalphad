@@ -13,7 +13,50 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
-2018.06.25 OC version 5.018: In this version of OC I have added a
+2018.08.19 OC version 5.019: The file selector window is now used also
+for the options /output= and /append= that can be used after any
+command to redirect output from that command.  I forgot those in the
+previous release.
+
+The installation procedure has been changed slightly, there is an
+updated installation guide.  On Windows the "linkmake" and "linkpara"
+now include the popup windows feature for open file.  To avoid these
+use "linkmake-notinyfd" or "linkpara-notinyfd".  For UNIX systems the
+"Makefile" include the popup windows, "tinyfd", and "getkey" to have
+command line editing features.  The latter feature require that you
+MUST remove a comment character "#" for your UNIX dialect.  Use
+"Makefile-nogetkey" if you do not want the line editing feature.
+
+I have changed some commands:
+>> SAVE UNFORMATTED/DIRECT have no question "Comment" before asking
+for the file name.  Having such a question made it impossible to
+provide a file name on the same line as the command and thus the file
+selector window was always activated even when running a macro where
+the file name was provided.
+>> SET BIT <global> bitnumber requires a final Y to set the bit.  If
+you specify anything except Y the bit is cleared.  Previously this
+command toggled the value so the result depended on the previous
+setting of the bit.
+
+Please tell me as aoon as possible if there are features in the user
+interface you dislike.  It will be increasinly difficult to change
+this as the number of users (creating macro files) increases.
+
+It is difficult to provide a "default" behaviour that makes everyone
+happy.  But if you dislike the the popup window you can supress it
+with the command "set adv popup".
+
+The opttest1 macro is revised and now show how to enter en enthalpy
+difference between two or more equilibria and symbols for experimental
+uncertainties.  A number of bugs had to be removed to fix that of
+course.
+
+The example of using the OCASI interface on the TQ4lib/F90/crfe
+directory has been modified and the a Makefile added which should work
+on linux platforms.  Note that one must have installed OC and created
+the liboceq.a library before implementing the OCASI examples.
+
+2018.07.25 OC version 5.018: In this version of OC I have added a
 cross platform read/save popup window so the user can search
 directories to find databases and other files.  I am happy for any
 feedback.
@@ -37,15 +80,16 @@ run a macro file.
 
 There are subtle complications for example if you open a macro file on
 another directory using the popup window and this macro opens files
-then you must prefix the file name in the macro with "./" if the file
-is on the same directory as the macro file.  That will work because
-when you open a macro file OC will save its path and replace the "./"
-with the saved path.  Without the "./" OC will try to open the file on
-the directory where you started OC as that is the working directory.
-If the file to be opend is on a higher directoty you will prefix that
-with "../" and that work as it will be prefixed with the saved path to
-the macro file.  You can of course always give the full path to the
-file but that is clumsy.
+then you must prefix the file name (with possible directory prefix) in
+the macro with "./" if the file is on the same directory (or on a
+lower directoty) as the macro file.  When OC finds the "./" prefix it
+will replace this by the path to the macro file (which is saved inside
+OC when you open the macro file).  Without the "./" OC will try to
+open the file on the "working directory" where you started OC.  If the
+file to be opened inside the macro is on a higher directoty you will
+prefix that with "../" and in that case OC will prefix this with the
+saved path to the macro file.  You can of course always give the full
+path to the file but that is clumsy.
 
 2018.06.30 OC version 5.017: Thanks to the inspiration from Catalina
 Pineda, an MSc student at ICAMS at RUB in Germany, there is now a OC
@@ -79,7 +123,7 @@ the model was published 1975.
 
 I have also found and fixed a rather dangerous bug in the TPPFUN
 package.  This package should be rewritten completely when I have
-time.  One has to very careful and not use complicated TP functions
+time.  One has to be very careful and not use complicated TP functions
 and check that the TPFUNs are listed correctly!
 
 2018.06.11 OC version 5.015: I have stared working on things needed

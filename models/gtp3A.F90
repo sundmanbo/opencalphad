@@ -480,6 +480,8 @@
 ! we evaluate all symbols to avoid some problems ... no output
 !  call meq_evaluate_all_svfun(-1,ceq) cannot be used as it is in minimizer ...
    call evaluate_all_svfun_old(-1,firsteq)
+! set working directory (decleared in metlib, used now and again ...)
+   call getcwd(workingdir)
 ! assessment initiallizing
 !   write(*,*)'3A Initiallizing firstash', firstash is a pointer ...
    call assessmenthead(firstash)

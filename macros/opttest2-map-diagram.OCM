@@ -58,7 +58,7 @@ append
 plot
 
 
-append oc_many9
+append ./oc_many9
 
 
 

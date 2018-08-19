@@ -9,7 +9,7 @@ new Y
 
 set echo
 
-read unf opttest2-cumg2
+read unf ./opttest2-cumg2
 
 @$ ----------------------------------------------------
 @$ As before we start by reading the unformatted file with previous results
@@ -51,7 +51,7 @@ l opt
 
 @&
 
-macro opttest2-plot-cpcumg2
+macro ./opttest2-plot-cpcumg2
 
 @$ -----------------------------------------------
 @$ The plot of the Cp is linear as we have just one parameter.
@@ -69,7 +69,7 @@ l opt
 
 @&
 
-macro  opttest2-plot-cpcumg2
+macro  ./opttest2-plot-cpcumg2
 
 @$ -----------------------------------------------
 @$ The Cp in the plot has now a small slope in T
@@ -93,7 +93,7 @@ l opt
 
 @&
 
-macro  opttest2-plot-cpcumg2
+macro  ./opttest2-plot-cpcumg2
 
 @$ -----------------------------------------------
 @$ The plot of the Cp is now reasonable in the range 300-2000 K
@@ -116,9 +116,7 @@ set wei 0 *
 
 del step_map
 
-save unf
-Done step 2
-opttest2-cumg3
+save unf ./opttest2-cumg3
 Y
 
 @$----------------------------------------------------

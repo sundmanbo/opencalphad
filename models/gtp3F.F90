@@ -102,7 +102,8 @@
       gx%bmperr=0
       name=statevar
       call capson(name)
-      call find_svfun(name,lrot,ceq)
+!      call find_svfun(name,lrot,ceq)
+      call find_svfun(name,lrot)
       if(gx%bmperr.ne.0) then
 !         write(*,*)'3F Neither state variable or symbol'
          goto 1000
@@ -3236,7 +3237,7 @@
 ! this is a dot derivative, set bits
       svflista(nsvfun)%status=ibset(svflista(nsvfun)%status,SVFVAL)
       svflista(nsvfun)%status=ibset(svflista(nsvfun)%status,SVFDOT)
-      write(*,*)'3F setting bit: ',SVFDOT
+!      write(*,*)'3F setting explicit bit: ',SVFDOT
    endif
 1000 continue
 ! NOTE eqnoval should be zeroed
@@ -3366,12 +3367,14 @@
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim}
- subroutine find_svfun(name,lrot,ceq)
+! subroutine find_svfun(name,lrot,ceq)
+ subroutine find_svfun(name,lrot)
 ! finds a state variable function called name (no abbreviations)
+! ceq not needed!!??
    implicit none
    character name*(*)
    integer lrot
-   type(gtp_equilibrium_data), pointer :: ceq
+!   type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim} %+
 ! name must be in UPPER CASE and exact match required
    do lrot=1,nsvfun
@@ -3386,6 +3389,32 @@
 1000 continue
    return
  end subroutine find_svfun
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
+ subroutine find_symbol_with_equilno(lrot,eqno)
+! finds a state variable function with equilibrium index
+   implicit none
+   integer lrot,eqno
+!\end{verbatim} %+
+! skip the first 3 functions, R, RT and TC
+   if(lrot.lt.0) lrot=3
+   eqno=0
+!   write(*,*)'3F find_sweq 1: ',lrot,nsvfun
+   allfun: do while(lrot.lt.nsvfun)
+      lrot=lrot+1
+      if(svflista(lrot)%eqnoval.gt.0) then
+         eqno=svflista(lrot)%eqnoval
+! for debugging
+!         write(*,*)'3F symbol ',svflista(lrot)%name,' at equilibrium ',eqno
+         goto 1000
+      endif
+   enddo allfun
+   lrot=0
+1000 continue
+   return
+ end subroutine find_symbol_with_equilno
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
@@ -3462,13 +3491,19 @@
    endif
    js=ipos+4
    ipos=ipos+7
+! Mark with a letter in position 5!
    if(btest(svflista(lrot)%status,SVCONST)) then
 ! symbol is a constant (can be amended)
-      text(js:js)='C'; js=js+1
+!      text(js:js)='C'; js=js+1
+      text(js:js)='C'
    endif
-   if(btest(svflista(lrot)%status,SVFVAL)) then
+   if(btest(svflista(lrot)%status,SVFDOT)) then
 ! symbol calculated only when explicitly referenced
-      text(js:js)='X'; js=js+1
+      text(js:js)='D'
+   endif
+   if(btest(svflista(lrot)%status,SVFEXT)) then
+! symbol is specific for an equilibrium
+      text(js:js)='X'
    endif
 ! name and expression
 !   kl=len_trim(svflista(lrot)%name)
@@ -3548,6 +3583,41 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!-\begin{verbatim}
+ subroutine list_some_svfun(kou)
+! just for debugging unformatted reading
+   implicit none
+   integer kou
+!   type(gtp_equilibrium_data), pointer :: ceq
+!-\end{verbatim}
+   character text*256
+   integer ks,ipos
+   write(kou,17)
+17 format('List of all state variable symbols'/' No Special Name= expression ;')
+!17 format('List of all state variable symbols'/' No        Name= expression ;')
+   do ks=1,nsvfun
+!      ipos=1
+      text=' '
+      if(btest(svflista(ks)%status,svconst)) text(5:5)='C'
+      if(btest(svflista(ks)%status,svfdot)) text(5:5)='D'
+      if(btest(svflista(ks)%status,svfext)) then
+         write(text(2:4),'(i3)')svflista(ks)%eqnoval
+         text(5:5)='X'
+      endif
+      text(8:)=svflista(ks)%name
+!      call list_svfun(text,ipos,ks,ceq)
+!      if(pfnerr.ne.0) then
+!         gx%bmperr=4142; pfnerr=0; goto 1000
+!      endif
+      write(kou,76)ks,trim(text)
+76    format(i3,2x,a)
+   enddo
+1000 continue
+   return
+ end subroutine list_some_svfun
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
 !\begin{verbatim}
  subroutine list_all_svfun(kou,ceq)
 ! list all state variable funtions
@@ -3609,6 +3679,7 @@
 ! envaluate all funtions as they may depend on each other
 ! actual_arg are names of phases, components or species as @Pi, @Ci and @Si
 ! needed in some deferred formal parameters  (NOT IMPLEMENTED YET)
+! if mode=1 always evaluate
    implicit none
    integer lrot,mode
    character actual_arg(*)*(*)
@@ -3630,14 +3701,25 @@
    if(btest(svflista(lrot)%status,SVFDOT)) then
 !      write(*,*)'3F Warning has SVFDOT set, return error ',lrot
       gx%bmperr=4399; goto 1000
-   elseif(btest(svflista(lrot)%status,SVFVAL)) then
-! this symbol is constant unless evaluated explicitly 
+   elseif(btest(svflista(lrot)%status,SVFVAL) .and. mode.ne.1) then
+! this symbol is keeps it value unless evaluated explicitly (mode=1)
+!      write(*,*)'3F Warning has SVFVAL set: ',lrot,svflista(lrot)%name,value
       value=ceq%svfunres(lrot)
-      write(*,*)'3F Warning has SVFVAL set: ',lrot,svflista(lrot)%name,value
       goto 1000
+   elseif(btest(svflista(lrot)%status,SVFEXT)) then
+! the symbol is associated with a specific equilibrium we must fetch
+! its value from that equilibrium unless that is ceq!!
+      ieq=svflista(lrot)%eqnoval
+!      write(*,*)'3F SVFEXT set: ',lrot,ieq,svflista(lrot)%name
+      if(ieq.gt.0 .and. ieq.ne.ceq%eqno) then
+         value=eqlista(ieq)%svfunres(lrot)
+! save its value also in this equilibrium
+         goto 900
+      endif
    endif
    if(svflista(lrot)%narg.eq.0) goto 300
-! get values of arguments
+!--------------------------------------------------------------------
+! get values of arguments ... THIS IS NOT IMPLEMENTED ... I think ??
    jv=0
    jt=0
 100 continue
@@ -3661,8 +3743,8 @@
 ! get state variable value
             call state_variable_val(svr,value,ceq)
          else
-! state variable derivative, error code here should be handelled by calling
-! routine and use meq_evaluate_evaluate
+! state variable derivative, error code set above, it must be handelled
+!  by calling other routine and use meq_evaluate_svfun
 !            write(*,*)'3F In evaluate_svfun_old!!!'
 !            write(*,*)'Use "calculate symbol" for state variable derivatives!'
             gx%bmperr=4217
@@ -3675,7 +3757,8 @@
       jv=jv+1
       argval(jv)=value
       if(jt.lt.svflista(lrot)%narg) goto 100
-! all arguments evaluated (or no arguments needed)
+! all (if any) arguments evaluated (or no arguments needed)
+!--------------------------------------------------------------------
 300 continue
 !    write(*,333)'evaluate_svfun ',svflista(lrot)%name,argval(1),argval(2)
 !333 format(a,a,2(1PE15.6))
@@ -3697,20 +3780,28 @@
          ceq%svfunres(lrot)=value
 !         write(*,350)'3F evaluate svfun 3: ',ieq,lrot,value
       else
+! Hm, we already did this earlier ... redundant?
          value=eqlista(ieq)%svfunres(lrot)
       endif
 !      write(*,350)'3F evaluate svfun 4: ',ieq,lrot,value
 350 format(a,2i3,1pe12.4)
    else
-! if mode=1 always evaluate
+! if mode=1 always evaluate unless another equilibrium, we jumped to 900 above
       value=evalf(svflista(lrot)%linkpnode,argval)
       if(pfnerr.ne.0) then
          write(*,*)'3F evaluate_svfun putfunerror 2',pfnerr
          gx%bmperr=4141; pfnerr=0; buperr=0; goto 1000
       endif
    endif modeval
+!   if(btest(svflista(lrot)%status,SVFVAL)) then
+!    if(lrot.gt.4) write(*,*)'3F evaluated symbol: ',lrot,value
+!   endif
 ! save value in current equilibrium
-   if(lrot.gt.0) ceq%svfunres(lrot)=value
+900 continue
+   if(lrot.gt.0) then
+      ceq%svfunres(lrot)=value
+!      if(lrot.gt.4) write(*,*)'Saved symbol ',lrot,' in equil ',ceq%eqno,value
+   endif
 1000 continue
 !   write(*,*)'3F eval_svfun: ',lrot,value,size(ceq%svfunres)
    evaluate_svfun_old=value

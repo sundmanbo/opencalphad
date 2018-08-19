@@ -956,6 +956,7 @@
       gx%bmperr=0
    else
 ! do not save the "current value" after the $
+!      write(*,*)'3E save experiment: "',trim(text),'"'
       kl=index(text,'$')-1
       if(kl.le.0) then
          kl=len_trim(text)
@@ -1666,7 +1667,7 @@
       gx%bmperr=4299; goto 900
    endif
    write(*,12)id,version,trim(comment)
-12 format(/'Read unformatted file: ',a,a/'Comment: ',a/)
+12 format(/'Read unformatted file: ',a,a/'Generated: ',a/)
    str=comment
 !   write(*,*)'3E numbers: ',noofel,noofsp,noofph,nooftuples,last
 !-------
@@ -1853,7 +1854,7 @@
 !---------- state variable functions must be present when reading experiments
 ! and the equilibria must
 !>>>>> 30... inside svfunread
-!   write(*,*)'3E reading state variable functions'
+!   write(*,*)'3E reading state variable functions',iws(24)
    if(iws(25).eq.gtp_putfun_lista_version) then
       call svfunread(iws(24),iws)
       if(gx%bmperr.ne.0) goto 1000
@@ -1861,6 +1862,10 @@
       write(*,*)'3E state variable function version error',iws(25),&
            gtp_putfun_lista_version
    endif
+! we cannot list svfun as we have no ceq ...
+!   call list_all_svfun(kou,ceq)
+!   call list_some_svfun(kou)
+   write(*,*)'Now reading equilibria',iws(16)
 !--------------------------------------------------------------------
 ! read remaining equilibria which may contain experiments
 ! link to first saved in equilibrium in iws(16)
@@ -1868,6 +1873,7 @@
    i3=2
    call readequil(i,iws,-1)
    if(gx%bmperr.ne.0) goto 1000
+   write(*,*)'3E read all equilibria'
 !-------------------------------------------------------------------
 ! read assessment head recods
    if(iws(27).ne.gtp_assessment_version) then
@@ -1877,6 +1883,7 @@
    lok=26
    call readash(lok,iws)
    if(gx%bmperr.ne.0) goto 1000
+   write(*,*)'3E read assessment record'
 !------ read all ??
 800 continue
 ! emergency exit
@@ -2681,7 +2688,7 @@
       llen=iws(lok+1)
       text=' '
       call loadc(lok+2,iws,text(1:llen))
-!      write(*,*)'3E found experiment: ',text(1:llen),llen
+!      write(*,*)'3E found experiment: "',trim(text),'"'
       llen=0
       call enter_experiment(text,llen,ceq)
 !      write(*,*)'3E Back from enter_experiment'
@@ -2749,12 +2756,18 @@
       endif
 ! if this function should be evaluated at a particular equilibrium that is
 ! in position 1-5.  Extra status in position 6 and 7
-!      write(*,*)'3E read symbol: ',i,': ',text(1:ip)
-! symbol is a constant (can be amended)
-      if(text(6:6).eq.'C') svflista(i)%status=ibset(svflista(i)%status,SVCONST)
-! symbol should only be evaluated when explicitly requested
-      if(text(7:7).eq.'X') svflista(i)%status=ibset(svflista(i)%status,SVFVAL)
+!      write(*,*)'3E read symbol: ',i,': ',text(1:ip),ip
+! check if symbol is a constant (can be amended)
+      if(text(5:5).eq.'C') svflista(i)%status=ibset(svflista(i)%status,SVCONST)
+! check if symbol should only be evaluated when explicitly requested
+!      if(text(7:7).eq.'X') svflista(i)%status=ibset(svflista(i)%status,SVFVAL)
+      if(text(5:5).eq.'D') then
+         svflista(i)%status=ibset(svflista(i)%status,SVFDOT)
+         svflista(i)%status=ibset(svflista(i)%status,SVFVAL)
+      endif
+      if(text(5:5).eq.'X') svflista(i)%status=ibset(svflista(i)%status,SVFEXT)
       ip=0
+! ip incremented in getint
       call getint(text,ip,eqno)
       if(buperr.ne.0) then
          buperr=0

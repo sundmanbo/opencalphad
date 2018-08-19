@@ -112,10 +112,13 @@ MODULE METLIB
   character, private :: ENVIR(9)*60
 !
 !    COMMON/TCMACRO/IUL,IUN(5),MACEXT
-    integer, private :: IUL,IUN(5)
+!    integer, private :: IUMACLEVL,IUN(5)
+    integer :: IUMACLEVL,MACROUNIT(5)
     character MACEXT*3
 ! character for PATH to macro file in order to open files inside macro
     character macropath(5)*128
+! the working directory
+    character workingdir*128
 ! nbpw is number if bytes per INTEGER
     integer, parameter :: nbpw=4,nwpr=2
     parameter (MACEXT='OCM')
@@ -2748,8 +2751,8 @@ CONTAINS
     EXTERNAL HELP
     integer typ,typeahead
 #ifdef tinyfd
-! only if we use tinyfiledialogs
-    typeahead=last
+! only if we use tinyfiledialogs, check if any character after last+1
+    typeahead=last+1
 !    write(*,*)'M3 gparfile: ',kou,koud,last,eolch(svar,last)
     if(nopopup .or. kiu.ne.kiud .or. .not.eolch(svar,typeahead)) then
 #endif
@@ -2758,31 +2761,42 @@ CONTAINS
 ! This call exchanges any macro variables in SVAR for defined macro values
        CALL GQXENV(SVAR)
 ! If interactive
-       if(kiu.eq.kiud) write(*,*)'Beware: you must give the full path unless',&
-            ' the file is in current directory!'
+       if(kiu.eq.kiud) write(kou,"(a)")'Beware: you must give the full'//&
+            ' path unless the file is in working directory!'
 100    CALL GQARC(PROMT,SVAR,LAST,JTYP,SVAL,CDEF,HELP)
        IF(BUPERR.NE.0) GOTO 900
        SLIN=SVAL(1:max(1,LEN_TRIM(sval)))
 ! This call handles ? @ and other things in SVAR
        CALL GPTCM2(IFLAG,SVAR,LAST,SLIN)
        IF (IFLAG.NE.0) GOTO 100
-       if(iul.ge.1) then
+       if(IUMACLEVL.ge.1) then
           if(sval(1:2).eq.'./') then
 ! we are running a macro and if SVAL(1:2) is './' replace this with MACROPATH'
-             sval=trim(macropath(iul))//sval(3:)
+             sval=trim(macropath(IUMACLEVL))//sval(3:)
           elseif(sval(1:3).eq.'../') then
 ! we are running a macro and if SVAL(1:3) is '../' prefix with MACROPATH'
-             sval=trim(macropath(iul))//sval
-!             write(*,*)'M3 add path: ',trim(sval),iul
+             sval=trim(macropath(IUMACLEVL))//sval
+!             write(*,*)'M3 add path: ',trim(sval),IUMACLEVL
 !          else
-!             write(*,*)'M3 assuming full path: ',trim(sval),iul
+!             write(*,*)'M3 assuming full path or in working directory: '
           endif
        endif
 #ifdef tinyfd
     else
-! open a window to browse directories and files using tinyfiledialogs
+! open a popup window to browse directories and files using tinyfiledialogs
+! typ<0 means new or old file; 0 old file no filer, 
+! typ >0 means old file with filter:
+! typ=1 TDB, 2=OCU, 3=OCM, 4=OCD, 5=plt, 6=PDB, 7=DAT
        call getfilename(typ,sval)
-       if(sval(1:1).eq.' ') buperr=1020
+       if(sval(1:1).eq.' ') then
+          buperr=1020
+       elseif(typ.eq.-7) then
+! this is for output and file created, if no extension add DAT
+          kk=index(sval,'.DAT ')
+          if(kk.eq.0) then
+             sval(len_trim(sval)+1:)='.DAT'
+          endif
+       endif
     endif
 #endif    
 900 RETURN
@@ -2800,7 +2814,7 @@ CONTAINS
     CALL GQXENV(SVAR)
 !Beware: you must give the full path unless the file is in current directory!
     write(*,*)'Beware: you must give the full path unless',&
-         ' the file is in current directory!'
+         ' the file is in working directory!'
 100 CALL GQARC(PROMT,SVAR,LAST,JTYP,SVAL,CDEF,HELP)
     IF(BUPERR.NE.0) GOTO 900
     SLIN=SVAL(1:max(1,LEN_TRIM(sval)))
@@ -3040,7 +3054,7 @@ CONTAINS
     DATA FIRST/.TRUE./
     IF(FIRST) THEN
        FIRST=.FALSE.
-       IUL=0
+       IUMACLEVL=0
 !       lun=50
     ENDIF
     MACFIL=' '
@@ -3060,14 +3074,14 @@ CONTAINS
     CALL FXDFLT(FIL,MACEXT)
 !    if (LEN_TRIM(fil).gt.0) call tcgffn(fil)
     IF(BUPERR.NE.0) GOTO 910
-!    write(*,*)'open macro: ',lun,iul
+!    write(*,*)'open macro: ',lun,IUMACLEVL
 !    LUN=50
     OPEN(LUN,FILE=FIL,ACCESS='SEQUENTIAL',STATUS='OLD', &
          FORM='FORMATTED',IOSTAT=IERR,ERR=910)
 ! we can have macros nested 5 livels deep
-    IF(IUL.LT.5) THEN
-       IUL=IUL+1
-       IUN(IUL)=KIU
+    IF(IUMACLEVL.LT.5) THEN
+       IUMACLEVL=IUMACLEVL+1
+       MACROUNIT(IUMACLEVL)=KIU
     ELSE
 !       CALL ST2ERR(1083,'MACBEG','TOO DEEPLY NESTED MACRO FILES')
        buperr=1083
@@ -3082,7 +3096,7 @@ CONTAINS
     else
        dirsep='/'
     endif
-!    write(*,*)'M3 macro file: ',trim(fil),' backslash: ',backslash,iul
+!    write(*,*)'M3 macro file: ',trim(fil),' backslash: ',backslash,IUMACLEVL
     ll=1
     kk=0
     do while(ll.gt.0)
@@ -3091,12 +3105,12 @@ CONTAINS
     enddo
 ! we have found the position of the actual filename.  Save the path incl dirsep
     if(kk.gt.1) then
-       macropath(iul)=fil(1:kk-1)
+       macropath(IUMACLEVL)=fil(1:kk-1)
     else
-       macropath(iul)=' '
+       macropath(IUMACLEVL)=' '
     endif
-    write(*,*)'Macro path saved: ',iul,': ',trim(macropath(iul))
-!    write(*,*)'Command input set: ',kiu,iul
+!    write(*,*)'Macro path saved: ',IUMACLEVL,': ',trim(macropath(IUMACLEVL))
+!    write(*,*)'Command input set: ',kiu,IUMACLEVL
 ! this is to suprees "press return to continue" but not implemented ...
 !    CALL GPARC(' ',LINE,LAST,1,CH1,'Y',FILHLP)
 !    IF(CH1.NE.'Y') THEN
@@ -3114,11 +3128,11 @@ CONTAINS
 ! set interactive gives back control to calling macro if any
     IF(KIU.NE.KIUD) THEN
        IF(KIU.NE.0) CLOSE(KIU)
-!       write(*,*)'end of macro: ',kiu,kiud,iul
-       IF(IUL.GT.0) THEN
-!          write(*,*)'calling macro: ',iun(iul)
-          KIU=IUN(IUL)
-          IUL=IUL-1
+!       write(*,*)'end of macro: ',kiu,kiud,IUMACLEVL
+       IF(IUMACLEVL.GT.0) THEN
+!          write(*,*)'calling macro: ',macrounit(IUMACLEVL)
+          KIU=MACROUNIT(IUMACLEVL)
+          IUMACLEVL=IUMACLEVL-1
        ELSE
 !          write(*,*)'terminal: ',kiud
           KIU=KIUD

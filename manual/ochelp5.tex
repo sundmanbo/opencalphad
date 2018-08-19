@@ -92,16 +92,19 @@ This page intentionally blank
 
 \section{Introduction}
 
-The OpenCalphad (OC) initiative aims to provide a free high quality
-software for thermodynamic calculations, including property and phase
-diagrams, assessment of databases and a thermodynamic library for
-simulations for inorganic systems i.e.  gases. liquids, alloys and
-other materials using many different kinds of models for the phases.
-There are three papers published about OC~\cite{15Sun1,15Sun2,16Sun}.
-General information about thermodynamic models, calculations and
-assessments based on the Calphad technique can be found in the book by
-Lukas et al~\cite{07Luk}.  The software is provided free with a GNU
-GPL license.
+The development of the OpenCalphad (OC) sofware was started by a small
+group of dedicated scientists who wanted to provide an open source
+multicomponent thermodynamic software.  It aims to provide a free high
+quality software for thermodynamic calculations, including property
+and phase diagrams, assessment of databases and a thermodynamic
+library for simulations for inorganic systems i.e.  gases. liquids,
+alloys and other materials using many different kinds of models for
+the phases.  There are three basic papers published about
+OC~\cite{15Sun1,15Sun2,16Sun}.  General information about
+thermodynamic models, calculations and assessments based on the
+Calphad technique can be found in the book by Lukas et
+al~\cite{07Luk}.  The software is provided free with a GNU GPL
+license.
 
 In OC there is also a framework to store different kinds of materials
 properties that depend on temperature, pressure and composition when
@@ -115,16 +118,6 @@ news-oc5.pdf and the other parts of the OC documentation.
 
 \section{Some general features}
 
-Oc is operated by commands typed by the user or read from a macro
-file.  The command monitor has a menu of command and each of these
-usually has sub-menus and finally some questions may be asked like
-phase names, a value or an expression.  In most cases a default answer
-is provided which can be selected by just pressing the RETURN key or
-by typing a comma, ``,'', on the same line as the command.  At all
-levels the user should be able to type a ? and get some help, usually
-an extract from this manual, sometimes just a menu or examples of
-answers.
-
 The different parts of the OC software are documented separately for
 each module: thermodynamic models (GTP), equilibrium calculations
 (HMS), step/map/plot routines (SMP) and the application software
@@ -134,6 +127,86 @@ Argonne 1980 for assessments.  For graphics OC generates a command
 file which can be plotted with the free GNUPLOT~\cite{gnuplot}
 software.  If GNUPLOT is properly installed this is done automatically
 by OC.
+
+\subsection{Command line user interface}
+
+OC is operated by commands typed by the user or read from a macro
+file.  The command monitor has a menu of command and each of these
+usually has sub-menus and finally some questions may be asked like
+phase names, a value or an expression.  In most cases a default answer
+is provided which can be selected by just pressing the RETURN key or
+by typing a comma, ``,'', on the same line as the command.  At all
+levels the user should be able to type a ? and get some help, usually
+an extract from this manual, sometimes just a menu or examples of
+answers.
+
+If you prefer a graphical user interface (GUI) you are welcome to add
+this to the OC software.
+
+\subsubsection{Popup window for read/save}
+
+There is a problem using a command line interface when you want to
+open a file for reading or saving unless this file is on the same
+directory as where you started the program.  Thus from version 5.018
+there is a popup window to open a file (for a macro, a database or to
+save a calculation).  In this window you can browse your directories
+to find the file.  This has some consequencies for editing you macro
+files that you should be aware of and which are explained below.  The
+code for the popup window, tinyfiledialogs, is written in C by
+Guillaume Vareille.
+
+You can turn off the open file popup window feature with the command
+{\em set advanced popup}.  You can turn it on again with the same
+command.
+
+\begin{itemize}
+\item The directory where you start the session with OC is called the
+  ``working directory''.  On a linux system you can find this
+  directory by typing ``pwd'' before starting OC (or if you type {\em
+    @pwd} inside OC).  On a Windows system you can see the working
+  directory and its files if you type {\em @dir} inside OC.
+
+\item When the popup window is opened the directories and files
+  matching the ``filter'' in the working directory are listed.  The
+  filter when open a macro file is ``OCM'' and when opening a database
+  file it is ``TDB'' which means only files with these extensions are
+  listed.  You can change the directory in the popup window to select
+  the file you want and you can read a file with another extension.  OC
+  will save internally the directory where you start the macro.
+  
+\item Inside a macro file you normally read a TDB file and if you do
+  not specify the name of the database on the same line as the command
+  {\em read tdb} the popup window will open so you can specify the
+  file in this window.
+
+\item But normally you know which database you want to use inside the
+  macro and if you give the file name on the same line: {\em read tdb
+    filename} the popup window will not open and OC will search for
+  the specified database file starting from the ``working directory''.
+  But if the database file is in the same directory as the macro file
+  you MUST prefix ``filename'' with ``./'', i.e. {\em read tdb
+    ./filename}.  You may include directories in ``filename'',
+  (including ``../'' to go to the directory above).  OC will replace
+  the ``./'' by the directory where you started the macro or prefix
+  ``../'' by this directory.
+
+\item In the macro file you can give the full path to the file to be
+  opended but that is rather clumsy.
+
+\item When you open a file for write inside a macro, like output from
+  a plot, you can also specify the file name in the command prefixed
+  by ``./'' if you want to save the file on the same directory as the
+  macro file.  Otherwise it will be saved at the working directory.
+
+\item If you use the switch ``/output='' or ``/append='' after a
+  command to redirect output from the command you can also use the
+  popup window to specify the file name or use a filename with or
+  without the prefix ``./''.  The filter in this case is ``DAT''.  (I
+  forgot this in 5.018 so it will be available from 5.019 or later.)
+
+\end{itemize}
+
+You are welcome to provide feedback on this popup feature.
 
 \subsection{Names and symbols}
 
@@ -196,6 +269,61 @@ In many cases one can use an asterix ``*'' as a name and this normally
 means ``all''.  For setting status of phases one can use the special
 ``*S'' for all suspended phase, ``*D'' for all dormant phases.
 
+\subsection{State variables}
+
+\begin{table}[!ht]
+\caption{A preliminary table with the state variables and their
+  internal representation.  Some model parameter properties are also
+  included.  The "z" used in some symbols like Sz means the optional
+  normalizing symbol M, W, V or F.}\label{tab:statev}
+{\small
+\begin{tabular}{|llccll|}\hline
+Symbol & Id & \multicolumn{2}{c}{Index} & Normalizing & Meaning\\
+       &    & 1 & 2                     &  suffix     & \\\hline
+\multicolumn{6}{|c|}{Intensive properties}\\\hline
+T      & 1  & -         & -    & - & Temperature\\
+P      & 2  & -         & -    & - & Pressure\\
+MU     & 3  & component & -/phase  & - & Chemical potential\\
+AC     & 4  & component & -/phase  & - & Activity\\
+LNAC   & 5  & component & -/phase  & - & LN(activity)\\\hline
+\multicolumn{6}{|c|}{Extensive properties}\\\hline
+U      & 10 & -/phase\#set & - & - & Internal energy for system\\
+UM     & 11 & -/phase\#set & - & M & Internal energy per mole\\
+UW     & 12 & -/phase\#set & - & W & Internal energy per mass\\
+UV     & 13 & -/phase\#set & - & V & Internal energy per m$^3$\\
+UF     & 14 & phase\#set   & - & F & Internal energy per formula unit\\
+Sz     & 2z & -/phase\#set & - & - & entropy\\
+Vz     & 3z & -/phase\#set & - & - & volume\\
+Hz     & 4z & -/phase\#set & - & - & enthalpy\\
+Az     & 5z & -/phase\#set & - & - & Helmholtz energy\\
+Gz     & 6z & -/phase\#set & - & - & Gibbs energy\\
+NPz    & 7z &  phase\#set & - & - & Moles of phase\\
+BPz    & 8z & phase\#set & - & - & Mass of phase\\
+Qz     & 9z & phase\#set & - & -  & Stability of phase\\
+DGz    & 10z & phase\#set & - & -  & Driving force of phase\\
+Nz     & 11z & -/phase\#set/comp & -/comp & -  & Moles of component\\
+X      & 111 & phase\#set/comp & -/comp & 0  & Mole fraction\\
+X\%    & 111 & phase\#set/comp & -/comp & 100 & Mole per cent\\
+Bz     & 12z & -/phase\#set/comp & -/comp & -  & Mass of component\\
+W      & 122 & phase\#set/comp & -/comp & 0 & Mass fraction\\
+W\%    & 122 & phase\#set/comp & -/comp & 100 & Mass per cent\\
+Y      & 130 & phase\#set & const\#subl & -& Constituent fraction\\\hline
+\multicolumn{6}{|c|}{Some model parameter identifiers}\\\hline
+TC     & - & phase\#set & - & - & Curie temperature\\
+BMAG   & - & phase\#set & - & - & Aver. Bohr magneton number\\
+MQ\&X  & - & phase\#set & constituent & - & Mobility of X\\
+THET   & - & phase\#set & - & - & Debye temperature\\\hline
+\end{tabular}}
+\end{table}
+
+A state variable in a thermodynamic system has a value which at
+equilibrium is independent of the way the system has reach its current
+state.  All state variables available in OC are listed in
+Table~\ref{tab:statev}.  They are used to set conditions and to obtain
+results from an equilibrium calculation.  It is possible to use state
+variables also when close to the equilibrium state for example when
+simulating a phase transformation.
+
 \subsection{Model parameters}
 
 All data is organized relative to a phase and the phase is identified
@@ -225,11 +353,13 @@ should have an influence on the Gibbs energy (like the Curie
 temperature) or a diffusion coefficient (like the mobility) the
 necessary code to calculate this must be added.
 
-A list of the model parameter identifiers (revised in May 2018)
-currently defined can be obtained by the command {\bf LIST
-  MODEL\_PARAM\_ID}:
+A list of the model parameter identifiers as shown in
+Table~\ref{tab:mpis} can be obtained by the command {\bf LIST
+  MODEL\_PARAM\_ID}
 
-{\small
+\begin{table}[!h]
+  \caption{Current set of model parameter identifiers}\label{tab:mpis}
+  {\small
 \begin{verbatim}
 Indx Ident T P Specification                Status Note
    1 G     T P                                   0 Energy
@@ -237,18 +367,18 @@ Indx Ident T P Specification                Status Note
    3 BMAG  - -                                   1 Average Bohr magneton numb
    4 CTA   - P                                   2 Curie temperature
    5 NTA   - P                                   2 Neel temperature
-   6 IBM   - P &<constituent#sublattice>;       12 Individual Bohr magneton num
+   6 IBM   - P &<constituent#sublattice>        12 Individual Bohr magneton num
    7 THET  - P                                   2 Debye or Einstein temp
    8 V0    - -                                   1 Volume at T0, P0
    9 VA    T -                                   4 Thermal expansion
   10 VB    T P                                   0 Bulk modulus
   11 G2    T P                                   0 Liquid two state parameter
-  12 CBT   T P                                   2 Crystal breakdown T
-  13 MQ    T P &<constituent#sublattice>;       10 LN mobility1 of component
-  14 MF    T P &<constituent#sublattice>;       10 LN mobility2 of component
-  15 MG    T P &<constituent#sublattice>;       10 LN mobility3 of component
-  16 THT2  T P                                   2 Second Einstein T
-  17 DCP2  T P                                   2 Second Einstein Delta-Cp
+  12 CBT   T P                                   2 Hickel T
+  13 MQ    T P &<constituent#sublattice>        10 LN mobility1 of component
+  14 MF    T P &<constituent#sublattice>        10 LN mobility2 of component
+  15 MG    T P &<constituent#sublattice>        10 LN mobility3 of component
+  16 THT2  T P                                   2 Smooth step function T
+  17 DCP2  T P                                   2 Smooth step function value
   18 VISC  T P                                   0 Viscosity
   19 LPX   T P                                   0 Lattice param X axis
   20 LPY   T P                                   0 Lattice param Y axis
@@ -257,13 +387,14 @@ Indx Ident T P Specification                Status Note
   23 EC11  T P                                   0 Elastic const C11
   24 EC12  T P                                   0 Elastic const C12
   25 EC44  T P                                   0 Elastic const C44
-  26 FHV   T P &<constituent#sublattice>;       10 Flory-Huggins volume ratio
+  26 FHV   T P &<constituent#sublattice>        10 Flory-Huggins volume ratio
   27 RHO   T P                                   0 Electrical resistivity
   28 LAMB  T P                                   0 Thermal conductivity
   29 HMVA  T P                                   0 Enthalpy of vacancy form
   30 TSCH  - P                                   2 Schottky anomality T
   31 CSCH  - P                                   2 Schottky anomality Cp/R
 \end{verbatim}}
+\end{table}
 
 Many of these identifiers have no supporting software implemented, this
 is an ongoing project.  The columns T P indicate if the parameter may
@@ -307,8 +438,8 @@ A slightly more detailed explanation of the identifiers are:
   constituent C.
 \item MG\&C, a parameter for the magnetic factor of the mobility of
   constituent C.
-\item THT2, Second Einstein temperature.
-\item DCP2, Second Einstein $\Delta C_P$.
+\item THT2, The T for a smooth change of C$_P$ 
+\item DCP2, The value of the smooth change in J/mol
 \item VISC, a parameter for the viscosity.
 \item LPX, a parameter the lattice parameter in X direction.
 \item LPY, a parameter the lattice parameter in Y direction.
@@ -321,8 +452,8 @@ A slightly more detailed explanation of the identifiers are:
 \item RHO, a parameter for the electrical resistivity.
 \item LAMB, a parameter for the thermal conductivity.
 \item HMVA, a parameter for the enthalpy of vacancy formation.
-\item TSCH, a parameter for Schottky anomality T
-\item CSCH, a parameter for Schottky anomality $\Delta C_P$.
+\item TSCH, the T for a Schottky anomality
+\item CSCH, the Schottky anomality $\Delta C_P$.
 \end{itemize}
 
 The current value of any of these parameter identifiers can be obtaind
@@ -441,7 +572,8 @@ component as pure.
 A state variable like the chemical potential, MU(O), will refer to the
 user defined reference state if set.  To obtain the value for the SER
 state one can use a suffix S, i.e. MUS(O) to obtain the chemical
-potential refered to SER.
+potential refered to SER.  All state variables are listed in
+Table~\ref{tab:statev}.
 
 Note that the value of integral properties like Gibbs energy, $G$,
 enthalpy, $H$, etc. may have mixed reference states unless all

@@ -60,7 +60,8 @@ contains
     character text*72,string*256,ch1*1,chz*1,selection*27,funstring*1024
     character axplot(2)*24,axplotdef(2)*24,quest*20
     character longstring*2048,optres*40
-    character workingdir*128
+! this is now declared in metlib package
+!    character workingdir*128
 ! separate file names for remembering and providing a default
     character ocmfile*64,ocufile*64,tdbfile*64,ocdfile*64,filename*64
 ! home for OC and default directory for databases
@@ -128,7 +129,7 @@ contains
 ! plot unit for experimental data used in enter many_equilibria
     integer :: plotdataunit(9)=0,plotunit0=0
 ! temporary integer variables in loops etc
-    integer i1,i2,j1,j2,iax
+    integer i1,i2,j1,j2,iax,threads
 ! more temporary integers
     integer jp,kl,svss,language,last,leak,j3
 ! and more temporary integers
@@ -216,7 +217,7 @@ contains
 !        'DEBUG           ','SELECTIONEZ     ','EFFACEZ         ',&
 !        'STEP            ','MAP             ','DESSINEZ        ',&
 !        'HPCALC          ','FIN             ','                ']
-! NOTE a command line can contain options preceeded by /
+! NOTE a command line can contain options preceded by /
 ! for example "list /out=myfile.dat all_data" or
 !-------------------
 ! subcommands to LIST
@@ -330,7 +331,7 @@ contains
     character (len=16), dimension(ncadv) :: cadv=&
          ['EQUILIB_TRANSF  ','QUIT            ','EXTRA_PROPERTY  ',&
           'GRID_DENSITY    ','SMALL_GRID_ONOFF','MAP_SPECIAL     ',&
-          'TOGGLE_GLOBAL   ','POPUP_WINDOWS   ','                ',&
+          'GLOBAL_MIN_ONOFF','POPUP_WINDOWS   ','WORKING_DIRECTRY',&
           '                ','                ','                ']
 !         123456789.123456---123456789.123456---123456789.123456
 ! subsubcommands to SET BITS
@@ -410,13 +411,12 @@ contains
          ['LMDIF           ','VA05AD          ']
 !------------------------------------------------------------------------
 !
+! before we come here gtp_init has been called in the main program
 ! some defaults
     language=1
     logfil=0
     defcp=1
     seqxyz=0
-! nopoup is declared in metlib3.F90 and dis/allow popup windows for read/save
-    nopopup=.FALSE.
 ! save the working directory (where OC is started)
     call getcwd(workingdir)
 !    write(*,*)'Working directory is: ',trim(workingdir)
@@ -441,6 +441,7 @@ contains
          'numerical routines extracted from LAPACK and BLAS and'/&
          'the assessment procedure uses LMDIF from ANL (Argonne, USA)'/)
 !
+! lines starting with !$ will be included when compiling with -fopenmp
 !$    write(kou,11)
 11  format('Linked with OpenMp for parallel execution')
 !
@@ -509,6 +510,8 @@ contains
     logfil=0
     buperr=0
 !
+! nopoup is declared in metlib3.F90 and dis/allow popup windows for read/save
+    nopopup=.FALSE.
 ! in init_gtp the first equilibrium record is created and 
 ! firsteq has been set to that
 !
@@ -638,16 +641,17 @@ contains
        write(*,*)'An OS command must be prefixed by @'
        goto 100
     else
-! check for options .... this does not work yet
+! check for options .... some of these do not work yet
 ! one should check for options after each subcommand or value entered ??
 !       call ocmon_set_options(cline,last,optionsset)
        nops=0
 110    continue
        if(.not.eolch(cline,last)) then
           if(cline(last:last).eq.'/') then
+! this is an option!
              call getext(cline,last,2,option,' ',nopl)
              if(buperr.ne.0) then
-                write(kou,*)'Error reading option'
+                write(kou,*)'Error reading option',buperr
                 buperr=0; goto 100
              endif
              call ocmon_set_options(option,afo,optionsset)
@@ -724,7 +728,7 @@ contains
 ! if symbol is just a numeric constant we can change its value
              actual_arg=' '
              xxx=evaluate_svfun_old(svss,actual_arg,1,ceq)
-             call gparrd('Give new value; ',cline,last,xxy,xxx,q1help)
+             call gparrd('Give new value: ',cline,last,xxy,xxx,q1help)
              call set_putfun_constant(svss,xxy)
              goto 100
           endif
@@ -1402,7 +1406,8 @@ contains
           else
 ! This code is also used in SHOW (command 25)
              call capson(name1)
-             call find_svfun(name1,istv,ceq)
+!             call find_svfun(name1,istv,ceq)
+             call find_svfun(name1,istv)
              if(gx%bmperr.ne.0) goto 990
              mode=1
              actual_arg=' '
@@ -1461,7 +1466,9 @@ contains
 ! TEST THIS IN PARALLEL !!!
              call cpu_time(xxx)
              call system_clock(count=j1)
+             threads=1
 ! OPENMP parallel start
+!$             threads=omp_get_num_threads()
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 ! for parallelizing:
 ! YOU MUST UNCOMMENT USE OMP_LIB IN GTP3.F90 or PMON6.F90
@@ -1521,7 +1528,7 @@ contains
 !$             globaldata%status=ibset(globaldata%status,GSNOACS)
 !$             globaldata%status=ibset(globaldata%status,GSNOREMCS)
 !        !$OMP for an OMP directive
-!        !$ as sentinel
+!        !$ as "sentinel"
 ! NOTE: $OMP  threadprivate(gx) declared in TPFUN4.F90 ??
 !$OMP parallel do private(neweq)
                 do i1=1,size(firstash%eqlista)
@@ -1529,6 +1536,8 @@ contains
                    jp=jp+1
                    gx%bmperr=0
                    neweq=>firstash%eqlista(i1)%p1
+! it seems stupid to get this value each loop but outside it is unity
+!$                   threads=omp_get_num_threads()
                    if(neweq%weight.eq.zero) then
                       if(listzero) write(kou,2050)neweq%eqno,neweq%eqname
                    else
@@ -1536,7 +1545,7 @@ contains
 !$                     if(.TRUE. .and. idef.eq.1) then
 !$                      write(*,663)'Equil/loop/thread/maxth/error: ',&
 !$                             neweq%eqname,i1,omp_get_thread_num(),&
-!$                             omp_get_num_threads(),gx%bmperr
+!$                             threads,gx%bmperr
 663                   format(a,a,5i5)
 ! calceq3 gives no output
 !$                        call calceq3(mode,.FALSE.,neweq)
@@ -1586,16 +1595,18 @@ contains
              if(leak.ne.0) then
                 call system_clock(count=ll)
                 xxy=ll-j1
-                write(*,669)i2,(xxz-xxx)/i2,xxy/i2
-669        format(/'Calculated equlibria, average CPU and clock time',&
+                write(*,669)idef,i2,(xxz-xxx)/i2,xxy/i2
+669        format(/'Calculated ',i3,' equlibria, average CPU and clock time',&
                 i5,F12.8,F8.4)
                 goto 2060
              endif
 !
              call system_clock(count=ll)
-             write(kou,664)i2,jp,xxz-xxx,ll-j1
-664          format('Calculated ',i5,' equilibria out of ',i5/&
-                  'Total CPU time: ',1pe12.4,' s and ',i7,' clockcycles')
+! ?? jp ??             write(kou,664)jp,xxz-xxx,ll-j1,threads
+             write(kou,664)xxz-xxx,ll-j1,threads
+!664          format('Calculated equilibria out of ',i5/&
+664          format('Total CPU time: ',1pe12.4,' s and ',i7,' clockcycles',&
+                  ' using ',i4,' thread(s)')
 ! this unit may have been used to extract calculated data for plotting
              if(plotunit0.gt.0) then
                 write(kou,670)
@@ -1852,27 +1863,40 @@ contains
 !             endif
              write(*,*)'Not implemented yet'
 !.................................................................
-          case(7) ! TOGGLE_GLOBAL
-             if(btest(globaldata%status,GSNOGLOB)) then
-                globaldata%status=ibclr(globaldata%status,GSNOGLOB)
-                write(*,*)'Global minimizer turned on'
-             else
+          case(7) ! GLOBAL_MIN_ONOFF
+             call gparc('Turn global minimization off?: ',cline,last,&
+                  1,ch1,'N',q1help)
+             if(ch1.eq.'Y' .or. ch1.eq.'y') then
                 globaldata%status=ibset(globaldata%status,GSNOGLOB)
                 write(*,*)'Global minimizer turned off'
+             else
+                globaldata%status=ibclr(globaldata%status,GSNOGLOB)
+                write(*,*)'Global minimizer turned off'
              endif
+!             if(btest(globaldata%status,GSNOGLOB)) then
+!                globaldata%status=ibclr(globaldata%status,GSNOGLOB)
+!                write(*,*)'Global minimizer turned on'
+!             else
+!                globaldata%status=ibset(globaldata%status,GSNOGLOB)
+!                write(*,*)'Global minimizer turned off'
+!             endif
 !             write(*,*)'Not implemented yet'
 !.................................................................
-          case(8) ! Toggle popup windows
+          case(8) ! POPUP_WINDOWS onoff
+             call gparcd('Turn off popup windows? ',cline,last,&
+                  1,ch1,'Y',q1help)
+             if(ch1.eq.'Y') then
 ! nopopup is declared in metlib3.F90 module
-             if(nopopup) then
-                nopopup=.FALSE.
-             else
                 nopopup=.TRUE.
-                write(kou,*)'Popup windows for read/save turned off'
+                write(kou,*)'Popup windows for open files turned off'
+             else
+                nopopup=.FALSE.
+                write(kou,*)'Popup windows for open files enabled'
              endif
 !.................................................................
-          case(9) ! nothing yet
-             write(*,*)'Not implemented yet'
+          case(9) ! WORKING DIRECTORY
+             write(kou,*)'Current working directory: ',trim(workingdir)
+             write(kou,*)'Cannot be changed ...'
 !.................................................................
           case(10) ! nothing yet
              write(*,*)'Not implemented yet'
@@ -1880,7 +1904,7 @@ contains
           case(11) ! nothing yet
              write(*,*)'Not implemented yet'
 !.................................................................
-          case(12) ! nothing yet
+          case(12) ! not used
              write(*,*)'Not implemented yet'
           end select advanced
 !-----------------------------------------------------------
@@ -2119,7 +2143,7 @@ contains
           write(kou,*)'Not implemented yet'
 !-------------------------------------------------------------
        case(11) ! set LOG_FILE
-          call gparcd('Log file name: ',cline,last,1,name1,'oclog',q1help)
+          call gparfile('Log file name: ',cline,last,1,name1,'oclog',8,q1help)
           call capson(name1)
           if(name1(1:5).eq.'NONE ') then
              call openlogfile(' ',' ',-1)
@@ -2128,7 +2152,7 @@ contains
              call gparc('Title: ',cline,last,5,model,' ',q1help)
              call openlogfile(name1,model,39)
              if(buperr.ne.0) then
-                write(kou,*)'Error opening logifile: ',buperr
+                write(kou,*)'Error opening logfile: ',buperr
                 logfil=0
              else
                 logfil=39
@@ -2499,12 +2523,14 @@ contains
              if(ll.lt.0 .or. ll.gt.7) then
                 write(kou,*)'No such bit, no bit changed'
              else
-                if(btest(ceq%status,ll)) then
-                   ceq%status=ibclr(ceq%status,ll)
-                   write(kou,*)'Bit cleared'
-                else
+                call gparcd('Do you want to set the bit?',cline,last,1,&
+                     ch1,'Y',q1help)
+                if(ch1.eq.'Y') then
                    ceq%status=ibset(ceq%status,ll)
                    write(kou,*)'Bit set'
+                else
+                   ceq%status=ibclr(ceq%status,ll)
+                   write(kou,*)'Bit cleared'
                 endif
              endif
 !             write(*,*)'Not implemented yet'
@@ -2552,16 +2578,26 @@ contains
                 write(kou,*)'No bit changed'
              elseif(btest(globaldata%status,GSADV) .or. ll.le.2) then
 ! user must have expert bit set to change any other bit than the user type bit
-                if(btest(globaldata%status,ll)) then
-                   globaldata%status=ibclr(globaldata%status,ll)
-                   write(*,3711)'cleared',globaldata%status
-3711               format('Bit ',a,', new value of status word: ',z8)
-                else
+                call gparcd('Do you want to set the bit?',cline,last,1,&
+                     ch1,'Y',q1help)
+                if(ch1.eq.'Y') then
                    globaldata%status=ibset(globaldata%status,ll)
-                   write(*,3711)'set',globaldata%status
+                   write(kou,*)'Bit set',ll
+                else
+                   globaldata%status=ibclr(globaldata%status,ll)
+                   write(kou,*)'Bit cleared',ll
                 endif
+! replaced by question above
+!                if(btest(globaldata%status,ll)) then
+!                   globaldata%status=ibclr(globaldata%status,ll)
+!                   write(*,3711)'cleared',globaldata%status
+!3711               format('Bit ',a,', new value of status word: ',z8)
+!                else
+!                   globaldata%status=ibset(globaldata%status,ll)
+!                   write(*,3711)'set',globaldata%status
+!                endif
                 if(.not.btest(globaldata%status,GSADV)) then
-! if expert/experienced bit is cleared ensure that experienced bit is set
+! if expert/experienced bit is cleared ensure that occational user bit is set
                    globaldata%status=ibset(globaldata%status,GSOCC)
                 endif
              else
@@ -2937,6 +2973,7 @@ contains
              write(kou,*)'You have no data!'
              goto 100
           endif
+! enter_experiments is in models/gtp3D ...
           call enter_experiment(cline,last,ceq)
 !---------------------------------------------------------------
        case(9)  ! enter QUIT
@@ -3360,8 +3397,9 @@ contains
                      ' is not shown or listed as zero')
              endif
           else
-! the value of a state variable or model parameter variable is returned
+! the value of a state variable, symbol? or model parameter variable is returned
 ! STRANGE the symbol xliqni is accepted in get_state_var_value ???
+!             write(*,*)'pmon show: ',name1
              call get_state_var_value(name1,xxx,model,ceq)
 !             write(*,*)'PMON: show xliqni should come here 6 ... ',gx%bmperr
              if(gx%bmperr.eq.0) then
@@ -3376,12 +3414,13 @@ contains
                 call meq_evaluate_all_svfun(-1,ceq)
                 if(gx%bmperr.ne.0) gx%bmperr=0
                 call capson(line)
-                call find_svfun(name1,istv,ceq)
+!                call find_svfun(name1,istv,ceq)
+                call find_svfun(name1,istv)
                 if(gx%bmperr.ne.0) goto 990
                 mode=1
                 actual_arg=' '
                 xxx=meq_evaluate_svfun(istv,actual_arg,mode,ceq)
-                write(*,*)'pmon error: calling meq_evaluate_svfun',istv,xxx
+!                write(*,*)'pmon error: calling meq_evaluate_svfun',istv,xxx
                 if(gx%bmperr.ne.0) goto 990
                 write(kou,2047)trim(name1),xxx
 ! this format statement elsewhere
@@ -3495,14 +3534,15 @@ contains
           enddo
 !------------------------------
        case(12) ! list results
-! if no calculation made skip
+! skip if no calculation made
           if(btest(globaldata%status,GSNOPHASE)) then
              write(kou,*)'No results as no data'
              goto 100
           elseif(btest(ceq%status,EQGRIDCAL)) then
              write(kou,*)' *** Last calculation was not a full equilibrium'
           endif
-          call gparid('Output mode: ',cline,last,listresopt,lrodef,q1help)
+          call gparid('Results output mode: ',cline,last,&
+               listresopt,lrodef,q1help)
           if(buperr.ne.0) then
              write(kou,*)'No such mode, using default'
              buperr=0
@@ -3851,12 +3891,15 @@ contains
              text=ocufile
              call gparcd('File name: ',cline,last,1,ocufile,text,q1help)
           else
-! added that extenstion should be "UNF"
+! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=PDB, 7=DAT
+! negative is for write, 0 read without filter, -100 write without filter
              call gparfile('File name: ',cline,last,1,ocufile,' ',2,q1help)
 !             call gparc('File name: ',cline,last,1,ocufile,' ',q1help)
           endif
           call gtpread(ocufile,text)
-          if(gx%bmperr.ne.0) goto 990
+          if(gx%bmperr.ne.0) then
+             ocufile=' '; goto 990
+          endif
 ! This is written by the gtpread subroutine
 !          kl=len_trim(text)
 !          if(kl.gt.1) then
@@ -3886,7 +3929,8 @@ contains
              text=tdbfile
              call gparcd('File name: ',cline,last,1,tdbfile,text,q1help)
           else
-! added that extension should be TDB
+! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=PDB, 7=DAT, 8=LOG
+! negative is for write, 0 read without filter, -100 write without filter
              call gparfile('File name: ',cline,last,1,tdbfile,' ',1,q1help)
 !             call gparc('File name: ',cline,last,1,tdbfile,' ',q1help)
           endif
@@ -3989,7 +4033,8 @@ contains
              text=tdbfile
              call gparcd('File name: ',cline,last,1,tdbfile,text,q1help)
           else
-! The default extenson PDB is 6
+! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=PDB, 7=DAT
+! negative is for write, 0 read without filter, -100 write without filter
              call gparfile('File name: ',cline,last,1,tdbfile,' ',6,q1help)
 !             call gparc('File name: ',cline,last,1,tdbfile,' ',q1help)
           endif
@@ -4040,14 +4085,20 @@ contains
 !        ['TDB             ','SOLGAS          ','QUIT            ',&
 !         'DIRECT          ','UNFORMATTED     ','PDB             ']
     CASE(9)
-! default i 3, unformatted
+! default is 3, unformatted
        kom2=submenu(cbas(kom),cline,last,csave,ncsave,5)
        if(kom2.le.0 .or. kom2.gt.ncsave) goto 100
 !
-       if(kom2.gt.3) then
+!       if(kom2.gt.3) then
+! removed this comment line altogether in version 5.019
 ! Do not ask this question for QUIT, TDB and SOLGASMIX files
-          call gparc('Comment line: ',cline,last,5,model,' ',q1help)
-       endif
+!          call gparc('Comment line: ',cline,last,5,model,' ',q1help)
+!       endif
+       call date_and_time(optres,name1)
+! optres(1:8) is year+month+day, name1(1:4) is hour and minutes
+       model=' '//optres(1:4)//'.'//optres(5:6)//'.'//optres(7:8)//&
+            ' '//name1(1:2)//'h'//name1(3:4)//' '
+!       write(*,*)'comment text: ',trim(model)
        save: SELECT CASE(kom2)
 !-----------------------------------------------------------
        CASE DEFAULT
@@ -4065,8 +4116,9 @@ contains
 !-----------------------------------------------------------
        case(2) ! SOLGAS
           text=' '
-! no default extension defined
-          call gparfile('File name: ',cline,last,1,filename,text,0,q1help)
+! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=PDB, 7=DAT
+! negative is for write, 0 read without filter, -100 write without filter
+          call gparfile('File name: ',cline,last,1,filename,text,-7,q1help)
 !          call gparc('File name: ',cline,last,1,filename,text,q1help)
           kl=max(index(filename,'.dat '),index(filename,'.DAT '))
           if(kl.le.0) then
@@ -4088,8 +4140,9 @@ contains
              text=ocdfile
              call gparcd('File name: ',cline,last,1,ocdfile,text,q1help)
           else
-! specifying ouput file
-             call gparfile('File name: ',cline,last,1,ocdfile,' ',-1,q1help)
+! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=PDB, 7=DAT
+! negative is for write, 0 read without filter, -100 write without filter
+             call gparfile('File name: ',cline,last,1,ocdfile,' ',-4,q1help)
 !             call gparc('File name: ',cline,last,1,ocdfile,' ',q1help)
           endif
           jp=0
@@ -4114,19 +4167,21 @@ contains
              text=ocufile
              call gparcd('File name: ',cline,last,1,ocufile,text,q1help)
           else
-! output file name
-             call gparfile('File name: ',cline,last,1,ocufile,' ',-1,q1help)
+! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=PDB, 7=DAT
+! negative is for write, 0 read without filter, -100 write without filter
+             call gparfile('File name: ',cline,last,1,ocufile,' ',-2,q1help)
 !             call gparc('File name: ',cline,last,1,ocufile,' ',q1help)
           endif
           jp=0
           kl=index(ocufile,'.')
-          if(kl.le.0) then
+! in macro files a file name may start with ./
+          if(kl.le.1) then
              jp=len_trim(ocufile)
           elseif(ocufile(kl+1:kl+1).eq.' ') then
 ! just ending a filename with . not accepted as extention
              jp=kl
           endif
-          if(kl.le.0 .and. jp.le.0) then
+          if(kl.le.1 .and. jp.le.0) then
              write(kou,*)'Missing file name, nothing saved'
              goto 100
           endif
@@ -4141,7 +4196,7 @@ contains
                 goto 132
              endif
              write(*,134)trim(ocufile)
-134          format(/'Overwriting previous results on ',a/)
+134          format(/'Overwriting previous results on ',a)
           endif
           text='U '//model
           call gtpsave(ocufile,text)
@@ -4238,7 +4293,7 @@ contains
 !------remove assessment data
 !       write(*,*)'No segmentation fault 1'
        if(allocated(firstash%eqlista)) then
-          write(*,*)' *** Warning, assessment data not removed'
+          write(*,*)'Assessment data removed, not deallocated: memory leak'
        endif
 !       write(*,*)'No segmentation fault 2'
        if(allocated(firstash%eqlista)) deallocate(firstash%eqlista)
@@ -4912,7 +4967,8 @@ contains
                    gx%bmperr=0
 ! If error then try to calculate a symbol ...
                    call capson(axplot(iax))
-                   call find_svfun(axplot(iax),istv,ceq)
+!                   call find_svfun(axplot(iax),istv,ceq)
+                   call find_svfun(axplot(iax),istv)
                    if(gx%bmperr.ne.0) then
                       write(kou,*)'Illegal axis variable, error: ',gx%bmperr
                       goto 100
@@ -4953,7 +5009,7 @@ contains
        elseif(graphopt%gnutermsel.ne.1) then
           write(kou,2910)trim(graphopt%gnutermid(graphopt%gnutermsel)),&
                trim(plotfile),trim(graphopt%filext(graphopt%gnutermsel))
-2910      format(/' *** Graphics format is ',a,' on file: ',a,'.',a)
+2910      format(/'Graphics output as ',a,' on file: ',a,'.',a)
        endif
        write(kou,21112)
 21112  format(/'Note: give only one option per line!')
@@ -4965,7 +5021,6 @@ contains
 !-----------------------------------------------------------
 ! PLOT RENDER no more options to plot ...
        case(1)
-! added ceq in the call to make it possible to handle change of reference states
 !2190      continue
 ! use the graphics record to transfer data ...
           graphopt%pltax(1)=axplot(1)
@@ -4989,9 +5044,12 @@ contains
           graphopt%filename=' '
 !          write(*,*)' >>>>>>>>>>>>> ',trim(plotfile)
           graphopt%filename=plotfile
+! added ceq in the call to make it possible to handle change of reference states
           call ocplot2(jp,maptop,axarr,graphopt,version,ceq)
           if(gx%bmperr.ne.0) goto 990
 ! always restore default plot file name and plot option to screem
+          if(graphopt%gnutermsel.ne.1) &
+               write(kou,*)'Restoring plot device to screen'
           graphopt%gnutermsel=1
           graphopt%filename='ocgnu '
           plotfile='ocgnu'
@@ -5195,10 +5253,20 @@ contains
 !-----------------------------------------------------------
 ! PLOT OUTPUT_FILE, always asked when changing graphics terminal type
 21140     continue
+! default extension: 1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=PDB, 7=DAT, 8=LOG
+! negative is for write, 0 read without filter, -100 write without filter
 ! DO NOT USE tinyfiledialog here ...
-! Graphics output: -1=output, 1=TDB, 2=UNF, 3=OCM)
-!          call gparfile('Plot file name: ',cline,last,1,plotfile,' ',-1,q1help)
+!          call gparfile('Plot file name: ',cline,last,1,plotfile,' ',-5,q1help)
           call gparcd('Plot file',cline,last,1,plotfile,'ocgnu',q1help)
+          if(plotfile(1:2).eq.'./') then
+! save in macro directory else in current working directory
+             if(iumaclevl.gt.0) then
+                plotfile=trim(macropath(iumaclevl))//plotfile
+             else
+                plotfile=trim(workingdir)//plotfile
+             endif
+             write(*,*)'Saving on: ',trim(plotfile)
+          endif
           if(plotfile(1:6).ne.'ocgnu ') then
              if(index(plotfile,'.').le.0) then
                 if(graphopt%gnutermsel.ne.1) then
@@ -5258,6 +5326,8 @@ contains
        case(12)
           write(kou,*)'Give a file name with graphics in GNUPLOT format'
 ! append plot file, specifying extension PLT
+! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=PDB, 7=DAT
+! negative is for write, 0 read without filter, -100 write without filter
           call gparfile('File name',cline,last,1,text,'  ',5,q1help)
 !          call gparcd('File name',cline,last,1,text,'  ',q1help)
 ! check it is OK and add .plt if necessary ...
@@ -5939,25 +6009,27 @@ contains
 !\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
 !\begin{verbatim}
-  subroutine ocmon_set_options(option,afo,optionsset)
+  subroutine ocmon_set_options(useroption,afo,optionsset)
     implicit none
-    character*(*) option
+    character*(*) useroption
     integer afo
     TYPE(ocoptions) :: optionsset
 !\end{verbatim}
-    integer next,kom,slen,errno
-    character string*64,dummy*128,date*8,time*10
+    integer next,kom,slen,errno,jj
+    character option*64,string*64,dummy*128,date*8,time*10
     integer, parameter :: nopt=9
     character (len=16), dimension(nopt) :: copt=&
         ['OUTPUT          ','ALL             ','FORCE           ',&
          'VERBOSE         ','SILENT          ','APPEND          ',&
          '                ','                ','                ']
-!
+! copy "option" to a local string as it may be just a single character!!
+    option=' '
+    option=useroption
 ! /? will list options
     afo=0
     if(option(1:2).eq.'? ') then
        write(kou,10)
-10     format('Available options (preceeded by /) are:')
+10     format('Available options (preceded by /) are:')
        next=1
        dummy=' * '
        call q3help(dummy,next,copt,nopt)
@@ -5979,13 +6051,26 @@ contains
           call q3help(dummy,next,copt,nopt)
           afo=1
 !-----------------------------------
-       case(1) ! /output means ovewrite any previous content
+       case(1) ! /output means open a file and ovewrite any previous content
 !          write(*,*)'Option not implemented: ',option(1:len_trim(option))
 ! next argument after = must be a file name
-          call getext(option,next,2,string,' ',slen)
+! 6 means extension DAT
+ !         jj=next+1
+ !         if(eolch(option,jj)) then
+! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=PDB, 7=DAT
+! negative is for write, 0 read without filter, -100 write without filter
+             call gparfile('Output file',option,next,1,string,'  ',-7,q1help)
+             if(string(1:1).eq.' ') then
+                string='ocoutput.DAT'
+                write(kou,*)' *** No file name given, will use: ',trim(string)
+             endif
+             slen=len_trim(string)
+!          else
+!             call getext(option,next,2,string,' ',slen)
+!          endif
 ! add extention .dat if to extenstion provided
           if(index(string,'.').le.0) then
-             string(slen+1:)='.dat '
+             string(slen+1:)='.DAT '
           endif
 ! close any previous output file          
           close(21)
@@ -5997,17 +6082,17 @@ contains
 232       format(/'%%%%%%%%%% OC output ',a,a4,'-',a2,'-',a2,2x,a2,'h',a2)
           write(21,232)'written: ',date(1:4),date(5:6),date(7:8),&
                time(1:2),time(3:4)
-          write(*,*)'output to file: ',string(1:len_trim(string)),optionsset%lut
+          write(kou,231)'Output',trim(string)
 !-----------------------------------
        case(2) ! /all ??
-          write(*,*)'Option not implemented: ',option(1:len_trim(option))
+          write(*,*)'Option not implemented: ',trim(option)
 !-----------------------------------
        case(3) ! /force
-          write(*,*)'Option not implemented: ',option(1:len_trim(option))
+          write(*,*)'Option not implemented: ',trim(option)
 !-----------------------------------
        case(4) ! /verbose
           globaldata%status=ibset(globaldata%status,GSVERBOSE)
-          write(kou,*)'VERBOSE option set'
+          write(kou,*)'VERBOSE option set  ... but not really implemented'
 !-----------------------------------
        case(5) ! /silent
           globaldata%status=ibclr(globaldata%status,GSVERBOSE)
@@ -6016,10 +6101,23 @@ contains
        case(6) ! /APPEND, open file and write at end
 !          write(*,*)'Option not implemented: ',option(1:len_trim(option))
 ! next argument after = must be a file name
-          call getext(option,next,2,string,' ',slen)
-! add extention .dat if to extenstion provided
+!          jj=next
+!          if(eolch(option,jj)) then
+! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=PDB, 7=DAT
+! negative is for write, 0 read without filter, -100 write without filter
+          call gparfile('Append to file:',option,next,&
+               1,string,'  ',-7,q1help)
+          if(string(1:1).eq.' ') then
+             string='ocappend.DAT'
+             write(kou,*)' *** No file name given, will use: ',trim(string)
+          endif
+!          else
+!             call getext(option,next,2,string,' ',slen)
+!          endif
+! add extention .dat if to extension provided
+          slen=len_trim(string)
           if(index(string,'.').le.0) then
-             string(slen+1:)='.dat '
+             string(slen+1:)='.DAT '
           endif
 ! close any previous output file (should not be necessary)
           close(21)
@@ -6038,8 +6136,8 @@ contains
           call date_and_time(date,time)
           write(21,232)'appended: ',date(1:4),date(5:6),date(7:8),&
                time(1:2),time(3:4)
-          write(kou,231)string(1:len_trim(string))
-231       format('Output will be appended to file: ',a)
+          write(kou,231)'Append',trim(string)
+231       format(a,' on file: ',a)
 !-----------------------------------
        case(7) ! 
           continue
@@ -6079,7 +6177,7 @@ contains
     if(optionsset%lut.ne.kou) then
        close(optionsset%lut)
        optionsset%lut=kou
-       write(*,*)'ouput unit reset to screen',optionsset%lut
+       write(kou,"(a,i4)")'Output unit reset to screen: ',kou
     endif
 !1000 continue
     return
@@ -6157,7 +6255,7 @@ contains
     endif
 621 format(/'Final sum of squared errors: ',1pe16.5,&
          ' using ',i4,' experiments and'/&
-         i3,' coefficient(s).  Degrees of freedoms: ',i4,&
+         i3,' coefficient(s).  Degrees of freedom: ',i4,&
          ', normalized error: ',1pe13.4/)
 1000 continue
     return

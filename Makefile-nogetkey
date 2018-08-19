@@ -1,4 +1,4 @@
-OBJS=metlib3.o oclablas.o ocnum.o gtp3.o matsmin.o lmdif1lib.o smp2.o pmon6.o
+OBJS=tinyopen.o metlib3.o oclablas.o ocnum.o gtp3.o matsmin.o lmdif1lib.o smp2.o pmon6.o
 EXE=oc5P
 
 FC=gfortran
@@ -11,15 +11,19 @@ FCOPT= -O2 -fopenmp
 #FC=ifort
 #FCOPT= -check bounds -zero
 
-# You must first run the Makefile on the utilities/GETKEY directory !!!
-# with the appropriate settings for your system: (-DBSD/DLinux/-DG77/-DCYGWIN)
+# To have the command line editing and history feature on your OS 
+# you must use the Makefile provided
 
 all: $(OBJS) $(EXE)
 
+tinyopen.o:
+	# compile utilities/TINYFILEDIALOGS for popup openfile windows 
+	gcc -c utilities/TINYFILEDIALOGS/tinyfiledialogs.c
+	gcc -c utilities/TINYFILEDIALOGS/tinyopen.c	
+	gfortran -c utilities/TINYFILEDIALOGS/ftinyopen.F90
+
 metlib3.o:	utilities/metlib3.F90
-	# copy getkey module information
-	cp utilities/GETKEY/m_getkey.mod .
-	$(FC) -c $(FCOPT) utilities/metlib3.F90
+	$(FC) -c $(FCOPT) -Dtinyfd -Dwin utilities/metlib3.F90
 
 oclablas.o:	numlib/oclablas.F90
 	$(FC) -c $(FCOPT) numlib/oclablas.F90
@@ -48,10 +52,7 @@ $(EXE):
 
 # create library liboceq.a
 	ar sq liboceq.a metlib3.o oclablas.o ocnum.o gtp3.o matsmin.o lmdif1lib.o
-# copy getkey.o
-	cp utilities/GETKEY/getkey.o .
-
-	$(FC) -o $(EXE) $(FCOPT) pmain1.F90 pmon6.o smp2.o liboceq.a getkey.o
+	$(FC) -o $(EXE) $(FCOPT) pmain1.F90 pmon6.o smp2.o ftinyopen.o tinyopen.o tinyfiledialogs.o liboceq.a
 
 clean:
 	rm -r *.o *.mod linkoc liboceq.a $(EXE)

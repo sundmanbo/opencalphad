@@ -8,7 +8,7 @@ set echo
 
 new Y
 
-r u opttest2-cumg3
+r u ./opttest2-cumg3
 
 @$---------------------------------------------------
 @$ Start by reading the unformatted file
@@ -44,7 +44,7 @@ l opt
 
 @&
 
-macro opttest2-map-diagram
+macro ./opttest2-map-diagram
 
 @$---------------------------------------------------------
 @$ The CuMg2 phase is stable to very high T, add the entropy
@@ -76,7 +76,7 @@ list opt
 
 @&
 
-macro opttest2-map-diagram
+macro ./opttest2-map-diagram
 
 @&
 @$------------------------------------------------------
@@ -94,9 +94,7 @@ del step_map
 
 @&
 
-save unf
-liq and cumg2 parameters OK
-opttest2-cumg4
+save unf ./opttest2-cumg4
 Y
 
 set inter

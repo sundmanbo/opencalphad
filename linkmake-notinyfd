@@ -1,27 +1,13 @@
 REM This file must be given the extension .cmd to be run on WIndows
-REM It compiles OC with the popup window for opening files.
-REM If you do not want that or have problems try to command file
-REM linkmake-tinyfd
+REM It compiles OC without the popup window for opening files
+REM If you want that feature use the linkmake file
 
 del *.o
 del *.mod
 
-REM tinyfiledialog files and iso-c-interface
-copy utilities\TINYFILEDIALOGS\tinyopen.c .
-copy utilities\TINYFILEDIALOGS\tinyfiledialogs.c .
-copy utilities\TINYFILEDIALOGS\tinyfiledialogs.h .
-copy utilities\TINYFILEDIALOGS\ftinyopen.F90 .
-gcc -c tinyopen.c
-gcc -c tinyfiledialogs.c
-gfortran -c ftinyopen.F90
-del tinyopen.c
-del tinyfiledialogs.c
-del tinyfiledialogs.h
-del ftinyopen.F90
-
 REM some utilites and the command line interface
 copy utilities\metlib3.F90 .
-gfortran -c -Dwin -Dtinyfd metlib3.F90
+gfortran -c -Dwin metlib3.F90
 del metlib3.F90
 
 REM some routines from LAPACK and BLAS
@@ -69,5 +55,6 @@ REM generating the library (needed also for TQ library)
 ar sq liboceq.a metlib3.o oclablas.o ocnum.o gtp3.o matsmin.o lmdif1lib.o
 
 REM Finally linking all together
-gfortran -o oc5A pmain1.F90 pmon6.o smp2.o ftinyopen.o tinyopen.o tinyfiledialogs.o liboceq.a -lcomdlg32 -lole32
+gfortran -o oc5A pmain1.F90 pmon6.o smp2.o liboceq.a
+
 
