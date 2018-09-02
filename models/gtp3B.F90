@@ -512,7 +512,7 @@
    logical externalchargebalance,tupix
    integer iph,kkk,lokph,ll,nk,jl,jk,mm,lokcs,nkk,nyfas,loksp,tuple,bothcharge
 ! logicals for models later stored in phase record
-   logical i2sl,cqc
+   logical i2sl,cqc,uniquac
 !   write(*,*)'3B enter enter_phase: ',trim(name),' ',trim(model)
    if(.not.allowenter(2)) then
       gx%bmperr=4125
@@ -520,6 +520,7 @@
    endif
    i2sl=.FALSE.
    cqc=.FALSE.
+   uniquac=.FALSE.
 ! check input
    call capson(name)
 !   if(.not.ucletter(name)) then
@@ -571,6 +572,8 @@
       i2sl=.TRUE.
    elseif(model(1:4).eq.'CQC ') then
       cqc=.TRUE.
+   elseif(model(1:8).eq.'UNIQUAC ') then
+      uniquac=.TRUE.
    endif
 ! check constituents
    externalchargebalance=.false.
@@ -924,6 +927,9 @@
       enddo
 ! set CQC bit
       phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHQCE)
+   elseif(uniquac) then
+! do not set anything else at the moment
+      phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHUNIQUAC)
    endif
 ! nullify links
    nullify(phlista(nyfas)%additions)
@@ -953,10 +959,13 @@
       enddo
 !---------------------- new code end
    endif
-! always enter volume model1, nyfas is lokph, use alphabetical index
+! almost always enter volume model1, nyfas is lokph, use alphabetical index
    if(nyfas.gt.0) then
+      if(.not.(btest(phlista(nyfas)%status1,PHUNIQUAC) .or.&
+           btest(phlista(nyfas)%status1,PHGAS))) then
 !      write(*,*)'3B enter_phase adding volume model: ',trim(name),nyfas
-      call add_addrecord(nyfas,' ',volmod1)
+         call add_addrecord(nyfas,' ',volmod1)
+      endif
    endif
 1000 continue
    return

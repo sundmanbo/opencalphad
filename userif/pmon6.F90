@@ -52,7 +52,7 @@ contains
     integer narg
 ! various symbols and texts
     character :: ocprompt*8='--->OC5:'
-    character name1*24,name2*24,line*80,model*72,chshort
+    character name1*24,name2*24,line*80,model*72,chshort,browser*128
     integer, parameter :: ocmonversion=34
 ! element symbol and array of element symbols for database use
     character elsym*2,ellist(maxel)*2
@@ -245,8 +245,7 @@ contains
         ['SHORT           ','LONG            ','COEFFICIENTS    ',&
          'GRAPHICS        ','DEBUG           ','MACRO           ',&
          'EXPERIMENTS     ','CORRELATION_MTRX','                ']
-!-------------------
-! subcommands to CALCULATE
+!------------------- subcommands to CALCULATE
     character (len=16), dimension(ncalc) :: ccalc=&
          ['TPFUN_SYMBOLS   ','PHASE           ','NO_GLOBAL       ',&
          'TRANSITION      ','QUIT            ','GLOBAL_GRIDMIN  ',&
@@ -256,7 +255,7 @@ contains
 ! subcommands to CALCULATE PHASE
     character (len=16), dimension(nccph) :: ccph=&
          ['ONLY_G          ','G_AND_DGDY      ','ALL_DERIVATIVES ',&
-          'CONSTITUTION_ADJ','DIFFUSION_COEFF ','                ']
+          'CONSTITUTION_ADJ','DIFFUSION_COEFF ','QUIT            ']
 !-------------------
 ! subcommands to ENTER
     character (len=16), dimension(ncent) :: center=&
@@ -310,7 +309,7 @@ contains
          ['MAGNETIC_CONTRIB','QUIT            ','                ',&
          'TWOSTATE_LIQUID ','SCHOTTKY_ANOMATY','                ',&
          'LOWT_CP_MODEL   ','                ','                ',&
-         'ELASTIC_MODEL_1 ','CRYSTAL_BREAKDWN','SECOND_EINSTEIN ']
+         'ELASTIC_MODEL_1 ','CRYSTAL_BREAKDWN','SMOOTH_CP_STEP  ']
 !-------------------
 ! subcommands to SET
     character (len=16), dimension(ncset) :: cset=&
@@ -331,7 +330,7 @@ contains
     character (len=16), dimension(ncadv) :: cadv=&
          ['EQUILIB_TRANSF  ','QUIT            ','EXTRA_PROPERTY  ',&
           'GRID_DENSITY    ','SMALL_GRID_ONOFF','MAP_SPECIAL     ',&
-          'GLOBAL_MIN_ONOFF','POPUP_WINDOWS   ','WORKING_DIRECTRY',&
+          'GLOBAL_MIN_ONOFF','POPUP_WINDOW_OFF','WORKING_DIRECTRY',&
           '                ','                ','                ']
 !         123456789.123456---123456789.123456---123456789.123456
 ! subsubcommands to SET BITS
@@ -372,7 +371,7 @@ contains
 ! subcommands to DEBUG
     character (len=16), dimension(ncdebug) :: cdebug=&
          ['FREE_LISTS      ','STOP_ON_ERROR   ','ELASTICITY      ',&
-          'TEST1           ','TPFUN           ','                ']
+          'TEST1           ','TPFUN           ','BROWSER         ']
 !-------------------
 ! subcommands to SELECT, maybe some should be CUSTOMMIZE ??
     character (len=16), dimension(nselect) :: cselect=&
@@ -869,7 +868,7 @@ contains
                 write(*,671)
 671             format('This addition requires the CBT parameter')
 !....................................................
-             case(12) ! amend phase ... second Einstein
+             case(12) ! amend phase ... smooth-Cp-step
                 call add_addrecord(lokph,' ',secondeinstein)
                 write(*,672)
 672             format('This addition recures the THT2 and DCP2 parameters')
@@ -1197,6 +1196,9 @@ contains
              write(kou,*)'Cannot loop for all phases'
              goto 100
           endif
+! subcommands for calculate phase
+!         ['ONLY_G          ','G_AND_DGDY      ','ALL_DERIVATIVES ',&
+!          'CONSTITUTION_ADJ','DIFFUSION_COEFF ','QUIT            ']
 !
           kom3=submenu('Calculate what for phase?',cline,last,ccph,nccph,defcp)
 !        if(kom2.le.0) goto 100
@@ -1332,8 +1334,8 @@ contains
                 write(kou,2095)1,(mobilities(jp),jp=1,noel())
              endif
 !.......................................................
-          case(6) !
-             write(*,*)'Not implemeneted yet'
+          case(6) ! Quit
+!             write(*,*)'Not implemeneted yet'
           END SELECT calcphase
 ! set bits to warn that listings may be inconsistent
           ceq%status=ibclr(ceq%status,EQNOEQCAL)
@@ -1529,9 +1531,12 @@ contains
 !$             globaldata%status=ibset(globaldata%status,GSNOREMCS)
 !        !$OMP for an OMP directive
 !        !$ as "sentinel"
+! this statement must not be inside a parallel do ...
+                svss=size(firstash%eqlista)
 ! NOTE: $OMP  threadprivate(gx) declared in TPFUN4.F90 ??
 !$OMP parallel do private(neweq)
-                do i1=1,size(firstash%eqlista)
+                do i1=1,svss
+!                do i1=1,size(firstash%eqlista)
 ! the error code must be set to zero for each thread ?? !!
                    jp=jp+1
                    gx%bmperr=0
@@ -1595,9 +1600,10 @@ contains
              if(leak.ne.0) then
                 call system_clock(count=ll)
                 xxy=ll-j1
-                write(*,669)idef,i2,(xxz-xxx)/i2,xxy/i2
-669        format(/'Calculated ',i3,' equlibria, average CPU and clock time',&
-                i5,F12.8,F8.4)
+! or should i2 be used ??
+                write(*,669)i2,(xxz-xxx)/i2,xxy/i2
+669        format(/'Calculated ',i8,' equlibria, average CPU and clock time',&
+                F12.8,F10.6)
                 goto 2060
              endif
 !
@@ -1882,7 +1888,7 @@ contains
 !             endif
 !             write(*,*)'Not implemented yet'
 !.................................................................
-          case(8) ! POPUP_WINDOWS onoff
+          case(8) ! POPUP_WINDOWS_OFF
              call gparcd('Turn off popup windows? ',cline,last,&
                   1,ch1,'Y',q1help)
              if(ch1.eq.'Y') then
@@ -2508,7 +2514,7 @@ contains
              call gparid('Which bit? ',cline,last,ll,-1,tophlp)
              if(cline(1:1).eq.'?') then
                 write(kou,3612)ceq%status
-3612            format('Toggles equilibrium status word, currently: ',z8,/&
+3612            format('Set/reset bits of the equilibrium status word,',/&
                      'Bit If set means',/&
                      ' 0  No threads allowed (no parallel calculation)',/&
                      ' 1  No global minimization allowed',/&
@@ -2517,7 +2523,8 @@ contains
                      ' 4  Last equilibrium calculation failed',/&
                      ' 5  No automatic generation of composition sets',/&
                      ' 6  Equilibrim tested by global minimizer',/&
-                     ' 7  Current results are from a grid minimization'/)
+                     ' 7  Last results are from a grid minimization'/&
+                     'Current value of status word: ',z8)
                 goto 3610
              endif
              if(ll.lt.0 .or. ll.gt.7) then
@@ -2527,10 +2534,11 @@ contains
                      ch1,'Y',q1help)
                 if(ch1.eq.'Y') then
                    ceq%status=ibset(ceq%status,ll)
-                   write(kou,*)'Bit set'
+                   write(kou,3614)'set',ceq%status
+3614               format('Bit ',a,', new equilibrium status word: ',z8)
                 else
                    ceq%status=ibclr(ceq%status,ll)
-                   write(kou,*)'Bit cleared'
+                   write(kou,3614)'cleared',ceq%status
                 endif
              endif
 !             write(*,*)'Not implemented yet'
@@ -2541,11 +2549,11 @@ contains
 ! subroutine TOPHLP forces return with ? in position cline(last:last)
              write(kou,3709)globaldata%status
 3709         format('Current global status word (hexadecimal): ',z8)
-             call gparid('Toggle global status bit (from 0-31, -1 quits):',&
+             call gparid('Set/reset global status bit (from 0-31, -1 quits):',&
                   cline,last,ll,-1,tophlp)
              if(cline(1:1).eq.'?') then
-                write(kou,3710)globaldata%status
-3710            format('Toggles global status word ',z8,&
+                write(kou,3710)
+3710            format('Set/reset bits of global status word ',&
                      ' (only experts should change these) '/&
                      'Bit If set means:'/&
                      ' 0  user is a beginner'/&
@@ -2560,7 +2568,7 @@ contains
                      ' 9  data has changed since last save'/&
                      '10  verbose is on'/&
                      '11  verbose is permanently on'/'-'/&
-                     '12  no warnings'/&
+                     '12  supress warning messages'/&
                      '13  no cleanup after an equilibrium calculation'/&
                      '14  denser grid used in grid minimizer'/&
                      '15  calculations in parallel is not allowed'/'-'/&
@@ -2570,7 +2578,7 @@ contains
                      '19  use old grid minimizer'/'-'/&
                      '20  do not recalculate if global test AFTER fails'/&
                      '21  use old map algorithm'/&
-                     '22  do not generate automatic startpoints for MAP'/&
+                     '22  no automatic startpoints for MAP'/&
                      '23-31 unused')
                 goto 3708
              endif
@@ -2582,10 +2590,11 @@ contains
                      ch1,'Y',q1help)
                 if(ch1.eq.'Y') then
                    globaldata%status=ibset(globaldata%status,ll)
-                   write(kou,*)'Bit set',ll
+                   write(kou,3617)ll,' set',globaldata%status
+3617               format('Bit ',i2,a,', new equilibrium status word: ',z8)
                 else
                    globaldata%status=ibclr(globaldata%status,ll)
-                   write(kou,*)'Bit cleared',ll
+                   write(kou,3617)ll,' cleared',globaldata%status
                 endif
 ! replaced by question above
 !                if(btest(globaldata%status,ll)) then
@@ -3947,9 +3956,11 @@ contains
           call checkdb(tdbfile,'.tdb',jp,ellist)
           if(gx%bmperr.ne.0) then
              write(kou,*)'No database with this name'
+             tdbfile=' '
              goto 990
           elseif(jp.eq.0) then
              write(kou,*)'No elements in the database'
+             tdbfile=' '
              goto 100
           endif
           write(kou,8203)jp,(ellist(kl),kl=1,jp)
@@ -4466,9 +4477,13 @@ contains
           call gparid('Function index:',cline,last,ll,-1,nohelp)
           call list_tpfun_details(ll)
 !---------------------------------
-! debug unused
+! debug browser
        case(6)
-          write(*,*)'Neither here'
+          call gparcd('File name: ',cline,last,5,string,&
+               './manual/html/ochelp5.html ',q1help)
+          browser='"C:\Program Files\Mozilla firefox\firefox.exe" '
+          write(*,'(a)')trim(browser)//' -file '//trim(string)
+          call system(trim(browser)//' -file '//trim(string))
        END SELECT debug
 !=================================================================
 ! select command

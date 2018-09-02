@@ -1980,6 +1980,8 @@ CONTAINS
 ! just save the last questions
        helprec%cpath(helprec%level)=promt
     endif
+! always upper case
+    call capson(helprec%cpath(helprec%level))
 991 continue
 !...INCREMENT LAST BY ONE TO BYPASS TERMINATOR OF COMMAND OR PREVIOUS ANSWER
     LAST=LAST+1
@@ -5452,6 +5454,8 @@ CONTAINS
 ! use the saved helprec%level 
        helprec%level=savedlevel
        helprec%cpath(helprec%level)=helpquest
+! always upper case ...
+       call capson(helprec%cpath(helprec%level))
 !       write(*,11)helprec%level,(helprec%cpath(i)(1:8),i=1,helprec%level)
 11     format('q2help: ',i3,10(', ',a))
     endif
@@ -5472,19 +5476,16 @@ CONTAINS
     character*(*) prompt,line
     character hline*80,mtxt*80
     integer, parameter :: maxlevel=20
-    character subsec(4)*10,saved(maxlevel)*16
+    character subsec(4)*10,saved(maxlevel)*24
     integer nsaved(maxlevel)
-    integer izz,jj,kk,kkk,level,nl,l2,np1,np2,nsub
+    integer izz,jj,kk,kkk,level,nl,l2,np1,np2,nsub,npx
+    logical foundall
 !
 !    write(*,*)'called on-line help',helprec%okinit
 !    if(helprec%okinit.ne.0) then
 !       write(*,*)'help file: ',helprec%filename(1:len_trim(helprec%filename))
 !    endif
 !    write(*,*)'we are on command path level: ',helprec%level
-!    do i=1,helprec%level
-!       write(*,10)i,helprec%cpath(i)
-!    enddo
-!10  format(i3,': ',a)
 !
     nsaved=0
     subsec(1)='%\section{'
@@ -5495,9 +5496,9 @@ CONTAINS
        write(kou,*)'Sorry no help file'
        goto 1000
     endif
-! for debugging list current search path:
+! USEFUL for debugging list current search path:
 !    do nl=1,helprec%level
-!       write(*,17)'Search levels: ',nl,helprec%cpath(nl)(1:24)
+!       write(*,17)'Search level: ',nl,trim(helprec%cpath(nl))
 !17     format(a,i3,2x,a)
 !    enddo
 !
@@ -5506,6 +5507,9 @@ CONTAINS
     level=3
     np1=0
     nsub=1
+    foundall=.false.
+! if we do not find all levels use npx to save a reasonable end of helptext
+    npx=0
 !    savelevel=1
     if(helprec%type.eq.'latex   ') then
 ! plain LaTeX file, search for "%\section{" with command
@@ -5514,35 +5518,75 @@ CONTAINS
           level=level-1
        endif
        l2=len_trim(helprec%cpath(level))
-! Strange error comaprin the first 12 characters of helprec%cpath .. with mtext
+! Strange error comparing the first 12 characters of helprec%cpath .. with mtext
 ! below.  Maybe better to assign this to a 12 character variable?
-!       write(*,107)level,l2,nsub,helprec%cpath(level)(1:l2)
-107    format('Search: ',3i5,': ',a)
+! USEFUL for debuging
+!       write(*,107)trim(helprec%cpath(level)),level,l2,nsub,nl,foundall
+107    format('Search for: ',a,4i5,l2)
 110    continue
        read(31,120,end=700)hline
 120    format(a)
 121    format('- ',a)
        nl=nl+1
-       kk=index(hline,subsec(nsub))
-       if(nsub.gt.1) then
-          izz=index(hline,subsec(nsub-1))
-       else
+       if(foundall) then
           izz=0
+!          write(*,*)'Looking for end: ',trim(hline),np1,nl
+          do kk=1,4
+             if(hline(:10).eq.subsec(5-kk)) izz=1
+          enddo
+          if(izz.gt.0) then
+             np2=nl-1
+             goto 700
+          endif
+          goto 100
+       endif
+       kk=index(hline,subsec(nsub))
+!       write(*,*)trim(hline),nl,nsub,kk
+       izz=0
+       if(nsub.gt.1) then
+          if(kk.eq.0) then
+! it can be a question on the same level ...
+             kk=index(hline,subsec(nsub-1))
+             if(kk.gt.0) then
+! USEFUL for debuging
+!                write(*,*)'Found same level: ',trim(hline),nsub,nl
+! If we find next text on the same level as earlier decrement nsub!!
+! it will be incremented below so we will keep the same nsub value
+                nsub=nsub-1
+             else
+                if(nsub.gt.2) then
+                   izz=index(hline,subsec(nsub-2))
+                endif
+             endif
+          endif
+! if np1>0 and izz >0 save current line as a possible end of helptext
+          if(np1.gt.0 .and. izz.gt.0) then
+! max 40 lines of helptext
+             if(nl-np1.lt.40) then
+                npx=nl
+             endif
+!             write(*,*)'helptextend? ',trim(hline),np1,nl,npx
+          endif
        endif
        if(kk.gt.0) then
-!          write(*,*)'found section: ',hline(1:30),nl
+!          if(nsub.gt.2) write(*,*)'checking section: ',trim(hline),nsub,nl
           call capson(hline)
           kk=kk+8
           kk=index(hline,'SECTION{')+8
           if(kk.le.8) then
-             write(*,*)'Help file error, not correct LaTeX',kk
+             write(*,*)'Help file error: ',trim(hline),kk,nl
              np1=0
              goto 700
           endif
-! remove everything after and including } in the help file
+! remove everything after and including } in the line from help file
+! but sometimes there is no } ... (human error)
           jj=index(hline,'}')-1
-          hline(jj+1:)=' '
-          mtxt=hline(kk:jj)
+          if(jj.gt.kk) then
+             if(jj.lt.len(hline)) hline(jj+1:)=' '
+             mtxt=hline(kk:jj)
+          else
+             mtxt=hline(kk:)
+          endif
 !127       kkk=index(mtxt,'-')
 !          if(kkk.gt.0) then
 ! NOTE that in LaTeX files the underscore _ is replaced by \_
@@ -5550,13 +5594,16 @@ CONTAINS
 !             mtxt(kkk:kkk)='_'
 !             goto 127
 !          endif
-!          write(*,*)'found mtxt: ',trim(mtxt),level
-! I do not understand what this does ...
+! USEFUL for debuging
+!          write(*,*)'found mtxt: ',trim(mtxt),level,nsub,nl
+! I do not understand what this loop does ... 180808/BoS
           do jj=1,maxlevel
              if(level.gt.jj) then
 ! remove previous command if any from the search text
                 kkk=nsaved(jj)
                 if(kkk.gt.0) then
+! it can happen that kkk is larger than the length of saved, mtxt is longer
+                   if(kkk.ge.len(saved(jj))) kkk=len(saved(jj))-1
                    if(mtxt(1:kkk+1) .eq. saved(jj)(1:kkk+1)) then
 !                      write(*,*)'Removing ',mtxt(1:kkk),kkk
 ! ??                  mtxt=mtxt(kkk+2:)
@@ -5565,15 +5612,19 @@ CONTAINS
                 endif
              endif
           enddo
+! USEFUL for debuging
 !          write(*,130)level,mtxt(1:12),helprec%cpath(level)(1:12),nl
-!          write(*,130)level,hline(kk:jj),helprec%cpath(level)(1:l2),nl
 130       format('comparing: ',i3,': "',a,'" with "',a,'" line ',i4)
-!          if(hline(kk:kk+l2-1).eq.helprec%cpath(level)(1:l2)) then
           if(mtxt(1:12).eq.helprec%cpath(level)(1:12)) then
 ! found one level, save line number for first line
              np1=nl
-!             write(*,*)'We found one level at line: ',np1,nsub
+! USEFUL for debuging
+!             write(*,133)'We found line: ',level,trim(helprec%cpath(level)),&
+!                  np1,nsub
+133          format(a,i3,2x,a,2i5)
              nsub=nsub+1
+! USEFUL for debuging
+!             write(*,*)'Searching for: ',trim(subsec(nsub))
 ! we cannot store more levels ... quit
              if(level.gt.maxlevel) goto 700
              saved(level)=helprec%cpath(level)
@@ -5581,15 +5632,18 @@ CONTAINS
              np2=0
              level=level+1
              if(level.gt.helprec%level) then
-! we have no more input from user, list the text to next %\section or %\sub...
+! we have no more input from user, list the text for next %\section or %\sub...
+!                write(*,*)'we found all',level
+                foundall=.true.
                 level=level-1
                 goto 100
              endif
 ! look for start line of next level
-!             write(*,133)level,helprec%cpath(level)
-133          format('Next cpath: ',i3,': ',a)
+! USEFUL for debuging
+!             write(*,134)level,helprec%cpath(level)
+134          format('Next cpath: ',i3,': ',a)
              if(index(helprec%cpath(level),'COMMAND: ').gt.0 .or. &
-                  index(helprec%cpath(level),' what? ').gt.0) then
+                  index(helprec%cpath(level),' WHAT? ').gt.0) then
 ! if next "command/question" starts with COMMAND. or finishes with "what?" 
 ! skip that because it is a submenu question and if this is
 ! the last command line then just return as user interface will help
@@ -5602,20 +5656,22 @@ CONTAINS
              goto 100
           elseif(level.eq.helprec%level .and. np1.gt.0 .and. np2.eq.0) then
 ! save end of text
+!             write(*,*)'last help level: ',trim(helprec%cpath(level-1)),level-1
              np2=nl-1
              goto 700
           else
 ! continue searching
              goto 100
           endif
-       elseif(izz.gt.0) then
+!       elseif(izz.gt.0) then
 ! we have found the start of a higher order section, finish searching
-          np2=nl-1
-          goto 700
+!          write(*,*)'end helptext at next section: ',nsub,trim(hline),nl
+!          np2=nl-1
+!          goto 700
        endif
        goto 110
     else
-! One should also implement HTML help files
+! One should also implement HTML help files ??
        write(*,*)'Filetype not understood'
        goto 1000
     endif
@@ -5623,8 +5679,15 @@ CONTAINS
 700 continue
     if(np1.gt.0) then
        if(np2.lt.np1) then
-          write(*,*)'Help text range error: ',np1,np2
-          goto 900
+! we found no obvious end of help text, check if npx is useful
+!          write(*,*)'Emergency end of helptext?',np1,nl,npx
+! just save value of nl in npx, we have maybe not the best value of np1
+          if(npx.gt.0 .and. npx-np1.lt.40) then
+             np2=npx
+          else
+!             write(*,*)'Help text range error: ',np1,np2,npx
+             goto 900
+          endif
        endif
 ! HERE ONE SHOULD OPEN A NEW WINDOW TO DISPLAY THE HELP TEXT BELOW, FOR EXAMPLE
 !       call displayhelp(helprec%filename,np1,np2)
@@ -5648,21 +5711,26 @@ CONTAINS
 ! they are LaTeX commands.  Ignore all LaTeX commands except \item
 ! the backslash is not easy to put in a text character ...
 ! A line starting with "%\subs" supress all text from position 1 to the {
-          if(ichar(hline(1:1)).ne.92) then
-             if(hline(1:1).eq.'%' .and. ichar(hline(2:2)).eq.92 .and.&
-                  hline(3:6).eq.'subs') then
-                izz=index(hline,'{')+1
-                jj=1
-                do while(jj.gt.0)
-                   jj=index(hline,'}')
-                   if(jj.gt.0) hline(jj:jj)=' '
-                enddo
-                write(*,120)trim(hline(izz:))
+!          if(ichar(hline(1:1)).ne.92) then
+!             if(hline(1:1).eq.'%' .and. ichar(hline(2:2)).eq.92 .and.&
+!                  hline(3:6).eq.'subs') then
+!                izz=index(hline,'{')+1
+!                jj=1
+!                do while(jj.gt.0)
+!                   jj=index(hline,'}')
+!                   if(jj.gt.0) hline(jj:jj)=' '
+!                enddo
+!                write(*,120)trim(hline(izz:))
+!             else
+!                write(*,120)trim(hline)
+!             endif
+          if(hline(1:1).ne.'%') then
+! ignore LaTeX comment lines and replace \item with a -
+             if(hline(2:5).eq.'item') then
+                write(*,121)trim(hline(6:))
              else
                 write(*,120)trim(hline)
              endif
-          elseif(hline(2:5).eq.'item') then
-             write(*,121)trim(hline(6:))
           endif
        endif
        goto 800

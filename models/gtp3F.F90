@@ -2481,8 +2481,10 @@
 ! here with state variable <0, syetm and user defined properties
 200   continue
 !   write(*,*)'3F svv3 at 200:',kstv,ndefprop
-   if(ndefprop.ne.33) then
+!   if(ndefprop.ne.33) then
+   if(ndefprop.ne.34) then
       write(*,*)'3F The model parameter identifiers has been changed!'
+! you may also have to change the case indices!!
       stop
    endif
    select case(kstv)
@@ -2517,18 +2519,19 @@
 !  24 EC12  T P                                   0 Elastic const C12
 !  25 EC44  T P                                   0 Elastic const C44
 !  26 FHV   T P &<constituent#sublattice>;       10 Flory-Huggins volume ratio
-!  27 UNQA  T P &<constituent#sublattice>;       10 UNIQUAC area parameter
-!  28 UNQR  T P &<constituent#sublattice>;       10 UNIQUAC volume parameter
-!  29 RHO   T P                                   0 Electric resistivity
-!  30 LAMB  T P                                   0 Thermal conductivity
-!  31 HMVA  T P                                   0 Enthalpy of vacancy form.
-!  32 TSCH  - P                                   2 Schottky anomality T
-!  33 CSCH  - P                                   2 Schottky anomality Cp/R.
+!  27 UQR   T P                                   0 UNIQUAC segment parameter
+!  28 UQQ   T P                                   0 UNIQUAC area parameter
+!  28 UQT   T P                                   0 UNIQUAC residual parameter
+!  30 RHO   T P                                   0 Electric resistivity
+!  31 LAMB  T P                                   0 Thermal conductivity
+!  32 HMVA  T P                                   0 Enthalpy of vacancy form.
+!  33 TSCH  - P                                   2 Schottky anomality T
+!  34 CSCH  - P                                   2 Schottky anomality Cp/R.
 ! I am not sure how to handle changes ...
 !-------------------------------------------------------------------
 !...................................... without constituent index
-   case(1:5,7:12,16:25,29:31) 
-! constituent index: 6, 13:15, 26:28
+   case(1:5,7:12,16:25,27:34) 
+! constituent index: 6, 13:15, 26
       call get_phase_compset(indices(1),indices(2),lokph,lokcs)
       if(gx%bmperr.ne.0) goto 1000
 ! nprop is number of properties calculated.  Property 1 is always G
@@ -2541,10 +2544,10 @@
       enddo find1
 !....................................... with constituent index
 ! These have a constituent index
-   case(6,13:15,26:28)
+   case(6,13:15,26)
 ! 6: IBM& Individual Bohr magneton number
 ! 13-15: MQ& etc mobility values
-! 26-28: Flory Huggins volume and UNIQUAC parameters
+! 27: Flory Huggins volume 
 !      write(*,*)'3F svv3 mob1: ',indices(1),indices(2),iprop
       call get_phase_compset(indices(1),indices(2),lokph,lokcs)
       if(gx%bmperr.ne.0) goto 1000

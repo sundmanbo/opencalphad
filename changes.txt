@@ -13,6 +13,19 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2018.09.03 OC version 5.020: The coloring of monovariant areas in
+isothermal sections has now an established set of colors.  The borders
+are drawn with a tick line with the same color as the tie-lines
+(green) and the interior is filled with a light green.  Of course any
+user/programmer can change this.  The mapping itself has not improved
+very much in spite of serious efforts to make it more stable.  A
+number of errors fixed and a few minor features added.
+
+Someone tried to use the Scheil-Gulliver application in
+TQ4lib/Cpp/Scheil and had some problems so this has been updated.  The
+other OCASI/TQ applications are still on the (long) waiting list to be
+be improved.
+
 2018.08.19 OC version 5.019: The file selector window is now used also
 for the options /output= and /append= that can be used after any
 command to redirect output from that command.  I forgot those in the
@@ -46,10 +59,10 @@ It is difficult to provide a "default" behaviour that makes everyone
 happy.  But if you dislike the the popup window you can supress it
 with the command "set adv popup".
 
-The opttest1 macro is revised and now show how to enter en enthalpy
-difference between two or more equilibria and symbols for experimental
-uncertainties.  A number of bugs had to be removed to fix that of
-course.
+The opttest1 macro is completely revised and now show how to enter en
+enthalpy difference between two or more equilibria and symbols for
+experimental uncertainties.  A number of bugs had to be removed to fix
+that of course.
 
 The example of using the OCASI interface on the TQ4lib/F90/crfe
 directory has been modified and the a Makefile added which should work

@@ -78,8 +78,7 @@ n
 0
 7
 title map 3 fig 2
-out
-stable
+out ./stable
 Y
 render
 
@@ -126,7 +125,7 @@ plot
 
 
 title map 3 fig 4
-append stable
+append ./stable
 
 
 @&

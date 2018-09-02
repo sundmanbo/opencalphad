@@ -56,7 +56,7 @@
       write(kou,*)' Debye Cp model not implemented yet'
       gx%bmperr=4331
 ! 3
-   case(xiongmagnetic) ! Inden-Xiong
+   case(xiongmagnetic) ! Inden-Qing-Xiong
       addrec%propval=zero
       call calc_xiongmagnetic(moded,phres,addrec,lokph,mc,ceq)
 !     write(kou,*)'Inden-Qing-Xiong magn model not implemented yet'
@@ -148,7 +148,7 @@
          call create_magrec_inden(newadd,aff)
       endif
 !-----------------------------------------
-   case(xiongmagnetic) ! Inden-Xiong.  Assume bcc if BCC part of phase name
+   case(xiongmagnetic) ! Inden-Qing-Xiong. Assume bcc if BCC part of phase name
 ! 2
 !      bcc=.false.
 !      if(index('BCC',phlista(lokph)%name).gt.0) bcc=.true.
@@ -764,7 +764,7 @@
 
 !\begin{verbatim}
  subroutine calc_xiongmagnetic(moded,phres,lokadd,lokph,mc,ceq)
-! calculates Indens-Xiong magnetic contribution
+! calculates Indens-Qing-Xiong magnetic contribution
 ! 
 ! Gmagn = RT*f(T/Tc)*ln(beta+1)
 ! moded: integer, 0=only G, S, Cp; 1=G and dG/dy; 2=Gm dG/dy and d2G/dy2
@@ -808,7 +808,7 @@
    itc=0; ibm=0; itn=0
    lokadd%propval=zero
 !    write(*,*)'3H cmi 2: ',noprop,(phres%listprop(i),i=1,noprop)
-! Xiong-Inden magnetic need properties in need_property(1..3)
+! Inden-Qing-Xiong magnetic need properties in need_property(1..3)
    findix: do jl=2,noprop
       if(phres%listprop(jl).eq.lokadd%need_property(1)) then
          itc=jl
@@ -3064,9 +3064,9 @@
       write(unit,200)chc
 200   format(a,'+ Debye Cp model, not implemented yet')
 !---------------------------------------------
-   case(xiongmagnetic) ! Inden-Xiong
+   case(xiongmagnetic) ! Inden-Qing-Xiong
       write(unit,300)chc
-300   format(a,'+ Inden magnetic model modified by Xiong'/&
+300   format(a,'+ Inden magnetic model modified by Qing and Xiong'/&
            4x,'with separate Curie and Neel temperatures.'/&
            4x,'Magnetic function below the ordering temperature TC ',&
            ' with TAO=T/TC:')

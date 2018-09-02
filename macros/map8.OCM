@@ -112,8 +112,8 @@ list data ,,
 @$ this default constitution is Fe3Ni_L12
 amend phase part comp-set y , ,
 <.2 >.5
-<.2 >.5
-<.2 >.5
+>.2 <.5
+>.2 <.5
 >.5 <.2
 
 @$ this default constitution is FeNi_L10
@@ -135,18 +135,21 @@ amend phase part comp-set y , ,
 @$ fraction of the minor element.  This should be arranged in todo_after ...
 
 
-@$ Use the mode without subrracting the disordered Gibbs energy of the
-@$ ordered part
-
 @$ NOTE the SET BIT command has changed!!
-set bit glob 2 Y
+@$ set bit glob 2 Y
+@$ This command makes me an expert, needed to do the following command
+set level
+Y
+
+@$ Use the "disordered model" without subrracting the 
+@$ Gibbs energy of the ordered part when disordered
 set phase part-fcc bit 23
 23
 
 l sh a
 
 @&
-
+@$ The start point is between the L1_0 and L1_2 phases
 set c t=300 p=1e5 n=1 x(ni)=.6
 
 c e
@@ -173,7 +176,7 @@ title map8 fig 1
 
 @&
 
-
+@$ A start point on the Fe-rich side
 set c x(ni)=.4
 
 c e
@@ -199,15 +202,19 @@ title map8 fig 2
 @$========================================================
 @$ Try old mapping algorithm
 
-set level Y¨
-
 set bit glo
 ?
 21
+Y
 
 set c t=150 x(ni)=.65
 
 c e
+
+l,,,,,
+
+
+@&
 
 map
 Y
@@ -217,11 +224,9 @@ plot
 
 
 
-@$ Not perfect but better.  However for other diagrams this algorithm
-@$ does not work as well
+@$ Not perfect either.  For most other diagrams this algorithm
+@$ does not work.
 
 
 set inter
-
-
 

@@ -344,33 +344,43 @@
 !.......................................
 ! UNIQUAC area parameter 27
    npid=npid+1
-   propid(npid)%symbol='UNQA '
-   propid(npid)%note='UNIQUAC area parameter '
+   propid(npid)%symbol='UQR '
+   propid(npid)%note='UNIQUAC segment parameter '
    propid(npid)%status=0
-! UNQA is specific for a constituent
-   propid(npid)%status=ibset(propid(npid)%status,IDCONSUFFIX)
+! This is "r" used for the Phi parameter
+! UQR is specific for a constituent NO!
+!   propid(npid)%status=ibset(propid(npid)%status,IDCONSUFFIX)
 !.......................................
 ! UNIQUAC volume parameter 28
    npid=npid+1
-   propid(npid)%symbol='UNQR '
-   propid(npid)%note='UNIQUAC volme parameter '
+   propid(npid)%symbol='UQQ '
+   propid(npid)%note='UNIQUAC area parameter '
    propid(npid)%status=0
-! UNQR is specific for a constituent
-   propid(npid)%status=ibset(propid(npid)%status,IDCONSUFFIX)
+! This is "q" for the theta parameter
+! UQQ is specific for a constituent NO!
+!   propid(npid)%status=ibset(propid(npid)%status,IDCONSUFFIX)
 !.......................................
-! Electrical resistivity 29
+! UNIQUAC interaction parameter 29
+   npid=npid+1
+   propid(npid)%symbol='UQT '
+   propid(npid)%note='UNIQUAC residual parameter '
+   propid(npid)%status=0
+! UNQT is specific for a constituent NO!
+!   propid(npid)%status=ibset(propid(npid)%status,IDCONSUFFIX)
+!.......................................
+! Electrical resistivity 30
    npid=npid+1
    propid(npid)%symbol='RHO '
    propid(npid)%note='Electric resistivity'
    propid(npid)%status=0
 !....................................... 
-! Thermal conductivity as function of T and P: 30
+! Thermal conductivity as function of T and P: 31
    npid=npid+1
    propid(npid)%symbol='LAMB '
    propid(npid)%note='Thermal conductivity '
    propid(npid)%status=0
 !.......................................
-! From MatCalc databases 31
+! From MatCalc databases 32
    npid=npid+1
    propid(npid)%symbol='HMVA '
    propid(npid)%note='Enthalpy of vacancy form. '
@@ -378,7 +388,7 @@
 ! this parameter does not depend on T ??
 !   propid(npid)%status=ibset(propid(npid)%status,IDONLYP)
 !.......................................
-! Schottky anomality T 32
+! Schottky anomality T 33
    npid=npid+1
    propid(npid)%symbol='TSCH '
    propid(npid)%note='Schottky anomality T '
@@ -386,7 +396,7 @@
 ! this parameter does not depend on T ??
    propid(npid)%status=ibset(propid(npid)%status,IDONLYP)
 !.......................................
-! Schottky anomality CP/R 33
+! Schottky anomality CP/R 34
    npid=npid+1
    propid(npid)%symbol='CSCH '
    propid(npid)%note='Schottky anomality Cp/R. '

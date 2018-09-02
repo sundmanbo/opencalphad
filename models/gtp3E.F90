@@ -5597,7 +5597,7 @@
          if(gx%bmperr.ne.0) then
             if(gx%bmperr.eq.4121) then
                if(.not.silent) write(kou,*) &
-                    'Phase ',name1(1:len_trim(name1)),&
+                    'Phase ',trim(name1),&
                     ' is ambiguous or short for another phase'
             endif
             goto 1000

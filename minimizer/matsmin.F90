@@ -144,8 +144,8 @@ MODULE liboceq
      type(gtp_phasetuple), dimension(:), allocatable :: fixph
      type(gtp_phasetuple), dimension(:), allocatable :: stableph
      double precision, dimension(:), allocatable :: stablepham
-! new 180814 to have nonzero fix phase amounts  ... not yet uses
-     double precision, dimension(:), allocatable :: fixpham
+! new 180814 to have nonzero fix phase amounts  ... not yet used
+     double precision, dimension(:), allocatable :: fixphamap
   end TYPE map_fixph
 !\end{verbatim}
 !
@@ -329,7 +329,6 @@ CONTAINS
     integer mode
     TYPE(meq_setup), pointer :: meqrec
     type(map_fixph), allocatable :: mapfix
-!    type(map_fixph), pointer :: mapfix
     TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
     TYPE(gtp_condition), pointer :: condition,lastcond
@@ -792,33 +791,26 @@ CONTAINS
     enddo addfixph
 !------------------------------- special for mapping
     if(allocated(mapfix)) then
-!       if(allocated(mapfix%fixpham)) then
-!          write(*,*)'MM mapfix record: ',mapfix%fixpham
-!       else
-!          write(*,*)'expect segmentation fault as mapfx%fixpham no allocated'
-!       endif
 ! the stable and fix phases copied from mapfix record.
        do ij=1,meqrec%nv
-!          write(*,64)'Removing already stable phase: ',ij,meqrec%iphl(ij),&
-!               meqrec%icsl(ij)
           meqrec%iphl(ij)=0
           meqrec%icsl(ij)=0
        enddo
-!       if(ocv()) write(*,64)'Fix phase in mapfix record: ',mapfix%nfixph,&
-!       write(*,64)'MM mapfix record: ',mapfix%nfixph,&
-!            mapfix%fixph(1)%ixphase,mapfix%fixph(1)%compset
-! this is never assigned           mapfix%fixph(1)%lokvares
-64     format(a,i3,5x,2i5,5x,i5)
        meqrec%nfixph=mapfix%nfixph
        meqrec%nv=0
        do ij=1,meqrec%nfixph
           meqrec%fixph(1,ij)=mapfix%fixph(ij)%ixphase
           meqrec%fixph(2,ij)=mapfix%fixph(ij)%compset
           meqrec%fixpham(ij)=zero
-          if(allocated(mapfix%fixpham)) then
-! now 180814 fix phases may have nonzero amount
-             meqrec%fixpham(ij)=mapfix%fixpham(ij)
-             write(*,*)'MM mapfix: ',ij,mapfix%fixpham(ij)
+          if(allocated(mapfix%fixphamap)) then
+! attempt 180814 to let fix phases have nonzero amount to improve mapping
+             meqrec%fixpham(ij)=mapfix%fixphamap(ij)
+             write(*,65)'MM fix mapphase: ',mapfix%fixph(ij)%ixphase,&
+                  mapfix%fixph(ij)%compset,mapfix%fixphamap(ij)
+65           format(a,2i5,1pe12.4)
+!          else
+!             write(*,65)'MM mapfix phase: ',mapfix%fixph(ij)%ixphase,&
+!                  mapfix%fixph(ij)%compset
           endif
           meqrec%nv=meqrec%nv+1
           meqrec%iphl(meqrec%nv)=mapfix%fixph(ij)%ixphase
@@ -834,11 +826,11 @@ CONTAINS
           meqrec%iphl(meqrec%nv)=mapfix%stableph(ij)%ixphase
           meqrec%icsl(meqrec%nv)=mapfix%stableph(ij)%compset
           meqrec%aphl(meqrec%nv)=mapfix%stablepham(ij)
-!          write(*,*)'MM: Phase amount: ',ij,mapfix%stablepham(ij)
        enddo
-! mapfix will be deallocated in calling routine if all goes well!!
-!       deallocate(mapfix)
-!       write(*,64)'MM: Total number of stable phases: ',meqrec%nv
+!       write(*,64)'MM Stable mapphase: ',mapfix%nstabph,&
+!            mapfix%stableph(1)%ixphase,mapfix%stableph(1)%compset,&
+!            mapfix%stablepham(1)
+64     format(a,i3,2i5,1pe12.4)
     endif
 !------------------------------- 
 ! zero start of link to phases set temporarily dormant ....
@@ -851,7 +843,7 @@ CONTAINS
 ! this routine varies the set of phases and the phase constitutions
 ! until the stable set is found for the given set of conditions.
     if(ocv()) write(*,*)'calling meq_phaseset'
-    call meq_phaseset(meqrec,formap,ceq)
+    call meq_phaseset(meqrec,formap,mapfix,ceq)
     if(gx%bmperr.ne.0) goto 1000
 !    gridtest=.false.
 !------------------------------------------------------
@@ -873,11 +865,12 @@ CONTAINS
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
-  subroutine meq_phaseset(meqrec,formap,ceq)
+  subroutine meq_phaseset(meqrec,formap,mapfix,ceq)
 ! this subroutine can change the set of stable phase and their amounts
 ! and constitutions until equilibrium is found for the current conditions.
     implicit none
     TYPE(meq_setup) :: meqrec
+    type(map_fixph), allocatable :: mapfix
     TYPE(gtp_equilibrium_data), pointer :: ceq
     logical formap
 !\end{verbatim}
@@ -975,6 +968,9 @@ CONTAINS
 ! save phasestatus, zap>-2 here so set all -1,0,1 set to 0
              if(abs(zap).le.1) zap=0
              meqrec%phr(mph)%phasestatus=zap
+! set link to calculated values of G etc.
+             call get_phase_compset(iph,ics,lokph,lokcs)
+             meqrec%phr(mph)%curd=>ceq%phase_varres(lokcs)
              if(formap) then
 ! when mapping fix phases are used to replace axis conditions.  The
 ! fix phases are in the meqrec%fixph array
@@ -983,6 +979,13 @@ CONTAINS
                    if(iph.eq.meqrec%fixph(1,zz) .and. &
                         ics.eq.meqrec%fixph(2,zz)) then
                       meqrec%phr(mph)%phasestatus=PHFIXED
+                      if(allocated(mapfix)) then
+                         if(allocated(mapfix%fixphamap)) then
+                            meqrec%phr(mph)%curd%amfu=mapfix%fixphamap(1)
+                            write(*,*)'MM set fixamount: ',&
+                                 mapfix%fixphamap(1)
+                         endif
+                      endif
                    endif
                 enddo
 ! inmap=1 turns off converge control of T
@@ -993,9 +996,9 @@ CONTAINS
              meqrec%phr(mph)%ionliq=-1
              meqrec%phr(mph)%i2sly=0
              if(test_phase_status_bit(iph,PHIONLIQ)) meqrec%phr(mph)%ionliq=1
-! set link to calculated values of G etc.
-             call get_phase_compset(iph,ics,lokph,lokcs)
-             meqrec%phr(mph)%curd=>ceq%phase_varres(lokcs)
+! already done: set link to calculated values of G etc. 
+!             call get_phase_compset(iph,ics,lokph,lokcs)
+!             meqrec%phr(mph)%curd=>ceq%phase_varres(lokcs)
 ! causing trouble at line 3175 ???
              if(nip.le.meqrec%nv) then
                 if(iph.eq.meqrec%iphl(nip) .and. ics.eq.meqrec%icsl(nip)) then
@@ -1006,19 +1009,29 @@ CONTAINS
                    if(meqrec%phr(mph)%phasestatus.eq.PHFIXED) then
 ! Rather confused here ...
 ! fixed phases as conditions have an amount in meqrec%fixpham
-! fixed phases during mapping should have zero amount
+! fixed phases during mapping should have zero amount (maybe not ...)
 !                   krem=krem+1
 !                   write(*,*)'aphl for fix phase: ',krem,mph,&
 !                        meqrec%fixpham(krem)
                       if(meqrec%phr(mph)%curd%phstate.ne.PHFIXED) then
 ! this is a phase set fix by mapping, set amount to zero unless mapfix%fixpham 
-!                         if(.not.allocated(mapfix%fixpham)) then
+! but mapfix is not available in this routine ..
+                         if(allocated(mapfix%fixphamap)) then
 ! 180814 tried to remove setting fix phase amount to zero
-                         meqrec%phr(mph)%curd%amfu=zero
-!                         endif
+                            write(*,*)'MM nonzero mapfix amount !'
+                            meqrec%phr(mph)%curd%amfu=mapfix%fixphamap(1)
+                         else
+                            meqrec%phr(mph)%curd%amfu=zero
+                         endif
                       endif
                    else
 ! this is setting non-zero fixed amount of a phase as condition
+! Trying to handle this in mapping ... but here it not the fix phase ...
+                      if(allocated(mapfix)) then
+                         if(allocated(mapfix%fixphamap)) &
+                              write(*,*)'Phase amount: ',&
+                              meqrec%phr(mph)%iph,meqrec%aphl(meqrec%nstph)
+                      endif
                       meqrec%phr(mph)%curd%amfu=meqrec%aphl(meqrec%nstph)
                    endif
 ! set "previous values"
@@ -1089,6 +1102,8 @@ CONTAINS
     iadd=0
     irem=iremsave
 !    write(*,*)'MM calling meq_sameset ',meqrec%noofits
+!    write(*,*)'MM calling list conditions'
+!    call list_conditions(kou,ceq)
 ! meq_sameset varies amounts of stable phases and constitutions of all phases
 ! If there is a phase change (iadd or irem nonzeri) or error it exits 
     call meq_sameset(irem,iadd,meqrec,meqrec%phr,inmap,ceq)
@@ -1098,6 +1113,7 @@ CONTAINS
     endif
 !
     force=.false.
+!    write(*,*)'MM line 1114:',irem,iadd
     if(irem.gt.0 .or. iadd.gt.0) then
        if(iremsave.gt.0 .and. iadd.eq.iremsave) then
 ! if iadd=iremsave>0 there was a equil matrix error when removing iremsave
@@ -1581,7 +1597,9 @@ CONTAINS
 ! and the changes in phase amounts is small maybe we are calculationg an
 ! almost stoichiometric phase?  Changes in MU can be large!
           if(stoikph .and. meqrec%nphase.gt.1) then
-             write(*,30)nophasechange,converged,cerr%nvs,ceq%tpval(1)
+! write thiss message if VERBOSE is set
+             if(btest(globaldata%status,GSVERBOSE)) write(*,30)nophasechange,&
+                  converged,cerr%nvs,ceq%tpval(1)
 30           format('Slow converge at ',3i3,F10.2)
              if(cerr%flag.ne.0) then
                 write(*,31)(cerr%typ(iz),cerr%val(iz),cerr%dif(iz),&
@@ -5399,7 +5417,7 @@ CONTAINS
 !    do j=1,neq
 !       write(*,17)'pmat: ',(pmat(i,j),i=1,neq)
 !    enddo
-! invert the phase matrix (using LAPACK+BLAS inside mdinv ... 50% faster)
+! invert the phase matrix (using LAPACK+BLAS ... 50% faster than with Leo)
     call mdinv(nd1,nd2,pmat,pmi%invmat,neq,ierr)
     if(ierr.eq.0) then
        write(*,*)'Numeric problem 3, phase/set:',iph,ics
@@ -7233,8 +7251,9 @@ CONTAINS
             write(*,*)'MM evaluate_svfun putfunerror ',pfnerr
             gx%bmperr=4141; goto 1000
          endif
-! why store value in svfunres(-istv) ???
-         eqlista(ieq)%svfunres(-istv)=value
+! why store value in svfunres(-istv) ??? THIS MUST BE WRONG AND UNECESSARY
+! svfunres is dimensioned with lower limit 1
+!         eqlista(ieq)%svfunres(-istv)=value
 ! we should store the value in the function restult for this equilibrium
          ceq%svfunres(lrot)=value
 !         write(*,350)'MM evaluated here: ',ieq,lrot,value

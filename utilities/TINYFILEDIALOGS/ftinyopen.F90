@@ -25,7 +25,7 @@ contains
   subroutine getfilename(typ,filename)
 ! Fortran routine to call a C routine to browse for a file name
 ! typ if default extension:
-! 1=TDB, 2=UNF, 3=OCM, 4=OCD
+! 1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT ,6=PDB, 7=DAT, 8=LOG
     character (len=256) :: filename
     integer typ
 !\end{verbatim}
@@ -33,7 +33,8 @@ contains
 ! the current directory can be found by 
 ! character directory*128
 ! call getcwd(directory)
-! specify a name of a TDB, UNF, OCM or OCD file
+! specify a name of a file type:
+! 1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=plt, 6=PDB, 7=DAT, 8=LOG
     C_String_ptr = tinyopen(typ)
 ! convert C pointer to Fortran pointer
     call c_f_pointer(C_String_ptr,filchar,[256])
@@ -46,7 +47,7 @@ contains
           jj=jj+1
        enddo
     endif
-!    write(*,*)'In getfilename: ',trim(filename)
+!    write(*,*)'ftinyopen getfilename: ',trim(filename),typ
 1000 continue
     return
   end subroutine getfilename

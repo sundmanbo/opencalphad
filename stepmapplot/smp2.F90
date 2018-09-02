@@ -1713,7 +1713,7 @@ CONTAINS
              svr2=>svrtarget
              call state_variable_val(svr2,yyy,ceq)
              if(gx%bmperr.ne.0) goto 1000
-             write(*,71)jax,xxx,yyy
+!             write(*,71)jax,xxx,yyy
 71           format('Change ',i3,' axis condition from/to ',2F10.6)
 ! first argument 1 means to extract the value, 0 means to set the value
              call condition_value(0,pcond,yyy,ceq)
@@ -1796,8 +1796,8 @@ CONTAINS
        gx%bmperr=4228
     endif
 1000 continue
-    write(*,*)'Return from map_replaceaxis with conditions: '
-    call list_conditions(kou,ceq)
+!    write(*,*)'Return from map_replaceaxis with conditions: '
+!    call list_conditions(kou,ceq)
     return
   end subroutine map_replaceaxis
 
@@ -3618,7 +3618,7 @@ CONTAINS
     integer iremsave,iaddsave,iph,ics,jj,jph,kph,phfix,seqx,jax,haha
     integer what,type,cmix(10),maxstph,noplot,mode,addtupleindex
     double precision, parameter :: addedphase_amount=1.0D-2
-    double precision value,axval,axvalsave,tx
+    double precision value,axval,axvalsave,tx,nodefixpham
     type(gtp_state_variable), pointer :: svrrec
     logical global
     double precision, allocatable, dimension(:) :: yfra
@@ -3651,7 +3651,7 @@ CONTAINS
     endif
 !--------------------------------------------
 ! remove here the axis condition, abs(mapline%axandir) gives active axis
-! axandir is the avis with active condition.  It can be negative
+! axandir is the axis with active condition.  It can be negative
     jax=abs(mapline%axandir)
 !    write(*,*)'Remove axis condition: ',jax,axarr(jax)%seqz
     lastcond=>ceq%lastcondition
@@ -3688,7 +3688,8 @@ CONTAINS
 ! independently if iadd or irem >0 set this phase, phfix, fix with zero amount
 ! we may return here if there is problems calculate the node equilibrium
 100 continue
-! set phfix fix with zero amount.
+! set phfix fix with amount nodefixpham
+    nodefixpham=zero
 ! NOTE it must be added so meqrec%stphl in ascending order
     if(phfix.gt.0 .and. meqrec%nstph.eq.meqrec%maxsph+maxstph) then
 ! No more phases allowed, we must see if  some other phase may be removed
@@ -3730,7 +3731,7 @@ CONTAINS
        meqrec%nstph=meqrec%nstph+1
        meqrec%phr(phfix)%itadd=meqrec%noofits
        meqrec%phr(phfix)%curd%dgm=zero
-       meqrec%phr(phfix)%curd%amfu=zero
+       meqrec%phr(phfix)%curd%amfu=nodefixpham
        meqrec%phr(phfix)%stable=1
 ! set that the phase has fixed amount
        meqrec%phr(phfix)%phasestatus=PHFIXED
@@ -3745,7 +3746,7 @@ CONTAINS
        endif
        meqrec%phr(-phfix)%itadd=meqrec%noofits
        meqrec%phr(-phfix)%curd%dgm=zero
-       meqrec%phr(-phfix)%curd%amfu=zero
+       meqrec%phr(-phfix)%curd%amfu=nodefixpham
        meqrec%phr(-phfix)%stable=1
 ! set that the phase has fixed amount
        meqrec%phr(-phfix)%phasestatus=PHFIXED       
@@ -4277,7 +4278,7 @@ CONTAINS
 !       write(*,*)'Invariant equilibrium found, exit lines: ',newnode%lines
        newnode%lines=3
     endif
-! set link to end node in maplie
+! set link to end node in mapline
     mapline%end=>newnode
 !=============================================================================
 ! we have created sufficient linehead records, now initiate their content
@@ -5011,8 +5012,14 @@ CONTAINS
 !\end{verbatim}
     type(map_node), pointer :: mapnode
     type(gtp_condition), pointer :: pcond
+    type(meq_setup), pointer :: meqrec
+    type(gtp_equilibrium_data), pointer :: ceq2
+    type(gtp_state_variable), pointer :: svrrec,svr2
+    type(gtp_state_variable), target :: svrtarget
     integer nyline,jp,seqy,iph,ics,lokph,lokcs,ip
-    double precision finc
+    integer mode,nofecond,jax,activax,irem1,iadd1,irem,iadd
+    integer, parameter :: inmap=1
+    double precision finc,fixpham,xstab,xfix,xcorr,natpermol
     character eqname*24
 ! sometimes there are many phases with long names ...
     character phaseset*512
@@ -5188,19 +5195,134 @@ CONTAINS
        allocate(mapfix%stableph(1))
        allocate(mapfix%stablepham(1))
        mapfix%nfixph=1
+!.........................................................
+! trying to impove mapping with two extensive axis variables
+       nofecond=0
+       do jax=1,maptop%number_ofaxis
+          call locate_condition(axarr(jax)%seqz,pcond,mapline%lineceq)
+          if(gx%bmperr.ne.0) goto 1000
+! active condition means pcond%active=0 !!
+          if(pcond%active.eq.0) activax=jax
+          if(pcond%statev.gt.10) nofecond=nofecond+1
+       enddo
+! default value
+       fixpham=zero
+! fix nonzero phase select!!
+!       if(nofecond.eq.2) then    ! trying to have nonzero fix phase ...
+       if(nofecond.eq.17) then  ! skip trying to have nonzero fix phase
+! ISOTHERMAL, two extensive axis variables
+! test if we can have non-zero fix phase amount.  Calculate the equilibrium
+! set positive amount both in mapfix and in phase_varres ...??
+          write(*,47)activax,mapline%linefixph(1)%ixphase
+47        format(/'*** Find_line nonzero fix phase',2i3,2(1pe12.4))
+          mapfix%fixph=mapline%linefixph(1)
+          mapfix%stablepham(1)=one
+          mapfix%stableph(1)=mapnode%linehead(nyline)%stableph(1)
+!          ceq2=>mapline%lineceq
+          meqrec=>mapline%meqrec
+          mapfix%nstabph=1
+          write(*,54)mapfix%fixph%ixphase,mapfix%fixph%compset
+54        format('SMP fix phase: ',2i5,1pe12.4)
+          write(*,55)mapfix%nstabph,mapfix%stableph%ixphase,&
+               mapfix%stableph%compset,mapfix%stablepham
+55        format('SMP stable phase: ',i2,2i5,1pe12.4)
+! meqrec is allocated inside calceq7. mode=1 use gridminimizer
+! mode=0 no gridminimizer; mode=-1 no grid and no deallocation of phr
+          mode=-1
+          call calceq7(mode,meqrec,mapfix,mapline%lineceq)
+          write(*,7)gx%bmperr,iadd,irem
+7         format('Calculated equilibrium in map_findline',3i5)
+          if(gx%bmperr.ne.0) then
+             write(*,*)'SMP Failed calculate equilibrium try to adjust amounts'
+             gx%bmperr=0
+             iadd1=0; irem1=0
+             call meq_sameset(irem1,iadd1,mapline%meqrec,&
+                  mapline%meqrec%phr,inmap,mapline%lineceq)
+             write(*,*)'Check with meq_sameset: ',gx%bmperr,irem1,iadd1
+             if(gx%bmperr.ne.0) then
+                goto 1000
+             elseif(iadd1.ne. 0 .or. irem1.ne.0) then
+                write(*,*)'ignore nozero iadd or irem'
+             endif
+          endif
+! try to change the amount of the fix phase by selecting a composition
+! along the tieline with 30% of the fix phase
+! Now we must change a condition ...
+          call locate_condition(axarr(activax)%seqz,pcond,mapline%lineceq)
+          write(*,*)'Located condition',activax
+          svrrec=>pcond%statvar(1)
+! NOTE: If we change fix/entered phase we must change axvals/axvals2
+          svrtarget=svrrec
+          svrtarget%argtyp=3
+! calculate composition of entered phase
+!          svrtarget%phase=meqrec%phr(sj)%iph
+!          svrtarget%compset=meqrec%phr(sj)%ics
+          svrtarget%phase=mapfix%stableph(1)%ixphase
+          svrtarget%compset=mapfix%stableph(1)%compset
+! This extracts the composition of the entered phase for first new line
+! we must use a pointer in state_variable_val
+          svr2=>svrtarget
+          call state_variable_val(svr2,xstab,mapline%lineceq)
+          if(gx%bmperr.ne.0) goto 1000
+          svrtarget%phase=mapfix%fixph(1)%ixphase
+          svrtarget%compset=mapfix%fixph(1)%compset
+! This extracts the composition of the entered phase for first new line
+! we must use a pointer in state_variable_val
+          svr2=>svrtarget
+          call state_variable_val(svr2,xfix,mapline%lineceq)
+          if(gx%bmperr.ne.0) goto 1000
+! set fix phase amount to 0.3 as we may find a third phase along the line ..
+! but we must take into account how many moles of atoms in fix phase
+!          natpermol=meqrec%phr(??fixphase)%curd%abnorm(1)
+          iadd=mapfix%fixph(1)%ixphase
+          write(*,*)'SMP Natpermol: ',iadd,meqrec%phr(iadd)%curd%abnorm(1)
+          natpermol=one
+          fixpham=0.3D0/natpermol
+          xcorr=(one-fixpham)*xstab+fixpham*xfix
+          write(*,71)fixpham,xstab,xfix,xcorr
+71        format('Change: ',4(1pe16.8))
+! first argument 1 means to extract the value, 0 means to set the value
+          call condition_value(0,pcond,xcorr,mapline%lineceq)
+          if(gx%bmperr.ne.0) then
+             write(*,*)'Cannot set axis condition'
+             gx%bmperr=4399; goto 1000
+          endif
+! Then call meq_sameset ignoring any new phases that tries to be stable
+          iadd=0; irem=0
+          call meq_sameset(irem,iadd,mapline%meqrec,&
+               mapline%meqrec%phr,inmap,mapline%lineceq)
+          if(gx%bmperr.ne.0) then
+             gx%bmperr=0; goto 1000
+          elseif(irem.gt.0 .or. irem.gt.0) then
+             write(*,*)'ignorin new phases: ',irem,iadd
+          endif
+! change the amount of the fix phase
+          allocate(mapfix%fixphamap(1))
+          mapfix%fixphamap(1)=fixpham
+! if hullerombuller true below then it will change fix and stable phase
+          hullerombuller=.FALSE.
+          mapfix%stablepham(1)=one-fixpham
+          write(*,*)'find mapline conditions: '
+          call list_conditions(kou,mapline%lineceq)
+!          goto 1000
+!..................................
+       else
+!-----------------------------------------------------------------------
+! OLD code below
 ! we should check that the not-fixed phase can vary composition ...
-       ip=mapnode%linehead(nyline)%stableph(1)%ixphase
+          ip=mapnode%linehead(nyline)%stableph(1)%ixphase
 ! fixedcomposition is a logical funtion in gtp3F.F90
-       if(fixedcomposition(ip)) then
-          mapfix%fixph=mapnode%linehead(nyline)%stableph(1)
-          hullerombuller=.TRUE.
+          if(fixedcomposition(ip)) then
+             mapfix%fixph=mapnode%linehead(nyline)%stableph(1)
+             hullerombuller=.TRUE.
 !          write(*,*)'Selecting other phase as fix',mapfix%fixph%ixphase,&
 !               mapfix%fixph%compset
-       else
+          else
 !          write(*,*)'Changing fix phase: ',mapline%linefixph(1)%ixphase,&
 !               mapline%linefixph(1)%compset
-          mapfix%fixph=mapline%linefixph(1)
-          hullerombuller=.FALSE.
+             mapfix%fixph=mapline%linefixph(1)
+             hullerombuller=.FALSE.
+          endif
        endif
 ! create a heading text for the line
        phaseset=' '
@@ -5221,7 +5343,7 @@ CONTAINS
           call get_phasetup_name_old(mapfix%stableph(1),phaseset(ip:))
           if(gx%bmperr.ne.0) goto 1000
 ! set positive amount both in mapfix and in phase_varres ...??
-          mapfix%stablepham(1)=one
+          mapfix%stablepham(1)=one-fixpham
           ip=len_trim(phaseset)
           if(ip.gt.1) then
              write(kou,516)mapline%lineid,&
