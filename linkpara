@@ -21,7 +21,7 @@ del ftinyopen.F90
 
 REM some utilites and the command line interface
 copy utilities\metlib3.F90 .
-gfortran -c -O2 -Dwin -Dtinyfd metlib3.F90
+gfortran -c -O2 -Dtinyfd metlib3.F90
 del metlib3.F90
 
 REM some routines from LAPACK and BLAS
@@ -55,8 +55,10 @@ gfortran -c -fopenmp -O2 smp2.F90
 del smp2*.F90
 
 REM the user interface
+REM set -Dqtplt to use the Qt terminal driver for screen
+REM -Dwinhlp needed for online help on Windows
 copy userif\pmon6.F90 .
-gfortran -c -fopenmp -Dwin pmon6.F90
+gfortran -c -fopenmp -Dwinhlp pmon6.F90
 del pmon6.F90
 
 REM storing the date

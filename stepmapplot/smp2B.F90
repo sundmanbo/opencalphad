@@ -1314,10 +1314,12 @@
     if(btest(graphopt%status,GRKEEP)) then
 !       write(*,*)'plot command: "',gnuplotline(9:k3),'"'
        write(*,*)'Trying to spawn'
-       call system(gnuplotline(9:k3))
+!       call system(gnuplotline(9:k3))
+       call execute_command_line(gnuplotline(9:k3))
     else
 !       write(*,*)'plot command: "',gnuplotline(1:k3),'"'
-       call system(gnuplotline)
+!       call system(gnuplotline)
+       call execute_command_line(gnuplotline)
     endif
 1000 continue
     return
@@ -1690,6 +1692,7 @@
 ! we plot monovariant twice, once with border once with filledcurves!!
 !    integer noofmono,jjj,monovariant2(100)
     integer, parameter :: monovariantborder=11
+    integer xtieline,xmonovariant
     character monovariant*6
 ! Gibbs triangle variables
     logical plotgt,appgt
@@ -1700,7 +1703,7 @@
 ! very faint green       'fc "#F0FFF0" notitle ',a)
 ! yellow                 'fc "#FFFF00" notitle ',a)
 ! goldenrod              'fc "#DAA520" notitle ',a)
-    monovariant='F0FFF0'
+    monovariant='50FF50'
 !    write(*,*)'Filename: ',trim(ocgnu)
 !
     call date_and_time(date)
@@ -2206,42 +2209,51 @@
     endif
     done=0
 !    noofmono=0
+! Here we write all plot "-" using ... and subsequent "" using ...
     naptitle=0
-    do kk=1,2
-       do jj=1,same
+    xtieline=0
+    xmonovariant=0
+    kkloop: do kk=1,2
+       jjloop: do jj=1,same
           ii=ii+1
           if(ii.eq.1) then
              if(lcolor(ii).eq.11) then
-! this is monovariant, use filledcurves!!
-!                write(21,307)'lines',lcolor(ii),&
-!                     trim(color(lcolor(ii))),backslash
-!                noofmono=noofmono+1
-!                monovariant2(noofmono)=same
+! this is monovariant!
 ! this is the first plot command, ii=1 so kk must be 1!!
-!                write(*,*)'monovariant 1: ',same,kk,ii
-                write(21,307)monovariant,trim(color(lcolor(ii))),backslash
-307             format('plot "-" using 1:2 with filledcurves ',&
-                     'fc "#',a,'" title "',a,'"',a)
+                if(kk.eq.1) then
+                   write(21,306)monovariant,backslash
+306                format('plot "-" using 1:2 with filledcurves ',&
+                        'fc "#',a,'" notitle ',a)
+                   xmonovariant=jj
+!                   write(*,*)'SMP monovariant 1: ',xmonovariant
+                else
+! this else branch is impossible, when ii=1 then kk=1 !!! but ...
+                   write(21,307)monovariant,trim(color(lcolor(ii))),backslash
+307                format('plot "-" using 1:2 with filledcurves ',&
+                        'fc "#',a,'" title "',a,'"',a)
 ! light green                     'fc "#B0FFB0" title "',a,'"',a)
 ! very faint green                'fc "#F0FFF0" title "',a,'"',a)
 ! faint yellow                     'fc "#EEFFCC" title "',a,'"',a)
+                endif
              elseif(lcolor(ii).eq.12) then
-                write(21,309)'lines',lcolor(ii),&
-                     trim(color(lcolor(ii))),backslash
+! tie-line
+                write(21,308)'lines',lcolor(ii),&
+                        trim(color(lcolor(ii))),backslash
+                xtieline=jj
+!                write(*,*)'SMP xtieline 1: ',xtieline
+308             format('plot "-" using 1:2 with ',a,' ls ',i2,' notitle ',a)
              else
+! normal line with label
                 write(21,309)trim(linespoints),lcolor(ii),&
                      trim(color(lcolor(ii))),backslash
              endif
-!             write(*,7777)'label1: ',ii,lcolor(ii),trim(color(lcolor(ii)))
-7777         format(a,2i4,': ',a)
              naptitle=naptitle+1
              apptitles(naptitle)=lcolor(ii)
 309          format('plot "-" using 1:2 with ',a,' ls ',i2,' title "',a,'"',a)
              done(lcolor(1))=1
           else
-! the monovariant "lines" are just a point and occur only once
+! all lines except the first plotted here
 ! the last line for the plot command has no backslash --- except if append file
-!             if(ii.eq.2*(same-nofinv)+nofinv) backslash=' '
              if(ii.eq.2*same .and. appfil.eq.0) backslash=' '
 ! we can only use linestyles 1 to 10 except for monovariants and tie-lines
              fcolor=lcolor(ii)
@@ -2254,69 +2266,99 @@
                 fcolor=1
              endif
              cone: if(done(lcolor(ii)).eq.1) then
+! we have already a title for this line ... except tie-lines and monovariant
                 if(lcolor(ii).eq.11) then
-!                   write(21,320)'lines',fcolor,backslash
-! check if this monovariant already plotted, if so use curves!
-!                   do jjj=1,noofmono
-!                      if(monovariant2(jjj).eq.same) then
-!                         write(*,*)'Second time of invariant 1',same,ii
-!                      endif
-!                   enddo
-!                   noofmono=noofmono+1
-!                   monovariant2(noofmono)=same
-                   if(kk.eq.2) then
-! second time plotting an invariant use thick lines
+                   if(kk.eq.1) then
+! first time plotting an invariant use thick lines
                       write(21,320)'lines',monovariantborder,backslash
-!                      write(*,*)'monovariant 2: ',same,kk,ii
+! save the index of the last monovariant to add title!
+                      xmonovariant=jj
+!                      write(*,*)'SMP monovariant 2: ',xmonovariant
                    else
-                      write(21,319)monovariant,backslash
-319                   format('"" using 1:2 with filledcurves ',&
-                           'fc "#',a,'" notitle ',a)
+! if kk=2 check if this is last monovariant, if so add title
+                      if(jj.eq.xmonovariant) then
+                         write(21,318)monovariant,trim(color(11)),backslash
+318                      format('"" using 1:2 with filledcurves ',&
+                              'fc "#',a,'" title "',a,'" ',a)
+!                         write(*,*)'SMP monovariant 5: ',xmonovariant,jj
+                      else
+                         write(21,319)monovariant,backslash
+319                      format('"" using 1:2 with filledcurves ',&
+                              'fc "#',a,'" notitle ',a)
+                      endif
                    endif
                 elseif(lcolor(ii).eq.12) then
-                   write(21,320)'lines',fcolor,backslash
+! tie-line, if kk==2 and xtieline==jj add label
+                   if(kk.eq.1) then
+                      write(21,320)'lines',fcolor,backslash
+                      xtieline=jj
+!                      write(*,*)'SMP xtieline 2: ',xtieline
+                   elseif(xtieline.ne.jj) then
+                      write(21,320)'lines',fcolor,backslash
+                   else
+                      write(21,299)'lines',fcolor,trim(color(12)),backslash
+299                   format('"" using 1:2 with ',a,' ls ',i2,&
+                           ' title "',a,'" ',a)
+!                      write(*,*)'SMP xtieline 5:',jj,xtieline
+                   endif
                 else
+! normal line with no title
                    write(21,320)trim(linespoints),fcolor,backslash
                 endif
 320             format('"" using 1:2 with ',a,' ls ',i2,' notitle ',a)
-             else
-!                if(lcolor(ii).gt.10) then
+             else 
+! we have a new line withou title
                 if(fcolor.eq.11) then
-!                   write(21,310)'lines',fcolor,&
-!                        trim(color(lcolor(ii))),backslash
-!                   do jjj=1,noofmono
-!                      if(monovariant2(jjj).eq.same) then
-!                         write(*,*)'Second time of invariant 2',same,ii
-!                      endif
-!                   enddo
-!                   noofmono=noofmono+1
-!                   monovariant2(noofmono)=same
-                   if(kk.eq.2) then
-! second time plotting an invariant use thick lines
-                      write(21,320)monovariantborder,backslash
-!                      write(*,*)'monovariant 3: ',same,kk,ii
+                   if(kk.eq.1) then
+! first time plotting a monovariant use thick lines
+                      write(21,320)'lines',monovariantborder,backslash
+                      xmonovariant=jj
+!                      write(*,*)'SMP monovariant 3: ',xmonovariant
                    else
-                      write(21,321)monovariant,trim(color(lcolor(ii))),backslash
-321                   format('"" using 1:2 with filledcurves ',&
-                           'fc "#',a,'" title "',a,'"',a)
-! light green                        'fc "#EEFFCC" title "',a,'"',a)
+                      if(jj.eq.xmonovariant) then
+! this is the last monovariant, add title
+                         write(21,321)monovariant,&
+                              trim(color(lcolor(ii))),backslash
+321                      format('"" using 1:2 with filledcurves ',&
+                              'fc "#',a,'" title "',a,'"',a)
+!                         write(*,*)'SMP monovariant 4: ',xmonovariant,jj
+                      else
+! not the last monovariant, notitle
+                         write(21,325)monovariant,backslash
+325                      format('"" using 1:2 with filledcurves ',&
+                              'fc "#',a,'" notitle ',a)
+                      endif
                    endif
                 elseif(fcolor.eq.12) then
-                   write(21,310)'lines',fcolor,&
-                        trim(color(lcolor(ii))),backslash
+! this is a tie-line without title
+                   if(kk.eq.1) then
+! if kk=1 no not add title, just keep track of last tie-line
+                      write(21,320)'lines',fcolor,backslash
+                      xtieline=jj
+!                      write(*,*)'SMP xtieline 3: ',xtieline
+                   else
+! if kk=2 add title if xtieline=jj
+                      if(jj.eq.xtieline) then
+                         write(21,331)'lines',fcolor,&
+                              trim(color(lcolor(ii))),backslash
+!                         write(*,*)'SMP xtieline 4:',jj,xtieline
+                      else
+                         write(21,320)'lines',fcolor,backslash
+                      endif
+                   endif
                 else
-                   write(21,310)trim(linespoints),fcolor,&
+! any normal line add title
+                   write(21,331)trim(linespoints),fcolor,&
                         trim(color(lcolor(ii))),backslash
                 endif
                 naptitle=naptitle+1
                 apptitles(naptitle)=lcolor(ii)
-!                write(*,7777)'label2: ',ii,lcolor(ii),trim(color(lcolor(ii)))
-310             format('"" using 1:2 with ',a,' ls ',i2,' title "',a,'"',a)
+331             format('"" using 1:2 with ',a,' ls ',i2,' title "',a,'"',a)
                 done(lcolor(ii))=1
              endif cone
           endif
-       enddo
-    enddo
+       enddo jjloop
+    enddo kkloop
 ! if we have an append file we must add the plotcommands in applines(1:nofapl)
 ! we made sure a few lines above that there is a backslash at last line above
     if(appfil.gt.0) then
@@ -2417,9 +2459,11 @@
     endif
     if(btest(graphopt%status,GRKEEP)) then
        write(*,*)'Trying to spawn'
-       call system(gnuplotline(9:))
+!       call system(gnuplotline(9:))
+       call execute_command_line(gnuplotline(9:))
     else
-       call system(gnuplotline)
+!       call system(gnuplotline)
+       call execute_command_line(gnuplotline)
     endif
 !900 continue
 1000 continue

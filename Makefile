@@ -17,6 +17,7 @@ FCOPT= -O2 -fopenmp
 all: $(OBJS) $(EXE)
 
 getkey.o:
+	echo "Do not forget to uncomment a line below for your OS"
 	# compile utilities/GETKEY for command line editing
 	# uncomment the line for the kind of Linux system you have
 	# Mac >>
@@ -36,7 +37,9 @@ tinyopen.o:
 	gfortran -c utilities/TINYFILEDIALOGS/ftinyopen.F90
 
 metlib3.o:	utilities/metlib3.F90
-	$(FC) -c $(FCOPT) -Dtinyfd utilities/metlib3.F90
+	# lixed for command line editing, tinyfd for open files
+	# lixhlp for browser help
+	$(FC) -c $(FCOPT) -Dlixed -Dtinyfd -Dlixhlp utilities/metlib3.F90
 
 oclablas.o:	numlib/oclablas.F90
 	$(FC) -c $(FCOPT) numlib/oclablas.F90
@@ -57,7 +60,10 @@ smp2.o:		stepmapplot/smp2.F90
 	$(FC) -c $(FCOPT) stepmapplot/smp2.F90
 
 pmon6.o:	userif/pmon6.F90
-	$(FC) -c $(FCOPT) userif/pmon6.F90
+	# default wxt graphical driver
+	# use -Dqtplt fot Qt or -Daqplt for aqua plot drivers, nothing for wxt
+	# use -Dlixhlp for online helo in Linux
+	$(FC) -c $(FCOPT) -Dqtplt -Dlixhlp userif/pmon6.F90
 
 $(EXE): 
 	$(FC) -o linkoc linkocdate.F90
@@ -65,6 +71,9 @@ $(EXE):
 
 # create library liboceq.a
 	ar sq liboceq.a metlib3.o oclablas.o ocnum.o gtp3.o matsmin.o lmdif1lib.o
+	#
+	# If getkey.o is undefined below uncomment a line above at getkey.o
+	#
 	$(FC) -o $(EXE) $(FCOPT) pmain1.F90 pmon6.o smp2.o getkey.o ftinyopen.o tinyopen.o tinyfiledialogs.o liboceq.a
 
 clean:

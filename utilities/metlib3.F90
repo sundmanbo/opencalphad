@@ -20,9 +20,12 @@ MODULE METLIB
 !    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 !
 !--------------------------------------------------------------------------
-#ifdef win
-! nothing special
-#else  
+! compiler options:
+! lixed to select command line editing on Linux/MacOS etc
+! tinyfd  to select popup windows to open files
+! htmlhlp to use browser for on-line help
+!--------------------------------------------------------------------------
+#ifdef lixed
 ! LINUX: For character by character input allowing emacs editing
 ! uncomment the next line and run the Makefile on the GETKEY directory 
   use M_getkey
@@ -96,7 +99,8 @@ MODULE METLIB
 ! LOGFIL is nonzero if a log file is set
   integer, private :: logfil=0
 ! prevent use of popup windows for open/save file
-  logical NOPOPUP
+! logical nopopup
+  logical :: NOPENPOPUP=.FALSE.
 ! global values for history
   CHARACTER, private :: HIST(20)*80
   integer, private :: LHL=0,LHM=0,LHP=0
@@ -129,7 +133,7 @@ MODULE METLIB
 ! A help structure used in new on-line help system
     TYPE help_str
        integer :: okinit=0
-       character*128 filename
+!       character*128 filename
        character*8 type
        integer level
        character*32, dimension(maxhelplevel) :: cpath
@@ -180,6 +184,27 @@ MODULE METLIB
      integer :: hpos=0
   END TYPE CHISTORY
   type(chistory) :: myhistory
+!
+! using browser and html files for on-line help
+  type onlinehelp
+! if htmlhelp is TRUE then browser is the path/name of browser
+! htmlfile is full path/name of html file
+! target is used to find the relevant text the html file
+! values of browser and htmlfile set by the main program (and htmlhelp=.TRUE.)
+! The value of target is found searching the original LaTeX file!!
+! In this file there are \hypertarget{target} which can be searched in the
+! html file as <a id="target" />
+! Searching the LaTeX file the help system will find a section
+! matching the history of commands/questions the user has given
+! and the target in the first \hypertarget {target} found within these lines
+! will be used for the help displayed in the browser window
+     logical :: htmlhelp=.FALSE.
+     character*128 browser
+     character*128 htmlfile
+     character*128 latexfile
+     character*64 target
+  end type onlinehelp
+  type(onlinehelp) :: ochelp
 !  
 !^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -291,7 +316,7 @@ CONTAINS
 ! helplevel1 reset helplevel to 1
 ! q2help  help for submenus
 ! q1help  help for questions
-! q3help  help in submenues
+! q3help  help in submenues also?
 ! winit   initates integer workspace
 ! wold    read a file to workspace
 ! wsave   write workspace to file
@@ -2752,19 +2777,24 @@ CONTAINS
     CHARACTER SLIN*80
     EXTERNAL HELP
     integer typ,typeahead
+    logical beware
 #ifdef tinyfd
 ! only if we use tinyfiledialogs, check if any character after last+1
     typeahead=last+1
+    beware=.FALSE.
+! beware set to TRUE if no typeahead (there are non-blanks after positon last+1)
+    beware=eolch(svar,typeahead)
 !    write(*,*)'M3 gparfile: ',kou,koud,last,eolch(svar,last)
-    if(nopopup .or. kiu.ne.kiud .or. .not.eolch(svar,typeahead)) then
+    if(nopenpopup .or. kiu.ne.kiud .or. .not.beware) then
 #endif
 ! If we are not connected to a terminal (reading a macro file) use line input
 ! Also if there are "type ahead" use the line input
 ! This call exchanges any macro variables in SVAR for defined macro values
        CALL GQXENV(SVAR)
 ! If interactive
-       if(kiu.eq.kiud) write(kou,"(a)")'Beware: you must give the full'//&
-            ' path unless the file is in working directory!'
+       if(kiu.eq.kiud .and. beware) write(kou,"(a)") &
+            'Beware: you must give the full path unless the file '//&
+            'is in working directory!'
 100    CALL GQARC(PROMT,SVAR,LAST,JTYP,SVAL,CDEF,HELP)
        IF(BUPERR.NE.0) GOTO 900
        SLIN=SVAL(1:max(1,LEN_TRIM(sval)))
@@ -2980,7 +3010,8 @@ CONTAINS
     else
 ! system command
        write(*,*)'system command: ',slin(2:len_trim(slin))
-       call system(slin(2:))
+!       call system(slin(2:))
+       call execute_command_line(slin(2:))
     ENDIF
 900 RETURN
 !
@@ -3201,13 +3232,13 @@ CONTAINS
     character cline*(*)
     integer lin
 !\end verbatim
-#ifdef win
-! On Windows command line editing is provided by the OS
-    call bintxt_nogetkey(lin,cline)
-#else
+#ifdef lixed
 ! LINUX: to have command line editing uncomment the line above and comment the 
 ! line with the call bintxt_nogetkey
     call bintxt_getkey(lin,cline)
+#else
+! On Windows command line editing is provided by the OS
+    call bintxt_nogetkey(lin,cline)
 #endif
     return
   end subroutine bintxt
@@ -3216,7 +3247,8 @@ CONTAINS
 
 !\begin verbatim
   subroutine bintxt_getkey(lin,cline)
-! LINUX: subroutine to read a line with history and editing a la emacs
+! This subroutine needed only on LINUX:
+! subroutine to read a line with history and editing a la emacs
 !
     character cline*(*)
     integer lin
@@ -3279,9 +3311,7 @@ CONTAINS
     hlast=myhistory%hpos+1
 ! read one character at a time without echo
 100 continue
-#ifdef win
-! on Windows se do not use this routine and getkey is not defined
-#else
+#ifdef lixed
 ! LINUX: read one character at a time without echo and allow editing history
     ch1=getkey()
 #endif
@@ -3324,15 +3354,7 @@ CONTAINS
           write(kou,10,advance='no')tbackspace
        enddo
        ip=1
-#ifdef win
-!............. OK
-    case(backspace,backspace2) ! ctrlb leftarrow (also up/down/right arrow)
-! move cursor one step back
-       if(ip.gt.1) then
-          write(kou,10,advance='no')tbackspace
-          ip=ip-1
-       endif
-#else 
+#ifdef lixed
 !............. NEW handle arrow key on Linix/Mac
     case(backspace) ! try to handle arrow keys sequence of 27, 91, A/B/C/D
        ch1=getkey()
@@ -3358,6 +3380,15 @@ CONTAINS
 !...............OK
 !    case(backspace,backspace2) ! ctrlb leftarrow (also up/down/right arrow)
     case(backspace2) ! ctrlb leftarrow (also up/down/right arrow)
+! move cursor one step back
+       if(ip.gt.1) then
+          write(kou,10,advance='no')tbackspace
+          ip=ip-1
+       endif
+!............. OK
+#else 
+! ?? this routine is never used on Windows ... I think the code is redundant
+    case(backspace,backspace2) ! ctrlb leftarrow (also up/down/right arrow)
 ! move cursor one step back
        if(ip.gt.1) then
           write(kou,10,advance='no')tbackspace
@@ -3517,7 +3548,6 @@ CONTAINS
     goto 100
 !=================  
 1000 continue
-!      call system('stty echo ')
     return
   end subroutine bintxt_getkey
 
@@ -5398,12 +5428,12 @@ CONTAINS
 !---------------------------------------------------------
 ! A new set of on-line help routines
 
-  subroutine init_help(file)
+  subroutine init_help(browser,file1,file2)
 ! This routine is called from gtpini to inititate the on-line help system
-    character*(*) file
+    character*(*) file1,file2,browser
     character*80 line
 ! test that file exists
-    open(21,file=file,access='sequential',status='old',&
+    open(21,file=file1,access='sequential',status='old',&
          err=900,iostat=jerr)
     read(21,10)line
 10  format(a)
@@ -5414,13 +5444,21 @@ CONTAINS
     endif
     close(21)
     helprec%okinit=1
-    helprec%filename=file
+!    helprec%filename=file
+    ochelp%latexfile=file1
+! check if html file
+    if(helprec%type(1:6).eq.'latex ' .and. file2(1:1).ne.' ') then
+       ochelp%htmlhelp=.TRUE.
+       ochelp%htmlfile=file2
+       ochelp%browser=browser
+    endif
     goto 1000
 900 continue
-    write(*,910)file(1:len_trim(file))
-910 format('Warning, cannot open ',a,' no on-line help')
+    write(*,910)trim(file1)
+910 format(' *** Warning, cannot open ',a,' no on-line help')
     helprec%okinit=0
-    helprec%filename=' '
+!    helprec%filename=' '
+    ochelp%latexfile=' '
 1000 continue
     return
   end subroutine init_help
@@ -5474,266 +5512,224 @@ CONTAINS
 ! prompt is never used ...
     implicit none
     character*(*) prompt,line
-    character hline*80,mtxt*80
+    character hline*80,mtext*12
     integer, parameter :: maxlevel=20
-    character subsec(4)*10,saved(maxlevel)*24
+    character subsec(5)*10,saved(maxlevel)*24
+    character justdoit*256
     integer nsaved(maxlevel)
-    integer izz,jj,kk,kkk,level,nl,l2,np1,np2,nsub,npx
-    logical foundall
+    integer izz,jj,kk,kkk,level,nl,l2,np1,np2,nsub,zz
+    logical foundall,debug
 !
-!    write(*,*)'called on-line help',helprec%okinit
-!    if(helprec%okinit.ne.0) then
-!       write(*,*)'help file: ',helprec%filename(1:len_trim(helprec%filename))
-!    endif
-!    write(*,*)'we are on command path level: ',helprec%level
-!
+    debug=.false.
     nsaved=0
     subsec(1)='%\section{'
     subsec(2)='%\subsecti'
     subsec(3)='%\subsubse'
     subsec(4)='%\subsubsu'
+    subsec(5)='%\question'
     if(helprec%okinit.eq.0) then
-       write(kou,*)'Sorry no help file'
+       if(debug) write(kou,*)'Sorry no help file'
        goto 1000
     endif
 ! USEFUL for debugging list current search path:
-!    do nl=1,helprec%level
-!       write(*,17)'Search level: ',nl,trim(helprec%cpath(nl))
-!17     format(a,i3,2x,a)
-!    enddo
+    if(debug) then
+       do nl=1,helprec%level
+          write(*,17)'Search level: ',nl,trim(helprec%cpath(nl))
+17        format(a,i3,2x,a)
+       enddo
+    endif
 !
-    open(31,file=helprec%filename,status='old',access='sequential')
+    open(31,file=ochelp%latexfile,status='old',access='sequential')
     nl=0
-    level=3
+    level=2
     np1=0
+    np2=0
     nsub=1
     foundall=.false.
-! if we do not find all levels use npx to save a reasonable end of helptext
-    npx=0
-!    savelevel=1
-    if(helprec%type.eq.'latex   ') then
-! plain LaTeX file, search for "%\section{" with command
-100    continue
+    ochelp%target=' '
+    if(helprec%type.ne.'latex   ') then
+       write(*,*)'Sorry only help based on LaTeX implemented'
+       goto 900
+    endif
+! plain LaTeX file. The questions the OC software asks are saved from the
+! top level in helprec%cpath(1..level).  This makes it possible to compare
+! the these commands with comment lines in the help file to find the relevant 
+! helptext.  The comment lines are structured as the LaTeX sections
+! %\subsection{question1}, %\subsubse..{questione} etc
+! for each match the sublevel is increased and when we find match
+! with the last helprec%cpath(helprec%level) we assume the text until
+! the next %\sub....  can be provided as help
+! If there is an additional HTML help file the text can instead be displayed
+! in a browser using \hypertarget{label} from the LaTeX file found after
+! the last matching sublevel
+! Only first 12 characters in helprec%cpath and %\section{ sublevel are used
+! return here when we found match at level
+100 continue
+    level=level+1
+    if(debug) write(*,*)'At label 100: ',level,helprec%level,nl
+    if(level.gt.helprec%level) then
+       foundall=.true.
+       if(debug) write(*,*)'Foundall 1',nl
+       goto 200
+    endif
+110 continue
+! skip cpath levels that contain COMMAND: or WHAT?
+    if(index(helprec%cpath(level),'COMMAND: ').gt.0 .or. &
+         index(helprec%cpath(level),' WHAT? ').gt.0) then
+       level=level+1
        if(level.gt.helprec%level) then
-          level=level-1
+          foundall=.TRUE.
+          if(debug) write(*,*)'Foundall 2',nl
+          goto 200
        endif
-       l2=len_trim(helprec%cpath(level))
-! Strange error comparing the first 12 characters of helprec%cpath .. with mtext
-! below.  Maybe better to assign this to a 12 character variable?
-! USEFUL for debuging
-!       write(*,107)trim(helprec%cpath(level)),level,l2,nsub,nl,foundall
-107    format('Search for: ',a,4i5,l2)
-110    continue
-       read(31,120,end=700)hline
-120    format(a)
-121    format('- ',a)
-       nl=nl+1
+       goto 110
+    endif
+    if(debug) write(*,*)'Searching for: ',trim(helprec%cpath(level)),level
+! return here when last line did not contain any matching subsec
+200 continue
+    read(31,210,end=700)hline
+210 format(a)
+    nl=nl+1
+    if(np1.gt.0) then
+! np1 is nonzero if we have found a line matching one helprec%cpath
+! We will save all hypertarget labels to have some idea what help text
+! to provide if we do not find all %cpath
+! If we found the helprec%cpath(helprec%level) foundall is set TRUE
+! but we continue until we find the following %\section at the same
+! or higher sublevel
+       kk=index(hline,'\hypertarget{')
+       if(kk.gt.0) then
+          ochelp%target=hline(kk+13:)
+       endif
        if(foundall) then
+! terminate at a line with any sublevel
           izz=0
-!          write(*,*)'Looking for end: ',trim(hline),np1,nl
-          do kk=1,4
-             if(hline(:10).eq.subsec(5-kk)) izz=1
+          do kk=1,5
+             if(hline(1:10).eq.subsec(6-kk)) izz=1
           enddo
           if(izz.gt.0) then
              np2=nl-1
              goto 700
           endif
-          goto 100
+          goto 200
        endif
-       kk=index(hline,subsec(nsub))
-!       write(*,*)trim(hline),nl,nsub,kk
-       izz=0
-       if(nsub.gt.1) then
-          if(kk.eq.0) then
-! it can be a question on the same level ...
+    endif
+! we are searching for a subsec on the sublevel nsub
+! Check if we have a %\section of this sublevel on the line
+    kk=index(hline,subsec(nsub))
+    section: if(kk.eq.0) then
+! if there is none but we already found one sublevel check if we find the same
+!       write(*,*)'no subsec: ',nsub
+       prevsub: if(nsub.gt.2) then
+          kk=index(hline,subsec(nsub-2))
+          if(kk.gt.0) then
+! we have found a sublevel 2 levels up ... we are out of scope          
+             if(debug) write(*,*)'Found subsec two levels up!'
+             np2=nl
+             goto 700
+          elseif(nsub.gt.1) then
              kk=index(hline,subsec(nsub-1))
              if(kk.gt.0) then
-! USEFUL for debuging
-!                write(*,*)'Found same level: ',trim(hline),nsub,nl
-! If we find next text on the same level as earlier decrement nsub!!
-! it will be incremented below so we will keep the same nsub value
-                nsub=nsub-1
-             else
-                if(nsub.gt.2) then
-                   izz=index(hline,subsec(nsub-2))
+! we have found a subsec at the same sublevel we already found
+! check if we have match with the helprec%cpath, only 12 first characters!
+                jj=index(hline,'{')
+                if(jj.le.0) then
+                   write(*,*)'LaTeX helpfil missing { on line:',nl
+                   goto 200
+                endif
+                mtext=hline(jj+1:)
+                kk=index(mtext,'}')
+                if(kk.gt.0) mtext(kk:)=' '
+                call capson(mtext)
+                zz=len_trim(mtext)
+                if(debug) write(*,300)'same: ',helprec%cpath(level)(1:zz),&
+                     ' = ',mtext(1:zz),level,nsub,nl
+                if(helprec%cpath(level)(1:zz).eq.mtext(1:zz)) then
+! we have found match with the next level of user path on same sublevel
+                   goto 100
                 endif
              endif
           endif
-! if np1>0 and izz >0 save current line as a possible end of helptext
-          if(np1.gt.0 .and. izz.gt.0) then
-! max 40 lines of helptext
-             if(nl-np1.lt.40) then
-                npx=nl
-             endif
-!             write(*,*)'helptextend? ',trim(hline),np1,nl,npx
-          endif
-       endif
-       if(kk.gt.0) then
-!          if(nsub.gt.2) write(*,*)'checking section: ',trim(hline),nsub,nl
-          call capson(hline)
-          kk=kk+8
-          kk=index(hline,'SECTION{')+8
-          if(kk.le.8) then
-             write(*,*)'Help file error: ',trim(hline),kk,nl
-             np1=0
-             goto 700
-          endif
-! remove everything after and including } in the line from help file
-! but sometimes there is no } ... (human error)
-          jj=index(hline,'}')-1
-          if(jj.gt.kk) then
-             if(jj.lt.len(hline)) hline(jj+1:)=' '
-             mtxt=hline(kk:jj)
-          else
-             mtxt=hline(kk:)
-          endif
-!127       kkk=index(mtxt,'-')
-!          if(kkk.gt.0) then
-! NOTE that in LaTeX files the underscore _ is replaced by \_
-! this means one will not find commands with underscore ....
-!             mtxt(kkk:kkk)='_'
-!             goto 127
-!          endif
-! USEFUL for debuging
-!          write(*,*)'found mtxt: ',trim(mtxt),level,nsub,nl
-! I do not understand what this loop does ... 180808/BoS
-          do jj=1,maxlevel
-             if(level.gt.jj) then
-! remove previous command if any from the search text
-                kkk=nsaved(jj)
-                if(kkk.gt.0) then
-! it can happen that kkk is larger than the length of saved, mtxt is longer
-                   if(kkk.ge.len(saved(jj))) kkk=len(saved(jj))-1
-                   if(mtxt(1:kkk+1) .eq. saved(jj)(1:kkk+1)) then
-!                      write(*,*)'Removing ',mtxt(1:kkk),kkk
-! ??                  mtxt=mtxt(kkk+2:)
-                      mtxt=mtxt(kkk+2:)
-                   endif
-                endif
-             endif
-          enddo
-! USEFUL for debuging
-!          write(*,130)level,mtxt(1:12),helprec%cpath(level)(1:12),nl
-130       format('comparing: ',i3,': "',a,'" with "',a,'" line ',i4)
-          if(mtxt(1:12).eq.helprec%cpath(level)(1:12)) then
-! found one level, save line number for first line
-             np1=nl
-! USEFUL for debuging
-!             write(*,133)'We found line: ',level,trim(helprec%cpath(level)),&
-!                  np1,nsub
-133          format(a,i3,2x,a,2i5)
-             nsub=nsub+1
-! USEFUL for debuging
-!             write(*,*)'Searching for: ',trim(subsec(nsub))
-! we cannot store more levels ... quit
-             if(level.gt.maxlevel) goto 700
-             saved(level)=helprec%cpath(level)
-             nsaved(level)=len_trim(saved(level))
-             np2=0
-             level=level+1
-             if(level.gt.helprec%level) then
-! we have no more input from user, list the text for next %\section or %\sub...
-!                write(*,*)'we found all',level
-                foundall=.true.
-                level=level-1
-                goto 100
-             endif
-! look for start line of next level
-! USEFUL for debuging
-!             write(*,134)level,helprec%cpath(level)
-134          format('Next cpath: ',i3,': ',a)
-             if(index(helprec%cpath(level),'COMMAND: ').gt.0 .or. &
-                  index(helprec%cpath(level),' WHAT? ').gt.0) then
-! if next "command/question" starts with COMMAND. or finishes with "what?" 
-! skip that because it is a submenu question and if this is
-! the last command line then just return as user interface will help
-!                write(*,*)'level and helprec%level',level,helprec%level,nsub
-                if(level.ge.helprec%level) goto 900
-                level=level+1
-                goto 100
-             endif
-             if(nsub.lt.3) nsub=nsub+1
-             goto 100
-          elseif(level.eq.helprec%level .and. np1.gt.0 .and. np2.eq.0) then
-! save end of text
-!             write(*,*)'last help level: ',trim(helprec%cpath(level-1)),level-1
-             np2=nl-1
-             goto 700
-          else
-! continue searching
-             goto 100
-          endif
-!       elseif(izz.gt.0) then
-! we have found the start of a higher order section, finish searching
-!          write(*,*)'end helptext at next section: ',nsub,trim(hline),nl
-!          np2=nl-1
-!          goto 700
-       endif
-       goto 110
+       endif prevsub
+! just read another line
+       goto 200
     else
-! One should also implement HTML help files ??
-       write(*,*)'Filetype not understood'
-       goto 1000
-    endif
+! we have found a %\sub... for next level, check if it is %cpath(level)
+       jj=index(hline,'{')
+       if(jj.le.0) then
+          write(*,*)'LaTeX helpfil missing { on line:',nl
+          goto 200
+       endif
+       mtext=hline(jj+1:)
+       kk=index(mtext,'}')
+       if(kk.gt.0) mtext(kk:)=' '
+       call capson(mtext)
+       zz=len_trim(mtext)
+       if(debug) write(*,300)'next: ',helprec%cpath(level)(1:zz),' = ',&
+            mtext(1:zz),level,nsub,nl
+300    format(a,a,a,a,5i5)
+       if(helprec%cpath(level)(1:zz).eq.mtext(1:zz)) then
+! we have found match with the next level of user path
+          if(debug) write(*,*)'Match: ',level,nsub,nl
+          nsub=nsub+1
+          np1=nl
+          goto 100
+       endif
+       goto 200
+    endif section
+! jump here if we do not search any more
 ! we should write lines from np1 to np2 from help file
 700 continue
     if(np1.gt.0) then
-       if(np2.lt.np1) then
-! we found no obvious end of help text, check if npx is useful
-!          write(*,*)'Emergency end of helptext?',np1,nl,npx
-! just save value of nl in npx, we have maybe not the best value of np1
-          if(npx.gt.0 .and. npx-np1.lt.40) then
-             np2=npx
-          else
-!             write(*,*)'Help text range error: ',np1,np2,npx
-             goto 900
-          endif
+       if(np2.le.np1) then
+! we found no obvious end of help text
+          write(*,*)'Help text range error: ',np1,np2
        endif
-! HERE ONE SHOULD OPEN A NEW WINDOW TO DISPLAY THE HELP TEXT BELOW, FOR EXAMPLE
-!       call displayhelp(helprec%filename,np1,np2)
-! write a blank line
-       write(kou,*)
-! OR IF A HELP WINDOW IS ALREADY OPEN ONE SHOULD FOCUS THE TEXT IN THAT WINDOW
-! ON LINES NP1 to NP2.
-! IN THE HELP WINDOW THE USER SHOULD BE ABLE TO SCROLL THE WHOLE HELP TEXT
-! AND MAYBE MAKE NEW SEACHES.  THE USER CAN CLOSE THE WINDOW WHEN HE WANTS
-       write(*,798)np1,np2
-798    format(' >>> We should open a help window to display text: ',2i5)
-       rewind(31)
-       nl=0
-800    continue
-       read(31,120)hline
-       nl=nl+1
-       if(nl.ge.np2) then
+! if htmlhelp is true open a browser window and place text at target
+       htmlfil: if(ochelp%htmlhelp .and. ochelp%target(1:1).ne.' ') then
+! the user has to close the help window to continue ... spawn??
+          write(*,711)np1,np2
+711       format(/' *** You must close the browser window to continue OC',2i5/)
+! the \hypertaget should be finished by a }
+          kk=index(ochelp%target,'}')-1
+          if(kk.le.0) kk=len_trim(ochelp%target)
+#ifdef lixhlp
+! on linux just ' "file:" as ochelp#htmlfile start with a /
+          justdoit=trim(ochelp%browser)//' "file:'//&
+               trim(ochelp%htmlfile)//'#'//ochelp%target(1:kk)//'"'
+#else
+! on Windows we need the / after file
+          justdoit=trim(ochelp%browser)//' "file:/'//&
+               trim(ochelp%htmlfile)//'#'//ochelp%target(1:kk)//'"'
+#endif
+          if(debug) write(*,*)'MM: ',trim(justdoit)
+          call execute_command_line(justdoit)
           goto 900
-       elseif(nl.ge.np1) then
-! do not write lines starting with \ (backslash, ascii 92),
-! they are LaTeX commands.  Ignore all LaTeX commands except \item
-! the backslash is not easy to put in a text character ...
-! A line starting with "%\subs" supress all text from position 1 to the {
-!          if(ichar(hline(1:1)).ne.92) then
-!             if(hline(1:1).eq.'%' .and. ichar(hline(2:2)).eq.92 .and.&
-!                  hline(3:6).eq.'subs') then
-!                izz=index(hline,'{')+1
-!                jj=1
-!                do while(jj.gt.0)
-!                   jj=index(hline,'}')
-!                   if(jj.gt.0) hline(jj:jj)=' '
-!                enddo
-!                write(*,120)trim(hline(izz:))
-!             else
-!                write(*,120)trim(hline)
-!             endif
-          if(hline(1:1).ne.'%') then
+       else
+! help in user terminal screen: write a blank line
+          write(kou,*)
+          write(*,798)np1,np2
+798       format(' >>> We should open a help window to display text: ',2i5)
+          rewind(31)
+          nl=0
+800       continue
+          read(31,210)hline
+          nl=nl+1
+          if(nl.ge.np2) then
+             goto 900
+          elseif(nl.ge.np1) then
+             if(hline(1:1).ne.'%') then
 ! ignore LaTeX comment lines and replace \item with a -
-             if(hline(2:5).eq.'item') then
-                write(*,121)trim(hline(6:))
-             else
-                write(*,120)trim(hline)
+                if(hline(2:5).eq.'item') then
+                   write(*,811)trim(hline(6:))
+811                format('- ',a)
+                else
+                   write(*,210)trim(hline)
+                endif
              endif
           endif
-       endif
-       goto 800
+          goto 800
+       endif htmlfil
     else
        write(*,*)'No help found'
     endif

@@ -13,6 +13,25 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2018.09.07 OC version 5.021: Still changing the color of monovariant
+areas ... now dark green.  I have also made small modifications of the
+installion files both on Windows and on UNIX type systems.
+
+I have implemented a facility to open a browser window for online help
+and am fairly happy with this.  At present it is turned off by default
+as there are some problems and the user guide is not updated.  The
+intention is that when you type a question mark "?" at a prompt or
+whenever OC asks you a question you do not know how to answer, a
+browser window will open and show you the relevant section of the user
+guide.  Most answers are in the User Guide but no one reads it
+voluntarily so better provide it in small pieces.  The user guide is
+still not finished (it will never be) but gradually it should work.
+On Windows I use the Explorer browser and on other system I will use
+the firefox browser.  Three versions of the user guide, ochelp.tex,
+ochelp.pdf and ochelp.html are initially in the manual/ directory but
+should be copied to the driectory your OCHOME environment variable
+points to.
+
 2018.09.03 OC version 5.020: The coloring of monovariant areas in
 isothermal sections has now an established set of colors.  The borders
 are drawn with a tick line with the same color as the tie-lines

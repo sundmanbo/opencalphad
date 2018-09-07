@@ -728,7 +728,6 @@ CONTAINS
 ! and continue, else terminate and take another start equilibrium
 ! Normally do not change the phase kept fix.
 !       write(*,*)'hms: taking a step'
-! jump here if too large change in any axis
        call map_step(maptop,mapline,mapline%meqrec,mapline%meqrec%phr,&
             axvalok,nax,axarr,ceq)
 !       write(*,*)'Back from map_step 1',mapline%more,&
@@ -3001,6 +3000,8 @@ CONTAINS
     type(gtp_state_variable), pointer :: svrrec,svr2
     type(gtp_state_variable), target :: svrtarget
     logical tnip,nyfixph
+! new check for large step when tie-lines in the plane
+    double precision monovar(2,4)
     save maxstep
 !
     mapeqno=mapline%number_of_equilibria

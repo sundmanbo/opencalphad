@@ -11,7 +11,8 @@ FCOPT= -O2 -fopenmp
 #FC=ifort
 #FCOPT= -check bounds -zero
 
-# To have the command line editing and history feature on your OS 
+# This compiles OC without command line editing facilities (getkey)
+# To have the command line editing and history features
 # you must use the Makefile provided
 
 all: $(OBJS) $(EXE)
@@ -23,7 +24,9 @@ tinyopen.o:
 	gfortran -c utilities/TINYFILEDIALOGS/ftinyopen.F90
 
 metlib3.o:	utilities/metlib3.F90
-	$(FC) -c $(FCOPT) -Dtinyfd -Dwin utilities/metlib3.F90
+	# tinyfd for open files
+	# lixhlp for browser help
+	$(FC) -c $(FCOPT) -Dtinyfd -Dlixhlp utilities/metlib3.F90
 
 oclablas.o:	numlib/oclablas.F90
 	$(FC) -c $(FCOPT) numlib/oclablas.F90
@@ -44,7 +47,10 @@ smp2.o:		stepmapplot/smp2.F90
 	$(FC) -c $(FCOPT) stepmapplot/smp2.F90
 
 pmon6.o:	userif/pmon6.F90
-	$(FC) -c $(FCOPT) userif/pmon6.F90
+	# default wxt graphical driver
+	# use -Dqtplt fot Qt or -Daqplt for aqua plot drivers nothing for wxt
+	# use -Dlixhlp for online browser help
+	$(FC) -c $(FCOPT) -Daqplt userif/pmon6.F90
 
 $(EXE): 
 	$(FC) -o linkoc linkocdate.F90

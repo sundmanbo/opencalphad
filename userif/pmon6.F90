@@ -52,8 +52,12 @@ contains
     integer narg
 ! various symbols and texts
     character :: ocprompt*8='--->OC5:'
-    character name1*24,name2*24,line*80,model*72,chshort,browser*128
-    integer, parameter :: ocmonversion=34
+    character name1*24,name2*24,line*80,model*72,chshort
+    integer, parameter :: ocmonversion=40
+! for the on-line help, at present turn off by default
+    character*128 browser,latexfile,htmlfile
+    logical :: htmlhelp=.FALSE.
+!    logical :: htmlhelp=.TRUE.
 ! element symbol and array of element symbols for database use
     character elsym*2,ellist(maxel)*2
 ! more texts for various purposes
@@ -330,8 +334,8 @@ contains
     character (len=16), dimension(ncadv) :: cadv=&
          ['EQUILIB_TRANSF  ','QUIT            ','EXTRA_PROPERTY  ',&
           'GRID_DENSITY    ','SMALL_GRID_ONOFF','MAP_SPECIAL     ',&
-          'GLOBAL_MIN_ONOFF','POPUP_WINDOW_OFF','WORKING_DIRECTRY',&
-          '                ','                ','                ']
+          'GLOBAL_MIN_ONOFF','OPEN_POPUP_OFF  ','WORKING_DIRECTRY',&
+          'HELP_POPUP_OFF  ','                ','                ']
 !         123456789.123456---123456789.123456---123456789.123456
 ! subsubcommands to SET BITS
     character (len=16), dimension(nsetbit) :: csetbit=&
@@ -451,11 +455,15 @@ contains
     i1=1
     graphopt%gnutermid(i1)='SCREEN '
 ! MAX 80 characters to set terminal ....
-#ifdef win
-    graphopt%gnuterminal(i1)='wxt size 900,600 '
-#else
-! On LINUX
+#ifdef aqplt
+! Aqua plot screen on some Mac systems
+    graphopt%gnuterminal(i1)='aqua size 900,600 '
+#elseif qtplt
+! Qt plot screen on some LINUX systems
     graphopt%gnuterminal(i1)='qt size 900,600 '
+#else
+! wxt default plot screen (used on most Window systems)
+    graphopt%gnuterminal(i1)='wxt size 900,600 '
 #endif
     graphopt%filext(i1)='  '
 ! Postscript
@@ -466,12 +474,12 @@ contains
 ! Adobe Portable Document Format (PDF)
     i1=3
     graphopt%gnutermid(i1)='PDF '
-#ifdef win
-! NOTE size is in inch
-    graphopt%gnuterminal(i1)='pdf color solid size 6,4 enhanced fontscale 0.45'
-#else
+#ifdef qtplt
 ! On LINUX
     graphopt%gnuterminal(i1)='pdfcairo '
+#else
+! NOTE size is in inch
+    graphopt%gnuterminal(i1)='pdf color solid size 6,4 enhanced fontscale 0.45'
 #endif
     graphopt%filext(i1)='pdf  '
 ! Graphics Interchange Format (GIF)
@@ -509,8 +517,9 @@ contains
     logfil=0
     buperr=0
 !
-! nopoup is declared in metlib3.F90 and dis/allow popup windows for read/save
-    nopopup=.FALSE.
+! nopenpopup is declared in metlib3.F90 and dis/allow open popup windows
+! it is initiated to FALSE, if user change it will not be reinitiated here
+!    nopenpopup=.FALSE.
 ! in init_gtp the first equilibrium record is created and 
 ! firsteq has been set to that
 !
@@ -547,20 +556,52 @@ contains
 ! local environment: please create OCHOME as an environment variable
     ochome=' '
     call get_environment_variable('OCHOME ',ochome)
-!    write(*,*)'OCHOME: ',trim(ochome)
+    write(*,*)'OC home directory (OCHOME): ',trim(ochome)
     startupmacro=.FALSE.
-    if(ochome(1:1).eq.' ') then
+    noochome: if(ochome(1:1).eq.' ') then
        inquire(file='ochelp.hlp ',exist=logok)
        if(.not.logok) then
           write(*,*)'Warning, no help file'
        else
-! help file on local directory?
-          call init_help('ochelp.hlp ')
+! help file on local directory ... no browser nor HMTL
+          call init_help(' ','ochelp.hlp ',' ')
        endif
-    else
+    else ! there is a OCHOME environment variable
 ! both LINUX and WINDOWS accept / as separator between directory and file names
 !       write(*,*)'Help file: ',trim(ochome)//'\ochelp.hlp '
-       call init_help(trim(ochome)//'/ochelp.hlp ')
+#ifdef winhlp
+! THIS IS FOR WINDOWS
+! first argument is browser
+! second is LaTeX source file
+! third argument is HTML file with hypertargets <a id="target" />
+       browser='C:\PROGRA~1\INTERN~1\iexplore.exe '
+       latexfile=trim(OCHOME)//'/'//'ochelp.tex'
+       htmlfile=trim(OCHOME)//'/'//'ochelp.html'
+! when we are here OCHOME is not empty!
+! special for testing
+!       latexfile='c:\users\bosse\documents\oc\oc\src\manual\html\ochelp5.tex'
+!       htmlfile='c:\users\bosse\documents\oc\oc\src\manual\html\ochelp5.html'
+#elif lixhlp
+! THIS IS FOR LINUX
+       browser='/usr/bin/firefox '
+       latexfile=trim(OCHOME)//'/'//'ochelp.tex'
+       htmlfile=trim(OCHOME)//'/'//'ochelp.html'
+#endif
+       inquire(file=htmlfile,exist=logok)
+       if(.not.logok) then
+! if we have no html file disable the help_popup
+          write(*,*)'No online popup helpfile: ',trim(htmlfile)
+          htmlhelp=.FALSE.
+       else
+          write(*,*)'Help LaTeX: ',trim(latexfile)
+          write(*,*)'Help popup: ',trim(htmlfile)
+       endif
+       if(.not.htmlhelp) then
+! no html file or user have explicitly set HELP_POPUP_OFF, respect that
+          call init_help(' ',latexfile,' ')
+       else
+          call init_help(browser,latexfile,htmlfile)
+       endif
 ! default directory for databases
        ocbase=trim(ochome)//'/databases'
        inquire(file=trim(ocbase),exist=logok)
@@ -582,10 +623,9 @@ contains
 !       else
 !          write(*,*)'No initiation file'
        endif
-    endif
+    endif noochome
 !
 ! finished initiallization
-!88  continue
 !
 !
 !============================================================
@@ -775,8 +815,10 @@ contains
           if(gx%bmperr.ne.0) goto 990
 ! sometimes lokph is used below
           call get_phase_record(iph,lokph)
+          call get_phasetup_name(iph,name1)
 !
-          kom3=submenu(cbas(kom),cline,last,camph,ncamph,2)
+          kom3=submenu('AMEND for phase '//trim(name1),&
+               cline,last,camph,ncamph,2)
 !          write(*,*)'Amend phase subcommand: ',kom3
           amendphase: SELECT CASE(kom3)
 ! subsubcommands to AMEND PHASE
@@ -798,7 +840,7 @@ contains
              write(kou,*)'Amend phase subcommand error'
 !....................................................
           case(1) ! amend phase addition
-             kom4=submenu(cbas(kom),cline,last,caddph,naddph,1)
+             kom4=submenu('Addition of',cline,last,caddph,naddph,1)
 !          write(*,*)'Amend phase addition: ',kom4
 !         ['MAGNETIC_CONTRIB','QUIT            ','                ',&
 !         'TWOSTATE_LIQUID ','SCHOTTKY_ANOMATY','                ',&
@@ -990,7 +1032,7 @@ contains
           write(kou,*)'Not implemented yet, only ENTER PARAMETER'
 !-------------------------
        case(6) ! amend bibliography
-          call enter_reference_interactivly(cline,last,1,j1)
+          call enter_bibliography_interactivly(cline,last,1,j1)
 !-------------------------
        case(7) ! amend TPFUN symbol
           write(kou,*)' *** Dangerous if you have several equilibria!'
@@ -1888,15 +1930,16 @@ contains
 !             endif
 !             write(*,*)'Not implemented yet'
 !.................................................................
-          case(8) ! POPUP_WINDOWS_OFF
-             call gparcd('Turn off popup windows? ',cline,last,&
+          case(8) ! OPEN_POPUP_OFF
+             call gparcd('Turn off popup for open? ',cline,last,&
                   1,ch1,'Y',q1help)
              if(ch1.eq.'Y') then
 ! nopopup is declared in metlib3.F90 module
-                nopopup=.TRUE.
+! nopenpopup is declared in metlib3.F90 module
+                nopenpopup=.TRUE.
                 write(kou,*)'Popup windows for open files turned off'
              else
-                nopopup=.FALSE.
+                nopenpopup=.FALSE.
                 write(kou,*)'Popup windows for open files enabled'
              endif
 !.................................................................
@@ -1904,8 +1947,25 @@ contains
              write(kou,*)'Current working directory: ',trim(workingdir)
              write(kou,*)'Cannot be changed ...'
 !.................................................................
-          case(10) ! nothing yet
-             write(*,*)'Not implemented yet'
+          case(10) ! HELP_POPUP_OFF
+             call gparcd('Turn off popup help? ',cline,last,&
+                  1,ch1,'Y',q1help)
+             if(ch1.eq.'Y') then
+                ochelp%htmlhelp=.FALSE.
+                htmlhelp=.FALSE.
+             else
+                htmlhelp=.TRUE.
+                string=browser
+                call gparcd('Browser including full path ',&
+                     cline,last,1,browser,string,q1help)
+                string=latexfile
+                call gparcd('LaTeX help file including full path ',&
+                     cline,last,1,latexfile,string,q1help)
+                string=htmlfile
+                call gparcd('HTML help file including full path ',&
+                     cline,last,1,htmlfile,string,q1help)
+                call init_help(browser,latexfile,htmlfile)
+             endif
 !.................................................................
           case(11) ! nothing yet
              write(*,*)'Not implemented yet'
@@ -2968,7 +3028,7 @@ contains
           if(gx%bmperr.ne.0) goto 990
 !---------------------------------------------------------------
        case(6) ! enter bibliography
-          call enter_reference_interactivly(cline,last,0,j1)
+          call enter_bibliography_interactivly(cline,last,0,j1)
           if(gx%bmperr.ne.0) goto 990
           write(kou,*)'Bibliography number is ',j1
 !---------------------------------------------------------------
@@ -3140,12 +3200,13 @@ contains
 ! ENTER GNUPLOT_TERMINAL
        case(18)
           write(kou,172)graphopt%gnutermax
-172       format('GNUPLOT terminals are:',i2)
+172       format('GNUPLOT terminals are:',i2/&
+               4x,'Name',5x,'> command',6x,'GNUPLOT options')
           write(kou,173)(i2,graphopt%gnutermid(i2),&
                trim(graphopt%gnuterminal(i2)),i2=1,graphopt%gnutermax)
 173       format(i2,2x,a,' > set terminal ',a)
           write(kou,174)
-174       format('Enter or change a GNUPLOT termial ')
+174       format('Change (exact match required) or enter a GNUPLOT termial')
           call gparc('Terminal id (8 chars):',cline,last,1,text,' ',q1help)
           call capson(text)
           if(text(1:1).eq.' ') goto 100
@@ -3157,6 +3218,11 @@ contains
              endif
           enddo
 ! gnutermid not found, a new terminal
+          call gparcd('You want to enter a new terminal "'//trim(text)//'"?',&
+               cline,last,1,ch1,'Y',q1help)
+          if(ch1.ne.'Y') then
+             write(*,*)'Please try again'; goto 100
+          endif
           if(graphopt%gnutermax.ge.8) then
              write(kou,*)'There can max be 8 terminals'
              goto 100
@@ -3167,7 +3233,8 @@ contains
 ! enter a new set terminal id and definition
 176       continue
           graphopt%gnutermid(i1)=text(1:8)
-          call gparc('Text after set terminal:',cline,last,5,text,string,q1help)
+          call gparc('Text after set terminal (see GNUPLOT manual):',&
+               cline,last,5,text,string,q1help)
           graphopt%gnuterminal(i1)=text
           if(i1.ne.1) then
 ! SCREEN has no file extention
@@ -3934,7 +4001,7 @@ contains
 !---------------------------------------------------------
        case(2) ! read TDB
           if(tdbfile(1:1).ne.' ') then
-! set tdbfil as default
+! set previous tdbfil as default
              text=tdbfile
              call gparcd('File name: ',cline,last,1,tdbfile,text,q1help)
           else
@@ -4479,11 +4546,56 @@ contains
 !---------------------------------
 ! debug browser
        case(6)
-          call gparcd('File name: ',cline,last,5,string,&
-               './manual/html/ochelp5.html ',q1help)
-          browser='"C:\Program Files\Mozilla firefox\firefox.exe" '
-          write(*,'(a)')trim(browser)//' -file '//trim(string)
-          call system(trim(browser)//' -file '//trim(string))
+! testing using HTML helpfile with "anchors" like <a name="label" />
+!   related to a question or command
+! and the the help utility will search for a specific label as below
+! NOTE in the LaTeX file \usepackage{hyperref}
+! and in the text \hypertarget{selectname}
+! using "path/browser" "file://path/helpfile#label" should position
+! the html window at label!!
+! the label "selectname" is in the html file ...
+          call gparcd('File name: ',cline,last,5,model,&
+               './manual\html\ochelp5.html#selectelement ',q1help)
+!          browser='"C:\Program Files\Mozilla firefox\firefox.exe" '
+! this browser can be opened without ""
+          browser='C:\PROGRA~1\INTERN~1\iexplore.exe '
+! it works to open the ochelp5.html on the first page
+!          string=trim(browser)//&
+!               ' -file ./manual/html/ochelp5.html'
+!          write(*,'(a)')trim(string)
+! gnu fortran ...
+!          call system(...)
+!          call execute_command_line(string)
+! now the complicated one ...
+          string=trim(browser)//&
+               '     "file://C:\Users\bosse\documents\oc\oc\src\'//&
+               trim(model(3:))//'"'
+          write(*,'(a)')trim(string)
+! gnu fortran ...
+!          call system(...)
+          call execute_command_line(string)
+! This command works in a Windows terminal window:
+! "C:\program files\Mozilla firefox\firefox.exe" 
+!  "file://c:\users\bosse\documents\oc\oc\src\manual\html\ochelp5.html#selectelement"
+! but problems using as command ...
+! This works also:
+!c:\Program Files\internet explorer\iexplore.exe" "file://c:\users\bosse\documents\oc\oc\src\manual\html\ochelp5.html#selectelement"
+! maybe possible to access by directory names with only 8 bytes ...
+!linux!linux!linux!linux!linux!linux!linux!linux!linux!linux!linux!linux!linux
+!
+!>          call gparcd('File name: ',cline,last,5,model,&
+!>            '/home/bosse/OC/OC5-20/manual/ochelp5.html#selectelement ',q1help)
+! this browser can be opened without ""
+!>          browser='/usr/bin/firefox '
+!>          string=trim(browser)//' "file:'//trim(model(1:))//'"'
+!>          write(*,'(a)')trim(string)
+! This command works in a Linux terminal window:
+! /usr/bin/firefox -file /home/bosse/OC/OC5-20/manual/ochelp5.html
+! it does not work to add #selectelement at the end (no such file name)
+! This work in Linux terminal window:
+! /usr/bin/firefox "file:/home/bosse/.../manual/ochelp5.html#selectelement"
+!
+!linux!linux!linux!linux!linux!linux!linux!linux!linux!linux!linux!linux!linux
        END SELECT debug
 !=================================================================
 ! select command
@@ -5753,15 +5865,35 @@ contains
              if(iflag.eq.0) then
                 write(*,*)'Failed invert matrix=Jac^T*Jac',iflag
              endif
+             write(*,*)'Correlation matrix before and after normallization'
+             do i1=1,nvcoeff
+                write(*,'(6(1pe12.4))')(cormat(i1,i2),i2=1,nvcoeff)
+             enddo
+! DIVIDE EACH COLUMN AND ROW WITH THE DIAGONAL MATRIX ELEMENT
+!             do i1=1,nvcoeff
+!                if(abs(cormat(i1,i1)).lt.1.0D-78) then
+!                   write(*,*)'Correlation matrix singular'
+!                   cormat(i1,i1)=1.0D-78
+!                endif
+!                xxx=cormat(i1,i1)
+!                do i2=1,nvcoeff
+!                   cormat(i1,i2)=cormat(i1,i2)/xxx
+!                enddo
+!             enddo
+!             do i1=1,nvcoeff
+!                write(*,'(6(1pe12.4))')(cormat(i1,i2),i2=1,nvcoeff)
+!             enddo
           elseif(abs(mat1(1,1)).gt.1.0D-38) then
 ! mat1 is just a single value
              allocate(cormat(1,1))
              cormat(1,1)=one/mat1(1,1)
+! IF THERE IS A SINGLE VARIABLE ITS CORRELATION MATRIX MUST BE UNITY
+!             cormat(1,1)=one
           else
              write(*,*)'Correlation matrix singular'
           endif
        endif
-! write the correlation matrix
+! write the correlation matrix  THIS IS WRONG ??
        if(allocated(cormat)) then
           write(*,*)'Correlation matrix (not correct) is:'
           do i2=1,nvcoeff
@@ -5790,7 +5922,8 @@ contains
           xxx=err0(2)/real(mexp)
           i2=0
 !          write(*,767)xxx,xxy
-!767       format('Normalized sum of squares changed: ',1pe12.4,' to ',1pe12.4)
+767       format('Normalized sum of squares changed: ',1pe12.4,' to ',1pe12.4)
+! THIS IS WRONG ...
           do i1=0,size(firstash%coeffstate)-1
              if(firstash%coeffstate(i1).ge.10) then
 ! this is an optimized parameter, they are indexed starting from zero!!

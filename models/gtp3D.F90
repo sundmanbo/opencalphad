@@ -733,12 +733,14 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine enter_reference_interactivly(cline,last,mode,iref)
+! subroutine enter_reference_interactivly(cline,last,mode,iref)
+ subroutine enter_bibliography_interactivly(cline,last,mode,iref)
 ! enter a reference for a parameter interactivly
-! this should be modified to allow amending an existing reference
+! mode=0 means enter, =1 amend
    implicit none
    character cline*(*)
    integer last,mode,iref
+   logical twotries
 !\end{verbatim}
 ! stupid with a variable called L80
    character line*256,refid*16,L80*80
@@ -768,22 +770,33 @@
 70 continue
    ip=1
    line=' '
+   twotries=.TRUE.
 100 continue
    call gparc('Reference text, end with ";":',cline,last,5,l80,';',q1help)
    line(ip:)=l80
    ip=len_trim(line)
-   if(ip.le.1) then
-      write(kou,*)'There must be some reference text!'
+   if(ip.le.1 .and. twotries) then
+      twotries=.FALSE.
+      write(kou,*)'There must be some bibilograpic text!'
       ip=1; goto 100
    elseif(line(ip:ip).ne.';') then
+      twotries=.FALSE.
+      write(*,*)'Terminate text with a ";"'
       ip=ip+1; goto 100
+   elseif(.not.twotries) then
+      if(mode.eq.1) then
+         write(*,*)'Bibliogaphic reference unchanged'
+      else
+         write(*,*)'Bibliogaphic reference not entered'
+      endif
+      goto 1000
    else
       line(ip:)=' '
    endif
    call tdbrefs(refid,line,1,iref)
 1000 continue
    return
- end subroutine enter_reference_interactivly
+ end subroutine enter_bibliography_interactivly
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
