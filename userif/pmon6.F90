@@ -54,7 +54,7 @@ contains
     character :: ocprompt*8='--->OC5:'
     character name1*24,name2*24,line*80,model*72,chshort
     integer, parameter :: ocmonversion=40
-! for the on-line help, at present turn off by default
+! for the on-line help, at present turn off by default, if a HTML file set TRUE
     character*128 browser,latexfile,htmlfile
     logical :: htmlhelp=.FALSE.
 !    logical :: htmlhelp=.TRUE.
@@ -67,7 +67,7 @@ contains
 ! this is now declared in metlib package
 !    character workingdir*128
 ! separate file names for remembering and providing a default
-    character ocmfile*64,ocufile*64,tdbfile*64,ocdfile*64,filename*64
+    character ocmfile*128,ocufile*128,tdbfile*128,ocdfile*128,filename*128
 ! home for OC and default directory for databases
     character ochome*64,ocbase*64
 ! prefix and suffix for composition sets
@@ -139,7 +139,7 @@ contains
 ! and more temporary integers
     integer ll,lokcs,lokph,lokres,loksp,lrot,maxax
 ! and more temporary integers
-    integer mode,ndl,neqdef,noelx,nofc,nopl,nops,nv,nystat
+    integer mode,ndl,neqdef,noelx,nofc,nopl,nops,nv,nystat,times
 ! temporary matrix
 !    double precision latpos(3,3)
 ! used to call init_gtp for the NEW command
@@ -335,7 +335,7 @@ contains
          ['EQUILIB_TRANSF  ','QUIT            ','EXTRA_PROPERTY  ',&
           'GRID_DENSITY    ','SMALL_GRID_ONOFF','MAP_SPECIAL     ',&
           'GLOBAL_MIN_ONOFF','OPEN_POPUP_OFF  ','WORKING_DIRECTRY',&
-          'HELP_POPUP_OFF  ','                ','                ']
+          'HELP_POPUP_OFF  ','TRACE           ','                ']
 !         123456789.123456---123456789.123456---123456789.123456
 ! subsubcommands to SET BITS
     character (len=16), dimension(nsetbit) :: csetbit=&
@@ -458,7 +458,8 @@ contains
 #ifdef aqplt
 ! Aqua plot screen on some Mac systems
     graphopt%gnuterminal(i1)='aqua size 900,600 '
-#elseif qtplt
+! it should be #elif not #elseif .... suck
+#elif qtplt
 ! Qt plot screen on some LINUX systems
     graphopt%gnuterminal(i1)='qt size 900,600 '
 #else
@@ -556,52 +557,59 @@ contains
 ! local environment: please create OCHOME as an environment variable
     ochome=' '
     call get_environment_variable('OCHOME ',ochome)
-    write(*,*)'OC home directory (OCHOME): ',trim(ochome)
     startupmacro=.FALSE.
     noochome: if(ochome(1:1).eq.' ') then
-       inquire(file='ochelp.hlp ',exist=logok)
+       inquire(file='ochelp.tex ',exist=logok)
        if(.not.logok) then
           write(*,*)'Warning, no help file'
        else
 ! help file on local directory ... no browser nor HMTL
-          call init_help(' ','ochelp.hlp ',' ')
+          call init_help(' ','ochelp.tex ',' ')
        endif
     else ! there is a OCHOME environment variable
 ! both LINUX and WINDOWS accept / as separator between directory and file names
-!       write(*,*)'Help file: ',trim(ochome)//'\ochelp.hlp '
+       write(*,*)'OC home directory (OCHOME): ',trim(ochome)
+! when we are here OCHOME is not empty!
 #ifdef winhlp
 ! THIS IS FOR WINDOWS
 ! first argument is browser
 ! second is LaTeX source file
 ! third argument is HTML file with hypertargets <a id="target" />
        browser='C:\PROGRA~1\INTERN~1\iexplore.exe '
-       latexfile=trim(OCHOME)//'/'//'ochelp.tex'
-       htmlfile=trim(OCHOME)//'/'//'ochelp.html'
-! when we are here OCHOME is not empty!
+! normal tex/html help files
+       latexfile=trim(OCHOME)//'\'//'ochelp.tex'
+       htmlfile=trim(OCHOME)//'\'//'ochelp.html'
 ! special for testing
 !       latexfile='c:\users\bosse\documents\oc\oc\src\manual\html\ochelp5.tex'
 !       htmlfile='c:\users\bosse\documents\oc\oc\src\manual\html\ochelp5.html'
 #elif lixhlp
 ! THIS IS FOR LINUX
-       browser='/usr/bin/firefox '
+!       browser='/usr/bin/firefox '
+       browser='firefox '
        latexfile=trim(OCHOME)//'/'//'ochelp.tex'
        htmlfile=trim(OCHOME)//'/'//'ochelp.html'
 #endif
+! the *.tex is for search, *.html for browser
        inquire(file=htmlfile,exist=logok)
        if(.not.logok) then
 ! if we have no html file disable the help_popup
-          write(*,*)'No online popup helpfile: ',trim(htmlfile)
-          htmlhelp=.FALSE.
-       else
-          write(*,*)'Help LaTeX: ',trim(latexfile)
-          write(*,*)'Help popup: ',trim(htmlfile)
-       endif
-       if(.not.htmlhelp) then
-! no html file or user have explicitly set HELP_POPUP_OFF, respect that
+!          write(*,*)'No online popup helpfile: ',trim(htmlfile)
+!          htmlhelp=.FALSE.
           call init_help(' ',latexfile,' ')
        else
+! htmlhelp is set TRUE if there is a HMTL file in the call
+!          htmlhelp=.TRUE.
           call init_help(browser,latexfile,htmlfile)
+          write(*,*)'On-line help using ',trim(browser)
+!          write(*,*)'Help LaTeX: ',trim(latexfile)
+!          write(*,*)'Help popup: ',trim(htmlfile)
        endif
+!       if(.not.htmlhelp) then
+! no html file or user have explicitly set HELP_POPUP_OFF, respect that
+!          call init_help(' ',latexfile,' ')
+!       else
+!          call init_help(browser,latexfile,htmlfile)
+!       endif
 ! default directory for databases
        ocbase=trim(ochome)//'/databases'
        inquire(file=trim(ocbase),exist=logok)
@@ -1286,7 +1294,8 @@ contains
                   ' NOTE THAT dG/dy_i is NOT THE CHEMICAL POTENTIAL of i!')
 !.......................................................
           case(3) ! calculate phase < > all derivatives
-             call tabder(iph,ics,ceq)
+             call gparid('Number of times: ',cline,last,times,1,q1help)
+             call tabder(iph,ics,times,ceq)
              write(*,2042)
 2042         format('Values are per mole formula unit'/&
                   ' NOTE THAT dG/dy_i is NOT THE CHEMICAL POTENTIAL of i!')
@@ -1967,8 +1976,13 @@ contains
                 call init_help(browser,latexfile,htmlfile)
              endif
 !.................................................................
-          case(11) ! nothing yet
-             write(*,*)'Not implemented yet'
+          case(11) !TRACE
+             call gparcd('HTML help?',cline,last,1,ch1,'Y',q1help)
+             if(ch1.eq.'Y') then
+                helptrace=.TRUE.
+             else
+                helptrace=.FALSE.
+             endif
 !.................................................................
           case(12) ! not used
              write(*,*)'Not implemented yet'
@@ -4555,13 +4569,13 @@ contains
 ! the html window at label!!
 ! the label "selectname" is in the html file ...
           call gparcd('File name: ',cline,last,5,model,&
-               './manual\html\ochelp5.html#selectelement ',q1help)
+               './manual\html\ochelp.html#selectelement ',q1help)
 !          browser='"C:\Program Files\Mozilla firefox\firefox.exe" '
 ! this browser can be opened without ""
           browser='C:\PROGRA~1\INTERN~1\iexplore.exe '
-! it works to open the ochelp5.html on the first page
+! it works to open the ochelp.html on the first page
 !          string=trim(browser)//&
-!               ' -file ./manual/html/ochelp5.html'
+!               ' -file ./manual/html/ochelp.html'
 !          write(*,'(a)')trim(string)
 ! gnu fortran ...
 !          call system(...)
@@ -4576,24 +4590,24 @@ contains
           call execute_command_line(string)
 ! This command works in a Windows terminal window:
 ! "C:\program files\Mozilla firefox\firefox.exe" 
-!  "file://c:\users\bosse\documents\oc\oc\src\manual\html\ochelp5.html#selectelement"
+!  "file://c:\users\bosse\documents\oc\oc\src\manual\html\ochelp.html#selectelement"
 ! but problems using as command ...
 ! This works also:
-!c:\Program Files\internet explorer\iexplore.exe" "file://c:\users\bosse\documents\oc\oc\src\manual\html\ochelp5.html#selectelement"
+!c:\Program Files\internet explorer\iexplore.exe" "file://c:\users\bosse\documents\oc\oc\src\manual\html\ochelp.html#selectelement"
 ! maybe possible to access by directory names with only 8 bytes ...
 !linux!linux!linux!linux!linux!linux!linux!linux!linux!linux!linux!linux!linux
 !
 !>          call gparcd('File name: ',cline,last,5,model,&
-!>            '/home/bosse/OC/OC5-20/manual/ochelp5.html#selectelement ',q1help)
+!>            '/home/bosse/OC/OC5-20/manual/ochelp.html#selectelement ',q1help)
 ! this browser can be opened without ""
 !>          browser='/usr/bin/firefox '
 !>          string=trim(browser)//' "file:'//trim(model(1:))//'"'
 !>          write(*,'(a)')trim(string)
 ! This command works in a Linux terminal window:
-! /usr/bin/firefox -file /home/bosse/OC/OC5-20/manual/ochelp5.html
+! /usr/bin/firefox -file /home/bosse/OC/OC5-20/manual/ochelp.html
 ! it does not work to add #selectelement at the end (no such file name)
 ! This work in Linux terminal window:
-! /usr/bin/firefox "file:/home/bosse/.../manual/ochelp5.html#selectelement"
+! /usr/bin/firefox "file:/home/bosse/.../manual/ochelp.html#selectelement"
 !
 !linux!linux!linux!linux!linux!linux!linux!linux!linux!linux!linux!linux!linux
        END SELECT debug
@@ -6051,6 +6065,10 @@ contains
 !\bergin{verbatim}
   integer function submenu(query,cline,last,ccomnd,ncomnd,kdef)
 ! general subcommand decoder
+! query is the prompt
+! cline and last is user input and position
+! ccomnd is the menu and ncomnd number of menu entries
+! kdef is the default (to be added to query)
 !  implicit double precision (a-h,o-z)
     implicit none
     character cline*(*),ccomnd(*)*(*),query*(*)

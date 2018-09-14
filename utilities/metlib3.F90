@@ -140,6 +140,8 @@ MODULE METLIB
     END TYPE help_str
 ! this record is used to file the appropriate help text
     type(help_str), save :: helprec
+! This is useful to add %\section and %\subsection in helpfile
+    logical :: helptrace=.FALSE.
 !vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 ! Data structures for putfun below
 
@@ -5478,8 +5480,8 @@ CONTAINS
 ! This routine is called from submenu
 ! when the user types a ?
     character*(*) prompt,line
-    character helpquest*16
-    integer savedlevel
+    character helpquest*32
+    integer savedlevel,kk
     savedlevel=helprec%level-1
 ! If the ? is followed by a text push that text on the helprec%cpath
     ip=2
@@ -5487,22 +5489,41 @@ CONTAINS
     if(ip.lt.0) write(*,*)'q2help: ',savedlevel,line(1:20)
     if(.not.eolch(line,ip)) then
 !       write(*,*)helprec%level,helprec%cpath(helprec%level)
-       helpquest=line(ip:)
+!       helpquest=line(ip:)
+       helpquest=prompt
        call capson(helpquest)
+! remove any WHAT? as such levels will be ignored by q1help
+       kk=index(helpquest,'WHAT?')
+       if(kk.gt.0) then
+          helpquest(kk:)='COMMAND '
+          if(helptrace) write(*,*)'MM hepquest: ',kk,trim(helpquest)
+       endif
 ! use the saved helprec%level 
        helprec%level=savedlevel
        helprec%cpath(helprec%level)=helpquest
 ! always upper case ...
        call capson(helprec%cpath(helprec%level))
-!       write(*,11)helprec%level,(helprec%cpath(i)(1:8),i=1,helprec%level)
+!       if(helptrace) write(*,11)helprec%level,&
+!            (trim(helprec%cpath(i)),i=1,helprec%level)
 11     format('q2help: ',i3,10(', ',a))
+    else
+! when we are here we have just a ? from user, return to submenu with that
+! with two ?? or anything else q1help is called (I hope ...)
+       line='?!'
+       if(ochelp%htmlhelp) then
+          write(*,17)
+17        format(/'By typing two ?? you will open the browser')
+       endif
+       goto 1000
     endif
 ! this is a dummy line needed to force the MacOS linker to find this routine
-    if(savedlevel.eq.helprec%level) write(*,*)'Inside q2help: ',trim(prompt)
+!??  if(savedlevel.eq.helprec%level) write(*,*)'Inside q2help: ',trim(prompt)
     if(ip.lt.0) write(*,*)'in q2help calling q1help'
 ! write help text from help file and then return with ?! to get submenu
+    if(helptrace) write(*,*)'q2help calling q1help: ',trim(helpquest)
     call q1help(prompt,line)
     line='?!'
+1000 continue
     return
   end subroutine q2help
 
@@ -5518,9 +5539,8 @@ CONTAINS
     character justdoit*256
     integer nsaved(maxlevel)
     integer izz,jj,kk,kkk,level,nl,l2,np1,np2,nsub,zz
-    logical foundall,debug
+    logical foundall
 !
-    debug=.false.
     nsaved=0
     subsec(1)='%\section{'
     subsec(2)='%\subsecti'
@@ -5528,11 +5548,11 @@ CONTAINS
     subsec(4)='%\subsubsu'
     subsec(5)='%\question'
     if(helprec%okinit.eq.0) then
-       if(debug) write(kou,*)'Sorry no help file'
+       if(helptrace) write(kou,*)'Sorry no help file'
        goto 1000
     endif
-! USEFUL for debugging list current search path:
-    if(debug) then
+! USEFUL for helptraceging list current search path:
+    if(helptrace) then
        do nl=1,helprec%level
           write(*,17)'Search level: ',nl,trim(helprec%cpath(nl))
 17        format(a,i3,2x,a)
@@ -5566,25 +5586,33 @@ CONTAINS
 ! return here when we found match at level
 100 continue
     level=level+1
-    if(debug) write(*,*)'At label 100: ',level,helprec%level,nl
+    if(helptrace) write(*,*)'At label 100: ',level,helprec%level,nl
     if(level.gt.helprec%level) then
        foundall=.true.
-       if(debug) write(*,*)'Foundall 1',nl
+       if(helptrace) write(*,*)'Foundall 1',nl
+       goto 200
+    elseif(level.eq.helprec%level .and.&
+         helprec%cpath(level)(1:2).eq.'? ') then
+! this is when help is asked in a submenue with two ??
+! with just one ? the menue is displayed, with ?? the helpfile is used
+       foundall=.TRUE.
+       if(helptrace) write(*,*)'Foundall 2',nl
        goto 200
     endif
 110 continue
 ! skip cpath levels that contain COMMAND: or WHAT?
+! if last level and cpath contain ? we have found all
     if(index(helprec%cpath(level),'COMMAND: ').gt.0 .or. &
          index(helprec%cpath(level),' WHAT? ').gt.0) then
        level=level+1
        if(level.gt.helprec%level) then
           foundall=.TRUE.
-          if(debug) write(*,*)'Foundall 2',nl
+          if(helptrace) write(*,*)'Foundall 2',nl
           goto 200
        endif
        goto 110
     endif
-    if(debug) write(*,*)'Searching for: ',trim(helprec%cpath(level)),level
+    if(helptrace) write(*,*)'Searching for: ',trim(helprec%cpath(level)),level
 ! return here when last line did not contain any matching subsec
 200 continue
     read(31,210,end=700)hline
@@ -5624,7 +5652,7 @@ CONTAINS
           kk=index(hline,subsec(nsub-2))
           if(kk.gt.0) then
 ! we have found a sublevel 2 levels up ... we are out of scope          
-             if(debug) write(*,*)'Found subsec two levels up!'
+             if(helptrace) write(*,*)'Found subsec two levels up!'
              np2=nl
              goto 700
           elseif(nsub.gt.1) then
@@ -5642,8 +5670,8 @@ CONTAINS
                 if(kk.gt.0) mtext(kk:)=' '
                 call capson(mtext)
                 zz=len_trim(mtext)
-                if(debug) write(*,300)'same: ',helprec%cpath(level)(1:zz),&
-                     ' = ',mtext(1:zz),level,nsub,nl
+                if(helptrace) write(*,300)'same: ',helprec%cpath(level)(1:zz),&
+                     ' =?= ',mtext(1:zz),level,nsub,nl
                 if(helprec%cpath(level)(1:zz).eq.mtext(1:zz)) then
 ! we have found match with the next level of user path on same sublevel
                    goto 100
@@ -5665,12 +5693,12 @@ CONTAINS
        if(kk.gt.0) mtext(kk:)=' '
        call capson(mtext)
        zz=len_trim(mtext)
-       if(debug) write(*,300)'next: ',helprec%cpath(level)(1:zz),' = ',&
+       if(helptrace) write(*,300)'next: ',helprec%cpath(level)(1:zz),' =?= ',&
             mtext(1:zz),level,nsub,nl
 300    format(a,a,a,a,5i5)
        if(helprec%cpath(level)(1:zz).eq.mtext(1:zz)) then
 ! we have found match with the next level of user path
-          if(debug) write(*,*)'Match: ',level,nsub,nl
+          if(helptrace) write(*,*)'Match: ',level,nsub,nl
           nsub=nsub+1
           np1=nl
           goto 100
@@ -5702,7 +5730,7 @@ CONTAINS
           justdoit=trim(ochelp%browser)//' "file:/'//&
                trim(ochelp%htmlfile)//'#'//ochelp%target(1:kk)//'"'
 #endif
-          if(debug) write(*,*)'MM: ',trim(justdoit)
+          if(helptrace) write(*,*)'MM: ',trim(justdoit)
           call execute_command_line(justdoit)
           goto 900
        else

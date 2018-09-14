@@ -1,12 +1,18 @@
-\documentclass[12pt]{article}
+\documentclass[11pt]{article}
 \usepackage[latin1]{inputenc}
 % NEXT LINE is needed for generate a HTML file
 \usepackage{hyperref}
-% To generate the HTML use htlatex and the \usepackage{hyperref}
+%
+% This is a file for a printable PDF and HTML versions of the user guide
+% AND as on-line help, either directly or processed to remove LaTeX specials
+%
+% I have intrduced that this user guide is also available on-line
+% as an HTML file.  That is very nice but a bit complicated.
+% To generate the HTML use ``htlatex'' and the \usepackage{hyperref}
 % creates possibilities to find text inside the HTML file
 % using \hypertarget{labeltext}{shown text} (the shown text can be empty)
 % To provide on-line help the OC software keeps a record of the path
-% of all user commands and questions
+% of all user commands and questions.
 % When the user types a ? at a question this path is matched with
 % lines in this LaTeX file beginning %\section{c1} %\subsection{c2} etc
 % to find the relevant text in this LaTeX file matching c1, c2 etc
@@ -33,18 +39,16 @@
 
 % LOOK for ALERT: for checks of source code!!
 %
-% look for this to continue update
+% look for this to continue update   >>>>>>>>>>>
 %%%%%%%%%%%%%%% >>> end of current editing for version 5 ...
 %
-% This is a file for a printable PDF and HTML versions of the user guide
-% AND as on-line help, either directly or processed to remove LaTeX specials
 % >>>>>>>>>>> Convert to HTML for online help: htlatex ochelp5
 %
 % HYPERTEXT provides browser access to ochelp HTML:
 % in a LaTeX file \hypertarget{labeltext} 
 % is written in the html file as: <a id=''labeltext''/a>
 %
-% Problem when opening the HTML file to list the help text:
+% Problem when opening the HTML file inside OC to list the help text:
 % This is in the metlib3.F90 file, the q1help subroutine
 % SPECIAL CHARACTER PROBLEM with    "   (doublequote)
 % to find an labeltext from OC help file using system command:
@@ -53,7 +57,7 @@
 % "C:\program files\mozilla firefox\firefox.exe"  "file://c:\users\bosse\documents\oc\oc\src\manual\ochelp\html\ochemp5.html#labeltext"
 % BUT it does NOT work when called through execute_command_line(command)
 % Problems having  4 doublequotes in the same line ... why?
-% BUT AGAIN, using ``8.3'' windows file names for Explorer this works:
+% BUT AGAIN, using ``8.3'' Windows file names for Explorer this works:
 % C:\progra~1\intern~1\iexplore.exe ``file:/C:\user\bosse\ochome\ochemp.html#labeltext
 % on Linux using firefox this works:
 % /usr/bin/firefox "file:/home/bosse/ochome/ochelp.html#labeltext"
@@ -75,6 +79,13 @@
 % path found.
 % each labeltext in \hypertarget{labelext}{shown text or empty} must be
 % unique and does not have to be related to the text in this guide.
+%
+% Use the OC command SET ADV TRACE Y  !!
+% to find out where the search for relevent help and hypertarget goes wrong
+% the use of %\section \subsection etc is not very useful, one could
+% use some other definition of the command/question levels
+% because the connection with the LaTeX sections is rather weak
+%
 %---------------------------------------------------
 %
 % The current version of this is generated manually but eventually a
@@ -288,13 +299,19 @@ parts of the user interface.
 
 A recent feature is to provide on-line help using a browser window
 where this user guide is available as a searchable HMTL file.
+
 Whenever the user wants an explation of a question the OC software
 asks he can type a ? and the OC software will open a separate browser
-window and with the whole user guide and try to position the text at a
-relevant section.
+window positioned at the relevant text in the user guide.  You can then
+search the whole user guide for related information.
+
+Whenever the user types ? at a menu level just the menu will be
+displayed but if you type ?? the user guide will be opened at the
+relevant menu text.
 
 This feature is very new and is still under development. Feedback is
-helpful.  It can be turned off by a command~\ref{sc:help-popup}.
+helpful.  It can be turned off (or on again) by the command {\bf set
+  advanced help}~\ref{sc:help-popup}.
 
 \subsubsection{Environment and startup macro file}
 
@@ -305,11 +322,9 @@ to set some variables like the plot terminals, see
 section~\ref{sc:gnuterm}.  If there is no OCHOME environment variable
 the ``working directory'' will be searched.
 
-The ochelp.hlp file should be copied to this OCHOME directory.
-
-%If the OCHOME directory has a subdirectory called ``data'' this will
-%be searched when the user tries to read a TDB file.
-
+The ochelp.tex and ochelp.html file should be copied from the
+directory ``manual'' in the installation directory to this OCHOME
+directory.
 
 \subsubsection{Macro files}\label{sc:macro}
 
@@ -967,7 +982,7 @@ Many commands will ask additioal questions, all of them are not
 included in this guide but those which are will be {\bf shown in
   bold}.  References to other commands are sometimes in bold.
 
-\subsection{Options}
+\subsection{Options}\label{sc:options}
 
 There some options that can be set for the whole session or for just a
 single command.  The options are identified by a / in front like
@@ -993,8 +1008,9 @@ implemented.
 %===================================================================
 % Here we start adding %\section etc for the on-line help
 % The online help will not print lines starting with % or \
-\section{About}
 %\section{About}
+\hypertarget={about}{}
+\section{About}
 
 Some information about the OC software.
 
@@ -1160,7 +1176,7 @@ This is not yet implemented you must use the command {\bf ENTER
 % we need to add these for the seach on the help file ... suck
 %\subsection{Phase}
 %\subsection{Phase name:}
-%\subsection{ADDITION}
+%\subsection{AMEND for phase}
 \hypertarget{AMEND FOR PHASE}{}
 \subsection{{\em amend} for Phase $<$\em phase name$>$}\label{sc:amendph}
 
@@ -1212,7 +1228,7 @@ composition and thus convenient to store with the thermodynamic data.
 
 %. . . . . . . . . . . .
 
-%\subsubssection{CRYSTAL_BREAKDWN}
+%\subsubsection{CRYSTAL_BREAKDWN}
 \hypertarget{amend CRYSTAL-BREAKDWN}{}
 \subsubsubsection{{\em amend phase ... addition} Crystal-breakdwn}
 
@@ -1581,8 +1597,9 @@ Return back from the command monitor to the application program.  In
 the OC software itself it means terminate the program.
 
 %===================================================================
+% Two calculate needed for help at command level ??
 %\section{Calculate }
-\hypertarget{Calculate }{}
+\hypertarget{Calculate menu}{}
 \section{Calculate }
 
 Many different things can be calculated.  The normal thing to calculate is
@@ -1596,6 +1613,7 @@ Many different things can be calculated.  The normal thing to calculate is
 \end{tabular}
 }
 
+%\subsection{Calculate}
 %--------------------------------
 %\subsection{CALCULATE All equilibria}
 \hypertarget{CALCULATE All equilibria}{}
@@ -1647,11 +1665,27 @@ gaps.
 
 %--------------------------------
 %\subsection{CALCULATE Phase}
+%\subsection{Phase}
 \hypertarget{CALCULATE Phase}{}
 \subsection{{\em calculate} Phase $<$\em phase name$>$}
 
+This is to calculate properties for a single phase independent of the
+current conditions except the values of $T$ and $P$.
+
+%\subsubsection{Phase name}
+\hypertarget{calculate phase name}{{\bf Phase name:}}
+
+%\subsubsection{Amount of }
+\hypertarget{calculate phase amount}{{\bf Amount if phase:}}
+
+%\subsubsection{Current (Y), default (D) or new (N) constitution?}
+\hypertarget{calculate phase current constitution}{{\bf Current (Y), default (D) or new (N) constitution?}}
+
 You must provide a phase name, the amount of the phase and if you
 should use the current constitution or enter a new.
+
+%\subsubsection{CALCULATE WHAT for phase}
+\hypertarget{CALCULATE Phase menu}{}
 
 The Gibbs energy of a phase and possible derivatives and some other
 things can be calculated.  Mainly for debugging the implementation of
@@ -1676,14 +1710,15 @@ current $T,P$ are calculated and listed.
 \hypertarget{CALCULATE PHASE ... Constitution-adj}{}
 \subsubsection{{\em calculate phase} ... Constitution\_Adjust}
 
-You will be asked to enter a new composition (note NOT the
-constitution and default is current) of the phase and this command
-will then calculate the Gibbs energy and all chemical potentials.  For
-a phase with sublattices the constitution of the phase will be
-adjusted to have the minimum Gibbs energy for the given composition.
+You will be asked to enter a new composition (NOTE: not necessarily
+the current constitution but the current is the default) of the phase
+and this command will then calculate the Gibbs energy and all chemical
+potentials for the given composition.  For a phase with sublattices
+the constitution of the phase will be adjusted to have the minimum
+Gibbs energy for the given composition.
 
 It is useful when one or more components are parts of several
-constituents, for example in a gas or for phases with order/disorder
+constituents, for example in a gas and for phases with order/disorder
 transitions, in particular when the corresponding subroutine is used
 in simulations.
 
@@ -2459,12 +2494,13 @@ The intention is to provide the on-line user who does not like to read
 manuals with additional explanations but not implemented yet.
 
 %===================================================================
-\section{List }
 %\section{List }
+\hypertarget{list}{}
+\section{List }
 
 Many things can be listed.  Output is normally on the screen unless it
 is redirected by the /output={\em file name} or /append={\em file
-  name}option.
+  name} option, see~\ref{sc:options}.
 
 \begin{tabular}{llll}
  AXIS         & ERROR\_MESSAGE    & PARAMETER  & STATE\_VARIABLES\\
@@ -2584,7 +2620,8 @@ composition set.
 \subsection{{\em list} optimization}
 
 Lists results of an optimization, several sub-options will be
-implemented but currently there is a short version only.
+implemented but currently there is a short version only.  To save this
+on a file use the option /output= or /append=, see~\ref{sc:options}.
 
 %    character (len=16), dimension(noptopt) :: optopt=&
 %        ['SHORT           ','LONG            ','COEFFICIENTS    ',&
@@ -2732,7 +2769,8 @@ List a specific parameter.
 \subsection{{\em list} Phase $<$\em phase name$>$}
 
 You must first specify the phase name.  Then you can specify if you
-want the phase CONSTITUTION, DATA or some MODEL information.
+want the phase CONSTITUTION, DATA or some MODEL information.  To write
+on a file use the options /output= or /append=, see~\ref{sc:options}.
 
 %...................
 %\subsubsection{LIST PHASE ... Constitution}
@@ -2801,6 +2839,9 @@ atoms per formula units.  The gas phase and phases with interstitials
 and vacancies have a varying amount of moles of atoms per formula
 units.  The composition of the phase can be in value order or
 alphabetical order.
+
+To write the output on a file use /output= or /append=,
+see~\ref{sc:options}.
 
 %--------------------------------
 %\subsection{LIST Short}
@@ -2902,8 +2943,9 @@ open the file on its ``working directory'', see
 section~\ref{sc:popup}.
 
 %===================================================================
-\section{Map }
 %\section{Map }
+\hypertarget{map}{}
+\section{Map }
 
 For phase diagram calculations.  You must first set two axis with
 state variables which are already set as conditions.
@@ -2916,13 +2958,15 @@ any state variable can be used.
 
 %===================================================================
 \section{New }
+\hypertarget{New}{}
 %\section{New }
 
 To remove all data so a new system can be entered.  It is fragile.
 
 %===================================================================
-\section{Optimize}\label{sc:optim}
 %\section{Optimize }
+\hypertarget{Optimize}{}
+\section{Optimize}\label{sc:optim}
 
 The model parameters selected by SET VARIABLE\_COEFF will be varied to
 obtain the best least square fit the experimental data provided.
@@ -2942,8 +2986,9 @@ Developing better assessment software is one of the main aspects of
 the OC software.  There will be more options to this command soon.
 
 %===================================================================
-\section{Plot }
 %\section{Plot }
+\hypertarget{plot}{}
+\section{Plot }
 
 Plot the result from a STEP or MAP calculation.  A simple interface to
 GNUPLOT~\cite{gnuplot} has been implemented in OC.  This generates a
@@ -3652,7 +3697,9 @@ equilibrium and phase records, but only if you know what it means.
 
 A condition is a value assigned to a state variable or an expression
 of state variables.  By setting the status of a phase to fix you have
-also set a condition.
+also set a condition.  For example
+
+{\em set cond t=1273 p=1e5 n=1 x(cr)=0.1 w%(c)=1}
 
 Two cases of expressions can be used as conditions, for example a
 relation between mole fraction like\\
@@ -3665,6 +3712,12 @@ for example:\\
 {\bf set condition n(u)+n(zr)=1}\\ 
 means that the total number of moles of the components U and Zr should
 be unity.
+
+%subsubsection{value}
+{\bf Value:}
+
+A numeric value or a symbol representing a constant value is expected.
+
 %--------------------------------
 %\subsection{SET Echo}
 \hypertarget{SET Echo}{}

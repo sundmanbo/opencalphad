@@ -465,16 +465,16 @@ CONTAINS
        case default
           if(.not.associated(condition,lastcond)) goto 70
        case(1) ! fix T
-          if(cvalue.le.0.1D0) then
-             write(*,*)'Condition on T must be larger than 0.1 K'
+          if(cvalue.le.1.0D-2) then
+             write(*,*)'Condition on T must be larger than 0.01 K'
              gx%bmperr=4187; goto 1000
           endif
           meqrec%maxsph=meqrec%maxsph-1
           meqrec%tpindep(1)=.FALSE.
           ceq%tpval(1)=cvalue
        case(2) ! fix P
-          if(cvalue.le.0.1D0) then
-             write(*,*)'Condition on P must be larger than 0.1 Pa'
+          if(cvalue.le.1.0D-2) then
+             write(*,*)'Condition on P must be larger than 0.01 Pa'
              gx%bmperr=4187; goto 1000
           endif
           meqrec%maxsph=meqrec%maxsph-1
@@ -1842,8 +1842,8 @@ CONTAINS
        ceq%tpval(1)=ceq%tpval(1)+deltat
 ! problems here when -finit-local-zero is removed
        if(vbug) write(*,*)'T and deltaT:',ceq%tpval(1),deltat
-       if(ceq%tpval(1).le.0.1D0) then
-          write(*,*)'Attempt to set a temperature less than 0.1 K !!!'
+       if(ceq%tpval(1).le.1.0D-2) then
+          write(*,*)'Attempt to set a temperature less than 0.01 K !!!'
           gx%bmperr=4187; goto 1000
        endif
        ioff=ioff+1
@@ -1870,8 +1870,8 @@ CONTAINS
                ceq%tpval(2),deltap,svar(ioff)
        endif
        ceq%tpval(2)=ceq%tpval(2)+svar(ioff)
-       if(ceq%tpval(2).le.0.1D0) then
-          write(*,*)'Attempt to set pressure lower than 0.1 Pa!!!'
+       if(ceq%tpval(2).le.1.0D-2) then
+          write(*,*)'Attempt to set pressure lower than 0.01 Pa!!!'
           gx%bmperr=4187; goto 1000
        endif
        ioff=ioff+1
@@ -6245,6 +6245,7 @@ CONTAINS
 !       write(*,17)'MM First iteration:',noofits,pmi%curd%invsavediter,&
 !            pmi%iph,pmi%ics,nocon
        goto 100
+! UNFINISHED: VALGRIND indicates unititial variable ...
     elseif(pmi%curd%invsavediter.ne.noofits) then
 ! no values saved for this phase and iteration, recalcute
 !       write(*,17)'MM Recalculate pmi%curd%invsaved!',noofits,&

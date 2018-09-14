@@ -2038,19 +2038,19 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine tabder(iph,ics,ceq)
+ subroutine tabder(iph,ics,times,ceq)
 ! tabulate derivatives of phase iph with current constitution and T and P
    implicit none
-   integer iph,ics
+   integer iph,ics,times
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
    character name*24
    double precision kappa,napfu,t,p,rtg,g,v,s,h,u,f,cp,alpha,cpu1,cpu2
-   integer tnk,lokph,nsl,lokres,lokcs,ll,ll2,kk1,kk2,kk3,kk4,loksp,times
+   integer tnk,lokph,nsl,lokres,lokcs,ll,ll2,kk1,kk2,kk3,kk4,loksp
 !
 ! For time measurements
-   lokph=len(name)
-   call gparid('Number of times: ',name,lokph,times,1,q1help)
+!   lokph=len(name)
+!   call gparid('Number of times: ',name,lokph,times,1,q1help)
    lokph=phases(iph)
    nsl=phlista(lokph)%noofsubl
 ! calculate G and derivatives, lokres returns index of phase_varres
@@ -2062,10 +2062,6 @@
       endif
    enddo
    call cpu_time(cpu2)
-   if(times.gt.1) then
-      write(*,11)times,cpu2-cpu1
-11    format('Total CPU time for ',i7,' calculations: ',1pe16.7,' seconds')
-   endif
 ! number of moles of atoms per formula unit
    napfu=ceq%phase_varres(lokres)%abnorm(1)
    T=ceq%tpval(1)
@@ -2173,6 +2169,10 @@
 !       write(*,*)'3X tabder 7A: ',kk1,kk2
    enddo dy1loop
 900 continue
+   if(times.gt.1) then
+      write(*,11)times,cpu2-cpu1,1.0D6*(cpu2-cpu1)/dble(times)
+11    format('CPU times for ',i6,' calculations: ',1pe15.7,' s, ',1pe15.7,' ms')
+   endif
 !    write(*,*)'3X tabder 7B: ',kk2
 !    write(*,*)'3X tabder: ',rtg,rtg*phase_varres(lokcs)%gval(1,1)
 1000 continue
@@ -4519,6 +4519,7 @@
 ! first derivative with respect to ib of configuration
          dgc=log(phi(ib)/xfr(ib))-phi(ib)/xfr(ib)+&
               hzeta*qval(ib)*(log(phi(ib))-one+phi(ib)/theta(ib))
+         dgr=zero
          dgv(ib)=dgr+dgc
          second: do ic=ib,ncon
 ! second derivative of configuration with respect to ib and ic
@@ -4536,6 +4537,7 @@
 ! 2nd derivative of residual
             d2gr=d2gr+&
                  theta(ib)*theta(ic)/(xfr(ib)*xfr(ic))*(sumtk(ib)+sumtk(ic))
+            d2gr=zero
             d2gv(ixsym(ib,ic))=d2gr+d2gc
          enddo second
       enddo first
@@ -4559,9 +4561,10 @@
    phres%gval(2,1)=phres%gval(2,1)-gc/ceq%tpval(1)
 !   phres%gval(4,1)=phres%gval(2,1)+other terms T-dependent terms (Cp)
    do ia=1,ncon
-      phres%dgval(1,ia,1)=dgv(ia)
+      phres%dgval(1,ia,1)=phres%dgval(1,ia,1)+dgv(ia)
       do ib=ia,ncon
-         phres%d2gval(ixsym(ia,ib),1)=d2gv(ixsym(ia,ib))
+         phres%d2gval(ixsym(ia,ib),1)=phres%d2gval(ixsym(ia,ib),1)+&
+              d2gv(ixsym(ia,ib))
       enddo
    enddo
 !   write(*,300)'3X Gm, dG/dx: ',phres%gval(1,1),(phres%dgval(1,ia,1),ia=1,ncon)

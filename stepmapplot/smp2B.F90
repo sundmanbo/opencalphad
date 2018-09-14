@@ -2403,6 +2403,7 @@
 !549             format(2e15.6,4i7)
 549             format(2(1pe16.6),4i7)
 ! plotkod -101 means tieline
+! UNFINISHED: VALGRIND indicates plotkod(sumpp) is uninitiallized??
                 if(plotkod(sumpp).eq.-101) write(21,552)
 552             format(1x)
              enddo

@@ -1171,6 +1171,7 @@ CONTAINS
     else
 ! This is the first (and maybe only) mapnode record (later maptop)
 !       write(*,*)'Creating first maptop'
+! UNFINISHED: VALGRIND indicates loss of >24000 bytes in map_startpoint 
        allocate(maptop)
        mapnode=>maptop
        mapnode%noofstph=meqrec%nstph

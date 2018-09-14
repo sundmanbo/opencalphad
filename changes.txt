@@ -13,9 +13,18 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2018.09.14 OC version 5.022: OC now allows calculations down to T and
+P values of 0.01 K/Pa.  I am working with the online help facilities
+and provide the ochelp file in 3 versions, LaTeX, PDF and HTML on the
+directory manual/ but this is still not finished.  It requires that
+the user creates an environment variable OCHOME pointing to a specific
+directory and copies the help files to this directory.  There is a new
+"install-help-popup" PDF file in the installation directory because
+for many users it is not trivial to add an environment variable.
+
 2018.09.07 OC version 5.021: Still changing the color of monovariant
 areas ... now dark green.  I have also made small modifications of the
-installion files both on Windows and on UNIX type systems.
+installation files both on Windows and on UNIX type systems.
 
 I have implemented a facility to open a browser window for online help
 and am fairly happy with this.  At present it is turned off by default
@@ -25,12 +34,12 @@ whenever OC asks you a question you do not know how to answer, a
 browser window will open and show you the relevant section of the user
 guide.  Most answers are in the User Guide but no one reads it
 voluntarily so better provide it in small pieces.  The user guide is
-still not finished (it will never be) but gradually it should work.
-On Windows I use the Explorer browser and on other system I will use
-the firefox browser.  Three versions of the user guide, ochelp.tex,
-ochelp.pdf and ochelp.html are initially in the manual/ directory but
-should be copied to the driectory your OCHOME environment variable
-points to.
+still not finished (as OC it will never be) but gradually it should
+work.  On Windows I use the Explorer browser and on other system I
+will use the firefox browser.  Three versions of the user guide,
+ochelp.tex, ochelp.pdf and ochelp.html are initially in the manual/
+directory but should be copied to the driectory your OCHOME
+environment variable points to.
 
 2018.09.03 OC version 5.020: The coloring of monovariant areas in
 isothermal sections has now an established set of colors.  The borders
