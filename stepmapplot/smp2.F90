@@ -2992,18 +2992,20 @@ CONTAINS
     integer seqz,jaxwc,jax,cmode,cmix(10),nyax,oldax,maybecongruent,mapeqno
     integer istv,indices(4),iref,iunit,ip,i1,i2,i3,jxxx
     double precision value,dax1(5),dax2(5),axval(5),axval2(5)
-    double precision laxfact,xxx,yyy,bigincfix,maxstep
+    double precision laxfact,xxx,yyy,maxstep
     double precision preval(5),curval(5),prefixval(5),curfixval(5)
     double precision, parameter :: endfact=1.0D-6
 ! trying to change step axis for mapping with tie-lines in plane
-    double precision entph_dxy(2,2),fixph_dxy(2,2),lastaxisvalue,stepfact
+    integer fixbyte(2),twoextensiveaxis
+    double precision isoent(2,2),isofix(2,2),isoe,isof,isofact
+    double precision lastaxisvalue,stepfact
     character ch1*1,statevar*24,encoded*24
     type(gtp_state_variable), pointer :: svrrec,svr2
     type(gtp_state_variable), target :: svrtarget
-    logical tnip,nyfixph
+    logical tnip,nyfixph,ignore
 ! new check for large step when tie-lines in the plane
     double precision monovar(2,4)
-    save maxstep
+    save maxstep,isofix,isoent,fixbyte
 !
     mapeqno=mapline%number_of_equilibria
 !    write(*,*)'In map_step: ',mapeqno,meqrec%nv
@@ -3016,6 +3018,7 @@ CONTAINS
 ! tnip emergency to stop mapping outside limit for non-active axis
     tnip=.FALSE.
     laxfact=one
+    twoextensiveaxis=0
     maybecongruent=0
     if(nax.eq.1) then
 !================================================================== new step
@@ -3076,7 +3079,7 @@ CONTAINS
     endif
 ! this is the current axis with acitive condition
     jaxwc=abs(mapline%axandir)
-    bigincfix=one
+!    bigincfix=one
 !       write(*,*)'map_step: Number of fix phases: ',mapline%meqrec%nfixph
 !       write(*,*)'map_step: Fix phase: ',mapline%meqrec%fixph(1,1),&
 !            mapline%meqrec%fixph(2,1)
@@ -3084,6 +3087,8 @@ CONTAINS
 ! next step and how long step.  Last axis values stored in mapline%axvals
 ! Save previous currently in mapline%axvals in axval2
     nyax=0
+! isofact is to keep check of changes in fix phase when tie-lines in plane
+    isofact=one
     loopaxis: do jax=1,nax
        seqz=axarr(jax)%seqz
        call locate_condition(seqz,pcond,ceq)
@@ -3098,7 +3103,7 @@ CONTAINS
 ! for first equilibria just save the axis value
           mapline%axvals(jax)=axval(jax)
           laxfact=1.0D-2
-          entph_dxy(1,jax)=axval(jax)
+!          isoent(2,jax)=axval(jax)
        else
 ! for later equilibria calculate the slope
           preval(jax)=mapline%axvals(jax)
@@ -3112,14 +3117,8 @@ CONTAINS
           axval2(jax)=mapline%axvals(jax)
           mapline%axvalx(jax)=mapline%axvals(jax)
           mapline%axvals(jax)=axval(jax)
-! entph(2,axis) is the change in the axis value, save current for next step
-          entph_dxy(2,jax)=axval(jax)-entph_dxy(1,jax)
-!          if(jax.eq.jaxwc) then
-!             stepfact=entph_dxy(2,jax)/axarr(jax)%axinc
-!             write(*,94)'Actual step: ',jax,jaxwc,axval(jax),entph_dxy(1,jax),&
-!                  entph_dxy(2,jax),stepfact
-!          endif
-          entph_dxy(1,jax)=axval(jax)
+!          isoent(1,jax)=isoent(2,jax)
+!          isoent(2,jax)=axval(jax)
        endif
 !----------------------------- below tie-line in/not in plane separate new step
        tip1: if(maptop%tieline_inplane.gt.0) then
@@ -3132,8 +3131,18 @@ CONTAINS
 ! The value in mapline%axvals is for the entered phase, extract the value
 ! for the fix phase.  
 ! NOTE: If we change fix/entered phase we must change axvals/axvals2
+             twoextensiveaxis=twoextensiveaxis+1
+             ignore=.false.
              jxxx=jax
              svrtarget%argtyp=3
+             svr2=>svrtarget
+! extract composition of entered phase
+             svrtarget%phase=mapline%stableph(1)%ixphase
+             svrtarget%compset=mapline%stableph(1)%compset
+! we must use a pointer in state_variable_val
+             call state_variable_val(svr2,yyy,ceq)
+             if(gx%bmperr.ne.0) goto 1000
+! extract composition of fix phase
              svrtarget%phase=mapline%linefixph(1)%ixphase
              svrtarget%compset=mapline%linefixph(1)%compset
 ! we must use a pointer in state_variable_val
@@ -3144,10 +3153,25 @@ CONTAINS
              if(mapeqno.eq.1) then
 ! for first equilibria just save the axisvalue for the fix phase
                 mapline%axvals2(jax)=xxx
-                fixph_dxy(1,jax)=xxx
+                isofix(1,jax)=zero
+                isofix(2,jax)=xxx
+                isoent(1,jax)=zero
+                isoent(2,jax)=yyy
+                fixbyte(1)=mapline%linefixph(1)%ixphase
+                fixbyte(2)=mapline%linefixph(1)%compset
              else
 ! for later equilibria calculate the slope and check if close to limit
 ! dax2 is slope value for fix phase
+                isofix(1,jax)=isofix(2,jax)
+                isofix(2,jax)=xxx
+                isoent(1,jax)=isoent(2,jax)
+                isoent(2,jax)=yyy
+                if(fixbyte(1).ne.mapline%linefixph(1)%ixphase .and.&
+                     fixbyte(2).ne.mapline%linefixph(1)%compset) then
+                   ignore=.true.
+                   fixbyte(1)=mapline%linefixph(1)%ixphase
+                   fixbyte(2)=mapline%linefixph(1)%compset
+                endif
                 dax2(jax)=(xxx-mapline%axvals2(jax))/axarr(jax)%axinc
 ! CHECK CHANGE OF AXIS AND FIX PHASE HERE FOR FIX PHASE 2/3
                 if(ocv()) write(*,94)'Fix phase values:        ',&
@@ -3155,15 +3179,13 @@ CONTAINS
                      xxx,mapline%axvals2(jax),xxx-mapline%axvals2(jax),&
                      (xxx-mapline%axvals2(jax))/axarr(jax)%axinc
                 mapline%axvals2(jax)=xxx
-                fixph_dxy(2,jax)=xxx-fixph_dxy(1,jax)
-                fixph_dxy(1,jax)=xxx
                 if(jax.ne.jaxwc .and. istv.ge.10) then
                    prefixval(jax)=xxx
                    curfixval(jax)=mapline%axvals2(jax)
-                   if(abs(prefixval(jax)-curfixval(jax)).gt.&
-                        0.5D0*axarr(jax)%axinc) then
-                      bigincfix=5.0D-1
-                   endif
+!                   if(abs(prefixval(jax)-curfixval(jax)).gt.&
+!                        0.5D0*axarr(jax)%axinc) then
+!                      bigincfix=5.0D-1
+!                   endif
 ! for axis with inactive condition check if next step would pass min/max limit
 ! If so reduce the step in the active axis but do not change active axis!!
 ! xxx is last axis value, mapline%axvals2(jax) is previous
@@ -3173,6 +3195,7 @@ CONTAINS
                      elseif(2*xxx-mapline%axvals2(jax).gt.axarr(jax)%axmax) then
                          nyax=jax
                       endif
+                      if(nyax.gt.0) write(*,*)'SMP: change axis 1',isofact
                    endif
 ! nothing happends here ...
                    if(nyax.gt.0) then
@@ -3222,6 +3245,25 @@ CONTAINS
        endif tip1
     enddo loopaxis
 !-------------------------------------------------------------
+! trying to avoid too big steps when two extensive axis variables
+    if(twoextensiveaxis.eq.2) then
+       isoe=sqrt((isoent(2,1)-isoent(1,1))**2+(isoent(2,2)-isoent(1,2))**2)
+       isof=sqrt((isofix(2,1)-isofix(1,1))**2+(isofix(2,2)-isofix(1,2))**2)
+!    write(*,888)'smp1: ',mapeqno,isoent(2,1),isoent(1,1),isoent(2,2),&
+!         isoent(1,2),&
+!         isofix(2,1),isofix(1,1),isofix(2,2),isofix(1,2)
+       if(mapeqno.gt.1) then
+!       write(*,888)'smp2: ',mapline%axandir,isoe,isof,&
+!            axarr(abs(mapline%axandir))%axinc
+888       format(a,i3,4F8.5,2x,4F8.5)
+          if(.not.ignore .and. isof.gt.3.0D0*isoe) then
+! isofact is set to unity above
+             isofact=isoe/isof
+!             write(*,'(a,3(1pe12.4))')'smp3: ',isoe,isof,isofact
+          endif
+       endif
+    endif
+!-------------------------------------------------------------
 ! for understanding what is happening ....
 !    if(maptop%tieline_inplane.gt.0) then
 !       write(*,59)'tieline: ',mapeqno,jaxwc,jxxx,nyax,&
@@ -3256,22 +3298,19 @@ CONTAINS
 33                 format('Check 7: ',6i3,6(1pe12.4))
 ! MISSING check for changing of fix/stable phase but keep same axis!!
                    if(mapeqno.gt.3 .and. mapeqno-mapline%axchange.gt.3) then
-                      if(abs(dax2(jax)).gt.2*xxx) then
+                      isotest1: if(isofact.eq.one) then
+! ignore changing axis if isofact not unity
+                         if(abs(dax2(jax)).gt.2*xxx) then
 ! dependent axis changes more! change independent axis
-                         xxx=abs(dax2(jax))
-!                         write(*,58)'Change axis and fix phase!',jax,&
-!                              mapline%linefixph(1)%ixphase,dax2(jax),xxx
-58                       format(a,2i3,2(1pe12.4))
-                         nyfixph=.true.
-                         nyax=jax
-!                      elseif(abs(dax1(jax)).gt.1.5*xxx) then
-                      elseif(abs(dax1(jax)).gt.2*xxx) then
-!                      elseif(abs(dax1(jax)).gt.1.2*xxx) then
-! dependent axis for fix phase changes more, change axis and fix phase!
-!                         write(*,58)'Change axis !',jax,0,dax1(jax),xxx
-                         xxx=abs(dax1(jax))
-                         nyax=jax
-                      endif
+                            xxx=abs(dax2(jax))
+58                          format(a,2i3,2(1pe12.4))
+                            nyfixph=.true.
+                            nyax=jax
+                         elseif(abs(dax1(jax)).gt.2*xxx) then
+                            xxx=abs(dax1(jax))
+                            nyax=jax
+                         endif
+                      endif isotest1
                    endif
                 else
 ! if the independent axis is extensive check if we should change fix phase
@@ -3324,11 +3363,13 @@ CONTAINS
                   axarr(jxxx)%axmax) then
 !                write(*,91)'high',jxxx,2*mapline%axvals(jxxx)-preval(jxxx)
                 nyax=jxxx
+!                write(*,*)'SMP nyax 4:',nyax
 91              format('At ',a,' limit, change axis to: ',i2,F10.6)
              elseif(2*mapline%axvals(jxxx)-preval(jxxx).lt.&
                   axarr(jxxx)%axmin) then
 !                write(*,91)'low',jxxx,2*mapline%axvals(jxxx)-preval(jxxx)
                 nyax=jxxx
+!                write(*,*)'SMP nyax 5:',nyax
              endif
           endif limits
 !
@@ -3456,12 +3497,12 @@ CONTAINS
     axvalok=value
 ! laxfact is not saved between calls
 ! bigincfix 0.5 if fix phase changes more than 0.5*axinc
-    bigincfix=one
+!    bigincfix=one
     lastaxisvalue=value
     if(mapline%axandir.gt.0) then
-       value=value+bigincfix*laxfact*axarr(jaxwc)%axinc*mapline%axfact
+       value=value+isofact*laxfact*axarr(jaxwc)%axinc*mapline%axfact
     else
-       value=value-bigincfix*laxfact*axarr(jaxwc)%axinc*mapline%axfact
+       value=value-isofact*laxfact*axarr(jaxwc)%axinc*mapline%axfact
     endif
 ! good point for checking
     if(ocv()) write(*,65)'map_step: ',mapeqno,&

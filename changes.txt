@@ -13,6 +13,10 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2018.09.16 OC version 5.023: A very quick update to provide a
+significant improvement when mapping isothermal sections.  It is still
+not perfect but I want to provide this version for testing.
+
 2018.09.14 OC version 5.022: OC now allows calculations down to T and
 P values of 0.01 K/Pa.  I am working with the online help facilities
 and provide the ochelp file in 3 versions, LaTeX, PDF and HTML on the
