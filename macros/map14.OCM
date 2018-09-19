@@ -1,0 +1,89 @@
+new Y
+@$ ====================================================================
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$ map??.OCM
+@$ Calculating the isothermal section for Cr-Fe-Mo
+@$ ====================================================================
+@&
+
+set echo
+
+r t ./steel1
+fe cr mo
+
+set c t=1400 p=1e5 n=1 x(cr)=.3 x(mo)=.6
+
+c e
+
+l,,,,
+
+
+@&
+
+set ax 1 x(cr) 0 1 ,,,,
+
+set ax 2 x(mo) 0 1 ,,,,
+
+map
+
+
+
+@$ this diagram has no potential axis, that requires some special care
+@&
+@$ There is a small fcc/bcc region missing
+set cond x(cr)=.01 x(mo)=.02
+
+c e
+
+l,,,,,
+
+
+map
+N
+
+
+@&
+@$ The graphics for this kind of diagram is not fully developed 
+
+plot
+
+
+title map 14 fig 1
+
+@&
+@$ plot as Gibbs triangle with tie-lines
+plot
+
+
+gibbs Y
+tie 3
+@$ Also set the color of the monovariants to red
+font
+
+FF0000
+
+title map 14 fig 1
+
+
+
+
+set inter

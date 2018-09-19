@@ -1,0 +1,491 @@
+
+$
+$ Mo-Ni-Re ND 2017 June 1st - to be used with OC
+$
+$   Mo-Re Mathieu 2013, sigma slightly modified
+$   Mo-Ni Frisk 1994
+$   Ni-Re Yakoob 2012
+$
+$ CHI and SIGMA
+$         with disordered contribution
+$ DIS_CHI and DIS_SIGMA
+$         H:DFT S: assessed
+$ CHI
+$         all compounds from DFT
+$ SIGMA
+$         BEF
+$
+
+ ELEMENT /-   ELECTRON_GAS              0.0000E+00  0.0000E+00  0.0000E+00!
+ ELEMENT VA   VACUUM                    0.0000E+00  0.0000E+00  0.0000E+00!
+ ELEMENT MO   BCC_A2                    9.5940E+01  4.5890E+03  2.8560E+01!
+ ELEMENT NI   FCC_A1                    5.8690E+01  4.7870E+03  2.9796E+01!
+ ELEMENT RE   HCP_A3                    1.8621E+02  5.3555E+03  3.6526E+01!
+ 
+ FUNCTION GHSERMO   298.15
+     -7746.302+131.9197*T-23.56414*T*LN(T)-.003443396*T**2+5.66283E-07*T**3
+     +65812*T**(-1)-1.30927E-10*T**4;
+                   2896 Y
+     -30556.41+283.559746*T-42.63829*T*LN(T)-4.849315E+33*T**(-9);,, N !
+
+ FUNCTION GFCCMO    298.15
+     +7453.698+132.5497*T-23.56414*T*LN(T)-.003443396*T**2+5.66283E-07*T**3
+     +65812*T**(-1)-1.30927E-10*T**4;
+                   2896 Y
+     -15356.41+284.189746*T-42.63829*T*LN(T)-4.849315E+33*T**(-9);,, N REF1 !
+     
+ FUNCTION GHCPMO     298.15
+     +3803.698+131.9197*T-23.56414*T*LN(T)-.003443396*T**2+5.66283E-07*T**3
+     +65812*T**(-1)-1.30927E-10*T**4;
+                    2896 Y
+     -19006.41+283.559746*T-42.63829*T*LN(T)-4.849315E+33*T**(-9);,, N REF1 !
+     
+ FUNCTION GLIQMO     298.15
+     +34085.045+117.224788*T-23.56414*T*LN(T)-.003443396*T**2+5.66283E-07*T**3
+     +65812*T**(-1)-1.30927E-10*T**4+4.24519E-22*T**7;
+                    2896 Y
+     +3538.963+271.6697*T-42.63829*T*LN(T);,, N REF1 !
+     
+ FUNCTION GHSERNI    298.15
+     -5179.159+117.854*T-22.096*T*LN(T)-.0048407*T**2;
+                     1.72800E+03  Y
+     -27840.655+279.135*T-43.1*T*LN(T)+1.12754E+31*T**(-9);,, N      !
+     
+ FUNCTION GBCCNI  298.15
+     +3535.925+114.298*T-22.096*T*LN(T)-4.8407E-3*T**2;
+                 1728.00 Y
+     -19125.571+275.579*T-43.1*T*LN(T)+1127.54E28*T**(-9);,, N !
+     
+ FUNCTION GHCPNI  298.15
+     -4133.159+119.109*T-22.096*T*LN(T)-.0048407*T**2;
+                  1.72800E+03  Y
+     -26794.655+280.39*T-43.1*T*LN(T)+1.12754E+31*T**(-9);,, N  !
+     
+ FUNCTION GBCCNI  298.15
+     +3535.925+114.298*T-22.096*T*LN(T)-.0048407*T**2;
+                  1.72800E+03  Y
+     -19125.571+275.579*T-43.1*T*LN(T)+1.12754E+31*T**(-9);,, N REF1 !
+     
+ FUNCTION GLIQNI  298.15
+     +11235.527+108.457*T-22.096*T*LN(T)-.0048407*T**2-3.82318E-21*T**7;
+                  1.72800E+03  Y
+     -9549.775+268.598*T-43.1*T*LN(T);,, N REF1 !
+
+ FUNCTION GHSERRE   298.15
+     -7695.279+128.421589*T-24.348*T*LN(T)-.00253505*T**2+1.92818E-07*T**3
+     +32915*T**(-1);
+                    1200 Y
+     -15775.998+194.667426*T-33.586*T*LN(T)+.00224565*T**2-2.81835E-07*T**3
+     +1376270*T**(-1);
+                    2400 Y
+     -70882.739+462.110749*T-67.956*T*LN(T)+.01184945*T**2-7.88955E-07*T**3
+     +18075200*T**(-1);
+                    3458 Y
+     +346325.888-1211.37186*T+140.831655*T*LN(T)-.033764567*T**2
+     +1.053726E-06*T**3-1.34548866E+08*T**(-1);
+                    5000 Y
+     -78564.296+346.997842*T-49.519*T*LN(T);,, N !
+     
+ FUNCTION GFCCRE    298.15
+     +3304.721+126.921589*T-24.348*T*LN(T)-.00253505*T**2+1.92818E-07*T**3
+     +32915*T**(-1);
+                    1200 Y
+     -4775.998+193.167426*T-33.586*T*LN(T)+.00224565*T**2-2.81835E-07*T**3
+     +1376270*T**(-1);
+                    2400 Y
+     -59882.739+460.610749*T-67.956*T*LN(T)+.01184945*T**2-7.88955E-07*T**3
+     +18075200*T**(-1);
+                    3458 Y
+     +357325.888-1212.87186*T+140.831655*T*LN(T)-.033764567*T**2
+     +1.053726E-06*T**3-1.34548866E+08*T**(-1);
+                    5000 Y
+     -67564.296+345.497842*T-49.519*T*LN(T);,, N REF1 !
+     
+ FUNCTION GBCCRE    298.15
+     +9304.721+124.721589*T-24.348*T*LN(T)-.00253505*T**2+1.92818E-07*T**3
+     +32915*T**(-1);
+                    1200 Y
+     +1224.002+190.967426*T-33.586*T*LN(T)+.00224565*T**2-2.81835E-07*T**3
+     +1376270*T**(-1);
+                    2400 Y
+     -53882.739+458.410749*T-67.956*T*LN(T)+.01184945*T**2-7.88955E-07*T**3
+     +18075200*T**(-1);
+                    3458 Y
+     +363325.888-1215.07186*T+140.831655*T*LN(T)-.033764567*T**2
+     +1.053726E-06*T**3-1.34548866E+08*T**(-1);
+                    5000 Y
+     -61564.296+343.297842*T-49.519*T*LN(T);,, N REF1 !
+     
+ FUNCTION GLIQRE    298.15
+     +16125.604+122.076209*T-24.348*T*LN(T)-.00253505*T**2+1.92818E-07*T**3
+     +32915*T**(-1);
+                    1200 Y
+     +8044.885+188.322047*T-33.586*T*LN(T)+.00224565*T**2-2.81835E-07*T**3
+     +1376270*T**(-1);
+                    2000 Y
+     +568842.665-2527.83846*T+314.178898*T*LN(T)-.08939817*T**2
+     +3.92854E-06*T**3-1.63100987E+08*T**(-1);
+                    3458 Y
+     -39044.888+335.723691*T-49.519*T*LN(T);,, N REF1 !
+
+ FUN M1R2 298.15    +680;,, N !
+ FUN M1R3 298.15  +16094;,, N !
+ FUN M2R3 298.15  -14434;,, N !
+ FUN M1R4 298.15      +0;,, N !
+ FUN M2R4 298.15  -81839;,, N !
+ FUN M3R4 298.15  -86837;,, N !
+ FUN M1R5 298.15   +4361;,, N !
+ FUN M2R5 298.15  -28743;,, N !
+ FUN M3R5 298.15  -73358;,, N !
+ FUN M4R5 298.15  +21024;,, N !
+ FUN R1M2 298.15  -22076;,, N !
+ FUN R1M3 298.15  -19297;,, N !
+ FUN R1M4 298.15   +5847;,, N !
+ FUN R1M5 298.15  -30827;,, N !
+ FUN R2M3 298.15   +6571;,, N !
+ FUN R2M4 298.15  +42569;,, N !
+ FUN R2M5 298.15  -25482;,, N !
+ FUN R3M4 298.15   -1467;,, N !
+ FUN R3M5 298.15  -62108;,, N !
+ FUN R4M5 298.15 -119768;,, N !
+ 
+ FUN M1N2 298.15 -112309;,, N !
+ FUN M1N3 298.15  +29525;,, N !
+ FUN M2N3 298.15 -109029;,, N !
+ FUN M1N4 298.15    -965;,, N !
+ FUN M2N4 298.15 -134018;,, N !
+ FUN M3N4 298.15 -167595;,, N !
+ FUN M1N5 298.15  -40910;,, N !
+ FUN M2N5 298.15   -2219;,, N !
+ FUN M3N5 298.15  +66189;,, N !
+ FUN M4N5 298.15  -16596;,, N !
+ FUN N1M2 298.15  -73811;,, N !
+ FUN N1M3 298.15   -7043;,, N !
+ FUN N1M4 298.15  -41875;,, N !
+ FUN N1M5 298.15  +17271;,, N !
+ FUN N2M3 298.15  +82688;,, N !
+ FUN N2M4 298.15  +63970;,, N !
+ FUN N2M5 298.15  +97740;,, N !
+ FUN N3M4 298.15  +19008;,, N !
+ FUN N3M5 298.15  +55865;,, N !
+ FUN N4M5 298.15 -114625;,, N !
+
+ FUN R1N2 298.15   -2123;,, N !
+ FUN R1N3 298.15  -19973;,, N !
+ FUN R2N3 298.15   +5210;,, N !
+ FUN R1N4 298.15   -1351;,, N !
+ FUN R2N4 298.15  -89153;,, N !
+ FUN R3N4 298.15  -89828;,, N !
+ FUN R1N5 298.15  -61558;,, N !
+ FUN R2N5 298.15   -2026;,, N !
+ FUN R3N5 298.15  +75934;,, N !
+ FUN R4N5 298.15  -24700;,, N !
+ FUN N1R2 298.15 -103625;,, N !
+ FUN N1R3 298.15  +20648;,, N !
+ FUN N1R4 298.15  -88284;,, N !
+ FUN N1R5 298.15  +32709;,, N !
+ FUN N2R3 298.15  -46120;,, N !
+ FUN N2R4 298.15  +91951;,, N !
+ FUN N2R5 298.15  +36182;,, N !
+ FUN N3R4 298.15  +70531;,, N !
+ FUN N3R5 298.15 +136624;,, N !
+ FUN N4R5 298.15  -77381;,, N !
+
+ TYPE_DEFINITION % SEQ *!
+ DEFINE_SYSTEM_DEFAULT ELEMENT 2 !
+ DEFAULT_COMMAND DEF_SYS_ELEMENT VA /- !
+
+ PHASE LIQUID  %  1  1.0  !
+ CONST LIQUID  :MO,RE,NI :  !
+ 
+ TYPE_DEFINITION ( GES A_P_D FCC_A1 MAGNETIC  -3.0    2.80000E-01 !
+ PHASE FCC_A1  %(  2 1   1 !
+ CONST FCC_A1  :MO,RE,NI : VA :  !
+
+ TYPE_DEFINITION & GES A_P_D BCC_A2 MAGNETIC  -1.0    4.00000E-01 !
+ PHASE BCC_A2  %&  2 1   3 !
+ CONSTITUENT BCC_A2  :MO,RE,NI : VA :  !
+
+ TYPE_DEFINITION ) GES A_P_D HCP_A3 MAGNETIC  -3.0    2.80000E-01 !
+ PHASE HCP_A3  %)  2 1   .5 !
+ CONST HCP_A3  :MO,RE,NI : VA :  !
+
+ PHASE MONI_DELTA  %  3 24   20   12 !
+ CONST MONI_DELTA  :NI : MO,NI : MO :  !
+
+ TYPE_DEFINITION + GES AMEND_PHASE_DESCRIPTION CHI NEVER DIS_CHI,,,!
+ PHASE DIS_CHI  %  1  1.0  !
+ CONSTITUENT DIS_CHI  :MO,RE,NI :  !
+ PHASE CHI %+   4 2   8   24   24 !
+ CONST CHI  :MO,RE,NI : MO,RE,NI : MO,RE,NI : MO,RE,NI :  !
+
+ TYPE_DEFINITION * GES AMEND_PHASE_DESCRIPTION SIGMA NEVER DIS_SIG,,,!
+ PHASE DIS_SIG  %  1  1.0  !
+ CONST DIS_SIG  :MO,RE,NI :  !
+ PHASE SIGMA  %*  5 2   4   8   8   8 !
+ CONST SIGMA  :MO,RE,NI : MO,RE,NI : MO,RE,NI : MO,RE,NI : MO,RE,NI :  !
+
+$=========================================================================
+$                                                         Unary parameters
+$=========================================================================
+
+$-------------------------------------------------------------------- SGTE 
+
+ PARAMETER G(BCC_A2,MO:VA;0)   298.15 +GHSERMO;,, N REF1 !
+ PARAMETER G(BCC_A2,NI:VA;0)  298.15 +GBCCNI;,, N REF1 !
+ PARAMETER TC(BCC_A2,NI:VA;0)  2.98150E+02  575;,, N REF1 !
+ PARAMETER BMAGN(BCC_A2,NI:VA;0)  2.98150E+02  .85;,, N REF1 !
+ PARAMETER G(BCC_A2,RE:VA;0)     298.15 +GBCCRE;,, N REF1 !
+
+ PARAMETER G(FCC_A1,MO:VA;0)  298.15 +GFCCMO;,, N REF1 !
+ PARAMETER G(FCC_A1,NI:VA;0)  298.15 +GHSERNI;,, N REF1 !
+ PARAMETER TC(FCC_A1,NI:VA;0)  2.98150E+02  633;,, N REF1 !
+ PARAMETER BMAGN(FCC_A1,NI:VA;0)  2.98150E+02  .52;,, N REF1 !
+ PARAMETER G(FCC_A1,RE:VA;0)   298.15 GFCCRE;,, N REF1 !
+
+ PARAMETER G(HCP_A3,MO:VA;0)  298.15 +GHCPMO;,, N REF1 !
+ PARAMETER G(HCP_A3,NI:VA;0)  298.15 +GHCPNI;,,  N  !
+ PARAMETER G(HCP_A3,RE:VA;0)  298.15 +GHSERRE;,, N REF1 !
+
+ PARAMETER G(LIQUID,MO;0)  298.15 GLIQMO;,, N REF1 !
+ PARAMETER G(LIQUID,NI;0)  298.15 GLIQNI;,, N REF1 !
+ PARAMETER G(LIQUID,RE;0)  298.15 GLIQRE;,, N REF1 !
+ 
+$-------------------------------------------------------------------- DFT
+
+$ PARA G(DIS_CHI,MO;0) 298.15 +26126+GHSERMO;,, N DFTCHI !
+$ PARA G(DIS_CHI,NI;0) 298.15 +13550+GHSERNI;,, N DFTCHI !
+$ PARA G(DIS_CHI,RE;0) 298.15  +4903+GHSERRE;,, N DFTCHI !
+
+$ PARA G(DIS_SIG,MO;0) 298.15 +16098+GHSERMO;,, N DFTSIG !
+$ PARA G(DIS_SIG,NI;0) 298.15 +13582+GHSERNI;,, N DFTSIG !
+$ PARA G(DIS_SIG,RE;0) 298.15  +9331+GHSERRE;,, N DFTSIG !
+ 
+$----------------------------------------------------------------------------
+$                                                        S assessed in Mo-Re
+
+ PARA G(DIS_CHI,MO;0) 298.15 +26126+GHSERMO-0.5596*T;,, N REF9 !
+ PARA G(DIS_CHI,RE;0) 298.15  +4903+GHSERRE+0.00905*T;,, N REF9 !
+ 
+ PARA G(DIS_SIG,MO;0) 298.15 +16098+GHSERMO+1.251*T;,, N REF9 !
+ PARA G(DIS_SIG,RE;0) 298.15  +9331+GHSERRE-1.205*T;,, N REF9 !
+ 
+$----------------------------------------------------------------------------
+$                                               Ni sigma and chi - test for S
+
+ PARA G(DIS_SIG,NI;0) 298.15 +13582+GHSERNI+3*T;,, N MONIRE !
+ PARA G(DIS_CHI,NI;0) 298.15 +13550+GHSERNI+6*T;,, N MONIRE!
+
+$=========================================================================
+$                                                        Binary parameters
+$=========================================================================
+
+$------------------------------------------------------------------- Mo-Ni
+
+ PARA L(LIQUID,MO,NI;0) 298.15  -46540+19.53*T;,, N 90Fri4 !
+ PARA L(LIQUID,MO,NI;1) 298.15  2915;,, N 90Fri4 !
+ 
+ PARA L(FCC_A1,MO,NI:VA;0) 298.15  +4803.7-5.96*T;,, N 90Fri4 !
+ PARA L(FCC_A1,MO,NI:VA;1) 298.15  10880;,, N 90Fri4 !
+
+ PARA L(BCC_A2,MO,NI:VA;0) 298.15  46422;,, N 90Fri4 !
+ 
+ PARA G(MONI_DELTA,NI:MO:MO;0) 298.15
+      +24*GHSERNI+32*GHSERMO-212100+1089*T-142*T*LN(T);,, N 90Fri4 !
+ PARA G(MONI_DELTA,NI:NI:MO;0) 298.15
+      +24*GHSERNI+20*GBCCNI+12*GHSERMO-1030-93.5*T+13.5*T*LN(T);,, N 90Fri4 !
+
+$ ID to FCC
+ PARA L(HCP_A3,MO,NI:VA;0) 298.15 +4803.7-5.96*T;,, N MONIRE !
+ PARA L(HCP_A3,MO,NI:VA;1) 298.15 +10880;,, N MONIRE !
+
+ PARA G(CHI,NI:MO:MO:MO;0)  298.15  +219710;,, N DFTCHI !
+ PARA G(CHI,MO:NI:MO:MO;0)  298.15  +814131;,, N DFTCHI !
+ PARA G(CHI,NI:NI:MO:MO;0)  298.15  +965490;,, N DFTCHI !
+ PARA G(CHI,MO:MO:NI:MO;0)  298.15  -172228;,, N DFTCHI !
+ PARA G(CHI,MO:MO:MO:NI;0)  298.15  -481244;,, N DFTCHI !
+ PARA G(CHI,NI:MO:NI:MO;0)  298.15   -43099;,, N DFTCHI !
+ PARA G(CHI,NI:MO:MO:NI;0)  298.15  -352925;,, N DFTCHI !
+ PARA G(CHI,MO:NI:NI:MO;0)  298.15  -163370;,, N DFTCHI !
+ PARA G(CHI,MO:NI:MO:NI;0)  298.15  -532188;,, N DFTCHI !
+ PARA G(CHI,NI:NI:NI:MO;0)  298.15   +14892;,, N DFTCHI !
+ PARA G(CHI,NI:NI:MO:NI;0)  298.15  -271198;,, N DFTCHI !
+ PARA G(CHI,MO:MO:NI:NI;0)  298.15  -877718;,, N DFTCHI !
+ PARA G(CHI,NI:MO:NI:NI;0)  298.15  -849987;,, N DFTCHI !
+ PARA G(CHI,MO:NI:NI:NI;0)  298.15  -221731;,, N DFTCHI !
+
+ PARA G(SIGMA,MO:NI:*:*:*;0) 298.15 -112309;,, N ND !
+ PARA G(SIGMA,MO:*:NI:*:*;0) 298.15  +29525;,, N ND !
+ PARA G(SIGMA,MO:*:*:NI:*;0) 298.15    -965;,, N ND !
+ PARA G(SIGMA,MO:*:*:*:NI;0) 298.15  -40910;,, N ND !
+ PARA G(SIGMA,*:MO:NI:*:*;0) 298.15 -109029;,, N ND !
+ PARA G(SIGMA,*:MO:*:NI:*;0) 298.15 -134018;,, N ND !
+ PARA G(SIGMA,*:MO:*:*:NI;0) 298.15   -2219;,, N ND !
+ PARA G(SIGMA,*:*:MO:NI:*;0) 298.15 -167595;,, N ND !
+ PARA G(SIGMA,*:*:MO:*:NI;0) 298.15  +66189;,, N ND !
+ PARA G(SIGMA,*:*:*:MO:NI;0) 298.15  -16596;,, N ND !
+ PARA G(SIGMA,NI:MO:*:*:*;0) 298.15  -73811;,, N ND !
+ PARA G(SIGMA,NI:*:MO:*:*;0) 298.15   -7043;,, N ND !
+ PARA G(SIGMA,NI:*:*:MO:*;0) 298.15  -41875;,, N ND !
+ PARA G(SIGMA,NI:*:*:*:MO;0) 298.15  +17271;,, N ND !
+ PARA G(SIGMA,*:NI:MO:*:*;0) 298.15  +82688;,, N ND !
+ PARA G(SIGMA,*:NI:*:MO:*;0) 298.15  +63970;,, N ND !
+ PARA G(SIGMA,*:NI:*:*:MO;0) 298.15  +97740;,, N ND !
+ PARA G(SIGMA,*:*:NI:MO:*;0) 298.15  +19008;,, N ND !
+ PARA G(SIGMA,*:*:NI:*:MO;0) 298.15  +55865;,, N ND !
+ PARA G(SIGMA,*:*:*:NI:MO;0) 298.15 -114625;,, N ND !
+
+$------------------------------------------------------------------- Mo-Re
+
+ PARAMETER L(BCC_A2,MO,RE:VA;0)   298.15 -15025+11.404*T;,, N  REF9 !
+ PARAMETER L(BCC_A2,MO,RE:VA;1)   298.15 +8.07*T;,, N REF9 !
+
+ PARAMETER L(HCP_A3,MO,RE:VA;0)   298.15 +12740+1.951*T;,, N REF9 !
+
+ PARAMETER L(LIQUID,MO,RE;0)    298.15 -15025+11.404*T-2610;,, N REF9 !
+ PARAMETER L(LIQUID,MO,RE;1)    298.15 +8.07*T-7790;,, N REF9 !
+
+$ ID to HCP
+ PARA L(FCC_A1,MO,RE:VA;0) 298.15 +12740+1.951*T;,, N MONIRE !
+
+ PARA G(CHI,RE:MO:MO:MO;0)  298.15   +72898;,, N DFTCHI !
+ PARA G(CHI,MO:RE:MO:MO;0)  298.15  +238327;,, N DFTCHI !
+ PARA G(CHI,RE:RE:MO:MO;0)  298.15  +327082;,, N DFTCHI !
+ PARA G(CHI,MO:MO:RE:MO;0)  298.15  -194830;,, N DFTCHI !
+ PARA G(CHI,MO:MO:MO:RE;0)  298.15  -681482;,, N DFTCHI !
+ PARA G(CHI,RE:MO:RE:MO;0)  298.15  -127372;,, N DFTCHI !
+ PARA G(CHI,RE:MO:MO:RE;0)  298.15  -583384;,, N DFTCHI !
+ PARA G(CHI,MO:RE:RE:MO;0)  298.15  +141480;,, N DFTCHI !
+ PARA G(CHI,MO:RE:MO:RE;0)  298.15  -300477;,, N DFTCHI !
+ PARA G(CHI,RE:RE:RE:MO;0)  298.15  +239483;,, N DFTCHI !
+ PARA G(CHI,RE:RE:MO:RE;0)  298.15  -165184;,, N DFTCHI !
+ PARA G(CHI,MO:MO:RE:RE;0)  298.15  -569681;,, N DFTCHI !
+ PARA G(CHI,RE:MO:RE:RE;0)  298.15  -468084;,, N DFTCHI !
+ PARA G(CHI,MO:RE:RE:RE;0)  298.15  -125904;,, N DFTCHI !
+
+ PARA G(SIGMA,MO:RE:*:*:*;0) 298.15    +680;,, N ND !
+ PARA G(SIGMA,MO:*:RE:*:*;0) 298.15  +16094;,, N ND !
+ PARA G(SIGMA,MO:*:*:RE:*;0) 298.15      +0;,, N ND !
+ PARA G(SIGMA,MO:*:*:*:RE;0) 298.15   +4361;,, N ND !
+ PARA G(SIGMA,*:MO:RE:*:*;0) 298.15  -14434;,, N ND !
+ PARA G(SIGMA,*:MO:*:RE:*;0) 298.15  -81839;,, N ND !
+ PARA G(SIGMA,*:MO:*:*:RE;0) 298.15  -28743;,, N ND !
+ PARA G(SIGMA,*:*:MO:RE:*;0) 298.15  -86837;,, N ND !
+ PARA G(SIGMA,*:*:MO:*:RE;0) 298.15  -73358;,, N ND !
+ PARA G(SIGMA,*:*:*:MO:RE;0) 298.15  +21024;,, N ND !
+ PARA G(SIGMA,RE:MO:*:*:*;0) 298.15  -22076;,, N ND !
+ PARA G(SIGMA,RE:*:MO:*:*;0) 298.15  -19297;,, N ND !
+ PARA G(SIGMA,RE:*:*:MO:*;0) 298.15   +5847;,, N ND !
+ PARA G(SIGMA,RE:*:*:*:MO;0) 298.15  -30827;,, N ND !
+ PARA G(SIGMA,*:RE:MO:*:*;0) 298.15   +6571;,, N ND !
+ PARA G(SIGMA,*:RE:*:MO:*;0) 298.15  +42569;,, N ND !
+ PARA G(SIGMA,*:RE:*:*:MO;0) 298.15  -25482;,, N ND !
+ PARA G(SIGMA,*:*:RE:MO:*;0) 298.15   -1467;,, N ND !
+ PARA G(SIGMA,*:*:RE:*:MO;0) 298.15  -62108;,, N ND !
+ PARA G(SIGMA,*:*:*:RE:MO;0) 298.15 -119768;,, N ND !
+
+$------------------------------------------------------------------- Ni-Re
+
+ PARA L(LIQUID,NI,RE;0) 298.15 21480.3504;,, N NIRE !
+
+ PARA L(FCC_A1,NI,RE:VA;0) 298.15 5054.48711+8.28748232*T;,, N NIRE !
+
+ PARA L(HCP_A3,NI,RE:VA;0) 298.15 9968.56426+7.59954301*T;,, N NIRE !
+
+$ ID to LIQ
+ PARA L(BCC_A2,NI,RE:VA;0) 298.15  +21480.3504;,, N MONIRE !
+
+ PARA G(CHI,RE:NI:NI:NI;0)  298.15   -89694;,, N DFTCHI !
+ PARA G(CHI,NI:RE:NI:NI;0)  298.15  -393802;,, N DFTCHI !
+ PARA G(CHI,RE:RE:NI:NI;0)  298.15  -511876;,, N DFTCHI !
+ PARA G(CHI,NI:NI:RE:NI;0)  298.15  +232248;,, N DFTCHI !
+ PARA G(CHI,NI:NI:NI:RE;0)  298.15   +59918;,, N DFTCHI !
+ PARA G(CHI,RE:NI:RE:NI;0)  298.15  +163650;,, N DFTCHI !
+ PARA G(CHI,RE:NI:NI:RE;0)  298.15   -40656;,, N DFTCHI !
+ PARA G(CHI,NI:RE:RE:NI;0)  298.15  -135674;,, N DFTCHI !
+ PARA G(CHI,NI:RE:NI:RE;0)  298.15  +217732;,, N DFTCHI !
+ PARA G(CHI,RE:RE:RE:NI;0)  298.15  -276649;,, N DFTCHI !
+ PARA G(CHI,RE:RE:NI:RE;0)  298.15  +262496;,, N DFTCHI !
+ PARA G(CHI,NI:NI:RE:RE;0)  298.15   -36360;,, N DFTCHI !
+ PARA G(CHI,RE:NI:RE:RE;0)  298.15   -99055;,, N DFTCHI !
+ PARA G(CHI,NI:RE:RE:RE;0)  298.15   +78569;,, N DFTCHI !
+
+ PARA G(SIGMA,NI:RE:*:*:*;0) 298.15 -103625;,, N ND !
+ PARA G(SIGMA,NI:*:RE:*:*;0) 298.15  +20648;,, N ND !
+ PARA G(SIGMA,NI:*:*:RE:*;0) 298.15  -88284;,, N ND !
+ PARA G(SIGMA,NI:*:*:*:RE;0) 298.15  +32709;,, N ND !
+ PARA G(SIGMA,*:NI:RE:*:*;0) 298.15  -46120;,, N ND !
+ PARA G(SIGMA,*:NI:*:RE:*;0) 298.15  +91951;,, N ND !
+ PARA G(SIGMA,*:NI:*:*:RE;0) 298.15  +36182;,, N ND !
+ PARA G(SIGMA,*:*:NI:RE:*;0) 298.15  +70531;,, N ND !
+ PARA G(SIGMA,*:*:NI:*:RE;0) 298.15 +136624;,, N ND !
+ PARA G(SIGMA,*:*:*:NI:RE;0) 298.15  -77381;,, N ND !
+ PARA G(SIGMA,RE:NI:*:*:*;0) 298.15   -2123;,, N ND !
+ PARA G(SIGMA,RE:*:NI:*:*;0) 298.15  -19973;,, N ND !
+ PARA G(SIGMA,RE:*:*:NI:*;0) 298.15   -1351;,, N ND !
+ PARA G(SIGMA,RE:*:*:*:NI;0) 298.15  -61558;,, N ND !
+ PARA G(SIGMA,*:RE:NI:*:*;0) 298.15   +5210;,, N ND !
+ PARA G(SIGMA,*:RE:*:NI:*;0) 298.15  -89153;,, N ND !
+ PARA G(SIGMA,*:RE:*:*:NI;0) 298.15   -2026;,, N ND !
+ PARA G(SIGMA,*:*:RE:NI:*;0) 298.15  -89828;,, N ND !
+ PARA G(SIGMA,*:*:RE:*:NI;0) 298.15  +75934;,, N ND !
+ PARA G(SIGMA,*:*:*:RE:NI;0) 298.15  -24700;,, N ND !
+
+$=========================================================================
+$                                                       Ternary parameters
+$=========================================================================
+
+ PARA G(CHI,NI:MO:MO:RE;0)  298.15  -519693;,, N DFTCHI !
+ PARA G(CHI,NI:RE:MO:RE;0)  298.15  -106844;,, N DFTCHI !
+ PARA G(CHI,NI:MO:RE:MO;0)  298.15   +35426;,, N DFTCHI !
+ PARA G(CHI,NI:RE:MO:MO;0)  298.15  +496740;,, N DFTCHI !
+ PARA G(CHI,NI:MO:RE:RE;0)  298.15  -409153;,, N DFTCHI !
+ PARA G(CHI,NI:RE:RE:MO;0)  298.15  +366739;,, N DFTCHI !
+ PARA G(CHI,RE:NI:MO:RE;0)  298.15   +16373;,, N DFTCHI !
+ PARA G(CHI,MO:NI:RE:MO;0)  298.15  +533241;,, N DFTCHI !
+ PARA G(CHI,MO:NI:RE:RE;0)  298.15  -211610;,, N DFTCHI !
+ PARA G(CHI,RE:NI:RE:MO;0)  298.15  +600355;,, N DFTCHI !
+ PARA G(CHI,RE:NI:MO:MO;0)  298.15  +913000;,, N DFTCHI !
+ PARA G(CHI,MO:NI:MO:RE;0)  298.15  -113332;,, N DFTCHI !
+ PARA G(CHI,NI:NI:RE:MO;0)  298.15  +632479;,, N DFTCHI !
+ PARA G(CHI,NI:NI:MO:RE;0)  298.15   +16967;,, N DFTCHI !
+ PARA G(CHI,RE:MO:NI:RE;0)  298.15   -31431;,, N DFTCHI !
+ PARA G(CHI,MO:RE:NI:RE;0)  298.15  +124857;,, N DFTCHI !
+ PARA G(CHI,RE:RE:NI:MO;0)  298.15   +85119;,, N DFTCHI !
+ PARA G(CHI,RE:MO:NI:MO;0)  298.15  -105163;,, N DFTCHI !
+ PARA G(CHI,MO:RE:NI:MO;0)  298.15   -19854;,, N DFTCHI !
+ PARA G(CHI,MO:MO:NI:RE;0)  298.15  -145816;,, N DFTCHI !
+ PARA G(CHI,RE:MO:RE:NI;0)  298.15  -458236;,, N DFTCHI !
+ PARA G(CHI,MO:MO:RE:NI;0)  298.15  -524528;,, N DFTCHI !
+ PARA G(CHI,MO:RE:RE:NI;0)  298.15  -344447;,, N DFTCHI !
+ PARA G(CHI,RE:MO:MO:NI;0)  298.15  -425639;,, N DFTCHI !
+ PARA G(CHI,MO:RE:MO:NI;0)  298.15  -447354;,, N DFTCHI !
+ PARA G(CHI,RE:RE:MO:NI;0)  298.15  -400043;,, N DFTCHI !
+ PARA G(CHI,NI:RE:NI:MO;0)  298.15  +144227;,, N DFTCHI !
+ PARA G(CHI,NI:MO:NI:RE;0)  298.15   -89466;,, N DFTCHI !
+ PARA G(CHI,NI:RE:MO:NI;0)  298.15  -234016;,, N DFTCHI !
+ PARA G(CHI,NI:MO:RE:NI;0)  298.15  -393733;,, N DFTCHI !
+ PARA G(CHI,RE:NI:NI:MO;0)  298.15  -122124;,, N DFTCHI !
+ PARA G(CHI,MO:NI:NI:RE;0)  298.15  -194827;,, N DFTCHI !
+ PARA G(CHI,RE:NI:MO:NI;0)  298.15  -389947;,, N DFTCHI !
+ PARA G(CHI,MO:NI:RE:NI;0)  298.15    +3924;,, N DFTCHI !
+ PARA G(CHI,RE:MO:NI:NI;0)  298.15  -862872;,, N DFTCHI !
+ PARA G(CHI,MO:RE:NI:NI;0)  298.15  -559164;,, N DFTCHI !
+ 
+$============================================================================
+
+ LIST_OF_REFERENCES
+ NUMBER  SOURCE
+   REF1   'PURE4 - SGTE Pure Elements (Unary) Database (Version 4.6), 
+           developed by SGTE (Scientific Group Thermodata Europe), 1991-2008,
+            and provided by TCSAB (Jan. 2008). '
+   REF5   'JC Crivello 2012 march, Armide project v1.13 chi phase'
+   REF9   'R. Mathieu et al., Armide project Calphad, 43 (2013) 18-31'   
+   DFTSIG 'JC Crivello 2012 march, Armide project v1.9 sigma phase' 
+   DFTCHI 'JC Crivello 2012 march, Armide project v1.13 chi phase' 
+   90Fri4 'K Frisk, Calphad 14(1990)3 p 311-320; Mo-Ni'
+   NIRE   'K. Yaqoob and JM Joubert'
+   MONIRE 'ND Mo-Ni-Re tests'
+   ND     'N. Dupin , BEF testing'
+   !
+

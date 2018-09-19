@@ -283,6 +283,11 @@ MODULE ocsmp
 ! for graphopt status word
 ! GRKEEP is set if graphics windows kept
   integer, parameter :: GRKEEP=0
+! for colors
+  character (len=6) :: monovariant='7CFF40'
+  character (len=6) :: tielinecolor='7CFF40'
+! for trace
+  logical :: plottrace=.FALSE.
 !
 !-------------------------------------------------
 !
@@ -3002,10 +3007,10 @@ CONTAINS
     character ch1*1,statevar*24,encoded*24
     type(gtp_state_variable), pointer :: svrrec,svr2
     type(gtp_state_variable), target :: svrtarget
-    logical tnip,nyfixph,ignore
+    logical tnip,nyfixph,ignore,approach
 ! new check for large step when tie-lines in the plane
-    double precision monovar(2,4)
-    save maxstep,isofix,isoent,fixbyte
+    double precision ysave
+    save maxstep,isofix,isoent,fixbyte,ignore,ysave,approach
 !
     mapeqno=mapline%number_of_equilibria
 !    write(*,*)'In map_step: ',mapeqno,meqrec%nv
@@ -3101,6 +3106,7 @@ CONTAINS
 53     format(a,5i4,2(1pe12.4))
        if(mapeqno.eq.1) then
 ! for first equilibria just save the axis value
+          approach=.true.
           mapline%axvals(jax)=axval(jax)
           laxfact=1.0D-2
 !          isoent(2,jax)=axval(jax)
@@ -3247,19 +3253,34 @@ CONTAINS
 !-------------------------------------------------------------
 ! trying to avoid too big steps when two extensive axis variables
     if(twoextensiveaxis.eq.2) then
+! UNFINISHED: this assumes both axis are compositions (fractions) !!!!!!!!!
+! what about a composition and an enthalpy axis ??
        isoe=sqrt((isoent(2,1)-isoent(1,1))**2+(isoent(2,2)-isoent(1,2))**2)
        isof=sqrt((isofix(2,1)-isofix(1,1))**2+(isofix(2,2)-isofix(1,2))**2)
-!    write(*,888)'smp1: ',mapeqno,isoent(2,1),isoent(1,1),isoent(2,2),&
-!         isoent(1,2),&
-!         isofix(2,1),isofix(1,1),isofix(2,2),isofix(1,2)
+       if(plottrace) write(*,888)'smp1: ',&
+            mapeqno,isoent(2,1),isoent(1,1),isoent(2,2),&
+            isoent(1,2),isofix(2,1),isofix(1,1),isofix(2,2),isofix(1,2)
        if(mapeqno.gt.1) then
-!       write(*,888)'smp2: ',mapline%axandir,isoe,isof,&
-!            axarr(abs(mapline%axandir))%axinc
+          i3=abs(mapline%axandir)
+          if(plottrace) write(*,888)'smp2: ',mapline%axandir,isoe,isof,&
+               axarr(i3)%axinc
 888       format(a,i3,4F8.5,2x,4F8.5)
-          if(.not.ignore .and. isof.gt.3.0D0*isoe) then
+!          if(.not.ignore .and. isof.gt.3.0D0*isoe) then
+          if(.not.ignore) then
 ! isofact is set to unity above
-             isofact=isoe/isof
-!             write(*,'(a,3(1pe12.4))')'smp3: ',isoe,isof,isofact
+! THE TESTS HERE ARE QUITE CRAY BUT THEY WORK REASONABLY FOR
+! MAP-10, BEF-500Y, CRFEMO(1400K), BEF-1500 and BEF-2500
+             if(isoe.gt.2.0D0*axarr(i3)%axinc) then
+! change in entered phase larger than max step
+                isofact=axarr(i3)%axinc/isoe
+!             elseif(isof.gt.3.0D0*axarr(i3)%axinc) then
+             elseif(isof.gt.3.0D0*isoe) then
+!             if(isof.gt.3.0D0*isoe) then
+!             if(isof.gt.3.0D0*axarr(i3)%axinc) then
+                isofact=isoe/isof
+!                isofact=axarr(i3)%axinc/isof
+             endif
+             if(plottrace) write(*,'(a,3(1pe12.4))')'smp3: ',isoe,isof,isofact
           endif
        endif
     endif
@@ -3424,8 +3445,10 @@ CONTAINS
 !             endif
              if(nyfixph) then
 ! This routine switches the fix and entered phases
+                if(plottrace) write(*,*)'new fix phase: ',nyfixph
                 call map_bytfixphase(mapline,oldax,meqrec,xxx,ceq)
                 if(gx%bmperr.ne.0) goto 1000
+                ignore=.TRUE.
              endif
 !             write(*,*)'New independent axis and value: ',nyax,xxx,nyfixph
              call map_changeaxis(mapline,nyax,oldax,nax,axarr,xxx,&
@@ -3515,7 +3538,7 @@ CONTAINS
 ! calculation OK and no problems, make sure mapline%axfact approaches unity
 !                   write(*,*)'Incrementing mapline%axfact: ',mapline%axfact
 !          mapline%axfact=min(one,1.2D0*mapline%axfact)
-! Trying to male axfact decrease less (like line above) makes map worse
+! Trying to make axfact decrease less (like line above) makes map worse
        mapline%axfact=min(one,2.0D0*mapline%axfact)
     endif
 !======================================================================
@@ -3544,6 +3567,36 @@ CONTAINS
        write(*,23)'high',value
        mapline%more=0
     endif
+!....... special for axis limits of isothermal sections DOES NOT WORK
+! check if we are close to an axis limit for isothermal sections
+    if(mapeqno.gt.2 .and. twoextensiveaxis.eq.2) then
+! The fraction of the third component of entered phase (where we step):
+       call locate_condition(axarr(jaxwc)%seqz,pcond,ceq)
+       if(pcond%statev.gt.10) then
+          xxx=pcond%prescribed
+       endif
+       yyy=one-isoent(2,jaxwc)-isoent(2,3-jaxwc)
+       if(yyy.le.0.5D0*axarr(jaxwc)%axinc) then
+! changing the axis variable will make third fraction negative       
+! we should decrease value ...
+!          write(*,'(a,i3,F9.5,7F8.5)')'At boundary? ',mapeqno,yyy,&
+!               isoent(2,jaxwc),isoent(2,3-jaxwc),&
+!               isofix(2,jaxwc),isofix(2,3-jaxwc),xxx,value,value-xxx
+          if(approach) then
+             write(*,*)'Approaching limit of third component'
+             approach=.false.
+          endif
+          if(yyy.gt.zero) then
+             if(yyy.lt.ysave) then
+                value=xxx+0.9D0*yyy
+             endif
+             ysave=yyy
+          else
+             write(*,*)'Impossible!'
+          endif
+       endif
+    endif
+!......
     if(ocv()) write(*,205)'Axis limits: ',mapline%more,axarr(jaxwc)%axmin,&
          value,axarr(jaxwc)%axmax
 205 format(a,i2,3(1pe12.4))
@@ -5932,7 +5985,9 @@ CONTAINS
     type(meq_phase), pointer :: phr
     double precision val,xxx,yyy,axvalok
     logical firstline
-    integer, parameter :: maxsavedceq=2000
+!    integer, parameter :: maxsavedceq=2000
+! decreased to 1800 as I sometimes run out of memeory
+    integer, parameter :: maxsavedceq=1800
     character name*24
 ! turns off convergence control for T
     integer, parameter :: inmap=1

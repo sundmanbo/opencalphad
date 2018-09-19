@@ -195,7 +195,7 @@ contains
 ! here are all commands and subcommands
 !    character (len=64), dimension(6) :: oplist
     integer, parameter :: ncbas=30,nclist=21,ncalc=12,ncent=21,ncread=6
-    integer, parameter :: ncam1=18,ncset=24,ncadv=12,ncstat=6,ncdebug=6
+    integer, parameter :: ncam1=18,ncset=24,ncadv=12,ncstat=6,ncdebug=9
     integer, parameter :: nselect=6,nlform=6,noptopt=9,nsetbit=6
     integer, parameter :: ncamph=18,naddph=12,nclph=6,nccph=6,nrej=9,nsetph=6
     integer, parameter :: nsetphbits=15,ncsave=6,nplt=21,nstepop=6
@@ -335,7 +335,7 @@ contains
          ['EQUILIB_TRANSF  ','QUIT            ','EXTRA_PROPERTY  ',&
           'GRID_DENSITY    ','SMALL_GRID_ONOFF','MAP_SPECIAL     ',&
           'GLOBAL_MIN_ONOFF','OPEN_POPUP_OFF  ','WORKING_DIRECTRY',&
-          'HELP_POPUP_OFF  ','TRACE           ','                ']
+          'HELP_POPUP_OFF  ','                ','                ']
 !         123456789.123456---123456789.123456---123456789.123456
 ! subsubcommands to SET BITS
     character (len=16), dimension(nsetbit) :: csetbit=&
@@ -375,7 +375,8 @@ contains
 ! subcommands to DEBUG
     character (len=16), dimension(ncdebug) :: cdebug=&
          ['FREE_LISTS      ','STOP_ON_ERROR   ','ELASTICITY      ',&
-          'TEST1           ','TPFUN           ','BROWSER         ']
+          'TEST1           ','TPFUN           ','BROWSER         ',&
+          'TRACE           ','                ','                ']
 !-------------------
 ! subcommands to SELECT, maybe some should be CUSTOMMIZE ??
     character (len=16), dimension(nselect) :: cselect=&
@@ -558,6 +559,10 @@ contains
     ochome=' '
     call get_environment_variable('OCHOME ',ochome)
     startupmacro=.FALSE.
+! if help is not set then set these filenames as blanks
+    browser=' '
+    latexfile=' '
+    htmlfile=' '
     noochome: if(ochome(1:1).eq.' ') then
        inquire(file='ochelp.tex ',exist=logok)
        if(.not.logok) then
@@ -1505,6 +1510,8 @@ contains
 !             if(ch1.eq.'N' .or. ch1.eq.'n') mode=-1
 ! Seach for memory leaks
              call gparid('How many times? ',cline,last,leak,1,q1help)
+! leak<0 means forever ... not allowed
+             if(leak.lt.1) leak=1
 ! Minimize output
              listzero=.false.
 !             call gparcd('List zero weight? ',cline,last,1,chz,'Y',q1help)
@@ -1576,17 +1583,17 @@ contains
                    endif
                 enddo
              else
-! We calculate without grid minimizer, if parallel we must turn off
+! Here we calculate without grid minimizer, if parallel we must turn off
 ! creating/removing composition sets!! not safe to do that!!
 !$             globaldata%status=ibset(globaldata%status,GSNOACS)
 !$             globaldata%status=ibset(globaldata%status,GSNOREMCS)
 !        !$OMP for an OMP directive
-!        !$ as "sentinel"
+!        !$ as "sentinel", will be compiled if -fopenmp
 ! this statement must not be inside a parallel do ...
                 svss=size(firstash%eqlista)
 ! NOTE: $OMP  threadprivate(gx) declared in TPFUN4.F90 ??
 !$OMP parallel do private(neweq)
-                do i1=1,svss
+                paraloop: do i1=1,svss
 !                do i1=1,size(firstash%eqlista)
 ! the error code must be set to zero for each thread ?? !!
                    jp=jp+1
@@ -1638,7 +1645,7 @@ contains
                          gx%bmperr=0
                       endif
                    endif
-                enddo
+                enddo paraloop
 !- $OMP end parallel do not needed???
 ! OPENMP parallel end loop
 ! allow composition sets to be created again
@@ -1976,13 +1983,20 @@ contains
                 call init_help(browser,latexfile,htmlfile)
              endif
 !.................................................................
-          case(11) !TRACE
-             call gparcd('HTML help?',cline,last,1,ch1,'Y',q1help)
-             if(ch1.eq.'Y') then
-                helptrace=.TRUE.
-             else
-                helptrace=.FALSE.
-             endif
+          case(11) ! not used, moved to debug: TRACE
+             write(*,*)'Not implemented yet'
+!             call gparcd('HTML help?',cline,last,1,ch1,'Y',q1help)
+!             if(ch1.eq.'Y') then
+!                helptrace=.TRUE.
+!             else
+!                helptrace=.FALSE.
+!             endif
+!             call gparcd('plotting?',cline,last,1,ch1,'N',q1help)
+!             if(ch1.eq.'Y') then
+!                plottrace=.TRUE.
+!             else
+!                plottrace=.FALSE.
+!             endif
 !.................................................................
           case(12) ! not used
              write(*,*)'Not implemented yet'
@@ -4610,6 +4624,27 @@ contains
 ! /usr/bin/firefox "file:/home/bosse/.../manual/ochelp.html#selectelement"
 !
 !linux!linux!linux!linux!linux!linux!linux!linux!linux!linux!linux!linux!linux
+!---------------------------------
+! debug trace
+       case(7)
+             call gparcd('HTML help?',cline,last,1,ch1,'Y',q1help)
+             if(ch1.eq.'Y') then
+                helptrace=.TRUE.
+             else
+                helptrace=.FALSE.
+             endif
+             call gparcd('plotting?',cline,last,1,ch1,'N',q1help)
+             if(ch1.eq.'Y') then
+                plottrace=.TRUE.
+             else
+                plottrace=.FALSE.
+             endif
+!..................................
+! not used
+       case(8)
+!..................................
+! not used
+       case(9)
        END SELECT debug
 !=================================================================
 ! select command
@@ -5609,7 +5644,33 @@ contains
 !-----------------------------------------------------------
 ! PLOT FONT_AND_COLOR
        case(15)
-          write(*,*)'Sorry but this option not yet implemeted'
+          call gparcd('Font ',cline,last,1,name1,'default',q1help)
+          write(*,*)'Sorry this option not yet implemeted'
+! monovariant and tielinecolor declared in smp2.F90
+          call gparcd('Monovariant color ',cline,last,1,&
+               name1,monovariant,q1help)
+          call capson(name1)
+          do kl=1,6
+             if(name1(kl:kl).lt.'0' .or. name1(kl:kl).gt.'9') then
+                if(name1(kl:kl).lt.'A' .or. name1(kl:kl).gt.'F') then
+                   write(*,*)'Wrong color, must be between 000000 and FFFFFF'
+                   goto 21100
+                endif
+             endif
+          enddo
+          monovariant=name1(1:6)
+          call gparcd('Tie-line color ',cline,last,1,&
+               name1,tielinecolor,q1help)
+          call capson(name1)
+          do kl=1,6
+             if(name1(kl:kl).lt.'0' .or. name1(kl:kl).gt.'9') then
+                if(name1(kl:kl).lt.'A' .or. name1(kl:kl).gt.'F') then
+                   write(*,*)'Wrong color, must be between 000000 and FFFFFF'
+                   goto 21100
+                endif
+             endif
+          enddo
+          tielinecolor=name1(1:6)
           goto 21100
 !-----------------------------------------------------------
 ! PLOT LOGSCALE

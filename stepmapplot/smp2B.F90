@@ -1329,13 +1329,13 @@
 
 !\begin{verbatim}
 !  subroutine ocplot3(ndx,pltax,filename,maptop,axarr,graphopt,pform,&
-  subroutine ocplot3(ndx,pltax,filename,maptop,axarr,graphopt,&
+  subroutine ocplot3(ndx,pltax,filename,mastertop,axarr,graphopt,&
        version,ceq)
 ! special to plot isothermal sections (two columns like x(*,cr) x(*,ni))
 ! ndx is mumber of plot axis, 
 ! pltax is text with plotaxis variables
 ! filename is intermediary file (maybe not needed)
-! maptop is map_node record with all results
+! mastertop is the map_node record with all results
 ! axarr are axis records
 ! graphopt is graphics record (should be extended to include more)
 ! pform is graphics form
@@ -1344,12 +1344,12 @@
     integer ndx
     character pltax(*)*(*),filename*(*),version*(*)
     type(map_axis), dimension(*) :: axarr
-    type(map_node), pointer :: maptop
+    type(map_node), pointer :: mastertop
     type(graphics_options) :: graphopt
     TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim} %+
     integer, parameter :: maxsame=200
-    type(map_node), pointer :: plottop,curtop,endnode
+    type(map_node), pointer :: plottop,curtop,endnode,maptop
     type(map_line), pointer :: curline
     type(gtp_equilibrium_data), pointer :: curceq
     type(map_ceqresults), pointer :: results
@@ -1366,6 +1366,8 @@
     character lid(2,maxsame)*24
     integer nooflineends
 !
+! do not change mastertop!
+    maptop=>mastertop
 ! xval and yval and ccordinates to plot, 
 ! points on one line is       xval(1,jj),yval(1,jj)
 ! points on the other line is xval(2,jj),yval(2,jj)
@@ -1415,6 +1417,7 @@
     lines=size(curtop%linehead)
     results=>plottop%saveceq
     noftielineblocks=0
+!    write(*,*)'SMP Number of lines: ',lines
     node: do ii=1,lines
 ! up to version 5.014: (june 2018)
 !       curline=>curtop%linehead(ii)
@@ -1532,6 +1535,10 @@
 ! there is a nod at the end, extracts its ceq record
           curceq=>endnode%nodeceq
           plotp=plotp+1
+          if(plotp.gt.maxval) then
+             write(*,*)'Too many points to plot 1:',maxval
+             gx%bmperr=4399; goto 1000
+          endif
           do jj=1,2
              call meq_get_state_varorfun_value(axisx(jj),xxx,encoded,curceq)
              if(gx%bmperr.ne.0) then
@@ -1555,6 +1562,10 @@
           same=same+1
           do eqindex=1,ntieline
              plotp=plotp+1
+             if(plotp.gt.maxval) then
+                write(*,*)'Too many points to plot 2:',maxval
+                gx%bmperr=4399; goto 1000
+             endif
              xval(1,plotp)=tieline(1,eqindex)
              yval(1,plotp)=tieline(2,eqindex)
 ! this means the tie-lines will be plotted twice ... but why not??
@@ -1562,6 +1573,10 @@
              yval(2,plotp)=tieline(2,eqindex)
              plotkod(plotp)=-100
              plotp=plotp+1
+             if(plotp.gt.maxval) then
+                write(*,*)'Too many points to plot 3:',maxval
+                gx%bmperr=4399; goto 1000
+             endif
              xval(1,plotp)=tieline(3,eqindex)
              yval(1,plotp)=tieline(4,eqindex)
              xval(2,plotp)=tieline(3,eqindex)
@@ -1585,6 +1600,10 @@
        if(associated(curceq)) then
 !          write(*,*)'Extracting data from node equilibrium'
           plotp=plotp+1
+          if(plotp.gt.maxval) then
+             write(*,*)'Too many points to plot 4:',maxval
+             gx%bmperr=4399; goto 1000
+          endif
           jj=1
           same=same+1
           nodeequil: do jph=1,nooftup
@@ -1616,6 +1635,7 @@
           enddo nodeequil
           lineends(same)=plotp
        endif
+!       write(*,*)'jump back to 100, same and plotp',same,plotp
        goto 100
     endif
 !    do jj=1,same
@@ -1627,6 +1647,11 @@
        jj=plottop%seqx
        plottop=>plottop%plotlink
        write(*,*)'ocplot3B current and next maptop: ',jj,plottop%seqx
+! this added 180918 to plot results from several MAP commands
+       curtop=>plottop
+       maptop=>plottop
+!       write(*,*)'Current number of lines: ',same,plotp,&
+!            allocated(curtop%linehead)
        goto 100
     endif
 !========================================================
@@ -1693,7 +1718,8 @@
 !    integer noofmono,jjj,monovariant2(100)
     integer, parameter :: monovariantborder=11
     integer xtieline,xmonovariant
-    character monovariant*6
+! now a global variable
+!    character monovariant*6
 ! Gibbs triangle variables
     logical plotgt,appgt
     double precision sqrt3,xxx,yyy,xmax,ltic
@@ -1703,7 +1729,8 @@
 ! very faint green       'fc "#F0FFF0" notitle ',a)
 ! yellow                 'fc "#FFFF00" notitle ',a)
 ! goldenrod              'fc "#DAA520" notitle ',a)
-    monovariant='50FF50'
+! dark green    monovariant='50FF50'
+!    monovariant='00FFFF'
 !    write(*,*)'Filename: ',trim(ocgnu)
 !
     call date_and_time(date)
@@ -1860,7 +1887,7 @@
 !         'set style line 7 lt 2 lc rgb "#FF4500" lw 2 pt 6'/&
          'set style line 8 lt 2 lc rgb "#00C000" lw 2 pt 8'/&
          'set style line 9 lt 2 lc rgb "#C0C0C0" lw 2 pt 1'/&
-!        'set style line 10 lt 2 lc rgb "#FF4500" lw 2 pt 4'/&
+        'set style line 10 lt 2 lc rgb "#DAA520" lw 2 pt 4')
 !         'set style line 10 lt 2 lc rgb "#00FFFF" lw 2 pt 10'/&
 ! orange is #FF4500
 ! goldenrod hex: DAA520"
@@ -1872,8 +1899,11 @@
 !         'set style line 12 lt 2 lc rgb "#804080" lw 1')
 !         'set style line 11 lt 2 lc rgb "#7CFF40" lw 3'/&
 ! for monovariants use filledcurves fc "#xxxxxx" AND linestyle 11
-         'set style line 11 lt 2 lc rgb "#7CFF40" lw 3'/&
-         'set style line 12 lt 2 lc rgb "#7CFF40" lw 1')
+    write(21,134)tielinecolor,tielinecolor
+! line style 11 is for the limits of the monovariants, 12 for tie-lines
+134 format('set style line 11 lt 2 lc rgb "#',a,'" lw 3'/&
+         'set style line 12 lt 2 lc rgb "#',a,'" lw 1')
+!         'set style line 12 lt 2 lc rgb "#7CFF40" lw 1')
 ! The last two styles (11 and 12) are for monovariants (not invariants)
 !   and tielines
 !
@@ -2388,6 +2418,8 @@
              foundinv=foundinv+1
              sumpp=sumpp+1
 !             write(*,*)'Assumed to be an monovariant!',foundinv,kk
+             write(21,600)jj,lcolor(jj)
+600          format('# Line ',2i5,' representing a monovariant')
              write(21,549)xval(1,sumpp),yval(1,sumpp)
              write(21,549)xval(2,sumpp),yval(2,sumpp)
              write(21,549)zval(1,foundinv),zval(2,foundinv)
@@ -2397,6 +2429,14 @@
 548          format('e '//'# end of monovariant',2i5)
 !548          format('e '//'# end of invariant',2i5)
           else
+! this is the beginning of a line to be plotted
+             if(lcolor(jj).eq.12) then
+                write(21,605)jj,lcolor(jj)
+605             format('# Line ',2i5,' representing tielines')
+             else
+                write(21,610)jj,lcolor(jj),trim(color(lcolor(jj)))
+610             format('# Line ',2i5,' calculated with fix phase: ',a)
+             endif
              do while(sumpp.lt.lineends(jj))
                 sumpp=sumpp+1
                 write(21,549)xval(kk,sumpp),yval(kk,sumpp)

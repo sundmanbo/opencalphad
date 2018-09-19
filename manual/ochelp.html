@@ -4916,61 +4916,43 @@ of a phase to fix you have also set a condition. For example
                                                                                             
                                                                                             
 <!--l. 3702--><p class="indent" >  <span 
-class="cmti-10x-x-109">set cond t=1273 p=1e5 n=1 x(cr)=0.1 w</span>
-<!--l. 3704--><p class="indent" >  <span 
-class="cmti-10x-x-109">Two cases of expressions can be used as conditions, for example a relation between mole fraction</span>
-<span 
-class="cmti-10x-x-109">like</span><br 
+class="cmti-10x-x-109">set cond t=1273 p=1e5 n=1 x(cr)=0.1 w%(c)=1</span>
+<!--l. 3704--><p class="indent" >  Two cases of expressions can be used as conditions, for example a relation between mole fraction
+like<br 
 class="newline" /><span 
 class="cmbx-10x-x-109">set condition x(liq,o)-x(c1</span><span 
 class="cmbx-10x-x-109">_mo2,o)=0</span><br 
-class="newline" /><span 
-class="cmti-10x-x-109">means that the oxygen content in liquid and c1</span><span 
-class="cmti-10x-x-109">_mo2 phases should be the same. That is useful to calculate the</span>
-<span 
-class="cmti-10x-x-109">congruent melting of c1</span><span 
-class="cmti-10x-x-109">_mo2.</span>
-<!--l. 3710--><p class="indent" >  <span 
-class="cmti-10x-x-109">Another case is if the total anount if some components has a relation, for example:</span><br 
+class="newline" />means that the oxygen content in liquid and c1_mo2 phases should be the same. That is useful to calculate
+the congruent melting of c1_mo2.
+<!--l. 3710--><p class="indent" >  Another case is if the total anount if some components has a relation, for example:<br 
 class="newline" /><span 
 class="cmbx-10x-x-109">set condition n(u)+n(zr)=1</span><br 
-class="newline" /><span 
-class="cmti-10x-x-109">means that the total number of moles of the components U and Zr should be unity.</span>
+class="newline" />means that the total number of moles of the components U and Zr should be unity.
 <!--l. 3717--><p class="indent" >  <span 
 class="cmbx-10x-x-109">Value:</span>
-<!--l. 3719--><p class="indent" >  <span 
-class="cmti-10x-x-109">A numeric value or a symbol representing a constant value is expected.</span>
+<!--l. 3719--><p class="indent" >  A numeric value or a symbol representing a constant value is expected.
 <!--l. 3723--><p class="indent" >  <a 
  id="SET Echo"></a>
-  <h4 class="subsectionHead"><span class="titlemark"><span 
-class="cmti-10x-x-109">26.6   </span></span> <a 
- id="x1-22600026.6"></a>set <span 
-class="cmti-10x-x-109">Echo</span></h4>
-<!--l. 3726--><p class="noindent" ><span 
-class="cmti-10x-x-109">This is useful command in macro files or when demonstrating the program.</span>
+  <h4 class="subsectionHead"><span class="titlemark">26.6   </span> <a 
+ id="x1-22600026.6"></a><span 
+class="cmti-10x-x-109">set </span>Echo</h4>
+<!--l. 3726--><p class="noindent" >This is useful command in macro files or when demonstrating the program.
 <!--l. 3730--><p class="indent" >  <a 
  id="SET Fixed coefficient"></a>
-  <h4 class="subsectionHead"><span class="titlemark"><span 
-class="cmti-10x-x-109">26.7   </span></span> <a 
- id="x1-22700026.7"></a>set <span 
-class="cmti-10x-x-109">Fixed coefficient</span></h4>
-<!--l. 3733--><p class="noindent" ><span 
-class="cmti-10x-x-109">An optimizing coefficient is assigned a fixed value.</span>
+  <h4 class="subsectionHead"><span class="titlemark">26.7   </span> <a 
+ id="x1-22700026.7"></a><span 
+class="cmti-10x-x-109">set </span>Fixed coefficient</h4>
+<!--l. 3733--><p class="noindent" >An optimizing coefficient is assigned a fixed value.
 <!--l. 3737--><p class="indent" >  <a 
  id="SET Input-Amounts"></a>
-  <h4 class="subsectionHead"><span class="titlemark"><span 
-class="cmti-10x-x-109">26.8   </span></span> <a 
- id="x1-22800026.8"></a>set <span 
-class="cmti-10x-x-109">Input-Amounts</span></h4>
-<!--l. 3740--><p class="noindent" ><span 
-class="cmti-10x-x-109">This command allows you to specify a system by giving a redundant amount of various species in the system.</span>
-<span 
-class="cmti-10x-x-109">The software will transform this to conditions on the amounts of the components.</span>
+  <h4 class="subsectionHead"><span class="titlemark">26.8   </span> <a 
+ id="x1-22800026.8"></a><span 
+class="cmti-10x-x-109">set </span>Input-Amounts</h4>
+<!--l. 3740--><p class="noindent" >This command allows you to specify a system by giving a redundant amount of various species in the system.
+The software will transform this to conditions on the amounts of the components.
 <!--l. 3745--><p class="indent" >  <a 
- id="Species and amounts"></a> <span 
-class="cmti-10x-x-109">Species and amount as N(..)= or B(...)= :</span>
-<!--l. 3748--><p class="indent" >  <span 
-class="cmti-10x-x-109">An example:</span>
+ id="Species and amounts"></a> Species and amount as N(..)= or B(...)= :
+<!--l. 3748--><p class="indent" >  An example:
                                                                                             
                                                                                             
   <div class="verbatim" id="verbatim-6">
@@ -4985,16 +4967,11 @@ class="cmti-10x-x-109">An example:</span>
 &#x00A0;<br />&#x00A0;Degrees&#x00A0;of&#x00A0;freedom&#x00A0;are&#x00A0;&#x00A0;&#x00A0;2
 </div>
 <!--l. 3761--><p class="nopar" >
-<!--l. 3763--><p class="indent" >  <span 
-class="cmti-10x-x-109">The amounts of the species has been split on the components. Setting input amounts is just another way</span>
-<span 
-class="cmti-10x-x-109">to set these directly. If we set a </span><span 
-class="cmmi-10x-x-109">T </span><span 
-class="cmti-10x-x-109">and </span><span 
-class="cmmi-10x-x-109">P </span><span 
-class="cmti-10x-x-109">we can calculate the equilibrium fraction of all the</span>
-<span 
-class="cmti-10x-x-109">species.</span>
+<!--l. 3763--><p class="indent" >  The amounts of the species has been split on the components. Setting input amounts is just another way
+to set these directly. If we set a <span 
+class="cmmi-10x-x-109">T </span>and <span 
+class="cmmi-10x-x-109">P </span>we can calculate the equilibrium fraction of all the
+species.
                                                                                             
                                                                                             
   <div class="verbatim" id="verbatim-7">
@@ -5067,348 +5044,238 @@ class="cmti-10x-x-109">species.</span>
 &#x00A0;<br />---&#x003E;OC5:
 </div>
 <!--l. 3835--><p class="nopar" >
-<!--l. 3837--><p class="indent" >  <span 
-class="cmti-10x-x-109">The calculation shows that mixing 10 moles of CO</span><sub><span 
-class="cmr-8">2</span></sub> <span 
-class="cmti-10x-x-109">with 5 moles of CH</span><sub><span 
-class="cmr-8">4</span></sub> <span 
-class="cmti-10x-x-109">at 1000</span><span 
-class="cmti-10x-x-109">&#x00A0;K and 1</span><span 
-class="cmti-10x-x-109">&#x00A0;bar gives a gas</span>
-<span 
-class="cmti-10x-x-109">with 45% CO</span><sub><span 
-class="cmr-8">2</span></sub><span 
-class="cmti-10x-x-109">, 30% CO, 13% H</span><sub><span 
-class="cmr-8">2</span></sub><span 
-class="cmti-10x-x-109">O and the rest H</span><sub><span 
+<!--l. 3837--><p class="indent" >  The calculation shows that mixing 10 moles of CO<sub><span 
+class="cmr-8">2</span></sub> with 5 moles of CH<sub><span 
+class="cmr-8">4</span></sub> at 1000&#x00A0;K and 1&#x00A0;bar gives a gas
+with 45% CO<sub><span 
+class="cmr-8">2</span></sub>, 30% CO, 13% H<sub><span 
+class="cmr-8">2</span></sub>O and the rest H<sub><span 
 class="cmr-8">2</span></sub>
 <!--l. 3843--><p class="indent" >  <a 
  id="SET Interactive"></a>
-  <h4 class="subsectionHead"><span class="titlemark"><span 
-class="cmti-10x-x-109">26.9   </span></span> <a 
- id="x1-22900026.9"></a>set <span 
-class="cmti-10x-x-109">Interactive</span></h4>
-<!--l. 3846--><p class="noindent" ><span 
-class="cmti-10x-x-109">The last command on a macro file. Gives command back to the keyboard of the user, or to the calling macro</span>
-<span 
-class="cmti-10x-x-109">file. Without this the program will just terminate when the macro is finished.</span>
+  <h4 class="subsectionHead"><span class="titlemark">26.9   </span> <a 
+ id="x1-22900026.9"></a><span 
+class="cmti-10x-x-109">set </span>Interactive</h4>
+<!--l. 3846--><p class="noindent" >The last command on a macro file. Gives command back to the keyboard of the user, or to the calling macro
+file. Without this the program will just terminate when the macro is finished.
 <!--l. 3852--><p class="indent" >  <a 
  id="SET Level"></a>
-  <h4 class="subsectionHead"><span class="titlemark"><span 
-class="cmti-10x-x-109">26.10   </span></span> <a 
- id="x1-23000026.10"></a>set <span 
-class="cmti-10x-x-109">Level</span></h4>
-<!--l. 3855--><p class="noindent" ><span 
-class="cmti-10x-x-109">I am no longer sure what this should do and if it is needed ...</span>
+  <h4 class="subsectionHead"><span class="titlemark">26.10   </span> <a 
+ id="x1-23000026.10"></a><span 
+class="cmti-10x-x-109">set </span>Level</h4>
+<!--l. 3855--><p class="noindent" >I am no longer sure what this should do and if it is needed ...
 <!--l. 3859--><p class="indent" >  <a 
  id="SET Log-File"></a>
-  <h4 class="subsectionHead"><span class="titlemark"><span 
-class="cmti-10x-x-109">26.11   </span></span> <a 
- id="x1-23100026.11"></a>set <span 
-class="cmti-10x-x-109">Log-File</span></h4>
-<!--l. 3862--><p class="noindent" ><span 
-class="cmti-10x-x-109">A useful command to save all interactive input while running OC. The log file can easily be transformed to a</span>
-<span 
-class="cmti-10x-x-109">macro file. All bug reports should be accompanied by a log file which reproduces the bug.</span>
+  <h4 class="subsectionHead"><span class="titlemark">26.11   </span> <a 
+ id="x1-23100026.11"></a><span 
+class="cmti-10x-x-109">set </span>Log-File</h4>
+<!--l. 3862--><p class="noindent" >A useful command to save all interactive input while running OC. The log file can easily be
+transformed to a macro file. All bug reports should be accompanied by a log file which reproduces the
+bug.
 <!--l. 3868--><p class="indent" >  <a 
  id="SET Numeric-Options"></a>
-  <h4 class="subsectionHead"><span class="titlemark"><span 
-class="cmti-10x-x-109">26.12   </span></span> <a 
- id="x1-23200026.12"></a>set <span 
-class="cmti-10x-x-109">Numeric-Options</span></h4>
+  <h4 class="subsectionHead"><span class="titlemark">26.12   </span> <a 
+ id="x1-23200026.12"></a><span 
+class="cmti-10x-x-109">set </span>Numeric-Options</h4>
                                                                                             
                                                                                             
-<!--l. 3871--><p class="noindent" ><span 
-class="cmti-10x-x-109">The default number of iterations and accuracy can be specified. Default values are 500 and 10</span><sup><span 
+<!--l. 3871--><p class="noindent" >The default number of iterations and accuracy can be specified. Default values are 500 and 10<sup><span 
 class="cmsy-8">-</span><span 
-class="cmr-8">6</span></sup><span 
-class="cmti-10x-x-109">.</span>
+class="cmr-8">6</span></sup>.
 <!--l. 3876--><p class="indent" >  <a 
  id="SET Optimizing conditions"></a>
-  <h4 class="subsectionHead"><span class="titlemark"><span 
-class="cmti-10x-x-109">26.13   </span></span> <a 
- id="x1-23300026.13"></a>set <span 
-class="cmti-10x-x-109">Optimizing conditions</span></h4>
-<!--l. 3879--><p class="noindent" ><span 
-class="cmti-10x-x-109">A few variables used to guide the optimization of model parameters can be set.</span>
+  <h4 class="subsectionHead"><span class="titlemark">26.13   </span> <a 
+ id="x1-23300026.13"></a><span 
+class="cmti-10x-x-109">set </span>Optimizing conditions</h4>
+<!--l. 3879--><p class="noindent" >A few variables used to guide the optimization of model parameters can be set.
 <!--l. 3884--><p class="indent" >  <a 
  id="SET Phase"></a>
-  <h4 class="subsectionHead"><span class="titlemark"><span 
-class="cmti-10x-x-109">26.14   </span></span> <a 
- id="x1-23400026.14"></a>set <span 
-class="cmti-10x-x-109">Phase </span><span 
-class="cmmi-10x-x-109">&#x003C;</span><span 
-class="cmti-10x-x-109">phase name</span><span 
+  <h4 class="subsectionHead"><span class="titlemark">26.14   </span> <a 
+ id="x1-23400026.14"></a><span 
+class="cmti-10x-x-109">set </span>Phase <span 
+class="cmmi-10x-x-109">&#x003C;</span>phase name<span 
 class="cmmi-10x-x-109">&#x003E;</span></h4>
-<!--l. 3887--><p class="noindent" ><span 
-class="cmti-10x-x-109">You must specify a phase name. Some phase specific things can be set, also for the model.</span>
+<!--l. 3887--><p class="noindent" >You must specify a phase name. Some phase specific things can be set, also for the model.
 <!--l. 3892--><p class="indent" >  <a 
  id="SET PHASE ... Amount"></a>
-  <h5 class="subsubsectionHead"><span class="titlemark"><span 
-class="cmti-10x-x-109">26.14.1   </span></span> <a 
- id="x1-23500026.14.1"></a>set phase <span 
-class="cmti-10x-x-109">... Amount</span></h5>
-<!--l. 3895--><p class="noindent" ><span 
-class="cmti-10x-x-109">You can specify the amount of the phase which is used as initial value for an equilibrium calculation.</span>
+  <h5 class="subsubsectionHead"><span class="titlemark">26.14.1   </span> <a 
+ id="x1-23500026.14.1"></a><span 
+class="cmti-10x-x-109">set phase </span>... Amount</h5>
+<!--l. 3895--><p class="noindent" >You can specify the amount of the phase which is used as initial value for an equilibrium calculation.
 <!--l. 3900--><p class="indent" >  <a 
  id="SET PHASE ... Bits"></a>
-  <h5 class="subsubsectionHead"><span class="titlemark"><span 
-class="cmti-10x-x-109">26.14.2   </span></span> <a 
- id="x1-23600026.14.2"></a>set phase <span 
-class="cmti-10x-x-109">... Bits</span></h5>
-<!--l. 3903--><p class="noindent" ><span 
-class="cmti-10x-x-109">Some of the models and use of data storage depend on the bits of the phase. Most of them are set</span>
-<span 
-class="cmti-10x-x-109">automatically by the software and other commands like AMEND PHASE. Changing them with this command</span>
-<span 
-class="cmti-10x-x-109">will not have the expected effect and may cause the program to fail.</span>
-<!--l. 3908--><p class="indent" >  <span 
-class="cmti-10x-x-109">The bits that can be changed are:</span>
+  <h5 class="subsubsectionHead"><span class="titlemark">26.14.2   </span> <a 
+ id="x1-23600026.14.2"></a><span 
+class="cmti-10x-x-109">set phase </span>... Bits</h5>
+<!--l. 3903--><p class="noindent" >Some of the models and use of data storage depend on the bits of the phase. Most of them are set
+automatically by the software and other commands like AMEND PHASE. Changing them with this
+command will not have the expected effect and may cause the program to fail.
+<!--l. 3908--><p class="indent" >  The bits that can be changed are:
 <!--l. 3911--><p class="indent" >  <a 
  id="EXTRA-DENSE-GRID"></a>
      <ul class="itemize1">
-     <li class="itemize"><span 
-class="cmti-10x-x-109">EXTRA</span><span 
-class="cmti-10x-x-109">_DENSE</span><span 
-class="cmti-10x-x-109">_GRID makes it possible to have a larger number of gridpoints calculated by the</span>
-     <span 
-class="cmti-10x-x-109">gridminimizer for the specified phase.</span>
+     <li class="itemize">EXTRA_DENSE_GRID makes it possible to have a larger number of gridpoints calculated by
+     the gridminimizer for the specified phase.
      <!--l. 3918--><p class="noindent" ><a 
  id="NO-AUTO-COMP-SET"></a>
      </li>
-     <li class="itemize"><span 
-class="cmti-10x-x-109">NO</span><span 
-class="cmti-10x-x-109">_AUTO</span><span 
-class="cmti-10x-x-109">_COMP</span><span 
-class="cmti-10x-x-109">_SET. This makes it possible to prevent that the specific phase has automatic</span>
-     <span 
-class="cmti-10x-x-109">composition set created during calculations.</span>
+     <li class="itemize">NO_AUTO_COMP_SET. This makes it possible to prevent that the specific phase has automatic
+     composition set created during calculations.
      <!--l. 3925--><p class="noindent" ><a 
  id="QUIT"></a>
      </li>
-     <li class="itemize"><span 
-class="cmti-10x-x-109">OUIT, do not set any more bits.</span></li></ul>
+     <li class="itemize">OUIT, do not set any more bits.</li></ul>
                                                                                             
                                                                                             
 <!--l. 3930--><p class="noindent" >
-  <h5 class="subsubsectionHead"><span class="titlemark"><span 
-class="cmti-10x-x-109">26.14.3   </span></span> <a 
- id="x1-23700026.14.3"></a>set phase <span 
-class="cmti-10x-x-109">... Constitution</span></h5>
+  <h5 class="subsubsectionHead"><span class="titlemark">26.14.3   </span> <a 
+ id="x1-23700026.14.3"></a><span 
+class="cmti-10x-x-109">set phase </span>... Constitution</h5>
 <!--l. 3931--><p class="noindent" ><a 
  id="SET PHASE ... CONSTITUTION"></a>
-<!--l. 3934--><p class="indent" >  <span 
-class="cmti-10x-x-109">This is the same as </span><span 
-class="cmbx-10x-x-109">amend phase constitution</span><span 
-class="cmti-10x-x-109">.</span>
+<!--l. 3934--><p class="indent" >  This is the same as <span 
+class="cmbx-10x-x-109">amend phase constitution</span>.
 <!--l. 3938--><p class="indent" >  <a 
  id="SET PHASE ... DEFAULT-CONSTITU"></a>
-  <h5 class="subsubsectionHead"><span class="titlemark"><span 
-class="cmti-10x-x-109">26.14.4   </span></span> <a 
- id="x1-23800026.14.4"></a>set phase <span 
-class="cmti-10x-x-109">... Default-constitution</span></h5>
-<!--l. 3941--><p class="noindent" ><span 
-class="cmti-10x-x-109">Same as </span><span 
+  <h5 class="subsubsectionHead"><span class="titlemark">26.14.4   </span> <a 
+ id="x1-23800026.14.4"></a><span 
+class="cmti-10x-x-109">set phase </span>... Default-constitution</h5>
+<!--l. 3941--><p class="noindent" >Same as <span 
 class="cmbx-10x-x-109">amend phase default</span><span 
-class="cmbx-10x-x-109">_constit</span><span 
-class="cmti-10x-x-109">.</span>
+class="cmbx-10x-x-109">_constit</span>.
 <!--l. 3945--><p class="indent" >  <a 
  id="SET PHASE ... Quit"></a>
-  <h5 class="subsubsectionHead"><span class="titlemark"><span 
-class="cmti-10x-x-109">26.14.5   </span></span> <a 
- id="x1-23900026.14.5"></a>set phase <span 
-class="cmti-10x-x-109">... Quit</span></h5>
-<!--l. 3948--><p class="noindent" ><span 
-class="cmti-10x-x-109">You did not want to set anything for the phase.</span>
+  <h5 class="subsubsectionHead"><span class="titlemark">26.14.5   </span> <a 
+ id="x1-23900026.14.5"></a><span 
+class="cmti-10x-x-109">set phase </span>... Quit</h5>
+<!--l. 3948--><p class="noindent" >You did not want to set anything for the phase.
 <!--l. 3952--><p class="indent" >  <a 
  id="SET PHASE ... STATUS"></a>
-  <h5 class="subsubsectionHead"><span class="titlemark"><span 
-class="cmti-10x-x-109">26.14.6   </span></span> <a 
- id="x1-24000026.14.6"></a>set phase <span 
-class="cmti-10x-x-109">... Status</span></h5>
-<!--l. 3955--><p class="noindent" ><span 
-class="cmti-10x-x-109">Use the SET STATUS PHASE command to set the status of one or several phases. The different status are</span>
-<span 
-class="cmti-10x-x-109">explained for that command, section</span><span 
-class="cmti-10x-x-109">&#x00A0;</span><a 
-href="#x1-24800026.19.3"><span 
-class="cmti-10x-x-109">26.19.3</span><!--tex4ht:ref: sc:set-phase-status --></a><span 
-class="cmti-10x-x-109">.</span>
+  <h5 class="subsubsectionHead"><span class="titlemark">26.14.6   </span> <a 
+ id="x1-24000026.14.6"></a><span 
+class="cmti-10x-x-109">set phase </span>... Status</h5>
+<!--l. 3955--><p class="noindent" >Use the SET STATUS PHASE command to set the status of one or several phases. The different status are
+explained for that command, section&#x00A0;<a 
+href="#x1-24800026.19.3">26.19.3<!--tex4ht:ref: sc:set-phase-status --></a>.
 <!--l. 3961--><p class="indent" >  <a 
  id="SET Quit"></a>
-  <h4 class="subsectionHead"><span class="titlemark"><span 
-class="cmti-10x-x-109">26.15   </span></span> <a 
- id="x1-24100026.15"></a>set <span 
-class="cmti-10x-x-109">Quit</span></h4>
-<!--l. 3964--><p class="noindent" ><span 
-class="cmti-10x-x-109">You did not really want to set anything.</span>
+  <h4 class="subsectionHead"><span class="titlemark">26.15   </span> <a 
+ id="x1-24100026.15"></a><span 
+class="cmti-10x-x-109">set </span>Quit</h4>
+<!--l. 3964--><p class="noindent" >You did not really want to set anything.
 <!--l. 3968--><p class="indent" >  <a 
  id="SET Range-experimental-equilibria"></a>
-  <h4 class="subsectionHead"><span class="titlemark"><span 
-class="cmti-10x-x-109">26.16   </span></span> <a 
- id="x1-24200026.16"></a>set <span 
-class="cmti-10x-x-109">Range of experimental equilibria</span></h4>
-<!--l. 3971--><p class="noindent" ><span 
-class="cmti-10x-x-109">For an assessment several consequtive equilibria with experimental data must be entered. This command</span>
-<span 
-class="cmti-10x-x-109">specifies the first and last of those equilibria. It possible to add more equilibria later one by one (not yet</span>
-<span 
-class="cmti-10x-x-109">though).</span>
+  <h4 class="subsectionHead"><span class="titlemark">26.16   </span> <a 
+ id="x1-24200026.16"></a><span 
+class="cmti-10x-x-109">set </span>Range of experimental equilibria</h4>
+<!--l. 3971--><p class="noindent" >For an assessment several consequtive equilibria with experimental data must be entered. This command
+specifies the first and last of those equilibria. It possible to add more equilibria later one by one (not yet
+though).
 <!--l. 3977--><p class="indent" >  <a 
  id="First equilibrium number:"><span 
 class="cmbx-10x-x-109">First equilibrium number: /2/:</span></a>
 <!--l. 3980--><p class="indent" >  <span 
 class="cmbx-10x-x-109">Last equilibrium number:</span>
-<!--l. 3982--><p class="indent" >  <span 
-class="cmti-10x-x-109">The equilibria are assigned the weight one by default. The weight can be changed with the SET WEIGHT</span>
+<!--l. 3982--><p class="indent" >  The equilibria are assigned the weight one by default. The weight can be changed with the SET WEIGHT
                                                                                             
                                                                                             
-<span 
-class="cmti-10x-x-109">command. The weight zero means the equilibrium is not calculated.</span>
+command. The weight zero means the equilibrium is not calculated.
 <!--l. 3988--><p class="indent" >  <a 
  id="SET Reference-State"></a>
-  <h4 class="subsectionHead"><span class="titlemark"><span 
-class="cmti-10x-x-109">26.17   </span></span> <a 
- id="x1-24300026.17"></a>set <span 
-class="cmti-10x-x-109">Reference-State</span></h4>
-<!--l. 3991--><p class="noindent" ><span 
-class="cmti-10x-x-109">By default the reference state for the components is SER (Stable Element Reference) which is the stable state</span>
-<span 
-class="cmti-10x-x-109">of the element at 298.15</span><span 
-class="cmti-10x-x-109">&#x00A0;K and 1</span><span 
-class="cmti-10x-x-109">&#x00A0;bar. (NOTE: in principle SER is defined by the database but today almost</span>
-<span 
-class="cmti-10x-x-109">all databases have SER as reference state.)</span>
+  <h4 class="subsectionHead"><span class="titlemark">26.17   </span> <a 
+ id="x1-24300026.17"></a><span 
+class="cmti-10x-x-109">set </span>Reference-State</h4>
+<!--l. 3991--><p class="noindent" >By default the reference state for the components is SER (Stable Element Reference) which is the stable state
+of the element at 298.15&#x00A0;K and 1&#x00A0;bar. (NOTE: in principle SER is defined by the database but today almost
+all databases have SER as reference state.)
 <!--l. 3997--><p class="indent" >  <a 
  id="Component name:"><span 
 class="cmbx-10x-x-109">Component name:</span></a>
 <!--l. 4000--><p class="indent" >  <a 
  id="Reference phase"><span 
 class="cmbx-10x-x-109">Reference phase:</span></a>
-<!--l. 4002--><p class="indent" >  <span 
-class="cmti-10x-x-109">For each component (also for other components than the elements) you can specify a phase at a</span>
-<span 
-class="cmti-10x-x-109">given temperature and pressure as reference state. The phase must exist for the component as</span>
-<span 
-class="cmti-10x-x-109">pure.</span>
+<!--l. 4002--><p class="indent" >  For each component (also for other components than the elements) you can specify a phase at a
+given temperature and pressure as reference state. The phase must exist for the component as
+pure.
 <!--l. 4007--><p class="indent" >  <a 
  id="reference temperature"><span 
 class="cmbx-10x-x-109">Temperature:</span></a>
-<!--l. 4009--><p class="indent" >  <span 
-class="cmti-10x-x-109">Instead of a fixed </span><span 
-class="cmmi-10x-x-109">T </span><span 
-class="cmti-10x-x-109">you can give a *, indicating current </span><span 
-class="cmmi-10x-x-109">T</span><span 
-class="cmti-10x-x-109">, if you calculates at different values of</span>
+<!--l. 4009--><p class="indent" >  Instead of a fixed <span 
+class="cmmi-10x-x-109">T </span>you can give a *, indicating current <span 
+class="cmmi-10x-x-109">T</span>, if you calculates at different values of
 <span 
-class="cmmi-10x-x-109">T</span><span 
-class="cmti-10x-x-109">.</span>
+class="cmmi-10x-x-109">T</span>.
 <!--l. 4013--><p class="indent" >  <a 
  id="reference pressure"><span 
 class="cmbx-10x-x-109">Pressure:</span></a>
-<!--l. 4015--><p class="indent" >  <span 
-class="cmti-10x-x-109">Example:</span>
+<!--l. 4015--><p class="indent" >  Example:
 <!--l. 4017--><p class="indent" >  <span 
 class="cmbx-10x-x-109">set reference O gas * 1e5</span>
-<!--l. 4019--><p class="indent" >  <span 
-class="cmti-10x-x-109">Note that state variables like the chemical potential, MU(O), will refer to the user defined reference state.</span>
-<span 
-class="cmti-10x-x-109">To obtain the value for the SER state you can use the suffix S, i.e. MUS(O) will give the chemical potential</span>
-<span 
-class="cmti-10x-x-109">refered to SER.</span>
-<!--l. 4024--><p class="indent" >  <span 
-class="cmti-10x-x-109">IMPORTANT NOTE: the value of integral properties like Gibbs energy, </span><span 
-class="cmmi-10x-x-109">G</span><span 
-class="cmti-10x-x-109">, enthalpy, </span><span 
-class="cmmi-10x-x-109">H</span><span 
-class="cmti-10x-x-109">, etc. will also be</span>
-<span 
-class="cmti-10x-x-109">affected by the change of the reference state of an element. If all elements have the same phase as reference</span>
-<span 
-class="cmti-10x-x-109">state the value of the enthalpy obtained by </span><span 
-class="cmmi-10x-x-109">H </span><span 
-class="cmti-10x-x-109">for that phase will be the enthalpy of mixing. If not it is only</span>
-<span 
-class="cmti-10x-x-109">confusing.</span>
-<!--l. 4030--><p class="indent" >  <span 
-class="cmti-10x-x-109">In order to have use SER as reference state use a suffix S. The enthalpy relative to SER is </span><span 
-class="cmmi-10x-x-109">HS </span><span 
-class="cmti-10x-x-109">independent</span>
-<span 
-class="cmti-10x-x-109">of any reference state set for the elements by the user.</span>
+<!--l. 4019--><p class="indent" >  Note that state variables like the chemical potential, MU(O), will refer to the user defined reference state.
+To obtain the value for the SER state you can use the suffix S, i.e. MUS(O) will give the chemical potential
+refered to SER.
+<!--l. 4024--><p class="indent" >  IMPORTANT NOTE: the value of integral properties like Gibbs energy, <span 
+class="cmmi-10x-x-109">G</span>, enthalpy, <span 
+class="cmmi-10x-x-109">H</span>, etc. will also be
+affected by the change of the reference state of an element. If all elements have the same phase as reference
+state the value of the enthalpy obtained by <span 
+class="cmmi-10x-x-109">H </span>for that phase will be the enthalpy of mixing. If not it is only
+confusing.
+<!--l. 4030--><p class="indent" >  In order to have use SER as reference state use a suffix S. The enthalpy relative to SER is <span 
+class="cmmi-10x-x-109">HS </span>independent
+of any reference state set for the elements by the user.
 <!--l. 4036--><p class="indent" >  <a 
  id="SET Scaled coefficient"></a>
-  <h4 class="subsectionHead"><span class="titlemark"><span 
-class="cmti-10x-x-109">26.18   </span></span> <a 
- id="x1-24400026.18"></a>set <span 
-class="cmti-10x-x-109">Scaled coefficient</span></h4>
-<!--l. 4039--><p class="noindent" ><span 
-class="cmti-10x-x-109">A coefficient for optimization can be specified with a start value, scaling factor and a minimum and maximum</span>
-<span 
-class="cmti-10x-x-109">value. The </span>set <span 
-class="cmti-10x-x-109">VARIABLE command sets the scaling factor equal to the start value and have no min or max</span>
-<span 
-class="cmti-10x-x-109">values.</span>
+  <h4 class="subsectionHead"><span class="titlemark">26.18   </span> <a 
+ id="x1-24400026.18"></a><span 
+class="cmti-10x-x-109">set </span>Scaled coefficient</h4>
+<!--l. 4039--><p class="noindent" >A coefficient for optimization can be specified with a start value, scaling factor and a minimum and
+maximum value. The <span 
+class="cmti-10x-x-109">set </span>VARIABLE command sets the scaling factor equal to the start value and have no
+min or max values.
 <!--l. 4046--><p class="indent" >  <a 
  id="SET Status"></a>
                                                                                             
                                                                                             
-  <h4 class="subsectionHead"><span class="titlemark"><span 
-class="cmti-10x-x-109">26.19   </span></span> <a 
- id="x1-24500026.19"></a>set <span 
-class="cmti-10x-x-109">Status</span></h4>
-<!--l. 4049--><p class="noindent" ><span 
-class="cmti-10x-x-109">The status of elements, constituents, species or phases can be changed. Only phases are implemented.</span>
+  <h4 class="subsectionHead"><span class="titlemark">26.19   </span> <a 
+ id="x1-24500026.19"></a><span 
+class="cmti-10x-x-109">set </span>Status</h4>
+<!--l. 4049--><p class="noindent" >The status of elements, constituents, species or phases can be changed. Only phases are implemented.
 <!--l. 4054--><p class="indent" >  <a 
  id="SET STATUS Constituent"></a>
-  <h5 class="subsubsectionHead"><span class="titlemark"><span 
-class="cmti-10x-x-109">26.19.1   </span></span> <a 
- id="x1-24600026.19.1"></a>set status <span 
-class="cmti-10x-x-109">Constituent</span></h5>
-<!--l. 4057--><p class="noindent" ><span 
-class="cmti-10x-x-109">A constituent of a phase can be suspended. Not yet implemented.</span>
+  <h5 class="subsubsectionHead"><span class="titlemark">26.19.1   </span> <a 
+ id="x1-24600026.19.1"></a><span 
+class="cmti-10x-x-109">set status </span>Constituent</h5>
+<!--l. 4057--><p class="noindent" >A constituent of a phase can be suspended. Not yet implemented.
 <!--l. 4061--><p class="indent" >  <a 
  id="SET STATUS Element"></a>
-  <h5 class="subsubsectionHead"><span class="titlemark"><span 
-class="cmti-10x-x-109">26.19.2   </span></span> <a 
- id="x1-24700026.19.2"></a>set status <span 
-class="cmti-10x-x-109">Element</span></h5>
-<!--l. 4064--><p class="noindent" ><span 
-class="cmti-10x-x-109">An element can be ENTERED or SUSPENDED. If an element is suspended all species with this element is</span>
-<span 
-class="cmti-10x-x-109">automatically suspended. Not yet implemented.</span>
+  <h5 class="subsubsectionHead"><span class="titlemark">26.19.2   </span> <a 
+ id="x1-24700026.19.2"></a><span 
+class="cmti-10x-x-109">set status </span>Element</h5>
+<!--l. 4064--><p class="noindent" >An element can be ENTERED or SUSPENDED. If an element is suspended all species with this element is
+automatically suspended. Not yet implemented.
 <!--l. 4069--><p class="noindent" >
-  <h5 class="subsubsectionHead"><span class="titlemark"><span 
-class="cmti-10x-x-109">26.19.3   </span></span> <a 
- id="x1-24800026.19.3"></a>set status <span 
-class="cmti-10x-x-109">Phases</span></h5>
+  <h5 class="subsubsectionHead"><span class="titlemark">26.19.3   </span> <a 
+ id="x1-24800026.19.3"></a><span 
+class="cmti-10x-x-109">set status </span>Phases</h5>
 <!--l. 4070--><p class="noindent" ><a 
  id="SET STATUS Phase"></a>
 <!--l. 4073--><p class="indent" >  <a 
  id="STATUS Phase"><span 
 class="cmbx-10x-x-109">Phase name(s):</span></a>
-<!--l. 4075--><p class="indent" >  <span 
-class="cmti-10x-x-109">A phase can have one of 4 different status</span>
+<!--l. 4075--><p class="indent" >  A phase can have one of 4 different status
      <ul class="itemize1">
-     <li class="itemize"><span 
-class="cmti-10x-x-109">ENTERED, this is the default. The phase will be stable if that would give the most stable state</span>
-     <span 
-class="cmti-10x-x-109">for the current conditions. The user can give a tentative amount.</span>
+     <li class="itemize">ENTERED, this is the default. The phase will be stable if that would give the most stable state
+     for the current conditions. The user can give a tentative amount.
      </li>
-     <li class="itemize"><span 
-class="cmti-10x-x-109">SUSPENDED, the phase will not be included in any calculations.</span>
+     <li class="itemize">SUSPENDED, the phase will not be included in any calculations.
      </li>
-     <li class="itemize"><span 
-class="cmti-10x-x-109">DORMANT, the phase will be included in the calculations but will not be allowed to become</span>
-     <span 
-class="cmti-10x-x-109">stable even if that would give the most stable equilibrium. In such a case the phase will have a</span>
-     <span 
-class="cmti-10x-x-109">positive driving force.</span>
+     <li class="itemize">DORMANT, the phase will be included in the calculations but will not be allowed to become
+     stable even if that would give the most stable equilibrium. In such a case the phase will have a
+     positive driving force.
      </li>
-     <li class="itemize"><span 
-class="cmti-10x-x-109">FIXED means that it is a condition that the phase is stable with the specified amount. Note that</span>
-     <span 
-class="cmti-10x-x-109">for solution phases the composition is not known.</span></li></ul>
+     <li class="itemize">FIXED means that it is a condition that the phase is stable with the specified amount. Note
+     that for solution phases the composition is not known.</li></ul>
 <!--l. 4092--><p class="indent" >  <a 
  id="More phase name(s)"><span 
 class="cmbx-10x-x-109">More phase name(s):</span></a>
@@ -5417,131 +5284,85 @@ class="cmbx-10x-x-109">More phase name(s):</span></a>
 class="cmbx-10x-x-109">New status S(uspend), D(ormant), E(ntered) of F(ixed)? /E/:</span></a>
                                                                                             
                                                                                             
-<!--l. 4097--><p class="indent" >  <span 
-class="cmti-10x-x-109">You can use a list of phase names or a wildcard for the phase name and the must give an equal sign, &#8220;=&#8221;,</span>
-<span 
-class="cmti-10x-x-109">before the new status. You can also use the special &#8220;*S&#8221; for all suspended phase, &#8220;*D&#8221; for all dormant</span>
-<span 
-class="cmti-10x-x-109">phases.</span>
-<!--l. 4102--><p class="indent" >  <span 
-class="cmti-10x-x-109">Changing the phase status does not affect anything except the phase itself. For a single phase you can use</span>
-<span 
-class="cmti-10x-x-109">SET PHASE ... STATUS </span><span 
-class="cmmi-10x-x-109">&#x003C;</span><span 
-class="cmti-10x-x-109">status</span><span 
-class="cmmi-10x-x-109">&#x003E;</span><span 
-class="cmti-10x-x-109">.</span>
-<!--l. 4105--><p class="indent" >  <span 
-class="cmti-10x-x-109">Setting a stable phase as dormant or suspended and calculate the equilibrium will give you a metastable</span>
-<span 
-class="cmti-10x-x-109">equilibrium.</span>
-<!--l. 4108--><p class="indent" >  <span 
-class="cmti-10x-x-109">Setting a phase status as FIXED means it is a condition that this phase should be stable. Setting the liquid</span>
-<span 
-class="cmti-10x-x-109">fix with the amount zero is a quick way to calculate the melting temperature of a system if there is no</span>
-<span 
-class="cmti-10x-x-109">condition on the T. For entered phases the amount is used as a start value.</span>
+<!--l. 4097--><p class="indent" >  You can use a list of phase names or a wildcard for the phase name and the must give an equal sign, &#8220;=&#8221;,
+before the new status. You can also use the special &#8220;*S&#8221; for all suspended phase, &#8220;*D&#8221; for all dormant
+phases.
+<!--l. 4102--><p class="indent" >  Changing the phase status does not affect anything except the phase itself. For a single phase you can use
+SET PHASE ... STATUS <span 
+class="cmmi-10x-x-109">&#x003C;</span>status<span 
+class="cmmi-10x-x-109">&#x003E;</span>.
+<!--l. 4105--><p class="indent" >  Setting a stable phase as dormant or suspended and calculate the equilibrium will give you a metastable
+equilibrium.
+<!--l. 4108--><p class="indent" >  Setting a phase status as FIXED means it is a condition that this phase should be stable.
+Setting the liquid fix with the amount zero is a quick way to calculate the melting temperature of
+a system if there is no condition on the T. For entered phases the amount is used as a start
+value.
 <!--l. 4114--><p class="indent" >  <span 
-class="cmbx-10x-x-109">Amount: /0/</span><span 
-class="cmti-10x-x-109">:</span>
+class="cmbx-10x-x-109">Amount: /0/</span>:
 <!--l. 4118--><p class="indent" >  <a 
  id="SET STATUS Species"></a>
-  <h5 class="subsubsectionHead"><span class="titlemark"><span 
-class="cmti-10x-x-109">26.19.4   </span></span> <a 
- id="x1-24900026.19.4"></a>set status <span 
-class="cmti-10x-x-109">Species</span></h5>
-<!--l. 4121--><p class="noindent" ><span 
-class="cmti-10x-x-109">A species can be ENTERED or SUSPENDED. If a species is suspended all phases that have this as single</span>
-<span 
-class="cmti-10x-x-109">constituent in a sublattice will be automatically suspended. Not yet implemented.</span>
+  <h5 class="subsubsectionHead"><span class="titlemark">26.19.4   </span> <a 
+ id="x1-24900026.19.4"></a><span 
+class="cmti-10x-x-109">set status </span>Species</h5>
+<!--l. 4121--><p class="noindent" >A species can be ENTERED or SUSPENDED. If a species is suspended all phases that have this as single
+constituent in a sublattice will be automatically suspended. Not yet implemented.
 <!--l. 4127--><p class="indent" >  <a 
  id="SET T and P"></a>
-  <h4 class="subsectionHead"><span class="titlemark"><span 
-class="cmti-10x-x-109">26.20   </span></span> <a 
- id="x1-25000026.20"></a>set <span 
-class="cmti-10x-x-109">T</span><span 
-class="cmti-10x-x-109">_and</span><span 
-class="cmti-10x-x-109">_P</span></h4>
-<!--l. 4130--><p class="noindent" ><span 
-class="cmti-10x-x-109">Local values of T and P can be set. These are not conditions but are used for commands like </span><span 
+  <h4 class="subsectionHead"><span class="titlemark">26.20   </span> <a 
+ id="x1-25000026.20"></a><span 
+class="cmti-10x-x-109">set </span>T_and_P</h4>
+<!--l. 4130--><p class="noindent" >Local values of T and P can be set. These are not conditions but are used for commands like <span 
 class="cmbx-10x-x-109">CALCULATE</span>
 <span 
-class="cmbx-10x-x-109">PHASE ...</span><span 
-class="cmti-10x-x-109">.</span>
+class="cmbx-10x-x-109">PHASE ...</span>.
 <!--l. 4135--><p class="indent" >  <a 
  id="SET Units"></a>
-  <h4 class="subsectionHead"><span class="titlemark"><span 
-class="cmti-10x-x-109">26.21   </span></span> <a 
- id="x1-25100026.21"></a>set <span 
-class="cmti-10x-x-109">Units</span></h4>
-<!--l. 4138--><p class="noindent" ><span 
-class="cmti-10x-x-109">For each property the unit can be specified like Kelvin, Farenheit or Celsius for temperature. Not implemented</span>
-<span 
-class="cmti-10x-x-109">yet.</span>
+  <h4 class="subsectionHead"><span class="titlemark">26.21   </span> <a 
+ id="x1-25100026.21"></a><span 
+class="cmti-10x-x-109">set </span>Units</h4>
+<!--l. 4138--><p class="noindent" >For each property the unit can be specified like Kelvin, Farenheit or Celsius for temperature. Not
+implemented yet.
 <!--l. 4143--><p class="indent" >  <a 
  id="SET Variable coefficient"></a>
-  <h4 class="subsectionHead"><span class="titlemark"><span 
-class="cmti-10x-x-109">26.22   </span></span> <a 
- id="x1-25200026.22"></a>set <span 
-class="cmti-10x-x-109">Variable coefficient</span></h4>
-<!--l. 4146--><p class="noindent" ><span 
-class="cmti-10x-x-109">A coefficient Aij for optimization is assigned a start value or its current value to be optimized against selected</span>
-<span 
-class="cmti-10x-x-109">experimental data.</span>
+  <h4 class="subsectionHead"><span class="titlemark">26.22   </span> <a 
+ id="x1-25200026.22"></a><span 
+class="cmti-10x-x-109">set </span>Variable coefficient</h4>
+<!--l. 4146--><p class="noindent" >A coefficient Aij for optimization is assigned a start value or its current value to be optimized against selected
+experimental data.
 <!--l. 4151--><p class="indent" >  <a 
  id="SET Verbose"></a>
                                                                                             
                                                                                             
-  <h4 class="subsectionHead"><span class="titlemark"><span 
-class="cmti-10x-x-109">26.23   </span></span> <a 
- id="x1-25300026.23"></a>set <span 
-class="cmti-10x-x-109">Verbose</span></h4>
-<!--l. 4154--><p class="noindent" ><span 
-class="cmti-10x-x-109">Not implemented yet.</span>
+  <h4 class="subsectionHead"><span class="titlemark">26.23   </span> <a 
+ id="x1-25300026.23"></a><span 
+class="cmti-10x-x-109">set </span>Verbose</h4>
+<!--l. 4154--><p class="noindent" >Not implemented yet.
 <!--l. 4158--><p class="indent" >  <a 
  id="SET Weight"></a>
-  <h4 class="subsectionHead"><span class="titlemark"><span 
-class="cmti-10x-x-109">26.24   </span></span> <a 
- id="x1-25400026.24"></a>set <span 
-class="cmti-10x-x-109">Weight</span></h4>
-<!--l. 4161--><p class="noindent" ><span 
-class="cmti-10x-x-109">Intended for assessments. A weight is zero or a positive value. Equilibria with weight zero will be ignored in</span>
-<span 
-class="cmti-10x-x-109">an optimization.</span>
-<!--l. 4164--><p class="indent" >  <span 
-class="cmti-10x-x-109">You can specify the current equilibrium or give an abbreviation that will set the weight of all equilibria with</span>
-<span 
-class="cmti-10x-x-109">a name for which the abbreviation fits. Or you can give a range of equilibria by giving two numbers separated</span>
-<span 
-class="cmti-10x-x-109">by a hyphen like 63-106.</span>
-<!--l. 4169--><p class="indent" >  <span 
-class="cmti-10x-x-109">If an abbreviation or a range is given the software will list how many equilibra that had the weight set to the</span>
-<span 
-class="cmti-10x-x-109">new value.</span>
+  <h4 class="subsectionHead"><span class="titlemark">26.24   </span> <a 
+ id="x1-25400026.24"></a><span 
+class="cmti-10x-x-109">set </span>Weight</h4>
+<!--l. 4161--><p class="noindent" >Intended for assessments. A weight is zero or a positive value. Equilibria with weight zero will be ignored in
+an optimization.
+<!--l. 4164--><p class="indent" >  You can specify the current equilibrium or give an abbreviation that will set the weight of all equilibria
+with a name for which the abbreviation fits. Or you can give a range of equilibria by giving two numbers
+separated by a hyphen like 63-106.
+<!--l. 4169--><p class="indent" >  If an abbreviation or a range is given the software will list how many equilibra that had the weight set to
+the new value.
 <!--l. 4174--><p class="indent" >  <a 
  id="show"></a>
-  <h3 class="sectionHead"><span class="titlemark"><span 
-class="cmti-10x-x-109">27   </span></span> <a 
- id="x1-25500027"></a><span 
-class="cmti-10x-x-109">Show </span></h3>
-<!--l. 4177--><p class="noindent" ><span 
-class="cmti-10x-x-109">This command shows a value of a property, the property can be a state variable like T, G etc or a user</span>
-<span 
-class="cmti-10x-x-109">detfined symbol containing several state variable or a model parameter identifier (which must always have a</span>
-<span 
-class="cmti-10x-x-109">phase specification) like the Curie temperature. The state variables can contain wildcards like X(FCC,*)</span>
-<span 
-class="cmti-10x-x-109">means all mole fractions of the FCC phase. Several properties can be specified on the same line, separated by</span>
-<span 
-class="cmti-10x-x-109">a space character.</span>
+  <h3 class="sectionHead"><span class="titlemark">27   </span> <a 
+ id="x1-25500027"></a>Show </h3>
+<!--l. 4177--><p class="noindent" >This command shows a value of a property, the property can be a state variable like T, G etc or a user
+detfined symbol containing several state variable or a model parameter identifier (which must always have a
+phase specification) like the Curie temperature. The state variables can contain wildcards like X(FCC,*)
+means all mole fractions of the FCC phase. Several properties can be specified on the same line, separated by
+a space character.
 <!--l. 4186--><p class="indent" >  <a 
  id="property:"></a>
-  <h4 class="subsectionHead"><span class="titlemark"><span 
-class="cmti-10x-x-109">27.1   </span></span> <a 
- id="x1-25600027.1"></a><span 
-class="cmti-10x-x-109">property:</span></h4>
-<!--l. 4189--><p class="noindent" ><span 
-class="cmti-10x-x-109">The value of one or more properties or symbols can be shown:</span>
+  <h4 class="subsectionHead"><span class="titlemark">27.1   </span> <a 
+ id="x1-25600027.1"></a>property:</h4>
+<!--l. 4189--><p class="noindent" >The value of one or more properties or symbols can be shown:
                                                                                             
                                                                                             
   <div class="verbatim" id="verbatim-8">
@@ -5555,142 +5376,91 @@ class="cmti-10x-x-109">The value of one or more properties or symbols can be sho
 <!--l. 4198--><p class="nopar" >
 <!--l. 4202--><p class="indent" >  <a 
  id="step"></a>
-  <h3 class="sectionHead"><span class="titlemark"><span 
-class="cmti-10x-x-109">28   </span></span> <a 
- id="x1-25700028"></a><span 
-class="cmti-10x-x-109">Step </span></h3>
-<!--l. 4205--><p class="noindent" ><span 
-class="cmti-10x-x-109">Requires that a single axis is set. If a second step command is given you have the choice of deleting or keeping</span>
-<span 
-class="cmti-10x-x-109">the previous results.</span>
+  <h3 class="sectionHead"><span class="titlemark">28   </span> <a 
+ id="x1-25700028"></a>Step </h3>
+<!--l. 4205--><p class="noindent" >Requires that a single axis is set. If a second step command is given you have the choice of deleting or
+keeping the previous results.
 <!--l. 4210--><p class="indent" >  <a 
  id="STEP Conditional"></a>
-  <h4 class="subsectionHead"><span class="titlemark"><span 
-class="cmti-10x-x-109">28.1   </span></span> <a 
- id="x1-25800028.1"></a>step <span 
-class="cmti-10x-x-109">Conditional</span></h4>
-<!--l. 4213--><p class="noindent" ><span 
-class="cmti-10x-x-109">A specified symbol is evaluated at each step. Can be used for Scheil-Gulliver solidification simulation when</span>
-<span 
-class="cmti-10x-x-109">implemented.</span>
+  <h4 class="subsectionHead"><span class="titlemark">28.1   </span> <a 
+ id="x1-25800028.1"></a><span 
+class="cmti-10x-x-109">step </span>Conditional</h4>
+<!--l. 4213--><p class="noindent" >A specified symbol is evaluated at each step. Can be used for Scheil-Gulliver solidification simulation when
+implemented.
 <!--l. 4218--><p class="indent" >  <a 
  id="STEP Normal"></a>
-  <h4 class="subsectionHead"><span class="titlemark"><span 
-class="cmti-10x-x-109">28.2   </span></span> <a 
- id="x1-25900028.2"></a>step <span 
-class="cmti-10x-x-109">Normal</span></h4>
-<!--l. 4221--><p class="noindent" ><span 
-class="cmti-10x-x-109">Calculates equilibria from the low axis limit to the high at each increment. The exact axis value for any phase</span>
-<span 
-class="cmti-10x-x-109">changes is calculated.</span>
+  <h4 class="subsectionHead"><span class="titlemark">28.2   </span> <a 
+ id="x1-25900028.2"></a><span 
+class="cmti-10x-x-109">step </span>Normal</h4>
+<!--l. 4221--><p class="noindent" >Calculates equilibria from the low axis limit to the high at each increment. The exact axis value for any phase
+changes is calculated.
 <!--l. 4226--><p class="indent" >  <a 
  id="STEP Quit"></a>
-  <h4 class="subsectionHead"><span class="titlemark"><span 
-class="cmti-10x-x-109">28.3   </span></span> <a 
- id="x1-26000028.3"></a>step <span 
-class="cmti-10x-x-109">Quit</span></h4>
-<!--l. 4229--><p class="noindent" ><span 
-class="cmti-10x-x-109">You did not want to </span>step<span 
-class="cmti-10x-x-109">.</span>
+  <h4 class="subsectionHead"><span class="titlemark">28.3   </span> <a 
+ id="x1-26000028.3"></a><span 
+class="cmti-10x-x-109">step </span>Quit</h4>
+<!--l. 4229--><p class="noindent" >You did not want to <span 
+class="cmti-10x-x-109">step</span>.
 <!--l. 4233--><p class="indent" >  <a 
  id="Separate"></a>
                                                                                             
                                                                                             
-  <h4 class="subsectionHead"><span class="titlemark"><span 
-class="cmti-10x-x-109">28.4   </span></span> <a 
- id="x1-26100028.4"></a>step <span 
-class="cmti-10x-x-109">Separate</span></h4>
-<!--l. 4236--><p class="noindent" ><span 
-class="cmti-10x-x-109">This command calculates equilibria for each phase separately. It can be used to calculate and plot Gibbs</span>
-<span 
-class="cmti-10x-x-109">energy curves for example.</span>
+  <h4 class="subsectionHead"><span class="titlemark">28.4   </span> <a 
+ id="x1-26100028.4"></a><span 
+class="cmti-10x-x-109">step </span>Separate</h4>
+<!--l. 4236--><p class="noindent" >This command calculates equilibria for each phase separately. It can be used to calculate and plot Gibbs
+energy curves for example.
 <!--l. 4243--><p class="noindent" >
-  <h3 class="sectionHead"><span class="titlemark"><span 
-class="cmti-10x-x-109">29   </span></span> <a 
- id="x1-26200029"></a><span 
-class="cmti-10x-x-109">Summary </span></h3>
-<!--l. 4245--><p class="noindent" ><span 
-class="cmti-10x-x-109">That&#8217;s all and I hope enough (when all is implemented). Have fun and report all errors or problems providing</span>
-<span 
-class="cmti-10x-x-109">a macro file and the necessary data.</span>
+  <h3 class="sectionHead"><span class="titlemark">29   </span> <a 
+ id="x1-26200029"></a>Summary </h3>
+<!--l. 4245--><p class="noindent" >That&#8217;s all and I hope enough (when all is implemented). Have fun and report all errors or problems providing
+a macro file and the necessary data.
 <!--l. 4249--><p class="noindent" >
   <h3 class="likesectionHead"><a 
- id="x1-26300029"></a><span 
-class="cmti-10x-x-109">References</span></h3>
+ id="x1-26300029"></a>References</h3>
 <!--l. 4249--><p class="noindent" >
        <div class="thebibliography">
        <p class="bibitem" ><span class="biblabel">
- <span 
-class="cmti-10x-x-109">[07Luk]</span><span class="bibsp"><span 
-class="cmti-10x-x-109">&#x00A0;</span><span 
-class="cmti-10x-x-109">&#x00A0;</span><span 
-class="cmti-10x-x-109">&#x00A0;</span></span></span><a 
- id="X07Luk"></a><span 
-class="cmti-10x-x-109">H L Lukas, S G Fries and B Sundman, </span>Computational Thermodynamics, the CALPHAD
-       method<span 
-class="cmti-10x-x-109">, Cambridge Univ Press 2007.</span>
-       </p>
-       <p class="bibitem" ><span class="biblabel">
- <span 
-class="cmti-10x-x-109">[15Sun1]</span><span class="bibsp"><span 
-class="cmti-10x-x-109">&#x00A0;</span><span 
-class="cmti-10x-x-109">&#x00A0;</span><span 
-class="cmti-10x-x-109">&#x00A0;</span></span></span><a 
- id="X15Sun1"></a><span 
-class="cmti-10x-x-109">B  Sundman,  U  R  Kattner,  M  Palumbo  and  S  G  Fries,  </span>OpenCalphad  -  a  free
-       thermodynamic software<span 
-class="cmti-10x-x-109">, in Integrating Materials and Manufacturing Innovation, </span><span 
-class="cmbx-10x-x-109">4:1 </span><span 
-class="cmti-10x-x-109">(2015),</span>
+ [07Luk]<span class="bibsp">&#x00A0;&#x00A0;&#x00A0;</span></span><a 
+ id="X07Luk"></a>H L Lukas, S G Fries and B Sundman, <span 
+class="cmti-10x-x-109">Computational Thermodynamics, the CALPHAD</span>
        <span 
-class="cmti-10x-x-109">open access</span>
+class="cmti-10x-x-109">method</span>, Cambridge Univ Press 2007.
        </p>
        <p class="bibitem" ><span class="biblabel">
- <span 
-class="cmti-10x-x-109">[15Sun2]</span><span class="bibsp"><span 
-class="cmti-10x-x-109">&#x00A0;</span><span 
-class="cmti-10x-x-109">&#x00A0;</span><span 
-class="cmti-10x-x-109">&#x00A0;</span></span></span><a 
- id="X15Sun2"></a><span 
-class="cmti-10x-x-109">B Sundman, X-L Liu and H Ohtani, </span>The implementation of an algorithm to calculate
-       thermodynamic  equilibria  for  multi-component  systems  with  non-ideal  phases  in  a  free
-       software<span 
-class="cmti-10x-x-109">, Computational Materials Science, </span><span 
-class="cmbx-10x-x-109">101 </span><span 
-class="cmti-10x-x-109">(2015) 127&#8211;137</span>
+ [15Sun1]<span class="bibsp">&#x00A0;&#x00A0;&#x00A0;</span></span><a 
+ id="X15Sun1"></a>B  Sundman,  U  R  Kattner,  M  Palumbo  and  S  G  Fries,  <span 
+class="cmti-10x-x-109">OpenCalphad  -  a  free</span>
+       <span 
+class="cmti-10x-x-109">thermodynamic software</span>, in Integrating Materials and Manufacturing Innovation, <span 
+class="cmbx-10x-x-109">4:1 </span>(2015),
+       open access
        </p>
        <p class="bibitem" ><span class="biblabel">
- <span 
-class="cmti-10x-x-109">[16Sun]</span><span class="bibsp"><span 
-class="cmti-10x-x-109">&#x00A0;</span><span 
-class="cmti-10x-x-109">&#x00A0;</span><span 
-class="cmti-10x-x-109">&#x00A0;</span></span></span><a 
- id="X16Sun"></a><span 
-class="cmti-10x-x-109">B Sundman, U R Kattner, C Sigli, M Stratmann, R Le Tellier, M Palumbo and S G Fries,</span>
-       The OpenCalphad thermodynamic software interface<span 
-class="cmti-10x-x-109">, Comp Mat Sci, </span><span 
-class="cmbx-10x-x-109">125 </span><span 
-class="cmti-10x-x-109">(2016) 188&#8211;196</span>
+ [15Sun2]<span class="bibsp">&#x00A0;&#x00A0;&#x00A0;</span></span><a 
+ id="X15Sun2"></a>B Sundman, X-L Liu and H Ohtani, <span 
+class="cmti-10x-x-109">The implementation of an algorithm to calculate</span>
+       <span 
+class="cmti-10x-x-109">thermodynamic equilibria for multi-component systems with non-ideal phases in a free software</span>,
+       Computational Materials Science, <span 
+class="cmbx-10x-x-109">101 </span>(2015) 127&#8211;137
        </p>
        <p class="bibitem" ><span class="biblabel">
- <span 
-class="cmti-10x-x-109">[GNUPLOT]</span><span class="bibsp"><span 
-class="cmti-10x-x-109">&#x00A0;</span><span 
-class="cmti-10x-x-109">&#x00A0;</span><span 
-class="cmti-10x-x-109">&#x00A0;</span></span></span><a 
- id="Xgnuplot"></a><span 
-class="cmti-10x-x-109">http://www.gnuplot.info/documentation.html</span>
+ [16Sun]<span class="bibsp">&#x00A0;&#x00A0;&#x00A0;</span></span><a 
+ id="X16Sun"></a>B Sundman, U R Kattner, C Sigli, M Stratmann, R Le Tellier, M Palumbo and S G Fries,
+       <span 
+class="cmti-10x-x-109">The OpenCalphad thermodynamic software interface</span>, Comp Mat Sci, <span 
+class="cmbx-10x-x-109">125 </span>(2016) 188&#8211;196
+       </p>
+       <p class="bibitem" ><span class="biblabel">
+ [GNUPLOT]<span class="bibsp">&#x00A0;&#x00A0;&#x00A0;</span></span><a 
+ id="Xgnuplot"></a>http://www.gnuplot.info/documentation.html
                                                                                             
                                                                                             
        </p>
        <p class="bibitem" ><span class="biblabel">
- <span 
-class="cmti-10x-x-109">[LMDIF]</span><span class="bibsp"><span 
-class="cmti-10x-x-109">&#x00A0;</span><span 
-class="cmti-10x-x-109">&#x00A0;</span><span 
-class="cmti-10x-x-109">&#x00A0;</span></span></span><a 
- id="Xlmdif"></a><span 
-class="cmti-10x-x-109">https://www.math.utah.edu/software/minpack/minpack/lmdif.html</span></p></div>
+ [LMDIF]<span class="bibsp">&#x00A0;&#x00A0;&#x00A0;</span></span><a 
+ id="Xlmdif"></a>https://www.math.utah.edu/software/minpack/minpack/lmdif.html</p></div>
    
 </body></html> 
 

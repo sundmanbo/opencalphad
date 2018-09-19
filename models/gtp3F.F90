@@ -1,5 +1,5 @@
 !
-! GTP3E included in gtp3.F90
+! GTP3F included in gtp3.F90
 !
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 !>     10. State variable manipulations

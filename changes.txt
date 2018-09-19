@@ -13,18 +13,35 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2018.09.19 OC version 5.024: Another very quick update for the
+calculation of isothermal section.  Two new macros added, one for an
+isothermal section of Cr-Fe-Mo and the other for Mo-Ni-Re at 3
+temperatures (using the EBEF model).  However, the diagrams are not
+always perfect.
+
+As I have found there are strong feelings about the color of
+monovariants and tie-lines, the plot option "font_and_color" now
+allows the user to select the color of the monovariant triangles and
+the tie-lines.  See the new map14 and map15 macros.
+
+Some other minor bugs fixed, for example that if you mapped twice
+keeping the first map results it was not possible to plot both
+together.  I also added some information in the ocgnu.plt file to
+facilitate editing away wrong extrapolations from the plot.
+
 2018.09.16 OC version 5.023: A very quick update to provide a
 significant improvement when mapping isothermal sections.  It is still
 not perfect but I want to provide this version for testing.
 
 2018.09.14 OC version 5.022: OC now allows calculations down to T and
-P values of 0.01 K/Pa.  I am working with the online help facilities
-and provide the ochelp file in 3 versions, LaTeX, PDF and HTML on the
-directory manual/ but this is still not finished.  It requires that
-the user creates an environment variable OCHOME pointing to a specific
-directory and copies the help files to this directory.  There is a new
-"install-help-popup" PDF file in the installation directory because
-for many users it is not trivial to add an environment variable.
+P values of 0.01 K/Pa.  I am also working with the online help
+facilities and will provide the ochelp file in 3 versions, LaTeX, PDF
+and HTML on the directory manual/ but this is still not finished.  It
+requires that the user creates an environment variable OCHOME pointing
+to a specific directory and he/she must copy the help files to this
+directory.  There is a new "install-help-popup" PDF file in the
+installation directory because it is not trivial to add an environment
+variable for many users.
 
 2018.09.07 OC version 5.021: Still changing the color of monovariant
 areas ... now dark green.  I have also made small modifications of the
