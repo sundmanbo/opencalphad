@@ -295,7 +295,7 @@ all of these on the same directory.
 You are welcome to provide feedback on this popup feature and other
 parts of the user interface.
 
-\subsubsection{On-line help}
+\subsubsection{On-line help}\label{sc:on-line-help}
 
 A recent feature is to provide on-line help using a browser window
 where this user guide is available as a searchable HMTL file.
@@ -958,6 +958,8 @@ use OpenMP to calculate in parallel.
 
 % below the commands are documented in alphabetical order
 
+%\section{All commands}
+\hypertarget{All commands}{}
 \section{All commands}
 
 The commands in alphabetical order as listed with the ?
@@ -973,14 +975,28 @@ ENTER           & MACRO          & SAVE\\
 \end{tabular}
 
 Many of the commands have ``subcommands'' and usually there is a
-default (listed within slashes //) which is selected by pressing
-return.  You can type commands and subcommands and other parameters on
-the same line if one knows the order, using a comma, ``,'' to select
-the default.
+default (listed within slashes /default/) which is selected by
+pressing return.  You can type commands and subcommands and other
+parameters (separated by a space) on the same line if one knows the
+order.
+
+To select a default when typing several commands on a line you
+can use a comma,``,'' to select the default.
 
 Many commands will ask additioal questions, all of them are not
 included in this guide but those which are will be {\bf shown in
-  bold}.  References to other commands are sometimes in bold.
+  bold}.  Examples and references to other commands are sometimes in
+bold, sometimes in {\em italics}.
+
+Whenever the program asks for someting you do not understand you can
+type an interrogation character, ``?'', to obtain help.  This will
+hopefully provide a relevant extract of this user guide.
+
+If you have installed the HTML help, see
+section~\ref{sc:on-line-help}, you will have the help text in a
+separate browser window and can scroll and search for other sections.
+Without this facility a limited text will be shown in the termial
+window.
 
 \subsection{Options}\label{sc:options}
 
@@ -988,8 +1004,11 @@ There some options that can be set for the whole session or for just a
 single command.  The options are identified by a / in front like
 /output=myfile.dat.
 
-The options can be specifies directly after a command.  Only a few are
-implemented.
+An option must be specified directly after a command for example:
+
+{\bf list /out=equil5 result 2}
+
+Only a few options are implemented.
 
 \begin{itemize}
 \item /OUTPUT={\em file name} open a file and write.  Note that if you
@@ -1009,7 +1028,7 @@ implemented.
 % Here we start adding %\section etc for the on-line help
 % The online help will not print lines starting with % or \
 %\section{About}
-\hypertarget={about}{}
+\hypertarget{about}{}
 \section{About}
 
 Some information about the OC software.
@@ -1042,7 +1061,7 @@ The default selection is PHASE.
 {\bf Reference identifier:}
 
 The text for bibliographic reference identifier can be amended.  The
-reference identifier is case insensitive.
+reference identifier is CASE INsensitive.
 
 %\subsection{Reference text:}
 \hypertarget{Reference text}{{\bf Reference text, end with ``;'':}}
@@ -2462,39 +2481,58 @@ calculate first and second derivatives with respect to $T$ and $P$
 during equilibrium calculations, see section~\ref{sc:tpfun}.
 
 %===================================================================
-\section{Exit }
 %\section{Exit }
+\section{Exit }
 
 Terminate the OC software in Swedish, Ha en bra dag.
 
 %===================================================================
-\section{Fin }
 %\section{Fin }
+\section{Fin }
 
 Terminate the OC software in French, Au revoir.
 
 %===================================================================
-\section{Help and ?}
 %\section{Help }
+\hypertarget{help}{}
+\section{Help and ?}
+
+%\subsection{which command:}
+{\bf Which command:}
 
 Can give a list if commands or subcommands or parts of this help text.
 The user guide is also available as a searchable HMTL file.
 
+For a submenu question a single ? will give the menu but two ?? will
+give an extract of this user guide.  Then the question will be asked
+again.
+
 %===================================================================
-\section{HPcalc }
 %\section{HPCALC }
+\section{HPcalc }
 
 Start the reverse polish calculator.
 
 %===================================================================
-\section{Information }
 %\section{Information }
+\hypertarget{information}{}
+\section{Information }
 
-The intention is to provide the on-line user who does not like to read
-manuals with additional explanations but not implemented yet.
+%! subcommands to INFORMATION ... very little implemented
+%!        ['ELEMENTS         ','SPECIES         ','PHASE           ',&
+%!         'QUIT             ','COMPOSITION_SET ','EQUILIBRIUM     ',&
+%!         'CHANGES          ','                ','                ']
+
+%\subsection{Topic}
+{\bf Topic:}
+
+The intention with this command is to provide the on-line user who
+does not like to read manuals with additional explanations.  But it is
+not yet implemented.
 
 %===================================================================
 %\section{List }
+%\subsection{list command}
 \hypertarget{list}{}
 \section{List }
 
@@ -3345,9 +3383,12 @@ command in TC.
 \end{tabular}
 
 %--------------------------------
+%\subsection{read command}
 %\subsection{Direct}
 \hypertarget{READ Direct}{}
 \subsection{{\em read} Direct}
+
+{\bf File name:}
 
 In the future it will be possible to save results on a random access
 (DIRECT) file.
@@ -3363,6 +3404,8 @@ You did not really want to read anything.
 %\subsection{PDB}
 \hypertarget{READ PDB}{}
 \subsection{{\em read} PDB}
+
+{\bf File name:}
 
 A PDB file (with extension PDB) should be specified.  The file
 should be un the Portable phase dependent Data Base format.
@@ -3398,6 +3441,8 @@ not interested in.  If you anwer quit nothing will be read.
 %\subsection{Unformatted}
 \hypertarget{READ Unformatted}{}
 \subsection{{\em read} Unformatted}\label{sc:readunf}
+
+{\bf File name:}
 
 For use to read a file created with a SAVE UNFORMATTED command.  It
 may not always work as the data structure is still changing.
@@ -3689,6 +3734,8 @@ equilibrium and phase records, but only if you know what it means.
 \end{itemize}
 %--------------------------------
 %\subsection{Condition}
+% the default is set condition
+%\subsection{set command}
 \hypertarget{SET Condition}{}
 \subsection{{\em set} Condition}
 

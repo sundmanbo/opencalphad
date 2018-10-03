@@ -188,7 +188,7 @@ contains
     type(gtp_phase_add), pointer :: addrec
 !
     character actual_arg(2)*16
-    character cline*128,option*80,aline*128,plotfile*72,eqname*24
+    character cline*128,option*80,aline*128,plotfile*128,eqname*24
 ! variable phase tuple
     type(gtp_phasetuple), pointer :: phtup
 !----------------------------------------------------------------
@@ -403,7 +403,7 @@ contains
          'QUIT            ','POSITION_OF_KEYS','APPEND          ',&
          'TEXT            ','TIE_LINES       ','FONT_AND_COLOR  ',&
          'LOGSCALE        ','LINE_WITH_POINTS','PAUSE_OPTIONS   ',&
-         '                ','                ','                ']
+         'MISCELLANEOUS   ','                ','                ']
 !-------------------
 !        123456789.123456---123456789.123456---123456789.123456
 ! minimizers
@@ -584,9 +584,10 @@ contains
 ! normal tex/html help files
        latexfile=trim(OCHOME)//'\'//'ochelp.tex'
        htmlfile=trim(OCHOME)//'\'//'ochelp.html'
-! special for testing
-!       latexfile='c:\users\bosse\documents\oc\oc\src\manual\html\ochelp5.tex'
-!       htmlfile='c:\users\bosse\documents\oc\oc\src\manual\html\ochelp5.html'
+! special for on-line HELP TESTING
+!       write(*,*)' *** testing on-line help'
+!       latexfile='c:\users\bosse\documents\oc\oc\src\manual\ochelp5.tex'
+!       htmlfile='c:\users\bosse\documents\oc\oc\src\manual\ochelp5.html'
 #elif lixhlp
 ! THIS IS FOR LINUX
 !       browser='/usr/bin/firefox '
@@ -668,7 +669,8 @@ contains
     last=len(aline)
     aline=' '
     cline=' '
-    call gparc(ocprompt,aline,last,5,cline,' ',tophlp)
+!    call gparc(ocprompt,aline,last,5,cline,' ',tophlp)
+    call gparc(ocprompt,aline,last,5,cline,' ',q2help)
     j1=1
     if(len_trim(cline).gt.80) then
        write(kou,101)
@@ -724,7 +726,7 @@ contains
        helprec%level=helprec%level+1
        helprec%cpath(helprec%level)=cbas(kom)
     else
-       write(*,*)'Warning, exceeded helprec%level limit'
+       write(*,*)'Warning, exceeded helprec%level limit 1'
     endif
 ! The IF loop is for handling of defaults in submenu. "l ,,,,," took all 
 ! defaults but "l,,,,," did not ....
@@ -1301,10 +1303,11 @@ contains
           case(3) ! calculate phase < > all derivatives
              call gparid('Number of times: ',cline,last,times,1,q1help)
              call tabder(iph,ics,times,ceq)
+             if(gx%bmperr.ne.0) goto 990
              write(*,2042)
 2042         format('Values are per mole formula unit'/&
                   ' NOTE THAT dG/dy_i is NOT THE CHEMICAL POTENTIAL of i!')
-             if(gx%bmperr.ne.0) goto 990
+!             if(gx%bmperr.ne.0) goto 990
 !.......................................................
           case(4,5) ! calculate phase with constitution_adjustment
 ! or derivatives of chemical potentials and mobility data
@@ -1323,6 +1326,10 @@ contains
              phtup=>phasetuple(jp)
 ! Get current composition of the phase
              call calc_phase_molmass(iph,ics,xknown,aphl,totam,xxy,xxx,ceq)
+             if(gx%bmperr.ne.0) then
+                write(*,*)'Error finding current composition'
+                goto 990
+             endif
 ! ask for overall composition
              totam=one
              quest='Mole fraction of XX:'
@@ -4371,10 +4378,10 @@ contains
              enddo
 244          close(31)
 !--------------------------------------------------------
-          case(8)
+          case(8) ! none
              write(*,*)'Not written yet'
 !--------------------------------------------------------
-          case(9)
+          case(9) ! none
              write(*,*)'Not written yet'
           end select information
        goto 100
@@ -5175,7 +5182,7 @@ contains
 !         'QUIT            ','POSITION_OF_KEYS','APPEND          ',&
 !         'TEXT            ','TIE_LINES       ','FONT_AND_COLOR  ',&
 !         'LOGSCALE        ','LINE_WITH_POINTS','PAUSE_OPTION    ']
-!         '                ','                ','                ']
+!         'MISCELLANEOUS   ','                ','                ']
 !-------------------
 ! return here after each subcommand
 21100   continue
@@ -5504,17 +5511,17 @@ contains
 ! append plot file, specifying extension PLT
 ! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=PDB, 7=DAT
 ! negative is for write, 0 read without filter, -100 write without filter
-          call gparfile('File name',cline,last,1,text,'  ',5,q1help)
+          call gparfile('File name',cline,last,1,filename,'  ',5,q1help)
 !          call gparcd('File name',cline,last,1,text,'  ',q1help)
 ! check it is OK and add .plt if necessary ...
-          jp=index(text,'.plt ')
+          jp=index(filename,'.plt ')
           if(jp.le.0) then
-             jp=len_trim(text)
-             text(jp+1:)='.plt'
+             jp=len_trim(filename)
+             filename(jp+1:)='.plt'
           endif
-          open(23,file=text,status='old',access='sequential',err=21300)
+          open(23,file=filename,status='old',access='sequential',err=21300)
           close(23)
-          graphopt%appendfile=text
+          graphopt%appendfile=filename
           goto 21100
 ! error opening file, remove any previous appended file
 21300     continue
@@ -5522,7 +5529,7 @@ contains
              write(*,21304)trim(graphopt%appendfile)
 21304        format('Removing append file: ',a)
           else
-             write(kou,*)'No such file name: ',trim(text)
+             write(kou,*)'No such file name: ',trim(filename)
           endif
           graphopt%appendfile=' '
           goto 21100
@@ -5642,7 +5649,7 @@ contains
 !          write(*,*)'No implemented yet'
           goto 21100
 !-----------------------------------------------------------
-! PLOT FONT_AND_COLOR
+! PLOT FONT_AND_COLOR ... and some more things ...
        case(15)
           call gparcd('Font ',cline,last,1,name1,'default',q1help)
           write(*,*)'Sorry this option not yet implemeted'
@@ -5653,7 +5660,8 @@ contains
           do kl=1,6
              if(name1(kl:kl).lt.'0' .or. name1(kl:kl).gt.'9') then
                 if(name1(kl:kl).lt.'A' .or. name1(kl:kl).gt.'F') then
-                   write(*,*)'Wrong color, must be between 000000 and FFFFFF'
+                   write(*,*)'The color must be a hexadecimal value',&
+                        ' between 000000 (black) and FFFFFF (white)'
                    goto 21100
                 endif
              endif
@@ -5717,8 +5725,16 @@ contains
           graphopt%plotend='pause '//text
           goto 21100
 !-----------------------------------------------------------
-! unused
+! MISCELLANEOUS, for texts use option 1 in gparc to allow ,,,, as finish
        case(19)
+          call gparc('Text in lower left corner?',cline,last,1,text,' ',q1help)
+          graphopt%lowerleftcorner=text
+          call gparcd('Spawn plot?',cline,last,1,ch1,'N',q1help)
+          if(ch1.eq.'Y') then
+             graphopt%status=ibset(graphopt%status,GRKEEP)
+          else
+             graphopt%status=ibclr(graphopt%status,GRKEEP)
+          endif
           goto 21100
 !-----------------------------------------------------------
 ! unused
@@ -6225,7 +6241,7 @@ contains
           helprec%level=helprec%level+1
           helprec%cpath(helprec%level)=ccomnd(kom2)
        else
-          write(*,*)'Warning, exceeded helprec%level limit'
+          write(*,*)'Warning, exceeded helprec%level limit 2'
        endif
     endif
 !    write(*,102)'submenu last: ',last,trim(cline)
@@ -6588,6 +6604,8 @@ contains
     nullify(graphopt%firsttextlabel)
     nullify(textlabel)
     plotfile='ocgnu'
+! lowerleftcorner
+    graphopt%lowerleftcorner=' '
 ! default plot terminal
     graphopt%gnutermsel=1
 ! plot lines

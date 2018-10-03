@@ -257,7 +257,7 @@ MODULE ocsmp
      character labelkey*24
 ! filename is file to write the GNUPLOT command and data file
 ! appendfile is a file name that will be appended unless empty
-     character filename*64,appendfile*64
+     character filename*128,appendfile*128
 ! gnuplot terminals and keys, gnuselterm is selected terminal type (1..8)
      integer gnutermsel,gnutermax
      character*80 gnuterminal(8)
@@ -272,6 +272,8 @@ MODULE ocsmp
 ! The default and current ending of a plot
      character*12 :: plotenddefault='pause mouse '
      character plotend*36
+! added 180924 text at lower left corner
+     character (len=6) :: lowerleftcorner='      '
 ! many more options can easily be added when desired, linetypes etc
   end TYPE graphics_options
 !\end{verbatim}

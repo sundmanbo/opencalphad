@@ -1104,6 +1104,23 @@
        appfil=0
 1770   continue
     endif
+!-----------------------------------------------
+! text in lower left corner
+    ii=len_trim(graphopt%lowerleftcorner)
+!    if(graphopt%gibbstriangle) then
+!       if(ii.gt.3) then
+!          write(21,208)trim(graphopt%lowerleftcorner),0.12
+!208       format('set label "',a,'" at screen ',F10.4,', 0.07 ')
+!       elseif(ii.gt.0) then
+!          write(21,208)trim(graphopt%lowerleftcorner),0.14
+!       endif
+!    elseif(ii.gt.0) then
+    if(ii.gt.0) then
+! in square diagram below figure
+       write(21,209)trim(graphopt%lowerleftcorner)
+209    format('set label "',a,'" at screen 0.06, 0.03 ')
+    endif
+! if lowerleftcorner is empty ignore it
 !---------------------------------------------------------------
 ! this is subroutine ocplot2B
 !---------------------------------------------------------------
@@ -1313,9 +1330,10 @@
 ! call system without initial "gnuplot " keeps the window !!!
     if(btest(graphopt%status,GRKEEP)) then
 !       write(*,*)'plot command: "',gnuplotline(9:k3),'"'
-       write(*,*)'Trying to spawn'
+!       write(*,*)'Trying to spawn: ',trim(gnuplotline)
 !       call system(gnuplotline(9:k3))
-       call execute_command_line(gnuplotline(9:k3))
+! spawn process on Windows ??
+       call execute_command_line('start /B '//gnuplotline(9:k3))
     else
 !       write(*,*)'plot command: "',gnuplotline(1:k3),'"'
 !       call system(gnuplotline)
@@ -1658,6 +1676,8 @@
     call get_plot_conditions(encoded,maptop%number_ofaxis,axarr,ceq)
 ! now we should have all data to plot in xval and yval arrays
 500 continue
+    write(*,808)same,plotp,maxsame,maxval
+808 format('plot data used: ',2i7,' out of ',2i7)
 !    write(*,*)'found lines/points to plot: ',same,plotp,nofinv
 !    write(*,502)(lineends(ii),ii=1,same)
 502 format(10i5)
@@ -1875,6 +1895,8 @@
     endif
     write(21,133)labelkey
 133 format('set key ',a/&
+         '# if the value after solid is 0 the monovariants are transparent'/&
+         'set style fill transparent solid 1'/&
          'set style line 1 lt 2 lc rgb "#000000" lw 2 pt 10'/&
          'set style line 2 lt 2 lc rgb "#00C000" lw 2 pt 2'/&
          'set style line 3 lt 2 lc rgb "#4169E1" lw 2 pt 7'/&
@@ -2215,6 +2237,24 @@
        enddo
     endif
 !----------------------------------------------------------------
+! text in lower left corner
+    ii=len_trim(graphopt%lowerleftcorner)
+    if(graphopt%gibbstriangle) then
+       if(ii.gt.3) then
+          write(21,208)trim(graphopt%lowerleftcorner),0.12
+208       format('set label "',a,'" at screen ',F10.4,', 0.07 ')
+       elseif(ii.gt.0) then
+          write(21,208)trim(graphopt%lowerleftcorner),0.14
+       endif
+    elseif(ii.gt.0) then
+! in square diagram below figure
+       write(21,209)trim(graphopt%lowerleftcorner)
+209    format('set label "',a,'" at screen 0.06, 0.03 ')
+    endif
+! if lowerleftcorner is empty ignore it
+!----------------------------------------------------------------
+!----------------------------------------------------------------
+! Finished all options, now deal with the data to plot!
 ! this is subroutine ocplot3B for two extensive axis
 !----------------------------------------------------------------
 ! Here we generate the datafile with coordinates to plot
@@ -2435,7 +2475,7 @@
 605             format('# Line ',2i5,' representing tielines')
              else
                 write(21,610)jj,lcolor(jj),trim(color(lcolor(jj)))
-610             format('# Line ',2i5,' calculated with fix phase: ',a)
+610             format('# Line ',2i5,' representing phase: ',a)
              endif
              do while(sumpp.lt.lineends(jj))
                 sumpp=sumpp+1
@@ -2479,6 +2519,10 @@
 990    format(a)
 !990    format('pause mouse')
 !990    format('e'//'pause mouse')
+    else
+! add pause mouse as comment
+       write(21,991)
+991    format('# pause mouse')
     endif
     close(21)
     if(appfil.ne.0) close(appfil)

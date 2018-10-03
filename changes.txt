@@ -13,6 +13,18 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2018.10.03 OC version 5.025: I have modified the opening of the
+browser window for help so it is no longer necessary to close it to
+continue running the program.  Asking for help again opens a new
+browser tag on Linux but a new window on Windows (of course).
+
+I have adopted this feature also for spawning plots, the plot option
+"miscellaneous" has a question if the plot should be spawned and if
+the answer is Y the plot window will be kept and the user can continue
+calculate or generate several plots.  The window is kept until
+explicitly closed by clicking in the window.  The miscellaneous option
+also allows adding a text in the lower left corner of a plot.
+
 2018.09.19 OC version 5.024: Another very quick update for the
 calculation of isothermal section.  Two new macros added, one for an
 isothermal section of Cr-Fe-Mo and the other for Mo-Ni-Re at 3
@@ -1036,12 +1048,13 @@ conditions on mole fractions.  There is still a bug changing the
 reference state of a component.
 
 2016.03.17 A rather complicated bug related to deleting redundant
-phase tuples after an equilibrium calculation probably fixed.  It
+phase tuples after an equilibrium calculation (probably) fixed.  It
 occured for an FCC phase with a disordered fraction set.  In the macro
 opttest2.OCM I have added an example of plotting an appended figure
 with data.  I have also added a command "calulate phase ... const-adj"
 to calculate the constitution of the phase when the mole fractions are
-known.  This is a test for a subroutine intended for OCASI applications.
+known.  This is a test for a subroutine intended for OCASI
+applications.
 
 2016.03.16 Some minor changes in all documentation files.  For
 plotting there is now a possibility to APPEND a GNUPLOT command file
@@ -1056,9 +1069,9 @@ abbreviated TP function name to be calculated.
 
 2016.03.07 There are several problems entering TP functions, please be
 careful and check the listing of the functions, the listing is true to
-the way the function is calculated.  You cannot use
-parentheses except around arguments to EXP and LOG and negative
-powers.  Separate complicated functions in several functions.  Never have
+the way the function is calculated.  You cannot use parentheses except
+around arguments to EXP and LOG and negative powers.  Complicated
+functions should be entered as several separate functions.  Never have
 more than two symbols multiplied together.
 
 2016.02.12 Removed extention on linkmake and linkpara to make it easier

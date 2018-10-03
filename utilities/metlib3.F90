@@ -129,7 +129,7 @@ MODULE METLIB
 !    parameter (MACEXT='BMM')
 !
 !vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-    integer, parameter :: maxhelplevel=15
+    integer, parameter :: maxhelplevel=20
 ! A help structure used in new on-line help system
     TYPE help_str
        integer :: okinit=0
@@ -5614,6 +5614,8 @@ CONTAINS
     endif
     if(helptrace) write(*,*)'Searching for: ',trim(helprec%cpath(level)),level
 ! return here when last line did not contain any matching subsec
+! we can arrive here with np1=0 and foundall==true
+! for help at first command level
 200 continue
     read(31,210,end=700)hline
 210 format(a)
@@ -5641,6 +5643,30 @@ CONTAINS
           endif
           goto 200
        endif
+    elseif(foundall) then
+! this should give help from user guide for section %\section{All commands}
+!       write(*,*)'M3 "All commands"',hline(1:24),nl
+       if(hline(1:23).eq.'%\section{All commands}') then
+          np1=nl
+          np2=nl+20
+! next line should be hypertarget
+          read(31,210)hline
+!          write(*,*)'next line: ',trim(hline),nl
+          kk=index(hline,'\hypertarget{')
+          if(kk.gt.0) then
+             ochelp%target=hline(kk+13:)
+             kk=index(ochelp%target,'}')
+             ochelp%target(kk:)=' '
+             goto 700
+          else
+! the help file is messed up ...             
+             ochelp%target='All commands'
+             goto 700
+          endif
+       endif
+       goto 200
+!    else
+! here we now have np1>0 and use the rest of this routine as usual
     endif
 ! we are searching for a subsec on the sublevel nsub
 ! Check if we have a %\section of this sublevel on the line
@@ -5706,7 +5732,7 @@ CONTAINS
        goto 200
     endif section
 ! jump here if we do not search any more
-! we should write lines from np1 to np2 from help file
+! we should write lines from np1 to np2 from help file or HTML file
 700 continue
     if(np1.gt.0) then
        if(np2.le.np1) then
@@ -5716,18 +5742,20 @@ CONTAINS
 ! if htmlhelp is true open a browser window and place text at target
        htmlfil: if(ochelp%htmlhelp .and. ochelp%target(1:1).ne.' ') then
 ! the user has to close the help window to continue ... spawn??
-          write(*,711)np1,np2
+!          write(*,711)np1,np2
 711       format(/' *** You must close the browser window to continue OC',2i5/)
 ! the \hypertaget should be finished by a }
           kk=index(ochelp%target,'}')-1
           if(kk.le.0) kk=len_trim(ochelp%target)
 #ifdef lixhlp
 ! on linux just ' "file:" as ochelp#htmlfile start with a /
+! The & at the end spawns the browser window and furter ? creates new tags !!
           justdoit=trim(ochelp%browser)//' "file:'//&
-               trim(ochelp%htmlfile)//'#'//ochelp%target(1:kk)//'"'
+               trim(ochelp%htmlfile)//'#'//ochelp%target(1:kk)//'" &'
 #else
 ! on Windows we need the / after file
-          justdoit=trim(ochelp%browser)//' "file:/'//&
+! the initial start spawns a new window with the browser, each ? a new browser
+          justdoit='start '//trim(ochelp%browser)//' "file:/'//&
                trim(ochelp%htmlfile)//'#'//ochelp%target(1:kk)//'"'
 #endif
           if(helptrace) write(*,*)'MM: ',trim(justdoit)

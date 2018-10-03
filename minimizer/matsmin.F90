@@ -150,6 +150,7 @@ MODULE liboceq
 !\end{verbatim}
 !
 !\begin{verbatim}
+! THIS SHOULD BO LONGER BE USED, DATA SAVED IN PHASE_VARRES RECORD
   TYPE saveddgdy
      integer sameit,big(2,5),order(5)
      double precision, allocatable, dimension(:,:) :: save1
@@ -172,6 +173,11 @@ MODULE liboceq
 ! as we need an array to store the calculated values of the experimental  
 ! properties in order to calculate the Relative Standarad Deviation (RSD)
   double precision, allocatable, dimension(:) :: calcexp
+! this is for Hickel check
+  type(meq_phase), pointer :: pmiliq
+  logical hickelextrapol
+! The test for Hickel T made only for T>thickel
+  double precision :: thickel=1.0D4
 !
 !--------------------------------------------------------------
 !
@@ -1644,11 +1650,14 @@ CONTAINS
 ! >>>>>>>>>>>> here we can parallelize 
 !
 !-$omp parallel do private(pmi) shared(meqrec)
+! nullify liquid pointer
+    nullify(pmiliq)
     parallel: do mph=1,meqrec%nphase
        pmi=>phr(mph)
 ! this routine calculates the phase matrix and inverts it.
 ! it also calculates the amounts of moles of components in the phase
 !-$     write(*,*)'Phase and tread: ',mph,omp_get_thread_num()
+!       write(*,*)'MM call onephase: ',pmi%iph,pmi%ics
        call meq_onephase(meqrec,pmi,ceq)
        if(gx%bmperr.ne.0) then
 ! using LAPCK gives severe problems if we do not stop
@@ -4762,11 +4771,17 @@ CONTAINS
     logical nolapack
 !
 !    write(*,*)'in meq_onephase: '
+    hickelextrapol=.TRUE.
+! Can nolapack be removed??
     nolapack=.TRUE.
 !    nolapack=.FALSE.
     iph=pmi%iph
     ics=pmi%ics
     nrel=meqrec%nrel
+    if(test_phase_status_bit(iph,PHLIQ)) then
+!       write(*,*)'Finding liquid: ',pmi%iph,pmi%ics
+       pmiliq=>pmi
+    endif
 ! extract phase structure
 !    write(*,*)'calling get_phase_data: ',iph
     call get_phase_data(iph,ics,nsl,nkl,knr,yarr,sites,qq,ceq)
@@ -4947,6 +4962,10 @@ CONTAINS
     if(test_phase_status_bit(iph,PHID)) then
 !--------------------------------------------- ideal phase (subst, no excess)
 !       write(*,*)'Phase is ideal'
+!       if(test_phase_status_bit(iph,PHLIQ)) then
+!          write(*,*)'Finding liquid: ',pmi%iph,pmi%ics
+!          pmiliq=>pmi
+!       endif
 ! special treatment of ideal phase (gas), sites assumed to be unity
 ! 1. Calculate M_i and dM_i/dy^s_k and the net charge charge Q and dQ/dy^s_k
        pmi%xmol=zero
@@ -5056,6 +5075,7 @@ CONTAINS
           do jk=1,neq
              write(*,18)'3Y 2A',jk,(lapack(ixsym(ik,jk)),ik=1,neq)
           enddo
+          write(*,*)'We are using LAPACK!'
           call dpptrf('U',neq,lapack,info)
           if(info.ne.0) then
              write(*,*)'MM error in DPPTRF: ',info,neq,nd1
@@ -5094,6 +5114,9 @@ CONTAINS
 !       write(*,*)'Warning; ionic liquid model not fully implemented'
 ! Calculate M_A and dM_A/dy_i taking into account that P and Q varies 
 !   call get_phase_data(iph,ics,nsl,nkl,knr,yarr,sites,qq,ceq)
+!       if(test_phase_status_bit(iph,PHLIQ)) pmiliq=>pmi
+       pmiliq=>pmi
+!       write(*,*)'Finding liquid: ',pmi%iph,pmi%ics
        pmi%ionliq=nkl(1)
        pmi%xmol=zero
        pmi%dxmol=zero
@@ -5290,6 +5313,11 @@ CONTAINS
 ! Calculate M_i and dM_i/dy^s_k and the net charge charge Q and dQ/dy^s_k
 !   call get_phase_data(iph,ics,nsl,nkl,knr,yarr,sites,qq,ceq)
 ! how to normalize xmol?  use qq(1)!!, it handels vacancies .... ????
+!    write(*,*)'MM Phase 1: ',pmi%iph,pmi%ics
+!    if(test_phase_status_bit(iph,PHLIQ)) then
+!       write(*,*)'MM Finding liquid: ',pmi%iph,pmi%ics
+!       pmiliq=>pmi
+!    endif
     sumsit=one
     pmi%xmol=zero
     pmi%dxmol=zero
@@ -5360,7 +5388,7 @@ CONTAINS
     neq=ncon
     do ik=1,ncon
        do jk=ik,ncon
-! fatal parallel executoon fequently here ... why?? Error message:
+! fatal parallel execution frequently here ... why?? Error message:
 ! index '0' of dimension 1 of array 'ceq' below lower bound of 1
 !          pmat(ik,jk)=ceq%phase_varres(lokcs)%d2gval(ixsym(ik,jk),1)
 ! modified code:
@@ -5484,12 +5512,10 @@ CONTAINS
     goto 900
 !-------------------------------------------
 900 continue
-! We must include the inverted phase matrix for  phases with charges
-!    if(pmi%chargebal.eq.1) then
-!       write(*,911)'eiq: ',iph,ics,neq,pmi%ncc,pmi%curd%netcharge,&
-!            (pmi%invmat(neq,jk),jk=1,neq)
-911    format(a,4i4,1pe14.6,/6(1pe12.4))
-!    endif
+! Generation 3 check: tentative replace G if S^>S^liq
+!    write(*,*)'MM Phase 2: ',pmi%iph,pmi%ics,associated(pmiliq)
+    if(associated(pmiliq) .and.&
+         .not.associated(pmi,pmiliq)) call hickel_check(pmi,pmiliq,ceq)
 !
     goto 1000
 !
@@ -7441,6 +7467,8 @@ CONTAINS
     enddo
     meqrec%dormlink=0
 ! This can be done in PARALLEL for all phases
+! nullify liquid pointer
+    nullify(pmiliq)
     do mph=1,meqrec%nphase
 ! loop to calculte and invert the phase matrices
        pmi=>meqrec%phr(mph)
@@ -9308,5 +9336,69 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\begin{verbatim}
+  subroutine hickel_check(pmisol,pmiliq,ceq)
+! This checks after calculating all phases if the solid phase has S > S^liq
+! pmisol is pointer to solid data
+! pmiliq is pointer to liquid data
+! ceq is a datastructure with all relevant thermodynamic data
+    implicit none
+    type(meq_phase), pointer :: pmiliq,pmisol
+    TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+    integer jj,liqcs
+    double precision ssol,sliq,GSOL,GLIQ,fact,kvot
+! do not check if T<1000
+    if(ceq%tpval(1).lt.thickel) goto 1000
+!    
+! Calculate:  -S^sol - (-S^liq):
+! abnorm(1) is the number of atoms per formula units
+    ssol=-pmisol%curd%gval(2,1)/pmisol%curd%abnorm(1)
+    sliq=-pmiliq%curd%gval(2,1)/pmiliq%curd%abnorm(1)
+    fact=sliq/ssol
+!    write(*,10)pmisol%iph,pmisol%ics,pmiliq%iph,pmiliq%ics,&
+!         ceq%tpval(1),ssol,sliq,ssol-sliq,&
+!         pmisol%curd%abnorm(1)/pmiliq%curd%abnorm(1)
+10  format('Compare: ',i3,i2,i3,i2,F10.2,4(1pe12.4))
+    if(fact.lt.one) then
+! note pmisol%curd%gval(2,1) is the derivative of G, i.e. -S
+! we are here if S^solid > S^liquid:  careful if solid will be stable !!!
+! G=H-TS = H+T*G.T; H=G-T*G.T
+! 
+! calculate H^sol=G^sol+T*S^sol for abnorm-ssol
+       kvot=pmisol%curd%abnorm(1)/pmiliq%curd%abnorm(1)
+!       gsol=pmisol%curd%gval(1,1)/pmisol%curd%abnorm(1)
+!       gliq=pmiliq%curd%gval(1,1)/pmiliq%curd%abnorm(1)
+!       hliq=pmiliq%curd%gval(1,1)-ceq%tpval(1)*pmisol%curd%gval(2,1)
+! set the solid S and Cp to fact*(the liquid) multiplied with kvot
+       pmisol%curd%gval(2,1)=pmiliq%curd%gval(2,1)*kvot
+       pmisol%curd%gval(4,1)=pmiliq%curd%gval(4,1)*kvot
+! THIS WORKS. Cp is not continous ....
+      if(fact.gt.0.9) then
+          pmisol%curd%gval(1,1)=10.0D0*(fact-0.9)*pmisol%curd%gval(1,1)+&
+               9.0D0*(one-fact)*pmiliq%curd%gval(1,1)*kvot
+       else
+          pmisol%curd%gval(1,1)=0.9D0*pmiliq%curd%gval(1,1)*kvot
+       endif
+!
+       if(hickelextrapol) then
+          hickelextrapol=.FALSE.
+!          write(*,'(a,2(1pe12.4))')'MM hickelextrapolation ',kvot,ceq%tpval(1)
+       endif
+!       write(*,100)'MM Gsol: ',pmisol%iph,pmisol%ics,ceq%tpval(1),&
+!            gsol,pmisol%curd%gval(1,1),ssol,sliq,fact,gsol/gliq
+!100    format(a,i3,i2,2x,F6.0,6(1pe10.2))
+! Hm there are a lot of other derivatives wrt T and constitutions ...
+! skip all that for the moment
+    endif
+1000 continue
+    return
+  end subroutine hickel_check
+  
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
 end MODULE liboceq
 
+! interesting counting GOTOs in this file
+! There are about 300
+! 200 of them are goto 1000 which is the same as return with error code.
