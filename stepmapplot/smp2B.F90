@@ -1327,18 +1327,22 @@
     if(graphopt%gnutermsel.ne.1) then
        write(kou,*)'Graphics output file: ',pfh(1:kk+4)
     endif
+!#ifdef winkeep
 ! call system without initial "gnuplot " keeps the window !!!
-    if(btest(graphopt%status,GRKEEP)) then
+!    if(btest(graphopt%status,GRKEEP)) then
 !       write(*,*)'plot command: "',gnuplotline(9:k3),'"'
 !       write(*,*)'Trying to spawn: ',trim(gnuplotline)
 !       call system(gnuplotline(9:k3))
 ! spawn process on Windows ??
-       call execute_command_line('start /B '//gnuplotline(9:k3))
-    else
+!       call execute_command_line('start /B '//gnuplotline(9:k3))
+!    else
 !       write(*,*)'plot command: "',gnuplotline(1:k3),'"'
 !       call system(gnuplotline)
-       call execute_command_line(gnuplotline)
-    endif
+!       call execute_command_line(gnuplotline)
+!    endif
+!#else
+    call execute_command_line(gnuplotline)
+!#endif
 1000 continue
     return
   end subroutine ocplot2B
