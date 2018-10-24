@@ -13,10 +13,29 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2018.10.24 OC version 5.026: The default when plotting has been
+changed to KEEP so you no longer has to click in the diagram to
+continue giving commands in OC.  This means you can have several plot
+windows at the same time.  If you click in the plot window it will
+close.  If you want to change this you can use the plot option
+"miscellaneous" or dig into the source code of the userif/pmon6.F90
+and commenting away the line:
+    graphopt%status=ibset(graphopt%status,GRKEEP)
+in two places.
+
+OC gives a warning if you have not set a browser for on-line help.
+On Windows the browser is by default explorer, on LINUX firefox.  You
+can change these in the userif/pmon6.F90 file.  Search for "browser="
+to find the place to change.  On Windows you must provide a full path.
+
+I have corrected a problem pointed out by Jan Herrnring in
+enter\_equilibrium and its TQ equivalent, tqcceq, that sometimes two
+equilibria were created.
+
 2018.10.03 OC version 5.025: I have modified the opening of the
-browser window for help so it is no longer necessary to close it to
-continue running the program.  Asking for help again opens a new
-browser tag on Linux but a new window on Windows (of course).
+browser window for help so one can continue running the programit
+without closing the window.  Asking for help again opens a new browser
+tag on Linux but a new window on Windows (of course).
 
 I have adopted this feature also for spawning plots, the plot option
 "miscellaneous" has a question if the plot should be spawned and if

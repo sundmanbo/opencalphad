@@ -150,7 +150,7 @@ MODULE liboceq
 !\end{verbatim}
 !
 !\begin{verbatim}
-! THIS SHOULD BO LONGER BE USED, DATA SAVED IN PHASE_VARRES RECORD
+! THIS SHOULD NO LONGER BE USED, DATA SAVED IN PHASE_VARRES RECORD
   TYPE saveddgdy
      integer sameit,big(2,5),order(5)
      double precision, allocatable, dimension(:,:) :: save1

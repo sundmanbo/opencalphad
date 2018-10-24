@@ -1389,6 +1389,10 @@
 ! G/RT = 1.5*THET/T + 3*R*LN(exp(THET/T) - 1) 
 ! NOTE ALL VALUES CALCULATED AS FOR G/RT
 ! kvot=theta/T
+   if(phres%gval(1,ith).gt.1.0D2) then
+      write(*,*)'Most likely wrong value of THET, parameter should be ln(THET)'
+      gx%bmperr=4399; goto 1000
+   endif
    kvot=exp(phres%gval(1,ith))/ceq%tpval(1)
 !   write(*,70)'3H phres: ',ceq%tpval(1),phres%gval(1,1),phres%gval(2,1),&
 !        phres%gval(3,1),phres%gval(4,1),kvot

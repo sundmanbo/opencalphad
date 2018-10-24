@@ -5317,7 +5317,9 @@
       gx%bmperr=4123
       goto 1000
    else
-! OK to reset error code as we are creating a new equilibrium
+! Error code 4124 means no such equilibrium, OK as we are creating it!
+! Any other error code will cause error return
+      if(gx%bmperr.ne.4124) goto 1000
       gx%bmperr=0
    endif
    if(eqfree.le.maxeq) then

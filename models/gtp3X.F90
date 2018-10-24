@@ -4409,7 +4409,7 @@
       goto 1000
    endif
 ! need UNQQ = \sum_i q_i*x_i and UNQV=\sum_i r_i*x_i
-   write(*,*)'3X in uniquac'
+!   write(*,*)'3X in uniquac 1'
    allocate(theta(ncon))
    allocate(phi(ncon))
    allocate(qval(ncon))
@@ -4439,13 +4439,13 @@
          unqt=ia
       endif
    enddo
-   write(*,'(a,4i4,1pe12.4)')'Found: ',nprop,unqq,unqr,unqt,phres%gval(1,1)
+!   write(*,'(a,4i4,1pe12.4)')'3X Found: ',nprop,unqq,unqr,unqt,phres%gval(1,1)
    if(unqq.eq.0 .or. unqr.eq.0) then
       write(*,*)'Missing UNIQUAC property: ',nprop,unqq,unqr,unqt
       goto 1000
    endif
    xfr=phres%yfr
-   write(*,'("Fractions: ",10F8.5)')(xfr(ia),ia=1,ncon)
+!   write(*,'("3X Fractions: ",10F8.5)')(xfr(ia),ia=1,ncon)
 ! theta = UQQ = x_i*q_i(\sum_j q_j*x_j) 
 ! Phi= UQR=x_i*r_i*(\sum_i r_j*x_j)
 ! write(*,*)'3 X Calculate Phi, theta and some invariants for the residual term'
@@ -4475,10 +4475,10 @@
 !   write(*,10)'qval ',(qval(ib),ib=1,ncon)
 !   write(*,10)'theta',phres%gval(1,unqq),(theta(ib),ib=1,ncon)
 !   write(*,10)'Phi  ',phres%gval(1,unqr),(phi(ib),ib=1,ncon)
-10 format('3X ',a,': ',10(1pe12.4))
-   do ia=1,ncon
-      write(*,10)'tau',(tau(ixsym(ia,ib)),ib=1,ncon)
-   enddo
+10 format('3X ',a,' ',10(1pe12.4))
+!   do ia=1,ncon
+!      write(*,10)'tau:',(tau(ixsym(ia,ib)),ib=1,ncon)
+!   enddo
 ! here we calculate \sum_i \theta_i \tau_{ij} stored in sumtt(i)
    do ia=1,ncon
       term=zero
@@ -4488,7 +4488,7 @@
       enddo
       sumtt(ia)=term
    enddo
-   write(*,10)'sumtt',(sumtt(ia),ia=1,ncon)
+!   write(*,10)'sumtt:',(sumtt(ia),ia=1,ncon)
    do ia=1,ncon
       term=zero
       do jj=1,ncon
@@ -4499,7 +4499,7 @@
       enddo
       sumtk(ia)=term
    enddo
-   write(*,10)'sumtk',(sumtk(ia),ia=1,ncon)
+!   write(*,10)'sumtk:',(sumtk(ia),ia=1,ncon)
 ! This is z/2
    hzeta=5.0D0
 ! Here the UNIQUAC GIBBS ENERGY and derivatives are calculated.  
@@ -4509,8 +4509,8 @@
    gmloop: do ia=1,ncon
 ! The residual and configurational G
       gr=gr-xfr(ia)*qval(ia)*log(sumtt(ia))
-      write(*,'(a,i3,6(1pe12.4))')'3X gr: ',ia,&
-           xfr(ia),qval(ia),sumtt(ia),log(sumtt(ia)),gr
+!      write(*,'(a,i3,6(1pe12.4))')'3X gr: ',ia,&
+!           xfr(ia),qval(ia),sumtt(ia),log(sumtt(ia)),gr
       gc=gc+xfr(ia)*log(theta(ia)/xfr(ia))+&
            hzeta*xfr(ia)*qval(ia)*log(theta(ia)/phi(ia))
       first: do ib=1,ncon
@@ -4545,10 +4545,10 @@
          enddo second
       enddo first
    enddo gmloop
-   write(*,300)'3X UQG: ',gr,gc,(dgv(ia),ia=1,ncon)
-   do ib=1,ncon
-      write(*,300)'3X D2UQG: ',(d2gv(ixsym(ia,ib)),ia=1,ncon)
-   enddo
+!   write(*,300)'3X UQG: ',gr,gc,(dgv(ia),ia=1,ncon)
+!   do ib=1,ncon
+!      write(*,300)'3X D2UQG: ',(d2gv(ixsym(ia,ib)),ia=1,ncon)
+!   enddo
 ! copy results to global arrays
 ! phres%gval(1,1) is Gm, %gval(2,1) is dG/dT, %gval(3,1) is dG/dP, 
 !      %gval(4,1) is d2G/dT2 ...
@@ -4631,16 +4631,16 @@
          unqt=ia
       endif
    enddo
-   write(*,'(a,4i4,1pe12.4)')'Found: ',nprop,unqq,unqr,unqt,phres%gval(1,1)
+!   write(*,'(a,4i4,1pe12.4)')'3X Found: ',nprop,unqq,unqr,unqt,phres%gval(1,1)
    if(unqq.eq.0 .or. unqr.eq.0) then
       write(*,*)'Missing UNIQUAC property: ',nprop,unqq,unqr,unqt
       goto 1000
    endif
    xfr=phres%yfr
-   write(*,'("Fractions: ",10F8.5)')(xfr(ia),ia=1,ncon)
+!   write(*,'("3X Fractions: ",10F8.5)')(xfr(ia),ia=1,ncon)
 ! theta = UQQ = x_i*q_i(\sum_j q_j*x_j) 
 ! Phi= UQR=x_i*r_i*(\sum_i r_j*x_j)
-!   write(*,*)'3 X Calculate Phi, theta and some invariants for the residual term'
+! write(*,*)'3 X Calculate Phi, theta and some invariants for the residual term'
    do ia=1,ncon
 ! this is x*q/(\sum_i x*q)
 ! %dgval(itp,comp,prop) itp=1 no derivative wrt T/P; 2=d/dT; 3=d/dP;
@@ -4700,8 +4700,8 @@
    gmloop: do ia=1,ncon
 ! The residual and configurational G
       gr=gr-xfr(ia)*qval(ia)*log(sumtt(ia))
-      write(*,'(a,i3,6(1pe12.4))')'3X gr: ',ia,&
-           xfr(ia),qval(ia),sumtt(ia),log(sumtt(ia)),gr
+!      write(*,'(a,i3,6(1pe12.4))')'3X gr: ',ia,&
+!           xfr(ia),qval(ia),sumtt(ia),log(sumtt(ia)),gr
       gc=gc+xfr(ia)*log(theta(ia)/xfr(ia))+&
            hzeta*xfr(ia)*qval(ia)*log(theta(ia)/phi(ia))
       first: do ib=1,ncon
@@ -4734,10 +4734,10 @@
          enddo second
       enddo first
    enddo gmloop
-   write(*,300)'3X UQG: ',gr,gc,(dgv(ia),ia=1,ncon)
-   do ib=1,ncon
-      write(*,300)'3X D2UQG: ',(d2gv(ixsym(ia,ib)),ia=1,ncon)
-   enddo
+!   write(*,300)'3X UQG: ',gr,gc,(dgv(ia),ia=1,ncon)
+!   do ib=1,ncon
+!      write(*,300)'3X D2UQG: ',(d2gv(ixsym(ia,ib)),ia=1,ncon)
+!   enddo
 ! copy results to global arrays
 ! phres%gval(1,1) is Gm, %gval(2,1) is dG/dT, %gval(3,1) is dG/dP, 
 !      %gval(4,1) is d2G/dT2 ...

@@ -496,6 +496,8 @@ contains
     graphopt%gnuterminal(i1)='png enhanced fontscale 0.7'
     graphopt%filext(i1)='png  '
     graphopt%gnutermax=i1
+! by default spawn plots
+    graphopt%status=ibset(graphopt%status,GRKEEP)
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 ! jump here after NEW to reinitiallize all local variables also
 20  continue
@@ -595,20 +597,28 @@ contains
        latexfile=trim(OCHOME)//'/'//'ochelp.tex'
        htmlfile=trim(OCHOME)//'/'//'ochelp.html'
 #endif
-! the *.tex is for search, *.html for browser
-       inquire(file=htmlfile,exist=logok)
+       inquire(file=browser,exist=logok)
        if(.not.logok) then
-! if we have no html file disable the help_popup
-!          write(*,*)'No online popup helpfile: ',trim(htmlfile)
-!          htmlhelp=.FALSE.
+          write(*,*)'No browser for on-line help'
+          htmlhelp=.FALSE.
           call init_help(' ',latexfile,' ')
        else
-! htmlhelp is set TRUE if there is a HMTL file in the call
+          write(*,*)'Using: ',trim(browser),' for on-line help'
+! the *.tex is for search, *.html for browser
+          inquire(file=htmlfile,exist=logok)
+          if(.not.logok) then
+! if we have no html file disable the help_popup
+!             write(*,*)'No online popup helpfile: ',trim(htmlfile)
+             htmlhelp=.FALSE.
+             call init_help(' ',latexfile,' ')
+          else
+! htmlhelp is set TRUE inside init_help if there is a HMTL file in the call
 !          htmlhelp=.TRUE.
-          call init_help(browser,latexfile,htmlfile)
-          write(*,*)'On-line help using ',trim(browser)
+             call init_help(browser,latexfile,htmlfile)
+             write(*,*)'On-line help using ',trim(browser)
 !          write(*,*)'Help LaTeX: ',trim(latexfile)
 !          write(*,*)'Help popup: ',trim(htmlfile)
+          endif
        endif
 !       if(.not.htmlhelp) then
 ! no html file or user have explicitly set HELP_POPUP_OFF, respect that
@@ -1968,7 +1978,15 @@ contains
 !.................................................................
           case(9) ! WORKING DIRECTORY
              write(kou,*)'Current working directory: ',trim(workingdir)
-             write(kou,*)'Cannot be changed ...'
+!             call gparc('New: ',cline,last,1,string,workingdir,q1help)
+!             inquire(file=string,exist=logok)
+!             if(.not.logok) then
+!                write(*,*)'No such directory'
+!             elseif(workingdir.ne.string) then
+!                write(*,'(a,a)')'Working directory set to: ',trim(string)
+!                workingdir=string
+!             endif
+             write(*,*)'Cannot be changed'
 !.................................................................
           case(10) ! HELP_POPUP_OFF
              call gparcd('Turn off popup help? ',cline,last,&
@@ -5441,14 +5459,16 @@ contains
 ! DO NOT USE tinyfiledialog here ...
 !          call gparfile('Plot file name: ',cline,last,1,plotfile,' ',-5,q1help)
           call gparcd('Plot file',cline,last,1,plotfile,'ocgnu',q1help)
+          once=.false.
           if(plotfile(1:2).eq.'./') then
-! save in macro directory else in current working directory
+! save in macro directory if iumaclevl>0, else in current working directory
              if(iumaclevl.gt.0) then
                 plotfile=trim(macropath(iumaclevl))//plotfile
              else
                 plotfile=trim(workingdir)//plotfile
              endif
-             write(*,*)'Saving on: ',trim(plotfile)
+             write(*,*)'Saving on file: ',trim(plotfile)
+             once=.true.
           endif
           if(plotfile(1:6).ne.'ocgnu ') then
              if(index(plotfile,'.').le.0) then
@@ -5472,8 +5492,11 @@ contains
                    goto 21140
                 endif
                 write(*,134)trim(filename)
+                once=.true.
              endif
           endif
+!          if(.not.once) write(*,'('P134)trim(filename)
+! I am not sure how to inform user where the plot file is saved ....
           goto 21100
 !-----------------------------------------------------------
 ! PLOT GIBBS_TRIANGLE
@@ -6604,6 +6627,8 @@ contains
     nullify(graphopt%firsttextlabel)
     nullify(textlabel)
     plotfile='ocgnu'
+! by default spawn plots
+    graphopt%status=ibset(graphopt%status,GRKEEP)
 ! lowerleftcorner
     graphopt%lowerleftcorner=' '
 ! default plot terminal

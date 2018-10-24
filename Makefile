@@ -29,12 +29,14 @@ getkey.o:
 	# CYGWIN >>
 	#gcc -c -DCYGWIN utilities/GETKEY/getkey.c
 	gfortran -c utilities/GETKEY/M_getkey.F90
+	cp utilities/GETKEY/M_getkey.mod .
 
 tinyopen.o:
 	# compile utilities/TINYFILEDIALOGS for popup openfile windows 
 	gcc -c utilities/TINYFILEDIALOGS/tinyfiledialogs.c
 	gcc -c utilities/TINYFILEDIALOGS/tinyopen.c	
 	gfortran -c utilities/TINYFILEDIALOGS/ftinyopen.F90
+	cp utilities/TINYFILEDIALOGS/ftinyopen.mod .
 
 metlib3.o:	utilities/metlib3.F90
 	# lixed for command line editing, tinyfd for open files

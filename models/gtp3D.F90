@@ -812,7 +812,7 @@
 ! in set_condition new is not used for anything.
 ! in this subroutine the new variable is removed from the condition list
 ! and instead added to the experimenal list
-   integer kp,jc,istv
+   integer kp,jc,istv,qp
    type(gtp_condition), pointer :: new,temp
 !   integer nidlast,nidfirst,nidpre
    double precision xxx,yyy
@@ -875,11 +875,14 @@
             new%symlink2=istv
          endif
       endif
-! this is for relative errors
+! this is for relative errors, if last character is % it is a relative error!!
+!      write(*,*)'3D relative errors: ',ip,len_trim(cline),'"',trim(cline),'"'
       if(ip.lt.len(cline)) then
-         if(cline(ip:ip).eq.'%') then
+         qp=len_trim(cline)
+         if(cline(ip:ip).eq.'%' .or. cline(qp:qp).eq.'%') then
             if(new%experimenttype.eq.0) then
                new%experimenttype=100
+!               write(*,*)'3D error is relative!'
             else
 ! the experiment is an inequality
                write(kou,*)'*** Inequalites must have absolute uncertainty'
@@ -998,7 +1001,7 @@
    symsym=0
    iunit=0
    iref=0
-!   write(*,*)'3D Condition: ',trim(cline)
+!   write(*,*)'3D set cond or enter exper: ',trim(cline)
 ! return here to deconde another condition on the same line
 50 continue
    nterm=0
@@ -1206,7 +1209,7 @@
       endif
    else
 ! It is an experiment, search for old value if experiment already entered
-!      write(*,*)'3D segfault search 1',notcond,ich
+!      write(*,*)'3D experiment 1',notcond,ich
       if(ich.eq.4) then
          experimenttype=-1
       elseif(ich.eq.5) then
@@ -1342,7 +1345,7 @@
       if(colon.gt.0) then
          ip=colon
          istv=0
-!         write(*,*)'3D changed experiment: ',ip,'"',trim(stvexp),'"',value 
+!         write(*,*)'3D changed experiment 1: ',ip,'"',trim(stvexp),'"',value 
       endif
    endif none
 !
@@ -1410,6 +1413,7 @@
          new%active=1
 !         write(*,*)'Inactivating condition',new%prescribed,new%active
       else
+!         write(*,*)'3D looking for missing % ...'
 ! set the new value in the old condition/experiment remove any previous link!!
 ! linkix is link to symbol representing the value
          new%active=0

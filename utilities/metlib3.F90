@@ -186,6 +186,7 @@ MODULE METLIB
      integer :: hpos=0
   END TYPE CHISTORY
   type(chistory) :: myhistory
+  save myhistory
 !
 ! using browser and html files for on-line help
   type onlinehelp
@@ -207,6 +208,7 @@ MODULE METLIB
      character*64 target
   end type onlinehelp
   type(onlinehelp) :: ochelp
+  save ochelp
 !  
 !^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
