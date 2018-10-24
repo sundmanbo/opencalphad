@@ -28,7 +28,7 @@ MODULE METLIB
 #ifdef lixed
 ! LINUX: For character by character input allowing emacs editing
 ! uncomment the next line and run the Makefile on the GETKEY directory 
-  use M_getkey
+  use m_getkey
 #endif
 #ifdef tinyfd
   ! use tinyfiledialogs
