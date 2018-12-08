@@ -335,7 +335,7 @@ contains
          ['EQUILIB_TRANSF  ','QUIT            ','EXTRA_PROPERTY  ',&
           'GRID_DENSITY    ','SMALL_GRID_ONOFF','MAP_SPECIAL     ',&
           'GLOBAL_MIN_ONOFF','OPEN_POPUP_OFF  ','WORKING_DIRECTRY',&
-          'HELP_POPUP_OFF  ','                ','                ']
+          'HELP_POPUP_OFF  ','HICKEL_EXTRAPOL ','                ']
 !         123456789.123456---123456789.123456---123456789.123456
 ! subsubcommands to SET BITS
     character (len=16), dimension(nsetbit) :: csetbit=&
@@ -498,6 +498,12 @@ contains
     graphopt%gnutermax=i1
 ! by default spawn plots
     graphopt%status=ibset(graphopt%status,GRKEEP)
+! if winhlp set also GRWIN to allow GRKEEP
+!    write(*,*)'Setting windows bit 1: ',GRWIN
+#ifdef winhlp    
+    write(*,*)'Setting windows bit 2: ',GRWIN
+    graphopt%status=ibset(graphopt%status,GRWIN)
+#endif
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 ! jump here after NEW to reinitiallize all local variables also
 20  continue
@@ -1472,9 +1478,13 @@ contains
 ! to calculate derivatives this must be in the minimizer module
           call gparcd('Name ',cline,last,1,name1,'*',q1help)
 ! always calculate all state variable functions as they may depend on eachother
+!          write(*,*)'UI: calculating all functions'
           call meq_evaluate_all_svfun(-1,ceq)
 ! ignore error
-          if(gx%bmperr.ne.0) gx%bmperr=0
+          if(gx%bmperr.ne.0) then
+             write(*,*)'UI: error calculating all functions', gx%bmperr
+             gx%bmperr=0
+          endif
           if(name1(1:1).eq.'*') then
 ! this calculate them again ... and lists the values
              call meq_evaluate_all_svfun(lut,ceq)
@@ -1486,6 +1496,7 @@ contains
              if(gx%bmperr.ne.0) goto 990
              mode=1
              actual_arg=' '
+             write(*,*)'UI: calculating the requested function!'
              xxx=meq_evaluate_svfun(istv,actual_arg,mode,ceq)
              if(gx%bmperr.ne.0) goto 990
              write(*,2047)name1(1:len_trim(name1)),xxx
@@ -2008,20 +2019,21 @@ contains
                 call init_help(browser,latexfile,htmlfile)
              endif
 !.................................................................
-          case(11) ! not used, moved to debug: TRACE
-             write(*,*)'Not implemented yet'
-!             call gparcd('HTML help?',cline,last,1,ch1,'Y',q1help)
-!             if(ch1.eq.'Y') then
-!                helptrace=.TRUE.
-!             else
-!                helptrace=.FALSE.
-!             endif
-!             call gparcd('plotting?',cline,last,1,ch1,'N',q1help)
-!             if(ch1.eq.'Y') then
-!                plottrace=.TRUE.
-!             else
-!                plottrace=.FALSE.
-!             endif
+          case(11) ! HICKEL_EXTRAPOL for solids
+             call gparcd('Turn on Hickel extrapolation?',&
+                  cline,last,1,ch1,'Y',q1help)
+             if(ch1.eq.'Y') then
+                globaldata%status=ibset(globaldata%status,GSHICKEL)
+!                write(*,*)'Hickel extrapolation check for solids turned on'
+                call gparrd('Low T limit?',cline,last,thickel,1.0D3,q1help)
+                if(thickel.lt.one) then
+                   write(*,*)'Too low T, set to 1000'
+                   thickel=1.0D3
+                endif
+             else
+                globaldata%status=ibset(globaldata%status,GSHICKEL)
+                write(*,*)'Hickel extrapolation check for solids turned off'
+             endif
 !.................................................................
           case(12) ! not used
              write(*,*)'Not implemented yet'
@@ -4247,6 +4259,10 @@ contains
 !-----------------------------------------------------------
        case(2) ! SOLGAS
           text=' '
+! Give a warning that this must not be run on a LINUX computer
+          write(*,'(/a/)')' WARNING: Do not run on LINUX/MAC'//&
+               ' because END-OF-LINE different from Windows'
+!' WARNING: Do not run on LINUX/MAC because END-OF-LINE different from Windows'
 ! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=PDB, 7=DAT
 ! negative is for write, 0 read without filter, -100 write without filter
           call gparfile('File name: ',cline,last,1,filename,text,-7,q1help)
@@ -5263,7 +5279,7 @@ contains
 !-----------------------------------------------------------
 ! PLOT SCALE_RANGE of either X or Y
        case(2)
-          call gparcd('For X or Y axis? ',cline,last,1,ch1,'X',q1help)
+          call gparcd('For X or Y axis? ',cline,last,1,ch1,'Y',q1help)
           if(ch1.eq.'X' .or. ch1.eq.'x') then
 !             if(graphopt%axistype(1).eq.1) then
 !                write(kou,*)'The x axis set to linear'
@@ -5706,13 +5722,15 @@ contains
 !-----------------------------------------------------------
 ! PLOT LOGSCALE
        case(16)
-          call gparcd('For x or y axis? ',cline,last,1,ch1,'x',q1help)
+          call gparcd('For x or y axis? ',cline,last,1,ch1,'y',q1help)
           if(ch1.eq.'x') then
              if(graphopt%axistype(1).eq.1) then
                 write(kou,*)'The x axis set to linear'
                 graphopt%axistype(1)=0
              else
                 graphopt%axistype(1)=1
+! set range to defaults when changing to LOG 
+                graphopt%rangedefaults(1)=0
              endif
           elseif(ch1.eq.'y') then
              if(graphopt%axistype(2).eq.1) then
@@ -5720,6 +5738,8 @@ contains
                 graphopt%axistype(2)=0
              else
                 graphopt%axistype(2)=1
+! set range to defaults when changing to LOG 
+                graphopt%rangedefaults(2)=0
              endif
           else
              write(kou,*)'Please answer x or y'
@@ -5975,7 +5995,9 @@ contains
           if(nvcoeff.gt.1) then
 ! cormat deallocated above, dimension is cormat(nvcoeff,nvcoeff) !!
              allocate(cormat(nvcoeff,nvcoeff))
-             call mdinv(nvcoeff,nvcoeff+1,mat1,cormat,nvcoeff,iflag)
+!             call mdinv(nvcoeff,nvcoeff+1,mat1,cormat,nvcoeff,iflag)
+!invert unsymmetrical matrix
+             call mdinvold(nvcoeff,nvcoeff+1,mat1,cormat,nvcoeff,iflag)
              if(iflag.eq.0) then
                 write(*,*)'Failed invert matrix=Jac^T*Jac',iflag
              endif
@@ -5983,33 +6005,37 @@ contains
              do i1=1,nvcoeff
                 write(*,'(6(1pe12.4))')(cormat(i1,i2),i2=1,nvcoeff)
              enddo
-! DIVIDE EACH COLUMN AND ROW WITH THE DIAGONAL MATRIX ELEMENT
-!             do i1=1,nvcoeff
-!                if(abs(cormat(i1,i1)).lt.1.0D-78) then
-!                   write(*,*)'Correlation matrix singular'
-!                   cormat(i1,i1)=1.0D-78
+! Correlation matrix strange, normallize using value of first coefficient
+             xxx=abs(cormat(1,1))
+! divide all values with the largest diagonal value
+!             do i1=2,nvcoeff
+!                if(abs(cormat(i1,i1)).gt.xxx) then
+!                   xxx=abs(cormat(i1,i1))
 !                endif
-!                xxx=cormat(i1,i1)
-!                do i2=1,nvcoeff
-!                   cormat(i1,i2)=cormat(i1,i2)/xxx
-!                enddo
 !             enddo
-!             do i1=1,nvcoeff
-!                write(*,'(6(1pe12.4))')(cormat(i1,i2),i2=1,nvcoeff)
-!             enddo
+! just to avoid divining with zero
+             if(abs(xxx).lt.1.0D-10) xxx=1.0D-10
+             do i1=1,nvcoeff
+                do i2=1,nvcoeff
+                   cormat(i1,i2)=cormat(i1,i2)/xxx
+                enddo
+             enddo
+             do i1=1,nvcoeff
+                write(*,'(6(1pe12.4))')(cormat(i1,i2),i2=1,nvcoeff)
+             enddo
           elseif(abs(mat1(1,1)).gt.1.0D-38) then
 ! mat1 is just a single value
              allocate(cormat(1,1))
-             cormat(1,1)=one/mat1(1,1)
-! IF THERE IS A SINGLE VARIABLE ITS CORRELATION MATRIX MUST BE UNITY
 !             cormat(1,1)=one
+! IF THERE IS A SINGLE VARIABLE ITS CORRELATION MATRIX MUST BE UNITY
+             cormat(1,1)=one
           else
              write(*,*)'Correlation matrix singular'
           endif
        endif
 ! write the correlation matrix  THIS IS WRONG ??
        if(allocated(cormat)) then
-          write(*,*)'Correlation matrix (not correct) is:'
+          write(*,*)'Correlation matrix (not correct?) is:'
           do i2=1,nvcoeff
              write(kou,563)(cormat(i2,j2),j2=1,nvcoeff)
           enddo
@@ -6037,7 +6063,7 @@ contains
           i2=0
 !          write(*,767)xxx,xxy
 767       format('Normalized sum of squares changed: ',1pe12.4,' to ',1pe12.4)
-! THIS IS WRONG ...
+! I think this is wrong ...
           do i1=0,size(firstash%coeffstate)-1
              if(firstash%coeffstate(i1).ge.10) then
 ! this is an optimized parameter, they are indexed starting from zero!!
@@ -6608,6 +6634,7 @@ contains
     type(graphics_options) :: graphopt
     type(graphics_textlabel), pointer :: textlabel
 !\end{verbatim}
+    integer savebit
     graphopt%gibbstriangle=.FALSE.
     graphopt%rangedefaults=0
 ! axistype 0 is linear, 1 is logarithmic
@@ -6620,7 +6647,11 @@ contains
     graphopt%plotmax=one
     graphopt%dfltmax=one
     graphopt%appendfile=' '
+    savebit=0
+! keep the windws bit set if already sey
+    if(btest(graphopt%status,GRWIN)) savebit=1
     graphopt%status=0
+    if(savebit.ne.0) graphopt%status=ibset(graphopt%status,GRWIN)
 ! remove all texts ... loosing some memory ...
     nullify(graphopt%firsttextlabel)
     graphopt%labelkey='top right'

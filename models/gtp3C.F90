@@ -5048,7 +5048,9 @@
                write(text,210)constcomp
 ! THIS IS THE STOICHIMETRY OF THE ENDMEMBER, with 6 decimal digits
 ! If this format is changed the output routine list_tpascoef must be changed!
-210            format(60(1x,F11.6))
+!210            format(60(1x,F11.6))
+! ERNESTO GEIGER complained it did not work ... this is stoichiometry format
+210            format(60(1x,F7.2))
 ! Check if any value in contcomp is greated than 1000, could give overflow
 ! Check also if two decimals not enough
                do i3=1,noofel
@@ -5482,6 +5484,11 @@
             endif
          enddo
       enddo sloop2
+! we may come here if there are no endmembers!
+      if(.not.associated(endmember)) then
+         write(*,*)'3C skipping this phase'
+         cycle phases2
+      endif
 ! for the parameters follow the property link
       property=>endmember%propointer
       if(associated(property)) then
@@ -5826,11 +5833,11 @@
                firstash%coeffstart(i1),firstash%coeffscale(i1),&
                firstash%coeffrsd(i1),trim(where)
 615       format(a,2x,4(1pe14.5),2x,a)
-          if(abs(xxx-firstash%coeffvalues(i1)*firstash%coeffscale(i1))&
-               .gt.1e-4) then
-             write(*,*)'3C scaled and current: ',xxx,&
-                  firstash%coeffvalues(i1)*firstash%coeffscale(i1)
-          endif
+!          if(abs(xxx-firstash%coeffvalues(i1)*firstash%coeffscale(i1))&
+!               .gt.1e-4) then
+!             write(*,*)'3C scaled and current: ',xxx,&
+!                  firstash%coeffvalues(i1)*firstash%coeffscale(i1)
+!          endif
           if(firstash%coeffstate(i1).eq.11) then
 ! there is a prescribed minimum
              write(lut,616)' minimum ',firstash%coeffmin(i1)

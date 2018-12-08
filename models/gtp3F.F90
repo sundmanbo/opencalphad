@@ -3241,6 +3241,17 @@
       svflista(nsvfun)%status=ibset(svflista(nsvfun)%status,SVFVAL)
       svflista(nsvfun)%status=ibset(svflista(nsvfun)%status,SVFDOT)
 !      write(*,*)'3F setting explicit bit: ',SVFDOT
+!   endif
+   else
+! this created a crash when enetering a dot derivative, only notmal functions
+! there seems to be a problem that already existing state variable functions
+! are not evaluated so they give a correct value
+      call evaluate_all_svfun_old(-1,ceq)
+      if(gx%bmperr.ne.0) then
+! ignore any errors
+!         write(*,*)' Error calculating the state variable functions!',gx%bmperr
+         gx%bmperr=0
+      endif
    endif
 1000 continue
 ! NOTE eqnoval should be zeroed

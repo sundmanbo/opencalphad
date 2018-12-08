@@ -284,7 +284,7 @@ MODULE ocsmp
   integer, parameter :: maxsavedceq=2000
 ! for graphopt status word
 ! GRKEEP is set if graphics windows kept
-  integer, parameter :: GRKEEP=0
+  integer, parameter :: GRKEEP=0,GRWIN=1
 ! for colors
   character (len=6) :: monovariant='7CFF40'
   character (len=6) :: tielinecolor='7CFF40'

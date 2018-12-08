@@ -268,7 +268,7 @@
          endif
          endmemrec=>endmemrec%nextem
       enddo
-!      write(*,*)'3X CQC: ',nclust,gclust(1,1)
+      write(*,*)'3X CQC: ',nclust,gclust(1,1)
 ! Now we have calculated all cluster endmember energies      
       call config_entropy_cqc(moded,phlista(lokph)%nooffr(1),&
            phres,phlista(lokph),nclust,gclust,gz%tpv(1))
@@ -1918,7 +1918,8 @@
       goto 100
    endif
    uniquac: if(btest(phlista(lokph)%status1,phuniquac)) then
-!      write(*,*)'3X uniquac d2gval: ',phmain%d2gval(1,1),phres%d2gval(1,1)
+!      write(*,'(a,6(1pe12.4))')'3X calling uniquac: ',&
+!           phmain%dgval(1,1,1),phres%dgval(1,2,1)
       call uniquac_model(moded,gz%nofc,phmain,ceq)
       if(gx%bmperr.ne.0) goto 1000
    endif uniquac
@@ -3024,7 +3025,7 @@
       if(btest(phvar%constat(icon),CONQCBOND)) then
          cluster=half
          iscluster=.TRUE.
-!         write(*,*)'3X CQC0: ',qcmodel,iscluster,yfra
+!         write(*,*)'3X CQC classic 0: ',qcmodel,iscluster,yfra
       else
          cluster=one
          iscluster=.FALSE.
@@ -3117,7 +3118,7 @@
 !\begin{verbatim}
  subroutine config_entropy_cqc_ABOK(moded,ncon,phvar,phrec,tval)
 !
-! THIS IS CORRECT FOR EQUIATOMIC CLUSTER
+! THIS IS CORRECT FOR EQUIATOMIC CLUSTER: HSS=Hillert Selleby Sundman
 !
 ! moded=0 only G, =1 G and dG/dy, =2 G, dG/dy and d2G/dy1/dy2
 ! ncon is number of constituents
@@ -3145,13 +3146,14 @@
    logical iscluster
    double precision, parameter :: half=0.5D0
 !
-! qcmodel=1 is classical qc without LRO, 2 is q**2, 3 is 0.5*(1+q)*q**2
+! qcmodel=1 is classical qc without LRO, 2 is q**2, 3 is HSS: 0.5*(1+q)*q**2
    qcmodel=3
 ! if this bit set then classical qc with gamma=0 below
    if(btest(phrec%status1,PHMULTI)) qcmodel=1
 !
    if(ncon.gt.3) stop 'ONLY FOR BINARY QUASCHEMICAL'
    zhalf=half*phvar%qcbonds
+   write(*,*)'3X CQC_ABOK with: ',qcmodel,zhalf
    allocate(xval(noofel))
    allocate(dxval(noofel,ncon))
    allocate(ely(ncon))
@@ -3175,7 +3177,7 @@
       if(btest(phvar%constat(icon),CONQCBOND)) then
          cluster=half
          iscluster=.TRUE.
-!         write(*,*)'3X CQC0: ',qcmodel,iscluster,yfra
+!         write(*,*)'3X CQC HSS 0: ',qcmodel,iscluster,yfra
       else
          cluster=one
          iscluster=.FALSE.
@@ -3217,7 +3219,7 @@
 !         dxval(iel,icon)=stoi2/(stoi1+stoi2)
          dxval(iel,icon)=stoi2
          xval(iel)=xval(iel)+dxval(iel,icon)*yfra
-! stoi is a/z = 1/6 an 2/6
+! stoi is a/z = 1/6 and 2/6
 ! fij=1 when stoi1=stoi2=0.5, maybe always??
 !         fij(nqij)=4.0D0*stoi1*stoi2
 !         fij(nqij)=2.0D0
@@ -3396,13 +3398,13 @@
 !\begin{verbatim}
  subroutine config_entropy_cqc_bad(moded,ncon,phvar,phrec,nclust,gclust,tval)
 !
-! This version can handle strong SRO an other compositions like A2B, A1B3 etc
+! This version can handle strong SRO at other compositions like A2B, A1B3 etc
 ! Constituents should be A, B, A2/3B1/3 etc dvs 1 atom
 ! There are problems when SRO small or zero
 ! ONLY BINARY SYSTEMS (even if dimensioning is for multicomponent)
 !
 ! classical AB and corrected AB are OK
-! FACT QC with z=2 also OK (NOTE:  constituents A B1/2 A1B1/2)
+! FACT QC with z=2 also OK (NOTE:  constituents A B1/2 A1B1/2 and similar)
 !
 ! moded=0 only G, =1 G and dG/dy, =2 G, dG/dy and d2G/dy1/dy2
 ! ncon is number of constituents
@@ -3822,7 +3824,9 @@
    double precision, parameter :: half=0.5D0
 !
 ! qcmodel=1 is classical qc without LRO, 2 is q**2, 3 is 0.5*(1+q)*q**2
-   qcmodel=3
+! Let us try to reproduce fig 1, 3 and 4 first! with qcmodel=2
+!   qcmodel=3
+   qcmodel=2
 ! if this bit set then classical qc with gamma=0 below
    if(btest(phrec%status1,PHMULTI)) qcmodel=1
 !
@@ -3831,6 +3835,12 @@
    allocate(xval(noofel))
    allocate(dxval(noofel,ncon))
    allocate(ely(ncon))
+   write(*,*)'3X CQC with: ',qcmodel,zhalf
+! call ABOK subroutine ---------------------
+!  subroutine config_entropy_cqc(moded,ncon,phvar,phrec,nclust,gclust,tval)
+   call config_entropy_cqc_ABOK(moded,ncon,phvar,phrec,tval)
+   goto 1000
+!--------------------------------------------
 ! This is related to the composition with max SRO
 !   allocate(fij(nqij,3))
 ! this assumes the liquid dissolves all components
@@ -4392,27 +4402,34 @@
 !\begin{verbatim}
  subroutine uniquac_model(moded,ncon,phres,ceq)
 ! Calculate the Gibbs energy of the UNIQUAC model (Abrams et al 1975)
+! Modified by Jing Oct 2018
+! Modified Nov 30 2018
+! It returns UNIQUAC G and first and second derivatives of G in phres%gval etc.
+! and all the rest is the same as for other models
+! The values of q_i and r_i should be stored in species record, not identifiers
+! The residual term should be stored as a UQTAU identifier 
    implicit none
    integer moded,ncon
    TYPE(gtp_equilibrium_data), pointer :: ceq
    TYPE(gtp_phase_varres), pointer :: phres
 !\end{verbatim}
    integer ia,ib,ic,id,jj,nprop,unqq,unqr,unqt,nint
-   double precision, allocatable, dimension(:) :: theta,phi,tau,qval,xfr
+   double precision, allocatable, dimension(:) :: theta,phi,tau,qval,xfr,rval
    double precision, allocatable, dimension(:) :: sumtt,sumtk,dgv,d2gv
    double precision hzeta
-   double precision gc,gr,term,dgr,dgc,d2gc,d2gr
-   if(moded.lt.2) then
+   double precision gc,gr,term,dgr,dgc,d2gc,d2gr,sumxiqi
+!   if(moded.lt.2) then
 ! if moded=/=2 then some of the 2nd derivatives needed is not present ...
 ! moded=0 when calculating with the gridminimizer
-      write(*,*)'Skipping uniquac phase as no derivatives'
-      goto 1000
-   endif
+!      write(*,*)'Skipping uniquac phase as no derivatives'
+!      goto 1000
+!   endif
 ! need UNQQ = \sum_i q_i*x_i and UNQV=\sum_i r_i*x_i
 !   write(*,*)'3X in uniquac 1'
    allocate(theta(ncon))
    allocate(phi(ncon))
    allocate(qval(ncon))
+   allocate(rval(ncon))
    allocate(xfr(ncon))
    allocate(sumtt(ncon))
    allocate(sumtk(ncon))
@@ -4445,34 +4462,42 @@
       goto 1000
    endif
    xfr=phres%yfr
+! derived in 30/11 2018 by Jing and me:
+!
+! df/dx_k = ln(phi_k) + 1 - phi_k/x_k + 
+!           z/2 q_k ( ln(theta_k/phi_k) + phi_k/theta_k-1 )
+!
 !   write(*,'("3X Fractions: ",10F8.5)')(xfr(ia),ia=1,ncon)
 ! theta = UQQ = x_i*q_i(\sum_j q_j*x_j) 
 ! Phi= UQR=x_i*r_i*(\sum_i r_j*x_j)
 ! write(*,*)'3 X Calculate Phi, theta and some invariants for the residual term'
+   sumxiqi=zero
    do ia=1,ncon
 ! this is x*q/(\sum_i x*q)
 ! %dgval(itp,comp,prop) itp=1 no derivative wrt T/P; 2=d/dT; 3=d/dP;
       qval(ia)=phres%dgval(1,ia,unqq)
       if(qval(ia).eq.zero) then
-         write(*,*)'Missing uqq value for component ',ia
+         write(*,*)'Missing uqq value for component, assumed 1.0 ',ia
          qval(ia)=one
       endif
       theta(ia)=xfr(ia)*qval(ia)/phres%gval(1,unqq)
-      if(phres%dgval(1,ia,unqr).eq.zero) then
-         write(*,*)'Missing uqr value for component ',ia
-         phi(ia)=xfr(ia)/phres%gval(1,unqr)
-      else
-         phi(ia)=xfr(ia)*phres%dgval(1,ia,unqr)/phres%gval(1,unqr)
+      rval(ia)=phres%dgval(1,ia,unqr)
+      if(rval(ia).le.zero) then
+         write(*,*)'Missing uqr value for component, assumed 1.0 ',ia
+         rval(ia)=one
       endif
+      phi(ia)=xfr(ia)*rval(ia)/phres%gval(1,unqr)
       if(unqt.gt.0) then
          do ib=ia+1,ncon
-! binary excess parameter is stored in unqt as a
-! 2nd derivative of the unqt
+! binary excess parameter is stored in unqt as a 2nd derivative of the unqt
             tau(ixsym(ia,ib))=exp(-phres%d2gval(ixsym(ia,ib),unqt)/ceq%rtn)
          enddo
       endif
+      sumxiqi=sumxiqi+xfr(ia)*qval(ia)
    enddo
+! these values seems OK
 !   write(*,10)'qval ',(qval(ib),ib=1,ncon)
+!   write(*,10)'rval ',(rval(ib),ib=1,ncon)
 !   write(*,10)'theta',phres%gval(1,unqq),(theta(ib),ib=1,ncon)
 !   write(*,10)'Phi  ',phres%gval(1,unqr),(phi(ib),ib=1,ncon)
 10 format('3X ',a,' ',10(1pe12.4))
@@ -4489,16 +4514,17 @@
       sumtt(ia)=term
    enddo
 !   write(*,10)'sumtt:',(sumtt(ia),ia=1,ncon)
-   do ia=1,ncon
-      term=zero
-      do jj=1,ncon
+!   do ia=1,ncon
+!      term=zero
+!      do jj=1,ncon
 ! this is \sum_i x_i q_i \tau_(ik)/\sum_j\theta_j\tau_{ij}
 ! IS tau(jj,ia) = tau(ia,jj) ?????????? NO_jing
 ! I changed this term ----JING
-         term=term+xfr(jj)*qval(jj)*tau(ixsym(jj,ia)) / sumtt(jj)
-      enddo
-      sumtk(ia)=term
-   enddo
+!         term=term+xfr(jj)*qval(jj)*tau(ixsym(jj,ia)) / sumtt(jj)
+!      enddo
+!      sumtk(ia)=term
+!   enddo
+!   write(*,*)'3X *** No residual interaction'
 !   write(*,10)'sumtk:',(sumtk(ia),ia=1,ncon)
 ! This is z/2
    hzeta=5.0D0
@@ -4507,44 +4533,47 @@
 ! and possibly any reference energy terms!
    gc=zero; gr=zero
    gmloop: do ia=1,ncon
-! The residual and configurational G
-      gr=gr-xfr(ia)*qval(ia)*log(sumtt(ia))
-!      write(*,'(a,i3,6(1pe12.4))')'3X gr: ',ia,&
-!           xfr(ia),qval(ia),sumtt(ia),log(sumtt(ia)),gr
-      gc=gc+xfr(ia)*log(theta(ia)/xfr(ia))+&
+! The residual and configurational G ignored
+!      gr=gr-xfr(ia)*qval(ia)*log(sumtt(ia))
+      gc=gc+xfr(ia)*log(phi(ia)/xfr(ia))+&
            hzeta*xfr(ia)*qval(ia)*log(theta(ia)/phi(ia))
-      first: do ib=1,ncon
-! first derivative with respect to residual
-         dgr=-qval(ib)*log(sumtt(ib))+qval(ib)-&
-              theta(ib)/xfr(ib)*sumtk(ib)
-! first derivative with respect to ib of configuration
-! I changed the following term here ----- JING
-         dgc=log(phi(ib)/xfr(ib))-phi(ib)/xfr(ib)+&
-              hzeta*qval(ib)*(log(theta(ib))-log(phi(ib))-one+phi(ib)/theta(ib))
-         dgv(ib)=dgr+dgc
-         second: do ic=ib,ncon
-! second derivative of configuration with respect to ib and ic
-! APPROXIMATE
-            if(ic.eq.ib) then
-               d2gc=-2.0D0*phi(ic)/xfr(ic)**2
-               d2gr=-qval(ic)*theta(ic)/(xfr(ic)*sumtt(ic))
-            else
-               d2gc=zero
-               d2gr=zero
-            endif
-! I changed this term -----JING
-            d2gc=d2gc-phi(ic)/xfr(ic)*(one-phi(ib)/xfr(ib))-&
-                 hzeta*qval(ib)/xfr(ic)*(theta(ic)+phi(ic)-&
-                 phi(ib)/theta(ib)*(phi(ic)-theta(ic)))
-! 2nd derivative of residual
-! I cannot compare this part with the formula as the equation is quite complex but yours here is quite simple.... If you think it is correct, I trust you.
-            d2gr=d2gr+&
-                 theta(ib)*theta(ic)/(xfr(ib)*xfr(ic))*(sumtk(ib)+sumtk(ic))
-            d2gr=zero
-            d2gv(ixsym(ib,ic))=d2gr+d2gc
-         enddo second
-      enddo first
+!     write(*,210)'3X gci: ',ia,xfr(ia),phi(ia),xfr(ia)*log(phi(ia)/xfr(ia)),&
+!          qval(ia),theta(ia),hzeta*xfr(ia)*qval(ia)*log(theta(ia)/phi(ia))
+210   format(a,i2,6(1pe12.4))
    enddo gmloop
+!   write(*,210)'3X GC: ',0,phres%gval(1,1),gc,phres%gval(1,1)+gc
+   dgv=zero
+   first: do ib=1,ncon
+! first derivative with respect to residual
+!         dgr=-qval(ib)*log(sumtt(ib))+qval(ib)-&
+!              theta(ib)/xfr(ib)*sumtk(ib)
+! NO RESIDUAL
+      dgr=zero
+! first derivative with respect to ib of configuration
+! changes 181130/BoS NOTE: 1+ln(x) already calculated, thus -log(xfr(ib))
+      dgc=log(phi(ib)/xfr(ib))+one-phi(ib)/xfr(ib)+&
+           hzeta*qval(ib)*(log(theta(ib)/phi(ib))-one+phi(ib)/theta(ib))
+!      write(*,'(a,i3,f10.6,1pe12.4)')'3X ib xfr dgc: ',ib,xfr(ib),dgc
+      dgv(ib)=dgr+dgc
+      second: do ic=ib,ncon
+! second derivative of configuration with respect to ib and ic
+! APPROXIMATE not corrected!!
+         if(ic.eq.ib) then
+            d2gc=-2.0D0*phi(ic)/xfr(ic)**2
+            d2gr=-qval(ic)*theta(ic)/(xfr(ic)*sumtt(ic))
+         else
+            d2gc=zero
+            d2gr=zero
+         endif
+! 2nd derivative of residual
+! I cannot compare this part with the formula as the equation is quite complex
+! but yours here is quite simple.... If you think it is correct, I trust you.
+!            d2gr=d2gr+&
+!                 theta(ib)*theta(ic)/(xfr(ib)*xfr(ic))*(sumtk(ib)+sumtk(ic))
+         d2gr=zero
+         d2gv(ixsym(ib,ic))=d2gr+d2gc
+      enddo second
+   enddo first
 !   write(*,300)'3X UQG: ',gr,gc,(dgv(ia),ia=1,ncon)
 !   do ib=1,ncon
 !      write(*,300)'3X D2UQG: ',(d2gv(ixsym(ia,ib)),ia=1,ncon)
@@ -4559,9 +4588,10 @@
 ! phres%gval(2,1)= no T dependence
 ! phres%gval(3,1)= no P dependence
 ! phres%d2gval(ixsym(j,k),1) is d2G/dx_j/dx_k
-   phres%gval(1,1)=phres%gval(1,1)-gc+gr
+!   write(*,300)'3X G/RT: ',phres%gval(1,1),gc,phres%gval(1,1)+gc
+   phres%gval(1,1)=phres%gval(1,1)+gc+gr
 ! add dGc/dT assuming gr does not depend on T
-   phres%gval(2,1)=phres%gval(2,1)-gc/ceq%tpval(1)
+   phres%gval(2,1)=phres%gval(2,1)+gc/ceq%tpval(1)
 !   phres%gval(4,1)=phres%gval(2,1)+other terms T-dependent terms (Cp)
    do ia=1,ncon
       phres%dgval(1,ia,1)=phres%dgval(1,ia,1)+dgv(ia)
@@ -4571,202 +4601,13 @@
       enddo
    enddo
 !   write(*,300)'3X Gm, dG/dx: ',phres%gval(1,1),(phres%dgval(1,ia,1),ia=1,ncon)
-300 format('3X ',a,6(1pe12.4))
+300 format(a,6(1pe12.4))
 !   do ia=1,ncon
 !      write(*,300)'3X d2G/dx2:   ',(phres%d2gval(ixsym(ia,ib),1),ib=1,ncon)
 !   enddo
 1000 continue
    return
  end subroutine uniquac_model
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
- 
- !\begin{verbatim}
- subroutine uniquac_model_old(moded,ncon,phres,ceq)
-! Calculate the Gibbs energy of the UNIQUAC model (Abrams et al 1975)
-   implicit none
-   integer moded,ncon
-   TYPE(gtp_equilibrium_data), pointer :: ceq
-   TYPE(gtp_phase_varres), pointer :: phres
-!\end{verbatim}
-   integer ia,ib,ic,id,jj,nprop,unqq,unqr,unqt,nint
-   double precision, allocatable, dimension(:) :: theta,phi,tau,qval,xfr
-   double precision, allocatable, dimension(:) :: sumtt,sumtk,dgv,d2gv
-   double precision hzeta
-   double precision gc,gr,term,dgr,dgc,d2gc,d2gr
-   if(moded.lt.2) then
-! if moded=/=2 then some of the 2nd derivatives needed is not present ...
-! moded=0 when calculating with the gridminimizer
-      write(*,*)'Skipping uniquac phase as no derivatives'
-      goto 1000
-   endif
-! need UNQQ = \sum_i q_i*x_i and UNQV=\sum_i r_i*x_i
-   write(*,*)'3X in uniquac'
-   allocate(theta(ncon))
-   allocate(phi(ncon))
-   allocate(qval(ncon))
-   allocate(xfr(ncon))
-   allocate(sumtt(ncon))
-   allocate(sumtk(ncon))
-   allocate(dgv(ncon))
-! number of interactions
-   nint=ncon*(ncon+1)/2
-   allocate(tau(nint))
-   allocate(d2gv(nint))
-! default value for tau when value missing is one, not zero
-   tau=one
-! we need some place to store these indices if we have no addition record ...
-   call need_propertyid('UQQ ',ib)
-   call need_propertyid('UQR ',ic)
-   call need_propertyid('UQT ',id)
-   if(gx%bmperr.ne.0) goto 1000
-   nprop=phres%listprop(1)-1
-   unqq=0; unqr=0; unqt=0
-   do ia=1,nprop
-      if(phres%listprop(ia).eq.ib) then
-         unqq=ia
-      elseif(phres%listprop(ia).eq.ic) then
-         unqr=ia
-      elseif(phres%listprop(ia).eq.id) then
-         unqt=ia
-      endif
-   enddo
-!   write(*,'(a,4i4,1pe12.4)')'3X Found: ',nprop,unqq,unqr,unqt,phres%gval(1,1)
-   if(unqq.eq.0 .or. unqr.eq.0) then
-      write(*,*)'Missing UNIQUAC property: ',nprop,unqq,unqr,unqt
-      goto 1000
-   endif
-   xfr=phres%yfr
-!   write(*,'("3X Fractions: ",10F8.5)')(xfr(ia),ia=1,ncon)
-! theta = UQQ = x_i*q_i(\sum_j q_j*x_j) 
-! Phi= UQR=x_i*r_i*(\sum_i r_j*x_j)
-! write(*,*)'3 X Calculate Phi, theta and some invariants for the residual term'
-   do ia=1,ncon
-! this is x*q/(\sum_i x*q)
-! %dgval(itp,comp,prop) itp=1 no derivative wrt T/P; 2=d/dT; 3=d/dP;
-      qval(ia)=phres%dgval(1,ia,unqq)
-      if(qval(ia).eq.zero) then
-         write(*,*)'Missing uqq value for component ',ia
-         qval(ia)=one
-      endif
-      theta(ia)=xfr(ia)*qval(ia)/phres%gval(1,unqq)
-      if(phres%dgval(1,ia,unqr).eq.zero) then
-         write(*,*)'Missing uqr value for component ',ia
-         phi(ia)=xfr(ia)/phres%gval(1,unqr)
-      else
-         phi(ia)=xfr(ia)*phres%dgval(1,ia,unqr)/phres%gval(1,unqr)
-      endif
-      if(unqt.gt.0) then
-         do ib=ia+1,ncon
-! binary excess parameter is stored in unqt as a
-! 2nd derivative of the unqt
-            tau(ixsym(ia,ib))=exp(-phres%d2gval(ixsym(ia,ib),unqt)/ceq%rtn)
-         enddo
-      endif
-   enddo
-!   write(*,10)'qval ',(qval(ib),ib=1,ncon)
-!   write(*,10)'theta',phres%gval(1,unqq),(theta(ib),ib=1,ncon)
-!   write(*,10)'Phi  ',phres%gval(1,unqr),(phi(ib),ib=1,ncon)
-10 format('3X ',a,': ',10(1pe12.4))
-   do ia=1,ncon
-      write(*,10)'tau',(tau(ixsym(ia,ib)),ib=1,ncon)
-   enddo
-! here we calculate \sum_i \theta_i \tau_{ij} stored in sumtt(i)
-   do ia=1,ncon
-      term=zero
-      do jj=1,ncon
-! this is \sum_j \thera_j \tau_{ij}         
-         term=term+theta(jj)*tau(ixsym(ia,jj))
-      enddo
-      sumtt(ia)=term
-   enddo
-   write(*,10)'sumtt',(sumtt(ia),ia=1,ncon)
-   do ia=1,ncon
-      term=zero
-      do jj=1,ncon
-! this is \sum_i x_i q_i \tau_(ik)/\sum_j\theta_j\tau_{ij}
-! IS tau(jj,ia) = tau(ia,jj) ??????????
-         term=term+xfr(jj)*qval(jj)*tau(ixsym(jj,ia))
-      enddo
-      sumtk(ia)=term
-   enddo
-   write(*,10)'sumtk',(sumtk(ia),ia=1,ncon)
-! This is z/2
-   hzeta=5.0D0
-! Here the UNIQUAC GIBBS ENERGY and derivatives are calculated.  
-! phres%gval has the ideal configurational enntropy already
-! and possibly any reference energy terms!
-   gc=zero; gr=zero
-   gmloop: do ia=1,ncon
-! The residual and configurational G
-      gr=gr-xfr(ia)*qval(ia)*log(sumtt(ia))
-!      write(*,'(a,i3,6(1pe12.4))')'3X gr: ',ia,&
-!           xfr(ia),qval(ia),sumtt(ia),log(sumtt(ia)),gr
-      gc=gc+xfr(ia)*log(theta(ia)/xfr(ia))+&
-           hzeta*xfr(ia)*qval(ia)*log(theta(ia)/phi(ia))
-      first: do ib=1,ncon
-! first derivative with respect to residual
-         dgr=-qval(ib)*log(sumtt(ib))+qval(ib)-&
-              theta(ib)/xfr(ib)*sumtk(ib)
-! first derivative with respect to ib of configuration
-         dgc=log(phi(ib)/xfr(ib))-phi(ib)/xfr(ib)+&
-              hzeta*qval(ib)*(log(phi(ib))-one+phi(ib)/theta(ib))
-         dgr=zero
-         dgv(ib)=dgr+dgc
-         second: do ic=ib,ncon
-! second derivative of configuration with respect to ib and ic
-! APPROXIMATE
-            if(ic.eq.ib) then
-               d2gc=-2.0D0*phi(ic)/xfr(ic)**2
-               d2gr=-qval(ic)*theta(ic)/(xfr(ic)*sumtt(ic))
-            else
-               d2gc=zero
-               d2gr=zero
-            endif
-            d2gc=d2gc-phi(ic)/xfr(ic)*(one-phi(ib)/xfr(ib))+&
-                 hzeta*qval(ib)/xfr(ic)*(theta(ib)+phi(ib)-&
-                 phi(ib)/theta(ib)*(phi(ic)-theta(ic)))
-! 2nd derivative of residual
-            d2gr=d2gr+&
-                 theta(ib)*theta(ic)/(xfr(ib)*xfr(ic))*(sumtk(ib)+sumtk(ic))
-            d2gr=zero
-            d2gv(ixsym(ib,ic))=d2gr+d2gc
-         enddo second
-      enddo first
-   enddo gmloop
-!   write(*,300)'3X UQG: ',gr,gc,(dgv(ia),ia=1,ncon)
-!   do ib=1,ncon
-!      write(*,300)'3X D2UQG: ',(d2gv(ixsym(ia,ib)),ia=1,ncon)
-!   enddo
-! copy results to global arrays
-! phres%gval(1,1) is Gm, %gval(2,1) is dG/dT, %gval(3,1) is dG/dP, 
-!      %gval(4,1) is d2G/dT2 ...
-! IMPORTANT the ideal configurational entropy is in %gval(1,1) and %gval(2,1)
-! phres%dgval(1,j,1) is dG/dx_j, phres%dgval(2,j,1) is d2G/dTdx_j ... 
-! phres%d2gval(ixsym(j,k),1) is d2G/dx_jdx_k stored as upper triangle
-! all values divided by RT
-! phres%gval(2,1)= no T dependence
-! phres%gval(3,1)= no P dependence
-! phres%d2gval(ixsym(j,k),1) is d2G/dx_j/dx_k
-   phres%gval(1,1)=phres%gval(1,1)-gc+gr
-! add dGc/dT assuming gr does not depend on T
-   phres%gval(2,1)=phres%gval(2,1)-gc/ceq%tpval(1)
-!   phres%gval(4,1)=phres%gval(2,1)+other terms T-dependent terms (Cp)
-   do ia=1,ncon
-      phres%dgval(1,ia,1)=phres%dgval(1,ia,1)+dgv(ia)
-      do ib=ia,ncon
-         phres%d2gval(ixsym(ia,ib),1)=phres%d2gval(ixsym(ia,ib),1)+&
-              d2gv(ixsym(ia,ib))
-      enddo
-   enddo
-!   write(*,300)'3X Gm, dG/dx: ',phres%gval(1,1),(phres%dgval(1,ia,1),ia=1,ncon)
-300 format('3X ',a,6(1pe12.4))
-!   do ia=1,ncon
-!      write(*,300)'3X d2G/dx2:   ',(phres%d2gval(ixsym(ia,ib),1),ib=1,ncon)
-!   enddo
-1000 continue
-   return
- end subroutine uniquac_model_old
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

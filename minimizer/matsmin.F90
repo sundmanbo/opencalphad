@@ -175,9 +175,10 @@ MODULE liboceq
   double precision, allocatable, dimension(:) :: calcexp
 ! this is for Hickel check
   type(meq_phase), pointer :: pmiliq
+! this is set TRUE when entering meq_onephase and false after one solid checked?
   logical hickelextrapol
 ! The test for Hickel T made only for T>thickel
-  double precision :: thickel=1.0D4
+  double precision :: thickel=1.0D3
 !
 !--------------------------------------------------------------
 !
@@ -977,6 +978,8 @@ CONTAINS
 ! set link to calculated values of G etc.
              call get_phase_compset(iph,ics,lokph,lokcs)
              meqrec%phr(mph)%curd=>ceq%phase_varres(lokcs)
+! set number of constituents, DO NOT USE size(...curd%size(yfr)!!!
+             meqrec%phr(mph)%ncc=noconst(iph,ics,ceq)
              if(formap) then
 ! when mapping fix phases are used to replace axis conditions.  The
 ! fix phases are in the meqrec%fixph array
@@ -4771,6 +4774,9 @@ CONTAINS
     logical nolapack
 !
 !    write(*,*)'in meq_onephase: '
+! set hickelextrapol to TRUE when entering, 
+! set to FALSE inside hickel_check if phase has higher entropy than liquid
+! I am no longer sure this is needed??
     hickelextrapol=.TRUE.
 ! Can nolapack be removed??
     nolapack=.TRUE.
@@ -5514,8 +5520,10 @@ CONTAINS
 900 continue
 ! Generation 3 check: tentative replace G if S^>S^liq
 !    write(*,*)'MM Phase 2: ',pmi%iph,pmi%ics,associated(pmiliq)
-    if(associated(pmiliq) .and.&
-         .not.associated(pmi,pmiliq)) call hickel_check(pmi,pmiliq,ceq)
+    if(btest(globaldata%status,GSHICKEL)) then
+       if(associated(pmiliq) .and.&
+            .not.associated(pmi,pmiliq)) call hickel_check(pmi,pmiliq,ceq)
+    endif
 !
     goto 1000
 !
@@ -6643,7 +6651,7 @@ CONTAINS
     integer jy,ib
     double precision sum,cig,cit,cip
 !
-!    write(*,*)'entering calc_dgdyterms2: ',ia,nrel
+!    write(*,*)'entering calc_dgdyterms2: ',iy,nrel,allocated(pmi%invmat)
     mag=zero
     do ib=1,nrel
        sum=zero
@@ -7108,8 +7116,9 @@ CONTAINS
 !         cycle all
 !      endif
 ! actual arguments needed if svflista(kf)%nactarg>0
+!      write(*,*)'MM meq_svfun evaluate ',kf,svflista(kf)%name
       val=meq_evaluate_svfun(kf,actual_arg,0,ceq)
-!      write(*,*)'MM meq_svfun evaluate: ',val
+!      write(*,*)'MM meq_svfun evaluated: ',val
       if(gx%bmperr.ne.0) then
          if(kou.gt.0) then
             write(kou,76)kf,svflista(kf)%name,gx%bmperr
@@ -7365,13 +7374,18 @@ CONTAINS
     double precision, allocatable :: smat(:,:)
     double precision xxx
 !
-!    write(*,*)'Entering initiate_meqrec'
+!    write(*,*)'MM Entering initiate_meqrec 1'
+! NOTE svar must be allocated!!
+!    svar=zero
+!    write(*,*)'MM Entering initiate_meqrec 2'
     if(btest(ceq%status,EQNOEQCAL)) then
 ! error if no sucessful equilibrium calculation or a failed one
 !       write(*,*)'No equilibrium calculated, no derivatives'
+!       allocate(svar(1)); svar(1)=zero
        gx%bmperr=4198; goto 1000
     elseif(btest(ceq%status,EQFAIL)) then
 !       write(*,*)'Last equilibrium calculation failed, no derivatives'
+!       allocate(svar(1)); svar(1)=zero
        gx%bmperr=4198; goto 1000
     elseif(btest(ceq%status,EQINCON)) then
 ! give warning if conditions have changed
@@ -7379,6 +7393,8 @@ CONTAINS
 15     format('Conditions changed since last equilibrium calc,',&
             ' values may be wrong.')
 ! EQNOACS is not used at present but means probably "no automatic comp.set"
+!       allocate(svar(1)); svar(1)=zero
+!       gx%bmperr=4198; goto 1000
     endif
 ! meqrec is a pointer to an allocated record!
 !    allocate(meqrec)
@@ -7410,6 +7426,8 @@ CONTAINS
              meqrec%phr(mph)%iph=iph
 !             write(*,*)'phases: ',mph,iph
              meqrec%phr(mph)%ics=ics
+! set number of constituents, DO NOT USE size(...curd%size(yfr)!!!
+             meqrec%phr(mph)%ncc=noconst(iph,ics,ceq)
              meqrec%phr(mph)%phasestatus=kst
              meqrec%phr(mph)%ionliq=-1
              meqrec%phr(mph)%i2sly=0
@@ -7571,7 +7589,7 @@ CONTAINS
 !    write(*,89)0,(svar(jel),jel=1,nz1)
 1000 continue
     return
-  end subroutine initiate_meqrec
+  end subroutine initiate_meqrec ! allocated svar ??
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -7597,9 +7615,10 @@ CONTAINS
     integer iel,mph,jj,nterm
     double precision xxx,sumam
     double precision, allocatable :: svar(:)
-!    character dum*128
+    character dum*128
 !
     value=zero
+!    write(*,*)'MM meq_state_var_dot_derivative 1'
 !    if(svr2%statevarid.ne.1) then
 ! This if statement added trying to avoid spurious error (caused by -O2??)
 !       write(dum,*)'In meq_state_var_value_derivative:',&
@@ -7649,8 +7668,15 @@ CONTAINS
 18  format('svar: ',6(1pe12.4)(6x,6e12.4))
     if(iel.eq.1) then
 ! iel=1 means a single stoichiometrc phase stable, svar(1) is CP/RT/T ??
-       value=svar(1)*ceq%rtn
-       goto 1000
+! There can be a phase specification ...       
+       if(svr1%statevarid.ge.6 .and. svr1%statevarid.lt.15 .and. &
+            svr1%argtyp.eq.2) then
+!          write(*,*)'MM Single stoichiometric phase stable',iel,svr1%argtyp
+          continue
+       else
+          value=svar(1)*ceq%rtn
+          goto 1000
+       endif
     endif
 !---------------
 !100 continue
@@ -7673,7 +7699,8 @@ CONTAINS
        iel=0
        jj=1
        sumam=zero
-! Tis if statement should be included in the loop below
+!       write(*,*)'MM Calculating H.T',svr1%argtyp,meqrec%nphase
+! This "if" statement should be included in the loop below
        if(svr1%argtyp.eq.2) then
 ! if argtyp=2 then just a single phase
 !          write(*,*)'MM svr1%argtyp 1: ',svr1%argtyp,svr1%phase,svr1%compset
@@ -7688,7 +7715,8 @@ CONTAINS
 66        if(mph.gt.meqrec%nphase) then
              gx%bmperr=4050; goto 1000
           endif
-!          write(*,*)'MM svr1%argtyp 2: ',svr1%argtyp,mph
+! dummy statement to avoid some unknown error calculating Cp
+          write(dum,*)'MM svr1%argtyp 2: ',svr1%argtyp,mph,iel
           call meq_calc_phase_derivative(svr1,svr2,meqrec,mph,iel,&
                svar,jj,xxx,ceq)
           if(gx%bmperr.ne.0) goto 1000
@@ -7789,7 +7817,7 @@ CONTAINS
 !\end{verbatim}
 ! variables needed to calculate phase inverse
     TYPE(meq_phase), pointer :: pmi
-    integer jy,jel,jz
+    integer jy,jel,jz,phncc
     double precision x1,x2,x3
     double precision mag,mat,map,dpham,musum,dy,hconfig
     double precision, allocatable :: mamu(:)
@@ -7817,6 +7845,7 @@ CONTAINS
 ! Y       13    phase#set,constituent#subl   20     constituent fraction
 ! statevarid=1 is T, 2 is P, 3 is MU, 4 is AC, 5 is LNAC
 !------------------------------------------------------------
+!    write(*,*)'MM meq_calc_phase_derivative',iph,iel
     allocate(mamu(meqrec%nrel))
     pmi=>meqrec%phr(iph)
     value=zero
@@ -7829,12 +7858,27 @@ CONTAINS
     elseif(iel.eq.0) then
 ! independent of element, return for phase
        musum=zero
-!       write(*,*)'MM derivative: ',iph,pmi%ncc
-       do jy=1,pmi%ncc
-! This is the loop to handle the contribution from each phase dZ/dyi
+! pmi%ncc here is not set correctly ... WHEN?
+!       phncc=size(pmi%curd%yfr)
+       phncc=pmi%ncc
+! PROBLEM 181208: step5 macro: size(pmi%curd%yfr) is 1000 (default)
+! but pmi%ncc is 8 (total number of constituents)
+! I do not remember why this was changed
+!       write(*,*)'MM derivative: ',iph,pmi%ncc,phncc
+!       do jy=1,pmi%ncc
+       do jy=1,phncc
+! The loop to handle the contribution from fractions in each phase dZ/dyi
           dy=zero
-          call calc_dgdyterms2(jy,meqrec%nrel,mamu,mag,mat,map,pmi)
-          if(gx%bmperr.ne.0) goto 1000
+! special if just a single element ...
+          if(allocated(pmi%invmat)) then
+             call calc_dgdyterms2(jy,meqrec%nrel,mamu,mag,mat,map,pmi)
+             if(gx%bmperr.ne.0) goto 1000
+          else
+! we have a stoichiometric phase with a single component ??
+!             write(*,*)'MM No inverted phase matrix allocated',jy
+             mamu=zero; mag=zero
+!             gx%bmperr=4399; goto 1000
+          endif
           jz=1
           if(meqrec%nfixmu.gt.0) then
 ! if there are fixed potentials such elements should be ignored here
@@ -9356,6 +9400,7 @@ CONTAINS
     ssol=-pmisol%curd%gval(2,1)/pmisol%curd%abnorm(1)
     sliq=-pmiliq%curd%gval(2,1)/pmiliq%curd%abnorm(1)
     fact=sliq/ssol
+!    write(*,*)'Hickel_check: ',pmiliq%iph,pmisol%iph,fact
 !    write(*,10)pmisol%iph,pmisol%ics,pmiliq%iph,pmiliq%ics,&
 !         ceq%tpval(1),ssol,sliq,ssol-sliq,&
 !         pmisol%curd%abnorm(1)/pmiliq%curd%abnorm(1)
@@ -9367,13 +9412,13 @@ CONTAINS
 ! 
 ! calculate H^sol=G^sol+T*S^sol for abnorm-ssol
        kvot=pmisol%curd%abnorm(1)/pmiliq%curd%abnorm(1)
-!       gsol=pmisol%curd%gval(1,1)/pmisol%curd%abnorm(1)
-!       gliq=pmiliq%curd%gval(1,1)/pmiliq%curd%abnorm(1)
+       gsol=pmisol%curd%gval(1,1)/pmisol%curd%abnorm(1)
+       gliq=pmiliq%curd%gval(1,1)/pmiliq%curd%abnorm(1)
 !       hliq=pmiliq%curd%gval(1,1)-ceq%tpval(1)*pmisol%curd%gval(2,1)
 ! set the solid S and Cp to fact*(the liquid) multiplied with kvot
        pmisol%curd%gval(2,1)=pmiliq%curd%gval(2,1)*kvot
        pmisol%curd%gval(4,1)=pmiliq%curd%gval(4,1)*kvot
-! THIS WORKS. Cp is not continous ....
+! THIS WORKS. But Cp is not continous ....
       if(fact.gt.0.9) then
           pmisol%curd%gval(1,1)=10.0D0*(fact-0.9)*pmisol%curd%gval(1,1)+&
                9.0D0*(one-fact)*pmiliq%curd%gval(1,1)*kvot
@@ -9381,15 +9426,16 @@ CONTAINS
           pmisol%curd%gval(1,1)=0.9D0*pmiliq%curd%gval(1,1)*kvot
        endif
 !
+! I do not understand the use of hickelextrapol ??
        if(hickelextrapol) then
           hickelextrapol=.FALSE.
 !          write(*,'(a,2(1pe12.4))')'MM hickelextrapolation ',kvot,ceq%tpval(1)
        endif
-!       write(*,100)'MM Gsol: ',pmisol%iph,pmisol%ics,ceq%tpval(1),&
-!            gsol,pmisol%curd%gval(1,1),ssol,sliq,fact,gsol/gliq
-!100    format(a,i3,i2,2x,F6.0,6(1pe10.2))
-! Hm there are a lot of other derivatives wrt T and constitutions ...
-! skip all that for the moment
+!       write(*,100)'MM Gsol:',pmisol%iph,pmisol%ics,ceq%tpval(1),&
+!            fact,kvot,pmisol%curd%gval(1,1),gsol*kvot
+100    format(a,i3,i2,2x,F6.0,6(1pe10.2))
+! Hm there are a lot of other derivatives wrt T and constituents ...
+! but skip all that for the moment
     endif
 1000 continue
     return

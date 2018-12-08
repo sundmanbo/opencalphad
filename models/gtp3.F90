@@ -627,6 +627,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! NORECALC do not recalculate equilibria even if global test after fails
 ! OLDMAP use old map algorithm
 ! NOAUTOSP do not generate automatic start points for mapping
+! HICKKEL set if Hickel extrapolation check for solids
 ! >>>> some of these should be moved to the gtp_equilibrium_data record
   integer, parameter :: &
        GSBEG=0,       GSOCC=1,        GSADV=2,      GSNOGLOB=3, &
@@ -634,7 +635,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        GSNOREMCS=8,   GSNOSAVE=9,     GSVERBOSE=10, GSSETVERB=11,&
        GSSILENT=12,   GSNOAFTEREQ=13, GSXGRID=14,   GSNOPAR=15, &
        GSNOSMGLOB=16, GSNOTELCOMP=17, GSTGRID=18,   GSOGRID=19, &
-       GSNORECALC=20, GSOLDMAP=21,    GSNOAUTOSP=22
+       GSNORECALC=20, GSOLDMAP=21,    GSNOAUTOSP=22,GSHICKEL=23
 !----------------------------------------------------------------
 !-Bits in element record
   integer, parameter :: &
