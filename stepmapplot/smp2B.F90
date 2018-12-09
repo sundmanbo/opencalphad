@@ -1327,22 +1327,23 @@
     if(graphopt%gnutermsel.ne.1) then
        write(kou,*)'Graphics output file: ',pfh(1:kk+4)
     endif
-!#ifdef winkeep
+    if(grwin.eq.1) then
 ! call system without initial "gnuplot " keeps the window !!!
-!    if(btest(graphopt%status,GRKEEP)) then
-!       write(*,*)'plot command: "',gnuplotline(9:k3),'"'
-!       write(*,*)'Trying to spawn: ',trim(gnuplotline)
-!       call system(gnuplotline(9:k3))
-! spawn process on Windows ??
-!       call execute_command_line('start /B '//gnuplotline(9:k3))
-!    else
-!       write(*,*)'plot command: "',gnuplotline(1:k3),'"'
-!       call system(gnuplotline)
-!       call execute_command_line(gnuplotline)
-!    endif
-!#else
-    call execute_command_line(gnuplotline)
-!#endif
+       if(btest(graphopt%status,GRKEEP)) then
+!          write(*,*)'plot command: "',gnuplotline(9:k3),'"'
+!          write(*,*)'Trying to spawn: ',trim(gnuplotline)
+!          call system(gnuplotline(9:k3))
+! spawn plot on Windows ??
+          call execute_command_line('start /B '//gnuplotline(9:k3))
+       else
+!          write(*,*)'plot command: "',gnuplotline(1:k3),'"'
+!          call system(gnuplotline)
+          call execute_command_line(gnuplotline)
+       endif
+    else
+! plot on non-windows system
+       call execute_command_line(gnuplotline)
+    endif
 1000 continue
     return
   end subroutine ocplot2B
@@ -2546,12 +2547,16 @@
     if(graphopt%gnutermsel.ne.1) then
        write(*,*)'Graphics output file: ',trim(pfh)
     endif
-    if(btest(graphopt%status,GRKEEP)) then
-       write(*,*)'Trying to spawn'
-!       call system(gnuplotline(9:))
-       call execute_command_line(gnuplotline(9:))
+! grwin set by compiler option, 1 means windows
+    if(grwin.eq.1) then
+       if(btest(graphopt%status,GRKEEP)) then
+          write(*,*)'Trying to spawn'
+          call execute_command_line(gnuplotline(9:))
+       else
+          call execute_command_line(gnuplotline)
+       endif
     else
-!       call system(gnuplotline)
+! plot on non-windows system
        call execute_command_line(gnuplotline)
     endif
 !900 continue

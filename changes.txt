@@ -13,6 +13,12 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2018.12.09 OC version 5.027: A whole month without updates!  A new
+compiler option for compiling on LINUX for the smp.F90, -Dnotwin in
+the Makefile.  Remove this if you use the Makefile on Windows.  The
+intention is to allow spawning plots.  Some bugfixes and a first step
+has been made to implement the uniquac model.
+
 2018.10.24 OC version 5.026: The default when plotting has been
 changed to KEEP so you no longer has to click in the diagram to
 continue giving commands in OC.  This means you can have several plot

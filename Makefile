@@ -57,12 +57,13 @@ matsmin.o:	minimizer/matsmin.F90
 	$(FC) -c $(FCOPT) minimizer/matsmin.F90
 
 smp2.o:		stepmapplot/smp2.F90
-	$(FC) -c $(FCOPT) stepmapplot/smp2.F90
+	# Remove -Dnotwin if compiled on windows
+	$(FC) -c $(FCOPT) -Dnotwin stepmapplot/smp2.F90
 
 pmon6.o:	userif/pmon6.F90
 	# default wxt graphical driver
 	# use -Dqtplt fot Qt or -Daqplt for aqua plot drivers, nothing for wxt
-	# use -Dlixhlp for online helo in Linux
+	# use -Dlixhlp for online help in Linux
 	$(FC) -c $(FCOPT) -Dqtplt -Dlixhlp userif/pmon6.F90
 
 $(EXE): 
