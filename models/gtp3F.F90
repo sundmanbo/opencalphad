@@ -2126,8 +2126,8 @@
 !\end{verbatim}
    double precision props(5),xmol(maxel),wmass(maxel),stoi(10),cmpstoi(10)
    double precision vt,vp,amult,vg,vs,vv,div,aref,vn,bmult,tmass,tmol
-   double precision qsp,gref,spmass,rmult,tsave,rtn,spextra
-   integer kstv,norm,lokph,lokcs,icx,jp,ncmp,ic,iprop,loksp,nspel,iq
+   double precision qsp,gref,spmass,rmult,tsave,rtn,spextra(10)
+   integer kstv,norm,lokph,lokcs,icx,jp,ncmp,ic,iprop,loksp,nspel,iq,nspx
    integer endmember(maxsubl),ielno(maxspel)
    value=zero
    ceq%rtn=globaldata%rgas*ceq%tpval(1)
@@ -2482,8 +2482,9 @@
 200   continue
 !   write(*,*)'3F svv3 at 200:',kstv,ndefprop
 !   if(ndefprop.ne.33) then
-   if(ndefprop.ne.34) then
-      write(*,*)'3F The model parameter identifiers has been changed!'
+! THIS IS A VERY CRUDE CHECK! Please check also the SELECT below
+   if(ndefprop.ne.32) then
+      write(*,*)'3F The model parameter identifiers has been changed!',32
 ! you may also have to change the case indices!!
       stop
    endif
@@ -2518,20 +2519,18 @@
 !  23 EC11  T P                                   0 Elastic const C11
 !  24 EC12  T P                                   0 Elastic const C12
 !  25 EC44  T P                                   0 Elastic const C44
-!  26 FHV   T P &<constituent#sublattice>;       10 Flory-Huggins volume ratio
-!  27 UQR   T P                                   0 UNIQUAC segment parameter
-!  28 UQQ   T P                                   0 UNIQUAC area parameter
-!  28 UQT   T P                                   0 UNIQUAC residual parameter
-!  30 RHO   T P                                   0 Electric resistivity
-!  31 LAMB  T P                                   0 Thermal conductivity
-!  32 HMVA  T P                                   0 Enthalpy of vacancy form.
-!  33 TSCH  - P                                   2 Schottky anomality T
-!  34 CSCH  - P                                   2 Schottky anomality Cp/R.
+!  26 UQ12  T P                                   0 UNIQUAC residual parameter
+!  27 UQ21  T P                                   0 UNIQUAC residual parameter
+!  28 RHO   T P                                   0 Electric resistivity
+!  29 LAMB  T P                                   0 Thermal conductivity
+!  30 HMVA  T P                                   0 Enthalpy of vacancy form.
+!  31 TSCH  - P                                   2 Schottky anomality T
+!  32 CSCH  - P                                   2 Schottky anomality Cp/R.
 ! I am not sure how to handle changes ...
 !-------------------------------------------------------------------
 !...................................... without constituent index
-   case(1:5,7:12,16:25,27:34) 
-! constituent index: 6, 13:15, 26
+   case(1:5,7:12,16:32) 
+! constituent index: 6, 13:15
       call get_phase_compset(indices(1),indices(2),lokph,lokcs)
       if(gx%bmperr.ne.0) goto 1000
 ! nprop is number of properties calculated.  Property 1 is always G
@@ -2544,10 +2543,9 @@
       enddo find1
 !....................................... with constituent index
 ! These have a constituent index
-   case(6,13:15,26)
+   case(6,13:15)
 ! 6: IBM& Individual Bohr magneton number
 ! 13-15: MQ& etc mobility values
-! 27: Flory Huggins volume 
 !      write(*,*)'3F svv3 mob1: ',indices(1),indices(2),iprop
       call get_phase_compset(indices(1),indices(2),lokph,lokcs)
       if(gx%bmperr.ne.0) goto 1000
@@ -2581,7 +2579,7 @@
       lokph=phases(indices(1))
       loksp=phlista(lokph)%constitlist(indices(2))
 ! split the species in elements, convert to components, add chemical potentials
-      call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp,spextra)
+      call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp,nspx,spextra)
       if(gx%bmperr.ne.0) goto 1000
       if(qsp.ne.zero) then
 !         write(*,*)'3F Cannot calculate potential of charged species'

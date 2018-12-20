@@ -334,53 +334,35 @@
    propid(npid)%status=0
 ! The elastic constant may depend on T and P
 !.......................................
-! Flory-Huggins molar volume parameter 26
-   npid=npid+1
-   propid(npid)%symbol='FHV '
-   propid(npid)%note='Flory-Huggins volume ratio '
-   propid(npid)%status=0
-! FHV is specific for a constituent
-   propid(npid)%status=ibset(propid(npid)%status,IDCONSUFFIX)
+! removed Flory-Huggins and some UNIQUAC parameters, stored in species record
 !.......................................
-! UNIQUAC area parameter 27
+! UNIQUAC interaction parameter 26
    npid=npid+1
-   propid(npid)%symbol='UQR '
-   propid(npid)%note='UNIQUAC segment parameter '
+   propid(npid)%symbol='UQ12 '
+   propid(npid)%note='UNIQUAC 1 residual parameter '
    propid(npid)%status=0
-! This is "r" used for the Phi parameter
-! UQR is specific for a constituent NO!
-!   propid(npid)%status=ibset(propid(npid)%status,IDCONSUFFIX)
-!.......................................
-! UNIQUAC volume parameter 28
+! UQ12 is not specific for a constituent
+!.....................................
+! UNIQUAC interaction parameter 27
    npid=npid+1
-   propid(npid)%symbol='UQQ '
-   propid(npid)%note='UNIQUAC area parameter '
+   propid(npid)%symbol='UQ21 '
+   propid(npid)%note='UNIQUAC 2 residual parameter '
    propid(npid)%status=0
-! This is "q" for the theta parameter
-! UQQ is specific for a constituent NO!
-!   propid(npid)%status=ibset(propid(npid)%status,IDCONSUFFIX)
+! UQ21 is not specific for a constituent
 !.......................................
-! UNIQUAC interaction parameter 29
-   npid=npid+1
-   propid(npid)%symbol='UQT '
-   propid(npid)%note='UNIQUAC residual parameter '
-   propid(npid)%status=0
-! UNQT is specific for a constituent NO!
-!   propid(npid)%status=ibset(propid(npid)%status,IDCONSUFFIX)
-!.......................................
-! Electrical resistivity 30
+! Electrical resistivity 28
    npid=npid+1
    propid(npid)%symbol='RHO '
    propid(npid)%note='Electric resistivity'
    propid(npid)%status=0
 !....................................... 
-! Thermal conductivity as function of T and P: 31
+! Thermal conductivity as function of T and P: 29
    npid=npid+1
    propid(npid)%symbol='LAMB '
    propid(npid)%note='Thermal conductivity '
    propid(npid)%status=0
 !.......................................
-! From MatCalc databases 32
+! From MatCalc databases 30
    npid=npid+1
    propid(npid)%symbol='HMVA '
    propid(npid)%note='Enthalpy of vacancy form. '
@@ -388,7 +370,7 @@
 ! this parameter does not depend on T ??
 !   propid(npid)%status=ibset(propid(npid)%status,IDONLYP)
 !.......................................
-! Schottky anomality T 33
+! Schottky anomality T 31
    npid=npid+1
    propid(npid)%symbol='TSCH '
    propid(npid)%note='Schottky anomality T '
@@ -396,7 +378,7 @@
 ! this parameter does not depend on T ??
    propid(npid)%status=ibset(propid(npid)%status,IDONLYP)
 !.......................................
-! Schottky anomality CP/R 34
+! Schottky anomality CP/R 32
    npid=npid+1
    propid(npid)%symbol='CSCH '
    propid(npid)%note='Schottky anomality Cp/R. '
@@ -1492,19 +1474,20 @@ end function find_phasetuple_by_indices
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine get_species_data(loksp,nspel,ielno,stoi,smass,qsp,extra)
+ subroutine get_species_data(loksp,nspel,ielno,stoi,smass,qsp,nextra,extra)
 ! return species data, loksp is from a call to find_species_record
 ! nspel: integer, number of elements in species
 ! ielno: integer array, element indices
 ! stoi: double array, stoichiometric factors
 ! smass: double, mass of species
 ! qsp: double, charge of the species
-! extra: some additional information ...
+! nextra, integer, number of additional values
+! extra: double, some additional values like UNIQUAC volume and area
    implicit none
    integer, dimension(*) :: ielno
-   double precision, dimension(*) :: stoi(*)
-   integer loksp,nspel
-   double precision smass,qsp,extra
+   double precision, dimension(*) :: stoi,extra
+   integer loksp,nspel,nextra
+   double precision smass,qsp
 !\end{verbatim} %+
    integer jl,iel
    if(loksp.le.0 .or. loksp.gt.noofsp) then
@@ -1519,7 +1502,14 @@ end function find_phasetuple_by_indices
    enddo elements
    smass=splista(loksp)%mass
    qsp=splista(loksp)%charge
-   extra=splista(loksp)%extra
+! extraproperties for UNIQUAC model (and maybe others)
+   nextra=0
+   if(allocated(splista(loksp)%spextra)) then
+      nextra=size(splista(loksp)%spextra)
+      do jl=1,nextra
+         extra(jl)=splista(loksp)%spextra(jl)
+      enddo
+   endif
 1000 return
  end subroutine get_species_data
 
@@ -1541,15 +1531,15 @@ end function find_phasetuple_by_indices
    double precision smass,qsp
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-   integer jl,iel,jk,ncomp,locomp
+   integer jl,iel,jk,ncomp,locomp,nspx
    integer, allocatable :: components(:)
    double precision, allocatable :: compstoi(:)
-   double precision qextra
+! this can be UNIQUAC parameters: area, volume
+   double precision qextra(10)
 !
 ! if the components are the elements then use get_species_data
    if(.not.btest(globaldata%status,GSNOTELCOMP)) then
-      call get_species_data(loksp,nspel,compnos,stoi,smass,qsp,qextra)
-      qextra=zero
+      call get_species_data(loksp,nspel,compnos,stoi,smass,qsp,nspx,qextra)
       goto 1000
 !   else
 !      write(*,11)globaldata%status,GSNOTELCOMP
@@ -2388,10 +2378,10 @@ end function find_phasetuple_by_indices
    character line*(*)
    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-   integer c1,c2,c3,i1,i2,nspel,ierr,lokph,lokcs
+   integer c1,c2,c3,i1,i2,nspel,ierr,lokph,lokcs,nspx
    integer, allocatable :: ielno(:),loksp(:)
    double precision, allocatable :: stoi(:),smass(:),yarr(:)
-   double precision qsp,extra,qq(5)
+   double precision qsp,spextra(10),qq(5)
    double precision, allocatable :: matrix(:,:),imat(:,:)
    character name*24
    type(gtp_condition), pointer :: pcond,qcond,last
@@ -2412,7 +2402,7 @@ end function find_phasetuple_by_indices
       call find_species_record_exact(name,loksp(c1))
       if(gx%bmperr.ne.0) goto 1000
       call get_species_data(loksp(c1),nspel,ielno,stoi,&
-           smass(c1),qsp,extra)
+           smass(c1),qsp,nspx,spextra)
       if(qsp.gt.zero) then
          write(*,*)'Charged species must not be components'
          gx%bmperr=4399; goto 1000

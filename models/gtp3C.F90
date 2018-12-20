@@ -191,8 +191,8 @@
    implicit none
    integer unit
 !\end{verbatim}
-   integer jl,ipos
-   character line*80
+   integer jl,ipos,loksp
+   character line*100
    write(unit,10)noofsp
 10  format(/'List of ',i3,' species'/ &
         '  No Symbol',20X,'Stoichiometry',12X,'Mass      Charge Status')
@@ -201,8 +201,14 @@
       call list_species_data(line,ipos,species(jl))
       if(gx%bmperr.ne.0) goto 1000
       write(unit,100)jl,line(1:ipos)
+! uniquac values
+      loksp=species(jl)
+      if(btest(splista(loksp)%status,SPUQC)) then
+         write(unit,110)splista(loksp)%spextra
+      endif
    enddo loop1
 100 format(i4,1x,A)
+110 format(5x,'UNIQUAC area (q): ',F10.4,', segments (r): ',F10.4)
 1000 continue
    return
  END subroutine list_all_species

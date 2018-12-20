@@ -2946,6 +2946,7 @@ CONTAINS
 ! cmix dimensioned for 2 terms ...
     integer cmix(22),cmode,stvix,stvnorm,sel,sph,scs,jph,jj,ie,je,ke,ncol
     integer notf,nz2,nrow,nterms,mterms,moffs,ncol2,iph
+    integer xterm
     double precision cvalue,totam,pham,mag,mat,map,xxx,zval,xval,ccf(5),evalue
 ! the next line of values are a desperate search for a solution
     double precision totalmol,totalmass,check1,check2,amount,mag1,mat1,map1
@@ -3118,7 +3119,7 @@ CONTAINS
 !    nz2=nz1+1
 !
 ! >>>>>>>>>>> THIS IS UNFINISHED, ONLY A FEW STATE VARIABLES ALLOWED
-! expressions only for N and x
+! expressions only for N and x and S ...
 !
     nrow=meqrec%nstph
     lastcond=>ceq%lastcondition
@@ -3126,6 +3127,7 @@ CONTAINS
     allocate(mamu(meqrec%nrel))
 ! for saving partial dgdyterms, set nosave=.TRUE. to use old calc_dgdyterms1
 !    nosave=.TRUE.
+! nosave always FALSE as there are places to save results in phase_varres
     nosave=.FALSE.
     savedrec%sameit=0
     saved=>savedrec
@@ -3181,15 +3183,64 @@ CONTAINS
     case default
        write(*,*)'not a condition:',stvix,stvnorm,cmix(1),cmix(2),cmix(3)
        gx%bmperr=4208; goto 1000
-    case(1:2,5) 
+    case(1,5) 
 ! stvix=1..6: U, S, V, H, A, G, some conditions not implemented
 !             1  2  3  4  5  6
        write(*,*)'Not implemented yet: ',stvix,stvnorm
        gx%bmperr=4207; goto 1000
 !------------------------------------------------------------------
+! Entropy for system or phase(s)
+    case(2) ! S entropy condition
+       write(*,*)'MM entropy condition testing: ',nterms,nrow,nz1
+       if(stvnorm.eq.0) then
+! not normallized          
+          if(cmix(3).eq.0) then
+! condition is S=value
+             sph=0
+          else
+! condition is S(phase#set)=value
+             sph=cmix(3); scs=cmix(4)
+          endif
+          write(*,*)'MM not normallized entropy conditions not implemented'
+          gx%bmperr=4207; goto 1000
+       else
+! the interest is to use the condition SM(solid)-SM(liquid)=0
+! for equientropy lines ...
+! s1-s2=0: delta-s = ds/dT dT + ds/dy dy + ... = 0
+          xterm=3
+          xxx=zero
+! calculate and store the drivatives in xcol
+! How to know wich is the independent for each index?
+! SEE HOW A V condition is calculated below!!
+          allocate(xcol(nz2))
+220       continue
+          if(mterms.le.nterms) then
+! loop over ALL phases
+             sph=cmix(xterm); scs=cmix(xterm+1)
+             do jph=1,meqrec%nphase
+                if(phr(jph)%iph.eq.sph .and. phr(jph)%ics.eq.scs) then
+! extract the value of SM for phase in mterms
+!                   write(*,*)'MM: sph,scs: ',mterms,xterm,sph,scs
+                   xxx=xxx+ccf(mterms)*phr(sph)%curd%gval(2,1)/&
+                        phr(sph)%curd%abnorm(1)
+!                   write(*,230)'MM S: ',ccf(mterms),phr(sph)%curd%gval(2,1),&
+!                        phr(sph)%curd%abnorm(1),phr(sph)%curd%amfu,xxx
+230                format(a,6(1pe12.4))
+                   xterm=xterm+4
+                   mterms=mterms+1
+                   goto 220
+                endif
+             enddo
+             write(*,*)'MM cannot find phase for EET',mterms
+             gx%bmperr=4399; goto 1000
+          endif
+       endif
+       nrow=nrow+1
+       write(*,230)'MM xxx: ',xxx,cvalue
+       smat(nrow,1)=xxx
+       gx%bmperr=4207; goto 1000
+!------------------------------------------------------------------
     case(3) ! V volume condition, almost the same a H condition
-!       write(*,*)'Volume condition does not work yet: ',stvix,stvnorm
-!       gx%bmperr=4207; goto 1000
 ! Volume for system or phase, NOT normallized
        if(stvnorm.eq.0) then
 ! not normallized
@@ -3197,7 +3248,7 @@ CONTAINS
 ! condition is V=value
              sph=0
           else
-! condition is H(phase#set)=value or V(phase#set)=value
+! condition is V(phase#set)=value
              sph=cmix(3); scs=cmix(4)
           endif
 ! FU(alpha) is formula units of alpha phase, V=\sum_alpha VM(alpha) VM(alpha)
@@ -3356,11 +3407,12 @@ CONTAINS
           enddo
           deallocate(xcol)
        else
+! volume is normalized
           write(*,*)'Normalized volume condition not implemented yet'
           gx%bmperr=4207; goto 1000
        endif
 !------------------------------------------------------------------
-    case(4) ! Enthaly condition (Heat balance). Maybe also V condition? Not yet
+    case(4) ! Enthaly condition (Heat balance). 
 ! Enthalpy for system or phase, normallized or not
 !       gx%bmperr=4207; goto 1000
        if(stvnorm.eq.0) then
@@ -5065,7 +5117,7 @@ CONTAINS
 ! invert the phase matrix (faster routine should be used) IDEAL PHASE
        call mdinv(nd1,nd2,pmat,pmi%invmat,neq,ierr)
        if(ierr.eq.0) then
-          write(*,*)'Numeric problem 1, phase/set: ',iph,ics
+          write(*,*)'MM Numeric problem 1, phase/set: ',iph,ics
           write(*,*)'Phase matrix singular 1:',pmi%iph,pmi%ics,pmi%ncc,ierr
           do jk=1,neq
              write(*,73)(pmat(ik,jk),ik=1,neq)
@@ -5302,7 +5354,7 @@ CONTAINS
 ! invert the phase matrix (faster routine should be used) IONIC LIQUID MODEL
        call mdinv(nd1,nd2,pmat,pmi%invmat,nd1,ierr)
        if(ierr.eq.0) then
-!          write(*,*)'Numeric problem 2, phase/set: ',iph,ics
+!          write(*,*)'MM Numeric problem 2, phase/set: ',iph,ics
           write(*,*)'Phase matrix singular 2:',pmi%iph,pmi%ics,pmi%ncc,ierr
           gx%bmperr=4205; goto 1000
        endif
@@ -5454,7 +5506,7 @@ CONTAINS
 ! invert the phase matrix (using LAPACK+BLAS ... 50% faster than with Leo)
     call mdinv(nd1,nd2,pmat,pmi%invmat,neq,ierr)
     if(ierr.eq.0) then
-       write(*,*)'Numeric problem 3, phase/set:',iph,ics
+       write(*,*)'MM Numeric problem 3, phase/set:',iph,ics
 !       if(ocv()) write(*,556)'Phase matrix singular 3:',meqrec%noofits,&
        if(pmi%chargebal.eq.1) then
 ! can be problem with external chargebalance not needed ...

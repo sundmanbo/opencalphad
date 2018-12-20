@@ -13,6 +13,11 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2018.12.20 OC version 5.028: A number of minor modifications to
+accomodate the UNIQUAC model.  However, this required changes of the
+"model parameter identifiers" and the "unformaatted" saving of data
+which make older unformatted files no longer readable.
+
 2018.12.09 OC version 5.027: A whole month without updates!  A new
 compiler option for compiling on LINUX for the smp.F90, -Dnotwin in
 the Makefile.  Remove this if you use the Makefile on Windows.  The
@@ -23,11 +28,10 @@ has been made to implement the uniquac model.
 changed to KEEP so you no longer has to click in the diagram to
 continue giving commands in OC.  This means you can have several plot
 windows at the same time.  If you click in the plot window it will
-close.  If you want to change this you can use the plot option
-"miscellaneous" or dig into the source code of the userif/pmon6.F90
-and commenting away the line:
-    graphopt%status=ibset(graphopt%status,GRKEEP)
-in two places.
+close.  If you want to change back to the old way you can use the plot
+option "miscellaneous" or dig into the source code of the
+userif/pmon6.F90 and commenting away the line:
+graphopt%status=ibset(graphopt%status,GRKEEP) in two places.
 
 OC gives a warning if you have not set a browser for on-line help.
 On Windows the browser is by default explorer, on LINUX firefox.  You
@@ -39,7 +43,7 @@ enter\_equilibrium and its TQ equivalent, tqcceq, that sometimes two
 equilibria were created.
 
 2018.10.03 OC version 5.025: I have modified the opening of the
-browser window for help so one can continue running the programit
+browser window for help so one can continue running the program
 without closing the window.  Asking for help again opens a new browser
 tag on Linux but a new window on Windows (of course).
 

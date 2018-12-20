@@ -332,7 +332,7 @@ contains
 !        123456789.123456---123456789.123456---123456789.123456
 ! subsubcommands to SET ADVANCED
     character (len=16), dimension(ncadv) :: cadv=&
-         ['EQUILIB_TRANSF  ','QUIT            ','EXTRA_PROPERTY  ',&
+         ['EQUILIB_TRANSF  ','QUIT            ','                ',&
           'GRID_DENSITY    ','SMALL_GRID_ONOFF','MAP_SPECIAL     ',&
           'GLOBAL_MIN_ONOFF','OPEN_POPUP_OFF  ','WORKING_DIRECTRY',&
           'HELP_POPUP_OFF  ','HICKEL_EXTRAPOL ','                ']
@@ -501,7 +501,7 @@ contains
 ! if winhlp set also GRWIN to allow GRKEEP
 !    write(*,*)'Setting windows bit 1: ',GRWIN
 #ifdef winhlp    
-    write(*,*)'Setting windows bit 2: ',GRWIN
+!    write(*,*)'UI: Setting windows bit 2: ',GRWIN
     graphopt%status=ibset(graphopt%status,GRWIN)
 #endif
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -837,7 +837,26 @@ contains
           write(kou,*)'Not implemented yet'
 !-------------------------
        case(3) ! amend species
-          write(kou,*)'Not implemented yet'
+          call gparc('Species symbol: ',cline,last,1,name1,' ',q1help)
+          call find_species_record(name1,loksp)
+          if(gx%bmperr.ne.0) goto 100
+          write(*,'(a)')'You can only amend UNIQAC area and volume'
+          call gparrd('UNIQAC surface area (q): ',cline,last,xxx,one,q1help)
+          if(xxx.le.one) then
+             write(*,'(a)')'Area must be >1, set to 1.00'
+             xxx=one
+          endif
+          call gparrd('UNIQAC segments (r): ',cline,last,xxy,one,q1help)
+          if(xxy.le.one) then
+             write(*,'(a)')'Segments must be >1, set to 1.00'
+             xxy=one
+          endif
+! mark UNIQUAC in species status word and allocate space for values
+          call set_uniquac_species(loksp)
+          if(gx%bmperr.ne.0) goto 100
+          call enter_species_property(loksp,1,xxx)
+          call enter_species_property(loksp,2,xxy)
+          if(gx%bmperr.ne.0) goto 100
 !-------------------------
        case(4) ! amend phase subcommands
           call gparc('Phase name: ',cline,last,1,name1,' ',q1help)
@@ -1907,15 +1926,8 @@ contains
           case(2) ! quit
              continue
 !.................................................................
-          case(3) ! SET ADVANCED EXTRTA_PROPERTY for a species
-             call gparc('Species symbol: ',cline,last,1,name1,' ',q1help)
-             call find_species_record(name1,loksp)
-             if(gx%bmperr.ne.0) goto 100
-             xxy=one
-             call gparrd('Property value: ',cline,last,xxx,xxy,q1help)
-             if(buperr.eq.0) then
-                call enter_species_property(loksp,xxx)
-             endif
+          case(3) ! SET ADVANCED unused
+             write(*,*)'Not implemented'
 !.................................................................
           case(4) ! SET ADVANCED GRID_DENSITY
              call gparid('Level: ',cline,last,ll,1,q1help)
@@ -4463,6 +4475,10 @@ contains
        endif
        seqxyz=0
        call delete_mapresults(maptop)
+       if(gx%bmperr.ne.0) then
+          write(*,*)'Error deleting map results! Report this error with macro!'
+          stop
+       endif
 !       write(*,*)'Back from delete_mapresults'
 ! remove any results from step and map
 !       if(associated(maptop)) then
@@ -4494,8 +4510,16 @@ contains
 ! this routine fragile, inside new_gtp init_gtp is called
 !       write(*,*)'No segmentation fault 7'
        call new_gtp
+       if(gx%bmperr.ne.0) then
+          write(*,*)'Error deleting data! Report this error with macro!'
+          stop
+       endif
        write(kou,*)'All data removed'
        call init_gtp(intv,dblv)
+       if(gx%bmperr.ne.0) then
+          write(*,*)'Error initiating! Report this error with macro!'
+          stop
+       endif
        write(kou,*)'Workspaces initiated'
 !       ceq=>firsteq
        goto 20

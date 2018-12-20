@@ -2012,7 +2012,7 @@ end subroutine get_condition
 !\end{verbatim} %+
 ! ceq is actually redundant as current is a pointer to condition list in ceq
    integer, dimension(4) :: indices
-   integer iref,iunit,jl,istv,ip,linkix,nterms
+   integer iref,iunit,jx,istv,ip,linkix,nterms
    character encoded*60,actual_arg*60
    double precision xxx
 !
@@ -2030,17 +2030,28 @@ end subroutine get_condition
       if(current%statev.eq.111 .or.current%statev.eq.110) then
 ! allow several terms for mole fractions and \sum_i a_i*N(i)=0 !!
 !         write(*,69)'3D in apply: ',current%statev,current%noofterms,&
-!              ((current%indices(jl,nterms),jl=1,4),nterms=1,current%noofterms)
+!              ((current%indices(jx,nterms),jx=1,4),nterms=1,current%noofterms)
 69       format(a,i4,i2,3(2x,4i5))
          nterms=current%noofterms
-         do jl=1,nterms
-            ccf(jl)=current%condcoeff(jl)
+         do jx=1,nterms
+            ccf(jx)=current%condcoeff(jx)
          enddo
-!         write(*,68)nterms,(ccf(jl),jl=1,nterms)
+!         write(*,68)nterms,(ccf(jx),jx=1,nterms)
 !68       format('3D coeff: ',i2,6(1pe12.4))
+      elseif(current%statev.eq.21) then
+! implement S-S for EET calculations ...
+!         write(*,*)'3D Apply_condition with several terms',current%statev,&
+!              current%iref,current%iunit
+         nterms=current%noofterms
+         do jx=1,current%noofterms
+            ccf(jx)=current%condcoeff(jx)
+!            write(*,*)'3D: ',jx,(current%indices(istv,jx),istv=1,4)
+         enddo
+!         gx%bmperr=4207; goto 900
       else
 ! cannot handle other conditions with several terms
-         write(*,*)'3D Apply_condition with several terms',current%statev
+         write(*,*)'3D Apply_condition with several terms',current%statev,&
+              current%noofterms
          gx%bmperr=4207; goto 900
       endif
    else
@@ -2050,8 +2061,8 @@ end subroutine get_condition
    endif
 ! for debugging
    istv=current%statev
-   do jl=1,4
-      indices(jl)=current%indices(jl,1)
+   do jx=1,4
+      indices(jx)=current%indices(jx,1)
    enddo
    iref=current%iref
    iunit=current%iunit
@@ -2110,8 +2121,8 @@ end subroutine get_condition
    cmix(1)=0
 ! for debugging
    istv=current%statev
-   do jl=1,4
-      indices(jl)=current%indices(jl,1)
+   do jx=1,4
+      indices(jx)=current%indices(jx,1)
    enddo
    iref=current%iref
    iunit=current%iunit
@@ -2140,11 +2151,11 @@ end subroutine get_condition
          cmix(4*nterms+2)=current%indices(4,nterms)
       enddo
       ip=current%noofterms
-      do jl=1,ip
-         ccf(jl)=current%condcoeff(jl)
+      do jx=1,ip
+         ccf(jx)=current%condcoeff(jx)
       enddo
-!      write(*,211)'3D Many terms: ',(cmix(jl),jl=1,4*ip+2)
-!      write(*,212)'3D more: ',(ccf(jl),jl=1,ip)
+!      write(*,211)'3D Many terms: ',(cmix(jx),jx=1,4*ip+2)
+!      write(*,212)'3D more: ',(ccf(jx),jx=1,ip)
 211   format(a,2i4,4(2x,44i3))
 212   format(a,4(1pe12.4))
    endif
@@ -2607,18 +2618,48 @@ end subroutine get_condition
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim}
- subroutine enter_species_property(loksp,value)
-! enter an extra species property for species loksp
+ subroutine set_uniquac_species(loksp)
+! set the status bit and allocates spexttra array
    implicit none
    integer loksp
+!\end{verbatim}
+! this is illegal for species that are elements ...
+   if(btest(splista(loksp)%status,SPEL) .or. &
+        btest(splista(loksp)%status,SPVA)) then
+      gx%bmperr=4298
+   else
+      splista(loksp)%status=ibset(splista(loksp)%status,SPUQC)
+      if(.not.allocated(splista(loksp)%spextra)) then
+         allocate(splista(loksp)%spextra(2))
+         splista(loksp)%spextra=one
+      endif
+   endif
+1000 continue
+   return
+ end subroutine set_uniquac_species
+ 
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
+ subroutine enter_species_property(loksp,nspx,value)
+! enter an extra species property for species loksp
+   implicit none
+   integer loksp,nspx
    double precision value
 !\end{verbatim}
 ! this is illegal for species that are elements ...
-   if(btest(splista(loksp)%status,SPEL)) then
+   if(btest(splista(loksp)%status,SPEL) .or. &
+        btest(splista(loksp)%status,SPVA)) then
 !      write(*,*)'Illegal to set this for element species'
       gx%bmperr=4298
+   elseif(.not.allocated(splista(loksp)%spextra)) then
+      write(*,*)'3D this species has no allocated extra data'
+      gx%bmperr=4399; goto 1000
+   elseif(nspx.gt.size(splista(loksp)%spextra)) then
+      write(*,*)'3D species has not sufficient extra data allocated ',nspx
+      gx%bmperr=4399; goto 1000
    else
-      splista(loksp)%extra=value
+      splista(loksp)%spextra(nspx)=value
    endif
 1000 continue
    return

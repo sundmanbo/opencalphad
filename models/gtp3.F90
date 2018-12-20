@@ -642,15 +642,16 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        ELSUS=0
 !----------------------------------------------------------------
 !-Bits in species record
-! Suspended,
-! implicitly suspended, 
-! species is element, 
-! species is vacancy
-! species have charge, 
-! species is (system) component
+! SUS   Suspended,
+! IMSUS implicitly suspended (when element suspended)
+! EL    species is element, 
+! VA    species is the vacancy
+! ION   species have charge, 
+! SYS   species is (system) component
+! UQAC  species used in uniquac model (2 extra reals for area and volume)
   integer, parameter :: &
        SPSUS=0, SPIMSUS=1, SPEL=2, SPVA=3, &
-       SPION=4, SPSYS=5
+       SPION=4, SPSYS=5,   SPUQC=6
 !\end{verbatim}
 !----------------------------------------------------------------
 ! Many not implemented
@@ -983,20 +984,22 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !-----------------------------------------------------------------
 !\begin{verbatim}
 ! this constant must be incremented whenever a change is made in gtp_species
-  INTEGER, parameter :: gtp_species_version=1
+  INTEGER, parameter :: gtp_species_version=2
   TYPE gtp_species
 ! data for each species: symbol, mass, charge, extra, status
 ! mass is in principle redundant as calculated from element mass
-! extra can be used for somethinig extra ... like a Flory-Huggins segment length
      character :: symbol*24
-     double precision :: mass,charge,extra
+     double precision :: mass,charge
 ! alphaindex: the alphabetical order of this species
 ! noofel: number of elements
+! nextra: number of extra properties (size of spextra)
      integer :: noofel,status,alphaindex
 ! Use an integer array ellinks to indicate the elements in the species
 ! The corresponing stoichiometry is in the array stochiometry
      integer, dimension(:), allocatable :: ellinks
      double precision, dimension(:), allocatable :: stoichiometry
+! Can be used for extra species properties as in UNIQUAC models (area, volume)
+     double precision, dimension(:), allocatable :: spextra
   END TYPE gtp_species
 ! allocated in init_gtp
   TYPE(gtp_species), private, allocatable :: splista(:)

@@ -4402,22 +4402,22 @@
 !\begin{verbatim}
  subroutine uniquac_model(moded,ncon,phres,ceq)
 ! Calculate the Gibbs energy of the UNIQUAC model (Abrams et al 1975)
-! Modified by Jing Oct 2018
-! Modified Nov 30 2018
+! Modified 2018/Oct, Nov, Dec
 ! It returns UNIQUAC G and first and second derivatives of G in phres%gval etc.
-! and all the rest is the same as for other models
-! The values of q_i and r_i should be stored in species record, not identifiers
+! The values of q_i and r_i are be stored in species record, not identifiers
 ! The residual term should be stored as a UQTAU identifier 
    implicit none
    integer moded,ncon
    TYPE(gtp_equilibrium_data), pointer :: ceq
    TYPE(gtp_phase_varres), pointer :: phres
 !\end{verbatim}
-   integer ia,ib,ic,id,jj,nprop,unqq,unqr,unqt,nint
-   double precision, allocatable, dimension(:) :: theta,phi,tau,qval,xfr,rval
-   double precision, allocatable, dimension(:) :: sumtt,sumtk,dgv,d2gv
-   double precision hzeta
-   double precision gc,gr,term,dgr,dgc,d2gc,d2gr,sumxiqi
+   integer ia,ib,ic,id,ie,jj,nprop,unqq,unqr,unqt12,unqt21,nint,lokph,loksp
+   double precision, allocatable, dimension(:) :: theta,phi,qval,xfr,rval
+   double precision, allocatable, dimension(:,:) :: tau
+   double precision, allocatable, dimension(:) :: sumtau,sumsumtau
+   double precision, allocatable, dimension(:) :: dgv,d2gv
+   double precision hzeta,gres,sumxq,sumxr
+   double precision gc,gr,term1,term2,dgr,dgc,d2gc,d2gr,sumxiqi
 !   if(moded.lt.2) then
 ! if moded=/=2 then some of the 2nd derivatives needed is not present ...
 ! moded=0 when calculating with the gridminimizer
@@ -4431,101 +4431,114 @@
    allocate(qval(ncon))
    allocate(rval(ncon))
    allocate(xfr(ncon))
-   allocate(sumtt(ncon))
-   allocate(sumtk(ncon))
    allocate(dgv(ncon))
+   allocate(tau(ncon,ncon))
+   allocate(sumtau(ncon))
+   allocate(sumsumtau(ncon))
 ! number of interactions
    nint=ncon*(ncon+1)/2
-   allocate(tau(nint))
    allocate(d2gv(nint))
-! default value for tau when value missing is one, not zero
-   tau=one
 ! we need some place to store these indices if we have no addition record ...
-   call need_propertyid('UQQ ',ib)
-   call need_propertyid('UQR ',ic)
-   call need_propertyid('UQT ',id)
+!   call need_propertyid('UQQ ',ib)
+!   call need_propertyid('UQR ',ic)
+   call need_propertyid('UQ12 ',id)
+   call need_propertyid('UQ21 ',ie)
    if(gx%bmperr.ne.0) goto 1000
    nprop=phres%listprop(1)-1
-   unqq=0; unqr=0; unqt=0
+   unqq=0; unqr=0; unqt12=0; unqt21=0
    do ia=1,nprop
-      if(phres%listprop(ia).eq.ib) then
-         unqq=ia
-      elseif(phres%listprop(ia).eq.ic) then
-         unqr=ia
-      elseif(phres%listprop(ia).eq.id) then
-         unqt=ia
+!      if(phres%listprop(ia).eq.ib) then
+!         unqq=ia
+!      elseif(phres%listprop(ia).eq.ic) then
+!         unqr=ia
+      if(phres%listprop(ia).eq.id) then
+         unqt12=ia
+      elseif(phres%listprop(ia).eq.ie) then
+         unqt21=ia
       endif
    enddo
-!   write(*,'(a,4i4,1pe12.4)')'3X Found: ',nprop,unqq,unqr,unqt,phres%gval(1,1)
-   if(unqq.eq.0 .or. unqr.eq.0) then
-      write(*,*)'Missing UNIQUAC property: ',nprop,unqq,unqr,unqt
-      goto 1000
-   endif
+! copy mole fractions to xfr
    xfr=phres%yfr
-! derived in 30/11 2018 by Jing and me:
+! extract unqq and unqr from species record
+   lokph=phres%phlink
+   sumxq=zero
+   sumxr=zero
+   do ia=1,ncon
+      loksp=phlista(lokph)%constitlist(ia)
+      if(btest(splista(loksp)%status,SPUQC)) then
+         qval(ia)=splista(loksp)%spextra(1)
+         rval(ia)=splista(loksp)%spextra(2)
+      else
+         qval(ia)=one
+         rval(ia)=one
+      endif
+      sumxq=sumxq+xfr(ia)*qval(ia)
+      sumxr=sumxr+xfr(ia)*rval(ia)
+   enddo
+! extracting residual parameters complicated ... initiate to zero
+   tau=one
 !
 ! df/dx_k = ln(phi_k) + 1 - phi_k/x_k + 
 !           z/2 q_k ( ln(theta_k/phi_k) + phi_k/theta_k-1 )
 !
-!   write(*,'("3X Fractions: ",10F8.5)')(xfr(ia),ia=1,ncon)
 ! theta = UQQ = x_i*q_i(\sum_j q_j*x_j) 
 ! Phi= UQR=x_i*r_i*(\sum_i r_j*x_j)
 ! write(*,*)'3 X Calculate Phi, theta and some invariants for the residual term'
-   sumxiqi=zero
    do ia=1,ncon
-! this is x*q/(\sum_i x*q)
-! %dgval(itp,comp,prop) itp=1 no derivative wrt T/P; 2=d/dT; 3=d/dP;
-      qval(ia)=phres%dgval(1,ia,unqq)
-      if(qval(ia).eq.zero) then
-         write(*,*)'Missing uqq value for component, assumed 1.0 ',ia
-         qval(ia)=one
-      endif
-      theta(ia)=xfr(ia)*qval(ia)/phres%gval(1,unqq)
-      rval(ia)=phres%dgval(1,ia,unqr)
-      if(rval(ia).le.zero) then
-         write(*,*)'Missing uqr value for component, assumed 1.0 ',ia
-         rval(ia)=one
-      endif
-      phi(ia)=xfr(ia)*rval(ia)/phres%gval(1,unqr)
-      if(unqt.gt.0) then
-         do ib=ia+1,ncon
+      theta(ia)=xfr(ia)*qval(ia)/sumxq
+      phi(ia)=xfr(ia)*rval(ia)/sumxr
+      write(*,'(a,i4,6(F7.4))')'3X theta and phi:',ia,xfr(ia),theta(ia),phi(ia)
+!----------------- residual term tau_ji, may not be present!
+      if(unqt12.eq.0) then
+         if(unqt21.gt.0) then
+            write(*,*)'3X unqt12 missing'
+            gx%bmperr=4399; goto 1000
+         endif
+! OK if both zero, this means no residual parameter
+      elseif(unqt21.eq.0) then
+         write(*,*)'3X unqt21 missing'
+         gx%bmperr=4399; goto 1000
+      else
+! there are some residual parameters, extract their values as 2nd derivatives
 ! binary excess parameter is stored in unqt as a 2nd derivative of the unqt
-            tau(ixsym(ia,ib))=exp(-phres%d2gval(ixsym(ia,ib),unqt)/ceq%rtn)
+! tau_i(j)=tau_ji = tau(i,j)=exp(-(u_ij-u_ii)/RT)
+         do ib=ia+1,ncon
+            term1=phres%d2gval(ixsym(ia,ib),unqt12)
+            term2=phres%d2gval(ixsym(ia,ib),unqt21)
+! NOTE, default value one set above
+            if(term1.ne.zero) tau(ib,ia)=term1
+            if(term2.ne.zero) tau(ia,ib)=term2
          enddo
       endif
-      sumxiqi=sumxiqi+xfr(ia)*qval(ia)
    enddo
-! these values seems OK
-!   write(*,10)'qval ',(qval(ib),ib=1,ncon)
-!   write(*,10)'rval ',(rval(ib),ib=1,ncon)
-!   write(*,10)'theta',phres%gval(1,unqq),(theta(ib),ib=1,ncon)
-!   write(*,10)'Phi  ',phres%gval(1,unqr),(phi(ib),ib=1,ncon)
-10 format('3X ',a,' ',10(1pe12.4))
-!   do ia=1,ncon
-!      write(*,10)'tau:',(tau(ixsym(ia,ib)),ib=1,ncon)
-!   enddo
-! here we calculate \sum_i \theta_i \tau_{ij} stored in sumtt(i)
+! default value of tau is unity
+!   write(*,10)'3X q: ',qval,phres%gval(1,unqq)
+!   write(*,10)'3X theta: ',xfr,theta
+!   write(*,10)'3X tau: ',tau
+10 format(a,6(1pe10.2))
+! here we calculate \sum_i \theta_i \tau_{ij} stored in sumtau1
+!   sumtau=one
    do ia=1,ncon
-      term=zero
-      do jj=1,ncon
-! this is \sum_j \thera_j \tau_{ij}         
-         term=term+theta(jj)*tau(ixsym(ia,jj))
+      term1=zero
+      do ib=1,ncon
+! this is \sum_j \theta_j \tau_{ji}         
+         term1=term1+theta(ib)*tau(ib,ia)
       enddo
-      sumtt(ia)=term
+      sumtau(ia)=term1
    enddo
-!   write(*,10)'sumtt:',(sumtt(ia),ia=1,ncon)
-!   do ia=1,ncon
-!      term=zero
-!      do jj=1,ncon
-! this is \sum_i x_i q_i \tau_(ik)/\sum_j\theta_j\tau_{ij}
-! IS tau(jj,ia) = tau(ia,jj) ?????????? NO_jing
-! I changed this term ----JING
-!         term=term+xfr(jj)*qval(jj)*tau(ixsym(jj,ia)) / sumtt(jj)
-!      enddo
-!      sumtk(ia)=term
-!   enddo
-!   write(*,*)'3X *** No residual interaction'
-!   write(*,10)'sumtk:',(sumtk(ia),ia=1,ncon)
+!   write(*,10)'3X sumtau: ',sumtau
+!   gx%bmperr=4399; goto 1000
+   do ia=1,ncon
+! need for the derivatives
+      term1=zero
+      do ib=1,ncon
+! I am never sure if it should be tau(ia,ib) or tau(ib,ia) ...
+         term1=term1+theta(ib)*tau(ia,ib)/sumtau(ib)
+      enddo
+      sumsumtau(ia)=term1
+   enddo
+!   write(*,10)'3X sumsumtau: ',sumsumtau
+!   gx%bmperr=4399; goto 1000
 ! This is z/2
    hzeta=5.0D0
 ! Here the UNIQUAC GIBBS ENERGY and derivatives are calculated.  
@@ -4533,22 +4546,24 @@
 ! and possibly any reference energy terms!
    gc=zero; gr=zero
    gmloop: do ia=1,ncon
-! The residual and configurational G ignored
-!      gr=gr-xfr(ia)*qval(ia)*log(sumtt(ia))
+! The residual and configurational G
+! ALMOST PERFECT, a factor exact 2.5 wrong compared to abrams-tau2.F90 ??
+! Could be in abrams .......
+      gr=gr-xfr(ia)*qval(ia)*log(sumtau(ia))
       gc=gc+xfr(ia)*log(phi(ia)/xfr(ia))+&
            hzeta*xfr(ia)*qval(ia)*log(theta(ia)/phi(ia))
 !     write(*,210)'3X gci: ',ia,xfr(ia),phi(ia),xfr(ia)*log(phi(ia)/xfr(ia)),&
 !          qval(ia),theta(ia),hzeta*xfr(ia)*qval(ia)*log(theta(ia)/phi(ia))
 210   format(a,i2,6(1pe12.4))
    enddo gmloop
-!   write(*,210)'3X GC: ',0,phres%gval(1,1),gc,phres%gval(1,1)+gc
+!   write(*,210)'3X GC: ',0,gr,gc,gr+gc
+!   gx%bmperr=4399; goto 1000
    dgv=zero
    first: do ib=1,ncon
 ! first derivative with respect to residual
-!         dgr=-qval(ib)*log(sumtt(ib))+qval(ib)-&
-!              theta(ib)/xfr(ib)*sumtk(ib)
+      dgr=-qval(ib)*(one+log(sumtau(ib))+sumsumtau(ib))
 ! NO RESIDUAL
-      dgr=zero
+!      dgr=zero
 ! first derivative with respect to ib of configuration
 ! changes 181130/BoS NOTE: 1+ln(x) already calculated, thus -log(xfr(ib))
       dgc=log(phi(ib)/xfr(ib))+one-phi(ib)/xfr(ib)+&
@@ -4560,19 +4575,16 @@
 ! APPROXIMATE not corrected!!
          if(ic.eq.ib) then
             d2gc=-2.0D0*phi(ic)/xfr(ic)**2
-            d2gr=-qval(ic)*theta(ic)/(xfr(ic)*sumtt(ic))
+!            d2gr=??
          else
             d2gc=zero
             d2gr=zero
          endif
-! 2nd derivative of residual
-! I cannot compare this part with the formula as the equation is quite complex
-! but yours here is quite simple.... If you think it is correct, I trust you.
-!            d2gr=d2gr+&
-!                 theta(ib)*theta(ic)/(xfr(ib)*xfr(ic))*(sumtk(ib)+sumtk(ic))
+! 2nd derivative of residual, set to zero at the moment
          d2gr=zero
          d2gv(ixsym(ib,ic))=d2gr+d2gc
       enddo second
+! APPROXIMATE SECOND DERIVATIVES 
    enddo first
 !   write(*,300)'3X UQG: ',gr,gc,(dgv(ia),ia=1,ncon)
 !   do ib=1,ncon
@@ -4589,16 +4601,19 @@
 ! phres%gval(3,1)= no P dependence
 ! phres%d2gval(ixsym(j,k),1) is d2G/dx_j/dx_k
 !   write(*,300)'3X G/RT: ',phres%gval(1,1),gc,phres%gval(1,1)+gc
+   write(*,'(a,i3,5(1pe12.4))')'3X UQG: ',moded,gr,gc,phres%gval(1,1),&
+        gr+gc+phres%gval(1,1)
    phres%gval(1,1)=phres%gval(1,1)+gc+gr
 ! add dGc/dT assuming gr does not depend on T
    phres%gval(2,1)=phres%gval(2,1)+gc/ceq%tpval(1)
 !   phres%gval(4,1)=phres%gval(2,1)+other terms T-dependent terms (Cp)
    do ia=1,ncon
       phres%dgval(1,ia,1)=phres%dgval(1,ia,1)+dgv(ia)
-      do ib=ia,ncon
-         phres%d2gval(ixsym(ia,ib),1)=phres%d2gval(ixsym(ia,ib),1)+&
-              d2gv(ixsym(ia,ib))
-      enddo
+! skip 2nd derivatives
+!      do ib=ia,ncon
+!         phres%d2gval(ixsym(ia,ib),1)=phres%d2gval(ixsym(ia,ib),1)+&
+!              d2gv(ixsym(ia,ib))
+!      enddo
    enddo
 !   write(*,300)'3X Gm, dG/dx: ',phres%gval(1,1),(phres%dgval(1,ia,1),ia=1,ncon)
 300 format(a,6(1pe12.4))

@@ -298,8 +298,6 @@
    splista(noofsp)%alphaindex=noofsp
    splista(noofsp)%noofel=noelxx
    splista(noofsp)%status=0
-! I am not sure what this will be used for ...
-   splista(noofsp)%extra=one
    if(charge.ne.zero) then
       splista(noofsp)%status=ibset(splista(noofsp)%status,SPION)
    endif
@@ -315,6 +313,7 @@
 ! add species last and rearrange
    species(noofsp)=noofsp
    call alphasporder
+! NOTE the array spextra is allocated with AMEND SPECIES command
 ! error: continue would be a nice use of non-digit labels ....
 1000 continue
    return
@@ -767,7 +766,7 @@
 !  write(*,*)'3B enter_phase 8x: ',nyfas,nkk
    phlista(nyfas)%tnooffr=nkk
 !  write(*,*)'3B enter_phase 8y: ',nyfas,phlista(nyfas)%tnooffr
-! create consituent record
+! create constituent record
    call create_constitlist(phlista(nyfas)%constitlist,nkk,klok)
 ! in phase_varres we will indicate the VA constituent, indicate in iva
    valoop: do jl=1,nkk
@@ -783,9 +782,10 @@
 !    write(*,33)nkk,(iva(i),i=1,nkk)
 !33 format('3B enter_phase 14B: ',i3,2x,10i3)
 !   nprop=10
-!   write(*,*)'3B enter_phase: ',lokcs,name
+!   write(*,*)'3B enter_phase parrecords: ',lokcs,nkk,trim(name)
    call create_parrecords(nyfas,lokcs,nsl,nkk,maxcalcprop,iva,firsteq)
-!   write(*,*)'3B enter_phase 15: ',nyfas,lokcs
+!   write(*,*)'3B enter_phase 15: ',nyfas,lokcs,&
+!        size(firsteq%phase_varres(lokcs)%yfr)
    if(gx%bmperr.ne.0) goto 1000
 ! zero array of pointer to phase_varres record, then set first
    phlista(nyfas)%linktocs=0

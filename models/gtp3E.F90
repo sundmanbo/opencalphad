@@ -127,6 +127,7 @@
    integer miws
    integer, allocatable, dimension(:) :: iws
    integer i,isp,jph,lokph,lut,last,lok,rsize,displace,ibug,ffun,lokeq,ccc
+   integer nspx,check
 ! these depend on hardware, bytes/word and words/double. Defined in metlib3
 !   integer, parameter :: nbpw=4,nwpr=2
 ! integer function nwch calculates the number of words to store a character
@@ -241,7 +242,8 @@
 !      write(*,*)'3E refstatesymbol 0: ',ibug,iws(ibug),iws(1)
    enddo
 ! bug??
-   ibug=lok+displace+3
+! added one saved integer for size of spextra (normally zero)
+   ibug=lok+displace+4
 !   write(*,*)'3E refstatesymbol 1: ',ibug,iws(ibug),iws(1)
 !-----------
 !>>>>> 2: specieslist
@@ -252,7 +254,13 @@
    last=5
    iws(last+1)=gtp_species_version
    do isp=1,noofsp
-      call wtake(lok,rsize+splista(isp)%noofel*(1+nwpr),iws)
+      if(allocated(splista(isp)%spextra)) then
+         nspx=size(splista(isp)%spextra)
+      else
+         nspx=0
+      endif
+      check=rsize+splista(isp)%noofel*(1+nwpr)+nspx*nwpr
+      call wtake(lok,rsize+splista(isp)%noofel*(1+nwpr)+nspx*nwpr,iws)
       if(buperr.ne.0) then
          write(*,*)'3E Error reserving species record'
          gx%bmperr=4356; goto 1100
@@ -265,16 +273,26 @@
       iws(lok+displace+2*nwpr)=splista(isp)%noofel
       iws(lok+displace+2*nwpr+1)=splista(isp)%status
       iws(lok+displace+2*nwpr+2)=splista(isp)%alphaindex
-! displace one less as i is added
-      displace=displace+2*nwpr+2
+      iws(lok+displace+2*nwpr+3)=nspx
+! displace one less as the index i is added
+      displace=displace+2*nwpr+3
       do i=1,splista(isp)%noofel
          iws(lok+displace+i)=splista(isp)%ellinks(i)
       enddo
       displace=displace+splista(isp)%noofel+1
 ! storing splista(isp)%noofel doubles in iws(lok+displace)
 !      write(*,*)'3E displace store: ',lok,displace
+! storrn starts storing in iws(lok+displace)
       call storrn(splista(isp)%noofel,&
            iws(lok+displace),splista(isp)%stoichiometry)
+!  if nspx>0 save also all double variables in spextra
+      if(nspx.gt.0) then
+         displace=displace+splista(isp)%noofel*nwpr
+         call storrn(nspx,iws(lok+displace),splista(isp)%spextra)
+         write(*,*)'3F species with extra data: ',isp,nspx
+      endif
+!      write(*,'(a,2i5)')'3E species record check: ',check,&
+!           displace+nspx*nwpr
 !      write(*,*)'3E refstatesymbol 3: ',ibug,iws(ibug),lok+displace
 !      do i=1,splista(isp)%noofel
 !         call storr(lok+displace+(i-1)*nwpr,iws,
@@ -1625,6 +1643,7 @@
 !\end{verbatim}
    character id*40,version*8,comment*72
    integer i,i1,i2,i3,isp,jph,kontroll,nel,ivers,lin,last,lok,displace,jfun
+   integer nspx
    integer, allocatable :: iws(:)
 ! CCI
    logical is_op
@@ -1714,7 +1733,7 @@
    endif
 !   write(*,*)'3E Now the species!!'
 !-------
-!>>>>> 3: specieslist
+!>>>>> 3: specieslist NOTE ADDES SPEXTRA
    if(iws(6).ne.gtp_species_version) then
       write(*,*)'3E Species version wrong: ',iws(5),gtp_species_version
       gx%bmperr=4355; goto 1000
@@ -1725,7 +1744,7 @@
 ! its alphaindex
    splista(1)%alphaindex=iws(last+2+nwch(24)+2*nwpr+2)
    species(splista(1)%alphaindex)=1
-! skip the first species
+! skip the first species (this is VA)
    last=iws(last)
    isp=1
    do while(last.gt.0)
@@ -1738,9 +1757,12 @@
       splista(isp)%noofel=iws(last+displace+2*nwpr)
       splista(isp)%status=iws(last+displace+2*nwpr+1)
       splista(isp)%alphaindex=iws(last+displace+2*nwpr+2)
+! new spextra array
+      nspx=iws(last+displace+2*nwpr+3)
+      if(nspx.ne.0) write(*,*)'3E nspx value: ',nspx
       allocate(splista(isp)%ellinks(splista(isp)%noofel))
       allocate(splista(isp)%stoichiometry(splista(isp)%noofel))
-      displace=displace+2*nwpr+2
+      displace=displace+2*nwpr+3
       do i=1,splista(isp)%noofel
          splista(isp)%ellinks(i)=iws(last+displace+i)
       enddo
@@ -1749,6 +1771,13 @@
       call loadrn(splista(isp)%noofel,&
            iws(last+displace),splista(isp)%stoichiometry)
       species(splista(isp)%alphaindex)=isp
+! handle spextra values if any
+      if(nspx.gt.0) then
+         write(*,*)'We have nonzero nxsp: ',nspx
+         allocate(splista(isp)%spextra(nspx))
+         displace=displace+splista(isp)%noofel*nwpr
+         call loadrn(nspx,iws(last+displace),splista(isp)%spextra)
+      endif
 ! next species
       last=iws(last)
    enddo
@@ -2993,8 +3022,8 @@
       if(ocv()) write(*,*)'3E No thermodynamic data to delete'
       goto 600
    endif
-   if(gtp_species_version.ne.1) then
-      if(ocv()) write(*,17)'3E Species',1,gtp_species_version
+   if(gtp_species_version.ne.2) then
+      write(*,17)'3E *** ERROR species',1,gtp_species_version
 17    format(a,' record version error: ',2i4)
       gx%bmperr=4300; goto 1000
    endif
@@ -3004,24 +3033,25 @@
       nel=splista(isp)%noofel
       deallocate(splista(isp)%ellinks)
       deallocate(splista(isp)%stoichiometry)
+      if(allocated(splista(isp)%spextra)) deallocate(splista(isp)%spextra)
    enddo
 !---------- phases, many records, here we travese all endmembers etc
 !>>>>> 4
 !   write(*,*)'3E No segmentation error B'
    if(gtp_phase_version.ne.1) then
-      if(ocv()) write(*,17)'3E Phase',1,gtp_phase_version
+      write(*,17)'3E **** ERROR phase',1,gtp_phase_version
       gx%bmperr=4302; goto 1000
    endif
    if(gtp_endmember_version.ne.1) then
-      if(ocv()) write(*,17)'3E Endmember',1,gtp_endmember_version
+      write(*,17)'3E **** ERROR endmember',1,gtp_endmember_version
       gx%bmperr=4302; goto 1000
    endif
    if(gtp_interaction_version.ne.1) then
-      if(ocv()) write(*,17)'3E Interaction',1,gtp_interaction_version
+      write(*,17)'3E **** ERROR interaction',1,gtp_interaction_version
       gx%bmperr=4302; goto 1000
    endif
    if(gtp_property_version.ne.1) then
-      if(ocv()) write(*,17)'3E Property',1,gtp_property_version
+      write(*,17)'3E **** ERROR property',1,gtp_property_version
       gx%bmperr=4302; goto 1000
    endif
    do j=0,noofph
@@ -3090,6 +3120,9 @@
 !   write(*,*)'3E Delete TP funs, just deallocate??',freetpfun
 !   call delete_all_tpfuns
    call tpfun_deallocate
+   if(gx%bmperr.ne.0) then
+      write(*,*)'3E **** ERROR deleting TP functions'
+   endif
 !   write(*,*)'3E Back from deleting all TP funs, this is fun!!'
 !------ tpfunction expressions and other lists
 !>>>>> 30: delete state variable functions
