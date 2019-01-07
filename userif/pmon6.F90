@@ -840,15 +840,15 @@ contains
           call gparc('Species symbol: ',cline,last,1,name1,' ',q1help)
           call find_species_record(name1,loksp)
           if(gx%bmperr.ne.0) goto 100
-          write(*,'(a)')'You can only amend UNIQAC area and volume'
+          write(*,'(a)')'You can only amend UNIQAC area and segments'
           call gparrd('UNIQAC surface area (q): ',cline,last,xxx,one,q1help)
-          if(xxx.le.one) then
-             write(*,'(a)')'Area must be >1, set to 1.00'
+          if(xxx.le.zero) then
+             write(*,'(a)')'Area must be >0, set to default 1.00'
              xxx=one
           endif
           call gparrd('UNIQAC segments (r): ',cline,last,xxy,one,q1help)
-          if(xxy.le.one) then
-             write(*,'(a)')'Segments must be >1, set to 1.00'
+          if(xxy.le.zero) then
+             write(*,'(a)')'Segments must be >0, set to default 1.00'
              xxy=one
           endif
 ! mark UNIQUAC in species status word and allocate space for values
@@ -3476,7 +3476,7 @@ contains
              call list_phase_model(iph,ics,lut,' ',ceq)
           END SELECT listphase
 !------------------------------
-! THIS IS ALSO THE SHOW command (kom=25)
+! THIS IS ALSO THE SHOW command and list model-parameter-value case(17) of LIST
        case(4,17)  ! list state_variable or model_parameter_value, or SHOW
 !6099      continue
           if(btest(ceq%status,EQNOEQCAL) .or. btest(ceq%status,EQFAIL)) then
@@ -3552,7 +3552,7 @@ contains
           else
 ! the value of a state variable, symbol? or model parameter variable is returned
 ! STRANGE the symbol xliqni is accepted in get_state_var_value ???
-!             write(*,*)'pmon show: ',name1
+             write(*,*)'pmon show: ',name1
              call get_state_var_value(name1,xxx,model,ceq)
 !             write(*,*)'PMON: show xliqni should come here 6 ... ',gx%bmperr
              if(gx%bmperr.eq.0) then
@@ -3568,6 +3568,7 @@ contains
                 if(gx%bmperr.ne.0) gx%bmperr=0
                 call capson(line)
 !                call find_svfun(name1,istv,ceq)
+                write(*,*)'PMON: calling find_svfun again ...'
                 call find_svfun(name1,istv)
                 if(gx%bmperr.ne.0) goto 990
                 mode=1

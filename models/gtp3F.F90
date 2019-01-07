@@ -64,6 +64,7 @@
    call get_state_var_value(modstatevar,value,encoded,ceq)
 1000 continue
 ! possible memory leak
+   write(*,*)'3F exit get_stable_state_var_value'
    nullify(svr)
    return
  end subroutine get_stable_state_var_value
@@ -105,7 +106,7 @@
 !      call find_svfun(name,lrot,ceq)
       call find_svfun(name,lrot)
       if(gx%bmperr.ne.0) then
-!         write(*,*)'3F Neither state variable or symbol'
+         write(*,*)'3F Neither state variable or symbol, maybe model-param-id?'
          goto 1000
       else
 ! get the value of the symbol, may involve other symbols and state variablse
@@ -2478,16 +2479,19 @@
 !-----------------------------------------------------------------
 ! values of parameter property symbols
 ! >>> this can easily be generallized ... next time around ...
-! here with state variable <0, syetm and user defined properties
+! here with state variable <0, system and user defined properties
 200   continue
 !   write(*,*)'3F svv3 at 200:',kstv,ndefprop
 !   if(ndefprop.ne.33) then
-! THIS IS A VERY CRUDE CHECK! Please check also the SELECT below
-   if(ndefprop.ne.32) then
-      write(*,*)'3F The model parameter identifiers has been changed!',32
+! THIS IS A VERY CRUDE CHECK! Please check also the SELECT below !!!
+! it may need to be modified !!!
+   if(ndefprop.ne.31) then
+      write(*,*)'3F The model parameter identifiers has been changed!',31
+      write(*,*)'3F You must correct state_variable_val3 in GTP3F.F90!'
 ! you may also have to change the case indices!!
       stop
    endif
+!   write(*,*)'3F kstv: ',kstv
    select case(kstv)
    case default
       write(kou,*)'Unknown parameter identifier: ',kstv
@@ -2519,18 +2523,17 @@
 !  23 EC11  T P                                   0 Elastic const C11
 !  24 EC12  T P                                   0 Elastic const C12
 !  25 EC44  T P                                   0 Elastic const C44
-!  26 UQ12  T P                                   0 UNIQUAC residual parameter
-!  27 UQ21  T P                                   0 UNIQUAC residual parameter
-!  28 RHO   T P                                   0 Electric resistivity
-!  29 LAMB  T P                                   0 Thermal conductivity
-!  30 HMVA  T P                                   0 Enthalpy of vacancy form.
-!  31 TSCH  - P                                   2 Schottky anomality T
-!  32 CSCH  - P                                   2 Schottky anomality Cp/R.
+!  26 UQT   T P &<constituent#sublattice>;        0 UNIQUAC residual parameter
+!  27 RHO   T P                                   0 Electric resistivity
+!  28 LAMB  T P                                   0 Thermal conductivity
+!  29 HMVA  T P                                   0 Enthalpy of vacancy form.
+!  30 TSCH  - P                                   2 Schottky anomality T
+!  31 CSCH  - P                                   2 Schottky anomality Cp/R.
 ! I am not sure how to handle changes ...
 !-------------------------------------------------------------------
 !...................................... without constituent index
-   case(1:5,7:12,16:32) 
-! constituent index: 6, 13:15
+   case(1:5,7:12,16:25,27:31) 
+! with constituent index: 6, 13:15, 26
       call get_phase_compset(indices(1),indices(2),lokph,lokcs)
       if(gx%bmperr.ne.0) goto 1000
 ! nprop is number of properties calculated.  Property 1 is always G
@@ -2543,13 +2546,14 @@
       enddo find1
 !....................................... with constituent index
 ! These have a constituent index
-   case(6,13:15)
+   case(6,13:15,26)
 ! 6: IBM& Individual Bohr magneton number
 ! 13-15: MQ& etc mobility values
-!      write(*,*)'3F svv3 mob1: ',indices(1),indices(2),iprop
+! 26: UNIQUAC parameter tau
+!      write(*,*)'3F svv3 mob1: ',indices(1),indices(2)
       call get_phase_compset(indices(1),indices(2),lokph,lokcs)
       if(gx%bmperr.ne.0) goto 1000
-! property is kstv*100+indices(3) (constituent identifier)
+! property is kstv*100+indices(3) (constituent index)
       iprop=100*kstv+indices(3)
 !      write(*,485)'3F svv3 mob2: ',indices(1),indices(2),iprop,&
 !           ceq%phase_varres(lokcs)%nprop
@@ -2561,6 +2565,8 @@
             goto 1000
          endif
       enddo find2
+      write(*,*)'3F model parameter value has not been calculated'
+      gx%bmperr=4361
    end select
 !.......................................
    gx%bmperr=4113; goto 1000
@@ -3393,7 +3399,7 @@
 !      write(*,*)'3F find_svfun: ',name,svflista(lrot)%name,lrot
       if(name.eq.svflista(lrot)%name) goto 500
    enddo
-   write(*,*)'3F No such state variable: ',name
+   write(*,*)'3F No such state variable function: ',name
    gx%bmperr=4188; goto 1000
 !
 500 continue

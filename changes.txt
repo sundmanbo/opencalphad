@@ -13,9 +13,13 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2019.01.07 OC version 5.029: A test version of the uniquac model for
+polmeric solutions has been implemented.  The list of model parameter
+identifiers has been changed again.
+
 2018.12.20 OC version 5.028: A number of minor modifications to
 accomodate the UNIQUAC model.  However, this required changes of the
-"model parameter identifiers" and the "unformaatted" saving of data
+"model parameter identifiers" and the "unformatted" saving of data
 which make older unformatted files no longer readable.
 
 2018.12.09 OC version 5.027: A whole month without updates!  A new

@@ -558,7 +558,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'Slow convergence with same set of stable phases                 ',&
 ! 4360
        'Too large change on axis, terminating mapping                   ',&
-       '                                                                ',&
+       'Model parameter value not calculated                            ',&
        '                                                                ',&
        '                                                                ',&
        '                                                                ',&
@@ -1528,7 +1528,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! dgm: driving force
 ! qcbonds: quasichemical bonds (NOT SAVED ON UNFORMATTED)
      double precision amfu,netcharge,dgm,qcbonds
-! qcsro: current value of SRO
+! qcsro: current value of SRO (for quasichemical model)
      double precision, allocatable, dimension(:) :: qcsro
 ! Other properties may be that: gval(*,2) is TC, (*,3) is BMAG, see listprop
 ! nprop: the number of different properties (set in allocate)

@@ -905,8 +905,10 @@
 ! set net charge to zero
    firsteq%phase_varres(lokcs)%netcharge=zero
    if(nsl.eq.1) then
+      if(.not.uniquac) then
 ! if no sublattices set ideal bit.  Will be cleared if excess parameter entered
-      phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHID)
+         phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHID)
+      endif
    endif
    if(nkk.eq.nsl) then
 ! as many constiuents as sublattice

@@ -20,7 +20,7 @@ new Y
 @$
 @$
 @$
-@$ map??.OCM
+@$ map14.OCM
 @$ Calculating the isothermal section for Cr-Fe-Mo
 @$ ====================================================================
 @&
@@ -82,7 +82,23 @@ font
 FF0000
 
 title map 14 fig 1
+misc
+Fe
 
+
+@&
+
+plot
+
+
+font
+
+a0ffa0
+
+title map14 fig 2
+gra 3
+crfemo-1400-leftcorner
+Y
 
 
 

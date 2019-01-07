@@ -4411,50 +4411,54 @@
    TYPE(gtp_equilibrium_data), pointer :: ceq
    TYPE(gtp_phase_varres), pointer :: phres
 !\end{verbatim}
-   integer ia,ib,ic,id,ie,jj,nprop,unqq,unqr,unqt12,unqt21,nint,lokph,loksp
+   integer ia,ib,ic,id,ie,jj,nprop,nint,lokph,loksp
    double precision, allocatable, dimension(:) :: theta,phi,qval,xfr,rval
-   double precision, allocatable, dimension(:,:) :: tau
-   double precision, allocatable, dimension(:) :: sumtau,sumsumtau
-   double precision, allocatable, dimension(:) :: dgv,d2gv
-   double precision hzeta,gres,sumxq,sumxr
+   double precision, allocatable, dimension(:,:) :: tau,dtaudt
+   double precision, allocatable, dimension(:) :: rho,kvottau
+   double precision, allocatable, dimension(:) :: dgv,d2gv,sumdtaudt,d2gdydt
+   double precision hzeta,gres,sumxq,sumxr,dgrdt,xxx,yyy
    double precision gc,gr,term1,term2,dgr,dgc,d2gc,d2gr,sumxiqi
+! we must have a property index "i" for each tau_ji 
+   integer, allocatable, dimension(:) :: unqtau
 !   if(moded.lt.2) then
 ! if moded=/=2 then some of the 2nd derivatives needed is not present ...
 ! moded=0 when calculating with the gridminimizer
 !      write(*,*)'Skipping uniquac phase as no derivatives'
 !      goto 1000
 !   endif
-! need UNQQ = \sum_i q_i*x_i and UNQV=\sum_i r_i*x_i
+! need theta = \sum_i q_i*x_i and Phi=\sum_i r_i*x_i
 !   write(*,*)'3X in uniquac 1'
+   allocate(unqtau(ncon))
    allocate(theta(ncon))
    allocate(phi(ncon))
    allocate(qval(ncon))
    allocate(rval(ncon))
    allocate(xfr(ncon))
    allocate(dgv(ncon))
+   allocate(d2gdydt(ncon))
    allocate(tau(ncon,ncon))
-   allocate(sumtau(ncon))
-   allocate(sumsumtau(ncon))
+   allocate(dtaudt(ncon,ncon))
+   allocate(rho(ncon))
+   allocate(kvottau(ncon))
+   allocate(sumdtaudt(ncon))
 ! number of interactions
    nint=ncon*(ncon+1)/2
    allocate(d2gv(nint))
 ! we need some place to store these indices if we have no addition record ...
-!   call need_propertyid('UQQ ',ib)
-!   call need_propertyid('UQR ',ic)
-   call need_propertyid('UQ12 ',id)
-   call need_propertyid('UQ21 ',ie)
+! UQT is a model parameter identifier with constituent index 
+! tau_ji is UQT&I(LIQ,J)
+   call need_propertyid('UQT ',id)
    if(gx%bmperr.ne.0) goto 1000
    nprop=phres%listprop(1)-1
-   unqq=0; unqr=0; unqt12=0; unqt21=0
+!   unqq=0; unqr=0; unqt12=0; unqt21=0
+   unqtau=0
    do ia=1,nprop
-!      if(phres%listprop(ia).eq.ib) then
-!         unqq=ia
-!      elseif(phres%listprop(ia).eq.ic) then
-!         unqr=ia
-      if(phres%listprop(ia).eq.id) then
-         unqt12=ia
-      elseif(phres%listprop(ia).eq.ie) then
-         unqt21=ia
+      if(phres%listprop(ia)/100.eq.id) then
+! listprop is 2600+constituent index
+! parameter syntax is UQT&UA(LIQUID,UB) for TAU_{UB,UA}
+         ib=mod(phres%listprop(ia),100)
+         unqtau(ib)=ia
+!         write(*,*)'3X found tau: ',phres%listprop(ia),ib,unqtau(ib)
       endif
    enddo
 ! copy mole fractions to xfr
@@ -4464,6 +4468,7 @@
    sumxq=zero
    sumxr=zero
    do ia=1,ncon
+! values of q and r for each species is stored in species record
       loksp=phlista(lokph)%constitlist(ia)
       if(btest(splista(loksp)%status,SPUQC)) then
          qval(ia)=splista(loksp)%spextra(1)
@@ -4472,6 +4477,7 @@
          qval(ia)=one
          rval(ia)=one
       endif
+! calculate the sum of q and r
       sumxq=sumxq+xfr(ia)*qval(ia)
       sumxr=sumxr+xfr(ia)*rval(ia)
    enddo
@@ -4484,88 +4490,109 @@
 ! theta = UQQ = x_i*q_i(\sum_j q_j*x_j) 
 ! Phi= UQR=x_i*r_i*(\sum_i r_j*x_j)
 ! write(*,*)'3 X Calculate Phi, theta and some invariants for the residual term'
+   dtaudt=zero
+   sumdtaudt=zero
    do ia=1,ncon
       theta(ia)=xfr(ia)*qval(ia)/sumxq
       phi(ia)=xfr(ia)*rval(ia)/sumxr
-      write(*,'(a,i4,6(F7.4))')'3X theta and phi:',ia,xfr(ia),theta(ia),phi(ia)
+!      write(*,'(a,i4,6(F7.4))')'3X theta and phi:',ia,xfr(ia),theta(ia),phi(ia)
 !----------------- residual term tau_ji, may not be present!
-      if(unqt12.eq.0) then
-         if(unqt21.gt.0) then
-            write(*,*)'3X unqt12 missing'
-            gx%bmperr=4399; goto 1000
-         endif
-! OK if both zero, this means no residual parameter
-      elseif(unqt21.eq.0) then
-         write(*,*)'3X unqt21 missing'
-         gx%bmperr=4399; goto 1000
+!      write(*,'(a,2i3,3(1pe12.4))')'3X tau1: ',ia,unqtau(ia),&
+!           phres%gval(1,unqtau(ia)),phres%dgval(1,3-ia,unqtau(ia))
+      if(unqtau(ia).eq.0) then
+! OK if zero, this means no residual parameter
+         continue
       else
-! there are some residual parameters, extract their values as 2nd derivatives
-! binary excess parameter is stored in unqt as a 2nd derivative of the unqt
-! tau_i(j)=tau_ji = tau(i,j)=exp(-(u_ij-u_ii)/RT)
-         do ib=ia+1,ncon
-            term1=phres%d2gval(ixsym(ia,ib),unqt12)
-            term2=phres%d2gval(ixsym(ia,ib),unqt21)
-! NOTE, default value one set above
-            if(term1.ne.zero) tau(ib,ia)=term1
-            if(term2.ne.zero) tau(ia,ib)=term2
-         enddo
+! there are some residual parameters, extract their values 
+! MODIFIED xfr(ib)*tau_(ib,ia) stored in phres%gval(1,unqtau(ia))
+! MODIFIED xfr(ia)*tau_(ia,ib) stored in phres%gval(1,unqtau(ib))
+         tauloop2: do ib=1,ncon
+            if(ib.eq.ia) cycle tauloop2
+! This is the derivative wrt xfr(ib) of UQT&IA i.e. TAU_IB,IA
+            term1=phres%dgval(1,ib,unqtau(ia))
+! NOTE, default value one set above, value must be larger than zero
+            if(term1.ne.zero) then
+               tau(ib,ia)=term1
+! The derivative wrt T is in phres%dgval(2,ib,unqtau(ia))
+               dtaudt(ib,ia)=phres%dgval(2,ib,unqtau(ia))
+            endif
+!            write(*,'(a,3i3,4(1pe12.4))')'3X tau2: ',ia,ib,unqtau(ia),&
+!                 phres%dgval(1,ib,unqtau(ia)),phres%dgval(2,ib,unqtau(ia))
+         enddo tauloop2
       endif
    enddo
-! default value of tau is unity
+!-----------------------
 !   write(*,10)'3X q: ',qval,phres%gval(1,unqq)
 !   write(*,10)'3X theta: ',xfr,theta
+! default value of tau is unity
 !   write(*,10)'3X tau: ',tau
 10 format(a,6(1pe10.2))
-! here we calculate \sum_i \theta_i \tau_{ij} stored in sumtau1
-!   sumtau=one
+! here we calculate \sum_i \theta_i \tau_{ij} stored in rho
    do ia=1,ncon
       term1=zero
+      term2=zero
       do ib=1,ncon
 ! this is \sum_j \theta_j \tau_{ji}         
          term1=term1+theta(ib)*tau(ib,ia)
+         term2=term2+theta(ib)*dtaudt(ib,ia)
       enddo
-      sumtau(ia)=term1
+! these values are \sum_j \theta_j\tau_ji (and the T-derivative)
+      rho(ia)=term1
+      sumdtaudt(ia)=term2
    enddo
-!   write(*,10)'3X sumtau: ',sumtau
+!   write(*,10)'3X rho: ',rho
 !   gx%bmperr=4399; goto 1000
    do ia=1,ncon
-! need for the derivatives
+! need for the derivatives \sum_j (\theta_j \tau_ji)/\rho_j
       term1=zero
       do ib=1,ncon
 ! I am never sure if it should be tau(ia,ib) or tau(ib,ia) ...
-         term1=term1+theta(ib)*tau(ia,ib)/sumtau(ib)
+         term1=term1+theta(ib)*tau(ib,ia)/rho(ib)
       enddo
-      sumsumtau(ia)=term1
+! This is \sum_i (\theta_i \tau_ki)/\rho_i where index "ia" is subscript "k" 
+      kvottau(ia)=term1
    enddo
-!   write(*,10)'3X sumsumtau: ',sumsumtau
+!   write(*,10)'3X kvottau: ',kvottau,zero,xfr(1),ceq%tpval(1)
 !   gx%bmperr=4399; goto 1000
 ! This is z/2
    hzeta=5.0D0
 ! Here the UNIQUAC GIBBS ENERGY and derivatives are calculated.  
 ! phres%gval has the ideal configurational enntropy already
 ! and possibly any reference energy terms!
-   gc=zero; gr=zero
+   gc=zero; gr=zero; dgrdt=zero
    gmloop: do ia=1,ncon
 ! The residual and configurational G
-! ALMOST PERFECT, a factor exact 2.5 wrong compared to abrams-tau2.F90 ??
-! Could be in abrams .......
-      gr=gr-xfr(ia)*qval(ia)*log(sumtau(ia))
+! ALL OK without residual term, rho_i is rho_i in abrams1-190107.pdf
+      gr=gr-xfr(ia)*qval(ia)*log(rho(ia))
+! NOTE gc=zero if all qval and rval equal for all components !!
       gc=gc+xfr(ia)*log(phi(ia)/xfr(ia))+&
            hzeta*xfr(ia)*qval(ia)*log(theta(ia)/phi(ia))
-!     write(*,210)'3X gci: ',ia,xfr(ia),phi(ia),xfr(ia)*log(phi(ia)/xfr(ia)),&
-!          qval(ia),theta(ia),hzeta*xfr(ia)*qval(ia)*log(theta(ia)/phi(ia))
-210   format(a,i2,6(1pe12.4))
+!      write(*,210)'3X gci: ',ia,xfr(ia),phi(ia),xfr(ia)*log(phi(ia)/xfr(ia)),&
+!           qval(ia),theta(ia),hzeta*xfr(ia)*qval(ia)*log(theta(ia)/phi(ia))
+210   format(a,i2,6(1pe10.2))
+! The first T-derivative of residual (as in Abrams1.pdf 190105)
+      dgrdt=dgrdt-xfr(ia)*qval(ia)*sumdtaudt(ia)/rho(ia)
+! The second T-derivative ... NOT USED YET!
+!      d2grdt2=....
    enddo gmloop
 !   write(*,210)'3X GC: ',0,gr,gc,gr+gc
 !   gx%bmperr=4399; goto 1000
    dgv=zero
+   d2gdydt=zero
    first: do ib=1,ncon
-! first derivative with respect to residual
-      dgr=-qval(ib)*(one+log(sumtau(ib))+sumsumtau(ib))
-! NO RESIDUAL
-!      dgr=zero
+! first residual derivative with respect to component 
+! kvottau was calculated above 
+      dgr=qval(ib)*(one-log(rho(ib))-kvottau(ib))
+! derivative with respect to T and xfr(b)
+! we must sum_i theta_i/rho_i (dtau_ki/dT)
+      xxx=zero; yyy=zero
+      do ia=1,ncon
+         xxx=xxx+theta(ia)*dtaudt(ib,ia)/rho(ia)
+         yyy=yyy+theta(ia)*tau(ia,ib)*sumdtaudt(ia)/rho(ia)**2
+      enddo
+      d2gdydt(ib)=-qval(ib)*(sumdtaudt(ib)/rho(ib)+xxx-yyy)
 ! first derivative with respect to ib of configuration
-! changes 181130/BoS NOTE: 1+ln(x) already calculated, thus -log(xfr(ib))
+! NOTE: 1+ln(x) already calculated, thus -log(xfr(ib))
       dgc=log(phi(ib)/xfr(ib))+one-phi(ib)/xfr(ib)+&
            hzeta*qval(ib)*(log(theta(ib)/phi(ib))-one+phi(ib)/theta(ib))
 !      write(*,'(a,i3,f10.6,1pe12.4)')'3X ib xfr dgc: ',ib,xfr(ib),dgc
@@ -4573,18 +4600,17 @@
       second: do ic=ib,ncon
 ! second derivative of configuration with respect to ib and ic
 ! APPROXIMATE not corrected!!
+         d2gr=qval(ib)*theta(ic)/xfr(ic)*(one-tau(ic,ib)/kvottau(ib))-&
+              qval(ic)*theta(ib)/xfr(ib)*(one-tau(ib,ic)/kvottau(ib))
          if(ic.eq.ib) then
             d2gc=-2.0D0*phi(ic)/xfr(ic)**2
-!            d2gr=??
-         else
-            d2gc=zero
-            d2gr=zero
+!         else
+!            d2gc=zero
+!            d2gr=zero
          endif
-! 2nd derivative of residual, set to zero at the moment
-         d2gr=zero
          d2gv(ixsym(ib,ic))=d2gr+d2gc
       enddo second
-! APPROXIMATE SECOND DERIVATIVES 
+! VERY APPROXIMATE SECOND DERIVATIVES 
    enddo first
 !   write(*,300)'3X UQG: ',gr,gc,(dgv(ia),ia=1,ncon)
 !   do ib=1,ncon
@@ -4601,18 +4627,29 @@
 ! phres%gval(3,1)= no P dependence
 ! phres%d2gval(ixsym(j,k),1) is d2G/dx_j/dx_k
 !   write(*,300)'3X G/RT: ',phres%gval(1,1),gc,phres%gval(1,1)+gc
-   write(*,'(a,i3,5(1pe12.4))')'3X UQG: ',moded,gr,gc,phres%gval(1,1),&
-        gr+gc+phres%gval(1,1)
+!   write(*,'(a,i3,5(1pe12.4))')'3X UQG: ',moded,gr,gc,phres%gval(1,1),&
+!        gr+gc+phres%gval(1,1)
    phres%gval(1,1)=phres%gval(1,1)+gc+gr
-! add dGc/dT assuming gr does not depend on T
-   phres%gval(2,1)=phres%gval(2,1)+gc/ceq%tpval(1)
+! add dgc/dT and T-dependence of gr.  NOTE gr is also multiplied with RT
+   phres%gval(2,1)=phres%gval(2,1)+(gc+gr)/ceq%tpval(1)+dgrdt
+   term1=phres%gval(2,1)
+   phres%gval(2,1)=phres%gval(2,1)+(gc+gr)/ceq%tpval(1)+dgrdt
+!   write(*,'(a,i2,6(1pe12.4))')'3X dG/dT:    ',phres%phtupx,term1,&
+!        phres%gval(2,1),gc/ceq%tpval(1),gr/ceq%tpval(1),dgrdt
 !   phres%gval(4,1)=phres%gval(2,1)+other terms T-dependent terms (Cp)
    do ia=1,ncon
       phres%dgval(1,ia,1)=phres%dgval(1,ia,1)+dgv(ia)
-! skip 2nd derivatives
+! The T-dependence of the residual term affects d2G/dydT
+!      term1=phres%dgval(2,ia,1)
+!      phres%dgval(2,ia,1)=phres%dgval(2,ia,1)+d2gdydt(ia)
+!      write(*,'(a,i2,6(1pe12.4))')'3X d2G/dydT: ',ia,term1,&
+!           phres%dgval(2,ia,1),d2gdydt
+! 2nd derivatives ************ skip for the moment
 !      do ib=ia,ncon
 !         phres%d2gval(ixsym(ia,ib),1)=phres%d2gval(ixsym(ia,ib),1)+&
 !              d2gv(ixsym(ia,ib))
+!         write(*,'(a,2i3,6(1pe12.4))')'3X d2g:',ib,ic,d2gr,d2gc,&
+!              phres%d2gval(ixsym(ib,ic),1)
 !      enddo
    enddo
 !   write(*,300)'3X Gm, dG/dx: ',phres%gval(1,1),(phres%dgval(1,ia,1),ia=1,ncon)

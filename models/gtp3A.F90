@@ -338,31 +338,25 @@
 !.......................................
 ! UNIQUAC interaction parameter 26
    npid=npid+1
-   propid(npid)%symbol='UQ12 '
-   propid(npid)%note='UNIQUAC 1 residual parameter '
+   propid(npid)%symbol='UQT '
+   propid(npid)%note='UNIQUAC residual parameter '
    propid(npid)%status=0
-! UQ12 is not specific for a constituent
-!.....................................
-! UNIQUAC interaction parameter 27
-   npid=npid+1
-   propid(npid)%symbol='UQ21 '
-   propid(npid)%note='UNIQUAC 2 residual parameter '
-   propid(npid)%status=0
-! UQ21 is not specific for a constituent
+! UQT is specific for a constituent, 2600+constituent index
+   propid(npid)%status=ibset(propid(npid)%status,IDCONSUFFIX)
 !.......................................
-! Electrical resistivity 28
+! Electrical resistivity 27
    npid=npid+1
    propid(npid)%symbol='RHO '
    propid(npid)%note='Electric resistivity'
    propid(npid)%status=0
 !....................................... 
-! Thermal conductivity as function of T and P: 29
+! Thermal conductivity as function of T and P: 28
    npid=npid+1
    propid(npid)%symbol='LAMB '
    propid(npid)%note='Thermal conductivity '
    propid(npid)%status=0
 !.......................................
-! From MatCalc databases 30
+! From MatCalc databases 29
    npid=npid+1
    propid(npid)%symbol='HMVA '
    propid(npid)%note='Enthalpy of vacancy form. '
@@ -370,7 +364,7 @@
 ! this parameter does not depend on T ??
 !   propid(npid)%status=ibset(propid(npid)%status,IDONLYP)
 !.......................................
-! Schottky anomality T 31
+! Schottky anomality T 30
    npid=npid+1
    propid(npid)%symbol='TSCH '
    propid(npid)%note='Schottky anomality T '
@@ -378,7 +372,7 @@
 ! this parameter does not depend on T ??
    propid(npid)%status=ibset(propid(npid)%status,IDONLYP)
 !.......................................
-! Schottky anomality CP/R 32
+! Schottky anomality CP/R 31
    npid=npid+1
    propid(npid)%symbol='CSCH '
    propid(npid)%note='Schottky anomality Cp/R. '

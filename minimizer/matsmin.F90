@@ -1606,7 +1606,7 @@ CONTAINS
 ! and the changes in phase amounts is small maybe we are calculationg an
 ! almost stoichiometric phase?  Changes in MU can be large!
           if(stoikph .and. meqrec%nphase.gt.1) then
-! write thiss message if VERBOSE is set
+! write this message if VERBOSE is set
              if(btest(globaldata%status,GSVERBOSE)) write(*,30)nophasechange,&
                   converged,cerr%nvs,ceq%tpval(1)
 30           format('Slow converge at ',3i3,F10.2)

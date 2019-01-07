@@ -51,7 +51,7 @@ del lmdif1lib.F90
 
 REM the routines diagrams using STEP or MAP
 copy stepmapplot\smp2*.F90 .
-gfortran -c  smp2.F90
+gfortran -c smp2.F90
 del smp2*.F90
 
 REM the user interface 
