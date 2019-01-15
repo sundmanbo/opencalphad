@@ -13,6 +13,10 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2019.01.15 OC version 5.030: A test version of the corrected
+quasichemical model from 2009 has finally been implemented.  There are
+still problems but they will be addressed shortly (hopefully).
+
 2019.01.07 OC version 5.029: A test version of the uniquac model for
 polmeric solutions has been implemented.  The list of model parameter
 identifiers has been changed again.

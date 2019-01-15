@@ -805,6 +805,7 @@
 ! have one sublattice but bonds are in sites(1)
       firsteq%phase_varres(lokcs)%sites(1)=one
       firsteq%phase_varres(lokcs)%qcbonds=sites(1)
+      write(*,*)'3B zbonds: ',sites(1),firsteq%phase_varres(lokcs)%qcbonds
    else
       do ll=1,nsl
          firsteq%phase_varres(lokcs)%sites(ll)=sites(ll)
@@ -924,7 +925,7 @@
          if(splista(ll)%symbol(1:3).eq.'QC_') then
             firsteq%phase_varres(lokcs)%constat(jk)=&
                  ibset(firsteq%phase_varres(lokcs)%constat(jk),CONQCBOND)
-!            write(*,*)'3B setting bond cluster bit',jk,CONQCBOND
+            write(*,*)'3B setting bond cluster bit',jk,CONQCBOND
          endif
       enddo
 ! set CQC bit

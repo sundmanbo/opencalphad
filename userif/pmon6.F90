@@ -878,13 +878,6 @@ contains
 !         '                ','GADDITION       ','AQUEUS_MODEL    ',&
 !         'QUASICHEM_MODEL ','FCC_CVM_TETRAHDR','FLORY_HUGG_MODEL',&
 !         '                ','                ','QUIT            ']
-!---------- old
-!         ['MAGNETIC_CONTRIB','COMPOSITION_SET ','DISORDERED_FRACS',&
-!         'TWOSTATE_LIQUID ','SCHOTTKY_ANOMALTY','DEFAULT_CONSTIT ',&
-!         'LOWT_CP_MODEL   ','FCC_PERMUTATIONS','BCC_PERMUTATIONS',&
-!         'ELASTIC_MODEL_1 ','GADDITION       ','AQUEUS_MODEL    ',&
-!         'QUASICHEM_MODEL ','FCC_CVM_TETRAHDR','FLORY_HUGG_MODEL',&
-!         'CRYSTAL_BREAKDWN','SECOND_EINSTEIN ','QUIT            ']
 !....................................................
           CASE DEFAULT
              write(kou,*)'Amend phase subcommand error'
@@ -1056,7 +1049,13 @@ contains
 !             call set_phase_status_bit(lokph,PHAQ1)
 !....................................................
           case(13) ! amend phase ... quasicemichal model (several)
-             write(kou,*)'Not implemented yet'
+             call gparid('Quasichemical type: ',cline,last,jp,3,q1help)
+             if(jp.lt.0 .or. jp.gt.3) then
+                write(*,*)'Value must be between 1 and 3'
+             else
+                qcmodel=jp
+             endif
+!             write(kou,*)'Not implemented yet'
 ! Future model bits
 !                call set_phase_status_bit(lokph,PHQCE)
 !                call set_phase_status_bit(lokph,PHFACTCE)
@@ -1359,7 +1358,7 @@ contains
              goto 100
 2044         continue
              phtup=>phasetuple(jp)
-! Get current composition of the phase
+! Get current constitution of the phase
              call calc_phase_molmass(iph,ics,xknown,aphl,totam,xxy,xxx,ceq)
              if(gx%bmperr.ne.0) then
                 write(*,*)'Error finding current composition'
@@ -3552,7 +3551,7 @@ contains
           else
 ! the value of a state variable, symbol? or model parameter variable is returned
 ! STRANGE the symbol xliqni is accepted in get_state_var_value ???
-             write(*,*)'pmon show: ',name1
+!             write(*,*)'pmon show: ',name1
              call get_state_var_value(name1,xxx,model,ceq)
 !             write(*,*)'PMON: show xliqni should come here 6 ... ',gx%bmperr
              if(gx%bmperr.eq.0) then

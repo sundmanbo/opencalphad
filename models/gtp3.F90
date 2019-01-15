@@ -1864,6 +1864,8 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   integer, private :: ndefprop
 ! this is the index of mobility data, set in init_gtp in subroutine gtp3A
   integer, private :: mqindex
+! quasichemical model type, 1=classic, 2=corrceted type 1, 3=corrected type 2
+  integer :: qcmodel=1
 !\end{verbatim}
 
 CONTAINS
