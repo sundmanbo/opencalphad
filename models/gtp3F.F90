@@ -3093,8 +3093,8 @@
    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim} %+
    integer, parameter :: npfs=20
-   integer ks,maxsym,ipos,jt,js,kdot,nsymb,allowch
-   character name2*16,pfsym(npfs)*60,string*128,pfsymdenom*60
+   integer ks,maxsym,ipos,jt,js,kdot,nsymb,allowch,lbuf
+   character name2*16,pfsym(npfs)*60,string*128,pfsymdenom*60,fbuff*256
 !   integer istv(npfs),indstv(4,npfs),iref(npfs),iunit(npfs),lokv(npfs)
    integer iarr(10,npfs),lokv(npfs)
 ! memory leak
@@ -3114,7 +3114,7 @@
    if(name2(1:1).eq.' ') then
       gx%bmperr=4137; goto 1000
    endif
-!   write(*,*)'3F enter_svfun: ',last,name2,':',cline(1:10)
+!   write(*,*)'3F enter_svfun: ',last,name2,':',trim(cline)
    if(.not.proper_symbol_name(name2,0)) goto 1000
 ! nsvfun is a global variable giving current number of state variable functions
    do ks=1,nsvfun
@@ -3123,16 +3123,36 @@
       endif
    enddo
    kdot=0
+   lbuf=0
+   fbuff=' '
 ! added allowch to handle symbols including & and #
    allowch=1
 ! TO BE IMPLEMENTED: enter symbols with dummy arguments like CP(@P1)=HM(@P1).T
 ! where @Pi is a phase, @Ci is a component and @Si is a species
 ! these dummy variables must be defined in symbol name ?? why ?? maybe not
+!   write(*,*)'3F symbol: "',trim(cline),'"',last
+77 continue
    call gparc('Expression, end with ";" :',cline,last,6,string,';',q1help)
+! there can be multiple lines, last end by ; or empty line
+   if(index(string,';').le.0) then
+      fbuff(lbuf+1:)=string
+      lbuf=len_trim(fbuff)
+      string=' '
+      write(*,*)'3F Continue: '
+      goto 77
+   elseif(lbuf.gt.0) then
+      string=fbuff
+   endif
+   if(index(string,';').eq.1) then
+      write(*,*)'3F empty expression, maybe forgotten =?'
+      gx%bmperr=4134; goto 1000
+   endif
+!   write(*,*)'3F expression: ',trim(string)
    maxsym=-npfs
    ipos=1
    call putfun(string,ipos,maxsym,pfsym,lokv,lrot,allowch,nsymb)
-   if(pfnerr.ne.0) then
+   if(pfnerr.ne.0 .or. .not.associated(lrot)) then
+      write(*,*)'3F error in putfun: ',pfnerr,associated(lrot)
       pfnerr=0; gx%bmperr=4134; goto 1000
    endif
 ! on return nsymb is the number of external symbols used in the function
@@ -3528,16 +3548,19 @@
 !   text(ipos:ipos+kl+1)=svflista(lrot)%name(1:kl)//'= '
    text(ipos:)=trim(svflista(lrot)%name)//'='
    ipos=len_trim(text)+2
-!   write(*,502)'3F wrtfun: ',jt,(trim(symbols(mm)),mm=1,jt)
-502 format(a,i3,10(' "',a,'", '))
-   call wrtfun(text,ipos,svflista(lrot)%linkpnode,symbols)
+! svflista(lrot)%linkpode is a pointer to a pufun_node record
+   if(.not.associated(svflista(lrot)%linkpnode)) then
+      text(ipos:)=' = no expression; '
+   else
+!      write(*,502)'3F wrtfun: ',jt,(trim(symbols(mm)),mm=1,jt)
+502   format(a,i3,10(' "',a,'", '))
+      call wrtfun(text,ipos,svflista(lrot)%linkpnode,symbols)
 ! where is pfnerr defined??
-   if(pfnerr.ne.0) then
-      write(kou,*)'Putfun error listing funtion ',pfnerr
-      gx%bmperr=4142; goto 1000
+      if(pfnerr.ne.0) then
+         write(kou,*)'Putfun error listing funtion ',pfnerr
+         gx%bmperr=4142; goto 1000
+      endif
    endif
-!   text(ipos:ipos)=';'
-!   ipos=ipos+1
 1000 continue
    return
  end subroutine list_svfun

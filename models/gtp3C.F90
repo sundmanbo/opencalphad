@@ -231,7 +231,7 @@
    TYPE(gtp_phase_varres), pointer :: csrec
    double precision am1,am2
 !
-   write(*,*)'3C list_sorted_phases'
+!   write(*,*)'3C list_sorted_phases'
    allocate(entph(nooftuples))
    allocate(dorph(nooftuples))
    nstab=0; nent=0; ndorm=0; nsusp=1

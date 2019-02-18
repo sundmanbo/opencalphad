@@ -153,7 +153,8 @@ enter element MG Magnesium HCP_A3   2.4305E+01  4.9980E+03  3.2671E+01 2
 @$
 @&
 
-enter symbol P0=101325
+@$ NOTE a ; or an empty line following is needed
+enter symbol P0=101325;
 @$ ==========================================
 enter equilibrium EQ_1_CP15   YES
 set status phase *=sus

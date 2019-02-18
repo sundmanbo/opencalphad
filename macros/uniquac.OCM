@@ -1,0 +1,337 @@
+@$
+@$ Testing the implementation of the UNIQUAC model
+@$
+@$
+@&
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$ UNIQUAC model based on the 1975 paper by Abrams and Prausnitz
+@$ It has a particular liquid configurational entropy term to
+@$ account for the different sizes of the aonstituents.
+@$
+@$ DATA is from 1978 Andersson and Prausnitz, part 1 and 2
+@$ Ind Eng Chem Process Des Dev Vol 17, No 4, 1978, 552-567
+@$
+@$ First part binary system acenonitrile - n_heptane
+@$
+@&
+
+new Y
+
+set echo
+
+@$ The molecules are entered as elements to simplify
+@$ The "mass" is irrelevant as no mass fraction plots
+enter element A A liquid 100 ,,,,,
+
+enter element B B liquid 100 ,,,,,
+
+enter species acetonitrile A
+
+enter species n_heptane B
+
+enter species benzene C
+
+@&
+@$ The values of area "q" and segments "r" associated with the molecule
+@$ are entered as species properties
+@$ A is ACETONITRILE from 78And-part1
+@$ First value is q, second is r, values from Table 1 in 78And
+amend species ACETONITRILE
+1.72
+1.87
+
+@$ B is N_HEPTANE
+amend species N_HEPTANE  4.40  5.17
+
+l d
+
+@&
+@$ Thus the values below are the negative from Table 1 in 78And-part2
+@$ system 5 (Palmer 1972)
+enter tp tauAB fun 200 exp(-23.71*T**(-1)); 1000 N test
+enter tp tauBA fun 200 exp(-545.71*T**(-1)); 1000 N test
+
+@&
+@$ enter the liquid and set model to uniquac
+enter phase liquid
+uniquac
+1
+1
+acetonitrile n_heptane
+
+
+@&
+
+@$ For the residual parameters denoted tau_ji or a_ij
+@$ the constitient representing the second index "j"
+@$ muset be part of the parameter identifier in UQT
+
+enter param UQT&ACETONITRILE(liquid,N_HEPTANE) 200 tauAB;  700 N bosse
+enter param UQT&N_HEPTANE(liquid,ACETONITRILE) 200 tauBA;  700 N bosse
+
+set cond t=320 p=1e5 n=1 x(b)=.5
+
+c e
+
+l,,,,
+
+@&
+
+@$ enter symbols for the activity coefficients.  Do not forget = !!
+
+enter symb gamma1=ac(a)/x(a);
+
+enter symb gamma2=ac(b)/x(b);
+
+show gamma1 gamma2
+
+@&
+@$ Calculate Gibbs energy curves and other properties
+
+set ax 1 x(b)
+0
+1
+.005
+
+@$ use "step separate" as we have two liquids
+step sep
+
+plot
+
+gm(*)
+
+@$ The two minima is typical of a miscibility gasp
+@&
+
+plot
+
+mu(*)
+scale y
+n
+-10000
+600
+
+@&
+
+plot
+
+lnac(*)
+scale y
+n
+-5
+1
+
+
+@&
+
+plot
+
+ac(*)
+
+@&
+
+plot
+
+gamma1
+
+@&
+
+plot
+
+gamma2
+
+@&
+@$ Now calculate the phase diagram
+
+set ax 2 t
+270
+500
+5
+
+
+list ax
+
+@&
+
+set c t=400
+
+c e
+
+l,,,,
+
+@&
+
+map
+
+
+plot
+
+
+
+@&
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$=================================================================
+@$ Now calculate a ternary
+@$
+NEW Y
+@$
+@$ We must enter the parameters again
+@$
+@$ Calculate 78And part 2: fig 4: acenonitrile - n_heptane - benzene
+@$
+@$=================================================================
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+@$
+
+enter element A A liquid 100 ,,,,,
+
+enter element B B liquid 100 ,,,,,
+
+enter element C C liquid 100 ,,,,,
+
+enter species acetonitrile A
+
+enter species n_heptane B
+
+enter species benzene C
+
+@$ A is ACETONITRILE from 78And-part1
+amend species ACETONITRILE 1.72 1.87
+
+@$ B is N_HEPTANE from 78And-part1
+amend species N_HEPTANE  4.40  5.17
+
+@$ C is BENZENE from 75Abr
+amend species BENZENE    2.40  3.18
+
+l d
+
+
+@&
+@$ Thus the values below are the negative from Table 1 in 78And-part2
+@$ system 5 (Palmer 1972)
+enter tp tauAB fun 200 exp(-23.71*T**(-1)); 1000 N test
+enter tp tauBA fun 200 exp(-545.71*T**(-1)); 1000 N test
+enter tp tauAC fun 200 exp(-60.28*T**(-1)); 1000 N test
+enter tp tauCA fun 200 exp(-89.57*T**(-1)); 1000 N test
+enter tp tauBC fun 200 exp(-245.42*T**(-1)); 1000 N test
+enter tp tauCB fun 200 exp(+135.93*T**(-1)); 1000 N test
+
+@&
+@$ enter the liquid phase, now with 3 constituents
+enter phase liquid
+uniquac
+1
+1
+acetonitrile n_heptane benzene
+
+
+@&
+
+l d
+
+
+@&
+
+@$ NOTE second index in tau_ji is used in parameter identifier
+@$ thus UQT&UA(LIQUID,UB) is tau_(ub,ua)
+
+enter param UQT&ACETONITRILE(liquid,N_HEPTANE) 200 tauAB;  700 N bosse
+enter param UQT&N_HEPTANE(liquid,ACETONITRILE) 200 tauBA;  700 N bosse
+
+enter param UQT&ACETONITRILE(liquid,BENZENE) 200 tauAC;  700 N bosse
+enter param UQT&BENZENE(liquid,ACETONITRILE) 200 tauCA;  700 N bosse
+
+enter param UQT&N_HEPTANE(liquid,BENZENE) 200 tauBC;  700 N bosse
+enter param UQT&BENZENE(liquid,N_HEPTANE) 200 tauCB;  700 N bosse
+
+
+@&
+@$ Unless there is a calphad type interaction parameter in the liquid
+@$ OC may be considered as ideal (without miscibility gap)
+@$ As it is zero it has no infuence on the values
+enter param G(liquid,N_HEPTANE,BENZENE) 200 0; 700 N bosse
+
+
+l data
+
+
+@$ Check parameters OK
+@&
+@$ Set a ternary composition
+
+@$ NOTE Mapping is very sensitive to start point
+set c t=320 p=1e5 n=1 x(b)=.5 x(c)=.1
+
+c e
+
+l,,,,
+
+@$ Sometimes there are problems, try again ...
+
+c e
+
+l,,,,
+
+@&
+
+@$ cset the axis for an isothermal phase diagram ...
+set ax 1 x(b) 0 1 .01
+set ax 2 x(c) 0 1 .01
+
+
+l ax
+
+@&
+map
+
+
+plot
+
+
+gib y
+tie 5
+
+
+@$ All well done ...
+
+set inter
+

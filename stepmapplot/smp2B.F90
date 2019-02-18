@@ -1333,15 +1333,18 @@
 !          write(*,*)'plot command: "',gnuplotline(9:k3),'"'
 !          write(*,*)'Trying to spawn: ',trim(gnuplotline)
 !          call system(gnuplotline(9:k3))
-! spawn plot on Windows ??
+! spawn plot on Windows ?? NOT ISO-TERMAL DIAGRAM
+          write(*,*)'executing command: "start /B '//trim(gnuplotline)
           call execute_command_line('start /B '//gnuplotline(9:k3))
        else
 !          write(*,*)'plot command: "',gnuplotline(1:k3),'"'
 !          call system(gnuplotline)
+          write(*,*)'executing command: '//trim(gnuplotline)
           call execute_command_line(gnuplotline)
        endif
     else
 ! plot on non-windows system
+       write(*,*)'executing command: '//trim(gnuplotline)
        call execute_command_line(gnuplotline)
     endif
 1000 continue
@@ -2538,25 +2541,31 @@
 !    close(21)
 !
 !    gnuplotline='gnuplot ocgnu.plt '
-    gnuplotline='gnuplot '//pfc
+    gnuplotline='gnuplot '//trim(pfc)//' & '
 ! if gnuplot cannot be started with gnuplot give normal path ...
 !    gnuplotline='"c:\program files\gnuplot\bin\wgnuplot.exe" '//pfc(1:kkk)//' '
-!    k3=len_trim(gnuplotline)+1
+    k3=len_trim(gnuplotline)+1
     write(*,*)'Gnuplot command line: ',trim(gnuplotline)
 !    if(pform(1:1).ne.' ') then
     if(graphopt%gnutermsel.ne.1) then
        write(*,*)'Graphics output file: ',trim(pfh)
     endif
-! grwin set by compiler option, 1 means windows
+! grwin set by compiler option, 1 means windows 
     if(grwin.eq.1) then
        if(btest(graphopt%status,GRKEEP)) then
-          write(*,*)'Trying to spawn'
-          call execute_command_line(gnuplotline(9:))
+! this is a TERNARY PLOT with 2 extenive axis
+!          write(*,*)'executing command '//trim(gnuplotline(9:))
+!          call system(gnuplotline(9:))
+          write(*,*)'Executing Command: start /B '//trim(gnuplotline),k3
+          call execute_command_line('start /B '//trim(gnuplotline))
+!          call execute_command_line(gnuplotline(9:))
        else
+!          write(*,*)'executing command '//trim(gnuplotline)
           call execute_command_line(gnuplotline)
        endif
     else
 ! plot on non-windows system
+!       write(*,*)'executing command '//trim(gnuplotline)
        call execute_command_line(gnuplotline)
     endif
 !900 continue

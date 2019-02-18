@@ -13,6 +13,12 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2019.02.18 OC version 5.031: A working version of the UNIQUAC model
+for fluides and polymers has finally been implemented.  There is a new
+macro file which explains how to enter this phase and model
+parameters.  As usual there are difficulties with step and map
+commands.  A number of minor bugs have also be removed.
+
 2019.01.15 OC version 5.030: A test version of the corrected
 quasichemical model from 2009 has finally been implemented.  There are
 still problems but they will be addressed shortly (hopefully).

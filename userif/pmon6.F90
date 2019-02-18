@@ -3567,7 +3567,7 @@ contains
                 if(gx%bmperr.ne.0) gx%bmperr=0
                 call capson(line)
 !                call find_svfun(name1,istv,ceq)
-                write(*,*)'PMON: calling find_svfun again ...'
+!                write(*,*)'PMON: calling find_svfun again ...'
                 call find_svfun(name1,istv)
                 if(gx%bmperr.ne.0) goto 990
                 mode=1
@@ -6287,6 +6287,10 @@ contains
              if(buperr.ne.0) goto 1000
              cline=text
 !             cline=cline(last:)
+!             write(*,*)'sumbemu: ',trim(cline),last
+! added 20190207 because "enter gamma ac(a)/x(a); gave segmentation fault
+! but that was not the error, the error was missing =
+!             once=.false.
           endif
        endif
     endif

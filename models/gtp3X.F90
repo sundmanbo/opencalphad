@@ -4,7 +4,6 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 !>     15. Calculate things
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
 !\begin{verbatim}
  subroutine calcg(iph,ics,moded,lokres,ceq)
 ! calculates G for phase iph and composition set ics in equilibrium ceq
@@ -71,7 +70,6 @@
  end subroutine calcg
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
 !\begin{verbatim}
  subroutine calcg_internal(lokph,moded,cps,ceq)
 ! Central calculating routine calculating G and everyting else for a phase
@@ -1995,7 +1993,6 @@
  end subroutine calcg_internal
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
 !\begin{verbatim}
  subroutine setendmemarr(lokph,ceq)
 ! stores the pointers to all ordered and disordered endmemners in arrays
@@ -2050,7 +2047,6 @@
  end subroutine setendmemarr
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
 !\begin{verbatim}
  subroutine tabder(iph,ics,times,ceq)
 ! tabulate derivatives of phase iph with current constitution and T and P
@@ -2194,7 +2190,6 @@
  end subroutine tabder
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
 !\begin{verbatim}
  subroutine cgint(lokph,lokpty,moded,vals,dvals,d2vals,gz,ceq)
 ! calculates an excess parameter that can be composition dependent
@@ -2613,7 +2608,6 @@
  end subroutine cgint
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
 !\begin{verbatim}
  subroutine config_entropy(moded,nsl,nkl,phvar,tval)
 ! calculates configurational entropy/R for phase lokph
@@ -2668,7 +2662,6 @@
  end subroutine config_entropy
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
 !\begin{verbatim}
  subroutine config_entropy_floryhuggins(moded,nofc,phvar,tval,fhv,dfhv,d2fhv)
 ! calculates configurational entropy/R for a phase with Flory-Huggins model
@@ -2814,7 +2807,6 @@
  end subroutine config_entropy_floryhuggins
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
 !\begin{verbatim}
  subroutine config_entropy_i2sl(moded,nsl,nkl,phvar,i2slx,tval)
 ! calculates configurational entropy/R for ionic liquid model
@@ -2984,7 +2976,6 @@
  end subroutine config_entropy_i2sl
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
 !\begin{verbatim}
  subroutine config_entropy_cqc_classicqc(moded,ncon,phvar,phrec,tval)
 !
@@ -3133,7 +3124,6 @@
  end subroutine config_entropy_cqc_classicqc
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
 !\begin{verbatim}
  subroutine config_entropy_cqc6(moded,ncon,phvar,phrec,tval)
 !
@@ -3441,7 +3431,6 @@
  end subroutine push_pyval
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
 !\begin{verbatim}
  subroutine pop_pyval(pystack,intrec,pmq,pyq,dpyq,d2pyq,moded,iz)
 ! pop data when entering an interaction record
@@ -3477,7 +3466,6 @@
  end subroutine pop_pyval
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
 !\begin{verbatim}
  subroutine calc_disfrac(lokph,lokcs,ceq)
 ! calculate and set disordered set of fractions from sitefractions
@@ -3518,7 +3506,6 @@
  end subroutine calc_disfrac
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
 !\begin{verbatim} %-
  subroutine calc_disfrac2(phord,phdis,ceq)
 ! calculate and set disordered set of fractions from sitefractions
@@ -3591,7 +3578,6 @@
  end subroutine calc_disfrac2
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
 !\begin{verbatim}
  subroutine disordery(phvar,ceq)
 ! sets the ordered site fractions in FCC and other order/disordered phases
@@ -3632,7 +3618,6 @@
  end subroutine disordery
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
 !\begin{verbatim} %-
  subroutine disordery2(lokdcs,phvar,disrec,ceq)
 ! subroutine disordery2(phdis,phvar,disrec,ceq)
@@ -3694,7 +3679,6 @@
  end subroutine disordery2
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
-
 !\begin{verbatim}
  subroutine uniquac_model(moded,ncon,phres,ceq)
 ! Calculate the Gibbs energy of the UNIQUAC model (Abrams et al 1975)
@@ -3707,12 +3691,12 @@
    TYPE(gtp_equilibrium_data), pointer :: ceq
    TYPE(gtp_phase_varres), pointer :: phres
 !\end{verbatim}
-   integer ia,ib,ic,id,ie,jj,nprop,nint,lokph,loksp
+   integer ia,ib,ic,id,ie,jj,nprop,nint,lokph,loksp,ii
    double precision, allocatable, dimension(:) :: theta,phi,qval,xfr,rval
    double precision, allocatable, dimension(:,:) :: tau,dtaudt
    double precision, allocatable, dimension(:) :: rho,kvottau
    double precision, allocatable, dimension(:) :: dgv,d2gv,sumdtaudt,d2gdydt
-   double precision hzeta,gres,sumxq,sumxr,dgrdt,xxx,yyy
+   double precision hzeta,gres,sumxq,sumxr,dgrdt,xxx,yyy,sumtt
    double precision gc,gr,term1,term2,dgr,dgc,d2gc,d2gr,sumxiqi
 ! we must have a property index "i" for each tau_ji 
    integer, allocatable, dimension(:) :: unqtau
@@ -3802,6 +3786,7 @@
 ! there are some residual parameters, extract their values 
 ! MODIFIED xfr(ib)*tau_(ib,ia) stored in phres%gval(1,unqtau(ia))
 ! MODIFIED xfr(ia)*tau_(ia,ib) stored in phres%gval(1,unqtau(ib))
+! By JING: here you need to be careful!!!
          tauloop2: do ib=1,ncon
             if(ib.eq.ia) cycle tauloop2
 ! This is the derivative wrt xfr(ib) of UQT&IA i.e. TAU_IB,IA
@@ -3819,27 +3804,29 @@
    enddo
 !-----------------------
 !   write(*,10)'3X q: ',qval,phres%gval(1,unqq)
-!   write(*,10)'3X theta: ',xfr,theta
+!   write(*,10)'3X UNIQUAC theta: ',xfr,theta
+!   write(*,10)'3X UNIQUAC tau: ',xfr,tau
 ! default value of tau is unity
-!   write(*,10)'3X tau: ',tau
-10 format(a,6(1pe10.2))
+! OK   write(*,10)'3X tau: ',tau
+10 format(a,6(1pe12.4))
 ! here we calculate \sum_i \theta_i \tau_{ij} stored in rho
    do ia=1,ncon
       term1=zero
       term2=zero
       do ib=1,ncon
 ! this is \sum_j \theta_j \tau_{ji}         
-         term1=term1+theta(ib)*tau(ib,ia)
-         term2=term2+theta(ib)*dtaudt(ib,ia)
+         term1=term1+theta(ib)*tau(ia,ib)
+         term2=term2+theta(ib)*dtaudt(ia,ib)
+! OK         write(*,'(a,2i3,6(1pe12.4))')'3X rho1: ',ia,ib,theta(ib),tau(ia,ib)
       enddo
 ! these values are \sum_j \theta_j\tau_ji (and the T-derivative)
       rho(ia)=term1
       sumdtaudt(ia)=term2
    enddo
-!   write(*,10)'3X rho: ',rho
+! OK   write(*,10)'3X rho: ',rho
 !   gx%bmperr=4399; goto 1000
    do ia=1,ncon
-! need for the derivatives \sum_j (\theta_j \tau_ji)/\rho_j
+! need for the residual derivatives \sum_i (\theta_i \tau_ji)/\rho_i
       term1=zero
       do ib=1,ncon
 ! I am never sure if it should be tau(ia,ib) or tau(ib,ia) ...
@@ -3848,7 +3835,7 @@
 ! This is \sum_i (\theta_i \tau_ki)/\rho_i where index "ia" is subscript "k" 
       kvottau(ia)=term1
    enddo
-!   write(*,10)'3X kvottau: ',kvottau,zero,xfr(1),ceq%tpval(1)
+!   write(*,107)'3X tau:: ',kvottau,zero,xfr(1),ceq%tpval(1)
 !   gx%bmperr=4399; goto 1000
 ! This is z/2
    hzeta=5.0D0
@@ -3871,7 +3858,8 @@
 ! The second T-derivative ... NOT USED YET!
 !      d2grdt2=....
    enddo gmloop
-!   write(*,210)'3X GC: ',0,gr,gc,gr+gc
+!   write(*,211)'3X GC: ',0,gr,gc,gr+gc
+211   format(a,i2,6(1pe12.4))
 !   gx%bmperr=4399; goto 1000
    dgv=zero
    d2gdydt=zero
@@ -3882,9 +3870,11 @@
 ! derivative with respect to T and xfr(b)
 ! we must sum_i theta_i/rho_i (dtau_ki/dT)
       xxx=zero; yyy=zero
+      sumtt=zero
+! second derivative of residual
       do ia=1,ncon
          xxx=xxx+theta(ia)*dtaudt(ib,ia)/rho(ia)
-         yyy=yyy+theta(ia)*tau(ia,ib)*sumdtaudt(ia)/rho(ia)**2
+         yyy=yyy+theta(ia)*tau(ib,ia)*sumdtaudt(ia)/rho(ia)**2
       enddo
       d2gdydt(ib)=-qval(ib)*(sumdtaudt(ib)/rho(ib)+xxx-yyy)
 ! first derivative with respect to ib of configuration
@@ -3893,11 +3883,16 @@
            hzeta*qval(ib)*(log(theta(ib)/phi(ib))-one+phi(ib)/theta(ib))
 !      write(*,'(a,i3,f10.6,1pe12.4)')'3X ib xfr dgc: ',ib,xfr(ib),dgc
       dgv(ib)=dgr+dgc
+!      write(*,212)'3X dgr: ',ib,qval(ib),rho(ib),kvottau(ib),dgc,dgv(ib)
+212   format(a,i3,6(1pe12.4))
       second: do ic=ib,ncon
 ! second derivative of configuration with respect to ib and ic
 ! APPROXIMATE not corrected!!
-         d2gr=qval(ib)*theta(ic)/xfr(ic)*(one-tau(ic,ib)/kvottau(ib))-&
-              qval(ic)*theta(ib)/xfr(ib)*(one-tau(ib,ic)/kvottau(ib))
+         do ii=1,ncon
+            sumtt=sumtt+theta(ii)*tau(ib,ii)*tau(ic,ii)/rho(ii)**2
+         enddo
+         d2gr=qval(ib)*qval(ic)/sumxq*(1-tau(ic,ib)/rho(ib)-&
+              tau(ib,ic)/rho(ic)+sumtt)
          if(ic.eq.ib) then
             d2gc=-2.0D0*phi(ic)/xfr(ic)**2
 !         else
@@ -3935,6 +3930,7 @@
 !   phres%gval(4,1)=phres%gval(2,1)+other terms T-dependent terms (Cp)
    do ia=1,ncon
       phres%dgval(1,ia,1)=phres%dgval(1,ia,1)+dgv(ia)
+!      write(*,212)'3X ddy: ',ia,phres%dgval(1,ia,1),dgv(ia)
 ! The T-dependence of the residual term affects d2G/dydT
 !      term1=phres%dgval(2,ia,1)
 !      phres%dgval(2,ia,1)=phres%dgval(2,ia,1)+d2gdydt(ia)
@@ -3948,6 +3944,10 @@
 !              phres%d2gval(ixsym(ib,ic),1)
 !      enddo
    enddo
+! check chemical potentials
+   xxx=phres%gval(1,1)-xfr(1)*phres%dgval(1,1,1)-xfr(2)*phres%dgval(1,2,1)
+!   write(*,'(a,4(1pe12.4))')'3X mu: ',xxx,xxx+phres%dgval(1,1,1),&
+!        xxx+phres%dgval(1,2,1)
 !   write(*,300)'3X Gm, dG/dx: ',phres%gval(1,1),(phres%dgval(1,ia,1),ia=1,ncon)
 300 format(a,6(1pe12.4))
 !   do ia=1,ncon
@@ -3958,7 +3958,6 @@
  end subroutine uniquac_model
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
 !\begin{verbatim}
  subroutine set_driving_force(iph,ics,dgm,ceq)
 ! set the driving force of a phase explicitly
@@ -3976,7 +3975,6 @@
  end subroutine set_driving_force
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
-
 !\begin{verbatim}
  subroutine extract_massbalcond(tpval,xknown,antot,ceq)
 ! extract T, P,  mol fractions of all components and total number of moles
@@ -4281,7 +4279,6 @@
  end subroutine extract_massbalcond
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
-
 !\begin{verbatim}
  subroutine save_constitutions(ceq,copyofconst)
 ! copy the current phase amounts and constituitions to be restored
@@ -4351,7 +4348,6 @@
  end subroutine save_constitutions
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
-
 !\begin{verbatim} %-
  subroutine restore_constitutions(ceq,copyofconst)
 ! restore the phase amounts and constitutions from copyofconst
@@ -4405,4 +4401,3 @@
  end subroutine restore_constitutions
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
-

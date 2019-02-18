@@ -912,7 +912,7 @@
       endif
    endif
    if(nkk.eq.nsl) then
-! as many constiuents as sublattice
+! as many constiuents as sublattice, compound with fix composition
       phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHNOCV)
    endif
 ! quasichemical liquid: indicate status bit for bond clusters in phase_varres 

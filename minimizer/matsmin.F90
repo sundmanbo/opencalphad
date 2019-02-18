@@ -889,6 +889,8 @@ CONTAINS
     double precision xxx,tpvalsave(2)
     integer iremsave,zz,tupadd,tuprem,samephase,phloopaddrem1,phloopaddrem2
     integer phloopv,noremove
+! prevent loop that a phase is added/removed more than 10 times
+    integer, allocatable, dimension(:,:) :: addremloop
 ! replace always FALSE except when we must replace a phase as we have max stable
     logical replace,force
 ! number of iterations without adding or removing a phase
@@ -1096,6 +1098,9 @@ CONTAINS
     iremsave=0
     phloopaddrem1=0
 ! code above executed only intially
+!    write(*,*)'MM allocating addremloop',meqrec%nphase
+    allocate(addremloop(meqrec%nphase,3))
+    addremloop=0
 !----------------------------------------------------------------
 !
 ! meq_sameset calculate the equilibrium for a given set of stable phases
@@ -1133,6 +1138,41 @@ CONTAINS
 !               meqrec%noofits,lastchange,nochange,irem,iadd
 !221       format(a,10i4)
           goto 200
+       endif
+! keep record of adding and removing phases
+       if(iadd.gt.0) then
+          addremloop(iadd,1)=meqrec%noofits
+          if(irem.eq.0) then
+             addremloop(iadd,2)=addremloop(iadd,2)+1
+!             write(*,'(a,4i5)')'MM adding:   ',addremloop(iadd,1),iadd,&
+!                  addremloop(iadd,2),addremloop(iadd,3)
+          endif
+          if(addremloop(iadd,2).gt.5) then
+             write(*,'(a,4i5)')'MM Suspending phase: ',iadd,&
+                  meqrec%phr(iadd)%iph,meqrec%phr(iadd)%ics
+             meqrec%phr(iadd)%phasestatus=PHDORM
+             meqrec%phr(iadd)%curd%phstate=PHDORM
+             meqrec%phr(iadd)%dormlink=meqrec%dormlink
+             meqrec%dormlink=iadd
+! iremsave keeps track of last removed phase, if equal to iadd set it to 0
+             if(iremsave.eq.iadd) iremsave=0
+             iadd=0
+             goto 200
+          endif
+       else
+          addremloop(irem,3)=addremloop(irem,3)+1
+!             write(*,'(a,3i5)')'MM removing: ',addremloop(irem,1),irem,&
+!                  addremloop(iadd,2),addremloop(iadd,3)
+!          if(addremloop(irem,3).gt.5) then
+!             write(*,'(a,3i5)')'MM Suspend ',addremloop(irem,1),irem,&
+!                  meqrec%dormlink
+!             meqrec%phr(irem)%phasestatus=PHDORM
+!             meqrec%phr(irem)%curd%phstate=PHDORM
+!             meqrec%phr(irem)%dormlink=meqrec%dormlink
+!             meqrec%dormlink=irem
+!             irem=0
+!             goto 200
+!          endif
        endif
        if(iadd.gt.0) then
 ! check if phase to be added is already stable as another composition set
@@ -1444,11 +1484,16 @@ CONTAINS
 1200 continue
     if(jj.ne.0) then
 !       if(.not.btest(meqrec%status,MMQUIET)) &
-            write(*,*)'Restore from dormant: ',jj,meqrec%phr(jj)%iph,&
-            meqrec%phr(jj)%ics
+!            write(*,*)'Restore from dormant: ',jj,meqrec%phr(jj)%iph,&
+!            meqrec%phr(jj)%ics
+       write(*,'(a,3i5)')'MM restoring phase:  ',jj,&
+            meqrec%phr(jj)%iph,meqrec%phr(jj)%ics
+! do I have two places for suspendeded ?? YES!!
        meqrec%phr(jj)%phasestatus=PHENTUNST
+! below is in the phase_varres record, previous is temporary equilibrium data
        meqrec%phr(jj)%curd%phstate=PHENTUNST
        jj=meqrec%phr(jj)%dormlink
+!       read(*,'(a)')jph
        goto 1200
     endif
 ! try to find problem with listed chemical potential    
@@ -1755,6 +1800,8 @@ CONTAINS
        if(vbug) write(*,*)'Error solving equil matrix 1',meqrec%noofits,ierr,&
             iremsave
        if(iremsave.gt.0) then
+! parallel2 goes into a loop here when phase iremsave has been suspended
+! after at has been set suspended .... fixed by not returning nonzero irem 
 ! equil matrix wrong at first iteration after removing a phase
 ! This can be caused by having no phase with solubility of an element
 ! (happened in Fe-O-U-Zr calculation with just C1_MO2 stable and C1 does not
@@ -3204,7 +3251,7 @@ CONTAINS
           write(*,*)'MM not normallized entropy conditions not implemented'
           gx%bmperr=4207; goto 1000
        else
-! the interest is to use the condition SM(solid)-SM(liquid)=0
+! entropy difference: to use the condition SM(solid)-SM(liquid)=0
 ! for equientropy lines ...
 ! s1-s2=0: delta-s = ds/dT dT + ds/dy dy + ... = 0
           xterm=3
@@ -3223,8 +3270,8 @@ CONTAINS
 !                   write(*,*)'MM: sph,scs: ',mterms,xterm,sph,scs
                    xxx=xxx+ccf(mterms)*phr(sph)%curd%gval(2,1)/&
                         phr(sph)%curd%abnorm(1)
-!                   write(*,230)'MM S: ',ccf(mterms),phr(sph)%curd%gval(2,1),&
-!                        phr(sph)%curd%abnorm(1),phr(sph)%curd%amfu,xxx
+                   write(*,230)'MM S: ',ccf(mterms),phr(sph)%curd%gval(2,1),&
+                        phr(sph)%curd%abnorm(1),phr(sph)%curd%amfu,xxx
 230                format(a,6(1pe12.4))
                    xterm=xterm+4
                    mterms=mterms+1
@@ -3236,9 +3283,9 @@ CONTAINS
           endif
        endif
        nrow=nrow+1
-       write(*,230)'MM xxx: ',xxx,cvalue
+       write(*,230)'MM equientropy: ',ceq%tpval(1),cvalue,xxx
        smat(nrow,1)=xxx
-       gx%bmperr=4207; goto 1000
+!       gx%bmperr=4207; goto 1000
 !------------------------------------------------------------------
     case(3) ! V volume condition, almost the same a H condition
 ! Volume for system or phase, NOT normallized
@@ -3433,7 +3480,8 @@ CONTAINS
 ! dV = \sum_alpha FU(alpha)(d2G/dPdy_i)*c_iA*\mu_A+
 !     \sum_i dG/dP*dP + ??
 !     \sum_alpha ???
-! UNFINISHED
+! Condition H=value and H(phase)=value are OK, HM=value is NOT OK  Why??
+!^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
           allocate(xcol(nz2))
           xcol=zero
           totam=zero
@@ -3464,6 +3512,7 @@ CONTAINS
              ncol=1
              if(stvix.eq.3) then
 ! V condition, calculate the terms d2G/dPdy_i for all constituents
+! THIS IS REDUNDANT, V HAS ITIS OWN CASE NOW
                 do ie=1,pmi%ncc
                    hval(ie)=pmi%curd%dgval(3,ie,1)
                 enddo
@@ -3598,12 +3647,14 @@ CONTAINS
 ! ..........................................................
        else
 ! normallized HM (per mole, 1), HW (per mass, 2) or HV (per volume, 3)
-          write(*,*)'*** Normallized enthalpy not yet implemented as condition'
-          gx%bmperr=4207; goto 1000
+!          write(*,*)'*** Normallized enthalpy not yet implemented as condition'
+!          gx%bmperr=4207; goto 1000
+! UNFINISHED 
           if(stvnorm.ne.1) then
              write(*,*)'Only normallizing per mole implemented'
              gx%bmperr=4207; goto 1000
           endif
+! ie=0 means no element specification
           ie=0
           if(cmix(3).eq.0) then
 ! condition is HM=value
@@ -7531,6 +7582,8 @@ CONTAINS
        endif
     endif
     meqrec%nphase=mph
+! keep memory of adding/removing phases
+!    write(*,*)'MM total number of phases: ',mph
 ! copy current values of ceq%complist%chempot(1) to ceq%cmuval, why??
     do ie=1,meqrec%nrel
        ceq%cmuval(ie)=ceq%complist(ie)%chempot(1)/ceq%rtn
@@ -7715,6 +7768,7 @@ CONTAINS
     meqrec%noofits=-1
     call initiate_meqrec(svr2,svar,meqrec,ceq)
     if(gx%bmperr.ne.0) goto 1000
+!   addremloop
     iel=size(svar)
 !    write(*,18)(svar(jj),jj=1,iel)
 18  format('svar: ',6(1pe12.4)(6x,6e12.4))
