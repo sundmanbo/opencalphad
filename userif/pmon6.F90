@@ -462,16 +462,16 @@ contains
 ! it should be #elif not #elseif .... suck
 #elif qtplt
 ! Qt plot screen on some LINUX systems
-    graphopt%gnuterminal(i1)='qt size 900,600 '
+    graphopt%gnuterminal(i1)='qt size 900,600 font "arial,16"'
 #else
 ! wxt default plot screen (used on most Window systems)
-    graphopt%gnuterminal(i1)='wxt size 900,600 '
+    graphopt%gnuterminal(i1)='wxt size 900,600 font "arial,16"'
 #endif
     graphopt%filext(i1)='  '
 ! Postscript
     i1=2
     graphopt%gnutermid(i1)='PS  '
-    graphopt%gnuterminal(i1)='postscript color solid fontscale 0.8'
+    graphopt%gnuterminal(i1)='postscript color solid fontscale 1.2'
     graphopt%filext(i1)='ps  '
 ! Adobe Portable Document Format (PDF)
     i1=3
@@ -481,7 +481,7 @@ contains
     graphopt%gnuterminal(i1)='pdfcairo '
 #else
 ! NOTE size is in inch
-    graphopt%gnuterminal(i1)='pdf color solid size 6,4 enhanced fontscale 0.45'
+    graphopt%gnuterminal(i1)='pdf color solid size 6,4 enhanced fontscale 0.7'
 #endif
     graphopt%filext(i1)='pdf  '
 ! Graphics Interchange Format (GIF)
@@ -2964,7 +2964,8 @@ contains
 !------------------------- 
        case(24) ! T_AND_P start values?, NOT CONDITIONS!!
           write(kou,3750)ceq%tpval
-3750      format('NOTE: these are only local values, not conditions',2(1pe12.4))
+3750      format(/'NOTE: these are only local values, not conditions',&
+               2(1pe12.4)/)
           call gparrd('New value of T: ',cline,last,xxx,1.0D3,q1help)
           if(buperr.ne.0) goto 100
           ceq%tpval(1)=xxx
@@ -5566,6 +5567,9 @@ contains
                'top/bottom left/center/right inside/outside on/off')
           call gparcd('Position?',cline,last,5,line,'top right',q1help)
           graphopt%labelkey=line
+          call gparcd('Font,size: ',cline,last,5,line,'arial,12',q1help)
+          graphopt%labelkey=trim(graphopt%labelkey)//' font "'//trim(line)//'"'
+!          write(*,*)'pmon: ',trim(graphopt%labelkey)
           goto 21100
 !-----------------------------------------------------------
 ! PLOT APPEND a gnuplot file
@@ -5647,7 +5651,7 @@ contains
 ! input a new label
           call gparrd('X position: ',cline,last,xxx,zero,q1help)
           call gparrd('Y position: ',cline,last,xxy,zero,q1help)
-          call gparrd('Fontscale: ',cline,last,textfontscale,one,q1help)
+          call gparrd('Fontscale: ',cline,last,textfontscale,0.8D0,q1help)
           if(textfontscale.le.0.2) textfontscale=0.2
           call gparid('Angle (degree): ',cline,last,j1,0,q1help)
           if(buperr.ne.0) then
@@ -5802,6 +5806,9 @@ contains
           else
              graphopt%status=ibclr(graphopt%status,GRKEEP)
           endif
+! NOT USEFUL as I changed the default font and size
+!          call gparid('Tic and axis label text size?',cline,last,ll,0,q1help)
+!          graphopt%textonaxis=ll
           goto 21100
 !-----------------------------------------------------------
 ! unused
@@ -6651,54 +6658,6 @@ contains
 1000 continue
     return
   end subroutine calctrans
-
-!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
-
-!\begin{verbatim}
-  subroutine reset_plotoptions(graphopt,plotfile,textlabel)
-! if new axis then reset default plot options
-! plot ranges and their defaults
-    character plotfile*(*)
-    type(graphics_options) :: graphopt
-    type(graphics_textlabel), pointer :: textlabel
-!\end{verbatim}
-    integer savebit
-    graphopt%gibbstriangle=.FALSE.
-    graphopt%rangedefaults=0
-! axistype 0 is linear, 1 is logarithmic
-    graphopt%axistype=0
-! labeldefaults(1) is the title!!!
-    graphopt%labeldefaults=0
-    graphopt%tielines=0
-    graphopt%plotmin=zero
-    graphopt%dfltmin=zero
-    graphopt%plotmax=one
-    graphopt%dfltmax=one
-    graphopt%appendfile=' '
-    savebit=0
-! keep the windws bit set if already sey
-    if(btest(graphopt%status,GRWIN)) savebit=1
-    graphopt%status=0
-    if(savebit.ne.0) graphopt%status=ibset(graphopt%status,GRWIN)
-! remove all texts ... loosing some memory ...
-    nullify(graphopt%firsttextlabel)
-    graphopt%labelkey='top right'
-    nullify(graphopt%firsttextlabel)
-    nullify(textlabel)
-    plotfile='ocgnu'
-! by default spawn plots
-    graphopt%status=ibset(graphopt%status,GRKEEP)
-! lowerleftcorner
-    graphopt%lowerleftcorner=' '
-! default plot terminal
-    graphopt%gnutermsel=1
-! plot lines
-    graphopt%linestyle=0
-! do not reset plotend if set
-!    plotend=plotenddefault
-!    write(*,*)'Plot options reset'
-    return
-  end subroutine reset_plotoptions
 
 !\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 

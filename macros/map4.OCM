@@ -55,16 +55,17 @@ x(*,o)
 T
 title map4 fig 2
 position bottom left
+
 text 0.59 3300
-1
+.8
 0
 y
 
 text n
-0.9 3300 1 0 y
+0.9 3300 .8 0 y
 
 text n
-0.66 2600 1 90 y
+0.66 2600 .8 90 y
 
 render
 
@@ -80,9 +81,10 @@ plot
 
 
 text n
-0.8 700 1 0 y
+0.8 700 .8 0 y
 
 title map4 fig 2B
+
 
 
 

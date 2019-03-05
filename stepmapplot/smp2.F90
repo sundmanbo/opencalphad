@@ -254,7 +254,7 @@ MODULE ocsmp
 ! the set key command in GNUPLOT specifies where the line id is written
 ! it can be on/off, placed inside/outside, left/right/center, top/bottom/center,
 ! and some more options that may be implemented later ...
-     character labelkey*24
+     character labelkey*48
 ! filename is file to write the GNUPLOT command and data file
 ! appendfile is a file name that will be appended unless empty
      character filename*128,appendfile*128
@@ -274,6 +274,8 @@ MODULE ocsmp
      character plotend*36
 ! added 180924 text at lower left corner
      character (len=6) :: lowerleftcorner='      '
+! added to have larger axis texts and line titles
+     integer:: textonaxis=0
 ! many more options can easily be added when desired, linetypes etc
   end TYPE graphics_options
 !\end{verbatim}
@@ -1134,7 +1136,8 @@ CONTAINS
        gx%bmperr=0
 ! most data inside meqrec like meqrec%phr are deallocated inside calceq7
 ! but calling it with mode=-1 it is kept so it must be deallocated here 
-       deallocate(meqrec%phr)
+! BUG here 2019.03.03 not allocated!
+       if(allocated(meqrec%phr)) deallocate(meqrec%phr)
        call calceq7(1,meqrec,mapfix,ceq)
        if(gx%bmperr.ne.0) then
           write(*,*)'Error calling calceq7 in map_startpoint A',gx%bmperr
@@ -6418,6 +6421,56 @@ CONTAINS
 1000 continue
     return
   end subroutine auto_startpoints
+
+!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\begin{verbatim}
+  subroutine reset_plotoptions(graphopt,plotfile,textlabel)
+! if new axis then reset default plot options
+! plot ranges and their defaults
+    character plotfile*(*)
+    type(graphics_options) :: graphopt
+    type(graphics_textlabel), pointer :: textlabel
+!\end{verbatim}
+    integer savebit
+    graphopt%gibbstriangle=.FALSE.
+    graphopt%rangedefaults=0
+! axistype 0 is linear, 1 is logarithmic
+    graphopt%axistype=0
+! labeldefaults(1) is the title!!!
+    graphopt%labeldefaults=0
+    graphopt%tielines=0
+    graphopt%plotmin=zero
+    graphopt%dfltmin=zero
+    graphopt%plotmax=one
+    graphopt%dfltmax=one
+    graphopt%appendfile=' '
+    savebit=0
+! keep the windws bit set if already sey
+    if(btest(graphopt%status,GRWIN)) savebit=1
+    graphopt%status=0
+    if(savebit.ne.0) graphopt%status=ibset(graphopt%status,GRWIN)
+! remove all texts ... loosing some memory ...
+    nullify(graphopt%firsttextlabel)
+    graphopt%labelkey='top right font "arial,12" '
+    nullify(graphopt%firsttextlabel)
+    nullify(textlabel)
+    plotfile='ocgnu'
+! by default spawn plots
+    graphopt%status=ibset(graphopt%status,GRKEEP)
+! lowerleftcorner
+    graphopt%lowerleftcorner=' '
+! default plot terminal
+    graphopt%gnutermsel=1
+! plot lines
+    graphopt%linestyle=0
+! axis tics size etc
+    graphopt%textonaxis=0
+! do not reset plotend if set
+!    plotend=plotenddefault
+!    write(*,*)'Plot options reset'
+    return
+  end subroutine reset_plotoptions
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

@@ -62,6 +62,7 @@ plot
 
 
 position bottom left
+
 title step3 fig 2
 render
 

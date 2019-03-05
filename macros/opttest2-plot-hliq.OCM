@@ -26,7 +26,7 @@ Y
 plot
 x(mg)
 HM
-append ./opttest2-hliq
+append ./hliq
 axis-label y
 Mixing enthalpy (J.mol-1)
 scale y n -15000 0
@@ -40,10 +40,10 @@ render
 plot
 
 
-gra 3 ./opttest2-hliq1
+gra 3 ./hliq1
 Y
 
-render
+
 
 
 set interactive

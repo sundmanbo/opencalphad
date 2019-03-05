@@ -138,6 +138,7 @@ n
 600
 
 @&
+@$ lnac(*) is same as mu(*)/RT
 
 plot
 
@@ -155,7 +156,39 @@ plot
 ac(*)
 
 @&
+@$ Activity plots are nicest if one has a square diagram as all values
+@$ normally are between 0 1.  We can obtain a square diagram on the screen
+@$ by changing the ratio_xy
+@$ But to have a square diagram on a PDF plot we have to modify the
+@$ GNUPLOT terminals
 
+enter gnu
+@$ There ate 5 predefined terminals, we can add one
+square
+Y
+pdf color solid size 4,4 enhanced fontscale 0.45
+pdf
+
+@$ Check the terminal you defined is there
+enter gnu
+quit
+y
+
+plot
+
+
+gra
+6
+square
+Y
+
+
+@$ Check that you have a pdf file "square.pdf" with the square diagram!
+@$ It is not exactly a square but reasonably so.
+@$ The OC logo is also a bit distorded but you can edit the square.plt file
+@&
+
+@$ Activity coefficients
 plot
 
 gamma1
@@ -167,7 +200,9 @@ plot
 gamma2
 
 @&
-@$ Now calculate the phase diagram
+@$
+@$ Now calculate a binary phase diagram with the miscibility gap
+@$
 
 set ax 2 t
 270

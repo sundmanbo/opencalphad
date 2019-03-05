@@ -13,9 +13,19 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2019.03.?? OC version 5.032: GNUPLOT is a very nice and flexible
+software proving graphics output for OC and I am still learning its
+facilities.  The fonts used for the graphics has been small, OK on the
+screen but too small for publications.  Now I have learned how to set
+larger fonts and changed the default font to "ariel,16" which I think
+is better for publications.  You can select font and size yourself
+using the "enter gnuplot-terminal".  For plotting texts and labels of
+lines it is possible to select different size of the text, see the
+examples.
+
 2019.02.18 OC version 5.031: A working version of the UNIQUAC model
 for fluides and polymers has finally been implemented.  There is a new
-macro file which explains how to enter this phase and model
+macro file which explains how to enter this phase and its model
 parameters.  As usual there are difficulties with step and map
 commands.  A number of minor bugs have also be removed.
 

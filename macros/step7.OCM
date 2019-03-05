@@ -58,6 +58,7 @@ plot
 
 
 position top left 
+
 title step 7 fig 2
 render
 
@@ -96,6 +97,7 @@ plot
 w(n)
 prefcc
 position off
+
 title step 7 fig 4
 
 @&

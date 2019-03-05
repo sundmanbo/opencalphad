@@ -107,6 +107,7 @@ plot
 x(*,mo)
 T
 position bottom right
+
 title map 5 fig 2
 render
 
@@ -133,14 +134,14 @@ plot
 title map 5 fig 4
 text 
 .5 1700
-1
+.8
 0
 y
 
 text
-n .4 1530 1 0 y
+n .4 1530 .8 0 y
 
-text n .1 1850 1 0 y
+text n .1 1850 .8 0 y
 
 
 @&

@@ -55,9 +55,10 @@ plot
 
 
 pos left bottom
+
 text 
 .6 2400
-1
+.9
 0
 Y
 

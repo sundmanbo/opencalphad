@@ -65,11 +65,11 @@
     pltax(1)=graphopt%pltax(1)
     pltax(2)=graphopt%pltax(2)
     filename=graphopt%filename
-!    write(*,*)' >>>>>>>>>>>>> plot file: ',trim(filename)
+!    write(*,*)' ocplot2 >> plot file: ',trim(filename)
 !    pform=graphopt%pform
 ! continue as before ...
     if(index(pltax(1),'*').gt.0 .and. index(pltax(2),'*').gt.0) then
-!       call ocplot3(ndx,pltax,filename,maptop,axarr,graphopt,pform,&
+!       write(*,*)'Using ocplot3'
        call ocplot3(ndx,pltax,filename,maptop,axarr,graphopt,&
             version,ceq)
        goto 1000
@@ -183,6 +183,8 @@
                    selectph=.TRUE.
                 endif
              endif
+          else
+             write(*,*)'Wildcard without ,!'
           endif
        endif
     enddo
@@ -959,8 +961,9 @@
     endif
 ! OC logo oclogo added by Catalina Pineda
     write(21,860)trim(title),trim(conditions),graphopt%xsize,graphopt%ysize,&
-         trim(pltax(1)),trim(pltax(2)),labelkey
+         trim(pltax(1)),trim(pltax(2)),trim(labelkey)
 860 format('set title "',a,' \n ',a,'"'/&
+         'set origin 0.0, 0.0 '/&
          'set size ',F8.4', ',F8.4/&
          'set xlabel "',a,'"'/'set ylabel "',a,'"'/&
          'set label "O" at screen 0.010, 0.027 font "Garamond bold,20"'/&
@@ -1061,8 +1064,9 @@
             appline(1:11).eq.'set yrange ' .or.&
             appline(1:11).eq.'set output ' .or.&
             appline(1:13).eq.'set terminal ' .or.&
-            appline(1:11).eq.'set size ' .or.&
-            appline(1:8).eq. 'set key ') then
+            appline(1:11).eq.'set origin ' .or.&
+            appline(1: 9).eq.'set size ' .or.&
+            appline(1: 8).eq.'set key ') then
 !          write(*,*)'ignoring append line ',trim(appline)
           goto 1710
        endif
@@ -1175,7 +1179,7 @@
 ! we should append data, change plot "-" to just "" in appline(1)
           ii=index(applines(1),'plot "-"')
           applines(1)(1:ii+7)='""'
-          write(*,*)'Inserting the plot commands form append file',nofapl
+          write(*,*)'Inserting the plot commands from append file',nofapl
           do ii=1,nofapl
              write(21,884)trim(applines(ii))
 884          format(a)
@@ -1518,6 +1522,10 @@
                 if(same.gt.last) then
                    lid(jj,same)=phname
                 endif
+!
+!>>>>>>> here we should allow a wildcard axis like ac(*)
+!>>>>>>> without any phase label!!                
+!                
                 if(axisx(1)(1:1).eq.' ') then
                    axisx(1)=trim(xax1)//trim(phname)//trim(xax2)
                    axisy(1)=trim(yax1)//trim(phname)//trim(yax2)
@@ -1525,8 +1533,10 @@
                    axisx(2)=trim(xax1)//trim(phname)//trim(xax2)
                    axisy(2)=trim(yax1)//trim(phname)//trim(yax2)
                 endif
+!                write(*,*)'We are here 1X: ',trim(axisx(jj))
                 call meq_get_state_varorfun_value(axisx(jj),xxx,encoded,curceq)
                 xval(jj,plotp)=xxx
+!                write(*,*)'We are here 1Y: ',trim(axisy(jj))
                 call meq_get_state_varorfun_value(axisy(jj),xxx,encoded,curceq)
                 yval(jj,plotp)=xxx
 !                write(*,19)'X/Y axis variable: ',plotp,trim(axis),&
@@ -1566,6 +1576,7 @@
              gx%bmperr=4399; goto 1000
           endif
           do jj=1,2
+!             write(*,*)'We are here 2:',trim(axisx(jj))
              call meq_get_state_varorfun_value(axisx(jj),xxx,encoded,curceq)
              if(gx%bmperr.ne.0) then
                 write(*,*)'Error extracting end points'
@@ -1642,6 +1653,7 @@
 !                if(jj.lt.3) lid(jj,same)='invariant'
                 if(jj.lt.3) lid(jj,same)='monovariant'
                 axis=trim(xax1)//trim(phname)//trim(xax2)
+!                write(*,*)'We are here 3: ',trim(axis)
                 call meq_get_state_varorfun_value(axis,xxx,encoded,curceq)
                 if(jj.ge.3) then
                    nofinv=nofinv+1
@@ -1737,7 +1749,7 @@
     integer ii,jj,kk,jph,offset,n1,nofapl
     type(graphics_textlabel), pointer :: textlabel
     character gnuplotline*64,date*12,mdate*12,title*128,deftitle*64,backslash*2
-    character labelkey*24,applines(mofapl)*128,appline*128,pfc*80,pfh*80
+    character labelkey*64,applines(mofapl)*128,appline*128,pfc*80,pfh*80
     integer sumpp,np,appfil,ic,nnv,kkk,lcolor(maxcolor),iz,again
     integer done(maxcolor),foundinv,fcolor,k3
     character color(maxcolor)*24,rotate*16,labelfont*16,linespoints*12
@@ -1828,6 +1840,7 @@
 ! These maybe not necessary ... 0.866 is 0.5sqrt(3)
 844    format('# GIBBSTRIANGLE '/&
             'set bmargin 3'/'set lmargin 3'/'set rmargin 3'/'set tmargin 3'/&
+            'set origin 0.0, 0.0 '/&
             'set size ratio 0.866'/&
             'set yrange [0:',F10.6,']'/'set xrange [0:',F10.6,']'/&
             'set noborder'/'set noxtics'/'set noytics')
@@ -1883,27 +1896,30 @@
 !    open(21,file='ocgnu.plt ',access='sequential ',status='unknown ')
 !
     write(21,130)trim(title),trim(conditions),graphopt%xsize,graphopt%ysize,&
-         trim(pltax(1))
+         trim(pltax(1)),trim(labelkey)
 130 format('set title "',a,' \n ',a,'"'/&
+         'set origin 0.0, 0.0 '/&
          'set size ',F8.4', ',F8.4/&
-         'set xlabel "',a,'"')
+         'set xlabel "',a,'"'/&
+         'set key ',a)
     if(plotgt) then
 ! OC logo added by Catalina Pineda
 ! when Gibbs triangle the ylabel and logo must be placed carefully
+! THIS IS THE Y-AXIS WITH 60 degrees angle
        write(21,131)trim(pltax(2)),0.15*xmax,0.33*xmax
 131    format('set label "',a,'" at ',F8.4,',',F8.4,' rotate by 60 '/&
-         'set label "O" at screen 0.130, 0.027 font "Garamond bold,20"'/&
-         'set label "C" at screen 0.139, 0.027 font "Garamond bold,20"')
+            'set label "O" at screen 0.130, 0.027 font "Garamond bold,20"'/&
+            'set label "C" at screen 0.139, 0.027 font "Garamond bold,20"')
 ! we should also enforce same length of X and Y axis !!!
     else
+! SQUARE DIAGRAM
        write(21,132)trim(pltax(2))
 132    format('set ylabel "',a,'"'/&
-         'set label "O" at screen 0.010, 0.027 font "Garamond bold,20"'/&
-         'set label "C" at screen 0.019, 0.027 font "Garamond bold,20"')
+            'set label "O" at screen 0.010, 0.027 font "Garamond bold,20"'/&
+            'set label "C" at screen 0.019, 0.027 font "Garamond bold,20"')
     endif
-    write(21,133)labelkey
-133 format('set key ',a/&
-         '# if the value after solid is 0 the monovariants are transparent'/&
+    write(21,133)
+133 format('# if the value after solid is 0 the monovariants are transparent'/&
          'set style fill transparent solid 1'/&
          'set style line 1 lt 2 lc rgb "#000000" lw 2 pt 10'/&
          'set style line 2 lt 2 lc rgb "#00C000" lw 2 pt 2'/&
@@ -2050,8 +2066,9 @@
             appline(1:11).eq.'set yrange ' .or.&
             appline(1:11).eq.'set output ' .or.&
             appline(1:13).eq.'set terminal ' .or.&
-            appline(1:11).eq.'set size ' .or.&
-            appline(1:8).eq. 'set key ') then
+            appline(1:11).eq.'set origin ' .or.&
+            appline(1: 9).eq.'set size ' .or.&
+            appline(1: 8).eq.'set key ') then
 !          write(*,*)'ignoring append line ',trim(appline)
           goto 200
        endif
