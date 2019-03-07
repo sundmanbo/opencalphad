@@ -455,19 +455,22 @@ contains
     graphopt%gnutermid=' '
     i1=1
     graphopt%gnutermid(i1)='SCREEN '
-! MAX 80 characters to set terminal ....
+! MAX 80 characters to set terminal .... HERE FONT AND SIZE IS SET
 #ifdef aqplt
 ! Aqua plot screen on some Mac systems
-    graphopt%gnuterminal(i1)='aqua size 900,600 '
+    graphopt%gnuterminal(i1)='aqua size 900,600 font "arial,20"'
 ! it should be #elif not #elseif .... suck
 #elif qtplt
 ! Qt plot screen on some LINUX systems
-    graphopt%gnuterminal(i1)='qt size 900,600 font "arial,16"'
+    graphopt%gnuterminal(i1)='qt size 900,600 font "arial,20"'
+!    graphopt%gnuterminal(i1)='qt size 900,600 font "arial,16"'
 #else
 ! wxt default plot screen (used on most Window systems)
-    graphopt%gnuterminal(i1)='wxt size 900,600 font "arial,16"'
+    graphopt%gnuterminal(i1)='wxt size 900,600 font "arial,20"'
+!    graphopt%gnuterminal(i1)='wxt size 900,600 font "arial,16"'
 #endif
     graphopt%filext(i1)='  '
+! NOTE THAT IN SCREEN PLOT WINDOW ONE CAN SELECT FILE OUTPUT
 ! Postscript
     i1=2
     graphopt%gnutermid(i1)='PS  '
@@ -989,14 +992,18 @@ contains
              call gparid('Sum up to sublattice: ',cline,last,ndl,idef,q1help)
              if(buperr.ne.0) goto 990
 ! ch1 is parameter suffix, j1=0 means never completely disordred (sigma)
-             call gparcd('Can the phase be totally disordered? ',cline,last,&
-                  1,ch1,'N',q1help)
+!             call gparcd('Can the phase be totally disordered? ',cline,last,&
+!                  1,ch1,'N',q1help)
+! Answer Y means the ordered parameters are calculated twice, once with
+! the disordered composition.  Anwer N for phase which are never disordered
+             call gparcd('Is the disordered part assessed indepently? ',&
+                  cline,last,1,ch1,'N',q1help)
              if(buperr.ne.0) goto 990
              if(ch1.eq.'N') then
-! like sigma
+! like sigma which is never completely disordered
                 j1=0
              else
-! like FCC ordering
+! like FCC ordering where the disordered state can be modeled independently
                 j1=1
                 write(kou,*)'This phase can be totally disordered'
              endif

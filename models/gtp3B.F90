@@ -1668,7 +1668,7 @@
 ! UNFINISHED this is not correct ....
       idisvarres=newhighcs(.false.)
       if(idisvarres.eq.highcs) highcs=idisvarres-1
-      write(*,*)'3B removed varres: ',idisvarres,csfree,highcs
+!      write(*,*)'3B removed varres: ',idisvarres,csfree,highcs
    endif
 ! link the free phase_varres into the free list
 !vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv

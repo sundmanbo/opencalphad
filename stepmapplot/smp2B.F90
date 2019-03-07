@@ -962,12 +962,14 @@
 ! OC logo oclogo added by Catalina Pineda
     write(21,860)trim(title),trim(conditions),graphopt%xsize,graphopt%ysize,&
          trim(pltax(1)),trim(pltax(2)),trim(labelkey)
-860 format('set title "',a,' \n ',a,'"'/&
+860 format('set title "',a,' \n ',a,'" font "arial,10" '/&
          'set origin 0.0, 0.0 '/&
          'set size ',F8.4', ',F8.4/&
          'set xlabel "',a,'"'/'set ylabel "',a,'"'/&
-         'set label "O" at screen 0.010, 0.027 font "Garamond bold,20"'/&
-         'set label "C" at screen 0.019, 0.027 font "Garamond bold,20"'/&
+!         'set label "O" at screen 0.010, 0.027 font "Garamond bold,20"'/&
+!         'set label "C" at screen 0.019, 0.027 font "Garamond bold,20"'/&
+         'set label "O" at graph -0.100, -0.150 font "Garamond bold,24"'/&
+         'set label "C" at graph -0.087, -0.150 font "Garamond bold,24"'/&
          'set key ',a/&
          'set style line 1 lt 2 lc rgb "#000000" lw 2 pt 10'/&
          'set style line 2 lt 2 lc rgb "#4169E1" lw 2 pt 6'/&
@@ -1055,6 +1057,7 @@
 ! set xrange
 ! set yrange
 ! set terminal
+! set origin
 ! set size
 ! set key
        if(appline(1:10).eq.'set title ' .or.&
@@ -1111,18 +1114,10 @@
 !-----------------------------------------------
 ! text in lower left corner
     ii=len_trim(graphopt%lowerleftcorner)
-!    if(graphopt%gibbstriangle) then
-!       if(ii.gt.3) then
-!          write(21,208)trim(graphopt%lowerleftcorner),0.12
-!208       format('set label "',a,'" at screen ',F10.4,', 0.07 ')
-!       elseif(ii.gt.0) then
-!          write(21,208)trim(graphopt%lowerleftcorner),0.14
-!       endif
-!    elseif(ii.gt.0) then
     if(ii.gt.0) then
 ! in square diagram below figure
        write(21,209)trim(graphopt%lowerleftcorner)
-209    format('set label "',a,'" at screen 0.06, 0.03 ')
+209    format('set label "',a,'" at graph -0.10, -0.08 ')
     endif
 ! if lowerleftcorner is empty ignore it
 !---------------------------------------------------------------
@@ -1847,14 +1842,19 @@
 !            "set label 'Z' at 0, -0.03 center"/&
 !            "set label 'X' at 1, -0.03 center"/&
 !            "set label 'Y' at 0.5,",F10.6," center")
-! This replaces axis without tics, only tics in the middle
-       write(21,845)xmax,xmax,0.5*xmax,sqrt3*xmax,0.5*xmax,sqrt3*xmax,&
-            xmax,0.42*xmax,sqrt3*xmax,xmax,0.97*xmax,-2*ltic,&       
-            0.25*xmax-2*ltic,0.5*sqrt3*xmax,0.25*xmax,0.5*sqrt3*xmax,&
-            0.25*xmax-ltic,0.5*sqrt3*xmax+1.5*ltic,0.25*xmax,0.5*sqrt3*xmax,&
-            0.75*xmax+2*ltic,0.5*sqrt3*xmax,0.75*xmax,0.5*sqrt3*xmax,&
-            0.75*xmax+ltic,0.5*sqrt3*xmax+1.5*ltic,0.75*xmax,0.5*sqrt3*xmax,&
-            0.5*xmax,-ltic,0.5*xmax,0.0
+! This replaces axis without tics, only a tic in the middle
+       write(21,845)xmax, xmax, 0.5*xmax, sqrt3*xmax, 0.5*xmax, sqrt3*xmax,&
+! next 3 values are position for max values of Y axis
+            xmax, 0.343*xmax, sqrt3*(xmax+0.15d0), &
+! next 3 values are positions of max values for X axis
+            xmax, 0.92*xmax, -5.0*ltic, &
+! these are rudimentary ticmarks
+            0.25*xmax-2*ltic, 0.5*sqrt3*xmax, 0.25*xmax, 0.5*sqrt3*xmax, &
+            0.25*xmax-ltic,0.5*sqrt3*xmax+1.5*ltic,&
+            0.25*xmax,0.5*sqrt3*xmax,0.75*xmax+2*ltic,&
+            0.5*sqrt3*xmax,0.75*xmax,0.5*sqrt3*xmax,&
+            0.75*xmax+ltic,0.5*sqrt3*xmax+1.5*ltic,0.75*xmax,&
+            0.5*sqrt3*xmax,0.5*xmax,-ltic,0.5*xmax,0.0
 845    format('set style line 90 lt 1 lw 3 pt -1 ps 1'/&
             'set style line 91 lt 1 lw 2 pt -1 ps 1'/&
             'set arrow 1 from 0,0 to ',F8.4,', 0.0 nohead linestyle 90'/&
@@ -1862,8 +1862,8 @@
             ' nohead linestyle 90'/&
             'set arrow 3 from ',F8.4,',',F8.4,' to 0,0 nohead linestyle 90'/&
             '# axis max values ...'/&
-            'set label "',F6.2,'" at ',F8.4,',',F8.4/& 
-            'set label "',F6.2,'" at ',F8.4,',',F8.4/& 
+            'set label "',F6.2,'" at graph ',F8.4,',',F8.4/& 
+            'set label "',F6.2,'" at graph ',F8.4,',',F8.4/& 
             '# tickmarks ...'/&
             'set arrow 4 from ',F8.4,',',F8.4,' to ',F8.4,',',F8.4,&
             ' nohead linestyle 91'/&
@@ -1897,7 +1897,7 @@
 !
     write(21,130)trim(title),trim(conditions),graphopt%xsize,graphopt%ysize,&
          trim(pltax(1)),trim(labelkey)
-130 format('set title "',a,' \n ',a,'"'/&
+130 format('set title "',a,' \n ',a,'" font "arial,10"'/&
          'set origin 0.0, 0.0 '/&
          'set size ',F8.4', ',F8.4/&
          'set xlabel "',a,'"'/&
@@ -1906,17 +1906,19 @@
 ! OC logo added by Catalina Pineda
 ! when Gibbs triangle the ylabel and logo must be placed carefully
 ! THIS IS THE Y-AXIS WITH 60 degrees angle
-       write(21,131)trim(pltax(2)),0.15*xmax,0.33*xmax
+       write(21,131)trim(pltax(2)), 0.15*xmax, 0.37*xmax
 131    format('set label "',a,'" at ',F8.4,',',F8.4,' rotate by 60 '/&
-            'set label "O" at screen 0.130, 0.027 font "Garamond bold,20"'/&
-            'set label "C" at screen 0.139, 0.027 font "Garamond bold,20"')
+!            'set label "O" at screen 0.130, 0.027 font "Garamond bold,20"'/&
+!            'set label "C" at screen 0.139, 0.027 font "Garamond bold,20"')
+            'set label "O" at graph -0.103, -0.120 font "Garamond bold,24"'/&
+            'set label "C" at graph -0.0850, -0.120 font "Garamond bold,24"')
 ! we should also enforce same length of X and Y axis !!!
     else
 ! SQUARE DIAGRAM
        write(21,132)trim(pltax(2))
 132    format('set ylabel "',a,'"'/&
-            'set label "O" at screen 0.010, 0.027 font "Garamond bold,20"'/&
-            'set label "C" at screen 0.019, 0.027 font "Garamond bold,20"')
+            'set label "O" at graph -0.100, -0.150 font "Garamond bold,24"'/&
+            'set label "C" at graph -0.087, -0.150 font "Garamond bold,24"')
     endif
     write(21,133)
 133 format('# if the value after solid is 0 the monovariants are transparent'/&
@@ -2266,15 +2268,15 @@
     ii=len_trim(graphopt%lowerleftcorner)
     if(graphopt%gibbstriangle) then
        if(ii.gt.3) then
-          write(21,208)trim(graphopt%lowerleftcorner),0.12
-208       format('set label "',a,'" at screen ',F10.4,', 0.07 ')
+          write(21,208)trim(graphopt%lowerleftcorner),-0.14
+208       format('set label "',a,'" at graph ',F10.4,', -0.05 ')
        elseif(ii.gt.0) then
-          write(21,208)trim(graphopt%lowerleftcorner),0.14
+          write(21,208)trim(graphopt%lowerleftcorner),-0.08
        endif
     elseif(ii.gt.0) then
 ! in square diagram below figure
        write(21,209)trim(graphopt%lowerleftcorner)
-209    format('set label "',a,'" at screen 0.06, 0.03 ')
+209    format('set label "',a,'" at graph -0.10, -0.08 ')
     endif
 ! if lowerleftcorner is empty ignore it
 !----------------------------------------------------------------
