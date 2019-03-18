@@ -96,6 +96,27 @@ list opt short
 l tp
 
 
+@&============================================
+@$ Make sure we can save this on unformatted file
+
+save unf ./opttest1
+Y
+
+@&
+@$ reinitiate and read back
+new 
+
+read unf ./opttest1
+
+@&
+@$ Check we have parameters and data
+
+l data
+
+@&
+
+l opt short
+
 @&
 @$----------------------------------------------------
 @$ step 3: experiments, enter equilibrium <name> Y where Y means the

@@ -61,7 +61,8 @@ MODULE liboceq
 ! stable: is 1 for a stable phase
 ! xdone: set to 1 for stoichiometric phases after calculating xmol first time
 ! dormlink: link to next phase that has temporarily been set dormant
-     integer iph,ics,idim,stable,ncc,xdone,dormlink
+! eetcheck for equi-entropy check
+     integer iph,ics,idim,stable,ncc,xdone,dormlink,eetcheck
 ! value of phase status (-1,0=ent, 1=stable, 2=fix, -2=dorm, -3=sus, -4 hidden)
      integer phasestatus
 ! inverted phase matrix
@@ -177,8 +178,8 @@ MODULE liboceq
   type(meq_phase), pointer :: pmiliq
 ! this is set TRUE when entering meq_onephase and false after one solid checked?
   logical hickelextrapol
-! The test for Hickel T made only for T>thickel
-  double precision :: thickel=1.0D3
+! The OLD test for Hickel T made only for T>thickel, now globaldata%sysreal(1)
+!  double precision :: thickel=1.0D3
 !
 !--------------------------------------------------------------
 !
@@ -4887,9 +4888,17 @@ CONTAINS
     iph=pmi%iph
     ics=pmi%ics
     nrel=meqrec%nrel
+! for each phase "pmi" set eetcheck=0 at first interation
+    if(meqrec%noofits.eq.1) then
+       pmi%eetcheck=0
+    elseif(meqrec%tpindep(1).or.meqrec%tpindep(2)) then
+! if T or P not conditions set eetcheck=0 at each iteration
+       pmi%eetcheck=0
+    endif
     if(test_phase_status_bit(iph,PHLIQ)) then
 !       write(*,*)'Finding liquid: ',pmi%iph,pmi%ics
        pmiliq=>pmi
+       pmi%eetcheck=1
     endif
 ! extract phase structure
 !    write(*,*)'calling get_phase_data: ',iph
@@ -5621,11 +5630,23 @@ CONTAINS
     goto 900
 !-------------------------------------------
 900 continue
-! Generation 3 check: tentative replace G if S^>S^liq
-!    write(*,*)'MM Phase 2: ',pmi%iph,pmi%ics,associated(pmiliq)
-    if(btest(globaldata%status,GSHICKEL)) then
-       if(associated(pmiliq) .and.&
-            .not.associated(pmi,pmiliq)) call hickel_check(pmi,pmiliq,ceq)
+! Generation 3 check: tentative replace G if S^solid > S^liq
+! Hickel check is ser by "SET ADVANCED EET <value of low T limit>"
+!    write(*,*)'MM Phase 2: ',pmi%iph,pmi%ics,associated(pmiliq),&
+!         btest(globaldata%status,GSHICKEL)
+!    if(btest(globaldata%status,GSHICKEL)) then
+!    write(*,'(a,2i4,3L2,2F8.2)')'MM EET: ',pmi%curd%phtupx,pmi%eetcheck,&
+!         associated(pmiliq),.not.associated(pmi,pmiliq),hickelextrapol,&
+!         ceq%tpval(1),globaldata%sysreal(1)
+    if(globaldata%sysreal(1).gt.one .and. &
+         ceq%tpval(1).gt.globaldata%sysreal(1)) then
+!       if(associated(pmiliq) .and.&
+!            .not.associated(pmi,pmiliq)) call hickel_check(pmi,pmiliq,ceq)
+       if(pmi%eetcheck.eq.0) then
+          call hickel_check(pmi,pmiliq,ceq)
+!          write(*,*)'MM EET2: ',meqrec%noofits,meqrec%tpindep(1),&
+!               pmi%curd%phtupx,pmi%eetcheck
+       endif
     endif
 !
     goto 1000
@@ -9487,8 +9508,26 @@ CONTAINS
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
+  subroutine set_hickel_check(tval)
+! This set values for EET check, called from user i/f or application software
+! ceq is a datastructure with all relevant thermodynamic data
+    implicit none
+    double precision tval
+!\end{verbatim}
+    if(tval.gt.1.0D1) then
+       globaldata%sysreal(1)=tval
+    else
+       globaldata%sysreal(1)=zero
+    endif
+    return
+  end subroutine set_hickel_check
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
   subroutine hickel_check(pmisol,pmiliq,ceq)
 ! This checks after calculating all phases if the solid phase has S > S^liq
+! it is called if T>globaldata%sysreal(1) (set in user i/f)
 ! pmisol is pointer to solid data
 ! pmiliq is pointer to liquid data
 ! ceq is a datastructure with all relevant thermodynamic data
@@ -9498,8 +9537,8 @@ CONTAINS
 !\end{verbatim}
     integer jj,liqcs
     double precision ssol,sliq,GSOL,GLIQ,fact,kvot
-! do not check if T<1000
-    if(ceq%tpval(1).lt.thickel) goto 1000
+! check if T<globaldata%sysreal(1) already made
+!    if(ceq%tpval(1).lt.thickel) goto 1000
 !    
 ! Calculate:  -S^sol - (-S^liq):
 ! abnorm(1) is the number of atoms per formula units
@@ -9525,7 +9564,7 @@ CONTAINS
        pmisol%curd%gval(2,1)=pmiliq%curd%gval(2,1)*kvot
        pmisol%curd%gval(4,1)=pmiliq%curd%gval(4,1)*kvot
 ! THIS WORKS. But Cp is not continous ....
-      if(fact.gt.0.9) then
+       if(fact.gt.0.9) then
           pmisol%curd%gval(1,1)=10.0D0*(fact-0.9)*pmisol%curd%gval(1,1)+&
                9.0D0*(one-fact)*pmiliq%curd%gval(1,1)*kvot
        else
@@ -9533,15 +9572,20 @@ CONTAINS
        endif
 !
 ! I do not understand the use of hickelextrapol ??
-       if(hickelextrapol) then
-          hickelextrapol=.FALSE.
-!          write(*,'(a,2(1pe12.4))')'MM hickelextrapolation ',kvot,ceq%tpval(1)
-       endif
+!       if(hickelextrapol) then
+!          hickelextrapol=.FALSE.
+!          write(*,'(a,i3,2(1pe12.4))')'MM EET test ',pmisol%curd%phtupx,&
+!               kvot,ceq%tpval(1)
+!       endif
 !       write(*,100)'MM Gsol:',pmisol%iph,pmisol%ics,ceq%tpval(1),&
 !            fact,kvot,pmisol%curd%gval(1,1),gsol*kvot
 100    format(a,i3,i2,2x,F6.0,6(1pe10.2))
 ! Hm there are a lot of other derivatives wrt T and constituents ...
 ! but skip all that for the moment
+    else
+! we are below EET for this phase, set pmi%eetcheck=1, 
+! that means no need to check this phase again unless T or P variable
+       pmisol%eetcheck=1
     endif
 1000 continue
     return

@@ -627,7 +627,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! NORECALC do not recalculate equilibria even if global test after fails
 ! OLDMAP use old map algorithm
 ! NOAUTOSP do not generate automatic start points for mapping
-! HICKKEL set if Hickel extrapolation check for solids
+! NO LONGER: HICKEL set if Hickel extrapolation check for solids
 ! >>>> some of these should be moved to the gtp_equilibrium_data record
   integer, parameter :: &
        GSBEG=0,       GSOCC=1,        GSADV=2,      GSNOGLOB=3, &
@@ -635,7 +635,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        GSNOREMCS=8,   GSNOSAVE=9,     GSVERBOSE=10, GSSETVERB=11,&
        GSSILENT=12,   GSNOAFTEREQ=13, GSXGRID=14,   GSNOPAR=15, &
        GSNOSMGLOB=16, GSNOTELCOMP=17, GSTGRID=18,   GSOGRID=19, &
-       GSNORECALC=20, GSOLDMAP=21,    GSNOAUTOSP=22,GSHICKEL=23
+       GSNORECALC=20, GSOLDMAP=21,    GSNOAUTOSP=22
 !----------------------------------------------------------------
 !-Bits in element record
   integer, parameter :: &
@@ -837,7 +837,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   integer, public, parameter :: TWOSTATEMODEL1=5
   integer, public, parameter :: ELASTICMODEL1=6
   integer, public, parameter :: VOLMOD1=7
-  integer, public, parameter :: CRYSTALBREAKDOWNMOD=8
+  integer, public, parameter :: UNUSED_CRYSTALBREAKDOWNMOD=8
   integer, public, parameter :: SECONDEINSTEIN=9
   integer, public, parameter :: SCHOTTKYANOMALITY=10
   integer, public, parameter :: DIFFCOEFS=11
@@ -846,7 +846,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        ['Inden-Hillert magn model','Inden-Xiong magn model  ',&
        'Debye CP model          ','Einstein Cp model       ',&
        'Liquid 2-state model    ','Elastic model A         ',&
-       'Volume model A          ','Crystal Breakdown model ',&
+       'Volume model A          ','Unused CBT model        ',&
        'Smooth CP step          ','Schottky Anomality      ',&
        'Diffusion coefficients  ','                        ']
 !       123456789.123456789.1234   123456789.123456789.1234
@@ -952,9 +952,15 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   TYPE gtp_global_data
 ! status should contain bits how advanced the user is and other defaults
 ! it also contain bits if new data can be entered (if more than one equilib)
+! sysparam are variables for different things
+! sysparam(1) unused
+! sysparam(2) number of equilibria between each check of spinodal at STEP/MAP
+! sysparem(3) unised ...
      integer status
+     integer :: sysparam(10)=0
      character name*24
      double precision rgas,rgasuser,pnorm
+     double precision :: sysreal(5)=zero
   END TYPE gtp_global_data
   TYPE(gtp_global_data) :: globaldata
 !\end{verbatim}

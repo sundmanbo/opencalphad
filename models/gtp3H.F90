@@ -13,7 +13,7 @@
 !  integer, public, parameter :: TWOSTATESMODEL1=5
 !  integer, public, parameter :: ELASTICMODEL1=6
 !  integer, public, parameter :: VOLMOD1=7
-!  integer, public, parameter :: CRYSTBREAKDOWNMOD=8
+!  integer, public, parameter :: UNUSED_CRYSTBREAKDOWNMOD=8
 !  integer, public, parameter :: SECONDEINSTEIN=9
 !  integer, public, parameter :: SCHOTTKYANOMALITY=10
 !  integer, public, parameter :: DIFFCOEFS=11
@@ -80,10 +80,10 @@
    case(volmod1) ! Simple volume model depending on V0, VA and VB
       addrec%propval=zero
       call calc_volmod1(moded,phres,addrec,lokph,mc,ceq)
-! 8
-   case(crystalbreakdownmod) ! Limiting heat capacity of extrapolated solid
-      addrec%propval=zero
-      call calc_crystalbreakdownmod(moded,phres,addrec,lokph,mc,ceq)
+! 8 UNUSED
+!   case(crystalbreakdownmod) ! Limiting heat capacity of extrapolated solid
+!      addrec%propval=zero
+!      call calc_crystalbreakdownmod(moded,phres,addrec,lokph,mc,ceq)
 ! 9
    case(secondeinstein) ! Adding a second Einstein Cp
       addrec%propval=zero
@@ -180,9 +180,9 @@
 ! 7
       call create_volmod1(newadd)
 !-----------------------------------------
-   case(crystalbreakdownmod) ! Crystal Breakdown model
-! 8
-      call create_crystalbreakdownmod(newadd)
+!   case(crystalbreakdownmod) ! Crystal Breakdown model
+! 8 UNUSED
+!      call create_crystalbreakdownmod(newadd)
 !-----------------------------------------
    case(secondeinstein) ! Second Einstein T
 ! 9
@@ -2523,7 +2523,9 @@
 ! nullify link to next   
    nullify(addrec%nextadd)
 ! Set the type of addition and look for needed parameter properties
-   addrec%type=crystalbreakdownmod
+!   addrec%type=crystalbreakdownmod
+   write(*,*)'3H crystal breakdown not an addition'
+   gx%bmperr=4399; goto 1000
    allocate(addrec%need_property(1))
    call need_propertyid('CBT ',typty)
    if(gx%bmperr.ne.0) goto 1000
@@ -3105,9 +3107,9 @@
       write(unit,520)chc
 520   format(a,'+ Volume model V=V0(x)*exp(VA(x,T))')
 !---------------------------------------------
-   case(crystalbreakdownmod) ! Crystal breakdown model
-      write(unit,530)chc
-530   format(a,'+ Crystal breakdown model used above current value of CBT')
+!   case(crystalbreakdownmod) ! Crystal breakdown model UNUSED
+!      write(unit,530)chc
+!530   format(a,'+ Crystal breakdown model used above current value of CBT')
 !---------------------------------------------
    case(secondeinstein) ! Second Einstein Cp contribution
       write(unit,540)chc

@@ -365,7 +365,8 @@
 !------------------------------------
 ! save link to the global data record and version in 20-21
    last=20
-   rsize=1+nwch(24)+3*nwpr+10
+! extended globaldata record 190317/BoS
+   rsize=1+nwch(24)+3*nwpr+11+5*nwpr
    call wtake(lok,rsize,iws)
    if(buperr.ne.0) then
       write(*,*)'3E Error reserving globaldata record'
@@ -374,9 +375,24 @@
    iws(last)=lok
    iws(lok+1)=globaldata%status
    call storc(lok+2,iws,globaldata%name)
-   call storr(lok+3,iws,globaldata%rgas)
-   call storr(lok+3+nwpr,iws,globaldata%rgasuser)
-   call storr(lok+3+2*nwpr,iws,globaldata%pnorm)
+! BUG name was ovewritten by rgas etc !!!
+   displace=2+nwch(24)
+   call storr(lok+displace,iws,globaldata%rgas)
+   call storr(lok+displace+nwpr,iws,globaldata%rgasuser)
+   call storr(lok+displace+2*nwpr,iws,globaldata%pnorm)
+! extended globaldata record 190317/BoS
+   displace=displace+3*nwpr
+! these used for testing when reading
+!   globaldata%sysparam(1)=987
+!   globaldata%sysparam(10)=17
+   do i=0,9
+      iws(lok+displace+i)=globaldata%sysparam(i+1)
+   enddo
+   displace=displace+10
+!   globaldata%sysreal(5)=12345678.9D0
+   call storrn(5,iws(lok+displace),globaldata%sysreal)
+!   write(*,*)'3E globalsave:: ',rsize,displace+5*nwpr
+!   write(*,*)'3E name: "',globaldata%name,'"'
 !   goto 900
 ! unfinished
 !------------- state variable functions
@@ -431,7 +447,7 @@
 ! finally write the workspace to the file ...
 900 continue
    if(index(filename,'.').eq.0) then
-      filename(len_trim(filename)+1:)='.ocu'
+      filename(len_trim(filename)+1:)='.OCU'
    endif
    lut=21
 !**********************************************************
@@ -1436,8 +1452,9 @@
 !
    assrec=>firstash%nextash
    if(.not.allocated(assrec%eqlista)) then
-      iws(lok)=0
-      goto 1000
+      write(kou,*)'3E No experimental equilibrium range set'
+!      iws(lok)=0
+!      goto 1000
    endif
 20 continue
 ! next, status, varcoef, first, and 8 allocatable arrays
@@ -1467,21 +1484,28 @@
    disp=5+nwch(64)
    call storc(lok1+disp,iws,assrec%special)
    disp=disp+nwch(64)
-! eqlista
-   i1=size(assrec%eqlista)
-   rsize=1+i1
-   call wtake(lok2,rsize,iws)
-   if(buperr.ne.0) then
-      write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
-      gx%bmperr=4356; goto 1000
-   endif
+! eqlista CAN BE EMPTY!
+   if(allocated(assrec%eqlista)) then
+      i1=size(assrec%eqlista)
+      rsize=1+i1
+      call wtake(lok2,rsize,iws)
+      if(buperr.ne.0) then
+         write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
+         gx%bmperr=4356; goto 1000
+      endif
 !   write(*,*)'3E in saveash 1:',lok,lok1,lok2,i1
-   iws(lok2)=i1
+      iws(lok2)=i1
+      if(i1.gt.0) then
 ! Hm assrec%eqlista(i2)%p1 is a pointer to an element in the global eqlists
 !   ceq=>assrec%eqlista(1)%p1
-   do i2=1,i1
-      iws(lok2+i2)=assrec%eqlista(i2)%p1%eqno
-   enddo
+         do i2=1,i1
+            iws(lok2+i2)=assrec%eqlista(i2)%p1%eqno
+         enddo
+      endif
+   else
+! mark that no experimental records
+      lok2=0
+   endif
    iws(lok1+disp+1)=lok2
 ! coeffvalues
    if(allocated(assrec%coeffvalues)) then
@@ -1651,7 +1675,7 @@
 !   type(gtp_equilibrium_data), pointer :: ceq
 10  format(i8)
    if(index(filename,'.').eq.0) then
-      filename(len_trim(filename)+1:)='.ocu'
+      filename(len_trim(filename)+1:)='.OCU'
    endif
 !CCI The previous commented lines are removed by the following lines 
 !CCI that enable to find the first available logical unit. 
@@ -1849,10 +1873,28 @@
 ! the global status word in 20-21
    lok=iws(20)
    globaldata%status=iws(lok+1)
+! BUGFIX and extended
    call loadc(lok+2,iws,globaldata%name)
-   call loadr(lok+3,iws,globaldata%rgas)
-   call loadr(lok+3+nwpr,iws,globaldata%rgasuser)
-   call loadr(lok+3+2*nwpr,iws,globaldata%pnorm)
+   displace=2+nwch(24)
+   call loadr(lok+displace,iws,globaldata%rgas)
+   call loadr(lok+displace+nwpr,iws,globaldata%rgasuser)
+   call loadr(lok+displace+2*nwpr,iws,globaldata%pnorm)
+   displace=displace+3*nwpr
+   do i=0,9
+      globaldata%sysparam(i+1)=iws(lok+displace+i)
+   enddo
+! this was used to test record read correctly
+!   if(globaldata%sysparam(1).ne.987 .or. &
+!        globaldata%sysparam(10).ne.17) then
+!      write(*,'(a,10i4)')'3E error globaldata: ',globaldata%sysparam
+!   endif
+   displace=displace+10
+   call loadrn(5,iws(lok+displace),globaldata%sysreal)
+!   if(abs(globaldata%sysreal(5)-12345678.9D0).gt.1.0D-12) then
+! this was used to test the storing
+!      write(*,'(a,5(1pe12.4))')'3E error 2: ',globaldata%sysreal
+!   endif
+!   write(*,*)'3E name: "',globaldata%name,'"'
 ! partly unfinished below
 !---------- bibliographic references
 !>>>>> 40.. inside refread
@@ -2863,14 +2905,18 @@
 ! eqlista
 !      lok2=iws(lok2)
       i1=iws(lok2)
-!      write(*,*)'3E In readash 1: ',lok,lok1,lok2,i1
-      allocate(assrec%eqlista(i1))
+      if(i1.gt.0) then
+         write(*,'(a,4i10)')'3E In readash 1: ',lok,lok1,lok2,i1
+         allocate(assrec%eqlista(i1))
 ! in iws(lok2+i2) the index to eqlista is stored, 
 ! assrec%eqlista(i2)%p1 is a pointer to this equilibrium
-      do i2=1,i1
-         ceq=>eqlista(iws(lok2+i2))
-         assrec%eqlista(i2)%p1=>ceq
-      enddo
+         do i2=1,i1
+            ceq=>eqlista(iws(lok2+i2))
+            assrec%eqlista(i2)%p1=>ceq
+         enddo
+      endif
+   else
+      write(*,*)'3E no experimental data'
    endif
    lok2=iws(lok1+disp+2)
    if(lok2.le.0) then

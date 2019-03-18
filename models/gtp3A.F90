@@ -229,13 +229,11 @@
    propid(npid)%note='Liquid two state parameter'
    propid(npid)%status=0
 !.......................................
-! Crystal Breakdown Temperaure 12
+! UNUSED Crystal Breakdown Temperaure 12
    npid=npid+1
-   propid(npid)%symbol='CBT '
-   propid(npid)%note='Hickel T'
+   propid(npid)%symbol='NONE'
+   propid(npid)%note='Unused'
    propid(npid)%status=0
-! CBT cannot depend on T but on P
-   propid(npid)%status=ibset(propid(npid)%status,IDONLYP)
 !.......................................
 ! Activation energy of mobility 13
    npid=npid+1

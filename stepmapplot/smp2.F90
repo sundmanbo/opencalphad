@@ -202,7 +202,7 @@ MODULE ocsmp
 !\begin{verbatim}
   TYPE map_ceqresults
 ! stores calculated equilibrium records
-     integer size,free
+     integer size,free,index
      TYPE(gtp_equilibrium_data), dimension(:), allocatable :: savedceq
   end TYPE map_ceqresults
 !\end{verbatim}
@@ -239,6 +239,9 @@ MODULE ocsmp
      integer :: status=0,rangedefaults(3)=0,axistype(2)=0
      double precision, dimension(3) :: plotmin,plotmax
      double precision, dimension(3) :: dfltmin,dfltmax
+! scalefact is by defailt 1.0 and can be used to scale ais value, fore
+! example to plot kJ rather than J for reasonable axis
+     double precision, dimension(3) :: scalefact
 ! these define realative plot size for X and Y, normally 1.0 or less
      double precision :: xsize=1.0D0,ysize=1.0D0
 ! labeldefaults(i) for axis i 0 means default text, 1 text in plotlabels
@@ -2135,16 +2138,23 @@ CONTAINS
     type(map_axis), dimension(nax) :: axarr
     type(map_ceqresults), pointer :: saveceq
 !\end{verbatim}
-    integer place,jph,jj
+    integer place,jph,jj,lokcs
     type(meq_setup), pointer :: meqrec
     type(gtp_state_variable), target :: axstv1
     type(gtp_state_variable), pointer :: axstv
     double precision value
     character ch1*1
-    logical saveonfile
+    logical saveonfile,testforspinodal
 ! pointer to last calculated (can be zero) and last free
 ! store last calulated axis values in axarr(iax)%lastaxval
 !    write(*,*)'In map_store',mapline%start%number_ofaxis,nax
+! insert a test for spinodal at every iii equilibriia
+    testforspinodal=.FALSE.
+    if(globaldata%sysparam(2).gt.0) then
+       if(mod(mapline%number_of_equilibria,globaldata%sysparam(2)).eq.0) &
+            testforspinodal=.TRUE.
+    endif
+!
     do jj=1,nax
        axstv1=axarr(jj)%axcond(1)
        axstv=>axstv1
@@ -2211,6 +2221,20 @@ CONTAINS
        jj=meqrec%stphl(jph)
        if(meqrec%phr(jj)%curd%phstate.lt.PHFIXED) then
           meqrec%phr(jj)%curd%phstate=PHENTSTAB
+! check if phase is inside miscibility gap
+          if(testforspinodal) then
+             lokcs=meqrec%phr(jj)%curd%phtupx
+             call calc_qf(lokcs,value,mapline%lineceq)
+             write(*,'(a,i3,F8.2,4(1pe12.4))')'SMP qf: ',lokcs,&
+                  mapline%lineceq%tpval(1),value
+             if(gx%bmperr.ne.0) then
+                write(*,*)'SMP error chacking for instability',lokcs
+                gx%bmperr=0
+             elseif(value.lt.zero) then
+                write(*,*)'SMP detected phase inside spinodal: ',lokcs
+                gx%bmperr=4399; goto 1000
+             endif
+          endif
 !       else
 !          write(*,*)'Fix phase 1: ',jj,meqrec%phr(jj)%iph,meqrec%phr(jj)%ics
        endif
@@ -3211,7 +3235,7 @@ CONTAINS
                      elseif(2*xxx-mapline%axvals2(jax).gt.axarr(jax)%axmax) then
                          nyax=jax
                       endif
-                      if(nyax.gt.0) write(*,*)'SMP: change axis 1',isofact
+!                      if(nyax.gt.0) write(*,*)'SMP: change axis 1',isofact
                    endif
 ! nothing happends here ...
                    if(nyax.gt.0) then
@@ -4486,6 +4510,11 @@ CONTAINS
           enddo
 ! we must zero the last phase, hm itrem is not really relevant ...
           meqrec%stphl(meqrec%nstph+1)=0
+! occational error because "remph" has illegal index value for meqrec%phr 
+          if(remph.le.0) then
+             write(*,*)'Occational error around line 4487',remph
+             remph=-remph
+          endif
           meqrec%phr(remph)%itrem=meqrec%noofits
           meqrec%phr(remph)%prevam=zero
           meqrec%phr(remph)%stable=0

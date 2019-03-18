@@ -889,6 +889,7 @@
     character conditions*(*),version*(*),phaseline(*)*(*)
     type(graphics_options) :: graphopt
     double precision xax(*),anp(anpdim,*)
+    double precision scale1,scalem
     type(graphics_textlabel), pointer :: textlabel
 !\end{verbatim}
 !----------------------------------------------------------------------
@@ -935,19 +936,6 @@
        write(21,841)trim(graphopt%gnuterminal(graphopt%gnutermsel))
 841    format('set terminal ',a)
     endif
-!    if(pform(1:1).eq.'P') then
-!       pfh=filename(1:kk)//'.'//'ps '
-!       write(21,850)pfh(1:len_trim(pfh))
-!850    format('set terminal postscript color solid'/'set output "',a,'"')
-!    elseif(pform(1:1).eq.'A') then
-!       pfh=filename(1:kk)//'.'//'pdf '
-!       write(21,851)pfh(1:len_trim(pfh))
-!851    format('set terminal pdf color'/'set output "',a,'"')
-!    elseif(pform(1:1).eq.'G') then
-!       pfh=filename(1:kk)//'.'//'gif '
-!       write(21,852)pfh(1:len_trim(pfh))
-!852    format('set terminal gif'/'set output "',a,'"')
-!    endif
 ! this part is independent of which axis is a single value
 !------------------ some GNUPLOT colors:
 ! colors are black: #000000, red: #ff000, web-green: #00C000, web-blue: #0080FF
@@ -1225,20 +1213,32 @@
     repeat=repeat+1
     jj=0
 !    write(*,*)'Writing repeat, rows, columns ',repeat,nrv,np+2
+! ANPAX is axis with multiple values
+    if(anpax.ne.0) then
+       scalem=graphopt%scalefact(anpax)
+       scale1=graphopt%scalefact(3-anpax)
+    else
+       scalem=graphopt%scalefact(1)
+       scale1=graphopt%scalefact(2)
+    endif
+!
     do nv=1,nrv
 !---------------------------------------------------------------
-!       write(21,1820)nv,xax(nv),(anp(jj,nv),jj=1,np)
 ! trying to handle RNONE
-       write(21,2820,advance='no')nv,xax(nv)
+! values written multiplied with graphopt%scalefact, 
+! first value is single valued axis (can be X or Y axis) multiplied with scale1
+! remaining values multiplied svalem
+       write(21,2820,advance='no')nv,scale1*xax(nv)
        do jj=1,np-1
+! second and later columns represent Y axis
           if(anp(jj,nv).ne.rnone) then
-             write(21,2821,advance='no')anp(jj,nv)
+             write(21,2821,advance='no')scalem*anp(jj,nv)
           else
              write(21,2822,advance='no')
           endif
        enddo
        if(anp(jj,nv).ne.rnone) then
-          write(21,2821)anp(jj,nv)
+          write(21,2821)scalem*anp(jj,nv)
        else
           write(21,2822)
        endif
@@ -1246,7 +1246,6 @@
 2821   format(1pe16.6)
 2822   format(' NaN ')
 !---------------------------------------------------------------
-1820    format(i4,1000(1pe16.6))
        if(nv.eq.linesep(ksep)) then
 ! an empty line in the dat file means a MOVE to the next point.
           if(nv.lt.nrv) then
@@ -1563,7 +1562,7 @@
 ! check if line ends in a node and add its coordinates for the same phases
        endnode=>curline%end
        if(associated(endnode)) then
-! there is a nod at the end, extracts its ceq record
+! there is a node at the end, extracts its ceq record
           curceq=>endnode%nodeceq
           plotp=plotp+1
           if(plotp.gt.maxval) then
@@ -1844,10 +1843,12 @@
 !            "set label 'Y' at 0.5,",F10.6," center")
 ! This replaces axis without tics, only a tic in the middle
        write(21,845)xmax, xmax, 0.5*xmax, sqrt3*xmax, 0.5*xmax, sqrt3*xmax,&
-! next 3 values are position for max values of Y axis
-            xmax, 0.343*xmax, sqrt3*(xmax+0.15d0), &
-! next 3 values are positions of max values for X axis
-            xmax, 0.92*xmax, -5.0*ltic, &
+! next 3 values are value and position for max values of Y axis
+!            xmax, 0.343*xmax, sqrt3*(xmax+0.15d0), &
+            xmax, 0.343*one, sqrt3*(one+0.15d0), &
+! next 3 values are value and positions of max values for X axis
+!            xmax, 0.92*xmax, -5.0*ltic, &
+            xmax, 0.92*one, -5.0*ltic, &
 ! these are rudimentary ticmarks
             0.25*xmax-2*ltic, 0.5*sqrt3*xmax, 0.25*xmax, 0.5*sqrt3*xmax, &
             0.25*xmax-ltic,0.5*sqrt3*xmax+1.5*ltic,&
@@ -1879,21 +1880,6 @@
     else
        plotgt=.false.
     endif
-!    if(pform(1:1).eq.'P') then
-!       pfh=filename(1:kk)//'.'//'ps '
-!       write(21,120)trim(pfh)
-!120    format('set terminal postscript color'/'set output "',a,'"')
-!    elseif(pform(1:1).eq.'A') then
-!       pfh=filename(1:kk)//'.'//'pdf '
-!       write(*,121)trim(pfh)
-!       write(21,121)trim(pfh)
-!121    format('set terminal pdf color'/'set output "',a,'"')
-!    elseif(pform(1:1).eq.'G') then
-!       pfh=filename(1:kk)//'.'//'gif '
-!       write(21,122)trim(pfh)
-!122    format('set terminal gif'/'set output "',a,'"')
-!    endif
-!    open(21,file='ocgnu.plt ',access='sequential ',status='unknown ')
 !
     write(21,130)trim(title),trim(conditions),graphopt%xsize,graphopt%ysize,&
          trim(pltax(1)),trim(labelkey)

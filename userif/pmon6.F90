@@ -195,7 +195,7 @@ contains
 ! here are all commands and subcommands
 !    character (len=64), dimension(6) :: oplist
     integer, parameter :: ncbas=30,nclist=21,ncalc=12,ncent=21,ncread=6
-    integer, parameter :: ncam1=18,ncset=24,ncadv=12,ncstat=6,ncdebug=9
+    integer, parameter :: ncam1=18,ncset=27,ncadv=12,ncstat=6,ncdebug=9
     integer, parameter :: nselect=6,nlform=6,noptopt=9,nsetbit=6
     integer, parameter :: ncamph=18,naddph=12,nclph=6,nccph=6,nrej=9,nsetph=6
     integer, parameter :: nsetphbits=15,ncsave=6,nplt=21,nstepop=6
@@ -313,7 +313,7 @@ contains
          ['MAGNETIC_CONTRIB','QUIT            ','                ',&
          'TWOSTATE_LIQUID ','SCHOTTKY_ANOMATY','                ',&
          'LOWT_CP_MODEL   ','                ','                ',&
-         'ELASTIC_MODEL_1 ','CRYSTAL_BREAKDWN','SMOOTH_CP_STEP  ']
+         'ELASTIC_MODEL_1 ','                ','SMOOTH_CP_STEP  ']
 !-------------------
 ! subcommands to SET
     character (len=16), dimension(ncset) :: cset=&
@@ -324,7 +324,8 @@ contains
          'NUMERIC_OPTIONS ','AXIS            ','INPUT_AMOUNTS   ',&
          'VERBOSE         ','AS_START_EQUILIB','BIT             ',&
          'VARIABLE_COEFF  ','SCALED_COEFF    ','OPTIMIZING_COND ',&
-         'RANGE_EXPER_EQU ','FIXED_COEFF     ','T_AND_P         ']
+         'RANGE_EXPER_EQU ','FIXED_COEFF     ','SYSTEM_PARAMETER',&
+         'INITIAL_T_AND_P ','                ','                ']
 ! subsubcommands to SET STATUS
     character (len=16), dimension(ncstat) :: cstatus=&
          ['ELEMENT         ','SPECIES         ','PHASE           ',&
@@ -335,7 +336,7 @@ contains
          ['EQUILIB_TRANSF  ','QUIT            ','                ',&
           'GRID_DENSITY    ','SMALL_GRID_ONOFF','MAP_SPECIAL     ',&
           'GLOBAL_MIN_ONOFF','OPEN_POPUP_OFF  ','WORKING_DIRECTRY',&
-          'HELP_POPUP_OFF  ','HICKEL_EXTRAPOL ','                ']
+          'HELP_POPUP_OFF  ','EET_EXTRAPOL    ','                ']
 !         123456789.123456---123456789.123456---123456789.123456
 ! subsubcommands to SET BITS
     character (len=16), dimension(nsetbit) :: csetbit=&
@@ -458,15 +459,16 @@ contains
 ! MAX 80 characters to set terminal .... HERE FONT AND SIZE IS SET
 #ifdef aqplt
 ! Aqua plot screen on some Mac systems
-    graphopt%gnuterminal(i1)='aqua size 900,600 font "arial,20"'
+!    graphopt%gnuterminal(i1)='aqua size 900,600 font "arial,20"'
+    graphopt%gnuterminal(i1)='aqua size 940,700 font "arial,20"'
 ! it should be #elif not #elseif .... suck
 #elif qtplt
 ! Qt plot screen on some LINUX systems
-    graphopt%gnuterminal(i1)='qt size 900,600 font "arial,20"'
+    graphopt%gnuterminal(i1)='qt size 940,700 font "arial,20"'
 !    graphopt%gnuterminal(i1)='qt size 900,600 font "arial,16"'
 #else
 ! wxt default plot screen (used on most Window systems)
-    graphopt%gnuterminal(i1)='wxt size 900,600 font "arial,20"'
+    graphopt%gnuterminal(i1)='wxt size 940,700 font "arial,20"'
 !    graphopt%gnuterminal(i1)='wxt size 900,600 font "arial,16"'
 #endif
     graphopt%filext(i1)='  '
@@ -484,13 +486,16 @@ contains
     graphopt%gnuterminal(i1)='pdfcairo '
 #else
 ! NOTE size is in inch
-    graphopt%gnuterminal(i1)='pdf color solid size 6,4 enhanced fontscale 0.7'
+!   graphopt%gnuterminal(i1)='pdf color solid size 6,4 enhanced fontscale 0.7'
+!   graphopt%gnuterminal(i1)='pdf color solid size 6,4 enhanced font "arial,20"'
+    graphopt%gnuterminal(i1)='pdf color solid size 6,5 enhanced font "arial,20"'
 #endif
     graphopt%filext(i1)='pdf  '
 ! Graphics Interchange Format (GIF)
     i1=4
     graphopt%gnutermid(i1)='GIF  '
     graphopt%gnuterminal(i1)='gif enhanced fontscale 0.7'
+!    graphopt%gnuterminal(i1)='gif enhanced '
     graphopt%filext(i1)='gif  '
     graphopt%gnutermax=i1
 ! Portable graphics format (PNG)
@@ -951,10 +956,8 @@ contains
 !                call add_addrecord(lokph,' ',elasticmodel1)
                 write(*,*)'This addition is not yet implemented'
                 !....................................................
-             case(11) ! amend phase ... add crystal breakdown
-                call add_addrecord(lokph,' ',crystalbreakdownmod)
-                write(*,671)
-671             format('This addition requires the CBT parameter')
+             case(11) ! amend phase ... unused
+                continue
 !....................................................
              case(12) ! amend phase ... smooth-Cp-step
                 call add_addrecord(lokph,' ',secondeinstein)
@@ -1774,7 +1777,8 @@ contains
 !         'NUMERIC_OPTIONS ','AXIS            ','INPUT_AMOUNTS   ',&
 !         'VERBOSE         ','AS_START_EQUILIB','BIT             ',&
 !         'VARIABLE_COEFF  ','SCALED_COEFF    ','OPTIMIZING_COND ',&
-!         'EXPERIMENT_EQUIL','FIXED_COEFF     ','                ']
+!         'RANGE_EXPER_EQU ','FIXED_COEFF     ','SYSTEM_PARAMETER',&
+!         'INITIAL_T_AND_P ','                ','                ']
     CASE(3) ! SET SUBCOMMANDS
 ! disable continue optimization
 !       iexit=0
@@ -2037,20 +2041,24 @@ contains
                 call init_help(browser,latexfile,htmlfile)
              endif
 !.................................................................
-          case(11) ! HICKEL_EXTRAPOL for solids
-             call gparcd('Turn on Hickel extrapolation?',&
+          case(11) ! SET ADVANCED EET_EXTRAPOL / HICKEL_EXTRAPOL for solids
+             call gparcd('Turn on equi-entropy extrapolation (EET)?',&
                   cline,last,1,ch1,'Y',q1help)
              if(ch1.eq.'Y') then
-                globaldata%status=ibset(globaldata%status,GSHICKEL)
-!                write(*,*)'Hickel extrapolation check for solids turned on'
-                call gparrd('Low T limit?',cline,last,thickel,1.0D3,q1help)
-                if(thickel.lt.one) then
-                   write(*,*)'Too low T, set to 1000'
-                   thickel=1.0D3
+! remove this bit for EET, use only sysparem(1) for T (as integer)
+!                globaldata%status=ibset(globaldata%status,GSHICKEL)
+                call gparrd('Low T limit?',cline,last,xxx,1.0D3,q1help)
+!                if(thickel.lt.one) then
+                if(xxx.gt.1.0D1) then
+                   call set_hickel_check(xxx)
+!                   globaldata%sysreal(1)=1.0D1
                 endif
              else
-                globaldata%status=ibset(globaldata%status,GSHICKEL)
-                write(*,*)'Hickel extrapolation check for solids turned off'
+! remove the use of this bit for EET
+!                globaldata%status=ibclr(globaldata%status,GSHICKEL)
+                write(*,*)'EET extrapolation for solids turned off'
+                call set_hickel_check(zero)
+!                globaldata%sysreal(1)=zero
              endif
 !.................................................................
           case(12) ! not used
@@ -2969,7 +2977,17 @@ contains
           write(kou,3730)nvcoeff
 3730      format('Number of variable coefficients are now ',i3)
 !------------------------- 
-       case(24) ! T_AND_P start values?, NOT CONDITIONS!!
+       case(24) ! SET SYSTEM_VARIABLE
+          call gparid('System variable index: ',cline,last,ll,0,q1help)
+          if(ll.gt.0 .and. ll.le.10) then
+! sysparam(2) used during STEP/MAP often to check if equilibrium is stable
+             call gparid('System variable value: ',cline,last,j1,0,q1help)
+             globaldata%sysparam(ll)=j1
+          else
+             write(*,*)'Index must be between 1 and 10'
+          endif
+!------------------------- 
+       case(25) ! SET INITIAL_T_AND_P start values?, NOT CONDITIONS!!
           write(kou,3750)ceq%tpval
 3750      format(/'NOTE: these are only local values, not conditions',&
                2(1pe12.4)/)
@@ -2979,6 +2997,12 @@ contains
           call gparrd('New value of P: ',cline,last,xxx,1.0D5,q1help)
           if(buperr.ne.0) goto 100
           ceq%tpval(2)=xxx
+!------------------------- 
+       case(26) ! unused
+          continue
+!------------------------- 
+       case(27) ! unused
+          continue
        END SELECT set
 !=================================================================
 ! ENTER with subcommand for element, species etc
@@ -3290,7 +3314,7 @@ contains
                trim(graphopt%gnuterminal(i2)),i2=1,graphopt%gnutermax)
 173       format(i2,2x,a,' > set terminal ',a)
           write(kou,174)
-174       format('Change (exact match required) or enter a GNUPLOT termial')
+174       format('Change (exact match required) or enter a new GNUPLOT termial')
           call gparc('Terminal id (8 chars):',cline,last,1,text,' ',q1help)
           call capson(text)
           if(text(1:1).eq.' ') goto 100
@@ -4352,6 +4376,7 @@ contains
              write(kou,*)'Missing file name, nothing saved'
              goto 100
           endif
+! I have no way to handle the extention to upper case ... inside C routine
           if(jp.gt.0) ocufile(jp+1:)='.ocu '
           inquire(file=ocufile,exist=logok)
           if(logok) then
@@ -4960,11 +4985,13 @@ contains
              call reset_plotoptions(graphopt,plotfile,textlabel)
              axplotdef=' '
           else
-             seqxyz(1)=maptop%next%seqx
+! for step separate it seems difficult to have correct seqx !!
+!             seqxyz(1)=maptop%next%seqx
+             seqxyz(1)=max(maptop%next%seqx,maptop%previous%seqx,maptop%seqx)
              seqxyz(2)=maptop%seqy
              maptopsave=>maptop
              nullify(maptop)
-!             write(kou,*)'Previous results kept'
+             write(*,'(a,2i4)')'Previous results kept',seqxyz
           endif
        endif
 !       kom2=submenu('Options?',cline,last,cstepop,nstepop,1)
@@ -4983,13 +5010,11 @@ contains
           if(.not.associated(starteq)) then
              starteq=>ceq
           endif
-! can one have several STEP commands??
+! can one have several STEP commands YES!
           if(associated(maptop)) then
              write(*,*)'Deleting previous step/map results missing'
           endif
 ! seqzyz are initial values for creating equilibria for lines and nodes
-! if previous results should be kept it should not be zeroed, see above
-!          seqxyz=0
           call map_setup(maptop,noofaxis,axarr,seqxyz,starteq)
 ! mark that interactive listing of conditions and results may be inconsistent
           ceq%status=ibset(ceq%status,EQINCON)
@@ -5002,6 +5027,8 @@ contains
                 nullify(maptopsave)
              endif
           endif
+! debugging: last maptop/line used
+!          write(*,'(a,2i4)')'PMON: sexy 1:',maptop%next%seqx,maptop%seqy
 ! remove start equilibria
           nullify(starteq)
           if(gx%bmperr.ne.0) goto 990
@@ -5013,7 +5040,6 @@ contains
           if(associated(maptop)) then
              write(*,*)'Deleting previous step/map results missing'
           endif
-!          seqxyz=0
           call step_separate(maptop,noofaxis,axarr,seqxyz,starteq)
 ! mark that interactive listing of conditions and results may be inconsistent
           ceq%status=ibset(ceq%status,EQINCON)
@@ -5030,6 +5056,10 @@ contains
           if(axplotdef(2)(1:1).eq.' ') then
              axplotdef(2)='GM(*)'
           endif
+! update maptop%seqx to maptop%prvious%seqx+1 to allow more maptop records
+          maptop%seqx=maptop%previous%seqx+1
+!          write(*,'(a,4i4)')'PMON: separate seqx:',maptop%next%seqx,&
+!               maptop%seqx,maptop%previous%seqx,maptop%seqy
 ! remove start equilibria
           nullify(starteq)
 !-----------------------------------------------------------
@@ -5126,7 +5156,7 @@ contains
        ceq%status=ibset(ceq%status,EQINCON)
        if(gx%bmperr.ne.0) goto 990
 !=================================================================
-! PLOT
+! PLOT COMMAND with many options
 ! Always specify the axis when giving this command, default is previous!!
 ! Sunbommands comes after
     case(21)
@@ -5136,6 +5166,8 @@ contains
        endif
        wildcard=.FALSE.
        do iax=1,2
+! default scaling factor for the axis variable
+          graphopt%scalefact(iax)=one
           plotdefault: if(axplotdef(iax)(1:1).eq.' ') then
 ! insert a default answer for plot axis
              if(iax.le.noofaxis) then
@@ -5181,6 +5213,24 @@ contains
                   cline,last,7,axplot(iax),axplotdef(iax),q1help)
           endif
           if(buperr.ne.0) goto 990
+! extract a possible scaling factor like 0.001*GM(*)
+          jp=1
+          call getrel(axplot(iax),jp,xxx)
+          if(buperr.eq.0) then
+! there is a numerical factor
+             graphopt%scalefact(iax)=xxx
+! a number must be followed by a *
+             if(axplot(iax)(jp:jp).ne.'*') then
+                write(*,*)'Scaling factor must be followed by *'
+                goto 990
+             else
+! Fortran allows overlapping strings in assignments
+                axplot(iax)=axplot(iax)(jp+1:)
+             endif
+          else
+! no scaling factor, graphopt%scalfactor(iax) already unity
+             buperr=0
+          endif
           if(index(axplot(iax),'*').gt.0) then
 !             if(wildcard) then
 !                write(*,*)'Wildcards allowed for one axis only'

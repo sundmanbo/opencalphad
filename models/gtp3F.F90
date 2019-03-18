@@ -2328,7 +2328,7 @@
 202      format(a,i5,2(1pe12.4))
          value=ceq%phase_varres(lokcs)%dgm/div
       elseif(kstv.eq.10) then
-! 10: Q (stability, thermodynamic factor), not implemented
+! 10: Q (stability, thermodynamic factor)
 !         gx%bmperr=4081; goto 1000
          call calc_qf(lokcs,value,ceq)
 !      else

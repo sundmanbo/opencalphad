@@ -97,7 +97,7 @@ l,,,,
 @$ This does not set a condition on T, just a start value
 @$-----------------------------------------------------------
 
-set t_and_p
+set init_t_and_p
 1000
 1e5
 
