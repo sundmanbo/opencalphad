@@ -13,6 +13,10 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2019.03.22 OC version 5.035: A bug that made results from STEP
+calculations disappear when several STEP commands were made without a
+plotting in between has been fixed.  Thanks Nath to discover this.
+
 2019.03.17 OC version 5.034: My presentation of OC at the TMS
 conference recieved some nice attanetion.  But I also got some
 feedback about things missing or that does not work and fixing that

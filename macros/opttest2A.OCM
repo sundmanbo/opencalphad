@@ -143,7 +143,7 @@ enter element MG Magnesium HCP_A3   2.4305E+01  4.9980E+03  3.2671E+01 2
 @&
 @$------------------------------------------------------------------------
 @$ Now the experimental data converted from a POP file
-@$ created by Malin Selleby and Christine Gueneau.
+@$ created by Nathalie Dupin, Malin Selleby and Christine Gueneau.
 @$ The equilibria with experiments can be identified by a number (assigned
 @$ sequentially) or a name (max 24 characters).
 @$ A range of numbers or an abbreviations of the name can be used to select

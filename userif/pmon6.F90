@@ -102,7 +102,7 @@ contains
 ! if more than one start equilibrium these are linked using the ceq%next index
     type(gtp_equilibrium_data), pointer :: starteq
 ! for map results
-    type(map_node), pointer :: maptop,mapnode,maptopsave
+    type(map_node), pointer :: maptop,mapnode,maptopsave,maptopcheck
 !    type(map_line) :: mapline
 ! seqxyz has initial values of seqx, seqy and seqz
     integer noofaxis,noofstarteq,seqxyz(3)
@@ -4989,6 +4989,20 @@ contains
 !             seqxyz(1)=maptop%next%seqx
              seqxyz(1)=max(maptop%next%seqx,maptop%previous%seqx,maptop%seqx)
              seqxyz(2)=maptop%seqy
+! list maptop for debugging
+!             write(*,*)'PM maptop node: ',trim(maptop%nodeceq%eqname)
+!             maptopcheck=>maptop%next
+!             do while(.not.associated(maptopcheck,maptop))
+!                write(*,*)'PM: maptop node: ',trim(maptopcheck%nodeceq%eqname)
+!                maptopcheck=>maptopcheck%next
+!                if(.not.associated(maptopcheck%previous%next,maptopcheck)) then
+!                   write(*,*)'PM next and previous does not agree'
+!                endif
+!             enddo
+!             if(associated(maptop%plotlink)) then
+!                write(*,*)'PM plotlink: ',trim(maptop%plotlink%nodeceq%eqname)
+!             endif
+! end debugging
              maptopsave=>maptop
              nullify(maptop)
              write(*,'(a,2i4)')'Previous results kept',seqxyz
@@ -5013,6 +5027,7 @@ contains
 ! can one have several STEP commands YES!
           if(associated(maptop)) then
              write(*,*)'Deleting previous step/map results missing'
+             goto 100
           endif
 ! seqzyz are initial values for creating equilibria for lines and nodes
           call map_setup(maptop,noofaxis,axarr,seqxyz,starteq)
@@ -5026,6 +5041,10 @@ contains
                 maptop=>maptopsave
                 nullify(maptopsave)
              endif
+          elseif(associated(maptopsave)) then
+! THIS ERROR WITH LOST CALCULATONS MAY BE THERE FOR STEP SEPERATE AND MAP
+             write(*,*)'PM linking previous results'
+             maptop%plotlink=>maptopsave
           endif
 ! debugging: last maptop/line used
 !          write(*,'(a,2i4)')'PMON: sexy 1:',maptop%next%seqx,maptop%seqy
@@ -5048,7 +5067,8 @@ contains
 ! has saved previous calculations in maptopsave restore those
              if(associated(maptopsave)) then
                 write(kou,*)'Restoring previous map results'
-                maptop=>maptopsave
+!                maptop=>maptopsave
+                maptop%plotlink=>maptopsave
                 nullify(maptopsave)
              endif
           endif
@@ -5146,7 +5166,7 @@ contains
              nullify(maptopsave)
           endif
        elseif(associated(maptopsave)) then
-          write(Kou,*)'Set link to previous map results'
+          write(kou,*)'Set link to previous map results'
           maptop%plotlink=>maptopsave
           nullify(maptopsave)
        endif
@@ -5155,6 +5175,7 @@ contains
 ! mark that interactive listing of conditions and results may be inconsistent
        ceq%status=ibset(ceq%status,EQINCON)
        if(gx%bmperr.ne.0) goto 990
+! end of MAP command
 !=================================================================
 ! PLOT COMMAND with many options
 ! Always specify the axis when giving this command, default is previous!!
