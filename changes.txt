@@ -13,6 +13,10 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2019.03.24 OC version 5.036: For assessments the correlation matrix
+and the Relative Standard Deviation (RSD) for each parameter are
+important and I think they now are calculated correctly.
+
 2019.03.22 OC version 5.035: A bug that made results from STEP
 calculations disappear when several STEP commands were made without a
 plotting in between has been fixed.  Thanks Nath to discover this.
@@ -23,19 +27,21 @@ feedback about things missing or that does not work and fixing that
 sometimes crashes some of my test macros.  Suck.  I have changed the
 command SET T_AND_P as it was easily misunderstood, now it is SET
 INITIAL_T_AND_P because it can only be used to provide start values
-when there is no condition on T or P.  I also added a possibility to
-have a scaling factor on the axis to be plotted, simply add a factor
-in front of the state variable to plot like "plot x(mo) 0.001*gm(*)"
-and the values plotted will be kJ/mol rather than Joule/mole.
+when there is no condition on T or P or when using CALC PHASE.
+
+I have also added a possibility to have a scaling factor for the
+property on the axis to be plotted, simply add a factor in front of
+the state variable to plot like "plot x(mo) 0.001*gm(*)" and the
+values plotted will be kJ/mol rather than J/mol.
 
 For future extensions I have also added a command SET SYSTEM_PARAMETER
 although there are none as yet ... and such parameters must be saved
 on any unformatted file used and the unformatted file is VERY fragile.
 And such a file should be backward compatible like the POLY files in
-Thermo-Calc.  Luckily it is not possible to save step/map results yet
-but the unformatted files are useful for assessment (corresponding to
-a PAR file in PARROT).  A bug that you had to SET RANGE before saving
-any coefficients to be assessed has been fixed.
+Thermo-Calc.  Luckily it is not possible to save step/map results
+(yet) but the unformatted files are useful for assessment
+(corresponding to a PAR file in PARROT).  A bug that one had to SET
+RANGE before saving any coefficients to be assessed has been fixed.
 
 I have modified the equi-entropy criterion implementation that is
 needed for the new unary database.  It requires a new command, SET

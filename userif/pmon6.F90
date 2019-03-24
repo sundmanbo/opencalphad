@@ -1,7 +1,7 @@
 !
 MODULE cmon1oc
 !
-! Copyright 2012-2018, Bo Sundman, France
+! Copyright 2012-2019, Bo Sundman, France
 !
 !    This program is free software; you can redistribute it and/or modify
 !    it under the terms of the GNU General Public License as published by
@@ -2853,7 +2853,6 @@ contains
 !          firstash%coeffrsd=zero
 !-------------------------
        case(21) ! set optimizing_conditions
-!          write(*,*)'LMDIF has no conditions to change ...'
 !          call gparrd('DSTEP (VA05AD): ',cline,last,xxx,dstep,q1help)
 !          dstep=xxx
 !          call gparrd('DMAX (VA05AD): ',cline,last,xxx,dmax2,q1help)
@@ -5043,7 +5042,8 @@ contains
              endif
           elseif(associated(maptopsave)) then
 ! THIS ERROR WITH LOST CALCULATONS MAY BE THERE FOR STEP SEPERATE AND MAP
-             write(*,*)'PM linking previous results'
+!             write(*,*)'PM linking previous results'
+             write(kou,*)'Set link to previous step results'
              maptop%plotlink=>maptopsave
           endif
 ! debugging: last maptop/line used
@@ -5058,6 +5058,7 @@ contains
 ! can one have several STEP commands??
           if(associated(maptop)) then
              write(*,*)'Deleting previous step/map results missing'
+             goto 100
           endif
           call step_separate(maptop,noofaxis,axarr,seqxyz,starteq)
 ! mark that interactive listing of conditions and results may be inconsistent
@@ -5071,6 +5072,9 @@ contains
                 maptop%plotlink=>maptopsave
                 nullify(maptopsave)
              endif
+          elseif(associated(maptopsave)) then
+             write(kou,*)'Set link to previous step results'
+             maptop%plotlink=>maptopsave
           endif
 ! set default yaxis as GM(*)
           if(axplotdef(2)(1:1).eq.' ') then
@@ -5995,7 +5999,7 @@ contains
              goto 100
           endif
        endif
-! JUMP HERE IF CONTINUE optimization  ... if implemented
+! JUMP HERE IF CONTINUE optimization  ... NOT YET implemented
 987    continue
 ! mexp    Number of experiments
 ! nvcoeff Number of coefficients to be optimized
@@ -6026,9 +6030,11 @@ contains
 !       write(*,573)'Coeffs in: ',(coefs(j2),j2=1,nvcoeff)
 573    format(a,6(1pe12.4))
        allocate(fjac(mexp,nvcoeff))
+!->->->->->-> HERE THE OPTIMIZATION IS MADE <-<-<-<-<-<-
 ! nfev set to number of iterations
        call lmdif1(mexp,nvcoeff,coefs,errs,optacc,nopt,nfev,&
             iwam,wam,lwam,fjac,err0)
+!->->->->->-> HERE THE OPTIMIZATION IS MADE <-<-<-<-<-<-
        mexpdone=mexp
        nvcoeffdone=nvcoeff
 ! on return nopt is set to a message but 
@@ -6052,12 +6058,13 @@ contains
        enddo
 ! this is the final sum of errors squared
        err0(2)=xxx
-! What is the top nvcoeff*nvcoeff part of the fjac metrix ??
-!       write(*,*)'The top part of fjac from lmfif1:'
+! The top nvcoeff*nvcoeff submatrix of fjac is R^T * R
+!       write(*,*)'The unsymmetric R^T*R submatrix returned from lmfif1:'
 !       do i2=1,nvcoeff
 !          write(*,563)(fjac(j2,i2),j2=1,nvcoeff)
 !       enddo
-! cormat will be the correlation matrix if optimization successful
+!       read(*,'(a)')ch1
+! cormat will be the CORRELATION MATRIX if optimization successful
 ! otherwise it will not be allocated
        if(allocated(cormat)) deallocate(cormat)
 !--------------- begin calculate correlation matrix and RSD
@@ -6067,6 +6074,7 @@ contains
 ! if there is a result calculate the Jacobian in fjac
 ! mexp,nvcoeff,coeffs,errs are same as in the call to lmdif1
 ! This will overwrite the fjac returned from the call to lmdif1
+! I THINK THIS IS NOT NECESSARY ?? WE HAVE R^T * R above
 !          write(*,*)'Calculating the Jacobian: '
 ! allocate array to extract calculated values of experiments
           if(allocated(calcexp)) deallocate(calcexp)
@@ -6080,9 +6088,13 @@ contains
 !             write(*,563)(fjac(i2,ll),ll=1,nvcoeff)
 !          enddo
 563       format(6(1pe12.4))
+!          write(*,*)'End listing of Jacobian fjac calculated by fdjac2'
+!          read(*,'(a)')ch1
 ! Next calculate M = (fjac)^T (fjac); ( ^T means transponat)
           if(allocated(mat1)) deallocate(mat1)
-          allocate(mat1(nvcoeff+1,nvcoeff))
+! BUG:         allocate(mat1(nvcoeff+1,nvcoeff))
+! the mat1 is symmetric and should have these dimensions:
+          allocate(mat1(nvcoeff,nvcoeff))
           mat1=zero
           do i2=1,nvcoeff
              do j2=1,nvcoeff
@@ -6092,8 +6104,9 @@ contains
 !                   write(*,564)'xxx: ',i2,j2,ll,xxx
 564                format(a,3i5,1pe12.4)
                 enddo
-! this matrix is symmetrical
+! this matrix is symmetrical ... which index first ???
                 mat1(j2,i2)=xxx
+!                mat1(i2,j2)=xxx
              enddo
           enddo
 !          write(*,*)'M = (Jac)^T (Jac); (^T means transponat)',nvcoeff
@@ -6104,34 +6117,33 @@ contains
           if(nvcoeff.gt.1) then
 ! cormat deallocated above, dimension is cormat(nvcoeff,nvcoeff) !!
              allocate(cormat(nvcoeff,nvcoeff))
+! symmetric?   call mdinv(nvcoeff,nvcoeff+1,mat1,cormat,nvcoeff,iflag)
+! NOTE: mat1 and cormat should both have dimension mat1(nvcoeff,nvcoeff)
 !             call mdinv(nvcoeff,nvcoeff+1,mat1,cormat,nvcoeff,iflag)
-!invert unsymmetrical matrix
-             call mdinvold(nvcoeff,nvcoeff+1,mat1,cormat,nvcoeff,iflag)
+             call mdinv(nvcoeff,mat1,cormat,nvcoeff,iflag)
+! invert unsymmetrical matrix
+! not used    call mdinvold(nvcoeff,nvcoeff+1,mat1,cormat,nvcoeff,iflag)
+!             call mdinvold(nvcoeff,mat1,cormat,nvcoeff,iflag)
              if(iflag.eq.0) then
                 write(*,*)'Failed invert matrix=Jac^T*Jac',iflag
              endif
-             write(*,*)'Correlation matrix before and after normallization'
-             do i1=1,nvcoeff
-                write(*,'(6(1pe12.4))')(cormat(i1,i2),i2=1,nvcoeff)
-             enddo
-! Correlation matrix strange, normallize using value of first coefficient
-             xxx=abs(cormat(1,1))
-! divide all values with the largest diagonal value
-!             do i1=2,nvcoeff
-!                if(abs(cormat(i1,i1)).gt.xxx) then
-!                   xxx=abs(cormat(i1,i1))
-!                endif
+!             write(*,*)'Correlation matrix before normallization'
+!             do i1=1,nvcoeff
+!                write(*,'(6(1pe12.4))')(cormat(i1,i2),i2=1,nvcoeff)
 !             enddo
-! just to avoid divining with zero
-             if(abs(xxx).lt.1.0D-10) xxx=1.0D-10
+! divide all values with the square root of the  diagonal elements
+! save covarance matrix n mat1
+             mat1=cormat
              do i1=1,nvcoeff
                 do i2=1,nvcoeff
+                   xxx=sqrt(abs(mat1(i1,i1)*mat1(i2,i2)))
                    cormat(i1,i2)=cormat(i1,i2)/xxx
                 enddo
              enddo
-             do i1=1,nvcoeff
-                write(*,'(6(1pe12.4))')(cormat(i1,i2),i2=1,nvcoeff)
-             enddo
+!             write(*,*)'Correlation after dividing with sqrt(abs(c_ii*c_jj))'
+!             do i1=1,nvcoeff
+!                write(*,'(6(1pe12.4))')(cormat(i1,i2),i2=1,nvcoeff)
+!             enddo
           elseif(abs(mat1(1,1)).gt.1.0D-38) then
 ! mat1 is just a single value
              allocate(cormat(1,1))
@@ -6142,9 +6154,9 @@ contains
              write(*,*)'Correlation matrix singular'
           endif
        endif
-! write the correlation matrix  THIS IS WRONG ??
+! write the correlation matrix  this is still very uncertain ,,,
        if(allocated(cormat)) then
-          write(*,*)'Correlation matrix (not correct?) is:'
+          write(*,*)'Correlation matrix (symmetric):'
           do i2=1,nvcoeff
              write(kou,563)(cormat(i2,j2),j2=1,nvcoeff)
           enddo
@@ -6153,7 +6165,8 @@ contains
        endif
 ! zero RSD
        firstash%coeffrsd=zero
-       if(allocated(cormat)) then
+       if(allocated(cormat) .and. allocated(mat1)) then
+!       if(allocated(cormat)) then
 ! calculate the RSD (Relative Standard Deviation) for each parameter
 ! the last calculated values of the experiments in calcexp
 !          write(*,*)'The sum of all calculated equilibria,',&
@@ -6165,34 +6178,30 @@ contains
 !             write(*,766)i2,calcexp(i2),xxx
 766          format('pmon: Calculated value',i4,2(1pe12.4))
           enddo
-          xxy=xxx/real(mexp)
+          ll=max(1,mexp-nvcoeff)
+! This value may be negative!
+          xxy=xxx/real(ll)
 ! the difference between the calculated and experimental value is errs(1:mexp)
 ! err0(2) is sum of all errors squared          
-          xxx=err0(2)/real(mexp)
-          i2=0
+          xxx=err0(2)/real(ll)
 !          write(*,767)xxx,xxy
 767       format('Normalized sum of squares changed: ',1pe12.4,' to ',1pe12.4)
-! I think this is wrong ...
+! I am not sure about this ...
+          i2=0
           do i1=0,size(firstash%coeffstate)-1
              if(firstash%coeffstate(i1).ge.10) then
 ! this is an optimized parameter, they are indexed starting from zero!!
                 i2=i2+1
 ! But in cormat they are indexed from 1 .. nvcoeff
-! I think cormat(i2,i2) can be negative ... ??
-                firstash%coeffrsd(i1)=sqrt(abs(cormat(i2,i2))*xxx)/xxy
+!                firstash%coeffrsd(i1)=sqrt(abs(cormat(i2,i2))*xxx)/xxy
+!                write(*,'(a,3(1pe12.4))')'RSD: ',mat1(i2,i2),xxx,xxy
+                firstash%coeffrsd(i1)=abs(sqrt(abs(mat1(i2,i2))*xxx)/xxy)
 ! this should be divided by mexp*(\sum_(i=1,mexp) calculated_value(i))
 ! the calculated value is stored in calcexp by fdjac if calcexp is allocated!
 !                write(*,*)'RSD for parameter: ',i2,firstash%coeffrsd(i1)
              endif
           enddo
        endif
-! coefs in next call should be the real unscaled values??
-!          i2=1
-!          do i1=0,size(firstash%coeffstate)-1
-!             if(firstash%coeffstate(i1).ge.10) then
-!                coefs(i2)=coefs(i2)*firstash%coeffscale(i1)
-!             endif
-!          enddo
 ! deallocate calcexp to avoid storing these values when running LMDIF
        if(allocated(calcexp)) deallocate(calcexp)
 !--------------- end calculate correlation matrix and RSD

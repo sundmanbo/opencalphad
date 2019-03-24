@@ -2412,7 +2412,9 @@ end function find_phasetuple_by_indices
 70 format(a,i1,6(1pe12.4))
 ! check that the matrix has an inverse
    allocate(imat(noofel,noofel))
-   call mdinvold(noofel,noofel+1,matrix,imat,noofel,ierr)
+! removed second index as not used!
+!   call mdinvold(noofel,noofel+1,matrix,imat,noofel,ierr)
+   call mdinvold(noofel,matrix,imat,noofel,ierr)
    if(ierr.eq.0) then
       write(*,*)'Error inverting component matrix'
       gx%bmperr=4399; goto 1000

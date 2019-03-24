@@ -305,7 +305,9 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-  SUBROUTINE MDINV (ND1,ND2,RMAT,RINV,N,IS)
+  SUBROUTINE MDINV (ND1,RMAT,RINV,N,IS)
+! ND2 not used and removed to eliminate confusions
+!  SUBROUTINE MDINV (ND1,ND2,RMAT,RINV,N,IS)
 !  SUBROUTINE MSINV (ND1,RMAT,RINV,IS)
 !-----------------------------------------------------------------------
 !     Matrix inversion, symmetric matrix, DOUBLE PRECISION
@@ -386,7 +388,9 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-  SUBROUTINE MDINVOLD(ND1,ND2,RMAT,RINV,N,IS)
+  SUBROUTINE MDINVOLD(ND1,RMAT,RINV,N,IS)
+! ND2 not used and removed to eliminate confusion
+!  SUBROUTINE MDINVOLD(ND1,ND2,RMAT,RINV,N,IS)
 !  SUBROUTINE MGINV(ND1,RMAT,RINV,IS)
 !-----------------------------------------------------------------------
 !     Matrix inversion, general matrix, DOUBLE PRECISION

@@ -4975,7 +4975,9 @@ CONTAINS
     nd2=nd1+1
 ! Allocate phase matrix, one extra dimension if external charge balance
 ! last column of pmat is left hand side ?? (reminicent from Lukas program)
-    allocate(pmat(nd1,nd2))
+!    allocate(pmat(nd1,nd2))
+! pmat should be a square matrix
+    allocate(pmat(nd1,nd1))
 ! return dimension of pmi%invmat
     if(pmi%idim.eq.0) then
        pmi%idim=nd1
@@ -5175,7 +5177,9 @@ CONTAINS
           enddo
        endif
 ! invert the phase matrix (faster routine should be used) IDEAL PHASE
-       call mdinv(nd1,nd2,pmat,pmi%invmat,neq,ierr)
+! removed second argument
+!       call mdinv(nd1,nd2,pmat,pmi%invmat,neq,ierr)
+       call mdinv(nd1,pmat,pmi%invmat,neq,ierr)
        if(ierr.eq.0) then
           write(*,*)'MM Numeric problem 1, phase/set: ',iph,ics
           write(*,*)'Phase matrix singular 1:',pmi%iph,pmi%ics,pmi%ncc,ierr
@@ -5412,7 +5416,9 @@ CONTAINS
 17        format(a,6(1pe12.4))
 !       enddo
 ! invert the phase matrix (faster routine should be used) IONIC LIQUID MODEL
-       call mdinv(nd1,nd2,pmat,pmi%invmat,nd1,ierr)
+!       call mdinv(nd1,nd2,pmat,pmi%invmat,nd1,ierr)
+! removed 2nd argument
+       call mdinv(nd1,pmat,pmi%invmat,nd1,ierr)
        if(ierr.eq.0) then
 !          write(*,*)'MM Numeric problem 2, phase/set: ',iph,ics
           write(*,*)'Phase matrix singular 2:',pmi%iph,pmi%ics,pmi%ncc,ierr
@@ -5564,7 +5570,9 @@ CONTAINS
 !       write(*,17)'pmat: ',(pmat(i,j),i=1,neq)
 !    enddo
 ! invert the phase matrix (using LAPACK+BLAS ... 50% faster than with Leo)
-    call mdinv(nd1,nd2,pmat,pmi%invmat,neq,ierr)
+! removed 2nd argument
+!    call mdinv(nd1,nd2,pmat,pmi%invmat,neq,ierr)
+    call mdinv(nd1,pmat,pmi%invmat,neq,ierr)
     if(ierr.eq.0) then
        write(*,*)'MM Numeric problem 3, phase/set:',iph,ics
 !       if(ocv()) write(*,556)'Phase matrix singular 3:',meqrec%noofits,&
