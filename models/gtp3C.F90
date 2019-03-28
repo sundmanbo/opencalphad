@@ -5810,7 +5810,8 @@
   subroutine listoptcoeff(mexp,error2,done,lut)
 ! listing of optimizing coefficients
     integer lut,mexp
-    double precision error2
+! error2 is an array with 1: old error, 2: new error; 3: normalized error
+    double precision error2(*)
     logical done
 !    integer lut,mexp
 !    double precision errs(*)
@@ -5887,11 +5888,11 @@
     if(done) then
 ! only if there are results
        j1=mexp-nvcoeff
-       if(j1.gt.0) then
-          write(lut,621)error2,mexp,nvcoeff,j1,error2/j1
-       else
-          write(lut,621)error2,mexp,nvcoeff,0,zero
-       endif
+!       if(j1.gt.0) then
+          write(lut,621)error2(2),mexp,nvcoeff,j1,error2(3)
+!       else
+!          write(lut,621)error2(2),mexp,nvcoeff,0,zero
+!       endif
 621    format(/'Final sum of squared errors: ',1pe16.5,&
             ', using ',i4,' experiments and'/&
             i3,' coefficients.  Degrees of freedom: ',i4,&

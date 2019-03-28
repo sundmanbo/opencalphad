@@ -164,7 +164,7 @@ set cond P=P0 T=298.15 N(MG)=1 N(CU)=2
 enter symbol CPM2=HM(LAVES).T;
 enter symbol CPM1=HM(CUMG2).T;
 @$ experiments have an uncertainty after a colon ":"
-enter experiment CPM2=24.4:.1
+enter experiment CPM2=24.4 : .1
 @$ we cannot enter plot_data before the first "enter many_equilibria"
 @$ enter plot_data 1 298.15 24.4 8 Feufel
 enter comment C15 - CP 298 - FEUFEL
@@ -174,7 +174,7 @@ enter comment C15 - CP 298 - FEUFEL
 enter many_equilibria
 ENT 1        LAVES_C15
 condition P=P0 T=@1 N(MG)=1 N(CU)=2
-experiment CPM2=@2:.1
+experiment CPM2=@2 :.1
 comment FEUFEL C15 - CP DSC
 plot_data 1 @1 @2 8 Feufel
 @$ The plot_data command saves the whole line 
@@ -220,7 +220,7 @@ table_end
 enter many_equilibria
 ENT 1        LAVES_C15
 condition P=P0 T=@2  N(MG)=1 N(CU)=2
-experiment CPM2=@3:.1
+experiment CPM2=@3: .1
 comment C15 - PHONON CALC - CRIVELLO
 plot_data 1 @2 @3 2 Crivello
 table_start

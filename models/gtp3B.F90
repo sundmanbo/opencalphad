@@ -5851,6 +5851,7 @@
 !---------------------------
       CASE(5)! experiments
          ip=0
+!         write(*,*)'3B exp: "',trim(eqlin(jval)(last:)),'"',jp
          call enter_experiment(eqlin(jval)(last:),ip,ceq)
          if(gx%bmperr.ne.0) goto 1000
 !---------------------------

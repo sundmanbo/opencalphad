@@ -13,6 +13,12 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2019.03.28 OC version 5.037: The correlation matrix and the Relative
+Standard deviation now seems to work during assessments.  I have alos
+added a new command LIST NONZERO_EQUIL to list only equilibria with
+weight, the command LIST EQUIL lists all equilibria.  Some problems
+have uncertainties for experiments fixed.
+
 2019.03.24 OC version 5.036: For assessments the correlation matrix
 and the Relative Standard Deviation (RSD) for each parameter are
 important and I think they now are calculated correctly.
@@ -22,7 +28,7 @@ calculations disappear when several STEP commands were made without a
 plotting in between has been fixed.  Thanks Nath to discover this.
 
 2019.03.17 OC version 5.034: My presentation of OC at the TMS
-conference recieved some nice attanetion.  But I also got some
+conference recieved some nice attention.  But I also got some
 feedback about things missing or that does not work and fixing that
 sometimes crashes some of my test macros.  Suck.  I have changed the
 command SET T_AND_P as it was easily misunderstood, now it is SET

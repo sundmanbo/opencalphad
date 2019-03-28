@@ -5,7 +5,7 @@
 !
 MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !
-! Copyright 2011-2018, Bo Sundman, France
+! Copyright 2011-2019, Bo Sundman, France
 !
 !    This program is free software; you can redistribute it and/or modify
 !    it under the terms of the GNU General Public License as published by

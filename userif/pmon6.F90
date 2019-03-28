@@ -155,7 +155,9 @@ contains
     double precision, allocatable, dimension(:,:) :: fjac,mat1,cormat
     double precision :: optacc=1.0D-3
     logical :: updatemexp=.true.
-    double precision err0(2)
+! this is least square error from using LMDIF
+! 1: previous value, 2 new value, 3 normalized error (divided by m-n)
+    double precision err0(3)
 ! occational segmentation fault when deallocating www ....
 !    double precision, dimension(maxw) :: www
 !    double precision, dimension(:), allocatable :: www
@@ -232,7 +234,7 @@ contains
          'PARAMETER       ','EQUILIBRIA      ','RESULTS         ',&
          'CONDITIONS      ','SYMBOLS         ','LINE_EQUILIBRIA ',&
          'OPTIMIZATION    ','MODEL_PARAM_VAL ','ERROR_MESSAGE   ',&
-         '                ','                ','                ']
+         'NONZERO_EQUILIBR','                ','                ']
 !-------------------
 ! subsubcommands to LIST DATA
     character (len=16), dimension(nlform) :: llform=&
@@ -1177,7 +1179,7 @@ contains
                 endif
              enddo
              firstash%coeffrsd=zero
-             call listoptcoeff(mexp,err0(2),.FALSE.,lut)
+             call listoptcoeff(mexp,err0,.FALSE.,lut)
              if(allocated(cormat)) deallocate(cormat)
           else
              call gparcd('Do you want to recover the coefficients values?',&
@@ -1198,7 +1200,7 @@ contains
                 firstash%coeffrsd=zero
                 if(allocated(cormat)) deallocate(cormat)
                 err0(2)=zero
-                call listoptcoeff(mexp,err0(2),.FALSE.,lut)
+                call listoptcoeff(mexp,err0,.FALSE.,lut)
              else
                 write(kou,557)
 557             format('Nothing done as there are no other amend',&
@@ -3393,6 +3395,7 @@ contains
 !         'PARAMETER       ','EQUILIBRIA      ','RESULTS         ',&
 !         'CONDITIONS      ','SYMBOLS         ','LINE_EQUILIBRIA ',&
 !         'OPTIMIZATION    ','MODEL_PARAM_VAL ','                ']
+!         ,NONZERO_EQUILIBR','
 ! SHOW is the same as LIST STATE_VARIABLES including also CALC SYMBOL !!
 ! SHOW is cammand 25
     CASE(6,25) ! LIST and SHOW
@@ -3689,7 +3692,8 @@ contains
        case(10) ! list parameter for a phase (just one). Last 1 means list
           call enter_parameter_interactivly(cline,last,1)
 !-----------------------------------------------------------
-       case(11) ! list equilibria (not result)
+       case(11,19) ! list equilibria and list NONZERO_EQUILIBRIA (not result)
+! if 19 then skip equilibria with zero weight
           write(*,6212)
 6212      format('Number  Name',24x,'T   Weight Comment')
           do iel=1,noeq()
@@ -3699,17 +3703,19 @@ contains
                 name1=' '
              endif
 !             j1=len_trim(eqlista(iel)%comment)
-             if(eqlista(iel)%weight.le.zero) then
-                write(lut,6202)iel,name1(1:2),eqlista(iel)%eqname,&
-                     eqlista(iel)%tpval(1),eqlista(iel)%comment(1:33)
-!6202            format(i4,1x,a2,1x,a,' T=',F8.2,', ',a)
-6202            format(i4,1x,a2,1x,a,F8.2,7x,a)
-             else
+             if(eqlista(iel)%weight.gt.zero) then
+! always list equilibria with weight>0
                 write(lut,6203)iel,name1(1:2),eqlista(iel)%eqname,&
                      eqlista(iel)%tpval(1),eqlista(iel)%weight,&
                      eqlista(iel)%comment(1:20)
 !6203            format(i4,1x,a2,1x,a,' T=',F8.2,', weight=',F5.2,', ',a)
 6203            format(i4,1x,a2,1x,a,F8.2,F5.2,2x,a)
+             elseif(kom2.eq.11) then
+! for kom2=11 list also equilibria with zero weight
+                write(lut,6202)iel,name1(1:2),eqlista(iel)%eqname,&
+                     eqlista(iel)%tpval(1),eqlista(iel)%comment(1:33)
+!6202            format(i4,1x,a2,1x,a,' T=',F8.2,', ',a)
+6202            format(i4,1x,a2,1x,a,F8.2,7x,a)
              endif
 !             if(j1.gt.1) then
 !                write(lut,6204)eqlista(iel)%comment(1:j1)
@@ -3924,12 +3930,12 @@ contains
 !                   write(*,*)'You must OPTIMIZE first'
 !                   goto 100
 !                endif
-                call listoptcoeff(mexp,err0(2),.FALSE.,lut)
                 if(allocated(errs)) then
                    call listoptshort(lut,mexp,nvcoeff,errs)
                 else
                    write(kou,*)'No current optimization'
                 endif
+                call listoptcoeff(mexp,err0,.FALSE.,lut)
 !...........................................................
 ! list optimization long
              case(2) ! long
@@ -3938,9 +3944,9 @@ contains
 ! list optimization coefficients
              case(3) ! coefficient values
                 if(mexp.eq.mexpdone .and. nvcoeff.eq.nvcoeffdone) then
-                   call listoptcoeff(mexp,err0(2),.TRUE.,lut)
+                   call listoptcoeff(mexp,err0,.TRUE.,lut)
                 else
-                   call listoptcoeff(mexp,err0(2),.FALSE.,lut)
+                   call listoptcoeff(mexp,err0,.FALSE.,lut)
                 endif
 !...........................................................
 ! list optimization graphics, plot calculated vs experiment values
@@ -4014,9 +4020,9 @@ contains
              write(kou,*)'Not a standard OC error message'
           endif
 !------------------------------
-! list ??
-       case(19)
-          write(*,*)'Not implemented yet'
+! list ?? nonzero_equilibria merged with list equilibra
+!       case(19)
+!          write(*,*)'Not implemented yet'
 !------------------------------
 ! list ??
        case(20)
@@ -6027,7 +6033,6 @@ contains
        if(allocated(fjac)) deallocate(fjac)
 ! fjac is used to calculate the Jacobian and other things
 ! err0(1) is set to the sum of errors squared for the initial values of coefs
-!       write(*,573)'Coeffs in: ',(coefs(j2),j2=1,nvcoeff)
 573    format(a,6(1pe12.4))
        allocate(fjac(mexp,nvcoeff))
 !->->->->->-> HERE THE OPTIMIZATION IS MADE <-<-<-<-<-<-
@@ -6058,6 +6063,13 @@ contains
        enddo
 ! this is the final sum of errors squared
        err0(2)=xxx
+       if(mexp-nvcoeff.gt.0) then
+! should I add or subract 1??
+          err0(3)=xxx/real(mexp-nvcoeff)
+       else
+! when equal number of experiment and coefficients
+          err0(3)=1.0D30
+       endif
 ! The top nvcoeff*nvcoeff submatrix of fjac is R^T * R
 !       write(*,*)'The unsymmetric R^T*R submatrix returned from lmfif1:'
 !       do i2=1,nvcoeff
@@ -6074,7 +6086,6 @@ contains
 ! if there is a result calculate the Jacobian in fjac
 ! mexp,nvcoeff,coeffs,errs are same as in the call to lmdif1
 ! This will overwrite the fjac returned from the call to lmdif1
-! I THINK THIS IS NOT NECESSARY ?? WE HAVE R^T * R above
 !          write(*,*)'Calculating the Jacobian: '
 ! allocate array to extract calculated values of experiments
           if(allocated(calcexp)) deallocate(calcexp)
@@ -6092,7 +6103,6 @@ contains
 !          read(*,'(a)')ch1
 ! Next calculate M = (fjac)^T (fjac); ( ^T means transponat)
           if(allocated(mat1)) deallocate(mat1)
-! BUG:         allocate(mat1(nvcoeff+1,nvcoeff))
 ! the mat1 is symmetric and should have these dimensions:
           allocate(mat1(nvcoeff,nvcoeff))
           mat1=zero
@@ -6104,7 +6114,7 @@ contains
 !                   write(*,564)'xxx: ',i2,j2,ll,xxx
 564                format(a,3i5,1pe12.4)
                 enddo
-! this matrix is symmetrical ... which index first ???
+! this matrix is symmetric ... which index first ???
                 mat1(j2,i2)=xxx
 !                mat1(i2,j2)=xxx
              enddo
@@ -6119,18 +6129,22 @@ contains
              allocate(cormat(nvcoeff,nvcoeff))
 ! symmetric?   call mdinv(nvcoeff,nvcoeff+1,mat1,cormat,nvcoeff,iflag)
 ! NOTE: mat1 and cormat should both have dimension mat1(nvcoeff,nvcoeff)
-!             call mdinv(nvcoeff,nvcoeff+1,mat1,cormat,nvcoeff,iflag)
              call mdinv(nvcoeff,mat1,cormat,nvcoeff,iflag)
 ! invert unsymmetrical matrix
-! not used    call mdinvold(nvcoeff,nvcoeff+1,mat1,cormat,nvcoeff,iflag)
-!             call mdinvold(nvcoeff,mat1,cormat,nvcoeff,iflag)
              if(iflag.eq.0) then
                 write(*,*)'Failed invert matrix=Jac^T*Jac',iflag
              endif
-!             write(*,*)'Correlation matrix before normallization'
+! RSD depend on scaling factor of coefficient
+!             write(*,*)'PMON norm.error and covariant matrix: ',err0(3)
 !             do i1=1,nvcoeff
 !                write(*,'(6(1pe12.4))')(cormat(i1,i2),i2=1,nvcoeff)
 !             enddo
+! all elements in the covariance matrix should be multiplied with err0(3)
+             do i1=1,nvcoeff
+                do i2=1,nvcoeff
+                   cormat(i1,i2)=err0(3)*cormat(i1,i2)
+                enddo
+             enddo
 ! divide all values with the square root of the  diagonal elements
 ! save covarance matrix n mat1
              mat1=cormat
@@ -6163,10 +6177,9 @@ contains
        else
           write(*,*)'Failed calculate the correlation matrix',iflag
        endif
-! zero RSD
+! zero all RSD values
        firstash%coeffrsd=zero
        if(allocated(cormat) .and. allocated(mat1)) then
-!       if(allocated(cormat)) then
 ! calculate the RSD (Relative Standard Deviation) for each parameter
 ! the last calculated values of the experiments in calcexp
 !          write(*,*)'The sum of all calculated equilibria,',&
@@ -6178,12 +6191,12 @@ contains
 !             write(*,766)i2,calcexp(i2),xxx
 766          format('pmon: Calculated value',i4,2(1pe12.4))
           enddo
-          ll=max(1,mexp-nvcoeff)
+!          ll=max(1,mexp-nvcoeff)
 ! This value may be negative!
-          xxy=xxx/real(ll)
+!          xxy=xxx/real(ll)
 ! the difference between the calculated and experimental value is errs(1:mexp)
 ! err0(2) is sum of all errors squared          
-          xxx=err0(2)/real(ll)
+!          xxx=err0(2)/real(ll)  ... this is err0(3)
 !          write(*,767)xxx,xxy
 767       format('Normalized sum of squares changed: ',1pe12.4,' to ',1pe12.4)
 ! I am not sure about this ...
@@ -6195,10 +6208,10 @@ contains
 ! But in cormat they are indexed from 1 .. nvcoeff
 !                firstash%coeffrsd(i1)=sqrt(abs(cormat(i2,i2))*xxx)/xxy
 !                write(*,'(a,3(1pe12.4))')'RSD: ',mat1(i2,i2),xxx,xxy
-                firstash%coeffrsd(i1)=abs(sqrt(abs(mat1(i2,i2))*xxx)/xxy)
-! this should be divided by mexp*(\sum_(i=1,mexp) calculated_value(i))
-! the calculated value is stored in calcexp by fdjac if calcexp is allocated!
-!                write(*,*)'RSD for parameter: ',i2,firstash%coeffrsd(i1)
+!                firstash%coeffrsd(i1)=abs(sqrt(abs(mat1(i2,i2))*xxx)/xxy)
+! we have already multiplied all terms in covariance matrix with err0(3)
+!                firstash%coeffrsd(i1)=abs(sqrt(abs(mat1(i2,i2))*err0(3)
+                firstash%coeffrsd(i1)=abs(sqrt(abs(mat1(i2,i2))))
              endif
           enddo
        endif
@@ -6206,10 +6219,7 @@ contains
        if(allocated(calcexp)) deallocate(calcexp)
 !--------------- end calculate correlation matrix and RSD
 ! some nice output .....
-       write(kou,5010)nfev,err0
-5010   format(78('*')/&
-            'Iterations ',i4,', sum of errors changed from ',&
-            1pe14.6,' to ',1pe14.6)
+       write(kou,5020)
        if(j1.eq.0) then
           write(*,*)'Dry run with zero iterations'
        elseif(nopt.eq.0) then
@@ -6248,8 +6258,11 @@ contains
 5008      format('*** LMDIF return code ',i7/&
                'Unknown code, see LMDIF documentation.')
        endif
+       write(kou,5010)nfev,err0
+5010   format(/'Iterations ',i4,', sum of errors changed from ',&
+            1pe14.6,' to ',1pe14.6/17x,'Normalized sum of errors:',20x,1pe14.6)
        write(kou,5020)
-5020   format(78('*')/)
+5020   format(/78('*'))
 ! end of call to LMDIF
 !=================================================================
 ! SHOW is immpemented as a special case of LIST STATE_VARIABLES

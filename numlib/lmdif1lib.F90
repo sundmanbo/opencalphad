@@ -158,7 +158,7 @@ contains
     integer maxfev,mode,mp5n,nfev,nprint
 !      double precision epsfcn,factor,ftol,gtol,xtol,zero
 ! err0 contains intitial sum of error and last sum of errors
-    double precision epsfcn,ftol,gtol,xtol,err0(2)
+    double precision epsfcn,ftol,gtol,xtol,err0(*)
 !      data factor,zero /1.0d2,0.0d0/
 ! zero already defined globally
     double precision :: factor=1.0D2,zero=0.0D0
@@ -335,7 +335,7 @@ contains
 !       ipvt,qtf,wa1,wa2,wa3,wa4)
     integer m,n,maxfev,mode,nprint,info,nfev,ldfjac
     integer ipvt(n)
-    double precision ftol,xtol,gtol,epsfcn,factor,err0(2)
+    double precision ftol,xtol,gtol,epsfcn,factor,err0(*)
     double precision x(n),fvec(m),fjac(m,*)
 !    double precision x(n),fvec(m),diag(n),fjac(ldfjac,n),qtf(n), &
 !    double precision x(n),fvec(m),diag(n),fjac(ldfjac,n),qtf(n), &

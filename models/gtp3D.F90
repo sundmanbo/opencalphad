@@ -816,7 +816,7 @@
    type(gtp_condition), pointer :: new,temp
 !   integer nidlast,nidfirst,nidpre
    double precision xxx,yyy
-   character usymbol*16
+   character usymbol*16,ch1*1
 ! do not allow experiments in first equilibrium!!
    if(ceq%eqno.eq.1) then
       write(kou,16)
@@ -830,6 +830,7 @@
 !   write(*,*)'3D exp1: ',trim(cline),ip
    call set_cond_or_exp(cline,ip,new,1,ceq)
    if(gx%bmperr.ne.0) goto 1000
+!   write(*,'(a,a,2i4)')'3D exp2: ',trim(cline),ip,new%active
    if(new%active.ne.1) then
 ! the experiment is removed (inactivated) if activate is 1
 ! otherwise read the uncertainty to be set
@@ -842,10 +843,16 @@
       endif
       kp=ip
 ! bug reading the value after : ??
-!      write(*,*)'3D uncertainty: ',ip,trim(cline)
+!      write(*,*)'3D uncertanity 2: ',ip,'"'//trim(cline)//'"'
+! NOTE that gparcd increments ip before seaching for value
+!      write(*,*)'3D Calling gparcd: ',trim(cline),ip
       call gparcd('Uncertainty: ',cline,ip,1,usymbol,'1.0',q1help)
+!      write(*,*)'3D extracted uncertainity: ',ip,buperr,'"'//usymbol//'"'
       jc=1
       call getrel(usymbol,jc,xxx)
+!      read(*,'(a)')ch1
+!      if(ch1.eq.'q') stop 'wrong place ...'
+!      write(*,*)'3D even more: ',xxx,buperr
       if(buperr.eq.0) then
 ! usymbol is a numeric value !!
          if(xxx.le.zero) then
@@ -859,7 +866,7 @@
          buperr=0
          call capson(usymbol)
          call find_svfun(usymbol,istv)
-!         write(*,*)'3D uncertainty symbol: ',usymbol,istv
+         write(*,*)'3D uncertainty symbol: ',usymbol,istv
          if(gx%bmperr.ne.0) then
             write(*,*)'No such symbol: ',usymbol,&
                  ' uncertainty set to 0.1 of value'
@@ -898,7 +905,7 @@
 ! any  more experiments?
 !   write(*,*)'3D exp4: ',trim(cline),ip,kp,len(cline),len_trim(cline)
    if(kp.le.ip .and. len_trim(cline).gt.ip) then
-!      write(*,*)'3D more experiments',cline(ip:)
+      write(*,*)'3D more experiments',trim(cline),kp,ip
       goto 17
    endif
 1000 continue
@@ -981,7 +988,7 @@
 !\end{verbatim} %+
    integer nterm,kolon,iqz,krp,jp,istv,iref,iunit,jstv,jref,junit,jl,ks
    integer linkix,norem,ics,kstv,iph,nidfirst,nidlast,nidpre,qp,firstc,lpos
-   character stvexp*80,stvrest*80,textval*32,c5*5
+   character stvexp*80,stvrest*80,textval*32,c5*5,ch1
    character svtext*128,encoded*60,defval*18,actual_arg*24,svfuname*16
    integer indices(4),allterms(4,10),seqz,experimenttype
    integer ich,back,condvalsym,symsym,nextexp,colon
@@ -1459,8 +1466,9 @@
          new=>ceq%lastcondition
 !         write(*,*)'3D new condition ',istv,symsym
       else
-! it is an experiment
-!         write(*,*)'3D Creating a new experiment record: ',symsym,value,linkix
+! it is an experiment ... ip OK here
+!        write(*,13)'3D Creating new experiment record: ',symsym,value,linkix,ip
+13       format(a,i5,1pe12.4,5i5)
          if(associated(ceq%lastexperiment)) then
             seqz=ceq%lastexperiment%seqz+1
          else
@@ -1573,22 +1581,38 @@
          new%previous=>new
       endif
       if(notcond.ne.0) then
+! STRANGE ERRORS HERE
 ! we are actually entering an experiment, terminate here
-! if textval(jp:jp) is ":" we have to step back ip to that
+! if textval(jp:jp) is ":" we have to step back ip one position
 ! increment ip with nextexp!
          ip=ip+nextexp
-!         write(*,*)'3D exit? "',trim(cline),'" "',trim(textval),ip,jp,nextexp
-         if(textval(jp:jp).eq.':') then
-200         continue
-            if(cline(ip+1:ip+1).ne.':') then
-               ip=ip-1; goto 200
-            endif
-            ip=ip+1
+!         write(*,*)'3D exit? "',trim(cline),'" "',trim(textval),'"',&
+!              ip,jp,nextexp
+         if(cline(ip:ip).eq.':') then
+! the colon should be the character at ip to extract uncertainty by getrel
+            goto 1000
          endif
+200      continue
+         ip=ip+1
+!         write(*,*)'3D looking for ":"',trim(cline),ip
+         if(cline(ip:ip).eq.':' .or. ip.gt.len(cline)) goto 1000
+         goto 200
+!         if(ip.lt.len_trim(cline)) goto 200
+! confusion of subtexts ... move ip forward to point at colon
+!            write(*,*)'3D where is :? ',cline(ip+1:ip+1),ip
+!            if(cline(ip+1:ip+1).ne.':') then
+!               ip=ip+1; if(ip.lt.70) goto 200
+!            endif
+!            ip=ip+1  very confused !!
+!            ip=ip-1
+!         endif
+! stop here so I can check
+!         read(*,'(a)')ch1
+!         if(ch1.eq.'q') stop 'cannot find ":"'
 ! allow for more experiments on the same line ...
 !         cline=textval(jp:)
 !         ip=1
-         goto 1000
+!         goto 1000
       endif
    endif createrecord
 !   write(*,*)'3D end of createrecord',ip,'"',trim(stvexp),'"'
@@ -1687,7 +1711,7 @@
 !   nullify(svrarr)
    nullify(temp)
    return
- end subroutine set_cond_or_exp !svr
+ end subroutine set_cond_or_exp !svr ip
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 

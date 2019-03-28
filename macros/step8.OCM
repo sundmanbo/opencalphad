@@ -381,22 +381,27 @@ title step 8 fig 10
 @$ Try using logscale
 plot
 V
-P
+1.0E-5*P
+axis yax
+bar
 log
 y
 title step 8 fig 11
 
 
+
 @&
 @$ On Linux the scaling of the P axis the automatic rage is bad
 plot
-
-
-title step8 12
+V
+1.0E-5*P
+title step 8 fig 12
 scale y
 n
-2e4
-2e6
+0
+20
+axis yax
+bar
 
 
 @$
