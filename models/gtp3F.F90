@@ -2759,12 +2759,12 @@
    enddo row
 !
 !-------------------------------------------------------------------
-! uncomment the call to dspev in order to make Q work
+! uncomment the call to OC_dspev in order to make Q work
 ! AND link to LAPACK
 !-------------------------------------------------------------------
-! use LAPACK routine, note d2g is destroyed inside dspev
-!   write(*,*)'LAPACK routine DSPEV not implemented'
-   call dspev('N','U',nofc,d2g,eigenv,dummy,1,work,info)
+! use LAPACK routine, note d2g is destroyed inside oc_dspev
+!   write(*,*)'LAPACK routine OC_DSPEV not implemented'
+   call oc_dspev('N','U',nofc,d2g,eigenv,dummy,1,work,info)
 !   info=-1000
    if(info.eq.0) then
 !      write(*,120)(eigenv(ii),ii=1,nofc)

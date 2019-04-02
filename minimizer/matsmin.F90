@@ -5198,13 +5198,13 @@ CONTAINS
              write(*,18)'3Y 2A',jk,(lapack(ixsym(ik,jk)),ik=1,neq)
           enddo
           write(*,*)'We are using LAPACK!'
-          call dpptrf('U',neq,lapack,info)
+          call oc_dpptrf('U',neq,lapack,info)
           if(info.ne.0) then
-             write(*,*)'MM error in DPPTRF: ',info,neq,nd1
+             write(*,*)'MM error in OC_DPPTRF: ',info,neq,nd1
              gx%bmperr=4399; goto 1000
           else
-             call dpptri('U',neq,lapack,info)
-             write(*,*)'MM error in DPPTRI: ',info
+             call oc_dpptri('U',neq,lapack,info)
+             write(*,*)'MM error in OC_DPPTRI: ',info
              gx%bmperr=4399; goto 1000
 ! result retuned in lapack, compare with pmi%invmat
              do jk=1,neq
@@ -5608,13 +5608,13 @@ CONTAINS
        do jk=1,neq
           write(*,18)'3Y 2A',jk,(lapack(ixsym(ik,jk)),ik=1,neq)
        enddo
-       call dpptrf('U',neq,lapack,info)
+       call oc_dpptrf('U',neq,lapack,info)
        if(info.ne.0) then
-          write(*,*)'MM error in DPPTRF: ',info,neq,nd1
+          write(*,*)'MM error in OC_DPPTRF: ',info,neq,nd1
           gx%bmperr=4399; goto 1000
        else
-          call dpptri('U',neq,lapack,info)
-          write(*,*)'MM error in DPPTRI: ',info
+          call oc_dpptri('U',neq,lapack,info)
+          write(*,*)'MM error in OC_DPPTRI: ',info
           gx%bmperr=4399; goto 1000
 ! result retuned in lapack, compare with pmi%invmat
           do jk=1,neq

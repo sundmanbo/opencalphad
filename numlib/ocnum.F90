@@ -279,25 +279,25 @@ CONTAINS
     ldb=n
 !
 ! we must first L*U factorize RMAT, the original values destroyed
-!     CALL DGETRF(N,N,RMAT,LDA,IPIV,INFO)
-     CALL DGETRF(N,N,A,LDA,IPIV,INFO)
+!     CALL OC_DGETRF(N,N,RMAT,LDA,IPIV,INFO)
+     CALL OC_DGETRF(N,N,A,LDA,IPIV,INFO)
      if(info.ne.0) then
-!        write(*,*)'Error return dgetrf',info
+!        write(*,*)'Error return OC_DGETRF',info
         goto 900
      endif
 ! right hand side in X is overwritten by solution
-     CALL DGETRS(TRANS,N,NRHS,A,LDA,IPIV,X,LDB,INFO)
+     CALL OC_DGETRS(TRANS,N,NRHS,A,LDA,IPIV,X,LDB,INFO)
 !     if(info.ne.0) then
-!        write(*,*)'Error return dgetrs',info
+!        write(*,*)'Error return OC_DGETRS',info
 !     endif
 900  continue
 ! info=0 meaks OK, returning m=0 means error
      m=info
 ! No warnings here, using gridminimizer may generate errors that can be ignored
 !     if(info.gt.0) then
-!        write(*,*)'Error solving equilibrium matrix with DGETRS'
+!        write(*,*)'Error solving equilibrium matrix with OC_DGETRS'
 !     else
-!        write(*,*)'Solving equilibrium matrix with DGETRS',m
+!        write(*,*)'Solving equilibrium matrix with OC_DGETRS',m
 !     endif
 1000 continue
      return
@@ -344,11 +344,11 @@ CONTAINS
     uplo='U'
 ! if called with lwork=-1 the optimal dimension of work is returned
     m=-1
-!    write(*,*)'Calling dsytrf',lda,m,n
+!    write(*,*)'Calling OC_DSYTRF',lda,m,n
     allocate(work(800))
-    CALL DSYTRF(UPLO,N,RMAT,LDA,IPIV,WORK,m,INFO)
+    CALL OC_DSYTRF(UPLO,N,RMAT,LDA,IPIV,WORK,m,INFO)
     if(info.ne.0) then
-       write(*,*)'Error from DSYTRF: ',info
+       write(*,*)'Error from OC_DSYTRF: ',info
        IS=0
        goto 1000
     endif
@@ -360,16 +360,16 @@ CONTAINS
        allocate(work(lwork))
     endif
 ! factorize a symmetric unpacked indefinite matrix
-    CALL DSYTRF(UPLO,N,RINV,LDA,IPIV,WORK,LWORK,INFO)
+    CALL OC_DSYTRF(UPLO,N,RINV,LDA,IPIV,WORK,LWORK,INFO)
     if(info.ne.0) then
-!       write(*,*)'Error return from DSYTRF:',info
+!       write(*,*)'Error return from OC_DSYTRF:',info
        is=0; goto 1000
     endif
 ! invert using the factorization
-    CALL DSYTRI(UPLO,N,RINV,LDA,IPIV,WORK,INFO)
+    CALL OC_DSYTRI(UPLO,N,RINV,LDA,IPIV,WORK,INFO)
 !    write(*,*)'Info: ',info,n,lda,lwork
     if(info.ne.0) then
-!       write(*,*)'Error return from DSYTRI: ',info
+!       write(*,*)'Error return from OC_DSYTRI: ',info
        is=0; goto 1000
     endif
 ! copy solution to RINV triangle to lower
@@ -379,7 +379,7 @@ CONTAINS
      enddo
   enddo
 ! all OK
-!    write(*,*)'Matrix inverted using DSYTRI'
+!    write(*,*)'Matrix inverted using OC_DSYTRI'
     is=1
 !
 1000 continue
@@ -424,12 +424,12 @@ CONTAINS
     ipiv=0
 ! if called with lwork=-1 the optimal dimension of work is returned
     m=-1
-!    write(*,*)'Calling dsytrf',lda,m,n
+!    write(*,*)'Calling OC_DSYTRF',lda,m,n
     allocate(work(800))
 ! replaced DSY with DGE for general matrix inversion .... ????
-    CALL DGETRI(N,RINV,LDA,IPIV,WORK,m,INFO)
+    CALL OC_DGETRI(N,RINV,LDA,IPIV,WORK,m,INFO)
     if(info.ne.0) then
-!       write(*,*)'Error from DGETRI at 1: ',info
+!       write(*,*)'Error from OC_DGETRI at 1: ',info
        IS=0
        goto 1000
     endif
@@ -441,19 +441,19 @@ CONTAINS
        allocate(work(lwork))
     endif
 ! factorize an general matrix
-    CALL DGETRF(N,N,RINV,LDA,IPIV,INFO)
+    CALL OC_DGETRF(N,N,RINV,LDA,IPIV,INFO)
     if(info.ne.0) then
-!       write(*,*)'Error return from DGETRF:',info
+!       write(*,*)'Error return from OC_DGETRF:',info
        is=0; goto 1000
     endif
 ! invert a general matrix using the factorization
-    CALL DGETRI(N,RINV,LDA,IPIV,WORK,LWORK,INFO)
+    CALL OC_DGETRI(N,RINV,LDA,IPIV,WORK,LWORK,INFO)
 !    write(*,*)'Info: ',info,n,lda,lwork
     if(info.ne.0) then
-!       write(*,*)'Error return from DGETRI: ',info
+!       write(*,*)'Error return from OC_DGETRI: ',info
        is=0; goto 1000
     endif
-!    write(*,*)'Matrix inverted using DGETRI'
+!    write(*,*)'Matrix inverted using OC_DGETRI'
 ! All OK, the solution is in RINV
     is=1
 !

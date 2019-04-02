@@ -16,7 +16,7 @@ CONTAINS
 ! Original LAPACK/BLAS routines below
 !
 !
-!> \brief \b DGETRI
+!> \brief \b OC_DGETRI
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -24,7 +24,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DGETRI + dependencies 
+!> Download OC_DGETRI + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dgetri.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dgetri.f"> 
@@ -36,7 +36,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DGETRI( N, A, LDA, IPIV, WORK, LWORK, INFO )
+!       SUBROUTINE OC_DGETRI( N, A, LDA, IPIV, WORK, LWORK, INFO )
 ! 
 !       .. Scalar Arguments ..
 !       INTEGER            INFO, LDA, LWORK, N
@@ -52,8 +52,8 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DGETRI computes the inverse of a matrix using the LU factorization
-!> computed by DGETRF.
+!> OC_DGETRI computes the inverse of a matrix using the LU factorization
+!> computed by OC_DGETRF.
 !>
 !> This method inverts U and then computes inv(A) by solving the system
 !> inv(A)*L = inv(U) for inv(A).
@@ -72,7 +72,7 @@ CONTAINS
 !> \verbatim
 !>          A is DOUBLE PRECISION array, dimension (LDA,N)
 !>          On entry, the factors L and U from the factorization
-!>          A = P*L*U as computed by DGETRF.
+!>          A = P*L*U as computed by OC_DGETRF.
 !>          On exit, if INFO = 0, the inverse of the original matrix A.
 !> \endverbatim
 !>
@@ -85,7 +85,7 @@ CONTAINS
 !> \param[in] IPIV
 !> \verbatim
 !>          IPIV is INTEGER array, dimension (N)
-!>          The pivot indices from DGETRF; for 1<=i<=N, row i of the
+!>          The pivot indices from OC_DGETRF; for 1<=i<=N, row i of the
 !>          matrix was interchanged with row IPIV(i).
 !> \endverbatim
 !>
@@ -100,12 +100,12 @@ CONTAINS
 !>          LWORK is INTEGER
 !>          The dimension of the array WORK.  LWORK >= max(1,N).
 !>          For optimal performance LWORK >= N*NB, where NB is
-!>          the optimal blocksize returned by ILAENV.
+!>          the optimal blocksize returned by OC_ILAENV.
 !>
 !>          If LWORK = -1, then a workspace query is assumed; the routine
 !>          only calculates the optimal size of the WORK array, returns
 !>          this value as the first entry of the WORK array, and no error
-!>          message related to LWORK is issued by XERBLA.
+!>          message related to LWORK is issued by OC_XERBLA.
 !> \endverbatim
 !>
 !> \param[out] INFO
@@ -130,7 +130,7 @@ CONTAINS
 !> \ingroup doubleGEcomputational
 !
 !  =====================================================================
-  SUBROUTINE DGETRI( N, A, LDA, IPIV, WORK, LWORK, INFO )
+  SUBROUTINE OC_DGETRI( N, A, LDA, IPIV, WORK, LWORK, INFO )
 !
 !  -- LAPACK computational routine (version 3.4.0) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -157,11 +157,11 @@ CONTAINS
          NBMIN, NN
 !     ..
 !     .. External Functions ..
-!      INTEGER            ILAENV
-!      EXTERNAL           ILAENV
+!      INTEGER            OC_ILAENV
+!      EXTERNAL           OC_ILAENV
 !     ..
 !     .. External Subroutines ..
-!      EXTERNAL           DGEMM, DGEMV, DSWAP, DTRSM, DTRTRI, XERBLA
+!      EXTERNAL           OC_DGEMM, OC_DGEMV, OC_DSWAP, OC_DTRSM, OC_DTRTRI, OC_XERBLA
 !     ..
 !     .. Intrinsic Functions ..
 !      INTRINSIC          MAX, MIN
@@ -171,7 +171,7 @@ CONTAINS
 !     Test the input parameters.
 !
     INFO = 0
-    NB = ILAENV( 1, 'DGETRI', ' ', N, -1, -1, -1 )
+    NB = OC_ILAENV( 1, 'OC_DGETRI', ' ', N, -1, -1, -1 )
     LWKOPT = N*NB
     WORK( 1 ) = LWKOPT
     LQUERY = ( LWORK.EQ.-1 )
@@ -183,7 +183,7 @@ CONTAINS
        INFO = -6
     END IF
     IF( INFO.NE.0 ) THEN
-       CALL XERBLA( 'DGETRI', -INFO )
+       CALL OC_XERBLA( 'OC_DGETRI', -INFO )
        RETURN
     ELSE IF( LQUERY ) THEN
        RETURN
@@ -193,10 +193,10 @@ CONTAINS
 !
     IF( N.EQ.0 ) RETURN
 !
-!     Form inv(U).  If INFO > 0 from DTRTRI, then U is singular,
+!     Form inv(U).  If INFO > 0 from OC_DTRTRI, then U is singular,
 !     and the inverse is not computed.
 !
-    CALL DTRTRI( 'Upper', 'Non-unit', N, A, LDA, INFO )
+    CALL OC_DTRTRI( 'Upper', 'Non-unit', N, A, LDA, INFO )
     IF( INFO.GT.0 ) RETURN
 !
     NBMIN = 2
@@ -205,7 +205,7 @@ CONTAINS
        IWS = MAX( LDWORK*NB, 1 )
        IF( LWORK.LT.IWS ) THEN
           NB = LWORK / LDWORK
-          NBMIN = MAX( 2, ILAENV( 2, 'DGETRI', ' ', N, -1, -1, -1 ) )
+          NBMIN = MAX( 2, OC_ILAENV( 2, 'OC_DGETRI', ' ', N, -1, -1, -1 ) )
        END IF
     ELSE
        IWS = N
@@ -229,7 +229,7 @@ CONTAINS
 !           Compute current column of inv(A).
 !
           IF( J.LT.N ) &
-               CALL DGEMV( 'No transpose', N, N-J, -ONE, A( 1, J+1 ),&
+               CALL OC_DGEMV( 'No transpose', N, N-J, -ONE, A( 1, J+1 ),&
                LDA, WORK( J+1 ), 1, ONE, A( 1, J ), 1 )
 20     CONTINUE
     ELSE
@@ -253,10 +253,10 @@ CONTAINS
 !           Compute current block column of inv(A).
 !
           IF( J+JB.LE.N ) &
-               CALL DGEMM( 'No transpose', 'No transpose', N, JB,&
+               CALL OC_DGEMM( 'No transpose', 'No transpose', N, JB,&
                N-J-JB+1, -ONE, A( 1, J+JB ), LDA,&
                WORK( J+JB ), LDWORK, ONE, A( 1, J ), LDA )
-          CALL DTRSM( 'Right', 'Lower', 'No transpose', 'Unit', N, JB,&
+          CALL OC_DTRSM( 'Right', 'Lower', 'No transpose', 'Unit', N, JB,&
                ONE, WORK( J ), LDWORK, A( 1, J ), LDA )
 50     CONTINUE
     END IF
@@ -265,19 +265,19 @@ CONTAINS
 !
     DO 60 J = N - 1, 1, -1
        JP = IPIV( J )
-       IF( JP.NE.J ) CALL DSWAP( N, A( 1, J ), 1, A( 1, JP ), 1 )
+       IF( JP.NE.J ) CALL OC_DSWAP( N, A( 1, J ), 1, A( 1, JP ), 1 )
 60  CONTINUE
 !
     WORK( 1 ) = IWS
     RETURN
 !
-!     End of DGETRI
+!     End of OC_DGETRI
 !
-  END SUBROUTINE DGETRI
+  END SUBROUTINE OC_DGETRI
 !
 !=
 !
-!> \brief \b DTRTRI
+!> \brief \b OC_DTRTRI
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -285,7 +285,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DTRTRI + dependencies 
+!> Download OC_DTRTRI + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dtrtri.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dtrtri.f"> 
@@ -297,7 +297,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DTRTRI( UPLO, DIAG, N, A, LDA, INFO )
+!       SUBROUTINE OC_DTRTRI( UPLO, DIAG, N, A, LDA, INFO )
 ! 
 !       .. Scalar Arguments ..
 !       CHARACTER          DIAG, UPLO
@@ -313,7 +313,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DTRTRI computes the inverse of a real upper or lower triangular
+!> OC_DTRTRI computes the inverse of a real upper or lower triangular
 !> matrix A.
 !>
 !> This is the Level 3 BLAS version of the algorithm.
@@ -386,7 +386,7 @@ CONTAINS
 !> \ingroup doubleOTHERcomputational
 !
 !  =====================================================================
- SUBROUTINE DTRTRI( UPLO, DIAG, N, A, LDA, INFO )
+ SUBROUTINE OC_DTRTRI( UPLO, DIAG, N, A, LDA, INFO )
 !
 !  -- LAPACK computational routine (version 3.4.0) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -412,12 +412,12 @@ CONTAINS
    INTEGER            J, JB, NB, NN
 !     ..
 !     .. External Functions ..
-!   LOGICAL            LSAME
-!   INTEGER            ILAENV
-!   EXTERNAL           LSAME, ILAENV
+!   LOGICAL            OC_LSAME
+!   INTEGER            OC_ILAENV
+!   EXTERNAL           OC_LSAME, OC_ILAENV
 !     ..
 !     .. External Subroutines ..
-!   EXTERNAL           DTRMM, DTRSM, DTRTI2, XERBLA
+!   EXTERNAL           OC_DTRMM, OC_DTRSM, OC_DTRTI2, OC_XERBLA
 !     ..
 !     .. Intrinsic Functions ..
 !      INTRINSIC          MAX, MIN
@@ -427,11 +427,11 @@ CONTAINS
 !     Test the input parameters.
 !
    INFO = 0
-   UPPER = LSAME( UPLO, 'U' )
-   NOUNIT = LSAME( DIAG, 'N' )
-   IF( .NOT.UPPER .AND. .NOT.LSAME( UPLO, 'L' ) ) THEN
+   UPPER = OC_LSAME( UPLO, 'U' )
+   NOUNIT = OC_LSAME( DIAG, 'N' )
+   IF( .NOT.UPPER .AND. .NOT.OC_LSAME( UPLO, 'L' ) ) THEN
       INFO = -1
-   ELSE IF( .NOT.NOUNIT .AND. .NOT.LSAME( DIAG, 'U' ) ) THEN
+   ELSE IF( .NOT.NOUNIT .AND. .NOT.OC_LSAME( DIAG, 'U' ) ) THEN
       INFO = -2
    ELSE IF( N.LT.0 ) THEN
       INFO = -3
@@ -439,7 +439,7 @@ CONTAINS
       INFO = -5
    END IF
    IF( INFO.NE.0 ) THEN
-      CALL XERBLA( 'DTRTRI', -INFO )
+      CALL OC_XERBLA( 'OC_DTRTRI', -INFO )
       RETURN
    END IF
 !
@@ -458,12 +458,12 @@ CONTAINS
 !
 !     Determine the block size for this environment.
 !
-   NB = ILAENV( 1, 'DTRTRI', UPLO // DIAG, N, -1, -1, -1 )
+   NB = OC_ILAENV( 1, 'OC_DTRTRI', UPLO // DIAG, N, -1, -1, -1 )
    IF( NB.LE.1 .OR. NB.GE.N ) THEN
 !
 !        Use unblocked code
 !
-      CALL DTRTI2( UPLO, DIAG, N, A, LDA, INFO )
+      CALL OC_DTRTI2( UPLO, DIAG, N, A, LDA, INFO )
    ELSE
 !
 !        Use blocked code
@@ -477,14 +477,14 @@ CONTAINS
 !
 !              Compute rows 1:j-1 of current block column
 !
-            CALL DTRMM( 'Left', 'Upper', 'No transpose', DIAG, J-1,&
+            CALL OC_DTRMM( 'Left', 'Upper', 'No transpose', DIAG, J-1,&
                  JB, ONE, A, LDA, A( 1, J ), LDA )
-            CALL DTRSM( 'Right', 'Upper', 'No transpose', DIAG, J-1,&
+            CALL OC_DTRSM( 'Right', 'Upper', 'No transpose', DIAG, J-1,&
                  JB, -ONE, A( J, J ), LDA, A( 1, J ), LDA )
 !
 !              Compute inverse of current diagonal block
 !
-            CALL DTRTI2( 'Upper', DIAG, JB, A( J, J ), LDA, INFO )
+            CALL OC_DTRTI2( 'Upper', DIAG, JB, A( J, J ), LDA, INFO )
 20       CONTINUE
       ELSE
 !
@@ -497,30 +497,30 @@ CONTAINS
 !
 !                 Compute rows j+jb:n of current block column
 !
-               CALL DTRMM( 'Left', 'Lower', 'No transpose', DIAG,&
+               CALL OC_DTRMM( 'Left', 'Lower', 'No transpose', DIAG,&
                     N-J-JB+1, JB, ONE, A( J+JB, J+JB ), LDA,&
                     A( J+JB, J ), LDA )
-               CALL DTRSM( 'Right', 'Lower', 'No transpose', DIAG,&
+               CALL OC_DTRSM( 'Right', 'Lower', 'No transpose', DIAG,&
                     N-J-JB+1, JB, -ONE, A( J, J ), LDA,&
                     A( J+JB, J ), LDA )
             END IF
 !
 !              Compute inverse of current diagonal block
 !
-            CALL DTRTI2( 'Lower', DIAG, JB, A( J, J ), LDA, INFO )
+            CALL OC_DTRTI2( 'Lower', DIAG, JB, A( J, J ), LDA, INFO )
 30       CONTINUE
       END IF
    END IF
 !
    RETURN
 !
-!     End of DTRTRI
+!     End of OC_DTRTRI
 !
- END SUBROUTINE DTRTRI
+ END SUBROUTINE OC_DTRTRI
 !
 !=
 !
-!> \brief \b DTRTI2 computes the inverse of a triangular matrix (unblocked algorithm).
+!> \brief \b OC_DTRTI2 computes the inverse of a triangular matrix (unblocked algorithm).
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -528,7 +528,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DTRTI2 + dependencies 
+!> Download OC_DTRTI2 + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dtrti2.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dtrti2.f"> 
@@ -540,7 +540,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DTRTI2( UPLO, DIAG, N, A, LDA, INFO )
+!       SUBROUTINE OC_DTRTI2( UPLO, DIAG, N, A, LDA, INFO )
 ! 
 !       .. Scalar Arguments ..
 !       CHARACTER          DIAG, UPLO
@@ -556,7 +556,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DTRTI2 computes the inverse of a real upper or lower triangular
+!> OC_DTRTI2 computes the inverse of a real upper or lower triangular
 !> matrix.
 !>
 !> This is the Level 2 BLAS version of the algorithm.
@@ -630,7 +630,7 @@ CONTAINS
 !> \ingroup doubleOTHERcomputational
 !
 !  =====================================================================
- SUBROUTINE DTRTI2( UPLO, DIAG, N, A, LDA, INFO )
+ SUBROUTINE OC_DTRTI2( UPLO, DIAG, N, A, LDA, INFO )
 !
 !  -- LAPACK computational routine (version 3.4.2) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -657,11 +657,11 @@ CONTAINS
    DOUBLE PRECISION   AJJ
 !     ..
 !     .. External Functions ..
-!      LOGICAL            LSAME
-!      EXTERNAL           LSAME
+!      LOGICAL            OC_LSAME
+!      EXTERNAL           OC_LSAME
 !     ..
 !     .. External Subroutines ..
-!      EXTERNAL           DSCAL, DTRMV, XERBLA
+!      EXTERNAL           OC_DSCAL, OC_DTRMV, OC_XERBLA
 !     ..
 !     .. Intrinsic Functions ..
 !      INTRINSIC          MAX
@@ -671,11 +671,11 @@ CONTAINS
 !     Test the input parameters.
 !
    INFO = 0
-   UPPER = LSAME( UPLO, 'U' )
-   NOUNIT = LSAME( DIAG, 'N' )
-   IF( .NOT.UPPER .AND. .NOT.LSAME( UPLO, 'L' ) ) THEN
+   UPPER = OC_LSAME( UPLO, 'U' )
+   NOUNIT = OC_LSAME( DIAG, 'N' )
+   IF( .NOT.UPPER .AND. .NOT.OC_LSAME( UPLO, 'L' ) ) THEN
       INFO = -1
-   ELSE IF( .NOT.NOUNIT .AND. .NOT.LSAME( DIAG, 'U' ) ) THEN
+   ELSE IF( .NOT.NOUNIT .AND. .NOT.OC_LSAME( DIAG, 'U' ) ) THEN
       INFO = -2
    ELSE IF( N.LT.0 ) THEN
       INFO = -3
@@ -683,7 +683,7 @@ CONTAINS
       INFO = -5
    END IF
    IF( INFO.NE.0 ) THEN
-      CALL XERBLA( 'DTRTI2', -INFO )
+      CALL OC_XERBLA( 'OC_DTRTI2', -INFO )
       RETURN
    END IF
 !
@@ -701,9 +701,9 @@ CONTAINS
 !
 !           Compute elements 1:j-1 of j-th column.
 !
-         CALL DTRMV( 'Upper', 'No transpose', DIAG, J-1, A, LDA,&
+         CALL OC_DTRMV( 'Upper', 'No transpose', DIAG, J-1, A, LDA,&
               A( 1, J ), 1 )
-         CALL DSCAL( J-1, AJJ, A( 1, J ), 1 )
+         CALL OC_DSCAL( J-1, AJJ, A( 1, J ), 1 )
 10    CONTINUE
    ELSE
 !
@@ -720,22 +720,22 @@ CONTAINS
 !
 !              Compute elements j+1:n of j-th column.
 !
-            CALL DTRMV( 'Lower', 'No transpose', DIAG, N-J,&
+            CALL OC_DTRMV( 'Lower', 'No transpose', DIAG, N-J,&
                  A( J+1, J+1 ), LDA, A( J+1, J ), 1 )
-            CALL DSCAL( N-J, AJJ, A( J+1, J ), 1 )
+            CALL OC_DSCAL( N-J, AJJ, A( J+1, J ), 1 )
          END IF
 20    CONTINUE
    END IF
 !
    RETURN
 !
-!     End of DTRTI2
+!     End of OC_DTRTI2
 !
- END SUBROUTINE DTRTI2
+ END SUBROUTINE OC_DTRTI2
 !
 !=
 !
-!> \brief \b DCOPY
+!> \brief \b OC_DCOPY
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -745,7 +745,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DCOPY(N,DX,INCX,DY,INCY)
+!       SUBROUTINE OC_DCOPY(N,DX,INCX,DY,INCY)
 ! 
 !       .. Scalar Arguments ..
 !       INTEGER INCX,INCY,N
@@ -760,7 +760,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!>    DCOPY copies a vector, x, to a vector, y.
+!>    OC_DCOPY copies a vector, x, to a vector, y.
 !>    uses unrolled loops for increments equal to one.
 !> \endverbatim
 !
@@ -786,7 +786,7 @@ CONTAINS
 !> \endverbatim
 !>
 !  =====================================================================
- SUBROUTINE DCOPY(N,DX,INCX,DY,INCY)
+ SUBROUTINE OC_DCOPY(N,DX,INCX,DY,INCY)
 !
 !  -- Reference BLAS level1 routine (version 3.4.0) --
 !  -- Reference BLAS is a software package provided by Univ. of Tennessee,    --
@@ -849,8 +849,8 @@ CONTAINS
        END DO
     END IF
     RETURN
-  END SUBROUTINE DCOPY
-!> \brief \b DDOT
+  END SUBROUTINE OC_DCOPY
+!> \brief \b OC_DDOT
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -860,7 +860,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       DOUBLE PRECISION FUNCTION DDOT(N,DX,INCX,DY,INCY)
+!       DOUBLE PRECISION FUNCTION OC_DDOT(N,DX,INCX,DY,INCY)
 ! 
 !       .. Scalar Arguments ..
 !       INTEGER INCX,INCY,N
@@ -875,7 +875,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!>    DDOT forms the dot product of two vectors.
+!>    OC_DDOT forms the dot product of two vectors.
 !>    uses unrolled loops for increments equal to one.
 !> \endverbatim
 !
@@ -901,7 +901,7 @@ CONTAINS
 !> \endverbatim
 !>
 !  =====================================================================
-      DOUBLE PRECISION FUNCTION DDOT(N,DX,INCX,DY,INCY)
+      DOUBLE PRECISION FUNCTION OC_DDOT(N,DX,INCX,DY,INCY)
 !
 !  -- Reference BLAS level1 routine (version 3.4.0) --
 !  -- Reference BLAS is a software package provided by Univ. of Tennessee,    --
@@ -924,7 +924,7 @@ CONTAINS
 !     .. Intrinsic Functions ..
       INTRINSIC MOD
 !     ..
-      DDOT = 0.0d0
+      OC_DDOT = 0.0d0
       DTEMP = 0.0d0
       IF (N.LE.0) RETURN
       IF (INCX.EQ.1 .AND. INCY.EQ.1) THEN
@@ -940,7 +940,7 @@ CONTAINS
                DTEMP = DTEMP + DX(I)*DY(I)
             END DO
             IF (N.LT.5) THEN
-               DDOT=DTEMP
+               OC_DDOT=DTEMP
             RETURN
             END IF
          END IF
@@ -964,11 +964,11 @@ CONTAINS
             IY = IY + INCY
          END DO
       END IF
-      DDOT = DTEMP
+      OC_DDOT = DTEMP
       RETURN
-      END FUNCTION DDOT
+      END FUNCTION OC_DDOT
 !
-!> \brief \b DGEMM
+!> \brief \b OC_DGEMM
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -978,7 +978,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DGEMM(TRANSA,TRANSB,M,N,K,ALPHA,A,LDA,B,LDB,BETA,C,LDC)
+!       SUBROUTINE OC_DGEMM(TRANSA,TRANSB,M,N,K,ALPHA,A,LDA,B,LDB,BETA,C,LDC)
 ! 
 !       .. Scalar Arguments ..
 !       DOUBLE PRECISION ALPHA,BETA
@@ -995,7 +995,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DGEMM  performs one of the matrix-matrix operations
+!> OC_DGEMM  performs one of the matrix-matrix operations
 !>
 !>    C := alpha*op( A )*op( B ) + beta*C,
 !>
@@ -1155,7 +1155,7 @@ CONTAINS
 !> \endverbatim
 !>
 !  =====================================================================
-      SUBROUTINE DGEMM(TRANSA,TRANSB,M,N,K,ALPHA,A,LDA,B,LDB,BETA,C,LDC)
+      SUBROUTINE OC_DGEMM(TRANSA,TRANSB,M,N,K,ALPHA,A,LDA,B,LDB,BETA,C,LDC)
 !
 !  -- Reference BLAS level3 routine (version 3.6.0) --
 !  -- Reference BLAS is a software package provided by Univ. of Tennessee,    --
@@ -1174,11 +1174,11 @@ CONTAINS
 !  =====================================================================
 !
 !     .. External Functions ..
-!      LOGICAL LSAME
-!      EXTERNAL LSAME
+!      LOGICAL OC_LSAME
+!      EXTERNAL OC_LSAME
 !     ..
 !     .. External Subroutines ..
-!      EXTERNAL XERBLA
+!      EXTERNAL OC_XERBLA
 !     ..
 !     .. Intrinsic Functions ..
       INTRINSIC MAX
@@ -1197,8 +1197,8 @@ CONTAINS
 !     transposed and set  NROWA, NCOLA and  NROWB  as the number of rows
 !     and  columns of  A  and the  number of  rows  of  B  respectively.
 !
-      NOTA = LSAME(TRANSA,'N')
-      NOTB = LSAME(TRANSB,'N')
+      NOTA = OC_LSAME(TRANSA,'N')
+      NOTB = OC_LSAME(TRANSB,'N')
       IF (NOTA) THEN
           NROWA = M
           NCOLA = K
@@ -1215,11 +1215,11 @@ CONTAINS
 !     Test the input parameters.
 !
       INFO = 0
-      IF ((.NOT.NOTA) .AND. (.NOT.LSAME(TRANSA,'C')) .AND. &
-           (.NOT.LSAME(TRANSA,'T'))) THEN
+      IF ((.NOT.NOTA) .AND. (.NOT.OC_LSAME(TRANSA,'C')) .AND. &
+           (.NOT.OC_LSAME(TRANSA,'T'))) THEN
          INFO = 1
-      ELSE IF ((.NOT.NOTB) .AND. (.NOT.LSAME(TRANSB,'C')) .AND. &
-           (.NOT.LSAME(TRANSB,'T'))) THEN
+      ELSE IF ((.NOT.NOTB) .AND. (.NOT.OC_LSAME(TRANSB,'C')) .AND. &
+           (.NOT.OC_LSAME(TRANSB,'T'))) THEN
           INFO = 2
       ELSE IF (M.LT.0) THEN
           INFO = 3
@@ -1235,7 +1235,7 @@ CONTAINS
           INFO = 13
       END IF
       IF (INFO.NE.0) THEN
-          CALL XERBLA('DGEMM ',INFO)
+          CALL OC_XERBLA('OC_DGEMM ',INFO)
           RETURN
       END IF
 !
@@ -1349,11 +1349,11 @@ CONTAINS
 !
       RETURN
 !
-!     End of DGEMM .
+!     End of OC_DGEMM .
 !
-   END SUBROUTINE DGEMM
+   END SUBROUTINE OC_DGEMM
 !
-!> \brief \b DGEMV
+!> \brief \b OC_DGEMV
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -1363,7 +1363,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DGEMV(TRANS,M,N,ALPHA,A,LDA,X,INCX,BETA,Y,INCY)
+!       SUBROUTINE OC_DGEMV(TRANS,M,N,ALPHA,A,LDA,X,INCX,BETA,Y,INCY)
 ! 
 !       .. Scalar Arguments ..
 !       DOUBLE PRECISION ALPHA,BETA
@@ -1380,7 +1380,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DGEMV  performs one of the matrix-vector operations
+!> OC_DGEMV  performs one of the matrix-vector operations
 !>
 !>    y := alpha*A*x + beta*y,   or   y := alpha*A**T*x + beta*y,
 !>
@@ -1509,7 +1509,7 @@ CONTAINS
 !> \endverbatim
 !>
 !  =====================================================================
-      SUBROUTINE DGEMV(TRANS,M,N,ALPHA,A,LDA,X,INCX,BETA,Y,INCY)
+      SUBROUTINE OC_DGEMV(TRANS,M,N,ALPHA,A,LDA,X,INCX,BETA,Y,INCY)
 !
 !  -- Reference BLAS level2 routine (version 3.6.0) --
 !  -- Reference BLAS is a software package provided by Univ. of Tennessee,    --
@@ -1536,11 +1536,11 @@ CONTAINS
       INTEGER I,INFO,IX,IY,J,JX,JY,KX,KY,LENX,LENY
 !     ..
 !     .. External Functions ..
-!      LOGICAL LSAME
-!      EXTERNAL LSAME
+!      LOGICAL OC_LSAME
+!      EXTERNAL OC_LSAME
 !     ..
 !     .. External Subroutines ..
-!      EXTERNAL XERBLA
+!      EXTERNAL OC_XERBLA
 !     ..
 !     .. Intrinsic Functions ..
       INTRINSIC MAX
@@ -1549,8 +1549,8 @@ CONTAINS
 !     Test the input parameters.
 !
       INFO = 0
-      IF (.NOT.LSAME(TRANS,'N') .AND. .NOT.LSAME(TRANS,'T') .AND. &
-           .NOT.LSAME(TRANS,'C')) THEN
+      IF (.NOT.OC_LSAME(TRANS,'N') .AND. .NOT.OC_LSAME(TRANS,'T') .AND. &
+           .NOT.OC_LSAME(TRANS,'C')) THEN
          INFO = 1
       ELSE IF (M.LT.0) THEN
          INFO = 2
@@ -1564,7 +1564,7 @@ CONTAINS
           INFO = 11
       END IF
       IF (INFO.NE.0) THEN
-          CALL XERBLA('DGEMV ',INFO)
+          CALL OC_XERBLA('OC_DGEMV ',INFO)
           RETURN
       END IF
 !
@@ -1576,7 +1576,7 @@ CONTAINS
 !     Set  LENX  and  LENY, the lengths of the vectors x and y, and set
 !     up the start points in  X  and  Y.
 !
-      IF (LSAME(TRANS,'N')) THEN
+      IF (OC_LSAME(TRANS,'N')) THEN
           LENX = N
           LENY = M
       ELSE
@@ -1626,7 +1626,7 @@ CONTAINS
           END IF
       END IF
       IF (ALPHA.EQ.ZERO) RETURN
-      IF (LSAME(TRANS,'N')) THEN
+      IF (OC_LSAME(TRANS,'N')) THEN
 !
 !        Form  y := alpha*A*x + y.
 !
@@ -1680,11 +1680,11 @@ CONTAINS
 !
       RETURN
 !
-!     End of DGEMV .
+!     End of OC_DGEMV .
 !
-    END SUBROUTINE DGEMV
+    END SUBROUTINE OC_DGEMV
 !
-!> \brief \b DGETRF
+!> \brief \b OC_DGETRF
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -1692,7 +1692,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DGETRF + dependencies 
+!> Download OC_DGETRF + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dgetrf.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dgetrf.f"> 
@@ -1704,7 +1704,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DGETRF( M, N, A, LDA, IPIV, INFO )
+!       SUBROUTINE OC_DGETRF( M, N, A, LDA, IPIV, INFO )
 ! 
 !       .. Scalar Arguments ..
 !       INTEGER            INFO, LDA, M, N
@@ -1720,7 +1720,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DGETRF computes an LU factorization of a general M-by-N matrix A
+!> OC_DGETRF computes an LU factorization of a general M-by-N matrix A
 !> using partial pivoting with row interchanges.
 !>
 !> The factorization has the form
@@ -1792,7 +1792,7 @@ CONTAINS
 !> \ingroup doubleGEcomputational
 !
 !  =====================================================================
-      SUBROUTINE DGETRF( M, N, A, LDA, IPIV, INFO )
+      SUBROUTINE OC_DGETRF( M, N, A, LDA, IPIV, INFO )
 !
 !  -- LAPACK computational routine (version 3.6.0) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -1817,11 +1817,11 @@ CONTAINS
       INTEGER            I, IINFO, J, JB, NB
 !     ..
 !     .. External Subroutines ..
-!      EXTERNAL           DGEMM, DGETRF2, DLASWP, DTRSM, XERBLA
+!      EXTERNAL           OC_DGEMM, OC_DGETRF2, OC_DLASWP, OC_DTRSM, OC_XERBLA
 !     ..
 !     .. External Functions ..
-!      INTEGER            ILAENV
-!      EXTERNAL           ILAENV
+!      INTEGER            OC_ILAENV
+!      EXTERNAL           OC_ILAENV
 !     ..
 !     .. Intrinsic Functions ..
       INTRINSIC          MAX, MIN
@@ -1839,7 +1839,7 @@ CONTAINS
          INFO = -4
       END IF
       IF( INFO.NE.0 ) THEN
-         CALL XERBLA( 'DGETRF', -INFO )
+         CALL OC_XERBLA( 'OC_DGETRF', -INFO )
          RETURN
       END IF
 !
@@ -1849,12 +1849,12 @@ CONTAINS
 !
 !     Determine the block size for this environment.
 !
-      NB = ILAENV( 1, 'DGETRF', ' ', M, N, -1, -1 )
+      NB = OC_ILAENV( 1, 'OC_DGETRF', ' ', M, N, -1, -1 )
       IF( NB.LE.1 .OR. NB.GE.MIN( M, N ) ) THEN
 !
 !        Use unblocked code.
 !
-         CALL DGETRF2( M, N, A, LDA, IPIV, INFO )
+         CALL OC_DGETRF2( M, N, A, LDA, IPIV, INFO )
       ELSE
 !
 !        Use blocked code.
@@ -1865,7 +1865,7 @@ CONTAINS
 !           Factor diagonal and subdiagonal blocks and test for exact
 !           singularity.
 !
-            CALL DGETRF2( M-J+1, JB, A( J, J ), LDA, IPIV( J ), IINFO )
+            CALL OC_DGETRF2( M-J+1, JB, A( J, J ), LDA, IPIV( J ), IINFO )
 !
 !           Adjust INFO and the pivot indices.
 !
@@ -1877,25 +1877,25 @@ CONTAINS
 !
 !           Apply interchanges to columns 1:J-1.
 !
-            CALL DLASWP( J-1, A, LDA, J, J+JB-1, IPIV, 1 )
+            CALL OC_DLASWP( J-1, A, LDA, J, J+JB-1, IPIV, 1 )
 !
             IF( J+JB.LE.N ) THEN
 !
 !              Apply interchanges to columns J+JB:N.
 !
-               CALL DLASWP( N-J-JB+1, A( 1, J+JB ), LDA, J, J+JB-1, &
+               CALL OC_DLASWP( N-J-JB+1, A( 1, J+JB ), LDA, J, J+JB-1, &
                     IPIV, 1 )
 !
 !              Compute block row of U.
 !
-               CALL DTRSM( 'Left', 'Lower', 'No transpose', 'Unit', JB, &
+               CALL OC_DTRSM( 'Left', 'Lower', 'No transpose', 'Unit', JB, &
                     N-J-JB+1, ONE, A( J, J ), LDA, A( J, J+JB ), &
                     LDA )
                IF( J+JB.LE.M ) THEN
 !
 !                 Update trailing submatrix.
 !
-                  CALL DGEMM( 'No transpose', 'No transpose', M-J-JB+1, &
+                  CALL OC_DGEMM( 'No transpose', 'No transpose', M-J-JB+1, &
                        N-J-JB+1, JB, -ONE, A( J+JB, J ), LDA, &
                        A( J, J+JB ), LDA, ONE, A( J+JB, J+JB ), &
                        LDA )
@@ -1905,11 +1905,11 @@ CONTAINS
       END IF
       RETURN
 !
-!     End of DGETRF
+!     End of OC_DGETRF
 !
-      END SUBROUTINE DGETRF
+      END SUBROUTINE OC_DGETRF
 !
-!> \brief \b DGETRF2
+!> \brief \b OC_DGETRF2
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -1919,7 +1919,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       RECURSIVE SUBROUTINE DGETRF2( M, N, A, LDA, IPIV, INFO )
+!       RECURSIVE SUBROUTINE OC_DGETRF2( M, N, A, LDA, IPIV, INFO )
 ! 
 !       .. Scalar Arguments ..
 !       INTEGER            INFO, LDA, M, N
@@ -1935,7 +1935,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DGETRF2 computes an LU factorization of a general M-by-N matrix A
+!> OC_DGETRF2 computes an LU factorization of a general M-by-N matrix A
 !> using partial pivoting with row interchanges.
 !>
 !> The factorization has the form
@@ -2022,7 +2022,7 @@ CONTAINS
 !> \ingroup doubleGEcomputational
 !
 !  =====================================================================
-      RECURSIVE SUBROUTINE DGETRF2( M, N, A, LDA, IPIV, INFO )
+      RECURSIVE SUBROUTINE OC_DGETRF2( M, N, A, LDA, IPIV, INFO )
 !
 !  -- LAPACK computational routine (version 3.6.0) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -2048,12 +2048,12 @@ CONTAINS
       INTEGER            I, IINFO, N1, N2
 !     ..
 !     .. External Functions ..
-!      DOUBLE PRECISION   DLAMCH
-!      INTEGER            IDAMAX
-!      EXTERNAL           DLAMCH, IDAMAX
+!      DOUBLE PRECISION   OC_DLAMCH
+!      INTEGER            OC_IDAMAX
+!      EXTERNAL           OC_DLAMCH, OC_IDAMAX
 !     ..
 !     .. External Subroutines ..
-!      EXTERNAL           DGEMM, DSCAL, DLASWP, DTRSM, XERBLA
+!      EXTERNAL           OC_DGEMM, OC_DSCAL, OC_DLASWP, OC_DTRSM, OC_XERBLA
 !     ..
 !     .. Intrinsic Functions ..
       INTRINSIC          MAX, MIN
@@ -2071,7 +2071,7 @@ CONTAINS
          INFO = -4
       END IF
       IF( INFO.NE.0 ) THEN
-         CALL XERBLA( 'DGETRF2', -INFO )
+         CALL OC_XERBLA( 'OC_DGETRF2', -INFO )
          RETURN
       END IF
 !
@@ -2094,11 +2094,11 @@ CONTAINS
 !
 !        Compute machine safe minimum
 !
-         SFMIN = DLAMCH('S')
+         SFMIN = OC_DLAMCH('S')
 !
 !        Find pivot and test for singularity
 !
-         I = IDAMAX( M, A( 1, 1 ), 1 )
+         I = OC_IDAMAX( M, A( 1, 1 ), 1 )
          IPIV( 1 ) = I
          IF( A( I, 1 ).NE.ZERO ) THEN
 !
@@ -2113,7 +2113,7 @@ CONTAINS
 !           Compute elements 2:M of the column
 !
             IF( ABS(A( 1, 1 )) .GE. SFMIN ) THEN
-               CALL DSCAL( M-1, ONE / A( 1, 1 ), A( 2, 1 ), 1 )
+               CALL OC_DSCAL( M-1, ONE / A( 1, 1 ), A( 2, 1 ), 1 )
             ELSE
                DO 10 I = 1, M-1
                   A( 1+I, 1 ) = A( 1+I, 1 ) / A( 1, 1 )
@@ -2135,7 +2135,7 @@ CONTAINS
 !        Factor [ --- ]
 !               [ A21 ]
 !
-         CALL DGETRF2( M, N1, A, LDA, IPIV, IINFO )
+         CALL OC_DGETRF2( M, N1, A, LDA, IPIV, IINFO )
 
          IF ( INFO.EQ.0 .AND. IINFO.GT.0 ) INFO = IINFO
 !
@@ -2143,21 +2143,21 @@ CONTAINS
 !        Apply interchanges to [ --- ]
 !                              [ A22 ]
 !
-         CALL DLASWP( N2, A( 1, N1+1 ), LDA, 1, N1, IPIV, 1 )
+         CALL OC_DLASWP( N2, A( 1, N1+1 ), LDA, 1, N1, IPIV, 1 )
 !
 !        Solve A12
 !
-         CALL DTRSM( 'L', 'L', 'N', 'U', N1, N2, ONE, A, LDA,  &
+         CALL OC_DTRSM( 'L', 'L', 'N', 'U', N1, N2, ONE, A, LDA,  &
               A( 1, N1+1 ), LDA )
 !
 !        Update A22
 !
-         CALL DGEMM( 'N', 'N', M-N1, N2, N1, -ONE, A( N1+1, 1 ), LDA,  &
+         CALL OC_DGEMM( 'N', 'N', M-N1, N2, N1, -ONE, A( N1+1, 1 ), LDA,  &
                     A( 1, N1+1 ), LDA, ONE, A( N1+1, N1+1 ), LDA )
 !
 !        Factor A22
 !
-         CALL DGETRF2( M-N1, N2, A( N1+1, N1+1 ), LDA, IPIV( N1+1 ), &
+         CALL OC_DGETRF2( M-N1, N2, A( N1+1, N1+1 ), LDA, IPIV( N1+1 ), &
               IINFO )
 !
 !        Adjust INFO and the pivot indices
@@ -2169,16 +2169,16 @@ CONTAINS
 !
 !        Apply interchanges to A21
 !
-         CALL DLASWP( N1, A( 1, 1 ), LDA, N1+1, MIN( M, N), IPIV, 1 )
+         CALL OC_DLASWP( N1, A( 1, 1 ), LDA, N1+1, MIN( M, N), IPIV, 1 )
 !
       END IF
       RETURN
 !
-!     End of DGETRF2
+!     End of OC_DGETRF2
 !
-      END SUBROUTINE DGETRF2
+      END SUBROUTINE OC_DGETRF2
 !
-!> \brief \b DGETRS
+!> \brief \b OC_DGETRS
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -2186,7 +2186,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DGETRS + dependencies 
+!> Download OC_DGETRS + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dgetrs.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dgetrs.f"> 
@@ -2198,7 +2198,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DGETRS( TRANS, N, NRHS, A, LDA, IPIV, B, LDB, INFO )
+!       SUBROUTINE OC_DGETRS( TRANS, N, NRHS, A, LDA, IPIV, B, LDB, INFO )
 ! 
 !       .. Scalar Arguments ..
 !       CHARACTER          TRANS
@@ -2215,10 +2215,10 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DGETRS solves a system of linear equations
+!> OC_DGETRS solves a system of linear equations
 !>    A * X = B  or  A**T * X = B
 !> with a general N-by-N matrix A using the LU factorization computed
-!> by DGETRF.
+!> by OC_DGETRF.
 !> \endverbatim
 !
 !  Arguments:
@@ -2250,7 +2250,7 @@ CONTAINS
 !> \verbatim
 !>          A is DOUBLE PRECISION array, dimension (LDA,N)
 !>          The factors L and U from the factorization A = P*L*U
-!>          as computed by DGETRF.
+!>          as computed by OC_DGETRF.
 !> \endverbatim
 !>
 !> \param[in] LDA
@@ -2262,7 +2262,7 @@ CONTAINS
 !> \param[in] IPIV
 !> \verbatim
 !>          IPIV is INTEGER array, dimension (N)
-!>          The pivot indices from DGETRF; for 1<=i<=N, row i of the
+!>          The pivot indices from OC_DGETRF; for 1<=i<=N, row i of the
 !>          matrix was interchanged with row IPIV(i).
 !> \endverbatim
 !>
@@ -2299,7 +2299,7 @@ CONTAINS
 !> \ingroup doubleGEcomputational
 !
 !  =====================================================================
-      SUBROUTINE DGETRS( TRANS, N, NRHS, A, LDA, IPIV, B, LDB, INFO )
+      SUBROUTINE OC_DGETRS( TRANS, N, NRHS, A, LDA, IPIV, B, LDB, INFO )
 !
 !  -- LAPACK computational routine (version 3.4.0) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -2325,11 +2325,11 @@ CONTAINS
       LOGICAL            NOTRAN
 !     ..
 !     .. External Functions ..
-!      LOGICAL            LSAME
-!      EXTERNAL           LSAME
+!      LOGICAL            OC_LSAME
+!      EXTERNAL           OC_LSAME
 !     ..
 !     .. External Subroutines ..
-!      EXTERNAL           DLASWP, DTRSM, XERBLA
+!      EXTERNAL           OC_DLASWP, OC_DTRSM, OC_XERBLA
 !     ..
 !     .. Intrinsic Functions ..
       INTRINSIC          MAX
@@ -2339,9 +2339,9 @@ CONTAINS
 !     Test the input parameters.
 !
       INFO = 0
-      NOTRAN = LSAME( TRANS, 'N' )
-      IF( .NOT.NOTRAN .AND. .NOT.LSAME( TRANS, 'T' ) .AND. .NOT. &
-           LSAME( TRANS, 'C' ) ) THEN
+      NOTRAN = OC_LSAME( TRANS, 'N' )
+      IF( .NOT.NOTRAN .AND. .NOT.OC_LSAME( TRANS, 'T' ) .AND. .NOT. &
+           OC_LSAME( TRANS, 'C' ) ) THEN
          INFO = -1
       ELSE IF( N.LT.0 ) THEN
          INFO = -2
@@ -2353,7 +2353,7 @@ CONTAINS
          INFO = -8
       END IF
       IF( INFO.NE.0 ) THEN
-         CALL XERBLA( 'DGETRS', -INFO )
+         CALL OC_XERBLA( 'OC_DGETRS', -INFO )
          RETURN
       END IF
 !
@@ -2367,16 +2367,16 @@ CONTAINS
 !
 !        Apply row interchanges to the right hand sides.
 !
-         CALL DLASWP( NRHS, B, LDB, 1, N, IPIV, 1 )
+         CALL OC_DLASWP( NRHS, B, LDB, 1, N, IPIV, 1 )
 !
 !        Solve L*X = B, overwriting B with X.
 !
-         CALL DTRSM( 'Left', 'Lower', 'No transpose', 'Unit', N, NRHS, &
+         CALL OC_DTRSM( 'Left', 'Lower', 'No transpose', 'Unit', N, NRHS, &
               ONE, A, LDA, B, LDB )
 !
 !        Solve U*X = B, overwriting B with X.
 !
-         CALL DTRSM( 'Left', 'Upper', 'No transpose', 'Non-unit', N, &
+         CALL OC_DTRSM( 'Left', 'Upper', 'No transpose', 'Non-unit', N, &
               NRHS, ONE, A, LDA, B, LDB )
       ELSE
 !
@@ -2384,25 +2384,25 @@ CONTAINS
 !
 !        Solve U**T *X = B, overwriting B with X.
 !
-         CALL DTRSM( 'Left', 'Upper', 'Transpose', 'Non-unit', N, NRHS, &
+         CALL OC_DTRSM( 'Left', 'Upper', 'Transpose', 'Non-unit', N, NRHS, &
               ONE, A, LDA, B, LDB )
 !
 !        Solve L**T *X = B, overwriting B with X.
 !
-         CALL DTRSM( 'Left', 'Lower', 'Transpose', 'Unit', N, NRHS, ONE, &
+         CALL OC_DTRSM( 'Left', 'Lower', 'Transpose', 'Unit', N, NRHS, ONE, &
               A, LDA, B, LDB )
 !
 !        Apply row interchanges to the solution vectors.
 !
-         CALL DLASWP( NRHS, B, LDB, 1, N, IPIV, -1 )
+         CALL OC_DLASWP( NRHS, B, LDB, 1, N, IPIV, -1 )
       END IF
 !
       RETURN
 !
-!     End of DGETRS
+!     End of OC_DGETRS
 !
-    END SUBROUTINE DGETRS
-!> \brief \b DISNAN tests input for NaN.
+    END SUBROUTINE OC_DGETRS
+!> \brief \b OC_DISNAN tests input for NaN.
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -2410,7 +2410,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DISNAN + dependencies 
+!> Download OC_DISNAN + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/disnan.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/disnan.f"> 
@@ -2422,7 +2422,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       LOGICAL FUNCTION DISNAN( DIN )
+!       LOGICAL FUNCTION OC_DISNAN( DIN )
 ! 
 !       .. Scalar Arguments ..
 !       DOUBLE PRECISION   DIN
@@ -2434,7 +2434,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DISNAN returns .TRUE. if its argument is NaN, and .FALSE.
+!> OC_DISNAN returns .TRUE. if its argument is NaN, and .FALSE.
 !> otherwise.  To be replaced by the Fortran 2003 intrinsic in the
 !> future.
 !> \endverbatim
@@ -2461,7 +2461,7 @@ CONTAINS
 !> \ingroup auxOTHERauxiliary
 !
 !  =====================================================================
-      LOGICAL FUNCTION DISNAN( DIN )
+      LOGICAL FUNCTION OC_DISNAN( DIN )
 !
 !  -- LAPACK auxiliary routine (version 3.4.2) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -2475,15 +2475,15 @@ CONTAINS
 !=
 !
 !  .. External Functions ..
-!      LOGICAL DLAISNAN
-!      EXTERNAL DLAISNAN
+!      LOGICAL OC_DLAISNAN
+!      EXTERNAL OC_DLAISNAN
 !  ..
 !  .. Executable Statements ..
-      DISNAN = DLAISNAN(DIN,DIN)
+      OC_DISNAN = OC_DLAISNAN(DIN,DIN)
       RETURN
-      END FUNCTION DISNAN
+      END FUNCTION OC_DISNAN
 !
-!> \brief \b DLAISNAN tests input for NaN by comparing two arguments for inequality.
+!> \brief \b OC_DLAISNAN tests input for NaN by comparing two arguments for inequality.
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -2491,7 +2491,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DLAISNAN + dependencies 
+!> Download OC_DLAISNAN + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dlaisnan.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dlaisnan.f"> 
@@ -2503,7 +2503,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       LOGICAL FUNCTION DLAISNAN( DIN1, DIN2 )
+!       LOGICAL FUNCTION OC_DLAISNAN( DIN1, DIN2 )
 ! 
 !       .. Scalar Arguments ..
 !       DOUBLE PRECISION   DIN1, DIN2
@@ -2516,9 +2516,9 @@ CONTAINS
 !> \verbatim
 !>
 !> This routine is not for general use.  It exists solely to avoid
-!> over-optimization in DISNAN.
+!> over-optimization in OC_DISNAN.
 !>
-!> DLAISNAN checks for NaNs by comparing its two arguments for
+!> OC_DLAISNAN checks for NaNs by comparing its two arguments for
 !> inequality.  NaN is the only floating-point value where NaN != NaN
 !> returns .TRUE.  To check for NaNs, pass the same variable as both
 !> arguments.
@@ -2557,7 +2557,7 @@ CONTAINS
 !> \ingroup auxOTHERauxiliary
 !
 !  =====================================================================
-      LOGICAL FUNCTION DLAISNAN( DIN1, DIN2 )
+      LOGICAL FUNCTION OC_DLAISNAN( DIN1, DIN2 )
 !
 !  -- LAPACK auxiliary routine (version 3.4.2) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -2571,11 +2571,11 @@ CONTAINS
 !  =====================================================================
 !
 !  .. Executable Statements ..
-      DLAISNAN = (DIN1.NE.DIN2)
+      OC_DLAISNAN = (DIN1.NE.DIN2)
       RETURN
-      END FUNCTION DLAISNAN
+      END FUNCTION OC_DLAISNAN
 !
-!> \brief \b DLAMCH
+!> \brief \b OC_DLAMCH
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -2585,7 +2585,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!      DOUBLE PRECISION FUNCTION DLAMCH( CMACH )
+!      DOUBLE PRECISION FUNCTION OC_DLAMCH( CMACH )
 !  
 !
 !> \par Purpose:
@@ -2593,7 +2593,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DLAMCH determines double precision machine parameters.
+!> OC_DLAMCH determines double precision machine parameters.
 !> \endverbatim
 !
 !  Arguments:
@@ -2601,17 +2601,17 @@ CONTAINS
 !
 !> \param[in] CMACH
 !> \verbatim
-!>          Specifies the value to be returned by DLAMCH:
-!>          = 'E' or 'e',   DLAMCH := eps
-!>          = 'S' or 's ,   DLAMCH := sfmin
-!>          = 'B' or 'b',   DLAMCH := base
-!>          = 'P' or 'p',   DLAMCH := eps*base
-!>          = 'N' or 'n',   DLAMCH := t
-!>          = 'R' or 'r',   DLAMCH := rnd
-!>          = 'M' or 'm',   DLAMCH := emin
-!>          = 'U' or 'u',   DLAMCH := rmin
-!>          = 'L' or 'l',   DLAMCH := emax
-!>          = 'O' or 'o',   DLAMCH := rmax
+!>          Specifies the value to be returned by OC_DLAMCH:
+!>          = 'E' or 'e',   OC_DLAMCH := eps
+!>          = 'S' or 's ,   OC_DLAMCH := sfmin
+!>          = 'B' or 'b',   OC_DLAMCH := base
+!>          = 'P' or 'p',   OC_DLAMCH := eps*base
+!>          = 'N' or 'n',   OC_DLAMCH := t
+!>          = 'R' or 'r',   OC_DLAMCH := rnd
+!>          = 'M' or 'm',   OC_DLAMCH := emin
+!>          = 'U' or 'u',   OC_DLAMCH := rmin
+!>          = 'L' or 'l',   OC_DLAMCH := emax
+!>          = 'O' or 'o',   OC_DLAMCH := rmax
 !>          where
 !>          eps   = relative machine precision
 !>          sfmin = safe minimum, such that 1/sfmin does not overflow
@@ -2638,7 +2638,7 @@ CONTAINS
 !> \ingroup auxOTHERauxiliary
 !
 !  =====================================================================
-      DOUBLE PRECISION FUNCTION DLAMCH( CMACH )
+      DOUBLE PRECISION FUNCTION OC_DLAMCH( CMACH )
 !
 !  -- LAPACK auxiliary routine (version 3.6.0) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -2659,8 +2659,8 @@ CONTAINS
       DOUBLE PRECISION   RND, EPS, SFMIN, SMALL, RMACH
 !     ..
 !     .. External Functions ..
-!      LOGICAL            LSAME
-!      EXTERNAL           LSAME
+!      LOGICAL            OC_LSAME
+!      EXTERNAL           OC_LSAME
 !     ..
 !     .. Intrinsic Functions ..
       INTRINSIC          DIGITS, EPSILON, HUGE, MAXEXPONENT, &
@@ -2679,9 +2679,9 @@ CONTAINS
          EPS = EPSILON(ZERO)
       END IF
 !
-      IF( LSAME( CMACH, 'E' ) ) THEN
+      IF( OC_LSAME( CMACH, 'E' ) ) THEN
          RMACH = EPS
-      ELSE IF( LSAME( CMACH, 'S' ) ) THEN
+      ELSE IF( OC_LSAME( CMACH, 'S' ) ) THEN
          SFMIN = TINY(ZERO)
          SMALL = ONE / HUGE(ZERO)
          IF( SMALL.GE.SFMIN ) THEN
@@ -2692,39 +2692,39 @@ CONTAINS
             SFMIN = SMALL*( ONE+EPS )
          END IF
          RMACH = SFMIN
-      ELSE IF( LSAME( CMACH, 'B' ) ) THEN
+      ELSE IF( OC_LSAME( CMACH, 'B' ) ) THEN
          RMACH = RADIX(ZERO)
-      ELSE IF( LSAME( CMACH, 'P' ) ) THEN
+      ELSE IF( OC_LSAME( CMACH, 'P' ) ) THEN
          RMACH = EPS * RADIX(ZERO)
-      ELSE IF( LSAME( CMACH, 'N' ) ) THEN
+      ELSE IF( OC_LSAME( CMACH, 'N' ) ) THEN
          RMACH = DIGITS(ZERO)
-      ELSE IF( LSAME( CMACH, 'R' ) ) THEN
+      ELSE IF( OC_LSAME( CMACH, 'R' ) ) THEN
          RMACH = RND
-      ELSE IF( LSAME( CMACH, 'M' ) ) THEN
+      ELSE IF( OC_LSAME( CMACH, 'M' ) ) THEN
          RMACH = MINEXPONENT(ZERO)
-      ELSE IF( LSAME( CMACH, 'U' ) ) THEN
+      ELSE IF( OC_LSAME( CMACH, 'U' ) ) THEN
          RMACH = tiny(zero)
-      ELSE IF( LSAME( CMACH, 'L' ) ) THEN
+      ELSE IF( OC_LSAME( CMACH, 'L' ) ) THEN
          RMACH = MAXEXPONENT(ZERO)
-      ELSE IF( LSAME( CMACH, 'O' ) ) THEN
+      ELSE IF( OC_LSAME( CMACH, 'O' ) ) THEN
          RMACH = HUGE(ZERO)
       ELSE
          RMACH = ZERO
       END IF
 !
-      DLAMCH = RMACH
+      OC_DLAMCH = RMACH
       RETURN
 !
-!     End of DLAMCH
+!     End of OC_DLAMCH
 !
-      END FUNCTION DLAMCH
+      END FUNCTION OC_DLAMCH
 !
 !***********************************************************************
-!> \brief \b DLAMC3
+!> \brief \b OC_DLAMC3
 !> \details
 !> \b Purpose:
 !> \verbatim
-!> DLAMC3  is intended to force  A  and  B  to be stored prior to doing
+!> OC_DLAMC3  is intended to force  A  and  B  to be stored prior to doing
 !> the addition of  A  and  B ,  for use in situations where optimizers
 !> might hold one of these in a register.
 !> \endverbatim
@@ -2743,7 +2743,7 @@ CONTAINS
 !>          The values A and B.
 !> \endverbatim
 !>
-      DOUBLE PRECISION FUNCTION DLAMC3( A, B )
+      DOUBLE PRECISION FUNCTION OC_DLAMC3( A, B )
 !
 !  -- LAPACK auxiliary routine (version 3.6.0) --
 !     Univ. of Tennessee, Univ. of California Berkeley and NAG Ltd..
@@ -2756,16 +2756,16 @@ CONTAINS
 !
 !     .. Executable Statements ..
 !
-      DLAMC3 = A + B
+      OC_DLAMC3 = A + B
 !
       RETURN
 !
-!     End of DLAMC3
+!     End of OC_DLAMC3
 !
-      END FUNCTION DLAMC3
+      END FUNCTION OC_DLAMC3
 !
 !***********************************************************************
-!> \brief \b DLAMRG creates a permutation list to merge the entries of two independently sorted sets into a single set sorted in ascending order.
+!> \brief \b OC_DLAMRG creates a permutation list to merge the entries of two independently sorted sets into a single set sorted in ascending order.
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -2773,19 +2773,19 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DLAMRG + dependencies 
-!> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dlamrg.f"> 
+!> Download OC_DLAMRG + dependencies
+!> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/OC_DLAMRG.f">
 !> [TGZ]</a> 
-!> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dlamrg.f"> 
+!> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/OC_DLAMRG.f">
 !> [ZIP]</a> 
-!> <a href="http://www.netlib.org/cgi-bin/netlibfiles.txt?format=txt&filename=/lapack/lapack_routine/dlamrg.f"> 
+!> <a href="http://www.netlib.org/cgi-bin/netlibfiles.txt?format=txt&filename=/lapack/lapack_routine/OC_DLAMRG.f">
 !> [TXT]</a>
 !> \endhtmlonly 
 !
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DLAMRG( N1, N2, A, DTRD1, DTRD2, INDEX )
+!       SUBROUTINE OC_DLAMRG( N1, N2, A, DTRD1, DTRD2, INDEX )
 ! 
 !       .. Scalar Arguments ..
 !       INTEGER            DTRD1, DTRD2, N1, N2
@@ -2801,7 +2801,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DLAMRG will create a permutation list which will merge the elements
+!> OC_DLAMRG will create a permutation list which will merge the elements
 !> of A (which is composed of two independently sorted sets) into a
 !> single set which is sorted in ascending order.
 !> \endverbatim
@@ -2864,7 +2864,7 @@ CONTAINS
 !> \ingroup auxOTHERcomputational
 !
 !  =====================================================================
-      SUBROUTINE DLAMRG( N1, N2, A, DTRD1, DTRD2, INDEX )
+      SUBROUTINE OC_DLAMRG( N1, N2, A, DTRD1, DTRD2, INDEX )
 !
 !  -- LAPACK computational routine (version 3.4.2) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -2933,11 +2933,11 @@ CONTAINS
 !
       RETURN
 !
-!     End of DLAMRG
+!     End of OC_DLAMRG
 !
-      END  SUBROUTINE DLAMRG
+      END  SUBROUTINE OC_DLAMRG
 !
-!> \brief \b DLASWP performs a series of row interchanges on a general rectangular matrix.
+!> \brief \b OC_DLASWP performs a series of row interchanges on a general rectangular matrix.
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -2945,19 +2945,19 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DLASWP + dependencies 
-!> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dlaswp.f"> 
+!> Download OC_DLASWP + dependencies
+!> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/OC_DLASWP.f">
 !> [TGZ]</a> 
-!> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dlaswp.f"> 
+!> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/OC_DLASWP.f">
 !> [ZIP]</a> 
-!> <a href="http://www.netlib.org/cgi-bin/netlibfiles.txt?format=txt&filename=/lapack/lapack_routine/dlaswp.f"> 
+!> <a href="http://www.netlib.org/cgi-bin/netlibfiles.txt?format=txt&filename=/lapack/lapack_routine/OC_DLASWP.f">
 !> [TXT]</a>
 !> \endhtmlonly 
 !
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DLASWP( N, A, LDA, K1, K2, IPIV, INCX )
+!       SUBROUTINE OC_DLASWP( N, A, LDA, K1, K2, IPIV, INCX )
 ! 
 !       .. Scalar Arguments ..
 !       INTEGER            INCX, K1, K2, LDA, N
@@ -2973,7 +2973,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DLASWP performs a series of row interchanges on the matrix A.
+!> OC_DLASWP performs a series of row interchanges on the matrix A.
 !> One row interchange is initiated for each of rows K1 through K2 of A.
 !> \endverbatim
 !
@@ -3051,7 +3051,7 @@ CONTAINS
 !> \endverbatim
 !>
 !  =====================================================================
-      SUBROUTINE DLASWP( N, A, LDA, K1, K2, IPIV, INCX )
+      SUBROUTINE OC_DLASWP( N, A, LDA, K1, K2, IPIV, INCX )
 !
 !  -- LAPACK auxiliary routine (version 3.4.2) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -3125,11 +3125,11 @@ CONTAINS
 !
       RETURN
 !
-!     End of DLASWP
+!     End of OC_DLASWP
 !
-      END  SUBROUTINE DLASWP
+      END  SUBROUTINE OC_DLASWP
 !
-!> \brief \b DLASYF computes a partial factorization of a real symmetric matrix using the Bunch-Kaufman diagonal pivoting method.
+!> \brief \b OC_DLASYF computes a partial factorization of a real symmetric matrix using the Bunch-Kaufman diagonal pivoting method.
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -3137,19 +3137,19 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/
 !
 !> \htmlonly
-!> Download DLASYF + dependencies
-!> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dlasyf.f">
+!> Download OC_DLASYF + dependencies
+!> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/OC_DLASYF.f">
 !> [TGZ]</a>
-!> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dlasyf.f">
+!> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/OC_DLASYF.f">
 !> [ZIP]</a>
-!> <a href="http://www.netlib.org/cgi-bin/netlibfiles.txt?format=txt&filename=/lapack/lapack_routine/dlasyf.f">
+!> <a href="http://www.netlib.org/cgi-bin/netlibfiles.txt?format=txt&filename=/lapack/lapack_routine/OC_DLASYF.f">
 !> [TXT]</a>
 !> \endhtmlonly
 !
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DLASYF( UPLO, N, NB, KB, A, LDA, IPIV, W, LDW, INFO )
+!       SUBROUTINE OC_DLASYF( UPLO, N, NB, KB, A, LDA, IPIV, W, LDW, INFO )
 !
 !       .. Scalar Arguments ..
 !       CHARACTER          UPLO
@@ -3166,7 +3166,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DLASYF computes a partial factorization of a real symmetric matrix A
+!> OC_DLASYF computes a partial factorization of a real symmetric matrix A
 !> using the Bunch-Kaufman diagonal pivoting method. The partial
 !> factorization has the form:
 !>
@@ -3179,7 +3179,7 @@ CONTAINS
 !> where the order of D is at most NB. The actual order is returned in
 !> the argument KB, and is either NB or NB-1, or N if N <= NB.
 !>
-!> DLASYF is an auxiliary routine called by DSYTRF. It uses blocked code
+!> OC_DLASYF is an auxiliary routine called by OC_DSYTRF. It uses blocked code
 !> (calling Level 3 BLAS) to update the submatrix A11 (if UPLO = 'U') or
 !> A22 (if UPLO = 'L').
 !> \endverbatim
@@ -3305,7 +3305,7 @@ CONTAINS
 !> \endverbatim
 !
 !  =====================================================================
-      SUBROUTINE DLASYF( UPLO, N, NB, KB, A, LDA, IPIV, W, LDW, INFO )
+      SUBROUTINE OC_DLASYF( UPLO, N, NB, KB, A, LDA, IPIV, W, LDW, INFO )
 !
 !  -- LAPACK computational routine (version 3.5.0) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -3336,12 +3336,12 @@ CONTAINS
            ROWMAX, T
 !     ..
 !     .. External Functions ..
-!      LOGICAL            LSAME
-!      INTEGER            IDAMAX
-!      EXTERNAL           LSAME, IDAMAX
+!      LOGICAL            OC_LSAME
+!      INTEGER            OC_IDAMAX
+!      EXTERNAL           OC_LSAME, OC_IDAMAX
 !     ..
 !     .. External Subroutines ..
-!      EXTERNAL           DCOPY, DGEMM, DGEMV, DSCAL, DSWAP
+!      EXTERNAL           OC_DCOPY, OC_DGEMM, OC_DGEMV, OC_DSCAL, OC_DSWAP
 !     ..
 !     .. Intrinsic Functions ..
       INTRINSIC          ABS, MAX, MIN, SQRT
@@ -3354,7 +3354,7 @@ CONTAINS
 !
       ALPHA = ( ONE+SQRT( SEVTEN ) ) / EIGHT
 !
-      IF( LSAME( UPLO, 'U' ) ) THEN
+      IF( OC_LSAME( UPLO, 'U' ) ) THEN
 !
 !        Factorize the trailing columns of A using the upper triangle
 !        of A and working backwards, and compute the matrix W = U12*D
@@ -3374,9 +3374,9 @@ CONTAINS
 !
 !        Copy column K of A to column KW of W and update it
 !
-         CALL DCOPY( K, A( 1, K ), 1, W( 1, KW ), 1 )
+         CALL OC_DCOPY( K, A( 1, K ), 1, W( 1, KW ), 1 )
          IF( K.LT.N ) &
-           CALL DGEMV( 'No transpose', K, N-K, -ONE, A( 1, K+1 ), LDA, &
+           CALL OC_DGEMV( 'No transpose', K, N-K, -ONE, A( 1, K+1 ), LDA, &
                        W( K, KW+1 ), LDW, ONE, W( 1, KW ), 1 )
 !
          KSTEP = 1
@@ -3391,7 +3391,7 @@ CONTAINS
 !        Determine both COLMAX and IMAX.
 !
          IF( K.GT.1 ) THEN
-            IMAX = IDAMAX( K-1, W( 1, KW ), 1 )
+            IMAX = OC_IDAMAX( K-1, W( 1, KW ), 1 )
             COLMAX = ABS( W( IMAX, KW ) )
          ELSE
             COLMAX = ZERO
@@ -3413,21 +3413,21 @@ CONTAINS
 !
 !              Copy column IMAX to column KW-1 of W and update it
 !
-               CALL DCOPY( IMAX, A( 1, IMAX ), 1, W( 1, KW-1 ), 1 )
-               CALL DCOPY( K-IMAX, A( IMAX, IMAX+1 ), LDA, &
+               CALL OC_DCOPY( IMAX, A( 1, IMAX ), 1, W( 1, KW-1 ), 1 )
+               CALL OC_DCOPY( K-IMAX, A( IMAX, IMAX+1 ), LDA, &
                     W( IMAX+1, KW-1 ), 1 )
                IF( K.LT.N ) &
-                    CALL DGEMV( 'No transpose', K, N-K, -ONE, A( 1, K+1 ), &
+                    CALL OC_DGEMV( 'No transpose', K, N-K, -ONE, A( 1, K+1 ), &
                     LDA, W( IMAX, KW+1 ), LDW, ONE, &
                     W( 1, KW-1 ), 1 )
 !
 !              JMAX is the column-index of the largest off-diagonal
 !              element in row IMAX, and ROWMAX is its absolute value
 !
-               JMAX = IMAX + IDAMAX( K-IMAX, W( IMAX+1, KW-1 ), 1 )
+               JMAX = IMAX + OC_IDAMAX( K-IMAX, W( IMAX+1, KW-1 ), 1 )
                ROWMAX = ABS( W( JMAX, KW-1 ) )
                IF( IMAX.GT.1 ) THEN
-                  JMAX = IDAMAX( IMAX-1, W( 1, KW-1 ), 1 )
+                  JMAX = OC_IDAMAX( IMAX-1, W( 1, KW-1 ), 1 )
                   ROWMAX = MAX( ROWMAX, ABS( W( JMAX, KW-1 ) ) )
                END IF
 !
@@ -3445,7 +3445,7 @@ CONTAINS
 !
 !                 copy column KW-1 of W to column KW of W
 !
-                  CALL DCOPY( K, W( 1, KW-1 ), 1, W( 1, KW ), 1 )
+                  CALL OC_DCOPY( K, W( 1, KW-1 ), 1, W( 1, KW ), 1 )
                ELSE
 !
 !                 interchange rows and columns K-1 and IMAX, use 2-by-2
@@ -3477,10 +3477,10 @@ CONTAINS
 !              will be later overwritten.
 !
                A( KP, KP ) = A( KK, KK )
-               CALL DCOPY( KK-1-KP, A( KP+1, KK ), 1, A( KP, KP+1 ), &
+               CALL OC_DCOPY( KK-1-KP, A( KP+1, KK ), 1, A( KP, KP+1 ), &
                     LDA )
                IF( KP.GT.1 ) &
-                 CALL DCOPY( KP-1, A( 1, KK ), 1, A( 1, KP ), 1 )
+                 CALL OC_DCOPY( KP-1, A( 1, KK ), 1, A( 1, KP ), 1 )
 !
 !              Interchange rows KK and KP in last K+1 to N columns of A
 !              (columns K (or K and K-1 for 2-by-2 pivot) of A will be
@@ -3488,9 +3488,9 @@ CONTAINS
 !              in last KKW to NB columns of W.
 !
                IF( K.LT.N ) &
-                    CALL DSWAP( N-K, A( KK, K+1 ), LDA, A( KP, K+1 ), &
+                    CALL OC_DSWAP( N-K, A( KK, K+1 ), LDA, A( KP, K+1 ), &
                     LDA )
-               CALL DSWAP( N-KK+1, W( KK, KKW ), LDW, W( KP, KKW ), &
+               CALL OC_DSWAP( N-KK+1, W( KK, KKW ), LDW, W( KP, KKW ), &
                     LDW )
             END IF
 !
@@ -3509,9 +3509,9 @@ CONTAINS
 !                 A(k,k) := D(k,k) = W(k,kw)
 !                 A(1:k-1,k) := U(1:k-1,k) = W(1:k-1,kw)/D(k,k)
 !
-               CALL DCOPY( K, W( 1, KW ), 1, A( 1, K ), 1 )
+               CALL OC_DCOPY( K, W( 1, KW ), 1, A( 1, K ), 1 )
                R1 = ONE / A( K, K )
-               CALL DSCAL( K-1, R1, A( 1, K ), 1 )
+               CALL OC_DSCAL( K-1, R1, A( 1, K ), 1 )
 !
             ELSE
 !
@@ -3611,14 +3611,14 @@ CONTAINS
 !           Update the upper triangle of the diagonal block
 !
             DO 40 JJ = J, J + JB - 1
-               CALL DGEMV( 'No transpose', JJ-J+1, N-K, -ONE, &
+               CALL OC_DGEMV( 'No transpose', JJ-J+1, N-K, -ONE, &
                     A( J, K+1 ), LDA, W( JJ, KW+1 ), LDW, ONE, &
                     A( J, JJ ), 1 )
    40       CONTINUE
 !
 !           Update the rectangular superdiagonal block
 !
-            CALL DGEMM( 'No transpose', 'Transpose', J-1, JB, N-K, -ONE, &
+            CALL OC_DGEMM( 'No transpose', 'Transpose', J-1, JB, N-K, -ONE, &
                  A( 1, K+1 ), LDA, W( J, KW+1 ), LDW, ONE, &
                  A( 1, J ), LDA )
    50    CONTINUE
@@ -3644,7 +3644,7 @@ CONTAINS
 !           of the rows to swap back doesn't include diagonal element)
             J = J + 1
             IF( JP.NE.JJ .AND. J.LE.N ) &
-              CALL DSWAP( N-J+1, A( JP, J ), LDA, A( JJ, J ), LDA )
+              CALL OC_DSWAP( N-J+1, A( JP, J ), LDA, A( JJ, J ), LDA )
          IF( J.LT.N ) GO TO 60
 !
 !        Set KB to the number of columns factorized
@@ -3668,8 +3668,8 @@ CONTAINS
 !
 !        Copy column K of A to column K of W and update it
 !
-         CALL DCOPY( N-K+1, A( K, K ), 1, W( K, K ), 1 )
-         CALL DGEMV( 'No transpose', N-K+1, K-1, -ONE, A( K, 1 ), LDA, &
+         CALL OC_DCOPY( N-K+1, A( K, K ), 1, W( K, K ), 1 )
+         CALL OC_DGEMV( 'No transpose', N-K+1, K-1, -ONE, A( K, 1 ), LDA, &
               W( K, 1 ), LDW, ONE, W( K, K ), 1 )
 !
          KSTEP = 1
@@ -3684,7 +3684,7 @@ CONTAINS
 !        Determine both COLMAX and IMAX.
 !
          IF( K.LT.N ) THEN
-            IMAX = K + IDAMAX( N-K, W( K+1, K ), 1 )
+            IMAX = K + OC_IDAMAX( N-K, W( K+1, K ), 1 )
             COLMAX = ABS( W( IMAX, K ) )
          ELSE
             COLMAX = ZERO
@@ -3706,19 +3706,19 @@ CONTAINS
 !
 !              Copy column IMAX to column K+1 of W and update it
 !
-               CALL DCOPY( IMAX-K, A( IMAX, K ), LDA, W( K, K+1 ), 1 )
-               CALL DCOPY( N-IMAX+1, A( IMAX, IMAX ), 1, W( IMAX, K+1 ), &
+               CALL OC_DCOPY( IMAX-K, A( IMAX, K ), LDA, W( K, K+1 ), 1 )
+               CALL OC_DCOPY( N-IMAX+1, A( IMAX, IMAX ), 1, W( IMAX, K+1 ), &
                     1 )
-               CALL DGEMV( 'No transpose', N-K+1, K-1, -ONE, A( K, 1 ), &
+               CALL OC_DGEMV( 'No transpose', N-K+1, K-1, -ONE, A( K, 1 ), &
                     LDA, W( IMAX, 1 ), LDW, ONE, W( K, K+1 ), 1 )
 !
 !              JMAX is the column-index of the largest off-diagonal
 !              element in row IMAX, and ROWMAX is its absolute value
 !
-               JMAX = K - 1 + IDAMAX( IMAX-K, W( K, K+1 ), 1 )
+               JMAX = K - 1 + OC_IDAMAX( IMAX-K, W( K, K+1 ), 1 )
                ROWMAX = ABS( W( JMAX, K+1 ) )
                IF( IMAX.LT.N ) THEN
-                  JMAX = IMAX + IDAMAX( N-IMAX, W( IMAX+1, K+1 ), 1 )
+                  JMAX = IMAX + OC_IDAMAX( N-IMAX, W( IMAX+1, K+1 ), 1 )
                   ROWMAX = MAX( ROWMAX, ABS( W( JMAX, K+1 ) ) )
                END IF
 !
@@ -3736,7 +3736,7 @@ CONTAINS
 !
 !                 copy column K+1 of W to column K of W
 !
-                  CALL DCOPY( N-K+1, W( K, K+1 ), 1, W( K, K ), 1 )
+                  CALL OC_DCOPY( N-K+1, W( K, K+1 ), 1, W( K, K ), 1 )
                ELSE
 !
 !                 interchange rows and columns K+1 and IMAX, use 2-by-2
@@ -3764,10 +3764,10 @@ CONTAINS
 !              will be later overwritten.
 !
                A( KP, KP ) = A( KK, KK )
-               CALL DCOPY( KP-KK-1, A( KK+1, KK ), 1, A( KP, KK+1 ), &
+               CALL OC_DCOPY( KP-KK-1, A( KK+1, KK ), 1, A( KP, KK+1 ), &
                     LDA )
                IF( KP.LT.N ) &
-                    CALL DCOPY( N-KP, A( KP+1, KK ), 1, A( KP+1, KP ), 1 )
+                    CALL OC_DCOPY( N-KP, A( KP+1, KK ), 1, A( KP+1, KP ), 1 )
 !
 !              Interchange rows KK and KP in first K-1 columns of A
 !              (columns K (or K and K+1 for 2-by-2 pivot) of A will be
@@ -3775,8 +3775,8 @@ CONTAINS
 !              in first KK columns of W.
 !
                IF( K.GT.1 ) &
-                    CALL DSWAP( K-1, A( KK, 1 ), LDA, A( KP, 1 ), LDA )
-               CALL DSWAP( KK, W( KK, 1 ), LDW, W( KP, 1 ), LDW )
+                    CALL OC_DSWAP( K-1, A( KK, 1 ), LDA, A( KP, 1 ), LDA )
+               CALL OC_DSWAP( KK, W( KK, 1 ), LDW, W( KP, 1 ), LDW )
             END IF
 !
             IF( KSTEP.EQ.1 ) THEN
@@ -3794,10 +3794,10 @@ CONTAINS
 !                 A(k,k) := D(k,k) = W(k,k)
 !                 A(k+1:N,k) := L(k+1:N,k) = W(k+1:N,k)/D(k,k)
 !
-               CALL DCOPY( N-K+1, W( K, K ), 1, A( K, K ), 1 )
+               CALL OC_DCOPY( N-K+1, W( K, K ), 1, A( K, K ), 1 )
                IF( K.LT.N ) THEN
                   R1 = ONE / A( K, K )
-                  CALL DSCAL( N-K, R1, A( K+1, K ), 1 )
+                  CALL OC_DSCAL( N-K, R1, A( K+1, K ), 1 )
                END IF
 !
             ELSE
@@ -3898,7 +3898,7 @@ CONTAINS
 !           Update the lower triangle of the diagonal block
 !
             DO 100 JJ = J, J + JB - 1
-               CALL DGEMV( 'No transpose', J+JB-JJ, K-1, -ONE, &
+               CALL OC_DGEMV( 'No transpose', J+JB-JJ, K-1, -ONE, &
                     A( JJ, 1 ), LDA, W( JJ, 1 ), LDW, ONE, &
                     A( JJ, JJ ), 1 )
   100       CONTINUE
@@ -3906,7 +3906,7 @@ CONTAINS
 !           Update the rectangular subdiagonal block
 !
             IF( J+JB.LE.N ) &
-                 CALL DGEMM( 'No transpose', 'Transpose', N-J-JB+1, JB, &
+                 CALL OC_DGEMM( 'No transpose', 'Transpose', N-J-JB+1, JB, &
                  K-1, -ONE, A( J+JB, 1 ), LDA, W( J, 1 ), LDW, &
                  ONE, A( J+JB, J ), LDA )
   110    CONTINUE
@@ -3932,7 +3932,7 @@ CONTAINS
 !           of the rows to swap back doesn't include diagonal element)
             J = J - 1
             IF( JP.NE.JJ .AND. J.GE.1 ) &
-                 CALL DSWAP( J, A( JP, 1 ), LDA, A( JJ, 1 ), LDA )
+                 CALL OC_DSWAP( J, A( JP, 1 ), LDA, A( JJ, 1 ), LDA )
          IF( J.GT.1 ) GO TO 120
 !
 !        Set KB to the number of columns factorized
@@ -3942,10 +3942,10 @@ CONTAINS
       END IF
       RETURN
 !
-!     End of DLASYF
+!     End of OC_DLASYF
 !
-      END  SUBROUTINE DLASYF
-!> \brief \b DSCAL
+      END  SUBROUTINE OC_DLASYF
+!> \brief \b OC_DSCAL
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -3955,7 +3955,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DSCAL(N,DA,DX,INCX)
+!       SUBROUTINE OC_DSCAL(N,DA,DX,INCX)
 ! 
 !       .. Scalar Arguments ..
 !       DOUBLE PRECISION DA
@@ -3971,7 +3971,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!>    DSCAL scales a vector by a constant.
+!>    OC_DSCAL scales a vector by a constant.
 !>    uses unrolled loops for increment equal to one.
 !> \endverbatim
 !
@@ -3998,7 +3998,7 @@ CONTAINS
 !> \endverbatim
 !>
 !  =====================================================================
-      SUBROUTINE DSCAL(N,DA,DX,INCX)
+      SUBROUTINE OC_DSCAL(N,DA,DX,INCX)
 !
 !  -- Reference BLAS level1 routine (version 3.4.0) --
 !  -- Reference BLAS is a software package provided by Univ. of Tennessee,    --
@@ -4054,9 +4054,9 @@ CONTAINS
          END DO
       END IF
       RETURN
-      END SUBROUTINE DSCAL
+      END SUBROUTINE OC_DSCAL
 !
-!> \brief \b DSWAP
+!> \brief \b OC_DSWAP
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -4066,7 +4066,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DSWAP(N,DX,INCX,DY,INCY)
+!       SUBROUTINE OC_DSWAP(N,DX,INCX,DY,INCY)
 ! 
 !       .. Scalar Arguments ..
 !       INTEGER INCX,INCY,N
@@ -4107,7 +4107,7 @@ CONTAINS
 !> \endverbatim
 !>
 !  =====================================================================
-      SUBROUTINE DSWAP(N,DX,INCX,DY,INCY)
+      SUBROUTINE OC_DSWAP(N,DX,INCX,DY,INCY)
 !
 !  -- Reference BLAS level1 routine (version 3.4.0) --
 !  -- Reference BLAS is a software package provided by Univ. of Tennessee,    --
@@ -4177,9 +4177,9 @@ CONTAINS
          END DO
       END IF
       RETURN
-      END SUBROUTINE DSWAP
+      END SUBROUTINE OC_DSWAP
 !
-!> \brief \b DSYMV
+!> \brief \b OC_DSYMV
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -4189,7 +4189,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DSYMV(UPLO,N,ALPHA,A,LDA,X,INCX,BETA,Y,INCY)
+!       SUBROUTINE OC_DSYMV(UPLO,N,ALPHA,A,LDA,X,INCX,BETA,Y,INCY)
 ! 
 !       .. Scalar Arguments ..
 !       DOUBLE PRECISION ALPHA,BETA
@@ -4206,7 +4206,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DSYMV  performs the matrix-vector  operation
+!> OC_DSYMV  performs the matrix-vector  operation
 !>
 !>    y := alpha*A*x + beta*y,
 !>
@@ -4331,7 +4331,7 @@ CONTAINS
 !> \endverbatim
 !>
 !  =====================================================================
-      SUBROUTINE DSYMV(UPLO,N,ALPHA,A,LDA,X,INCX,BETA,Y,INCY)
+      SUBROUTINE OC_DSYMV(UPLO,N,ALPHA,A,LDA,X,INCX,BETA,Y,INCY)
 !
 !  -- Reference BLAS level2 routine (version 3.4.0) --
 !  -- Reference BLAS is a software package provided by Univ. of Tennessee,    --
@@ -4358,11 +4358,11 @@ CONTAINS
       INTEGER I,INFO,IX,IY,J,JX,JY,KX,KY
 !     ..
 !     .. External Functions ..
-!      LOGICAL LSAME
-!      EXTERNAL LSAME
+!      LOGICAL OC_LSAME
+!      EXTERNAL OC_LSAME
 !     ..
 !     .. External Subroutines ..
-!      EXTERNAL XERBLA
+!      EXTERNAL OC_XERBLA
 !     ..
 !     .. Intrinsic Functions ..
       INTRINSIC MAX
@@ -4371,7 +4371,7 @@ CONTAINS
 !     Test the input parameters.
 !
       INFO = 0
-      IF (.NOT.LSAME(UPLO,'U') .AND. .NOT.LSAME(UPLO,'L')) THEN
+      IF (.NOT.OC_LSAME(UPLO,'U') .AND. .NOT.OC_LSAME(UPLO,'L')) THEN
           INFO = 1
       ELSE IF (N.LT.0) THEN
           INFO = 2
@@ -4383,7 +4383,7 @@ CONTAINS
           INFO = 10
       END IF
       IF (INFO.NE.0) THEN
-          CALL XERBLA('DSYMV ',INFO)
+          CALL OC_XERBLA('OC_DSYMV ',INFO)
           RETURN
       END IF
 !
@@ -4437,7 +4437,7 @@ CONTAINS
           END IF
       END IF
       IF (ALPHA.EQ.ZERO) RETURN
-      IF (LSAME(UPLO,'U')) THEN
+      IF (OC_LSAME(UPLO,'U')) THEN
 !
 !        Form  y  when A is stored in upper triangle.
 !
@@ -4509,11 +4509,11 @@ CONTAINS
 !
       RETURN
 !
-!     End of DSYMV .
+!     End of OC_DSYMV .
 !
-      END  SUBROUTINE DSYMV
+      END  SUBROUTINE OC_DSYMV
 !
-!> \brief \b DSYR
+!> \brief \b OC_DSYR
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -4523,7 +4523,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DSYR(UPLO,N,ALPHA,X,INCX,A,LDA)
+!       SUBROUTINE OC_DSYR(UPLO,N,ALPHA,X,INCX,A,LDA)
 ! 
 !       .. Scalar Arguments ..
 !       DOUBLE PRECISION ALPHA
@@ -4540,7 +4540,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DSYR   performs the symmetric rank 1 operation
+!> OC_DSYR   performs the symmetric rank 1 operation
 !>
 !>    A := alpha*x*x**T + A,
 !>
@@ -4645,7 +4645,7 @@ CONTAINS
 !> \endverbatim
 !>
 !  =====================================================================
-      SUBROUTINE DSYR(UPLO,N,ALPHA,X,INCX,A,LDA)
+      SUBROUTINE OC_DSYR(UPLO,N,ALPHA,X,INCX,A,LDA)
 !
 !  -- Reference BLAS level2 routine (version 3.4.0) --
 !  -- Reference BLAS is a software package provided by Univ. of Tennessee,    --
@@ -4672,11 +4672,11 @@ CONTAINS
       INTEGER I,INFO,IX,J,JX,KX
 !     ..
 !     .. External Functions ..
-!      LOGICAL LSAME
-!      EXTERNAL LSAME
+!      LOGICAL OC_LSAME
+!      EXTERNAL OC_LSAME
 !     ..
 !     .. External Subroutines ..
-!      EXTERNAL XERBLA
+!      EXTERNAL OC_XERBLA
 !     ..
 !     .. Intrinsic Functions ..
       INTRINSIC MAX
@@ -4685,7 +4685,7 @@ CONTAINS
 !     Test the input parameters.
 !
       INFO = 0
-      IF (.NOT.LSAME(UPLO,'U') .AND. .NOT.LSAME(UPLO,'L')) THEN
+      IF (.NOT.OC_LSAME(UPLO,'U') .AND. .NOT.OC_LSAME(UPLO,'L')) THEN
           INFO = 1
       ELSE IF (N.LT.0) THEN
           INFO = 2
@@ -4695,7 +4695,7 @@ CONTAINS
           INFO = 7
       END IF
       IF (INFO.NE.0) THEN
-          CALL XERBLA('DSYR  ',INFO)
+          CALL OC_XERBLA('OC_DSYR  ',INFO)
           RETURN
       END IF
 !
@@ -4715,7 +4715,7 @@ CONTAINS
 !     accessed sequentially with one pass through the triangular part
 !     of A.
 !
-      IF (LSAME(UPLO,'U')) THEN
+      IF (OC_LSAME(UPLO,'U')) THEN
 !
 !        Form  A  when A is stored in upper triangle.
 !
@@ -4773,11 +4773,11 @@ CONTAINS
 !
       RETURN
 !
-!     End of DSYR  .
+!     End of OC_DSYR  .
 !
-      END SUBROUTINE DSYR
+      END SUBROUTINE OC_DSYR
 !
-!> \brief \b DSYTF2 computes the factorization of a real symmetric indefinite matrix, using the diagonal pivoting method (unblocked algorithm).
+!> \brief \b OC_DSYTF2 computes the factorization of a real symmetric indefinite matrix, using the diagonal pivoting method (unblocked algorithm).
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -4785,7 +4785,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DSYTF2 + dependencies 
+!> Download OC_DSYTF2 + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dsytf2.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dsytf2.f"> 
@@ -4797,7 +4797,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DSYTF2( UPLO, N, A, LDA, IPIV, INFO )
+!       SUBROUTINE OC_DSYTF2( UPLO, N, A, LDA, IPIV, INFO )
 ! 
 !       .. Scalar Arguments ..
 !       CHARACTER          UPLO
@@ -4814,7 +4814,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DSYTF2 computes the factorization of a real symmetric matrix A using
+!> OC_DSYTF2 computes the factorization of a real symmetric matrix A using
 !> the Bunch-Kaufman diagonal pivoting method:
 !>
 !>    A = U*D*U**T  or  A = L*D*L**T
@@ -4961,7 +4961,7 @@ CONTAINS
 !>    Replace l.204 and l.372
 !>         IF( MAX( ABSAKK, COLMAX ).EQ.ZERO ) THEN
 !>    by
-!>         IF( (MAX( ABSAKK, COLMAX ).EQ.ZERO) .OR. DISNAN(ABSAKK) ) THEN
+!>         IF( (MAX( ABSAKK, COLMAX ).EQ.ZERO) .OR. OC_DISNAN(ABSAKK) ) THEN
 !>
 !>  01-01-96 - Based on modifications by
 !>    J. Lewis, Boeing Computer Services Company
@@ -4971,7 +4971,7 @@ CONTAINS
 !> \endverbatim
 !
 !  =====================================================================
-      SUBROUTINE DSYTF2( UPLO, N, A, LDA, IPIV, INFO )
+      SUBROUTINE OC_DSYTF2( UPLO, N, A, LDA, IPIV, INFO )
 !
 !  -- LAPACK computational routine (version 3.5.0) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -5002,12 +5002,12 @@ CONTAINS
                         ROWMAX, T, WK, WKM1, WKP1
 !     ..
 !     .. External Functions ..
-!      LOGICAL            LSAME, DISNAN
-!      INTEGER            IDAMAX
-!      EXTERNAL           LSAME, IDAMAX, DISNAN
+!      LOGICAL            OC_LSAME, OC_DISNAN
+!      INTEGER            OC_IDAMAX
+!      EXTERNAL           OC_LSAME, OC_IDAMAX, OC_DISNAN
 !     ..
 !     .. External Subroutines ..
-!      EXTERNAL           DSCAL, DSWAP, DSYR, XERBLA
+!      EXTERNAL           OC_DSCAL, OC_DSWAP, OC_DSYR, OC_XERBLA
 !     ..
 !     .. Intrinsic Functions ..
       INTRINSIC          ABS, MAX, SQRT
@@ -5017,8 +5017,8 @@ CONTAINS
 !     Test the input parameters.
 !
       INFO = 0
-      UPPER = LSAME( UPLO, 'U' )
-      IF( .NOT.UPPER .AND. .NOT.LSAME( UPLO, 'L' ) ) THEN
+      UPPER = OC_LSAME( UPLO, 'U' )
+      IF( .NOT.UPPER .AND. .NOT.OC_LSAME( UPLO, 'L' ) ) THEN
          INFO = -1
       ELSE IF( N.LT.0 ) THEN
          INFO = -2
@@ -5026,7 +5026,7 @@ CONTAINS
          INFO = -4
       END IF
       IF( INFO.NE.0 ) THEN
-         CALL XERBLA( 'DSYTF2', -INFO )
+         CALL OC_XERBLA( 'OC_DSYTF2', -INFO )
          RETURN
       END IF
 !
@@ -5059,13 +5059,13 @@ CONTAINS
 !        Determine both COLMAX and IMAX.
 !
          IF( K.GT.1 ) THEN
-            IMAX = IDAMAX( K-1, A( 1, K ), 1 )
+            IMAX = OC_IDAMAX( K-1, A( 1, K ), 1 )
             COLMAX = ABS( A( IMAX, K ) )
          ELSE
             COLMAX = ZERO
          END IF
 !
-         IF( (MAX( ABSAKK, COLMAX ).EQ.ZERO) .OR. DISNAN(ABSAKK) ) THEN
+         IF( (MAX( ABSAKK, COLMAX ).EQ.ZERO) .OR. OC_DISNAN(ABSAKK) ) THEN
 !
 !           Column K is zero or underflow, or contains a NaN:
 !           set INFO and continue
@@ -5083,10 +5083,10 @@ CONTAINS
 !              JMAX is the column-index of the largest off-diagonal
 !              element in row IMAX, and ROWMAX is its absolute value
 !
-               JMAX = IMAX + IDAMAX( K-IMAX, A( IMAX, IMAX+1 ), LDA )
+               JMAX = IMAX + OC_IDAMAX( K-IMAX, A( IMAX, IMAX+1 ), LDA )
                ROWMAX = ABS( A( IMAX, JMAX ) )
                IF( IMAX.GT.1 ) THEN
-                  JMAX = IDAMAX( IMAX-1, A( 1, IMAX ), 1 )
+                  JMAX = OC_IDAMAX( IMAX-1, A( 1, IMAX ), 1 )
                   ROWMAX = MAX( ROWMAX, ABS( A( JMAX, IMAX ) ) )
                END IF
 !
@@ -5117,8 +5117,8 @@ CONTAINS
 !              Interchange rows and columns KK and KP in the leading
 !              submatrix A(1:k,1:k)
 !
-               CALL DSWAP( KP-1, A( 1, KK ), 1, A( 1, KP ), 1 )
-               CALL DSWAP( KK-KP-1, A( KP+1, KK ), 1, A( KP, KP+1 ), &
+               CALL OC_DSWAP( KP-1, A( 1, KK ), 1, A( 1, KP ), 1 )
+               CALL OC_DSWAP( KK-KP-1, A( KP+1, KK ), 1, A( KP, KP+1 ), &
                     LDA )
                T = A( KK, KK )
                A( KK, KK ) = A( KP, KP )
@@ -5145,11 +5145,11 @@ CONTAINS
 !              A := A - U(k)*D(k)*U(k)**T = A - W(k)*1/D(k)*W(k)**T
 !
                R1 = ONE / A( K, K )
-               CALL DSYR( UPLO, K-1, -R1, A( 1, K ), 1, A, LDA )
+               CALL OC_DSYR( UPLO, K-1, -R1, A( 1, K ), 1, A, LDA )
 !
 !              Store U(k) in column k
 !
-               CALL DSCAL( K-1, R1, A( 1, K ), 1 )
+               CALL OC_DSCAL( K-1, R1, A( 1, K ), 1 )
             ELSE
 !
 !              2-by-2 pivot block D(k): columns k and k-1 now hold
@@ -5227,13 +5227,13 @@ CONTAINS
 !        Determine both COLMAX and IMAX.
 !
          IF( K.LT.N ) THEN
-            IMAX = K + IDAMAX( N-K, A( K+1, K ), 1 )
+            IMAX = K + OC_IDAMAX( N-K, A( K+1, K ), 1 )
             COLMAX = ABS( A( IMAX, K ) )
          ELSE
             COLMAX = ZERO
          END IF
 !
-         IF( (MAX( ABSAKK, COLMAX ).EQ.ZERO) .OR. DISNAN(ABSAKK) ) THEN
+         IF( (MAX( ABSAKK, COLMAX ).EQ.ZERO) .OR. OC_DISNAN(ABSAKK) ) THEN
 !
 !           Column K is zero or underflow, or contains a NaN:
 !           set INFO and continue
@@ -5251,10 +5251,10 @@ CONTAINS
 !              JMAX is the column-index of the largest off-diagonal
 !              element in row IMAX, and ROWMAX is its absolute value
 !
-               JMAX = K - 1 + IDAMAX( IMAX-K, A( IMAX, K ), LDA )
+               JMAX = K - 1 + OC_IDAMAX( IMAX-K, A( IMAX, K ), LDA )
                ROWMAX = ABS( A( IMAX, JMAX ) )
                IF( IMAX.LT.N ) THEN
-                  JMAX = IMAX + IDAMAX( N-IMAX, A( IMAX+1, IMAX ), 1 )
+                  JMAX = IMAX + OC_IDAMAX( N-IMAX, A( IMAX+1, IMAX ), 1 )
                   ROWMAX = MAX( ROWMAX, ABS( A( JMAX, IMAX ) ) )
                END IF
 !
@@ -5286,8 +5286,8 @@ CONTAINS
 !              submatrix A(k:n,k:n)
 !
                IF( KP.LT.N ) &
-                    CALL DSWAP( N-KP, A( KP+1, KK ), 1, A( KP+1, KP ), 1 )
-               CALL DSWAP( KP-KK-1, A( KK+1, KK ), 1, A( KP, KK+1 ), &
+                    CALL OC_DSWAP( N-KP, A( KP+1, KK ), 1, A( KP+1, KP ), 1 )
+               CALL OC_DSWAP( KP-KK-1, A( KK+1, KK ), 1, A( KP, KK+1 ), &
                     LDA )
                T = A( KK, KK )
                A( KK, KK ) = A( KP, KP )
@@ -5316,12 +5316,12 @@ CONTAINS
 !                 A := A - L(k)*D(k)*L(k)**T = A - W(k)*(1/D(k))*W(k)**T
 !
                   D11 = ONE / A( K, K )
-                  CALL DSYR( UPLO, N-K, -D11, A( K+1, K ), 1, &
+                  CALL OC_DSYR( UPLO, N-K, -D11, A( K+1, K ), 1, &
                        A( K+1, K+1 ), LDA )
 !
 !                 Store L(k) in column K
 !
-                  CALL DSCAL( N-K, D11, A( K+1, K ), 1 )
+                  CALL OC_DSCAL( N-K, D11, A( K+1, K ), 1 )
                END IF
             ELSE
 !
@@ -5380,10 +5380,10 @@ CONTAINS
 !
       RETURN
 !
-!     End of DSYTF2
+!     End of OC_DSYTF2
 !
-      END SUBROUTINE DSYTF2
-!> \brief \b DSYTRF
+      END SUBROUTINE OC_DSYTF2
+!> \brief \b OC_DSYTRF
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -5391,7 +5391,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DSYTRF + dependencies 
+!> Download OC_DSYTRF + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dsytrf.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dsytrf.f"> 
@@ -5403,7 +5403,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DSYTRF( UPLO, N, A, LDA, IPIV, WORK, LWORK, INFO )
+!       SUBROUTINE OC_DSYTRF( UPLO, N, A, LDA, IPIV, WORK, LWORK, INFO )
 ! 
 !       .. Scalar Arguments ..
 !       CHARACTER          UPLO
@@ -5420,7 +5420,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DSYTRF computes the factorization of a real symmetric matrix A using
+!> OC_DSYTRF computes the factorization of a real symmetric matrix A using
 !> the Bunch-Kaufman diagonal pivoting method.  The form of the
 !> factorization is
 !>
@@ -5493,12 +5493,12 @@ CONTAINS
 !> \verbatim
 !>          LWORK is INTEGER
 !>          The length of WORK.  LWORK >=1.  For best performance
-!>          LWORK >= N*NB, where NB is the block size returned by ILAENV.
+!>          LWORK >= N*NB, where NB is the block size returned by OC_ILAENV.
 !>
 !>          If LWORK = -1, then a workspace query is assumed; the routine
 !>          only calculates the optimal size of the WORK array, returns
 !>          this value as the first entry of the WORK array, and no error
-!>          message related to LWORK is issued by XERBLA.
+!>          message related to LWORK is issued by OC_XERBLA.
 !> \endverbatim
 !>
 !> \param[out] INFO
@@ -5565,7 +5565,7 @@ CONTAINS
 !> \endverbatim
 !>
 !  =====================================================================
-      SUBROUTINE DSYTRF( UPLO, N, A, LDA, IPIV, WORK, LWORK, INFO )
+      SUBROUTINE OC_DSYTRF( UPLO, N, A, LDA, IPIV, WORK, LWORK, INFO )
 !
 !  -- LAPACK computational routine (version 3.4.0) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -5588,12 +5588,12 @@ CONTAINS
       INTEGER            IINFO, IWS, J, K, KB, LDWORK, LWKOPT, NB, NBMIN
 !     ..
 !     .. External Functions ..
-!      LOGICAL            LSAME
-!      INTEGER            ILAENV
-!      EXTERNAL           LSAME, ILAENV
+!      LOGICAL            OC_LSAME
+!      INTEGER            OC_ILAENV
+!      EXTERNAL           OC_LSAME, OC_ILAENV
 !     ..
 !     .. External Subroutines ..
-!      EXTERNAL           DLASYF, DSYTF2, XERBLA
+!      EXTERNAL           OC_DLASYF, OC_DSYTF2, OC_XERBLA
 !     ..
 !     .. Intrinsic Functions ..
       INTRINSIC          MAX
@@ -5603,9 +5603,9 @@ CONTAINS
 !     Test the input parameters.
 !
       INFO = 0
-      UPPER = LSAME( UPLO, 'U' )
+      UPPER = OC_LSAME( UPLO, 'U' )
       LQUERY = ( LWORK.EQ.-1 )
-      IF( .NOT.UPPER .AND. .NOT.LSAME( UPLO, 'L' ) ) THEN
+      IF( .NOT.UPPER .AND. .NOT.OC_LSAME( UPLO, 'L' ) ) THEN
          INFO = -1
       ELSE IF( N.LT.0 ) THEN
          INFO = -2
@@ -5619,13 +5619,13 @@ CONTAINS
 !
 !        Determine the block size
 !
-         NB = ILAENV( 1, 'DSYTRF', UPLO, N, -1, -1, -1 )
+         NB = OC_ILAENV( 1, 'OC_DSYTRF', UPLO, N, -1, -1, -1 )
          LWKOPT = N*NB
          WORK( 1 ) = LWKOPT
       END IF
 !
       IF( INFO.NE.0 ) THEN
-         CALL XERBLA( 'DSYTRF', -INFO )
+         CALL OC_XERBLA( 'OC_DSYTRF', -INFO )
          RETURN
       ELSE IF( LQUERY ) THEN
          RETURN
@@ -5637,7 +5637,7 @@ CONTAINS
          IWS = LDWORK*NB
          IF( LWORK.LT.IWS ) THEN
             NB = MAX( LWORK / LDWORK, 1 )
-            NBMIN = MAX( 2, ILAENV( 2, 'DSYTRF', UPLO, N, -1, -1, -1 ) )
+            NBMIN = MAX( 2, OC_ILAENV( 2, 'OC_DSYTRF', UPLO, N, -1, -1, -1 ) )
          END IF
       ELSE
          IWS = 1
@@ -5649,7 +5649,7 @@ CONTAINS
 !        Factorize A as U*D*U**T using the upper triangle of A
 !
 !        K is the main loop index, decreasing from N to 1 in steps of
-!        KB, where KB is the number of columns factorized by DLASYF;
+!        KB, where KB is the number of columns factorized by OC_DLASYF;
 !        KB is either NB or NB-1, or K for the last block
 !
          K = N
@@ -5664,13 +5664,13 @@ CONTAINS
 !           Factorize columns k-kb+1:k of A and use blocked code to
 !           update columns 1:k-kb
 !
-            CALL DLASYF( UPLO, K, NB, KB, A, LDA, IPIV, WORK, LDWORK, &
+            CALL OC_DLASYF( UPLO, K, NB, KB, A, LDA, IPIV, WORK, LDWORK, &
                  IINFO )
          ELSE
 !
 !           Use unblocked code to factorize columns 1:k of A
 !
-            CALL DSYTF2( UPLO, K, A, LDA, IPIV, IINFO )
+            CALL OC_DSYTF2( UPLO, K, A, LDA, IPIV, IINFO )
             KB = K
          END IF
 !
@@ -5689,7 +5689,7 @@ CONTAINS
 !        Factorize A as L*D*L**T using the lower triangle of A
 !
 !        K is the main loop index, increasing from 1 to N in steps of
-!        KB, where KB is the number of columns factorized by DLASYF;
+!        KB, where KB is the number of columns factorized by OC_DLASYF;
 !        KB is either NB or NB-1, or N-K+1 for the last block
 !
          K = 1
@@ -5704,13 +5704,13 @@ CONTAINS
 !           Factorize columns k:k+kb-1 of A and use blocked code to
 !           update columns k+kb:n
 !
-            CALL DLASYF( UPLO, N-K+1, NB, KB, A( K, K ), LDA, IPIV( K ), &
+            CALL OC_DLASYF( UPLO, N-K+1, NB, KB, A( K, K ), LDA, IPIV( K ), &
                  WORK, LDWORK, IINFO )
          ELSE
 !
 !           Use unblocked code to factorize columns k:n of A
 !
-            CALL DSYTF2( UPLO, N-K+1, A( K, K ), LDA, IPIV( K ), IINFO )
+            CALL OC_DSYTF2( UPLO, N-K+1, A( K, K ), LDA, IPIV( K ), IINFO )
             KB = N - K + 1
          END IF
 !
@@ -5739,10 +5739,10 @@ CONTAINS
       WORK( 1 ) = LWKOPT
       RETURN
 !
-!     End of DSYTRF
+!     End of OC_DSYTRF
 !
-      END SUBROUTINE DSYTRF
-!> \brief \b DSYTRI
+      END SUBROUTINE OC_DSYTRF
+!> \brief \b OC_DSYTRI
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -5750,7 +5750,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DSYTRI + dependencies 
+!> Download OC_DSYTRI + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dsytri.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dsytri.f"> 
@@ -5762,7 +5762,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DSYTRI( UPLO, N, A, LDA, IPIV, WORK, INFO )
+!       SUBROUTINE OC_DSYTRI( UPLO, N, A, LDA, IPIV, WORK, INFO )
 ! 
 !       .. Scalar Arguments ..
 !       CHARACTER          UPLO
@@ -5779,9 +5779,9 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DSYTRI computes the inverse of a real symmetric indefinite matrix
+!> OC_DSYTRI computes the inverse of a real symmetric indefinite matrix
 !> A using the factorization A = U*D*U**T or A = L*D*L**T computed by
-!> DSYTRF.
+!> OC_DSYTRF.
 !> \endverbatim
 !
 !  Arguments:
@@ -5806,7 +5806,7 @@ CONTAINS
 !> \verbatim
 !>          A is DOUBLE PRECISION array, dimension (LDA,N)
 !>          On entry, the block diagonal matrix D and the multipliers
-!>          used to obtain the factor U or L as computed by DSYTRF.
+!>          used to obtain the factor U or L as computed by OC_DSYTRF.
 !>
 !>          On exit, if INFO = 0, the (symmetric) inverse of the original
 !>          matrix.  If UPLO = 'U', the upper triangular part of the
@@ -5826,7 +5826,7 @@ CONTAINS
 !> \verbatim
 !>          IPIV is INTEGER array, dimension (N)
 !>          Details of the interchanges and the block structure of D
-!>          as determined by DSYTRF.
+!>          as determined by OC_DSYTRF.
 !> \endverbatim
 !>
 !> \param[out] WORK
@@ -5856,7 +5856,7 @@ CONTAINS
 !> \ingroup doubleSYcomputational
 !
 !  =====================================================================
-      SUBROUTINE DSYTRI( UPLO, N, A, LDA, IPIV, WORK, INFO )
+      SUBROUTINE OC_DSYTRI( UPLO, N, A, LDA, IPIV, WORK, INFO )
 !
 !  -- LAPACK computational routine (version 3.4.0) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -5884,12 +5884,12 @@ CONTAINS
       DOUBLE PRECISION   AK, AKKP1, AKP1, D, T, TEMP
 !     ..
 !     .. External Functions ..
-!      LOGICAL            LSAME
-!      DOUBLE PRECISION   DDOT
-!      EXTERNAL           LSAME, DDOT
+!      LOGICAL            OC_LSAME
+!      DOUBLE PRECISION   OC_DDOT
+!      EXTERNAL           OC_LSAME, OC_DDOT
 !     ..
 !     .. External Subroutines ..
-!      EXTERNAL           DCOPY, DSWAP, DSYMV, XERBLA
+!      EXTERNAL           OC_DCOPY, OC_DSWAP, OC_DSYMV, OC_XERBLA
 !     ..
 !     .. Intrinsic Functions ..
       INTRINSIC          ABS, MAX
@@ -5899,8 +5899,8 @@ CONTAINS
 !     Test the input parameters.
 !
       INFO = 0
-      UPPER = LSAME( UPLO, 'U' )
-      IF( .NOT.UPPER .AND. .NOT.LSAME( UPLO, 'L' ) ) THEN
+      UPPER = OC_LSAME( UPLO, 'U' )
+      IF( .NOT.UPPER .AND. .NOT.OC_LSAME( UPLO, 'L' ) ) THEN
          INFO = -1
       ELSE IF( N.LT.0 ) THEN
          INFO = -2
@@ -5908,7 +5908,7 @@ CONTAINS
          INFO = -4
       END IF
       IF( INFO.NE.0 ) THEN
-         CALL XERBLA( 'DSYTRI', -INFO )
+         CALL OC_XERBLA( 'OC_DSYTRI', -INFO )
          RETURN
       END IF
 !
@@ -5960,10 +5960,10 @@ CONTAINS
 !           Compute column K of the inverse.
 !
             IF( K.GT.1 ) THEN
-               CALL DCOPY( K-1, A( 1, K ), 1, WORK, 1 )
-               CALL DSYMV( UPLO, K-1, -ONE, A, LDA, WORK, 1, ZERO, &
+               CALL OC_DCOPY( K-1, A( 1, K ), 1, WORK, 1 )
+               CALL OC_DSYMV( UPLO, K-1, -ONE, A, LDA, WORK, 1, ZERO, &
                     A( 1, K ), 1 )
-               A( K, K ) = A( K, K ) - DDOT( K-1, WORK, 1, A( 1, K ), &
+               A( K, K ) = A( K, K ) - OC_DDOT( K-1, WORK, 1, A( 1, K ), &
                     1 )
             END IF
             KSTEP = 1
@@ -5985,18 +5985,18 @@ CONTAINS
 !           Compute columns K and K+1 of the inverse.
 !
             IF( K.GT.1 ) THEN
-               CALL DCOPY( K-1, A( 1, K ), 1, WORK, 1 )
-               CALL DSYMV( UPLO, K-1, -ONE, A, LDA, WORK, 1, ZERO, &
+               CALL OC_DCOPY( K-1, A( 1, K ), 1, WORK, 1 )
+               CALL OC_DSYMV( UPLO, K-1, -ONE, A, LDA, WORK, 1, ZERO, &
                     A( 1, K ), 1 )
-               A( K, K ) = A( K, K ) - DDOT( K-1, WORK, 1, A( 1, K ), &
+               A( K, K ) = A( K, K ) - OC_DDOT( K-1, WORK, 1, A( 1, K ), &
                     1 )
                A( K, K+1 ) = A( K, K+1 ) -&
-                    DDOT( K-1, A( 1, K ), 1, A( 1, K+1 ), 1 )
-               CALL DCOPY( K-1, A( 1, K+1 ), 1, WORK, 1 )
-               CALL DSYMV( UPLO, K-1, -ONE, A, LDA, WORK, 1, ZERO, &
+                    OC_DDOT( K-1, A( 1, K ), 1, A( 1, K+1 ), 1 )
+               CALL OC_DCOPY( K-1, A( 1, K+1 ), 1, WORK, 1 )
+               CALL OC_DSYMV( UPLO, K-1, -ONE, A, LDA, WORK, 1, ZERO, &
                     A( 1, K+1 ), 1 )
                A( K+1, K+1 ) = A( K+1, K+1 ) -&
-                    DDOT( K-1, WORK, 1, A( 1, K+1 ), 1 )
+                    OC_DDOT( K-1, WORK, 1, A( 1, K+1 ), 1 )
             END IF
             KSTEP = 2
          END IF
@@ -6007,8 +6007,8 @@ CONTAINS
 !           Interchange rows and columns K and KP in the leading
 !           submatrix A(1:k+1,1:k+1)
 !
-            CALL DSWAP( KP-1, A( 1, K ), 1, A( 1, KP ), 1 )
-            CALL DSWAP( K-KP-1, A( KP+1, K ), 1, A( KP, KP+1 ), LDA )
+            CALL OC_DSWAP( KP-1, A( 1, K ), 1, A( 1, KP ), 1 )
+            CALL OC_DSWAP( K-KP-1, A( KP+1, K ), 1, A( KP, KP+1 ), LDA )
             TEMP = A( K, K )
             A( K, K ) = A( KP, KP )
             A( KP, KP ) = TEMP
@@ -6048,10 +6048,10 @@ CONTAINS
 !           Compute column K of the inverse.
 !
             IF( K.LT.N ) THEN
-               CALL DCOPY( N-K, A( K+1, K ), 1, WORK, 1 )
-               CALL DSYMV( UPLO, N-K, -ONE, A( K+1, K+1 ), LDA, WORK, 1, &
+               CALL OC_DCOPY( N-K, A( K+1, K ), 1, WORK, 1 )
+               CALL OC_DSYMV( UPLO, N-K, -ONE, A( K+1, K+1 ), LDA, WORK, 1, &
                     ZERO, A( K+1, K ), 1 )
-               A( K, K ) = A( K, K ) - DDOT( N-K, WORK, 1, A( K+1, K ), &
+               A( K, K ) = A( K, K ) - OC_DDOT( N-K, WORK, 1, A( K+1, K ), &
                     1 )
             END IF
             KSTEP = 1
@@ -6073,19 +6073,19 @@ CONTAINS
 !           Compute columns K-1 and K of the inverse.
 !
             IF( K.LT.N ) THEN
-               CALL DCOPY( N-K, A( K+1, K ), 1, WORK, 1 )
-               CALL DSYMV( UPLO, N-K, -ONE, A( K+1, K+1 ), LDA, WORK, 1, &
+               CALL OC_DCOPY( N-K, A( K+1, K ), 1, WORK, 1 )
+               CALL OC_DSYMV( UPLO, N-K, -ONE, A( K+1, K+1 ), LDA, WORK, 1, &
                     ZERO, A( K+1, K ), 1 )
-               A( K, K ) = A( K, K ) - DDOT( N-K, WORK, 1, A( K+1, K ), &
+               A( K, K ) = A( K, K ) - OC_DDOT( N-K, WORK, 1, A( K+1, K ), &
                     1 )
                A( K, K-1 ) = A( K, K-1 ) -&
-                    DDOT( N-K, A( K+1, K ), 1, A( K+1, K-1 ), &
+                    OC_DDOT( N-K, A( K+1, K ), 1, A( K+1, K-1 ), &
                     1 )
-               CALL DCOPY( N-K, A( K+1, K-1 ), 1, WORK, 1 )
-               CALL DSYMV( UPLO, N-K, -ONE, A( K+1, K+1 ), LDA, WORK, 1, &
+               CALL OC_DCOPY( N-K, A( K+1, K-1 ), 1, WORK, 1 )
+               CALL OC_DSYMV( UPLO, N-K, -ONE, A( K+1, K+1 ), LDA, WORK, 1, &
                     ZERO, A( K+1, K-1 ), 1 )
                A( K-1, K-1 ) = A( K-1, K-1 ) - &
-                    DDOT( N-K, WORK, 1, A( K+1, K-1 ), 1 )
+                    OC_DDOT( N-K, WORK, 1, A( K+1, K-1 ), 1 )
             END IF
             KSTEP = 2
          END IF
@@ -6097,8 +6097,8 @@ CONTAINS
 !           submatrix A(k-1:n,k-1:n)
 !
             IF( KP.LT.N ) &
-                 CALL DSWAP( N-KP, A( KP+1, K ), 1, A( KP+1, KP ), 1 )
-            CALL DSWAP( KP-K-1, A( K+1, K ), 1, A( KP, K+1 ), LDA )
+                 CALL OC_DSWAP( N-KP, A( KP+1, K ), 1, A( KP+1, KP ), 1 )
+            CALL OC_DSWAP( KP-K-1, A( K+1, K ), 1, A( KP, K+1 ), LDA )
             TEMP = A( K, K )
             A( K, K ) = A( KP, KP )
             A( KP, KP ) = TEMP
@@ -6116,10 +6116,10 @@ CONTAINS
 !
       RETURN
 !
-!     End of DSYTRI
+!     End of OC_DSYTRI
 !
-      END SUBROUTINE DSYTRI
-!> \brief \b DTRSM
+      END SUBROUTINE OC_DSYTRI
+!> \brief \b OC_DTRSM
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -6129,7 +6129,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DTRSM(SIDE,UPLO,TRANSA,DIAG,M,N,ALPHA,A,LDA,B,LDB)
+!       SUBROUTINE OC_DTRSM(SIDE,UPLO,TRANSA,DIAG,M,N,ALPHA,A,LDA,B,LDB)
 ! 
 !       .. Scalar Arguments ..
 !       DOUBLE PRECISION ALPHA
@@ -6146,7 +6146,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DTRSM  solves one of the matrix equations
+!> OC_DTRSM  solves one of the matrix equations
 !>
 !>    op( A )*X = alpha*B,   or   X*op( A ) = alpha*B,
 !>
@@ -6300,7 +6300,7 @@ CONTAINS
 !> \endverbatim
 !>
 !  =====================================================================
-      SUBROUTINE DTRSM(SIDE,UPLO,TRANSA,DIAG,M,N,ALPHA,A,LDA,B,LDB)
+      SUBROUTINE OC_DTRSM(SIDE,UPLO,TRANSA,DIAG,M,N,ALPHA,A,LDA,B,LDB)
 !
 !  -- Reference BLAS level3 routine (version 3.4.0) --
 !  -- Reference BLAS is a software package provided by Univ. of Tennessee,    --
@@ -6319,11 +6319,11 @@ CONTAINS
 !  =====================================================================
 !
 !     .. External Functions ..
-!      LOGICAL LSAME
-!      EXTERNAL LSAME
+!      LOGICAL OC_LSAME
+!      EXTERNAL OC_LSAME
 !     ..
 !     .. External Subroutines ..
-!      EXTERNAL XERBLA
+!      EXTERNAL OC_XERBLA
 !     ..
 !     .. Intrinsic Functions ..
 !      INTRINSIC MAX
@@ -6340,25 +6340,25 @@ CONTAINS
 !
 !     Test the input parameters.
 !
-      LSIDE = LSAME(SIDE,'L')
+      LSIDE = OC_LSAME(SIDE,'L')
       IF (LSIDE) THEN
           NROWA = M
       ELSE
           NROWA = N
       END IF
-      NOUNIT = LSAME(DIAG,'N')
-      UPPER = LSAME(UPLO,'U')
+      NOUNIT = OC_LSAME(DIAG,'N')
+      UPPER = OC_LSAME(UPLO,'U')
 !
       INFO = 0
-      IF ((.NOT.LSIDE) .AND. (.NOT.LSAME(SIDE,'R'))) THEN
+      IF ((.NOT.LSIDE) .AND. (.NOT.OC_LSAME(SIDE,'R'))) THEN
           INFO = 1
-      ELSE IF ((.NOT.UPPER) .AND. (.NOT.LSAME(UPLO,'L'))) THEN
+      ELSE IF ((.NOT.UPPER) .AND. (.NOT.OC_LSAME(UPLO,'L'))) THEN
           INFO = 2
-      ELSE IF ((.NOT.LSAME(TRANSA,'N')) .AND. &
-           (.NOT.LSAME(TRANSA,'T')) .AND. &
-           (.NOT.LSAME(TRANSA,'C'))) THEN
+      ELSE IF ((.NOT.OC_LSAME(TRANSA,'N')) .AND. &
+           (.NOT.OC_LSAME(TRANSA,'T')) .AND. &
+           (.NOT.OC_LSAME(TRANSA,'C'))) THEN
           INFO = 3
-      ELSE IF ((.NOT.LSAME(DIAG,'U')) .AND. (.NOT.LSAME(DIAG,'N'))) THEN
+      ELSE IF ((.NOT.OC_LSAME(DIAG,'U')) .AND. (.NOT.OC_LSAME(DIAG,'N'))) THEN
           INFO = 4
       ELSE IF (M.LT.0) THEN
           INFO = 5
@@ -6370,7 +6370,7 @@ CONTAINS
           INFO = 11
       END IF
       IF (INFO.NE.0) THEN
-          CALL XERBLA('DTRSM ',INFO)
+          CALL OC_XERBLA('OC_DTRSM ',INFO)
           RETURN
       END IF
 !
@@ -6392,7 +6392,7 @@ CONTAINS
 !     Start the operations.
 !
       IF (LSIDE) THEN
-          IF (LSAME(TRANSA,'N')) THEN
+          IF (OC_LSAME(TRANSA,'N')) THEN
 !
 !           Form  B := alpha*inv( A )*B.
 !
@@ -6458,7 +6458,7 @@ CONTAINS
               END IF
           END IF
       ELSE
-          IF (LSAME(TRANSA,'N')) THEN
+          IF (OC_LSAME(TRANSA,'N')) THEN
 !
 !           Form  B := alpha*B*inv( A ).
 !
@@ -6559,11 +6559,11 @@ CONTAINS
 !
       RETURN
 !
-!     End of DTRSM .
+!     End of OC_DTRSM .
 !
-      END SUBROUTINE DTRSM
+      END SUBROUTINE OC_DTRSM
 !
-!> \brief \b IDAMAX
+!> \brief \b OC_IDAMAX
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -6573,7 +6573,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       INTEGER FUNCTION IDAMAX(N,DX,INCX)
+!       INTEGER FUNCTION OC_IDAMAX(N,DX,INCX)
 ! 
 !       .. Scalar Arguments ..
 !       INTEGER INCX,N
@@ -6588,7 +6588,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!>    IDAMAX finds the index of the first element having maximum absolute value.
+!>    OC_IDAMAX finds the index of the first element having maximum absolute value.
 !> \endverbatim
 !
 !  Authors:
@@ -6614,7 +6614,7 @@ CONTAINS
 !> \endverbatim
 !>
 !  =====================================================================
-      INTEGER FUNCTION IDAMAX(N,DX,INCX)
+      INTEGER FUNCTION OC_IDAMAX(N,DX,INCX)
 !
 !  -- Reference BLAS level1 routine (version 3.6.0) --
 !  -- Reference BLAS is a software package provided by Univ. of Tennessee,    --
@@ -6637,9 +6637,9 @@ CONTAINS
 !     .. Intrinsic Functions ..
       INTRINSIC DABS
 !     ..
-      IDAMAX = 0
+      OC_IDAMAX = 0
       IF (N.LT.1 .OR. INCX.LE.0) RETURN
-      IDAMAX = 1
+      OC_IDAMAX = 1
       IF (N.EQ.1) RETURN
       IF (INCX.EQ.1) THEN
 !
@@ -6648,7 +6648,7 @@ CONTAINS
          DMAX = DABS(DX(1))
          DO I = 2,N
             IF (DABS(DX(I)).GT.DMAX) THEN
-               IDAMAX = I
+               OC_IDAMAX = I
                DMAX = DABS(DX(I))
             END IF
          END DO
@@ -6661,16 +6661,16 @@ CONTAINS
          IX = IX + INCX
          DO I = 2,N
             IF (DABS(DX(IX)).GT.DMAX) THEN
-               IDAMAX = I
+               OC_IDAMAX = I
                DMAX = DABS(DX(IX))
             END IF
             IX = IX + INCX
          END DO
       END IF
       RETURN
-      END FUNCTION IDAMAX
+      END FUNCTION OC_IDAMAX
 
-!> \brief \b IEEECK
+!> \brief \b OC_IEEECK
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -6678,7 +6678,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download IEEECK + dependencies 
+!> Download OC_IEEECK + dependencies 
 !> [TGZ]</a> 
 !> [ZIP]</a> 
 !> [TXT]</a>
@@ -6687,7 +6687,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       INTEGER          FUNCTION IEEECK( ISPEC, ZERO, ONE )
+!       INTEGER          FUNCTION OC_IEEECK( ISPEC, ZERO, ONE )
 ! 
 !       .. Scalar Arguments ..
 !       INTEGER            ISPEC
@@ -6700,7 +6700,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> IEEECK is called from the ILAENV to verify that Infinity and
+!> OC_IEEECK is called from the OC_ILAENV to verify that Infinity and
 !> possibly NaN arithmetic is safe (i.e. will not trap).
 !> \endverbatim
 !
@@ -6749,7 +6749,7 @@ CONTAINS
 !> \ingroup auxOTHERauxiliary
 !
 !  =====================================================================
-      INTEGER FUNCTION IEEECK( ISPEC, ZERO, ONE )
+      INTEGER FUNCTION OC_IEEECK( ISPEC, ZERO, ONE )
 !
 !  -- LAPACK auxiliary routine (version 3.4.0) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -6768,53 +6768,53 @@ CONTAINS
            NEGZRO, NEWZRO, POSINF
 !     ..
 !     .. Executable Statements ..
-      IEEECK = 1
+      OC_IEEECK = 1
 !
       POSINF = ONE / ZERO
       IF( POSINF.LE.ONE ) THEN
-         IEEECK = 0
+         OC_IEEECK = 0
          RETURN
       END IF
 !
       NEGINF = -ONE / ZERO
       IF( NEGINF.GE.ZERO ) THEN
-         IEEECK = 0
+         OC_IEEECK = 0
          RETURN
       END IF
 !
       NEGZRO = ONE / ( NEGINF+ONE )
       IF( NEGZRO.NE.ZERO ) THEN
-         IEEECK = 0
+         OC_IEEECK = 0
          RETURN
       END IF
 !
       NEGINF = ONE / NEGZRO
       IF( NEGINF.GE.ZERO ) THEN
-         IEEECK = 0
+         OC_IEEECK = 0
          RETURN
       END IF
 !
       NEWZRO = NEGZRO + ZERO
       IF( NEWZRO.NE.ZERO ) THEN
-         IEEECK = 0
+         OC_IEEECK = 0
          RETURN
       END IF
 !
       POSINF = ONE / NEWZRO
       IF( POSINF.LE.ONE ) THEN
-         IEEECK = 0
+         OC_IEEECK = 0
          RETURN
       END IF
 !
       NEGINF = NEGINF*POSINF
       IF( NEGINF.GE.ZERO ) THEN
-         IEEECK = 0
+         OC_IEEECK = 0
          RETURN
       END IF
 !
       POSINF = POSINF*POSINF
       IF( POSINF.LE.ONE ) THEN
-         IEEECK = 0
+         OC_IEEECK = 0
          RETURN
       END IF
 !
@@ -6838,39 +6838,39 @@ CONTAINS
       NAN6 = NAN5*ZERO
 !
       IF( NAN1.EQ.NAN1 ) THEN
-         IEEECK = 0
+         OC_IEEECK = 0
          RETURN
       END IF
 !
       IF( NAN2.EQ.NAN2 ) THEN
-         IEEECK = 0
+         OC_IEEECK = 0
          RETURN
       END IF
 !
       IF( NAN3.EQ.NAN3 ) THEN
-         IEEECK = 0
+         OC_IEEECK = 0
          RETURN
       END IF
 !
       IF( NAN4.EQ.NAN4 ) THEN
-         IEEECK = 0
+         OC_IEEECK = 0
          RETURN
       END IF
 !
       IF( NAN5.EQ.NAN5 ) THEN
-         IEEECK = 0
+         OC_IEEECK = 0
          RETURN
       END IF
 !
       IF( NAN6.EQ.NAN6 ) THEN
-         IEEECK = 0
+         OC_IEEECK = 0
          RETURN
       END IF
 !
       RETURN
-      END FUNCTION IEEECK
+      END FUNCTION OC_IEEECK
 !
-!> \brief \b ILAENV
+!> \brief \b OC_ILAENV
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -6878,7 +6878,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download ILAENV + dependencies 
+!> Download OC_ILAENV + dependencies 
 !> [TGZ]</a> 
 !> [ZIP]</a> 
 !> [TXT]</a>
@@ -6887,7 +6887,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       INTEGER FUNCTION ILAENV( ISPEC, NAME, OPTS, N1, N2, N3, N4 )
+!       INTEGER FUNCTION OC_ILAENV( ISPEC, NAME, OPTS, N1, N2, N3, N4 )
 ! 
 !       .. Scalar Arguments ..
 !       CHARACTER*( * )    NAME, OPTS
@@ -6900,13 +6900,13 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> ILAENV is called from the LAPACK routines to choose problem-dependent
+!> OC_ILAENV is called from the LAPACK routines to choose problem-dependent
 !> parameters for the local environment.  See ISPEC for a description of
 !> the parameters.
 !>
-!> ILAENV returns an INTEGER
-!> if ILAENV >= 0: ILAENV returns the value of the parameter specified by ISPEC
-!> if ILAENV < 0:  if ILAENV = -k, the k-th argument had an illegal value.
+!> OC_ILAENV returns an INTEGER
+!> if OC_ILAENV >= 0: OC_ILAENV returns the value of the parameter specified by ISPEC
+!> if OC_ILAENV < 0:  if OC_ILAENV = -k, the k-th argument had an illegal value.
 !>
 !> This version provides a set of parameters which should give good,
 !> but not optimal, performance on many of the currently available
@@ -6925,7 +6925,7 @@ CONTAINS
 !> \verbatim
 !>          ISPEC is INTEGER
 !>          Specifies the parameter to be returned as the value of
-!>          ILAENV.
+!>          OC_ILAENV.
 !>          = 1: the optimal blocksize; if this value is 1, an unblocked
 !>               algorithm will give the best performance.
 !>          = 2: the minimum block size for which the block routine
@@ -6937,7 +6937,7 @@ CONTAINS
 !>               eigenvalue routines (DEPRECATED)
 !>          = 5: the minimum column dimension for blocking to be used;
 !>               rectangular blocks must have dimension at least k by m,
-!>               where k is given by ILAENV(2,...) and m by ILAENV(5,...)
+!>               where k is given by OC_ILAENV(2,...) and m by OC_ILAENV(5,...)
 !>          = 6: the crossover point for the SVD (when reducing an m by n
 !>               matrix to bidiagonal form, if max(m,n)/min(m,n) exceeds
 !>               this value, a QR factorization is used first to reduce
@@ -6952,7 +6952,7 @@ CONTAINS
 !>          =11: infinity arithmetic can be trusted not to trap
 !>          12 <= ISPEC <= 16:
 !>               xHSEQR or related subroutines,
-!>               see IPARMQ for detailed explanation
+!>               see OC_IPARMQ for detailed explanation
 !> \endverbatim
 !>
 !> \param[in] NAME
@@ -7010,7 +7010,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!>  The following conventions have been used when calling ILAENV from the
+!>  The following conventions have been used when calling OC_ILAENV from the
 !>  LAPACK routines:
 !>  1)  OPTS is a concatenation of all of the character options to
 !>      subroutine NAME, in the same order that they appear in the
@@ -7020,16 +7020,16 @@ CONTAINS
 !>      that they appear in the argument list for NAME.  N1 is used
 !>      first, N2 second, and so on, and unused problem dimensions are
 !>      passed a value of -1.
-!>  3)  The parameter value returned by ILAENV is checked for validity in
-!>      the calling subroutine.  For example, ILAENV is used to retrieve
+!>  3)  The parameter value returned by OC_ILAENV is checked for validity in
+!>      the calling subroutine.  For example, OC_ILAENV is used to retrieve
 !>      the optimal blocksize for STRTRI as follows:
 !>
-!>      NB = ILAENV( 1, 'STRTRI', UPLO // DIAG, N, -1, -1, -1 )
+!>      NB = OC_ILAENV( 1, 'STRTRI', UPLO // DIAG, N, -1, -1, -1 )
 !>      IF( NB.LE.1 ) NB = MAX( 1, N )
 !> \endverbatim
 !>
 !  =====================================================================
-      INTEGER FUNCTION ILAENV( ISPEC, NAME, OPTS, N1, N2, N3, N4 )
+      INTEGER FUNCTION OC_ILAENV( ISPEC, NAME, OPTS, N1, N2, N3, N4 )
 !
 !  -- LAPACK auxiliary routine (version 3.6.0) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -7052,8 +7052,8 @@ CONTAINS
       INTRINSIC          CHAR, ICHAR, INT, MIN, REAL
 !     ..
 !     .. External Functions ..
-!      INTEGER            IEEECK, IPARMQ
-!      EXTERNAL           IEEECK, IPARMQ
+!      INTEGER            OC_IEEECK, OC_IPARMQ
+!      EXTERNAL           OC_IEEECK, OC_IPARMQ
 !     ..
 !     .. Executable Statements ..
 !
@@ -7062,14 +7062,14 @@ CONTAINS
 !
 !     Invalid value for ISPEC
 !
-      ILAENV = -1
+      OC_ILAENV = -1
       RETURN
 !
    10 CONTINUE
 !
 !     Convert NAME to upper case if the first character is lower case.
 !
-      ILAENV = 1
+      OC_ILAENV = 1
       SUBNAM = NAME
       IC = ICHAR( SUBNAM( 1: 1 ) )
       IZ = ICHAR( 'Z' )
@@ -7288,7 +7288,7 @@ CONTAINS
             END IF
          END IF
       END IF
-      ILAENV = NB
+      OC_ILAENV = NB
       RETURN
 !
    60 CONTINUE
@@ -7371,7 +7371,7 @@ CONTAINS
             NBMIN = 2
          END IF
       END IF
-      ILAENV = NBMIN
+      OC_ILAENV = NBMIN
       RETURN
 !
    70 CONTINUE
@@ -7430,42 +7430,42 @@ CONTAINS
             NX = 128
          END IF
       END IF
-      ILAENV = NX
+      OC_ILAENV = NX
       RETURN
 !
    80 CONTINUE
 !
 !     ISPEC = 4:  number of shifts (used by xHSEQR)
 !
-      ILAENV = 6
+      OC_ILAENV = 6
       RETURN
 !
    90 CONTINUE
 !
 !     ISPEC = 5:  minimum column dimension (not used)
 !
-      ILAENV = 2
+      OC_ILAENV = 2
       RETURN
 !
   100 CONTINUE
 !
 !     ISPEC = 6:  crossover point for SVD (used by xGELSS and xGESVD)
 !
-      ILAENV = INT( REAL( MIN( N1, N2 ) )*1.6E0 )
+      OC_ILAENV = INT( REAL( MIN( N1, N2 ) )*1.6E0 )
       RETURN
 !
   110 CONTINUE
 !
 !     ISPEC = 7:  number of processors (not used)
 !
-      ILAENV = 1
+      OC_ILAENV = 1
       RETURN
 !
   120 CONTINUE
 !
 !     ISPEC = 8:  crossover point for multishift (used by xHSEQR)
 !
-      ILAENV = 50
+      OC_ILAENV = 50
       RETURN
 !
   130 CONTINUE
@@ -7474,17 +7474,17 @@ CONTAINS
 !                 computation tree in the divide-and-conquer algorithm
 !                 (used by xGELSD and xGESDD)
 !
-      ILAENV = 25
+      OC_ILAENV = 25
       RETURN
 !
   140 CONTINUE
 !
 !     ISPEC = 10: ieee NaN arithmetic can be trusted not to trap
 !
-!     ILAENV = 0
-      ILAENV = 1
-      IF( ILAENV.EQ.1 ) THEN
-         ILAENV = IEEECK( 1, 0.0, 1.0 )
+!     OC_ILAENV = 0
+      OC_ILAENV = 1
+      IF( OC_ILAENV.EQ.1 ) THEN
+         OC_ILAENV = OC_IEEECK( 1, 0.0, 1.0 )
       END IF
       RETURN
 !
@@ -7492,10 +7492,10 @@ CONTAINS
 !
 !     ISPEC = 11: infinity arithmetic can be trusted not to trap
 !
-!     ILAENV = 0
-      ILAENV = 1
-      IF( ILAENV.EQ.1 ) THEN
-         ILAENV = IEEECK( 0, 0.0, 1.0 )
+!     OC_ILAENV = 0
+      OC_ILAENV = 1
+      IF( OC_ILAENV.EQ.1 ) THEN
+         OC_ILAENV = OC_IEEECK( 0, 0.0, 1.0 )
       END IF
       RETURN
 !
@@ -7503,13 +7503,13 @@ CONTAINS
 !
 !     12 <= ISPEC <= 16: xHSEQR or related subroutines.
 !
-      ILAENV = IPARMQ( ISPEC, NAME, OPTS, N1, N2, N3, N4 )
+      OC_ILAENV = OC_IPARMQ( ISPEC, NAME, OPTS, N1, N2, N3, N4 )
       RETURN
 !
-!     End of ILAENV
+!     End of OC_ILAENV
 !
-   END FUNCTION ILAENV
-!> \brief \b IPARMQ
+   END FUNCTION OC_ILAENV
+!> \brief \b OC_IPARMQ
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -7517,7 +7517,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download IPARMQ + dependencies 
+!> Download OC_IPARMQ + dependencies 
 !> [TGZ]</a> 
 !> [ZIP]</a> 
 !> [TXT]</a>
@@ -7526,7 +7526,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       INTEGER FUNCTION IPARMQ( ISPEC, NAME, OPTS, N, ILO, IHI, LWORK )
+!       INTEGER FUNCTION OC_IPARMQ( ISPEC, NAME, OPTS, N, ILO, IHI, LWORK )
 ! 
 !       .. Scalar Arguments ..
 !       INTEGER            IHI, ILO, ISPEC, LWORK, N
@@ -7541,7 +7541,7 @@ CONTAINS
 !>      This program sets problem and machine dependent parameters
 !>      useful for xHSEQR and related subroutines for eigenvalue
 !>      problems. It is called whenever
-!>      IPARMQ is called with 12 <= ISPEC <= 16
+!>      OC_IPARMQ is called with 12 <= ISPEC <= 16
 !> \endverbatim
 !
 !  Arguments:
@@ -7550,7 +7550,7 @@ CONTAINS
 !> \param[in] ISPEC
 !> \verbatim
 !>          ISPEC is integer scalar
-!>              ISPEC specifies which tunable parameter IPARMQ should
+!>              ISPEC specifies which tunable parameter OC_IPARMQ should
 !>              return.
 !>
 !>              ISPEC=12: (INMIN)  Matrices of order nmin or less
@@ -7572,17 +7572,17 @@ CONTAINS
 !>                        then the next QR sweep is skipped and early
 !>                        deflation is applied immediately to the
 !>                        remaining active diagonal block.  Setting
-!>                        IPARMQ(ISPEC=14) = 0 causes TTQRE to skip a
+!>                        OC_IPARMQ(ISPEC=14) = 0 causes TTQRE to skip a
 !>                        multi-shift QR sweep whenever early deflation
 !>                        finds a converged eigenvalue.  Setting
-!>                        IPARMQ(ISPEC=14) greater than or equal to 100
+!>                        OC_IPARMQ(ISPEC=14) greater than or equal to 100
 !>                        prevents TTQRE from skipping a multi-shift
 !>                        QR sweep.
 !>
 !>              ISPEC=15: (NSHFTS) The number of simultaneous shifts in
 !>                        a multi-shift QR iteration.
 !>
-!>              ISPEC=16: (IACC22) IPARMQ is set to 0, 1 or 2 with the
+!>              ISPEC=16: (IACC22) OC_IPARMQ is set to 0, 1 or 2 with the
 !>                        following meanings.
 !>                        0:  During the multi-shift QR/QZ sweep,
 !>                            blocked eigenvalue reordering, blocked
@@ -7605,8 +7605,8 @@ CONTAINS
 !>                            is exploited during matrix-matrix
 !>                            multiplies.
 !>                        (If xTRMM is slower than xGEMM, then
-!>                        IPARMQ(ISPEC=16)=1 may be more efficient than
-!>                        IPARMQ(ISPEC=16)=2 despite the greater level of
+!>                        OC_IPARMQ(ISPEC=16)=1 may be more efficient than
+!>                        OC_IPARMQ(ISPEC=16)=2 despite the greater level of
 !>                        arithmetic work implied by the latter choice.)
 !> \endverbatim
 !>
@@ -7681,23 +7681,23 @@ CONTAINS
 !>       only practical way to determine which choices are most
 !>       effective.
 !>
-!>       Following is a list of default values supplied by IPARMQ.
+!>       Following is a list of default values supplied by OC_IPARMQ.
 !>       These defaults may be adjusted in order to attain better
 !>       performance in any particular computational environment.
 !>
-!>       IPARMQ(ISPEC=12) The xLAHQR vs xLAQR0 crossover point.
+!>       OC_IPARMQ(ISPEC=12) The xLAHQR vs xLAQR0 crossover point.
 !>                        Default: 75. (Must be at least 11.)
 !>
-!>       IPARMQ(ISPEC=13) Recommended deflation window size.
+!>       OC_IPARMQ(ISPEC=13) Recommended deflation window size.
 !>                        This depends on ILO, IHI and NS, the
 !>                        number of simultaneous shifts returned
-!>                        by IPARMQ(ISPEC=15).  The default for
+!>                        by OC_IPARMQ(ISPEC=15).  The default for
 !>                        (IHI-ILO+1).LE.500 is NS.  The default
 !>                        for (IHI-ILO+1).GT.500 is 3*NS/2.
 !>
-!>       IPARMQ(ISPEC=14) Nibble crossover point.  Default: 14.
+!>       OC_IPARMQ(ISPEC=14) Nibble crossover point.  Default: 14.
 !>
-!>       IPARMQ(ISPEC=15) Number of simultaneous shifts, NS.
+!>       OC_IPARMQ(ISPEC=15) Number of simultaneous shifts, NS.
 !>                        a multi-shift QR iteration.
 !>
 !>                        If IHI-ILO+1 is ...
@@ -7715,20 +7715,20 @@ CONTAINS
 !>
 !>                    (+)  By default matrices of this order are
 !>                         passed to the implicit double shift routine
-!>                         xLAHQR.  See IPARMQ(ISPEC=12) above.   These
+!>                         xLAHQR.  See OC_IPARMQ(ISPEC=12) above.   These
 !>                         values of NS are used only in case of a rare
 !>                         xLAHQR failure.
 !>
 !>                    (**) The asterisks (**) indicate an ad-hoc
 !>                         function increasing from 10 to 64.
 !>
-!>       IPARMQ(ISPEC=16) Select structured matrix multiply.
+!>       OC_IPARMQ(ISPEC=16) Select structured matrix multiply.
 !>                        (See ISPEC=16 above for details.)
 !>                        Default: 3.
 !> \endverbatim
 !>
 !  =====================================================================
-      INTEGER FUNCTION IPARMQ( ISPEC, NAME, OPTS, N, ILO, IHI, LWORK )
+      INTEGER FUNCTION OC_IPARMQ( ISPEC, NAME, OPTS, N, ILO, IHI, LWORK )
 !
 !  -- LAPACK auxiliary routine (version 3.6.0) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -7783,7 +7783,7 @@ CONTAINS
 !        .     to xLAHQR, the classic double shift algorithm.
 !        .     This must be at least 11. ====
 !
-         IPARMQ = NMIN
+         OC_IPARMQ = NMIN
 !
       ELSE IF( ISPEC.EQ.INIBL ) THEN
 !
@@ -7791,22 +7791,22 @@ CONTAINS
 !        .    whenever aggressive early deflation finds
 !        .    at least (NIBBLE*(window size)/100) deflations. ====
 !
-         IPARMQ = NIBBLE
+         OC_IPARMQ = NIBBLE
 !
       ELSE IF( ISPEC.EQ.ISHFTS ) THEN
 !
 !        ==== NSHFTS: The number of simultaneous shifts =====
 !
-         IPARMQ = NS
+         OC_IPARMQ = NS
 !
       ELSE IF( ISPEC.EQ.INWIN ) THEN
 !
 !        ==== NW: deflation window size.  ====
 !
          IF( NH.LE.KNWSWP ) THEN
-            IPARMQ = NS
+            OC_IPARMQ = NS
          ELSE
-            IPARMQ = 3*NS / 2
+            OC_IPARMQ = 3*NS / 2
          END IF
 !
       ELSE IF( ISPEC.EQ.IACC22 ) THEN
@@ -7821,7 +7821,7 @@ CONTAINS
 !
 !        Convert NAME to upper case if the first character is lower case.
 !
-         IPARMQ = 0
+         OC_IPARMQ = 0
          SUBNAM = NAME
          IC = ICHAR( SUBNAM( 1: 1 ) )
          IZ = ICHAR( 'Z' )
@@ -7871,28 +7871,28 @@ CONTAINS
 !
          IF( SUBNAM( 2:6 ).EQ.'GGHRD' .OR. &
               SUBNAM( 2:6 ).EQ.'GGHD3' ) THEN
-            IPARMQ = 1
-            IF( NH.GE.K22MIN ) IPARMQ = 2
+            OC_IPARMQ = 1
+            IF( NH.GE.K22MIN ) OC_IPARMQ = 2
          ELSE IF ( SUBNAM( 4:6 ).EQ.'EXC' ) THEN
-            IF( NH.GE.KACMIN ) IPARMQ = 1
-            IF( NH.GE.K22MIN ) IPARMQ = 2
+            IF( NH.GE.KACMIN ) OC_IPARMQ = 1
+            IF( NH.GE.K22MIN ) OC_IPARMQ = 2
          ELSE IF ( SUBNAM( 2:6 ).EQ.'HSEQR' .OR. &
               SUBNAM( 2:5 ).EQ.'LAQR' ) THEN
-            IF( NS.GE.KACMIN ) IPARMQ = 1
-            IF( NS.GE.K22MIN ) IPARMQ = 2
+            IF( NS.GE.KACMIN ) OC_IPARMQ = 1
+            IF( NS.GE.K22MIN ) OC_IPARMQ = 2
          END IF
 !
       ELSE
 !        ===== invalid value of ispec =====
-         IPARMQ = -1
+         OC_IPARMQ = -1
 !
       END IF
 !
-!     ==== End of IPARMQ ====
+!     ==== End of OC_IPARMQ ====
 !
-      END FUNCTION IPARMQ
+      END FUNCTION OC_IPARMQ
 !
-!> \brief \b LSAME
+!> \brief \b OC_LSAME
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -7902,7 +7902,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       LOGICAL FUNCTION LSAME(CA,CB)
+!       LOGICAL FUNCTION OC_LSAME(CA,CB)
 ! 
 !       .. Scalar Arguments ..
 !       CHARACTER CA,CB
@@ -7914,7 +7914,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> LSAME returns .TRUE. if CA is the same letter as CB regardless of
+!> OC_LSAME returns .TRUE. if CA is the same letter as CB regardless of
 !> case.
 !> \endverbatim
 !
@@ -7945,7 +7945,7 @@ CONTAINS
 !> \ingroup aux_blas
 !
 !  =====================================================================
-      LOGICAL FUNCTION LSAME(CA,CB)
+      LOGICAL FUNCTION OC_LSAME(CA,CB)
 !
 !  -- Reference BLAS level1 routine (version 3.1) --
 !  -- Reference BLAS is a software package provided by Univ. of Tennessee,    --
@@ -7967,8 +7967,8 @@ CONTAINS
 !
 !     Test if the characters are equal
 !
-      LSAME = CA .EQ. CB
-      IF (LSAME) RETURN
+      OC_LSAME = CA .EQ. CB
+      IF (OC_LSAME) RETURN
 !
 !     Now test for equivalence if both characters are alphabetic.
 !
@@ -8010,14 +8010,14 @@ CONTAINS
           IF (INTA.GE.225 .AND. INTA.LE.250) INTA = INTA - 32
           IF (INTB.GE.225 .AND. INTB.LE.250) INTB = INTB - 32
       END IF
-      LSAME = INTA .EQ. INTB
+      OC_LSAME = INTA .EQ. INTB
 !
 !     RETURN
 !
-!     End of LSAME
+!     End of OC_LSAME
 !
-      END FUNCTION LSAME
-!> \brief \b LSAMEN
+      END FUNCTION OC_LSAME
+!> \brief \b OC_LSAMEN
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -8025,7 +8025,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download LSAMEN + dependencies 
+!> Download OC_LSAMEN + dependencies
 !> [TGZ]</a> 
 !> [ZIP]</a> 
 !> [TXT]</a>
@@ -8034,7 +8034,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       LOGICAL          FUNCTION LSAMEN( N, CA, CB )
+!       LOGICAL          FUNCTION OC_LSAMEN( N, CA, CB )
 ! 
 !       .. Scalar Arguments ..
 !       CHARACTER*( * )    CA, CB
@@ -8047,10 +8047,10 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> LSAMEN  tests if the first N letters of CA are the same as the
+!> OC_LSAMEN  tests if the first N letters of CA are the same as the
 !> first N letters of CB, regardless of case.
-!> LSAMEN returns .TRUE. if CA and CB are equivalent except for case
-!> and .FALSE. otherwise.  LSAMEN also returns .FALSE. if LEN( CA )
+!> OC_LSAMEN returns .TRUE. if CA and CB are equivalent except for case
+!> and .FALSE. otherwise.  OC_LSAMEN also returns .FALSE. if LEN( CA )
 !> or LEN( CB ) is less than N.
 !> \endverbatim
 !
@@ -8088,7 +8088,7 @@ CONTAINS
 !> \ingroup auxOTHERauxiliary
 !
 !  =====================================================================
-      LOGICAL FUNCTION LSAMEN( N, CA, CB )
+      LOGICAL FUNCTION OC_LSAMEN( N, CA, CB )
 !
 !  -- LAPACK auxiliary routine (version 3.4.0) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -8106,35 +8106,35 @@ CONTAINS
       INTEGER            I
 !     ..
 !     .. External Functions ..
-!      LOGICAL            LSAME
-!      EXTERNAL           LSAME
+!      LOGICAL            OC_LSAME
+!      EXTERNAL           OC_LSAME
 !     ..
 !     .. Intrinsic Functions ..
 !      INTRINSIC          LEN
 !     ..
 !     .. Executable Statements ..
 !
-      LSAMEN = .FALSE.
+      OC_LSAMEN = .FALSE.
       IF( LEN( CA ).LT.N .OR. LEN( CB ).LT.N ) GO TO 20
 !
 !     Do for each character in the two strings.
 !
       DO 10 I = 1, N
 !
-!        Test if the characters are equal using LSAME.
+!        Test if the characters are equal using OC_LSAME.
 !
-         IF( .NOT.LSAME( CA( I: I ), CB( I: I ) ) ) GO TO 20
+         IF( .NOT.OC_LSAME( CA( I: I ), CB( I: I ) ) ) GO TO 20
 !
    10 CONTINUE
-      LSAMEN = .TRUE.
+      OC_LSAMEN = .TRUE.
 !
    20 CONTINUE
       RETURN
 !
-!     End of LSAMEN
+!     End of OC_LSAMEN
 !
-      END FUNCTION LSAMEN
-!> \brief \b XERBLA
+      END FUNCTION OC_LSAMEN
+!> \brief \b OC_XERBLA
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -8144,7 +8144,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE XERBLA( SRNAME, INFO )
+!       SUBROUTINE OC_XERBLA( SRNAME, INFO )
 ! 
 !       .. Scalar Arguments ..
 !       CHARACTER*(*)      SRNAME
@@ -8157,7 +8157,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> XERBLA  is an error handler for the LAPACK routines.
+!> OC_XERBLA  is an error handler for the LAPACK routines.
 !> It is called by an LAPACK routine if an input parameter has an
 !> invalid value.  A message is printed and execution stops.
 !>
@@ -8171,7 +8171,7 @@ CONTAINS
 !> \param[in] SRNAME
 !> \verbatim
 !>          SRNAME is CHARACTER*(*)
-!>          The name of the routine which called XERBLA.
+!>          The name of the routine which called OC_XERBLA.
 !> \endverbatim
 !>
 !> \param[in] INFO
@@ -8194,7 +8194,7 @@ CONTAINS
 !> \ingroup aux_blas
 !
 !  =====================================================================
-      SUBROUTINE XERBLA( SRNAME, INFO )
+      SUBROUTINE OC_XERBLA( SRNAME, INFO )
 !
 !  -- Reference BLAS level1 routine (version 3.4.0) --
 !  -- Reference BLAS is a software package provided by Univ. of Tennessee,    --
@@ -8220,11 +8220,11 @@ CONTAINS
  9999 FORMAT( ' ** On entry to ', A, ' parameter number ', I2, ' had ', &
            'an illegal value' )
 !
-!     End of XERBLA
+!     End of OC_XERBLA
 !
-    END SUBROUTINE XERBLA
+    END SUBROUTINE OC_XERBLA
 !
-!> \brief <b> DSPEVD computes the eigenvalues and, optionally, the left and/or right eigenvectors for OTHER matrices</b>
+!> \brief <b> OC_DSPEVD computes the eigenvalues and, optionally, the left and/or right eigenvectors for OTHER matrices</b>
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -8232,7 +8232,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DSPEVD + dependencies 
+!> Download OC_DSPEVD + dependencies
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dspevd.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dspevd.f"> 
@@ -8244,7 +8244,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DSPEVD( JOBZ, UPLO, N, AP, W, Z, LDZ, WORK, LWORK,
+!       SUBROUTINE OC_DSPEVD( JOBZ, UPLO, N, AP, W, Z, LDZ, WORK, LWORK,
 !                          IWORK, LIWORK, INFO )
 ! 
 !       .. Scalar Arguments ..
@@ -8262,7 +8262,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DSPEVD computes all the eigenvalues and, optionally, eigenvectors
+!> OC_DSPEVD computes all the eigenvalues and, optionally, eigenvectors
 !> of a real symmetric matrix A in packed storage. If eigenvectors are
 !> desired, it uses a divide and conquer algorithm.
 !>
@@ -8356,7 +8356,7 @@ CONTAINS
 !>          only calculates the required sizes of the WORK and IWORK
 !>          arrays, returns these values as the first entries of the WORK
 !>          and IWORK arrays, and no error message related to LWORK or
-!>          LIWORK is issued by XERBLA.
+!>          LIWORK is issued by OC_XERBLA.
 !> \endverbatim
 !>
 !> \param[out] IWORK
@@ -8376,7 +8376,7 @@ CONTAINS
 !>          routine only calculates the required sizes of the WORK and
 !>          IWORK arrays, returns these values as the first entries of
 !>          the WORK and IWORK arrays, and no error message related to
-!>          LWORK or LIWORK is issued by XERBLA.
+!>          LWORK or LIWORK is issued by OC_XERBLA.
 !> \endverbatim
 !>
 !> \param[out] INFO
@@ -8402,7 +8402,7 @@ CONTAINS
 !> \ingroup doubleOTHEReigen
 !
 !  =====================================================================
-  SUBROUTINE DSPEVD( JOBZ, UPLO, N, AP, W, Z, LDZ, WORK, LWORK, &
+  SUBROUTINE OC_DSPEVD( JOBZ, UPLO, N, AP, W, Z, LDZ, WORK, LWORK, &
        IWORK, LIWORK, INFO )
 !
 !  -- LAPACK driver routine (version 3.4.0) --
@@ -8433,13 +8433,13 @@ CONTAINS
          SMLNUM
 !     ..
 !     .. External Functions ..
-!?    LOGICAL            LSAME
-!?    DOUBLE PRECISION   DLAMCH, DLANSP
-!?    EXTERNAL           LSAME, DLAMCH, DLANSP
+!?    LOGICAL            OC_LSAME
+!?    DOUBLE PRECISION   OC_DLAMCH, OC_DLANSP
+!?    EXTERNAL           OC_LSAME, OC_DLAMCH, OC_DLANSP
 !     ..
 !     .. External Subroutines ..
-!?    EXTERNAL           DOPMTR, DSCAL, DSPTRD, DSTEDC, DSTERF, XERBLA
-!    EXTERNAL           DSTERF
+!?    EXTERNAL           OC_DOPMTR, OC_DSCAL, OC_DSPTRD, OC_DSTEDC, OC_DSTERF, OC_XERBLA
+!    EXTERNAL           OC_DSTERF
 !     ..
 !     .. Intrinsic Functions ..
 !?      INTRINSIC          SQRT
@@ -8448,13 +8448,13 @@ CONTAINS
 !
 !     Test the input parameters.
 !
-    WANTZ = LSAME( JOBZ, 'V' )
+    WANTZ = OC_LSAME( JOBZ, 'V' )
     LQUERY = ( LWORK.EQ.-1 .OR. LIWORK.EQ.-1 )
 !
     INFO = 0
-    IF( .NOT.( WANTZ .OR. LSAME( JOBZ, 'N' ) ) ) THEN
+    IF( .NOT.( WANTZ .OR. OC_LSAME( JOBZ, 'N' ) ) ) THEN
        INFO = -1
-    ELSE IF( .NOT.( LSAME( UPLO, 'U' ) .OR. LSAME( UPLO, 'L' ) ) )&
+    ELSE IF( .NOT.( OC_LSAME( UPLO, 'U' ) .OR. OC_LSAME( UPLO, 'L' ) ) )&
          THEN
        INFO = -2
     ELSE IF( N.LT.0 ) THEN
@@ -8487,7 +8487,7 @@ CONTAINS
     END IF
 !
     IF( INFO.NE.0 ) THEN
-       CALL XERBLA( 'DSPEVD', -INFO )
+       CALL OC_XERBLA( 'OC_DSPEVD', -INFO )
        RETURN
     ELSE IF( LQUERY ) THEN
        RETURN
@@ -8507,8 +8507,8 @@ CONTAINS
 !
 !     Get machine constants.
 !
-    SAFMIN = DLAMCH( 'Safe minimum' )
-    EPS = DLAMCH( 'Precision' )
+    SAFMIN = OC_DLAMCH( 'Safe minimum' )
+    EPS = OC_DLAMCH( 'Precision' )
     SMLNUM = SAFMIN / EPS
     BIGNUM = ONE / SMLNUM
     RMIN = SQRT( SMLNUM )
@@ -8516,7 +8516,7 @@ CONTAINS
 !
 !     Scale matrix to allowable range, if necessary.
 !
-    ANRM = DLANSP( 'M', UPLO, N, AP, WORK )
+    ANRM = OC_DLANSP( 'M', UPLO, N, AP, WORK )
     ISCALE = 0
     IF( ANRM.GT.ZERO .AND. ANRM.LT.RMIN ) THEN
        ISCALE = 1
@@ -8526,46 +8526,46 @@ CONTAINS
        SIGMA = RMAX / ANRM
     END IF
     IF( ISCALE.EQ.1 ) THEN
-       CALL DSCAL( ( N*( N+1 ) ) / 2, SIGMA, AP, 1 )
+       CALL OC_DSCAL( ( N*( N+1 ) ) / 2, SIGMA, AP, 1 )
     END IF
 !
-!     Call DSPTRD to reduce symmetric packed matrix to tridiagonal form.
+!     Call OC_DSPTRD to reduce symmetric packed matrix to tridiagonal form.
 !
     INDE = 1
     INDTAU = INDE + N
-    CALL DSPTRD( UPLO, N, AP, W, WORK( INDE ), WORK( INDTAU ), IINFO )
+    CALL OC_DSPTRD( UPLO, N, AP, W, WORK( INDE ), WORK( INDTAU ), IINFO )
 !
-!     For eigenvalues only, call DSTERF.  For eigenvectors, first call
-!     DSTEDC to generate the eigenvector matrix, WORK(INDWRK), of the
-!     tridiagonal matrix, then call DOPMTR to multiply it by the
+!     For eigenvalues only, call OC_DSTERF.  For eigenvectors, first call
+!     OC_DSTEDC to generate the eigenvector matrix, WORK(INDWRK), of the
+!     tridiagonal matrix, then call OC_DOPMTR to multiply it by the
 !     Householder transformations represented in AP.
 !
     IF( .NOT.WANTZ ) THEN
-       CALL DSTERF( N, W, WORK( INDE ), INFO )
+       CALL OC_DSTERF( N, W, WORK( INDE ), INFO )
     ELSE
        INDWRK = INDTAU + N
        LLWORK = LWORK - INDWRK + 1
-       CALL DSTEDC( 'I', N, W, WORK( INDE ), Z, LDZ, WORK( INDWRK ),&
+       CALL OC_DSTEDC( 'I', N, W, WORK( INDE ), Z, LDZ, WORK( INDWRK ),&
             LLWORK, IWORK, LIWORK, INFO )
-       CALL DOPMTR( 'L', UPLO, 'N', N, N, AP, WORK( INDTAU ), Z, LDZ,&
+       CALL OC_DOPMTR( 'L', UPLO, 'N', N, N, AP, WORK( INDTAU ), Z, LDZ,&
             WORK( INDWRK ), IINFO )
     END IF
 !
 !     If matrix was scaled, then rescale eigenvalues appropriately.
 !
     IF( ISCALE.EQ.1 ) &
-         CALL DSCAL( N, ONE / SIGMA, W, 1 )
+         CALL OC_DSCAL( N, ONE / SIGMA, W, 1 )
 !
     WORK( 1 ) = LWMIN
     IWORK( 1 ) = LIWMIN
     RETURN
 !
-!     End of DSPEVD
+!     End of OC_DSPEVD
 !
-  END SUBROUTINE DSPEVD
+  END SUBROUTINE OC_DSPEVD
 !
 !
-!> \brief \b DLANSP returns the value of the 1-norm, or the Frobenius norm, or the infinity norm, or the element of largest absolute value of a symmetric matrix supplied in packed form.
+!> \brief \b OC_DLANSP returns the value of the 1-norm, or the Frobenius norm, or the infinity norm, or the element of largest absolute value of a symmetric matrix supplied in packed form.
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -8573,7 +8573,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DLANSP + dependencies 
+!> Download OC_DLANSP + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dlansp.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dlansp.f"> 
@@ -8585,7 +8585,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       DOUBLE PRECISION FUNCTION DLANSP( NORM, UPLO, N, AP, WORK )
+!       DOUBLE PRECISION FUNCTION OC_DLANSP( NORM, UPLO, N, AP, WORK )
 ! 
 !       .. Scalar Arguments ..
 !       CHARACTER          NORM, UPLO
@@ -8601,15 +8601,15 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DLANSP  returns the value of the one norm,  or the Frobenius norm, or
+!> OC_DLANSP  returns the value of the one norm,  or the Frobenius norm, or
 !> the  infinity norm,  or the  element of  largest absolute value  of a
 !> real symmetric matrix A,  supplied in packed form.
 !> \endverbatim
 !>
-!> \return DLANSP
+!> \return OC_DLANSP
 !> \verbatim
 !>
-!>    DLANSP = ( max(abs(A(i,j))), NORM = 'M' or 'm'
+!>    OC_DLANSP = ( max(abs(A(i,j))), NORM = 'M' or 'm'
 !>             (
 !>             ( norm1(A),         NORM = '1', 'O' or 'o'
 !>             (
@@ -8629,7 +8629,7 @@ CONTAINS
 !> \param[in] NORM
 !> \verbatim
 !>          NORM is CHARACTER*1
-!>          Specifies the value to be returned in DLANSP as described
+!>          Specifies the value to be returned in OC_DLANSP as described
 !>          above.
 !> \endverbatim
 !>
@@ -8645,7 +8645,7 @@ CONTAINS
 !> \param[in] N
 !> \verbatim
 !>          N is INTEGER
-!>          The order of the matrix A.  N >= 0.  When N = 0, DLANSP is
+!>          The order of the matrix A.  N >= 0.  When N = 0, OC_DLANSP is
 !>          set to zero.
 !> \endverbatim
 !>
@@ -8679,7 +8679,7 @@ CONTAINS
 !> \ingroup doubleOTHERauxiliary
 !
 !  =====================================================================
-  DOUBLE PRECISION FUNCTION DLANSP( NORM, UPLO, N, AP, WORK )
+  DOUBLE PRECISION FUNCTION OC_DLANSP( NORM, UPLO, N, AP, WORK )
 !
 !  -- LAPACK auxiliary routine (version 3.4.2) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -8705,11 +8705,11 @@ CONTAINS
     DOUBLE PRECISION   ABSA, SCALE, SUM, VALUE
 !     ..
 !     .. External Subroutines ..
-!    EXTERNAL           DLASSQ
+!    EXTERNAL           OC_DLASSQ
 !     ..
 !     .. External Functions ..
-!    LOGICAL            LSAME, DISNAN
-!    EXTERNAL           LSAME, DISNAN
+!    LOGICAL            OC_LSAME, OC_DISNAN
+!    EXTERNAL           OC_LSAME, OC_DISNAN
 !     ..
 !     .. Intrinsic Functions ..
 !      INTRINSIC          ABS, SQRT
@@ -8718,17 +8718,17 @@ CONTAINS
 !
     IF( N.EQ.0 ) THEN
        VALUE = ZERO
-    ELSE IF( LSAME( NORM, 'M' ) ) THEN
+    ELSE IF( OC_LSAME( NORM, 'M' ) ) THEN
 !
 !        Find max(abs(A(i,j))).
 !
        VALUE = ZERO
-       IF( LSAME( UPLO, 'U' ) ) THEN
+       IF( OC_LSAME( UPLO, 'U' ) ) THEN
           K = 1
           DO 20 J = 1, N
              DO 10 I = K, K + J - 1
                 SUM = ABS( AP( I ) )
-                IF( VALUE .LT. SUM .OR. DISNAN( SUM ) ) VALUE = SUM
+                IF( VALUE .LT. SUM .OR. OC_DISNAN( SUM ) ) VALUE = SUM
 10           CONTINUE
              K = K + J
 20        CONTINUE
@@ -8737,19 +8737,19 @@ CONTAINS
           DO 40 J = 1, N
              DO 30 I = K, K + N - J
                 SUM = ABS( AP( I ) )
-                IF( VALUE .LT. SUM .OR. DISNAN( SUM ) ) VALUE = SUM
+                IF( VALUE .LT. SUM .OR. OC_DISNAN( SUM ) ) VALUE = SUM
 30           CONTINUE
              K = K + N - J + 1
 40        CONTINUE
        END IF
-    ELSE IF( ( LSAME( NORM, 'I' ) ) .OR. ( LSAME( NORM, 'O' ) ).OR.&
+    ELSE IF( ( OC_LSAME( NORM, 'I' ) ) .OR. ( OC_LSAME( NORM, 'O' ) ).OR.&
          ( NORM.EQ.'1' ) ) THEN
 !
 !        Find normI(A) ( = norm1(A), since A is symmetric).
 !
        VALUE = ZERO
        K = 1
-       IF( LSAME( UPLO, 'U' ) ) THEN
+       IF( OC_LSAME( UPLO, 'U' ) ) THEN
           DO 60 J = 1, N
              SUM = ZERO
              DO 50 I = 1, J - 1
@@ -8763,7 +8763,7 @@ CONTAINS
 60        CONTINUE
           DO 70 I = 1, N
              SUM = WORK( I )
-             IF( VALUE .LT. SUM .OR. DISNAN( SUM ) ) &
+             IF( VALUE .LT. SUM .OR. OC_DISNAN( SUM ) ) &
                   VALUE = SUM
 70        CONTINUE
        ELSE
@@ -8779,25 +8779,25 @@ CONTAINS
                 WORK( I ) = WORK( I ) + ABSA
                 K = K + 1
 90           CONTINUE
-             IF( VALUE .LT. SUM .OR. DISNAN( SUM ) ) VALUE = SUM
+             IF( VALUE .LT. SUM .OR. OC_DISNAN( SUM ) ) VALUE = SUM
 100       CONTINUE
        END IF
-    ELSE IF( ( LSAME( NORM, 'F' ) ) .OR. ( LSAME( NORM, 'E' ) ) ) THEN
+    ELSE IF( ( OC_LSAME( NORM, 'F' ) ) .OR. ( OC_LSAME( NORM, 'E' ) ) ) THEN
 !
 !        Find normF(A).
 !
        SCALE = ZERO
        SUM = ONE
        K = 2
-       IF( LSAME( UPLO, 'U' ) ) THEN
+       IF( OC_LSAME( UPLO, 'U' ) ) THEN
           DO 110 J = 2, N
-             CALL DLASSQ( J-1, AP( K ), 1,&
+             CALL OC_DLASSQ( J-1, AP( K ), 1,&
                   SCALE, SUM )
              K = K + J
 110       CONTINUE
        ELSE
           DO 120 J = 1, N - 1
-             CALL DLASSQ( N-J, AP( K ), 1, SCALE, SUM )
+             CALL OC_DLASSQ( N-J, AP( K ), 1, SCALE, SUM )
              K = K + N - J + 1
 120       CONTINUE
        END IF
@@ -8813,7 +8813,7 @@ CONTAINS
                 SUM = SUM + ( ABSA / SCALE )**2
              END IF
           END IF
-          IF( LSAME( UPLO, 'U' ) ) THEN
+          IF( OC_LSAME( UPLO, 'U' ) ) THEN
              K = K + I + 1
           ELSE
              K = K + N - I + 1
@@ -8822,16 +8822,16 @@ CONTAINS
        VALUE = SCALE*SQRT( SUM )
     END IF
 !
-    DLANSP = VALUE
+    OC_DLANSP = VALUE
     RETURN
 !
-!     End of DLANSP
+!     End of OC_DLANSP
 !
-  END FUNCTION DLANSP
+  END FUNCTION OC_DLANSP
 !
 !=
 !
-!> \brief \b DLASSQ updates a sum of squares represented in scaled form.
+!> \brief \b OC_DLASSQ updates a sum of squares represented in scaled form.
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -8839,7 +8839,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DLASSQ + dependencies 
+!> Download OC_DLASSQ + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dlassq.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dlassq.f"> 
@@ -8851,7 +8851,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DLASSQ( N, X, INCX, SCALE, SUMSQ )
+!       SUBROUTINE OC_DLASSQ( N, X, INCX, SCALE, SUMSQ )
 ! 
 !       .. Scalar Arguments ..
 !       INTEGER            INCX, N
@@ -8867,7 +8867,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DLASSQ  returns the values  scl  and  smsq  such that
+!> OC_DLASSQ  returns the values  scl  and  smsq  such that
 !>
 !>    ( scl**2 )*smsq = x( 1 )**2 +...+ x( n )**2 + ( scale**2 )*sumsq,
 !>
@@ -8934,7 +8934,7 @@ CONTAINS
 !> \ingroup auxOTHERauxiliary
 !
 !  =====================================================================
-  SUBROUTINE DLASSQ( N, X, INCX, SCALE, SUMSQ )
+  SUBROUTINE OC_DLASSQ( N, X, INCX, SCALE, SUMSQ )
 !
 !  -- LAPACK auxiliary routine (version 3.4.2) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -8960,8 +8960,8 @@ CONTAINS
     DOUBLE PRECISION   ABSXI
 !     ..
 !     .. External Functions ..
-!      LOGICAL            DISNAN
-!      EXTERNAL           DISNAN
+!      LOGICAL            OC_DISNAN
+!      EXTERNAL           OC_DISNAN
 !     ..
 !     .. Intrinsic Functions ..
 !      INTRINSIC          ABS
@@ -8971,7 +8971,7 @@ CONTAINS
     IF( N.GT.0 ) THEN
        DO 10 IX = 1, 1 + ( N-1 )*INCX, INCX
           ABSXI = ABS( X( IX ) )
-          IF( ABSXI.GT.ZERO.OR.DISNAN( ABSXI ) ) THEN
+          IF( ABSXI.GT.ZERO.OR.OC_DISNAN( ABSXI ) ) THEN
              IF( SCALE.LT.ABSXI ) THEN
                 SUMSQ = 1 + SUMSQ*( SCALE / ABSXI )**2
                 SCALE = ABSXI
@@ -8983,13 +8983,13 @@ CONTAINS
     END IF
     RETURN
 !
-!     End of DLASSQ
+!     End of OC_DLASSQ
 !
- END SUBROUTINE DLASSQ
+ END SUBROUTINE OC_DLASSQ
 !
 !=
 !
-!> \brief \b DSPTRD
+!> \brief \b OC_DSPTRD
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -8997,7 +8997,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DSPTRD + dependencies 
+!> Download OC_DSPTRD + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dsptrd.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dsptrd.f"> 
@@ -9009,7 +9009,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DSPTRD( UPLO, N, AP, D, E, TAU, INFO )
+!       SUBROUTINE OC_DSPTRD( UPLO, N, AP, D, E, TAU, INFO )
 ! 
 !       .. Scalar Arguments ..
 !       CHARACTER          UPLO
@@ -9025,7 +9025,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DSPTRD reduces a real symmetric matrix A stored in packed form to
+!> OC_DSPTRD reduces a real symmetric matrix A stored in packed form to
 !> symmetric tridiagonal form T by an orthogonal similarity
 !> transformation: Q**T * A * Q = T.
 !> \endverbatim
@@ -9139,7 +9139,7 @@ CONTAINS
 !> \endverbatim
 !>
 !  =====================================================================
- SUBROUTINE DSPTRD( UPLO, N, AP, D, E, TAU, INFO )
+ SUBROUTINE OC_DSPTRD( UPLO, N, AP, D, E, TAU, INFO )
 !
 !  -- LAPACK computational routine (version 3.4.0) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -9167,27 +9167,27 @@ CONTAINS
    DOUBLE PRECISION   ALPHA, TAUI
 !     ..
 !     .. External Subroutines ..
-!?   EXTERNAL           DAXPY, DLARFG, DSPMV, DSPR2, XERBLA
-!   EXTERNAL           DAXPY, DSPMV, DSPR2
+!?   EXTERNAL           OC_DAXPY, OC_DLARFG, OC_DSPMV, OC_OC_DSPR2, OC_XERBLA
+!   EXTERNAL           OC_DAXPY, OC_DSPMV, OC_OC_DSPR2
 !     ..
 !     .. External Functions ..
-!      LOGICAL            LSAME
-!      DOUBLE PRECISION   DDOT
-!      EXTERNAL           LSAME, DDOT
+!      LOGICAL            OC_LSAME
+!      DOUBLE PRECISION   OC_DDOT
+!      EXTERNAL           OC_LSAME, OC_DDOT
 !     ..
 !     .. Executable Statements ..
 !
 !     Test the input parameters
 !
    INFO = 0
-   UPPER = LSAME( UPLO, 'U' )
-   IF( .NOT.UPPER .AND. .NOT.LSAME( UPLO, 'L' ) ) THEN
+   UPPER = OC_LSAME( UPLO, 'U' )
+   IF( .NOT.UPPER .AND. .NOT.OC_LSAME( UPLO, 'L' ) ) THEN
       INFO = -1
    ELSE IF( N.LT.0 ) THEN
       INFO = -2
    END IF
    IF( INFO.NE.0 ) THEN
-      CALL XERBLA( 'DSPTRD', -INFO )
+      CALL OC_XERBLA( 'OC_DSPTRD', -INFO )
       RETURN
    END IF
 !
@@ -9207,7 +9207,7 @@ CONTAINS
 !           Generate elementary reflector H(i) = I - tau * v * v**T
 !           to annihilate A(1:i-1,i+1)
 !
-         CALL DLARFG( I, AP( I1+I-1 ), AP( I1 ), 1, TAUI )
+         CALL OC_DLARFG( I, AP( I1+I-1 ), AP( I1 ), 1, TAUI )
          E( I ) = AP( I1+I-1 )
 !
          IF( TAUI.NE.ZERO ) THEN
@@ -9218,17 +9218,17 @@ CONTAINS
 !
 !              Compute  y := tau * A * v  storing y in TAU(1:i)
 !
-            CALL DSPMV( UPLO, I, TAUI, AP, AP( I1 ), 1, ZERO, TAU, 1)
+            CALL OC_DSPMV( UPLO, I, TAUI, AP, AP( I1 ), 1, ZERO, TAU, 1)
 !
 !              Compute  w := y - 1/2 * tau * (y**T *v) * v
 !
-            ALPHA = -HALF*TAUI*DDOT( I, TAU, 1, AP( I1 ), 1 )
-            CALL DAXPY( I, ALPHA, AP( I1 ), 1, TAU, 1 )
+            ALPHA = -HALF*TAUI*OC_DDOT( I, TAU, 1, AP( I1 ), 1 )
+            CALL OC_DAXPY( I, ALPHA, AP( I1 ), 1, TAU, 1 )
 !
 !              Apply the transformation as a rank-2 update:
 !                 A := A - v * w**T - w * v**T
 !
-            CALL DSPR2( UPLO, I, -ONE, AP( I1 ), 1, TAU, 1, AP )
+            CALL OC_OC_DSPR2( UPLO, I, -ONE, AP( I1 ), 1, TAU, 1, AP )
 !
             AP( I1+I-1 ) = E( I )
          END IF
@@ -9249,7 +9249,7 @@ CONTAINS
 !           Generate elementary reflector H(i) = I - tau * v * v**T
 !           to annihilate A(i+2:n,i)
 !
-         CALL DLARFG( N-I, AP( II+1 ), AP( II+2 ), 1, TAUI )
+         CALL OC_DLARFG( N-I, AP( II+1 ), AP( II+2 ), 1, TAUI )
          E( I ) = AP( II+1 )
 !
          IF( TAUI.NE.ZERO ) THEN
@@ -9260,18 +9260,18 @@ CONTAINS
 !
 !              Compute  y := tau * A * v  storing y in TAU(i:n-1)
 !
-            CALL DSPMV( UPLO, N-I, TAUI, AP( I1I1 ), AP( II+1 ), 1,&
+            CALL OC_DSPMV( UPLO, N-I, TAUI, AP( I1I1 ), AP( II+1 ), 1,&
                  ZERO, TAU( I ), 1 )
 !
 !              Compute  w := y - 1/2 * tau * (y**T *v) * v
 !
-            ALPHA = -HALF*TAUI*DDOT( N-I, TAU( I ), 1, AP( II+1 ), 1 )
-            CALL DAXPY( N-I, ALPHA, AP( II+1 ), 1, TAU( I ), 1 )
+            ALPHA = -HALF*TAUI*OC_DDOT( N-I, TAU( I ), 1, AP( II+1 ), 1 )
+            CALL OC_DAXPY( N-I, ALPHA, AP( II+1 ), 1, TAU( I ), 1 )
 !
 !              Apply the transformation as a rank-2 update:
 !                 A := A - v * w**T - w * v**T
 !
-            CALL DSPR2( UPLO, N-I, -ONE, AP( II+1 ), 1, TAU( I ), 1,&
+            CALL OC_OC_DSPR2( UPLO, N-I, -ONE, AP( II+1 ), 1, TAU( I ), 1,&
                  AP( I1I1 ) )
 !
             AP( II+1 ) = E( I )
@@ -9285,13 +9285,13 @@ CONTAINS
 !
    RETURN
 !
-!     End of DSPTRD
+!     End of OC_DSPTRD
 !
- END SUBROUTINE DSPTRD
+ END SUBROUTINE OC_DSPTRD
 !
 !=
 !
-!> \brief \b DLARFG generates an elementary reflector (Householder matrix).
+!> \brief \b OC_DLARFG generates an elementary reflector (Householder matrix).
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -9299,7 +9299,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DLARFG + dependencies 
+!> Download OC_DLARFG + dependencies
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dlarfg.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dlarfg.f"> 
@@ -9311,7 +9311,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DLARFG( N, ALPHA, X, INCX, TAU )
+!       SUBROUTINE OC_DLARFG( N, ALPHA, X, INCX, TAU )
 ! 
 !       .. Scalar Arguments ..
 !       INTEGER            INCX, N
@@ -9327,7 +9327,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DLARFG generates a real elementary reflector H of order n, such
+!> OC_DLARFG generates a real elementary reflector H of order n, such
 !> that
 !>
 !>       H * ( alpha ) = ( beta ),   H**T * H = I.
@@ -9397,7 +9397,7 @@ CONTAINS
 !> \ingroup doubleOTHERauxiliary
 !
 !  =====================================================================
- SUBROUTINE DLARFG( N, ALPHA, X, INCX, TAU )
+ SUBROUTINE OC_DLARFG( N, ALPHA, X, INCX, TAU )
 !
 !  -- LAPACK auxiliary routine (version 3.4.2) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -9423,15 +9423,15 @@ CONTAINS
    DOUBLE PRECISION   BETA, RSAFMN, SAFMIN, XNORM
 !     ..
 !     .. External Functions ..
-!?   DOUBLE PRECISION   DLAMCH, DLAPY2, DNRM2
-!   DOUBLE PRECISION   DNRM2
-!   EXTERNAL           DNRM2
+!?   DOUBLE PRECISION   OC_DLAMCH, OC_DLAPY2, OC_DNRM2
+!   DOUBLE PRECISION   OC_DNRM2
+!   EXTERNAL           OC_DNRM2
 !     ..
 !     .. Intrinsic Functions ..
 !   INTRINSIC          ABS, SIGN
 !     ..
 !     .. External Subroutines ..
-!   EXTERNAL           DSCAL
+!   EXTERNAL           OC_DSCAL
 !     ..
 !     .. Executable Statements ..
 !
@@ -9440,7 +9440,7 @@ CONTAINS
       RETURN
    END IF
 !
-   XNORM = DNRM2( N-1, X, INCX )
+   XNORM = OC_DNRM2( N-1, X, INCX )
 !
    IF( XNORM.EQ.ZERO ) THEN
 !
@@ -9451,8 +9451,8 @@ CONTAINS
 !
 !        general case
 !
-      BETA = -SIGN( DLAPY2( ALPHA, XNORM ), ALPHA )
-      SAFMIN = DLAMCH( 'S' ) / DLAMCH( 'E' )
+      BETA = -SIGN( OC_DLAPY2( ALPHA, XNORM ), ALPHA )
+      SAFMIN = OC_DLAMCH( 'S' ) / OC_DLAMCH( 'E' )
       KNT = 0
       IF( ABS( BETA ).LT.SAFMIN ) THEN
 !
@@ -9461,7 +9461,7 @@ CONTAINS
          RSAFMN = ONE / SAFMIN
 10       CONTINUE
          KNT = KNT + 1
-         CALL DSCAL( N-1, RSAFMN, X, INCX )
+         CALL OC_DSCAL( N-1, RSAFMN, X, INCX )
          BETA = BETA*RSAFMN
          ALPHA = ALPHA*RSAFMN
          IF( ABS( BETA ).LT.SAFMIN )&
@@ -9469,11 +9469,11 @@ CONTAINS
 !
 !           New BETA is at most 1, at least SAFMIN
 !
-         XNORM = DNRM2( N-1, X, INCX )
-         BETA = -SIGN( DLAPY2( ALPHA, XNORM ), ALPHA )
+         XNORM = OC_DNRM2( N-1, X, INCX )
+         BETA = -SIGN( OC_DLAPY2( ALPHA, XNORM ), ALPHA )
       END IF
       TAU = ( BETA-ALPHA ) / BETA
-      CALL DSCAL( N-1, ONE / ( ALPHA-BETA ), X, INCX )
+      CALL OC_DSCAL( N-1, ONE / ( ALPHA-BETA ), X, INCX )
 !
 !        If ALPHA is subnormal, it may lose relative accuracy
 !
@@ -9485,13 +9485,13 @@ CONTAINS
 !
    RETURN
 !
-!     End of DLARFG
+!     End of OC_DLARFG
 !
- END SUBROUTINE DLARFG
+ END SUBROUTINE OC_DLARFG
 !
 !=
 !
-!> \brief \b DLAPY2 returns sqrt(x2+y2).
+!> \brief \b OC_DLAPY2 returns sqrt(x2+y2).
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -9499,7 +9499,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DLAPY2 + dependencies 
+!> Download OC_DLAPY2 + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dlapy2.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dlapy2.f"> 
@@ -9511,7 +9511,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       DOUBLE PRECISION FUNCTION DLAPY2( X, Y )
+!       DOUBLE PRECISION FUNCTION OC_DLAPY2( X, Y )
 ! 
 !       .. Scalar Arguments ..
 !       DOUBLE PRECISION   X, Y
@@ -9523,7 +9523,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DLAPY2 returns sqrt(x**2+y**2), taking care not to cause unnecessary
+!> OC_DLAPY2 returns sqrt(x**2+y**2), taking care not to cause unnecessary
 !> overflow.
 !> \endverbatim
 !
@@ -9554,7 +9554,7 @@ CONTAINS
 !> \ingroup auxOTHERauxiliary
 !
 !  =====================================================================
- DOUBLE PRECISION FUNCTION DLAPY2( X, Y )
+ DOUBLE PRECISION FUNCTION OC_DLAPY2( X, Y )
 !
 !  -- LAPACK auxiliary routine (version 3.4.2) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -9586,19 +9586,19 @@ CONTAINS
    W = MAX( XABS, YABS )
    Z = MIN( XABS, YABS )
    IF( Z.EQ.ZERO ) THEN
-      DLAPY2 = W
+      OC_DLAPY2 = W
    ELSE
-      DLAPY2 = W*SQRT( ONE+( Z / W )**2 )
+      OC_DLAPY2 = W*SQRT( ONE+( Z / W )**2 )
    END IF
    RETURN
 !
-!     End of DLAPY2
+!     End of OC_DLAPY2
 !
- END FUNCTION DLAPY2
+ END FUNCTION OC_DLAPY2
 !
 !=
 !
-!> \brief \b DSTERF
+!> \brief \b OC_DSTERF
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -9606,7 +9606,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DSTERF + dependencies 
+!> Download OC_DSTERF + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dsterf.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dsterf.f"> 
@@ -9618,7 +9618,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DSTERF( N, D, E, INFO )
+!       SUBROUTINE OC_DSTERF( N, D, E, INFO )
 ! 
 !       .. Scalar Arguments ..
 !       INTEGER            INFO, N
@@ -9633,7 +9633,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DSTERF computes all eigenvalues of a symmetric tridiagonal matrix
+!> OC_DSTERF computes all eigenvalues of a symmetric tridiagonal matrix
 !> using the Pal-Walker-Kahan variant of the QL or QR algorithm.
 !> \endverbatim
 !
@@ -9684,7 +9684,7 @@ CONTAINS
 !> \ingroup auxOTHERcomputational
 !
 !  =====================================================================
- SUBROUTINE DSTERF( N, D, E, INFO )
+ SUBROUTINE OC_DSTERF( N, D, E, INFO )
 !
 !  -- LAPACK computational routine (version 3.4.0) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -9715,12 +9715,12 @@ CONTAINS
         SIGMA, SSFMAX, SSFMIN, RMAX
 !     ..
 !     .. External Functions ..
-!   DOUBLE PRECISION   DLAMCH, DLANST, DLAPY2
-!?      EXTERNAL           DLAMCH, DLANST, DLAPY2
+!   DOUBLE PRECISION   OC_DLAMCH, OC_DLANST, OC_DLAPY2
+!?      EXTERNAL           OC_DLAMCH, OC_DLANST, OC_DLAPY2
 !     ..
 !     .. External Subroutines ..
-!?   EXTERNAL           DLAE2, DLASCL, DLASRT, XERBLA
-!   EXTERNAL           DLAE2
+!?   EXTERNAL           OC_DLAE2, OC_DLASCL, OC_DLASRT, OC_XERBLA
+!   EXTERNAL           OC_DLAE2
 !     ..
 !     .. Intrinsic Functions ..
 !      INTRINSIC          ABS, SIGN, SQRT
@@ -9735,20 +9735,20 @@ CONTAINS
 !
    IF( N.LT.0 ) THEN
       INFO = -1
-      CALL XERBLA( 'DSTERF', -INFO )
+      CALL OC_XERBLA( 'OC_DSTERF', -INFO )
       RETURN
    END IF
    IF( N.LE.1 ) RETURN
 !
 !     Determine the unit roundoff for this environment.
 !
-   EPS = DLAMCH( 'E' )
+   EPS = OC_DLAMCH( 'E' )
    EPS2 = EPS**2
-   SAFMIN = DLAMCH( 'S' )
+   SAFMIN = OC_DLAMCH( 'S' )
    SAFMAX = ONE / SAFMIN
    SSFMAX = SQRT( SAFMAX ) / THREE
    SSFMIN = SQRT( SAFMIN ) / EPS2
-   RMAX = DLAMCH( 'O' )
+   RMAX = OC_DLAMCH( 'O' )
 !
 !     Compute the eigenvalues of the tridiagonal matrix.
 !
@@ -9784,17 +9784,17 @@ CONTAINS
 !
 !     Scale submatrix in rows and columns L to LEND
 !
-   ANORM = DLANST( 'M', LEND-L+1, D( L ), E( L ) )
+   ANORM = OC_DLANST( 'M', LEND-L+1, D( L ), E( L ) )
    ISCALE = 0
    IF( ANORM.EQ.ZERO ) GO TO 10      
    IF( (ANORM.GT.SSFMAX) ) THEN
       ISCALE = 1
-      CALL DLASCL( 'G', 0, 0, ANORM, SSFMAX, LEND-L+1, 1, D( L ), N, INFO )
-      CALL DLASCL( 'G', 0, 0, ANORM, SSFMAX, LEND-L, 1, E( L ), N, INFO)
+      CALL OC_DLASCL( 'G', 0, 0, ANORM, SSFMAX, LEND-L+1, 1, D( L ), N, INFO )
+      CALL OC_DLASCL( 'G', 0, 0, ANORM, SSFMAX, LEND-L, 1, E( L ), N, INFO)
    ELSE IF( ANORM.LT.SSFMIN ) THEN
       ISCALE = 2
-      CALL DLASCL( 'G', 0, 0, ANORM, SSFMIN, LEND-L+1, 1, D( L ), N, INFO)
-      CALL DLASCL( 'G', 0, 0, ANORM, SSFMIN, LEND-L, 1, E( L ), N, INFO)
+      CALL OC_DLASCL( 'G', 0, 0, ANORM, SSFMIN, LEND-L+1, 1, D( L ), N, INFO)
+      CALL OC_DLASCL( 'G', 0, 0, ANORM, SSFMIN, LEND-L, 1, E( L ), N, INFO)
    END IF
 !
    DO 40 I = L, LEND - 1
@@ -9827,12 +9827,12 @@ CONTAINS
       P = D( L )
       IF( M.EQ.L ) GO TO 90
 !
-!        If remaining matrix is 2 by 2, use DLAE2 to compute its
+!        If remaining matrix is 2 by 2, use OC_DLAE2 to compute its
 !        eigenvalues.
 !
       IF( M.EQ.L+1 ) THEN
          RTE = SQRT( E( L ) )
-         CALL DLAE2( D( L ), RTE, D( L+1 ), RT1, RT2 )
+         CALL OC_DLAE2( D( L ), RTE, D( L+1 ), RT1, RT2 )
          D( L ) = RT1
          D( L+1 ) = RT2
          E( L ) = ZERO
@@ -9848,7 +9848,7 @@ CONTAINS
 !
       RTE = SQRT( E( L ) )
       SIGMA = ( D( L+1 )-P ) / ( TWO*RTE )
-      R = DLAPY2( SIGMA, ONE )
+      R = OC_DLAPY2( SIGMA, ONE )
       SIGMA = P - ( RTE / ( SIGMA+SIGN( R, SIGMA ) ) )
 !
       C = ONE
@@ -9906,12 +9906,12 @@ CONTAINS
       P = D( L )
       IF( M.EQ.L ) GO TO 140
 !
-!        If remaining matrix is 2 by 2, use DLAE2 to compute its
+!        If remaining matrix is 2 by 2, use OC_DLAE2 to compute its
 !        eigenvalues.
 !
       IF( M.EQ.L-1 ) THEN
          RTE = SQRT( E( L-1 ) )
-         CALL DLAE2( D( L ), RTE, D( L-1 ), RT1, RT2 )
+         CALL OC_DLAE2( D( L ), RTE, D( L-1 ), RT1, RT2 )
          D( L ) = RT1
          D( L-1 ) = RT2
          E( L-1 ) = ZERO
@@ -9927,7 +9927,7 @@ CONTAINS
 !
       RTE = SQRT( E( L-1 ) )
       SIGMA = ( D( L-1 )-P ) / ( TWO*RTE )
-      R = DLAPY2( SIGMA, ONE )
+      R = OC_DLAPY2( SIGMA, ONE )
       SIGMA = P - ( RTE / ( SIGMA+SIGN( R, SIGMA ) ) )
 !
       C = ONE
@@ -9974,10 +9974,10 @@ CONTAINS
 !
 150 CONTINUE
    IF( ISCALE.EQ.1 ) &
-        CALL DLASCL( 'G', 0, 0, SSFMAX, ANORM, LENDSV-LSV+1, 1,&
+        CALL OC_DLASCL( 'G', 0, 0, SSFMAX, ANORM, LENDSV-LSV+1, 1,&
         D( LSV ), N, INFO )
    IF( ISCALE.EQ.2 ) &
-        CALL DLASCL( 'G', 0, 0, SSFMIN, ANORM, LENDSV-LSV+1, 1,&
+        CALL OC_DLASCL( 'G', 0, 0, SSFMIN, ANORM, LENDSV-LSV+1, 1,&
         D( LSV ), N, INFO )
 !
 !     Check for no convergence to an eigenvalue after a total
@@ -9992,18 +9992,18 @@ CONTAINS
 !     Sort eigenvalues in increasing order.
 !
 170 CONTINUE
-   CALL DLASRT( 'I', N, D, INFO )
+   CALL OC_DLASRT( 'I', N, D, INFO )
 !
 180 CONTINUE
    RETURN
 !
-!     End of DSTERF
+!     End of OC_DSTERF
 !
- END SUBROUTINE DSTERF
+ END SUBROUTINE OC_DSTERF
 !
 !=
 !
-!> \brief \b DOPMTR
+!> \brief \b OC_DOPMTR
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -10011,7 +10011,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DOPMTR + dependencies 
+!> Download OC_DOPMTR + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dopmtr.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dopmtr.f"> 
@@ -10023,7 +10023,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DOPMTR( SIDE, UPLO, TRANS, M, N, AP, TAU, C, LDC, WORK,
+!       SUBROUTINE OC_DOPMTR( SIDE, UPLO, TRANS, M, N, AP, TAU, C, LDC, WORK,
 !                          INFO )
 ! 
 !       .. Scalar Arguments ..
@@ -10040,7 +10040,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DOPMTR overwrites the general real M-by-N matrix C with
+!> OC_DOPMTR overwrites the general real M-by-N matrix C with
 !>
 !>                 SIDE = 'L'     SIDE = 'R'
 !> TRANS = 'N':      Q * C          C * Q
@@ -10048,7 +10048,7 @@ CONTAINS
 !>
 !> where Q is a real orthogonal matrix of order nq, with nq = m if
 !> SIDE = 'L' and nq = n if SIDE = 'R'. Q is defined as the product of
-!> nq-1 elementary reflectors, as returned by DSPTRD using packed
+!> nq-1 elementary reflectors, as returned by OC_DSPTRD using packed
 !> storage:
 !>
 !> if UPLO = 'U', Q = H(nq-1) . . . H(2) H(1);
@@ -10070,9 +10070,9 @@ CONTAINS
 !> \verbatim
 !>          UPLO is CHARACTER*1
 !>          = 'U': Upper triangular packed storage used in previous
-!>                 call to DSPTRD;
+!>                 call to OC_DSPTRD;
 !>          = 'L': Lower triangular packed storage used in previous
-!>                 call to DSPTRD.
+!>                 call to OC_DSPTRD.
 !> \endverbatim
 !>
 !> \param[in] TRANS
@@ -10100,7 +10100,7 @@ CONTAINS
 !>                               (M*(M+1)/2) if SIDE = 'L'
 !>                               (N*(N+1)/2) if SIDE = 'R'
 !>          The vectors which define the elementary reflectors, as
-!>          returned by DSPTRD.  AP is modified by the routine but
+!>          returned by OC_DSPTRD.  AP is modified by the routine but
 !>          restored on exit.
 !> \endverbatim
 !>
@@ -10109,7 +10109,7 @@ CONTAINS
 !>          TAU is DOUBLE PRECISION array, dimension (M-1) if SIDE = 'L'
 !>                                     or (N-1) if SIDE = 'R'
 !>          TAU(i) must contain the scalar factor of the elementary
-!>          reflector H(i), as returned by DSPTRD.
+!>          reflector H(i), as returned by OC_DSPTRD.
 !> \endverbatim
 !>
 !> \param[in,out] C
@@ -10152,7 +10152,7 @@ CONTAINS
 !> \ingroup doubleOTHERcomputational
 !
 !  =====================================================================
- SUBROUTINE DOPMTR( SIDE, UPLO, TRANS, M, N, AP, TAU, C, LDC, WORK,&
+ SUBROUTINE OC_DOPMTR( SIDE, UPLO, TRANS, M, N, AP, TAU, C, LDC, WORK,&
       INFO )
 !
 !  -- LAPACK computational routine (version 3.4.0) --
@@ -10180,12 +10180,12 @@ CONTAINS
    DOUBLE PRECISION   AII
 !     ..
 !     .. External Functions ..
-!      LOGICAL            LSAME
-!      EXTERNAL           LSAME
+!      LOGICAL            OC_LSAME
+!      EXTERNAL           OC_LSAME
 !     ..
-!     .. External Subroutines .. DLARFG exists ...
-!?      EXTERNAL           DLARF, XERBLA
-!   EXTERNAL           DLARF
+!     .. External Subroutines .. OC_DLARFG exists ...
+!?      EXTERNAL           OC_DLARF, OC_XERBLA
+!   EXTERNAL           OC_DLARF
 !     ..
 !     .. Intrinsic Functions ..
 !      INTRINSIC          MAX
@@ -10195,9 +10195,9 @@ CONTAINS
 !     Test the input arguments
 !
    INFO = 0
-   LEFT = LSAME( SIDE, 'L' )
-   NOTRAN = LSAME( TRANS, 'N' )
-   UPPER = LSAME( UPLO, 'U' )
+   LEFT = OC_LSAME( SIDE, 'L' )
+   NOTRAN = OC_LSAME( TRANS, 'N' )
+   UPPER = OC_LSAME( UPLO, 'U' )
 !
 !     NQ is the order of Q
 !
@@ -10206,11 +10206,11 @@ CONTAINS
    ELSE
       NQ = N
    END IF
-   IF( .NOT.LEFT .AND. .NOT.LSAME( SIDE, 'R' ) ) THEN
+   IF( .NOT.LEFT .AND. .NOT.OC_LSAME( SIDE, 'R' ) ) THEN
       INFO = -1
-   ELSE IF( .NOT.UPPER .AND. .NOT.LSAME( UPLO, 'L' ) ) THEN
+   ELSE IF( .NOT.UPPER .AND. .NOT.OC_LSAME( UPLO, 'L' ) ) THEN
       INFO = -2
-   ELSE IF( .NOT.NOTRAN .AND. .NOT.LSAME( TRANS, 'T' ) ) THEN
+   ELSE IF( .NOT.NOTRAN .AND. .NOT.OC_LSAME( TRANS, 'T' ) ) THEN
       INFO = -3
    ELSE IF( M.LT.0 ) THEN
       INFO = -4
@@ -10220,7 +10220,7 @@ CONTAINS
       INFO = -9
    END IF
    IF( INFO.NE.0 ) THEN
-      CALL XERBLA( 'DOPMTR', -INFO )
+      CALL OC_XERBLA( 'OC_DOPMTR', -INFO )
       RETURN
    END IF
 !
@@ -10230,7 +10230,7 @@ CONTAINS
 !
    IF( UPPER ) THEN
 !
-!        Q was determined by a call to DSPTRD with UPLO = 'U'
+!        Q was determined by a call to OC_DSPTRD with UPLO = 'U'
 !
       FORWRD = ( LEFT .AND. NOTRAN ) .OR.&
            ( .NOT.LEFT .AND. .NOT.NOTRAN )
@@ -10270,7 +10270,7 @@ CONTAINS
 !
          AII = AP( II )
          AP( II ) = ONE
-         CALL DLARF( SIDE, MI, NI, AP( II-I+1 ), 1, TAU( I ), C, LDC, WORK )
+         CALL OC_DLARF( SIDE, MI, NI, AP( II-I+1 ), 1, TAU( I ), C, LDC, WORK )
          AP( II ) = AII
 !
          IF( FORWRD ) THEN
@@ -10281,7 +10281,7 @@ CONTAINS
 10    CONTINUE
    ELSE
 !
-!        Q was determined by a call to DSPTRD with UPLO = 'L'.
+!        Q was determined by a call to OC_DSPTRD with UPLO = 'L'.
 !
       FORWRD = ( LEFT .AND. .NOT.NOTRAN ) .OR.&
            ( .NOT.LEFT .AND. NOTRAN )
@@ -10325,7 +10325,7 @@ CONTAINS
 !
 !           Apply H(i)
 !
-         CALL DLARF( SIDE, MI, NI, AP( II ), 1, TAU( I ),&
+         CALL OC_DLARF( SIDE, MI, NI, AP( II ), 1, TAU( I ),&
               C( IC, JC ), LDC, WORK )
          AP( II ) = AII
 !
@@ -10338,13 +10338,13 @@ CONTAINS
    END IF
    RETURN
 !
-!     End of DOPMTR
+!     End of OC_DOPMTR
 !
- END SUBROUTINE DOPMTR
+ END SUBROUTINE OC_DOPMTR
 !
 !=
 !
-!> \brief \b DLARF applies an elementary reflector to a general rectangular matrix.
+!> \brief \b OC_DLARF applies an elementary reflector to a general rectangular matrix.
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -10352,7 +10352,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DLARF + dependencies 
+!> Download OC_DLARF + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dlarf.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dlarf.f"> 
@@ -10364,7 +10364,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DLARF( SIDE, M, N, V, INCV, TAU, C, LDC, WORK )
+!       SUBROUTINE OC_DLARF( SIDE, M, N, V, INCV, TAU, C, LDC, WORK )
 ! 
 !       .. Scalar Arguments ..
 !       CHARACTER          SIDE
@@ -10381,7 +10381,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DLARF applies a real elementary reflector H to a real m by n matrix
+!> OC_DLARF applies a real elementary reflector H to a real m by n matrix
 !> C, from either the left or the right. H is represented in the form
 !>
 !>       H = I - tau * v * v**T
@@ -10468,7 +10468,7 @@ CONTAINS
 !> \ingroup doubleOTHERauxiliary
 !
 !  =====================================================================
- SUBROUTINE DLARF( SIDE, M, N, V, INCV, TAU, C, LDC, WORK )
+ SUBROUTINE OC_DLARF( SIDE, M, N, V, INCV, TAU, C, LDC, WORK )
 !
 !  -- LAPACK auxiliary routine (version 3.4.2) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -10495,18 +10495,18 @@ CONTAINS
    INTEGER            I, LASTV, LASTC
 !     ..
 !     .. External Subroutines ..
-!   EXTERNAL           DGEMV, DGER
-!   EXTERNAL           DGER
+!   EXTERNAL           OC_DGEMV, OC_DGER
+!   EXTERNAL           OC_DGER
 !     ..
 !     .. External Functions ..
-!      LOGICAL            LSAME
-!   INTEGER            ILADLR, ILADLC
-!      EXTERNAL           LSAME, ILADLR, ILADLC
-!   EXTERNAL           ILADLR, ILADLC
+!      LOGICAL            OC_LSAME
+!   INTEGER            OC_ILADLR, OC_ILADLC
+!      EXTERNAL           OC_LSAME, OC_ILADLR, OC_ILADLC
+!   EXTERNAL           OC_ILADLR, OC_ILADLC
 !     ..
 !     .. Executable Statements ..
 !
-   APPLYLEFT = LSAME( SIDE, 'L' )
+   APPLYLEFT = OC_LSAME( SIDE, 'L' )
    LASTV = 0
    LASTC = 0
    IF( TAU.NE.ZERO ) THEN
@@ -10529,10 +10529,10 @@ CONTAINS
       END DO
       IF( APPLYLEFT ) THEN
 !     Scan for the last non-zero column in C(1:lastv,:).
-         LASTC = ILADLC(LASTV, N, C, LDC)
+         LASTC = OC_ILADLC(LASTV, N, C, LDC)
       ELSE
 !     Scan for the last non-zero row in C(:,1:lastv).
-         LASTC = ILADLR(M, LASTV, C, LDC)
+         LASTC = OC_ILADLR(M, LASTV, C, LDC)
       END IF
    END IF
 !     Note that lastc.eq.0 renders the BLAS operations null; no special
@@ -10545,12 +10545,12 @@ CONTAINS
 !
 !           w(1:lastc,1) := C(1:lastv,1:lastc)**T * v(1:lastv,1)
 !
-         CALL DGEMV( 'Transpose', LASTV, LASTC, ONE, C, LDC, V, INCV,&
+         CALL OC_DGEMV( 'Transpose', LASTV, LASTC, ONE, C, LDC, V, INCV,&
               ZERO, WORK, 1 )
 !
 !           C(1:lastv,1:lastc) := C(...) - v(1:lastv,1) * w(1:lastc,1)**T
 !
-         CALL DGER( LASTV, LASTC, -TAU, V, INCV, WORK, 1, C, LDC )
+         CALL OC_DGER( LASTV, LASTC, -TAU, V, INCV, WORK, 1, C, LDC )
       END IF
    ELSE
 !
@@ -10560,23 +10560,23 @@ CONTAINS
 !
 !           w(1:lastc,1) := C(1:lastc,1:lastv) * v(1:lastv,1)
 !
-         CALL DGEMV( 'No transpose', LASTC, LASTV, ONE, C, LDC,&
+         CALL OC_DGEMV( 'No transpose', LASTC, LASTV, ONE, C, LDC,&
               V, INCV, ZERO, WORK, 1 )
 !
 !           C(1:lastc,1:lastv) := C(...) - w(1:lastc,1) * v(1:lastv,1)**T
 !
-         CALL DGER( LASTC, LASTV, -TAU, WORK, 1, V, INCV, C, LDC )
+         CALL OC_DGER( LASTC, LASTV, -TAU, WORK, 1, V, INCV, C, LDC )
       END IF
    END IF
    RETURN
 !
-!     End of DLARF
+!     End of OC_DLARF
 !
- END SUBROUTINE DLARF
+ END SUBROUTINE OC_DLARF
 !
 !=
 !
-!> \brief <b> DSPEV computes the eigenvalues and, optionally, the left and/or right eigenvectors for OTHER matrices</b>
+!> \brief <b> OC_DSPEV computes the eigenvalues and, optionally, the left and/or right eigenvectors for OTHER matrices</b>
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -10584,7 +10584,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DSPEV + dependencies 
+!> Download OC_DSPEV + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dspev.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dspev.f"> 
@@ -10596,7 +10596,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DSPEV( JOBZ, UPLO, N, AP, W, Z, LDZ, WORK, INFO )
+!       SUBROUTINE OC_DSPEV( JOBZ, UPLO, N, AP, W, Z, LDZ, WORK, INFO )
 ! 
 !       .. Scalar Arguments ..
 !       CHARACTER          JOBZ, UPLO
@@ -10612,7 +10612,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DSPEV computes all the eigenvalues and, optionally, eigenvectors of a
+!> OC_DSPEV computes all the eigenvalues and, optionally, eigenvectors of a
 !> real symmetric matrix A in packed storage.
 !> \endverbatim
 !
@@ -10706,7 +10706,7 @@ CONTAINS
 !> \ingroup doubleOTHEReigen
 !
 !  =====================================================================
- SUBROUTINE DSPEV( JOBZ, UPLO, N, AP, W, Z, LDZ, WORK, INFO )
+ SUBROUTINE OC_DSPEV( JOBZ, UPLO, N, AP, W, Z, LDZ, WORK, INFO )
 !
 !  -- LAPACK driver routine (version 3.4.0) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -10734,13 +10734,13 @@ CONTAINS
         SMLNUM
 !     ..
 !     .. External Functions ..
-!      LOGICAL            LSAME
-!      DOUBLE PRECISION   DLAMCH, DLANSP
-!      EXTERNAL           LSAME, DLAMCH, DLANSP
+!      LOGICAL            OC_LSAME
+!      DOUBLE PRECISION   OC_DLAMCH, OC_DLANSP
+!      EXTERNAL           OC_LSAME, OC_DLAMCH, OC_DLANSP
 !     ..
 !     .. External Subroutines ..
-!   EXTERNAL           DOPGTR, DSCAL, DSPTRD, DSTEQR, DSTERF, XERBLA
-!   EXTERNAL           DOPGTR, DSTEQR
+!   EXTERNAL           OC_DOPGTR, OC_DSCAL, OC_DSPTRD, OC_DSTEQR, OC_DSTERF, OC_XERBLA
+!   EXTERNAL           OC_DOPGTR, OC_DSTEQR
 !     ..
 !     .. Intrinsic Functions ..
 !      INTRINSIC          SQRT
@@ -10749,12 +10749,12 @@ CONTAINS
 !
 !     Test the input parameters.
 !
-   WANTZ = LSAME( JOBZ, 'V' )
+   WANTZ = OC_LSAME( JOBZ, 'V' )
 !
    INFO = 0
-   IF( .NOT.( WANTZ .OR. LSAME( JOBZ, 'N' ) ) ) THEN
+   IF( .NOT.( WANTZ .OR. OC_LSAME( JOBZ, 'N' ) ) ) THEN
       INFO = -1
-   ELSE IF( .NOT.( LSAME( UPLO, 'U' ) .OR. LSAME( UPLO, 'L' ) ) ) THEN
+   ELSE IF( .NOT.( OC_LSAME( UPLO, 'U' ) .OR. OC_LSAME( UPLO, 'L' ) ) ) THEN
       INFO = -2
    ELSE IF( N.LT.0 ) THEN
       INFO = -3
@@ -10763,7 +10763,7 @@ CONTAINS
    END IF
 !
    IF( INFO.NE.0 ) THEN
-      CALL XERBLA( 'DSPEV ', -INFO )
+      CALL OC_XERBLA( 'OC_DSPEV ', -INFO )
       RETURN
    END IF
 !
@@ -10779,8 +10779,8 @@ CONTAINS
 !
 !     Get machine constants.
 !
-   SAFMIN = DLAMCH( 'Safe minimum' )
-   EPS = DLAMCH( 'Precision' )
+   SAFMIN = OC_DLAMCH( 'Safe minimum' )
+   EPS = OC_DLAMCH( 'Precision' )
    SMLNUM = SAFMIN / EPS
    BIGNUM = ONE / SMLNUM
    RMIN = SQRT( SMLNUM )
@@ -10788,7 +10788,7 @@ CONTAINS
 !
 !     Scale matrix to allowable range, if necessary.
 !
-   ANRM = DLANSP( 'M', UPLO, N, AP, WORK )
+   ANRM = OC_DLANSP( 'M', UPLO, N, AP, WORK )
    ISCALE = 0
    IF( ANRM.GT.ZERO .AND. ANRM.LT.RMIN ) THEN
       ISCALE = 1
@@ -10798,25 +10798,25 @@ CONTAINS
       SIGMA = RMAX / ANRM
    END IF
    IF( ISCALE.EQ.1 ) THEN
-      CALL DSCAL( ( N*( N+1 ) ) / 2, SIGMA, AP, 1 )
+      CALL OC_DSCAL( ( N*( N+1 ) ) / 2, SIGMA, AP, 1 )
    END IF
 !
-!     Call DSPTRD to reduce symmetric packed matrix to tridiagonal form.
+!     Call OC_DSPTRD to reduce symmetric packed matrix to tridiagonal form.
 !
    INDE = 1
    INDTAU = INDE + N
-   CALL DSPTRD( UPLO, N, AP, W, WORK( INDE ), WORK( INDTAU ), IINFO )
+   CALL OC_DSPTRD( UPLO, N, AP, W, WORK( INDE ), WORK( INDTAU ), IINFO )
 !
-!     For eigenvalues only, call DSTERF.  For eigenvectors, first call
-!     DOPGTR to generate the orthogonal matrix, then call DSTEQR.
+!     For eigenvalues only, call OC_DSTERF.  For eigenvectors, first call
+!     OC_DOPGTR to generate the orthogonal matrix, then call OC_DSTEQR.
 !
    IF( .NOT.WANTZ ) THEN
-      CALL DSTERF( N, W, WORK( INDE ), INFO )
+      CALL OC_DSTERF( N, W, WORK( INDE ), INFO )
    ELSE
       INDWRK = INDTAU + N
-      CALL DOPGTR( UPLO, N, AP, WORK( INDTAU ), Z, LDZ,&
+      CALL OC_DOPGTR( UPLO, N, AP, WORK( INDTAU ), Z, LDZ,&
            WORK( INDWRK ), IINFO )
-      CALL DSTEQR( JOBZ, N, W, WORK( INDE ), Z, LDZ, WORK( INDTAU ),&
+      CALL OC_DSTEQR( JOBZ, N, W, WORK( INDE ), Z, LDZ, WORK( INDTAU ),&
            INFO )
    END IF
 !
@@ -10828,18 +10828,18 @@ CONTAINS
       ELSE
          IMAX = INFO - 1
       END IF
-      CALL DSCAL( IMAX, ONE / SIGMA, W, 1 )
+      CALL OC_DSCAL( IMAX, ONE / SIGMA, W, 1 )
    END IF
 !
    RETURN
 !
-!     End of DSPEV
+!     End of OC_DSPEV
 !
- END SUBROUTINE DSPEV
+ END SUBROUTINE OC_DSPEV
 !
 !=
 !
-!> \brief \b DSTEDC
+!> \brief \b OC_DSTEDC
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -10847,7 +10847,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DSTEDC + dependencies 
+!> Download OC_DSTEDC + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dstedc.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dstedc.f"> 
@@ -10859,7 +10859,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DSTEDC( COMPZ, N, D, E, Z, LDZ, WORK, LWORK, IWORK,
+!       SUBROUTINE OC_DSTEDC( COMPZ, N, D, E, Z, LDZ, WORK, LWORK, IWORK,
 !                          LIWORK, INFO )
 ! 
 !       .. Scalar Arguments ..
@@ -10877,10 +10877,10 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DSTEDC computes all eigenvalues and, optionally, eigenvectors of a
+!> OC_DSTEDC computes all eigenvalues and, optionally, eigenvectors of a
 !> symmetric tridiagonal matrix using the divide and conquer method.
 !> The eigenvectors of a full or band real symmetric matrix can also be
-!> found if DSYTRD or DSPTRD or DSBTRD has been used to reduce this
+!> found if DSYTRD or OC_DSPTRD or DSBTRD has been used to reduce this
 !> matrix to tridiagonal form.
 !>
 !> This code makes very mild assumptions about floating point
@@ -10888,7 +10888,7 @@ CONTAINS
 !> add/subtract, or on those binary machines without guard digits
 !> which subtract like the Cray X-MP, Cray Y-MP, Cray C-90, or Cray-2.
 !> It could conceivably fail on hexadecimal or decimal machines
-!> without guard digits, but we know of none.  See DLAED3 for details.
+!> without guard digits, but we know of none.  See OC_DLAED3 for details.
 !> \endverbatim
 !
 !  Arguments:
@@ -10969,7 +10969,7 @@ CONTAINS
 !>          If LWORK = -1, then a workspace query is assumed; the routine
 !>          only calculates the optimal size of the WORK array, returns
 !>          this value as the first entry of the WORK array, and no error
-!>          message related to LWORK is issued by XERBLA.
+!>          message related to LWORK is issued by OC_XERBLA.
 !> \endverbatim
 !>
 !> \param[out] IWORK
@@ -10994,7 +10994,7 @@ CONTAINS
 !>          If LIWORK = -1, then a workspace query is assumed; the
 !>          routine only calculates the optimal size of the IWORK array,
 !>          returns this value as the first entry of the IWORK array, and
-!>          no error message related to LIWORK is issued by XERBLA.
+!>          no error message related to LIWORK is issued by OC_XERBLA.
 !> \endverbatim
 !>
 !> \param[out] INFO
@@ -11027,7 +11027,7 @@ CONTAINS
 !>  Modified by Francoise Tisseur, University of Tennessee
 !>
 !  =====================================================================
- SUBROUTINE DSTEDC( COMPZ, N, D, E, Z, LDZ, WORK, LWORK, IWORK,&
+ SUBROUTINE OC_DSTEDC( COMPZ, N, D, E, Z, LDZ, WORK, LWORK, IWORK,&
       LIWORK, INFO )
 !
 !  -- LAPACK computational routine (version 3.6.0) --
@@ -11057,16 +11057,16 @@ CONTAINS
    DOUBLE PRECISION   EPS, ORGNRM, P, TINY
 !     ..
 !     .. External Functions ..
-!   LOGICAL            LSAME
-!   INTEGER            ILAENV
-!   DOUBLE PRECISION  DLANST
-!      EXTERNAL           LSAME, ILAENV, DLAMCH, DLANST
-!   EXTERNAL           DLANST
+!   LOGICAL            OC_LSAME
+!   INTEGER            OC_ILAENV
+!   DOUBLE PRECISION  OC_DLANST
+!      EXTERNAL           OC_LSAME, OC_ILAENV, OC_DLAMCH, OC_DLANST
+!   EXTERNAL           OC_DLANST
 !     ..
 !     .. External Subroutines ..
-!   EXTERNAL           DGEMM, DLACPY, DLAED0, DLASCL, DLASET, DLASRT,&
-!        DSTEQR, DSTERF, DSWAP, XERBLA
-!   EXTERNAL           DSTEQR
+!   EXTERNAL           OC_DGEMM, OC_DLACPY, OC_DLAED0, OC_DLASCL, OC_DLASET, OC_DLASRT,&
+!        OC_DSTEQR, OC_DSTERF, OC_DSWAP, OC_XERBLA
+!   EXTERNAL           OC_DSTEQR
 !     ..
 !     .. Intrinsic Functions ..
 !   INTRINSIC          ABS, DBLE, INT, LOG, MAX, MOD, SQRT
@@ -11078,11 +11078,11 @@ CONTAINS
    INFO = 0
    LQUERY = ( LWORK.EQ.-1 .OR. LIWORK.EQ.-1 )
 !
-   IF( LSAME( COMPZ, 'N' ) ) THEN
+   IF( OC_LSAME( COMPZ, 'N' ) ) THEN
       ICOMPZ = 0
-   ELSE IF( LSAME( COMPZ, 'V' ) ) THEN
+   ELSE IF( OC_LSAME( COMPZ, 'V' ) ) THEN
       ICOMPZ = 1
-   ELSE IF( LSAME( COMPZ, 'I' ) ) THEN
+   ELSE IF( OC_LSAME( COMPZ, 'I' ) ) THEN
       ICOMPZ = 2
    ELSE
       ICOMPZ = -1
@@ -11100,7 +11100,7 @@ CONTAINS
 !
 !        Compute the workspace requirements
 !
-      SMLSIZ = ILAENV( 9, 'DSTEDC', ' ', 0, 0, 0, 0 )
+      SMLSIZ = OC_ILAENV( 9, 'OC_DSTEDC', ' ', 0, 0, 0, 0 )
       IF( N.LE.1 .OR. ICOMPZ.EQ.0 ) THEN
          LIWMIN = 1
          LWMIN = 1
@@ -11130,7 +11130,7 @@ CONTAINS
    END IF
 !
    IF( INFO.NE.0 ) THEN
-      CALL XERBLA( 'DSTEDC', -INFO )
+      CALL OC_XERBLA( 'OC_DSTEDC', -INFO )
       RETURN
    ELSE IF (LQUERY) THEN
       RETURN
@@ -11148,15 +11148,15 @@ CONTAINS
 !     will use the Divide and Conquer routine to compute only the
 !     eigenvalues, which requires (3N + 3N**2) real workspace and
 !     (2 + 5N + 2N lg(N)) integer workspace.
-!     Since on many architectures DSTERF is much faster than any other
+!     Since on many architectures OC_DSTERF is much faster than any other
 !     algorithm for finding eigenvalues only, it is used here
 !     as the default. If the conditional clause is removed, then
 !     information on the size of workspace needs to be changed.
 !
-!     If COMPZ = 'N', use DSTERF to compute the eigenvalues.
+!     If COMPZ = 'N', use OC_DSTERF to compute the eigenvalues.
 !
    IF( ICOMPZ.EQ.0 ) THEN
-      CALL DSTERF( N, D, E, INFO )
+      CALL OC_DSTERF( N, D, E, INFO )
       GO TO 50
    END IF
 !
@@ -11165,7 +11165,7 @@ CONTAINS
 !
    IF( N.LE.SMLSIZ ) THEN
 !
-      CALL DSTEQR( COMPZ, N, D, E, Z, LDZ, WORK, INFO )
+      CALL OC_DSTEQR( COMPZ, N, D, E, Z, LDZ, WORK, INFO )
 !
    ELSE
 !
@@ -11179,15 +11179,15 @@ CONTAINS
       END IF
 !
       IF( ICOMPZ.EQ.2 ) THEN
-         CALL DLASET( 'Full', N, N, ZERO, ONE, Z, LDZ )
+         CALL OC_DLASET( 'Full', N, N, ZERO, ONE, Z, LDZ )
       END IF
 !
 !        Scale.
 !
-      ORGNRM = DLANST( 'M', N, D, E )
+      ORGNRM = OC_DLANST( 'M', N, D, E )
       IF( ORGNRM.EQ.ZERO ) GO TO 50
 !
-      EPS = DLAMCH( 'Epsilon' )
+      EPS = OC_DLAMCH( 'Epsilon' )
 !
       START = 1
 !
@@ -11224,16 +11224,16 @@ CONTAINS
 !
 !              Scale.
 !
-            ORGNRM = DLANST( 'M', M, D( START ), E( START ) )
-            CALL DLASCL( 'G', 0, 0, ORGNRM, ONE, M, 1, D( START ), M,INFO)
-            CALL DLASCL( 'G', 0, 0, ORGNRM, ONE, M-1, 1, E( START ),M-1, INFO )
+            ORGNRM = OC_DLANST( 'M', M, D( START ), E( START ) )
+            CALL OC_DLASCL( 'G', 0, 0, ORGNRM, ONE, M, 1, D( START ), M,INFO)
+            CALL OC_DLASCL( 'G', 0, 0, ORGNRM, ONE, M-1, 1, E( START ),M-1, INFO )
 !
             IF( ICOMPZ.EQ.1 ) THEN
                STRTRW = 1
             ELSE
                STRTRW = START
             END IF
-            CALL DLAED0( ICOMPZ, N, M, D( START ), E( START ),&
+            CALL OC_DLAED0( ICOMPZ, N, M, D( START ), E( START ),&
                  Z( STRTRW, START ), LDZ, WORK( 1 ), N,&
                  WORK( STOREZ ), IWORK, INFO )
             IF( INFO.NE.0 ) THEN
@@ -11244,7 +11244,7 @@ CONTAINS
 !
 !              Scale back.
 !
-            CALL DLASCL( 'G', 0, 0, ONE, ORGNRM, M, 1, D( START ), M,INFO)
+            CALL OC_DLASCL( 'G', 0, 0, ONE, ORGNRM, M, 1, D( START ), M,INFO)
 !
          ELSE
             IF( ICOMPZ.EQ.1 ) THEN
@@ -11253,18 +11253,18 @@ CONTAINS
 !                 the length of D, we must solve the sub-problem in a
 !                 workspace and then multiply back into Z.
 !
-               CALL DSTEQR( 'I', M, D( START ), E( START ), WORK, M,&
+               CALL OC_DSTEQR( 'I', M, D( START ), E( START ), WORK, M,&
                     WORK( M*M+1 ), INFO )
-               CALL DLACPY( 'A', N, M, Z( 1, START ), LDZ,&
+               CALL OC_DLACPY( 'A', N, M, Z( 1, START ), LDZ,&
                     WORK( STOREZ ), N )
-               CALL DGEMM( 'N', 'N', N, M, M, ONE,&
+               CALL OC_DGEMM( 'N', 'N', N, M, M, ONE,&
                     WORK( STOREZ ), N, WORK, M, ZERO,&
                     Z( 1, START ), LDZ )
             ELSE IF( ICOMPZ.EQ.2 ) THEN
-               CALL DSTEQR( 'I', M, D( START ), E( START ),&
+               CALL OC_DSTEQR( 'I', M, D( START ), E( START ),&
                     Z( START, START ), LDZ, WORK, INFO )
             ELSE
-               CALL DSTERF( M, D( START ), E( START ), INFO )
+               CALL OC_DSTERF( M, D( START ), E( START ), INFO )
             END IF
             IF( INFO.NE.0 ) THEN
                INFO = START*( N+1 ) + FINISH
@@ -11282,7 +11282,7 @@ CONTAINS
 !
 !          Use Quick Sort
 !
-         CALL DLASRT( 'I', N, D, INFO )
+         CALL OC_DLASRT( 'I', N, D, INFO )
 !
       ELSE
 !
@@ -11301,7 +11301,7 @@ CONTAINS
             IF( K.NE.I ) THEN
                D( K ) = D( I )
                D( I ) = P
-               CALL DSWAP( N, Z( 1, I ), 1, Z( 1, K ), 1 )
+               CALL OC_DSWAP( N, Z( 1, I ), 1, Z( 1, K ), 1 )
             END IF
 40       CONTINUE
          END IF
@@ -11313,13 +11313,13 @@ CONTAINS
 !
       RETURN
 !
-!     End of DSTEDC
+!     End of OC_DSTEDC
 !
-   END SUBROUTINE DSTEDC
+   END SUBROUTINE OC_DSTEDC
 !
 !=
 !
-!> \brief \b DLANST returns the value of the 1-norm, or the Frobenius norm, or the infinity norm, or the element of largest absolute value of a real symmetric tridiagonal matrix.
+!> \brief \b OC_DLANST returns the value of the 1-norm, or the Frobenius norm, or the infinity norm, or the element of largest absolute value of a real symmetric tridiagonal matrix.
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -11327,7 +11327,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DLANST + dependencies 
+!> Download OC_DLANST + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dlanst.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dlanst.f"> 
@@ -11339,7 +11339,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       DOUBLE PRECISION FUNCTION DLANST( NORM, N, D, E )
+!       DOUBLE PRECISION FUNCTION OC_DLANST( NORM, N, D, E )
 ! 
 !       .. Scalar Arguments ..
 !       CHARACTER          NORM
@@ -11355,15 +11355,15 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DLANST  returns the value of the one norm,  or the Frobenius norm, or
+!> OC_DLANST  returns the value of the one norm,  or the Frobenius norm, or
 !> the  infinity norm,  or the  element of  largest absolute value  of a
 !> real symmetric tridiagonal matrix A.
 !> \endverbatim
 !>
-!> \return DLANST
+!> \return OC_DLANST
 !> \verbatim
 !>
-!>    DLANST = ( max(abs(A(i,j))), NORM = 'M' or 'm'
+!>    OC_DLANST = ( max(abs(A(i,j))), NORM = 'M' or 'm'
 !>             (
 !>             ( norm1(A),         NORM = '1', 'O' or 'o'
 !>             (
@@ -11383,14 +11383,14 @@ CONTAINS
 !> \param[in] NORM
 !> \verbatim
 !>          NORM is CHARACTER*1
-!>          Specifies the value to be returned in DLANST as described
+!>          Specifies the value to be returned in OC_DLANST as described
 !>          above.
 !> \endverbatim
 !>
 !> \param[in] N
 !> \verbatim
 !>          N is INTEGER
-!>          The order of the matrix A.  N >= 0.  When N = 0, DLANST is
+!>          The order of the matrix A.  N >= 0.  When N = 0, OC_DLANST is
 !>          set to zero.
 !> \endverbatim
 !>
@@ -11419,7 +11419,7 @@ CONTAINS
 !> \ingroup auxOTHERauxiliary
 !
 !  =====================================================================
-   DOUBLE PRECISION FUNCTION DLANST( NORM, N, D, E )
+   DOUBLE PRECISION FUNCTION OC_DLANST( NORM, N, D, E )
 !
 !  -- LAPACK auxiliary routine (version 3.4.2) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -11445,11 +11445,11 @@ CONTAINS
      DOUBLE PRECISION   ANORM, SCALE, SUM
 !     ..
 !     .. External Functions ..
-!      LOGICAL            LSAME, DISNAN
-!      EXTERNAL           LSAME, DISNAN
+!      LOGICAL            OC_LSAME, OC_DISNAN
+!      EXTERNAL           OC_LSAME, OC_DISNAN
 !     ..
 !     .. External Subroutines ..
-!      EXTERNAL           DLASSQ
+!      EXTERNAL           OC_DLASSQ
 !     ..
 !     .. Intrinsic Functions ..
 !      INTRINSIC          ABS, SQRT
@@ -11458,19 +11458,19 @@ CONTAINS
 !
      IF( N.LE.0 ) THEN
         ANORM = ZERO
-     ELSE IF( LSAME( NORM, 'M' ) ) THEN
+     ELSE IF( OC_LSAME( NORM, 'M' ) ) THEN
 !
 !        Find max(abs(A(i,j))).
 !
         ANORM = ABS( D( N ) )
         DO 10 I = 1, N - 1
            SUM = ABS( D( I ) )
-           IF( ANORM .LT. SUM .OR. DISNAN( SUM ) ) ANORM = SUM
+           IF( ANORM .LT. SUM .OR. OC_DISNAN( SUM ) ) ANORM = SUM
            SUM = ABS( E( I ) )
-           IF( ANORM .LT. SUM .OR. DISNAN( SUM ) ) ANORM = SUM
+           IF( ANORM .LT. SUM .OR. OC_DISNAN( SUM ) ) ANORM = SUM
 10      CONTINUE
-     ELSE IF( LSAME( NORM, 'O' ) .OR. NORM.EQ.'1' .OR.&
-          LSAME( NORM, 'I' ) ) THEN
+     ELSE IF( OC_LSAME( NORM, 'O' ) .OR. NORM.EQ.'1' .OR.&
+          OC_LSAME( NORM, 'I' ) ) THEN
 !
 !        Find norm1(A).
 !
@@ -11479,36 +11479,36 @@ CONTAINS
         ELSE
            ANORM = ABS( D( 1 ) )+ABS( E( 1 ) )
            SUM = ABS( E( N-1 ) )+ABS( D( N ) )
-           IF( ANORM .LT. SUM .OR. DISNAN( SUM ) ) ANORM = SUM
+           IF( ANORM .LT. SUM .OR. OC_DISNAN( SUM ) ) ANORM = SUM
            DO 20 I = 2, N - 1
               SUM = ABS( D( I ) )+ABS( E( I ) )+ABS( E( I-1 ) )
-              IF( ANORM .LT. SUM .OR. DISNAN( SUM ) ) ANORM = SUM
+              IF( ANORM .LT. SUM .OR. OC_DISNAN( SUM ) ) ANORM = SUM
 20         CONTINUE
         END IF
-     ELSE IF( ( LSAME( NORM, 'F' ) ) .OR. ( LSAME( NORM, 'E' ) ) ) THEN
+     ELSE IF( ( OC_LSAME( NORM, 'F' ) ) .OR. ( OC_LSAME( NORM, 'E' ) ) ) THEN
 !
 !        Find normF(A).
 !
         SCALE = ZERO
         SUM = ONE
         IF( N.GT.1 ) THEN
-           CALL DLASSQ( N-1, E, 1, SCALE, SUM )
+           CALL OC_DLASSQ( N-1, E, 1, SCALE, SUM )
            SUM = 2*SUM
         END IF
-        CALL DLASSQ( N, D, 1, SCALE, SUM )
+        CALL OC_DLASSQ( N, D, 1, SCALE, SUM )
         ANORM = SCALE*SQRT( SUM )
      END IF
 !
-     DLANST = ANORM
+     OC_DLANST = ANORM
      RETURN
 !
-!     End of DLANST
+!     End of OC_DLANST
 !
-  END FUNCTION DLANST
+  END FUNCTION OC_DLANST
 !
 !=
 !
-!> \brief \b DLASCL multiplies a general rectangular matrix by a real scalar defined as cto/cfrom.
+!> \brief \b OC_DLASCL multiplies a general rectangular matrix by a real scalar defined as cto/cfrom.
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -11516,7 +11516,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DLASCL + dependencies 
+!> Download OC_DLASCL + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dlascl.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dlascl.f"> 
@@ -11528,7 +11528,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DLASCL( TYPE, KL, KU, CFROM, CTO, M, N, A, LDA, INFO )
+!       SUBROUTINE OC_DLASCL( TYPE, KL, KU, CFROM, CTO, M, N, A, LDA, INFO )
 ! 
 !       .. Scalar Arguments ..
 !       CHARACTER          TYPE
@@ -11545,7 +11545,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DLASCL multiplies the M by N real matrix A by the real scalar
+!> OC_DLASCL multiplies the M by N real matrix A by the real scalar
 !> CTO/CFROM.  This is done without over/underflow as long as the final
 !> result CTO*A(I,J)/CFROM does not over/underflow. TYPE specifies that
 !> A may be full, upper triangular, lower triangular, upper Hessenberg,
@@ -11647,7 +11647,7 @@ CONTAINS
 !> \ingroup auxOTHERauxiliary
 !
 !  =====================================================================
-  SUBROUTINE DLASCL( TYPE, KL, KU, CFROM, CTO, M, N, A, LDA, INFO )
+  SUBROUTINE OC_DLASCL( TYPE, KL, KU, CFROM, CTO, M, N, A, LDA, INFO )
 !
 !  -- LAPACK auxiliary routine (version 3.4.2) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -11675,15 +11675,15 @@ CONTAINS
     DOUBLE PRECISION   BIGNUM, CFROM1, CFROMC, CTO1, CTOC, MUL, SMLNUM
 !     ..
 !     .. External Functions ..
-!      LOGICAL            LSAME, DISNAN
-!      DOUBLE PRECISION   DLAMCH
-!      EXTERNAL           LSAME, DLAMCH, DISNAN
+!      LOGICAL            OC_LSAME, OC_DISNAN
+!      DOUBLE PRECISION   OC_DLAMCH
+!      EXTERNAL           OC_LSAME, OC_DLAMCH, OC_DISNAN
 !     ..
 !     .. Intrinsic Functions ..
 !      INTRINSIC          ABS, MAX, MIN
 !     ..
 !     .. External Subroutines ..
-!    EXTERNAL           XERBLA
+!    EXTERNAL           OC_XERBLA
 !     ..
 !     .. Executable Statements ..
 !
@@ -11691,19 +11691,19 @@ CONTAINS
 !
     INFO = 0
 !
-    IF( LSAME( TYPE, 'G' ) ) THEN
+    IF( OC_LSAME( TYPE, 'G' ) ) THEN
        ITYPE = 0
-    ELSE IF( LSAME( TYPE, 'L' ) ) THEN
+    ELSE IF( OC_LSAME( TYPE, 'L' ) ) THEN
        ITYPE = 1
-    ELSE IF( LSAME( TYPE, 'U' ) ) THEN
+    ELSE IF( OC_LSAME( TYPE, 'U' ) ) THEN
        ITYPE = 2
-    ELSE IF( LSAME( TYPE, 'H' ) ) THEN
+    ELSE IF( OC_LSAME( TYPE, 'H' ) ) THEN
        ITYPE = 3
-    ELSE IF( LSAME( TYPE, 'B' ) ) THEN
+    ELSE IF( OC_LSAME( TYPE, 'B' ) ) THEN
        ITYPE = 4
-    ELSE IF( LSAME( TYPE, 'Q' ) ) THEN
+    ELSE IF( OC_LSAME( TYPE, 'Q' ) ) THEN
        ITYPE = 5
-    ELSE IF( LSAME( TYPE, 'Z' ) ) THEN
+    ELSE IF( OC_LSAME( TYPE, 'Z' ) ) THEN
        ITYPE = 6
     ELSE
        ITYPE = -1
@@ -11711,9 +11711,9 @@ CONTAINS
 !
     IF( ITYPE.EQ.-1 ) THEN
        INFO = -1
-    ELSE IF( CFROM.EQ.ZERO .OR. DISNAN(CFROM) ) THEN
+    ELSE IF( CFROM.EQ.ZERO .OR. OC_DISNAN(CFROM) ) THEN
        INFO = -4
-    ELSE IF( DISNAN(CTO) ) THEN
+    ELSE IF( OC_DISNAN(CTO) ) THEN
        INFO = -5
     ELSE IF( M.LT.0 ) THEN
        INFO = -6
@@ -11737,7 +11737,7 @@ CONTAINS
       END IF
 !
       IF( INFO.NE.0 ) THEN
-         CALL XERBLA( 'DLASCL', -INFO )
+         CALL OC_XERBLA( 'OC_DLASCL', -INFO )
          RETURN
       END IF
 !
@@ -11747,7 +11747,7 @@ CONTAINS
 !
 !     Get machine parameters
 !
-      SMLNUM = DLAMCH( 'S' )
+      SMLNUM = OC_DLAMCH( 'S' )
       BIGNUM = ONE / SMLNUM
 !
       CFROMC = CFROM
@@ -11867,13 +11867,13 @@ CONTAINS
 !
       RETURN
 !
-!     End of DLASCL
+!     End of OC_DLASCL
 !
-   END SUBROUTINE DLASCL
+   END SUBROUTINE OC_DLASCL
 !
 !=
 !
-!> \brief \b DSTEQR
+!> \brief \b OC_DSTEQR
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -11881,7 +11881,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DSTEQR + dependencies 
+!> Download OC_DSTEQR + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dsteqr.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dsteqr.f"> 
@@ -11893,7 +11893,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DSTEQR( COMPZ, N, D, E, Z, LDZ, WORK, INFO )
+!       SUBROUTINE OC_DSTEQR( COMPZ, N, D, E, Z, LDZ, WORK, INFO )
 ! 
 !       .. Scalar Arguments ..
 !       CHARACTER          COMPZ
@@ -11909,10 +11909,10 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DSTEQR computes all eigenvalues and, optionally, eigenvectors of a
+!> OC_DSTEQR computes all eigenvalues and, optionally, eigenvectors of a
 !> symmetric tridiagonal matrix using the implicit QL or QR method.
 !> The eigenvectors of a full or band symmetric matrix can also be found
-!> if DSYTRD or DSPTRD or DSBTRD has been used to reduce this matrix to
+!> if DSYTRD or OC_DSPTRD or DSBTRD has been used to reduce this matrix to
 !> tridiagonal form.
 !> \endverbatim
 !
@@ -12004,7 +12004,7 @@ CONTAINS
 !> \ingroup auxOTHERcomputational
 !
 !  =====================================================================
-   SUBROUTINE DSTEQR( COMPZ, N, D, E, Z, LDZ, WORK, INFO )
+   SUBROUTINE OC_DSTEQR( COMPZ, N, D, E, Z, LDZ, WORK, INFO )
 !
 !  -- LAPACK computational routine (version 3.4.0) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -12036,14 +12036,14 @@ CONTAINS
           S, SAFMAX, SAFMIN, SSFMAX, SSFMIN, TST
 !     ..
 !     .. External Functions ..
-!     LOGICAL            LSAME
-!     DOUBLE PRECISION   DLAPY2
-!      EXTERNAL           LSAME, DLAMCH, DLANST, DLAPY2
+!     LOGICAL            OC_LSAME
+!     DOUBLE PRECISION   OC_DLAPY2
+!      EXTERNAL           OC_LSAME, OC_DLAMCH, OC_DLANST, OC_DLAPY2
 !     ..
 !     .. External Subroutines ..
-!      EXTERNAL           DLAE2, DLAEV2, DLARTG, DLASCL, DLASET, DLASR,
-!     $                   DLASRT, DSWAP, XERBLA
-!     EXTERNAL           DLARTG
+!      EXTERNAL           OC_DLAE2, OC_DLAEV2, OC_DLARTG, OC_DLASCL, OC_DLASET, OC_DLASR,
+!     $                   OC_DLASRT, OC_DSWAP, OC_XERBLA
+!     EXTERNAL           OC_DLARTG
 !     ..
 !     .. Intrinsic Functions ..
 !      INTRINSIC          ABS, MAX, SIGN, SQRT
@@ -12054,11 +12054,11 @@ CONTAINS
 !
      INFO = 0
 !
-     IF( LSAME( COMPZ, 'N' ) ) THEN
+     IF( OC_LSAME( COMPZ, 'N' ) ) THEN
         ICOMPZ = 0
-     ELSE IF( LSAME( COMPZ, 'V' ) ) THEN
+     ELSE IF( OC_LSAME( COMPZ, 'V' ) ) THEN
         ICOMPZ = 1
-     ELSE IF( LSAME( COMPZ, 'I' ) ) THEN
+     ELSE IF( OC_LSAME( COMPZ, 'I' ) ) THEN
         ICOMPZ = 2
      ELSE
         ICOMPZ = -1
@@ -12072,7 +12072,7 @@ CONTAINS
         INFO = -6
      END IF
      IF( INFO.NE.0 ) THEN
-        CALL XERBLA( 'DSTEQR', -INFO )
+        CALL OC_XERBLA( 'OC_DSTEQR', -INFO )
         RETURN
      END IF
 !
@@ -12087,9 +12087,9 @@ CONTAINS
 !
 !     Determine the unit roundoff and over/underflow thresholds.
 !
-     EPS = DLAMCH( 'E' )
+     EPS = OC_DLAMCH( 'E' )
      EPS2 = EPS**2
-     SAFMIN = DLAMCH( 'S' )
+     SAFMIN = OC_DLAMCH( 'S' )
      SAFMAX = ONE / SAFMIN
      SSFMAX = SQRT( SAFMAX ) / THREE
      SSFMIN = SQRT( SAFMIN ) / EPS2
@@ -12098,7 +12098,7 @@ CONTAINS
 !     matrix.
 !
      IF( ICOMPZ.EQ.2 )&
-          CALL DLASET( 'Full', N, N, ZERO, ONE, Z, LDZ )
+          CALL OC_DLASET( 'Full', N, N, ZERO, ONE, Z, LDZ )
 !
      NMAXIT = N*MAXIT
      JTOT = 0
@@ -12136,17 +12136,17 @@ CONTAINS
 !
 !     Scale submatrix in rows and columns L to LEND
 !
-     ANORM = DLANST( 'M', LEND-L+1, D( L ), E( L ) )
+     ANORM = OC_DLANST( 'M', LEND-L+1, D( L ), E( L ) )
      ISCALE = 0
      IF( ANORM.EQ.ZERO ) GO TO 10
      IF( ANORM.GT.SSFMAX ) THEN
         ISCALE = 1
-        CALL DLASCL( 'G', 0, 0, ANORM, SSFMAX, LEND-L+1, 1, D( L ), N, INFO )
-        CALL DLASCL( 'G', 0, 0, ANORM, SSFMAX, LEND-L, 1, E( L ), N, INFO )
+        CALL OC_DLASCL( 'G', 0, 0, ANORM, SSFMAX, LEND-L+1, 1, D( L ), N, INFO )
+        CALL OC_DLASCL( 'G', 0, 0, ANORM, SSFMAX, LEND-L, 1, E( L ), N, INFO )
      ELSE IF( ANORM.LT.SSFMIN ) THEN
         ISCALE = 2
-        CALL DLASCL( 'G', 0, 0, ANORM, SSFMIN, LEND-L+1, 1, D( L ), N, INFO )
-        CALL DLASCL( 'G', 0, 0, ANORM, SSFMIN, LEND-L, 1, E( L ), N, INFO )
+        CALL OC_DLASCL( 'G', 0, 0, ANORM, SSFMIN, LEND-L+1, 1, D( L ), N, INFO )
+        CALL OC_DLASCL( 'G', 0, 0, ANORM, SSFMIN, LEND-L, 1, E( L ), N, INFO )
      END IF
 !
 !     Choose between QL and QR iteration
@@ -12178,18 +12178,18 @@ CONTAINS
         P = D( L )
         IF( M.EQ.L ) GO TO 80
 !
-!        If remaining matrix is 2-by-2, use DLAE2 or SLAEV2
+!        If remaining matrix is 2-by-2, use OC_DLAE2 or SLAEV2
 !        to compute its eigensystem.
 !
         IF( M.EQ.L+1 ) THEN
            IF( ICOMPZ.GT.0 ) THEN
-              CALL DLAEV2( D( L ), E( L ), D( L+1 ), RT1, RT2, C, S )
+              CALL OC_DLAEV2( D( L ), E( L ), D( L+1 ), RT1, RT2, C, S )
               WORK( L ) = C
               WORK( N-1+L ) = S
-              CALL DLASR( 'R', 'V', 'B', N, 2, WORK( L ),&
+              CALL OC_DLASR( 'R', 'V', 'B', N, 2, WORK( L ),&
                    WORK( N-1+L ), Z( 1, L ), LDZ )
            ELSE
-              CALL DLAE2( D( L ), E( L ), D( L+1 ), RT1, RT2 )
+              CALL OC_DLAE2( D( L ), E( L ), D( L+1 ), RT1, RT2 )
            END IF
            D( L ) = RT1
            D( L+1 ) = RT2
@@ -12205,7 +12205,7 @@ CONTAINS
 !        Form shift.
 !
         G = ( D( L+1 )-P ) / ( TWO*E( L ) )
-        R = DLAPY2( G, ONE )
+        R = OC_DLAPY2( G, ONE )
         G = D( M ) - P + ( E( L ) / ( G+SIGN( R, G ) ) )
 !
         S = ONE
@@ -12218,7 +12218,7 @@ CONTAINS
         DO 70 I = MM1, L, -1
            F = S*E( I )
            B = C*E( I )
-           CALL DLARTG( G, F, C, S, R )
+           CALL OC_DLARTG( G, F, C, S, R )
            IF( I.NE.M-1 ) E( I+1 ) = R
            G = D( I+1 ) - P
            R = ( D( I )-G )*S + TWO*C*B
@@ -12239,7 +12239,7 @@ CONTAINS
 !
         IF( ICOMPZ.GT.0 ) THEN
            MM = M - L + 1
-           CALL DLASR( 'R', 'V', 'B', N, MM, WORK( L ), WORK( N-1+L ),&
+           CALL OC_DLASR( 'R', 'V', 'B', N, MM, WORK( L ), WORK( N-1+L ),&
                 Z( 1, L ), LDZ )
         END IF
 !
@@ -12279,18 +12279,18 @@ CONTAINS
         P = D( L )
         IF( M.EQ.L ) GO TO 130
 !
-!        If remaining matrix is 2-by-2, use DLAE2 or SLAEV2
+!        If remaining matrix is 2-by-2, use OC_DLAE2 or SLAEV2
 !        to compute its eigensystem.
 !
         IF( M.EQ.L-1 ) THEN
            IF( ICOMPZ.GT.0 ) THEN
-              CALL DLAEV2( D( L-1 ), E( L-1 ), D( L ), RT1, RT2, C, S )
+              CALL OC_DLAEV2( D( L-1 ), E( L-1 ), D( L ), RT1, RT2, C, S )
               WORK( M ) = C
               WORK( N-1+M ) = S
-              CALL DLASR( 'R', 'V', 'F', N, 2, WORK( M ), &
+              CALL OC_DLASR( 'R', 'V', 'F', N, 2, WORK( M ), &
                    WORK( N-1+M ), Z( 1, L-1 ), LDZ )
            ELSE
-              CALL DLAE2( D( L-1 ), E( L-1 ), D( L ), RT1, RT2 )
+              CALL OC_DLAE2( D( L-1 ), E( L-1 ), D( L ), RT1, RT2 )
            END IF
            D( L-1 ) = RT1
            D( L ) = RT2
@@ -12306,7 +12306,7 @@ CONTAINS
 !        Form shift.
 !
         G = ( D( L-1 )-P ) / ( TWO*E( L-1 ) )
-        R = DLAPY2( G, ONE )
+        R = OC_DLAPY2( G, ONE )
         G = D( M ) - P + ( E( L-1 ) / ( G+SIGN( R, G ) ) )
 !
         S = ONE
@@ -12319,7 +12319,7 @@ CONTAINS
         DO 120 I = M, LM1
            F = S*E( I )
            B = C*E( I )
-           CALL DLARTG( G, F, C, S, R )
+           CALL OC_DLARTG( G, F, C, S, R )
            IF( I.NE.M ) E( I-1 ) = R
            G = D( I ) - P
            R = ( D( I+1 )-G )*S + TWO*C*B
@@ -12340,7 +12340,7 @@ CONTAINS
 !
         IF( ICOMPZ.GT.0 ) THEN
            MM = L - M + 1
-           CALL DLASR( 'R', 'V', 'F', N, MM, WORK( M ), WORK( N-1+M ),&
+           CALL OC_DLASR( 'R', 'V', 'F', N, MM, WORK( M ), WORK( N-1+M ),&
                 Z( 1, M ), LDZ )
         END IF
 !
@@ -12363,14 +12363,14 @@ CONTAINS
 !
 140  CONTINUE
      IF( ISCALE.EQ.1 ) THEN
-        CALL DLASCL( 'G', 0, 0, SSFMAX, ANORM, LENDSV-LSV+1, 1,&
+        CALL OC_DLASCL( 'G', 0, 0, SSFMAX, ANORM, LENDSV-LSV+1, 1,&
              D( LSV ), N, INFO )
-        CALL DLASCL( 'G', 0, 0, SSFMAX, ANORM, LENDSV-LSV, 1, E( LSV ),&
+        CALL OC_DLASCL( 'G', 0, 0, SSFMAX, ANORM, LENDSV-LSV, 1, E( LSV ),&
              N, INFO )
      ELSE IF( ISCALE.EQ.2 ) THEN
-        CALL DLASCL( 'G', 0, 0, SSFMIN, ANORM, LENDSV-LSV+1, 1,&
+        CALL OC_DLASCL( 'G', 0, 0, SSFMIN, ANORM, LENDSV-LSV+1, 1,&
              D( LSV ), N, INFO )
-        CALL DLASCL( 'G', 0, 0, SSFMIN, ANORM, LENDSV-LSV, 1, E( LSV ),&
+        CALL OC_DLASCL( 'G', 0, 0, SSFMIN, ANORM, LENDSV-LSV, 1, E( LSV ),&
              N, INFO )
      END IF
 !
@@ -12390,7 +12390,7 @@ CONTAINS
 !
 !        Use Quick Sort
 !
-        CALL DLASRT( 'I', N, D, INFO )
+        CALL OC_DLASRT( 'I', N, D, INFO )
 !
      ELSE
 !
@@ -12409,7 +12409,7 @@ CONTAINS
            IF( K.NE.I ) THEN
               D( K ) = D( I )
               D( I ) = P
-              CALL DSWAP( N, Z( 1, I ), 1, Z( 1, K ), 1 )
+              CALL OC_DSWAP( N, Z( 1, I ), 1, Z( 1, K ), 1 )
            END IF
 180     CONTINUE
      END IF
@@ -12417,13 +12417,13 @@ CONTAINS
 190  CONTINUE
      RETURN
 !
-!     End of DSTEQR
+!     End of OC_DSTEQR
 !
-   END SUBROUTINE DSTEQR
+   END SUBROUTINE OC_DSTEQR
 !
 !=
 !
-!> \brief \b DLASET initializes the off-diagonal elements and the diagonal elements of a matrix to given values.
+!> \brief \b OC_DLASET initializes the off-diagonal elements and the diagonal elements of a matrix to given values.
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -12431,7 +12431,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DLASET + dependencies 
+!> Download OC_DLASET + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dlaset.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dlaset.f"> 
@@ -12443,7 +12443,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DLASET( UPLO, M, N, ALPHA, BETA, A, LDA )
+!       SUBROUTINE OC_DLASET( UPLO, M, N, ALPHA, BETA, A, LDA )
 ! 
 !       .. Scalar Arguments ..
 !       CHARACTER          UPLO
@@ -12460,7 +12460,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DLASET initializes an m-by-n matrix A to BETA on the diagonal and
+!> OC_DLASET initializes an m-by-n matrix A to BETA on the diagonal and
 !> ALPHA on the offdiagonals.
 !> \endverbatim
 !
@@ -12533,7 +12533,7 @@ CONTAINS
 !> \ingroup auxOTHERauxiliary
 !
 !  =====================================================================
-   SUBROUTINE DLASET( UPLO, M, N, ALPHA, BETA, A, LDA )
+   SUBROUTINE OC_DLASET( UPLO, M, N, ALPHA, BETA, A, LDA )
 !
 !  -- LAPACK auxiliary routine (version 3.6.0) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -12555,15 +12555,15 @@ CONTAINS
       INTEGER            I, J
 !     ..
 !     .. External Functions ..
-!      LOGICAL            LSAME
-!      EXTERNAL           LSAME
+!      LOGICAL            OC_LSAME
+!      EXTERNAL           OC_LSAME
 !     ..
 !     .. Intrinsic Functions ..
 !      INTRINSIC          MIN
 !     ..
 !     .. Executable Statements ..
 !
-      IF( LSAME( UPLO, 'U' ) ) THEN
+      IF( OC_LSAME( UPLO, 'U' ) ) THEN
 !
 !        Set the strictly upper triangular or trapezoidal part of the
 !        array to ALPHA.
@@ -12574,7 +12574,7 @@ CONTAINS
 10          CONTINUE
 20       CONTINUE
 !
-      ELSE IF( LSAME( UPLO, 'L' ) ) THEN
+      ELSE IF( OC_LSAME( UPLO, 'L' ) ) THEN
 !
 !        Set the strictly lower triangular or trapezoidal part of the
 !        array to ALPHA.
@@ -12604,13 +12604,13 @@ CONTAINS
 !
       RETURN
 !
-!     End of DLASET
+!     End of OC_DLASET
 !
-    END SUBROUTINE DLASET
+    END SUBROUTINE OC_DLASET
 !
 !=
 !
-!> \brief \b DLAEV2 computes the eigenvalues and eigenvectors of a 2-by-2 symmetric/Hermitian matrix.
+!> \brief \b OC_DLAEV2 computes the eigenvalues and eigenvectors of a 2-by-2 symmetric/Hermitian matrix.
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -12618,7 +12618,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DLAEV2 + dependencies 
+!> Download OC_DLAEV2 + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dlaev2.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dlaev2.f"> 
@@ -12630,7 +12630,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DLAEV2( A, B, C, RT1, RT2, CS1, SN1 )
+!       SUBROUTINE OC_DLAEV2( A, B, C, RT1, RT2, CS1, SN1 )
 ! 
 !       .. Scalar Arguments ..
 !       DOUBLE PRECISION   A, B, C, CS1, RT1, RT2, SN1
@@ -12642,7 +12642,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DLAEV2 computes the eigendecomposition of a 2-by-2 symmetric matrix
+!> OC_DLAEV2 computes the eigendecomposition of a 2-by-2 symmetric matrix
 !>    [  A   B  ]
 !>    [  B   C  ].
 !> On return, RT1 is the eigenvalue of larger absolute value, RT2 is the
@@ -12730,7 +12730,7 @@ CONTAINS
 !> \endverbatim
 !>
 !  =====================================================================
-    SUBROUTINE DLAEV2( A, B, C, RT1, RT2, CS1, SN1 )
+    SUBROUTINE OC_DLAEV2( A, B, C, RT1, RT2, CS1, SN1 )
 !
 !  -- LAPACK auxiliary routine (version 3.4.2) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -12845,11 +12845,11 @@ CONTAINS
       END IF
       RETURN
 !
-!     End of DLAEV2
+!     End of OC_DLAEV2
 !
-    END SUBROUTINE DLAEV2
+    END SUBROUTINE OC_DLAEV2
 !
-!> \brief \b DLASR applies a sequence of plane rotations to a general rectangular matrix.
+!> \brief \b OC_DLASR applies a sequence of plane rotations to a general rectangular matrix.
 !
 !=
 !
@@ -12859,7 +12859,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DLASR + dependencies 
+!> Download OC_DLASR + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dlasr.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dlasr.f"> 
@@ -12871,7 +12871,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DLASR( SIDE, PIVOT, DIRECT, M, N, C, S, A, LDA )
+!       SUBROUTINE OC_DLASR( SIDE, PIVOT, DIRECT, M, N, C, S, A, LDA )
 ! 
 !       .. Scalar Arguments ..
 !       CHARACTER          DIRECT, PIVOT, SIDE
@@ -12887,7 +12887,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DLASR applies a sequence of plane rotations to a real matrix A,
+!> OC_DLASR applies a sequence of plane rotations to a real matrix A,
 !> from either the left or the right.
 !> 
 !> When SIDE = 'L', the transformation takes the form
@@ -13050,7 +13050,7 @@ CONTAINS
 !> \ingroup auxOTHERauxiliary
 !
 !  =====================================================================
-    SUBROUTINE DLASR( SIDE, PIVOT, DIRECT, M, N, C, S, A, LDA )
+    SUBROUTINE OC_DLASR( SIDE, PIVOT, DIRECT, M, N, C, S, A, LDA )
 !
 !  -- LAPACK auxiliary routine (version 3.4.2) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -13076,11 +13076,11 @@ CONTAINS
       DOUBLE PRECISION   CTEMP, STEMP, TEMP
 !     ..
 !     .. External Functions ..
-!      LOGICAL            LSAME
-!      EXTERNAL           LSAME
+!      LOGICAL            OC_LSAME
+!      EXTERNAL           OC_LSAME
 !     ..
 !     .. External Subroutines ..
-!      EXTERNAL           XERBLA
+!      EXTERNAL           OC_XERBLA
 !     ..
 !     .. Intrinsic Functions ..
 !      INTRINSIC          MAX
@@ -13090,12 +13090,12 @@ CONTAINS
 !     Test the input parameters
 !
       INFO = 0
-      IF( .NOT.( LSAME( SIDE, 'L' ) .OR. LSAME( SIDE, 'R' ) ) ) THEN
+      IF( .NOT.( OC_LSAME( SIDE, 'L' ) .OR. OC_LSAME( SIDE, 'R' ) ) ) THEN
          INFO = 1
-      ELSE IF( .NOT.( LSAME( PIVOT, 'V' ) .OR. LSAME( PIVOT,&
-           'T' ) .OR. LSAME( PIVOT, 'B' ) ) ) THEN
+      ELSE IF( .NOT.( OC_LSAME( PIVOT, 'V' ) .OR. OC_LSAME( PIVOT,&
+           'T' ) .OR. OC_LSAME( PIVOT, 'B' ) ) ) THEN
          INFO = 2
-      ELSE IF( .NOT.( LSAME( DIRECT, 'F' ) .OR. LSAME( DIRECT, 'B' ) ) )&
+      ELSE IF( .NOT.( OC_LSAME( DIRECT, 'F' ) .OR. OC_LSAME( DIRECT, 'B' ) ) )&
            THEN
          INFO = 3
       ELSE IF( M.LT.0 ) THEN
@@ -13106,19 +13106,19 @@ CONTAINS
          INFO = 9
       END IF
       IF( INFO.NE.0 ) THEN
-         CALL XERBLA( 'DLASR ', INFO )
+         CALL OC_XERBLA( 'OC_DLASR ', INFO )
          RETURN
       END IF
 !
 !     Quick return if possible
 !
       IF( ( M.EQ.0 ) .OR. ( N.EQ.0 ) ) RETURN
-      IF( LSAME( SIDE, 'L' ) ) THEN
+      IF( OC_LSAME( SIDE, 'L' ) ) THEN
 !
 !        Form  P * A
 !
-         IF( LSAME( PIVOT, 'V' ) ) THEN
-            IF( LSAME( DIRECT, 'F' ) ) THEN
+         IF( OC_LSAME( PIVOT, 'V' ) ) THEN
+            IF( OC_LSAME( DIRECT, 'F' ) ) THEN
                DO 20 J = 1, M - 1
                   CTEMP = C( J )
                   STEMP = S( J )
@@ -13130,7 +13130,7 @@ CONTAINS
 10                   CONTINUE
                   END IF
 20             CONTINUE
-            ELSE IF( LSAME( DIRECT, 'B' ) ) THEN
+            ELSE IF( OC_LSAME( DIRECT, 'B' ) ) THEN
                DO 40 J = M - 1, 1, -1
                   CTEMP = C( J )
                   STEMP = S( J )
@@ -13143,8 +13143,8 @@ CONTAINS
                   END IF
    40          CONTINUE
             END IF
-         ELSE IF( LSAME( PIVOT, 'T' ) ) THEN
-            IF( LSAME( DIRECT, 'F' ) ) THEN
+         ELSE IF( OC_LSAME( PIVOT, 'T' ) ) THEN
+            IF( OC_LSAME( DIRECT, 'F' ) ) THEN
                DO 60 J = 2, M
                   CTEMP = C( J-1 )
                   STEMP = S( J-1 )
@@ -13156,7 +13156,7 @@ CONTAINS
    50                CONTINUE
                   END IF
    60          CONTINUE
-            ELSE IF( LSAME( DIRECT, 'B' ) ) THEN
+            ELSE IF( OC_LSAME( DIRECT, 'B' ) ) THEN
                DO 80 J = M, 2, -1
                   CTEMP = C( J-1 )
                   STEMP = S( J-1 )
@@ -13169,8 +13169,8 @@ CONTAINS
                   END IF
    80          CONTINUE
             END IF
-         ELSE IF( LSAME( PIVOT, 'B' ) ) THEN
-            IF( LSAME( DIRECT, 'F' ) ) THEN
+         ELSE IF( OC_LSAME( PIVOT, 'B' ) ) THEN
+            IF( OC_LSAME( DIRECT, 'F' ) ) THEN
                DO 100 J = 1, M - 1
                   CTEMP = C( J )
                   STEMP = S( J )
@@ -13182,7 +13182,7 @@ CONTAINS
    90                CONTINUE
                   END IF
   100          CONTINUE
-            ELSE IF( LSAME( DIRECT, 'B' ) ) THEN
+            ELSE IF( OC_LSAME( DIRECT, 'B' ) ) THEN
                DO 120 J = M - 1, 1, -1
                   CTEMP = C( J )
                   STEMP = S( J )
@@ -13196,12 +13196,12 @@ CONTAINS
   120          CONTINUE
             END IF
          END IF
-      ELSE IF( LSAME( SIDE, 'R' ) ) THEN
+      ELSE IF( OC_LSAME( SIDE, 'R' ) ) THEN
 !
 !        Form A * P**T
 !
-         IF( LSAME( PIVOT, 'V' ) ) THEN
-            IF( LSAME( DIRECT, 'F' ) ) THEN
+         IF( OC_LSAME( PIVOT, 'V' ) ) THEN
+            IF( OC_LSAME( DIRECT, 'F' ) ) THEN
                DO 140 J = 1, N - 1
                   CTEMP = C( J )
                   STEMP = S( J )
@@ -13213,7 +13213,7 @@ CONTAINS
   130                CONTINUE
                   END IF
   140          CONTINUE
-            ELSE IF( LSAME( DIRECT, 'B' ) ) THEN
+            ELSE IF( OC_LSAME( DIRECT, 'B' ) ) THEN
                DO 160 J = N - 1, 1, -1
                   CTEMP = C( J )
                   STEMP = S( J )
@@ -13226,8 +13226,8 @@ CONTAINS
                   END IF
   160          CONTINUE
             END IF
-         ELSE IF( LSAME( PIVOT, 'T' ) ) THEN
-            IF( LSAME( DIRECT, 'F' ) ) THEN
+         ELSE IF( OC_LSAME( PIVOT, 'T' ) ) THEN
+            IF( OC_LSAME( DIRECT, 'F' ) ) THEN
                DO 180 J = 2, N
                   CTEMP = C( J-1 )
                   STEMP = S( J-1 )
@@ -13239,7 +13239,7 @@ CONTAINS
   170                CONTINUE
                   END IF
   180          CONTINUE
-            ELSE IF( LSAME( DIRECT, 'B' ) ) THEN
+            ELSE IF( OC_LSAME( DIRECT, 'B' ) ) THEN
                DO 200 J = N, 2, -1
                   CTEMP = C( J-1 )
                   STEMP = S( J-1 )
@@ -13252,8 +13252,8 @@ CONTAINS
                   END IF
   200          CONTINUE
             END IF
-         ELSE IF( LSAME( PIVOT, 'B' ) ) THEN
-            IF( LSAME( DIRECT, 'F' ) ) THEN
+         ELSE IF( OC_LSAME( PIVOT, 'B' ) ) THEN
+            IF( OC_LSAME( DIRECT, 'F' ) ) THEN
                DO 220 J = 1, N - 1
                   CTEMP = C( J )
                   STEMP = S( J )
@@ -13265,7 +13265,7 @@ CONTAINS
   210                CONTINUE
                   END IF
   220          CONTINUE
-            ELSE IF( LSAME( DIRECT, 'B' ) ) THEN
+            ELSE IF( OC_LSAME( DIRECT, 'B' ) ) THEN
                DO 240 J = N - 1, 1, -1
                   CTEMP = C( J )
                   STEMP = S( J )
@@ -13283,13 +13283,13 @@ CONTAINS
 !
       RETURN
 !
-!     End of DLASR
+!     End of OC_DLASR
 !
-   END SUBROUTINE DLASR
+   END SUBROUTINE OC_DLASR
 !
 !=
 !
-!> \brief \b DLASRT sorts numbers in increasing or decreasing order.
+!> \brief \b OC_DLASRT sorts numbers in increasing or decreasing order.
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -13297,7 +13297,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DLASRT + dependencies 
+!> Download OC_DLASRT + dependencies
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dlasrt.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dlasrt.f"> 
@@ -13309,7 +13309,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DLASRT( ID, N, D, INFO )
+!       SUBROUTINE OC_DLASRT( ID, N, D, INFO )
 ! 
 !       .. Scalar Arguments ..
 !       CHARACTER          ID
@@ -13377,7 +13377,7 @@ CONTAINS
 !> \ingroup auxOTHERcomputational
 !
 !  =====================================================================
-   SUBROUTINE DLASRT( ID, N, D, INFO )
+   SUBROUTINE OC_DLASRT( ID, N, D, INFO )
 !
 !  -- LAPACK computational routine (version 3.4.2) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -13406,11 +13406,11 @@ CONTAINS
      INTEGER            STACK( 2, 32 )
 !     ..
 !     .. External Functions ..
-!      LOGICAL            LSAME
-!      EXTERNAL           LSAME
+!      LOGICAL            OC_LSAME
+!      EXTERNAL           OC_LSAME
 !     ..
 !     .. External Subroutines ..
-!      EXTERNAL           XERBLA
+!      EXTERNAL           OC_XERBLA
 !     ..
 !     .. Executable Statements ..
 !
@@ -13418,9 +13418,9 @@ CONTAINS
 !
      INFO = 0
      DIR = -1
-     IF( LSAME( ID, 'D' ) ) THEN
+     IF( OC_LSAME( ID, 'D' ) ) THEN
         DIR = 0
-     ELSE IF( LSAME( ID, 'I' ) ) THEN
+     ELSE IF( OC_LSAME( ID, 'I' ) ) THEN
         DIR = 1
      END IF
      IF( DIR.EQ.-1 ) THEN
@@ -13429,7 +13429,7 @@ CONTAINS
         INFO = -2
      END IF
      IF( INFO.NE.0 ) THEN
-        CALL XERBLA( 'DLASRT', -INFO )
+        CALL OC_XERBLA( 'OC_DLASRT', -INFO )
         RETURN
      END IF
 !
@@ -13583,13 +13583,13 @@ CONTAINS
      IF( STKPNT.GT.0 ) GO TO 10
      RETURN
 !
-!     End of DLASRT
+!     End of OC_DLASRT
 !
-  END SUBROUTINE DLASRT
+  END SUBROUTINE OC_DLASRT
 !
 !=
 !
-!> \brief \b DLAE2 computes the eigenvalues of a 2-by-2 symmetric matrix.
+!> \brief \b OC_DLAE2 computes the eigenvalues of a 2-by-2 symmetric matrix.
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -13597,7 +13597,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DLAE2 + dependencies 
+!> Download OC_DLAE2 + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dlae2.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dlae2.f"> 
@@ -13609,7 +13609,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DLAE2( A, B, C, RT1, RT2 )
+!       SUBROUTINE OC_DLAE2( A, B, C, RT1, RT2 )
 ! 
 !       .. Scalar Arguments ..
 !       DOUBLE PRECISION   A, B, C, RT1, RT2
@@ -13621,7 +13621,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DLAE2  computes the eigenvalues of a 2-by-2 symmetric matrix
+!> OC_DLAE2  computes the eigenvalues of a 2-by-2 symmetric matrix
 !>    [  A   B  ]
 !>    [  B   C  ].
 !> On return, RT1 is the eigenvalue of larger absolute value, and RT2
@@ -13691,7 +13691,7 @@ CONTAINS
 !> \endverbatim
 !>
 !  =====================================================================
-  SUBROUTINE DLAE2( A, B, C, RT1, RT2 )
+  SUBROUTINE OC_DLAE2( A, B, C, RT1, RT2 )
 !
 !  -- LAPACK auxiliary routine (version 3.4.2) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -13771,13 +13771,13 @@ CONTAINS
       END IF
       RETURN
 !
-!     End of DLAE2
+!     End of OC_DLAE2
 !
-    END SUBROUTINE DLAE2
+    END SUBROUTINE OC_DLAE2
 !
 !=
 !
-!> \brief \b DLARTG generates a plane rotation with real cosine and real sine.
+!> \brief \b OC_DLARTG generates a plane rotation with real cosine and real sine.
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -13785,7 +13785,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DLARTG + dependencies 
+!> Download OC_DLARTG + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dlartg.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dlartg.f"> 
@@ -13797,7 +13797,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DLARTG( F, G, CS, SN, R )
+!       SUBROUTINE OC_DLARTG( F, G, CS, SN, R )
 ! 
 !       .. Scalar Arguments ..
 !       DOUBLE PRECISION   CS, F, G, R, SN
@@ -13809,12 +13809,12 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DLARTG generate a plane rotation so that
+!> OC_DLARTG generate a plane rotation so that
 !>
 !>    [  CS  SN  ]  .  [ F ]  =  [ R ]   where CS**2 + SN**2 = 1.
 !>    [ -SN  CS  ]     [ G ]     [ 0 ]
 !>
-!> This is a slower, more accurate version of the BLAS1 routine DROTG,
+!> This is a slower, more accurate version of the BLAS1 routine OC_DROTG,
 !> with the following other differences:
 !>    F and G are unchanged on return.
 !>    If G=0, then CS=1 and SN=0.
@@ -13874,7 +13874,7 @@ CONTAINS
 !> \ingroup auxOTHERauxiliary
 !
 !  =====================================================================
-    SUBROUTINE DLARTG( F, G, CS, SN, R )
+    SUBROUTINE OC_DLARTG( F, G, CS, SN, R )
 !
 !  -- LAPACK auxiliary routine (version 3.4.2) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -13901,8 +13901,8 @@ CONTAINS
       DOUBLE PRECISION   EPS, F1, G1, SAFMIN, SAFMN2, SAFMX2, SCALE
 !     ..
 !     .. External Functions ..
-!      DOUBLE PRECISION   DLAMCH
-!      EXTERNAL           DLAMCH
+!      DOUBLE PRECISION   OC_DLAMCH
+!      EXTERNAL           OC_DLAMCH
 !     ..
 !     .. Intrinsic Functions ..
 !      INTRINSIC          ABS, INT, LOG, MAX, SQRT
@@ -13916,10 +13916,10 @@ CONTAINS
 !     .. Executable Statements ..
 !
 !     IF( FIRST ) THEN
-      SAFMIN = DLAMCH( 'S' )
-      EPS = DLAMCH( 'E' )
-      SAFMN2 = DLAMCH( 'B' )**INT( LOG( SAFMIN / EPS ) /&
-           LOG( DLAMCH( 'B' ) ) / TWO )
+      SAFMIN = OC_DLAMCH( 'S' )
+      EPS = OC_DLAMCH( 'E' )
+      SAFMN2 = OC_DLAMCH( 'B' )**INT( LOG( SAFMIN / EPS ) /&
+           LOG( OC_DLAMCH( 'B' ) ) / TWO )
       SAFMX2 = ONE / SAFMN2
 !        FIRST = .FALSE.
 !     END IF
@@ -13976,13 +13976,13 @@ CONTAINS
       END IF
       RETURN
 !
-!     End of DLARTG
+!     End of OC_DLARTG
 !
-   END SUBROUTINE DLARTG
+   END SUBROUTINE OC_DLARTG
 !
 !=
 !
-!> \brief \b DLACPY copies all or part of one two-dimensional array to another.
+!> \brief \b OC_DLACPY copies all or part of one two-dimensional array to another.
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -13990,7 +13990,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DLACPY + dependencies 
+!> Download OC_DLACPY + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dlacpy.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dlacpy.f"> 
@@ -14002,7 +14002,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DLACPY( UPLO, M, N, A, LDA, B, LDB )
+!       SUBROUTINE OC_DLACPY( UPLO, M, N, A, LDA, B, LDB )
 ! 
 !       .. Scalar Arguments ..
 !       CHARACTER          UPLO
@@ -14018,7 +14018,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DLACPY copies all or part of a two-dimensional matrix A to another
+!> OC_DLACPY copies all or part of a two-dimensional matrix A to another
 !> matrix B.
 !> \endverbatim
 !
@@ -14085,7 +14085,7 @@ CONTAINS
 !> \ingroup auxOTHERauxiliary
 !
 !  =====================================================================
-   SUBROUTINE DLACPY( UPLO, M, N, A, LDA, B, LDB )
+   SUBROUTINE OC_DLACPY( UPLO, M, N, A, LDA, B, LDB )
 !
 !  -- LAPACK auxiliary routine (version 3.4.2) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -14106,21 +14106,21 @@ CONTAINS
      INTEGER            I, J
 !     ..
 !     .. External Functions ..
-!     LOGICAL            LSAME
-!     EXTERNAL           LSAME
+!     LOGICAL            OC_LSAME
+!     EXTERNAL           OC_LSAME
 !     ..
 !     .. Intrinsic Functions ..
 !      INTRINSIC          MIN
 !     ..
 !     .. Executable Statements ..
 !
-     IF( LSAME( UPLO, 'U' ) ) THEN
+     IF( OC_LSAME( UPLO, 'U' ) ) THEN
         DO 20 J = 1, N
            DO 10 I = 1, MIN( J, M )
               B( I, J ) = A( I, J )
 10         CONTINUE
 20      CONTINUE
-      ELSE IF( LSAME( UPLO, 'L' ) ) THEN
+      ELSE IF( OC_LSAME( UPLO, 'L' ) ) THEN
          DO 40 J = 1, N
             DO 30 I = J, M
                B( I, J ) = A( I, J )
@@ -14135,13 +14135,13 @@ CONTAINS
       END IF
       RETURN
 !
-!     End of DLACPY
+!     End of OC_DLACPY
 !
-   END SUBROUTINE DLACPY
+   END SUBROUTINE OC_DLACPY
 !
 !=
 !
-!> \brief \b DLAED0 used by sstedc. Computes all eigenvalues and corresponding eigenvectors of an unreduced symmetric tridiagonal matrix using the divide and conquer method.
+!> \brief \b OC_DLAED0 used by sstedc. Computes all eigenvalues and corresponding eigenvectors of an unreduced symmetric tridiagonal matrix using the divide and conquer method.
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -14149,7 +14149,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DLAED0 + dependencies 
+!> Download OC_DLAED0 + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dlaed0.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dlaed0.f"> 
@@ -14161,7 +14161,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DLAED0( ICOMPQ, QSIZ, N, D, E, Q, LDQ, QSTORE, LDQS,
+!       SUBROUTINE OC_DLAED0( ICOMPQ, QSIZ, N, D, E, Q, LDQ, QSTORE, LDQS,
 !                          WORK, IWORK, INFO )
 ! 
 !       .. Scalar Arguments ..
@@ -14179,7 +14179,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DLAED0 computes all eigenvalues and corresponding eigenvectors of a
+!> OC_DLAED0 computes all eigenvalues and corresponding eigenvectors of a
 !> symmetric tridiagonal matrix using the divide and conquer method.
 !> \endverbatim
 !
@@ -14312,7 +14312,7 @@ CONTAINS
 !> at Berkeley, USA
 !
 !  =====================================================================
-   SUBROUTINE DLAED0( ICOMPQ, QSIZ, N, D, E, Q, LDQ, QSTORE, LDQS,&
+   SUBROUTINE OC_DLAED0( ICOMPQ, QSIZ, N, D, E, Q, LDQ, QSTORE, LDQS,&
         WORK, IWORK, INFO )
 !
 !  -- LAPACK computational routine (version 3.4.2) --
@@ -14343,12 +14343,12 @@ CONTAINS
       DOUBLE PRECISION   TEMP
 !     ..
 !     .. External Subroutines ..
-!      EXTERNAL           DCOPY, DGEMM, DLACPY, DLAED1, DLAED7, DSTEQR,
-!     $                   XERBLA
+!      EXTERNAL           OC_DCOPY, OC_DGEMM, OC_DLACPY, OC_DLAED1, OC_DLAED7, OC_DSTEQR,
+!     $                   OC_XERBLA
 !     ..
 !     .. External Functions ..
-!      INTEGER            ILAENV
-!      EXTERNAL           ILAENV
+!      INTEGER            OC_ILAENV
+!      EXTERNAL           OC_ILAENV
 !     ..
 !     .. Intrinsic Functions ..
 !      INTRINSIC          ABS, DBLE, INT, LOG, MAX
@@ -14371,7 +14371,7 @@ CONTAINS
          INFO = -9
       END IF
       IF( INFO.NE.0 ) THEN
-         CALL XERBLA( 'DLAED0', -INFO )
+         CALL OC_XERBLA( 'OC_DLAED0', -INFO )
          RETURN
       END IF
 !
@@ -14379,7 +14379,7 @@ CONTAINS
 !
       IF( N.EQ.0 ) RETURN
 !
-      SMLSIZ = ILAENV( 9, 'DLAED0', ' ', 0, 0, 0, 0 )
+      SMLSIZ = OC_ILAENV( 9, 'OC_DLAED0', ' ', 0, 0, 0, 0 )
 !
 !     Determine the size and placement of the submatrices, and save in
 !     the leading elements of IWORK.
@@ -14454,15 +14454,15 @@ CONTAINS
             MATSIZ = IWORK( I+1 ) - IWORK( I )
          END IF
          IF( ICOMPQ.EQ.2 ) THEN
-            CALL DSTEQR( 'I', MATSIZ, D( SUBMAT ), E( SUBMAT ),&
+            CALL OC_DSTEQR( 'I', MATSIZ, D( SUBMAT ), E( SUBMAT ),&
                  Q( SUBMAT, SUBMAT ), LDQ, WORK, INFO )
             IF( INFO.NE.0 ) GO TO 130
          ELSE
-            CALL DSTEQR( 'I', MATSIZ, D( SUBMAT ), E( SUBMAT ),&
+            CALL OC_DSTEQR( 'I', MATSIZ, D( SUBMAT ), E( SUBMAT ),&
                  WORK( IQ-1+IWORK( IQPTR+CURR ) ), MATSIZ, WORK, INFO )
             IF( INFO.NE.0 ) GO TO 130
             IF( ICOMPQ.EQ.1 ) THEN
-               CALL DGEMM( 'N', 'N', QSIZ, MATSIZ, MATSIZ, ONE,&
+               CALL OC_DGEMM( 'N', 'N', QSIZ, MATSIZ, MATSIZ, ONE,&
                     Q( 1, SUBMAT ), LDQ, WORK( IQ-1+IWORK( IQPTR+&
                     CURR ) ), MATSIZ, ZERO, QSTORE( 1, SUBMAT ),&
                     LDQS )
@@ -14501,19 +14501,19 @@ CONTAINS
 !
 !     Merge lower order eigensystems (of size MSD2 and MATSIZ - MSD2)
 !     into an eigensystem of size MATSIZ.
-!     DLAED1 is used only for the full eigensystem of a tridiagonal
+!     OC_DLAED1 is used only for the full eigensystem of a tridiagonal
 !     matrix.
-!     DLAED7 handles the cases in which eigenvalues only or eigenvalues
+!     OC_DLAED7 handles the cases in which eigenvalues only or eigenvalues
 !     and eigenvectors of a full symmetric matrix (which was reduced to
 !     tridiagonal form) are desired.
 !
             IF( ICOMPQ.EQ.2 ) THEN
-               CALL DLAED1( MATSIZ, D( SUBMAT ), Q( SUBMAT, SUBMAT ),&
+               CALL OC_DLAED1( MATSIZ, D( SUBMAT ), Q( SUBMAT, SUBMAT ),&
                     LDQ, IWORK( INDXQ+SUBMAT ),&
                     E( SUBMAT+MSD2-1 ), MSD2, WORK,&
                     IWORK( SUBPBS+1 ), INFO )
             ELSE
-               CALL DLAED7( ICOMPQ, MATSIZ, QSIZ, TLVLS, CURLVL, CURPRB,&
+               CALL OC_DLAED7( ICOMPQ, MATSIZ, QSIZ, TLVLS, CURLVL, CURPRB,&
                     D( SUBMAT ), QSTORE( 1, SUBMAT ), LDQS,&
                     IWORK( INDXQ+SUBMAT ), E( SUBMAT+MSD2-1 ),&
                     MSD2, WORK( IQ ), IWORK( IQPTR ),&
@@ -14539,23 +14539,23 @@ CONTAINS
          DO 100 I = 1, N
             J = IWORK( INDXQ+I )
             WORK( I ) = D( J )
-            CALL DCOPY( QSIZ, QSTORE( 1, J ), 1, Q( 1, I ), 1 )
+            CALL OC_DCOPY( QSIZ, QSTORE( 1, J ), 1, Q( 1, I ), 1 )
   100    CONTINUE
-         CALL DCOPY( N, WORK, 1, D, 1 )
+         CALL OC_DCOPY( N, WORK, 1, D, 1 )
       ELSE IF( ICOMPQ.EQ.2 ) THEN
          DO 110 I = 1, N
             J = IWORK( INDXQ+I )
             WORK( I ) = D( J )
-            CALL DCOPY( N, Q( 1, J ), 1, WORK( N*I+1 ), 1 )
+            CALL OC_DCOPY( N, Q( 1, J ), 1, WORK( N*I+1 ), 1 )
   110    CONTINUE
-         CALL DCOPY( N, WORK, 1, D, 1 )
-         CALL DLACPY( 'A', N, N, WORK( N+1 ), N, Q, LDQ )
+         CALL OC_DCOPY( N, WORK, 1, D, 1 )
+         CALL OC_DLACPY( 'A', N, N, WORK( N+1 ), N, Q, LDQ )
       ELSE
          DO 120 I = 1, N
             J = IWORK( INDXQ+I )
             WORK( I ) = D( J )
   120    CONTINUE
-         CALL DCOPY( N, WORK, 1, D, 1 )
+         CALL OC_DCOPY( N, WORK, 1, D, 1 )
       END IF
       GO TO 140
 !
@@ -14565,13 +14565,13 @@ CONTAINS
   140 CONTINUE
       RETURN
 !
-!     End of DLAED0
+!     End of OC_DLAED0
 !
-   END SUBROUTINE DLAED0
+   END SUBROUTINE OC_DLAED0
 !
 !=
 !
-!> \brief \b ILADLC scans a matrix for its last non-zero column.
+!> \brief \b OC_ILADLC scans a matrix for its last non-zero column.
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -14579,7 +14579,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download ILADLC + dependencies 
+!> Download OC_ILADLC + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/iladlc.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/iladlc.f"> 
@@ -14591,7 +14591,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       INTEGER FUNCTION ILADLC( M, N, A, LDA )
+!       INTEGER FUNCTION OC_ILADLC( M, N, A, LDA )
 ! 
 !       .. Scalar Arguments ..
 !       INTEGER            M, N, LDA
@@ -14606,7 +14606,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> ILADLC scans A for its last non-zero column.
+!> OC_ILADLC scans A for its last non-zero column.
 !> \endverbatim
 !
 !  Arguments:
@@ -14649,7 +14649,7 @@ CONTAINS
 !> \ingroup auxOTHERauxiliary
 !
 !  =====================================================================
-   INTEGER FUNCTION ILADLC( M, N, A, LDA )
+   INTEGER FUNCTION OC_ILADLC( M, N, A, LDA )
 !
 !  -- LAPACK auxiliary routine (version 3.4.2) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -14676,23 +14676,23 @@ CONTAINS
 !
 !     Quick test for the common case where one corner is non-zero.
      IF( N.EQ.0 ) THEN
-        ILADLC = N
+        OC_ILADLC = N
      ELSE IF( A(1, N).NE.ZERO .OR. A(M, N).NE.ZERO ) THEN
-        ILADLC = N
+        OC_ILADLC = N
      ELSE
 !     Now scan each column from the end, returning with the first non-zero.
-        DO ILADLC = N, 1, -1
+        DO OC_ILADLC = N, 1, -1
            DO I = 1, M
-              IF( A(I, ILADLC).NE.ZERO ) RETURN
+              IF( A(I, OC_ILADLC).NE.ZERO ) RETURN
            END DO
         END DO
       END IF
       RETURN
-    END FUNCTION ILADLC
+    END FUNCTION OC_ILADLC
 !
 !=
 !
-!> \brief \b ILADLR scans a matrix for its last non-zero row.
+!> \brief \b OC_ILADLR scans a matrix for its last non-zero row.
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -14700,7 +14700,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download ILADLR + dependencies 
+!> Download OC_ILADLR + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/iladlr.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/iladlr.f"> 
@@ -14712,7 +14712,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       INTEGER FUNCTION ILADLR( M, N, A, LDA )
+!       INTEGER FUNCTION OC_ILADLR( M, N, A, LDA )
 ! 
 !       .. Scalar Arguments ..
 !       INTEGER            M, N, LDA
@@ -14727,7 +14727,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> ILADLR scans A for its last non-zero row.
+!> OC_ILADLR scans A for its last non-zero row.
 !> \endverbatim
 !
 !  Arguments:
@@ -14770,7 +14770,7 @@ CONTAINS
 !> \ingroup auxOTHERauxiliary
 !
 !  =====================================================================
-    INTEGER FUNCTION ILADLR( M, N, A, LDA )
+    INTEGER FUNCTION OC_ILADLR( M, N, A, LDA )
 !
 !  -- LAPACK auxiliary routine (version 3.4.2) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -14797,26 +14797,26 @@ CONTAINS
 !
 !     Quick test for the common case where one corner is non-zero.
       IF( M.EQ.0 ) THEN
-         ILADLR = M
+         OC_ILADLR = M
       ELSE IF( A(M, 1).NE.ZERO .OR. A(M, N).NE.ZERO ) THEN
-         ILADLR = M
+         OC_ILADLR = M
       ELSE
 !     Scan up each column tracking the last zero row seen.
-         ILADLR = 0
+         OC_ILADLR = 0
          DO J = 1, N
             I=M
             DO WHILE((A(MAX(I,1),J).EQ.ZERO).AND.(I.GE.1))
                I=I-1
             ENDDO
-            ILADLR = MAX( ILADLR, I )
+            OC_ILADLR = MAX( OC_ILADLR, I )
          END DO
       END IF
       RETURN
-    END FUNCTION ILADLR
+    END FUNCTION OC_ILADLR
 !
 !=
 !
-!> \brief \b DLAED1 used by sstedc. Computes the updated eigensystem of a diagonal matrix after modification by a rank-one symmetric matrix. Used when the original matrix is tridiagonal.
+!> \brief \b OC_DLAED1 used by sstedc. Computes the updated eigensystem of a diagonal matrix after modification by a rank-one symmetric matrix. Used when the original matrix is tridiagonal.
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -14824,7 +14824,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DLAED1 + dependencies 
+!> Download OC_DLAED1 + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dlaed1.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dlaed1.f"> 
@@ -14836,7 +14836,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DLAED1( N, D, Q, LDQ, INDXQ, RHO, CUTPNT, WORK, IWORK,
+!       SUBROUTINE OC_DLAED1( N, D, Q, LDQ, INDXQ, RHO, CUTPNT, WORK, IWORK,
 !                          INFO )
 ! 
 !       .. Scalar Arguments ..
@@ -14854,10 +14854,10 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DLAED1 computes the updated eigensystem of a diagonal
+!> OC_DLAED1 computes the updated eigensystem of a diagonal
 !> matrix after modification by a rank-one symmetric matrix.  This
 !> routine is used only for the eigenproblem which requires all
-!> eigenvalues and eigenvectors of a tridiagonal matrix.  DLAED7 handles
+!> eigenvalues and eigenvectors of a tridiagonal matrix.  OC_DLAED7 handles
 !> the case in which eigenvalues only or eigenvalues and eigenvectors
 !> of a full symmetric matrix (which was reduced to tridiagonal form)
 !> are desired.
@@ -14874,11 +14874,11 @@ CONTAINS
 !>       when there are multiple eigenvalues or if there is a zero in
 !>       the Z vector.  For each such occurence the dimension of the
 !>       secular equation problem is reduced by one.  This stage is
-!>       performed by the routine DLAED2.
+!>       performed by the routine OC_DLAED2.
 !>
 !>       The second stage consists of calculating the updated
 !>       eigenvalues. This is done by finding the roots of the secular
-!>       equation via the routine DLAED4 (as called by DLAED3).
+!>       equation via the routine OC_DLAED4 (as called by OC_DLAED3).
 !>       This routine also calculates the eigenvectors of the current
 !>       problem.
 !>
@@ -14978,7 +14978,7 @@ CONTAINS
 !>  Modified by Francoise Tisseur, University of Tennessee
 !>
 !  =====================================================================
-    SUBROUTINE DLAED1( N, D, Q, LDQ, INDXQ, RHO, CUTPNT, WORK, IWORK, INFO )
+    SUBROUTINE OC_DLAED1( N, D, Q, LDQ, INDXQ, RHO, CUTPNT, WORK, IWORK, INFO )
 !
 !  -- LAPACK computational routine (version 3.4.2) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -15001,7 +15001,7 @@ CONTAINS
            IW, IZ, K, N1, N2, ZPP1
 !     ..
 !     .. External Subroutines ..
-!      EXTERNAL           DCOPY, DLAED2, DLAED3, DLAMRG, XERBLA
+!      EXTERNAL           OC_DCOPY, OC_DLAED2, OC_DLAED3, OC_DLAMRG, OC_XERBLA
 !     ..
 !     .. Intrinsic Functions ..
 !      INTRINSIC          MAX, MIN
@@ -15020,7 +15020,7 @@ CONTAINS
          INFO = -7
       END IF
       IF( INFO.NE.0 ) THEN
-         CALL XERBLA( 'DLAED1', -INFO )
+         CALL OC_XERBLA( 'OC_DLAED1', -INFO )
          RETURN
       END IF
 !
@@ -15030,7 +15030,7 @@ CONTAINS
 !
 !     The following values are integer pointers which indicate
 !     the portion of the workspace
-!     used by a particular array in DLAED2 and DLAED3.
+!     used by a particular array in OC_DLAED2 and OC_DLAED3.
 !
       IZ = 1
       IDLMDA = IZ + N
@@ -15046,13 +15046,13 @@ CONTAINS
 !     Form the z-vector which consists of the last row of Q_1 and the
 !     first row of Q_2.
 !
-      CALL DCOPY( CUTPNT, Q( CUTPNT, 1 ), LDQ, WORK( IZ ), 1 )
+      CALL OC_DCOPY( CUTPNT, Q( CUTPNT, 1 ), LDQ, WORK( IZ ), 1 )
       ZPP1 = CUTPNT + 1
-      CALL DCOPY( N-CUTPNT, Q( ZPP1, ZPP1 ), LDQ, WORK( IZ+CUTPNT ), 1 )
+      CALL OC_DCOPY( N-CUTPNT, Q( ZPP1, ZPP1 ), LDQ, WORK( IZ+CUTPNT ), 1 )
 !
 !     Deflate eigenvalues.
 !
-      CALL DLAED2( K, N, CUTPNT, D, Q, LDQ, INDXQ, RHO, WORK( IZ ),&
+      CALL OC_DLAED2( K, N, CUTPNT, D, Q, LDQ, INDXQ, RHO, WORK( IZ ),&
            WORK( IDLMDA ), WORK( IW ), WORK( IQ2 ),&
            IWORK( INDX ), IWORK( INDXC ), IWORK( INDXP ),&
            IWORK( COLTYP ), INFO )
@@ -15064,7 +15064,7 @@ CONTAINS
       IF( K.NE.0 ) THEN
          IS = ( IWORK( COLTYP )+IWORK( COLTYP+1 ) )*CUTPNT +&
               ( IWORK( COLTYP+1 )+IWORK( COLTYP+2 ) )*( N-CUTPNT ) + IQ2
-         CALL DLAED3( K, N, CUTPNT, D, Q, LDQ, RHO, WORK( IDLMDA ),&
+         CALL OC_DLAED3( K, N, CUTPNT, D, Q, LDQ, RHO, WORK( IDLMDA ),&
               WORK( IQ2 ), IWORK( INDXC ), IWORK( COLTYP ),&
               WORK( IW ), WORK( IS ), INFO )
          IF( INFO.NE.0 ) GO TO 20
@@ -15073,7 +15073,7 @@ CONTAINS
 !
          N1 = K
          N2 = N - K
-         CALL DLAMRG( N1, N2, D, 1, -1, INDXQ )
+         CALL OC_DLAMRG( N1, N2, D, 1, -1, INDXQ )
       ELSE
          DO 10 I = 1, N
             INDXQ( I ) = I
@@ -15083,13 +15083,13 @@ CONTAINS
    20 CONTINUE
       RETURN
 !
-!     End of DLAED1
+!     End of OC_DLAED1
 !
-   END SUBROUTINE DLAED1
+   END SUBROUTINE OC_DLAED1
 !
 !=
 !
-!> \brief \b DLAED7 used by sstedc. Computes the updated eigensystem of a diagonal matrix after modification by a rank-one symmetric matrix. Used when the original matrix is dense.
+!> \brief \b OC_DLAED7 used by sstedc. Computes the updated eigensystem of a diagonal matrix after modification by a rank-one symmetric matrix. Used when the original matrix is dense.
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -15097,7 +15097,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DLAED7 + dependencies 
+!> Download OC_DLAED7 + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dlaed7.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dlaed7.f"> 
@@ -15109,7 +15109,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DLAED7( ICOMPQ, N, QSIZ, TLVLS, CURLVL, CURPBM, D, Q,
+!       SUBROUTINE OC_DLAED7( ICOMPQ, N, QSIZ, TLVLS, CURLVL, CURPBM, D, Q,
 !                          LDQ, INDXQ, RHO, CUTPNT, QSTORE, QPTR, PRMPTR,
 !                          PERM, GIVPTR, GIVCOL, GIVNUM, WORK, IWORK,
 !                          INFO )
@@ -15132,11 +15132,11 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DLAED7 computes the updated eigensystem of a diagonal
+!> OC_DLAED7 computes the updated eigensystem of a diagonal
 !> matrix after modification by a rank-one symmetric matrix. This
 !> routine is used only for the eigenproblem which requires all
 !> eigenvalues and optionally eigenvectors of a dense symmetric matrix
-!> that has been reduced to tridiagonal form.  DLAED1 handles
+!> that has been reduced to tridiagonal form.  OC_DLAED1 handles
 !> the case in which all eigenvalues and eigenvectors of a symmetric
 !> tridiagonal matrix are desired.
 !>
@@ -15152,11 +15152,11 @@ CONTAINS
 !>       when there are multiple eigenvalues or if there is a zero in
 !>       the Z vector.  For each such occurence the dimension of the
 !>       secular equation problem is reduced by one.  This stage is
-!>       performed by the routine DLAED8.
+!>       performed by the routine OC_DLAED8.
 !>
 !>       The second stage consists of calculating the updated
 !>       eigenvalues. This is done by finding the roots of the secular
-!>       equation via the routine DLAED4 (as called by DLAED9).
+!>       equation via the routine OC_DLAED4 (as called by OC_DLAED9).
 !>       This routine also calculates the eigenvectors of the current
 !>       problem.
 !>
@@ -15346,7 +15346,7 @@ CONTAINS
 !> at Berkeley, USA
 !
 !  =====================================================================
-   SUBROUTINE DLAED7( ICOMPQ, N, QSIZ, TLVLS, CURLVL, CURPBM, D, Q,&
+   SUBROUTINE OC_DLAED7( ICOMPQ, N, QSIZ, TLVLS, CURLVL, CURPBM, D, Q,&
         LDQ, INDXQ, RHO, CUTPNT, QSTORE, QPTR, PRMPTR,&
         PERM, GIVPTR, GIVCOL, GIVNUM, WORK, IWORK,&
         INFO )
@@ -15379,7 +15379,7 @@ CONTAINS
           IQ2, IS, IW, IZ, K, LDQ2, N1, N2, PTR
 !     ..
 !     .. External Subroutines ..
-!      EXTERNAL           DGEMM, DLAED8, DLAED9, DLAEDA, DLAMRG, XERBLA
+!      EXTERNAL           OC_DGEMM, OC_DLAED8, OC_DLAED9, OC_DLAEDA, OC_DLAMRG, OC_XERBLA
 !     ..
 !     .. Intrinsic Functions ..
 !      INTRINSIC          MAX, MIN
@@ -15402,7 +15402,7 @@ CONTAINS
         INFO = -12
      END IF
      IF( INFO.NE.0 ) THEN
-        CALL XERBLA( 'DLAED7', -INFO )
+        CALL OC_XERBLA( 'OC_DLAED7', -INFO )
         RETURN
      END IF
 !
@@ -15412,7 +15412,7 @@ CONTAINS
 !
 !     The following values are for bookkeeping purposes only.  They are
 !     integer pointers which indicate the portion of the workspace
-!     used by a particular array in DLAED8 and DLAED9.
+!     used by a particular array in OC_DLAED8 and OC_DLAED9.
 !
      IF( ICOMPQ.EQ.1 ) THEN
         LDQ2 = QSIZ
@@ -15439,7 +15439,7 @@ CONTAINS
         PTR = PTR + 2**( TLVLS-I )
 10   CONTINUE
      CURR = PTR + CURPBM
-     CALL DLAEDA( N, TLVLS, CURLVL, CURPBM, PRMPTR, PERM, GIVPTR,&
+     CALL OC_DLAEDA( N, TLVLS, CURLVL, CURPBM, PRMPTR, PERM, GIVPTR,&
           GIVCOL, GIVNUM, QSTORE, QPTR, WORK( IZ ),&
           WORK( IZ+N ), INFO )
 !
@@ -15455,7 +15455,7 @@ CONTAINS
 !
 !     Sort and Deflate eigenvalues.
 !
-     CALL DLAED8( ICOMPQ, K, N, QSIZ, D, Q, LDQ, INDXQ, RHO, CUTPNT,&
+     CALL OC_DLAED8( ICOMPQ, K, N, QSIZ, D, Q, LDQ, INDXQ, RHO, CUTPNT,&
           WORK( IZ ), WORK( IDLMDA ), WORK( IQ2 ), LDQ2,&
           WORK( IW ), PERM( PRMPTR( CURR ) ), GIVPTR( CURR+1 ),&
           GIVCOL( 1, GIVPTR( CURR ) ),&
@@ -15467,11 +15467,11 @@ CONTAINS
 !     Solve Secular Equation.
 !
      IF( K.NE.0 ) THEN
-        CALL DLAED9( K, 1, K, N, D, WORK( IS ), K, RHO, WORK( IDLMDA ),&
+        CALL OC_DLAED9( K, 1, K, N, D, WORK( IS ), K, RHO, WORK( IDLMDA ),&
              WORK( IW ), QSTORE( QPTR( CURR ) ), K, INFO )
         IF( INFO.NE.0 ) GO TO 30
         IF( ICOMPQ.EQ.1 ) THEN
-           CALL DGEMM( 'N', 'N', QSIZ, K, K, ONE, WORK( IQ2 ), LDQ2,&
+           CALL OC_DGEMM( 'N', 'N', QSIZ, K, K, ONE, WORK( IQ2 ), LDQ2,&
                 QSTORE( QPTR( CURR ) ), K, ZERO, Q, LDQ )
         END IF
         QPTR( CURR+1 ) = QPTR( CURR ) + K**2
@@ -15480,7 +15480,7 @@ CONTAINS
 !
         N1 = K
         N2 = N - K
-        CALL DLAMRG( N1, N2, D, 1, -1, INDXQ )
+        CALL OC_DLAMRG( N1, N2, D, 1, -1, INDXQ )
      ELSE
         QPTR( CURR+1 ) = QPTR( CURR )
         DO 20 I = 1, N
@@ -15491,13 +15491,13 @@ CONTAINS
 30   CONTINUE
      RETURN
 !
-!     End of DLAED7
+!     End of OC_DLAED7
 !
-  END SUBROUTINE DLAED7
+  END SUBROUTINE OC_DLAED7
 !
 !=
 !
-!> \brief \b DLAED8 used by sstedc. Merges eigenvalues and deflates secular equation. Used when the original matrix is dense.
+!> \brief \b OC_DLAED8 used by sstedc. Merges eigenvalues and deflates secular equation. Used when the original matrix is dense.
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -15505,7 +15505,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DLAED8 + dependencies 
+!> Download OC_DLAED8 + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dlaed8.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dlaed8.f"> 
@@ -15517,7 +15517,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DLAED8( ICOMPQ, K, N, QSIZ, D, Q, LDQ, INDXQ, RHO,
+!       SUBROUTINE OC_DLAED8( ICOMPQ, K, N, QSIZ, D, Q, LDQ, INDXQ, RHO,
 !                          CUTPNT, Z, DLAMDA, Q2, LDQ2, W, PERM, GIVPTR,
 !                          GIVCOL, GIVNUM, INDXP, INDX, INFO )
 ! 
@@ -15539,7 +15539,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DLAED8 merges the two sets of eigenvalues together into a single
+!> OC_DLAED8 merges the two sets of eigenvalues together into a single
 !> sorted set.  Then it tries to deflate the size of the problem.
 !> There are two ways in which deflation can occur:  when two or more
 !> eigenvalues are close together or if there is a tiny element in the
@@ -15620,7 +15620,7 @@ CONTAINS
 !>         cut which originally split the two submatrices which are now
 !>         being recombined.
 !>         On exit, RHO has been modified to the value required by
-!>         DLAED3.
+!>         OC_DLAED3.
 !> \endverbatim
 !>
 !> \param[in] CUTPNT
@@ -15644,7 +15644,7 @@ CONTAINS
 !> \verbatim
 !>          DLAMDA is DOUBLE PRECISION array, dimension (N)
 !>         A copy of the first K eigenvalues which will be used by
-!>         DLAED3 to form the secular equation.
+!>         OC_DLAED3 to form the secular equation.
 !> \endverbatim
 !>
 !> \param[out] Q2
@@ -15652,7 +15652,7 @@ CONTAINS
 !>          Q2 is DOUBLE PRECISION array, dimension (LDQ2,N)
 !>         If ICOMPQ = 0, Q2 is not referenced.  Otherwise,
 !>         a copy of the first K eigenvectors which will be used by
-!>         DLAED7 in a matrix multiply (DGEMM) to update the new
+!>         OC_DLAED7 in a matrix multiply (OC_DGEMM) to update the new
 !>         eigenvectors.
 !> \endverbatim
 !>
@@ -15666,7 +15666,7 @@ CONTAINS
 !> \verbatim
 !>          W is DOUBLE PRECISION array, dimension (N)
 !>         The first k values of the final deflation-altered z-vector and
-!>         will be passed to DLAED3.
+!>         will be passed to OC_DLAED3.
 !> \endverbatim
 !>
 !> \param[out] PERM
@@ -15738,7 +15738,7 @@ CONTAINS
 !> at Berkeley, USA
 !
 !  =====================================================================
-  SUBROUTINE DLAED8( ICOMPQ, K, N, QSIZ, D, Q, LDQ, INDXQ, RHO,&
+  SUBROUTINE OC_DLAED8( ICOMPQ, K, N, QSIZ, D, Q, LDQ, INDXQ, RHO,&
        CUTPNT, Z, DLAMDA, Q2, LDQ2, W, PERM, GIVPTR,&
        GIVCOL, GIVNUM, INDXP, INDX, INFO )
 !
@@ -15772,12 +15772,12 @@ CONTAINS
     DOUBLE PRECISION   C, EPS, S, T, TAU, TOL
 !     ..
 !     .. External Functions ..
-!      INTEGER            IDAMAX
-!      DOUBLE PRECISION   DLAMCH, DLAPY2
-!      EXTERNAL           IDAMAX, DLAMCH, DLAPY2
+!      INTEGER            OC_IDAMAX
+!      DOUBLE PRECISION   OC_DLAMCH, OC_DLAPY2
+!      EXTERNAL           OC_IDAMAX, OC_DLAMCH, OC_DLAPY2
 !     ..
 !     .. External Subroutines ..
-!      EXTERNAL           DCOPY, DLACPY, DLAMRG, DROT, DSCAL, XERBLA
+!      EXTERNAL           OC_DCOPY, OC_DLACPY, OC_DLAMRG, OC_DROT, OC_DSCAL, OC_XERBLA
 !     ..
 !     .. Intrinsic Functions ..
 !      INTRINSIC          ABS, MAX, MIN, SQRT
@@ -15802,7 +15802,7 @@ CONTAINS
        INFO = -14
     END IF
     IF( INFO.NE.0 ) THEN
-       CALL XERBLA( 'DLAED8', -INFO )
+       CALL OC_XERBLA( 'OC_DLAED8', -INFO )
        RETURN
     END IF
 !
@@ -15822,7 +15822,7 @@ CONTAINS
     N1P1 = N1 + 1
 !
     IF( RHO.LT.ZERO ) THEN
-       CALL DSCAL( N2, MONE, Z( N1P1 ), 1 )
+       CALL OC_DSCAL( N2, MONE, Z( N1P1 ), 1 )
     END IF
 !
 !     Normalize z so that norm(z) = 1
@@ -15831,7 +15831,7 @@ CONTAINS
     DO 10 J = 1, N
        INDX( J ) = J
 10  CONTINUE
-    CALL DSCAL( N, T, Z, 1 )
+    CALL OC_DSCAL( N, T, Z, 1 )
     RHO = ABS( TWO*RHO )
 !
 !     Sort the eigenvalues into increasing order
@@ -15845,7 +15845,7 @@ CONTAINS
 30  CONTINUE
     I = 1
     J = CUTPNT + 1
-    CALL DLAMRG( N1, N2, DLAMDA, 1, 1, INDX )
+    CALL OC_DLAMRG( N1, N2, DLAMDA, 1, 1, INDX )
     DO 40 I = 1, N
        D( I ) = DLAMDA( INDX( I ) )
        Z( I ) = W( INDX( I ) )
@@ -15853,9 +15853,9 @@ CONTAINS
 !
 !     Calculate the allowable deflation tolerence
 !
-    IMAX = IDAMAX( N, Z, 1 )
-    JMAX = IDAMAX( N, D, 1 )
-    EPS = DLAMCH( 'Epsilon' )
+    IMAX = OC_IDAMAX( N, Z, 1 )
+    JMAX = OC_IDAMAX( N, D, 1 )
+    EPS = OC_DLAMCH( 'Epsilon' )
     TOL = EIGHT*EPS*ABS( D( JMAX ) )
 !
 !     If the rank-1 modifier is small enough, no more needs to be done
@@ -15871,9 +15871,9 @@ CONTAINS
        ELSE
           DO 60 J = 1, N
              PERM( J ) = INDXQ( INDX( J ) )
-             CALL DCOPY( QSIZ, Q( 1, PERM( J ) ), 1, Q2( 1, J ), 1 )
+             CALL OC_DCOPY( QSIZ, Q( 1, PERM( J ) ), 1, Q2( 1, J ), 1 )
    60     CONTINUE
-          CALL DLACPY( 'A', QSIZ, N, Q2( 1, 1 ), LDQ2, Q( 1, 1 ), LDQ )
+          CALL OC_DLACPY( 'A', QSIZ, N, Q2( 1, 1 ), LDQ2, Q( 1, 1 ), LDQ )
        END IF
        RETURN
     END IF
@@ -15918,7 +15918,7 @@ CONTAINS
 !        Find sqrt(a**2+b**2) without overflow or
 !        destructive underflow.
 !
-       TAU = DLAPY2( C, S )
+       TAU = OC_DLAPY2( C, S )
        T = D( J ) - D( JLAM )
        C = C / TAU
        S = -S / TAU
@@ -15937,7 +15937,7 @@ CONTAINS
           GIVNUM( 1, GIVPTR ) = C
           GIVNUM( 2, GIVPTR ) = S
           IF( ICOMPQ.EQ.1 ) THEN
-             CALL DROT( QSIZ, Q( 1, INDXQ( INDX( JLAM ) ) ), 1,&
+             CALL OC_DROT( QSIZ, Q( 1, INDXQ( INDX( JLAM ) ) ), 1,&
                   Q( 1, INDXQ( INDX( J ) ) ), 1, C, S )
           END IF
           T = D( JLAM )*C*C + D( J )*S*S
@@ -15995,7 +15995,7 @@ CONTAINS
           JP = INDXP( J )
           DLAMDA( J ) = D( JP )
           PERM( J ) = INDXQ( INDX( JP ) )
-          CALL DCOPY( QSIZ, Q( 1, PERM( J ) ), 1, Q2( 1, J ), 1 )
+          CALL OC_DCOPY( QSIZ, Q( 1, PERM( J ) ), 1, Q2( 1, J ), 1 )
 130    CONTINUE
     END IF
 !
@@ -16004,23 +16004,23 @@ CONTAINS
 !
     IF( K.LT.N ) THEN
        IF( ICOMPQ.EQ.0 ) THEN
-          CALL DCOPY( N-K, DLAMDA( K+1 ), 1, D( K+1 ), 1 )
+          CALL OC_DCOPY( N-K, DLAMDA( K+1 ), 1, D( K+1 ), 1 )
        ELSE
-          CALL DCOPY( N-K, DLAMDA( K+1 ), 1, D( K+1 ), 1 )
-          CALL DLACPY( 'A', QSIZ, N-K, Q2( 1, K+1 ), LDQ2,&
+          CALL OC_DCOPY( N-K, DLAMDA( K+1 ), 1, D( K+1 ), 1 )
+          CALL OC_DLACPY( 'A', QSIZ, N-K, Q2( 1, K+1 ), LDQ2,&
                Q( 1, K+1 ), LDQ )
        END IF
     END IF
 !
     RETURN
 !
-!     End of DLAED8
+!     End of OC_DLAED8
 !
- END SUBROUTINE DLAED8
+ END SUBROUTINE OC_DLAED8
 !
 !=
 !
-!> \brief \b DLAED9 used by sstedc. Finds the roots of the secular equation and updates the eigenvectors. Used when the original matrix is dense.
+!> \brief \b OC_DLAED9 used by sstedc. Finds the roots of the secular equation and updates the eigenvectors. Used when the original matrix is dense.
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -16028,7 +16028,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DLAED9 + dependencies 
+!> Download OC_DLAED9 + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dlaed9.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dlaed9.f"> 
@@ -16040,7 +16040,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DLAED9( K, KSTART, KSTOP, N, D, Q, LDQ, RHO, DLAMDA, W,
+!       SUBROUTINE OC_DLAED9( K, KSTART, KSTOP, N, D, Q, LDQ, RHO, DLAMDA, W,
 !                          S, LDS, INFO )
 ! 
 !       .. Scalar Arguments ..
@@ -16058,9 +16058,9 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DLAED9 finds the roots of the secular equation, as defined by the
+!> OC_DLAED9 finds the roots of the secular equation, as defined by the
 !> values in D, Z, and RHO, between KSTART and KSTOP.  It makes the
-!> appropriate calls to DLAED4 and then stores the new matrix of
+!> appropriate calls to OC_DLAED4 and then stores the new matrix of
 !> eigenvectors for use in calculating the next level of Z vectors.
 !> \endverbatim
 !
@@ -16071,7 +16071,7 @@ CONTAINS
 !> \verbatim
 !>          K is INTEGER
 !>          The number of terms in the rational function to be solved by
-!>          DLAED4.  K >= 0.
+!>          OC_DLAED4.  K >= 0.
 !> \endverbatim
 !>
 !> \param[in] KSTART
@@ -16175,7 +16175,7 @@ CONTAINS
 !> at Berkeley, USA
 !
 !  =====================================================================
- SUBROUTINE DLAED9( K, KSTART, KSTOP, N, D, Q, LDQ, RHO, DLAMDA, W,&
+ SUBROUTINE OC_DLAED9( K, KSTART, KSTOP, N, D, Q, LDQ, RHO, DLAMDA, W,&
       S, LDS, INFO )
 !
 !  -- LAPACK computational routine (version 3.4.2) --
@@ -16199,11 +16199,11 @@ CONTAINS
    DOUBLE PRECISION   TEMP
 !     ..
 !     .. External Functions ..
-!      DOUBLE PRECISION   DLAMC3, DNRM2
-!      EXTERNAL           DLAMC3, DNRM2
+!      DOUBLE PRECISION   OC_DLAMC3, OC_DNRM2
+!      EXTERNAL           OC_DLAMC3, OC_DNRM2
 !     ..
 !     .. External Subroutines ..
-!      EXTERNAL           DCOPY, DLAED4, XERBLA
+!      EXTERNAL           OC_DCOPY, OC_DLAED4, OC_XERBLA
 !     ..
 !     .. Intrinsic Functions ..
 !      INTRINSIC          MAX, SIGN, SQRT
@@ -16228,7 +16228,7 @@ CONTAINS
       INFO = -12
    END IF
    IF( INFO.NE.0 ) THEN
-      CALL XERBLA( 'DLAED9', -INFO )
+      CALL OC_XERBLA( 'OC_DLAED9', -INFO )
       RETURN
    END IF
 !
@@ -16254,11 +16254,11 @@ CONTAINS
 !     this code.
 !
    DO 10 I = 1, N
-      DLAMDA( I ) = DLAMC3( DLAMDA( I ), DLAMDA( I ) ) - DLAMDA( I )
+      DLAMDA( I ) = OC_DLAMC3( DLAMDA( I ), DLAMDA( I ) ) - DLAMDA( I )
 10 CONTINUE
 !
    DO 20 J = KSTART, KSTOP
-      CALL DLAED4( K, J, DLAMDA, W, Q( 1, J ), RHO, D( J ), INFO )
+      CALL OC_DLAED4( K, J, DLAMDA, W, Q( 1, J ), RHO, D( J ), INFO )
 !
 !        If the zero finder fails, the computation is terminated.
 !
@@ -16276,11 +16276,11 @@ CONTAINS
 !
 !     Compute updated W.
 !
-   CALL DCOPY( K, W, 1, S, 1 )
+   CALL OC_DCOPY( K, W, 1, S, 1 )
 !
 !     Initialize W(I) = Q(I,I)
 !
-   CALL DCOPY( K, Q, LDQ+1, W, 1 )
+   CALL OC_DCOPY( K, Q, LDQ+1, W, 1 )
    DO 70 J = 1, K
       DO 50 I = 1, J - 1
          W( I ) = W( I )*( Q( I, J ) / ( DLAMDA( I )-DLAMDA( J ) ) )
@@ -16299,7 +16299,7 @@ CONTAINS
       DO 90 I = 1, K
          Q( I, J ) = W( I ) / Q( I, J )
 90    CONTINUE
-      TEMP = DNRM2( K, Q( 1, J ), 1 )
+      TEMP = OC_DNRM2( K, Q( 1, J ), 1 )
       DO 100 I = 1, K
          S( I, J ) = Q( I, J ) / TEMP
 100   CONTINUE
@@ -16308,13 +16308,13 @@ CONTAINS
 120 CONTINUE
    RETURN
 !
-!     End of DLAED9
+!     End of OC_DLAED9
 !
- END SUBROUTINE DLAED9
+ END SUBROUTINE OC_DLAED9
 !
 !=
 !
-!> \brief \b DLAED2 used by sstedc. Merges eigenvalues and deflates secular equation. Used when the original matrix is tridiagonal.
+!> \brief \b OC_DLAED2 used by sstedc. Merges eigenvalues and deflates secular equation. Used when the original matrix is tridiagonal.
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -16322,7 +16322,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DLAED2 + dependencies 
+!> Download OC_DLAED2 + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dlaed2.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dlaed2.f"> 
@@ -16334,7 +16334,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DLAED2( K, N, N1, D, Q, LDQ, INDXQ, RHO, Z, DLAMDA, W,
+!       SUBROUTINE OC_DLAED2( K, N, N1, D, Q, LDQ, INDXQ, RHO, Z, DLAMDA, W,
 !                          Q2, INDX, INDXC, INDXP, COLTYP, INFO )
 ! 
 !       .. Scalar Arguments ..
@@ -16354,7 +16354,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DLAED2 merges the two sets of eigenvalues together into a single
+!> OC_DLAED2 merges the two sets of eigenvalues together into a single
 !> sorted set.  Then it tries to deflate the size of the problem.
 !> There are two ways in which deflation can occur:  when two or more
 !> eigenvalues are close together or if there is a tiny entry in the
@@ -16426,7 +16426,7 @@ CONTAINS
 !>         cut which originally split the two submatrices which are now
 !>         being recombined.
 !>         On exit, RHO has been modified to the value required by
-!>         DLAED3.
+!>         OC_DLAED3.
 !> \endverbatim
 !>
 !> \param[in] Z
@@ -16443,21 +16443,21 @@ CONTAINS
 !> \verbatim
 !>          DLAMDA is DOUBLE PRECISION array, dimension (N)
 !>         A copy of the first K eigenvalues which will be used by
-!>         DLAED3 to form the secular equation.
+!>         OC_DLAED3 to form the secular equation.
 !> \endverbatim
 !>
 !> \param[out] W
 !> \verbatim
 !>          W is DOUBLE PRECISION array, dimension (N)
 !>         The first k values of the final deflation-altered z-vector
-!>         which will be passed to DLAED3.
+!>         which will be passed to OC_DLAED3.
 !> \endverbatim
 !>
 !> \param[out] Q2
 !> \verbatim
 !>          Q2 is DOUBLE PRECISION array, dimension (N1**2+(N-N1)**2)
 !>         A copy of the first K eigenvectors which will be used by
-!>         DLAED3 in a matrix multiply (DGEMM) to solve for the new
+!>         OC_DLAED3 in a matrix multiply (OC_DGEMM) to solve for the new
 !>         eigenvectors.
 !> \endverbatim
 !>
@@ -16525,7 +16525,7 @@ CONTAINS
 !>  Modified by Francoise Tisseur, University of Tennessee
 !>
 !  =====================================================================
- SUBROUTINE DLAED2( K, N, N1, D, Q, LDQ, INDXQ, RHO, Z, DLAMDA, W,&
+ SUBROUTINE OC_DLAED2( K, N, N1, D, Q, LDQ, INDXQ, RHO, Z, DLAMDA, W,&
       Q2, INDX, INDXC, INDXP, COLTYP, INFO )
 !
 !  -- LAPACK computational routine (version 3.4.2) --
@@ -16560,12 +16560,12 @@ CONTAINS
    DOUBLE PRECISION   C, EPS, S, T, TAU, TOL
 !     ..
 !     .. External Functions ..
-!   INTEGER            IDAMAX
-!   DOUBLE PRECISION   DLAMCH, DLAPY2
-!   EXTERNAL           IDAMAX, DLAMCH, DLAPY2
+!   INTEGER            OC_IDAMAX
+!   DOUBLE PRECISION   OC_DLAMCH, OC_DLAPY2
+!   EXTERNAL           OC_IDAMAX, OC_DLAMCH, OC_DLAPY2
 !     ..
 !     .. External Subroutines ..
-!      EXTERNAL           DCOPY, DLACPY, DLAMRG, DROT, DSCAL, XERBLA
+!      EXTERNAL           OC_DCOPY, OC_DLACPY, OC_DLAMRG, OC_DROT, OC_DSCAL, OC_XERBLA
 !     ..
 !     .. Intrinsic Functions ..
 !      INTRINSIC          ABS, MAX, MIN, SQRT
@@ -16584,7 +16584,7 @@ CONTAINS
       INFO = -3
    END IF
    IF( INFO.NE.0 ) THEN
-      CALL XERBLA( 'DLAED2', -INFO )
+      CALL OC_XERBLA( 'OC_DLAED2', -INFO )
       RETURN
    END IF
 !
@@ -16596,14 +16596,14 @@ CONTAINS
    N1P1 = N1 + 1
 !
    IF( RHO.LT.ZERO ) THEN
-      CALL DSCAL( N2, MONE, Z( N1P1 ), 1 )
+      CALL OC_DSCAL( N2, MONE, Z( N1P1 ), 1 )
    END IF
 !
 !     Normalize z so that norm(z) = 1.  Since z is the concatenation of
 !     two normalized vectors, norm2(z) = sqrt(2).
 !
    T = ONE / SQRT( TWO )
-   CALL DSCAL( N, T, Z, 1 )
+   CALL OC_DSCAL( N, T, Z, 1 )
 !
 !     RHO = ABS( norm(z)**2 * RHO )
 !
@@ -16620,16 +16620,16 @@ CONTAINS
    DO 20 I = 1, N
       DLAMDA( I ) = D( INDXQ( I ) )
 20 CONTINUE
-   CALL DLAMRG( N1, N2, DLAMDA, 1, 1, INDXC )
+   CALL OC_DLAMRG( N1, N2, DLAMDA, 1, 1, INDXC )
    DO 30 I = 1, N
       INDX( I ) = INDXQ( INDXC( I ) )
 30 CONTINUE
 !
 !     Calculate the allowable deflation tolerance
 !
-   IMAX = IDAMAX( N, Z, 1 )
-   JMAX = IDAMAX( N, D, 1 )
-   EPS = DLAMCH( 'Epsilon' )
+   IMAX = OC_IDAMAX( N, Z, 1 )
+   JMAX = OC_IDAMAX( N, D, 1 )
+   EPS = OC_DLAMCH( 'Epsilon' )
    TOL = EIGHT*EPS*MAX( ABS( D( JMAX ) ), ABS( Z( IMAX ) ) )
 !
 !     If the rank-1 modifier is small enough, no more needs to be done
@@ -16641,12 +16641,12 @@ CONTAINS
       IQ2 = 1
       DO 40 J = 1, N
          I = INDX( J )
-         CALL DCOPY( N, Q( 1, I ), 1, Q2( IQ2 ), 1 )
+         CALL OC_DCOPY( N, Q( 1, I ), 1, Q2( IQ2 ), 1 )
          DLAMDA( J ) = D( I )
          IQ2 = IQ2 + N
 40    CONTINUE
-      CALL DLACPY( 'A', N, N, Q2, N, Q, LDQ )
-      CALL DCOPY( N, DLAMDA, 1, D, 1 )
+      CALL OC_DLACPY( 'A', N, N, Q2, N, Q, LDQ )
+      CALL OC_DCOPY( N, DLAMDA, 1, D, 1 )
       GO TO 190
    END IF
 !
@@ -16702,7 +16702,7 @@ CONTAINS
 !        Find sqrt(a**2+b**2) without overflow or
 !        destructive underflow.
 !
-      TAU = DLAPY2( C, S )
+      TAU = OC_DLAPY2( C, S )
       T = D( NJ ) - D( PJ )
       C = C / TAU
       S = -S / TAU
@@ -16714,7 +16714,7 @@ CONTAINS
          Z( PJ ) = ZERO
          IF( COLTYP( NJ ).NE.COLTYP( PJ ) ) COLTYP( NJ ) = 2
          COLTYP( PJ ) = 4
-         CALL DROT( N, Q( 1, PJ ), 1, Q( 1, NJ ), 1, C, S )
+         CALL OC_DROT( N, Q( 1, PJ ), 1, Q( 1, NJ ), 1, C, S )
          T = D( PJ )*C**2 + D( NJ )*S**2
          D( NJ ) = D( PJ )*S**2 + D( NJ )*C**2
          D( PJ ) = T
@@ -16795,7 +16795,7 @@ CONTAINS
    IQ2 = 1 + ( CTOT( 1 )+CTOT( 2 ) )*N1
    DO 140 J = 1, CTOT( 1 )
       JS = INDX( I )
-      CALL DCOPY( N1, Q( 1, JS ), 1, Q2( IQ1 ), 1 )
+      CALL OC_DCOPY( N1, Q( 1, JS ), 1, Q2( IQ1 ), 1 )
       Z( I ) = D( JS )
       I = I + 1
       IQ1 = IQ1 + N1
@@ -16803,8 +16803,8 @@ CONTAINS
 !
    DO 150 J = 1, CTOT( 2 )
       JS = INDX( I )
-      CALL DCOPY( N1, Q( 1, JS ), 1, Q2( IQ1 ), 1 )
-      CALL DCOPY( N2, Q( N1+1, JS ), 1, Q2( IQ2 ), 1 )
+      CALL OC_DCOPY( N1, Q( 1, JS ), 1, Q2( IQ1 ), 1 )
+      CALL OC_DCOPY( N2, Q( N1+1, JS ), 1, Q2( IQ2 ), 1 )
       Z( I ) = D( JS )
       I = I + 1
       IQ1 = IQ1 + N1
@@ -16813,7 +16813,7 @@ CONTAINS
 !
    DO 160 J = 1, CTOT( 3 )
       JS = INDX( I )
-      CALL DCOPY( N2, Q( N1+1, JS ), 1, Q2( IQ2 ), 1 )
+      CALL OC_DCOPY( N2, Q( N1+1, JS ), 1, Q2( IQ2 ), 1 )
       Z( I ) = D( JS )
       I = I + 1
       IQ2 = IQ2 + N2
@@ -16822,7 +16822,7 @@ CONTAINS
    IQ1 = IQ2
    DO 170 J = 1, CTOT( 4 )
       JS = INDX( I )
-      CALL DCOPY( N, Q( 1, JS ), 1, Q2( IQ2 ), 1 )
+      CALL OC_DCOPY( N, Q( 1, JS ), 1, Q2( IQ2 ), 1 )
       IQ2 = IQ2 + N
       Z( I ) = D( JS )
       I = I + 1
@@ -16832,12 +16832,12 @@ CONTAINS
 !     into the last N - K slots of D and Q respectively.
 !
    IF( K.LT.N ) THEN
-      CALL DLACPY( 'A', N, CTOT( 4 ), Q2( IQ1 ), N, &
+      CALL OC_DLACPY( 'A', N, CTOT( 4 ), Q2( IQ1 ), N, &
            Q( 1, K+1 ), LDQ )
-      CALL DCOPY( N-K, Z( K+1 ), 1, D( K+1 ), 1 )
+      CALL OC_DCOPY( N-K, Z( K+1 ), 1, D( K+1 ), 1 )
    END IF
 !
-!     Copy CTOT into COLTYP for referencing in DLAED3.
+!     Copy CTOT into COLTYP for referencing in OC_DLAED3.
 !
    DO 180 J = 1, 4
       COLTYP( J ) = CTOT( J )
@@ -16846,13 +16846,13 @@ CONTAINS
 190 CONTINUE
    RETURN
 !
-!     End of DLAED2
+!     End of OC_DLAED2
 !
- END SUBROUTINE DLAED2
+ END SUBROUTINE OC_DLAED2
 !
 !=
 !
-!> \brief \b DLAED3 used by sstedc. Finds the roots of the secular equation and updates the eigenvectors. Used when the original matrix is tridiagonal.
+!> \brief \b OC_DLAED3 used by sstedc. Finds the roots of the secular equation and updates the eigenvectors. Used when the original matrix is tridiagonal.
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -16860,7 +16860,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DLAED3 + dependencies 
+!> Download OC_DLAED3 + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dlaed3.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dlaed3.f"> 
@@ -16872,7 +16872,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DLAED3( K, N, N1, D, Q, LDQ, RHO, DLAMDA, Q2, INDX,
+!       SUBROUTINE OC_DLAED3( K, N, N1, D, Q, LDQ, RHO, DLAMDA, Q2, INDX,
 !                          CTOT, W, S, INFO )
 ! 
 !       .. Scalar Arguments ..
@@ -16891,9 +16891,9 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DLAED3 finds the roots of the secular equation, as defined by the
+!> OC_DLAED3 finds the roots of the secular equation, as defined by the
 !> values in D, W, and RHO, between 1 and K.  It makes the
-!> appropriate calls to DLAED4 and then updates the eigenvectors by
+!> appropriate calls to OC_DLAED4 and then updates the eigenvectors by
 !> multiplying the matrix of eigenvectors of the pair of eigensystems
 !> being combined by the matrix of eigenvectors of the K-by-K system
 !> which is solved here.
@@ -16913,7 +16913,7 @@ CONTAINS
 !> \verbatim
 !>          K is INTEGER
 !>          The number of terms in the rational function to be solved by
-!>          DLAED4.  K >= 0.
+!>          OC_DLAED4.  K >= 0.
 !> \endverbatim
 !>
 !> \param[in] N
@@ -16979,8 +16979,8 @@ CONTAINS
 !> \verbatim
 !>          INDX is INTEGER array, dimension (N)
 !>          The permutation used to arrange the columns of the deflated
-!>          Q matrix into three groups (see DLAED2).
-!>          The rows of the eigenvectors found by DLAED4 must be likewise
+!>          Q matrix into three groups (see OC_DLAED2).
+!>          The rows of the eigenvectors found by OC_DLAED4 must be likewise
 !>          permuted before the matrix multiply can take place.
 !> \endverbatim
 !>
@@ -17036,7 +17036,7 @@ CONTAINS
 !>  Modified by Francoise Tisseur, University of Tennessee
 !>
 !  =====================================================================
- SUBROUTINE DLAED3( K, N, N1, D, Q, LDQ, RHO, DLAMDA, Q2, INDX,&
+ SUBROUTINE OC_DLAED3( K, N, N1, D, Q, LDQ, RHO, DLAMDA, Q2, INDX,&
       CTOT, W, S, INFO )
 !
 !  -- LAPACK computational routine (version 3.4.2) --
@@ -17065,11 +17065,11 @@ CONTAINS
    DOUBLE PRECISION   TEMP
 !     ..
 !     .. External Functions ..
-!      DOUBLE PRECISION   DLAMC3, DNRM2
-!      EXTERNAL           DLAMC3, DNRM2
+!      DOUBLE PRECISION   OC_DLAMC3, OC_DNRM2
+!      EXTERNAL           OC_DLAMC3, OC_DNRM2
 !     ..
 !     .. External Subroutines ..
-!      EXTERNAL           DCOPY, DGEMM, DLACPY, DLAED4, DLASET, XERBLA
+!      EXTERNAL           OC_DCOPY, OC_DGEMM, OC_DLACPY, OC_DLAED4, OC_DLASET, OC_XERBLA
 !     ..
 !     .. Intrinsic Functions ..
 !      INTRINSIC          MAX, SIGN, SQRT
@@ -17088,7 +17088,7 @@ CONTAINS
       INFO = -6
    END IF
    IF( INFO.NE.0 ) THEN
-      CALL XERBLA( 'DLAED3', -INFO )
+      CALL OC_XERBLA( 'OC_DLAED3', -INFO )
       RETURN
    END IF
 !
@@ -17114,11 +17114,11 @@ CONTAINS
 !     this code.
 !
    DO 10 I = 1, K
-      DLAMDA( I ) = DLAMC3( DLAMDA( I ), DLAMDA( I ) ) - DLAMDA( I )
+      DLAMDA( I ) = OC_DLAMC3( DLAMDA( I ), DLAMDA( I ) ) - DLAMDA( I )
 10 CONTINUE
 !
    DO 20 J = 1, K
-      CALL DLAED4( K, J, DLAMDA, W, Q( 1, J ), RHO, D( J ), INFO )
+      CALL OC_DLAED4( K, J, DLAMDA, W, Q( 1, J ), RHO, D( J ), INFO )
 !
 !        If the zero finder fails, the computation is terminated.
 !
@@ -17140,11 +17140,11 @@ CONTAINS
 !
 !     Compute updated W.
 !
-   CALL DCOPY( K, W, 1, S, 1 )
+   CALL OC_DCOPY( K, W, 1, S, 1 )
 !
 !     Initialize W(I) = Q(I,I)
 !
-   CALL DCOPY( K, Q, LDQ+1, W, 1 )
+   CALL OC_DCOPY( K, Q, LDQ+1, W, 1 )
    DO 60 J = 1, K
       DO 40 I = 1, J - 1
          W( I ) = W( I )*( Q( I, J ) / ( DLAMDA( I )-DLAMDA( J ) ) )
@@ -17163,7 +17163,7 @@ CONTAINS
       DO 80 I = 1, K
          S( I ) = W( I ) / Q( I, J )
 80    CONTINUE
-      TEMP = DNRM2( K, S, 1 )
+      TEMP = OC_DNRM2( K, S, 1 )
       DO 90 I = 1, K
          II = INDX( I )
          Q( I, J ) = S( II ) / TEMP
@@ -17178,34 +17178,34 @@ CONTAINS
    N12 = CTOT( 1 ) + CTOT( 2 )
    N23 = CTOT( 2 ) + CTOT( 3 )
 !
-   CALL DLACPY( 'A', N23, K, Q( CTOT( 1 )+1, 1 ), LDQ, S, N23 )
+   CALL OC_DLACPY( 'A', N23, K, Q( CTOT( 1 )+1, 1 ), LDQ, S, N23 )
    IQ2 = N1*N12 + 1
    IF( N23.NE.0 ) THEN
-      CALL DGEMM( 'N', 'N', N2, K, N23, ONE, Q2( IQ2 ), N2, S, N23,&
+      CALL OC_DGEMM( 'N', 'N', N2, K, N23, ONE, Q2( IQ2 ), N2, S, N23,&
            ZERO, Q( N1+1, 1 ), LDQ )
    ELSE
-      CALL DLASET( 'A', N2, K, ZERO, ZERO, Q( N1+1, 1 ), LDQ )
+      CALL OC_DLASET( 'A', N2, K, ZERO, ZERO, Q( N1+1, 1 ), LDQ )
    END IF
 !
-   CALL DLACPY( 'A', N12, K, Q, LDQ, S, N12 )
+   CALL OC_DLACPY( 'A', N12, K, Q, LDQ, S, N12 )
    IF( N12.NE.0 ) THEN
-      CALL DGEMM( 'N', 'N', N1, K, N12, ONE, Q2, N1, S, N12, ZERO, Q,&
+      CALL OC_DGEMM( 'N', 'N', N1, K, N12, ONE, Q2, N1, S, N12, ZERO, Q,&
            LDQ )
    ELSE
-      CALL DLASET( 'A', N1, K, ZERO, ZERO, Q( 1, 1 ), LDQ )
+      CALL OC_DLASET( 'A', N1, K, ZERO, ZERO, Q( 1, 1 ), LDQ )
    END IF
 !
 !
 120 CONTINUE
    RETURN
 !
-!     End of DLAED3
+!     End of OC_DLAED3
 !
- END SUBROUTINE DLAED3
+ END SUBROUTINE OC_DLAED3
 !
 !=
 !
-!> \brief \b DLAED4 used by sstedc. Finds a single root of the secular equation.
+!> \brief \b OC_DLAED4 used by sstedc. Finds a single root of the secular equation.
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -17213,7 +17213,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DLAED4 + dependencies 
+!> Download OC_DLAED4 + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dlaed4.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dlaed4.f"> 
@@ -17225,7 +17225,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DLAED4( N, I, D, Z, DELTA, RHO, DLAM, INFO )
+!       SUBROUTINE OC_DLAED4( N, I, D, Z, DELTA, RHO, DLAM, INFO )
 ! 
 !       .. Scalar Arguments ..
 !       INTEGER            I, INFO, N
@@ -17290,9 +17290,9 @@ CONTAINS
 !> \verbatim
 !>          DELTA is DOUBLE PRECISION array, dimension (N)
 !>         If N .GT. 2, DELTA contains (D(j) - lambda_I) in its  j-th
-!>         component.  If N = 1, then DELTA(1) = 1. If N = 2, see DLAED5
+!>         component.  If N = 1, then DELTA(1) = 1. If N = 2, see OC_DLAED5
 !>         for detail. The vector DELTA contains the information necessary
-!>         to construct the eigenvectors by DLAED3 and DLAED9.
+!>         to construct the eigenvectors by OC_DLAED3 and OC_DLAED9.
 !> \endverbatim
 !>
 !> \param[in] RHO
@@ -17350,7 +17350,7 @@ CONTAINS
 !>     at Berkeley, USA
 !>
 !  =====================================================================
- SUBROUTINE DLAED4( N, I, D, Z, DELTA, RHO, DLAM, INFO )
+ SUBROUTINE OC_DLAED4( N, I, D, Z, DELTA, RHO, DLAM, INFO )
 !
 !  -- LAPACK computational routine (version 3.4.2) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -17386,11 +17386,11 @@ CONTAINS
    DOUBLE PRECISION   ZZ( 3 )
 !     ..
 !     .. External Functions ..
-!      DOUBLE PRECISION   DLAMCH
-!      EXTERNAL           DLAMCH
+!      DOUBLE PRECISION   OC_DLAMCH
+!      EXTERNAL           OC_DLAMCH
 !     ..
 !     .. External Subroutines ..
-!      EXTERNAL           DLAED5, DLAED6
+!      EXTERNAL           OC_DLAED5, OC_DLAED6
 !     ..
 !     .. Intrinsic Functions ..
 !      INTRINSIC          ABS, MAX, MIN, SQRT
@@ -17412,13 +17412,13 @@ CONTAINS
       RETURN
    END IF
    IF( N.EQ.2 ) THEN
-      CALL DLAED5( I, D, Z, DELTA, RHO, DLAM )
+      CALL OC_DLAED5( I, D, Z, DELTA, RHO, DLAM )
       RETURN
    END IF
 !
 !     Compute machine epsilon
 !
-   EPS = DLAMCH( 'Epsilon' )
+   EPS = OC_DLAMCH( 'Epsilon' )
    RHOINV = ONE / RHO
 !
 !     The case I = N
@@ -17868,7 +17868,7 @@ CONTAINS
             ZZ( 3 ) = Z( IIP1 )*Z( IIP1 )
          END IF
          ZZ( 2 ) = Z( II )*Z( II )
-         CALL DLAED6( NITER, ORGATI, C, DELTA( IIM1 ), ZZ, W, ETA,&
+         CALL OC_DLAED6( NITER, ORGATI, C, DELTA( IIM1 ), ZZ, W, ETA,&
               INFO )
          IF( INFO.NE.0 ) GO TO 250
       END IF
@@ -18030,7 +18030,7 @@ CONTAINS
                   ZZ( 3 ) = Z( IIP1 )*Z( IIP1 )
                END IF
             END IF
-            CALL DLAED6( NITER, ORGATI, C, DELTA( IIM1 ), ZZ, W, ETA,&
+            CALL OC_DLAED6( NITER, ORGATI, C, DELTA( IIM1 ), ZZ, W, ETA,&
                  INFO )
             IF( INFO.NE.0 ) GO TO 250
          END IF
@@ -18108,13 +18108,13 @@ CONTAINS
 !
    RETURN
 !
-!     End of DLAED4
+!     End of OC_DLAED4
 !
- END SUBROUTINE DLAED4
+ END SUBROUTINE OC_DLAED4
 !
 !=
 !
-!> \brief \b DLAED5 used by sstedc. Solves the 2-by-2 secular equation.
+!> \brief \b OC_DLAED5 used by sstedc. Solves the 2-by-2 secular equation.
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -18122,7 +18122,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DLAED5 + dependencies 
+!> Download OC_DLAED5 + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dlaed5.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dlaed5.f"> 
@@ -18134,7 +18134,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DLAED5( I, D, Z, DELTA, RHO, DLAM )
+!       SUBROUTINE OC_DLAED5( I, D, Z, DELTA, RHO, DLAM )
 ! 
 !       .. Scalar Arguments ..
 !       INTEGER            I
@@ -18222,7 +18222,7 @@ CONTAINS
 !>     at Berkeley, USA
 !>
 !  =====================================================================
- SUBROUTINE DLAED5( I, D, Z, DELTA, RHO, DLAM )
+ SUBROUTINE OC_DLAED5( I, D, Z, DELTA, RHO, DLAM )
 !
 !  -- LAPACK computational routine (version 3.4.2) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -18300,11 +18300,11 @@ CONTAINS
    END IF
    RETURN
 !
-!     End OF DLAED5
+!     End OF OC_DLAED5
 !
- END SUBROUTINE DLAED5
+ END SUBROUTINE OC_DLAED5
 !=
-!> \brief \b DLAED6 used by sstedc. Computes one Newton step in solution of the secular equation.
+!> \brief \b OC_DLAED6 used by sstedc. Computes one Newton step in solution of the secular equation.
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -18312,7 +18312,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DLAED6 + dependencies 
+!> Download OC_DLAED6 + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dlaed6.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dlaed6.f"> 
@@ -18324,7 +18324,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DLAED6( KNITER, ORGATI, RHO, D, Z, FINIT, TAU, INFO )
+!       SUBROUTINE OC_DLAED6( KNITER, ORGATI, RHO, D, Z, FINIT, TAU, INFO )
 ! 
 !       .. Scalar Arguments ..
 !       LOGICAL            ORGATI
@@ -18341,7 +18341,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DLAED6 computes the positive or negative root (closest to the origin)
+!> OC_DLAED6 computes the positive or negative root (closest to the origin)
 !> of
 !>                  z(1)        z(2)        z(3)
 !> f(x) =   rho + --------- + ---------- + ---------
@@ -18352,7 +18352,7 @@ CONTAINS
 !>       if ORGATI = .true. the root is between d(2) and d(3);
 !>       otherwise it is between d(1) and d(2)
 !>
-!> This routine will be called by DLAED4 when necessary. In most cases,
+!> This routine will be called by OC_DLAED4 when necessary. In most cases,
 !> the root sought is the smallest in magnitude, though it might not be
 !> in some extremely rare situations.
 !> \endverbatim
@@ -18363,7 +18363,7 @@ CONTAINS
 !> \param[in] KNITER
 !> \verbatim
 !>          KNITER is INTEGER
-!>               Refer to DLAED4 for its significance.
+!>               Refer to OC_DLAED4 for its significance.
 !> \endverbatim
 !>
 !> \param[in] ORGATI
@@ -18371,7 +18371,7 @@ CONTAINS
 !>          ORGATI is LOGICAL
 !>               If ORGATI is true, the needed root is between d(2) and
 !>               d(3); otherwise it is between d(1) and d(2).  See
-!>               DLAED4 for further details.
+!>               OC_DLAED4 for further details.
 !> \endverbatim
 !>
 !> \param[in] RHO
@@ -18444,7 +18444,7 @@ CONTAINS
 !>     at Berkeley, USA
 !>
 !  =====================================================================
- SUBROUTINE DLAED6( KNITER, ORGATI, RHO, D, Z, FINIT, TAU, INFO )
+ SUBROUTINE OC_DLAED6( KNITER, ORGATI, RHO, D, Z, FINIT, TAU, INFO )
 !
 !  -- LAPACK computational routine (version 3.6.0) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -18470,11 +18470,11 @@ CONTAINS
         THREE = 3.0D0, FOUR = 4.0D0, EIGHT = 8.0D0 )
 !     ..
 !     .. External Functions ..
-!   DOUBLE PRECISION   DLAMCH
-!   EXTERNAL           DLAMCH
+!   DOUBLE PRECISION   OC_DLAMCH
+!   EXTERNAL           OC_DLAMCH
 !     ..
 !     .. Local Arrays ..
-   DOUBLE PRECISION   DSCALE( 3 ), ZSCALE( 3 )
+   DOUBLE PRECISION   OC_DSCALE( 3 ), ZSCALE( 3 )
 !     ..
 !     .. Local Scalars ..
    LOGICAL            SCALE
@@ -18551,9 +18551,9 @@ CONTAINS
 !     SMINV2, EPS are not SAVEd anymore between one call to the
 !     others but recomputed at each call
 !
-   EPS = DLAMCH( 'Epsilon' )
-   BASE = DLAMCH( 'Base' )
-   SMALL1 = BASE**( INT( LOG( DLAMCH( 'SafMin' ) ) / LOG( BASE ) /&
+   EPS = OC_DLAMCH( 'Epsilon' )
+   BASE = OC_DLAMCH( 'Base' )
+   SMALL1 = BASE**( INT( LOG( OC_DLAMCH( 'SafMin' ) ) / LOG( BASE ) /&
         THREE ) )
    SMINV1 = ONE / SMALL1
    SMALL2 = SMALL1*SMALL1
@@ -18587,7 +18587,7 @@ CONTAINS
 !        Scaling up safe because D, Z, TAU scaled elsewhere to be O(1)
 !
       DO 10 I = 1, 3
-         DSCALE( I ) = D( I )*SCLFAC
+         OC_DSCALE( I ) = D( I )*SCLFAC
          ZSCALE( I ) = Z( I )*SCLFAC
 10    CONTINUE
       TAU = TAU*SCLFAC
@@ -18595,10 +18595,10 @@ CONTAINS
       UBD = UBD*SCLFAC
    ELSE
 !
-!        Copy D and Z to DSCALE and ZSCALE
+!        Copy D and Z to OC_DSCALE and ZSCALE
 !
       DO 20 I = 1, 3
-         DSCALE( I ) = D( I )
+         OC_DSCALE( I ) = D( I )
          ZSCALE( I ) = Z( I )
 20    CONTINUE
       END IF
@@ -18607,11 +18607,11 @@ CONTAINS
       DF = ZERO
       DDF = ZERO
       DO 30 I = 1, 3
-         TEMP = ONE / ( DSCALE( I )-TAU )
+         TEMP = ONE / ( OC_DSCALE( I )-TAU )
          TEMP1 = ZSCALE( I )*TEMP
          TEMP2 = TEMP1*TEMP
          TEMP3 = TEMP2*TEMP
-         FC = FC + TEMP1 / DSCALE( I )
+         FC = FC + TEMP1 / OC_DSCALE( I )
          DF = DF + TEMP2
          DDF = DDF + TEMP3
 30    CONTINUE
@@ -18640,11 +18640,11 @@ CONTAINS
       DO 50 NITER = ITER, MAXIT
 !
          IF( ORGATI ) THEN
-            TEMP1 = DSCALE( 2 ) - TAU
-            TEMP2 = DSCALE( 3 ) - TAU
+            TEMP1 = OC_DSCALE( 2 ) - TAU
+            TEMP2 = OC_DSCALE( 3 ) - TAU
          ELSE
-            TEMP1 = DSCALE( 1 ) - TAU
-            TEMP2 = DSCALE( 2 ) - TAU
+            TEMP1 = OC_DSCALE( 1 ) - TAU
+            TEMP2 = OC_DSCALE( 2 ) - TAU
          END IF
          A = ( TEMP1+TEMP2 )*F - TEMP1*TEMP2*DF
          B = TEMP1*TEMP2*F
@@ -18672,12 +18672,12 @@ CONTAINS
          DF = ZERO
          DDF = ZERO
          DO 40 I = 1, 3
-            IF ( ( DSCALE( I )-TAU ).NE.ZERO ) THEN
-               TEMP = ONE / ( DSCALE( I )-TAU )
+            IF ( ( OC_DSCALE( I )-TAU ).NE.ZERO ) THEN
+               TEMP = ONE / ( OC_DSCALE( I )-TAU )
                TEMP1 = ZSCALE( I )*TEMP
                TEMP2 = TEMP1*TEMP
                TEMP3 = TEMP2*TEMP
-               TEMP4 = TEMP1 / DSCALE( I )
+               TEMP4 = TEMP1 / OC_DSCALE( I )
                FC = FC + TEMP4
                ERRETM = ERRETM + ABS( TEMP4 )
                DF = DF + TEMP2
@@ -18705,13 +18705,13 @@ CONTAINS
       IF( SCALE ) TAU = TAU*SCLINV
       RETURN
 !
-!     End of DLAED6
+!     End of OC_DLAED6
 !
-   END SUBROUTINE DLAED6
+   END SUBROUTINE OC_DLAED6
 !
 !=
 !
-!> \brief \b DLAEDA used by sstedc. Computes the Z vector determining the rank-one modification of the diagonal matrix. Used when the original matrix is dense.
+!> \brief \b OC_DLAEDA used by sstedc. Computes the Z vector determining the rank-one modification of the diagonal matrix. Used when the original matrix is dense.
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -18719,7 +18719,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DLAEDA + dependencies 
+!> Download OC_DLAEDA + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dlaeda.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dlaeda.f"> 
@@ -18731,7 +18731,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DLAEDA( N, TLVLS, CURLVL, CURPBM, PRMPTR, PERM, GIVPTR,
+!       SUBROUTINE OC_DLAEDA( N, TLVLS, CURLVL, CURPBM, PRMPTR, PERM, GIVPTR,
 !                          GIVCOL, GIVNUM, Q, QPTR, Z, ZTEMP, INFO )
 ! 
 !       .. Scalar Arguments ..
@@ -18749,7 +18749,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DLAEDA computes the Z vector corresponding to the merge step in the
+!> OC_DLAEDA computes the Z vector corresponding to the merge step in the
 !> CURLVLth step of the merge process with TLVLS steps for the CURPBMth
 !> problem.
 !> \endverbatim
@@ -18876,7 +18876,7 @@ CONTAINS
 !> at Berkeley, USA
 !
 !  =====================================================================
-   SUBROUTINE DLAEDA( N, TLVLS, CURLVL, CURPBM, PRMPTR, PERM, GIVPTR,&
+   SUBROUTINE OC_DLAEDA( N, TLVLS, CURLVL, CURPBM, PRMPTR, PERM, GIVPTR,&
         GIVCOL, GIVNUM, Q, QPTR, Z, ZTEMP, INFO )
 !
 !  -- LAPACK computational routine (version 3.4.2) --
@@ -18904,7 +18904,7 @@ CONTAINS
           PTR, ZPTR1
 !     ..
 !     .. External Subroutines ..
-!     EXTERNAL           DCOPY, DGEMV, DROT, XERBLA
+!     EXTERNAL           OC_DCOPY, OC_DGEMV, OC_DROT, OC_XERBLA
 !     ..
 !     .. Intrinsic Functions ..
 !      INTRINSIC          DBLE, INT, SQRT
@@ -18919,7 +18919,7 @@ CONTAINS
         INFO = -1
      END IF
      IF( INFO.NE.0 ) THEN
-        CALL XERBLA( 'DLAEDA', -INFO )
+        CALL OC_XERBLA( 'OC_DLAEDA', -INFO )
         RETURN
      END IF
 !
@@ -18949,9 +18949,9 @@ CONTAINS
      DO 10 K = 1, MID - BSIZ1 - 1
         Z( K ) = ZERO
 10   CONTINUE
-     CALL DCOPY( BSIZ1, Q( QPTR( CURR )+BSIZ1-1 ), BSIZ1,&
+     CALL OC_DCOPY( BSIZ1, Q( QPTR( CURR )+BSIZ1-1 ), BSIZ1,&
           Z( MID-BSIZ1 ), 1 )
-     CALL DCOPY( BSIZ2, Q( QPTR( CURR+1 ) ), BSIZ2, Z( MID ), 1 )
+     CALL OC_DCOPY( BSIZ2, Q( QPTR( CURR+1 ) ), BSIZ2, Z( MID ), 1 )
      DO 20 K = MID + BSIZ2, N
         Z( K ) = ZERO
 20   CONTINUE
@@ -18970,12 +18970,12 @@ CONTAINS
 !       Apply Givens at CURR and CURR+1
 !
         DO 30 I = GIVPTR( CURR ), GIVPTR( CURR+1 ) - 1
-           CALL DROT( 1, Z( ZPTR1+GIVCOL( 1, I )-1 ), 1,&
+           CALL OC_DROT( 1, Z( ZPTR1+GIVCOL( 1, I )-1 ), 1,&
                 Z( ZPTR1+GIVCOL( 2, I )-1 ), 1, GIVNUM( 1, I ),&
                 GIVNUM( 2, I ) )
 30      CONTINUE
         DO 40 I = GIVPTR( CURR+1 ), GIVPTR( CURR+2 ) - 1
-           CALL DROT( 1, Z( MID-1+GIVCOL( 1, I ) ), 1,&
+           CALL OC_DROT( 1, Z( MID-1+GIVCOL( 1, I ) ), 1,&
                 Z( MID-1+GIVCOL( 2, I ) ), 1, GIVNUM( 1, I ),&
                 GIVNUM( 2, I ) )
 40      CONTINUE
@@ -18998,15 +18998,15 @@ CONTAINS
         BSIZ2 = INT( HALF+SQRT( DBLE( QPTR( CURR+2 )-QPTR( CURR+&
              1 ) ) ) )
         IF( BSIZ1.GT.0 ) THEN
-           CALL DGEMV( 'T', BSIZ1, BSIZ1, ONE, Q( QPTR( CURR ) ),&
+           CALL OC_DGEMV( 'T', BSIZ1, BSIZ1, ONE, Q( QPTR( CURR ) ),&
                 BSIZ1, ZTEMP( 1 ), 1, ZERO, Z( ZPTR1 ), 1 )
         END IF
-        CALL DCOPY( PSIZ1-BSIZ1, ZTEMP( BSIZ1+1 ), 1, Z( ZPTR1+BSIZ1 ), 1 )
+        CALL OC_DCOPY( PSIZ1-BSIZ1, ZTEMP( BSIZ1+1 ), 1, Z( ZPTR1+BSIZ1 ), 1 )
         IF( BSIZ2.GT.0 ) THEN
-           CALL DGEMV( 'T', BSIZ2, BSIZ2, ONE, Q( QPTR( CURR+1 ) ),&
+           CALL OC_DGEMV( 'T', BSIZ2, BSIZ2, ONE, Q( QPTR( CURR+1 ) ),&
                 BSIZ2, ZTEMP( PSIZ1+1 ), 1, ZERO, Z( MID ), 1 )
         END IF
-        CALL DCOPY( PSIZ2-BSIZ2, ZTEMP( PSIZ1+BSIZ2+1 ), 1,&
+        CALL OC_DCOPY( PSIZ2-BSIZ2, ZTEMP( PSIZ1+BSIZ2+1 ), 1,&
              Z( MID+BSIZ2 ), 1 )
 !
         PTR = PTR + 2**( TLVLS-K )
@@ -19014,13 +19014,13 @@ CONTAINS
 !
      RETURN
 !
-!     End of DLAEDA
+!     End of OC_DLAEDA
 !
-  END SUBROUTINE DLAEDA
+  END SUBROUTINE OC_DLAEDA
 !
 !=
 !
-!> \brief \b DOPGTR
+!> \brief \b OC_DOPGTR
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -19028,7 +19028,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DOPGTR + dependencies 
+!> Download OC_DOPGTR + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dopgtr.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dopgtr.f"> 
@@ -19040,7 +19040,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DOPGTR( UPLO, N, AP, TAU, Q, LDQ, WORK, INFO )
+!       SUBROUTINE OC_DOPGTR( UPLO, N, AP, TAU, Q, LDQ, WORK, INFO )
 ! 
 !       .. Scalar Arguments ..
 !       CHARACTER          UPLO
@@ -19056,9 +19056,9 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DOPGTR generates a real orthogonal matrix Q which is defined as the
+!> OC_DOPGTR generates a real orthogonal matrix Q which is defined as the
 !> product of n-1 elementary reflectors H(i) of order n, as returned by
-!> DSPTRD using packed storage:
+!> OC_DSPTRD using packed storage:
 !>
 !> if UPLO = 'U', Q = H(n-1) . . . H(2) H(1),
 !>
@@ -19072,9 +19072,9 @@ CONTAINS
 !> \verbatim
 !>          UPLO is CHARACTER*1
 !>          = 'U': Upper triangular packed storage used in previous
-!>                 call to DSPTRD;
+!>                 call to OC_DSPTRD;
 !>          = 'L': Lower triangular packed storage used in previous
-!>                 call to DSPTRD.
+!>                 call to OC_DSPTRD.
 !> \endverbatim
 !>
 !> \param[in] N
@@ -19087,14 +19087,14 @@ CONTAINS
 !> \verbatim
 !>          AP is DOUBLE PRECISION array, dimension (N*(N+1)/2)
 !>          The vectors which define the elementary reflectors, as
-!>          returned by DSPTRD.
+!>          returned by OC_DSPTRD.
 !> \endverbatim
 !>
 !> \param[in] TAU
 !> \verbatim
 !>          TAU is DOUBLE PRECISION array, dimension (N-1)
 !>          TAU(i) must contain the scalar factor of the elementary
-!>          reflector H(i), as returned by DSPTRD.
+!>          reflector H(i), as returned by OC_DSPTRD.
 !> \endverbatim
 !>
 !> \param[out] Q
@@ -19134,7 +19134,7 @@ CONTAINS
 !> \ingroup doubleOTHERcomputational
 !
 !  =====================================================================
-  SUBROUTINE DOPGTR( UPLO, N, AP, TAU, Q, LDQ, WORK, INFO )
+  SUBROUTINE OC_DOPGTR( UPLO, N, AP, TAU, Q, LDQ, WORK, INFO )
 !
 !  -- LAPACK computational routine (version 3.4.0) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -19160,11 +19160,11 @@ CONTAINS
     INTEGER            I, IINFO, IJ, J
 !     ..
 !     .. External Functions ..
-!      LOGICAL            LSAME
-!      EXTERNAL           LSAME
+!      LOGICAL            OC_LSAME
+!      EXTERNAL           OC_LSAME
 !     ..
 !     .. External Subroutines ..
-!      EXTERNAL           DORG2L, DORG2R, XERBLA
+!      EXTERNAL           OC_DORG2L, OC_DORG2R, OC_XERBLA
 !     ..
 !     .. Intrinsic Functions ..
 !      INTRINSIC          MAX
@@ -19174,8 +19174,8 @@ CONTAINS
 !     Test the input arguments
 !
     INFO = 0
-    UPPER = LSAME( UPLO, 'U' )
-    IF( .NOT.UPPER .AND. .NOT.LSAME( UPLO, 'L' ) ) THEN
+    UPPER = OC_LSAME( UPLO, 'U' )
+    IF( .NOT.UPPER .AND. .NOT.OC_LSAME( UPLO, 'L' ) ) THEN
        INFO = -1
     ELSE IF( N.LT.0 ) THEN
        INFO = -2
@@ -19183,7 +19183,7 @@ CONTAINS
        INFO = -6
     END IF
     IF( INFO.NE.0 ) THEN
-       CALL XERBLA( 'DOPGTR', -INFO )
+       CALL OC_XERBLA( 'OC_DOPGTR', -INFO )
        RETURN
     END IF
 !
@@ -19193,7 +19193,7 @@ CONTAINS
 !
     IF( UPPER ) THEN
 !
-!        Q was determined by a call to DSPTRD with UPLO = 'U'
+!        Q was determined by a call to OC_DSPTRD with UPLO = 'U'
 !
 !        Unpack the vectors which define the elementary reflectors and
 !        set the last row and column of Q equal to those of the unit
@@ -19215,11 +19215,11 @@ CONTAINS
 !
 !        Generate Q(1:n-1,1:n-1)
 !
-       CALL DORG2L( N-1, N-1, N-1, Q, LDQ, TAU, WORK, IINFO )
+       CALL OC_DORG2L( N-1, N-1, N-1, Q, LDQ, TAU, WORK, IINFO )
 !
     ELSE
 !
-!        Q was determined by a call to DSPTRD with UPLO = 'L'.
+!        Q was determined by a call to OC_DSPTRD with UPLO = 'L'.
 !
 !        Unpack the vectors which define the elementary reflectors and
 !        set the first row and column of Q equal to those of the unit
@@ -19242,18 +19242,18 @@ CONTAINS
 !
 !           Generate Q(2:n,2:n)
 !
-          CALL DORG2R( N-1, N-1, N-1, Q( 2, 2 ), LDQ, TAU, WORK, IINFO )
+          CALL OC_DORG2R( N-1, N-1, N-1, Q( 2, 2 ), LDQ, TAU, WORK, IINFO )
        END IF
     END IF
     RETURN
 !
-!     End of DOPGTR
+!     End of OC_DOPGTR
 !
-  END SUBROUTINE DOPGTR
+  END SUBROUTINE OC_DOPGTR
 !
 !=
 !
-!> \brief \b DORG2L generates all or part of the orthogonal matrix Q from a QL factorization determined by sgeqlf (unblocked algorithm).
+!> \brief \b OC_DORG2L generates all or part of the orthogonal matrix Q from a QL factorization determined by sgeqlf (unblocked algorithm).
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -19261,7 +19261,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DORG2L + dependencies 
+!> Download OC_DORG2L + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dorg2l.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dorg2l.f"> 
@@ -19273,7 +19273,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DORG2L( M, N, K, A, LDA, TAU, WORK, INFO )
+!       SUBROUTINE OC_DORG2L( M, N, K, A, LDA, TAU, WORK, INFO )
 ! 
 !       .. Scalar Arguments ..
 !       INTEGER            INFO, K, LDA, M, N
@@ -19287,7 +19287,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DORG2L generates an m by n real matrix Q with orthonormal columns,
+!> OC_DORG2L generates an m by n real matrix Q with orthonormal columns,
 !> which is defined as the last n columns of a product of k elementary
 !> reflectors of order m
 !>
@@ -19366,7 +19366,7 @@ CONTAINS
 !> \ingroup doubleOTHERcomputational
 !
 !  =====================================================================
-  SUBROUTINE DORG2L( M, N, K, A, LDA, TAU, WORK, INFO )
+  SUBROUTINE OC_DORG2L( M, N, K, A, LDA, TAU, WORK, INFO )
 !
 !  -- LAPACK computational routine (version 3.4.2) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -19390,7 +19390,7 @@ CONTAINS
     INTEGER            I, II, J, L
 !     ..
 !     .. External Subroutines ..
-!      EXTERNAL           DLARF, DSCAL, XERBLA
+!      EXTERNAL           OC_DLARF, OC_DSCAL, OC_XERBLA
 !     ..
 !     .. Intrinsic Functions ..
 !      INTRINSIC          MAX
@@ -19410,7 +19410,7 @@ CONTAINS
        INFO = -5
     END IF
     IF( INFO.NE.0 ) THEN
-       CALL XERBLA( 'DORG2L', -INFO )
+       CALL OC_XERBLA( 'OC_DORG2L', -INFO )
        RETURN
     END IF
 !
@@ -19433,9 +19433,9 @@ CONTAINS
 !        Apply H(i) to A(1:m-k+i,1:n-k+i) from the left
 !
        A( M-N+II, II ) = ONE
-       CALL DLARF( 'Left', M-N+II, II-1, A( 1, II ), 1, TAU( I ), A,&
+       CALL OC_DLARF( 'Left', M-N+II, II-1, A( 1, II ), 1, TAU( I ), A,&
             LDA, WORK )
-       CALL DSCAL( M-N+II-1, -TAU( I ), A( 1, II ), 1 )
+       CALL OC_DSCAL( M-N+II-1, -TAU( I ), A( 1, II ), 1 )
        A( M-N+II, II ) = ONE - TAU( I )
 !
 !        Set A(m-k+i+1:m,n-k+i) to zero
@@ -19446,13 +19446,13 @@ CONTAINS
 40  CONTINUE
     RETURN
 !
-!     End of DORG2L
+!     End of OC_DORG2L
 !
-  END SUBROUTINE DORG2L
+  END SUBROUTINE OC_DORG2L
 !
 !=
 !
-!> \brief \b DORG2R generates all or part of the orthogonal matrix Q from a QR factorization determined by sgeqrf (unblocked algorithm).
+!> \brief \b OC_DORG2R generates all or part of the orthogonal matrix Q from a QR factorization determined by sgeqrf (unblocked algorithm).
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -19460,7 +19460,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DORG2R + dependencies 
+!> Download OC_DORG2R + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dorg2r.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dorg2r.f"> 
@@ -19472,7 +19472,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DORG2R( M, N, K, A, LDA, TAU, WORK, INFO )
+!       SUBROUTINE OC_DORG2R( M, N, K, A, LDA, TAU, WORK, INFO )
 ! 
 !       .. Scalar Arguments ..
 !       INTEGER            INFO, K, LDA, M, N
@@ -19487,7 +19487,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DORG2R generates an m by n real matrix Q with orthonormal columns,
+!> OC_DORG2R generates an m by n real matrix Q with orthonormal columns,
 !> which is defined as the first n columns of a product of k elementary
 !> reflectors of order m
 !>
@@ -19566,7 +19566,7 @@ CONTAINS
 !> \ingroup doubleOTHERcomputational
 !
 !  =====================================================================
-  SUBROUTINE DORG2R( M, N, K, A, LDA, TAU, WORK, INFO )
+  SUBROUTINE OC_DORG2R( M, N, K, A, LDA, TAU, WORK, INFO )
 !
 !  -- LAPACK computational routine (version 3.4.2) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -19590,7 +19590,7 @@ CONTAINS
     INTEGER            I, J, L
 !     ..
 !     .. External Subroutines ..
-!    EXTERNAL           DLARF, DSCAL, XERBLA
+!    EXTERNAL           OC_DLARF, OC_DSCAL, OC_XERBLA
 !     ..
 !     .. Intrinsic Functions ..
 !      INTRINSIC          MAX
@@ -19610,7 +19610,7 @@ CONTAINS
        INFO = -5
     END IF
     IF( INFO.NE.0 ) THEN
-       CALL XERBLA( 'DORG2R', -INFO )
+       CALL OC_XERBLA( 'OC_DORG2R', -INFO )
        RETURN
     END IF
 !
@@ -19633,10 +19633,10 @@ CONTAINS
 !
        IF( I.LT.N ) THEN
           A( I, I ) = ONE
-          CALL DLARF( 'Left', M-I+1, N-I, A( I, I ), 1, TAU( I ),&
+          CALL OC_DLARF( 'Left', M-I+1, N-I, A( I, I ), 1, TAU( I ),&
                A( I, I+1 ), LDA, WORK )
        END IF
-       IF( I.LT.M ) CALL DSCAL( M-I, -TAU( I ), A( I+1, I ), 1 )
+       IF( I.LT.M ) CALL OC_DSCAL( M-I, -TAU( I ), A( I+1, I ), 1 )
        A( I, I ) = ONE - TAU( I )
 !
 !        Set A(1:i-1,i) to zero
@@ -19647,15 +19647,15 @@ CONTAINS
 40  CONTINUE
     RETURN
 !
-!     End of DORG2R
+!     End of OC_DORG2R
 !
-  END SUBROUTINE DORG2R
+  END SUBROUTINE OC_DORG2R
 !
 !========================================================================
 !
 ! BLAS
 !
-!> \brief \b DROT
+!> \brief \b OC_DROT
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -19665,7 +19665,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DROT(N,DX,INCX,DY,INCY,C,S)
+!       SUBROUTINE OC_DROT(N,DX,INCX,DY,INCY,C,S)
 ! 
 !       .. Scalar Arguments ..
 !       DOUBLE PRECISION C,S
@@ -19681,7 +19681,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!>    DROT applies a plane rotation.
+!>    OC_DROT applies a plane rotation.
 !> \endverbatim
 !
 !  Authors:
@@ -19706,7 +19706,7 @@ CONTAINS
 !> \endverbatim
 !>
 !  =====================================================================
-  SUBROUTINE DROT(N,DX,INCX,DY,INCY,C,S)
+  SUBROUTINE OC_DROT(N,DX,INCX,DY,INCY,C,S)
 !
 !  -- Reference BLAS level1 routine (version 3.4.0) --
 !  -- Reference BLAS is a software package provided by Univ. of Tennessee,    --
@@ -19755,11 +19755,11 @@ CONTAINS
        END DO
     END IF
     RETURN
-  END SUBROUTINE DROT
+  END SUBROUTINE OC_DROT
 !
 !=
 !
-!> \brief \b DNRM2
+!> \brief \b OC_DNRM2
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -19769,7 +19769,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       DOUBLE PRECISION FUNCTION DNRM2(N,X,INCX)
+!       DOUBLE PRECISION FUNCTION OC_DNRM2(N,X,INCX)
 ! 
 !       .. Scalar Arguments ..
 !       INTEGER INCX,N
@@ -19784,10 +19784,10 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DNRM2 returns the euclidean norm of a vector via the function
+!> OC_DNRM2 returns the euclidean norm of a vector via the function
 !> name, so that
 !>
-!>    DNRM2 := sqrt( x'*x )
+!>    OC_DNRM2 := sqrt( x'*x )
 !> \endverbatim
 !
 !  Authors:
@@ -19808,12 +19808,12 @@ CONTAINS
 !> \verbatim
 !>
 !>  -- This version written on 25-October-1982.
-!>     Modified on 14-October-1993 to inline the call to DLASSQ.
+!>     Modified on 14-October-1993 to inline the call to OC_DLASSQ.
 !>     Sven Hammarling, Nag Ltd.
 !> \endverbatim
 !>
 !  =====================================================================
-  DOUBLE PRECISION FUNCTION DNRM2(N,X,INCX)
+  DOUBLE PRECISION FUNCTION OC_DNRM2(N,X,INCX)
 !
 !  -- Reference BLAS level1 routine (version 3.4.0) --
 !  -- Reference BLAS is a software package provided by Univ. of Tennessee,    --
@@ -19849,7 +19849,7 @@ CONTAINS
        SSQ = ONE
 !        The following loop is equivalent to this call to the LAPACK
 !        auxiliary routine:
-!        CALL DLASSQ( N, X, INCX, SCALE, SSQ )
+!        CALL OC_DLASSQ( N, X, INCX, SCALE, SSQ )
 !
        DO 10 IX = 1,1 + (N-1)*INCX,INCX
           IF (X(IX).NE.ZERO) THEN
@@ -19865,16 +19865,16 @@ CONTAINS
        NORM = SCALE*SQRT(SSQ)
     END IF
 !
-    DNRM2 = NORM
+    OC_DNRM2 = NORM
     RETURN
 !
-!     End of DNRM2.
+!     End of OC_DNRM2.
 !
-  END FUNCTION DNRM2
+  END FUNCTION OC_DNRM2
 !
 !=
 !
-!> \brief \b DGER
+!> \brief \b OC_DGER
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -19884,7 +19884,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DGER(M,N,ALPHA,X,INCX,Y,INCY,A,LDA)
+!       SUBROUTINE OC_DGER(M,N,ALPHA,X,INCX,Y,INCY,A,LDA)
 ! 
 !       .. Scalar Arguments ..
 !       DOUBLE PRECISION ALPHA
@@ -19900,7 +19900,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DGER   performs the rank 1 operation
+!> OC_DGER   performs the rank 1 operation
 !>
 !>    A := alpha*x*y**T + A,
 !>
@@ -20004,7 +20004,7 @@ CONTAINS
 !> \endverbatim
 !>
 !  =====================================================================
-  SUBROUTINE DGER(M,N,ALPHA,X,INCX,Y,INCY,A,LDA)
+  SUBROUTINE OC_DGER(M,N,ALPHA,X,INCX,Y,INCY,A,LDA)
 !
 !  -- Reference BLAS level2 routine (version 3.4.0) --
 !  -- Reference BLAS is a software package provided by Univ. of Tennessee,    --
@@ -20030,7 +20030,7 @@ CONTAINS
     INTEGER I,INFO,IX,J,JY,KX
 !     ..
 !     .. External Subroutines ..
-!    EXTERNAL XERBLA
+!    EXTERNAL OC_XERBLA
 !     ..
 !     .. Intrinsic Functions ..
 !    INTRINSIC MAX
@@ -20051,7 +20051,7 @@ CONTAINS
        INFO = 9
     END IF
     IF (INFO.NE.0) THEN
-       CALL XERBLA('DGER  ',INFO)
+       CALL OC_XERBLA('OC_DGER  ',INFO)
        RETURN
     END IF
 !
@@ -20098,13 +20098,13 @@ CONTAINS
 !
    RETURN
 !
-!     End of DGER  .
+!     End of OC_DGER  .
 !
- END SUBROUTINE DGER
+ END SUBROUTINE OC_DGER
 !
 !=
 !
-!> \brief \b DSPMV
+!> \brief \b OC_DSPMV
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -20114,7 +20114,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DSPMV(UPLO,N,ALPHA,AP,X,INCX,BETA,Y,INCY)
+!       SUBROUTINE OC_DSPMV(UPLO,N,ALPHA,AP,X,INCX,BETA,Y,INCY)
 ! 
 !       .. Scalar Arguments ..
 !       DOUBLE PRECISION ALPHA,BETA
@@ -20131,7 +20131,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DSPMV  performs the matrix-vector operation
+!> OC_DSPMV  performs the matrix-vector operation
 !>
 !>    y := alpha*A*x + beta*y,
 !>
@@ -20251,7 +20251,7 @@ CONTAINS
 !> \endverbatim
 !>
 !  =====================================================================
- SUBROUTINE DSPMV(UPLO,N,ALPHA,AP,X,INCX,BETA,Y,INCY)
+ SUBROUTINE OC_DSPMV(UPLO,N,ALPHA,AP,X,INCX,BETA,Y,INCY)
 !
 !  -- Reference BLAS level2 routine (version 3.4.0) --
 !  -- Reference BLAS is a software package provided by Univ. of Tennessee,    --
@@ -20278,17 +20278,17 @@ CONTAINS
    INTEGER I,INFO,IX,IY,J,JX,JY,K,KK,KX,KY
 !     ..
 !     .. External Functions ..
-!   LOGICAL LSAME
-!      EXTERNAL LSAME
+!   LOGICAL OC_LSAME
+!      EXTERNAL OC_LSAME
 !     ..
 !     .. External Subroutines ..
-!      EXTERNAL XERBLA
+!      EXTERNAL OC_XERBLA
 !     ..
 !
 !     Test the input parameters.
 !
    INFO = 0
-   IF (.NOT.LSAME(UPLO,'U') .AND. .NOT.LSAME(UPLO,'L')) THEN
+   IF (.NOT.OC_LSAME(UPLO,'U') .AND. .NOT.OC_LSAME(UPLO,'L')) THEN
       INFO = 1
    ELSE IF (N.LT.0) THEN
       INFO = 2
@@ -20298,7 +20298,7 @@ CONTAINS
       INFO = 9
    END IF
    IF (INFO.NE.0) THEN
-      CALL XERBLA('DSPMV ',INFO)
+      CALL OC_XERBLA('OC_DSPMV ',INFO)
       RETURN
    END IF
 !
@@ -20352,7 +20352,7 @@ CONTAINS
    END IF
    IF (ALPHA.EQ.ZERO) RETURN
    KK = 1
-   IF (LSAME(UPLO,'U')) THEN
+   IF (OC_LSAME(UPLO,'U')) THEN
 !
 !        Form  y  when AP contains the upper triangle.
 !
@@ -20432,13 +20432,13 @@ CONTAINS
 !
    RETURN
 !
-!     End of DSPMV .
+!     End of OC_DSPMV .
 !
- END SUBROUTINE DSPMV
+ END SUBROUTINE OC_DSPMV
 !
 !=
 !
-!> \brief \b DAXPY
+!> \brief \b OC_DAXPY
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -20448,7 +20448,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DAXPY(N,DA,DX,INCX,DY,INCY)
+!       SUBROUTINE OC_DAXPY(N,DA,DX,INCX,DY,INCY)
 ! 
 !       .. Scalar Arguments ..
 !       DOUBLE PRECISION DA
@@ -20464,7 +20464,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!>    DAXPY constant times a vector plus a vector.
+!>    OC_DAXPY constant times a vector plus a vector.
 !>    uses unrolled loops for increments equal to one.
 !> \endverbatim
 !
@@ -20490,7 +20490,7 @@ CONTAINS
 !> \endverbatim
 !>
 !  =====================================================================
- SUBROUTINE DAXPY(N,DA,DX,INCX,DY,INCY)
+ SUBROUTINE OC_DAXPY(N,DA,DX,INCX,DY,INCY)
 !
 !  -- Reference BLAS level1 routine (version 3.4.0) --
 !  -- Reference BLAS is a software package provided by Univ. of Tennessee,    --
@@ -20552,11 +20552,11 @@ CONTAINS
       END DO
    END IF
    RETURN
- END SUBROUTINE DAXPY
+ END SUBROUTINE OC_DAXPY
 !
 !=
 !
-!> \brief \b DSPR2
+!> \brief \b OC_OC_DSPR2
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -20566,7 +20566,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DSPR2(UPLO,N,ALPHA,X,INCX,Y,INCY,AP)
+!       SUBROUTINE OC_OC_DSPR2(UPLO,N,ALPHA,X,INCX,Y,INCY,AP)
 ! 
 !       .. Scalar Arguments ..
 !       DOUBLE PRECISION ALPHA
@@ -20583,7 +20583,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DSPR2  performs the symmetric rank 2 operation
+!> OC_OC_DSPR2  performs the symmetric rank 2 operation
 !>
 !>    A := alpha*x*y**T + alpha*y*x**T + A,
 !>
@@ -20698,7 +20698,7 @@ CONTAINS
 !> \endverbatim
 !>
 !  =====================================================================
- SUBROUTINE DSPR2(UPLO,N,ALPHA,X,INCX,Y,INCY,AP)
+ SUBROUTINE OC_OC_DSPR2(UPLO,N,ALPHA,X,INCX,Y,INCY,AP)
 !
 !  -- Reference BLAS level2 routine (version 3.4.0) --
 !  -- Reference BLAS is a software package provided by Univ. of Tennessee,    --
@@ -20725,17 +20725,17 @@ CONTAINS
    INTEGER I,INFO,IX,IY,J,JX,JY,K,KK,KX,KY
 !     ..
 !     .. External Functions ..
-!      LOGICAL LSAME
-!      EXTERNAL LSAME
+!      LOGICAL OC_LSAME
+!      EXTERNAL OC_LSAME
 !     ..
 !     .. External Subroutines ..
-!      EXTERNAL XERBLA
+!      EXTERNAL OC_XERBLA
 !     ..
 !
 !     Test the input parameters.
 !
    INFO = 0
-   IF (.NOT.LSAME(UPLO,'U') .AND. .NOT.LSAME(UPLO,'L')) THEN
+   IF (.NOT.OC_LSAME(UPLO,'U') .AND. .NOT.OC_LSAME(UPLO,'L')) THEN
       INFO = 1
    ELSE IF (N.LT.0) THEN
       INFO = 2
@@ -20745,7 +20745,7 @@ CONTAINS
       INFO = 7
    END IF
    IF (INFO.NE.0) THEN
-      CALL XERBLA('DSPR2 ',INFO)
+      CALL OC_XERBLA('OC_OC_DSPR2 ',INFO)
       RETURN
    END IF
 !
@@ -20775,7 +20775,7 @@ CONTAINS
 !     are accessed sequentially with one pass through AP.
 !
    KK = 1
-   IF (LSAME(UPLO,'U')) THEN
+   IF (OC_LSAME(UPLO,'U')) THEN
 !
 !        Form  A  when upper triangle is stored in AP.
 !
@@ -20849,13 +20849,13 @@ CONTAINS
 !
    RETURN
 !
-!     End of DSPR2 .
+!     End of OC_OC_DSPR2 .
 !
- END SUBROUTINE DSPR2
+ END SUBROUTINE OC_OC_DSPR2
 !
 !=
 !
-!> \brief \b DTRMV
+!> \brief \b OC_DTRMV
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -20865,7 +20865,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DTRMV(UPLO,TRANS,DIAG,N,A,LDA,X,INCX)
+!       SUBROUTINE OC_DTRMV(UPLO,TRANS,DIAG,N,A,LDA,X,INCX)
 ! 
 !       .. Scalar Arguments ..
 !       INTEGER INCX,LDA,N
@@ -20881,7 +20881,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DTRMV  performs one of the matrix-vector operations
+!> OC_DTRMV  performs one of the matrix-vector operations
 !>
 !>    x := A*x,   or   x := A**T*x,
 !>
@@ -21002,7 +21002,7 @@ CONTAINS
 !> \endverbatim
 !>
 !  =====================================================================
- SUBROUTINE DTRMV(UPLO,TRANS,DIAG,N,A,LDA,X,INCX)
+ SUBROUTINE OC_DTRMV(UPLO,TRANS,DIAG,N,A,LDA,X,INCX)
 !
 !  -- Reference BLAS level2 routine (version 3.4.0) --
 !  -- Reference BLAS is a software package provided by Univ. of Tennessee,    --
@@ -21029,11 +21029,11 @@ CONTAINS
    LOGICAL NOUNIT
 !     ..
 !     .. External Functions ..
-!   LOGICAL LSAME
-!   EXTERNAL LSAME
+!   LOGICAL OC_LSAME
+!   EXTERNAL OC_LSAME
 !     ..
 !     .. External Subroutines ..
-!      EXTERNAL XERBLA
+!      EXTERNAL OC_XERBLA
 !     ..
 !     .. Intrinsic Functions ..
 !      INTRINSIC MAX
@@ -21042,12 +21042,12 @@ CONTAINS
 !     Test the input parameters.
 !
    INFO = 0
-   IF (.NOT.LSAME(UPLO,'U') .AND. .NOT.LSAME(UPLO,'L')) THEN
+   IF (.NOT.OC_LSAME(UPLO,'U') .AND. .NOT.OC_LSAME(UPLO,'L')) THEN
       INFO = 1
-   ELSE IF (.NOT.LSAME(TRANS,'N') .AND. .NOT.LSAME(TRANS,'T') .AND.&
-        .NOT.LSAME(TRANS,'C')) THEN
+   ELSE IF (.NOT.OC_LSAME(TRANS,'N') .AND. .NOT.OC_LSAME(TRANS,'T') .AND.&
+        .NOT.OC_LSAME(TRANS,'C')) THEN
       INFO = 2
-   ELSE IF (.NOT.LSAME(DIAG,'U') .AND. .NOT.LSAME(DIAG,'N')) THEN
+   ELSE IF (.NOT.OC_LSAME(DIAG,'U') .AND. .NOT.OC_LSAME(DIAG,'N')) THEN
       INFO = 3
    ELSE IF (N.LT.0) THEN
       INFO = 4
@@ -21057,7 +21057,7 @@ CONTAINS
       INFO = 8
    END IF
    IF (INFO.NE.0) THEN
-      CALL XERBLA('DTRMV ',INFO)
+      CALL OC_XERBLA('OC_DTRMV ',INFO)
       RETURN
    END IF
 !
@@ -21065,7 +21065,7 @@ CONTAINS
 !
    IF (N.EQ.0) RETURN
 !
-   NOUNIT = LSAME(DIAG,'N')
+   NOUNIT = OC_LSAME(DIAG,'N')
 !
 !     Set up the start point in X if the increment is not unity. This
 !     will be  ( N - 1 )*INCX  too small for descending loops.
@@ -21079,11 +21079,11 @@ CONTAINS
 !     Start the operations. In this version the elements of A are
 !     accessed sequentially with one pass through A.
 !
-   IF (LSAME(TRANS,'N')) THEN
+   IF (OC_LSAME(TRANS,'N')) THEN
 !
 !        Form  x := A*x.
 !
-      IF (LSAME(UPLO,'U')) THEN
+      IF (OC_LSAME(UPLO,'U')) THEN
          IF (INCX.EQ.1) THEN
             DO 20 J = 1,N
                IF (X(J).NE.ZERO) THEN
@@ -21141,7 +21141,7 @@ CONTAINS
 !
 !        Form  x := A**T*x.
 !
-      IF (LSAME(UPLO,'U')) THEN
+      IF (OC_LSAME(UPLO,'U')) THEN
          IF (INCX.EQ.1) THEN
             DO 100 J = N,1,-1
                TEMP = X(J)
@@ -21194,10 +21194,10 @@ CONTAINS
 !
    RETURN
 !
-!     End of DTRMV .
+!     End of OC_DTRMV .
 !
- END SUBROUTINE DTRMV
-!> \brief \b DTRMM
+ END SUBROUTINE OC_DTRMV
+!> \brief \b OC_DTRMM
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -21207,7 +21207,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DTRMM(SIDE,UPLO,TRANSA,DIAG,M,N,ALPHA,A,LDA,B,LDB)
+!       SUBROUTINE OC_DTRMM(SIDE,UPLO,TRANSA,DIAG,M,N,ALPHA,A,LDA,B,LDB)
 ! 
 !       .. Scalar Arguments ..
 !       DOUBLE PRECISION ALPHA
@@ -21224,7 +21224,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DTRMM  performs one of the matrix-matrix operations
+!> OC_DTRMM  performs one of the matrix-matrix operations
 !>
 !>    B := alpha*op( A )*B,   or   B := alpha*B*op( A ),
 !>
@@ -21374,7 +21374,7 @@ CONTAINS
 !> \endverbatim
 !>
 !  =====================================================================
- SUBROUTINE DTRMM(SIDE,UPLO,TRANSA,DIAG,M,N,ALPHA,A,LDA,B,LDB)
+ SUBROUTINE OC_DTRMM(SIDE,UPLO,TRANSA,DIAG,M,N,ALPHA,A,LDA,B,LDB)
 !
 !  -- Reference BLAS level3 routine (version 3.4.0) --
 !  -- Reference BLAS is a software package provided by Univ. of Tennessee,    --
@@ -21393,11 +21393,11 @@ CONTAINS
 !  =====================================================================
 !
 !     .. External Functions ..
-!      LOGICAL LSAME
-!      EXTERNAL LSAME
+!      LOGICAL OC_LSAME
+!      EXTERNAL OC_LSAME
 !     ..
 !     .. External Subroutines ..
-!      EXTERNAL XERBLA
+!      EXTERNAL OC_XERBLA
 !     ..
 !     .. Intrinsic Functions ..
 !      INTRINSIC MAX
@@ -21414,25 +21414,25 @@ CONTAINS
 !
 !     Test the input parameters.
 !
-   LSIDE = LSAME(SIDE,'L')
+   LSIDE = OC_LSAME(SIDE,'L')
    IF (LSIDE) THEN
       NROWA = M
    ELSE
       NROWA = N
    END IF
-   NOUNIT = LSAME(DIAG,'N')
-   UPPER = LSAME(UPLO,'U')
+   NOUNIT = OC_LSAME(DIAG,'N')
+   UPPER = OC_LSAME(UPLO,'U')
 !
    INFO = 0
-   IF ((.NOT.LSIDE) .AND. (.NOT.LSAME(SIDE,'R'))) THEN
+   IF ((.NOT.LSIDE) .AND. (.NOT.OC_LSAME(SIDE,'R'))) THEN
       INFO = 1
-   ELSE IF ((.NOT.UPPER) .AND. (.NOT.LSAME(UPLO,'L'))) THEN
+   ELSE IF ((.NOT.UPPER) .AND. (.NOT.OC_LSAME(UPLO,'L'))) THEN
       INFO = 2
-   ELSE IF ((.NOT.LSAME(TRANSA,'N')) .AND. &
-        (.NOT.LSAME(TRANSA,'T')) .AND.&
-        (.NOT.LSAME(TRANSA,'C'))) THEN
+   ELSE IF ((.NOT.OC_LSAME(TRANSA,'N')) .AND. &
+        (.NOT.OC_LSAME(TRANSA,'T')) .AND.&
+        (.NOT.OC_LSAME(TRANSA,'C'))) THEN
       INFO = 3
-   ELSE IF ((.NOT.LSAME(DIAG,'U')) .AND. (.NOT.LSAME(DIAG,'N'))) THEN
+   ELSE IF ((.NOT.OC_LSAME(DIAG,'U')) .AND. (.NOT.OC_LSAME(DIAG,'N'))) THEN
       INFO = 4
    ELSE IF (M.LT.0) THEN
       INFO = 5
@@ -21444,7 +21444,7 @@ CONTAINS
       INFO = 11
    END IF
    IF (INFO.NE.0) THEN
-      CALL XERBLA('DTRMM ',INFO)
+      CALL OC_XERBLA('OC_DTRMM ',INFO)
       RETURN
    END IF
 !
@@ -21466,7 +21466,7 @@ CONTAINS
 !     Start the operations.
 !
    IF (LSIDE) THEN
-      IF (LSAME(TRANSA,'N')) THEN
+      IF (OC_LSAME(TRANSA,'N')) THEN
 !
 !           Form  B := alpha*A*B.
 !
@@ -21526,7 +21526,7 @@ CONTAINS
          END IF
       END IF
    ELSE
-      IF (LSAME(TRANSA,'N')) THEN
+      IF (OC_LSAME(TRANSA,'N')) THEN
 !
 !           Form  B := alpha*B*A.
 !
@@ -21609,11 +21609,11 @@ CONTAINS
 !
    RETURN
 !
-!     End of DTRMM .
+!     End of OC_DTRMM .
 !
- END SUBROUTINE DTRMM
+ END SUBROUTINE OC_DTRMM
 !
-!> \brief \b DPPTRI
+!> \brief \b OC_DPPTRI
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -21621,7 +21621,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DPPTRI + dependencies 
+!> Download OC_DPPTRI + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dpptri.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dpptri.f"> 
@@ -21633,7 +21633,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DPPTRI( UPLO, N, AP, INFO )
+!       SUBROUTINE OC_DPPTRI( UPLO, N, AP, INFO )
 ! 
 !       .. Scalar Arguments ..
 !       CHARACTER          UPLO
@@ -21649,9 +21649,9 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DPPTRI computes the inverse of a real symmetric positive definite
+!> OC_DPPTRI computes the inverse of a real symmetric positive definite
 !> matrix A using the Cholesky factorization A = U**T*U or A = L*L**T
-!> computed by DPPTRF.
+!> computed by OC_DPPTRF.
 !> \endverbatim
 !
 !  Arguments:
@@ -21706,7 +21706,7 @@ CONTAINS
 !> \ingroup doubleOTHERcomputational
 !
 !  =====================================================================
- SUBROUTINE DPPTRI( UPLO, N, AP, INFO )
+ SUBROUTINE OC_DPPTRI( UPLO, N, AP, INFO )
 !
 !  -- LAPACK computational routine (version 3.4.0) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -21733,26 +21733,26 @@ CONTAINS
    DOUBLE PRECISION   AJJ
 !     ..
 !     .. External Functions ..
-!      LOGICAL            LSAME
-!      DOUBLE PRECISION   DDOT
-!      EXTERNAL           LSAME, DDOT
+!      LOGICAL            OC_LSAME
+!      DOUBLE PRECISION   OC_DDOT
+!      EXTERNAL           OC_LSAME, OC_DDOT
 !     ..
 !     .. External Subroutines ..
-!      EXTERNAL           DSCAL, DSPR, DTPMV, DTPTRI, XERBLA
+!      EXTERNAL           OC_DSCAL, OC_DSPR, OC_DTPMV, OC_DTPTRI, OC_XERBLA
 !     ..
 !     .. Executable Statements ..
 !
 !     Test the input parameters.
 !
    INFO = 0
-   UPPER = LSAME( UPLO, 'U' )
-   IF( .NOT.UPPER .AND. .NOT.LSAME( UPLO, 'L' ) ) THEN
+   UPPER = OC_LSAME( UPLO, 'U' )
+   IF( .NOT.UPPER .AND. .NOT.OC_LSAME( UPLO, 'L' ) ) THEN
       INFO = -1
    ELSE IF( N.LT.0 ) THEN
       INFO = -2
    END IF
    IF( INFO.NE.0 ) THEN
-      CALL XERBLA( 'DPPTRI', -INFO )
+      CALL OC_XERBLA( 'OC_DPPTRI', -INFO )
       RETURN
    END IF
 !
@@ -21762,7 +21762,7 @@ CONTAINS
 !
 !     Invert the triangular Cholesky factor U or L.
 !
-   CALL DTPTRI( UPLO, 'Non-unit', N, AP, INFO )
+   CALL OC_DTPTRI( UPLO, 'Non-unit', N, AP, INFO )
    IF( INFO.GT.0 ) RETURN
 !
    IF( UPPER ) THEN
@@ -21775,9 +21775,9 @@ CONTAINS
          JC = JJ + 1
          JJ = JJ + J
          IF( J.GT.1 ) &
-              CALL DSPR( 'Upper', J-1, ONE, AP( JC ), 1, AP )
+              CALL OC_DSPR( 'Upper', J-1, ONE, AP( JC ), 1, AP )
          AJJ = AP( JJ )
-         CALL DSCAL( J, AJJ, AP( JC ), 1 )
+         CALL OC_DSCAL( J, AJJ, AP( JC ), 1 )
       enddo
 !10    CONTINUE
 !
@@ -21789,9 +21789,9 @@ CONTAINS
 !      DO 20 J = 1, N
       DO J = 1, N
          JJN = JJ + N - J + 1
-         AP( JJ ) = DDOT( N-J+1, AP( JJ ), 1, AP( JJ ), 1 )
+         AP( JJ ) = OC_DDOT( N-J+1, AP( JJ ), 1, AP( JJ ), 1 )
          IF( J.LT.N ) &
-              CALL DTPMV( 'Lower', 'Transpose', 'Non-unit', N-J, &
+              CALL OC_DTPMV( 'Lower', 'Transpose', 'Non-unit', N-J, &
               AP( JJN ), AP( JJ+1 ), 1 )
          JJ = JJN
       enddo
@@ -21800,13 +21800,13 @@ CONTAINS
 !
    RETURN
 !
-!     End of DPPTRI
+!     End of OC_DPPTRI
 !
- END SUBROUTINE DPPTRI
+ END SUBROUTINE OC_DPPTRI
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-!> \brief \b DSPR
+!> \brief \b OC_DSPR
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -21816,7 +21816,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DSPR(UPLO,N,ALPHA,X,INCX,AP)
+!       SUBROUTINE OC_DSPR(UPLO,N,ALPHA,X,INCX,AP)
 ! 
 !       .. Scalar Arguments ..
 !       DOUBLE PRECISION ALPHA
@@ -21837,7 +21837,7 @@ CONTAINS
 !> \verbatim
 
 !>
-!> DSPR    performs the symmetric rank 1 operation
+!> OC_DSPR    performs the symmetric rank 1 operation
 !>
 !>    A := alpha*x*x**T + A,!
 !>
@@ -22031,7 +22031,7 @@ CONTAINS
 !>
 !
 !  =====================================================================
- SUBROUTINE DSPR(UPLO,N,ALPHA,X,INCX,AP)
+ SUBROUTINE OC_DSPR(UPLO,N,ALPHA,X,INCX,AP)
 !
 !
 !
@@ -22072,13 +22072,13 @@ CONTAINS
 !     ..
 !
 !     .. External Functions ..
-!      LOGICAL LSAME
-!      EXTERNAL LSAME
+!      LOGICAL OC_LSAME
+!      EXTERNAL OC_LSAME
 !
 !     ..
 !
 !     .. External Subroutines ..
-!      EXTERNAL XERBLA
+!      EXTERNAL OC_XERBLA
 !
 !     ..
 !
@@ -22089,7 +22089,7 @@ CONTAINS
 
 !
    INFO = 0
-   IF (.NOT.LSAME(UPLO,'U') .AND. .NOT.LSAME(UPLO,'L')) THEN
+   IF (.NOT.OC_LSAME(UPLO,'U') .AND. .NOT.OC_LSAME(UPLO,'L')) THEN
       INFO = 1
    ELSE IF (N.LT.0) THEN
       INFO = 2
@@ -22097,7 +22097,7 @@ CONTAINS
       INFO = 5
    END IF
    IF (INFO.NE.0) THEN
-      CALL XERBLA('DSPR  ',INFO)
+      CALL OC_XERBLA('OC_DSPR  ',INFO)
       RETURN
    END IF
 !
@@ -22126,7 +22126,7 @@ CONTAINS
 !     are accessed sequentially with one pass through AP.
 !
    KK = 1
-   IF (LSAME(UPLO,'U')) THEN
+   IF (OC_LSAME(UPLO,'U')) THEN
 !
 !
 !
@@ -22214,15 +22214,15 @@ CONTAINS
    RETURN
 
 !
-!     End of DSPR  .
+!     End of OC_DSPR  .
 
 !
- END SUBROUTINE DSPR
+ END SUBROUTINE OC_DSPR
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
 
-!> \brief \b DTPTRI
+!> \brief \b OC_DTPTRI
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -22230,7 +22230,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DTPTRI + dependencies 
+!> Download OC_DTPTRI + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dtptri.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dtptri.f"> 
@@ -22242,7 +22242,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DTPTRI( UPLO, DIAG, N, AP, INFO )
+!       SUBROUTINE OC_DTPTRI( UPLO, DIAG, N, AP, INFO )
 ! 
 !       .. Scalar Arguments ..
 !       CHARACTER          DIAG, UPLO
@@ -22258,7 +22258,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DTPTRI computes the inverse of a real upper or lower triangular
+!> OC_DTPTRI computes the inverse of a real upper or lower triangular
 !> matrix A stored in packed format.
 !> \endverbatim
 !
@@ -22339,7 +22339,7 @@ CONTAINS
 !> \endverbatim
 !>
 !  =====================================================================
- SUBROUTINE DTPTRI( UPLO, DIAG, N, AP, INFO )
+ SUBROUTINE OC_DTPTRI( UPLO, DIAG, N, AP, INFO )
 !
 !  -- LAPACK computational routine (version 3.4.0) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -22366,28 +22366,28 @@ CONTAINS
    DOUBLE PRECISION   AJJ
 !     ..
 !     .. External Functions ..
-!      LOGICAL            LSAME
-!      EXTERNAL           LSAME
+!      LOGICAL            OC_LSAME
+!      EXTERNAL           OC_LSAME
 !     ..
 !     .. External Subroutines ..
-!      EXTERNAL           DSCAL, DTPMV, XERBLA
+!      EXTERNAL           OC_DSCAL, OC_DTPMV, OC_XERBLA
 !     ..
 !     .. Executable Statements ..
 !
 !     Test the input parameters.
 !
    INFO = 0
-   UPPER = LSAME( UPLO, 'U' )
-   NOUNIT = LSAME( DIAG, 'N' )
-   IF( .NOT.UPPER .AND. .NOT.LSAME( UPLO, 'L' ) ) THEN
+   UPPER = OC_LSAME( UPLO, 'U' )
+   NOUNIT = OC_LSAME( DIAG, 'N' )
+   IF( .NOT.UPPER .AND. .NOT.OC_LSAME( UPLO, 'L' ) ) THEN
       INFO = -1
-   ELSE IF( .NOT.NOUNIT .AND. .NOT.LSAME( DIAG, 'U' ) ) THEN
+   ELSE IF( .NOT.NOUNIT .AND. .NOT.OC_LSAME( DIAG, 'U' ) ) THEN
       INFO = -2
    ELSE IF( N.LT.0 ) THEN
       INFO = -3
    END IF
    IF( INFO.NE.0 ) THEN
-      CALL XERBLA( 'DTPTRI', -INFO )
+      CALL OC_XERBLA( 'OC_DTPTRI', -INFO )
       RETURN
    END IF
 !
@@ -22430,8 +22430,8 @@ CONTAINS
 !
 !           Compute elements 1:j-1 of j-th column.
 !
-         CALL DTPMV( 'Upper', 'No transpose', DIAG, J-1, AP, AP( JC ), 1 )
-         CALL DSCAL( J-1, AJJ, AP( JC ), 1 )
+         CALL OC_DTPMV( 'Upper', 'No transpose', DIAG, J-1, AP, AP( JC ), 1 )
+         CALL OC_DSCAL( J-1, AJJ, AP( JC ), 1 )
          JC = JC + J
       enddo
 !   30    CONTINUE
@@ -22453,9 +22453,9 @@ CONTAINS
 !
 !              Compute elements j+1:n of j-th column.
 !
-            CALL DTPMV( 'Lower', 'No transpose', DIAG, N-J,&
+            CALL OC_DTPMV( 'Lower', 'No transpose', DIAG, N-J,&
                  AP( JCLAST ), AP( JC+1 ), 1 )
-            CALL DSCAL( N-J, AJJ, AP( JC+1 ), 1 )
+            CALL OC_DSCAL( N-J, AJJ, AP( JC+1 ), 1 )
          END IF
          JCLAST = JC
          JC = JC - N + J - 2
@@ -22465,13 +22465,13 @@ CONTAINS
 !
    RETURN
 !
-!     End of DTPTRI
+!     End of OC_DTPTRI
 !
- END SUBROUTINE DTPTRI
+ END SUBROUTINE OC_DTPTRI
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !
-!> \brief \b DTPMV
+!> \brief \b OC_DTPMV
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -22481,7 +22481,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DTPMV(UPLO,TRANS,DIAG,N,AP,X,INCX)
+!       SUBROUTINE OC_DTPMV(UPLO,TRANS,DIAG,N,AP,X,INCX)
 ! 
 !       .. Scalar Arguments ..
 !       INTEGER INCX,N
@@ -22497,7 +22497,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DTPMV  performs one of the matrix-vector operations
+!> OC_DTPMV  performs one of the matrix-vector operations
 !>
 !>    x := A*x,   or   x := A**T*x,
 !>
@@ -22613,7 +22613,7 @@ CONTAINS
 !> \endverbatim
 !>
 !  =====================================================================
- SUBROUTINE DTPMV(UPLO,TRANS,DIAG,N,AP,X,INCX)
+ SUBROUTINE OC_DTPMV(UPLO,TRANS,DIAG,N,AP,X,INCX)
 !
 !  -- Reference BLAS level2 routine (version 3.4.0) --
 !  -- Reference BLAS is a software package provided by Univ. of Tennessee,    --
@@ -22640,22 +22640,22 @@ CONTAINS
    LOGICAL NOUNIT
 !     ..
 !     .. External Functions ..
-!      LOGICAL LSAME
-!      EXTERNAL LSAME
+!      LOGICAL OC_LSAME
+!      EXTERNAL OC_LSAME
 !     ..
 !     .. External Subroutines ..
-!      EXTERNAL XERBLA
+!      EXTERNAL OC_XERBLA
 !     ..
 !
 !     Test the input parameters.
 !
    INFO = 0
-   IF (.NOT.LSAME(UPLO,'U') .AND. .NOT.LSAME(UPLO,'L')) THEN
+   IF (.NOT.OC_LSAME(UPLO,'U') .AND. .NOT.OC_LSAME(UPLO,'L')) THEN
       INFO = 1
-   ELSE IF (.NOT.LSAME(TRANS,'N') .AND. .NOT.LSAME(TRANS,'T') .AND.&
-        .NOT.LSAME(TRANS,'C')) THEN
+   ELSE IF (.NOT.OC_LSAME(TRANS,'N') .AND. .NOT.OC_LSAME(TRANS,'T') .AND.&
+        .NOT.OC_LSAME(TRANS,'C')) THEN
       INFO = 2
-   ELSE IF (.NOT.LSAME(DIAG,'U') .AND. .NOT.LSAME(DIAG,'N')) THEN
+   ELSE IF (.NOT.OC_LSAME(DIAG,'U') .AND. .NOT.OC_LSAME(DIAG,'N')) THEN
       INFO = 3
    ELSE IF (N.LT.0) THEN
       INFO = 4
@@ -22663,7 +22663,7 @@ CONTAINS
       INFO = 7
    END IF
    IF (INFO.NE.0) THEN
-      CALL XERBLA('DTPMV ',INFO)
+      CALL OC_XERBLA('OC_DTPMV ',INFO)
       RETURN
    END IF
 !
@@ -22671,7 +22671,7 @@ CONTAINS
 !
    IF (N.EQ.0) RETURN
 !
-   NOUNIT = LSAME(DIAG,'N')
+   NOUNIT = OC_LSAME(DIAG,'N')
 !
 !     Set up the start point in X if the increment is not unity. This
 !     will be  ( N - 1 )*INCX  too small for descending loops.
@@ -22685,11 +22685,11 @@ CONTAINS
 !     Start the operations. In this version the elements of AP are
 !     accessed sequentially with one pass through AP.
 !
-   IF (LSAME(TRANS,'N')) THEN
+   IF (OC_LSAME(TRANS,'N')) THEN
 !
 !        Form  x:= A*x.
 !
-      IF (LSAME(UPLO,'U')) THEN
+      IF (OC_LSAME(UPLO,'U')) THEN
          KK = 1
          IF (INCX.EQ.1) THEN
 !            DO 20 J = 1,N
@@ -22773,7 +22773,7 @@ CONTAINS
 !
 !        Form  x := A**T*x.
 !
-      IF (LSAME(UPLO,'U')) THEN
+      IF (OC_LSAME(UPLO,'U')) THEN
          KK = (N* (N+1))/2
          IF (INCX.EQ.1) THEN
 !            DO 100 J = N,1,-1
@@ -22852,11 +22852,11 @@ CONTAINS
 !
    RETURN
 !
-!     End of DTPMV .
+!     End of OC_DTPMV .
 !
- END SUBROUTINE DTPMV
+ END SUBROUTINE OC_DTPMV
 !
-!> \brief \b DPPTRF
+!> \brief \b OC_DPPTRF
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -22864,7 +22864,7 @@ CONTAINS
 !            http://www.netlib.org/lapack/explore-html/ 
 !
 !> \htmlonly
-!> Download DPPTRF + dependencies 
+!> Download OC_DPPTRF + dependencies 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.tgz?format=tgz&filename=/lapack/lapack_routine/dpptrf.f"> 
 !> [TGZ]</a> 
 !> <a href="http://www.netlib.org/cgi-bin/netlibfiles.zip?format=zip&filename=/lapack/lapack_routine/dpptrf.f"> 
@@ -22876,7 +22876,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DPPTRF( UPLO, N, AP, INFO )
+!       SUBROUTINE OC_DPPTRF( UPLO, N, AP, INFO )
 ! 
 !       .. Scalar Arguments ..
 !       CHARACTER          UPLO
@@ -22892,7 +22892,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DPPTRF computes the Cholesky factorization of a real symmetric
+!> OC_DPPTRF computes the Cholesky factorization of a real symmetric
 !> positive definite matrix A stored in packed format.
 !>
 !> The factorization has the form
@@ -22975,7 +22975,7 @@ CONTAINS
 !> \endverbatim
 !>
 !  =====================================================================
- SUBROUTINE DPPTRF( UPLO, N, AP, INFO )
+ SUBROUTINE OC_DPPTRF( UPLO, N, AP, INFO )
 !
 !  -- LAPACK computational routine (version 3.4.0) --
 !  -- LAPACK is a software package provided by Univ. of Tennessee,    --
@@ -23002,12 +23002,12 @@ CONTAINS
    DOUBLE PRECISION   AJJ
 !     ..
 !     .. External Functions ..
-!      LOGICAL            LSAME
-!      DOUBLE PRECISION   DDOT
-!      EXTERNAL           LSAME, DDOT
+!      LOGICAL            OC_LSAME
+!      DOUBLE PRECISION   OC_DDOT
+!      EXTERNAL           OC_LSAME, OC_DDOT
 !     ..
 !     .. External Subroutines ..
-!      EXTERNAL           DSCAL, DSPR, DTPSV, XERBLA
+!      EXTERNAL           OC_DSCAL, OC_DSPR, OC_DTPSV, OC_XERBLA
 !     ..
 !     .. Intrinsic Functions ..
 !      INTRINSIC          SQRT
@@ -23017,14 +23017,14 @@ CONTAINS
 !     Test the input parameters.
 !
    INFO = 0
-   UPPER = LSAME( UPLO, 'U' )
-   IF( .NOT.UPPER .AND. .NOT.LSAME( UPLO, 'L' ) ) THEN
+   UPPER = OC_LSAME( UPLO, 'U' )
+   IF( .NOT.UPPER .AND. .NOT.OC_LSAME( UPLO, 'L' ) ) THEN
       INFO = -1
    ELSE IF( N.LT.0 ) THEN
       INFO = -2
    END IF
    IF( INFO.NE.0 ) THEN
-      CALL XERBLA( 'DPPTRF', -INFO )
+      CALL OC_XERBLA( 'OC_DPPTRF', -INFO )
       RETURN
    END IF
 !
@@ -23045,11 +23045,11 @@ CONTAINS
 !           Compute elements 1:J-1 of column J.
 !
          IF( J.GT.1 ) &
-              CALL DTPSV( 'Upper', 'Transpose', 'Non-unit', J-1, AP,AP( JC ),1 )
+              CALL OC_DTPSV( 'Upper', 'Transpose', 'Non-unit', J-1, AP,AP( JC ),1 )
 !
 !           Compute U(J,J) and test for non-positive-definiteness.
 !
-         AJJ = AP( JJ ) - DDOT( J-1, AP( JC ), 1, AP( JC ), 1 )
+         AJJ = AP( JJ ) - OC_DDOT( J-1, AP( JC ), 1, AP( JC ), 1 )
          IF( AJJ.LE.ZERO ) THEN
             AP( JJ ) = AJJ
             GO TO 30
@@ -23079,8 +23079,8 @@ CONTAINS
 !           submatrix.
 !
          IF( J.LT.N ) THEN
-            CALL DSCAL( N-J, ONE / AJJ, AP( JJ+1 ), 1 )
-            CALL DSPR( 'Lower', N-J, -ONE, AP( JJ+1 ), 1, AP( JJ+N-J+1 ) )
+            CALL OC_DSCAL( N-J, ONE / AJJ, AP( JJ+1 ), 1 )
+            CALL OC_DSPR( 'Lower', N-J, -ONE, AP( JJ+1 ), 1, AP( JJ+N-J+1 ) )
             JJ = JJ + N - J + 1
          END IF
 !20       CONTINUE
@@ -23094,11 +23094,11 @@ CONTAINS
 40 CONTINUE
    RETURN
 !
-!     End of DPPTRF
+!     End of OC_DPPTRF
 !
- END SUBROUTINE DPPTRF
+ END SUBROUTINE OC_DPPTRF
 !
-!> \brief \b DTPSV
+!> \brief \b OC_DTPSV
 !
 !  =========== DOCUMENTATION ===========
 !
@@ -23108,7 +23108,7 @@ CONTAINS
 !  Definition:
 !  ===========
 !
-!       SUBROUTINE DTPSV(UPLO,TRANS,DIAG,N,AP,X,INCX)
+!       SUBROUTINE OC_DTPSV(UPLO,TRANS,DIAG,N,AP,X,INCX)
 ! 
 !       .. Scalar Arguments ..
 !       INTEGER INCX,N
@@ -23124,7 +23124,7 @@ CONTAINS
 !>
 !> \verbatim
 !>
-!> DTPSV  solves one of the systems of equations
+!> OC_DTPSV  solves one of the systems of equations
 !>
 !>    A*x = b,   or   A**T*x = b,
 !>
@@ -23242,7 +23242,7 @@ CONTAINS
 !> \endverbatim
 !>
 !  =====================================================================
- SUBROUTINE DTPSV(UPLO,TRANS,DIAG,N,AP,X,INCX)
+ SUBROUTINE OC_DTPSV(UPLO,TRANS,DIAG,N,AP,X,INCX)
 !
 !  -- Reference BLAS level2 routine (version 3.4.0) --
 !  -- Reference BLAS is a software package provided by Univ. of Tennessee,    --
@@ -23269,22 +23269,22 @@ CONTAINS
    LOGICAL NOUNIT
 !     ..
 !     .. External Functions ..
-!      LOGICAL LSAME
-!      EXTERNAL LSAME
+!      LOGICAL OC_LSAME
+!      EXTERNAL OC_LSAME
 !     ..
 !     .. External Subroutines ..
-!      EXTERNAL XERBLA
+!      EXTERNAL OC_XERBLA
 !     ..
 !
 !     Test the input parameters.
 !
    INFO = 0
-   IF (.NOT.LSAME(UPLO,'U') .AND. .NOT.LSAME(UPLO,'L')) THEN
+   IF (.NOT.OC_LSAME(UPLO,'U') .AND. .NOT.OC_LSAME(UPLO,'L')) THEN
       INFO = 1
-   ELSE IF (.NOT.LSAME(TRANS,'N') .AND. .NOT.LSAME(TRANS,'T') .AND. &
-        .NOT.LSAME(TRANS,'C')) THEN
+   ELSE IF (.NOT.OC_LSAME(TRANS,'N') .AND. .NOT.OC_LSAME(TRANS,'T') .AND. &
+        .NOT.OC_LSAME(TRANS,'C')) THEN
       INFO = 2
-   ELSE IF (.NOT.LSAME(DIAG,'U') .AND. .NOT.LSAME(DIAG,'N')) THEN
+   ELSE IF (.NOT.OC_LSAME(DIAG,'U') .AND. .NOT.OC_LSAME(DIAG,'N')) THEN
       INFO = 3
    ELSE IF (N.LT.0) THEN
       INFO = 4
@@ -23292,7 +23292,7 @@ CONTAINS
       INFO = 7
    END IF
    IF (INFO.NE.0) THEN
-      CALL XERBLA('DTPSV ',INFO)
+      CALL OC_XERBLA('OC_DTPSV ',INFO)
       RETURN
    END IF
 !
@@ -23300,7 +23300,7 @@ CONTAINS
 !
    IF (N.EQ.0) RETURN
 !
-   NOUNIT = LSAME(DIAG,'N')
+   NOUNIT = OC_LSAME(DIAG,'N')
 !
 !     Set up the start point in X if the increment is not unity. This
 !     will be  ( N - 1 )*INCX  too small for descending loops.
@@ -23314,11 +23314,11 @@ CONTAINS
 !     Start the operations. In this version the elements of AP are
 !     accessed sequentially with one pass through AP.
 !
-   IF (LSAME(TRANS,'N')) THEN
+   IF (OC_LSAME(TRANS,'N')) THEN
 !
 !        Form  x := inv( A )*x.
 !
-      IF (LSAME(UPLO,'U')) THEN
+      IF (OC_LSAME(UPLO,'U')) THEN
          KK = (N* (N+1))/2
          IF (INCX.EQ.1) THEN
 !            DO 20 J = N,1,-1
@@ -23401,7 +23401,7 @@ CONTAINS
 !
 !        Form  x := inv( A**T )*x.
 !
-      IF (LSAME(UPLO,'U')) THEN
+      IF (OC_LSAME(UPLO,'U')) THEN
          KK = 1
          IF (INCX.EQ.1) THEN
 !            DO 100 J = 1,N
@@ -23481,83 +23481,94 @@ CONTAINS
 !
    RETURN
 !
-!     End of DTPSV .
+!     End of OC_DTPSV .
 !
- END SUBROUTINE DTPSV
+ END SUBROUTINE OC_DTPSV
 !
 ! ===================================================================
 !
-! SUBROUTINES included (incomplete):
-! DCOPY
-! DGEMM
-! DGEMV
-! DGETRF
-! DGETRF2
-! DGETRS
-! DLACPY
-! DLAE2
-! DLAEDA
-! DLAED0
-! DLAED1
-! DLAED2
-! DLAED3
-! DLAED4
-! DLAED7
-! DLAED8
-! DLAED9
-! DLAEV2
-! DLAMRG
-! DLARF
-! DLARFG
-! DLARTG
-! DLASCL
-! DLASET
-! DLASR
-! DLASRT
-! DLASSQ
-! DLASWP
-! DLASYF
-! DOPGTR
-! DOPMTR
-! DPPTRF
-! DPPTRI
-! DSCAL
-! DSPEV
-! DSPEVD
-! DSPR
-! DSPTRD
-! DSTEDC
-! DSTEQR
-! DSTERF
-! DSWAP
-! DSYMV
-! DSYR
-! DSYTF2
-! DSYTRF
-! DSYTRI
-! DTPTRI
-! DTPMV
-! DTRSM
-! DTPSV
-! XERBLA
+! SUBROUTINES included :
+!OC_DGETRI
+!OC_DTRTRI
+!OC_DTRTI2
+!OC_DCOPY
+!OC_DGEMM
+!OC_DGEMV
+!OC_DGETRF
+!OC_DGETRF2
+!OC_DGETRS
+!OC_DSCAL
+!OC_DSWAP
+!OC_DSYR
+!OC_DSYTF2
+!OC_DSYTRF
+!OC_DSYTRI
+!OC_DTRSM
+!OC_XERBLA
+!OC_DSPEVD
+!OC_DLASSQ
+!OC_DSPTRD
+!OC_DLARFG
+!OC_DSTERF
+!OC_DOPMTR
+!OC_DLARF
+!OC_DSPEV
+!OC_DSTEDC
+!OC_DLASCL
+!OC_DSTEQR
+!OC_DLASET
+!OC_DLAEV2
+!OC_DLASR
+!OC_DLASRT
+!OC_DLAE2
+!OC_DLARTG
+!OC_DLACPY
+!OC_DLAED0
+!OC_DLAED1
+!OC_DLAED7
+!OC_DLAED8
+!OC_DLAED9
+!OC_DLAED2
+!OC_DLAED3
+!OC_DLAED4
+!OC_DLAED5
+!OC_DLAED6
+!OC_DLAEDA
+!OC_DOPGTR
+!OC_DORG2L
+!OC_DORG2R
+!OC_DROT
+!OC_DGER
+!OC_DSPMV
+!OC_DAXPY
+!OC_OC_DSPR2
+!OC_DTRMV
+!OC_DTRMM
+!OC_DPPTRI
+!OC_DSPR
+!OC_DTPTRI
+!OC_DTPMV
+!OC_DPPTRF
+!OC_DTPSV
 !
 ! FUNCTIONS included
-! DDOT
-! DISNAN
-! DLAISNAN
-! DLAMCH
-! DLAMC3
-! DLANSP
-! DLANST
-! DLAPY2
-! IDAMAX
-! IEEECK
-! ILAENV
-! ILADLC
-! ILADLR
-! IPARMQ
-! LSAME
-! LSAMEN
+!OC_DDOT
+!OC_DISNAN
+!OC_DLAISNAN
+!OC_DLAMCH
+!OC_DLAMC3
+!OC_IDAMAX
+!OC_IEEECK
+!OC_ILAENV
+!OC_IPARMQ
+!OC_LSAME
+!OC_LSAMEN
+!OC_DLANSP
+!OC_DLAPY2
+!OC_DLANST
+!OC_ILADLC
+!OC_ILADLR
+!OC_DNRM2
 !
 END MODULE OCLABLAS
 
