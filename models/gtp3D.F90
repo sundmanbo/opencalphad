@@ -866,7 +866,7 @@
          buperr=0
          call capson(usymbol)
          call find_svfun(usymbol,istv)
-         write(*,*)'3D uncertainty symbol: ',usymbol,istv
+!         write(*,*)'3D uncertainty symbol: ',usymbol,istv
          if(gx%bmperr.ne.0) then
             write(*,*)'No such symbol: ',usymbol,&
                  ' uncertainty set to 0.1 of value'

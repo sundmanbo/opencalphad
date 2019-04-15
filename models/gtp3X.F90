@@ -3175,7 +3175,7 @@
 !
    zhalf=half*phvar%qcbonds
 ! ncon is number of constituents, noofel number of elements
-!   write(*,'(a,i2,F8.3,10i4)')'3X cqc6 start: ',qcmodel,zhalf,ncon,noofel
+   write(*,'(a,i2,F8.3,10i4)')'3X cqc6 start: ',qcmodel,zhalf,ncon,noofel
    allocate(xval(noofel))
    allocate(dxval(noofel,ncon))
 ! max antal binary cluster

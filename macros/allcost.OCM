@@ -108,3 +108,4 @@ l sh p
 @&
 set inter
 
+@$ gprof oc5prof.exe gmon.out > output_file.txt

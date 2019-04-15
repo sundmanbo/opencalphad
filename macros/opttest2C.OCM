@@ -47,6 +47,7 @@ opt 100
 
 @&
 
+
 l opt
 
 @&
@@ -91,6 +92,18 @@ opt 100
 
 l opt
 
+@&
+
+@$ To obtain the RSD values
+
+amend opt-coef y
+
+opt 100
+
+
+l opt short
+
+@$
 @&
 
 macro  ./opttest2-plot-cpcumg2

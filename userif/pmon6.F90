@@ -462,15 +462,15 @@ contains
 #ifdef aqplt
 ! Aqua plot screen on some Mac systems
 !    graphopt%gnuterminal(i1)='aqua size 900,600 font "arial,20"'
-    graphopt%gnuterminal(i1)='aqua size 940,700 font "arial,20"'
+    graphopt%gnuterminal(i1)='aqua size 940,700 font "arial,16"'
 ! it should be #elif not #elseif .... suck
 #elif qtplt
 ! Qt plot screen on some LINUX systems
-    graphopt%gnuterminal(i1)='qt size 940,700 font "arial,20"'
+    graphopt%gnuterminal(i1)='qt size 940,700 font "arial,16"'
 !    graphopt%gnuterminal(i1)='qt size 900,600 font "arial,16"'
 #else
 ! wxt default plot screen (used on most Window systems)
-    graphopt%gnuterminal(i1)='wxt size 940,700 font "arial,20"'
+    graphopt%gnuterminal(i1)='wxt size 940,700 font "arial,16"'
 !    graphopt%gnuterminal(i1)='wxt size 900,600 font "arial,16"'
 #endif
     graphopt%filext(i1)='  '
@@ -490,7 +490,7 @@ contains
 ! NOTE size is in inch
 !   graphopt%gnuterminal(i1)='pdf color solid size 6,4 enhanced fontscale 0.7'
 !   graphopt%gnuterminal(i1)='pdf color solid size 6,4 enhanced font "arial,20"'
-    graphopt%gnuterminal(i1)='pdf color solid size 6,5 enhanced font "arial,20"'
+    graphopt%gnuterminal(i1)='pdf color solid size 6,5 enhanced font "arial,16"'
 #endif
     graphopt%filext(i1)='pdf  '
 ! Graphics Interchange Format (GIF)
@@ -6142,7 +6142,10 @@ contains
 ! all elements in the covariance matrix should be multiplied with err0(3)
              do i1=1,nvcoeff
                 do i2=1,nvcoeff
-                   cormat(i1,i2)=err0(3)*cormat(i1,i2)
+! I get exactly the same RSD as TC if I ignore the normalized error !!
+! but according to theory it should be multiplied with the normalized error
+                  cormat(i1,i2)=err0(3)*cormat(i1,i2)
+!                   cormat(i1,i2)=cormat(i1,i2)
                 enddo
              enddo
 ! divide all values with the square root of the  diagonal elements
@@ -6170,12 +6173,12 @@ contains
        endif
 ! write the correlation matrix  this is still very uncertain ,,,
        if(allocated(cormat)) then
-          write(*,*)'Correlation matrix (symmetric):'
-          do i2=1,nvcoeff
-             write(kou,563)(cormat(i2,j2),j2=1,nvcoeff)
-          enddo
-       else
-          write(*,*)'Failed calculate the correlation matrix',iflag
+          if(nvcoeff.gt.0) then
+             write(*,*)'Correlation matrix (symmetric):'
+             do i2=1,nvcoeff
+                write(kou,'(8(1pe10.2))')(cormat(i2,j2),j2=1,nvcoeff)
+             enddo
+          endif
        endif
 ! zero all RSD values
        firstash%coeffrsd=zero

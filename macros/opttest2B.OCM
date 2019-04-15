@@ -96,7 +96,7 @@ list opt
 @$ This lists the final value of the model parameters and for
 @$ each experiment with non-zero weight the data and error.
 @$ The list may be long and you may have to scroll bacwards
-@$ to see all experiments and the parameter values
+@$ to see all experiments.
 @$------------------------------------------------------------------------
 @&
 @$ The optimizing coefficients are also TP sysmbols
@@ -147,6 +147,18 @@ opt 100
 
 l opt coef
 
+@$ It may now be intersting to have correct RSD
+
+amend opt y
+
+opt 100
+
+l opt coef
+
+@$ The RSD values reflect the number of significant digits of
+@$ the coefficients, if RSD is around 0.1 the coeffcient
+@$ as only one significant digit.
+@$ If 0.1>RSD>.001 there are two significant digits and so on
 @&
 
 macro ./opttest2-plot-hliq

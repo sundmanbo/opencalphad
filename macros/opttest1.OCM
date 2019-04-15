@@ -276,7 +276,7 @@ l opt short
 @$ We should not attept to make this value zero!
 @&
 
-@$ Rescale the parameters if they have changed a lot
+@$ Rescale the coefficients if they have changed a lot
 amend opt
 y
 
@@ -288,7 +288,20 @@ opt 100
 
 l opt short
 
-@$ No change
+@$ No change of the normalized sum of errors: 2.2907
+@$ or the coefficients: 400.095; -65.2871; -0.0120393
+@$ but the values of RSD are now viable.
+@$ If an RSD is larger than 1 that coefficient is meaningless
+@$ and should not not be optimized.
+@$ If it is less than 1 but larger than 0.1 only the first digit of the
+@$ coefficient is significant.  For example A13 has RSD=0.318483 and
+@$ the coefficient has only one significant digit, i.e -0.01
+@$ =============================0
+@$ At an end of an assessment the RSD can be used to reduce the number
+@$ of digits in the published result by fixing their values
+@$ rounded to the significant number of digits one by one
+@$ starting from the coefficient with the highest RSD
+@$
 @&
 
 
@@ -336,8 +349,15 @@ opt 100
 l opt short
 
 
-@$ The parameter do not change much but total sum of errors is now 4.9
+@$ The coefficients do not change much but total sum of errors is now 4.9
 @$ The calculated Cp values has increased and better fit to HDIFF
+
+amend opt Y
+
+opt 100
+
+l opt short
+
 
 set inter
 

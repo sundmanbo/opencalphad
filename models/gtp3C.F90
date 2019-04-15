@@ -5821,7 +5821,9 @@
     integer i1,i2,j1,j2,j3,k1,nvcoeff
     character name1*24,where*80
     double precision xxx
+    logical rescale
 !
+    rescale=.false.
     write(lut,610)
 610 format(/'List of coefficients with non-zero values'/&
          'Name  Current value  Start value   Scaling factor RSD',10x,&
@@ -5840,6 +5842,10 @@
                firstash%coeffstart(i1),firstash%coeffscale(i1),&
                firstash%coeffrsd(i1),trim(where)
 615       format(a,2x,4(1pe14.5),2x,a)
+          if(abs(xxx-firstash%coeffscale(i1)).gt.1.0D-4*abs(xxx)) then
+!             write(*,*)'3C why?:'
+             rescale=.true.
+          endif
 !          if(abs(xxx-firstash%coeffvalues(i1)*firstash%coeffscale(i1))&
 !               .gt.1e-4) then
 !             write(*,*)'3C scaled and current: ',xxx,&
@@ -5881,6 +5887,12 @@
           firstash%coeffstate(i1)=1
        endif coeffstate
     enddo
+! give a warning if parameters need to be rescaled
+    if(rescale) then
+       write(lut,717)
+717    format(/'In order to have correct RSD values use the command',&
+            ' AMEND OPT_COEF Y'/'and optimize again.'/)
+    endif
 !    sum=zero
 !    do j1=1,mexp
 !       sum=sum+errs(j1)**2

@@ -988,9 +988,9 @@ CONTAINS
   integer function ixsym(ix1,ix2)
 ! calculates the storage place of value at (i,j) for a symmetrix matrix
 ! storage order 11, 12, 22, 13, 23, 33, etc
-    if(ix1.le.0 .or. ix2.le.0) then
-       buperr=1000; goto 1000
-    endif
+!    if(ix1.le.0 .or. ix2.le.0) then
+!       buperr=1000; goto 1000
+!    endif
     if(ix1.gt.ix2) then
        ixsym=ix2+ix1*(ix1-1)/2
     else
@@ -999,6 +999,22 @@ CONTAINS
 1000 continue
     return
   end function ixsym
+
+  integer function ixsym0(ix1,ix2)
+! calculates the storage place of value at (i,j) for a symmetrix matrix
+! storage order 11, 12, 22, 13, 23, 33, etc
+    if(ix1.le.0 .or. ix2.le.0) then
+       buperr=1000; goto 1000
+    endif
+    if(ix1.gt.ix2) then
+!       stop 'ix1 > ix2'
+       ixsym0=ix2+ix1*(ix1-1)/2
+    else
+       ixsym0=ix1+ix2*(ix2-1)/2
+    endif
+1000 continue
+    return
+  end function ixsym0
 
 !  integer function ixsym2(ix1,ix2)
 ! calculates the storage place of value at (i,j) for a symmetrix matrix
@@ -1010,6 +1026,44 @@ CONTAINS
 !1000 continue
 !    return
 !  end function ixsym2
+
+  integer function ixsym7(ix1,ix2)
+! calculates the storage place of value at (i,j) for a symmetrix matrix
+! storage order 11, 12, 22, 13, 23, 33, etc
+! Slightly faster ....
+!    ixmin=min(ix1,ix2)
+!    ixmax=max(ix1,ix2)
+!    ixsym=ixmin+ixmax*(ixmax-1)/2
+    ixsym7=min(ix1,ix2)+max(ix1,ix2)*(max(ix1,ix2)-1)/2
+1000 continue
+    return
+  end function ixsym7
+
+  integer function ixsym3(ix1,ix2)
+! calculates the storage place of value at (i,j) for a symmetrix matrix
+! storage order 11, 12, 22, 13, 23, 33, etc
+! OK but gives strange results for the speed
+    integer ix1,ix2,ip
+    if(ix1.le.0 .or. ix2.le.0) then
+       buperr=1000; goto 1000
+    endif
+    ixsym3=ix1+ix2; p=(ixsym3+abs(ix1-ix2))/2
+    ixsym3=ixsym3+(p*(p-3))/2
+1000 continue
+    return
+  end function ixsym3
+
+  integer function ixsym4(ix1,ix2)
+! calculates the storage place of value at (i,j) for a symmetrix matrix
+! storage order 11, 12, 22, 13, 23, 33, etc
+    integer ix1,ix2,ip
+    if(ix1.le.0 .or. ix2.le.0) then
+       buperr=1000; goto 1000
+    endif
+    ixsym4=(ix1+ix2+abs(ix1-ix2))/2
+1000 continue
+    return
+  end function ixsym4
 
   subroutine wrice(lut,margl1,margl2,maxl,str)
 ! writes str on unit lut with left margin largl1 for first line, margl2 for all

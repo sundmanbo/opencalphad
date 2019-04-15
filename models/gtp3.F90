@@ -1864,6 +1864,8 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   integer, private :: highcs
 ! Trace for debugging (not used)
   logical, private :: ttrace
+! Output for debugging gridmin
+  integer, private :: lutbug=0
 ! minimum constituent fraction
   double precision :: bmpymin
 ! number of defined property types like TC, BMAG etc

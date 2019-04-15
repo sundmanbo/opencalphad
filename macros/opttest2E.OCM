@@ -198,12 +198,12 @@ mac ./opttest2-plot-cplaves
 @$ We have a reasonable fit to Cp
 @&
 @$---------------------------------------------------------
-@$ Use the AMEND ALL command to set the current values as start values
+@$ Use the AMEND OPT Y command to set the current values as start values
 @$ and optimize again.  This is important if the coefficents have
 @$ changed a lot
 @$---------------------------------------------------------
 
-amend all y
+amend opt y
 
 @&
 

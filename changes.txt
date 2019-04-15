@@ -13,11 +13,25 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2019.04.15 OC version 5.038: I plan to make a major change plotting
+and that requires version 5 of GNUPLOT or later.  PLease make sure you
+use that for plotting, it has been around since 2017.
+
+A number of minor changes for assessments has been made generating
+better graphics for the plot_data overlays of experimental data.
+
+I am also going to put some efforts into improving the grids for the
+grid minimizer to allow more flexible setting of the grid densities.
+For some cases with ionic constituents the grid has been far too
+dense.  There has also been some tests showing it will be possible to
+speed up the iterative calculations.  The improvements of step and map
+is also high on the list of things to do but this time there are none.
+
 2019.03.28 OC version 5.037: The correlation matrix and the Relative
-Standard deviation now seems to work during assessments.  I have alos
-added a new command LIST NONZERO_EQUIL to list only equilibria with
-weight, the command LIST EQUIL lists all equilibria.  Some problems
-have uncertainties for experiments fixed.
+Standard Deviation (RSD) now seems to work during assessments.  I have
+also added a new command LIST NONZERO_EQUIL to list only equilibria
+with weight>0, the command LIST EQUIL lists all equilibria.  Some
+problems with uncertainties for experiments fixed.
 
 2019.03.24 OC version 5.036: For assessments the correlation matrix
 and the Relative Standard Deviation (RSD) for each parameter are

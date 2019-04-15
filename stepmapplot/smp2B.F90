@@ -954,10 +954,8 @@
          'set origin 0.0, 0.0 '/&
          'set size ',F8.4', ',F8.4/&
          'set xlabel "',a,'"'/'set ylabel "',a,'"'/&
-!         'set label "O" at screen 0.010, 0.027 font "Garamond bold,20"'/&
-!         'set label "C" at screen 0.019, 0.027 font "Garamond bold,20"'/&
-         'set label "O" at graph -0.100, -0.150 font "Garamond bold,24"'/&
-         'set label "C" at graph -0.087, -0.150 font "Garamond bold,24"'/&
+         'set label "O" at graph -0.090, -0.100 font "Garamond bold,20"'/&
+         'set label "C" at graph -0.080, -0.100 font "Garamond bold,20"'/&
          'set key ',a/&
          'set style line 1 lt 2 lc rgb "#000000" lw 2 pt 10'/&
          'set style line 2 lt 2 lc rgb "#4169E1" lw 2 pt 6'/&
@@ -989,7 +987,7 @@
        write(21,151)'y'
     endif
 !------------------------------------------------------------
-! set labels
+! set labels (user added text in diagram)
     textlabel=>graphopt%firsttextlabel
     do while(associated(textlabel))
        rotate=' '
@@ -1332,12 +1330,16 @@
 !          write(*,*)'Trying to spawn: ',trim(gnuplotline)
 !          call system(gnuplotline(9:k3))
 ! spawn plot on Windows ?? NOT ISO-TERMAL DIAGRAM
-          write(*,*)'executing command: "start /B '//trim(gnuplotline)
-          call execute_command_line('start /B '//gnuplotline(9:k3))
+!          write(*,*)'executing command: "start /B '//trim(gnuplotline)
+!          call execute_command_line('start /B '//gnuplotline(9:k3))
+          write(*,*)'executing command: "start /B '//trim(gnuplotline)//'"'
+          call execute_command_line('start /B '//trim(gnuplotline))
+! WORKS WITH OCPLOT3B
+!          call execute_command_line('start /B '//trim(gnuplotline))
        else
 !          write(*,*)'plot command: "',gnuplotline(1:k3),'"'
 !          call system(gnuplotline)
-          write(*,*)'executing command: '//trim(gnuplotline)
+          write(*,*)'executing command: "'//trim(gnuplotline)//'"'
           call execute_command_line(gnuplotline)
        endif
     else
@@ -1896,15 +1898,15 @@
 131    format('set label "',a,'" at ',F8.4,',',F8.4,' rotate by 60 '/&
 !            'set label "O" at screen 0.130, 0.027 font "Garamond bold,20"'/&
 !            'set label "C" at screen 0.139, 0.027 font "Garamond bold,20"')
-            'set label "O" at graph -0.103, -0.120 font "Garamond bold,24"'/&
-            'set label "C" at graph -0.0850, -0.120 font "Garamond bold,24"')
+            'set label "O" at graph -0.090, -0.100 font "Garamond bold,20"'/&
+            'set label "C" at graph -0.080, -0.100 font "Garamond bold,20"')
 ! we should also enforce same length of X and Y axis !!!
     else
 ! SQUARE DIAGRAM
        write(21,132)trim(pltax(2))
 132    format('set ylabel "',a,'"'/&
-            'set label "O" at graph -0.100, -0.150 font "Garamond bold,24"'/&
-            'set label "C" at graph -0.087, -0.150 font "Garamond bold,24"')
+            'set label "O" at graph -0.090, -0.100 font "Garamond bold,20"'/&
+            'set label "C" at graph -0.080, -0.100 font "Garamond bold,20"')
     endif
     write(21,133)
 133 format('# if the value after solid is 0 the monovariants are transparent'/&
@@ -2561,9 +2563,9 @@
 ! this is a TERNARY PLOT with 2 extenive axis
 !          write(*,*)'executing command '//trim(gnuplotline(9:))
 !          call system(gnuplotline(9:))
-          write(*,*)'Executing Command: start /B '//trim(gnuplotline),k3
+          write(*,*)'Executing Command: "start /B '//trim(gnuplotline)//'"'
+! WORKS WITH OCPLOT3B
           call execute_command_line('start /B '//trim(gnuplotline))
-!          call execute_command_line(gnuplotline(9:))
        else
 !          write(*,*)'executing command '//trim(gnuplotline)
           call execute_command_line(gnuplotline)
