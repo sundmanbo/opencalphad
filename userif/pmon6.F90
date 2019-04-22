@@ -444,9 +444,9 @@ contains
          'This program is available with a GNU General Public License.'/&
          'It includes the General Thermodynamic Package, version ',A,','/&
          "Hillert's equilibrium calculation algorithm version ",A,','/&
-         'step/map/plot software version ',A,' for GNUPLOT graphics,'/&
-         'numerical routines extracted from LAPACK and BLAS and'/&
-         'the assessment procedure uses LMDIF from ANL (Argonne, USA)'/)
+         'step/map/plot software version ',A,' using GNUPLOT 5.0 graphics.'/&
+         'Numerical routines are extracted from LAPACK and BLAS and'/&
+         'the assessment procedure uses LMDIF from ANL.'/)
 !
 ! lines starting with !$ will be included when compiling with -fopenmp
 !$    write(kou,11)
@@ -619,7 +619,7 @@ contains
           htmlhelp=.FALSE.
           call init_help(' ',latexfile,' ')
        else
-          write(*,*)'Using: ',trim(browser),' for on-line help'
+!          write(*,*)'Using: ',trim(browser),' for on-line help'
 ! the *.tex is for search, *.html for browser
           inquire(file=htmlfile,exist=logok)
           if(.not.logok) then
@@ -1526,7 +1526,7 @@ contains
              if(gx%bmperr.ne.0) goto 990
              mode=1
              actual_arg=' '
-             write(*,*)'UI: calculating the requested function!'
+!             write(*,*)'UI: calculating the requested function!'
              xxx=meq_evaluate_svfun(istv,actual_arg,mode,ceq)
              if(gx%bmperr.ne.0) goto 990
              write(*,2047)name1(1:len_trim(name1)),xxx
@@ -4134,7 +4134,7 @@ contains
              write(*,*)'database file: ',trim(tdbfile)
           endif
 ! this call checks the file exists and returns the elements
-          call checkdb(tdbfile,'.tdb',jp,ellist)
+          call checkdb2(tdbfile,'.tdb',jp,ellist)
           if(gx%bmperr.ne.0) then
              write(kou,*)'No database with this name'
              tdbfile=' '
@@ -4231,7 +4231,7 @@ contains
 !             call gparc('File name: ',cline,last,1,tdbfile,' ',q1help)
           endif
 ! this call checks the file exists and returns the elements
-          call checkdb(tdbfile,'.pdb',jp,ellist)
+          call checkdb2(tdbfile,'.pdb',jp,ellist)
           if(gx%bmperr.ne.0) then
              write(kou,*)'No PDB database with this name'
              goto 990

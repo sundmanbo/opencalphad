@@ -5,7 +5,7 @@
 !
 MODULE liboceq
 !
-! Copyright 2012-2018, Bo Sundman, France
+! Copyright 2012-2019, Bo Sundman, France
 !
 !    This program is free software; you can redistribute it and/or modify
 !    it under the terms of the GNU General Public License as published by
@@ -536,10 +536,15 @@ CONTAINS
     meqrec%nfixmu=np
     if(np.gt.0) then 
 ! number of fixed chemical potentials
-       allocate(meqrec%mufixel(np))
-       allocate(meqrec%mufixref(np))
-       allocate(meqrec%mufixval(np))
-       allocate(meqrec%mufixvalref(np))
+       if(.not.allocated(meqrec%mufixel)) then
+          allocate(meqrec%mufixel(np))
+          allocate(meqrec%mufixref(np))
+          allocate(meqrec%mufixval(np))
+          allocate(meqrec%mufixvalref(np))
+       else
+! this can happen if activity condition and calculating without gridmin
+          write(*,*)'Warning: meqrec has already mufixel allocated!'
+       endif
        if(np.gt.1) then
 ! sort components with fix MU in increasing order to simplify below
           call sortin(mufixel,np,oldorder)
@@ -1689,7 +1694,8 @@ CONTAINS
 !    write(*,*)'Iteration: ',meqrec%noofits,' ----------------------------- '
     if(ocv()) write(*,199)meqrec%noofits,ceq%tpval(1),meqrec%nstph,&
          (meqrec%stphl(jz),jz=1,meqrec%nstph)
-199 format(/'Equil iter: ',i3,f8.2,', stable phases: ',i3,2x,10i3)
+!199 format(/'Equil iter: ',i3,f8.2,', stable phases: ',i3,2x,10i3)
+199 format(/'Equil iter: ',i3,f8.2,', stable phases: ',i3,2x,100i3)
     if(meqrec%noofits.gt.ceq%maxiter) goto 1200
     converged=0
     if(vbug) write(*,*)'Iteration: ',meqrec%noofits,converged
@@ -9406,7 +9412,7 @@ CONTAINS
 !    write(*,412)tpval(1),(pmi%curd%yfr(jt),jt=1,3)
 !412 format(/'Unreduced diffusion matrix for T= ',f8.2,' and x= ',3F8.4)
 !
-! TC ger för MU(i).x(j) ....:
+! TC gives for MU(i).x(j) ....:
 !
 ! The loop below is adapted to the FCC phase in the AlCuSi system
 ! 2 sublattices but only substitutional diffusion

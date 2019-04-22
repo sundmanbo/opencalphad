@@ -1,6 +1,14 @@
 
-$ Database file written 2014- 5- 2
-$ From database: USER                    
+$ From cast project 507
+ DATABASE_INFO about the COST 507 database
+ This thermodynamic database is the result of the European COST 507 project.
+ It contains about 70 assessed binary and a few ternary system for 20 elements,
+ Many binaries and ternaries have no data and cannot be calculated.
+ A simple test is to list the data for the liquid phase: "list ph liq data"
+ If there are no EXCESS parameters for a system in the liquid
+ the system has not been assessed.
+ For the each assessed model parameter a bibliographic reference is provided. !
+$
  ELEMENT /-   ELECTRON_GAS              0.0000E+00  0.0000E+00  0.0000E+00!
  ELEMENT VA   VACUUM                    0.0000E+00  0.0000E+00  0.0000E+00!
  ELEMENT AL   FCC_A1                    2.6982E+01  4.5773E+03  2.8322E+01!

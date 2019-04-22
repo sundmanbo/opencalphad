@@ -31,6 +31,7 @@ axis-label x T/K
 axis-label y Heat capacity Cu2Mg (J.Mol-1.K-1)
 
 
+@$ Plot on a PDF file
 plot
 
 

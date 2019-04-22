@@ -1,6 +1,12 @@
 
 $ Database file written 2012- 2-11
 $ From database: SSOL2                   
+ DATABASE_INFO about the steel1 database
+ It is an extract from the SGTE SSOL2 database from 2001 for 6 elements.
+ Most binary and ternary systems have been assessed and bibliographic
+ references are provided.  Most assessments has been made at MSE, KTH, Sweden.
+ for the developent of steels.!
+$
  ELEMENT /-   ELECTRON_GAS              0.0000E+00  0.0000E+00  0.0000E+00!
  ELEMENT VA   VACUUM                    0.0000E+00  0.0000E+00  0.0000E+00!
  ELEMENT C    GRAPHITE                  1.2011E+01  1.0540E+03  5.7400E+00!

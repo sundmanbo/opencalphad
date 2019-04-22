@@ -862,9 +862,9 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim} %-
-  subroutine ocplot2B(np,nrv,nlinesep,linesep,pltax,xax,anpax,anpdim,anp,lid,&
-       phaseline,title,filename,graphopt,version,conditions)
-!       title,filename,graphopt,pform,version,conditions)
+  subroutine ocplot2B_old(np,nrv,nlinesep,linesep,pltax,xax,anpax,anpdim,&
+       anp,lid,phaseline,title,filename,graphopt,version,conditions)
+!       title,filename,graphopt,pform,version,conditions
 ! called from icplot2 to generate the GNUPLOT file after extracting data
 ! np is number of columns (separate lines), if 1 no labelkey
 ! nrv is number of values to plot?
@@ -1032,7 +1032,7 @@
 ! note if append file is GIBBSTRIANGLE
        if(appline(1:10).eq.'# GIBBSTRI') then
           write(*,*)'Warning: appended file is in Gibbstriangle format,',&
-               ' plot may be strange!'
+               ' plot will be strange!'
           goto 1710
        endif
 !------------------------------------------------------------------
@@ -1060,7 +1060,9 @@
           goto 1710
        endif
 !------------------------------------------------------------------
-       if(index(appline,'plot "-"').gt.0) then
+       if(index(appline,'plot "-"').gt.0 .or. &
+            index(appline,"plot '-'").gt.0 .or.&
+            index(appline,"plot for ").gt.0) then
 ! here we save the actual plot commands from the appendfile!!
           applines(1)=appline
           ic=1
@@ -1069,7 +1071,7 @@
           ii=len_trim(appline)
 !          write(*,*)'There are more? ',appline(i:ii),ii,ic
           if(appline(ii:ii).eq.'\') then
-! continuation lines
+! continuation lines !! NOTE EACH plot expected at the beginning of the line
              read(appfil,1720,end=1750)appline
              ic=ic+1
              if(ic.ge.mofapl) then
@@ -1105,9 +1107,9 @@
        write(21,209)trim(graphopt%lowerleftcorner)
 209    format('set label "',a,'" at graph -0.10, -0.08 ')
     endif
-! if lowerleftcorner is empty ignore it
+! om lowerleftcorner is empty ignore it
 !---------------------------------------------------------------
-! this is subroutine ocplot2B
+! this is subroutine ocplot2B_old
 !---------------------------------------------------------------
     backslash=',\'
 ! here we should start from the value in graphopt%linett
@@ -1320,6 +1322,456 @@
     k3=len_trim(gnuplotline)+1
     write(kou,*)'Gnuplot command file: ',pfc(1:kk+4)
 !    if(pform(1:1).ne.' ') then
+    if(graphopt%gnutermsel.ne.1) then
+       write(kou,*)'Graphics output file: ',pfh(1:kk+4)
+    endif
+    if(grwin.eq.1) then
+! call system without initial "gnuplot " keeps the window !!!
+       if(btest(graphopt%status,GRKEEP)) then
+!          write(*,*)'plot command: "',gnuplotline(9:k3),'"'
+!          write(*,*)'Trying to spawn: ',trim(gnuplotline)
+!          call system(gnuplotline(9:k3))
+! spawn plot on Windows ?? NOT ISO-TERMAL DIAGRAM
+!          write(*,*)'executing command: "start /B '//trim(gnuplotline)
+!          call execute_command_line('start /B '//gnuplotline(9:k3))
+          write(*,*)'executing command: "start /B '//trim(gnuplotline)//'"'
+          call execute_command_line('start /B '//trim(gnuplotline))
+! WORKS WITH OCPLOT3B
+!          call execute_command_line('start /B '//trim(gnuplotline))
+       else
+!          write(*,*)'plot command: "',gnuplotline(1:k3),'"'
+!          call system(gnuplotline)
+          write(*,*)'executing command: "'//trim(gnuplotline)//'"'
+          call execute_command_line(gnuplotline)
+       endif
+    else
+! plot on non-windows system
+       write(*,*)'executing command: '//trim(gnuplotline)
+       call execute_command_line(gnuplotline)
+    endif
+1000 continue
+    return
+  end subroutine ocplot2B_old
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim} %-
+  subroutine ocplot2B(np,nrv,nlinesep,linesep,pltax,xax,anpax,anpdim,anp,lid,&
+       phaseline,title,filename,graphopt,version,conditions)
+!       title,filename,graphopt,pform,version,conditions)
+! called from icplot2 to generate the GNUPLOT file after extracting data
+! np is number of columns (separate lines), if 1 no labelkey
+! nrv is number of values to plot?
+! nlinesep is the number of separate lines (index to linesep)
+! linesep is the row when the line to plot finishes
+! pltax
+! xax array of values for single valued axis (T or mu etc)
+! anpax=2 if axis with single value is column 2 and (multiple) values in
+!         columns 3 and higher
+! anp array of values for axis with multiple values (can be single values also)
+! lid array with GNUPLOT line types for the different lines
+! title Title of the plot
+! filename GNUPLOT file name, (also used for pdf/ps/gif file)
+! graphopt is graphical option record
+! NOT USED: pform is output form (scree/acrobat/postscript/git)
+! conditions is a character with the conditions for the diagram
+    implicit none
+    integer np,anpax,nlinesep
+    integer ndx,nrv,linesep(*),anpdim
+    character pltax(*)*(*),filename*(*),lid(*)*(*),title*(*)
+    character conditions*(*),version*(*),phaseline(*)*(*)
+    type(graphics_options) :: graphopt
+    double precision xax(*),anp(anpdim,*)
+    double precision scale1,scalem
+    type(graphics_textlabel), pointer :: textlabel
+!\end{verbatim}
+!----------------------------------------------------------------------
+! internal
+    integer ii,jj,kk,lcolor,appfil,nnv,ic,repeat,ksep,nv,k3,kkk,nofapl
+    integer, parameter :: mofapl=100
+    integer appfiletyp
+    character pfc*64,pfh*64,backslash*2,appline*128
+    character applines(mofapl)*128,gnuplotline*80,labelkey*64,rotate*16
+    character labelfont*16,linespoints*12,tablename*16,year*16,hour*16
+! write the gnuplot command file with data appended
+!
+!    write(*,10)'in ocplot2B: ',np,anpax,nrv,pform(1:1),trim(title),&
+!         nlinesep,(linesep(kk),kk=1,nlinesep)
+10  format(a,3i5,' "',a,'" '/a/i3,2x,15i4)
+!    write(*,*)'In ocplot2B filename: ',trim(filename)
+    if(index(filename,'.plt ').le.0) then 
+       kk=len_trim(filename)
+       pfc=filename(1:kk)//'.'//'plt '
+       kkk=kk+4
+    else
+       pfc=filename
+       kk=index(pfc,'.')-1
+       kkk=len_trim(filename)+1
+    endif
+!    write(*,*)'In OCPLOT2B opening ',trim(pfc)
+    open(21,file=pfc,access='sequential',status='unknown')
+!    write(*,*)'In OCPLOT2B after opening ',trim(pfc)
+    write(21,1600)trim(title)
+1600 format('# GNUPLOT file generated by OpenCalphad'/'# ',a)
+! if there is just one curve do not write any key.  May be overriiden later ..
+    if(graphopt%gnutermsel.lt.1 .or. &
+         graphopt%gnutermsel.gt.graphopt%gnutermax) then
+       write(*,*)'Unknown graphics terminal: ',graphopt%gnutermsel
+       goto 1000
+    elseif(graphopt%gnutermsel.gt.1) then
+! terminal 1 is screen without any output file
+       pfh=filename(1:kk)//'.'//graphopt%filext(graphopt%gnutermsel)
+! set the screen as a comment ...
+       write(21,840)trim(graphopt%gnuterminal(1)),&
+            trim(graphopt%gnuterminal(graphopt%gnutermsel)),trim(pfh)
+840    format('#set terminal ',a/'set terminal ',a/'set output "',a,'"')
+    else
+! terminal 1 is screen without any output file
+       write(21,841)trim(graphopt%gnuterminal(graphopt%gnutermsel))
+841    format('set terminal ',a)
+    endif
+! this part is independent of which axis is a single value
+!------------------ some GNUPLOT colors:
+! colors are black: #000000, red: #ff000, web-green: #00C000, web-blue: #0080FF
+! dark-yellow: #C8C800, royal-blue: #4169E1, steel-blue #306080,
+! gray: #C0C0C0, cyan: #00FFFF, orchid4: #804080, chartreuse: 7CFF40
+! if just one line set key off for that line.
+    if(np.eq.1 .and. graphopt%appendfile(1:1).eq.' ') then
+       labelkey=' off'
+    else
+       labelkey=graphopt%labelkey
+    endif
+    call date_and_time(year,hour)
+!    write(*,*)'"',year,'"  "',hour,'"'
+    tablename='OCT'//year(3:8)//hour(1:6)
+! OC logo oclogo added by Catalina Pineda
+    write(21,860)trim(title),trim(conditions),graphopt%xsize,graphopt%ysize,&
+         trim(pltax(1)),trim(pltax(2)),trim(labelkey)
+860 format('set title "',a,' \n ',a,'" font "arial,10" '/&
+         'set origin 0.0, 0.0 '/&
+         'set size ',F8.4', ',F8.4/&
+         'set xlabel "',a,'"'/'set ylabel "',a,'"'/&
+         'set label "O" at graph -0.090, -0.100 font "Garamond bold,20"'/&
+         'set label "C" at graph -0.080, -0.100 font "Garamond bold,20"'/&
+         'set key ',a/&
+         'set style line 1 lt 2 lc rgb "#000000" lw 2 pt 10'/&
+         'set style line 2 lt 2 lc rgb "#4169E1" lw 2 pt 6'/&
+         'set style line 3 lt 2 lc rgb "#00C000" lw 2 pt 3'/&
+         'set style line 4 lt 2 lc rgb "#FF0000" lw 2 pt 2'/&
+         'set style line 5 lt 2 lc rgb "#0080FF" lw 2 pt 4'/&
+         'set style line 6 lt 2 lc rgb "#C8C800" lw 2 pt 5'/&
+         'set style line 7 lt 2 lc rgb "#C0C0C0" lw 2 pt 7'/&
+         'set style line 8 lt 2 lc rgb "#00FFFF" lw 2 pt 8'/&
+         'set style line 9 lt 2 lc rgb "#804080" lw 2 pt 9'/&
+         'set style line 10 lt 2 lc rgb "#7CFF40" lw 2 pt 1')
+!
+    if(graphopt%rangedefaults(1).ne.0) then
+! user defined ranges for x axis
+       write(21,870)'x',graphopt%plotmin(1),graphopt%plotmax(1)
+870    format('set ',a1,'range [',1pe12.4,':',1pe12.4,'] ')
+    endif
+    if(graphopt%rangedefaults(2).ne.0) then
+! user defined ranges for y axis
+       write(21,870)'y',graphopt%plotmin(2),graphopt%plotmax(2)
+    endif
+!----------------------
+! logarithmic axis
+    if(graphopt%axistype(1).eq.1) then
+       write(21,151)'x'
+151    format('set logscale ',a)
+    endif
+    if(graphopt%axistype(2).eq.1) then
+       write(21,151)'y'
+    endif
+!------------------------------------------------------------
+! set labels (user added text in diagram)
+    textlabel=>graphopt%firsttextlabel
+    do while(associated(textlabel))
+       rotate=' '
+       if(textlabel%angle.ne.0) write(rotate,177)textlabel%angle
+177    format(' rotate by ',i5)
+       labelfont=' '
+!       write(*,*)'textfontscale: ',textlabel%textfontscale
+       if(textlabel%textfontscale.ne.one) then
+          write(labelfont,178)int(10*textlabel%textfontscale)
+178       format(' font "Sans,',i2,'" ')
+       endif
+!       if(textlabel%angle.eq.0) then
+       write(21,1505)trim(textlabel%textline),textlabel%xpos,textlabel%ypos,&
+            trim(labelfont),trim(rotate)
+1505   format('set label "',a,'" at ',1pe12.4,', ',1pe12.4,a,a)
+!       else
+!         write(21,1506)trim(textlabel%textline),textlabel%xpos,textlabel%ypos,&
+!               textlabel%angle
+!1506      format('set label "',a,'" at ',1pe12.4,', ',1pe12.4,&
+!               ' rotate by ',i5)
+!       endif
+       textlabel=>textlabel%nexttextlabel
+    enddo
+!---------------------------------------------------------------
+! handle appended files here ....
+!
+    appfil1: if(graphopt%appendfile(1:1).eq.' ') then
+       appfil=0
+    else
+       appfil=23
+       write(kou,*)'Appending data from: ',trim(graphopt%appendfile)
+       open(appfil,file=graphopt%appendfile,status='old',&
+            access='sequential',err=1750)
+!
+       write(21,1720)'# APPENDED from '//trim(graphopt%appendfile)
+! copy all lines up to "plot" to new graphics file
+       nnv=0
+1710   continue
+       read(appfil,1720,end=1750)appline
+1720   format(a)
+! note if append file is GIBBSTRIANGLE
+       if(appline(1:10).eq.'# GIBBSTRI') then
+          write(*,*)'Warning: appended file is in Gibbstriangle format,',&
+               ' plot will be strange!'
+          goto 1710
+       endif
+!------------------------------------------------------------------
+! ignore some lines with "set" in the append file
+! set title
+! set xlabel
+! set ylabel
+! set xrange
+! set yrange
+! set terminal
+! set origin
+! set size
+! set key
+       if(appline(1:10).eq.'set title ' .or.&
+            appline(1:11).eq.'set xlabel ' .or.&
+            appline(1:11).eq.'set ylabel ' .or.&
+            appline(1:11).eq.'set xrange ' .or.&
+            appline(1:11).eq.'set yrange ' .or.&
+            appline(1:11).eq.'set output ' .or.&
+            appline(1:13).eq.'set terminal ' .or.&
+            appline(1:11).eq.'set origin ' .or.&
+            appline(1: 9).eq.'set size ' .or.&
+            appline(1: 8).eq.'set key ') then
+!          write(*,*)'ignoring append line ',trim(appline)
+          goto 1710
+       endif
+!------------------------------------------------------------------
+! changes here in the new subroutine ocplot2B
+!       write(*,*)'SMP: appline1: ',trim(appline)
+       ii=index(appline,'plot "-"')
+       if(ii.gt.0) then
+          applines(1)=appline
+          appfiletyp=1
+       else
+          ii=index(appline,"plot '-'")
+          if(ii.gt.0) then
+             applines(1)=appline
+             appfiletyp=1
+          else
+! we can also have a "plot for ... " do not change applines(1)
+             ii=index(appline,"plot for ")
+             if(ii.le.0) then
+! just copy the file to ocgnu.plt
+                write(21,'(a)')trim(appline)
+                goto 1710
+             else
+! this is a "plot for" appfile using a table that has already been copied
+                applines(1)=appline
+                appfiletyp=2
+             endif
+          endif
+       endif
+! we have now found the plot command in the append file. There can be more
+!       write(*,*)'SMP appfiletyp: ',appfiletyp
+! here we save the actual plot commands from the appendfile!!
+       applines(1)=appline
+!       write(*,*)'SMP appline1: ',trim(applines(1))
+       ic=1
+1730   continue
+! if line ends with \ then read more
+       ii=len_trim(appline)
+! write(*,*)'There are more? ',appline(i:ii),ii,ic
+!       if(appline(ii:ii).eq.'\') then
+       if(appline(ii:ii).eq.' ') then
+! continuation lines !! NOTE EACH plot expected at the beginning of the line
+          read(appfil,1720,end=1750)appline
+          ic=ic+1
+          if(ic.ge.mofapl) then
+             write(*,*)'Too many header lines in append file',ic
+          else
+             applines(ic)=appline
+          endif
+          goto 1730
+       endif
+! debug output of saved plot command
+       nofapl=ic
+!          write(*,*)(trim(applines(jj)),jj=1,nofapl)
+!          write(*,*)'appline: ',trim(appline),ic
+!          close(appfil)
+!          appfil=0
+       goto 1770
+!       endif
+!       write(*,*)'SMP appline1B: ',trim(appline)
+       write(21,1720)trim(appline)
+       nnv=nnv+1
+       goto 1710
+! error oppening append file
+1750   continue
+       write(kou,*)'Error opening or reading the append file, skipping it'
+       close(appfil)
+       appfil=0
+1770   continue
+    endif appfil1
+! end of appendfile special
+!-----------------------------------------------
+! text in lower left corner
+    ii=len_trim(graphopt%lowerleftcorner)
+    if(ii.gt.0) then
+! in square diagram below figure
+       write(21,209)trim(graphopt%lowerleftcorner)
+209    format('set label "',a,'" at graph -0.10, -0.08 ')
+    endif
+! if lowerleftcorner is empty ignore it
+!---------------------------------------------------------------
+! this is new subroutine ocplot2B
+!---------------------------------------------------------------
+!========================================= begin using plot for
+! ANPAX is axis with multiple values
+    if(anpax.ne.0) then
+       scalem=graphopt%scalefact(anpax)
+       scale1=graphopt%scalefact(3-anpax)
+    else
+       scalem=graphopt%scalefact(1)
+       scale1=graphopt%scalefact(2)
+    endif
+! now write all data once as a table ended with EOD
+    write(21,3000)trim(tablename)
+3000 format('$',a,' << EOD')
+!
+! columnheaders used as keys
+    write(21,3100)'KEYS: ',trim(pltax(3-anpax)),(trim(lid(jj)),jj=1,np)
+3100 format(a,a,' ',100(a,' '))
+    ksep=2
+    do nv=1,nrv
+!---------------------------------------------------------------
+! values written multiplied with graphopt%scalefact, 
+! first value is single valued axis (can be X or Y axis) multiplied with scale1
+! remaining values multiplied svalem
+       write(21,'(i4,1pe16.6)',advance='no')nv,scale1*xax(nv)
+       do jj=1,np-1
+! second and later columns represent Y axis
+          if(anp(jj,nv).ne.rnone) then
+             write(21,2821,advance='no')scalem*anp(jj,nv)
+          else
+             write(21,'(a)',advance='no')' NaN '
+          endif
+       enddo
+       if(anp(jj,nv).ne.rnone) then
+          write(21,2821)scalem*anp(jj,nv)
+       else
+          write(21,'(a)')' NaN '
+       endif
+!2820   format(i4,1pe16.6)
+2821   format(1pe16.6)
+!2822   format(' NaN ')
+!---------------------------------------------------------------
+       if(nv.eq.linesep(ksep)) then
+! an empty line in the dat file means a MOVE to the next point.
+          if(nv.lt.nrv) then
+             write(21,3819)ksep-1
+3819         format('# end of line ',i2//)
+          else
+! try to avoid rubbish
+             write(21,3821)
+3821         format('# end of line '//)
+          endif
+! test of uninitiallized variable, ksep must not exceed nlinesep
+          ksep=min(ksep+1,nlinesep)
+       endif
+    enddo
+    write(21,'(a)')'EOD'
+    if(appfil.gt.0) then
+! if there is an appendfile add set multiplot
+! The "writeback" is important for uniform scaling of multiplots
+       write(21,3828)
+3828   format('set multiplot'/&
+            'set xrange [] writeback'/'set yrange [] writeback')
+    endif
+! if anpax is axis with single value (1=x, 2=y)
+    if(anpax.eq.1) then
+       write(21,3900)np+2,trim(tablename)
+3900   format('plot for [i=3:',i2,'] $',a,' using i:2',&
+            ' with lines ls (i-2) title columnheader(i)') 
+    else
+       write(21,3910)np+2,trim(tablename)
+3910   format('plot for [i=3:',i2,'] $',a,' using 2:i',&
+            ' with lines ls (i-2) title columnheader(i)') 
+    endif
+! plot command from appfil
+    if(appfil.gt.0) then
+! try to avoid overlapping keys ...
+! The "restore" for x/yrange means the scaling from the "plot for"
+! will be used also for the appended data
+       write(21,3912)
+3912   format('set key bottom right font "arial,12"'/&
+            'set xrange restore'/'set yrange restore')
+       if(appfiletyp.eq.2) then
+! just one line with plot for ... 
+! the data to append is already copied as a table
+          write(21,'(a)')trim(applines(1))
+          close(appfil)
+          appfil=0
+          write(21,'(a)')'unset multiplot'
+       else
+          do jj=1,nofapl
+             write(21,'(a)')trim(applines(jj))
+          enddo
+       endif
+    endif
+! if the plot command is "plot '-' ... then
+! copy the data from the append file, it should be correctly formatted
+    if(appfil.gt.0) then
+       ic=0
+1900   continue
+! this is copying the actual data to plot from the append file.
+       read(appfil,884,end=1910)appline
+884    format(a)
+       ic=ic+1
+       if(appline(1:11).eq.'pause mouse') goto 1900
+       write(21,884)trim(appline)
+       goto 1900
+1910   continue
+!       write(*,*)'Appended ',ic,' data lines'
+       write(21,'(a)')'unset multiplot'
+       close(appfil)
+       appfil=0
+    endif
+!------------------------------------------------------
+!    write(*,*)'In OCPLOT2B finished 1 "',pform(1:1),'"'
+    if(graphopt%gnutermsel.eq.1) then
+! if not hardcopy pause gnuplot.  Mouse means clicking in the graphics window
+! will close it. I would like to have an option to keep the graphics window...
+       write(21,990)trim(graphopt%plotend)
+!990    format('pause mouse')
+990    format(a)
+    endif
+    close(21)
+!    write(*,*)'In OCPLOT2B closed ',trim(pfc),kkk
+    if(appfil.ne.0) close(appfil)
+    appfil=0
+!-------------------------------------------------------------------
+! execute the GNUPLOT command file
+    gnuplotline='gnuplot '//pfc(1:kkk)//' & '
+! Uncomment the following line for OS having gnuplot5 and 
+! comment the above line with gnuplotline='gnuplot '//pfc(1:kkk)//' & '
+!  gnuplotline='gnuplot5 '//pfc(1:kkk)//' & '
+! Reason - Choose the gnuplot command as per the Operating System's 
+! existing command "gnuplot", "gnuplot5"etc..
+! Or, give the path of the gnuplot file as described below:
+! if gnuplot cannot be started with gnuplot give normal path ...
+!    gnuplotline='"c:\program files\gnuplot\bin\wgnuplot.exe" '//pfc(1:kkk)//' '
+    k3=len_trim(gnuplotline)+1
+    write(kou,*)'Gnuplot command file: ',pfc(1:kk+4)
     if(graphopt%gnutermsel.ne.1) then
        write(kou,*)'Graphics output file: ',pfh(1:kk+4)
     endif
@@ -1899,7 +2351,7 @@
 !            'set label "O" at screen 0.130, 0.027 font "Garamond bold,20"'/&
 !            'set label "C" at screen 0.139, 0.027 font "Garamond bold,20"')
             'set label "O" at graph -0.090, -0.100 font "Garamond bold,20"'/&
-            'set label "C" at graph -0.080, -0.100 font "Garamond bold,20"')
+            'set label "C" at graph -0.077, -0.100 font "Garamond bold,20"')
 ! we should also enforce same length of X and Y axis !!!
     else
 ! SQUARE DIAGRAM
@@ -2063,7 +2515,9 @@
           goto 200
        endif
 !------------------------------------------------------------------
-       if(index(appline,'plot "-"').gt.0) then
+       if(index(appline,'plot "-"').gt.0 .or. &
+            index(appline,"plot '-'").gt.0 .or. &
+            index(appline,"plot for ").gt.0) then
 ! this is ocplot3B, reading plot command lines
           if(plotgt) then
 ! check if append file has square or triangular coordinates ...
@@ -2106,7 +2560,7 @@
        goto 200
 ! error oppening append file
 280    continue
-       write(kou,*)'Error opening or reading the append file, skipping it'
+       write(kou,*)' *** Cannot open or read the append file, skipping it'
        close(appfil)
        appfil=0
 290    continue
@@ -2516,9 +2970,13 @@
        read(appfil,884,end=1910)appline
 884    format(a)
        ic=ic+1
-       if(appline(1:11).eq.'pause mouse') goto 1900
-       write(21,884)trim(appline)
-       goto 1900
+       if(appline(1:11).eq.'pause mouse') then
+          write(*,*)'reading appendfile ends at "puase mouse"'
+          goto 1910
+       else
+          write(21,884)trim(appline)
+          goto 1900
+       endif
 1910   continue
 !       write(*,*)'Appended ',ic,' data lines'
        close(appfil)

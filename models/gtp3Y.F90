@@ -2800,7 +2800,7 @@
 !   ncon=inkl(nsl)
 ! BoS corrected 2019/04/13: (U+4,Zr+4)(O-2,Va,O) has 5 constituents not 6
    ncon=inkl(1)+nkl(2)
-   write(*,45)'3Y liquid endmembers: ',mode,nkl(1),nkl(2),anion,nend
+!   write(*,45)'3Y liquid endmembers: ',mode,nkl(1),nkl(2),anion,nend
 45 format(a,5i5)
    negmode: if(mode.lt.0) then
 !---------------------------------------------------------
@@ -2895,9 +2895,9 @@
    enddo
 ! debug check
    if(mode.eq.0) then
-      write(*,*)'3Y NEW: mode, endmembers, gridpoints: ',mode,nend,ngg
-      write(*,111)(endm(1,je),endm(2,je),je=1,nend)
-111   format('3Y   : ',10(i4,i3)/11(i4,i3))
+!      write(*,*)'3Y NEW: mode, endmembers, gridpoints: ',mode,nend,ngg
+!      write(*,111)(endm(1,je),endm(2,je),je=1,nend)
+111   format('3Y list: ',10(i4,i3)/11(i4,i3))
    endif
 !   gx%bmperr=4399; goto 1000
 !---------------------------------------
@@ -3801,7 +3801,7 @@
    allocate(y2(ncc))
    allocate(y3(ncc))
    allocate(y4(ncc))
-   write(*,*)'3Y Charged grid: ',mode,nend,ncon,ncc
+!   write(*,*)'3Y Charged grid: ',mode,nend,ncon,ncc
 !   write(*,*)'3Y allocated neutral: ',mode,alloneut,np
 ! loopf keeps track if several gridpoints belong together
 !   if(.not.(allocated(neutral))) then
@@ -4075,7 +4075,7 @@
             do ll=1,ny
                yarr(ll)=y4(ll)
             enddo
-            write(*,507)'3Y Solution gp: ',mode,ny,y4
+!            write(*,507)'3Y Solution gp: ',mode,ny,y4
 507         format(a,2i5,10F7.4)
             goto 1000
          endif

@@ -1,4 +1,4 @@
-This file contains information on Open Calphad (OC) version 5 and older
+This file contains information on Open Calphad (OC) version 5 and earlier
 
 For general information please read the readme-general.pdf 
 
@@ -12,6 +12,32 @@ does not require any understanding of thermodynamics please contact a
 commercial vendor.
 
 In the list below the most recent changes come first.
+
+2019.04.21 OC version 5.039: I have now modified plotting with several
+dependent functions like STEP but also MAP when there are tie-lines in
+the plane.  Previously I repeated all data for each line plotted which
+made the ocgnu.plt file very large and difficult to handle.  With help
+from "stackoverflow" I learned that I can write the matrix with data
+once in the ocgnu.plt file with a name which can later be used several
+times in a "plot for" command in GNUPLOT.
+
+THIS CHANGE REQUIRES GNUPLOT 5.0 or later for plotting.
+
+A problem with this change is that appending a plotfile I will not
+have the same scaling on the data in the append file.  After some
+reading of the GNUPLOT manual forwards and backwards I found that I
+can save the autoscaled X and Y values from the first plot with a
+"writeback" option to "set x/yrange" and then set these as scaling for
+the next plot of the appended data.  Very smart and quite difficult to
+dig up.
+
+There has also been some interest to use OC for teaching and as I
+mainly thought of skilled users while OC has been developed I will add
+some facilities to simplify calculations of phase diagrams (several
+automatic start points).  I have also added a DATABSE_INFO in the
+multicomponent databases provided with OC which will be written when
+reading these database to warn against calculation of unassessed
+systems.
 
 2019.04.15 OC version 5.038: I plan to make a major change plotting
 and that requires version 5 of GNUPLOT or later.  PLease make sure you

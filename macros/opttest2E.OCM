@@ -80,6 +80,7 @@ set fix 40 -300000
 
 macro ./opttest2-plot-cplaves
 
+@&
 @$--------------------------------------------------------
 @$ There is still a maximum but at a higher T
 @$ Check how the constitution varies!

@@ -2609,3 +2609,48 @@ end function find_phasetuple_by_indices
   end function get_mpi_index
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine set_new_stoichiometry(loksp, new_stoi, ispel)
+! provided by Clement Instoini
+! Change the stoichiometric coefficient of the ispel-th element of loksp-th
+! species (the last one when ispel is not given)
+! loksp: index of the species (input integer)
+! new_stoi: new value of the stoichiometric coefficient (input double precision)
+! ispel: index of the element (optional, input integer)
+   implicit none
+   integer, intent(in):: loksp
+   integer, intent(in), optional :: ispel
+   double precision, intent(in):: new_stoi
+!\end{verbatim}
+   character el_name*12,spe_name*24
+   integer iel,jl,nspel
+   double precision :: old_stoi
+   ! number of elements in species
+   nspel=splista(loksp)%noofel
+   spe_name = trim(splista(loksp)%symbol)
+!
+   if( .not. present(ispel) ) then
+    iel = nspel
+    !change the stoichiometric coefficient of the last element
+    old_stoi=splista(loksp)%stoichiometry(iel)
+    splista(loksp)%stoichiometry(iel)=new_stoi
+   else
+     iel = ispel
+     if (iel.gt.0) then
+       ! Change the stoichiometric coefficient of the ispel-th element
+       old_stoi=splista(loksp)%stoichiometry(iel)
+       splista(loksp)%stoichiometry(iel)=new_stoi
+!     else
+!       nothing to be done
+     end if
+   end if
+   el_name=ellista(splista(loksp)%ellinks(iel))%name
+   if(ocv()) then
+      write(*,*)"set_new_stoichiometry: (species,element,old_stoi,new_stoi)',&
+           ' = (",spe_name,",",el_name,",",old_stoi,",",new_stoi,")"
+   endif
+ end subroutine set_new_stoichiometry
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+

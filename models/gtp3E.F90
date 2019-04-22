@@ -6505,6 +6505,85 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+ !\begin{verbatim}
+ subroutine checkdb2(filename,ext,nel,selel)
+! checking a TDB/PDB file exists and return the elements
+! It also writes 15 lines from any "DATABASE_INFO" in the file
+   implicit none
+   integer nel
+   character filename*(*),ext*4,selel(*)*2
+!\end{verbatim}
+   character line*256,ext2*4
+   integer ipp,nl,kk,dbinfo
+!
+   ext2=ext
+   dbinfo=0
+   call capson(ext2)
+   if(.not.(index(filename,ext).gt.0 &
+       .or. index(filename,ext2).gt.0)) then
+! no extention provided
+      filename(len_trim(filename)+1:)=ext2
+   endif
+   open(21,file=filename,access='sequential',form='formatted',&
+        err=1010,iostat=gx%bmperr,status='old')
+! if first line of file is "$OCVERSION ..." the text is displayed once
+   read(21,110)line
+   if(line(1:11).eq.'$OCVERSION ') then
+      write(kou,117)trim(line(12:))
+117   format(/'TDB file id: ',a/)
+   endif
+   rewind(21)
+! just check for ELEMENT and DATABASE_INFO keywords
+! return here to look for a new keyword, end-of-file OK here
+   nl=0
+   nel=0
+100 continue
+   read(21,110,end=2000)line
+110 format(a)
+   nl=nl+1
+! One should remove TAB characters !! ??
+   call replacetab(line,ipp)
+   ipp=1
+   if(eolch(line,ipp)) goto 100
+   if(line(ipp:ipp).eq.'$') goto 100
+! look for ELEMENT keyword, ipp=1
+   ipp=istdbkeyword(line,kk)
+   if(ipp.eq.11 .and. dbinfo.eq.0) then
+! DATABASE_INFORMATION keyword, ipp=11
+      dbinfo=1
+      write(kou,200)trim(line)
+200   format(/'This database has infomation to users, please read carefully'/a)
+      do while(index(line,'!').le.0)
+         read(21,110)line
+         write(kou,110)trim(line)
+      enddo
+      write(kou,*)
+   endif
+   if(ipp.ne.1) goto 100
+!
+! ignore /- and VA
+   if(eolch(line,kk)) goto 100
+   if(line(kk:kk+1).eq.'/-' .or. line(kk:kk+1).eq.'VA') goto 100
+   nel=nel+1
+   selel(nel)=line(kk:kk+1)
+!      write(*,111)nl,line(1:20)
+!111   format('Read line ',i5,': ',a)
+   goto 100
+!---------
+1000 continue
+   return
+! error
+1010 continue
+   goto 1000
+! end of file
+2000 continue
+   close(21)
+   goto 1000
+   return
+ end subroutine checkdb2
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
 !-\begin{verbatim}
  subroutine gtpsavetm(filename,str)
 ! save all data on file in a modified TDB format.  Also as macro and LaTeX
