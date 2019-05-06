@@ -14,8 +14,7 @@ new Y
 
 set echo
 
-read u
-opttest2-cumg1
+read unf ./opttest2-cumg1
 
 @$-----------------------------------------------------------------
 @$ Here we read back the data from the save command.
@@ -97,7 +96,7 @@ list opt
 @$ This lists the final value of the model parameters and for
 @$ each experiment with non-zero weight the data and error.
 @$ The list may be long and you may have to scroll bacwards
-@$ to see all experiments and the parameter values
+@$ to see all experiments.
 @$------------------------------------------------------------------------
 @&
 @$ The optimizing coefficients are also TP sysmbols
@@ -108,7 +107,7 @@ l tp
 @&
 @$ Plot the enthalpy of mixing in the liquid 
 
-macro opttest2-plot-hliq
+macro ./opttest2-plot-hliq
 
 @&
 @$ -----------------------------------------------
@@ -133,7 +132,7 @@ l opt coef
 @&
 @$ And plot the new fit to the experiments.
 
-macro opttest2-plot-hliq
+macro ./opttest2-plot-hliq
 
 @&
 @$ -----------------------------------------------
@@ -148,15 +147,27 @@ opt 100
 
 l opt coef
 
+@$ It may now be intersting to have correct RSD
+
+amend opt y
+
+opt 100
+
+l opt coef
+
+@$ The RSD values reflect the number of significant digits of
+@$ the coefficients, if RSD is around 0.1 the coeffcient
+@$ as only one significant digit.
+@$ If 0.1>RSD>.001 there are two significant digits and so on
 @&
 
-macro opttest2-plot-hliq
+macro ./opttest2-plot-hliq
 
 
 @&
 @$ We can plot the phase diagram with the new liquid parameters
 
-macro opttest2-map-diagram
+macro ./opttest2-map-diagram
 
 @$-----------------------------------------------------------
 @$ The liquid is now very stable down to low T 
@@ -173,9 +184,7 @@ set fix 0-3
 
 delete step_map
 
-save unf
-done step 1
-opttest2-cumg2
+save unf ./opttest2-cumg2
 Y
 
 set inter

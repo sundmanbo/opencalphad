@@ -2,7 +2,7 @@
 !
 MODULE ocsmp
 !
-! Copyright 2012-2018, Bo Sundman, France
+! Copyright 2012-2019, Bo Sundman, France
 !
 !    This program is free software; you can redistribute it and/or modify
 !    it under the terms of the GNU General Public License as published by
@@ -202,7 +202,7 @@ MODULE ocsmp
 !\begin{verbatim}
   TYPE map_ceqresults
 ! stores calculated equilibrium records
-     integer size,free
+     integer size,free,index
      TYPE(gtp_equilibrium_data), dimension(:), allocatable :: savedceq
   end TYPE map_ceqresults
 !\end{verbatim}
@@ -239,6 +239,9 @@ MODULE ocsmp
      integer :: status=0,rangedefaults(3)=0,axistype(2)=0
      double precision, dimension(3) :: plotmin,plotmax
      double precision, dimension(3) :: dfltmin,dfltmax
+! scalefact is by defailt 1.0 and can be used to scale ais value, fore
+! example to plot kJ rather than J for reasonable axis
+     double precision, dimension(3) :: scalefact
 ! these define realative plot size for X and Y, normally 1.0 or less
      double precision :: xsize=1.0D0,ysize=1.0D0
 ! labeldefaults(i) for axis i 0 means default text, 1 text in plotlabels
@@ -254,10 +257,10 @@ MODULE ocsmp
 ! the set key command in GNUPLOT specifies where the line id is written
 ! it can be on/off, placed inside/outside, left/right/center, top/bottom/center,
 ! and some more options that may be implemented later ...
-     character labelkey*24
+     character labelkey*48
 ! filename is file to write the GNUPLOT command and data file
 ! appendfile is a file name that will be appended unless empty
-     character filename*64,appendfile*64
+     character filename*128,appendfile*128
 ! gnuplot terminals and keys, gnuselterm is selected terminal type (1..8)
      integer gnutermsel,gnutermax
      character*80 gnuterminal(8)
@@ -272,6 +275,10 @@ MODULE ocsmp
 ! The default and current ending of a plot
      character*12 :: plotenddefault='pause mouse '
      character plotend*36
+! added 180924 text at lower left corner
+     character (len=6) :: lowerleftcorner='      '
+! added to have larger axis texts and line titles
+     integer:: textonaxis=0
 ! many more options can easily be added when desired, linetypes etc
   end TYPE graphics_options
 !\end{verbatim}
@@ -283,6 +290,16 @@ MODULE ocsmp
 ! for graphopt status word
 ! GRKEEP is set if graphics windows kept
   integer, parameter :: GRKEEP=0
+#ifdef notwin
+  integer, parameter :: GRWIN=0
+#else
+  integer, parameter :: GRWIN=1
+#endif
+! for colors
+  character (len=6) :: monovariant='7CFF40'
+  character (len=6) :: tielinecolor='7CFF40'
+! for trace
+  logical :: plottrace=.FALSE.
 !
 !-------------------------------------------------
 !
@@ -465,7 +482,6 @@ CONTAINS
     integer starttid,endoftime,bytdir,seqz,nrestore,termerr,lastimethiserror
     type(gtp_state_variable), pointer :: svrrec,svr2
     type(gtp_state_variable), target :: svrtarget
-
 ! save current conditions
     character savedconditions*1024
 ! for saving a copy of constitutions
@@ -477,7 +493,7 @@ CONTAINS
 ! inmap=1 turns off converge control of T
     integer, parameter :: inmap=1
     character ch1*1
-    logical firststep,onetime
+    logical firststep,onetime,noderrmess
 !
 !    write(*,*)'in map_doallines'
 !-------------------------------
@@ -519,6 +535,7 @@ CONTAINS
 ! ?? We may have incompatibility between ceq and meqrec if new compsets added
 ! maybe meqrec should not be a pointer?
     meqrec=>mapline%meqrec
+    noderrmess=.true.
 ! No grid minimization and the phr is not deallocated with mode<0
 ! It is necessary to generate new meqrec for each line as there may be new
 ! composition sets created in other threads.  But we must also specify 
@@ -701,21 +718,27 @@ CONTAINS
              meqrec%phr(mapline%nodfixph)%phasestatus=PHENTUNST
           endif
        endif
-       mapline%problems=0
-       nrestore=0
-!       mapline%lasterr=0
-!       write(*,*)'Calling map_store ',mapline%more
+!       mapline%problems=0
+!       nrestore=0
        call map_store(mapline,axarr,nax,maptop%saveceq)
-!       if(gx%bmperr.ne.0) then  missing text of mapline%more ??
        if(gx%bmperr.ne.0 .or. mapline%more.eq.0) then
 ! Test if we are running out of memory 
           if(gx%bmperr.eq.4219) goto 1000
-! or that a line has a too big jump
+          if(gx%bmperr.eq.4360) then
+! too big difference in some axis, take halfstep
+!             write(*,*)'Take a half step',halfstep
+             gx%bmperr=0; halfstep=halfstep+1
+             call map_halfstep(halfstep,0,axvalok,mapline,axarr,ceq)
+             if(gx%bmperr.eq.0) goto 321
+          endif
 ! terminate line any error code will be cleared inside map_lineend. 
 !          write(*,*)'Calling map_lineend 1'
           call map_lineend(mapline,axarr(abs(mapline%axandir))%lastaxval,ceq)
           goto 300
        endif
+! stored last calculated equilibrium 
+       mapline%problems=0
+       nrestore=0
 ! check which axis variable changes most rapidly, maybe change step axis
 ! (for tie-lines in plane check axis values for all phases)
 ! and take a step in this axis variable making sure it inside the limits
@@ -778,7 +801,7 @@ CONTAINS
 552       format(a,3i3,2(1pe12.4))
           call map_halfstep(halfstep,0,axvalok,mapline,axarr,ceq)
           if(gx%bmperr.eq.0) then
-! jump back without setting halfstep=0, setting iadd=-1 turn on debug output 
+! jump back without setting halfstep=0, setting iadd=-1 turns on debug output 
 !          iadd=-1
              goto 321
           endif
@@ -826,7 +849,7 @@ CONTAINS
     if(irem.gt.0 .and. iadd.gt.0) then
 ! We can also have a stoichiometic phase with ALLOTROPIC transformation
 ! which will change form one to another at a fix T
-       if(allotropes(irem,iadd,ceq)) then
+       if(allotropes(irem,iadd,meqrec%noofits,ceq)) then
           irem=0
           goto 379
        endif
@@ -863,10 +886,10 @@ CONTAINS
           call map_force_changeaxis(maptop,mapline,mapline%meqrec,nax,axarr,&
                axvalok,ceq)
           if(gx%bmperr.eq.0) goto 320
-          call map_lineend(mapline,zero,ceq)
+          call map_lineend(mapline,axvalok,ceq)
        else
 ! there is an error, take another line
-          call map_lineend(mapline,zero,ceq)
+          call map_lineend(mapline,axvalok,ceq)
        endif
 !-----------------------------------------------------
 ! a new phase stable or a stable wants to disappear
@@ -945,24 +968,25 @@ CONTAINS
              endif
 !
              write(*,561)gx%bmperr,ceq%tpval(1),axvalok
-561       format('Repeated error 9, try to change axis',i5,F8.2,1pe14.6)
+561          format('Repeated error 9, try to change axis',i5,F8.2,1pe14.6)
              write(*,*)'Trying to change axis with acitive condition'
              gx%bmperr=0
              bytaxis=1
              call map_force_changeaxis(maptop,mapline,mapline%meqrec,&
                   nax,axarr,axvalok,ceq)
              if(gx%bmperr.eq.0) goto 320
-             call map_lineend(mapline,zero,ceq)
+             call map_lineend(mapline,axvalok,ceq)
           else
-! there is a persistent error, take another line
-             call map_lineend(mapline,zero,ceq)
+! there is a persistent error, take another line, set error code
+             if(gx%bmperr.eq.0) gx%bmperr=4399
+             call map_lineend(mapline,axvalok,ceq)
           endif
        endif
        if(mapline%more.eq.0) then
 ! This is the last equilibrium at axis limit
           if(irem.gt.0) then
 ! terminate the line and check if there are other lines to calculate
-             call map_lineend(mapline,zero,ceq)
+             call map_lineend(mapline,axvalok,ceq)
              goto 300
           elseif(iadd.gt.0) then
              if(ocv()) write(*,*)'New phase at axis limit, IGNORE',iadd
@@ -983,6 +1007,11 @@ CONTAINS
        call map_calcnode(irem,iadd,maptop,mapline,mapline%meqrec,axarr,ceq)
 ! segmentation fault in map_calcnode 170518 !!
 !       write(*,*)'Back from map_calcnode',gx%bmperr
+       if((gx%bmperr.ne.0 .or. irem.ne.0 .or. iadd.ne.0).and. noderrmess) then
+          write(*,777)gx%bmperr,irem,iadd,ceq%tpval(1)
+777       format('SMP problem calculating node: ',3i5,F8.2)
+          noderrmess=.false.
+       endif
        if(gx%bmperr.ne.0) then
 ! if error one can try to calculate using a shorter step or other things ...
 !          write(*,*)'Error return from map_calcnode: ',gx%bmperr
@@ -991,7 +1020,7 @@ CONTAINS
 ! and we should not generate any startpoint.             
              write(*,*)'Setting line inactive',mapline%lineid
              mapline%status=ibset(mapline%status,EXCLUDEDLINE)
-             call map_lineend(mapline,zero,ceq)
+             call map_lineend(mapline,axvalok,ceq)
              goto 805
           endif
           if(meqrec%tpindep(1)) then
@@ -1026,12 +1055,13 @@ CONTAINS
              call map_force_changeaxis(maptop,mapline,mapline%meqrec,&
                   nax,axarr,axvalok,ceq)
              if(gx%bmperr.eq.0) goto 320
-             call map_lineend(mapline,zero,ceq)
+             call map_lineend(mapline,axvalok,ceq)
           else
 !             write(*,*)' *** Repeated errors calling map_calcnode,',&
 !                  ' terminate line',gx%bmperr,halfstep
 ! terminate line and follow another line, error reset inside map_lineend
-             call map_lineend(mapline,zero,ceq)
+             if(gx%bmperr.eq.0) gx%bmperr=4399
+             call map_lineend(mapline,axvalok,ceq)
           endif
        endif
        axvalok=zero
@@ -1109,7 +1139,8 @@ CONTAINS
        gx%bmperr=0
 ! most data inside meqrec like meqrec%phr are deallocated inside calceq7
 ! but calling it with mode=-1 it is kept so it must be deallocated here 
-       deallocate(meqrec%phr)
+! BUG here 2019.03.03 not allocated!
+       if(allocated(meqrec%phr)) deallocate(meqrec%phr)
        call calceq7(1,meqrec,mapfix,ceq)
        if(gx%bmperr.ne.0) then
           write(*,*)'Error calling calceq7 in map_startpoint A',gx%bmperr
@@ -1158,6 +1189,7 @@ CONTAINS
     else
 ! This is the first (and maybe only) mapnode record (later maptop)
 !       write(*,*)'Creating first maptop'
+! UNFINISHED: VALGRIND indicates loss of >24000 bytes in map_startpoint 
        allocate(maptop)
        mapnode=>maptop
        mapnode%noofstph=meqrec%nstph
@@ -1699,7 +1731,7 @@ CONTAINS
              svr2=>svrtarget
              call state_variable_val(svr2,yyy,ceq)
              if(gx%bmperr.ne.0) goto 1000
-             write(*,71)jax,xxx,yyy
+!             write(*,71)jax,xxx,yyy
 71           format('Change ',i3,' axis condition from/to ',2F10.6)
 ! first argument 1 means to extract the value, 0 means to set the value
              call condition_value(0,pcond,yyy,ceq)
@@ -1782,8 +1814,8 @@ CONTAINS
        gx%bmperr=4228
     endif
 1000 continue
-    write(*,*)'Return from map_replaceaxis with conditions: '
-    call list_conditions(kou,ceq)
+!    write(*,*)'Return from map_replaceaxis with conditions: '
+!    call list_conditions(kou,ceq)
     return
   end subroutine map_replaceaxis
 
@@ -2049,8 +2081,8 @@ CONTAINS
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
-  subroutine map_store(mapline,axarr,nax,saveceq)
-! store a calculated equilibrium
+  subroutine map_checkstep(mapline,value,jj,axarr,nax,saveceq)
+! check if step too large
 ! mapline is line record
 ! axarr is array with axis records
 ! nax is number of axis
@@ -2066,29 +2098,87 @@ CONTAINS
     type(gtp_state_variable), target :: axstv1
     type(gtp_state_variable), pointer :: axstv
     double precision value
+    character ch1*1
     logical saveonfile
 ! pointer to last calculated (can be zero) and last free
 ! store last calulated axis values in axarr(iax)%lastaxval
 !    write(*,*)'In map_store',mapline%start%number_ofaxis,nax
+!    do jj=1,nax
+!       axstv1=axarr(jj)%axcond(1)
+!       axstv=>axstv1
+!       call state_variable_val(axstv,value,mapline%lineceq)
+!       if(gx%bmperr.gt.0) goto 1000
+!       if(nax.gt.1) then
+! when several axis check if any has a big change ...
+!    if(mapline%number_of_equilibria.gt.3) then
+    if(abs(axarr(jj)%lastaxval-value).gt.&
+         1.0D-1*(axarr(jj)%axmax-axarr(jj)%axmin)) then
+       write(*,17)jj,mapline%axandir,mapline%number_of_equilibria,&
+            axarr(jj)%lastaxval,value
+17     format(' *** Too large change in axis: ',2i3,' at ',i4,&
+            2(1pe14.6))
+       gx%bmperr=4360; goto 1000
+    endif
+1000 continue
+    return
+  end subroutine map_checkstep
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+  subroutine map_store(mapline,axarr,nax,saveceq)
+! store a calculated equilibrium
+! mapline is line record
+! axarr is array with axis records
+! nax is number of axis
+! saveceq is record for saved equilibria
+    implicit none
+    integer nax
+    type(map_line), pointer :: mapline
+    type(map_axis), dimension(nax) :: axarr
+    type(map_ceqresults), pointer :: saveceq
+!\end{verbatim}
+    integer place,jph,jj,lokcs
+    type(meq_setup), pointer :: meqrec
+    type(gtp_state_variable), target :: axstv1
+    type(gtp_state_variable), pointer :: axstv
+    double precision value
+    character ch1*1
+    logical saveonfile,testforspinodal
+! pointer to last calculated (can be zero) and last free
+! store last calulated axis values in axarr(iax)%lastaxval
+!    write(*,*)'In map_store',mapline%start%number_ofaxis,nax
+! insert a test for spinodal at every iii equilibriia
+    testforspinodal=.FALSE.
+    if(globaldata%sysparam(2).gt.0) then
+       if(mod(mapline%number_of_equilibria,globaldata%sysparam(2)).eq.0) &
+            testforspinodal=.TRUE.
+    endif
+!
     do jj=1,nax
        axstv1=axarr(jj)%axcond(1)
        axstv=>axstv1
        call state_variable_val(axstv,value,mapline%lineceq)
        if(gx%bmperr.gt.0) goto 1000
-       if(nax.gt.1) then
+! this check could be moved before store to take halfstep??
+       if(nax.gt.1 .and. mapline%number_of_equilibria.gt.3) &
+            call map_checkstep(mapline,value,jj,axarr,nax,saveceq)
+       if(gx%bmperr.ne.0) goto 1000
+!       if(nax.gt.1) then
 ! when several axis check if any has a big change ...
-          if(mapline%number_of_equilibria.gt.3) then
-             if(abs(axarr(jj)%lastaxval-value).gt.&
-                  1.0D-1*(axarr(jj)%axmax-axarr(jj)%axmin)) then
+!          if(mapline%number_of_equilibria.gt.3) then
+!             if(abs(axarr(jj)%lastaxval-value).gt.&
+!                  1.0D-1*(axarr(jj)%axmax-axarr(jj)%axmin)) then
 !                  2.0D-2*(axarr(jj)%axmax-axarr(jj)%axmin)) then
-                write(*,17)'map_step found large step in axis: ',&
-                     mapline%number_of_equilibria,jj,&
-                     mapline%axandir,axarr(jj)%lastaxval,value
-17              format(a,3i3,2(1pe14.6))
+!                write(*,17)' *** map_store large step in axis: ',&
+!                     mapline%number_of_equilibria,jj,&
+!                     mapline%axandir,axarr(jj)%lastaxval,value
+!17              format(a,3i3,2(1pe14.6))
 !                gx%bmperr=4360; goto 1000
-             endif
-          endif
-       endif
+!                read(*,'(a)')ch1
+!             endif
+!          endif
+!        endif
        axarr(jj)%lastaxval=value
     enddo
 !    write(*,18)'stored: ',mapline%number_of_equilibria,(axarr(jj)%lastaxval,&
@@ -2131,6 +2221,20 @@ CONTAINS
        jj=meqrec%stphl(jph)
        if(meqrec%phr(jj)%curd%phstate.lt.PHFIXED) then
           meqrec%phr(jj)%curd%phstate=PHENTSTAB
+! check if phase is inside miscibility gap
+          if(testforspinodal) then
+             lokcs=meqrec%phr(jj)%curd%phtupx
+             call calc_qf(lokcs,value,mapline%lineceq)
+             write(*,'(a,i3,F8.2,4(1pe12.4))')'SMP qf: ',lokcs,&
+                  mapline%lineceq%tpval(1),value
+             if(gx%bmperr.ne.0) then
+                write(*,*)'SMP error chacking for instability',lokcs
+                gx%bmperr=0
+             elseif(value.lt.zero) then
+                write(*,*)'SMP detected phase inside spinodal: ',lokcs
+                gx%bmperr=4399; goto 1000
+             endif
+          endif
 !       else
 !          write(*,*)'Fix phase 1: ',jj,meqrec%phr(jj)%iph,meqrec%phr(jj)%ics
        endif
@@ -2927,15 +3031,20 @@ CONTAINS
     integer seqz,jaxwc,jax,cmode,cmix(10),nyax,oldax,maybecongruent,mapeqno
     integer istv,indices(4),iref,iunit,ip,i1,i2,i3,jxxx
     double precision value,dax1(5),dax2(5),axval(5),axval2(5)
-    double precision laxfact,xxx,yyy,bigincfix
+    double precision laxfact,xxx,yyy,maxstep
     double precision preval(5),curval(5),prefixval(5),curfixval(5)
     double precision, parameter :: endfact=1.0D-6
 ! trying to change step axis for mapping with tie-lines in plane
-    double precision entph_dxy(2,2),fixph_dxy(2,2),lastaxisvalue,stepfact
+    integer fixbyte(2),twoextensiveaxis
+    double precision isoent(2,2),isofix(2,2),isoe,isof,isofact
+    double precision lastaxisvalue,stepfact
     character ch1*1,statevar*24,encoded*24
     type(gtp_state_variable), pointer :: svrrec,svr2
     type(gtp_state_variable), target :: svrtarget
-    logical tnip,nyfixph
+    logical tnip,nyfixph,ignore,approach
+! new check for large step when tie-lines in the plane
+    double precision ysave
+    save maxstep,isofix,isoent,fixbyte,ignore,ysave,approach
 !
     mapeqno=mapline%number_of_equilibria
 !    write(*,*)'In map_step: ',mapeqno,meqrec%nv
@@ -2948,6 +3057,7 @@ CONTAINS
 ! tnip emergency to stop mapping outside limit for non-active axis
     tnip=.FALSE.
     laxfact=one
+    twoextensiveaxis=0
     maybecongruent=0
     if(nax.eq.1) then
 !================================================================== new step
@@ -2965,10 +3075,17 @@ CONTAINS
        if(ocv()) write(*,16)'In map_step: ',mapeqno,mapline%axandir,value
 16     format(a,2i3,6(1pe14.6))
        if(mapline%evenvalue.ne.zero) then
-! If there is a value in mapline%evenvalue this is the first step in a new
+! If there is a value in mapline%evenvalue this is the first steps in a new
 ! region, take 3 very small steps before using that as next value on axis!
           if(mapeqno.lt.3) then
+             if(mapeqno.eq.1) then
+                maxstep=mapline%evenvalue-value
+!                write(*,*)'SMP maxstep: ',mapeqno,maxstep
+             endif
              value=value+1.0D-3*(mapline%evenvalue-value)
+          elseif(mapline%evenvalue.ne.zero .and. mapeqno.lt.6) then
+! take a few more small steps ...
+             value=value+2.0D-1*maxstep
           else
              value=mapline%evenvalue
              mapline%evenvalue=zero
@@ -2977,6 +3094,7 @@ CONTAINS
 ! just take a step in axis variable.  mapline%axandir is -1 or +1
           value=value+axarr(1)%axinc*mapline%axandir
        endif
+!       write(*,*)'Next axis value: ',value
        mapline%more=1
        if(value.le.axarr(1)%axmin) then
           value=axarr(1)%axmin
@@ -3000,7 +3118,7 @@ CONTAINS
     endif
 ! this is the current axis with acitive condition
     jaxwc=abs(mapline%axandir)
-    bigincfix=one
+!    bigincfix=one
 !       write(*,*)'map_step: Number of fix phases: ',mapline%meqrec%nfixph
 !       write(*,*)'map_step: Fix phase: ',mapline%meqrec%fixph(1,1),&
 !            mapline%meqrec%fixph(2,1)
@@ -3008,6 +3126,8 @@ CONTAINS
 ! next step and how long step.  Last axis values stored in mapline%axvals
 ! Save previous currently in mapline%axvals in axval2
     nyax=0
+! isofact is to keep check of changes in fix phase when tie-lines in plane
+    isofact=one
     loopaxis: do jax=1,nax
        seqz=axarr(jax)%seqz
        call locate_condition(seqz,pcond,ceq)
@@ -3020,9 +3140,10 @@ CONTAINS
 53     format(a,5i4,2(1pe12.4))
        if(mapeqno.eq.1) then
 ! for first equilibria just save the axis value
+          approach=.true.
           mapline%axvals(jax)=axval(jax)
           laxfact=1.0D-2
-          entph_dxy(1,jax)=axval(jax)
+!          isoent(2,jax)=axval(jax)
        else
 ! for later equilibria calculate the slope
           preval(jax)=mapline%axvals(jax)
@@ -3036,14 +3157,8 @@ CONTAINS
           axval2(jax)=mapline%axvals(jax)
           mapline%axvalx(jax)=mapline%axvals(jax)
           mapline%axvals(jax)=axval(jax)
-! entph(2,axis) is the change in the axis value, save current for next step
-          entph_dxy(2,jax)=axval(jax)-entph_dxy(1,jax)
-!          if(jax.eq.jaxwc) then
-!             stepfact=entph_dxy(2,jax)/axarr(jax)%axinc
-!             write(*,94)'Actual step: ',jax,jaxwc,axval(jax),entph_dxy(1,jax),&
-!                  entph_dxy(2,jax),stepfact
-!          endif
-          entph_dxy(1,jax)=axval(jax)
+!          isoent(1,jax)=isoent(2,jax)
+!          isoent(2,jax)=axval(jax)
        endif
 !----------------------------- below tie-line in/not in plane separate new step
        tip1: if(maptop%tieline_inplane.gt.0) then
@@ -3056,8 +3171,18 @@ CONTAINS
 ! The value in mapline%axvals is for the entered phase, extract the value
 ! for the fix phase.  
 ! NOTE: If we change fix/entered phase we must change axvals/axvals2
+             twoextensiveaxis=twoextensiveaxis+1
+             ignore=.false.
              jxxx=jax
              svrtarget%argtyp=3
+             svr2=>svrtarget
+! extract composition of entered phase
+             svrtarget%phase=mapline%stableph(1)%ixphase
+             svrtarget%compset=mapline%stableph(1)%compset
+! we must use a pointer in state_variable_val
+             call state_variable_val(svr2,yyy,ceq)
+             if(gx%bmperr.ne.0) goto 1000
+! extract composition of fix phase
              svrtarget%phase=mapline%linefixph(1)%ixphase
              svrtarget%compset=mapline%linefixph(1)%compset
 ! we must use a pointer in state_variable_val
@@ -3068,10 +3193,25 @@ CONTAINS
              if(mapeqno.eq.1) then
 ! for first equilibria just save the axisvalue for the fix phase
                 mapline%axvals2(jax)=xxx
-                fixph_dxy(1,jax)=xxx
+                isofix(1,jax)=zero
+                isofix(2,jax)=xxx
+                isoent(1,jax)=zero
+                isoent(2,jax)=yyy
+                fixbyte(1)=mapline%linefixph(1)%ixphase
+                fixbyte(2)=mapline%linefixph(1)%compset
              else
 ! for later equilibria calculate the slope and check if close to limit
 ! dax2 is slope value for fix phase
+                isofix(1,jax)=isofix(2,jax)
+                isofix(2,jax)=xxx
+                isoent(1,jax)=isoent(2,jax)
+                isoent(2,jax)=yyy
+                if(fixbyte(1).ne.mapline%linefixph(1)%ixphase .and.&
+                     fixbyte(2).ne.mapline%linefixph(1)%compset) then
+                   ignore=.true.
+                   fixbyte(1)=mapline%linefixph(1)%ixphase
+                   fixbyte(2)=mapline%linefixph(1)%compset
+                endif
                 dax2(jax)=(xxx-mapline%axvals2(jax))/axarr(jax)%axinc
 ! CHECK CHANGE OF AXIS AND FIX PHASE HERE FOR FIX PHASE 2/3
                 if(ocv()) write(*,94)'Fix phase values:        ',&
@@ -3079,15 +3219,13 @@ CONTAINS
                      xxx,mapline%axvals2(jax),xxx-mapline%axvals2(jax),&
                      (xxx-mapline%axvals2(jax))/axarr(jax)%axinc
                 mapline%axvals2(jax)=xxx
-                fixph_dxy(2,jax)=xxx-fixph_dxy(1,jax)
-                fixph_dxy(1,jax)=xxx
                 if(jax.ne.jaxwc .and. istv.ge.10) then
                    prefixval(jax)=xxx
                    curfixval(jax)=mapline%axvals2(jax)
-                   if(abs(prefixval(jax)-curfixval(jax)).gt.&
-                        0.5D0*axarr(jax)%axinc) then
-                      bigincfix=5.0D-1
-                   endif
+!                   if(abs(prefixval(jax)-curfixval(jax)).gt.&
+!                        0.5D0*axarr(jax)%axinc) then
+!                      bigincfix=5.0D-1
+!                   endif
 ! for axis with inactive condition check if next step would pass min/max limit
 ! If so reduce the step in the active axis but do not change active axis!!
 ! xxx is last axis value, mapline%axvals2(jax) is previous
@@ -3097,6 +3235,7 @@ CONTAINS
                      elseif(2*xxx-mapline%axvals2(jax).gt.axarr(jax)%axmax) then
                          nyax=jax
                       endif
+!                      if(nyax.gt.0) write(*,*)'SMP: change axis 1',isofact
                    endif
 ! nothing happends here ...
                    if(nyax.gt.0) then
@@ -3146,6 +3285,40 @@ CONTAINS
        endif tip1
     enddo loopaxis
 !-------------------------------------------------------------
+! trying to avoid too big steps when two extensive axis variables
+    if(twoextensiveaxis.eq.2) then
+! UNFINISHED: this assumes both axis are compositions (fractions) !!!!!!!!!
+! what about a composition and an enthalpy axis ??
+       isoe=sqrt((isoent(2,1)-isoent(1,1))**2+(isoent(2,2)-isoent(1,2))**2)
+       isof=sqrt((isofix(2,1)-isofix(1,1))**2+(isofix(2,2)-isofix(1,2))**2)
+       if(plottrace) write(*,888)'smp1: ',&
+            mapeqno,isoent(2,1),isoent(1,1),isoent(2,2),&
+            isoent(1,2),isofix(2,1),isofix(1,1),isofix(2,2),isofix(1,2)
+       if(mapeqno.gt.1) then
+          i3=abs(mapline%axandir)
+          if(plottrace) write(*,888)'smp2: ',mapline%axandir,isoe,isof,&
+               axarr(i3)%axinc
+888       format(a,i3,4F8.5,2x,4F8.5)
+!          if(.not.ignore .and. isof.gt.3.0D0*isoe) then
+          if(.not.ignore) then
+! isofact is set to unity above
+! THE TESTS HERE ARE QUITE CRAY BUT THEY WORK REASONABLY FOR
+! MAP-10, BEF-500Y, CRFEMO(1400K), BEF-1500 and BEF-2500
+             if(isoe.gt.2.0D0*axarr(i3)%axinc) then
+! change in entered phase larger than max step
+                isofact=axarr(i3)%axinc/isoe
+!             elseif(isof.gt.3.0D0*axarr(i3)%axinc) then
+             elseif(isof.gt.3.0D0*isoe) then
+!             if(isof.gt.3.0D0*isoe) then
+!             if(isof.gt.3.0D0*axarr(i3)%axinc) then
+                isofact=isoe/isof
+!                isofact=axarr(i3)%axinc/isof
+             endif
+             if(plottrace) write(*,'(a,3(1pe12.4))')'smp3: ',isoe,isof,isofact
+          endif
+       endif
+    endif
+!-------------------------------------------------------------
 ! for understanding what is happening ....
 !    if(maptop%tieline_inplane.gt.0) then
 !       write(*,59)'tieline: ',mapeqno,jaxwc,jxxx,nyax,&
@@ -3180,22 +3353,19 @@ CONTAINS
 33                 format('Check 7: ',6i3,6(1pe12.4))
 ! MISSING check for changing of fix/stable phase but keep same axis!!
                    if(mapeqno.gt.3 .and. mapeqno-mapline%axchange.gt.3) then
-                      if(abs(dax2(jax)).gt.2*xxx) then
+                      isotest1: if(isofact.eq.one) then
+! ignore changing axis if isofact not unity
+                         if(abs(dax2(jax)).gt.2*xxx) then
 ! dependent axis changes more! change independent axis
-                         xxx=abs(dax2(jax))
-!                         write(*,58)'Change axis and fix phase!',jax,&
-!                              mapline%linefixph(1)%ixphase,dax2(jax),xxx
-58                       format(a,2i3,2(1pe12.4))
-                         nyfixph=.true.
-                         nyax=jax
-!                      elseif(abs(dax1(jax)).gt.1.5*xxx) then
-                      elseif(abs(dax1(jax)).gt.2*xxx) then
-!                      elseif(abs(dax1(jax)).gt.1.2*xxx) then
-! dependent axis for fix phase changes more, change axis and fix phase!
-!                         write(*,58)'Change axis !',jax,0,dax1(jax),xxx
-                         xxx=abs(dax1(jax))
-                         nyax=jax
-                      endif
+                            xxx=abs(dax2(jax))
+58                          format(a,2i3,2(1pe12.4))
+                            nyfixph=.true.
+                            nyax=jax
+                         elseif(abs(dax1(jax)).gt.2*xxx) then
+                            xxx=abs(dax1(jax))
+                            nyax=jax
+                         endif
+                      endif isotest1
                    endif
                 else
 ! if the independent axis is extensive check if we should change fix phase
@@ -3248,11 +3418,13 @@ CONTAINS
                   axarr(jxxx)%axmax) then
 !                write(*,91)'high',jxxx,2*mapline%axvals(jxxx)-preval(jxxx)
                 nyax=jxxx
+!                write(*,*)'SMP nyax 4:',nyax
 91              format('At ',a,' limit, change axis to: ',i2,F10.6)
              elseif(2*mapline%axvals(jxxx)-preval(jxxx).lt.&
                   axarr(jxxx)%axmin) then
 !                write(*,91)'low',jxxx,2*mapline%axvals(jxxx)-preval(jxxx)
                 nyax=jxxx
+!                write(*,*)'SMP nyax 5:',nyax
              endif
           endif limits
 !
@@ -3307,8 +3479,10 @@ CONTAINS
 !             endif
              if(nyfixph) then
 ! This routine switches the fix and entered phases
+                if(plottrace) write(*,*)'new fix phase: ',nyfixph
                 call map_bytfixphase(mapline,oldax,meqrec,xxx,ceq)
                 if(gx%bmperr.ne.0) goto 1000
+                ignore=.TRUE.
              endif
 !             write(*,*)'New independent axis and value: ',nyax,xxx,nyfixph
              call map_changeaxis(mapline,nyax,oldax,nax,axarr,xxx,&
@@ -3380,12 +3554,12 @@ CONTAINS
     axvalok=value
 ! laxfact is not saved between calls
 ! bigincfix 0.5 if fix phase changes more than 0.5*axinc
-    bigincfix=one
+!    bigincfix=one
     lastaxisvalue=value
     if(mapline%axandir.gt.0) then
-       value=value+bigincfix*laxfact*axarr(jaxwc)%axinc*mapline%axfact
+       value=value+isofact*laxfact*axarr(jaxwc)%axinc*mapline%axfact
     else
-       value=value-bigincfix*laxfact*axarr(jaxwc)%axinc*mapline%axfact
+       value=value-isofact*laxfact*axarr(jaxwc)%axinc*mapline%axfact
     endif
 ! good point for checking
     if(ocv()) write(*,65)'map_step: ',mapeqno,&
@@ -3398,7 +3572,7 @@ CONTAINS
 ! calculation OK and no problems, make sure mapline%axfact approaches unity
 !                   write(*,*)'Incrementing mapline%axfact: ',mapline%axfact
 !          mapline%axfact=min(one,1.2D0*mapline%axfact)
-! Trying to male axfact decrease less (like line above) makes map worse
+! Trying to make axfact decrease less (like line above) makes map worse
        mapline%axfact=min(one,2.0D0*mapline%axfact)
     endif
 !======================================================================
@@ -3427,6 +3601,36 @@ CONTAINS
        write(*,23)'high',value
        mapline%more=0
     endif
+!....... special for axis limits of isothermal sections DOES NOT WORK
+! check if we are close to an axis limit for isothermal sections
+    if(mapeqno.gt.2 .and. twoextensiveaxis.eq.2) then
+! The fraction of the third component of entered phase (where we step):
+       call locate_condition(axarr(jaxwc)%seqz,pcond,ceq)
+       if(pcond%statev.gt.10) then
+          xxx=pcond%prescribed
+       endif
+       yyy=one-isoent(2,jaxwc)-isoent(2,3-jaxwc)
+       if(yyy.le.0.5D0*axarr(jaxwc)%axinc) then
+! changing the axis variable will make third fraction negative       
+! we should decrease value ...
+!          write(*,'(a,i3,F9.5,7F8.5)')'At boundary? ',mapeqno,yyy,&
+!               isoent(2,jaxwc),isoent(2,3-jaxwc),&
+!               isofix(2,jaxwc),isofix(2,3-jaxwc),xxx,value,value-xxx
+          if(approach) then
+             write(*,*)'Approaching limit of third component'
+             approach=.false.
+          endif
+          if(yyy.gt.zero) then
+             if(yyy.lt.ysave) then
+                value=xxx+0.9D0*yyy
+             endif
+             ysave=yyy
+          else
+             write(*,*)'Impossible!'
+          endif
+       endif
+    endif
+!......
     if(ocv()) write(*,205)'Axis limits: ',mapline%more,axarr(jaxwc)%axmin,&
          value,axarr(jaxwc)%axmax
 205 format(a,i2,3(1pe12.4))
@@ -3544,7 +3748,7 @@ CONTAINS
     integer iremsave,iaddsave,iph,ics,jj,jph,kph,phfix,seqx,jax,haha
     integer what,type,cmix(10),maxstph,noplot,mode,addtupleindex
     double precision, parameter :: addedphase_amount=1.0D-2
-    double precision value,axval,axvalsave,tx
+    double precision value,axval,axvalsave,tx,nodefixpham
     type(gtp_state_variable), pointer :: svrrec
     logical global
     double precision, allocatable, dimension(:) :: yfra
@@ -3577,7 +3781,7 @@ CONTAINS
     endif
 !--------------------------------------------
 ! remove here the axis condition, abs(mapline%axandir) gives active axis
-! axandir is the avis with active condition.  It can be negative
+! axandir is the axis with active condition.  It can be negative
     jax=abs(mapline%axandir)
 !    write(*,*)'Remove axis condition: ',jax,axarr(jax)%seqz
     lastcond=>ceq%lastcondition
@@ -3614,7 +3818,8 @@ CONTAINS
 ! independently if iadd or irem >0 set this phase, phfix, fix with zero amount
 ! we may return here if there is problems calculate the node equilibrium
 100 continue
-! set phfix fix with zero amount.
+! set phfix fix with amount nodefixpham
+    nodefixpham=zero
 ! NOTE it must be added so meqrec%stphl in ascending order
     if(phfix.gt.0 .and. meqrec%nstph.eq.meqrec%maxsph+maxstph) then
 ! No more phases allowed, we must see if  some other phase may be removed
@@ -3656,7 +3861,7 @@ CONTAINS
        meqrec%nstph=meqrec%nstph+1
        meqrec%phr(phfix)%itadd=meqrec%noofits
        meqrec%phr(phfix)%curd%dgm=zero
-       meqrec%phr(phfix)%curd%amfu=zero
+       meqrec%phr(phfix)%curd%amfu=nodefixpham
        meqrec%phr(phfix)%stable=1
 ! set that the phase has fixed amount
        meqrec%phr(phfix)%phasestatus=PHFIXED
@@ -3671,7 +3876,7 @@ CONTAINS
        endif
        meqrec%phr(-phfix)%itadd=meqrec%noofits
        meqrec%phr(-phfix)%curd%dgm=zero
-       meqrec%phr(-phfix)%curd%amfu=zero
+       meqrec%phr(-phfix)%curd%amfu=nodefixpham
        meqrec%phr(-phfix)%stable=1
 ! set that the phase has fixed amount
        meqrec%phr(-phfix)%phasestatus=PHFIXED       
@@ -4203,7 +4408,7 @@ CONTAINS
 !       write(*,*)'Invariant equilibrium found, exit lines: ',newnode%lines
        newnode%lines=3
     endif
-! set link to end node in maplie
+! set link to end node in mapline
     mapline%end=>newnode
 !=============================================================================
 ! we have created sufficient linehead records, now initiate their content
@@ -4305,6 +4510,11 @@ CONTAINS
           enddo
 ! we must zero the last phase, hm itrem is not really relevant ...
           meqrec%stphl(meqrec%nstph+1)=0
+! occational error because "remph" has illegal index value for meqrec%phr 
+          if(remph.le.0) then
+             write(*,*)'Occational error around line 4487',remph
+             remph=-remph
+          endif
           meqrec%phr(remph)%itrem=meqrec%noofits
           meqrec%phr(remph)%prevam=zero
           meqrec%phr(remph)%stable=0
@@ -4937,8 +5147,14 @@ CONTAINS
 !\end{verbatim}
     type(map_node), pointer :: mapnode
     type(gtp_condition), pointer :: pcond
+    type(meq_setup), pointer :: meqrec
+    type(gtp_equilibrium_data), pointer :: ceq2
+    type(gtp_state_variable), pointer :: svrrec,svr2
+    type(gtp_state_variable), target :: svrtarget
     integer nyline,jp,seqy,iph,ics,lokph,lokcs,ip
-    double precision finc
+    integer mode,nofecond,jax,activax,irem1,iadd1,irem,iadd
+    integer, parameter :: inmap=1
+    double precision finc,fixpham,xstab,xfix,xcorr,natpermol
     character eqname*24
 ! sometimes there are many phases with long names ...
     character phaseset*512
@@ -5114,19 +5330,134 @@ CONTAINS
        allocate(mapfix%stableph(1))
        allocate(mapfix%stablepham(1))
        mapfix%nfixph=1
+!.........................................................
+! trying to impove mapping with two extensive axis variables
+       nofecond=0
+       do jax=1,maptop%number_ofaxis
+          call locate_condition(axarr(jax)%seqz,pcond,mapline%lineceq)
+          if(gx%bmperr.ne.0) goto 1000
+! active condition means pcond%active=0 !!
+          if(pcond%active.eq.0) activax=jax
+          if(pcond%statev.gt.10) nofecond=nofecond+1
+       enddo
+! default value
+       fixpham=zero
+! fix nonzero phase select!!
+!       if(nofecond.eq.2) then    ! trying to have nonzero fix phase ...
+       if(nofecond.eq.17) then  ! skip trying to have nonzero fix phase
+! ISOTHERMAL, two extensive axis variables
+! test if we can have non-zero fix phase amount.  Calculate the equilibrium
+! set positive amount both in mapfix and in phase_varres ...??
+          write(*,47)activax,mapline%linefixph(1)%ixphase
+47        format(/'*** Find_line nonzero fix phase',2i3,2(1pe12.4))
+          mapfix%fixph=mapline%linefixph(1)
+          mapfix%stablepham(1)=one
+          mapfix%stableph(1)=mapnode%linehead(nyline)%stableph(1)
+!          ceq2=>mapline%lineceq
+          meqrec=>mapline%meqrec
+          mapfix%nstabph=1
+          write(*,54)mapfix%fixph%ixphase,mapfix%fixph%compset
+54        format('SMP fix phase: ',2i5,1pe12.4)
+          write(*,55)mapfix%nstabph,mapfix%stableph%ixphase,&
+               mapfix%stableph%compset,mapfix%stablepham
+55        format('SMP stable phase: ',i2,2i5,1pe12.4)
+! meqrec is allocated inside calceq7. mode=1 use gridminimizer
+! mode=0 no gridminimizer; mode=-1 no grid and no deallocation of phr
+          mode=-1
+          call calceq7(mode,meqrec,mapfix,mapline%lineceq)
+          write(*,7)gx%bmperr,iadd,irem
+7         format('Calculated equilibrium in map_findline',3i5)
+          if(gx%bmperr.ne.0) then
+             write(*,*)'SMP Failed calculate equilibrium try to adjust amounts'
+             gx%bmperr=0
+             iadd1=0; irem1=0
+             call meq_sameset(irem1,iadd1,mapline%meqrec,&
+                  mapline%meqrec%phr,inmap,mapline%lineceq)
+             write(*,*)'Check with meq_sameset: ',gx%bmperr,irem1,iadd1
+             if(gx%bmperr.ne.0) then
+                goto 1000
+             elseif(iadd1.ne. 0 .or. irem1.ne.0) then
+                write(*,*)'ignore nozero iadd or irem'
+             endif
+          endif
+! try to change the amount of the fix phase by selecting a composition
+! along the tieline with 30% of the fix phase
+! Now we must change a condition ...
+          call locate_condition(axarr(activax)%seqz,pcond,mapline%lineceq)
+          write(*,*)'Located condition',activax
+          svrrec=>pcond%statvar(1)
+! NOTE: If we change fix/entered phase we must change axvals/axvals2
+          svrtarget=svrrec
+          svrtarget%argtyp=3
+! calculate composition of entered phase
+!          svrtarget%phase=meqrec%phr(sj)%iph
+!          svrtarget%compset=meqrec%phr(sj)%ics
+          svrtarget%phase=mapfix%stableph(1)%ixphase
+          svrtarget%compset=mapfix%stableph(1)%compset
+! This extracts the composition of the entered phase for first new line
+! we must use a pointer in state_variable_val
+          svr2=>svrtarget
+          call state_variable_val(svr2,xstab,mapline%lineceq)
+          if(gx%bmperr.ne.0) goto 1000
+          svrtarget%phase=mapfix%fixph(1)%ixphase
+          svrtarget%compset=mapfix%fixph(1)%compset
+! This extracts the composition of the entered phase for first new line
+! we must use a pointer in state_variable_val
+          svr2=>svrtarget
+          call state_variable_val(svr2,xfix,mapline%lineceq)
+          if(gx%bmperr.ne.0) goto 1000
+! set fix phase amount to 0.3 as we may find a third phase along the line ..
+! but we must take into account how many moles of atoms in fix phase
+!          natpermol=meqrec%phr(??fixphase)%curd%abnorm(1)
+          iadd=mapfix%fixph(1)%ixphase
+          write(*,*)'SMP Natpermol: ',iadd,meqrec%phr(iadd)%curd%abnorm(1)
+          natpermol=one
+          fixpham=0.3D0/natpermol
+          xcorr=(one-fixpham)*xstab+fixpham*xfix
+          write(*,71)fixpham,xstab,xfix,xcorr
+71        format('Change: ',4(1pe16.8))
+! first argument 1 means to extract the value, 0 means to set the value
+          call condition_value(0,pcond,xcorr,mapline%lineceq)
+          if(gx%bmperr.ne.0) then
+             write(*,*)'Cannot set axis condition'
+             gx%bmperr=4399; goto 1000
+          endif
+! Then call meq_sameset ignoring any new phases that tries to be stable
+          iadd=0; irem=0
+          call meq_sameset(irem,iadd,mapline%meqrec,&
+               mapline%meqrec%phr,inmap,mapline%lineceq)
+          if(gx%bmperr.ne.0) then
+             gx%bmperr=0; goto 1000
+          elseif(irem.gt.0 .or. irem.gt.0) then
+             write(*,*)'ignorin new phases: ',irem,iadd
+          endif
+! change the amount of the fix phase
+          allocate(mapfix%fixphamap(1))
+          mapfix%fixphamap(1)=fixpham
+! if hullerombuller true below then it will change fix and stable phase
+          hullerombuller=.FALSE.
+          mapfix%stablepham(1)=one-fixpham
+          write(*,*)'find mapline conditions: '
+          call list_conditions(kou,mapline%lineceq)
+!          goto 1000
+!..................................
+       else
+!-----------------------------------------------------------------------
+! OLD code below
 ! we should check that the not-fixed phase can vary composition ...
-       ip=mapnode%linehead(nyline)%stableph(1)%ixphase
+          ip=mapnode%linehead(nyline)%stableph(1)%ixphase
 ! fixedcomposition is a logical funtion in gtp3F.F90
-       if(fixedcomposition(ip)) then
-          mapfix%fixph=mapnode%linehead(nyline)%stableph(1)
-          hullerombuller=.TRUE.
+          if(fixedcomposition(ip)) then
+             mapfix%fixph=mapnode%linehead(nyline)%stableph(1)
+             hullerombuller=.TRUE.
 !          write(*,*)'Selecting other phase as fix',mapfix%fixph%ixphase,&
 !               mapfix%fixph%compset
-       else
+          else
 !          write(*,*)'Changing fix phase: ',mapline%linefixph(1)%ixphase,&
 !               mapline%linefixph(1)%compset
-          mapfix%fixph=mapline%linefixph(1)
-          hullerombuller=.FALSE.
+             mapfix%fixph=mapline%linefixph(1)
+             hullerombuller=.FALSE.
+          endif
        endif
 ! create a heading text for the line
        phaseset=' '
@@ -5147,7 +5478,7 @@ CONTAINS
           call get_phasetup_name_old(mapfix%stableph(1),phaseset(ip:))
           if(gx%bmperr.ne.0) goto 1000
 ! set positive amount both in mapfix and in phase_varres ...??
-          mapfix%stablepham(1)=one
+          mapfix%stablepham(1)=one-fixpham
           ip=len_trim(phaseset)
           if(ip.gt.1) then
              write(kou,516)mapline%lineid,&
@@ -5635,6 +5966,8 @@ CONTAINS
           if(ocv()) write(*,67)'First call to map_half, value:',value,axvalok
 67        format(a,2(1pe14.6))
           mapline%evenvalue=value
+       elseif(halfstep.gt.3) then
+          gx%bmperr=4399
        endif
        if(mapline%axfact.le.1.0D-6) then
 ! error initiallizing axfact ???
@@ -5691,7 +6024,9 @@ CONTAINS
     type(meq_phase), pointer :: phr
     double precision val,xxx,yyy,axvalok
     logical firstline
-    integer, parameter :: maxsavedceq=2000
+!    integer, parameter :: maxsavedceq=2000
+! decreased to 1800 as I sometimes run out of memeory
+    integer, parameter :: maxsavedceq=1800
     character name*24
 ! turns off convergence control for T
     integer, parameter :: inmap=1
@@ -6115,6 +6450,56 @@ CONTAINS
 1000 continue
     return
   end subroutine auto_startpoints
+
+!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\begin{verbatim}
+  subroutine reset_plotoptions(graphopt,plotfile,textlabel)
+! if new axis then reset default plot options
+! plot ranges and their defaults
+    character plotfile*(*)
+    type(graphics_options) :: graphopt
+    type(graphics_textlabel), pointer :: textlabel
+!\end{verbatim}
+    integer savebit
+    graphopt%gibbstriangle=.FALSE.
+    graphopt%rangedefaults=0
+! axistype 0 is linear, 1 is logarithmic
+    graphopt%axistype=0
+! labeldefaults(1) is the title!!!
+    graphopt%labeldefaults=0
+    graphopt%tielines=0
+    graphopt%plotmin=zero
+    graphopt%dfltmin=zero
+    graphopt%plotmax=one
+    graphopt%dfltmax=one
+    graphopt%appendfile=' '
+    savebit=0
+! keep the windws bit set if already sey
+    if(btest(graphopt%status,GRWIN)) savebit=1
+    graphopt%status=0
+    if(savebit.ne.0) graphopt%status=ibset(graphopt%status,GRWIN)
+! remove all texts ... loosing some memory ...
+    nullify(graphopt%firsttextlabel)
+    graphopt%labelkey='top right font "arial,12" '
+    nullify(graphopt%firsttextlabel)
+    nullify(textlabel)
+    plotfile='ocgnu'
+! by default spawn plots
+    graphopt%status=ibset(graphopt%status,GRKEEP)
+! lowerleftcorner
+    graphopt%lowerleftcorner=' '
+! default plot terminal
+    graphopt%gnutermsel=1
+! plot lines
+    graphopt%linestyle=0
+! axis tics size etc
+    graphopt%textonaxis=0
+! do not reset plotend if set
+!    plotend=plotenddefault
+!    write(*,*)'Plot options reset'
+    return
+  end subroutine reset_plotoptions
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

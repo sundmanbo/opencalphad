@@ -20,7 +20,7 @@ PROGRAM pmain1
 ! the next line overwritten with current linkdate by linkocdate
   linkdate='2015-01-01'
 ! this is the overall version identifier
-  version='  5.015 '
+  version='  5.039 '
 ! intvar and dblvar will eventually be used for allocations and defaults
   intvar(1)=30
   call init_gtp(intvar,dblvar)
@@ -42,9 +42,10 @@ PROGRAM pmain1
 !  
   call oc_command_monitor(version,linkdate,narg,arginline)
 !
-! This is the data structure for the default equilibrium
-! additional code can be added below for some particular application.
+! we come back here with the "back" command in the user i/f
+! The data structure for the default equilibrium is in eqlista(1)
   ceq=>eqlista(1)
+! additional code can be added below for some particular application.
 !
   write(*,*)'A bientot'
   call deallocate_gtp(intvar,dblvar)

@@ -29,7 +29,7 @@ new Y
 
 set echo
 
-r t steel1
+r t ./steel1
 fe mo
 
 
@@ -72,8 +72,27 @@ N
 -5000
 1000
 position right bottom
+
 title step 6 fig 2
 render
+
+@&
+@$ Plot with wildcards on x axis and factor
+
+plot
+0.001*gm(*)
+x(mo)
+
+
+@&
+
+plot
+x(mo)
+0.001*gm(*)
+axis y
+Gibbs energy kJ/mol
+
+
 
 set inter
 

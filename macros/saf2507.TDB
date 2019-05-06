@@ -1,6 +1,12 @@
 
 $ Database file written 2014-10- 1
 $ From database: SSOL2                   
+ DATABASE_INFO about the SAF2507 database
+ It contains an extract of the SGTE SSOL2 database from 2001 for 6 elements.
+ Most binaries and ternary systems have been assessed and bibliographic
+ references are provided.  Most assessments has been made at MSE, KTH, Sweden
+ for the development of duplex stainless steels like Sandvik 2507!
+$
  ELEMENT /-   ELECTRON_GAS              0.0000E+00  0.0000E+00  0.0000E+00!
  ELEMENT VA   VACUUM                    0.0000E+00  0.0000E+00  0.0000E+00!
  ELEMENT CR   BCC_A2                    5.1996E+01  4.0500E+03  2.3560E+01!

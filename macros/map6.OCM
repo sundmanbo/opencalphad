@@ -29,7 +29,7 @@ new Y
 
 set echo
 
-r t saf2507
+r t ./saf2507
 cr fe ni
  
 set c t=2000 p=1e5 w(cr)=.2 w(ni)=.08 n=1
@@ -66,21 +66,21 @@ plot
 title map6 fig 2
 text 
 0.1 2000
-1
+.9
 0
 y
 
 text n
-.5 1500 1 0 y
+.5 1500 .9 0 y
 
 text n
-.05 1200 1 0 y
+.05 1200 .9 0 y
 
 text n
-.46 1160 1 0 y
+.46 1160 .9 0 y
 {/Symbol s}
 text n
-.75 1200 1 0 y
+.75 1200 .9 0 y
 
 
 @&

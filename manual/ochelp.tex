@@ -1,5 +1,27 @@
-\documentclass[12pt]{article}
+\documentclass[11pt]{article}
 \usepackage[latin1]{inputenc}
+% NEXT LINE is needed for generate a HTML file
+\usepackage{hyperref}
+%
+% This is a file for a printable PDF and HTML versions of the user guide
+% AND as on-line help, either directly or processed to remove LaTeX specials
+%
+% I have intrduced that this user guide is also available on-line
+% as an HTML file.  That is very nice but a bit complicated.
+% To generate the HTML use ``htlatex'' and the \usepackage{hyperref}
+% creates possibilities to find text inside the HTML file
+% using \hypertarget{labeltext}{shown text} (the shown text can be empty)
+% To provide on-line help the OC software keeps a record of the path
+% of all user commands and questions.
+% When the user types a ? at a question this path is matched with
+% lines in this LaTeX file beginning %\section{c1} %\subsection{c2} etc
+% to find the relevant text in this LaTeX file matching c1, c2 etc
+% with the path of user commands.  This done by subroutine q1help in metlib3.F90
+% If HTML is enabled the OC help will extract any \hypertarget{labeltext}
+% within the relevant help text and start the browser with labeltext
+% added to the help file name separated by a hash character # for example
+% C:\user\bosse\ochome\ochelp.html#labeltext
+% Some problemns with this explained below ...
 \topmargin -5mm
 \oddsidemargin -1mm
 \evensidemargin -1mm
@@ -15,14 +37,54 @@
 \setcounter{tocdepth}{4}
 %\pagestyle{empty}
 
-%
 % LOOK for ALERT: for checks of source code!!
 %
-% look for this to continue update
-%%%%%%%%%%%%%%% >>> end of current editing for version 5 2018.01.08
+% look for this to continue update   >>>>>>>>>>>
+%%%%%%%%%%%%%%% >>> end of current editing for version 5 ...
 %
-% This is a file used for a printable PDF version of the user guide
-% AND as on-line help, either directly or processed to remove LaTeX specials
+% >>>>>>>>>>> Convert to HTML for online help: htlatex ochelp5
+%
+% HYPERTEXT provides browser access to ochelp HTML:
+% in a LaTeX file \hypertarget{labeltext} 
+% is written in the html file as: <a id=''labeltext''/a>
+%
+% Problem when opening the HTML file inside OC to list the help text:
+% This is in the metlib3.F90 file, the q1help subroutine
+% SPECIAL CHARACTER PROBLEM with    "   (doublequote)
+% to find an labeltext from OC help file using system command:
+% "C:\program files\mozilla firefox\firefox.exe" -file ./manual/ochelp/html/ochemp5.html#labeltext
+% the above does not work BUT the following command works:
+% "C:\program files\mozilla firefox\firefox.exe"  "file://c:\users\bosse\documents\oc\oc\src\manual\ochelp\html\ochemp5.html#labeltext"
+% BUT it does NOT work when called through execute_command_line(command)
+% Problems having  4 doublequotes in the same line ... why?
+% BUT AGAIN, using ``8.3'' Windows file names for Explorer this works:
+% C:\progra~1\intern~1\iexplore.exe ``file:/C:\user\bosse\ochome\ochemp.html#labeltext
+% on Linux using firefox this works:
+% /usr/bin/firefox "file:/home/bosse/ochome/ochelp.html#labeltext"
+%
+% this help seems to work OK but it is a bit tricky to add the correct
+% %\section{c1} %\subsection(c2) %\subsubsection{c3} %\subsubsubsection{c4}
+% and %\question{c5}
+% The subroutine q1help has an array of saved menu options and questions
+% that the user has answered.  This is necessary to find the relevant help
+% The first item in the saved array of menu selections and questions
+% are compared with the %\section{c1} until a match is found
+% Then the next item will be compared with %\subsection{c2} within this
+% section of the help.  This can go 4 levels deep.
+% Maximum 12 characters of ci is compared, some times less if either
+% command or text in the file is shorter.
+% It requires careful selection of the number of %\subsubsub'' inside
+% this LaTeX file.  If one has found 3 levels deep and then finds a
+% %\section the search will terminate as failure if not all items in th
+% path found.
+% each labeltext in \hypertarget{labelext}{shown text or empty} must be
+% unique and does not have to be related to the text in this guide.
+%
+% Use the OC command SET ADV TRACE Y  !!
+% to find out where the search for relevent help and hypertarget goes wrong
+% the use of %\section \subsection etc is not very useful, one could
+% use some other definition of the command/question levels
+% because the connection with the LaTeX sections is rather weak
 %
 %---------------------------------------------------
 %
@@ -32,7 +94,7 @@
 %
 %---------------------------------------------------
 %
-% Some advice:
+% SOME IMPORTANT ADVICE:
 %
 % The commands and subcommands are arranged alphabetically
 %
@@ -40,10 +102,12 @@
 % questions after the commands and subcommands as they are normally
 % not part of the command monitor.
 %
-% The _ used in many commands must be replaced by \_ or just -
+% The _ used in many commands should be replaced by \_ or just -
 %
 %---------------------------------------------------
 %
+% GUIDE how to add searchable items in the help file for online help
+% ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 % The on-line help software saves the line of commands starting
 % from the prompt.  If the user types ``?'' as answer to a question it will
 % search the help file for the appropriate help text starting from the
@@ -57,6 +121,22 @@
 % Then the question will be asked again.
 %
 % The question text may be difficult to update as already mentioned. 
+% ADDING ONLINE HELP INFORMATION IN THIS FILE:
+% A command must always have a %\subsub...section{command} line
+% FOR QUESTIONS after a command
+% you must provide a comment line as %\subsubsection{question}
+%                                 or %\subsubsubsection{question}
+% depending on the number of subsub... the previous command has
+% AT LEAST 12 CHARACTER OF THE QUESTION SHOULD BE IN THE COMMENT LINE !!
+% The help software saves the hirearchy of the command down to the question
+% The help software searches top down for matching commands/questions.
+% when it finds a matching command/question in this file it searched
+% one level further down until is has match with the last level.  It saves
+% that line number as the first line of help text
+% and then searches for the next %\subsub... and when it finds one
+% with same, less or more number of subsub...
+% it takes that as the last line of help text.
+% 
 %
 %---------------------------------------------------
 %
@@ -92,16 +172,19 @@ This page intentionally blank
 
 \section{Introduction}
 
-The OpenCalphad (OC) initiative aims to provide a free high quality
-software for thermodynamic calculations, including property and phase
-diagrams, assessment of databases and a thermodynamic library for
-simulations for inorganic systems i.e.  gases. liquids, alloys and
-other materials using many different kinds of models for the phases.
-There are three papers published about OC~\cite{15Sun1,15Sun2,16Sun}.
-General information about thermodynamic models, calculations and
-assessments based on the Calphad technique can be found in the book by
-Lukas et al~\cite{07Luk}.  The software is provided free with a GNU
-GPL license.
+The development of the OpenCalphad (OC) sofware was started by a small
+group of dedicated scientists who wanted to provide an open source
+multicomponent thermodynamic software.  It aims to provide a free high
+quality software for thermodynamic calculations, including property
+and phase diagrams, assessment of databases and a thermodynamic
+library for simulations for inorganic systems i.e.  gases. liquids,
+alloys and other materials using many different kinds of models for
+the phases.  There are three basic papers published about
+OC~\cite{15Sun1,15Sun2,16Sun}.  General information about
+thermodynamic models, calculations and assessments based on the
+Calphad technique can be found in the book by Lukas et
+al~\cite{07Luk}.  The software is provided free with a GNU GPL
+license.
 
 In OC there is also a framework to store different kinds of materials
 properties that depend on temperature, pressure and composition when
@@ -115,7 +198,19 @@ news-oc5.pdf and the other parts of the OC documentation.
 
 \section{Some general features}
 
-Oc is operated by commands typed by the user or read from a macro
+The different parts of the OC software are documented separately for
+each module: thermodynamic models (GTP), equilibrium calculations
+(HMS), step/map/plot routines (SMP) and the application software
+interface (OCASI/TQ).  OC uses the free numerics packages LAPACK and
+BLAS and a free least square routine, LMDIF~\cite{lmdif}, developed at
+Argonne 1980, for assessments.  For graphics OC generates a command
+file which can be plotted with the free GNUPLOT~\cite{gnuplot}
+software.  If GNUPLOT is properly installed this is done automatically
+by OC.
+
+\subsection{Command line user interface}
+
+OC is operated by commands typed by the user or read from a macro
 file.  The command monitor has a menu of command and each of these
 usually has sub-menus and finally some questions may be asked like
 phase names, a value or an expression.  In most cases a default answer
@@ -125,15 +220,172 @@ levels the user should be able to type a ? and get some help, usually
 an extract from this manual, sometimes just a menu or examples of
 answers.
 
-The different parts of the OC software are documented separately for
-each module: thermodynamic models (GTP), equilibrium calculations
-(HMS), step/map/plot routines (SMP) and the application software
-interface (OCASI/TQ).  OC uses the free numerics packages LAPACK and
-BLAS and a free least square routine, LMDIF~cite{lmdif}, developed at
-Argonne 1980 for assessments.  For graphics OC generates a command
-file which can be plotted with the free GNUPLOT~\cite{gnuplot}
-software.  If GNUPLOT is properly installed this is done automatically
-by OC.
+If you prefer a graphical user interface (GUI) you are welcome to add
+this to the OC software.
+
+\subsubsection{Popup window for read/save}\label{sc:popup}
+
+There is a problem using a command line interface when you want to
+open a file for reading or saving unless this file is on the same
+directory as where you started the program.  Thus from version 5.018
+there is a popup window to open a file (for a macro, a database or to
+save a calculation).  In this window you can browse your directories
+to find the file.
+
+This has some consequencies for editing your macro files which you
+should be aware of and which are explained below.  The code for the
+popup window, tinyfiledialogs, is written in C by Guillaume Vareille.
+
+You can turn off the open file popup window feature with the command
+{\em set advanced popup Y}.  You can turn it on again with the same
+command finishing with anything but Y.
+
+\begin{itemize}
+\item The directory where you start the session with OC is called the
+  ``working directory''.  On a linux system you can find this
+  directory by typing ``pwd'' before starting OC (or if you type {\em
+    @pwd} inside OC).  On a Windows system you can see the working
+  directory and its files if you type {\em @dir} inside OC.
+
+\item When the popup window is opened the directories and files
+  matching the ``filter'' in the working directory should be listed.
+  If not you can select a directory inside the popup window.  The
+  filter when open a macro file is ``OCM'' and when opening a database
+  file it is ``TDB'' which means only files with these extensions are
+  listed.  You can change the directory in the popup window to select
+  the file you want and you can read a file with another extension.
+  OC will save internally the directory where you start the macro.
+  
+\item Inside a macro file you normally read a TDB file and if you do
+  not specify the name of the database on the same line as the command
+  {\em read tdb} the popup window will open so you can specify the
+  file in this window.
+
+\item But normally you know which database you want to use inside the
+  macro and if you give the file name on the same line as the commad:
+  {\em read tdb filename} the popup window will not open and OC will
+  search for the specified database file starting from the ``working
+  directory''.  But if the database file is in the same directory as
+  the macro file you MUST prefix ``filename'' with ``./'', i.e. {\em
+    read tdb ./filename}.  You may include directories in
+  ``filename'', (including ``../'' to go to the directory above).  OC
+  will replace the ``./'' by the directory where you started the macro
+  or prefix ``../'' by this directory.
+
+\item In the macro file you can give the full path to the file to be
+  opened but that is rather clumsy.
+
+\item When you open a file for write inside a macro, like output from
+  a plot, you can also specify the file name in the command prefixed
+  by ``./'' if you want to save the file on the same directory as the
+  macro file.  Otherwise it will be saved at the working directory.
+
+\item If you use the switch ``/output='' or ``/append='' after a
+  command to redirect output from the command you can also use the
+  popup window to specify the file name or use a filename with or
+  without the prefix ``./''.  The filter in this case is ``DAT''.
+
+\end{itemize}
+
+Opening files on different directories can be complicated inside OC.
+For example during assessments you may use many different files for
+generating graphics and unformatted save files.  Preferably you keep
+all of these on the same directory.
+
+You are welcome to provide feedback on this popup feature and other
+parts of the user interface.
+
+\subsubsection{On-line help}\label{sc:on-line-help}
+
+A recent feature is to provide on-line help using a browser window
+where this user guide is available as a searchable HMTL file.
+
+Whenever the user wants an explation of a question the OC software
+asks he can type a ? and the OC software will open a separate browser
+window positioned at the relevant text in the user guide.  You can then
+search the whole user guide for related information.
+
+Whenever the user types ? at a menu level just the menu will be
+displayed but if you type ?? the user guide will be opened at the
+relevant menu text.
+
+This feature is very new and is still under development. Feedback is
+helpful.  It can be turned off (or on again) by the command {\bf set
+  advanced help}~\ref{sc:help-popup}.
+
+\subsubsection{Environment and startup macro file}
+
+The OC program will look for an environment variable called OCHOME and
+if it finds this it will look for a file start.OCM which will be
+executed before the user gets control.  This can typically be useful
+to set some variables like the plot terminals, see
+section~\ref{sc:gnuterm}.  If there is no OCHOME environment variable
+the ``working directory'' will be searched.
+
+The ochelp.tex and ochelp.html file should be copied from the
+directory ``manual'' in the installation directory to this OCHOME
+directory.
+
+\subsubsection{Macro files}\label{sc:macro}
+
+The macro command is very useful for preparing complex calculations
+and to remember how you did them.  A macro file is simplest to create
+staring from a log file (created by the {\bf SET LOG} command).  See the
+macros directory for examples.
+
+After a macro command the popup window will allow you to search for
+the file on all your directories unless you type the name of the
+file on the same line.  In the latter case the macro file must be
+on you ``working directory'', see section~\ref{sc:popup}
+
+When you open files, such as databases, inside a macro file and you
+type the file name on the same line as the command as ``read tdb
+./steel1'', you must prefix the file name, ``steel1'' with ``./'' if
+the tdb file is on the same directory as the macro file.  If your
+command line is just ``read tdb'' the popup window will be activated
+and you can specify the file there.
+
+If you open another macro file inside a macro (typically when you do
+assessments) you must also prefix the name of the macro with ``./''
+unless you want to select the macro using the popup window.
+
+You can insert stops in the macro file with ``@\&'' at the beginning
+of a line.  This can be useful to inspect the output.  The macro
+continues after pressing the ENTER/RETURN key.  Depending on the
+graphical driver you use the program will normally pause after each
+plot and you must use the mouse to click on the graphical window to
+continue.
+
+You can insert comments in the macro file with ``@\$'' at the beginning
+of the comment line.
+
+A macro file should be terminated with the command {\bf SET
+  INTERACTIVE} which gives back control to the keyboard (or the
+calling macro file) otherwise the program may terminate at the end of
+the macro.
+
+Macro files can be nested 5 levels deep.
+
+\subsubsection{User interface feedback}
+
+OC has grown organically and although the basic concepts has been
+quite clear the implementations of several of these has become rather
+confusing.  This will eventually require some cleaning up of the user
+interface.
+
+A central part of any thermodynamic software is the modeling of the
+phases.  A new PDB format for databases may help a little with the
+specification of the models.  An attempt has been made in this version
+to clean up the way a model is specified and used.  At present you
+must first ENTER the phase to give a name, basic model, sublattices
+and constituents.  Then use the AMEND command to add magnetism, a
+disordered fraction set and/or use BCC/FCC permutations.  Originally
+some of these things were set by the command SET PHASE ... BIT and
+that was not very clear.
+
+Some computational options like for the grid minimizer are still set
+with several different commands.  It is useful for the developers to
+have some feedback from users to organize this better.
 
 \subsection{Names and symbols}
 
@@ -144,8 +396,8 @@ INSENSITIVE, i.e. fe, FE, fE and Fe is the same.  Some special symbols
 are used:
 
 \begin{itemize}
-\item /- is used to denote the electron. /+ can be used for a positive
-  charge.
+\item /- is used to denote the electron. /+ or /- -1 can be used for a
+  positive charge.
 \item \# are used to identify composition sets after a phase name or
   sublattice after a constituent name.
 \item \& are used in some parameter identifiers to specify the
@@ -163,9 +415,9 @@ State variable symbols and TP-fun symbols can be 16 characters long.
 TP-funs are expressions used to describe the $T$ and $P$ dependence of
 model parameters.
 
-For user input it is possible to use abbreviations of names but one
+For user input it is possible to use abbreviations of names but you
 must be careful with names that have the same abbreviation and avoid
-names that are abbreviations of another name!
+phase names that are abbreviations of another phase!
 
 \subsection{Phases, composition sets and phase tuples}
 
@@ -176,7 +428,7 @@ with the last calculation.
 
 In some cases a phase can be stable with two ore more different
 compositions for example inside miscibility gaps or when the phase has
-order/disorder transitions.  In such a case one use a composition set
+order/disorder transitions.  In such a case you use a composition set
 index to separate these.  The composition set index is appended to the
 phase name preceeded by a hash ``\#'' character, like liquid\#2.
 
@@ -192,9 +444,64 @@ composition set is created or deleted.
 
 \subsection{The use of wildcards for names}
 
-In many cases one can use an asterix ``*'' as a name and this normally
-means ``all''.  For setting status of phases one can use the special
+In many cases you can use an asterix ``*'' as a name and this normally
+means ``all''.  For setting status of phases you can use the special
 ``*S'' for all suspended phase, ``*D'' for all dormant phases.
+
+\subsection{State variables}
+
+\begin{table}[!ht]
+\caption{A preliminary table with the state variables and their
+  internal representation.  Some model parameter properties are also
+  included.  The "z" used in some symbols like Sz means the optional
+  normalizing symbol M, W, V or F.}\label{tab:statev}
+{\small
+\begin{tabular}{|llccll|}\hline
+Symbol & Id & \multicolumn{2}{c}{Index} & Normalizing & Meaning\\
+       &    & 1 & 2                     &  suffix     & \\\hline
+\multicolumn{6}{|c|}{Intensive properties}\\\hline
+T      & 1  & -         & -    & - & Temperature\\
+P      & 2  & -         & -    & - & Pressure\\
+MU     & 3  & component & -/phase  & - & Chemical potential\\
+AC     & 4  & component & -/phase  & - & Activity\\
+LNAC   & 5  & component & -/phase  & - & LN(activity)\\\hline
+\multicolumn{6}{|c|}{Extensive and normallized properties}\\\hline
+U      & 10 & -/phase\#set & - & - & Internal energy for system\\
+UM     & 11 & -/phase\#set & - & M & Internal energy per mole\\
+UW     & 12 & -/phase\#set & - & W & Internal energy per mass\\
+UV     & 13 & -/phase\#set & - & V & Internal energy per m$^3$\\
+UF     & 14 & phase\#set   & - & F & Internal energy per formula unit\\
+Sz     & 2z & -/phase\#set & - & - & entropy\\
+Vz     & 3z & -/phase\#set & - & - & volume\\
+Hz     & 4z & -/phase\#set & - & - & enthalpy\\
+Az     & 5z & -/phase\#set & - & - & Helmholtz energy\\
+Gz     & 6z & -/phase\#set & - & - & Gibbs energy\\
+NPz    & 7z &  phase\#set & - & - & Moles of phase\\
+BPz    & 8z & phase\#set & - & - & Mass of phase\\
+Qz     & 9z & phase\#set & - & -  & Stability of phase\\
+DGz    & 10z & phase\#set & - & -  & Driving force of phase\\
+Nz     & 11z & -/phase\#set/comp & -/comp & -  & Moles of component\\
+X      & 111 & phase\#set/comp & -/comp & 0  & Mole fraction\\
+X\%    & 111 & phase\#set/comp & -/comp & 100 & Mole per cent\\
+Bz     & 12z & -/phase\#set/comp & -/comp & -  & Mass of component\\
+W      & 122 & phase\#set/comp & -/comp & 0 & Mass fraction\\
+W\%    & 122 & phase\#set/comp & -/comp & 100 & Mass per cent\\
+Y      & 130 & phase\#set & const\#subl & -& Constituent fraction\\\hline
+\multicolumn{6}{|c|}{Some model parameter identifiers}\\\hline
+TC     & - & phase\#set & - & - & Curie temperature\\
+BMAG   & - & phase\#set & - & - & Aver. Bohr magneton number\\
+MQ\&X  & - & phase\#set & constituent & - & Mobility of X\\
+THET   & - & phase\#set & - & - & Debye temperature\\\hline
+\end{tabular}}
+\end{table}
+
+A state variable in a thermodynamic system has a value which at
+equilibrium is independent of the way the system has reach its current
+state.  All state variables available in OC are listed in
+Table~\ref{tab:statev}.  They are used to set conditions and to obtain
+results from an equilibrium calculation.  It is possible to use state
+variables also when close to the equilibrium state for example when
+simulating a phase transformation.
 
 \subsection{Model parameters}
 
@@ -207,11 +514,12 @@ model of the phase.
 Many types of data can be stored as explained in the section on
 parameter identifiers.  The parameter also has a constituent
 specification explained in the constituent array section and possibly
-a degree, the meaning of which is model dependent.
+a degree, the meaning of which is model dependent and a bibliographic
+reference.
 
 The basic syntax of a parameter is
 
-``identifier'' ( ``phase name'' , ``constituent array'' ; ``degree'' ) ``expression'' ``bib.ref.''
+``identifier'' ( ``phase name'' , ``constituent array'' ; ``degree'' ) ``expression'' ``bibl.ref.''
 
 These parts are explained in more detail below.
 
@@ -225,11 +533,13 @@ should have an influence on the Gibbs energy (like the Curie
 temperature) or a diffusion coefficient (like the mobility) the
 necessary code to calculate this must be added.
 
-A list of the model parameter identifiers (revised in May 2018)
-currently defined can be obtained by the command {\bf LIST
-  MODEL\_PARAM\_ID}:
+A list of the model parameter identifiers as shown in
+Table~\ref{tab:mpis} can be obtained by the command {\bf LIST
+  MODEL-PARAM-ID}
 
-{\small
+\begin{table}[!h]
+  \caption{Current set of model parameter identifiers}\label{tab:mpis}
+  {\small
 \begin{verbatim}
 Indx Ident T P Specification                Status Note
    1 G     T P                                   0 Energy
@@ -237,18 +547,18 @@ Indx Ident T P Specification                Status Note
    3 BMAG  - -                                   1 Average Bohr magneton numb
    4 CTA   - P                                   2 Curie temperature
    5 NTA   - P                                   2 Neel temperature
-   6 IBM   - P &<constituent#sublattice>;       12 Individual Bohr magneton num
+   6 IBM   - P &<constituent#sublattice>        12 Individual Bohr magneton num
    7 THET  - P                                   2 Debye or Einstein temp
    8 V0    - -                                   1 Volume at T0, P0
    9 VA    T -                                   4 Thermal expansion
   10 VB    T P                                   0 Bulk modulus
   11 G2    T P                                   0 Liquid two state parameter
-  12 CBT   T P                                   2 Crystal breakdown T
-  13 MQ    T P &<constituent#sublattice>;       10 LN mobility1 of component
-  14 MF    T P &<constituent#sublattice>;       10 LN mobility2 of component
-  15 MG    T P &<constituent#sublattice>;       10 LN mobility3 of component
-  16 THT2  T P                                   2 Second Einstein T
-  17 DCP2  T P                                   2 Second Einstein Delta-Cp
+  12 CBT   T P                                   2 Hickel T
+  13 MQ    T P &<constituent#sublattice>        10 LN mobility1 of component
+  14 MF    T P &<constituent#sublattice>        10 LN mobility2 of component
+  15 MG    T P &<constituent#sublattice>        10 LN mobility3 of component
+  16 THT2  T P                                   2 Smooth step function T
+  17 DCP2  T P                                   2 Smooth step function value
   18 VISC  T P                                   0 Viscosity
   19 LPX   T P                                   0 Lattice param X axis
   20 LPY   T P                                   0 Lattice param Y axis
@@ -257,17 +567,21 @@ Indx Ident T P Specification                Status Note
   23 EC11  T P                                   0 Elastic const C11
   24 EC12  T P                                   0 Elastic const C12
   25 EC44  T P                                   0 Elastic const C44
-  26 FHV   T P &<constituent#sublattice>;       10 Flory-Huggins volume ratio
-  27 RHO   T P                                   0 Electrical resistivity
-  28 LAMB  T P                                   0 Thermal conductivity
-  29 HMVA  T P                                   0 Enthalpy of vacancy form
-  30 TSCH  - P                                   2 Schottky anomality T
-  31 CSCH  - P                                   2 Schottky anomality Cp/R
+  26 FHV   T P &<constituent#sublattice>        10 Flory-Huggins volume ratio
+  30 UQR   T P                                   0 UNIQUAC segment parameter
+  30 UQQ   T P                                   0 UNIQUAC area parameter
+  30 UQT   T P                                   0 UNIQUAC residual parameter
+  30 RHO   T P                                   0 Electrical resistivity
+  31 LAMB  T P                                   0 Thermal conductivity
+  32 HMVA  T P                                   0 Enthalpy of vacancy form
+  33 TSCH  - P                                   2 Schottky anomality T
+  34 CSCH  - P                                   2 Schottky anomality Cp/R
 \end{verbatim}}
+\end{table}
 
-Many of these identifiers have no supporting software implemented, this
-is an ongoing project.  The columns T P indicate if the parameter may
-depend on $T$ or $P$.  Some identifiers require additional
+Several of these identifiers have no supporting software implemented,
+this is an ongoing project.  The columns T P indicate if the parameter
+may depend on $T$ or $P$.  Some identifiers require additional
 specification of the constituent and sublattice, like the mobility of
 a constituent.  Currently it is not yet clear if mobilities should
 depend on the sublattice or not but the notation allows that.
@@ -307,8 +621,8 @@ A slightly more detailed explanation of the identifiers are:
   constituent C.
 \item MG\&C, a parameter for the magnetic factor of the mobility of
   constituent C.
-\item THT2, Second Einstein temperature.
-\item DCP2, Second Einstein $\Delta C_P$.
+\item THT2, The T for a smooth change of C$_P$ 
+\item DCP2, The value of the smooth change in J/mol
 \item VISC, a parameter for the viscosity.
 \item LPX, a parameter the lattice parameter in X direction.
 \item LPY, a parameter the lattice parameter in Y direction.
@@ -318,11 +632,14 @@ A slightly more detailed explanation of the identifiers are:
 \item EC12, a parameter for the elastic constant C12.
 \item EC44, a parameter for the elastic constant C44.
 \item FHV\&C, a parameter for the Flory-Huggins volume ratio of C
+\item UQR, a parameter uniquac constituent segments
+\item UQQ, a parameter uniquac constituent area
+\item UQT, a parameter uniquac residual energy
 \item RHO, a parameter for the electrical resistivity.
 \item LAMB, a parameter for the thermal conductivity.
 \item HMVA, a parameter for the enthalpy of vacancy formation.
-\item TSCH, a parameter for Schottky anomality T
-\item CSCH, a parameter for Schottky anomality $\Delta C_P$.
+\item TSCH, the T for a Schottky anomality
+\item CSCH, the Schottky anomality $\Delta C_P$.
 \end{itemize}
 
 The current value of any of these parameter identifiers can be obtaind
@@ -340,9 +657,9 @@ them in the same way as the thermodynamic data.
 
 A constituent array specifies one or more constituent in each
 sublattice.  A constituent must be entered as a species with fixed
-stoichiometry.  Between constituents in different sublattices one must
+stoichiometry.  Between constituents in different sublattices you must
 give a colon, ":", between interacting constituents in the same
-sublattice one must give a comma, "," or a space.  A constituent array
+sublattice you must give a comma, "," or a space.  A constituent array
 with exactly one constituent in each sublattice is also called an
 ``endmember'' as it give the value for a ``compound'' with fixed
 stoichiometry.  Constituent arrays with one or more interaction
@@ -350,7 +667,7 @@ constituents describe the composition dependence of the property.
 Without such parameters the property will vary linearly between the
 endmembers.
 
-If there are no sublattices, like in the gas, one just give the phase
+If there are no sublattices, like in the gas, you just give the phase
 and the constituent
 
 G(GAS,C1O2)
@@ -359,7 +676,7 @@ If no degree is specified it is assumed to be zero.  For endmembers
 the degree must be zero but it may sometimes be useful to specify the
 zero in order to distinguish the parameter from the expression for the
 calculated value of the property, like the chemical potential of a
-component.  In the gas phase one normally assumes there are no
+component.  In the gas phase you normally assumes there are no
 interactions but it is possible to add such parameters.  For an fcc
 phase with 4 sublattice for ordering and one for interstitials an
 endmember parameter is
@@ -372,7 +689,7 @@ An interaction between vacancies and carbon in the austenite is
 
 G(FCC,FE:C,VA;0)
 
-For an interaction parameter one should always specify a degree but
+For an interaction parameter you should always specify a degree but
 also in this case an omitted degree is interpreted as zero.
 
 \subsubsection{The TPFUN expression and bibliographic reference}\label{sc:tpfun}
@@ -422,26 +739,27 @@ or arguments to LN and EXP.  A valid expression is
         -34869.344+344.18*T-50*T*LN(T)-2.88526E+32*T**(-9); 6000 N 91Din
 \end{verbatim}
 
-where 91Din is the reference to the SGTE unary database.
+where 91Din is the bibliographic reference to the SGTE unary database.
 
 \subsection{The reference state of a component}
 
-The values of most thermodynamic data must have a welldefined
-reference state.  By default the reference state for the components is
-SER (Stable Element Reference) which is the stable state of the
-element at 298.15~K and 1~bar.  (NOTE: the default reference state is
-defined by the database but today almost all databases have SER as
-reference state.)
+The values of most thermodynamic data must have a defined reference
+state.  By default the reference state for the components is SER
+(Stable Element Reference) which is the stable state of the element at
+298.15~K and 1~bar.  (NOTE: the default reference state is defined by
+the database but today almost all databases have SER as reference
+state.)
 
-For each component (also for other components than the elements) one
+For each component (also for other components than the elements) you
 can specify a phase at a given temperature and pressure as reference
 state, see section~\ref{sc:setref}.  The phase must exist for the
 component as pure.
 
 A state variable like the chemical potential, MU(O), will refer to the
 user defined reference state if set.  To obtain the value for the SER
-state one can use a suffix S, i.e. MUS(O) to obtain the chemical
-potential refered to SER.
+state you can use a suffix S, i.e. MUS(O) to obtain the chemical
+potential refered to SER.  All state variables are listed in
+Table~\ref{tab:statev}.
 
 Note that the value of integral properties like Gibbs energy, $G$,
 enthalpy, $H$, etc. may have mixed reference states unless all
@@ -450,45 +768,53 @@ the enthalpy of mixing of a phase all components must have that phase
 as reference state.  For the volume, $V$, SER is always used as
 reference state unless all components have the same reference state.
 
-\subsection{Macro files}
+\subsection{Equilibrium calculations}
 
-The macro command is very useful for preparing complex calculations
-and to remember how you did them.  A macro file is simplest to create
-staring from a log file (created by the {\bf SET LOG} command).  See the
-macros directory for examples.
+The basic application of OC is to calculate the equilibrium of a
+system specifying the external conditions like $T, P$ and the
+composition.  But as the minimazing algorithm~\cite{15Sun2} use
+Lagrangian multiplier any set of state variables can be used for
+specifying the external conditions.  Each condition is set separately
+and it is possible to extract phase amounts and compositions after the
+calculation.  By changing the status of the phases it is ppossible to
+calculate metastable state.
 
-You can insert stops in the macro file with ``@\&'' at the beginning
-of a line.  This can be useful to inspect the output.  The macro
-continues after pressing the ENTER/RETURN key.  Depending on the
-graphical driver you use the program will normally pause after each
-plot and you must use the mouse to click on the graphical window to
-continue.
+In order to do any calculation the user must provide a database with
+the model parameters for his system.
 
-You can insert comments in the macro file with ``@\$'' at the beginning
-of the comment line.
+\subsection{Property diagrams}
 
-A macro file should be terminated with the command {\bf SET
-  INTERACTIVE} which gives back control to the keyboard (or the
-calling macro file) otherwise the program will terminate at the end of
-the macro.
+A property diagram is calculate with the STEP command.  First you must
+calculate a single equilibrium and then set set one of the conditions
+as an axis.  After the STEP command you can plot how any state
+variable varies with the selected axis variable.  See the Examples
+guide.
 
-Macro files can be nested 5 levels deep.
+\subsection{Phase diagrams}
 
-\subsection{Assessment of model parameters}
+A phase diagram show the regions of different sets of stable phases in
+a system.  It can have two or more axis variables, in OC the maximum
+number of axis is two at present.  As for property diagrams you must
+first calculate a single equilibrium and then select two conditions as
+axis variables.  The command MAP will then trace the lines in your
+systems where the set of stable phases changes.  There is no limit on
+the number of components for a phase diagram calculation.
 
-One of the important use of the OC software is to assess model
+\subsection{Assessment of model parameters for databases}
+
+One of the important uses of the OC software is to assess model
 parameters in the phases of a system using experimental and
 theoretical data.  This is done by recalculating the experimental data
 from the model and by varying the model parameters a least square
 routine, LMDIF developed at Argonne National Lab in 1981, is used to
 find the best set.
 
-Assessments are a very difficult procedure as one must also take into
+Assessments are a very difficult procedure as you must also take into
 account the extrapolations of the model outside the range of
 experimental data.  So called ``First Principles Calculations'' or the
 somewhat simpler ``Density Functional Theory'' (DFT) which are based
 on the electronic structure of the elements can provide information
-for metastable as well as for the stable state.  But one must be
+for metastable as well as for the stable state.  But you must be
 careful that the result from such calculations does not represent a
 mechanically unstable state with imaginary phonon frequencies.
 
@@ -499,7 +825,7 @@ solubilities etc because they are also related to the equilibrium
 state.
 
 There are several commands related to the assessment procedure in OC
-but during the assessment one will also use the basic facilities to
+but during the assessment you will also use the basic facilities to
 calculate equilibria for different kinds of conditions as well as many
 different kinds of diagrams to verify the results.
 
@@ -516,7 +842,7 @@ The elements, species and phases with their appropriate models are
 entered using the appropriate commands.  Normally this is on a macro
 file in order to have proper documentation.  Keep also in mind that an
 assessment is often revised after a few years when new data become
-available or one finds that the extrapolations of an assessment to a
+available or you find that the extrapolations of an assessment to a
 higher order system is not reasonable.
 
 The model parameters are entered using ``enter parameter'', see
@@ -538,7 +864,7 @@ Often there are tables with values and instead of entering each of
 them there is a command ``enter many\_equilibria'', see
 section~\ref{sc:entermany} with a simplified syntax.
 
-When all equilibria with experiental data has been entered one has to
+When all equilibria with experiental data has been entered you have to
 give the command ``set range'', see section~\ref{sc:setrange} to give
 the first and last equilibrium number that should be used in the
 assessment.  If necessary this range can be extended during the
@@ -552,14 +878,20 @@ keep a documentation.
 Any time during an assessment it is possible to save the values of all
 assessed parameters and the calculated experimental equilibria by the
 command ``save unform {\em filename}'', see section~\ref{sc:saveunf}.
-The data inside OC will be written as an unformatted Fortran file and
-this can be saved and later read back into the OC software by the
-command ``read unfomatted {\em filename}'', see
-section~\ref{sc:readunf}.  However, beware that the structure of this
-file may change in future releases of the software and preferably keep
-printouts and macro files also.
+With this command the data inside OC will be written as an unformatted
+Fortran file and this can be saved and later read back into the OC
+software by the command ``read unfomatted {\em filename}'', see
+section~\ref{sc:readunf}.  If these commands are inside a macro file
+prefix the filename with ``./'' to read and write on the same
+directory as the macro file.
 
-\subsubsection{Performing the assessment}
+These unformatted files are very convenient but beware that they may
+not be portable to other operating systems or even other versions of
+OC compiled with different Fortran compilers.  It may change in future
+releases of the OC software.  Thus keep printouts and macro files also
+if you later want to make modifications.
+
+\subsubsection{Performing the assessment}\label{sc:assess}
 
 There are many decisions to make during the assessment and a general
 description how to perform an assessment can be found in the book by
@@ -576,7 +908,7 @@ the maximum number of iterations, see section~\ref{sc:optim}.  If zero
 is given a single loop is made through all equilibria with nonzero
 weights within the specified range is made.  It is also possible to
 use the command ``calculate all'', see section~\ref{sc:calcall}, to
-calculate all non-zero weight equilibria.  With the latter command one
+calculate all non-zero weight equilibria.  With the latter command you
 can turn on the grid minimizer, in the optimize command the grid
 minimizer is always turned off.
 
@@ -614,233 +946,20 @@ prevent this to happen.
 
 At the end the assessment should be written up and published.
 
-\subsection{Environment and startup macro file}
+\subsection{Application software}
 
-The OC program will look for an environment variable called OCHOME and
-if it finds this it will look for a file start.OCM which will be
-executed before the user gets control.  This can typically be useful
-to set some variables like the plot terminals, see
-section~\ref{sc:gnuterm}.  If there is no OCHOME environment variable
-the current directory will be searched.
-
-If the OCHOME directory has a subdirectory called ``data'' this will
-be searched when the user tries to read a TDB file.
-
-\subsection{User interface feedback}
-
-OC has grown organically and although the basic concepts has been
-quite clear several of the implementations of these has become rather
-confusing.  This will eventually require some cleaning up of the user
-interface.
-
-If you like a Graphical User Interface you are welcome to write it.
-
-A central part of any thermodynamic software is the modeling of the
-phases.  The new PDB format for databases may help a little with the
-specification of the models.  An attempt has been made in this version
-to clean up the way a model is specified and used.  At present one
-must first ENTER the phase to give a name, basic model, sublattices
-and constituents.  The AMEND command is then used to add magnetism, a
-disordered fraction set or to use of BCC/FCC permutations.  Previously
-some of these things were set by the command SET PHASE ... BIT and
-that was not very clear.
-
-Some computational options like for the grid minimizer are also set
-with several different commands.  It is useful to have some feedback
-from users to organize this better.
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%
-% Below is an extract of the OC command interface for version 5
-% Comparing this with the current software is be way to know 
-% where to update the user guide ... hm
-%
-%F! basic commands
-%F    character (len=16), dimension(ncbas), parameter :: cbas=&
-%F       ['AMEND           ','CALCULATE       ','SET             ',&
-%F        'ENTER           ','EXIT            ','LIST            ',&
-%F        'QUIT            ','READ            ','SAVE            ',&
-%F        'HELP            ','INFORMATION     ','BACK            ',&
-%F        'NEW             ','MACRO           ','ABOUT           ',&
-%F        'DEBUG           ','SELECT          ','DELETE          ',&
-%F        'STEP            ','MAP             ','PLOT            ',&
-%F        'HPCALC          ','FIN             ','OPTIMIZE        ',&
-%F        '                ','                ','                ',&
-%F        '                ','                ','                ']
-%F! in French
-%F!        'MODIFIEZ        ','CALCULEZ        ','REGLEZ          ',&
-%F!        'ENTREZ          ','EXIT            ','AFFICHER        ',&
-%F!        'QUIT            ','LIRE            ','SAUVGARDE       ',&
-%F!        'AIDEZ           ','INFORMATION     ','RETURNEZ        ',&
-%F!        'NOUVEAU         ','MACRO           ','ABOUT           ',&
-%F!        'DEBUG           ','SELECTIONEZ     ','EFFACEZ         ',&
-%F!        'STEP            ','MAP             ','DESSINEZ        ',&
-%F!        'HPCALC          ','FIN             ','                ']
-%F! NOTE a command line can contain options preceeded by /
-%F! for example "list /out=myfile.dat all_data" or
-%F!-------------------
-%F! subcommands to LIST
-%F    character (len=16), dimension(nclist) :: clist=&
-%F         ['DATA            ','SHORT           ','PHASE           ',&
-%F         'STATE_VARIABLES ','BIBLIOGRAPHY    ','MODEL_PARAM_ID  ',&
-%F         'AXIS            ','TPFUN_SYMBOLS   ','QUIT            ',&
-%F         'PARAMETER       ','EQUILIBRIA      ','RESULTS         ',&
-%F         'CONDITIONS      ','SYMBOLS         ','LINE_EQUILIBRIA ',&
-%F         'OPTIMIZATION    ','MODEL_PARAM_VAL ','ERROR_MESSAGE   ',&
-%F         '                ','                ','                ']
-%F!-------------------
-%F! subsubcommands to LIST DATA
-%F    character (len=16), dimension(nlform) :: llform=&
-%F        ['SCREEN          ','TDB             ','MACRO           ',&
-%F         'LATEX           ','PDB             ','                ']
-%F!-------------------
-%F! subsubcommands to LIST PHASE
-%F    character (len=16), dimension(nclph) :: clph=&
-%F        ['DATA            ','CONSTITUTION    ','MODEL           ',&
-%F         '                ','                ','                ']
-%F!-------------------
-%F! subsubcommands to LIST OPTIMIZE results
-%F    character (len=16), dimension(noptopt) :: optopt=&
-%F        ['SHORT           ','LONG            ','COEFFICIENTS    ',&
-%F         'GRAPHICS        ','DEBUG           ','MACRO           ',&
-%F         '                ','                ','                ']
-%F!-------------------
-%F! subcommands to CALCULATE
-%F    character (len=16), dimension(ncalc) :: ccalc=&
-%F         ['TPFUN_SYMBOLS   ','PHASE           ','NO_GLOBAL       ',&
-%F         'TRANSITION      ','QUIT            ','GLOBAL_GRIDMIN  ',&
-%F         'SYMBOL          ','EQUILIBRIUM     ','ALL_EQUILIBRIA  ',&
-%F         'WITH_CHECK_AFTER','                ','                ']
-%F!-------------------
-%F! subcommands to CALCULATE PHASE
-%F    character (len=16), dimension(nccph) :: ccph=&
-%F         ['ONLY_G          ','G_AND_DGDY      ','ALL_DERIVATIVES ',&
-%F          'CONSTITUTION_ADJ','DIFFUSION_COEFF ','                ']
-%F!-------------------
-%F! subcommands to ENTER
-%F    character (len=16), dimension(ncent) :: center=&
-%F         ['TPFUN_SYMBOL    ','ELEMENT         ','SPECIES         ',&
-%F         'PHASE           ','PARAMETER       ','BIBLIOGRAPHY    ',&
-%F         'CONSTITUTION    ','EXPERIMENT      ','QUIT            ',&
-%F         'EQUILIBRIUM     ','SYMBOL          ','OPTIMIZE_COEFF  ',&
-%F         'COPY_OF_EQUILIB ','COMMENT         ','MANY_EQUILIBRIA ',&
-%F         'MATERIAL        ','PLOT_DATA       ','GNUPLOT_TERMINAL',&
-%F         '                ','                ','                ']
-%F!-------------------
-%F! subcommands to READ
-%F    character (len=16), dimension(ncread) :: cread=&
-%F        ['UNFORMATTED     ','TDB             ','QUIT            ',&
-%F         'DIRECT          ','PDB             ','                ']
-%F!-------------------
-%F! subcommands to SAVE
-%F! note SAVE TDB, MACRO, LATEX part of LIST DATA !!
-%F    character (len=16), dimension(ncsave) :: csave=&
-%F        ['TDB             ','SOLGASMIX       ','QUIT            ',&
-%F         'DIRECT          ','UNFORMATTED     ','                ']
-%F!-------------------
-%F! subcommands to AMEND first level
-%F! many of these should be subcommands to PHASE
-%F    character (len=16), dimension(ncam1) :: cam1=&
-%F         ['SYMBOL          ','ELEMENT         ','SPECIES         ',&
-%F         'PHASE           ','PARAMETER       ','BIBLIOGRAPHY    ',&
-%F         'TPFUN_SYMBOL    ','CONSTITUTION    ','QUIT            ',&
-%F         'COMPONENTS      ','GENERAL         ','CP_MODEL        ',&
-%F         'ALL_OPTIM_COEFF ','EQUILIBRIUM     ','                ',&
-%F         'LINE            ','                ','                ']
-%F!-------------------
-%F! subsubcommands to AMEND PHASE
-%F    character (len=16), dimension(ncamph) :: camph=&
-%F!         ['MAGNETIC_CONTRIB','COMPOSITION_SET ','DISORDERED_FRACS',&
-%F         ['MAGNETIC_INDEN  ','COMPOSITION_SET ','DISORDERED_FRACS',&
-%F         'LIQUID_2_STATEML','QUIT            ','DEFAULT_CONSTIT ',&
-%F         'DEBYE_CP_MODEL  ','EINSTEIN_CP_MDL ','XIONG_INDEN_MAGN',&
-%F         'ELASTIC_MODEL_1 ','GADDITION       ','                ']
-%F!-------------------
-%F! subcommands to SET
-%F    character (len=16), dimension(ncset) :: cset=&
-%F         ['CONDITION       ','STATUS          ','ADVANCED        ',&
-%F         'LEVEL           ','INTERACTIVE     ','REFERENCE_STATE ',&
-%F         'QUIT            ','ECHO            ','PHASE           ',&
-%F         'UNITS           ','LOG_FILE        ','WEIGHT          ',&
-%F         'NUMERIC_OPTIONS ','AXIS            ','INPUT_AMOUNTS   ',&
-%F         'VERBOSE         ','AS_START_EQUILIB','BIT             ',&
-%F         'VARIABLE_COEFF  ','SCALED_COEFF    ','OPTIMIZING_COND ',&
-%F         'RANGE_EXPER_EQU ','FIXED_COEFF     ','T_AND_P         ']
-%F! subsubcommands to SET STATUS
-%F    character (len=16), dimension(ncstat) :: cstatus=&
-%F         ['ELEMENT         ','SPECIES         ','PHASE           ',&
-%F         'CONSTITUENT     ','                ','                ']
-%F!        123456789.123456---123456789.123456---123456789.123456
-%F! subsubcommands to SET ADVANCED
-%F    character (len=16), dimension(ncadv) :: cadv=&
-%F         ['EQUILIB_TRANSF  ','QUIT            ','EXTRA_PROPERTY  ',&
-%F          'DENSE_GRID_ONOFF','SMALL_GRID_ONOFF','                ']
-%F!         123456789.123456---123456789.123456---123456789.123456
-%F! subsubcommands to SET BITS
-%F    character (len=16), dimension(nsetbit) :: csetbit=&
-%F         ['EQUILIBRIUM     ','GLOBAL          ','PHASE           ',&
-%F          '                ','                ','                ']
-%F!          123456789.123456---123456789.123456---123456789.123456
-%F! subsubcommands to SET PHASE
-%F    character (len=16), dimension(nsetph) :: csetph=&
-%F         ['QUIT            ','STATUS          ','DEFAULT_CONSTIT ',&
-%F          'AMOUNT          ','BITS            ','CONSTITUTION    ']
-%F!         123456789.123456---123456789.123456---123456789.123456
-%F!-------------------
-%F! subsubsubcommands to SET PHASE BITS
-%F    character (len=16), dimension(nsetphbits) :: csetphbits=&
-%F         ['FCC_PERMUTATIONS','BCC_PERMUTATIONS','IONIC_LIQUID_MDL',&
-%F         'AQUEOUS_MODEL   ','QUASICHEMICAL   ','FCC_CVM_TETRADRN',&
-%F         'FACT_QUASICHEMCL','NO_AUTO_COMP_SET','QUIT            ',&
-%F         'EXTRA_DENSE_GRID','FLORY_HUGGINS   ','                ',&
-%F         '                ','                ','                ']
-%F!         123456789.123456---123456789.123456---123456789.123456
-%F!-------------------
-%F! subcommands to STEP
-%F    character (len=16), dimension(nstepop) :: cstepop=&
-%F         ['NORMAL          ','SEPARATE        ','QUIT            ',&
-%F          'CONDITIONAL     ','                ','                ']
-%F!         123456789.123456---123456789.123456---123456789.123456
-%F!-------------------
-%F! subcommands to DEBUG
-%F    character (len=16), dimension(ncdebug) :: cdebug=&
-%F         ['FREE_LISTS      ','STOP_ON_ERROR   ','ELASTICITY      ',&
-%F          'TEST1           ','TEST2           ','                ']
-%F!-------------------
-%F! subcommands to SELECT, maybe some should be CUSTOMMIZE ??
-%F    character (len=16), dimension(nselect) :: cselect=&
-%F         ['EQUILIBRIUM     ','MINIMIZER       ','GRAPHICS        ',&
-%F         'LANGUAGE        ','OPTIMIZER       ','                ']
-%F!-------------------
-%F! subcommands to DELETE
-%F    character (len=16), dimension(nrej) :: crej=&
-%F         ['ELEMENTS        ','SPECIES         ','PHASE           ',&
-%F          'QUIT            ','COMPOSITION_SET ','EQUILIBRIUM     ',&
-%F          'STEP_MAP_RESULTS','                ','                ']
-%F!-------------------
-%F! subcommands to INFORMATION
-%F    character (len=16), dimension(ninf) :: cinf=&
-%F         ['ELEMENTS        ','SPECIES         ','PHASE           ',&
-%F          'QUIT            ','COMPOSITION_SET ','EQUILIBRIUM     ',&
-%F          'CHANGES         ','                ','                ']
-%F!-------------------
-%F! subcommands to PLOT OPTIONS/ GRAPHICS OPTIONS
-%F    character (len=16), dimension(nplt) :: cplot=&
-%F        ['RENDER          ','SCALE_RANGES    ','RATIOS_XY       ',&
-%F         'AXIS_LABELS     ','                ','TITLE           ',&
-%F         'GRAPHICS_FORMAT ','OUTPUT_FILE     ','GIBBS_TRIANGLE  ',&
-%F         'QUIT            ','POSITION_OF_KEYS','APPEND          ',&
-%F         'TEXT            ','TIE_LINES       ','KEEP            ',&
-%F         'LOGSCALE        ','                ','                ']
-%F!-------------------
-%F
-%! end extract of command user interface
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%
-% below the commands are arranged in alphabetical order
+There is a separate guide for using OpenCalphad Application Interface
+(OCASI) in application software.  For such cases it is convenient to
+have the source code which can be compiled together with the
+applications software.  A special feature is also the possibility to
+use OpenMP to calculate in parallel.
 
 \newpage
 
+% below the commands are documented in alphabetical order
+
+%\section{All commands}
+\hypertarget{All commands}{}
 \section{All commands}
 
 The commands in alphabetical order as listed with the ?
@@ -856,22 +975,48 @@ ENTER           & MACRO          & SAVE\\
 \end{tabular}
 
 Many of the commands have ``subcommands'' and usually there is a
-default (listed within slashes //) which is selected by pressing
-return.  One can type commands and subcommands and other parameters on
-the same line if one knows the order, using a comma, ``,'' to select
-the default.
+default (listed within slashes /default/) which is selected by
+pressing return.  You can type commands and subcommands and other
+parameters (separated by a space) on the same line if one knows the
+order.
 
-\subsection{Options}
+To select a default when typing several commands on a line you
+can use a comma,``,'' to select the default.
+
+Many commands will ask additioal questions, all of them are not
+included in this guide but those which are will be {\bf shown in
+  bold}.  Examples and references to other commands are sometimes in
+bold, sometimes in {\em italics}.
+
+Whenever the program asks for someting you do not understand you can
+type an interrogation character, ``?'', to obtain help.  This will
+hopefully provide a relevant extract of this user guide.
+
+If you have installed the HTML help, see
+section~\ref{sc:on-line-help}, you will have the help text in a
+separate browser window and can scroll and search for other sections.
+Without this facility a limited text will be shown in the termial
+window.
+
+\subsection{Options}\label{sc:options}
 
 There some options that can be set for the whole session or for just a
 single command.  The options are identified by a / in front like
 /output=myfile.dat.
 
-The options can be specifies directly after a command.  Only a few are
-implemented.
+An option must be specified directly after a command for example:
+
+{\bf list /out=equil5 result 2}
+
+Only a few options are implemented.
 
 \begin{itemize}
-\item /OUTPUT={\em file name} open a file and write
+\item /OUTPUT={\em file name} open a file and write.  Note that if you
+  have popup windows enabled this will open unless you type the file
+  name on the same line as the command.  In a macro file must prefix
+  the file name with ``./'' to have the output (or append) on the same
+  directory as the macro file.  See also section~\ref{sc:popup} and
+  \ref{sc:macro}.
 \item /APPEND={\em file name} append output to a file, any previous
   content is kept.
 \item /ALL apply for all
@@ -882,85 +1027,122 @@ implemented.
 %===================================================================
 % Here we start adding %\section etc for the on-line help
 % The online help will not print lines starting with % or \
-\section{About}
 %\section{About}
+\hypertarget{about}{}
+\section{About}
 
-Some information about the software.
+Some information about the OC software.
 
 %===================================================================
-\section{Amend}
 %\section{Amend}
+\hypertarget{Amend}{}
+\section{Amend}
 
 Intended to allow changes of already entered data. Only some
 of the subcommands are implemented.
 
 \begin{tabular}{llll}
- ALL\_OPTIM\_COEFF & CP\_MODEL     &  LINE        &  SPECIES \\
- BIBLIOGRAPHY     & ELEMENT       &   PARAMETER   &  SYMBOL \\
- COMPONENTS       & EQUILIBRIUM   &   PHASE       &  TPFUN\_SYMBOL\\
- CONSTITUTION     & GENERAL       &   QUIT     \\
+ BIBLIOGRAPHY     & EQUILBRIUM    & PARAMETER   &  SYMBOL \\
+ COMPONENTS       & GENERAL       & PHASE       &  TPFUN-SYMBOL\\
+ CONSTITUTION     & LINE          & QUIT     \\
+ ELEMENT          & OPTIMIZING-COEFS & SPECIES\\
 \end{tabular}
 
+The default selection is PHASE.
 %--------------------------------
-\subsection{{\em amend} All optimizing coefficients}
-%\subsection{{AMEND ALL_OPTIM_COEFF}
 
-The values of the optimizing coefficients, see
-section~\ref{sc:setrange} can be rescaled (start values set to
-current values) or recovered (current values set to previous start
-values).
+%\subsection{Bibliography}
+\hypertarget{amend bibliography}{}
+%\subsection{Reference identifier:}
+\hypertarget{Reference identifier:}{}
 
-%--------------------------------
 \subsection{{\em amend} Bibliography}
-%\subsection{AMEND Bibliography}
+
+{\bf Reference identifier:}
 
 The text for bibliographic reference identifier can be amended.  The
-reference identifier is case insensitive.
+reference identifier is CASE INsensitive.
+
+%\subsection{Reference text:}
+\hypertarget{Reference text}{{\bf Reference text, end with ``;'':}}
+
+The text for this reference will be set to the text supplied.  It can be
+several lines terminated with a ``;''
 
 %--------------------------------
+%\subsection{components}
+\hypertarget{amend components}{}
 \subsection{{\em amend} Components}
-%\subsection{AMEND Components}
+
+%\subsection{Give all new components}
+\hypertarget{Give all new components}{{\bf Give all new components:}}
 
 By default the elements are the components.  This command can set any
 orthogonal set of species as components.  The number of components
 cannot be changed by this command.  The new components must exist as
-species and be orthogonal.
+species and be orthogonal.  For example in the system Ca-O-Si one can
+define CaO SiO2 and O as components.
 
-You must use components when setting conditions on amounts, mole
-fractions, chemical potentials or activities.  Note that when you have
-other components than the elements you may have negative mole
-fractions and phase amounts.
+The components are important as you can only use components to
+specify compositions, such as x(cao)=.3 is possibly only if CaO
+is a component.  See also {\bf set input-amount}~\ref{sc:setinpuam}.
+
+Note that when you have other components than the elements you may
+have negative mole fractions and phase amounts (but never negative
+mass).
 
 %--------------------------------
+%\subsection{Constitution}
+\hypertarget{amend constitution}{}
 \subsection{{\em amend} Constitution}
-%\subsection{AMEND Constitution}
 
-The program will ask for a phase name and the user can set the amount
+%\subsection{phase name:}
+\hypertarget{amend const phase name}{{\bf Phase name:}}
+
+The program will ask for a phase name and you can set the amount
 and constitution of the phase.  This will be used as initial
 constitution for a calculation unless the grid minimizer is used.
 
-%--------------------------------
-\subsection{{\em amend} $C_P$ model}
-%\subsection{AMEND C_P model}
+%\subsection{Amount of}
+\hypertarget{amend const amonut}{{\bf Amount of phase:}}
 
-The low temperature heat capacity model can be amended.  Not
-implemented yet.
+% This command should be moved to AMEND PHASE ...
+
+%\subsection{Current (Y), default (D) or new (N)}
+% use hypertarget above ...
+{\bf Current (Y), default (D) or new (N) constitution:}
+
+Answer Y to keep current constituion, D to set a default constitution
+(if you have set such a constitution) or N to provide a new
+constitution.
+
+%\subsection{Fraction of}
+{\bf Fraction of component: }
+
+You can specify a value between 0.0 and 1.0.  The sum of all
+constituents must be unity, values below 0.0 or 1.0 are not allowed.
+If you want the fraction of a constituent the be 1.0-(all the other
+fractions) you can set its value to REST.  Otherwise the last
+constituent is set to the ``rest''.
 
 %--------------------------------
+%\subsection{Element}
+\hypertarget{amend element}{}
 \subsection{{\em amend} Element}
-%\subsection{AMEND Element}
 
 The data for the element can be amended, not implemented yet.
 
 %--------------------------------
+%\subsection{Equilirium}
+\hypertarget{amend equilibrium}{}
 \subsection{{\em amend} Equilirium}
-%\subsection{AMEND Equilirium}
 
 Not sure what could be amended and anyway not implemented.
 
 %--------------------------------
+%\subsection{General}
+\hypertarget{AMEND General}{}
 \subsection{{\em amend} General}
-%\subsection{AMEND General}
 
 A number of user specific settings for defaults can be made:
 
@@ -977,55 +1159,70 @@ A number of user specific settings for defaults can be made:
   an equilibrium calculaion.
 \end{itemize}
 
-Note that these and some other general feautures can be changed by the
-command {\bf SET BIT GLOBAL}
+Note that these and some other general feautures can also be changed
+by the command {\bf SET BIT GLOBAL}
 
 %--------------------------------
+%\subsection{Line}
+\hypertarget{AMEND Line}{}
 \subsection{{\em amend} Line}
-%\subsection{AMEND Line}
 
 After a STEP or MAP command it is possible to give the command LIST
-LINE to list all calculated equilibria or AMEND LINE which allows the
-user to EXCLUDE lines or INCLUDE lines from the plotting.
+LINE to list all calculated equilibria or AMEND LINE which allows you
+to EXCLUDE lines or INCLUDE lines from the plotting.
 
 %--------------------------------
+%\subsection{OPTIMIMIZING-COEFS}
+\hypertarget{AMEND OPTIMIMIZING-COEFS}{}
+\subsection{{\em amend} All optimizing coefficients}
+
+The values of the optimizing coefficients, see
+section~\ref{sc:setrange} can be rescaled (start values set to
+current values) or recovered (current values set to previous start
+values).
+
+%--------------------------------
+%\subsection{Parameter}
+\hypertarget{AMEND Parameter}{}
 \subsection{{\em amend} Parameter}
-%\subsection{AMEND Parameter}
 
 The possible parameters that can be amended depend on the model of the
-phase.  By specifying a parameter the user can change its expression.
+phase.  By specifying a parameter you can change its expression.
 This is not yet implemented you must use the command {\bf ENTER
   PARAMETER} to change the parameter expression.
 
 %--------------------------------
-\subsection{{\em amend} Phase $<$\em phase$>$}\label{sc:amendph}
-%\subsection{AMEND Phase}
+% we need to add these for the seach on the help file ... suck
+%\subsection{Phase}
+%\subsection{Phase name:}
+%\subsection{AMEND for phase}
+\hypertarget{AMEND FOR PHASE}{}
+\subsection{{\em amend} for Phase $<$\em phase name$>$}\label{sc:amendph}
 
 You must first specify the phase name and then you can amend some of
 the properties of the phase:
 
-%If you want to amend something
-%for a composition set you must specify the composition set number
-%together with the phase name after a hash character (\#) (like
-%liquid\#2).  
+If you want to amend something for a composition set you must specify
+the composition set number together with the phase name after a hash
+character (\#) (like liquid\#2).
+
+{\bf Phase name:}
+
+You must specify the name of the phase you want to amend.
 
 {\small
 \begin{tabular}{llll}
-ADDITION      &  COMPOSITION\_SET &  FCC\_CVM\_TETRAHDR & GADDITION \\
-AQUEUS\_MODEL &  DEFAULT\_CONSTIT &  FCC\_PERMUTATIONS  & QUASICHEM\_MODEL\\
-BCC\_PERMUTATIONS & DISORDERED\_FRACS & FLORY\_HUGG\_MODEL & QUI \\
-
-%AQUEUS\_MODEL    & DISORDERED\_FRACS & FLORY\_HUGG\_MODEL & MAGNETIC\_CONTRIB\\
-% BCC\_PERMUTATIONS & ELASTIC\_MODEL\_1 & GADDITION      &  QUASICHEM\_MODEL\\
-% COMPOSITION\_SET  & FCC\_CVM\_TETRAHDR &LIQUID\_2\_STATEML & QUIT\\
-% DEFAULT\_CONSTIT  & FCC\_PERMUTATIONS & LOWT\_CP\_MODEL\\
-%  
+ADDITION          & DEFAULT-CONSTIT   & FCC-PERMUTATIONS  & QUIT \\
+AQUEUS-MODEL      & DIFFUSION         & FLORY-HUGG-MODEL & UNIQUAC-MODEL \\
+BCC-PERMUTATIONS  & DISORDERED-FRACS  & GADDITION \\
+COMPOSITION-SET   & FCC-CVM-TETRAHDR  & QUASICHEM-MODEL\\
 \end{tabular}
 }
 
 %--------------------------------
-\subsubsection{{\em amend} phase $<$ ...$>$ ADDITION }
-%\subsubsection{amend phase $<$ ...$>$ ADDITION }
+%\subsubsection{ADDITION }
+\hypertarget{amend ADDITION}{}
+\subsubsection{{\em amend} phase $<$ ...$>$ Addition }
 
 Additions are used to give a contribution to the Gibbs energy of a
 phase using more or less physically based model.  Usually they require
@@ -1035,15 +1232,24 @@ not always be very clear.  The possible additions are
 
 {\small
 \begin{tabular}{llll}
-CRYSTAL\_BREAKDWN  & LOW\_CP\_MODEL    &  QUIT            & SECOND\_EINSTEIN \\
-ELASTIC\_MODEL\_1  & MAGNETIC\_CONTRIB & SCHOTTKY\_ANOMATY & TWOSTATE\_LIQUID\\
-
+CRYSTAL-BREAKDWN  & LOW-CP-MODEL    &  QUIT            & SMOOTH-CP-STEP \\
+ELASTIC-MODEL-1  & MAGNETIC-CONTRIB & SCHOTTKY-ANOMATY & TWOSTATE-LIQUID\\
 \end{tabular}
 }
 
+BEWHERE! The OC software allows you to mix many types of additions for
+a phase but it is up to you as user to defend the physical reasons for
+this!
+
+Some of the additions are related to properties that are not related
+to thermodynamics but which depend on the phase, $T, P$ and phase
+composition and thus convenient to store with the thermodynamic data.
+
 %. . . . . . . . . . . .
-\subsubsubsection{{\em amend phase ...} addition CRYSTAL\_BREAKDWN}
-%\subsubsubsection{amend phase ... addition CRYSTAL\_BREAKDWN}
+
+%\subsubsection{CRYSTAL_BREAKDWN}
+\hypertarget{amend CRYSTAL-BREAKDWN}{}
+\subsubsubsection{{\em amend phase ... addition} Crystal-breakdwn}
 
 When extrapolating the Gibbs energy of the solid phases above the
 melting T the heat capacity of the metstable solid is simply
@@ -1063,8 +1269,9 @@ function is still discussed.
 
 
 %. . . . . . . . . . . .
-\subsubsubsection{{\em amend phase ...} addition ELASTIC\_MODEL\_1}
-%\subsubsubsection{amend phase ... addition ELASTIC_MODEL_1}
+%\subsubsection{ELASTIC_MODEL_1}
+\hypertarget{amend ELASTIC-MODEL-1}{}
+\subsubsubsection{{\em amend phase ... addition} Elastic\_model\_1}
 
 A contribution to the Gibbs energy due to elastic strain can be added.
 This also requires values of the elastic constants and lattice
@@ -1073,87 +1280,124 @@ parameters, see section~\ref{sc:paramid}.
 There is no code to calculate the elastic energy implemented yet.
 
 %. . . . . . . . . . . .
-\subsubsubsection{{\em amend phase ...} addition LOWT\_CP\_MODEL}
-%\subsubsubsection{amend phase ... addition LOWT_CP_MODEL}
+%\subsubsection{LOWT_CP_MODEL}
+\hypertarget{amend LOWT-CP-MODEL}{}
+\subsubsubsection{{\em amend phase ... addition} LowT\_Cp\_model}
 
 The Einstein model for heat capacities from 0~K has been implemented.
-It requires the Einstein T as listed in section~\ref{sc:paramid}.
+It requires a value of the property Einstein T as listed in
+section~\ref{sc:paramid}.
 
 %. . . . . . . . . . . .
-\subsubsubsection{{\em amend phase ...} addition MAGNETIC\_CONTRIB}
-%\subsubsubsection{amend phase ... addition MAGNETIC\_CONTRIBUTION}
+%\subsubsection{MAGNETIC_CONTRIBUTION}
+\hypertarget{amend MAGNETIC-CONTRIBUTION}{}
+\subsubsubsection{{\em amend phase ... addition} Magnetic\_contrib}
 
-The Inden-Hillert and the modified Inden-Qing model for the magnetic
-contribution to the Gibbs energy can be set by this command This
-depends on model parameters describing the Curie and Neel temperatures
-and the Bohr magneton number, as listed in model parameters
-identifiers~\ref{sc:paramid}, for the phase.
+%\subsubsubsection{Antiferromagnetic factor:}
+\hypertarget{amend Antiferromagnetic factor:}{}
 
-The Inden-Hillert model is described in \cite{07Luk} and the
-Qing-Xiong modified model requires separate values of the Curie and
-Neel Temperatures and individual Bohr magneton numbers of the
-constituents of the phase.
+The Inden-Hillert and the modified Inden-Qing-Xiong model for the
+magnetic contribution to the Gibbs energy can be set by this command
+This depends on model parameters describing the Curie and Neel
+temperatures and the Bohr magneton number, as listed in model
+parameters identifiers~\ref{sc:paramid}, for the phase.
+
+You also must also enter model parameters for the constituents of the
+phase, see the documentation of the model or Lukas~\cite{07Luk}.
+
+{\bf Antiferromagnetic factor:}
+
+The Qing-Xiong model is selected by giving zero (0) for the question
+about the anti-ferromagnetic factor.  For the original Inden-Hillert
+model -3 is used for FCC and HCP whereas -1 is used for BCC.
+
+The Inden-Hillert model is described in Lukas et al~\cite{07Luk}.  The
+Inden-Qing-Xiong modified model requires separate values of the Curie
+and Neel Temperatures and either an ``effective'' Bohr magneton number
+or individual Bohr magneton numbers for the constituents of the phase.
 
 %. . . . . . . . . . . .
-\subsubsubsection{{\em amend phase ...} addition QUIT}
-%\subsubsubsection{amend phase ... addition QUIT}
+%\subsubsubsection{addition QUIT}
+\hypertarget{amend addition QUIT}{}
+\subsubsubsection{{\em amend phase ... addition} Quit}
 
-You did not really wanted to add an addition.
+You did not really wanted to add any addition.
 
 %. . . . . . . . . . . .
-\subsubsubsection{{\em amend phase ...} addition SCHOTTKY\_ANOMALTY}
-%\subsubsubsection{amend phase ... addition SCHOTTKY\_ANOMALITY}
+%\subsubsubsection{SCHOTTKY-ANOMALITY}
+\hypertarget{amend SCHOTTKY-ANOMALITY}{}
+\subsubsubsection{{\em amend phase ... addition} Schottky\_anomalty}
 
 Some physical phenomena can increase the heat capacity for a phase and
 this addition can describe this.  It uses two model parameter
-identifiers, TSCH and CSCH that may depend on the composition.
+identifiers, TSCH and CSCH that may depend on the composition.  TSCH
+specify the T for the anomality and CSCH the maximum contribution to
+the heat capacity (J/mol/formula unit).
 
 %. . . . . . . . . . . .
-\subsubsubsection{{\em amend phase ...} addition SECOND\_EINSTEIN}
-%\subsubsubsection{amend phase ... addition SECOND\_EINSTEIN}
+%\subsubsubsection{SMOOTH-CP-STEP}
+\hypertarget{amend SMOOTH-CP-STEP}{}
+\subsubsubsection{{\em amend phase ... addition} Smooth-Cp-step}
 
-Using the Einstein model it is not possible to add a constant heat
-capacity term, i.e. a coefficient with a $Tln(T)$ dependence, to the
-Gibbs energy expression as the heat capacity should be zero at 0~K.
-If there for some reason would be useful as add a constant heat
-capacity term this can be done using this addition.  It has a seperate
-model parameter, THT2 for the Einstein T and another, DCP2, for the
-value of the change of the heat capacity.
+The 3rd generation thermodynamic databases extrapolate to 0¨K and
+require that the heat capacity is zero at 0~K.  This means it is
+impossible to use $T*\ln(T)$ terms (and also negative powers of
+$T^{-n}$) but there may be some physical phenomena that causes an
+incremental increase of the heat capacity at some temperature.
+Ignoring the physical reason for such an increase this
+``smooth\_$C_P$\_step addition will provide such this using two
+parameters, THT2 to specify $T$ and DCP2 to specify the increement in
+heat capacity.  It uses the same mathematical expression as the
+Einstein heat capacity function.
 
 %. . . . . . . . . . . .
-\subsubsubsection{{\em amend phase ...} addition TWOSTATE\_LIQUID}
-%\subsubsubsection{amend phase ... addition TWOSTATE\_LIQUID}
+%\subsubsubsection{TWOSTATE-LIQUID}
+\hypertarget{amend TWOSTATE-LIQUID}{}
+\subsubsubsection{{\em amend phase ... addition} Twostate-liquid}
 
 The two-state model for the hear capacity for the undercooled liquids
 can be added.  It assumes a low T amorphous state modeled as an
-EInstein solid and requires an Einstein T.  For the liquid transition
+Einstein solid and requires an Einstein T.  For the liquid transition
 it uses the model\_parameter\_ident {bf G2}, both of which are listed
 in section~\ref{sc:paramid}.
+
+You must specify parameters for THET and G2 for all constituents of
+the phase and possibly also interaction parameters to specify the
+composition dependence.
 
 The implementation of this addition is not finished.
 
 %--------------------------------- end of amend phase ... addition
 
 %.........................
-\subsubsection{{\em amend phase} ... Aqueous\_model}
-%\subsubsection{amend phase ... addition aqueus_model}
+%\subsubsection{aqueus-model}
+\hypertarget{addition aqueus-model}{}
+\subsubsection{{\em amend phase} ... Aqueous-model}
 
 A model with dilute configurational entropy.  Not implemented yet.
 
 %.........................
-\subsubsection{{\em amend phase} ... BCC\_permutations}
-%\subsubsection{amend phase ... addition BCC_permutations}
+%\subsubsection{BCC-permutations}
+\hypertarget{addition BCC-permutations}{}
+\subsubsection{{\em amend phase} ... BCC-permutations}
 
-This is intended for the 4 sublattice CEF model for BCC ordering.  The
-BCC tetrahedron is asymmetric which makes it a bit more complicated
-than the FCC.  There can be a 5th sublattice with interstitials.
+This is intended for the 4 sublattice CEF model for BCC ordering.  Due
+to crystallographic symmetry several model parameters must be
+identical such as
 
-With this model parameters with permutations has to be entered just
-once.
+G(BCC,AL:FE:FE:FE)=G(BCC,FE:AL:FE:FE)=G(BCC,FE:FE:AL:FE)=G(BCC,FE:FE:FE:AL)
+
+and this command means these parameters need to be entered only once.
+This affects the data storage and the calculation of the Gibbs energy
+is slightly more efficient.  The same applies for the
+FCC\_permutations but the BCC tetrahedron is slightly asymmetric which
+makes it a bit more complicated than the FCC.  There can be a 5th
+sublattice with interstitials.
 
 %.........................
+%\subsubsection{add Composition set}
+\hypertarget{AMEND PHASE ... Composition set}{}
 \subsubsection{{\em amend phase} ... Composition set}\label{sc:amend_phase_cs}
-%\subsubsection{AMEND PHASE ... Composition set}
 
 Each phase has by default a single composition set.  If the same phase
 can exist as stable (or metastable) with two or more compositions
@@ -1166,30 +1410,35 @@ composition set will have the suffix \_AUTO,
 
 Composition sets of a phase can be created and deleted.  Phases with
 miscibility gaps or which can exist with different chemical ordering
-like A2 and B2 must be treated as different composition sets.  The
-user can specify a prefix and suffix for the composition set.  Extra
+like A2 and B2 must be treated as different composition sets.  You can
+specify a prefix and suffix for the composition set.  Extra
 composition sets will always have a suffix \#digit where digit is a
-number between 2 and 9.  One cannot have more than 9 composition sets.
+number between 2 and 9.  You cannot have more than 9 composition sets.
 
 The composition set number is given after the phase name and preceeded
-by a hash character \#.  In some cases phase tuples are used to
-identify a phase and a composition set by a single number.
+by a hash character \#.  In the OCASI interface and some more cases
+phase tuples are used to identify a phase and a composition set by a
+single number.  As composition sets can be created and deleted a phase
+tuple index for the 2nd or higher composition set may change between
+calculations.
 
 In some cases it may be interesting to calculate metastable states
-inside miscibility gaps and one can prevent the automatic creation of
+inside miscibility gaps and you can prevent the automatic creation of
 composition sets by turning off the global minimazation using {\bf
   AMEND GENERAL} or for an individual phase by {\bf SET PHASE ... BIT
   NO\_AUTO\_COMP\_SET}
 
 %.........................
+%\subsubsection{Default Constitution}
+\hypertarget{AMEND PHASE ... Default Constitution}{}
 \subsubsection{{\em amend phase} ... Default Constitution}
-%\subsubsection{AMEND PHASE ... Default Constitution}
 
-A default constitution of a phase can be set.  This will be used for
-the first calculation with the phase and sometimes if there are
-convergence problems.  NOTE that if you want to specify a default
-constitution for the second or higher composition set of a phase you must
-specify the composition set with the phase name!
+The default constitution of a phase can be set.  Unless the grid
+minimizer is used this will be used for the first calculation with the
+phase and sometimes if there are convergence problems.  NOTE that if
+you want to specify a default constitution for the second or higher
+composition set of a phase you must specify the composition set with
+the phase name!
 
 Depending on the minimizing software used the initial constitution can
 be important to find the correct equilibrium if the phase has ordering
@@ -1198,7 +1447,7 @@ or a miscibility gap.
 For each constituent you can specify a minimum $>$ or maximum $<$
 fraction or give NONE if there are no default.
 
-If a phase has miscibility gaps and the user has created composition
+If a phase has miscibility gaps and you have created composition
 sets with default constitutions the grid minimizer will try to select
 the composition set with a composition closest to the default for a
 stable phase.
@@ -1207,52 +1456,83 @@ To temporarily set a new constitution of a phase use the command {\bf
   AMEND CONSTITUTION} $<$phase$>$ or {\bf CALCULATE PHASE ... }.
 
 %.........................
+%\subsubsection{Diffusion}
+\hypertarget{AMEND PHASE ... Diffusion}{}
+\subsubsection{{\em amend phase} ... Diffusion}
+
+This is to specify how the diffusion coefficient matrix should be
+calculated when simulating a phase transformation.  Normally the
+mobilities for the constituents of the phase are read from the
+database but you may use different ``depended'' and ``independent''
+constituents in the diffusion model and also some other factors.  This
+command is intended for such use.  It is not implemeted yet.
+
+There is no intention that OC itself should simulate diffusion but as
+the diffusion coefficents are strongly dependent on the thermodynamic
+factor (the Darken stability matrix) which represent the second
+derivatives of the Gibbs energy it is convenient to include some
+properties used in a simulation in the thermodynamic software.
+
+%.........................
+%\subsubsection{disordered fraction sets}
+\hypertarget{AMEND PHASE ... Disordered fraction sets}{}
 \subsubsection{{\em amend phase} ... Disordered fraction sets}
-%\subsubsection{AMEND PHASE ... Disordered fraction sets}
 
 For phases with several sublattices the Gibbs energy of the phase can
 be divided into two sets of fractions where the second or
-``disordered'' set have only one or two sublattice and the fractions
+``disordered'' set have only one or two sublattices and the fractions
 on these represent the sum of fraction on some or all of the first or
 ``ordered'' set of sublattices.  
 
-This is particularly important for phases with ordering like FCC, BCC
-and HCP and for intermediate phases like SIGMA, MU etc.
+This is particularly important to model the Gibbs energy for phases
+with ordering like FCC, BCC and HCP and for intermediate phases like
+SIGMA, MU etc.
 
 %.........................
 %\subsubsection{FCC_CVM_TETRADRN}
+\hypertarget{amend FCC-CVM-TETRADRN}{}
 \subsubsection{{\em amend phase} ... FCC\_CVM\_tetradrn}
 
 This model is intended for the CVM tetrahedron model for FCC and HCP.
 Not implemented yet.
 
 %.........................
-%\subsubsection{FCC_PERMUTATIONS]
+%\subsubsection{FCC_PERMUTATIONS}
+\hypertarget{amend FCC-PERMUTATIONS}{}
 \subsubsection{{\em amend phase} ... FCC\_permutations}
 
-FCC\_PERMUTATIONS is intended for the 4 sublattice CEF model for fcc
-ordering.  Setting this bit means that only unique model parameters
-needs to be entered, the software will take care of all permutations.
-HCP permutations is also handled by this bit as they are identical in
-the 4 sublattice model.  There can be a 5th interstitial sublattice.
+This is intended for the 4 sublattice CEF model for FCC ordering.  Due
+to crystallographic symmetry several model parameters must be
+identical such as
+
+G(FCC,AL:FE:FE:FE)=G(FCC,FE:AL:FE:FE)=G(FCC,FE:FE:AL:FE)=G(FCC,FE:FE:FE:AL)
+
+Setting this means that unique model parameters need to be entered
+only once, the software will take care of all permutations.  HCP
+permutations are also handled with this command as the HCP tetrahedron
+model is identical to the FCC.  There can be a 5th interstitial
+sublattice.
 
 %.........................
+%\subsubsection{FLORY-HUGG_MODEL}
+\hypertarget{AMEND PHASE ... FLORY-HUGG-MODEL}{}
 \subsubsection{{\em amend phase} ... Flory\_Huggins model}
-%\subsubsection{AMEND PHASE ... FLORY-HUGG_MODEL}
 
 A model when the configurational entropy takes into account that the
 constituents have very different size.  Not implemented yet.
 
 %.........................
+%\subsubsection{Gaddition}
+\hypertarget{AMEND PHASE ... Gaddition}{}
 \subsubsection{{\em amend phase} ... Gaddition}
-%\subsubsection{AMEND PHASE ... Gaddition}
 
-The user can add a constant value of the Gibbs energy to a phase in
+You can add a constant value of the Gibbs energy to a phase in
 Joule per formula unit.  This is a simple way to implement a for
 example a nucleation barrier.
 
 %.........................
-%\subsubsection{QUASICHEMICAL}
+%\subsubsection{amend QUASICHEMICAL}
+\hypertarget{amend phase QUASICHEMICAL}{}
 \subsubsection{{\em amend phase} ... Quasichemical}
 
 There are several quasichemical models for the liquid that only
@@ -1260,81 +1540,103 @@ describes the short range ordering (SRO).  None of them are yet
 implemented.
 
 %.........................
+%\subsubsection{AMEND PHASE Quit}
+\hypertarget{AMEND PHASE ... Quit}{}
 \subsubsection{{\em amend phase} ... Quit}
-%\subsubsection{AMEND PHASE ... Quit}
 
 Do not amend anything for the phase.
 
+%.........................
+%\subsubsection{amend QUASICHEMICAL}
+\hypertarget{amend phase UNIQUAC}{}
+\subsubsection{{\em amend phase} ... UNIQUAC}
+
+The UNIQUAC model for polymers is on its way to be implemented.
+
 %-------------------------------- end of amend phase
-\subsection{{\em amend} Quit}
 %\subsection{AMEND Quit}
+\hypertarget{AMEND Quit}{}
+\subsection{{\em amend} Quit}
 
 Do not amend anything (more).
 
 %--------------------------------
-\subsection{{\em amend} Species  $<${\em species}$>$}
 %\subsection{AMEND Species}
+\hypertarget{AMEND Species}{}
+\subsection{{\em amend} Species}
 
 Not implemented yet.
 
 %--------------------------------
-\subsection{{\em amend} Symbol $<${\em symbol}$>$}\label{sc:amendsym}
 %\subsection{AMEND Symbol}
+\hypertarget{AMEND Symbol}{}
+\subsection{{\em amend} Symbol}\label{sc:amendsym}
 
 This command is a bit special.  It is mainly used in assessments to
 specify that a particular symbol must not be evaluated except when 
 specified explicity, or when calculating a specific equilibrium.
 
-A symbol can refer to another symbol and thus all symbols are normally
-evaluated whenever the value of any symbol is requested.  This is to
-ensure that all symbol values are consistent and refer to the same
-equilibrium.  But in certain cases one wants to enter a symbol that is
-only evaluted when referenced explicity and this can be set with this
+The main reason is that a symbol can refer to another symbol and thus
+all symbols are normally evaluated whenever the value of any symbol is
+requested.  This is to ensure that all symbol values are consistent
+and refer to the same calculated equilibrium.  But in certain cases
+you may want to enter a symbol that is only evaluted when referenced
+explicity or at a specific eqilibrium and this can be set with this
 command.
 
-Another case when one wants to restrict when a symbol is evaluated is
-when one wants to compare the value of a thermodynamic property, like
-the enthalpy, in two equilibria.  For example if one has experimental
-data on the heat difference for a compound at various $T$.  In such a
-case the heat content at the reference $T$ can be stored in a symbol,
-which is then amended with this command and the equilibrium at which
-it should be evaluated is specified.  In all other equilibria the
-value of this symbol will then refer to its value at the specified
-equilibrium.  See also the documentation on the assessment procedure.
+When you want to compare the value of a thermodynamic property, like
+the enthalpy, in two equilibria you must be able to store the
+calculated enthalpy from one equilibrium in a symbol.  For example if
+you have experimental data on the heat difference for a compound at
+various $T$.  In such a case the enthalpy at the reference $T$ can be
+stored in a symbol, which has been amended with this command to
+specify at which equilibrium it should be evaluated.  In all other
+equilibria the value of this symbol will have the value at the
+specified equilibrium.  See also the documentation on the assessment
+procedure, section~\ref{sc:assess}.
 
-You cannot amend the expression for the symbol.
+You cannot amend the expression for the symbol except symbols
+that represent a constant value.
 
 %--------------------------------
-\subsection{{\em amend} Tpfun\_Symbol  $<${\em symbol}$>$}
-%\subsection{AMEND Tpfun\_Symbol}
+%\subsection{AMEND Tpfun-Symbol}
+\hypertarget{AMEND Tpfun-Symbol}{}
+\subsection{{\em amend} Tpfun-Symbol }
 
 You can replace a TP function with a new expression.
 
 %ALERT: Check that this forces new calculation of all TP functions.
 
 %===================================================================
-\section{Back }
 %\section{Back }
+\hypertarget{BACK}{}
+\section{Back }
 
 Return back from the command monitor to the application program.  In
 the OC software itself it means terminate the program.
 
 %===================================================================
-\section{Calculate }
+% Two calculate needed for help at command level ??
 %\section{Calculate }
+\hypertarget{Calculate menu}{}
+\section{Calculate }
 
-Different things can be calculated.  The normal thing to calculate is
+Many different things can be calculated.  The normal thing to calculate is
 {\bf equilibrium}, the other things are special.
 
+{\small
 \begin{tabular}{llll}
- ALL\_EQUILIBRIA &  NO\_GLOBAL & SYMBOL           & WITH\_CHECK\_AFTER\\
- EQUILIBRIUM     &  PHASE      & TPFUN\_SYMBOLS\\
- GLOBAL\_GRIDMIN & QUIT        & TRANSITION\\
+ ALL-EQUILIBRIA & NO-GLOBAL & SYMBOL           & WITH-CHECK-AFTER\\
+ EQUILIBRIUM    & PHASE     & TPFUN-SYMBOLS\\
+ GLOBAL-GRIDMIN & QUIT      & TRANSITION\\
 \end{tabular}
+}
 
+%\subsection{Calculate}
 %--------------------------------
-\subsection{{\em calculate} All equilibria}\label{sc:calcall}
 %\subsection{CALCULATE All equilibria}
+\hypertarget{CALCULATE All equilibria}{}
+\subsection{{\em calculate} All equilibria}\label{sc:calcall}
 
 Intended for the assessment procedure.  Calculates all equilibria with
 non-zero weight as set by the command {\bf SET RANGE}.  It can also be
@@ -1342,8 +1644,9 @@ used for other purposes, for example testing the parallelization.  The
 equilibria can be entered by the command {\bf ENTER MANY\_EQUILIB}.
 
 %--------------------------------
-\subsection{{\em calculate} Equilibrium}
 %\subsection{CALCULATE Equilibrium}
+\hypertarget{CALCULATE Equilibrium}{}
+\subsection{{\em calculate} Equilibrium}
 
 The normal command to calculate the equilibrium of a system for the
 current set of conditions and phase status.  You can calculate a
@@ -1352,17 +1655,25 @@ set dormant or suspended or if automatic creation of composition sets
 is not allowed.  If conditions allow the grid minimizer is used to
 find start values unless the grid minimizer is explicitly turned of.
 
+Before this command you must have entered thermodynamic data from a
+database or interactivly and used the command {\bf set condition} to
+set as many conditions as you have components plus two.  The command
+{\bf set status phase} and {\bf set input-amount} can also be used to
+set conditions.
+
 %--------------------------------
-\subsection{{\em calculate} Global\_Gridmin}
-%\subsection{CALCULATE Global\_Gridmin}
+\subsection{{\em calculate} Global-Gridmin}
+\hypertarget{CALCULATE Global-Gridmin}{}
+%\subsection{CALCULATE Global-Gridmin}
 
 Calculate with the global grid minimizer without using this result as a
 start point for the general minimizer.  Used to debug the grid
 minimizer.
 
 %--------------------------------
-\subsection{{\em calculate} No\_Global}
-%\subsection{CALCULATE No\_Global}
+%\subsection{CALCULATE No-Global}
+\hypertarget{CALCULATE No-Global}{}
+\subsection{{\em calculate} No-Global}
 
 Calculate the equilibrium without using a global grid minimizer to
 generate start constitutions.  The current equilibrium is used as
@@ -1372,52 +1683,67 @@ calculated during STEP and MAP.  It means no check of new miscibility
 gaps.
 
 %--------------------------------
-\subsection{{\em calculate} Phase $<$\em phase$>$}
 %\subsection{CALCULATE Phase}
+%\subsection{Phase}
+\hypertarget{CALCULATE Phase}{}
+\subsection{{\em calculate} Phase $<$\em phase name$>$}
+
+This is to calculate properties for a single phase independent of the
+current conditions except the values of $T$ and $P$.
+
+%\subsubsection{Phase name}
+\hypertarget{calculate phase name}{{\bf Phase name:}}
+
+%\subsubsection{Amount of }
+\hypertarget{calculate phase amount}{{\bf Amount if phase:}}
+
+%\subsubsection{Current (Y), default (D) or new (N) constitution?}
+\hypertarget{calculate phase current constitution}{{\bf Current (Y), default (D) or new (N) constitution?}}
 
 You must provide a phase name, the amount of the phase and if you
 should use the current constitution or enter a new.
 
+%\subsubsection{CALCULATE WHAT for phase}
+\hypertarget{CALCULATE Phase menu}{}
+
 The Gibbs energy of a phase and possible derivatives and some other
 things can be calculated.  Mainly for debugging the implementation of
-models.
+models and testing the software.
 
-\subsubsection{{\em calculate phase} ... Only\_G}
-%\subsubsection{CALCULATE PHASE ... Only\_G}
+{\small
+\begin{tabular}{lll}
+ALL-DERIVATIVES  & DIFFUSION-COEFF & ONLY-G   \\
+CONSTITUTION-ADJ & G-AND-DGDY        \\
+\end{tabular}
+}
 
-The Gibbs energy and all $T$ and $P$ derivatives calculated and listed for
-the specified phase for current $T,P$.
-
-\subsubsection{{\em calculate phase} ... G\_and\_dGdy}
-%\subsubsection{CALCULATE PHASE ... G\_and\_dGdy}
-
-The Gibbs energy, all $T$ and $P$ derivatives and all first derivatives
-with respect to constituents for the specified phase for current $T,P$
-are calculated and listed.
-
-\subsubsection{{\em calculate phase} ... All\_Derivatives}
-%\subsubsection{CALCULATE PHASE ... All\_Derivatives}
+%\subsubsection{All-Derivatives}
+\hypertarget{CALCULATE PHASE ... All-Derivatives}{}
+\subsubsection{{\em calculate phase} ... All-Derivatives}
 
 The Gibbs energy, all $T$ and $P$ derivatives and all first and second
 derivatives with respect to constituents for the specified phase for
 current $T,P$ are calculated and listed.
 
+%\subsubsection{Constitution_adj}
+\hypertarget{CALCULATE PHASE ... Constitution-adj}{}
 \subsubsection{{\em calculate phase} ... Constitution\_Adjust}
-%\subsubsection{CALCULATE PHASE ... Constitution_adj}
 
-You will be asked to enter a new composition (note NOT the
-constitution and default is current) of the phase and this command
-will then calculate the Gibbs energy and all chemical potentials.  For
-a phase with sublattices the constitution of the phase will be
-adjusted to have the minimum Gibbs energy for the given composition.
+You will be asked to enter a new composition (NOTE: not necessarily
+the current constitution but the current is the default) of the phase
+and this command will then calculate the Gibbs energy and all chemical
+potentials for the given composition.  For a phase with sublattices
+the constitution of the phase will be adjusted to have the minimum
+Gibbs energy for the given composition.
 
 It is useful when one or more components are parts of several
-constituents, for example in a gas or for phases with order/disorder
+constituents, for example in a gas and for phases with order/disorder
 transitions, in particular when the corresponding subroutine is used
 in simulations.
 
+%\subsubsection{Diffusion_coeff}
+\hypertarget{CALCULATE PHASE ... Diffusion-coeff}{}
 \subsubsection{{\em calculate phase} ... Diffusion\_Coefficients}
-%\subsubsection{CALCULATE PHASE ... Diffusion_coeff}
 
 You will be asked to enter a new composition (default is current) of
 the phase and this command will then calculate the Darken stability
@@ -1428,15 +1754,56 @@ matrix
 for all components (see the documentation of the minimiser) and also
 all mobility values (if there are any).
 
+%\subsubsection{G-and-dGdy}
+\hypertarget{CALCULATE PHASE ... G-and-dGdy}{}
+\subsubsection{{\em calculate phase} ... G\_and\_dGdy}
+
+The Gibbs energy, all $T$ and $P$ derivatives and all first derivatives
+with respect to constituents for the specified phase for current $T,P$
+are calculated and listed.
+
+IMPORTANT NOTE: The value of $\frac{\partial G_m}{\partial y_i}$ is
+NOT the chemical potential, $\mu_i$ of component $i$.  The
+understanding of thermodynamics is often poor and the user is reminded
+that the chemical potential of a component $i$ is defined as:
+\begin{eqnarray*}
+\mu_i &=& \left(\frac{\partial G}{\partial N_i}\right)_{T,P,N_{j\ne i}}
+\end{eqnarray*}
+where $G$ is the integral Gibbs energy and all $N_i$ are independent
+variables.  When we model the molar Gibbs energy, $G_m$ as a function
+of the constituent fractions, $y_i$, these fractions are not
+independent and for a substitutional model, where $y_i=x_i$ i.e. the
+mole fractions, the chemical potential is calculated from $G_m$ using:
+\begin{eqnarray*}
+  \mu_i &=& G_m + \left(\frac{\partial G_m}{\partial x_i}\right)_{T,P,x_{j\ne i}}
+  - \sum_j x_j \left(\frac{\partial G_m}{\partial x_j}\right)_{T,P,N_{k\ne j}}
+\end{eqnarray*}
+because the mole fractions, $x_i$ are not independent.
+
+%\subsubsection{Only-G}
+\hypertarget{CALCULATE PHASE ... Only-G}{}
+\subsubsection{{\em calculate phase} ... Only-G}
+
+The Gibbs energy and all $T$ and $P$ derivatives calculated and listed for
+the specified phase for the current values of $T,P$.
+
+%\subsubsection{CALCULATE PHASE ... quit}
+\hypertarget{CALCULATE PHASE ... quit}{}
+\subsubsection{{\em calculate phase} ... Quit}
+
+Do not calculate anything for the phase.
+
 %--------------------------------
-\subsection{{\em calculate} Quit}
 %\subsection{CALCULATE Quit}
+\hypertarget{CALCULATE Quit}{}
+\subsection{{\em calculate} Quit}
 
-Do not calculate anything.
+Do not calculate anything at all.
 
 %--------------------------------
-\subsection{{\em calculate} Symbol}
 %\subsection{CALCULATE Symbol}
+\hypertarget{CALCULATE Symbol}{}
+\subsection{{\em calculate} Symbol}
 
 A state variable symbol or function is calculated using the results
 from the last equilibrium or grid minimizer calculation.  It is used
@@ -1450,15 +1817,17 @@ section~\ref{sc:amendsym}.
 
 
 %--------------------------------
-\subsection{{\em calculate} Tpfun\_Symbols}
-%\subsection{CALCULATE Tpfun\_Symbols}
+%\subsection{CALCULATE Tpfun-Symbols}
+\hypertarget{CALCULATE Tpfun-Symbols}{}
+\subsection{{\em calculate} Tpfun-Symbols}
 
 All or a specific TPFUN symbol are calculated for current values of $T$
 and $P$.
 
 %--------------------------------
-\subsection{{\em calculate} Transition}
 %\subsection{CALCULATE Transition}
+\hypertarget{CALCULATE Transition}{}
+\subsection{{\em calculate} Transition}
 
 After calculating an equilibrium you can calculate directly when a
 phase will appear or disappear by releasing one of the conditions you
@@ -1473,26 +1842,28 @@ amount.  If successful the removed condition will be set to the value
 calculated and the phase set stable with zero amount.
 
 %===================================================================
-\section{Debug }
 %\section{Debug }
+\hypertarget{debug}{}
+\section{Debug }
 
 Several possibilities to trace calculations will be implemented in
-order to find errors.  The only implemented feature is to stop the
-program whenever an error occurs.  This is useful to find errors using
-macro files so the macro not just goes on doing other things.
+order to find errors but very little is working yet.
 
-\subsection{{\em debug} Elasticity}
 %\subsection{DEBUG Elasticity}
+\hypertarget{DEBUG Elasticity}{}
+\subsection{{\em debug} Elasticity}
 
-Not implemented.
+Intended to test the model for strain and stress.  Not implemented.
 
-\subsection{{\em debug} Free lists}
 %\subsection{DEBUG Free lists}
+\hypertarget{DEBUG Free lists}{}
+\subsection{{\em debug} Free lists}
 
 Only for experts.
 
-\subsection{{\em debug} Stop\_on\_Error}
 %\subsection{DEBUG Stop_on_Error}
+\hypertarget{DEBUG Stop_on_Error}{}
+\subsection{{\em debug} Stop\_on\_Error}
 
 The program will stop at the command level after printing the error
 message if an error has occurred when using macro file.  This should
@@ -1501,8 +1872,9 @@ make it easier to to find errors occurring when running macro files.
 However, it is not implemented.
 
 %===================================================================
-\section{Delete }
 %\section{Delete }
+\hypertarget{Delete}{}
+\section{Delete }
 
 It is quite difficult to delete anything when the data structure is so
 involved.  In many cases it may be better to enter the data again
@@ -1515,8 +1887,9 @@ that must occationally be deleted.
 \end{tabular}
 
 %------------------------------------------------------
-\subsection{{\em delete} Composition set}
 %\subsection{DELETE Composition set}
+\hypertarget{DELETE Composition set}{}
+\subsection{{\em delete} Composition set}
 
 The first composition set of a phase cannot be deleted.  Otherwise
 there is usually no problem unless several equilibria are entered
@@ -1525,46 +1898,53 @@ Composition sets are created and deleted during normal equilibrium
 calculations to detect miscibility gaps.
 
 %------------------------------------------------------
-\subsection{{\em delete} Element}
 %\subsection{DELETE Element}
+\hypertarget{DELETE Element}{}
+\subsection{{\em delete} Element}
 
 Dangerous and will probably never be implemented.
 
 %------------------------------------------------------
-\subsection{{\em delete} Equilibrium}
 %\subsection{DELETE Equilibrium}
+\hypertarget{DELETE Equilibrium}{}
+\subsection{{\em delete} Equilibrium}
 
 Dangerous but sometimes necessary.  Done automatically at a second
-STEP or MAP command if the user specifies to delete previous results.
+STEP or MAP command if you specifies to delete previous results.
 
 %------------------------------------------------------
-\subsection{{\em delete} Phase}
 %\subsection{DELETE Phase}
+\hypertarget{DELETE Phase}{}
+\subsection{{\em delete} Phase}
 
 Dangerous and will probably never be implemented.
 
 %------------------------------------------------------
-\subsection{{\em delete} Quit}
 %\subsection{DELETE Quit}
+\hypertarget{DELETE Quit}{}
+\subsection{{\em delete} Quit}
 
 Do not delete anything.
 
 %------------------------------------------------------
-\subsection{{\em delete} Species}
 %\subsection{DELETE Species}
+\hypertarget{DELETE Species}{}
+\subsection{{\em delete} Species}
 
 Not implemented yet and will probably never be.
 
 %------------------------------------------------------
-\subsection{{\em delete} Step\_Map\_Results}
 %\subsection{DELETE STEP_MAP_RESULTS}
+\hypertarget{DELETE STEP-MAP-RESULTS}{}
+\subsection{{\em delete} Step\_Map\_Results}
 
 This removes all equilibria and saved equilibria associated with
 STEP and MAP commands.  It also deletes the axis.
 
 %===================================================================
-\section{Enter }
 %\section{Enter }
+\hypertarget{Enter }{}
+\section{Enter }
 
 In most cases data will be read from a database file.  But it is
 possible to enter all thermodynamic data interactively.  This should
@@ -1574,56 +1954,76 @@ elements will automatically also be species) and then the phases.
 A species have a fixed stoichiometry and possibly a charge.  The
 species are the constituents of the phases.
 
-A phase can have sublattices and various additions like magnetic or
-elastic (the latter not implemented yet).  
+A phase can have sublattices and constituents and also various
+additions like magnetic, low T heat capacity etc. which are specified
+by the {\bf AMEND} command efter entering the phase (but normally
+before any model parameters for the phase are entered).
 
 TPFUN symbols can be used to describe common parts of model
 parameters.  See section~\ref{sc:tpfun} for an explation.
 
-Each parameter of a phase is entered separately.  One may use
+Each model parameter of a phase is entered separately.  You may use
 TPFUN symbols which are already entered.
 
 At present the multicomponent CEF model and the ionic 2-sublattice
-liquid model are the only one implemented.  The CEF model includes as
-special cases the gas phase, regular solutions with Redlich-Kister
-Muggianu model and phases with up to 9 sublattices and magnetic
-contributions.
+liquid model are the only basic models implemented.  The CEF model
+includes as special cases the gas phase, regular solutions with
+Redlich-Kister Muggianu model and phases with up to 9 sublattices and
+ionic constituents.  These models describe the basic configurational
+entropy contribution to the phase, models such as the magnetic
+contribution and low T heat capacity can be added to a phase with the
+{\bf AMEND} command.
 
-The enter command is also used to enter equilibria for assessments
-and some other things.
+The enter command is also used to enter bibliographic data, equilibria
+for assessments and many other things.
 
 The subcommands are:
 
 \begin{tabular}{llll}
- BIBLIOGRAPHY      & EQUILIBRIUM      & OPTIMIZE\_COEFF   &  SPECIES\\
- COMMENT           & EXPERIMENT       & PARAMETER        & SYMBOL\\ 
- CONSTITUTION      & GNUPLOT\_TERMINAL & PHASE            & TPFUN\_SYMBOL\\ 
- COPY\_OF\_EQUILIB & MANY\_EQUILIBRIA &  PLOT\_DATA\\
- ELEMENT           & MATERIAL          &  QUIT\\
+ BIBLIOGRAPHY     & EQUILIBRIUM      & OPTIMIZE-COEFF   & SPECIES\\
+ COMMENT          & EXPERIMENT       & PARAMETER        & SYMBOL\\ 
+ CONSTITUTION     & GNUPLOT-TERMINAL & PHASE            & TPFUN-SYMBOL\\ 
+ COPY-OF-EQUILIB  & MANY-EQUILIBRIA  & PLOT-DATA\\
+ ELEMENT          & MATERIAL         & QUIT\\
 \end{tabular}
 
 %--------------------------------
-\subsection{{\em enter} Bibliography}
 %\subsection{ENTER Bibliography}
+\hypertarget{ENTER Bibliography}{}
+\subsection{{\em enter} Bibliography}
 
-Each model parameter must have a bibliographic reference to ensure one
-can find the origin of its value.  When entering a parameter a
-bibliographic reference symbol is given and with this command one can
-give a full reference text for that symbol like a published paper, a
-report or simply the reason for the value.  The date and name of the
+Each model parameter must have a bibliographic reference to ensure
+everyone can find the origin of its value.  When entering a parameter
+a bibliographic reference symbol is given and with this command you
+can give a full reference text for that symbol like a published paper,
+a report or simply the reason for the value.  The date and name of the
 responsible should also be given.
 
+%\subsection{Reference identifier:}
+\hypertarget{Reference identifier}{{\bf Reference identifier:}}
+
+The text for bibliographic reference identifier can be amended.  The
+reference identifier is case insensitive.
+
+%\subsection{Reference text:}
+\hypertarget{Reference text}{{\bf Reference text, end with ``;'':}}
+
+The text for this reference will be set to the text supplied.  It can be
+several lines terminated with a ``;''
+
 %--------------------------------
-\subsection{{\em enter} Comment}
 %\subsection{ENTER Comment}
+\hypertarget{ENTER Comment}{}
+\subsection{{\em enter} Comment}
 
 A line of comment text can be added to an equilibrium.  It is
 particularly important when entering experimental data to give the
 reference to the data.
 
 %--------------------------------
-\subsection{{\em enter} Constitution}
 %\subsection{ENTER Constitution}
+\hypertarget{ENTER Constitution}{}
+\subsection{{\em enter} Constitution}
 
 The constitution (fraction of all constituents) of a phase can be
 entered.  This is a way to provide start values for an equilibrium
@@ -1632,25 +2032,28 @@ energy for a specific phase at a specific constitution use the command
 {\bf CALCULATE PHASE}.
 
 %--------------------------------
-\subsection{{\em enter} Copy of equilibrium}
 %\subsection{ENTER Copy_of_equilib}
+\hypertarget{ENTER Copy-of-equilib}{}
+\subsection{{\em enter} Copy of equilibrium}
 
 This command creates a copy of the current equilibrium with the same
 set of conditions and related data.
 
 %--------------------------------
-\subsection{{\em enter} Element}
 %\subsection{ENTER Element}
+\hypertarget{ENTER Element}{}
+\subsection{{\em enter} Element}
 
 The data for an element is entered.  It consists of is symbol, name,
 reference state, mass, H298-H0 and S298.  The latter two values are 
 never used for any calculation.
 
 %--------------------------------
-\subsection{{\em enter} Equilibrium}
 %\subsection{ENTER Equilibrium}
+\hypertarget{ENTER Equilibrium}{}
+\subsection{{\em enter} Equilibrium}
 
-One can have several equilibria each with a unique set of conditions
+You can have several equilibria each with a unique set of conditions
 including phase status (dormant, suspended, fix or entered) but all
 with the same components and thermodynamic data.  This is useful for
 compare different states, to simulate transformations and to assess
@@ -1662,8 +2065,9 @@ independent set of conditions and result data structure and they can
 be calculated in parallel.
 
 %--------------------------------
-\subsection{{\em enter} Experiment}\label{sc:enterexp}
 %\subsection{ENTER Experiment}
+\hypertarget{ENTER Experiment}{}
+\subsection{{\em enter} Experiment}\label{sc:enterexp}
 
 This is used for assessments, experimental data can be specified for
 an equilibrium.  The experiment is a state variable or symbol which
@@ -1676,8 +2080,9 @@ uncertainty will then be interpreted as a penalty factor if the
 calculated value is outside the specified limit.
 
 %--------------------------------
-\subsection{{\em enter} GNUPLOT Terminal}\label{sc:gnuterm}
 %\subsection{ENTER GNUPLOT Terminal}
+\hypertarget{ENTER GNUPLOT Terminal}{}
+\subsection{{\em enter} GNUPLOT Terminal}\label{sc:gnuterm}
 
 For plotting OC generates a command file for the
 GNUPLOT~\cite{gnuplot} software.  GNUPLOT can be downloaded free for
@@ -1694,12 +2099,13 @@ are:
 
 The text after the $>$ is written on the GNU command file.  You can
 change these or add additional terminals.  You can also change these
-in the source code (userif/mon6.F90 file) or use a macro file
-start.OCM file to set them.
+in the source code (userif/pmon6.F90 file) or use a macro file
+OCHOME/start.OCM file to set them.
 
 %--------------------------------
-\subsection{{\em enter} Many Equilibria}\label{sc:entermany}
 %\subsection{ENTER MANY_EQUILIBRIA}
+\hypertarget{ENTER MANY-EQUILIBRIA}{}
+\subsection{{\em enter} Many Equilibria}\label{sc:entermany}
 
 This command is intended for adding tables of experimental data of the
 same type.  It can also be used for calculation of many equilibria
@@ -1763,8 +2169,9 @@ The table is finished by an empty line or\\
 Table row: {\bf table\_end}
 
 %--------------------------------
-\subsection{{\em enter} Material}
 %\subsection{ENTER Material}
+\hypertarget{ENTER Material}{}
+\subsection{{\em enter} Material}
 
 The user will be asked for a name of the material and possibly a
 database.  Then he can give elements and their amount in mass percent
@@ -1801,29 +2208,34 @@ Equilibrium calculation   19 its,   6.2500E-02 s and      94 clockcycles
 \end{verbatim}
 
 The user can specify another composition of the same alloy with the
- same command or use other commands like {\bf SET CONDITION} and {\bf
- CALCULATE}
+same command or use other commands such as {\bf SET CONDITION} and
+{\bf CALCULATE} or calculate diagrams using {\bf SET AXIS} and then
+{\bf STEP} or {\bf MAP}.
 
 %--------------------------------
-\subsection{{\em enter} Optimizing coefficient}\label{sc:optcoeff}
 %\subsection{ENTER Optimize coeff}
+\hypertarget{ENTER Optimize coeff}{}
+\subsection{{\em enter} Optimizing coefficient}\label{sc:optcoeff}
 
-The TP symbols for the coefficients to be optimized are entered.  They
-have the names A00 to A99.  They are used in model parameters and can
-be varied by the optimization procedure to minimize the difference
-between the experimental data and the same property calculated from
-the models of the phases.
+The number of TP symbols for the coefficients to be optimized are
+entered.  They have the names A00 to A99.  They are used in model
+parameters and can be varied by the optimization procedure to minimize
+the difference between the experimental data and the same property
+calculated from the models of the phases.  You can also specify
+the size of the workspace needed for the optimization.  The default
+value, 2500, is usually sufficient.
 
 %--------------------------------
-\subsection{{\em enter} Parameter}\label{sc:enterparam}
 %\subsection{ENTER Parameter}
+\hypertarget{ENTER Parameter}{}
+\subsection{{\em enter} Parameter}\label{sc:enterparam}
 
 A model parameter is defined by its identifier, the phase and
-constituent array.  A parameter can be a constant or depend on T and
-P.  The parameter will be multiplied with the fractions of the
-constituents given by its constituent array.  See the documentation of
-the GTP model package or the book by Lukas et al\cite{07Luk} for more
-information about thermodynamic models.
+constituent array and the degree.  A parameter can be a constant or
+depend on T and P.  The parameter will be multiplied with the
+fractions of the constituents given by its constituent array.  See the
+documentation of the GTP model package or the book by Lukas et
+al\cite{07Luk} for more information about thermodynamic models.
 
 For example G(LIQUID,CR) is the Gibbs energy of liquid Cr relative to
 its reference state, normally the stable state of Cr at 298.15 K and 1
@@ -1834,17 +2246,16 @@ represent the Gibbs energy of the C1O2 molecule relative to the
 reference states of C (carbon) and O (oxygen).
 
 For interaction parameters the components are separated by a comma
-``,'' like in G(LIQUID,CR,FE).
+``,'' as in G(LIQUID,CR,FE).
 
-For phases with sublattices the constituents in each sublattice
-are separated by a semicolon, ``:'' and interacting constituents in
-the same sublattice by a comma, ``,''.  For example
-
+For phases with sublattices the constituents in each sublattice are
+separated by a colon, ``:'' and interacting constituents in the same
+sublattice by a comma, ``,''.  For example:\\
 G(FCC,FE:C,VA) is the interaction between C (carbon) and VA (vacant
 interstitial sites) in the FCC phase.
 
 The only binary excess model implemented in OC is the Redlish-Kister
-Muggianu
+with the Muggianu ternary extrapolation method.
 \begin{eqnarray*}
 L_{\rm A,B} = \sum_{\nu=0}^n  ~^{\nu}L_{\rm A,B} (y_{\rm A} - y_{\rm B})^{\nu}
 \end{eqnarray*}
@@ -1854,22 +2265,32 @@ after a semicolon, L(phase,A,B;$\nu$).
 For ternary parameters and for reciprocal parameters the Hillert model
 for composition dependence is implemented, see~\cite{07Luk}.
 
-One can store many different types of data in OC using the parameter
-identifier.  A description of the identifiers currently implemented
-are explained in section~\ref{sc:paramid}
+You can store many different types of data in OC with different
+parameter identifier.  Some of the parameters are not related to the
+thermodynamic properties but as they depend on the phase, T, P and
+composition it is convenient to store them together with the
+thermodynamic data.  For example the mobility of Fe in BCC (including
+an empty interstitial sublattice) is specified as: MQ\&FE(BCC,FE:VA).
 
-The current list can be obtained by the command {\bf LIST
-  MODEL\_PARAM\_ID}.  All of them can be composition dependent.  Some
-  cannot depend on $T$ or $P$ or neither.
-
-Many parameters of the parameters are available but the models to
-handle them are not yet implemented.
+An explanation of the identifiers implemented in OC can be found in
+section~\ref{sc:paramid}.  The current list can be obtained by the
+command {\bf LIST MODEL\_PARAM\_ID}.  All of them can be composition
+dependent.  Some cannot depend on $T$ or $P$ or neither.  Many kinds
+of the parameters are available but in some cases the software for the
+models to handle them are not implemented.  The value of a model
+parameter can be obtained using {\bf LIST MODEL\_PARAM\_VAL} or simply
+{\bf SHOW}.  You must specify phase and endmember for the parameter.
 
 %--------------------------------
-\subsection{{\em enter} Phase}
 %\subsection{ENTER Phase}
-
+\hypertarget{ENTER Phase}{}
 %\subsubsection{Phase name:}
+\hypertarget{enter phase name:}{}
+\subsection{{\em enter} Phase}
+
+The user must specify a unique phase name:
+
+{\bf Phase name:}
 
 All thermodynamic data are connected to a phase as defined by its
 parameters, see {\bf enter parameter}.  A phase has a name with can
@@ -1878,6 +2299,7 @@ with a letter.
 
 %...................................
 %\subsubsection{Model:}
+\hypertarget{Model:}{{\bf Model:}}
 
 After the phase name you must specify a model.  The model specfication
 is implemented in a rather rudimentary way. The only recognized models
@@ -1894,29 +2316,37 @@ are
 \item CEF for any other phase with two or more sublattices
 \end{itemize}
 
-This list may be extended.  Many other model features like magnetism,
-quasichemical etc is specified with the {\bf AMEND PHASE} command, see
-section~\ref{sc:amendph}.  The AMEND PHASE command is also used to
-specify disordered fraction set, low temperature CP model and many
-other things.
+This list may be extended in a future version of OC.  Many other model
+features like magnetism, quasichemical etc are specified with the {\bf
+  AMEND PHASE} command, see section~\ref{sc:amendph}.  The AMEND PHASE
+command is also used to specify disordered fraction set, low
+temperature CP model and many other things.
 
 %...................................
 %\subsubsection{Number of sublattices:}
+\hypertarget{Number of sublattices:}{{\bf Number of sublattices:}}
 
 %\subsubsection{Number of sites on sublattice }
+\hypertarget{Number of sites on sublattice }{{\bf Number of sites on sublattice }}
 
 For most models OC will ask for the number of sublattices and a phase
-can have 1 to 9 sublattices and the user must for each specify the
-number of sites.  For some models, like the ionic liquid model, the
-number of sites may change with the composition of the phase so the
-number specified is irrelevant.  See the book by Lukas et
-al~\cite{07Luk} for more details on models.
+can have 1 to 9 sublattices and you must specify the number of sites
+on each.  Preferably use small integer values, if fractions are used
+at least 6 digits should be provided.
+
+For some models, like the ionic liquid model, the number of sites may
+change with the composition of the phase so the number specified is
+irrelevant.  See the book by Lukas et al~\cite{07Luk} for more details
+on models.
 
 %...................................
 %\subsubsection{Constituents:}
-%\subsubsection{Sublattice constituents:}
+\hypertarget{Constituents:}{}
 
-For each sublattice the user must specify the constituents on the
+%\subsubsection{Sublattice constituents:}
+\hypertarget{Sublattice constituents:}{}
+
+For each sublattice you must specify the constituents on the
 sublattice.  A constituent that is not an element must already have
 been entered as a species, see section~\ref{sc:entersp}.
 
@@ -1924,22 +2354,29 @@ The {\bf AMEND PHASE} command~\ref{sc:amendph} is used for some
 additional model features like magnetism or permutations.
 
 %--------------------------------
-\subsection{{\em enter} Plot\_data}
 %\subsection{ENTER Plot_data}
+\hypertarget{ENTER Plot-data}{}
+\subsection{{\em enter} Plot\_data}
 
-The user can add points to be plotted to a dataset 1 to 9.  The
-dataset must already exist as a file opened by a command {\bf ENTER
-  MANY\_EQUILIB}.
+This is used for assessments when combining experimental data in
+single equilibria with those in tables entered with the command
+``MANY\_EQUILIBRIA''.
+
+You can add points to be plotted from a single equilibrum to a dataset
+1 to 9.  The dataset must already exist as a file already opened by a
+command {\bf ENTER MANY\_EQUILIB}.
 
 %--------------------------------
-\subsection{{\em enter} Quit}
 %\subsection{ENTER Quit}
+\hypertarget{ENTER Quit}{}
+\subsection{{\em enter} Quit}
 
 Quit entering things.
 
 %--------------------------------
-\subsection{{\em enter} Species}\label{sc:entersp}
 %\subsection{ENTER Species}
+\hypertarget{ENTER Species}{}
+\subsection{{\em enter} Species}\label{sc:entersp}
 
 A species consists of a name and a stoichiometric formula.  It can have
 a valence or charge.  The name is often the stoichiometric formula
@@ -1972,13 +2409,13 @@ like as a phase constituent.  It is of course convenient to choose a
 species name similar to its stoichiometric formula but as shown above,
 that is not always sufficient.
 
-Species symbol:
+{\bf Species symbol:}
 
 The symbol must start with a letter a A-Z and contain just letter,
 digits and the special characters ``\_'' (underscore), ``-'' (minus)
 and ``+'' (plus).
 
-Species stoichiometry:
+{\bf Species stoichiometry:}
 
 The stoichiometry must contain element symbols followed by a
 stoichiometry factor.  The stoichiometry factor 1 can be omitted for
@@ -1986,14 +2423,15 @@ two-letter element symbols.  The charge is given as ``/-'' or ``/+''
 followed by a stoichiometry factor.
 
 %--------------------------------
-\subsection{{\em enter} Symbol}
 %\subsection{ENTER Symbol}
+\hypertarget{ENTER Symbol}{}
+\subsection{{\em enter} Symbol}
 
 The OC package has both ``symbols'' and ``tpfun\_symbols'', the latter
 has a very special syntax and can be used when entering parameters.
 
 The symbols are designed to handle relations between state variables,
-one can define expressions like \\
+you can define expressions like \\
 {\bf enter symbol KLBCR = X(LIQUID,CR)/X(BCC,CR);}\\
 where KLBCR is set to the partition of the Cr mole fractions between
 liquid and bcc.
@@ -2012,53 +2450,95 @@ Currently $H.T$ is the only dot derivatives allowed but more will be
 added as soon as possible.
 
 %--------------------------------
-\subsection{{\em enter} Tpfun\_Symbol}\label{sc:entertpf}
 %\subsection{ENTER Tpfun_Symbol}
+\hypertarget{ENTER Tpfun-Symbol}{}
+\subsection{{\em enter} Tpfun\_Symbol}\label{sc:entertpf}
 
 This symbol is an expression depending on $T$ and $P$ that can be used
 when entering parameters.  A TPfun can refer to another TPfun.
+
+The program requests a name, if the symbol should be a function,
+constant or a table (tables not implemented).
+
+If it is a function you must specify a low T limit, and expression
+consisting of simple terms (signed coefficients multiplied with T and
+P possibly raised to powers).  A term may also be multiplied with
+another TP function or by LN(termm) for the natural logarithm or
+EXP(term) for the exponential function of ``term''.
+
+The ``term'' inside the parenthesis of an LN or EXP you may refer to
+another TP function or it can be a coefficient multiplied with powres
+of T or P.
+
+It is not allowed to enclose terms by parenthesis.
+
+The expression is terminated by a semicolon followed by an upper T
+limit and possibly Y meaning another expression above this T limit.
+The last T-range must be followed by N and a bibliographic reference.
 
 TPFUNs have a strict syntax because the software must be able to fast
 calculate first and second derivatives with respect to $T$ and $P$
 during equilibrium calculations, see section~\ref{sc:tpfun}.
 
 %===================================================================
-\section{Exit }
 %\section{Exit }
+\section{Exit }
 
 Terminate the OC software in Swedish, Ha en bra dag.
 
 %===================================================================
-\section{Fin }
 %\section{Fin }
+\section{Fin }
 
 Terminate the OC software in French, Au revoir.
 
 %===================================================================
-\section{Help }
 %\section{Help }
+\hypertarget{help}{}
+\section{Help and ?}
+
+%\subsection{which command:}
+{\bf Which command:}
 
 Can give a list if commands or subcommands or parts of this help text.
+The user guide is also available as a searchable HMTL file.
+
+For a submenu question a single ? will give the menu but two ?? will
+give an extract of this user guide.  Then the question will be asked
+again.
 
 %===================================================================
-\section{HPcalc }
 %\section{HPCALC }
+\section{HPcalc }
 
 Start the reverse polish calculator.
 
 %===================================================================
-\section{Information }
 %\section{Information }
+\hypertarget{information}{}
+\section{Information }
 
-The intention is to provide the on-line user who does not like to read
-manuals with additional explanations but not implemented yet.
+%! subcommands to INFORMATION ... very little implemented
+%!        ['ELEMENTS         ','SPECIES         ','PHASE           ',&
+%!         'QUIT             ','COMPOSITION_SET ','EQUILIBRIUM     ',&
+%!         'CHANGES          ','                ','                ']
+
+%\subsection{Topic}
+{\bf Topic:}
+
+The intention with this command is to provide the on-line user who
+does not like to read manuals with additional explanations.  But it is
+not yet implemented.
 
 %===================================================================
-\section{List }
 %\section{List }
+%\subsection{list command}
+\hypertarget{list}{}
+\section{List }
 
 Many things can be listed.  Output is normally on the screen unless it
-is redirected by the /output option.
+is redirected by the /output={\em file name} or /append={\em file
+  name} option, see~\ref{sc:options}.
 
 \begin{tabular}{llll}
  AXIS         & ERROR\_MESSAGE    & PARAMETER  & STATE\_VARIABLES\\
@@ -2069,27 +2549,31 @@ is redirected by the /output option.
 \end{tabular}
 
 %--------------------------------
-\subsection{{\em list} Axis}
 %\subsection{LIST Axis}
+\hypertarget{LIST Axis}{}
+\subsection{{\em list} Axis}
 
-Lists the axis set by the user.
+Lists the axis set by you.
 
 %--------------------------------
-\subsection{{\em list} Bibliography}
 %\subsection{LIST Bibliography}
+\hypertarget{LIST Bibliography}{}
+\subsection{{\em list} Bibliography}
 
 List the bibliographic references for the data.
 
 %--------------------------------
-\subsection{{\em list} Conditions}
 %\subsection{LIST Conditions}
+\hypertarget{LIST Conditions}{}
+\subsection{{\em list} Conditions}
 
-Lists the current set of conditions set by the user.  If the degrees
-of freedoms are zero one can calculate an equilibrium.
+Lists the current set of conditions set by you.  If the degrees
+of freedoms are zero you can calculate an equilibrium.
 
 %--------------------------------
-\subsection{{\em list} Data}
 %\subsection{LIST Data}
+\hypertarget{LIST Data}{}
+\subsection{{\em list} Data}
 
 Lists all thermodynamic data.  The default is on SCREEN but you can
 also choose among the formats: LaTeX, MACRO, PDB and TDB.
@@ -2097,108 +2581,144 @@ also choose among the formats: LaTeX, MACRO, PDB and TDB.
 The only formats implemented at present are SCREEN, PDB and TDB.
 
 %...............................
-\subsubsection{{\em list data} LaTeX}
 %\subsubsection{LIST DATA LaTeX}
+\hypertarget{LIST DATA LaTeX}{}
+\subsubsection{{\em list data} LaTeX}
 
 The thermodynamic data will be formatted according to LaTeX for later
 inclusion in publications.  Not implemented.
 
 %....................................
-\subsubsection{{\em list data} Macro}
 %\subsubsection{LIST DATA Macro}
+\hypertarget{LIST DATA Macro}{}
+\subsubsection{{\em list data} Macro}
 
 The thermodynamic data will be written as a macro file that can later
 be read back into the OC software.  Not implemented.
 
 %....................................
-\subsubsection{{\em list data} PDB}
 %\subsubsection{LIST DATA PDB}
+\hypertarget{LIST DATA PDB}{}
+\subsubsection{{\em list data} PDB}
 
 A ``Portable phase related Data Format'' similar to the TDB file
 format adapted for OC.
 
 %....................................
-\subsubsection{{\em list data} TDB}
 %\subsubsection{LIST DATA TDB}
+\hypertarget{LIST DATA TDB}{}
+\subsubsection{{\em list data} TDB}
 
 A variant of the TDB file format with Thermo-Calc flavor.
 
 %--------------------------------
-\subsection{{\em list} Equilibria}
 %\subsection{LIST Equilibria}
+\hypertarget{LIST Equilibria}{}
+\subsection{{\em list} Equilibria}
 
-Lists the equilibria entered (not any result ...).
+Lists the equilibria entered.  To list the results of the calculation
+of an equilibrium use {\bf list result}.
 
 %--------------------------------
-\subsection{{\em list} Error message}
 %\subsection{LIST ERROR_MESSAGE}
+\hypertarget{LIST ERROR-MESSAGE}{}
+\subsection{{\em list} Error message}
 
 The message associated with an error code generated by OC can be listed
 
 %--------------------------------
-\subsection{{\em list} Line equilibria}
 %\subsection{LIST Line_equilibria}
+\hypertarget{LIST Line-equilibria}{}
+\subsection{{\em list} Line equilibria}
 
 Lists the equilibria calculated during STEP or MAP commands.  See also
 the command {\bf AMEND LINE-EQUILIBRIA}.
 
 %--------------------------------
 
-\subsection{{\em list} Model parameter identifiers}
 %\subsection{LIST Model_param_id}
+\hypertarget{LIST Model-param-id}{}
+\subsection{{\em list} Model parameter identifiers}
 
 Lists the model parameter identifiers available in the current version
 of OC, see section~\ref{sc:paramid}.
 
 %--------------------------------
-\subsection{{\em list} Model parameter value}
 %\subsection{LIST Model_param_val}
+\hypertarget{LIST Model-param-val}{}
+\subsection{{\em list} Model parameter value}
 
 The current value of a model parameter identifier can be listed.  Note
 that the value is always phase dependent and may also depend on the
 composition set.
 
 %--------------------------------
-\subsection{{\em list} optimization}
 %\subsection{LIST Optimization}
+\hypertarget{LIST Optimization}{}
+\subsection{{\em list} optimization}
 
 Lists results of an optimization, several sub-options will be
-implemented but currently there is a short version only.
+implemented but currently there is a short version only.  To save this
+on a file use the option /output= or /append=, see~\ref{sc:options}.
 
+%    character (len=16), dimension(noptopt) :: optopt=&
+%        ['SHORT           ','LONG            ','COEFFICIENTS    ',&
+%         'GRAPHICS        ','DEBUG           ','MACRO           ',&
+%         'EXPERIMENTS     ','CORRELATION_MTRX','                ']
+
+{\small
+  \begin{tabular}{llll}
+COEFFICIENTS      & DEBUG        & GRAPHICS      & MACRO     \\
+CORRELATION\_MTRX & EXPERIMENTS  & LONG          & SHORT \\
+  \end{tabular}
+  }
 %.....................................
-\subsubsection{{\em list} optimization coefficients}
 %\subsection{LIST Optimization coefficiets}
+\hypertarget{LIST Optimization coefficiets}{}
+\subsubsection{{\em list optimization} coefficients}
 
-This gives just a list of the coefficients
+This gives a list of the coefficients and their values.
 
 %.....................................
-\subsubsection{{\em list} optimization debug}
-%\subsection{LIST Optimization short}
+%\subsection{LIST Optimization debug}
+\hypertarget{LIST Optimization debug}{}
+\subsubsection{{\em list optimization} debug}
 
 Not implemented yet.
 
 %.....................................
-\subsubsection{{\em list} optimization experiments}
-%\subsection{LIST Optimization experiments}
+%\subsection{LIST Optimization correlation_mtrx}
+\hypertarget{LIST Optimization correlation-mtrx}{}
+\subsubsection{{\em list optimization} correlation\_matrix}
 
-Just a list of the experiments with non-zero weights.
+Not implemented yet.
 
 %.....................................
-\subsubsection{{\em list} optimization graphics}
+%\subsection{LIST Optimization experiments}
+\hypertarget{LIST Optimization experiments}{}
+\subsubsection{{\em list optimization} experiments}
+
+List of experiments in the equilibria with non-zero weights.
+
+%.....................................
 %\subsection{LIST Optimization graphics}
+\hypertarget{LIST Optimization graphics}{}
+\subsubsection{{\em list optimization} graphics}
 
 A figure with the experimental values on the X axis and calculated values
 on the Y axis for all experiments.  Not implemented yet.
 
 %.....................................
-\subsubsection{{\em list} optimization long}
 %\subsection{LIST Optimization long}
+\hypertarget{LIST Optimization long}{}
+\subsubsection{{\em list optimization} long}
 
 Not implemented yet
 
 %.....................................
-\subsubsection{{\em list} optimization macro}
 %\subsection{LIST Optimization macro}
+\hypertarget{LIST Optimization macro}{}
+\subsubsection{{\em list optimization} macro}
 
 A listing of all thermodynamic data and current values of model
 parameter and experimental data with current weight.  This can be read
@@ -2206,35 +2726,53 @@ back as a start of a re-assessment and an important documentation of
 the current state of the assessment.  But not yet implemented.
 
 %.....................................
-\subsubsection{{\em list} optimization short}\label{sc:listoptshort}
 %\subsection{LIST Optimization short}
+\hypertarget{LIST Optimization short}{}
+\subsubsection{{\em list optimization} short}\label{sc:listoptshort}
 
-This gives first a list of the optimizing coefficents with name,
-current value, start value, scaling factor and its relative standard
-deviation.
+This specifies tha data and hour of the listing and first a table with
+the optimizing coefficents with name, current value, start value,
+scaling factor and its relative standard deviation.
 
-The there is a list with one line for each experiment as shown below:
+In the first table all the optimizing coefficents with non-zero values
+are listed together with the current values, the start values and
+their scaling factor (usually ths same as the start value).  In the
+column ``RSD'' the Relative Standard Deviation'' should appear but it
+is not yet calculated correctly.  Last column is the name of the TP
+symbol(s) where the coefficient is used.
+
+After that all equilibria with non-sero weights are listed together
+with their experimental data, both the prescribed value, the
+uncertainy and the currently calculated one.  In the last column the
+error is listed.
+
 \begin{verbatim}
- 240 EQ_T6_287_MU   1.00 AC(MG)=0.2288:20% $ 0.2832551             -1.1900E+00
- 241 EQ_T6_288_MU   1.00 AC(MG)=0.2402:20% $ 0.292484              -1.0883E+00
- 242 EQ_T6_289_MU   1.00 AC(MG)=0.4197:20% $ 0.5303315             -1.3180E+00
- 243 EQ_T6_290_MU   1.00 AC(MG)=0.4369:20% $ 0.5393437             -1.1724E+00
- 244 EQ_T6_291_MU   1.00 AC(MG)=0.4701:20% $ 0.5562721             -9.1653E-01
- 245 EQ_T6_292_MU   1.00 AC(MG)=0.6332:20% $ 0.7130137             -6.3024E-01
- 246 EQ_T6_293_MU   1.00 AC(MG)=0.6491:20% $ 0.7189384             -5.3796E-01
- 247 EQ_T6_294_MU   1.00 AC(MG)=0.8475:20% $ 0.8975157             -2.9508E-01
- 248 EQ_T6_295_MU   1.00 AC(MG)=0.8573:20% $ 0.8982803             -2.3901E-01
- 262 EQ_T10_330_H   1.00 HM=-3724:5% $ -4110.991                   -2.0784E+00
- 263 EQ_T10_331_H   1.00 HM=-5963.9:5% $ -6979.801                 -3.4068E+00
- 264 EQ_T10_332_H   1.00 HM=-7027:5% $ -8465.936                   -4.0955E+00
- 265 EQ_T10_333_H   1.00 HM=-7596:5% $ -9108.018                   -3.9811E+00
- 266 EQ_T10_334_H   1.00 HM=-7855.8:5% $ -8903.023                 -2.6661E+00
- 267 EQ_T10_335_H   1.00 HM=-7558.9:5% $ -7985.961                 -1.1300E+00
- 268 EQ_T10_336_H   1.00 HM=-6581.6:5% $ -6491.723                  2.7312E-01
+Listing of optimization results: date 2018.08.20 : 12h47
+
+List of coefficients with non-zero values
+Name  Current value  Start value   Scaling factor RSD          Used in
+A11     3.46818E+02   4.00095E+02   4.00095E+02   1.25070E-06  _GFCCAB0
+A12    -5.66234E+01  -6.52871E+01  -6.52871E+01   1.33802E-06
+A13    -2.10028E-02  -1.30393E-02  -1.30393E-02   8.97167E-06  _GFCCAB0
+
+List of     4 equilibria with     8 experimental data values
+  No Equil name    Weight Experiment $ calculated                   Error
+   2 FCC1_ZA        1.00 SM=17:1 $ 17                               9.8995E-09
+   2                1.00 CP1=18:1 $ 17.28685                        7.1315E-01
+   3 FCC2_ZB        1.00 HDIFF=9000:500 $ 9997.813                 -1.9956E+00
+   3                1.00 CP1=20:DCP $ 22.55698                     -2.5570E-02
+   4 FCC3_ZC        1.00 HDIFF=15000:500 $ 14719.24                 5.6152E-01
+   4                1.00 CP1=22:DCP $ 24.65726                     -2.6573E-02
+   5 FCC4_ZD        1.00 HDIFF=20000:500 $ 19860.72                 2.7856E-01
+   5                1.00 CP1=24:DCP $ 26.75754                     -2.7575E-02
+
+Final sum of squared errors:      4.88614E+00 using    8 experiments and
+  3 coefficient(s).  Degrees of freedom:    5, normalized error:    9.7723E-01
 \end{verbatim}
 
-The first column is a sequential equilibrium number assigned by the
-software.  Then the name assined by the user. The third column is the
+In the list of equilibria with non-zero weight the first column is a
+sequential equilibrium number assigned by the software.  Then the name
+of the equilibrium assigned by the user. The third column is the
 weight, only equilibria with nonzero weight are listed.  Then comes a
 columm with the experimental property and value and after the dollar
 sign its calculated value with the present set of coefficients.  The
@@ -2253,48 +2791,57 @@ uncertanty.
 The least square routine tries to determine coefficients to make the
 sum of all $q_i^2$ as small as possible.
 
-At the end of the listing $\sum_i q_i^2$ is listed.
+At the end of the listing $\sum_i q_i^2$ is listed.  The degrees of
+freedom is the number of experiments minus the number of coefficients.
 
 %--------------------------------
-\subsection{{\em list} Parameter}
 %\subsection{LIST Parameter}
+\hypertarget{LIST Parameter}{}
+\subsection{{\em list} Parameter}
 
 List a specific parameter.
 
 %--------------------------------
-\subsection{{\em list} Phase $<$\em phase$>$}
 %\subsection{LIST Phase}
+\hypertarget{LIST Phase}{}
+\subsection{{\em list} Phase $<$\em phase name$>$}
 
 You must first specify the phase name.  Then you can specify if you
-want the phase CONSTITUTION, DATA or some MODEL information.
+want the phase CONSTITUTION, DATA or some MODEL information.  To write
+on a file use the options /output= or /append=, see~\ref{sc:options}.
 
 %...................
-\subsubsection{{\em list phase} ... Constitution}
 %\subsubsection{LIST PHASE ... Constitution}
+\hypertarget{LIST PHASE ... Constitution}{}
+\subsubsection{{\em list phase} ... Constitution}
 
 List the constitution of the phase.
 
 %...................
-\subsubsection{{\em list phase} ... Data}
 %\subsubsection{LIST PHASE ... Data}
+\hypertarget{LIST PHASE ... Data}{}
+\subsubsection{{\em list phase} ... Data}
 
 List the model and model parameter expressions.
 
 %...................
-\subsubsection{{\em list phase} ... Model}
 %\subsubsection{LIST PHASE ... Model}
+\hypertarget{LIST PHASE ... Model}{}
+\subsubsection{{\em list phase} ... Model}
 
 List some model data for example if there is a disordered fraction set.
 
 %--------------------------------
-\subsection{{\em list} Quit}
 %\subsection{LIST Quit}
+\hypertarget{LIST Quit}{}
+\subsection{{\em list} Quit}
 
 You did not really want to list anyting.
 
 %--------------------------------
-\subsection{{\em list} Results}
 %\subsection{LIST Results}
+\hypertarget{LIST Results}{}
+\subsection{{\em list} Results}
 
 List the results of an equilibrium calculation.  This is the most
 frequent list command.  The listing will contain the current set of
@@ -2320,7 +2867,8 @@ There are 9 options for the formatting:
 \item 9 as 8 but in in value order.
 \end{itemize}
 
-For each phase the name, status (S/D/E/F), moles (or mass), volume,
+For each phase the name, its status
+(S=suspended/D=dormant/E=entered/F=fix), moles (or mass), volume,
 number of formula units, atoms per formula units and driving force (in
 dimensionless units) is given on one line.
 
@@ -2330,16 +2878,20 @@ and vacancies have a varying amount of moles of atoms per formula
 units.  The composition of the phase can be in value order or
 alphabetical order.
 
+To write the output on a file use /output= or /append=,
+see~\ref{sc:options}.
+
 %--------------------------------
-\subsection{{\em list} Short}
 %\subsection{LIST Short}
+\hypertarget{LIST Short}{}
+\subsection{{\em list} Short}
 
 There are 4 options: A/C/M/P
 
 The A option lists a single line for each element, species and phase
 with some essential data.
 
-The C option lists the components and their data.
+The C option lists one line for each components.
 
 The M option lists the models and constitution for all phases.
 
@@ -2347,8 +2899,9 @@ The P option lists one line for each stable phase and then one line
 for some of the remaining phases in decreasing order of stability.
 
 %--------------------------------
-\subsection{{\em list} State\_ Variables}\label{sc:list_statevar}
 %\subsection{LIST State_Variables}
+\hypertarget{LIST State-Variables}{}
+\subsection{{\em list} State\_Variables}\label{sc:list_statevar}
 
 Values of individual state variables like G, HM(LIQUID), X(LIQUID,CR)
 etc. can be listed.  Terminate the command by an empty line.  Note
@@ -2361,9 +2914,12 @@ will give the calculated Curie temperature for BCC.  A symbol like
 MQ\&FE(FCC) will give the logarithm of the mobility of Fe in the FCC
 phase.
 
+This command is superseeded by the SHOW command.
+
 %--------------------------------
-\subsection{{\em list} Symbols}
 %\subsection{LIST Symbols}
+\hypertarget{LIST Symbols}{}
+\subsection{{\em list} Symbols}
 
 All state variable symbols listed but not their values, they are
 calculated by the CALCULATE SYMBOL command.
@@ -2374,17 +2930,22 @@ List of all state variable symbols
   1         R= 8.31451;
   2         RT= R*T;
   3         T_C= T-273.15;
-  4      X  CP= HM.T;
+  4      D  CP= HM.T;
+  5      C  DCP= 1
+  6     7X  H298= HM;
 \end{verbatim}
 
-In the ``special'' column the ``X'' means the symbol is calculated
-only when explicitly specified.  There can also be a ``C'' indicating
-a numeric value that can be amended or a number indicating in which
-equilibrium the symbol is calculated.  See section~\ref{sc:amendsym}.
+In the ``special'' column the ``D'' means the symbol that is a ``dot
+derivative'' which is calculated only when explicitly specified, ``C''
+means a numeric value that can be amended.  The special 7X means a
+symbol that is evaluated only at equilibrium 7 which means you can
+refer to the value of this symbol calculated at the specified
+equilibrium in other equilibria.  See also section~\ref{sc:amendsym}.
 
 %--------------------------------
-\subsection{{\em list} Tpfun Symbols}
 %\subsection{LIST Tpfun_Symbols}
+\hypertarget{LIST Tpfun-Symbols}{}
+\subsection{{\em list} Tpfun Symbols}
 
 All or some TPFUN expressions listed.  By giving * all are listed,
 bu giving the g* all TP functions starting with G are listed.
@@ -2397,68 +2958,115 @@ To obtain the values of TP functions use the {\bf calculate TP}
 command.
 
 %===================================================================
-\section{Macro }
 %\section{Macro }
+\hypertarget{Macro}{}
+\section{Macro }
 
 By specifying a file name commands will be read from that file.  The
 default extension is OCM.  A macro file can open another macro file
 (max 5 levels).  When a macro file finish with SET INTERACTIVE the
 calling macro file will continue or the user can continue
-interactively.
+interactively.  See section~\ref{sc:macro}.
 
-A macro file name can be given on the same line as the program and the
-program will drictly start reading from this file.
+When you start OC you can give a macro file name on the same line and
+the program will drictly start reading from this file.
+
+With the popup window facility there are some special things.  If you
+open the macro file with the popup window OC will save the directory
+where the macro file was found.  If there are references to other
+files such as datbases or other macro files inside the macro and these
+file names are on the same line as the command {\bf read tdb ./steel1}
+the file name must be preceeded by a ``./'', otherwise OC will try to
+open the file on its ``working directory'', see
+section~\ref{sc:popup}.
 
 %===================================================================
-\section{Map }
 %\section{Map }
+\hypertarget{map}{}
+\section{Map }
 
-For phase diagram calculations.  One must first set two axis with
-state variables also set as conditions.
+For phase diagram calculations.  You must first set two axis with
+state variables which are already set as conditions.
 
-If one gives several MAP commands one can choose to erase or keep the
-previous results.
+If you give several MAP commands you can choose to erase or keep the
+previous results at each command.
 
-During mapping each calculated equilibria is saved and different kinds
-of calculated state variables can be used for plotting.
+During mapping each calculated equilibria is saved and for plotting
+any state variable can be used.
 
 %===================================================================
 \section{New }
+\hypertarget{New}{}
 %\section{New }
 
 To remove all data so a new system can be entered.  It is fragile.
 
 %===================================================================
-\section{Optimize}\label{sc:optim}
 %\section{Optimize }
+\hypertarget{Optimize}{}
+\section{Optimize}\label{sc:optim}
 
 The model parameters selected by SET VARIABLE\_COEFF will be varied to
 obtain the best least square fit the experimental data provided.
 
-Before this command the user must have entered the thermodynamic
+Before this command you must have entered the thermodynamic
 descriptions of the phases with model parameters depending on
-optimizing coefficients and the experimental data.  He must also set
-the range and weights of the experiments and which coefficents to
-vary.
+optimizing coefficients and the experimental data.  You must also set
+the range and weights of the experiments and which coefficents to be
+variable.
 
-The user provides a maximum number of iterations allowed.
+You must provid a maximum number of iterations allowed.  If you give
+zero a ``dry run'' will be made with the current values of the
+optimizing coefficients.  This can be useful to see that there are no
+problems calculating the equilibria.
 
 Developing better assessment software is one of the main aspects of
 the OC software.  There will be more options to this command soon.
 
 %===================================================================
-\section{Plot }
 %\section{Plot }
+\hypertarget{plot}{}
+\section{Plot }
 
 Plot the result from a STEP or MAP calculation.  A simple interface to
 GNUPLOT~\cite{gnuplot} has been implemented in OC.  This generates a
-command file which is later plotted using GNUPLOT.
+command file which is automatically plotted using GNUPLOT after the
+``render'' command.
 
 In OC you must first specify the state variable on the horizontal
 (x-axis) and vertical (y-axis) axis.  Then you can give several of the
 options below, finish with RENDER or QUIT.
 
-The simples way to generate a complex plot to be saved as PDF or PNG
+%----------------------------------------------------
+%\subsection{Horizontal axis variable}
+\hypertarget{Horizontal axis variable}{}
+\subsection{{\em plot xaxis yaxis} Horizontal axis variable}
+
+Specify the state variable or symbol to be plotted on the horizontal axis.
+
+Note that if you plot a phase diagram with "tie-lines in the plane"
+you should specify a fraction variable as X(*,C) and not X(C)
+because you want the carbon content in all stable phases.
+
+%----------------------------------------------------
+%\subsection{Vertical axis variable}
+\hypertarget{Vertical axis variable}{}
+\subsection{{\em plot xaxis yaxis} Vertical axis variable}
+
+Specify the state variable or symbol to be plotted on the vertical axis.
+
+Note that if you plot a phase diagram with "tie-lines in the plane"
+you should specify a fraction variable as X(*,C) and not X(C) because
+you want the carbon content in all stable phases.
+
+%----------------------------------------------------
+%\subsection{Options?}
+\hypertarget{Options?}{}
+\subsection{{\em plot xaxis yaxis} Options?}
+
+You can choose various options before plotting. A ? gives a menu.
+
+The simplest way to generate a complex plot to be saved as PDF or PNG
 format is to first select the approriate axis and then set a few
 options like scaling, axis texts and text labels and plot on the
 screen.  If you are not satified you can plot again (without changing
@@ -2481,10 +3089,11 @@ OC can be edited to exploit additional facilities in GNUPLOT.
 \bigskip
 
 \begin{tabular}{llll}
- APPEND           & GRAPHICS-FORMAT  & POSIION-OF-KEYS  & SCALE-RANGES \\
- AXIS\_LABELS     & LOGSCALE         & QUIT             & TEXT\\
- FONT-AND-COLOR   & MANIPULATE-LINES & RATIOS-XY        & TIE-LINES\\
- GIBBS-TRIANGLE   & OUTPUT-FILE      & RENDER           & TITLE\\
+ APPEND           & LINE\_WITH\_POINTS &  POSIION-OF-KEYS & TEXT\\  
+ AXIS\_LABELS     & LOGSCALE         & QUIT               & TIE-LINES\\
+ FONT-AND-COLOR   & MANIPULATE-LINES & RATIOS-XY          & TITLE\\
+ GIBBS-TRIANGLE   & OUTPUT-FILE      & RENDER           \\
+ GRAPHICS-FORMAT  & PAUSE-OPTIONS    & SCALE-RANGES \\
 \end{tabular}
 
 A short summary:
@@ -2495,10 +3104,12 @@ A short summary:
 \item FONT-AND-COLOR you can select font and color of text
 \item GIBBS-TRIANGLE means an equilateral triangular diagram
 \item GRAPHICS-FORMAT to select the GNUPLOT output device (PS, PDF, PNG etc)
+\item LINE-WITH-POINTS means a symbol at every calculated equilibrium
 \item LOGSCALE you can specify that X or Y axis is logaritmic
 \item MANIPULATE-LINES is to select line identification
 \item OUTPUT-FILE the GNUPLOT file is saved on this file (default ocgnu.plt)
-\item POSITION of the idetification labels for the curves
+\item PAUSE-OPTION to select how GNUPLOT should behave after plotting
+\item POSITION of the identification labels for the curves
 \item QUIT no plot generated
 \item RATIOS-XY will change the relative length of X and Y axis
 \item RENDER finally plot
@@ -2509,88 +3120,115 @@ A short summary:
 \end{itemize}
 
 %----------------------------------------------------
+%\subsection{(Append}
+\hypertarget{(Append}{}
 \subsection{{\em plot xaxis yaxis} Append}
-%\subsection{(PLOT xaxis yaxis) Append}
 
 A GNUPLOT file prevously generated by OC or edited manually can be
 specified to be overlayed on the current plot.
 
 %----------------------------------------------------
+%\subsection{(AXIS-labels}
+\hypertarget{(AXIS-labels}{}
 \subsection{{\em plot xaxis yaxis} Axis\_Labels}
-%\subsection{(PLOT xaxis yaxis) AXIS-labels}
 
-The user specifies for the X or Y axis the text written on the axis.
+You specify for the X or Y axis the axis labels.  By default the state
+variable or symbol plotted will be used as label.
 
-For X or Y axis?
+%\subsection{(For X or Y axis}
+{\bf For X or Y axis?}
 
 Specify the axis for which you want to enter the label
 
-Axis label:
+%\subsection{(Axis label}
+{\bf Axis label:}
 
 The default label is given in the question.
 
 %----------------------------------------------------
+%\subsection{(font-and-color}
+\hypertarget{(font-and-color}{}
 \subsection{{\em plot xaxis yaxis} font-and-color}
-%\subsection{(PLOT xaxis yaxis) font-and-color}
 
 Not implemented yet.  Intended to select font and color of all text.
 Some GNUPLOT terminals may not support certain fonts.
 
 %----------------------------------------------------
+%\subsection{Gibbs_triangle}
+\hypertarget{Gibbs-triangle}{}
+% IMPORTANT: we must add the option above to find the question below!
+%\subsection{A Gibbs triangle diagram? }
+\hypertarget{A Gibbs triangle diagram? }{}
 \subsection{{\em plot xaxis yaxis} Gibbs triangle}
-%\subsection{(PLOT xaxis yaxis) Gibbs triangle}
 
-Gibbs triangle plots can only be used for isothermal sections.  A
+Gibbs triangle plots should only be used for isothermal sections.  A
 trial implementation is available which can generate equiaxial
 triangular isothermal diagrams.  If you already set this the default
 is to plot on a square.
 
-%%%%%%%%%%>>>>>>>>>>>>>>>>>>> end of editing 2018.01.09
+%%%%%%%%%%>>>>>>>>>>>>>>>>>>> end of editing 2018.08.20
 
 %----------------------------------------------------
+%\subsection{Graphics format}
+\hypertarget{Graphics format}{}
 \subsection{{\em plot xaxis yaxis} Graphics format}
-%\subsection{(PLOT xaxis yaxis) Graphics format}
 
 The GNUPLOT terminals entered in section~\ref{sc:gnuterm} can be used.
-For other formats than SCREEN one can also specify an output file
+For other formats than SCREEN you can also specify an output file
 which will be generated in the specified format.
 
+%\subsection{Graphics format index}
 Graphics format index:
 
-The default terminal indices are
-1 SCREEN\\
-2 PS (Postscript)\\
-3 PDF (Adobe Portrable Document Format)\\
-4 GIF\\
-5 PNG\\
+The default terminal indices are:
+\begin{enumerate}
+\item SCREEN
+\item PS (Postscript)
+\item PDF (Adobe Portrable Document Format)
+\item GIF
+\item PNG
+\end{enumerate}
 
 You can change these or enter more graphics formats by the {\bf enter
-  gnuplot} command. \ref{sc:gnuterm}.
+  gnuplot} command. \ref{sc:gnuterm}.  The SCREEN driver is usually
+``wxt'' fo Windows and ``Qt'' for Linux but can be selected in the
+Makefile for the pmon6.F90 file.
 
 If SCREEN is not selected the GNUPLOT program with generate a file
-with the plot and the user can specify the name of this file.  It will
+with the plot and you can specify the name of this file.  It will
 have the appropriate extention depending on the format.
 
+%\subsection{Plot file:}
 Plot file:
 
 In addition to the GNUPLOT command file the graphics a file with the
 specified format will be generated.
 
 %----------------------------------------------------
-\subsection{{\em plot xaxis yaxis} Logscale}
-%\subsection{(PLOT xaxis yaxis) logscale}
+%\subsection{line-with-points}
+\hypertarget{line-with-points}{}
+\subsection{{\em plot xaxis yaxis} Line-with-points}
 
-The user can set logarithimic scale on X or Y axis (or both).
+Not implemente yet
 
 %----------------------------------------------------
+%\subsection{(logscale}
+\hypertarget{(logscale}{}
+\subsection{{\em plot xaxis yaxis} Logscale}
+
+You can set logarithimic scale on X or Y axis (or both).
+
+%----------------------------------------------------
+%\subsection{Manipulate lines}
+\hypertarget{Manipulate lines}{}
 \subsection{{\em plot xaxis yaxis} Manipulate lines}
-%\subsection{(PLOT xaxis yaxis) Manipulate lines}
 
 This is not implemented.  It is intended to allow specification of the
 color of the curves in the plot.
 %----------------------------------------------------
+%\subsection{Output file}
+\hypertarget{Output file}{}
 \subsection{{\em plot xaxis yaxis} Output file}
-%\subsection{(PLOT xaxis yaxis) Output file}
 
 By default plotting will generate a ocgnu.plt file for GNUPLOT.  You
 can specify other name here.  If you plot on other terminals than
@@ -2598,86 +3236,118 @@ SCREEN there will be an additional file with extension ``.ps'' for
 Postscript, ``.pdf'' for Adobe PDF or ``.gif'' for GIF format.
 
 %----------------------------------------------------
+%\subsection{Pause option}
+\hypertarget{Pause option}{}
+\subsection{{\em plot xaxis yaxis} Pause option}
+
+When you plot on the screen the last command on the file to GNUPLOT
+is ``pause mouse''.  You can change this with this command.
+
+%----------------------------------------------------
+%\subsection{(Position of keys}
+\hypertarget{(Position of keys}{}
 \subsection{{\em plot xaxis yaxis} Position of keys}
-%\subsection{(PLOT xaxis yaxis) Position of keys}
 
 The identification (labels) of the curves in the plot can be
 positioned with this command.  See the GNUPLOT manual~\cite{gnuplot}
 for information.
 
 %----------------------------------------------------
+%\subsection{(Quit}
+\hypertarget{(Quit}{}
 \subsection{{\em plot xaxis yaxis} Quit}
-%\subsection{(PLOT xaxis yaxis) Quit}
 
 No plot generated.
 
 %----------------------------------------------------
+%\subsection{Ratios_XY}
+\hypertarget{Ratios-XY}{}
 \subsection{{\em plot xaxis yaxis} Ratios XY}
-%\subsection{(PLOT xaxis yaxis) Ratios XY}
 
 The relative ratios of the X and Y axis can be specied.
 
 %----------------------------------------------------
+%\subsection{(Render}
+\hypertarget{(Render}{}
 \subsection{{\em plot xaxis yaxis} Render}
-%\subsection{(PLOT xaxis yaxis) Render}
 
 Finally plot using all the option set.
 
 %----------------------------------------------------
+%\subsection{(scale-range}
+\hypertarget{(scale-range}{}
 \subsection{{\em plot xaxis yaxis} Scale\_Range}
-%\subsection{(PLOT xaxis yaxis) scale-range}
 
-The user specifies for the X or Y axis the minimum and maximum range.
-The automatic (default) scaling range can always be restored.
+You specify for the X or Y axis the minimum and maximum range.  The
+automatic (default) scaling range can always be restored.
 
 %----------------------------------------------------
+%\subsection{Text}
+\hypertarget{Text}{}
 \subsection{{\em plot xaxis yaxis} Text}
-%\subsection{(PLOT xaxis yaxis) Text}
 
-If there is already a text specified the user must first answer if he
-wants modify an already existing text.  If so all the texts are listen
-and the user can select which one he wants to modify.
+This is a facility to add a text to a plot at an arbitrary position.
 
-For a new text the user must give:
+%subsubsection{Modify existing tex? /N/:}
+\subsubsection{{\em plot xaxis yaxis text} Modify existing text?:}
 
-\subsubsection{X position}
+If there is already some text items you must first answer if you wants
+modify an already existing one.  If so all the texts are listed and
+you can select which one you wants to modify.
+
+%subsubsection{Which text index? /1/:}
+\subsubsection{{\em plot xaxis yaxis text} Which text index?:}
+
+You must provide the index of the text to change.
+
+For a new or changed text you must give:
+
 %subsubsection{X position}
+\subsubsection{{\em plot xaxis yaxis text}  X position}
+
 The X coordinate of the text (in the plot scale)
 
-\subsubsection{Y position}
 %subsubsection{Y position}
+\subsubsection{{\em plot xaxis yaxis text} Y position}
+
 The Y coordinate of the text (in the plot scale)
 
-\subsubsection{Fontscale}
 %subsubsection{Fontscale}
+\subsubsection{{\em plot xaxis yaxis text} Fontscale}
+
 A relative size factor, default is 1.  The size of the text will be
 scaled accordingly.
 
-\subsubsection{Angle (degrees)}
 %subsubsection{Angle (degrees)}
+\subsubsection{{\em plot xaxis yaxis text} Angle (degrees)}
+
 The text will be written with the specified angle. Zero means
 horisontally, negative valus slopes downward, positive upwards. An
 ange of 180 means the text will be upside down.
 
 %subsubsection{Do you want to calculate the equilibrium?}
-\subsubsection{Do you want to calculate the equilibrium?}
-If it is a phase diagram that is plotted the user can select to
-calculate an equilibrium at the specified coordinates.  The names of
-the stable phases will be proposed as text.
+\subsubsection{{\em plot xaxis yaxis text} Do you want to calculate the
+equilibrium?}
 
-%subsubsection{Text: }
-\subsubsection{Text: }
+If it is a phase diagram that is plotted you can select to calculate
+an equilibrium at the specified coordinates.  The names of the stable
+phases will be proposed as text.
+
+%subsubsection{{Text: }
+\subsubsection{{\em plot xaxis yaxis text} Text: }
 
 The text to be added to the plot.  The text will start at the
 coordinates given.  On Postscript and PDF a greek character can be
 given as ``{/Symbol m}'' for $\mu$.
 
 %----------------------------------------------------
+%\subsection{Tie_line}
+\hypertarget{Tie-line}{}
 \subsection{{\em plot xaxis yaxis} Tie-line}
-%\subsection{(PLOT xaxis yaxis) Tie\_line}
 
 Tie-lines in isothermal ternary phase diagram can be plotted.
 
+%\subsection{Tie-line plot increment}
 Tie-line plot increment?
 
 The increment is related to the actual equilibria calculated.  0 means
@@ -2685,20 +3355,23 @@ no tie-lines plotted, 3 means to plot a tie-line at every 3rd
 calculated equilibria and so on.
 
 %----------------------------------------------------
+%\subsection{Title}
+\hypertarget{Title}{}
 \subsection{{\em plot xaxis yaxis} Title}
-%\subsection{(PLOT xaxis yaxis) Title}
 
-Title on top of the figure.  The conditions will always be there also.
+Title on top of the figure.  The date and the conditions will always
+be there also.
 
 %===================================================================
-\section{Quit }
 %\section{Quit }
+\section{Quit }
 
 Terminate the OC software in English, have a nice day.
 
 %===================================================================
-\section{Read }
 %\section{Read }
+\hypertarget{Read}{}
+\section{Read }
 
 It is possible to read a (non-encrypted) TDB file but it should be not
 too different from what is normally generated by the LIST\_DATA
@@ -2710,42 +3383,74 @@ command in TC.
 \end{tabular}
 
 %--------------------------------
+%\subsection{read command}
+%\subsection{Direct}
+\hypertarget{READ Direct}{}
 \subsection{{\em read} Direct}
-%\subsection{READ Direct}
+
+{\bf File name:}
 
 In the future it will be possible to save results on a random access
 (DIRECT) file.
 
 %--------------------------------
+%\subsection{Quit}
+\hypertarget{READ Quit}{}
 \subsection{{\em read} Quit}
-%\subsection{READ Quit}
 
 You did not really want to read anything.
 
 %--------------------------------
+%\subsection{PDB}
+\hypertarget{READ PDB}{}
 \subsection{{\em read} PDB}
-%\subsection{READ TDB}
+
+{\bf File name:}
 
 A PDB file (with extension PDB) should be specified.  The file
-should be un the Portrable phase dependent Data Base format.
+should be un the Portable phase dependent Data Base format.
 
 %--------------------------------
+%\subsection{TDB}
+\hypertarget{READ TDB}{}
 \subsection{{\em read} TDB}
-%\subsection{READ TDB}
 
 A TDB file (with extension TDB) should be specified.  The TDB file
 must not deviate very much from the standard output from Thermo-Calc.
 
+%\subsubsection{File name:}
+\hypertarget{File name:}{{\bf File name:}}
+
+If you do not use the popup window for opening files you must specify
+the database file name.  The file must be on the working directory
+(where you started the OC program, see section~\ref{sc:popup}) or you
+must provide the path.
+
+%\subsubsection{Select elements /all/:}
+\hypertarget{select element}{}
+After opening the file the program will list the elements and ask:
+
+{\bf Select elements /all/:}
+
+If you give RETURN the data for all elements will be read.  If you
+specify one or more elements the data for those will be read.  You
+cannot select the phases here but later you can suspend those you are
+not interested in.  If you anwer quit nothing will be read.
+
 %--------------------------------
+%\subsection{Unformatted}
+\hypertarget{READ Unformatted}{}
 \subsection{{\em read} Unformatted}\label{sc:readunf}
-%\subsection{READ Unformatted}
+
+{\bf File name:}
 
 For use to read a file created with a SAVE UNFORMATTED command.  It
 may not always work as the data structure is still changing.
 
 %===================================================================
-\section{Save }
 %\section{Save }
+\hypertarget{Save}{}
+\section{Save }
 
 There are several forms of save, three forms write a text file that
 can be read and modified with a normal editor.  Two forms are
@@ -2758,82 +3463,95 @@ file.
 \end{tabular}
 
 %--------------------------------
-\subsection{{\em save} Direct}
 %\subsection{SAVE Direct}
+\hypertarget{SAVE Direct}{}
+\subsection{{\em save} Direct}
 
 It will eventually be possible to save the result of STEP and MAP
 commands on a random access file for later processing.
 
 %--------------------------------
-\subsection{{\em save} Quit}
 %\subsection{SAVE Quit}
+\hypertarget{SAVE Quit}{}
+\subsection{{\em save} Quit}
 
 You did not want to save anything.
 
 %--------------------------------
-\subsection{{\em save} PDB}
 %\subsection{SAVE PDB}
+\hypertarget{SAVE PDB}{}
+\subsection{{\em save} PDB}
 
 Saves current set of model parameters and functions on a file in the
 Portable phase dependant Data Base format. 
 
 %--------------------------------
-\subsection{{\em save} TDB}
 %\subsection{SAVE TDB}
+\hypertarget{SAVE TDB}{}
+\subsection{{\em save} TDB}
 
 Saves current set of model parameters and functions on a file in TDB
 format.  Same as the command {\bf list data tdb}.
 
 %--------------------------------
-\subsection{{\em save} SOLGAS}
 %\subsection{SAVE SOLGAS}
+\hypertarget{SAVE SOLGAS}{}
+\subsection{{\em save} SOLGAS}
 
 Saves current set of model parameters and functions on a file in a
-format that can be read by the FactSage software.
+format that (hopefully) can be read by the FactSage software.
 
 %--------------------------------
-\subsection{{\em save} Unformatted}\label{sc:saveunf}
 %\subsection{SAVE Unformatted}
+\hypertarget{SAVE Unformatted}{}
+\subsection{{\em save} Unformatted}\label{sc:saveunf}
 
-The intention is that one will be able to save the current status of
-the calculations on a file and then resume the calculations by
-reading this file.
+With this command you can save the current status of the calculations
+on a file and then resume the calculations by reading this file.  Note
+that the Fortran unformatted files may not be portable, they depend on
+the compiler, the operating system and the hardware.
 
 %===================================================================
-\section{Select }
 %\section{Select }
+\hypertarget{Select}{}
+\section{Select }
 
 There are a few things that can be selected, most important which
 equilibrium the following commands will operate on.
 
 %--------------------------------
-\subsection{{\em select} Equilibrium}
 %\subsection{SELECT Equilibrium}
+\hypertarget{SELECT Equilibrium}{}
+\subsection{{\em select} Equilibrium}
 
-As the user can enter several equilibria with different conditions
+As you can enter several equilibria with different conditions
 this command allows him to select the current eqilibria.
 
 %--------------------------------
-\subsection{{\em select} Graphics}
 %\subsection{SELECT Graphics}
+\hypertarget{SELECT Graphics}{}
+\subsection{{\em select} Graphics}
 
 Only GNUPLOT~cite{gnuplot} available.
 
 %--------------------------------
-\subsection{{\em select} Language}
 %\subsection{SELECT Language}
+\hypertarget{SELECT Language}{}
+\subsection{{\em select} Language}
 
 Only English implemented (except a few French exclamations).
 
 %--------------------------------
-\subsection{{\em select} Minimizer}
 %\subsection{SELECT Minimizer}
+\hypertarget{SELECT Minimizer}{}
+\subsection{{\em select} Minimizer}
 
 Only Hillert's algorithm implemented in matsmin~\cite{15Sun2} available.
 
 %--------------------------------
-\subsection{{\em select} Optimizer}
 %\subsection{SELECT Optimizer}
+\hypertarget{SELECT Optimizer}{}
+\subsection{{\em select} Optimizer}
 
 The LMDIF~\cite{lmdif} least square fitting software is the only one
 implemented.
@@ -2841,8 +3559,9 @@ implemented.
 %######### >>> edit limit 2018.01.10
 
 %===================================================================
-\section{Set }
 %\section{Set }
+\hypertarget{SET}{}
+\section{Set }
 
 Many things can be set.  Things to be ``set'' and ``amended''
 sometimes overlap.
@@ -2857,54 +3576,115 @@ sometimes overlap.
 \end{tabular}
 
 %--------------------------------
+%\subsection{Advanced}
+\hypertarget{SET Advanced}{}
 \subsection{{\em set} Advanced}
-%\subsection{SET Advanced}
 
 A few options implemented
 
-%.............................................................
-\subsubsection{{\em set advanced} dense grid onoff}
-%\subsection{SET Advanced DENSE_GRID_ONOFF}
-
-This toggles the grid minimizer to use/not use a denser grid (about 10
-times more gridpoints) when generating start values for the interactive
-minimizer.  It can be useful when the normal grid is too coarse to
-detect some miscibility gaps or order/disorder transitions.  It takes
-about 10 times longer to calculate.
+\begin{tabular}{llll}
+ EQUILIB-TRANSF &  GRID-DENSITY   & OPEN-POPUP-OFF  & WORKING-DIRECTRY\\
+ EXTRA-PROPERTY  & HELP-POPUP-OFF &  QUIT\\
+ GLOBAL-MIN-ONOFF & MAP-SPECIAL  &    SMALL-GRID-ONOFF\\
+\end{tabular}
 
 %.............................................................
-\subsubsection{{\em set advanced} equilibrium transfer}
 %\subsection{SET Advanced EQUILIB_TRANSFER}
+\hypertarget{SET Advanced EQUILIB-TRANSFER}{}
+\subsubsection{{\em set advanced} equilibrium transfer}
 
 This is only for experts who know what they are doing.
 
 %.............................................................
-\subsubsection{{\em set advanced} quit}
+%\subsection{SET Advanced extra property}
+\hypertarget{SET Advanced extra property}{}
+\subsubsection{{\em set advanced} extra property}
+
+Not sure what it will be used for and anyway not implemented yet.
+
+%.............................................................
+%\subsection{SET Advanced global-min-onoff}
+\hypertarget{SET Advanced global-min-onoff}{}
+\subsubsection{{\em set advanced} global-min-onoff}
+
+Turn on or off using global minimization.
+
+%.............................................................
+%\subsection{SET Advanced GRID_DENSity}
+\hypertarget{SET Advanced GRID-DENSity}{}
+\subsubsection{{\em set advanced} grid\_density}
+
+At present the grid density cannot be fine tuned.  For some phases it
+is fixed for some you can select a more or less dense grid.
+
+%.............................................................
+%\subsection{SET Advanced help_popup_off}
+\hypertarget{SET Advanced help-popup-off}{}
+\subsubsection{{\em set advanced} help-popup-off}\label{sc:help-popup}
+
+The user can turn off or on the HTML popup help feature.
+
+%.............................................................
+%\subsection{SET Advanced map-special}
+\hypertarget{SET Advanced map-special}{}
+\subsubsection{{\em set advanced} map-special}
+
+Not implemented yet.
+
+%.............................................................
+%\subsection{SET Advanced open-popup-off}
+\hypertarget{SET Advanced open-popup-off}{}
+\subsubsection{{\em set advanced} open-popup-off}
+
+Any other answer then Y will turn them off.  By answering Y you turn
+on popup windows for opening files (the default).
+
+%.............................................................
 %\subsection{SET Advanced QUIT}
+\hypertarget{SET Advanced QUIT}{}
+\subsubsection{{\em set advanced} quit}
 
 You did not want to set anything advanced.
 
+%.............................................................
+%\subsection{SET Advanced small-grid-onoff}
+\hypertarget{SET Advanced small-grid-onoff}{}
+\subsubsection{{\em set advanced} small-grid-onoff}
+
+A particularly small grid for the global minimization is selected or not.
+%.............................................................
+%\subsection{SET Advanced working directory}
+\hypertarget{SET Advanced working directory}{}
+\subsubsection{{\em set advanced} working-directory}
+
+The name of the working directory (where OC was started) is listed.
+It cannot be changed at present.  It is related to the popup windows
+for opening files, see section~\ref{sc:popup}.
+
 %--------------------------------
-\subsection{{\em set} As start equilibrium}
 %\subsection{SET As start equilibrium}
+\hypertarget{SET As start equilibrium}{}
+\subsection{{\em set} As start equilibrium}
 
 The current equilibrium will be copied to the list of start equilibria
 for STEP and MAP commands.
 
 %--------------------------------
-\subsection{{\em set} Axis}
 %\subsection{SET Axis}
+\hypertarget{SET Axis}{}
+\subsection{{\em set} Axis}
 
 A condition can be set as an axis variable with a low and high limit
-and a maximum increment.  With 2 or more axis one will calculate a
+and a maximum increment.  With 2 or more axis you will calculate a
 phase diagram, i.e. lines where the set of stable phases changes.
 
-With one axis one calculates the set of stable phases and their
+With one axis you calculate the set of stable phases and their
 properties while changing the axis variable.
 
 %--------------------------------
-\subsection{{\em set} Bit}
 %\subsection{SET Bit}
+\hypertarget{SET Bit}{}
+\subsection{{\em set} Bit}
 
 Many records have status words where the bits are used to signify
 different things.  An advanced user can set these bits for the global,
@@ -2927,7 +3707,7 @@ equilibrium and phase records, but only if you know what it means.
   \item  11  means verbose is permanently on (not implemented)
   \item  12  means be silent (supress warnings)
   \item  13  no cleanup after an equilibrium calculation
-  \item  14  use denser grid in grid minimizer (see also ADVANCED)
+  \item  14  use denser grid in grid minimizer (see also SET ADVANCED)
   \item  15  calculations in parallel is not allowed
   \item  16  no global test at node point during STEP/MAP
   \item  17  the components are not the elements
@@ -2953,12 +3733,20 @@ equilibrium and phase records, but only if you know what it means.
 \item To change the phase status word use SET PHASE ... bit
 \end{itemize}
 %--------------------------------
+%\subsection{Condition}
+% the default is set condition
+%\subsection{set command}
+\hypertarget{SET Condition}{}
 \subsection{{\em set} Condition}
-%\subsection{SET Condition}
+
+%\subsubsection{state variable:}
+{\bf State variable:}
 
 A condition is a value assigned to a state variable or an expression
-of state variables.  By setting the status of a phase to fix one has
-also set a condition.
+of state variables.  By setting the status of a phase to fix you have
+also set a condition.  For example
+
+{\em set cond t=1273 p=1e5 n=1 x(cr)=0.1 w\%(c)=1}
 
 Two cases of expressions can be used as conditions, for example a
 relation between mole fraction like\\
@@ -2971,79 +3759,193 @@ for example:\\
 {\bf set condition n(u)+n(zr)=1}\\ 
 means that the total number of moles of the components U and Zr should
 be unity.
+
+%subsubsection{value}
+{\bf Value:}
+
+A numeric value or a symbol representing a constant value is expected.
+
 %--------------------------------
-\subsection{{\em set} Echo}
 %\subsection{SET Echo}
+\hypertarget{SET Echo}{}
+\subsection{{\em set} Echo}
 
 This is useful command in macro files or when demonstrating the program.
 
 %--------------------------------
-\subsection{{\em set} Fixed coefficient}
 %\subsection{SET Fixed coefficient}
+\hypertarget{SET Fixed coefficient}{}
+\subsection{{\em set} Fixed coefficient}
 
 An optimizing coefficient is assigned a fixed value.
 
 %--------------------------------
-\subsection{{\em set} Input Amounts}
-%\subsection{SET Input\_Amounts}
+%\subsection{Input_Amounts}
+\hypertarget{SET Input-Amounts}{}
+\subsection{{\em set} Input-Amounts}\label{sc:setinpuam}
 
-This allows the user to specify a system by giving a redundant amount
-of various species in the system.  The software will transform this to
-conditions on the amounts of the components.
+This command allows you to specify a system by giving a redundant
+amount of various species in the system.  The software will transform
+this to conditions on the amounts of the components.
+
+%\subsubsection{Species and amount}
+\hypertarget{Species and amounts}{}
+Species and amount as N(..)= or B(...)= :
+
+An example:
+
+{\small
+\begin{verbatim}
+--->OC5:read tdb cho-gas
+--->OC5:set input 
+Species and amount as N(..)= or B(...)= : n(c1o2)
+Amount: 10
+--->OC5:set input n(c1h4)=5
+--->OC5:l c
+Conditions for equilibrium:   1, DEFAULT_EQUILIBRIUM
+  1:N(C)=45, 2:N(O)=80, 3:N(H)=30
+ Degrees of freedom are   2
+\end{verbatim}}
+
+The amounts of the species has been split on the components.  Setting
+input amounts is just another way to set these directly.  If we set a
+$T$ and $P$ we can calculate the equilibrium fraction of all the
+species.
+
+{\small
+\begin{verbatim}
+--->OC5:set c t=1000 p=1e5
+--->OC5:l c
+Conditions for equilibrium:   1, DEFAULT_EQUILIBRIUM
+  1:N(C)=45, 2:N(O)=80, 3:N(H)=30, 4:T=1000, 5:P=100000
+ Degrees of freedom are   0
+--->OC5:c e
+ 3Y Constitution of metastable phases set
+Gridmin:      85 points   1.56E-02 s and       0 clockcycles, T= 1000.00
+Phase change: its/add/remove:     5   11    0
+Phase change: its/add/remove:    12   12    0
+Phase change: its/add/remove:    17    0   12
+Phase change: its/add/remove:    53    0   11
+Equilibrium calculation   79 its,   7.8125E-02 s and      93 clockcycles
+--->OC5:l
+LIST what? /RESULTS/:
+Results output mode: /1/:
+
+Output for equilibrium:   1, DEFAULT_EQUILIBRIUM          2018.08.21
+Conditions .................................................:
+  1:N(C)=45, 2:N(O)=80, 3:N(H)=30, 4:T=1000, 5:P=100000
+ Degrees of freedom are   0
+
+Some global data, reference state SER ......................:
+T=   1000.00 K (   726.85 C), P=  1.0000E+05 Pa, V=  4.9872E+00 m3
+N=   1.5500E+02 moles, B=   1.8507E+03 g, RT=   8.3145E+03 J/mol
+GS= -2.80411E+07 J, GS/N=-1.8091E+05 J/mol, HS=-1.2914E+07 J, SS= 1.513E+04 J/K
+
+Some data for components ...................................:
+Component name    Moles      Mole-fr  Chem.pot/RT  Activities  Ref.state
+C                 4.5000E+01  0.29032 -3.7354E+00  2.3863E-02  SER (default)
+H                 3.0000E+01  0.19355 -9.8098E+00  5.4910E-05  SER (default)
+O                 8.0000E+01  0.51613 -3.6377E+01  1.5911E-16  SER (default)
+
+Some data for phases .......................................:
+Name                Status Moles      Volume    Form.Units Cmp/FU dGm/RT  Comp:
+GAS..................... E  1.550E+02  4.99E+00  6.00E+01    2.58  0.00E+00  X:
+ O      5.16129E-01  C      2.90323E-01  H      1.93548E-01
+ Constitution: There are    73 constituents:
+ C1O2         4.54395E-01  C2H3         8.67456E-17  C4H10_1      2.73242E-23
+ C1O1         2.95682E-01  C3H4_2       3.04922E-17  C4H10_2      1.38822E-23
+ H2O1         1.29270E-01  C3H8         2.73523E-17  C4H2         8.16657E-24
+ H2           1.20501E-01  C3H6O1       1.94895E-17  H1O2         4.37267E-24
+ C1H4         1.52786E-04  C3H4_1       8.18695E-18  C4H6_5       1.44915E-24
+ C1H2O2_CIS   4.04887E-08  C1H3O1_CH3O  3.87833E-18  C4H8         1.04297E-25
+ C1H2O1       2.01368E-08  C2H4O1_OXIRA 1.64221E-19  C2H1         7.79712E-26
+ C1H2O2_TRANS 5.82767E-09  C1H2         3.98656E-20  C4H8_4       6.39692E-26
+ H            7.88542E-10  H2O2         3.27068E-20  C6H6O1       3.00598E-26
+ C1H4O1       1.27636E-10  O            1.46838E-20  C1H1         1.81712E-27
+ C2H4         1.05140E-10  C2H6O2       1.19305E-20  C3H1         1.68523E-28
+ C2H6         3.44726E-11  O2           8.71930E-21  C4H4_1_3     7.73762E-29
+ C1H3         1.83302E-11  C4H6_2       5.73533E-21  C1H2O2_DIOXI 4.04963E-30
+ C1H1O1       7.24719E-12  C2O1         1.72590E-21  C4H1         1.00000E-30
+ C2H4O1_ACETA 2.00054E-12  C4H8_5       9.38081E-22  C2H4O2_DIOXE 1.00000E-30
+ H1O1         1.86354E-12  C4H8_3       5.91323E-22  C4           1.00000E-30
+ C2H2         1.82837E-12  C4H8_1       4.75317E-22  C2H4O3_123TR 1.00000E-30
+ C1H1O2       1.57298E-12  C4H8_2       4.17043E-22  C2H4O3_124TR 1.00000E-30
+ C2H4O2_ACETI 7.65642E-13  C2H2O1       1.47405E-22  C2           1.00000E-30
+ C1H3O1_CH2OH 1.64978E-15  C4H6_4       8.47392E-23  C60          1.00000E-30
+ C3O2         1.11079E-15  C6H6         8.21607E-23  C3           1.00000E-30
+ C3H6_2       7.21243E-16  C4H4         5.46648E-23  C5           1.00000E-30
+ C3H6         7.13743E-16  C4H6_1       5.05773E-23  O3           1.00000E-30
+ C2H6O1       6.22811E-16  C4H6_3       2.87604E-23
+ C2H5         4.72671E-16  C4H10_1      2.73242E-23
+
+--->OC5:
+\end{verbatim}}
+
+The calculation shows that mixing 10 moles of CO$_2$ with 5 moles of
+CH$_4$ at 1000~K and 1~bar gives a gas with 45\% CO$_2$, 30\% CO, 13\%
+H$_2$O and the rest H$_2$
 
 %--------------------------------
-\subsection{{\em set} Interactive}
 %\subsection{SET Interactive}
+\hypertarget{SET Interactive}{}
+\subsection{{\em set} Interactive}
 
 The last command on a macro file.  Gives command back to the keyboard
 of the user, or to the calling macro file.  Without this the program
 will just terminate when the macro is finished.
 
 %--------------------------------
-\subsection{{\em set} Level}
 %\subsection{SET Level}
+\hypertarget{SET Level}{}
+\subsection{{\em set} Level}
 
 I am no longer sure what this should do and if it is needed ...
 
 %--------------------------------
-\subsection{{\em set} Log\_File}
-%\subsection{SET Log\_File}
+%\subsection{SET Log-File}
+\hypertarget{SET Log-File}{}
+\subsection{{\em set} Log-File}
 
 A useful command to save all interactive input while running OC.  The
 log file can easily be transformed to a macro file.  All bug reports
 should be accompanied by a log file which reproduces the bug.
 
 %--------------------------------
-\subsection{{\em set} Numeric\_Options}
-%\subsection{SET Numeric\_Options}
+%\subsection{SET Numeric-Options}
+\hypertarget{SET Numeric-Options}{}
+\subsection{{\em set} Numeric-Options}
 
 The default number of iterations and accuracy can be specified.
 Default values are 500 and 10$^{-6}$.
 
 %--------------------------------
-\subsection{{\em set} Optimizing conditions}
 %\subsection{SET Optimizing conditions}
+\hypertarget{SET Optimizing conditions}{}
+\subsection{{\em set} Optimizing conditions}
 
 A few variables used to guide the optimization of model parameters can
 be set.
 
 %--------------------------------
-\subsection{{\em set} Phase}
 %\subsection{SET Phase}
+\hypertarget{SET Phase}{}
+\subsection{{\em set} Phase $<$phase name$>$}
 
 You must specify a phase name.  Some phase specific things can be set,
 also for the model.
 
 %....................
-\subsubsection{{\em set phase} ... Amount}
 %\subsubsection{SET PHASE ... Amount}
+\hypertarget{SET PHASE ... Amount}{}
+\subsubsection{{\em set phase} ... Amount}
 
-One can specify the amount of the phase which is used as initial value
+You can specify the amount of the phase which is used as initial value
 for an equilibrium calculation.
 
 %....................
-\subsubsection{{\em set phase} ... Bits}
 %\subsubsection{SET PHASE ... Bits}
+\hypertarget{SET PHASE ... Bits}{}
+\subsubsection{{\em set phase} ... Bits}
 
 Some of the models and use of data storage depend on the bits of the
 phase.  Most of them are set automatically by the software and other
@@ -3052,101 +3954,134 @@ have the expected effect and may cause the program to fail.
 
 The bits that can be changed are:
 
-\begin{itemize}
 %\subsubsubsection{EXTRA_DENSE_GRID}
+\hypertarget{EXTRA-DENSE-GRID}{}
+\begin{itemize}
 \item EXTRA\_DENSE\_GRID makes it possible to have a larger number of
   gridpoints calculated by the gridminimizer for the specified phase.
 
 %. . . . . . . . . .
 %\subsubsubsection{NO_AUTO_COMP_SET}
+\hypertarget{NO-AUTO-COMP-SET}{}
 \item NO\_AUTO\_COMP\_SET.  This makes it possible to prevent that the
 specific phase has automatic composition set created during
 calculations.
 
 %. . . . . . . . . .
 %\subsubsubsection{QUIT}
+\hypertarget{QUIT}{}
 \item OUIT, do not set any more bits.
 \end{itemize}
 
 %....................
 \subsubsection{{\em set phase} ... Constitution}
+\hypertarget{SET PHASE ... CONSTITUTION}{}
 %\subsubsection{SET PHASE ... CONSTITUTION}
 
 This is the same as {\bf amend phase constitution}.
 
 %....................
-\subsubsection{{\em set phase} ... Default\_constitu}
-%\subsubsection{SET PHASE ... DEFAULT_CONSTITU}
+%\subsubsection{SET PHASE ... DEFAULT-CONSTITU}
+\hypertarget{SET PHASE ... DEFAULT-CONSTITU}{}
+\subsubsection{{\em set phase} ... Default-constitution}
 
 Same as {\bf amend phase default\_constit}.
 
 %....................
-\subsubsection{{\em set phase} ... Quit}
 %\subsubsection{SET PHASE ... Quit}
+\hypertarget{SET PHASE ... Quit}{}
+\subsubsection{{\em set phase} ... Quit}
 
 You did not want to set anything for the phase.
 
 %....................
-\subsubsection{{\em set phase} ... Status}
 %\subsubsection{SET PHASE ... STATUS}
+\hypertarget{SET PHASE ... STATUS}{}
+\subsubsection{{\em set phase} ... Status}
 
 Use the SET STATUS PHASE command to set the status of one or several
-phases.  The different status are explained for that command.
+phases.  The different status are explained for that command,
+section~\ref{sc:set-phase-status}.
 
 %--------------------------------
-\subsection{{\em set} Quit}
 %\subsection{SET Quit}
+\hypertarget{SET Quit}{}
+\subsection{{\em set} Quit}
 
 You did not really want to set anything.
 
 %--------------------------------
-\subsection{{\em set} Range of experimental equilibria}\label{sc:setrange}
 %\subsection{SET Range_experimental_equilibria}
+\hypertarget{SET Range-experimental-equilibria}{}
+\subsection{{\em set} Range of experimental equilibria}\label{sc:setrange}
 
 For an assessment several consequtive equilibria with experimental
 data must be entered.  This command specifies the first and last of
 those equilibria.  It possible to add more equilibria later one by
 one (not yet though).  
 
+%\subsubsection{First equilibrium number}
+\hypertarget{First equilibrium number:}{{\bf First equilibrium number: /2/:}}
+
+%\subsubsection{Last equilibrium number}
+{\bf Last equilibrium number:}
+
 The equilibria are assigned the weight one by default.  The weight can
 be changed with the SET WEIGHT command.  The weight zero means the
 equilibrium is not calculated.
 
 %--------------------------------
-\subsection{{\em set} Reference\_State}\label{sc:setref}
-%\subsection{SET Reference\_State}
+%\subsection{SET Reference-State}
+\hypertarget{SET Reference-State}{}
+\subsection{{\em set} Reference-State}\label{sc:setref}
 
 By default the reference state for the components is SER (Stable
 Element Reference) which is the stable state of the element at
 298.15~K and 1~bar.  (NOTE: in principle SER is defined by the database
 but today almost all databases have SER as reference state.)
 
-For each component (also for other components than the elements) one
+%\subsubsection{Component name:}
+\hypertarget{Component name:}{{\bf Component name:}}
+
+%\subsubsection{Reference phase}
+\hypertarget{Reference phase}{{\bf Reference phase:}}
+
+For each component (also for other components than the elements) you
 can specify a phase at a given temperature and pressure as reference
-state.  The phase must exist for the component as pure.  Instead of a
-fixed $T$ one can give a *, indicating current $T$, if one calculates
-at different values of $T$.  Example:
+state.  The phase must exist for the component as pure.
+
+%\subsubsection{Temperature}
+\hypertarget{reference temperature}{{\bf Temperature:}}
+
+Instead of a fixed $T$ you can give a *, indicating current $T$, if
+you calculates at different values of $T$.
+
+%\subsubsection{Pressure}
+\hypertarget{reference pressure}{{\bf Pressure:}}
+
+Example:
 
 {\bf set reference O gas * 1e5}
 
 Note that state variables like the chemical potential, MU(O), will
 refer to the user defined reference state.  To obtain the value for
-the SER state one can use the suffix S, i.e. MUS(O) will give the
+the SER state you can use the suffix S, i.e. MUS(O) will give the
 chemical potential refered to SER.
 
 IMPORTANT NOTE: the value of integral properties like Gibbs energy,
 $G$, enthalpy, $H$, etc. will also be affected by the change of the
 reference state of an element.  If all elements have the same phase as
 reference state the value of the enthalpy obtained by $H$ for that
-phase will be the enthalpy of mixing.
+phase will be the enthalpy of mixing.  If not it is only confusing.
 
 In order to have use SER as reference state use a suffix S.  The
 enthalpy relative to SER is $HS$ independent of any reference state
-set for the elements.
+set for the elements by the user.
 
 %--------------------------------
-\subsection{{\em set} Scaled coefficient}
 %\subsection{SET Scaled coefficient}
+\hypertarget{SET Scaled coefficient}{}
+\subsection{{\em set} Scaled coefficient}
 
 A coefficient for optimization can be specified with a start value,
 scaling factor and a minimum and maximum value.  The {\em set} VARIABLE
@@ -3154,45 +4089,57 @@ command sets the scaling factor equal to the start value and have no
 min or max values.
 
 %--------------------------------
+%\subsection{Status}
+\hypertarget{SET Status}{}
 \subsection{{\em set} Status}
-%\subsection{SET Status}
 
 The status of elements, constituents, species or phases can be
 changed.  Only phases are implemented.
 
 %....................
-\subsubsection{{\em set status} Constituent}
 %\subsubsection{SET STATUS Constituent}
+\hypertarget{SET STATUS Constituent}{}
+\subsubsection{{\em set status} Constituent}
 
 A constituent of a phase can be suspended.  Not yet implemented.
 
 %....................
-\subsubsection{{\em set status} Element}
 %\subsubsection{SET STATUS Element}
+\hypertarget{SET STATUS Element}{}
+\subsubsection{{\em set status} Element}
 
 An element can be ENTERED or SUSPENDED.  If an element is suspended
 all species with this element is automatically suspended.  Not yet
 implemented.
 
 %....................
-\subsubsection{{\em set status} Phase}
-%\subsubsection{SET STATUS Phase}
+\subsubsection{{\em set status} Phases}\label{sc:set-phase-status}
+\hypertarget{SET STATUS Phase}{}
 
-A phase can have 4 status
+%\subsubsubsection{Phase name:}
+\hypertarget{STATUS Phase}{{\bf Phase name(s):}}
+
+A phase can have one of 4 different status
 
 \begin{itemize}
-\item entered, this is the default.  The phase will be stable if that
+\item ENTERED, this is the default.  The phase will be stable if that
   would give the most stable state for the current conditions.  The user
   can give a tentative amount.
-\item suspended, the phase will not be included in any calculations.
-\item dormant, the phase will be included in the calculations but will
+\item SUSPENDED, the phase will not be included in any calculations.
+\item DORMANT, the phase will be included in the calculations but will
   not be allowed to become stable even if that would give the most
   stable equilibrium.  In such a case the phase will have a positive
   driving force.
-\item fixed means that it is a condition that the phase is stable with
+\item FIXED means that it is a condition that the phase is stable with
   the specified amount.  Note that for solution phases the composition
   is not known.
 \end{itemize}
+
+%\subsubsubsection{More phase name(s):}
+\hypertarget{More phase name(s)}{{\bf More phase name(s):}}
+
+%\subsubsubsection{New status S(uspend), D(ormant), E(ntered of F8ixed)?
+\hypertarget{new phase status}{{\bf New status S(uspend), D(ormant), E(ntered) of F(ixed)? /E/:}}
 
 You can use a list of phase names or a wildcard for the phase name and
 the must give an equal sign, ``='', before the new status.  You can
@@ -3208,46 +4155,55 @@ equilibrium will give you a metastable equilibrium.
 Setting a phase status as FIXED means it is a condition that this
 phase should be stable.  Setting the liquid fix with the amount zero
 is a quick way to calculate the melting temperature of a system if
-there is no condition on the T.
+there is no condition on the T.  For entered phases the amount is used
+as a start value.
+
+{\bf Amount: /0/}:
 
 %....................
-\subsubsection{{\em set status} Species}
 %\subsubsection{SET STATUS Species}
+\hypertarget{SET STATUS Species}{}
+\subsubsection{{\em set status} Species}
 
 A species can be ENTERED or SUSPENDED.  If a species is suspended
 all phases that have this as single constituent in a sublattice
 will be automatically suspended.  Not yet implemented.
 
 %--------------------------------
-\subsection{{\em set} T\_and\_P}
 %\subsection{SET T and P}
+\hypertarget{SET T and P}{}
+\subsection{{\em set} T\_and\_P}
 
 Local values of T and P can be set.  These are not conditions but are
 used for commands like {\bf CALCULATE PHASE ...}.
 
 %--------------------------------
-\subsection{{\em set} Units}
 %\subsection{SET Units}
+\hypertarget{SET Units}{}
+\subsection{{\em set} Units}
 
 For each property the unit can be specified like Kelvin, Farenheit or
 Celsius for temperature.  Not implemented yet.
 
 %--------------------------------
-\subsection{{\em set} Variable coefficient}\label{sc:setvar}
 %\subsection{SET Variable coefficient}
+\hypertarget{SET Variable coefficient}{}
+\subsection{{\em set} Variable coefficient}\label{sc:setvar}
 
 A coefficient Aij for optimization is assigned a start value or its
 current value to be optimized against selected experimental data.
 
 %--------------------------------
-\subsection{{\em set} Verbose}
 %\subsection{SET Verbose}
+\hypertarget{SET Verbose}{}
+\subsection{{\em set} Verbose}
 
 Not implemented yet.
 
 %--------------------------------
-\subsection{{\em set} Weight}\label{sc:setw}
 %\subsection{SET Weight}
+\hypertarget{SET Weight}{}
+\subsection{{\em set} Weight}\label{sc:setw}
 
 Intended for assessments.  A weight is zero or a positive value.
 Equilibria with weight zero will be ignored in an optimization.  
@@ -3261,8 +4217,9 @@ If an abbreviation or a range is given the software will list how many
 equilibra that had the weight set to the new value.
 
 %===================================================================
-\section{Show }
 %\section{Show }
+\hypertarget{show}{}
+\section{Show }
 
 This command shows a value of a property, the property can be a state
 variable like T, G etc or a user detfined symbol containing several
@@ -3272,52 +4229,65 @@ variables can contain wildcards like X(FCC,*) means all mole fractions
 of the FCC phase.  Several properties can be specified on the same
 line, separated by a space character.
 
-\subsection{property:}
 %\subsection{property:}
+\hypertarget{property:}{}
+\subsection{property:}
 
-One or more properties can be specified like
+The value of one or more properties or symbols can be shown:
 
-{\bf show t g tc(bcc) mu(cr)}
+\begin{verbatim}
+--->OC5:show t g tc(bcc) mu(cr) cp
+ T=  1.2000000E+03
+ G= -5.9565761E+04
+ TC(BCC_A2)=  1.0272646E+03
+ MU(CR)= -7.2489667E+04
+CP=   4.08487869E+01
+\end{verbatim}
 
 %===================================================================
-\section{Step }
 %\section{Step }
+\hypertarget{step}{}
+\section{Step }
 
 Requires that a single axis is set.  If a second step command is given
 you have the choice of deleting or keeping the previous results.
 
 %--------------------------------
-\subsection{{\em step} Conditional}
 %\subsection{STEP Conditional}
+\hypertarget{STEP Conditional}{}
+\subsection{{\em step} Conditional}
 
 A specified symbol is evaluated at each step.  Can be used for
 Scheil-Gulliver solidification simulation when implemented.
 
 %--------------------------------
-\subsection{{\em step} Normal}
 %\subsection{STEP Normal}
+\hypertarget{STEP Normal}{}
+\subsection{{\em step} Normal}
 
 Calculates equilibria from the low axis limit to the high at each
 increment.  The exact axis value for any phase changes is calculated.
 
 %--------------------------------
-\subsection{{\em step} Quit}
 %\subsection{STEP Quit}
+\hypertarget{STEP Quit}{}
+\subsection{{\em step} Quit}
 
 You did not want to {\em step}.
 
 %--------------------------------
+%\subsection{{Separate}
+\hypertarget{Separate}{}
 \subsection{{\em step} Separate}
-%\subsection{{\em step} Separate}
 
-Calculates each phase separately.  It calculates equilibria for each
-phase separately.  It can be used to calculate Gibbs energy curves.
+This command calculates equilibria for each phase separately.  It can
+be used to calculate and plot Gibbs energy curves for example.
 
 %===================================================================
 
 % Using this file for on-line help there must be a section after last command
-\section{Summary }
 %\section{Summary }
+\section{Summary }
 
 That's all and I hope enough (when all is implemented).  Have fun and
 report all errors or problems providing a macro file and the necessary
@@ -3334,11 +4304,11 @@ data.
 \bibitem[15Sun2]{15Sun2} B Sundman, X-L Liu and H Ohtani, {\em The
   implementation of an algorithm to calculate thermodynamic equilibria
   for multi-component systems with non-ideal phases in a free
-  software}, Computational Materials Science, {\bf 101} (2015) 127-137
+  software}, Computational Materials Science, {\bf 101} (2015) 127--137
 \bibitem[16Sun]{16Sun} B Sundman, U R Kattner, C Sigli, M Stratmann, R
   Le Tellier, M Palumbo and S G Fries, {\em The OpenCalphad
     thermodynamic software interface}, Comp Mat Sci, {\bf 125} (2016)
-  188-196
+  188--196
 \bibitem[GNUPLOT]{gnuplot} http://www.gnuplot.info/documentation.html
 \bibitem[LMDIF]{lmdif}
   https://www.math.utah.edu/software/minpack/minpack/lmdif.html

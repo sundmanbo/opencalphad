@@ -25,7 +25,7 @@ new Y
 
 set echo
 
-r t steel1 c cr fe mo v
+r t ./steel1 c cr fe mo v
 
 @$ There will be a cubic carbide stable in this system
 @$ create a composition set of the fcc phase for that
@@ -92,21 +92,21 @@ plot
 
 text
 0.4 1000
-1
+.8
 0
 y
 
 text
-n .55 1300 1 0 y 
+n .55 1300 .8 0 y 
 
 text
-n .5 1450 1 0 y
+n .5 1450 .8 0 y
 
 text 
-n 0.15 1400 1 0 y
+n 0.15 1400 .8 0 y
 
 text 
-n 0.9 1580 1 0 y
+n 0.9 1580 .8 0 y
 
 
 @&

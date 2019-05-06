@@ -32,8 +32,11 @@ new Y
 
 set echo
 
-r t steel1 c fe cr
+r t ./steel1
+?
+c fe cr
 
+@&
 
 set c t=2000 p=1e5 n=1 x(c)=.1 x(cr)=.1
 
@@ -358,7 +361,21 @@ cal sym *
 @$ We cannot calculate the MOBC symbol unless the phase
 @$ has been calculated with the mobility parameters.
 @&
-@$ It is enough to calculate the phase
+l c
+
+@$ The current conditions are a bit odd, set an overall Cr and C content
+@$ and increase T
+
+set cond ac(c)=none x(fcc,cr)=none
+
+set c x(c)=.03 x(cr)=.1 t=1200
+
+c e
+
+l,,,,
+
+@&
+@$ Now we can calculate all symbols
 
 cal ph fcc ,,,,,
 
@@ -373,12 +390,10 @@ list model-para-val
 mq&c(fcc)
 
 
-@$
 @&
-@$ There is a command to adjust the constitution of a single phase
-@$ to an overall composition by adjusting the fractions on the
-@$ different sublattices to minimize the Gibbs energy for that phase.
-@& 
+@$ There is a command to calculate the equilibrium state of a single
+@$ adjusted to a specified compostion.  This will adjust the fractions on
+@$ all sublattices to minimize the Gibbs energy for that phase.
 
 cal ph fcc
 
@@ -386,14 +401,10 @@ Y
 const-adj
 
 
+@& 
 @$ There is also a command to calculate the potential derivative
 @$ matrix (note it is symmetrical) which is needed to convert
-@$ the mobilities to diffusion coefficients.  With this command
-@$ we cannot have a condition on the activity of a component
-
-set cond ac(C)=none
-
-@& 
+@$ the mobilities to diffusion coefficients. 
 
 cal ph fcc
 
@@ -403,8 +414,25 @@ diff
 
 
 
+@$ This command is quite powerful as it calculates the equilibrium for a
+@$ single phase (which may have the same component in several sublattices)
+@$ for a given composition and then returns
+@$ 1) The chemical potentials for the endmembers (Cr:C) (Cr:Va) (Fe:C) (Fe:VA)
+@$ (in that order)
+@$ 2) The Darken matrix for the endmembers
+@$ 3) The current mobiliy values for the components (in alphabetical order)
 @&
+@$ Just calculate the normal equilibrium
 
+c e
+
+l,,,,
+
+@$ Note that MU/RT for the 4th endmember, -5.7912, is the same as MU/RT for Fe
+@$ but not for the second (Cr) as we have defined a different reference state
+@$ The difference between the first and second is MU/RT for C
+@$
+@&
 @$ That is all for now
 @&
 set inter

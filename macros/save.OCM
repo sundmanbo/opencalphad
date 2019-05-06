@@ -27,7 +27,7 @@ new YES
 
 set echo
 
-r t steel7
+r t ./steel7
 
 @&
 
@@ -73,10 +73,12 @@ l sh p
 
 save
 unf
-testing
-steel7
+steel7unf
 Y
 
+@$ NOTE steel7unf.OCU will be saved on the WORKING DIRECTORY
+@$ which may not be the same as the directory of the macro!
+@$ This means we must not use "./" as prefix when we read the file ...
 @&
 @$ Reinitiate the program and delete all data and results
 
@@ -86,10 +88,11 @@ l d,,,
 
 @&
 @$ Read the the unformatted file with data and the last calculation
+@$ DO NOT USE the prefix ./ as this file was written on the working directory
 
 read
 unf
-steel7
+steel7unf
 
 @&
 @$ Check we can list the equilibrium
@@ -148,7 +151,7 @@ new Y
 @$ testing unformatted save and read using a PDB file
 @$ with disordered fraction set and a second equilibrium
 
-r p MoRe1
+r p ./MoRe1
 
 @&
 
@@ -188,10 +191,10 @@ l d
 
 save
 unf
-testing
-more1
+more1unf
 Y
 
+@$ NOTE FILE SAVED in WORKING DIRECTORY !!
 @&
 @$ Reinitiate the program and delete all data and results
 
@@ -204,9 +207,10 @@ l d,,,
 
 read
 unf
-more1
+more1unf
 
 
+@$ NOTE FILE is in working directory 
 @&
 @$ list the equilibria
 

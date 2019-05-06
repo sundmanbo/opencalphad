@@ -27,7 +27,7 @@ please ask some local experts if you need help.
 The description below applies when installing OC on a ``vanilla''
 Linux system, the guides available are:
 \begin{itemize}
-\item Install-OC-Windows-MinGW
+\item Install-OC-Windows
 \item Installation de OC sous Windows avec Cygwin (in French)
 \item Install-OC-Linux-or-macOS
 \end{itemize}
@@ -47,16 +47,23 @@ Step by step installation:
 \item open a terminal window and use ``cd'' (change directory) to the
   directory where you unzipped OC.
 
-  \begin{itemize}
-  \item run ``make -f Makefile-sequential'' to build a serial version of OpenCalphad...
+\item If you want to use the command line editing features (a la
+  emacs) inside OC you must first edit the Makefile and remove the
+  comment character ``\#'' for your dialet of UNIX (BSD (also Mac)),
+  Linux, etc.
 
-  \item ... or if you have access to several CPUs you can test OC with
-    parallelization using Open MP.  In that case run ``make -f Makefile-parallel'' to build a OpenCalphad
-  \end{itemize}
+  Then give the command ``make Makefile'' to build your version of OpenCalphad
 
+  If you do not want the line editing you can use `` make -f Makefile-nogetkey''
+  
 \item {\bf If you have errors running the make command files please
     contact a local expert.}
 
+\item From version 5.018 OC has a popup window to open files.  This is
+  provided with the ``tinyfd'' software included in the distribution.
+  If you do not like the popup windows you can remove this from the
+  Makefiles or inside OC give the command ``set advanced popup yes''.
+  
 \item For the graphics you must download and install the free GNUPLOT
   software, for example from SourceForge.
 

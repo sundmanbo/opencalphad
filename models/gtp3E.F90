@@ -127,6 +127,7 @@
    integer miws
    integer, allocatable, dimension(:) :: iws
    integer i,isp,jph,lokph,lut,last,lok,rsize,displace,ibug,ffun,lokeq,ccc
+   integer nspx,check
 ! these depend on hardware, bytes/word and words/double. Defined in metlib3
 !   integer, parameter :: nbpw=4,nwpr=2
 ! integer function nwch calculates the number of words to store a character
@@ -187,7 +188,9 @@
 ! if eqlista(i)%nexteq does not increment sequentially there are some holes!
          last=eqlista(i)%nexteq
          write(*,*)'3E Beware: unused equilibria before the last used &
+         write(*,*)'3E Beware: unused equilibria before the last used,'//&
               &cannot be saved'
+              ' cannot be saved'
          gx%bmperr=4399; goto 1000
       endif
       i=eqlista(i)%nexteq
@@ -241,7 +244,8 @@
 !      write(*,*)'3E refstatesymbol 0: ',ibug,iws(ibug),iws(1)
    enddo
 ! bug??
-   ibug=lok+displace+3
+! added one saved integer for size of spextra (normally zero)
+   ibug=lok+displace+4
 !   write(*,*)'3E refstatesymbol 1: ',ibug,iws(ibug),iws(1)
 !-----------
 !>>>>> 2: specieslist
@@ -252,7 +256,13 @@
    last=5
    iws(last+1)=gtp_species_version
    do isp=1,noofsp
-      call wtake(lok,rsize+splista(isp)%noofel*(1+nwpr),iws)
+      if(allocated(splista(isp)%spextra)) then
+         nspx=size(splista(isp)%spextra)
+      else
+         nspx=0
+      endif
+      check=rsize+splista(isp)%noofel*(1+nwpr)+nspx*nwpr
+      call wtake(lok,rsize+splista(isp)%noofel*(1+nwpr)+nspx*nwpr,iws)
       if(buperr.ne.0) then
          write(*,*)'3E Error reserving species record'
          gx%bmperr=4356; goto 1100
@@ -265,16 +275,26 @@
       iws(lok+displace+2*nwpr)=splista(isp)%noofel
       iws(lok+displace+2*nwpr+1)=splista(isp)%status
       iws(lok+displace+2*nwpr+2)=splista(isp)%alphaindex
-! displace one less as i is added
-      displace=displace+2*nwpr+2
+      iws(lok+displace+2*nwpr+3)=nspx
+! displace one less as the index i is added
+      displace=displace+2*nwpr+3
       do i=1,splista(isp)%noofel
          iws(lok+displace+i)=splista(isp)%ellinks(i)
       enddo
       displace=displace+splista(isp)%noofel+1
 ! storing splista(isp)%noofel doubles in iws(lok+displace)
 !      write(*,*)'3E displace store: ',lok,displace
+! storrn starts storing in iws(lok+displace)
       call storrn(splista(isp)%noofel,&
            iws(lok+displace),splista(isp)%stoichiometry)
+!  if nspx>0 save also all double variables in spextra
+      if(nspx.gt.0) then
+         displace=displace+splista(isp)%noofel*nwpr
+         call storrn(nspx,iws(lok+displace),splista(isp)%spextra)
+         write(*,*)'3F species with extra data: ',isp,nspx
+      endif
+!      write(*,'(a,2i5)')'3E species record check: ',check,&
+!           displace+nspx*nwpr
 !      write(*,*)'3E refstatesymbol 3: ',ibug,iws(ibug),lok+displace
 !      do i=1,splista(isp)%noofel
 !         call storr(lok+displace+(i-1)*nwpr,iws,
@@ -347,7 +367,8 @@
 !------------------------------------
 ! save link to the global data record and version in 20-21
    last=20
-   rsize=1+nwch(24)+3*nwpr+10
+! extended globaldata record 190317/BoS
+   rsize=1+nwch(24)+3*nwpr+11+5*nwpr
    call wtake(lok,rsize,iws)
    if(buperr.ne.0) then
       write(*,*)'3E Error reserving globaldata record'
@@ -356,9 +377,24 @@
    iws(last)=lok
    iws(lok+1)=globaldata%status
    call storc(lok+2,iws,globaldata%name)
-   call storr(lok+3,iws,globaldata%rgas)
-   call storr(lok+3+nwpr,iws,globaldata%rgasuser)
-   call storr(lok+3+2*nwpr,iws,globaldata%pnorm)
+! BUG name was ovewritten by rgas etc !!!
+   displace=2+nwch(24)
+   call storr(lok+displace,iws,globaldata%rgas)
+   call storr(lok+displace+nwpr,iws,globaldata%rgasuser)
+   call storr(lok+displace+2*nwpr,iws,globaldata%pnorm)
+! extended globaldata record 190317/BoS
+   displace=displace+3*nwpr
+! these used for testing when reading
+!   globaldata%sysparam(1)=987
+!   globaldata%sysparam(10)=17
+   do i=0,9
+      iws(lok+displace+i)=globaldata%sysparam(i+1)
+   enddo
+   displace=displace+10
+!   globaldata%sysreal(5)=12345678.9D0
+   call storrn(5,iws(lok+displace),globaldata%sysreal)
+!   write(*,*)'3E globalsave:: ',rsize,displace+5*nwpr
+!   write(*,*)'3E name: "',globaldata%name,'"'
 !   goto 900
 ! unfinished
 !------------- state variable functions
@@ -413,7 +449,7 @@
 ! finally write the workspace to the file ...
 900 continue
    if(index(filename,'.').eq.0) then
-      filename(len_trim(filename)+1:)='.ocu'
+      filename(len_trim(filename)+1:)='.OCU'
    endif
    lut=21
 !**********************************************************
@@ -799,7 +835,9 @@
       addlink=>phlista(lokph)%additions
       lokpty=phreclink+2
       addition: do while(associated(addlink))
-         if(addlink%type.eq.1) then
+! WHEN SAVING MORE ADDITION YOU MUST ALSO CHANGE READING UNFORMATTED readphases
+!         if(addlink%type.eq.1) then
+         if(addlink%type.eq.INDENMAGNETIC) then
 !>>>>> 12A: additions id, regenerate all when reading this
             rsize=3
             call wtake(lok,rsize,iws)
@@ -814,7 +852,11 @@
 !            write(*,*)'3E saving additions in: ',phreclink+2,lok,iws(lok+1),&
 !                 iws(lok+2)
 ! link the property recordds sequentially
-         elseif(addlink%type.eq.7) then
+         elseif(addlink%type.eq.EINSTEINCP) then                ! 4
+            write(*,*)'Not saving Einstein addition'          
+         elseif(addlink%type.eq.TWOSTATEMODEL1) then          ! 5
+            write(*,*)'Not saving liquid two-state addition'
+         elseif(addlink%type.eq.VOLMOD1) then                 ! 7  
 !>>>>> 12A: additions id, regenerate all when reading this
             rsize=3
             call wtake(lok,rsize,iws)
@@ -828,6 +870,8 @@
 !            iws(lok+2)=addlink%aff
 !            write(*,*)'3E saving additions in: ',phreclink+2,lok,iws(lok+1),&
 !                 iws(lok+2)
+         elseif(addlink%type.eq.DIFFCOEFS) then               ! 11
+            write(*,*)'Not saving Diffusion addition'
          else
             write(*,*)'3E unknown addition record type ',addlink%type
          endif
@@ -948,6 +992,7 @@
       gx%bmperr=0
    else
 ! do not save the "current value" after the $
+!      write(*,*)'3E save experiment: "',trim(text),'"'
       kl=index(text,'$')-1
       if(kl.le.0) then
          kl=len_trim(text)
@@ -1325,6 +1370,7 @@
    iws(loksvf+1)=3
 ! do not save the first three, R, RT and T_C
    symbols=' '
+   write(*,*)'3E saving ',nsvfun,' symbols as texts'
    do lrot=4,nsvfun
       ipos=1
       text=' '
@@ -1408,8 +1454,9 @@
 !
    assrec=>firstash%nextash
    if(.not.allocated(assrec%eqlista)) then
-      iws(lok)=0
-      goto 1000
+      write(kou,*)'3E No experimental equilibrium range set'
+!      iws(lok)=0
+!      goto 1000
    endif
 20 continue
 ! next, status, varcoef, first, and 8 allocatable arrays
@@ -1439,21 +1486,28 @@
    disp=5+nwch(64)
    call storc(lok1+disp,iws,assrec%special)
    disp=disp+nwch(64)
-! eqlista
-   i1=size(assrec%eqlista)
-   rsize=1+i1
-   call wtake(lok2,rsize,iws)
-   if(buperr.ne.0) then
-      write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
-      gx%bmperr=4356; goto 1000
-   endif
+! eqlista CAN BE EMPTY!
+   if(allocated(assrec%eqlista)) then
+      i1=size(assrec%eqlista)
+      rsize=1+i1
+      call wtake(lok2,rsize,iws)
+      if(buperr.ne.0) then
+         write(*,*)'3E Error reserving assessment record array',rsize,iws(1)
+         gx%bmperr=4356; goto 1000
+      endif
 !   write(*,*)'3E in saveash 1:',lok,lok1,lok2,i1
-   iws(lok2)=i1
+      iws(lok2)=i1
+      if(i1.gt.0) then
 ! Hm assrec%eqlista(i2)%p1 is a pointer to an element in the global eqlists
 !   ceq=>assrec%eqlista(1)%p1
-   do i2=1,i1
-      iws(lok2+i2)=assrec%eqlista(i2)%p1%eqno
-   enddo
+         do i2=1,i1
+            iws(lok2+i2)=assrec%eqlista(i2)%p1%eqno
+         enddo
+      endif
+   else
+! mark that no experimental records
+      lok2=0
+   endif
    iws(lok1+disp+1)=lok2
 ! coeffvalues
    if(allocated(assrec%coeffvalues)) then
@@ -1615,6 +1669,7 @@
 !\end{verbatim}
    character id*40,version*8,comment*72
    integer i,i1,i2,i3,isp,jph,kontroll,nel,ivers,lin,last,lok,displace,jfun
+   integer nspx
    integer, allocatable :: iws(:)
 ! CCI
    logical is_op
@@ -1622,7 +1677,7 @@
 !   type(gtp_equilibrium_data), pointer :: ceq
 10  format(i8)
    if(index(filename,'.').eq.0) then
-      filename(len_trim(filename)+1:)='.ocu'
+      filename(len_trim(filename)+1:)='.OCU'
    endif
 !CCI The previous commented lines are removed by the following lines 
 !CCI that enable to find the first available logical unit. 
@@ -1657,7 +1712,7 @@
       gx%bmperr=4299; goto 900
    endif
    write(*,12)id,version,trim(comment)
-12 format(/'Read unformatted file: ',a,a/'Comment: ',a/)
+12 format(/'Read unformatted file: ',a,a/'Generated: ',a/)
    str=comment
 !   write(*,*)'3E numbers: ',noofel,noofsp,noofph,nooftuples,last
 !-------
@@ -1704,7 +1759,7 @@
    endif
 !   write(*,*)'3E Now the species!!'
 !-------
-!>>>>> 3: specieslist
+!>>>>> 3: specieslist NOTE ADDES SPEXTRA
    if(iws(6).ne.gtp_species_version) then
       write(*,*)'3E Species version wrong: ',iws(5),gtp_species_version
       gx%bmperr=4355; goto 1000
@@ -1715,7 +1770,7 @@
 ! its alphaindex
    splista(1)%alphaindex=iws(last+2+nwch(24)+2*nwpr+2)
    species(splista(1)%alphaindex)=1
-! skip the first species
+! skip the first species (this is VA)
    last=iws(last)
    isp=1
    do while(last.gt.0)
@@ -1728,9 +1783,12 @@
       splista(isp)%noofel=iws(last+displace+2*nwpr)
       splista(isp)%status=iws(last+displace+2*nwpr+1)
       splista(isp)%alphaindex=iws(last+displace+2*nwpr+2)
+! new spextra array
+      nspx=iws(last+displace+2*nwpr+3)
+      if(nspx.ne.0) write(*,*)'3E nspx value: ',nspx
       allocate(splista(isp)%ellinks(splista(isp)%noofel))
       allocate(splista(isp)%stoichiometry(splista(isp)%noofel))
-      displace=displace+2*nwpr+2
+      displace=displace+2*nwpr+3
       do i=1,splista(isp)%noofel
          splista(isp)%ellinks(i)=iws(last+displace+i)
       enddo
@@ -1739,6 +1797,13 @@
       call loadrn(splista(isp)%noofel,&
            iws(last+displace),splista(isp)%stoichiometry)
       species(splista(isp)%alphaindex)=isp
+! handle spextra values if any
+      if(nspx.gt.0) then
+         write(*,*)'We have nonzero nxsp: ',nspx
+         allocate(splista(isp)%spextra(nspx))
+         displace=displace+splista(isp)%noofel*nwpr
+         call loadrn(nspx,iws(last+displace),splista(isp)%spextra)
+      endif
 ! next species
       last=iws(last)
    enddo
@@ -1810,10 +1875,28 @@
 ! the global status word in 20-21
    lok=iws(20)
    globaldata%status=iws(lok+1)
+! BUGFIX and extended
    call loadc(lok+2,iws,globaldata%name)
-   call loadr(lok+3,iws,globaldata%rgas)
-   call loadr(lok+3+nwpr,iws,globaldata%rgasuser)
-   call loadr(lok+3+2*nwpr,iws,globaldata%pnorm)
+   displace=2+nwch(24)
+   call loadr(lok+displace,iws,globaldata%rgas)
+   call loadr(lok+displace+nwpr,iws,globaldata%rgasuser)
+   call loadr(lok+displace+2*nwpr,iws,globaldata%pnorm)
+   displace=displace+3*nwpr
+   do i=0,9
+      globaldata%sysparam(i+1)=iws(lok+displace+i)
+   enddo
+! this was used to test record read correctly
+!   if(globaldata%sysparam(1).ne.987 .or. &
+!        globaldata%sysparam(10).ne.17) then
+!      write(*,'(a,10i4)')'3E error globaldata: ',globaldata%sysparam
+!   endif
+   displace=displace+10
+   call loadrn(5,iws(lok+displace),globaldata%sysreal)
+!   if(abs(globaldata%sysreal(5)-12345678.9D0).gt.1.0D-12) then
+! this was used to test the storing
+!      write(*,'(a,5(1pe12.4))')'3E error 2: ',globaldata%sysreal
+!   endif
+!   write(*,*)'3E name: "',globaldata%name,'"'
 ! partly unfinished below
 !---------- bibliographic references
 !>>>>> 40.. inside refread
@@ -1844,7 +1927,7 @@
 !---------- state variable functions must be present when reading experiments
 ! and the equilibria must
 !>>>>> 30... inside svfunread
-!   write(*,*)'3E reading state variable functions'
+!   write(*,*)'3E reading state variable functions',iws(24)
    if(iws(25).eq.gtp_putfun_lista_version) then
       call svfunread(iws(24),iws)
       if(gx%bmperr.ne.0) goto 1000
@@ -1852,6 +1935,10 @@
       write(*,*)'3E state variable function version error',iws(25),&
            gtp_putfun_lista_version
    endif
+! we cannot list svfun as we have no ceq ...
+!   call list_all_svfun(kou,ceq)
+!   call list_some_svfun(kou)
+   write(*,*)'Now reading equilibria',iws(16)
 !--------------------------------------------------------------------
 ! read remaining equilibria which may contain experiments
 ! link to first saved in equilibrium in iws(16)
@@ -1859,6 +1946,7 @@
    i3=2
    call readequil(i,iws,-1)
    if(gx%bmperr.ne.0) goto 1000
+   write(*,*)'3E read all equilibria'
 !-------------------------------------------------------------------
 ! read assessment head recods
    if(iws(27).ne.gtp_assessment_version) then
@@ -1868,6 +1956,7 @@
    lok=26
    call readash(lok,iws)
    if(gx%bmperr.ne.0) goto 1000
+   write(*,*)'3E read assessment record'
 !------ read all ??
 800 continue
 ! emergency exit
@@ -2083,7 +2172,7 @@
          lokem=iws(lokem)
          nullify(addlink)
 510      continue
-         if(iws(lokem+1).ge.1 .and. iws(lokem+1).le.8) then
+         if(iws(lokem+1).ge.1 .and. iws(lokem+1).le.11) then
 ! all phases has volume addition ...
             if(iws(lokem+1).ne.7) write(*,515)iws(lokem+1),&
                  additioname(iws(lokem+1)),trim(phlista(jph)%name)
@@ -2672,7 +2761,7 @@
       llen=iws(lok+1)
       text=' '
       call loadc(lok+2,iws,text(1:llen))
-!      write(*,*)'3E found experiment: ',text(1:llen),llen
+!      write(*,*)'3E found experiment: "',trim(text),'"'
       llen=0
       call enter_experiment(text,llen,ceq)
 !      write(*,*)'3E Back from enter_experiment'
@@ -2740,12 +2829,18 @@
       endif
 ! if this function should be evaluated at a particular equilibrium that is
 ! in position 1-5.  Extra status in position 6 and 7
-!      write(*,*)'3E read symbol: ',i,': ',text(1:ip)
-! symbol is a constant (can be amended)
-      if(text(6:6).eq.'C') svflista(i)%status=ibset(svflista(i)%status,SVCONST)
-! symbol should only be evaluated when explicitly requested
-      if(text(7:7).eq.'X') svflista(i)%status=ibset(svflista(i)%status,SVFVAL)
+!      write(*,*)'3E read symbol: ',i,': ',text(1:ip),ip
+! check if symbol is a constant (can be amended)
+      if(text(5:5).eq.'C') svflista(i)%status=ibset(svflista(i)%status,SVCONST)
+! check if symbol should only be evaluated when explicitly requested
+!      if(text(7:7).eq.'X') svflista(i)%status=ibset(svflista(i)%status,SVFVAL)
+      if(text(5:5).eq.'D') then
+         svflista(i)%status=ibset(svflista(i)%status,SVFDOT)
+         svflista(i)%status=ibset(svflista(i)%status,SVFVAL)
+      endif
+      if(text(5:5).eq.'X') svflista(i)%status=ibset(svflista(i)%status,SVFEXT)
       ip=0
+! ip incremented in getint
       call getint(text,ip,eqno)
       if(buperr.ne.0) then
          buperr=0
@@ -2812,14 +2907,18 @@
 ! eqlista
 !      lok2=iws(lok2)
       i1=iws(lok2)
-!      write(*,*)'3E In readash 1: ',lok,lok1,lok2,i1
-      allocate(assrec%eqlista(i1))
+      if(i1.gt.0) then
+         write(*,'(a,4i10)')'3E In readash 1: ',lok,lok1,lok2,i1
+         allocate(assrec%eqlista(i1))
 ! in iws(lok2+i2) the index to eqlista is stored, 
 ! assrec%eqlista(i2)%p1 is a pointer to this equilibrium
-      do i2=1,i1
-         ceq=>eqlista(iws(lok2+i2))
-         assrec%eqlista(i2)%p1=>ceq
-      enddo
+         do i2=1,i1
+            ceq=>eqlista(iws(lok2+i2))
+            assrec%eqlista(i2)%p1=>ceq
+         enddo
+      endif
+   else
+      write(*,*)'3E no experimental data'
    endif
    lok2=iws(lok1+disp+2)
    if(lok2.le.0) then
@@ -2971,8 +3070,8 @@
       if(ocv()) write(*,*)'3E No thermodynamic data to delete'
       goto 600
    endif
-   if(gtp_species_version.ne.1) then
-      if(ocv()) write(*,17)'3E Species',1,gtp_species_version
+   if(gtp_species_version.ne.2) then
+      write(*,17)'3E *** ERROR species',1,gtp_species_version
 17    format(a,' record version error: ',2i4)
       gx%bmperr=4300; goto 1000
    endif
@@ -2982,24 +3081,25 @@
       nel=splista(isp)%noofel
       deallocate(splista(isp)%ellinks)
       deallocate(splista(isp)%stoichiometry)
+      if(allocated(splista(isp)%spextra)) deallocate(splista(isp)%spextra)
    enddo
 !---------- phases, many records, here we travese all endmembers etc
 !>>>>> 4
 !   write(*,*)'3E No segmentation error B'
    if(gtp_phase_version.ne.1) then
-      if(ocv()) write(*,17)'3E Phase',1,gtp_phase_version
+      write(*,17)'3E **** ERROR phase',1,gtp_phase_version
       gx%bmperr=4302; goto 1000
    endif
    if(gtp_endmember_version.ne.1) then
-      if(ocv()) write(*,17)'3E Endmember',1,gtp_endmember_version
+      write(*,17)'3E **** ERROR endmember',1,gtp_endmember_version
       gx%bmperr=4302; goto 1000
    endif
    if(gtp_interaction_version.ne.1) then
-      if(ocv()) write(*,17)'3E Interaction',1,gtp_interaction_version
+      write(*,17)'3E **** ERROR interaction',1,gtp_interaction_version
       gx%bmperr=4302; goto 1000
    endif
    if(gtp_property_version.ne.1) then
-      if(ocv()) write(*,17)'3E Property',1,gtp_property_version
+      write(*,17)'3E **** ERROR property',1,gtp_property_version
       gx%bmperr=4302; goto 1000
    endif
    do j=0,noofph
@@ -3068,6 +3168,9 @@
 !   write(*,*)'3E Delete TP funs, just deallocate??',freetpfun
 !   call delete_all_tpfuns
    call tpfun_deallocate
+   if(gx%bmperr.ne.0) then
+      write(*,*)'3E **** ERROR deleting TP functions'
+   endif
 !   write(*,*)'3E Back from deleting all TP funs, this is fun!!'
 !------ tpfunction expressions and other lists
 !>>>>> 30: delete state variable functions
@@ -4363,7 +4466,8 @@
 !         if(dodis.eq.1) write(*,*)'We are here 2'
          call enter_parameter(lokph,typty,fractyp,nsl,endm,nint,lint,ideg,&
               lrot,refx)
-         if(ocv()) write(*,407)'Entered parameter: ',lokph,typty,gx%bmperr
+         if(ocv()) write(*,407)'3E Entered parameter: ',lokph,typty,gx%bmperr
+!         write(*,407)'Entered parameter: ',lokph,typty,gx%bmperr
 407      format(a,3i5)
          if(gx%bmperr.ne.0) then
 ! error entering parameter, not fatal
@@ -5574,7 +5678,7 @@
          if(gx%bmperr.ne.0) then
             if(gx%bmperr.eq.4121) then
                if(.not.silent) write(kou,*) &
-                    'Phase ',name1(1:len_trim(name1)),&
+                    'Phase ',trim(name1),&
                     ' is ambiguous or short for another phase'
             endif
             goto 1000
@@ -6400,6 +6504,85 @@
    goto 1000
    return
  end subroutine checkdb
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+ !\begin{verbatim}
+ subroutine checkdb2(filename,ext,nel,selel)
+! checking a TDB/PDB file exists and return the elements
+! It also writes 15 lines from any "DATABASE_INFO" in the file
+   implicit none
+   integer nel
+   character filename*(*),ext*4,selel(*)*2
+!\end{verbatim}
+   character line*256,ext2*4
+   integer ipp,nl,kk,dbinfo
+!
+   ext2=ext
+   dbinfo=0
+   call capson(ext2)
+   if(.not.(index(filename,ext).gt.0 &
+       .or. index(filename,ext2).gt.0)) then
+! no extention provided
+      filename(len_trim(filename)+1:)=ext2
+   endif
+   open(21,file=filename,access='sequential',form='formatted',&
+        err=1010,iostat=gx%bmperr,status='old')
+! if first line of file is "$OCVERSION ..." the text is displayed once
+   read(21,110)line
+   if(line(1:11).eq.'$OCVERSION ') then
+      write(kou,117)trim(line(12:))
+117   format(/'TDB file id: ',a/)
+   endif
+   rewind(21)
+! just check for ELEMENT and DATABASE_INFO keywords
+! return here to look for a new keyword, end-of-file OK here
+   nl=0
+   nel=0
+100 continue
+   read(21,110,end=2000)line
+110 format(a)
+   nl=nl+1
+! One should remove TAB characters !! ??
+   call replacetab(line,ipp)
+   ipp=1
+   if(eolch(line,ipp)) goto 100
+   if(line(ipp:ipp).eq.'$') goto 100
+! look for ELEMENT keyword, ipp=1
+   ipp=istdbkeyword(line,kk)
+   if(ipp.eq.11 .and. dbinfo.eq.0) then
+! DATABASE_INFORMATION keyword, ipp=11
+      dbinfo=1
+      write(kou,200)trim(line)
+200   format(/'This database has infomation to users, please read carefully'/a)
+      do while(index(line,'!').le.0)
+         read(21,110)line
+         write(kou,110)trim(line)
+      enddo
+      write(kou,*)
+   endif
+   if(ipp.ne.1) goto 100
+!
+! ignore /- and VA
+   if(eolch(line,kk)) goto 100
+   if(line(kk:kk+1).eq.'/-' .or. line(kk:kk+1).eq.'VA') goto 100
+   nel=nel+1
+   selel(nel)=line(kk:kk+1)
+!      write(*,111)nl,line(1:20)
+!111   format('Read line ',i5,': ',a)
+   goto 100
+!---------
+1000 continue
+   return
+! error
+1010 continue
+   goto 1000
+! end of file
+2000 continue
+   close(21)
+   goto 1000
+   return
+ end subroutine checkdb2
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

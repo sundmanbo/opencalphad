@@ -26,7 +26,9 @@ Y
 
 
 @&
+l c
 @$ add an extra start point
+
 set c t=1000 x(mg)=.9
 
 c e
@@ -58,7 +60,7 @@ append
 plot
 
 
-append oc_many9
+append ./oc_many9
 
 
 

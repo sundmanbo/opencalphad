@@ -9,7 +9,7 @@ new Y
 
 set echo
 
-read unf opttest2-cumg2
+read unf ./opttest2-cumg2
 
 @$ ----------------------------------------------------
 @$ As before we start by reading the unformatted file with previous results
@@ -31,27 +31,45 @@ set wei 1 CP2
 l opt coef
 
 @&
-@$ NOTE important to give "N" for no gridmin and "1" to calculate once
+@$ list the parameters for the CuMg2 phase
+
+l ph cumg2 data
+
+@$ Optimize the coefficent in front of T*ln(T) (constant Cp)
+set var 32 -10
+
 calc all N 1
 
-@&
 
-@$ Optimize coefficent in front of T*ln(T) (constant Cp)
-set var 32 1
+@&
+@$ make a "dry run" to have the initial error
+@$ NOTE important to give "N" for no gridmin and "1" to calculate once
 opt 0
 
-@$ make a dry run to have the initial error
+
+@&
+@$ When runing this at the end of the "all.OCM" macro the values of CP
+@$ are all crazy and total sum of error "Infiniy" meaning the assessment fails
+@$ When running it by itslf no problem
+@$ Evidently some variable is not intitiated correctly after the "all" macro
+
+sel eq 126
+
+c n
+l,,,,
+
 @&
 
 opt 100
 
 @&
 
+
 l opt
 
 @&
 
-macro opttest2-plot-cpcumg2
+macro ./opttest2-plot-cpcumg2
 
 @$ -----------------------------------------------
 @$ The plot of the Cp is linear as we have just one parameter.
@@ -69,7 +87,7 @@ l opt
 
 @&
 
-macro  opttest2-plot-cpcumg2
+macro  ./opttest2-plot-cpcumg2
 
 @$ -----------------------------------------------
 @$ The Cp in the plot has now a small slope in T
@@ -93,7 +111,19 @@ l opt
 
 @&
 
-macro  opttest2-plot-cpcumg2
+@$ To obtain the RSD values
+
+amend opt-coef y
+
+opt 100
+
+
+l opt short
+
+@$
+@&
+
+macro  ./opttest2-plot-cpcumg2
 
 @$ -----------------------------------------------
 @$ The plot of the Cp is now reasonable in the range 300-2000 K
@@ -116,9 +146,7 @@ set wei 0 *
 
 del step_map
 
-save unf
-Done step 2
-opttest2-cumg3
+save unf ./opttest2-cumg3
 Y
 
 @$----------------------------------------------------

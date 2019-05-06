@@ -5,11 +5,12 @@ new Y
 @$
 @$
 @$
-@$
-@$
-@$
-@$
-@$
+@$ This macro calculates some equilibria in a multicomponent system
+@$ using the largest free databases I have, cost507 for light alloys
+@$ which has 20 elements and 191 phases
+@$ 
+@$ This database is from 1997 and NOT VERY HIGH QUALITY
+@$ 
 @$
 @$
 @$
@@ -20,12 +21,12 @@ new Y
 @$
 @$
 @$ allcost.OCM
-@$ Testing a calculation with 20 elements, 191 phases
+@$ 
 @$ ==============================================================
 
 set echo
 
-r t cost507R
+r t ./cost507R
 
 
 @&
@@ -44,7 +45,7 @@ set c w(zn)=.06 w(zr)=.007
 
 l c
 
-@$ Set small grid
+@$ Set small grid to speed up calculations
 
 set adv small
 
@@ -54,23 +55,22 @@ set adv small
 c g
 
 @&
-l,,,,
+@$ A short listing of the 20 phases selected by gridmin
 
+l sh p
+
+
+@$ Note several composition set for the liquid
 @&
-@$ A short listing ...
+@$ Then calculate the full equilibrium using this start point
 
-l sh
-
-
-@&
-@$ Then calculate the full equilibrium.  
-
-c e
+c n
 
 @&
 
 l,,,,,
 
+@$ Only the AlN solid stable together with the liquid
 @$ NOTE THE DATABASE IS NOT RELIABLE FOR THIS SYSTEM
 @&
 @$ Then calculte a full equilibrium at 1000 K
@@ -108,3 +108,4 @@ l sh p
 @&
 set inter
 
+@$ gprof oc5prof.exe gmon.out > output_file.txt

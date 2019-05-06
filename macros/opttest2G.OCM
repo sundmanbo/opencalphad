@@ -11,7 +11,7 @@ new Y
 
 set echo
 
-r u opttest2-cumg6
+r u ./opttest2-cumg6
 
 @&
 @$ Remove any previous selections
@@ -90,7 +90,7 @@ l opt
 @$ problems with memory leaks during STEP/MAP
 @$ ------------------------------------------------------
 
-mac opttest2-map-diagram
+mac ./opttest2-map-diagram
 
 @$---------------------------------------------------------
 @$ We have now fitted the solubilities in FCC and HCP
@@ -109,9 +109,7 @@ set wei 0 *
 
 @&
 
-save unf
-Done liquid, CuMg2, Laves_C15, FCC and HCP
-opttest2-cumg7
+save unf ./opttest2-cumg7
 Y
 
 @&

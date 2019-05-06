@@ -17,5 +17,6 @@ copy ..\liboctq.F90 .
 
 gfortran -c liboctq.F90
 
-gfortran -o tqex1 TQ1-crfe.F90 liboctq.o liboceq.a
+gfortran -o tqex1 -fopenmp TQ1-crfe.F90 liboctq.o liboceq.a ..\..\..\ftinyopen.o ..\..\..\tinyopen.o ..\..\..\tinyfiledialogs.o -lcomdlg32 -lole32
+
 

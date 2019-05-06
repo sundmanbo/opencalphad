@@ -1,11 +1,13 @@
-$
-$                    VERSION  : January 1995 (Update a)
-$
-$
-$                          COST - 507
-$
-$         THERMODYNAMIC DATABASE FOR LIGHT METAL ALLOYS
-$
+
+$ From cast project 507
+ DATABASE_INFO about the COST 507 database
+ This thermodynamic database is the result of the European COST 507 project.
+ It contains about 70 assessed binary and a few ternary system for 20 elements,
+ Many binaries and ternaries have no data and cannot be calculated.
+ A simple test is to list the data for the liquid phase: "list ph liq data"
+ If there are no EXCESS parameters for a system in the liquid
+ the system has not been assessed.
+ For the each assessed model parameter a bibliographic reference is provided. !
 $
  ELEMENT /-   ELECTRON_GAS              0.0000E+00  0.0000E+00  0.0000E+00!
  ELEMENT VA   VACUUM                    0.0000E+00  0.0000E+00  0.0000E+00!
@@ -60,6 +62,10 @@ $
      -5.764227E-06*T**3+74092*T**(-1);  9.33470E+02  Y
       -11278.378+188.684153*T-31.748192*T*LN(T)-1.230524E+28*T**(-9);  
      2.90000E+03  N !
+ FUNCT GLIQAL  
+        298.15   +11005.029-11.841867*T+7.934E-20*T**7+GHSERAL; 
+        933.47 Y +10482.382-11.253974*T+1.231E+28*T**(-9)+GHSERAL; 
+      6000.00 N REF0!
  FUNCTION GHSERCC    2.98150E+02  -17368.441+170.73*T-24.3*T*LN(T)
      -4.723E-04*T**2+2562600*T**(-1)-2.643E+08*T**(-2)+1.2E+10*T**(-3);   
      6.00000E+03   N !
@@ -220,9 +226,11 @@ $
     CONSTITUENT LIQUID:L :AL,B,C,CE,CR,CU,FE,LI,MG,MN,N,ND,NI,SI,SN,TI,V,Y,
     ZN,ZR :  !
 
-   PARAMETER G(LIQUID,AL;0)  2.98150E+02  +11005.029-11.841867*T
-  +7.934E-20*T**7+GHSERAL#;  9.33600E+02  Y
-   +10482.382-11.253974*T+1.231E+28*T**(-9)+GHSERAL#;  6.00000E+03  N REF1 !
+$ changed to the expression in COST2 180826 /BoS
+   PARAMETER G(LIQUID,AL;0)  2.98150E+02  GLIQAL; 6000 N REF1 !
+$   PARAMETER G(LIQUID,AL;0)  2.98150E+02  +11005.029-11.841867*T
+$  +7.934E-20*T**7+GHSERAL#;  9.33600E+02  Y
+$   +10482.382-11.253974*T+1.231E+28*T**(-9)+GHSERAL#;  6.00000E+03  N REF1 !
    PARAMETER G(LIQUID,B;0)  2.98150E+02  +40723.275+86.843839*T
   -15.6641*T*LN(T)-.006864515*T**2+6.18878E-07*T**3+370843*T**(-1);  
   5.00000E+02  Y
@@ -832,10 +840,16 @@ $
 
 
  PHASE AL4MN  %  2 4   1 !
-    CONSTITUENT AL4MN  :AL : MN :  !
+    CONSTITUENT AL4MN  :AL : MN,FE :  !
+ PARAM G(AL4MN,AL:FE;0) 298.15 -131445+50.0*T+4*GHSERAL
+                                     +GHSERFE; 6000.00 N 93AKE !
+ PARAM G(AL4MN,AL:MN;0) 298.15 -100005+30*T+4*GHSERAL
+                                     +GHSERMN; 6000.00 N 93AKE!
+ PARAM L(AL4MN,AL:FE,MN;0) 298.15 -10000; 6000.00 N 93AKE !
 
-   PARAMETER G(AL4MN,AL:MN;0)  2.98150E+02  -105661+34.761*T+4*GHSERAL#
-  +GHSERMN#;   6.00000E+03   N REF23 !
+$ replaced by data from cost2.TDB 180825/BoS
+$   PARAMETER G(AL4MN,AL:MN;0)  2.98150E+02  -105661+34.761*T+4*GHSERAL#
+$  +GHSERMN#;   6.00000E+03   N REF23 !
 
 
  PHASE AL4ZR5  %  2 4   5 !
@@ -872,12 +886,19 @@ $
  PHASE AL6MN  %  2 6   1 !
     CONSTITUENT AL6MN  :AL : FE,MN :  !
 
-   PARAMETER G(AL6MN,AL:FE;0)  2.98150E+02  -128100+35*T+6*GHSERAL#+GHSERFE#;
-     6.00000E+03   N REF76 !
-   PARAMETER G(AL6MN,AL:MN;0)  2.98150E+02  -105013+32.6593*T+6*GHSERAL#
-  +GHSERMN#;   6.00000E+03   N REF23 !
-   PARAMETER G(AL6MN,AL:FE,MN;0)  2.98150E+02  -197015+200.55*T;   
-  6.00000E+03   N REF109 !
+ PARAM G(AL6MN,AL:FE;0)  298.15    -130984+38.5*T
+                                 +6.0*GHSERAL+GHSERFE; 6000.00 N 93AKE!
+ PARAM G(AL6MN,AL:MN;0) 298.15 -124564.3+53.65930*T+6*GHSERAL
+                                     +GHSERMN; 6000.00 N 93AKE !
+ PARAM L(AL6MN,AL:FE,MN;0)  298.15    -32753+21*T;      6000.00 N 93AKE !
+				 
+$ replaced by data in cost2.TDB 180825 /BoS
+$   PARAMETER G(AL6MN,AL:FE;0)  2.98150E+02  -128100+35*T+6*GHSERAL#+GHSERFE#;
+$     6.00000E+03   N REF76 !
+$   PARAMETER G(AL6MN,AL:MN;0)  2.98150E+02  -105013+32.6593*T+6*GHSERAL#
+$  +GHSERMN#;   6.00000E+03   N REF23 !
+$   PARAMETER G(AL6MN,AL:FE,MN;0)  2.98150E+02  -197015+200.55*T;   
+$  6.00000E+03   N REF109 !
 
 
  PHASE AL7V  %  2 7   1 !
@@ -1195,13 +1216,26 @@ $
   +GHSERMN#+3*GHSERSI#;   6.00000E+03   N REF115 !
 
 
- PHASE ALMNSI_NBETA  %  3 7.5   2.5   3 !
-    CONSTITUENT ALMNSI_NBETA  :AL : AL,SI : MN :  !
+$ PHASE ALMNSI_BETA  %  3 7.5   2.5   3 !
+$    CONSTITUENT ALMNSI_BETA  :AL : AL,SI : MN :  !
+$ Changed to expression in COST2.TDB 180825 /BoS
+$   PARAMETER G(ALMNSI_NBETA,AL:AL:MN;0)  2.98150E+02  -260000-745*T
+$  +10*GHSERAL#+3*GHSERMN#;   6.00000E+03   N REF115 !
+$   PARAMETER G(ALMNSI_NBETA,AL:SI:MN;0)  2.98150E+02  -230000-745*T
+$  +7.5*GHSERAL#+2.5*GHSERSI#+3*GHSERMN#;  2.00000E+03  N REF115 !
 
-   PARAMETER G(ALMNSI_NBETA,AL:AL:MN;0)  2.98150E+02  -260000-745*T
-  +10*GHSERAL#+3*GHSERMN#;   6.00000E+03   N REF115 !
-   PARAMETER G(ALMNSI_NBETA,AL:SI:MN;0)  2.98150E+02  -230000-745*T
-  +7.5*GHSERAL#+2.5*GHSERSI#+3*GHSERMN#;  2.00000E+03  N REF115 !
+ PHASE ALMNSI_BETA  %  4 15.0 1.0 4.0 6.0 !
+    CONSTITUENT ALMNSI_BETA  :AL : SI : AL,SI : MN :  !
+
+ PARAM G(ALMNSI_BETA,AL:SI:AL:MN;0)  298.15  
+                        -8.8064800E+05+3.4510400E+03*T-572.749*T*LN(T)
+                        -.201935*T**2+2.00008E-05*T**3+2184750*T**(-1); 
+                        6000.00 N !
+ PARAM G(ALMNSI_BETA,AL:SI:SI:MN;0)  298.15  
+                        -7.7998000E+05+3.4510400E+03*T-593.657*T*LN(T)
+                        -.16164*T**2+1.35092E-05*T**3+2946120*T**(-1);
+                        6000.00 N !
+ PARAM L(ALMNSI_BETA,AL:SI:AL,SI:MN;0)  298.15 1.0E-4; 6000 N !
 
 
  PHASE ALN  %  2 1   1 !
@@ -3461,6 +3495,7 @@ $
    REF107 'M. Jacobs, private communication, Al-Sn-Zn '
    REF113 'H.L. Lukas, private communication, Al-Mg-Si '
    REF127 'F Hayes, Al-Ti-V'
+   93AKE  'Å Jansson, KTH 1993'
    REF0   'Not assessed'
   ! 
  

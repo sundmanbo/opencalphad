@@ -229,13 +229,11 @@
    propid(npid)%note='Liquid two state parameter'
    propid(npid)%status=0
 !.......................................
-! Crystal Breakdown Temperaure 12
+! UNUSED Crystal Breakdown Temperaure 12
    npid=npid+1
-   propid(npid)%symbol='CBT '
-   propid(npid)%note='Hickel T'
+   propid(npid)%symbol='NONE'
+   propid(npid)%note='Unused'
    propid(npid)%status=0
-! CBT cannot depend on T but on P
-   propid(npid)%status=ibset(propid(npid)%status,IDONLYP)
 !.......................................
 ! Activation energy of mobility 13
    npid=npid+1
@@ -334,12 +332,14 @@
    propid(npid)%status=0
 ! The elastic constant may depend on T and P
 !.......................................
-! Flory-Huggins molar volume parameter 26
+! removed Flory-Huggins and some UNIQUAC parameters, stored in species record
+!.......................................
+! UNIQUAC interaction parameter 26
    npid=npid+1
-   propid(npid)%symbol='FHV '
-   propid(npid)%note='Flory-Huggins volume ratio '
+   propid(npid)%symbol='UQT '
+   propid(npid)%note='UNIQUAC residual parameter '
    propid(npid)%status=0
-! FHV is specific for a constituent
+! UQT is specific for a constituent, 2600+constituent index
    propid(npid)%status=ibset(propid(npid)%status,IDCONSUFFIX)
 !.......................................
 ! Electrical resistivity 27
@@ -348,7 +348,7 @@
    propid(npid)%note='Electric resistivity'
    propid(npid)%status=0
 !....................................... 
-! Thermal conductivity as function of T and P 28
+! Thermal conductivity as function of T and P: 28
    npid=npid+1
    propid(npid)%symbol='LAMB '
    propid(npid)%note='Thermal conductivity '
@@ -464,6 +464,8 @@
 ! we evaluate all symbols to avoid some problems ... no output
 !  call meq_evaluate_all_svfun(-1,ceq) cannot be used as it is in minimizer ...
    call evaluate_all_svfun_old(-1,firsteq)
+! set working directory (decleared in metlib, used now and again ...)
+   call getcwd(workingdir)
 ! assessment initiallizing
 !   write(*,*)'3A Initiallizing firstash', firstash is a pointer ...
    call assessmenthead(firstash)
@@ -1464,19 +1466,20 @@ end function find_phasetuple_by_indices
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine get_species_data(loksp,nspel,ielno,stoi,smass,qsp,extra)
+ subroutine get_species_data(loksp,nspel,ielno,stoi,smass,qsp,nextra,extra)
 ! return species data, loksp is from a call to find_species_record
 ! nspel: integer, number of elements in species
 ! ielno: integer array, element indices
 ! stoi: double array, stoichiometric factors
 ! smass: double, mass of species
 ! qsp: double, charge of the species
-! extra: some additional information ...
+! nextra, integer, number of additional values
+! extra: double, some additional values like UNIQUAC volume and area
    implicit none
    integer, dimension(*) :: ielno
-   double precision, dimension(*) :: stoi(*)
-   integer loksp,nspel
-   double precision smass,qsp,extra
+   double precision, dimension(*) :: stoi,extra
+   integer loksp,nspel,nextra
+   double precision smass,qsp
 !\end{verbatim} %+
    integer jl,iel
    if(loksp.le.0 .or. loksp.gt.noofsp) then
@@ -1491,7 +1494,14 @@ end function find_phasetuple_by_indices
    enddo elements
    smass=splista(loksp)%mass
    qsp=splista(loksp)%charge
-   extra=splista(loksp)%extra
+! extraproperties for UNIQUAC model (and maybe others)
+   nextra=0
+   if(allocated(splista(loksp)%spextra)) then
+      nextra=size(splista(loksp)%spextra)
+      do jl=1,nextra
+         extra(jl)=splista(loksp)%spextra(jl)
+      enddo
+   endif
 1000 return
  end subroutine get_species_data
 
@@ -1513,15 +1523,15 @@ end function find_phasetuple_by_indices
    double precision smass,qsp
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-   integer jl,iel,jk,ncomp,locomp
+   integer jl,iel,jk,ncomp,locomp,nspx
    integer, allocatable :: components(:)
    double precision, allocatable :: compstoi(:)
-   double precision qextra
+! this can be UNIQUAC parameters: area, volume
+   double precision qextra(10)
 !
 ! if the components are the elements then use get_species_data
    if(.not.btest(globaldata%status,GSNOTELCOMP)) then
-      call get_species_data(loksp,nspel,compnos,stoi,smass,qsp,qextra)
-      qextra=zero
+      call get_species_data(loksp,nspel,compnos,stoi,smass,qsp,nspx,qextra)
       goto 1000
 !   else
 !      write(*,11)globaldata%status,GSNOTELCOMP
@@ -2360,10 +2370,10 @@ end function find_phasetuple_by_indices
    character line*(*)
    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-   integer c1,c2,c3,i1,i2,nspel,ierr,lokph,lokcs
+   integer c1,c2,c3,i1,i2,nspel,ierr,lokph,lokcs,nspx
    integer, allocatable :: ielno(:),loksp(:)
    double precision, allocatable :: stoi(:),smass(:),yarr(:)
-   double precision qsp,extra,qq(5)
+   double precision qsp,spextra(10),qq(5)
    double precision, allocatable :: matrix(:,:),imat(:,:)
    character name*24
    type(gtp_condition), pointer :: pcond,qcond,last
@@ -2384,7 +2394,7 @@ end function find_phasetuple_by_indices
       call find_species_record_exact(name,loksp(c1))
       if(gx%bmperr.ne.0) goto 1000
       call get_species_data(loksp(c1),nspel,ielno,stoi,&
-           smass(c1),qsp,extra)
+           smass(c1),qsp,nspx,spextra)
       if(qsp.gt.zero) then
          write(*,*)'Charged species must not be components'
          gx%bmperr=4399; goto 1000
@@ -2402,7 +2412,9 @@ end function find_phasetuple_by_indices
 70 format(a,i1,6(1pe12.4))
 ! check that the matrix has an inverse
    allocate(imat(noofel,noofel))
-   call mdinvold(noofel,noofel+1,matrix,imat,noofel,ierr)
+! removed second index as not used!
+!   call mdinvold(noofel,noofel+1,matrix,imat,noofel,ierr)
+   call mdinvold(noofel,matrix,imat,noofel,ierr)
    if(ierr.eq.0) then
       write(*,*)'Error inverting component matrix'
       gx%bmperr=4399; goto 1000
@@ -2515,19 +2527,23 @@ end function find_phasetuple_by_indices
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
-  logical function allotropes(irem,iadd,ceq)
+  logical function allotropes(irem,iadd,iter,ceq)
 ! This function return TRUE if the phases indicated by IREM and IADD both have
 ! fixed and identical composition, i.e. they are componds and allotropes
 ! Such a transition can cause problems during a STEP command.
     implicit none
     TYPE(gtp_equilibrium_data), pointer :: ceq
-    integer iadd,irem
+    integer iadd,irem,iter
 !\end{verbatim}
     integer lokph1,lokph2,nofr,jj
     double precision x1mol(maxel),x2mol(maxel),wmass(maxel),totmol,totmass,am
     logical allo
     allo=.false.
-    write(*,*)'3A checking if two phases are allotropes',irem,iadd
+    goto 1000
+!    write(*,*)'3A checking allotropes',irem,iadd
+    write(*,10)iter,trim(phlista(phases(irem))%name),&
+         trim(phlista(phases(iadd))%name)
+10  format('3A checking allotropes',i5,2x,a,2x,a)
     lokph1=phases(irem)
     lokph2=phases(iadd)
 ! spurious segmentation faults here ...
@@ -2593,3 +2609,48 @@ end function find_phasetuple_by_indices
   end function get_mpi_index
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine set_new_stoichiometry(loksp, new_stoi, ispel)
+! provided by Clement Instoini
+! Change the stoichiometric coefficient of the ispel-th element of loksp-th
+! species (the last one when ispel is not given)
+! loksp: index of the species (input integer)
+! new_stoi: new value of the stoichiometric coefficient (input double precision)
+! ispel: index of the element (optional, input integer)
+   implicit none
+   integer, intent(in):: loksp
+   integer, intent(in), optional :: ispel
+   double precision, intent(in):: new_stoi
+!\end{verbatim}
+   character el_name*12,spe_name*24
+   integer iel,jl,nspel
+   double precision :: old_stoi
+   ! number of elements in species
+   nspel=splista(loksp)%noofel
+   spe_name = trim(splista(loksp)%symbol)
+!
+   if( .not. present(ispel) ) then
+    iel = nspel
+    !change the stoichiometric coefficient of the last element
+    old_stoi=splista(loksp)%stoichiometry(iel)
+    splista(loksp)%stoichiometry(iel)=new_stoi
+   else
+     iel = ispel
+     if (iel.gt.0) then
+       ! Change the stoichiometric coefficient of the ispel-th element
+       old_stoi=splista(loksp)%stoichiometry(iel)
+       splista(loksp)%stoichiometry(iel)=new_stoi
+!     else
+!       nothing to be done
+     end if
+   end if
+   el_name=ellista(splista(loksp)%ellinks(iel))%name
+   if(ocv()) then
+      write(*,*)"set_new_stoichiometry: (species,element,old_stoi,new_stoi)',&
+           ' = (",spe_name,",",el_name,",",old_stoi,",",new_stoi,")"
+   endif
+ end subroutine set_new_stoichiometry
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+

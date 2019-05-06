@@ -31,7 +31,7 @@ new Y
 
 set echo
 
-r t alni-4slx
+r t ./alni-4slx
 
 @&
 
@@ -87,15 +87,15 @@ title map13 fig 3
 text
 0.2
 1900 
-1
+.8
 0
 y
 
-text n 0.05 1400 1 0 y
+text n 0.05 1400 .8 0 y
 
-text n 0.23 1200 1 90 y
+text n 0.23 1200 .8 90 y
 
-text n 0.45 1500 1 0 y
+text n 0.45 1500 .8 0 y
 
 
 

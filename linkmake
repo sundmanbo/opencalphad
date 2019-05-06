@@ -1,50 +1,74 @@
+REM This file must be given the extension .cmd to be run on WIndows
+REM It compiles OC with the popup window for opening files.
+REM If you do not want that or have problems try to command file
+REM linkmake-tinyfd
 
 del *.o
 del *.mod
 
+REM tinyfiledialog files and iso-c-interface
+copy utilities\TINYFILEDIALOGS\tinyopen.c .
+copy utilities\TINYFILEDIALOGS\tinyfiledialogs.c .
+copy utilities\TINYFILEDIALOGS\tinyfiledialogs.h .
+copy utilities\TINYFILEDIALOGS\ftinyopen.F90 .
+gcc -c tinyopen.c
+gcc -c tinyfiledialogs.c
+gfortran -c ftinyopen.F90
+del tinyopen.c
+del tinyfiledialogs.c
+del tinyfiledialogs.h
+del ftinyopen.F90
+
+REM some utilites and the command line interface
 copy utilities\metlib3.F90 .
-gfortran -c -Dwin metlib3.F90
+gfortran -c -Dtinyfd metlib3.F90
 del metlib3.F90
 
-REM copy numlib\lukasnum.F90 .
-REM gfortran -c lukasnum.F90
-REM del lukasnum.F90
-
+REM some routines from LAPACK and BLAS
 copy numlib\oclablas.F90 .
 gfortran -c oclablas.F90
 del oclablas.F90
 
+REM some more numerical routines
 copy numlib\ocnum.F90 .
 gfortran -c ocnum.F90
 del ocnum.F90
 
+REM the model routines
 copy models\gtp3*.F90 .
 gfortran -c gtp3.F90
 del gtp3*.F90
 
+REM the equilibrium calculation routines
 copy minimizer\matsmin.F90 .
 gfortran -c matsmin.F90
 del matsmin.F90
 
+REM the LMDIF package for least square fitting
 copy numlib\lmdif1lib.F90
 gfortran -c lmdif1lib.F90
 del lmdif1lib.F90
 
+REM the routines diagrams using STEP or MAP
 copy stepmapplot\smp2*.F90 .
-gfortran -c  smp2.F90
+gfortran -c smp2.F90
 del smp2*.F90
 
+REM the user interface 
+REM set -Dqtplt to use the Qt terminal driver for screen
 copy userif\pmon6.F90 .
-gfortran -c -Dwin pmon6.F90
+gfortran -c  -Dwinhlp pmon6.F90
 del pmon6.F90
 
+REM storing the date
 gfortran -o linkoc linkocdate.F90
 linkoc
 
 del liboceq.a
 
+REM generating the library (needed also for TQ library)
 ar sq liboceq.a metlib3.o oclablas.o ocnum.o gtp3.o matsmin.o lmdif1lib.o
 
-gfortran -o oc5A pmain1.F90 pmon6.o smp2.o liboceq.a
-
+REM Finally linking all together
+gfortran -o oc5A pmain1.F90 pmon6.o smp2.o ftinyopen.o tinyopen.o tinyfiledialogs.o liboceq.a -lcomdlg32 -lole32
 

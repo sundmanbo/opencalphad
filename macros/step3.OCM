@@ -25,7 +25,7 @@ new Y
 
 set echo
 
-r t hogas
+r t ./hogas
 
 l d,,,,,
 
@@ -62,15 +62,17 @@ plot
 
 
 position bottom left
+
 title step3 fig 2
 render
 
 @&
 @$-------------------------------------------------------
-@$ Plot the enthalpy content
+@$ Plot the enthalpy content, scale the value
 plot
 T
-H
+0.001*H
+set xax Enthalpy kJ
 title step3 fig 3
 render
 

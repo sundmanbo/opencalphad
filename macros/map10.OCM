@@ -27,7 +27,7 @@ new Y
 
 set echo
 
-r t saf2507
+r t ./saf2507
 fe cr ni
 
 set c t=1200 p=1e5 n=1 x(cr)=.45 x(ni)=.5
@@ -65,13 +65,13 @@ plot
 text
 0.47
 0.07
-1
+.8
 0
 n
 {/Symbol s}
-text n 0.6 0.02 1 0 y
+text n 0.6 0.02 .8 0 y
 
-text n 0.2 0.5 1 0 y
+text n 0.2 0.5 .8 0 y
 
 title map 10 fig 2
 
@@ -92,7 +92,7 @@ plot
 
 gibbs
 
-text n 0.51 0.25 1 -48 y
+text n 0.51 0.25 .8 -48 y
 
 title map10 fig 4
 

@@ -1,6 +1,11 @@
 
 $ Database file written 2015- 8-29
 $ From database: SSUB3                   
+ DATABASE_INFO about the CHO-gas database
+ It is an extract for the elements C, H and O from the SGTE substance database
+ the year 2001.  It contains a large number of gas species and a few
+ condenced phases.!
+$
  ELEMENT /-   ELECTRON_GAS              0.0000E+00  0.0000E+00  0.0000E+00!
  ELEMENT VA   VACUUM                    0.0000E+00  0.0000E+00  0.0000E+00!
  ELEMENT C    GRAPHITE                  1.2011E+01  1.0540E+03  5.7400E+00!

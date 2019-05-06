@@ -25,17 +25,17 @@ Y
 plot
 T
 CPM2
-append oc_many1
+append ./oc_many1
 scale y n 0 100
 axis-label x T/K
 axis-label y Heat capacity Cu2Mg (J.Mol-1.K-1)
 
 
+@$ Plot on a PDF file
 plot
 
 
-gra 3
-cp-laves
+gra 3 ./cp-laves
 Y
 
 

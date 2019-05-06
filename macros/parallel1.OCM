@@ -35,7 +35,7 @@ new Y
 @$
 set echo
 
-r t steel1
+r t ./steel1
 
 
 set c t=1200 p=1e5 n=1 w(c)=.01 w(cr)=.05 w(mo)=.08 w(si)=.003 w(v)=0.01

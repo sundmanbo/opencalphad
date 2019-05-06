@@ -733,12 +733,14 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine enter_reference_interactivly(cline,last,mode,iref)
+! subroutine enter_reference_interactivly(cline,last,mode,iref)
+ subroutine enter_bibliography_interactivly(cline,last,mode,iref)
 ! enter a reference for a parameter interactivly
-! this should be modified to allow amending an existing reference
+! mode=0 means enter, =1 amend
    implicit none
    character cline*(*)
    integer last,mode,iref
+   logical twotries
 !\end{verbatim}
 ! stupid with a variable called L80
    character line*256,refid*16,L80*80
@@ -768,22 +770,33 @@
 70 continue
    ip=1
    line=' '
+   twotries=.TRUE.
 100 continue
    call gparc('Reference text, end with ";":',cline,last,5,l80,';',q1help)
    line(ip:)=l80
    ip=len_trim(line)
-   if(ip.le.1) then
-      write(kou,*)'There must be some reference text!'
+   if(ip.le.1 .and. twotries) then
+      twotries=.FALSE.
+      write(kou,*)'There must be some bibilograpic text!'
       ip=1; goto 100
    elseif(line(ip:ip).ne.';') then
+      twotries=.FALSE.
+      write(*,*)'Terminate text with a ";"'
       ip=ip+1; goto 100
+   elseif(.not.twotries) then
+      if(mode.eq.1) then
+         write(*,*)'Bibliogaphic reference unchanged'
+      else
+         write(*,*)'Bibliogaphic reference not entered'
+      endif
+      goto 1000
    else
       line(ip:)=' '
    endif
    call tdbrefs(refid,line,1,iref)
 1000 continue
    return
- end subroutine enter_reference_interactivly
+ end subroutine enter_bibliography_interactivly
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -799,10 +812,11 @@
 ! in set_condition new is not used for anything.
 ! in this subroutine the new variable is removed from the condition list
 ! and instead added to the experimenal list
-   integer kp
+   integer kp,jc,istv,qp
    type(gtp_condition), pointer :: new,temp
 !   integer nidlast,nidfirst,nidpre
    double precision xxx,yyy
+   character usymbol*16,ch1*1
 ! do not allow experiments in first equilibrium!!
    if(ceq%eqno.eq.1) then
       write(kou,16)
@@ -816,39 +830,70 @@
 !   write(*,*)'3D exp1: ',trim(cline),ip
    call set_cond_or_exp(cline,ip,new,1,ceq)
    if(gx%bmperr.ne.0) goto 1000
-!   write(*,*)'3D exp2: ',trim(cline),ip
-!   write(*,*)'3D Back in enter_experiment'
-!   write(*,*)'3D Values: ',new%active,new%prescribed
-!   write(*,*)'3D Segmentation fault before this line means a problem with new'
+!   write(*,'(a,a,2i4)')'3D exp2: ',trim(cline),ip,new%active
    if(new%active.ne.1) then
 ! the experiment is removed (inactivated) if activate is 1
-! otherwise read the current uncertainty
-!      write(*,*)'3D after set_c_or_e:',ip,': ',cline(ip:ip+20)
+! otherwise read the uncertainty to be set
+!      write(*,*)'3D after set_c_or_e:',ip,': ',trim(cline),new%uncertainty
+! set the default uncertainty to 10% of value 
       if(new%uncertainty.gt.zero) then
          yyy=1.0D-1*abs(new%prescribed)
       else
          yyy=new%uncertainty
       endif
       kp=ip
-      call gparrd('Uncertainty: ',cline,ip,xxx,yyy,q1help)
-      if(gx%bmperr.ne.0) then
-! UNFINISHED we should allow symbol links
-         xxx=0.1*new%prescribed
-      elseif(xxx.eq.zero) then
-         write(*,*)'Uncertainty must not be zero, set to 0.1 of value'
-         xxx=0.1*new%prescribed
+! bug reading the value after : ??
+!      write(*,*)'3D uncertanity 2: ',ip,'"'//trim(cline)//'"'
+! NOTE that gparcd increments ip before seaching for value
+!      write(*,*)'3D Calling gparcd: ',trim(cline),ip
+      call gparcd('Uncertainty: ',cline,ip,1,usymbol,'1.0',q1help)
+!      write(*,*)'3D extracted uncertainity: ',ip,buperr,'"'//usymbol//'"'
+      jc=1
+      call getrel(usymbol,jc,xxx)
+!      read(*,'(a)')ch1
+!      if(ch1.eq.'q') stop 'wrong place ...'
+!      write(*,*)'3D even more: ',xxx,buperr
+      if(buperr.eq.0) then
+! usymbol is a numeric value !!
+         if(xxx.le.zero) then
+            write(*,*)'Uncertainty must not be zero, set to 0.1 of value'
+            xxx=0.1*new%prescribed
+         endif
+         new%symlink2=0
+         new%uncertainty=abs(xxx)
+      else
+! we should check that the symbol is not an expression ... how?
+         buperr=0
+         call capson(usymbol)
+         call find_svfun(usymbol,istv)
+!         write(*,*)'3D uncertainty symbol: ',usymbol,istv
+         if(gx%bmperr.ne.0) then
+            write(*,*)'No such symbol: ',usymbol,&
+                 ' uncertainty set to 0.1 of value'
+            xxx=0.1*new%prescribed
+            new%symlink2=0
+            new%uncertainty=abs(xxx)
+         else
+! check that the symbol is a constant
+            if(.not.btest(svflista(istv)%status,SVCONST)) then
+               write(*,*)'Experimental uncertainty symbol must be a value'
+               gx%bmperr=4399; goto 1000
+            endif
+            new%symlink2=istv
+         endif
       endif
-!      write(*,*)'3D exp3: ',trim(cline),ip,kp
-      new%symlink2=0
-      new%uncertainty=abs(xxx)
-! this is for relative errors
+! this is for relative errors, if last character is % it is a relative error!!
+!      write(*,*)'3D relative errors: ',ip,len_trim(cline),'"',trim(cline),'"'
       if(ip.lt.len(cline)) then
-         if(cline(ip:ip).eq.'%') then
+         qp=len_trim(cline)
+         if(cline(ip:ip).eq.'%' .or. cline(qp:qp).eq.'%') then
             if(new%experimenttype.eq.0) then
                new%experimenttype=100
+!               write(*,*)'3D error is relative!'
             else
+! the experiment is an inequality
                write(kou,*)'*** Inequalites must have absolute uncertainty'
-!            new%experimenttype=101*new%experimenttype
+!            new%experimenttype=101*new%experimenttype ???
             endif
          endif
       endif
@@ -860,7 +905,7 @@
 ! any  more experiments?
 !   write(*,*)'3D exp4: ',trim(cline),ip,kp,len(cline),len_trim(cline)
    if(kp.le.ip .and. len_trim(cline).gt.ip) then
-!      write(*,*)'3D more experiments',cline(ip:)
+      write(*,*)'3D more experiments',trim(cline),kp,ip
       goto 17
    endif
 1000 continue
@@ -943,10 +988,10 @@
 !\end{verbatim} %+
    integer nterm,kolon,iqz,krp,jp,istv,iref,iunit,jstv,jref,junit,jl,ks
    integer linkix,norem,ics,kstv,iph,nidfirst,nidlast,nidpre,qp,firstc,lpos
-   character stvexp*80,stvrest*80,textval*32,c5*5
+   character stvexp*80,stvrest*80,textval*32,c5*5,ch1
    character svtext*128,encoded*60,defval*18,actual_arg*24,svfuname*16
    integer indices(4),allterms(4,10),seqz,experimenttype
-   integer ich,back,condvalsym,symsym,nextexp
+   integer ich,back,condvalsym,symsym,nextexp,colon
    double precision coeffs(10),xxx,value,ccc
    logical inactivate
 ! memory leak
@@ -963,7 +1008,7 @@
    symsym=0
    iunit=0
    iref=0
-!   write(*,*)'3D Condition: ',trim(cline)
+!   write(*,*)'3D set cond or enter exper: ',trim(cline)
 ! return here to deconde another condition on the same line
 50 continue
    nterm=0
@@ -1101,12 +1146,13 @@
          svfuname=svtext
          call capson(svfuname)
 !         write(*,*)'3D Searching for symbol: ',svfuname
-         call find_svfun(svfuname,symsym,ceq)
+!         call find_svfun(svfuname,symsym,ceq)
+         call find_svfun(svfuname,symsym)
          if(gx%bmperr.ne.0) then
             write(*,*)'Experimental symbol neither state variable nor symbol'
             goto 1000
          endif
-!         write(*,*)'3D experiment is symbol ',symsym
+!         write(*,*)'3D experiment is a symbol ',symsym
 ! we do not have a state variable ... bypass some checks
          nullify(svr)
          goto 77
@@ -1170,7 +1216,7 @@
       endif
    else
 ! It is an experiment, search for old value if experiment already entered
-!      write(*,*)'3D segfault search 1',notcond,ich
+!      write(*,*)'3D experiment 1',notcond,ich
       if(ich.eq.4) then
          experimenttype=-1
       elseif(ich.eq.5) then
@@ -1210,6 +1256,7 @@
          endif
       endif
    endif
+!   write(*,*)'3D Found old condition or experiment?',notcond
    if(notcond.eq.0) then
 !----------------------------------------------------------------
 ! Only for conditions: save current term if several
@@ -1232,7 +1279,7 @@
 ! UNFINISHED check the second or later state variable of same type as first
             continue
          endif
-! multiterm expression, jump back to 55 ... not yet implemented
+! multiterm expression, jump back to 55
 !         write(*,*)'3D problems entering expression: ',trim(stvexp),lpos
          coeffs(nterm+1)=ccc
 !         cline=stvexp(ip-1:); ip=1
@@ -1240,7 +1287,7 @@
          goto 55
       endif
    else
-! it is an experiment, we have only one term for experiments
+! it is an existing experiment, we have only one term for experiments
       nterm=1
 !      write(*,*)'3D segfault search 2C',nterm,associated(svr),notcond
       if(associated(svr)) then
@@ -1259,9 +1306,12 @@
    call wrinum(defval,jp,10,0,xxx)
    if(buperr.ne.0) then
       buperr=0; defval=' '
-     endif
+   endif
 !157 continue
-!   write(*,*)'3D value: ',ip,' "',stvexp(1:ip+10),'" ',defval
+! stvexp is the whole line after the command
+   colon=index(stvexp,':')
+!   colon=index(cline,':')
+!   write(*,*)'3D value: ',ip,' "',trim(stvexp),'" ',defval,colon
    call gparcd('Value: ',stvexp,ip,1,textval,defval,q1help)
 !   write(*,*)'3D value: ',textval
    c5=textval(1:5)
@@ -1290,12 +1340,19 @@
          buperr=0
          svfuname=textval
          call capson(svfuname)
-         call find_svfun(svfuname,condvalsym,ceq)
+!         call find_svfun(svfuname,condvalsym,ceq)
+         call find_svfun(svfuname,condvalsym)
 !         write(*,*)'3D Symbol link: ',textval(1:10),condvalsym,gx%bmperr
          if(gx%bmperr.ne.0) then
             write(*,*)'Condition value must be numeric or a symbol'; goto 1000
          endif
          linkix=condvalsym
+      endif
+! we must update ip in cline for uncertainty and another experiment
+      if(colon.gt.0) then
+         ip=colon
+         istv=0
+!         write(*,*)'3D changed experiment 1: ',ip,'"',trim(stvexp),'"',value 
       endif
    endif none
 !
@@ -1303,7 +1360,7 @@
 ! remove a condition
       if(.not.associated(new)) then
 ! search if condition already exist
-!         write(*,*)'3D searching for condition'
+!         write(*,*)'3D searching for condition or experiment?'
          temp=>ceq%lastcondition
          call get_condition(nterm,svr,temp)
          if(gx%bmperr.ne.0 .and. inactivate) then
@@ -1314,7 +1371,7 @@
 ! the error code it will be tested below to create a condition record
       endif
    else
-! remove an experiment
+! remove or change an experiment
       if(.not.associated(new)) then
 !         write(*,*)'3D First experiment: ',associated(temp)
 ! search for an experiment with state variable svr or symbol symsym
@@ -1352,7 +1409,7 @@
 !======================================================
 ! step 3 create condition or experiment record, jump here from fix phase
 199 continue
-!   write(*,*)'3D at 199: ',associated(new),associated(temp),gx%bmperr
+!   write(*,*)'3D at 199: ',associated(new),associated(temp),gx%bmperr,ip
    createrecord: if(gx%bmperr.eq.0) then
 ! no error code means we have found the condition/experiment
       if(.not.associated(new)) then
@@ -1363,6 +1420,7 @@
          new%active=1
 !         write(*,*)'Inactivating condition',new%prescribed,new%active
       else
+!         write(*,*)'3D looking for missing % ...'
 ! set the new value in the old condition/experiment remove any previous link!!
 ! linkix is link to symbol representing the value
          new%active=0
@@ -1388,6 +1446,7 @@
 ! the uncertainty for experiments will be asked for later
 ! To avoid that valgrind compains uncertainty is not initiallized ...
 !         write(*,*)'3D initiallizing uncertainty 2'
+!         write(*,*)'3D changed experiment: ',ip,'"',trim(cline),'"',value
          new%uncertainty=zero
       endif
    else
@@ -1407,8 +1466,9 @@
          new=>ceq%lastcondition
 !         write(*,*)'3D new condition ',istv,symsym
       else
-! it is an experiment
-!         write(*,*)'3D Creating a new experiment record: ',symsym,value,linkix
+! it is an experiment ... ip OK here
+!        write(*,13)'3D Creating new experiment record: ',symsym,value,linkix,ip
+13       format(a,i5,1pe12.4,5i5)
          if(associated(ceq%lastexperiment)) then
             seqz=ceq%lastexperiment%seqz+1
          else
@@ -1503,7 +1563,7 @@
 !         new%statvar(1)%argtyp=-symsym
       endif
 ! link the new record into the condition list
-!    write(*,*)'linking condition'
+!      write(*,*)'3D linking condition or experiment'
       if(associated(temp)) then
 !       write(*,*)'Second or later condition'
          nidlast=temp%next%nid
@@ -1521,30 +1581,54 @@
          new%previous=>new
       endif
       if(notcond.ne.0) then
+! STRANGE ERRORS HERE
 ! we are actually entering an experiment, terminate here
-! if textval(jp:jp) is ":" we have to step back ip to that
+! if textval(jp:jp) is ":" we have to step back ip one position
 ! increment ip with nextexp!
          ip=ip+nextexp
-!         write(*,*)'3D exit: "',trim(cline),'" "',trim(textval),ip,jp,nextexp
-         if(textval(jp:jp).eq.':') then
-200         continue
-            if(cline(ip+1:ip+1).ne.':') then
-               ip=ip-1; goto 200
-            endif
-            ip=ip+1
+!         write(*,*)'3D exit? "',trim(cline),'" "',trim(textval),'"',&
+!              ip,jp,nextexp
+         if(cline(ip:ip).eq.':') then
+! the colon should be the character at ip to extract uncertainty by getrel
+            goto 1000
          endif
+200      continue
+         ip=ip+1
+!         write(*,*)'3D looking for ":"',trim(cline),ip
+         if(cline(ip:ip).eq.':' .or. ip.gt.len(cline)) goto 1000
+         goto 200
+!         if(ip.lt.len_trim(cline)) goto 200
+! confusion of subtexts ... move ip forward to point at colon
+!            write(*,*)'3D where is :? ',cline(ip+1:ip+1),ip
+!            if(cline(ip+1:ip+1).ne.':') then
+!               ip=ip+1; if(ip.lt.70) goto 200
+!            endif
+!            ip=ip+1  very confused !!
+!            ip=ip-1
+!         endif
+! stop here so I can check
+!         read(*,'(a)')ch1
+!         if(ch1.eq.'q') stop 'cannot find ":"'
 ! allow for more experiments on the same line ...
 !         cline=textval(jp:)
 !         ip=1
-         goto 1000
+!         goto 1000
       endif
    endif createrecord
+!   write(*,*)'3D end of createrecord',ip,'"',trim(stvexp),'"'
 !----------------------------------------------------------------
 ! if there is more in stvexp go back to label 50 ...
    if(.not.eolch(stvexp,ip)) then
 !      write(*,*)'3d first character: "',stvexp(ip:ip),'" '      
 ! NOTE gparc skips the first character in cline
-      if(stvexp(ip:ip).eq.',') then
+      if(stvexp(ip:ip).eq.':') then
+! if experiment there can be an uncertainty ...
+!         write(*,*)'3D where is the value?'
+         cline=stvexp(ip:)
+         cline(ip:ip)=' '
+         ip=1
+         goto 1000
+      elseif(stvexp(ip:ip).eq.',') then
          cline=stvexp(ip:)
       else
          cline=stvexp(ip-1:)
@@ -1627,7 +1711,7 @@
 !   nullify(svrarr)
    nullify(temp)
    return
- end subroutine set_cond_or_exp !svr
+ end subroutine set_cond_or_exp !svr ip
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
@@ -1952,7 +2036,7 @@ end subroutine get_condition
 !\end{verbatim} %+
 ! ceq is actually redundant as current is a pointer to condition list in ceq
    integer, dimension(4) :: indices
-   integer iref,iunit,jl,istv,ip,linkix,nterms
+   integer iref,iunit,jx,istv,ip,linkix,nterms
    character encoded*60,actual_arg*60
    double precision xxx
 !
@@ -1970,17 +2054,28 @@ end subroutine get_condition
       if(current%statev.eq.111 .or.current%statev.eq.110) then
 ! allow several terms for mole fractions and \sum_i a_i*N(i)=0 !!
 !         write(*,69)'3D in apply: ',current%statev,current%noofterms,&
-!              ((current%indices(jl,nterms),jl=1,4),nterms=1,current%noofterms)
+!              ((current%indices(jx,nterms),jx=1,4),nterms=1,current%noofterms)
 69       format(a,i4,i2,3(2x,4i5))
          nterms=current%noofterms
-         do jl=1,nterms
-            ccf(jl)=current%condcoeff(jl)
+         do jx=1,nterms
+            ccf(jx)=current%condcoeff(jx)
          enddo
-!         write(*,68)nterms,(ccf(jl),jl=1,nterms)
+!         write(*,68)nterms,(ccf(jx),jx=1,nterms)
 !68       format('3D coeff: ',i2,6(1pe12.4))
+      elseif(current%statev.eq.21) then
+! implement S-S for EET calculations ...
+!         write(*,*)'3D Apply_condition with several terms',current%statev,&
+!              current%iref,current%iunit
+         nterms=current%noofterms
+         do jx=1,current%noofterms
+            ccf(jx)=current%condcoeff(jx)
+!            write(*,*)'3D: ',jx,(current%indices(istv,jx),istv=1,4)
+         enddo
+!         gx%bmperr=4207; goto 900
       else
 ! cannot handle other conditions with several terms
-         write(*,*)'3D Apply_condition with several terms',current%statev
+         write(*,*)'3D Apply_condition with several terms',current%statev,&
+              current%noofterms
          gx%bmperr=4207; goto 900
       endif
    else
@@ -1990,8 +2085,8 @@ end subroutine get_condition
    endif
 ! for debugging
    istv=current%statev
-   do jl=1,4
-      indices(jl)=current%indices(jl,1)
+   do jx=1,4
+      indices(jx)=current%indices(jx,1)
    enddo
    iref=current%iref
    iunit=current%iunit
@@ -2050,8 +2145,8 @@ end subroutine get_condition
    cmix(1)=0
 ! for debugging
    istv=current%statev
-   do jl=1,4
-      indices(jl)=current%indices(jl,1)
+   do jx=1,4
+      indices(jx)=current%indices(jx,1)
    enddo
    iref=current%iref
    iunit=current%iunit
@@ -2080,11 +2175,11 @@ end subroutine get_condition
          cmix(4*nterms+2)=current%indices(4,nterms)
       enddo
       ip=current%noofterms
-      do jl=1,ip
-         ccf(jl)=current%condcoeff(jl)
+      do jx=1,ip
+         ccf(jx)=current%condcoeff(jx)
       enddo
-!      write(*,211)'3D Many terms: ',(cmix(jl),jl=1,4*ip+2)
-!      write(*,212)'3D more: ',(ccf(jl),jl=1,ip)
+!      write(*,211)'3D Many terms: ',(cmix(jx),jx=1,4*ip+2)
+!      write(*,212)'3D more: ',(ccf(jx),jx=1,ip)
 211   format(a,2i4,4(2x,44i3))
 212   format(a,4(1pe12.4))
    endif
@@ -2547,18 +2642,48 @@ end subroutine get_condition
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim}
- subroutine enter_species_property(loksp,value)
-! enter an extra species property for species loksp
+ subroutine set_uniquac_species(loksp)
+! set the status bit and allocates spexttra array
    implicit none
    integer loksp
+!\end{verbatim}
+! this is illegal for species that are elements ...
+   if(btest(splista(loksp)%status,SPEL) .or. &
+        btest(splista(loksp)%status,SPVA)) then
+      gx%bmperr=4298
+   else
+      splista(loksp)%status=ibset(splista(loksp)%status,SPUQC)
+      if(.not.allocated(splista(loksp)%spextra)) then
+         allocate(splista(loksp)%spextra(2))
+         splista(loksp)%spextra=one
+      endif
+   endif
+1000 continue
+   return
+ end subroutine set_uniquac_species
+ 
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\begin{verbatim}
+ subroutine enter_species_property(loksp,nspx,value)
+! enter an extra species property for species loksp
+   implicit none
+   integer loksp,nspx
    double precision value
 !\end{verbatim}
 ! this is illegal for species that are elements ...
-   if(btest(splista(loksp)%status,SPEL)) then
+   if(btest(splista(loksp)%status,SPEL) .or. &
+        btest(splista(loksp)%status,SPVA)) then
 !      write(*,*)'Illegal to set this for element species'
       gx%bmperr=4298
+   elseif(.not.allocated(splista(loksp)%spextra)) then
+      write(*,*)'3D this species has no allocated extra data'
+      gx%bmperr=4399; goto 1000
+   elseif(nspx.gt.size(splista(loksp)%spextra)) then
+      write(*,*)'3D species has not sufficient extra data allocated ',nspx
+      gx%bmperr=4399; goto 1000
    else
-      splista(loksp)%extra=value
+      splista(loksp)%spextra(nspx)=value
    endif
 1000 continue
    return

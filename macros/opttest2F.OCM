@@ -10,8 +10,7 @@ new Y
 
 set echo
 
-r u
-opttest2-cumg5
+r u ./opttest2-cumg5
 
 @&
 @$ Check we do not have any experimental equilibria
@@ -64,7 +63,7 @@ l opt
 @$ Here the error is OK, almost zero 
 @&
 
-macro opttest2-map-diagram
+macro ./opttest2-map-diagram
 
 @$----------------------------------------------------
 @$ The Laves phase is too stable
@@ -98,7 +97,7 @@ l,,,,
 @$ This does not set a condition on T, just a start value
 @$-----------------------------------------------------------
 
-set t_and_p
+set init_t_and_p
 1000
 1e5
 
@@ -167,7 +166,7 @@ l opt
 @&
 @$ plot the phase diagram
 
-mac  opttest2-map-diagram
+mac  ./opttest2-map-diagram
 
 @&
 @$---------------------------------------------------------
@@ -213,7 +212,7 @@ l opt
 
 @&
 
-mac  opttest2-map-diagram
+mac  ./opttest2-map-diagram
 
 
 @&
@@ -226,7 +225,7 @@ set axis 2 none
 
 @&
 
-mac  opttest2-plot-cplaves
+mac  ./opttest2-plot-cplaves
 
 
 
@@ -257,9 +256,7 @@ set wei 0 *
 
 del step_map
 
-save unf
-Done liquid and CuMg2 and Laves_C15
-opttest2-cumg6
+save unf ./opttest2-cumg6
 Y
 
 set inter

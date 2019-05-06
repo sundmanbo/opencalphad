@@ -33,7 +33,7 @@ new Y
 @&
 set echo
 
-r t steel1
+r t ./steel1
 
 
 set cond t=1000 p=1e5 n=1 w(c)=0.01 w(cr)=.05 w(mo)=.08 w(si)=.003 w(v)=0.01
@@ -515,10 +515,11 @@ calc /out=outpara all N
 
 @&
 @$ Run without parallel with output on file for comparison
-@$ First I must declare me an an expert, then use bit 15 to turns off parallel
+@$ First I must declare me as an expert, then use bit 15 to turns off parallel
 set level
 Y
 
+@$ set bit 15 which prevents parallel execution
 set bit glo 15
 
 @$ ------------------------ BE PATIENT -----------------------------
@@ -528,7 +529,8 @@ calc /out=outseq all N
 
 @$ prepare for more tests in parallel
 
-set bit glo 15
+@$ clear bit 15
+set bit glo 15 no
 
 
 

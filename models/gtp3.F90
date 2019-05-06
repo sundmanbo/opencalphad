@@ -5,7 +5,7 @@
 !
 MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !
-! Copyright 2011-2018, Bo Sundman, France
+! Copyright 2011-2019, Bo Sundman, France
 !
 !    This program is free software; you can redistribute it and/or modify
 !    it under the terms of the GNU General Public License as published by
@@ -558,7 +558,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'Slow convergence with same set of stable phases                 ',&
 ! 4360
        'Too large change on axis, terminating mapping                   ',&
-       '                                                                ',&
+       'Model parameter value not calculated                            ',&
        '                                                                ',&
        '                                                                ',&
        '                                                                ',&
@@ -627,6 +627,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! NORECALC do not recalculate equilibria even if global test after fails
 ! OLDMAP use old map algorithm
 ! NOAUTOSP do not generate automatic start points for mapping
+! NO LONGER: HICKEL set if Hickel extrapolation check for solids
 ! >>>> some of these should be moved to the gtp_equilibrium_data record
   integer, parameter :: &
        GSBEG=0,       GSOCC=1,        GSADV=2,      GSNOGLOB=3, &
@@ -641,15 +642,16 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        ELSUS=0
 !----------------------------------------------------------------
 !-Bits in species record
-! Suspended,
-! implicitly suspended, 
-! species is element, 
-! species is vacancy
-! species have charge, 
-! species is (system) component
+! SUS   Suspended,
+! IMSUS implicitly suspended (when element suspended)
+! EL    species is element, 
+! VA    species is the vacancy
+! ION   species have charge, 
+! SYS   species is (system) component
+! UQAC  species used in uniquac model (2 extra reals for area and volume)
   integer, parameter :: &
        SPSUS=0, SPIMSUS=1, SPEL=2, SPVA=3, &
-       SPION=4, SPSYS=5
+       SPION=4, SPSYS=5,   SPUQC=6
 !\end{verbatim}
 !----------------------------------------------------------------
 ! Many not implemented
@@ -682,6 +684,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! FHV phase has Flory-Huggins model for polymers
 ! MULTI may be used with care
 ! BMAV Xion magnetic model with average Bohr magneton number
+! UNIQUAC The UNIQUAC fluid model
   integer, parameter :: &
        PHHID=0,     PHIMHID=1,  PHID=2,    PHNOCV=3, &     ! 1 2 4 8 : 0/F
        PHHASP=4,    PHFORD=5,   PHBORD=6,  PHSORD=7, &     ! 
@@ -689,7 +692,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        PHAQ1=12,    PHDILCE=13, PHQCE=14,  PHCVMCE=15,&    ! 
        PHEXCB=16,   PHXGRID=17, PHFACTCE=18, PHNOCS=19,&   !
        PHHELM=20,   PHNODGDY2=21, PHELMA=22, PHSUBO=23,&   ! 
-       PHFHV=24,    PHMULTI=25, PHBMAV=26                  !
+       PHFHV=24,    PHMULTI=25, PHBMAV=26,  PHUNIQUAC=27   !                  !
 ! 
 !----------------------------------------------------------------
 !-Bits in constituent fraction (phase_varres) record STATUS2
@@ -726,11 +729,13 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !----------------------------------------------------------------
 !-Bits in state variable functions (svflista)
 ! SVFVAL symbol evaluated only explicitly (mode=1 in call) all dot derivatives
-! SVFEXT symbol taken from equilibrium %eqnoval (external?)
+! SVFEXT symbol value taken from equilibrium %eqnoval
 ! SVCONST symbol is a constant (can be changed with AMEND)
 ! SVFTPF symbol is a TP function, current value returned
+! SVFDOT symbol is a DOT function, partial derivative like cp=h.t
    integer, parameter :: &
-        SVFVAL=0, SVFEXT=1, SVCONST=2,SVFTPF=3
+        SVFVAL=0,     SVFEXT=1,     SVCONST=2,     SVFTPF=3,&
+        SVFDOT=4
 !----------------------------------------------------------------
 !-Bits in gtp_equilibrium_data record
 ! EQNOTHREAD set if equilibrium must be calculated before threading 
@@ -832,16 +837,18 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   integer, public, parameter :: TWOSTATEMODEL1=5
   integer, public, parameter :: ELASTICMODEL1=6
   integer, public, parameter :: VOLMOD1=7
-  integer, public, parameter :: CRYSTALBREAKDOWNMOD=8
+  integer, public, parameter :: UNUSED_CRYSTALBREAKDOWNMOD=8
   integer, public, parameter :: SECONDEINSTEIN=9
   integer, public, parameter :: SCHOTTKYANOMALITY=10
+  integer, public, parameter :: DIFFCOEFS=11
 ! name of additions:
-  character(len=24) , public, dimension(10), parameter :: additioname=&
+  character(len=24) , public, dimension(12), parameter :: additioname=&
        ['Inden-Hillert magn model','Inden-Xiong magn model  ',&
        'Debye CP model          ','Einstein Cp model       ',&
        'Liquid 2-state model    ','Elastic model A         ',&
-       'Volume model A          ','Crystal Breakdown model ',&
-       'Second Einstein Cp      ','Schottky Anomality      ']
+       'Volume model A          ','Unused CBT model        ',&
+       'Smooth CP step          ','Schottky Anomality      ',&
+       'Diffusion coefficients  ','                        ']
 !       123456789.123456789.1234   123456789.123456789.1234
 ! Note that additions often use extra parameters like Curie or Debye
 ! temperatures defined by model parameter identifiers stored in gtp_propid
@@ -879,7 +886,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
      double precision, dimension(:), pointer :: coeffs
 ! each coefficient kan have powers of T and P/V and links to other TPFUNS
 ! and be multiplied with a following LOG or EXP term. 
-! wpow seems to be used for temporary storage during evaluation also ...
+! wpow USED FOR MULTIPLYING WITH ANOTHER FUNCTION!!
      integer, dimension(:), pointer :: tpow
      integer, dimension(:), pointer :: ppow
      integer, dimension(:), pointer :: wpow
@@ -945,9 +952,15 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   TYPE gtp_global_data
 ! status should contain bits how advanced the user is and other defaults
 ! it also contain bits if new data can be entered (if more than one equilib)
+! sysparam are variables for different things
+! sysparam(1) unused
+! sysparam(2) number of equilibria between each check of spinodal at STEP/MAP
+! sysparem(3) unised ...
      integer status
+     integer :: sysparam(10)=0
      character name*24
      double precision rgas,rgasuser,pnorm
+     double precision :: sysreal(5)=zero
   END TYPE gtp_global_data
   TYPE(gtp_global_data) :: globaldata
 !\end{verbatim}
@@ -977,20 +990,22 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !-----------------------------------------------------------------
 !\begin{verbatim}
 ! this constant must be incremented whenever a change is made in gtp_species
-  INTEGER, parameter :: gtp_species_version=1
+  INTEGER, parameter :: gtp_species_version=2
   TYPE gtp_species
 ! data for each species: symbol, mass, charge, extra, status
 ! mass is in principle redundant as calculated from element mass
-! extra can be used for somethinig extra ... like a Flory-Huggins segment length
      character :: symbol*24
-     double precision :: mass,charge,extra
+     double precision :: mass,charge
 ! alphaindex: the alphabetical order of this species
 ! noofel: number of elements
+! nextra: number of extra properties (size of spextra)
      integer :: noofel,status,alphaindex
 ! Use an integer array ellinks to indicate the elements in the species
 ! The corresponing stoichiometry is in the array stochiometry
      integer, dimension(:), allocatable :: ellinks
      double precision, dimension(:), allocatable :: stoichiometry
+! Can be used for extra species properties as in UNIQUAC models (area, volume)
+     double precision, dimension(:), allocatable :: spextra
   END TYPE gtp_species
 ! allocated in init_gtp
   TYPE(gtp_species), private, allocatable :: splista(:)
@@ -1185,6 +1200,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
      TYPE(tpfun_expression), dimension(:), pointer :: explink
      TYPE(gtp_phase_add), pointer :: nextadd
      type(gtp_elastic_modela), pointer :: elastica
+     type(gtp_diffusion_model), pointer :: diffcoefs
 ! calculated contribution to G, G.T, G.P, G.T.T, G.T.P and G.P.P
      double precision, dimension(6) :: propval
   END TYPE gtp_phase_add
@@ -1205,8 +1221,31 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
      double precision, dimension(6,6) :: cmat
 ! calculated elastic energy addition (with derivative to T and P?)
      double precision, dimension(6) :: eeadd
-! maybe more
+! maybe more ...
   end TYPE gtp_elastic_modela
+!\end{verbatim}
+!-----------------------------------------------------------------
+!\begin{verbatim}
+! addition record to calculate diffusion coefficients
+! declared as allocatable in gtp_phase_add
+! this constant must be incremented when a change is made in gtp_elastic_modela
+  INTEGER, parameter :: gtp_diffusion_model_version=1
+  TYPE gtp_diffusion_model
+! status bit 0 set means no calculation of this record
+! dilute, simple or magnetic
+     integer difftypemodel,status
+!  alpha values for magnetic diffusion (for interstitials in constituent order)
+     double precision, allocatable, dimension(:) :: alpha
+! indices of dependent constituent in each sublattices
+     integer, allocatable, dimension(:) :: depcon
+! indices of constituents with zerovolume
+     integer, allocatable, dimension(:) :: zvcon
+! calculated diffusion matrix
+     double precision, allocatable, dimension(:,:) :: dcoef
+! Maybe we need one for each composition set?? at least to save the matrix
+     type(gtp_diffusion_model), pointer :: nextcompset
+! maybe more ...
+  end TYPE gtp_diffusion_model
 !\end{verbatim}
 !-----------------------------------------------------------------
 !\begin{verbatim}
@@ -1396,7 +1435,8 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
      integer narg,nactarg,status,eqnoval
      type(putfun_node), pointer :: linkpnode
      character name*16
-     double precision value
+! THIS IS NOT REALLY USED, VALUES ARE STORED IN CEQ%SVFUNRES
+     double precision svfv
 ! this array has identification of state variable (and other function) symbols 
      integer, dimension(:,:), pointer :: formal_arguments
   end TYPE gtp_putfun_lista
@@ -1494,7 +1534,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! dgm: driving force
 ! qcbonds: quasichemical bonds (NOT SAVED ON UNFORMATTED)
      double precision amfu,netcharge,dgm,qcbonds
-! qcsro: current value of SRO
+! qcsro: current value of SRO (for quasichemical model)
      double precision, allocatable, dimension(:) :: qcsro
 ! Other properties may be that: gval(*,2) is TC, (*,3) is BMAG, see listprop
 ! nprop: the number of different properties (set in allocate)
@@ -1520,6 +1560,10 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
      double precision, dimension(:,:), allocatable :: cdxmol
 ! terms added to G if bit CSADDG nonzero
      double precision, dimension(:), allocatable :: addg
+! integer containing the iteration when invsaved updated
+     integer invsavediter
+! arrays to save time in calc_dgdyterms, do not need to be saved on unformatted
+     double precision, dimension(:,:), allocatable ::invsaved
   END TYPE gtp_phase_varres
 ! this record is created inside the gtp_equilibrium_data record
 !\end{verbatim}
@@ -1820,12 +1864,16 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   integer, private :: highcs
 ! Trace for debugging (not used)
   logical, private :: ttrace
+! Output for debugging gridmin
+  integer, private :: lutbug=0
 ! minimum constituent fraction
   double precision :: bmpymin
 ! number of defined property types like TC, BMAG etc
   integer, private :: ndefprop
 ! this is the index of mobility data, set in init_gtp in subroutine gtp3A
   integer, private :: mqindex
+! quasichemical model type, 1=classic, 2=corrceted type 1, 3=corrected type 2
+  integer :: qcmodel=1
 !\end{verbatim}
 
 CONTAINS

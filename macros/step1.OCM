@@ -26,7 +26,7 @@ new Y
 
 set echo
 
-r t steel1
+r t ./steel1
 
 set c t=1200 p=1e5 n=1 w(c)=.009 w(cr)=.045, w(mo)=.1,w(si)=.001 w(v)=.009
 
@@ -122,6 +122,7 @@ plot
 
 ?
 position outside right
+
 title step 1 fig 2
 text
 1200 0.6 2 0 High Speed Steel
@@ -156,7 +157,7 @@ title step 1 fig 5
 render
 
 @&
-@$ scaling of y axis
+@$ scaling of y axis and setting larger axis text
 plot
 T
 cp
@@ -166,11 +167,13 @@ N
 0
 300
 title step 1 fig 6
-render
+
+
 
 @$ The plotted cp include latent heat
 @&
-@$ Now plot a PDF of this figure
+@$ Now plot a PDF of this figure.
+@$ THIS CAN ALSO BE DONE IN THE PLOT WINDOW
 @$ First check available graphic devices
 
 enter gnu
@@ -189,6 +192,7 @@ step1
 Y
 
 
+@$ NOTE the PDF file will be saved in the working directory
 @&
 
 set inter

@@ -30,31 +30,31 @@ new Y
 
 set echo
 
-mac opttest2A
+mac ./opttest2A
 
 @&
 
-mac opttest2B
+mac ./opttest2B
 
 @&
 
-mac opttest2C
+mac ./opttest2C
 
 @&
 
-mac opttest2D
+mac ./opttest2D
 
 @&
 
-mac opttest2E
+mac ./opttest2E
 
 @&
 
-mac opttest2F
+mac ./opttest2F
 
 @&
 
-mac opttest2G
+mac ./opttest2G
 
 set inter
 

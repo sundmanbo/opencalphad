@@ -31,7 +31,7 @@ new YES
 
 set echo
 
-r t steel7
+r t ./steel7
 
 @$ -------------------------------------------------------------
 @&
@@ -166,7 +166,7 @@ l,,,,
 
 new Y
 
-r t steel7
+r t ./steel7
 
 set c t=2000 p=1e5 n=1 x(c)=.04 x(cr)=.06, x(mo)=.05 x(si)=.003 x(v)=.01
 

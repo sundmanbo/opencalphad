@@ -298,8 +298,6 @@
    splista(noofsp)%alphaindex=noofsp
    splista(noofsp)%noofel=noelxx
    splista(noofsp)%status=0
-! I am not sure what this will be used for ...
-   splista(noofsp)%extra=one
    if(charge.ne.zero) then
       splista(noofsp)%status=ibset(splista(noofsp)%status,SPION)
    endif
@@ -315,6 +313,7 @@
 ! add species last and rearrange
    species(noofsp)=noofsp
    call alphasporder
+! NOTE the array spextra is allocated with AMEND SPECIES command
 ! error: continue would be a nice use of non-digit labels ....
 1000 continue
    return
@@ -512,7 +511,7 @@
    logical externalchargebalance,tupix
    integer iph,kkk,lokph,ll,nk,jl,jk,mm,lokcs,nkk,nyfas,loksp,tuple,bothcharge
 ! logicals for models later stored in phase record
-   logical i2sl,cqc
+   logical i2sl,cqc,uniquac
 !   write(*,*)'3B enter enter_phase: ',trim(name),' ',trim(model)
    if(.not.allowenter(2)) then
       gx%bmperr=4125
@@ -520,6 +519,7 @@
    endif
    i2sl=.FALSE.
    cqc=.FALSE.
+   uniquac=.FALSE.
 ! check input
    call capson(name)
 !   if(.not.ucletter(name)) then
@@ -571,6 +571,8 @@
       i2sl=.TRUE.
    elseif(model(1:4).eq.'CQC ') then
       cqc=.TRUE.
+   elseif(model(1:8).eq.'UNIQUAC ') then
+      uniquac=.TRUE.
    endif
 ! check constituents
    externalchargebalance=.false.
@@ -764,7 +766,7 @@
 !  write(*,*)'3B enter_phase 8x: ',nyfas,nkk
    phlista(nyfas)%tnooffr=nkk
 !  write(*,*)'3B enter_phase 8y: ',nyfas,phlista(nyfas)%tnooffr
-! create consituent record
+! create constituent record
    call create_constitlist(phlista(nyfas)%constitlist,nkk,klok)
 ! in phase_varres we will indicate the VA constituent, indicate in iva
    valoop: do jl=1,nkk
@@ -780,9 +782,10 @@
 !    write(*,33)nkk,(iva(i),i=1,nkk)
 !33 format('3B enter_phase 14B: ',i3,2x,10i3)
 !   nprop=10
-!   write(*,*)'3B enter_phase: ',lokcs,name
+!   write(*,*)'3B enter_phase parrecords: ',lokcs,nkk,trim(name)
    call create_parrecords(nyfas,lokcs,nsl,nkk,maxcalcprop,iva,firsteq)
-!   write(*,*)'3B enter_phase 15: ',nyfas,lokcs
+!   write(*,*)'3B enter_phase 15: ',nyfas,lokcs,&
+!        size(firsteq%phase_varres(lokcs)%yfr)
    if(gx%bmperr.ne.0) goto 1000
 ! zero array of pointer to phase_varres record, then set first
    phlista(nyfas)%linktocs=0
@@ -802,6 +805,7 @@
 ! have one sublattice but bonds are in sites(1)
       firsteq%phase_varres(lokcs)%sites(1)=one
       firsteq%phase_varres(lokcs)%qcbonds=sites(1)
+      write(*,*)'3B zbonds: ',sites(1),firsteq%phase_varres(lokcs)%qcbonds
    else
       do ll=1,nsl
          firsteq%phase_varres(lokcs)%sites(ll)=sites(ll)
@@ -902,11 +906,13 @@
 ! set net charge to zero
    firsteq%phase_varres(lokcs)%netcharge=zero
    if(nsl.eq.1) then
+      if(.not.uniquac) then
 ! if no sublattices set ideal bit.  Will be cleared if excess parameter entered
-      phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHID)
+         phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHID)
+      endif
    endif
    if(nkk.eq.nsl) then
-! as many constiuents as sublattice
+! as many constiuents as sublattice, compound with fix composition
       phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHNOCV)
    endif
 ! quasichemical liquid: indicate status bit for bond clusters in phase_varres 
@@ -919,11 +925,14 @@
          if(splista(ll)%symbol(1:3).eq.'QC_') then
             firsteq%phase_varres(lokcs)%constat(jk)=&
                  ibset(firsteq%phase_varres(lokcs)%constat(jk),CONQCBOND)
-!            write(*,*)'3B setting bond cluster bit',jk,CONQCBOND
+            write(*,*)'3B setting bond cluster bit',jk,CONQCBOND
          endif
       enddo
 ! set CQC bit
       phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHQCE)
+   elseif(uniquac) then
+! do not set anything else at the moment
+      phlista(nyfas)%status1=ibset(phlista(nyfas)%status1,PHUNIQUAC)
    endif
 ! nullify links
    nullify(phlista(nyfas)%additions)
@@ -953,10 +962,13 @@
       enddo
 !---------------------- new code end
    endif
-! always enter volume model1, nyfas is lokph, use alphabetical index
+! almost always enter volume model1, nyfas is lokph, use alphabetical index
    if(nyfas.gt.0) then
+      if(.not.(btest(phlista(nyfas)%status1,PHUNIQUAC) .or.&
+           btest(phlista(nyfas)%status1,PHGAS))) then
 !      write(*,*)'3B enter_phase adding volume model: ',trim(name),nyfas
-      call add_addrecord(nyfas,' ',volmod1)
+         call add_addrecord(nyfas,' ',volmod1)
+      endif
    endif
 1000 continue
    return
@@ -1504,6 +1516,7 @@
 !
 !\begin{verbatim} %-
  subroutine remove_composition_set(iph,force)
+! subroutine delete_composition_set(iph,force)
 ! the last composition set of phase iph is deleted, update csfree and highcs
 ! SPURIOUS ERRORS OCCUR IN THIS SUBROUTINE
 !
@@ -1655,7 +1668,7 @@
 ! UNFINISHED this is not correct ....
       idisvarres=newhighcs(.false.)
       if(idisvarres.eq.highcs) highcs=idisvarres-1
-      write(*,*)'3B removed varres: ',idisvarres,csfree,highcs
+!      write(*,*)'3B removed varres: ',idisvarres,csfree,highcs
    endif
 ! link the free phase_varres into the free list
 !vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
@@ -5307,7 +5320,9 @@
       gx%bmperr=4123
       goto 1000
    else
-! OK to reset error code as we are creating a new equilibrium
+! Error code 4124 means no such equilibrium, OK as we are creating it!
+! Any other error code will cause error return
+      if(gx%bmperr.ne.4124) goto 1000
       gx%bmperr=0
    endif
    if(eqfree.le.maxeq) then
@@ -5836,6 +5851,7 @@
 !---------------------------
       CASE(5)! experiments
          ip=0
+!         write(*,*)'3B exp: "',trim(eqlin(jval)(last:)),'"',jp
          call enter_experiment(eqlin(jval)(last:),ip,ceq)
          if(gx%bmperr.ne.0) goto 1000
 !---------------------------
@@ -5934,9 +5950,10 @@
                   else
                      savetitle=trim(eqlin(jval)(last:))
                   endif
-                  write(pun(ip),600)iel,trim(eqlin(jval)(last:))
+!                  write(pun(ip),600)iel,trim(eqlin(jval)(last:))
+                  write(pun(ip),600)
 600               format('# GUNPLOT file generated by enter many_equilibria '/&
-     'set title "Open Calphad 4.0 : with GNUPLOT"'/&
+     'set title "Open Calphad 5 : with GNUPLOT"'/&
      'set xlabel "whatever"'/&
      'set ylabel "whatever"'/&
      'set key bottom right'/&
@@ -5953,8 +5970,7 @@
      '# Move all plot lines after the first one and remove the #'/&
      '# and add a ,\ at the end except for the last.'/&
      '# Remove also the # for the line with a single e',/'#'/&
-     'plot "-" using 2:3 with points pt ',i3,&
-     ' ps 1.5 title "',a,' and maybe others"')
+     'plot "-" using 2:3:4 with points pt variable ps 1 title "please add')
                else
 ! This is for plot dataset when the file is open
                   call getrel(eqlin(jval),last,pxx)
@@ -5967,13 +5983,14 @@
                   if(eolch(eqlin(jval),last)) then
                      savetitle='Unknown'
                   endif
-                  if(trim(savetitle).ne.trim(eqlin(jval)(last:))) then
+! ignore this, the symbol can be changed at each point
+!                  if(trim(savetitle).ne.trim(eqlin(jval)(last:))) then
 ! new title, this should preferably be with the previous plot command !!
-                     write(pun(ip),605)iel,trim(eqlin(jval)(last:))
-605                  format('#e'/'#"" using 2:3 with points pt ',i3,&
-                          ' ps 1.5 title "',a,'"')
-                     savetitle=trim(eqlin(jval)(last:))
-                  endif
+!                     write(pun(ip),605)iel,trim(eqlin(jval)(last:))
+!605                  format('#e'/'#"" using 2:3:4 with points pt variable',&
+!                          ' ps 1 title "',a,'"')
+!                     savetitle=trim(eqlin(jval)(last:))
+!                  endif
 !                  write(*,610)'3B debug: ',ip,pxx,pyy,iel,trim(savetitle)
                   write(pun(ip),610)' ',ip,pxx,pyy,iel
 610               format(a,i2,2x,2(1pe14.6),i3,5x,a)

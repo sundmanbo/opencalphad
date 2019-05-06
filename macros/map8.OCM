@@ -21,6 +21,7 @@ new Y
 @$
 @$
 @$ map8.OCM
+@$ Enter the data interactively and
 @$ Calculate a phase diagram for FCC ordering in the Fe-Ni system
 @$ using partition and permutations
 @$
@@ -78,8 +79,6 @@ CEF
 4 .25 Fe NI; .25 Fe NI; .25 Fe NI; .25 Fe NI;
 
 @$ we must set that this has FCC permutations before entering parameters
-@$ OLDset phase part bit
-
 amend phase part-fcc
 ?
 fcc-perm
@@ -87,8 +86,13 @@ fcc-perm
 @&
 
 @$ we must add disordered set before entering parameters
-amend phase part dis 4 yes
+@$ We are not modeling the disordered part independently
+amend phase part dis 4
+NO
 
+@&
+
+@$ enter the parameter, note permutations taken into account
 enter param G(part,Fe:Fe:Fe:Ni),,GA3B1; 6000 N test
 enter param G(part,Fe:Ni:Ni:Ni),,GA1B3; 6000 N test
 enter param G(part,Fe:Fe:Ni:Ni),,GA2B2; 6000 N test
@@ -111,8 +115,8 @@ list data ,,
 @$ this default constitution is Fe3Ni_L12
 amend phase part comp-set y , ,
 <.2 >.5
-<.2 >.5
-<.2 >.5
+>.2 <.5
+>.2 <.5
 >.5 <.2
 
 @$ this default constitution is FeNi_L10
@@ -134,18 +138,10 @@ amend phase part comp-set y , ,
 @$ fraction of the minor element.  This should be arranged in todo_after ...
 
 
-@$ Use the mode without subrracting the disordered Gibbs energy of the
-@$ ordered part
-
-@$ NOTE the SET BIT command has changed!!
-set bit glob 2
-set phase part-fcc bit 23
-23
-
 l sh a
 
 @&
-
+@$ The start point is between the L1_0 and L1_2 phases
 set c t=300 p=1e5 n=1 x(ni)=.6
 
 c e
@@ -172,7 +168,7 @@ title map8 fig 1
 
 @&
 
-
+@$ A start point on the Fe-rich side
 set c x(ni)=.4
 
 c e
@@ -190,23 +186,30 @@ plot
 
 pos
 top left
+
 title map8 fig 2
 
 
 @&
 
+set inter
+
 @$========================================================
 @$ Try old mapping algorithm
-
-set level Y¨
 
 set bit glo
 ?
 21
+Y
 
 set c t=150 x(ni)=.65
 
 c e
+
+l,,,,,
+
+
+@&
 
 map
 Y
@@ -216,11 +219,9 @@ plot
 
 
 
-@$ Not perfect but better.  However for other diagrams this algorithm
-@$ does not work as well
+@$ Not perfect either.  For most other diagrams this algorithm
+@$ does not work.
 
 
 set inter
-
-
 

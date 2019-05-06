@@ -27,7 +27,7 @@ new Y
 
 set echo
 
-r t saf2507
+r t ./saf2507
 
 set c t=1273.15 p=1e5 n=1 W(cr)=.25 w(ni)=.07, w(mo)=.03 w(mn)=.015 w(n)=.002
 
@@ -58,6 +58,7 @@ plot
 
 
 position top left 
+
 title step 7 fig 2
 render
 
@@ -96,6 +97,7 @@ plot
 w(n)
 prefcc
 position off
+
 title step 7 fig 4
 
 @&
@@ -127,5 +129,6 @@ T
 title step 7 fig 6
 render
 @&
+
 set inter
 

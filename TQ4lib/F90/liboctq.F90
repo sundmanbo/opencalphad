@@ -96,7 +96,12 @@ contains
     double precision dblv(10)
     intv(1)=-1
 ! This call initiates the OC package
+!@CC
+    if (allocated(eqlista)) then
+       call new_gtp
+    endif
     call init_gtp(intv,dblv)
+!@CC
     ceq=>firsteq
     write(*,*)'tqini created: ',ceq%eqname
 1000 continue
@@ -394,7 +399,7 @@ contains
     double precision value ! IN: value of condition
     type(gtp_equilibrium_data), pointer :: ceq  ! IN: current equilibrium
 !\end{verbatim}
-    integer ip
+    integer ip,ip2
     character cline*60,selvar*4,cval*24
 !
 !    write(*,11)'In tqsetc ',stavar(1:len_trim(stavar)),n1,n2,value
@@ -405,6 +410,14 @@ contains
     if(ip.gt.0) then
        selvar=stavar(1:ip-1)
        cval=stavar(ip:)
+!@CC
+       ip2=index(stavar,'(')
+       if(ip2.gt.0) then
+          ip = ip2
+          selvar=stavar(1:ip-1)
+          cval=stavar(ip:)
+       endif
+!@CC
 !       write(*,*)'Value after = :',cval
     else
        selvar=stavar
@@ -417,7 +430,7 @@ contains
        gx%bmperr=8888; goto 1000
 ! Potentials T and P
     case('T   ','P   ')
-       if(cval(1:1).eq.'=') then
+       if(ip.gt.0) then
           cline=' '//stavar
        else
           write(cline,110)selvar(1:1),value
@@ -425,7 +438,7 @@ contains
        endif
 ! Total amount or amount of a component in moles
     case('N   ')
-       if(cval(1:1).eq.'=') then
+       if(ip.gt.0) then
           cline=' '//stavar
        else
           if(n1.gt.0) then
@@ -443,7 +456,7 @@ contains
 ! ?? fraction of phase component not implemented, n1 must be component number
 !       call get_component_name(n1,cnam,ceq)
 !       if(gx%bmperr.ne.0) goto 1000
-       if(cval(1:1).eq.'=') then
+       if(ip.gt.0) then
           cline=' '//stavar
        else
           write(cline,120)selvar(1:1),cnam(n1)(1:len_trim(cnam(n1))),value
@@ -470,6 +483,23 @@ contains
     return
   end subroutine tqsetc
 
+!@CC
+!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
+
+!\begin{verbatim}
+  subroutine toggle_dense_grid()
+    if(btest(globaldata%status,GSXGRID)) then
+       globaldata%status=ibclr(globaldata%status,GSXGRID)
+       write(*,3110)'reset'
+3110   format('Dense grid ',a)
+    else
+       globaldata%status=ibset(globaldata%status,GSXGRID)
+       write(*,3110)'dense grid set'
+    endif
+    return
+  end subroutine toggle_dense_grid
+!@CC
+
 !\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
 
 !\begin{verbatim}
@@ -495,6 +525,14 @@ contains
     else
        mode=1
        call calceq2(mode,ceq)
+       if(gx%bmperr.eq.4204) then
+! if the error code is "too many iterations" try without grid minimizer
+! it converges in many cases
+!          write(*,2048)gx%bmperr
+2048      format('Error ',i5,', cleaning up and trying harder')
+          gx%bmperr=0
+          call calceq2(0,ceq)
+       endif
     endif
     if(gx%bmperr.ne.0) goto 1000
 ! there may be new composition sets, update ntup
@@ -504,13 +542,15 @@ contains
     if(nyfas.ne.ntup) then
 !       write(*,*)'Number of phase tuples changed: ',nyfas,ntup
        ntup=nyfas
-       if(allocated(ysave)) deallocate(ysave)
-       allocate(ysave(nyfas,maxconst))
+!       if(allocated(ysave)) deallocate(ysave)
+!       allocate(ysave(nyfas,maxconst))
     endif
 ! copy the constitution to a local save array
-    if(.not.allocated(ysave)) then
-       allocate(ysave(nyfas,maxconst))
-    endif
+!    if(.not.allocated(ysave)) then
+!       allocate(ysave(nyfas,maxconst))
+!    endif
+    if(allocated(ysave)) deallocate(ysave)
+    allocate(ysave(nyfas,maxconst))
 ! the intention of saving constitution is to make it possible to interpolate
 ! the calculation of G if the constitution is changed very little
    do j1=1,nyfas
@@ -644,11 +684,13 @@ contains
           write(*,*)'No such component'
        endif
 !--------------------------------------------------------------------
-! Amount of moles of components in a phaase
-    case('NP  ')
+!@CC
+! Amount of moles /mass of components in a phase
+    case('NP  ', 'BP  ')
        if(n1.lt.0) then
 ! all phases
-          statevar='NP(*)'
+          statevar=stavar(1:2)//'(*)'
+!@CC
 ! this returns all composition sets for all phases
           call get_many_svar(statevar,values,mjj,n3,encoded,ceq)
 ! this output gives the amounts for all compsets of a phase sequentially
@@ -666,7 +708,9 @@ contains
        endif
 !--------------------------------------------------------------------
 ! Mole or mass fractions
-    case('N   ','X   ','W   ')
+!@CC
+    case('N   ','B    ','X   ','W   ')
+!@CC
 !       write(*,*)'in tqgetv n,x,w: ',n1,n2,n3
        if(n2.eq.0) then
           if(n1.lt.0) then
@@ -839,6 +883,86 @@ contains
 1000 continue
     return
   end subroutine tqgetv
+
+!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
+
+  subroutine tqgetg(lokres,n1,n2,values,ceq)
+    implicit none
+    integer n1,n2,lokres
+    double precision values(*)
+    type(gtp_equilibrium_data), pointer :: ceq  !IN: current equilibrium
+!    
+    double precision napfu, rgast
+    integer count
+    integer jl,size
+    TYPE(gtp_phase_varres), pointer :: parres
+!
+    count = 1
+!
+    napfu=ceq%phase_varres(lokres)%abnorm(1)
+    rgast=globaldata%rgas*ceq%tpval(1)
+    parres=>ceq%phase_varres(lokres)
+!  
+!    write(*,100)(rgast*parres%gval(jl,1),jl=1,4)
+!    write(*,200)parres%gval(1,1)/parres%abnorm(1),parres%abnorm(1)
+100 format('G/N, dG/dT:',4(1PE16.8))
+200 format('G/N/RT, N:',2(1PE16.8))
+!   G_m^\alpha = G_M^\alpha/N^\alpha, \frac{\partial G_m^\alpha}{\partial T},
+! \frac{\partial G_m^\alpha}{\partial P},
+! \frac{\partial^2 G_m^\alpha}{\partial T^2}
+    values(count:count+3) = rgast*parres%gval(1:4,1)/napfu
+    count = count + 4
+    if (n1>0) then
+!      1/N^\alpha * \frac{\partial G_M^\alpha}{\partial y_i}
+       values(count:count+n1-1) = rgast*parres%dgval(1,1:n1,1)/napfu
+       count = count + n1
+       if (n2>0) then
+!         1/N^\alpha * \frac{\partial^2 G_M^\alpha}{\partial y_i\partial y_j}
+          values(count:count+n2-1) = rgast*parres%d2gval(1:n2,1)/napfu
+       endif
+    endif
+  end subroutine tqgetg
+
+!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
+  
+  subroutine tqgdmat(phtupx,tpval,xknown,cpot,tyst,nend,mugrad,mobval,&
+       consnames,n1,ceq)
+! equilibrates the constituent fractions of a phase for mole fractions xknown
+! and calculates the Darken matrix and unreduced diffusivities
+! phtup is phase tuple
+! tpval is T and P
+! ceq is a datastructure with all relevant thermodynamic data
+! cpot are the (calculated) chemical potentials
+! tyst is TRUE means no outut
+! nend is the number of values returned in mugrad
+! mugrad are the derivatives of the chemical potentials wrt mole fractions??
+! mobval are the mobilities
+    implicit none
+    integer phtupx                  ! IN: index in phase tuple array
+    integer nend
+    logical tyst
+    double precision tpval(*),xknown(*),cpot(*),mugrad(*),mobval(*)
+    character*24, dimension(*) :: consnames 
+    integer n1
+    TYPE(gtp_phasetuple), pointer :: phtup
+    TYPE(gtp_equilibrium_data), pointer :: ceq
+
+    integer iph, ics, ll
+    double precision mass
+    character*24 spname
+             
+    phtup=>phasetuple(phtupx)    
+    call equilph1d(phtup,tpval,xknown,cpot,tyst,nend,mugrad,mobval,ceq)
+    
+    iph=phasetuple(phtupx)%ixphase
+    ics=1   
+    n1 = noconst(iph,ics,firsteq)
+    do ll=1,n1
+       call get_constituent_name(iph,ll,consnames(ll),mass)
+    enddo
+
+  end subroutine tqgdmat
+!@CC
 
 !\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
 
@@ -1043,7 +1167,7 @@ contains
        gx%bmperr=4333
        goto 1000
     endif
-    ceq=>eqlista(n1)
+!    ceq=>eqlista(n1)
     call delete_equilibria(name,ceq)
 1000 continue
     return
@@ -1061,13 +1185,31 @@ contains
     integer n1
     type(gtp_equilibrium_data), pointer :: newceq,ceq
 !\end{verbatim}
-    call enter_equilibrium(name,n1)
-    if(gx%bmperr.ne.0) goto 1000
-    newceq=>eqlista(n1)
+    !call enter_equilibrium(name,n1)
+    !if(gx%bmperr.ne.0) goto 1000
+    !newceq=>eqlista(n1)
     call copy_equilibrium(newceq,name,ceq)
 1000 continue
     return
   end subroutine tqcceq
+
+!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
+
+!\begin{verbatim}
+  subroutine tqcneq(name,n1,newceq)
+! creates a new equilibrium record, same but simpler call than tqcceq
+! n1 is returned as index in eqlista
+    implicit none
+    character*(*), intent(in) :: name
+    integer, intent(out) :: n1
+    type(gtp_equilibrium_data), pointer, intent(out) :: newceq
+!\end{verbatim}
+    call enter_equilibrium(name,n1)
+    if(gx%bmperr.ne.0) goto 1000
+    newceq=>eqlista(n1)
+1000 continue
+    return
+  end subroutine tqcneq
 
 !\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
 

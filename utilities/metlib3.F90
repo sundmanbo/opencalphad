@@ -20,12 +20,19 @@ MODULE METLIB
 !    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 !
 !--------------------------------------------------------------------------
-#ifdef win
-! nothing special
-#else  
+! compiler options:
+! lixed to select command line editing on Linux/MacOS etc
+! tinyfd  to select popup windows to open files
+! htmlhlp to use browser for on-line help
+!--------------------------------------------------------------------------
+#ifdef lixed
 ! LINUX: For character by character input allowing emacs editing
 ! uncomment the next line and run the Makefile on the GETKEY directory 
-  use M_getkey
+  use m_getkey
+#endif
+#ifdef tinyfd
+  ! use tinyfiledialogs
+  use ftinyopen
 #endif
 !
 !--------------------------------------------------------------------------
@@ -41,6 +48,7 @@ MODULE METLIB
 !  1008 Attempt to reserve one word or less
 !  1009 Released area inside free area
 !  1010 Too large character or real arrays in LOADC/STORC or LOADRN/STORRN
+!  1020 No such file
 !  1030  NO SUCH TYPE OPTION
 !  1031 Empty line, expected number
 !  1032  PARAMETER VALUE MISSING
@@ -90,6 +98,9 @@ MODULE METLIB
   integer :: lun=50
 ! LOGFIL is nonzero if a log file is set
   integer, private :: logfil=0
+! prevent use of popup windows for open/save file
+! logical nopopup
+  logical :: NOPENPOPUP=.FALSE.
 ! global values for history
   CHARACTER, private :: HIST(20)*80
   integer, private :: LHL=0,LHM=0,LHP=0
@@ -105,25 +116,32 @@ MODULE METLIB
   character, private :: ENVIR(9)*60
 !
 !    COMMON/TCMACRO/IUL,IUN(5),MACEXT
-    integer, private :: IUL,IUN(5)
+!    integer, private :: IUMACLEVL,IUN(5)
+    integer :: IUMACLEVL,MACROUNIT(5)
     character MACEXT*3
+! character for PATH to macro file in order to open files inside macro
+    character macropath(5)*128
+! the working directory
+    character workingdir*128
 ! nbpw is number if bytes per INTEGER
     integer, parameter :: nbpw=4,nwpr=2
     parameter (MACEXT='OCM')
 !    parameter (MACEXT='BMM')
 !
 !vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-    integer, parameter :: maxhelplevel=15
+    integer, parameter :: maxhelplevel=20
 ! A help structure used in new on-line help system
     TYPE help_str
        integer :: okinit=0
-       character*128 filename
+!       character*128 filename
        character*8 type
        integer level
        character*32, dimension(maxhelplevel) :: cpath
     END TYPE help_str
 ! this record is used to file the appropriate help text
     type(help_str), save :: helprec
+! This is useful to add %\section and %\subsection in helpfile
+    logical :: helptrace=.FALSE.
 !vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 ! Data structures for putfun below
 
@@ -157,8 +175,9 @@ MODULE METLIB
 ! datanod is last data node
   TYPE(putfun_node), private, pointer :: topnod,datanod,lastopnod
   integer pfnerr,debuginc
+! end data structures for PUTFUN
 !
-!
+! HISTORY data (used on LINUX)
   integer, parameter :: histlines=100
 !
   TYPE CHISTORY
@@ -167,8 +186,30 @@ MODULE METLIB
      integer :: hpos=0
   END TYPE CHISTORY
   type(chistory) :: myhistory
+  save myhistory
+!
+! using browser and html files for on-line help
+  type onlinehelp
+! if htmlhelp is TRUE then browser is the path/name of browser
+! htmlfile is full path/name of html file
+! target is used to find the relevant text the html file
+! values of browser and htmlfile set by the main program (and htmlhelp=.TRUE.)
+! The value of target is found searching the original LaTeX file!!
+! In this file there are \hypertarget{target} which can be searched in the
+! html file as <a id="target" />
+! Searching the LaTeX file the help system will find a section
+! matching the history of commands/questions the user has given
+! and the target in the first \hypertarget {target} found within these lines
+! will be used for the help displayed in the browser window
+     logical :: htmlhelp=.FALSE.
+     character*128 browser
+     character*128 htmlfile
+     character*128 latexfile
+     character*64 target
+  end type onlinehelp
+  type(onlinehelp) :: ochelp
+  save ochelp
 !  
-! end data structures for PUTFUN
 !^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 CONTAINS
@@ -279,7 +320,7 @@ CONTAINS
 ! helplevel1 reset helplevel to 1
 ! q2help  help for submenus
 ! q1help  help for questions
-! q3help  help in submenues
+! q3help  help in submenues also?
 ! winit   initates integer workspace
 ! wold    read a file to workspace
 ! wsave   write workspace to file
@@ -947,9 +988,9 @@ CONTAINS
   integer function ixsym(ix1,ix2)
 ! calculates the storage place of value at (i,j) for a symmetrix matrix
 ! storage order 11, 12, 22, 13, 23, 33, etc
-    if(ix1.le.0 .or. ix2.le.0) then
-       bmperr=1000; goto 1000
-    endif
+!    if(ix1.le.0 .or. ix2.le.0) then
+!       buperr=1000; goto 1000
+!    endif
     if(ix1.gt.ix2) then
        ixsym=ix2+ix1*(ix1-1)/2
     else
@@ -958,6 +999,71 @@ CONTAINS
 1000 continue
     return
   end function ixsym
+
+  integer function ixsym0(ix1,ix2)
+! calculates the storage place of value at (i,j) for a symmetrix matrix
+! storage order 11, 12, 22, 13, 23, 33, etc
+    if(ix1.le.0 .or. ix2.le.0) then
+       buperr=1000; goto 1000
+    endif
+    if(ix1.gt.ix2) then
+!       stop 'ix1 > ix2'
+       ixsym0=ix2+ix1*(ix1-1)/2
+    else
+       ixsym0=ix1+ix2*(ix2-1)/2
+    endif
+1000 continue
+    return
+  end function ixsym0
+
+!  integer function ixsym2(ix1,ix2)
+! calculates the storage place of value at (i,j) for a symmetrix matrix
+! storage order 11, 12, 22, 13, 23, 33, etc
+! Slightly faster ....
+!    ixmin=min(ix1,ix2)
+!    ixmax=max(ix1,ix2)
+!    ixsym2=ixmin+ixmax*(ixmax-1)/2
+!1000 continue
+!    return
+!  end function ixsym2
+
+  integer function ixsym7(ix1,ix2)
+! calculates the storage place of value at (i,j) for a symmetrix matrix
+! storage order 11, 12, 22, 13, 23, 33, etc
+! Slightly faster ....
+!    ixmin=min(ix1,ix2)
+!    ixmax=max(ix1,ix2)
+!    ixsym=ixmin+ixmax*(ixmax-1)/2
+    ixsym7=min(ix1,ix2)+max(ix1,ix2)*(max(ix1,ix2)-1)/2
+1000 continue
+    return
+  end function ixsym7
+
+  integer function ixsym3(ix1,ix2)
+! calculates the storage place of value at (i,j) for a symmetrix matrix
+! storage order 11, 12, 22, 13, 23, 33, etc
+! OK but gives strange results for the speed
+    integer ix1,ix2,ip
+    if(ix1.le.0 .or. ix2.le.0) then
+       buperr=1000; goto 1000
+    endif
+    ixsym3=ix1+ix2; p=(ixsym3+abs(ix1-ix2))/2
+    ixsym3=ixsym3+(p*(p-3))/2
+1000 continue
+    return
+  end function ixsym3
+
+  integer function ixsym4(ix1,ix2)
+! calculates the storage place of value at (i,j) for a symmetrix matrix
+! storage order 11, 12, 22, 13, 23, 33, etc
+    integer ix1,ix2,ip
+    if(ix1.le.0 .or. ix2.le.0) then
+       buperr=1000; goto 1000
+    endif
+    ixsym4=(ix1+ix2+abs(ix1-ix2))/2
+1000 continue
+    return
+  end function ixsym4
 
   subroutine wrice(lut,margl1,margl2,maxl,str)
 ! writes str on unit lut with left margin largl1 for first line, margl2 for all
@@ -1957,6 +2063,8 @@ CONTAINS
 ! just save the last questions
        helprec%cpath(helprec%level)=promt
     endif
+! always upper case
+    call capson(helprec%cpath(helprec%level))
 991 continue
 !...INCREMENT LAST BY ONE TO BYPASS TERMINATOR OF COMMAND OR PREVIOUS ANSWER
     LAST=LAST+1
@@ -2703,6 +2811,110 @@ CONTAINS
 900 RETURN
   END SUBROUTINE GPARRD
 !
+  SUBROUTINE GPARFILE(PROMT,SVAR,LAST,JTYP,SVAL,CDEF,TYP,HELP)
+! to ask for a file name using command line or external window
+! prompt is question
+! svar is a character variable which may already contain an answer
+! last is position in svar to start searching for an answer
+!      JTYP DEFINES THE TERMINATION OF A STRING
+!      1 TEXT TERMINATED BY SPACE OR ","
+!      2 TEXT TERMINATED BY SPACE
+!      3 TEXT TERMINATED BY ";" OR "."
+!      4 TEXT TERMINATED BY ";"
+!      5 TEXT UP TO END-OF-LINE
+!      6 TEXT UP TO AND INCLUDING ";"
+!      7 TEXT TERMINATED BY SPACE OR "," BUT IGNORING SUCH INSIDE ( )
+!    >31, THE CHAR(JTYP) IS USED AS TERMINATING CHARACTER
+! sval is the answer either extracted from SVAR or obtained by user input
+! cdef is a default answer
+! typ  is default file extenion, at present only:
+!  1=".TDB", 2=".UNF", 3=".OCM"
+! help is a help routine    
+    IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+    CHARACTER PROMT*(*),SVAR*(*),CDEF*(*),SVAL*(*)
+    CHARACTER SLIN*80
+    EXTERNAL HELP
+    integer typ,typeahead
+    logical beware
+#ifdef tinyfd
+! only if we use tinyfiledialogs, check if any character after last+1
+    typeahead=last+1
+    beware=.FALSE.
+! beware set to TRUE if no typeahead (there are non-blanks after positon last+1)
+    beware=eolch(svar,typeahead)
+!    write(*,*)'M3 gparfile: ',kou,koud,last,eolch(svar,last)
+    if(nopenpopup .or. kiu.ne.kiud .or. .not.beware) then
+#endif
+! If we are not connected to a terminal (reading a macro file) use line input
+! Also if there are "type ahead" use the line input
+! This call exchanges any macro variables in SVAR for defined macro values
+       CALL GQXENV(SVAR)
+! If interactive
+       if(kiu.eq.kiud .and. beware) write(kou,"(a)") &
+            'Beware: you must give the full path unless the file '//&
+            'is in working directory!'
+100    CALL GQARC(PROMT,SVAR,LAST,JTYP,SVAL,CDEF,HELP)
+       IF(BUPERR.NE.0) GOTO 900
+       SLIN=SVAL(1:max(1,LEN_TRIM(sval)))
+! This call handles ? @ and other things in SVAR
+       CALL GPTCM2(IFLAG,SVAR,LAST,SLIN)
+       IF (IFLAG.NE.0) GOTO 100
+       if(IUMACLEVL.ge.1) then
+          if(sval(1:2).eq.'./') then
+! we are running a macro and if SVAL(1:2) is './' replace this with MACROPATH'
+             sval=trim(macropath(IUMACLEVL))//sval(3:)
+          elseif(sval(1:3).eq.'../') then
+! we are running a macro and if SVAL(1:3) is '../' prefix with MACROPATH'
+             sval=trim(macropath(IUMACLEVL))//sval
+!             write(*,*)'M3 add path: ',trim(sval),IUMACLEVL
+!          else
+!             write(*,*)'M3 assuming full path or in working directory: '
+          endif
+       endif
+#ifdef tinyfd
+    else
+! open a popup window to browse directories and files using tinyfiledialogs
+! typ<0 means new or old file; 0 old file no filer, 
+! typ >0 means old file with filter:
+! typ=1 TDB, 2=OCU, 3=OCM, 4=OCD, 5=plt, 6=PDB, 7=DAT
+       call getfilename(typ,sval)
+       if(sval(1:1).eq.' ') then
+          buperr=1020
+       elseif(typ.eq.-7) then
+! this is for output and file created, if no extension add DAT
+          kk=index(sval,'.DAT ')
+          if(kk.eq.0) then
+             sval(len_trim(sval)+1:)='.DAT'
+          endif
+       endif
+    endif
+#endif    
+900 RETURN
+  END SUBROUTINE GPARFILE
+!
+  SUBROUTINE GPARFILE_OLD(PROMT,SVAR,LAST,JTYP,SVAL,CDEF,HELP)
+    IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+    CHARACTER PROMT*(*),SVAR*(*),CDEF*(*),SVAL*(*)
+    CHARACTER SLIN*80
+    EXTERNAL HELP
+!    CHARACTER ENVIR(9)*60
+!    COMMON /GENVIR/ENVIR
+!    CALL GQXENV(SVAR,ENVIR)
+! This call exchanges any macro variables in SVAR for defined macro values
+    CALL GQXENV(SVAR)
+!Beware: you must give the full path unless the file is in current directory!
+    write(*,*)'Beware: you must give the full path unless',&
+         ' the file is in working directory!'
+100 CALL GQARC(PROMT,SVAR,LAST,JTYP,SVAL,CDEF,HELP)
+    IF(BUPERR.NE.0) GOTO 900
+    SLIN=SVAL(1:max(1,LEN_TRIM(sval)))
+!    CALL GPTCM2(IFLAG,SVAR,LAST,SLIN,ENVIR)
+! This call handles ? @ and other things in SVAR
+    CALL GPTCM2(IFLAG,SVAR,LAST,SLIN)
+    IF (IFLAG.NE.0) GOTO 100
+900 RETURN
+  END SUBROUTINE GPARFILE_OLD
+!
   SUBROUTINE GPARC(PROMT,SVAR,LAST,JTYP,SVAL,CDEF,HELP)
     IMPLICIT DOUBLE PRECISION (A-H,O-Z)
     CHARACTER PROMT*(*),SVAR*(*),CDEF*(*),SVAL*(*)
@@ -2856,7 +3068,8 @@ CONTAINS
     else
 ! system command
        write(*,*)'system command: ',slin(2:len_trim(slin))
-       call system(slin(2:))
+!       call system(slin(2:))
+       call execute_command_line(slin(2:))
     ENDIF
 900 RETURN
 !
@@ -2910,7 +3123,7 @@ CONTAINS
   SUBROUTINE MACBEG(LINE,LAST,OK)
 !....subroutine to execute set-interactive allowing nesting of macros
 !
-! addera lablar i macro sa man kan ange MACRO fil LABEL
+! IDEA: addera lablar i macro sa man kan ange MACRO fil LABEL
 ! och vid stop som @? eller @& man kan interaktivt ange GOTO label
 ! Ocksa en generisk subrutin som gor att man kan fa fram ett variabelvarde
 ! call macsymval(package,symbol,ival,rval,cval)
@@ -2921,6 +3134,7 @@ CONTAINS
 !    COMMON/TCMACRO/IUL,IUN(5),MACEXT
 !    character*3 MACEXT,USEEXT
     character*3 USEEXT
+    character*1 dirsep,backslash
 !    common/bincdb/binfil
 !    common/tercdb/terfil
 !    character*128 binfil(3)
@@ -2931,7 +3145,7 @@ CONTAINS
     DATA FIRST/.TRUE./
     IF(FIRST) THEN
        FIRST=.FALSE.
-       IUL=0
+       IUMACLEVL=0
 !       lun=50
     ENDIF
     MACFIL=' '
@@ -2944,24 +3158,50 @@ CONTAINS
 !    endif
 !    CALL GPARFD('Macro filename: ',LINE,LAST,1,FIL,MACFIL,USEEXT,FILHLP)
 !    write(*,*)'In MACBEG: ',trim(line),last
-    CALL GPARC('Macro filename: ',LINE,LAST,1,FIL,MACFIL,nohelp)
+! added that extension should be OCM by the argument "3"
+    CALL GPARFILE('Macro filename: ',LINE,LAST,1,FIL,MACFIL,3,nohelp)
+!    CALL GPARC('Macro filename: ',LINE,LAST,1,FIL,MACFIL,nohelp)
+! add default extension if needed
     CALL FXDFLT(FIL,MACEXT)
 !    if (LEN_TRIM(fil).gt.0) call tcgffn(fil)
     IF(BUPERR.NE.0) GOTO 910
-!    write(*,*)'open macro: ',lun,iul
+!    write(*,*)'open macro: ',lun,IUMACLEVL
 !    LUN=50
     OPEN(LUN,FILE=FIL,ACCESS='SEQUENTIAL',STATUS='OLD', &
          FORM='FORMATTED',IOSTAT=IERR,ERR=910)
-    IF(IUL.LT.5) THEN
-       IUL=IUL+1
-       IUN(IUL)=KIU
+! we can have macros nested 5 livels deep
+    IF(IUMACLEVL.LT.5) THEN
+       IUMACLEVL=IUMACLEVL+1
+       MACROUNIT(IUMACLEVL)=KIU
     ELSE
 !       CALL ST2ERR(1083,'MACBEG','TOO DEEPLY NESTED MACRO FILES')
        buperr=1083
        OK=.FALSE.
        GOTO 900
     ENDIF
-!    write(*,*)'Command input set: ',kiu,iul
+! extract the PATH to this macro file, needed to open files inside the macro
+    backslash=char(92)
+!    write(*,*)'M3 macro file: ',trim(fil),' bacslash: ',backslash
+    if(index(fil,backslash).gt.0) then
+       dirsep=backslash
+    else
+       dirsep='/'
+    endif
+!    write(*,*)'M3 macro file: ',trim(fil),' backslash: ',backslash,IUMACLEVL
+    ll=1
+    kk=0
+    do while(ll.gt.0)
+       kk=ll+kk
+       ll=index(fil(kk:),dirsep)
+    enddo
+! we have found the position of the actual filename.  Save the path incl dirsep
+    if(kk.gt.1) then
+       macropath(IUMACLEVL)=fil(1:kk-1)
+    else
+       macropath(IUMACLEVL)=' '
+    endif
+!    write(*,*)'Macro path saved: ',IUMACLEVL,': ',trim(macropath(IUMACLEVL))
+!    write(*,*)'Command input set: ',kiu,IUMACLEVL
 ! this is to suprees "press return to continue" but not implemented ...
 !    CALL GPARC(' ',LINE,LAST,1,CH1,'Y',FILHLP)
 !    IF(CH1.NE.'Y') THEN
@@ -2979,11 +3219,11 @@ CONTAINS
 ! set interactive gives back control to calling macro if any
     IF(KIU.NE.KIUD) THEN
        IF(KIU.NE.0) CLOSE(KIU)
-!       write(*,*)'end of macro: ',kiu,kiud,iul
-       IF(IUL.GT.0) THEN
-!          write(*,*)'calling macro: ',iun(iul)
-          KIU=IUN(IUL)
-          IUL=IUL-1
+!       write(*,*)'end of macro: ',kiu,kiud,IUMACLEVL
+       IF(IUMACLEVL.GT.0) THEN
+!          write(*,*)'calling macro: ',macrounit(IUMACLEVL)
+          KIU=MACROUNIT(IUMACLEVL)
+          IUMACLEVL=IUMACLEVL-1
        ELSE
 !          write(*,*)'terminal: ',kiud
           KIU=KIUD
@@ -2999,7 +3239,9 @@ CONTAINS
     IF(EOLCH(LINE,LAST)) GOTO 900
     OK=.TRUE.
     LAST=LAST-1
-900 RETURN
+900 continue
+!    write(*,*)'Leaving macbeg/macend'
+    RETURN
 910 OK=.FALSE.
     write(*,*)'Error ',ierr,' opening macro file: ',trim(fil)
     buperr=1000+ierr
@@ -3048,13 +3290,13 @@ CONTAINS
     character cline*(*)
     integer lin
 !\end verbatim
-#ifdef win
-! On Windows command line editing is provided by the OS
-    call bintxt_nogetkey(lin,cline)
-#else
+#ifdef lixed
 ! LINUX: to have command line editing uncomment the line above and comment the 
 ! line with the call bintxt_nogetkey
     call bintxt_getkey(lin,cline)
+#else
+! On Windows command line editing is provided by the OS
+    call bintxt_nogetkey(lin,cline)
 #endif
     return
   end subroutine bintxt
@@ -3063,7 +3305,8 @@ CONTAINS
 
 !\begin verbatim
   subroutine bintxt_getkey(lin,cline)
-! LINUX: subroutine to read a line with history and editing a la emacs
+! This subroutine needed only on LINUX:
+! subroutine to read a line with history and editing a la emacs
 !
     character cline*(*)
     integer lin
@@ -3126,9 +3369,7 @@ CONTAINS
     hlast=myhistory%hpos+1
 ! read one character at a time without echo
 100 continue
-#ifdef win
-! on Windows se do not use this routine and getkey is not defined
-#else
+#ifdef lixed
 ! LINUX: read one character at a time without echo and allow editing history
     ch1=getkey()
 #endif
@@ -3171,15 +3412,7 @@ CONTAINS
           write(kou,10,advance='no')tbackspace
        enddo
        ip=1
-#ifdef win
-!............. OK
-    case(backspace,backspace2) ! ctrlb leftarrow (also up/down/right arrow)
-! move cursor one step back
-       if(ip.gt.1) then
-          write(kou,10,advance='no')tbackspace
-          ip=ip-1
-       endif
-#else 
+#ifdef lixed
 !............. NEW handle arrow key on Linix/Mac
     case(backspace) ! try to handle arrow keys sequence of 27, 91, A/B/C/D
        ch1=getkey()
@@ -3205,6 +3438,15 @@ CONTAINS
 !...............OK
 !    case(backspace,backspace2) ! ctrlb leftarrow (also up/down/right arrow)
     case(backspace2) ! ctrlb leftarrow (also up/down/right arrow)
+! move cursor one step back
+       if(ip.gt.1) then
+          write(kou,10,advance='no')tbackspace
+          ip=ip-1
+       endif
+!............. OK
+#else 
+! ?? this routine is never used on Windows ... I think the code is redundant
+    case(backspace,backspace2) ! ctrlb leftarrow (also up/down/right arrow)
 ! move cursor one step back
        if(ip.gt.1) then
           write(kou,10,advance='no')tbackspace
@@ -3364,7 +3606,6 @@ CONTAINS
     goto 100
 !=================  
 1000 continue
-!      call system('stty echo ')
     return
   end subroutine bintxt_getkey
 
@@ -5245,12 +5486,12 @@ CONTAINS
 !---------------------------------------------------------
 ! A new set of on-line help routines
 
-  subroutine init_help(file)
+  subroutine init_help(browser,file1,file2)
 ! This routine is called from gtpini to inititate the on-line help system
-    character*(*) file
+    character*(*) file1,file2,browser
     character*80 line
 ! test that file exists
-    open(21,file=file,access='sequential',status='old',&
+    open(21,file=file1,access='sequential',status='old',&
          err=900,iostat=jerr)
     read(21,10)line
 10  format(a)
@@ -5261,13 +5502,21 @@ CONTAINS
     endif
     close(21)
     helprec%okinit=1
-    helprec%filename=file
+!    helprec%filename=file
+    ochelp%latexfile=file1
+! check if html file
+    if(helprec%type(1:6).eq.'latex ' .and. file2(1:1).ne.' ') then
+       ochelp%htmlhelp=.TRUE.
+       ochelp%htmlfile=file2
+       ochelp%browser=browser
+    endif
     goto 1000
 900 continue
-    write(*,910)file(1:len_trim(file))
-910 format('Warning, cannot open ',a,' no on-line help')
+    write(*,910)trim(file1)
+910 format(' *** Warning, cannot open ',a,' no on-line help')
     helprec%okinit=0
-    helprec%filename=' '
+!    helprec%filename=' '
+    ochelp%latexfile=' '
 1000 continue
     return
   end subroutine init_help
@@ -5287,8 +5536,8 @@ CONTAINS
 ! This routine is called from submenu
 ! when the user types a ?
     character*(*) prompt,line
-    character helpquest*16
-    integer savedlevel
+    character helpquest*32
+    integer savedlevel,kk
     savedlevel=helprec%level-1
 ! If the ? is followed by a text push that text on the helprec%cpath
     ip=2
@@ -5296,20 +5545,41 @@ CONTAINS
     if(ip.lt.0) write(*,*)'q2help: ',savedlevel,line(1:20)
     if(.not.eolch(line,ip)) then
 !       write(*,*)helprec%level,helprec%cpath(helprec%level)
-       helpquest=line(ip:)
+!       helpquest=line(ip:)
+       helpquest=prompt
        call capson(helpquest)
+! remove any WHAT? as such levels will be ignored by q1help
+       kk=index(helpquest,'WHAT?')
+       if(kk.gt.0) then
+          helpquest(kk:)='COMMAND '
+          if(helptrace) write(*,*)'MM hepquest: ',kk,trim(helpquest)
+       endif
 ! use the saved helprec%level 
        helprec%level=savedlevel
        helprec%cpath(helprec%level)=helpquest
-!       write(*,11)helprec%level,(helprec%cpath(i)(1:8),i=1,helprec%level)
+! always upper case ...
+       call capson(helprec%cpath(helprec%level))
+!       if(helptrace) write(*,11)helprec%level,&
+!            (trim(helprec%cpath(i)),i=1,helprec%level)
 11     format('q2help: ',i3,10(', ',a))
+    else
+! when we are here we have just a ? from user, return to submenu with that
+! with two ?? or anything else q1help is called (I hope ...)
+       line='?!'
+       if(ochelp%htmlhelp) then
+          write(*,17)
+17        format(/'By typing two ?? you will open the browser')
+       endif
+       goto 1000
     endif
 ! this is a dummy line needed to force the MacOS linker to find this routine
-    if(savedlevel.eq.helprec%level) write(*,*)'Inside q2help: ',trim(prompt)
+!??  if(savedlevel.eq.helprec%level) write(*,*)'Inside q2help: ',trim(prompt)
     if(ip.lt.0) write(*,*)'in q2help calling q1help'
 ! write help text from help file and then return with ?! to get submenu
+    if(helptrace) write(*,*)'q2help calling q1help: ',trim(helpquest)
     call q1help(prompt,line)
     line='?!'
+1000 continue
     return
   end subroutine q2help
 
@@ -5319,202 +5589,259 @@ CONTAINS
 ! prompt is never used ...
     implicit none
     character*(*) prompt,line
-    character hline*80,mtxt*80
+    character hline*80,mtext*12
     integer, parameter :: maxlevel=20
-    character subsec(4)*10,saved(maxlevel)*16
+    character subsec(5)*10,saved(maxlevel)*24
+    character justdoit*256
     integer nsaved(maxlevel)
-    integer izz,jj,kk,kkk,level,nl,l2,np1,np2,nsub
-!
-!    write(*,*)'called on-line help',helprec%okinit
-!    if(helprec%okinit.ne.0) then
-!       write(*,*)'help file: ',helprec%filename(1:len_trim(helprec%filename))
-!    endif
-!    write(*,*)'we are on command path level: ',helprec%level
-!    do i=1,helprec%level
-!       write(*,10)i,helprec%cpath(i)
-!    enddo
-!10  format(i3,': ',a)
+    integer izz,jj,kk,kkk,level,nl,l2,np1,np2,nsub,zz
+    logical foundall
 !
     nsaved=0
     subsec(1)='%\section{'
     subsec(2)='%\subsecti'
     subsec(3)='%\subsubse'
     subsec(4)='%\subsubsu'
+    subsec(5)='%\question'
     if(helprec%okinit.eq.0) then
-       write(kou,*)'Sorry no help file'
+       if(helptrace) write(kou,*)'Sorry no help file'
        goto 1000
     endif
-! for debugging list current search path:
-!    do nl=1,helprec%level
-!       write(*,17)'Search levels: ',nl,helprec%cpath(nl)(1:24)
-!17     format(a,i3,2x,a)
-!    enddo
+! USEFUL for helptraceging list current search path:
+    if(helptrace) then
+       do nl=1,helprec%level
+          write(*,17)'Search level: ',nl,trim(helprec%cpath(nl))
+17        format(a,i3,2x,a)
+       enddo
+    endif
 !
-    open(31,file=helprec%filename,status='old',access='sequential')
+    open(31,file=ochelp%latexfile,status='old',access='sequential')
     nl=0
-    level=3
+    level=2
     np1=0
+    np2=0
     nsub=1
-!    savelevel=1
-    if(helprec%type.eq.'latex   ') then
-! plain LaTeX file, search for "%\section{" with command
-100    continue
+    foundall=.false.
+    ochelp%target=' '
+    if(helprec%type.ne.'latex   ') then
+       write(*,*)'Sorry only help based on LaTeX implemented'
+       goto 900
+    endif
+! plain LaTeX file. The questions the OC software asks are saved from the
+! top level in helprec%cpath(1..level).  This makes it possible to compare
+! the these commands with comment lines in the help file to find the relevant 
+! helptext.  The comment lines are structured as the LaTeX sections
+! %\subsection{question1}, %\subsubse..{questione} etc
+! for each match the sublevel is increased and when we find match
+! with the last helprec%cpath(helprec%level) we assume the text until
+! the next %\sub....  can be provided as help
+! If there is an additional HTML help file the text can instead be displayed
+! in a browser using \hypertarget{label} from the LaTeX file found after
+! the last matching sublevel
+! Only first 12 characters in helprec%cpath and %\section{ sublevel are used
+! return here when we found match at level
+100 continue
+    level=level+1
+    if(helptrace) write(*,*)'At label 100: ',level,helprec%level,nl
+    if(level.gt.helprec%level) then
+       foundall=.true.
+       if(helptrace) write(*,*)'Foundall 1',nl
+       goto 200
+    elseif(level.eq.helprec%level .and.&
+         helprec%cpath(level)(1:2).eq.'? ') then
+! this is when help is asked in a submenue with two ??
+! with just one ? the menue is displayed, with ?? the helpfile is used
+       foundall=.TRUE.
+       if(helptrace) write(*,*)'Foundall 2',nl
+       goto 200
+    endif
+110 continue
+! skip cpath levels that contain COMMAND: or WHAT?
+! if last level and cpath contain ? we have found all
+    if(index(helprec%cpath(level),'COMMAND: ').gt.0 .or. &
+         index(helprec%cpath(level),' WHAT? ').gt.0) then
+       level=level+1
        if(level.gt.helprec%level) then
-          level=level-1
-       endif
-       l2=len_trim(helprec%cpath(level))
-! Strange error comaprin the first 12 characters of helprec%cpath .. with mtext
-! below.  Maybe better to assign this to a 12 character variable?
-!       write(*,107)level,l2,nsub,helprec%cpath(level)(1:l2)
-107    format('Search: ',3i5,': ',a)
-110    continue
-       read(31,120,end=700)hline
-120    format(a)
-121    format('- ',a)
-       nl=nl+1
-       kk=index(hline,subsec(nsub))
-       if(nsub.gt.1) then
-          izz=index(hline,subsec(nsub-1))
-       else
-          izz=0
-       endif
-       if(kk.gt.0) then
-!          write(*,*)'found section: ',hline(1:30),nl
-          call capson(hline)
-          kk=kk+8
-          kk=index(hline,'SECTION{')+8
-          if(kk.le.8) then
-             write(*,*)'Help file error, not correct LaTeX',kk
-             np1=0
-             goto 700
-          endif
-! remove everything after and including } in the help file
-          jj=index(hline,'}')-1
-          hline(jj+1:)=' '
-          mtxt=hline(kk:jj)
-!127       kkk=index(mtxt,'-')
-!          if(kkk.gt.0) then
-! NOTE that in LaTeX files the underscore _ is replaced by \_
-! this means one will not find commands with underscore ....
-!             mtxt(kkk:kkk)='_'
-!             goto 127
-!          endif
-!          write(*,*)'found mtxt: ',trim(mtxt),level
-! I do not understand what this does ...
-          do jj=1,maxlevel
-             if(level.gt.jj) then
-! remove previous command if any from the search text
-                kkk=nsaved(jj)
-                if(kkk.gt.0) then
-                   if(mtxt(1:kkk+1) .eq. saved(jj)(1:kkk+1)) then
-!                      write(*,*)'Removing ',mtxt(1:kkk),kkk
-! ??                  mtxt=mtxt(kkk+2:)
-                      mtxt=mtxt(kkk+2:)
-                   endif
-                endif
-             endif
-          enddo
-!          write(*,130)level,mtxt(1:12),helprec%cpath(level)(1:12),nl
-!          write(*,130)level,hline(kk:jj),helprec%cpath(level)(1:l2),nl
-130       format('comparing: ',i3,': "',a,'" with "',a,'" line ',i4)
-!          if(hline(kk:kk+l2-1).eq.helprec%cpath(level)(1:l2)) then
-          if(mtxt(1:12).eq.helprec%cpath(level)(1:12)) then
-! found one level, save line number for first line
-             np1=nl
-!             write(*,*)'We found one level at line: ',np1,nsub
-             nsub=nsub+1
-! we cannot store more levels ... quit
-             if(level.gt.maxlevel) goto 700
-             saved(level)=helprec%cpath(level)
-             nsaved(level)=len_trim(saved(level))
-             np2=0
-             level=level+1
-             if(level.gt.helprec%level) then
-! we have no more input from user, list the text to next %\section or %\sub...
-                level=level-1
-                goto 100
-             endif
-! look for start line of next level
-!             write(*,133)level,helprec%cpath(level)
-133          format('Next cpath: ',i3,': ',a)
-             if(index(helprec%cpath(level),'COMMAND: ').gt.0 .or. &
-                  index(helprec%cpath(level),' what? ').gt.0) then
-! if next "command/question" starts with COMMAND. or finishes with "what?" 
-! skip that because it is a submenu question and if this is
-! the last command line then just return as user interface will help
-!                write(*,*)'level and helprec%level',level,helprec%level,nsub
-                if(level.ge.helprec%level) goto 900
-                level=level+1
-                goto 100
-             endif
-             if(nsub.lt.3) nsub=nsub+1
-             goto 100
-          elseif(level.eq.helprec%level .and. np1.gt.0 .and. np2.eq.0) then
-! save end of text
-             np2=nl-1
-             goto 700
-          else
-! continue searching
-             goto 100
-          endif
-       elseif(izz.gt.0) then
-! we have found the start of a higher order section, finish searching
-          np2=nl-1
-          goto 700
+          foundall=.TRUE.
+          if(helptrace) write(*,*)'Foundall 2',nl
+          goto 200
        endif
        goto 110
-    else
-! One should also implement HTML help files
-       write(*,*)'Filetype not understood'
-       goto 1000
     endif
-! we should write lines from np1 to np2 from help file
-700 continue
+    if(helptrace) write(*,*)'Searching for: ',trim(helprec%cpath(level)),level
+! return here when last line did not contain any matching subsec
+! we can arrive here with np1=0 and foundall==true
+! for help at first command level
+200 continue
+    read(31,210,end=700)hline
+210 format(a)
+    nl=nl+1
     if(np1.gt.0) then
-       if(np2.lt.np1) then
-          write(*,*)'Help text range error: ',np1,np2
-          goto 900
+! np1 is nonzero if we have found a line matching one helprec%cpath
+! We will save all hypertarget labels to have some idea what help text
+! to provide if we do not find all %cpath
+! If we found the helprec%cpath(helprec%level) foundall is set TRUE
+! but we continue until we find the following %\section at the same
+! or higher sublevel
+       kk=index(hline,'\hypertarget{')
+       if(kk.gt.0) then
+          ochelp%target=hline(kk+13:)
        endif
-! HERE ONE SHOULD OPEN A NEW WINDOW TO DISPLAY THE HELP TEXT BELOW, FOR EXAMPLE
-!       call displayhelp(helprec%filename,np1,np2)
-! write a blank line
-       write(kou,*)
-! OR IF A HELP WINDOW IS ALREADY OPEN ONE SHOULD FOCUS THE TEXT IN THAT WINDOW
-! ON LINES NP1 to NP2.
-! IN THE HELP WINDOW THE USER SHOULD BE ABLE TO SCROLL THE WHOLE HELP TEXT
-! AND MAYBE MAKE NEW SEACHES.  THE USER CAN CLOSE THE WINDOW WHEN HE WANTS
-       write(*,798)np1,np2
-798    format(' >>> We should open a help window to display text: ',2i5)
-       rewind(31)
-       nl=0
-800    continue
-       read(31,120)hline
-       nl=nl+1
-       if(nl.ge.np2) then
-          goto 900
-       elseif(nl.ge.np1) then
-! do not write lines starting with \ (backslash, ascii 92),
-! they are LaTeX commands.  Ignore all LaTeX commands except \item
-! the backslash is not easy to put in a text character ...
-! A line starting with "%\subs" supress all text from position 1 to the {
-          if(ichar(hline(1:1)).ne.92) then
-             if(hline(1:1).eq.'%' .and. ichar(hline(2:2)).eq.92 .and.&
-                  hline(3:6).eq.'subs') then
-                izz=index(hline,'{')+1
-                jj=1
-                do while(jj.gt.0)
-                   jj=index(hline,'}')
-                   if(jj.gt.0) hline(jj:jj)=' '
-                enddo
-                write(*,120)trim(hline(izz:))
-             else
-                write(*,120)trim(hline)
-             endif
-          elseif(hline(2:5).eq.'item') then
-             write(*,121)trim(hline(6:))
+       if(foundall) then
+! terminate at a line with any sublevel
+          izz=0
+          do kk=1,5
+             if(hline(1:10).eq.subsec(6-kk)) izz=1
+          enddo
+          if(izz.gt.0) then
+             np2=nl-1
+             goto 700
+          endif
+          goto 200
+       endif
+    elseif(foundall) then
+! this should give help from user guide for section %\section{All commands}
+!       write(*,*)'M3 "All commands"',hline(1:24),nl
+       if(hline(1:23).eq.'%\section{All commands}') then
+          np1=nl
+          np2=nl+20
+! next line should be hypertarget
+          read(31,210)hline
+!          write(*,*)'next line: ',trim(hline),nl
+          kk=index(hline,'\hypertarget{')
+          if(kk.gt.0) then
+             ochelp%target=hline(kk+13:)
+             kk=index(ochelp%target,'}')
+             ochelp%target(kk:)=' '
+             goto 700
+          else
+! the help file is messed up ...             
+             ochelp%target='All commands'
+             goto 700
           endif
        endif
-       goto 800
+       goto 200
+!    else
+! here we now have np1>0 and use the rest of this routine as usual
+    endif
+! we are searching for a subsec on the sublevel nsub
+! Check if we have a %\section of this sublevel on the line
+    kk=index(hline,subsec(nsub))
+    section: if(kk.eq.0) then
+! if there is none but we already found one sublevel check if we find the same
+!       write(*,*)'no subsec: ',nsub
+       prevsub: if(nsub.gt.2) then
+          kk=index(hline,subsec(nsub-2))
+          if(kk.gt.0) then
+! we have found a sublevel 2 levels up ... we are out of scope          
+             if(helptrace) write(*,*)'Found subsec two levels up!'
+             np2=nl
+             goto 700
+          elseif(nsub.gt.1) then
+             kk=index(hline,subsec(nsub-1))
+             if(kk.gt.0) then
+! we have found a subsec at the same sublevel we already found
+! check if we have match with the helprec%cpath, only 12 first characters!
+                jj=index(hline,'{')
+                if(jj.le.0) then
+                   write(*,*)'LaTeX helpfil missing { on line:',nl
+                   goto 200
+                endif
+                mtext=hline(jj+1:)
+                kk=index(mtext,'}')
+                if(kk.gt.0) mtext(kk:)=' '
+                call capson(mtext)
+                zz=len_trim(mtext)
+                if(helptrace) write(*,300)'same: ',helprec%cpath(level)(1:zz),&
+                     ' =?= ',mtext(1:zz),level,nsub,nl
+                if(helprec%cpath(level)(1:zz).eq.mtext(1:zz)) then
+! we have found match with the next level of user path on same sublevel
+                   goto 100
+                endif
+             endif
+          endif
+       endif prevsub
+! just read another line
+       goto 200
+    else
+! we have found a %\sub... for next level, check if it is %cpath(level)
+       jj=index(hline,'{')
+       if(jj.le.0) then
+          write(*,*)'LaTeX helpfil missing { on line:',nl
+          goto 200
+       endif
+       mtext=hline(jj+1:)
+       kk=index(mtext,'}')
+       if(kk.gt.0) mtext(kk:)=' '
+       call capson(mtext)
+       zz=len_trim(mtext)
+       if(helptrace) write(*,300)'next: ',helprec%cpath(level)(1:zz),' =?= ',&
+            mtext(1:zz),level,nsub,nl
+300    format(a,a,a,a,5i5)
+       if(helprec%cpath(level)(1:zz).eq.mtext(1:zz)) then
+! we have found match with the next level of user path
+          if(helptrace) write(*,*)'Match: ',level,nsub,nl
+          nsub=nsub+1
+          np1=nl
+          goto 100
+       endif
+       goto 200
+    endif section
+! jump here if we do not search any more
+! we should write lines from np1 to np2 from help file or HTML file
+700 continue
+    if(np1.gt.0) then
+       if(np2.le.np1) then
+! we found no obvious end of help text
+          write(*,*)'Help text range error: ',np1,np2
+       endif
+! if htmlhelp is true open a browser window and place text at target
+       htmlfil: if(ochelp%htmlhelp .and. ochelp%target(1:1).ne.' ') then
+! the user has to close the help window to continue ... spawn??
+!          write(*,711)np1,np2
+711       format(/' *** You must close the browser window to continue OC',2i5/)
+! the \hypertaget should be finished by a }
+          kk=index(ochelp%target,'}')-1
+          if(kk.le.0) kk=len_trim(ochelp%target)
+#ifdef lixhlp
+! on linux just ' "file:" as ochelp#htmlfile start with a /
+! The & at the end spawns the browser window and furter ? creates new tags !!
+          justdoit=trim(ochelp%browser)//' "file:'//&
+               trim(ochelp%htmlfile)//'#'//ochelp%target(1:kk)//'" &'
+#else
+! on Windows we need the / after file
+! the initial start spawns a new window with the browser, each ? a new browser
+          justdoit='start '//trim(ochelp%browser)//' "file:/'//&
+               trim(ochelp%htmlfile)//'#'//ochelp%target(1:kk)//'"'
+#endif
+          if(helptrace) write(*,*)'MM: ',trim(justdoit)
+          call execute_command_line(justdoit)
+          goto 900
+       else
+! help in user terminal screen: write a blank line
+          write(kou,*)
+          write(*,798)np1,np2
+798       format(' >>> We should open a help window to display text: ',2i5)
+          rewind(31)
+          nl=0
+800       continue
+          read(31,210)hline
+          nl=nl+1
+          if(nl.ge.np2) then
+             goto 900
+          elseif(nl.ge.np1) then
+             if(hline(1:1).ne.'%') then
+! ignore LaTeX comment lines and replace \item with a -
+                if(hline(2:5).eq.'item') then
+                   write(*,811)trim(hline(6:))
+811                format('- ',a)
+                else
+                   write(*,210)trim(hline)
+                endif
+             endif
+          endif
+          goto 800
+       endif htmlfil
     else
        write(*,*)'No help found'
     endif

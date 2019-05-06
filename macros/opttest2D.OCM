@@ -8,7 +8,7 @@ set echo
 
 new Y
 
-r u opttest2-cumg3
+r u ./opttest2-cumg3
 
 @$---------------------------------------------------
 @$ Start by reading the unformatted file
@@ -44,7 +44,7 @@ l opt
 
 @&
 
-macro opttest2-map-diagram
+macro ./opttest2-map-diagram
 
 @$---------------------------------------------------------
 @$ The CuMg2 phase is stable to very high T, add the entropy
@@ -63,12 +63,41 @@ set wei 1 MELT2
 
 c all n 1
 
+@$ Sometimes error calculating the melting points, equilibria 547 and 547
+@&
+@$ Check conditions
+sel eq 547
+l,,,,
+
+@&
+@$ Instead of calculating with both phases fix we can set CuMG2 as dormant
+@$ and T=840 as condition and the driving force of CUMG2=0 as experiment
+set status phase cumg=dorm
+set cond t=840
+enter exper dgm(cumg2)=0:.01
+
+c e
+l,,,,,
+
+@$ Now we can calculate the equilibrium and
+@$ we can fit V31 by forcing DGM(CUMG2) to be zero 
+@&
+@$ Remove the next equilibrium with the same experiment
+sel eq next
+l,,,,,
+
+set wei 0
 @&
 
 opt 100
 
+l opt
+
+
+@$ set inter
+
 @$---------------------------------------------------------
-@$ We are optimizing two experiments with 2 coefficent.
+@$ We are optimizing two experiments with 2 coefficents.
 @$ We get a good fit.
 @$---------------------------------------------------------
 @&
@@ -76,7 +105,7 @@ list opt
 
 @&
 
-macro opttest2-map-diagram
+macro ./opttest2-map-diagram
 
 @&
 @$------------------------------------------------------
@@ -94,9 +123,7 @@ del step_map
 
 @&
 
-save unf
-liq and cumg2 parameters OK
-opttest2-cumg4
+save unf ./opttest2-cumg4
 Y
 
 set inter

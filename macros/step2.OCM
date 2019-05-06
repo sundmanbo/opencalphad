@@ -25,7 +25,7 @@ new Y
 
 set echo
 
-r t agcu
+r t ./agcu
 
 
 @&

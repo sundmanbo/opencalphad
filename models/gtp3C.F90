@@ -191,8 +191,8 @@
    implicit none
    integer unit
 !\end{verbatim}
-   integer jl,ipos
-   character line*80
+   integer jl,ipos,loksp
+   character line*100
    write(unit,10)noofsp
 10  format(/'List of ',i3,' species'/ &
         '  No Symbol',20X,'Stoichiometry',12X,'Mass      Charge Status')
@@ -201,8 +201,14 @@
       call list_species_data(line,ipos,species(jl))
       if(gx%bmperr.ne.0) goto 1000
       write(unit,100)jl,line(1:ipos)
+! uniquac values
+      loksp=species(jl)
+      if(btest(splista(loksp)%status,SPUQC)) then
+         write(unit,110)splista(loksp)%spextra
+      endif
    enddo loop1
 100 format(i4,1x,A)
+110 format(5x,'UNIQUAC area (q): ',F10.4,', segments (r): ',F10.4)
 1000 continue
    return
  END subroutine list_all_species
@@ -225,7 +231,7 @@
    TYPE(gtp_phase_varres), pointer :: csrec
    double precision am1,am2
 !
-   write(*,*)'3C list_sorted_phases'
+!   write(*,*)'3C list_sorted_phases'
    allocate(entph(nooftuples))
    allocate(dorph(nooftuples))
    nstab=0; nent=0; ndorm=0; nsusp=1
@@ -3310,8 +3316,9 @@
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
 !\begin{verbatim}
- subroutine list_experiments(lut,ceq)
+ subroutine list_experiments_old(lut,ceq)
 ! list all experiments into text
+! REPLACED BY MEQ_LIST_EXPERIMENTS
    implicit none
    integer lut
    TYPE(gtp_equilibrium_data), pointer :: ceq
@@ -3342,7 +3349,7 @@
 1000 continue
    gx%bmperr=0
    return
- end subroutine list_experiments
+ end subroutine list_experiments_old
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
@@ -3459,9 +3466,10 @@
    text(ip:ip)=':'
    ip=ip+1
 !   write(*,*)'3C experiment line 3: ',text(1:ip),ip
+!   write(*,*)'3C uncertainty: ',current%symlink2
    if(current%symlink2.gt.0) then
 ! the value is a symbol
-      text(ip:)=svflista(current%symlink1)%name
+      text(ip:)=svflista(current%symlink2)%name
       ip=len_trim(text)+1
    else
 !      call wrinum(text,ip,10,0,current%uncertainty)
@@ -3997,7 +4005,7 @@
 
 !\begin{verbatim}
  subroutine list_equilibria_details(mode,teq)
-! not used yet ...
+! not used yet ... ??
    implicit none
    TYPE(gtp_equilibrium_data), pointer :: teq
    integer mode
@@ -5046,7 +5054,9 @@
                write(text,210)constcomp
 ! THIS IS THE STOICHIMETRY OF THE ENDMEMBER, with 6 decimal digits
 ! If this format is changed the output routine list_tpascoef must be changed!
-210            format(60(1x,F11.6))
+!210            format(60(1x,F11.6))
+! ERNESTO GEIGER complained it did not work ... this is stoichiometry format
+210            format(60(1x,F7.2))
 ! Check if any value in contcomp is greated than 1000, could give overflow
 ! Check also if two decimals not enough
                do i3=1,noofel
@@ -5480,6 +5490,11 @@
             endif
          enddo
       enddo sloop2
+! we may come here if there are no endmembers!
+      if(.not.associated(endmember)) then
+         write(*,*)'3C skipping this phase'
+         cycle phases2
+      endif
 ! for the parameters follow the property link
       property=>endmember%propointer
       if(associated(property)) then
@@ -5795,7 +5810,8 @@
   subroutine listoptcoeff(mexp,error2,done,lut)
 ! listing of optimizing coefficients
     integer lut,mexp
-    double precision error2
+! error2 is an array with 1: old error, 2: new error; 3: normalized error
+    double precision error2(*)
     logical done
 !    integer lut,mexp
 !    double precision errs(*)
@@ -5805,7 +5821,9 @@
     integer i1,i2,j1,j2,j3,k1,nvcoeff
     character name1*24,where*80
     double precision xxx
+    logical rescale
 !
+    rescale=.false.
     write(lut,610)
 610 format(/'List of coefficients with non-zero values'/&
          'Name  Current value  Start value   Scaling factor RSD',10x,&
@@ -5824,11 +5842,15 @@
                firstash%coeffstart(i1),firstash%coeffscale(i1),&
                firstash%coeffrsd(i1),trim(where)
 615       format(a,2x,4(1pe14.5),2x,a)
-          if(abs(xxx-firstash%coeffvalues(i1)*firstash%coeffscale(i1))&
-               .gt.1e-8) then
-             write(*,*)'Not same: ',xxx,&
-                  firstash%coeffvalues(i1)*firstash%coeffscale(i1)
+          if(abs(xxx-firstash%coeffscale(i1)).gt.1.0D-4*abs(xxx)) then
+!             write(*,*)'3C why?:'
+             rescale=.true.
           endif
+!          if(abs(xxx-firstash%coeffvalues(i1)*firstash%coeffscale(i1))&
+!               .gt.1e-4) then
+!             write(*,*)'3C scaled and current: ',xxx,&
+!                  firstash%coeffvalues(i1)*firstash%coeffscale(i1)
+!          endif
           if(firstash%coeffstate(i1).eq.11) then
 ! there is a prescribed minimum
              write(lut,616)' minimum ',firstash%coeffmin(i1)
@@ -5865,6 +5887,12 @@
           firstash%coeffstate(i1)=1
        endif coeffstate
     enddo
+! give a warning if parameters need to be rescaled
+    if(rescale) then
+       write(lut,717)
+717    format(/'In order to have correct RSD values use the command',&
+            ' AMEND OPT_COEF Y'/'and optimize again.'/)
+    endif
 !    sum=zero
 !    do j1=1,mexp
 !       sum=sum+errs(j1)**2
@@ -5872,11 +5900,11 @@
     if(done) then
 ! only if there are results
        j1=mexp-nvcoeff
-       if(j1.gt.0) then
-          write(lut,621)error2,mexp,nvcoeff,j1,error2/j1
-       else
-          write(lut,621)error2,mexp,nvcoeff,0,zero
-       endif
+!       if(j1.gt.0) then
+          write(lut,621)error2(2),mexp,nvcoeff,j1,error2(3)
+!       else
+!          write(lut,621)error2(2),mexp,nvcoeff,0,zero
+!       endif
 621    format(/'Final sum of squared errors: ',1pe16.5,&
             ', using ',i4,' experiments and'/&
             i3,' coefficients.  Degrees of freedom: ',i4,&

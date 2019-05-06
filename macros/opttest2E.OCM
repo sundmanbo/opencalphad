@@ -9,7 +9,7 @@ new Y
 
 set echo
 
-r u opttest2-cumg4
+r u ./opttest2-cumg4
 
 @&
 @$ List previous results
@@ -47,7 +47,7 @@ l opt
 
 @&
 
-macro opttest2-plot-cplaves
+macro ./opttest2-plot-cplaves
 
 @$---------------------------------------------------------
 @$ There is a strange maximum of the Cp at low T.  Why?
@@ -78,8 +78,9 @@ set fix 40 -300000
 @& Set the T-independent parameter to a large negative value
 @&
 
-macro opttest2-plot-cplaves
+macro ./opttest2-plot-cplaves
 
+@&
 @$--------------------------------------------------------
 @$ There is still a maximum but at a higher T
 @$ Check how the constitution varies!
@@ -157,7 +158,7 @@ l opt
 @$--------------------------------------------------------------
 @&
 
-mac opttest2-plot-cplaves
+mac ./opttest2-plot-cplaves
 
 @&
 @$---------------------------------------------------------
@@ -192,18 +193,18 @@ l opt short
 @&
 @$ Plot the Cp
 
-mac opttest2-plot-cplaves
+mac ./opttest2-plot-cplaves
 
 
 @$ We have a reasonable fit to Cp
 @&
 @$---------------------------------------------------------
-@$ Use the AMEND ALL command to set the current values as start values
+@$ Use the AMEND OPT Y command to set the current values as start values
 @$ and optimize again.  This is important if the coefficents have
 @$ changed a lot
 @$---------------------------------------------------------
 
-amend all y
+amend opt y
 
 @&
 
@@ -217,7 +218,7 @@ l opt
 @&
 @$ Finally plot again and check the constitution
 
-mac opttest2-plot-cplaves
+mac ./opttest2-plot-cplaves
 
 @&
 
@@ -246,9 +247,7 @@ del step_map_result
 @$---------------------------------------------------------
 @&
 
-save unf
-Done Cp for Laves_C15
-opttest2-cumg5
+save unf ./opttest2-cumg5
 Y
 
 set inter
