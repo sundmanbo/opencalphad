@@ -187,9 +187,7 @@
       if(eqlista(i)%nexteq.ne.i+1) then
 ! if eqlista(i)%nexteq does not increment sequentially there are some holes!
          last=eqlista(i)%nexteq
-         write(*,*)'3E Beware: unused equilibria before the last used &
          write(*,*)'3E Beware: unused equilibria before the last used,'//&
-              &cannot be saved'
               ' cannot be saved'
          gx%bmperr=4399; goto 1000
       endif
