@@ -11,6 +11,10 @@ FCOPT= -O2 -fopenmp
 #FC=ifort
 #FCOPT= -check bounds -zero
 
+# ************************************
+# OC now requires GNUPLOT 5.0 or later
+# ************************************
+
 # To have the command line editing and history feature on your OS 
 # you must uncomment the appropriate line after the header getkey.o:
 

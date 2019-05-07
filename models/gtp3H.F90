@@ -4,7 +4,7 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
 !>     14. Additions and diffusion
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
-! Additions have a unique number, given sequentially as implemented
+! Additions have a unique number, given sequentially as implemented 
 ! These are all defined in gtp3.F90
 !  integer, public, parameter :: INDENMAGNETIC=1
 !  integer, public, parameter :: XIONGMAGNETIC=2
@@ -199,6 +199,8 @@
    end select addition
 !-----------------------------------------
    if(gx%bmperr.ne.0) goto 1000
+! initiate status word for this addition
+   newadd%status=0
    if(associated(phlista(lokph)%additions)) then
 !      write(*,*)'3H adding new addition record to phase  ',lokph,addtyp
       lastrec%nextadd=>newadd
@@ -230,40 +232,6 @@
 1000 continue
    return
  end subroutine need_propertyid
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\begin{verbatim}
-! subroutine add_magrec_inden(lokph,addtyp,aff)
-! adds a magnetic record to lokph
-! lokph is phase location
-! addtyp should be 1 of Inden model
-! aff is antiferromagnic factor, -1 for bcc and -3 for fcc and hcp
-!   implicit none
-!   integer lokph,addtyp,aff
-!\end{verbatim} %+
-!   integer mc
-!   type(gtp_phase_add), pointer :: newadd,addrec,addrec1
-!   mc=phlista(lokph)%tnooffr
-! check if there are other additions
-!   addrec1=>phlista(lokph)%additions
-!   addrec=>addrec1
-!200 do while(associated(addrec))
-!      if(addrec%type.eq.indenmagnetic) then
-!         write(*,*)'3H Inden magnetic model already entered'
-!         goto 1000
-!      else
-!         addrec1=addrec
-!         addrec=>addrec%nextadd
-!      endif
-!   enddo
-! add the addition record last
-!   call create_magrec_inden(newadd,aff)
-!   if(gx%bmperr.ne.0) goto 1000
-!   addrec1%nextadd=>newadd
-!1000 continue
-!   return
-! end subroutine add_magrec_inden
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -1053,13 +1021,13 @@
 
 !\begin{verbatim} %-
  subroutine calc_volmod1(moded,phres,lokadd,lokph,mc,ceq)
-! calculate the simple volume model
+! calculate the simple volume model, CURRENTLY IGNORING COMPOSITION DEPENDENCE
 !
-! G = P*V0*exp(VA(T))
+! G = P*V0(x)*exp(VA(T,x))
 ! moded: integer, 0=only G, S, Cp; 1=G and dG/dy; 2=Gm dG/dy and d2G/dy2
 ! phres: pointer, to phase\_varres record
 ! lokadd: pointer, to addition record
-! lokph: integer, phase record 
+! lokph: integer, phase record index
 ! mc: integer, number of constituents
 ! ceq: pointer, to gtp_equilibrium_data
    implicit none
@@ -1071,6 +1039,10 @@
 !\end{verbatim}
    integer jl,iv0,iva,ivb,noprop
    double precision v0,va,vb,vol,deltap,pvol
+! propval are stored locally in addition record
+   lokadd%propval=zero
+! if this bit not set there are no volume parameters
+   if(.not.btest(lokadd%status,ADDHAVEPAR)) goto 1000
    iv0=0; iva=0; ivb=0;
    v0=zero; va=zero; vb=zero
    noprop=phres%listprop(1)-1
@@ -1086,26 +1058,24 @@
          vb=phres%gval(1,ivb)
       endif
    enddo findix
-! if iva is zero there are no volume data
-   if(iva.eq.0) goto 1000
+!   write(*,'(a,3i3)')'3H volmodel: ',iv0,iva,ivb
+! if iv0 is zero there are no volume data
+   if(iv0.eq.0) goto 1000
 ! reference pressure is 1 bar
    deltap=ceq%tpval(2)-1.0D5
    if(ivb.ne.zero) then
-! if ivb not zero there are bulk modulus data
+! if ivb not zero there are bulk modulus data ... NOT IMPLEMENTED
       write(*,*)'3H Volume model with bulk modulus not implemented'
-   elseif(v0.ne.zero) then
+   else
+      vol=v0/ceq%rtn
+      if(iva.ne.zero) then
 ! NOTE all values should be divided by RT
-      vol=v0*exp(va)/ceq%rtn
-      pvol=deltap*vol/ceq%rtn
-      if(iva.gt.0) then
-!         write(*,17)'3H volume: ',lokph,iv0,iva,v0,va,vol,pvol,&
-!              phres%gval(2,iva),phres%gval(4,iva)
-17       format(a,3i3,6(1pe11.3))
-      else
-!         write(*,17)'3H volume: ',lokph,iv0,iva,vol,pvol
+         vol=v0*exp(va)/ceq%rtn
       endif
+!      write(*,*)'3H v0, va: ',v0,va
+      pvol=deltap*vol
 ! contribtions to G and derivatives, G, G.T, G.P=V, G.T.T, G.T.P, G.P.P
-! NOTE other parameters may depend on P!
+! NOTE there may be other parameters which depend on P!
       phres%gval(1,1)=phres%gval(1,1)+pvol
 ! G.T
       phres%gval(2,1)=phres%gval(2,1)+pvol*phres%gval(2,iva)
@@ -1117,16 +1087,16 @@
 ! G.T.P
       phres%gval(5,1)=phres%gval(5,1)+vol*phres%gval(2,iva)
 ! G.P.P
+! for the moment ignore pressure and composition dependence ...
 !      phres%gval(6,1)=phres%gval(6,1)
-! for the moment ignore composition dependence ...
-! store some property values
-      lokadd%propval(1)=pvol
-      lokadd%propval(2)=pvol*phres%gval(2,iva)
-      lokadd%propval(3)=vol
-      lokadd%propval(4)=pvol*(phres%gval(2,iva)**2+phres%gval(4,iva))
-      lokadd%propval(5)=vol*phres%gval(2,iva)
-      lokadd%propval(6)=zero
    endif
+! store some property values
+   lokadd%propval(1)=pvol
+   lokadd%propval(2)=pvol*phres%gval(2,iva)
+   lokadd%propval(3)=vol
+   lokadd%propval(4)=pvol*(phres%gval(2,iva)**2+phres%gval(4,iva))
+   lokadd%propval(5)=vol*phres%gval(2,iva)
+   lokadd%propval(6)=zero
 1000 continue
    return
  end subroutine calc_volmod1
@@ -3017,6 +2987,7 @@
 ! used when writing databases files and phase data
    implicit none
    integer unit,ftyp
+! CHTD is letter for TDB files TYPE_DEFINITION ... suck
    character CHTD*1,phname*(*)
    TYPE(gtp_phase_add), pointer :: lokadd
 !\end{verbatim} %+
@@ -3031,6 +3002,14 @@
       chc='$ '
    endif
 !
+   if(.not.btest(lokadd%status,ADDHAVEPAR)) then
+! skip additions with no parameters for this phase
+!      write(*,*)chc,'3H No parameters for addition: ',&
+!           trim(additioname(lokadd%type))
+      goto 1000
+!   else
+!      write(*,*)'3H status word for this addition: ',lokadd%status
+   endif
    addition: select case(lokadd%type)
    case default
       write(unit,*)'Unknown addtion type: ',phname,lokadd%type
@@ -3092,32 +3071,35 @@
 !---------------------------------------------
    case(einsteincp) ! Einstein Cp model
       write(unit,400)chc
-400   format(a,'+ Einstein Cp model: G= 1.5*R*THET + 3RTln(exp(ln(THET)/T)-1)')
+400   format(a,'+ Einstein Cp model: 1.5R*THET(x) +',&
+           ' 3RT*ln(exp(ln(THET(x))/T)-1)')
 !---------------------------------------------
    case(elasticmodel1) ! Elastic model 1
       write(unit,500)
 500   format(2x,'+ Elastic model 1, with P interpreted as a force in',&
            ' the X direction.')
 !---------------------------------------------
-   case(twostatemodel1) ! Liquid two state  model
-      write(unit,510)
-510   format('  + Liquid 2 state model: G=G(liq)+G(am)-RTln(1+exp(-G2/RT)')
+   case(twostatemodel1) ! Liquid two state  model including Einstein
+      write(unit,510)chc,chc
+510   format(a,' + Liquid 2 state model: G(liq)-RT*ln(1+exp(-G2(x,T)/RT))'/&
+           a,' + Einstein Cp model: 1.5R*THET(x) ',&
+           '+ 3RT*ln(exp(ln(THET(x))/T)-1)')
 !---------------------------------------------
    case(volmod1) ! Volume model 1
       write(unit,520)chc
-520   format(a,'+ Volume model V=V0(x)*exp(VA(x,T))')
+520   format(a,'+ Volume model P*V0(x)*exp(VA(x,T))')
 !---------------------------------------------
-!   case(crystalbreakdownmod) ! Crystal breakdown model UNUSED
+!   case(crystalbreakdownmod) ! Crystal breakdown model UNUSED, EET not listed
 !      write(unit,530)chc
 !530   format(a,'+ Crystal breakdown model used above current value of CBT')
 !---------------------------------------------
    case(secondeinstein) ! Second Einstein Cp contribution
       write(unit,540)chc
-540   format(a,'+ Second Einstein Cp contribution DCP2/R*T*ln(exp(ln(THT2)/T)-1)')
+540   format(a,'+ Second Einstein: DCP2(x)*RT*ln(exp(ln(THT2(x))/T)-1)')
 !---------------------------------------------
    case(schottkyanomality) ! Schottky Anomality
       write(unit,550)chc
-550   format(a,'+ Schottky anomality DSCH/R*T*ln(1+exp(-ln(TSCH)/T)) ')
+550   format(a,'+ Schottky anomality DSCH(x)*RT*ln(1+exp(-ln(TSCH(x))/T)) ')
    end select addition
 1000 continue
    return
@@ -3128,6 +3110,7 @@
 !\begin{verbatim} %-
  subroutine list_addition_values(unit,phres)
 ! lists calculated values for this addition
+! Used for the command CALCULATE PHASE to inform about additions
    implicit none
    integer unit
    TYPE(gtp_phase_varres), pointer :: phres
@@ -3140,8 +3123,10 @@
    do while(associated(addrec))
 !      write(lut,77)addrec%type,(addrec%propval(j1),j1=1,4)
 77    format('Addition type ',i2,': ',4(1pe12.4))
-      write(lut,78)additioname(addrec%type),(addrec%propval(j1),j1=1,4)
-78    format('Addition ',a,': ',4(1pe11.3))
+! ignore additions without parameters
+      if(btest(addrec%status,ADDHAVEPAR)) &
+           write(lut,78)additioname(addrec%type),(addrec%propval(j1),j1=1,4)
+78    format('Addition/RT ',a,':',4(1pe10.2))
       addrec=>addrec%nextadd
    enddo
 1000 continue

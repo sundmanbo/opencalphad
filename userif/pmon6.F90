@@ -526,6 +526,7 @@ contains
     axplotdef=' '
 ! default list unit
     optionsset%lut=kou
+    lut=kou
 ! default for list short
     chshort='A'
 ! set default minimizer, 2 is matsmin, 1 does not work ...
@@ -2052,6 +2053,7 @@ contains
                 call gparrd('Low T limit?',cline,last,xxx,1.0D3,q1help)
 !                if(thickel.lt.one) then
                 if(xxx.gt.1.0D1) then
+! set_hickel_check is in minimizer/matsmin.F90
                    call set_hickel_check(xxx)
 !                   globaldata%sysreal(1)=1.0D1
                 endif
@@ -4098,7 +4100,7 @@ contains
 !8110      format(/'Savefile text: ',a/)
 ! if there is an assessment record set nvcoeff ...
           if(allocated(firstash%eqlista)) then
-             write(*,*)'Reading the assessment record'
+!             write(*,*)'Reading the assessment record'
              if(allocated(firstash%coeffvalues)) then
                 nvcoeff=0
                 kl=size(firstash%coeffvalues)-1
@@ -4134,6 +4136,7 @@ contains
              write(*,*)'database file: ',trim(tdbfile)
           endif
 ! this call checks the file exists and returns the elements
+! it also lists the DATABASE_INFO text
           call checkdb2(tdbfile,'.tdb',jp,ellist)
           if(gx%bmperr.ne.0) then
              write(kou,*)'No database with this name'
@@ -4156,7 +4159,8 @@ contains
           if(jp.eq.1 .and. cline(1:4).eq.'all ') then
 ! this is if someone actually types "all".  If he types "ALL" that will be AL
              jp=0
-          elseif(cline(1:1).eq.'q' .or. cline(1:1).eq.'Q') then
+          elseif(cline(1:1).eq.'q' .or. cline(1:1).eq.'Q' .or.&
+               cline(1:4).eq.'NONE') then
 ! if user regets selection he can quit
              write(*,*)'Quitting, nothing selected'
              goto 100
@@ -4342,18 +4346,18 @@ contains
 !             call gparc('File name: ',cline,last,1,ocdfile,' ',q1help)
           endif
           jp=0
-          kl=index(ocdfile,'.')
+          kl=index(ocdfile(2:),'.')+1
           if(kl.le.0) then
              jp=len_trim(ocdfile)
           elseif(ocdfile(kl+1:kl+1).eq.' ') then
 ! just ending a filename with . not accepted as extention
              jp=kl
           endif
-          if(kl.le.0 .and. jp.le.0) then
+          if(kl.le.1 .and. jp.le.0) then
              write(kou,*)'Missing file name, nothing saved'
              goto 100
           endif
-          if(jp.gt.0) ocdfile(jp+1:)='.ocd '
+          if(jp.gt.0) ocdfile(jp+1:)='.OCD '
           text='M '//model
           call gtpsave(ocdfile,text)
 !-----------------------------------------------------------
@@ -4369,8 +4373,8 @@ contains
 !             call gparc('File name: ',cline,last,1,ocufile,' ',q1help)
           endif
           jp=0
-          kl=index(ocufile,'.')
-! in macro files a file name may start with ./
+! ignore first letter as in macro files a file name may start with ./
+          kl=index(ocufile(2:),'.')+1
           if(kl.le.1) then
              jp=len_trim(ocufile)
           elseif(ocufile(kl+1:kl+1).eq.' ') then
@@ -4382,7 +4386,8 @@ contains
              goto 100
           endif
 ! I have no way to handle the extention to upper case ... inside C routine
-          if(jp.gt.0) ocufile(jp+1:)='.ocu '
+!          if(jp.gt.0) ocufile(jp+1:)='.ocu '
+          if(jp.gt.0) ocufile(jp+1:)='.OCU '
           inquire(file=ocufile,exist=logok)
           if(logok) then
              call gparcd('File exists, overwrite?',cline,last,1,ch1,'N',q1help)

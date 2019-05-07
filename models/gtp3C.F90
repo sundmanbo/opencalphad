@@ -1287,6 +1287,10 @@
 !----------------------------------------------------------
 ! This can be written to file using the /output option
    case(1) ! ftyp=1 SCREEN format
+! add a line if EET (Hickel T, equi-entropy check)
+      if(globaldata%sysreal(1).gt.zero) &
+           write(kou,'(/"Equi-entropy (EET) check enabled above T= ",f8.2)')&
+           globaldata%sysreal(1)
       call list_all_elements(kou)
       if(gx%bmperr.ne.0) goto 1000
       call list_all_species(kou)

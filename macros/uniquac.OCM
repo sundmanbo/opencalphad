@@ -55,7 +55,7 @@ enter species acetonitrile A
 
 enter species n_heptane B
 
-enter species benzene C
+@$ enter species benzene C
 
 @&
 @$ The values of area "q" and segments "r" associated with the molecule
@@ -166,7 +166,7 @@ enter gnu
 @$ There ate 5 predefined terminals, we can add one
 square
 Y
-pdf color solid size 4,4 enhanced fontscale 0.45
+pdf color solid size 4,4 enhanced font "arial,16"
 pdf
 
 @$ Check the terminal you defined is there
@@ -320,10 +320,6 @@ enter param UQT&BENZENE(liquid,N_HEPTANE) 200 tauCB;  700 N bosse
 
 
 @&
-@$ Unless there is a calphad type interaction parameter in the liquid
-@$ OC may be considered as ideal (without miscibility gap)
-@$ As it is zero it has no infuence on the values
-enter param G(liquid,N_HEPTANE,BENZENE) 200 0; 700 N bosse
 
 
 l data

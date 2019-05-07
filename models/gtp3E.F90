@@ -827,7 +827,7 @@
             goto 200
          endif
       endif
-!------ start additions list, use lokpty...
+!------ save additions list, use lokpty...
 500 continue
 ! iws error check
       addlink=>phlista(lokph)%additions
@@ -837,7 +837,9 @@
 !         if(addlink%type.eq.1) then
          if(addlink%type.eq.INDENMAGNETIC) then
 !>>>>> 12A: additions id, regenerate all when reading this
-            rsize=3
+!            rsize=3
+! also saving status
+            rsize=4
             call wtake(lok,rsize,iws)
             if(buperr.ne.0) then
                write(*,*)'3E Error reserving addition record'
@@ -847,16 +849,38 @@
             lokpty=lok
             iws(lok+1)=addlink%type
             iws(lok+2)=addlink%aff
+            iws(lok+3)=addlink%status
 !            write(*,*)'3E saving additions in: ',phreclink+2,lok,iws(lok+1),&
 !                 iws(lok+2)
 ! link the property recordds sequentially
          elseif(addlink%type.eq.EINSTEINCP) then                ! 4
-            write(*,*)'Not saving Einstein addition'          
+!            write(*,*)'Not saving Einstein addition'          
+            rsize=4
+            call wtake(lok,rsize,iws)
+            if(buperr.ne.0) then
+               write(*,*)'3E error saving addition record'
+               gx%bmperr=4356; goto 1000
+            endif
+            iws(lokpty)=lok
+            lokpty=lok
+            iws(lok+1)=addlink%type
+            iws(lok+3)=addlink%status
          elseif(addlink%type.eq.TWOSTATEMODEL1) then          ! 5
-            write(*,*)'Not saving liquid two-state addition'
+!            write(*,*)'Not saving liquid two-state addition'
+            rsize=4
+            call wtake(lok,rsize,iws)
+            if(buperr.ne.0) then
+               write(*,*)'3E error saving addition record'
+               gx%bmperr=4356; goto 1000
+            endif
+            iws(lokpty)=lok
+            lokpty=lok
+            iws(lok+1)=addlink%type
+            iws(lok+3)=addlink%status
          elseif(addlink%type.eq.VOLMOD1) then                 ! 7  
 !>>>>> 12A: additions id, regenerate all when reading this
-            rsize=3
+!           rsize=3
+            rsize=4
             call wtake(lok,rsize,iws)
             if(buperr.ne.0) then
                write(*,*)'3E Error reserving addition record'
@@ -865,6 +889,8 @@
             iws(lokpty)=lok
             lokpty=lok
             iws(lok+1)=addlink%type
+! save also the status word
+            iws(lok+3)=addlink%status
 !            iws(lok+2)=addlink%aff
 !            write(*,*)'3E saving additions in: ',phreclink+2,lok,iws(lok+1),&
 !                 iws(lok+2)
@@ -1936,7 +1962,7 @@
 ! we cannot list svfun as we have no ceq ...
 !   call list_all_svfun(kou,ceq)
 !   call list_some_svfun(kou)
-   write(*,*)'Now reading equilibria',iws(16)
+!   write(*,*)'3E Now reading equilibria',iws(16)
 !--------------------------------------------------------------------
 ! read remaining equilibria which may contain experiments
 ! link to first saved in equilibrium in iws(16)
@@ -1944,7 +1970,7 @@
    i3=2
    call readequil(i,iws,-1)
    if(gx%bmperr.ne.0) goto 1000
-   write(*,*)'3E read all equilibria'
+!   write(*,*)'3E read all equilibria'
 !-------------------------------------------------------------------
 ! read assessment head recods
    if(iws(27).ne.gtp_assessment_version) then
@@ -1954,7 +1980,7 @@
    lok=26
    call readash(lok,iws)
    if(gx%bmperr.ne.0) goto 1000
-   write(*,*)'3E read assessment record'
+   write(*,*)'3E Read assessment record'
 !------ read all ??
 800 continue
 ! emergency exit
@@ -2162,7 +2188,7 @@
             goto 200
          endif
       endif
-!------ additions list
+!------ restore additions list
 !500 continue
       lokem=phreclink+2
 !      write(*,*)'3E Any addition for ',trim(phlista(jph)%name),lokem
@@ -2186,14 +2212,24 @@
             call create_volmod1(nyaddlink)
             if(gx%bmperr.ne.0) goto 1000
 ! just set it as a link, do not care if there are other additions ...
-            phlista(jph)%additions=>nyaddlink
-            nullify(nyaddlink%nextadd)
+! Why this? it is done below ...
+!            phlista(jph)%additions=>nyaddlink
+!            nullify(nyaddlink%nextadd)
+         elseif(iws(lokem+1).eq.EINSTEINCP) then
+            call create_einsteincp(nyaddlink)
+            if(gx%bmperr.ne.0) goto 1000
+         elseif(iws(lokem+1).eq.TWOSTATEMODEL1) then
+            call create_twostate_model1(nyaddlink)
+            if(gx%bmperr.ne.0) goto 1000
          else
             write(*,*)'3E unknown addition'
             nullify(phlista(jph)%additions)
             goto 550
          endif
+! copy the old status word
+         nyaddlink%status=iws(lokem+3)
 ! link the additions sequentially
+         
          if(associated(addlink)) then
             addlink%nextadd=>nyaddlink
          else
@@ -2906,7 +2942,7 @@
 !      lok2=iws(lok2)
       i1=iws(lok2)
       if(i1.gt.0) then
-         write(*,'(a,4i10)')'3E In readash 1: ',lok,lok1,lok2,i1
+!         write(*,'(a,4i10)')'3E In readash 1: ',lok,lok1,lok2,i1
          allocate(assrec%eqlista(i1))
 ! in iws(lok2+i2) the index to eqlista is stored, 
 ! assrec%eqlista(i2)%p1 is a pointer to this equilibrium
@@ -2935,7 +2971,7 @@
 !      lok2=iws(lok2)
    if(lok2.gt.0) then
       i1=iws(lok2)
-      write(*,*)'3E In readash RSD: ',lok2,i1
+!      write(*,*)'3E In readash RSD: ',lok2,i1
       allocate(assrec%coeffrsd(0:i1-1))
       call loadrn(i1,iws(lok2+1),assrec%coeffrsd)
    endif
@@ -4681,17 +4717,25 @@
       do while(index(line,'!').le.0)
          read(21,110)line
          nl=nl+1
-         call replacetab(line,nl)
+!         call replacetab(line,nl)
       enddo
 !------------------------------------------------------------------
    case(11) ! DATABASE_INFORMATION
-      if(.not.silent) write(kou,*)'3E Cannot handle DATABASE_INFORMATION at ',nl
+! skip this as checktdb2 has already presented the information
+!     if(.not.silent) write(kou,*)'3E Cannot handle DATABASE_INFORMATION at ',nl
 !      warning=.TRUE.
 ! skip lines until !
+!      write(*,*)'3E reading database information'
+!      write(*,*)'3E ',trim(line)
+!      ll=index(line,'!')
+!      write(*,*)'3E value of ll: ',ll
+! this loop probably meaningless as we have read up to ! already ...
       do while(index(line,'!').le.0)
          read(21,110)line
          nl=nl+1
-         call replacetab(line,nl)
+!         ll=index(line,'!')
+!         write(*,*)'3E value of ll: ',ll
+!         call replacetab(line,nl)
       enddo
 !------------------------------------------------------------------
    case(12) ! VERSION, recognize OC1

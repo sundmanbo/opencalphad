@@ -769,6 +769,13 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   integer, parameter :: &
        AHCOEF=0
 !
+!----------------------------------------------------------------
+!- Bits in addition record status word gtp_phase_add
+! havepar set if the phase has parameters for this addition
+! if not set the addition is not listed
+  integer, parameter :: &
+       ADDHAVEPAR=0
+!
 ! >>> Bits for symbols and TP functions missing ???
 !\end{verbatim}
 !
@@ -954,8 +961,10 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! it also contain bits if new data can be entered (if more than one equilib)
 ! sysparam are variables for different things
 ! sysparam(1) unused
-! sysparam(2) number of equilibria between each check of spinodal at STEP/MAP
-! sysparem(3) unised ...
+! sysparam(2) number of equilibria between each check of spinodal at STEP/MAP??
+! sysparem(3-10) unused ...
+! sysreal(1) is the minimum T for EET check (equi-entopy T, Hickel)
+!            if zero no EET c
      integer status
      integer :: sysparam(10)=0
      character name*24
@@ -1192,10 +1201,11 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! record for additions to the Gibbs energy for a phase like magnetism
 ! addrecno: ?
 ! aff: antiferomagnetic factor (Inden model)
+! status: BIT 1 set if there are parameters
 ! need_property: depend on these properties (like Curie T)
 ! explink: function to calculate with the properties it need
 ! nextadd: link to another addition
-     integer type,addrecno,aff
+     integer type,addrecno,aff,status
      integer, dimension(:), allocatable :: need_property
      TYPE(tpfun_expression), dimension(:), pointer :: explink
      TYPE(gtp_phase_add), pointer :: nextadd

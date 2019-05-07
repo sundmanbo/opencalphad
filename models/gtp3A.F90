@@ -228,11 +228,11 @@
    propid(npid)%symbol='G2   '
    propid(npid)%note='Liquid two state parameter'
    propid(npid)%status=0
-!.......................................
-! UNUSED Crystal Breakdown Temperaure 12
+!....................................... 
+! Thermal conductivity as function of T and P: 12
    npid=npid+1
-   propid(npid)%symbol='NONE'
-   propid(npid)%note='Unused'
+   propid(npid)%symbol='LAMB '
+   propid(npid)%note='Thermal conductivity '
    propid(npid)%status=0
 !.......................................
 ! Activation energy of mobility 13
@@ -332,8 +332,8 @@
    propid(npid)%status=0
 ! The elastic constant may depend on T and P
 !.......................................
-! removed Flory-Huggins and some UNIQUAC parameters, stored in species record
-!.......................................
+! VERY SPECIAL this model parameter identifier has no addition
+! thus no check for addition in enter_parameter subroutine (gtp3B.F90)
 ! UNIQUAC interaction parameter 26
    npid=npid+1
    propid(npid)%symbol='UQT '
@@ -347,14 +347,8 @@
    propid(npid)%symbol='RHO '
    propid(npid)%note='Electric resistivity'
    propid(npid)%status=0
-!....................................... 
-! Thermal conductivity as function of T and P: 28
-   npid=npid+1
-   propid(npid)%symbol='LAMB '
-   propid(npid)%note='Thermal conductivity '
-   propid(npid)%status=0
 !.......................................
-! From MatCalc databases 29
+! From MatCalc databases 28
    npid=npid+1
    propid(npid)%symbol='HMVA '
    propid(npid)%note='Enthalpy of vacancy form. '
@@ -362,7 +356,7 @@
 ! this parameter does not depend on T ??
 !   propid(npid)%status=ibset(propid(npid)%status,IDONLYP)
 !.......................................
-! Schottky anomality T 30
+! Schottky anomality T 29
    npid=npid+1
    propid(npid)%symbol='TSCH '
    propid(npid)%note='Schottky anomality T '
@@ -370,13 +364,21 @@
 ! this parameter does not depend on T ??
    propid(npid)%status=ibset(propid(npid)%status,IDONLYP)
 !.......................................
-! Schottky anomality CP/R 31
+! Schottky anomality CP/R 30
    npid=npid+1
    propid(npid)%symbol='CSCH '
    propid(npid)%note='Schottky anomality Cp/R. '
    propid(npid)%status=0
 ! this parameter does not depend on T ??
    propid(npid)%status=ibset(propid(npid)%status,IDONLYP)
+!.......................................
+! UNUSED 31
+   npid=npid+1
+   propid(npid)%symbol='NONE'
+   propid(npid)%note='Unused'
+   propid(npid)%status=0
+!.......................................
+!.......................................
 ! This IF statement should be at the last parameter identifier, maxprop=50?
    if(npid.gt.maxprop) then
       write(*,*)'Too many parameter identifiers, increase maxprop'
@@ -410,6 +412,9 @@
 ! old value of gas constant
    globaldata%rgasuser=8.31451D0
    globaldata%pnorm=one
+! zero sysparam and sysreal
+   globaldata%sysparam=0
+   globaldata%sysreal=zero
 !   write(*,*)'init_gtp: enter R and RTLNP'
 ! enter R as TP function
    tpname='R'
@@ -419,7 +424,7 @@
    call enter_tpconstant(tpname,globaldata%rgas)
    if(gx%bmperr.ne.0) goto 1000
    tpname='RTLNP'
-   tpfun=' 10 R*T*LN(1.0D-5*P); 20000 N '
+   tpfun=' 1 R*T*LN(1.0D-5*P); 20000 N '
    call enter_tpfun(tpname,tpfun,lrot,.FALSE.)
    if(gx%bmperr.ne.0) goto 1000
 ! default minimum fraction
@@ -430,7 +435,7 @@
 ! allocate array for state variable function
 !   write(*,*)'init_gtp: allocate array for state variable functions'
    allocate(svflista(maxsvfun))
-! number of state variable function
+! number of state variable functions
    nsvfun=0
 ! zero the array with equilibrium index for functions, not used aywhere??
 !   pflocal=0

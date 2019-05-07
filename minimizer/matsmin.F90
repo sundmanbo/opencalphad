@@ -7243,7 +7243,7 @@ CONTAINS
 !           btest(svflista(kf)%status,SVFVAL),ceq%svfunres(kf)
       star='  '
       if(btest(svflista(kf)%status,SVFVAL)) star='**'
-      if(btest(svflista(kf)%status,SVFEXT)) star='--'
+      if(btest(svflista(kf)%status,SVFEXT)) star='<>'
 !      if(btest(svflista(kf)%status,SVFVAL)) then
 !         write(*,*)'MM only explit evaluation of: ',trim(svflista(kf)%name)
 !         if(kou.gt.0) write(kou,77)kf,svflista(kf)%name,svflista(kf)%value,'*'
@@ -9540,7 +9540,7 @@ CONTAINS
 
 !\begin{verbatim}
   subroutine hickel_check(pmisol,pmiliq,ceq)
-! This checks after calculating all phases if the solid phase has S > S^liq
+! This checks EET after calculating all phases if the solid phase has S > S^liq
 ! it is called if T>globaldata%sysreal(1) (set in user i/f)
 ! pmisol is pointer to solid data
 ! pmiliq is pointer to liquid data
@@ -9556,6 +9556,12 @@ CONTAINS
 !    
 ! Calculate:  -S^sol - (-S^liq):
 ! abnorm(1) is the number of atoms per formula units
+!    write(*,*)'MM in Hickel_check',associated(pmiliq),associated(pmisol)
+    if(.not.associated(pmiliq)) then
+       write(*,*)'EET_EXTRAPOLATION check fails as liquid ',&
+            'is not first condenced phase'
+       goto 1000
+    endif
     ssol=-pmisol%curd%gval(2,1)/pmisol%curd%abnorm(1)
     sliq=-pmiliq%curd%gval(2,1)/pmiliq%curd%abnorm(1)
     fact=sliq/ssol
@@ -9602,6 +9608,7 @@ CONTAINS
        pmisol%eetcheck=1
     endif
 1000 continue
+!    write(*,*)'MM leaving Hickel_check'
     return
   end subroutine hickel_check
   

@@ -11,6 +11,10 @@ FCOPT= -O2 -fopenmp
 #FC=ifort
 #FCOPT= -check bounds -zero
 
+# ************************************
+# OC now requires GNUPLOT 5.0 or later
+# ************************************
+
 # This compiles OC without command line editing facilities (getkey)
 # To have the command line editing and history features
 # you must use the Makefile provided
@@ -62,3 +66,9 @@ $(EXE):
 
 clean:
 	rm -r *.o *.mod linkoc liboceq.a $(EXE)
+
+
+# ************************************
+# OC now requires GNUPLOT 5.0 or later
+# ************************************
+
