@@ -1214,7 +1214,7 @@ l eq
 @$ listing of all equilibria
 @&
 
-save unf ./opttest2-cumg1.ocu
+save unf ./opttest2-cumg1
 Y
 
 @$-----------------------------------------------------------------

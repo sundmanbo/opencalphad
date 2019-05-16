@@ -342,6 +342,10 @@ l m-p-i
 
 enter parameter mq&c(fcc,fe:c) 298.15 -1000+5*T; 6000 N me
 
+@$ It is correct that you get a warning here
+@$ because you have no addition handling these parameters
+@&
+
 enter parameter mq&c(fcc,cr:c) 298.15 -2000+7*T; 6000 N me
 enter parameter mq&c(fcc,fe:va) 298.15 -10000+3*T; 6000 N me
 enter parameter mq&c(fcc,cr:va) 298.15 -5000; 6000 N me

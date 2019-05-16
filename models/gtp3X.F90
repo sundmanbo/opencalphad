@@ -1930,6 +1930,7 @@
    endif uniquac
 !................................
 ! calculate additions like magnetic contributions etc and add to G
+! Now also Einstein, 2-state liquid, volume ...
    addrec=>phlista(lokph)%additions
    additions: do while(associated(addrec))
 ! Note for phases with a disordered fraction set, gz%nofc is equal to

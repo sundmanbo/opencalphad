@@ -13,6 +13,20 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2019.05.07 OC version 5.040: The filebrowser in OC works reasonably on
+Windows but there are problems on other OS.  I hope I have fixed a
+small problem with captial letters for the extension, by default all
+OC file extentions are assumed to be CAPTIAL LETTERS except Gnuplot
+"plt".  On Windows that is not important but on Linux it makes a
+difference.  If anyone can provide a better, simple and free platform
+independent filebrowser please let me know.
+
+I have added "save unformatted" of some new additions like liquid
+2-state model and Einstein solid.  I also added a warning if a
+parameter for an addition is entered but no "amend phase" for such an
+addition has been made.  A phase with an addition but without any
+associated parameter is no longer listed with the "list data" command.
+
 2019.04.21 OC version 5.039: I have now modified plotting with several
 dependent functions like STEP but also MAP when there are tie-lines in
 the plane.  Previously I repeated all data for each line plotted which

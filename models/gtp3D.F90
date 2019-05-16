@@ -393,7 +393,8 @@
    typty1=typty
    iel=0; isp=0
 ! the beginning of the TP function name
-   funame='_'//propid(typty1)%symbol(1:1)
+!   funame='_'//propid(typty1)%symbol(1:1)
+   funame='_'//propid(typty1)%symbol
    if(kel.gt.0) then
 ! there is a specifier, check if correct element or species
       kel=index(elnam,'#')
@@ -464,7 +465,11 @@
    endif
    lokph=phases(jph)
 ! add the full phase name to the function name.  Remove any _ or numbers ,,,
-   funame(3:)=phlista(lokph)%name
+!   ll=len_trim(funame)+1
+!   funame(3:)=phlista(lokph)%name
+! only save first letter of parameter type, no problem with duplicate names
+   ll=3
+   funame(ll:)=phlista(lokph)%name
 !   write(*,*)'3D funame 1: ',trim(funame),', ',name2
    ll=4
 74 continue

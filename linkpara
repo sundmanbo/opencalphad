@@ -3,6 +3,10 @@ REM It compiles OC with openMP amd the popup window for opening files.
 REM If you do not want that or have problems try to command file
 REM linkmake-tinyfd
 
+REM *******************************************
+REM ** OC graphics require GNUPLOT 5.0 or later
+REM *******************************************
+
 del *.o
 del *.mod
 
@@ -72,4 +76,8 @@ ar sq liboceq.a metlib3.o ocnum.o oclablas.o gtp3.o matsmin.o lmdif1lib.o
 
 REM Finally linking all together
 gfortran -o oc5P -fopenmp -O2 pmain1.F90 pmon6.o smp2.o ftinyopen.o tinyopen.o tinyfiledialogs.o liboceq.a -lcomdlg32 -lole32
+
+REM *******************************************
+REM ** OC graphics require GNUPLOT 5.0 or later
+REM *******************************************
 

@@ -27,6 +27,12 @@ EX5PATH = ./TQ4lib/Cpp/Matthias
 
 #Compiles OpenCalphad to use as standalone Thermodynamic Equilibrium Calculation
 #software.
+# ************************************
+# OC now requires GNUPLOT 5.0 or later
+# ************************************
+
+# To have the command line editing and history feature on your OS 
+# you must uncomment the appropriate line after the header getkey.o:
 
 all: $(OBJS) $(EXE)
 
