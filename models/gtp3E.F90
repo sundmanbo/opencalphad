@@ -3469,6 +3469,12 @@
    goto 1000
 ! found keyword at start of line, set nextc to be positioned at the final space
 100 continue
+   if(j.eq.11 .and. kt.lt.8) then
+! we found 'DATA' at the start of several lines that is not DATABASE_INFO
+!      write(*,*)'3E why? ',trim(text),kt
+      j=0
+      goto 1000
+   endif
    nextc=ks+kt
 !   write(*,101)j,nextc,text(1:nextc),trim(text)
 101 format('3E Found keyword: ',2i3,'>',a,'<'/1x,a)
@@ -3597,7 +3603,7 @@
    integer nofunent,disparttc,dodis,jl,nd1,thisdis,cbug,nphrej,never,always
    character*24 dispartph(maxorddis),ordpartph(maxorddis),phreject(maxrejph)*24
    character*24 disph(20)
-   integer orddistyp(maxorddis)
+   integer orddistyp(maxorddis),suck
    logical warning
 ! set to TRUE if element present in database
    logical, allocatable :: present(:)
@@ -4170,12 +4176,15 @@
          if(jl.eq.0 .and. .not.silent) write(kou,398)trim(ordpartph(thisdis))
 398      format(' 3E Assuming phase ',a,' cannot be completely disordered')
 ! add DIS_PART from TDB
+!         write(*,*)'3E adding disordered fraction set',csfree,highcs
          call add_fraction_set(iph,ch1,nd1,jl)
          if(gx%bmperr.ne.0) then
             if(.not.silent) write(kou,*) &
                  '3E Error entering disordered fraction set: ',gx%bmperr
             goto 1000
          endif
+!         suck= newhighcs(.true.)
+!         write(*,*)'3E added disordered fraction set 1: ',csfree,highcs,suck
          if(jl.eq.0) then
 ! we must set the correct formula unit of the disordered phase, on the
 ! TDB file it is unity.  Sum up the sites for the ordered phase in lokcs
@@ -4730,6 +4739,7 @@
 !      ll=index(line,'!')
 !      write(*,*)'3E value of ll: ',ll
 ! this loop probably meaningless as we have read up to ! already ...
+!      write(*,*)'3E found this line: ',nl
       do while(index(line,'!').le.0)
          read(21,110)line
          nl=nl+1
@@ -5683,12 +5693,14 @@
 !         if(jl.eq.0 .and. .not.silent) write(kou,398)trim(ordpartph(thisdis))
 398      format(' Assuming that phase ',a,' cannot completely disorder')
 ! add DIS_PART from TDB
+         write(*,*)'3E adding fraction set 2:',csfree,highcs
          call add_fraction_set(iph,ch1,nd1,jl)
          if(gx%bmperr.ne.0) then
             if(.not.silent) write(kou,*) &
                  '3E Error entering disordered fraction set: ',gx%bmperr
             goto 1000
          endif
+         write(*,*)'3E added fraction set 2:',csfree,highcs
          if(jl.eq.0) then
 ! we must set the correct formula unit of the disordered phase, on the
 ! TDB file it is unity.  Sum up the sites for the ordered phase in lokcs
@@ -6594,6 +6606,7 @@
    ipp=istdbkeyword(line,kk)
    if(ipp.eq.11 .and. dbinfo.eq.0) then
 ! DATABASE_INFORMATION keyword, ipp=11
+!      write(*,*)'3E at line ',nl,': ',trim(line)
       dbinfo=1
       write(kou,200)trim(line)
 200   format(/'This database has infomation to users, please read carefully'/a)

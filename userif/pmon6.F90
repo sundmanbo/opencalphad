@@ -234,7 +234,7 @@ contains
          'PARAMETER       ','EQUILIBRIA      ','RESULTS         ',&
          'CONDITIONS      ','SYMBOLS         ','LINE_EQUILIBRIA ',&
          'OPTIMIZATION    ','MODEL_PARAM_VAL ','ERROR_MESSAGE   ',&
-         'NONZERO_EQUILIBR','                ','                ']
+         'ACTIVE_EQUILIBR ','ELEMENTS        ','                ']
 !-------------------
 ! subsubcommands to LIST DATA
     character (len=16), dimension(nlform) :: llform=&
@@ -335,7 +335,7 @@ contains
 !        123456789.123456---123456789.123456---123456789.123456
 ! subsubcommands to SET ADVANCED
     character (len=16), dimension(ncadv) :: cadv=&
-         ['EQUILIB_TRANSF  ','QUIT            ','                ',&
+         ['EQUILIB_TRANSFER','QUIT            ','                ',&
           'GRID_DENSITY    ','SMALL_GRID_ONOFF','MAP_SPECIAL     ',&
           'GLOBAL_MIN_ONOFF','OPEN_POPUP_OFF  ','WORKING_DIRECTRY',&
           'HELP_POPUP_OFF  ','EET_EXTRAPOL    ','                ']
@@ -1323,7 +1323,7 @@ contains
           CASE DEFAULT
              write(kou,*)'Calculate phase subcommand error'
 !.......................................................
-          case(1) ! calculate case < > only G
+          case(1) ! calculate phase < > only G
              call calcg(iph,ics,0,lokres,ceq)
              if(gx%bmperr.ne.0) goto 990
              parres=>ceq%phase_varres(lokres)
@@ -1492,7 +1492,7 @@ contains
                aphl,nyphl,cmu,ceq)
           if(gx%bmperr.ne.0) goto 990
 !          write(kou,2102)nv,(iphl(j1),icsl(j1),j1=1,nv)
-! we should write phase tuples ...
+! we should write phase tuples ... ?? 
           write(kou,2102)nv,(iphl(j1),icsl(j1),j1=1,nv)
 2102      format('Number of stable phases ',i2/13(i4,i2))
 ! In some cases "c n" converges better if we scale with the total amount here
@@ -1944,30 +1944,39 @@ contains
 !.................................................................
           case(4) ! SET ADVANCED GRID_DENSITY
              call gparid('Level: ',cline,last,ll,1,q1help)
-             if(ll.eq.1) then
-! this clears GSXGRID, bit 14, of global status word
+             if(ll.eq.0) then
+! this set GSOGRID, small grid and clears GSXGRID
+                globaldata%status=ibset(globaldata%status,GSOGRID)
                 globaldata%status=ibclr(globaldata%status,GSXGRID)
-                write(kou,3110)'Dense','reset'
+                write(kou,3110)'Sparse','set'
+             elseif(ll.eq.1) then
+! this clears GSXGRID, bit 14, of global status word and GSOGRID
+                globaldata%status=ibclr(globaldata%status,GSXGRID)
+                globaldata%status=ibclr(globaldata%status,GSOGRID)
+                write(kou,3110)'Normal','set'
 3110            format(a,' grid ',a)
              elseif(ll.eq.2) then
-! set GSXGRIS (and clear GSOGRID if set)
+! set GSXGRID (and clear GSOGRID)
                 globaldata%status=ibclr(globaldata%status,GSOGRID)
                 globaldata%status=ibset(globaldata%status,GSXGRID)
                 write(kou,3110)'Dense','set'
              else
-                write(*,*)'Only level 1 and 2 implemented'
+                write(*,*)'Only level 0, 1 and 2 implemented'
              endif
 !.................................................................
           case(5) ! SET ADVANCED SMALL_GRID_ONOFF
-             if(btest(globaldata%status,GSOGRID)) then
-                globaldata%status=ibclr(globaldata%status,GSOGRID)
-                write(kou,3110)'Small','reset'
-             else
+! replaced by setting grid_density to 0
+             write(*,*)'Please use SET ADVANCED GRID 0'
+             continue
+!             if(btest(globaldata%status,GSOGRID)) then
+!                globaldata%status=ibclr(globaldata%status,GSOGRID)
+!                write(kou,3110)'Small','reset'
+!             else
 ! set GSOGRID and clear GSXGRID if set
-                globaldata%status=ibclr(globaldata%status,GSXGRID)
-                globaldata%status=ibset(globaldata%status,GSOGRID)
-                write(kou,3110)'Small','set'
-             endif
+!                globaldata%status=ibclr(globaldata%status,GSXGRID)
+!                globaldata%status=ibset(globaldata%status,GSOGRID)
+!                write(kou,3110)'Small','set'
+!             endif
 !.................................................................
           case(6) ! MAP_SPECIAL
 !             if(nofixphfortip) then
@@ -1988,7 +1997,7 @@ contains
                 write(*,*)'Global minimizer turned off'
              else
                 globaldata%status=ibclr(globaldata%status,GSNOGLOB)
-                write(*,*)'Global minimizer turned off'
+                write(*,*)'Global minimizer turned on'
              endif
 !             if(btest(globaldata%status,GSNOGLOB)) then
 !                globaldata%status=ibclr(globaldata%status,GSNOGLOB)
@@ -2322,7 +2331,7 @@ contains
 !-------------------------------------------------------------
        case(12) ! set weight
           if(.not.allocated(firstash%eqlista)) then
-             write(kou,*)'There are no experimental equilibria'
+             write(kou,*)'You must first set a range of experimental equilibria'
              goto 100
           endif
 ! NOTE mexp must be updated to the correct number of EXPERIMENTS
@@ -2434,8 +2443,6 @@ contains
              iax=i1
              write(kou,*)'Axis must be set in sequential order',&
                   ', axis number set to ',iax
-!          elseif(iax.lt.i1) then
-! replacing an existing axis, reset defaults ... ???
           endif
 ! as condition one may give a condition number followed by :
 ! or a single state variable like T, x(o) etc.
@@ -3396,11 +3403,11 @@ contains
 !         'AXIS            ','TPFUN_SYMBOLS   ','QUIT            ',&
 !         'PARAMETER       ','EQUILIBRIA      ','RESULTS         ',&
 !         'CONDITIONS      ','SYMBOLS         ','LINE_EQUILIBRIA ',&
-!         'OPTIMIZATION    ','MODEL_PARAM_VAL ','                ']
-!         ,NONZERO_EQUILIBR','
+!         'OPTIMIZATION    ','MODEL_PARAM_VAL ','ERROR_MESSAGE   ',&
+!         ,ACTIVE_EQUILIBR ','ELEMENTS        ','                ']
 ! SHOW is the same as LIST STATE_VARIABLES including also CALC SYMBOL !!
 ! SHOW is cammand 25
-    CASE(6,25) ! LIST and SHOW
+    CASE(6,25) ! LIST andSHOW
        if(kom.eq.25) then
           kom2=4
        else
@@ -3431,9 +3438,13 @@ contains
              write(kou,*)'Unknown format'
           endif
 !-----------------------------------------------------------
-       case(2) ! list short with status bits
-          call gparcd('Option (A/C/M/P)',cline,last,1,ch1,chshort,q1help)
-          call capson(ch1)
+       case(2,20) ! list short with status bits, also LIST ELEMENT (kom2=20)
+          if(kom2.eq.20) then
+             ch1='C'
+          else
+             call gparcd('Option (A/C/M/P)',cline,last,1,ch1,chshort,q1help)
+             call capson(ch1)
+          endif
           write(lut,6022)ceq%eqname,globaldata%rgasuser,&
                globaldata%pnorm,globaldata%status,ceq%status
 6022      format('Equilibrium name',9x,'Gas constant Pressure norm',&
@@ -3503,7 +3514,10 @@ contains
              mode=110
              once=.TRUE.
              call list_phase_results(iph,ics,mode,lut,once,ceq)
-             if(gx%bmperr.ne.0) goto 990
+             if(gx%bmperr.ne.0) then
+                write(*,*)'Last equilibrium calculation failed'
+                goto 990
+             endif
 !...............................................................
           case(3) ! list phase model (including disordered fractions)
              write(kou,6070)'For ',ceq%eqno,ceq%eqname
@@ -3694,36 +3708,47 @@ contains
        case(10) ! list parameter for a phase (just one). Last 1 means list
           call enter_parameter_interactivly(cline,last,1)
 !-----------------------------------------------------------
-       case(11,19) ! list equilibria and list NONZERO_EQUILIBRIA (not result)
+       case(11,19) ! list equilibria and list ACTIVE_EQUILIBRIA (not result)
 ! if 19 then skip equilibria with zero weight
+          nv=noeq()
+! skip if there is just one equilibrium kom=6=LIST; kom2=19=ACTIVE-EQUIL
+!          write(*,*)'PMON: ',kom,kom2,nv
+          if(kom2.eq.19 .and. nv.eq.1) goto 100
           write(*,6212)
-6212      format('Number  Name',24x,'T   Weight Comment')
-          do iel=1,noeq()
+6212      format('Number  Name',25x,'T   Weight Comment')
+          jp=0
+          do iel=1,nv
              if(associated(ceq,eqlista(iel))) then
                 name1='**'
              else
                 name1=' '
              endif
+!             write(*,*)'PMON: ',kom2,iel,eqlista(iel)%weight,jp
 !             j1=len_trim(eqlista(iel)%comment)
              if(eqlista(iel)%weight.gt.zero) then
 ! always list equilibria with weight>0
                 write(lut,6203)iel,name1(1:2),eqlista(iel)%eqname,&
                      eqlista(iel)%tpval(1),eqlista(iel)%weight,&
-                     eqlista(iel)%comment(1:20)
+                     eqlista(iel)%comment(1:32)
 !6203            format(i4,1x,a2,1x,a,' T=',F8.2,', weight=',F5.2,', ',a)
-6203            format(i4,1x,a2,1x,a,F8.2,F5.2,2x,a)
-             elseif(kom2.eq.11) then
-! for kom2=11 list also equilibria with zero weight
+6203            format(i4,1x,a2,1x,a,1x,F8.2,1x,F5.2,2x,a)
+             elseif(iel.eq.1 .or. kom2.eq.11) then
+! for kom2=11 list all equilibria without including weight
+! NOTE all equilibria outside "range" has weight=-1.0
                 write(lut,6202)iel,name1(1:2),eqlista(iel)%eqname,&
-                     eqlista(iel)%tpval(1),eqlista(iel)%comment(1:33)
+                     eqlista(iel)%tpval(1),eqlista(iel)%comment(1:32)
 !6202            format(i4,1x,a2,1x,a,' T=',F8.2,', ',a)
-6202            format(i4,1x,a2,1x,a,F8.2,7x,a)
+6202            format(i4,1x,a2,1x,a,1x,F8.2,8x,a)
+             elseif(eqlista(iel)%weight.eq.zero) then
+                jp=jp+1
              endif
 !             if(j1.gt.1) then
 !                write(lut,6204)eqlista(iel)%comment(1:j1)
 !6204            format(12x,a)
 !             endif
           enddo
+          if(kom2.eq.19 .and. jp.gt.0) &
+               write(*,'(/"Number of equilibria with zero weight: ",i4)')jp
 !------------------------------
        case(12) ! list results
 ! skip if no calculation made
@@ -4022,13 +4047,13 @@ contains
              write(kou,*)'Not a standard OC error message'
           endif
 !------------------------------
-! list ?? nonzero_equilibria merged with list equilibra
+! list ?? nonzero_equilibria/active-equil merged with list equilibra, case 11
 !       case(19)
 !          write(*,*)'Not implemented yet'
 !------------------------------
-! list ??
-       case(20)
-          write(*,*)'Not implemented yet'
+! list elements, same as LIST SHORT C (components) case 2
+!       case(20)
+!          write(*,*)'Not implemented yet'
 !------------------------------
 ! list ??
        case(21)
@@ -4615,7 +4640,8 @@ contains
 ! list all tuples
           write(kou,1617)
 1617      format('Phase tuples content:'/&
-               'Tuple lokph   compset ixphase lokvares nextcs phase name')
+               'Tuple lokph   compset ixphase lokvares nextcs phase name',&
+               '       disfra vareslink')
           do jp=1,nooftup()
              call get_phasetup_name(jp,name1)
 ! this is a check that %ihaseix and lokvares are correct

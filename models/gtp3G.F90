@@ -493,7 +493,7 @@
                else
                   slen=-ics
                endif
-!               write(*,*)'3G change several sets: ',qph,slen
+               write(*,*)'3G Status changed for several composition sets: ',slen
                do ics=1,slen
                   call change_phase_status(qph,ics,nystat,val,ceq)
                   if(gx%bmperr.ne.0) goto 1000
@@ -1658,8 +1658,6 @@
       goto 1000
    endif
 ! this subroutine can only be called when there is only one equilibrium
-! Hm, does this create a copy of firsteq?? YES ... clumsy
-!   ceq=firsteq
    lokph=phases(iph)
 ! phase must not have any suspended constituents nor any composition sets
    if(phlista(lokph)%noofcs.gt.1) then
@@ -1865,7 +1863,7 @@
 !   call create_parrecords(nyttcs,nnn,mmm,nprop,iva,firsteq)
    call create_parrecords(lokph,nyttcs,nnn,mmm,maxcalcprop,iva,firsteq)
    if(gx%bmperr.ne.0) goto 1000
-!   write(*,*)'3G created disordered phase_varres: ',nyttcs,csfree
+!   write(*,*)'3G created disordered phase_varres: ',csfree,highcs,nyttcs
    fsdata%varreslink=nyttcs
 ! note ceq is firsteq but declared target
 !   write(*,*)'3G disordered fraction set',nyttcs

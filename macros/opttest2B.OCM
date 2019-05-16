@@ -21,6 +21,11 @@ read unf ./opttest2-cumg1
 @$-----------------------------------------------------------------
 @&
 
+list active
+
+@$ All experiments have weight zero
+@&
+
 set wei 1 ACL
 
 set wei 1 HLIQ
@@ -29,6 +34,10 @@ set wei 0 HLIQ_B
 
 set wei 0 HLIQ_H
 
+list active
+
+@$ Now we have selected data for the liquid
+@&
 @$-----------------------------------------------------------------
 @$ Here we Select experiments with H for liquid from Sommer and Garg
 @$ using abbreviations of the names of the equilibria

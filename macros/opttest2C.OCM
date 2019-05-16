@@ -20,6 +20,9 @@ set wei 0 *
 
 set wei 1 CP2
 
+list active
+
+@&
 @$ ----------------------------------------------------
 @$ These commands set the weight of all equilibria to zero
 @$ and then set the weight of those equilibria with "CP2" in the name
@@ -137,7 +140,7 @@ set fix 32-35
 l opt
 
 @&
-@$ remove selected experimental equilibria
+@$ remove all selected experimental equilibria
 
 set wei 0 *
 

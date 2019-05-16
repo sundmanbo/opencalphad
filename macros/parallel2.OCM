@@ -490,7 +490,7 @@ set range 2 401
 
 @$ To speed up this a little we select the smaller grid
 
-set adv small
+set adv grid 0
 
 @&
 @$ Note the composition of x(fcc,c) is in most cases the cubic carbide,

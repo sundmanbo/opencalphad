@@ -1087,6 +1087,10 @@
 !..............................
                intprop: do while(associated(proprec))
 ! calculate interaction parameter, can depend on composition
+! maybe faster to zero here than inside cgint ??
+                  vals=zero
+                  dvals=zero
+                  d2vals=zero
                   call cgint(lokph,proprec,moded,vals,dvals,d2vals,gz,ceq)
                   if(gx%bmperr.ne.0) goto 1000
 !                  write(*,228)'3X val:',vals(1),(dvals(1,id),id=1,gz%nofc)
@@ -2217,9 +2221,9 @@
 !   write(*,*)'3X cgint 1:',gz%iq(1),gz%iq(2),gz%iq(3)
 ! why zero qz%iq, it has been set before calling ...
    gz%iq=0
-   vals=zero
-   dvals=zero
-   d2vals=zero
+!   vals=zero
+!   dvals=zero
+!   d2vals=zero
    rtg=gz%rgast
 ! to avoid warnings from -Wmaybe-uninitiated
    icat=0

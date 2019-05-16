@@ -13,6 +13,27 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2019.05.16 OC version 5.041: Disscussions with Clement Introini,
+Romain Le Tellier and Jean-Christophe Dumas at CEA, Cadarache have
+thrown some light on the functions of the the grid minimizer and a
+number of changes has been made, maybe even a paper published.
+Several updates of the grid minimizer and other things will come in
+the following weeks.
+
+The command SET ADVANCED SMALL_GRID has been replace by SET ADVANCED
+GRID 0.  This command now has 3 levels, 0, 1 and 2.  The value 2 is
+for a dense grid with about 5 times more gridpoints than level 1.
+Level 1 has about 5 times more gridpoints then level 0 (when there are
+many gridpoints).
+
+I am very grateful to Matthias Stratman at RUB, Bochum, Germany to
+provide updates of the examples of OCASI on the TQ4lib directory.
+Including a Makefile to simplify compiling and linking on Linux.
+
+Finally I have changed and modified the LIST ACTIVE-EQUIL command which
+should be useful in assessments.  It lists the equilibria with
+weight>0.0, i.e. those which are currently used for optimization.
+
 2019.05.07 OC version 5.040: The filebrowser in OC works reasonably on
 Windows but there are problems on other OS.  I hope I have fixed a
 small problem with captial letters for the extension, by default all

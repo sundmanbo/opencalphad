@@ -27,15 +27,26 @@ l ph laves_c15 data
 
 @&
 
-@$ Include experiments AC
-set wei 1 CP15_F
-
 set var 42 1
 
-c a n 1
+@$ Select a parameter to be optimized
+@&
+
+set wei 1 CP15_F
+
+@$ Select experiments
+@&
+
+list active
+
+@$ And list them
+@&
+
+calc all n 1
 
 c a n 1
 
+@$ And calculet them
 @$ Sometimes there are problems, several calculate all may help
 @&
 
@@ -178,6 +189,11 @@ c e
 l,,,,
 
 c sym cpm2
+
+@$ This heat capacity is calculated by DFT
+@&
+
+list active
 
 @$---------------------------------------------------------
 @$ By adding this extimated Cp we can lower the Cp at high T

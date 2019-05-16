@@ -513,6 +513,7 @@
 ! logicals for models later stored in phase record
    logical i2sl,cqc,uniquac
 !   write(*,*)'3B enter enter_phase: ',trim(name),' ',trim(model)
+! csfree and highcs for finding phase_varres record
    if(.not.allowenter(2)) then
       gx%bmperr=4125
       goto 1000
@@ -6568,7 +6569,7 @@
 
 !\begin{verbatim}
  integer function newhighcs(reserved)
-! updates highcd and arranges csfree to be in sequential order
+! updates highcs and arranges csfree to be in sequential order
 ! highcs is the higest used varres record before the last reservation
 ! or release of a record.  release is TRUE if a record has been released 
 ! csfree is the beginning of the free list of varres records.
@@ -6602,6 +6603,7 @@
 120 format('3B cs: ',3i5,(14i4))
    newhighcs=high
    csfree=free
+!   write(*,*)'3B in newhighcs: ',csfree,highcs
 1000 continue
  end function newhighcs
 

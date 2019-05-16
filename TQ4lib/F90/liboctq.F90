@@ -1059,7 +1059,10 @@ contains
     call calcg(phasetuple(n1)%ixphase,phasetuple(n1)%compset,n2,lokres,ceq)
 !----------------------------------------------------------------------
 !    write(*,*)'tqcph1 3A',lokres,gx%bmperr
-    n3=size(ceq%phase_varres(lokres)%yfr)
+! The inital size here can be 1000
+!    n3=size(ceq%phase_varres(lokres)%yfr)
+! the actual number of constituents is better to take from this call
+    n3=noconst(phasetuple(n1)%ixphase,1,ceq)
 !    write(*,*)'tqcph1 3C',n3
 ! gval last index is the property, other properties can also be extracted
 ! t.ex. mobilites 

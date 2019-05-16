@@ -208,8 +208,9 @@ CONTAINS
     TYPE(meq_setup), pointer :: meqrec
     type(map_fixph), allocatable :: mapfix
 !    type(map_fixph), pointer :: mapfix
-    double precision starting,finish2
+    double precision starting,finish2,gtot
     integer starttid,endoftime,ij,addtuple
+    character name*16
 !--------------------------------
     allocate(meqrec1)
     meqrec=>meqrec1
@@ -224,10 +225,13 @@ CONTAINS
     call cpu_time(finish2)
 !1000 continue
     if(gx%bmperr.eq.0) then
+       call get_state_var_value('G ',gtot,name,ceq)
+       if(gx%bmperr.ne.0) gx%bmperr=0
        if(.not.btest(globaldata%status,GSSILENT)) &
-            write(*,1010)meqrec%noofits,finish2-starting,endoftime-starttid
-1010   format('Equilibrium calculation ',i4,' its, ',&
-            1pe12.4,' s and ',i7,' clockcycles')
+            write(*,1010)meqrec%noofits,&
+            finish2-starting,endoftime-starttid,gtot
+1010   format('Equilibrium result: ',i4,' its, ',&
+            1pe12.4,' s, ',i6,' cc, G=',1pe15.7,' J/mol')
 ! Here we have now an equilibrium calculated.  Do a cleanup of the structure
 ! for phases with several compsets the call below shifts the stable one
 ! to the lowest compset number unless the default constitution fits another

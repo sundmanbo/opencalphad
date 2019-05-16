@@ -753,10 +753,15 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
         EQFAIL=4,     EQNOACS=5,  EQGRIDTEST=6, EQGRIDCAL=7
 !----------------------------------------------------------------
 !-Bits in parameter property type record (gtp_propid)
-! constant (no T or P dependence), only P, only T, property has an 
-! element suffix (like mobility), property has a constituent suffix
+! no T or P dependence (constant)
+! only P dependence
+! only T dependence
+! there is an element suffix (like mobility),
+! there is a constituent suffix
+! Property has no addition (used when entering and listing data)
    integer, parameter :: &
-        IDNOTP=0, IDONLYP=1, IDONLYT=2, IDELSUFFIX=3, IDCONSUFFIX=4
+        IDNOTP=0, IDONLYP=1, IDONLYT=2, IDELSUFFIX=3, IDCONSUFFIX=4,&
+        IDNOADD=5
 !----------------------------------------------------------------
 !- Bits in condition status word (some set in onther ways??)
 ! singlevar means T=, x(el)= etc, singlevalue means value is a number
@@ -1884,6 +1889,8 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   integer, private :: mqindex
 ! quasichemical model type, 1=classic, 2=corrceted type 1, 3=corrected type 2
   integer :: qcmodel=1
+! this is to remember how manytimes find_gridmeen needs to search all gridp
+  integer :: ngridseek
 !\end{verbatim}
 
 CONTAINS

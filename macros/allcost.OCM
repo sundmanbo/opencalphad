@@ -49,6 +49,8 @@ l c
 
 set adv small
 
+set adv grid 0
+
 @&
 @$ Just calculate with gridmin, some warnings
 

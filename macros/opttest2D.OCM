@@ -26,6 +26,9 @@ set wei 0 *
 
 set wei 1 HCUMG2_K
 
+list active
+
+@&
 @$---------------------------------------------------
 @$ First set the weight of all experimenatal equilibria to zero
 @$ and then set the equilibrium with the enthalpy of
