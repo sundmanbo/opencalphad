@@ -29,7 +29,7 @@ program octq2
        'PARAMETER MQ&NI(FCC_A1,FE:VA;0) 298.15 -25000*IQRT-31; 6000 N BOS !'/)
 ! set some defaults
   n=0
-  filename='FENI '
+  filename='TQ4lib/F90/feni/FENI '
 ! initiate
   call tqini(n,ceq)
   if(gx%bmperr.ne.0) goto 1000
