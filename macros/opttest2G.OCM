@@ -113,14 +113,49 @@ save unf ./opttest2-cumg7
 Y
 
 @&
+
+@$ Just for fun, check how the diagram looks like without the intermetallics
+
+l cond
+
+set c x(mg)=.3
+
+set stat ph lav cumg2=s
+
+c e
+
+l,,,,
+
+@&
+
+set ax 1 x(mg)
+0
+1
+
+
+set ax 2 t 300 1500 25
+
+map
+
+
+plot
+
+
+
+@$ Without the intermetallic phases the FCC phase is stable
+@$ across almost the whole diagram.
+@&
 @$===================================================================
 @$===================================================================
 @$======= step 7: fit solubilities in Laves phase (not done)
 @$===================================================================
 @$===================================================================
 
+@$ We have not checked the fit to chemical potentials 
+@$
 @$ At the end a total optimization of all parameters together with
 @$ most of the experimental data must be made.
+@$
 @$ IMPORTANT: The coefficients for the Cp should NOT be assessed
 @$ together with phase diagram data, they should remain fixed.
 

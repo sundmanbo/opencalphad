@@ -358,10 +358,11 @@
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
    integer itc,ibm,jl,noprop,ik,k,jk,j
-   double precision logb1,invb1,iafftc,iaffbm,rgasm,rt,tao,gmagn
+   double precision logb1,invb1,iafftc,iaffbm,rgasm,rt,tao,gmagn,msize
    double precision dtaodt,dtaodp,beta,d2taodp2,d2taodtdp,tc,tv
    double precision tao2(2),ftao(6),dtao(3,mc),d2tao(mc*(mc+1)/2)
    double precision addgval(6),daddgval(3,mc),d2addgval(mc*(mc+1)/2)
+   logical addpermole
 ! phres points to result record with gval etc for this phase
    TYPE(tpfun_expression), pointer :: exprot
 ! dgdt = Gmagn/T + RT*df/dtao*dtao/dT*ln(beta+1)
@@ -565,12 +566,20 @@
       enddo
    enddo
 ! now add all to the total G and its derivatives
-! something wrong here, j should go from 1 to 9 in my fenix case ...
+! NOTE if addpermole bit set we have to multiply with derivatives of
+! the size of the phase ...
+   if(btest(lokadd%status,ADDPERMOL)) then
+      addpermole=.TRUE.; msize=phres%abnorm(1)
+      write(*,'(a,i4,l2,1pe12.4)')'3H msize magadd 1: ',lokph,addpermole,msize
+! UNFINISHED: ignoring that msize depend on fractions
+   else
+      addpermole=.FALSE.; msize=one
+   endif
    do j=1,mc
 !      write(*,99)'3H magadd 1: ',1,j,phres%dgval(1,j,1),daddgval(1,j)/rt
       do k=1,3
 ! first derivatives
-         phres%dgval(k,j,1)=phres%dgval(k,j,1)+daddgval(k,j)/rt
+         phres%dgval(k,j,1)=phres%dgval(k,j,1)+msize*daddgval(k,j)/rt
       enddo
 99    format(a,2i3,2(1pe16.8))
       do k=j,mc
@@ -578,14 +587,14 @@
 !         write(*,99)'3H magadd 2: ',k,j,rt*phres%d2gval(ixsym(j,k),1),&
 !              d2addgval(ixsym(j,k))
          phres%d2gval(ixsym(j,k),1)=phres%d2gval(ixsym(j,k),1)+&
-              d2addgval(ixsym(j,k))/rt
+              msize*d2addgval(ixsym(j,k))/rt
       enddo
    enddo
 !   write(*,*)'3H cm 7: ',phres%gval(1,1),addgval(1)/rt
 ! note phres%gval(1..3,1) already calculated above
    do j=4,6
-      lokadd%propval(j)=addgval(j)
-      phres%gval(j,1)=phres%gval(j,1)+addgval(j)/rt
+      lokadd%propval(j)=msize*addgval(j)
+      phres%gval(j,1)=phres%gval(j,1)+msize*addgval(j)/rt
    enddo
 1000 continue
    return
@@ -749,11 +758,12 @@
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
    integer itc,itn,ibm,jl,noprop,ik,k,jk,j
-   double precision logb1,invb1,iafftc,iaffbm,rgasm,rt,tao,gmagn
+   double precision logb1,invb1,iafftc,iaffbm,rgasm,rt,tao,gmagn,msize
    double precision dtaodt,dtaodp,beta,d2taodp2,d2taodtdp,tc,tv
    double precision tao2(2),ftao(6),dtao(3,mc),d2tao(mc*(mc+1)/2)
    double precision addgval(6),daddgval(3,mc),d2addgval(mc*(mc+1)/2)
    double precision tn,tcsave,tnsave
+   logical addpermole
    TYPE(tpfun_expression), pointer :: exprot
 ! dgdt = Gmagn/T + RT*df/dtao*dtao/dT*ln(beta+1)
 ! dgdp = RT df/dtao*dtao/dP*ln(beta+1)
@@ -952,24 +962,32 @@
       enddo
    enddo
 ! now add all to the total G
+! NOTE if addpermole bit set we have to multiply with derivatives of
+! the size of the phase ...
+   if(btest(lokadd%status,ADDPERMOL)) then
+      addpermole=.TRUE.; msize=phres%abnorm(1)
+      write(*,'(a,i4,l2,1pe12.4)')'3H msize magadd 2: ',lokph,addpermole,msize
+   else
+      addpermole=.FALSE.; msize=one
+   endif
    do j=1,mc
       do k=1,3
 !          write(*,99)'3H magadd 1: ',k,j,rt*phres%dgval(k,j,1),daddgval(k,j)
-         phres%dgval(k,j,1)=phres%dgval(k,j,1)+daddgval(k,j)/rt
+         phres%dgval(k,j,1)=phres%dgval(k,j,1)+msize*daddgval(k,j)/rt
       enddo
 !99 format(a,2i3,2(1pe16.8))
       do k=j,mc
 !          write(*,99)'3H magadd 2: ',k,j,rt*phres%d2gval(ixsym(j,k),1),&
 !               d2addgval(ixsym(j,k))
          phres%d2gval(ixsym(j,k),1)=phres%d2gval(ixsym(j,k),1)+&
-              d2addgval(ixsym(j,k))/rt
+              msize*d2addgval(ixsym(j,k))/rt
       enddo
    enddo
 !    write(*,*)'3H cm 7: ',rt*phres%gval(1,1),addgval(1)
 ! note phres%gval(1..3,1) already calculated above
    do j=4,6
-      lokadd%propval(j)=addgval(j)
-      phres%gval(j,1)=phres%gval(j,1)+addgval(j)/rt
+      lokadd%propval(j)=msize*addgval(j)
+      phres%gval(j,1)=phres%gval(j,1)+msize*addgval(j)/rt
    enddo
 ! we may have destroyed the original value of tc if we have AFM
    tc=tcsave
@@ -1338,10 +1356,11 @@
    integer ith,noprop,extreme,j1
    double precision kvot,expkvot,expmkvot,ln1mexpkvot,kvotexpkvotm1,fact
 !   double precision del1,del2,del3,del4,gein,dgeindt,d2geindt2
-   double precision gein,dgeindt,d2geindt2
+   double precision gein,dgeindt,d2geindt2,msize
+   logical addpermole
 !
    noprop=phres%listprop(1)-1
-!   write(*,*)'3H theta: ',phres%listprop(2),addrec%need_property(1)
+!   write(*,*)'3H thet: ',phres%listprop(2),addrec%need_property(1)
    findix: do ith=2,noprop
       if(phres%listprop(ith).eq.addrec%need_property(1)) goto 100
    enddo findix
@@ -1413,20 +1432,32 @@
    do j1=1,mc
       phres%dgval(1,j1,1)=phres%dgval(1,j1,1)+fact*phres%dgval(1,j1,ith)
    enddo
+! NOTE if addpermole bit set we have to multiply with derivatives of
+! the size of the phase ...
+   if(btest(addrec%status,ADDPERMOL)) then
+      addpermole=.TRUE.; msize=phres%abnorm(1)
+!      write(*,'(a,i4,l2,1pe12.4)')'3H msize lowT: ',lokph,addpermole,msize
+   else
+      addpermole=.FALSE.; msize=one
+!      write(*,'(a,i4,l2,1pe12.4)')'3H msize lowT: ',lokph,addpermole,msize
+   endif
 ! return the values in phres%gval(*,1)
-   phres%gval(1,1)=phres%gval(1,1)+gein
-   phres%gval(2,1)=phres%gval(2,1)+dgeindt
+   phres%gval(1,1)=phres%gval(1,1)+msize*gein
+   phres%gval(2,1)=phres%gval(2,1)+msize*dgeindt
 !   phres%gval(3,1)=phres%gval(3,1)
-   phres%gval(4,1)=phres%gval(4,1)+d2geindt2
+   phres%gval(4,1)=phres%gval(4,1)+msize*d2geindt2
 !   phres%gval(5,1)=phres%gval(5,1)
 !   phres%gval(6,1)=phres%gval(6,1)
-   addrec%propval(1)=gein
-   addrec%propval(2)=dgeindt
-   addrec%propval(4)=d2geindt2
+   addrec%propval(1)=msize*gein
+   addrec%propval(2)=msize*dgeindt
+   addrec%propval(4)=msize*d2geindt2
 !   write(*,70)'3H Cp E3: ',ceq%tpval(1),gein,dgeindt,d2geindt2
 70 format(a,F7.2,5(1pe12.4))
 71 format(a,i3,1x,F7.2,5(1pe12.4))
-! Missing implem of derivatives wrt comp.dep of thet.  thet cannot depend on T
+!
+! NOTE Missing implementation of derivatives wrt comp.dep of THET.
+! the THET parameter cannot depend on T
+!
 1000 continue
    return
  end subroutine calc_einsteincp
@@ -1492,10 +1523,11 @@
 !\end{verbatim}
    integer ith,jth,noprop,extreme,j1
    double precision kvot,expkvot,expmkvot,ln1pexpmkvot,kvotexpkvotp1,fact
-   double precision gsch,dgschdt,d2gschdt2,dcp2
+   double precision gsch,dgschdt,d2gschdt2,dcp2,msize
+   logical addpermole
 !
    noprop=phres%listprop(1)-1
-!   write(*,*)'3H theta: ',phres%listprop(2),addrec%need_property(1)
+!   write(*,*)'3H thet: ',phres%listprop(2),addrec%need_property(1)
    ith=0
    jth=0
    findix: do j1=2,noprop
@@ -1566,19 +1598,30 @@
 !      phres%dgval(1,j1,1)=phres%dgval(1,j1,1)+fact*phres%dgval(1,j1,ith)
 !   enddo
 ! return the values in phres%gval(*,1)
-   phres%gval(1,1)=phres%gval(1,1)+gsch
-   phres%gval(2,1)=phres%gval(2,1)+dgschdt
+! NOTE if addpermole bit set we have to multiply with derivatives of
+! the size of the phase ...
+   if(btest(addrec%status,ADDPERMOL)) then
+      addpermole=.TRUE.; msize=phres%abnorm(1)
+!      write(*,'(a,i4,l2,1pe12.4)')'3H msize schky: ',lokph,addpermole,msize
+   else
+      addpermole=.FALSE.; msize=one
+   endif
+!
+   phres%gval(1,1)=phres%gval(1,1)+msize*gsch
+   phres%gval(2,1)=phres%gval(2,1)+msize*dgschdt
 !   phres%gval(3,1)=phres%gval(3,1)
-   phres%gval(4,1)=phres%gval(4,1)+d2gschdt2
+   phres%gval(4,1)=phres%gval(4,1)+msize*d2gschdt2
 !   phres%gval(5,1)=phres%gval(5,1)
 !   phres%gval(6,1)=phres%gval(6,1)
-   addrec%propval(1)=gsch
-   addrec%propval(2)=dgschdt
-   addrec%propval(4)=d2gschdt2
+   addrec%propval(1)=msize*gsch
+   addrec%propval(2)=msize*dgschdt
+   addrec%propval(4)=msize*d2gschdt2
 !   write(*,70)'3H Schottky: ',ceq%tpval(1),gsch,dgschdt,d2gschdt2
 70 format(a,F7.2,5(1pe12.4))
 71 format(a,i3,1x,F7.2,5(1pe12.4))
-! Missing implem of derivatives wrt comp.dep of thet.  thet cannot depend on T
+!
+! Missing implem of derivatives wrt comp.dep of thet.  thet2 cannot depend on T
+!
 1000 continue
    return
  end subroutine calc_schottky_anomality
@@ -1644,7 +1687,8 @@
    integer ith,jth,noprop,extreme,j1
    double precision kvot,expkvot,expmkvot,ln1mexpkvot,kvotexpkvotm1,fact
 !   double precision del1,del2,del3,del4,gein,dgeindt,d2geindt2
-   double precision gein,dgeindt,d2geindt2,deltacp
+   double precision gein,dgeindt,d2geindt2,deltacp,msize
+   logical addpermole
 !
    noprop=phres%listprop(1)-1
 !   write(*,*)'3H tht2: ',phres%listprop(2),addrec%need_property(1),&
@@ -1722,6 +1766,13 @@
    endif
 !   write(*,16)'3H 2nd Einstein: ',kvot,deltacp,d2geindt2
 16 format(a,6(1pe12.4))
+! cehck if addition is per mole 
+   if(btest(addrec%status,ADDPERMOL)) then
+      addpermole=.TRUE.; msize=phres%abnorm(1)
+!      write(*,'(a,i4,l2,1pe12.4)')'3H msize 2ndein: ',lokph,addpermole,msize
+   else
+      addpermole=.FALSE.; msize=one
+   endif
 ! first derivative for each constituent. The parameter value is ln(theta)
 ! and we should divide by RT
    fact=deltacp*kvotexpkvotm1
@@ -1729,23 +1780,51 @@
       phres%dgval(1,j1,1)=phres%dgval(1,j1,1)+fact*phres%dgval(1,j1,ith)
    enddo
 ! return the values in phres%gval(*,1)
-   phres%gval(1,1)=phres%gval(1,1)+gein
-   phres%gval(2,1)=phres%gval(2,1)+dgeindt
+   phres%gval(1,1)=phres%gval(1,1)+msize*gein
+   phres%gval(2,1)=phres%gval(2,1)+msize*dgeindt
 !   phres%gval(3,1)=phres%gval(3,1)
-   phres%gval(4,1)=phres%gval(4,1)+d2geindt2
+   phres%gval(4,1)=phres%gval(4,1)+msize*d2geindt2
 !   phres%gval(5,1)=phres%gval(5,1)
 !   phres%gval(6,1)=phres%gval(6,1)
-   addrec%propval(1)=gein
-   addrec%propval(2)=dgeindt
-   addrec%propval(4)=d2geindt2
+   addrec%propval(1)=msize*gein
+   addrec%propval(2)=msize*dgeindt
+   addrec%propval(4)=msize*d2geindt2
 !   write(*,70)'3H Cp E3: ',ceq%tpval(1),gein,dgeindt,d2geindt2
 70 format(a,F7.2,5(1pe12.4))
 71 format(a,i3,1x,F7.2,5(1pe12.4))
+!
 ! Missing implem of derivatives wrt comp.dep of tht2 and dcp2.
 ! Neither tht2 nor dcp2 can depend on T
+!
 1000 continue
    return
  end subroutine calc_secondeinstein
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+ subroutine setpermolebit(lokph,addtype)
+! set bit in addition record that addition is per mole
+! lokph is phase record
+! addtype is the addtion record type
+   implicit none
+   integer lokph,addtype
+!\end{verbatim}
+   type(gtp_phase_add), pointer :: addrec
+   addrec=>phlista(lokph)%additions
+!   write(*,*)'3H set size bit: ',addtype
+   do while(associated(addrec))
+      if(addrec%type.eq.addtype) then
+         write(*,*)'3H setting bit ADDPERMOL for addition type ',addtype
+         addrec%status=ibset(addrec%status,ADDPERMOL)
+         goto 1000
+      endif
+      addrec=>addrec%nextadd
+   enddo
+   write(*,*)'3H Cannot find addition ',addtype
+1000 continue
+   return
+ end subroutine setpermolebit
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

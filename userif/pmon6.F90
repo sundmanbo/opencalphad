@@ -152,9 +152,14 @@ contains
     integer :: nopt1=100, mexp=0,nvcoeff=0,nopt,iflag,mexpdone=0,nvcoeffdone=0
     integer, allocatable, dimension(:) :: iwam
     double precision, allocatable, dimension(:) :: wam
-    double precision, allocatable, dimension(:,:) :: fjac,mat1,cormat
+! tccm is used to calculate RSD as Thermo-Calc
+    double precision, allocatable, dimension(:,:) :: fjac,cov1,cormat,tccm
     double precision :: optacc=1.0D-3
     logical :: updatemexp=.true.
+! saved parameters for analyze
+    double precision, allocatable, dimension(:,:) :: savedcoeff
+    double precision savesumerr,delta
+    integer analyze,cormatix,nvcoeffsave,mexpsave,iz
 ! this is least square error from using LMDIF
 ! 1: previous value, 2 new value, 3 normalized error (divided by m-n)
     double precision err0(3)
@@ -197,7 +202,7 @@ contains
 ! here are all commands and subcommands
 !    character (len=64), dimension(6) :: oplist
     integer, parameter :: ncbas=30,nclist=21,ncalc=12,ncent=21,ncread=6
-    integer, parameter :: ncam1=18,ncset=27,ncadv=12,ncstat=6,ncdebug=9
+    integer, parameter :: ncam1=18,ncset=27,ncadv=15,ncstat=6,ncdebug=9
     integer, parameter :: nselect=6,nlform=6,noptopt=9,nsetbit=6
     integer, parameter :: ncamph=18,naddph=12,nclph=6,nccph=6,nrej=9,nsetph=6
     integer, parameter :: nsetphbits=15,ncsave=6,nplt=21,nstepop=6
@@ -212,7 +217,7 @@ contains
         'DEBUG           ','SELECT          ','DELETE          ',&
         'STEP            ','MAP             ','PLOT            ',&
         'HPCALC          ','FIN             ','OPTIMIZE        ',&
-        'SHOW            ','                ','                ',&
+        'SHOW            ','ANALYZE_ASSESSMT','                ',&
         '                ','                ','                ']
 ! in French
 !        'MODIFIEZ        ','CALCULEZ        ','REGLEZ          ',&
@@ -250,7 +255,7 @@ contains
     character (len=16), dimension(noptopt) :: optopt=&
         ['SHORT           ','LONG            ','COEFFICIENTS    ',&
          'GRAPHICS        ','DEBUG           ','MACRO           ',&
-         'EXPERIMENTS     ','CORRELATION_MTRX','                ']
+         'EXPERIMENTS     ','CORRELATION_MTRX','TC_RSD          ']
 !------------------- subcommands to CALCULATE
     character (len=16), dimension(ncalc) :: ccalc=&
          ['TPFUN_SYMBOLS   ','PHASE           ','NO_GLOBAL       ',&
@@ -320,7 +325,7 @@ contains
 ! subcommands to SET
     character (len=16), dimension(ncset) :: cset=&
          ['CONDITION       ','STATUS          ','ADVANCED        ',&
-         'LEVEL           ','INTERACTIVE     ','REFERENCE_STATE ',&
+         '                ','INTERACTIVE     ','REFERENCE_STATE ',&
          'QUIT            ','ECHO            ','PHASE           ',&
          'UNITS           ','LOG_FILE        ','WEIGHT          ',&
          'NUMERIC_OPTIONS ','AXIS            ','INPUT_AMOUNTS   ',&
@@ -338,7 +343,8 @@ contains
          ['EQUILIB_TRANSFER','QUIT            ','                ',&
           'GRID_DENSITY    ','SMALL_GRID_ONOFF','MAP_SPECIAL     ',&
           'GLOBAL_MIN_ONOFF','OPEN_POPUP_OFF  ','WORKING_DIRECTRY',&
-          'HELP_POPUP_OFF  ','EET_EXTRAPOL    ','                ']
+          'HELP_POPUP_OFF  ','EET_EXTRAPOL    ','LEVEL           ',&
+          '                ','                ','                ']
 !         123456789.123456---123456789.123456---123456789.123456
 ! subsubcommands to SET BITS
     character (len=16), dimension(nsetbit) :: csetbit=&
@@ -665,6 +671,7 @@ contains
 !          write(*,*)'No initiation file'
        endif
     endif noochome
+    write(*,*)'Working directory is: ',trim(workingdir)
 !
 ! finished initiallization
 !
@@ -909,13 +916,14 @@ contains
                      cline,last,j1,idef,q1help)
                 if(buperr.ne.0) goto 990
                 if(j1.eq.0) then
-! Xiong modification of Inden-Hillert-Jarl magnetic model
+! Xiong modification of Inden-Hillert-Jarl magnetic model has AFF=0
                    call gparcd('BCC type phase: ',cline,last,1,ch1,'N',q1help)
                    call gparcd('Using individual Bohr magnetons: ',&
                         cline,last,1,ch1,'N',q1help)
                    if(ch1.ne.'N') then
                       call set_phase_status_bit(lokph,PHBMAV)
                    endif
+                   j2=xiongmagnetic
                    call add_addrecord(lokph,ch1,xiongmagnetic)
                 else
                    if(j1.eq.-1) then
@@ -925,6 +933,14 @@ contains
 ! Inden magnetic for FCC
                       call add_addrecord(lokph,'N',indenmagnetic)
                    endif
+                   j2=indenmagnetic
+                endif
+                call gparcd('Is the addition calculated for one mole? ',&
+                     cline,last,1,ch1,'N',q1help)
+! The magnetic model calculates a molar Gibbs energy, must be multiplied with
+! the number of atoms in the phase. j2 set above to the addition type
+                if(ch1.eq.'Y' .or. ch1.eq.'y') then
+                   call setpermolebit(lokph,j2)
                 endif
 !....................................................
              case(2) ! QUIT
@@ -950,6 +966,13 @@ contains
              case(7) ! amend phase <name> LowT_CP_model
                 call add_addrecord(lokph,' ',einsteincp)
                 write(*,*)'This addition requires the THET parameter'
+                call gparcd('Is the addition calculated for one mole? ',&
+                     cline,last,1,ch1,'Y',q1help)
+! The CP model calculates a molar Gibbs energy, must be multiplied with
+! the number of atoms in the phase. j2 set above to the addition type
+                if(ch1.eq.'Y' .or. ch1.eq.'y') then
+                   call setpermolebit(lokph,einsteincp)
+                endif
 !....................................................
              case(8) ! not used
 !....................................................
@@ -966,6 +989,11 @@ contains
                 call add_addrecord(lokph,' ',secondeinstein)
                 write(*,672)
 672             format('This addition recures the THT2 and DCP2 parameters')
+! The smooth CP model calculates a molar Gibbs energy, must be multiplied with
+! the number of atoms in the phase. j2 set above to the addition type
+                if(ch1.eq.'Y' .or. ch1.eq.'y') then
+                   call setpermolebit(lokph,secondeinstein)
+                endif
              end select amendphaseadd
 !************************************ end of amend phase ... addition
 !....................................................
@@ -1181,7 +1209,10 @@ contains
              enddo
              firstash%coeffrsd=zero
              call listoptcoeff(mexp,err0,.FALSE.,lut)
-             if(allocated(cormat)) deallocate(cormat)
+             if(allocated(cormat)) then
+                deallocate(cormat)
+                deallocate(tccm)
+             endif
           else
              call gparcd('Do you want to recover the coefficients values?',&
                   cline,last,1,ch1,'N',q1help)
@@ -1199,7 +1230,10 @@ contains
                 enddo
 ! no change of start value or scaling factor but zero RSD and sum of squares
                 firstash%coeffrsd=zero
-                if(allocated(cormat)) deallocate(cormat)
+                if(allocated(cormat)) then
+                   deallocate(cormat)
+                   deallocate(tccm)
+                endif
                 err0(2)=zero
                 call listoptcoeff(mexp,err0,.FALSE.,lut)
              else
@@ -2023,15 +2057,16 @@ contains
 !.................................................................
           case(9) ! WORKING DIRECTORY
              write(kou,*)'Current working directory: ',trim(workingdir)
-!             call gparc('New: ',cline,last,1,string,workingdir,q1help)
-!             inquire(file=string,exist=logok)
-!             if(.not.logok) then
-!                write(*,*)'No such directory'
-!             elseif(workingdir.ne.string) then
-!                write(*,'(a,a)')'Working directory set to: ',trim(string)
-!                workingdir=string
-!             endif
-             write(*,*)'Cannot be changed'
+             write(kou,*)'To change please give full path'
+             call gparc('New: ',cline,last,1,string,workingdir,q1help)
+             inquire(file=string,exist=logok)
+             if(.not.logok) then
+                write(*,*)'No such directory'
+             elseif(trim(workingdir).ne.trim(string)) then
+                write(*,'(a,a)')'Working directory set to: ',trim(string)
+                workingdir=string
+             endif
+!             write(*,*)'Cannot be changed'
 !.................................................................
           case(10) ! HELP_POPUP_OFF
              call gparcd('Turn off popup help? ',cline,last,&
@@ -2074,18 +2109,25 @@ contains
 !                globaldata%sysreal(1)=zero
              endif
 !.................................................................
-          case(12) ! not used
-             write(*,*)'Not implemented yet'
+          case(12) ! SET ADVANCED LEVEL
+             call gparcd('I am an expert of OC: ',cline,last,1,ch1,'N',q1help)
+             if(ch1.eq.'Y') then
+                globaldata%status=ibset(globaldata%status,2)
+                write(*,*)'Felicitations!'
+             else
+                write(*,*)'Sorry, not yet'
+             endif
+!.................................................................
+          case(13) ! not used
+!.................................................................
+          case(14) ! not used
+!.................................................................
+          case(15) ! not used
           end select advanced
 !-----------------------------------------------------------
-       case(4) ! set LEVEL, not sure what it will be used for ...
-          call gparcd('I am an expert of OC: ',cline,last,1,ch1,'N',q1help)
-          if(ch1.eq.'Y') then
-             globaldata%status=ibset(globaldata%status,2)
-             write(*,*)'Felicitations!'
-          else
-             write(*,*)'Sorry, not yet'
-          endif
+       case(4) ! set LEVEL, MOVED TO SET ADBANCED
+! 
+          write(*,*)'Unused'
 !-----------------------------------------------------------
 ! end of macro excution (can be nested)
        case(5) ! set INTERACTIVE
@@ -2414,15 +2456,28 @@ contains
           if(i1.gt.0) then
              ceq%maxiter=i1
           endif
+!------------
           xxx=ceq%xconv
           call gparrd('Max error in fraction: ',cline,last,xxy,xxx,q1help)
           if(xxy.gt.1.0D-30) then
              ceq%xconv=xxy
+          else
+             ceq%xconv=1.0D-30
           endif
+!------------ what is this? not used in gtp3X.F90
           xxx=ceq%gdconv(1)
           call gparrd('Max cutoff driving force: ',cline,last,xxy,xxx,q1help)
           if(xxy.gt.1.0D-5) then
              ceq%gdconv(1)=xxy
+          endif
+!------------ if the point between two gridpoints in a phase is less then merge
+          xxx=ceq%gmindif
+          call gparrd('Min difference merging gridpoints: ',cline,last,&
+               xxy,xxx,q1help)
+          if(xxy.gt.-1.0D-5) then
+             ceq%gmindif=xxy
+          else
+             ceq%gmindif=-1.0D-2
           endif
 !-------------------------------------------------------------
        case(14) ! set axis
@@ -3997,10 +4052,10 @@ contains
                 do i2=1,mexp
                    write(*,563)(fjac(i2,ll),ll=1,nvcoeff)
                 enddo
-                if(allocated(mat1)) then
-                   write(*,*)'The matrix Jac^T * Jac: '
+                if(allocated(cov1)) then
+                   write(*,*)'The covariance matrix Jac^T * Jac: '
                    do i2=1,nvcoeff
-                      write(*,563)(mat1(i2,ll),ll=1,nvcoeff)
+                      write(*,563)(cov1(i2,ll),ll=1,nvcoeff)
                    enddo
                 endif
 !...........................................................
@@ -4021,15 +4076,26 @@ contains
                 if(nvcoeff.eq.nvcoeffdone .and. allocated(cormat)) then
                    write(*,*)'Correlation matrix is:'
                    do i2=1,nvcoeff
-                      write(kou,563)(cormat(i2,j2),j2=1,nvcoeff)
+                      write(kou,563)(cormat(i2,j2),j2=1,i2)
+                   enddo
+                   write(kou,'(/a)')'Covariance matrix is: '
+                   do i2=1,nvcoeff
+                      write(kou,563)(cov1(i2,j2),j2=1,nvcoeff)
                    enddo
                 else
                    write(*,*)'No correlation matrix calculated'
                 endif
 !...........................................................
-! list optimization ??
+! list optimization RSD (according to TC)
              case(9) ! unused
-                write(*,*)'Not implemented yet'
+!                write(*,*)'Not implemented yet'
+                i2=0
+                do i1=0,size(firstash%coeffstate)-1
+                   if(firstash%coeffstate(i1).ge.10) then
+                      i2=i2+1
+                      write(*,*)'TC RSD: ',i2,abs(sqrt(abs(tccm(i2,i2))))
+                   endif
+                enddo
              end SELECT listopt
 !------------------------------
 ! list model_parameter_values, part of case(4)
@@ -6066,6 +6132,7 @@ contains
 ! err0(1) is set to the sum of errors squared for the initial values of coefs
 573    format(a,6(1pe12.4))
        allocate(fjac(mexp,nvcoeff))
+!       write(*,'(a,10(1pe12.4))')'lmdif1: ',(coefs(iz),iz=1,nvcoeff)
 !->->->->->-> HERE THE OPTIMIZATION IS MADE <-<-<-<-<-<-
 ! nfev set to number of iterations
        call lmdif1(mexp,nvcoeff,coefs,errs,optacc,nopt,nfev,&
@@ -6109,7 +6176,10 @@ contains
 !       read(*,'(a)')ch1
 ! cormat will be the CORRELATION MATRIX if optimization successful
 ! otherwise it will not be allocated
-       if(allocated(cormat)) deallocate(cormat)
+       if(allocated(cormat)) then
+          deallocate(cormat)
+          deallocate(tccm)
+       endif
 !--------------- begin calculate correlation matrix and RSD
 ! zero the relative standard deviations (RSD)
        firstash%coeffrsd=zero
@@ -6133,10 +6203,10 @@ contains
 !          write(*,*)'End listing of Jacobian fjac calculated by fdjac2'
 !          read(*,'(a)')ch1
 ! Next calculate M = (fjac)^T (fjac); ( ^T means transponat)
-          if(allocated(mat1)) deallocate(mat1)
-! the mat1 is symmetric and should have these dimensions:
-          allocate(mat1(nvcoeff,nvcoeff))
-          mat1=zero
+          if(allocated(cov1)) deallocate(cov1)
+! the cov1 is symmetric and should have these dimensions:
+          allocate(cov1(nvcoeff,nvcoeff))
+          cov1=zero
           do i2=1,nvcoeff
              do j2=1,nvcoeff
                 xxx=zero
@@ -6146,21 +6216,22 @@ contains
 564                format(a,3i5,1pe12.4)
                 enddo
 ! this matrix is symmetric ... which index first ???
-                mat1(j2,i2)=xxx
-!                mat1(i2,j2)=xxx
+                cov1(j2,i2)=xxx
+!                cov1(i2,j2)=xxx
              enddo
           enddo
 !          write(*,*)'M = (Jac)^T (Jac); (^T means transponat)',nvcoeff
 !          do i2=1,nvcoeff
-!             write(*,563)(mat1(i2,ll),ll=1,nvcoeff)
+!             write(*,563)(cov1(i2,ll),ll=1,nvcoeff)
 !          enddo
-! invert mat1 using LAPACK+BLAS via Lukas routine ...
+! invert cov1 using LAPACK+BLAS via Lukas routine ...
           if(nvcoeff.gt.1) then
 ! cormat deallocated above, dimension is cormat(nvcoeff,nvcoeff) !!
              allocate(cormat(nvcoeff,nvcoeff))
-! symmetric?   call mdinv(nvcoeff,nvcoeff+1,mat1,cormat,nvcoeff,iflag)
-! NOTE: mat1 and cormat should both have dimension mat1(nvcoeff,nvcoeff)
-             call mdinv(nvcoeff,mat1,cormat,nvcoeff,iflag)
+             allocate(tccm(nvcoeff,nvcoeff))
+! symmetric?   call mdinv(nvcoeff,nvcoeff+1,cov1,cormat,nvcoeff,iflag)
+! NOTE: cov1 and cormat should both have dimension cov1(nvcoeff,nvcoeff)
+             call mdinv(nvcoeff,cov1,cormat,nvcoeff,iflag)
 ! invert unsymmetrical matrix
              if(iflag.eq.0) then
                 write(*,*)'Failed invert matrix=Jac^T*Jac',iflag
@@ -6175,16 +6246,16 @@ contains
                 do i2=1,nvcoeff
 ! I get exactly the same RSD as TC if I ignore the normalized error !!
 ! but according to theory it should be multiplied with the normalized error
+                  tccm(i1,i2)=cormat(i1,i2)
                   cormat(i1,i2)=err0(3)*cormat(i1,i2)
-!                   cormat(i1,i2)=cormat(i1,i2)
                 enddo
              enddo
 ! divide all values with the square root of the  diagonal elements
-! save covarance matrix n mat1
-             mat1=cormat
+! save covarance matrix n cov1
+             cov1=cormat
              do i1=1,nvcoeff
                 do i2=1,nvcoeff
-                   xxx=sqrt(abs(mat1(i1,i1)*mat1(i2,i2)))
+                   xxx=sqrt(abs(cov1(i1,i1)*cov1(i2,i2)))
                    cormat(i1,i2)=cormat(i1,i2)/xxx
                 enddo
              enddo
@@ -6192,12 +6263,14 @@ contains
 !             do i1=1,nvcoeff
 !                write(*,'(6(1pe12.4))')(cormat(i1,i2),i2=1,nvcoeff)
 !             enddo
-          elseif(abs(mat1(1,1)).gt.1.0D-38) then
-! mat1 is just a single value
+          elseif(abs(cov1(1,1)).gt.1.0D-38) then
+! cov1 is just a single value
              allocate(cormat(1,1))
+             allocate(tccm(1,1))
 !             cormat(1,1)=one
 ! IF THERE IS A SINGLE VARIABLE ITS CORRELATION MATRIX MUST BE UNITY
              cormat(1,1)=one
+             tccm(1,1)=one
           else
              write(*,*)'Correlation matrix singular'
           endif
@@ -6213,7 +6286,7 @@ contains
        endif
 ! zero all RSD values
        firstash%coeffrsd=zero
-       if(allocated(cormat) .and. allocated(mat1)) then
+       if(allocated(cormat) .and. allocated(cov1)) then
 ! calculate the RSD (Relative Standard Deviation) for each parameter
 ! the last calculated values of the experiments in calcexp
 !          write(*,*)'The sum of all calculated equilibria,',&
@@ -6241,11 +6314,11 @@ contains
                 i2=i2+1
 ! But in cormat they are indexed from 1 .. nvcoeff
 !                firstash%coeffrsd(i1)=sqrt(abs(cormat(i2,i2))*xxx)/xxy
-!                write(*,'(a,3(1pe12.4))')'RSD: ',mat1(i2,i2),xxx,xxy
-!                firstash%coeffrsd(i1)=abs(sqrt(abs(mat1(i2,i2))*xxx)/xxy)
+!                write(*,'(a,3(1pe12.4))')'RSD: ',cov1(i2,i2),xxx,xxy
+!                firstash%coeffrsd(i1)=abs(sqrt(abs(cov1(i2,i2))*xxx)/xxy)
 ! we have already multiplied all terms in covariance matrix with err0(3)
-!                firstash%coeffrsd(i1)=abs(sqrt(abs(mat1(i2,i2))*err0(3)
-                firstash%coeffrsd(i1)=abs(sqrt(abs(mat1(i2,i2))))
+!                firstash%coeffrsd(i1)=abs(sqrt(abs(cov1(i2,i2))*err0(3)
+                firstash%coeffrsd(i1)=abs(sqrt(abs(cov1(i2,i2))))
              endif
           enddo
        endif
@@ -6303,9 +6376,132 @@ contains
 !    CASE(25)
 !       write(kou,*)'Not implemented yet'
 !=================================================================
-! unused
+! ANALYZE_ASSESSMT
     CASE(26)
-       write(kou,*)'Not implemented yet'
+       if(.not.allocated(firstash%eqlista)) then
+          write(kou,*)'No assessment record'
+          goto 100
+       elseif(nvcoeff.le.0) then
+          write(kou,*)'No variable optimizing coefficients'; goto 100
+       elseif(nvcoeff.ne.nvcoeffdone) then
+          write(kou,*)'No optimization made with these coefficients',&
+               nvcoeff,nvcoeffdone
+          goto 100 
+       elseif(mexp.ne.mexpdone) then
+          write(kou,*)'No optimization made with these experiments',&
+               mexp,mexpdone
+          goto 100 
+       endif
+       call gpari('Index of coefficent to change: ',cline,last,&
+            analyze,NONE,q1help)
+       if(buperr.ne.0) goto 990
+       xxy=zero
+       if(analyze.lt.0) then
+! using give a negative coefficient, restore saved coefficients
+! if nvcoefdone and mxexp same
+          write(*,*)'Trying to restore saved coefficients'
+          if(nvcoeffsave.eq.nvcoeff .and. mexpsave.eq.mexp) then
+             if(allocated(savedcoeff)) then
+! if analyze < 0 then restore sevedcoeff
+                i2=0
+                do j2=0,size(firstash%coeffstate)-1
+                   if(firstash%coeffstate(j2).ge.10) then
+! this a variable coefficient
+                      i2=i2+1
+                      firstash%coeffscale(j2)=savedcoeff(1,i2)
+                      firstash%coeffstart(j2)=savedcoeff(2,i2)
+! I am not sure if xxx should be savedcoeff or scale*start ... ???
+                      xxx=savedcoeff(3,i2)
+                      firstash%coeffvalues(j2)=xxx
+                      firstash%coeffrsd(j2)=zero
+! this should update all other places including TP function 
+                      call change_optcoeff(firstash%coeffindex(j2),xxx)
+                   endif
+                enddo
+                deallocate(savedcoeff)
+                err0(2)=savesumerr
+                write(*,*)'Restored saved coefficients'
+             else
+                write(*,*)'No coefficients saved'
+             endif
+          else
+! giving a negative number makes it possible to use ANALYZE again
+! for another set of coefficients and experiments
+             write(kou,*)'Cannot restore as variable coefficients ',&
+                  'or experiments changed'
+             if(allocated(savedcoeff)) deallocate(savedcoeff)
+          endif
+          goto 100
+       else
+          if(.not.allocated(savedcoeff)) then
+! when ANALYZE first time save the current set of variable coefficients
+             allocate(savedcoeff(3,nvcoeff))
+             mexpsave=0
+! if already allocated mexpsave nonzero
+          endif
+          i2=0
+          xxy=zero
+          do j2=0,size(firstash%coeffstate)-1
+! only active coefficients saved ... extract the one to be changed
+             if(firstash%coeffstate(j2).ge.10) then
+                i2=i2+1
+                if(mexpsave.eq.0) then
+                   savedcoeff(1,i2)=firstash%coeffscale(j2)
+                   savedcoeff(2,i2)=firstash%coeffstart(j2)
+                   savedcoeff(3,i2)=firstash%coeffvalues(j2)
+!                 write(*,'(a,3(1pe14.6))')'saved: ',(savedcoeff(iz,i2),iz=1,3)
+                   firstash%coeffrsd(j2)=zero
+                endif
+                if(analyze.eq.j2) then
+                   cormatix=i2
+                   xxy=savedcoeff(1,i2)*savedcoeff(3,i2)
+!                   write(*,*)'Coefficient: ',cormatix,xxy
+                endif
+             endif
+          enddo
+          if(mexpsave.eq.0) then
+             write(*,*)'Saved ',i2,'currently variable coefficients'
+! save current sum of errors, nvcoeff and mexp
+             savesumerr=err0(2)
+             nvcoeffsave=nvcoeff; mexpsave=mexp
+          endif
+       endif
+! if xxy is zero it is not an optimized coefficient
+       if(xxy.eq.zero) then
+          write(kou,*)'Specified coefficent not set as variable',analyze
+          if(allocated(savedcoeff)) deallocate(savedcoeff); goto 100
+       endif
+! ask for new value with the current value as default
+       call gparrd('New value: ',cline,last,xxx,xxy,q1help)
+       delta=(xxx-xxy)/firstash%coeffscale(analyze)
+!       write(*,*)'Delta: ',xxx-xxy,delta
+! UNFINISHED
+! Now all variable coefficients should be modified using the correlation matrix
+       i2=0
+       do j2=0,size(firstash%coeffstate)-1
+! modify all other coefficient according to the correlation matrix       
+! new_value_i =  old_value_i + correlation_matrix_ji * delta (where j=analyze)
+          if(firstash%coeffstate(j2).ge.10) then
+             i2=i2+1
+             xxx=firstash%coeffvalues(j2)
+             xxy=xxx+cormat(cormatix,i2)*delta
+!             firstash%coeffvalues(j2)=xxy*firstash%coeffscale(j2)
+! %coeffvalues should be of the order 1
+! No change of %coeffstart and %coeffscale
+             firstash%coeffvalues(j2)=xxy
+             xxz=xxy*firstash%coeffscale(j2)
+! optimizing coefficients are also TP functions, we must update the
+! TP function value!! I do not understand this and "list tp" is wrong
+! but it seems to work.  If I set the value *firstash%coeffscale it blows up!
+             call change_optcoeff(firstash%coeffindex(j2),xxz)
+!             call change_optcoeff(firstash%coeffindex(j2),xxy)
+!        call change_optcoeff(firstash%coeffindex(j2),firstash%coeffvalues(j2))
+!             write(*,'(a,2i4,4(1pe12.4))')'New value: ',i2,j2,&
+!                  xxx,cormat(cormatix,i2),delta,firstash%coeffvalues(j2)
+          endif
+       enddo
+       write(*,*)'To calculate a new set of errors use OPTIMIZE'
+!       write(kou,*)'Not implemented yet'
 !=================================================================
 ! unused
     CASE(27)
@@ -6654,7 +6850,7 @@ contains
 !    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
     type(gtp_equilibrium_data), pointer :: neweq
-    integer i1,i2,j1,j2,j3
+    integer i1,i2,j1,j2,j3,neq
     character name1*24,line*80
     double precision xxx,sum
     type(gtp_condition), pointer :: experiment
@@ -6669,7 +6865,7 @@ contains
     write(lut,620)size(firstash%eqlista),mexp
 620 format(/'List of ',i5,' equilibria with ',i5,&
          ' experimental data values'/&
-         '  No Equil name    Weight Experiment $ calculated',19x,&
+         '  No Equil name      Weight Experiment $ calculated',19x,&
          'Error')
     j3=0
     allequil: do i1=1,size(firstash%eqlista)
@@ -6683,6 +6879,8 @@ contains
        if(.not.associated(experiment)) cycle allequil
 700    continue
           i2=neweq%lastexperiment%seqz
+!          write(*,*)'number of experiments: ',i2
+          neq=neweq%eqno
           do j2=1,i2
 ! j1 is position in line to write experiment
              j1=1
@@ -6690,16 +6888,25 @@ contains
 ! this subroutine returns experiment and calculated value: "H=1000:200 $ 5000"
              call meq_get_one_experiment(j1,line,j2,neweq)
              j3=j3+1
-             write(lut,622)neweq%eqno,name1(1:12),neweq%weight,line(1:40),&
-                  errs(j3)
-622          format(i4,1x,a,2x,F5.2,1x,a,1x,1pe12.4)
+             if(neq.gt.0) then
+!                write(lut,622)neq,name1(1:12),neweq%weight,line(1:40),errs(j3)
+                write(lut,622)neq,name1(1:15),neweq%weight,line(1:40),errs(j3)
+622             format(i4,1x,a,2x,F5.2,1x,a,1x,1pe12.4)
+                neq=0
+             else
+                write(lut,623)line(1:40),errs(j3)
+623             format(28x,a,1x,1pe12.4)
+             endif
 ! list the equilibrium name just for the first (or only) experiment
-             name1=' '
+!             name1=' '
           enddo
           experiment=>experiment%next
-590       if(.not.associated(experiment,neweq%lastexperiment)) then
-             experiment=>experiment%next
-             goto 700
+!590       if(.not.associated(experiment,neweq%lastexperiment)) then
+!             experiment=>experiment%next
+!             goto 700
+          if(j2.lt.i2 .and. .not.associated(experiment)) then
+             write(*,*)'Missing experiment in equilibrium ',neweq%eqno
+             cycle allequil
           endif
     enddo allequil
 ! list sum of squares

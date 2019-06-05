@@ -516,7 +516,7 @@ calc /out=outpara all N
 @&
 @$ Run without parallel with output on file for comparison
 @$ First I must declare me as an expert, then use bit 15 to turns off parallel
-set level
+set advanced level
 Y
 
 @$ set bit 15 which prevents parallel execution

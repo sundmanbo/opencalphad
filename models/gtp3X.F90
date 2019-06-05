@@ -120,7 +120,7 @@
 ! added when implicit none
    double precision rtg,pyq,ymult,add1,sum,yionva,fsites,xxx,sublf
    integer nofc2,nprop,nsl,msl,lokdiseq,ll,id,id1,id2,lm,qz,floryhuggins
-   integer lokfun,itp,nz,intlat,ic,jd,jk,ic1,jpr,ipy,i1,j1,jj
+   integer lokfun,itp,nz,intlat,ic,jd,jk,ic1,jpr,ipy,i1,j1,jj,jxsym
    integer i2,j2,ider,is,kk,ioff,norfc,iw,iw1,iw2,lprop,jonva,icat
    integer nsit1,nsit2
 ! cqc configurational entropy
@@ -586,6 +586,7 @@
 !            d2pyq is all zero here
             d2pyqloop1: do ll=1,msl
                id1=endmemrec%fraclinks(ll,epermut)
+! too complicated here ...               jxsym=ixsym(ll,ll+1)
                d2pyloop2: do lm=ll+1,msl
                   id2=endmemrec%fraclinks(lm,epermut)
                   if(id1.gt.0) then
@@ -704,10 +705,21 @@
                              dpyq(id)*vals(itp)
                      enddo
                      if(moded.gt.1 .and. dpyq(id).gt.zero) then
+!                        jxsym=ixsym(id,id+1)
+                        jxsym=kxsym(id,id+1)
                         do jd=id+1,gz%nofc
-                           phres%d2gval(ixsym(id,jd),ipy)= &
-                                phres%d2gval(ixsym(id,jd),ipy)+ &
-                                d2pyq(ixsym(id,jd))*vals(1)
+! trying to replace calls of ixsym ... OK here
+                           if(ixsym(id,jd).ne.jxsym) then
+                              write(*,*)'ISYM error 1',id,jd,ixsym(id,jd),jxsym
+                              stop
+                           endif
+!                           phres%d2gval(ixsym(id,jd),ipy)= &
+!                                phres%d2gval(ixsym(id,jd),ipy)+ &
+!                                d2pyq(ixsym(id,jd))*vals(1)
+                           phres%d2gval(jxsym,ipy)= &
+                                phres%d2gval(jxsym,ipy)+ &
+                                d2pyq(jxsym)*vals(1)
+                           jxsym=jxsym+jd
                         enddo
                      endif
                   enddo derloopz2
@@ -1116,13 +1128,24 @@
                   noder4: if(moded.gt.0) then
                      iloop3: do id=1,gz%nofc
                         if(moded.gt.1) then
+! Testing using jxsym ... OK here also
+                           jxsym=kxsym(id,id)
 !                           iloop4: do jd=id+1,gz%nofc
 ! This loop was constructed for normal cases when pyq has each fraction once
 ! in ionic liquids Va can have a power so loop for all!
                            iloop4: do jd=id,gz%nofc
-                              phres%d2gval(ixsym(id,jd),ipy)= &
-                                   phres%d2gval(ixsym(id,jd),ipy)+ &
-                                   d2pyq(ixsym(id,jd))*vals(1)
+!                              phres%d2gval(ixsym(id,jd),ipy)= &
+!                                   phres%d2gval(ixsym(id,jd),ipy)+ &
+!                                   d2pyq(ixsym(id,jd))*vals(1)
+                              if(ixsym(id,jd).ne.jxsym) then
+                                 write(*,*)'ISYM error 2',id,jd,&
+                                      ixsym(id,jd),jxsym
+                                 stop
+                              endif
+                              phres%d2gval(jxsym,ipy)= &
+                                   phres%d2gval(jxsym,ipy)+ &
+                                   d2pyq(jxsym)*vals(1)
+                              jxsym=jxsym+jd
 !                              write(*,251)'3X G:',id,jd,ixsym(id,jd),&
 !                                   d2pyq(ixsym(id,jd)),vals(1)
 251                           format(a,3i3,4(1pe12.4))
@@ -1158,6 +1181,7 @@
                            if(moded.gt.1) then
 ! contribution to second derivatives with respect to 2 const previously ignored
 ! No second derivatives calculated in cgint for this case
+! no jxsym here ... to complicated
                            do qz=jk,4
                               phres%d2gval(ixsym(gz%iq(jk),gz%iq(qz)),ipy)=&
                                   phres%d2gval(ixsym(gz%iq(jk),gz%iq(qz)),ipy)+&
@@ -1443,125 +1467,28 @@
 ! phres%d2gval(i,j) = saved2g(i,j) - phres%d2gval(i,j)
                do ipy=1,lprop-1
                   do i1=1,gz%nofc
+!                     jxsym=ixsym(i1,i1)
+                     jxsym=kxsym(i1,i1)
+! It should work with jxsym here 
                      do i2=i1,gz%nofc
-                        phres%d2gval(ixsym(i1,i2),ipy)=&
-                             saved2g(ixsym(i1,i2),ipy)-&
-                             phres%d2gval(ixsym(i1,i2),ipy)
+                        if(ixsym(i1,i2).ne.jxsym) then
+                           write(*,*)'ISYM error 3',i1,i2,ixsym(i1,i2),jxsym
+                           stop
+                        endif
+                        phres%d2gval(jxsym,ipy)=&
+                             saved2g(jxsym,ipy)-&
+                             phres%d2gval(jxsym,ipy)
+                        jxsym=jxsym+i2
+!                        phres%d2gval(ixsym(i1,i2),ipy)=&
+!                             saved2g(ixsym(i1,i2),ipy)-&
+!                             phres%d2gval(ixsym(i1,i2),ipy)
                      enddo
                   enddo
                enddo
                goto 667
 !----------------------- old code below not used
-!vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-! d2G/dy_is dy_jt = a_s a_t (d2G/dx_is dx_js + d2G/dx_is dx_jt +
-!                            d2G/dx_it dx_js + d2G/dx_it dx_jt)
-! first calculate the term within ( )
-               do ipy=1,lprop-1
-                  do i1=1,gz%nofc
-! note j1 and j2 are set to constituent index of i1,i2 in disordered sublattice
-! or second sublattice if interstital ?? Maybe not
-                     j1=fracset%y2x(i1)
-                     do i2=i1,gz%nofc
-                        j2=fracset%y2x(i2)
-                        tmpd2g(ixsym(j1,j2),ipy)=tmpd2g(ixsym(j1,j2),ipy)+&
-                             phres%d2gval(ixsym(i1,i2),ipy)
-                     enddo
-                  enddo
-               enddo
-! Then subtract this from saved2g
-               do ipy=1,lprop-1
-                  do i1=1,gz%nofc
-                     j1=fracset%y2x(i1)
-                     do i2=i1,gz%nofc
-                        j2=fracset%y2x(i2)
-!                        write(*,637)'3X sublf: ',ipy,i1,i2,nsit1,nsit2,&
-!                             gz%nofc,sublf
-                        phres%d2gval(ixsym(i1,i2),ipy)=&
-                             saved2g(ixsym(i1,i2),ipy)-&
-                             tmpd2g(ixsym(j1,j2),ipy)*&
-                             fracset%dxidyj(i1)*fracset%dxidyj(i2)
-                     enddo
-                  enddo
-               enddo
-               goto 667
-!               if(nsl.gt.3) goto 666
-! probable BUG here with 2nd derivatives of ordered FCC calculated as disordered
-! But this is necessary for 2 sublattice ordered model !! ??
-! DEBUG, problem with partitioning
-!               write(*,613)'3X sub: ',nz,gz%nofc,fracset%latd,fracset%y2x
-!613            format(a,3i3,2x,20i3)
-!               write(*,614)'3X dxi/dyj: ',fracset%dxidyj
-!614            format(a,(10f7.4))
-! Formula derived 2017-02-20
-! d2G/dy_isdy_jt = a_s a_t (d2G/dx_isdx_is + 2 d2G/dx_isdx_jt + d2G/dx_jsdx_jt)
-! THIS IS ONLY DONE FOR ORDERING ON 2 SUBLATTICES (no longer at all)
-               do ipy=1,lprop-1
-                  do i1=1,gz%nofc
-                     j1=fracset%y2x(i1)
-                     do i2=i1,gz%nofc
-                        j2=fracset%y2x(i2)
-                        tmpd2g(ixsym(j1,j2),ipy)=tmpd2g(ixsym(j1,j2),ipy)+&
-                             phres%d2gval(ixsym(i1,i2),ipy)
-                     enddo
-                  enddo
-               enddo
-! phres%d2gval(ixsym(i1,i2),ipy) is 2nd derivatives of the orderd part
-! calculated with the same fractions in all sublattices.
-!               write(*,603)'3X d2Gord(x)/dy1/dy2: ',nz,tmpd2g(1,1),&
-!                    tmpd2g(2,1),tmpd2g(3,1)
-603            format(a,i3,6(1pe12.4))
-! tmpd2g is now d2G/dxidxj calculated with disordered fractions
-! subract that from saved d2G/dyidyj saved in saved2g taking into account
-! the derivatives dxi/dyj (in fracset%dxidyj)
-! original
-!               do ipy=1,lprop-1
-!                  do i1=1,gz%nofc
-!                     j1=fracset%y2x(i1)
-!                     do i2=i1,gz%nofc
-! subtract from saved value
-!                        j2=fracset%y2x(i2)
-!                        phres%d2gval(ixsym(i1,i2),ipy)=&
-!                             saved2g(ixsym(i1,i2),ipy)
-! just ignore contribution to 2nd derivatives from ordered calc as disordered??
-!                             saved2g(ixsym(i1,i2),ipy)-&
-!                             tmpd2g(ixsym(j1,j2),ipy)*&
-!                             fracset%dxidyj(i1)*fracset%dxidyj(i2)
-!                     enddo
-!                  enddo
-!               enddo
-666            continue
-! subract the corresponding d2G/dy1/dy2 calculated as disordered ...
-! but multiplied with the product of the sites on the sublattices for
-! the constituents used as derivatives
-               do ipy=1,lprop-1
-                  nsit1=1
-                  do i1=1,gz%nofc
-!                     j1=fracset%y2x(i1)
-! incffr is the number of constituents up to and including nsit1
-                     if(i1.gt.incffr(nsit1)) nsit1=nsit1+1
-                     nsit2=nsit1
-                     do i2=i1,gz%nofc
-! subtract from saved value
-!                        j2=fracset%y2x(i2)
-                        if(i2.gt.incffr(nsit2)) nsit2=nsit2+1
-                        sublf=phres%sites(nsit1)*phres%sites(nsit2)
-!                        write(*,637)'3X sublf: ',ipy,i1,i2,nsit1,nsit2,&
-!                             gz%nofc,sublf
-637                     format(a,6i3,1pe12.4)
-! evidently this attempt to improve made it worse ...
-!                        sublf=one
-                        phres%d2gval(ixsym(i1,i2),ipy)=&
-                             saved2g(ixsym(i1,i2),ipy)-&
-                             phres%d2gval(ixsym(i1,i2),ipy)
-!                             sublf*phres%d2gval(ixsym(i1,i2),ipy)
-! maybe not needed ??
-!                             phres%d2gval(ixsym(i1,i2),ipy)*&
-!                             fracset%dxidyj(i1)*fracset%dxidyj(i2)
-                     enddo
-                  enddo
-               enddo
-!^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-! old code above not used
+! old code deleted
+!----------------------- old code above not used
 667            continue
                if(allocated(tmpd2g)) deallocate(tmpd2g)
             endif noder6A
@@ -1695,15 +1622,28 @@
             j1=fracset%y2x(i1)
 ! second derivatives
             noder7B: if(moded.gt.1) then
+! problem using jxsym here, map13 crashed FCC 4 sublattice orering!!!
+! PAY ATTENTION TO indices!! we have both i1, i2 and j1, j2
+!               jxsym=ixsym(i1,i1)
+               jxsym=kxsym(i1,i1)
                do i2=i1,norfc
 ! add the contributions from the disordered part
                   j2=fracset%y2x(i2)
+                  if(ixsym(i1,i2).ne.jxsym) then
+                     write(*,*)'ISYM error 4',i1,i2,ixsym(i1,i2),jxsym
+                     stop
+                  endif
                   do ipy=1,lprop-1
-                     phpart%d2gval(ixsym(i1,i2),ipy)=&
-                          phpart%d2gval(ixsym(i1,i2),ipy)+&
+                     phpart%d2gval(jxsym,ipy)=&
+                          phpart%d2gval(jxsym,ipy)+&
                           fsites*phres%d2gval(ixsym(j1,j2),ipy)*&
                           fracset%dxidyj(i1)*fracset%dxidyj(i2)
+!                     phpart%d2gval(ixsym(i1,i2),ipy)=&
+!                          phpart%d2gval(ixsym(i1,i2),ipy)+&
+!                          fsites*phres%d2gval(ixsym(j1,j2),ipy)*&
+!                          fracset%dxidyj(i1)*fracset%dxidyj(i2)
                   enddo
+                  jxsym=jxsym+i2
                enddo
             endif noder7B
 ! first derivatives
@@ -1764,12 +1704,20 @@
 !      write(*,491)'3X ionliq: ',phlista(lokph)%i2slx,phlista(lokph)%nooffr
 491   format(a,2i3,5x,2i3)
       firstd: do i1=1,norfc
+!         jxsym=ixsym(i1,i1)
+         jxsym=kxsym(i1,i1)
          secondd: do i2=i1,norfc
             do ipy=1,lprop-1
 !               write(*,497)'3X adding: ',i1,i2,ixsym(i1,i2),ipy
 497            format(a,10i3)
-               phres%d2gval(ixsym(i1,i2),ipy)=saved2g(ixsym(i1,i2),ipy)+&
-                    phres%sites(2)*phres%d2gval(ixsym(i1,i2),ipy)
+               if(ixsym(i1,i2).ne.jxsym) then
+                  write(*,*)'ISYM error 5',i1,i2,ixsym(i1,i2),jxsym
+                  stop
+               endif
+               phres%d2gval(jxsym,ipy)=saved2g(jxsym,ipy)+&
+                    phres%sites(2)*phres%d2gval(jxsym,ipy)
+!               phres%d2gval(ixsym(i1,i2),ipy)=saved2g(ixsym(i1,i2),ipy)+&
+!                    phres%sites(2)*phres%d2gval(ixsym(i1,i2),ipy)
                add1=zero
 ! IMPORTANT note dpqdy(i1) the the charge of iq, do not confuse with dpyq ...
                if(i1.le.phlista(lokph)%nooffr(1)) then
@@ -1778,8 +1726,10 @@
                if(i2.le.phlista(lokph)%nooffr(1)) then
                   add1=add1+phres%dpqdy(i2)*phres%dgval(1,i1,ipy)
                endif
-               phres%d2gval(ixsym(i1,i2),ipy)=phres%d2gval(ixsym(i1,i2),ipy)+&
-                    add1
+               phres%d2gval(jxsym,ipy)=phres%d2gval(jxsym,ipy)+add1
+!               phres%d2gval(ixsym(i1,i2),ipy)=phres%d2gval(ixsym(i1,i2),ipy)+&
+!                    add1
+               jxsym=jxsym+i2
             enddo
          enddo secondd
 ! hm, when debugging here phres%dgval(1,*,1)=0 so ...

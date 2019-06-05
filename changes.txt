@@ -13,6 +13,28 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2019.06.04 OC version 5.042: The gridminimizer will now try to merge
+gridpoints in the same phase to speed up the following iterative
+calculation and to avoid creating unnecessary composition set.  There
+is a risk this change will mean that some miscibility gaps are not
+detected, please report if you have any problem with this!  The
+merging can be turned off by the commands:
+
+set advanced lavel Y
+set bit global 4
+
+NOTE also: the command "set level" has been removed but there is
+instead an identical "set advanced level".
+
+Many other minor changes has also been made, for example if you enter
+an addition by the "amend phase" command you will now be asked if the
+addition is "calculated per mole atoms" and if you answer Y the
+addition will be multiplied with the current number of moles of the
+phase.  This is important for the "magnetic" and "lowT CP" additions.
+
+Finally a routine used to index a symmetric array, has in some
+time-critical places been replaced by a simpler mechanism.
+
 2019.05.16 OC version 5.041: Disscussions with Clement Introini,
 Romain Le Tellier and Jean-Christophe Dumas at CEA, Cadarache have
 thrown some light on the functions of the the grid minimizer and a

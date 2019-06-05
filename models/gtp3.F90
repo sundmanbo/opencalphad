@@ -767,10 +767,10 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! singlevar means T=, x(el)= etc, singlevalue means value is a number
 ! phase means the condition is a fix phase
   integer, parameter :: &
-       ACTIVE=0,SINGLEVAR=1,SINGLEVALUE=2,PHASE=3
+       ACTIVE=0, SINGLEVAR=1, SINGLEVALUE=2, PHASE=3
 !----------------------------------------------------------------
 !- Bits in assessment head record status
-! ahcoef means coefficients entered
+! ahcoef set means coefficients are entered
   integer, parameter :: &
        AHCOEF=0
 !
@@ -778,8 +778,9 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !- Bits in addition record status word gtp_phase_add
 ! havepar set if the phase has parameters for this addition
 ! if not set the addition is not listed
+! permol set if addition should be muliplied with number of atoms
   integer, parameter :: &
-       ADDHAVEPAR=0
+       ADDHAVEPAR=0, ADDPERMOL=1
 !
 ! >>> Bits for symbols and TP functions missing ???
 !\end{verbatim}
@@ -1641,7 +1642,9 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
      double precision xconv,gdconv(2)
 ! delta-G value for merging gridpoints in grid minimizer
 ! smaller value creates problem for test step3.OCM, MC and austenite merged
-     double precision :: gmindif=-5.0D-2
+!     double precision :: gmindif=-5.0D-2
+! testing merging again 190604/BoS
+     double precision :: gmindif=-1.0D-2
 ! maxiter: maximum number of iterations allowed
      integer maxiter
 ! This is to store additional things not really invented yet ...

@@ -55,7 +55,11 @@ default
 
 @& calculate a first equilibrium at 1200 where we have both fcc phases 
 
+@$ Startpoint change needed for new gridminimizer, same diagram
 set c t=1300 p=1e5 n=1 w%(c)=1 w%(cr)=5, w%(mo)=8 w%(v)=1
+@$ It is important that the grid minimizer provide gridpoints with small
+@$ amounts of alloying elements !!!
+
 
 c e
 

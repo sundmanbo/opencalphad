@@ -40,7 +40,25 @@ c a y 1
 
 c a n 1
 
+@$ Error calculating the only equilibrium 305, we have to handle this
 @&
+
+sel eq 305
+
+@$ Use the calculate phase command again!!
+c ph laves
+1
+n
+1
+0
+
+c n
+
+l,,,,
+
+@$ Now it seems to work to calculate the equilibrium
+@&
+
 
 opt 0
 

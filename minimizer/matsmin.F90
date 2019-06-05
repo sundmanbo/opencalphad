@@ -4862,7 +4862,7 @@ CONTAINS
 !\end{verbatim}
     integer nrel,i2sly(2),info
     integer ik,iph,ics,jz,iz,jk,ierr,kk,kkk,ll,lokcs,ncc,loksp,ncl
-    integer nd1,nd2,neq,nochange,nsl,nspel,nv,ncon,icon
+    integer nd1,nd2,neq,nochange,nsl,nspel,nv,ncon,icon,jxsym,kxsym
 ! needed for call to get_phase_data
     integer, dimension(maxsubl) ::  nkl
     integer, dimension(maxconst) :: knr
@@ -5157,6 +5157,7 @@ CONTAINS
           lapack=zero
        endif
        pmat=zero
+! this is for an ideal phase with no excess
        do ik=1,nkl(1)
           do jk=ik,nkl(1)
              ll=ixsym(ik,jk)
@@ -5518,15 +5519,29 @@ CONTAINS
        endif
        lapack=zero
     endif
+! normally .not.nolapack is FALSE
+!    write(*,*)' What is .not.nolapack? ',.not.nolapack
     pmat=zero
     neq=ncon
+! here we are calculating CEF models
     do ik=1,ncon
+! OK       jxsym=ixsym(ik,ik); kxsym=0
+       jxsym=ixsym(ik,ik)
        do jk=ik,ncon
 ! fatal parallel execution frequently here ... why?? Error message:
 ! index '0' of dimension 1 of array 'ceq' below lower bound of 1
 !          pmat(ik,jk)=ceq%phase_varres(lokcs)%d2gval(ixsym(ik,jk),1)
 ! modified code:
           ll=ixsym(ik,jk)
+! OK          jxsym=jxsym+kxsym; kxsym=jk
+! increment jxsym at the end of the loop ...
+! testing replacing ixsym .... too complicated ...
+          if(ll.ne.jxsym) then
+             write(*,*)'Problems: ',ik,jk,ll,jxsym,kxsym
+             stop
+!          else
+!             write(*,*)'No problems: ',ik,jk,ll,jxsym,kxsym
+          endif
 ! attempt to avoid a crash
 !$          if(lokcs.le.0 .or. ll.le.0) then
 !$             write(*,491)'meq_onephase error: ',lokcs,ll,omp_get_thread_num()
@@ -5537,6 +5552,8 @@ CONTAINS
           if(.not.nolapack) lapack(ll)=ceq%phase_varres(lokcs)%d2gval(ll,1)
 ! remove next line when using an inversion for symmetric matrix
           if(jk.gt.ik) pmat(jk,ik)=pmat(ik,jk)
+! this is an attempt to avoid calling ixsym ... it works
+          jxsym=jxsym+jk
        enddo
 !       write(*,17)'row2A: ',(pmat(ik,jj),jj=1,nd1)
     enddo
@@ -5671,7 +5688,7 @@ CONTAINS
 !
 1000 continue
     return
-  end subroutine meq_onephase
+  end subroutine meq_onephase !ixsym
  
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -8242,12 +8259,12 @@ CONTAINS
 !       write(*,*)'MM2 Testing value of firstash%coeffstate',i1
        if(firstash%coeffstate(i1).ge.10) then
 !          write(*,*)'MM3 coefficient ',i1,i2,xyz(i2)
-! Attempt to handle that I divide by coef with scaling factor ...
+! Attempt to handle that I divide coef with scaling factor ...
           zzz=xyz(i2)*firstash%coeffscale(i1)
           xxx=xyz(i2)*firstash%coeffscale(i1)
-!          write(*,16)i2,i1,xxx,xyz(i2),firstash%coeffscale(i1)
-!16        format('MM4 Opt coeff ',2i4,' set to ',3(1pe12.4))
           call get_value_of_constant_index(firstash%coeffindex(i1),zzz)
+!          write(*,16)i2,i1,xyz(i2),firstash%coeffscale(i1),xxx,zzz
+16        format('MM4 Opt coeff ',2i4,4(1pe12.4))
           savix=i1
           call change_optcoeff(firstash%coeffindex(i1),xxx)
           if(gx%bmperr.ne.0) goto 1000

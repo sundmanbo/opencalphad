@@ -116,7 +116,8 @@ amend phase part comp-set y ,,
 <.1 >.5
 <.1 >.5
 
-set c t=300 p=1e5 n=1 x(ni)=.75
+@$ set a slightly off-ideal composition as the griminimiser prefers that ...
+set c t=300 p=1e5 n=1 x(ni)=.751
 
 c e
 

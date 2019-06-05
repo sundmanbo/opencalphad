@@ -122,15 +122,17 @@ MODULE METLIB
 ! character for PATH to macro file in order to open files inside macro
     character macropath(5)*128
 ! the working directory
-    character workingdir*128
+    character workingdir*256
+! >>>>>>>>>> SYSTEM DEPENDENT <<<<<<<<<<
 ! nbpw is number if bytes per INTEGER
     integer, parameter :: nbpw=4,nwpr=2
+! >>>>>>>>>> SYSTEM DEPENDENT <<<<<<<<<<
     parameter (MACEXT='OCM')
 !    parameter (MACEXT='BMM')
 !
 !vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
-    integer, parameter :: maxhelplevel=20
 ! A help structure used in new on-line help system
+    integer, parameter :: maxhelplevel=50
     TYPE help_str
        integer :: okinit=0
 !       character*128 filename
@@ -985,6 +987,22 @@ CONTAINS
     return
   end subroutine getname
 
+! In OC the calls to ixsym take about 10 % of the CPU time
+! I am trying to replace with local indexing but I need a routine
+! that calculates the index when both indices are equal or when I know
+! the second index is larger
+  integer function kxsym(ix1,ix2)
+! calculates the storage place of value at (i,j) for a symmetrix matrix
+! storage order 11, 12, 22, 13, 23, 33, etc
+!    if(ix1.le.0 .or. ix2.le.0) then
+!       buperr=1000; goto 1000
+!    endif
+    kxsym=ix1+ix2*(ix2-1)/2
+1000 continue
+    return
+  end function kxsym
+
+
   integer function ixsym(ix1,ix2)
 ! calculates the storage place of value at (i,j) for a symmetrix matrix
 ! storage order 11, 12, 22, 13, 23, 33, etc
@@ -999,71 +1017,6 @@ CONTAINS
 1000 continue
     return
   end function ixsym
-
-  integer function ixsym0(ix1,ix2)
-! calculates the storage place of value at (i,j) for a symmetrix matrix
-! storage order 11, 12, 22, 13, 23, 33, etc
-    if(ix1.le.0 .or. ix2.le.0) then
-       buperr=1000; goto 1000
-    endif
-    if(ix1.gt.ix2) then
-!       stop 'ix1 > ix2'
-       ixsym0=ix2+ix1*(ix1-1)/2
-    else
-       ixsym0=ix1+ix2*(ix2-1)/2
-    endif
-1000 continue
-    return
-  end function ixsym0
-
-!  integer function ixsym2(ix1,ix2)
-! calculates the storage place of value at (i,j) for a symmetrix matrix
-! storage order 11, 12, 22, 13, 23, 33, etc
-! Slightly faster ....
-!    ixmin=min(ix1,ix2)
-!    ixmax=max(ix1,ix2)
-!    ixsym2=ixmin+ixmax*(ixmax-1)/2
-!1000 continue
-!    return
-!  end function ixsym2
-
-  integer function ixsym7(ix1,ix2)
-! calculates the storage place of value at (i,j) for a symmetrix matrix
-! storage order 11, 12, 22, 13, 23, 33, etc
-! Slightly faster ....
-!    ixmin=min(ix1,ix2)
-!    ixmax=max(ix1,ix2)
-!    ixsym=ixmin+ixmax*(ixmax-1)/2
-    ixsym7=min(ix1,ix2)+max(ix1,ix2)*(max(ix1,ix2)-1)/2
-1000 continue
-    return
-  end function ixsym7
-
-  integer function ixsym3(ix1,ix2)
-! calculates the storage place of value at (i,j) for a symmetrix matrix
-! storage order 11, 12, 22, 13, 23, 33, etc
-! OK but gives strange results for the speed
-    integer ix1,ix2,ip
-    if(ix1.le.0 .or. ix2.le.0) then
-       buperr=1000; goto 1000
-    endif
-    ixsym3=ix1+ix2; p=(ixsym3+abs(ix1-ix2))/2
-    ixsym3=ixsym3+(p*(p-3))/2
-1000 continue
-    return
-  end function ixsym3
-
-  integer function ixsym4(ix1,ix2)
-! calculates the storage place of value at (i,j) for a symmetrix matrix
-! storage order 11, 12, 22, 13, 23, 33, etc
-    integer ix1,ix2,ip
-    if(ix1.le.0 .or. ix2.le.0) then
-       buperr=1000; goto 1000
-    endif
-    ixsym4=(ix1+ix2+abs(ix1-ix2))/2
-1000 continue
-    return
-  end function ixsym4
 
   subroutine wrice(lut,margl1,margl2,maxl,str)
 ! writes str on unit lut with left margin largl1 for first line, margl2 for all

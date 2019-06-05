@@ -119,7 +119,64 @@ c a y 1
 
 opt 0
 
+@$ Sometimes error still here for equilibrium 3 and 4
+@& 
+@$ Take some serious action, this depend very much on your understanding
+@$ of the model and thermodynamics
+
+sel eq 3
+
+l,,,,
+
+@$ The main reson for problems is that the constitution is wrong
+@$ But you should know what is the constitution, mainly Cu in first
+@$ and mainly Mg in second to become Cu2Mg
+@$ Use the command "calculate phase" to set this!
+@&
+
+calc ph laves
+1
+n
+1
+0
+
+
+@$ Now you have set a constitution that is correct, try to calculate
+@$ the equilibrium without the grid minimizer
+
+c n
+
+l,,,,,
+
+@$ This looks OK.  Do the same with the next equilibrium
+@&
+
+sel eq next
+
+calc ph laves
+1
+n
+1
+0
+
+@$ and calculate the equilibrium
+
+c n
+
+l,,,,,
+
+@$ This is OK.  If you have errors in other equilibria
+@$ try to fix them in the same way.
+@&
+
+@$ Otherwise try to calculate all again
+
+c a n 1
+
 @$ Now no errors.
+
+@$ If you have more problem maybe stop the macro or add commands here
+@$ set inter
 @&
 
 @$--------------------------------------------------------------------
