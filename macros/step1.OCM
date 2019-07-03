@@ -138,11 +138,19 @@ title step 1 fig 3
 render
 
 @&
+@$ Plot the fractions in the MC_FCC phase
+plot
+T
+w(mc_fcc,*)
+title step 1 fig 4
+render
+
+@&
 @$ Plot the enthalpy variation
 plot
 T
 H
-title step 1 fig 4
+title step 1 fig 5
 render
 
 
@@ -153,7 +161,7 @@ render
 plot
 T
 cp
-title step 1 fig 5
+title step 1 fig 6
 render
 
 @&
@@ -174,12 +182,13 @@ title step 1 fig 6
 @&
 @$ Now plot a PDF of this figure.
 @$ THIS CAN ALSO BE DONE IN THE PLOT WINDOW
-@$ First check available graphic devices
+@$ First list the available graphic devices, do not enter any
 
 enter gnu
 
 
 
+@$ plot terminal 3 is the PDF format
 @&
 
 plot

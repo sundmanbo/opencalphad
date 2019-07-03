@@ -231,7 +231,7 @@ MODULE ocsmp
 ! maptop is map_node record with all results
 ! form is type of output (screen/postscript/pdf(acrobat)/gif)
 !------------------------------------------------------------------
-! status contain bits
+! status contain bits, BITS defined in ??
 ! rangedefaults(i) nonzero if min/max for axis i set by user
 ! axistype(i) is 1 if axis i is logscale
 ! plotmin/max are user definied min/max
@@ -287,16 +287,21 @@ MODULE ocsmp
   integer, parameter :: MAPPHASEFIX=3
 ! maximum number of saved equilibria during step/map
   integer, parameter :: maxsavedceq=2000
-! for graphopt status word
-! GRKEEP is set if graphics windows kept
-  integer, parameter :: GRKEEP=0
+! OS dependent values NOT BITS
 #ifdef notwin
   integer, parameter :: GRWIN=0
 #else
   integer, parameter :: GRWIN=1
 #endif
-! for colors
-  character (len=6) :: monovariant='7CFF40'
+!-------------------------------------------------
+! BITS for graphopt status word, do not use bit 0 and 1 ...
+! GRKEEP is set if graphics windows kept
+! GRNOTITLE is set if no title plotted 
+  integer, parameter :: GRKEEP=2,GRNOTITLE=3
+! these bits very confused ...
+!--------------------------------------------------
+! default for some colors
+  character (len=6) :: monovariant='7CFF40'       ! this is light green
   character (len=6) :: tielinecolor='7CFF40'
 ! for trace
   logical :: plottrace=.FALSE.
@@ -6474,11 +6479,13 @@ CONTAINS
     graphopt%plotmax=one
     graphopt%dfltmax=one
     graphopt%appendfile=' '
+! This is confused ... GRWIN=0 if WIndows, GRWIN=1 if not windows ... SUCK
+!    if(btest(graphopt%status,GRWIN)) savebit=1
+! if the bit GRKEEP is set it should remain set
     savebit=0
-! keep the windws bit set if already sey
-    if(btest(graphopt%status,GRWIN)) savebit=1
+    if(btest(graphopt%status,GRKEEP)) savebit=1
     graphopt%status=0
-    if(savebit.ne.0) graphopt%status=ibset(graphopt%status,GRWIN)
+    if(savebit.ne.0) graphopt%status=ibset(graphopt%status,GRKEEP)
 ! remove all texts ... loosing some memory ...
     nullify(graphopt%firsttextlabel)
     graphopt%labelkey='top right font "arial,12" '

@@ -13,6 +13,18 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2019.07.03 OC version 5.043: The metlib library which is used for the
+user interface and many other utilities in OC was written more than 30
+years ago in the old F77 standard.  It contains features that are
+depreciated in the new Fortan and I am trying to remove them when I
+have time.  But sometimes these cause errors compiling with different
+Fortran compilers and please let me know about this. I just removed 3
+cases of "computed goto" reported by Benjami Sabatini because in the
+2018 standard they are no longer allowed.
+
+A bug that caused phase fractions not to be plotted if the phase was
+not the only stable one was detected by Frank Niessen has been fixed.
+
 2019.06.04 OC version 5.042: The gridminimizer will now try to merge
 gridpoints in the same phase to speed up the following iterative
 calculation and to avoid creating unnecessary composition set.  There
@@ -20,7 +32,7 @@ is a risk this change will mean that some miscibility gaps are not
 detected, please report if you have any problem with this!  The
 merging can be turned off by the commands:
 
-set advanced lavel Y
+set advanced level Y
 set bit global 4
 
 NOTE also: the command "set level" has been removed but there is
@@ -481,7 +493,7 @@ slightly due to a case Nathalie showed me, it means a few more
 iterations in some cases when the Gibbs energy surface is rather flat.
 I have also improved the way OC finds startpoints for mapping in
 isothermal sections and changed some of the colors used for plotting,
-tie-lines and invariant lines in isothermal sections are now golden.
+tie-lines and monovariant lines in isothermal sections are now golden.
 But one can still not start a mapping inside an invariant isothermal
 section, maybe in next release.
 
@@ -549,7 +561,7 @@ additional options, 10 and 11, to list a phase constitution based on
 the amount of the phase similar to FactSage output.
 
 2018.02.23 OC version 5.004: Many changes has been made in the
-assessment part of OC as a PhD student at Toulouse, Eva Lawrene, has
+assessment part of OC as a PhD student at Toulouse, Eva Lawraene, has
 started to work on this with support from Christine Gueneau at CEA.
 Finally there is hope to have a better software for developing
 thermodynamic databases.

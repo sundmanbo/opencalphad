@@ -148,6 +148,7 @@
       chkperm=.true.
 ! This is needed only once unless parameters are changed.  It numbers the
 ! interaction records sequentially for the permutations
+! palmtree is in gtp3Y.F90 for some unknown reason ...
       call palmtree(lokph)
       if(gx%bmperr.ne.0) goto 1000
    endif

@@ -137,6 +137,7 @@
     qp=1
     wildcard=.FALSE.
     selectph=.FALSE.
+    selphase=' '
     do iax=1,2
 !       write(*,*)'Allocating for axis: ',iax
        call capson(pltax(iax))
@@ -179,7 +180,7 @@
                 nrv=index(pltax(iax),'(')
                 if(nrv.lt.ikol) then
                    selphase=pltax(iax)(nrv+1:ikol-1)
-!                   write(*,*)'Selected phase: ',trim(selphase)
+                   write(*,*)'SMP2B wildcard selected phase: ',trim(selphase)
                    selectph=.TRUE.
                 endif
              endif
@@ -292,7 +293,8 @@
 !             write(*,*)'In ocplot2, looking for segmentation fault 4A'
              first=.false.
              kk=1
-             do jj=1,noph()
+!             if(selectph) novalues=.TRUE.
+             phloop: do jj=1,noph()
 !                write(*,*)'In ocplot2, segmentation fault 4Ax',jj,noofcs(jj)
                 do ic=1,noofcs(jj)
                    k3=test_phase_status(jj,ic,value,curceq)
@@ -303,13 +305,14 @@
                       if(gx%bmperr.ne.0) goto 1000
                       if(selectph) then
 ! this is an attempt to remove lines from irrelevant equilibria when plotting
-! data for a specific phase like y(fcc#4,*)
+! data for a specific phase like y(fcc#4,*) which is not stable??
                          if(abbr_phname_same(dummy,trim(selphase))) then
                             novalues=.FALSE.
-!                            write(*,*)'Setting novalues FALSE',mapline%lineid
+!                            write(*,*)'SMP2B novalues FALSE',mapline%lineid
+                            exit phloop
                          else
                             novalues=.TRUE.
-!                            write(*,*)'Setting novalues TRUE',mapline%lineid
+!                            write(*,*)'SMP2B novalues TRUE',mapline%lineid
                          endif
                       endif
                       if(.not.novalues) then
@@ -321,7 +324,7 @@
                       endif
                    endif
                 enddo
-             enddo
+             enddo phloop
 !             write(*,117)nlinesep,phaseline(nlinesep)(1:kk-1)
 117          format('Stable phases on line ',i5/a)
 ! the segmentation fault was that linzero not always allocated ....
@@ -364,7 +367,7 @@
                 goto 199
 !                cycle plot1
              else
-!                write(*,*)'Getting a wildcard value 1: ',nr,trim(statevar)
+!                write(*,*)'SMP2B wildcard value 1: ',nr,trim(statevar)
 !                write(*,*)'In ocplot2, segmentation fault after 4C1: ',&
 !                     trim(statevar),nooftup()
 ! segmentation fault is inside this call for map11.OCM
@@ -374,10 +377,12 @@
 ! compiling without -finit-local-zero gives a segmentation fault here
 ! running the MAP11 macro
                 qp=np
-!                write(*,*)'wildcard value 1: ',nr,trim(statevar)
-!                write(*,223)'Values: ',np,(yyy(i),i=1,np)
-!                write(*,*)'SMP2B: number of values: ',trim(selphase),np,nv
-223             format(a,i3,8F8.4)
+!                write(*,*)'SMP2B wildcard value 2: ',nr,trim(statevar)
+!                write(*,223)'SMP2B Values: ',np,(yyy(i),i=1,np)
+!                if(selectph) then
+!                   write(*,*)'SMP2B: number of values: ',trim(selphase),np,nv
+!223                format(a,i3,8F8.4)
+!                endif
                 if(gx%bmperr.ne.0) then
                    write(*,*)'yaxis error: "',trim(statevar),'"'
                    goto 1000
@@ -948,10 +953,17 @@
        labelkey=graphopt%labelkey
     endif
 ! OC logo oclogo added by Catalina Pineda
-    write(21,860)trim(title),trim(conditions),graphopt%xsize,graphopt%ysize,&
+!    write(*,*)'Plot heading 1? ',btest(graphopt%status,GRNOTITLE)
+    if(btest(graphopt%status,GRNOTITLE)) then
+       write(21,858)trim(title),trim(conditions)
+    else
+       write(21,859)trim(title),trim(conditions)
+    endif
+    write(21,860)graphopt%xsize,graphopt%ysize,&
          trim(pltax(1)),trim(pltax(2)),trim(labelkey)
-860 format('set title "',a,' \n ',a,'" font "arial,10" '/&
-         'set origin 0.0, 0.0 '/&
+858 format('# set title "',a,' \n #',a,'" font "arial,10" ')
+859 format('set title "',a,' \n ',a,'" font "arial,10" ')
+860 format('set origin 0.0, 0.0 '/&
          'set size ',F8.4', ',F8.4/&
          'set xlabel "',a,'"'/'set ylabel "',a,'"'/&
          'set label "O" at graph -0.090, -0.100 font "Garamond bold,20"'/&
@@ -1325,6 +1337,7 @@
     if(graphopt%gnutermsel.ne.1) then
        write(kou,*)'Graphics output file: ',pfh(1:kk+4)
     endif
+! GRWIN set by compiler option, if 1 we are running on Microsoft windows
     if(grwin.eq.1) then
 ! call system without initial "gnuplot " keeps the window !!!
        if(btest(graphopt%status,GRKEEP)) then
@@ -1345,7 +1358,8 @@
           call execute_command_line(gnuplotline)
        endif
     else
-! plot on non-windows system
+! plot on non-windows system, do not use "start /B"
+! how to implement GRKEEP?
        write(*,*)'executing command: '//trim(gnuplotline)
        call execute_command_line(gnuplotline)
     endif
@@ -1445,10 +1459,17 @@
 !    write(*,*)'"',year,'"  "',hour,'"'
     tablename='OCT'//year(3:8)//hour(1:6)
 ! OC logo oclogo added by Catalina Pineda
-    write(21,860)trim(title),trim(conditions),graphopt%xsize,graphopt%ysize,&
+!    write(*,*)'Plot heading 2? ',btest(graphopt%status,GRNOTITLE)
+    if(btest(graphopt%status,GRNOTITLE)) then
+       write(21,858)trim(title),trim(conditions)
+    else
+       write(21,859)trim(title),trim(conditions)
+    endif
+    write(21,860)graphopt%xsize,graphopt%ysize,&
          trim(pltax(1)),trim(pltax(2)),trim(labelkey)
-860 format('set title "',a,' \n ',a,'" font "arial,10" '/&
-         'set origin 0.0, 0.0 '/&
+858 format('#set title "',a,' \n #',a,'" font "arial,10" ')
+859 format('set title "',a,' \n ',a,'" font "arial,10" ')
+860 format('set origin 0.0, 0.0 '/&
          'set size ',F8.4', ',F8.4/&
          'set xlabel "',a,'"'/'set ylabel "',a,'"'/&
          'set label "O" at graph -0.090, -0.100 font "Garamond bold,20"'/&
@@ -1775,6 +1796,7 @@
     if(graphopt%gnutermsel.ne.1) then
        write(kou,*)'Graphics output file: ',pfh(1:kk+4)
     endif
+! GRWIN is set by compiler option, if 1 we are running microspft windows
     if(grwin.eq.1) then
 ! call system without initial "gnuplot " keeps the window !!!
        if(btest(graphopt%status,GRKEEP)) then
@@ -1795,7 +1817,8 @@
           call execute_command_line(gnuplotline)
        endif
     else
-! plot on non-windows system
+! plot on non-windows system without "start /B ...
+! how to implement GRKEEP?
        write(*,*)'executing command: '//trim(gnuplotline)
        call execute_command_line(gnuplotline)
     endif
@@ -2335,10 +2358,17 @@
        plotgt=.false.
     endif
 !
-    write(21,130)trim(title),trim(conditions),graphopt%xsize,graphopt%ysize,&
+    write(*,*)'Plot heading 3? ',btest(graphopt%status,GRNOTITLE)
+    if(btest(graphopt%status,GRNOTITLE)) then
+       write(21,128)trim(title),trim(conditions)
+    else
+       write(21,129)trim(title),trim(conditions)
+    endif
+    write(21,130)graphopt%xsize,graphopt%ysize,&
          trim(pltax(1)),trim(labelkey)
-130 format('set title "',a,' \n ',a,'" font "arial,10"'/&
-         'set origin 0.0, 0.0 '/&
+128 format('#set title "',a,' \n #',a,'" font "arial,10"')
+129 format('set title "',a,' \n ',a,'" font "arial,10"')
+130 format('set origin 0.0, 0.0 '/&
          'set size ',F8.4', ',F8.4/&
          'set xlabel "',a,'"'/&
          'set key ',a)
@@ -3030,7 +3060,8 @@
        endif
     else
 ! plot on non-windows system
-!       write(*,*)'executing command '//trim(gnuplotline)
+! how to implement GRKEEP?
+       write(*,*)'executing command '//trim(gnuplotline)
        call execute_command_line(gnuplotline)
     endif
 !900 continue

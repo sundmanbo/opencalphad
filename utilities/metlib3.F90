@@ -6202,7 +6202,13 @@ CONTAINS
 4   LOKA=IWS(LOKB)
 5   IF(LOKA.LE.0) GOTO 920
     IF(LOKA.GE.IWS(2)) GOTO 930
-    IF(IWS(LOKA+1)-NW) 10,20,30
+! deprecisated feature
+!    IF(IWS(LOKA+1)-NW) 10,20,30
+    IF(IWS(LOKA+1)-NW.eq.0) then
+       goto 20
+    elseif(IWS(LOKA+1)-NW.gt.0) then
+       goto 30
+    endif
 !...TOO SMALL AREA, CONTINUE WITH THE NEXT
 10  LOKB=LOKA
     GOTO 4
@@ -6263,7 +6269,13 @@ CONTAINS
 !..LOKA is the address of the nearest free space below LOKC
     IF(LOKA.EQ.1) GOTO 120
 !..Check if the two areas can be merged
-    IF(LOKA+IWS(LOKA+1)-LOKC) 120,110,930
+! depreciated feature
+!    IF(LOKA+IWS(LOKA+1)-LOKC) 120,110,930
+    IF(LOKA+IWS(LOKA+1)-LOKC.lt.0) then
+       goto 120
+    elseIF(LOKA+IWS(LOKA+1)-LOKC.gt.0) then
+       goto 930
+    endif
 !..The released space follows directly on LOKA => Merge LOKA and LOKC
 110 LOKC=LOKA
     IWS(LOKC+1)=IWS(LOKC+1)+NW
@@ -6273,7 +6285,11 @@ CONTAINS
     IWS(LOKA)=LOKC
     IWS(LOKC+1)=NW
 !..Check if LOKC now can be merged with LOKB!
-130 IF(LOKC+IWS(LOKC+1)-LOKB) 900,140,940
+!130 IF(LOKC+IWS(LOKC+1)-LOKB) 900,140,940
+! depreciated feature
+130 continue
+    IF(LOKC+IWS(LOKC+1)-LOKB.lt.0) goto 900
+    IF(LOKC+IWS(LOKC+1)-LOKB.gt.0) goto 940
 !..Merge LOKC and LOKB
 140 IWS(LOKC)=IWS(LOKB)
     IWS(LOKC+1)=IWS(LOKC+1)+IWS(LOKB+1)

@@ -152,8 +152,8 @@ contains
     integer :: nopt1=100, mexp=0,nvcoeff=0,nopt,iflag,mexpdone=0,nvcoeffdone=0
     integer, allocatable, dimension(:) :: iwam
     double precision, allocatable, dimension(:) :: wam
-! tccm is used to calculate RSD as Thermo-Calc
-    double precision, allocatable, dimension(:,:) :: fjac,cov1,cormat,tccm
+! tccovar is the covariance matrix used to calculate RSD as in Thermo-Calc
+    double precision, allocatable, dimension(:,:) :: fjac,cov1,cormat,tccovar
     double precision :: optacc=1.0D-3
     logical :: updatemexp=.true.
 ! saved parameters for analyze
@@ -331,7 +331,7 @@ contains
          'NUMERIC_OPTIONS ','AXIS            ','INPUT_AMOUNTS   ',&
          'VERBOSE         ','AS_START_EQUILIB','BIT             ',&
          'VARIABLE_COEFF  ','SCALED_COEFF    ','OPTIMIZING_COND ',&
-         'RANGE_EXPER_EQU ','FIXED_COEFF     ','SYSTEM_PARAMETER',&
+         'RANGE_EXPER_EQU ','FIXED_COEFF     ','SYSTEM_VARIABLE ',&
          'INITIAL_T_AND_P ','                ','                ']
 ! subsubcommands to SET STATUS
     character (len=16), dimension(ncstat) :: cstatus=&
@@ -515,6 +515,7 @@ contains
 ! by default spawn plots
     graphopt%status=ibset(graphopt%status,GRKEEP)
 ! if winhlp set also GRWIN to allow GRKEEP
+! Possible problem here ... GRWIN=0 if Windows, GRWIN=1 if not Windows ...
 !    write(*,*)'Setting windows bit 1: ',GRWIN
 #ifdef winhlp    
 !    write(*,*)'UI: Setting windows bit 2: ',GRWIN
@@ -1029,8 +1030,10 @@ contains
 !             call gparcd('Can the phase be totally disordered? ',cline,last,&
 !                  1,ch1,'N',q1help)
 ! Answer Y means the ordered parameters are calculated twice, once with
-! the disordered composition.  Anwer N for phase which are never disordered
-             call gparcd('Is the disordered part assessed indepently? ',&
+! the disordered composition.  Answer N for phase which are never disordered
+!             call gparcd('Is the disordered part assessed indepently? ',&
+!                  cline,last,1,ch1,'N',q1help)
+             call gparcd('Should ordered part cancel when disordered? ',&
                   cline,last,1,ch1,'N',q1help)
              if(buperr.ne.0) goto 990
              if(ch1.eq.'N') then
@@ -1211,7 +1214,7 @@ contains
              call listoptcoeff(mexp,err0,.FALSE.,lut)
              if(allocated(cormat)) then
                 deallocate(cormat)
-                deallocate(tccm)
+                deallocate(tccovar)
              endif
           else
              call gparcd('Do you want to recover the coefficients values?',&
@@ -1232,7 +1235,7 @@ contains
                 firstash%coeffrsd=zero
                 if(allocated(cormat)) then
                    deallocate(cormat)
-                   deallocate(tccm)
+                   deallocate(tccovar)
                 endif
                 err0(2)=zero
                 call listoptcoeff(mexp,err0,.FALSE.,lut)
@@ -1814,7 +1817,7 @@ contains
 !         'NUMERIC_OPTIONS ','AXIS            ','INPUT_AMOUNTS   ',&
 !         'VERBOSE         ','AS_START_EQUILIB','BIT             ',&
 !         'VARIABLE_COEFF  ','SCALED_COEFF    ','OPTIMIZING_COND ',&
-!         'RANGE_EXPER_EQU ','FIXED_COEFF     ','SYSTEM_PARAMETER',&
+!         'RANGE_EXPER_EQU ','FIXED_COEFF     ','SYSTEM_VARIABLE ',&
 !         'INITIAL_T_AND_P ','                ','                ']
     CASE(3) ! SET SUBCOMMANDS
 ! disable continue optimization
@@ -3784,16 +3787,18 @@ contains
 ! always list equilibria with weight>0
                 write(lut,6203)iel,name1(1:2),eqlista(iel)%eqname,&
                      eqlista(iel)%tpval(1),eqlista(iel)%weight,&
-                     eqlista(iel)%comment(1:32)
+                     eqlista(iel)%comment(1:28)
+!                     eqlista(iel)%comment(1:32)
 !6203            format(i4,1x,a2,1x,a,' T=',F8.2,', weight=',F5.2,', ',a)
-6203            format(i4,1x,a2,1x,a,1x,F8.2,1x,F5.2,2x,a)
+6203            format(i4,1x,a2,1x,a,1x,F8.2,1x,F5.2,1x,a)
              elseif(iel.eq.1 .or. kom2.eq.11) then
 ! for kom2=11 list all equilibria without including weight
-! NOTE all equilibria outside "range" has weight=-1.0
+! NOTE all equilibria outside "range" (default and step/map) has weight=-1.0
                 write(lut,6202)iel,name1(1:2),eqlista(iel)%eqname,&
-                     eqlista(iel)%tpval(1),eqlista(iel)%comment(1:32)
+                     eqlista(iel)%tpval(1),eqlista(iel)%comment(1:28)
+!                     eqlista(iel)%tpval(1),eqlista(iel)%comment(1:32)
 !6202            format(i4,1x,a2,1x,a,' T=',F8.2,', ',a)
-6202            format(i4,1x,a2,1x,a,1x,F8.2,8x,a)
+6202            format(i4,1x,a2,1x,a,1x,F8.2,7x,a)
              elseif(eqlista(iel)%weight.eq.zero) then
                 jp=jp+1
              endif
@@ -3998,9 +4003,9 @@ contains
 ! allow output file
           lut=optionsset%lut
           write(lut,600)optres(1:4),optres(5:6),optres(7:8),&
-               name1(1:2),name1(3:4)
-600       format(/'Listing of optimization results: date ',a4,'.',a2,'.',a2,&
-               ' : ',a2,'h',a2)
+               name1(1:2),name1(3:4),err0(3)
+600       format(/'Optimization results at ',a4,'.',a2,'.',a2,&
+               ':',a2,'h',a2,', normalized sum of error: ',1pe12.4)
           listopt: SELECT CASE(kom2)
 !..........................................................
              case DEFAULT
@@ -4074,28 +4079,35 @@ contains
 ! list optimization correlation matrix
              case(8) ! unused
                 if(nvcoeff.eq.nvcoeffdone .and. allocated(cormat)) then
-                   write(*,*)'Correlation matrix is:'
+                   write(kou,*)'Correlation matrix is (symmetric):'
                    do i2=1,nvcoeff
                       write(kou,563)(cormat(i2,j2),j2=1,i2)
                    enddo
-                   write(kou,'(/a)')'Covariance matrix is: '
+                   write(kou,*)'Covariance matrix is (symmetric): '
                    do i2=1,nvcoeff
-                      write(kou,563)(cov1(i2,j2),j2=1,nvcoeff)
+                      write(kou,563)(cov1(i2,j2),j2=1,i2)
                    enddo
                 else
                    write(*,*)'No correlation matrix calculated'
                 endif
 !...........................................................
-! list optimization RSD (according to TC)
+! list optimization RSD (according to OC and TC)
              case(9) ! unused
-!                write(*,*)'Not implemented yet'
+                write(kou,3998)
+3998            format(/'Relative Standard Deviation (RSD) values according',&
+                     ' to OC and TC'/'Variable  OC          TC')
                 i2=0
                 do i1=0,size(firstash%coeffstate)-1
                    if(firstash%coeffstate(i1).ge.10) then
                       i2=i2+1
-                      write(*,*)'TC RSD: ',i2,abs(sqrt(abs(tccm(i2,i2))))
+                      write(*,'(i7,2(1pe12.4))')i2,&
+                           sqrt(abs(cov1(i2,i2))),&
+                           sqrt(abs(tccovar(i2,i2)))
                    endif
                 enddo
+                write(kou,3999)sqrt(err0(3))
+3999            format('The difference is the square root of the normalized',&
+                     ' sum or errors: ',1pe12.4)
              end SELECT listopt
 !------------------------------
 ! list model_parameter_values, part of case(4)
@@ -5991,9 +6003,13 @@ contains
           else
              graphopt%status=ibclr(graphopt%status,GRKEEP)
           endif
-! NOT USEFUL as I changed the default font and size
-!          call gparid('Tic and axis label text size?',cline,last,ll,0,q1help)
-!          graphopt%textonaxis=ll
+          call gparcd('Remove headings?',cline,last,1,ch1,'N',q1help)
+          if(ch1.ne.'N') then
+             write(*,*)'No title set!',ch1
+             graphopt%status=ibset(graphopt%status,GRNOTITLE)
+          else
+             graphopt%status=ibclr(graphopt%status,GRNOTITLE)
+          endif
           goto 21100
 !-----------------------------------------------------------
 ! unused
@@ -6178,7 +6194,7 @@ contains
 ! otherwise it will not be allocated
        if(allocated(cormat)) then
           deallocate(cormat)
-          deallocate(tccm)
+          deallocate(tccovar)
        endif
 !--------------- begin calculate correlation matrix and RSD
 ! zero the relative standard deviations (RSD)
@@ -6228,7 +6244,7 @@ contains
           if(nvcoeff.gt.1) then
 ! cormat deallocated above, dimension is cormat(nvcoeff,nvcoeff) !!
              allocate(cormat(nvcoeff,nvcoeff))
-             allocate(tccm(nvcoeff,nvcoeff))
+             allocate(tccovar(nvcoeff,nvcoeff))
 ! symmetric?   call mdinv(nvcoeff,nvcoeff+1,cov1,cormat,nvcoeff,iflag)
 ! NOTE: cov1 and cormat should both have dimension cov1(nvcoeff,nvcoeff)
              call mdinv(nvcoeff,cov1,cormat,nvcoeff,iflag)
@@ -6242,11 +6258,11 @@ contains
 !                write(*,'(6(1pe12.4))')(cormat(i1,i2),i2=1,nvcoeff)
 !             enddo
 ! all elements in the covariance matrix should be multiplied with err0(3)
+             tccovar=cormat
              do i1=1,nvcoeff
                 do i2=1,nvcoeff
 ! I get exactly the same RSD as TC if I ignore the normalized error !!
 ! but according to theory it should be multiplied with the normalized error
-                  tccm(i1,i2)=cormat(i1,i2)
                   cormat(i1,i2)=err0(3)*cormat(i1,i2)
                 enddo
              enddo
@@ -6266,24 +6282,24 @@ contains
           elseif(abs(cov1(1,1)).gt.1.0D-38) then
 ! cov1 is just a single value
              allocate(cormat(1,1))
-             allocate(tccm(1,1))
+             allocate(tccovar(1,1))
 !             cormat(1,1)=one
 ! IF THERE IS A SINGLE VARIABLE ITS CORRELATION MATRIX MUST BE UNITY
              cormat(1,1)=one
-             tccm(1,1)=one
+             tccovar(1,1)=one
           else
              write(*,*)'Correlation matrix singular'
           endif
        endif
 ! write the correlation matrix  this is still very uncertain ,,,
-       if(allocated(cormat)) then
-          if(nvcoeff.gt.0) then
-             write(*,*)'Correlation matrix (symmetric):'
-             do i2=1,nvcoeff
-                write(kou,'(8(1pe10.2))')(cormat(i2,j2),j2=1,nvcoeff)
-             enddo
-          endif
-       endif
+!       if(allocated(cormat)) then
+!          if(nvcoeff.gt.0) then
+!             write(*,*)'Correlation matrix (symmetric):'
+!             do i2=1,nvcoeff
+!                write(kou,'(8(1pe10.2))')(cormat(i2,j2),j2=1,nvcoeff)
+!             enddo
+!          endif
+!       endif
 ! zero all RSD values
        firstash%coeffrsd=zero
        if(allocated(cormat) .and. allocated(cov1)) then
@@ -6304,8 +6320,6 @@ contains
 ! the difference between the calculated and experimental value is errs(1:mexp)
 ! err0(2) is sum of all errors squared          
 !          xxx=err0(2)/real(ll)  ... this is err0(3)
-!          write(*,767)xxx,xxy
-767       format('Normalized sum of squares changed: ',1pe12.4,' to ',1pe12.4)
 ! I am not sure about this ...
           i2=0
           do i1=0,size(firstash%coeffstate)-1
@@ -6370,6 +6384,8 @@ contains
             1pe14.6,' to ',1pe14.6/17x,'Normalized sum of errors:',20x,1pe14.6)
        write(kou,5020)
 5020   format(/78('*'))
+! finally list the coefficient values
+       call listoptcoeff(mexp,err0,.FALSE.,lut)
 ! end of call to LMDIF
 !=================================================================
 ! SHOW is immpemented as a special case of LIST STATE_VARIABLES
