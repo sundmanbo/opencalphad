@@ -1142,7 +1142,7 @@
 ! memory leak
    svr=>svrvar
    call decode_state_variable(svtext,svr,ceq)
-!   write(*,*)'3D state var: ',svtext,gx%bmperr
+!   write(*,*)'3D state var: ',trim(svtext),gx%bmperr
    if(gx%bmperr.ne.0) then
 ! Experiments can be symbols
 !      write(*,*)'3D not a state variable: ',svtext(1:5),gx%bmperr,notcond
@@ -1167,7 +1167,7 @@
    endif
 ! convert to old state variable format
 !   write(*,12)svr%argtyp,svr%phase,svr%compset,svr%component,svr%constituent
-12 format('Decoded: ',5i5)
+12 format('3D Decoded: ',5i5)
    indices=0
    if(svr%argtyp.eq.1) then
       indices(1)=svr%component
@@ -2067,9 +2067,12 @@ end subroutine get_condition
          enddo
 !         write(*,68)nterms,(ccf(jx),jx=1,nterms)
 !68       format('3D coeff: ',i2,6(1pe12.4))
-      elseif(current%statev.eq.21) then
+! VERY CLUMSY but maybe good for the moment
+      elseif(current%statev.eq.21 .or. &
+           current%statev.eq.130) then
 ! implement S-S for EET calculations ...
-!         write(*,*)'3D Apply_condition with several terms',current%statev,&
+! and y-y for constitutions ....
+!         write(*,*)'3D Apply_condition with several terms 1',current%statev,&
 !              current%iref,current%iunit
          nterms=current%noofterms
          do jx=1,current%noofterms
@@ -2079,7 +2082,7 @@ end subroutine get_condition
 !         gx%bmperr=4207; goto 900
       else
 ! cannot handle other conditions with several terms
-         write(*,*)'3D Apply_condition with several terms',current%statev,&
+         write(*,*)'3D Apply_condition with several terms 2',current%statev,&
               current%noofterms
          gx%bmperr=4207; goto 900
       endif
@@ -2139,6 +2142,8 @@ end subroutine get_condition
 ! other condition must be on (normalized) extensive properties (N, X, H etc)
       cmix(1)=5
 !      write(*,*)'3D Extensive condition: ',current%statev
+! SPECIAL FOR CONDITIONS ON Y to inhibit grid minimizer
+      if(current%statev.eq.130) cmix(1)=6
    else
 !      write(*,*)'3D Illegal condition',current%statev
       gx%bmperr=4208; goto 1000

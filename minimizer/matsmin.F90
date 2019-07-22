@@ -364,9 +364,11 @@ CONTAINS
 ! just for debugging
 !    integer idum(1000)
     double precision fixpham(maxel),sumnp
+    logical ycond
 !    character statevar*40
 !
 !    write(*,*)'MM in calceq7'
+    ycond=.FALSE.
     meqrec%status=0
     if(btest(globaldata%status,GSSILENT)) &
          meqrec%status=ibset(meqrec%status,MMQUIET)
@@ -462,13 +464,18 @@ CONTAINS
 ! loop through all conditions, end when the pointer condition is empty
 ! loop to investigate conditions, apply_condition:value in gtp3D.F90
 70  continue
+! comode=-1 means just check type of condition
+! NOTE SPECIAL: condition on Y returns cmix(1)=6 to inhibit grid minimizer
        cmode=-1
        condition=>condition%next
        mjj=mjj+1
        if(ocv()) write(*,*)'check condition'
+! a condtion can have several terms, ccf is coefficient for each term, 
+! if just one term ccf (is assumed?) to be 1.0
        call apply_condition_value(condition,cmode,cvalue,cmix,ccf,ceq)
        if(gx%bmperr.ne.0) goto 1000
 !       write(*,71)'MM apply 1: ',cmode,cvalue,cmix,ccf(1)
+!71     format(a,i3,1pe14.4,10i4/12i4,1pe12.4)
 !71     format(a,i3,1pe14.4,10i4/5(1pe12.4))
 ! cmix(1)=0 for inactive conditions
 ! cmix(1)=1 fix T, =2, fix P, =3 fix MU/AC/LNAC, =4 fix phase, =5 anything else
@@ -531,6 +538,11 @@ CONTAINS
 !          write(*,*)'Fix phase condition: ',cmix(2),cmix(3),cvalue
 ! debug output of fix phase composition
 !          call calc_phase_mol(cmix(1),yarr,ceq)
+       case(5) ! mass balance condition
+!          write(*,*)'MM cmix(1..4): ',cmix(1),cmix(2),cmix(3),cmix(4)
+       case(6) ! Condition on Y, no grid minimizer
+          ycond=.TRUE.
+!          write(*,*)'MM condition on Y inhibit grid minimizer!'
        end select !-----------------------------------------------
        if(.not.associated(condition,lastcond)) goto 70
 ! end loop of conditions
@@ -611,6 +623,11 @@ CONTAINS
 ! skip global gridminimizer if only one component but make sure one phase
 ! has positive amount
     if(meqrec%nrel.eq.1) then
+       goto 110
+    endif
+! skip global minimizer if ycond is true
+    if(ycond) then
+!       write(*,*)'MM condition on y(phase,const), no global minimizer'
        goto 110
     endif
 !---------------------------------------------------------------
@@ -3004,11 +3021,11 @@ CONTAINS
 ! cmix dimensioned for 2 terms ...
     integer cmix(22),cmode,stvix,stvnorm,sel,sph,scs,jph,jj,ie,je,ke,ncol
     integer notf,nz2,nrow,nterms,mterms,moffs,ncol2,iph
-    integer xterm
+    integer xterm,yindex,jy
     double precision cvalue,totam,pham,mag,mat,map,xxx,zval,xval,ccf(5),evalue
 ! the next line of values are a desperate search for a solution
     double precision totalmol,totalmass,check1,check2,amount,mag1,mat1,map1
-    double precision hmval,gref,tpvalsave(2)
+    double precision hmval,gref,tpvalsave(2),cib
     double precision, dimension(:), allocatable :: xcol,mamu,mamu1,zcol,qmat
     double precision, allocatable :: xxmm(:),wwnn(:),hval(:)
     logical :: vbug=.FALSE.,calcmolmass,notdone,nosave
@@ -3177,7 +3194,7 @@ CONTAINS
 !    nz2=nz1+1
 !
 ! >>>>>>>>>>> THIS IS UNFINISHED, ONLY A FEW STATE VARIABLES ALLOWED
-! expressions only for N and x and S ...
+! expressions only for N and x and H ... added V mm ... y 190720
 !
     nrow=meqrec%nstph
     lastcond=>ceq%lastcondition
@@ -3190,16 +3207,18 @@ CONTAINS
     savedrec%sameit=0
     saved=>savedrec
 350 continue
+! cmode=0 means calculate and return current value
     cmode=0
     cmix=0
     condition=>condition%next
 ! This is the condition, cvalue is the prescibed value
 ! cmode and cmix contain information how to calculate its current value
 !    write(*,*)'MM calling apply',condition%noofterms
+! apply_condition in gtp3X.F90 ??
     call apply_condition_value(condition,cmode,cvalue,cmix,ccf,ceq)
     if(gx%bmperr.ne.0) goto 1000
 !    write(*,71)'MM apply 2: ',cmode,cvalue,cmix,ccf(1)
-71  format(a,i3,1pe12.4,10i4,1pe12.4,1x,4F4.2)
+71  format(a,i3,1pe12.4,22i4,1pe12.4)
 !    if(condition%noofterms.gt.1) write(*,351)nrow,cmode,cmix,nterms,cvalue,&
 !         (ccf(jj),jj=1,condition%noofterms)
 ! Only cmix(1)=5 is interesting here. potentials already cared for
@@ -3313,7 +3332,7 @@ CONTAINS
 ! dVM(alpha) = d2GM/dPdy_i*c_iA*\mu_A+
 !     \sum_i dGM/dP*dP + ??
 !     \sum_alpha ???
-! UNFINISHED
+! UNFINISHED ??
           allocate(xcol(nz2))
           xcol=zero
           totam=zero
@@ -4815,12 +4834,128 @@ CONTAINS
        endif
 !
 !------------------------------------------------------------------
-    case(13) ! Y
+    case(13) ! Y ycond
 ! Constituent fraction: phase#set, (subl.,) constituent index (over all subl)
-       write(*,*)'Not implemented yet: ',stvix,stvnorm,cmix(2),cmix(3),cmix(4)
-       gx%bmperr=4207; goto 1000
+! NOTE differences also interesting y(B2,A)-y(B2,A#2) is 2nd order transf
+! nterms is number of terms, mterms=1 here
+       moffs=3
+!       write(*,*)'MM stvix, mterms & nterms: ',stvix,mterms,nterms,nz2
+! xcol not needed as we have no sums over several phases
+!       allocate(xcol(nz2))
+!       xcol=zero
+! we do not use calc_dgdyterms as we have a single constituent yindex
+!             call calc_dgdyterms1X(meqrec%nrel,ie,meqrec%tpindep,&
+!                  mamu,mag,mat,map,pmi,meqrec%noofits)
+! mamu is an array, normally set to zero in calc_dgdyterms
+! also mag, mat and map
+       mamu=zero
+       mag=zero
+       mat=zero
+       map=zero
+       yterms: do mterms=1,nterms
+! loop for all terms in constion, we may have y_i-y_j =fix
+! cmix(3,4,5,6) are for first term, cmix(7,8,9,10) for second etc
+! for each term ccf(1..5) gives the factor in front of y
+! constituent is cmix(3) (sequental for all sublattices?)
+!          write(*,*)'MM phase and compset   :',cmix(moffs),cmix(moffs+1)
+!          write(*,'(a,i3,2(1pe12.4))')'MM constituent & value :',&
+!               cmix(moffs+2),cvalue,ccf(mterms)
+! cmix(moffs+4) NOT USED          
+          sph=cmix(moffs); scs=cmix(moffs+1)
+          yindex=cmix(moffs+2)
+          findphase: do jj=1,meqrec%nphase
+! phase with y condition may not be stable ... loop for all phases
+!             write(*,*)'MM phase: ',meqrec%nphase,jj,phr(jj)%iph
+             if(phr(jj)%iph.ne.sph .or. phr(jj)%ics.ne.scs) cycle findphase
+             pmi=>phr(jj)
+!             write(*,*)'MM found phase: ',jj,yindex,phr(jj)%curd%yfr(yindex)
+! The equation is \Delta y_i = yknown (or \Delta y_i - \Delta y_j = dyknown)
+! we should set up a row where index "i"  is known constituent
+!  \sum_A \sum_k dM_A/dy_i e_ik \mu_A + \sum_k d2G/dy_i dT e_ik \Delta T = 
+!                                       \sum_k dG/dy_i e_ik +ycurr - yknown
+! where e_ij is the inverted phase matrix
+! The values of the constituent fractions must be set before calculating e_ij
+! this requires some new indicator in meq_onephase
+! IF the condition is a difference y_i-y_j=a it will be assumed y_i is correct
+! at the start of the calculation and we set y_j=y_i-a before each iteration
+             yallel: do ie=1,meqrec%nrel
+                cib=zero
+!                write(*,333)'MM dy: ',(pmi%dxmol(ie,jy),jy=1,pmi%ncc)
+333             format(a,10(1pe12.4))
+                do jy=1,pmi%ncc
+! \sum_A \sum_k  e_ik dM_A/dy_k
+! suck the formula below does not work unless y_i correct, suck
+                   cib=cib+pmi%invmat(jy,yindex)*pmi%dxmol(ie,jy)
+!                   write(*,'(a,i3,3(1pe12.4))')'MM cib 1: ',jy,cib,&
+!                        pmi%invmat(jy,yindex),pmi%dxmol(ie,jy)
+                enddo
+                mamu(ie)=mamu(ie)+cib
+!                write(*,*)'MM mamu: ',ie,mamu(ie),cib
+             enddo yallel
+             cib=zero
+             do jy=1,pmi%ncc
+! \sum_k e_ik dG/dy_k
+                cib=cib+pmi%invmat(jy,yindex)*pmi%curd%dgval(1,jy,1)
+!                write(*,'(a,i3,3(1pe12.4))')'MM cib 2: ',jy,cib,&
+!                     pmi%invmat(jy,yindex),pmi%curd%dgval(1,jy,1)
+             enddo
+! WoW it works with correct signs!  Note: y_presc - y_calc!!!
+             mag=mag+cib-ccf(mterms)*pmi%curd%yfr(yindex)
+!             write(*,373)'MM mag: ',mag,cib,&
+!                  ccf(mterms),-pmi%curd%yfr(yindex),cvalue
+             if(meqrec%tpindep(1)) then
+! add coefficient for Delta T
+                cib=zero
+                do jy=1,pmi%ncc
+! + \sum_k e_ik d2G/dTdy_i  \Delta T 
+!                   cib=cib+pmi%invmat(jy,yindex)*pmi%curd%dgval(2,jy,1)
+! I have not tested eithor of these
+                   cib=cib+pmi%invmat(jy,yindex)*pmi%curd%dgval(2,yindex,1)
+                enddo
+                mat=mat+cib
+             endif
+             if(meqrec%tpindep(2)) then
+! add coefficient for Delta P
+                cib=zero
+                do jy=1,pmi%ncc
+! + \sum_k e_ik d2G/dPdy_i  \Delta P
+! I have not tested this
+                   cib=cib+pmi%invmat(jy,yindex)*pmi%curd%dgval(3,jy,1)
+                enddo
+                map=map+cib
+             endif
+             exit findphase
+          enddo findphase
+! finished this term, any more?
+          moffs=moffs+4
+       enddo yterms
+! add the prescribed value
+       mag=mag+cvalue
+!       write(*,373)'MM mamu: ',mat,map,mag,mamu
+!       write(*,*)'MM nrow mm: ',nrow,nz1,nz2
+373    format(a,10(1pe12.4))
+!-------------------
        nrow=nrow+1
        if(nrow.gt.nz1) stop 'too many equations 13A'
+! now mamu(1..nrel) are the coefficients for \mu; mat/map is coeff for Delta T/P
+! assuming no activity conditionw ...
+       do jj=1,meqrec%nrel
+          smat(nrow,jj)=mamu(jj)
+       enddo
+! after exiting loop jj=meqrec%nrel+1
+       if(meqrec%tpindep(1)) then
+          smat(nrow,jj)=mat
+          jj=jj+1
+       endif
+       if(meqrec%tpindep(2)) then
+          smat(nrow,jj)=mat
+          jj=jj+1
+       endif
+! mag is right hand side including y-y
+       smat(nrow,nz2)=mag
+!    write(*,'(a,i2,6(1pe12.4))')'MM *** ycond:',nrow,(smat(nrow,jj),jj=1,nz2)
+!       gx%bmperr=4207; goto 1000
+! 
     end select
 !
 ! loop if not the last condition
@@ -4829,10 +4964,11 @@ CONTAINS
 !=====================================================================
 380 continue
 ! write smat
-!    do jz=1,nz1
-!       write(*,390)jz,(smat(jz,kjj),kjj=1,nz2)
+! used to find ycond ....
+!    do jj=1,nz1
+!       write(*,390)jj,(smat(jj,jy),jy=1,nz2)
 !    enddo
-!390 format('#:',i2,6(1pe12.4),6(4x,1pe12.4))
+390 format('#:',i2,6(1pe12.4),6(4x,1pe12.4))
 1000 continue
 ! we must ?? deallocate all data in the savedrec
     if(allocated(savedrec%save1)) then

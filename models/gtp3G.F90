@@ -835,27 +835,46 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\begin{verbatim}
- subroutine elements2components(nspel,stoi,ncmp,cmpstoi,ceq)
+ subroutine elements2components1(nspel,dum,ncmp,cmpstoi,ceq)
+! subroutine elements2components(nspel,stoi,ncmp,cmpstoi,ceq)
 ! converts a stoichiometry array for a species from elements to components
 ! ?? I do not understand this subroutine, is it really used anywhere ??
+! YES to get activity for a constituent in gtp3F
+! stoi is no longer used
    implicit none
    integer nspel,ncmp
-   double precision stoi(*),cmpstoi(*)
+! cmpstoi is stoichiometry as element, changed to be as components
+   double precision cmpstoi(*),dum(*)
+   double precision, allocatable :: stoi(:)
    type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
    double precision, parameter :: small=1.0d-30
    integer ic,jc,ns
-! use the ceq%complist(ic)%invcompstoi
+   allocate(stoi(noofel))
    do ic=1,noofel
+      stoi(ic)=cmpstoi(ic)
       cmpstoi(ic)=zero
    enddo
+! use the ceq%complist(ic)%invcompstoi
+!   do ic=1,noofel
+!      cmpstoi(ic)=zero
+!   enddo
 ! not sure about the indices here .... ????
 !   write(*,*)'e2c: ',noofel,nspel,stoi(1),ceq%invcompstoi(1,1)
    do ic=1,noofel
-      do jc=1,nspel
-         cmpstoi(ic)=cmpstoi(ic)+ceq%invcompstoi(ic,jc)*stoi(jc)
+! convert elements to components, if the elements are components no problem
+      do jc=1,noofel
+         cmpstoi(ic)=cmpstoi(ic)+ceq%invcompstoi(ic,jc)*stoi(ic)
       enddo
    enddo
+!   write(*,7)'3G 1: ',(stoi(ic),ic=1,noofel)
+!   write(*,7)'3G 2: ',(stoi(ic),ic=1,noofel)
+7  format(a,10(1pe12.4))
+! MODIFIED HERE 190710/BoS, return stoichiometry for ALL components
+   ncmp=noofel
+   goto 1000
+!---------------------
+!  skip code below ...   
    ncmp=0
    ic=0
    ns=0
@@ -879,7 +898,7 @@
 !190 format('e2c3: ',i3,10F7.3)
 1000 continue
    return
- end subroutine elements2components
+ end subroutine elements2components1
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\!
 !>     13. Internal stuff

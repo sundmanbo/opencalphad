@@ -3471,6 +3471,98 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\begin{verbatim}
+ subroutine calcg_endmemberx(iphx,endmember,gval,ceq)
+! calculates G for single end member with current number of atoms
+! used for reference states. Restores current composition (but not G or deriv)
+! endmember contains indices in the constituent array, not species index
+! one for each sublattice
+   implicit none
+   integer iphx
+   double precision gval
+   integer endmember(maxsubl)
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim} %+
+   integer iph,ierr,kk0,ll,lokres,nsl,lokph
+   integer nkl(maxsubl),knr(maxconst)
+   double precision savey(maxconst),sites(maxsubl),yfra(maxconst)
+   double precision qq(5),saveg(6)
+! when called by matsmin negative iph should be interpreted as index to
+! phlista, convert to phase index ... suck
+   if(iphx.lt.0) then
+      iph=phlista(-iphx)%alphaindex
+   else
+      iph=iphx
+   endif
+!   write(*,*)'3Y calcg_endmember: ',iphx,' ',trim(phlista(abs(iphx))%name),&
+!        iph,' ',trim(phlista(iph)%name)
+!
+   call get_phase_data(iph,1,nsl,nkl,knr,savey,sites,qq,ceq)
+   if(gx%bmperr.ne.0) goto 1100
+! set constitution to be just the endmember
+! It is difficult to make this simpler as one can have magnetic contributions
+! to G, thus it is not sufficient just to calculate the G function, one must
+! calculate TC etc.
+   yfra=zero
+   kk0=0
+   do ll=1,nsl
+      if(endmember(ll).gt.kk0 .and. endmember(ll).le.kk0+nkl(ll)) then
+         yfra(endmember(ll))=one
+      else
+         write(*,16)'3Y endmember outside range 1: ',iph,ll,endmember(ll),&
+              kk0,kk0+nkl(ll)
+16       format(a,10i5)
+         gx%bmperr=4160; goto 1100
+      endif
+      kk0=kk0+nkl(ll)
+   enddo
+!   write(*,17)'3Y set: ',kk0,(yfra(ll),ll=1,kk0)
+17 format(a,i3,5(1pe12.4))
+   call set_constitution(iph,1,yfra,qq,ceq)
+   if(gx%bmperr.ne.0) goto 1000
+! this was necessary using this routine when reference states are
+! defined for components
+! The calcg below returns lokres but we need it to save G values first!!!
+   call get_phase_compset(iph,1,lokph,lokres)
+   if(gx%bmperr.ne.0) goto 1000
+!   write(*,*)'3Y saving gval: ',lokres,iph
+   do ll=1,6
+      saveg(ll)=ceq%phase_varres(lokres)%gval(ll,1)
+   enddo
+! just calculate Gm no derivatives!
+   call calcg(iph,1,0,lokres,ceq)
+   if(gx%bmperr.ne.0) goto 1000
+   gval=ceq%phase_varres(lokres)%gval(1,1)
+! DO NOT DIVIDE WITH QQ
+!   if(qq(1).ge.1.0D-3) then
+!   if(qq(1).ge.1.0D-2) then
+! avoid calculating endmembers with too many vacancies. gval is divided by RT
+!      gval=ceq%phase_varres(lokres)%gval(1,1)/qq(1)
+!      write(*,*)'3Y gval: ',gval,qq(1)
+!   else
+!      write(*,*)'3Y End member has no atoms'
+!      gx%bmperr=4161; goto 1000
+!   endif
+1000 continue
+! restore constitution and gval even if there has been an error flag!!
+   ierr=gx%bmperr
+   if(gx%bmperr.ne.0) gx%bmperr=0
+!   write(*,17)'3Y res: ',kk0,(savey(i),i=1,kk0)
+   do ll=1,6
+      ceq%phase_varres(lokres)%gval(ll,1)=saveg(ll)
+   enddo
+   call set_constitution(iph,1,savey,qq,ceq)
+   if(gx%bmperr.ne.0) then
+      write(*,*)'3Y Error resetting constitution: ',ierr,gx%bmperr
+   endif
+! return first error if any
+   if(ierr.ne.0) gx%bmperr=ierr
+1100 continue
+   return
+ end subroutine calcg_endmemberx
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
 !\begin{verbatim} %-
  subroutine calcg_endmember6(iph,endmember,gval,ceq)
 ! calculates G AND ALL DERIVATEVS wrt T and P for one mole of real atoms
@@ -4514,7 +4606,7 @@
 !
 510 format(i3,':',6(1pe12.4))
 1000 continue
-   write(*,*)'Merged ',npm,' gridpoints'
+   write(*,*)'3Y Removed ',npm,' gridpoints by merging'
    if(ocv()) write(*,*)'3Y At return from merge_gridpoints: ',nv
    return
 !------------------------------------------

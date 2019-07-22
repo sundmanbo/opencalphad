@@ -13,6 +13,24 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2019.07.22 OC version 5.044: I have added a possibility to set a
+condition of a site fraction of a phase.  An example using this has
+been added to the STEP8 macro.  Nte that in an ideal gas phase the
+fraction of a molecule is equal to the partial pressure of that
+molecule.  At present it does not work to redefine the components in
+order to make for example H2O1 a component.  But setting a condition
+of a gas molecule is the same as to set its activity.
+
+A minor bug setting reference states has also been fixed.  I have also
+added a function MAX1(X) that can be used in a TP function or
+parameter.  This function will be equal to X as long as X is less or
+equal to one.  If X is larger than 1.0 then MAX1(X) will be 1.0.  If X
+is a function of T and P the derivatives of MAX1(X) will be 0.0 if X
+is larger than 1.0.  The intention is to prevent extrapolations of
+parameters that may make a metastable phase stable at very low T.
+Great care must be taken to avoid that such a TP function affects the
+properties of a stable phase.
+
 2019.07.03 OC version 5.043: The metlib library which is used for the
 user interface and many other utilities in OC was written more than 30
 years ago in the old F77 standard.  It contains features that are
@@ -24,6 +42,10 @@ cases of "computed goto" reported by Benjami Sabatini because in the
 
 A bug that caused phase fractions not to be plotted if the phase was
 not the only stable one was detected by Frank Niessen has been fixed.
+Fractions of components or constituents of a phase are only plotted in
+the stable range of the phase.  I will add that such fractions will be
+plotted with dashed lines in the metastable range (when I have time).
+See the macro STEP1 for an example.
 
 2019.06.04 OC version 5.042: The gridminimizer will now try to merge
 gridpoints in the same phase to speed up the following iterative

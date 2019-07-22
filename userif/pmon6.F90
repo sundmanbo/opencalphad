@@ -3845,7 +3845,7 @@ contains
 !  elseif(btest(globaldata%status,GSNOEQCAL)) then
           elseif(btest(ceq%status,EQNOEQCAL)) then
              write(lut,6307)'below'
-6307         format(/' *** The results listed ',a,'does not represent',&
+6307         format(/' *** The results listed ',a,' does not represent',&
                   ' a calculated equilibrium'/)
           elseif(btest(ceq%status,EQINCON)) then
              write(lut,6306)'below'

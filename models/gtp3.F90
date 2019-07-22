@@ -559,7 +559,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! 4360
        'Too large change on axis, terminating mapping                   ',&
        'Model parameter value not calculated                            ',&
-       '                                                                ',&
+       'New set of components are not independent                       ',&
        '                                                                ',&
        '                                                                ',&
        '5                                                               ',&

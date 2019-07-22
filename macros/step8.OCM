@@ -23,6 +23,7 @@ new Y
 @$ step8.OCM
 @$ Adiabatic flame temperature for propane, C3H8
 @$ Also a P-V diagram for the gas
+@$ and setting a constituent fraction in the gas
 @$ =============================================================
 @&
 set echo
@@ -442,6 +443,73 @@ l,,,,,
 
 @$ The amount of h has also increased to keep the ratio
 @$ 3*n(c)-8*n(h)=0
+
+@&
+@$ A feature added 2019.07.22: Setting a constituent fraction of a phase
+@$
+@$ We already have a fairly complicated set of conditions
+
+l c
+
+@&
+@$ But we may for some reason prescribe the amount of H2O molecules in
+@$ the gas (do not ask me why...)
+
+set cond y(gas,h2o1)
+
+
+@$ Note we have to specify H2O1 as there is a H2O2 molecule also!
+@$ At first just calculate with the current value, we have to remove
+@$ another condition, for example the amount of C
+
+set c n(c)=none
+
+l c
+
+c e
+
+@&
+
+l,,,,
+
+@$ We have just recalculated the same equilibrium with other external
+@$ conditions.  But now we can increase the fraction of H2O1
+
+set c y(gas,h2o1)
+0.3
+
+c e
+
+l,,,,
+
+
+@$ The amount of both C and H has decreased to fullfull the condition
+@$ that the fraction of H2O1 in the gas should be 0.3.
+@&
+
+@$ Playing with condition on the constitution of a phase can easily
+@$ lead to failed calculations because it may be impossible to find
+@$ an equilibrium with a specified fraction of a molecule.
+
+set c y(gas,h2o1)=0.4
+
+c e
+
+
+@$ This fails because it is impossible to have such a high fraction of H2O1
+@$ in the gas
+@&
+@$ We can try with a smaller value
+
+set c y(gas,h2o1)=.01
+
+c e
+
+l,,,,
+
+
+@$ This works and again the amounts of both C and H has decreased.
+@&
 
 @$ That is all for now !!
 

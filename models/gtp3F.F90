@@ -735,6 +735,7 @@
          call find_constituent(iph,arg2,cmass,icon)
          if(gx%bmperr.ne.0) goto 1160
          call set_constituent_reference_state(iph,icon,asum)
+!         write(*,*)'3F findconst for ref: ',arg2,cmass,icc
          if(gx%bmperr.ne.0) then
             gx%bmperr=4112; goto 1000
          endif
@@ -920,6 +921,7 @@
             icc=-2
          else
             call find_constituent(iph,arg2,cmass,icc)
+!            write(*,*)'3F findconst 2: ',trim(arg2),cmass,icc
             if(gx%bmperr.ne.0) goto 1000
          endif
          svr%constituent=icc
@@ -1022,6 +1024,7 @@
    elseif(is.eq.20) then
 ! Y       130    phase#comp.set,constituent#sublat  constituent fraction
       istv=130
+!      write(*,'(a,5i5)')'3F Y: ',istv,icc,indices(1),indices(2),svr%constituent
    else
 ! the symbol may be a property
       if(deblist) write(*,*)'3F maybe a property ',is
@@ -1617,7 +1620,7 @@
       stsymb(jp:jp)='('
       jp=jp+1
       if(indices(2).eq.0) then
-! problem ... component names different in different equilibria ....
+! problem ... component names can be different in different equilibria ....
          call get_component_name(indices(1),stsymb(jp:),ceq)
          if(gx%bmperr.ne.0) goto 1000
          jp=len_trim(stsymb)+1
@@ -1634,7 +1637,10 @@
 !              stsymb(jp:),sublat)
 ! I am not sure if indices(2) is constituent numbered for each sublattice
 ! or numbered from the beginning, assume the latter !!
-         call get_constituent_name(indices(1),indices(2),&
+!         call get_constituent_name(indices(1),indices(2),&
+!              stsymb(jp:),mass)
+! modified 190710/BoS as constituent index is in 3
+         call get_constituent_name(indices(1),indices(3),&
               stsymb(jp:),mass)
          if(gx%bmperr.ne.0) goto 1000
          jp=len_trim(stsymb)+1
@@ -2125,7 +2131,8 @@
    integer istv,iref,iunit
    double precision value
 !\end{verbatim}
-   double precision props(5),xmol(maxel),wmass(maxel),stoi(10),cmpstoi(10)
+   double precision props(5),xmol(maxel),wmass(maxel),stoi(10)
+   double precision, allocatable :: cmpstoi(:)
    double precision vt,vp,amult,vg,vs,vv,div,aref,vn,bmult,tmass,tmol
    double precision qsp,gref,spmass,rmult,tsave,rtn,spextra(10)
    integer kstv,norm,lokph,lokcs,icx,jp,ncmp,ic,iprop,loksp,nspel,iq,nspx
@@ -2577,13 +2584,16 @@
 !   ceq%rtn=globaldata%rgas*ceq%tpval(1)
 ! if one argument that is a component, if two these are phase and constituent
 ! here indices(2) is considered to specify a reference state ...???
-!   write(*,502)'3F refstate 500: ',iref,indices(1),indices(2)
+!   write(*,502)'3F refstate 500: ',iref,indices(1),indices(3)
 502 format(a,10i4)
-   if(indices(2).ne.0) then
+!   if(indices(2).ne.0) then
+! species index is in indices(3) !!!!
+   if(indices(3).ne.0) then
 ! This has nothing to do with reference state ... ??? see else link for that
 ! I wonder if this code is ever used ...
+!      write(*,502)'3F species: ',iref,indices(1),indices(3)
       lokph=phases(indices(1))
-      loksp=phlista(lokph)%constitlist(indices(2))
+      loksp=phlista(lokph)%constitlist(indices(3))
 ! split the species in elements, convert to components, add chemical potentials
       call get_species_data(loksp,nspel,ielno,stoi,spmass,qsp,nspx,spextra)
       if(gx%bmperr.ne.0) goto 1000
@@ -2591,28 +2601,41 @@
 !         write(*,*)'3F Cannot calculate potential of charged species'
          gx%bmperr=4159; goto 1000
       endif
-! other components than elements not implemented
-!      write(*,*)'3F converting to component',nspel,ielno(1),stoi(1)
-      call elements2components(nspel,stoi,ncmp,cmpstoi,ceq)
+      allocate(cmpstoi(noofel))
+      cmpstoi=zero
+! get_species_data gives only elements with non-zero stoiciometry
+      do ic=1,nspel
+         cmpstoi(ielno(ic))=stoi(ic)
+      enddo
+!      write(*,507)'3F elstoi:',loksp,nspel,indices(3),(cmpstoi(ic),ic=1,noofel)
+507   format(a,3i3,10(1pe12.4))
+! elements2components1 is in gtp3G
+! ncmp returned as number of elements, cmpstoi is stoichiometry of ALL elements
+! stoi is no longer used ...
+      call elements2components1(nspel,stoi,ncmp,cmpstoi,ceq)
       if(gx%bmperr.ne.0) goto 1000
-!      write(*,*)'3F converting to component',ncmp,cmpstoi(1)
+!      write(*,508)'3F el2comp:',loksp,nspel,(cmpstoi(ic),ic=1,noofel)
+508   format(a,2i3,10(1pe12.4))
       value=zero
       do ic=1,ncmp
          value=value+cmpstoi(ic)*ceq%complist(ic)%chempot(1)
       enddo
 ! >>>> subtract reference state: i.e. calculate G for the phase with 
 ! just this constituent.  Note indices(1) is phase record, change to index
-!      write(*,*)'3F refphase: ',indices(1),phlista(indices(1))%alphaindex,value
+!      write(*,*)'3F refphase: ',indices(1),value
       ic=phlista(indices(1))%alphaindex
 ! set endmember=0 to allow vacancies ...
+! HM, here I think it can only be a single species .... 190710/BoS
       endmember=0
-      endmember(1)=indices(2)
-      write(*,*)'3F callcg_endmember 1: ',indices(1),indices(2)
-      call calcg_endmember(indices(1),endmember,gref,ceq)
+! changed from indices(2) which is composition set number
+      endmember(1)=indices(3)
+! This routine returns G for current number of atoms
+      call calcg_endmemberx(indices(1),endmember,gref,ceq)
       if(gx%bmperr.ne.0) goto 1000
+!      write(*,'(a,i3,2x,10i3)')'3F callcg_endmember 1: ',indices(1),endmember
       value=value-gref*ceq%rtn
-!      write(*,511)'3F refstate: ',endmember(1),indices(1),gref,value
-511   format(a,2i3,6(1pe14.6))
+!      write(*,511)'3F refstate: ',indices(1),indices(3),gref*ceq%rtn,value
+511   format(a,2i3,6(1pe12.4))
 ! possibly convert to AC or LNAC
       goto 700
    else
@@ -2682,6 +2705,7 @@
    endif
 !-----------------------------------------------------------------
 1000 continue
+   if(allocated(cmpstoi)) deallocate(cmpstoi)
    return
 1100 continue
    gx%bmperr=4078

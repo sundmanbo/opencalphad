@@ -422,7 +422,7 @@
 !
 ! for TDB compatibility skip #
 !
-! allow unary functions ABOVE(TB) and BELOW(TB) where TB= is the break temp
+! DO NOT allow unary functions ABOVE(TB) and BELOW(TB) 
 ! check consistency
    implicit none
    integer ip,nc,koder(5,*)
@@ -431,8 +431,8 @@
    logical fromtdb
 !\end{verbatim} %+
 !   implicit double precision (a-h,o-z)
-   integer, parameter :: nunary=5
-!   integer, parameter :: nunary=6
+!   integer, parameter :: nunary=5
+   integer, parameter :: nunary=6
    integer, parameter :: lenfnsym=16
    double precision, parameter :: zero=0.0D0,one=1.0D0
    integer i,j,jss,levelp,mterm,ipower,nterm
@@ -442,7 +442,10 @@
    character symbol*(lenfnsym),unary(nunary)*6
    character, parameter :: tsym='T ',psym='P '
 ! NEIN is the Einstein function
-   DATA unary/'LOG   ','LN    ','EXP   ','ERF   ','XNEIN '/
+! MAX1 is 1.0 if argument is larger than 1.0, error if argument negative
+! LOG is LOG10 and LN is the natural logarithm!!!
+   DATA unary/'LOG   ','LN    ','EXP   ','ERF   ','XNEIN ','MAX1  '/
+!   DATA unary/'LOG   ','LN    ','EXP   ','ERF   ','XNEIN '/
 !   DATA unary/'LOG   ','LN    ','EXP   ','ERF   ','ABOVE ','BELOW '/
 !
 ! coeff(nterm)   double with coefficient
@@ -1412,7 +1415,9 @@
 ! now combine term1 and term2 using chain rule. link values are
 ! -1: LOG,   -2: LN,    -3: EXP, -4: ERF, only LN and EXP implemented below
 ! -5: NEIN,  is the Einstein function
+! -6: MAX1, if argument <0 ERROR, if >1 replace by 1
          evunfun: if(unfun.eq.-1) then
+! LOG base 10
 ! ff=ff*Log10(gg) added by Sheng Yen Li
             if(gg.le.zero) then
                gx%bmperr=4020
@@ -1429,6 +1434,7 @@
             dfdt=dfdt*log10(gg)+ff*dgdt/(gg*log(10d0))
             ff=ff*log10(gg)
          elseif(unfun.eq.-2) then
+! LN NATURAL LOGARITHM
 ! ff=ff*LN(gg)
             if(gg.le.zero) then
                gx%bmperr=4020
@@ -1444,6 +1450,7 @@
             dfdt=dfdt*log(gg)+ff*dgdt/gg
             ff=ff*log(gg)
          elseif(unfun.eq.-3) then
+! EXPonential
 ! ff=ff*exp(gg)
             d2fdp2=exp(gg)*(d2fdp2+2.0D0*dfdp*dgdp+ff*d2gdp2+ff*(dgdp)**2)
             d2fdtdp=exp(gg)*(d2fdtdp+dfdt*dgdp+dfdp*dgdt+ff*d2gdtdp &
@@ -1452,26 +1459,50 @@
             dfdp=exp(gg)*(dfdp+ff*dgdp)
             dfdt=exp(gg)*(dfdt+ff*dgdt)
             ff=ff*exp(gg)
+         elseif(unfun.eq.-4) then
+! ERROR FUNCTION or ABOVE not implemented
+            write(*,*)'Error function not implemented'
+            stop 71
          elseif(unfun.eq.-5) then
+! EINSTEIN FUNCTION
+            write(*,*)'Einstein function not implemented'
+            stop 72
+         elseif(unfun.eq.-6) then
+! MAX1 function, used for SRO .... function and derivatives in gg, dgdt etc.
+!            write(*,*)'MAX1 function',gg
+            if(gg.le.zero) then
+               write(*,*)'MAX1 called with negative argument',gg
+               stop 73
+            endif
+            if(gg.le.one) then
+! just copy values from g to f
+               d2fdp2=d2gdp2; d2gdtdp=d2fdtdp; d2fdt2=d2gdt2
+               dfdp=dgdp; dfdt=dgdt; ff=gg
+            else
+! function value is 1 and all derivatives zero
+               d2fdp2=zero; d2fdtdp=zero; d2fdt2=zero
+               dfdp=zero; dfdt=zero; ff=one
+            endif
+!         elseif(unfun.eq.-5) then
 ! above(T0): ff=ff*above(gg).  gg is t0, breakfun(1..6) are fun and derivatives
 ! NO P-derivatives means breakfun(3)=breakfun(5)=breakfun(6)=0
-            call above_t0_calc(gg,tpval,breakfun)
-            d2fdp2=breakfun(1)*d2fdp2
-            d2fdtdp=breakfun(1)*d2fdtdp+dfdp*breakfun(2)
-            d2fdt2=breakfun(1)*d2fdt2+ff*breakfun(4)+2.0D0*dfdt*breakfun(2)
-            dfdp=breakfun(1)*dfdp
-            dfdt=breakfun(1)*dfdt+ff*breakfun(2)
-            ff=ff*breakfun(1)
-         elseif(unfun.eq.-6) then
+!            call above_t0_calc(gg,tpval,breakfun)
+!            d2fdp2=breakfun(1)*d2fdp2
+!            d2fdtdp=breakfun(1)*d2fdtdp+dfdp*breakfun(2)
+!            d2fdt2=breakfun(1)*d2fdt2+ff*breakfun(4)+2.0D0*dfdt*breakfun(2)
+!            dfdp=breakfun(1)*dfdp
+!            dfdt=breakfun(1)*dfdt+ff*breakfun(2)
+!            ff=ff*breakfun(1)
+!         elseif(unfun.eq.-6) then
 ! below T0,  ff=ff*above(gg).  gg is t0, breakfun(1..6) are fun and derivatives
 ! NO P-derivatives means breakfun(3)=breakfun(5)=breakfun(6)=0
-            call below_t0_calc(gg,tpval,breakfun)
-            d2fdp2=breakfun(1)*d2fdp2
-            d2fdtdp=breakfun(1)*d2fdtdp+dfdp*breakfun(2)
-            d2fdt2=breakfun(1)*d2fdt2+ff*breakfun(4)+2.0D0*dfdt*breakfun(2)
-            dfdp=breakfun(1)*dfdp
-            dfdt=breakfun(1)*dfdt+ff*breakfun(2)
-            ff=ff*breakfun(1)
+!            call below_t0_calc(gg,tpval,breakfun)
+!            d2fdp2=breakfun(1)*d2fdp2
+!            d2fdtdp=breakfun(1)*d2fdtdp+dfdp*breakfun(2)
+!            d2fdt2=breakfun(1)*d2fdt2+ff*breakfun(4)+2.0D0*dfdt*breakfun(2)
+!            dfdp=breakfun(1)*dfdp
+!            dfdt=breakfun(1)*dfdt+ff*breakfun(2)
+!            ff=ff*breakfun(1)
          else
             gx%bmperr=4021
             goto 1000
@@ -1556,7 +1587,8 @@
    double precision coeff(levl)
    character ch1*1,cht*1,extsym*(lenfnsym),unary(nunary)*6
    TYPE(tpfun_expression), pointer :: exprot
-   DATA unary/'LOG   ','LN    ','EXP   ','ERF   ','ABOVE ','BELOW '/
+! these should be the same as in ct1xfn !!! ??
+   DATA unary/'LOG   ','LN    ','EXP   ','ERF   ','XNEIN ','MAX1  '/
 !
    if(.not.associated(exprot)) then
       string(ip:ip+2)='0; '

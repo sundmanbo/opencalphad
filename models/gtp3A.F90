@@ -1308,7 +1308,7 @@ end function find_phasetuple_by_indices
 ! BUG found, asking for a constituent N it returned the constituent NB !!!
 ! Must search for exact match!!!
    character spname1*24
-   integer lokph,kp,ll,kk,loksp,ls,first
+   integer lokph,kp,ll,kk,loksp,ls,first,jabbr
    lokph=phases(iph)
    kp=index(spname,'#')
    if(kp.gt.0) then
@@ -1320,6 +1320,7 @@ end function find_phasetuple_by_indices
    endif
    call capson(spname1)
    icon=0
+   jabbr=0
    first=0
    lloop: do ll=1,phlista(lokph)%noofsubl
       sploop: do kk=1,phlista(lokph)%nooffr(ll)
@@ -1330,23 +1331,35 @@ end function find_phasetuple_by_indices
 !            write(*,55)ll,kk,icon,trim(spname1),trim(splista(loksp)%symbol)
 55          format('find_const 7: ',3i3,1x,a,2x,a)
             if(compare_abbrev(spname1,splista(loksp)%symbol)) then
+!               write(*,*)'3A abbreviation OK: ',trim(spname1),'?',&
+!                    trim(splista(loksp)%symbol),icon
                if(trim(spname1).eq.trim(splista(loksp)%symbol)) then
 ! if exact match accept
                   first=loksp; goto 90
                elseif(first.eq.0) then
+! constituent name is an abbreviation, if only one accept
                   first=loksp
+                  jabbr=icon
                else
                   gx%bmperr=4121
                   goto 1000
                endif
             endif
          endif
+!         write(*,*)'3A current: ',icon,first,loksp
       enddo sploop
    enddo lloop
 90 continue
+!   write(*,*)'3A current: ',icon,first,loksp
    if(first.eq.0) then
+! no such constituent
       gx%bmperr=4096
    else
+      if(jabbr.gt.0) then
+! accept unique abbreviation
+!         write(*,*)'3A abbreviation: ',icon,jabbr,loksp
+         icon=jabbr
+      endif
       mass=splista(first)%mass
    endif
 1000 continue
@@ -2217,13 +2230,16 @@ end function find_phasetuple_by_indices
       xcomp(ie)=splista(splink)%stoichiometry(j1)
       xsum=xsum+xcomp(ie)
    enddo
-   do ie=1,splista(splink)%noofel
+!   write(*,17)'3A srs x1: ',iph,xsum,(xcomp(ie),ie=1,nrel)
+!   do ie=1,splista(splink)%noofel changed 190710/BoS
+   do ie=1,nrel
       xcomp(ie)=xcomp(ie)/xsum
    enddo
-!   write(*,17)'3A srs x: ',iph,(xcomp(ie),ie=1,nrel)
+!   write(*,17)'3A srs x2: ',iph,xsum,(xcomp(ie),ie=1,nrel)
 17 format(a,i3,15(f5.2))
 ! find suitable endmember with correct composition and lowest G
 ! Note that lowest G is calculated at current T, may be different at another T
+! WE CAN HAVE SEVERAL SUBLATTICES ...
    call get_phase_data(iph,1,nsl,nkl,knr,yarrsave,sites,qq,ceq)
    if(gx%bmperr.ne.0) goto 1000
    allocate(maxjj(0:nsl))
@@ -2278,7 +2294,8 @@ end function find_phasetuple_by_indices
    endmemx=endmemx+1
    call calc_phase_mol(iph,xmol,ceq)
    if(gx%bmperr.ne.0) goto 900
-!   write(*,17)'3A srs xem: ',iph,(xmol(ie),ie=1,nrel)
+!   write(*,202)'3A srs xem: ',iph,endmemx,(xmol(ie),ie=1,nrel)
+202 format(a,2i4,15(F5.2))
    do jj=1,nrel
       if(abs(xmol(jj)-xcomp(jj)).gt.1.0D-12) goto 250
    enddo
@@ -2338,6 +2355,8 @@ end function find_phasetuple_by_indices
 !      write(*,*)'3A Allocating endmember for this reference state'
       allocate(ceq%complist(icomp)%endmember(nsl))
    endif
+!   write(*,810)'3A refendm: ',icomp,gval,jendsave
+810 format(a,i4,': ',1E12.4,(10i4))
    ceq%complist(icomp)%endmember=jendsave
 !   allocate(ceq%complist(icomp)%endmember(1))
 !   ceq%complist(icomp)%endmember=endmemxy
@@ -2421,8 +2440,8 @@ end function find_phasetuple_by_indices
 !   call mdinvold(noofel,noofel+1,matrix,imat,noofel,ierr)
    call mdinvold(noofel,matrix,imat,noofel,ierr)
    if(ierr.eq.0) then
-      write(*,*)'Error inverting component matrix'
-      gx%bmperr=4399; goto 1000
+!      write(*,*)'Error inverting component matrix, dependent components'
+      gx%bmperr=4362; goto 1000
    endif
 !   do c1=1,noofel
 !      write(*,70)'3A imt: ',c1,(imat(c2,c1),c2=1,noofel)
