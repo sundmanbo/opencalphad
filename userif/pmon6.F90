@@ -437,7 +437,7 @@ contains
 !    macropath=' '
 ! initiate command line history
     myhistory%hpos=0
-! defaults for optimizer
+! defaults for optimizer, number of variable coefficients
     nvcoeff=0
 ! iexit(2)=1 means listing scaled coefficients (Va05AD)
 !    iexit=0
@@ -813,24 +813,35 @@ contains
           write(kou,*)'No such symbol'
           goto 100
 1020      continue
-          if(btest(svflista(svss)%status,SVCONST)) then
-! if symbol is just a numeric constant we can change its value
+          if(btest(svflista(svss)%status,SVNOAM) .or. &
+               btest(svflista(svss)%status,SVFDOT)) then
+             write(kou,1021)trim(svflista(svss)%name); goto 100
+1021         format('Symbol ',a,' cannot be amended')
+          endif
+          if(btest(svflista(svss)%status,SVCONST) .or. &
+               btest(svflista(svss)%status,SVFVAL)) then
+! symbol is a numeric constant or evaluated explicitly, we can change its value
              actual_arg=' '
              xxx=evaluate_svfun_old(svss,actual_arg,1,ceq)
              call gparrd('Give new value: ',cline,last,xxy,xxx,q1help)
+! we can use this also for symbols with SVFVAL set??
+! value must be set in all equilibria ??
              call set_putfun_constant(svss,xxy)
              goto 100
           endif
-! If the user answers anything but y or Y the bits are cleared
-! symbol can be evaluated only explicitly (like variables in TC)
+! this symbol is only evaluated explicity.  It can have its value changed
+!             call caparrd('New value for the symbol: ',cline,last,??
+!             write(*,*)'SVFVAL bit set, Assign new value'
+!             goto 100
+!          endif
           call gparcd('Should the symbol only be evaluated explicitly?',&
                cline,last,1,ch1,'N',q1help)
           if(ch1.eq.'y' .or. ch1.eq.'Y') then
+! Set symbol to be evaluated only when explicitly 
              svflista(svss)%status=ibset(svflista(svss)%status,SVFVAL)
-          else
-             svflista(svss)%status=ibclr(svflista(svss)%status,SVFVAL)
+             write(*,'(a)')'Expression kept but its value can be amended'
           endif
-! symbols can be evaluated in just a particular equilibrium
+! A symbol can be set to be evaluated in just a particular equilibrium
 ! like H298 for experimental data on H(T)-H298
 ! BEWARE: if equilibria are calculated in threads this must be calculated
 ! before the parallelization, testing bit EQNOTHREAD
@@ -848,7 +859,7 @@ contains
           else
              svflista(svss)%status=ibclr(svflista(svss)%status,SVFEXT)
              svflista(svss)%eqnoval=0
-! this cannot be cleared, there may be other threadprotected symbols
+! this bit will not be cleared, there may be other threadprotected symbols
 !           ceq%status=ibclr(ceq%status,EQNOTHREAD)
           endif
 !-------------------------
@@ -4202,20 +4213,20 @@ contains
 !          endif
 !8110      format(/'Savefile text: ',a/)
 ! if there is an assessment record set nvcoeff ...
+          if(allocated(firstash%coeffvalues)) then
+             nvcoeff=0
+             kl=size(firstash%coeffvalues)-1
+             do j1=0,kl
+                if(firstash%coeffstate(j1).ge.10) then
+                   nvcoeff=nvcoeff+1
+                endif
+             enddo
+             write(kou,3730)nvcoeff
+          else
+             write(*,*)'No coefficients allocated'
+          endif
           if(allocated(firstash%eqlista)) then
-!             write(*,*)'Reading the assessment record'
-             if(allocated(firstash%coeffvalues)) then
-                nvcoeff=0
-                kl=size(firstash%coeffvalues)-1
-                do j1=0,kl
-                   if(firstash%coeffstate(j1).ge.10) then
-                      nvcoeff=nvcoeff+1
-                   endif
-                enddo
-                write(kou,3730)nvcoeff
-             else
-                write(*,*)'No coefficients allocated'
-             endif
+             write(*,*)'There are experimental data'
           endif
 !---------------------------------------------------------
        case(2) ! read TDB

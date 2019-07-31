@@ -5,6 +5,7 @@
 !>      16. Grid minimizer
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine global_gridmin
 !\begin{verbatim}
  subroutine global_gridmin(what,tp,xknown,nvsph,iphl,icsl,aphl,&
       nyphl,cmu,ceq)
@@ -216,8 +217,6 @@
    if(what.eq.-1) then
       write(*,*)'3Y Calling global_grimin with -1 no longer supported'
       stop
-!      call gridmin_check_old(nystph,kp,nrel,xarr,garr,xknown,nphl,pph,&
-!           cmu,yarr,iphx,ceq)
       goto 1000
    endif
 !-----------------------------------------------
@@ -592,6 +591,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine generate_grid
 !\begin{verbatim}
  subroutine generate_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,gmax,ceq)
 ! Different action depending of the value of mode, 
@@ -1146,6 +1146,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine generic_grid_generator
 !\begin{verbatim} %-
  subroutine generic_grid_generator(mode,iph,ngg,nrel,xarr,garr,ny,yarr,gmax,ceq)
 ! This generates grid for any phase
@@ -1456,6 +1457,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine generate_dense_grid
 !\begin{verbatim} %-
  subroutine generate_dense_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,gmax,ceq)
 ! generates more gridpoints than default generate_grid
@@ -1843,6 +1845,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine generate_ionliq_grid
 !\begin{verbatim} %-
  subroutine generate_ionliq_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,gmax,ceq)
 ! generates gridpoints for ionic liquid (also dense)
@@ -2289,6 +2292,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine generate_fccord_grid
 !\begin{verbatim} %-
  subroutine generate_fccord_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,gmax,ceq)
 ! This generates grid for a phase with 4 sublattice fcc/bcc/hcp ordering
@@ -2618,6 +2622,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine generate_charged_grid
 !\begin{verbatim} %-
  subroutine generate_charged_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,gmax,ceq)
 ! This generates grid for a phase with charged constituents
@@ -3306,6 +3311,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine calc_gridpoint
 !\begin{verbatim}
  subroutine calc_gridpoint(iph,yfra,nrel,xarr,gval,ceq)
 ! called by global minimization routine
@@ -3381,6 +3387,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine calcg_endmember
 !\begin{verbatim}
  subroutine calcg_endmember(iphx,endmember,gval,ceq)
 ! calculates G for one mole of real atoms for a single end member
@@ -3471,6 +3478,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine calcg_endmemberx
 !\begin{verbatim}
  subroutine calcg_endmemberx(iphx,endmember,gval,ceq)
 ! calculates G for single end member with current number of atoms
@@ -3563,6 +3571,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine calcg_endmember6
 !\begin{verbatim} %-
  subroutine calcg_endmember6(iph,endmember,gval,ceq)
 ! calculates G AND ALL DERIVATEVS wrt T and P for one mole of real atoms
@@ -3662,6 +3671,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine find_gridmin
 !\begin{verbatim}
  subroutine find_gridmin(kp,nrel,xarr,garr,xknown,jgrid,phfrac,cmu,trace)
 ! there are kp gridpoints, nrel is number of components
@@ -4286,6 +4296,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine merge_gridpoints
 !\begin{verbatim}
  subroutine merge_gridpoints(nv,iphl,aphl,nyphl,yphl,trace,nrel,xsol,cmu,ceq)
 !
@@ -4659,6 +4670,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine set_metastable_constitutions2
 !\begin{verbatim}
  subroutine set_metastable_constitutions2(pph,nrel,nphl,iphx,xarr,garr,&
       nr,iphl,cmu,ceq)
@@ -4765,6 +4777,7 @@
  
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable logical function global_equil_check1
 !\begin{verbatim}
  logical function global_equil_check1(mode,addtuple,yfr,ceq)
 ! subroutine global_equil_check(ceq,newceq)
@@ -4992,6 +5005,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine separate_constitutions
 !\begin{verbatim}
  subroutine separate_constitutions(ceq)
 ! Go through all entered phases and if there are two composition sets
@@ -5105,10 +5119,122 @@
 1000 continue
   end subroutine separate_constitutions
 
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable logical function allotropes
+!\begin{verbatim}
+  logical function allotropes(irem,iadd,iter,ceq)
+! This function return TRUE if the phases indicated by IREM and IADD both have
+! fixed and identical composition, i.e. they are componds and allotropes
+! Such a transition can cause problems during a STEP command.
+    implicit none
+    TYPE(gtp_equilibrium_data), pointer :: ceq
+    integer iadd,irem,iter
+!\end{verbatim} %+
+    integer lokph1,lokph2,nofr,jj
+    double precision x1mol(maxel),x2mol(maxel),wmass(maxel),totmol,totmass,am
+    logical allo
+    allo=.false.
+    goto 1000
+!    write(*,*)'3A checking allotropes',irem,iadd
+    write(*,10)iter,trim(phlista(phases(irem))%name),&
+         trim(phlista(phases(iadd))%name)
+10  format('3A checking allotropes',i5,2x,a,2x,a)
+    lokph1=phases(irem)
+    lokph2=phases(iadd)
+! spurious segmentation faults here ...
+    if(lokph1.le.0 .or. lokph2.le.0) then
+! composition ses created during mapping are not included in phases array ??
+       write(*,*)'3A error checking allotropes: ',lokph1,lokph2
+       goto 1000
+    endif
+! check if both have fixed composition
+    if(phlista(lokph1)%noofsubl-phlista(lokph1)%tnooffr.eq.0 .and. &
+         phlista(lokph2)%noofsubl-phlista(lokph2)%tnooffr.eq.0) then
+! they have fixed composition but can be modelled differently
+! we have to calculate their mole fractions ...
+       call calc_phase_molmass(irem,1,x1mol,wmass,totmol,totmass,am,ceq)
+       call calc_phase_molmass(irem,1,x2mol,wmass,totmol,totmass,am,ceq)
+       if(gx%bmperr.ne.0) goto 1000
+       do jj=1,noofel
+          if(abs(x1mol(jj)-x2mol(jj)).gt.1.0D-6) exit
+       enddo
+! Fortran standard says jj>noofel if loop finish without exit
+       if(jj.gt.noofel) then
+          allo=.true.
+!          write(*,*)'The phases are allotropes!',ceq%tpval(1)
+       endif
+    endif
+1000 continue
+    allotropes=allo
+    return
+  end function allotropes
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable logical function same_stoik
+!\begin{verbatim}
+ logical function same_stoik(iph,jph)
+! MAYBE IDENTICAL TO ALLOTROPES ?
+! return TRUE if phase iph and jph are both stoichiometric and have the
+! same composition  Used to check when adding a phase during equilibrium
+! calculation as it normally fails to have two such phases stable
+   implicit none
+   integer iph,jph
+!\end{verbatim} %+
+   integer loki,lokj,ll,kk
+   logical same
+!
+   same=.false.
+! iph and jph can be second or later composition sets
+!   write(*,*)'3F same_stoik 1: ',iph,jph,&
+!        phasetuple(iph)%lokph,phasetuple(jph)%lokph
+!   loki=phases(iph); lokj=phases(jph)
+   loki=phasetuple(iph)%lokph; lokj=phasetuple(jph)%lokph
+   if(.not.btest(phlista(loki)%status1,PHNOCV)) goto 1000
+   if(.not.btest(phlista(lokj)%status1,PHNOCV)) goto 1000
+   if(phlista(loki)%noofsubl.ne.phlista(lokj)%noofsubl) goto 1000
+   kk=0
+   do ll=1,phlista(loki)%noofsubl
+      if(firsteq%phase_varres(phlista(loki)%linktocs(1))%sites(ll).ne.&
+         firsteq%phase_varres(phlista(lokj)%linktocs(1))%sites(ll)) goto 1000
+      kk=kk+1
+      if(phlista(loki)%constitlist(kk).ne.&
+         phlista(lokj)%constitlist(kk)) goto 1000
+   enddo
+   same=.true.
+1000 continue
+   same_stoik=same
+   return
+ end function same_stoik
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\addtotable logical function fixedcomposition
+!\begin{verbatim}
+ logical function fixedcomposition(iph)
+! returns TRUE if phase cannot vary its composition
+   integer iph
+!\end{verbatim}
+   integer lokph
+   lokph=phases(iph)
+! Wow a bug! using iph instead of lokph!!
+   if(phlista(lokph)%tnooffr-phlista(lokph)%noofsubl.eq.0) then
+!      write(*,*)'3G fixedcomposition: ',iph,lokph,&
+!           phlista(lokph)%tnooffr,phlista(lokph)%noofsubl
+      fixedcomposition=.true.
+   else
+      fixedcomposition=.false.
+   endif
+1000 continue
+   return
+ end function fixedcomposition
+
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 !>      17. Miscellaneous
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable integer function phvarlok
 !\begin{verbatim}
  integer function phvarlok(lokph)
 ! return index of the first phase_varres record for phase with location lokph
@@ -5122,6 +5248,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine palmtree
 !\begin{verbatim}
  subroutine palmtree(lokph)
 ! Initiates a numbering of all interaction trees of an endmember of a phase
@@ -5172,8 +5299,102 @@
    return
  end subroutine palmtree
 
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine sortinphtup
+!\begin{verbatim}
+ subroutine sortinphtup(n,m,xx)
+! subroutine to sort the values in xx which are in phase and compset order
+! in phase tuple order.  This is needed by the TQ interface
+! The number of values belonging to the phase is m (for example composition)
+! argument ceq added as new composition sets can be created ...
+   integer n,m
+!   double precision xx(n*m)
+   double precision xx(*)
+!   type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+!
+   integer iz,jz,kz,lz,lokph,aha
+   double precision, dimension(:), allocatable :: dum
+! I assume the values are NP(*), maybe there are other cases ...
+! Karl had overflow error in dum ... no problem to make it a little larger
+! but then I cannot set xx=dum below ...
+   allocate(dum(n*m+10))
+!   write(*,*)'3F corrected sortinphtup',n,m
+!   write(*,10)'3F in: ',(xx(iz),iz=1,n*m)
+10 format(a,10(f7.4))
+   kz=0
+   do iz=1,noofph
+      lokph=phases(iz)
+      do jz=1,phlista(lokph)%noofcs
+!         if(jz.gt.1) then
+! in xx the values are sequentially for all composition sets for this phase
+! But they should be stored in tuple order and compset 2 etc comes at the end
+! the index to the tuple is in %phtups
+! phlista(lokph)%linktocs(jz) is index of phase_varres record for compset
+! firsteq%phase_varres(..)%phtupx is index of phase tuple for compset
+! There can be m values (for example compositions) for each phase
+! BUG FIXED: Sigli example gives hard error here
+! index '0' of array 'firsteq' below lower boundary of 1
+         aha=(firsteq%phase_varres(phlista(lokph)%linktocs(jz))%phtupx-1)*m
+!         if(aha.ne.kz) then
+!            write(*,*)'3F shifting from, to, values: ',kz,aha,m
+!         endif
+         do lz=1,m
+            dum(aha+lz)=xx(kz+lz)
+         enddo
+         kz=kz+m
+      enddo
+   enddo
+!   xx=dum
+   do iz=1,n*m
+      xx(iz)=dum(iz)
+   enddo
+   deallocate(dum)
+!   write(*,10)'3F ut: ',(xx(iz),iz=1,n*m)
+1000 continue
+   return
+ end subroutine sortinphtup
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable integer function get_mpi_index
+!\begin{verbatim}
+  integer function get_mpi_index(mpi)
+! Return the index of a model parameter identifier
+    character mpi*(*)
+!\end{verbatim} %+
+! propid(jj)%symbol is *4
+    character text*4
+    integer jj
+    text=mpi
+    do jj=1,ndefprop
+       if(propid(jj)%symbol.eq.text) exit
+    enddo
+!
+    if(jj.gt.ndefprop) then
+       write(*,*)'3A no such model parameter identifier: ',trim(mpi)
+       gx%bmperr=4399; jj=-1
+    endif
+!    write(*,*)'3A get_mpi_index: ',text,ndefprop,jj
+    get_mpi_index=jj
+    return
+  end function get_mpi_index
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable integer function getmqindex
+!\begin{verbatim}
+  integer function getmqindex()
+! This is necessary because mqindex is private, replaced by getmpiindex ...
+!\end{verbatim}
+    getmqindex=mqindex
+    return
+  end function getmqindex
+
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable logical function allowenter
 !\begin{verbatim}
  logical function allowenter(mode)
 ! Check if certain commands are allowed
@@ -5214,6 +5435,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable logical function proper_symbol_name
 !\begin{verbatim}
  logical function proper_symbol_name(name,typ)
 ! checks that name is a proper name for a symbol
@@ -5291,12 +5513,38 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
-!-\begin{verbatim}
+!\addtotable subroutine compmassbug
+!\begin{verbatim}
+ subroutine compmassbug(ceq)
+! debug subroutine
+   type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim} %+
+   integer cp,sp,ep
+! elements(1..n) is ordered alphabetcally
+! complist(1..n) is initially also ordered alphabetcally but with errors ... 
+! 
+   do cp=1,noofel
+      sp=ceq%complist(cp)%splink
+      ep=splista(sp)%ellinks(1)
+      write(*,100)cp,sp,ep,trim(ellista(ep)%name),trim(splista(sp)%symbol),&
+           ellista(ep)%alphaindex,ellista(ep)%splink,&
+           ceq%complist(cp)%mass,mass_of(cp,ceq),&
+           ellista(ep)%mass,splista(sp)%mass
+100   format(3i3,2x,a,2x,a,2i2,3x,4(1pe12.4))
+   enddo
+   write(*,*)
+   return
+ end subroutine compmassbug
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\addtotable subroutine list_free_lists
+!\begin{verbatim}
  subroutine list_free_lists(lut)
 ! for debugging the free lists and routines using them
    implicit none
    integer lut
-!-\end{verbatim}
+!\end{verbatim}
    integer lok,last
    write(lut,1007)noofel,noofsp,noofph,noofem,noofint,noofprop,&
         notpf(),highcs,eqfree-1,nsvfun,reffree-1,addrecs
@@ -5341,6 +5589,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine set_phase_amounts
 !\begin{verbatim}
  subroutine set_phase_amounts(jph,ics,val,ceq)
 ! set the amount formula units of a phase. Called from user i/f
@@ -5382,6 +5631,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine set_default_constitution
 !\begin{verbatim}
  subroutine set_default_constitution(iph,ics,ceq)
 ! the current constitution of (iph#ics) is set to its default constitution
@@ -5465,6 +5715,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine todo_before
 !\begin{verbatim}
  subroutine todo_before(mode,ceq)
 ! this could be called before an equilibrium calculation
@@ -5499,88 +5750,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
-!\begin{verbatim}
- subroutine set_emergency_startpoint(mode,phl,amfu,ceq)
-! this is called if no previous equilibrium and if grid minimizer
-! cannot be used.  Select for each element a phase with as much of that
-! element as possible to set as stable. Set the remaining phases to a default
-! composition.  It will never create any compositon sets
-!
-   implicit none
-   integer mode,phl(*)
-   double precision amfu(*)
-   TYPE(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim}
-   integer iph,lokph,lokcs,iel
-   integer, allocatable, dimension(:) :: selected
-   double precision, allocatable, dimension(:,:) :: maxel
-   double precision, allocatable, dimension(:) :: wmass
-   double precision totmol,totmass,am
-!
-   write(*,*)'In emergency startpoint: ',mode,noofel,noofph
-   allocate(selected(noofel))
-   allocate(maxel(noofel,noofph))
-   allocate(wmass(noofel))
-!   phl=0
-!   amfu=zero
-   maxel=zero
-   phloop1: do iph=1,noofph
-      lokph=phases(iph)
-      lokcs=phlista(iph)%linktocs(1)
-      if(ceq%phase_varres(lokcs)%phstate.le.PHDORM) cycle phloop1
-      if(phlista(iph)%tnooffr-phlista(iph)%noofsubl.eq.0) then
-         call calc_phase_molmass(iph,1,maxel(1,iph),wmass,totmol,totmass,am,ceq)
-         if(gx%bmperr.ne.0) goto 1000
-      else
-         write(*,*)'3Y TODO: Phases with variable composition not included yet'
-      endif
-! loop through all fractions to find limits            
-   enddo phloop1
-!   do iph=1,noofph
-!      write(*,100)iph,(maxel(iel,iph),iel=1,noofel)
-!   enddo
-100 format('3Y maxel: ',i3,6(F8.5))
-   selected=0
-   wmass=zero
-   phloop2: do iph=1,noofph
-      lokph=phases(iph)
-      lokcs=phlista(iph)%linktocs(1)
-      if(ceq%phase_varres(lokcs)%phstate.le.PHDORM) cycle phloop2
-      elloop1: do iel=1,noofel
-         if(maxel(iel,iph).gt.wmass(iel)) then
-            wmass(iel)=maxel(iel,iph)
-            selected(iel)=iph
-! we can only have one element selected per phase ...
-            cycle phloop2
-         endif
-      enddo elloop1
-   enddo phloop2
-!   write(*,*)'3Y Emergency startpoint testing',mode
-!   write(*,200)'3Y selected: ',(selected(iel),iel=1,noofel)
-200 format(a,10i4)
-! Now set default constitution of all non-selected and non-suspended phases
-   phloop3: do iph=1,noofph
-      lokph=phases(iph)
-      lokcs=phlista(iph)%linktocs(1)
-      if(ceq%phase_varres(lokcs)%phstate.le.PHDORM) cycle phloop3
-      do iel=1,noofel
-         if(iph.eq.selected(iel)) cycle phloop3
-      enddo
-!      write(*,*)'3Y TODO set default constitutions: ',iph
-      call set_default_constitution(iph,1,ceq)
-      if(gx%bmperr.ne.0) goto 1000
-   enddo phloop3
-   mode=noofel
-   do iph=1,mode
-      phl(iph)=selected(iph)
-   enddo
-!
-1000 continue
-   return
- end subroutine set_emergency_startpoint
-
- !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
-
+!\addtotable subroutine todo_after_found_equilibrium
 !\begin{verbatim}
  subroutine todo_after_found_equilibrium(mode,addtuple,ceq)
 ! this is called after an equilibrium calculation by calceq2 and calceq3
@@ -5894,6 +6064,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine checkdefcon
 !\begin{verbatim}
  subroutine checkdefcon(lokics,lokjcs,fit,ceq)
 ! check if composition of lokics fits default constitution in lokjcs
@@ -5938,6 +6109,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine shiftcompsets
 !\begin{verbatim} %-
  subroutine shiftcompsets(ceq)
 ! check phase with several composition sets if they should be shifted
@@ -6002,12 +6174,13 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine switch_compsets2
 !\begin{verbatim} %-
  subroutine switch_compsets2(lokph,ics1,ics2,ceq)
 ! copy constitution and results from ic2 to ic1 and vice versa
    integer lokph,ics1,ics2
    type(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim} %+
+!\end{verbatim}
    integer iph,lokcs1,lokcs2,ncon,idum,ncc
    double precision, dimension(:), allocatable :: val
    double precision, dimension(:,:), allocatable :: gval,d2gval
@@ -6078,6 +6251,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine select_composition_set
 !\begin{verbatim}
  subroutine select_composition_set(iph,ics,yarr,ceq)
 ! PROBABLY NOT USED but should be implemenented
@@ -6125,6 +6299,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine verify_phase_varres_array
 !\begin{verbatim}
  subroutine verify_phase_varres_array(ieq,verbose)
 ! This subroutine checks that the phase varres array is consistent
@@ -6162,4 +6337,279 @@
  end subroutine verify_phase_varres_array
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\addtotable subroutine set_emergency_startpoint
+!\begin{verbatim}
+ subroutine set_emergency_startpoint(mode,phl,amfu,ceq)
+! this is called if no previous equilibrium and if grid minimizer
+! cannot be used.  Select for each element a phase with as much of that
+! element as possible to set as stable. Set the remaining phases to a default
+! composition.  It will never create any compositon sets
+!
+   implicit none
+   integer mode,phl(*)
+   double precision amfu(*)
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim} %+
+   integer iph,lokph,lokcs,iel
+   integer, allocatable, dimension(:) :: selected
+   double precision, allocatable, dimension(:,:) :: maxel
+   double precision, allocatable, dimension(:) :: wmass
+   double precision totmol,totmass,am
+!
+   write(*,*)'In emergency startpoint: ',mode,noofel,noofph
+   allocate(selected(noofel))
+   allocate(maxel(noofel,noofph))
+   allocate(wmass(noofel))
+!   phl=0
+!   amfu=zero
+   maxel=zero
+   phloop1: do iph=1,noofph
+      lokph=phases(iph)
+      lokcs=phlista(iph)%linktocs(1)
+      if(ceq%phase_varres(lokcs)%phstate.le.PHDORM) cycle phloop1
+      if(phlista(iph)%tnooffr-phlista(iph)%noofsubl.eq.0) then
+         call calc_phase_molmass(iph,1,maxel(1,iph),wmass,totmol,totmass,am,ceq)
+         if(gx%bmperr.ne.0) goto 1000
+      else
+         write(*,*)'3Y TODO: Phases with variable composition not included yet'
+      endif
+! loop through all fractions to find limits            
+   enddo phloop1
+!   do iph=1,noofph
+!      write(*,100)iph,(maxel(iel,iph),iel=1,noofel)
+!   enddo
+100 format('3Y maxel: ',i3,6(F8.5))
+   selected=0
+   wmass=zero
+   phloop2: do iph=1,noofph
+      lokph=phases(iph)
+      lokcs=phlista(iph)%linktocs(1)
+      if(ceq%phase_varres(lokcs)%phstate.le.PHDORM) cycle phloop2
+      elloop1: do iel=1,noofel
+         if(maxel(iel,iph).gt.wmass(iel)) then
+            wmass(iel)=maxel(iel,iph)
+            selected(iel)=iph
+! we can only have one element selected per phase ...
+            cycle phloop2
+         endif
+      enddo elloop1
+   enddo phloop2
+!   write(*,*)'3Y Emergency startpoint testing',mode
+!   write(*,200)'3Y selected: ',(selected(iel),iel=1,noofel)
+200 format(a,10i4)
+! Now set default constitution of all non-selected and non-suspended phases
+   phloop3: do iph=1,noofph
+      lokph=phases(iph)
+      lokcs=phlista(iph)%linktocs(1)
+      if(ceq%phase_varres(lokcs)%phstate.le.PHDORM) cycle phloop3
+      do iel=1,noofel
+         if(iph.eq.selected(iel)) cycle phloop3
+      enddo
+!      write(*,*)'3Y TODO set default constitutions: ',iph
+      call set_default_constitution(iph,1,ceq)
+      if(gx%bmperr.ne.0) goto 1000
+   enddo phloop3
+   mode=noofel
+   do iph=1,mode
+      phl(iph)=selected(iph)
+   enddo
+!
+1000 continue
+   return
+ end subroutine set_emergency_startpoint
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable logical function ocv
+!\begin{verbatim}
+ logical function ocv()
+! returns TRUE if GSVERBOSE bit is set
+!\end{verbatim} %+
+! typical use:  if(ocv()) write(*,*)....
+   ocv=btest(globaldata%status,GSVERBOSE)
+   return
+ end function ocv
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable integer function ceqsize
+!\begin{verbatim}
+ integer function ceqsize(ceq)
+! calculates the size in words (4 bytes) of an equilibrium record
+   implicit none
+   type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim} %+
+   integer sum,vsum,ivs,vss
+!   write(*,*)'In ceqsize 1'
+!
+!     integer status,multiuse,eqno,next
+!     character eqname*24
+!     double precision tpval(2),rtn
+! svfunres: the values of state variable functions valid for this equilibrium
+!     double precision, dimension(:), allocatable :: svfunres
+   sum=18+2*size(ceq%svfunres)
+   write(*,*)'total + svfunres: ',sum,size(ceq%svfunres)
+! the experiments are used in assessments and stored like conditions 
+! lastcondition: link to condition list
+! lastexperiment: link to experiment list
+!     TYPE(gtp_condition), pointer :: lastcondition,lastexperiment
+! assuming a pointer is 4 bytes (2 words)
+   sum=sum+4
+! components and conversion matrix from components to elements
+! complist: array with components
+! compstoi: stoichiometric matrix of compoents relative to elements
+! invcompstoi: inverted stoichiometric matrix
+!     TYPE(gtp_components), dimension(:), allocatable :: complist
+!     double precision, dimension(:,:), allocatable :: compstoi
+!     double precision, dimension(:,:), allocatable :: invcompstoi
+! a gtp_component record is about 20 words, invcompstoi same as compsoti
+   if(allocated(ceq%complist)) sum=sum+20*size(ceq%complist)+&
+        4*size(ceq%compstoi)
+   write(*,*)'total + complist:',sum,20*size(ceq%complist),4*size(ceq%compstoi)
+! one record for each phase+composition set that can be calculated
+! phase_varres: here all calculated data for the phase is stored
+!     TYPE(gtp_phase_varres), dimension(:), allocatable :: phase_varres
+! each phase_varres record is different for each phase
+   vsum=0
+! highcs is highest used free phase_varres record
+   do ivs=1,highcs
+      vss=vssize(ceq%phase_varres(ivs))
+      write(*,*)'Phase varres: ',ivs,vss
+      vsum=vsum+vss
+   enddo
+   sum=sum+vsum
+   write(*,*)'total + varres',sum,vsum
+! index to the tpfun_parres array is the same as in the global array tpres 
+! eq_tpres: here local calculated values of TP functions are stored
+!     TYPE(tpfun_parres), dimension(:), pointer :: eq_tpres
+! each tpfun_parres record is 8 double
+   sum=sum+16*size(ceq%eq_tpres)
+! current values of chemical potentials stored in component record but
+! duplicated here for easy acces by application software
+!     double precision, dimension(:), allocatable :: cmuval
+   if(allocated(ceq%cmuval)) sum=sum+2*size(ceq%cmuval)
+   write(*,*)'total + cmuval: ',sum,2*size(ceq%cmuval)
+! xconc: convergence criteria for constituent fractions and other things
+!     double precision xconv
+! delta-G value for merging gridpoints in grid minimizer
+! smaller value creates problem for test step3.BMM, MC and austenite merged
+!     double precision :: gmindif=-5.0D-2
+! maxiter: maximum number of iterations allowed
+!     integer maxiter
+   sum=sum+5
+! this is to save a copy of the last calculated system matrix, needed
+! to calculate dot derivatives, initiate to zero
+!     integer :: sysmatdim=0,nfixmu=0,nfixph=0
+!     integer, allocatable :: fixmu(:)
+!     integer, allocatable :: fixph(:,:)
+!     double precision, allocatable :: savesysmat(:,:)
+   sum=sum+3+size(ceq%fixmu)+size(ceq%fixph)+size(ceq%savesysmat)
+   write(*,*)'total + savesysmat:',sum,size(ceq%fixmu),size(ceq%fixph),&
+        size(ceq%savesysmat)
+   ceqsize=sum
+1000 continue
+   return
+ end function ceqsize
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable integer function vssize
+!\begin{verbatim}
+ integer function vssize(varres)
+! calculates the size in words (4 bytes) of a phase_varres record
+   implicit none
+   type(gtp_phase_varres) :: varres
+!\end{verbatim}
+   integer sum
+!   write(*,*)'In vssize 1'
+!     integer nextfree,phlink,status2,phstate
+!     double precision, dimension(2) :: abnorm
+!     character*4 prefix,suffix
+   sum=10
+! changed to allocatable
+!     integer, dimension(:), allocatable :: constat
+!     double precision, dimension(:), allocatable :: yfr
+!     real, dimension(:), allocatable :: mmyfr
+!     double precision, dimension(:), allocatable :: sites
+   if(allocated(varres%constat)) sum=sum+size(varres%constat)
+   write(*,*)'varressum+yfr: ',sum,size(varres%constat),3*size(varres%yfr)
+   if(allocated(varres%yfr)) sum=sum+3*size(varres%yfr)
+!   write(*,*)'In vssize 2',sum
+! for ionic liquid derivatives of sites wrt fractions (it is the charge), 
+! 2nd derivates only when one constituent is vacancy
+! 1st sublattice P=\sum_j (-v_j)*y_j + Qy_Va
+! 2nd sublattice Q=\sum_i v_i*y_i
+!     double precision, dimension(:), allocatable :: dpqdy
+!     double precision, dimension(:), allocatable :: d2pqdvay
+   if(allocated(varres%dpqdy)) sum=sum+size(varres%dpqdy)
+   if(allocated(varres%d2pqdvay)) sum=sum+size(varres%d2pqdvay)
+   write(*,*)'varressum+ionliq',sum,size(varres%dpqdy),size(varres%d2pqdvay)
+! for extra fraction sets, better to go via phase record index above
+! this TYPE(gtp_fraction_set) variable is a bit messy.  Declaring it in this
+! way means the record is stored inside this record.
+!     type(gtp_fraction_set) :: disfra
+! size of disfra record??
+   sum=sum+10
+   if(allocated(varres%disfra%dsites)) sum=sum+size(varres%disfra%dsites)
+   if(allocated(varres%disfra%nooffr)) sum=sum+size(varres%disfra%nooffr)
+   if(allocated(varres%disfra%splink)) sum=sum+size(varres%disfra%splink)
+   if(allocated(varres%disfra%y2x)) sum=sum+size(varres%disfra%y2x)
+   if(allocated(varres%disfra%dxidyj)) sum=sum+size(varres%disfra%dxidyj)
+   write(*,*)'varresum incl disfra and pointer: ',sum,varres%disfra%varreslink
+! It seems difficult to get the phdapointer in disfra record to work
+! ---
+! arrays for storing calculated results for each phase (composition set)
+! amfu: is amount formula units of the composition set (calculated result)
+! netcharge: is net charge of phase
+! dgm: driving force (calculated result)
+! amcom: not used
+! damount: set to last change of phase amount in equilibrium calculations
+! qqsave: values of qq calculated in set_constitution
+!    double precision amount(2),dgm,amcom,damount,qqsave(3)
+!    double precision amfu,netcharge,dgm,amcom,damount,qqsave(3)
+!     double precision amfu,netcharge,dgm,amcom,damount
+   sum=sum+10
+! Other properties may be that: gval(*,2) is TC, (*,3) is BMAG, see listprop
+! nprop: the number of different properties (set in allocate)
+! ncc: total number of site fractions (redundant but used in some subroutines)
+! BEWHARE: ncc seems to be wrong using TQ test program fenitq.F90 ???
+! listprop(1): is number of calculated properties
+! listprop(2:listprop(1)): identifies the property stored in gval(1,ipy) etc
+!   2=TC, 3=BMAG. Properties defined in the gtp_propid record
+!     integer nprop,ncc
+!     integer, dimension(:), allocatable :: listprop
+   if(allocated(varres%listprop)) sum=sum+2+size(varres%listprop)
+   write(*,*)'varresum + listprop: ',sum,size(varres%listprop)
+! gval etc are for all composition dependent properties, gval(*,1) for G
+! gval(*,1): is G, G.T, G.P, G.T.T, G.T.P and G.P.P
+! dgval(1,j,1): is first derivatives of G wrt fractions j
+! dgval(2,j,1): is second derivatives of G wrt fractions j and T
+! dgval(3,j,1): is second derivatives of G wrt fractions j and P
+! d2gval(ixsym(i,j),1): is second derivatives of G wrt fractions i and j
+!     double precision, dimension(:,:), allocatable :: gval
+!     double precision, dimension(:,:,:), allocatable :: dgval
+!     double precision, dimension(:,:), allocatable :: d2gval
+   if(allocated(varres%gval)) sum=sum+2*size(varres%gval)
+   if(allocated(varres%dgval)) sum=sum+2*size(varres%dgval)
+   if(allocated(varres%d2gval)) sum=sum+2*size(varres%d2gval)
+   write(*,*)'varresum + gvals: ',sum,2*size(varres%gval),&
+        2*size(varres%dgval),2*size(varres%d2gval)
+! added for strain/stress, current values of lattice parameters
+!     double precision, dimension(3,3) :: curlat
+! saved values from last equilibrium calculation
+!     double precision, dimension(:,:), allocatable :: cinvy
+!     double precision, dimension(:), allocatable :: cxmol
+!     double precision, dimension(:,:), allocatable :: cdxmol
+   if(allocated(varres%cinvy)) sum=sum+18+2*size(varres%cinvy)
+   if(allocated(varres%cxmol)) sum=sum+18+2*size(varres%cxmol)
+   if(allocated(varres%cdxmol)) sum=sum+18+2*size(varres%cdxmol)
+   write(*,*)'varresum + saved: ',sum
+!
+1000 continue
+   vssize=sum
+   return
+ end function vssize
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

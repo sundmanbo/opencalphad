@@ -5,6 +5,7 @@
 !>     8. Interactive things
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine ask_phase_constitution
 !\begin{verbatim}
  subroutine ask_phase_constitution(cline,last,iph,ics,lokcs,ceq)
 ! interactive input of a constitution of phase iph
@@ -187,6 +188,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine ask_phase_new_constitution
 !\begin{verbatim} %-
  subroutine ask_phase_new_constitution(cline,last,iph,ics,lokcs,ceq)
 ! interactive input of a constitution of phase iph
@@ -327,6 +329,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine enter_parameter_interactivly
 !\begin{verbatim}
  subroutine enter_parameter_interactivly(cline,ip,mode)
 ! enter a parameter from terminal or macro
@@ -652,6 +655,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine amend_global_data
 !\begin{verbatim}
  subroutine amend_global_data(cline,ipos)
    implicit none
@@ -737,8 +741,8 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine enter_bibliography_interactivly
 !\begin{verbatim}
-! subroutine enter_reference_interactivly(cline,last,mode,iref)
  subroutine enter_bibliography_interactivly(cline,last,mode,iref)
 ! enter a reference for a parameter interactivly
 ! mode=0 means enter, =1 amend
@@ -805,6 +809,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine enter_experiment
 !\begin{verbatim}
  subroutine enter_experiment(cline,ip,ceq)
 ! enters an experiment, almost the same as set_condition   
@@ -918,6 +923,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable logical function same_statevariable
 !\begin{verbatim} %-
  logical function same_statevariable(svr1,svr2)
 ! returns TRUE if the state variable records are identical
@@ -950,6 +956,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine set_condition
 !\begin{verbatim}
  subroutine set_condition(cline,ip,ceq)
 ! to set a condition
@@ -973,6 +980,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine set_cond_or_exp
 !\begin{verbatim} %-
  subroutine set_cond_or_exp(cline,ip,new,notcond,ceq)
 ! decode an equilibrium condition, can be an expression with + and -
@@ -1720,6 +1728,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine get_experiment_with_symbol
 !\begin{verbatim} %-
  subroutine get_experiment_with_symbol(symsym,experimenttype,temp)
 ! finds an experiment with s symbol index symsym and exp.type
@@ -1752,6 +1761,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine get_condition
 !\begin{verbatim}
  subroutine get_condition(nterm,svr,pcond)
 ! finds a condition/experiment record with the given state variable expression
@@ -1846,6 +1856,7 @@ end subroutine get_condition
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine get_condition2
 !\begin{verbatim} %-
  subroutine get_condition2(nterm,coeffs,istv,indices,iref,iunit,pcond)
 ! finds a condition record with the given state variable expression
@@ -1927,6 +1938,7 @@ end subroutine get_condition
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine extract_stvr_of_condition
 !\begin{verbatim} %-
  subroutine extract_stvr_of_condition(pcond,nterm)
 ! finds a condition record with the given state variable record
@@ -1997,6 +2009,7 @@ end subroutine get_condition
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine locate_condition
 !\begin{verbatim}
  subroutine locate_condition(seqz,pcond,ceq)
 ! locate a condition using a sequential number
@@ -2024,6 +2037,7 @@ end subroutine get_condition
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine apply_condition_value
 !\begin{verbatim}
  subroutine apply_condition_value(current,what,value,cmix,ccf,ceq)
 ! This is called when calculating an equilibrium.
@@ -2104,12 +2118,21 @@ end subroutine get_condition
 ! fetch value of symbol link if any
    if(current%symlink1.gt.0) then
       linkix=current%symlink1
-      actual_arg=' '
+!      if(btest(svflista(linkix)%status,SVFVAL)) then
+      if(btest(svflista(linkix)%status,SVCONST)) then
+         xxx=svflista(linkix)%linkpnode%value
+! wrong         xxx=svflista(linkix)%svfv
+         ceq%svfunres(linkix)=xxx
+!         write(*,*)'3D SVFVAL apply: ',linkix,xxx
+      else
+         actual_arg=' '
 ! no pointer to equilibrim record ... use firsteq ??
-      xxx=evaluate_svfun_old(linkix,actual_arg,1,ceq)
-      if(gx%bmperr.ne.0) then
-         write(*,*)'3D error evaluate symbolic link as condition',linkix,xxx
-         goto 1000
+! NOTE if symbol has bit SVCONST set then do not evaluate, use
+         xxx=evaluate_svfun_old(linkix,actual_arg,1,ceq)
+         if(gx%bmperr.ne.0) then
+            write(*,*)'3D error evaluate symbolic link as condition',linkix,xxx
+            goto 1000
+         endif
       endif
       current%prescribed=xxx
    endif
@@ -2219,6 +2242,7 @@ end subroutine get_condition
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine condition_value
 !\begin{verbatim} %-
  subroutine condition_value(mode,pcond,value,ceq)
 ! set (mode=0) or get (mode=1) a new value of a condition.  Used in mapping
@@ -2248,6 +2272,7 @@ end subroutine get_condition
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine ask_default_constitution
 !\begin{verbatim}
  subroutine ask_default_constitution(cline,last,iph,ics,ceq)
 ! set values of default constitution interactivly
@@ -2345,6 +2370,7 @@ end subroutine get_condition
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine enter_default_constitution
 !\begin{verbatim}
  subroutine enter_default_constitution(iph,ics,mmyfr,ceq)
 ! user specification of default constitution for a composition set
@@ -2381,6 +2407,7 @@ end subroutine get_condition
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine set_input_amounts
 !\begin{verbatim}
  subroutine set_input_amounts(cline,lpos,ceq)
 ! set amounts like n(specie)=value or b(specie)=value
@@ -2535,6 +2562,7 @@ end subroutine get_condition
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine get_parameter_typty
 !\begin{verbatim}
  subroutine get_parameter_typty(name1,lokph,typty,fractyp)
 ! interpret parameter identifiers like MQ&C#2 in MQ&C#2(FCC_A1,FE:C) ...
@@ -2652,6 +2680,35 @@ end subroutine get_condition
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine enter_species_property
+!\begin{verbatim}
+ subroutine enter_species_property(loksp,nspx,value)
+! enter an extra species property for species loksp
+   implicit none
+   integer loksp,nspx
+   double precision value
+!\end{verbatim} %+
+! this is illegal for species that are elements ...
+   if(btest(splista(loksp)%status,SPEL) .or. &
+        btest(splista(loksp)%status,SPVA)) then
+!      write(*,*)'Illegal to set this for element species'
+      gx%bmperr=4298
+   elseif(.not.allocated(splista(loksp)%spextra)) then
+      write(*,*)'3D this species has no allocated extra data'
+      gx%bmperr=4399; goto 1000
+   elseif(nspx.gt.size(splista(loksp)%spextra)) then
+      write(*,*)'3D species has not sufficient extra data allocated ',nspx
+      gx%bmperr=4399; goto 1000
+   else
+      splista(loksp)%spextra(nspx)=value
+   endif
+1000 continue
+   return
+ end subroutine enter_species_property
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\addtotable subroutine set_uniquac_species
 !\begin{verbatim}
  subroutine set_uniquac_species(loksp)
 ! set the status bit and allocates spexttra array
@@ -2675,33 +2732,7 @@ end subroutine get_condition
  
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
-!\begin{verbatim}
- subroutine enter_species_property(loksp,nspx,value)
-! enter an extra species property for species loksp
-   implicit none
-   integer loksp,nspx
-   double precision value
-!\end{verbatim}
-! this is illegal for species that are elements ...
-   if(btest(splista(loksp)%status,SPEL) .or. &
-        btest(splista(loksp)%status,SPVA)) then
-!      write(*,*)'Illegal to set this for element species'
-      gx%bmperr=4298
-   elseif(.not.allocated(splista(loksp)%spextra)) then
-      write(*,*)'3D this species has no allocated extra data'
-      gx%bmperr=4399; goto 1000
-   elseif(nspx.gt.size(splista(loksp)%spextra)) then
-      write(*,*)'3D species has not sufficient extra data allocated ',nspx
-      gx%bmperr=4399; goto 1000
-   else
-      splista(loksp)%spextra(nspx)=value
-   endif
-1000 continue
-   return
- end subroutine enter_species_property
-
-!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
-
+!\addtotable subroutine enter_material
 !\begin{verbatim}
  subroutine enter_material(cline,last,nv,xknown,ceq)
 ! enter a material from a database
@@ -2894,27 +2925,6 @@ end subroutine get_condition
 1000 continue
    return
  end subroutine enter_material
-
-!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
-
- subroutine compmassbug(ceq)
-   type(gtp_equilibrium_data), pointer :: ceq
-   integer cp,sp,ep
-! elements(1..n) is ordered alphabetcally
-! complist(1..n) is initially also ordered alphabetcally but with errors ... 
-! 
-   do cp=1,noofel
-      sp=ceq%complist(cp)%splink
-      ep=splista(sp)%ellinks(1)
-      write(*,100)cp,sp,ep,trim(ellista(ep)%name),trim(splista(sp)%symbol),&
-           ellista(ep)%alphaindex,ellista(ep)%splink,&
-           ceq%complist(cp)%mass,mass_of(cp,ceq),&
-           ellista(ep)%mass,splista(sp)%mass
-100   format(3i3,2x,a,2x,a,2i2,3x,4(1pe12.4))
-   enddo
-   write(*,*)
-   return
- end subroutine compmassbug
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 

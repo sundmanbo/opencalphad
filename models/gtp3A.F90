@@ -9,6 +9,7 @@
 !>     1. Initialization
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine init_gtp
 !\begin{verbatim}
  subroutine init_gtp(intvar,dblvar)
 ! initiate the data structure
@@ -444,6 +445,10 @@
    ip=1
 !   write(*,*)'init_gtp: entering function R'
    call enter_svfun(tpfun,ip,firsteq)
+! mark it cannot be amended
+   svflista(1)%status=ibset(svflista(1)%status,SVNOAM)
+! mark it is a constant
+   svflista(1)%status=ibset(svflista(1)%status,SVCONST)
 !   if(gx%bmperr.ne.0) then
 !      write(*,*)'Error entering R',gx%bmperr
 !      goto 1000
@@ -453,6 +458,8 @@
    ip=1
 !   write(*,*)'init_gtp: entering function RT'
    call enter_svfun(tpfun,ip,firsteq)
+! mark it cannot be amended
+   svflista(2)%status=ibset(svflista(2)%status,SVNOAM)
 !   if(gx%bmperr.ne.0) then
 !      write(*,*)'Error entering symbol RT'
 !      goto 1000
@@ -462,6 +469,8 @@
    ip=1
 !   write(*,*)'init_gtp: entering function T_C'
    call enter_svfun(tpfun,ip,firsteq)
+! mark it cannot be amended
+   svflista(3)%status=ibset(svflista(3)%status,SVNOAM)
 !   if(gx%bmperr.ne.0) then
 !      write(*,*)'Error entering symbol T_C'
 !      goto 1000
@@ -492,6 +501,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine assessmenthead
 !\begin{verbatim}
  subroutine assessmenthead(ash)
 ! create an assessment head record and do more (later)
@@ -508,6 +518,7 @@
 !>     2. Number of things
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable integer function noel
 !\begin{verbatim}
  integer function noel()
 ! number of elements because noofel is private
@@ -518,6 +529,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable integer function nosp
 !\begin{verbatim} %-
  integer function nosp()
 ! number of species because noofsp is private
@@ -528,6 +540,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable integer function noph
 !\begin{verbatim} %-
  integer function noph()
 ! number of phases because noofph is private
@@ -538,6 +551,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable integer function noofcs
 !\begin{verbatim} %-
  integer function noofcs(iph)
 ! returns the number of compositions sets for phase iph
@@ -554,6 +568,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable integer function noconst
 !\begin{verbatim} %-
  integer function noconst(iph,ics,ceq)
 ! number of constituents for iph (include single constituents on a sublattice)
@@ -593,6 +608,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable integer function nooftup
 !\begin{verbatim} %-
  integer function nooftup()
 ! number of phase tuples
@@ -604,6 +620,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable integer function nosvf
 !\begin{verbatim}
  integer function nosvf()
 ! number of state variable functions
@@ -615,6 +632,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable integer function noeq
 !\begin{verbatim}
  integer function noeq()
 ! returns the number of equilibria entered
@@ -627,6 +645,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable integer function nosusphcs
 !\begin{verbatim}
  integer function nonsusphcs(ceq)
 ! returns the total number of unhidden phases+composition sets
@@ -662,6 +681,7 @@
 !>     3. Find things
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine find_element_by_name
 !\begin{verbatim}
  subroutine find_element_by_name(name,iel)
 ! find an element index by its name, exact fit required
@@ -688,6 +708,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine find_component_by_name
 !\begin{verbatim} %-
  subroutine find_component_by_name(name,icomp,ceq)
 ! BEWARE: one may in the future have different components in different
@@ -713,6 +734,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine find_species_by_name
 !\begin{verbatim} %-
  subroutine find_species_by_name(name,isp)
 ! locates a species index from its name, unique abbreviation 
@@ -759,6 +781,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine find_species_record
 !\begin{verbatim} %-
  subroutine find_species_record(name,loksp)
 ! locates a species record allowing abbreviations
@@ -805,6 +828,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine find_species_record_noabbr
 !\begin{verbatim} %-
  subroutine find_species_record_noabbr(name,loksp)
 ! locates a species record no abbreviations allowed
@@ -829,6 +853,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine find_species_record_exact
 !\begin{verbatim} %-
  subroutine find_species_record_exact(name,loksp)
 ! locates a species record, exact match needed
@@ -855,6 +880,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine find_phasetuple_by_name
 !\begin{verbatim}
  subroutine find_phasetuple_by_name(name,phcsx)
 ! finds a phase with name "name", returns phase tuple index
@@ -875,6 +901,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine find_phase_by_name
 !\begin{verbatim} %-
  subroutine find_phase_by_name(name,iph,ics)
 ! finds a phase with name "name", returns address of phase, first fit accepted
@@ -893,6 +920,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable integer function find_phasetuple_by_indices
 !\begin{verbatim} %-
  integer function find_phasetuple_by_indices(iph,ics)
 ! subroutine find_phasetuple_by_indices(iph,ics)
@@ -919,6 +947,7 @@ end function find_phasetuple_by_indices
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine find_phasex_by_name
 !\begin{verbatim} %-
  subroutine find_phasex_by_name(name,phcsx,iph,zcs)
 ! finds a phase with name "name", returns index and tuplet of phase.
@@ -1063,6 +1092,7 @@ end function find_phasetuple_by_indices
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine find_phase_by_name_exact
 !\begin{verbatim} %-
  subroutine find_phase_by_name_exact(name,iph,ics)
 ! finds a phase with name "name", returns address of phase. exact match req.
@@ -1169,6 +1199,7 @@ end function find_phasetuple_by_indices
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine findeq
 !\begin{verbatim}
  subroutine findeq(name,ieq)
 ! finds the equilibrium with name "name" and returns its index
@@ -1208,6 +1239,7 @@ end function find_phasetuple_by_indices
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine selecteq
 !\begin{verbatim} %-
  subroutine selecteq(ieq,ceq)
 ! checks if equilibrium ieq exists and if so set it as current
@@ -1227,6 +1259,7 @@ end function find_phasetuple_by_indices
 !>     4. Get things
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine get_phase_record
 !\begin{verbatim}
  subroutine get_phase_record(iph,lokph)
 ! given phase index iph this returns the phase location lokph
@@ -1244,6 +1277,7 @@ end function find_phasetuple_by_indices
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine get_phase_variance
 !\begin{verbatim} %-
  subroutine get_phase_variance(iph,nv)
 ! returns the number of independent variable fractions in phase iph
@@ -1258,6 +1292,7 @@ end function find_phasetuple_by_indices
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine get_constituent_location
 !\begin{verbatim} %-
  subroutine get_constituent_location(lokph,cno,loksp)
 ! returns the location of the species record of a constituent
@@ -1271,6 +1306,7 @@ end function find_phasetuple_by_indices
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine get_phase_compset
 !\begin{verbatim} %-
  subroutine get_phase_compset(iph,ics,lokph,lokcs)
 ! Given iph and ics the phase and composition set locations are returned
@@ -1295,6 +1331,7 @@ end function find_phasetuple_by_indices
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine find_constituent
 !\begin{verbatim}
  subroutine find_constituent(iph,spname,mass,icon)
 ! find the constituent "spname" of a phase. spname can have a sublattice #digit
@@ -1368,6 +1405,7 @@ end function find_phasetuple_by_indices
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine get_constituent_name
 !\begin{verbatim} %-
  subroutine get_constituent_name(iph,iseq,spname,mass)
 ! find the constituent with sequential index iseq in phase iph
@@ -1398,6 +1436,7 @@ end function find_phasetuple_by_indices
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine get_element_data
 !\begin{verbatim}
  subroutine get_element_data(iel,elsym,elname,refstat,mass,h298,s298)
 ! return element data as that is stored as private in GTP
@@ -1422,6 +1461,7 @@ end function find_phasetuple_by_indices
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine get_component_name
 !\begin{verbatim}
  subroutine get_component_name(icomp,name,ceq)
 ! return the name of component icomp
@@ -1445,6 +1485,7 @@ end function find_phasetuple_by_indices
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine get_species_name
 !\begin{verbatim} %-
  subroutine get_species_name(isp,spsym)
 ! return species name, isp is species number
@@ -1464,6 +1505,7 @@ end function find_phasetuple_by_indices
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine get_species_location
 !\begin{verbatim} %-
  subroutine get_species_location(isp,loksp,spsym)
 ! return species location and name, isp is species number
@@ -1483,6 +1525,7 @@ end function find_phasetuple_by_indices
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine get_species_data
 !\begin{verbatim}
  subroutine get_species_data(loksp,nspel,ielno,stoi,smass,qsp,nextra,extra)
 ! return species data, loksp is from a call to find_species_record
@@ -1525,6 +1568,7 @@ end function find_phasetuple_by_indices
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine get_species_component_data
 !\begin{verbatim} %-
  subroutine get_species_component_data(loksp,nspel,compnos,stoi,smass,qsp,ceq)
 ! return species data, loksp is from a call to find_species_record
@@ -1620,6 +1664,52 @@ end function find_phasetuple_by_indices
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine set_new_stoichiometry
+!\begin{verbatim}
+ subroutine set_new_stoichiometry(loksp, new_stoi, ispel)
+! provided by Clement Instoini
+! Change the stoichiometric coefficient of the ispel-th element of loksp-th
+! species (the last one when ispel is not given)
+! loksp: index of the species (input integer)
+! new_stoi: new value of the stoichiometric coefficient (input double precision)
+! ispel: index of the element (optional, input integer)
+   implicit none
+   integer, intent(in):: loksp
+   integer, intent(in), optional :: ispel
+   double precision, intent(in):: new_stoi
+!\end{verbatim}
+   character el_name*12,spe_name*24
+   integer iel,jl,nspel
+   double precision :: old_stoi
+   ! number of elements in species
+   nspel=splista(loksp)%noofel
+   spe_name = trim(splista(loksp)%symbol)
+!
+   if( .not. present(ispel) ) then
+    iel = nspel
+    !change the stoichiometric coefficient of the last element
+    old_stoi=splista(loksp)%stoichiometry(iel)
+    splista(loksp)%stoichiometry(iel)=new_stoi
+   else
+     iel = ispel
+     if (iel.gt.0) then
+       ! Change the stoichiometric coefficient of the ispel-th element
+       old_stoi=splista(loksp)%stoichiometry(iel)
+       splista(loksp)%stoichiometry(iel)=new_stoi
+!     else
+!       nothing to be done
+     end if
+   end if
+   el_name=ellista(splista(loksp)%ellinks(iel))%name
+   if(ocv()) then
+      write(*,*)"set_new_stoichiometry: (species,element,old_stoi,new_stoi)',&
+           ' = (",spe_name,",",el_name,",",old_stoi,",",new_stoi,")"
+   endif
+ end subroutine set_new_stoichiometry
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable double precision function mass_of
 !\begin{verbatim}
  double precision function mass_of(component,ceq)
 ! return mass of component
@@ -1639,6 +1729,7 @@ end function find_phasetuple_by_indices
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine get_phase_name
 !\begin{verbatim} %
  subroutine get_phase_name(iph,ics,name)
 ! Given the phase index and composition set number this subroutine returns
@@ -1675,6 +1766,7 @@ end function find_phasetuple_by_indices
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine get_phasetup_name
 !\begin{verbatim} %-
  subroutine get_phasetup_name(phtupx,name)
 ! phasetuple(phtupx)%phase is index to phlista
@@ -1694,6 +1786,7 @@ end function find_phasetuple_by_indices
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine get_phasetup_name_old
 !\begin{verbatim}
  subroutine get_phasetup_name_old(phtuple,name)
 ! Given the phase tuple this subroutine returns the name with pre- and suffix
@@ -1714,6 +1807,7 @@ end function find_phasetuple_by_indices
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine get_phasetup_record
 !\begin{verbatim} %-
  subroutine get_phasetup_record(phtx,lokcs,ceq)
 ! return lokcs when phase tuple known
@@ -1734,6 +1828,7 @@ end function find_phasetuple_by_indices
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine get_phase_data
 !\begin{verbatim}
  subroutine get_phase_data(iph,ics,nsl,nkl,knr,yarr,sites,qq,ceq)
 ! return the structure of phase iph and constituntion of comp.set ics
@@ -1836,6 +1931,7 @@ end function find_phasetuple_by_indices
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine get_phase_structure
 !\begin{verbatim} %-
  subroutine get_phase_structure(lokph,nsl,nkl)
 ! return the number of sblattices and constituents in each.
@@ -1861,6 +1957,7 @@ end function find_phasetuple_by_indices
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable integer function get_phtuplearray
 !\begin{verbatim}
  integer function get_phtuplearray(phcs)
 ! copies the internal phase tuple array to external software
@@ -1881,6 +1978,7 @@ end function find_phasetuple_by_indices
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable integer function noofphasetuples
 !\begin{verbatim} %-
  integer function noofphasetuples()
 ! number of phase tuples
@@ -1893,6 +1991,7 @@ end function find_phasetuple_by_indices
 !>     5. Set things
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine set_constitution
 !\begin{verbatim}
  subroutine set_constitution(iph,ics,yfra,qq,ceq)
 ! set the constituent fractions of a phase and composition set and the
@@ -2189,6 +2288,7 @@ end function find_phasetuple_by_indices
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine set_reference_state
 !\begin{verbatim}
  subroutine set_reference_state(icomp,iph,tpval,ceq)
 ! set the reference state of a component to be "iph" at tpval
@@ -2387,6 +2487,7 @@ end function find_phasetuple_by_indices
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine amend_components
 !\begin{verbatim}
  subroutine amend_components(line,ceq)
 ! amend the set of components
@@ -2507,174 +2608,6 @@ end function find_phasetuple_by_indices
    deallocate(matrix)
    return
  end subroutine amend_components
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\begin{verbatim}
- subroutine deallocate_gtp(intvar,dblvar)
-! deallocate the data structure
-   implicit none
-   integer allocatestatus
-   integer intvar(*)
-   double precision dblvar(*)
-!\end{verbatim}
-!   integer jl
-   write(*,*)'3A in deallocate_gtp'
-   deallocate(ellista, STAT = allocateStatus)
-   if (allocateStatus /= 0) then
-     write(kou,*) 'Error during deallocation of ellista'
-     goto 1000
-   else
-     write(kou,*) 'Deallocation of data ',  allocateStatus
-   endif
-!   flush(6)
-   deallocate(elements)
-! deallocate records for species
-   deallocate(splista)
-   deallocate(species)
-! deallocate records for phases
-   deallocate(phlista)
-   deallocate(phases)
-   deallocate(phasetuple)
-   deallocate(bibrefs)
-   deallocate(propid)
-   deallocate(eqlista)
-   deallocate(svflista)
-   write(*,*)'3A Deallocate TP funs'
-   call tpfun_deallocate
-!CCI added this
-   deallocate(firstash)
-1000 continue
-   return
- END subroutine deallocate_gtp
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\begin{verbatim}
-  logical function allotropes(irem,iadd,iter,ceq)
-! This function return TRUE if the phases indicated by IREM and IADD both have
-! fixed and identical composition, i.e. they are componds and allotropes
-! Such a transition can cause problems during a STEP command.
-    implicit none
-    TYPE(gtp_equilibrium_data), pointer :: ceq
-    integer iadd,irem,iter
-!\end{verbatim}
-    integer lokph1,lokph2,nofr,jj
-    double precision x1mol(maxel),x2mol(maxel),wmass(maxel),totmol,totmass,am
-    logical allo
-    allo=.false.
-    goto 1000
-!    write(*,*)'3A checking allotropes',irem,iadd
-    write(*,10)iter,trim(phlista(phases(irem))%name),&
-         trim(phlista(phases(iadd))%name)
-10  format('3A checking allotropes',i5,2x,a,2x,a)
-    lokph1=phases(irem)
-    lokph2=phases(iadd)
-! spurious segmentation faults here ...
-    if(lokph1.le.0 .or. lokph2.le.0) then
-! composition ses created during mapping are not included in phases array ??
-       write(*,*)'3A error checking allotropes: ',lokph1,lokph2
-       goto 1000
-    endif
-! check if both have fixed composition
-    if(phlista(lokph1)%noofsubl-phlista(lokph1)%tnooffr.eq.0 .and. &
-         phlista(lokph2)%noofsubl-phlista(lokph2)%tnooffr.eq.0) then
-! they have fixed composition but can be modelled differently
-! we have to calculate their mole fractions ...
-       call calc_phase_molmass(irem,1,x1mol,wmass,totmol,totmass,am,ceq)
-       call calc_phase_molmass(irem,1,x2mol,wmass,totmol,totmass,am,ceq)
-       if(gx%bmperr.ne.0) goto 1000
-       do jj=1,noofel
-          if(abs(x1mol(jj)-x2mol(jj)).gt.1.0D-6) exit
-       enddo
-! Fortran standard says jj>noofel if loop finish without exit
-       if(jj.gt.noofel) then
-          allo=.true.
-!          write(*,*)'The phases are allotropes!',ceq%tpval(1)
-       endif
-    endif
-1000 continue
-    allotropes=allo
-    return
-  end function allotropes
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\begin{verbatim}
-  integer function getmqindex()
-! This is necessary because mqindex is private, replaced by getmpiindex ...
-!\end{verbatim}
-    getmqindex=mqindex
-    return
-  end function getmqindex
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\begin{verbatim}
-  integer function get_mpi_index(mpi)
-! Return the index of a model parameter identifier
-    character mpi*(*)
-!\end{verbatim}
-! propid(jj)%symbol is *4
-    character text*4
-    integer jj
-    text=mpi
-    do jj=1,ndefprop
-       if(propid(jj)%symbol.eq.text) exit
-    enddo
-!
-    if(jj.gt.ndefprop) then
-       write(*,*)'3A no such model parameter identifier: ',trim(mpi)
-       gx%bmperr=4399; jj=-1
-    endif
-!    write(*,*)'3A get_mpi_index: ',text,ndefprop,jj
-    get_mpi_index=jj
-    return
-  end function get_mpi_index
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\begin{verbatim}
- subroutine set_new_stoichiometry(loksp, new_stoi, ispel)
-! provided by Clement Instoini
-! Change the stoichiometric coefficient of the ispel-th element of loksp-th
-! species (the last one when ispel is not given)
-! loksp: index of the species (input integer)
-! new_stoi: new value of the stoichiometric coefficient (input double precision)
-! ispel: index of the element (optional, input integer)
-   implicit none
-   integer, intent(in):: loksp
-   integer, intent(in), optional :: ispel
-   double precision, intent(in):: new_stoi
-!\end{verbatim}
-   character el_name*12,spe_name*24
-   integer iel,jl,nspel
-   double precision :: old_stoi
-   ! number of elements in species
-   nspel=splista(loksp)%noofel
-   spe_name = trim(splista(loksp)%symbol)
-!
-   if( .not. present(ispel) ) then
-    iel = nspel
-    !change the stoichiometric coefficient of the last element
-    old_stoi=splista(loksp)%stoichiometry(iel)
-    splista(loksp)%stoichiometry(iel)=new_stoi
-   else
-     iel = ispel
-     if (iel.gt.0) then
-       ! Change the stoichiometric coefficient of the ispel-th element
-       old_stoi=splista(loksp)%stoichiometry(iel)
-       splista(loksp)%stoichiometry(iel)=new_stoi
-!     else
-!       nothing to be done
-     end if
-   end if
-   el_name=ellista(splista(loksp)%ellinks(iel))%name
-   if(ocv()) then
-      write(*,*)"set_new_stoichiometry: (species,element,old_stoi,new_stoi)',&
-           ' = (",spe_name,",",el_name,",",old_stoi,",",new_stoi,")"
-   endif
- end subroutine set_new_stoichiometry
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

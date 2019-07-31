@@ -4,6 +4,8 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 !>     15. Calculate things
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine calcg
 !\begin{verbatim}
  subroutine calcg(iph,ics,moded,lokres,ceq)
 ! calculates G for phase iph and composition set ics in equilibrium ceq
@@ -70,6 +72,8 @@
  end subroutine calcg
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine calcg_internal
 !\begin{verbatim}
  subroutine calcg_internal(lokph,moded,cps,ceq)
 ! Central calculating routine calculating G and everyting else for a phase
@@ -1949,6 +1953,8 @@
  end subroutine calcg_internal
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine setendmemarr
 !\begin{verbatim}
  subroutine setendmemarr(lokph,ceq)
 ! stores the pointers to all ordered and disordered endmemners in arrays
@@ -2003,6 +2009,8 @@
  end subroutine setendmemarr
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine tabder
 !\begin{verbatim}
  subroutine tabder(iph,ics,times,ceq)
 ! tabulate derivatives of phase iph with current constitution and T and P
@@ -2146,6 +2154,8 @@
  end subroutine tabder
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine cgint
 !\begin{verbatim}
  subroutine cgint(lokph,lokpty,moded,vals,dvals,d2vals,gz,ceq)
 ! calculates an excess parameter that can be composition dependent
@@ -2564,6 +2574,8 @@
  end subroutine cgint
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine config_entropy
 !\begin{verbatim}
  subroutine config_entropy(moded,nsl,nkl,phvar,tval)
 ! calculates configurational entropy/R for phase lokph
@@ -2618,151 +2630,8 @@
  end subroutine config_entropy
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-!\begin{verbatim}
- subroutine config_entropy_floryhuggins(moded,nofc,phvar,tval,fhv,dfhv,d2fhv)
-! calculates configurational entropy/R for a phase with Flory-Huggins model
-! moded=0 only G; =1 G and dG/dy; =2; G, dG/dy and d2G/dy2
-! nofc number of constituents, phvar phase_varres record
-   implicit none
-   integer moded,nofc
-   TYPE(gtp_phase_varres), pointer :: phvar
-! fvh(1,1) is FH volume for constituent 1 etc.
-   double precision tval,fhv(nofc,*),dfhv(nofc,3,*),d2fhv(nofc,*)
-!\end{verbatim}
-   integer kall,nofc2,k1,k2
-   double precision ss,sy,st,sp,yfra1,ylog,sumq
-   double precision, allocatable :: pfhv(:,:),dpfhv(:,:,:),d2pfhv(:,:)
-   double precision, allocatable :: yfra(:),qfra(:),sumsy(:,:)
-!
-   nofc2=nofc*(nofc+1)/2
-!   write(*,1)'3X Config entropy FH model: ',nofc,(fhv(kall,1),kall=1,nofc)
-1  format(a,i3,5F8.2)
-107 format(a,6(1pe12.4))
-108 format(a,i2,6(1pe12.4))
-   allocate(yfra(nofc))
-   allocate(qfra(nofc))
-   allocate(sumsy(nofc,nofc))
-! temporary arrays, maybe all not needed??
-   allocate(pfhv(nofc,6))
-   allocate(dpfhv(nofc,3,nofc))
-   allocate(d2pfhv(nofc,nofc2))
-   dpfhv=zero
-   d2pfhv=zero
-!
-! sum the FH volumes for current composition and use as normallizing
-   sumq=zero
-   sumsy=zero
-   do kall=1,nofc
-      yfra1=phvar%yfr(kall)
-      if(yfra1.lt.bmpymin) yfra1=bmpymin
-      if(yfra1.gt.one) yfra1=one
-!v      sumq=sumq+fhv(kall,1)*yfra1
-      sumq=sumq+yfra1
-      yfra(kall)=yfra1
-!      do k1=1,nofc
-!         if(k1.eq.kall) then
-! 1st DERIVATIVES of q_i = p_i/\sum_j p_j
-! fhv(i,1) is FH volume for const i, fhv(i,2) is T deriv, fhv(i,3) is P der
-! dfhv(i,1,j) derivative of FH volume for i wrt const j
-! dfhv(i,2,j) 2nd derivative of FH volume for i wrt const j and T
-! dfhv(i,3,j) 2nd derivative of FH volume for i wrt const j and P
-! UNFINISHED ?? sumsy including T and P derivatives ??
-!            dpfhv(kall,1,k1)=dfhv(kall,1,k1)*yfra(kall)+fhv(kall,1)
-!            dpfhv(kall,2,k1)=dfhv(kall,2,k1)*yfra(kall)+fhv(kall,2)
-!            dpfhv(kall,3,k1)=dfhv(kall,3,k1)*yfra(kall)+fhv(kall,3)
-!            sumsy(1,k1)=sumsy(1,k1)+dfhv(kall,1,k1)*yfra1+fhv(kall,1)
-!            write(*,106)'3X sum1: ',kall,k1,sumsy(1,k1)
-!         else
-!            dpfhv(kall,1,k1)=dfhv(kall,1,k1)*yfra(kall)
-!            dpfhv(kall,2,k1)=dfhv(kall,2,k1)*yfra(kall)
-!            dpfhv(kall,3,k1)=dfhv(kall,3,k1)*yfra(kall)
-!            sumsy(1,k1)=sumsy(1,k1)+dfhv(kall,1,k1)*yfra1
-!            write(*,106)'3X sum2: ',kall,k1,sumsy(1,k1)
-!         endif
-!      enddo
-   enddo
-106 format(a,2i3,1pe12.4)
-! we should extract fhv for each constituent from the species record ...
-!   write(*,117)'3X sumq, vi: ',sumq,(fhv(kall,1)*yfra(kall)/sumq,kall=1,nofc)
-117 format(a,6(1pe12.4))
-!-----------------------------------------
-! fhv(i,1) is FH volume for const i, fhv(i,2) is T deriv, fhv(i,3) is P deriv
-! dfhv(i,1,j) derivative of FH volume for i wrt const j
-! dfhv(i,2,j) 2nd derivative of FH volume for i wrt const j and T
-! dfhv(i,3,j) 2nd derivative of FH volume for i wrt const j and P
-! d2fhv(i,ixsym(j,k)) 2nd derivative of FH volume for i wrt const j and k
-! gval(1:6,1) are G and derivator wrt T and P
-! dgval(1,1:N,1) are derivatives of G wrt fraction 1:N
-! dgval(2,1:N,1) are derivatives of G wrt fraction 1:N and T
-! dgval(3,1:N,1) are derivatives of G wrt fraction 1:N and P
-! d2dval(ixsym(N*(N+1)/2),1) are derivatives of G wrt fractions N and M
-! this is a symmetric matrix and index givem by ixsym(M,N)
-! ========== IMPORTANT: We have not implemented composition dependence in the
-! Gibbs energy calculations !!!  Test that is not used!
-   do kall=1,nofc
-      ss=dfhv(kall,1,1)
-      do k1=2,nofc
-         if(abs(dfhv(kall,1,k1)-ss).gt.1.0D-8) then
-            write(*,77)kall,k1,dfhv(kall,1,k1)
-77          format(' *** Warning, Flory-Huggins model implemented',&
-                 ' for constant FHV only',2i3,1pe12.4)
-         endif
-      enddo
-   enddo
-! =========================================================================
-! Calculate the confurational entropy
-   ss=zero
-   fractionloop: do kall=1,nofc
-! We use the already calculated partial molar volumes v_i = fhv_i * y_i
-! This means we cannot calculate this before calculating all parameters once!!
-! so this routine must be called after a first calculation of fhv, dfhv etc
-! and then we must calculate all parameters again ... as they depend of v_i
-! this is ln(n_i/(\sum_j n_j)), 0<yfra(kall)<1
-!v      ylog=log(fhv(kall,1)*yfra(kall)/sumq)
-!      ylog=log(yfra(kall)/sumq)    .... sumq=1.0!!
-      ylog=log(yfra(kall))
-      if(moded.gt.0) then
-! UNFINISHED derivatives wrt T, P
-         loopk1: do k1=1,nofc
-            loopk2: do k2=k1,nofc
-! UNFINISHED all second derivatives ignored, just set as for ideal 1/y
-               if(kall.eq.k1 .and. k1.eq.k2) then
-                  phvar%d2gval(ixsym(k1,k2),1)=one/yfra(kall)
-               endif
-            enddo loopk2
-! This is df_i/dz, eq. 11 in FH documentation. Note dpfhv and sumsy set
-! above to include the extra term if kall=k1
-!            sy=dpfhv(kall,1,k1)*(ylog+one)-fhv(kall,1)/sumq*sumsy(1,k1)
-! UNFINISHED ... IGNORE THE COMPOSITION DEPENENCE OF fhv_i ...
-         enddo loopk1
-! 
-!         phvar%dgval(1,kall,1)=fhv(kall,1)/sumq*(ylog+one)
-!         phvar%dgval(1,kall,1)=(ylog+one)/sumq
-! each species has now a flory-Huggins segment value in fhv(kall,1)
-         phvar%dgval(1,kall,1)=(ylog+one)/fhv(kall,1)
-         phvar%dgval(2,kall,1)=phvar%dgval(2,kall,1)/tval
-      endif
-!      ss=ss+(fhv(kall,1)/sumq)*yfra(kall)*ylog
-!v      ss=ss+yfra(kall)*ylog
-      ss=ss+yfra(kall)/fhv(kall,1)*ylog
-!      write(*,300)'3X ss: ',ss,yfra(kall),fhv(kall,1),fhv(kall,1)*yfra/sumq,&
-!           ylog
-300   format(a,6(1pe12.4))
-   enddo fractionloop
-! each species may now have a Flory Huggins segment number ....
-!   ss=ss/sumq
-   ss=ss
-! The integral entropy and its T and P derivatives
-! UNFINISHED should include T and P derivatives of fhv ....
-!   phvar%gval(1,1)=phvar%gval(1,1)+ss
-   phvar%gval(1,1)=ss
-! UNFINISHED add T derivates of dfhv .... and any P derivatives
-   phvar%gval(2,1)=phvar%gval(1,1)/tval
-1000 continue
-   return
- end subroutine config_entropy_floryhuggins
 
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+!\addtotable subroutine config_entropy_i2sl
 !\begin{verbatim}
  subroutine config_entropy_i2sl(moded,nsl,nkl,phvar,i2slx,tval)
 ! calculates configurational entropy/R for ionic liquid model
@@ -2932,6 +2801,8 @@
  end subroutine config_entropy_i2sl
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine config_entropy_cqc_classicqc
 !\begin{verbatim}
  subroutine config_entropy_cqc_classicqc(moded,ncon,phvar,phrec,tval)
 !
@@ -2953,7 +2824,7 @@
    TYPE(gtp_phase_varres), pointer :: phvar
    TYPE(gtp_phaserecord) :: phrec
    double precision tval
-!\end{verbatim}
+!\end{verbatim} %+
 ! First A=(z/2)*(\sum_i (y_ii*ln(y_ii) + \sum_(j>=i) y_ij*ln(y_ij/2))
 ! and calculate all x_i = y_ii + \sum_j a/(a+b)*y_ij
 ! Then calculate the SRO: q_ij=(y_ij/(x_i*x_j)-1)*(x_i+x_j)**2
@@ -3080,6 +2951,155 @@
  end subroutine config_entropy_cqc_classicqc
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine config_entropy_floryhuggins
+!\begin{verbatim}
+ subroutine config_entropy_floryhuggins(moded,nofc,phvar,tval,fhv,dfhv,d2fhv)
+! calculates configurational entropy/R for a phase with Flory-Huggins model
+! moded=0 only G; =1 G and dG/dy; =2; G, dG/dy and d2G/dy2
+! nofc number of constituents, phvar phase_varres record
+   implicit none
+   integer moded,nofc
+   TYPE(gtp_phase_varres), pointer :: phvar
+! fvh(1,1) is FH volume for constituent 1 etc.
+   double precision tval,fhv(nofc,*),dfhv(nofc,3,*),d2fhv(nofc,*)
+!\end{verbatim} %+
+   integer kall,nofc2,k1,k2
+   double precision ss,sy,st,sp,yfra1,ylog,sumq
+   double precision, allocatable :: pfhv(:,:),dpfhv(:,:,:),d2pfhv(:,:)
+   double precision, allocatable :: yfra(:),qfra(:),sumsy(:,:)
+!
+   nofc2=nofc*(nofc+1)/2
+!   write(*,1)'3X Config entropy FH model: ',nofc,(fhv(kall,1),kall=1,nofc)
+1  format(a,i3,5F8.2)
+107 format(a,6(1pe12.4))
+108 format(a,i2,6(1pe12.4))
+   allocate(yfra(nofc))
+   allocate(qfra(nofc))
+   allocate(sumsy(nofc,nofc))
+! temporary arrays, maybe all not needed??
+   allocate(pfhv(nofc,6))
+   allocate(dpfhv(nofc,3,nofc))
+   allocate(d2pfhv(nofc,nofc2))
+   dpfhv=zero
+   d2pfhv=zero
+!
+! sum the FH volumes for current composition and use as normallizing
+   sumq=zero
+   sumsy=zero
+   do kall=1,nofc
+      yfra1=phvar%yfr(kall)
+      if(yfra1.lt.bmpymin) yfra1=bmpymin
+      if(yfra1.gt.one) yfra1=one
+!v      sumq=sumq+fhv(kall,1)*yfra1
+      sumq=sumq+yfra1
+      yfra(kall)=yfra1
+!      do k1=1,nofc
+!         if(k1.eq.kall) then
+! 1st DERIVATIVES of q_i = p_i/\sum_j p_j
+! fhv(i,1) is FH volume for const i, fhv(i,2) is T deriv, fhv(i,3) is P der
+! dfhv(i,1,j) derivative of FH volume for i wrt const j
+! dfhv(i,2,j) 2nd derivative of FH volume for i wrt const j and T
+! dfhv(i,3,j) 2nd derivative of FH volume for i wrt const j and P
+! UNFINISHED ?? sumsy including T and P derivatives ??
+!            dpfhv(kall,1,k1)=dfhv(kall,1,k1)*yfra(kall)+fhv(kall,1)
+!            dpfhv(kall,2,k1)=dfhv(kall,2,k1)*yfra(kall)+fhv(kall,2)
+!            dpfhv(kall,3,k1)=dfhv(kall,3,k1)*yfra(kall)+fhv(kall,3)
+!            sumsy(1,k1)=sumsy(1,k1)+dfhv(kall,1,k1)*yfra1+fhv(kall,1)
+!            write(*,106)'3X sum1: ',kall,k1,sumsy(1,k1)
+!         else
+!            dpfhv(kall,1,k1)=dfhv(kall,1,k1)*yfra(kall)
+!            dpfhv(kall,2,k1)=dfhv(kall,2,k1)*yfra(kall)
+!            dpfhv(kall,3,k1)=dfhv(kall,3,k1)*yfra(kall)
+!            sumsy(1,k1)=sumsy(1,k1)+dfhv(kall,1,k1)*yfra1
+!            write(*,106)'3X sum2: ',kall,k1,sumsy(1,k1)
+!         endif
+!      enddo
+   enddo
+106 format(a,2i3,1pe12.4)
+! we should extract fhv for each constituent from the species record ...
+!   write(*,117)'3X sumq, vi: ',sumq,(fhv(kall,1)*yfra(kall)/sumq,kall=1,nofc)
+117 format(a,6(1pe12.4))
+!-----------------------------------------
+! fhv(i,1) is FH volume for const i, fhv(i,2) is T deriv, fhv(i,3) is P deriv
+! dfhv(i,1,j) derivative of FH volume for i wrt const j
+! dfhv(i,2,j) 2nd derivative of FH volume for i wrt const j and T
+! dfhv(i,3,j) 2nd derivative of FH volume for i wrt const j and P
+! d2fhv(i,ixsym(j,k)) 2nd derivative of FH volume for i wrt const j and k
+! gval(1:6,1) are G and derivator wrt T and P
+! dgval(1,1:N,1) are derivatives of G wrt fraction 1:N
+! dgval(2,1:N,1) are derivatives of G wrt fraction 1:N and T
+! dgval(3,1:N,1) are derivatives of G wrt fraction 1:N and P
+! d2dval(ixsym(N*(N+1)/2),1) are derivatives of G wrt fractions N and M
+! this is a symmetric matrix and index givem by ixsym(M,N)
+! ========== IMPORTANT: We have not implemented composition dependence in the
+! Gibbs energy calculations !!!  Test that is not used!
+   do kall=1,nofc
+      ss=dfhv(kall,1,1)
+      do k1=2,nofc
+         if(abs(dfhv(kall,1,k1)-ss).gt.1.0D-8) then
+            write(*,77)kall,k1,dfhv(kall,1,k1)
+77          format(' *** Warning, Flory-Huggins model implemented',&
+                 ' for constant FHV only',2i3,1pe12.4)
+         endif
+      enddo
+   enddo
+! =========================================================================
+! Calculate the confurational entropy
+   ss=zero
+   fractionloop: do kall=1,nofc
+! We use the already calculated partial molar volumes v_i = fhv_i * y_i
+! This means we cannot calculate this before calculating all parameters once!!
+! so this routine must be called after a first calculation of fhv, dfhv etc
+! and then we must calculate all parameters again ... as they depend of v_i
+! this is ln(n_i/(\sum_j n_j)), 0<yfra(kall)<1
+!v      ylog=log(fhv(kall,1)*yfra(kall)/sumq)
+!      ylog=log(yfra(kall)/sumq)    .... sumq=1.0!!
+      ylog=log(yfra(kall))
+      if(moded.gt.0) then
+! UNFINISHED derivatives wrt T, P
+         loopk1: do k1=1,nofc
+            loopk2: do k2=k1,nofc
+! UNFINISHED all second derivatives ignored, just set as for ideal 1/y
+               if(kall.eq.k1 .and. k1.eq.k2) then
+                  phvar%d2gval(ixsym(k1,k2),1)=one/yfra(kall)
+               endif
+            enddo loopk2
+! This is df_i/dz, eq. 11 in FH documentation. Note dpfhv and sumsy set
+! above to include the extra term if kall=k1
+!            sy=dpfhv(kall,1,k1)*(ylog+one)-fhv(kall,1)/sumq*sumsy(1,k1)
+! UNFINISHED ... IGNORE THE COMPOSITION DEPENENCE OF fhv_i ...
+         enddo loopk1
+! 
+!         phvar%dgval(1,kall,1)=fhv(kall,1)/sumq*(ylog+one)
+!         phvar%dgval(1,kall,1)=(ylog+one)/sumq
+! each species has now a flory-Huggins segment value in fhv(kall,1)
+         phvar%dgval(1,kall,1)=(ylog+one)/fhv(kall,1)
+         phvar%dgval(2,kall,1)=phvar%dgval(2,kall,1)/tval
+      endif
+!      ss=ss+(fhv(kall,1)/sumq)*yfra(kall)*ylog
+!v      ss=ss+yfra(kall)*ylog
+      ss=ss+yfra(kall)/fhv(kall,1)*ylog
+!      write(*,300)'3X ss: ',ss,yfra(kall),fhv(kall,1),fhv(kall,1)*yfra/sumq,&
+!           ylog
+300   format(a,6(1pe12.4))
+   enddo fractionloop
+! each species may now have a Flory Huggins segment number ....
+!   ss=ss/sumq
+   ss=ss
+! The integral entropy and its T and P derivatives
+! UNFINISHED should include T and P derivatives of fhv ....
+!   phvar%gval(1,1)=phvar%gval(1,1)+ss
+   phvar%gval(1,1)=ss
+! UNFINISHED add T derivates of dfhv .... and any P derivatives
+   phvar%gval(2,1)=phvar%gval(1,1)/tval
+1000 continue
+   return
+ end subroutine config_entropy_floryhuggins
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine config_entropy_cqc6
 !\begin{verbatim}
  subroutine config_entropy_cqc6(moded,ncon,phvar,phrec,tval)
 !
@@ -3349,6 +3369,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
  
+!\addtotable subroutine push_pyval
 !\begin{verbatim}
  subroutine push_pyval(pystack,intrec,pmq,pyq,dpyq,d2pyq,moded,iz)
 ! push data when entering an interaction record
@@ -3387,6 +3408,8 @@
  end subroutine push_pyval
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine pop_pyval
 !\begin{verbatim}
  subroutine pop_pyval(pystack,intrec,pmq,pyq,dpyq,d2pyq,moded,iz)
 ! pop data when entering an interaction record
@@ -3422,6 +3445,8 @@
  end subroutine pop_pyval
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine calc_disfrac
 !\begin{verbatim}
  subroutine calc_disfrac(lokph,lokcs,ceq)
 ! calculate and set disordered set of fractions from sitefractions
@@ -3462,6 +3487,8 @@
  end subroutine calc_disfrac
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine calc_disfrac2
 !\begin{verbatim} %-
  subroutine calc_disfrac2(phord,phdis,ceq)
 ! calculate and set disordered set of fractions from sitefractions
@@ -3534,6 +3561,8 @@
  end subroutine calc_disfrac2
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine disordery
 !\begin{verbatim}
  subroutine disordery(phvar,ceq)
 ! sets the ordered site fractions in FCC and other order/disordered phases
@@ -3574,6 +3603,8 @@
  end subroutine disordery
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine disordery2
 !\begin{verbatim} %-
  subroutine disordery2(lokdcs,phvar,disrec,ceq)
 ! subroutine disordery2(phdis,phvar,disrec,ceq)
@@ -3635,6 +3666,8 @@
  end subroutine disordery2
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\addtotable subroutine uniquac_model
 !\begin{verbatim}
  subroutine uniquac_model(moded,ncon,phres,ceq)
 ! Calculate the Gibbs energy of the UNIQUAC model (Abrams et al 1975)
@@ -3914,6 +3947,8 @@
  end subroutine uniquac_model
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine set_driving_force
 !\begin{verbatim}
  subroutine set_driving_force(iph,ics,dgm,ceq)
 ! set the driving force of a phase explicitly
@@ -3931,6 +3966,8 @@
  end subroutine set_driving_force
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\addtotable subroutine extract_massbalcond
 !\begin{verbatim}
  subroutine extract_massbalcond(tpval,xknown,antot,ceq)
 ! extract T, P,  mol fractions of all components and total number of moles
@@ -4235,6 +4272,8 @@
  end subroutine extract_massbalcond
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\addtotable subroutine save_constitutions
 !\begin{verbatim}
  subroutine save_constitutions(ceq,copyofconst)
 ! copy the current phase amounts and constituitions to be restored
@@ -4304,6 +4343,8 @@
  end subroutine save_constitutions
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\addtotable subroutine restore_constitutions
 !\begin{verbatim} %-
  subroutine restore_constitutions(ceq,copyofconst)
 ! restore the phase amounts and constitutions from copyofconst

@@ -123,10 +123,9 @@ plot
 ?
 position outside right
 
-title step 1 fig 2
 text
 1200 0.6 2 0 High Speed Steel
-render
+title step 1 fig 2render
 
 
 @&
@@ -143,17 +142,28 @@ render
 plot
 T
 w(mc_fcc,*)
+text 1000 0.2 1 0
+Plotted only in stable range of the MC carbide
 title step 1 fig 4
 render
 
+
+@$ Fractions plotted only in the stable range of the MC carbide
+@&
+
 @$ Plot the fractions in the BCC phase
-@$ NOTE fractions plotted only in the stable range!!!
 plot
 T
 w(bcc,*)
+text 1000 0.4 1 0
+Plotted in stable ranges of the bcc phase only
+pos left
+
 title step 1 fig 5
 render
 
+@$ NOTE fractions plotted only in the stable range!!!
+@$ I will try to add the composition as dashed i metastable range
 @&
 @$ Plot the enthalpy variation
 plot
@@ -178,6 +188,9 @@ render
 plot
 T
 cp
+axis
+y
+Heat capacity J/mol/K
 scale
 y
 N

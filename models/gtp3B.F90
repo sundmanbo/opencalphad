@@ -5,6 +5,7 @@
 !>     6. Enter data
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine enter_element
 !\begin{verbatim}
  subroutine enter_element(symb,name,refstate,mass,h298,s298)
 ! Creates an element record after checks.
@@ -210,6 +211,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine enter_species
 !\begin{verbatim}
  subroutine enter_species(symb,noelx,ellist,stoik)
 ! creates a new species
@@ -321,6 +323,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine enterphase
 !\begin{verbatim}
   subroutine enterphase(cline,last)
 ! interactive entering of phase
@@ -486,6 +489,7 @@
 
 !\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
+!\addtotable subroutine enter_phase
 !\begin{verbatim}
  subroutine enter_phase(name,nsl,knr,const,sites,model,phtype)
 ! creates the data structure for a new phase
@@ -977,6 +981,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine sort_ionliqconst
 !\begin{verbatim}
  subroutine sort_ionliqconst(lokph,mode,knr,kconlok,klok)
 ! sorts constituents in ionic liquid, both when entering phase
@@ -1175,6 +1180,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine enter_composition_set
 !\begin{verbatim}
  subroutine enter_composition_set(iph,prefix,suffix,icsno)
 ! adds a composition set to a phase.
@@ -1463,6 +1469,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine suspend_composition_set
 !\begin{verbatim}
  subroutine suspend_composition_set(iph,parallel,ceq)
 ! the last composition set is suspended in all equilibria
@@ -1514,7 +1521,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!
+!\addtotable subroutine remove_composition_set
 !\begin{verbatim} %-
  subroutine remove_composition_set(iph,force)
 ! subroutine delete_composition_set(iph,force)
@@ -1790,6 +1797,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine enter_parameter
 !\begin{verbatim}
  subroutine enter_parameter(lokph,typty,fractyp,nsl,endm,nint,lint,ideg,&
       lfun,refx)
@@ -2508,6 +2516,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine fccpermuts
 !\begin{verbatim}
  subroutine fccpermuts(lokph,nsl,iord,noperm,elinks,nint,jord,intperm,intlinks)
 ! finds all fcc/hcp permutations needed for this parameter
@@ -3522,6 +3531,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine fccip2A
 !\begin{verbatim} %-
  subroutine fccip2A(lokph,jord,intperm,intlinks)
 ! 2nd level interaction permutations for fcc
@@ -3621,6 +3631,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine fccip2B
 !\begin{verbatim} %-
  subroutine fccip2B(lq,lokph,lshift,jord,intperm,intlinks)
 ! 2nd level interaction permutations for fcc
@@ -3737,6 +3748,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine fccint31
 !\begin{verbatim} %-
  subroutine fccint31(jord,lshift,intperm,intlinks)
 ! 1st level interaction in sublattice l1 with endmember A:A:A:B or A:B:B:B
@@ -3795,6 +3807,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine fccint22
 !\begin{verbatim} %-
  subroutine fccint22(jord,lshift,intperm,intlinks)
 ! 1st level for endmember A:A:B:B with interaction in sublattice jord(1,1) 
@@ -3872,6 +3885,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine fccint211
 !\begin{verbatim} %-
  subroutine fccint211(a211,jord,lshift,intperm,intlinks)
 ! 1st level interaction in sublattice l1 with endmember like A:A:B:C
@@ -3999,6 +4013,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine fccpe211
 !\begin{verbatim} %-
  subroutine fccpe211(l1,elinks,nsl,lshift,iord)
 ! sets appropriate links to constituents for the 12 perumations of
@@ -4106,6 +4121,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine fccpe1111
 !\begin{verbatim} %-
  subroutine fccpe1111(elinks,nsl,lshift,iord)
 ! sets appropriate links to 24 permutations when all 4 constituents different
@@ -4164,6 +4180,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine bccpermuts
 !\begin{verbatim}
  subroutine bccpermuts(lokph,nsl,iord,noperm,elinks,nint,jord,intperm,intlinks)
 ! finds all bcc permutations needed for this parameter
@@ -4178,7 +4195,7 @@
 ! giving the constituent indices for permutations of endmembers and interactions
    integer, dimension(:,:), allocatable :: elinks
    integer, dimension(:,:), allocatable :: intlinks
-!\end{verbatim}
+!\end{verbatim} %+
    integer ls,l1,l2,l3,loksp,c1,c2,c3,mint,ip,nsame
    integer elal(9),unshift(9),orgem(4),esame(4)
    character pch*64
@@ -4426,7 +4443,8 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim}
+!\addtotable subroutine bccendmem
+!\begin{verbatim} %-
  subroutine bccendmem(lokph,nsl,elal,noperm,elinks)
 ! generate an bcc endmember with all permutations
    implicit none
@@ -4438,7 +4456,7 @@
 ! of an endmembers
    integer, dimension(:,:), allocatable :: elinks
 !   integer, dimension(:,:), allocatable :: intlinks
-!\end{verbatim}
+!\end{verbatim} %+
 ! endmember perm
 ! A:A:A:A     1
 ! A:A:A:B     4 
@@ -4648,6 +4666,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine bccint1
 !\begin{verbatim}
  subroutine bccint1(lokph,nsl,elal,noperm,elinks,nint,jord,intperm,intlinks)
 ! generate all bcc permutations for a first order interaction
@@ -4668,7 +4687,7 @@
 ! giving the constituent indices for permutations of the interactions
 ! It may be reallocated if the interaction is second level
    integer, dimension(:,:), allocatable :: intlinks
-!\end{verbatim}
+!\end{verbatim} %+
    integer mint,ls,ip,nperm,mperm,cix,incperm,intem,lq,mq,subint(4)
    character pch*64
 ! this is quite simple, the species jord(1,2) in sublattice jord(1,1) should
@@ -4972,6 +4991,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine bccint2
 !\begin{verbatim}
  subroutine bccint2(lokph,nsl,elal,noperm,elinks,nint,jord,intperm,intlinks)
 ! generate all bcc permutations needed for a ternary or reciprocal parameter
@@ -5194,6 +5214,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine findconst
 !\begin{verbatim}
  subroutine findconst(lokph,ll,spix,constix)
 ! locates the constituent index of species with index spix in sublattice ll
@@ -5230,6 +5251,7 @@
  
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine tdbrefs
 !\begin{verbatim}
  subroutine tdbrefs(refid,line,mode,iref)
 ! store a reference from a TDB file or given interactivly
@@ -5305,22 +5327,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim}
- subroutine geneqname(text)
-! creates a equilibrium name like EQ_x where x is the freeq in text
-   implicit none
-   character text*(*)
-!\end{verbatim}
-   integer ip
-   text='EQ_'
-   ip=4
-   call wriint(text,ip,eqfree)
-!   write(*,*)'3B eqname: ',trim(text),len_trim(text),eqfree
-1000 continue
- end subroutine geneqname
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
+!\addtotable subroutine enter_equilibrium
 !\begin{verbatim}
  subroutine enter_equilibrium(name,number)
 ! creates a new equilibrium.  Allocates arrayes for conditions
@@ -5331,7 +5338,7 @@
    implicit none
    character name*(*)
    integer number
-!\end{verbatim}
+!\end{verbatim} %+
 ! allocate
    TYPE(gtp_phase_varres), pointer :: cpv,cp1
    character name2*64
@@ -5637,8 +5644,26 @@
    return
  end subroutine enter_equilibrium !allocate
 
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine geneqname
+!\begin{verbatim}
+ subroutine geneqname(text)
+! creates a equilibrium name like EQ_x where x is the freeq in text
+   implicit none
+   character text*(*)
+!\end{verbatim}
+   integer ip
+   text='EQ_'
+   ip=4
+   call wriint(text,ip,eqfree)
+!   write(*,*)'3B eqname: ',trim(text),len_trim(text),eqfree
+1000 continue
+ end subroutine geneqname
+
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine enter_many_equil
 !\begin{verbatim}
  subroutine enter_many_equil(cline,last,pun)
 ! executes an enter many_equilibria command
@@ -6053,6 +6078,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine delete_all_conditions
 !\begin{verbatim}
  subroutine delete_all_conditions(mode,ceq)
 ! deletes the (circular) list of conditions in an equilibrium
@@ -6153,6 +6179,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine delete_equilibria
 !\begin{verbatim}
  subroutine delete_equilibria(name,ceq)
 ! deletes equilibria (needed when repeated step/map)
@@ -6227,6 +6254,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine copy_equilibrium
 !\begin{verbatim}
  subroutine copy_equilibrium(neweq,name,ceq)
 ! creates a new equilibrium which is a copy of ceq.  
@@ -6242,6 +6270,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine copy_equilibrium2
 !\begin{verbatim} %-
  subroutine copy_equilibrium2(neweq,number,name,ceq)
 ! creates a new equilibrium which is a copy of ceq. THIS IS STILL USED !! ??
@@ -6479,6 +6508,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine copy_condition
 !\begin{verbatim}
  subroutine copy_condition(newrec,oldrec)
 ! Creates a copy of the condition record "oldrec" and returns a link
@@ -6498,6 +6528,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable logical function check_minimal_ford
 !\begin{verbatim}
  logical function check_minimal_ford(lokph)
 ! some tests if the fcc/bcc permutation model can be applied to this phase
@@ -6567,6 +6598,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable integer function newhighcs
 !\begin{verbatim}
  integer function newhighcs(reserved)
 ! updates highcs and arranges csfree to be in sequential order

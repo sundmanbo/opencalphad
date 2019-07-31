@@ -1,0 +1,167 @@
+@$ ordering in a reciprocal system B2 with z=8 nn
+@$ Adding SRO by a T**(-1) dependent reciprocal parameter
+
+new Y
+
+set echo
+
+enter element A A BCC 10 0 0 0
+enter element B B BCC 10 0 0 0
+
+@$ This is the bond energy.  
+enter tp UAB fun 10 -250*R;,,,,,
+@$ UAB=-250*R gives T_o/d at T=1000 K without SRO
+@$ Adding UAB as a constant reciprocal parameter gives T_o/d=935
+@$ with constant reciprocal parameter there is no SRO contribution
+@$ to Cp in disordered state
+@$ Adding 1000*UAB*T**(-1) gives T_o/d=935 and Cp in disordered state
+@$ but the disordered state becomes stable at low T
+
+@$ We can use a function MAX1(X) in TP functions to limit the value
+@$ of the function X.  If X is larger than 1 it is set to 1 and
+@$ all derivatives to zero.  USE with care, this breakpoint
+@$ should only happen when the phase is unstable, otherwise convergece problems
+@$
+@$ Divide 1000 by 5 and multiply with 2 outside the MAX1 function
+@$ makes the function constant below 500 K using the MAX1 function
+enter tp SRO1 fun 10 500*T**(-1);,,,,,
+enter tp SRO2 fun 10 MAX1(SRO1);,,,,,,,,
+enter tp LSRO fun 10 2*UAB*SRO2;,,,,,,,,
+
+@$ We want to plot the heat capacity
+enter symb CP=H.T;
+
+@$--------------------------
+
+enter phase B2 CEF 2 0.5 A B; 0.5 A B
+
+enter parameter G(B2,A:B) 10 4*UAB; 6000 N ref0
+
+enter parameter G(B2,B:A) 10 4*UAB; 6000 N ref0
+
+@$ This is the same as LRSO2 above 200 K, below 150 K it gives negative entropy
+@$ for the disordered phase
+@$ enter parameter G(B2,A,B:A,B) 10 1000*UAB*T**(-1); 6000 N ref0
+
+enter parameter G(B2,A,B:A,B) 10 LSRO; 6000 N ref0
+
+@$ This should give save value at 1000~K
+@$ enter parameter G(B2,A,B:A,B) 10 BAD; 6000 N ref0
+
+@&
+
+l d
+
+
+@&
+@$ First calculate the heat capacity at 50-50
+set c t=600 p=1e5 n=1 x(b)=.5
+
+c e
+
+l , 2
+
+
+@$ We have an ordered constitution
+@&
+@$ Set a T axis with very small step
+set ax 1 T 10 1600 2
+
+step
+
+
+plot
+t
+cp
+text 1000 1 1 0
+This tail of Cp is due to SRO
+text N
+400 3 1 60
+This Cp comes from disappearing LRO
+text N
+100 13 1 0
+SRO from reciprocal parameter
+text N
+100 12.2 1 0
+L(B2,A,B:A,B)=1000*UAB*T**(-1)
+render
+
+@$ The tail of Cp in the disordered state comes from the T**(-1) term
+@$ in the reciprocal parameter.
+@&
+@$ Now we try to plot the 2nd order transition line
+@$ At the 2nd order transition the difference of the fractions
+@$ of the same element in the two sublattices vanishes.
+@$ We can approcimate  this by having a very small difference
+
+@$ Calculate the equilibrium when we have LRO a bit off the 50-50
+
+set c t=400 x(b)=.2
+
+c e
+
+l,,,
+
+@$ We have LRO.  We should decrease the difference between
+@$ the fractions of B in first and second sublattice
+@$ First replace the condition on x(b) by a difference in the
+@$ constituent fractions
+
+set c y(b2,b)-y(b2,b#2)
+
+
+set c x(b)=none
+
+c e
+
+l,,,,
+
+
+@$ We have the same equilibrium but with different conditions
+@&
+
+set c y(b2,b)-y(b2,b#2)=.01
+
+l c
+@$ We have too many conditions as the y differnce appears twice
+@$ We can easily remove the old one, condition 4, with this command
+
+set c 4:=none
+
+@&
+
+c e
+
+l,,,,,
+
+@$ In priciple we could also relase the condition on T
+@$ but the convergence is then very bad, better to keep T constant.
+@$
+
+@$ use the save T axis to calculate the 2nd order line
+
+step
+
+
+plot
+x(b)
+T
+text 0.05 900 1 0
+2nd order transition line
+
+@$ There is a small kink at 500 when the MAX1 function limits
+@$ the reciprocal parameter.  Plot together with a 2nd order
+@$ calculated with constant L(B2,A,B:A,B)=UAB
+@&
+
+plot
+x(b)
+T
+append
+./step9UAB
+text N
+0.21 500 1 0
+Maybe one can find a smoother function!
+
+set inter
+

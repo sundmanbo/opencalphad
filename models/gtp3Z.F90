@@ -29,8 +29,9 @@
 !-------------------------------------------------------------------------
 !
 !
+!\addtotable subroutine tpfun_init
 !\begin{verbatim}
- SUBROUTINE tpfun_init(nf,tpres)
+ subroutine tpfun_init(nf,tpres)
 ! allocate tpfuns and create a free list inside the tpfuns
    implicit none
    integer nf
@@ -57,6 +58,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable integer function notpf
 !\begin{verbatim}
  integer function notpf()
 ! number of tpfunctions because freetpfun is private
@@ -67,38 +69,40 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine find_tpfun_by_name
 !\begin{verbatim}
-  SUBROUTINE find_tpfun_by_name(name,lrot)
+ subroutine find_tpfun_by_name(name,lrot)
 ! returns the location of a TP function
 ! if lrot>0 then start after lrot, this is to allow finding with wildcard *
-    implicit none
-    integer lrot
-    character name*(*)
+   implicit none
+   integer lrot
+   character name*(*)
 !\end{verbatim} %+
-    character name1*16
-    integer i,j
-    name1=name
-    call capson(name1)
-    if(lrot.le.0 .or. lrot.ge.freetpfun) then
-       j=1
-    else
+   character name1*16
+   integer i,j
+   name1=name
+   call capson(name1)
+   if(lrot.le.0 .or. lrot.ge.freetpfun) then
+      j=1
+   else
 ! if 1 < lrot < freetpfun start looking from lrot+1
-       j=lrot+1
-    endif
-    do i=j,freetpfun-1
-       if(compare_abbrev(name,tpfuns(i)%symbol)) then
-          lrot=i; goto 1000
-       endif
-    enddo
-    gx%bmperr=4060
+      j=lrot+1
+   endif
+   do i=j,freetpfun-1
+      if(compare_abbrev(name,tpfuns(i)%symbol)) then
+         lrot=i; goto 1000
+      endif
+   enddo
+   gx%bmperr=4060
 1000 continue
-    return
-  end SUBROUTINE find_tpfun_by_name
+   return
+ end SUBROUTINE find_tpfun_by_name
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine find_tpfun_by_name_exact
 !\begin{verbatim} %-
-  SUBROUTINE find_tpfun_by_name_exact(name,lrot,notent)
+ subroutine find_tpfun_by_name_exact(name,lrot,notent)
 ! returns the location of a TP function, notent TRUE if not entered
     implicit none
     integer lrot
@@ -126,6 +130,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine eval_tpfun
 !\begin{verbatim}
  subroutine eval_tpfun(lrot,tpval,result,tpres)
 !    subroutine eval_tpfun(lrot,tpval,symval,result)
@@ -232,6 +237,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine list_tpfun
 !\begin{verbatim}
  subroutine list_tpfun(lrot,nosym,str)
 ! lists a TP symbols with several ranges into string str
@@ -321,6 +327,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine list_all_funs
 !\begin{verbatim} %-
  subroutine list_all_funs(lut)
 ! list all functions except those starting with _ (parameters)
@@ -360,6 +367,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine list_unentered_funs
 !\begin{verbatim}
  subroutine list_unentered_funs(lut,nr)
 ! counts and list functions with TPNOTENT bit set if lut>0
@@ -382,8 +390,9 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine ct1xfn
 !\begin{verbatim}
- SUBROUTINE ct1xfn(string,ip,nc,coeff,koder,fromtdb)
+ subroutine ct1xfn(string,ip,nc,coeff,koder,fromtdb)
 !...compiles an expression in string from position ip
 !     it can refer to T and P or symbols in fnsym
 !     compiled expression returned in coeff and koder
@@ -731,6 +740,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine ct1getsym
 !\begin{verbatim} %-
  subroutine ct1getsym(string,ip,symbol)
 !...extracts an symbol
@@ -766,6 +776,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine ct1power
 !\begin{verbatim} %-
  subroutine ct1power(string,ip,ipower)
 !...extracts an integer power possibly surrounded by ( )
@@ -834,6 +845,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine ct1mfn
 !\begin{verbatim} %-
  subroutine ct1mfn(symbol,nranges,tlimits,lokexpr,lrot)
 !...creates a root record with name symbol and temperature ranges
@@ -888,6 +900,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine ct2mfn
 !\begin{verbatim} %-
  subroutine ct2mfn(symbol,nranges,tlimits,lokexpr,lrot)
 !...stores a TPfun in an existing lrot record with name symbol
@@ -932,6 +945,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine ct1mexpr
 !\begin{verbatim} %-
  subroutine ct1mexpr(nc,coeff,koder,lrot)
 !...makes a datastructure of an expression. root is returned in lrot
@@ -975,6 +989,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine ct1efn
 !\begin{verbatim} %-
  subroutine ct1efn(inrot,tpval,val,tpres)
 !...evaluates a datastructure of an expression. Value returned in val
@@ -1572,6 +1587,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine ct1wfn
 !\begin{verbatim}
  subroutine ct1wfn(exprot,tps,string,ip)
 !...writes an expression into string starting at ip
@@ -1761,6 +1777,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine ct1wpow
 !\begin{verbatim} %-
  subroutine ct1wpow(string,ip,tps,mult,npow)
 !...writes "ips" with a power if needed and a * before or after
@@ -1804,6 +1821,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine enter_tpfun_interactivly
 !\begin{verbatim}
  subroutine enter_tpfun_interactivly(cline,ip,longline,jp)
 ! interactive input of a TP expression, whole function returned in longline
@@ -1902,6 +1920,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine tpfun_deallocate
 !\begin{verbatim}
  subroutine tpfun_deallocate
 ! deallocates all arrays associated with a TP function
@@ -1936,6 +1955,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine enter_tpfun_dummy
 !\begin{verbatim}
  subroutine enter_tpfun_dummy(symbol)
 ! creates a dummy entry for a TP function called symbol, used when entering 
@@ -1965,6 +1985,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine enter_tpfun
 !\begin{verbatim}
  subroutine enter_tpfun(symbol,text,lrot,fromtdb)
 ! creates a data structure for a TP function called symbol with several ranges
@@ -2102,6 +2123,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine nested_tpfun
 !\begin{verbatim}
  subroutine nested_tpfun(lrot,tpval,nyrot)
 ! called from ct1efn when a it calls another TP function that must be
@@ -2149,6 +2171,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable logical function compare_abbrev
 !\begin{verbatim} %-
  logical function compare_abbrev(name1,name2)
 ! returns TRUE if name1 is an abbreviation of name2
@@ -2157,7 +2180,7 @@
 ! case insensitive. Only 36 first characters compared
    implicit none
    character*(*) name1,name2   
-!\end{verbatim} %+
+!\end{verbatim}
    integer, parameter :: maxl=36
    integer jp,ip,noabbr
    character ch1*1
@@ -2194,105 +2217,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim} %-
- subroutine old_below_t0_calc(t0,tpval,fun)
-! calculates exp(20(1-t/t0))/(1+exp(20(1-t/t0)))
-! At t<<t0 K function is unity, at t>>t0 function is zero
-   implicit none
-   double precision t0,tpval(2),fun(6)
-!\end{verbatim} %+
-   double precision arg,expa
-   double precision, parameter :: ffix=2.0D1
-!   double precision, parameter :: ffix=1.0D2
-   if(t0.le.zero) then
-      write(*,*)'temperature breakpoint below zero'
-      goto 1000
-   endif
-   arg=ffix*(one-tpval(1)/t0)
-   expa=exp(arg)
-! F, F.T, T.P, F.T.T, F.T.P, F.P.P
-!   fun(1)=-t0/ffix*log(1+expa)
-!   fun(2)=expa/(one+expa)
-!   fun(4)=-ffix*expa/(t0*(one+expa)**2)
-   fun(1)=expa/(one+expa)
-   fun(2)=-ffix*expa/(t0*(one+expa)**2)
-   fun(4)=(ffix/t0)**3*expa*(one-expa)/(one+expa)**3
-   fun(3)=zero
-   fun(5)=zero
-   fun(6)=zero
-   goto 1000
-! failed tries ....
-   expa=exp(-arg)
-   fun(1)=one/(one+expa)
-!   write(*,*)'3Z expa: ',expa,fun(1)
-   fun(2)=ffix/t0*expa/(one+expa)**2
-   fun(3)=zero
-   fun(4)=(ffix/t0)**2*(one-2.0D0*expa/(one+expa))*expa/(one+expa)**2
-   fun(5)=zero
-   fun(6)=zero
-   if(tpval(1).le.t0) then
-      fun(1)=one
-      fun(2)=one
-      fun(3)=one
-   else
-      fun(1)=zero
-      fun(2)=zero
-      fun(3)=zero
-   endif
-1000 continue
-   return
- end subroutine old_below_t0_calc
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\begin{verbatim} %-
- subroutine below_t0_calc(t0,tpval,fun)
-! if tpval<=t0        : 1
-! if t0<tpvalis<t0+100: cos((tpval-t0)*pi/200) is
-! if tpval>t0+100     : 0
-   implicit none
-   double precision t0,tpval(2),fun(6)
-!\end{verbatim} %+
-   double precision, parameter :: pi=3.14159265359,smooth=5.0D2
-   double precision arg
-   if(t0.le.zero) then
-      write(*,*)'temperature breakpoint below zero',t0,tpval(1)
-      goto 1000
-   endif
-   fun=zero
-   if(tpval(1).le.t0) then
-! F, F.T, F.P, F.T.T, F.T.P, F.P.P
-      fun(1)=one
-   elseif(tpval(1)-smooth.lt.t0) then
-      arg=(tpval(1)-t0)*pi/(2*smooth)
-      fun(1)=cos(arg)
-      fun(2)=-sin(arg)*pi/(2*smooth)
-      fun(4)=-cos(arg)*(pi/2*smooth)**2
-      write(*,70)t0,tpval(1),arg,fun(1),fun(2),fun(4)
-70    format('below: ',6(1pe12.4))
-   endif
-1000 continue
-   return
- end subroutine below_t0_calc
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\begin{verbatim} %-
- subroutine above_t0_calc(t0,tpval,fun)
-! calculates exp(20(1-t/t0))/(1+exp(20(1-t/t0))-1, at t>>t0 it is unity
-   implicit none
-   double precision t0,tpval(2),fun(6)
-!\end{verbatim}
-   call below_t0_calc(t0,tpval,fun)
-   fun(1)=one-fun(1)
-   fun(2)=-fun(2)
-   fun(4)=-fun(4)
-1000 continue
-   return
- end subroutine above_t0_calc
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
+!\addtotable subroutine enter_optvars
 !\begin{verbatim}
  subroutine enter_optvars(firstindex)
 ! enter variables for optimization A00-A99
@@ -2343,6 +2268,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine find_tpsymbol
 !\begin{verbatim} %-
  subroutine find_tpsymbol(name,type,value)
 ! enter variables 
@@ -2382,6 +2308,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine enter_tpconstant
 !\begin{verbatim} %-
  subroutine enter_tpconstant(symbol,value)
 ! enter variables 
@@ -2426,6 +2353,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine change_optcoeff
 !\begin{verbatim} %-
  subroutine change_optcoeff(lrot,value)
 ! change value of optimizing coefficient.  lrot is index
@@ -2450,6 +2378,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine force_recalculate_tpfuns
 !\begin{verbatim} %-
  subroutine force_recalculate_tpfuns
 ! force recalculation of all tpfuns by incrementing an integer in tpfuns
@@ -2469,6 +2398,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine get_value_of_constant_name
 !\begin{verbatim} %-
  subroutine get_value_of_constant_name(symbol,lrot,value)
 ! get value (and index) of a TP constant.  lrot is index
@@ -2485,6 +2415,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine get_value_of_constant_index
 !\begin{verbatim} %-
  subroutine get_value_of_constant_index(lrot,value)
 ! get value of a TP constant at known lrot
@@ -2504,6 +2435,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine get_all_opt_coeff
 !\begin{verbatim} %-
  subroutine get_all_opt_coeff(values)
 ! get values of all optimizing coefficients
@@ -2517,6 +2449,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine delete_all_tpfuns
 !\begin{verbatim} %-
  subroutine delete_all_tpfuns
 ! delete all TPFUNs.  No error if some are already deleted ...   
@@ -2569,6 +2502,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine save0tpfun
 !\begin{verbatim}
  subroutine save0tpfun(lfun,iws,jfun)
 ! save one tpfun (or parameter) with index jfun in workspace iws
@@ -2638,6 +2572,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine read0tpfun
 !\begin{verbatim} %-
  subroutine read0tpfun(lfun,iws,jfun)
 ! read one TPfun from workspace
@@ -2716,14 +2651,40 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim} %-
+!\addtotable subroutine makeoptvname
+!\begin{verbatim}
+ subroutine makeoptvname(name,indx)
+    implicit none
+    character name*(*)
+    integer indx
+!\end{verbatim} %+
+    if(indx.lt.99) then
+       if(indx.le.9) then 
+          name(1:2)='A0'
+          name(3:3)=char(indx+ichar('0'))
+       else
+          name(1:1)='A'
+          name(2:2)=char(indx/10+ichar('0'))
+          name(3:3)=char(mod(indx,10)+ichar('0'))
+       endif
+    else
+       name='A99'
+    endif
+1000 continue
+    return
+  end subroutine makeoptvname
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine findtpused
+!\begin{verbatim}
  subroutine findtpused(lfun,string)
 ! this routine finds which other TPFUNS (including parameters) that
 ! use the TPFUN lfun.  It is used when listing optimizing coefficients
    implicit none
    integer lfun
    character string*(*)
-!\end{verbatim}
+!\end{verbatim} %+
    integer jp,kfun,nr,nc,j1
    type(tpfun_expression), pointer :: exprot
    string=' '
@@ -2751,6 +2712,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine list_tpfun_details
 !\begin{verbatim}
  subroutine list_tpfun_details(lfun)
 ! listing the internal datastructure of all tpfuns
@@ -2782,12 +2744,13 @@
    return
  end subroutine list_tpfun_details
 
-   !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 !
 ! Below are a couple of routines to generate SOLGASMIX DAT files
 !
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
  
+!\addtotable subroutine tpfun2coef
 !\begin{verbatim}
  subroutine tpfun2coef(ctpf,ntpf,npows,text)
 ! called by saveadatformat in gtp3C to generate SOLGASMIX DAT files
@@ -2854,6 +2817,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine list_tpascoef
 !\begin{verbatim} %-
  subroutine list_tpascoef(lut,text,paratyp,i1,npows,factor,ctpf)
 ! writes a parameter in DAT format
@@ -2866,7 +2830,7 @@
 ! phases like sigma which has only a disordered part. Also ionic liquid
    double precision factor
    type(gtp_tpfun2dat) :: ctpf(*)
-!\end{verbatim}
+!\end{verbatim} %+
    integer i2,i3,ip,kk,mm
    ip=len_trim(text)
 ! this is the endmember stoichiometry, 12 characters per value, 6x12=72
@@ -2955,6 +2919,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine tpf2c
 !\begin{verbatim} %-
  subroutine tpf2c(ctpf,lfun,done)
 ! convert TPfun lfun to an array of coefficients with powers of T
@@ -3027,6 +2992,7 @@
 ! plevel is level of parenthesis ??
 ! link is link to another function if >0 or a unary function if <0
 !      accept only -2 which is taken as LN(T)
+!\addtotable subroutine tpf2cx
 !\begin{verbatim} %-
  subroutine tpf2cx(ctpf,lfun,nrange,cfun1)
 ! convert TPfun lfun to an array of coefficients with powers of T
@@ -3370,6 +3336,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine adjust1range
 !\begin{verbatim} %-
  subroutine adjust1range(lfun,nr1,nrange,krange,ctp1,nr2,ctp2)
 ! check if ctp1 range nr1 must be split in more ranges due to tbreaks in ctp2
@@ -3524,6 +3491,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine adjustranges
 !\begin{verbatim} %-
  subroutine adjustranges(nr1,ctp1,nr2,ctp2)
 ! add ctp2 to ctp1 which to have the same ranges and breakpoints
@@ -3618,6 +3586,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine add1tpcoeffs
 !\begin{verbatim} %-
  subroutine add1tpcoeffs(i1,ctp1,i2,ctp2,i3,ctp3)
 ! ctp3 is created with added coefficents from range i1 in ctp1 
@@ -3692,6 +3661,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine checkpowers
 !\begin{verbatim} %-
  subroutine checkpowers(nc1,lfun,tpow1,npow,usedpow)
 ! check powers used in TP functions
@@ -3699,7 +3669,7 @@
 ! nc1 is the maximal number of coefficients for each range (maxnc in fact)
    implicit none
    integer tpow1(*),nc1,lfun,usedpow(*),npow
-!\end{verbatim}
+!\end{verbatim} %+
 ! if these powers changes change also in sortceffs
 !   integer, parameter :: fixpows(9)=[0,1,100,2,3,-1,7,-9,4]
    integer, parameter :: mmm=10
@@ -3737,6 +3707,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine sortcoeffs
 !\begin{verbatim} %-
  subroutine sortcoeffs(nc1,lfun,coeff1,tpow1)
 ! sort the coefficients in order power: 0 1 TlnT 2 3 -1; 7 -9 -2 other1 other2
@@ -3874,32 +3845,6 @@
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 ! END MODULE TPFUNLIB
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-!>      20. Subroutines used by applications
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\begin{verbatim}
-  subroutine makeoptvname(name,indx)
-    implicit none
-    character name*(*)
-    integer indx
-!\end{verbatim}
-    if(indx.lt.99) then
-       if(indx.le.9) then 
-          name(1:2)='A0'
-          name(3:3)=char(indx+ichar('0'))
-       else
-          name(1:1)='A'
-          name(2:2)=char(indx/10+ichar('0'))
-          name(3:3)=char(mod(indx,10)+ichar('0'))
-       endif
-    else
-       name='A99'
-    endif
-1000 continue
-    return
-  end subroutine makeoptvname
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

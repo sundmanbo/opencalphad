@@ -5,6 +5,7 @@
 !>     10. State variable manipulations
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine get_stable_state_var_value
 !\begin{verbatim}
  subroutine get_stable_state_var_value(statevar,value,encoded,ceq)
 ! called with a state variable character
@@ -71,6 +72,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine get_state_var_value
 !\begin{verbatim} %-
  subroutine get_state_var_value(statevar,value,encoded,ceq)
 ! called with a state variable character
@@ -150,6 +152,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine get_many_svar
 !\begin{verbatim}
  subroutine get_many_svar(statevar,values,mjj,kjj,encoded,ceq)
 ! called with a state variable name with wildcards allowed like NP(*), X(*,CR)
@@ -532,6 +535,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine decode_state_variable
 !\begin{verbatim}
  subroutine decode_state_variable(statevar,svr,ceq)
 ! converts a state variable character to state variable record
@@ -549,6 +553,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine decode_state_variable3
 !\begin{verbatim} %-
  subroutine decode_state_variable3(statevar,istv,indices,iref,iunit,svr,ceq)
 ! converts an old state variable character to indices 
@@ -1107,42 +1112,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim}
- logical function same_stoik(iph,jph)
-! return TRUE if phase iph and jph are both stoichiometric and have the
-! same composition  Used to check when adding a phase during equilibrium
-! calculation as it normally fails to have two such phases stable
-   implicit none
-   integer iph,jph
-!\end{verbatim}
-   integer loki,lokj,ll,kk
-   logical same
-!
-   same=.false.
-! iph and jph can be second or later composition sets
-!   write(*,*)'3F same_stoik 1: ',iph,jph,&
-!        phasetuple(iph)%lokph,phasetuple(jph)%lokph
-!   loki=phases(iph); lokj=phases(jph)
-   loki=phasetuple(iph)%lokph; lokj=phasetuple(jph)%lokph
-   if(.not.btest(phlista(loki)%status1,PHNOCV)) goto 1000
-   if(.not.btest(phlista(lokj)%status1,PHNOCV)) goto 1000
-   if(phlista(loki)%noofsubl.ne.phlista(lokj)%noofsubl) goto 1000
-   kk=0
-   do ll=1,phlista(loki)%noofsubl
-      if(firsteq%phase_varres(phlista(loki)%linktocs(1))%sites(ll).ne.&
-         firsteq%phase_varres(phlista(lokj)%linktocs(1))%sites(ll)) goto 1000
-      kk=kk+1
-      if(phlista(loki)%constitlist(kk).ne.&
-         phlista(lokj)%constitlist(kk)) goto 1000
-   enddo
-   same=.true.
-1000 continue
-   same_stoik=same
-   return
- end function same_stoik
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
+!\addtotable subroutine calc_phase_molmass
 !\begin{verbatim}
  subroutine calc_phase_molmass(iph,ics,xmol,wmass,totmol,totmass,amount,ceq)
 ! calculates mole fractions and mass fractions for a phase#set
@@ -1291,6 +1261,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine calc_phase_mol
 !\begin{verbatim}
  subroutine calc_phase_mol(iph,xmol,ceq)
 ! calculates mole fractions for phase iph, compset 1 in equilibrium ceq
@@ -1354,6 +1325,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine calc_molmass
 !\begin{verbatim}
  subroutine calc_molmass(xmol,wmass,totmol,totmass,ceq)
 ! summing up N and B for each component over all phases with positive amount
@@ -1446,6 +1418,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine sumprops
 !\begin{verbatim}
  subroutine sumprops(props,ceq)
 ! summing up G, S, V, N and B for all phases with positive amount
@@ -1526,6 +1499,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine encode_state_variable
 !\begin{verbatim}
  subroutine encode_state_variable(text,ip,svr,ceq)
 ! writes a state variable in text form position ip.  ip is updated
@@ -1569,6 +1543,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine encode_state_variable3
 !\begin{verbatim} %-
  subroutine encode_state_variable3(text,ip,istv,indices,iunit,iref,ceq)
 ! writes a state variable in text form position ip.  ip is updated
@@ -1633,6 +1608,8 @@
          if(gx%bmperr.ne.0) goto 1000
          jp=len_trim(stsymb)+1
          stsymb(jp:jp)=','; jp=jp+1
+         call findsublattice(indices(1),indices(3),sublat)
+         if(gx%bmperr.ne.0) goto 1000
 !         call get_phase_constituent_name(indices(1),indices(2),&
 !              stsymb(jp:),sublat)
 ! I am not sure if indices(2) is constituent numbered for each sublattice
@@ -1731,11 +1708,14 @@
          jp=len_trim(stsymb)+1
          stsymb(jp:jp)=','
          jp=jp+1
+         call findsublattice(indices(1),indices(3),sublat)
+         if(gx%bmperr.ne.0) goto 1000
 !         call get_phase_constituent_name(indices(1),indices(3),&
 !              stsymb(jp:),sublat)
          call get_constituent_name(indices(1),indices(3),&
               stsymb(jp:),mass)
          if(gx%bmperr.ne.0) goto 1000
+!         write(*,*)'3F y:',indices,sublat
 ! sublattice is the last argument
          jp=len_trim(stsymb)+1
          if(sublat.gt.1) then
@@ -1811,6 +1791,42 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine findsublattice
+!\begin{verbatim}
+ subroutine findsublattice(iph,constix,sublat)
+! find sublattice of constituent constix in phase lokph
+! is lokph index to gtp_phaserecord or gtp_phase_varres??
+   implicit none
+   integer iph,constix,sublat
+!\end{verbatim}
+   integer ix,lokph,nn
+   if(iph.gt.0 .and. iph.le.noofph) then
+      lokph=phases(iph)
+   else
+      gx%bmperr=4050; goto 1000
+   endif
+!   write(*,*)'3F args: ',iph,lokph,constix
+!   write(*,*)'3F phase: ',phlista(lokph)%name
+   if(constix.le.0) then
+      write(*,*)'3F no such constituent in this phase',constix
+      gx%bmperr=4399; goto 1000
+   endif
+   nn=1
+   loop: do sublat=1,phlista(lokph)%noofsubl
+      nn=nn+phlista(lokph)%nooffr(sublat)
+      if(constix.le.nn) exit loop
+   enddo loop
+   if(constix.gt.nn) then
+      write(*,*)'3F no such constituent in this phase',constix
+      gx%bmperr=4399
+   endif
+1000 continue
+   return
+ end subroutine findsublattice
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine encode_state_variable_record
 !\begin{verbatim}
  subroutine encode_state_variable_record(text,ip,svr,ceq)
 ! writes a state variable in text form position ip.  ip is updated
@@ -1901,6 +1917,8 @@
          if(gx%bmperr.ne.0) goto 1000
          jp=len_trim(stsymb)+1
          stsymb(jp:jp)=','; jp=jp+1
+         call findsublattice(indices(1),indices(3),sublat)
+         if(gx%bmperr.ne.0) goto 1000
 !         call get_phase_constituent_name(indices(1),indices(2),&
 !              stsymb(jp:),sublat)
          call get_constituent_name(indices(1),indices(2),&
@@ -1987,6 +2005,8 @@
          jp=len_trim(stsymb)+1
          stsymb(jp:jp)=','
          jp=jp+1
+         call findsublattice(indices(1),indices(3),sublat)
+         if(gx%bmperr.ne.0) goto 1000
 !         call get_phase_constituent_name(indices(1),indices(3),&
 !              stsymb(jp:),sublat)
          call get_constituent_name(indices(1),indices(3),&
@@ -2062,6 +2082,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine state_variable_val
 !\begin{verbatim}
  subroutine state_variable_val(svr,value,ceq)
 ! calculate the value of a state variable in equilibrium record ceq
@@ -2116,6 +2137,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine state_variable_val3
 !\begin{verbatim} %-
  subroutine state_variable_val3(istv,indices,iref,iunit,value,ceq)
 ! calculate the value of a state variable in equilibrium record ceq
@@ -2715,6 +2737,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine calc_qf
 !\begin{verbatim}
  subroutine calc_qf(lokcs,value,ceq)
 ! calculates eigenvalues of the second derivative matrix, stability function
@@ -2805,6 +2828,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine calculate_reference_state
 !\begin{verbatim}
  subroutine calculate_reference_state(kstv,iph,ics,aref,ceq)
 ! Calculate the user defined reference state for extensive properties
@@ -2817,7 +2841,7 @@
    integer kstv,iph,ics
    double precision aref
    type(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim}
+!\end{verbatim} %+
 ! BIG BUG, the values of %gval is not restored!!
 ! kstv=1  2  3  4  5  6 other values cared for elsewhere
 !      U  S  V  H  A  G
@@ -2929,7 +2953,8 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim} -
+!\addtotable subroutine calculate_reference_state_old
+!\begin{verbatim}
  subroutine calculate_reference_state_old(kstv,iph,ics,aref,ceq)
 ! Calculate the user defined reference state for extensive properties
 ! kstv is the typde of property: 1 U, 2 S, 3 V, 4 H, 5 A, 6 G
@@ -3051,63 +3076,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim}
- subroutine sortinphtup(n,m,xx)
-! subroutine sortinphtup(n,m,xx,ceq)
-! subroutine to sort the values in xx which are in phase and compset order
-! in phase tuple order.  This is needed by the TQ interface
-! The number of values belonging to the phase is m (for example composition)
-! argument ceq added as new composition sets can be created ...
-   integer n,m
-!   double precision xx(n*m)
-   double precision xx(*)
-!   type(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim}
-!
-   integer iz,jz,kz,lz,lokph,aha
-   double precision, dimension(:), allocatable :: dum
-! I assume the values are NP(*), maybe there are other cases ...
-! Karl had overflow error in dum ... no problem to make it a little larger
-! but then I cannot set xx=dum below ...
-   allocate(dum(n*m+10))
-!   write(*,*)'3F corrected sortinphtup',n,m
-!   write(*,10)'3F in: ',(xx(iz),iz=1,n*m)
-10 format(a,10(f7.4))
-   kz=0
-   do iz=1,noofph
-      lokph=phases(iz)
-      do jz=1,phlista(lokph)%noofcs
-!         if(jz.gt.1) then
-! in xx the values are sequentially for all composition sets for this phase
-! But they should be stored in tuple order and compset 2 etc comes at the end
-! the index to the tuple is in %phtups
-! phlista(lokph)%linktocs(jz) is index of phase_varres record for compset
-! firsteq%phase_varres(..)%phtupx is index of phase tuple for compset
-! There can be m values (for example compositions) for each phase
-! BUG FIXED: Sigli example gives hard error here
-! index '0' of array 'firsteq' below lower boundary of 1
-         aha=(firsteq%phase_varres(phlista(lokph)%linktocs(jz))%phtupx-1)*m
-!         if(aha.ne.kz) then
-!            write(*,*)'3F shifting from, to, values: ',kz,aha,m
-!         endif
-         do lz=1,m
-            dum(aha+lz)=xx(kz+lz)
-         enddo
-         kz=kz+m
-      enddo
-   enddo
-!   xx=dum
-   do iz=1,n*m
-      xx(iz)=dum(iz)
-   enddo
-   deallocate(dum)
-!   write(*,10)'3F ut: ',(xx(iz),iz=1,n*m)
-1000 continue
-   return
- end subroutine sortinphtup
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
+!\addtotable subroutine enter_svfun
 !\begin{verbatim}
  subroutine enter_svfun(cline,last,ceq)
 ! enter a state variable function
@@ -3311,21 +3280,38 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine set_putfun_constant
 !\begin{verbatim} %-
  subroutine set_putfun_constant(svfix,value)
 ! changes the value of a putfun constant
 ! svfix is index, value is new value
+! THIS CAN BE A FUNCTION WITH SVFVAL bit set, 
+! in that case change it to a constant
    implicit none
    integer svfix
    double precision value
 !\end{verbatim} %+
    type(putfun_node), pointer :: lrot
+!   write(*,*)'We are in set_putfun_constant 1'
+   if(btest(svflista(svfix)%status,SVFVAL)) then
+! converting a symbol from an expression to a constant
+! this means some loss of memory used for the expression
+      svflista(svfix)%status=ibset(svflista(svfix)%status,SVCONST)
+      svflista(svfix)%status=ibclr(svflista(svfix)%status,SVFVAL)
+! set number of arguments to zero ... this will make a mess ...
+!      svflista(svfix)%narg=0
+! remove link to expression in in linkpnode ??
+!      lrot=>svflista(svfix)%linkpnode
+! do we have to delete the expression?  memory loss negligable ...
+   endif
    if(.not.btest(svflista(svfix)%status,SVCONST)) then
       write(*,*)'Symbol is not a constant'
       gx%bmperr=4323
    else
       lrot=>svflista(svfix)%linkpnode
-!      write(*,*)'3F current and new: ',lrot%value,value
+!      write(*,*)'3F constant: ',lrot%value,value
+      svflista(svfix)%svfv=value
+! duplicate value, I am not sure where ...
       lrot%value=value
    endif
 1000 continue
@@ -3334,6 +3320,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine store_putfun
 !\begin{verbatim} %-
  subroutine store_putfun(name,lrot,nsymb,iarr)
 ! enter an expression of state variables with name name with address lrot
@@ -3379,6 +3366,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine store_putfun_old
 !\begin{verbatim} %-
  subroutine store_putfun_old(name,lrot,nsymb,&
        istv,indstv,iref,iunit,idot)
@@ -3428,8 +3416,8 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine find_svfun
 !\begin{verbatim}
-! subroutine find_svfun(name,lrot,ceq)
  subroutine find_svfun(name,lrot)
 ! finds a state variable function called name (no abbreviations)
 ! ceq not needed!!??
@@ -3454,6 +3442,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine find_symbol_with_equilno
 !\begin{verbatim}
  subroutine find_symbol_with_equilno(lrot,eqno)
 ! finds a state variable function with equilibrium index
@@ -3480,6 +3469,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine list_svfun
 !\begin{verbatim} %-
  subroutine list_svfun(text,ipos,lrot,ceq)
 ! list a state variable function
@@ -3554,6 +3544,11 @@
    js=ipos+4
    ipos=ipos+7
 ! Mark with a letter in position 5!
+   if(btest(svflista(lrot)%status,SVFVAL)) then
+! symbol can only be evaluated explicitly (and its value can be amended)
+      text(js:js)='F'
+   endif
+! Mark with a letter in position 5!
    if(btest(svflista(lrot)%status,SVCONST)) then
 ! symbol is a constant (can be amended)
 !      text(js:js)='C'; js=js+1
@@ -3591,6 +3586,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine make_stvrec
 !\begin{verbatim}
  subroutine make_stvrec(svr,iarr)
 ! stores appropriate values from a formal argument list to a state variable
@@ -3648,41 +3644,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
-!-\begin{verbatim}
- subroutine list_some_svfun(kou)
-! just for debugging unformatted reading
-   implicit none
-   integer kou
-!   type(gtp_equilibrium_data), pointer :: ceq
-!-\end{verbatim}
-   character text*256
-   integer ks,ipos
-   write(kou,17)
-17 format('List of all state variable symbols'/' No Special Name= expression ;')
-!17 format('List of all state variable symbols'/' No        Name= expression ;')
-   do ks=1,nsvfun
-!      ipos=1
-      text=' '
-      if(btest(svflista(ks)%status,svconst)) text(5:5)='C'
-      if(btest(svflista(ks)%status,svfdot)) text(5:5)='D'
-      if(btest(svflista(ks)%status,svfext)) then
-         write(text(2:4),'(i3)')svflista(ks)%eqnoval
-         text(5:5)='X'
-      endif
-      text(8:)=svflista(ks)%name
-!      call list_svfun(text,ipos,ks,ceq)
-!      if(pfnerr.ne.0) then
-!         gx%bmperr=4142; pfnerr=0; goto 1000
-!      endif
-      write(kou,76)ks,trim(text)
-76    format(i3,2x,a)
-   enddo
-1000 continue
-   return
- end subroutine list_some_svfun
-
-!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
-
+!\addtotable subroutine list_all_svfun
 !\begin{verbatim}
  subroutine list_all_svfun(kou,ceq)
 ! list all state variable funtions
@@ -3710,6 +3672,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine evaluate_all_svfun_old
 !\begin{verbatim}
  subroutine evaluate_all_svfun_old(kou,ceq)
 ! THIS SUBROUTINE MOVED TO MINIMIZER but kept for initiallizing
@@ -3737,6 +3700,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable double precision function evaluate_svfun_old
 !\begin{verbatim} %-
  double precision function evaluate_svfun_old(lrot,actual_arg,mode,ceq)
 ! THIS SUBROUTINE MOVED TO MINIMIZER

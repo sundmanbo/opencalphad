@@ -5,6 +5,7 @@
 !>     11. Status for things
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine change_element_status
 !\begin{verbatim}
  subroutine change_element_status(elname,nystat,ceq)
 ! change the status of an element, can affect species and phase status
@@ -42,6 +43,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable logical function testelstat
 !\begin{verbatim}
  logical function testelstat(iel,status)
 ! return value of element status bit
@@ -66,6 +68,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine change_species_status
 !\begin{verbatim}
  subroutine change_species_status(spname,nystat,ceq)
 ! change the status of a species, can affect phase status
@@ -101,6 +104,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable logical function testspstat
 !\begin{verbatim}
  logical function testspstat(isp,status)
 ! return value of species status bit
@@ -125,6 +129,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable integer function get_phase_status
 !\begin{verbatim}
  integer function get_phase_status(iph,ics,text,ip,val,ceq)
 ! return phase status as text and amount formula units in val
@@ -232,6 +237,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable integer function test_phase_status
 !\begin{verbatim}
  integer function test_phase_status(iph,ics,val,ceq)
 ! Almost same as get_..., returns phase status as function value but no text
@@ -308,6 +314,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine set_phase_status_bit
 !\begin{verbatim}
  subroutine set_phase_status_bit(lokph,bit)
 ! set the status bit "bit" in status1, cannot be done outside this module
@@ -341,6 +348,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine clear_phase_status_bit
 !\begin{verbatim} %-
  subroutine clear_phase_status_bit(lokph,bit)
 ! clear the status bit "bit" in status1, cannot be done outside this module
@@ -369,6 +377,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable logical function test_phase_status_bit
 !\begin{verbatim} %-
  logical function test_phase_status_bit(iph,ibit)
 ! return TRUE is status bit ibit for  phase iph, is set
@@ -394,6 +403,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine change_many_phase_status
 !\begin{verbatim}
  subroutine change_many_phase_status(phnames,nystat,val,ceq)
 ! change the status of many phases. 
@@ -511,6 +521,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine change_phtup_status
 !\begin{verbatim} %-
  subroutine change_phtup_status(phtupx,nystat,val,ceq)
 ! change the status of a phase tuple. Also used when setting phase fix etc.
@@ -541,6 +552,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine change_phase_status
 !\begin{verbatim} %-
  subroutine change_phase_status(qph,ics,nystat,val,ceq)
 ! change the status of a phase. Also used when setting phase fix etc.
@@ -701,6 +713,7 @@
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine mark_stable_phase
 !\begin{verbatim} &-
  subroutine mark_stable_phase(iph,ics,ceq)
 ! change the status of a phase. Does not change fix status
@@ -738,6 +751,7 @@
 !>     12. Unfinished things
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine set_unit
 !\begin{verbatim}
  subroutine set_unit(property,unit)
 ! set the unit for a property, like K, F or C for temperature
@@ -753,6 +767,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine save_results
 !\begin{verbatim}
  subroutine save_results(lut,iph,ics,long)
 ! write calculated results for a phase for later use in POST
@@ -776,6 +791,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine set_constituent_reference_state
 !\begin{verbatim}
  subroutine set_constituent_reference_state(iph,icon,asum)
 ! determine the end member to calculate as reference state for this constituent
@@ -834,13 +850,12 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine elements2components1
 !\begin{verbatim}
  subroutine elements2components1(nspel,dum,ncmp,cmpstoi,ceq)
-! subroutine elements2components(nspel,stoi,ncmp,cmpstoi,ceq)
 ! converts a stoichiometry array for a species from elements to components
-! ?? I do not understand this subroutine, is it really used anywhere ??
-! YES to get activity for a constituent in gtp3F
-! stoi is no longer used
+! This subroutine, is it used to get activity for a constituent in gtp3F
+! dum is is no longer used
    implicit none
    integer nspel,ncmp
 ! cmpstoi is stoichiometry as element, changed to be as components
@@ -904,6 +919,7 @@
 !>     13. Internal stuff
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
  
+!\addtotable subroutine termterm
 !\begin{verbatim}
  subroutine termterm(string,ich,kpos,lpos,value)
 ! search for first occurance of + - = > or <
@@ -975,6 +991,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine alphaelorder
 !\begin{verbatim}
  subroutine alphaelorder
 ! arrange new element in alphabetical order
@@ -1002,6 +1019,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine alphasporder
 !\begin{verbatim}
  subroutine alphasporder
 ! arrange new species in alphabetical order
@@ -1030,6 +1048,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine alphaphorder
 !\begin{verbatim}
  subroutine alphaphorder(tuple)
 ! arrange last added phase in alphabetical order
@@ -1108,6 +1127,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine check_alphaindex
 !\begin{verbatim}
  subroutine check_alphaindex
 ! just for debugging, check that ellist(i)%alphaindex etc is  correct
@@ -1139,6 +1159,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine create_constitlist
 !\begin{verbatim}
  subroutine create_constitlist(constitlist,nc,klist)
 ! creates a constituent list ...
@@ -1157,6 +1178,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine create_parrecords
 !\begin{verbatim}
  subroutine create_parrecords(lokph,lokcs,nsl,nc,nprop,iva,ceq)
 ! fractions and results arrays for a phase for parallel calculations
@@ -1263,6 +1285,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine create_interaction
 !\begin{verbatim}
  subroutine create_interaction(intrec,mint,lint,intperm,intlinks)
 ! creates a parameter interaction record 
@@ -1384,6 +1407,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine create_endmember
 !\begin{verbatim}
  subroutine create_endmember(lokph,newem,noperm,nsl,endm,elinks)
 ! create endmember record with nsl sublattices with endm as constituents
@@ -1426,6 +1450,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine create_proprec
 !\begin{verbatim}
  subroutine create_proprec(proprec,proptype,degree,lfun,refx)
 ! reservs a property record from free list and insert data
@@ -1433,7 +1458,7 @@
    TYPE(gtp_property), pointer :: proprec
    integer proptype,degree,lfun
    character refx*(*)
-!\end{verbatim}
+!\end{verbatim} %+
    integer j,iref
    character notext*32
    if(degree.lt.0 .or. degree.gt.9) then
@@ -1467,6 +1492,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine extend_proprec
 !\begin{verbatim}
  subroutine extend_proprec(current,degree,lfun)
 ! extends a property record  and insert new data
@@ -1502,133 +1528,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim}
- subroutine new_phase_varres_record_unused(iph,phvar,ceq)
-! this subroutine returnes a copy of the phase variable structure for iph
-! >>>>>>>>>>>>>
-! this subroutine is probably redundant since the structure 
-! gtp_equilibrium_data was introduced.  Each parallel tread should have
-! its own gtp_equilibrium_data record.
-! >>>>>>>>>>>>>>>>>>>>>>>>>>
-! The programmer can enter fraction in this structure and use it in calls
-! to parcalcg should be suitable for parallel processing (NOT TESTED)
-! when the same phase is calculated in several threads (like when separate
-! threads calculate different lines suring mapping)
-   implicit none
-! >>>> unfinished
-! >>>> for calculation of the same phase in separate threads
-   integer iph
-   TYPE(gtp_equilibrium_data), pointer :: ceq
-   TYPE(gtp_phase_varres) :: phvar
-!\end{verbatim}
-   integer tnooffr,lokph,lokcs,nsl,lokdis
-   TYPE(gtp_phase_varres) :: phdis
-   TYPE(gtp_fraction_set) :: olddis,newdis
-!
-   if(iph.le.0 .or. iph.gt.noofph) then
-      gx%bmperr=4050; goto 1000
-   endif
-   lokph=phases(iph)
-!   lokcs=phlista(lokph)%cslink
-   lokcs=phlista(lokph)%linktocs(1)
-! allocate arrays and copy values from phase_varres(lokcs) to phvar
-   phvar%nextfree=0
-   phvar%phlink=ceq%phase_varres(lokcs)%phlink
-   phvar%status2=ceq%phase_varres(lokcs)%status2
-   nsl=size(ceq%phase_varres(lokcs)%sites)
-   tnooffr=size(ceq%phase_varres(lokcs)%yfr)
-!   write(*,*)'Allocate constat 3: ',nc
-   allocate(phvar%constat(tnooffr))
-   allocate(phvar%yfr(tnooffr))
-   allocate(phvar%mmyfr(tnooffr))
-   allocate(phvar%sites(nsl))
-   phvar%constat=ceq%phase_varres(lokcs)%constat
-   phvar%yfr=ceq%phase_varres(lokcs)%yfr
-!   phvar%mmyfr=ceq%phase_varres(lokcs)%mmyfr
-   phvar%mmyfr=zero
-   phvar%sites=ceq%phase_varres(lokcs)%sites
-   write(*,*)'new_phase_varres: ',lokcs,tnooffr
-   if(btest(phlista(lokph)%status1,PHMFS))then
-! there is a disordered fraction set  ... suck
-      olddis=ceq%phase_varres(lokcs)%disfra
-      phvar%disfra%latd=olddis%latd
-      phvar%disfra%ndd=olddis%ndd
-      phvar%disfra%tnoofxfr=olddis%tnoofxfr
-      phvar%disfra%tnoofyfr=olddis%tnoofyfr
-      phvar%disfra%varreslink=olddis%varreslink
-      phvar%disfra%totdis=olddis%totdis
-      allocate(phvar%disfra%dsites(olddis%ndd))
-      allocate(phvar%disfra%nooffr(olddis%ndd))
-      allocate(phvar%disfra%splink(olddis%tnoofxfr))
-      allocate(phvar%disfra%y2x(olddis%tnoofyfr))
-      allocate(phvar%disfra%dxidyj(olddis%tnoofyfr))
-      phvar%disfra%dsites=olddis%dsites
-      phvar%disfra%nooffr=olddis%nooffr
-      phvar%disfra%splink=olddis%splink
-      phvar%disfra%y2x=olddis%y2x
-      phvar%disfra%dxidyj=olddis%dxidyj
-!
-! we must create a new phase_varres record for the disordered fractions
-      lokdis=olddis%varreslink
-!      allocate(phdis)
-      call new_disordered_phase_variable_record(lokdis,phvar,phdis,ceq)
-! the link between phvar and phdis is set inside new_disordered
-!      write(*,*)'disord 5 ',phdis%phlink,phase_varres(lokdis)%phlink, &
-!           phvar%disfra%phdapointer%phlink
-   endif
-1000 continue
-   return
- end subroutine new_phase_varres_record_unused
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\begin{verbatim}
- subroutine new_disordered_phase_variable_record(lokdis,phvar,phdis,ceq)
-! Does this really work???? phdis has no value when entering ...
-! creates a copy of the disordered phase variable record lokdis
-! and set links from ordered phvar
-!   ?????????????? does this work ??????????  is it necessary ????
-! can one just make an assignment ????
-   implicit none
-   TYPE(gtp_equilibrium_data), pointer :: ceq
-   TYPE(gtp_phase_varres) :: phvar
-   TYPE(gtp_phase_varres), target :: phdis
-   integer lokdis
-!\end{verbatim}
-   integer tnooffr,nsl
-! phdis not assigned when calling this routine??
-!
-   phdis%nextfree=0
-   phdis%phlink=ceq%phase_varres(lokdis)%phlink
-   write(*,*)'In new_disordered_phase_variable_record: ',lokdis,phdis%phlink
-!   write(*,*)'disord 1 ',phdis%phlink,phase_varres(lokdis)%phlink
-   phdis%status2=ceq%phase_varres(lokdis)%status2
-   nsl=size(ceq%phase_varres(lokdis)%sites)
-   tnooffr=size(ceq%phase_varres(lokdis)%yfr)
-!   write(*,*)'Allocate constat 4: ',tnooffr
-   allocate(phdis%constat(tnooffr))
-   allocate(phdis%yfr(tnooffr))
-   allocate(phdis%sites(nsl))
-   phdis%constat=ceq%phase_varres(lokdis)%constat
-   phdis%yfr=ceq%phase_varres(lokdis)%yfr
-   allocate(phdis%mmyfr(tnooffr))
-   phdis%mmyfr=zero
-!   phdis%mmyfr=ceq%phase_varres(lokdis)%mmyfr
-   phdis%sites=ceq%phase_varres(lokdis)%sites
-! save link to the phdis record, two links ... why? just because it is messy
-!   write(*,*)'disord 2 ',phdis%phlink,phase_varres(lokdis)%phlink
-!??   phvar%disfra%phdapointer=>phdis
-! why setting it to zero here??? it should be an index to phase_varres record
-   write(*,*)'3G ndpvr: ',lokdis,phvar%disfra%varreslink
-   phvar%disfra%varreslink=0
-!   phvar%disordered=>phdis
-!   write(*,*)'disord 3 ',phdis%phlink,phase_varres(lokdis)%phlink
-1000 continue
-   return
- end subroutine new_disordered_phase_variable_record
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
+!\addtotable subroutine add_fraction_set
 !\begin{verbatim}
  subroutine add_fraction_set(iph,id,ndl,totdis)
 ! add a new set of fractions to a phase, usually to describe a disordered state
@@ -1940,6 +1840,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine copy_fracset_record
 !\begin{verbatim}
  subroutine copy_fracset_record(lokcs,disrec,ceq)
 ! attempt to create a new disordered record  ??? this can probably be done
@@ -1981,6 +1882,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine suspend_species_implicitly
 !\begin{verbatim}
  subroutine suspend_species_implicitly(ceq)
 ! loop through all entered species and suspend those with an element suspended
@@ -2008,6 +1910,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine suspend_phases_implicitly
 !\begin{verbatim}
  subroutine suspend_phases_implicitly(ceq)
 ! loop through all entered phases and suspend constituents and
@@ -2074,6 +1977,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine restore_species_implicitly_suspended
 !\begin{verbatim}
  subroutine restore_species_implicitly_suspended
 ! loop through all implicitly suspended species and restore those with
@@ -2099,6 +2003,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine restore_phases_implicitly_suspended
 !\begin{verbatim}
  subroutine restore_phases_implicitly_suspended
 ! loop through all implicitly suspended phases and restore those with
@@ -2134,6 +2039,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine add_to_reference_phase
 !\begin{verbatim}
  subroutine add_to_reference_phase(loksp)
 ! add this element to the reference phase
@@ -2184,214 +2090,3 @@
  end subroutine add_to_reference_phase
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\begin{verbatiom}
- logical function fixedcomposition(iph)
-! returns TRUE if phase cannot vary its composition
-   integer iph
-!\end{verbatim}
-   integer lokph
-   lokph=phases(iph)
-! Wow a bug! using iph instead of lokph!!
-   if(phlista(lokph)%tnooffr-phlista(lokph)%noofsubl.eq.0) then
-!      write(*,*)'3G fixedcomposition: ',iph,lokph,&
-!           phlista(lokph)%tnooffr,phlista(lokph)%noofsubl
-      fixedcomposition=.true.
-   else
-      fixedcomposition=.false.
-   endif
-1000 continue
-   return
- end function fixedcomposition
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\begin{verbatiom}
- logical function ocv()
-! returns TRUE if GSVERBOSE bit is set
-!\end{verbatim}
-! typical use:  if(ocv()) write(*,*)....
-   ocv=btest(globaldata%status,GSVERBOSE)
-   return
- end function ocv
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!-\begin{verbatim}
- integer function vssize(varres)
-! calculates the size in words (4 bytes) of a phase_varres record
-   implicit none
-   type(gtp_phase_varres) :: varres
-!-\end{verbatim}
-   integer sum
-!   write(*,*)'In vssize 1'
-!     integer nextfree,phlink,status2,phstate
-!     double precision, dimension(2) :: abnorm
-!     character*4 prefix,suffix
-   sum=10
-! changed to allocatable
-!     integer, dimension(:), allocatable :: constat
-!     double precision, dimension(:), allocatable :: yfr
-!     real, dimension(:), allocatable :: mmyfr
-!     double precision, dimension(:), allocatable :: sites
-   if(allocated(varres%constat)) sum=sum+size(varres%constat)
-   write(*,*)'varressum+yfr: ',sum,size(varres%constat),3*size(varres%yfr)
-   if(allocated(varres%yfr)) sum=sum+3*size(varres%yfr)
-!   write(*,*)'In vssize 2',sum
-! for ionic liquid derivatives of sites wrt fractions (it is the charge), 
-! 2nd derivates only when one constituent is vacancy
-! 1st sublattice P=\sum_j (-v_j)*y_j + Qy_Va
-! 2nd sublattice Q=\sum_i v_i*y_i
-!     double precision, dimension(:), allocatable :: dpqdy
-!     double precision, dimension(:), allocatable :: d2pqdvay
-   if(allocated(varres%dpqdy)) sum=sum+size(varres%dpqdy)
-   if(allocated(varres%d2pqdvay)) sum=sum+size(varres%d2pqdvay)
-   write(*,*)'varressum+ionliq',sum,size(varres%dpqdy),size(varres%d2pqdvay)
-! for extra fraction sets, better to go via phase record index above
-! this TYPE(gtp_fraction_set) variable is a bit messy.  Declaring it in this
-! way means the record is stored inside this record.
-!     type(gtp_fraction_set) :: disfra
-! size of disfra record??
-   sum=sum+10
-   if(allocated(varres%disfra%dsites)) sum=sum+size(varres%disfra%dsites)
-   if(allocated(varres%disfra%nooffr)) sum=sum+size(varres%disfra%nooffr)
-   if(allocated(varres%disfra%splink)) sum=sum+size(varres%disfra%splink)
-   if(allocated(varres%disfra%y2x)) sum=sum+size(varres%disfra%y2x)
-   if(allocated(varres%disfra%dxidyj)) sum=sum+size(varres%disfra%dxidyj)
-   write(*,*)'varresum incl disfra and pointer: ',sum,varres%disfra%varreslink
-! It seems difficult to get the phdapointer in disfra record to work
-! ---
-! arrays for storing calculated results for each phase (composition set)
-! amfu: is amount formula units of the composition set (calculated result)
-! netcharge: is net charge of phase
-! dgm: driving force (calculated result)
-! amcom: not used
-! damount: set to last change of phase amount in equilibrium calculations
-! qqsave: values of qq calculated in set_constitution
-!    double precision amount(2),dgm,amcom,damount,qqsave(3)
-!    double precision amfu,netcharge,dgm,amcom,damount,qqsave(3)
-!     double precision amfu,netcharge,dgm,amcom,damount
-   sum=sum+10
-! Other properties may be that: gval(*,2) is TC, (*,3) is BMAG, see listprop
-! nprop: the number of different properties (set in allocate)
-! ncc: total number of site fractions (redundant but used in some subroutines)
-! BEWHARE: ncc seems to be wrong using TQ test program fenitq.F90 ???
-! listprop(1): is number of calculated properties
-! listprop(2:listprop(1)): identifies the property stored in gval(1,ipy) etc
-!   2=TC, 3=BMAG. Properties defined in the gtp_propid record
-!     integer nprop,ncc
-!     integer, dimension(:), allocatable :: listprop
-   if(allocated(varres%listprop)) sum=sum+2+size(varres%listprop)
-   write(*,*)'varresum + listprop: ',sum,size(varres%listprop)
-! gval etc are for all composition dependent properties, gval(*,1) for G
-! gval(*,1): is G, G.T, G.P, G.T.T, G.T.P and G.P.P
-! dgval(1,j,1): is first derivatives of G wrt fractions j
-! dgval(2,j,1): is second derivatives of G wrt fractions j and T
-! dgval(3,j,1): is second derivatives of G wrt fractions j and P
-! d2gval(ixsym(i,j),1): is second derivatives of G wrt fractions i and j
-!     double precision, dimension(:,:), allocatable :: gval
-!     double precision, dimension(:,:,:), allocatable :: dgval
-!     double precision, dimension(:,:), allocatable :: d2gval
-   if(allocated(varres%gval)) sum=sum+2*size(varres%gval)
-   if(allocated(varres%dgval)) sum=sum+2*size(varres%dgval)
-   if(allocated(varres%d2gval)) sum=sum+2*size(varres%d2gval)
-   write(*,*)'varresum + gvals: ',sum,2*size(varres%gval),&
-        2*size(varres%dgval),2*size(varres%d2gval)
-! added for strain/stress, current values of lattice parameters
-!     double precision, dimension(3,3) :: curlat
-! saved values from last equilibrium calculation
-!     double precision, dimension(:,:), allocatable :: cinvy
-!     double precision, dimension(:), allocatable :: cxmol
-!     double precision, dimension(:,:), allocatable :: cdxmol
-   if(allocated(varres%cinvy)) sum=sum+18+2*size(varres%cinvy)
-   if(allocated(varres%cxmol)) sum=sum+18+2*size(varres%cxmol)
-   if(allocated(varres%cdxmol)) sum=sum+18+2*size(varres%cdxmol)
-   write(*,*)'varresum + saved: ',sum
-!
-1000 continue
-   vssize=sum
-   return
- end function vssize
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!-\begin{verbatim}
- integer function ceqsize(ceq)
-! calculates the size in words (4 bytes) of an equilibrium record
-   implicit none
-   type(gtp_equilibrium_data), pointer :: ceq
-!-\end{verbatim}
-   integer sum,vsum,ivs,vss
-!   write(*,*)'In ceqsize 1'
-!
-!     integer status,multiuse,eqno,next
-!     character eqname*24
-!     double precision tpval(2),rtn
-! svfunres: the values of state variable functions valid for this equilibrium
-!     double precision, dimension(:), allocatable :: svfunres
-   sum=18+2*size(ceq%svfunres)
-   write(*,*)'total + svfunres: ',sum,size(ceq%svfunres)
-! the experiments are used in assessments and stored like conditions 
-! lastcondition: link to condition list
-! lastexperiment: link to experiment list
-!     TYPE(gtp_condition), pointer :: lastcondition,lastexperiment
-! assuming a pointer is 4 bytes (2 words)
-   sum=sum+4
-! components and conversion matrix from components to elements
-! complist: array with components
-! compstoi: stoichiometric matrix of compoents relative to elements
-! invcompstoi: inverted stoichiometric matrix
-!     TYPE(gtp_components), dimension(:), allocatable :: complist
-!     double precision, dimension(:,:), allocatable :: compstoi
-!     double precision, dimension(:,:), allocatable :: invcompstoi
-! a gtp_component record is about 20 words, invcompstoi same as compsoti
-   if(allocated(ceq%complist)) sum=sum+20*size(ceq%complist)+&
-        4*size(ceq%compstoi)
-   write(*,*)'total + complist:',sum,20*size(ceq%complist),4*size(ceq%compstoi)
-! one record for each phase+composition set that can be calculated
-! phase_varres: here all calculated data for the phase is stored
-!     TYPE(gtp_phase_varres), dimension(:), allocatable :: phase_varres
-! each phase_varres record is different for each phase
-   vsum=0
-! highcs is highest used free phase_varres record
-   do ivs=1,highcs
-      vss=vssize(ceq%phase_varres(ivs))
-      write(*,*)'Phase varres: ',ivs,vss
-      vsum=vsum+vss
-   enddo
-   sum=sum+vsum
-   write(*,*)'total + varres',sum,vsum
-! index to the tpfun_parres array is the same as in the global array tpres 
-! eq_tpres: here local calculated values of TP functions are stored
-!     TYPE(tpfun_parres), dimension(:), pointer :: eq_tpres
-! each tpfun_parres record is 8 double
-   sum=sum+16*size(ceq%eq_tpres)
-! current values of chemical potentials stored in component record but
-! duplicated here for easy acces by application software
-!     double precision, dimension(:), allocatable :: cmuval
-   if(allocated(ceq%cmuval)) sum=sum+2*size(ceq%cmuval)
-   write(*,*)'total + cmuval: ',sum,2*size(ceq%cmuval)
-! xconc: convergence criteria for constituent fractions and other things
-!     double precision xconv
-! delta-G value for merging gridpoints in grid minimizer
-! smaller value creates problem for test step3.BMM, MC and austenite merged
-!     double precision :: gmindif=-5.0D-2
-! maxiter: maximum number of iterations allowed
-!     integer maxiter
-   sum=sum+5
-! this is to save a copy of the last calculated system matrix, needed
-! to calculate dot derivatives, initiate to zero
-!     integer :: sysmatdim=0,nfixmu=0,nfixph=0
-!     integer, allocatable :: fixmu(:)
-!     integer, allocatable :: fixph(:,:)
-!     double precision, allocatable :: savesysmat(:,:)
-   sum=sum+3+size(ceq%fixmu)+size(ceq%fixph)+size(ceq%savesysmat)
-   write(*,*)'total + savesysmat:',sum,size(ceq%fixmu),size(ceq%fixph),&
-        size(ceq%savesysmat)
-   ceqsize=sum
-1000 continue
-   return
- end function ceqsize
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-

@@ -23,7 +23,7 @@ new Y
 @$ step8.OCM
 @$ Adiabatic flame temperature for propane, C3H8
 @$ Also a P-V diagram for the gas
-@$ and setting a constituent fraction in the gas
+@$ and setting various conditions like the constituent fraction in the gas
 @$ =============================================================
 @&
 set echo
@@ -445,7 +445,8 @@ l,,,,,
 @$ 3*n(c)-8*n(h)=0
 
 @&
-@$ A feature added 2019.07.22: Setting a constituent fraction of a phase
+@$ A feature added 2019.07.22: 
+@$ Setting a constituent fraction of a phase
 @$
 @$ We already have a fairly complicated set of conditions
 
@@ -466,19 +467,25 @@ set c n(c)=none
 
 l c
 
+@&
+
 c e
 
 @&
 
 l,,,,
 
-@$ We have just recalculated the same equilibrium with other external
-@$ conditions.  But now we can increase the fraction of H2O1
+@$ We have just recalculated the same equilibrium with another 
+@$ set of external conditions.
+@&
+@$ But now we can increase the fraction of H2O1
 
 set c y(gas,h2o1)
 0.3
 
 c e
+
+@&
 
 l,,,,
 
@@ -497,7 +504,7 @@ c e
 
 
 @$ This fails because it is impossible to have such a high fraction of H2O1
-@$ in the gas
+@$ in the gas at this T
 @&
 @$ We can try with a smaller value
 
@@ -505,10 +512,16 @@ set c y(gas,h2o1)=.01
 
 c e
 
+@&
+
 l,,,,
 
 
-@$ This works and again the amounts of both C and H has decreased.
+@$ This works.
+@&
+@$ The amounts of both C and H has increased.
+l el
+
 @&
 
 @$ That is all for now !!

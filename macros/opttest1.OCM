@@ -104,7 +104,7 @@ Y
 
 @&
 @$ reinitiate and read back
-new 
+new Y
 
 read unf ./opttest1
 
@@ -117,6 +117,8 @@ l data
 
 l opt short
 
+@$ No experimental data entered and no optimization made
+@$ All parameters have their starting values and sum of error irrelevant
 @&
 @$----------------------------------------------------
 @$ step 3: experiments, enter equilibrium <name> Y where Y means the
@@ -151,6 +153,7 @@ l,,,,,
 c symb h298
 
 show hm h298
+
 
 @&
 @$ At this equilibrium we also provide experimental values of
@@ -237,9 +240,9 @@ l opt short
 
 
 @$ As we have not optimized the coefficients this command gives nothing
-@$ except the current values of the coefficients.
+@$ except the inital values of the coefficients.
 @$ The column labeld RSD should be the "Relative Standard Deviation"
-@$ but at present that is not calculated correctly
+@$ i.e. an estimated uncertainty of the coefficients, should be less than 1.0
 @$ The last column lists the model parameter where the coefficent is used
 @$ is a kind of shorthand, _G means an endmember parameter followed by the
 @$ first 4 character of the phase and then the constituents and the degree

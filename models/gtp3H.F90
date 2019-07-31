@@ -25,6 +25,7 @@
 ! There is a common list routine
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
 
+!\addtotable subroutine addition_selector
 !\begin{verbatim}
  subroutine addition_selector(addrec,moded,phres,lokph,mc,ceq)
 ! called when finding an addition record while calculating G for a phase
@@ -104,6 +105,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!
 
+!\addtotable subroutine add_addrecord
 !\begin{verbatim}
  subroutine add_addrecord(lokph,extra,addtyp)
 ! generic subroutine to add an addition typ addtyp (including Inden)
@@ -130,6 +132,7 @@
          addrec=>lastrec%nextadd
       endif
    enddo
+! NOTE EET is not an addition, it is comparing the entropy of solid and liquid
 ! create addition record
 !   write(*,*)'3H adding addition record',lokph,addtyp
    addition: select case(addtyp)
@@ -160,9 +163,9 @@
 ! lokph because we need to check if average or individual Boghr magnetons
       call create_xiongmagnetic(newadd,lokph,bcc)
 !-----------------------------------------
-   case(debyecp) ! Debye Cp
+   case(debyecp) ! Debye Cp UNUSED
 ! 3
-      call create_debyecp(newadd)
+!      call create_debyecp(newadd)
 !-----------------------------------------
    case(einsteincp) ! Einstein Cp
 ! 4
@@ -213,13 +216,14 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine need_propertyid
 !\begin{verbatim}
  subroutine need_propertyid(id,typty)
 ! get the index of the property needed
    implicit none
    integer typty
    character*4 id
-!\end{verbatim}
+!\end{verbatim} %+
 ! here the property list is searched for "id" and its index stored in addrec
    do typty=1,ndefprop
       if(propid(typty)%symbol.eq.id) then
@@ -235,6 +239,34 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine setpermolebit
+!\begin{verbatim}
+ subroutine setpermolebit(lokph,addtype)
+! set bit in addition record that addition is per mole
+! lokph is phase record
+! addtype is the addtion record type
+   implicit none
+   integer lokph,addtype
+!\end{verbatim}
+   type(gtp_phase_add), pointer :: addrec
+   addrec=>phlista(lokph)%additions
+!   write(*,*)'3H set size bit: ',addtype
+   do while(associated(addrec))
+      if(addrec%type.eq.addtype) then
+         write(*,*)'3H setting bit ADDPERMOL for addition type ',addtype
+         addrec%status=ibset(addrec%status,ADDPERMOL)
+         goto 1000
+      endif
+      addrec=>addrec%nextadd
+   enddo
+   write(*,*)'3H Cannot find addition ',addtype
+1000 continue
+   return
+ end subroutine setpermolebit
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine create_magrec_inden
 !\begin{verbatim}
  subroutine create_magrec_inden(addrec,aff)
 ! enters the magnetic model
@@ -340,6 +372,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine calc_magnetic_inden
 !\begin{verbatim}
  subroutine calc_magnetic_inden(moded,phres,lokadd,lokph,mc,ceq)
 ! calculates Indens magnetic contribution
@@ -602,6 +635,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine create_xiongmagnetic
 !\begin{verbatim}
  subroutine create_xiongmagnetic(addrec,lokph,bcc)
 ! adds a Xiong type magnetic record, we must separate fcc and bcc by extra
@@ -739,6 +773,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine calc_xiongmagnetic
 !\begin{verbatim}
  subroutine calc_xiongmagnetic(moded,phres,lokadd,lokph,mc,ceq)
 ! calculates Indens-Qing-Xiong magnetic contribution
@@ -998,6 +1033,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine create_volmod1
 !\begin{verbatim}
  subroutine create_volmod1(addrec)
 ! create addition record for the simple volume model
@@ -1037,6 +1073,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine calc_volmod1
 !\begin{verbatim} %-
  subroutine calc_volmod1(moded,phres,lokadd,lokph,mc,ceq)
 ! calculate the simple volume model, CURRENTLY IGNORING COMPOSITION DEPENDENCE
@@ -1121,6 +1158,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine create_elastic_model_a
 !\begin{verbatim}
  subroutine create_elastic_model_a(newadd)
 ! addition record to calculate the elastic energy contribution
@@ -1156,6 +1194,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine calc_elastica
 !\begin{verbatim}
  subroutine calc_elastica(moded,phres,addrec,lokph,mc,ceq)
 ! calculates elastic contribution and adds to G and derivatives
@@ -1278,6 +1317,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine set_lattice_parameters
 !\begin{verbatim}
  subroutine set_lattice_parameters(iph,ics,xxx,ceq)
 ! temporary way to set current lattice parameters for use with elastic model a
@@ -1301,6 +1341,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine create_einsteincp
 !\begin{verbatim}
  subroutine create_einsteincp(newadd)
    implicit none
@@ -1334,6 +1375,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine calc_einsteincp
 !\begin{verbatim}
  subroutine calc_einsteincp(moded,phres,addrec,lokph,mc,ceq)
 ! Calculate the contibution due to Einste Cp model for low T
@@ -1464,6 +1506,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine create_schottky_anomality
 !\begin{verbatim}
  subroutine create_schottky_anomality(newadd)
 ! Adding a Schottky anomality to Cp
@@ -1501,6 +1544,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine calc_schottky_anomality
 !\begin{verbatim}
  subroutine calc_schottky_anomality(moded,phres,addrec,lokph,mc,ceq)
 ! Calculate the contibution due to a Schottky anomality
@@ -1628,6 +1672,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine create_secondeinstein
 !\begin{verbatim}
  subroutine create_secondeinstein(newadd)
    implicit none
@@ -1665,6 +1710,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine calc_secondeinstein
 !\begin{verbatim}
  subroutine calc_secondeinstein(moded,phres,addrec,lokph,mc,ceq)
 ! Calculate the contibution due to Einste Cp model for low T
@@ -1802,38 +1848,13 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim}
- subroutine setpermolebit(lokph,addtype)
-! set bit in addition record that addition is per mole
-! lokph is phase record
-! addtype is the addtion record type
-   implicit none
-   integer lokph,addtype
-!\end{verbatim}
-   type(gtp_phase_add), pointer :: addrec
-   addrec=>phlista(lokph)%additions
-!   write(*,*)'3H set size bit: ',addtype
-   do while(associated(addrec))
-      if(addrec%type.eq.addtype) then
-         write(*,*)'3H setting bit ADDPERMOL for addition type ',addtype
-         addrec%status=ibset(addrec%status,ADDPERMOL)
-         goto 1000
-      endif
-      addrec=>addrec%nextadd
-   enddo
-   write(*,*)'3H Cannot find addition ',addtype
-1000 continue
-   return
- end subroutine setpermolebit
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
+!\addtotable subroutine create_twostate_model1
 !\begin{verbatim}
  subroutine create_twostate_model1(addrec)
 ! newadd is location where pointer to new addition record should be stored
    implicit none
    type(gtp_phase_add), pointer :: addrec
-!\end{verbatim}
+!\end{verbatim} %+
    integer typty
 ! this is bad programming as it cannot be deallocated but it will never be ...
 ! maybe pointers can be deallocated?
@@ -1867,6 +1888,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine calc_twostate_model_john
 !\begin{verbatim}
  subroutine calc_twostate_model_john(moded,phres,addrec,lokph,mc,ceq)
 ! subroutine calc_twostate_model1(moded,phres,addrec,lokph,mc,ceq)
@@ -1882,7 +1904,7 @@
    TYPE(GTP_PHASE_ADD), pointer :: addrec
    TYPE(GTP_PHASE_VARRES), pointer :: phres
    TYPE(GTP_EQUILIBRIUM_DATA), pointer :: ceq
-!\end{verbatim}
+!\end{verbatim} %+
 ! two state model for extrapolating liquid to low T
 ! DG = d(H-RT) + RT( dln(d)+(1-d)ln(1-d))
 ! where d is "liquid like" atoms.  H is enthalpy to form defects
@@ -2095,6 +2117,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine calc_twostate_model1
 !\begin{verbatim}
  subroutine calc_twostate_model1(moded,phres,addrec,lokph,mc,ceq)
 ! subroutine calc_twostate_modelny(moded,phres,addrec,lokph,mc,ceq)
@@ -2110,7 +2133,7 @@
    TYPE(GTP_PHASE_ADD), pointer :: addrec
    TYPE(GTP_PHASE_VARRES), pointer :: phres
    TYPE(GTP_EQUILIBRIUM_DATA), pointer :: ceq
-!\end{verbatim}
+!\end{verbatim} %+
 ! two state model for extrapolating liquid to low T
 ! DG = d(H-RT) + RT( dln(d)+(1-d)ln(1-d))
 ! where d is "liquid like" atoms.  H is enthalpy to form defects
@@ -2350,6 +2373,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine calc_twostate_model_old
 !\begin{verbatim}
  subroutine calc_twostate_model_old(moded,phres,addrec,lokph,mc,ceq)
 ! Failed attempt to decrease the hump when the g2 parameter changes sign
@@ -2560,251 +2584,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim}
- subroutine create_crystalbreakdownmod(addrec)
-! enters a record for the crystal breakdown
-   implicit none
-   type(gtp_phase_add), pointer :: addrec
-!\end{verbatim} %+
-   integer typty
-! reserve an addition record
-   allocate(addrec)
-! nullify link to next   
-   nullify(addrec%nextadd)
-! Set the type of addition and look for needed parameter properties
-!   addrec%type=crystalbreakdownmod
-   write(*,*)'3H crystal breakdown not an addition'
-   gx%bmperr=4399; goto 1000
-   allocate(addrec%need_property(1))
-   call need_propertyid('CBT ',typty)
-   if(gx%bmperr.ne.0) goto 1000
-   addrec%need_property(1)=typty
-! store zero.  Used to extract current value of this property
-   addrec%propval=zero
-!
-!   write(kou,*)'3H Not implemented yet'; gx%bmperr=4078
-!
-1000 continue
-   return
- end subroutine create_crystalbreakdownmod
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\begin{verbatim}
- subroutine calc_crystalbreakdown_steep(moded,phres,addrec,lokph,mc,ceq)
-! calculates the metastable extrapolation above crystal breakdown T (CBT)
-! NOTE: values for function not saved, should be done to save calculation time.
-! moded: integer, 0=only G, S, Cp; 1=G and dG/dy; 2=Gm dG/dy and d2G/dy2
-! phres: pointer, to phase\_varres record
-! lokadd: pointer, to addition record
-! lokph: integer, phase record 
-! mc: integer, number of constituents
-! ceq: pointer, to gtp_equilibrium_data
-   implicit none
-   integer moded,lokph,mc
-   TYPE(gtp_equilibrium_data), pointer :: ceq
-   TYPE(gtp_phase_add), pointer :: addrec
-   TYPE(gtp_phase_varres) :: phres
-!\end{verbatim}
-   integer ith,noprop,mc2,jj,jk,saveph
-   double precision cbt,rg,tval,rt,psi
-! BEWHARE: NOT IN PARALLEL
-   double precision, allocatable :: cbtgval(:),cbtdgval(:,:),cbtd2gval(:)
-   double precision, allocatable :: gsol(:),dgsol(:,:),d2gsol(:)
-   save saveph,cbtgval,cbtdgval,cbtd2gval
-   double precision x1,x2,x3
-! extract the current value of the crystal breakdown T
-   noprop=phres%listprop(1)-1
-   do ith=2,noprop
-      if(phres%listprop(ith).eq.addrec%need_property(1)) goto 100
-   enddo
-   write(*,*)'3H No value of CBT found for phase ',trim(phlista(lokph)%name)
-   gx%bmperr=4336; goto 1000
-100 continue
-   cbt=phres%gval(1,ith)
-! if current T lower than CBT just exit   
-   if(ceq%tpval(1).le.cbt) goto 1000
-! if T is higher we have to calculate everything for T=CBT ... HOW?   
-!   write(*,110)'3H T > CBT: ',lokph,saveph,ceq%tpval(1),cbt
-110 format(a,2i3,2F10.2)
-   if(lokph.ne.saveph) then
-      if(allocated(cbtgval)) then
-         write(*,*)'3H deallocating as ',lokph,' not same as ',saveph
-         deallocate(cbtgval)
-         deallocate(cbtdgval)
-         deallocate(cbtd2gval)
-      endif
-   endif
-   if(.not.allocated(cbtgval)) then
-      saveph=lokph
-      write(*,*)'3H Allocating cbt arrays',saveph
-      allocate(cbtgval(6))
-      allocate(cbtdgval(3,mc))
-      mc2=mc*(mc+1)
-      allocate(cbtd2gval(mc2))
-! assume current T is OK to save ...
-      do jj=1,6
-         cbtgval(jj)=phres%gval(jj,1)
-      enddo
-      write(*,101)'3H cbtgsol: ',cbtgval(1),cbtgval(2),cbtgval(4)
-      do jk=1,mc
-         do jj=1,3
-            cbtdgval(jj,mc)=phres%dgval(jj,mc,1)
-         enddo
-      enddo
-      do jk=1,mc2
-         cbtd2gval(jj)=phres%d2gval(jk,1)
-      enddo
-! we do not have to weight together when we stored!!
-      goto 1000
-   endif
-! for intermediate results, they are deallocated when leaving the routine
-   allocate(gsol(6))
-   allocate(dgsol(3,mc))
-   allocate(d2gsol(mc2))
-! Now we can weight together the values at CBT and current T. psi<1.0
-   tval=ceq%tpval(1)
-   psi=cbt/tval
-   rg=globaldata%rgas*tval
-   rt=rg*tval
-   x1=3.0d0*(-tval/cbt*log(tval)+tval/cbt*log(cbt)-log(tval)+&
-        2.0D0*tval/cbt+log(cbt)-2.0d0)
-   gsol(1)=((tval**(-2)/6.0D0+cbt/(3.0d0*tval)+0.5D0*cbt**2)*cbtgval(4)/cbt**4+&
-        (tval-cbt)*cbtgval(2)+cbtgval(1))*cbt/tval+x1*cbt/tval
-!        3.0d0*log(psi)+1.5d0*tval*(one/psi-psi)
-!   gsol(2)=(-(cbt/tval)**(-3)*cbt*cbtgval(4)/3.0d0+cbt*cbtgval(4)/3.0d0)/rt+&
-!        cbtgval(2)/rt
-   x1=-(cbt/tval)**3*cbt*cbtgval(4)/3.0d0
-   x2=cbt*cbtgval(4)/3.0d0
-   x3=cbtgval(2)
-   gsol(2)=(x1+x2+x3)*cbt/tval&
-        +3.0d0*(-log(tval)/cbt+log(cbt)/cbt-one/tval+one/cbt)*(cbt/tval)
-! This Cp curve is OK, but the decrease of the Cp from LT is too steep
-   x1=-3.0D0*(tval-cbt)/(cbt*tval**2)*(cbt/tval)
-   gsol(4)=(cbt/tval)**4*cbtgval(4)*(cbt/tval)+x1
-!        -3.0D0*(one/tval-one/cbt)/tval**3
-   write(*,101)'3H extra: ',tval,cbt/tval,x1,x2,x3,gsol(4)
-101 format(a,6(1pe10.2))
-! this is just for a pure element !!
-   phres%gval(1,1)=gsol(1)
-   phres%gval(2,1)=gsol(2)
-   phres%gval(4,1)=gsol(4)
-1000 continue
-   return
- end subroutine calc_crystalbreakdown_steep
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\begin{verbatim}
- subroutine calc_crystalbreakdownmod(moded,phres,addrec,lokph,mc,ceq)
-! calculates the metastable extrapolation above crystal breakdown T (CBT)
-! NOTE: values for function not saved, should be done to save calculation time.
-! moded: integer, 0=only G, S, Cp; 1=G and dG/dy; 2=Gm dG/dy and d2G/dy2
-! phres: pointer, to phase\_varres record
-! lokadd: pointer, to addition record
-! lokph: integer, phase record 
-! mc: integer, number of constituents
-! ceq: pointer, to gtp_equilibrium_data
-   implicit none
-   integer moded,lokph,mc
-   TYPE(gtp_equilibrium_data), pointer :: ceq
-   TYPE(gtp_phase_add), pointer :: addrec
-   TYPE(gtp_phase_varres) :: phres
-!\end{verbatim}
-   integer ith,noprop,mc2,jj,jk,saveph
-   double precision cbt,rg,tval,rt,psi
-! BEWHARE: NOT IN PARALLEL
-   double precision, allocatable :: cbtgval(:),cbtdgval(:,:),cbtd2gval(:)
-   double precision, allocatable :: gsol(:),dgsol(:,:),d2gsol(:)
-   save saveph,cbtgval,cbtdgval,cbtd2gval
-   double precision x1,x2,x3,dcpb
-! extract the current value of the crystal breakdown T
-   noprop=phres%listprop(1)-1
-   do ith=2,noprop
-      if(phres%listprop(ith).eq.addrec%need_property(1)) goto 100
-   enddo
-   write(*,*)'3H No value of CBT found for phase ',trim(phlista(lokph)%name)
-   gx%bmperr=4336; goto 1000
-100 continue
-   cbt=phres%gval(1,ith)
-! if current T lower than CBT just exit   
-   if(ceq%tpval(1).le.cbt) goto 1000
-! if T is higher we have to calculate everything for T=CBT ... HOW?   
-!   write(*,110)'3H T > CBT: ',lokph,saveph,ceq%tpval(1),cbt
-110 format(a,2i3,2F10.2)
-   if(lokph.ne.saveph) then
-      if(allocated(cbtgval)) then
-         write(*,*)'3H deallocating as ',lokph,' not same as ',saveph
-         deallocate(cbtgval)
-         deallocate(cbtdgval)
-         deallocate(cbtd2gval)
-      endif
-   endif
-   if(.not.allocated(cbtgval)) then
-      saveph=lokph
-      write(*,*)'3H Allocating cbt arrays',saveph
-      allocate(cbtgval(6))
-      allocate(cbtdgval(3,mc))
-      mc2=mc*(mc+1)
-      allocate(cbtd2gval(mc2))
-! assume current T is OK to save ...
-      do jj=1,6
-         cbtgval(jj)=phres%gval(jj,1)
-      enddo
-!      write(*,101)'3H cbtgsol: ',cbtgval(1),cbtgval(2),cbtgval(4)
-      do jk=1,mc
-         do jj=1,3
-            cbtdgval(jj,mc)=phres%dgval(jj,mc,1)
-         enddo
-      enddo
-      do jk=1,mc2
-         cbtd2gval(jj)=phres%d2gval(jk,1)
-      enddo
-! we do not have to weight together when we stored!!
-      goto 1000
-   endif
-! for intermediate results, they are deallocated when leaving the routine
-   allocate(gsol(6))
-   allocate(dgsol(3,mc))
-   allocate(d2gsol(mc2))
-! We should maybe approach zero as the Einstein  contribution is still there??
-!   dcpb=3.0d0
-   dcpb=zero
-! Now we can weight together the values at CBT and current T. psi<1.0
-   tval=ceq%tpval(1)
-   psi=cbt/tval
-   rg=globaldata%rgas*tval
-   rt=rg*tval
-   x1=dcpb*(-tval/cbt*log(tval)+tval/cbt*log(cbt)-log(tval)+&
-        2.0D0*tval/cbt+log(cbt)-2.0d0)
-!  gsol(1)=((tval**(-2)/6.0D0+cbt/(3.0d0*tval)+0.5D0*cbt**2)*cbtgval(4)/cbt**4+&
-!        (tval-cbt)*cbtgval(2)+cbtgval(1))*cbt/tval+x1*cbt/tval
-   gsol(1)=((tval**(-1)/2.0D0+cbt*tval/2.0d0+cbt**2)*cbtgval(4)/cbt**3+&
-        (tval-cbt)*cbtgval(2)+cbtgval(1))*cbt/tval+x1*cbt/tval
-!-----------------------------------------
-!   x1=-(cbt/tval)**3*cbt*cbtgval(4)/3.0d0
-!   x2=cbt*cbtgval(4)/2.0d0
-   x1=-(cbt/tval)**2*cbt*cbtgval(4)/2.0d0
-   x2=cbt*cbtgval(4)/2.0d0
-   x3=cbtgval(2)
-   gsol(2)=(x1+x2+x3)*cbt/tval&
-        +dcpb*(-log(tval)/cbt+log(cbt)/cbt-one/tval+one/cbt)*(cbt/tval)
-! This Cp curve is OK, but the decrease of the Cp from LT is too steep
-   x1=-dcpb*(tval-cbt)/(cbt*tval**2)*(cbt/tval)
-   gsol(4)=(cbt/tval)**3*cbtgval(4)*(cbt/tval)+x1
-!
-!   write(*,101)'3H extra: ',tval,cbt/tval,x1,x2,x3,gsol(4)
-101 format(a,6(1pe10.2))
-! this is just for a pure element !!
-   phres%gval(1,1)=gsol(1)
-   phres%gval(2,1)=gsol(2)
-   phres%gval(4,1)=gsol(4)
-1000 continue
-   return
- end subroutine calc_crystalbreakdownmod
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
+!\addtotable subroutine create_debyecp
 !\begin{verbatim}
  subroutine create_debyecp(addrec)
 ! enters a record for the debye model
@@ -2830,6 +2610,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine calc_debyecp
 !\begin{verbatim}
  subroutine calc_debyecp(moded,phres,lokadd,lokph,mc,ceq)
 ! calculates Mauro Debye contribution
@@ -2865,13 +2646,14 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine create_diffusion
 !\begin{verbatim}
  subroutine create_diffusion(addrec,lokph,text)
    implicit none
    integer lokph
    character text*(*)
    type(gtp_phase_add), pointer :: addrec
-!\end{verbatim}
+!\end{verbatim} %+
    integer typty,jj,last,is,js,ks,loksp,loksp2,ll,nsl
    character typ*24,quest*38,spname*24
    double precision alpha
@@ -2983,6 +2765,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine diffusion_onoff
 !\begin{verbatim}
  subroutine diffusion_onoff(phasetup,bitval)
 ! switches the bit which calculates diffusion coefficients on/off
@@ -2990,7 +2773,7 @@
    implicit none
    integer bitval
    type(gtp_phasetuple) :: phasetup
-!\end{verbatim}
+!\end{verbatim} %+
    integer lokph
    type(gtp_phase_add), pointer :: addrec
    lokph=phasetup%lokph
@@ -3011,6 +2794,7 @@
 
  !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine calc_diffusion
 !\begin{verbatim}
  subroutine calc_diffusion(moded,phres,lokadd,lokph,mc,ceq)
 ! calculates diffusion coefficients
@@ -3026,7 +2810,7 @@
    TYPE(gtp_equilibrium_data), pointer :: ceq
    TYPE(gtp_phase_add), pointer :: lokadd
    TYPE(gtp_phase_varres) :: phres
-!\end{verbatim}
+!\end{verbatim} %+
    type(gtp_diffusion_model), pointer :: diffcoef
    diffcoef=>lokadd%diffcoefs
 !   write(*,*)'Diffusion phase and model: ',trim(phlista(lokph)%name),&
@@ -3040,6 +2824,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine get_diffusion_matrix
 !\begin{verbatim}
  subroutine get_diffusion_matrix(phtup,mdm,dcval,ceq)
 ! extracts calculated diffusion coefficients for a phase tuple
@@ -3060,6 +2845,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine list_addition
 !\begin{verbatim}
  subroutine list_addition(unit,CHTD,phname,ftyp,lokadd)
 ! list description of an addition for a phase on unit
@@ -3186,6 +2972,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine list_addition_values
 !\begin{verbatim} %-
  subroutine list_addition_values(unit,phres)
 ! lists calculated values for this addition

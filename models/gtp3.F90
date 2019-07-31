@@ -1,4 +1,4 @@
-
+!
 !***************************************************************
 ! General Thermodynamic Package (GTP)
 ! for thermodynamic modelling and calculations
@@ -639,7 +639,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !----------------------------------------------------------------
 !-Bits in element record
   integer, parameter :: &
-       ELSUS=0
+       ELSUS=0,       ELDEL=1
 !----------------------------------------------------------------
 !-Bits in species record
 ! SUS   Suspended,
@@ -656,7 +656,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !----------------------------------------------------------------
 ! Many not implemented
 !\begin{verbatim}
-!-Bits in phase record:
+!-Bits in phase record
 ! HID phase is hidden (not implemented)
 ! IMHID phase is implictly hidden (not implemented)
 ! ID phase is ideal, substitutional and no iteraction
@@ -733,9 +733,10 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! SVCONST symbol is a constant (can be changed with AMEND)
 ! SVFTPF symbol is a TP function, current value returned
 ! SVFDOT symbol is a DOT function, partial derivative like cp=h.t
+! SVFNOAM symbol cannot be amended (like R, RT and T_C)
    integer, parameter :: &
         SVFVAL=0,     SVFEXT=1,     SVCONST=2,     SVFTPF=3,&
-        SVFDOT=4
+        SVFDOT=4,     SVNOAM=5
 !----------------------------------------------------------------
 !-Bits in gtp_equilibrium_data record
 ! EQNOTHREAD set if equilibrium must be calculated before threading 
@@ -1263,7 +1264,29 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! maybe more ...
   end TYPE gtp_diffusion_model
 !\end{verbatim}
-!-----------------------------------------------------------------
+!------------------------------------------------------------------
+!\begin{verbatim}
+  TYPE gtp_tpfun_as_coeff
+! this is a TPFUN converted to coefficents without any references to other
+! functions.  Each function can have several T ranges and coefficents for T**n
+     double precision, dimension(:), allocatable :: tbreaks
+     double precision, dimension(:,:), allocatable :: coefs
+     integer, dimension(:,:), allocatable :: tpows
+! this is used only during conversion
+!     type(gtp_tpfun_as_coeff), pointer :: nextcrec
+  end type gtp_tpfun_as_coeff
+!
+  INTEGER, parameter :: gtp_tpfun2dat_version=1
+  TYPE gtp_tpfun2dat
+! this is a temporary storage of TP functions converted to arrays of
+! coefficients.  Allocated as an array when necessary and the index in
+! this array is the same index as for the TPfun
+     integer nranges
+!     type(gtp_tpfun_as_coeff) :: tpfuncoef
+     type(gtp_tpfun_as_coeff) :: cfun
+  end type gtp_tpfun2dat
+!\end{verbatim}
+!--------------------------------------------------------------------------
 !\begin{verbatim}
 ! this constant must be incremented when a change is made in gtp_phasetuple
   INTEGER, parameter :: gtp_phasetuple_version=1
@@ -1442,7 +1465,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! nactarg: number of actual parameter specifications needed in call
 !   (like @P, @C and @S
 ! status: can be used for various things
-! status bit SVFVAL=1 means value evaluated only when called with mode=1
+! status bit SVFVAL set means value evaluated only when called with mode=1
 ! SVCONST bit set if symbol is just a constant value (linknode is zero)
 ! eqnoval: used to specify the equilibrium the value should be taken from
 !    (for handling what is called "variables" in TC, SVFEXT set also)
@@ -1451,7 +1474,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
      integer narg,nactarg,status,eqnoval
      type(putfun_node), pointer :: linkpnode
      character name*16
-! THIS IS NOT REALLY USED, VALUES ARE STORED IN CEQ%SVFUNRES
+! THIS IS OLY USED FOR CONSTANTS, VALUES ARE ALSO STORED IN CEQ%SVFUNRES
      double precision svfv
 ! this array has identification of state variable (and other function) symbols 
      integer, dimension(:,:), pointer :: formal_arguments
@@ -1832,28 +1855,6 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   end TYPE gtp_applicationhead
 ! this record is allocated when necessary
   type(gtp_applicationhead), pointer :: firstapp,lastapp
-!\end{verbatim}
-!------------------------------------------------------------------
-!\begin{verbatim}
-  TYPE gtp_tpfun_as_coeff
-! this is a TPFUN converted to coefficents without any references to other
-! functions.  Each function can have several T ranges and coefficents for T**n
-     double precision, dimension(:), allocatable :: tbreaks
-     double precision, dimension(:,:), allocatable :: coefs
-     integer, dimension(:,:), allocatable :: tpows
-! this is used only during conversion
-!     type(gtp_tpfun_as_coeff), pointer :: nextcrec
-  end type gtp_tpfun_as_coeff
-!
-  INTEGER, parameter :: gtp_tpfun2dat_version=1
-  TYPE gtp_tpfun2dat
-! this is a temporary storage of TP functions converted to arrays of
-! coefficients.  Allocated as an array when necessary and the index in
-! this array is the same index as for the TPfun
-     integer nranges
-!     type(gtp_tpfun_as_coeff) :: tpfuncoef
-     type(gtp_tpfun_as_coeff) :: cfun
-  end type gtp_tpfun2dat
 !\end{verbatim}
 !===================================================================
 !

@@ -170,16 +170,19 @@ MODULE liboceq
   end type meqdebug
   type(meqdebug) :: cerr
 !
+!\begin{verbatim}
 ! This is for returning the calculated value of an experimantal property
 ! as we need an array to store the calculated values of the experimental  
 ! properties in order to calculate the Relative Standarad Deviation (RSD)
   double precision, allocatable, dimension(:) :: calcexp
-! this is for Hickel check
+! this is for EET test
   type(meq_phase), pointer :: pmiliq
 ! this is set TRUE when entering meq_onephase and false after one solid checked?
   logical hickelextrapol
-! The OLD test for Hickel T made only for T>thickel, now globaldata%sysreal(1)
-!  double precision :: thickel=1.0D3
+! This is an attempt to limit Delta-T when having condition on y-fraction
+  logical ycondTlimit
+  double precision deltatycond
+!\end{verbatim}
 !
 !--------------------------------------------------------------
 !
@@ -1615,6 +1618,7 @@ CONTAINS
 ! to check if we are calculating a single almost stoichiometric phase ...
     integer iz,tcol,pcol,nophasechange,notagain
     double precision maxphasechange,molesofatoms,factconv
+    double precision lastdeltat,deltatycond
 !    double precision, allocatable, dimension(:) :: loopfact
     integer notf,dncol,iy,jy,iremsave,phasechangeok
     double precision, dimension(:), allocatable :: lastdeltaam
@@ -1625,6 +1629,9 @@ CONTAINS
     stoikph=.true.
     nophasechange=0
     maxphasechange=zero
+! this is set each time the set of phases changes, controls change in T
+! when there is a condition on y
+    deltaTycond=2.5d1
     if(iadd.eq.-1 .or. ocv()) then
        write(*,*)'Debug output in meq_sameset'
        vbug=.TRUE.; iadd=0
@@ -1917,6 +1924,26 @@ CONTAINS
 ! limit changes in T to +/-half its current value
        if(abs(svar(ioff)/ceq%tpval(1)).gt.0.2D0) then
           svar(ioff)=sign(0.2D0*ceq%tpval(1),svar(ioff))
+       endif
+! limit change in T when there is condition on y
+       if(ycondTlimit) then
+          deltat=svar(ioff)
+! Suck it happend that svar(ioff) changed sign each iteration ....
+          if(lastdeltat*deltat.lt.zero) then
+             deltatycond=max(deltatycond-one,one)
+! never increase during one minimization ...
+!          else
+!             deltatycond=2.5D1
+          endif
+          if(abs(svar(ioff)).gt.deltatycond) then
+             if(svar(ioff).gt.zero) then
+                svar(ioff)=deltatycond
+             else
+                svar(ioff)=-deltatycond
+             endif
+             write(*,*)'MM ycondTlimit: ',deltat,svar(ioff)
+             lastdeltat=svar(ioff)
+          endif
        endif
        deltat=svar(ioff)
 ! limit maximum change in deltat
@@ -3029,7 +3056,7 @@ CONTAINS
     double precision, dimension(:), allocatable :: xcol,mamu,mamu1,zcol,qmat
     double precision, allocatable :: xxmm(:),wwnn(:),hval(:)
     logical :: vbug=.FALSE.,calcmolmass,notdone,nosave
-    double precision bbug
+    double precision bbug,dvalue
     character encoded*32,name*32
 ! For saving calculated terms in calc_dgdyterms
     type(saveddgdy), target :: savedrec
@@ -3073,6 +3100,7 @@ CONTAINS
 ! zero all values in equil matrix, dimension (nz1)x(nz1)
     nz2=nz1+1
     smat=zero
+    ycondTlimit=.false.
 ! CCI Bugfixes by Clemnet Introini indicated by CCI    2018.02.20
     evalue=zero
 !    dncol=0
@@ -4852,6 +4880,9 @@ CONTAINS
        mag=zero
        mat=zero
        map=zero
+       dvalue=zero
+! this is executed for each iteration, this value must be set earlier
+!       deltaTycond=2.5d1
        yterms: do mterms=1,nterms
 ! loop for all terms in constion, we may have y_i-y_j =fix
 ! cmix(3,4,5,6) are for first term, cmix(7,8,9,10) for second etc
@@ -4889,7 +4920,7 @@ CONTAINS
 !                   write(*,'(a,i3,3(1pe12.4))')'MM cib 1: ',jy,cib,&
 !                        pmi%invmat(jy,yindex),pmi%dxmol(ie,jy)
                 enddo
-                mamu(ie)=mamu(ie)+cib
+                mamu(ie)=mamu(ie)+ccf(mterms)*cib
 !                write(*,*)'MM mamu: ',ie,mamu(ie),cib
              enddo yallel
              cib=zero
@@ -4900,20 +4931,27 @@ CONTAINS
 !                     pmi%invmat(jy,yindex),pmi%curd%dgval(1,jy,1)
              enddo
 ! WoW it works with correct signs!  Note: y_presc - y_calc!!!
-             mag=mag+cib-ccf(mterms)*pmi%curd%yfr(yindex)
+             dvalue=-ccf(mterms)*pmi%curd%yfr(yindex)
+             mag=mag+ccf(mterms)*(cib-pmi%curd%yfr(yindex))
 !             write(*,373)'MM mag: ',mag,cib,&
 !                  ccf(mterms),-pmi%curd%yfr(yindex),cvalue
              if(meqrec%tpindep(1)) then
+! failed attempt to improve convergence
+!                ycondTlimit=.true.
 ! add coefficient for Delta T
                 cib=zero
                 do jy=1,pmi%ncc
-! + \sum_k e_ik d2G/dTdy_i  \Delta T 
-!                   cib=cib+pmi%invmat(jy,yindex)*pmi%curd%dgval(2,jy,1)
+! + \sum_k e_ik d2G/dTdy_ik \Delta T 
+                   cib=cib+pmi%invmat(jy,yindex)*pmi%curd%dgval(2,jy,1)
+! OR: + \sum_k e_ik d2G/dTdy_i  \Delta T 
 ! I have not tested eithor of these
-                   cib=cib+pmi%invmat(jy,yindex)*pmi%curd%dgval(2,yindex,1)
+!                   cib=cib+pmi%invmat(jy,yindex)*pmi%curd%dgval(2,yindex,1)
                 enddo
-                mat=mat+cib
+! When T is variable with y condition one must restrict change in T !!!
+                mat=mat+ccf(mterms)*cib
              endif
+!             write(*,'(a,i2,6(1pe12.4))')'MM mat: ',mterms,&
+!                  ceq%tpval(1),dvalue+cvalue,ccf(mterms),mat,cib
              if(meqrec%tpindep(2)) then
 ! add coefficient for Delta P
                 cib=zero
@@ -4922,7 +4960,7 @@ CONTAINS
 ! I have not tested this
                    cib=cib+pmi%invmat(jy,yindex)*pmi%curd%dgval(3,jy,1)
                 enddo
-                map=map+cib
+                map=map+ccf(mterms)*cib
              endif
              exit findphase
           enddo findphase
@@ -4931,24 +4969,31 @@ CONTAINS
        enddo yterms
 ! add the prescribed value
        mag=mag+cvalue
+! dvalue is the current value which should become cvalue at equilibrium
+       dvalue=dvalue+cvalue
 !       write(*,373)'MM mamu: ',mat,map,mag,mamu
 !       write(*,*)'MM nrow mm: ',nrow,nz1,nz2
 373    format(a,10(1pe12.4))
 !-------------------
        nrow=nrow+1
-       if(nrow.gt.nz1) stop 'too many equations 13A'
-! now mamu(1..nrel) are the coefficients for \mu; mat/map is coeff for Delta T/P
+       if(nrow.gt.nz1) then
+          write(*,*)'Too many equations 13'
+          gx%bmperr=4209; goto 1000
+       endif
+! now mamu(1..nrel) are the coefficients for \mu; mat&map is coeff for Delta T&P
 ! assuming no activity conditionw ...
        do jj=1,meqrec%nrel
           smat(nrow,jj)=mamu(jj)
        enddo
 ! after exiting loop jj=meqrec%nrel+1
        if(meqrec%tpindep(1)) then
-          smat(nrow,jj)=mat
+! Failed attempt to improve convergence
+!          smat(nrow,jj)=-5.0D0*mat
+          smat(nrow,jj)=-mat
           jj=jj+1
        endif
        if(meqrec%tpindep(2)) then
-          smat(nrow,jj)=mat
+          smat(nrow,jj)=-map
           jj=jj+1
        endif
 ! mag is right hand side including y-y
@@ -4963,7 +5008,7 @@ CONTAINS
     if(.not.associated(condition,lastcond)) goto 350
 !=====================================================================
 380 continue
-! write smat
+! write whole smat
 ! used to find ycond ....
 !    do jj=1,nz1
 !       write(*,390)jj,(smat(jj,jy),jy=1,nz2)
@@ -7501,19 +7546,29 @@ CONTAINS
    integer jv,jt,istv,ieq,nsvfun
    double precision value
 !
-!   write(*,*)'MM: meq_evaluate_svfun all symbols calculated'
+! modified here to handle symbols that can be used as conditions
+!   write(*,*)'MM: --------- start meq_evaluate_svfun',trim(svflista(lrot)%name)
    value=zero
    argval=zero
    nsvfun=nosvf()
    ieq=0
    istv=0
 ! FIRST ALL SYMBOLS ARE EVALUATED HERE
-!   write(*,*)'in meq_evaluate_svfun 1 ',lrot,nsvfun,mode
+!   write(*,*)'in meq_evaluate_svfun 1 ',lrot,mode,svflista(lrot)%narg
 ! locate function
    if(lrot.le.0 .or. lrot.gt.nsvfun) then
       gx%bmperr=4140; goto 1000
    endif
-!   write(*,*)'in meq_evaluate_svfun 2',svflista(lrot)%narg
+! this seems OK
+!   write(*,17)'meq_evaluate_svfun 2',lrot,trim(svflista(lrot)%name),&
+!        svflista(lrot)%narg,&
+!        btest(svflista(lrot)%status,SVFVAL),&
+!        btest(svflista(lrot)%status,SVFEXT),&
+!        btest(svflista(lrot)%status,SVCONST),&
+!        btest(svflista(lrot)%status,SVFTPF),&
+!        btest(svflista(lrot)%status,SVFDOT),&
+!        btest(svflista(lrot)%status,SVNOAM)
+17 format(a,i3,2x,a,i3,6l2)
    if(svflista(lrot)%narg.eq.0) goto 300
 ! get values of arguments
    jv=0
@@ -7543,7 +7598,7 @@ CONTAINS
          call make_stvrec(svr,svflista(lrot)%formal_arguments(1:10,jt))
          if(gx%bmperr.ne.0) goto 1000
          if(svflista(lrot)%formal_arguments(10,jt).eq.0) then
-! get state variable or symbol value
+! get state variable or symbol value ... NOTE writing a TYPE wariable !!!
 !            write(*,*)'In meq_evaluate_svfun 3D: ',svr
             call state_variable_val(svr,value,ceq)
 ! error check at the end of if...
@@ -7570,7 +7625,8 @@ CONTAINS
 !      write(*,'(a,5i5,2l2)')'MM in meq_evaluate_svfun 300: ',lrot,mode,ieq,&
 !           svflista(lrot)%eqnoval,istv,&
 !           btest(svflista(lrot)%status,SVFVAL),&
-!           btest(svflista(lrot)%status,SVFEXT)
+!           btest(svflista(lrot)%status,SVFEXT),&
+!           btest(svflista(lrot)%status,SVCONST)
    modeval: if(mode.eq.0 .and. btest(svflista(lrot)%status,SVFEXT)) then
 ! if mode=0 and SVFEXT=TRUE use value from equilibrium svflista(lrot)%eqnoval
 !      write(*,*)'MM symbol mode=0 SVFEXT=TRUE: ',lrot,ieq,istv,argval(1)
@@ -7583,8 +7639,6 @@ CONTAINS
             gx%bmperr=4141; goto 1000
          endif
 ! why store value in svfunres(-istv) ??? THIS MUST BE WRONG AND UNECESSARY
-! svfunres is dimensioned with lower limit 1
-!         eqlista(ieq)%svfunres(-istv)=value
 ! we should store the value in the function restult for this equilibrium
          ceq%svfunres(lrot)=value
 !         write(*,350)'MM evaluated here: ',ieq,lrot,value
@@ -7595,17 +7649,19 @@ CONTAINS
       endif
    elseif(mode.eq.0 .and. btest(svflista(lrot)%status,SVFVAL)) then
 ! If mode=0 and SVFVAL set then return the stored value
-! do not evaluate, just return the stored value
-!      if(ieq.gt.0) then
-!?         value=eqlista(ieq)%svfunres(-istv)
-!         value=eqlista(ieq)%svfunres(lrot)
-!      else
-         value=ceq%svfunres(lrot)
-!      endif
-!      write(*,*)'MM in meq_evaluate_svfun 19:',lrot,ieq,value
+! do not evaluate, just return the stored value in svfv(lrot) !!!
+! copy to current ceq!!
+         value=svflista(lrot)%svfv
+         ceq%svfunres(lrot)=value
+!         write(*,*)'MM in meq_evaluate_svfun 19:',lrot,ieq,value
 !      write(*,350)'HMS evaluate svfun 2: ',0,lrot,value,svflista(lrot)%svfv
 350   format(a,2i4,4(1pe13.5))
 !      write(*,*)'MM in meq_evaluate_svfun  20: ',lrot,ieq,ceq%eqno,value
+   elseif(btest(svflista(lrot)%status,SVCONST)) then
+! symbol is a constant, just return value
+      value=svflista(lrot)%linkpnode%value
+      ceq%svfunres(lrot)=value
+!      write(*,*)'MM symbol is a constant',lrot,value
    else
 ! if mode=1 always evaluate except if wrong eqilibrium!!
 !      write(*,*)'in meq_evaluate_svfun 5',argval(1)
