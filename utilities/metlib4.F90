@@ -3069,7 +3069,7 @@ CONTAINS
 100 continue
 #ifdef lixed
 ! LINUX: read one character at a time without echo and allow editing history
-    ch1=getkey()
+    ch1=getkex()
 #endif
 110  continue
 !    write(*,*)'got from getkey: ',ichar(ch1)
@@ -3113,9 +3113,9 @@ CONTAINS
 #ifdef lixed
 !............. NEW handle arrow key on Linix/Mac
     case(backspace) ! try to handle arrow keys sequence of 27, 91, A/B/C/D
-       ch1=getkey()
+       ch1=getkex()
        if(ichar(ch1).ne.91) goto 110
-       ch1=getkey()
+       ch1=getkex()
        if(ch1.eq.'A') then
 !          write(*,*)'Arrow up'
           ch1=char(ctrlp)
