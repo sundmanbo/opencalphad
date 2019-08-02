@@ -1574,11 +1574,11 @@ contains
              call find_svfun(name1,istv)
              if(gx%bmperr.ne.0) goto 990
              mode=1
-             actual_arg=' '
+             actual_arg=' ' 
 !             write(*,*)'UI: calculating the requested function!'
              xxx=meq_evaluate_svfun(istv,actual_arg,mode,ceq)
              if(gx%bmperr.ne.0) goto 990
-             write(*,2047)name1(1:len_trim(name1)),xxx
+!             write(*,2047)name1(1:len_trim(name1)),xxx
 2047         format(a,'= ',1pe16.8)
           endif
           if(gx%bmperr.ne.0) goto 990

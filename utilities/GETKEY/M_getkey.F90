@@ -14,11 +14,11 @@ module M_getkey
    implicit none
    public
       interface
-         function getkey() bind(c, name='getkeyC')
+         character function getkex() bind(c, name='getkeyC')
             use iso_c_binding
             implicit none
             character(kind=c_char) :: getkey
-         end function getkey
+          end function getkex
       end interface
 end module M_getkey
 !=======================================================================--------

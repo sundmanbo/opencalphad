@@ -141,7 +141,7 @@ amend phase part comp-set y , ,
 l sh a
 
 @&
-@$ The start point is between the L1_0 and L1_2 phases
+@$ First start point is between the A1 and L1_2 phases on Ni-rich side
 set c t=300 p=1e5 n=1 x(ni)=.9
 
 c e
@@ -164,11 +164,11 @@ map
 plot
 
 
-title map8 fig 1
+title map 8 fig 1
 
 @&
 
-@$ A start point on the Fe-rich side
+@$ Add a start point between L1_0 and L1_2 on the Ni-rich side
 set c x(ni)=.6
 
 c e
@@ -184,12 +184,12 @@ N
 plot
 
 
-title map8 fig 2
+title map 8 fig 2
 
 
 @&
 
-@$ A start point on the Fe-rich side
+@$ Third start point on the Fe-rich side
 set c x(ni)=.4
 
 c e
@@ -208,41 +208,10 @@ plot
 pos
 top left
 
-title map8 fig 3
+title map 8 fig 3
 
 
 @&
-
-set inter
-
-@$========================================================
-@$ Try old mapping algorithm
-
-set bit glo
-?
-21
-Y
-
-set c t=150 x(ni)=.65
-
-c e
-
-l,,,,,
-
-
-@&
-
-map
-Y
-
-
-plot
-
-
-
-@$ Not perfect either.  For most other diagrams this algorithm
-@$ does not work.
-
 
 set inter
 

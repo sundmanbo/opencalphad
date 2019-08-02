@@ -215,7 +215,7 @@ MODULE ocsmp
      TYPE(graphics_textlabel), pointer :: nexttextlabel
      double precision xpos,ypos,textfontscale
      integer angle
-     character*40 textline
+     character*80 textline
   end type graphics_textlabel
 !
 !\end{verbatim}

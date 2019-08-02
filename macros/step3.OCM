@@ -52,7 +52,7 @@ step
 plot
 T
 y(gas,*)
-title step3 fig 1
+title step 3 fig 1
 render
 
 @&
@@ -63,7 +63,7 @@ plot
 
 position bottom left
 
-title step3 fig 2
+title step 3 fig 2
 render
 
 @&
@@ -73,7 +73,7 @@ plot
 T
 0.001*H
 set xax Enthalpy kJ
-title step3 fig 3
+title step 3 fig 3
 render
 
 @&
@@ -84,7 +84,7 @@ ent symb cp=h.t;
 plot
 T
 cp
-title step3 fig 4
+title step 3 fig 4
 render
 
 @&

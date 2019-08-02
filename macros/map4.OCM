@@ -53,7 +53,7 @@ render
 plot
 x(*,o)
 T
-title map4 fig 2
+title map 4 fig 2
 position bottom left
 
 text 0.59 3300
@@ -83,7 +83,7 @@ plot
 text n
 0.8 700 .8 0 y
 
-title map4 fig 2B
+title map 4 fig 2B
 
 
 
@@ -93,7 +93,7 @@ title map4 fig 2B
 plot
 
 
-title map4 fig 3
+title map 4 fig 3
 scale x
 N 
 .58 
@@ -104,7 +104,7 @@ render
 plot
 
 
-title map4 fig 4
+title map 4 fig 4
 scale y
 N
 2500
@@ -162,7 +162,7 @@ scale x
 N
 .64 .68
 scale y n 3100 3150
-
+title map 4 fig 5
 
 
 set interactive

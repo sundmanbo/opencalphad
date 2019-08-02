@@ -2358,7 +2358,7 @@
        plotgt=.false.
     endif
 !
-    write(*,*)'Plot heading 3? ',btest(graphopt%status,GRNOTITLE)
+!    write(*,*)'Plot heading 3? ',btest(graphopt%status,GRNOTITLE)
     if(btest(graphopt%status,GRNOTITLE)) then
        write(21,128)trim(title),trim(conditions)
     else

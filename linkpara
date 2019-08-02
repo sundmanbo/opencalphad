@@ -24,9 +24,10 @@ del tinyfiledialogs.h
 del ftinyopen.F90
 
 REM some utilites and the command line interface
-copy utilities\metlib3.F90 .
-gfortran -c -O2 -Dtinyfd metlib3.F90
-del metlib3.F90
+REM Changed to utiliy package metlib4
+copy utilities\metlib4.F90 .
+gfortran -c -O2 -Dtinyfd metlib4.F90
+del metlib4.F90
 
 REM some routines from LAPACK and BLAS
 copy numlib\oclablas.F90 .
@@ -72,7 +73,7 @@ linkoc
 del liboceq.a
 
 REM generating the library (needed also for TQ library)
-ar sq liboceq.a metlib3.o ocnum.o oclablas.o gtp3.o matsmin.o lmdif1lib.o
+ar sq liboceq.a metlib4.o ocnum.o oclablas.o gtp3.o matsmin.o lmdif1lib.o
 
 REM Finally linking all together
 gfortran -o oc5P -fopenmp -O2 pmain1.F90 pmon6.o smp2.o ftinyopen.o tinyopen.o tinyfiledialogs.o liboceq.a -lcomdlg32 -lole32

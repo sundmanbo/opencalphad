@@ -65,7 +65,7 @@ sep
 plot
 x(cu)
 G(*)
-title step2 fig 1
+title step 2 fig 1
 render
 
 
@@ -77,7 +77,7 @@ render
 plot
 x(cu)
 ac(*)
-title step2 fig 2
+title step 2 fig 2
 render
 
 
@@ -87,7 +87,7 @@ render
 plot
 x(cu)
 Q(*)
-title step2 fig 3
+title step 2 fig 3
 render
 
 

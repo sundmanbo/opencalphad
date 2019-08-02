@@ -39,7 +39,7 @@ MODULE liboceq
 !$  use omp_lib
 !
   implicit none
-  character*8, parameter :: hmsversion='HMS-2.11'
+  character*8, parameter :: hmsversion='HMS-3.0'
 !
 !-------------------------------------------------------
 ! for single equilibrium
@@ -150,18 +150,6 @@ MODULE liboceq
   end TYPE map_fixph
 !\end{verbatim}
 !
-!\begin{verbatim}
-! THIS SHOULD NO LONGER BE USED, DATA SAVED IN PHASE_VARRES RECORD
-  TYPE saveddgdy
-     integer sameit,big(2,5),order(5)
-     double precision, allocatable, dimension(:,:) :: save1
-     double precision, allocatable, dimension(:,:) :: save2
-     double precision, allocatable, dimension(:,:) :: save3
-     double precision, allocatable, dimension(:,:) :: save4
-     double precision, allocatable, dimension(:,:) :: save5
-  end TYPE saveddgdy
-!\end{verbatim}
-!
 ! Added for debugging converge problems
   TYPE meqdebug
      integer mconverged,nvs,typ(10)
@@ -198,6 +186,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine calceq2(mode,ceq)
 !\begin{verbatim}
   subroutine calceq2(mode,ceq)
 ! calculates the equilibrium for the given set of conditions
@@ -265,6 +254,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine calceq3
 !\begin{verbatim} %-
   subroutine calceq3(mode,confirm,ceq)
 ! calculates the equilibrium for the given set of conditions
@@ -331,6 +321,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine calceq7
 !\begin{verbatim}
   subroutine calceq7(mode,meqrec,mapfix,ceq)
 ! calculates the equilibrium for the given set of conditions
@@ -901,6 +892,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine meq_phaseset
 !\begin{verbatim}
   subroutine meq_phaseset(meqrec,formap,mapfix,ceq)
 ! this subroutine can change the set of stable phase and their amounts
@@ -1570,6 +1562,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine meq_sameset
 !\begin{verbatim}
   subroutine meq_sameset(irem,iadd,meqrec,phr,inmap,ceq)
 ! iterate until phase set change, converged or error (incl too many its)
@@ -2832,6 +2825,7 @@ CONTAINS
   
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable setup_comp2cons
 !\begin{verbatim}
   subroutine setup_comp2cons(meqrec,phr,nz1,smat,tval,xknown,converged,ceq)
 ! calculate internal equilibrium in a phase for given overall composition
@@ -3028,6 +3022,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine setup_equilmatrix
 !\begin{verbatim}
   subroutine setup_equilmatrix(meqrec,phr,nz1,smat,tcol,pcol,&
        dncol,converged,ceq)
@@ -3059,8 +3054,8 @@ CONTAINS
     double precision bbug,dvalue
     character encoded*32,name*32
 ! For saving calculated terms in calc_dgdyterms
-    type(saveddgdy), target :: savedrec
-    type(saveddgdy), pointer :: saved
+!    type(saveddgdy), target :: savedrec
+!    type(saveddgdy), pointer :: saved
 !-------------------------------------------------------------------
 ! Formulating the equil equation in general:
 ! Variables (one column per variable):
@@ -3232,8 +3227,8 @@ CONTAINS
 !    nosave=.TRUE.
 ! nosave always FALSE as there are places to save results in phase_varres
     nosave=.FALSE.
-    savedrec%sameit=0
-    saved=>savedrec
+!    savedrec%sameit=0
+!    saved=>savedrec
 350 continue
 ! cmode=0 means calculate and return current value
     cmode=0
@@ -5016,20 +5011,21 @@ CONTAINS
 390 format('#:',i2,6(1pe12.4),6(4x,1pe12.4))
 1000 continue
 ! we must ?? deallocate all data in the savedrec
-    if(allocated(savedrec%save1)) then
+!    if(allocated(savedrec%save1)) then
 !       jj=size(saved%save1)
-       deallocate(savedrec%save1)
+!       deallocate(savedrec%save1)
 !       write(*,*)'MM deallocated saved%save1',jj
-    endif
-    if(allocated(savedrec%save2)) deallocate(savedrec%save2)
-    if(allocated(savedrec%save3)) deallocate(savedrec%save3)
-    if(allocated(savedrec%save4)) deallocate(savedrec%save4)
-    if(allocated(savedrec%save5)) deallocate(savedrec%save5)
+!    endif
+!    if(allocated(savedrec%save2)) deallocate(savedrec%save2)
+!    if(allocated(savedrec%save3)) deallocate(savedrec%save3)
+!    if(allocated(savedrec%save4)) deallocate(savedrec%save4)
+!    if(allocated(savedrec%save5)) deallocate(savedrec%save5)
     return
   end subroutine setup_equilmatrix
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine meq_onephase
 !\begin{verbatim}
   subroutine meq_onephase(meqrec,pmi,ceq)
 ! this subroutine calculates new constituent fractions for a phase iph+ics
@@ -5873,6 +5869,7 @@ CONTAINS
  
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine corriliq_d2gdyidyj
 !\begin{verbatim}
   subroutine corriliq_d2gdyidyj(nkl,knr,curmu,pmi,ncc,nd1,pmat,ceq)
 ! correction of d2G/dy1dy2 for ionic liquid because the formula unit is
@@ -6062,7 +6059,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-! subroutine
+!\addtotable logical function same_composition
 !\begin{verbatim}
   logical function same_composition(jj,phr,meqrec,ceq,dgm)
 ! returns .TRUE. if phase phr(jj) has almost exactly the same composition
@@ -6162,6 +6159,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine calc_dgdyterms1A
 !\begin{verbatim}
   subroutine calc_dgdyterms1A(nrel,ia,tpindep,mamu,mag,mat,map,pmi,&
        curmux,noofits)
@@ -6251,6 +6249,7 @@ CONTAINS
   
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine calc_dgdyterms1B
 !\begin{verbatim}
   subroutine calc_dgdyterms1B(nrel,ia,tpindep,mamu,mag,mat,map,pmi,&
        curmux,noofits)
@@ -6373,6 +6372,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine calc_dgdyterms1
 !\begin{verbatim}
   subroutine calc_dgdyterms1(nrel,ia,tpindep,mamu,mag,mat,map,pmi,&
        curmux,noofits)
@@ -6559,6 +6559,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine calc_dgdyterms1X
 !\begin{verbatim}
   subroutine calc_dgdyterms1X(nrel,ia,tpindep,mamu,mag,mat,map,pmi,noofits)
 ! THIS SUBROUTINE using allocatable arrays in phase_varres!!
@@ -6699,285 +6700,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{verbatim}
-  subroutine calc_dgdyterms1P(nrel,ia,tpindep,mamu,mag,mat,map,pmi,&
-       saved,noofits)
-! any change must also be made in subroutine calc_dyterms2 and calc_dgdytermsh
-! calculate the terms in the deltay expression for amounts of component ia
-!
-! adapted to parallel calculations
-!
-! DM_A = \sum_B mu_B*MAMU(B) - MAG - MAT*dt - MAP*dp
-!
-! where MAMU=\sum_i dM_A/dy_i*\sum_j invmat(i,j)*dM_B/dy_j
-!       c_iB=\sum_j invmat(i,j)*dM_B/dy_j etc etc
-!
-! it may not be very efficient but first get it right ....
-! tpindep(1) is TRUE if T variable, tpindep(2) is TRUE if P are variable
-!
-    implicit none
-    integer ia,nrel,noofits
-    logical tpindep(2)
-    double precision, dimension(*) :: mamu
-    double precision mag,mat,map
-    type(saveddgdy), pointer :: saved
-! pmi is the phase data record for this phase
-    type(meq_phase), pointer :: pmi
-!\end{verbatim} %+
-! THIS IS THE ONE CURRENTLY USED IN THE MINIMIZATIONS
-! these are to be multiplied with mu(ib), nothing, deltaT, deltaP
-    integer iy,jy,ib,nocon,jj
-! initial values for saved results
-!    integer :: sameit=0,big1p=0,big2p=0,big1n=0,big2n=0
-    double precision cig,cit,cip,haha
-    double precision morr
-    double precision, allocatable, dimension(:) :: zib
-    double precision, allocatable, dimension(:,:) :: maybesave
-!    double precision, allocatable, dimension(:,:) ::  save1
-!    double precision, allocatable, dimension(:,:) ::  save2
-!    save sameit,big1p,big1n,big2p,big2n
-!    save save1,save2
-    logical big,alreadysaved
-!
-!-----------
-! \sum_i \sum_j e_ij*dM_A/dy_i dG/dy_j
-!    goto 100
-!
-!    write(*,*)'Enter calc_dgdyterms1P: ',noofits
-    alreadysaved=.false.
-    if(noofits.ne.saved%sameit) then
-! do not save when calculating dot derivatives, can cause segmentation fault ..
-       if(noofits.lt.0) goto 100
-! new iteration, discard saved values
-       saved%big=0
-       saved%order=0
-       saved%sameit=noofits
-       goto 100
-    endif
-! skip for small system ... segmentation fault when using -O2
-    if(nrel.le.3) goto 100
-!    write(*,*)'MM calc_dgdy: ',noofits,pmi%iph
-! use save values for the phases with many constituents
-!                if(test_phase_status_bit(phasetuple(phr(jj)%iph)%ixphase,&
-! We can have saved up to 5 sets
-    do jj=1,5
-       if(10*pmi%iph+pmi%ics.eq.saved%big(1,jj)) then
-!          write(*,13)'MM using saved values 1:',noofits,jj,saved%big(1,jj),&
-!               saved%big(2,jj),pmi%iph,pmi%ics
-!13        format(a,2i5,5x,2i5,5x,3i5)
-          alreadysaved=.true.
-          mag=zero
-          mat=zero
-          map=zero
-          do ib=1,nrel
-             mamu(ib)=zero
-          enddo
-          do iy=1,saved%big(2,jj)
-             morr=pmi%dxmol(ia,iy)
-!             write(*,17)'MM loop for iy=',iy,ia,ib,nrel,&
-!                  size(saved%save1),size(saved%save2),size(saved%save3),&
-!                  size(saved%save4),size(saved%save5)
-!17           format(a,3i3,2x,i3,2x,5i3,2x,5i3)
-             do ib=1,nrel
-! Clumsy but I have to allocate savej differently for each phase ...
-                if(jj.eq.1) then
-                   mamu(ib)=mamu(ib)+saved%save1(ib,iy)*morr
-                elseif(jj.eq.2) then
-                   mamu(ib)=mamu(ib)+saved%save2(ib,iy)*morr
-                elseif(jj.eq.3) then
-                   mamu(ib)=mamu(ib)+saved%save3(ib,iy)*morr
-                elseif(jj.eq.4) then
-                   mamu(ib)=mamu(ib)+saved%save4(ib,iy)*morr
-                elseif(jj.eq.5) then
-                   mamu(ib)=mamu(ib)+saved%save5(ib,iy)*morr
-                endif
-             enddo
-!             write(*,*)'MM add derivative wrt T and P',jj
-             if(jj.eq.1) then
-                mag=mag+saved%save1(nrel+1,iy)*morr
-                if(tpindep(1)) mat=mat+saved%save1(nrel+2,iy)*morr
-                if(tpindep(2)) map=map+saved%save1(nrel+3,iy)*morr
-             elseif(jj.eq.2) then
-                mag=mag+saved%save2(nrel+1,iy)*morr
-                if(tpindep(1)) mat=mat+saved%save2(nrel+2,iy)*morr
-                if(tpindep(2)) map=map+saved%save2(nrel+3,iy)*morr
-             elseif(jj.eq.3) then
-                mag=mag+saved%save3(nrel+1,iy)*morr
-                if(tpindep(1)) mat=mat+saved%save3(nrel+2,iy)*morr
-                if(tpindep(2)) map=map+saved%save3(nrel+3,iy)*morr
-             elseif(jj.eq.4) then
-                mag=mag+saved%save4(nrel+1,iy)*morr
-                if(tpindep(1)) mat=mat+saved%save4(nrel+2,iy)*morr
-                if(tpindep(2)) map=map+saved%save4(nrel+3,iy)*morr
-             elseif(jj.eq.5) then
-                mag=mag+saved%save5(nrel+1,iy)*morr
-                if(tpindep(1)) mat=mat+saved%save5(nrel+2,iy)*morr
-                if(tpindep(2)) map=map+saved%save5(nrel+3,iy)*morr
-             endif
-          enddo
-!          write(*,*)'MM exit calc_dgdyterms1P'
-          goto 1000
-       endif
-    enddo
-!    write(*,*)'MM calculate as usual'
-!------------------------------------ calculate as usual
-100 continue
-!----------------------------------
-    mag=zero
-    mat=zero
-    map=zero
-!    if(tpindep(2)) then
-!       write(*,99)'MM d2G/dPdy: ',(pmi%curd%dgval(3,jy,1),jy=1,pmi%ncc)
-!99     format(a,6(1pe11.3))
-!    endif
-! noofits=1 means phase is ideal, use only diagonal
-    nocon=pmi%ncc
-! previously the if(allocated(zib) ... was commented away but then 
-! I had a jump due to uninital variable at the line
-!       if(saved%order(jj).eq.0) then
-! below when calculating the dotderivative H.T because i had not set
-! any values in saved%order .... above as noofits=-1 ... cpmplicated ... suck
-    if(allocated(zib)) deallocate(zib)
-    allocate(zib(nrel))
-!    if(nocon.gt.nrel) then
-    if(nocon.ge.nrel) then
-! do not save array for phases with fewer constituents than elements
-       big=.TRUE.
-       if(allocated(maybesave)) deallocate(maybesave)
-       allocate(maybesave(nrel+3,nocon))
-    else
-       big=.FALSE.
-    endif
-    do ib=1,nrel
-       mamu(ib)=zero
-    enddo
-    do iy=1,nocon
-       zib=zero
-       cig=zero; cit=zero; cip=zero
-       do jy=1,nocon
-          haha=pmi%invmat(jy,iy)
-          do ib=1,nrel
-             zib(ib)=zib(ib)+haha*pmi%dxmol(ib,jy)
-          enddo
-          cig=cig+haha*pmi%curd%dgval(1,jy,1)
-! always calculate cit because cp debug ?? dgval(2,jy,1) is d2G/dTdy_j
-          if(tpindep(1)) cit=cit+haha*pmi%curd%dgval(2,jy,1)
-          if(tpindep(2)) cip=cip+haha*pmi%curd%dgval(3,jy,1)
-       enddo
-       morr=pmi%dxmol(ia,iy)
-       do ib=1,nrel
-          mamu(ib)=mamu(ib)+zib(ib)*morr
-          if(big) maybesave(ib,iy)=zib(ib)
-       enddo
-       mag=mag+morr*cig
-       if(tpindep(1)) mat=mat+morr*cit
-       if(tpindep(2)) map=map+morr*cip
-       if(big) then
-          maybesave(nrel+1,iy)=cig
-          maybesave(nrel+2,iy)=cit
-          maybesave(nrel+3,iy)=cip
-       endif
-    enddo
-    if(noofits.lt.0) then
-!      write(*,*)'Do not save in dgdyterms1P',noofits
-       goto 1000
-    endif
-!    goto 1000
-!
-! To speed up calculations we save same values
-! what must be saved is what should be multiplied with pmi%dxmol(ia,iy)
-!    write(*,13)'Calculated dgdy: ',nocon,nrel,10*pmi%iph+pmi%ics
-!    write(*,14)'Order: ',big,saved%order
-!14  format(a,l2,5i4)
-!    if(nocon.le.nrel) goto 1000
-!    if(nocon.le.10) goto 1000
-    if(alreadysaved) goto 1000
-    if(.not.big) goto 1000
-! somewhat clumy way to save phases with most constuent ... but why not
-    free: do jj=1,5
-       if(saved%order(jj).eq.0) then
-! segmentation fault created due to not using all  saved%savej
-          if(jj.lt.5) saved%order(jj+1)=0
-          exit free
-       endif
-       if(nocon.gt.saved%order(jj)) exit free
-    enddo free
-! new Fortran standard when exiting loop jj>5 unless exit condition in if
-! if jj>5 this phase has less constituents than all saved, if not save in savej
-    if(jj.le.5) then
-! save all data for this phase with a large number of constituents
-       saved%big(1,jj)=10*pmi%iph+pmi%ics
-       saved%big(2,jj)=nocon
-       saved%order(jj)=nocon
-!       write(*,13)'Saving dgdy: ',saved%big(1,jj),saved%big(2,jj)
-! Clumsy but I do not think one can allocate different sizes of savej
-       if(jj.eq.1) then
-          if(allocated(saved%save1)) deallocate(saved%save1)
-          allocate(saved%save1(nrel+3,nocon))
-          do iy=1,nocon
-             do ib=1,nrel+3
-                saved%save1(ib,iy)=maybesave(ib,iy)
-             enddo
-          enddo
-       elseif(jj.eq.2) then
-          if(allocated(saved%save2)) deallocate(saved%save2)
-          allocate(saved%save2(nrel+3,nocon))
-          do iy=1,nocon
-             do ib=1,nrel+3
-                saved%save2(ib,iy)=maybesave(ib,iy)
-             enddo
-          enddo
-       elseif(jj.eq.3) then
-          if(allocated(saved%save3)) deallocate(saved%save3)
-          allocate(saved%save3(nrel+3,nocon))
-          do iy=1,nocon
-             do ib=1,nrel+3
-                saved%save3(ib,iy)=maybesave(ib,iy)
-             enddo
-          enddo
-       elseif(jj.eq.4) then
-          if(allocated(saved%save4)) deallocate(saved%save4)
-          allocate(saved%save4(nrel+3,nocon))
-          do iy=1,nocon
-             do ib=1,nrel+3
-                saved%save4(ib,iy)=maybesave(ib,iy)
-             enddo
-          enddo
-       elseif(jj.eq.5) then
-          if(allocated(saved%save5)) deallocate(saved%save5)
-          allocate(saved%save5(nrel+3,nocon))
-          do iy=1,nocon
-             do ib=1,nrel+3
-                saved%save5(ib,iy)=maybesave(ib,iy)
-             enddo
-          enddo
-       endif
-!       write(*,16)'MM order: ',noofits,saved%big(1,jj),nocon,saved%order
-16     format(a,3i5,5x,5i5)
-       goto 1000
-    endif
-!    elseif(nocon.gt.saved%big2(2)) then
-! save all data for this phases with a large number of constituents
-!       saved%big2(1)=10*pmi%iph+pmi%ics
-!       saved%big2(2)=nocon
-!       if(allocated(saved%save2)) deallocate(saved%save2)
-!       allocate(saved%save2(nrel+3,nocon))
-!       do iy=1,nocon
-!          do ib=1,nrel+3
-!             saved%save2(ib,iy)=maybesave(ib,iy)
-!          enddo
-!       enddo
-!       write(*,*)'Saved 2 values for ',noofits,big2p,big2n
-!    else
-!       write(*,*)'dgdy not saved: ',noofits,10*pmi%iph+pmi%ics,nocon
-!    endif
-1000 continue
-!    write(*,*)'Exit calc_dgdyterms1P'
-    return
-  end subroutine calc_dgdyterms1P
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
+!\addtotable subroutine calc_dgdyterms2
 !\begin{verbatim} %-
   subroutine calc_dgdyterms2(iy,nrel,mamu,mag,mat,map,pmi)
 ! it should be similar to calc_dgdyterms1
@@ -7019,6 +6742,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine calc_dgdytermsh
 !\begin{verbatim} %-
   subroutine calc_dgdytermsh(nrel,ia,tpindep,hval,mamu,mag,mat,map,pmi,&
        curmux,noofits)
@@ -7133,6 +6857,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine calc_dgdytermshm
 !\begin{verbatim} %-
   subroutine calc_dgdytermshm(nrel,ia,tpindep,hval,mamu,mag,mat,map,&
        mamu1,mag1,mat1,map1,pmi,curmux,noofits)
@@ -7242,188 +6967,9 @@ CONTAINS
     return
   end subroutine calc_dgdytermshm
 
-!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
-
-!\begin{verbatim}
- subroutine meq_list_experiments(lut,ceq)
-! list all experiments into text, special to handle derivatives ...
-   implicit none
-   integer lut
-   TYPE(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim} %+
-   integer seqz,ip
-   character text*72
-   seqz=0
-100 continue
-      seqz=seqz+1
-      ip=1
-      text=' '
-      call meq_get_one_experiment(ip,text,seqz,ceq)
-!      write(*,*)'MM Back from get_one'
-      if(gx%bmperr.ne.0) then
-! error code for no more experiments or inactive experiment
-!         write(*,*)'MM error line 3117: ',gx%bmperr,seqz,text(1:ip)
-! speciel error code meaning experiment is not active
-         if(gx%bmperr.eq.7654) then
-            gx%bmperr=0; goto 100
-         endif
-         gx%bmperr=0; goto 1000
-      else
-         write(lut,120)seqz,text(1:ip)
-120      format('Experiment ',i2,2x,a)
-      endif
-      goto 100
-!------------
-1000 continue
-   gx%bmperr=0
-   return
- end subroutine meq_list_experiments
-
-!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
-
-!\begin{verbatim} %-
- subroutine meq_get_one_experiment(ip,text,seqz,ceq)
-! list the experiment with the index seqz into text
-! It lists also experiments that are not active ??
-! UNFINISHED current value should be appended
-   implicit none
-   integer ip,seqz
-   character text*(*)
-   TYPE(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim}
-   integer iterm,symsym
-   TYPE(gtp_condition), pointer :: last,current
-   type(gtp_state_variable), pointer :: svrrec
-   double precision xxx
-   character actual_arg*16
-!
-   if(ip.le.0) ip=1
-   text(ip:)=' '
-   if(.not.associated(ceq%lastexperiment)) then
-      write(*,*)'MM No experiments'
-      gx%bmperr=4249; goto 1000
-   endif
-   last=>ceq%lastexperiment
-   current=>last
-!   write(*,*)'MM index of last experiment: ',current%seqz
-70 continue
-!   write(*,*)'MM experiment number: ',seqz,current%seqz
-   if(current%seqz.eq.seqz) goto 100
-   current=>current%next
-   if(.not.associated(current,last)) goto 70
-! no experiment with this index found or it is inactivated
-   gx%bmperr=4131; goto 1000
-!
-100 continue
-   if(current%active.eq.1) then
-!      write(*,*)'MM Experiment not active '
-      gx%bmperr=4218; goto 1000
-   endif
-   iterm=1
-150 continue
-!   write(*,*)'MM Testing is symbol or state variable record',&
-!        allocated(current%statvar)
-   nostv: if(.not.allocated(current%statvar)) then
-! an experiment is a symbol!!! Then statvar is not allocated
-      symsym=current%statev
-!      write(*,*)'MM A symbol, not a state variable for this experiment',symsym
-! we must evaluate all state variable functions!!
-      call meq_evaluate_all_svfun(-1,ceq)
-! get the symbol name
-      text=svflista(symsym)%name
-      ip=len_trim(text)+1
-!      text(ip-1:ip-1)='='
-!      write(*,*)'MM experiment: ',text(1:ip),ip
-   else
-!      write(*,*)'MM This experiment has a state variable record',&
-!           allocated(current%statvar),allocated(current%indices),iterm
-      symsym=0
-      svrrec=>current%statvar(1)
-      call encode_state_variable(text,ip,svrrec,ceq)
-      if(iterm.lt.current%noofterms) then
-         iterm=iterm+1; goto 150
-      endif
-   endif nostv
-!   write(*,*)'MM ok here',symsym
-   if(current%experimenttype.eq.0 .or. current%experimenttype.eq.100) then
-! write = followed by the value 
-!      if(text(ip:ip).ne.' ') ip=ip+1
-      text(ip:)='='
-      ip=ip+1
-   elseif(current%experimenttype.eq.-1) then
-!      if(text(ip:ip).ne.' ') ip=ip+1
-      text(ip:)='<'
-      ip=ip+1
-   elseif(current%experimenttype.eq.1) then
-!      if(text(ip:ip).ne.' ') ip=ip+1
-      text(ip:)='>'
-      ip=ip+1
-   endif
-!   write(*,*)'MM experiment line 2: ',text(1:ip),ip
-   if(current%symlink1.gt.0) then
-! the value is a symbol
-      text(ip:)=svflista(current%symlink1)%name
-      ip=len_trim(text)+1
-   else
-!      call wrinum(text,ip,10,0,current%prescribed)
-      call wrinum(text,ip,8,0,current%prescribed)
-   endif
-! uncertainty can also be a symbol
-   text(ip:ip)=':'
-   ip=ip+1
-!   write(*,*)'MM experiment line 3: ',text(1:ip),ip,current%symlink2
-   if(current%symlink2.gt.0) then
-! the value is a symbol
-      text(ip:)=svflista(current%symlink2)%name
-      ip=len_trim(text)+1
-   else
-!      call wrinum(text,ip,10,0,current%uncertainty)
-      call wrinum(text,ip,8,0,current%uncertainty)
-   endif
-!   write(*,*)'MM ok here 2',symsym,text(1:ip)
-!   write(*,*)'MM experiment line 2: ',text(1:ip),ip
-   if(current%experimenttype.eq.100) then
-      text(ip:ip)='%'
-      ip=ip+1
-   endif
-!   write(*,*)'MM ok here 3',symsym
-! add the current value of the experiment after a $ sign
-! TROUBLE GETTING WRONG VALUE HERE WHEN USER DEFINED REFERENCE STATES
-   if(symsym.eq.0) then
-      call state_variable_val(svrrec,xxx,ceq)
-   else
-!      write(*,*)'MM ok here 4',symsym
-      actual_arg=' '
-      xxx=evaluate_svfun_old(symsym,actual_arg,1,ceq)
-   endif
-   if(gx%bmperr.ne.0) then
-! it is maybe a derivative ... 
-!      write(*,*)'MM we cannot evaluate a derivative here ...',gx%bmperr
-! but meq_evaluate_svfun not available here ... it is part of the minimizer
-      gx%bmperr=0
-      xxx=meq_evaluate_svfun(symsym,actual_arg,0,ceq)
-   endif
-   if(gx%bmperr.ne.0) then
-      write(*,*)'MM Error evaluating symbol: ',gx%bmperr
-      text(ip:)=' $ ?? '
-      ip=ip+5
-      gx%bmperr=0
-   else
-!      write(*,*)'MM experimental state variable value: ',ip,xxx
-      text(ip:)=' $'
-      ip=ip+3
-!      call wrinum(text,ip,12,0,xxx)
-      call wrinum(text,ip,8,0,xxx)
-!      write(*,*)'MM experiment line 3: ',text(1:ip),ip
-   endif
-!   write(*,*)'MM ok here 5'
-1000 continue
-!   write(*,*)'MM experiment line 4: ',text(1:ip),ip,gx%bmperr
-   return
- end subroutine meq_get_one_experiment
-
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine meq_evaluate_all_svfun
 !\begin{verbatim}
  subroutine meq_evaluate_all_svfun(kou,ceq)
 ! evaluate (and list if kou>0) the values of all state variable functions
@@ -7482,6 +7028,7 @@ CONTAINS
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
+!\addtotable subroutine meq_get_state_varorfun_value
 !\begin{verbatim}
  subroutine meq_get_state_varorfun_value(statevar,value,dummy,ceq)
 ! used in OCPLOT to extact value of state variable of symbol
@@ -7526,7 +7073,7 @@ CONTAINS
 
 !/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
 
-! subroutine
+!\addtotable double precision function meq_evaluate_svfun
 !\begin{verbatim}
  double precision function meq_evaluate_svfun(lrot,actual_arg,mode,ceq)
 ! evaluates all funtions as they may depend on each other
@@ -7709,6 +7256,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine initiate_meqrec
 !\begin{verbatim}
   subroutine initiate_meqrec(svr,svar,meqrec,ceq)
 ! this is to setup data for a state var derivative calculation
@@ -7946,9 +7494,9 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine meq_state_var_dot_derivative
 !\begin{verbatim}
   subroutine meq_state_var_dot_derivative(svr1,svr2,value,ceq)
-!  subroutine meq_state_var_value_derivative(svr1,svr2,value,ceq)
 ! calculates a state variable value, dot derivative, (in some cases)
 ! svr1 and svr2 identifies the state variables in (dstv1/dstv2)
 ! check that svr2 2 is a condition
@@ -8149,6 +7697,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
     
+!\addtotable subroutine meq_calc_phase_derivative
 !\begin{verbatim}
   subroutine meq_calc_phase_derivative(svr1,svr2,meqrec,iph,iel,&
        svar,jj,value,ceq)
@@ -8400,15 +7949,16 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!-\begin{verbatim}
+!\addtotable subroutine meq_slope
+!\begin{verbatim}
   subroutine meq_slope(mph,svr,meqrec,value,ceq)
-! Test subroutine for x(phase,A).T
+! Test subroutine for x(phase,A).T   UNFINISHED
     TYPE(meq_setup) :: meqrec
     TYPE(gtp_equilibrium_data), pointer :: ceq
     TYPE(gtp_state_variable) :: svr
     double precision value
     integer mph
-!-\end{verbatim}
+!\end{verbatim}
 !    TYPE(meq_phase), pointer :: pmi
     integer nsl,nkl(10),knr(maxconst)
     double precision yarr(maxconst),sites(10),qq(5)
@@ -8423,6 +7973,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine assessment_calfun
 !\begin{verbatim}
   subroutine assessment_calfun(nexp,nvcoeff,errs,xyz)
 ! nexp is number of experiments, nvcoeff number of coefficients
@@ -8648,8 +8199,194 @@ CONTAINS
     return
   end subroutine assessment_calfun
 
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\addtotable subroutine meq_list_experiments
+!\begin{verbatim}
+ subroutine meq_list_experiments(lut,ceq)
+! list all experiments into text, special to handle derivatives ...
+   implicit none
+   integer lut
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim} %+
+   integer seqz,ip
+   character text*72
+   seqz=0
+100 continue
+      seqz=seqz+1
+      ip=1
+      text=' '
+      call meq_get_one_experiment(ip,text,seqz,ceq)
+!      write(*,*)'MM Back from get_one'
+      if(gx%bmperr.ne.0) then
+! error code for no more experiments or inactive experiment
+!         write(*,*)'MM error line 3117: ',gx%bmperr,seqz,text(1:ip)
+! speciel error code meaning experiment is not active
+         if(gx%bmperr.eq.7654) then
+            gx%bmperr=0; goto 100
+         endif
+         gx%bmperr=0; goto 1000
+      else
+         write(lut,120)seqz,text(1:ip)
+120      format('Experiment ',i2,2x,a)
+      endif
+      goto 100
+!------------
+1000 continue
+   gx%bmperr=0
+   return
+ end subroutine meq_list_experiments
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\addtotable subroutine meq_get_one_experiment
+!\begin{verbatim} %-
+ subroutine meq_get_one_experiment(ip,text,seqz,ceq)
+! list the experiment with the index seqz into text
+! It lists also experiments that are not active ??
+! UNFINISHED current value should be appended
+   implicit none
+   integer ip,seqz
+   character text*(*)
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim} %+
+   integer iterm,symsym,mode
+   TYPE(gtp_condition), pointer :: last,current
+   type(gtp_state_variable), pointer :: svrrec
+   double precision xxx
+   character actual_arg*16
+!
+   if(ip.le.0) ip=1
+   text(ip:)=' '
+   if(.not.associated(ceq%lastexperiment)) then
+      write(*,*)'MM No experiments'
+      gx%bmperr=4249; goto 1000
+   endif
+   last=>ceq%lastexperiment
+   current=>last
+!   write(*,*)'MM index of last experiment: ',current%seqz
+70 continue
+!   write(*,*)'MM experiment number: ',seqz,current%seqz
+   if(current%seqz.eq.seqz) goto 100
+   current=>current%next
+   if(.not.associated(current,last)) goto 70
+! no experiment with this index found or it is inactivated
+   gx%bmperr=4131; goto 1000
+!
+100 continue
+   if(current%active.eq.1) then
+!      write(*,*)'MM Experiment not active '
+      gx%bmperr=4218; goto 1000
+   endif
+   iterm=1
+150 continue
+!   write(*,*)'MM Testing is symbol or state variable record',&
+!        allocated(current%statvar)
+   nostv: if(.not.allocated(current%statvar)) then
+! an experiment is a symbol!!! Then statvar is not allocated
+      symsym=current%statev
+!      write(*,*)'MM A symbol, not a state variable for this experiment',symsym
+! we must evaluate all state variable functions!!
+      call meq_evaluate_all_svfun(-1,ceq)
+! get the symbol name
+      text=svflista(symsym)%name
+      ip=len_trim(text)+1
+!      text(ip-1:ip-1)='='
+!      write(*,*)'MM experiment: ',text(1:ip),ip
+   else
+!      write(*,*)'MM This experiment has a state variable record',&
+!           allocated(current%statvar),allocated(current%indices),iterm
+      symsym=0
+      svrrec=>current%statvar(1)
+      call encode_state_variable(text,ip,svrrec,ceq)
+      if(iterm.lt.current%noofterms) then
+         iterm=iterm+1; goto 150
+      endif
+   endif nostv
+!   write(*,*)'MM ok here',symsym
+   if(current%experimenttype.eq.0 .or. current%experimenttype.eq.100) then
+! write = followed by the value 
+!      if(text(ip:ip).ne.' ') ip=ip+1
+      text(ip:)='='
+      ip=ip+1
+   elseif(current%experimenttype.eq.-1) then
+!      if(text(ip:ip).ne.' ') ip=ip+1
+      text(ip:)='<'
+      ip=ip+1
+   elseif(current%experimenttype.eq.1) then
+!      if(text(ip:ip).ne.' ') ip=ip+1
+      text(ip:)='>'
+      ip=ip+1
+   endif
+!   write(*,*)'MM experiment line 2: ',text(1:ip),ip
+   if(current%symlink1.gt.0) then
+! the value is a symbol
+      text(ip:)=svflista(current%symlink1)%name
+      ip=len_trim(text)+1
+   else
+!      call wrinum(text,ip,10,0,current%prescribed)
+      call wrinum(text,ip,8,0,current%prescribed)
+   endif
+! uncertainty can also be a symbol
+   text(ip:ip)=':'
+   ip=ip+1
+!   write(*,*)'MM experiment line 3: ',text(1:ip),ip,current%symlink2
+   if(current%symlink2.gt.0) then
+! the value is a symbol
+      text(ip:)=svflista(current%symlink2)%name
+      ip=len_trim(text)+1
+   else
+!      call wrinum(text,ip,10,0,current%uncertainty)
+      call wrinum(text,ip,8,0,current%uncertainty)
+   endif
+!   write(*,*)'MM ok here 2',symsym,text(1:ip)
+!   write(*,*)'MM experiment line 2: ',text(1:ip),ip
+   if(current%experimenttype.eq.100) then
+      text(ip:ip)='%'
+      ip=ip+1
+   endif
+!   write(*,*)'MM ok here 3',symsym
+! add the current value of the experiment after a $ sign
+! TROUBLE GETTING WRONG VALUE HERE WHEN USER DEFINED REFERENCE STATES
+   if(symsym.eq.0) then
+      call state_variable_val(svrrec,xxx,ceq)
+   else
+!      write(*,*)'MM ok here 4',symsym
+      actual_arg=' '
+      xxx=evaluate_svfun_old(symsym,actual_arg,1,ceq)
+   endif
+   if(gx%bmperr.ne.0) then
+! it is maybe a derivative ... 
+!      write(*,*)'MM we cannot evaluate a derivative here ...',gx%bmperr
+! but meq_evaluate_svfun not available here ... it is part of the minimizer
+      gx%bmperr=0
+      actual_arg=' '
+      mode=1
+      xxx=meq_evaluate_svfun(symsym,actual_arg,mode,ceq)
+!      write(*,*)'MM meq_evaluate_svfun, mode=1: ',xxx
+   endif
+   if(gx%bmperr.ne.0) then
+      write(*,*)'MM Error evaluating symbol: ',gx%bmperr
+      text(ip:)=' $ ?? '
+      ip=ip+5
+      gx%bmperr=0
+   else
+!      write(*,*)'MM experimental state variable value: ',ip,xxx
+      text(ip:)=' $'
+      ip=ip+3
+!      call wrinum(text,ip,12,0,xxx)
+      call wrinum(text,ip,8,0,xxx)
+!      write(*,*)'MM experiment line 3: ',text(1:ip),ip
+   endif
+!   write(*,*)'MM ok here 5'
+1000 continue
+!   write(*,*)'MM experiment line 4: ',text(1:ip),ip,gx%bmperr
+   return
+ end subroutine meq_get_one_experiment
+
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine list_equilibrium_extra
 !\begin{verbatim}
  subroutine list_equilibrium_extra(lut,ceq,pun)
 ! list the extra character variables for calculate symboles and
@@ -8867,6 +8604,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine equilph1a
 !\begin{verbatim}
   subroutine equilph1a(phtup,tpval,ceq)
 ! equilibrates the constituent fractions of a phase using its corrent comp.
@@ -8910,6 +8648,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine equilph1b
 !\begin{verbatim} %-
   subroutine equilph1b(phtup,tpval,xknown,gval,cpot,tyst,ceq)
 ! equilibrates the constituent fractions of a phase for mole fractions xknown
@@ -8954,6 +8693,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine equilph1c
 !\begin{verbatim}
   subroutine equilph1c(meqrec,phr,tpval,xknown,ovar,ceq)
 ! iterate constituent fractions of a phase for mole fractions xknown
@@ -9128,6 +8868,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine equilph1d
 !\begin{verbatim}
   subroutine equilph1d(phtup,tpval,xknown,cpot,tyst,nend,mugrad,mobval,ceq)
 ! equilibrates the constituent fractions of a phase for mole fractions xknown
@@ -9171,6 +8912,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine equilph1e
 !\begin{verbatim} %-
   subroutine equilph1e(meqrec,phr,tpval,xknown,ovar,tyst,&
        noofend,mugrad,mobval,ceq)
@@ -9667,6 +9409,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine equilph1_meqrec
 !\begin{verbatim}
   subroutine equilph1_meqrec(phtup,meqrec,tyst,ceq)
 !  subroutine equilph1b(phtup,tpval,xknown,cpot,tyst,ceq)
@@ -9734,13 +9477,14 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine set_hickel_check
 !\begin{verbatim}
   subroutine set_hickel_check(tval)
 ! This set values for EET check, called from user i/f or application software
 ! ceq is a datastructure with all relevant thermodynamic data
     implicit none
     double precision tval
-!\end{verbatim}
+!\end{verbatim} %+
     if(tval.gt.1.0D1) then
        globaldata%sysreal(1)=tval
     else
@@ -9751,6 +9495,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine hickel_check
 !\begin{verbatim}
   subroutine hickel_check(pmisol,pmiliq,ceq)
 ! This checks EET after calculating all phases if the solid phase has S > S^liq

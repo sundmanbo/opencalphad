@@ -13,6 +13,31 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2019.08.03 OC version 5.046: In this release there is a new metlib
+utility package called metlib4.F90.  Please check that all thiings you
+need is still working!  I have modified the Makefile and
+linkpara/linkmake but there can be things you added which does not work.
+
+I am trying to clean up a lot of things in the code when I am
+documenting it and one headache has been the metlib package which is
+basically written in F77 and just polished up a little to fit in the
+new Fortran standard as a modeule.  Several strange problems pop up
+when I tried to remove old code like having to rename the "getkey"
+routine (used on Linux to allow command line editing by providing
+handle character by character input).  This routine calls a C routine
+written by John S. Urban in 2009 together with an iso-C interface.  I
+have not touched that routine but with the modifications have made in
+metlib to be more like new Fortran the Makefile on Linux refuses to
+find this routine.  Not until I got the idea to rename the routine to
+getkex (and declare it as a character function in the interface) I
+could link the "getkex" routine with the rest of OC.  On Windows I had
+no problems as it is not used, Windows provides command line editing
+by default.  In metlib4 I have got rid of all ENTRY statements which
+are depreciated but I may have introduced new (and old) errors.
+
+I also discovered a bug I introduced in the previous release, it is
+now fixed.
+
 2019.07.31 OC version 5.045: The possibility to set a condition on a
 fraction has been extended to allow axpressions which is necessary to
 calculate a 2nd order transition when the fractions of the same

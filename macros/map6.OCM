@@ -63,7 +63,7 @@ render
 plot
 
 
-title map6 fig 2
+title map 6 fig 2
 text 
 0.1 2000
 .9
@@ -88,7 +88,7 @@ text n
 plot
 
 
-title map6 fig 3
+title map 6 fig 3
 scale y
 n
 1700
@@ -99,7 +99,7 @@ n
 plot
 
 
-title map6 fig4
+title map 6 fig4
 scale y
 n
 1150

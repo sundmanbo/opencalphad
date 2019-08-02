@@ -82,7 +82,7 @@ render
 plot
 0.001*gm(*)
 x(mo)
-
+title step 6 fig 3
 
 @&
 
@@ -91,7 +91,7 @@ x(mo)
 0.001*gm(*)
 axis y
 Gibbs energy kJ/mol
-
+title step 6 fig 4
 
 
 set inter

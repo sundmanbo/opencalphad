@@ -12,21 +12,20 @@ enter element B B BCC 10 0 0 0
 enter tp UAB fun 10 -250*R;,,,,,
 @$ UAB=-250*R gives T_o/d at T=1000 K without SRO
 @$ Adding UAB as a constant reciprocal parameter gives T_o/d=935
-@$ with constant reciprocal parameter there is no SRO contribution
-@$ to Cp in disordered state
-@$ Adding 1000*UAB*T**(-1) gives T_o/d=935 and Cp in disordered state
-@$ but the disordered state becomes stable at low T
+@$ But with constant reciprocal parameter there is no SRO contribution
+@$ to Cp in disordered state.  Theoretically the parameter should be
+@$ UAB*T_o/d* T**(-1), i.e. 1000*UAB*T**(-1)
+@$ But adding 1000*UAB*T**(-1) gives and a Cp in disordered state
+@$ but the disordered state becomes stable at low T as T**(-1) goes to infinity
 
-@$ We can use a function MAX1(X) in TP functions to limit the value
-@$ of the function X.  If X is larger than 1 it is set to 1 and
-@$ all derivatives to zero.  USE with care, this breakpoint
-@$ should only happen when the phase is unstable, otherwise convergece problems
+@$ To avoid this we can approximate using the T-dependence as 0.2*T_o/d + T
+@$ This decrease the Cp in the disordered state but that is anyway a small
+@$ term and considering all other approximations reasonable.
 @$
-@$ Divide 1000 by 5 and multiply with 2 outside the MAX1 function
-@$ makes the function constant below 500 K using the MAX1 function
-enter tp SRO1 fun 10 500*T**(-1);,,,,,
-enter tp SRO2 fun 10 MAX1(SRO1);,,,,,,,,
-enter tp LSRO fun 10 2*UAB*SRO2;,,,,,,,,
+@$ To have the value UAB at T=1000 we must use 0.2*T_o/d instead of just T_o/d
+enter tp TP1 fun 10 200+T;,,,,,
+enter tp USRO fun 10 1200*TP1**(-1);,,,,,,,,
+enter tp LSRO fun 19 UAB*USRO; ,,,,,
 
 @$ We want to plot the heat capacity
 enter symb CP=H.T;
@@ -55,7 +54,7 @@ l d
 
 @&
 @$ First calculate the heat capacity at 50-50
-set c t=600 p=1e5 n=1 x(b)=.5
+set c t=300 p=1e5 n=1 x(b)=.5
 
 c e
 
@@ -76,14 +75,14 @@ cp
 text 1000 1 1 0
 This tail of Cp is due to SRO
 text N
-400 3 1 60
+400 3 1 55
 This Cp comes from disappearing LRO
 text N
 100 13 1 0
 SRO from reciprocal parameter
 text N
 100 12.2 1 0
-L(B2,A,B:A,B)=1000*UAB*T**(-1)
+L(B2,A,B:A,B)=1200*UAB/(T+200)
 render
 
 @$ The tail of Cp in the disordered state comes from the T**(-1) term
@@ -149,19 +148,15 @@ T
 text 0.05 900 1 0
 2nd order transition line
 
-@$ There is a small kink at 500 when the MAX1 function limits
-@$ the reciprocal parameter.  Plot together with a 2nd order
-@$ calculated with constant L(B2,A,B:A,B)=UAB
+
 @&
+@$ Append a 2nd order line calculated with fix USRO
 
 plot
 x(b)
 T
 append
 ./step9UAB
-text N
-0.21 500 1 0
-Maybe one can find a smoother function!
 
 set inter
 

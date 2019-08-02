@@ -1,6 +1,11 @@
-OBJS=getkey.o M_getkey.o ftinyopen.o tinyopen.o tinyfiledialogs.o metlib3.o oclablas.o ocnum.o gtp3.o matsmin.o lmdif1lib.o smp2.o pmon6.o
+OBJS=getkey.o M_getkey.o ftinyopen.o tinyopen.o tinyfiledialogs.o metlib4.o oclablas.o ocnum.o gtp3.o matsmin.o lmdif1lib.o smp2.o pmon6.o
 LIBS=liboctq.o liboctqisoc.o liboctqcpp.o
 EXE=oc5P
+
+#=============================================================================#
+# provided by Matthias Strathmann including OC examples
+# NOTE getkey.o : you have to select which getkey routine to compile
+#=============================================================================#
 
 FC=gfortran
 C=gcc
@@ -19,7 +24,7 @@ EX3PATH = ./TQ4lib/Cpp/Matthias/crfe
 EX4PATH = ./TQ4lib/Cpp/Matthias/feni
 EX5PATH = ./TQ4lib/Cpp/Matthias
 
-#==============================================================================#
+#=============================================================================#
 
 #Available compilation flags: all, OCASI, OCASIEXAMPLES, clean
 
@@ -90,10 +95,10 @@ tinyopen.o:
 ftinyopen.o:
 	$(FC) -c $(FCOPT) utilities/TINYFILEDIALOGS/ftinyopen.F90
 
-metlib3.o:	utilities/metlib3.F90
+metlib4.o:	utilities/metlib4.F90
 	# lixed for command line editing, tinyfd for open files
 	# lixhlp for browser help
-	$(FC) -c $(FCOPT) -Dlixed -Dtinyfd -Dlixhlp utilities/metlib3.F90
+	$(FC) -c $(FCOPT) -Dlixed -Dtinyfd -Dlixhlp utilities/metlib4.F90
 
 oclablas.o:	numlib/oclablas.F90
 	$(FC) -c $(FCOPT) numlib/oclablas.F90
@@ -119,7 +124,7 @@ pmon6.o:	userif/pmon6.F90
 	# use -Dqtplt fot Qt or -Daqplt for aqua plot drivers, nothing for wxt
 	# use -Dlixhlp for online help in Linux
 	$(FC) -c $(FCOPT) -Dqtplt -Dlixhlp userif/pmon6.F90
-	
+
 liboctq.o:	./TQ4lib/Cpp/liboctq.F90
 	$(FC) -c -g $(FCOPT) ./TQ4lib/Cpp/liboctq.F90
 
@@ -133,6 +138,6 @@ $(EXE):
 	$(FC) -o linkoc linkocdate.F90
 	./linkoc
 	# create library liboceq.a
-	ar sq liboceq.a metlib3.o oclablas.o ocnum.o gtp3.o matsmin.o lmdif1lib.o
+	ar sq liboceq.a metlib4.o oclablas.o ocnum.o gtp3.o matsmin.o lmdif1lib.o
 	# If getkey.o is undefined below uncomment a line above at getkey.o
 	$(FC) -o $(EXE) $(FCOPT) pmain1.F90 $(OBJS) liboceq.a

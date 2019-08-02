@@ -1272,7 +1272,9 @@
 ! nextcs is the index of next phasetuple for same phase
    leq=iph
 ! why upper bound error??
-   do while(leq.le.nooftuples .and. phasetuple(leq)%nextcs.gt.0)
+!   do while(leq.le.nooftuples .and. phasetuple(leq)%nextcs.gt.0)
+   do while(leq.le.nooftuples .and. phasetuple(leq)%nextcs.gt.0 .and.&
+        leq.ne.phasetuple(leq)%nextcs)
       leq=phasetuple(leq)%nextcs
    enddo
 !   write(*,56)'3B setting nextcs in tuple: ',iph,phases(iph),nyttcs,leq,tuple
@@ -1715,7 +1717,9 @@
       jl=phasetuple(jl)%nextcs
 ! zero the nextcs pointer in the phase tuple pointing to tuple
       eternity: do while(phasetuple(jl)%nextcs.ne.tuple)
-         if(jl.eq.phasetuple(tuple)%nextcs) then
+!         if(jl.eq.phasetuple(tuple)%nextcs) then
+! From Axel van de Walle
+         if(jl.eq.phasetuple(jl)%nextcs) then
             exit eternity
          endif
          if(phasetuple(jl)%nextcs.eq.0) then

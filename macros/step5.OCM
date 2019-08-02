@@ -149,7 +149,7 @@ c sym cp
 plot
 T
 y(part,*)
-title step5 fig 1
+title step 5 fig 1
 render
 
 
@@ -157,7 +157,7 @@ render
 plot
 T
 cp
-title step5 fig 2
+title step 5 fig 2
 
 
 @&
@@ -169,7 +169,7 @@ y
 N
 0
 10
-title step5 fig 3
+title step 5 fig 3
 render
 
 @&

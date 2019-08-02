@@ -133,6 +133,7 @@ append ./stable
 plot
 
 
+title map 3 fig 5
 scale
 x
 n
@@ -143,7 +144,7 @@ n
 plot
 
 
-title map 3 fig 5
+title map 3 fig 6
 scale x
 n
 0
@@ -172,7 +173,7 @@ plot
 x(*,c)
 HM(*)
 tie 3
-title map 3 fig 6
+title map 3 fig 7
 
 
 @&

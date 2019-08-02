@@ -123,7 +123,7 @@ map
 
 @&
 
-pl
+plot
 
 
 gibbs
@@ -167,6 +167,4 @@ Mo ,,,,,,,,,,,,,
 @$ edit the ocgnu.plt file to remove parts of a line
 
 set inter
-
-
 

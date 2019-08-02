@@ -86,7 +86,7 @@ map
 plot
 
 
-title map7 fig 1
+title map 7 fig 1
 
 @&
 @$ add some labels
@@ -94,6 +94,7 @@ title map7 fig 1
 plot
 
 
+title map 7 fig 2
 text
 0.4 1000
 .8
@@ -131,7 +132,7 @@ scale y
 n
 1550
 1600
-title map7 fig 2
+title map 7 fig 3
 
 
 

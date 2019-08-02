@@ -94,7 +94,7 @@ gibbs
 
 text n 0.51 0.25 .8 -48 y
 
-title map10 fig 4
+title map 10 fig 4
 
 
 @&
@@ -107,7 +107,7 @@ scale x
 n
 0
 .5
-title map10 fig 5
+title map 10 fig 5
 
 
 
@@ -117,7 +117,7 @@ title map10 fig 5
 plot
 
 x(*,fe)
-title map10 fig 6
+title map 10 fig 6
 
 
 @&
@@ -129,7 +129,7 @@ plot
 gibbs
 
 tie 3
-title map10 fig 7
+title map 10 fig 7
 
 
 set inter
