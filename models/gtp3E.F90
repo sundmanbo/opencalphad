@@ -3976,7 +3976,7 @@
          endif
          name2=elsym
       endif
-      call enter_element(elsym,name2,name1,mass,h298,s298)
+      call store_element(elsym,name2,name1,mass,h298,s298)
       if(gx%bmperr.ne.0) goto 1000
    case(2) !SPECIES -------------------------------------------------
 !   elseif(line(2:9).eq.'SPECIES ') then
@@ -4680,7 +4680,7 @@
       endif
 !      write(*,*)'3E Entering function 2: ',funname,trim(longline)
       lrot=0
-      call enter_tpfun(funname,longline,lrot,.TRUE.)
+      call store_tpfun(funname,longline,lrot,.TRUE.)
 !          write(*,17)lokph,typty,nsl,lrot,(endm(i),i=1,nsl)
 17 format('readtdb 17: ',4i3,5x,10i3)
 !         write(*,404)'readtdb entpar: ',refx,fractyp,nint,ideg
@@ -5043,7 +5043,7 @@
 ! entering a function may add new unentered functions ... last argument TRUE
 !            write(*,*)'3E Entering function 3: ',name1,len_trim(longline)
 !            lrot=0
-            call enter_tpfun(name1,longline,lrot,.TRUE.)
+            call store_tpfun(name1,longline,lrot,.TRUE.)
             if(gx%bmperr.ne.0) then
 ! one may have error here
                if(.not.silent) write(kou,*)'Failed entering function: ',name1
@@ -5471,7 +5471,7 @@
 ! in OC one can have the element name in addition to its symbol
          name2=elsym
       endif
-      call enter_element(elsym,name2,name1,mass,h298,s298)
+      call store_element(elsym,name2,name1,mass,h298,s298)
       if(gx%bmperr.ne.0) goto 1000
    case(2) !SPECIES -------------------------------------------------
 ! SPECIES O3PU2                       O3PU2!
@@ -6256,7 +6256,7 @@
       endif
 !      write(*,*)'3E Entering function 2: ',funname,len_trim(longline)
 !      lrot=0
-      call enter_tpfun(funname,longline,lrot,.TRUE.)
+      call store_tpfun(funname,longline,lrot,.TRUE.)
 !          write(*,17)lokph,typty,nsl,lrot,(endm(i),i=1,nsl)
 17 format('readpdb 17: ',4i3,5x,10i3)
 !         write(*,404)'readpdb entpar: ',refx,fractyp,nint,ideg
@@ -6521,7 +6521,7 @@
 ! entering a function may add new unentered functions ... last argument TRUE
 !            write(*,*)'3E Entering function 3: ',name1,len_trim(longline)
 !            lrot=0
-         call enter_tpfun(name1,longline(ip:),lrot,.TRUE.)
+         call store_tpfun(name1,longline(ip:),lrot,.TRUE.)
          if(gx%bmperr.ne.0) then
 ! one may have error here
             if(.not.silent) write(kou,*)'Failed entering function: ',name1
@@ -6886,7 +6886,7 @@
    if(logok) then
       line=' '
       last=len(line)
-      call gparcd('File exists, overwrite?',line,last,1,ch1,'N',q1help)
+      call gparcdx('File exists, overwrite?',line,last,1,ch1,'N','SAVE solgas')
       if(ch1.ne.'Y') then
          write(*,*)'Better luck next time!'
          goto 1000

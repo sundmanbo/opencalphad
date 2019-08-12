@@ -15,7 +15,7 @@
 !  integer, public, parameter :: VOLMOD1=7
 !  integer, public, parameter :: UNUSED_CRYSTBREAKDOWNMOD=8
 !  integer, public, parameter :: SECONDEINSTEIN=9
-!  integer, public, parameter :: SCHOTTKYANOMALITY=10
+!  integer, public, parameter :: SCHOTTKYANOMALY=10
 !  integer, public, parameter :: DIFFCOEFS=11
 !------------------------------------
 ! For each addition XX there is a subroutine create_XX
@@ -90,9 +90,9 @@
       addrec%propval=zero
       call calc_secondeinstein(moded,phres,addrec,lokph,mc,ceq)
 ! 10
-   case(schottkyanomality) ! Adding a second Schottky anomality Cp
+   case(schottkyanomaly) ! Adding a second Schottky anomaly Cp
       addrec%propval=zero
-      call calc_schottky_anomality(moded,phres,addrec,lokph,mc,ceq)
+      call calc_schottky_anomaly(moded,phres,addrec,lokph,mc,ceq)
 ! 11
    case(diffcoefs) ! Calculating diffusion coefficients
       addrec%propval=zero
@@ -191,9 +191,9 @@
 ! 9
       call create_secondeinstein(newadd)
 !-----------------------------------------
-   case(schottkyanomality) ! Schottky anomality
+   case(schottkyanomaly) ! Schottky anomaly
 ! 10
-      call create_schottky_anomality(newadd)
+      call create_schottky_anomaly(newadd)
 !-----------------------------------------
    case(diffcoefs)  !  diffusion coefficients
 ! 11 
@@ -1506,10 +1506,10 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable subroutine create_schottky_anomality
+!\addtotable subroutine create_schottky_anomaly
 !\begin{verbatim}
- subroutine create_schottky_anomality(newadd)
-! Adding a Schottky anomality to Cp
+ subroutine create_schottky_anomaly(newadd)
+! Adding a Schottky anomaly to Cp
    implicit none
    type(gtp_phase_add), pointer :: newadd
 !\end{verbatim} %+
@@ -1528,8 +1528,8 @@
 ! the variables type and nextadd
 !------------------------------------------
    allocate(newadd)
-! Schottky anomality uses THT2 and DCP2, same as second Einstein
-   newadd%type=schottkyanomality
+! Schottky anomaly uses THT2 and DCP2, same as second Einstein
+   newadd%type=schottkyanomaly
    allocate(newadd%need_property(2))
    call need_propertyid('TSCH',typty)
    if(gx%bmperr.ne.0) goto 1000
@@ -1540,14 +1540,14 @@
    nullify(newadd%nextadd)
 1000 continue
    return
- end subroutine create_schottky_anomality
+ end subroutine create_schottky_anomaly
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable subroutine calc_schottky_anomality
+!\addtotable subroutine calc_schottky_anomaly
 !\begin{verbatim}
- subroutine calc_schottky_anomality(moded,phres,addrec,lokph,mc,ceq)
-! Calculate the contibution due to a Schottky anomality
+ subroutine calc_schottky_anomaly(moded,phres,addrec,lokph,mc,ceq)
+! Calculate the contibution due to a Schottky anomaly
 ! moded 0, 1 or 2
 ! phres all results
 ! addrec pointer to addition record
@@ -1583,7 +1583,7 @@
    enddo findix
 ! ith is THT2 and jth is DCP2
    if(ith.eq.0 .or. jth.eq.0) then
-!      write(*,*)'3H missing Schottky anomality parameter for phase ',&
+!      write(*,*)'3H missing Schottky anomaly parameter for phase ',&
 !           trim(phlista(lokph)%name)
       goto 1000
    endif
@@ -1668,7 +1668,7 @@
 !
 1000 continue
    return
- end subroutine calc_schottky_anomality
+ end subroutine calc_schottky_anomaly
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -2670,7 +2670,8 @@
 ! Some information is needed
    last=1
 100 continue
-   call gparcd('Type of diffusion model: ',text,last,1,typ,'SIMPLE',nohelp)
+   call gparcdx('Type of diffusion model: ',text,last,1,typ,'SIMPLE',&
+        '?AMEND diffusion')
    call capson(typ)
 !   write(*,*)'3H typ: ',index('MAGNETIC',trim(typ)),trim(typ)
    if(index('SIMPLE',trim(typ)).eq.1) then
@@ -2701,7 +2702,7 @@
 200   continue
       loksp=phlista(lokph)%constitlist(is)
       spname=splista(loksp)%symbol
-      call gparcd(quest,text,last,1,typ,spname,nohelp)
+      call gparcdx(quest,text,last,1,typ,spname,'?AMEND diffusion')
       call find_species_record(typ,loksp2)
       if(gx%bmperr.ne.0) then
          if(once) then
@@ -2728,7 +2729,7 @@
 ! for jj=3 we must ask for ALPHA and ALPHA2 (with species names)
    if(jj.eq.3) then
       allocate(diffcoef%alpha(phlista(lokph)%nooffr(2)))
-      call gparrd('Value of ALPHA: ',text,last,alpha,0.3D0,nohelp)
+      call gparrdx('Value of ALPHA: ',text,last,alpha,0.3D0,'?AMEND diffusion')
       diffcoef%alpha(1)=alpha
       if(nsl.eq.2 .and. phlista(lokph)%nooffr(2).gt.1) then
          ks=2
@@ -2739,7 +2740,7 @@
             if(.not.btest(splista(loksp)%status,SPVA)) then
                spname=splista(loksp)%symbol
                quest='Value of ALPHA2&'//trim(spname)
-               call gparrd(quest,text,last,alpha,1.0D0,nohelp)
+               call gparrdx(quest,text,last,alpha,1.0D0,'?AMEND diffusion')
                if(ks.le.size(diffcoef%alpha)) diffcoef%alpha(ks)=alpha
                ks=ks+1
             endif
@@ -2962,9 +2963,9 @@
       write(unit,540)chc
 540   format(a,'+ Second Einstein: DCP2(x)*RT*ln(exp(ln(THT2(x))/T)-1)')
 !---------------------------------------------
-   case(schottkyanomality) ! Schottky Anomality
+   case(schottkyanomaly) ! Schottky Anomaly
       write(unit,550)chc
-550   format(a,'+ Schottky anomality DSCH(x)*RT*ln(1+exp(-ln(TSCH(x))/T)) ')
+550   format(a,'+ Schottky anomaly DSCH(x)*RT*ln(1+exp(-ln(TSCH(x))/T)) ')
    end select addition
 1000 continue
    return

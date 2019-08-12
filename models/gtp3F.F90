@@ -3102,7 +3102,7 @@
 ! nsymb is the number of user entered symbols
 !    write(kou,17)'enter svgun ',last,cline(1:20),nsvfun
 17 format(a,i3,2x,a,i3)
-   call gparc('Symbol name: ',cline,last,ichar('='),name2,' ',q1help)
+   call gparcx('Symbol name: ',cline,last,ichar('='),name2,' ','?Enter symbol')
    call capson(name2)
    if(name2(1:1).eq.' ') then
       gx%bmperr=4137; goto 1000
@@ -3125,7 +3125,8 @@
 ! these dummy variables must be defined in symbol name ?? why ?? maybe not
 !   write(*,*)'3F symbol: "',trim(cline),'"',last
 77 continue
-   call gparc('Expression, end with ";" :',cline,last,6,string,';',q1help)
+   call gparcx('Expression, end with ";" :',cline,last,6,string,';',&
+        '?Enter symbol')
 ! there can be multiple lines, last end by ; or empty line
    if(index(string,';').le.0) then
       fbuff(lbuf+1:)=string

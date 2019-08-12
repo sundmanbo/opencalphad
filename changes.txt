@@ -13,11 +13,28 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2019.08.11 OC version 5.048: A major change in the online help has
+been made.  Previously a complicated way trying to keep trace of the
+commands was used to provide help and the help was written on the same
+screen as the program.  Now each user input is associated with an HTML
+"hypertarget" to find the position in the user guide that can provide
+relevant help in a separate browser window using explorer or firefox.
+But it requires a proper installation of the help facility, see the
+installation guide.
+
+At present the update of the user guide is not complete but some
+features should work.  On the command level a simple ? gives the manu
+but two ?? will open the browser at the same menu but the user can
+scroll this back and forth to find additional information.  If you
+have any problems using the new online help please give feedback.
+
 2019.08.03 OC version 5.047: The metlib package has now been updated
 completely to the new Fortran standard and uses implicit none in all
 routines.  There are still things to fix but it is now possible to
 trace changes.  I worried that some of the WPACK routines would create
 difficulties as I sometimes transfer argument with the wrong types.
+
+PLEASE REPORT ANY PROBLEMS!
 
 2019.08.03 OC version 5.046: In this release there is a new metlib
 utility package called metlib4.F90.  Please check that all thiings you
@@ -48,8 +65,8 @@ now fixed.
 fraction has been extended to allow axpressions which is necessary to
 calculate a 2nd order transition when the fractions of the same
 element in two sublattice has a small difference.  I have added a
-macro for this, step9.OCM where I also test a new expression for the
-SRO parameter.  This is still not good enough but can be improved.
+macro for this, step9.OCM, where I also test a new expression for the
+SRO parameter.  This is still not perfect but it can be improved.
 
 I have also spent some time to improve my documentation software as it
 is now almost 3 years since I updated the OC documentation and I am
@@ -59,11 +76,13 @@ is (almost) up to date.
 
 2019.07.22 OC version 5.044: I have added a possibility to set a
 condition of a site fraction of a phase.  An example using this has
-been added to the STEP8 macro.  Nte that in an ideal gas phase the
-fraction of a molecule is equal to the partial pressure of that
-molecule.  At present it does not work to redefine the components in
-order to make for example H2O1 a component.  But setting a condition
-of a gas molecule is the same as to set its activity.
+been added to the STEP8 macro, setting the constituent fraction of H2O
+in a gas phase.  Note that in an ideal gas phase the fraction of a
+molecule is equal to its partial pressure.  At present it does not
+work to redefine the components in order to make for example using
+H2O1 as a component.  But setting a condition the fraction of a gas
+molecule is the same as to set its partial pressure when the gas is
+ideal and stable.
 
 A minor bug setting reference states has also been fixed.  I have also
 added a function MAX1(X) that can be used in a TP function or
@@ -72,8 +91,11 @@ equal to one.  If X is larger than 1.0 then MAX1(X) will be 1.0.  If X
 is a function of T and P the derivatives of MAX1(X) will be 0.0 if X
 is larger than 1.0.  The intention is to prevent extrapolations of
 parameters that may make a metastable phase stable at very low T.
-Great care must be taken to avoid that such a TP function affects the
+Great care must be taken to avoid that the MAX1 function affects the
 properties of a stable phase.
+
+Maybe it will be a useful to implement a feature that prevents phases
+with negative configurational entropy to become stable?
 
 2019.07.03 OC version 5.043: The metlib library which is used for the
 user interface and many other utilities in OC was written more than 30

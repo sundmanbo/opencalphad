@@ -614,7 +614,7 @@
 ! if we are reading a TDB file allow references to unknown functions
 ! We will scan for un-entered TPfuns later
 !      write(*,*)'Unknown symbol to be entered later: ',symbol
-      call enter_tpfun_dummy(symbol)
+      call store_tpfun_dummy(symbol)
    else
 ! otherwise give error message
 !      write(*,*)'TPFUN Unknown symbol: ',symbol,freetpfun-1
@@ -1834,7 +1834,7 @@
    integer nexpr,lsc,kkp
    double precision xx
 !   write(*,*)'Max ',len(longline),' characters'
-   call gparrd('Low temperature limit: ',cline,ip,xx,2.9815D2,nohelp)
+   call gparrdx('Low temperature limit: ',cline,ip,xx,2.9815D2,'?TPUN')
    if(buperr.ne.0) then
 ! set default low limit
       buperr=0; longline=' 298.15 '
@@ -1851,7 +1851,7 @@
 !-----------------------------------------------
 ! return here for new expression in another range
 115 continue
-   call gparc('Give expression, end with ";":',cline,ip,6,line,';',nohelp)
+   call gparcx('Give expression, end with ";":',cline,ip,6,line,';','?TPUN')
    if(buperr.ne.0) then
       buperr=0; line=';'
    endif
@@ -1861,7 +1861,7 @@
 !   write(*,*)'tpfun: ',longline(1:jp)
 ! lsc is position after the ";" in any previous range
    if(index(longline(lsc:),';').le.0) then
-      call gparc('&',cline,ip,6,line,';',nohelp)
+      call gparcx('&',cline,ip,6,line,';','?TPUN')
       if(buperr.ne.0) then
          buperr=0; line=';'
       endif
@@ -1886,7 +1886,7 @@
 ! lsc is position of ; for previous range
 !   write(*,130)'3Z pos2: ',nexpr,kkp,lsc,jp,trim(longline)
    lsc=nexpr
-   call gparrd('Upper temperature limit ',cline,ip,xx,6.0D3,nohelp)
+   call gparrdx('Upper temperature limit ',cline,ip,xx,6.0D3,'?TPUN')
    if(buperr.ne.0) then
       buperr=0; xx=6.0D3
    endif
@@ -1894,7 +1894,7 @@
    jp=jp+1
    call wrinum(longline,jp,8,0,xx)
    if(buperr.ne.0) goto 1000
-   call gparcd('Any more ranges',cline,ip,1,ch1,'N',nohelp)
+   call gparcdx('Any more ranges',cline,ip,1,ch1,'N','?TPUN')
 !   write(*,*)'3Z ch1: ',ch1
    if(ch1.eq.'n' .or. ch1.eq.'N') then
       longline(jp:)=' N'
@@ -1955,9 +1955,9 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable subroutine enter_tpfun_dummy
+!\addtotable subroutine store_tpfun_dummy
 !\begin{verbatim}
- subroutine enter_tpfun_dummy(symbol)
+ subroutine store_tpfun_dummy(symbol)
 ! creates a dummy entry for a TP function called symbol, used when entering 
 ! TPfuns from a TDB file where they are not in order
    implicit none
@@ -1981,13 +1981,13 @@
    tpfuns(lrot)%status=ibset(tpfuns(lrot)%status,TPNOTENT)
 1000 continue
    return
- end subroutine enter_tpfun_dummy
+ end subroutine store_tpfun_dummy
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable subroutine enter_tpfun
+!\addtotable subroutine store_tpfun
 !\begin{verbatim}
- subroutine enter_tpfun(symbol,text,lrot,fromtdb)
+ subroutine store_tpfun(symbol,text,lrot,fromtdb)
 ! creates a data structure for a TP function called symbol with several ranges
 ! text is whole expression
 ! lrot is returned as index.  If fromtdb is FALSE and lrot<0 it is a new
@@ -2119,7 +2119,7 @@
    call force_recalculate_tpfuns
 1000 continue
    return
- end subroutine enter_tpfun
+ end subroutine store_tpfun
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -2308,9 +2308,9 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable subroutine enter_tpconstant
+!\addtotable subroutine store_tpconstant
 !\begin{verbatim} %-
- subroutine enter_tpconstant(symbol,value)
+ subroutine store_tpconstant(symbol,value)
 ! enter variables 
    implicit none
    character symbol*(lenfnsym)
@@ -2349,7 +2349,7 @@
    nullify(tpfuns(lrot)%funlinks)
 1000 continue
    return
- end subroutine enter_tpconstant
+ end subroutine store_tpconstant
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

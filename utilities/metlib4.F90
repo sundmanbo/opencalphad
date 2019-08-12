@@ -1,13 +1,16 @@
 !
-! general utilities in Fortran 95 a la METLIB
-! upgraded 2018 to eliminate all specific F77 features
+! general utilities in Fortran 95 a la METLIB upgraded 2015-2019 to
+! eliminate most specific F77 features
 ! 1. All ENTRY removed.  GPARxyz and MACRO routines seems OK
-! 2. Problems with getkey fixed, renamed getkex in iso-C interface
-! 3. implict none introduced for all routines!
+! 2. Problems with getkey developed by John S. Urban has been fixed,
+!    It has been renamed getkex in the iso-C interface.
+! 3. IMPLICT NONE introduced in the whole module.
+! 4. A revised online help system using HTML \hypertarget in user guide
 !
 ! To be done:
-! handle parameters like ZERO, ONE which are also defined in gtp3
-! use same error code system as in gtp
+! - move constants ZERO, ONE here (from gtp3)
+! - use same error code system as in gtp
+! - revise the online help system
 !
 MODULE METLIB
 !
@@ -119,7 +122,9 @@ MODULE METLIB
   integer pfnerr,debuginc
 !
 ! end data structures for PUTFUN
+!\end{verbatim}
 !
+!\begin{verbatim}
 ! data structures for history and help
 !  
   integer, parameter :: histlines=100
@@ -166,9 +171,9 @@ MODULE METLIB
   end type onlinehelp
   type(onlinehelp) :: ochelp
   save ochelp
+! end data structures for history and help
 !\end{verbatim}
 !  
-! end data structures for history and help
 !
 ! default units for command output, input, error message, list
 ! and default language
@@ -211,12 +216,14 @@ MODULE METLIB
     character workingdir*256
 ! for macros
     integer IUMACLEVL,MACROUNIT(5)
+!\begin{verbatim}
 ! >>>>>>>>>> SYSTEM DEPENDENT <<<<<<<<<<
 ! nbpw is number if bytes per INTEGER, nwpr number of words per (double) real 
 ! nbitpw number of bits per word
 ! USED when WPACK routines store data in integer workspace 
     integer, parameter :: nbpw=4,nwpr=2,nbitpw=32
 ! >>>>>>>>>> SYSTEM DEPENDENT <<<<<<<<<<
+!\end{verbatim}
 !
 ! some constants
   double precision, parameter, private :: ZERO=0.0D0,ONE=1.0D0,TEN=1.0D1
@@ -248,7 +255,7 @@ CONTAINS
 !  
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable sortrd
+!\addtotable subroutine sortrd
 !\begin{verbatim}
   SUBROUTINE SORTRD(ARR,N,IX)
 ! ...SORTING REAL NUMBERS IN ASCENDING ORDER
@@ -350,7 +357,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable sortrdd
+!\addtotable subroutine sortrdd
 !\begin{verbatim}
   SUBROUTINE SORTRDD(ARR,N,IX)
 ! ...SORTING DOUBLE PRECISION NUMBERS IN DECENDING ORDER
@@ -455,7 +462,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable sortin
+!\addtotable subroutine sortin
 !\begin{verbatim}
   SUBROUTINE SORTIN(IARR,N,IX)
 ! ...SORTING INTEGERS IN ASCENDING ORDER
@@ -559,7 +566,7 @@ CONTAINS
   
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable ssort
+!\addtotable subroutine ssort
 !\begin{verbatim}
   SUBROUTINE SSORT(CMD,NS,INDEX)
 !...SORTING a character array, max 40 characters long
@@ -649,7 +656,7 @@ CONTAINS
   
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable capson
+!\addtotable subroutine capson
 !\begin{verbatim}
   SUBROUTINE capson(text)
 ! converts lower case ASCII a-z to upper case A-Z, no other changes
@@ -672,7 +679,7 @@ CONTAINS
 !\addtotable logical function eolch
 !\begin{verbatim}
   LOGICAL FUNCTION EOLCH(STR,IP)
-!...TO SKIP SPACES FROM IP. RETURNS .TRUE. IF ONLY SPACES
+!...End of Line CHeck, TO SKIP SPACES FROM IP. RETURNS .TRUE. IF ONLY SPACES
 !....MODIFIED TO SKIP TAB CHARACTERS ALSO
     implicit none
     CHARACTER STR*(*)
@@ -692,7 +699,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable getrel
+!\addtotable subroutine getrel
 !\begin{verbatim}
   SUBROUTINE GETREL(SVAR,LAST,VALUE)
 ! extract a real from a character
@@ -708,7 +715,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable getrem
+!\addtotable subroutine getrem
 !\begin{verbatim}
   SUBROUTINE GETREM(SVAR,LAST,VAL)
 ! ...IDENTICAL TO GETREL EXCEPT THAT A TERMINATING COMMA "," IS SKIPPED
@@ -726,7 +733,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable getrels
+!\addtotable subroutine getrels
 !\begin{verbatim}
   SUBROUTINE GETRELS(SVAR,LAST,VALUE,ISIG)
 !...DECODES A REAL NUMBER FROM A TEXT
@@ -746,7 +753,6 @@ CONTAINS
 !\end{verbatim} %+
 ! EOLCH is declared as logical function in this module so not needed here
 !    LOGICAL EOLCH
-!    PARAMETER (ZERO=0.0D0,ONE=1.0D0,TEN=1.0D1)
     CHARACTER CH*1
     integer i,ierr,jerr
     double precision hel,dec,expo
@@ -897,7 +903,7 @@ CONTAINS
     integer last
     double precision value
 !\end{verbatim}
-    DOUBLE PRECISION, parameter :: ZERO=0.0D0,TEN=1.0D1
+!    DOUBLE PRECISION, parameter :: ZERO=0.0D0,TEN=1.0D1
     integer l,ierr,n
     L=LEN_TRIM(SVAR)
     VALUE=ZERO
@@ -914,7 +920,153 @@ CONTAINS
   
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable getname
+!\addtotable subroutine getint
+!\begin{verbatim}
+  SUBROUTINE GETINT(SVAR,LAST,IVAL)
+!...DECODES AN INTEGER FROM A TEXT
+!      IT MAY BE PRECCEDED BY SPACES AND A + OR -
+!    IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+    implicit none
+    CHARACTER SVAR*(*)
+    integer last,ival
+!\end{verbatim} %+
+    integer ierr
+    double precision value
+!    
+    IF(EOLCH(SVAR,LAST)) THEN
+!       CALL ST2ERR(1031,'GETINT','LINE EMPTY')
+       buperr=1031
+    ELSEIF(SVAR(LAST:MIN(LEN(SVAR),LAST+3)).EQ.'NONE') THEN
+       IVAL=NONE
+       IERR=0
+    ELSE
+       IERR=GPS(SVAR,LAST,VALUE)
+       IF(IERR.EQ.0) THEN
+          IF(VALUE.GT.FLOAT(MAXINT) .OR. VALUE.LT.FLOAT(MININT)) THEN
+!             CALL ST2ERR(1033,'GETINT','TOO LARGE INTEGER VALUE')
+             buperr=1042
+             IVAL=0
+          ELSE
+             IVAL=INT(VALUE)
+          ENDIF
+       ELSE
+!          CALL ST2ERR(IERR,'GETINT','NO DIGIT')
+          buperr=ierr
+          IVAL=0
+       ENDIF
+    ENDIF
+900 RETURN
+  END SUBROUTINE GETINT
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\addtotable subroutine getinm
+!\begin{verbatim}
+  SUBROUTINE GETINM(SVAR,LAST,IVAL)
+! ...IDENTICAL TO GETINT EXCEPT THAT A TERMINATING COMMA ",", IS SKIPPED
+!    IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+    implicit none
+    CHARACTER SVAR*(*)
+    integer last,ival
+!\end{verbatim} %+
+    CALL GETINT(SVAR,LAST,IVAL)
+    IF(BUPERR.NE.0) RETURN
+    IF(SVAR(LAST:LAST).EQ.',') LAST=LAST+1
+    RETURN
+  END SUBROUTINE GETINM
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\addtotable subroutine getoct
+!\begin{verbatim}
+  SUBROUTINE GETOCT(LINE,IP,IVAL)
+!...DECODE AN OCTAL NUMBER
+    implicit none
+    CHARACTER LINE*(*)
+    integer ip,ival
+!\end{verbatim} %+
+    integer ierr,j
+    IERR=0
+    IF(EOLCH(LINE,IP)) THEN
+!       CALL ST2ERR(1031,'GETOCT','LINE EMPTY')
+       buperr=1031
+    ELSEIF(LINE(IP:IP+3).EQ.'NONE') THEN
+       IVAL=NONE
+    ELSE
+       IERR=1038
+       IVAL=0
+100    J=ICHAR(LINE(IP:IP))-ICHAR('0')
+       IF(J.GE.0 .AND. J.LE.7) THEN
+          IERR=0
+          IVAL=8*IVAL+J
+       ELSE
+          GOTO 800
+       ENDIF
+       IP=IP+1
+       GOTO 100
+    ENDIF
+!800 IF(IERR.NE.0) CALL ST2ERR(IERR,'GETOCT','NO DIGIT')
+800 continue
+900 RETURN
+  END SUBROUTINE GETOCT
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\addtotable subroutine gethex
+!\begin{verbatim}
+  SUBROUTINE GETHEX(LINE,IP,IVAL)
+!...DECODE A HEXADECIMAL NUMBER
+    implicit none
+    CHARACTER LINE*(*)
+    integer ip,ival
+!\end{verbatim}
+    integer bug,ierr,isign,idig,maxdig,j
+    CHARACTER CH1*1
+!
+    IERR=0
+    ISIGN=0
+    IF(EOLCH(LINE,IP)) THEN
+!       CALL ST2ERR(1031,'GETHEX','LINE EMPTY')
+       buperr=1031
+    ELSEIF(LINE(IP:IP+3).EQ.'NONE') THEN
+       IVAL=NONE
+    ELSE
+       IERR=1038
+       IVAL=0
+       IDIG=0
+       MAXDIG=NBITPW/4
+100    CH1=LINE(IP:IP)
+       IF(LGE(CH1,'0') .AND. LLE(CH1,'9')) THEN
+          J=ICHAR(CH1)-ICHAR('0')
+          IERR=0
+       ELSEIF(LGE(CH1,'A') .AND. LLE(CH1,'F')) THEN
+          J=ICHAR(CH1)-ICHAR('A')+10
+          IERR=0
+       ELSE
+          GOTO 800
+       ENDIF
+       IDIG=IDIG+1
+       IF(IDIG.EQ.1 .AND. J.GE.8) THEN
+          ISIGN=1
+          J=J-8
+       ENDIF
+       IVAL=16*IVAL+J
+       IP=IP+1
+       GOTO 100
+    ENDIF
+!800 IF(IERR.NE.0) CALL ST2ERR(IERR,'GETHEX','NO DIGIT')
+800 continue
+!    IF(ISIGN.EQ.1) CALL SETB(1,IVAL)
+    bug=ival
+! wow, set sign bit of an integer? Assume 32 bits ...
+    IF(ISIGN.EQ.1) ival=ibset(ival,31)
+    write(*,*)'In metlib4 GETHEX: ',ival,bug
+900 RETURN
+  END SUBROUTINE GETHEX
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\addtotable subroutine getname
 !\begin{verbatim}
   subroutine getname(text,ip,name,mode,ch1)
 ! reading a species name, this should be incorporated in metlib, 
@@ -954,7 +1106,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable getext
+!\addtotable subroutine getext
 !\begin{verbatim}
   SUBROUTINE GETEXT(SVAR,LAST,JTYP,STRING,CDEF,LENC)
 !...SVAR SHALL CONTAIN A TEXT. SCAN STARTS AT POSITION LAST.
@@ -1129,312 +1281,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable getint
-!\begin{verbatim}
-  SUBROUTINE GETINT(SVAR,LAST,IVAL)
-!...DECODES AN INTEGER FROM A TEXT
-!      IT MAY BE PRECCEDED BY SPACES AND A + OR -
-!    IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-    implicit none
-    CHARACTER SVAR*(*)
-    integer last,ival
-!\end{verbatim} %+
-    integer ierr
-    double precision value
-!    
-    IF(EOLCH(SVAR,LAST)) THEN
-!       CALL ST2ERR(1031,'GETINT','LINE EMPTY')
-       buperr=1031
-    ELSEIF(SVAR(LAST:MIN(LEN(SVAR),LAST+3)).EQ.'NONE') THEN
-       IVAL=NONE
-       IERR=0
-    ELSE
-       IERR=GPS(SVAR,LAST,VALUE)
-       IF(IERR.EQ.0) THEN
-          IF(VALUE.GT.FLOAT(MAXINT) .OR. VALUE.LT.FLOAT(MININT)) THEN
-!             CALL ST2ERR(1033,'GETINT','TOO LARGE INTEGER VALUE')
-             buperr=1042
-             IVAL=0
-          ELSE
-             IVAL=INT(VALUE)
-          ENDIF
-       ELSE
-!          CALL ST2ERR(IERR,'GETINT','NO DIGIT')
-          buperr=ierr
-          IVAL=0
-       ENDIF
-    ENDIF
-900 RETURN
-  END SUBROUTINE GETINT
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
-
-!\addtotable getinm
-!\begin{verbatim}
-  SUBROUTINE GETINM(SVAR,LAST,IVAL)
-! ...IDENTICAL TO GETINT EXCEPT THAT A TERMINATING COMMA ",", IS SKIPPED
-!    IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-    implicit none
-    CHARACTER SVAR*(*)
-    integer last,ival
-!\end{verbatim} %+
-    CALL GETINT(SVAR,LAST,IVAL)
-    IF(BUPERR.NE.0) RETURN
-    IF(SVAR(LAST:LAST).EQ.',') LAST=LAST+1
-    RETURN
-  END SUBROUTINE GETINM
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
-
-!\addtotable getoct
-!\begin{verbatim}
-  SUBROUTINE GETOCT(LINE,IP,IVAL)
-!...DECODE AN OCTAL NUMBER
-    implicit none
-    CHARACTER LINE*(*)
-    integer ip,ival
-!\end{verbatim} %+
-    integer ierr,j
-    IERR=0
-    IF(EOLCH(LINE,IP)) THEN
-!       CALL ST2ERR(1031,'GETOCT','LINE EMPTY')
-       buperr=1031
-    ELSEIF(LINE(IP:IP+3).EQ.'NONE') THEN
-       IVAL=NONE
-    ELSE
-       IERR=1038
-       IVAL=0
-100    J=ICHAR(LINE(IP:IP))-ICHAR('0')
-       IF(J.GE.0 .AND. J.LE.7) THEN
-          IERR=0
-          IVAL=8*IVAL+J
-       ELSE
-          GOTO 800
-       ENDIF
-       IP=IP+1
-       GOTO 100
-    ENDIF
-!800 IF(IERR.NE.0) CALL ST2ERR(IERR,'GETOCT','NO DIGIT')
-800 continue
-900 RETURN
-  END SUBROUTINE GETOCT
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
-
-!\addtotable gethex
-!\begin{verbatim}
-  SUBROUTINE GETHEX(LINE,IP,IVAL)
-!...DECODE A HEXADECIMAL NUMBER
-    implicit none
-    CHARACTER LINE*(*)
-    integer ip,ival
-!\end{verbatim}
-    integer bug,ierr,isign,idig,maxdig,j
-    CHARACTER CH1*1
-!
-    IERR=0
-    ISIGN=0
-    IF(EOLCH(LINE,IP)) THEN
-!       CALL ST2ERR(1031,'GETHEX','LINE EMPTY')
-       buperr=1031
-    ELSEIF(LINE(IP:IP+3).EQ.'NONE') THEN
-       IVAL=NONE
-    ELSE
-       IERR=1038
-       IVAL=0
-       IDIG=0
-       MAXDIG=NBITPW/4
-100    CH1=LINE(IP:IP)
-       IF(LGE(CH1,'0') .AND. LLE(CH1,'9')) THEN
-          J=ICHAR(CH1)-ICHAR('0')
-          IERR=0
-       ELSEIF(LGE(CH1,'A') .AND. LLE(CH1,'F')) THEN
-          J=ICHAR(CH1)-ICHAR('A')+10
-          IERR=0
-       ELSE
-          GOTO 800
-       ENDIF
-       IDIG=IDIG+1
-       IF(IDIG.EQ.1 .AND. J.GE.8) THEN
-          ISIGN=1
-          J=J-8
-       ENDIF
-       IVAL=16*IVAL+J
-       IP=IP+1
-       GOTO 100
-    ENDIF
-!800 IF(IERR.NE.0) CALL ST2ERR(IERR,'GETHEX','NO DIGIT')
-800 continue
-!    IF(ISIGN.EQ.1) CALL SETB(1,IVAL)
-    bug=ival
-! wow, set sign bit of an integer? Assume 32 bits ...
-    IF(ISIGN.EQ.1) ival=ibset(ival,31)
-    write(*,*)'In metlib4 GETHEX: ',ival,bug
-900 RETURN
-  END SUBROUTINE GETHEX
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
-
-!\addtotable fisepa
-!\begin{verbatim}
-  SUBROUTINE FISEPA(STR,IP0,IP1)
-!...FINDS A SEPARATOR AFTER POSITION IP0
-!      A separator is:
-!      Any character exept A-Z, 0-9 and _
-    implicit none
-    CHARACTER STR*(*)
-    integer IP0,IP1
-!\end{verbatim} %+
-    CHARACTER CH1*1
-    integer l
-    L=LEN_TRIM(STR)
-    IP1=IP0
-100 IP1=IP1+1
-    IF(IP1.GT.L) GOTO 900
-    CH1=BIGLET(STR(IP1:IP1))
-    IF((LGE(CH1,'0') .AND. LLE(CH1,'9')) .OR. &
-         (LGE(CH1,'A') .AND. LLE(CH1,'Z')) .OR. CH1.EQ.'_') GOTO 100
-!...Return position before separator
-    IP1=IP1-1
-900 RETURN
-  END SUBROUTINE FISEPA
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
-
-!\addtotable fdmtp
-!\begin{verbatim}
-  SUBROUTINE FDMTP(LINE1,IP,LINE2)
-!...FINDS A MATCHING ) AFTER THAT AT IP. IP UPDATED TO POSITION AFTER )
-    implicit none
-    CHARACTER LINE1*(*),LINE2*(*)
-    integer ip
-!\end{verbatim} %+
-    integer jp,np,kp1,kp2
-    IF(IP.LE.0) GOTO 900
-    JP=IP+1
-!...np is number of inner levels of parenthesis
-    NP=0
-10  KP1=INDEX(LINE1(JP:),'(')
-    KP2=INDEX(LINE1(JP:),')')
-    IF(KP1.EQ.0) THEN
-       IF(NP.EQ.0) GOTO 100
-       NP=NP-1
-       IF(KP2.EQ.0) GOTO 910
-       JP=JP+KP2
-    ELSEIF(KP1.LT.KP2) THEN
-!...INNER PAIR OF ()
-       JP=JP+KP1
-       NP=NP+1
-    ELSEIF(KP1.GT.KP2) THEN
-       IF(NP.EQ.0) GOTO 100
-       NP=NP-1
-       IF(KP2.EQ.0) GOTO 910
-       JP=JP+KP2
-    ELSE
-!       STOP 'FDMTP'
-       buperr=1237
-       goto 900
-    ENDIF
-    GOTO 10
-!...LINE2 SET TO TEXT INSIDE ( ), IP UPDATED TO POSITION BEHIND )
-100 IF(KP2.EQ.0) GOTO 920
-    LINE2=LINE1(IP+1:JP+KP2-2)
-    IP=JP+KP2
-900 RETURN
-!910 CALL ST2ERR(1235,'FDMTP','TOO MANY (')
-910    buperr=1235
-    GOTO 900
-!920 CALL ST2ERR(1235,'FDMTP','NO MATCHING )')
-920 buperr=1236
-    GOTO 900
-  END SUBROUTINE FDMTP
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
-
-!\addtotable integer function kndex
-!\begin{verbatim}
-  INTEGER FUNCTION KNDEX(LINE,IP,SS)
-! SUBROUTINE KNDEX
-!...SEARCHES FOR STRING SS IN LINE FROM IP
-    implicit none
-    CHARACTER LINE*(*),SS*(*)
-    integer ip
-!\end{verbatim} %+
-    integer k
-    K=INDEX(LINE(IP:),SS)
-    IF(K.GT.0) K=IP-1+K
-    KNDEX=K
-900 RETURN
-  END FUNCTION KNDEX
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
-
-!\addtotable cpsstr
-!\begin{verbatim}
-  SUBROUTINE CPSSTR(STRING,LC)
-!...THIS SUBROUINE COMPRESSES STRING BY REPLACING MULTIPLE SPACES
-!	OR TABS WITH A SINGLE SPACE
-    implicit none
-    CHARACTER STRING*(*)
-    integer LC
-!\end{verbatim} %+
-    integer i,k,l
-    CALL UNTAB(STRING)
-10  K=INDEX(STRING(1:LC),'  ')
-    IF(K.GT.0) THEN
-       L=K
-       IF(EOLCH(STRING(1:LC),L)) THEN
-          LC=K-1
-          GOTO 900
-       ENDIF
-       L=L-K-1
-       LC=LC-L
-       REMSP: DO I=K+1,LC
-          STRING(I:I)=STRING(I+L:I+L)
-       enddo REMSP
-       STRING(LC+1:)=' '
-       GOTO 10
-    ENDIF
-900 RETURN
-  END SUBROUTINE CPSSTR
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
-
-!\addtotable untab
-!\begin{verbatim}
-  SUBROUTINE UNTAB(LINE)
-!...REMOVES ALL TABS FROM LINE. INSERTS SPACES UP TO NEXT TAB STOP
-!       TAB STOPS GIVEN IN ITABS. TABS AFTER POSITION 80 REPLACED
-!       WITH A SPACE
-    implicit none
-    CHARACTER LINE*(*)
-!\end{verbatim} %+
-    CHARACTER CHTAB*1,XLINE*128
-    integer ITABS(11)
-    DATA ITABS/8,16,24,32,40,48,56,64,72,80,81/
-    integer k,i
-!    
-    CHTAB=CHAR(9)
-100 XLINE=LINE
-    K=INDEX(XLINE,CHTAB)
-    IF(K.GT.0) THEN
-       ADDSP: DO I=1,10
-          IF(ITABS(I).GE.K) GOTO 120
-       enddo ADDSP
-!...BEYOND POSITION 80
-       I=11
-       ITABS(11)=K
-120    I=ITABS(I)
-       LINE(K:I)=' '
-       LINE(I+1:)=XLINE(K+1:)
-       GOTO 100
-    ENDIF
-900 RETURN
-  END SUBROUTINE UNTAB
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
-
-!\addtotable wrinum
+!\addtotable subroutine wrinum
 !\begin{verbatim}
   SUBROUTINE WRINUM(STR,IP,NNW,JSIGN,VALUE)
 !...EDITS A REAL NUMBER INTO STR WITH LEAST NUMBER OF DIGITS
@@ -1447,7 +1294,8 @@ CONTAINS
     double precision value
 !\end{verbatim} %+
     CHARACTER CSTR*21,CFRMT*12
-    double precision, parameter :: ZERO=0.0D0,TEN=1.0D1,EPS=1.0D-7
+!    double precision, parameter :: ZERO=0.0D0,TEN=1.0D1,EPS=1.0D-7
+    double precision, parameter :: EPS=1.0D-7
     double precision cc,xx
     integer nw,jj,k,nwd
     CSTR=' '
@@ -1523,7 +1371,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable wriint
+!\addtotable subroutine wriint
 !\begin{verbatim}
   subroutine wriint(text,ipos,int)
 ! write an integer in text from position ipos (left adjusted)
@@ -1556,7 +1404,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable wrihex
+!\addtotable subroutine wrihex
 !\begin{verbatim}
   SUBROUTINE WRIHEX(STR,IVAL)
 !...TO WRITE AN INTEGER AS HEXADECIMAL
@@ -1590,7 +1438,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable wrice
+!\addtotable subroutine wrice
 !\begin{verbatim}
   subroutine wrice(lut,margl1,margl2,maxl,str)
 ! writes str on unit lut with left margin largl1 for first line, margl2 for all
@@ -1610,7 +1458,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable wrice2
+!\addtotable subroutine wrice2
 !\begin{verbatim}
   subroutine wrice2(lut,margl1,margl2,maxl,lbreak,str)
 ! writes str on unit lut with left margin largl1 for first line, margl2 for all
@@ -1665,7 +1513,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable cwicend
+!\addtotable subroutine cwicend
 !\begin{verbatim}
   subroutine cwricend(str,lbeg,lend,lbreak)
 ! find a possible place for a newline in str going back from lend
@@ -1926,9 +1774,194 @@ CONTAINS
 ! >>>> subsection
 ! Extracting command arguments from a character
 !
+! There are two groups, those new finishing with x
+! the old without final x (which are listed first)
+!
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable gqarid
+!\addtotable subroutine gparid
+!\begin{verbatim}
+  SUBROUTINE GPARID(PROMT,SVAR,LAST,IVAL,IDEF,HELP)
+! ask for integer value with default
+!    IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+    implicit none
+    CHARACTER PROMT*(*),SVAR*(*)
+    integer last,ival,idef
+    EXTERNAL HELP
+!\end{verbatim} %+
+    CHARACTER SLIN*512
+    integer iflag
+! chcek for environment variables
+    CALL GQXENV(SVAR)
+100 CALL GQARID(PROMT,SVAR,LAST,IVAL,IDEF,HELP)
+    CALL GPTCM1(IFLAG,SVAR,LAST,SLIN)
+    IF (IFLAG.NE.0) GOTO 100
+900 RETURN
+  END SUBROUTINE GPARID
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\addtotable subroutine gpari
+!\begin{verbatim}
+  SUBROUTINE GPARI_old(PROMT,SVAR,LAST,IVAL,IDEF,HELP)
+! ask for integer value woth no default
+!    IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+    CHARACTER PROMT*(*),SVAR*(*)
+    integer last,ival,idef
+    EXTERNAL HELP
+!\end{verbatim} %+
+    CHARACTER SLIN*80
+    integer iflag
+! check for environment variables
+    CALL GQXENV(SVAR)
+100 CALL GQARI(PROMT,SVAR,LAST,IVAL,IDEF,HELP)
+    CALL GPTCM1(IFLAG,SVAR,LAST,SLIN)
+    IF (IFLAG.NE.0) GOTO 100
+900 RETURN
+  END SUBROUTINE GPARI_OLD
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\addtotable subroutine gparr
+!\begin{verbatim}
+  SUBROUTINE GPARR_old(PROMT,SVAR,LAST,VAL,RDEF,HELP)
+! asks for a double with no default
+!    IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+    implicit none
+    CHARACTER PROMT*(*),SVAR*(*)
+    integer last
+    double precision val,rdef
+    EXTERNAL HELP
+!\end{verbatim} %+
+    CHARACTER SLIN*80
+    integer iflag
+! check for environment variables
+    CALL GQXENV(SVAR)
+100 CALL GQARR(PROMT,SVAR,LAST,VAL,RDEF,HELP)
+!    CALL GPTCM1(IFLAG,SVAR,LAST,SLIN,ENVIR)
+    CALL GPTCM1(IFLAG,SVAR,LAST,SLIN)
+    IF (IFLAG.NE.0) GOTO 100
+900 RETURN
+  END SUBROUTINE GPARR_OLD
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\addtotable subroutine gparrd
+!\begin{verbatim}
+  SUBROUTINE GPARRD_old(PROMT,SVAR,LAST,VAL,RDEF,HELP)
+! ask for a double with default provided
+!    IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+    implicit none
+    CHARACTER PROMT*(*),SVAR*(*)
+    integer last
+    EXTERNAL HELP
+    double precision val,rdef
+!\end{verbatim} %+
+    CHARACTER SLIN*80
+    integer iflag
+! ths checks for environment variables
+    CALL GQXENV(SVAR)
+100 CALL GQARRD(PROMT,SVAR,LAST,VAL,RDEF,HELP)
+    CALL GPTCM1(IFLAG,SVAR,LAST,SLIN)
+    IF (IFLAG.NE.0) GOTO 100
+900 RETURN
+  END SUBROUTINE GPARRD_OLD
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\addtotable subroutine gparc
+!\begin{verbatim}
+  SUBROUTINE GPARC_old(PROMT,SVAR,LAST,JTYP,SVAL,CDEF,HELP)
+! read a character without default
+    implicit none
+!    IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+    CHARACTER PROMT*(*),SVAR*(*),CDEF*(*),SVAL*(*)
+    integer last,jtyp
+    EXTERNAL HELP
+!\end{verbatim} %+
+    CHARACTER SLIN*80
+    integer iflag
+! this call handles environment variables
+    CALL GQXENV(SVAR)
+100 CALL GQARC(PROMT,SVAR,LAST,JTYP,SVAL,CDEF,HELP)
+    IF(BUPERR.NE.0) GOTO 900
+    SLIN=SVAL(1:max(1,LEN_TRIM(sval)))
+!    CALL GPTCM2(IFLAG,SVAR,LAST,SLIN,ENVIR)
+    CALL GPTCM2(IFLAG,SVAR,LAST,SLIN)
+    IF (IFLAG.NE.0) GOTO 100
+900 RETURN
+  END SUBROUTINE GPARC_OLD
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\addtotable subroutine gparcd
+!\begin{verbatim}
+  SUBROUTINE GPARCD_old(PROMT,SVAR,LAST,JTYP,SVAL,CDEF,HELP)
+! read a character with default provided
+    implicit none
+!    IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+    CHARACTER PROMT*(*),SVAR*(*),CDEF*(*),SVAL*(*)
+    integer last,jtyp
+    EXTERNAL HELP
+!\end{verbatim} %+
+!
+    CHARACTER SLIN*80
+    integer iflag
+! this call exchanges environment variables for actual variables
+    CALL GQXENV(SVAR)
+! this is the real interactive call
+100 CALL GQARCD(PROMT,SVAR,LAST,JTYP,SVAL,CDEF,HELP)
+    IF(BUPERR.NE.0) GOTO 900
+    SLIN=SVAL
+    CALL GPTCM2(IFLAG,SVAR,LAST,SLIN)
+!...the next line was missing ...
+    IF (IFLAG.NE.0) GOTO 100
+900 RETURN
+  END SUBROUTINE GPARCD_OLD
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\addtotable subroutine gqarrd
+!\begin{verbatim}
+  subroutine GQARRD(PROMT,SVAR,LAST,VAL,RDEF,HELP)
+! read real with default
+    implicit none
+    CHARACTER PROMT*(*),SVAR*(*)
+    integer last,ival
+    character*1 str,cdef
+    double precision val,rdef
+    EXTERNAL HELP
+!\end{verbatim} %+
+    GPARITYP=3
+    GPARWDEF=.TRUE.
+    GPARRDEF=RDEF
+    call gparall(PROMT,SVAR,LAST,IVAL,val,str,cdef,HELP)
+    return
+  end SUBROUTINE GQARRD
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\addtotable subroutine gqarr
+!\begin{verbatim}
+  subroutine GQARR(PROMT,SVAR,LAST,VAL,RDEF,HELP)
+! read real without default
+    implicit none
+    CHARACTER PROMT*(*),SVAR*(*)
+    integer last,ival
+    EXTERNAL HELP
+    double precision val,rdef
+    character*1 str,cdef
+!\end{verbatim} %+
+    GPARITYP=3
+    GPARWDEF=.FALSE.
+    GPARRDEF=RDEF
+    call gparall(PROMT,SVAR,LAST,IVAL,val,str,cdef,HELP)
+    return
+  end SUBROUTINE GQARR
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\addtotable subroutine gqarid
 !\begin{verbatim}
   SUBROUTINE GQARID(PROMT,SVAR,LAST,IVAL,IDEF,HELP)
 ! previously subroutine GPARID
@@ -1956,7 +1989,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable gqari
+!\addtotable subroutine gqari
 !\begin{verbatim}
   subroutine GQARI(PROMT,SVAR,LAST,IVAL,IDEF,HELP)
 ! read integer with no default
@@ -1976,58 +2009,16 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable gqarrd
-!\begin{verbatim}
-  subroutine GQARRD(PROMT,SVAR,LAST,VAL,RDEF,HELP)
-! read real with default
-    implicit none
-    CHARACTER PROMT*(*),SVAR*(*)
-    integer last,ival
-    character*1 str,cdef
-    double precision val,rdef
-    EXTERNAL HELP
-!\end{verbatim} %+
-    GPARITYP=3
-    GPARWDEF=.TRUE.
-    GPARRDEF=RDEF
-    call gparall(PROMT,SVAR,LAST,IVAL,val,str,cdef,HELP)
-    return
-  end SUBROUTINE GQARRD
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
-
-!\addtotable gqarr
-!\begin{verbatim}
-  subroutine GQARR(PROMT,SVAR,LAST,VAL,RDEF,HELP)
-! read real without default
-    implicit none
-    CHARACTER PROMT*(*),SVAR*(*)
-    integer last,ival
-    EXTERNAL HELP
-    double precision val,rdef
-    character*1 str,cdef
-!\end{verbatim} %+
-    GPARITYP=3
-    GPARWDEF=.FALSE.
-    GPARRDEF=RDEF
-    call gparall(PROMT,SVAR,LAST,IVAL,val,str,cdef,HELP)
-    return
-  end SUBROUTINE GQARR
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
-
-!\addtotable gqarcd
+!\addtotable subroutine gqarcd
 !\begin{verbatim}
   subroutine GQARCD(PROMT,SVAR,LAST,JTYP,STR,CDEF,HELP)
 ! TO READ A STRING VALUE with default
     implicit none
-    CHARACTER PROMT*(*),SVAR*(*)
-    integer last,ival,jtyp
+    CHARACTER PROMT*(*),SVAR*(*),str*(*),cdef*(*)
+    integer last,jtyp
     EXTERNAL HELP
-    double precision val
-    character str*(*),cdef*(*)
 !\end{verbatim} %+
-!...SUBROUTINE GPARCD
+!...SUBROUTINE GQARCD
 !      JTYP DEFINES THE TERMINATION OF A STRING
 !      1 TEXT TERMINATED BY SPACE OR ","
 !      2 TEXT TERMINATED BY SPACE
@@ -2037,6 +2028,8 @@ CONTAINS
 !      6 TEXT UP TO AND INCLUDING ";"
 !      7 TEXT TERMINATED BY SPACE OR "," BUT IGNORING SUCH INSIDE ( )
 !    >31, THE CHAR(JTYP) IS USED AS TERMINATING CHARACTER
+    integer ival
+    double precision val
     GPARWDEF=.TRUE.
     IF(JTYP.LE.0) THEN
 !       CALL ST2ERR(1030,'GPARC','NO SUCH TYPE OPTION')
@@ -2063,43 +2056,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable gqarc
-!\begin{verbatim}
-  subroutine GQARC(PROMT,SVAR,LAST,JTYP,STR,CDEF,HELP)
-! read a string without default
-    implicit none
-    CHARACTER PROMT*(*),SVAR*(*)
-    integer last,ival,jtyp
-    EXTERNAL HELP
-    double precision val
-    character str*(*),cdef*(*)
-!\end{verbatim} %+
-    GPARWDEF=.FALSE.
-    IF(JTYP.LE.0) THEN
-!       CALL ST2ERR(1030,'GPARC','NO SUCH TYPE OPTION')
-       buperr=1030
-       GOTO 900
-    ENDIF
-    IF(JTYP.EQ.7) THEN
-       GPARENTES=.TRUE.
-       GPARITYP=4
-    ELSE
-       GPARENTES=.FALSE.
-       IF(JTYP.LE.6) THEN
-          GPARITYP=JTYP+3
-       ELSE
-          GPARITYP=10
-          GPARCH2=CHAR(JTYP)
-       ENDIF
-    ENDIF
-    call gparall(PROMT,SVAR,LAST,IVAL,val,str,cdef,HELP)
-900 continue
-    return
-  end SUBROUTINE GQARC
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
-
-!\addtotable gparall
+!\addtotable subroutine gparall
 !\begin{verbatim}
   SUBROUTINE gparall(PROMT,SVAR,LAST,IVAL,val,string,cdef,HELP)
 ! previously subroutine GPARID
@@ -2360,97 +2317,43 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable gparid
+!\addtotable subroutine gqarc
 !\begin{verbatim}
-  SUBROUTINE GPARID(PROMT,SVAR,LAST,IVAL,IDEF,HELP)
-! ask for integer value with default
-!    IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+  subroutine GQARC(PROMT,SVAR,LAST,JTYP,STR,CDEF,HELP)
+! read a string without default
     implicit none
     CHARACTER PROMT*(*),SVAR*(*)
-    integer last,ival,idef
+    integer last,ival,jtyp
     EXTERNAL HELP
+    double precision val
+    character str*(*),cdef*(*)
 !\end{verbatim} %+
-    CHARACTER SLIN*512
-    integer iflag
-! chcek for environment variables
-    CALL GQXENV(SVAR)
-100 CALL GQARID(PROMT,SVAR,LAST,IVAL,IDEF,HELP)
-    CALL GPTCM1(IFLAG,SVAR,LAST,SLIN)
-    IF (IFLAG.NE.0) GOTO 100
-900 RETURN
-  END SUBROUTINE GPARID
+    GPARWDEF=.FALSE.
+    IF(JTYP.LE.0) THEN
+!       CALL ST2ERR(1030,'GPARC','NO SUCH TYPE OPTION')
+       buperr=1030
+       GOTO 900
+    ENDIF
+    IF(JTYP.EQ.7) THEN
+       GPARENTES=.TRUE.
+       GPARITYP=4
+    ELSE
+       GPARENTES=.FALSE.
+       IF(JTYP.LE.6) THEN
+          GPARITYP=JTYP+3
+       ELSE
+          GPARITYP=10
+          GPARCH2=CHAR(JTYP)
+       ENDIF
+    ENDIF
+    call gparall(PROMT,SVAR,LAST,IVAL,val,str,cdef,HELP)
+900 continue
+    return
+  end SUBROUTINE GQARC
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable gpari
-!\begin{verbatim}
-  SUBROUTINE GPARI(PROMT,SVAR,LAST,IVAL,IDEF,HELP)
-! ask for integer value woth no default
-!    IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-    CHARACTER PROMT*(*),SVAR*(*)
-    integer last,ival,idef
-    EXTERNAL HELP
-!\end{verbatim} %+
-    CHARACTER SLIN*80
-    integer iflag
-! check for environment variables
-    CALL GQXENV(SVAR)
-100 CALL GQARI(PROMT,SVAR,LAST,IVAL,IDEF,HELP)
-    CALL GPTCM1(IFLAG,SVAR,LAST,SLIN)
-    IF (IFLAG.NE.0) GOTO 100
-900 RETURN
-  END SUBROUTINE GPARI
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
-
-!\addtotable gparr
-!\begin{verbatim}
-  SUBROUTINE GPARR(PROMT,SVAR,LAST,VAL,RDEF,HELP)
-! asks for a double with no default
-!    IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-    implicit none
-    CHARACTER PROMT*(*),SVAR*(*)
-    integer last
-    double precision val,rdef
-    EXTERNAL HELP
-!\end{verbatim} %+
-    CHARACTER SLIN*80
-    integer iflag
-! check for environment variables
-    CALL GQXENV(SVAR)
-100 CALL GQARR(PROMT,SVAR,LAST,VAL,RDEF,HELP)
-!    CALL GPTCM1(IFLAG,SVAR,LAST,SLIN,ENVIR)
-    CALL GPTCM1(IFLAG,SVAR,LAST,SLIN)
-    IF (IFLAG.NE.0) GOTO 100
-900 RETURN
-  END SUBROUTINE GPARR
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
-
-!\addtotable gparrd
-!\begin{verbatim}
-  SUBROUTINE GPARRD(PROMT,SVAR,LAST,VAL,RDEF,HELP)
-! ask for a double with default provided
-!    IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-    implicit none
-    CHARACTER PROMT*(*),SVAR*(*)
-    integer last
-    EXTERNAL HELP
-    double precision val,rdef
-!\end{verbatim} %+
-    CHARACTER SLIN*80
-    integer iflag
-! ths checks for environment variables
-    CALL GQXENV(SVAR)
-100 CALL GQARRD(PROMT,SVAR,LAST,VAL,RDEF,HELP)
-    CALL GPTCM1(IFLAG,SVAR,LAST,SLIN)
-    IF (IFLAG.NE.0) GOTO 100
-900 RETURN
-  END SUBROUTINE GPARRD
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
-
-!\addtotable gparfile
+!\addtotable subroutine gparfile
 !\begin{verbatim}
     SUBROUTINE GPARFILE(PROMT,SVAR,LAST,JTYP,SVAL,CDEF,TYP,HELP)
 ! to ask for a file name using command line or external window
@@ -2476,7 +2379,7 @@ CONTAINS
     CHARACTER PROMT*(*),SVAR*(*),CDEF*(*),SVAL*(*)
     integer last,jtyp
     EXTERNAL HELP
-!\end{verbatim} %+
+!\end{verbatim}
     CHARACTER SLIN*80
     integer typ,typeahead,kk,iflag
     logical beware
@@ -2536,57 +2439,775 @@ CONTAINS
 900 RETURN
   END SUBROUTINE GPARFILE
 
+!/!\!/!\!/!\!/!\!/!\!/!\! new X routines /!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+!
+! >>>> subsection
+! Extracting command arguments from a character
+!
+! This is second group with new routines
+!
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable gparc
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\addtotable subroutine gparidx
 !\begin{verbatim}
-  SUBROUTINE GPARC(PROMT,SVAR,LAST,JTYP,SVAL,CDEF,HELP)
-! read a character without default
-    implicit none
+  SUBROUTINE GPARIDx(PROMT,SVAR,LAST,IVAL,IDEF,hyper)
+! ask for integer value with default
 !    IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-    CHARACTER PROMT*(*),SVAR*(*),CDEF*(*),SVAL*(*)
-    integer last,jtyp
-    EXTERNAL HELP
+    implicit none
+    CHARACTER PROMT*(*),SVAR*(*),hyper*(*)
+    integer last,ival,idef
+!    EXTERNAL HELP
+!\end{verbatim} %+
+    CHARACTER SLIN*512
+    integer iflag
+! chcek for environment variables
+    CALL GQXENV(SVAR)
+100 CALL GQARIDx(PROMT,SVAR,LAST,IVAL,IDEF,hyper)
+    CALL GPTCM1(IFLAG,SVAR,LAST,SLIN)
+    IF (IFLAG.NE.0) GOTO 100
+900 RETURN
+  END SUBROUTINE GPARIDX
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\addtotable subroutine gparix
+!\begin{verbatim}
+  SUBROUTINE GPARIx(PROMT,SVAR,LAST,IVAL,IDEF,hyper)
+! ask for integer value woth no default
+    implicit none
+    CHARACTER PROMT*(*),SVAR*(*),hyper*(*)
+    integer last,ival,idef
+!    EXTERNAL HELP
 !\end{verbatim} %+
     CHARACTER SLIN*80
     integer iflag
-! this call handles environment variables
+! check for environment variables
     CALL GQXENV(SVAR)
-100 CALL GQARC(PROMT,SVAR,LAST,JTYP,SVAL,CDEF,HELP)
-    IF(BUPERR.NE.0) GOTO 900
-    SLIN=SVAL(1:max(1,LEN_TRIM(sval)))
-!    CALL GPTCM2(IFLAG,SVAR,LAST,SLIN,ENVIR)
-    CALL GPTCM2(IFLAG,SVAR,LAST,SLIN)
+100 CALL GQARIx(PROMT,SVAR,LAST,IVAL,IDEF,hyper)
+    CALL GPTCM1(IFLAG,SVAR,LAST,SLIN)
     IF (IFLAG.NE.0) GOTO 100
 900 RETURN
-  END SUBROUTINE GPARC
+  END SUBROUTINE GPARIX
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable gparcd
+!\addtotable subroutine gparrx
 !\begin{verbatim}
-  SUBROUTINE GPARCD(PROMT,SVAR,LAST,JTYP,SVAL,CDEF,HELP)
+  SUBROUTINE GPARRx(PROMT,SVAR,LAST,VAL,RDEF,hyper)
+! asks for a double with no default
+!    IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+    implicit none
+    CHARACTER PROMT*(*),SVAR*(*),hyper*(*)
+    integer last
+    double precision val,rdef
+!    EXTERNAL HELP
+!\end{verbatim} %+
+    CHARACTER SLIN*80
+    integer iflag
+! check for environment variables
+    CALL GQXENV(SVAR)
+100 CALL GQARRx(PROMT,SVAR,LAST,VAL,RDEF,hyper)
+!    CALL GPTCM1(IFLAG,SVAR,LAST,SLIN,ENVIR)
+    CALL GPTCM1(IFLAG,SVAR,LAST,SLIN)
+    IF (IFLAG.NE.0) GOTO 100
+900 RETURN
+  END SUBROUTINE GPARRX
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\addtotable subroutine gparrdx
+!\begin{verbatim}
+  SUBROUTINE GPARRDx(PROMT,SVAR,LAST,VAL,RDEF,hyper)
+! ask for a double with default provided
+!    IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+    implicit none
+    CHARACTER PROMT*(*),SVAR*(*),hyper*(*)
+    integer last
+!    EXTERNAL HELP
+    double precision val,rdef
+!\end{verbatim} %+
+    CHARACTER SLIN*80
+    integer iflag
+! ths checks for environment variables
+    CALL GQXENV(SVAR)
+100 CALL GQARRDx(PROMT,SVAR,LAST,VAL,RDEF,hyper)
+    CALL GPTCM1(IFLAG,SVAR,LAST,SLIN)
+    IF (IFLAG.NE.0) GOTO 100
+900 RETURN
+  END SUBROUTINE GPARRDX
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\addtotable subroutine gparcdx
+!\begin{verbatim}
+  SUBROUTINE GPARCDx(PROMT,SVAR,LAST,JTYP,SVAL,CDEF,hyper)
 ! read a character with default provided
     implicit none
 !    IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-    CHARACTER PROMT*(*),SVAR*(*),CDEF*(*),SVAL*(*)
+    CHARACTER PROMT*(*),SVAR*(*),CDEF*(*),SVAL*(*),hyper*(*)
     integer last,jtyp
     EXTERNAL HELP
-!\end{verbatim}
+!\end{verbatim} %+
 !
     CHARACTER SLIN*80
     integer iflag
 ! this call exchanges environment variables for actual variables
     CALL GQXENV(SVAR)
 ! this is the real interactive call
-100 CALL GQARCD(PROMT,SVAR,LAST,JTYP,SVAL,CDEF,HELP)
+100 continue
+!    CALL GQARCDX(PROMT,SVAR,LAST,JTYP,SVAL,CDEF,HELP,hyper)
+    CALL GQARCDX(PROMT,SVAR,LAST,JTYP,SVAL,CDEF,hyper)
     IF(BUPERR.NE.0) GOTO 900
     SLIN=SVAL
     CALL GPTCM2(IFLAG,SVAR,LAST,SLIN)
 !...the next line was missing ...
     IF (IFLAG.NE.0) GOTO 100
 900 RETURN
-  END SUBROUTINE GPARCD
+  END SUBROUTINE GPARCDX
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\addtotable subroutine gparcx
+!\begin{verbatim}
+  SUBROUTINE GPARCX(PROMT,SVAR,LAST,JTYP,SVAL,CDEF,hyper)
+! read a character with default provided and hypertarget
+    implicit none
+!    IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+    CHARACTER PROMT*(*),SVAR*(*),CDEF*(*),SVAL*(*),hyper*(*)
+    integer last,jtyp
+!    EXTERNAL HELP now always use Q4HELP
+!\end{verbatim} %+
+!
+    CHARACTER SLIN*80
+    integer iflag
+! this call exchanges environment variables for actual variables
+    CALL GQXENV(SVAR)
+! this is the real interactive call ... well no longer ...
+!100 CALL GQARCX(PROMT,SVAR,LAST,JTYP,SVAL,CDEF,HELP,hyper)
+100 continue
+    CALL GQARCX(PROMT,SVAR,LAST,JTYP,SVAL,CDEF,hyper)
+    IF(BUPERR.NE.0) GOTO 900
+    SLIN=SVAL
+    CALL GPTCM2(IFLAG,SVAR,LAST,SLIN)
+!...the next line was missing ...
+    IF (IFLAG.NE.0) GOTO 100
+900 RETURN
+  END SUBROUTINE GPARCX
+
+!\addtotable subroutine gqaridx
+!\begin{verbatim}
+  SUBROUTINE GQARIDX(PROMT,SVAR,LAST,IVAL,IDEF,hyper)
+!...SVAR SHALL CONTAIN A PARAMETER VALUE. IF EMPTY THE PARAMETER IS ASKED FOR
+!      USING PROMT AS OUTPUT STRING. IF NO ANSWER THE VALUE IN DEF IS RETURNED
+!      INTEGER VALUES. THE DEFAULT VALUE IS DISPLAYED IN THE PROMT WITHIN
+!      SLASHES. THE SAME ROUTINES WITHOUT THE FINAL D DOES NOT DISPALY THE
+!      DEFAULT VALUE
+!      hyper is a hypertarget for online help
+!      LAST IS THE POSITION OF THE TERMINATOR OF THE FORMER PARAMETER OR
+!      COMMAND, DECODING STARTS FROM THE POSITION AFTER LAST
+    implicit none
+    CHARACTER PROMT*(*),SVAR*(*),hyper*(*)
+    integer last,ival,idef
+    character*1 str,cdef
+    double precision val
+!\end{verbatim} %+
+    GPARITYP=1
+    GPARWDEF=.TRUE.
+    GPARIDEF=IDEF
+    call gparallx(PROMT,SVAR,LAST,IVAL,val,str,cdef,hyper)
+    return
+  end SUBROUTINE GQARIDX
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\addtotable subroutine gqarix
+!\begin{verbatim}
+  subroutine GQARIx(PROMT,SVAR,LAST,IVAL,IDEF,hyper)
+! read integer with no default
+    implicit none
+    CHARACTER PROMT*(*),SVAR*(*),hyper*(*)
+    integer last,ival,idef
+!    EXTERNAL HELP
+!\end{verbatim} %+
+! dummy variables for gparallx
+    character*1 str,cdef
+    double precision val
+    GPARITYP=1
+    GPARWDEF=.FALSE.
+    GPARIDEF=IDEF
+    call gparallx(PROMT,SVAR,LAST,IVAL,val,str,cdef,hyper)
+    return
+  end SUBROUTINE GQARIX
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\addtotable subroutine gqarrdx
+!\begin{verbatim}
+  subroutine GQARRDx(PROMT,SVAR,LAST,VAL,RDEF,hyper)
+! read real with default
+    implicit none
+    CHARACTER PROMT*(*),SVAR*(*),hyper*(*)
+    integer last
+    double precision val,rdef
+    EXTERNAL HELP
+!\end{verbatim} %+
+    character*1 str,cdef
+    integer ival
+    GPARITYP=3
+    GPARWDEF=.TRUE.
+    GPARRDEF=RDEF
+    call gparallx(PROMT,SVAR,LAST,IVAL,val,str,cdef,hyper)
+    return
+  end SUBROUTINE GQARRDX
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\addtotable subroutine gqarrx
+!\begin{verbatim}
+  subroutine GQARRx(PROMT,SVAR,LAST,VAL,RDEF,hyper)
+! read real without default
+    implicit none
+    CHARACTER PROMT*(*),SVAR*(*),hyper*(*)
+    integer last
+    double precision val,rdef
+!\end{verbatim} %+
+    character*1 str,cdef
+    integer ival
+    GPARITYP=3
+    GPARWDEF=.FALSE.
+    GPARRDEF=RDEF
+    call gparallx(PROMT,SVAR,LAST,IVAL,val,str,cdef,hyper)
+    return
+  end SUBROUTINE GQARRX
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\addtotable subroutine gqarcdx
+!\begin{verbatim}
+  subroutine GQARCDX(PROMT,SVAR,LAST,JTYP,STR,CDEF,hyper)
+! TO READ A STRING VALUE with default
+    implicit none
+    CHARACTER PROMT*(*),SVAR*(*),str*(*),cdef*(*),hyper*(*)
+    integer last,jtyp
+!    EXTERNAL HELP no longer needed
+!\end{verbatim} %+
+!...SUBROUTINE GQARCDX
+!      JTYP DEFINES THE TERMINATION OF A STRING
+!      1 TEXT TERMINATED BY SPACE OR ","
+!      2 TEXT TERMINATED BY SPACE
+!      3 TEXT TERMINATED BY ";" OR "."
+!      4 TEXT TERMINATED BY ";"
+!      5 TEXT UP TO END-OF-LINE
+!      6 TEXT UP TO AND INCLUDING ";"
+!      7 TEXT TERMINATED BY SPACE OR "," BUT IGNORING SUCH INSIDE ( )
+!    >31, THE CHAR(JTYP) IS USED AS TERMINATING CHARACTER
+    integer ival
+    double precision val
+    GPARWDEF=.TRUE.
+    IF(JTYP.LE.0) THEN
+!       CALL ST2ERR(1030,'GPARC','NO SUCH TYPE OPTION')
+       buperr=1030
+       GOTO 900
+    ENDIF
+    IF(JTYP.EQ.7) THEN
+       GPARENTES=.TRUE.
+       GPARITYP=4
+    ELSE
+       GPARENTES=.FALSE.
+       IF(JTYP.LE.6) THEN
+! NOTE GPARITYP 1 and 3 used for integer and double precision !!!
+          GPARITYP=JTYP+3
+       ELSE
+          GPARITYP=10
+          GPARCH2=CHAR(JTYP)
+       ENDIF
+    ENDIF
+!    call gparallx(PROMT,SVAR,LAST,IVAL,val,str,cdef,HELP,hyper)
+    call gparallx(PROMT,SVAR,LAST,IVAL,val,str,cdef,hyper)
+    return
+900 continue
+  end SUBROUTINE GQARCDX
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\addtotable subroutine gqarcx
+!\begin{verbatim}
+  subroutine GQARCX(PROMT,SVAR,LAST,JTYP,STR,CDEF,hyper)
+! TO READ A STRING VALUE with default user hypertext
+    implicit none
+    CHARACTER PROMT*(*),SVAR*(*),str*(*),cdef*(*),hyper*(*)
+    integer last,jtyp
+!    EXTERNAL HELP no longer needed
+!\end{verbatim} %+
+!...SUBROUTINE GQARCx
+!      JTYP DEFINES THE TERMINATION OF A STRING
+!      1 TEXT TERMINATED BY SPACE OR ","
+!      2 TEXT TERMINATED BY SPACE
+!      3 TEXT TERMINATED BY ";" OR "."
+!      4 TEXT TERMINATED BY ";"
+!      5 TEXT UP TO END-OF-LINE
+!      6 TEXT UP TO AND INCLUDING ";"
+!      7 TEXT TERMINATED BY SPACE OR "," BUT IGNORING SUCH INSIDE ( )
+!    >31, THE CHAR(JTYP) IS USED AS TERMINATING CHARACTER
+    integer ival
+    double precision val
+    GPARWDEF=.TRUE.
+    IF(JTYP.LE.0) THEN
+!       CALL ST2ERR(1030,'GPARC','NO SUCH TYPE OPTION')
+       buperr=1030
+       GOTO 900
+    ENDIF
+    IF(JTYP.EQ.7) THEN
+       GPARENTES=.TRUE.
+       GPARITYP=4
+    ELSE
+       GPARENTES=.FALSE.
+       IF(JTYP.LE.6) THEN
+! NOTE GPARITYP 1 and 3 used for integer and double precision !!!
+          GPARITYP=JTYP+3
+       ELSE
+          GPARITYP=10
+          GPARCH2=CHAR(JTYP)
+       ENDIF
+    ENDIF
+!    write(*,*)'In GQARCX calling gparallx: ',trim(hyper)
+!    call gparallx(PROMT,SVAR,LAST,IVAL,val,str,cdef,HELP,hyper)
+    call gparallx(PROMT,SVAR,LAST,IVAL,val,str,cdef,hyper)
+    return
+900 continue
+  end SUBROUTINE GQARCX
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\addtotable subroutine gparallx
+!\begin{verbatim}
+  SUBROUTINE gparallx(PROMT,SVAR,LAST,IVAL,val,string,cdef,hyper)
+! this is the focal routine for all variants of GPARxyz
+!...SVAR shall contain an answer or command. If EMPTY THE answer IS ASKED FOR
+!      USING PROMT AS OUTPUT STRING. IF NO ANSWER THE VALUE IN DEF (default) 
+!      is returned if a provided.  The routine can return integer, double or
+!      character variables. THE DEFAULT VALUE IS DISPLAYED IN THE PROMT WITHIN
+!      SLASHES. if no answer and no defualt an error is returned.
+!      HELP is no longer a parameter Q4HELP is always used
+!      as hypertarget in a HTML file
+!      If hyper contains the character TOPHLP and the user has typed a single ?
+!      the routine returns with this ? and the calling routine can display
+!      a menu.  If the user types two ?? the PROMT is used as hypertarget.
+!      LAST IS THE current POSITION IN SVAR, it is incremented by one
+!      before looking for an answer (skipping the terminator of any previous
+!      input.
+! REPEAT:
+! when called on top level or from a submenu then hyper='?TOPHLP'
+! if user types a single ? only menu listed, with ?? use PROMT as target 
+    implicit none
+    CHARACTER PROMT*(*),SVAR*(*),CH1*1,CDEF*(*),STRING*(*),hyper*(*)
+    integer ival
+    double precision val
+!    EXTERNAL HELP
+!\end{verbatim}
+    CHARACTER PPROMT*132,CH2*1,ssd*30
+    LOGICAL WDEF,MATP
+    integer last,unused
+! local variables
+    integer i,ijp,j,jjp,l1,l2,llq,llp,llz,m,kxy,iqq,ityp,idef,kk,nw,kl
+    double precision rdef,x
+    character hypertarget*(40)
+    logical once
+! All input routines converge here, update command level and save promt 
+! for use by help routines
+    once=.TRUE.
+9   CONTINUE
+!    write(*,*)'In gparallx: ',trim(promt),' & ',trim(hyper)
+! check if promt already in path, otherwise increase level
+    unused=0
+! skip old helprec stuff ...
+!    do iqq=2,helprec%level
+! save first 12 characters in helprec%path (obsolete now?)
+!       kxy=min(len_trim(promt),12)
+!       if(promt(1:kxy).eq.helprec%cpath(iqq)(1:kxy)) then
+!          helprec%level=iqq
+!          goto 991
+!       endif
+!    enddo
+!    if(helprec%level.lt.maxhelplevel) then
+!       helprec%level=helprec%level+1
+!       helprec%cpath(helprec%level)=promt
+!       write(*,*)'Help level increased to: ',helprec%level
+!    else
+!       write(*,*)'Warning, too many levels in help path'
+! This can happen when asking for constitution including the constituent
+! just save the last questions
+!       helprec%cpath(helprec%level)=promt
+!    endif
+!991 continue
+!-------------------------------
+! extract values from calling routines stored in GPARxyz
+! gparityp is a GLOBAL private variable to transfer type of value to return
+! Assuming this is not run in parallel...
+    wdef=gparwdef
+    if(gparityp.eq.1) then
+! calling routine wants an integer value
+       ityp=1
+!       if(wdef) idef=gparidef
+! always set the default, it may be used anyway!!
+       idef=gparidef
+    elseif(gparityp.eq.3) then
+! calling routine wants a double precision value
+       ityp=3
+!       if(wdef) rdef=gparrdef
+       rdef=gparrdef
+    else
+! calling routine wants a string, ityp>3, 
+       ityp=gparityp
+       matp=gparentes
+       ch2=' '
+       if(ityp.eq.10) ch2=gparch2
+    endif
+!-------------------------------------------------------
+!...INCREMENT LAST BY ONE TO BYPASS TERMINATOR OF COMMAND OR PREVIOUS ANSWER
+    LAST=LAST+1
+    IF(LAST.LT.1 .OR. LAST.GT.LEN(SVAR)) LAST=LEN(SVAR)+1
+!...SKIP BLANKS STARTING FROM THE POSITION AFTER LAST
+!      IF LAST OUTSIDE SVAR THEN ASK QUESTION
+    I=LAST
+10  CONTINUE
+!    write(*,*)'GPARALLX 10: ',trim(promt)
+    IF(EOLCH(SVAR,I)) THEN
+!...      EMPTY STRING, IF PROMT empty TAKE DEFAULT VALUES
+       M=LEN_TRIM(PROMT)
+       IF(M.LT.1) GOTO 910
+! avoid promt with double ::
+!       if(M.GT.2 .and. promt(M:M).eq.promt(M-1:M-1)) M=M-1
+       if(M.GT.2 .and. promt(M:M).eq.':') M=M-1
+       IF(WDEF) THEN
+          PPROMT=PROMT(1:M)//' /'
+          JJP=M+3
+!...         INSERT DEFAULT VALUE INTO PROMT
+          IF(ITYP.EQ.1) THEN
+             X=REAL(IDEF)
+             CALL WRINUM(PPROMT,JJP,10,0,X)
+          ELSEIF(ITYP.EQ.3) THEN
+!             IF(RDEF.NE.RNONE) CALL WRINUM(PPROMT,JJP,10,0,RDEF)
+! to avoid getting values as 0.0250000004  rather than 0.025 ...
+!             IF(RDEF.NE.RNONE) CALL WRINUM(PPROMT,JJP,8,0,RDEF)
+             CALL WRINUM(PPROMT,JJP,8,0,RDEF)
+          ELSE
+             PPROMT(JJP:)=CDEF
+             I=LEN_TRIM(CDEF)
+             JJP=JJP+I
+          ENDIF
+          IF(LEN_TRIM(PPROMT).GT.M+2) THEN
+             PPROMT(JJP:)='/: '
+             JJP=JJP+2
+          ELSE
+!...            TO AVOID AN EMPTY STRING BETWEEN SLASHES
+!             PPROMT(M+1:M+2)=': '
+             PPROMT(M+1:)=': '
+             JJP=len_trim(ppromt)
+          ENDIF
+          CALL BOUTXT(KOU,PPROMT(1:JJP))
+          IJP=JJP
+       ELSE
+          PPROMT=PROMT
+          JJP=LEN_TRIM(PPROMT)
+          CALL BOUTXT(KOU,PPROMT(1:MAX(1,JJP)))
+       ENDIF
+       SVAR=' '
+       CALL BINTXT(KIU,SVAR(1:MIN(LEN(SVAR),130)))
+! THIS IS USER INPUT
+!       write(*,*)'GPARALLX 77: ',trim(svar)
+!       if(hyper.eq.'TOPHLP') write(*,*)'gparallx input: ',trim(svar)
+       if(jecho.ne.0) then
+! echo ....
+          j=len_trim(svar)
+          if(j.gt.0) then
+             write(kou,77)svar(1:len_trim(svar))
+77           format('... echo: ',a)
+          endif
+       endif
+!...WRITE INPUT ON LOG FILE IF ANY
+       IF(LOGFIL.GT.0) THEN
+!...write on logfile only if question asked !!!
+          I=LEN_TRIM(SVAR)
+          IF(I.LE.0 .AND. WDEF) THEN
+             IF(IJP-3.GE.M+3) THEN
+!...WRITE THE DEFAULT ANSWER IF USER INPUT IS EMPTY and there is a default
+                WRITE(LOGFIL,17)PPROMT(M+3:IJP-3)
+             ELSE
+                WRITE(LOGFIL,17)' '
+             ENDIF
+          ELSE
+             WRITE(LOGFIL,17)SVAR(1:MAX(1,I))
+          ENDIF
+17        FORMAT(A)
+       ENDIF
+       I=1
+       IF(EOLCH(SVAR,I)) GOTO 910
+    ENDIF
+!...DECODE THE ANSWER IN SVAR
+!    write(*,*)'GPARALLX 17: ',trim(svar),i
+    CH1=SVAR(I:I)
+!...IF FIRST CHARACTER IS "," PUT DEFAULT VALUE IF ANY
+    IF(CH1.EQ.',') GOTO 910
+!...IF FIRST CHARACTER IS '?' WRITE HELP MESSAGE
+    IF(CH1.EQ.'?') THEN
+       if(hyper.eq.'?TOPHLP') then
+          if(SVAR(I+1:I+1).ne.'?') then
+! if the user types a single ? then just display the menu, no browserhelp!
+             last=i
+             string=svar(i:)
+! The menu is displayed in calling routine, just return here
+!             write(*,*)'GPARALLX quick help exit!',trim(string),i
+             goto 900
+          else
+! user types two ??, generate the hypertarget from prompt
+             if(promt(1:2).eq.'--') then
+! this is ?? typed at top level
+                hypertarget='?All commands'
+             else
+                write(*,*)'Extract from PROMT: "',trim(promt),'"'
+! extract part of the promt as hypertarget, 
+! for a promt "Amend for phase LIQUID what?" extract "Amend for phase"
+! to use as hypertarget.  Use only the 3 first words
+                kl=1
+                kk=1
+                nw=0
+                max3: do while(kk.gt.0)
+! a subsub command should always have 3 fixed words in the promt!!!
+! the last word of a subcommand, "what?", has no " " at the end
+                   kk=index(promt(kl:),' ')
+                   if(kk.gt.0) then
+                      kl=kl+kk
+                      nw=nw+1
+                   else
+                      kl=kl-1
+                      exit max3
+                   endif
+                   if(nw.eq.3) then
+                      kl=kl-1
+                      exit max3
+                   endif
+                enddo max3
+                if(kl.le.1) kl=len_trim(promt)
+                hypertarget='?'//promt(1:kl)
+                write(*,*)'gparallx extracted hypertarget: "',&
+                     trim(hypertarget),'"',nw,kl
+             endif
+!             write(*,*)'GPARALLX hypertarget: ',trim(hypertarget)
+          endif
+       else
+! normal questions have the hypretarget in hyper to provide help
+          hypertarget=hyper
+       endif
+! if two ?? or a real question (not menu) provide more advanced help
+       M=LEN_TRIM(PROMT)
+! using q4help the arguments should be hyper and an (so far) unused integer
+!       CALL HELP(PROMT(1:M),SVAR(I:))
+!       CALL HELP(hypertarget,unused)
+       write(*,*)'Calling Q4HELP: "',trim(hypertarget),'"',unused
+       CALL q4help(hypertarget,unused)
+       if(unused.ne.0) then
+! return a ? to calling routine ... why?
+          SVAR(I+1:I+1)='?'
+          if (ityp.gt.3) STRING=SVAR(I:)
+          GOTO 900
+       ENDIF
+       I=LEN(SVAR)
+       if(once) then
+          once=.false.; GOTO 10
+       else
+! A ? more than once as answer, quit with error
+          goto 920
+       endif
+    ENDIF
+!...FETCH THE VALUE FROM SVAR
+    LAST=I
+    IF(ITYP.EQ.1) THEN
+       CALL GETINT(SVAR,LAST,IVAL)
+    ELSEIF(ITYP.EQ.3) THEN
+       CALL GETREL(SVAR,LAST,VAL)
+    ELSEIF(ITYP.LE.10) THEN
+!...THE PART HERE IS GLITCHY AS ICE ... handling character input
+       L1=0
+       L2=0
+!  ITYP=      4   5   6   7   8   9  10
+       GOTO( 40, 50, 60, 70, 80, 70,100),ITYP-3
+! terminate with space or ,
+40     L1=INDEX(SVAR(LAST:),',')
+! terminate with space
+50     L2=INDEX(SVAR(LAST:),' ')
+! handle if space or , inside parenthesis should be ignored, like x(fcc,cr)
+       IF(MATP) THEN
+!...A , OR SPACE INSIDE PARENTHESIS SHOULD BE IGNORED
+          LLQ=MIN(L1,L2)
+          IF(LLQ.EQ.0) LLQ=MAX(L1,L2)
+          LLP=INDEX(SVAR(LAST:),'(')
+          IF(LLP.GT.0 .AND. LLP.LT.LLQ) THEN
+!...	LLP SHALL BE POSITION OF (, FDMTP UPDATES LLP TO POSITION AFTER )
+51           CALL FDMTP(SVAR(LAST:),LLP,SSD)
+             IF(BUPERR.NE.0) GOTO 900
+             IF(ITYP.EQ.4) L1=INDEX(SVAR(LAST+LLP-1:),',')
+             L2=INDEX(SVAR(LAST+LLP-1:),' ')
+             IF(L1.GT.0) L1=L1+LLP-1
+             IF(L2.GT.0) L2=L2+LLP-1
+             LLQ=MIN(L1,L2)
+             IF(LLQ.EQ.0) LLQ=MAX(L1,L2)
+             LLZ=INDEX(SVAR(LAST+LLP-1:),'(')
+             IF(LLZ.GT.0 .AND. LLP+LLZ.LT.LLQ) THEN
+!...		   WE HAVE MORE THAN ONE ( BEFORE , OR SPACE
+                LLP=LLP+LLZ-1
+                GOTO 51
+             ENDIF
+          ENDIF
+       ENDIF
+       GOTO 400
+! input terminates with period
+60     L1=INDEX(SVAR(LAST:),'.')
+! input terminates with semicolon
+70     L2=INDEX(SVAR(LAST:),';')
+!...STRING INCLUDING THE ;
+       IF(ITYP.EQ.9 .AND. L2.GT.0) L2=L2+1
+       GOTO 400
+!...WHOLE STRING
+80     L1=LEN(SVAR)
+       GOTO 400
+! input terminates with provided character >31
+100    L2=INDEX(SVAR(LAST:),CH2)
+400    IF(L1.GT.0 .AND. L2.GT.0) THEN
+          L1=LAST+MIN(L1,L2)-1
+       ELSEIF(L1.LE.0 .AND. L2.LE.0) THEN
+          L1=LEN(SVAR)+1
+       ELSE
+!...         BUG FOUND HERE: IF L1 IS LEN(SVAR) AND LAST>1 L1 SET >LEN(SVAR)+1
+          L1=MIN(LAST+MAX(L1,L2)-1,LEN(SVAR)+1)
+       ENDIF
+500    IF(L1.GT.LAST) THEN
+          STRING=SVAR(LAST:L1-1)
+       ELSE
+          STRING=' '
+       ENDIF
+       LAST=L1
+    ELSE
+!       CALL ST2ERR(1030,'GPAR','NO SUCH TYPE OPTION')
+       buperr=1030
+    ENDIF
+900 RETURN
+!...SET DEFAULT VALUE
+910 continue
+    IF(ITYP.EQ.1) THEN
+       IF(IDEF.EQ.NONE) GOTO 920
+       IVAL=IDEF
+    ELSEIF(ITYP.EQ.3) THEN
+       IF(RDEF.EQ.RNONE) GOTO 920
+       VAL=RDEF
+    ELSE
+!       write(*,911)'ML gparqall: ',trim(cdef),trim(cnone),wdef
+911    format(a,a,' - ',a,l2)
+       IF(CDEF.NE.CNONE) THEN
+          STRING=CDEF
+!!       endif
+       ELSE
+          GOTO 920
+       endif
+    ENDIF
+!...SET POSITION IN STRING TO POSITION OF ,
+    LAST=I
+    GOTO 900
+!...NO ANSWER AND NO DEFAULT VALUE, ERROR RETURN
+!920 CALL ST2ERR(1032,'GPAR','PARAMETER VALUE MISSING')
+920 buperr=1032
+    GOTO 900
+  END SUBROUTINE GPARALLX
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\addtotable subroutine gparfilex
+!\begin{verbatim}
+    SUBROUTINE GPARFILEx(PROMT,SVAR,LAST,JTYP,SVAL,CDEF,TYP,hyper)
+! to ask for a file name using command line or external window
+! prompt is question
+! svar is a character variable which may already contain an answer
+! last is position in svar to start searching for an answer
+!      JTYP DEFINES THE TERMINATION OF A STRING (maybe redundant??)
+!      1 TEXT TERMINATED BY SPACE OR ","
+!      2 TEXT TERMINATED BY SPACE
+!      3 TEXT TERMINATED BY ";" OR "."
+!      4 TEXT TERMINATED BY ";"
+!      5 TEXT UP TO END-OF-LINE
+!      6 TEXT UP TO AND INCLUDING ";"
+!      7 TEXT TERMINATED BY SPACE OR "," BUT IGNORING SUCH INSIDE ( )
+!    >31, THE CHAR(JTYP) IS USED AS TERMINATING CHARACTER
+! sval is the answer either extracted from SVAR or obtained by user input
+! cdef is a default answer
+! typ  is default file extenion, at present only:
+!  1=".TDB", 2=".UNF", 3=".OCM"
+! hyper is a hypertext target for help
+    implicit none
+!    IMPLICIT DOUBLE PRECISION (A-H,O-Z)
+    CHARACTER PROMT*(*),SVAR*(*),CDEF*(*),SVAL*(*),hyper*(*)
+    integer last,jtyp
+!    EXTERNAL HELP
+!\end{verbatim}
+    CHARACTER SLIN*80
+    integer typ,typeahead,kk,iflag
+    logical beware
+#ifdef tinyfd
+! only if we use tinyfiledialogs, check if any character after last+1
+    typeahead=last+1
+    beware=.FALSE.
+! beware set to TRUE if no typeahead (there are non-blanks after positon last+1)
+    beware=eolch(svar,typeahead)
+!    write(*,*)'M3 gparfile: ',kou,koud,last,eolch(svar,last)
+    if(nopenpopup .or. kiu.ne.kiud .or. .not.beware) then
+#endif
+! If we are not connected to a terminal (reading a macro file) use line input
+! Also if there are "type ahead" use the line input
+! This call exchanges any macro variables in SVAR for defined macro values
+       CALL GQXENV(SVAR)
+! If interactive
+       if(kiu.eq.kiud .and. beware) write(kou,"(a)") &
+            'Beware: you must give the full path unless the file '//&
+            'is in working directory!'
+100    CALL GQARCx(PROMT,SVAR,LAST,JTYP,SVAL,CDEF,hyper)
+       IF(BUPERR.NE.0) GOTO 900
+       SLIN=SVAL(1:max(1,LEN_TRIM(sval)))
+! This call handles ? @ and other things in SVAR
+       CALL GPTCM2(IFLAG,SVAR,LAST,SLIN)
+       IF (IFLAG.NE.0) GOTO 100
+       if(IUMACLEVL.ge.1) then
+          if(sval(1:2).eq.'./') then
+! we are running a macro and if SVAL(1:2) is './' replace this with MACROPATH'
+             sval=trim(macropath(IUMACLEVL))//sval(3:)
+          elseif(sval(1:3).eq.'../') then
+! we are running a macro and if SVAL(1:3) is '../' prefix with MACROPATH'
+             sval=trim(macropath(IUMACLEVL))//sval
+!             write(*,*)'M3 add path: ',trim(sval),IUMACLEVL
+!          else
+!             write(*,*)'M3 assuming full path or in working directory: '
+          endif
+       endif
+#ifdef tinyfd
+    else
+! open a popup window to browse directories and files using tinyfiledialogs
+! typ<0 means new or old file; 0 old file no filer, 
+! typ >0 means old file with filter:
+! typ=1 TDB, 2=OCU, 3=OCM, 4=OCD, 5=plt, 6=PDB, 7=DAT
+       call getfilename(typ,sval)
+       if(sval(1:1).eq.' ') then
+          buperr=1020
+       elseif(typ.eq.-7) then
+! this is for output and file created, if no extension add DAT
+          kk=index(sval,'.DAT ')
+          if(kk.eq.0) then
+             sval(len_trim(sval)+1:)='.DAT'
+          endif
+       endif
+    endif
+#endif    
+900 RETURN
+  END SUBROUTINE GPARFILEX
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 !
@@ -2595,7 +3216,7 @@ CONTAINS
 !
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable init_help
+!\addtotable subroutine init_help
 !\begin{verbatim}
   subroutine init_help(browser,file1,file2)
 ! This routine is called from gtpini to inititate the on-line help system
@@ -2637,7 +3258,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable helplevel
+!\addtotable subroutine helplevel
 !\begin{verbatim}
   subroutine helplevel1(line)
 ! This routine is called from the monitor for the top level command
@@ -2654,65 +3275,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable q2help
-!\begin{verbatim}
-  subroutine q2help(prompt,line)
-! This routine is called from submenu
-! when the user types a ?
-    implicit none
-    character*(*) prompt,line
-!\end{verbatim} %+
-    character helpquest*32
-    integer savedlevel,kk,ip
-!
-    savedlevel=helprec%level-1
-! If the ? is followed by a text push that text on the helprec%cpath
-    ip=2
-! This is to force q2help to work ... otherwise segmentation fault ??!!!    
-    if(ip.lt.0) write(*,*)'q2help: ',savedlevel,line(1:20)
-    if(.not.eolch(line,ip)) then
-!       write(*,*)helprec%level,helprec%cpath(helprec%level)
-!       helpquest=line(ip:)
-       helpquest=prompt
-       call capson(helpquest)
-! remove any WHAT? as such levels will be ignored by q1help
-       kk=index(helpquest,'WHAT?')
-       if(kk.gt.0) then
-          helpquest(kk:)='COMMAND '
-          if(helptrace) write(*,*)'MM hepquest: ',kk,trim(helpquest)
-       endif
-! use the saved helprec%level 
-       helprec%level=savedlevel
-       helprec%cpath(helprec%level)=helpquest
-! always upper case ...
-       call capson(helprec%cpath(helprec%level))
-!       if(helptrace) write(*,11)helprec%level,&
-!            (trim(helprec%cpath(i)),i=1,helprec%level)
-11     format('q2help: ',i3,10(', ',a))
-    else
-! when we are here we have just a ? from user, return to submenu with that
-! with two ?? or anything else q1help is called (I hope ...)
-       line='?!'
-       if(ochelp%htmlhelp) then
-          write(*,17)
-17        format(/'By typing two ?? you will open the browser')
-       endif
-       goto 1000
-    endif
-! this is a dummy line needed to force the MacOS linker to find this routine
-!??  if(savedlevel.eq.helprec%level) write(*,*)'Inside q2help: ',trim(prompt)
-    if(ip.lt.0) write(*,*)'in q2help calling q1help'
-! write help text from help file and then return with ?! to get submenu
-    if(helptrace) write(*,*)'q2help calling q1help: ',trim(helpquest)
-    call q1help(prompt,line)
-    line='?!'
-1000 continue
-    return
-  end subroutine q2help
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
-
-!\addtotable q1help
+!\addtotable subroutine q1help
 !\begin{verbatim}
   subroutine q1help(prompt,line)
 ! This routine is called from all gparx routines 
@@ -2724,7 +3287,7 @@ CONTAINS
     integer, parameter :: maxlevel=20
 !\end{verbatim} %+
     character subsec(5)*10,saved(maxlevel)*24
-    character justdoit*256
+    character htmlhelp*256
     integer nsaved(maxlevel)
     integer izz,jj,kk,kkk,level,nl,l2,np1,np2,nsub,zz
     logical foundall
@@ -2938,16 +3501,16 @@ CONTAINS
 #ifdef lixhlp
 ! on linux just ' "file:" as ochelp#htmlfile start with a /
 ! The & at the end spawns the browser window and furter ? creates new tags !!
-          justdoit=trim(ochelp%browser)//' "file:'//&
+          htmlhelp=trim(ochelp%browser)//' "file:'//&
                trim(ochelp%htmlfile)//'#'//ochelp%target(1:kk)//'" &'
 #else
 ! on Windows we need the / after file
 ! the initial start spawns a new window with the browser, each ? a new browser
-          justdoit='start '//trim(ochelp%browser)//' "file:/'//&
+          htmlhelp='start '//trim(ochelp%browser)//' "file:/'//&
                trim(ochelp%htmlfile)//'#'//ochelp%target(1:kk)//'"'
 #endif
-          if(helptrace) write(*,*)'MM: ',trim(justdoit)
-          call execute_command_line(justdoit)
+          if(helptrace) write(*,*)'MM: ',trim(htmlhelp)
+          call execute_command_line(htmlhelp)
           goto 900
        else
 ! help in user terminal screen: write a blank line
@@ -2986,7 +3549,65 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable q3help
+!\addtotable subroutine q2help
+!\begin{verbatim}
+  subroutine q2help(prompt,line)
+! This routine is called from submenu
+! when the user types a ?
+    implicit none
+    character*(*) prompt,line
+!\end{verbatim} %+
+    character helpquest*32
+    integer savedlevel,kk,ip
+!
+    savedlevel=helprec%level-1
+! If the ? is followed by a text push that text on the helprec%cpath
+    ip=2
+! This is to force q2help to work ... otherwise segmentation fault ??!!!    
+    if(ip.lt.0) write(*,*)'q2help: ',savedlevel,line(1:20)
+    if(.not.eolch(line,ip)) then
+!       write(*,*)'q2help: ',helprec%level,ip,helprec%cpath(helprec%level)
+       helpquest=line(ip:)
+       helpquest=prompt
+       call capson(helpquest)
+! remove any WHAT? as such levels will be ignored by q1help
+       kk=index(helpquest,'WHAT?')
+       if(kk.gt.0) then
+          helpquest(kk:)='COMMAND '
+          if(helptrace) write(*,*)'MM hepquest: ',kk,trim(helpquest)
+       endif
+! use the saved helprec%level 
+       helprec%level=savedlevel
+       helprec%cpath(helprec%level)=helpquest
+! always upper case ...
+       call capson(helprec%cpath(helprec%level))
+!       if(helptrace) write(*,11)helprec%level,&
+!            (trim(helprec%cpath(i)),i=1,helprec%level)
+11     format('q2help: ',i3,10(', ',a))
+    else
+! when we are here we have just a ? from user, return to submenu with that
+! with two ?? or anything else q1help is called (I hope ...)
+       line='?!'
+       if(ochelp%htmlhelp) then
+          write(*,17)
+17        format(/'By typing two ?? you will open the browser')
+       endif
+       goto 1000
+    endif
+! this is a dummy line needed to force the MacOS linker to find this routine
+!??  if(savedlevel.eq.helprec%level) write(*,*)'Inside q2help: ',trim(prompt)
+    if(ip.lt.0) write(*,*)'in q2help calling q1help'
+! write help text from help file and then return with ?! to get submenu
+    if(helptrace) write(*,*)'q2help calling q1help: ',trim(helpquest)
+    call q1help(prompt,line)
+    line='?!'
+1000 continue
+    return
+  end subroutine q2help
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\addtotable subroutine q3help
 !\begin{verbatim}
   SUBROUTINE Q3HELP(LINE,LAST,COMM,NC)
 ! used in submeny when user gives "? 'command' " taken as "help 'command'"
@@ -2995,8 +3616,6 @@ CONTAINS
     CHARACTER LINE*(*),COMM(NC)*(*)
     integer last
 !\end{verbatim} %+
-!    CALL GPARC('COMMAND: ',LINE,LAST,1,CMD,'*',FILHLP)
-!    CALL GPARC('COMMAND: ',LINE,LAST,1,CMD,'*',q1help)
     CHARACTER CMD*40
     integer, parameter :: MC=100
     integer INDX(MC)
@@ -3004,10 +3623,10 @@ CONTAINS
 ! To avoid storing "COMMAND" in the helprec%cpath
 !    if(helprec%level.gt.2) helprec%level=helprec%level-1 !.. HELP HELP not OK
     if(helprec%level.gt.3) helprec%level=helprec%level-1
-!    write(*,*)'q3help: asking for command for help:',line(1:2),last
-    CALL GPARC('COMMAND: ',LINE,LAST,1,CMD,'*',tophlp)
-!    write(*,*)'q3help: command:',cmd
-    IF(CMD(1:1).EQ.'*') THEN
+!    write(*,*)'q3help: asking for help for command: "',trim(line),'"',last,nc
+    CALL GPARC_old('Help for which command? ',LINE,LAST,1,CMD,'*',tophlp)
+!    write(*,*)'q3help: command: "',trim(cmd),'"'
+    IF(CMD(1:1).EQ.'*' .or. cmd(1:1).eq.'?') THEN
 !...LIST ALL COMMANDS IN UNIX ALPHABETICAL ORDER
        NKPL=80/(LEN(COMM(1))+1)
        IF(NKPL*(LEN(COMM(1))+1).GE.80) NKPL=NKPL-1
@@ -3065,7 +3684,162 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable nohelp
+!\addtotable subroutine q3helpx
+!\begin{verbatim}
+  SUBROUTINE Q3HELPx(LINE,LAST,COMM,NC)
+! used in submeny when user gives "? 'command' " taken as "help 'command'"
+!...EXECUTES A HELP COMMAND
+    implicit none
+    CHARACTER LINE*(*),COMM(NC)*(*)
+    integer last
+!\end{verbatim} %+
+    CHARACTER CMD*40
+    integer, parameter :: MC=100
+    integer INDX(MC)
+    integer nkpl,nc,nlfk,nbk,i,j,k
+! To avoid storing "COMMAND" in the helprec%cpath
+!    if(helprec%level.gt.2) helprec%level=helprec%level-1 !.. HELP HELP not OK
+    if(helprec%level.gt.3) helprec%level=helprec%level-1
+!    write(*,*)'q3help: asking for help for command: "',trim(line),'"',last,nc
+    CALL GPARCx('Help for which command? ',LINE,LAST,1,CMD,'*','?TOPHLP')
+!    write(*,*)'q3help: command: "',trim(cmd),'"'
+    IF(CMD(1:1).EQ.'*' .or. cmd(1:1).eq.'?') THEN
+!...LIST ALL COMMANDS IN UNIX ALPHABETICAL ORDER
+       NKPL=80/(LEN(COMM(1))+1)
+       IF(NKPL*(LEN(COMM(1))+1).GE.80) NKPL=NKPL-1
+100    IF(NC.LT.MC) THEN
+          CALL SSORT(COMM,NC,INDX)
+          ALLCOM: DO NBK=1,NC
+             IF(COMM(INDX(NBK))(1:1).NE.' ') GOTO 301
+          enddo ALLCOM
+301       NLFK=(NC+NKPL-NBK)/NKPL
+          NBK=NBK-1
+          COMLIST: DO I=1,NLFK
+             WRITE(KOU,320)(COMM(INDX(NBK+J)),J=I,NC-NBK,NLFK)
+          enddo COMLIST
+320       FORMAT(10(1X,A))
+       ELSE
+!...      TOO MANY COMMANDS TO SORT
+          NLFK=(NC+NKPL-1)/NKPL
+          UNSORTED: DO I=1,NLFK
+             WRITE(KOU,320)(COMM(J),J=I,NC,NLFK)
+          enddo UNSORTED
+       ENDIF
+    ELSE
+!...HELP <COMMAND>
+!      IF UNIQUE LIST DESCRIPTION ON HELP FILE. OTHERWISE
+!      ALL COMMANDS THAT MATCHES
+       K=NCOMP2(CMD,COMM,NC,I)
+       IF(K.GT.0) THEN
+! we have to replace HELP by CMD on the stack of commands
+! to get the correct help text
+          CALL CAPSON(CMD)
+          helprec%level=helprec%level-1
+          helprec%cpath(helprec%level)=CMD
+!          write(*,11)helprec%level,(helprec%cpath(i)(1:8),i=1,helprec%level)
+11        format('q3help: ',i3,10(', ',a))
+!          write(*,*)helprec%level
+!          do ii=1,helprec%level
+!             write(*,*)helprec%cpath(ii)
+!          enddo
+          call q1help(' ',CMD)
+       ELSEIF(K.EQ.0 .OR. K.LT.-NC) THEN
+          WRITE(KOU,*)'No matching command, use HELP * or ?'
+       ELSE
+500       WRITE(KOU,*)COMM(-K)
+          IF(NC+K.LE.0) GOTO 900
+          J=NCOMP2(CMD,COMM(1-K),NC+K,I)
+!  ...bugfix for "help s-i" in poly
+          IF(j .LT. -(NC+K) ) GOTO 900
+          IF(K.EQ.-NC .OR. J.EQ.0) GOTO 900
+          K=K-ABS(J)
+          GOTO 500
+       ENDIF
+    ENDIF
+900 RETURN
+  END SUBROUTINE Q3HELPx
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\addtotable subroutine q4help
+!\begin{verbatim}
+  subroutine q4help(hypertarget,extra)
+! This routine is adapted to provide help from webrowsers using hypertarget
+! when the user types a ? or ??
+    implicit none
+    integer extra
+    character*(*) hypertarget
+!\end{verbatim} %+
+! this routine independent of the command history.  The GPARX routines
+! call this with the hypertarget provided in the call to GPARX routine
+! and searches this target in the HTML file
+! if extra=0 help has been provided, otherwise the calling routine try to do it
+    character htmlhelp*256
+    if(helprec%okinit.eq.0) then
+       if(helptrace) write(kou,*)'Sorry no help file'
+       goto 1000
+    endif
+    if(helprec%type.ne.'latex   ') then
+       write(*,*)'Sorry only help based on LaTeX/HTML implemented'
+       goto 1000
+    endif
+    if(helptrace) then
+! helptrace help debugging ...
+!       write(*,*)'q4help: ',trim(hypertarget),extra
+    endif
+    if(hypertarget(1:1).eq.' ') then
+       write(*,*)'Sorry, the software provides no help for this question'
+       goto 1000
+    endif
+!       
+! we have tested this file exists when initating help 
+!    write(*,*)'Q4HELP: ',trim(hypertarget),extra
+    open(31,file=ochelp%latexfile,status='old',access='sequential')
+! if first character in hypertarget is ? remove that
+! in OC I try to use a ? in all calls for gparxyz to find hypertargets in 
+! the source code.  Seach for "'?" in the source code!
+! This ? is not needed or used in the LaTeX file.
+    if(hypertarget(1:1).eq.'?') then
+       ochelp%target=hypertarget(2:)
+    else
+       ochelp%target=hypertarget
+    endif
+! The help system depends on 3 files:
+! 1: a plain LaTeX file is the base.  The \hypertarget{target}{text} feature
+!    is are used to find a specific help text in the user guide.
+! 2: a html file is generated from this LaTeX file with the hypertargets.
+!    this allows to locate the text inside the html file and display
+!    in a separate windows in a browser.  The user can scroll this 
+!    while running the program.
+! 3: the same LaTeX can also be used to generate a PDF.  But no one reads 
+!    the manual.
+! For each comand and question the software asks it uses a GPARX routine.
+! in the call this subroutine and a hypertarget text is provided.
+! When inside this routine the user has typed ? or ?? to get help.
+! The browser used depend on compiler options ...
+#ifdef lixhlp
+! on linux just ' "file:" as ochelp#htmlfile start with a /
+! The & at the end spawns the browser window and furter ? creates new tags !!
+    htmlhelp=trim(ochelp%browser)//' "file:'//&
+         trim(ochelp%htmlfile)//'#'//ochelp%target//'" &'
+#else
+! on Windows we need the / after file
+! the initial start spawns a new window with the browser, each ? a new browser
+    htmlhelp='start '//trim(ochelp%browser)//' "file:/'//&
+         trim(ochelp%htmlfile)//'#'//ochelp%target//'"'
+#endif
+    if(helptrace) write(*,*)'MM: ',trim(htmlhelp)
+    call execute_command_line(htmlhelp)
+900 continue
+    close(31)
+!
+1000 continue
+    return
+  end subroutine q4help
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\addtotable subroutine nohelp
 !\begin{verbatim}
   SUBROUTINE NOHELP(PROMT,LINE)
 ! no help available
@@ -3077,7 +3851,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable tophlp
+!\addtotable subroutine tophlp
 !\begin{verbatim}
   SUBROUTINE TOPHLP(PROMPT,LINE)
 ! return to calling routine for help, do not save the current command ...
@@ -3111,7 +3885,7 @@ CONTAINS
 !
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable nghist
+!\addtotable subroutine nghist
 !\begin{verbatim}
   SUBROUTINE NGHIST(LINE,LAST)
 !...EXECUTES A HISTORY COMMAND
@@ -3209,7 +3983,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable openlogfile
+!\addtotable subroutine openlogfile
 !\begin{verbatim}
   subroutine openlogfile(name,text,lun)
 ! opens a logfile for commands
@@ -3242,7 +4016,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable set_echo
+!\addtotable subroutine set_echo
 !\begin{verbatim}
   subroutine set_echo(ion)
 ! set echo of command input, does this really work?
@@ -3262,7 +4036,7 @@ CONTAINS
 !
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
   
-!\addtotable boutxt
+!\addtotable subroutine boutxt
 !\begin{verbatim}
   subroutine boutxt(lut,line)
 ! writes the text on line on unit lut without CR/LF
@@ -3278,14 +4052,14 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable bintxt
-!\begin verbatim
+!\addtotable subroutine bintxt
+!\begin{verbatim}
   subroutine bintxt(lin,cline)
 ! read a command line with or without arguments. On LINUX command line editing
     implicit none
     character cline*(*)
     integer lin
-!\end verbatim
+!\end{verbatim} %+
 #ifdef lixed
 ! LINUX: to have command line editing uncomment the line above and comment the 
 ! line with the call bintxt_nogetkey
@@ -3299,15 +4073,15 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable bintxt_getkey
-!\begin verbatim
+!\addtotable subroutine bintxt_getkey
+!\begin{verbatim}
   subroutine bintxt_getkey(lin,cline)
 ! LINUX subroutine to read a line with history and editing a la emacs
 !
     implicit none
     character cline*(*)
     integer lin
-!\end verbatim %+
+!\end{verbatim} %+
 !--------------------  
 ! CONTROL CHARACTERS FROM KEYBOARD
 ! DEL delete curret character
@@ -3609,7 +4383,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable bintxt_nogetkey
+!\addtotable subroutine bintxt_nogetkey
 !\begin{verbatim}
   subroutine bintxt_nogetkey(lin,line)
 ! Reading a command line on Windows with editing provided by the OS
@@ -3635,7 +4409,7 @@ CONTAINS
 !
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable macbeg
+!\addtotable subroutine macbeg
 !\begin{verbatim}
   SUBROUTINE MACBEG(LINE,LAST,OK)
 !....subroutine to execute set-interactive allowing nesting of macros
@@ -3674,7 +4448,7 @@ CONTAINS
 !    endif
 !    write(*,*)'In MACBEG: ',trim(line),last
 ! added that extension should be OCM by the argument "3"
-    CALL GPARFILE('Macro filename: ',LINE,LAST,1,FIL,MACFIL,3,nohelp)
+    CALL GPARFILEx('Macro filename: ',LINE,LAST,1,FIL,MACFIL,3,'?MACRO file')
 !    CALL GPARC('Macro filename: ',LINE,LAST,1,FIL,MACFIL,nohelp)
 ! add default extension if needed
     CALL FXDFLT(FIL,MACEXT)
@@ -3735,7 +4509,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable macend
+!\addtotable subroutine macend
 !\begin{verbatim}
     SUBROUTINE MACEND(LINE,LAST,OK)
 ! end of macro detected, close file and return to upper level
@@ -3774,7 +4548,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable gptcm1
+!\addtotable subroutine gptcm1
 !\begin{verbatim}
   SUBROUTINE GPTCM1(IFLAG,SVAR,LAST,SLIN)
 !...handling of MACRO directives like @& @? and @# etc
@@ -3786,7 +4560,6 @@ CONTAINS
     CHARACTER PP*30,CH1*1
 !    CHARACTER ENVIR(9)*60,LABEL*8,LABLIN*60,SYMBOL*60
     CHARACTER LABEL*8,LABLIN*60,SYMBOL*60
-!    PARAMETER (ZERO=0.0D0,ONE=1.0D0)
 !    LOGICAL SG2ERR,TESTB,EOLCH
 !
     IFLAG=0
@@ -3802,7 +4575,7 @@ CONTAINS
 !
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable gptcm2
+!\addtotable subroutine gptcm2
 !\begin{verbatim}
   subroutine GPTCM2(IFLAG,SVAR,LAST,SLIN)
 ! handling of macro variables
@@ -3814,7 +4587,7 @@ CONTAINS
 !    CHARACTER ENVIR(9)*60,LABEL*8,LABLIN*60,SYMBOL*60
     CHARACTER PP*30,CH1*1
     CHARACTER LABEL*8,LABLIN*60,SYMBOL*60
-    double precision, parameter :: ZERO=0.0D0,ONE=1.0D0
+!    double precision, parameter :: ZERO=0.0D0,ONE=1.0D0
     integer ienv
 !    LOGICAL SG2ERR,TESTB,EOLCH
     IFLAG=0
@@ -3899,7 +4672,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable gqexv
+!\addtotable subroutine gqexv
 !\begin{verbatim}
   SUBROUTINE GQXENV(SVAR)
 !...EXCHANGES REFERENCES TO ENVIRONMENT MACRO VARIABLES TO ACTUAL VALUES
@@ -3951,7 +4724,7 @@ CONTAINS
 !
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
 
-!\addtotable putfun
+!\addtotable subroutine putfun
 !\begin{verbatim}
   SUBROUTINE PUTFUN(STRING,L,MAXS,SYMBOL,LOKV,LROT,ALLOWCH,NV)
 !...READS AN EXPRESSION FROM STRING POSITION L AND CREATES AN BINARY TREE
@@ -3963,9 +4736,9 @@ CONTAINS
 !    type(putfun_symlink) :: symlist
     LOGICAL NOTPP
     TYPE(putfun_node), pointer :: LROT
-!\end{verbatim} %+
+!\end{verbatim}
     CHARACTER CH*1
-    double precision, parameter :: ZERO=0.0D0
+!    double precision, parameter :: ZERO=0.0D0
     integer l,i,ipn,lab,lq,negmark,iopuni
     double precision val
     TYPE(putfun_node), pointer :: nynod,nonod
@@ -4171,7 +4944,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
 
-!\addtotable nybin
+!\addtotable subroutine nybin
 !\begin{verbatim}
   SUBROUTINE NYBIN(kod,binnod,NOTPP)
 !...INSERTS A NEW OPNODE IN THE TREE
@@ -4182,7 +4955,7 @@ CONTAINS
 !\end{verbatim} %+
 !
     TYPE(putfun_node), pointer :: temp
-    double precision, parameter :: zero=0.0d0
+!    double precision, parameter :: zero=0.0d0
 ! INPUT:
 !      KOD    IS OPERATION CODE: 1 +, 2 -, 3 *, 4 /, 5 **
 ! EXIT: 
@@ -4254,7 +5027,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
 
-!\addtotable nyuni
+!\addtotable subroutine nyuni
 !\begin{verbatim}
   SUBROUTINE NYUNI(KOD,negmark,uninod,IPN,NOTPP)
 !   Creates a node with a unary operator
@@ -4293,7 +5066,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
 
-!\addtotable nylp
+!\addtotable subroutine nylp
 !\begin{verbatim}
   SUBROUTINE NYLP(uninod,IPN,NOTPP)
 !...OPENING PARENTHESIS, push links on LEVEL. Also after unary operator
@@ -4332,7 +5105,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
 
-!\addtotable nyrp
+!\addtotable subroutine nyrp
 !\begin{verbatim}
   subroutine NYRP(IPN,NOTPP)
 !...CLOSING PARENTHESIS
@@ -4387,7 +5160,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable nyvar
+!\addtotable subroutine nyvar
 !\begin{verbatim}
   SUBROUTINE NYVAR(TEXT,L,IOPUNI,negmark,MAXS,SYMBOL,LOKV,allowch,dummy2)
 ! inserts a symbol in an expression
@@ -4401,7 +5174,7 @@ CONTAINS
 !
     integer, parameter :: NOPER=14
     CHARACTER CH*1,NAME*16
-    double precision, parameter :: ZERO=0.0D0,ONE=1.0D0
+!    double precision, parameter :: ZERO=0.0D0,ONE=1.0D0
     LOGICAL DEL2
     integer l,k,ln,i
 !    type(putfun_symlink) :: symlist
@@ -4547,7 +5320,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
 
-!\addtotable nydat
+!\addtotable subroutine nydat
 !\begin{verbatim}
   SUBROUTINE NYDAT(KOD,VAL,nynod,negmark)
 ! store a constant or symbol.  The address to the node is returned in lok
@@ -4557,7 +5330,7 @@ CONTAINS
     integer kod,negmark
     TYPE(putfun_node), pointer :: nynod
     double precision val
-!\end{verbatim} %+
+!\end{verbatim}
 !    write(*,*)'nydat 1: ',kod,negmark
     allocate(nynod)
     nynod%kod=kod; nynod%links=0
@@ -4592,7 +5365,7 @@ CONTAINS
 
 !\addtotable double precision evalf
 !\begin{verbatim}
-  double precision FUNCTION EVALF(LROT,VAR)
+  double precision function evalf(LROT,VAR)
 !      Calculates the value of an expression MEMORY LEAK 
 ! ?? I do not know what is the difference with evalf_x ??/BoS 190804
 !
@@ -4612,7 +5385,7 @@ CONTAINS
     end TYPE PUTFUN_SAVE
 ! these pointers are allocated creating memory leaks
     type(putfun_save), pointer :: topsave,temp
-    double precision, parameter :: ZERO=0.0D0
+!    double precision, parameter :: ZERO=0.0D0
     integer last,lstp,kod
 !
 !...If LROT<=0 there is no expression, return sero
@@ -4714,7 +5487,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
 
-!\addtotable double precision evalf_x
+!\addtotable double precision function evalf_x
 !\begin{verbatim}
   double precision FUNCTION EVALF_X(LROT,VAR)
 !      Calculates the value of an expression
@@ -4737,7 +5510,7 @@ CONTAINS
 ! memory leak allocating pointers
 !    type(putfun_save), target :: saverec
     type(putfun_save), pointer  :: topsave,temp
-    double precision, parameter :: ZERO=0.0D0
+!    double precision, parameter :: ZERO=0.0D0
     integer last,lstp,kod
 !
 !...If LROT<=0 there is no expression, return sero
@@ -4839,7 +5612,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
 
-!\addtotable eunary
+!\addtotable subroutine eunary
 !\begin{verbatim}
   SUBROUTINE EUNARY(KOD,X)
 ! calculates a unary function such as LOG, EXP etc
@@ -4872,7 +5645,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
 
-!\addtotable ebinary
+!\addtotable subroutine ebinary
 !\begin{verbatim}
   SUBROUTINE EBINRY(KOD,X,Y)
 ! Calculates the value of a binary node with two data nodes
@@ -4881,7 +5654,6 @@ CONTAINS
     integer kod
     double precision X,Y
 !\end{verbatim} %+
-!    ZERO=0.0D0 set as global constant
     integer nn
 !
     IF(KOD.EQ.1) X=X+Y
@@ -4911,7 +5683,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
 
-!\addtotable double precision aivan
+!\addtotable double precision function aivan
 !\begin{verbatim}
   double precision FUNCTION AIVAN(PECN)
 !      CALCULATES THE DIMENSIONLESS SUPERCOOLING OF DIFFUSION BY
@@ -4963,7 +5735,8 @@ CONTAINS
     double precision FA
 !\end{verbatim} %+
 ! value of PI not very accurate ....
-    double precision, parameter :: ZERO=0.0D+00,PI=3.14159D0
+!    double precision, parameter :: ZERO=0.0D+00,PI=3.14159D0
+    double precision, parameter :: PI=3.14159D0
     double precision, parameter :: PI3=PI*PI*PI
 !
     integer loopmx
@@ -4984,7 +5757,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
 
-!\addtotable double precision FUNCTION PF_HS(X)
+!\addtotable double precision function pf_hs
 !\begin{verbatim}
   double precision FUNCTION PF_HS(X)
 !      Calculates Heaviside function
@@ -4992,7 +5765,7 @@ CONTAINS
     implicit none
     double precision X
 !\end{verbatim} %+
-    double precision, parameter :: ZERO=0.0D+00,ONE=1.0D+00
+!    double precision, parameter :: ZERO=0.0D+00,ONE=1.0D+00
 ! BUG!!!!
 !    HS=ZERO
     PF_HS=ZERO
@@ -5002,7 +5775,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
 
-!\addtotable double precision function PF_ERF
+!\addtotable double precision function pf_erf
 !\begin{verbatim}
   double precision FUNCTION PF_ERF(X0)
 !      CALCULATES ERROR-FUNCTION OF X, USING AN
@@ -5012,7 +5785,7 @@ CONTAINS
     implicit none
     double precision X0
 !    IMPLICIT DOUBLE PRECISION (A-H,O-Z)
-!\end{verbatim} %+
+!\end{verbatim}
     double precision, parameter :: ONE=1.0D0,TWO=2.0D0
     double precision P,A1,A2,A3,A4,A5,PI,S,X,T,Q
     DATA P,A1,A2,A3,A4,A5,PI/.3275911D0,.254829592D0,-.284496736D0, &
@@ -5028,7 +5801,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
 
-!\addtotable wrtfun
+!\addtotable subroutine wrtfun
 !\begin{verbatim}
   SUBROUTINE WRTFUN(STRING,IPOS,LROT,SYMBOL)
 !      Writes a PUTFUN expression
@@ -5174,7 +5947,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
 
-!\addtotable wrtlpq
+!\addtotable subroutine wrtlpq
 !\begin{verbatim}
   SUBROUTINE WRTLPQ(STRING,IPOS,LINK,KOD,LOD,negmark)
 ! write a left ( or unary operator followed by (
@@ -5230,7 +6003,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
 
-!\addtotable wrtrpq
+!\addtotable subroutine wrtrpq
 !\begin{verbatim}
   SUBROUTINE WRTRPQ(STRING,IPOS,LINK,KOD,LOD)
 !  write a right )  but if LOD<-1 do not write (
@@ -5256,7 +6029,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
 
-!\addtotable wrtbiq
+!\addtotable subroutine wrtbiq
 !\begin{verbatim}
   SUBROUTINE WRTBIQ(STRING,IPOS,KOD)
 ! write a binary operator
@@ -5277,7 +6050,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
 
-!\addtotable wrtdaq
+!\addtotable subroutine wrtdaq
 !\begin{verbatim}
   SUBROUTINE WRTDAQ(STRING,IPOS,KOD,VAL,SYMBOL,negmark)
 !     write a number, if KOD<0 a whole number
@@ -5288,7 +6061,7 @@ CONTAINS
     integer ipos,kod,negmark
     double precision val
 !\end{verbatim} %+
-    double precision, PARAMETER :: ZERO=0.0D0
+!    double precision, PARAMETER :: ZERO=0.0D0
     IF(KOD.EQ.0) THEN
        IF(VAL.GT.ZERO .or. negmark.eq.0) then
           CALL WRINUM(STRING,IPOS,12,0,VAL)
@@ -5315,7 +6088,110 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
 
-!\addtotable delfun
+!\addtotable subroutine cons
+!\begin{verbatim}
+  SUBROUTINE CONS(STR1,IPOS,STR2)
+! used in PUTFUN but should be replaced by //
+    implicit none
+    CHARACTER STR1*(*),STR2*(*)
+    integer ipos
+!\end{verbatim}
+!      CONS. TWO STRINGS, RESULT IN PARAMETER STR1
+!      IPOS = POSITION IN STR1 WHERE STR2 SHOULD BE PUT
+!      IPOS IS UPPDATED TO THE FIRST FREE POSITION AT THE END
+!      OF STR1. TRAILING SPACES ARE STRIPPED OFF.
+!      IF STR2 CONTAINES ONLY SPACES ONE SPACE IS WRITTEN
+!      IN TO STR1.
+    CHARACTER SPC*(1)
+    PARAMETER (SPC=' ')
+    integer ilen,k,i
+    ILEN=LEN(STR2)
+!...FIND THE LENGHT OF STR2
+    K=ILEN
+    DO I=K,1,-1
+       IF(STR2(ILEN:ILEN).EQ.SPC) ILEN=ILEN-1
+    enddo
+    IF(ILEN.EQ.0)ILEN=1
+    STR1(IPOS:IPOS+ILEN-1)=STR2(1:ILEN)
+    IPOS=IPOS+ILEN
+    RETURN
+  END SUBROUTINE CONS
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
+
+!\addtotable subroutine exphlp
+!\begin{verbatim}
+  SUBROUTINE EXPHLP(PROMPT,SVAR)
+! writes help to enter a PUTFUN expression
+    implicit none
+    CHARACTER PROMPT*(*),SVAR*(*)
+!\end{verbatim} %+
+    WRITE(KOU,10)
+10  FORMAT(' You are expected to give a formula that shall be', &
+         ' evaluated or manipulated.'/ &
+         ' The formula shall be written as a FORTRAN statement with the', &
+         ' following rules:'/ &
+         ' A variable must begin with a letter', &
+         ' and a number with a number (not a dot).'/' A real number must', &
+         ' have a dot or an exponent (E).'/ &
+         ' The operators + , - ,   , / , ** (exponentiation) can be used'/ &
+         ' and any level of parenthesis.'/ &
+         ' SQRT(X) is the square root'/ &
+         ' EXP(X) is the exponential'/ &
+         ' LOG(X) or LN(X) is the natural logarithm'/ &
+         ' LOG10(X) is the base 10 logarithm'/ &
+         ' SIN(X), COS(X), ATAN(X)'/ &
+         ' SIGN(X)'/ &
+         ' ERF(X) is the error function'/ &
+         ' IVAN(X) Ivantsof function'/ &
+         ' BSUM(X) is sum(sin(n*pi*f)**2/(n*pi)**3)'/ &
+         ' ABS(X) is absolute value'/ &
+         ' HS(X) is the Heaviside function'/ &
+         ' Notice that these operators must be followed by a (.'// &
+         ' The statement must be terminated by a ;'/)
+900 RETURN
+  END SUBROUTINE EXPHLP
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
+
+!\addtotable subroutine putprp
+!\begin{verbatim}
+  SUBROUTINE PUTPRP(NAMN,MAXS,SYMBOL,PROMPT,ILEN)
+!...CREATES A PROMPT asking for a putfun expression with formal arguments
+    implicit none
+    CHARACTER NAMN*(*),PROMPT*(*),SYMBOL(*)*(*)
+    integer ilen,maxs
+!...write a prompt with name of all variables
+!\end{verbatim} %+
+    integer i,j
+    ILEN=1
+    PROMPT=' '
+    CALL CONS(PROMPT,ILEN,NAMN)
+    IF(MAXS.LE.0) THEN
+       CALL CONS(PROMPT,ILEN,'=')
+       GOTO 900
+    ENDIF
+    CALL CONS(PROMPT,ILEN,'(')
+    I=1
+11  IF(I.GT.MAXS) GOTO 12
+    J=LEN_trim(SYMBOL(I))
+    IF(LEN(SYMBOL(I)).GT.J) THEN
+       J=J+1
+       SYMBOL(I)(J:J)=' '
+    ENDIF
+    CALL CONS(PROMPT,ILEN,SYMBOL(I)(1:J))
+    IF(I.NE.MAXS) CALL CONS(PROMPT,ILEN,',')
+    I=I+1
+    GOTO 11
+12  CONTINUE
+    CALL CONS(PROMPT,ILEN,')= ')
+    ILEN=ILEN-1
+900 RETURN
+  END SUBROUTINE PUTPRP
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
+
+!\addtotable subroutine delfun
 !\begin{verbatim}
   SUBROUTINE DELFUN(LROT,IWS)
 !   delete a putfun expression :: not converted to structures
@@ -5323,7 +6199,7 @@ CONTAINS
     implicit none
     integer IWS(*)
     integer lrot
-!\end{verbatim} %+
+!\end{verbatim}
     integer link(20)
     integer nod,last,lnode
 !    DIMENSION LINK(20)
@@ -5374,109 +6250,6 @@ CONTAINS
 900 RETURN
   END SUBROUTINE DELFUN
 
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
-
-!\addtotable cons
-!\begin{verbatim}
-  SUBROUTINE CONS(STR1,IPOS,STR2)
-! superceeded by //
-    implicit none
-    CHARACTER STR1*(*),STR2*(*)
-    integer ipos
-!\end{verbatim} %+
-!      CONS. TWO STRINGS, RESULT IN PARAMETER STR1
-!      IPOS = POSITION IN STR1 WHERE STR2 SHOULD BE PUT
-!      IPOS IS UPPDATED TO THE FIRST FREE POSITION AT THE END
-!      OF STR1. TRAILING SPACES ARE STRIPPED OFF.
-!      IF STR2 CONTAINES ONLY SPACES ONE SPACE IS WRITTEN
-!      IN TO STR1.
-    CHARACTER SPC*(1)
-    PARAMETER (SPC=' ')
-    integer ilen,k,i
-    ILEN=LEN(STR2)
-!...FIND THE LENGHT OF STR2
-    K=ILEN
-    DO I=K,1,-1
-       IF(STR2(ILEN:ILEN).EQ.SPC) ILEN=ILEN-1
-    enddo
-    IF(ILEN.EQ.0)ILEN=1
-    STR1(IPOS:IPOS+ILEN-1)=STR2(1:ILEN)
-    IPOS=IPOS+ILEN
-    RETURN
-  END SUBROUTINE CONS
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
-
-!\addtotable exphlp
-!\begin{verbatim}
-  SUBROUTINE EXPHLP(PROMPT,SVAR)
-! writes help to enter a PUTFUN expression
-    implicit none
-    CHARACTER PROMPT*(*),SVAR*(*)
-!\end{verbatim} %+
-    WRITE(KOU,10)
-10  FORMAT(' You are expected to give a formula that shall be', &
-         ' evaluated or manipulated.'/ &
-         ' The formula shall be written as a FORTRAN statement with the', &
-         ' following rules:'/ &
-         ' A variable must begin with a letter', &
-         ' and a number with a number (not a dot).'/' A real number must', &
-         ' have a dot or an exponent (E).'/ &
-         ' The operators + , - ,   , / , ** (exponentiation) can be used'/ &
-         ' and any level of parenthesis.'/ &
-         ' SQRT(X) is the square root'/ &
-         ' EXP(X) is the exponential'/ &
-         ' LOG(X) or LN(X) is the natural logarithm'/ &
-         ' LOG10(X) is the base 10 logarithm'/ &
-         ' SIN(X), COS(X), ATAN(X)'/ &
-         ' SIGN(X)'/ &
-         ' ERF(X) is the error function'/ &
-         ' IVAN(X) Ivantsof function'/ &
-         ' BSUM(X) is sum(sin(n*pi*f)**2/(n*pi)**3)'/ &
-         ' ABS(X) is absolute value'/ &
-         ' HS(X) is the Heaviside function'/ &
-         ' Notice that these operators must be followed by a (.'// &
-         ' The statement must be terminated by a ;'/)
-900 RETURN
-  END SUBROUTINE EXPHLP
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
-
-!\addtotable putprp
-!\begin{verbatim}
-  SUBROUTINE PUTPRP(NAMN,MAXS,SYMBOL,PROMPT,ILEN)
-!...CREATES A PROMPT asking for a putfun expression with formal arguments
-    implicit none
-    CHARACTER NAMN*(*),PROMPT*(*),SYMBOL(*)*(*)
-    integer ilen,maxs
-!...write a prompt with name of all variables
-!\end{verbatim}
-    integer i,j
-    ILEN=1
-    PROMPT=' '
-    CALL CONS(PROMPT,ILEN,NAMN)
-    IF(MAXS.LE.0) THEN
-       CALL CONS(PROMPT,ILEN,'=')
-       GOTO 900
-    ENDIF
-    CALL CONS(PROMPT,ILEN,'(')
-    I=1
-11  IF(I.GT.MAXS) GOTO 12
-    J=LEN_trim(SYMBOL(I))
-    IF(LEN(SYMBOL(I)).GT.J) THEN
-       J=J+1
-       SYMBOL(I)(J:J)=' '
-    ENDIF
-    CALL CONS(PROMPT,ILEN,SYMBOL(I)(1:J))
-    IF(I.NE.MAXS) CALL CONS(PROMPT,ILEN,',')
-    I=I+1
-    GOTO 11
-12  CONTINUE
-    CALL CONS(PROMPT,ILEN,')= ')
-    ILEN=ILEN-1
-900 RETURN
-  END SUBROUTINE PUTPRP
-
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 !
 ! >>>> subsection
@@ -5484,7 +6257,7 @@ CONTAINS
 !
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable hpcalc
+!\addtotable subroutine hpcalc
 !\begin{verbatim}
   SUBROUTINE HPCALC
 !...EMULATES A HP CALCULATOR ON SCREEN
@@ -5557,14 +6330,15 @@ CONTAINS
        INPUT=PROG(KPROG)
        IF(TRACE)WRITE(*,*)KPROG,STK(1),INPUT
     ELSEIF(PROGT) THEN
-       CALL GPARC('HPP>',LINE,LAST,1,INPUT,' ',HPHLP)
+!       CALL GPARC('HPP>',LINE,LAST,1,INPUT,' ',HPHLP)
+       CALL GPARC_old('HPP>',LINE,LAST,1,INPUT,' ',HPHLP)
        CALL CAPSON(INPUT)
        IF(INPUT(1:1).EQ.' ') GOTO 100
        OK=.FALSE.
     ELSE
        WRITE(*,101)STK(1)
 101    FORMAT(1PE15.7)
-       CALL GPARC('HPC>',LINE,LAST,1,INPUT,' ',HPHLP)
+      CALL GPARC_old('HPC>',LINE,LAST,1,INPUT,' ',HPHLP)
        CALL CAPSON(INPUT)
        IF(INPUT(1:1).EQ.' ') GOTO 100
        OK=.FALSE.
@@ -5703,7 +6477,7 @@ CONTAINS
 290 IF(RUN) THEN
        CALL GETINT(INPUT,NEXT,I)
     ELSE
-       CALL GPARI('REG#',LINE,LAST,I,-1,NOHELP)
+       CALL GPARI_old('REG#',LINE,LAST,I,-1,NOHELP)
     ENDIF
     IF(I.LT.0 .OR. I.GT.9) THEN
        WRITE(*,*)'REGISTER NUMBER MUST BE 0..9'
@@ -5716,7 +6490,7 @@ CONTAINS
 300 IF(RUN) THEN
        CALL GETINT(INPUT,NEXT,I)
     ELSE
-       CALL GPARI('REG#',LINE,LAST,I,-1,NOHELP)
+       CALL GPARI_old('REG#',LINE,LAST,I,-1,NOHELP)
     ENDIF
     IF(I.LT.0 .OR. I.GT.9) THEN
        WRITE(*,*)'REGISTER NUMBER MUST BE 0..9'
@@ -5770,7 +6544,7 @@ CONTAINS
           KPROG=IP-1
        ENDIF
     ELSE
-       CALL GPARI('STEP ',LINE,LAST,IP,0,NOHELP)
+       CALL GPARI_old('STEP ',LINE,LAST,IP,0,NOHELP)
        IF(IP.LT.0 .OR. IP.GT.MAXPRG) THEN
           WRITE(*,*)'ILLEGAL ADDRESS'
           OK=.FALSE.
@@ -5794,7 +6568,7 @@ CONTAINS
        ENDIF
        OK=.TRUE.
     ELSE
-       CALL GPARC('CONDITION ( > = OR < )',LINE,LAST,1, &
+       CALL GPARC_old('CONDITION ( > = OR < )',LINE,LAST,1, &
             CH2,'NONE',NOHELP)
        IF(CH2.EQ.'> ' .OR. CH2.EQ.'= ' .OR. CH2.EQ.'< ') THEN
           INPUT(NEXT+1:)=CH2
@@ -5835,7 +6609,7 @@ CONTAINS
     GOTO 100
 !...EDIT
 430 IF(JPROG.EQ.0) JPROG=LPROG-2
-    CALL GPARI('STEP ',LINE,LAST,I,JPROG+1,NOHELP)
+    CALL GPARI_old('STEP ',LINE,LAST,I,JPROG+1,NOHELP)
     WRITE(*,*)'NO SUCH STEP'
     OK=.FALSE.
     GOTO 100
@@ -5883,7 +6657,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable hphelp
+!\addtotable subroutine hphelp
 !\begin{verbatim}
   SUBROUTINE HPHLP
 ! writes a help text for using the online HP calculator
@@ -5908,7 +6682,7 @@ CONTAINS
 !
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable winit
+!\addtotable subroutine winit
 !\begin{verbatim}
   SUBROUTINE WINIT(NWT,NWR,IWS)
 !...INITIATES A WORKSPACE
@@ -5948,7 +6722,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
   
-!\addtotable wold
+!\addtotable subroutine wold
 !\begin{verbatim}
   SUBROUTINE WOLD(FIL,NW,IWS)
 !...READS A FILE INTO A WORKSPACE. THE FILE MUST HAVE BEEN WRITTEN BY WSAVE
@@ -5978,7 +6752,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable wsave
+!\addtotable subroutine wsave
 !\begin{verbatim}
   SUBROUTINE WSAVE(FIL,NW,IWS)
 !...WRITES A WORKSPACE ON A FILE
@@ -5991,7 +6765,7 @@ CONTAINS
     integer nw,iws(*)
 !    DIMENSION IWS(*)
     CHARACTER FIL*(*)
-!\end{verbatim} %+
+!\end{verbatim}
     integer i,ierr,last
     I=IWS(2)
     CALL WRKCHK(LAST,I,IWS)
@@ -6009,7 +6783,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable wpatch
+!\addtotable subroutine wpatch
 !\begin{verbatim}
   SUBROUTINE WPATCH(NW,IWS)
 !...ROUTINE TO PATCH A WORKSPACE
@@ -6059,7 +6833,7 @@ CONTAINS
     enddo
     WRITE(KOU,110,ERR=911)IADR,IWS(IADR),CHX,CHHEX,X
 110 FORMAT('$',I7,5X,I15,2X,A,2X,A,2X,E15.8)
-111 CALL GPARR('NEW VALUE: ',LINE,IP,Z,RNONE,WPHLP)
+111 CALL GPARR_old('NEW VALUE: ',LINE,IP,Z,RNONE,WPHLP)
 !    IF(SG2ERR(IERR)) THEN
 !...      NOT A DIGIT: EXIT, STORE AS BYTES, OCTAL OR IGNORE
     if(buperr.ne.0) then
@@ -6127,7 +6901,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable wphlp
+!\addtotable subroutine wphlp
 !\begin{verbatim}
   SUBROUTINE WPHLP(ITYP,LINE)
 !...HELP ROUTINE FOR WPATCH
@@ -6157,7 +6931,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable wrkchk
+!\addtotable subroutine wrkchk
 !\begin{verbatim}
   SUBROUTINE WRKCHK(LAST,NW,IWS)
 !...CHECKS THE FREE LIST IN A WORKSPACE
@@ -6208,14 +6982,14 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable wlist
+!\addtotable subroutine wlist
 !\begin{verbatim}
   SUBROUTINE WLIST(IWS)
 !...LISTS THE FREE AREAS
     implicit none
     integer iws(*)
 !    DIMENSION IWS(*)
-!\end{verbatim} %+
+!\end{verbatim}
     integer n,nw,nwp
     N=1
     NW=0
@@ -6235,7 +7009,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable wtrest
+!\addtotable subroutine wtrest
 !\begin{verbatim}
   SUBROUTINE WTREST(NYB,NW,IWS)
 !...RESERVES THE LAST PART OF THE WORKSPACE
@@ -6258,7 +7032,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable wtake
+!\addtotable subroutine wtake
 !\begin{verbatim}
   SUBROUTINE WTAKE(NYB,NW,IWS)
 !......RESERVS NW WORDS IN THE WORKSPACE
@@ -6329,7 +7103,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable wrels
+!\addtotable subroutine wrels
 !\begin{verbatim}
   SUBROUTINE WRELS(IDP,NW,IWS)
 !......Returns NW words beginning from IDP to the free workspace list
@@ -6341,7 +7115,7 @@ CONTAINS
     integer idp,nw,iws(*)
 !......Check that the released space is at lest 2 words and that it is
 !      inside the workspace (That is between 3 and IWS(2))
-!\end{verbatim} %+
+!\end{verbatim}
     integer loka,lokb,lokc
     IF(IDP.LT.3.OR.IDP.GE.IWS(2).OR.NW.LT.2.OR.NW.GE.IWS(2)) GOTO 910
     LOKC=IDP
@@ -6414,7 +7188,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable storc
+!\addtotable subroutine storc
 !\begin{verbatim}
   SUBROUTINE STORC(N,IWS,text)
 ! Stores a text character in an integer workspace at position N
@@ -6461,7 +7235,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable loadc
+!\addtotable subroutine loadc
 !\begin{verbatim}
   SUBROUTINE LOADC(N,IWS,text)
 ! copies a text from an integer workspace at position N into a character
@@ -6499,7 +7273,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable storr
+!\addtotable subroutine storr
 !\begin{verbatim}
   SUBROUTINE STORR(N,IWS,VALUE)
 !...STORES A REAL NUMBER IN A WORKSPACE at index N
@@ -6525,7 +7299,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable loadr
+!\addtotable subroutine loadr
 !\begin{verbatim}
   SUBROUTINE LOADR(N,IWS,VALUE)
 !...LOADS A REAL NUMBER FROM A WORKSPACE at index N
@@ -6548,7 +7322,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable storrn
+!\addtotable subroutine storrn
 !\begin{verbatim}
   SUBROUTINE STORRN(N,IWS,ARR)
 ! store N doubles in workspace
@@ -6579,7 +7353,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable loadrn
+!\addtotable subroutine loadrn
 !\begin{verbatim}
   SUBROUTINE LOADRN(N,IWS,ARR)
 ! load N doubles from workspace
@@ -6609,7 +7383,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable storr1
+!\addtotable subroutine storr1
 !\begin{verbatim}
   SUBROUTINE STORR1(ARR,VAL)
 ! store a single double in workspace
@@ -6623,7 +7397,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable loadr1
+!\addtotable subroutine loadr1
 !\begin{verbatim}
   SUBROUTINE LOADR1(ARR,VAL)
 ! load a single double from workspace
@@ -6651,7 +7425,7 @@ CONTAINS
 ! storage order 11, 12, 22, 13, 23, 33, etc
     implicit none
     integer ix1,ix2
-!\end{verbatim}
+!\end{verbatim} %+
     if(ix1.le.0 .or. ix2.le.0) then
        buperr=1000; goto 1000
     endif
@@ -6678,7 +7452,7 @@ CONTAINS
 !    endif
     implicit none
     integer ix1,ix2
-!\end{verbatim} %+
+!\end{verbatim}
     kxsym=ix1+ix2*(ix2-1)/2
 1000 continue
     return
@@ -6691,7 +7465,7 @@ CONTAINS
 !
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
   
-!\addtotable fxdflt
+!\addtotable subroutine fxdflt
 !\begin{verbatim}
   subroutine fxdflt(file,ext)
 ! add default file extention, no good as it thinks .. is an externtion
@@ -6710,7 +7484,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable iniio
+!\addtotable subroutine iniio
 !\begin{verbatim}
   subroutine iniio
 ! initiates i/o variables, they are all global variables
@@ -6722,6 +7496,165 @@ CONTAINS
     iox=0
     return
   end subroutine iniio
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\addtotable subroutine fisepa
+!\begin{verbatim}
+  SUBROUTINE FISEPA(STR,IP0,IP1)
+!...FINDS A SEPARATOR AFTER POSITION IP0
+!      A separator is:
+!      Any character exept A-Z, 0-9 and _
+    implicit none
+    CHARACTER STR*(*)
+    integer IP0,IP1
+!\end{verbatim} %+
+    CHARACTER CH1*1
+    integer l
+    L=LEN_TRIM(STR)
+    IP1=IP0
+100 IP1=IP1+1
+    IF(IP1.GT.L) GOTO 900
+    CH1=BIGLET(STR(IP1:IP1))
+    IF((LGE(CH1,'0') .AND. LLE(CH1,'9')) .OR. &
+         (LGE(CH1,'A') .AND. LLE(CH1,'Z')) .OR. CH1.EQ.'_') GOTO 100
+!...Return position before separator
+    IP1=IP1-1
+900 RETURN
+  END SUBROUTINE FISEPA
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\addtotable subroutine fdmtp
+!\begin{verbatim}
+  SUBROUTINE FDMTP(LINE1,IP,LINE2)
+!...FINDS A MATCHING ) AFTER THAT AT IP. IP UPDATED TO POSITION AFTER )
+    implicit none
+    CHARACTER LINE1*(*),LINE2*(*)
+    integer ip
+!\end{verbatim} %+
+    integer jp,np,kp1,kp2
+    IF(IP.LE.0) GOTO 900
+    JP=IP+1
+!...np is number of inner levels of parenthesis
+    NP=0
+10  KP1=INDEX(LINE1(JP:),'(')
+    KP2=INDEX(LINE1(JP:),')')
+    IF(KP1.EQ.0) THEN
+       IF(NP.EQ.0) GOTO 100
+       NP=NP-1
+       IF(KP2.EQ.0) GOTO 910
+       JP=JP+KP2
+    ELSEIF(KP1.LT.KP2) THEN
+!...INNER PAIR OF ()
+       JP=JP+KP1
+       NP=NP+1
+    ELSEIF(KP1.GT.KP2) THEN
+       IF(NP.EQ.0) GOTO 100
+       NP=NP-1
+       IF(KP2.EQ.0) GOTO 910
+       JP=JP+KP2
+    ELSE
+!       STOP 'FDMTP'
+       buperr=1237
+       goto 900
+    ENDIF
+    GOTO 10
+!...LINE2 SET TO TEXT INSIDE ( ), IP UPDATED TO POSITION BEHIND )
+100 IF(KP2.EQ.0) GOTO 920
+    LINE2=LINE1(IP+1:JP+KP2-2)
+    IP=JP+KP2
+900 RETURN
+!910 CALL ST2ERR(1235,'FDMTP','TOO MANY (')
+910    buperr=1235
+    GOTO 900
+!920 CALL ST2ERR(1235,'FDMTP','NO MATCHING )')
+920 buperr=1236
+    GOTO 900
+  END SUBROUTINE FDMTP
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\addtotable integer function kndex
+!\begin{verbatim}
+  INTEGER FUNCTION KNDEX(LINE,IP,SS)
+! SUBROUTINE KNDEX
+!...SEARCHES FOR STRING SS IN LINE FROM IP
+    implicit none
+    CHARACTER LINE*(*),SS*(*)
+    integer ip
+!\end{verbatim} %+
+    integer k
+    K=INDEX(LINE(IP:),SS)
+    IF(K.GT.0) K=IP-1+K
+    KNDEX=K
+900 RETURN
+  END FUNCTION KNDEX
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\addtotable subroutine cpsstr
+!\begin{verbatim}
+  SUBROUTINE CPSSTR(STRING,LC)
+!...THIS SUBROUINE COMPRESSES STRING BY REPLACING MULTIPLE SPACES
+!	OR TABS WITH A SINGLE SPACE
+    implicit none
+    CHARACTER STRING*(*)
+    integer LC
+!\end{verbatim} %+
+    integer i,k,l
+    CALL UNTAB(STRING)
+10  K=INDEX(STRING(1:LC),'  ')
+    IF(K.GT.0) THEN
+       L=K
+       IF(EOLCH(STRING(1:LC),L)) THEN
+          LC=K-1
+          GOTO 900
+       ENDIF
+       L=L-K-1
+       LC=LC-L
+       REMSP: DO I=K+1,LC
+          STRING(I:I)=STRING(I+L:I+L)
+       enddo REMSP
+       STRING(LC+1:)=' '
+       GOTO 10
+    ENDIF
+900 RETURN
+  END SUBROUTINE CPSSTR
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\addtotable subroutine untab
+!\begin{verbatim}
+  SUBROUTINE UNTAB(LINE)
+!...REMOVES ALL TABS FROM LINE. INSERTS SPACES UP TO NEXT TAB STOP
+!       TAB STOPS GIVEN IN ITABS. TABS AFTER POSITION 80 REPLACED
+!       WITH A SPACE
+    implicit none
+    CHARACTER LINE*(*)
+!\end{verbatim}
+    CHARACTER CHTAB*1,XLINE*128
+    integer ITABS(11)
+    DATA ITABS/8,16,24,32,40,48,56,64,72,80,81/
+    integer k,i
+!    
+    CHTAB=CHAR(9)
+100 XLINE=LINE
+    K=INDEX(XLINE,CHTAB)
+    IF(K.GT.0) THEN
+       ADDSP: DO I=1,10
+          IF(ITABS(I).GE.K) GOTO 120
+       enddo ADDSP
+!...BEYOND POSITION 80
+       I=11
+       ITABS(11)=K
+120    I=ITABS(I)
+       LINE(K:I)=' '
+       LINE(I+1:)=XLINE(K+1:)
+       GOTO 100
+    ENDIF
+900 RETURN
+  END SUBROUTINE UNTAB
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 

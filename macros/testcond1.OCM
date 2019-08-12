@@ -32,10 +32,22 @@ new Y
 
 set echo
 
+
+?
+
+@$ A single ? gives the menue
+@&
+
+??
+
+@$ Two ?? opens the user guide at an approriate place
+
 r t ./steel1
 ?
 c fe cr
 
+
+@$ A single ? when asked a guestion also opens the user guide
 @&
 
 set c t=2000 p=1e5 n=1 x(c)=.1 x(cr)=.1
@@ -219,7 +231,7 @@ l,,,,,
 @$ list the (dimensionless) driving force for BCC, 
 l st dgm(bcc)
 
-@$ The value is -0.29495365, list the constitution of bcc
+@$ The value is -0.29495337, list the constitution of bcc
 l ph bcc
 ?
 
@@ -272,7 +284,7 @@ c e
 
 l,,,,
 
-@$ Temperature becomes 2139 with this addition of heat
+@$ Temperature becomes 2139.23 with this addition of heat
 @&
 @$ ==============================================================
 @$ Something different
@@ -394,6 +406,7 @@ list model-para-val
 mq&c(fcc)
 
 
+@$ The value should be -5903.0928.  NOTE this is not an assessed value.
 @&
 @$ There is a command to calculate the equilibrium state of a single
 @$ adjusted to a specified compostion.  This will adjust the fractions on

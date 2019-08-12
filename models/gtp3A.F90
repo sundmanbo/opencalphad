@@ -357,18 +357,18 @@
 ! this parameter does not depend on T ??
 !   propid(npid)%status=ibset(propid(npid)%status,IDONLYP)
 !.......................................
-! Schottky anomality T 29
+! Schottky anomaly T 29
    npid=npid+1
    propid(npid)%symbol='TSCH '
-   propid(npid)%note='Schottky anomality T '
+   propid(npid)%note='Schottky anomaly T '
    propid(npid)%status=0
 ! this parameter does not depend on T ??
    propid(npid)%status=ibset(propid(npid)%status,IDONLYP)
 !.......................................
-! Schottky anomality CP/R 30
+! Schottky anomaly CP/R 30
    npid=npid+1
    propid(npid)%symbol='CSCH '
-   propid(npid)%note='Schottky anomality Cp/R. '
+   propid(npid)%note='Schottky anomaly Cp/R. '
    propid(npid)%status=0
 ! this parameter does not depend on T ??
    propid(npid)%status=ibset(propid(npid)%status,IDONLYP)
@@ -422,11 +422,11 @@
 !   write(tpfun,777)' 10 8.31451; 20000 N '
 !777 format(a)
 !   call enter_tpfun(tpname,tpfun,lrot,.FALSE.)
-   call enter_tpconstant(tpname,globaldata%rgas)
+   call store_tpconstant(tpname,globaldata%rgas)
    if(gx%bmperr.ne.0) goto 1000
    tpname='RTLNP'
    tpfun=' 1 R*T*LN(1.0D-5*P); 20000 N '
-   call enter_tpfun(tpname,tpfun,lrot,.FALSE.)
+   call store_tpfun(tpname,tpfun,lrot,.FALSE.)
    if(gx%bmperr.ne.0) goto 1000
 ! default minimum fraction
    bmpymin=ymind

@@ -2024,7 +2024,6 @@
 !
 ! For time measurements
 !   lokph=len(name)
-!   call gparid('Number of times: ',name,lokph,times,1,q1help)
    lokph=phases(iph)
    nsl=phlista(lokph)%noofsubl
 ! calculate G and derivatives, lokres returns index of phase_varres

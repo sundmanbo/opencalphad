@@ -3513,9 +3513,11 @@
 ! if deleted ask for Restore, else ask for Keep or Delete
        last=len(cline)
        if(btest(mapnode%linehead(kl)%status,EXCLUDEDLINE)) then
-          call gparcd('Include this line? ',cline,last,1,ch1,'N',q1help)
+          call gparcdx('Include this line? ',cline,last,1,ch1,'N',&
+               '?PLOT options')
        else
-          call gparcd('Exclude this line? ',cline,last,1,ch1,'N',q1help)
+          call gparcdx('Exclude this line? ',cline,last,1,ch1,'N',&
+               '?PLOT options')
        endif
        if(biglet(ch1).eq.'Y') then
           if(btest(mapnode%linehead(kl)%status,EXCLUDEDLINE)) then

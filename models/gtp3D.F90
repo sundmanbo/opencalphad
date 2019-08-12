@@ -26,7 +26,8 @@
    logical once
 ! save here to use the same default as last time
    save chd,lastph
-   call gparcd('Phase name: ',cline,last,1,name1,lastph,q1help)
+   call gparcdx('Phase name: ',cline,last,1,name1,lastph,&
+        '?Phase constitution')
    if(name1(1:2).eq.'* ') then
 ! this means all phases and composition sets
 ! If iph is -1 than this is not allowed!!
@@ -63,7 +64,7 @@
 ! ask for amount of formula units, default is current amount
    yyy=ceq%phase_varres(lokcs)%amfu
    quest='Amount of '//name1
-   call gparrd(quest,cline,last,xxx,yyy,q1help)
+   call gparrdx(quest,cline,last,xxx,yyy,'?ENTER constitution')
 ! if input error quit asking more
    if(buperr.ne.0) then
       buperr=0; goto 1000
@@ -71,8 +72,8 @@
    ceq%phase_varres(lokcs)%amfu=xxx
 ! ask if we should set the current constitution, ignore default
 !   write(*,*)'3D we are here!'
-   call gparcd('Current (Y), default (D) or new (N) constitution?',&
-        cline,last,1,ch1,chd,q1help)
+   call gparcdx('Current (Y), default (D) or new (N) constitution?',&
+        cline,last,1,ch1,chd,'?Change phase constitution')
    if(ch1.eq.'Y' .or. ch1.eq.'y') then
       chd='Y'
 ! set the old constitution explicitly!!
@@ -112,7 +113,7 @@
          once=.true.
 20        continue
          ydef=min(yarr(kkk),ydef)
-         call gparrd(line(1:ip+2),cline,last,xxx,ydef,q1help)
+         call gparrdx(line(1:ip+2),cline,last,xxx,ydef,'?ENTER constitution')
          if(buperr.ne.0) then
 !            write(*,*)'3D Allow REST: ',trim(cline),last,buperr,yrest
             buperr=0
@@ -246,7 +247,8 @@
 !   ceq%phase_varres(lokcs)%amfu=abs(xxx)
 ! ask if we should set the default constitution
 !   write(*,*)'3D we are really here?'
-   call gparcd('Default constitution?',cline,last,1,ch1,chd,q1help)
+   call gparcdx('Default constitution?',cline,last,1,ch1,chd,&
+        '?Phase constitution')
    if(ch1.eq.'Y' .or. ch1.eq.'y') then
       call set_default_constitution(iph,ics,ceq)
       if(gx%bmperr.ne.0) goto 1000
@@ -272,7 +274,7 @@
          once=.true.
 20        continue
          ydef=min(yarr(kkk),ydef)
-         call gparrd(line(1:ip+2),cline,last,xxx,ydef,q1help)
+         call gparrdx(line(1:ip+2),cline,last,xxx,ydef,'?ENTER constitution')
          if(xxx.lt.zero) then
             if(once) then
                write(*,*)'A fraction must be greater than zero'
@@ -350,7 +352,7 @@
 !
    lk3=0
 10  continue
-   call gparc('Parameter name: ',cline,ip,7,parname,' ',q1help)
+   call gparcx('Parameter name: ',cline,ip,7,parname,' ','?ENTER tpfun')
 ! simple parameter names are like G(SIGMA,FE:CR:FE,CR;1)
    kp=index(parname,' ')
    parname(kp:)=' '
@@ -560,7 +562,7 @@
 ! If parameter has no T dependendence just ask for value
    if(btest(propid(typty1)%status,IDNOTP)) then
       write(kou,*)'This parameter can only be a constant'
-      call gparr('Value: ',cline,ip,xxx,zero,q1help)
+      call gparrx('Value: ',cline,ip,xxx,zero,'?ENTER parameter')
       if(buperr.ne.0) then
          xxx=zero; buperr=0
       endif
@@ -575,7 +577,8 @@
    endif
 !-------------------------------------------------
 ! now read the function.
-   call gparr('Low  temperature limit /298.15/:',cline,ip,xxx,2.9815D2,q1help)
+   call gparrx('Low  temperature limit /298.15/:',cline,ip,xxx,2.9815D2,&
+        '?ENTER parameter')
    if(buperr.ne.0) then
       buperr=0; longline=' 298.15 '
       jp=8
@@ -591,7 +594,7 @@
 ! return here for new expression in another range
    lsc=1
 115 continue
-   call gparc('Expression, end with ";":',cline,ip,6,line,';',q1help)
+   call gparcx('Expression, end with ";":',cline,ip,6,line,';','?ENTER tpfun')
    if(buperr.ne.0) then
       buperr=0; line=';'
    endif
@@ -600,7 +603,7 @@
    jp=len_trim(longline)+1
 !   write(*,152)0,jp,longline(1:jp)
    if(index(longline(lsc:),';').le.0) then
-      call gparc('&',cline,ip,6,line,';',q1help)
+      call gparcx('&',cline,ip,6,line,';','?ENTER tpfun')
       if(buperr.ne.0) then
          buperr=0; line=';'
       endif
@@ -614,13 +617,14 @@
 ! lsc is positioned after the ; of previous ranges
    lsc=jp
 !    write(*,152)1,ip,cline(1:ip)
-   call gparr('Upper temperature limit /6000/:',cline,ip,xxx,6.0D3,q1help)
+   call gparrx('Upper temperature limit /6000/:',cline,ip,xxx,6.0D3,&
+        '?ENTER tpfun')
    if(buperr.ne.0) then
       buperr=0; xxx=6.0D3
    endif
    call wrinum(longline,jp,8,0,xxx)
    if(buperr.ne.0) goto 1000
-   call gparcd('Any more ranges',cline,ip,1,ch1,'N',q1help)
+   call gparcdx('Any more ranges',cline,ip,1,ch1,'N','?ENTER tpfun')
    if(ch1.eq.'n' .or. ch1.eq.'N') then
       longline(jp:)=' N'
       jp=jp+3
@@ -631,7 +635,7 @@
    endif
 ! jump here for parameters that are constants
 200 continue
-   call gparcd('Reference symbol:',cline,ip,1,refx,'UNKNOWN',q1help)
+   call gparcdx('Reference symbol:',cline,ip,1,refx,'UNKNOWN','?ENTER tpfun')
    call capson(refx)
    longline(jp:)=refx
    jp=len_trim(longline)+1
@@ -642,7 +646,7 @@
 !   write(*,*)'3D epi: ',longline(1:jp)
 !   call enter_tpfun(parname,longline,lfun,.FALSE.)
 !   write(*,*)'3D funame: ',trim(funame)
-   call enter_tpfun(funame,longline,lfun,.FALSE.)
+   call store_tpfun(funame,longline,lfun,.FALSE.)
    if(gx%bmperr.ne.0) goto 1000
 !   write(*,290)'3D enter_par 7: ',lokph,nsl,nint,ideg,lfun,refx
 290 format(a,5i4,1x,a)
@@ -665,7 +669,7 @@
    character name*24,current*24,ch1*1,chd*1
    current=globaldata%name
 !   write(*,*)'entering amend_global_data: ',cline(1:30)
-   call gparcd('System name: ',cline,ipos,1,name,current,q1help)
+   call gparcdx('System name: ',cline,ipos,1,name,current,'?Amend global')
    if(proper_symbol_name(name,0)) then
       globaldata%name=name
    else
@@ -681,8 +685,8 @@
    else
       chd='F'
    endif
-   call gparcd('I am a beginner (B), freqent user (F) or expert (E): ',&
-        cline,ipos,1,ch1,chd,q1help)
+   call gparcdx('I am a beginner (B), freqent user (F) or expert (E): ',&
+        cline,ipos,1,ch1,chd,'?Amend global')
    call capson(ch1)
    globaldata%status=ibclr(globaldata%status,GSBEG)
    globaldata%status=ibclr(globaldata%status,GSADV)
@@ -698,8 +702,8 @@
 ! is global minimization allowed?
    chd='Y'
    if(btest(globaldata%status,GSNOGLOB)) chd='N'
-   call gparcd('Global gridminimization allowed: ',&
-        cline,ipos,1,ch1,chd,q1help)
+   call gparcdx('Global gridminimization allowed: ',&
+        cline,ipos,1,ch1,chd,'?Amend global')
    if(ch1.eq.'Y' .or. ch1.eq.'y') then
       globaldata%status=ibclr(globaldata%status,GSNOGLOB)
    else
@@ -708,8 +712,8 @@
 ! allow merging gridpoints after global?
    chd='Y'
    if(btest(globaldata%status,GSNOMERGE)) chd='N'
-   call gparcd('Merging gridpoints in same phase allowed: ',&
-        cline,ipos,1,ch1,chd,q1help)
+   call gparcdx('Merging gridpoints in same phase allowed: ',&
+        cline,ipos,1,ch1,chd,'?Amend global')
    if(ch1.eq.'Y' .or. ch1.eq.'y') then
       globaldata%status=ibclr(globaldata%status,GSNOMERGE)
    else
@@ -718,8 +722,8 @@
 ! GSNOACS can be changed interactivly, 0 means allowed
    chd='Y'
    if(btest(globaldata%status,GSNOACS)) chd='N'
-   call gparcd('Composition sets can be created automatically? ',&
-        cline,ipos,1,ch1,chd,q1help)
+   call gparcdx('Composition sets can be created automatically? ',&
+        cline,ipos,1,ch1,chd,'?Amend global')
    if(ch1.eq.'Y' .or. ch1.eq.'y') then
       globaldata%status=ibclr(globaldata%status,GSNOACS)
    else
@@ -728,8 +732,8 @@
 ! GSNOREMCS can be changed interactivly, 0 means not remove
    chd='Y'
    if(btest(globaldata%status,GSNOREMCS)) chd='N'
-   call gparcd('Delete unnecessary composition sets automatically? ',&
-        cline,ipos,1,ch1,chd,q1help)
+   call gparcdx('Delete unnecessary composition sets automatically? ',&
+        cline,ipos,1,ch1,chd,'?Amend global')
    if(ch1.eq.'Y' .or. ch1.eq.'y') then
       globaldata%status=ibclr(globaldata%status,GSNOREMCS)
    else
@@ -754,7 +758,8 @@
 ! stupid with a variable called L80
    character line*256,refid*16,L80*80
    integer jl,ip
-   call gparc('Reference identifier:',cline,last,1,refid,' ',q1help)
+   call gparcx('Reference identifier:',cline,last,1,refid,' ',&
+        '?Reference identifier:')
    if(buperr.ne.0 .or. refid(1:1).eq.' ') then
 !      write(kou,*)'There must be an identifier'
       gx%bmperr=4155; goto 1000
@@ -781,7 +786,9 @@
    line=' '
    twotries=.TRUE.
 100 continue
-   call gparc('Reference text, end with ";":',cline,last,5,l80,';',q1help)
+!   call gparc('Reference text, end with ";":',cline,last,5,l80,';',q1help)
+   call gparcx('Reference text, end with ";":',cline,last,5,l80,';',&
+        '?Reference text')
    line(ip:)=l80
    ip=len_trim(line)
    if(ip.le.1 .and. twotries) then
@@ -856,7 +863,7 @@
 !      write(*,*)'3D uncertanity 2: ',ip,'"'//trim(cline)//'"'
 ! NOTE that gparcd increments ip before seaching for value
 !      write(*,*)'3D Calling gparcd: ',trim(cline),ip
-      call gparcd('Uncertainty: ',cline,ip,1,usymbol,'1.0',q1help)
+      call gparcdx('Uncertainty: ',cline,ip,1,usymbol,'1.0','?ENTER exper')
 !      write(*,*)'3D extracted uncertainity: ',ip,buperr,'"'//usymbol//'"'
       jc=1
       call getrel(usymbol,jc,xxx)
@@ -1046,12 +1053,12 @@
 56 format(a,2i3,' "',a,'" ')
    if(nterm.eq.0) then
 ! the whole line is read into stvexp
-      call gparcd('State variable: ',cline,ip,5,stvexp,'T',q1help)
+      call gparcdx('State variable: ',cline,ip,5,stvexp,'T','?State variable')
    else
 ! the whole expression must have been entered on the same line
 ! note cline is updated below !!
       ip=ip-1
-      call gparcd(' ',cline,ip,5,stvexp,'!',q1help)
+      call gparcdx(' ',cline,ip,5,stvexp,'!','?State variable')
    endif
    if(stvexp(1:1).eq.' ') then
 ! if an expression is terminated with an empty line ask for value
@@ -1325,7 +1332,7 @@
    colon=index(stvexp,':')
 !   colon=index(cline,':')
 !   write(*,*)'3D value: ',ip,' "',trim(stvexp),'" ',defval,colon
-   call gparcd('Value: ',stvexp,ip,1,textval,defval,q1help)
+   call gparcdx('Value: ',stvexp,ip,1,textval,defval,'?ENTER condition')
 !   write(*,*)'3D value: ',textval
    c5=textval(1:5)
    call capson(c5)
@@ -2327,8 +2334,9 @@ end subroutine get_condition
             else
                vdef='NONE'
             endif
-!
-            call gparcd(quest,cline,last,1,fdef,vdef,q1help)
+! modified for new online help
+!            call gparcd(quest,cline,last,1,fdef,vdef,q1help)
+            call gparcdx(quest,cline,last,1,fdef,vdef,'?Default constitution')
             jy=1
             if(fdef(1:4).eq.'NONE') then
                xxx=0
@@ -2429,8 +2437,8 @@ end subroutine get_condition
 ! repeat reading until empty line
 100 continue
    addval=zero
-   call gparc('Species and amount as N(..)= or B(...)= : ',&
-        cline,lpos,1,species,' ',q1help)
+   call gparcx('Species and amount as N(..)= or B(...)= : ',&
+        cline,lpos,1,species,' ','?SET input amounts')
    call capson(species)
    statevar=species(1:1)
    if(statevar.ne.'    ') then
@@ -2465,7 +2473,7 @@ end subroutine get_condition
 ! the user can also give values without = or with a space before =
 ! but no space allowed after =
 !   write(*,*)'3D cline: ',trim(cline),lpos
-   call gparc('Amount: ',cline,lpos,1,cval,' ',q1help)
+   call gparcx('Amount: ',cline,lpos,1,cval,' ','?SET input amounts')
 300 continue
    if(cval(1:1).eq.'=') cval(1:1)=' '
    ip=1
@@ -2766,7 +2774,7 @@ end subroutine get_condition
          bline(j2:)=ellista(j1)%symbol
          xxy=xalloy(j1)
 60       continue
-         call gparrd(bline,cline,last,xxx,xxy,q1help)
+         call gparrdx(bline,cline,last,xxx,xxy,'?ENTER Material')
          if(buperr.ne.0 .or. xxx.le.zero) then
             write(*,*)'Illegal value for composition'
             goto 60
@@ -2776,14 +2784,15 @@ end subroutine get_condition
       enddo
    else
       ext='.TDB'
-      call gparc('Database: ',cline,last,1,database,' ',q1help)
+      call gparcx('Database: ',cline,last,1,database,' ','?ENTER matrial')
 ! this extracts all element symbols from database
       call checkdb(database,ext,nel,selel)
       if(gx%bmperr.ne.0) goto 1000
       write(kou,70)(selel(nv),nv=1,nel)
 70    format('Elements: ',15(a2,', '))
 ! ask for major component
-      call gparc('Major element or material: ',cline,last,1,majorel,' ',q1help)
+      call gparcx('Major element or material: ',cline,last,1,majorel,' ',&
+           '?Enter material')
       call capson(majorel)
       do nv=1,nel
          if(majorel.eq.selel(nv)) goto 100
@@ -2792,7 +2801,8 @@ end subroutine get_condition
       gx%bmperr=4399
       goto 1000
 100   continue
-      call gparcd('Input in mass percent? ',cline,last,1,ftype,'Y',q1help)
+      call gparcdx('Input in mass percent? ',cline,last,1,ftype,'Y',&
+           '?ENTER material')
       if(ftype.eq.'Y') then
          rest=1.0D2
          write(*,102)'mass percent'
@@ -2802,7 +2812,8 @@ end subroutine get_condition
       endif
 102   format('Input expected in ',a/)
 110   continue
-      call gparc('First alloying element:',cline,last,1,alloy(1),' ',q1help)
+      call gparcx('First alloying element:',cline,last,1,alloy(1),' ',&
+           '?ENTER matrial')
       nv=0
       call capson(alloy(1))
       do j1=1,nel
@@ -2821,13 +2832,15 @@ end subroutine get_condition
       nv=nv+1
 220   continue
       if(ftype.eq.'Y') then
-         call gparrd('Mass percent: ',cline,last,xalloy(nv),one,q1help)
+         call gparrdx('Mass percent: ',cline,last,xalloy(nv),one,&
+              '?ENTER material')
          if(buperr.ne.0) then
             write(*,*)'Give a numeric value'; buperr=0
             goto 220
          endif
       else
-         call gparrd('Mole fraction: ',cline,last,xalloy(nv),1.0D-2,q1help)
+         call gparrdx('Mole fraction: ',cline,last,xalloy(nv),1.0D-2,&
+              '?ENTER material')
          if(buperr.ne.0) then
             write(*,*)'Give a numeric value'; buperr=0
             goto 220
@@ -2847,14 +2860,16 @@ end subroutine get_condition
       endif
 250 continue
       if(nv.eq.1) then
-         call gparc('Second alloying element:',cline,last,1,alloy(2),' ',q1help)
+         call gparcx('Second alloying element:',cline,last,1,alloy(2),' ',&
+              '?ENTER material')
          if(alloy(2).eq.'  ') goto 500
       elseif(nv.eq.2) then
-         call gparc('Third alloying element:',cline,last,1,alloy(3),' ',q1help)
+         call gparcx('Third alloying element:',cline,last,1,alloy(3),' ',&
+              '?ENTER material')
          if(alloy(3).eq.'  ') goto 500
       else
-         call gparc('Next alloying element:',cline,last,1,&
-              alloy(nv+1),' ',q1help)
+         call gparcx('Next alloying element:',cline,last,1,&
+              alloy(nv+1),' ','?ENTER material')
          if(alloy(nv+1).eq.'  ') goto 500
       endif
       call capson(alloy(nv+1))

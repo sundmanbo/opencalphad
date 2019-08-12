@@ -853,7 +853,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   integer, public, parameter :: VOLMOD1=7
   integer, public, parameter :: UNUSED_CRYSTALBREAKDOWNMOD=8
   integer, public, parameter :: SECONDEINSTEIN=9
-  integer, public, parameter :: SCHOTTKYANOMALITY=10
+  integer, public, parameter :: SCHOTTKYANOMALY=10
   integer, public, parameter :: DIFFCOEFS=11
 ! name of additions:
   character(len=24) , public, dimension(12), parameter :: additioname=&
@@ -861,7 +861,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'Debye CP model          ','Einstein Cp model       ',&
        'Liquid 2-state model    ','Elastic model A         ',&
        'Volume model A          ','Unused CBT model        ',&
-       'Smooth CP step          ','Schottky Anomality      ',&
+       'Smooth CP step          ','Schottky Anomaly        ',&
        'Diffusion coefficients  ','                        ']
 !       123456789.123456789.1234   123456789.123456789.1234
 ! Note that additions often use extra parameters like Curie or Debye

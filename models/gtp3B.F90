@@ -7,7 +7,7 @@
 
 !\addtotable subroutine enter_element
 !\begin{verbatim}
- subroutine enter_element(symb,name,refstate,mass,h298,s298)
+ subroutine store_element(symb,name,refstate,mass,h298,s298)
 ! Creates an element record after checks.
 ! symb: character*2, symbol (it can be a single character like H or V)
 ! name: character, free text name of the element
@@ -207,8 +207,8 @@
 1000 continue
 !    write(*,*)'3B created new species: ',noofsp,splista(noofsp)%symbol
    return
- END subroutine enter_element
-
+ END subroutine store_element
+ 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\addtotable subroutine enter_species
@@ -341,7 +341,7 @@
     character, dimension(maxconst) :: const*24
     logical once
 !
-    call gparc('Phase name: ',cline,last,1,name1,' ',q1help)
+    call gparcx('Phase name: ',cline,last,1,name1,' ','?Enter phase')
 ! ionic liquid require special sorting of constituents on anion sublattice
     call capson(name1)
 ! check legal phase name allowed
@@ -364,7 +364,7 @@
        model='CEF'
     endif
 ! NEW question about model, passed on to enter_phase
-    call gparcd('Model: ',cline,last,1,cmodel,model,q1help)
+    call gparcdx('Model: ',cline,last,1,cmodel,model,'?Enter phase model')
     if(buperr.ne.0) goto 900
     model=cmodel
     call capson(model)
@@ -378,7 +378,8 @@
     elseif(model.eq.'I2SL ') then
        nsl=2
     else
-       call gparid('Number of sublattices: ',cline,last,nsl,defnsl,q1help)
+       call gparidx('Number of sublattices: ',cline,last,nsl,defnsl,&
+            '?Enter phase subl')
        if(buperr.ne.0) goto 900
     endif
     if(nsl.le.0) then
@@ -402,7 +403,8 @@
        once=.true.
 4042   continue
        if(nsl.eq.1 .and. model(1:4).eq.'CQC ') then
-          call gparrd('Number of bonds: ',cline,last,sites(1),6.0D0,q1help)
+          call gparrdx('Number of bonds: ',cline,last,sites(1),6.0D0,&
+               'Enter phase bonds')
           if(buperr.ne.0) goto 900
        elseif(model(1:5).ne.'I2SL ') then
 !             if(once) write(kou,4020)
@@ -412,7 +414,8 @@
 !          else
           write(quest1(31:32),4043)ll
 4043      format(i2)
-          call gparrd(quest1,cline,last,sites(ll),one,q1help)
+          call gparrdx(quest1,cline,last,sites(ll),one,&
+               '?Enter phase sites')
           if(buperr.ne.0) goto 900
           if(sites(ll).le.1.0D-6) then
              write(kou,*)'Number of sites must be larger than 1.0D-6'
@@ -429,10 +432,10 @@
        once=.true.
 4045   continue
        if(nsl.eq.1) then
-          call gparc('Constituents: ',cline,last,4,text,';',q1help)
+          call gparcx('Constituents: ',cline,last,4,text,';','Enter constit')
        else
-          call gparc('Sublattice constituents: ',&
-               cline,last,4,text,';',q1help)
+          call gparcx('Sublattice constituents: ',&
+               cline,last,4,text,';','?Enter constit')
        endif
        if(buperr.ne.0) goto 900
        if(text(1:1).eq.';') then
@@ -1272,9 +1275,7 @@
 ! nextcs is the index of next phasetuple for same phase
    leq=iph
 ! why upper bound error??
-!   do while(leq.le.nooftuples .and. phasetuple(leq)%nextcs.gt.0)
-   do while(leq.le.nooftuples .and. phasetuple(leq)%nextcs.gt.0 .and.&
-        leq.ne.phasetuple(leq)%nextcs)
+   do while(leq.le.nooftuples .and. phasetuple(leq)%nextcs.gt.0)
       leq=phasetuple(leq)%nextcs
    enddo
 !   write(*,56)'3B setting nextcs in tuple: ',iph,phases(iph),nyttcs,leq,tuple
@@ -1717,9 +1718,7 @@
       jl=phasetuple(jl)%nextcs
 ! zero the nextcs pointer in the phase tuple pointing to tuple
       eternity: do while(phasetuple(jl)%nextcs.ne.tuple)
-!         if(jl.eq.phasetuple(tuple)%nextcs) then
-! From Axel van de Walle
-         if(jl.eq.phasetuple(jl)%nextcs) then
+         if(jl.eq.phasetuple(tuple)%nextcs) then
             exit eternity
          endif
          if(phasetuple(jl)%nextcs.eq.0) then
@@ -5735,7 +5734,7 @@
    maxcol=0
    dcom=0
 100 continue
-   call gparcd('Table head line: ',cline,last,5,text,' ',q1help)
+   call gparcdx('Table head line: ',cline,last,5,text,' ','?Enter many equil')
    kom=ncomp(text,commands,ncom,last)
    if(kom.le.0) then
       write(kou,110)text(1:len_trim(text))
@@ -5796,7 +5795,8 @@
 ! we must not destroy the values in colvar and rowtext!!
    coleq=colvar
    eqlin=rowtext
-   call gparc('Table row: ',cline,last,5,text,' ',q1help)
+! This is input of lines of the many-equilibria
+   call gparcx('Table row: ',cline,last,5,text,' ','?Enter table row')
 ! allow empty lines
    if(len_trim(text).le.1) goto 300
 ! remove TAB characters
@@ -5806,6 +5806,7 @@
 !   write(*,*)'3B 300: ',cline(1:len_trim(cline))
    if(text(1:5).eq.'TABLE') then
 ! finish if first word on line is "TABLE" meaning TABLE_END
+! the beginning has already passed
       write(kou,310)neq
 310   format('Created ',i5,' equilibria')
       goto 1000
@@ -5875,6 +5876,7 @@
    if(gx%bmperr.ne.0) goto 1000
 !========================================================================
 ! now set values for the equilibrium description with dcom lines
+! THESE COMMANDS IS NOT INTERACTIVE, they should be read from a file
    do jval=1,dcom
       kom=ncomp(eqlin(jval),commands,ncom,last)
 !      write(*,12)'3B eqlin: ',jval,trim(eqlin(jval)),last,kom
@@ -5942,10 +5944,12 @@
          ceq%comment=eqlin(jval)(last:)
 !---------------------------
       CASE(10)! reference state
-         call gparc('Component name: ',eqlin(jval),last,1,tval,' ',q1help)
+         call gparcx('Component name: ',eqlin(jval),last,1,tval,' ',&
+              '?Enter many equil')
          call find_component_by_name(tval,iel,ceq)
          if(gx%bmperr.ne.0) goto 1000
-         call gparc('Reference phase: ',eqlin(jval),last,1,tval,'SER ',q1help)
+         call gparcx('Reference phase: ',eqlin(jval),last,1,tval,'SER ',&
+              '?Enter many equil')
          if(tval(1:4).eq.'SER ') then
 !            write(kou,*)'Reference state is stable phase at 298.15 K and 1 bar'
 ! this means no reference phase, SER is at 298.15K and 1 bar
@@ -5955,7 +5959,8 @@
             if(gx%bmperr.ne.0) goto 1000
 ! temperature * means always to use current temperature
             xxy=-one
-            call gparr('Temperature: /*/: ',eqlin(jval),last,xxx,xxy,q1help)
+            call gparrx('Temperature: /*/: ',eqlin(jval),last,xxx,xxy,&
+                 '?Enter many equil')
             if(buperr.ne.0) then
 !               write(*,*)'3B buperr: ',buperr
                buperr=0
@@ -5966,7 +5971,8 @@
                tpa(1)=xxx
             endif
             xxy=1.0D5
-            call gparrd('Pressure: ',eqlin(jval),last,xxx,xxy,q1help)
+            call gparrdx('Pressure: ',eqlin(jval),last,xxx,xxy,&
+                 '?Enter many equil')
             if(xxx.le.zero) then
                tpa(2)=xxy
             else
