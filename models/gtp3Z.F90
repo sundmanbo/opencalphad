@@ -1834,7 +1834,7 @@
    integer nexpr,lsc,kkp
    double precision xx
 !   write(*,*)'Max ',len(longline),' characters'
-   call gparrdx('Low temperature limit: ',cline,ip,xx,2.9815D2,'?TPUN')
+   call gparrdx('Low temperature limit: ',cline,ip,xx,2.9815D2,'?ENTER tpun')
    if(buperr.ne.0) then
 ! set default low limit
       buperr=0; longline=' 298.15 '
@@ -1851,7 +1851,8 @@
 !-----------------------------------------------
 ! return here for new expression in another range
 115 continue
-   call gparcx('Give expression, end with ";":',cline,ip,6,line,';','?TPUN')
+   call gparcx('Give expression, end with ";":',cline,ip,6,line,';',&
+        '?ENTER tpun')
    if(buperr.ne.0) then
       buperr=0; line=';'
    endif
@@ -1861,7 +1862,7 @@
 !   write(*,*)'tpfun: ',longline(1:jp)
 ! lsc is position after the ";" in any previous range
    if(index(longline(lsc:),';').le.0) then
-      call gparcx('&',cline,ip,6,line,';','?TPUN')
+      call gparcx('&',cline,ip,6,line,';','?ENTER tpun')
       if(buperr.ne.0) then
          buperr=0; line=';'
       endif
@@ -1886,7 +1887,7 @@
 ! lsc is position of ; for previous range
 !   write(*,130)'3Z pos2: ',nexpr,kkp,lsc,jp,trim(longline)
    lsc=nexpr
-   call gparrdx('Upper temperature limit ',cline,ip,xx,6.0D3,'?TPUN')
+   call gparrdx('Upper temperature limit ',cline,ip,xx,6.0D3,'?ENTER tpun')
    if(buperr.ne.0) then
       buperr=0; xx=6.0D3
    endif
@@ -1894,7 +1895,7 @@
    jp=jp+1
    call wrinum(longline,jp,8,0,xx)
    if(buperr.ne.0) goto 1000
-   call gparcdx('Any more ranges',cline,ip,1,ch1,'N','?TPUN')
+   call gparcdx('Any more ranges',cline,ip,1,ch1,'N','?ENTER tpun')
 !   write(*,*)'3Z ch1: ',ch1
    if(ch1.eq.'n' .or. ch1.eq.'N') then
       longline(jp:)=' N'

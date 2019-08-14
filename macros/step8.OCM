@@ -385,7 +385,7 @@ V
 1.0E-5*P
 axis yax
 bar
-log
+extra log
 y
 title step 8 fig 11
 

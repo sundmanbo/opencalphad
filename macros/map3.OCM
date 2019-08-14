@@ -172,9 +172,15 @@ austenite
 plot
 x(*,c)
 HM(*)
-tie 3
+extra tie
+?
+3
 title map 3 fig 7
 
+
+@$ Normally we cannot plot tie-lines in a binary x-T diagram
+@$ but when T is exchanged for HM(*) both axis are exensive (normallized)
+@$ properties and then we can plot tie-lines!
 
 @&
 @$ Note: plotting with composition axis chenged to activity

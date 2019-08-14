@@ -70,20 +70,20 @@ plot
 title map 14 fig 1
 
 @&
+
 @$ plot as Gibbs triangle with tie-lines
 plot
 
 
-gibbs Y
-tie 3
+extra gibbs Y
+extra tie 3
 @$ Also set the color of the monovariants to red
-font
+extra font
 
 FF0000
 
 title map 14 fig 2
-misc
-Fe
+extra lower Fe
 
 
 @&
@@ -91,7 +91,7 @@ Fe
 plot
 
 
-font
+extra font
 
 a0ffa0
 

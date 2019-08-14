@@ -26,8 +26,7 @@
    logical once
 ! save here to use the same default as last time
    save chd,lastph
-   call gparcdx('Phase name: ',cline,last,1,name1,lastph,&
-        '?Phase constitution')
+   call gparcdx('Phase name: ',cline,last,1,name1,lastph,'?AMEND phase constit')
    if(name1(1:2).eq.'* ') then
 ! this means all phases and composition sets
 ! If iph is -1 than this is not allowed!!
@@ -73,7 +72,7 @@
 ! ask if we should set the current constitution, ignore default
 !   write(*,*)'3D we are here!'
    call gparcdx('Current (Y), default (D) or new (N) constitution?',&
-        cline,last,1,ch1,chd,'?Change phase constitution')
+        cline,last,1,ch1,chd,'?AMEND phase constit')
    if(ch1.eq.'Y' .or. ch1.eq.'y') then
       chd='Y'
 ! set the old constitution explicitly!!
@@ -113,7 +112,7 @@
          once=.true.
 20        continue
          ydef=min(yarr(kkk),ydef)
-         call gparrdx(line(1:ip+2),cline,last,xxx,ydef,'?ENTER constitution')
+         call gparrdx(line(1:ip+2),cline,last,xxx,ydef,'?AMEND phase constit')
          if(buperr.ne.0) then
 !            write(*,*)'3D Allow REST: ',trim(cline),last,buperr,yrest
             buperr=0
@@ -248,7 +247,7 @@
 ! ask if we should set the default constitution
 !   write(*,*)'3D we are really here?'
    call gparcdx('Default constitution?',cline,last,1,ch1,chd,&
-        '?Phase constitution')
+        '?AMEND phase constit')
    if(ch1.eq.'Y' .or. ch1.eq.'y') then
       call set_default_constitution(iph,ics,ceq)
       if(gx%bmperr.ne.0) goto 1000
@@ -274,7 +273,7 @@
          once=.true.
 20        continue
          ydef=min(yarr(kkk),ydef)
-         call gparrdx(line(1:ip+2),cline,last,xxx,ydef,'?ENTER constitution')
+         call gparrdx(line(1:ip+2),cline,last,xxx,ydef,'?AMEND phase constit')
          if(xxx.lt.zero) then
             if(once) then
                write(*,*)'A fraction must be greater than zero'
@@ -352,7 +351,7 @@
 !
    lk3=0
 10  continue
-   call gparcx('Parameter name: ',cline,ip,7,parname,' ','?ENTER tpfun')
+   call gparcx('Parameter name: ',cline,ip,7,parname,' ','?ENTER parameter')
 ! simple parameter names are like G(SIGMA,FE:CR:FE,CR;1)
    kp=index(parname,' ')
    parname(kp:)=' '
@@ -594,7 +593,8 @@
 ! return here for new expression in another range
    lsc=1
 115 continue
-   call gparcx('Expression, end with ";":',cline,ip,6,line,';','?ENTER tpfun')
+   call gparcx('Expression, end with ";":',cline,ip,6,line,';',&
+        '?ENTER parameter')
    if(buperr.ne.0) then
       buperr=0; line=';'
    endif
@@ -603,7 +603,7 @@
    jp=len_trim(longline)+1
 !   write(*,152)0,jp,longline(1:jp)
    if(index(longline(lsc:),';').le.0) then
-      call gparcx('&',cline,ip,6,line,';','?ENTER tpfun')
+      call gparcx('&',cline,ip,6,line,';','?ENTER parameter')
       if(buperr.ne.0) then
          buperr=0; line=';'
       endif
@@ -618,13 +618,13 @@
    lsc=jp
 !    write(*,152)1,ip,cline(1:ip)
    call gparrx('Upper temperature limit /6000/:',cline,ip,xxx,6.0D3,&
-        '?ENTER tpfun')
+        '?ENTER parameter')
    if(buperr.ne.0) then
       buperr=0; xxx=6.0D3
    endif
    call wrinum(longline,jp,8,0,xxx)
    if(buperr.ne.0) goto 1000
-   call gparcdx('Any more ranges',cline,ip,1,ch1,'N','?ENTER tpfun')
+   call gparcdx('Any more ranges',cline,ip,1,ch1,'N','?ENTER parameter')
    if(ch1.eq.'n' .or. ch1.eq.'N') then
       longline(jp:)=' N'
       jp=jp+3
@@ -635,7 +635,8 @@
    endif
 ! jump here for parameters that are constants
 200 continue
-   call gparcdx('Reference symbol:',cline,ip,1,refx,'UNKNOWN','?ENTER tpfun')
+   call gparcdx('Reference symbol:',cline,ip,1,refx,'UNKNOWN',&
+        '?ENTER parameter')
    call capson(refx)
    longline(jp:)=refx
    jp=len_trim(longline)+1
@@ -686,7 +687,7 @@
       chd='F'
    endif
    call gparcdx('I am a beginner (B), freqent user (F) or expert (E): ',&
-        cline,ipos,1,ch1,chd,'?Amend global')
+        cline,ipos,1,ch1,chd,'?Amend general')
    call capson(ch1)
    globaldata%status=ibclr(globaldata%status,GSBEG)
    globaldata%status=ibclr(globaldata%status,GSADV)
@@ -703,7 +704,7 @@
    chd='Y'
    if(btest(globaldata%status,GSNOGLOB)) chd='N'
    call gparcdx('Global gridminimization allowed: ',&
-        cline,ipos,1,ch1,chd,'?Amend global')
+        cline,ipos,1,ch1,chd,'?Amend general')
    if(ch1.eq.'Y' .or. ch1.eq.'y') then
       globaldata%status=ibclr(globaldata%status,GSNOGLOB)
    else
@@ -713,7 +714,7 @@
    chd='Y'
    if(btest(globaldata%status,GSNOMERGE)) chd='N'
    call gparcdx('Merging gridpoints in same phase allowed: ',&
-        cline,ipos,1,ch1,chd,'?Amend global')
+        cline,ipos,1,ch1,chd,'?Amend general')
    if(ch1.eq.'Y' .or. ch1.eq.'y') then
       globaldata%status=ibclr(globaldata%status,GSNOMERGE)
    else
@@ -723,7 +724,7 @@
    chd='Y'
    if(btest(globaldata%status,GSNOACS)) chd='N'
    call gparcdx('Composition sets can be created automatically? ',&
-        cline,ipos,1,ch1,chd,'?Amend global')
+        cline,ipos,1,ch1,chd,'?Amend general')
    if(ch1.eq.'Y' .or. ch1.eq.'y') then
       globaldata%status=ibclr(globaldata%status,GSNOACS)
    else
@@ -733,7 +734,7 @@
    chd='Y'
    if(btest(globaldata%status,GSNOREMCS)) chd='N'
    call gparcdx('Delete unnecessary composition sets automatically? ',&
-        cline,ipos,1,ch1,chd,'?Amend global')
+        cline,ipos,1,ch1,chd,'?Amend general')
    if(ch1.eq.'Y' .or. ch1.eq.'y') then
       globaldata%status=ibclr(globaldata%status,GSNOREMCS)
    else
@@ -759,7 +760,7 @@
    character line*256,refid*16,L80*80
    integer jl,ip
    call gparcx('Reference identifier:',cline,last,1,refid,' ',&
-        '?Reference identifier:')
+        '?AMEND bibliography')
    if(buperr.ne.0 .or. refid(1:1).eq.' ') then
 !      write(kou,*)'There must be an identifier'
       gx%bmperr=4155; goto 1000
@@ -788,7 +789,7 @@
 100 continue
 !   call gparc('Reference text, end with ";":',cline,last,5,l80,';',q1help)
    call gparcx('Reference text, end with ";":',cline,last,5,l80,';',&
-        '?Reference text')
+        '?AMEND bibliography')
    line(ip:)=l80
    ip=len_trim(line)
    if(ip.le.1 .and. twotries) then
@@ -863,7 +864,8 @@
 !      write(*,*)'3D uncertanity 2: ',ip,'"'//trim(cline)//'"'
 ! NOTE that gparcd increments ip before seaching for value
 !      write(*,*)'3D Calling gparcd: ',trim(cline),ip
-      call gparcdx('Uncertainty: ',cline,ip,1,usymbol,'1.0','?ENTER exper')
+      call gparcdx('Uncertainty: ',cline,ip,1,usymbol,'1.0',&
+           '?ENTER experiment')
 !      write(*,*)'3D extracted uncertainity: ',ip,buperr,'"'//usymbol//'"'
       jc=1
       call getrel(usymbol,jc,xxx)
@@ -1053,12 +1055,12 @@
 56 format(a,2i3,' "',a,'" ')
    if(nterm.eq.0) then
 ! the whole line is read into stvexp
-      call gparcdx('State variable: ',cline,ip,5,stvexp,'T','?State variable')
+      call gparcdx('State variable: ',cline,ip,5,stvexp,'T','?SET condition')
    else
 ! the whole expression must have been entered on the same line
 ! note cline is updated below !!
       ip=ip-1
-      call gparcdx(' ',cline,ip,5,stvexp,'!','?State variable')
+      call gparcdx(' ',cline,ip,5,stvexp,'!','?Set condition')
    endif
    if(stvexp(1:1).eq.' ') then
 ! if an expression is terminated with an empty line ask for value
@@ -1332,7 +1334,7 @@
    colon=index(stvexp,':')
 !   colon=index(cline,':')
 !   write(*,*)'3D value: ',ip,' "',trim(stvexp),'" ',defval,colon
-   call gparcdx('Value: ',stvexp,ip,1,textval,defval,'?ENTER condition')
+   call gparcdx('Value: ',stvexp,ip,1,textval,defval,'?SET condition')
 !   write(*,*)'3D value: ',textval
    c5=textval(1:5)
    call capson(c5)
@@ -2336,7 +2338,8 @@ end subroutine get_condition
             endif
 ! modified for new online help
 !            call gparcd(quest,cline,last,1,fdef,vdef,q1help)
-            call gparcdx(quest,cline,last,1,fdef,vdef,'?Default constitution')
+            call gparcdx(quest,cline,last,1,fdef,vdef,&
+                 '?AMEND phase default constit')
             jy=1
             if(fdef(1:4).eq.'NONE') then
                xxx=0

@@ -49,18 +49,20 @@ map
 plot
 
 
+extra ?
+@& this gives the menu of extra things
+extra ??
+@$ This gives the browser window and we must select from the extra menu
 gib y
-tie 3
+extra tie 3
 title Map 15 fig 1: BEF model Mo-Ni-Re isotherm 2500 K
 @$ restore default colors if we run several macros ...
-font
+extra font
 
 7CFF40
 7CFF40
 @$ Set a text in the lower left corner
-misc
-Mo
-,,,,,
+extra lower Mo
 
 
 @$-------------------------------------------------
@@ -81,10 +83,10 @@ plot
 
 
 title Map 15 fig 2: BEF model Mo-Ni-Re isotherm 1500 K
-gib y
-tie 3
+extra gib y
+extra tie 3
 @$ set a light gray monovariant
-font
+extra font
 
 f0f0f0
 ffff00
@@ -127,12 +129,12 @@ map
 plot
 
 
-gibbs
+extra gibbs
 y
-tie 3
+extra tie 3
 title Map 15 fig 3: BEF model Mo-Ni-Re isotherm 500 K
 @$ light green monovariant
-font
+extra font
 
 f0fff0
 7cff40
@@ -152,15 +154,14 @@ map
 plot
 
 
-gibbs y
-tie 3
+extra gibbs y
+extra tie 3
 title Map 15 fig 4: BEF model Mo-Ni-Re isotherm 500 K
-font
+extra font
 
 50aa50
 
-misc
-Mo ,,,,,,,,,,,,,
+extra lower Mo 
 
 
 @$ The diagram is hopefully better now but maping will always be fragile

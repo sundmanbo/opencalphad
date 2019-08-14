@@ -13,6 +13,23 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2019.08.14 OC version 5.049: A revision of the PLOT command has been
+made.  The option were very confusing and badly organized.  Now a
+"submenu" EXTRA has been added for less frequent plot options like
+Gibbs triangle, logscale and some others.  Please use the new online
+help facility to explore this.  With the new subcommand feature it
+will be easier to extend the plot options without creating confusing
+combinations.
+
+For the online help facility you should create an environment variable
+OCHOME which should be the path to the directory where you have the
+ochelp.html file.  This is in the manual/ directory in the download.
+
+To underatsnd the new plot commands you can also look at some of the
+macro files, for example map10.OCM.  Basically the change is that some
+of the plot options require a subcommand EXTRA in front of the
+previous option, like "extra Gibbs-triangle y"
+
 2019.08.11 OC version 5.048: A major change in the online help has
 been made.  Previously a complicated way trying to keep trace of the
 commands was used to provide help and the help was written on the same

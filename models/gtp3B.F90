@@ -432,10 +432,11 @@
        once=.true.
 4045   continue
        if(nsl.eq.1) then
-          call gparcx('Constituents: ',cline,last,4,text,';','Enter constit')
+          call gparcx('Constituents: ',cline,last,4,text,';',&
+               'Enter phase constit')
        else
           call gparcx('Sublattice constituents: ',&
-               cline,last,4,text,';','?Enter constit')
+               cline,last,4,text,';','?Enter phase constit')
        endif
        if(buperr.ne.0) goto 900
        if(text(1:1).eq.';') then

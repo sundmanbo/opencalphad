@@ -1270,7 +1270,7 @@
 ! if not screen then ask for file name
 ! for screen outpot of file use /option= ...
    if(ftyp.ne.1) then
-      call gparcdx('Output file: ',cline,last,1,fil,'database','?LIST format')
+      call gparcdx('Output file: ',cline,last,1,fil,'database','?Output format')
       ipos=len_trim(fil)
 ! it is impossible to have a blank name here, check if there is an extension
       iph=index(fil,'.')

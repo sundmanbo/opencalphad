@@ -101,6 +101,16 @@ text n 0.45 1500 .8 0 y
 
 @$ =================================================================== 
 @$ Now we got the whole diagram!  Be happy!
+@$ We can plot it in a strange wa y ...
+
+plot
+
+SM(*)
+extra tie 3
+
+
+@$ There is a wrong monovariant equilibrium at the Ni-rich side of
+@$ A1/L1_2/liquid equilibrium
 
 set inter
 

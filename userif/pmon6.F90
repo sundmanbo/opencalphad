@@ -205,7 +205,8 @@ contains
     integer, parameter :: ncam1=18,ncset=27,ncadv=15,ncstat=6,ncdebug=9
     integer, parameter :: nselect=6,nlform=6,noptopt=9,nsetbit=6
     integer, parameter :: ncamph=18,naddph=12,nclph=6,nccph=6,nrej=9,nsetph=6
-    integer, parameter :: nsetphbits=15,ncsave=6,nplt=21,nstepop=6
+    integer, parameter :: nsetphbits=15,ncsave=6,nplt=15,nstepop=6
+    integer, parameter :: nplt2=18
     integer, parameter :: ninf=9
 ! basic commands
     character (len=16), dimension(ncbas), parameter :: cbas=&
@@ -393,14 +394,31 @@ contains
 !-------------------
 ! subcommands to PLOT OPTIONS/ GRAPHICS OPTIONS
 ! THIS IS A MESS, should be reorganized in levels
+!    character (len=16), dimension(nplt) :: cplot=&
+!        ['RENDER          ','SCALE_RANGES    ','RATIOS_XY       ',&
+!         'AXIS_LABELS     ','MANIPULATE_LINES','TITLE           ',&
+!         'GRAPHICS_FORMAT ','OUTPUT_FILE     ','GIBBS_TRIANGLE  ',&
+!         'QUIT            ','POSITION_OF_KEYS','APPEND          ',&
+!         'TEXT            ','TIE_LINES       ','FONT_AND_COLOR  ',&
+!         'LOGSCALE        ','LINE_WITH_SYMBLS','PAUSE_OPTIONS   ',&
+!         'MISCELLANEOUS   ','                ','                ']
+!-------------------
+! subcommands to PLOT OPTIONS/ GRAPHICS OPTIONS
+! THIS IS A MESS, should be reorganized in levels
     character (len=16), dimension(nplt) :: cplot=&
-        ['RENDER          ','SCALE_RANGES    ','RATIOS_XY       ',&
-         'AXIS_LABELS     ','MANIPULATE_LINES','TITLE           ',&
-         'GRAPHICS_FORMAT ','OUTPUT_FILE     ','GIBBS_TRIANGLE  ',&
+        ['RENDER          ','SCALE_RANGES    ','                ',&
+         'AXIS_LABELS     ','                ','TITLE           ',&
+         'GRAPHICS_FORMAT ','OUTPUT_FILE     ','                ',&
          'QUIT            ','POSITION_OF_KEYS','APPEND          ',&
-         'TEXT            ','TIE_LINES       ','FONT_AND_COLOR  ',&
-         'LOGSCALE        ','LINE_WITH_POINTS','PAUSE_OPTIONS   ',&
-         'MISCELLANEOUS   ','                ','                ']
+         'TEXT            ','                ','EXTRA           ']
+! subsubcommands to PLOT
+    character (len=16), dimension(nplt2) :: cplot2=&
+        ['FONT_AND_COLOR  ','LOGSCALE        ','RATIOS_XY       ',&
+         'LINE_WITH_SYMBLS','MANIPULATE_LINES','PAUSE_OPTION    ',&
+         'LOWER_LEFT_TEXT ','TIE_LINES       ','GIBBS_TRIANGLE  ',&
+         'QUIT            ','SPAWN           ','NO_HEADING      ',&
+         '                ','                ','                ',&
+         '                ','                ','                ']
 !-------------------
 !        123456789.123456---123456789.123456---123456789.123456
 ! minimizers
@@ -577,76 +595,48 @@ contains
     browser=' '
     latexfile=' '
     htmlfile=' '
-    noochome: if(ochome(1:1).eq.' ') then
-       inquire(file='ochelp.tex ',exist=logok)
-       if(.not.logok) then
-          write(*,*)'Warning, no help file'
-       else
-! help file on local directory ... no browser nor HMTL
-          call init_help(' ','ochelp.tex ',' ')
-       endif
-    else ! there is a OCHOME environment variable
-! both LINUX and WINDOWS accept / as separator between directory and file names
-       write(*,*)'OC home directory (OCHOME): ',trim(ochome)
-! when we are here OCHOME is not empty!
 #ifdef winhlp
 ! THIS IS FOR WINDOWS
-! first argument is browser
-! second is LaTeX source file
-! third argument is HTML file with hypertargets <a id="target" />
-       browser='C:\PROGRA~1\INTERN~1\iexplore.exe '
-! normal tex/html help files
-       latexfile=trim(OCHOME)//'\'//'ochelp.tex'
-       htmlfile=trim(OCHOME)//'\'//'ochelp.html'
-! special for on-line HELP TESTING
-!       write(*,*)' *** testing on-line help'
-!       latexfile='c:\users\bosse\documents\oc\oc\src\manual\ochelp5.tex'
-!       htmlfile='c:\users\bosse\documents\oc\oc\src\manual\ochelp5.html'
+    browser='C:\PROGRA~1\INTERN~1\iexplore.exe '
 #elif lixhlp
 ! THIS IS FOR LINUX
-!       browser='/usr/bin/firefox '
-       browser='firefox '
-       latexfile=trim(OCHOME)//'/'//'ochelp.tex'
+!    browser='/usr/bin/firefox '
+    browser='firefox '
+#endif
+    noochome: if(ochome(1:1).eq.' ') then
+! there is no OCHOME environment variable, maybe a local ochelp.html?
+       inquire(file='ochelp.html ',exist=logok)
+       if(.not.logok) then
+          write(*,*)'Warning, no environment variable OCHOME and no help file'
+          htmlfile=' '
+          htmlhelp=.FALSE.
+       else
+        write(*,*)'Warning, no environment variable OCHOME but local help file'
+          htmlfile='ochelp.html'
+          htmlhelp=.TRUE.
+       endif
+       call init_help(browser,htmlfile)
+    else
+! there is a OCHOME environment variable
+! both LINUX and WINDOWS accept / as separator between directory and file names
+       write(*,*)'Found OC home directory (OCHOME): ',trim(ochome)
+#ifdef winhlp
+! THIS IS FOR WINDOWS
+! normal tex/html help files
+       htmlfile=trim(OCHOME)//'\'//'ochelp.html'
+#elif lixhlp
+! THIS IS FOR LINUX
        htmlfile=trim(OCHOME)//'/'//'ochelp.html'
 #endif
-       inquire(file=browser,exist=logok)
-       if(.not.logok) then
-          write(*,*)'No browser for on-line help'
+       call init_help(browser,htmlfile)
+       if(.not.ochelp%htmlhelp) then
+          write(kou,*)'Warning, no file "ochelp.html" at OCHME or no browser'
           htmlhelp=.FALSE.
-          call init_help(' ',latexfile,' ')
        else
-!          write(*,*)'Using: ',trim(browser),' for on-line help'
-! the *.tex is for search, *.html for browser
-          inquire(file=htmlfile,exist=logok)
-          if(.not.logok) then
-! if we have no html file disable the help_popup
-!             write(*,*)'No online popup helpfile: ',trim(htmlfile)
-             htmlhelp=.FALSE.
-             call init_help(' ',latexfile,' ')
-          else
-! htmlhelp is set TRUE inside init_help if there is a HMTL file in the call
-!          htmlhelp=.TRUE.
-             call init_help(browser,latexfile,htmlfile)
-             write(*,*)'On-line help using ',trim(browser)
-!          write(*,*)'Help LaTeX: ',trim(latexfile)
-!          write(*,*)'Help popup: ',trim(htmlfile)
-          endif
+          write(kou,*)'Online help provided by your browser using ochelp.html'
        endif
-!       if(.not.htmlhelp) then
-! no html file or user have explicitly set HELP_POPUP_OFF, respect that
-!          call init_help(' ',latexfile,' ')
-!       else
-!          call init_help(browser,latexfile,htmlfile)
-!       endif
 ! default directory for databases
        ocbase=trim(ochome)//'/databases'
-       inquire(file=trim(ocbase),exist=logok)
-!       if(logok) then
-!          write(*,*)'There is a database directory: ',trim(ocbase)
-!       else
-!          write(*,*)'No database directory'
-!       endif
-! running a initial macro file
        cline=trim(ochome)//'/start.OCM '
        inquire(file=cline,exist=logok)
        if(logok) then
@@ -655,11 +645,9 @@ contains
 ! This just open the file and sets input unit to file
           call macbeg(cline,last,logok)
           startupmacro=.TRUE.
-!          macropath=string
-!       else
-!          write(*,*)'No initiation file'
        endif
     endif noochome
+! running a initial macro file
     write(*,*)'Working directory is: ',trim(workingdir)
 !
 ! finished initiallization
@@ -1297,7 +1285,7 @@ contains
              if(allocated(savedcoeff)) deallocate(savedcoeff); goto 100
           endif
 ! ask for new value with the current value as default
-          call gparrdx('New value: ',cline,last,xxx,xxy,'?Amend assess coeffs')
+          call gparrdx('New value: ',cline,last,xxx,xxy,'?Amend assess result')
           delta=(xxx-xxy)/firstash%coeffscale(analyze)
 !       write(*,*)'Delta: ',xxx-xxy,delta
 ! UNFINISHED
@@ -1330,7 +1318,7 @@ contains
 !-------------------------
        case(13) ! amend OPTIMIZING_COEFF, (rescale or recover)
           call gparcdx('Should the coefficients be rescaled?',&
-               cline,last,1,ch1,'N','?Amend assess coeff')
+               cline,last,1,ch1,'N','?Amend optim coeff')
           if(ch1.eq.'y' .or. ch1.eq.'Y') then
 ! set start values to current values
 !             firstash%coeffstart=firstash%coeffvalues*firstash%coeffscale
@@ -2044,7 +2032,7 @@ contains
 ! if ll==1 then input was finished by equal sign, ask for status
                 call gparcdx(&
                      'New status S(uspend), D(ormant), E(ntered) or F(ixed)?',&
-                     cline,last,1,name1,'E','?Set staus phase')
+                     cline,last,1,name1,'E','?Set status phase')
                 ch1=name1(1:1)
              else
                 last=0
@@ -2205,7 +2193,7 @@ contains
 !.................................................................
           case(8) ! OPEN_POPUP_OFF
              call gparcdx('Turn off popup for open? ',cline,last,&
-                  1,ch1,'Y','?Set adv open-popup')
+                  1,ch1,'Y','?Set adv open popup')
              if(ch1.eq.'Y') then
 ! nopopup is declared in metlib3.F90 module
 ! nopenpopup is declared in metlib3.F90 module
@@ -2220,7 +2208,7 @@ contains
              write(kou,*)'Current working directory: ',trim(workingdir)
              write(kou,*)'To change please give full path'
              call gparcx('New: ',cline,last,1,string,workingdir,&
-                  'Set adv workdir')
+                  '?Set adv workdir')
              inquire(file=string,exist=logok)
              if(.not.logok) then
                 write(*,*)'No such directory'
@@ -2240,14 +2228,13 @@ contains
                 htmlhelp=.TRUE.
                 string=browser
                 call gparcdx('Browser including full path ',&
-                     cline,last,1,browser,string,'Set adv help popup')
-                string=latexfile
-!                call gparcdx('LaTeX help file including full path ',&
-!                     cline,last,1,latexfile,string,'Set adv help popup')
+                     cline,last,1,browser,string,'?Set adv help popup')
                 string=htmlfile
                 call gparcdx('HTML help file including full path ',&
                      cline,last,1,htmlfile,string,'?Set adv help popup')
-                call init_help(browser,latexfile,htmlfile)
+                call init_help(browser,htmlfile)
+                if(.not.ochelp%htmlhelp) write(kou,*)&
+                     'Error initiating html help'
              endif
 !.................................................................
           case(11) ! SET ADVANCED EET_EXTRAPOL / HICKEL_EXTRAPOL for solids
@@ -2257,7 +2244,7 @@ contains
 ! remove this bit for EET, use only sysparem(1) for T (as integer)
 !                globaldata%status=ibset(globaldata%status,GSHICKEL)
                 call gparrdx('Low T limit?',cline,last,xxx,1.0D3,&
-                     'Set adv EET')
+                     '?Set adv EET')
 !                if(thickel.lt.one) then
                 if(xxx.gt.1.0D1) then
 ! set_hickel_check is in minimizer/matsmin.F90
@@ -2274,18 +2261,19 @@ contains
 !.................................................................
           case(12) ! SET ADVANCED LEVEL
              call gparcdx('I am an beginner of OC: ',cline,last,1,ch1,'N',&
-                  'Set adv level')
+                  '?Set adv level')
              if(ch1.eq.'Y') then
                 globaldata%status=ibset(globaldata%status,1)
                 write(*,*)'Bon courage!'
-             endif
-             call gparcdx('I am an expert of OC: ',cline,last,1,ch1,'N',&
-                  'Set adv level')
-             if(ch1.eq.'Y') then
-                globaldata%status=ibset(globaldata%status,2)
-                write(*,*)'Felicitations!'
              else
-                write(*,*)'Sorry, not yet'
+                call gparcdx('I am an expert of OC: ',cline,last,1,ch1,'N',&
+                     '?Set adv level')
+                if(ch1.eq.'Y') then
+                   globaldata%status=ibset(globaldata%status,2)
+                   write(*,*)'Felicitations!'
+                else
+                   write(*,*)'Sorry, not yet'
+                endif
              endif
 !.................................................................
           case(13) ! not used
@@ -2309,11 +2297,11 @@ contains
 !-----------------------------------------------------------
        case(6) ! set REFERENCE_STATE
           call gparcx('Component name: ',cline,last,1,name1,' ',&
-               'Set reference state')
+               '?Set reference phase')
           call find_component_by_name(name1,iel,ceq)
           if(gx%bmperr.ne.0) goto 100
           call gparcx('Reference phase: ',cline,last,1,name1,'SER ',&
-               'Set reference phase')
+               '?Set reference phase')
           if(name1(1:4).eq.'SER ') then
              write(kou,*)'Reference state is stable phase at 298.15 K and 1 bar'
 ! this means no reference phase, SER is at 298.15K and 1 bar
@@ -2324,7 +2312,7 @@ contains
 ! temperature * means always to use current temperature
              xxy=-one
              call gparrx('Temperature: /*/: ',cline,last,xxx,xxy,&
-                  'Set referece T')
+                  '?Set reference phase')
 !             write(*,*)'problem: ',buperr,xxx,xxy,one
 ! when calling gparr the default was not "set" as default and rubbish returned
 ! now the default is always the default even if not shown
@@ -2338,7 +2326,7 @@ contains
              endif
              xxy=1.0D5
              call gparrdx('Pressure: ',cline,last,xxx,xxy,&
-                  'Set reference P')
+                  '?Set reference phase')
              if(xxx.le.zero) then
                 tpa(2)=xxy
              else
@@ -2405,7 +2393,7 @@ contains
              endif
              call gparcdx(&
                   'Suspend, Dormant, Entered, Fixed, Hidden or Not hidden?',&
-                  cline,last,1,ch1,'SUSPEND','Set phase status')
+                  cline,last,1,ch1,'SUSPEND','?Set phase status')
              nystat=99
              call capson(ch1)
 ! new values of status ??
@@ -2451,7 +2439,7 @@ contains
              else
 ! set phase amount
                 call gparrdx('Amount: ',cline,last,xxx,zero,&
-                     'Set phase amount')
+                     '?Set phase constitution')
                 call set_phase_amounts(iph,ics,xxx,ceq)
              endif
 !............................................................
@@ -2542,7 +2530,7 @@ contains
              call openlogfile(' ',' ',-1)
              logfil=0
           else
-             call gparcx('Title: ',cline,last,5,model,' ','Set logfile')
+             call gparcx('Title: ',cline,last,5,model,' ','?Set logfile')
              call openlogfile(name1,model,39)
              if(buperr.ne.0) then
                 write(kou,*)'Error opening logfile: ',buperr
@@ -2561,12 +2549,12 @@ contains
 ! that is done by OPTIMIZE
           updatemexp=.true.
           mexp=0
-          call gparrdx('Weight ',cline,last,xxx,one,'Set weight')
+          call gparrdx('Weight ',cline,last,xxx,one,'?Set weight')
           if(buperr.ne.0) goto 100
 ! The weight must be 0 or positive
           xxx=abs(xxx)
           call gparcdx('Equilibria (abbrev name) or range: ',cline,last,&
-               1,name1,'CURRENT','Set weight')
+               1,name1,'CURRENT','?Set weight')
 ! THINK HOW TO UPDATE MEXP!!! <<<<<<<<<<<<<<<<<<
           if(name1(1:8).eq.'CURRENT ') then
              if(ceq%eqname(1:20).eq.'DEFAULT_EQUILIBRIUM ') then
@@ -2873,7 +2861,8 @@ contains
           endif
           call calceq2(1,ceq)
           if(gx%bmperr.ne.0) goto 990
-          call gparidx('Give an axis direction: ',cline,last,ndl,2,'?Set axis')
+          call gparidx('Give an axis direction: ',cline,last,ndl,2,&
+               '?Set as start equil')
           if(buperr.ne.0) goto 990
           if(abs(ndl).gt.noofaxis) then
              write(kou,*)'Direction must be +/- axis number'
@@ -3191,7 +3180,7 @@ contains
           xxy=firstash%coeffvalues(j1)*firstash%coeffscale(j1)
           if(i1.eq.i2) then
 ! A single coefficient, when fixing a single coefficinet ask for value
-             call gparrdx('Start value: ',cline,last,xxx,xxy,&
+             call gparrdx('Fix value: ',cline,last,xxx,xxy,&
                   '?Set fix coeff')
              if(buperr.ne.0) goto 100
 ! set new value
@@ -3242,11 +3231,11 @@ contains
 3750      format(/'NOTE: these are only local values, not conditions',&
                2(1pe12.4)/)
           call gparrdx('New value of T: ',cline,last,xxx,1.0D3,&
-               'Set initial T')
+               'Set initial TP')
           if(buperr.ne.0) goto 100
           ceq%tpval(1)=xxx
           call gparrdx('New value of P: ',cline,last,xxx,1.0D5,&
-               '?Set initial P')
+               '?Set initial TP')
           if(buperr.ne.0) goto 100
           ceq%tpval(2)=xxx
 !------------------------- 
@@ -3428,7 +3417,7 @@ contains
           endif
 ! generate a default names line EQ_x ehere x is eqfree
           call geneqname(quest)
-          call gparcdx('Name: ',cline,last,1,text,quest,'Enter equilibrium')
+          call gparcdx('Name: ',cline,last,1,text,quest,'?Enter equilibrium')
           if(buperr.ne.0) goto 100
           call enter_equilibrium(text,ieq)
           if(gx%bmperr.ne.0) goto 990
@@ -3541,7 +3530,7 @@ contains
           call enter_material(cline,last,nv,xknown,ceq)
           if(gx%bmperr.ne.0) goto 990
           xxy=firsteq%tpval(1)
-          call gparrdx('Temperature ',cline,last,xxx,xxy,'?Material T')
+          call gparrdx('Temperature ',cline,last,xxx,xxy,'?Enter material')
 ! set T and P
           cline='P=1E5 T='
           i1=len_trim(cline)+1
@@ -3629,20 +3618,9 @@ contains
 179       format('New terminal definition for plot '/&
                i2,2x,a,'set terminal ',a/4x,'with file extention: ',a)
 !----------------------------------------------------------------
-! enter not used
+! enter unused
        case(19)
           write(*,*)'Not implemeneted yet'
-! this is at amend components
-!          i2=1
-!          line=' '
-!          do i1=1,noel()
-!             call get_component_name(i1,line(i2:),ceq)
-!             i2=len_trim(line)+2
-!          enddo
-!          call gparcd('Give all new components: ',cline,last,&
-!               5,option,line,q1help)
-!          call enter_components(option,ceq)
-!          if(gx%bmperr.ne.0) goto 990
 !----------------------------------------------------------------
 ! enter unused
        case(20)
@@ -3691,7 +3669,11 @@ contains
 ! NOTE output file for SCREEN can be set by /output=
 ! LIST DATA SCREEN/TDB/MACRO/LaTeX
 ! it is also possible to give SAVE TDB 
-          kom3=submenu('Output format?',cline,last,llform,nlform,1,'?TOPHLP')
+!    character (len=16), dimension(nlform) :: llform=&
+!        ['SCREEN          ','TDB             ','MACRO           ',&
+!         'LATEX           ','PDB             ','                ']
+          kom3=submenu('Output format for data?',cline,last,llform,nlform,1,&
+               '?TOPHLP')
           if(kom.gt.0) then
              call list_many_formats(cline,last,kom3,kou)
              if(gx%bmperr.ge.4000 .and. gx%bmperr.le.nooferm) then
@@ -3756,7 +3738,7 @@ contains
           endif
 !-----------------------------------------------------------
        case(3) ! list phase subcommands
-          call gparcx('Phase name: ',cline,last,1,name1,' ','list phase')
+          call gparcx('Phase name: ',cline,last,1,name1,' ','?List phase')
           if(buperr.ne.0) goto 990
           call find_phase_by_name(name1,iph,ics)
           if(gx%bmperr.ne.0) goto 990
@@ -3944,7 +3926,7 @@ contains
           enddo
 !-----------------------------------------------------------
        case(8) ! list tpfun symbol
-          call gparcdx('name: ',cline,last,5,name1,'*','?*LIST tpfun')
+          call gparcdx('name: ',cline,last,5,name1,'*','?LIST tpfun')
           lrot=0
           iel=index(name1,'*')             
           if(iel.gt.1) name1(iel:)=' '
@@ -4026,7 +4008,7 @@ contains
              write(kou,*)' *** Last calculation was not a full equilibrium'
           endif
           call gparidx('Results output mode: ',cline,last,&
-               listresopt,lrodef,'LIST results')
+               listresopt,lrodef,'?LIST results')
           if(buperr.ne.0) then
              write(kou,*)'No such mode, using default'
              buperr=0
@@ -4509,7 +4491,7 @@ contains
 ! ignore any type ahead
              last=len(cline)
              call gparcdx('Do you want to continue anyway?',&
-                  cline,last,1,ch1,'N','?READ error')
+                  cline,last,1,ch1,'N','?READ TDB error')
              if(ch1.ne.'Y') then
                 stop 'Good luck fixing the TDB file'
              endif
@@ -4555,7 +4537,7 @@ contains
           jp=1
           selection='Select elements /all/:'
 8217      continue
-          call gparcx(selection,cline,last,1,ellist(jp),' ','?READ selection')
+          call gparcx(selection,cline,last,1,ellist(jp),' ','?READ PDB')
           if(ellist(jp).ne.'  ') then
              call capson(ellist(jp))
              jp=jp+1
@@ -4641,7 +4623,7 @@ contains
        case(4) ! save DIRECT
           if(ocdfile(1:1).ne.' ') then
              text=ocdfile
-             call gparcdx('File name: ',cline,last,1,ocdfile,text,'SAVE DIRECT')
+            call gparcdx('File name: ',cline,last,1,ocdfile,text,'?SAVE DIRECT')
           else
 ! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=PDB, 7=DAT
 ! negative is for write, 0 read without filter, -100 write without filter
@@ -5603,8 +5585,17 @@ contains
 !         'TEXT            ','TIE_LINES       ','FONT_AND_COLOR  ',&
 !         'LOGSCALE        ','LINE_WITH_POINTS','PAUSE_OPTION    ']
 !         'MISCELLANEOUS   ','                ','                ']
+! ABOVE IS OLD MENU
+! subcommands to PLOT OPTIONS/ GRAPHICS OPTIONS
+! THIS IS A MESS, should be reorganized in levels
+!    character (len=16), dimension(nplt) :: cplot=&
+!        ['RENDER          ','SCALE_RANGES    ','                ',&
+!         'AXIS_LABELS     ','                ','TITLE           ',&
+!         'GRAPHICS_FORMAT ','OUTPUT_FILE     ','                ',&
+!         'QUIT            ','POSITION_OF_KEYS','APPEND          ',&
+!         'TEXT            ','                ','EXTRA           ']
 !-------------------
-! return here after each subcommand
+! return here after each sub or subsub command
 21100   continue
        if(graphopt%gnutermsel.lt.1 .or. &
             graphopt%gnutermsel.gt.graphopt%gnutermax) then
@@ -5659,7 +5650,7 @@ contains
 !-----------------------------------------------------------
 ! PLOT SCALE_RANGE of either X or Y
        case(2)
-          call gparcdx('For X or Y axis? ',cline,last,1,ch1,'Y','?PLOT axis')
+          call gparcdx('For X or Y axis? ',cline,last,1,ch1,'Y','?PLOT limits')
           if(ch1.eq.'X' .or. ch1.eq.'x') then
 !             if(graphopt%axistype(1).eq.1) then
 !                write(kou,*)'The x axis set to linear'
@@ -5690,7 +5681,7 @@ contains
              twice=.FALSE.
 21104        continue
              call gparrdx('Low limit',cline,last,xxx,graphopt%dfltmin(1),&
-                  '?PLOT low limit')
+                  '?PLOT limits')
              if(graphopt%gibbstriangle .and. xxx.ne.zero) then
                 write(*,*)'Lower limit of a Gibbs triangle plot must be zero'
                 goto 21100
@@ -5700,7 +5691,7 @@ contains
              once=.TRUE.
 21105        continue
              call gparrdx('High limit',cline,last,xxx,&
-                  graphopt%dfltmax(1),'?PLOT high limit')
+                  graphopt%dfltmax(1),'?PLOT limits')
              if(xxx.le.graphopt%plotmin(1)) then
                 if(once) then
                    write(kou,*)'Think before typing'
@@ -5731,7 +5722,7 @@ contains
              twice=.FALSE.
 21107        continue
              call gparrdx('Low limit',cline,last,xxx,graphopt%dfltmin(2),&
-                  '?PLOT low limit')
+                  '?PLOT limits')
              if(graphopt%gibbstriangle .and. xxx.ne.zero) then
                 write(*,*)'Lower limit of a Gibbs triangle plot must be zero'
                 goto 21100
@@ -5741,7 +5732,7 @@ contains
              once=.TRUE.
 21108        continue
              call gparrdx('High limit',cline,last,xxx,&
-                  graphopt%dfltmax(2),'?PLOT high limit')
+                  graphopt%dfltmax(2),'?PLOT limits')
              if(xxx.le.graphopt%plotmin(2)) then
                 if(once) then
                    write(*,*)'Think before typing'
@@ -5762,24 +5753,8 @@ contains
           endif
           goto 21100
 !-----------------------------------------------------------
-! PLOT RATIOS of axis, normal values 1,1 (probably quite useless....)
+! PLOT unused
        case(3)
-          call gparrdx('X-axis plot ratio',cline,last,xxx,graphopt%xsize,&
-               '?PLOT ratios')
-          if(xxx.le.0.1) then
-             write(*,*)'Ratio set to 0.1'
-             xxx=0.1D0
-          endif
-          graphopt%xsize=xxx
-          call gparrdx('Y-axis plot ratio',cline,last,xxx,graphopt%ysize,&
-               'PLOT ratios')
-          if(xxx.le.0.1) then
-             write(*,*)'Ratio set to 0.1'
-             xxx=0.1D0
-          endif
-          graphopt%ysize=xxx
-!          write(*,*)'Not implemented yet'
-          goto 21100
 !-----------------------------------------------------------
 ! PLOT AXIS_LABELS
        case(4)
@@ -5800,26 +5775,8 @@ contains
           endif
           goto 21100
 !-----------------------------------------------------------
-! PLOT MANIPULATE LINE COLORS
+! PLOT unused
        case(5)
-          write(kou,22400)
-22400     format('OC uses GNUPLOT and it is possible to edit',&
-               ' the file "ocgnu.plt" file'/&
-               'generated by OC to use extensive facilities',&
-               ' provided by GNUPLOT.'/&
-               'Only a few of them is provided here.'/&
-               'OC has 10 different colors to identify the lines plotted.',&
-               ' Line 11 or'/' higher will repeat these colors.  With',&
-               ' this command you can select'/' one of these 12 colors',&
-               ' to be used for the first line plotted.')
-          call gparidx('The color index should be on the first line?',&
-               cline,last,flc,1,'?PLOT line colors')
-          if(flc.lt.1 .or. flc.gt.10) then
-             write(*,*)'Number must be between 1 and 10'
-          else
-             graphopt%linett=flc
-          endif
-          goto 21100
 !-----------------------------------------------------------
 ! PLOT TITLE
        case(6)
@@ -5835,14 +5792,14 @@ contains
 ! PLOT GRAPHICS_FORMAT
 ! when setting graphics format always also ask for plot file
        case(7,8)
+!          write(*,*)'P6 kom2: ',kom2
           if(kom2.eq.7) then
 ! subroutine TOPHLP forces return with ? in position cline(1:1)
 29130        continue
              call gparidx('Graphics format index:',cline,last,grunit,1,&
                   '?PLOT formats')
-!             if(cline(1:1).eq.'?'
              if(cline(1:1).eq.'?' .or. &
-                  grunit.lt.1.or.grunit.gt.graphopt%gnutermax) then
+                  grunit.lt.1 .or. grunit.gt.graphopt%gnutermax) then
                 write(kou,29133)
 29133           format('Avalable graphics formats are:')
                 write(kou,29135)(i1,graphopt%gnutermid(i1),&
@@ -5886,7 +5843,7 @@ contains
              inquire(file=filename,exist=logok)
              if(logok) then
                 call gparcdx('File exists, overwrite?',&
-                     cline,last,1,ch1,'N','PLOT file exist')
+                     cline,last,1,ch1,'N','PLOT file')
                 if(.not.(ch1.eq.'Y' .or. ch1.eq.'y')) then
                    write(*,133)
                    plotfile=' '
@@ -5900,22 +5857,8 @@ contains
 ! I am not sure how to inform user where the plot file is saved ....
           goto 21100
 !-----------------------------------------------------------
-! PLOT GIBBS_TRIANGLE
+! PLOT unused
        case(9)
-!          write(*,*)'Not implemented yet'
-          chz='Y'
-          if(graphopt%gibbstriangle) chz='N'
-          call gparcdx('A Gibbs triangle diagram?',cline,last,5,ch1,chz,&
-               'PLOT Gibbs triangle')
-          if(ch1.eq.'y' .or. ch1.eq.'Y') then
-             graphopt%gibbstriangle=.TRUE.
-             write(*,22500)
-22500        format('The Gibbs triangle layout courtesy of',&
-                  ' Catalina Pineda Heresi at RUB, Germany')
-          else
-             graphopt%gibbstriangle=.FALSE.
-          endif
-          goto 21100
 !-----------------------------------------------------------
 ! PLOT QUIT
        case(10)
@@ -5929,7 +5872,7 @@ contains
           call gparcdx('Position?',cline,last,5,line,'top right','?PLOT keys')
           graphopt%labelkey=line
           call gparcdx('Font,size: ',cline,last,5,line,'arial,12',&
-               '?PLOT keys font')
+               '?PLOT keys')
           graphopt%labelkey=trim(graphopt%labelkey)//' font "'//trim(line)//'"'
 !          write(*,*)'pmon: ',trim(graphopt%labelkey)
           goto 21100
@@ -6043,7 +5986,7 @@ contains
 ! when implemented add the stable phase names to "line" as default for text
              endif
           endif
-! There is no gparcd which allows editing the existing text ... emacs!!
+! There is no gparcd which allows editing the existing text ... use emacs!!
           text=' '
           call gparcdx('Text: ',cline,last,5,text,line,'?PLOT texts')
           if(text(1:1).eq.' ') then
@@ -6072,123 +6015,233 @@ contains
           last=len(cline)
           goto 21100
 !-----------------------------------------------------------
-! PLOT TIE_LINES increment
+! PLOT unused
        case(14)
-          call gparidx('Tie-line plot increment?',cline,last,kl,3,&
-               '?PLOT tieline')
-          if(kl.lt.0) kl=0
-          graphopt%tielines=kl
-!          write(*,*)'No implemented yet'
-          goto 21100
-!-----------------------------------------------------------
-! PLOT FONT_AND_COLOR ... and some more things ...
+!---------------------------------------------------------
+! PLOT EXTRA, subsubcommand
+! subsubcommands to PLOT
+!    character (len=16), dimension(nplt2) :: cplot2=&
+!        ['FONT_AND_COLOR  ','LOGSCALE        ','RATIOS_XY       ',&
+!         'LINE_WITH_SYMBLS','MANIPULATE_LINES','PAUSE_OPTION    ',&
+!         'LOWER_LEFT_TEXT ','TIE_LINES       ','GIBBS_TRIANGLE  ',&
+!         'QUIT            ','SPAWN           ','NO_HEADING      ',&
+!         '                ','                ','                ',&
+!         '                ','                ','                ']
+!-------------------------------------------------------------------
        case(15)
-          call gparcdx('Font ',cline,last,1,name1,'default','?PLOT font')
-          write(*,*)'Sorry this option not yet implemeted'
+          kom3=submenu('Extra options?',cline,last,cplot2,nplt2,1,'?TOPHLP')
+          plotextra: SELECT CASE(kom3)
+          case default
+! this is typically when using a ? or ??
+             write(*,*)'No such extra option'
+             cline=' '
+             last=len(cline)
+             goto 21100
+!...............................
+! PLOT EXTRA FONT_AND_COLOR ... and some more things ...
+          case(1)
+             call gparcdx('Font ',cline,last,1,name1,'default','?PLOT font')
+             write(*,*)'Sorry this option not yet implemeted'
 ! monovariant and tielinecolor declared in smp2.F90
-          call gparcdx('Monovariant color ',cline,last,1,&
-               name1,monovariant,'?PLOT font')
-          call capson(name1)
-          do kl=1,6
-             if(name1(kl:kl).lt.'0' .or. name1(kl:kl).gt.'9') then
-                if(name1(kl:kl).lt.'A' .or. name1(kl:kl).gt.'F') then
-                   write(*,*)'The color must be a hexadecimal value',&
-                        ' between 000000 (black) and FFFFFF (white)'
-                   goto 21100
+             call gparcdx('Monovariant color ',cline,last,1,&
+                  name1,monovariant,'?PLOT font')
+             call capson(name1)
+             do kl=1,6
+                if(name1(kl:kl).lt.'0' .or. name1(kl:kl).gt.'9') then
+                   if(name1(kl:kl).lt.'A' .or. name1(kl:kl).gt.'F') then
+                      write(*,*)'The color must be a hexadecimal value',&
+                           ' between 000000 (black) and FFFFFF (white)'
+                      goto 21100
+                   endif
                 endif
-             endif
-          enddo
-          monovariant=name1(1:6)
-          call gparcdx('Tie-line color ',cline,last,1,&
-               name1,tielinecolor,'?PLOT font')
-          call capson(name1)
-          do kl=1,6
-             if(name1(kl:kl).lt.'0' .or. name1(kl:kl).gt.'9') then
-                if(name1(kl:kl).lt.'A' .or. name1(kl:kl).gt.'F') then
-                   write(*,*)'Wrong color, must be between 000000 and FFFFFF'
-                   goto 21100
+             enddo
+             monovariant=name1(1:6)
+             call gparcdx('Tie-line color ',cline,last,1,&
+                  name1,tielinecolor,'?PLOT font')
+             call capson(name1)
+             do kl=1,6
+                if(name1(kl:kl).lt.'0' .or. name1(kl:kl).gt.'9') then
+                   if(name1(kl:kl).lt.'A' .or. name1(kl:kl).gt.'F') then
+                      write(*,*)'Wrong color, must be between 000000 and FFFFFF'
+                      goto 21100
+                   endif
                 endif
-             endif
-          enddo
-          tielinecolor=name1(1:6)
-          goto 21100
-!-----------------------------------------------------------
-! PLOT LOGSCALE
-       case(16)
-          call gparcdx('For x or y axis? ',cline,last,1,ch1,'y','?PLOT logax')
-          if(ch1.eq.'x') then
-             if(graphopt%axistype(1).eq.1) then
-                write(kou,*)'The x axis set to linear'
-                graphopt%axistype(1)=0
-             else
-                graphopt%axistype(1)=1
+             enddo
+             tielinecolor=name1(1:6)
+             goto 21100
+!...............................................
+! PLOT EXTRA LOGSCALE
+          case(2)
+             call gparcdx('For x or y axis? ',cline,last,1,ch1,'y',&
+                  '?PLOT logax')
+             if(ch1.eq.'x') then
+                if(graphopt%axistype(1).eq.1) then
+                   write(kou,*)'The x axis set to linear'
+                   graphopt%axistype(1)=0
+                else
+                   graphopt%axistype(1)=1
 ! set range to defaults when changing to LOG 
-                graphopt%rangedefaults(1)=0
-             endif
-          elseif(ch1.eq.'y') then
-             if(graphopt%axistype(2).eq.1) then
-                write(kou,*)'The y axis set to linear'
-                graphopt%axistype(2)=0
-             else
-                graphopt%axistype(2)=1
+                   graphopt%rangedefaults(1)=0
+                endif
+             elseif(ch1.eq.'y') then
+                if(graphopt%axistype(2).eq.1) then
+                   write(kou,*)'The y axis set to linear'
+                   graphopt%axistype(2)=0
+                else
+                   graphopt%axistype(2)=1
 ! set range to defaults when changing to LOG 
-                graphopt%rangedefaults(2)=0
+                   graphopt%rangedefaults(2)=0
+                endif
+             else
+                write(kou,*)'Please answer x or y'
              endif
-          else
-             write(kou,*)'Please answer x or y'
-          endif
-          goto 21100
-!-----------------------------------------------------------
-! PLOT LINE_WITH_POINTS
-       case(17)
-          call gparcdx('Plot a symbol at each calculated point?',&
-               cline,last,1,ch1,'Y','?PLOT axis symbols')
-          if(ch1.eq.'Y' .or. ch1.eq.'y') then
-             graphopt%linestyle=1
-          else
-             graphopt%linestyle=0
-          endif
-          goto 21100
-!-----------------------------------------------------------
-! PLOT PAUSE_OPTIONS
-       case(18)
-          write(kou,*)'Specify option after pause !'
-          call gparcx('GNUPLOT pause option?',cline,last,5,text,' ',&
-               '?PLOT pause')
-          if(len_trim(text).eq.0) then
-             write(kou,*)'Warning, plot will exit directly!'
+             goto 21100
+!...............................................
+! PLOT EXTRA RATIOS
+          case(3)
+             call gparrdx('X-axis plot ratio',cline,last,xxx,graphopt%xsize,&
+                  '?PLOT ratios')
+             if(xxx.le.0.1) then
+                write(*,*)'Ratio set to 0.1'
+                xxx=0.1D0
+             endif
+             graphopt%xsize=xxx
+             call gparrdx('Y-axis plot ratio',cline,last,xxx,graphopt%ysize,&
+                  'PLOT ratios')
+             if(xxx.le.0.1) then
+                write(*,*)'Ratio set to 0.1'
+                xxx=0.1D0
+             endif
+             graphopt%ysize=xxx
+             goto 21100
+!...............................................
+! PLOT EXTRA LINE_WITH_SYMBOLS
+          case(4)
+             call gparcdx('Plot a symbol at each calculated point?',&
+                  cline,last,1,ch1,'Y','?PLOT line symbols')
+             if(ch1.eq.'Y' .or. ch1.eq.'y') then
+                graphopt%linestyle=1
+             else
+                graphopt%linestyle=0
+             endif
+             goto 21100
+!...............................................
+! PLOT EXTRA MANIPULATE LINE COLORS
+          case(5)
+             write(kou,22400)
+22400        format('OC uses GNUPLOT and it is possible to edit',&
+                  ' the file "ocgnu.plt" file'/&
+                  'generated by OC to use extensive facilities',&
+                  ' provided by GNUPLOT.'/&
+                  'Only a few of them is provided here.'/&
+                  'OC has 10 different colors to identify the lines plotted.',&
+                  ' Line 11 or'/' higher will repeat these colors.  With',&
+                  ' this command you can select'/' one of these 12 colors',&
+                  ' to be used for the first line plotted.')
+             call gparidx('The color index should be on the first line?',&
+                  cline,last,flc,1,'?PLOT line colors')
+             if(flc.lt.1 .or. flc.gt.10) then
+                write(*,*)'Number must be between 1 and 10'
+             else
+                graphopt%linett=flc
+             endif
+             goto 21100
+!...............................................
+! PLOT EXTRA PAUSE_OPTIONS uselss??
+          case(6)
+             write(kou,*)'Specify option after pause !'
+             call gparcx('GNUPLOT pause option?',cline,last,5,text,' ',&
+                  '?PLOT pause')
+             if(len_trim(text).eq.0) then
+                write(kou,*)'Warning, plot will exit directly!'
 !             text='-1'
-          endif
-          graphopt%plotend='pause '//text
+             endif
+             graphopt%plotend='pause '//text
+             goto 21100
+!...............................................
+! PLOT EXTRA text in lower left corner
+          case(7)
+             call gparcx('Text in lower left corner?',cline,last,1,text,' ',&
+                  '?PLOT misc')
+             graphopt%lowerleftcorner=text
+             goto 21100
+!...............................................
+! PLOT EXTRA Tie-line increment
+          case(8)
+             call gparidx('Tie-line plot increment?',cline,last,kl,3,&
+                  '?PLOT tieline')
+             if(kl.lt.0) kl=0
+             graphopt%tielines=kl
+             goto 21100
+!...............................................
+! PLOT EXTRA Gibbs triangle
+          case(9)
+             chz='Y'
+             if(graphopt%gibbstriangle) chz='N'
+             call gparcdx('A Gibbs triangle diagram?',cline,last,5,ch1,chz,&
+                  'PLOT Gibbs triangle')
+             if(ch1.eq.'y' .or. ch1.eq.'Y') then
+                graphopt%gibbstriangle=.TRUE.
+                write(*,22500)
+22500           format('The Gibbs triangle layout courtesy of',&
+                     ' Catalina Pineda Heresi at RUB, Germany')
+             else
+                graphopt%gibbstriangle=.FALSE.
+             endif
+             goto 21100
+!...............................................
+! PLOT EXTRA QUIT
+          case(10)
+             goto 21100
+!...............................................
+! PLOT EXTRA spawn plot
+          case(11)
+             call gparcdx('Spawn plot?',cline,last,1,ch1,'N','?PLOT misc')
+             if(ch1.eq.'Y') then
+                graphopt%status=ibset(graphopt%status,GRKEEP)
+             else
+                graphopt%status=ibclr(graphopt%status,GRKEEP)
+             endif
+             goto 21100
+!...............................................
+! PLOT EXTRA remove headings
+          case(12)
+             call gparcdx('Remove headings?',cline,last,1,ch1,'N','?PLOT misc')
+             if(ch1.ne.'N') then
+                write(*,*)'No title set!',ch1
+                graphopt%status=ibset(graphopt%status,GRNOTITLE)
+             else
+                graphopt%status=ibclr(graphopt%status,GRNOTITLE)
+             endif
+             goto 21100
+!...............................................
+! PLOT EXTRA
+          case(13)
+             goto 21100
+!...............................................
+! PLOT EXTRA
+          case(14)
+             goto 21100
+!...............................................
+! PLOT EXTRA
+          case(15)
+             goto 21100
+!...............................................
+! PLOT EXTRA
+          case(16)
+             goto 21100
+!...............................................
+! PLOT EXTRA
+          case(17)
+             goto 21100
+!...............................................
+! PLOT EXTRA
+          case(18)
+             goto 21100
+!-----------------------------------------------------------
+          end select plotextra
           goto 21100
 !-----------------------------------------------------------
-! MISCELLANEOUS, for texts use option 1 in gparc to allow ,,,, as finish
-       case(19)
-          call gparcx('Text in lower left corner?',cline,last,1,text,' ',&
-               'PLOT lower left')
-          graphopt%lowerleftcorner=text
-          call gparcdx('Spawn plot?',cline,last,1,ch1,'N','?PLOT misc')
-          if(ch1.eq.'Y') then
-             graphopt%status=ibset(graphopt%status,GRKEEP)
-          else
-             graphopt%status=ibclr(graphopt%status,GRKEEP)
-          endif
-          call gparcdx('Remove headings?',cline,last,1,ch1,'N','?PLOT misc')
-          if(ch1.ne.'N') then
-             write(*,*)'No title set!',ch1
-             graphopt%status=ibset(graphopt%status,GRNOTITLE)
-          else
-             graphopt%status=ibclr(graphopt%status,GRNOTITLE)
-          endif
-          goto 21100
-!-----------------------------------------------------------
-! unused
-       case(20)
-          goto 21100
-!-----------------------------------------------------------
-! unused
-       case(21)
-          goto 21100
        end SELECT plotoption
 !=================================================================
 ! HPCALC
@@ -6806,7 +6859,7 @@ contains
 ! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=PDB, 7=DAT
 ! negative is for write, 0 read without filter, -100 write without filter
           call gparfilex('Output file',option,next,1,string,'  ',-7,&
-               '?OPTION file')
+               '?Command options')
           if(string(1:1).eq.' ') then
              string='ocoutput.DAT'
              write(kou,*)' *** No file name given, will use: ',trim(string)
@@ -6852,8 +6905,8 @@ contains
 !          if(eolch(option,jj)) then
 ! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=PDB, 7=DAT
 ! negative is for write, 0 read without filter, -100 write without filter
-          call gparfile('Append to file:',option,next,&
-               1,string,'  ',-7,q1help)
+          call gparfilex('Append to file:',option,next,&
+               1,string,'  ',-7,'?Command options')
           if(string(1:1).eq.' ') then
              string='ocappend.DAT'
              write(kou,*)' *** No file name given, will use: ',trim(string)
@@ -7054,7 +7107,7 @@ contains
     call list_conditions(kou,ceq)
     write(kou,2097)
 2097 format('You must release one condition, give its number')
-    call gparidx('Condition number',cline,last,j1,1,'?CALCULATE trans')
+    call gparidx('Condition number',cline,last,j1,1,'?CALCULATE transform')
     if(j1.le.0 .or. j1.gt.noel()+2) then
        write(kou,*)'No such condition'
        goto 1000

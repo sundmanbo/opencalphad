@@ -71,12 +71,12 @@ render
 
 @&
 @$ --------------------------------------------------------
-@$ Plot of activity curves for components in each phase at 1000 K
+@$ Plot of enthalpy curves for components in each phase at 1000 K
 
 
 plot
 x(cu)
-ac(*)
+HM(*)
 title step 2 fig 2
 render
 
@@ -88,6 +88,12 @@ plot
 x(cu)
 Q(*)
 title step 2 fig 3
+text
+.4
+-.2
+1
+0
+Negative Q means phase is unstable
 render
 
 

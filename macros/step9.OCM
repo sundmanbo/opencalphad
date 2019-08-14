@@ -83,6 +83,7 @@ SRO from reciprocal parameter
 text N
 100 12.2 1 0
 L(B2,A,B:A,B)=1200*UAB/(T+200)
+title Step 9 fig 1
 render
 
 @$ The tail of Cp in the disordered state comes from the T**(-1) term
@@ -147,6 +148,7 @@ x(b)
 T
 text 0.05 900 1 0
 2nd order transition line
+title Step 9 fig 2
 
 
 @&
@@ -157,6 +159,8 @@ x(b)
 T
 append
 ./step9UAB
+title Step 9 fig 3
+
 
 set inter
 

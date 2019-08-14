@@ -138,6 +138,7 @@ MODULE METLIB
 !  
     integer, parameter :: maxhelplevel=15
 ! A help structure used in new on-line help system
+! this was designed for both LaTeX and HTML help, now only HTML
     TYPE help_str
        integer :: okinit=0
        character*128 filename
@@ -3218,40 +3219,34 @@ CONTAINS
 
 !\addtotable subroutine init_help
 !\begin{verbatim}
-  subroutine init_help(browser,file1,file2)
-! This routine is called from gtpini to inititate the on-line help system
+  subroutine init_help(browser,htmlfile)
+! This routine is called from oc_command_monitor to inititate
+! the on-line help system. It saves the name of the browser and HTML file
     implicit none
-    character*(*) file1,file2,browser
+    character*(*) htmlfile,browser
     character*80 line
 !\end{verbatim} %+
-    integer jerr
-! test that file exists
-    open(21,file=file1,access='sequential',status='old',&
-         err=900,iostat=jerr)
-    read(21,10)line
-10  format(a)
-    if(line(2:14).eq.'documentclass') then
-       helprec%type='latex   '
-    else
-       helprec%type='unknown '
-    endif
-    close(21)
-    helprec%okinit=1
-!    helprec%filename=file
-    ochelp%latexfile=file1
-! check if html file
-    if(helprec%type(1:6).eq.'latex ' .and. file2(1:1).ne.' ') then
-       ochelp%htmlhelp=.TRUE.
-       ochelp%htmlfile=file2
-       ochelp%browser=browser
-    endif
-    goto 1000
-900 continue
-    write(*,910)trim(file1)
-910 format(' *** Warning, cannot open ',a,' no on-line help')
-    helprec%okinit=0
-!    helprec%filename=' '
+    logical logok
+! the latex file no longer used for help
     ochelp%latexfile=' '
+! test that file exists
+    inquire(file=browser,exist=logok)
+    allok: if(logok) then
+       ochelp%browser=browser
+       inquire(file=htmlfile,exist=logok)
+       if(logok) then
+          helprec%okinit=1
+          helprec%type='html'
+          ochelp%htmlhelp=.TRUE.
+          ochelp%htmlfile=htmlfile
+          goto 1000
+       endif
+    endif allok
+    helprec%okinit=0
+    helprec%type=' '
+    ochelp%htmlhelp=.FALSE.
+    ochelp%htmlfile=' '
+    ochelp%browser=' '
 1000 continue
     return
   end subroutine init_help
@@ -3779,14 +3774,14 @@ CONTAINS
        if(helptrace) write(kou,*)'Sorry no help file'
        goto 1000
     endif
-    if(helprec%type.ne.'latex   ') then
-       write(*,*)'Sorry only help based on LaTeX/HTML implemented'
+    if(helprec%type.ne.'html    ') then
+       write(*,*)'Sorry only help based on HTML implemented'
        goto 1000
     endif
-    if(helptrace) then
+!    if(helptrace) then
 ! helptrace help debugging ...
 !       write(*,*)'q4help: ',trim(hypertarget),extra
-    endif
+!    endif
     if(hypertarget(1:1).eq.' ') then
        write(*,*)'Sorry, the software provides no help for this question'
        goto 1000
@@ -3794,7 +3789,7 @@ CONTAINS
 !       
 ! we have tested this file exists when initating help 
 !    write(*,*)'Q4HELP: ',trim(hypertarget),extra
-    open(31,file=ochelp%latexfile,status='old',access='sequential')
+!    open(31,file=ochelp%latexfile,status='old',access='sequential')
 ! if first character in hypertarget is ? remove that
 ! in OC I try to use a ? in all calls for gparxyz to find hypertargets in 
 ! the source code.  Seach for "'?" in the source code!
@@ -3828,7 +3823,7 @@ CONTAINS
     htmlhelp='start '//trim(ochelp%browser)//' "file:/'//&
          trim(ochelp%htmlfile)//'#'//ochelp%target//'"'
 #endif
-    if(helptrace) write(*,*)'MM: ',trim(htmlhelp)
+    if(helptrace) write(*,*)'QZ: ',trim(htmlhelp)
     call execute_command_line(htmlhelp)
 900 continue
     close(31)

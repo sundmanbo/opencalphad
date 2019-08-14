@@ -80,7 +80,7 @@ title map 10 fig 2
 plot
 
 
-tie_line 2
+extra tie_line 2
 title map 10 fig 3
 
 
@@ -90,7 +90,7 @@ title map 10 fig 3
 plot
 
 
-gibbs
+extra gibbs
 
 text n 0.51 0.25 .8 -48 y
 
@@ -126,9 +126,10 @@ title map 10 fig 6
 plot
 
 
-gibbs
-
-tie 3
+extra gibbs
+y
+extra tie
+3
 title map 10 fig 7
 
 
