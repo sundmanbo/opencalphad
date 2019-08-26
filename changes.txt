@@ -13,6 +13,10 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2019.08.26 OC version 5.050: A few minor changes mainly for the popup
+help facility.  The User Guide and some of the installation guides has
+been updated.  With the popup help it is worth while to improve this.
+
 2019.08.14 OC version 5.049: A revision of the PLOT command has been
 made.  The option were very confusing and badly organized.  Now a
 "submenu" EXTRA has been added for less frequent plot options like
@@ -21,23 +25,24 @@ help facility to explore this.  With the new subcommand feature it
 will be easier to extend the plot options without creating confusing
 combinations.
 
-For the online help facility you should create an environment variable
+For the online help facility you must create an environment variable
 OCHOME which should be the path to the directory where you have the
-ochelp.html file.  This is in the manual/ directory in the download.
+ochelp.html file.  This is in the manual/ directory you have
+downloaded.
 
-To underatsnd the new plot commands you can also look at some of the
+To understand the new plot commands you can also look at some of the
 macro files, for example map10.OCM.  Basically the change is that some
 of the plot options require a subcommand EXTRA in front of the
-previous option, like "extra Gibbs-triangle y"
+previous option, for example "extra Gibbs-triangle y"
 
 2019.08.11 OC version 5.048: A major change in the online help has
 been made.  Previously a complicated way trying to keep trace of the
 commands was used to provide help and the help was written on the same
-screen as the program.  Now each user input is associated with an HTML
-"hypertarget" to find the position in the user guide that can provide
-relevant help in a separate browser window using explorer or firefox.
-But it requires a proper installation of the help facility, see the
-installation guide.
+screen as the program.  Now each question for user input is associated
+with an HTML "hypertarget" to find the position in the user guide that
+can provide relevant help in a separate browser window using explorer
+or firefox.  But it requires a proper installation of the help
+facility, see the installation guide.
 
 At present the update of the user guide is not complete but some
 features should work.  On the command level a simple ? gives the manu

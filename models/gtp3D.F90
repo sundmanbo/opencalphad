@@ -63,7 +63,7 @@
 ! ask for amount of formula units, default is current amount
    yyy=ceq%phase_varres(lokcs)%amfu
    quest='Amount of '//name1
-   call gparrdx(quest,cline,last,xxx,yyy,'?ENTER constitution')
+   call gparrdx(quest,cline,last,xxx,yyy,'?Amend phase constit')
 ! if input error quit asking more
    if(buperr.ne.0) then
       buperr=0; goto 1000
@@ -670,7 +670,7 @@
    character name*24,current*24,ch1*1,chd*1
    current=globaldata%name
 !   write(*,*)'entering amend_global_data: ',cline(1:30)
-   call gparcdx('System name: ',cline,ipos,1,name,current,'?Amend global')
+   call gparcdx('System name: ',cline,ipos,1,name,current,'?Amend general')
    if(proper_symbol_name(name,0)) then
       globaldata%name=name
    else

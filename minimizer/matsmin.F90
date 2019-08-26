@@ -398,7 +398,7 @@ CONTAINS
 ! extract conditions
        call extract_massbalcond(tpval,xknown,antot,ceq)
 !       write(*,7)'MM xk: ',gx%bmperr,(xknown(mjj),mjj=1,noel())
-!7      format(a,i5,9(F8.4))
+7      format(a,i5,9(F8.4))
        if(gx%bmperr.ne.0) then
 ! error 4143 means no conditions, 4144 wrong number of conditions
           if(gx%bmperr.eq.4143 .or. gx%bmperr.eq.4144) then
@@ -642,6 +642,7 @@ CONTAINS
        call global_gridmin(1,tpval,xknown,meqrec%nv,&
             meqrec%iphl,meqrec%icsl,meqrec%aphl,nyphl,vmu,ceq)
        if(ocv()) write(*,*)'back from gridmin'
+!       write(*,*)'MM back from gridmin'
        if(gx%bmperr.ne.0) then
 ! if global fails reset error code and try a default start set of phases
 !          if(gx%bmperr.ge.4000 .and. gx%bmperr.le.nooferm) then
@@ -928,6 +929,7 @@ CONTAINS
     lastchange=0
 !
     if(ocv()) write(*,*)'entering meq_phaseset: '
+!    write(*,*)'entering meq_phaseset: '
     meqrec%dormlink=0
 ! nphase is set to total number of phases (phase+compset) to be calculated
 ! >>> parallellization ALERT, nphase may change when composition sets created

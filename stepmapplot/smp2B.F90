@@ -184,8 +184,9 @@
                    selectph=.TRUE.
                 endif
              endif
-          else
-             write(*,*)'Wildcard without ,!'
+!          else
+! this is perfectly possible, for example NP(*)
+!             write(*,*)'SMP2B: Wildcard without ,!'
           endif
        endif
     enddo

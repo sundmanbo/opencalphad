@@ -207,7 +207,7 @@ contains
     integer, parameter :: ncamph=18,naddph=12,nclph=6,nccph=6,nrej=9,nsetph=6
     integer, parameter :: nsetphbits=15,ncsave=6,nplt=15,nstepop=6
     integer, parameter :: nplt2=18
-    integer, parameter :: ninf=9
+    integer, parameter :: ninf=15
 ! basic commands
     character (len=16), dimension(ncbas), parameter :: cbas=&
        ['AMEND           ','CALCULATE       ','SET             ',&
@@ -388,9 +388,11 @@ contains
 !-------------------
 ! subcommands to INFORMATION
     character (len=16), dimension(ninf) :: cinf=&
-         ['ELEMENTS        ','SPECIES         ','PHASE           ',&
-          'QUIT            ','COMPOSITION_SET ','EQUILIBRIUM     ',&
-          'CHANGES         ','                ','                ']
+         ['ELEMENTS        ','SPECIES         ','PHASES          ',&
+          'QUIT_INFO       ','COMPOSITION_SET ','EQUILIBRIUM     ',&
+          'HELP_SYSTEM     ','CONDITIONS      ','DATABASES       ',&
+          'CHANGES         ','PHASE_DIAGRAM   ','PROPERTY_DIAGRAM',&
+          '                ','                ','                ']
 !-------------------
 ! subcommands to PLOT OPTIONS/ GRAPHICS OPTIONS
 ! THIS IS A MESS, should be reorganized in levels
@@ -454,6 +456,7 @@ contains
 10  format(/'Open Calphad (OC) software version ',a,', linked ',a,/&
          'with command line monitor version ',i2//&
          'This program is available with a GNU General Public License.'/&
+         'either version 2 of the License, or any later version.'/&
          'It includes the General Thermodynamic Package, version ',A,','/&
          "Hillert's equilibrium calculation algorithm version ",A,','/&
          'step/map/plot software version ',A,' using GNUPLOT 5.0 graphics.'/&
@@ -486,7 +489,7 @@ contains
 !    graphopt%gnuterminal(i1)='wxt size 900,600 font "arial,16"'
 #endif
     graphopt%filext(i1)='  '
-! NOTE THAT IN SCREEN PLOT WINDOW ONE CAN SELECT FILE OUTPUT
+! NOTE THAT THE SCREEN PLOT WINDOW ALLOWS YOU TO SELECT FILE OUTPUT
 ! Postscript
     i1=2
     graphopt%gnutermid(i1)='PS  '
@@ -495,15 +498,14 @@ contains
 ! Adobe Portable Document Format (PDF)
     i1=3
     graphopt%gnutermid(i1)='PDF '
-#ifdef qtplt
-! On LINUX
-    graphopt%gnuterminal(i1)='pdfcairo '
-#else
+!--------- #ifdef qtplt
+! On LINUX ??
+!    graphopt%gnuterminal(i1)='pdfcairo '
+!----------#else
 ! NOTE size is in inch
 !   graphopt%gnuterminal(i1)='pdf color solid size 6,4 enhanced fontscale 0.7'
-!   graphopt%gnuterminal(i1)='pdf color solid size 6,4 enhanced font "arial,20"'
     graphopt%gnuterminal(i1)='pdf color solid size 6,5 enhanced font "arial,16"'
-#endif
+!----------#endif
     graphopt%filext(i1)='pdf  '
 ! Graphics Interchange Format (GIF)
     i1=4
@@ -602,6 +604,10 @@ contains
 ! THIS IS FOR LINUX
 !    browser='/usr/bin/firefox '
     browser='firefox '
+#elif machlp
+! THIS IS FOR MAC
+!    browser='/Applications/Firefox.app/Contents/MacOS/firefox '
+    browser='firefox '
 #endif
     noochome: if(ochome(1:1).eq.' ') then
 ! there is no OCHOME environment variable, maybe a local ochelp.html?
@@ -625,6 +631,9 @@ contains
 ! normal tex/html help files
        htmlfile=trim(OCHOME)//'\'//'ochelp.html'
 #elif lixhlp
+! THIS IS FOR LINUX
+       htmlfile=trim(OCHOME)//'/'//'ochelp.html'
+#elif machlp
 ! THIS IS FOR LINUX
        htmlfile=trim(OCHOME)//'/'//'ochelp.html'
 #endif
@@ -3955,13 +3964,13 @@ contains
        case(10) ! list parameter for a phase (just one). Last 1 means list
           call enter_parameter_interactivly(cline,last,1)
 !-----------------------------------------------------------
-       case(11,19) ! list equilibria and list ACTIVE_EQUILIBRIA (not result)
+       case(11,19) ! list EQUILIBRIA and list ACTIVE_EQUILIBRIA (not result)
 ! if 19 then skip equilibria with zero weight
           nv=noeq()
 ! skip if there is just one equilibrium kom=6=LIST; kom2=19=ACTIVE-EQUIL
 !          write(*,*)'PMON: ',kom,kom2,nv
           if(kom2.eq.19 .and. nv.eq.1) goto 100
-          write(*,6212)
+          write(lut,6212)
 6212      format('Number  Name',25x,'T   Weight Comment')
           jp=0
           do iel=1,nv
@@ -3997,7 +4006,7 @@ contains
 !             endif
           enddo
           if(kom2.eq.19 .and. jp.gt.0) &
-               write(*,'(/"Number of equilibria with zero weight: ",i4)')jp
+               write(lut,'(/"Number of equilibria with zero weight: ",i4)')jp
 !------------------------------
        case(12) ! list results
 ! skip if no calculation made
@@ -4365,7 +4374,10 @@ contains
        read: SELECT CASE(kom2)
 !-----------------------------------------------------------
        CASE DEFAULT
-          write(kou,*)'Read subcommand error'
+          if(cline(len_trim(cline):len_trim(cline)).ne.'?') then
+! This avoids error messages when ? is typed
+             write(kou,*)'Read subcommand error: ',trim(cline)
+          endif
 !-----------------------------------------------------------
        case(1) ! read unformatted file created by SAVE
           if(ocufile(1:1).ne.' ') then
@@ -4701,49 +4713,76 @@ contains
        goto 100
 !=================================================================
 ! subcommands to INFORMATION ... very little implemented
-!        ['ELEMENTS         ','SPECIES         ','PHASE           ',&
-!         'QUIT             ','COMPOSITION_SET ','EQUILIBRIUM     ',&
-!         'CHANGES          ','                ','                ']
+!        ['ELEMENTS         ','SPECIES         ','PHASES          ',&
+!         'QUIT-INFO        ','COMPOSITION_SET ','EQUILIBRIUM     ',&
+!         'HELP_SYSTEM      ','CONDITIONS      ','DATABASES       ',&
+!         'CHANGES          ','PHASE_DIAGRAM   ','PROPERTY_DIAGRAM',&
+!          '                ','                ','                ']
     case(11)
-       kom2=submenu(cbas(kom),cline,last,cinf,ninf,7,'?TOPHLP')
+!       kom2=submenu(cbas(kom),cline,last,cinf,ninf,10,'?TOPHLP')
+! initial default is CHANGES
+       iz=10
+! return here until quit
+207    continue
+       kom2=submenu('Topic?',cline,last,cinf,ninf,iz,'?TOPHLP')
+! change default to quit
+       iz=4
        information: select case(kom2)
 !-------------------------------------------------------
           CASE DEFAULT
              write(*,*)'Information subcommand error'
 !--------------------------------------------------------
+! INFO elements
           case(1)
              write(kou,210)
 210          format('The elements are those from the periodic chart.'/&
                   'Normally the components are the same as the elemets but',&
-                  ' the user',/'can define any rthogonal set of species as',&
+                  ' the user',/'can define any orthogonal set of species as',&
                   ' components.')
+             call q4help('INFO elements',jp)
 !--------------------------------------------------------
+! info species
           case(2)
              write(kou,211)
 211          format('Species are molecular like aggregates of elements with',&
                   ' fixed stoichiometry.',/'The elements are the simplest',&
-                  ' species.  The constituents of a phase',/' are a subset of',&
+                  ' species.'/'The constituents of a phase are a subset of',&
                   ' the species.')
+             call q4help('INFO species',jp)
 !--------------------------------------------------------
-! phases info
+! info phases
           case(3)
-             write(*,*)'Not written yet'
+             call q4help('INFO phases',jp)
 !--------------------------------------------------------
-! quit
+! quit, we must exit to top level here !!
           case(4)
+             goto 100
 !--------------------------------------------------------
-! composition set
+! info composition set
           case(5)
-             write(*,*)'Not written yet'
+             call q4help('INFO compset',jp)
 !--------------------------------------------------------
-! equilibrium
+! info equilibrium
           case(6)
-             write(*,*)'Not written yet'
+             call q4help('INFO equilibrium',jp)
+!--------------------------------------------------------
+! INFO help system
+          case(7) ! none
+             call q4help('INFO helpsystem',jp)
+!--------------------------------------------------------
+! INFO conditions
+          case(8) ! none
+             call q4help('INFO conditions',jp)
+!--------------------------------------------------------
+! INFO databases
+          case(9) ! none
+             call q4help('INFO databases',jp)
 !--------------------------------------------------------
 ! changes
-          case(7)
-             open(31,file='changes.txt ',access='sequential',err=990,&
-                  iostat=buperr)
+          case(10)
+             write(kou,'(a/)')'Writing from "OCHOME/changes.txt"'
+             open(31,file=trim(OCHOME)//'/changes.txt ',access='sequential',&
+                  err=990,iostat=buperr)
              changes: do while(.TRUE.)
                 do i1=1,40
                    read(31,17,end=244,err=990)line
@@ -4755,13 +4794,27 @@ contains
              enddo changes
 244          close(31)
 !--------------------------------------------------------
-          case(8) ! none
-             write(*,*)'Not written yet'
+! INFO phase diagram
+          case(11) ! none
+             call q4help('INFO phasediagram',jp)
 !--------------------------------------------------------
-          case(9) ! none
-             write(*,*)'Not written yet'
+! INFO property diagram
+          case(12) ! none
+             call q4help('INFO propertydiagram',jp)
+!--------------------------------------------------------
+! INFO 
+          case(13) ! none
+             call q4help('INFO ',jp)
+!--------------------------------------------------------
+! INFO 
+          case(14) ! none
+!             call q4help('INFO ',jp)
+!--------------------------------------------------------
+! INFO 
+          case(15) ! none
+!             call q4help('INFO ',jp)
           end select information
-       goto 100
+       goto 207
 !=================================================================
 ! back / goto, return to calling (main) program
     case(12)
@@ -4870,6 +4923,7 @@ contains
             'It is available for download at http://www.opencalphad.org or'/&
             'the sundmanbo/opencalphad repository at http://www.github.com'//&
             'This software is protected by the GNU General Public License'/&
+            'either version 2 of the license, or any later version.'/&
             'You may freely distribute copies as long as you also provide ',&
             'the source code'/'and use the GNU GPL license also for your own',&
             ' additions and modifications.'//&
@@ -4878,7 +4932,7 @@ contains
             'The full license text is provided with the software'/&
             'or can be obtained from the Free Software Foundation ',&
             'http://www.fsf.org'//&
-            'Copyright 2011-2018, Bo Sundman, Gif sur Yvette, France.'/&
+            'Copyright 2011-2019, Bo Sundman, Gif sur Yvette, France.'/&
             'Contact person Bo Sundman, bo.sundman@gmail.com'/&
             'This version ',a,' was compiled ',a/)
 !=================================================================
@@ -6029,7 +6083,8 @@ contains
 !         '                ','                ','                ']
 !-------------------------------------------------------------------
        case(15)
-          kom3=submenu('Extra options?',cline,last,cplot2,nplt2,1,'?TOPHLP')
+! default set to GIBBS-TRIANGLE
+          kom3=submenu('Extra options?',cline,last,cplot2,nplt2,9,'?TOPHLP')
           plotextra: SELECT CASE(kom3)
           case default
 ! this is typically when using a ? or ??
@@ -6162,7 +6217,7 @@ contains
 ! PLOT EXTRA text in lower left corner
           case(7)
              call gparcx('Text in lower left corner?',cline,last,1,text,' ',&
-                  '?PLOT misc')
+                  '?extra lower-left-corner')
              graphopt%lowerleftcorner=text
              goto 21100
 !...............................................
@@ -6696,8 +6751,11 @@ contains
     submenu=0
 ! if cline(last:last) is "," skip one character
 !    write(kou,*)'submenu 1: ',query(1:lenq),last,trim(cline),kdef
-    if(last.lt.len(cline)) then
+    if(last+2.lt.len(cline)) then
        if(cline(last:last).eq.',') last=last+1
+    else
+!       write(*,*)'Submenu input too long: "',trim(cline),'"',last
+       last=len(cline)-2
     endif
     if(cline(last:last+2).eq.' ? ' .or. cline(last:last+1).eq.'? ') then
 ! This handles help for things like "set ?"

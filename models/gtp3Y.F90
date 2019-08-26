@@ -167,6 +167,7 @@
 !    gridpoints, returned as xarr composition of these and
 ! ny and yarr not used here
 !>>>>>>> important: changes here must be made also in global_equil_check
+!      write(*,*)'3Y grid for phase: ',zph,phlista(phases(iphx(zph)))%name
       if(btest(globaldata%status,GSOGRID)) then
 ! The possibility to use the old grid tested
          call generate_grid(0,iphx(zph),ng,nrel,xarr(1,iv),garr(iv),&
@@ -176,6 +177,7 @@
               ny,yarr,gmax,ceq)
       endif
 !>>>>>>>> impportant end!
+!      write(*,*)'3Y grid done'
       if(gx%bmperr.ne.0) then
          write(*,*)'3Y grid error ',zph,gx%bmperr
          exit phloop
@@ -213,7 +215,7 @@
 ! If WHAT is -1 then just compare all gridpoints with plane defined by
 ! the chemical potentials cmu to see if any is below.
 ! If so insert the gridpoint furtherst below the plane and set WHAT 10*iph+ics
-!   write(*,*)'3Y global_gridmin what: ',what
+   write(*,*)'3Y global_gridmin what: ',what
    if(what.eq.-1) then
       write(*,*)'3Y Calling global_grimin with -1 no longer supported'
       stop
@@ -234,7 +236,7 @@
    call find_gridmin(kp,nrel,xarr,garr,xknown,jgrid,phfrac,cmu,trace)
    if(gx%bmperr.ne.0) goto 1000
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!   write(*,*)'3Y gridpoints: ',kp
+   write(*,*)'3Y gridpoints: ',kp
 !   gx%bmperr=4399; goto 1000
 ! The solution with nrel gridpoints are in jgrid, the amount of each in phfrac
 ! We later want the phases in ascending order and as the gridpoints are
@@ -1217,8 +1219,8 @@
 !   endif
    if(test_phase_status_bit(iph,PHEXCB)) then
 ! crystalline phase with charged endmembers
+      write(*,*)'3Y charged grid ngg: ',ngg
       call generate_charged_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,gmax,ceq)
-!      write(*,*)'3Y charged grid: ',ngg
       goto 1000
    elseif(test_phase_status_bit(iph,PHIONLIQ)) then
 ! This is the ionic liquid, requires a special grid, also used for dense
@@ -2640,13 +2642,14 @@
    double precision sites(maxsubl),ydum(maxconst),qq(5)
    integer nend,ll,nsl,i1,i2,i3,loksp,mm,lokph,lokcs,np,nm,nn,ncc,iz,loopf,jj
    integer, dimension(:,:), allocatable :: neutral
+   integer, dimension(10) :: gtype
 !   integer, dimension(:), allocatable :: savengg
 !   integer ielno(10)
 !   double precision stoi(10),smass,qsp
    double precision charge,ratio1,ratio2
    double precision, dimension(:), allocatable :: y1,y2,y3,y4,y5
    real xdum(nrel),gdum
-   integer, parameter :: ncf5=5,ncf3=3,alloneut=90000
+   integer, parameter :: ncf5=5,ncf3=3,alloneut=300000
    integer ncf,maxngg,ncon
 ! These are used to combine endmembers
    double precision, dimension(7), parameter :: nfact=&
@@ -2655,7 +2658,7 @@
         [0.05D0,0.3D0,0.5D0,0.7D0,0.95D0]
    double precision, dimension(ncf3), parameter :: cfact3=&
         [0.1D0,0.5D0,0.9D0]
-   logical single
+   logical single,endout
 ! all endmembers will have a record of this type
    type gtp_charged_endmem
 ! one species number for each sublattice
@@ -2666,7 +2669,8 @@
 ! this should be saved or passed as argument
 !   save savengg
 ! we will select 5 or 3 gripoints below
-!   write(*,*)'3Y charged grid',iph
+   endout=.FALSE.
+   if(endout) write(*,*)'3Y charged grid phase:',iph
 !   ncf=ncf5
 !   if(.not.allocated(savengg)) then
 !      allocate(savengg(noofph))
@@ -2674,6 +2678,7 @@
 !   endif
    maxngg=ngg
    ngg=0
+   gtype=0
 ! get the phase data
    call get_phase_data(iph,1,nsl,nkl,knr,ydum,sites,qq,ceq)
    if(gx%bmperr.ne.0) goto 1000
@@ -2723,7 +2728,7 @@
          goto 1000
       endif
       call get_phase_compset(iph,1,lokph,lokcs)
-      write(*,*)'3Y Phase suspended as net charge: ',phlista(lokph)%name
+!      write(*,*)'3Y Phase suspended as net charge: ',phlista(lokph)%name
 ! suspend all composition sets
       do mm=1,phlista(lokph)%noofcs
          lokcs=phlista(lokph)%linktocs(mm)
@@ -2734,6 +2739,7 @@
    np=0
    nm=0
    nn=0
+! Problem with CU2ZN1SN1S4 maybe because of sublattce with just VA ??
 !   write(*,10)'3Y nend: ',iph,nend,0.0D0,(nkl(ll),ll=1,nsl)
 10 format(a,2i4,5x,1pe12.4,10i3)
 ! allocate a record for each endmembers
@@ -2789,11 +2795,15 @@
    enddo emloop
    mm=nn*nn+np*nm*(nn+np+nm)
 ! select the number of gridpoints here
-   if(mm.gt.2000) then
+   if(mm.gt.5000) then
+      ncf=1
+   elseif(mm.gt.2000) then
       ncf=ncf3
    else
       ncf=ncf5
    endif
+   if(endout) write(*,*)'3Y loop limits: ',mm,ncf
+!   stop
 !      write(*,10)'3Y endmem: ',i2,endmem(i2)%charge,&
 !           (splista(knr(endmem(i2)%constit(ll)))%alphaindex,ll=1,nsl)
 !   enddo
@@ -2809,6 +2819,7 @@
    allocate(neutral(alloneut,0:3))
    neutral=0
    np=0
+   if(endout) write(*,*)'3Y starting generating grid in ionic solid phase',nend
    loop1: do i1=1,nend
       charge1A: if(endmem(i1)%charge.eq.zero) then
 ! first endmember neutral, one gridpoint
@@ -2818,9 +2829,10 @@
             neutral(np,0)=0
             neutral(np,1)=i1
          endif
-!         write(*,298)'3Y generating 1 gp:  ',np,1,mode,0,i1,0,0
-298      format(a,i5,i2,i5,i2,2x,3i3)
+         if(endout) write(*,298)'3Y generated 1 gp:  ',np,mode,1,0,i1,0,0
+298      format(a,2i7,2i2,2x,3i4)
       endif charge1A
+      gtype(1)=gtype(1)+1
       loop2: do i2=i1+1,nend
          charge1: if(endmem(i1)%charge.eq.zero) then
 ! first endmember neutral, that gridpoint already created
@@ -2835,8 +2847,9 @@
                      neutral(np+ll,2)=i2
                   enddo
                endif
-!               write(*,298)'3Y generating 7 gps: ',np+1,3,mode,1,i1,i2,0
                np=np+7
+               if(endout) write(*,298)'3Y generated 7 gps: ',np,mode,3,1,i1,i2,0
+               gtype(2)=gtype(2)+7
             else
 !-----------------------------------------------------------------------
 ! second endmember has charge, a third endmember needed with opposite charge
@@ -2844,6 +2857,11 @@
                   if(endmem(i2)%charge*endmem(i3)%charge.lt.zero) then
 ! second and third endmembers have opposite charge, we have ncf gridpoints
 ! I1_n(I2_(1/c2)I3_(1/c3)_(1-n) where c2 is charge of i2 and c3 charge of i3
+                     if(gtype(3).gt.10000) then
+                        if(endout) &
+                             write(*,*)'Skipping gridpoints type 7',gtype(7)
+                        exit charge2A
+                     endif
                      if(mode.ge.0) then
                         do ll=1,ncf
                            neutral(np+ll,0)=2
@@ -2852,8 +2870,10 @@
                            neutral(np+ll,3)=i3
                         enddo
                      endif
-!                     write(*,298)'3Y generating 3 gps: ',np+1,3,mode,2,i1,i2,i3
                      np=np+ncf
+                     if(endout) write(*,298)'3Y generated 3A gps: ',&
+                          np,mode,3,2,i1,i2,i3
+                     gtype(3)=gtype(3)+ncf
                   endif
                enddo loop3A
             endif charge2A
@@ -2866,6 +2886,10 @@
 ! first and third endmembers have opposite charge, we have ncf gridpoints
 ! (I1_(1/c1)I3_(1/c3))_n(I2)_(1-n) where c1 is charge of i1 and c3 charge of i3
 ! where n is 0.1; 0.5; 0.9
+                  if(gtype(4).gt.10000) then
+                     if(endout) write(*,*)'Skipping gridpoints type 7',gtype(7)
+                     exit loop3B
+                  endif
                   if(mode.ge.0) then
                      do ll=1,ncf
                         neutral(np+ll,0)=3
@@ -2874,8 +2898,10 @@
                         neutral(np+ll,3)=i3
                      enddo
                   endif
-!                  write(*,298)'3Y generating 3 gps: ',np+1,3,mode,3,i1,i2,i3
                   np=np+ncf
+                  if(endout) write(*,298)'3Y generated 3B gps: ',&
+                       np,mode,3,3,i1,i2,i3
+                  gtype(4)=gtype(4)+ncf
                endif
             enddo loop3B
 !-----------------------------------------------------------------------
@@ -2888,12 +2914,17 @@
                neutral(np,1)=i1
                neutral(np,2)=i2
             endif
-!            write(*,298)'3Y generating 1 gp:  ',np,1,mode,4,i1,i2,0
+            if(endout) write(*,298)'3Y generated 1 gp:  ',np,mode,1,4,i1,i2,0
+            gtype(5)=gtype(5)+1
 !-----------------------------------------------------------------------
             loop3C: do i3=i2+1,nend
                charge3A: if(endmem(i3)%charge.eq.zero) then
 ! third is neutral, we have ncf more gripoints
 ! at (I1_(1/c1)I2_(1/c2))_n(I3)_(1-n)
+                  if(gtype(6).gt.10000) then
+                     if(endout) write(*,*)'Skipping gridpoints type 7',gtype(7)
+                     exit charge3A
+                  endif
                   if(mode.ge.0) then
                      do ll=1,ncf
                         neutral(np+ll,0)=5
@@ -2901,13 +2932,19 @@
                         neutral(np+ll,2)=i2
                         neutral(np+ll,3)=i3
                      enddo
-                  endif
-!                  write(*,298)'3Y generating 3 gps: ',np+1,3,mode,5,i1,i2,i3
-                  np=np+ncf
+                 endif
+                 np=np+ncf
+                 if(endout) write(*,298)'3Y generated 3C gps: ',&
+                      np,mode,3,5,i1,i2,i3
+                 gtype(6)=gtype(6)+ncf
                elseif(endmem(i1)%charge*endmem(i3)%charge.lt.zero) then
 !-------------------------------------------------------------
 ! all 3 endmembers are charged, those of i2 and i3 have same sign, ncf gridp
 ! (I1_(1/c1)I2_(1/c2))_n(I1_(1/c1)I3_(1/c3))_(1-n)
+                  if(gtype(7).gt.10000) then
+                     if(endout) write(*,*)'Skipping gridpoints type 7',gtype(7)
+                     exit charge3A
+                  endif
                   if(mode.ge.0) then
                      do ll=1,ncf
                         neutral(np+ll,0)=6
@@ -2916,9 +2953,11 @@
                         neutral(np+ll,3)=i3
                      enddo
                   endif
-!                  write(*,298)'3Y generating 3 gps: ',np+1,3,mode,6,i1,i2,i3
                   np=np+ncf
-               else
+                  if(endout) write(*,298)'3Y generated 3D gps: ',&
+                       np,mode,3,6,i1,i2,i3
+                  gtype(7)=gtype(7)+ncf
+               elseif(gtype(8).lt.10000) then
 !-------------------------------------------------------------
 ! all 3 endmembers are charged, those of i1 and i3 have same sign, ncf gridp
 ! (I1_(1/c1)I2_(1/c2))_n(I2_(1/c2)I3_(1/c3))_(1-n)
@@ -2930,14 +2969,18 @@
                         neutral(np+ll,3)=i3
                      enddo
                   endif
-!                  write(*,298)'3Y generating 3 gps: ',np+1,3,mode,7,i1,i2,i3
                   np=np+ncf
+                  if(endout) write(*,298)'3Y generated 3E gps: ',&
+                       np,mode,3,7,i1,i2,i3
+                  gtype(8)=gtype(8)+ncf
+               else
+                  if(endout) write(*,*)'Skipping gridpoints type 8,',gtype(8)
                endif charge3A
             enddo loop3C
 !-----------------------------------------------------------------------
 ! first and second endmembers have charge with same sign
-         else
-! we need a third endmember with opposite charge
+         elseif(gtype(9).lt.10000) then
+! we need a third endmember with opposite charge unless too many endmembers
             loop3D: do i3=i2+1,nend
                if(endmem(i1)%charge*endmem(i3)%charge.lt.zero) then
 ! all 3 endmembers are charged, those of i1 and i2 have same sign, ncf gridp
@@ -2950,14 +2993,23 @@
                         neutral(np+ll,3)=i3
                      enddo
                   endif
-!                  write(*,298)'3Y generating 3 gps: ',np+1,3,mode,8,i1,i2,i3
                   np=np+ncf
+                  if(endout) write(*,298)'3Y generated 3F gps: ',&
+                       np,mode,3,8,i1,i2,i3
+                  gtype(9)=gtype(9)+ncf
                endif
             enddo loop3D
+            if(endout) write(*,777)'3Y loop3',gtype
+         else
+            if(endout) write(*,*)'3Y skipping gridpoints type 9',gtype(9)
          endif charge1
+         if(endout) write(*,777)'3Y loop2 ',gtype
       enddo loop2
+      if(endout) write(*,777)'3Y loop1 ',gtype
+777   format(a,10i6)
    enddo loop1
 !=======================================================================
+   if(endout) write(*,*)'3Y finished all loops for ionic phase: ',ngg
 !   if(mode.eq.0) then
 !      write(*,*)'3Y ionic crystal: ',iph,np
 !   endif

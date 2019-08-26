@@ -517,6 +517,7 @@ calc /out=outpara all N
 @$ Run without parallel with output on file for comparison
 @$ First I must declare me as an expert, then use bit 15 to turns off parallel
 set advanced level
+N
 Y
 
 @$ set bit 15 which prevents parallel execution
@@ -535,7 +536,24 @@ set bit glo 15 no
 
 
 @&
+
+@$ =============== measuring ====================
+@$ Running OC5-49 2019-08-17 looping "c a n 10"
+@$ on my MacPro with 4 CPU 2.2 GHz Intel Core i7, 16 GB 1600 MHz DDR3:
+@$  13.65 seconds CPU and 13654 clockycles with 1 thread
+@$  23.98 seconds CPU and  3140 clockycles with 8 threads, factor 4.37 faster!
+@$
+@$ on my DELL with 2 CPU 2.80/2.90 GHz Intel Core i7-7600U, 16 GB RAM 
+@$  10.33 seconds CPU and 10453 clockcycles with 1 thread
+@$  17.14 seconds CPU and  4407 clockcycles with 4 threads, factor 2.37 faster
+@$
+@$ This loop calculates 4000 equilibria, each requires 9 iterations
+@$ which means 379E-6 seconds/iteration on MAC
+@$ which means 286E-6 seconds/iteration on DELL, 1.3 times faster CPU
+@$
+@$ This system has 6 component system with 40 phases, 503 TPfuns and parameters
+@$ (the CPU time also includes listing some results on a file)
+@$ ==============================================
+
 set inter
-
-
 

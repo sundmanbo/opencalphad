@@ -635,9 +635,10 @@
 !   call get_state_var_value('S ',x3,encoded,ceq)
    call get_state_var_value('SS ',x3,encoded,ceq)
    if(.not.gtp_error_message(0)) then
+! just use G, H and S here as the heading state the SER refernce state is used
       write(lut,12)x1,x1/xn,x2,x3
-12    format('GS= ',1pe12.5,' J, GS/N=',1pe11.4,' J/mol, HS=',1pe11.4,&
-           ' J, SS=',1pe10.3,' J/K')
+12    format('G= ',1pe12.5,' J, G/N=',1pe11.4,' J/mol, H=',1pe11.4,&
+           ' J, S=',1pe10.3,' J/K')
 !CCI end
    endif
 1000 continue

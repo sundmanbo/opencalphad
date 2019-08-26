@@ -2793,7 +2793,7 @@ CONTAINS
 !      SLASHES. if no answer and no defualt an error is returned.
 !      HELP is no longer a parameter Q4HELP is always used
 !      as hypertarget in a HTML file
-!      If hyper contains the character TOPHLP and the user has typed a single ?
+!      If hyper contains the character ?TOPHLP and the user has typed a single ?
 !      the routine returns with this ? and the calling routine can display
 !      a menu.  If the user types two ?? the PROMT is used as hypertarget.
 !      LAST IS THE current POSITION IN SVAR, it is incremented by one
@@ -2968,7 +2968,9 @@ CONTAINS
 ! this is ?? typed at top level
                 hypertarget='?All commands'
              else
-                write(*,*)'Extract from PROMT: "',trim(promt),'"'
+! when prompting for commands the default must be a character
+                write(*,*)'gparallx extract: "',trim(promt),'" and "',&
+                     trim(cdef),'"'
 ! extract part of the promt as hypertarget, 
 ! for a promt "Amend for phase LIQUID what?" extract "Amend for phase"
 ! to use as hypertarget.  Use only the 3 first words
@@ -2993,8 +2995,14 @@ CONTAINS
                 enddo max3
                 if(kl.le.1) kl=len_trim(promt)
                 hypertarget='?'//promt(1:kl)
-                write(*,*)'gparallx extracted hypertarget: "',&
-                     trim(hypertarget),'"',nw,kl
+! to handle help when user types two ?? for the promt "amend what? /phase/:"
+! then include the default answer "phase" in the hypertarget !!
+! A single ? already gives the submenu for "amend phase"
+                if(cdef(1:1).ne.' ') then
+                   hypertarget(kl+2:)=trim(cdef)
+                endif
+!                write(*,*)'gparallx hypertarget: "',&
+!                     trim(hypertarget),'" and "',trim(cdef),'"',nw,kl
              endif
 !             write(*,*)'GPARALLX hypertarget: ',trim(hypertarget)
           endif
@@ -3728,16 +3736,19 @@ CONTAINS
        IF(K.GT.0) THEN
 ! we have to replace HELP by CMD on the stack of commands
 ! to get the correct help text
-          CALL CAPSON(CMD)
-          helprec%level=helprec%level-1
-          helprec%cpath(helprec%level)=CMD
+          CMD=COMM(K)
+!          CALL CAPSON(CMD)
+!          helprec%level=helprec%level-1
+!          helprec%cpath(helprec%level)=CMD
 !          write(*,11)helprec%level,(helprec%cpath(i)(1:8),i=1,helprec%level)
 11        format('q3help: ',i3,10(', ',a))
 !          write(*,*)helprec%level
 !          do ii=1,helprec%level
 !             write(*,*)helprec%cpath(ii)
 !          enddo
-          call q1help(' ',CMD)
+          write(*,*)'Calling q4help from q3helpx: ',trim(cmd)
+          call q4help(cmd,0)
+!          call q1help(' ',CMD)
        ELSEIF(K.EQ.0 .OR. K.LT.-NC) THEN
           WRITE(KOU,*)'No matching command, use HELP * or ?'
        ELSE
