@@ -13,6 +13,28 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2019.08.26 OC version 5.051: Finally a new facility for the users, I
+have implemented calculation of the T-zero point where two phases have
+the same Gibbs energy.  This is interesting as a limit of a
+diffusoinless transformation like martensite.
+
+To do this I needed a solver for non-linear equations and I use HYBRD
+from the MINPACK package.  I already use the LMDIF routine from this
+package for the assessments.  Thanks to ANL and the University of
+Chicago toe provide these.  There were some difficulties to merge
+these routines as I originally had not managed to use "external"
+subroutines in calls (because the MODULE concept makes it impossible
+to call routines outside the module).  It was a bit trial and error
+until I managed to link everyting and run all the tests.
+
+This has required changes in the Makefile and files to compile and
+link on Windows.  I have tried to test but please give feedback on any
+problems.
+
+Otherwise there are some minor fixes with the Makefiles and user
+interface and manuals, I have updated the help files for the T-zero
+command!
+
 2019.08.26 OC version 5.050: A few minor changes mainly for the popup
 help facility.  The User Guide and some of the installation guides has
 been updated.  With the popup help it is worth while to improve this.
