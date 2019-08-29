@@ -1,11 +1,11 @@
-OBJS=getkey.o M_getkey.o ftinyopen.o tinyopen.o tinyfiledialogs.o metlib4.o oclablas.o ocnum.o gtp3.o matsmin.o minpack1.o smp2.o pmon6.o
+OBJS=getkey.o M_getkey.o ftinyopen.o tinyopen.o tinyfiledialogs.o metlib4.o oclablas.o ocnum.o minpack1.o  gtp3.o matsmin.o smp2.o pmon6.o
 LIBS=liboctq.o liboctqisoc.o liboctqcpp.o
 EXE=oc5P
 
 #
 # IMPORTANT at the getkey.o: label
 #
-	echo "Do not forget to uncomment a line for your OS"
+#	echo "Do not forget to uncomment a line for your OS"
 #
 #=============================================================================#
 # provided by Matthias Strathmann including OC examples
