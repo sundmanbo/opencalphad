@@ -215,7 +215,7 @@
 ! If WHAT is -1 then just compare all gridpoints with plane defined by
 ! the chemical potentials cmu to see if any is below.
 ! If so insert the gridpoint furtherst below the plane and set WHAT 10*iph+ics
-   write(*,*)'3Y global_gridmin what: ',what
+!   write(*,*)'3Y global_gridmin what: ',what
    if(what.eq.-1) then
       write(*,*)'3Y Calling global_grimin with -1 no longer supported'
       stop
@@ -4386,7 +4386,7 @@
    gmindif=ceq%gmindif
 ! used for testing 190603/BoS
 !   gmindif=-1.0D-2
-   write(*,'(a,i3,1pe12.4)')'3Y Entering merge_gridpoints',nv,ceq%gmindif
+!   write(*,'(a,i3,1pe12.4)')'3Y Entering merge_gridpoints',nv,ceq%gmindif
 !   goto 1100
 !---------------------
    notuse=0
@@ -4669,7 +4669,7 @@
 !
 510 format(i3,':',6(1pe12.4))
 1000 continue
-   write(*,*)'3Y Removed ',npm,' gridpoints by merging'
+   if(npm.gt.0) write(*,'(a,i2,a)')'3Y Removed ',npm,' gridpoints by merging'
    if(ocv()) write(*,*)'3Y At return from merge_gridpoints: ',nv
    return
 !------------------------------------------

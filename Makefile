@@ -1,7 +1,12 @@
-OBJS=getkey.o M_getkey.o ftinyopen.o tinyopen.o tinyfiledialogs.o metlib4.o oclablas.o ocnum.o gtp3.o matsmin.o lmdif1lib.o smp2.o pmon6.o
+OBJS=getkey.o M_getkey.o ftinyopen.o tinyopen.o tinyfiledialogs.o metlib4.o oclablas.o ocnum.o gtp3.o matsmin.o minpack1.o smp2.o pmon6.o
 LIBS=liboctq.o liboctqisoc.o liboctqcpp.o
 EXE=oc5P
 
+#
+# IMPORTANT at the getkey.o: label
+#
+	echo "Do not forget to uncomment a line for your OS"
+#
 #=============================================================================#
 # provided by Matthias Strathmann including OC examples
 # NOTE getkey.o : you have to select which getkey routine to compile
@@ -75,9 +80,9 @@ getkey.o:
 	# compile utilities/GETKEY for command line editing
 	# uncomment the line for the kind of Linux system you have
 	# Mac >>
-	#$(C) -c $(FCOPT)-DBSD utilities/GETKEY/getkey.c
+	#$(C) -c $(FCOPT) -DBSD utilities/GETKEY/getkey.c
 	# Linux >>
-	$(C) -c $(FCOPT) -DLinux utilities/GETKEY/getkey.c
+	#$(C) -c $(FCOPT) -DLinux utilities/GETKEY/getkey.c
 	# other UNIX systems >>
 	#$(C) -c $(FCOPT) -DG77 utilities/GETKEY/getkey.c
 	# CYGWIN >> 
@@ -97,7 +102,7 @@ ftinyopen.o:
 
 metlib4.o:	utilities/metlib4.F90
 	# lixed for command line editing, tinyfd for open files
-	# lixhlp for browser help
+	# lixhlp for browser help on Linux and MacOS
 	$(FC) -c $(FCOPT) -Dlixed -Dtinyfd -Dlixhlp utilities/metlib4.F90
 
 oclablas.o:	numlib/oclablas.F90
@@ -106,8 +111,8 @@ oclablas.o:	numlib/oclablas.F90
 ocnum.o:	numlib/ocnum.F90
 	$(FC) -c $(FCOPT) numlib/ocnum.F90
 
-lmdif1lib.o:      numlib/lmdif1lib.F90
-	$(FC) -c $(FCOPT) numlib/lmdif1lib.F90
+minpack1.o:      numlib/minpack1.F90
+	$(FC) -c $(FCOPT) numlib/minpack1.F90
 
 gtp3.o:	models/gtp3.F90
 	$(FC) -c $(FCOPT) models/gtp3.F90
@@ -116,13 +121,15 @@ matsmin.o:	minimizer/matsmin.F90
 	$(FC) -c $(FCOPT) minimizer/matsmin.F90
 
 smp2.o:		stepmapplot/smp2.F90
-	# Remove -Dnotwin if compiled on windows
+	# Remove -Dnotwin if compiled on Windows (for spawning)
 	$(FC) -c $(FCOPT) -Dnotwin stepmapplot/smp2.F90
 
 pmon6.o:	userif/pmon6.F90
 	# default wxt graphical driver
-	# use -Dqtplt fot Qt or -Daqplt for aqua plot drivers, nothing for wxt
+	# use -Dqtplt fot Qt or (also smaller window)
+	# use -Daqplt for aqua plot drivers (also smaller window)
 	# use -Dlixhlp for online help in Linux
+	# use -Dmachlp for online help in MacOS (browser)
 	$(FC) -c $(FCOPT) -Dqtplt -Dlixhlp userif/pmon6.F90
 
 liboctq.o:	./TQ4lib/Cpp/liboctq.F90
@@ -138,6 +145,9 @@ $(EXE):
 	$(FC) -o linkoc linkocdate.F90
 	./linkoc
 	# create library liboceq.a
-	ar sq liboceq.a metlib4.o oclablas.o ocnum.o gtp3.o matsmin.o lmdif1lib.o
-	# If getkey.o is undefined below uncomment a line above at getkey.o
+	ar sq liboceq.a metlib4.o oclablas.o ocnum.o gtp3.o matsmin.o minpack1.o
+
+	# If getkey.o is undefined below
+	# you have forgotten to uncomment a line above at getkey.o !!
 	$(FC) -o $(EXE) $(FCOPT) pmain1.F90 $(OBJS) liboceq.a
+

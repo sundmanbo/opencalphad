@@ -125,6 +125,7 @@ step sep
 plot
 
 gm(*)
+title uniquac fig 1
 
 @$ The two minima is typical of a miscibility gasp
 @&
@@ -136,6 +137,8 @@ scale y
 n
 -10000
 600
+title uniquac fig 2
+
 
 @&
 @$ lnac(*) is same as mu(*)/RT
@@ -147,6 +150,7 @@ scale y
 n
 -5
 1
+title uniquac fig 3
 
 
 @&
@@ -154,6 +158,7 @@ n
 plot
 
 ac(*)
+title uniquac fig 4
 
 @&
 @$ Activity plots are nicest if one has a square diagram as all values
@@ -177,6 +182,7 @@ y
 plot
 
 
+title uniquac fig 5
 gra
 6
 square
@@ -192,12 +198,15 @@ Y
 plot
 
 gamma1
+title uniquac fig 6
 
 @&
 
 plot
 
 gamma2
+title uniquac fig 7
+
 
 @&
 @$
@@ -228,6 +237,7 @@ map
 plot
 
 
+title uniquac fig 8
 
 @&
 @$
@@ -358,8 +368,9 @@ map
 plot
 
 
-gib y
-tie 5
+extra gib y
+extra tie 5
+title uniquac fig 9
 
 
 @$ All well done ...

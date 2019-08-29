@@ -3,7 +3,13 @@
 ! Details of this implementation published in Computational Materials Science,
 ! vol 101, (2015) pp 127-137
 !
-MODULE liboceq
+! MODULE liboceq
+!
+MODULE liboceqplus
+!
+  use general_thermodynamic_package
+  use minpack
+!  use minpack2
 !
 ! Copyright 2012-2019, Bo Sundman, France
 !
@@ -33,7 +39,6 @@ MODULE liboceq
 ! - calculate gridminimizer after equilibrium as check DONE 
 ! - cleanup the use of chemical potentials. DONE
 !
-  use general_thermodynamic_package
 !
 ! For parallellization, also used in gtp3.F90
 !$  use omp_lib
@@ -167,9 +172,13 @@ MODULE liboceq
   type(meq_phase), pointer :: pmiliq
 ! this is set TRUE when entering meq_onephase and false after one solid checked?
   logical hickelextrapol
-! This is an attempt to limit Delta-T when having condition on y-fraction
+! This is an (failed) attempt to limit Delta-T when having condition on y
   logical ycondTlimit
   double precision deltatycond
+! TZERO calculation need these (NOT PARALLEL)
+  type(gtp_equilibrium_data), pointer :: tzceq
+  type(gtp_condition), pointer :: tzcond
+  integer tzph1,tzph2
 !\end{verbatim}
 !
 !--------------------------------------------------------------
@@ -7975,6 +7984,47 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+! This subroutine should be moved to matsmin.F90
+  subroutine calfun(m,n,x,f,info,niter)
+! This is called by the LMDIF1 routines and calls an OC subroutine
+! as I had problems using EXTERNAL
+! M is number of errors
+! N is number of variables
+! NOTE order of X and F switched in CALFUN and ASSESSMENT_CALFUN !!!
+    integer m,n,info,i,niter
+    double precision f(m),x(n),sum
+    if(info.eq.0) then
+       sum=zero
+       do i=1,m
+          sum=sum+f(i)**2
+       enddo
+       if(niter.lt.0) then
+! this marks end of optimization output of the individual errors
+          write(*,15)-niter,sum
+15        format(/'Final results after ',i3,&
+               ' iteration, the sum of squares',1pe14.6)
+          write(*,16)x
+16        format('Scaled param: ',4(1pe14.6)/5(1pe14.6))
+          write(*,17)f
+17        format('Errors: '/6(1pe13.5))
+          write(*,*)
+       elseif(niter.gt.0) then
+          write(*,18)niter,sum
+18        format(/'After ',i4,' iterations the sum of squares',1pe14.6)
+          write(*,19)x
+19        format('Scaled param:   ',4(1pe16.8)/5(1pe16.8))
+       endif
+    else
+! This routine is in the matsmin.F90 file
+! it returns the calculated value of the property to fit
+! This call removed and the whole subroutine is probably redundant
+       call assessment_calfun(m,n,f,x)
+    endif
+    return
+  end subroutine calfun
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
 !\addtotable subroutine assessment_calfun
 !\begin{verbatim}
   subroutine assessment_calfun(nexp,nvcoeff,errs,xyz)
@@ -8609,7 +8659,7 @@ CONTAINS
 !\addtotable subroutine equilph1a
 !\begin{verbatim}
   subroutine equilph1a(phtup,tpval,ceq)
-! equilibrates the constituent fractions of a phase using its corrent comp.
+! equilibrates the constituent fractions of a phase using its current comp.
 ! phtup is phase tuple
 ! tpval is T and P
 ! ceq is a datastructure with all relevant thermodynamic data
@@ -9574,7 +9624,130 @@ CONTAINS
   
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-end MODULE liboceq
+!\begin{verbatim}
+  subroutine tzero(iph1,iph2,icond,value,ceq)
+! calculates the value of condition cond for two phases to have same G
+    implicit none
+    integer iph1,iph2,icond
+    double precision value
+    type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+    integer, parameter :: lwa=100
+    integer info,nv,ja,jb
+    type(gtp_condition), pointer :: first
+    double precision xv(5),fvec(5),tol,wa(lwa)
+!    external tzcalc NOT NEEDED
+!
+!    write(*,'(a,3i4," and ",3i4)')'In tzero!',iph1,phasetuple(iph1)%ixphase,&
+!         phasetuple(iph1)%lokph,&
+!         iph2,phasetuple(iph2)%ixphase,phasetuple(iph2)%lokph
+! in some way ceq, iph1, iph2 and icond must be transferred to tzcalc
+    tzceq=>ceq
+! always use first composition set, iph is also index in phasetuple
+!    tzph1=phasetuple(iph1)%lokph; tzph2=phasetuple(iph2)%lokph
+    tzph1=iph1; tzph2=iph2
+! find the condition
+    first=>ceq%lastcondition
+    tzcond=>first%next
+    ja=0
+    do while(.not.associated(first,tzcond))
+! we should only count ACTIVE conditions
+       if(tzcond%active.eq.0) then
+          ja=ja+1
+          if(ja.eq.icond) goto 100
+          tzcond=>tzcond%next
+       endif
+    enddo
+! the loop above does not find the last condition !!! SUCK
+    if(icond.ne.ja+1) then
+       write(*,*)'No such condition'
+       gx%bmperr=4399; goto 1000
+!    else
+! the last condition was the selected one
+    endif
+!
+100 continue
+! Set status of all phases except iph1 and iph2 as suspended
+    call change_many_phase_status('* ',-3,zero,ceq)
+    call change_phtup_status(iph1,1,one,ceq)
+    call change_phtup_status(iph2,1,one,ceq)
+    if(gx%bmperr.ne.0) goto 1000
+! start value of condition to vary
+    xv(1)=tzcond%prescribed
+!    write(*,*)'Found condition, current value ',xv(1)
+! do we need to think about parallelization?
+! calculate the zero
+!    write(*,*)'Calling hybrd1',xv(1)
+    nv=1
+    tol=1.0D-6
+    call hybrd1(tzcalc,nv,xv,fvec,tol,info,wa,lwa)
+    if(info.ne.1) write(*,*)'HYBRD solver return error: ',info
+    if(gx%bmperr.ne.0) goto 1000
+    tzcond%prescribed=xv(1)
+    value=xv(1)
+1000 continue
+! restore suspeded phases
+    call change_many_phase_status('* ',0,zero,ceq)
+    return
+  end subroutine tzero
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\begin{verbatim}
+  subroutine tzcalc(nv,xv,fvec,iflag)
+! calculates the value of a condition for two phases to have same G
+    implicit none
+    integer nv,iflag
+    double precision xv(*),fvec(*)
+!\end{verbatim}
+    type(gtp_phase_varres), pointer :: cps1,cps2
+    integer mode,lokph1,lokph2,lokvares1,lokvares2
+    double precision gm1,gm2
+! we transfer the data needed by tzph1,tzph2,tzceq and tzcond !!
+!    write(*,*)'In tzcalc: ',tzph1,tzph2
+!    write(*,*)'Current value of condition: ',tzcond%prescribed,xv(1)
+!
+    lokph1=phasetuple(tzph1)%lokph
+    lokph2=phasetuple(tzph2)%lokph
+    lokvares1=phasetuple(tzph1)%lokvares
+    lokvares2=phasetuple(tzph2)%lokvares
+    cps1=>tzceq%phase_varres(lokvares1)
+    cps2=>tzceq%phase_varres(lokvares2)
+!
+    mode=0
+! we have to calculate each phase separately and compare G values (per atom)
+! Set current value of condition
+    tzcond%prescribed=xv(1)
+!    write(*,*)'Prescribed condition: ',tzcond%prescribed
+! on entry both phases 1 and 2 are entered, suspend phase 2
+    call change_phtup_status(tzph2,-3,one,tzceq)
+    call calceq3(mode,.FALSE.,tzceq)
+    if(gx%bmperr.ne.0) goto 1100
+    gm1=cps1%gval(1,1)/cps1%abnorm(1)
+!    write(*,*)'Phase 1: ',gm1
+! suspend phase 1 and restore 2
+    call change_phtup_status(tzph1,-3,one,tzceq)
+    call change_phtup_status(tzph2,1,one,tzceq)
+    call calceq3(mode,.FALSE.,tzceq)
+    if(gx%bmperr.ne.0) goto 1100
+    gm2=cps2%gval(1,1)/cps2%abnorm(1)
+!    write(*,*)'Phase 2: ',gm2
+! restore phase 1
+    call change_phtup_status(tzph1,1,one,tzceq)
+    fvec(1)=gm1-gm2
+!    write(*,'(a,4(1pe12.4))')'tzcalc: ',xv(1),gm1,gm2,fvec(1)
+    fvec(1)=cps1%gval(1,1)/cps1%abnorm(1)-cps2%gval(1,1)/cps2%abnorm(1)
+1000 continue
+    return
+1100 continue
+! error quit also calling routine by setting value to zero
+    write(*,*)'Quit tzcalc due to error: ',gx%bmperr
+    fvec(1)=zero; goto 1000
+  end subroutine tzcalc
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+end MODULE liboceqplus
 
 ! interesting counting GOTOs in this file
 ! There are about 300

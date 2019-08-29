@@ -26,7 +26,7 @@ MODULE cmon1oc
 !************************************
 !
   use ocsmp
-!  use liboceq
+  use liboceqplus
 ! 
 ! parallel processing, set in gtp3.F90
 !$  use omp_lib
@@ -52,7 +52,7 @@ contains
     integer narg
 ! various symbols and texts
     character :: ocprompt*8='--->OC5:'
-    character name1*24,name2*24,line*80,model*72,chshort
+    character name1*24,name2*24,name3*24,dummy*24,line*80,model*72,chshort
     integer, parameter :: ocmonversion=50
 ! for the on-line help, at present turn off by default, if a HTML file set TRUE
     character*128 browser,latexfile,htmlfile
@@ -122,7 +122,7 @@ contains
 ! selected output mode for results and the default, list output unit lut
     integer listresopt,lrodef,lut,afo
 ! integers used for elements, phases, composition sets, equilibria, defaults
-    integer iel,iph,ics,ieq,idef
+    integer iel,iph,ics,ieq,idef,iph2
 ! for gradients in MU and interdiffusivities
     integer nend
 ! dimension of mugrad for 16x16 matrix 
@@ -135,7 +135,7 @@ contains
 ! temporary integer variables in loops etc
     integer i1,i2,j1,j2,iax,threads
 ! more temporary integers
-    integer jp,kl,svss,language,last,leak,j3
+    integer jp,kl,svss,language,last,leak,j3,tzcond
 ! and more temporary integers
     integer ll,lokcs,lokph,lokres,loksp,lrot,maxax
 ! and more temporary integers
@@ -169,6 +169,7 @@ contains
     double precision, dimension(:), allocatable :: coefs
     double precision, dimension(:), allocatable :: errs
 !    external new_assessment_calfun
+!    external calfun
 !-------------------
 ! loop variable when entering constituents of a phase
     integer icon,flc
@@ -262,7 +263,7 @@ contains
          ['TPFUN_SYMBOLS   ','PHASE           ','NO_GLOBAL       ',&
          'TRANSITION      ','QUIT            ','GLOBAL_GRIDMIN  ',&
          'SYMBOL          ','EQUILIBRIUM     ','ALL_EQUILIBRIA  ',&
-         'WITH_CHECK_AFTER','                ','                ']
+         'WITH_CHECK_AFTER','TZERO_POINT     ','                ']
 !-------------------
 ! subcommands to CALCULATE PHASE
     character (len=16), dimension(nccph) :: ccph=&
@@ -476,12 +477,12 @@ contains
 ! MAX 80 characters to set terminal .... HERE FONT AND SIZE IS SET
 #ifdef aqplt
 ! Aqua plot screen on some Mac systems
+    graphopt%gnuterminal(i1)='aqua size 600,500 font "arial,16"'
 !    graphopt%gnuterminal(i1)='aqua size 900,600 font "arial,20"'
-    graphopt%gnuterminal(i1)='aqua size 940,700 font "arial,16"'
 ! it should be #elif not #elseif .... suck
 #elif qtplt
 ! Qt plot screen on some LINUX systems
-    graphopt%gnuterminal(i1)='qt size 940,700 font "arial,16"'
+    graphopt%gnuterminal(i1)='qt size 600,500 font "arial,16"'
 !    graphopt%gnuterminal(i1)='qt size 900,600 font "arial,16"'
 #else
 ! wxt default plot screen (used on most Window systems)
@@ -527,6 +528,7 @@ contains
 !    write(*,*)'Setting windows bit 1: ',GRWIN
 #ifdef winhlp    
 !    write(*,*)'UI: Setting windows bit 2: ',GRWIN
+! This uses 'start /B ' in front of plot command to spawn plot windows
     graphopt%status=ibset(graphopt%status,GRWIN)
 #endif
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -534,6 +536,9 @@ contains
 20  continue
 ! clear file names
     ocmfile=' '; ocufile=' '; tdbfile=' '
+! clear some other variables
+    dummy=' '; name1=' '; name2=' '; name3=' '
+    tzcond=0
 ! initiallize ploted, it is not done in reset_plotoptions
     graphopt%plotend='pause mouse'
 ! reset plot ranges and their defaults
@@ -598,16 +603,16 @@ contains
     latexfile=' '
     htmlfile=' '
 #ifdef winhlp
-! THIS IS FOR WINDOWS
+! BROWSER FOR WINDOWS
     browser='C:\PROGRA~1\INTERN~1\iexplore.exe '
 #elif lixhlp
-! THIS IS FOR LINUX
-!    browser='/usr/bin/firefox '
-    browser='firefox '
+! BROWSER FOR LINUX
+    browser='/usr/bin/firefox '
+!    browser='firefox '
 #elif machlp
-! THIS IS FOR MAC
-!    browser='/Applications/Firefox.app/Contents/MacOS/firefox '
-    browser='firefox '
+! BROWSER FOR MAC
+    browser='/Applications/Firefox.app/Contents/MacOS/firefox '
+!    browser='firefox '
 #endif
     noochome: if(ochome(1:1).eq.' ') then
 ! there is no OCHOME environment variable, maybe a local ochelp.html?
@@ -627,19 +632,19 @@ contains
 ! both LINUX and WINDOWS accept / as separator between directory and file names
        write(*,*)'Found OC home directory (OCHOME): ',trim(ochome)
 #ifdef winhlp
-! THIS IS FOR WINDOWS
+! HTML FILE FOR WINDOWS
 ! normal tex/html help files
        htmlfile=trim(OCHOME)//'\'//'ochelp.html'
 #elif lixhlp
-! THIS IS FOR LINUX
+! HTML FILE FOR LINUX
        htmlfile=trim(OCHOME)//'/'//'ochelp.html'
 #elif machlp
-! THIS IS FOR LINUX
+! HTML FILE FOR MAC
        htmlfile=trim(OCHOME)//'/'//'ochelp.html'
 #endif
        call init_help(browser,htmlfile)
        if(.not.ochelp%htmlhelp) then
-          write(kou,*)'Warning, no file "ochelp.html" at OCHME or no browser'
+          write(kou,*)'Warning, no file "ochelp.html" at OCHOME or no browser'
           htmlhelp=.FALSE.
        else
           write(kou,*)'Online help provided by your browser using ochelp.html'
@@ -1406,7 +1411,7 @@ contains
 !         ['TPFUN_SYMBOLS   ','PHASE           ','NO_GLOBAL       ',&
 !         'TRANSITION      ','QUIT            ','GLOBAL_GRIDMIN  ',&
 !         'SYMBOL          ','EQUILIBRIUM     ','ALL_EQUILIBRIA  ',&
-!         'WITH_CHECK_AFTER','                ','                ']
+!         'WITH_CHECK_AFTER','TZERO_POINT     ','                ']
     CASE(2)
        kom2=submenu(cbas(kom),cline,last,ccalc,ncalc,8,'?TOPHLP')
        calculate: SELECT CASE(kom2)
@@ -1945,7 +1950,37 @@ contains
           if(temporary) &
                globaldata%status=ibset(globaldata%status,GSNORECALC)
 !-------------------------------------------------------
-       case(11) ! not used (yet)
+       case(11) ! TZERO_POINT
+! The degrees of freedom must be zero
+          ll=degrees_of_freedom(ceq)
+          if(ll.ne.0) then
+             write(*,*)'You must have zero degrees of freedoms for this'
+             goto 100
+          endif
+          write(kou,*)'You should have calculated an equilibrium',&
+               ' close to the T0 point'
+! ask for 2 phases and which condition to vary
+! try to remember the phases ... user may try several times
+          if(dummy(1:1).ne.' ') dummy=name2
+          call gparcdx('First phase ',cline,last,1,name2,dummy,'?TZERO')
+          call find_phase_by_name(name2,iph,ics)
+          if(gx%bmperr.ne.0) goto 990
+          if(dummy(1:1).ne.' ') dummy=name3
+          call gparcdx('Second phase ',cline,last,1,name3,dummy,'?TZERO')
+          call find_phase_by_name(name3,iph2,ics)
+          if(gx%bmperr.ne.0) goto 990
+          dummy=name3
+          call list_conditions(kou,ceq)
+          if(tzcond.eq.0) then
+             j2=1
+          else
+             j2=tzcond
+          endif
+          call gparidx('Release condition number',cline,last,tzcond,j2,'?TZERO')
+          call tzero(iph,iph2,tzcond,xxx,ceq)
+          if(gx%bmperr.ne.0) goto 990
+          write(*,*)'Equal Gibbs energy at:'
+          call list_conditions(kou,ceq)
 !-------------------------------------------------------
        case(12) ! not used (yet)
        END SELECT calculate
@@ -6430,8 +6465,10 @@ contains
 !       write(*,'(a,10(1pe12.4))')'lmdif1: ',(coefs(iz),iz=1,nvcoeff)
 !->->->->->-> HERE THE OPTIMIZATION IS MADE <-<-<-<-<-<-
 ! nfev set to number of iterations
-       call lmdif1(mexp,nvcoeff,coefs,errs,optacc,nopt,nfev,&
+       call lmdif1(calfun,mexp,nvcoeff,coefs,errs,optacc,nopt,nfev,&
             iwam,wam,lwam,fjac,err0)
+!       call lmdif1(mexp,nvcoeff,coefs,errs,optacc,nopt,nfev,&
+!            iwam,wam,lwam,fjac,err0)
 !->->->->->-> HERE THE OPTIMIZATION IS MADE <-<-<-<-<-<-
        mexpdone=mexp
        nvcoeffdone=nvcoeff
@@ -6488,7 +6525,8 @@ contains
           allocate(calcexp(mexp))
           iflag=2
 ! penulitima argument zero means use machine precision to calculate derivative
-          call fdjac2(mexp,nvcoeff,coefs,errs,fjac,mexp,iflag,zero,wam)
+!          call fdjac2(mexp,nvcoeff,coefs,errs,fjac,mexp,iflag,zero,wam)
+          call fdjac2(calfun,mexp,nvcoeff,coefs,errs,fjac,mexp,iflag,zero,wam)
 ! debug output ...
 !          write(*,*)'pmon: fjac: ',nvcoeff,mexp,iflag
 !          do i2=1,mexp

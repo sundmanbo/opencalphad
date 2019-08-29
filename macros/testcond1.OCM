@@ -20,6 +20,8 @@ new Y
 @$ Testing combining combination of various condition
 @$ for a ternary system C-Cr-Fe
 @$ 
+@$ There is a test to calculate T-zero point
+@$
 @$ There is a test to calculate NPLE conditions
 @$
 @$ There are also tests of entering, listing
@@ -286,12 +288,89 @@ l,,,,
 
 @$ Temperature becomes 2139.23 with this addition of heat
 @&
+@$
 @$ ==============================================================
+@$
 @$ Something different
-@$ Calculate NPLE (Negligible Partition Local Equilibrium)
+@$ Calculate a T-zero point
+@$ where 2 phases has the same Gibbs energy
+@$
+@$ ==============================================================
 @&
 @$ First clean up the last set of conditions
-set c ac(cr)=none h=none
+@$ Remove all condotions and make sure all phases are entered
+
+set cond *:=none
+
+l c
+
+@&
+set status phase *=ent 0
+
+l sh p
+
+@&
+@$ Set conditions for a two-phase equilibrium fcc+bcc
+
+set c t=1100 p=1e5 n=1 w%(c)=0.05 w%(cr)=5
+
+c e
+
+l,,,,
+
+@$ We have a 2-phase equilibrium between FCC and BCC
+@&
+@$ Calculate the T0 (T zero) point where FCC and BCC have the same
+@$ Gibbs energy.  This is a limit for diffusionless transformation
+@$ from FCC to BCC (such as martensite)
+
+calc ?
+
+calc tz
+?
+fcc
+bcc
+4
+
+@$ The calculated mass percent of C at equal Gibbs energy is 0.0271
+@$ We selected conditon 4 to be varied, i.e. the mass percent of C
+@$ We could also have releast condition 1, the T
+@$ But not any of the other conditions.  Why?
+@&
+
+c e
+
+l,,,,
+
+@$ The stable equilibrium at the T0 point is 70% BCC and 30% FCC
+@&
+
+@$ We can instead change T to find a T0 point
+@$ First set back the carbon composition
+set c w%(c)=0.05
+
+c tz
+fcc
+bcc
+1
+
+
+@$ The T0 point is at 1077.84 K for the carbon content of 0.05.
+
+@&
+@$
+@$ ==============================================================
+@$
+@$ Something related
+@$ Calculate NPLE (Negligible Partition Local Equilibrium)
+@$ The limit of fast FCC/BCC transformation when only carbon diffusion
+@$ and other alloying elements fractions same in both phases
+@$
+@$ ==============================================================
+@&
+@$ First clean up the last set of conditions
+@$ and suspend all phases
+set cond *:=none
 set status phase *=sus
 
 @&

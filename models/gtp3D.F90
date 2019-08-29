@@ -2456,7 +2456,7 @@ end subroutine get_condition
       endif
       cval=species(k+1:)
 ! this line gave compilation warning moving 32 bytes from a space of (max) 30
-      species=species(3:k-1)
+      species=species(3:k-1)//'  '
 !      write(*,*)'3D Species: ',trim(species),' <',trim(cval),'> '
       if(index(species,',').gt.0 .or. index(species,'(').gt.0) then
          write(*,*)'Use only N(species) or B(species) in input amounts'

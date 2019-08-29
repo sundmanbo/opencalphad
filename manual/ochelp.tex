@@ -1769,8 +1769,8 @@ Many different things can be calculated.  The normal thing to calculate is
 
 {\small
 \begin{tabular}{llll}
- ALL-EQUILIBRIA~ & NO-GLOBAL~ & SYMBOL           & WITH-CHECK-AFTER\\
- EQUILIBRIUM    & PHASE *    & TPFUN-SYMBOLS~ \\
+ ALL-EQUILIBRIA~ & NO-GLOBAL~ & SYMBOL         & TZERO-POINT \\
+ EQUILIBRIUM    & PHASE *    & TPFUN-SYMBOLS~  & WITH-CHECK-AFTER\\
  GLOBAL-GRIDMIN~ & QUIT      & TRANSITION\\
 \end{tabular}
 }
@@ -1989,6 +1989,33 @@ condition you specified and calculate the equilibrium.  The
 calculation may fail if the phase cannot be set stable with zero
 amount.  If successful the removed condition will be set to the value
 calculated and the phase set stable with zero amount.
+
+%--------------------------------
+\hypertarget{TZERO}{}
+\subsection{{\em calculate} Tzero point}
+
+The T0 (or T zero) point is where two phases have the same Gibbs
+energy.  It is a limit of diffusionless transformation between these
+phases.  This can be calculated by varying T (or a composition)
+calculating the Gibbs energy for the two phases separatly using the
+same overall composition.  NOTE in many cases there are no such point!
+
+It is particularly interesting in steels to predict the martensite
+transformation which is normally some 100~K below the T0 point.
+
+%--------------------------------
+\hypertarget{CALCULATE with check}{}
+\subsection{{\em calculate} with check after}
+
+When the conditions does not allow for the gridminimizer to be used to
+find an initial set of phases this command can be used to call the
+gridminimizer after the iterative calculation.  If the gridminimizer
+finds a phase that should be stable the equilibrium will be
+autmatically recalculated.
+
+This type of calculations is regularly done durig STEP and MAP
+commands as such calculations normally have a phase as FIX which
+prevents use of the gridminimizer.
 
 %===================================================================
 \hypertarget{DEBUG}{}

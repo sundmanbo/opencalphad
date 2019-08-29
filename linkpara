@@ -39,6 +39,11 @@ copy numlib\ocnum.F90 .
 gfortran -c  -fopenmp -O2 ocnum.F90
 del ocnum.F90
 
+REM the MINPACK package for least square fitting and solving nonlinear eqs.
+copy numlib\minpack1.F90
+gfortran -c -fopenmp -O2 minpack1.F90
+del minpack1.F90
+
 REM the model routines
 copy models\gtp3*.F90 .
 gfortran -c -fopenmp -O2 gtp3.F90
@@ -48,11 +53,6 @@ REM the equilibrium calculation routines
 copy minimizer\matsmin.F90 .
 gfortran -c -fopenmp -O2 matsmin.F90
 del matsmin.F90
-
-REM the LMDIF package for least square fitting
-copy numlib\lmdif1lib.F90 .
-gfortran -c -fopenmp -O2 lmdif1lib.F90
-del lmdif1lib.F90
 
 REM the routines diagrams using STEP or MAP
 copy stepmapplot\smp2*.F90 .
@@ -73,7 +73,7 @@ linkoc
 del liboceq.a
 
 REM generating the library (needed also for TQ library)
-ar sq liboceq.a metlib4.o ocnum.o oclablas.o gtp3.o matsmin.o lmdif1lib.o
+ar sq liboceq.a metlib4.o ocnum.o oclablas.o gtp3.o matsmin.o minpack1.o
 
 REM Finally linking all together
 gfortran -o oc5P -fopenmp -O2 pmain1.F90 pmon6.o smp2.o ftinyopen.o tinyopen.o tinyfiledialogs.o liboceq.a -lcomdlg32 -lole32
