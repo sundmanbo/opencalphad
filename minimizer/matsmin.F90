@@ -7014,7 +7014,13 @@ CONTAINS
 !      endif
 ! actual arguments needed if svflista(kf)%nactarg>0
 !      write(*,*)'MM meq_svfun evaluate ',kf,svflista(kf)%name
-      val=meq_evaluate_svfun(kf,actual_arg,0,ceq)
+      if(btest(svflista(kf)%status,SVFVAL)) then
+! I am not really sure where the last calculated value is ???
+! better to return zero than some arbitrary value
+         val=zero
+      else
+         val=meq_evaluate_svfun(kf,actual_arg,0,ceq)
+      endif
 !      write(*,*)'MM meq_svfun evaluated: ',val
       if(gx%bmperr.ne.0) then
          if(kou.gt.0) then
@@ -7993,6 +7999,7 @@ CONTAINS
 ! NOTE order of X and F switched in CALFUN and ASSESSMENT_CALFUN !!!
     integer m,n,info,i,niter
     double precision f(m),x(n),sum
+!    write(*,*)'MM enter calfun',info,niter,m,n
     if(info.eq.0) then
        sum=zero
        do i=1,m
@@ -8008,7 +8015,7 @@ CONTAINS
           write(*,17)f
 17        format('Errors: '/6(1pe13.5))
           write(*,*)
-       elseif(niter.gt.0) then
+       elseif(niter.ge.0) then
           write(*,18)niter,sum
 18        format(/'After ',i4,' iterations the sum of squares',1pe14.6)
           write(*,19)x
@@ -9635,6 +9642,7 @@ CONTAINS
     integer, parameter :: lwa=100
     integer info,nv,ja,jb
     type(gtp_condition), pointer :: first
+    type(gtp_phase_varres), pointer :: cps1,cps2
     double precision xv(5),fvec(5),tol,wa(lwa)
 !    external tzcalc NOT NEEDED
 !
@@ -9686,8 +9694,16 @@ CONTAINS
     tzcond%prescribed=xv(1)
     value=xv(1)
 1000 continue
-! restore suspeded phases
+! restore suspeded phases and set no equilibrium
+    ceq%status=ibset(ceq%status,EQINCON)
     call change_many_phase_status('* ',0,zero,ceq)
+    if(gx%bmperr.eq.0) then
+! set amount of the two phases
+       cps1=>tzceq%phase_varres(phasetuple(tzph1)%lokvares)
+       cps2=>tzceq%phase_varres(phasetuple(tzph2)%lokvares)
+       cps1%amfu=one
+       cps2%amfu=one
+    endif
     return
   end subroutine tzero
 

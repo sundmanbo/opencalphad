@@ -256,7 +256,7 @@ CONTAINS
 !  
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine sortrd
+!\addtotable subroutine sortrd & Sorting reals
 !\begin{verbatim}
   SUBROUTINE SORTRD(ARR,N,IX)
 ! ...SORTING REAL NUMBERS IN ASCENDING ORDER
@@ -358,7 +358,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine sortrdd
+!\addtotable subroutine sortrdd & Sorting doubles
 !\begin{verbatim}
   SUBROUTINE SORTRDD(ARR,N,IX)
 ! ...SORTING DOUBLE PRECISION NUMBERS IN DECENDING ORDER
@@ -463,7 +463,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine sortin
+!\addtotable subroutine sortin & Sorting integers
 !\begin{verbatim}
   SUBROUTINE SORTIN(IARR,N,IX)
 ! ...SORTING INTEGERS IN ASCENDING ORDER
@@ -567,7 +567,7 @@ CONTAINS
   
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine ssort
+!\addtotable subroutine ssort & Sorting characters
 !\begin{verbatim}
   SUBROUTINE SSORT(CMD,NS,INDEX)
 !...SORTING a character array, max 40 characters long
@@ -622,7 +622,7 @@ CONTAINS
 !
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable logical function ucletter
+!\addtotable logical function ucletter & Check if character is UPPER case
 !\begin{verbatim}
   LOGICAL FUNCTION ucletter(ch1)
 ! returns TRUE if the character is A to Z
@@ -638,7 +638,7 @@ CONTAINS
   
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable character function biglet
+!\addtotable character function biglet & Convert one character to UPPER case
 !\begin{verbatim}
   CHARACTER FUNCTION BIGLET(CHA)
 !...CONVERTS ONE CHARACTER FROM LOWER TO UPPER CASE
@@ -657,7 +657,7 @@ CONTAINS
   
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine capson
+!\addtotable subroutine capson & Convert character to UPPER case
 !\begin{verbatim}
   SUBROUTINE capson(text)
 ! converts lower case ASCII a-z to upper case A-Z, no other changes
@@ -677,7 +677,7 @@ CONTAINS
   
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable logical function eolch
+!\addtotable logical function eolch & TRUE is character is empty after ip
 !\begin{verbatim}
   LOGICAL FUNCTION EOLCH(STR,IP)
 !...End of Line CHeck, TO SKIP SPACES FROM IP. RETURNS .TRUE. IF ONLY SPACES
@@ -700,7 +700,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine getrel
+!\addtotable subroutine getrel & Extrtact real or double
 !\begin{verbatim}
   SUBROUTINE GETREL(SVAR,LAST,VALUE)
 ! extract a real from a character
@@ -716,7 +716,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine getrem
+!\addtotable subroutine getrem & Extract real skipping trailing ;
 !\begin{verbatim}
   SUBROUTINE GETREM(SVAR,LAST,VAL)
 ! ...IDENTICAL TO GETREL EXCEPT THAT A TERMINATING COMMA "," IS SKIPPED
@@ -734,7 +734,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine getrels
+!\addtotable subroutine getrels & Extract real
 !\begin{verbatim}
   SUBROUTINE GETRELS(SVAR,LAST,VALUE,ISIG)
 !...DECODES A REAL NUMBER FROM A TEXT
@@ -860,7 +860,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable integer function gps
+!\addtotable integer function gps & Extract real
 !\begin{verbatim}
   INTEGER FUNCTION GPS(SVAR,LAST,VALUE)
 !...DECODES A NUMBER WITH OR WITHOUT A SIGN
@@ -894,7 +894,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable integer function gpn
+!\addtotable integer function gpn & Extract real without sign
 !\begin{verbatim}
   INTEGER FUNCTION GPN(SVAR,LAST,VALUE)
 !...DECODES A NUMBER WITHOUT SIGN
@@ -921,7 +921,7 @@ CONTAINS
   
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine getint
+!\addtotable subroutine getint & Extract integer
 !\begin{verbatim}
   SUBROUTINE GETINT(SVAR,LAST,IVAL)
 !...DECODES AN INTEGER FROM A TEXT
@@ -961,7 +961,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine getinm
+!\addtotable subroutine getinm & Extract integer and trailing ,
 !\begin{verbatim}
   SUBROUTINE GETINM(SVAR,LAST,IVAL)
 ! ...IDENTICAL TO GETINT EXCEPT THAT A TERMINATING COMMA ",", IS SKIPPED
@@ -978,7 +978,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine getoct
+!\addtotable subroutine getoct & Extract octal number
 !\begin{verbatim}
   SUBROUTINE GETOCT(LINE,IP,IVAL)
 !...DECODE AN OCTAL NUMBER
@@ -1013,7 +1013,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine gethex
+!\addtotable subroutine gethex & Extract hexadecimal number
 !\begin{verbatim}
   SUBROUTINE GETHEX(LINE,IP,IVAL)
 !...DECODE A HEXADECIMAL NUMBER
@@ -1067,7 +1067,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine getname
+!\addtotable subroutine getname & Extract a species name
 !\begin{verbatim}
   subroutine getname(text,ip,name,mode,ch1)
 ! reading a species name, this should be incorporated in metlib, 
@@ -1107,7 +1107,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine getext
+!\addtotable subroutine getext & Extact a text item
 !\begin{verbatim}
   SUBROUTINE GETEXT(SVAR,LAST,JTYP,STRING,CDEF,LENC)
 !...SVAR SHALL CONTAIN A TEXT. SCAN STARTS AT POSITION LAST.
@@ -1282,7 +1282,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine wrinum
+!\addtotable subroutine wrinum & Write a double left justified
 !\begin{verbatim}
   SUBROUTINE WRINUM(STR,IP,NNW,JSIGN,VALUE)
 !...EDITS A REAL NUMBER INTO STR WITH LEAST NUMBER OF DIGITS
@@ -1372,7 +1372,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine wriint
+!\addtotable subroutine wriint & Write an inter left justified
 !\begin{verbatim}
   subroutine wriint(text,ipos,int)
 ! write an integer in text from position ipos (left adjusted)
@@ -1405,7 +1405,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine wrihex
+!\addtotable subroutine wrihex & Write a hexadecimal
 !\begin{verbatim}
   SUBROUTINE WRIHEX(STR,IVAL)
 !...TO WRITE AN INTEGER AS HEXADECIMAL
@@ -1439,7 +1439,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine wrice
+!\addtotable subroutine wrice & Write a long text
 !\begin{verbatim}
   subroutine wrice(lut,margl1,margl2,maxl,str)
 ! writes str on unit lut with left margin largl1 for first line, margl2 for all
@@ -1459,7 +1459,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine wrice2
+!\addtotable subroutine wrice2 & Write a long text
 !\begin{verbatim}
   subroutine wrice2(lut,margl1,margl2,maxl,lbreak,str)
 ! writes str on unit lut with left margin largl1 for first line, margl2 for all
@@ -1514,7 +1514,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine cwicend
+!\addtotable subroutine cwicend & Find a possible place for linebreak
 !\begin{verbatim}
   subroutine cwricend(str,lbeg,lend,lbreak)
 ! find a possible place for a newline in str going back from lend
@@ -1560,7 +1560,7 @@ CONTAINS
 !
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
   
-!\addtotable integer function ncomp
+!\addtotable integer function ncomp & Top command interpreter
 !\begin{verbatim}
   INTEGER FUNCTION NCOMP(SVAR,COMM,NC,NEXT)
 ! SUBROUTINE NCOMP
@@ -1575,7 +1575,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable integer function ncomp2
+!\addtotable integer function ncomp2 & Level 1 subcommand
 !\begin{verbatim}
   INTEGER FUNCTION NCOMP2(SVAR,COMM,NC,NEXT)
 ! SUBROUTINE NCOMP2
@@ -1590,7 +1590,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable integer function ncomp3
+!\addtotable integer function ncomp3 & Level 2 subcommand
 !\begin{verbatim}
   INTEGER FUNCTION NCOMP3(SVAR,COMM,NC,NEXT)
 ! SUBROUTINE NCOMP3
@@ -1605,7 +1605,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable integer function ncompx
+!\addtotable integer function ncompx & Actual command interpreter
 !\begin{verbatim}
   INTEGER FUNCTION NCOMPX(SVAR,COMM,NC,NEXT,IENT)
 ! ...TO DECODE A COMMAND
@@ -1780,7 +1780,7 @@ CONTAINS
 !
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine gparid
+!\addtotable subroutine gparid & Superceeded by gparidx
 !\begin{verbatim}
   SUBROUTINE GPARID(PROMT,SVAR,LAST,IVAL,IDEF,HELP)
 ! ask for integer value with default
@@ -2451,7 +2451,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine gparidx
+!\addtotable subroutine gparidx & Ask for integer with default
 !\begin{verbatim}
   SUBROUTINE GPARIDx(PROMT,SVAR,LAST,IVAL,IDEF,hyper)
 ! ask for integer value with default
@@ -2473,7 +2473,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine gparix
+!\addtotable subroutine gparix & Ask for integer no default
 !\begin{verbatim}
   SUBROUTINE GPARIx(PROMT,SVAR,LAST,IVAL,IDEF,hyper)
 ! ask for integer value woth no default
@@ -2494,7 +2494,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine gparrx
+!\addtotable subroutine gparrx & Ask for double no default
 !\begin{verbatim}
   SUBROUTINE GPARRx(PROMT,SVAR,LAST,VAL,RDEF,hyper)
 ! asks for a double with no default
@@ -2518,7 +2518,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine gparrdx
+!\addtotable subroutine gparrdx & Ask for double with default
 !\begin{verbatim}
   SUBROUTINE GPARRDx(PROMT,SVAR,LAST,VAL,RDEF,hyper)
 ! ask for a double with default provided
@@ -2541,7 +2541,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine gparcdx
+!\addtotable subroutine gparcdx & Ask for character with default
 !\begin{verbatim}
   SUBROUTINE GPARCDx(PROMT,SVAR,LAST,JTYP,SVAL,CDEF,hyper)
 ! read a character with default provided
@@ -2570,7 +2570,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine gparcx
+!\addtotable subroutine gparcx & Ask for character no default
 !\begin{verbatim}
   SUBROUTINE GPARCX(PROMT,SVAR,LAST,JTYP,SVAL,CDEF,hyper)
 ! read a character with default provided and hypertarget
@@ -2597,7 +2597,7 @@ CONTAINS
 900 RETURN
   END SUBROUTINE GPARCX
 
-!\addtotable subroutine gqaridx
+!\addtotable subroutine gqaridx & Ask for integer with default
 !\begin{verbatim}
   SUBROUTINE GQARIDX(PROMT,SVAR,LAST,IVAL,IDEF,hyper)
 !...SVAR SHALL CONTAIN A PARAMETER VALUE. IF EMPTY THE PARAMETER IS ASKED FOR
@@ -2623,7 +2623,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine gqarix
+!\addtotable subroutine gqarix & Ask for integer no default
 !\begin{verbatim}
   subroutine GQARIx(PROMT,SVAR,LAST,IVAL,IDEF,hyper)
 ! read integer with no default
@@ -2644,7 +2644,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine gqarrdx
+!\addtotable subroutine gqarrdx & Ask for double with default
 !\begin{verbatim}
   subroutine GQARRDx(PROMT,SVAR,LAST,VAL,RDEF,hyper)
 ! read real with default
@@ -2665,7 +2665,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine gqarrx
+!\addtotable subroutine gqarrx & Ask for double no default
 !\begin{verbatim}
   subroutine GQARRx(PROMT,SVAR,LAST,VAL,RDEF,hyper)
 ! read real without default
@@ -2685,7 +2685,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine gqarcdx
+!\addtotable subroutine gqarcdx & Ask for character with default
 !\begin{verbatim}
   subroutine GQARCDX(PROMT,SVAR,LAST,JTYP,STR,CDEF,hyper)
 ! TO READ A STRING VALUE with default
@@ -2733,7 +2733,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine gqarcx
+!\addtotable subroutine gqarcx & Ask for character no default
 !\begin{verbatim}
   subroutine GQARCX(PROMT,SVAR,LAST,JTYP,STR,CDEF,hyper)
 ! TO READ A STRING VALUE with default user hypertext
@@ -2782,7 +2782,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine gparallx
+!\addtotable subroutine gparallx & Ask for anything
 !\begin{verbatim}
   SUBROUTINE gparallx(PROMT,SVAR,LAST,IVAL,val,string,cdef,hyper)
 ! this is the focal routine for all variants of GPARxyz
@@ -3132,7 +3132,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine gparfilex
+!\addtotable subroutine gparfilex & Ask for file name
 !\begin{verbatim}
     SUBROUTINE GPARFILEx(PROMT,SVAR,LAST,JTYP,SVAL,CDEF,TYP,hyper)
 ! to ask for a file name using command line or external window
@@ -3225,7 +3225,7 @@ CONTAINS
 !
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine init_help
+!\addtotable subroutine init_help & Initiate help and history
 !\begin{verbatim}
   subroutine init_help(browser,htmlfile)
 ! This routine is called from oc_command_monitor to inititate
@@ -3261,7 +3261,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine helplevel
+!\addtotable subroutine helplevel & Redundant
 !\begin{verbatim}
   subroutine helplevel1(line)
 ! This routine is called from the monitor for the top level command
@@ -3278,7 +3278,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine q1help
+!\addtotable subroutine q1help & Old help routine 1
 !\begin{verbatim}
   subroutine q1help(prompt,line)
 ! This routine is called from all gparx routines 
@@ -3552,7 +3552,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine q2help
+!\addtotable subroutine q2help & Old help routine 2
 !\begin{verbatim}
   subroutine q2help(prompt,line)
 ! This routine is called from submenu
@@ -3610,7 +3610,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine q3help
+!\addtotable subroutine q3help & Old help routine 3
 !\begin{verbatim}
   SUBROUTINE Q3HELP(LINE,LAST,COMM,NC)
 ! used in submeny when user gives "? 'command' " taken as "help 'command'"
@@ -3687,7 +3687,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine q3helpx
+!\addtotable subroutine q3helpx & New help routine 3
 !\begin{verbatim}
   SUBROUTINE Q3HELPx(LINE,LAST,COMM,NC)
 ! used in submeny when user gives "? 'command' " taken as "help 'command'"
@@ -3767,7 +3767,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine q4help
+!\addtotable subroutine q4help & New help routine 4
 !\begin{verbatim}
   subroutine q4help(hypertarget,extra)
 ! This routine is adapted to provide help from webrowsers using hypertarget
@@ -3845,7 +3845,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine nohelp
+!\addtotable subroutine nohelp & No help
 !\begin{verbatim}
   SUBROUTINE NOHELP(PROMT,LINE)
 ! no help available
@@ -3857,7 +3857,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine tophlp
+!\addtotable subroutine tophlp & Help from top level
 !\begin{verbatim}
   SUBROUTINE TOPHLP(PROMPT,LINE)
 ! return to calling routine for help, do not save the current command ...
@@ -3866,14 +3866,14 @@ CONTAINS
 !\end{verbatim} %+
 !    helprec%level=helprec%level-1
 !    write(*,11)helprec%level,(helprec%cpath(i)(1:8),i=1,helprec%level)
-11  format('tophlp: ',i3,10(', ',a))
+!11  format('tophlp: ',i3,10(', ',a))
     LINE(2:2)='!'
     RETURN
   END SUBROUTINE TOPHLP
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable logical function yeschk
+!\addtotable logical function yeschk & Check for Y or y
 !\begin{verbatim}
   LOGICAL FUNCTION YESCHK(CH1)
 !    returns TRUE if CH1 is Y or y
@@ -3891,7 +3891,7 @@ CONTAINS
 !
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine nghist
+!\addtotable subroutine nghist & Execute history caommand
 !\begin{verbatim}
   SUBROUTINE NGHIST(LINE,LAST)
 !...EXECUTES A HISTORY COMMAND
@@ -3989,7 +3989,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine openlogfile
+!\addtotable subroutine openlogfile & Opem log file
 !\begin{verbatim}
   subroutine openlogfile(name,text,lun)
 ! opens a logfile for commands
@@ -4022,7 +4022,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine set_echo
+!\addtotable subroutine set_echo & Set/reet echo of commands
 !\begin{verbatim}
   subroutine set_echo(ion)
 ! set echo of command input, does this really work?
@@ -4042,7 +4042,7 @@ CONTAINS
 !
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
   
-!\addtotable subroutine boutxt
+!\addtotable subroutine boutxt & Write a text noadvance
 !\begin{verbatim}
   subroutine boutxt(lut,line)
 ! writes the text on line on unit lut without CR/LF
@@ -4058,7 +4058,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable subroutine bintxt
+!\addtotable subroutine bintxt & Read a text
 !\begin{verbatim}
   subroutine bintxt(lin,cline)
 ! read a command line with or without arguments. On LINUX command line editing
@@ -4079,7 +4079,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable subroutine bintxt_getkey
+!\addtotable subroutine bintxt_getkey & Read a text with editing
 !\begin{verbatim}
   subroutine bintxt_getkey(lin,cline)
 ! LINUX subroutine to read a line with history and editing a la emacs
@@ -4389,7 +4389,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable subroutine bintxt_nogetkey
+!\addtotable subroutine bintxt_nogetkey & Read a text
 !\begin{verbatim}
   subroutine bintxt_nogetkey(lin,line)
 ! Reading a command line on Windows with editing provided by the OS
@@ -4415,7 +4415,7 @@ CONTAINS
 !
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine macbeg
+!\addtotable subroutine macbeg & Start a maro
 !\begin{verbatim}
   SUBROUTINE MACBEG(LINE,LAST,OK)
 !....subroutine to execute set-interactive allowing nesting of macros
@@ -4515,7 +4515,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine macend
+!\addtotable subroutine macend & End a macro
 !\begin{verbatim}
     SUBROUTINE MACEND(LINE,LAST,OK)
 ! end of macro detected, close file and return to upper level
@@ -4554,7 +4554,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine gptcm1
+!\addtotable subroutine gptcm1 & Replace macro variables with value 1
 !\begin{verbatim}
   SUBROUTINE GPTCM1(IFLAG,SVAR,LAST,SLIN)
 !...handling of MACRO directives like @& @? and @# etc
@@ -4581,7 +4581,7 @@ CONTAINS
 !
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine gptcm2
+!\addtotable subroutine gptcm2 & Replace a macro variable with value 2
 !\begin{verbatim}
   subroutine GPTCM2(IFLAG,SVAR,LAST,SLIN)
 ! handling of macro variables
@@ -4678,7 +4678,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine gqexv
+!\addtotable subroutine gqexv & Replace a macro variable with value
 !\begin{verbatim}
   SUBROUTINE GQXENV(SVAR)
 !...EXCHANGES REFERENCES TO ENVIRONMENT MACRO VARIABLES TO ACTUAL VALUES
@@ -4730,7 +4730,7 @@ CONTAINS
 !
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
 
-!\addtotable subroutine putfun
+!\addtotable subroutine putfun & Enter an expression
 !\begin{verbatim}
   SUBROUTINE PUTFUN(STRING,L,MAXS,SYMBOL,LOKV,LROT,ALLOWCH,NV)
 !...READS AN EXPRESSION FROM STRING POSITION L AND CREATES AN BINARY TREE
@@ -4950,7 +4950,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
 
-!\addtotable subroutine nybin
+!\addtotable subroutine nybin & Found a binary operator + - * /
 !\begin{verbatim}
   SUBROUTINE NYBIN(kod,binnod,NOTPP)
 !...INSERTS A NEW OPNODE IN THE TREE
@@ -5033,7 +5033,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
 
-!\addtotable subroutine nyuni
+!\addtotable subroutine nyuni & Found a unary operator LOG EXP ...
 !\begin{verbatim}
   SUBROUTINE NYUNI(KOD,negmark,uninod,IPN,NOTPP)
 !   Creates a node with a unary operator
@@ -5072,7 +5072,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
 
-!\addtotable subroutine nylp
+!\addtotable subroutine nylp & Found a left (
 !\begin{verbatim}
   SUBROUTINE NYLP(uninod,IPN,NOTPP)
 !...OPENING PARENTHESIS, push links on LEVEL. Also after unary operator
@@ -5111,7 +5111,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
 
-!\addtotable subroutine nyrp
+!\addtotable subroutine nyrp & Found a )
 !\begin{verbatim}
   subroutine NYRP(IPN,NOTPP)
 !...CLOSING PARENTHESIS
@@ -5166,7 +5166,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable subroutine nyvar
+!\addtotable subroutine nyvar & Found a symbol
 !\begin{verbatim}
   SUBROUTINE NYVAR(TEXT,L,IOPUNI,negmark,MAXS,SYMBOL,LOKV,allowch,dummy2)
 ! inserts a symbol in an expression
@@ -5326,7 +5326,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
 
-!\addtotable subroutine nydat
+!\addtotable subroutine nydat & Found a numeric value
 !\begin{verbatim}
   SUBROUTINE NYDAT(KOD,VAL,nynod,negmark)
 ! store a constant or symbol.  The address to the node is returned in lok
@@ -5369,7 +5369,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
 
-!\addtotable double precision evalf
+!\addtotable double precision evalf & Evaluate a function
 !\begin{verbatim}
   double precision function evalf(LROT,VAR)
 !      Calculates the value of an expression MEMORY LEAK 
@@ -5493,7 +5493,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
 
-!\addtotable double precision function evalf_x
+!\addtotable double precision function evalf_x & Evaluate a function
 !\begin{verbatim}
   double precision FUNCTION EVALF_X(LROT,VAR)
 !      Calculates the value of an expression
@@ -5618,7 +5618,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
 
-!\addtotable subroutine eunary
+!\addtotable subroutine eunary & Evaluate a unary function
 !\begin{verbatim}
   SUBROUTINE EUNARY(KOD,X)
 ! calculates a unary function such as LOG, EXP etc
@@ -5651,7 +5651,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
 
-!\addtotable subroutine ebinary
+!\addtotable subroutine ebinary & Evaluate a binary operator
 !\begin{verbatim}
   SUBROUTINE EBINRY(KOD,X,Y)
 ! Calculates the value of a binary node with two data nodes
@@ -5689,7 +5689,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
 
-!\addtotable double precision function aivan
+!\addtotable double precision function aivan & Evaluate Ivantsov's function
 !\begin{verbatim}
   double precision FUNCTION AIVAN(PECN)
 !      CALCULATES THE DIMENSIONLESS SUPERCOOLING OF DIFFUSION BY
@@ -5723,7 +5723,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable double precision function pf_bsum
+!\addtotable double precision function pf_bsum & Evaluate BSUM
 !\begin{verbatim}
   double precision FUNCTION PF_BSUM(FA)
 !.. 1993-10-06 20:10:56 /BJ
@@ -5763,7 +5763,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
 
-!\addtotable double precision function pf_hs
+!\addtotable double precision function pf_hs & Evaluate Heaviside 
 !\begin{verbatim}
   double precision FUNCTION PF_HS(X)
 !      Calculates Heaviside function
@@ -5781,7 +5781,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
 
-!\addtotable double precision function pf_erf
+!\addtotable double precision function pf_erf & Evaluate ERF
 !\begin{verbatim}
   double precision FUNCTION PF_ERF(X0)
 !      CALCULATES ERROR-FUNCTION OF X, USING AN
@@ -5807,7 +5807,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
 
-!\addtotable subroutine wrtfun
+!\addtotable subroutine wrtfun & Write the function
 !\begin{verbatim}
   SUBROUTINE WRTFUN(STRING,IPOS,LROT,SYMBOL)
 !      Writes a PUTFUN expression
@@ -5953,7 +5953,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
 
-!\addtotable subroutine wrtlpq
+!\addtotable subroutine wrtlpq & Write a keft (
 !\begin{verbatim}
   SUBROUTINE WRTLPQ(STRING,IPOS,LINK,KOD,LOD,negmark)
 ! write a left ( or unary operator followed by (
@@ -6009,7 +6009,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
 
-!\addtotable subroutine wrtrpq
+!\addtotable subroutine wrtrpq & Write a right )
 !\begin{verbatim}
   SUBROUTINE WRTRPQ(STRING,IPOS,LINK,KOD,LOD)
 !  write a right )  but if LOD<-1 do not write (
@@ -6035,7 +6035,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
 
-!\addtotable subroutine wrtbiq
+!\addtotable subroutine wrtbiq & Write a binary operator 
 !\begin{verbatim}
   SUBROUTINE WRTBIQ(STRING,IPOS,KOD)
 ! write a binary operator
@@ -6056,7 +6056,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
 
-!\addtotable subroutine wrtdaq
+!\addtotable subroutine wrtdaq & Write a number
 !\begin{verbatim}
   SUBROUTINE WRTDAQ(STRING,IPOS,KOD,VAL,SYMBOL,negmark)
 !     write a number, if KOD<0 a whole number
@@ -6094,7 +6094,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
 
-!\addtotable subroutine cons
+!\addtotable subroutine cons & Concatinate
 !\begin{verbatim}
   SUBROUTINE CONS(STR1,IPOS,STR2)
 ! used in PUTFUN but should be replaced by //
@@ -6125,7 +6125,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
 
-!\addtotable subroutine exphlp
+!\addtotable subroutine exphlp & Provide help
 !\begin{verbatim}
   SUBROUTINE EXPHLP(PROMPT,SVAR)
 ! writes help to enter a PUTFUN expression
@@ -6160,7 +6160,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
 
-!\addtotable subroutine putprp
+!\addtotable subroutine putprp & Asking for a function
 !\begin{verbatim}
   SUBROUTINE PUTPRP(NAMN,MAXS,SYMBOL,PROMPT,ILEN)
 !...CREATES A PROMPT asking for a putfun expression with formal arguments
@@ -6197,7 +6197,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
 
-!\addtotable subroutine delfun
+!\addtotable subroutine delfun & Delete a function
 !\begin{verbatim}
   SUBROUTINE DELFUN(LROT,IWS)
 !   delete a putfun expression :: not converted to structures
@@ -6263,7 +6263,7 @@ CONTAINS
 !
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine hpcalc
+!\addtotable subroutine hpcalc & HP calculator
 !\begin{verbatim}
   SUBROUTINE HPCALC
 !...EMULATES A HP CALCULATOR ON SCREEN
@@ -6663,7 +6663,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine hphelp
+!\addtotable subroutine hphelp & Help to HP calculator
 !\begin{verbatim}
   SUBROUTINE HPHLP
 ! writes a help text for using the online HP calculator
@@ -6688,7 +6688,7 @@ CONTAINS
 !
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable subroutine winit
+!\addtotable subroutine winit & Initate integer workspace
 !\begin{verbatim}
   SUBROUTINE WINIT(NWT,NWR,IWS)
 !...INITIATES A WORKSPACE
@@ -6728,7 +6728,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
   
-!\addtotable subroutine wold
+!\addtotable subroutine wold & Read an integer workspace from file
 !\begin{verbatim}
   SUBROUTINE WOLD(FIL,NW,IWS)
 !...READS A FILE INTO A WORKSPACE. THE FILE MUST HAVE BEEN WRITTEN BY WSAVE
@@ -6758,7 +6758,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable subroutine wsave
+!\addtotable subroutine wsave & Save integer worspace to file
 !\begin{verbatim}
   SUBROUTINE WSAVE(FIL,NW,IWS)
 !...WRITES A WORKSPACE ON A FILE
@@ -6789,7 +6789,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable subroutine wpatch
+!\addtotable subroutine wpatch & Patch an integer workspace
 !\begin{verbatim}
   SUBROUTINE WPATCH(NW,IWS)
 !...ROUTINE TO PATCH A WORKSPACE
@@ -6907,7 +6907,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable subroutine wphlp
+!\addtotable subroutine wphlp & Help to patch workspace
 !\begin{verbatim}
   SUBROUTINE WPHLP(ITYP,LINE)
 !...HELP ROUTINE FOR WPATCH
@@ -6937,7 +6937,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable subroutine wrkchk
+!\addtotable subroutine wrkchk & Check consistency of workspace
 !\begin{verbatim}
   SUBROUTINE WRKCHK(LAST,NW,IWS)
 !...CHECKS THE FREE LIST IN A WORKSPACE
@@ -6988,7 +6988,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable subroutine wlist
+!\addtotable subroutine wlist & List free list in worspace
 !\begin{verbatim}
   SUBROUTINE WLIST(IWS)
 !...LISTS THE FREE AREAS
@@ -7015,7 +7015,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable subroutine wtrest
+!\addtotable subroutine wtrest & Reserve rest of workspace
 !\begin{verbatim}
   SUBROUTINE WTREST(NYB,NW,IWS)
 !...RESERVES THE LAST PART OF THE WORKSPACE
@@ -7038,7 +7038,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable subroutine wtake
+!\addtotable subroutine wtake & Reserve a record in workspace
 !\begin{verbatim}
   SUBROUTINE WTAKE(NYB,NW,IWS)
 !......RESERVS NW WORDS IN THE WORKSPACE
@@ -7109,7 +7109,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable subroutine wrels
+!\addtotable subroutine wrels & Release a record in workspace
 !\begin{verbatim}
   SUBROUTINE WRELS(IDP,NW,IWS)
 !......Returns NW words beginning from IDP to the free workspace list
@@ -7175,7 +7175,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable integer function nwch
+!\addtotable integer function nwch & Number of words to store a character
 !\begin{verbatim}
   INTEGER FUNCTION NWCH(NB)
 ! number of words to store a character with nb bytes
@@ -7194,7 +7194,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable subroutine storc
+!\addtotable subroutine storc & Store a character in workspace
 !\begin{verbatim}
   SUBROUTINE STORC(N,IWS,text)
 ! Stores a text character in an integer workspace at position N
@@ -7208,10 +7208,10 @@ CONTAINS
 ! NOTE BELOW DIMENSIONING BLEOW, maxchar=nbpw*maxequiv
 !    character (len=:), allocatable :: localtxt
 !    integer, allocatable, dimension(:) :: localint
-    character*(maxchar) localtxt,localtxt2
+    character*(maxchar) localtxt
 ! assumed 32 bit integres, 8 bits/character, 4 characters/word =nbpw
     integer llen,j,now
-    integer localint(maxequiv),localint2(maxequiv)
+    integer localint(maxequiv)
 ! equivalence can only be made between local unallocated variables
     equivalence (localtxt,localint)
 !    equivalence (localtxt2,localint2)
@@ -7241,7 +7241,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable subroutine loadc
+!\addtotable subroutine loadc & Load a character from workspace
 !\begin{verbatim}
   SUBROUTINE LOADC(N,IWS,text)
 ! copies a text from an integer workspace at position N into a character
@@ -7279,7 +7279,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable subroutine storr
+!\addtotable subroutine storr & Store a double in workspace
 !\begin{verbatim}
   SUBROUTINE STORR(N,IWS,VALUE)
 !...STORES A REAL NUMBER IN A WORKSPACE at index N
@@ -7299,13 +7299,13 @@ CONTAINS
     IWS(N+1)=JWS(2)
 !    int=jws
 !    write(*,17)value,ws,aws
-17  format('storr: ',3(1pe14.6),/10x,4i14)
+!17  format('storr: ',3(1pe14.6),/10x,4i14)
     RETURN
   END SUBROUTINE STORR
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable subroutine loadr
+!\addtotable subroutine loadr & Load a double from workspace
 !\begin{verbatim}
   SUBROUTINE LOADR(N,IWS,VALUE)
 !...LOADS A REAL NUMBER FROM A WORKSPACE at index N
@@ -7328,7 +7328,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable subroutine storrn
+!\addtotable subroutine storrn & Store N doubles in workspace
 !\begin{verbatim}
   SUBROUTINE STORRN(N,IWS,ARR)
 ! store N doubles in workspace
@@ -7359,7 +7359,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable subroutine loadrn
+!\addtotable subroutine loadrn & Load N doubles frm workspace
 !\begin{verbatim}
   SUBROUTINE LOADRN(N,IWS,ARR)
 ! load N doubles from workspace
@@ -7389,7 +7389,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable subroutine storr1
+!\addtotable subroutine storr1 & Store 1 double at current position
 !\begin{verbatim}
   SUBROUTINE STORR1(ARR,VAL)
 ! store a single double in workspace
@@ -7403,7 +7403,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable subroutine loadr1
+!\addtotable subroutine loadr1 & Load 1 double from current position
 !\begin{verbatim}
   SUBROUTINE LOADR1(ARR,VAL)
 ! load a single double from workspace
@@ -7424,7 +7424,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable integer function ixsym
+!\addtotable integer function ixsym & Index 2D array stored as upper triangle 
 !\begin{verbatim}
   integer function ixsym(ix1,ix2)
 ! calculates the storage place of value at (i,j) for a symmetrix matrix
@@ -7444,7 +7444,7 @@ CONTAINS
     return
   end function ixsym
 
-!\addtotable integer function kxsym
+!\addtotable integer function kxsym & Index 2D array stored as upper triangle
 !\begin{verbatim}
   integer function kxsym(ix1,ix2)
 ! calculates the storage place of value at (i,j) for a symmetrix matrix
@@ -7471,7 +7471,7 @@ CONTAINS
 !
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
   
-!\addtotable subroutine fxdflt
+!\addtotable subroutine fxdflt & Add file extension
 !\begin{verbatim}
   subroutine fxdflt(file,ext)
 ! add default file extention, no good as it thinks .. is an externtion
@@ -7479,18 +7479,27 @@ CONTAINS
     character file*(*),ext*(*)
 !\end{verbatim} %+
     integer kx
-    kx=index(file,'.')
-    if(kx.le.0 .or. file(kx:kx+1).eq.'..') then
-! if no single "." or if there is a ".." add default extension
-       kx=len_trim(file)
-       file(kx+1:)='.'//ext
+    if(len_trim(file).gt.0) then
+       kx=index(file,'.')
+       if(kx.le.0) then
+          kx=len_trim(file)
+          file(kx+1:)='.'//ext
+       elseif(kx.lt.len(file)) then
+          if(file(kx:kx+1).eq.'..') then
+             kx=len_trim(file)
+             file(kx+1:)='.'//ext
+          endif
+       endif
+    else
+       write(*,*)'No file name'
+       file=' '
     endif
     return
   end subroutine fxdflt
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine iniio
+!\addtotable subroutine iniio & Initiate I/O variables
 !\begin{verbatim}
   subroutine iniio
 ! initiates i/o variables, they are all global variables
@@ -7505,7 +7514,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine fisepa
+!\addtotable subroutine fisepa & Find separator
 !\begin{verbatim}
   SUBROUTINE FISEPA(STR,IP0,IP1)
 !...FINDS A SEPARATOR AFTER POSITION IP0
@@ -7531,7 +7540,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine fdmtp
+!\addtotable subroutine fdmtp & Find matching )
 !\begin{verbatim}
   SUBROUTINE FDMTP(LINE1,IP,LINE2)
 !...FINDS A MATCHING ) AFTER THAT AT IP. IP UPDATED TO POSITION AFTER )
@@ -7581,7 +7590,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable integer function kndex
+!\addtotable integer function kndex & Find substring from current position
 !\begin{verbatim}
   INTEGER FUNCTION KNDEX(LINE,IP,SS)
 ! SUBROUTINE KNDEX
@@ -7599,7 +7608,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine cpsstr
+!\addtotable subroutine cpsstr & Remove tabs and multiple spaces
 !\begin{verbatim}
   SUBROUTINE CPSSTR(STRING,LC)
 !...THIS SUBROUINE COMPRESSES STRING BY REPLACING MULTIPLE SPACES
@@ -7630,7 +7639,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-!\addtotable subroutine untab
+!\addtotable subroutine untab & Remove tab characters
 !\begin{verbatim}
   SUBROUTINE UNTAB(LINE)
 !...REMOVES ALL TABS FROM LINE. INSERTS SPACES UP TO NEXT TAB STOP

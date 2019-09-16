@@ -967,8 +967,8 @@
 860 format('set origin 0.0, 0.0 '/&
          'set size ',F8.4', ',F8.4/&
          'set xlabel "',a,'"'/'set ylabel "',a,'"'/&
-         'set label "O" at graph -0.090, -0.100 font "Garamond bold,20"'/&
-         'set label "C" at graph -0.080, -0.100 font "Garamond bold,20"'/&
+         'set label "O" at graph -0.090, -0.100 font "Garamond Bold,20"'/&
+         'set label "C" at graph -0.080, -0.100 font "Garamond Bold,20"'/&
          'set key ',a/&
          'set style line 1 lt 2 lc rgb "#000000" lw 2 pt 10'/&
          'set style line 2 lt 2 lc rgb "#4169E1" lw 2 pt 6'/&
@@ -1473,8 +1473,8 @@
 860 format('set origin 0.0, 0.0 '/&
          'set size ',F8.4', ',F8.4/&
          'set xlabel "',a,'"'/'set ylabel "',a,'"'/&
-         'set label "O" at graph -0.090, -0.100 font "Garamond bold,20"'/&
-         'set label "C" at graph -0.080, -0.100 font "Garamond bold,20"'/&
+         'set label "O" at graph -0.090, -0.100 font "Garamond Bold,20"'/&
+         'set label "C" at graph -0.080, -0.100 font "Garamond Bold,20"'/&
          'set key ',a/&
          'set style line 1 lt 2 lc rgb "#000000" lw 2 pt 10'/&
          'set style line 2 lt 2 lc rgb "#4169E1" lw 2 pt 6'/&
@@ -2379,17 +2379,17 @@
 ! THIS IS THE Y-AXIS WITH 60 degrees angle
        write(21,131)trim(pltax(2)), 0.15*xmax, 0.37*xmax
 131    format('set label "',a,'" at ',F8.4,',',F8.4,' rotate by 60 '/&
-!            'set label "O" at screen 0.130, 0.027 font "Garamond bold,20"'/&
-!            'set label "C" at screen 0.139, 0.027 font "Garamond bold,20"')
-            'set label "O" at graph -0.090, -0.100 font "Garamond bold,20"'/&
-            'set label "C" at graph -0.077, -0.100 font "Garamond bold,20"')
+!            'set label "O" at screen 0.130, 0.027 font "Garamond Bold,20"'/&
+!            'set label "C" at screen 0.139, 0.027 font "Garamond Bold,20"')
+            'set label "O" at graph -0.090, -0.100 font "Garamond Bold,20"'/&
+            'set label "C" at graph -0.077, -0.100 font "Garamond Bold,20"')
 ! we should also enforce same length of X and Y axis !!!
     else
 ! SQUARE DIAGRAM
        write(21,132)trim(pltax(2))
 132    format('set ylabel "',a,'"'/&
-            'set label "O" at graph -0.090, -0.100 font "Garamond bold,20"'/&
-            'set label "C" at graph -0.080, -0.100 font "Garamond bold,20"')
+            'set label "O" at graph -0.090, -0.100 font "Garamond Bold,20"'/&
+            'set label "C" at graph -0.080, -0.100 font "Garamond Bold,20"')
     endif
     write(21,133)
 133 format('# if the value after solid is 0 the monovariants are transparent'/&

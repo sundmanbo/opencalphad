@@ -2981,24 +2981,51 @@
 ! if this function should be evaluated at a particular equilibrium that is
 ! in position 1-5.  Extra status in position 6 and 7
 !      write(*,*)'3E read symbol: ',i,': ',text(1:ip),ip
+! Letters used for the status bits:
+! A SVNOAM a function or constant that cannot be amended
+! C SVCONST a constant that can be amended
+! D SVFDOT a dot derivative (also SVFVAL set)
+! N SVFVAL symbol evaluated only if explitly referenced)
+! X SVFEXT only evaluated for a specific equilibrium (preceeded by eq.number)
+! I SVIMPORT import value from TP function (preceeded by TP index)
+! E SVEXPORT expert value to TP function constant (preceeded by TP index)
 ! check if symbol is a constant (can be amended)
-      if(text(5:5).eq.'C') svflista(i)%status=ibset(svflista(i)%status,SVCONST)
+      if(text(5:5).eq.'C') then
+         svflista(i)%status=ibset(svflista(i)%status,SVNOAM)
+      elseif(text(5:5).eq.'C') then
+         svflista(i)%status=ibset(svflista(i)%status,SVCONST)
 ! check if symbol should only be evaluated when explicitly requested
-!      if(text(7:7).eq.'X') svflista(i)%status=ibset(svflista(i)%status,SVFVAL)
-      if(text(5:5).eq.'D') then
+      elseif(text(5:5).eq.'D') then
+! D means the symbol is a dot variable, evaluates only when explitly refered
          svflista(i)%status=ibset(svflista(i)%status,SVFDOT)
          svflista(i)%status=ibset(svflista(i)%status,SVFVAL)
+      elseif(text(5:5).eq.'V') then
+         svflista(i)%status=ibset(svflista(i)%status,SVFVAL)
       endif
-      if(text(5:5).eq.'X') svflista(i)%status=ibset(svflista(i)%status,SVFEXT)
+! extract any number before postion 5
       ip=0
-! ip incremented in getint
+! ip is incremented in getint
       call getint(text,ip,eqno)
       if(buperr.ne.0) then
          buperr=0
       else
+         if(text(5:5).eq.'X') then
 ! symbol should be evaluated at a specific equilibrium (eqno)
-         svflista(i)%status=ibset(svflista(i)%status,SVFEXT)
-         svflista(i)%eqnoval=eqno
+            svflista(i)%status=ibset(svflista(i)%status,SVFEXT)
+            svflista(i)%eqnoval=eqno
+         elseif(text(5:5).eq.'I') then
+! symbol should be imported from TP function
+            svflista(i)%status=ibset(svflista(i)%status,SVIMPORT)
+            svflista(i)%tplink=eqno
+         elseif(text(5:5).eq.'E') then
+! symbol should be exported to TP constant
+            svflista(i)%status=ibset(svflista(i)%status,SVEXPORT)
+            svflista(i)%tplink=eqno
+         else
+! a number with no meaning!
+            write(*,*)trim(text)
+100         format(' *** Warning, error reading symbol:'/a)
+         endif
       endif
    enddo
 1000 continue

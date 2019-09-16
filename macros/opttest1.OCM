@@ -121,6 +121,17 @@ l opt short
 @$ All parameters have their starting values and sum of error irrelevant
 @&
 @$----------------------------------------------------
+@$ We will use a feaure that a certain symbol must be calculated at a certain
+@$ equilibrium.  This means we cannot use parallel calculation because
+@$ the code to handle this is not yet implemented.
+@$ We must turn off parallelization
+
+set adv level n Y
+
+set bit glo 15
+
+@&
+@$----------------------------------------------------
 @$ step 3: experiments, enter equilibrium <name> Y where Y means the
 @$ following command will refer to the new equilibrium
 @$ first experimental equilibrium, will be equil 2
@@ -138,8 +149,7 @@ l eq
 @$
 @$ specify that the symbol H298 should be calculated at this equilibrium
 amend symbol H298
-y
-y
+x
 2
 
 l symb
@@ -155,6 +165,7 @@ c symb h298
 show hm h298
 
 
+@$ The value of HM and H298 is 723.1516
 @&
 @$ At this equilibrium we also provide experimental values of
 @$ S298 = SM  (integrated Cp from 0 K) and CP
@@ -168,13 +179,14 @@ c n
 l,,,
 
 
+@$ The calculated values of SM is 19.858 and CP1 2.35095
 @$----------------------------------------------------
 @&
 @$ enter a second experiment, the enthalpy difference 
 enter equil FCC2_ZB Y
 set c t=800 p=1e5 n=1 x(b)=.5
 
-enter experiment hdiff=2000:10000
+enter experiment hdiff=2000:500
 
 c n
 
@@ -184,7 +196,9 @@ c symb *
 
 show hm h298 hdiff
 
-@$ Note H298 is still the value calculated at 298.15 K
+@$ Note H298 is the value calculated at 298.15 K, 723.15164,
+@$ Current value of HM is 1840 and HDIFF 1116.8
+@$ --------------------------------------------------------------
 @&
 
 enter experiment cp1=20:dcp
@@ -197,7 +211,9 @@ c n
 
 l,,,,
 
-@$ The experiments are also listed
+@$ The experiments, prescribed and actual values are also listed
+@$ 
+@$ -------------------------------------------------------------
 @&
 l equil
 
@@ -256,7 +272,7 @@ l opt short
 
 
 @$ The total error with the start values of the coefficients is 3745
-@$ The normalized error, 750, is the total error divided by the 
+@$ The normalized error, 748.91, is the total error divided by the 
 @$ degrees of freedom.  The temperature dependence of Cp should 
 @$ normally increase with T.   Now we optimize!
 @&
@@ -268,7 +284,8 @@ opt 100
 l opt short
 
 
-@$ The sum of errors has decreased to 11.5
+@$ The total sum of errors has decreased to 11.45, the normalized to 2.29
+@$ A11 is 400.095; A12 -65.2871; A13 -0.0120393
 @$ The coefficent A11 is positive and A12 is negative as one should expect.
 @$ The negative value of A13 indicates that Cp increases with T
 @$ As already mentioned there is no experimenatal data to determine H298
@@ -323,7 +340,7 @@ new Y
 read unf ./opttest1
 
 l opt short
-
+  
 @&
 l symb
 
@@ -352,8 +369,11 @@ opt 100
 l opt short
 
 
-@$ The coefficients do not change much but total sum of errors is now 4.9
+@$ The coefficients do not change much but total sum of errors is now 4.886
+@$ and the normallized 0.97723
 @$ The calculated Cp values has increased and better fit to HDIFF
+@$ The coefficients A11 is 346.818; A12 is -56.6234; A13 is -0.0210028
+@$ The RSD are 0.114988, 0.1121 and 0.232735 respectively
 
 amend opt Y
 

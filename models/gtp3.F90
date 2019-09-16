@@ -728,15 +728,20 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
         CONSUS=0,   CONIMSUS=1,  CONVA=2,    CONQCBOND=3
 !----------------------------------------------------------------
 !-Bits in state variable functions (svflista)
-! SVFVAL symbol evaluated only explicitly (mode=1 in call) all dot derivatives
-! SVFEXT symbol value taken from equilibrium %eqnoval
-! SVCONST symbol is a constant (can be changed with AMEND)
-! SVFTPF symbol is a TP function, current value returned
-! SVFDOT symbol is a DOT function, partial derivative like cp=h.t
-! SVFNOAM symbol cannot be amended (like R, RT and T_C)
+! SVFVAL V symbol evaluated only when explicitly referenced (mode=1 in call)
+! SVFEXT X symbol value taken from equilibrium %eqnoval
+! SVCONST C symbol is a constant (can be changed with AMEND)
+! SVFTPF - bit not used, replaced by export/import
+! SVFDOT D symbol is a DOT function, like cp=h.t (also SVFVAL bit)
+! SVFNOAM N symbol cannot be amended (only R, RT and T_C)
+! SVEXPORT E symbol value exported to assessment coeff (TP constant)
+! SVIMPORT I symbol value imported from TP-function (incl assessment coeff)
+! ONLY ONE BIT CAN BE SET except for D and C+I and C+E,
+! OTHER COMBINATIONS ARE NOT ALLOWED!!
+!
    integer, parameter :: &
         SVFVAL=0,     SVFEXT=1,     SVCONST=2,     SVFTPF=3,&
-        SVFDOT=4,     SVNOAM=5
+        SVFDOT=4,     SVNOAM=5,     SVEXPORT=6,    SVIMPORT=7
 !----------------------------------------------------------------
 !-Bits in gtp_equilibrium_data record
 ! EQNOTHREAD set if equilibrium must be calculated before threading 
@@ -916,8 +921,11 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! TPOPTCON    set if optimizing value
 ! TPNOTENT    set if referenced but not entered (when reading TDB files)
 ! TPVALUE     set if evaluated only explicitly (keeping its value)
+! TPEXPORT    set if value should be exported to symbol
+! TPIMPORT    set if value should be imported from symbol (only for constants)
   integer, parameter :: &
-       TPCONST=0,    TPOPTCON=1,   TPNOTENT=2,    TPVALUE=3
+       TPCONST=0,    TPOPTCON=1,   TPNOTENT=2,    TPVALUE=3, &
+       TPEXPORT=4,   TPIMPORT=5
 !\end{verbatim}
 !-----------------------------------------------------------------
 !\begin{verbatim}
@@ -931,8 +939,14 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! limits are the low temperature limit for each range
 ! funlinks links to expression records for each range
 ! each range can have its own function, status indicate if T and P or T and V
+! nextorsymbol is initiated to next index, then possible symbol link!
 ! forcenewcalc force new calculation when optimizing variable changed
-     integer noofranges,nextfree,status,forcenewcalc
+! If bit TPIMPORT set the function must be a constant
+!    and nextorsymbol is index of symbol
+! If bit TPEXPORT set then the value of the function (not the derivatives)
+!    and nextorsymbol is index of symbol
+!     integer noofranges,nextfree,status,forcenewcalc
+     integer noofranges,nextorsymbol,status,forcenewcalc
      double precision, dimension(:), pointer :: limits
      TYPE(tpfun_expression), dimension(:), pointer :: funlinks
      double precision hightlimit
@@ -1269,6 +1283,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   TYPE gtp_tpfun_as_coeff
 ! this is a TPFUN converted to coefficents without any references to other
 ! functions.  Each function can have several T ranges and coefficents for T**n
+! USED FOR SOLGASMIX
      double precision, dimension(:), allocatable :: tbreaks
      double precision, dimension(:,:), allocatable :: coefs
      integer, dimension(:,:), allocatable :: tpows
@@ -1281,6 +1296,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! this is a temporary storage of TP functions converted to arrays of
 ! coefficients.  Allocated as an array when necessary and the index in
 ! this array is the same index as for the TPfun
+! USED FOR SOLGASMIX
      integer nranges
 !     type(gtp_tpfun_as_coeff) :: tpfuncoef
      type(gtp_tpfun_as_coeff) :: cfun
@@ -1456,9 +1472,9 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !-----------------------------------------------------------------
 !\begin{verbatim}
 ! this constant must be incremented when a change is made in gtp_putfun_lista
-  INTEGER, parameter :: gtp_putfun_lista_version=1
+  INTEGER, parameter :: gtp_putfun_lista_version=2
   TYPE gtp_putfun_lista
-! these are records for state variable functions.  The function itself
+! these are records for STATE VARIABLE FUNCTIONS.  The function itself
 ! is handelled by the putfun package.
 ! linkpnode: pointer to start node of putfun expression
 ! narg: number of symbols in the function
@@ -1470,8 +1486,12 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! eqnoval: used to specify the equilibrium the value should be taken from
 !    (for handling what is called "variables" in TC, SVFEXT set also)
 ! SVFTPF set if symbol is a TP function, eqnoval is TPFUN index
+! if SVIMPORT set then the symbol is set equal to a TP function (only value
+!     no derivatives).  TP function index is in TPLINK
+! if SVEXPORT set the the value of the symbol is copied to a TP function
+!     (must be a constant).   TP function index is in TPLINK
 ! name: name of symbol
-     integer narg,nactarg,status,eqnoval
+     integer narg,nactarg,status,eqnoval,tplink
      type(putfun_node), pointer :: linkpnode
      character name*16
 ! THIS IS OLY USED FOR CONSTANTS, VALUES ARE ALSO STORED IN CEQ%SVFUNRES

@@ -2402,7 +2402,7 @@
 ! TAFID not implemented: (Fe+2,Cr+2,Ni+1):(Va) for example ....
 ! ternary term: y_Va*(y_Cr*L;0 +y_Fe*L;1 +y_Ni*L;2)
     write(*,*)'3X unimplemented comp. dep. ternary cation interaction in liquid'
-               gx%bmperr=4343; goto 1000
+!               gx%bmperr=4343; goto 1000
             elseif(gz%intlat(1).eq.1 .and. gz%intlat(2).eq.2) then
 ! This is a reciprocal interaction, two cations, vacancy and neutral
                ivax=gz%endcon(2)

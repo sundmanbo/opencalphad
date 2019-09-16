@@ -1219,7 +1219,7 @@
 !   endif
    if(test_phase_status_bit(iph,PHEXCB)) then
 ! crystalline phase with charged endmembers
-      write(*,*)'3Y charged grid ngg: ',ngg
+!      write(*,*)'3Y charged grid ngg: ',ngg
       call generate_charged_grid(mode,iph,ngg,nrel,xarr,garr,ny,yarr,gmax,ceq)
       goto 1000
    elseif(test_phase_status_bit(iph,PHIONLIQ)) then
@@ -4427,6 +4427,7 @@
 !         write(*,*)'3Y notuse 2: ',kp,notuse(kp)
          if(notuse(kp).ne.0) cycle secondgp
          sameph: if(iphl(jp).eq.iphl(kp)) then
+            gdf=zero
             iph=iphl(jp)
             lokph=phases(iph)
             if(btest(phlista(lokph)%status1,PHID)) then

@@ -3261,7 +3261,7 @@
 !      write(*,*)'3F setting explicit bit: ',SVFDOT
 !   endif
    else
-! this created a crash when enetering a dot derivative, only notmal functions
+! this created a crash when entering a dot derivative, only notmal functions
 ! there seems to be a problem that already existing state variable functions
 ! are not evaluated so they give a correct value
       call evaluate_all_svfun_old(-1,ceq)
@@ -3271,6 +3271,9 @@
          gx%bmperr=0
       endif
    endif
+! If a function is entered that cannot be calculated we get values such as NaN 
+!   ceq%svfunres(nsvfun)=zero
+!   write(*,*)'3F store zero in svfunres',nsvfun,ceq%svfunres(nsvfun)
 1000 continue
 ! NOTE eqnoval should be zeroed
 ! NOTE svfval should be set if only calculated when explicitly referenced
@@ -3338,6 +3341,8 @@
 !   write(*,*)'3F: store_putfun ',nsvfun
    nsvfun=nsvfun+1
    svflista(nsvfun)%status=0
+   svflista(nsvfun)%tplink=0
+   svflista(nsvfun)%eqnoval=0
    if(nsymb.gt.0) then
       allocate(svflista(nsvfun)%formal_arguments(10,nsymb))
       idot=10
@@ -3534,34 +3539,40 @@
       endif
       if(jt.lt.svflista(lrot)%narg) goto 100
 500 continue
-! add special information
+! add special information, first fill with blanks
    text(ipos:)=' '
    if(svflista(lrot)%eqnoval.gt.0) then
 ! symbol should only be evaluated in equilibrium EQNOVAL
-!      call wriint(text,js,svflista(lrot)%eqnoval)
       write(text(ipos:ipos+3),470)svflista(lrot)%eqnoval
 470   format(i4)
+   elseif(svflista(lrot)%tplink.gt.0) then
+! symbol is imported from or exported to TP function
+      write(text(ipos:ipos+3),470)svflista(lrot)%tplink
    endif
    js=ipos+4
    ipos=ipos+7
 ! Mark with a letter in position 5!
-   if(btest(svflista(lrot)%status,SVFVAL)) then
-! symbol can only be evaluated explicitly (and its value can be amended)
-      text(js:js)='F'
-   endif
-! Mark with a letter in position 5!
-   if(btest(svflista(lrot)%status,SVCONST)) then
+   if(btest(svflista(lrot)%status,SVNOAM)) then
+! symbol must not be amended (for R, RT and T_C)
+      text(js:js)='N'
+   elseif(btest(svflista(lrot)%status,SVCONST)) then
 ! symbol is a constant (can be amended)
-!      text(js:js)='C'; js=js+1
       text(js:js)='C'
-   endif
-   if(btest(svflista(lrot)%status,SVFDOT)) then
-! symbol calculated only when explicitly referenced
+   elseif(btest(svflista(lrot)%status,SVFDOT)) then
+! symbol is a dot derivative calculated only when explicitly referenced
       text(js:js)='D'
-   endif
-   if(btest(svflista(lrot)%status,SVFEXT)) then
-! symbol is specific for an equilibrium
+   elseif(btest(svflista(lrot)%status,SVFVAL)) then
+! symbol calculated only when explicitly referenced
+      text(js:js)='V'
+   elseif(btest(svflista(lrot)%status,SVFEXT)) then
+! symbol evaluated for an equilibrium, the equilibrium number already written
       text(js:js)='X'
+   elseif(btest(svflista(lrot)%status,SVEXPORT)) then
+! symbol imported from TP function, function index is specified
+      text(js:js)='E'
+   elseif(btest(svflista(lrot)%status,SVIMPORT)) then
+! symbol exported to a TP function (assess coeff), function index is specified
+      text(js:js)='I'
    endif
 ! name and expression
 !   kl=len_trim(svflista(lrot)%name)

@@ -312,7 +312,7 @@ contains
 !-------------------
 ! subsubsubcommands to PHASE ADDITION
     character (len=16), dimension(naddph) :: caddph=&
-         ['MAGNETIC_CONTRIB','QUIT            ','                ',&
+         ['MAGNETIC_CONTRIB','QUIT            ','GADDITION       ',&
          'TWOSTATE_LIQUID ','SCHOTTKY_ANOMALY','                ',&
          'LOWT_CP_MODEL   ','                ','                ',&
          'ELASTIC_MODEL_1 ','                ','SMOOTH_CP_STEP  ']
@@ -335,7 +335,7 @@ contains
 !        123456789.123456---123456789.123456---123456789.123456
 ! subsubcommands to SET ADVANCED
     character (len=16), dimension(ncadv) :: cadv=&
-         ['EQUILIB_TRANSFER','QUIT            ','                ',&
+         ['EQUILIB_TRANSFER','QUIT            ','SYMBOL          ',&
           'GRID_DENSITY    ','SMALL_GRID_ONOFF','MAP_SPECIAL     ',&
           'GLOBAL_MIN_ONOFF','OPEN_POPUP_OFF  ','WORKING_DIRECTRY',&
           'HELP_POPUP_OFF  ','EET_EXTRAPOL    ','LEVEL           ',&
@@ -812,57 +812,98 @@ contains
           do svss=1,nosvf()
              if(name1(1:16).eq.svflista(svss)%name) goto 1020
           enddo
-          write(kou,*)'No such symbol'
-          goto 100
+          write(kou,*)'No such symbol'; goto 100
 1020      continue
-          if(btest(svflista(svss)%status,SVNOAM) .or. &
-               btest(svflista(svss)%status,SVFDOT)) then
-             write(kou,1021)trim(svflista(svss)%name); goto 100
-1021         format('Symbol ',a,' cannot be amended')
+          if(svflista(svss)%status.ne.0) then
+! if any bit except SVCONST set we cannot amend it
+             if(.not.btest(svflista(svss)%status,SVCONST)) then
+                write(*,*)'Symbol is not amendable'; goto 100
+             endif
           endif
-          if(btest(svflista(svss)%status,SVCONST) .or. &
-               btest(svflista(svss)%status,SVFVAL)) then
+! No bits or the SVCONST bit is set, it is amendable, get its value
+          actual_arg=' '
+          xxx=evaluate_svfun_old(svss,actual_arg,1,ceq)
+          if(btest(svflista(svss)%status,SVCONST)) then
 ! symbol is a numeric constant or evaluated explicitly, we can change its value
-             actual_arg=' '
-             xxx=evaluate_svfun_old(svss,actual_arg,1,ceq)
-             call gparrdx('Give new value: ',cline,last,xxy,xxx,'?Amend symbol')
-! we can use this also for symbols with SVFVAL set??
 ! value must be set in all equilibria ??
-             call set_putfun_constant(svss,xxy)
-             goto 100
+             call gparrdx('Give new value: ',cline,last,xxy,xxx,'?Amend symbol')
+             if(buperr.eq.0) then
+                call set_putfun_constant(svss,xxy)
+                goto 100
+             else
+! we want to amend something else
+                buperr=0
+             endif
           endif
-! this symbol is only evaluated explicity.  It can have its value changed
-!             call caparrd('New value for the symbol: ',cline,last,??
-!             write(*,*)'SVFVAL bit set, Assign new value'
+! Now we can set one special bit! But first clear input line
+          last=len(cline)
+          write(kou,1021)
+1021      format('You can specify:'/&
+               ' V for a symbol evaluated only when referenced explicitly'/&
+               ' X for a symbol to be evaluated at a particular equilibrium')
+! C is set imedeately, E and I are handelled by SET ADVANCED SYMBOL
+!1021      format('You can specify:'/' C for a symbol that is constant'/&
+!               ' V for a symbol evaluated only when referenced explicitly'/&
+!               ' X for a symbol to be evaluated at a particular equilibrium'/&
+!               ' E for a symbol which value is EXPORTED to an assess.coeff.'/&
+!               ' I for a symbol which value is IMPORTED from a TP function')
+!
+!          call gparcdx('Please specify C, V, X, E or I',&
+          call gparcdx('Please specify V or X',&
+               cline,last,1,ch1,'C','?Amend symbol')
+          call capson(ch1)
+!          if(.not.allocated(firstash%eqlista) .and. ch1.eq.'E') then
+!             write(kou,*)'Not allowed as there are no assessment coefficients'
 !             goto 100
-!          endif
-          call gparcdx('Should the symbol be evaluated explicitly only?',&
-               cline,last,1,ch1,'N','?Amend eval explicit')
-          if(ch1.eq.'y' .or. ch1.eq.'Y') then
-! Set symbol to be evaluated only when explicitly 
+!          elseif(ch1.eq.'C') then
+! this moved to SET ADVANCED SYMBOL as symbol with "C" never comes here
+! Set the SVCONST bit and allow setting a new value at the same time
+!             svflista(svss)%status=ibset(svflista(svss)%status,SVCONST)
+!            call gparrdx('Give new value: ',cline,last,xxy,xxx,'?AMEND SYMBOL')
+!             call set_putfun_constant(svss,xxy)
+!             goto 100
+          if(ch1.eq.'V') then
+! If V then set bit to evaluate symbol only when explicitly referenced
              svflista(svss)%status=ibset(svflista(svss)%status,SVFVAL)
-             write(*,'(a)')'Expression kept but its value can be amended'
-          endif
-! A symbol can be set to be evaluated in just a particular equilibrium
-! like H298 for experimental data on H(T)-H298
+!          elseif(ch1.eq.'E') then
+! if E then export symbol to a TP function constant MOVED TO SET ADVANCED SYMB
+!             call gparix('Coefficient index?',cline,last,jp,0,&
+!                  '?EXPORT SYMBOL')
+!             if(jp.le.0 .or. jp.gt.size(firstash%coeffvalues)) then
+!                write(*,*)'No such coefficent'
+!             else
+! set bits in both symbol and coefficient record
+! Whever the coefficient change  copy its value to the symbol
+!                write(*,*)'Not implemented EXPORT yet'
+!             endif
+          elseif(ch1.eq.'X') then
+! if X then evaluate symbol only at specific equilibrium?
+! For example H298 for experimental data on H(T)-H298
 ! BEWARE: if equilibria are calculated in threads this must be calculated
 ! before the parallelization, testing bit EQNOTHREAD
-          call gparcdx(&
-               'Should the symbol be evaluated at a specific equilibrium?',&
-               cline,last,1,ch1,'N','?Amend eval at equilib')
-          if(ch1.eq.'y' .or. ch1.eq.'Y') then
              ll=ceq%eqno
              call gparidx('Specify equilibrium number:',cline,last,&
-                  neqdef,ll,'?Amend eval at equilib')
+                  neqdef,ll,'?AMEND EVALUATE AT EQUILIB')
+! UNFINISHED! Check equilibrium exist or only allow current?
+             if(neqdef.le.1 .or. neqdef.gt.noeq()) then
+                write(*,*)'No such equilibrium'; goto 100
+             endif
              svflista(svss)%status=ibset(svflista(svss)%status,SVFEXT)
              svflista(svss)%eqnoval=neqdef
 ! set status bit that this equilibrium must be calculated before parallel calc
              ceq%status=ibset(ceq%status,EQNOTHREAD)
+             write(*,*)'The value of this symbol calculated in equilibrium: ',&
+                  neqdef
+             goto 100
+!          elseif(ch1.eq.'I') then
+! if I then IMPORT symbol value from a TP function? MOVED TO SET ADVANCED SYMB
+!             call gparcx('TP function name?',cline,last,1,name1,' ',&
+!                  '?IMPORT symbol')
+! set bits in both symbol and coefficient record
+! Whever the symbol is evaluated explicitly copy its value to coefficient
+!             write(*,*)'Not implemented yet'
           else
-             svflista(svss)%status=ibclr(svflista(svss)%status,SVFEXT)
-             svflista(svss)%eqnoval=0
-! this bit will not be cleared, there may be other threadprotected symbols
-!           ceq%status=ibclr(ceq%status,EQNOTHREAD)
+             write(kou,*)'Illegal letter "',ch1,'"'
           endif
 !-------------------------
        case(2) ! amend element
@@ -921,7 +962,7 @@ contains
              kom4=submenu('Addition of',cline,last,caddph,naddph,1,&
                   '?TOPHLP')
 !          write(*,*)'Amend phase addition: ',kom4
-!         ['MAGNETIC_CONTRIB','QUIT            ','                ',&
+!         ['MAGNETIC_CONTRIB','QUIT            ','GADDITION      ',&
 !         'TWOSTATE_LIQUID ','SCHOTTKY_ANOMALY','                ',&
 !         'LOWT_CP_MODEL   ','                ','                ',&
 !         'ELASTIC_MODEL_A ','QUASICHEM_MODEL ','FCC_CVM_TETRAHDR']
@@ -967,8 +1008,22 @@ contains
              case(2) ! QUIT
                 goto 100
 !....................................................
-             case(3) ! not used
-                continue
+             case(3) ! amend phase ... addition gaddition
+! this is the same as the command amend phase ... gaddition !!!
+                lokcs=phasetuple(iph)%lokvares
+                if(allocated(ceq%phase_varres(lokcs)%addg)) then
+                   xxy=ceq%phase_varres(lokcs)%addg(1)
+                else
+! maybe we will use more terms later ....
+                   allocate(ceq%phase_varres(lokcs)%addg(1))
+                endif
+!\hypertarget{Amend phase Gaddition}{}
+                call gparrdx('Addition to G in J/FU (formula units): ',&
+                     cline,last,xxx,xxy,'?Amend gaddition')
+                ceq%phase_varres(lokcs)%addg(1)=xxx
+! set bit that this should be calculated
+                ceq%phase_varres(lokcs)%status2=&
+                     ibset(ceq%phase_varres(lokcs)%status2,CSADDG)
 !....................................................
              case(4) ! amend phase <name> addition twostate_liquid model
                 call add_addrecord(lokph,' ',twostatemodel1)
@@ -1090,8 +1145,9 @@ contains
 !....................................................
           case(10) ! moved
 !....................................................
-          case(11) ! AMEND PHASE GADDITION
+          case(11) ! AMEND PHASE ... GADDITION
 ! add a constant term to G, value in J/FU
+! This is the same as AMEND PHASE ... ADDITION GADDITION
              lokcs=phasetuple(iph)%lokvares
              if(allocated(ceq%phase_varres(lokcs)%addg)) then
                 xxy=ceq%phase_varres(lokcs)%addg(1)
@@ -1714,7 +1770,7 @@ contains
 !             write(*,*)'UI: calculating the requested function!'
              xxx=meq_evaluate_svfun(istv,actual_arg,mode,ceq)
              if(gx%bmperr.ne.0) goto 990
-!             write(*,2047)name1(1:len_trim(name1)),xxx
+             write(*,2047)name1(1:len_trim(name1)),xxx
 2047         format(a,'= ',1pe16.8)
           endif
           if(gx%bmperr.ne.0) goto 990
@@ -2117,7 +2173,7 @@ contains
 ! default is DENSE_GRID
 ! subsubcommands to SET ADVANCED
 !    character (len=16), dimension(ncadv) :: cadv=&
-!         ['EQUILIB_TRANSFER','QUIT            ','                ',&
+!         ['EQUILIB_TRANSFER','QUIT            ','SYMBOL          ',&
 !          'GRID_DENSITY    ','SMALL_GRID_ONOFF','MAP_SPECIAL     ',&
 !          'GLOBAL_MIN_ONOFF','OPEN_POPUP_OFF  ','WORKING_DIRECTRY',&
 !          'HELP_POPUP_OFF  ','EET_EXTRAPOL    ','LEVEL           ',&
@@ -2166,8 +2222,51 @@ contains
           case(2) ! quit
              continue
 !.................................................................
-          case(3) ! SET ADVANCED unused
-             write(*,*)'Not implemented'
+          case(3) ! SET ADVANCED SYMBOL to connect with TP constants
+! Set the SVCONST bit and allow setting a new value at the same time
+             if(.not.allocated(firstash%eqlista)) then
+                write(kou,*)'Not allowed as no assessment coefficients'
+                goto 100
+             endif
+             call gparcx('Symbol name: ',cline,last,1,name1,' ',&
+                  '?SET ADV SYMBOL')
+             call capson(name1)
+             do svss=1,nosvf()
+                if(name1(1:16).eq.svflista(svss)%name) exit
+             enddo
+             if(svss.gt.nosvf()) then
+                write(kou,*)'No such symbol'; goto 100
+             endif
+             if(.not.btest(svflista(svss)%status,SVCONST)) then
+                write(kou,*)'Can only be used for constants'; goto 100
+             endif
+! Here the symbols can be set to be EXPORTED or EXPORTED to assess coeff
+             call gparix('Coefficient index, 0-99?',cline,last,jp,0,&
+                  '?EXPORT SYMBOL')
+             if(jp.le.0 .or. jp.gt.size(firstash%coeffvalues)) then
+                write(*,*)'No such coefficent'; goto 100
+             endif
+! nv is index to TP function for coefficient
+             nv=firstash%coeffindex(jp)
+             call gparcdx('Export or Import?',cline,last,1,ch1,'E',&
+                  'EXPORT SYMBOL')
+             if(ch1.eq.'E') then
+! UNFINISHED
+                svflista(svss)%status=ibset(svflista(svss)%status,SVEXPORT)
+! use firstash% record to handle value transfer                
+! probably more firstash variables should be set
+                firstash%coeffvalues(jp)=svflista(svss)%svfv
+! trying to set bit and copy value to TPFUN
+! impossible as tpfuns is private to general_thermodynamic_package !!
+!                tpfuns(nv)%status=ibset(tpfuns(nv)%status,TPEXPORT)
+! save the index to coefficient in %eqnoval !!
+                svflista(svss)%eqnoval=jp
+             else
+! UNFINISHED this must also set a bit in the TP function/assessment record
+                svflista(svss)%status=ibset(svflista(svss)%status,SVIMPORT)
+! trying to set bit and copy value to TPFUN
+!                tpfuns(nv)%status=ibset(tpfuns(nv)%status,TPIMPORT)
+             endif
 !.................................................................
           case(4) ! SET ADVANCED GRID_DENSITY
              call gparidx('Level: ',cline,last,ll,1,'?Set adv grid-density')
@@ -3470,11 +3569,15 @@ contains
 303       format('Equilibrium number is ',i3)
           call gparcdx('Select this equilibrium: ',cline,last,1,ch1,'Y',&
                '?Enter equilibrium')
-          if(ch1.eq.'Y' .or. ch1.eq.'y') then
+          if(yeschk(ch1)) then
              call selecteq(ieq,ceq)
+! COPY current values of entered symbols from first equilibrium
+             ceq%svfunres=firsteq%svfunres
           endif
+!          write(*,*)'pmon: ',ceq%eqno,ieq
 !---------------------------------------------------------------
        case(11) ! enter symbol (for state variables expressions)
+! several questions asked inside this call
           call enter_svfun(cline,last,ceq)
           if(gx%bmperr.ne.0) goto 990
 !---------------------------------------------------------------
@@ -3698,6 +3801,7 @@ contains
 ! SHOW is the same as LIST STATE_VARIABLES including also CALC SYMBOL !!
           kom2=4
        else
+! default for LIST is RESULT, number 12
           kom2=submenu(cbas(kom),cline,last,clist,nclist,12,'?TOPHLP')
           if(kom2.le.0) goto 100
        endif
@@ -4235,10 +4339,15 @@ contains
           kom2=submenu('List ',cline,last,optopt,noptopt,1,'?TOPHLP')
 ! allow output file
           lut=optionsset%lut
-          write(lut,600)optres(1:4),optres(5:6),optres(7:8),&
-               name1(1:2),name1(3:4),err0(3)
-600       format(/'Optimization results at ',a4,'.',a2,'.',a2,&
-               ':',a2,'h',a2,', normalized sum of error: ',1pe12.4)
+! if errs not allocated no optimization made
+          if(allocated(errs)) then
+             write(lut,600)optres(1:4),optres(5:6),optres(7:8),&
+                  name1(1:2),name1(3:4),err0(3)
+600          format(/'Optimization results at ',a4,'.',a2,'.',a2,&
+                  ':',a2,'h',a2,', normalized sum of error: ',1pe12.4)
+          else
+             write(*,*)'No current optimization'
+          endif
           listopt: SELECT CASE(kom2)
 !..........................................................
              case DEFAULT
@@ -4252,8 +4361,8 @@ contains
 !                endif
                 if(allocated(errs)) then
                    call listoptshort(lut,mexp,nvcoeff,errs)
-                else
-                   write(kou,*)'No current optimization'
+!                else
+!                   write(kou,*)'No current optimization'
                 endif
                 call listoptcoeff(mexp,err0,.FALSE.,lut)
 !...........................................................

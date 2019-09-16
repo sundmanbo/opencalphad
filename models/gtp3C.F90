@@ -1614,7 +1614,7 @@
 ! This subroutine is independent of current equilibrium, use firsteq
 !   write(lut,10)phname,phlista(lokph)%status1,special,&
 !        nsl,(phlista(lokph)%sites(ll),ll=1,nsl)
-   lokcs=phlista(lokph)%linktocs(ics)
+  lokcs=phlista(lokph)%linktocs(ics)
    write(lut,10)phname,phlista(lokph)%status1,special,&
         nsl,(firsteq%phase_varres(lokcs)%sites(ll),ll=1,nsl)
 10  format(/'Phase: ',A,', Status: ',Z8,2x,a/'  Subl:',I3,10(1x,F7.3))
@@ -1648,6 +1648,11 @@
       addrec=>addrec%nextadd
    enddo lastadd
 60 continue
+! A fixed addition?
+   if(btest(firsteq%phase_varres(lokcs)%status2,CSADDG)) then
+      write(lut,'(a,1pe14.6)')'  + Addition to G in J/FU: ',&
+           firsteq%phase_varres(lokcs)%addg(1)
+   endif
 ! parameters for end members using site fractions
    if(btest(phlista(lokph)%status1,PHMFS)) then
       subref=.FALSE.

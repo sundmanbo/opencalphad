@@ -45,14 +45,15 @@
 ! create free list for named functions records
    freetpfun=1
    do ifri=1,nf-1
-      tpfuns(ifri)%nextfree=ifri+1
+      tpfuns(ifri)%nextorsymbol=ifri+1
       tpfuns(ifri)%noofranges=0
       tpfuns(ifri)%status=0
       tpfuns(ifri)%forcenewcalc=0
 ! should also be initiallized ??
 !      tpres(ifri)%forcenewcalc=0
    enddo
-   tpfuns(nf)%nextfree=-1
+! The last TP function has no next link
+   tpfuns(nf)%nextorsymbol=-1
    return
  END SUBROUTINE tpfun_init
 
@@ -871,10 +872,10 @@
    else
       lrot=freetpfun
 !   write(*,*)'ct1mfn: ',freetpfun
-!   write(*,*)'ct1mfn: ',lrot,tpfuns(lrot)%nextfree
+!   write(*,*)'ct1mfn: ',lrot,tpfuns(lrot)%nextorsymbol
       if(lrot.gt.0) then
-         freetpfun=tpfuns(lrot)%nextfree
-         tpfuns(lrot)%nextfree=0
+         freetpfun=tpfuns(lrot)%nextorsymbol
+         tpfuns(lrot)%nextorsymbol=0
       else
 ! no more tpfun records
          write(*,*)'No more space for TP functions: ',size(tpfuns)
@@ -1969,8 +1970,8 @@
    character name*16
    lrot=freetpfun
    if(lrot.gt.0) then
-      freetpfun=tpfuns(lrot)%nextfree
-      tpfuns(lrot)%nextfree=0
+      freetpfun=tpfuns(lrot)%nextorsymbol
+      tpfuns(lrot)%nextorsymbol=0
    else
       write(*,*)'No space for TP functions: ',size(tpfuns)
       gx%bmperr=4014; goto 1000
@@ -2242,8 +2243,8 @@
       if(lrot.eq.0) then
          gx%bmperr=4104; goto 1000
       else
-         freetpfun=tpfuns(lrot)%nextfree
-         tpfuns(lrot)%nextfree=0
+         freetpfun=tpfuns(lrot)%nextorsymbol
+         tpfuns(lrot)%nextorsymbol=0
       endif
       allocate(tpfuns(lrot)%limits(1))
       allocate(tpfuns(lrot)%funlinks(1))
@@ -2336,8 +2337,8 @@
    if(lrot.eq.0) then
       gx%bmperr=4104; goto 1000
    else
-      freetpfun=tpfuns(lrot)%nextfree
-      tpfuns(lrot)%nextfree=0
+      freetpfun=tpfuns(lrot)%nextorsymbol
+      tpfuns(lrot)%nextorsymbol=0
    endif
    allocate(tpfuns(lrot)%limits(1))
    allocate(tpfuns(lrot)%funlinks(1))
@@ -2532,7 +2533,7 @@
       iws(lfun+1)=tpfuns(jfun)%noofranges
       iws(lfun+2)=tpfuns(jfun)%status
 ! what is nextfree??
-      iws(lfun+3)=tpfuns(jfun)%nextfree
+      iws(lfun+3)=tpfuns(jfun)%nextorsymbol
       call storc(lfun+4,iws,tpfuns(jfun)%symbol)
       displace=4+nwch(16)
       call storrn(nr,iws(lfun+displace),tpfuns(jfun)%limits)
@@ -2592,7 +2593,7 @@
       nr=iws(lfun+1)
       tpfuns(jfun)%noofranges=nr
       tpfuns(jfun)%status=iws(lfun+2)
-      tpfuns(jfun)%nextfree=iws(lfun+3)
+      tpfuns(jfun)%nextorsymbol=iws(lfun+3)
       call loadc(lfun+4,iws,tpfuns(jfun)%symbol)
    else
       write(*,*)'not a function: ',lfun,jfun

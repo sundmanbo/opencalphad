@@ -64,6 +64,8 @@ MODULE MINPACK
 ! EVEN IF ANY OF SAID PARTIES HAS BEEN WARNED OF THE
 ! POSSIBILITY OF SUCH LOSS OR DAMAGES.
 !
+  implicit none
+  double precision, parameter, private :: zero=0.0d0
 !
 contains
 !
@@ -74,6 +76,7 @@ contains
 !  subroutine lmdif1(m,n,x,fvec,tol,info,nfev,iwa,wa,lwa,fjac,err0)
 ! call modified by Bo Sundman 2017
 !  subroutine lmdif1(fcn,m,n,x,fvec,tol,info,iwa,wa,lwa)
+    implicit none
     integer m,n,info,lwa
     integer iwa(n)
     double precision tol
@@ -218,6 +221,7 @@ contains
 !                mode,factor,nprint,info,nfev,wa(mp5n+1),m,iwa, &
 !                wa(n+1),wa(2*n+1),wa(3*n+1),wa(4*n+1),wa(5*n+1))
 ! remove fcn and reduce number of arguments and linker chokes ...
+!    write(*,*)'minpack: lmdif1 call lmdif',m,n
     call lmdif(fcn,m,n,x,fvec,tol,maxfev, &
                 mode,factor,nprint,info,nfev,fjac,iwa,err0)
 !    call lmdif(m,n,x,fvec,tol,maxfev, &
@@ -235,6 +239,7 @@ contains
 
 !  subroutine fdjac2(m,n,x,fvec,fjac,ldfjac,iflag,epsfcn,wa)
   subroutine fdjac2(fcn,m,n,x,fvec,fjac,ldfjac,iflag,epsfcn,wa)
+    implicit none
     integer m,n,ldfjac,iflag
     double precision epsfcn
     double precision x(n),fvec(m),fjac(ldfjac,n),wa(m)
@@ -362,6 +367,7 @@ contains
 !  subroutine lmdif(fcn,m,n,x,fvec,ftol,xtol,gtol,maxfev,epsfcn,diag, &
 !       mode,factor,nprint,info,nfev,fjac,ldfjac, &
 !       ipvt,qtf,wa1,wa2,wa3,wa4)
+    implicit none
     integer m,n,maxfev,mode,nprint,info,nfev,ldfjac
     integer ipvt(n)
     double precision ftol,xtol,gtol,epsfcn,factor,err0(*)
@@ -565,7 +571,7 @@ contains
     double precision :: one=1.0D0
     double precision :: p1=1.0D-1,p5=5.0D-1,p25=2.5D-1,p75=7.5D-1,p0001=1.0D-4
 !
-!    write(*,*)'in lmdif A: ',n,m
+!    write(*,*)'minpack: in lmdif A: ',n,m
 ! replace removed arguments
     ldfjac=m
     ftol=xtol
@@ -590,7 +596,8 @@ contains
 !
 !     check the input parameters for errors.
 !
-!    write(*,*)'In lmdif C: maxfev=',maxfev ! modified to run once if maxfev=0
+! modified to run once if maxfev=0 (dry run)
+!    write(*,*)'In lmdif C: maxfev=',maxfev,m,n
     if (n .le. 0 .or. m .lt. n .or. ldfjac .lt. m &
          .or. ftol .lt. zero .or. xtol .lt. zero .or. gtol .lt. zero &
          .or. maxfev .lt. 0 .or. factor .le. zero) go to 300
@@ -605,9 +612,9 @@ contains
 !     and calculate its norm.
 !
     iflag = 1
-!    write(*,*)'In lmdif, call to calfun'
 !    call fcn(m,n,x,fvec,iflag)             <<<<<<<<<<< original
 !    call calfun(m,n,x,fvec,iflag,nfev)
+!    write(*,*)'minpack: lmdif call fcn 1: ',n,m
     call fcn(m,n,x,fvec,iflag,nfev)
 ! calculate intial sum of errors
 !    write(*,*)'lmdif back from calfun',nfev
@@ -634,6 +641,7 @@ contains
 !        calculate the jacobian matrix.
 !
     iflag = 2
+!    write(*,*)'minpack: lmdif call fdjac2 1: ',n,m
     call fdjac2(fcn,m,n,x,fvec,fjac,ldfjac,iflag,epsfcn,wa4)
 !    call fdjac2(m,n,x,fvec,fjac,ldfjac,iflag,epsfcn,wa4)
     nfev = nfev + n
@@ -645,6 +653,7 @@ contains
     iflag = 0
     if (mod(iter-1,nprint) .eq. 0) then
 !       call calfun(m,n,x,fvec,iflag,nfev)
+!       write(*,*)'minpack: lmdif call fcn 3: ',n,m
        call fcn(m,n,x,fvec,iflag,nfev)
     endif
 !    if (mod(iter-1,nprint) .eq. 0) call fcn(m,n,x,fvec,iflag)
@@ -769,6 +778,7 @@ contains
     iflag = 1
 !    call fcn(m,n,wa2,wa4,iflag)
 !    call calfun(m,n,wa2,wa4,iflag,nfev)
+!    write(*,*)'minpack: lmdif call fcn 3: ',n,m
     call fcn(m,n,wa2,wa4,iflag,nfev)
     nfev = nfev + 1
     if (iflag .lt. 0) go to 300
@@ -872,12 +882,14 @@ contains
 !
     if (iflag .lt. 0) info = iflag
     iflag = 0
+!    write(*,*)'minpack: lmdif call fcn 4: ',n,m,info
     if (nprint .gt. 0) call fcn(m,n,x,fvec,iflag)
 !    if (nprint .gt. 0) call calfun(m,n,x,fvec,iflag,-nfev)
 !    if (nprint .gt. 0) call fcn(m,n,x,fvec,iflag,-nfev)
-! Add that calfun called once if maxprev=0 to calculate all errors
-!    if (maxprev .eq. 0) call calfun(m,n,x,fvec,1,0)
-    if (maxprev .eq. 0) call fcn(m,n,x,fvec,1,0)
+! Add that calfun called once if maxfev=0 to calculate all errors
+!    if (maxfev .eq. 0) call calfun(m,n,x,fvec,1,0)
+!    write(*,*)'minpack: lmdif call fcn 5: ',n,m,maxfev
+    if (maxfev .eq. 0) call fcn(m,n,x,fvec,1,0)
     return
 !
 !     last card of subroutine lmdif.
@@ -888,6 +900,7 @@ contains
 
   subroutine lmpar(n,r,ldr,ipvt,diag,qtb,delta,par,x,sdiag,wa1, &
        wa2)
+    implicit none
     integer n,ldr
     integer ipvt(n)
     double precision delta,par
@@ -1173,6 +1186,7 @@ contains
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
   subroutine qrsolv(n,r,ldr,ipvt,diag,qtb,x,sdiag,wa)
+    implicit none
     integer n,ldr
     integer ipvt(n)
     double precision r(ldr,n),diag(n),qtb(n),x(n),sdiag(n),wa(n)
@@ -1382,21 +1396,6 @@ contains
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!  double precision function dpmpar(i)
-! dummy ....
-!    integer i
-!    dpmpar=one
-!    return
-!  end function dpmpar
-
-!  double precision function enorm(n,x)
-! dummy ....
-!    double precision x(n)
-!    enorm=x(n)
-!    return
-!  end function enorm
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
   subroutine hybrd1(fcn,n,x,fvec,tol,info,wa,lwa)
     implicit none
@@ -2424,6 +2423,7 @@ contains
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
   subroutine qrfac(m,n,a,lda,pivot,ipvt,lipvt,rdiag,acnorm,wa)
+    implicit none
     integer m,n,lda,lipvt
     integer ipvt(lipvt)
     logical pivot
@@ -2910,6 +2910,7 @@ contains
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
   double precision function dpmpar(i)
+    implicit none
     integer i
 !     **********
 !
@@ -3090,6 +3091,7 @@ contains
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
   double precision function enorm(n,x)
+    implicit none
     integer n
     double precision x(n)
 !     **********
