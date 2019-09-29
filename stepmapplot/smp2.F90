@@ -6052,21 +6052,23 @@ CONTAINS
     ceq=>starteq
 ! collect all current phase status and set all phases suspended
     nystat=-3
+    val=zero
     do iph=1,noph()
        do ics=1,noofcs(iph)
           itup=itup+1
-!          write(*,*)'SMP ',iph,noofcs(iph),ics,itup
 !          entphcs(itup)%phaseix=iph
           entphcs(itup)%ixphase=iph
           entphcs(itup)%compset=ics
           stsphcs(itup)=test_phase_status(iph,ics,val,ceq)
+!          write(*,*)'step-sep ',iph,noofcs(iph),ics,itup,stsphcs(itup)
           if(gx%bmperr.ne.0) goto 1000
-          val=zero
+! phase status -1, 0 and 1 are all saved as 0
+          if(stsphcs(itup).ge.-1 .and. stsphcs(itup).le.1) stsphcs(itup)=0
           call change_phase_status(iph,ics,nystat,val,ceq)
           if(gx%bmperr.ne.0) goto 1000
        enddo
     enddo
-!    write(*,*)'Suspended all phases'
+!    write(*,'(a,10i3)')'Suspended all phases',stsphcs
 ! indicator if maptop allocated
 !    nullify(curtop)
     notop=0
@@ -6075,6 +6077,7 @@ CONTAINS
 !============================================================
     phaseloop: do itup=1,ntup
 ! nystat:-4 hidden, -3 suspended, -2 dormant, -1,0,1 entered, 2 fix
+!       write(*,*)'Phase ',itup,' status ',stsphcs(itup),ntup
        if(stsphcs(itup).gt.-2) then
 ! set default constitution, if none specified in the middle
 !          iph=entphcs(itup)%phaseix
@@ -6289,14 +6292,21 @@ CONTAINS
 ! Terminate but restore all phase status, even if error above
 900 continue
     val=zero
-!    write(*,*)'Restoring previous phase status'
+!    write(*,*)'SMP Trying to restoring original phase status',ntup
+! reset ceq to be starteq !! otherwise nothing is changed
+    ceq=>starteq
     do itup=1,ntup
-!       write(*,910)itup,entphcs(itup)%phase,entphcs(itup)%compset,stsphcs(itup)
+!       write(*,910)itup,entphcs(itup)%ixphase,entphcs(itup)%compset,&
+!            stsphcs(itup)
 910    format('Restoring all phase status: ',4i5)
-!       call change_phase_status(entphcs(itup)%phaseix,&
+!       call change_phtup_status(itup,stsphcs(itup),val,ceq)
        call change_phase_status(entphcs(itup)%ixphase,&
             entphcs(itup)%compset,stsphcs(itup),val,ceq)
        if(gx%bmperr.ne.0) goto 1000
+! trying to set status entered ...
+!       write(*,911)'step_sep: restored? ',itup,entphcs(itup)%ixphase,&
+!            entphcs(itup)%compset,stsphcs(itup),val
+911    format(a,3i4,i6,1pe12.4)
     enddo
 1000 continue
     return

@@ -588,14 +588,21 @@
       endif
       lokcs=phlista(lokph)%linktocs(ics)
       if(btest(ceq%phase_varres(lokcs)%status2,CSCONSUS)) then
-! some constituents suspended
-         noc=phlista(lokph)%tnooffr
-         do jl=1,phlista(lokph)%tnooffr
-            if(btest(ceq%phase_varres(lokcs)%constat(jl),CONSUS)) then
-               noc=noc-1
-            endif
-         enddo
-         noconst=noc
+! some constituents suspended ?? NOT POSSIBLE as not implemented 190923 !!!
+!         write(*,*)'3A suspended constituents!!',iph,ics,lokph,lokcs
+         write(*,*)'3A suspended constituents: ',phlista(lokph)%tnooffr,&
+              allocated(ceq%phase_varres(lokcs)%constat)
+         if(.not.allocated(ceq%phase_varres(lokcs)%constat)) then
+            noconst=phlista(lokph)%tnooffr
+         else   
+            noc=phlista(lokph)%tnooffr
+            do jl=1,phlista(lokph)%tnooffr
+               if(btest(ceq%phase_varres(lokcs)%constat(jl),CONSUS)) then
+                  noc=noc-1
+               endif
+            enddo
+            noconst=noc
+         endif
       else
          noconst=phlista(lokph)%tnooffr
       endif

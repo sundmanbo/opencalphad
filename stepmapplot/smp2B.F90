@@ -2655,7 +2655,8 @@
 ! check for monovariants (not invariant) and tieline and replace color!
     do ii=1,2*same
        if(lcolor(ii).le.0) then
-          write(*,*)'missing color in ',ii,' out of ',2*same
+          write(*,*)'missing color in ',ii,' out of ',2*same,' set to 9'
+          lcolor(ii)=9
 !       else
 !          write(*,*)'original: ',ii,lcolor(ii),trim(color(lcolor(ii)))
        endif

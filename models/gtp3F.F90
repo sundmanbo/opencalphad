@@ -3766,15 +3766,22 @@
 100 continue
       jt=jt+1
       istv=svflista(lrot)%formal_arguments(1,jt)
+!      write(*,*)'3F get argument: ',istv,lrot,svflista(lrot)%eqnoval
       if(istv.lt.0) then
-! if eqnoval nonzero it indicates from which equilibrium to get its value
-         ieq=svflista(lrot)%eqnoval
-         if(ieq.eq.0) then
-            value=ceq%svfunres(-istv)
+! evidently istv<1 can also mean this is a model parameter identifier
+! how to know?  Here only when entering the symbol?
+         if(istv.lt.-1000) then
+            write(*,*)'3F argument is model parameter identifier *** '
+            value=zero
          else
-            value=eqlista(ieq)%svfunres(-istv)
+! if eqnoval nonzero it indicates from which equilibrium to get its value
+            ieq=svflista(lrot)%eqnoval
+            if(ieq.eq.0) then
+               value=ceq%svfunres(-istv)
+            else
+               value=eqlista(ieq)%svfunres(-istv)
+            endif
          endif
-!          write(*,*)'3F evaluate_svfun symbol',ieq,value
       else
 ! the 1:10 was a new bug discovered in GNU fortran 4.7 and later
          svr=>svr2

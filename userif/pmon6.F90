@@ -64,6 +64,9 @@ contains
     character text*72,string*256,ch1*1,chz*1,selection*27,funstring*1024
     character axplot(2)*24,axplotdef(2)*24,quest*20
     character longstring*2048,optres*40
+! measure calculate carefully
+    double precision finish2,start2
+    integer endoftime,startoftime
 ! this is now declared in metlib package
 !    character workingdir*128
 ! separate file names for remembering and providing a default
@@ -202,7 +205,7 @@ contains
 !----------------------------------------------------------------
 ! here are all commands and subcommands
 !    character (len=64), dimension(6) :: oplist
-    integer, parameter :: ncbas=30,nclist=21,ncalc=12,ncent=21,ncread=6
+    integer, parameter :: ncbas=30,nclist=21,ncalc=15,ncent=21,ncread=6
     integer, parameter :: ncam1=18,ncset=27,ncadv=15,ncstat=6,ncdebug=9
     integer, parameter :: nselect=6,nlform=6,noptopt=9,nsetbit=6
     integer, parameter :: ncamph=18,naddph=12,nclph=6,nccph=6,nrej=9,nsetph=6
@@ -263,7 +266,8 @@ contains
          ['TPFUN_SYMBOLS   ','PHASE           ','NO_GLOBAL       ',&
          'TRANSITION      ','QUIT            ','GLOBAL_GRIDMIN  ',&
          'SYMBOL          ','EQUILIBRIUM     ','ALL_EQUILIBRIA  ',&
-         'WITH_CHECK_AFTER','TZERO_POINT     ','                ']
+         'WITH_CHECK_AFTER','TZERO_POINT     ','                ',&
+         'ONLY_GRIDMIN    ','BOSSES_METHOD   ','                ']
 !-------------------
 ! subcommands to CALCULATE PHASE
     character (len=16), dimension(nccph) :: ccph=&
@@ -313,7 +317,7 @@ contains
 ! subsubsubcommands to PHASE ADDITION
     character (len=16), dimension(naddph) :: caddph=&
          ['MAGNETIC_CONTRIB','QUIT            ','GADDITION       ',&
-         'TWOSTATE_LIQUID ','SCHOTTKY_ANOMALY','                ',&
+         'TWOSTATE_LIQUID ','SCHOTTKY_ANOMALY','VOLUME_MODEL1   ',&
          'LOWT_CP_MODEL   ','                ','                ',&
          'ELASTIC_MODEL_1 ','                ','SMOOTH_CP_STEP  ']
 !-------------------
@@ -338,7 +342,7 @@ contains
          ['EQUILIB_TRANSFER','QUIT            ','SYMBOL          ',&
           'GRID_DENSITY    ','SMALL_GRID_ONOFF','MAP_SPECIAL     ',&
           'GLOBAL_MIN_ONOFF','OPEN_POPUP_OFF  ','WORKING_DIRECTRY',&
-          'HELP_POPUP_OFF  ','EET_EXTRAPOL    ','LEVEL           ',&
+          'HELP_POPUP_OFF  ','EEC_METHOD      ','LEVEL           ',&
           '                ','                ','                ']
 !         123456789.123456---123456789.123456---123456789.123456
 ! subsubcommands to SET BITS
@@ -841,41 +845,13 @@ contains
 1021      format('You can specify:'/&
                ' V for a symbol evaluated only when referenced explicitly'/&
                ' X for a symbol to be evaluated at a particular equilibrium')
-! C is set imedeately, E and I are handelled by SET ADVANCED SYMBOL
-!1021      format('You can specify:'/' C for a symbol that is constant'/&
-!               ' V for a symbol evaluated only when referenced explicitly'/&
-!               ' X for a symbol to be evaluated at a particular equilibrium'/&
-!               ' E for a symbol which value is EXPORTED to an assess.coeff.'/&
-!               ' I for a symbol which value is IMPORTED from a TP function')
-!
-!          call gparcdx('Please specify C, V, X, E or I',&
+! with SET ADVANCED SYMBOL one can set EXPORT/IMPORT for assessments
           call gparcdx('Please specify V or X',&
-               cline,last,1,ch1,'C','?Amend symbol')
+               cline,last,1,ch1,'X','?Amend symbol')
           call capson(ch1)
-!          if(.not.allocated(firstash%eqlista) .and. ch1.eq.'E') then
-!             write(kou,*)'Not allowed as there are no assessment coefficients'
-!             goto 100
-!          elseif(ch1.eq.'C') then
-! this moved to SET ADVANCED SYMBOL as symbol with "C" never comes here
-! Set the SVCONST bit and allow setting a new value at the same time
-!             svflista(svss)%status=ibset(svflista(svss)%status,SVCONST)
-!            call gparrdx('Give new value: ',cline,last,xxy,xxx,'?AMEND SYMBOL')
-!             call set_putfun_constant(svss,xxy)
-!             goto 100
           if(ch1.eq.'V') then
 ! If V then set bit to evaluate symbol only when explicitly referenced
              svflista(svss)%status=ibset(svflista(svss)%status,SVFVAL)
-!          elseif(ch1.eq.'E') then
-! if E then export symbol to a TP function constant MOVED TO SET ADVANCED SYMB
-!             call gparix('Coefficient index?',cline,last,jp,0,&
-!                  '?EXPORT SYMBOL')
-!             if(jp.le.0 .or. jp.gt.size(firstash%coeffvalues)) then
-!                write(*,*)'No such coefficent'
-!             else
-! set bits in both symbol and coefficient record
-! Whever the coefficient change  copy its value to the symbol
-!                write(*,*)'Not implemented EXPORT yet'
-!             endif
           elseif(ch1.eq.'X') then
 ! if X then evaluate symbol only at specific equilibrium?
 ! For example H298 for experimental data on H(T)-H298
@@ -895,13 +871,6 @@ contains
              write(*,*)'The value of this symbol calculated in equilibrium: ',&
                   neqdef
              goto 100
-!          elseif(ch1.eq.'I') then
-! if I then IMPORT symbol value from a TP function? MOVED TO SET ADVANCED SYMB
-!             call gparcx('TP function name?',cline,last,1,name1,' ',&
-!                  '?IMPORT symbol')
-! set bits in both symbol and coefficient record
-! Whever the symbol is evaluated explicitly copy its value to coefficient
-!             write(*,*)'Not implemented yet'
           else
              write(kou,*)'Illegal letter "',ch1,'"'
           endif
@@ -963,7 +932,7 @@ contains
                   '?TOPHLP')
 !          write(*,*)'Amend phase addition: ',kom4
 !         ['MAGNETIC_CONTRIB','QUIT            ','GADDITION      ',&
-!         'TWOSTATE_LIQUID ','SCHOTTKY_ANOMALY','                ',&
+!         'TWOSTATE_LIQUID ','SCHOTTKY_ANOMALY','VOLUME_MODEL1   ',&
 !         'LOWT_CP_MODEL   ','                ','                ',&
 !         'ELASTIC_MODEL_A ','QUASICHEM_MODEL ','FCC_CVM_TETRAHDR']
 !
@@ -1037,7 +1006,10 @@ contains
                 write(*,668)
 668             format('This addition requires the TSCH and CSCH parameters')
 !....................................................
-             case(6) ! not used
+! VOLUME MODEL1
+             case(6) ! volume model1
+                call add_addrecord(lokph,' ',volmod1)
+                write(*,*)'Added volume model 1'
 !....................................................
              case(7) ! amend phase <name> LowT_CP_model
                 call add_addrecord(lokph,' ',einsteincp)
@@ -1468,6 +1440,7 @@ contains
 !         'TRANSITION      ','QUIT            ','GLOBAL_GRIDMIN  ',&
 !         'SYMBOL          ','EQUILIBRIUM     ','ALL_EQUILIBRIA  ',&
 !         'WITH_CHECK_AFTER','TZERO_POINT     ','                ']
+!         'ONLY_GRIDMIN    ','BOSSES_METHOD   ','                ']
     CASE(2)
        kom2=submenu(cbas(kom),cline,last,ccalc,ncalc,8,'?TOPHLP')
        calculate: SELECT CASE(kom2)
@@ -2039,6 +2012,61 @@ contains
           call list_conditions(kou,ceq)
 !-------------------------------------------------------
        case(12) ! not used (yet)
+!-------------------------------------------------------
+       case(13) ! Only gridmin no merge
+! extract values for mass balance calculation from conditions
+          call extract_massbalcond(ceq%tpval,xknown,totam,ceq)
+          if(gx%bmperr.ne.0) goto 990
+! debug output
+!          write(*,2101)totam,(xknown(j1),j1=1,noel())
+!2101      format('UI N&x: ',F6.3,9F8.5)
+! generate grid and find the phases and constitutions for the minimum.
+! Note: global_gridmin calculates for total 1 mole of atoms, not totam
+!          call global_gridmin(1,ceq%tpval,totam,xknown,nv,iphl,icsl,&
+! iphl is dimensioned (1:maxel), maxel=100, it is destroyed inside merge_grid ..
+!          call global_gridmin(1,ceq%tpval,xknown,nv,iphl,icsl,&
+!               aphl,nyphl,yarr,cmu,iphl,ceq)
+          temporary=.false.
+          if(.not.btest(globaldata%status,GSNOMERGE)) then
+             temporary=.true.
+             globaldata%status=ibset(globaldata%status,GSNOMERGE)
+          endif
+          call global_gridmin(1,ceq%tpval,xknown,nv,iphl,icsl,&
+               aphl,nyphl,cmu,ceq)
+          if(temporary) globaldata%status=ibclr(globaldata%status,GSNOMERGE)
+          if(gx%bmperr.ne.0) goto 990
+! In some cases "c n" converges better? if we scale with the total amount here??
+          do j1=1,nv
+             call get_phase_compset(iphl(j1),icsl(j1),lokph,lokcs)
+             ceq%phase_varres(lokcs)%amfu=totam*ceq%phase_varres(lokcs)%amfu
+          enddo
+! if set clear this bit so we can list the equilibrium
+          if(btest(ceq%status,EQNOEQCAL)) ceq%status=ibclr(ceq%status,EQNOEQCAL)
+!          write(kou,2102)nv,(iphl(j1),icsl(j1),j1=1,nv)
+! we should write phase tuples ... ?? 
+          write(kou,2102)nv,(iphl(j1),icsl(j1),j1=1,nv)
+!-------------------------------------------------------
+       case(14) ! Calculate carefully the equilibrium (bosses_method)
+! extract values for mass balance calculation from conditions
+          call system_clock(count=startoftime)
+          call cpu_time(start2)
+          call extract_massbalcond(ceq%tpval,xknown,totam,ceq)
+          if(gx%bmperr.ne.0) goto 990
+          call global_gridmin(1,ceq%tpval,xknown,nv,iphl,icsl,&
+               aphl,nyphl,cmu,ceq)
+          if(gx%bmperr.ne.0) goto 990
+! first parameter may be used to modify what is done ... 0 is default
+          call calculate_carefully(0,ceq)
+          if(gx%bmperr.ne.0) goto 990
+          call system_clock(count=endoftime)
+          call cpu_time(finish2)
+          call get_state_var_value('GS ',xxx,name1,ceq)
+          if(gx%bmperr.ne.0) gx%bmperr=0
+          write(*,654)finish2-start2,endoftime-startoftime,xxx
+654       format('Final result: ',1pe12.4,' cpu seconds, ',&
+               i7,' cc, G=',1pe15.7,' J/mol')
+!-------------------------------------------------------
+       case(15) ! not used (yet)
        END SELECT calculate
 !=================================================================
 ! SET SUBCOMMANDS
@@ -2176,7 +2204,7 @@ contains
 !         ['EQUILIB_TRANSFER','QUIT            ','SYMBOL          ',&
 !          'GRID_DENSITY    ','SMALL_GRID_ONOFF','MAP_SPECIAL     ',&
 !          'GLOBAL_MIN_ONOFF','OPEN_POPUP_OFF  ','WORKING_DIRECTRY',&
-!          'HELP_POPUP_OFF  ','EET_EXTRAPOL    ','LEVEL           ',&
+!          'HELP_POPUP_OFF  ','EEC_METHOD      ','LEVEL           ',&
 !          '                ','                ','                ']
           name1='Advanced command'
           kom3=submenu(name1,cline,last,cadv,ncadv,4,'?TOPHLP')
@@ -2380,25 +2408,22 @@ contains
                      'Error initiating html help'
              endif
 !.................................................................
-          case(11) ! SET ADVANCED EET_EXTRAPOL / HICKEL_EXTRAPOL for solids
-             call gparcdx('Turn on equi-entropy extrapolation (EET)?',&
-                  cline,last,1,ch1,'Y','?Set adv EET')
+          case(11) ! SET ADVANCED EEC_METHOD
+             call gparcdx('Turn on equi-entropy criterion (EEC)?',&
+                  cline,last,1,ch1,'Y','?Set adv EEC')
              if(ch1.eq.'Y') then
-! remove this bit for EET, use only sysparem(1) for T (as integer)
+! this but not used for EEC
 !                globaldata%status=ibset(globaldata%status,GSHICKEL)
                 call gparrdx('Low T limit?',cline,last,xxx,1.0D3,&
-                     '?Set adv EET')
-!                if(thickel.lt.one) then
+                     '?Set adv EEC')
                 if(xxx.gt.1.0D1) then
-! set_hickel_check is in minimizer/matsmin.F90
-                   call set_hickel_check(xxx)
+! set_eec_check is in minimizer/matsmin.F90
+                   call set_eec_check(xxx)
 !                   globaldata%sysreal(1)=1.0D1
                 endif
              else
-! remove the use of this bit for EET
-!                globaldata%status=ibclr(globaldata%status,GSHICKEL)
-                write(*,*)'EET extrapolation for solids turned off'
-                call set_hickel_check(zero)
+                write(*,*)'EEC method for solids turned off'
+                call set_eec_check(zero)
 !                globaldata%sysreal(1)=zero
              endif
 !.................................................................
@@ -7187,166 +7212,6 @@ contains
 !1000 continue
     return
   end subroutine ocmon_reset_options
-
-!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
-
-!\begin{verbatim}
-  subroutine listoptshort(lut,mexp,nvcoeff,errs)
-! short listing of optimizing variables and result
-    integer lut,mexp,nvcoeff
-    double precision errs(*)
-!    type(gtp_equilibrium_data), pointer :: ceq
-!\end{verbatim}
-    type(gtp_equilibrium_data), pointer :: neweq
-    integer i1,i2,j1,j2,j3,neq
-    character name1*24,line*80
-    double precision xxx,sum
-    type(gtp_condition), pointer :: experiment
-!
-! list all experiments, only possible if there are experiments
-    if(mexp.eq.0) then
-       write(lut,666)
-666    format(/'No experiments so no results'/)
-       goto 1000
-    endif
-! list experiments, mexp is number of EXPERIMENTS, not equilibria!!
-    write(lut,620)size(firstash%eqlista),mexp
-620 format(/'List of ',i5,' equilibria with ',i5,&
-         ' experimental data values'/&
-         '  No Equil name      Weight Experiment $ calculated',19x,&
-         'Error')
-    j3=0
-    allequil: do i1=1,size(firstash%eqlista)
-! skip equilibria with zero weight
-       neweq=>firstash%eqlista(i1)%p1
-       if(neweq%weight.eq.zero) cycle allequil
-       name1=neweq%eqname(1:12)
-! LOOP for all experiments for this equilibrium (maybe none??)
-       if(.not.associated(neweq%lastexperiment)) cycle allequil
-       experiment=>neweq%lastexperiment%next
-       if(.not.associated(experiment)) cycle allequil
-700    continue
-          i2=neweq%lastexperiment%seqz
-!          write(*,*)'number of experiments: ',i2
-          neq=neweq%eqno
-          do j2=1,i2
-! j1 is position in line to write experiment
-             j1=1
-             line=' '
-! this subroutine returns experiment and calculated value: "H=1000:200 $ 5000"
-             call meq_get_one_experiment(j1,line,j2,neweq)
-             j3=j3+1
-             if(neq.gt.0) then
-!                write(lut,622)neq,name1(1:12),neweq%weight,line(1:40),errs(j3)
-                write(lut,622)neq,name1(1:15),neweq%weight,line(1:40),errs(j3)
-622             format(i4,1x,a,2x,F5.2,1x,a,1x,1pe12.4)
-                neq=0
-             else
-                write(lut,623)line(1:40),errs(j3)
-623             format(28x,a,1x,1pe12.4)
-             endif
-! list the equilibrium name just for the first (or only) experiment
-!             name1=' '
-          enddo
-          experiment=>experiment%next
-!590       if(.not.associated(experiment,neweq%lastexperiment)) then
-!             experiment=>experiment%next
-!             goto 700
-          if(j2.lt.i2 .and. .not.associated(experiment)) then
-             write(*,*)'Missing experiment in equilibrium ',neweq%eqno
-             cycle allequil
-          endif
-    enddo allequil
-! list sum of squares
-    sum=zero
-    do j1=1,mexp
-       sum=sum+errs(j1)**2
-    enddo
-! same as PARROT
-    j1=mexp-nvcoeff
-    if(j1.gt.0) then
-       write(lut,621)sum,mexp,nvcoeff,j1,sum/j1
-    else
-       write(lut,621)sum,mexp,nvcoeff,0,zero
-    endif
-621 format(/'Final sum of squared errors: ',1pe16.5,&
-         ' using ',i4,' experiments and'/&
-         i3,' coefficient(s).  Degrees of freedom: ',i4,&
-         ', normalized error: ',1pe13.4/)
-1000 continue
-    return
-  end subroutine listoptshort
-
-!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
-
-!\begin{verbatim}
-  subroutine calctrans(cline,last,ceq)
-! calculate a phase transition
-    character cline*(*)
-    integer last
-    type(gtp_equilibrium_data), pointer :: ceq
-!\end
-    character name1*30
-    integer j1,iph,ics
-    double precision xxx
-    type(gtp_condition), pointer :: pcond
-    type(gtp_state_variable), pointer :: stvr
-!
-    write(kou,2090)
-2090 format('To calculate when a phase will appear/disappear',&
-          ' by releasing a condition.')
-    if(btest(ceq%status,EQNOEQCAL)) then
-       write(kou,2095)
-2095   format('You must make an equilibrium calculation before using',&
-            ' this command.')
-       goto 1000
-    endif
-    call gparcx('Phase name: ',cline,last,1,name1,' ','?Calculate transform')
-    call find_phase_by_name(name1,iph,ics)
-    if(gx%bmperr.ne.0) goto 1000
-    j1=test_phase_status(iph,ics,xxx,ceq)
-    if(j1.eq.PHFIXED) then
-       write(kou,*)'Phase status already fixed'
-       goto 1000
-    endif
-    call list_conditions(kou,ceq)
-    write(kou,2097)
-2097 format('You must release one condition, give its number')
-    call gparidx('Condition number',cline,last,j1,1,'?CALCULATE transform')
-    if(j1.le.0 .or. j1.gt.noel()+2) then
-       write(kou,*)'No such condition'
-       goto 1000
-    endif
-! this finds condition with given number
-    call locate_condition(j1,pcond,ceq)
-    if(gx%bmperr.ne.0) goto 1000
-    if(pcond%active.eq.0) then
-! the condition is active, deactivate it!
-       pcond%active=1
-    else
-       write(kou,*)'This condition is not active!'
-       goto 1000
-    endif
-! Condition released, now set the phase as fix with zero moles
-    call change_phase_status(iph,ics,PHFIXED,xxx,ceq)
-    if(gx%bmperr.ne.0) goto 1000
-! Calculate equilibrium
-    call calceq2(1,ceq)
-    if(gx%bmperr.ne.0) goto 1000
-! get the value of the released condition and set it to the new value
-    stvr=>pcond%statvar(1)
-    call state_variable_val(stvr,xxx,ceq)
-    if(gx%bmperr.ne.0) goto 1000
-    write(kou,2099)xxx
-2099 format('The transition occurs at ',1pe16.8,', set as condition')
-    pcond%prescribed=xxx
-    pcond%active=0
-! set phase back as entered and stable
-!    write(*,*)'Set phase back as entered'
-    call change_phase_status(iph,ics,PHENTSTAB,zero,ceq)
-1000 continue
-    return
-  end subroutine calctrans
 
 !\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 

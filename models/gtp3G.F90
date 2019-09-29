@@ -503,12 +503,13 @@
                else
                   slen=-ics
                endif
-               write(*,*)'3G Status changed for several composition sets: ',slen
+!             write(*,*)'3G Status changed for several composition sets: ',slen
                do ics=1,slen
                   call change_phase_status(qph,ics,nystat,val,ceq)
                   if(gx%bmperr.ne.0) goto 1000
                enddo
             else
+!               write(*,*)'3G changing status for a single phase',nystat
                call change_phase_status(qph,ics,nystat,val,ceq)
                if(gx%bmperr.ne.0) goto 1000
             endif
@@ -624,7 +625,7 @@
       lokcs=phlista(lokph)%linktocs(ics)
 ! changing FIX/ENTERED/SUSPENDED/DORMANT for a composition set
 ! input nystat:0=entered, 3=fix, 1=suspended, 2=dormant
-! bit setting: 00         01   , 10           11
+! bit setting: 00         01   , 10           11  !! BITS NO LONGER USED
 !      write(*,71)'3G new status: ',iph,ics,lokph,lokcs,nystat,phentered,val
 71    format(a,6i5,1pe14.6)
       if(nystat.eq.phentered .or. nystat.eq.phentunst .or. &
@@ -633,51 +634,24 @@
 !         write(*,*)'Setting phase as entered',nystat
 !         ceq%phase_varres(lokcs)%phstate=phentered
          ceq%phase_varres(lokcs)%phstate=nystat
-! remove use of status bits
-!z         ceq%phase_varres(lokcs)%status2=&
-!z              ibclr(ceq%phase_varres(lokcs)%status2,CSSUS)
-!z         ceq%phase_varres(lokcs)%status2=&
-!z              ibclr(ceq%phase_varres(lokcs)%status2,CSFIXDORM)
-!         ceq%phase_varres(lokcs)%amount=val
          ceq%phase_varres(lokcs)%amfu=val
          ceq%phase_varres(lokcs)%netcharge=zero
          ceq%phase_varres(lokcs)%dgm=zero
       elseif(nystat.eq.phsus) then
 ! set suspended with amount and dgm zero
          ceq%phase_varres(lokcs)%phstate=phsus
-!z         ceq%phase_varres(lokcs)%status2=&
-!z              ibset(ceq%phase_varres(lokcs)%status2,CSSUS)
-!z         ceq%phase_varres(lokcs)%status2=&
-!z              ibclr(ceq%phase_varres(lokcs)%status2,CSFIXDORM)
-!z         ceq%phase_varres(lokcs)%status2=&
-!z              ibclr(ceq%phase_varres(lokcs)%status2,CSSTABLE)
-!         ceq%phase_varres(lokcs)%amount=zero
          ceq%phase_varres(lokcs)%amfu=zero
          ceq%phase_varres(lokcs)%netcharge=zero
          ceq%phase_varres(lokcs)%dgm=zero
       elseif(nystat.eq.phdorm) then
 ! set dormant with amount and dgm zero
          ceq%phase_varres(lokcs)%phstate=phdorm
-!z         ceq%phase_varres(lokcs)%status2=&
-!z              ibset(ceq%phase_varres(lokcs)%status2,CSSUS)
-!z         ceq%phase_varres(lokcs)%status2=&
-!z              ibset(ceq%phase_varres(lokcs)%status2,CSFIXDORM)
-!z         ceq%phase_varres(lokcs)%status2=&
-!z              ibclr(ceq%phase_varres(lokcs)%status2,CSSTABLE)
          ceq%phase_varres(lokcs)%amfu=zero
          ceq%phase_varres(lokcs)%netcharge=zero
          ceq%phase_varres(lokcs)%dgm=zero
       elseif(nystat.eq.phfixed) then
 ! to allow MAPPHASEFIX=3
-!      elseif(nystat.ge.phfixed) then
-! set fix with amount val
-!         write(*,*)'Setting phase as fix'
-!         if(nystat.eq.3) write(*,*)'Phase set mapphasefix'
          ceq%phase_varres(lokcs)%phstate=phfixed
-!z         ceq%phase_varres(lokcs)%status2=&
-!z              ibclr(ceq%phase_varres(lokcs)%status2,CSSUS)
-!z         ceq%phase_varres(lokcs)%status2=&
-!z              ibset(ceq%phase_varres(lokcs)%status2,CSFIXDORM)
          ceq%phase_varres(lokcs)%amfu=val
          ceq%phase_varres(lokcs)%netcharge=zero
          ceq%phase_varres(lokcs)%dgm=zero

@@ -13,31 +13,80 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2019.09.30 OC version 5.053: A new command to calculate the
+equilibrium for a system with many components and phases which has
+convergence problem: CALCULATE CAREFULLY (or c c).  This command
+requires that the grid minimizer can be used, i.e condions on T, P and
+the amounts or fractions of components only because it will first use
+the gridminimizer.  Then it will suspend all phases except those
+selected by the gridminimizer and calculate the equilibrium.  Normally
+that will not be any problem.  Then it will set all suspended phases
+as dormant and calculate again.  Any phase which is dormant and should
+be stable when then have a positive driving force and all such phases
+will be set as entered and the equilibrium calculated again. This may
+be repeated until there are no dormant phase with positive driving
+force.  The remaining dormant phases will be set entered and the
+equilibrium has hopefully converged.  This should be a more stable way
+to calculate the equilibrium and may actually be faster than a normal
+c e command.
+
+The save/read unformatted feature has been changed to make it possible
+to save direcly to some allocated memory.  It should make it a bit
+faster using this feature in simulations.  For files it works as
+before.
+
+The minimum number of iterations between changing the set of stable
+phases decreased from 5 to 4.  It may speed up some cases but report
+problems!
+
+2019.09.16 OC version 5.052: Chasing a bug: I am trying to implement a
+connection between symbols and TP functions needed for assessments.
+But suddenly my tests using OC crashed inside lmdif without it having
+been touched.  I naturally belived this had to do with my other
+changes but finally it turned out to be a bug I introduced in lmdif
+many yeara ago in order to have regular outputs from lmdif.  I had
+misspelled a variable (I forgot this routine had not IMPLICT NONE as I
+had converted it from an F77 version).  Evidently for several years
+this mispelled variable had been assigned an arbitrary value which had
+no influence but now it suddenly created a crash that took 6 intense
+hours to find and fix.
+
+The symbol properties and the amend symbol command is changing.  The
+change is still being tested but if you have problems please report.
+The intention is to be able to transfer values from TP functions (or
+optimizing parameters to state variable symbols and vice versa.
+
+Finally I have found I must use Garamond Bold for the OC logo, not
+Garamond bold... very subtle.
+
 2019.08.26 OC version 5.051: Finally a new facility for the users, I
 have implemented calculation of the T-zero point where two phases have
-the same Gibbs energy.  This is interesting as a limit of a
-diffusoinless transformation like martensite.
+the same Gibbs energy at the same T, P and composition.  This is
+interesting as a limit of a diffusionless transformation like
+martensite.  To simulate a nucleation energy the T0 temperature of one
+phase can be offset by a certain energy with the command "AMEND PHASE
+<phase name> GADD" to add a Gibbs energy to one of the¨phases.
 
 To do this I needed a solver for non-linear equations and I use HYBRD
 from the MINPACK package.  I already use the LMDIF routine from this
 package for the assessments.  Thanks to ANL and the University of
-Chicago toe provide these.  There were some difficulties to merge
-these routines as I originally had not managed to use "external"
-subroutines in calls (because the MODULE concept makes it impossible
-to call routines outside the module).  It was a bit trial and error
-until I managed to link everyting and run all the tests.
+Chicago to provide these.  There were some difficulties to merge these
+routines as I originally had not managed to use "external" subroutines
+in calls (partially because the MODULE concept makes it impossible to
+call routines outside the module).  It was a bit trial and error until
+I managed to link everyting in correct order and run all the tests.
 
-This has required changes in the Makefile and files to compile and
-link on Windows.  I have tried to test but please give feedback on any
-problems.
+This has required changes in the Makefile and the files to compile and
+link on Windows.  I have test this on Windows, 2 Linux dialects and
+MacOS but please give me feedback on any problems.
 
-Otherwise there are some minor fixes with the Makefiles and user
-interface and manuals, I have updated the help files for the T-zero
-command!
+Otherwise there are some minor fixes with the user interface and
+manuals, I have updated the help files for the T-zero command!
 
 2019.08.26 OC version 5.050: A few minor changes mainly for the popup
-help facility.  The User Guide and some of the installation guides has
-been updated.  With the popup help it is worth while to improve this.
+help facility.  The User Guide and some of the installation guides
+have been updated.  With the popup help it is worth while to improve
+this.
 
 2019.08.14 OC version 5.049: A revision of the PLOT command has been
 made.  The option were very confusing and badly organized.  Now a
@@ -49,8 +98,8 @@ combinations.
 
 For the online help facility you must create an environment variable
 OCHOME which should be the path to the directory where you have the
-ochelp.html file.  This is in the manual/ directory you have
-downloaded.
+ochelp.html file.  In the download this file is int he manual/
+directory.
 
 To understand the new plot commands you can also look at some of the
 macro files, for example map10.OCM.  Basically the change is that some
@@ -59,29 +108,33 @@ previous option, for example "extra Gibbs-triangle y"
 
 2019.08.11 OC version 5.048: A major change in the online help has
 been made.  Previously a complicated way trying to keep trace of the
-commands was used to provide help and the help was written on the same
-screen as the program.  Now each question for user input is associated
-with an HTML "hypertarget" to find the position in the user guide that
-can provide relevant help in a separate browser window using explorer
-or firefox.  But it requires a proper installation of the help
-facility, see the installation guide.
+commands was used to provide help and the help text was written on the
+same screen as the program used.  Now each question for user input is
+associated with an HTML "hypertarget" to find the position in the user
+guide that can provide relevant help.  The help text is provided in a
+separate browser window using explorer or firefox.  The user may seach
+the whole user guide in this window.  But it requires a proper
+installation of the help facility, there is a separate installation
+guide for the help.
 
-At present the update of the user guide is not complete but some
+At present the update of the user guide is not complete but most
 features should work.  On the command level a simple ? gives the manu
-but two ?? will open the browser at the same menu but the user can
-scroll this back and forth to find additional information.  If you
-have any problems using the new online help please give feedback.
+but two ?? will open the browser at the same menu.  The user can
+scroll this back and forth in the browser window to find additional
+information.  If you have any problems or suggestions using the new
+online help please give feedback.
 
 2019.08.03 OC version 5.047: The metlib package has now been updated
-completely to the new Fortran standard and uses implicit none in all
-routines.  There are still things to fix but it is now possible to
-trace changes.  I worried that some of the WPACK routines would create
-difficulties as I sometimes transfer argument with the wrong types.
+completely to the new Fortran standard and for example uses IMPLICIT
+NONE in all routines.  There are still things to fix but it is now
+possible to trace changes.  I worried that some of the WPACK routines
+would create difficulties as I sometimes transfer argument with the
+wrong types.
 
 PLEASE REPORT ANY PROBLEMS!
 
 2019.08.03 OC version 5.046: In this release there is a new metlib
-utility package called metlib4.F90.  Please check that all thiings you
+utility package called metlib4.F90.  Please check that all things you
 need is still working!  I have modified the Makefile and
 linkpara/linkmake but there can still be things which does not work.
 
@@ -122,11 +175,11 @@ is (almost) up to date.
 condition of a site fraction of a phase.  An example using this has
 been added to the STEP8 macro, setting the constituent fraction of H2O
 in a gas phase.  Note that in an ideal gas phase the fraction of a
-molecule is equal to its partial pressure.  At present it does not
-work to redefine the components in order to make for example using
-H2O1 as a component.  But setting a condition the fraction of a gas
-molecule is the same as to set its partial pressure when the gas is
-ideal and stable.
+molecule should be equal to its partial pressure.  At present it does
+not work to redefine the components in order to make, for example, a
+species such as H2O1 to a component.  But setting a condition the
+fraction of a gas molecule is the same as to set its partial pressure
+when the gas is ideal.
 
 A minor bug setting reference states has also been fixed.  I have also
 added a function MAX1(X) that can be used in a TP function or

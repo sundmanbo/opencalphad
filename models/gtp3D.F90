@@ -1030,6 +1030,7 @@
    symsym=0
    iunit=0
    iref=0
+   actual_arg=' '
 !   write(*,*)'3D set cond or enter exper: ',trim(cline)
 ! return here to deconde another condition on the same line
 50 continue
@@ -1368,7 +1369,17 @@
          if(gx%bmperr.ne.0) then
             write(*,*)'Condition value must be numeric or a symbol'; goto 1000
          endif
-         linkix=condvalsym
+! only allowed if symbol is constant SVCONST or SVFVAL set 
+! check we actually have correct symbol!!
+!         write(*,*)'Symbol name: ',svflista(condvalsym)%name
+         if(btest(svflista(condvalsym)%status,SVCONST) .or. &
+              btest(svflista(condvalsym)%status,SVFVAL)) then
+            linkix=condvalsym
+            value=evaluate_svfun_old(linkix,actual_arg,1,ceq)
+         else
+            write(*,*)'Symbol must be constant or "evaluate explicit"'
+            gx%bmperr=4293; goto 1000
+         endif
       endif
 ! we must update ip in cline for uncertainty and another experiment
       if(colon.gt.0) then
@@ -1453,16 +1464,18 @@
          if(istv.eq.1) then
 ! Save new T also locally in ceq
 !            write(*,*)'3D we are here 1',ceq%tpval(1)
-            if(linkix.gt.0) then
+!            if(linkix.gt.0) then
 !               write(*,*)'Cannot handle symbol as T value'
-               gx%bmperr=4293; goto 1000
-            endif
+! it is allowed now
+!               gx%bmperr=4293; goto 1000
+!            endif
             ceq%tpval(1)=value
          elseif(istv.eq.2) then
-            if(linkix.gt.0) then
+!            if(linkix.gt.0) then
 !               write(*,*)'Cannot handle symbol as P value'
-               gx%bmperr=4293; goto 1000
-            endif
+! it is allowed now
+!               gx%bmperr=4293; goto 1000
+!            endif
             ceq%tpval(2)=value
          endif
 ! the uncertainty for experiments will be asked for later

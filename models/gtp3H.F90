@@ -1064,6 +1064,7 @@
    call need_propertyid('VB  ',typty)
    if(gx%bmperr.ne.0) goto 1000
    addrec%need_property(3)=typty
+!   write(*,*)'Added volume model 1'
 ! store zero in 6 values for propval
    addrec%propval=zero
 1000 continue
@@ -1145,7 +1146,8 @@
 ! for the moment ignore pressure and composition dependence ...
 !      phres%gval(6,1)=phres%gval(6,1)
    endif
-! store some property values
+!   write(*,*)'Calculated volume ',pvol,vol,deltap
+!  store some property values
    lokadd%propval(1)=pvol
    lokadd%propval(2)=pvol*phres%gval(2,iva)
    lokadd%propval(3)=vol

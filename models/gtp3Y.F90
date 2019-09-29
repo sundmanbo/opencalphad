@@ -236,7 +236,7 @@
    call find_gridmin(kp,nrel,xarr,garr,xknown,jgrid,phfrac,cmu,trace)
    if(gx%bmperr.ne.0) goto 1000
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-   write(*,*)'3Y gridpoints: ',kp
+   write(*,*)'3Y total gridpoints: ',kp
 !   gx%bmperr=4399; goto 1000
 ! The solution with nrel gridpoints are in jgrid, the amount of each in phfrac
 ! We later want the phases in ascending order and as the gridpoints are
@@ -349,6 +349,7 @@
 ! there must be as many gridpoints (phases) as there are elements
    nvsph=nrel
    nr=nrel
+!   write(*,*)'3Y merge in global?',btest(globaldata%status,GSNOMERGE)
    if(.not.btest(globaldata%status,GSNOMERGE)) then
 ! For the moment we will only merge grid points in the gas phase
       call merge_gridpoints(nr,iphl,aphl,nyphl,yphl,trace,nrel,xsol,cmu,ceq)
@@ -3446,6 +3447,7 @@
 ! used for reference states. Restores current composition (but not G or deriv)
 ! endmember contains indices in the constituent array, not species index
 ! one for each sublattice
+! HERE G is divided by the number of atoms in the endmember
    implicit none
    integer iphx
    double precision gval
@@ -3501,7 +3503,6 @@
 ! just calculate Gm no derivatives!
    call calcg(iph,1,0,lokres,ceq)
    if(gx%bmperr.ne.0) goto 1000
-!   if(qq(1).ge.1.0D-3) then
    if(qq(1).ge.1.0D-2) then
 ! avoid calculating endmembers with too many vacancies. gval is divided by RT
       gval=ceq%phase_varres(lokres)%gval(1,1)/qq(1)
@@ -3537,6 +3538,7 @@
 ! used for reference states. Restores current composition (but not G or deriv)
 ! endmember contains indices in the constituent array, not species index
 ! one for each sublattice
+! THIS ONE does not divide with the number of atoms
    implicit none
    integer iphx
    double precision gval
@@ -3592,17 +3594,8 @@
 ! just calculate Gm no derivatives!
    call calcg(iph,1,0,lokres,ceq)
    if(gx%bmperr.ne.0) goto 1000
-   gval=ceq%phase_varres(lokres)%gval(1,1)
 ! DO NOT DIVIDE WITH QQ
-!   if(qq(1).ge.1.0D-3) then
-!   if(qq(1).ge.1.0D-2) then
-! avoid calculating endmembers with too many vacancies. gval is divided by RT
-!      gval=ceq%phase_varres(lokres)%gval(1,1)/qq(1)
-!      write(*,*)'3Y gval: ',gval,qq(1)
-!   else
-!      write(*,*)'3Y End member has no atoms'
-!      gx%bmperr=4161; goto 1000
-!   endif
+   gval=ceq%phase_varres(lokres)%gval(1,1)
 1000 continue
 ! restore constitution and gval even if there has been an error flag!!
    ierr=gx%bmperr
@@ -3631,6 +3624,7 @@
 ! Restores current composition and G (but not deriv)
 ! endmember contains indices in the constituent array, not species index
 ! one for each sublattice
+! THIS ONE returns 6 values: G, dG/dT; dG/dP; d2G/dT2; d2G/dTdP; d2G/dP2
    implicit none
    integer iph
    double precision gval(6)
@@ -3707,6 +3701,7 @@
 ! restore constitution
 !   write(*,17)'res: ',kk0,(savey(i),i=1,kk0)
    call set_constitution(iph,1,savey,qq,ceq)
+! this is probably redundant ...
    ceq%phase_varres(lokres)%abnorm=savedabnorm
 !   write(*,432)'3Y em6b: ',ceq%phase_varres(lokres)%gval(3,1),&
 !        ceq%phase_varres(lokres)%abnorm(1),ceq%phase_varres(lokres)%amfu
