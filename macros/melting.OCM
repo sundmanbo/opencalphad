@@ -190,6 +190,7 @@ l,,,,
 @$ We have FCC, M6 and M7C3 stable and there is no FCC#2 phase,
 @$ This is not the global equilibrium we we calculated in the beginning
 @$ We have G=-57639.4 J
+debug symbol g -57639.4
 @&
 @$ Instead of "c n" we can use "calculate with_check_after"
 @$ and then OC will use the current equilibrium as start values to calculate

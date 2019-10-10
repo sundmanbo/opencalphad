@@ -13,31 +13,41 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2019.10.10 OC version 5.054: I have introduced a command DEBUG SYMBOL
+<symbol> <value> used in my test macros to have a hard stop if the
+value of a symbol is not the same as with previous versions.
+
+The set of stable phases is now restored after "step separate".
+
+I have made an attempt to speed up calculations but unless you
+calculate with 10 or more elements it will have very little influence.
+
 2019.09.30 OC version 5.053: A new command to calculate the
 equilibrium for a system with many components and phases which has
-convergence problem: CALCULATE CAREFULLY (or c c).  This command
-requires that the grid minimizer can be used, i.e condions on T, P and
-the amounts or fractions of components only because it will first use
-the gridminimizer.  Then it will suspend all phases except those
-selected by the gridminimizer and calculate the equilibrium.  Normally
-that will not be any problem.  Then it will set all suspended phases
-as dormant and calculate again.  Any phase which is dormant and should
-be stable when then have a positive driving force and all such phases
-will be set as entered and the equilibrium calculated again. This may
-be repeated until there are no dormant phase with positive driving
-force.  The remaining dormant phases will be set entered and the
-equilibrium has hopefully converged.  This should be a more stable way
-to calculate the equilibrium and may actually be faster than a normal
-c e command.
+convergence problem: CALCULATE BOSSES_METHOD (or c b).  This command
+requires that the grid minimizer can be used, (i.e conditions on T, P
+and the amounts or fractions of components only) because the first
+step is to use just the grid minimizer.  In the second step all phases
+except those selected stable by the grid minimizer are suspended and
+the equilibrium calculated with the iterative algorithm.  Normally
+this will not be any problem.  Step 3 is to set all suspended phases
+as dormant and calculate again with the iterative method.  Any phase
+which is dormant but should be stable will then have a positive
+driving force.  In step 4 all dormant phases with a positive driving
+force will be set as entered and the equilibrium calculated again with
+the iterative method.  Step 4 is repeated until no dormant phase has a
+positive driving force.  The remaining dormant phases will then be set
+as entered and the equilibrium calculation has hopefully converged.
+This should be a more stable way to calculate a complex equilibrium.
 
 The save/read unformatted feature has been changed to make it possible
 to save direcly to some allocated memory.  It should make it a bit
-faster using this feature in simulations.  For files it works as
-before.
+faster using this feature in a simulation.  For saving on files it
+works as before.
 
 The minimum number of iterations between changing the set of stable
-phases decreased from 5 to 4.  It may speed up some cases but report
-problems!
+phases is decreased from 5 to 4.  It may speed up some cases but
+report problems!
 
 2019.09.16 OC version 5.052: Chasing a bug: I am trying to implement a
 connection between symbols and TP functions needed for assessments.

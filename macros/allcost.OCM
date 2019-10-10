@@ -46,8 +46,7 @@ set c w(zn)=.06 w(zr)=.007
 l c
 
 @$ Set small grid to speed up calculations
-
-set adv small
+@$ set adv small DEPRECIATED COMMAND
 
 set adv grid 0
 
@@ -74,6 +73,7 @@ l,,,,,
 
 @$ Only the AlN solid stable together with the liquid
 @$ NOTE THE DATABASE IS NOT RELIABLE FOR THIS SYSTEM
+debug symbol g -1.4480613E5
 @&
 @$ Then calculte a full equilibrium at 1000 K
 
@@ -101,6 +101,8 @@ c e
 l,,,,
 
 @$ NOTE THE DATABASE IS NOT RELIABLE FOR THIS SYSTEM
+@$ Testing result
+debug symbol g -2.3254708E4
 @&
 
 l sh p
@@ -108,6 +110,17 @@ l sh p
 @$ NOTE THE DATABASE IS NOT RELIABLE FOR THIS SYSTEM
 
 @&
+@$ Added test of the command CALCULATE BOSSES_METHOD
+@$ This may be useful if there are convergence problems
+
+c b-m
+
+
+
+
+@$ Testing result, same as before!
+debug symbol g -2.3254708E4
+
 set inter
 
 @$ gprof oc5prof.exe gmon.out > output_file.txt

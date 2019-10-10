@@ -304,7 +304,7 @@ CONTAINS
     IF(J.LT.I) GOTO 300
     IF(ARR(J).GT.PART) GOTO 200
 !******STEP Q6, SWITCH ARR(I) AND ARR(J) AND CONTINUE FROM Q3
-210 VAL=ARR(I)
+    VAL=ARR(I)
     ARR(I)=ARR(J)
     ARR(J)=VAL
     K=IX(I)
@@ -409,7 +409,7 @@ CONTAINS
 !    IF(ARR(J).GT.PART) GOTO 200
     IF(ARR(J).LT.PART) GOTO 200
 !******STEP Q6, SWITCH ARR(I) AND ARR(J) AND CONTINUE FROM Q3
-210 VAL=ARR(I)
+    VAL=ARR(I)
     ARR(I)=ARR(J)
     ARR(J)=VAL
     K=IX(I)
@@ -512,7 +512,7 @@ CONTAINS
     IF(J.LT.I) GOTO 300
     IF(IARR(J).GT.IPART) GOTO 200
 !******STEP Q6, SWITCH IARR(I) AND IARR(J) AND CONTINUE FROM Q3
-210 IVAL=IARR(I)
+    IVAL=IARR(I)
     IARR(I)=IARR(J)
     IARR(J)=IVAL
     K=IX(I)
@@ -652,7 +652,7 @@ CONTAINS
     ELSE
        BIGLET=CHA
     ENDIF
-900 RETURN
+    RETURN
   END FUNCTION BIGLET
   
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
@@ -758,7 +758,7 @@ CONTAINS
     integer i,ierr,jerr
     double precision hel,dec,expo
 !    INTEGER GPS,GPN
-3   CONTINUE
+    CONTINUE
     letter: IF(EOLCH(SVAR,LAST)) THEN
        buperr=1031
        GOTO 9000
@@ -790,7 +790,7 @@ CONTAINS
        buperr=IERR; GOTO 9000
     ENDIF
     CH=SVAR(LAST:LAST)
-10  continue
+    continue
     nodot: IF(CH.NE.'.') THEN
        JERR=GPN(SVAR,LAST,HEL)
        IF(JERR.NE.0) THEN
@@ -814,7 +814,7 @@ CONTAINS
 !      If there is no numbers after the period, JERR is nonzero.
 !      Then check if IERR is nonzero otherwise there is no numbers at all
 !      before or after the period. If so return with error code.
-20  continue
+    continue
     decimalpoint: if(last.ge.len(svar)) then
        dec=zero
     elseIF(SVAR(LAST:LAST).EQ.'.') THEN
@@ -835,7 +835,7 @@ CONTAINS
     ELSE
        DEC=ZERO
     ENDIF decimalpoint
-30  EXPO=ONE
+    EXPO=ONE
     exponent: if(last.lt.len(svar)) then
        IF(BIGLET(SVAR(LAST:LAST)).EQ.'E' &
             .OR. BIGLET(SVAR(LAST:LAST)).EQ.'D') THEN
@@ -853,7 +853,7 @@ CONTAINS
           EXPO=TEN**I
        ENDIF
     endif exponent
-800 VALUE=DBLE(ISIG)*(HEL+DEC)*EXPO
+    VALUE=DBLE(ISIG)*(HEL+DEC)*EXPO
 9000 continue
     RETURN
   END SUBROUTINE GETRELS
@@ -888,7 +888,7 @@ CONTAINS
     JERR=GPN(SVAR,LAST,VALUE)
     IF(JERR.EQ.0) IERR=0
     GPS=IERR
-    VALUE=FLOAT(ISIG)*VALUE
+    VALUE=DBLE(ISIG)*VALUE
     RETURN
   END FUNCTION GPS
 
@@ -913,7 +913,7 @@ CONTAINS
        N=ICHAR(SVAR(LAST:LAST))-ICHAR('0')
        IF(N.LT.0 .OR. N.GT.9) GOTO 800
        IERR=0
-       VALUE=TEN*VALUE+FLOAT(N)
+       VALUE=TEN*VALUE+DBLE(N)
     enddo digits
 800 GPN=IERR
     RETURN
@@ -943,7 +943,8 @@ CONTAINS
     ELSE
        IERR=GPS(SVAR,LAST,VALUE)
        IF(IERR.EQ.0) THEN
-          IF(VALUE.GT.FLOAT(MAXINT) .OR. VALUE.LT.FLOAT(MININT)) THEN
+!          IF(VALUE.GT.FLOAT(MAXINT) .OR. VALUE.LT.FLOAT(MININT)) THEN
+          IF(VALUE.GT.DBLE(MAXINT) .OR. VALUE.LT.DBLE(MININT)) THEN
 !             CALL ST2ERR(1033,'GETINT','TOO LARGE INTEGER VALUE')
              buperr=1042
              IVAL=0
@@ -956,7 +957,7 @@ CONTAINS
           IVAL=0
        ENDIF
     ENDIF
-900 RETURN
+    RETURN
   END SUBROUTINE GETINT
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
@@ -1008,7 +1009,7 @@ CONTAINS
     ENDIF
 !800 IF(IERR.NE.0) CALL ST2ERR(IERR,'GETOCT','NO DIGIT')
 800 continue
-900 RETURN
+    RETURN
   END SUBROUTINE GETOCT
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
@@ -1062,7 +1063,7 @@ CONTAINS
 ! wow, set sign bit of an integer? Assume 32 bits ...
     IF(ISIGN.EQ.1) ival=ibset(ival,31)
     write(*,*)'In metlib4 GETHEX: ',ival,bug
-900 RETURN
+    RETURN
   END SUBROUTINE GETHEX
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
@@ -1136,7 +1137,7 @@ CONTAINS
     character*1, parameter :: ipar(4)=[')','}',']','>']
     integer i,j,k,l1,l2,level,ityp
 !    LOGICAL EOLCH,SG2ERR
-3   IF(JTYP.LE.0) THEN
+    IF(JTYP.LE.0) THEN
 !       CALL ST2ERR(1030,'GETEXT','NO SUCH TYPE OPTION')
        buperr=1030
        GOTO 900
@@ -1149,12 +1150,12 @@ CONTAINS
     ENDIF
 !...INCREMENT LAST BY ONE TO BYPASS TERMINATOR OF COMMAND OR PREVIOUS
 !      ANSWER
-9   LAST=LAST+1
+    LAST=LAST+1
     IF(LAST.LT.1 .OR. LAST.GT.LEN(SVAR)) LAST=LEN(SVAR)+1
 !...SKIP BLANKS STARTING FROM THE POSITION AFTER LAST
 !      IF LAST OUTSIDE SVAR THEN ASK QUESTION
     I=LAST
-10  CONTINUE
+    CONTINUE
     IF(EOLCH(SVAR,I)) GOTO 910
 !          STRING=CDEF
 !          LENC=LEN(CDEF)
@@ -1255,7 +1256,7 @@ CONTAINS
     ELSE
        L1=LAST+MAX(L1,L2)-1
     ENDIF
-500 IF(L1.GT.LAST) THEN
+    IF(L1.GT.LAST) THEN
        STRING=SVAR(LAST:MIN(LEN(SVAR),L1-1))
        LENC=L1-LAST
     ELSE
@@ -1331,7 +1332,7 @@ CONTAINS
 ! some problems writing 81000000000 as fixed format ...
 ! This should be handelled by checking the number of zeroes at the end !!
 !    write(*,27)k,nw,cc
-27  format('wrinum: ',2i5,1pe20.12)
+!27  format('wrinum: ',2i5,1pe20.12)
     IF(NW.GT.2 .AND. (K.GE.NW .OR. K.LT.-2)) THEN
 !...FLOATING FORMAT
        WRITE(CFRMT,100)NW+5,NW-1
@@ -1393,10 +1394,10 @@ CONTAINS
        else
           text(ipos:)=number(jp:)
 !          write(*,22)'wriint: ',jp,number(jp:),text(ipos:ipos+16-jp)
-22        format(a,i3,'>',a,'< >',a,'<')
+!22        format(a,i3,'>',a,'< >',a,'<')
           ipos=ipos+17-jp
 !          write(*,30)'wriint: ',ipos,jp,' >'//text(1:ipos+5)//'<'
-30        format(a,2i3,a)
+!30        format(a,2i3,a)
        endif
     endif
 1000 continue
@@ -1449,11 +1450,11 @@ CONTAINS
     character str*(*)
 !\end{verbatim} %+
 !    
-    character margx*40
+!    character margx*40
     integer lbreak
     lbreak=0
     call wrice2(lut,margl1,margl2,maxl,lbreak,str)
-1000 continue
+    continue
     return
   end subroutine wrice
 
@@ -1508,7 +1509,6 @@ CONTAINS
        enddo
     endif
 1000 continue
-20 format('wrice :',10I5)
     return
   end subroutine wrice2
 
@@ -1651,7 +1651,7 @@ CONTAINS
     ENDIF
     LIKA=0
     IF(IENT.EQ.1 .AND. CH1.EQ.CHHIST) THEN
-!...	   A HISTORY COMMAND. RETURN TO 3 IF A PREVIOUS COMMAND SHALL BE EXEC
+!... A HISTORY COMMAND. RETURN TO 3 IF A PREVIOUS COMMAND SHALL BE EXEC
        CALL NGHIST(SVAR,LAST)
        IF(LAST.EQ.0) GOTO 3
        NCOMPX=0
@@ -1797,7 +1797,7 @@ CONTAINS
 100 CALL GQARID(PROMT,SVAR,LAST,IVAL,IDEF,HELP)
     CALL GPTCM1(IFLAG,SVAR,LAST,SLIN)
     IF (IFLAG.NE.0) GOTO 100
-900 RETURN
+    RETURN
   END SUBROUTINE GPARID
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
@@ -1818,7 +1818,7 @@ CONTAINS
 100 CALL GQARI(PROMT,SVAR,LAST,IVAL,IDEF,HELP)
     CALL GPTCM1(IFLAG,SVAR,LAST,SLIN)
     IF (IFLAG.NE.0) GOTO 100
-900 RETURN
+    RETURN
   END SUBROUTINE GPARI_OLD
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
@@ -1842,7 +1842,7 @@ CONTAINS
 !    CALL GPTCM1(IFLAG,SVAR,LAST,SLIN,ENVIR)
     CALL GPTCM1(IFLAG,SVAR,LAST,SLIN)
     IF (IFLAG.NE.0) GOTO 100
-900 RETURN
+    RETURN
   END SUBROUTINE GPARR_OLD
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
@@ -1865,7 +1865,7 @@ CONTAINS
 100 CALL GQARRD(PROMT,SVAR,LAST,VAL,RDEF,HELP)
     CALL GPTCM1(IFLAG,SVAR,LAST,SLIN)
     IF (IFLAG.NE.0) GOTO 100
-900 RETURN
+    RETURN
   END SUBROUTINE GPARRD_OLD
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
@@ -2084,7 +2084,7 @@ CONTAINS
     double precision rdef,x
 ! All routines converge here, update command level and save promt 
 ! for use by help routines
-9   CONTINUE
+    CONTINUE
 ! check if promt already in path, otherwise increase level
     do iqq=2,helprec%level
        kxy=min(len_trim(promt),12)
@@ -2278,7 +2278,7 @@ CONTAINS
 !...         BUG FOUND HERE: IF L1 IS LEN(SVAR) AND LAST>1 L1 SET >LEN(SVAR)+1
           L1=MIN(LAST+MAX(L1,L2)-1,LEN(SVAR)+1)
        ENDIF
-500    IF(L1.GT.LAST) THEN
+       IF(L1.GT.LAST) THEN
           STRING=SVAR(LAST:L1-1)
        ELSE
           STRING=' '
@@ -2299,7 +2299,7 @@ CONTAINS
        VAL=RDEF
     ELSE
 !       write(*,911)'ML gparqall: ',trim(cdef),trim(cnone),wdef
-911    format(a,a,' - ',a,l2)
+!911    format(a,a,' - ',a,l2)
        IF(CDEF.NE.CNONE) THEN
           STRING=CDEF
 !!       endif
@@ -2468,7 +2468,7 @@ CONTAINS
 100 CALL GQARIDx(PROMT,SVAR,LAST,IVAL,IDEF,hyper)
     CALL GPTCM1(IFLAG,SVAR,LAST,SLIN)
     IF (IFLAG.NE.0) GOTO 100
-900 RETURN
+    RETURN
   END SUBROUTINE GPARIDX
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
@@ -2489,7 +2489,7 @@ CONTAINS
 100 CALL GQARIx(PROMT,SVAR,LAST,IVAL,IDEF,hyper)
     CALL GPTCM1(IFLAG,SVAR,LAST,SLIN)
     IF (IFLAG.NE.0) GOTO 100
-900 RETURN
+    RETURN
   END SUBROUTINE GPARIX
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
@@ -2513,7 +2513,7 @@ CONTAINS
 !    CALL GPTCM1(IFLAG,SVAR,LAST,SLIN,ENVIR)
     CALL GPTCM1(IFLAG,SVAR,LAST,SLIN)
     IF (IFLAG.NE.0) GOTO 100
-900 RETURN
+    RETURN
   END SUBROUTINE GPARRX
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
@@ -2536,7 +2536,7 @@ CONTAINS
 100 CALL GQARRDx(PROMT,SVAR,LAST,VAL,RDEF,hyper)
     CALL GPTCM1(IFLAG,SVAR,LAST,SLIN)
     IF (IFLAG.NE.0) GOTO 100
-900 RETURN
+    RETURN
   END SUBROUTINE GPARRDX
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
@@ -2812,14 +2812,15 @@ CONTAINS
     LOGICAL WDEF,MATP
     integer last,unused
 ! local variables
-    integer i,ijp,j,jjp,l1,l2,llq,llp,llz,m,kxy,iqq,ityp,idef,kk,nw,kl
+!    integer i,ijp,j,jjp,l1,l2,llq,llp,llz,m,kxy,iqq,ityp,idef,kk,nw,kl
+    integer i,ijp,j,jjp,l1,l2,llq,llp,llz,m,ityp,idef,kk,nw,kl
     double precision rdef,x
     character hypertarget*(40)
     logical once
 ! All input routines converge here, update command level and save promt 
 ! for use by help routines
     once=.TRUE.
-9   CONTINUE
+    CONTINUE
 !    write(*,*)'In gparallx: ',trim(promt),' & ',trim(hyper)
 ! check if promt already in path, otherwise increase level
     unused=0
@@ -2882,6 +2883,7 @@ CONTAINS
 ! avoid promt with double ::
 !       if(M.GT.2 .and. promt(M:M).eq.promt(M-1:M-1)) M=M-1
        if(M.GT.2 .and. promt(M:M).eq.':') M=M-1
+       ijp=0
        IF(WDEF) THEN
           PPROMT=PROMT(1:M)//' /'
           JJP=M+3
@@ -3092,7 +3094,7 @@ CONTAINS
 !...         BUG FOUND HERE: IF L1 IS LEN(SVAR) AND LAST>1 L1 SET >LEN(SVAR)+1
           L1=MIN(LAST+MAX(L1,L2)-1,LEN(SVAR)+1)
        ENDIF
-500    IF(L1.GT.LAST) THEN
+       IF(L1.GT.LAST) THEN
           STRING=SVAR(LAST:L1-1)
        ELSE
           STRING=' '
@@ -3113,7 +3115,7 @@ CONTAINS
        VAL=RDEF
     ELSE
 !       write(*,911)'ML gparqall: ',trim(cdef),trim(cnone),wdef
-911    format(a,a,' - ',a,l2)
+!911    format(a,a,' - ',a,l2)
        IF(CDEF.NE.CNONE) THEN
           STRING=CDEF
 !!       endif
@@ -3232,8 +3234,8 @@ CONTAINS
 ! the on-line help system. It saves the name of the browser and HTML file
     implicit none
     character*(*) htmlfile,browser
-    character*80 line
 !\end{verbatim} %+
+!    character*80 line
     logical logok
 ! the latex file no longer used for help
     ochelp%latexfile=' '
@@ -3272,7 +3274,6 @@ CONTAINS
 !\end{verbatim} %+
     helprec%level=1
     helprec%cpath(1)=line
-1000 continue
     return
   end subroutine helplevel1
 
@@ -3289,10 +3290,12 @@ CONTAINS
     character hline*80,mtext*12
     integer, parameter :: maxlevel=20
 !\end{verbatim} %+
-    character subsec(5)*10,saved(maxlevel)*24
+!    character subsec(5)*10,saved(maxlevel)*24
+    character subsec(5)*10
     character htmlhelp*256
     integer nsaved(maxlevel)
-    integer izz,jj,kk,kkk,level,nl,l2,np1,np2,nsub,zz
+!    integer izz,jj,kk,kkk,level,nl,l2,np1,np2,nsub,zz
+    integer izz,jj,kk,level,nl,np1,np2,nsub,zz
     logical foundall
 !
     nsaved=0
@@ -3497,7 +3500,7 @@ CONTAINS
        htmlfil: if(ochelp%htmlhelp .and. ochelp%target(1:1).ne.' ') then
 ! the user has to close the help window to continue ... spawn??
 !          write(*,711)np1,np2
-711       format(/' *** You must close the browser window to continue OC',2i5/)
+!711       format(/' *** You must close the browser window to continue OC',2i5/)
 ! the \hypertaget should be finished by a }
           kk=index(ochelp%target,'}')-1
           if(kk.le.0) kk=len_trim(ochelp%target)
@@ -3586,7 +3589,7 @@ CONTAINS
        call capson(helprec%cpath(helprec%level))
 !       if(helptrace) write(*,11)helprec%level,&
 !            (trim(helprec%cpath(i)),i=1,helprec%level)
-11     format('q2help: ',i3,10(', ',a))
+!11     format('q2help: ',i3,10(', ',a))
     else
 ! when we are here we have just a ? from user, return to submenu with that
 ! with two ?? or anything else q1help is called (I hope ...)
@@ -3633,7 +3636,7 @@ CONTAINS
 !...LIST ALL COMMANDS IN UNIX ALPHABETICAL ORDER
        NKPL=80/(LEN(COMM(1))+1)
        IF(NKPL*(LEN(COMM(1))+1).GE.80) NKPL=NKPL-1
-100    IF(NC.LT.MC) THEN
+       IF(NC.LT.MC) THEN
           CALL SSORT(COMM,NC,INDX)
           ALLCOM: DO NBK=1,NC
              IF(COMM(INDX(NBK))(1:1).NE.' ') GOTO 301
@@ -3661,9 +3664,9 @@ CONTAINS
 ! to get the correct help text
           CALL CAPSON(CMD)
           helprec%level=helprec%level-1
-          helprec%cpath(helprec%level)=CMD
+          helprec%cpath(helprec%level)=CMD(1:32)
 !          write(*,11)helprec%level,(helprec%cpath(i)(1:8),i=1,helprec%level)
-11        format('q3help: ',i3,10(', ',a))
+!11        format('q3help: ',i3,10(', ',a))
 !          write(*,*)helprec%level
 !          do ii=1,helprec%level
 !             write(*,*)helprec%cpath(ii)
@@ -3710,7 +3713,7 @@ CONTAINS
 !...LIST ALL COMMANDS IN UNIX ALPHABETICAL ORDER
        NKPL=80/(LEN(COMM(1))+1)
        IF(NKPL*(LEN(COMM(1))+1).GE.80) NKPL=NKPL-1
-100    IF(NC.LT.MC) THEN
+       IF(NC.LT.MC) THEN
           CALL SSORT(COMM,NC,INDX)
           ALLCOM: DO NBK=1,NC
              IF(COMM(INDX(NBK))(1:1).NE.' ') GOTO 301
@@ -3741,7 +3744,7 @@ CONTAINS
 !          helprec%level=helprec%level-1
 !          helprec%cpath(helprec%level)=CMD
 !          write(*,11)helprec%level,(helprec%cpath(i)(1:8),i=1,helprec%level)
-11        format('q3help: ',i3,10(', ',a))
+!11        format('q3help: ',i3,10(', ',a))
 !          write(*,*)helprec%level
 !          do ii=1,helprec%level
 !             write(*,*)helprec%cpath(ii)
@@ -3836,7 +3839,6 @@ CONTAINS
 #endif
     if(helptrace) write(*,*)'QZ: ',trim(htmlhelp)
     call execute_command_line(htmlhelp)
-900 continue
     close(31)
 !
 1000 continue
@@ -4030,7 +4032,6 @@ CONTAINS
     integer ion
 !\end{verbatim}
     jecho=ion
-1000 continue
     return
   end subroutine set_echo
 
@@ -4120,7 +4121,7 @@ CONTAINS
 ! ip is cursor position (>=1), lastp is last character on line (>=0)
     integer ip,lastp,kiud,jj,kou,size,hlast
     character line*128,ch1*1
-    character getkey
+!    character getkey
     logical endoftext
 ! global structure myhistory
 !    type(chistory) :: myhistory
@@ -4151,7 +4152,6 @@ CONTAINS
 ! LINUX: read one character at a time without echo and allow editing history
     ch1=getkex()
 #endif
-110  continue
 !    write(*,*)'got from getkey: ',ichar(ch1)
 ! handle control character
     if(ichar(ch1).ge.32 .and. ichar(ch1).lt.127) then
@@ -4177,7 +4177,6 @@ CONTAINS
     endif
 !=======================  
 !    write(*,*)'control character: ',ichar(ch1)
-120 continue
     select case(ichar(ch1))
     case default
 ! ignore
@@ -4313,7 +4312,7 @@ CONTAINS
        elseif(myhistory%hpos.le.0) then
 ! saving the first line as
           myhistory%hpos=1
-          myhistory%hline(myhistory%hpos)=line
+          myhistory%hline(myhistory%hpos)=line(1:80)
        elseif(line(1:ip+1).eq.myhistory%hline(myhistory%hpos)(1:ip+1)) then
           continue
 !          write(*,*)'Not saving same line'
@@ -4326,7 +4325,7 @@ CONTAINS
           else
              myhistory%hpos=myhistory%hpos+1
           endif
-          myhistory%hline(myhistory%hpos)=line
+          myhistory%hline(myhistory%hpos)=line(1:80)
        endif
 ! write a CR on screen ... maybe also LF ?? NO!!
        if(ichar(ch1).eq.return) write(kou,*)
@@ -4431,7 +4430,8 @@ CONTAINS
     integer last
 !\end{verbatim} %+
 !
-    CHARACTER MACFIL*256,FIL*256,CH1*1
+!    CHARACTER MACFIL*256,FIL*256,CH1*1
+    CHARACTER MACFIL*256,FIL*256
     LOGICAL FIRST
     character*3 USEEXT
     character*1 dirsep,backslash
@@ -4563,9 +4563,9 @@ CONTAINS
     CHARACTER SVAR*(*),slin*(*)
     integer iflag,last
 !\end{verbatim} %+
-    CHARACTER PP*30,CH1*1
+!    CHARACTER PP*30,CH1*1
 !    CHARACTER ENVIR(9)*60,LABEL*8,LABLIN*60,SYMBOL*60
-    CHARACTER LABEL*8,LABLIN*60,SYMBOL*60
+!    CHARACTER LABEL*8,LABLIN*60,SYMBOL*60
 !    LOGICAL SG2ERR,TESTB,EOLCH
 !
     IFLAG=0
@@ -4592,7 +4592,8 @@ CONTAINS
 !\end{verbatim} %+
 !    CHARACTER ENVIR(9)*60,LABEL*8,LABLIN*60,SYMBOL*60
     CHARACTER PP*30,CH1*1
-    CHARACTER LABEL*8,LABLIN*60,SYMBOL*60
+!    CHARACTER LABEL*8,LABLIN*60,SYMBOL*60
+    CHARACTER LABLIN*60
 !    double precision, parameter :: ZERO=0.0D0,ONE=1.0D0
     integer ienv
 !    LOGICAL SG2ERR,TESTB,EOLCH
@@ -4670,10 +4671,10 @@ CONTAINS
     ENDIF
 900 RETURN
 !
-910 WRITE(LER,911)LABEL
-911 FORMAT('No label ',A,' terminating macro')
-    SVAR='set interactive '
-    GOTO 900
+!910 WRITE(LER,911)LABEL
+!911 FORMAT('No label ',A,' terminating macro')
+!    SVAR='set interactive '
+!    GOTO 900
   END SUBROUTINE GPTCM2
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
@@ -4689,7 +4690,8 @@ CONTAINS
 !\end{verbatim}
 !    COMMON/TCMACRO/IUL,IUN(5),MACEXT
 !    CHARACTER*3 MACEXT
-    CHARACTER CH1*1,LABLIN*60,LABEL*8,HOLDER*200
+!    CHARACTER CH1*1,LABLIN*60,LABEL*8,HOLDER*200
+    CHARACTER CH1*1,HOLDER*200
     integer k,ienv,l
     IF(SVAR(1:2).EQ.'@&') THEN
 !       write(*,*)'calling testb from gqxenv'
@@ -4813,7 +4815,6 @@ CONTAINS
 !..IF FIRST CHARACTER ; THEN EXIT with function zero
     IF(STRING(L:L).EQ.';') GOTO 800
     L=L-1
-10  continue
 !    write(*,*)'PUTFUN: ',lab,l
     GOTO(100,100,200),LAB
 !    if(lab.gt.0) goto 200
@@ -5067,7 +5068,7 @@ CONTAINS
        pfnerr=1064
     endif
     CALL NYLP(uninod,IPN,NOTPP)
-900 RETURN
+    RETURN
   END SUBROUTINE NYUNI
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
@@ -5122,7 +5123,6 @@ CONTAINS
 !\end{verbatim} %+
     TYPE(putfun_node), pointer :: uninod,subtree
 !
-100 continue
     IF(IPN.LE.0) then
        pfnerr=1056; goto 1000
     endif
@@ -5381,9 +5381,10 @@ CONTAINS
     double precision VAR(*)
     type(putfun_node), pointer :: lrot
 !\end{verbatim} %+
-    character ch1*1
+!    character ch1*1
     double precision STACK(20)
-    type(putfun_node), pointer :: llink,current,mlink
+!    type(putfun_node), pointer :: llink,current,mlink
+    type(putfun_node), pointer :: current,mlink
     TYPE PUTFUN_SAVE
        integer right
        type(putfun_node), pointer :: savecurrent
@@ -5395,8 +5396,8 @@ CONTAINS
     integer last,lstp,kod
 !
 !...If LROT<=0 there is no expression, return sero
+    STACK(1)=ZERO
     IF(.not.associated(LROT)) THEN
-       STACK(1)=ZERO
        GOTO 800
     ENDIF
 !..INITIATE
@@ -5506,8 +5507,9 @@ CONTAINS
     double precision VAR(*)
 !\end{verbatim} %+
     double precision STACK(20)
-    character ch1*1
-    type(putfun_node), pointer :: llink,current,mlink
+!    character ch1*1
+!    type(putfun_node), pointer :: llink,current,mlink
+    type(putfun_node), pointer :: current,mlink
     TYPE PUTFUN_SAVE
        integer right
        type(putfun_node), pointer :: savecurrent
@@ -5712,7 +5714,7 @@ CONTAINS
        C=ONE
        Q=ONE
        DO I=1,9
-          A=A*(TWO*DFLOAT(I)-ONE)/TWO/PECN
+          A=A*(TWO*DBLE(I)-ONE)/TWO/PECN
           C=-C
           Q=Q+A*C
        enddo
@@ -5855,7 +5857,6 @@ CONTAINS
 !    write(*,76)'wrtfun 99: ',current%debug,current%kod,current%value
     if(associated(topsave)) then
     endif
-76  format(a,2i4,1pe15.6)
     bigif: IF(associated(LNODE)) THEN
 !..PUSH LINK
        IF(associated(LNODE%left)) &
@@ -5967,7 +5968,7 @@ CONTAINS
     IF(LOD.eq.0) goto 90
     if(LOD.gt.0) goto 20
 !..unary operator
-10  IF(LOD.EQ.-1) THEN
+    IF(LOD.EQ.-1) THEN
        IF(KOD.LE.0) THEN
           CALL CONS(STRING,IPOS,'-')
        ELSE
@@ -6022,7 +6023,7 @@ CONTAINS
     IF(LOD+1.lt.0) goto 90
     if(LOD+1.gt.0) goto 20
 !..negation need ) if KOD>0
-10  IF(KOD.GT.0) CALL CONS(STRING,IPOS,')')
+    IF(KOD.GT.0) CALL CONS(STRING,IPOS,')')
     GOTO 90
 20  IF(KOD.GE.3 .AND. LOD.LT.3) CALL CONS(STRING,IPOS,')')
     IF(KOD.EQ.5 .AND. LOD.GE.3) CALL CONS(STRING,IPOS,')')
@@ -6062,7 +6063,8 @@ CONTAINS
 !     write a number, if KOD<0 a whole number
 !    IMPLICIT DOUBLE PRECISION (A-H,O-Z)
     implicit none
-    CHARACTER NAME*8,SYMBOL(*)*(*)
+!    CHARACTER NAME*8,SYMBOL(*)*(*)
+    CHARACTER SYMBOL(*)*(*)
     CHARACTER STRING*(*)
     integer ipos,kod,negmark
     double precision val
@@ -6127,10 +6129,11 @@ CONTAINS
 
 !\addtotable subroutine exphlp & Provide help
 !\begin{verbatim}
-  SUBROUTINE EXPHLP(PROMPT,SVAR)
+!  SUBROUTINE EXPHLP(PROMPT,SVAR)
+  SUBROUTINE EXPHLP
 ! writes help to enter a PUTFUN expression
     implicit none
-    CHARACTER PROMPT*(*),SVAR*(*)
+!    CHARACTER PROMPT*(*),SVAR*(*)
 !\end{verbatim} %+
     WRITE(KOU,10)
 10  FORMAT(' You are expected to give a formula that shall be', &
@@ -6155,7 +6158,7 @@ CONTAINS
          ' HS(X) is the Heaviside function'/ &
          ' Notice that these operators must be followed by a (.'// &
          ' The statement must be terminated by a ;'/)
-900 RETURN
+    RETURN
   END SUBROUTINE EXPHLP
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!
@@ -6321,7 +6324,7 @@ CONTAINS
        IF(LPROG.GT.MAXPRG) THEN
           WRITE(*,*)'TOO MANY PROGRAM STEPS, MAXIMUM IS ',MAXPRG
        ELSE
-          PROG(LPROG)=INPUT
+          PROG(LPROG)=INPUT(1:20)
           WRITE(*,98)LPROG,INPUT(1:LEN_TRIM(INPUT))
 98        FORMAT(' STEP',I4,': ',A)
        ENDIF
@@ -6605,7 +6608,7 @@ CONTAINS
 !...STEP
 420 WRITE(*,*)'NOT IMPLEMENTED'
     GOTO 100
-421 KPROG=KPROG+1
+    KPROG=KPROG+1
     IF(KPROG.GT.LPROG) THEN
        WRITE(*,*)'PROGRAM ENDS AT ',LPROG
     ELSE
@@ -6623,7 +6626,7 @@ CONTAINS
 440 WRITE(*,*)'NOT IMPLEMENTED'
     RETURN
 !    GOTO 100
-441 WRITE(*,401)KPROG,PROG(KPROG)
+    WRITE(*,401)KPROG,PROG(KPROG)
     IF(KPROG.GT.1) KPROG=KPROG-2
     OK=.FALSE.
 !...NOOP
@@ -6751,7 +6754,7 @@ CONTAINS
 !...CHECK THE WORKSPACE
     CALL WRKCHK(LAST,NW,IWS)
 100 CLOSE(LUN)
-900 RETURN
+    RETURN
 910 continue
     GOTO 100
   END SUBROUTINE WOLD
@@ -6760,7 +6763,8 @@ CONTAINS
 
 !\addtotable subroutine wsave & Save integer worspace to file
 !\begin{verbatim}
-  SUBROUTINE WSAVE(FIL,NW,IWS)
+!  SUBROUTINE WSAVE(FIL,NW,IWS)
+  SUBROUTINE WSAVE(FIL,IWS)
 !...WRITES A WORKSPACE ON A FILE
 ! INPUT: FIL IS A CHARACTER WITH A LEGAL FILE NAME
 !        NW IS THE DIMENSION OF THE WORKSPACE
@@ -6768,7 +6772,8 @@ CONTAINS
 ! CALLS: WRKCHK TO CHECK THE WORKSPACE
 ! ERROR: IF THE WORKSPACE IS INCORRECT IT CANNOT BE SAVED
     implicit none
-    integer nw,iws(*)
+!    integer nw,iws(*)
+    integer iws(*)
 !    DIMENSION IWS(*)
     CHARACTER FIL*(*)
 !\end{verbatim}
@@ -6818,7 +6823,8 @@ CONTAINS
     CALL GETINT(LINE,IP,IADR)
     if(buperr.ne.0) then
        buperr=0
-       IF(LINE(1:1).EQ.'?') CALL WPHLP(IP,LINE)
+!       IF(LINE(1:1).EQ.'?') CALL WPHLP(IP,LINE)
+       IF(LINE(1:1).EQ.'?') CALL WPHLP
        IF(LINE(1:1).EQ.'@') GOTO 900
        WRITE(KOU,20)
 20     FORMAT(' TYPE ? FOR HELP'/)
@@ -6909,11 +6915,12 @@ CONTAINS
 
 !\addtotable subroutine wphlp & Help to patch workspace
 !\begin{verbatim}
-  SUBROUTINE WPHLP(ITYP,LINE)
+!  SUBROUTINE WPHLP(ITYP,LINE)
+  SUBROUTINE WPHLP
 !...HELP ROUTINE FOR WPATCH
     implicit none
-    CHARACTER LINE*(*)
-    integer ityp
+!    CHARACTER LINE*(*)
+!    integer ityp
 !\end{verbatim} %+
     WRITE(KOU,10)
 10  FORMAT(' YOU MAY PATCH THE WORKSPACE.'/&
@@ -7033,7 +7040,7 @@ CONTAINS
     IF(LOK.GT.0) GOTO 100
     NW=IWS(LAST+1)
     CALL WTAKE(NYB,NW,IWS)
-900 RETURN
+    RETURN
   END SUBROUTINE WTREST
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
@@ -7058,7 +7065,7 @@ CONTAINS
     IF(NW.LT.2) GOTO 910
     LOKB=1
 4   LOKA=IWS(LOKB)
-5   IF(LOKA.LE.0) GOTO 920
+    IF(LOKA.LE.0) GOTO 920
     IF(LOKA.GE.IWS(2)) GOTO 930
 ! deleted feature !!!  if(X) <0 first label, =0 second label >0 third label
 !    IF(IWS(LOKA+1)-NW) 10,20,30
@@ -7140,7 +7147,7 @@ CONTAINS
        goto 930
     endif
 !..The released space follows directly on LOKA => Merge LOKA and LOKC
-110 LOKC=LOKA
+    LOKC=LOKA
     IWS(LOKC+1)=IWS(LOKC+1)+NW
     GOTO 130
 !..Set the pointer from LOKC to LOKB and from LOKA to LOKC
@@ -7157,7 +7164,7 @@ CONTAINS
        goto 940
     endif
 !..Merge LOKC and LOKB
-140 IWS(LOKC)=IWS(LOKB)
+    IWS(LOKC)=IWS(LOKB)
     IWS(LOKC+1)=IWS(LOKC+1)+IWS(LOKB+1)
 900 RETURN
 !...ERRORS
@@ -7432,8 +7439,17 @@ CONTAINS
     implicit none
     integer ix1,ix2
 !\end{verbatim} %+
+    integer, save :: ncall=0, mcall=0
+!    integer, allocatable, dimension(:) :: bug
+! at a testing ncall=24623, mcall=507127
+!    if(ix1.le.ix2) then
+!       mcall=mcall+1
+!    else
+!       write(*,*)'Indices order',ncall,mcall,ix1,ix2
+!       ncall=ncall+1
+!    endif
     if(ix1.le.0 .or. ix2.le.0) then
-       buperr=1000; goto 1000
+       ixsym=0; buperr=1000; goto 1000
     endif
     if(ix1.gt.ix2) then
        ixsym=ix2+ix1*(ix1-1)/2
@@ -7459,8 +7475,9 @@ CONTAINS
     implicit none
     integer ix1,ix2
 !\end{verbatim}
+! this if should be removed when all works
+    if(ix1.gt.ix2) stop "Illegal call to kxsym"
     kxsym=ix1+ix2*(ix2-1)/2
-1000 continue
     return
   end function kxsym
 
@@ -7603,7 +7620,7 @@ CONTAINS
     K=INDEX(LINE(IP:),SS)
     IF(K.GT.0) K=IP-1+K
     KNDEX=K
-900 RETURN
+    RETURN
   END FUNCTION KNDEX
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
@@ -7668,7 +7685,7 @@ CONTAINS
        LINE(I+1:)=XLINE(K+1:)
        GOTO 100
     ENDIF
-900 RETURN
+    RETURN
   END SUBROUTINE UNTAB
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/

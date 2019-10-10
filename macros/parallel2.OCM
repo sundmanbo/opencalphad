@@ -554,6 +554,14 @@ set bit glo 15 no
 @$ This system has 6 component system with 40 phases, 503 TPfuns and parameters
 @$ (the CPU time also includes listing some results on a file)
 @$ ==============================================
+@&
 
+@$ Check data for one equilibrium
+sel eq 103
+c e
+debug symbol cp 51.1372166
+debug symbol x(fcc,c) 0.463272739
+debug symbol tc(bcc) 1033.90240
+@&
 set inter
 

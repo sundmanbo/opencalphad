@@ -58,7 +58,8 @@ c e
 
 l,,,,,
 
-@$ Just calculate a first equilibrium
+@$ Just calculate a first equilibrium and check G
+debug symbol G -128465.6
 @&
 @$ Replace carbon mole fraction with lnac (=mu/RT)
 
@@ -72,6 +73,7 @@ l,,,,
 
 @$ We have the same equilibrium with different conditions,
 @$ lnac(c)=-5.14107979
+debug symbol lnac(c) -5.14107979
 @&
 @$----------------------------------------------
 @$ Change the value of the lnac condition
@@ -121,6 +123,7 @@ l,,,,
 c e
 l,,,,,
 @$ The calculated results should be identical with previous
+debug symbol w(liquid,cr) 0.0979989293
 @&
 @$-----------------------------------------
 @$ Change the value of the mass fraction
@@ -184,14 +187,14 @@ l ,,,,
 
 @$ The carbon activity should be unity, IT IS!!!  
 @$ And the Carbon content has increased, x(c)=.26637
-@$ Note the activity of Cr is 2.2858E-5 referred to SER
-@$ Change reference state to BCC at current T
 @&
 @$--------------------------------------------------
 
 l r 4
 
 @$ listing also with mass fractions
+@$ Note the activity of Cr is 2.2858E-5 referred to SER
+@$ Next change reference state to BCC at current T
 @&
 @$--------------------------------------------------
 @$ set reference state for Cr
@@ -209,7 +212,7 @@ c e
 
 l,,,,,
 
-@$ But nothing changes when we calculate as Cr activity not a condition
+@$ But nothing changes when we calculate as Cr activity is not a condition
 @&
 @$---------------------------------------------------
 @$ Set activity of Cr as condition
@@ -231,9 +234,11 @@ l,,,,,
 @&
 @$---------------------------------------------------------
 @$ list the (dimensionless) driving force for BCC, 
-l st dgm(bcc)
+show dgm(bcc)
 
 @$ The value is -0.29495337, list the constitution of bcc
+debug symbol dgm(bcc) -0.29495337
+@$
 l ph bcc
 ?
 
@@ -287,6 +292,7 @@ c e
 l,,,,
 
 @$ Temperature becomes 2139.23 with this addition of heat
+debug symbol T 2139.2273
 @&
 @$
 @$ ==============================================================
@@ -334,6 +340,7 @@ bcc
 
 @$ The calculated mass percent of C at equal Gibbs energy is 0.0271
 @$ We selected conditon 4 to be varied, i.e. the mass percent of C
+debug symbol w(c) 0.000271032666
 @$ We could also have releast condition 1, the T
 @$ But not any of the other conditions.  Why?
 @&
@@ -356,7 +363,7 @@ bcc
 
 
 @$ The T0 point is at 1077.84 K for the carbon content of 0.05.
-
+debug symbol T 1077.84124
 @&
 @$
 @$ ==============================================================
@@ -417,6 +424,8 @@ l,,,,
 @$ stable (it has a small positive driving force, +4.90E-4) but
 @$ it is dormant and cannot be included in the stable phase set.
 @$ 
+debug symbol dgm(bcc) 4.8934988E-4
+@$
 @$ The calculation kindly provided by Shaojie Song
 @$ who discovered a bug!
 @$ Report one yourself and get cited!
@@ -484,7 +493,7 @@ cal sym *
 list model-para-val
 mq&c(fcc)
 
-
+debug symbol mq&C#2(fcc) -5.9030928E3
 @$ The value should be -5903.0928.  NOTE this is not an assessed value.
 @&
 @$ There is a command to calculate the equilibrium state of a single
@@ -528,6 +537,7 @@ l,,,,
 @$ but not for the second (Cr) as we have defined a different reference state
 @$ The difference between the first and second is MU/RT for C
 @$
+debug symbol mu(fe) -5.7780791E4
 @&
 @$ That is all for now
 @&

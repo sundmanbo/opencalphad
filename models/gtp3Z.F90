@@ -175,7 +175,7 @@
             result=tpres(lrot)%results
 !            write(*,12)'3Z oldval: ',lrot,tpres(lrot)%forcenewcalc,&
 !                 tpfuns(lrot)%forcenewcalc,tpres(lrot)%results(1),tpval(1)
-12          format(a,i5,2i4,4(1pe12.4))
+!12          format(a,i5,2i4,4(1pe12.4))
             goto 1000
          endif
 !      else
@@ -191,7 +191,7 @@
 !   write(*,35)'3Z new TPval:',lrot,tpfuns(lrot)%forcenewcalc,&
 !        tpres(lrot)%forcenewcalc,&
 !        abs(tpres(lrot)%tpused(1)-tpval(1)),abs(tpres(lrot)%tpused(2)-tpval(2))
-35 format(a,3i5,2(1pe12.4))
+!35 format(a,3i5,2(1pe12.4))
    nr=tpfuns(lrot)%noofranges
    if(nr.eq.1) then
       exprot=>tpfuns(lrot)%funlinks(1)
@@ -230,8 +230,8 @@
 ! Searching for strange bug when entering parameter ...
 !   write(*,991)'3Z new value: ',lrot,tpres(lrot)%forcenewcalc,&
 !        tpres(lrot)%results(1),tpval(1),xxx
-991 format(a,2i5,6(1pe12.4))
-22  format(A,i3,4(1PE11.2))
+!991 format(a,2i5,6(1pe12.4))
+!22  format(A,i3,4(1PE11.2))
 1000 continue
    return
  end subroutine eval_tpfun
@@ -321,7 +321,7 @@
 910   format(a,2i5)
    endif
    str=line
-20 format(a)
+!20 format(a)
 1000 continue
    return
  end subroutine list_tpfun
@@ -385,7 +385,7 @@
          nr=nr+1
       endif
    enddo
-1000 continue
+!1000 continue
    return
  end subroutine list_unentered_funs
 
@@ -450,7 +450,7 @@
    character ch1*1
    logical zeroc
    character symbol*(lenfnsym),unary(nunary)*6
-   character, parameter :: tsym='T ',psym='P '
+   character*2, parameter :: tsym='T ',psym='P '
 ! NEIN is the Einstein function
 ! MAX1 is 1.0 if argument is larger than 1.0, error if argument negative
 ! LOG is LOG10 and LN is the natural logarithm!!!
@@ -530,7 +530,7 @@
       goto 1000
    endif
 !   write(*,202)ip,string(1:ip+5)
-202 format('Expect real: ',i5,' >',a,'< ')
+!202 format('Expect real: ',i5,' >',a,'< ')
    call getrel(string,ip,val)
    if(buperr.ne.0) then
       gx%bmperr=buperr
@@ -714,7 +714,7 @@
       else
 ! multiply symbol with something ....
 !         write(*,*)'ct1xfn 4: ',nterm,ip,coeff(nterm)
-654      format(a,i5,'"',a,'"',i5)
+!654      format(a,i5,'"',a,'"',i5)
       endif
       goto 200
    elseif(ch1.eq.';') then
@@ -734,7 +734,7 @@
       goto 1000
    endif
    nc=nterm
-990 format('ct1xfn 99> ',1PE15.6,5I7)
+!990 format('ct1xfn 99> ',1PE15.6,5I7)
 1000 continue
    return
  end subroutine ct1xfn
@@ -772,7 +772,7 @@
       goto 100
    endif
    symbol=localsym
-1000 return
+!1000 return
  end subroutine ct1getsym
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
@@ -1091,7 +1091,7 @@
 ! nonzero link4 inserted in the wrong term in step3.OCM ...
       link4=0
 !       if(link.ne.0) write(*,201)'funev: ',lrot,ic,link,link3
-201    format(a,10i5)
+!201    format(a,10i5)
       if(link.lt.0 .and. link3.gt.1000) then
 ! if link is negative (unary funktion) and link3 is >1000 (link)
 ! we must evaluate link3 first
@@ -1150,7 +1150,7 @@
          ff=ff*symval(1)
 ! DANGER, restoring wpow, note also wpow pop below!
 !         write(*,22)'3Z wpow 2:      ',level,nc,ic,exprot%wpow(ic),link4
-22       format(a,7i7)
+!22       format(a,7i7)
          exprot%wpow(ic)=link4
       endif
 !-------------------------------------------------------------
@@ -1635,7 +1635,7 @@
    koder(4,level)=exprot%plevel(ic)
    koder(5,level)=exprot%link(ic)
 !
-71    format(A,I5,1PE15.6,5I5)
+!71    format(A,I5,1PE15.6,5I5)
    is=koder(5,level)
 !   write(*,202)'ct1wfn: ',ic,ip,is,koder(1,level),string(1:ip)
 !202 format(a,4i4,a)
@@ -1652,7 +1652,7 @@
       else
          nos=-1
       endif
-230    continue
+!230    continue
       unaryfun: if(is.lt.0) then
 !...write the T or P power before the unary function
          if(nos.eq.1) then
@@ -1745,7 +1745,7 @@
 ! in the case of a single value exactly 1 without unary or T or P power
 ! the number was never written
 !      write(*,203)'ct1wfn2: ',(koder(i,level),i=1,4),coeff(level)
-203   format(a,4i4,1pe12.4)
+!203   format(a,4i4,1pe12.4)
       do i=1,4
          if(koder(i,level).ne.0) goto 219
       enddo
@@ -1869,7 +1869,7 @@
       endif
       goto 120
    endif
-150 continue
+!150 continue
 ! make sure there is a ; at the end of each expression
    kkp=index(longline(nexpr:),';')
 !   write(*,130)'3Z pos1: ',nexpr,kkp,lsc,jp,trim(longline)
@@ -1951,7 +1951,7 @@
       endif
    enddo
    deallocate(tpfuns)
-1000 continue
+!1000 continue
    return
  end subroutine tpfun_deallocate
 
@@ -2025,7 +2025,7 @@
       call capson(lsym)
       do jss=1,freetpfun-1
 !         write(*,17)jss,lsym,tpfuns(jss)%symbol
-17       format('enter_tpfun: ',i5,' >,',a,'=',a,'?')
+!17       format('enter_tpfun: ',i5,' >,',a,'=',a,'?')
          if(lsym.eq.tpfuns(jss)%symbol) then
             if(btest(tpfuns(jss)%status,TPNOTENT)) then
 ! function name already entered, now enter expression, this is from TDB files
@@ -2065,7 +2065,7 @@
          write(*,*)'Illegal character for low temperature limit: ',text(ip:ip)
          val=298.15; buperr=0
 !         write(*,19)ip,cbug,trim(text)
-19    format('TPFUN: ',2i3,' >',a)
+!19    format('TPFUN: ',2i3,' >',a)
       endif
 ! increement ip!
       ip=ip+1
@@ -2209,7 +2209,7 @@
       goto 1000
 300    continue
       jp=jp+1
-310    continue
+!310    continue
    enddo bigloop
 900 continue
    compare_abbrev=.TRUE.
@@ -2304,7 +2304,7 @@
    gx%bmperr=4351
    type=-1
 200 continue
-1000 continue
+!1000 continue
    return
  end subroutine find_tpsymbol
 
@@ -2411,7 +2411,7 @@
 !\end{verbatim} %+
    write(*,*)'get_value_of_constant_name not implemented yet'
 !   value=tpfuns(lrot)%limits(1)
-1000 continue
+!1000 continue
    return
  end subroutine get_value_of_constant_name
 
@@ -2431,7 +2431,7 @@
 ! unifished: check if it is really a constant ...
       value=tpfuns(lrot)%limits(1)
    endif
-1000 continue
+!1000 continue
    return
  end subroutine get_value_of_constant_index
 
@@ -2445,7 +2445,7 @@
    double precision values(*)
 !\end{verbatim} %+
    write(*,*)'Not yet implemeneted'
-1000 continue
+!1000 continue
    return
  end subroutine get_all_opt_coeff
 
@@ -2672,7 +2672,7 @@
     else
        name='A99'
     endif
-1000 continue
+!1000 continue
     return
   end subroutine makeoptvname
 
@@ -2708,7 +2708,7 @@
       enddo loop2
    enddo loop1
 !   write(*,*)'3Z where: ',trim(string)
-1000 continue
+!1000 continue
    return
  end subroutine findtpused
 
@@ -2742,7 +2742,7 @@
 110      format('Term: ',i2,1pe12.4,2x,5i6)
       enddo
    endif
-1000 continue
+!1000 continue
    return
  end subroutine list_tpfun_details
 
@@ -2798,8 +2798,8 @@
    buffer=' '
 !   write(*,12)npows,(usedpow(i1),i1=1,npows)
 !   write(buffer,11)npows,(usedpow(i1),i1=1,npows)
-11 format(12i5)
-12 format('3Z power2: ',i3,12i4)
+!11 format(12i5)
+!12 format('3Z power2: ',i3,12i4)
    text=buffer
 !   do i1=3,ntpf
 !      call tpwrite('ee',i1,ctpf(i1)%nranges,ctpf(i1)%cfun)
@@ -2908,14 +2908,14 @@
    enddo
 ! according to Ted
 700 format(1x,F11.4,6(1x,G15.8)/' 1 0.00000000       0.00')
-705 format(1x,F11.4,6(1x,G15.8)/' 3 ',3(1x,G15.8,i3,'.00'))
+!705 format(1x,F11.4,6(1x,G15.8)/' 3 ',3(1x,G15.8,i3,'.00'))
 710 format(1x,F11.4,6(1x,G15.8))
-719 format(a,2i3,4(1x,G10.2,1x,i3,'.00'))
-721 format(1x,i3,4(1x,G15.8,1x,F5.2))
+!719 format(a,2i3,4(1x,G10.2,1x,i3,'.00'))
+!721 format(1x,i3,4(1x,G15.8,1x,F5.2))
 730 format(i3)
 731 format(1x,G15.8,1x,i3,'.00')   
 733 format(1x,G15.8,1x,'  0.50')
-1000 continue
+!1000 continue
    return
  end subroutine list_tpascoef
 
@@ -2980,7 +2980,7 @@
 !   do i1=1,nrange
 !      write(*,200)(ctpf(lfun)%cfun%coefs(i2,i1),i2=1,6)
 !   enddo
-200 format(10F12.3)
+!200 format(10F12.3)
 1000 continue
    return
  end subroutine tpf2c
@@ -3048,7 +3048,7 @@
    cfun1%tbreaks(nrange)=tpfroot%hightlimit
    nrangeb=nrange
 !   write(*,2)tpfuns(lfun)%symbol
-2  format(/'Entering tpf2cx ---------------------------------: ',a)
+!2  format(/'Entering tpf2cx ---------------------------------: ',a)
 ! functions
 ! NOTE nrange may change below if referenced functions have a smaller range
 ! not so good to have a loop ...
@@ -3078,7 +3078,7 @@
       tpfexpr=>tpfroot%funlinks(i1a)
       nc1=tpfexpr%noofcoeffs
 !      write(*,107)'TPfun ranges: ',tpfuns(lfun)%symbol,i1a,i1b,nrangeb,jadd
-107   format(a,a,5i4)
+!107   format(a,a,5i4)
       skipnext=.false.
 ! maybe needed? YES!
       iadd=0
@@ -3111,7 +3111,7 @@
                fsqrt=tpfexpr%link(i2+1)
 !               write(*,114)'Found SQRTT?: ',lfun,tpfuns(lfun)%symbol,&
 !                    fsqrt,tpfuns(fsqrt)%symbol
-114            format(a,i5,2x,a,i5,2x,a)
+!114            format(a,i5,2x,a,i5,2x,a)
 ! set T power to -8; this will be converted to 0.5 when writing !!!
                cfun1%tpows(i2,i1b)=-8
                skipnext=.true.
@@ -3133,13 +3133,13 @@
                ccc=tpfexpr%coeffs(i2)
 !               write(*,32)'3Z link from: ',tpfuns(lfun)%symbol,&
 !                    i2,funref,ccc,trim(tpfuns(funref)%symbol)
-32             format(a,a,2i4,F6.2,' to ',a)
+!32             format(a,a,2i4,F6.2,' to ',a)
 !               write(*,333)'3Z term, link, factor: ',i2,funref,ccc,&
 ! IMPORTRANT funref is also index in tpfuns!!!
 !                    trim(tpfroot%symbol),trim(tpfuns(funref)%symbol),&
 !                    ctpf(funref)%nranges,&
 !                    tpfuns(funref)%noofranges,size(tpfuns(funref)%limits)
-333            format(a,2i4,1pe11.2,2x,a,2x,a,5i5)
+!333            format(a,2i4,1pe11.2,2x,a,2x,a,5i5)
 ! only allow a constant coefficent, no T or P powers, no unary function ...
                if(tpfexpr%tpow(i2).ne.0 .or. tpfexpr%ppow(i2).ne.0 .or. &
                     tpfexpr%wpow(i2).ne.0 .and. &
@@ -3163,7 +3163,7 @@
 !                             tpfuns(funref)%funlinks(1)%coeffs(1),&
 !                             klink,trim(tpfuns(klink)%symbol),&
 !                             tpfuns(klink)%funlinks(1)%coeffs(1)
-335                     format(a,2x,a,2x,a,2i3,2(1pe12.4),i3,2x,a,1pe12.4)
+!335                     format(a,2x,a,2x,a,2i3,2(1pe12.4),i3,2x,a,1pe12.4)
 !                        cfun1%coefs(i2,i1b)=ccc
                         cfun1%coefs(i2,i1b)=ccc
                         exit funrefif
@@ -3184,7 +3184,7 @@
 ! we must create a new coefficient array with the funref coefficents
 ! multiplied with the current coef within the current T-range
 ! It may be necessary to increase the number of T-ranges
-777            continue
+!777            continue
                if(.not.allocated(cadd)) then
 ! we have more than 6 functions added in soma cases ...
                   allocate(cadd(10))
@@ -3225,7 +3225,7 @@
 !         else
 ! when funref=0 it is OK to do nothing !!
          endif funrefif
-800      format(a,2i3,3(1pe12.4,i5))
+!800      format(a,2i3,3(1pe12.4,i5))
 ! we have gone through all terms for the TPfun for this range
       enddo trange
 ! Check if there were function links in this range
@@ -3238,7 +3238,7 @@
          do i3=iadd,2,-1
             nrr=caddnr(i3)
 !            write(*,16)'3Z there are coefficients to add!!',i3,iadd,nrr
-16          format(a,6i4)
+!16          format(a,6i4)
 ! add terms and adjust all ranges in cadd(i3-1)
             call adjustranges(nrr,cadd(i3-1),caddnr(i3),cadd(i3))
             if(gx%bmperr.ne.0) then
@@ -3296,8 +3296,8 @@
 !      write(*,800)c2,lfun,i1,nrange,cfun%tbreaks(i1),&
 !           (cfun%coefs(i2,i1),cfun%tpows(i2,i1),i2=1,10)
    enddo
-800 format('3Z ',a,': ',i3,2i2,F9.2,3(1pe13.5,i5)/&
-         (23x,e13.5,i5,e13.5,i5,e13.5,i5))
+!800 format('3Z ',a,': ',i3,2i2,F9.2,3(1pe13.5,i5)/&
+!         (23x,e13.5,i5,e13.5,i5,e13.5,i5))
 !   write(*,*)'3Z end of function'
    return
  end subroutine tpwrite
@@ -3374,7 +3374,7 @@
    endif
 !   write(*,7)'adjust1range: ',nrange,nr1,nr2,j2,&
 !        ctp1%tbreaks(nr1),ctp2%tbreaks(nr2)
-7  format(a,4i4,2F10.2)
+!7  format(a,4i4,2F10.2)
    allocate(ctp3%tbreaks(1))
    allocate(ctp3%coefs(maxnc,1))
    allocate(ctp3%tpows(maxnc,1))
@@ -3385,8 +3385,8 @@
 !   mrange=nrange-1
 !   write(*,16)'In adjust1range for range: ',nr1,i2,krange,&
 !        tlow1,thigh1,ctp2%tbreaks(i2)
-16 format(/a,3i3,3F10.2)
-100 continue
+!16 format(/a,3i3,3F10.2)
+!100 continue
    split: do while(i2.lt.nr2)
 ! fine-tuning needed when breakpoints identical in parameter and GHSERxx
 !      write(*,*)'in do while: ',i2,nr2,ctp2%tbreaks(i2),tlow1
@@ -3446,13 +3446,13 @@
       else
          continue
 !         write(*,731)'adjust1range 7:',i2,nr2,ctp2%tbreaks(i2),tlow1
-731      format(a,2i3,2F10.2)
+!731      format(a,2i3,2F10.2)
       endif
       i2=i2+1
       j2=j2+1
    enddo split
 ! flyttat till efter label 800
-799 continue
+!799 continue
    mrange=nrange
 800 continue
 !   write(*,*)'Why??',nrange,mrange,nr1,nr2,nosplit
@@ -3466,7 +3466,7 @@
    endif
 !   write(*,900)'3Z add8: ',nrange,i2,mrange,krange,&
 !        ctp1%tbreaks(nrange),ctp2%tbreaks(i2)
-900 format(/a,4i3,2F10.2)
+!900 format(/a,4i3,2F10.2)
 ! these output w1..c4 are important for debugging
    call tpwrite('w1',0,nrange,ctp1)
    call tpwrite('w2',0,nr2,ctp2)
@@ -3484,7 +3484,7 @@
       ctp1%tpows(j3,krange)=ctp3%tpows(j3,1)
    enddo
    call tpwrite('w4',0,nrange,ctp1)
-1000 continue
+!1000 continue
 !   if(nr3.gt.nr0) then
 !      write(*,*)'3Z inserted ',nrange-nr0,' ranges'
 !   endif
@@ -3533,7 +3533,7 @@
    ctp3%tpows=-100
 !----------------------------------------------------------------
 !   write(*,79)'3Z adding and adjusting ranges: ',nr1,nr2
-79 format(a,2i2)
+!79 format(a,2i2)
 100 continue
    i3=i3+1
    if(i3.gt.maxnr) then
@@ -3541,13 +3541,13 @@
       gx%bmperr=4391; goto 1000
    endif
 !   write(*,170)'3Z calling add1tp: ',i1,i2,i3,nr1,nr2
-170 format(a,10i5)
+!170 format(a,10i5)
    call add1tpcoeffs(i1,ctp1,i2,ctp2,i3,ctp3)
    if(gx%bmperr.ne.0) goto 1000
    if(abs(ctp2%tbreaks(i2)-ctp1%tbreaks(i1)).lt.tenth) then
 ! both breakpoints the same!
 !      write(*,180)'3Z same breakpoint',0,ctp1%tbreaks(i1),ctp2%tbreaks(i2)
-180   format(a,i3,2F10.2)
+!180   format(a,i3,2F10.2)
       ctp3%tbreaks(i3)=ctp2%tbreaks(i2)
       if(i2.lt.nr2) i2=i2+1
       if(i1.lt.nr1) i1=i1+1
@@ -3573,7 +3573,7 @@
       endif
    endif
 !   write(*,210)'3Z created ctp3 range: ',i3,ctp3%tbreaks(i3),tmax
-210 format(a,i3,2F9.2)
+!210 format(a,i3,2F9.2)
 ! How to know when we finished??
    if(abs(ctp3%tbreaks(i3)-tmax).gt.tenth) goto 100
 !-------------------------------------------------------------
@@ -3601,11 +3601,11 @@
    integer j1,j2,j3,k1
 ! first copy ctp1 to ctp3.  Then add ctp3 coefficients with same powers
 !   write(*,16)'3Z add1tp1: ',i1,i2,i3,ctp1%coefs(1,i1),ctp2%coefs(1,i2)
-16 format(a,3i3,2(1pe14.6))
+!16 format(a,3i3,2(1pe14.6))
 !   write(*,17)(ctp1%tpows(j3,i1),j3=1,maxnc)
 !   write(*,17)(ctp2%tpows(j3,i2),j3=1,maxnc)
 !   write(*,17)(ctp3%tpows(j3,i3),j3=1,maxnc)
-17 format('3Z tpows: ',10i5)
+!17 format('3Z tpows: ',10i5)
    j3=0
 !   call tpwrite('x0',0,i1,ctp1)
    do j1=1,maxnc
@@ -3656,7 +3656,7 @@
       endif
    enddo
 !   call tpwrite('x4',0,1,ctp3)
-1000 continue
+!1000 continue
 !   write(*,*)'3Z Exit add1tpcoefs'
    return
  end subroutine add1tpcoeffs
@@ -3700,7 +3700,7 @@
          usedpow(npow)=tpow1(i1)
 !         write(*,11)'3Z non-standard power: ',lfun,tpfuns(lfun)%symbol,&
 !              npow,tpow1(i1)
-11       format(a,i5,2x,a,2i4)
+!11       format(a,i5,2x,a,2i4)
       endif
    enddo loop1
 1000 continue
@@ -3754,7 +3754,7 @@
 ! all powers from here are special ... if coeff(z1)=zero ignore on output
          cord(7)=cord(7)+coeff1(z1)
 !         write(*,77)z1,7,tpfuns(lfun)%symbol
-77       format('3Z moving coefficient ',i2,' to ',i2,': ',a)
+!77       format('3Z moving coefficient ',i2,' to ',i2,': ',a)
          coeff1(z1)=zero
          if(lastc.lt.7) lastc=7
       elseif(tpow1(z1).eq.-9) then
@@ -3777,7 +3777,7 @@
 ! store in unused or add to to same rare power position in position 10
 !            write(*,90)tpfuns(lfun)%symbol,&
 !                 lfun,10,z1,tpow1(z1),coeff1(z1)
-90          format('3Z function: ',a,' extra power: ',4i4,2x,1pe12.4)
+!90          format('3Z function: ',a,' extra power: ',4i4,2x,1pe12.4)
             cord(10)=cord(10)+coeff1(z1)
             coeff1(z1)=zero
             tpow1(10)=tpow1(z1)
@@ -3838,9 +3838,9 @@
 !   tpow1(10), 11 and 12 are free
 !   write(*,91)'3Z powers 2: ',(tpow1(z1),z1=1,lastc)
 !   write(*,80)'3Z sorted: ',tpfuns(lfun)%symbol,nc1,(tpow1(z1),z1=1,lastc)
-80 format(a,1x,a,': ',i3,11i5)
+!80 format(a,1x,a,': ',i3,11i5)
 ! tpow1(11) keep its value.  No provision for more than one extra power!!
-1000 continue
+!1000 continue
    return
  end subroutine sortcoeffs
 

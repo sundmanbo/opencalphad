@@ -346,12 +346,14 @@ c e
 
 l,,,,
 
-@$ Sometimes there are problems, try again ...
+@$ Sometimes there are problems, if so try again ...
 
 c e
 
 l,,,,
 
+@$ Check result
+debug symbol g -9.4475313E2
 @&
 
 @$ cset the axis for an isothermal phase diagram ...

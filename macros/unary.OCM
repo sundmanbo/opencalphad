@@ -41,6 +41,7 @@ l,,,,
 
 @$ At T=1000 and 1 bar BCC is stable and G=-42.2718 kJ
 @$ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-
+debug symbol G -42271.753
 @&
 
 l sh
@@ -104,5 +105,6 @@ c e
 l,,,,
 
 @$ With this value of H we have FCC stable at 1615.28 K 
+debug symbol T 1615.2788
 @&
 set inter

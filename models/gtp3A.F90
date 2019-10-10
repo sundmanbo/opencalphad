@@ -1708,10 +1708,10 @@ end function find_phasetuple_by_indices
      end if
    end if
    el_name=ellista(splista(loksp)%ellinks(iel))%name
-   if(ocv()) then
-      write(*,*)"set_new_stoichiometry: (species,element,old_stoi,new_stoi)',&
-           ' = (",spe_name,",",el_name,",",old_stoi,",",new_stoi,")"
-   endif
+!   if(ocv()) then
+!      write(*,*)"set_new_stoichiometry: (species,element,old_stoi,new_stoi)',&
+!           ' = (",spe_name,",",el_name,",",old_stoi,",",new_stoi,")"
+!   endif
  end subroutine set_new_stoichiometry
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\

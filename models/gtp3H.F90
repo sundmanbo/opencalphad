@@ -390,7 +390,7 @@
    TYPE(gtp_phase_add), pointer :: lokadd
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-   integer itc,ibm,jl,noprop,ik,k,jk,j
+   integer itc,ibm,jl,noprop,ik,k,jk,j,jxsym
    double precision logb1,invb1,iafftc,iaffbm,rgasm,rt,tao,gmagn,msize
    double precision dtaodt,dtaodp,beta,d2taodp2,d2taodtdp,tc,tv
    double precision tao2(2),ftao(6),dtao(3,mc),d2tao(mc*(mc+1)/2)
@@ -446,8 +446,11 @@
             phres%dgval(k,ik,itc)=iafftc*phres%dgval(k,ik,itc)
          enddo
          do jk=ik,mc
-            phres%d2gval(ixsym(ik,jk),itc)=&
-                 iafftc*phres%d2gval(ixsym(ik,jk),itc)
+            jxsym=kxsym(ik,jk)
+            phres%d2gval(jxsym,itc)=&
+                 iafftc*phres%d2gval(jxsym,itc)
+!            phres%d2gval(ixsym(ik,jk),itc)=&
+!                 iafftc*phres%d2gval(ixsym(ik,jk),itc)
          enddo
       enddo
       do k=1,6
@@ -469,8 +472,9 @@
             phres%dgval(k,ik,ibm)=iaffbm*phres%dgval(k,ik,ibm)
          enddo
          do jk=ik,mc
-            phres%d2gval(ixsym(ik,jk),ibm)=&
-                 iaffbm*phres%d2gval(ixsym(ik,jk),ibm)
+            jxsym=kxsym(ik,jk)
+            phres%d2gval(jxsym,ibm)=&
+                 iaffbm*phres%d2gval(jxsym,ibm)
          enddo
       enddo
       do k=1,6
@@ -552,9 +556,10 @@
       dtao(3,j)=2.0d0*tao*phres%gval(3,itc)*phres%dgval(1,j,itc)/tc**2-&
            tao*phres%dgval(3,j,itc)/tc
       do k=j,mc
-         d2tao(ixsym(j,k))=&
+         jxsym=kxsym(j,k)
+         d2tao(jxsym)=&
               2.0*tao*phres%dgval(1,j,itc)*phres%dgval(1,k,itc)/tc**2&
-              -tao*phres%d2gval(ixsym(j,k),itc)/tc
+              -tao*phres%d2gval(jxsym,itc)/tc
       enddo
    enddo
    do j=1,mc
@@ -583,12 +588,19 @@
            rt*ftao(1)*invb1*phres%dgval(3,j,ibm)
       do k=j,mc
 ! second derivatives wrt Y1 and Y2, wrong
-         d2addgval(ixsym(j,k))=rt*ftao(4)*dtao(1,j)*dtao(1,k)*logb1+&
-              rt*ftao(2)*d2tao(ixsym(j,k))*logb1+&
+         jxsym=kxsym(j,k)
+         d2addgval(jxsym)=rt*ftao(4)*dtao(1,j)*dtao(1,k)*logb1+&
+              rt*ftao(2)*d2tao(jxsym)*logb1+&
               rt*ftao(2)*dtao(1,j)*invb1*phres%dgval(1,k,ibm)+&
               rt*ftao(2)*dtao(1,k)*invb1*phres%dgval(1,j,ibm)-&
               rt*ftao(1)*invb1**2*phres%dgval(1,j,ibm)*phres%dgval(1,k,ibm)+&
-              rt*ftao(1)*invb1*phres%d2gval(ixsym(j,k),ibm)
+              rt*ftao(1)*invb1*phres%d2gval(jxsym,ibm)
+!         d2addgval(ixsym(j,k))=rt*ftao(4)*dtao(1,j)*dtao(1,k)*logb1+&
+!              rt*ftao(2)*d2tao(ixsym(j,k))*logb1+&
+!              rt*ftao(2)*dtao(1,j)*invb1*phres%dgval(1,k,ibm)+&
+!              rt*ftao(2)*dtao(1,k)*invb1*phres%dgval(1,j,ibm)-&
+!              rt*ftao(1)*invb1**2*phres%dgval(1,j,ibm)*phres%dgval(1,k,ibm)+&
+!              rt*ftao(1)*invb1*phres%d2gval(ixsym(j,k),ibm)
 !          write(*,57)rt*ftao(4)*dtao(1,j)*dtao(1,k)*logb1,&
 !   R            rt*ftao(2)*d2tao(ixsym(j,k))*logb1,&
 !               rt*ftao(2)*dtao(1,j)*invb1*phres%dgval(1,k,ibm),&
@@ -619,8 +631,11 @@
 ! second derivatives
 !         write(*,99)'3H magadd 2: ',k,j,rt*phres%d2gval(ixsym(j,k),1),&
 !              d2addgval(ixsym(j,k))
-         phres%d2gval(ixsym(j,k),1)=phres%d2gval(ixsym(j,k),1)+&
-              msize*d2addgval(ixsym(j,k))/rt
+         jxsym=kxsym(j,k)
+         phres%d2gval(jxsym,1)=phres%d2gval(jxsym,1)+&
+              msize*d2addgval(jxsym)/rt
+!         phres%d2gval(ixsym(j,k),1)=phres%d2gval(ixsym(j,k),1)+&
+!              msize*d2addgval(ixsym(j,k))/rt
       enddo
    enddo
 !   write(*,*)'3H cm 7: ',phres%gval(1,1),addgval(1)/rt
@@ -792,7 +807,7 @@
    TYPE(gtp_phase_add), pointer :: lokadd
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-   integer itc,itn,ibm,jl,noprop,ik,k,jk,j
+   integer itc,itn,ibm,jl,noprop,ik,k,jk,j,jxsym
    double precision logb1,invb1,iafftc,iaffbm,rgasm,rt,tao,gmagn,msize
    double precision dtaodt,dtaodp,beta,d2taodp2,d2taodtdp,tc,tv
    double precision tao2(2),ftao(6),dtao(3,mc),d2tao(mc*(mc+1)/2)
@@ -950,9 +965,13 @@
       dtao(3,j)=2.0d0*tao*phres%gval(3,itc)*phres%dgval(1,j,itc)/tc**2-&
            tao*phres%dgval(3,j,itc)/tc
       do k=j,mc
-         d2tao(ixsym(j,k))=&
+         jxsym=kxsym(j,k)
+         d2tao(jxsym)=&
               2.0*tao*phres%dgval(1,j,itc)*phres%dgval(1,k,itc)/tc**2&
-              -tao*phres%d2gval(ixsym(j,k),itc)/tc
+              -tao*phres%d2gval(jxsym,itc)/tc
+!         d2tao(ixsym(j,k))=&
+!              2.0*tao*phres%dgval(1,j,itc)*phres%dgval(1,k,itc)/tc**2&
+!              -tao*phres%d2gval(ixsym(j,k),itc)/tc
       enddo
    enddo
    do j=1,mc
@@ -981,12 +1000,19 @@
            rt*ftao(1)*invb1*phres%dgval(3,j,ibm)
       do k=j,mc
 ! second derivatives wrt Y1 and Y2, wrong ??
-         d2addgval(ixsym(j,k))=rt*ftao(4)*dtao(1,j)*dtao(1,k)*logb1+&
-              rt*ftao(2)*d2tao(ixsym(j,k))*logb1+&
+         jxsym=kxsym(j,k)
+         d2addgval(jxsym)=rt*ftao(4)*dtao(1,j)*dtao(1,k)*logb1+&
+              rt*ftao(2)*d2tao(jxsym)*logb1+&
               rt*ftao(2)*dtao(1,j)*invb1*phres%dgval(1,k,ibm)+&
               rt*ftao(2)*dtao(1,k)*invb1*phres%dgval(1,j,ibm)-&
               rt*ftao(1)*invb1**2*phres%dgval(1,j,ibm)*phres%dgval(1,k,ibm)+&
-              rt*ftao(1)*invb1*phres%d2gval(ixsym(j,k),ibm)
+              rt*ftao(1)*invb1*phres%d2gval(jxsym,ibm)
+!         d2addgval(ixsym(j,k))=rt*ftao(4)*dtao(1,j)*dtao(1,k)*logb1+&
+!              rt*ftao(2)*d2tao(ixsym(j,k))*logb1+&
+!              rt*ftao(2)*dtao(1,j)*invb1*phres%dgval(1,k,ibm)+&
+!              rt*ftao(2)*dtao(1,k)*invb1*phres%dgval(1,j,ibm)-&
+!              rt*ftao(1)*invb1**2*phres%dgval(1,j,ibm)*phres%dgval(1,k,ibm)+&
+!              rt*ftao(1)*invb1*phres%d2gval(ixsym(j,k),ibm)
 !          write(*,57)rt*ftao(4)*dtao(1,j)*dtao(1,k)*logb1,&
 !               rt*ftao(2)*d2tao(ixsym(j,k))*logb1,&
 !               rt*ftao(2)*dtao(1,j)*invb1*phres%dgval(1,k,ibm),&
@@ -1014,8 +1040,11 @@
       do k=j,mc
 !          write(*,99)'3H magadd 2: ',k,j,rt*phres%d2gval(ixsym(j,k),1),&
 !               d2addgval(ixsym(j,k))
-         phres%d2gval(ixsym(j,k),1)=phres%d2gval(ixsym(j,k),1)+&
-              msize*d2addgval(ixsym(j,k))/rt
+         jxsym=kxsym(j,k)
+         phres%d2gval(jxsym,1)=phres%d2gval(jxsym,1)+&
+              msize*d2addgval(jxsym)/rt
+!         phres%d2gval(ixsym(j,k),1)=phres%d2gval(ixsym(j,k),1)+&
+!              msize*d2addgval(ixsym(j,k))/rt
       enddo
    enddo
 !    write(*,*)'3H cm 7: ',rt*phres%gval(1,1),addgval(1)

@@ -46,6 +46,8 @@ c e
 
 l,,,,
 
+@$ We will check this again after save/read unformatted
+debug symbol gs -5.9405966E4
 @&
 @$ enter some state variable functions
 
@@ -121,6 +123,8 @@ c n
 
 l,,,,
 
+@$ Check we have the same results as before save/read
+debug symbol gs -5.9405966E4
 @&
 @$ and change conditions and calculate again
 
@@ -181,6 +185,9 @@ c e
 
 l,,,
 
+
+@$ check the Gibbs energy of this equilibrium
+debug symbol g -2.2969105E5
 @&
 @$ Save workspaces unformatted on a file, final Y to overwrite!!
 
@@ -229,6 +236,8 @@ sel eq
 
 l,,,,
 
+@$ Is the G value saved?  The value has been calculated before save/read
+debug symbol g -2.2969105E5
 @&
 @$ Set a new condition and calculate without grid minimizer
 

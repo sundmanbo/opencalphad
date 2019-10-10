@@ -950,7 +950,9 @@
 ! ...................................... second derivatives
 ! For all models except ionic liquids 2nd derivatives are simple ...
                            iloop2B: do jd=id+1,gz%nofc
-                              d2pyq(ixsym(id,jd))=d2pyq(ixsym(id,jd))*ymult
+!                              d2pyq(ixsym(id,jd))=d2pyq(ixsym(id,jd))*ymult
+                              jxsym=kxsym(id,jd)
+                              d2pyq(jxsym)=d2pyq(jxsym)*ymult
                            enddo iloop2B
                            d2pyq(ixsym(id,ic))=dpyq(id)
                         endif
@@ -990,26 +992,32 @@
 ! NOT tested (Ca+2)p(O-2,SiO4-4,SiO2)q
 ! ...................................... loop for second derivatives
                         iloop2X: do jd=id+1,gz%nofc
+                           jxsym=kxsym(id,jd)
                            if(jd.le.phlista(lokph)%nooffr(1)) then
 ! both id and jd are cations, interaction must be multiplied with yionva
-                              d2pyq(ixsym(id,jd))=&
-                                   d2pyq(ixsym(id,jd))*ymult*yionva
+!                              d2pyq(ixsym(id,jd))=&
+!                                   d2pyq(ixsym(id,jd))*ymult*yionva
+                              d2pyq(jxsym)=d2pyq(jxsym)*ymult*yionva
 !                              write(*,215)gz%intlevel,ic,id,jd,&
 !                                   d2pyq(ixsym(id,jd)),ymult,&
 !                                   d2pyq(ixsym(id,jd))*ymult*yionva
 215                           format('3X d2pyq: ',4i3,4(1pe12.4))
                            elseif(jd.lt.jonva) then
 ! if jd<jonva derivative wrt anion and cation or two cations, jd must be anion
-                              d2pyq(ixsym(id,jd))=&
-                                   d2pyq(ixsym(id,jd))*ymult
+!                              d2pyq(ixsym(id,jd))=&
+!                                   d2pyq(ixsym(id,jd))*ymult
+                              d2pyq(jxsym)=d2pyq(jxsym)*ymult
                            elseif(jd.eq.jonva) then
 ! calculate also d2pyq(ixsym(jonva,jonva)) the only nonzero diagonal element
-                              d2pyq(ixsym(id,jd))=(gz%intlevel+1)/gz%intlevel*&
-                                   d2pyq(ixsym(id,jd))*ymult
+!                              d2pyq(ixsym(id,jd))=(gz%intlevel+1)/gz%intlevel*&
+!                                   d2pyq(ixsym(id,jd))*ymult
+                              d2pyq(jxsym)=(gz%intlevel+1)/gz%intlevel*&
+                                   d2pyq(jxsym)*ymult
                            else
 ! second derivatives with two neutrals
-                              d2pyq(ixsym(id,jd))=&
-                                   d2pyq(ixsym(id,jd))*ymult
+!                              d2pyq(ixsym(id,jd))=&
+!                                   d2pyq(ixsym(id,jd))*ymult
+                              d2pyq(jxsym)=d2pyq(jxsym)*ymult
                            endif
                         end do iloop2X
 !                        write(*,216)'3X dpyq: ',id,jd,dpyq
@@ -1042,7 +1050,8 @@
 !                     write(*,216)'3X d2pyq1: ',ic,id,d2pyq(ixsym(ic,id))
                   enddo iliqloop1
 ! This is a special 2nd derivative wrt Va twice
-                  d2pyq(ixsym(jonva,jonva))=dpyq(jonva)/yionva
+!                  d2pyq(ixsym(jonva,jonva))=dpyq(jonva)/yionva
+                  d2pyq(kxsym(jonva,jonva))=dpyq(jonva)/yionva
 !                  write(*,216)'3X all dpyq:',gz%intlevel,ic,dpyq
 !                  write(*,216)'3X all d2pyq:',gz%intlevel,ic,d2pyq
 ! END SPECIAL FOR IONIC LIQUID
@@ -1188,10 +1197,16 @@
 ! No second derivatives calculated in cgint for this case
 ! no jxsym here ... to complicated
                            do qz=jk,4
-                              phres%d2gval(ixsym(gz%iq(jk),gz%iq(qz)),ipy)=&
-                                  phres%d2gval(ixsym(gz%iq(jk),gz%iq(qz)),ipy)+&
-                                  dpyq(gz%iq(jk))*dvals(1,gz%iq(qz))+&
-                                  dpyq(gz%iq(qz))*dvals(1,gz%iq(jk))
+!                              phres%d2gval(ixsym(gz%iq(jk),gz%iq(qz)),ipy)=&
+!                                 phres%d2gval(ixsym(gz%iq(jk),gz%iq(qz)),ipy)+&
+!                                  dpyq(gz%iq(jk))*dvals(1,gz%iq(qz))+&
+!                                  dpyq(gz%iq(qz))*dvals(1,gz%iq(jk))
+! I do not trust optimized gfortran will eliminate 2 calls to ixsym !!!
+                              jxsym=ixsym(gz%iq(jk),gz%iq(qz))
+                              phres%d2gval(jxsym,ipy)=&
+                                   phres%d2gval(jxsym,ipy)+&
+                                   dpyq(gz%iq(jk))*dvals(1,gz%iq(qz))+&
+                                   dpyq(gz%iq(qz))*dvals(1,gz%iq(jk))
                            enddo
                            endif
 ! first derivatives, including 2nd wrt T and P
@@ -1213,8 +1228,14 @@
                      noindent1: do jk=1,3
                         do qz=jk+1,3
 ! the second derivative for jk=qz calculated below as it is simpler
-                           phres%d2gval(ixsym(gz%iq(jk),gz%iq(qz)),ipy)=&
-                                phres%d2gval(ixsym(gz%iq(jk),gz%iq(qz)),ipy)+&
+!                           phres%d2gval(ixsym(gz%iq(jk),gz%iq(qz)),ipy)=&
+!                                phres%d2gval(ixsym(gz%iq(jk),gz%iq(qz)),ipy)+&
+!                                dpyq(gz%iq(jk))*dvals(1,gz%iq(qz))+&
+!                                dpyq(gz%iq(qz))*dvals(1,gz%iq(jk))
+! not trusting gfortran optimizing
+                           jxsym=ixsym(gz%iq(jk),gz%iq(qz))
+                           phres%d2gval(jxsym,ipy)=&
+                                phres%d2gval(jxsym,ipy)+&
                                 dpyq(gz%iq(jk))*dvals(1,gz%iq(qz))+&
                                 dpyq(gz%iq(qz))*dvals(1,gz%iq(jk))
                         enddo
@@ -1226,8 +1247,13 @@
                              phres%dgval(itp,gz%iq(jk),ipy)&
                              +pyq*dvals(itp,gz%iq(jk))
                      enddo
-                     phres%d2gval(ixsym(gz%iq(jk),gz%iq(jk)),ipy)=&
-                          phres%d2gval(ixsym(gz%iq(jk),gz%iq(jk)),ipy)+&
+!                     phres%d2gval(ixsym(gz%iq(jk),gz%iq(jk)),ipy)=&
+!                          phres%d2gval(ixsym(gz%iq(jk),gz%iq(jk)),ipy)+&
+!                          2.0D0*dpyq(gz%iq(jk))*dvals(1,gz%iq(jk))
+! not trusing gforntran optimizing
+                     jxsym=ixsym(gz%iq(jk),gz%iq(jk))
+                     phres%d2gval(jxsym,ipy)=&
+                          phres%d2gval(jxsym,ipy)+&
                           2.0D0*dpyq(gz%iq(jk))*dvals(1,gz%iq(jk))
                   enddo
 !...>>>>>>...........indentation forward
@@ -1239,19 +1265,33 @@
 ! but then one must handle wildcard endmembers ....
 ! and there may be other bugs here anyway ....
                            do ic1=1,gz%nofc
+!                              add1=dpyq(ic1)*dvals(1,gz%iq(1))+&
+!                                   dpyq(gz%iq(1))*dvals(1,ic1)+&
+!                                   pyq*d2vals(ixsym(ic1,gz%iq(1)))
+!                              phres%d2gval(ixsym(ic1,gz%iq(1)),ipy)=&
+!                                   phres%d2gval(ixsym(ic1,gz%iq(1)),ipy)+add1
+! not trusing gfortran optimizing
+                              jxsym=ixsym(ic1,gz%iq(1))
                               add1=dpyq(ic1)*dvals(1,gz%iq(1))+&
                                    dpyq(gz%iq(1))*dvals(1,ic1)+&
-                                   pyq*d2vals(ixsym(ic1,gz%iq(1)))
-                              phres%d2gval(ixsym(ic1,gz%iq(1)),ipy)=&
-                                   phres%d2gval(ixsym(ic1,gz%iq(1)),ipy)+add1
+                                   pyq*d2vals(jxsym)
+                              phres%d2gval(jxsym,ipy)=&
+                                   phres%d2gval(jxsym,ipy)+add1
                               if(ic1.ne.gz%iq(1)) then
 ! this IF to avoid that the second derivative gz%iq(1) and gz%iq(2) is
 ! calculated twice. ic1 will at some time be equal to gz%iq(1) and to gz%iq(2)
+!                                 add1=dpyq(ic1)*dvals(1,gz%iq(2))+&
+!                                      dpyq(gz%iq(2))*dvals(1,ic1)+&
+!                                      pyq*d2vals(ixsym(ic1,gz%iq(2)))
+!                                 phres%d2gval(ixsym(ic1,gz%iq(2)),ipy)=add1+&
+!                                      phres%d2gval(ixsym(ic1,gz%iq(2)),ipy)
+! not trusting gfortran optimizing
+                                 jxsym=ixsym(ic1,gz%iq(2))
                                  add1=dpyq(ic1)*dvals(1,gz%iq(2))+&
                                       dpyq(gz%iq(2))*dvals(1,ic1)+&
-                                      pyq*d2vals(ixsym(ic1,gz%iq(2)))
-                                 phres%d2gval(ixsym(ic1,gz%iq(2)),ipy)=add1+&
-                                      phres%d2gval(ixsym(ic1,gz%iq(2)),ipy)
+                                      pyq*d2vals(jxsym)
+                                 phres%d2gval(jxsym,ipy)=add1+&
+                                      phres%d2gval(jxsym,ipy)
                               endif
                            enddo
                         endif noder3B
@@ -1476,13 +1516,15 @@
                      jxsym=kxsym(i1,i1)
 ! It should work with jxsym here 
                      do i2=i1,gz%nofc
-                        if(ixsym(i1,i2).ne.jxsym) then
-                           write(*,*)'ISYM error 3',i1,i2,ixsym(i1,i2),jxsym
-                           stop
-                        endif
+!                        if(ixsym(i1,i2).ne.jxsym) then
+! this ixsym test works and has run of few 1000 times, removed for speed!!
+!                           write(*,*)'ISYM error 3',i1,i2,ixsym(i1,i2),jxsym
+!                           stop
+!                        endif
                         phres%d2gval(jxsym,ipy)=&
                              saved2g(jxsym,ipy)-&
                              phres%d2gval(jxsym,ipy)
+! adding i2 to jxsym here seems correct!!
                         jxsym=jxsym+i2
 !                        phres%d2gval(ixsym(i1,i2),ipy)=&
 !                             saved2g(ixsym(i1,i2),ipy)-&
@@ -1634,10 +1676,11 @@
                do i2=i1,norfc
 ! add the contributions from the disordered part
                   j2=fracset%y2x(i2)
-                  if(ixsym(i1,i2).ne.jxsym) then
-                     write(*,*)'ISYM error 4',i1,i2,ixsym(i1,i2),jxsym
-                     stop
-                  endif
+!                  if(ixsym(i1,i2).ne.jxsym) then
+! this ixsym test works and has run of few 1000 times, removed for speed!!
+!                     write(*,*)'ISYM error 4',i1,i2,ixsym(i1,i2),jxsym
+!                     stop
+!                  endif
                   do ipy=1,lprop-1
                      phpart%d2gval(jxsym,ipy)=&
                           phpart%d2gval(jxsym,ipy)+&
@@ -1715,10 +1758,11 @@
             do ipy=1,lprop-1
 !               write(*,497)'3X adding: ',i1,i2,ixsym(i1,i2),ipy
 497            format(a,10i3)
-               if(ixsym(i1,i2).ne.jxsym) then
-                  write(*,*)'ISYM error 5',i1,i2,ixsym(i1,i2),jxsym
-                  stop
-               endif
+!               if(ixsym(i1,i2).ne.jxsym) then
+! this ixsym test works and has run of few 1000 times, removed for speed!!
+!                  write(*,*)'ISYM error 5',i1,i2,ixsym(i1,i2),jxsym
+!                  stop
+!               endif
                phres%d2gval(jxsym,ipy)=saved2g(jxsym,ipy)+&
                     phres%sites(2)*phres%d2gval(jxsym,ipy)
 !               phres%d2gval(ixsym(i1,i2),ipy)=saved2g(ixsym(i1,i2),ipy)+&
@@ -1817,7 +1861,10 @@
       do id=1,gz%nofc
          phmain%dgval(1,id,1)=phmain%dgval(1,id,1)+xxx
          do jd=id,gz%nofc
-            phmain%d2gval(ixsym(id,jd),1)=phmain%d2gval(ixsym(id,jd),1)+xxx
+! doubing gfortran optimizer ...
+            jxsym=kxsym(id,jd)
+!            phmain%d2gval(ixsym(id,jd),1)=phmain%d2gval(ixsym(id,jd),1)+xxx
+            phmain%d2gval(jxsym,1)=phmain%d2gval(jxsym,1)+xxx
          enddo
       enddo
    endif
@@ -2176,7 +2223,7 @@
    double precision rtg,dx0,dx,dx1,dx2,ct,fvs,dvax0,dvax1,dvax2,yionva
    double precision ycat0,dcat1,dcat2,dyvan1,dyvan2
    double precision, parameter :: onethird=one/3.0D0,two=2.0D0
-   logical ionicliq,iliqva,iliqneut
+   logical ionicliq,iliqva,iliqneut,iliq3cat
 ! zeroing 5 iq, and vals, dvals and d2vals
 !   write(*,*)'3X cgint 1:',gz%iq(1),gz%iq(2),gz%iq(3)
 ! why zero qz%iq, it has been set before calling ...
@@ -2385,6 +2432,7 @@
 !----------------------------------------------------------------------
 ! important to set ivax=0 here as tested below if not zero
       ivax=0
+      iliq3cat=.FALSE.
       if(ionicliq) then
 !         write(*,*)'3X Comp.dep ternary ionic liquid parameter: ',iliqva
          if(gz%intlat(1).eq.2) then
@@ -2401,8 +2449,12 @@
 ! with composition dependence .... require treatment of extra vacancy fraction
 ! TAFID not implemented: (Fe+2,Cr+2,Ni+1):(Va) for example ....
 ! ternary term: y_Va*(y_Cr*L;0 +y_Fe*L;1 +y_Ni*L;2)
-    write(*,*)'3X unimplemented comp. dep. ternary cation interaction in liquid'
+!               write(*,*)'3X unimplemented comp. dep. ternary cation',&
+!                    'interaction in liquid'
 !               gx%bmperr=4343; goto 1000
+! 
+               iliq3cat=.TRUE.
+               ivax=gz%intcon(2)
             elseif(gz%intlat(1).eq.1 .and. gz%intlat(2).eq.2) then
 ! This is a reciprocal interaction, two cations, vacancy and neutral
                ivax=gz%endcon(2)
@@ -2442,27 +2494,57 @@
          vv(2)=gz%yfrint(2)
          ct=(one-vv(0)-vv(1)-vv(2))*onethird
          vv=vv+ct
+! derivatives of vv w.r.t. the 3 constituents 0, 1 and 2
          fvv(0)=two*onethird
          fvv(1)=-onethird
          fvv(2)=-onethird
          terloop: do jint=0,2
-! calculate parameter
+! calculate parameters, there are 3 of them, 0, 1 and 2
             lfun=lokpty%degreelink(jint)
             call eval_tpfun(lfun,gz%tpv,valtp,ceq%eq_tpres)
             if(lokpty%proptype.eq.1) then
                valtp=valtp/rtg
             endif
 ! function value
-            vals=vals+vv(jint)*valtp
+            if(iliq3cat) then
+! this is when there are 3 cations in ionic liquid, yionva is vacancy fraction
+! NOTE vals and valtp both have dimension 6!!
+               vals=vals+yionva*vv(jint)*valtp
+! there are also a contrbution to df/dyva!, d2f/dyvadT ... calculated below
+! ivax is the index of vacancy
+!               write(*,*)'3X ivax: ',ivax
+               dvals(1,ivax)=dvals(1,ivax)+vv(jint)*valtp(1)
+               dvals(2,ivax)=dvals(2,ivax)+vv(jint)*valtp(2)
+               dvals(3,ivax)=dvals(3,ivax)+vv(jint)*valtp(3)
+            else
+               vals=vals+vv(jint)*valtp
+            endif
             noder6: if(moded.gt.0) then
-! first derivatives
+! first derivatives, qz=2 is for T and qz=3 is for P derivatives
                do qz=1,3
-                  dvals(qz,gz%iq(1))=dvals(qz,gz%iq(1))+fvv(0)*valtp(qz)
-                  dvals(qz,gz%iq(2))=dvals(qz,gz%iq(2))+fvv(1)*valtp(qz)
-                  dvals(qz,gz%iq(3))=dvals(qz,gz%iq(3))+fvv(2)*valtp(qz)
+! for interaction with 3 cations and Va in 2nd sublattice
+! valtp(1) is G; valtp(2) is dG/dT; valtp(3) is dG/dP
+                  if(iliq3cat) then
+! the first derivatives
+                     dvals(qz,gz%iq(1))=dvals(qz,gz%iq(1))+&
+                          yionva*fvv(0)*valtp(qz)
+                     dvals(qz,gz%iq(2))=dvals(qz,gz%iq(2))+&
+                          yionva*fvv(1)*valtp(qz)
+                     dvals(qz,gz%iq(3))=dvals(qz,gz%iq(3))+&
+                          yionva*fvv(2)*valtp(qz)
+                  else
+                     dvals(qz,gz%iq(1))=dvals(qz,gz%iq(1))+fvv(0)*valtp(qz)
+                     dvals(qz,gz%iq(2))=dvals(qz,gz%iq(2))+fvv(1)*valtp(qz)
+                     dvals(qz,gz%iq(3))=dvals(qz,gz%iq(3))+fvv(2)*valtp(qz)
+                  endif
                enddo
-! there is no contribution to the second derivatives from this interaction
             endif noder6
+            if(iliq3cat) then
+! with ionic liquid and 3 cations iteraction there are 2nd derivatives
+! with respect to Va and the cation (but no T or P derivative)!
+               d2vals(ixsym(ivax,gz%iq(jint)))=&
+                    d2vals(ixsym(ivax,gz%iq(jint)))+fvv(0)*valtp(1)
+            endif
             fvs=fvv(2)
             fvv(2)=fvv(1)
             fvv(1)=fvv(0)
@@ -2609,7 +2691,8 @@
          ss=ss+yfra*ylog
          if(moded.gt.0) then
             phvar%dgval(1,kall,1)=phvar%sites(ll)*(one+ylog)
-            phvar%d2gval(ixsym(kall,kall),1)=phvar%sites(ll)/yfra
+!            phvar%d2gval(ixsym(kall,kall),1)=phvar%sites(ll)/yfra
+            phvar%d2gval(kxsym(kall,kall),1)=phvar%sites(ll)/yfra
          endif
       enddo fractionloop
       phvar%gval(1,1)=phvar%gval(1,1)+phvar%sites(ll)*ss
@@ -2643,7 +2726,7 @@
    integer, dimension(nsl) :: nkl
    TYPE(gtp_phase_varres), pointer :: phvar
 !\end{verbatim}
-   integer ll,kk,kall,nk,j1,j2
+   integer ll,kk,kall,nk,j1,j2,jxsym
    double precision tval,ss,yfra,ylog,yva,spart(2)
    ll=0
    kall=0
@@ -2676,7 +2759,8 @@
          ss=ss+yfra*ylog
          if(moded.gt.0) then
             phvar%dgval(1,kall,1)=phvar%sites(ll)*(one+ylog)
-            phvar%d2gval(ixsym(kall,kall),1)=phvar%sites(ll)/yfra
+!            phvar%d2gval(ixsym(kall,kall),1)=phvar%sites(ll)/yfra
+            phvar%d2gval(kxsym(kall,kall),1)=phvar%sites(ll)/yfra
          endif
       enddo fractionloop
       phvar%gval(1,1)=phvar%gval(1,1)+phvar%sites(ll)*ss
@@ -2724,30 +2808,42 @@
 !   write(*,108)'3X dpqdy: ',(phvar%dpqdy(j1),j1=1,nkl(1)+nkl(2))
 108 format(a,10F7.3)
    cation: do j1=1,nkl(1)
-! this was an attempt to improve convergence ... it did but not enough
-!      if(localmoded.eq.1) goto 109
+! to avoid calling ixsym ...
+         jxsym=kxsym(j1,j1)
       cation2: do j2=j1,nkl(1)
 ! d2S/dy_i1dy_i2 = v_i1*y_Va*(1+ln(y_i2) + v_i2*y_Va*(1+ln(y_i1) + 
 !                  [P*(1/y_i1**2)]         ..last term already calculated  OK
-!         write(*,103)'3X ij: ',j1,j2,ixsym(j1,j2),yva,&
-!              phvar%d2gval(ixsym(j1,j2),1),&
-!              phvar%dpqdy(j1),phvar%dpqdy(j2),&
-!              phvar%dgval(1,j1,1),phvar%dgval(1,j2,1)
-!103      format(a,3i3,6(1pe11.3))
-         phvar%d2gval(ixsym(j1,j2),1)=phvar%d2gval(ixsym(j1,j2),1)+&
+         if(ixsym(j1,j2).ne.jxsym) then
+! this ixsym test works and has run of few 1000 times, removed for speed!!
+            write(*,*)'3X ISYM error 5',j1,j2,ixsym(j1,j2),jxsym
+            stop "3X ixsym indexing error 17"
+         endif
+!         phvar%d2gval(ixsym(j1,j2),1)=phvar%d2gval(ixsym(j1,j2),1)+&
+!              (phvar%dpqdy(j1)*phvar%dgval(1,j2,1)+&
+!               phvar%dpqdy(j2)*phvar%dgval(1,j1,1))*yva/phvar%sites(1)
+         phvar%d2gval(jxsym,1)=phvar%d2gval(jxsym,1)+&
               (phvar%dpqdy(j1)*phvar%dgval(1,j2,1)+&
                phvar%dpqdy(j2)*phvar%dgval(1,j1,1))*yva/phvar%sites(1)
+         jxsym=jxsym+j2
       enddo cation2
       anion2: do kk=1,nkl(2)
          j2=nkl(1)+kk
+         jxsym=kxsym(j1,j2)
          if(j2.lt.min(i2slx(1),i2slx(2))) then
 ! d2S/dy_idy_j   = v_i*(1+ln(y_j)) + (-v_j)*(1+ln(y_i))    ...cation+anion OK
-            phvar%d2gval(ixsym(j1,j2),1)=&
+!            phvar%d2gval(ixsym(j1,j2),1)=&
+!                 phvar%dpqdy(j1)*phvar%dgval(1,j2,1)/phvar%sites(2)+&
+!                 phvar%dpqdy(j2)*phvar%dgval(1,j1,1)/phvar%sites(1)
+            phvar%d2gval(jxsym,1)=&
                  phvar%dpqdy(j1)*phvar%dgval(1,j2,1)/phvar%sites(2)+&
                  phvar%dpqdy(j2)*phvar%dgval(1,j1,1)/phvar%sites(1)
          elseif(j2.eq.i2slx(1)) then
 ! d2S/dy_idy_Va  = v_i*(1+ln(y_Va)) + v_i*S1 + Q*(1+ln(y_i))   ...cation+Va OK
-            phvar%d2gval(ixsym(j1,j2),1)=&
+!            phvar%d2gval(ixsym(j1,j2),1)=&
+!                 phvar%dpqdy(j1)*phvar%dgval(1,j2,1)/phvar%sites(2)+&
+!                 phvar%dpqdy(j1)*spart(1)+&
+!                 phvar%sites(2)*phvar%dgval(1,j1,1)/phvar%sites(1)
+            phvar%d2gval(jxsym,1)=&
                  phvar%dpqdy(j1)*phvar%dgval(1,j2,1)/phvar%sites(2)+&
                  phvar%dpqdy(j1)*spart(1)+&
                  phvar%sites(2)*phvar%dgval(1,j1,1)/phvar%sites(1)
@@ -2756,7 +2852,9 @@
 !            write(*,107)'3X i,va: ',j1,j2,phvar%dpqdy(j1),phvar%dgval(1,j2,1),&
 !                 phvar%sites(2)
 !107         format(a,2i2,6(1pe12.4))
-            phvar%d2gval(ixsym(j1,j2),1)=&
+!            phvar%d2gval(ixsym(j1,j2),1)=&
+!                 phvar%dpqdy(j1)*phvar%dgval(1,j2,1)/phvar%sites(2)
+            phvar%d2gval(jxsym,1)=&
                  phvar%dpqdy(j1)*phvar%dgval(1,j2,1)/phvar%sites(2)
          endif
       enddo anion2
@@ -2829,7 +2927,7 @@
 ! Then calculate the SRO: q_ij=(y_ij/(x_i*x_j)-1)*(x_i+x_j)**2
 ! and B=\sum_i x_i*ln(x_i)*(1-z + \sum_(j>i) (z/2-1)*f(q_ij))
 ! -S = A+B
-   integer icon,loksp,lokel,iel,nqij,kqij
+   integer icon,loksp,lokel,iel,nqij,kqij,jxsym
    double precision zhalf,yfra,ylog,cluster,sbonds,scorr,stoi1,stoi2
    double precision xp,xs,gamma,x1,x2
    double precision, allocatable, dimension(:) :: xval,qij,ycluster,&
@@ -2877,7 +2975,8 @@
       sbonds=sbonds+zhalf*yfra*ylog
       if(moded.gt.0) then
          phvar%dgval(1,icon,1)=zhalf*(one+ylog)
-         phvar%d2gval(ixsym(icon,icon),1)=zhalf/(yfra)
+!         phvar%d2gval(ixsym(icon,icon),1)=zhalf/(yfra)
+         phvar%d2gval(kxsym(icon,icon),1)=zhalf/(yfra)
 ! These should be the correct derivatives but with these it does not converge!!
 !         phvar%dgval(1,icon,1)=zhalf*(one/cluster+ylog)
 !         phvar%d2gval(ixsym(icon,icon),1)=zhalf/(cluster*yfra)
@@ -2929,14 +3028,25 @@
          do icon=1,ncon
             phvar%dgval(1,icon,1)=phvar%dgval(1,icon,1)+&
                  gamma*(one+ylog)*dxval(iel,icon)
+            jxsym=kxsym(icon,icon)
             do loksp=icon,ncon
-               phvar%d2gval(ixsym(icon,loksp),1)=&
-                    phvar%d2gval(ixsym(icon,loksp),1)+&
+!               phvar%d2gval(ixsym(icon,loksp),1)=&
+!                    phvar%d2gval(ixsym(icon,loksp),1)+&
+!                    gamma*dxval(iel,icon)*dxval(iel,loksp)/yfra
+               if(ixsym(icon,loksp).ne.jxsym) then
+! this ixsym test works and has run of few 1000 times, removed for speed!!
+                  write(*,*)'3X ISYM error 18',ixsym(icon,loksp),jxsym
+                  stop
+               endif
+               phvar%d2gval(jxsym,1)=&
+                    phvar%d2gval(jxsym,1)+&
                     gamma*dxval(iel,icon)*dxval(iel,loksp)/yfra
+               jxsym=jxsym+loksp
             enddo
          enddo
       endif
    enddo
+!- ixsym --------------- ixsym end modification
 ! now all is calculated gval(1,1)=G; gval(2,1)=S etc
 ! DO NOT CHANGE ANYTHING!!
    phvar%gval(1,1)=sbonds+gamma*scorr

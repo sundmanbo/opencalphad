@@ -382,6 +382,11 @@ opt 100
 l opt short
 
 
+@$ Test a value, we cannot test optimizing variables ...
+sel eq 3
+c e
+debug symbol hdiff 9997.8138
+@$
 set inter
 
 

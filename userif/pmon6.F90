@@ -377,8 +377,8 @@ contains
 ! subcommands to DEBUG
     character (len=16), dimension(ncdebug) :: cdebug=&
          ['FREE_LISTS      ','STOP_ON_ERROR   ','ELASTICITY      ',&
-          'TEST1           ','TPFUN           ','BROWSER         ',&
-          'TRACE           ','                ','                ']
+          'SPECIES         ','TPFUN           ','BROWSER         ',&
+          'TRACE           ','SYMBOL_VALUE    ','                ']
 !-------------------
 ! subcommands to SELECT, maybe some should be CUSTOMMIZE ??
     character (len=16), dimension(nselect) :: cselect=&
@@ -3853,6 +3853,9 @@ contains
                 write(kou,*)bmperrmess(gx%bmperr)
              elseif(gx%bmperr.ne.0) then
                 write(kou,*)'Error code ',gx%bmperr
+             else
+                if(tdbfile(1:1).ne.' ') &
+                     write(kou,*)'Database file: ',trim(tdbfile)
              endif
           else
              write(kou,*)'Unknown format'
@@ -5155,9 +5158,8 @@ contains
        CASE(3)
           write(*,*)'Not implemented yet'
 !----------------------------------
-! debug test1 (whatever)
+! debug species
        case(4)
-!          write(*,*)'Nothing here'
           do i1=1,nosp()
              call get_species_location(i1,loksp,name1)
              if(gx%bmperr.ne.0) goto 990
@@ -5168,7 +5170,7 @@ contains
 1670         format(2i4,1x,a12,1x,2F6.2,2x,10(i3,1x,F7.4))
           enddo
 !---------------------------------
-! debug tpfun (whatever)
+! debug tpfun
        case(5)
           call gparidx('Function index:',cline,last,ll,-1,'?DEBUG TPfun')
           call list_tpfun_details(ll)
@@ -5226,21 +5228,58 @@ contains
 !---------------------------------
 ! debug trace
        case(7)
-             call gparcdx('HTML help?',cline,last,1,ch1,'Y','?DEBUG trace')
-             if(ch1.eq.'Y') then
-                helptrace=.TRUE.
-             else
-                helptrace=.FALSE.
-             endif
-             call gparcdx('plotting?',cline,last,1,ch1,'N','?DEBUG plot')
-             if(ch1.eq.'Y') then
-                plottrace=.TRUE.
-             else
-                plottrace=.FALSE.
-             endif
+          call gparcdx('HTML help?',cline,last,1,ch1,'Y','?DEBUG trace')
+          if(ch1.eq.'Y') then
+             helptrace=.TRUE.
+          else
+             helptrace=.FALSE.
+          endif
+          call gparcdx('plotting?',cline,last,1,ch1,'N','?DEBUG plot')
+          if(ch1.eq.'Y') then
+             plottrace=.TRUE.
+          else
+             plottrace=.FALSE.
+          endif
 !..................................
-! not used
+! debug symbol value
        case(8)
+! this allows a command "debug symbol value" which will test if symbol
+! has the specified value (+/- 10^(-6).  
+! Should be usefil in the test macros ...
+! 4th argument 2 means terminate at " ", ignore any ,
+          call gparcx('Symbol: ',cline,last,2,name1,' ','?DEBUG symbol value')
+          call gparrx('Value: ',cline,last,xxy,zero,'?DEBUG symbol value')
+          call capson(name1)
+! code below copied from SHOW command
+          model=' '
+          call get_state_var_value(name1,xxx,model,ceq)
+          if(gx%bmperr.eq.0) then
+             write(lut,6108)model(1:len_trim(model)),xxx
+          else
+             gx%bmperr=0
+! If error then try to calculate a symbol ...
+! below copied from calculate symbol, first calculate all symbols ignore errors
+! calculate all symbols ignoring errors (note dot derivatives not calculated)
+             call meq_evaluate_all_svfun(-1,ceq)
+             if(gx%bmperr.ne.0) gx%bmperr=0
+             call capson(line)
+             call find_svfun(name1,istv)
+             if(gx%bmperr.ne.0) goto 990
+             mode=1
+             actual_arg=' '
+             xxx=meq_evaluate_svfun(istv,actual_arg,mode,ceq)
+             if(gx%bmperr.ne.0) goto 990
+             write(kou,2047)trim(name1),xxx
+          endif
+          xxz=1.0D-6
+          if(abs(xxy).gt.1.0d0) xxz=xxz*abs(xxy)
+          if(abs(xxx-xxy).gt.xxz) then
+!             write(*,'(a,4(1pe14.6))')'Values: ',xxx,xxy,xxz
+             write(*,'(a,2(1pe12.4))')'Symbol value outside limit!',xxx,xxy
+             stop
+          else
+             write(*,*)'Testing symbol ',trim(name1),' value OK ++++++++'
+          endif
 !..................................
 ! not used
        case(9)
