@@ -4152,6 +4152,7 @@ CONTAINS
 ! LINUX: read one character at a time without echo and allow editing history
     ch1=getkex()
 #endif
+110 continue
 !    write(*,*)'got from getkey: ',ichar(ch1)
 ! handle control character
     if(ichar(ch1).ge.32 .and. ichar(ch1).lt.127) then
@@ -4177,6 +4178,7 @@ CONTAINS
     endif
 !=======================  
 !    write(*,*)'control character: ',ichar(ch1)
+120 continue
     select case(ichar(ch1))
     case default
 ! ignore
