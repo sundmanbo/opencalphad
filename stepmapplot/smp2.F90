@@ -5709,7 +5709,9 @@ CONTAINS
     nrel=noel()
 ! sum up nubler of stable phases and check if T and P are fixed
     nostph=0
-    do ii=1,noofphasetuples()
+!    ntups=nooftup()
+!    do ii=1,noofphasetuples()
+    do ii=1,nooftup()
        if(ceq%phase_varres(phasetuple(ii)%lokvares)%phstate.gt.0) &
             nostph=nostph+1
     enddo
@@ -5779,7 +5781,8 @@ CONTAINS
     fixph=mapline%meqrec%fixph(1,jj) 
     fixcs=mapline%meqrec%fixph(2,jj)
 !
-    nph=noofphasetuples()
+!    nph=noofphasetuples()
+    nph=nooftup()
     write(*,66,advance='no')
 66  format('Phases: ')
     do jj=1,nph
@@ -6015,7 +6018,7 @@ CONTAINS
     TYPE(map_node), pointer :: maptop
 !\end{verbatim}
     TYPE(gtp_equilibrium_data), pointer :: ceq
-    integer ntup,itup,iph,ics,nystat,inactive(4),notop,seqy,mode
+    integer ntup,itup,iph,ics,nystat,inactive(4),notop,seqy,mode,jk
     integer jj,seqz,iadd,irem,nv,saveq,lokcs
     type(gtp_phasetuple), dimension(:), allocatable :: entphcs
     integer, dimension(:), allocatable :: stsphcs
@@ -6064,8 +6067,11 @@ CONTAINS
           if(gx%bmperr.ne.0) goto 1000
 ! phase status -1, 0 and 1 are all saved as 0
           if(stsphcs(itup).ge.-1 .and. stsphcs(itup).le.1) stsphcs(itup)=0
-          call change_phase_status(iph,ics,nystat,val,ceq)
-          if(gx%bmperr.ne.0) goto 1000
+! do not change status of dormant phases ...
+          if(stsphcs(itup).ne.-2) then
+             call change_phase_status(iph,ics,nystat,val,ceq)
+             if(gx%bmperr.ne.0) goto 1000
+          endif
        enddo
     enddo
 !    write(*,'(a,10i3)')'Suspended all phases',stsphcs
@@ -6077,10 +6083,10 @@ CONTAINS
 !============================================================
     phaseloop: do itup=1,ntup
 ! nystat:-4 hidden, -3 suspended, -2 dormant, -1,0,1 entered, 2 fix
-!       write(*,*)'Phase ',itup,' status ',stsphcs(itup),ntup
+!       write(*,*)'SS Phase ',itup,' status ',stsphcs(itup),ntup
        if(stsphcs(itup).gt.-2) then
 ! set default constitution, if none specified in the middle
-!          iph=entphcs(itup)%phaseix
+!          write(*,*)'loop for phase phase ',itup,' stable'
           iph=entphcs(itup)%ixphase
           call set_default_constitution(entphcs(itup)%ixphase,&
                entphcs(itup)%compset,ceq)
@@ -6196,7 +6202,7 @@ CONTAINS
 ! find a stored line to calculate
 ! in this subroutine we have only one axis variable
 200       continue
-!          write(*,*)'Calling findline:'
+          write(*,*)'Calling findline:'
           call map_findline(maptop,axarr,mapfix,mapline)
           if(gx%bmperr.ne.0) goto 500
 !          write(*,*)'Back from map_findline 2'
@@ -6205,6 +6211,10 @@ CONTAINS
           meqrec=>mapline%meqrec
 ! this is the first equilibrium along the line, create meqrec in step_separate
 305       continue
+!          do jk=1,ntup
+!             if(stsphcs(jk).eq.-2) write(*,*)'SS phase ',jk,' dormant B'
+!             if(stsphcs(jk).ge.0) write(*,*)'SS phase ',jk,' stable B'
+!          enddo
           call calceq7(mode,meqrec,mapfix,ceq)
           if(gx%bmperr.ne.0) then
 ! error 4187 is to set T or P less than 0.1
@@ -6251,6 +6261,10 @@ CONTAINS
                 write(*,*)'Error storing equilibrium',gx%bmperr
                 goto 900
              endif
+!             do jk=1,ntup
+!                if(stsphcs(jk).eq.-2) write(*,*)'SS phase ',jk,' dormant C'
+!                if(stsphcs(jk).ge.0) write(*,*)'SS phase ',jk,' stable C'
+!             enddo
              call map_step(maptop,mapline,mapline%meqrec,mapline%meqrec%phr,&
                   axvalok,noofaxis,axarr,ceq)
 !             write(*,*)'Back from map_step 2 ',mapline%more,&

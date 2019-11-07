@@ -151,6 +151,10 @@
 ! just to be sure
    nphl(0)=0
 !
+   if(globaldata%sysparam(1).gt.one) then
+! we must initiate EEC data for the liquid
+      sliqmin=zero; sliqmax=zero; gliqeec=zero
+   endif
    phloop: do zph=1,pph
 ! for phase iphx(zph) the gridpoints will be stored from position nphl(zph-1)+1
 ! ng should be set to number of remaining points, ny and yphl is not used
@@ -3378,7 +3382,8 @@
 !\end{verbatim}
 ! ny just needed for debugging ...
    integer i,lokres
-   double precision qq(5),xmol(nrel),ytemp(maxconst),sum
+   double precision qq(5),xmol(nrel),ytemp(maxconst),gg,ss
+   TYPE(gtp_phase_varres), pointer :: varres
 ! set constitution and calculate G per mole atoms and composition
 !
 ! BEWARE must be tested for parallel processing
@@ -3389,23 +3394,46 @@
    if(gx%bmperr.ne.0) goto 1000
    call calc_phase_mol(iph,xmol,ceq)
    if(gx%bmperr.ne.0) goto 1000
+   if(globaldata%sysreal(1).gt.one) then
+! if eec check if this is the liquid and if so select the maximum S ??
+      varres=>ceq%phase_varres(lokres)
+! value per mole component gres(2,1) is the -entropy NOTE ss is postive!!
+      ss=-varres%gval(2,1)/qq(1)
+      gg=varres%gval(1,1)
+      if(btest(phlista(iph)%status1,PHLIQ)) then
+!         write(*,*)'In calc_gridpoint liquid: ',ss
+!         neecgrid=neecgrid+1
+! note varres%gval(2,1) is -S !! Should we test max or min of liquid S ??
+!         write(*,*)'Determining sliqmax: ',ss,sliqmax
+         if(ss.gt.sliqmax) then
+!            write(*,'(a,i3,5(1pe10.2))')'Liquid gridpoint: ',iph,&
+!                 ss,sliqmin,gliqeec,varres%gval(1,1)/qq(1)
+            sliqmax=ss; gliqeec=varres%gval(1,1)/qq(1)
+         endif
+      elseif(sliqmax.gt.zero) then
+! this is a solid and we have a value for sliqmax for EEC to work better
+!         write(*,*)'In calc_gridpoint solid: ',varres%gval(2,1)/qq(1),sliqmax
+         if(ss.gt.sliqmax) then
+! its s=-dG/dt of solid is larger than sliqmax make the G more positive
+            varres%gval(1,1)=(gg+1.5D1)
+!            varres%gval(1,1)=(gliqeec+one)
+            write(*,'(a,2i3,5(1pe10.2))')'3Y Solid corr: ',iph,lokres,&
+                 ss,sliqmax,gg,varres%gval(1,1),qq(1)
+         endif
+      else
+         write(*,*)'3Y Gridminimizer has no Sliqmax for solid',iph
+      endif
+   endif
 !    write(*,15)'3Y gd2: ',iph,lokres,qq(1),&
 !         ceq%phase_varres(lokres)%gval(1,1),(xmol(i),i=1,nrel)
 !15  format(a,2i4,2e12.4,2x,5(F9.5))
-!   sum=zero
-!   do i=1,nrel
-!      sum=sum+xmol(i)
-!   enddo
    do i=1,nrel
       xarr(i)=real(xmol(i))
-!     xarr(i)=real(xmol(i)/sum)
    enddo
 !   if(qq(1).lt.2.0D-1) then
 ! number of real atoms less than 20%, a gridpoint with just vacancies ....
    if(qq(1).lt.5.0D-1) then
 ! number of real atoms less than 50%, a gridpoint with mainly vacancies ....
-!      gval=1.0E5
-!      gval=1.0E1
 !      write(*,12)'3Y real atoms less than 0.5',lokres,qq(1),&
 !           ceq%phase_varres(lokres)%gval(1,1)/qq(1)
 12    format(a,i5,3(1pe12.4))

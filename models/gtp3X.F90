@@ -352,7 +352,7 @@
 ! independent if ordered or disordered always calculate first fraction set
                else
 ! the phase is disordered, skip ordered part and just calculate disordered
-!                  write(*,*)'3X Skipping ordered part'
+! nevertwice is already set TRUE
                   goto 105
                endif
             endif
@@ -1441,7 +1441,7 @@
 ! after both ordered and disordered fraction set calculated
 !         write(*,611)'3X ftyp:',fractype,btest(phlista(lokph)%status1,phmfs),&
 !              btest(phmain%status2,csorder),first,lokph,phres%gval(1,1)
-         if(first) then
+         returnoradd: if(first) then
 ! we have calculated for the first, now calculate for second fraction type
 ! alternative method: no need to calculate with all fractions as disordered
             first=.false.
@@ -1505,8 +1505,6 @@
                nz=fracset%tnoofxfr
 !               allocate(tmpd2g(nz*(nz+1)/2,nprop))
 !               tmpd2g=zero
-! remove this comment to obtain old code
-!               goto 666
 !--------------------------------------------------------------------------
 ! simplest way of correcting 2nd deruvatives, Gord(y=x) in phres%d2gval
 ! phres%d2gval(i,j) = saved2g(i,j) - phres%d2gval(i,j)
@@ -1532,11 +1530,9 @@
                      enddo
                   enddo
                enddo
-               goto 667
-!----------------------- old code below not used
-! old code deleted
-!----------------------- old code above not used
-667            continue
+!               goto 667
+! old code removed
+!667            continue
                if(allocated(tmpd2g)) deallocate(tmpd2g)
             endif noder6A
 !---------------------
@@ -1624,11 +1620,11 @@
             deallocate(saveg)
             deallocate(savedg)
             deallocate(saved2g)
-         endif
+         endif returnoradd
 ! code above reinstated but has problems ....
       endif disord
 ! WE CAN JUMP HERE WITHOUT CALCULATING THE ORDERED PART AS DISORDERED
-400 continue
+400   continue
    enddo fractyp
 !   norfc=phlista(lokph)%tnooffr
 ! 4SL FCC all correct here
@@ -1861,14 +1857,14 @@
       do id=1,gz%nofc
          phmain%dgval(1,id,1)=phmain%dgval(1,id,1)+xxx
          do jd=id,gz%nofc
-! doubing gfortran optimizer ...
+! doubting gfortran optimizer ...
             jxsym=kxsym(id,jd)
 !            phmain%d2gval(ixsym(id,jd),1)=phmain%d2gval(ixsym(id,jd),1)+xxx
             phmain%d2gval(jxsym,1)=phmain%d2gval(jxsym,1)+xxx
          enddo
       enddo
    endif
-   if(floryhuggins.lt.0) then
+   floryhugg: if(floryhuggins.lt.0) then
 ! The Flory-Huggins entropy require that we use the volume parameters
 ! These have now been calculated and can be used in a second loop through
 ! the other parameters
@@ -1927,7 +1923,7 @@
 ! not implemented yet ...
 !      write(*,*)'3X Flory-Huggins model only config entropy, no goto 100'
       goto 100
-   endif
+   endif floryhugg
    uniquac: if(btest(phlista(lokph)%status1,phuniquac)) then
 !      write(*,'(a,6(1pe12.4))')'3X calling uniquac: ',&
 !           phmain%dgval(1,1,1),phres%dgval(1,2,1)

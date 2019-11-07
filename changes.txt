@@ -13,6 +13,20 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2019.11.07 OC version 5.055: After installing MacOS Catalina on my Mac
+the Makefile I provide with OC broke.  The GNU C compiler could not
+find the necessary systems files because Apple evidently does not like
+software they do not provide themselves.  So now there is a special
+Makefile-Mac which use Apple's "cc" compiler.
+
+For application software developers I have also updated the some files
+in the application directory TQ4lib/F90/.  The liboctq.F90 now
+contains two extra dummy modules that are used in the interactive
+program but not needed for applications.  The the F90/crfe directory
+example is updated, the other will be next time I hope.  I am not able
+to update the Cpp examples as I do not know C++, anyone who does are
+welcome to help.  The TQ3lib-clean has been removed.
+
 2019.10.10 OC version 5.054: I have introduced a command DEBUG SYMBOL
 <symbol> <value> used in my test macros to have a hard stop if the
 value of a symbol is not the same as with previous versions.

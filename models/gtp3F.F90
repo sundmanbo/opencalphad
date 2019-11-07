@@ -2741,6 +2741,174 @@
 !\begin{verbatim}
  subroutine calc_qf(lokcs,value,ceq)
 ! calculates eigenvalues of the second derivative matrix, stability function
+! using the Darken matrix with second derivatives: OK FOR SUBSTITUTIONAL
+! lokcs is index of phase_varres
+! value calculated value returned
+! ceq is current equilibrium
+! For ionic liquid and charged crystalline phases one should
+! calculate eigenvectors to find neutral directions.
+   implicit none
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+   integer :: lokcs
+   double precision value
+!\end{verbatim}
+   integer lokph,nsl
+   lokph=ceq%phase_varres(lokcs)%phlink
+   nsl=phlista(lokph)%noofsubl
+!   if(nsl.eq.1) then
+! For substitutional solutions
+      call calc_qf_old(lokcs,value,ceq)
+!   else
+! For any onther model      
+!      value=zero
+!   endif
+ end subroutine calc_qf
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine calc_qf_sub
+!\begin{verbatim}
+ subroutine calc_qf_sub(lokcs,value,ceq)
+! calculates eigenvalues of the second derivative matrix, stability function
+! using the Darken matrix with second derivatives: OK FOR SUBSTITUTIONAL
+! lokcs is index of phase_varres
+! value calculated value returned
+! ceq is current equilibrium
+! For ionic liquid and charged crystalline phases one should
+! calculate eigenvectors to find neutral directions.
+   implicit none
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+   integer :: lokcs
+   double precision value
+!\end{verbatim}
+   integer info,nofc,nofc2,nmax,ii,jj,lokph,nsl,cc,rr,zz,pp,qq
+   double precision, allocatable :: d2g(:),eigenv(:),work(:)
+   double precision dummy(1,1),dmuidyii
+   integer, allocatable :: skip(:)
+   type(gtp_phase_varres), pointer :: varres
+! number of constituents
+! ignore sublattices with single constituents ....
+   varres=>ceq%phase_varres(lokcs)
+   nofc=size(varres%yfr)
+   lokph=varres%phlink
+!   nofc=size(ceq%phase_varres(lokcs)%yfr)
+!   lokph=ceq%phase_varres(lokcs)%phlink
+   nsl=phlista(lokph)%noofsubl
+   allocate(skip(nsl+1))
+   info=1
+   nmax=0
+   do ii=1,nsl
+      if(phlista(lokph)%nooffr(ii).eq.1) then
+         nmax=nmax+1
+         skip(nmax)=info
+!         write(*,*)'3F QF skipping column/row ',info
+      endif
+      info=info+phlista(lokph)%nooffr(ii)
+   enddo
+   if(nmax.eq.nsl) then
+! phase has no variable composition
+      value=one
+      goto 1000
+   endif
+   skip(nmax+1)=phlista(lokph)%tnooffr+1
+!   write(*,*)'QF dimension: ',nofc,nmax
+   nofc=nofc-nmax
+   nofc2=nofc*(nofc+1)/2
+   allocate(d2g(nofc2))
+   allocate(eigenv(nofc))
+   allocate(work(3*nofc))
+   nsl=1
+   cc=0
+   rr=0
+! Calculation of matrix elements modeified 2019.11.01/BoS
+! See documentation for Darken stability in minimizer documentation
+! dGA/dxB = d2GM/dxAdxB -
+!           \sum_C x_C (d2GM/dxAdxC+d2GM/dxBdxC + \sum_D x_D d2GM/dxCdxD)
+! This may not work when sublattices ?... but difficult to calculate dG_I/dn_I
+! PROBLMES WHEN USER DEFINED REFERENCE STATES !! ??
+! For Cr-Fe when plot of gm(bcc) before q(bcc) then q(bcc) is rubbish
+!
+   row: do ii=1,nofc+nmax
+      if(ii.eq.skip(nsl)) then
+! skip this row.  A clumsy way to skip sublattices with a single constituent
+         nsl=nsl+1
+         cycle row
+      endif
+      cc=cc+1
+      rr=cc-1
+      column: do jj=ii,nofc+nmax
+         do zz=1,nmax
+! skip this column.  A clumsy way to skip sublattices with a single constituent
+            if(jj.eq.skip(zz)) cycle column
+         enddo
+         rr=rr+1
+!         write(*,17)'QF calc: ',ii,jj,' to ',cc,rr
+17       format(a,2i4,a,2i4)
+         dmuidyii=varres%d2gval(ixsym(ii,jj),1)
+!         write(*,33)'3F start: ',ii,jj,0,dmuidyii
+33       format(a,3i3,3(1pe12.4))
+!         d2g(ixsym(cc,rr))=ceq%phase_varres(lokcs)%d2gval(ixsym(ii,jj),1)
+! extra summation over all constituents (except those alone in a sublattice)
+         extra1: do qq=1,nofc+nmax
+            do zz=1,nmax
+! skip this term.  A clumsy way to skip sublattices with a single constituent
+               if(qq.eq.skip(zz)) cycle extra1
+            enddo
+            dmuidyii=dmuidyii-varres%yfr(qq)*(varres%d2gval(ixsym(ii,qq),1)+&
+                 varres%d2gval(ixsym(jj,qq),1))
+!            write(*,33)'3F minus: ',ii,jj,qq,dmuidyii,&
+!                 varres%yfr(qq)*varres%d2gval(ixsym(ii,qq),1),&
+!                 varres%yfr(qq)*varres%d2gval(ixsym(jj,qq),1)
+            extra2: do pp=1,nofc+nmax
+               do zz=1,nmax
+! skip this term.  A clumsy way to skip sublattices with a single constituent
+                  if(pp.eq.skip(zz)) cycle extra2
+               enddo
+               dmuidyii=dmuidyii+varres%yfr(qq)*varres%yfr(pp)*&
+                    varres%d2gval(ixsym(pp,qq),1)
+!               write(*,33)'3F adding: ',0,pp,qq,dmuidyii,&
+!                    varres%yfr(qq)*varres%yfr(pp)*varres%d2gval(ixsym(pp,qq),1)
+            enddo extra2
+         enddo extra1
+!         write(*,33)'3F result: ',cc,rr,0,dmuidyii
+         d2g(ixsym(cc,rr))=dmuidyii
+      enddo column
+   enddo row
+!   do ii=1,nofc
+!      write(*,21)'3F d2Gdy2: ',(varres%d2gval(ixsym(ii,jj),1),jj=1,nofc)
+!   enddo
+!   do ii=1,nofc
+!      write(*,21)'3F dmudy: ',(d2g(ixsym(ii,jj)),jj=1,nofc)
+!   enddo
+21 format(a,6(1pe12.4))
+!
+!-------------------------------------------------------------------
+! uncomment the call to dspev in order to make Q work
+! AND link to LAPACK
+!-------------------------------------------------------------------
+! use LAPACK routine, note d2g is destroyed inside dspev
+!   write(*,*)'LAPACK routine DSPEV not implemented'
+   call dspev('N','U',nofc,d2g,eigenv,dummy,1,work,info)
+!   info=-1000
+   if(info.eq.0) then
+!      write(*,120)(eigenv(ii),ii=1,nofc)
+120   format('3F Eigenvalues: ',6(1pe10.2))
+! return the most negative value
+      value=eigenv(1)
+   else
+      write(*,*)'Error calculating eigenvalues of phase matrix',info
+      gx%bmperr=4321
+   endif
+1000 continue
+   return
+ end subroutine calc_qf_sub
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine calc_qf_old
+!\begin{verbatim}
+ subroutine calc_qf_old(lokcs,value,ceq)
+! calculates eigenvalues of the second derivative matrix, stability function
 ! lokcs is index of phase_varres
 ! value calculated value returned
 ! ceq is current equilibrium
@@ -2815,7 +2983,7 @@
 !   info=-1000
    if(info.eq.0) then
 !      write(*,120)(eigenv(ii),ii=1,nofc)
-!120   format('Eigenvalues: ',6(1pe10.2))
+120   format('Eigenvalues: ',6(1pe10.2))
 ! return the most negative value
       value=eigenv(1)
    else
@@ -2824,7 +2992,7 @@
    endif
 1000 continue
    return
- end subroutine calc_qf
+ end subroutine calc_qf_old
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

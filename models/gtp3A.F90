@@ -619,11 +619,22 @@
 !\begin{verbatim} %-
  integer function nooftup()
 ! number of phase tuples
-!\end{verbatim}
+!\end{verbatim} %+
    implicit none
    nooftup=nooftuples
    return
  end function nooftup
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable integer function noofphasetuples
+!\begin{verbatim} %-
+ integer function noofphasetuples_old()
+! number of phase tuples REDUNDANT !!
+!\end{verbatim}
+   noofphasetuples_old=nooftuples
+   return
+ end function noofphasetuples_old
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
@@ -1982,17 +1993,6 @@ end function find_phasetuple_by_indices
    get_phtuplearray=nooftuples
    return
  end function get_phtuplearray
-
-!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
-
-!\addtotable integer function noofphasetuples
-!\begin{verbatim} %-
- integer function noofphasetuples()
-! number of phase tuples
-!\end{verbatim}
-   noofphasetuples=nooftuples
-   return
- end function noofphasetuples
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 !>     5. Set things

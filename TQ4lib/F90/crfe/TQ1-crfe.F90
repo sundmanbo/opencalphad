@@ -16,13 +16,15 @@ program octq1
   double precision xf(maxel),pxf(10*maxph),npf(maxph),mu(maxel),mus(maxel)
   double precision tpref(2)
   type(gtp_equilibrium_data), pointer :: ceq
+! DUMMY target for on-line help reference
+  character :: dummy*10='          '
 !
 ! initiate
   call tqini(n,ceq)
   if(gx%bmperr.ne.0) goto 1000
 !
 ! read database file
-  filename='TQ4lib/F90/crfe/crfe '
+  filename='crfe '
   write(*,*)'Reading all elements from the database file: ',trim(filename)
   call tqrfil(filename,ceq)
   if(gx%bmperr.ne.0) goto 1000
@@ -57,14 +59,16 @@ program octq1
 105 format(/'Give conditions:')
   ip=len(line)
   temp=tp(1)
-  call gparrd('Temperature (K): ',line,ip,tp(1),temp,nohelp)
+! old version of question routine
+!  call gparrd('Temperature (K): ',line,ip,tp(1),temp,nohelp)
+  call gparrdx('Temperature (K): ',line,ip,tp(1),temp,dummy)
   if(buperr.ne.0) goto 1000
   if(tp(1).lt.1.0d0) then
      write(*,*)'Temperature must be larger than 1 K'
      tp(1)=1.0D0
   endif
   temp=tp(2)
-  call gparrd('Pressure (Pa): ',line,ip,tp(2),temp,nohelp)
+  call gparrdx('Pressure (Pa): ',line,ip,tp(2),temp,dummy)
   if(buperr.ne.0) goto 1000
   if(tp(2).lt.1.0d0) then
      write(*,*)'Pressure must be larger than 1 Pa'
@@ -73,7 +77,7 @@ program octq1
   do n=1,nel-1
      quest='Mole fraction of '//trim(cnam(n))//':'
      temp=xf(n)
-     call gparrd(quest,line,ip,xf(n),temp,nohelp)
+     call gparrdx(quest,line,ip,xf(n),temp,dummy)
      if(buperr.ne.0) goto 1000
      if(xf(n).lt.1.0d-6) then
         write(*,*)'Fraction set to 1.0D-6'
@@ -103,13 +107,13 @@ program octq1
   enddo
 !
 ! set reference state for the elements (components) to BCC at current T
-!  do n=1,nel
-!     phcsname='BCC_A2'
-!     tpref(1)=-one
-!     tpref(2)=1.0D5
-!     call tqcref(n,phcsname,tpref,ceq)
-!     if(gx%bmperr.ne.0) goto 600
-!  enddo
+  do n=1,nel
+     phcsname='BCC_A2'
+     tpref(1)=-one
+     tpref(2)=1.0D5
+     call tqcref(n,phcsname,tpref,ceq)
+     if(gx%bmperr.ne.0) goto 600
+  enddo
 !
 ! calculate the equilibria
 ! n1=0 means call grid minimizer
@@ -182,7 +186,7 @@ program octq1
   call tqgetv(statevar,n,n2,n4,pxf,ceq)
   if(gx%bmperr.ne.0) goto 1000
 ! mus is the chemical potential relative to SER
-  statevar='MU'
+  statevar='MUS'
   n4=size(mus)
   call tqgetv(statevar,n,n2,n4,mus,ceq)
   if(gx%bmperr.ne.0) goto 1000
@@ -197,13 +201,13 @@ program octq1
   enddo
 ! Some examples of using tqgetv
   write(*,*)
-  write(*,*)'Mole fractions of all components in stable phases:'
+  write(*,*)'Mole fractions of all components in all stable phases:'
   n4=size(pxf)
   statevar='X(*,*) '
   call tqgetv(statevar,-1,-1,n4,pxf,ceq)
   write(*,540)' X(*,*): ',(pxf(ip),ip=1,n4)
 540 format(a,10F7.4)
-  write(*,*)'Mole fraction of a component in all phases, also those unstable:'
+  write(*,*)'Mole fraction of a component in all stable phases (unstable 0):'
   write(*,*)'in phase tuple order!'
   n4=size(pxf)
   statevar='X(*,CR) '
@@ -216,18 +220,18 @@ program octq1
 600 continue
   write(*,*)
   ip=len(line)
-  call gparcd('Any more calculations?',line,ip,1,ch1,'N',nohelp)
-!  if(ch1.ne.'N') then
+  call gparcdx('Any more calculations?',line,ip,1,ch1,'N',dummy)
+  if(ch1.ne.'N') then
 ! set silent!
-!     write(*,*)'Turning on silent mode, less output from OC'
-!     call tqquiet(.TRUE.)
-!     goto 100
-!  endif
+     write(*,*)'Turning on silent mode, less output from OC'
+     call tqquiet(.TRUE.)
+     goto 100
+  endif
 ! 
 ! end of program
 1000 continue
   if(gx%bmperr.ne.0) then
-     if(gx%bmperr.ge.4000 .and. gx%bmperr.le.4220) then
+     if(gx%bmperr.ge.4000 .and. gx%bmperr.le.4399) then
         write(*,1010)gx%bmperr,bmperrmess(gx%bmperr)
 1010    format(' *** Error ',i5/a)
      else
@@ -236,6 +240,6 @@ program octq1
      endif
   endif
   write(*,*)
-  write(*,*)'Auf wiedersehen'
+  write(*,*)'A bientot!'
 end program octq1
 

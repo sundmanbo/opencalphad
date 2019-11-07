@@ -23,6 +23,8 @@
 ! with a 2-dimensional array with first index phase number and second
 ! the comp.set number.
 !
+! 191101 BOS Updates some routines and added two dummy modules for C routines
+! 181030 BOS Updates some routines
 ! 150520 BOS added a few subroutines for single phase data and calculations
 ! 141210 BOS changed to use phase tuples
 ! 140128 BOS added D2G and phase specific V and G
@@ -1300,4 +1302,45 @@ contains
 !\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
 
 end MODULE LIBOCTQ
+
+!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
+! dummy module
+!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
+
+module ftinyopen
+  !
+  ! This module replaces a C module for a popup window to open files
+  ! used in the interactive OC.  If you want to use the original
+  ! version for opening files please check the linkmake or Makefile
+  !
+contains
+
+  subroutine getfilename(typ,sval)
+    implicit none
+    integer typ
+    character sval*(*)
+    sval=' '
+    return
+  end subroutine getfilename
+
+end module ftinyopen
+
+!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
+! dummy module (only Linux)
+!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
+
+module M_getkey
+  !
+  ! This module replaces a C module fore single character input on Linux
+  !
+contains
+
+  character function getkex()
+    getkex=' '
+    return
+  end function getkex
+
+end module M_getkey
+
+!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\!/!!\
 

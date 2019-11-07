@@ -1915,7 +1915,13 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   integer :: qcmodel=1
 ! this is to remember how manytimes find_gridmeen needs to search all gridp
   integer :: ngridseek
+! this is to handle EEC in the grid minimizer NOT GOOD FOR PARALLELIZATION
+!  integer :: neecgrid
+  double precision :: sliqmax,sliqmin,gliqeec
 !\end{verbatim}
+
+! undocumented CPU time measuring in calcg_internal
+  double precision zputime(21)
 
 CONTAINS
 

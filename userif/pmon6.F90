@@ -67,8 +67,6 @@ contains
 ! measure calculate carefully
     double precision finish2,start2
     integer endoftime,startoftime
-! this is now declared in metlib package
-!    character workingdir*128
 ! separate file names for remembering and providing a default
     character ocmfile*128,ocufile*128,tdbfile*128,ocdfile*128,filename*128
 ! home for OC and default directory for databases
@@ -136,7 +134,7 @@ contains
 ! plot unit for experimental data used in enter many_equilibria
     integer :: plotdataunit(9)=0,plotunit0=0
 ! temporary integer variables in loops etc
-    integer i1,i2,j1,j2,iax,threads
+    integer i1,i2,j4,j2,iax,threads
 ! more temporary integers
     integer jp,kl,svss,language,last,leak,j3,tzcond
 ! and more temporary integers
@@ -579,8 +577,8 @@ contains
     maxax=5
     noofaxis=0
 ! state variable for plot axis (only 2)
-    do j1=1,2
-       axplotdef(j1)=' '
+    do j4=1,2
+       axplotdef(j4)=' '
     enddo
 ! remove any results from step and map
     nullify(maptop)
@@ -702,23 +700,23 @@ contains
 !    call gparc(ocprompt,aline,last,5,cline,' ',tophlp)
 !    call gparc(ocprompt,aline,last,5,cline,' ',q2help)
     call gparcx(ocprompt,aline,last,5,cline,' ','?TOPHLP')
-    j1=0
-!    write(*,*)'Back from gparcx 1: "',trim(cline),'"',j1
+    j4=0
+!    write(*,*)'Back from gparcx 1: "',trim(cline),'"',j4
     if(len_trim(cline).gt.80) then
        write(kou,101)
 101    format(' *** Warning: long input lines may be truncated',&
             ' and cause errors')
     endif
-! with empty line just prompt again, j1 incremented by eolch
-    if(eolch(cline,j1)) goto 100
+! with empty line just prompt again, j4 incremented by eolch
+    if(eolch(cline,j4)) goto 100
 ! with macro command prefix character just prompt again
-    if(cline(j1:j1).eq.'@') goto 100
+    if(cline(j4:j4).eq.'@') goto 100
 ! with the new help facilities "tophlp" is difficult ...
-!    write(*,*)'Back from gparcx 2: "',trim(cline),'"',j1
-    if(cline(j1:j1+1).eq.'? ') then
+!    write(*,*)'Back from gparcx 2: "',trim(cline),'"',j4
+    if(cline(j4:j4+1).eq.'? ') then
 ! just provide the menu as help
-       j1=0
-       call q3helpx(cline,j1,cbas,ncbas)
+       j4=0
+       call q3helpx(cline,j4,cbas,ncbas)
        goto 100
     endif
 ! Now finally detect the command
@@ -943,9 +941,9 @@ contains
                 idef=-3
 ! zero value of antiferromagnetic factor means Inden-Qing model
                 call gparidx('Antiferromagnetic factor: ',&
-                     cline,last,j1,idef,'?Amend magnetism')
+                     cline,last,j4,idef,'?Amend magnetism')
                 if(buperr.ne.0) goto 990
-                if(j1.eq.0) then
+                if(j4.eq.0) then
 ! Qing, Xiong modification of Inden-Hillert-Jarl magnetic model has AFF=0
                    call gparcdx('BCC type phase: ',cline,last,1,ch1,'N',&
                         '?Amend magnetsm')
@@ -957,7 +955,7 @@ contains
                    j2=xiongmagnetic
                    call add_addrecord(lokph,ch1,xiongmagnetic)
                 else
-                   if(j1.eq.-1) then
+                   if(j4.eq.-1) then
 ! Inden magnetic for BCC
                       call add_addrecord(lokph,'Y',indenmagnetic)
                    else
@@ -1081,14 +1079,14 @@ contains
              if(buperr.ne.0) goto 990
              if(ch1.eq.'N') then
 ! like sigma which is never completely disordered
-                j1=0
+                j4=0
              else
 ! like FCC ordering where the disordered state can be modeled independently
-                j1=1
+                j4=1
                 write(kou,*)'This phase can be totally disordered'
              endif
              ch1='D'
-             call add_fraction_set(iph,ch1,ndl,j1)
+             call add_fraction_set(iph,ch1,ndl,j4)
              if(gx%bmperr.ne.0) goto 990
 !....................................................
           case(4) ! UNIQUAC model
@@ -1173,7 +1171,7 @@ contains
           write(kou,*)'Not implemented yet, only ENTER PARAMETER'
 !-------------------------
        case(6) ! amend bibliography
-          call enter_bibliography_interactivly(cline,last,1,j1)
+          call enter_bibliography_interactivly(cline,last,1,j4)
 !-------------------------
        case(7) ! amend TPFUN symbol
           write(kou,*)' *** Dangerous if you have several equilibria!'
@@ -1456,8 +1454,8 @@ contains
 ! as TP functions call each other force recalculation and calculate all
 ! even if just a single function is requested
           call change_optcoeff(-1,zero)
-          do j1=1,notpf()
-             call eval_tpfun(j1,ceq%tpval,val,ceq%eq_tpres)
+          do j4=1,notpf()
+             call eval_tpfun(j4,ceq%tpval,val,ceq%eq_tpres)
              if(gx%bmperr.gt.0) goto 990
           enddo
           if(name1(1:1).ne.'*') then
@@ -1470,14 +1468,14 @@ contains
                 gx%bmperr=0
              else
 ! found function number from lrot ???
-                j1=lrot
-                call eval_tpfun(j1,ceq%tpval,val,ceq%eq_tpres)
+                j4=lrot
+                call eval_tpfun(j4,ceq%tpval,val,ceq%eq_tpres)
                 if(gx%bmperr.gt.0) goto 990
                 if(once) then
                    once=.FALSE.
                    write(lut,2011)100000,ceq%tpval
                 endif
-                write(lut,2012)j1,val
+                write(lut,2012)j4,val
 !                call list_tpfun(lrot,0,longstring)
 !                call wrice2(lut,0,12,78,1,longstring)
                 if(iel.gt.1) goto 2009
@@ -1488,10 +1486,10 @@ contains
                   3x,'No   F',11x,'F.T',9x,'F.P',9x,'F.T.T',&
                   7x,'F.T.P',7x,'F.P.P')
 !             call cpu_time(starting)
-             do j1=1,notpf()
-                call eval_tpfun(j1,ceq%tpval,val,ceq%eq_tpres)
+             do j4=1,notpf()
+                call eval_tpfun(j4,ceq%tpval,val,ceq%eq_tpres)
                 if(gx%bmperr.gt.0) goto 990
-                write(lut,2012)j1,val
+                write(lut,2012)j4,val
 2012            format(I5,1x,6(1PE12.4))
              enddo
 !             call cpu_time(ending)
@@ -1538,7 +1536,7 @@ contains
              call calcg(iph,ics,0,lokres,ceq)
              if(gx%bmperr.ne.0) goto 990
              parres=>ceq%phase_varres(lokres)
-             write(lut,2031)(cpham*rgast*parres%gval(j1,1),j1=1,4)
+             write(lut,2031)(cpham*rgast*parres%gval(j4,1),j4=1,4)
 ! G=H-T*S; H=G+T*S; S=-G.T; H = G + T*(-G.T) = G - T*G.T
              write(lut,2032)cpham*parres%gval(1,1)/parres%abnorm(1),&
                   cpham*(parres%gval(1,1)-ceq%tpval(1)*parres%gval(2,1))*rgast,&
@@ -1553,16 +1551,21 @@ contains
              if(gx%bmperr.ne.0) goto 990
              parres=>ceq%phase_varres(lokres)
              nofc=noconst(iph,ics,firsteq)
-             write(lut,2031)(cpham*rgast*parres%gval(j1,1),j1=1,4)
-             write(lut,2041)(rgast*parres%dgval(1,j1,1),j1=1,nofc)
+             write(lut,2031)(cpham*rgast*parres%gval(j4,1),j4=1,4)
+             write(lut,2041)(rgast*parres%dgval(1,j4,1),j4=1,nofc)
 2041         format('dG/dy:   ',4(1PE16.8),(/9x,4e16.8)/&
                   ' NOTE THAT dG/dy_i is NOT THE CHEMICAL POTENTIAL of i!')
 !.......................................................
           case(3) ! calculate phase < > all derivatives
              call gparidx('Number of times: ',cline,last,times,1,&
                   '?Calculate phase loop')
+! attempt to measure calcg_interal bottlenecks
+!             call cpu_time(starting)
+!             zputime=starting
              call tabder(iph,ics,times,ceq)
              if(gx%bmperr.ne.0) goto 990
+! write 20 values
+!             write(*,'(7(1pE11.3)/7E11.3/7E11.3)')zputime
              write(*,2042)
 2042         format('Values are per mole formula unit'/&
                   ' NOTE THAT dG/dy_i is NOT THE CHEMICAL POTENTIAL of i!')
@@ -1647,7 +1650,7 @@ contains
                 write(kou,2094)(nv,nv=1,nend)
 2094            format(3x,6(6x,i6)/(3x,6i12))
                 do nv=0,nend-1
-! An extra LF is generated when just 6 components!! use ll, kp j1, i2
+! An extra LF is generated when just 6 components!! use ll, kp j4, i2
                    write(kou,2095)nv+1,(mugrad(nend*nv+jp),jp=1,nend)
 !2095               format(i3,6(1pe12.4)/(3x,6e12.4))
 2095               format(i3,6(1pe12.4)/(3x,6e12.4))
@@ -1693,7 +1696,7 @@ contains
           call extract_massbalcond(ceq%tpval,xknown,totam,ceq)
           if(gx%bmperr.ne.0) goto 990
 ! debug output
-!          write(*,2101)totam,(xknown(j1),j1=1,noel())
+!          write(*,2101)totam,(xknown(j4),j4=1,noel())
 !2101      format('UI N&x: ',F6.3,9F8.5)
 ! generate grid and find the phases and constitutions for the minimum.
 ! Note: global_gridmin calculates for total 1 mole of atoms, not totam
@@ -1704,13 +1707,13 @@ contains
           call global_gridmin(1,ceq%tpval,xknown,nv,iphl,icsl,&
                aphl,nyphl,cmu,ceq)
           if(gx%bmperr.ne.0) goto 990
-!          write(kou,2102)nv,(iphl(j1),icsl(j1),j1=1,nv)
+!          write(kou,2102)nv,(iphl(j4),icsl(j4),j4=1,nv)
 ! we should write phase tuples ... ?? 
-          write(kou,2102)nv,(iphl(j1),icsl(j1),j1=1,nv)
+          write(kou,2102)nv,(iphl(j4),icsl(j4),j4=1,nv)
 2102      format('Number of stable phases ',i2/13(i4,i2))
 ! In some cases "c n" converges better if we scale with the total amount here
-          do j1=1,nv
-             call get_phase_compset(iphl(j1),icsl(j1),lokph,lokcs)
+          do j4=1,nv
+             call get_phase_compset(iphl(j4),icsl(j4),lokph,lokcs)
              ceq%phase_varres(lokcs)%amfu=totam*ceq%phase_varres(lokcs)%amfu
           enddo
 ! if set clear this bit so we can list the equilibrium
@@ -1796,7 +1799,7 @@ contains
 ! sequentially to create composition sets
 ! TEST THIS IN PARALLEL !!!
              call cpu_time(xxx)
-             call system_clock(count=j1)
+             call system_clock(count=j4)
              threads=1
 ! OPENMP parallel start
 !$             threads=omp_get_num_threads()
@@ -1928,7 +1931,7 @@ contains
              call cpu_time(xxz)
              if(leak.ne.0) then
                 call system_clock(count=ll)
-                xxy=ll-j1
+                xxy=ll-j4
 ! or should i2 be used ??
                 write(*,669)i2,(xxz-xxx)/i2,xxy/i2
 669        format(/'Calculated ',i8,' equlibria, average CPU and clock time',&
@@ -1937,8 +1940,8 @@ contains
              endif
 !
              call system_clock(count=ll)
-! ?? jp ??             write(kou,664)jp,xxz-xxx,ll-j1,threads
-             write(kou,664)xxz-xxx,ll-j1,threads
+! ?? jp ??             write(kou,664)jp,xxz-xxx,ll-j4,threads
+             write(kou,664)xxz-xxx,ll-j4,threads
 !664          format('Calculated equilibria out of ',i5/&
 664          format('Total CPU time: ',1pe12.4,' s and ',i7,' clockcycles',&
                   ' using ',i4,' thread(s)')
@@ -2018,7 +2021,7 @@ contains
           call extract_massbalcond(ceq%tpval,xknown,totam,ceq)
           if(gx%bmperr.ne.0) goto 990
 ! debug output
-!          write(*,2101)totam,(xknown(j1),j1=1,noel())
+!          write(*,2101)totam,(xknown(j4),j4=1,noel())
 !2101      format('UI N&x: ',F6.3,9F8.5)
 ! generate grid and find the phases and constitutions for the minimum.
 ! Note: global_gridmin calculates for total 1 mole of atoms, not totam
@@ -2036,15 +2039,15 @@ contains
           if(temporary) globaldata%status=ibclr(globaldata%status,GSNOMERGE)
           if(gx%bmperr.ne.0) goto 990
 ! In some cases "c n" converges better? if we scale with the total amount here??
-          do j1=1,nv
-             call get_phase_compset(iphl(j1),icsl(j1),lokph,lokcs)
+          do j4=1,nv
+             call get_phase_compset(iphl(j4),icsl(j4),lokph,lokcs)
              ceq%phase_varres(lokcs)%amfu=totam*ceq%phase_varres(lokcs)%amfu
           enddo
 ! if set clear this bit so we can list the equilibrium
           if(btest(ceq%status,EQNOEQCAL)) ceq%status=ibclr(ceq%status,EQNOEQCAL)
-!          write(kou,2102)nv,(iphl(j1),icsl(j1),j1=1,nv)
+!          write(kou,2102)nv,(iphl(j4),icsl(j4),j4=1,nv)
 ! we should write phase tuples ... ?? 
-          write(kou,2102)nv,(iphl(j1),icsl(j1),j1=1,nv)
+          write(kou,2102)nv,(iphl(j4),icsl(j4),j4=1,nv)
 !-------------------------------------------------------
        case(14) ! Calculate carefully the equilibrium (bosses_method)
 ! extract values for mass balance calculation from conditions
@@ -2149,13 +2152,13 @@ contains
              endif
 !3018         continue
 ! exttract first letter after = (if any)
-             j1=ll
-             call getext(string,j1,1,name1,' ',iph)
+             j4=ll
+             call getext(string,j4,1,name1,' ',iph)
              ch1=name1(1:1)
 ! if user has given "=e 0" then keep the amount is cline
-             cline=string(j1:)
+             cline=string(j4:)
              string(ll:)=' '
-!             write(*,*)'s1: ',j1,cline(1:len_trim(cline))
+!             write(*,*)'s1: ',j4,cline(1:len_trim(cline))
              if(ch1.eq.' ') then
 ! if ll==1 then input was finished by equal sign, ask for status
                 call gparcdx(&
@@ -2412,8 +2415,14 @@ contains
              call gparcdx('Turn on equi-entropy criterion (EEC)?',&
                   cline,last,1,ch1,'Y','?Set adv EEC')
              if(ch1.eq.'Y') then
-! this but not used for EEC
-!                globaldata%status=ibset(globaldata%status,GSHICKEL)
+!check if there is a phase with liquid but set!!
+                anyliq: do j4=1,noph()
+                   if(test_phase_status_bit(j4,PHLIQ)) exit anyliq
+                enddo anyliq
+                if(j4.gt.noph()) then
+                   write(kou,*)'No liquid phase! Set bit 10 of liquid phase'
+                   goto 100
+                endif
                 call gparrdx('Low T limit?',cline,last,xxx,1.0D3,&
                      '?Set adv EEC')
                 if(xxx.gt.1.0D1) then
@@ -2515,11 +2524,11 @@ contains
        case(8) ! set ECHO
           call gparcdx('On?',cline,last,1,ch1,'Y','?Set echo')
           if(ch1.eq.'Y' .or. ch1.eq.'y') then
-             j1=1
+             j4=1
           else
-             j1=0
+             j4=0
           endif
-          call set_echo(j1)
+          call set_echo(j4)
 !-----------------------------------------------------------
        case(9) ! set PHASE subcommands (constitution, status)
           call gparcx('Phase name: ',cline,last,1,name1,' ',&
@@ -2548,7 +2557,7 @@ contains
 ! begin code copied from 3045
           case(2) ! SET PHASE STATUS <phase> <status>
              if(iph.gt.0) then
-                j1=get_phase_status(iph,ics,text,i1,xxx,ceq)
+                j4=get_phase_status(iph,ics,text,i1,xxx,ceq)
                 if(gx%bmperr.ne.0) goto 100
                 if(xxx.ge.zero) then
                    write(kou,3046)text(1:i1),xxx
@@ -2583,7 +2592,7 @@ contains
              call change_phase_status(iph,ics,nystat,xxx,ceq)
              if(gx%bmperr.ne.0) goto 100
              if(iph.gt.0) then
-                j1=get_phase_status(iph,ics,text,i1,xxy,ceq)
+                j4=get_phase_status(iph,ics,text,i1,xxy,ceq)
                 if(gx%bmperr.ne.0) goto 100
                 if(xxy.ge.zero) then
                    write(kou,3048)text(1:i1),xxy
@@ -2752,13 +2761,13 @@ contains
                 endif
                 i2=-i2
                 ll=0
-!                setwei: do j1=i1,i2
-                setwei: do j1=1,size(firstash%eqlista)
-                   if(firstash%eqlista(j1)%p1%eqno.ge.i1 .and. &
-                        firstash%eqlista(j1)%p1%eqno.le.i2) then
-                      firstash%eqlista(j1)%p1%weight=xxx
+!                setwei: do j4=i1,i2
+                setwei: do j4=1,size(firstash%eqlista)
+                   if(firstash%eqlista(j4)%p1%eqno.ge.i1 .and. &
+                        firstash%eqlista(j4)%p1%eqno.le.i2) then
+                      firstash%eqlista(j4)%p1%weight=xxx
 !                      write(*,*)'Changing weight for equilibrium ',&
-!                           firstash%eqlista(j1)%p1%eqno
+!                           firstash%eqlista(j4)%p1%eqno
                       ll=ll+1
                    endif
                 enddo setwei
@@ -2877,7 +2886,12 @@ contains
                 axplotdef=' '
              endif
              goto 100
-          else ! add or change axis variable
+          elseif(trim(name1).eq.trim(text)) then
+! check if same variable, quit this IF loop
+             continue
+          else ! changed axis variable, set default limits
+             dmin=zero
+             dmax=one
              i1=len_trim(text)
              if(text(i1:i1).eq.':') then
 ! condition given as an index in the condition list terminated by : like "1:"
@@ -3218,33 +3232,33 @@ contains
           endif
 !          write(*,*)'pmon: ',i1,i2
 ! possible loop if i2>i1
-          j1=i1
+          j4=i1
 3740      continue
-!          write(*,*)'pmon: ',i1,i2,j1
-          xxy=firstash%coeffvalues(j1)*firstash%coeffscale(j1)
+!          write(*,*)'pmon: ',i1,i2,j4
+          xxy=firstash%coeffvalues(j4)*firstash%coeffscale(j4)
 ! this coefficient is not used, igore unless i1=i2
-          if(i2.gt.i1 .and. firstash%coeffstate(j1).eq.0) goto 3745
-          if(firstash%coeffstate(j1).lt.10) then
+          if(i2.gt.i1 .and. firstash%coeffstate(j4).eq.0) goto 3745
+          if(firstash%coeffstate(j4).lt.10) then
              nvcoeff=nvcoeff+1
           endif
-          firstash%coeffstate(j1)=10
+          firstash%coeffstate(j4)=10
           if(i1.eq.i2) then
 ! when setting a single coefficient variable ask for value
              call gparrdx('Start value: ',cline,last,xxx,xxy,&
                   '?Set variable coeff')
              if(buperr.ne.0) goto 100
 ! set new value
-             call change_optcoeff(firstash%coeffindex(j1),xxx)
+             call change_optcoeff(firstash%coeffindex(j4),xxx)
              if(gx%bmperr.ne.0) goto 100
-             firstash%coeffvalues(j1)=one
-             firstash%coeffscale(j1)=xxx
-             firstash%coeffstart(j1)=xxx
+             firstash%coeffvalues(j4)=one
+             firstash%coeffscale(j4)=xxx
+             firstash%coeffstart(j4)=xxx
           else
 ! coefficient used, set it variable with current value
              xxx=xxy
           endif
-3745      if(i2.gt.j1) then
-             j1=j1+1
+3745      if(i2.gt.j4) then
+             j4=j4+1
              goto 3740
           endif
           write(kou,*)'Number of variable coefficients are ',nvcoeff
@@ -3269,19 +3283,19 @@ contains
           endif
           call gparidx('First equilibrium number: ',cline,last,i1,2,&
                '?Set range')
-          j1=noeq()
-          call gparidx('Last equilibrium number: ',cline,last,i2,j1,&
+          j4=noeq()
+          call gparidx('Last equilibrium number: ',cline,last,i2,j4,&
                '?Set range')
           if(i2.lt.i1) then
              write(kou,*)'No equilibria?'
              goto 100
           endif
 ! allocate the firstash%eqlista array and store equilibrium numbers
-          j1=i2-i1+1
+          j4=i2-i1+1
           firstash%firstexpeq=i1
-          write(*,*)'Allocating firstash%eqlista ',j1,i1
-          allocate(firstash%eqlista(j1))
-          do i2=1,j1
+          write(*,*)'Allocating firstash%eqlista ',j4,i1
+          allocate(firstash%eqlista(j4))
+          do i2=1,j4
              firstash%eqlista(i2)%p1=>eqlista(i1)
              i1=i1+1
           enddo
@@ -3342,41 +3356,41 @@ contains
              i2=i1
           endif frange
 ! possible loop if i2>i1
-          j1=i1
-!          write(*,*)'pmon2: ',i1,j1
+          j4=i1
+!          write(*,*)'pmon2: ',i1,j4
 3720      continue
-          xxy=firstash%coeffvalues(j1)*firstash%coeffscale(j1)
+          xxy=firstash%coeffvalues(j4)*firstash%coeffscale(j4)
           if(i1.eq.i2) then
 ! A single coefficient, when fixing a single coefficinet ask for value
              call gparrdx('Fix value: ',cline,last,xxx,xxy,&
                   '?Set fix coeff')
              if(buperr.ne.0) goto 100
 ! set new value
-             call change_optcoeff(firstash%coeffindex(j1),xxx)
+             call change_optcoeff(firstash%coeffindex(j4),xxx)
              if(gx%bmperr.ne.0) goto 100
-             firstash%coeffvalues(j1)=one
-             firstash%coeffscale(j1)=xxx
-             firstash%coeffstart(j1)=xxx
+             firstash%coeffvalues(j4)=one
+             firstash%coeffscale(j4)=xxx
+             firstash%coeffstart(j4)=xxx
           else
-             call get_value_of_constant_index(firstash%coeffindex(j1),xxx)
+             call get_value_of_constant_index(firstash%coeffindex(j4),xxx)
           endif
 ! set as fixed without changing any min/max values (first time)
-!          write(*,*)'pmon3: ',xxx,firstash%coeffstate(j1)
-          if(firstash%coeffstate(j1).gt.13) then
+!          write(*,*)'pmon3: ',xxx,firstash%coeffstate(j4)
+          if(firstash%coeffstate(j4).gt.13) then
              write(kou,*)'Coefficient state wrong, set to 1'
-             firstash%coeffstate(j1)=1
+             firstash%coeffstate(j4)=1
              nvcoeff=nvcoeff-1
-          elseif(firstash%coeffstate(j1).ge.10) then
-             firstash%coeffstate(j1)=max(1,firstash%coeffstate(j1)-10)
+          elseif(firstash%coeffstate(j4).ge.10) then
+             firstash%coeffstate(j4)=max(1,firstash%coeffstate(j4)-10)
              nvcoeff=nvcoeff-1
           elseif(xxx.ne.zero) then
 ! mark that the coefficient is fixed and nonzero 
-             firstash%coeffstate(j1)=1
+             firstash%coeffstate(j4)=1
           else
-             firstash%coeffstate(j1)=0
+             firstash%coeffstate(j4)=0
           endif
-          if(i2.gt.j1) then
-             j1=j1+1
+          if(i2.gt.j4) then
+             j4=j4+1
              goto 3720
           endif
           write(kou,3730)nvcoeff
@@ -3387,9 +3401,9 @@ contains
                '?Set system variable')
           if(ll.gt.0 .and. ll.le.10) then
 ! sysparam(2) used during STEP/MAP often to check if equilibrium is stable
-             call gparidx('System variable value: ',cline,last,j1,0,&
+             call gparidx('System variable value: ',cline,last,j4,0,&
                   '?Set system variable')
-             globaldata%sysparam(ll)=j1
+             globaldata%sysparam(ll)=j4
           else
              write(*,*)'Index must be between 1 and 10'
           endif
@@ -3544,23 +3558,23 @@ contains
 ! This was due to an error in tpfun package ... not yet fixed ...
 ! Recalculate all TP functions!!  TWICE!!
           call change_optcoeff(-1,zero)
-          do j1=1,notpf()
-             call eval_tpfun(j1,ceq%tpval,val,ceq%eq_tpres)
+          do j4=1,notpf()
+             call eval_tpfun(j4,ceq%tpval,val,ceq%eq_tpres)
              if(gx%bmperr.gt.0) goto 990
           enddo
           call change_optcoeff(-1,zero)
 !          write(*,*)'pmon: A second time',notpf()
-!          do j1=1,notpf()
-!             call eval_tpfun(j1,ceq%tpval,val,ceq%eq_tpres)
+!          do j4=1,notpf()
+!             call eval_tpfun(j4,ceq%tpval,val,ceq%eq_tpres)
 !             if(gx%bmperr.gt.0) goto 990
 !          enddo
 !          call force_recalculate_tpfuns
           if(gx%bmperr.ne.0) goto 990
 !---------------------------------------------------------------
        case(6) ! enter bibliography
-          call enter_bibliography_interactivly(cline,last,0,j1)
+          call enter_bibliography_interactivly(cline,last,0,j4)
           if(gx%bmperr.ne.0) goto 990
-          write(kou,*)'Bibliography number is ',j1
+          write(kou,*)'Bibliography number is ',j4
 !---------------------------------------------------------------
        case(7) ! enter constitution
           call ask_phase_constitution(cline,last,iph,ics,lokcs,ceq)
@@ -3638,13 +3652,13 @@ contains
              firstash%coeffindex=0
              firstash%coeffstate=0
 ! create the corresponding TP constants for coeffvalues
-             call enter_optvars(j1)
+             call enter_optvars(j4)
              call makeoptvname(name1,i1)
              write(kou,556)name1(1:3),i1
 556          format(/'Coefficients entered with symbols A00 to ',a/&
                   'Note that indices are from 0 to ',i2)
              do i2=0,i1
-                firstash%coeffindex(i2)=j1+i2
+                firstash%coeffindex(i2)=j4+i2
              enddo
              firstash%status=ibset(firstash%status,AHCOEF)
           else
@@ -3897,11 +3911,11 @@ contains
              call list_global_results(lut,ceq)
 !             write(lut,6303)'Some component data ....................'
              write(lut,6303)'Some data for components ...............'
-             j1=1
+             j4=1
              if(listresopt.ge.4 .and. listresopt.le.7) then
-                j1=2
+                j4=2
              endif
-             call list_components_result(lut,j1,ceq)
+             call list_components_result(lut,j4,ceq)
 !....................................................................
           elseif(ch1.eq.'M') then
 ! list models for all phases
@@ -3983,14 +3997,14 @@ contains
              endif
           endif
 ! if line empty return to command level
-          j1=1
-          if(eolch(line,j1)) goto 100
-          j1=index(line,',')
-          if(j1.gt.0) then
+          j4=1
+          if(eolch(line,j4)) goto 100
+          j4=index(line,',')
+          if(j4.gt.0) then
 ! check if there is a , before a ( as that is not allowed.  There are
 ! state variables like x(fcc,cr) ... (this is not a strong test ...)
              ll=index(line,'(')
-             if(ll.le.0 .or. ll.gt.j1) then
+             if(ll.le.0 .or. ll.gt.j4) then
                 write(*,*)'Please use a space as separator',&
                      ' except within ( ) as in x(liq,cr) !'
                 goto 100
@@ -3999,11 +4013,11 @@ contains
 ! model is just used to return texts
           model=' '
 ! we should extract the text from last up to first space and save rest in cline
-          j1=index(line,' ')
-          name1=line(1:j1)
+          j4=index(line,' ')
+          name1=line(1:j4)
           call capson(name1)
 ! note gparc etc increment last before looking for answer, keep space in cline
-          cline=line(j1:)
+          cline=line(j4:)
           last=1
           if(index(name1,'*').gt.0) then
 ! generate many values
@@ -4095,7 +4109,7 @@ contains
 ! we just want the expression, remove the value including the = sign
              jp=index(text,'=')
              text(jp:)=' '
-!             write(kou,6132)iax,axvar(iax),(axval(j1,iax),j1=1,3)
+!             write(kou,6132)iax,axvar(iax),(axval(j4,iax),j4=1,3)
              write(lut,6132)iax,text(1:24),&
                   axarr(iax)%axmin,axarr(iax)%axmax,axarr(iax)%axinc
 6132         format(i2,2x,a,3(1pe12.4))
@@ -4147,7 +4161,7 @@ contains
                 name1=' '
              endif
 !             write(*,*)'PMON: ',kom2,iel,eqlista(iel)%weight,jp
-!             j1=len_trim(eqlista(iel)%comment)
+!             j4=len_trim(eqlista(iel)%comment)
              if(eqlista(iel)%weight.gt.zero) then
 ! always list equilibria with weight>0
                 write(lut,6203)iel,name1(1:2),eqlista(iel)%eqname,&
@@ -4167,8 +4181,8 @@ contains
              elseif(eqlista(iel)%weight.eq.zero) then
                 jp=jp+1
              endif
-!             if(j1.gt.1) then
-!                write(lut,6204)eqlista(iel)%comment(1:j1)
+!             if(j4.gt.1) then
+!                write(lut,6204)eqlista(iel)%comment(1:j4)
 !6204            format(12x,a)
 !             endif
           enddo
@@ -4230,12 +4244,12 @@ contains
           endif
 !          write(lut,6303)'Some component data ....................'
           write(lut,6303)'Some data for components ...............'
-          j1=1
+          j4=1
           if(listresopt.ge.4 .and. listresopt.le.7) then
-! j1=2 means mass fractions
-             j1=2
+! j4=2 means mass fractions
+             j4=2
           endif
-          call list_components_result(lut,j1,ceq)
+          call list_components_result(lut,j4,ceq)
 ! Phase output starts with newline
 !         write(lut,6304,advance='no')'Some Phase data ........................'
           write(lut,6304,advance='no')'Some data for phases ...................'
@@ -4576,8 +4590,8 @@ contains
           if(allocated(firstash%coeffvalues)) then
              nvcoeff=0
              kl=size(firstash%coeffvalues)-1
-             do j1=0,kl
-                if(firstash%coeffstate(j1).ge.10) then
+             do j4=0,kl
+                if(firstash%coeffstate(j4).ge.10) then
                    nvcoeff=nvcoeff+1
                 endif
              enddo
@@ -5166,7 +5180,7 @@ contains
              call get_species_component_data(loksp,i2,iphl,stoik,xxx,&
                   xxy,ceq)
              if(gx%bmperr.ne.0) goto 990
-             write(kou,1670)i1,loksp,name1,xxx,xxy,(iphl(j1),stoik(j1),j1=1,i2)
+             write(kou,1670)i1,loksp,name1,xxx,xxy,(iphl(j4),stoik(j4),j4=1,i2)
 1670         format(2i4,1x,a12,1x,2F6.2,2x,10(i3,1x,F7.4))
           enddo
 !---------------------------------
@@ -5253,9 +5267,7 @@ contains
 ! code below copied from SHOW command
           model=' '
           call get_state_var_value(name1,xxx,model,ceq)
-          if(gx%bmperr.eq.0) then
-             write(lut,6108)model(1:len_trim(model)),xxx
-          else
+          if(gx%bmperr.ne.0) then
              gx%bmperr=0
 ! If error then try to calculate a symbol ...
 ! below copied from calculate symbol, first calculate all symbols ignore errors
@@ -5278,7 +5290,7 @@ contains
              write(*,'(a,2(1pe12.4))')'Symbol value outside limit!',xxx,xxy
              stop
           else
-             write(*,*)'Testing symbol ',trim(name1),' value OK ++++++++'
+             write(kou,*)'Testing symbol ',trim(name1),' value OK ++++++++'
           endif
 !..................................
 ! not used
@@ -5327,8 +5339,8 @@ contains
              neqdef=i1
           else
 ! check if number
-             j1=1
-             call getint(text,j1,i1)
+             j4=1
+             call getint(text,j4,i1)
              if(buperr.ne.0) then
                 buperr=0
 ! findeq accepts PREVIOUS and FIRST (same as DEFAULT)
@@ -6145,8 +6157,14 @@ contains
 ! append plot file, specifying extension PLT
 ! default extension (1=TDB, 2=OCU, 3=OCM, 4=OCD, 5=PLT, 6=PDB, 7=DAT
 ! negative is for write, 0 read without filter, -100 write without filter
-          call gparfilex('File name',cline,last,1,filename,'  ',5,&
-               '?PLOT append')
+!          if(len_trim(graphopt%appendfile).gt.1) then
+!             text=trim(graphopt%appendfile)
+!             call gparfilex('File name',cline,last,1,filename,text,5,&
+!                  '?PLOT append')
+!          else
+             call gparfilex('File name',cline,last,1,filename,'  ',5,&
+                  '?PLOT append')
+!          endif
 ! check it is OK and add .plt if necessary ...
           jp=index(filename,'.plt ')
           if(jp.le.0) then
@@ -6203,7 +6221,7 @@ contains
                 call gparrdx('New Fontscale: ',cline,last,&
                      textfontscale,labelp%textfontscale,'?PLOT texts')
                 if(textfontscale.lt.0.2) textfontscale=0.2
-                call gparidx('New angle (degrees): ',cline,last,j1,&
+                call gparidx('New angle (degrees): ',cline,last,j4,&
                      labelp%angle,'?PLOT texts')
                 if(buperr.ne.0) then
                    write(*,*)'Error reading coordinates'; buperr=0; goto 21100
@@ -6211,7 +6229,7 @@ contains
                 labelp%xpos=xxx
                 labelp%ypos=xxy
                 labelp%textfontscale=textfontscale
-                labelp%angle=j1
+                labelp%angle=j4
 ! ask for more options
                 goto 21100
              endif
@@ -6222,7 +6240,7 @@ contains
           call gparrdx('Fontscale: ',cline,last,textfontscale,0.8D0,&
                '?PLOT texts')
           if(textfontscale.le.0.2) textfontscale=0.2
-          call gparidx('Angle (degree): ',cline,last,j1,0,'?PLOT texts')
+          call gparidx('Angle (degree): ',cline,last,j4,0,'?PLOT texts')
           if(buperr.ne.0) then
              write(*,*)'Error reading coordinates'; buperr=0; goto 21100
           endif
@@ -6260,7 +6278,7 @@ contains
           textlabel%xpos=xxx
           textlabel%ypos=xxy
           textlabel%textfontscale=textfontscale
-          textlabel%angle=j1
+          textlabel%angle=j4
           textlabel%textline=trim(text)
           if(associated(graphopt%firsttextlabel)) then
              textlabel%nexttextlabel=>graphopt%firsttextlabel
@@ -6624,7 +6642,7 @@ contains
             '>>>   and allocated workspace ',i5/&
             '*************************************************************')
 !
-       j1=nopt
+       j4=nopt
        if(.not.allocated(iwam)) then
 ! value of lwam set by user
           allocate(iwam(lwam))
@@ -6688,7 +6706,7 @@ contains
 !--------------- begin calculate correlation matrix and RSD
 ! zero the relative standard deviations (RSD)
        firstash%coeffrsd=zero
-       if(j1.gt.0 .and. nopt.gt.0 .and. nopt.le.6) then
+       if(j4.gt.0 .and. nopt.gt.0 .and. nopt.le.6) then
 ! if there is a result calculate the Jacobian in fjac
 ! mexp,nvcoeff,coeffs,errs are same as in the call to lmdif1
 ! This will overwrite the fjac returned from the call to lmdif1
@@ -6831,7 +6849,7 @@ contains
 !--------------- end calculate correlation matrix and RSD
 ! some nice output .....
        write(kou,5020)
-       if(j1.eq.0) then
+       if(j4.eq.0) then
           write(*,*)'Dry run with zero iterations'
        elseif(nopt.eq.0) then
           write(kou,5000)nopt

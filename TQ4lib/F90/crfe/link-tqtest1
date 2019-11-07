@@ -13,10 +13,15 @@ copy ..\..\..\liboceq.a .
 
 copy ..\..\..\liboceqplus.mod .
 
+REM copy ..\ftinyopen-dummy.F90 .
+
 copy ..\liboctq.F90 .
+
+REM gfortran -c ftinyopen-dummy.F90
 
 gfortran -c liboctq.F90
 
-gfortran -o tqex1 -fopenmp TQ1-crfe.F90 liboctq.o liboceq.a ..\..\..\ftinyopen.o ..\..\..\tinyopen.o ..\..\..\tinyfiledialogs.o -lcomdlg32 -lole32
+REM gfortran -o tqex1 TQ1-crfe.F90 liboctq.o ftinyopen-dummy.o liboceq.a
 
+gfortran -o tqex1 TQ1-crfe.F90 liboctq.o liboceq.a
 

@@ -174,7 +174,7 @@ MODULE liboceqplus
   double precision liqentropy
 ! this is set TRUE when entering meq_onephase and false after one solid checked?
 ! it is now check for EEC
-  logical hickelextrapol
+  logical eecextrapol
 ! This is an (failed) attempt to limit Delta-T when having condition on y
   logical ycondTlimit
   double precision deltatycond
@@ -372,9 +372,11 @@ CONTAINS
 !    integer idum(1000)
     double precision fixpham(maxel),sumnp
     logical ycond
+    integer jq,ntup
 !    character statevar*40
 !
-!    write(*,*)'MM in calceq7'
+    ntup=nooftup()
+!    write(*,*)'MM in calceq7',ntup
     ycond=.FALSE.
     meqrec%status=0
     if(btest(globaldata%status,GSSILENT)) &
@@ -708,13 +710,19 @@ CONTAINS
     mph=0
     jph=0
     sumnp=zero
-    do iph=1,noph()
-       do ics=1,noofcs(iph)
+    selph1: do iph=1,noph()
+       selcs1: do ics=1,noofcs(iph)
           kst=test_phase_status(iph,ics,xxx,ceq)
           if(gx%bmperr.ne.0) goto 1000
 ! new: -4 hidden, -3 suspended, -2 dormant, -1,0,1 entered, 2 fix
-!          if(kst.le.PHDORM) goto 115
-          if(kst.le.PHDORM) cycle
+! skip loop selph1 for phases that are dormant or suspended
+          if(kst.le.PHDORM) then
+             if(ics.lt. noofcs(iph)) then
+                cycle selcs1
+             else
+                cycle selph1
+             endif
+          endif
           call get_phase_compset(iph,ics,lokph,lokcs)
           if(ceq%phase_varres(lokcs)%amfu.gt.zero) then
              meqrec%nv=meqrec%nv+1
@@ -723,7 +731,7 @@ CONTAINS
              meqrec%aphl(meqrec%nv)=ceq%phase_varres(lokcs)%amfu
              sumnp=sumnp+ceq%phase_varres(lokcs)%amfu
           endif
-       enddo
+       enddo selcs1
 ! select the phases with most constituents
        call get_phase_variance(iph,nvf)
        if(mostcon.eq.0) then
@@ -753,7 +761,7 @@ CONTAINS
              endif
           enddo
        endif
-    enddo
+    enddo selph1
     if(meqrec%nv.eq.0) then
 ! no phase with positive amount, set the noel()-meqrec%nfixmu-1 phases stable
 ! starting with those with highest number of constituents
@@ -1530,7 +1538,7 @@ CONTAINS
        meqrec%phr(jj)%curd%phstate=PHENTUNST
        jj=meqrec%phr(jj)%dormlink
 !       read(*,'(a)')jph
-! ADD TEST OF CRIVING FORSE AND WARNING IF POSITIVE !!
+! ADD TEST OF DRIVING FORCE AND WARNING IF POSITIVE !!
 ! MAYBE SET A BIT ALSO?       
        goto 1200
     endif
@@ -5000,10 +5008,10 @@ CONTAINS
 !    logical nolapack
 !
 !    write(*,*)'in meq_onephase: '
-! set hickelextrapol to TRUE when entering, 
-! set to FALSE inside hickel_check if phase has higher entropy than liquid
+! set eecextrapol to TRUE when entering, 
+! set to FALSE inside check_eec if phase has higher entropy than liquid
 ! I am no longer sure this is needed??
-    hickelextrapol=.TRUE.
+    eecextrapol=.TRUE.
 ! Maybe nolapack be removed??
 !    nolapack=.TRUE.
 !    nolapack=.FALSE.
@@ -5031,7 +5039,7 @@ CONTAINS
        pmi%eeccheck=1
     endif
 ! extract phase structure
-!    write(*,*)'calling get_phase_data: ',iph
+!    write(*,*)'MM calling get_phase_data: ',iph
     call get_phase_data(iph,ics,nsl,nkl,knr,yarr,sites,qq,ceq)
     if(gx%bmperr.ne.0) then
 ! handling of parallel by openMP
@@ -5791,12 +5799,12 @@ CONTAINS
 !-------------------------------------------
 900 continue
 ! Generation 3 check: tentative replace G if S^solid > S^liq
-!    write(*,*)'MM eec: ',globaldata%sysreal(1),ceq%tpval(1),pmi%eeccheck
+!    write(*,*)'MM eec1: ',globaldata%sysreal(1),ceq%tpval(1),pmi%eeccheck
     if(globaldata%sysreal(1).gt.one .and. &
          ceq%tpval(1).gt.globaldata%sysreal(1)) then
        if(pmi%eeccheck.eq.0) then
-          call check_eec(pmi,pmiliq,ceq)
-!          write(*,*)'MM EEC2: ',meqrec%noofits,meqrec%tpindep(1),&
+          call check_eec(pmi,pmiliq,meqrec,ceq)
+!          write(*,*)'MM eec3: ',meqrec%noofits,meqrec%tpindep(1),&
 !               pmi%curd%phtupx,pmi%eeccheck
        endif
     endif
@@ -7726,7 +7734,6 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-! This subroutine should be moved to matsmin.F90
   subroutine calfun(m,n,x,f,info,niter)
 ! This is called by the LMDIF1 routines and calls an OC subroutine
 ! as I had problems using EXTERNAL
@@ -9296,7 +9303,7 @@ CONTAINS
 
 !\addtotable subroutine check_eec
 !\begin{verbatim}
-  subroutine check_eec(pmisol,pmiliq,ceq)
+  subroutine check_eec(pmisol,pmiliq,meqrec,ceq)
 ! This checks EEC after calculating all phases if the solid phase has S > S^liq
 ! it is called if T>globaldata%sysreal(1) (set in user i/f)
 ! pmisol is pointer to solid data
@@ -9305,30 +9312,73 @@ CONTAINS
     implicit none
     type(meq_phase), pointer :: pmiliq,pmisol
     TYPE(gtp_equilibrium_data), pointer :: ceq
+    TYPE(meq_setup) :: meqrec
 !\end{verbatim}
-    integer jj,liqcs
-    double precision ssol,sliq,GSOL,GLIQ,fact,kvot
+    integer jj,liqcs,jc,jc2
+    double precision ssol,sliq,GSOL,GLIQ,fact,kvot,dgsl,round
+! to create a curvature ... bigval is an L parameter divided by RT
+    integer lokph,ll,nsl,nkl(9),n0,n1,n2,m1,m2
+    double precision :: bigval0=1.0D1
+    double precision oldgm,bigval
 ! check if T<globaldata%sysreal(1) already made
 !    
-! Calculate:  -S^sol - (-S^liq):
+! Calculate:  -S^sol_m - (-S^liq_m):
 ! abnorm(1) is the number of atoms per formula units
     if(.not.associated(pmiliq)) then
-       write(*,*)'EEC_METHOD fails as liquid not first condenced phase'
+       if(associated(pmisol)) then
+          write(*,*)'EEC_METHOD fails for ',pmisol%iph,' as no liquid'
+       else
+          write(*,*)'MM check_eec called without phasea!'
+       endif
        goto 1000
     endif
     ssol=-pmisol%curd%gval(2,1)/pmisol%curd%abnorm(1)
     sliq=-pmiliq%curd%gval(2,1)/pmiliq%curd%abnorm(1)
     fact=sliq/ssol
-!    write(*,*)'check_eec1: ',pmiliq%iph,pmisol%iph,fact
-!    write(*,10)pmisol%iph,pmisol%ics,pmiliq%iph,pmiliq%ics,&
-!         ceq%tpval(1),ssol,sliq,ssol-sliq,&
-!         pmisol%curd%abnorm(1)/pmiliq%curd%abnorm(1)
-10  format('Compare: ',i3,i2,i3,i2,F10.2,4(1pe12.4))
+!--------------------------------------------------------
+!    write(*,'(a,i3,i4,F5.2,7(1pe10.2))')'MM check_eec1: ',pmisol%iph,&
+!         meqrec%noofits,fact,pmiliq%curd%amfu,pmisol%curd%amfu,&
+!         pmiliq%curd%dgm,pmisol%curd%yfr(1),pmisol%curd%yfr(2)
+! an alternative way, add y_iy_jL_ij to G and erivatives if fact<1.05
+!  IT DOES NOT WORK
+!    if(fact.lt.1.1D0) then
+! Add a term \sum_i \sum_j>i y_iy_jL_ij to G and derivatives
+! wow, number of sublattices can only be obtained this way ...
+!       oldgm=pmisol%curd%gval(1,1)
+!       lokph=pmisol%curd%phlink
+!       bigval=(1.1d0-fact)*bigval0
+!       call get_phase_structure(lokph,nsl,nkl)
+!       n0=0
+!       do ll=1,nsl
+!          first: do m1=1,nkl(ll)
+!             n1=n0+1
+!             n2=n1
+!             second: do m2=m1+1,nkl(ll)
+!                n2=n2+1
+!                pmisol%curd%d2gval(kxsym(n1,n2),1)=&
+!                     pmisol%curd%d2gval(kxsym(n1,n2),1)+bigval
+!                pmisol%curd%gval(1,1)=pmisol%curd%gval(1,1)+&
+!                     pmisol%curd%yfr(n1)*pmisol%curd%yfr(n2)*bigval
+!                write(*,'(a,7i3)')'MM eec: ',lokph,ll,nkl(ll),n0,n1,n2
+!             enddo second
+!             pmisol%curd%dgval(1,n1,1)=pmisol%curd%dgval(1,n1,1)+&
+!                  pmisol%curd%yfr(n1)*bigval
+!          enddo first
+!          n0=n0+nkl(ll)
+!       enddo
+!       write(*,'(a,4(1pe12.4))')'MM bigval: ',fact,bigval,&
+!            oldgm,pmisol%curd%gval(1,1)
+!    goto 1000
+!--------------------------------------------    
+!200 continue
+!    elseif(fact.lt.one) then
     if(fact.lt.one) then
 ! note pmisol%curd%gval(2,1) is the derivative of G, i.e. -S
 ! we are here if S^solid > S^liquid:  careful if solid will be stable !!!
 ! G=H-TS = H+T*G.T; H=G-T*G.T
 ! 
+       dgsl=zero
+       round=zero
 ! calculate H^sol=G^sol+T*S^sol for abnorm-ssol
        kvot=pmisol%curd%abnorm(1)/pmiliq%curd%abnorm(1)
        gsol=pmisol%curd%gval(1,1)/pmisol%curd%abnorm(1)
@@ -9337,21 +9387,45 @@ CONTAINS
 ! set the solid S and Cp to fact*(the liquid) multiplied with kvot
        pmisol%curd%gval(2,1)=pmiliq%curd%gval(2,1)*kvot
        pmisol%curd%gval(4,1)=pmiliq%curd%gval(4,1)*kvot
-! Cp is not continous .... kink in S and G
-       if(fact.gt.0.9) then
-          pmisol%curd%gval(1,1)=10.0D0*(fact-0.9)*pmisol%curd%gval(1,1)+&
+       if(fact.gt.0.9D0) then
+          pmisol%curd%gval(1,1)=10.0D0*(fact-0.9D0)*pmisol%curd%gval(1,1)+&
                9.0D0*(one-fact)*pmiliq%curd%gval(1,1)*kvot
-!          write(*,98)'MM eec >0.9 ',fact,kvot,gsol,pmisol%curd%gval(1,1)
+! modify all first derivatives.  Change sign and shift them all with dgsl
+! try to arrange a "rounded" G curve between fact=1 to fact=0.9
+!          round=2.0D1*(fact-0.95D0)
+! round is 0.05*20=1 when fact=1 and -0.05*20 when fact=0.9
+!          dgsl=pmisol%curd%gval(1,1)-gsol*pmisol%curd%abnorm(1)
+!          do jc=1,pmisol%ncc
+!             pmisol%curd%dgval(1,jc,1)=dgsl+round*pmisol%curd%dgval(1,jc,1)
+!             pmisol%curd%dgval(2,jc,1)=dgsl+round*pmisol%curd%dgval(2,jc,1)
+!             do jc2=jc,pmisol%ncc
+! negative 2nd derivative should indicate miscibility gap ??
+!                pmisol%curd%d2gval(kxsym(jc,jc2),1)=
+!             enddo
+!          enddo
        else
           pmisol%curd%gval(1,1)=0.9D0*pmiliq%curd%gval(1,1)*kvot
-!          write(*,98)'MM eec <0.9 ',fact,kvot,gsol,pmisol%curd%gval(1,1)
+! modify all first derivatives. Change sign and shift them all with dgsl
+          round=-one
+          dgsl=pmisol%curd%gval(1,1)-gsol*pmisol%curd%abnorm(1)
+! set amount of solid phase very small
+!          if(pmisol%curd%amfu.gt.zero) then
+!             pmisol%curd%amfu=1.0D-3
+!             pmiliq%curd%amfu=1.0D-1
+!          endif
+!          do jc=1,pmisol%ncc
+!             pmisol%curd%dgval(1,jc,1)=round*pmisol%curd%dgval(1,jc,1)+dgsl
+!             pmisol%curd%dgval(2,jc,1)=round*pmisol%curd%dgval(2,jc,1)+dgsl
+!             do jc2=jc,pmisol%ncc
+! negative 2nd derivative should indicate miscibility gap ??
+!                pmisol%curd%d2gval(kxsym(jc,jc2),1)=-one
+!             enddo
+!          enddo
        endif
 ! tested for Al-W without any breakpoit in fcc-Al NO GOOD
-! fact decreases from 1.0 (S=S) towards 0.0
-!       pmisol%curd%gval(1,1)=fact*pmisol%curd%gval(1,1)+&
-!            (one-fact)*pmiliq%curd%gval(1,1)*kvot
-!       write(*,98)'MM eec / ',fact,kvot,gsol,pmisol%curd%gval(1,1)
-98     format(a,2F8.4,2e12.4)
+       write(*,98)'MM ABOVE EEC: ',pmisol%iph,ceq%tpval(1),fact,round,&
+            gsol,pmisol%curd%gval(1,1),dgsl
+98     format(a,i3,F8.2,F5.2,4(1pe12.4))
 !
 100    format(a,i3,i2,2x,F6.0,6(1pe10.2))
 ! Hm there are a lot of other derivatives wrt T and constituents ...
@@ -9359,7 +9433,7 @@ CONTAINS
     else
 ! EEC_METHOD not needed for this phase, set pmi%eeccheck=1, 
 ! that means no need to check this phase again unless T or P variable
-       pmisol%eeccheck=1
+!       pmisol%eeccheck=1
     endif
 1000 continue
 !    write(*,*)'MM leaving check_eec'
@@ -9526,7 +9600,8 @@ CONTAINS
 ! 5. calculate equilibrium with current set of  phases without gridminimizer
 ! 6. If a dormant phase has dgm>0 set it entered and go back to 5
 ! 7. set all dormant phases entered
-    ntups=noofphasetuples()
+!    ntups=noofphasetuples()
+    ntups=nooftup()
     allocate(phcsstat(ntups))
     phcsstat=0
     ns=0
@@ -9549,7 +9624,8 @@ CONTAINS
 17  format('MM Equilibrium with ',i4,' entered and ',i4,a,'phases')
 ! set all suspended phases as dormant, maybe some has disapperard
 ! some composition sets may have disappeared .... (hm not really)
-    mtups=noofphasetuples()
+    mtups=nooftup()
+!    mtups=noofphasetuples()
     if(ntups-mtups.gt.0) write(*,*)'MM deleted ',ntups-mtups,' composition sets'
     do itup=1,mtups
        if(phcsstat(itup).eq.PHSUS) then
@@ -9566,7 +9642,8 @@ CONTAINS
     if(gx%bmperr.ne.0) goto 900
     write(*,17)mtups-ns,ns,' dormant '
 ! if a dormant phase has dgm>0 set it as entered
-    ntups=noofphasetuples()
+    ntups=nooftup()
+!    ntups=noofphasetuples()
     naa=0
     do itup=1,ntups
        if(phcsstat(itup).eq.PHDORM) then
@@ -9589,7 +9666,8 @@ CONTAINS
 ! or we have an error so restore suspended phases
 900 continue
     ns=0
-    ntups=noofphasetuples()
+    ntups=nooftup()
+!    ntups=noofphasetuples()
     do itup=1,ntups
        if(phcsstat(itup).le.PHDORM) then
           lokcs=phasetuple(itup)%lokvares
