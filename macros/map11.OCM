@@ -31,7 +31,7 @@ set echo
 r t ./steel1
 cr fe
  
-set c t=700 p=1e5 n=1 x(cr)=.2
+set c t=600 p=1e5 n=1 x(cr)=.2
 c e
 l
 RESULTS
@@ -46,7 +46,7 @@ set ref fe bcc * ,,
 set ax 1 x(cr)
 0
 1
-.01
+.025
 
 set ax 2 t
 400
@@ -74,8 +74,8 @@ RENDER
 @$
 @$
 
-set c t=1300
-set c x(cr)=.05
+set c t=1400
+set c x(cr)=.12
 c e
 l,,,,
 

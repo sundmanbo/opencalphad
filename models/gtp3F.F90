@@ -62,7 +62,10 @@
          enddo loop
       endif
    endif
+! looking for bug ... not here
+!   write(*,*)'3F calling get_state_var_value'
    call get_state_var_value(modstatevar,value,encoded,ceq)
+!   write(*,*)'3F back from get_state_var_value',value,' ',trim(encoded)
 1000 continue
 ! possible memory leak
    write(*,*)'3F exit get_stable_state_var_value'
@@ -133,8 +136,9 @@
       endif
    else
 ! it is a real state variable
-!      write(*,*)'3F calling state_variable_val'
+!      write(*,*)'3F calling state_variable_val from get_state_var_value'
       call state_variable_val(svr,value,ceq)
+!      write(*,*)'3F back from state_variable_val',value
       if(gx%bmperr.ne.0) goto 1000
       ip=1
       encoded=' '
@@ -143,6 +147,7 @@
          write(*,*)'3F encode error: ',trim(encoded),gx%bmperr
          gx%bmperr=0; encoded='dummy'
       endif
+!      write(*,*)'3F get_state_var_value encoded: ',trim(encoded)
    endif
 1000 continue
 ! possible memory leak
@@ -186,11 +191,13 @@
 !\end{verbatim}
    integer indices(4),modind(4)
    double precision xnan,xxx
-   integer jj,lokph,lokcs,k1,k2,k3,iref,jl,iunit,istv,enpos
+   integer jj,lokph,lokcs,k1,k2,k3,iref,jl,iunit,istv,enpos,maxen
 ! memory leak
    type(gtp_state_variable), target :: svrvar
    type(gtp_state_variable), pointer :: svr
 !   logical phtupord
+! check for character overflow, leave at least 100 at end
+   maxen=len(encoded)-100
 ! calculate the NaN bit pattern
    xnan=0.0d0
 !   xnan=0.0d0/xnan
@@ -208,7 +215,7 @@
 !      phtupord=.TRUE.
 !   endif
 ! called from minimizer for testing
-!   write(*,*)'3Y gmv 1: ',trim(statevar)
+!   write(*,*)'3F gmv 1: ',trim(statevar)
    svr=>svrvar
    call decode_state_variable(statevar,svr,ceq)
    if(gx%bmperr.ne.0) then
@@ -261,6 +268,8 @@
                  iunit,iref,ceq)
             if(gx%bmperr.ne.0) goto 1000
             enpos=enpos+1
+! check for overflow in encoded
+            if(enpos.gt.maxen) goto 1100
             call state_variable_val3(istv,indices,iref,&
                  iunit,values(jj),ceq)
             if(gx%bmperr.ne.0) goto 1000
@@ -274,6 +283,8 @@
                     iunit,iref,ceq)
                if(gx%bmperr.ne.0) goto 1000
                enpos=enpos+1
+! check for overflow in encoded
+               if(enpos.gt.maxen) goto 1100
                call state_variable_val3(istv,indices,iref,&
                     iunit,values(jj),ceq)
                if(gx%bmperr.ne.0) goto 1000
@@ -289,6 +300,8 @@
                     iunit,iref,ceq)
                if(gx%bmperr.ne.0) goto 1000
                enpos=enpos+1
+! check for overflow in encoded
+               if(enpos.gt.maxen) goto 1100
                call state_variable_val3(istv,indices,iref,&
                     iunit,values(jj),ceq)
                if(gx%bmperr.ne.0) goto 1000
@@ -314,6 +327,8 @@
                     iunit,iref,ceq)
                if(gx%bmperr.ne.0) goto 1000
                enpos=enpos+1
+! check for overflow in encoded
+               if(enpos.gt.maxen) goto 1100
 ! if composition set not stable so return NaN (in xnan)
                if(test_phase_status(indices(2),indices(3),xxx,ceq).le. &
                     PHENTUNST) then
@@ -348,6 +363,8 @@
                  iunit,iref,ceq)
             if(gx%bmperr.ne.0) goto 1000
             enpos=enpos+1
+! check for overflow in encoded
+            if(enpos.gt.maxen) goto 1100
             call state_variable_val3(istv,indices,iref,&
                  iunit,values(jj),ceq)
             if(gx%bmperr.ne.0) goto 1000
@@ -369,6 +386,8 @@
                        iunit,iref,ceq)
                   if(gx%bmperr.ne.0) goto 1000
                   enpos=enpos+1
+! check for overflow in encoded
+                  if(enpos.gt.maxen) goto 1100
                   if(test_phase_status(indices(2),indices(3),xxx,ceq).le. &
                        PHENTSTAB) then
 ! xnan means "no value"
@@ -411,6 +430,8 @@
                     iunit,iref,ceq)
                if(gx%bmperr.ne.0) goto 1000
                enpos=enpos+1
+! check for overflow in encoded
+               if(enpos.gt.maxen) goto 1100
                jj=jj+1
                if(jj.gt.mjj) goto 1100
                if(ceq%phase_varres(lokcs)%phstate.lt.PHENTSTAB) then
@@ -425,6 +446,8 @@
 !                    iunit,iref,ceq)
 !               if(gx%bmperr.ne.0) goto 1000
 !               enpos=enpos+1
+! check for overflow in encoded
+               if(enpos.gt.maxen) goto 1100
 !               values(jj)=xnan
             elseif(indices(3).gt.0) then
 ! This is typically listing of w(*,cr), only in stable range of phases
@@ -436,6 +459,8 @@
                     iunit,iref,ceq)
                if(gx%bmperr.ne.0) goto 1000
                enpos=enpos+1
+! check for overflow in encoded
+               if(enpos.gt.maxen) goto 1100
                jj=jj+1
 !               write(*,*)'3F statevar 1B: ',trim(encoded),jj,&
 !                    lokph,ceq%phase_varres(lokcs)%phlink
@@ -485,6 +510,8 @@
                        iunit,iref,ceq)
                   if(gx%bmperr.ne.0) goto 1000
                   enpos=enpos+1
+! check for overflow in encoded
+                  if(enpos.gt.maxen) goto 1100
                   jj=jj+1
                   if(jj.gt.mjj) goto 1100
                   call state_variable_val3(istv,modind,iref,&
@@ -499,6 +526,8 @@
                        iunit,iref,ceq)
                   if(gx%bmperr.ne.0) goto 1000
                   enpos=enpos+1
+! check for overflow in encoded
+                  if(enpos.gt.maxen) goto 1100
                   jj=jj+1
                   if(jj.gt.mjj) goto 1100
                   call state_variable_val3(istv,modind,iref,&
@@ -529,7 +558,8 @@
    kjj=jj
    return
 1100 continue
-   write(*,*)'3F Overflow in array to get_state_variables'
+   write(*,1102)'3F Overflow in array to get_state_variables',enpos,maxen,jj,mjj
+1102 format('3F Overflow using get_many_svar: ',2i6,5x,2i6)
    gx%bmperr=4317; goto 1000
  end subroutine get_many_svar
 
@@ -604,6 +634,7 @@
         'H   ','A   ','G   ','NP  ','BP  ','DG  ','Q   ','N   ',&
         'X   ','B   ','W   ','Y   ']
 !        1      2      3      4      4      6      7      8         
+!        9      10     11     12  ...
    character statevar*(*)
    integer istv,iref,iunit
    integer, dimension(4) :: indices
@@ -619,7 +650,7 @@
    character argument*60,arg1*24,arg2*24,ch1*1,lstate*60,propsym*60
    integer typty
    logical deblist
-!   write(*,*)'3F in decode ',trim(statevar),istv
+!   write(*,*)'3F in decode "',trim(statevar),'" ',istv
 ! initiate svr internal variables
    deblist=.FALSE.
 !   deblist=.TRUE.
@@ -660,6 +691,7 @@
    lstate=statevar
    call capson(lstate)
    if(deblist) write(*,*)'3F decode_state_var 1: ',lstate(1:20)
+!   write(*,*)'3F decode_state_var 1: "',trim(lstate),'"'
 ! compare first character
    ch1=lstate(1:1)
 !   write(*,*)'3F decoding: ',trim(lstate),is,' ',ch1
@@ -671,7 +703,14 @@
    goto 600
 !------------------------------------------------------------
 50 continue
-   if(deblist) write(*,*)'3F dsv 1: ',is,ch1
+! There is an ambiguous case with first letter: "AC" and "A"
+! If is=4 it means we found an A, check if second letter is "C"
+   if(is.eq.4) then
+      if(lstate(2:2).ne.'C') then
+         is=10
+      endif
+   endif
+   if(deblist) write(*,*)'3F dsv 1: ',ch1,is
    if(is.eq.1) then
       if(lstate(2:2).ne.' ') then
 ! it must be a property like TC or THET
@@ -798,13 +837,14 @@
       endif
    endif letter2
 !---------------------------------------------------------------------
+! All this is for extensive properties 
 ! If we come here the first (and sometimes second) letter must have been:
 !               A,  B, BP,  D,  G, H,  N, NP,  Q, S, U,  W,  X,  Y
 ! and "is" is  10, 18, 13, 14, 11, 9, 16, 12, 15, 7, 6, 19, 17, 20
 ! NOTE: for N and B the second character has been checked and jp incremented
 !       if equal to P.  The third (for NP and BP forth) character must 
 !       be normallizing (MWVF), a space or a (, otherwise it is a property
-   if(deblist) write(*,*)'3F lstate: ',lstate(1:20),jp
+   if(deblist) write(*,*)'3F lstate: ',lstate(1:20),jp,is
 ! these have no normalizing: Q, X, W, Y
    nomalize: if(is.le.14 .or. is.eq.16 .or. is.eq.18) then
 ! ZM      x1   (phase)                             per mole components
@@ -831,6 +871,7 @@
 !---------------------------------------------------------------------
 ! reference state can be specified by an S for SER
 ! If no S the user specified reference states applies
+! UNLESS MIXED REFERENCE STATES FOR THE ELEMENTS
    if(lstate(jp:jp).eq.'S') then
       jp=jp+1
       iref=-1
@@ -838,6 +879,11 @@
       write(*,*)'Ignoring suffix "R" on ',trim(statevar),&
            ', user reference is default'
       jp=jp+1
+   endif
+   if(btest(ceq%status,EQMIXED)) then
+! user has different phases as reference state for the elements use SER
+!      write(*,*)'3F Mixed reference state for the elements, SER used'
+      iref=-1
    endif
 !---------------------------------------------------------------------
 ! extract arguments if any. If arguments then lstate(jp:jp) should be (
@@ -2124,6 +2170,7 @@
    endif
 !   write(*,910)'3F svv: ',istv,indices,iref,iunit,value
 910 format(a,i3,2x,4i3,2i3,1pe14.6)
+!   write(*,*)'3F calling state_variable_val3: '
    call state_variable_val3(istv,indices,iref,iunit,value,ceq)
    if(gx%bmperr.ne.0) then
 !      write(*,920)'3F error 7: ',gx%bmperr,istv,svr%oldstv,svr%argtyp
@@ -2131,6 +2178,7 @@
 !   else
 !      write(*,*)'3F value: ',value
    endif
+!   write(*,*)'3F back from state_variable_val3: ',value
 1000 continue
    return
  end subroutine state_variable_val
@@ -2224,18 +2272,22 @@
       vp=ceq%tpval(2)
 !      ceq%rtn=globaldata%rgas*ceq%tpval(1)
       amult=ceq%rtn
-!      write(*,*)'3F stv B: ',vt,vp,amult
+!      write(*,*)'3F stv B: ',norm,kstv,indices(1),vt,vp,amult
       if(indices(1).eq.0) then
 ! global value for the whole system
          vg=props(1)
          vs=-props(2)
          vv=props(3)
-! normalizing
+! normalizing: 0 none,1=M (moles), 2=W (mass), 3=W(volume), 4=F(formula unit)
+!         write(*,*)'3F norm: ',norm,props(1)
          if(norm.eq.1) then
+! props(4) is total number of moldes
             div=props(4)
          elseif(norm.eq.2) then
+! props(5) is total mass
             div=props(5)
          elseif(norm.eq.3) then
+! Normalizing per volume, there frequently no volume data
             div=props(3)
             if(div.eq.zero) then
                gx%bmperr=4114; goto 1000
@@ -2257,12 +2309,22 @@
          vg=ceq%phase_varres(lokcs)%gval(1,1)
          vs=-ceq%phase_varres(lokcs)%gval(2,1)
          vv=ceq%phase_varres(lokcs)%gval(3,1)
+! normalizing: 0 none,1=M (moles), 2=W (mass), 3=W(volume), 4=F(formula unit)
+! I have to think more here should normalizing be per phase or for total?
+! GM(BCC) is for one mole BCC, M refer per mole of phase even if not stable
+! NPM(BCC) is more fraction of BCC relative to total amount in system
+!         write(*,*)'3F norm 2: ',norm,props(1),div
          if(norm.eq.1) then
+! phase property normalized per phase like HM or SM
             div=ceq%phase_varres(lokcs)%abnorm(1)
+! phase property normalized for whole system as NPM
+            if(kstv.eq.7) div=props(4)
             rmult=div
          elseif(norm.eq.2) then
 ! abnorm(2) should be the mass per formulat unit
             div=ceq%phase_varres(lokcs)%abnorm(2)
+! phase property normalized for whole system as NPM
+            if(kstv.eq.8) div=props(5)
             rmult=div
          elseif(norm.eq.3) then
             div=ceq%phase_varres(lokcs)%gval(3,1)
@@ -2316,7 +2378,8 @@
 ! if phase specific the scaling for phase specific must be compensated
       aref=rmult*aref
 !      write(*,53)'3F at kstv1: ',kstv,props,aref,div
-53    format(a,i3,5(1PE12.3))
+!      write(*,53)'3F more:',0,amult,vg,vp,vv,amult*(vg-vp*vv-aref)/div
+53    format(a,i3,7(1PE11.3))
       kstv1: if(kstv.eq.1) then
 ! 1: U = G + TS - PV = G - T*G.T - P*G.P
          value=amult*(vg+vt*vs-vp*vv-aref)/div
@@ -2338,12 +2401,15 @@
       elseif(kstv.eq.5) then
 ! 5: A = G - PV = G - P*G.P
          value=amult*(vg-vp*vv-aref)/div
+!         write(*,53)'3F more:',0,amult,vg,vp,vv,value
       elseif(kstv.eq.6) then
 ! 6: G
 !         write(*,177)'3F G:',vg,aref,amult,div
          value=amult*(vg-aref)/div
       elseif(kstv.eq.7) then
 ! 7: NP
+!         write(*,*)'3F npm:',norm,div
+! div is normalizing, can be 1.0 or total volume
          value=ceq%phase_varres(lokcs)%abnorm(1)* &
               ceq%phase_varres(lokcs)%amfu/div
       elseif(kstv.eq.8) then
@@ -2363,6 +2429,7 @@
 !      else
 !         write(*,*)'3F svval after 10:',kstv
       endif kstv1
+!      write(*,53)'3F more:',-1,amult,vg,vp,vv,value
       goto 1000
    endif le10
 !----------------------------------------------------------------------
@@ -2727,6 +2794,7 @@
    endif
 !-----------------------------------------------------------------
 1000 continue
+!   write(*,53)'3F more:',-1,amult,vg,vp,vv,value
    if(allocated(cmpstoi)) deallocate(cmpstoi)
    return
 1100 continue
@@ -2763,6 +2831,99 @@
 !      value=zero
 !   endif
  end subroutine calc_qf
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine calc_qf_otis
+!\begin{verbatim}
+ subroutine calc_qf_otis(lokcs,value,ceq)
+! calculates eigenvalues of the second derivative matrix, stability function
+! using Otis reduced Hessian method.  Should work indpent of model!!
+! lokcs is index of phase_varres
+! value calculated value returned
+! ceq is current equilibrium
+   implicit none
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+   integer :: lokcs
+   double precision value
+!\end{verbatim}
+! Algorithm:
+! 1. Create a Jacobian matrix with massbalance and constraint n columns, m rows
+! 2. Use an QR factorization of this, select the first n-m columns as Z
+! 3. Calculate F = Z^T H Z where H is all second derivatives of G wrt fractions
+! 4. Calculate eigenvalues of F.  If all positive no problem!
+! 
+   integer ncol,mrow,lda,info,ll,nsl,lokph,ii,jj
+   double precision, allocatable, dimension(:,:) :: jac,zeta,fff
+   double precision, allocatable, dimension(:) :: tau,work,eigenv
+   double precision dummy(1,1)
+   type(gtp_phase_varres), pointer :: varres
+!
+   varres=>ceq%phase_varres(lokcs)
+! Step 1: Jacobian: ncol columns, mrow rows
+   value=zero
+   allocate(jac(ncol,mrow))
+!
+! Step 2: QR factorisation, n>m
+   allocate(tau(ncol))
+   allocate(work(ncol))
+   lda=ncol
+   info=0
+   call dgeqr2(mrow,ncol,jac,lda,tau,work,info)
+   if(info.ne.0) then
+      write(*,*)'Error return from DGEGR2: ',info,lokph
+      goto 1000
+   endif
+! How to extract Q?? Documentation of DGEQR2:
+!>  The matrix Q is represented as a product of elementary reflectors
+!>
+!>     Q = H(1) H(2) . . . H(k), where k = min(m,n).
+!>
+!>  Each H(i) has the form
+!>
+!>     H(i) = I - tau * v * v**T
+!>
+!>  where tau is a real scalar, and v is a real vector with
+!>  v(1:i-1) = 0 and v(i) = 1; v(i+1:m) is stored on exit in A(i+1:m,i),
+!>  and tau in TAU(i).
+! zeta should be a matrix with the first ncol x ncol-mrow part of Q
+   allocate(zeta(ncol,ncol-mrow))
+   zeta=zero
+!
+! Step 3: multiply Z^T * H * Z
+   allocate(fff(ncol,ncol))
+   fff=zero
+   do ii=1,ncol
+      do jj=1,ncol
+         fff(ii,jj)=fff(ii,jj)+zeta(ii,jj)*varres%d2gval(ixsym(ii,jj),1)
+      enddo
+   enddo
+   jac=zero
+   do ii=1,ncol
+      do jj=1,ncol
+         jac(ii,jj)=jac(ii,jj)+fff(ii,jj)*zeta(ii,jj)
+      enddo
+   enddo
+!
+! Step 4: calculate eigenvalues
+! use LAPACK routine, note d2g is destroyed inside dspev
+!   write(*,*)'LAPACK routine DSPEV not implemented'
+   allocate(eigenv(ncol))
+   info=0
+   call dspev('N','U',ncol,fff,eigenv,dummy,1,work,info)
+   if(info.eq.0) then
+!      write(*,120)(eigenv(ii),ii=1,ncol)
+120   format('Eigenvalues: ',6(1pe10.2))
+! return the most negative value
+      value=eigenv(1)
+   else
+      write(*,*)'Error calculating eigenvalues of phase matrix',info
+      gx%bmperr=4321
+   endif
+!   
+1000 continue
+   return
+ end subroutine calc_qf_otis
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

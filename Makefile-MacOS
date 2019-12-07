@@ -13,7 +13,13 @@ EXE=oc5P
 #=============================================================================#
 
 FC=gfortran
-C=gcc
+#=============================================================================#
+# For MacOS
+C=cc
+#=============================================================================#
+# For other Unix dialects
+#C=gcc
+#=============================================================================#
 CPP=g++
 FCOPT= -O2 -fopenmp -fPIC
 # for debugging
@@ -78,9 +84,9 @@ clean:
 getkey.o:
 	echo "Do not forget to uncomment a line below for your OS"
 	# compile utilities/GETKEY for command line editing
-	# uncomment the line for the kind of Linux system you have
+	# This makefile use MacOS own cc compiler
 	# Mac >>
-	#$(C) -c $(FCOPT) -DBSD utilities/GETKEY/getkey.c
+	$(C) -c  -DBSD utilities/GETKEY/getkey.c
 	# Linux >>
 	#$(C) -c $(FCOPT) -DLinux utilities/GETKEY/getkey.c
 	# other UNIX systems >>
@@ -92,10 +98,10 @@ M_getkey.o:
 	$(FC) -c $(FCOPT) utilities/GETKEY/M_getkey.F90
 
 tinyfiledialogs.o:
-	$(C)  -c $(FCOPT) utilities/TINYFILEDIALOGS/tinyfiledialogs.c
+	$(C)  -c  utilities/TINYFILEDIALOGS/tinyfiledialogs.c
 
 tinyopen.o:
-	$(C)  -c $(FCOPT) utilities/TINYFILEDIALOGS/tinyopen.c
+	$(C)  -c  utilities/TINYFILEDIALOGS/tinyopen.c
 
 ftinyopen.o:
 	$(FC) -c $(FCOPT) utilities/TINYFILEDIALOGS/ftinyopen.F90
@@ -128,7 +134,6 @@ pmon6.o:	userif/pmon6.F90
 	# default wxt graphical driver
 	# use -Dqtplt fot Qt or (also smaller window)
 	# use -Daqplt for aqua plot drivers (also smaller window)
-	# use -Dx11 for X11 plot drivers
 	# use -Dlixhlp for online help in Linux
 	# use -Dmachlp for online help in MacOS (browser)
 	$(FC) -c $(FCOPT) -Dqtplt -Dlixhlp userif/pmon6.F90

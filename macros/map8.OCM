@@ -169,7 +169,7 @@ title map 8 fig 1
 @&
 
 @$ Add a start point between L1_0 and L1_2 on the Ni-rich side
-set c x(ni)=.6
+set c x(ni)=.57  T=400
 
 c e
 
@@ -190,7 +190,7 @@ title map 8 fig 2
 @&
 
 @$ Third start point on the Fe-rich side
-set c x(ni)=.4
+set c x(ni)=.4  T=300
 
 c e
 

@@ -50,6 +50,18 @@ render
 
 
 @&
+@$ Problem to pass the congruent equilibrium
+@$ Calculate the right hand side
+
+set c t=2200 x(o)=.8
+
+c e
+
+@$ amp without removing the first part
+map
+N
+
+
 plot
 x(*,o)
 T
@@ -154,6 +166,10 @@ l,,,,
 @$ Voila! 
 @$ T=3139 K and x(o)=.6638, slightly on the U rich side.
 @&
+
+set inter
+
+@$skip the plot of the maximum
 
 plot
 

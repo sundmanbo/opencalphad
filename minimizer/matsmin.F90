@@ -66,7 +66,8 @@ MODULE liboceqplus
 ! xdone: set to 1 for stoichiometric phases after calculating xmol first time
 ! dormlink: link to next phase that has temporarily been set dormant
 ! eec_check for equi-entropy check
-     integer iph,ics,idim,stable,ncc,xdone,dormlink,eeccheck
+! phtupix phase tuple index
+     integer iph,ics,idim,stable,ncc,xdone,dormlink,eeccheck,phtupix
 ! value of phase status (-1,0=ent, 1=stable, 2=fix, -2=dorm, -3=sus, -4 hidden)
      integer phasestatus
 ! inverted phase matrix
@@ -186,6 +187,10 @@ MODULE liboceqplus
 !
 !--------------------------------------------------------------
 !
+! declared as part of phase_varres to be used in parallel
+!  integer, dimension (:,:), allocatable :: phaseremoved
+!--------------------------------------------------------------
+!
 ! IMPORTANT
 ! phase_varres(lokcs)%amfu is the number of formula units of the phase
 ! phase_varres(lokcs)%netcharge is the current total charge  of the phase
@@ -236,7 +241,7 @@ CONTAINS
             write(*,1010)meqrec%noofits,&
             finish2-starting,endoftime-starttid,gtot
 1010   format('Equilibrium result: ',i4,' its, ',&
-            1pe12.4,' s, ',i6,' cc, G=',1pe15.7,' J/mol')
+            1pe12.4,' s, ',i6,' cc, GS=',1pe15.7,' J/mol')
 ! Here we have now an equilibrium calculated.  Do a cleanup of the structure
 ! for phases with several compsets the call below shifts the stable one
 ! to the lowest compset number unless the default constitution fits another
@@ -889,6 +894,11 @@ CONTAINS
 !-------------------------------
 ! Now we calculate the equilibrium
 200 continue
+! allocate phaseremoved to avoid same phase stable again and again
+    if(allocated(ceq%phaseremoved)) deallocate(ceq%phaseremoved)
+    ntup=nooftup()
+    allocate(ceq%phaseremoved(2,ntup))
+    ceq%phaseremoved=0
 !
 ! this routine varies the set of phases and the phase constitutions
 ! until the stable set is found for the given set of conditions.
@@ -932,7 +942,8 @@ CONTAINS
     double precision, parameter :: addedphase_amount=1.0D-2
     double precision xxx,tpvalsave(2)
     integer iremsave,zz,tupadd,tuprem,samephase,phloopaddrem1,phloopaddrem2
-    integer phloopv,noremove
+    integer phloopv,noremove,findtupix
+    character phnames*50
 ! prevent loop that a phase is added/removed more than 10 times
     integer, allocatable, dimension(:,:) :: addremloop
 ! replace always FALSE except when we must replace a phase as we have max stable
@@ -1027,6 +1038,12 @@ CONTAINS
 ! set link to calculated values of G etc.
              call get_phase_compset(iph,ics,lokph,lokcs)
              meqrec%phr(mph)%curd=>ceq%phase_varres(lokcs)
+! ALSO save phase tuple index
+             findtupix=meqrec%phr(mph)%curd%phtupx
+             meqrec%phr(mph)%phtupix=findtupix
+!             write(*,'(a,4i6,5x,3i6)')'MM save tuple index: ',mph,iph,ics,&
+!                  findtupix,phasetuple(findtupix)%ixphase,&
+!                  phasetuple(findtupix)%compset,phasetuple(findtupix)%lokph
 ! set number of constituents, DO NOT USE size(...curd%size(yfr)!!!
              meqrec%phr(mph)%ncc=noconst(iph,ics,ceq)
              if(formap) then
@@ -1162,6 +1179,8 @@ CONTAINS
 !    iadd=-1 ! iadd =-1 turns on verbose in meq_sameset
     iadd=0
     irem=iremsave
+! for debuging convergence
+!    call list_stable_phases('MM call:',meqrec%noofits,iadd,irem,meqrec,ceq)
 !    write(*,*)'MM calling meq_sameset ',meqrec%noofits
 !    write(*,*)'MM calling list conditions'
 !    call list_conditions(kou,ceq)
@@ -1174,6 +1193,7 @@ CONTAINS
     endif
 !
     force=.false.
+!    call list_stable_phases('MM back:',meqrec%noofits,iadd,irem,meqrec,ceq)
 !    write(*,*)'MM line 1114:',irem,iadd
     if(irem.gt.0 .or. iadd.gt.0) then
        if(iremsave.gt.0 .and. iadd.eq.iremsave) then
@@ -1195,7 +1215,7 @@ CONTAINS
 !                  addremloop(iadd,2),addremloop(iadd,3)
           endif
           if(addremloop(iadd,2).gt.5) then
-             write(*,'(a,4i5)')'MM Suspending phase: ',iadd,&
+             write(*,'(a,2i4,"#",i1)')'MM Removing phase: ',iadd,&
                   meqrec%phr(iadd)%iph,meqrec%phr(iadd)%ics
              meqrec%phr(iadd)%phasestatus=PHDORM
              meqrec%phr(iadd)%curd%phstate=PHDORM
@@ -1267,16 +1287,33 @@ CONTAINS
        tupadd=0
        tuprem=0
        xxx=0.0D0
-       if(iadd.gt.0) tupadd=meqrec%phr(iadd)%curd%phtupx
-       if(irem.gt.0) tuprem=meqrec%phr(irem)%curd%phtupx
+!       if(iadd.gt.0) tupadd=meqrec%phr(iadd)%curd%phtupx
+!       if(irem.gt.0) tuprem=meqrec%phr(irem)%curd%phtupx
+       if(iadd.gt.0) tupadd=meqrec%phr(iadd)%phtupix
+       if(irem.gt.0) tuprem=meqrec%phr(irem)%phtupix
        if(.not.btest(meqrec%status,MMQUIET)) then
           if(formap) then
              write(*,*)'Change direction of first axis increment'
           elseif(ceq%eqno.ne.1) then
-             write(*,219)meqrec%noofits,tupadd,tuprem,' at equil: ',ceq%eqno
+             write(*,219)meqrec%noofits,iadd,irem,' at equil: ',ceq%eqno
 219          format('Phase change: its/add/remove: ',3i5,a,i5)
           else
-             write(*,219)meqrec%noofits,tupadd,tuprem
+             if(iadd.gt.0) then
+                phnames='+'
+                call get_phasetup_name(tupadd,phnames(2:))
+                if(irem.gt.0) then
+                   kk=len_trim(phnames)+3
+                   phnames(kk-1:kk-1)='-'
+                   call get_phasetup_name(tuprem,phnames(kk:))
+                endif
+             else
+                phnames='-'
+                call get_phasetup_name(tuprem,phnames(2:))
+             endif
+!             write(*,281)meqrec%noofits,iadd,irem,trim(phnames)
+!281          format('Phase change: its/add/remove: ',3i5,2x,a)
+             write(*,281)meqrec%noofits,trim(phnames)
+281          format('Phase change iteration: ',i5,2x,a)
           endif
        endif
        if(formap) then
@@ -1524,24 +1561,27 @@ CONTAINS
        enddo
     endif
 ! restore phases set dormant
+    jph=0
     jj=meqrec%dormlink
 1200 continue
     if(jj.ne.0) then
 !       if(.not.btest(meqrec%status,MMQUIET)) &
 !            write(*,*)'Restore from dormant: ',jj,meqrec%phr(jj)%iph,&
 !            meqrec%phr(jj)%ics
-       write(*,'(a,3i5)')'MM restoring phase:  ',jj,&
-            meqrec%phr(jj)%iph,meqrec%phr(jj)%ics
+       write(*,'(a,2i4,"#",i1,5x,1pe12.4)')'MM restoring phase:  ',jj,&
+            meqrec%phr(jj)%iph,meqrec%phr(jj)%ics,meqrec%phr(jj)%curd%dgm
+       if(meqrec%phr(jj)%curd%dgm.gt.1.0D-2) jph=jj
 ! do I have two places for suspendeded ?? YES!!
        meqrec%phr(jj)%phasestatus=PHENTUNST
 ! below is in the phase_varres record, previous is temporary equilibrium data
        meqrec%phr(jj)%curd%phstate=PHENTUNST
        jj=meqrec%phr(jj)%dormlink
-!       read(*,'(a)')jph
 ! ADD TEST OF DRIVING FORCE AND WARNING IF POSITIVE !!
 ! MAYBE SET A BIT ALSO?       
        goto 1200
     endif
+    if(jph.gt.0) write(*,*) &
+         ' *** Warning, a restored phase wants to be stable:',jph
 ! try to find problem with listed chemical potential    
 ! chempot(2) should be value with user defined reference state,
     if(gx%bmperr.eq.0) then
@@ -1637,14 +1677,17 @@ CONTAINS
 ! to check if we are calculating a single almost stoichiometric phase ...
     integer iz,tcol,pcol,nophasechange,notagain
     double precision maxphasechange,molesofatoms,factconv
-    double precision lastdeltat,deltatycond
+    double precision lastdeltat,deltatycond,phfmin
 !    double precision, allocatable, dimension(:) :: loopfact
-    integer notf,dncol,iy,jy,iremsave,phasechangeok
+    integer notf,dncol,iy,jy,iremsave,phasechangeok,nextch,iremax,srem
+    character phnames*50
     double precision, dimension(:), allocatable :: lastdeltaam
     logical vbug,stoikph
 ! NOTE using save cannot be reconciled with parallel calculations
     save notagain
 !
+! do not allow return unless meqrec%noofits greater or equal to nextch
+    nextch=meqrec%noofits+4
     stoikph=.true.
     nophasechange=0
     maxphasechange=zero
@@ -2019,6 +2062,8 @@ CONTAINS
     negamph=0
     negam=0
     irem=0
+    iremax=0
+    phfmin=zero
 ! dncol+1 should be the first Delta_phase-amount
     ioff=dncol+1
 ! scale all changes in phase amount with total number of atoms. At present
@@ -2169,15 +2214,21 @@ CONTAINS
              phf=0.5D0*phr(jj)%curd%amfu
              gx%bmperr=4195; goto 1000
           else
+! select phase with most negative amount
+             if(phf.lt.phfmin) then
+                phfmin=phf
+                iremax=jj
+             endif
 ! trying to improve convergence by allowing phases to be removed quicker
 !             write(*,363)'Phase with negative amount: ',jj,meqrec%noofits,0,&
 !                  phf,phs,phr(jj)%prevam
 !             if(phf.lt.-1.0D-2) phf=zero
              if(jj.ne.notagain .and. phr(jj)%prevam.lt.zero) then
-!             if(phr(jj)%prevam.lt.zero) then
 ! remove this phase if negative amount previous iteration also
                 irem=jj
-!                write(*,*)'remove: ',meqrec%noofits,jj,notagain
+!                write(*,376)'meq_sameset remove: ',meqrec%noofits,nextch,&
+!                     jj,notagain
+376             format(a,4i4)
 ! jumping to 1000 here means constitutions not changed in this iteration
                 goto 1000
              else
@@ -2196,6 +2247,9 @@ CONTAINS
     enddo phamount2 ! end of loop for jph=1,meqrec%nstph
 !555 continue
 !
+!    if(iremax.gt.0) then
+!       write(*,*)'meq_sameset remove?',meqrec%noofits,iremax,phfmin
+!    endif
     if(vbug) write(*,*)'finished updating phase amounts: ',&
          meqrec%noofits,phasechangeok,irem
 !    if(meqrec%nfixmu.gt.0) then
@@ -2287,6 +2341,9 @@ CONTAINS
 ! below if the constitution of this phase is very similar to the stable one
                 iadd=jj
                 dgmmax=dgm
+!                write(*,379)'meq_sameset add: ',meqrec%noofits,nextch,&
+!                     iadd,dgmmax
+379             format(a,3i4,4(1pe12.4))
              endif
           endif
 ! The difference between previous and current DGM is used to check for
@@ -2619,23 +2676,42 @@ CONTAINS
 ! check if phase iadd is stoichiometric and if so check of any stable phase
 ! phase that is stoichiometric has the same composition!!  IF SO
 ! remove that phase at the same time ...
+    srem=0
     if(iadd.gt.0) then
+       jy=meqrec%phr(iadd)%phtupix
        samestoi: do nj=1,meqrec%nstph
 ! loop through all stable phases for other phase with same stoichiometry
           jj=meqrec%stphl(nj)
-! check if same composition ... how?
-          if(same_stoik(iadd,jj)) then
+          iy=meqrec%phr(jj)%phtupix
+! check if same composition ... how? same_stoik in gtp3Y.F90
+          if(same_stoik(jy,iy)) then
 !             write(*,*)'Same stoichiometry!',nj,jj
-             irem=jj
+!             if(gx%bmperr.ne.0) then
+!                write(*,*)'MM same_stoik: ',iadd,jj,jy,iy
+!                goto 1000
+!             endif
+             srem=jj
              exit samestoi
           endif
        enddo samestoi
     endif
-    if(meqrec%noofits.gt.2 .and. (irem.gt.0 .or. iadd.gt.0)) then
+    if(srem.gt.0) then
+       call get_phasetup_name(jy,phnames)
+       iz=len_trim(phnames)+2
+       call get_phasetup_name(iy,phnames(iz:))
+       write(*,*)'Same stoichiometry: ',meqrec%noofits,trim(phnames)
+!       stop 'same stoichimetries'
+       irem=srem
+    endif
+!    if(meqrec%noofits.gt.2 .and. (irem.gt.0 .or. iadd.gt.0)) then
+    if(irem.gt.0 .or. iadd.gt.0) then
 ! if a phase have negative amount remove it or if a phase has positive
 ! driving force add it
-       if(vbug) write(*,363)'Phase set change remove/add: ',&
-            irem,iadd,0,phf,dgmmax
+!       if(vbug) write(*,363)'Phase set change remove/add: ',&
+!       write(*,368)'meq_sameset remove/add: ',&
+!            meqrec%noofits,nextch,irem,iadd,phf,dgmmax
+368    format(a,4i4,6(1pe12.4))
+!       if(meqrec%noofits.ge.nextch) goto 1100
        goto 1100
     endif
 !--------------------------------------------------------------------
@@ -2756,7 +2832,7 @@ CONTAINS
     deallocate(svar)
     if(vbug) write(*,*)'Final return from meq_sameset'
 !    if(gx%bmperr.ne.0) write(*,*)'Error return from meq_sameset',gx%bmperr
-!    write(*,*)'Leaving meq_sameset'
+!    if(irem*iadd.gt.0) write(*,*)'Leaving meq_sameset: ',irem,iadd
     return
 ! too many iterations
 1200 continue
@@ -9442,6 +9518,7 @@ CONTAINS
   
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine tzero
 !\begin{verbatim}
   subroutine tzero(iph1,iph2,icond,value,ceq)
 ! calculates the value of condition "icond" for two phases to have same G
@@ -9520,6 +9597,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine tzcalc
 !\begin{verbatim}
   subroutine tzcalc(nv,xv,fvec,iflag)
 ! calculates the value of a condition for two phases to have same G
@@ -9574,6 +9652,7 @@ CONTAINS
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine calculate_carefully
 !\begin{verbatim}
   subroutine calculate_carefully(mode,ceq)
     implicit none
@@ -9588,11 +9667,13 @@ CONTAINS
 !      6: if so set it entered and goto 5
 !      7: set all phases entered
 ! mode 0 means all step, nonzero may change some of these steps
+! mode 1 means set phases entered one by one, largest driving force first
     integer mode
     type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
     integer, allocatable, dimension(:) :: phcsstat
-    integer ntups,mtups,itup,lokcs,ns,naa
+    integer ntups,mtups,itup,lokcs,ns,naa,phmax
+    double precision dgmax
     logical again
 ! 2. loop for all phases to suspend all not stable
 ! 3. calculate equilibrium with remaining phases without gridminimizer
@@ -9641,25 +9722,39 @@ CONTAINS
     call calceq2(0,ceq)
     if(gx%bmperr.ne.0) goto 900
     write(*,17)mtups-ns,ns,' dormant '
-! if a dormant phase has dgm>0 set it as entered
+! if mode=0 set all dormant phases with dgm>0 entered
+! if mode=1 set dormant phase with largest dgm>0 as entered
     ntups=nooftup()
 !    ntups=noofphasetuples()
     naa=0
+    dgmax=zero
+    phmax=0
     do itup=1,ntups
        if(phcsstat(itup).eq.PHDORM) then
           lokcs=phasetuple(itup)%lokvares
 ! maybe enter phases one by one ...
           if(ceq%phase_varres(lokcs)%dgm.gt.zero) then
-             ceq%phase_varres(lokcs)%phstate=PHENTERED             
-             phcsstat(itup)=PHENTERED
+             if(mode.eq.1) then
+                ceq%phase_varres(lokcs)%phstate=PHENTERED             
+                phcsstat(itup)=PHENTERED
+                ns=ns-1
+                naa=naa+1
+             elseif(ceq%phase_varres(lokcs)%dgm.gt.dgmax) then
+                dgmax=ceq%phase_varres(lokcs)%dgm
+                phmax=itup
+             endif
              again=.true.
-             ns=ns-1
-             naa=naa+1
           endif
        endif
     enddo
+    if(mode.eq.1 .and. phmax.gt.0) then
+       ceq%phase_varres(lokcs)%phstate=PHENTERED             
+       phcsstat(itup)=PHENTERED
+       ns=ns-1
+       naa=naa+1
+    endif
     if(again) then
-       write(*,*)'MM found ',naa,' dormant phases with positive driving force'
+       write(*,*)'MM set ',naa,' dormant phases as entered'
        goto 100
     endif
 ! we have found a solution, set all phases as entered
@@ -9682,6 +9777,7 @@ CONTAINS
 
 !\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
+!\addtotable subroutine listoptshort
 !\begin{verbatim}
   subroutine listoptshort(lut,mexp,nvcoeff,errs)
 ! short listing of optimizing variables and result
@@ -9771,7 +9867,7 @@ CONTAINS
 
 !\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
 
-
+!\addtotable subroutine calctrans
 !\begin{verbatim}
   subroutine calctrans(cline,last,ceq)
 ! calculate a phase transition
@@ -9840,6 +9936,42 @@ CONTAINS
 1000 continue
     return
   end subroutine calctrans
+
+!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/
+
+!\addtotable subroutine list_stable_phases
+!\begin{verbatim}
+  subroutine list_stable_phases(text,its,iadd,irem,meqrec,ceq)
+! debug listing of stable phases
+! meqrec contains all necessary data ...
+    character*(*) text
+    integer its,iadd,irem
+    type(meq_setup) :: meqrec
+    type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+    integer ii,ij,ik
+    double precision gsum,xmol(50),wmass(50),totmol,totmass
+! NOTE: phases in stphl should always be in increasing order!!
+    call calc_molmass(xmol,wmass,totmol,totmass,ceq)
+    if(gx%bmperr.ne.0) stop 'error 1 in list_stable_phases'
+    gsum=zero
+    do ii=1,meqrec%nrel
+       gsum=gsum+xmol(ii)*ceq%complist(ii)%chempot(1)
+    enddo
+    write(*,100)text,its,iadd,irem,meqrec%nstph,gsum,totmol,&
+         (meqrec%stphl(ii),ii=1,meqrec%nstph)
+    do ii=2,meqrec%nstph
+       if(meqrec%stphl(ii-1).gt.meqrec%stphl(ii)) then
+          stop 'phases in wrong order!!'
+       endif
+    enddo
+100 format(a,i3,2i4,i3,2(1pe12.4),20i4)
+!    do ii=1,meqrec%nstph,5
+!       iph1=meqrec%stphl(ii=1,meqrec%nstph)
+!       write(*,200)meqrec%phr(
+!    enddo
+    return
+  end subroutine list_stable_phases
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

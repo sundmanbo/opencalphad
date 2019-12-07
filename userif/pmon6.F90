@@ -55,7 +55,7 @@ contains
     character name1*24,name2*24,name3*24,dummy*24,line*80,model*72,chshort
     integer, parameter :: ocmonversion=50
 ! for the on-line help, at present turn off by default, if a HTML file set TRUE
-    character*128 browser,latexfile,htmlfile
+    character*128 browser,latexfile,htmlfile,unformfile
     logical :: htmlhelp=.FALSE.
 !    logical :: htmlhelp=.TRUE.
 ! element symbol and array of element symbols for database use
@@ -264,7 +264,7 @@ contains
          ['TPFUN_SYMBOLS   ','PHASE           ','NO_GLOBAL       ',&
          'TRANSITION      ','QUIT            ','GLOBAL_GRIDMIN  ',&
          'SYMBOL          ','EQUILIBRIUM     ','ALL_EQUILIBRIA  ',&
-         'WITH_CHECK_AFTER','TZERO_POINT     ','                ',&
+         'WITH_CHECK_AFTER','TZERO_POINT     ','CAREFULLY       ',&
          'ONLY_GRIDMIN    ','BOSSES_METHOD   ','                ']
 !-------------------
 ! subcommands to CALCULATE PHASE
@@ -341,7 +341,7 @@ contains
           'GRID_DENSITY    ','SMALL_GRID_ONOFF','MAP_SPECIAL     ',&
           'GLOBAL_MIN_ONOFF','OPEN_POPUP_OFF  ','WORKING_DIRECTRY',&
           'HELP_POPUP_OFF  ','EEC_METHOD      ','LEVEL           ',&
-          '                ','                ','                ']
+          'NO_MACRO_STOP   ','                ','                ']
 !         123456789.123456---123456789.123456---123456789.123456
 ! subsubcommands to SET BITS
     character (len=16), dimension(nsetbit) :: csetbit=&
@@ -486,9 +486,14 @@ contains
 ! Qt plot screen on some LINUX systems
     graphopt%gnuterminal(i1)='qt size 600,500 font "arial,16"'
 !    graphopt%gnuterminal(i1)='qt size 900,600 font "arial,16"'
+#elif x11
+! x11 plot screen on other LINUX systems    
+    graphopt%gnuterminal(i1)='x11 size 940,700 font "arial,16"'
 #else
 ! wxt default plot screen (used on most Window systems)
     graphopt%gnuterminal(i1)='wxt size 940,700 font "arial,16"'
+! This uses 'start /B ' in front of plot command to spawn plot windows
+!    graphopt%status=ibset(graphopt%status,GRKEEP)
 !    graphopt%gnuterminal(i1)='wxt size 900,600 font "arial,16"'
 #endif
     graphopt%filext(i1)='  '
@@ -525,13 +530,11 @@ contains
     graphopt%gnutermax=i1
 ! by default spawn plots
     graphopt%status=ibset(graphopt%status,GRKEEP)
-! if winhlp set also GRWIN to allow GRKEEP
-! Possible problem here ... GRWIN=0 if Windows, GRWIN=1 if not Windows ...
-!    write(*,*)'Setting windows bit 1: ',GRWIN
+! if winhlp set also GRKEEP
 #ifdef winhlp    
-!    write(*,*)'UI: Setting windows bit 2: ',GRWIN
+!    write(*,*)'UI: Setting windows bit 2: ',GRKEEP
 ! This uses 'start /B ' in front of plot command to spawn plot windows
-    graphopt%status=ibset(graphopt%status,GRWIN)
+    graphopt%status=ibset(graphopt%status,GRKEEP)
 #endif
 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 ! jump here after NEW to reinitiallize all local variables also
@@ -1155,7 +1158,7 @@ contains
 !                call set_phase_status_bit(lokph,PHCVMCE)
 !....................................................
           case(15) ! amend phase ... FLORY_HUGGINS_MODEL
-             write(kou,*)'Not implemented yet'
+             write(kou,*)'Not implemented, use UNIQUAC'
 !             call set_phase_status_bit(lokph,PHFHV)
 !             call clear_phase_status_bit(lokph,PHID)
 !....................................................
@@ -1437,7 +1440,7 @@ contains
 !         ['TPFUN_SYMBOLS   ','PHASE           ','NO_GLOBAL       ',&
 !         'TRANSITION      ','QUIT            ','GLOBAL_GRIDMIN  ',&
 !         'SYMBOL          ','EQUILIBRIUM     ','ALL_EQUILIBRIA  ',&
-!         'WITH_CHECK_AFTER','TZERO_POINT     ','                ']
+!         'WITH_CHECK_AFTER','TZERO_POINT     ','CAREFULLY       ']
 !         'ONLY_GRIDMIN    ','BOSSES_METHOD   ','                ']
     CASE(2)
        kom2=submenu(cbas(kom),cline,last,ccalc,ncalc,8,'?TOPHLP')
@@ -2014,7 +2017,7 @@ contains
           write(*,*)'Equal Gibbs energy at:'
           call list_conditions(kou,ceq)
 !-------------------------------------------------------
-       case(12) ! not used (yet)
+!       case(12) ! almost same as 14
 !-------------------------------------------------------
        case(13) ! Only gridmin no merge
 ! extract values for mass balance calculation from conditions
@@ -2049,7 +2052,7 @@ contains
 ! we should write phase tuples ... ?? 
           write(kou,2102)nv,(iphl(j4),icsl(j4),j4=1,nv)
 !-------------------------------------------------------
-       case(14) ! Calculate carefully the equilibrium (bosses_method)
+       case(12,14) ! Calculate carefully the equilibrium (bosses_method)
 ! extract values for mass balance calculation from conditions
           call system_clock(count=startoftime)
           call cpu_time(start2)
@@ -2058,8 +2061,10 @@ contains
           call global_gridmin(1,ceq%tpval,xknown,nv,iphl,icsl,&
                aphl,nyphl,cmu,ceq)
           if(gx%bmperr.ne.0) goto 990
-! first parameter may be used to modify what is done ... 0 is default
-          call calculate_carefully(0,ceq)
+          j4=1
+          if(kom.eq.14) j4=0
+! first parameter 0 means bosses_method, 1 means carefully
+          call calculate_carefully(j4,ceq)
           if(gx%bmperr.ne.0) goto 990
           call system_clock(count=endoftime)
           call cpu_time(finish2)
@@ -2208,7 +2213,7 @@ contains
 !          'GRID_DENSITY    ','SMALL_GRID_ONOFF','MAP_SPECIAL     ',&
 !          'GLOBAL_MIN_ONOFF','OPEN_POPUP_OFF  ','WORKING_DIRECTRY',&
 !          'HELP_POPUP_OFF  ','EEC_METHOD      ','LEVEL           ',&
-!          '                ','                ','                ']
+!          'NO_MACRO_STOP   ','                ','                ']
           name1='Advanced command'
           kom3=submenu(name1,cline,last,cadv,ncadv,4,'?TOPHLP')
           advanced: select case(kom3)
@@ -2453,7 +2458,15 @@ contains
                 endif
              endif
 !.................................................................
-          case(13) ! not used
+          case(13) ! STOP_ON_MACRO on/off
+             call gparcdx('Ignore macro @&: ',cline,last,1,ch1,'Y',&
+                     '?Set adv macro stop')
+! iox(8) is declared in metlib4
+             if(ch1.ne.'Y') then
+                iox(8)=0
+             else
+                iox(8)=1
+             endif
 !.................................................................
           case(14) ! not used
 !.................................................................
@@ -2687,8 +2700,10 @@ contains
                    write(kou,*)'Extra gridpoints for this phase.'
                    call set_phase_status_bit(lokph,PHXGRID)
                 endif
-             case(11) ! Flory-Huggins polymer model
-                call set_phase_status_bit(lokph,PHFHV)
+             case(11) ! PHPALM bit for permuted interaction parameters
+!                call set_phase_status_bit(lokph,PHFHV)
+                write(*,*)'Bit for permuted interaction parameters'
+                call set_phase_status_bit(lokph,PHPALM)
                 call clear_phase_status_bit(lokph,PHID)
              end SELECT phasebit
 !............................................................
@@ -4037,8 +4052,9 @@ contains
           else
 ! the value of a state variable, symbol? or model parameter variable is returned
 ! STRANGE the symbol xliqni is accepted in get_state_var_value ???
-!             write(*,*)'pmon show: ',name1
+!             write(*,*)'pmon show: call get_state_var_value',' :',trim(name1)
              call get_state_var_value(name1,xxx,model,ceq)
+!          write(*,*)'pmon back from get_state_var_value',xxx,' :',trim(model)
 !             write(*,*)'PMON: show xliqni should come here 6 ... ',gx%bmperr
              if(gx%bmperr.eq.0) then
                 write(lut,6108)model(1:len_trim(model)),xxx
@@ -5158,6 +5174,15 @@ contains
 16020        format(i3,': ',2i7,2i9,i6,3x,a,2x,i6)
           enddo
           call list_free_lists(kou)
+          write(*,*)'Testing tupix converter'
+16100     continue
+          call gparidx('phase index',cline,last,i1,0,'none')
+          if(i1.gt.0) then
+             call gparidx('composition set',cline,last,i2,1,'none')
+             write(*,*)'Tuple index: ',gettupix(i1,i2)
+             if(gx%bmperr.eq.0) goto 16100
+             goto 990
+          endif
 !------------------------------
 ! debug stop_on_error
        CASE(2)

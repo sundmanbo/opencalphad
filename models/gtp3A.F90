@@ -2304,6 +2304,8 @@ end function find_phasetuple_by_indices
    double precision, dimension(2) :: tpval
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
+! NOTE if elements have mixed reference state EQMIXED is set and SER used
+! That applies to integral properties like G, S but not MU or AC
    integer nsl,nkl(maxsubl),knr(maxconst),splink,j1,ie,elink
    integer ll,jj,nrel,lokph,noendm,jerr,lokres,ny,endmemx,endmemxy,ics
    double precision sites(maxsubl),qq(5),yarrsave(maxconst),xsum,gmin,gval
@@ -2450,6 +2452,8 @@ end function find_phasetuple_by_indices
 !      write(*,*)'This phase cannot be reference state for for this component'
       gx%bmperr=4256; goto 900
    endif
+!-----------------------------------------------
+! Now we store the reference state and set some bits
 ! mark that conditions and equilibrium may not be consistent
    ceq%status=ibset(ceq%status,EQINCON)
 ! endmemx and endmemxy redundant
@@ -2462,8 +2466,7 @@ end function find_phasetuple_by_indices
 !      write(*,*)'3A Allocating endmember for this reference state'
       allocate(ceq%complist(icomp)%endmember(nsl))
    endif
-!   write(*,810)'3A refendm: ',icomp,gval,jendsave
-810 format(a,i4,': ',1E12.4,(10i4))
+!   write(*,*)'3A refendm: ',icomp,size(ceq%complist),noofel
    ceq%complist(icomp)%endmember=jendsave
 !   allocate(ceq%complist(icomp)%endmember(1))
 !   ceq%complist(icomp)%endmember=endmemxy
@@ -2472,6 +2475,28 @@ end function find_phasetuple_by_indices
 ! Note tpval(1) can be negative indicating current T
    ceq%complist(icomp)%tpref=tpval
    ceq%complist(icomp)%refstate=phlista(lokph)%name
+! NEW 2019.12.02 unless all elements have the same phase and T as reference
+! we must set the EQMIXED bit in the CEQ record to enforce use of SER 
+! for integral properties like G, H etc.  Element specific MU etc not affected
+   allel: do ie=1,noofel
+      if(ceq%complist(ie)%refstate.ne.ceq%complist(icomp)%refstate) exit allel
+      if(ceq%complist(ie)%tpref(1).ne.ceq%complist(icomp)%tpref(1)) exit allel
+      if(ceq%complist(ie)%tpref(2).ne.ceq%complist(icomp)%tpref(2)) exit allel
+!      write(*,*)'3A mixed: ',ie,ceq%complist(ie)%tpref,&
+!           ceq%complist(ie)%refstate
+   enddo allel
+! if loop finishes without exit then ie=noofel+1 (Fortran standard)
+! and all elements have the same reference state
+   if(ie.le.noofel) then
+! different phase or T in the elements
+!      write(*,*)'3A setting mixed bit'
+      ceq%status=ibset(ceq%status,EQMIXED)
+   else
+! all elements have the same reference phase and T
+!      write(*,*)'3A clearing mixed bit'
+      ceq%status=ibclr(ceq%status,EQMIXED)
+   endif
+!-------------------------------------------------------
 ! restore original constitution of compset 1
 !   write(*,*)'3A gval: ',gval
 900 continue
@@ -2617,4 +2642,26 @@ end function find_phasetuple_by_indices
  end subroutine amend_components
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable integer function gettupix
+!\begin{verbatim}
+ integer function gettupix(iph,ics)
+! convert phase and compset index to tuple index
+   implicit none
+   integer iph,ics
+!\end{verbatim}
+   integer ii,tupix
+   ii=ics
+   tupix=iph
+   loop: do while(ii.gt.1)
+      tupix=phasetuple(tupix)%nextcs
+      if(tupix.le.0) then
+         gx%bmperr=4072; exit loop
+      endif
+      ii=ii-1
+   enddo loop
+   return
+ end function gettupix
+
+ !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

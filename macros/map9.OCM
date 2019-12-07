@@ -334,7 +334,7 @@ list short
 
 @$ Calculate the stable phase diagram
 
-set c t=2000 p=1e5 n=1 x(w)=.2
+set c t=2000 p=1e5 n=1 x(w)=.3
 
 c e
 
@@ -347,9 +347,9 @@ l r 2
 
 @&
 
-set ax 1 x(w) 0 1 .01
+set ax 1 x(w) 0 1 ,,
 
-set ax 2 T 100 6000 25
+set ax 2 T 300 4000 25
 
 map
 
@@ -386,6 +386,9 @@ render
 @&
 
 @$ Calculate speciation in sigma across the whole diagram at 1000 K
+@$ take smaller steps in x(w) to have nicer plots
+
+set ax 1 x(w) 0 1 .01
 
 set ax 
 2 

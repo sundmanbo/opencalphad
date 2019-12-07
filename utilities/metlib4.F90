@@ -4618,12 +4618,14 @@ CONTAINS
        BUPERR=0
        IFLAG=1
     ELSEIF(SLIN(2:2).EQ.'&') THEN
-!...       A PAUSE REQUESTED. CONTINUE AFTER A RETURN, skipp if
-!          bit 1 of IOX(8) set
+!...       A PAUSE REQUESTED. CONTINUE AFTER A RETURN, skipp if iox(8) nonzero
 !       write(*,*)'calling testb from gptcm1'
-       WRITE(KOUD,*)'Hit RETURN to continue'
-       READ(KIUD,310)CH1
-310    FORMAT(A1)
+       if(iox(8).eq.0) then
+! if iox(8) nonzero do not stop
+          WRITE(KOUD,*)'Hit RETURN to continue'
+          READ(KIUD,310)CH1
+310       FORMAT(A1)
+       endif
        BUPERR=0
        IFLAG=1
     ELSEIF(SLIN(2:2).EQ.'?') THEN

@@ -1138,6 +1138,7 @@
    nrow2=(nv+ncol-1)/ncol
 ! always use isort for the order, if alphabetical isort(i)=i
    allocate(isort(nv+4))
+   isort=0
 !   if(mode.ge.100) then
 !   write(*,*)'3C mode: ',mode,mod(mode,100),mode-100*mod(mode,100)
 !   if(mod(mode,10).eq.0) then
@@ -1154,6 +1155,7 @@
          isort(jl)=jl
       enddo
    endif
+!   write(*,'(a,i3,2x,15i3)')'3C isort: ',nv,isort
 ! list constituents in the order of isort
    if(ncol.eq.4) then
 ! All names max 4 characters, 4 columns: 1 + 4+1+13+2 +20 +20 +18 =  79
@@ -1217,10 +1219,14 @@
       nempty=3*nrow2-nv
 ! 3rd column may start from an indices less
       n3r=2*nrow2
-      if(nempty.eq.2) then
+!      if(nempty.eq.2) then
+! BoS modified 19.11.19
+      if(nempty.eq.1) then
          n3r=n3r-1
       endif
 200   continue
+!      write(*,'(a,4i4,2x,3i4)')'3C last species wrong: ',n1,nrow2,nempty,n3r,&
+!           isort(n1),isort(n1+nrow2),isort(n1+n3r)
       if(nvrest.ge.3) then
          names(1)=consts(isort(n1))
          names(2)=consts(isort(n1+nrow2))

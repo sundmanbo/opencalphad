@@ -606,7 +606,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !
 ! STATUS BITS are numbered 0-31
 !\begin{verbatim}
-!-Bits in global status word (GS) in globaldata record
+!-Bits in GLOBAL status word (GS) in globaldata record
 ! level of user: beginner, occational, advanced; NOGLOB: no global gridmin calc
 ! NOMERGE: no merge of gridmin result, 
 ! NODATA: not any data, 
@@ -637,11 +637,11 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        GSNOSMGLOB=16, GSNOTELCOMP=17, GSTGRID=18,   GSOGRID=19, &
        GSNORECALC=20, GSOLDMAP=21,    GSNOAUTOSP=22
 !----------------------------------------------------------------
-!-Bits in element record
+!-Bits in ELEMENT record
   integer, parameter :: &
        ELSUS=0,       ELDEL=1
 !----------------------------------------------------------------
-!-Bits in species record
+!-Bits in SPECIES record
 ! SUS   Suspended,
 ! IMSUS implicitly suspended (when element suspended)
 ! EL    species is element, 
@@ -656,7 +656,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !----------------------------------------------------------------
 ! Many not implemented
 !\begin{verbatim}
-!-Bits in phase record
+!-Bits in PHASE record STATUS1 there are also bits in each phase_varres record!
 ! HID phase is hidden (not implemented)
 ! IMHID phase is implictly hidden (not implemented)
 ! ID phase is ideal, substitutional and no iteraction
@@ -681,7 +681,8 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! PHNODGDY2 phase has model with no analytical 2nd derivatives
 ! ELMA phase has elastic model A (not implemented)
 ! PHSUBO ordering model with ordered part subtracted (is it used??)
-! FHV phase has Flory-Huggins model for polymers
+! FHV phase has Flory-Huggins model for polymers DELETED replaced by
+! PALM phase has interaction records numbered by PALMTREE
 ! MULTI may be used with care
 ! BMAV Xion magnetic model with average Bohr magneton number
 ! UNIQUAC The UNIQUAC fluid model
@@ -692,10 +693,10 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        PHAQ1=12,    PHDILCE=13, PHQCE=14,  PHCVMCE=15,&    ! 
        PHEXCB=16,   PHXGRID=17, PHFACTCE=18, PHNOCS=19,&   !
        PHHELM=20,   PHNODGDY2=21, PHELMA=22, PHSUBO=23,&   ! 
-       PHFHV=24,    PHMULTI=25, PHBMAV=26,  PHUNIQUAC=27   !                  !
+       PHPALM=24,    PHMULTI=25, PHBMAV=26,  PHUNIQUAC=27   !                  !
 ! 
 !----------------------------------------------------------------
-!-Bits in constituent fraction (phase_varres) record STATUS2
+!-Bits in PHASE_VARRES (constituent fraction) record STATUS2
 ! CSDFS is set if record is for disordred fraction set, then one must use
 !     sublattices from fraction_set record
 ! CSDLNK: a disordred fraction set in this phase_varres record
@@ -718,7 +719,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !\end{verbatim}
 !----------------------------------------------------------------
 !\begin{verbatim}
-!-Bits in constat array for each constituent
+!-Bits in CONSTAT array for each constituent
 ! For each constituent: 
 ! SUS constituent is suspended (not implemented)
 ! IMSUS is implicitly suspended, 
@@ -727,7 +728,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
    integer, parameter :: &
         CONSUS=0,   CONIMSUS=1,  CONVA=2,    CONQCBOND=3
 !----------------------------------------------------------------
-!-Bits in state variable functions (svflista)
+!-Bits in STATE VARIABLE FUNCTIONS (svflista)
 ! SVFVAL V symbol evaluated only when explicitly referenced (mode=1 in call)
 ! SVFEXT X symbol value taken from equilibrium %eqnoval
 ! SVCONST C symbol is a constant (can be changed with AMEND)
@@ -743,7 +744,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
         SVFVAL=0,     SVFEXT=1,     SVCONST=2,     SVFTPF=3,&
         SVFDOT=4,     SVNOAM=5,     SVEXPORT=6,    SVIMPORT=7
 !----------------------------------------------------------------
-!-Bits in gtp_equilibrium_data record
+!-Bits in CEQ record (gtp_equilibrium_data)
 ! EQNOTHREAD set if equilibrium must be calculated before threading 
 ! (in assessment) for example if a symbol must be evaluated in this 
 ! equilibrium before used in another like H(T)-H298
@@ -754,9 +755,11 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! EQNOACS set if no automatic composition sets ?? not used !! see GSNOACS
 ! EQGRIDTEST set if grid minimizer should be used after equilibrium
 ! EQGRIDCAL set if last calculation was using only gridminimizer
+! EQMIXED set if mixed reference state for the elements
    integer, parameter :: &
         EQNOTHREAD=0, EQNOGLOB=1, EQNOEQCAL=2,  EQINCON=3, &
-        EQFAIL=4,     EQNOACS=5,  EQGRIDTEST=6, EQGRIDCAL=7
+        EQFAIL=4,     EQNOACS=5,  EQGRIDTEST=6, EQGRIDCAL=7, &
+        EQMIXED=8
 !----------------------------------------------------------------
 !-Bits in parameter property type record (gtp_propid)
 ! no T or P dependence (constant)
@@ -1402,7 +1405,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   INTEGER, parameter :: gtp_state_variable_version=1
   TYPE gtp_state_variable
 ! this is to specify a formal or real argument to a function of state variables
-! statev/istv: state variable index >=9 is extensive
+! statevarid/istv: state variable index >=9 is extensive
 ! phref/iref: if a specified reference state (for chemical potential
 ! unit/iunit: 100 for percent, no other defined at present
 ! argtyp together with the next 4 integers represent the indices(4), only 0-4
@@ -1699,6 +1702,8 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
      integer, allocatable :: fixmu(:)
      integer, allocatable :: fixph(:,:)
      double precision, allocatable :: savesysmat(:,:)
+! temporary array to handle converge problems with change of stable phase set
+     integer, dimension(:,:), allocatable :: phaseremoved
   END TYPE gtp_equilibrium_data
 ! The primary copy of this structures is declared globally as FIRSTEQ here
 ! Others may be created when needed for storing experimental data or

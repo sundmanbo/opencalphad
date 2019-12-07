@@ -9,7 +9,7 @@ set stat ph *=ent 0
 
 set cond *:=none
 
-set cond t=1000 p=1e5 n=1 x(mg)=0.1
+set cond t=500 p=1e5 n=1 x(mg)=0.1
 
 calc eq
 

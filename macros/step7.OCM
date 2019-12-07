@@ -87,14 +87,14 @@ step
 
 
 plot
-w(n)
+w%(n)
 np(*)
 title step 7 fig 3
 render
 
 @&
 plot
-w(n)
+w%(n)
 prefcc
 position off
 
@@ -102,7 +102,7 @@ title step 7 fig 4
 
 @&
 plot
-w(n)
+w%(n)
 prebcc
 title step 7 fig 5
 render
@@ -113,7 +113,7 @@ render
 set stat ph bcc=fix 0.5
 
 set c t=none
-
+set c w(n)=.0002
 l c
 
 @&
@@ -124,7 +124,7 @@ step
 
 
 plot
-w(n)
+w%(n)
 T
 title step 7 fig 6
 render

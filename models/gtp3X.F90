@@ -143,18 +143,23 @@
    rtg=globaldata%rgas*ceq%tpval(1)
    ceq%rtn=rtg
 !-----------------------
-! this is used for the Flory-Huggins model
+! this is used for the Flory-Huggins model NO LONGER AVAILABLE
    floryhuggins=0
    chkperm=.false.
    already=0
    if(btest(phlista(lokph)%status1,PHFORD) .or. &
         btest(phlista(lokph)%status1,PHBORD)) then
       chkperm=.true.
+      if(.not.btest(phlista(lokph)%status1,PHPALM)) then
+!         write(*,*)'3X calling palmtree ',lokph,cps%phtupx
 ! This is needed only once unless parameters are changed.  It numbers the
 ! interaction records sequentially for the permutations
 ! palmtree is in gtp3Y.F90 for some unknown reason ...
-      call palmtree(lokph)
-      if(gx%bmperr.ne.0) goto 1000
+         call palmtree(lokph)
+         if(gx%bmperr.ne.0) goto 1000
+! this must be zeroed if a new interaction parameter is added
+         phlista(lokph)%status1=ibset(phlista(lokph)%status1,PHPALM)
+      endif
    endif
 !   if(ocv()) write(*,*)'3X in gcalc_internal: ',lokph
 !-----------------------------------------------------------------
@@ -219,16 +224,17 @@
 !      else
 !         onlyanions=.FALSE.
 !      endif
-   elseif(btest(phlista(lokph)%status1,PHFHV)) then
+!   elseif(btest(phlista(lokph)%status1,PHFHV)) then
+! FLORY-HUGGINS model no longer implemented, use UNIQUAC
 ! Flory-Huggins model require special treatment to calculate the molar
 ! volumes of the constituents.  The entropy is calculated in the end and
 ! a second loop through all parameters done by jumping to label 100
 ! check that just one sublattice and sites equal to one
-      if(nsl.ne.1 .or. phres%sites(1).ne.one) then
-         write(*,*)'3X Flory-Huggins model must have one lattice and site'
-         gx%bmperr=4337; goto 1000
-      endif
-      floryhuggins=-1
+!      if(nsl.ne.1 .or. phres%sites(1).ne.one) then
+!         write(*,*)'3X Flory-Huggins model must have one lattice and site'
+!         gx%bmperr=4337; goto 1000
+!      endif
+!      floryhuggins=-1
    elseif(btest(phlista(lokph)%status1,PHQCE)) then
 ! corrected quasichemical model
 ! we have to calculate the G of the the cluster constituents
@@ -1864,7 +1870,7 @@
          enddo
       enddo
    endif
-   floryhugg: if(floryhuggins.lt.0) then
+!   floryhugg: if(floryhuggins.lt.0) then
 ! The Flory-Huggins entropy require that we use the volume parameters
 ! These have now been calculated and can be used in a second loop through
 ! the other parameters
@@ -1872,58 +1878,58 @@
 !      write(*,507)'3X FH: ',nofc2,phmain%listprop(1),&
 !           (phmain%listprop(ipy),ipy=2,phmain%listprop(1)-1)
 !507   format(a,i5,i3,20i5)
-      allocate(fhlista(gz%nofc))
-      fhlista=0
-      ll=1
-      do ipy=2,phmain%listprop(1)
-         if(phmain%listprop(ipy).gt.2000) then
+!      allocate(fhlista(gz%nofc))
+!      fhlista=0
+!      ll=1
+!      do ipy=2,phmain%listprop(1)
+!         if(phmain%listprop(ipy).gt.2000) then
 ! NOTE each element has a Flory-Huggins volume ... 2001, 2002 etc in any order
 ! fhlista(i) is the index to gval(*,ipy)
-            fhlista(phmain%listprop(ipy)-2000)=ipy
-         endif
-      enddo
+!            fhlista(phmain%listprop(ipy)-2000)=ipy
+!         endif
+!      enddo
 ! we must save the Flory-Huggins volumes as they are used in next loop
-      allocate(fhv(gz%nofc,6))
-      allocate(dfhv(gz%nofc,3,gz%nofc))
-      allocate(d2fhv(gz%nofc,nofc2))
-      dfhv=zero
-      d2fhv=zero
+!      allocate(fhv(gz%nofc,6))
+!      allocate(dfhv(gz%nofc,3,gz%nofc))
+!      allocate(d2fhv(gz%nofc,nofc2))
+!      dfhv=zero
+!      d2fhv=zero
 !      fhvsum=zero
-      do qz=1,gz%nofc
-         ipy=fhlista(qz)
+!      do qz=1,gz%nofc
+!         ipy=fhlista(qz)
 ! if ipy is zero then the volume is constant
-         do ll=1,6
-            if(ipy.gt.0) then
-               fhv(qz,ll)=phmain%gval(ll,ipy)
-            endif
-         enddo
-         do ll=1,gz%nofc
-            if(ipy.gt..0) then
-               dfhv(qz,1,ll)=phmain%dgval(1,ll,ipy)
-               dfhv(qz,2,ll)=phmain%dgval(2,ll,ipy)
-               dfhv(qz,3,ll)=phmain%dgval(3,ll,ipy)
-            endif
-         enddo
-         do ll=1,nofc2
-            if(ipy.gt.0) then
-               d2fhv(qz,ll)=phmain%d2gval(ll,ipy)
-            endif
-         enddo
+!         do ll=1,6
+!            if(ipy.gt.0) then
+!               fhv(qz,ll)=phmain%gval(ll,ipy)
+!            endif
+!         enddo
+!         do ll=1,gz%nofc
+!            if(ipy.gt..0) then
+!               dfhv(qz,1,ll)=phmain%dgval(1,ll,ipy)
+!               dfhv(qz,2,ll)=phmain%dgval(2,ll,ipy)
+!               dfhv(qz,3,ll)=phmain%dgval(3,ll,ipy)
+!            endif
+!         enddo
+!         do ll=1,nofc2
+!            if(ipy.gt.0) then
+!               d2fhv(qz,ll)=phmain%d2gval(ll,ipy)
+!            endif
+!         enddo
 ! this is the only non-zero value for elements with no Flory-Huggins para,eter
-         if(ipy.eq.0) fhv(qz,1)=one
-      enddo
+!         if(ipy.eq.0) fhv(qz,1)=one
+!      enddo
 ! the Flory-Huggins parametr for each constituent is in the "fhv" arguments
 ! They may be updated inside this subroutine ...
-      call config_entropy_floryhuggins(moded,gz%nofc,phmain,gz%tpv(1),&
-           fhv,dfhv,d2fhv)
+!      call config_entropy_floryhuggins(moded,gz%nofc,phmain,gz%tpv(1),&
+!           fhv,dfhv,d2fhv)
 ! set floryhuggins to 1 so the entropy is not calculated again but 
 ! the molar volumes that have been calculated here can be used
-      floryhuggins=1
+!      floryhuggins=1
 ! we must calculate the other parameters again using the specific molar volumes
 ! not implemented yet ...
 !      write(*,*)'3X Flory-Huggins model only config entropy, no goto 100'
-      goto 100
-   endif floryhugg
+!      goto 100
+!   endif floryhugg
    uniquac: if(btest(phlista(lokph)%status1,phuniquac)) then
 !      write(*,'(a,6(1pe12.4))')'3X calling uniquac: ',&
 !           phmain%dgval(1,1,1),phres%dgval(1,2,1)

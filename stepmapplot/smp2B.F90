@@ -1,4 +1,5 @@
 ! included in smp2.F90
+!\addtotable subroutine ocplot2
 !\begin{verbatim}
   subroutine ocplot2(ndx,maptop,axarr,graphopt,version,ceq)
 !  subroutine ocplot2(ndx,pltax,filename,maptop,axarr,graphopt,pform,&
@@ -43,8 +44,9 @@
     integer, dimension(:), allocatable :: nonzero,linzero,linesep
 !    integer, dimension(:), allocatable :: linesep
 ! encoded2 stores returned text from get_many ... 2048 is too short ...
+    character encoded2*8000
 ! selphase used when plotting data just for a selected phase like y(fcc,*)
-    character statevar*64,encoded1*1024,encoded2*4096,selphase*24
+    character statevar*64,encoded1*1024,selphase*24
     character*64, dimension(:), allocatable :: phaseline
     integer i,ic,jj,k3,kk,kkk,lokcs,nnp,np,nrv,nv,nzp,ip,nstep,nnv,nofapl
     integer nr,line,next,seqx,nlinesep,ksep,iax,anpax,notanp,appfil
@@ -868,6 +870,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine ocplot2B
 !\begin{verbatim} %-
   subroutine ocplot2B(np,nrv,nlinesep,linesep,pltax,xax,anpax,anpdim,anp,lid,&
        phaseline,title,filename,graphopt,version,conditions)
@@ -1300,7 +1303,7 @@
        write(kou,*)'Graphics output file: ',pfh(1:kk+4)
     endif
 ! GRWIN is set by compiler option, if 1 we are running microspft windows
-    if(grwin.eq.1) then
+    if(plotonwin.eq.1) then
 ! call system without initial "gnuplot " keeps the window !!!
        if(btest(graphopt%status,GRKEEP)) then
 !          write(*,*)'plot command: "',gnuplotline(9:k3),'"'
@@ -1331,6 +1334,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine ocplot3
 !\begin{verbatim}
 !  subroutine ocplot3(ndx,pltax,filename,maptop,axarr,graphopt,pform,&
   subroutine ocplot3(ndx,pltax,filename,mastertop,axarr,graphopt,&
@@ -1690,6 +1694,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine ocplot3B
 !\begin{verbatim} %-
   subroutine ocplot3B(same,nofinv,lineends,nx1,xval,ny1,yval,nz1,zval,plotkod,&
        pltax,lid,filename,graphopt,version,conditions)
@@ -1796,7 +1801,7 @@
 ! terminal 1 is screen without any output file, add PDF as comment
        write(21,841)trim(graphopt%gnuterminal(graphopt%gnutermsel)),&
             trim(graphopt%gnuterminal(3))
-841    format('set terminal ',a/'#set terminal ',a/'#set output ocgnu.pdf')
+841    format('set terminal ',a/'#set terminal ',a/'#set output "ocgnu.pdf"')
 !841    format('set terminal ',a)
     endif
     if(graphopt%gibbstriangle) then
@@ -2556,8 +2561,8 @@
     if(graphopt%gnutermsel.ne.1) then
        write(*,*)'Graphics output file: ',trim(pfh)
     endif
-! grwin set by compiler option, 1 means windows 
-    if(grwin.eq.1) then
+! plotonwin set by compiler option, 1 means windows 
+    if(plotonwin.eq.1) then
        if(btest(graphopt%status,GRKEEP)) then
 ! this is a TERNARY PLOT with 2 extenive axis
 !          write(*,*)'executing command '//trim(gnuplotline(9:))
@@ -2582,6 +2587,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine calc_diagram_point
 !\begin{verbatim}
   subroutine calc_diagram_point(axarr,pltax,xxx,xxy,line,ceq)
 ! calculates the equilibrium for axis coordinates xxx,xxy
@@ -2685,6 +2691,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable logical function abbr_phname_same
 !\begin{verbatim}
   logical function abbr_phname_same(full,short)
 ! return TRUE if short is a correct abbreviation of full
@@ -2729,13 +2736,14 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine get_plot_conditions
 !\begin{verbatim}
   subroutine get_plot_conditions(text,ndx,axarr,ceq)
-! extacts the conditions from ceq and removes those that are axis variables
+! extacts the conditions from ceq and replaces those that are axis variables
     implicit none
     character text*(*)
     integer ndx
-    type(map_axis), dimension(ndx) :: axarr
+    type(map_axis), dimension(*) :: axarr
     type(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
     integer jj,seqz,ip,jp
@@ -2776,6 +2784,68 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable double precision function get_axis_phase_value
+!\begin{verbatim}
+  double precision function get_axis_phase_value(phase,axis,axarr,ceq)
+! extacts the condition for one axis and if is something like X(A)
+! it changes to x(phase,A) and extracts and returns that value !!
+! if it is a potential like T it just returns its value
+    implicit none
+    character phase*(*)
+    integer axis
+    type(map_axis), dimension(*) :: axarr
+    type(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+    integer seqz,ip
+    character symbol*64,dummy*64
+    double precision value
+    type(gtp_condition), pointer :: pcond
+    type(gtp_state_variable), pointer :: svrrec,svr2
+!
+    value=zero
+! find the condition for axis "axis"
+    seqz=axarr(axis)%seqz
+    call locate_condition(seqz,pcond,ceq)
+    if(gx%bmperr.ne.0) goto 1000
+    svrrec=>pcond%statvar(1)
+!    write(*,*)'Value of axis',axis,' for phase ',trim(phase),svrrec%statevarid
+    if(svrrec%statevarid.le.9) then
+! it is a potential, extract its current value
+       symbol=' '
+       ip=1
+       call encode_state_variable(symbol,ip,svrrec,ceq)
+       if(gx%bmperr.ne.0) goto 1000
+       call get_state_var_value(symbol,value,dummy,ceq)
+    elseif(svrrec%argtyp.eq.1) then
+! it is an extensive variable (%statevarid>=10) for a component such as X(A)
+! A smarter way is to modify svrrec to insert phase/compset index ...
+! edit the phase into the symbol
+       symbol=' '
+       ip=1
+       call encode_state_variable(symbol,ip,svrrec,ceq)
+       if(gx%bmperr.ne.0) goto 1000
+       ip=index(symbol,'(')
+       dummy=symbol(ip+1:)
+       symbol(ip+1:)=trim(phase)//','
+       ip=len_trim(symbol)
+       symbol=symbol(1:ip)//dummy
+!       write(*,*)'SMP2B value of: ',trim(symbol)
+!       call get_stable_state_var_value(symbol,value,dummy,ceq)
+       call get_state_var_value(symbol,value,dummy,ceq)
+       if(gx%bmperr.ne.0) goto 1000
+    else
+       write(*,*)'Illegal axis type: ',svrrec%statevarid,svrrec%argtyp
+       gx%bmperr=4399
+    endif
+1000 continue
+!    write(*,*)'SMP2B value of: ',trim(symbol),value
+    get_axis_phase_value=value
+    return
+  end function get_axis_phase_value
+  
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine list_stored_equilibria
 !\begin{verbatim}
   subroutine list_stored_equilibria(kou,axarr,maptop)
 ! list all nodes and lines from step/map
@@ -2912,6 +2982,7 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
+!\addtotable subroutine amend_stored_equilibria
 !\begin{verbatim} %-
   subroutine amend_stored_equilibria(axarr,maptop)
 ! allows amending inactive/acive status of all lines from step/map
@@ -3068,7 +3139,8 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\begin{berbatim}
+!\addtotable subroutine ocappfixlabels
+!\begin{verbatim}
   subroutine ocappfixlabels(nofapl,applines,same,color,appcol,nnv)
 ! check if there are the same labels in applines.  They are normally phase
 ! names and should be the same !! use the same color for the same phase!!
@@ -3084,7 +3156,7 @@
     integer nofapl,same,nnv
     character*(*) applines(nofapl),color(*)
     integer appcol(*)
-!\end{berbatim}
+!\end{verbatim}
     integer i1,j1,k1,nols,ip,jp,found,oldls,newls
     integer, parameter :: mofapl=100
     integer nyttls(nofapl)

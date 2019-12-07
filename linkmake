@@ -67,8 +67,8 @@ gfortran -c  -Dwinhlp pmon6.F90
 del pmon6.F90
 
 REM storing the date
-gfortran -o linkoc linkocdate.F90
-linkoc
+REM gfortran -o linkoc linkocdate.F90
+REM linkoc
 
 del liboceq.a
 

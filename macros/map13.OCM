@@ -73,14 +73,64 @@ map
 n
 
 
+@&
+@$ and another on the Al-rich side ...
+
+set c t=1600 x(al)=.6
+
+c e
+
+l,,,,,
+
+@&
+
+map
+n
+
+
 plot
 
 
 title map 13 fig 2
 
+
+@$ the melting of B2 is still missing
+@$ It has been calculated and we can use amend line to plot it
+
+amend line
+y
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+plot
+
+
+@$ Sorry for his bad mapping, that is next to fix
+
+set inter
+
+
 @&
 @$ Add some phase labels
 plot
+
+
 
 
 title map 13 fig 3
@@ -96,6 +146,7 @@ text n 0.05 1400 .8 0 y
 text n 0.23 1200 .8 90 y
 
 text n 0.45 1500 .8 0 y
+
 
 
 

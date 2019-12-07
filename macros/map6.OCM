@@ -32,7 +32,7 @@ set echo
 r t ./saf2507
 cr fe ni
  
-set c t=2000 p=1e5 w(cr)=.2 w(ni)=.08 n=1
+set c t=1200 p=1e5 w(cr)=.2 w(ni)=.08 n=1
 
 c e
 l

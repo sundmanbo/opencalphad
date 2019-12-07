@@ -13,23 +13,67 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2019.12.02 OC version 5.056: If you mainly use OC to calculate binary
+and ternary phase diagram DO NOT INSTALL THIS VERSION.  I have worked
+with the equilibrium calculations to make them more stable and faster
+but the step/map now fails in some cases, in particular when there are
+several stoichiometric phases, for example the O-U phase diagram (map4
+macro) or complex ordering (map13 macro).
+
+The reason for these problem is that several additional features has
+been added to calculate multicomponent (>10 elements) equilibria with
+better convergence and speed.  I will to work to improve the mapping
+next but I have only two hands and one head so it may take same time.
+
+The terminal "X11" has been added as optional GNUPLOT terminal for
+Linux systems, you can select this in the Makefile.  Some confusion in
+pmon6/smp/smp2 source code about the plot devices has been sorted out.
+
+I provide a special makefile for MacOS (because Apple has removed
+/usr/include directory) which I forgot in the last update.
+
+One can remove stop in macros at @& with the command
+"set advanced no_macro_stop Y".  Anything else than Y will restore the
+stop.
+
+The linkocdate program has been removed as I can compile the date for
+linking the program directly in the main program.  This changes the
+Makefiles and linkmake and linkpara on Windows.
+
+A subtle problem is what reference state to use for integral
+properties like H and G if the elements have different referaence
+states.  By default SER (the stable state at 298.15K and 1bar) is used
+as reerence state but often the reference state for C or O is set to
+graphite or gas at the current T to have aa reasonable chemical
+potential but that should not affect the value of H.  But if one has
+measured the enthalpy of mixing of a phase in a binary the reference
+state for all elements is set to that phase.  In OC I have now added
+that if the reference state is different for the elements I use SER
+for the integral properties.  Only if all elements have the same
+reference state the values of integral properties like H will be
+relative to the pure elements in that phase at the specified T.
+
+Some problems with normallized state variables like NPM and BPW has
+been fixed.
+
 2019.11.07 OC version 5.055: After installing MacOS Catalina on my Mac
 the Makefile I provide with OC broke.  The GNU C compiler could not
-find the necessary systems files because Apple evidently does not like
-software they do not provide themselves.  So now there is a special
-Makefile-Mac which use Apple's "cc" compiler.
+find the necessary systems files /usr/include because Apple evidently
+does not like software they do not provide themselves.  So now there
+is a special Makefile-MacOS which use Apple's "cc" compiler.
 
-For application software developers I have also updated the some files
-in the application directory TQ4lib/F90/.  The liboctq.F90 now
-contains two extra dummy modules that are used in the interactive
-program but not needed for applications.  The the F90/crfe directory
-example is updated, the other will be next time I hope.  I am not able
-to update the Cpp examples as I do not know C++, anyone who does are
-welcome to help.  The TQ3lib-clean has been removed.
+For application software developers I have also updated some files in
+the application directory TQ4lib/F90/.  The liboctq.F90 now contains
+two extra dummy modules that are used in the interactive program but
+not needed for applications.  The the F90/crfe directory example is
+updated, the other will be soon I hope.  I am not able to update the
+Cpp examples as I do not know C++, anyone who does is welcome to help.
+The TQ3lib-clean has been removed.
 
 2019.10.10 OC version 5.054: I have introduced a command DEBUG SYMBOL
 <symbol> <value> used in my test macros to have a hard stop if the
-value of a symbol is not the same as with previous versions.
+value of a symbol is not the same (6 significant digits) as with
+previous versions.
 
 The set of stable phases is now restored after "step separate".
 

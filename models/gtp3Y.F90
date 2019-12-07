@@ -4993,7 +4993,8 @@
 ! if number of constituent fractions equal to sublattice the composition is fix
 ! If this is a test at a node point we may have an allotropic phase whicj is
 ! stable, then the driving force should be small ... check if dgm is very small
-            write(*,*)'3Y DGM: ',pceq%phase_varres(lokcs)%dgm,pceq%tpval(1)
+            write(*,'(a,i5,F10.2,2(1pe12.4))')'3Y allotrop DGM: ',&
+                 lokcs,pceq%tpval(1),pceq%phase_varres(lokcs)%dgm
             if(pceq%phase_varres(lokcs)%dgm.lt.2.0D-1) cycle loop4
          endif
 ! This phase should be stable, maybe there are others?
@@ -5084,6 +5085,7 @@
 !\addtotable subroutine separate_constitutions
 !\begin{verbatim}
  subroutine separate_constitutions(ceq)
+! This is called during step/map
 ! Go through all entered phases and if there are two composition sets
 ! that have similar constitutions then separate them
 ! Used during mapping of for example Fe-Cr to detect the miscibility gap
@@ -5140,7 +5142,10 @@
 !            (ymin(ic),ymax(ic),ic=1,ll)
 66     format(a,2i3,f8.2,2x,(8F6.3))
        if(ceq%phase_varres(lokcs1)%phstate.ge.PHENTSTAB) then
-          if(ceq%phase_varres(lokcs2)%phstate.ge.PHENTSTAB) cycle allph
+          if(ceq%phase_varres(lokcs2)%phstate.ge.PHENTSTAB) then
+!             write(*,*)'Wow, two identical phases stable!',lokcs1,lokcs2
+             cycle allph
+          endif
 !          write(*,77)'3Y s1:',lokcs1,(ceq%phase_varres(lokcs1)%yfr(ss),ss=1,ts)
 ! set the constitution of lokcs2 to one-the stable
 ! or maybe to its default??
@@ -5266,6 +5271,10 @@
 !   write(*,*)'3F same_stoik 1: ',iph,jph,&
 !        phasetuple(iph)%lokph,phasetuple(jph)%lokph
 !   loki=phases(iph); lokj=phases(jph)
+   if(iph.le.0 .or. iph.gt.nooftup() .or. jph.le.0 .or.jph.gt.nooftup()) then
+      write(*,*)'Calling same_stoik with illegal arguments ',iph,jph
+      gx%bmperr=4399; goto 1000
+   endif
    loki=phasetuple(iph)%lokph; lokj=phasetuple(jph)%lokph
    if(.not.btest(phlista(loki)%status1,PHNOCV)) goto 1000
    if(.not.btest(phlista(lokj)%status1,PHNOCV)) goto 1000
