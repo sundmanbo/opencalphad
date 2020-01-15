@@ -13,6 +13,34 @@ commercial vendor.
 
 In the list below the most recent changes come first.
 
+2020.01.14 OC version 5.057: I am still trying to improve mapping of
+binary and ternary diagrams with "tie-lines in the plane" as such
+diagrams are the ones most frequently calculated by students and for
+assessments but I have not managed to improve much.  Calculating
+multicomponent isopleths is usually much easier unless you have many
+phases with fixed composition.  But I have changed many things and I
+want to update the github version as a backup if I make things even
+worse.
+
+For the future I have decided to abandon the "direct" format for
+saving and is preparing to extend saving also step/map results on the
+UNFORMATTED file, OC seems to cope with quite large results without
+the need for intermediate storing on files.
+
+A am changing the commands for plotting also but I have not yet
+decided on a final set of command.  Be careful with macro files!
+
+I you need to set a logfile give the name of the file on the same line
+as the command, for example "set log mylogfile.log".  The file browser
+does not always manage to open a file for writing.
+
+The output during an equilibrium calclation has changed to give the
+name of the phase that is added (+) or removed (-) at an iteration.  I
+hope it will make it easier to improve this tricky part of the code.
+
+The routine to calculate the stability of a phase has changed (used in
+macro step2).
+
 2019.12.02 OC version 5.056: If you mainly use OC to calculate binary
 and ternary phase diagram DO NOT INSTALL THIS VERSION.  I have worked
 with the equilibrium calculations to make them more stable and faster
@@ -29,7 +57,7 @@ The terminal "X11" has been added as optional GNUPLOT terminal for
 Linux systems, you can select this in the Makefile.  Some confusion in
 pmon6/smp/smp2 source code about the plot devices has been sorted out.
 
-I provide a special makefile for MacOS (because Apple has removed
+I provide a special makefile for MacOS (because Apple has removed the
 /usr/include directory) which I forgot in the last update.
 
 One can remove stop in macros at @& with the command

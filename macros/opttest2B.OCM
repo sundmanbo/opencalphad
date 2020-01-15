@@ -196,4 +196,4 @@ delete step_map
 save unf ./opttest2-cumg2
 Y
 
-set inter
+@$ set inter

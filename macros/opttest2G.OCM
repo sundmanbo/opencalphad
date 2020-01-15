@@ -75,9 +75,12 @@ l opt
 @$ rescale the coefficients and optimize more
 @$---------------------------------------------------------
 amend ?
-all-coef
+
+amend opt-coef
 y
 
+
+@&
 
 opt 100
 

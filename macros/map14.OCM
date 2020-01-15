@@ -78,8 +78,7 @@ plot
 extra gibbs Y
 extra tie 3
 @$ Also set the color of the monovariants to red
-extra font
-
+extra color
 FF0000
 
 title map 14 fig 2
@@ -91,8 +90,7 @@ extra lower Fe
 plot
 
 
-extra font
-
+extra color
 a0ffa0
 
 title map14 fig 3

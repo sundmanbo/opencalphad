@@ -337,7 +337,7 @@
       if(nspx.gt.0) then
          displace=displace+splista(isp)%noofel*nwpr
          call storrn(nspx,iws(lok+displace),splista(isp)%spextra)
-         write(*,*)'3F species with extra data: ',isp,nspx
+!         write(*,*)'3E species with extra data: ',isp,nspx
       endif
 !      write(*,'(a,2i5)')'3E species record check: ',check,&
 !           displace+nspx*nwpr
@@ -702,8 +702,9 @@
          level=nop
          emproplista: do while(associated(proprec))
 !            if(associated(proprec%nextpr)) nox=1
-!>>>>> 8: endmember property record (loop)
-            rsize=5+nwch(16)+proprec%degree+1
+!>>>>> 8: endmember property record (loop) add place for %modelparamid
+!            rsize=5+nwch(16)+proprec%degree+1
+            rsize=5+nwch(20)+proprec%degree+1
             call wtake(lokpty,rsize,iws)
             if(buperr.ne.0) then
                write(*,*)'3E Error reserving endmember record'
@@ -723,7 +724,10 @@
             iws(lokpty+4)=proprec%antalprop
             call storc(lokpty+5,iws,proprec%reference)
             displace=5+nwch(16)
-!            displace=5+nwch(len(proprec%reference))            
+!            write(*,*)'place to save modelparamid 1: ',&
+!                 proprec%modelparamid,lokpty+displace
+            call storc(lokpty+displace,iws,proprec%modelparamid)
+            displace=displace+nwch(4)
             do i=0,proprec%degree
 ! store a link in iws(lokpty+displace+i) to the TP fun stored as a text
 ! we have to pass iws also ....
@@ -801,7 +805,8 @@
             nop=lok+2
             intproplista: do while(associated(proprec))
 !>>>>> 10: interaction property record (loop)
-               rsize=5+nwch(16)+proprec%degree+1
+!               rsize=5+nwch(16)+proprec%degree+1
+               rsize=5+nwch(20)+proprec%degree+1
                call wtake(lokpty,rsize,iws)
                if(buperr.ne.0) then
                   write(*,*)'3E Error reserving inteaction property record'
@@ -820,6 +825,10 @@
                iws(lokpty+4)=proprec%antalprop
                call storc(lokpty+5,iws,proprec%reference)
                displace=5+nwch(16)
+!               write(*,*)'place to save modelparamid 2: ',&
+!                    proprec%modelparamid,lokpty+displace
+               call storc(lokpty+displace,iws,proprec%modelparamid)
+               displace=displace+nwch(4)
                do i=0,proprec%degree
 ! store a link in iws(lokpty+displace+i) to the TP fun stored as a text
 ! we have to pass iws also ....
@@ -1804,7 +1813,7 @@
 !
    character id*40,version*8,comment*72
    integer i,i1,i2,i3,isp,jph,kontroll,nel,ivers,lin,last,lok,displace,jfun
-   integer nspx
+   integer nspx,saverr
    integer, allocatable :: iws(:)
 ! CCI
    logical is_op
@@ -1920,7 +1929,7 @@
       splista(isp)%alphaindex=iws(last+displace+2*nwpr+2)
 ! new spextra array
       nspx=iws(last+displace+2*nwpr+3)
-      if(nspx.ne.0) write(*,*)'3E nspx value: ',nspx
+!      if(nspx.ne.0) write(*,*)'3E nspx value: ',nspx
       allocate(splista(isp)%ellinks(splista(isp)%noofel))
       allocate(splista(isp)%stoichiometry(splista(isp)%noofel))
       displace=displace+2*nwpr+3
@@ -1934,7 +1943,7 @@
       species(splista(isp)%alphaindex)=isp
 ! handle spextra values if any
       if(nspx.gt.0) then
-         write(*,*)'We have nonzero nxsp: ',nspx
+!         write(*,*)'We have nonzero nxsp: ',nspx
          allocate(splista(isp)%spextra(nspx))
          displace=displace+splista(isp)%noofel*nwpr
          call loadrn(nspx,iws(last+displace),splista(isp)%spextra)
@@ -1989,8 +1998,8 @@
 !   write(*,*)'3E Reading phase tuples',iws(14),noofph
    lok=iws(14)
    if(lok.gt.0) then
-      if(iws(13).ne.gtp_phasetuple_version) then
-         write(*,*)'3E wrong phasetuple version',gtp_phasetuple_version,iws(13)
+      if(iws(15).ne.gtp_phasetuple_version) then
+         write(*,*)'3E wrong phasetuple version',gtp_phasetuple_version,iws(15)
          gx%bmperr=4355; goto 1000
       endif
       nooftuples=iws(lok)
@@ -2102,6 +2111,17 @@
 1000 continue
 !CCI free the iws memory (should be done automatically?)
    if(allocated(iws)) deallocate(iws)
+   if(gx%bmperr.eq.4355) then
+      write(*,*)'3E *** ERROR unformatted file wrong version'
+      saverr=gx%bmperr; gx%bmperr=0
+! clear errr code to reinitiate ... it may not work as datastructure bad
+      call new_gtp
+!      if(gx%bmperr.ne.0) then
+!         write(*,*)'Failed to reinitiate',gx%bmperr
+!      endif
+      stop 'Cannot restore data structures'
+      gx%bmperr=saverr
+   endif
    return
 ! error opening files
 1100 continue
@@ -2141,18 +2161,18 @@
    lok=9
    if(iws(lok+1).ne.gtp_phase_version) then
       write(*,*)'3E phase version not the same ',iws(lok+1),gtp_phase_version
-      goto 1000
+      gx%bmperr=4355; goto 1000
    elseif(iws(lok+2).ne.gtp_endmember_version) then
       write(*,*)'3E endmember not the same ',iws(lok+2),gtp_endmember_version
-      goto 1000
+      gx%bmperr=4355; goto 1000
    elseif(iws(lok+3).ne.gtp_interaction_version) then
       write(*,*)'3E interaction not the same ',iws(lok+3),&
            gtp_interaction_version
-      goto 1000
+      gx%bmperr=4355; goto 1000
    elseif(iws(lok+4).ne.gtp_property_version) then
       write(*,*)'3E property version not the same ',iws(lok+4),&
            gtp_property_version
-      goto 1000
+      gx%bmperr=4355; goto 1000
    endif
 ! first phase (number 0) is SER phase
    jph=-1
@@ -2422,7 +2442,7 @@
    integer lokpty,iws(*)
    type(gtp_property), pointer :: firstproprec
 !\end{verbatim} %+
-   integer i,lokfun
+   integer i,lokfun,displace
 !   type(gtp_property), allocatable, target :: prec
    type(gtp_property), pointer :: proprec
 ! lokpty is the location where there can be a property record pointer
@@ -2444,7 +2464,23 @@
       proprec%extra=iws(lokpty+3)
       proprec%antalprop=iws(lokpty+4)
       call loadc(lokpty+5,iws,proprec%reference)
-      lokfun=lokpty+5+nwch(16)
+      displace=5+nwch(16)
+      call loadc(lokpty+displace,iws,proprec%modelparamid)
+!      write(*,*)'3E place to find modelparamid: ',&
+!           proprec%modelparamid,lokpty+displace
+! check that this is the same as the proptype!!
+      i=proprec%proptype
+      if(i.gt.100) i=i/100
+      if(proprec%modelparamid.ne.propid(i)%symbol) then
+         write(*,96)i,proprec%modelparamid,propid(i)%symbol
+96       format('3E Model property ',i2,' has changed from ',&
+              a,' to ',a/'Please contact Bo Sundman for help!')
+!      else
+! debug
+!         write(*,96)i,proprec%modelparamid,propid(i)%symbol
+      endif
+!      lokfun=lokpty+5+nwch(16)
+      lokfun=lokpty+displace+nwch(4)
 ! links to function as stored as integer indices
       allocate(proprec%degreelink(0:proprec%degree))
       do i=0,proprec%degree
@@ -3267,22 +3303,22 @@
 !---------- phases, many records, here we travese all endmembers etc
 !>>>>> 4
 !   write(*,*)'3E No segmentation error B'
-   if(gtp_phase_version.ne.1) then
-      write(*,17)'3E **** ERROR phase',1,gtp_phase_version
-      gx%bmperr=4302; goto 1000
-   endif
-   if(gtp_endmember_version.ne.1) then
-      write(*,17)'3E **** ERROR endmember',1,gtp_endmember_version
-      gx%bmperr=4302; goto 1000
-   endif
-   if(gtp_interaction_version.ne.1) then
-      write(*,17)'3E **** ERROR interaction',1,gtp_interaction_version
-      gx%bmperr=4302; goto 1000
-   endif
-   if(gtp_property_version.ne.1) then
-      write(*,17)'3E **** ERROR property',1,gtp_property_version
-      gx%bmperr=4302; goto 1000
-   endif
+!   if(gtp_phase_version.ne.1) then
+!      write(*,17)'3E **** ERROR phase',1,gtp_phase_version
+!      gx%bmperr=4302; goto 1000
+!   endif
+!   if(gtp_endmember_version.ne.1) then
+!      write(*,17)'3E **** ERROR endmember',1,gtp_endmember_version
+!      gx%bmperr=4302; goto 1000
+!   endif
+!   if(gtp_interaction_version.ne.1) then
+!      write(*,17)'3E **** ERROR interaction',1,gtp_interaction_version
+!      gx%bmperr=4302; goto 1000
+!   endif
+!   if(gtp_property_version.ne.1) then
+!      write(*,17)'3E **** ERROR property',1,gtp_property_version
+!      gx%bmperr=4302; goto 1000
+!   endif
    do j=0,noofph
       call delphase(j)
       if(gx%bmperr.ne.0) goto 1000
@@ -4514,8 +4550,21 @@
 !         write(*,*)'psym1: ',trim(name1)
          call get_parameter_typty(name1,lokph,typty,fractyp)
          if(gx%bmperr.ne.0) then
+            lp2=len_trim(name1)
+            do lp1=1,nundefmpi
+               if(undefmpi(lp1)(1:lp2).eq.trim(name1)) goto 618
+            enddo
+            if(nundefmpi.lt.mundefmpi) then
+               nundefmpi=nundefmpi+1
+               undefmpi(nundefmpi)=trim(name1)
+            else
+               write(*,*)'3B too many model parameter identifier errors',&
+                    mundefmpi
+            endif
             if(.not.silent) write(kou,*) &
-            ' *** WARNING parameter identifier, "',trim(name1),'" on line: ',nl
+                 ' *** WARNING unknown parameter identifier, "',&
+                 trim(name1),'" on line: ',nl
+618         continue
             gx%bmperr=0; typty=0
             warning=.TRUE.
          endif
@@ -5102,8 +5151,13 @@
 1000 continue
    if(warning) then
 1001  continue
+      write(*,*)
 ! if silent set ignore warnings
       if(.not.silent) then
+         do jss=1,nundefmpi
+            write(*,1008)undefmpi(jss)
+1008        format('3E Unknown or unused model parameter identifier ',a)
+         enddo
          write(kou,1003)
 1003     format(/'There were warnings, check them carefully'/&
               'and press RETURN if you wish to continue.')
@@ -5164,7 +5218,7 @@
    rewind: if(dodis.eq.0 .and. disparttc.gt.0) then
 ! rewind to read disordred parts
       if(.not.silent) &
-           write(kou,*)'3E Rewind to read disordered part of phases'
+           write(kou,*)'3E Rewinding to read disordered part of phases'
       rewind(21)
       dodis=1
       nl=0

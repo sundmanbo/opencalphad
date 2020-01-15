@@ -240,7 +240,7 @@
    call find_gridmin(kp,nrel,xarr,garr,xknown,jgrid,phfrac,cmu,trace)
    if(gx%bmperr.ne.0) goto 1000
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-   write(*,*)'3Y total gridpoints: ',kp
+!   write(*,*)'3Y total gridpoints: ',kp
 !   gx%bmperr=4399; goto 1000
 ! The solution with nrel gridpoints are in jgrid, the amount of each in phfrac
 ! We later want the phases in ascending order and as the gridpoints are
@@ -1726,7 +1726,7 @@
       enddo
       ngg=ngg+1
       if(mode.eq.0) then
-! this is fór a single endmember
+! this is for a single endmember
 !         write(*,201)'3Y end: ',ngg,(yfra(is),is=1,inkl(nsl))
          if(ngg.gt.0 .and. mod(ngg,30000).eq.0) &
               write(*,*)'3Y calculated ',ngg,' gridpoints 4',&
@@ -2655,7 +2655,8 @@
    double precision, dimension(:), allocatable :: y1,y2,y3,y4,y5
    real xdum(nrel),gdum
    integer, parameter :: ncf5=5,ncf3=3,alloneut=300000
-   integer ncf,maxngg,ncon
+   integer ncf,maxngg,ncon,maxgp1
+   integer, parameter :: maxgp2=10000,maxgp3=20000
 ! These are used to combine endmembers
    double precision, dimension(7), parameter :: nfact=&
         [0.01D0,0.1D0,0.33D0,0.51D0,0.67D0,0.9D0,0.99D0]
@@ -2663,7 +2664,7 @@
         [0.05D0,0.3D0,0.5D0,0.7D0,0.95D0]
    double precision, dimension(ncf3), parameter :: cfact3=&
         [0.1D0,0.5D0,0.9D0]
-   logical single,endout
+   logical single,endout,dense,skipped
 ! all endmembers will have a record of this type
    type gtp_charged_endmem
 ! one species number for each sublattice
@@ -2674,7 +2675,10 @@
 ! this should be saved or passed as argument
 !   save savengg
 ! we will select 5 or 3 gripoints below
+!   endout=.true.
    endout=.FALSE.
+!   skipped=.TRUE.
+   skipped=.FALSE.
    if(endout) write(*,*)'3Y charged grid phase:',iph
 !   ncf=ncf5
 !   if(.not.allocated(savengg)) then
@@ -2687,11 +2691,11 @@
 ! get the phase data
    call get_phase_data(iph,1,nsl,nkl,knr,ydum,sites,qq,ceq)
    if(gx%bmperr.ne.0) goto 1000
-! bugfix by Clement Introini
+! Clement Introini bugfix
    lokph=phases(iph)
 !
-! I will handle this in a very clumsy way by generate all endmembers
-! with their charge and then try to combine them to get neutral gridpoints.
+! I will handle this by first generate all endmembers with their charge
+! and then try to combine them to get neutral gridpoints.
    nend=1
    inkl(0)=0
    do ll=1,nsl
@@ -2741,6 +2745,7 @@
       enddo
       goto 1000
    endif
+!
    np=0
    nm=0
    nn=0
@@ -2799,20 +2804,72 @@
       endif
    enddo emloop
    mm=nn*nn+np*nm*(nn+np+nm)
-! select the number of gridpoints here
-   if(mm.gt.5000) then
-      ncf=1
-   elseif(mm.gt.2000) then
-      ncf=ncf3
+! not using phase grid bit: test_phase_status_bit(iph,PHXGRID)
+! default grid density with this big system
+   if(mm.gt.30000) then
+! very many components, minimum number of loops (no low density option)
+      ncf=1; maxgp1=maxgp2
+      if(btest(globaldata%status,GSXGRID) .or. &
+           test_phase_status_bit(iph,PHXGRID)) then
+! higher density requested
+         ncf=ncf3; maxgp1=maxgp3
+      elseif(btest(globaldata%status,GSYGRID)) then
+! maximum density requested (may cause grid overflow ...)
+         ncf=ncf5; maxgp1=maxgp3
+      endif
+   elseif(mm.gt.10000) then
+! default grid density with a medium size system
+      ncf=ncf3; maxgp1=maxgp2
+      if(btest(globaldata%status,GSOGRID)) then
+! lower density requested
+         ncf=1
+      elseif(btest(globaldata%status,GSXGRID) .or. &
+           test_phase_status_bit(iph,PHXGRID)) then
+! higher density requested
+         ncf=ncf5
+      elseif(btest(globaldata%status,GSYGRID))then
+! maximum density requested
+         ncf=ncf5; maxgp1=maxgp3
+      endif
    else
-      ncf=ncf5
+! default grid for a small system
+      ncf=ncf5; maxgp1=maxgp2
+      if(btest(globaldata%status,GSOGRID)) then
+! lower density requested
+         ncf=ncf3
+      elseif(btest(globaldata%status,GSXGRID) .or. &
+           btest(globaldata%status,GSYGRID) .or. &
+           test_phase_status_bit(iph,PHXGRID)) then
+! higher density requested, this is maximum
+         ncf=ncf5; maxgp1=maxgp3
+      endif
    endif
-   if(endout) write(*,*)'3Y loop limits: ',mm,ncf
-!   stop
-!      write(*,10)'3Y endmem: ',i2,endmem(i2)%charge,&
-!           (splista(knr(endmem(i2)%constit(ll)))%alphaindex,ll=1,nsl)
-!   enddo
-! calculate the number of gridpoints, consider single endmembers, 
+! the statements below replaced by if statements above
+!   if(.not.dense .and. mm.gt.5000) then
+! maxgp1 used to skip some combinations
+!      ncf=1; maxgp1=maxgp2
+!   elseif(dense) then
+! testing ...
+!      ncf=ncf5; maxgp1=maxgp4
+!   elseif(dense .or. mm.gt.2000) then
+!      ncf=ncf3; maxgp1=maxgp3
+!   else
+! maximum dense grid
+!      ncf=ncf5; maxgp1=maxgp3
+!   endif
+! debug output
+!   if(mode.eq.0) then
+!      write(*,'(a,10i7)')'3Y Generating charged grid: ',mode,iph,&
+!           nend,mm,ncf,maxgp1
+! noc2500 with just C1_MO2 ((12 * 2 * 2)=48 endmem) and GAS gives
+!               level  C1_MO2  nend  mm       ncf  maxgpl   total gridpoints
+! low density       0   22     48    21012    1    10000       11998
+! default           1                         3    10000       33284
+! high              2                         5    10000       42651
+! maximum           3                         5    20000       57446
+!
+!   endif
+! now calculate the number of gridpoints, consider single endmembers, 
 ! binary and ternary combinations in a triple loop
    np=0
    nn=0
@@ -2862,9 +2919,9 @@
                   if(endmem(i2)%charge*endmem(i3)%charge.lt.zero) then
 ! second and third endmembers have opposite charge, we have ncf gridpoints
 ! I1_n(I2_(1/c2)I3_(1/c3)_(1-n) where c2 is charge of i2 and c3 charge of i3
-                     if(gtype(3).gt.10000) then
-                        if(endout) &
-                             write(*,*)'Skipping gridpoints type 7',gtype(7)
+                     if(gtype(3).gt.maxgp1) then
+                        if(skipped) &
+                             write(*,*)'Skipping gridpoints type 3',gtype(3)
                         exit charge2A
                      endif
                      if(mode.ge.0) then
@@ -2891,8 +2948,8 @@
 ! first and third endmembers have opposite charge, we have ncf gridpoints
 ! (I1_(1/c1)I3_(1/c3))_n(I2)_(1-n) where c1 is charge of i1 and c3 charge of i3
 ! where n is 0.1; 0.5; 0.9
-                  if(gtype(4).gt.10000) then
-                     if(endout) write(*,*)'Skipping gridpoints type 7',gtype(7)
+                  if(gtype(4).gt.maxgp1) then
+                     if(endout) write(*,*)'Skipping gridpoints type 4',gtype(4)
                      exit loop3B
                   endif
                   if(mode.ge.0) then
@@ -2926,8 +2983,8 @@
                charge3A: if(endmem(i3)%charge.eq.zero) then
 ! third is neutral, we have ncf more gripoints
 ! at (I1_(1/c1)I2_(1/c2))_n(I3)_(1-n)
-                  if(gtype(6).gt.10000) then
-                     if(endout) write(*,*)'Skipping gridpoints type 7',gtype(7)
+                  if(gtype(6).gt.maxgp1) then
+                     if(skipped) write(*,*)'Skipping gridpoints type 6',gtype(6)
                      exit charge3A
                   endif
                   if(mode.ge.0) then
@@ -2946,8 +3003,8 @@
 !-------------------------------------------------------------
 ! all 3 endmembers are charged, those of i2 and i3 have same sign, ncf gridp
 ! (I1_(1/c1)I2_(1/c2))_n(I1_(1/c1)I3_(1/c3))_(1-n)
-                  if(gtype(7).gt.10000) then
-                     if(endout) write(*,*)'Skipping gridpoints type 7',gtype(7)
+                  if(gtype(7).gt.maxgp1) then
+                     if(skipped) write(*,*)'Skipping gridpoints type 7',gtype(7)
                      exit charge3A
                   endif
                   if(mode.ge.0) then
@@ -2962,7 +3019,7 @@
                   if(endout) write(*,298)'3Y generated 3D gps: ',&
                        np,mode,3,6,i1,i2,i3
                   gtype(7)=gtype(7)+ncf
-               elseif(gtype(8).lt.10000) then
+               elseif(gtype(8).lt.maxgp1) then
 !-------------------------------------------------------------
 ! all 3 endmembers are charged, those of i1 and i3 have same sign, ncf gridp
 ! (I1_(1/c1)I2_(1/c2))_n(I2_(1/c2)I3_(1/c3))_(1-n)
@@ -2979,12 +3036,12 @@
                        np,mode,3,7,i1,i2,i3
                   gtype(8)=gtype(8)+ncf
                else
-                  if(endout) write(*,*)'Skipping gridpoints type 8,',gtype(8)
+                  if(skipped) write(*,*)'Skipping gridpoints type 8,',gtype(8)
                endif charge3A
             enddo loop3C
 !-----------------------------------------------------------------------
 ! first and second endmembers have charge with same sign
-         elseif(gtype(9).lt.10000) then
+         elseif(gtype(9).lt.maxgp1) then
 ! we need a third endmember with opposite charge unless too many endmembers
             loop3D: do i3=i2+1,nend
                if(endmem(i1)%charge*endmem(i3)%charge.lt.zero) then
@@ -3006,7 +3063,7 @@
             enddo loop3D
             if(endout) write(*,777)'3Y loop3',gtype
          else
-            if(endout) write(*,*)'3Y skipping gridpoints type 9',gtype(9)
+            if(skipped) write(*,*)'3Y skipping gridpoints type 9',gtype(9)
          endif charge1
          if(endout) write(*,777)'3Y loop2 ',gtype
       enddo loop2
@@ -3410,15 +3467,19 @@
 !                 ss,sliqmin,gliqeec,varres%gval(1,1)/qq(1)
             sliqmax=ss; gliqeec=varres%gval(1,1)/qq(1)
          endif
+! note sliqmax is - dg/dt and always positive.  It is the max entropy
+! for the liquid at any gridpoint.  If the solid has higher entropy
+! it should not be allowed to be stable.
       elseif(sliqmax.gt.zero) then
 ! this is a solid and we have a value for sliqmax for EEC to work better
 !         write(*,*)'In calc_gridpoint solid: ',varres%gval(2,1)/qq(1),sliqmax
          if(ss.gt.sliqmax) then
-! its s=-dG/dt of solid is larger than sliqmax make the G more positive
+! the solid s=-dG/dt is larger than sliqmax make the G more positive
+! Note values are divided by RT.  Multiply with the number of atoms?
             varres%gval(1,1)=(gg+1.5D1)
 !            varres%gval(1,1)=(gliqeec+one)
-            write(*,'(a,2i3,5(1pe10.2))')'3Y Solid corr: ',iph,lokres,&
-                 ss,sliqmax,gg,varres%gval(1,1),qq(1)
+!            write(*,'(a,2i3,5(1pe10.2))')'3Y Solid corr: ',iph,lokres,&
+!                 ss,sliqmax,gg,varres%gval(1,1),qq(1)
          endif
       else
          write(*,*)'3Y Gridminimizer has no Sliqmax for solid',iph
@@ -4858,8 +4919,6 @@
  logical function global_equil_check1(mode,addtuple,yfr,ceq)
 ! subroutine global_equil_check(ceq,newceq)
 !
-! THIS MUST BE REWRITTEN
-!
 ! This subroutine checks there are any gridpoints below the calculated solution
 ! if not it is taken as a correct global equilibrium
 ! This avoids creating any new composition sets but may fail in some cases
@@ -5080,6 +5139,228 @@
    return
  end function global_equil_check1
 
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\addtotable subroutine check_all_phases
+!\begin{verbatim}
+ subroutine check_all_phases(mode,ceq)
+!
+! This function check for all phases if there are any gridpoints
+! closer (or below) to the current calculated solution
+! if so it changes the composition of the phase
+! If a gridpoint is BELOW the current plane an error code is returned
+! !phase should be stable with another composition an error code is returned
+! It does not creating any new composition sets
+! It can be usd during STEP/MAP to update compositions of metastable
+! phases which have become stuck in a local minimium
+! I am not sure mode is needed ...
+   implicit none
+   integer mode
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+!\end{verbatim}
+   TYPE(gtp_equilibrium_data), target :: cceq
+   TYPE(gtp_equilibrium_data), pointer :: pceq
+   integer iph,ics,phstat
+!
+! it did not work ...suck
+   write(*,*)'3Y In check_all_phases'
+! COPY the whole equilibrium record to avoid destroying anything!!
+! otherwise I had strange problems with amounts of phases ??
+   cceq=ceq
+   pceq=>cceq
+   ggloop: do iph=1,noofph
+! include all phases with any composition set entered (but only once!)
+! loop for composition sets inside check_phase as they all have the same grid
+      call check_phase_grid(iph,pceq,ceq)
+! if a stable phase has a new composition return error
+      if(gx%bmperr.ne.0) goto 1000
+   enddo ggloop
+!
+1000 continue
+   return
+ end subroutine check_all_phases
+
+!/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\/!\
+
+!\addtotable subroutine check_phase_grid
+!\begin{verbatim}
+ subroutine check_phase_grid(iph,pceq,ceq)
+!
+! This function check for A SINGLE PHASE if there are any gridpoints
+! closer (or below) to the current calculated solution if so it
+! changes the composition of the phase If a gridpoint is below the
+! phase should be stable with another composition an error code is
+! returned It does not creating any new composition sets but may fail
+! It can be usd during STEP/MAP to update compositions of metastable
+! phases which have become stuck in a local minimium
+! NOTE pceq is a pointer to a copy of the real equilibrium record
+! ceq is a pointer to the real equilibrium record
+   implicit none
+   integer iph
+   TYPE(gtp_equilibrium_data), pointer :: ceq,pceq
+!\end{verbatim}
+   real, allocatable :: xarr(:,:),garr(:)
+   double precision, dimension(maxel) :: x1mol,wmass
+   double precision, dimension(maxconst) :: yarr
+   double precision totmol,totmass,amount,gmax,dgmax,dgtest
+! max 9 composition sets
+   double precision gorig,gbest,gdiff,gset(9),gplan,am,qq(5)
+   integer, allocatable :: kphl(:),iphx(:)
+   integer ii,jj,kk,nrel,lokcs,moded,ny,ics,ics2,ncs,stcs(4),nstcs,ie,ngg
+   integer phstat
+   logical skip
+   integer, parameter :: maxgrid=100000
+!
+!   write(*,*)'3Y In check_phase_grid: ',iph
+   nrel=noofel
+   moded=0
+! allocate arrays
+   allocate(xarr(nrel,maxgrid))
+   allocate(garr(maxgrid))
+   gset=-one
+   skip=.TRUE.
+! loop for all composition sets
+   ncs=noofcs(iph)
+   stcs=0
+   nstcs=0
+   gloop: do ics=1,ncs
+! calculate G for current composition, ignore dormant and suspended sets
+      phstat=test_phase_status(iph,ics,amount,pceq)
+      if(phstat.lt.PHDORM) cycle gloop
+      skip=.FALSE.
+      call calcg(iph,ics,moded,lokcs,ceq)
+      if(gx%bmperr.ne.0) goto 1000
+      call calc_phase_molmass(iph,ics,x1mol,wmass,totmol,totmass,am,ceq)
+      if(gx%bmperr.ne.0) goto 1000
+      gorig=pceq%phase_varres(lokcs)%gval(1,1)
+!      write(*,15)gorig,nrel,(ceq%cmuval(ii),ii=1,nrel)
+!15    format('3Y gorig: ',1pe12.4,i3,4(1pe12.4))
+!      write(*,16)totmol,am,nrel,(x1mol(ii),ii=1,nrel)
+!16    format('3Y moles',2(1pe12.4)i2,5(0pF8.5))
+! calculate the difference with the current stable tangent plane
+! It can be zero if the phase already is stable
+      gplan=zero
+      do ii=1,nrel
+         gplan=gplan-x1mol(ii)*pceq%cmuval(ii)
+      enddo
+! this is the original drivining force for each composition set
+      gset(ics)=gorig-gplan
+! there can be more than one stable composition set ... fix another time ...
+      if(phstat.ge.PHENTSTAB) then
+         if(nstcs.ge.4) then
+!            write(*,*)'More than 4 stable composition sets of phase',iph
+            gx%bmperr=4399; goto 1000
+         endif
+!         write(*,*)'Stable phase and set: ',iph,ics,gset(ics)
+         nstcs=nstcs+1; stcs(nstcs)=ics
+      endif
+   enddo gloop
+! all composition sets suspended or dormant in this phase
+   if(skip) goto 1000
+!   write(*,20)'3Y phase grid: ',nstcs,ncs,(gset(ii),ii=1,ncs)
+!20 format(a,2i2,6(1pe12.4))
+!
+! now calculate the gridpoints, composition and G
+   ngg=maxgrid
+!   write(*,*)'Calculate grid for phase ',iph,nrel,ngg
+   call generic_grid_generator(0,iph,ngg,nrel,xarr,garr,ny,yarr,gmax,pceq)
+!   write(*,*)'3Y error & grid: ',gx%bmperr,ngg
+   if(gx%bmperr.ne.0) goto 1000
+! loop through all gridpoints to find one closesed to the stable tangent plane
+! ngg set to number of real gridpoints
+! note mixed single and double precision but that is OK
+   gbest=-1.0D3
+   do ii=1,ngg
+      gplan=zero
+      do jj=1,nrel
+         gplan=gplan+xarr(jj,ii)*pceq%cmuval(jj)
+      enddo
+! note gdiff should be negative if metetstable
+      gdiff=gplan-garr(ii)
+!      write(*,22)'3Y GRID: ',ii,gdiff,gbest,garr(ii),gplan
+22    format(a,i4,4(1pe12.4))
+      if(gdiff.gt.gbest) then
+!         if(gbest.gt.zero) then
+! more than one gridpoint is below the current tangent plane! 
+! set error and request recalculate with global gridmin
+!            gx%bmperr=4365; goto 1000
+! It is as likely to have many stable gridpoints as a single one
+!         endif
+         kk=ii; gbest=gdiff
+      endif
+   enddo
+!
+!   write(*,30)'3Y Gridpoint ',kk,gbest,(xarr(ii,kk),ii=1,nrel)
+30 format(a,i4,e12.4,10(F8.5))
+! now we compare the best gridpoint with the composition sets
+   loop1: do ics=1,ncs
+      phstat=test_phase_status(iph,ics,amount,pceq)
+      if(phstat.lt.PHDORM) cycle loop1
+! extract constitution for the gridpoint kk
+      call generic_grid_generator(kk,iph,ngg,nrel,xarr,garr,&
+           ny,yarr,gmax,pceq)
+      if(gbest.ge.zero) then
+! there is a gridpoint below the tangent plane, is there a stable compset?
+         if(nstcs.gt.0) then
+! There is at least one stable composition set, if there is an unstable
+! then set the constitution of the gridpoint in that
+            if(nstcs.eq.ncs) then
+! An advanced check ... if G curve is convex!  NOT IMPLEMENTED
+! we have to compare the stable gridpoint with those already stable            
+               loop2: do ics2=1,nstcs
+                  if(stcs(ics2).lt.0) cycle loop2
+                  call calc_phase_molmass(iph,stcs(ics2),x1mol,wmass,totmol,&
+                       totmass,am,pceq)
+                  if(gx%bmperr.ne.0) goto 1000
+! we should check if there is a maximum G between the gridpoint and the
+! stable composition set.  How??  To be done ...
+                  write(*,*)'3Y New composition set needed'
+                  gx%bmperr=4399; goto 1000
+               enddo loop2
+            else
+! insert the GRIDPOINT constitution in an UNSTABLE composition set (if any)
+               loop3: do ics2=1,ncs
+                  loop4: do jj=1,nstcs
+! check if this compset is stable
+                     if(stcs(jj).eq.ics2) cycle loop3
+                  enddo loop4
+                  write(*,90)'stable',iph,ics2,ceq%tpval(1)
+90                format('3 Y Insert ',a,' gridpoint in phase/set',i4,i2,',&
+                       at T=',F10.2)
+                  call set_constitution(iph,ics2,yarr,qq,ceq)
+                  if(gx%bmperr.ne.0) goto 1000
+                  gx%bmperr=4366; goto 1000
+               enddo loop3
+            endif
+! we arrive here if we could not find an unstable composition set
+            gx%bmperr=4365; goto 1000
+         else
+! there is a stable gridpoint but no stable composition sets for this phase
+! we can set this composition in a metastable set and request a new
+! equilibrium calculation
+!  NOTE we use ceq pointer to set yarr in original record
+            write(*,90)'stable',iph,ics,ceq%tpval(1)
+            call set_constitution(iph,ics,yarr,qq,ceq)
+            if(gx%bmperr.ne.0) goto 1000
+            gx%bmperr=4366; goto 1000
+         endif
+      elseif(gbest.gt.gset(ics) .and. nstcs.eq.0) then
+! this gridpoint is closer to the tangent plane than this metastable set
+! and there are no stable sets.  If stable sets ignore gridpoint otherwise
+! insert the grid point constitution as it may become stable later
+         write(*,90)'better metastable',iph,ics,ceq%tpval(1)
+         call set_constitution(iph,ics,yarr,qq,ceq)
+         if(gx%bmperr.ne.0) goto 1000; exit loop1
+!      else
+! Nothing to do as the best gridpoint is further away from tangent plane
+! than this metastable composition set
+      endif
+   enddo loop1
+! The allocated arrays should deallocate by themselves
+1000 continue
+   return
+ end subroutine check_phase_grid
+
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\addtotable subroutine separate_constitutions
@@ -5260,6 +5541,7 @@
 ! return TRUE if phase iph and jph are both stoichiometric and have the
 ! same composition  Used to check when adding a phase during equilibrium
 ! calculation as it normally fails to have two such phases stable
+! iph and jph are phase tuple indices
    implicit none
    integer iph,jph
 !\end{verbatim} %+

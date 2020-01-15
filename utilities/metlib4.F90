@@ -3153,7 +3153,7 @@ CONTAINS
 ! sval is the answer either extracted from SVAR or obtained by user input
 ! cdef is a default answer
 ! typ  is default file extenion, at present only:
-!  1=".TDB", 2=".UNF", 3=".OCM"
+!  1=".TDB", 2=".UNF", 3=".OCM", 4= , 5= , 6= , 7= , 8=".LOG"
 ! hyper is a hypertext target for help
     implicit none
 !    IMPLICIT DOUBLE PRECISION (A-H,O-Z)
@@ -3164,6 +3164,10 @@ CONTAINS
     CHARACTER SLIN*80
     integer typ,typeahead,kk,iflag
     logical beware
+    sval=' '
+    slin=cdef
+!    write(*,10)'In gparfilex: ',typ,trim(cdef),trim(sval)
+10  format(a,i3,' "',a,'" "',a,'"')
 #ifdef tinyfd
 ! only if we use tinyfiledialogs, check if any character after last+1
     typeahead=last+1
@@ -3204,8 +3208,9 @@ CONTAINS
 ! open a popup window to browse directories and files using tinyfiledialogs
 ! typ<0 means new or old file; 0 old file no filer, 
 ! typ >0 means old file with filter:
-! typ=1 TDB, 2=OCU, 3=OCM, 4=OCD, 5=plt, 6=PDB, 7=DAT
+! typ=1 TDB, 2=OCU, 3=OCM, 4=OCD, 5=plt, 6=PDB, 7=DAT, 8=LOG
        call getfilename(typ,sval)
+!       write(*,*)'From getfilename: "',trim(sval),'"'
        if(sval(1:1).eq.' ') then
           buperr=1020
        elseif(typ.eq.-7) then
@@ -3214,6 +3219,24 @@ CONTAINS
           if(kk.eq.0) then
              sval(len_trim(sval)+1:)='.DAT'
           endif
+       elseif(typ.eq.-8) then
+! this is for output and file created(?), if no extension add LOG
+! Check if last 4 letters are none
+          kk=len_trim(sval)
+          if(kk.ge.4) then
+             if(sval(kk-3:kk).eq.'none') then
+                sval='NONE'
+                goto 300
+             endif
+          endif
+          kk=index(sval,'.LOG ')
+!          write(*,*)'gparfilex: ',trim(sval),kk,trim(cdef)
+          if(kk.eq.0) then
+             iflag=len_trim(sval)
+             sval(iflag+1:)='.LOG'
+          endif
+300       continue
+!          write(*,*)'gparfilex: ',trim(sval),kk
        endif
     endif
 #endif    
@@ -3994,7 +4017,7 @@ CONTAINS
 !\addtotable subroutine openlogfile & Opem log file
 !\begin{verbatim}
   subroutine openlogfile(name,text,lun)
-! opens a logfile for commands
+! opens a logfile for commands, if exits it will overwrite
     implicit none
     character name*(*),text*(*)
     integer lun
@@ -4004,10 +4027,18 @@ CONTAINS
        if(logfil.gt.0) close(logfil)
        goto 1000
     endif
-    kkp=index(name,'.')
-    if(kkp.le.0) then
-       kkp=len_trim(name)
-       name(kkp+1:)='.LOG'
+!    write(*,*)'METLIB: opening logfile: "',trim(name),'"'
+    if(len_trim(name).le.0) then
+       name='OCLOG.LOG'
+       write(*,*)'No logfile name, using default: ',trim(name)
+    else
+! it seems tinyfiledialogs return working directory ...
+       kkp=index(name,'.')
+       if(kkp.le.0) then
+          kkp=len_trim(name)
+          name(kkp+1:)='./OCLOG.LOG'
+          write(*,*)'No logfile extention, using: ',trim(name)
+       endif
     endif
     open(lun,file=name,access='sequential',status='unknown',&
          err=1100,iostat=ierr)

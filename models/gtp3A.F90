@@ -100,6 +100,8 @@
 ! dimension arrays for in first equilibrium record including phase_varres
    allocate(eqlista(maxeq))
    do jl=1,maxeq-1
+! new 2019.12.17 zero status word!!
+      eqlista(jl)%status=0
       eqlista(jl)%nexteq=jl+1
    enddo
    eqlista(maxeq)%nexteq=-1
@@ -146,8 +148,9 @@
 ! variables, or abbreviation of state variables.
 ! If so they cannot be listed and other errors may occur
 ! IMPORTANT any changes must be propagated to gtp3F: state_variable_val3 !!!
+! after label 200!!
 !
-! ANY CHANGES HERE MUST BE MADE ALSO IN SUBROUTINE state_variable_val, ??pmod25c
+! ANY CHANGES HERE MUST BE MADE ALSO IN SUBROUTINE state_variable_val3
 ! IN THE RESULTS THE TYPE OF VARIABLE WILL BE STORED USING THE npid INDEX HERE
 ! OLD SAVE FILES MAY HAVE OTHER MEANING OF npid !!
 !
@@ -184,7 +187,7 @@
 ! NTA cannot depend on T but on P
    propid(npid)%status=ibset(propid(npid)%status,IDONLYP)
 !.......................................
-! Individual Bohr magneton number 6
+! Individual Bohr magneton number 6 SPECIAL THIS HAS CONSTITUENT INDEX
    npid=npid+1
    propid(npid)%symbol='IBM '
    propid(npid)%note='Individual Bohr magneton numb'
@@ -223,17 +226,17 @@
    propid(npid)%symbol='VB '
    propid(npid)%note='Bulk modulus '
    propid(npid)%status=0
-!.......................................
-! Liquid two-state model 11
+!....................................... 11
+! Extra volume parameter
    npid=npid+1
-   propid(npid)%symbol='G2   '
-   propid(npid)%note='Liquid two state parameter'
+   propid(npid)%symbol='VC '
+   propid(npid)%note='Alternative volume parameter'
    propid(npid)%status=0
-!....................................... 
-! Thermal conductivity as function of T and P: 12
+!....................................... 12
+! Diffusion volume parameter 
    npid=npid+1
-   propid(npid)%symbol='LAMB '
-   propid(npid)%note='Thermal conductivity '
+   propid(npid)%symbol='VS '
+   propid(npid)%note='Diffusion volume parameter '
    propid(npid)%status=0
 !.......................................
 ! Activation energy of mobility 13
@@ -261,8 +264,14 @@
    propid(npid)%status=0
 ! MG is specific for a constituent
    propid(npid)%status=ibset(propid(npid)%status,IDCONSUFFIX)
+!....................................... 13 fd 11
+! Liquid two-state model     16
+   npid=npid+1
+   propid(npid)%symbol='G2   '
+   propid(npid)%note='Liquid two state parameter'
+   propid(npid)%status=0
 !.......................................
-! Smooth unit step function (or second Einstein function) 16
+! Smooth unit step function (or second Einstein function) 17
    npid=npid+1
    propid(npid)%symbol='THT2 '
    propid(npid)%note='Smooth step function T'
@@ -270,19 +279,13 @@
 ! THT2 cannot depend on T but on P
    propid(npid)%status=ibset(propid(npid)%status,IDONLYP)
 !.......................................
-! Second Einstein delta CP 17
+! Second Einstein delta CP 18
    npid=npid+1
    propid(npid)%symbol='DCP2 '
    propid(npid)%note='Smooth step function value'
    propid(npid)%status=0
 ! DXP2 cannot depend on T but on P
    propid(npid)%status=ibset(propid(npid)%status,IDONLYP)
-!.......................................
-! Viscosity 18
-   npid=npid+1
-   propid(npid)%symbol='VISC '
-   propid(npid)%note='Viscosity'
-   propid(npid)%status=0
 !.......................................
 ! Lattice parameter in direction X 19
    npid=npid+1
@@ -348,8 +351,20 @@
    propid(npid)%symbol='RHO '
    propid(npid)%note='Electric resistivity'
    propid(npid)%status=0
+!....................................... f.d. 18 now 28
+! Viscosity 28
+   npid=npid+1
+   propid(npid)%symbol='VISC '
+   propid(npid)%note='Viscosity'
+   propid(npid)%status=0
+!....................................... 
+! Thermal conductivity as function of T and P: 29
+   npid=npid+1
+   propid(npid)%symbol='LAMB '
+   propid(npid)%note='Thermal conductivity '
+   propid(npid)%status=0
 !.......................................
-! From MatCalc databases 28
+! From MatCalc databases 30
    npid=npid+1
    propid(npid)%symbol='HMVA '
    propid(npid)%note='Enthalpy of vacancy form. '
@@ -357,7 +372,7 @@
 ! this parameter does not depend on T ??
 !   propid(npid)%status=ibset(propid(npid)%status,IDONLYP)
 !.......................................
-! Schottky anomaly T 29
+! Schottky anomaly T 31
    npid=npid+1
    propid(npid)%symbol='TSCH '
    propid(npid)%note='Schottky anomaly T '
@@ -365,7 +380,7 @@
 ! this parameter does not depend on T ??
    propid(npid)%status=ibset(propid(npid)%status,IDONLYP)
 !.......................................
-! Schottky anomaly CP/R 30
+! Schottky anomaly CP/R 32
    npid=npid+1
    propid(npid)%symbol='CSCH '
    propid(npid)%note='Schottky anomaly Cp/R. '
@@ -373,7 +388,7 @@
 ! this parameter does not depend on T ??
    propid(npid)%status=ibset(propid(npid)%status,IDONLYP)
 !.......................................
-! UNUSED 31
+! UNUSED 33
    npid=npid+1
    propid(npid)%symbol='NONE'
    propid(npid)%note='Unused'
@@ -385,6 +400,7 @@
       write(*,*)'Too many parameter identifiers, increase maxprop'
       gx%bmperr=4250; goto 1000
    endif
+!   write(*,*)'3A number of model parameter identifiers: ',npid
 ! IMPORTANT any changes must be propagated to gtp3F: state_variable_val3 !!!
 !.......................................
 ! IMPORTRANT: When adding more parameter identifiers one should NEVER
@@ -1491,11 +1507,17 @@ end function find_phasetuple_by_indices
    if(icomp.gt.noofel) then
       gx%bmperr=4052
    else
-      name=splista(ceq%complist(icomp)%splink)%symbol
+! strange error buperr set here when plotting q(phase) in step2.OCM ??
       if(buperr.ne.0) then
-         write(*,*)'3A gcn buperr: ',trim(name),buperr
-         gx%bmperr=buperr
+         write(*,*)'3A buperr set entering get_component_name',buperr
+         buperr=0
       endif
+      name=splista(ceq%complist(icomp)%splink)%symbol
+! no reason buperr should be set here
+!      if(buperr.ne.0) then
+!         write(*,*)'3A gcn buperr: ',trim(name),buperr
+!         gx%bmperr=buperr
+!      endif
    endif
 1000 continue
    return

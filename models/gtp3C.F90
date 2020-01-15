@@ -233,7 +233,7 @@
    integer unit
    TYPE(gtp_equilibrium_data), pointer :: ceq
 !\end{verbatim}
-   integer jl,jk,ics,lokph,lokcs,kp,ndorm,nsusp,nent,nstab,iph,jph
+   integer jl,jk,ics,lokph,lokcs,kp,ndorm,nsusp,nent,nstab,iph,jph,shbest
    character line*80,phname*24,trailer*28,chs*1,csname*36,susph*4096,ch1*1
    integer, dimension(:), allocatable :: entph,dorph
    TYPE(gtp_phase_varres), pointer :: csrec
@@ -245,6 +245,7 @@
    nstab=0; nent=0; ndorm=0; nsusp=1
    susph=' '
    ch1=' '
+   shbest=0
    phloop: do jk=1,noofph
       lokph=phases(jk)
       csloop: do ics=1,phlista(lokph)%noofcs
@@ -281,6 +282,8 @@
             endif
          elseif(csrec%phstate.eq.PHENTERED .or. &
               csrec%phstate.eq.PHENTUNST) then
+! if dgm>0 this phase should be stable !!! add warning at the end
+            if(csrec%dgm.gt.zero) shbest=csrec%phtupx
             if(nent.eq.0) then
                nent=1
                entph(nent)=lokcs
@@ -385,6 +388,11 @@
          endif
       endif
    enddo entlist
+   if(shbest.gt.0) then
+      call get_phasetup_name(shbest,phname)
+      write(*,117)trim(phname)
+117   format(' *** WARNING: unstable phase with positive driving force: ',a)
+   endif
 !
    if(ndorm.eq.0) goto 400
    write(unit,210)
@@ -1574,7 +1582,7 @@
    integer typty,parlist,typspec,lokph,nsl,nk,ip,ll,jnr,ics,lokcs
    integer nint,ideg,ij,kk,iel,ncsum,kkx,kkk,jdeg,iqnext,iqhigh,lqq,nz,ik
    integer intpq,linkcon,ftyp,prplink
-   character text*2048,phname*24,prop*32,funexpr*1024
+   character text*3000,phname*24,prop*32,funexpr*1024
    character special*8
 !   integer, dimension(2,3) :: lint
 ! ?? increased dimension of lint ??

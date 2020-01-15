@@ -4290,7 +4290,7 @@
             more=1
          elseif(ani(ie).eq.zero) then
             if(numberest.gt.0) then
-               write(*,*)'3X Missing condition for two elements.'
+!               write(*,*)'3X Missing condition for two elements.'
 ! ??               gx%bmperr=0; goto 1000
                gx%bmperr=4151; goto 1000
             endif

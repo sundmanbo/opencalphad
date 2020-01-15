@@ -57,8 +57,7 @@ gib y
 extra tie 3
 title Map 15 fig 1: BEF model Mo-Ni-Re isotherm 2500 K
 @$ restore default colors if we run several macros ...
-extra font
-
+extra color
 7CFF40
 7CFF40
 @$ Set a text in the lower left corner
@@ -68,7 +67,7 @@ extra lower Mo
 @$-------------------------------------------------
 @$ Then at 1500 K
 
-set c t=1500 x(re)=.4 x(ni)=.4
+set c t=1500 x(re)=.2 x(ni)=.2
 
 c e
 
@@ -84,10 +83,32 @@ plot
 
 title Map 15 fig 2: BEF model Mo-Ni-Re isotherm 1500 K
 extra gib y
-extra tie 3
+extra tie 10
 @$ set a light gray monovariant
-extra font
+extra color
+f0f0f0
+ffff00
 
+@&
+
+@$ Sometimes a part on the Re rich side missing, add a new start point
+
+set c x(ni)=.1 x(re)=.8
+
+c e
+
+map
+n
+
+
+plot
+
+
+title Map 15 fig 2: BEF model Mo-Ni-Re isotherm 1500 K
+extra gib y
+extra tie 10
+@$ set a light gray monovariant
+extra color
 f0f0f0
 ffff00
 
@@ -134,8 +155,7 @@ y
 extra tie 3
 title Map 15 fig 3: BEF model Mo-Ni-Re isotherm 500 K
 @$ light green monovariant
-extra font
-
+extra color
 f0fff0
 7cff40
 
@@ -157,8 +177,7 @@ plot
 extra gibbs y
 extra tie 3
 title Map 15 fig 4: BEF model Mo-Ni-Re isotherm 500 K
-extra font
-
+extra color
 50aa50
 
 extra lower Mo 

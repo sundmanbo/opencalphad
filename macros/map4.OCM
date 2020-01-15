@@ -28,7 +28,7 @@ set echo
 r t ./OU
 
 
-set c t=3200 p=1e5 n=1 x(o)=.3
+set c t=2800 p=1e5 n=1 x(o)=.5
 
 c e
 
@@ -38,7 +38,7 @@ l r 2
 
 set ax 1 x(o) 0 1 0.005
 
-set ax 2 t 500 3500 20
+set ax 2 t 300 3500 20
 
 map
 
@@ -49,37 +49,44 @@ title map 4 fig 1
 render
 
 
+
 @&
-@$ Problem to pass the congruent equilibrium
-@$ Calculate the right hand side
-
-set c t=2200 x(o)=.8
-
-c e
-
-@$ amp without removing the first part
-map
-N
-
-
+@$ Now add some layout features
 plot
-x(*,o)
-T
+
+
 title map 4 fig 2
+@$ this command moves the idenification of lines in bottom left
+@$ the empty line means accept curront font and size
 position bottom left
 
-text 0.59 3300
+@$ This command adds the names of phases stable at given positions
+text
+0.59
+3300
 .8
 0
 y
 
-text n
-0.9 3300 .8 0 y
+@$ First question asked for 2nd and later "text" is if to amend an existing one
+@$ This is inside the C1 phase
+text
+n
+0.65
+2600 .8 90 y
 
-text n
-0.66 2600 .8 90 y
+@$ This is inside the gas phase
+text
+n
+0.9
+3100
+.8 0 y
 
+title map 4 fig 2B
 render
+
+@&
+
 
 @$ To add a label at 700 K and high oxygen I need to calculate
 @$ that equilibria explicitly first!!
@@ -95,7 +102,7 @@ plot
 text n
 0.8 700 .8 0 y
 
-title map 4 fig 2B
+title map 4 fig 3
 
 
 
@@ -105,7 +112,7 @@ title map 4 fig 2B
 plot
 
 
-title map 4 fig 3
+title map 4 fig 4
 scale x
 N 
 .58 
@@ -116,7 +123,7 @@ render
 plot
 
 
-title map 4 fig 4
+title map 4 fig 5
 scale y
 N
 2500
@@ -165,6 +172,8 @@ l,,,,
 
 @$ Voila! 
 @$ T=3139 K and x(o)=.6638, slightly on the U rich side.
+debug symbol t 3139.16
+
 @&
 
 set inter

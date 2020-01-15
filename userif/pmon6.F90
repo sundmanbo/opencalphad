@@ -52,7 +52,7 @@ contains
     integer narg
 ! various symbols and texts
     character :: ocprompt*8='--->OC5:'
-    character name1*24,name2*24,name3*24,dummy*24,line*80,model*72,chshort
+    character name1*24,name2*24,name3*24,dummy*24,line*80,model*72,chshort*1
     integer, parameter :: ocmonversion=50
 ! for the on-line help, at present turn off by default, if a HTML file set TRUE
     character*128 browser,latexfile,htmlfile,unformfile
@@ -63,7 +63,8 @@ contains
 ! more texts for various purposes
     character text*72,string*256,ch1*1,chz*1,selection*27,funstring*1024
     character axplot(2)*24,axplotdef(2)*24,quest*20
-    character longstring*2048,optres*40
+!    character longstring*2048,optres*40
+    character longstring*3500,optres*40
 ! measure calculate carefully
     double precision finish2,start2
     integer endoftime,startoftime
@@ -204,7 +205,7 @@ contains
 ! here are all commands and subcommands
 !    character (len=64), dimension(6) :: oplist
     integer, parameter :: ncbas=30,nclist=21,ncalc=15,ncent=21,ncread=6
-    integer, parameter :: ncam1=18,ncset=27,ncadv=15,ncstat=6,ncdebug=9
+    integer, parameter :: ncam1=18,ncset=27,ncadv=15,ncstat=6,ncdebug=12
     integer, parameter :: nselect=6,nlform=6,noptopt=9,nsetbit=6
     integer, parameter :: ncamph=18,naddph=12,nclph=6,nccph=6,nrej=9,nsetph=6
     integer, parameter :: nsetphbits=15,ncsave=6,nplt=15,nstepop=6
@@ -376,7 +377,8 @@ contains
     character (len=16), dimension(ncdebug) :: cdebug=&
          ['FREE_LISTS      ','STOP_ON_ERROR   ','ELASTICITY      ',&
           'SPECIES         ','TPFUN           ','BROWSER         ',&
-          'TRACE           ','SYMBOL_VALUE    ','                ']
+          'TRACE           ','SYMBOL_VALUE    ','                ',&
+          'GRID            ','                ','                ']
 !-------------------
 ! subcommands to SELECT, maybe some should be CUSTOMMIZE ??
     character (len=16), dimension(nselect) :: cselect=&
@@ -398,31 +400,20 @@ contains
           '                ','                ','                ']
 !-------------------
 ! subcommands to PLOT OPTIONS/ GRAPHICS OPTIONS
-! THIS IS A MESS, should be reorganized in levels
-!    character (len=16), dimension(nplt) :: cplot=&
-!        ['RENDER          ','SCALE_RANGES    ','RATIOS_XY       ',&
-!         'AXIS_LABELS     ','MANIPULATE_LINES','TITLE           ',&
-!         'GRAPHICS_FORMAT ','OUTPUT_FILE     ','GIBBS_TRIANGLE  ',&
-!         'QUIT            ','POSITION_OF_KEYS','APPEND          ',&
-!         'TEXT            ','TIE_LINES       ','FONT_AND_COLOR  ',&
-!         'LOGSCALE        ','LINE_WITH_SYMBLS','PAUSE_OPTIONS   ',&
-!         'MISCELLANEOUS   ','                ','                ']
-!-------------------
-! subcommands to PLOT OPTIONS/ GRAPHICS OPTIONS
-! THIS IS A MESS, should be reorganized in levels
+! Now there are two levels (using EXTRA) but still a mess
     character (len=16), dimension(nplt) :: cplot=&
-        ['RENDER          ','SCALE_RANGES    ','                ',&
+        ['RENDER          ','SCALE_RANGES    ','FONT            ',&
          'AXIS_LABELS     ','                ','TITLE           ',&
          'GRAPHICS_FORMAT ','OUTPUT_FILE     ','                ',&
          'QUIT            ','POSITION_OF_KEYS','APPEND          ',&
-         'TEXT            ','                ','EXTRA           ']
+         'TEXT_LABEL      ','                ','EXTRA           ']
 ! subsubcommands to PLOT
     character (len=16), dimension(nplt2) :: cplot2=&
-        ['FONT_AND_COLOR  ','LOGSCALE        ','RATIOS_XY       ',&
+        ['COLOR           ','LOGSCALE        ','RATIOS_XY       ',&
          'LINE_WITH_SYMBLS','MANIPULATE_LINES','PAUSE_OPTION    ',&
          'LOWER_LEFT_TEXT ','TIE_LINES       ','GIBBS_TRIANGLE  ',&
          'QUIT            ','SPAWN           ','NO_HEADING      ',&
-         '                ','                ','                ',&
+         'AXIS_FACTOR     ','                ','                ',&
          '                ','                ','                ']
 !-------------------
 !        123456789.123456---123456789.123456---123456789.123456
@@ -1479,8 +1470,6 @@ contains
                    write(lut,2011)100000,ceq%tpval
                 endif
                 write(lut,2012)j4,val
-!                call list_tpfun(lrot,0,longstring)
-!                call wrice2(lut,0,12,78,1,longstring)
                 if(iel.gt.1) goto 2009
              endif
           else
@@ -2310,18 +2299,27 @@ contains
 ! this set GSOGRID, small grid and clears GSXGRID
                 globaldata%status=ibset(globaldata%status,GSOGRID)
                 globaldata%status=ibclr(globaldata%status,GSXGRID)
+                globaldata%status=ibclr(globaldata%status,GSYGRID)
                 write(kou,3110)'Sparse','set'
              elseif(ll.eq.1) then
-! this clears GSXGRID, bit 14, of global status word and GSOGRID
+! DEFAULT, all gridbits are cleared
                 globaldata%status=ibclr(globaldata%status,GSXGRID)
                 globaldata%status=ibclr(globaldata%status,GSOGRID)
+                globaldata%status=ibclr(globaldata%status,GSYGRID)
                 write(kou,3110)'Normal','set'
 3110            format(a,' grid ',a)
              elseif(ll.eq.2) then
-! set GSXGRID (and clear GSOGRID)
+! set GSXGRID (and clear GSOGRID and GSYGRID)
                 globaldata%status=ibclr(globaldata%status,GSOGRID)
                 globaldata%status=ibset(globaldata%status,GSXGRID)
+                globaldata%status=ibclr(globaldata%status,GSYGRID)
                 write(kou,3110)'Dense','set'
+             elseif(ll.eq.3) then
+! set GSYGRID (and clear GSXGRID and GSOGRID)
+                globaldata%status=ibclr(globaldata%status,GSOGRID)
+                globaldata%status=ibclr(globaldata%status,GSXGRID)
+                globaldata%status=ibset(globaldata%status,GSYGRID)
+                write(kou,3110)'Very dense','set'
              else
                 write(*,*)'Only level 0, 1 and 2 implemented'
              endif
@@ -2341,6 +2339,8 @@ contains
 !             endif
 !.................................................................
           case(6) ! MAP_SPECIAL
+             call gparidx('Global test interval during STEP/MAP?: ',&
+                  cline,last,mapglobalcheck,15,'?Set adv global onoff')
 !             if(nofixphfortip) then
 !                write(*,*)'Always using fix phase when mapping'
 !                nofixphfortip=.false.
@@ -2715,19 +2715,32 @@ contains
           write(kou,*)'Not implemented yet'
 !-------------------------------------------------------------
        case(11) ! set LOG_FILE
-          call gparfilex('Log file name: ',cline,last,1,name1,'oclog',8,&
+! tinyfiles_dialog has difficult returning a non-existant file name
+! the argument "-8" means a log file for output
+          call gparfilex('Log file name: ',cline,last,1,model,'oclog',-8,&
                '?Set logfile')
+          name1=model(1:5)
           call capson(name1)
           if(name1(1:5).eq.'NONE ') then
+! close log file
              call openlogfile(' ',' ',-1)
              logfil=0
+             write(*,*)'Log file closed'
           else
-             call gparcx('Title: ',cline,last,5,model,' ','?Set logfile')
-             call openlogfile(name1,model,39)
+             if(len_trim(model).eq.0) then
+                model='OCLOG.LOG'
+             elseif(index(model,'.LOG').eq.0) then
+                model=trim(model)//'./OCLOG.LOG'
+! it seems tinyfile_dialogs sometimes return the directory, add a file name
+                write(*,*)'Setting logfile to: "',trim(model),'"'
+             endif
+             call gparcx('Title: ',cline,last,5,line,' ','?Set logfile')
+             call openlogfile(model,line,39)
              if(buperr.ne.0) then
                 write(kou,*)'Error opening logfile: ',buperr
                 logfil=0
              else
+                write(*,'(a,a)')'Commands will be logged in file ',trim(model)
                 logfil=39
              endif
           endif
@@ -5320,6 +5333,16 @@ contains
 !..................................
 ! not used
        case(9)
+!..................................
+! debug grid.  This calculates grid for phases one by one and check
+       case(10)
+          call check_all_phases(0,ceq)
+!..................................
+! not used
+       case(11)
+!..................................
+! not used
+       case(12)
        END SELECT debug
 !=================================================================
 ! select command
@@ -5732,7 +5755,7 @@ contains
              nullify(maptopsave)
           endif
        elseif(associated(maptopsave)) then
-          write(kou,*)'Set link to previous map results'
+          write(kou,*)'Setting link to previous map results'
           maptop%plotlink=>maptopsave
           nullify(maptopsave)
        endif
@@ -5743,7 +5766,7 @@ contains
        if(gx%bmperr.ne.0) goto 990
 ! end of MAP command
 !=================================================================
-! PLOT COMMAND with many options
+! PLOT COMMAND with many options and EXTRA
 ! Always specify the axis when giving this command, default is previous!!
 ! Sunbommands comes after
     case(21)
@@ -5753,8 +5776,8 @@ contains
        endif
        wildcard=.FALSE.
        do iax=1,2
-! default scaling factor for the axis variable
-          graphopt%scalefact(iax)=one
+! default scaling factor for the axis variable set at initiation
+!          graphopt%scalefact(iax)=one
           plotdefault: if(axplotdef(iax)(1:1).eq.' ') then
 ! insert a default answer for plot axis
              if(iax.le.noofaxis) then
@@ -5876,23 +5899,13 @@ contains
 !-----------------------------------------------------------
 ! PLOT subcommands, default is PLOT, NONE does not work ...
 ! subcommands to PLOT OPTIONS/ GRAPHICS OPTIONS
-!    character (len=16), dimension(nplt) :: cplot=&
-!        ['RENDER          ','SCALE_RANGES    ','RATIOS_XY       ',&
-!         'AXIS_LABELS     ','MANIPULATE_LINES','TITLE           ',&
-!         'GRAPHICS_FORMAT ','OUTPUT_FILE     ','GIBBS_TRIANGLE  ',&
-!         'QUIT            ','POSITION_OF_KEYS','APPEND          ',&
-!         'TEXT            ','TIE_LINES       ','FONT_AND_COLOR  ',&
-!         'LOGSCALE        ','LINE_WITH_POINTS','PAUSE_OPTION    ']
-!         'MISCELLANEOUS   ','                ','                ']
-! ABOVE IS OLD MENU
-! subcommands to PLOT OPTIONS/ GRAPHICS OPTIONS
 ! THIS IS A MESS, should be reorganized in levels
 !    character (len=16), dimension(nplt) :: cplot=&
-!        ['RENDER          ','SCALE_RANGES    ','                ',&
+!        ['RENDER          ','SCALE_RANGES    ','FONT            ',&
 !         'AXIS_LABELS     ','                ','TITLE           ',&
 !         'GRAPHICS_FORMAT ','OUTPUT_FILE     ','                ',&
 !         'QUIT            ','POSITION_OF_KEYS','APPEND          ',&
-!         'TEXT            ','                ','EXTRA           ']
+!         'TEXT_LABEL      ','                ','EXTRA           ']
 !-------------------
 ! return here after each sub or subsub command
 21100   continue
@@ -6052,8 +6065,12 @@ contains
           endif
           goto 21100
 !-----------------------------------------------------------
-! PLOT unused
+! PLOT unused select FONT
        case(3)
+          call gparcdx('Font (check what your GNUPLOT has): ',&
+               cline,last,1,name1,'Arial','?PLOT font')
+          graphopt%font=name1
+          write(*,*)'This command not implemeneted yet'
 !-----------------------------------------------------------
 ! PLOT AXIS_LABELS
        case(4)
@@ -6324,16 +6341,16 @@ contains
        case(14)
 !---------------------------------------------------------
 ! PLOT EXTRA, subsubcommand
+       case(15)
 ! subsubcommands to PLOT
 !    character (len=16), dimension(nplt2) :: cplot2=&
-!        ['FONT_AND_COLOR  ','LOGSCALE        ','RATIOS_XY       ',&
+!        ['COLOR           ','LOGSCALE        ','RATIOS_XY       ',&
 !         'LINE_WITH_SYMBLS','MANIPULATE_LINES','PAUSE_OPTION    ',&
 !         'LOWER_LEFT_TEXT ','TIE_LINES       ','GIBBS_TRIANGLE  ',&
 !         'QUIT            ','SPAWN           ','NO_HEADING      ',&
-!         '                ','                ','                ',&
+!         'AXIS_FACTOR     ','                ','                ',&
 !         '                ','                ','                ']
 !-------------------------------------------------------------------
-       case(15)
 ! default set to GIBBS-TRIANGLE
           kom3=submenu('Extra options?',cline,last,cplot2,nplt2,9,'?TOPHLP')
           plotextra: SELECT CASE(kom3)
@@ -6346,8 +6363,9 @@ contains
 !...............................
 ! PLOT EXTRA FONT_AND_COLOR ... and some more things ...
           case(1)
-             call gparcdx('Font ',cline,last,1,name1,'default','?PLOT font')
-             write(*,*)'Sorry this option not yet implemeted'
+! Font is not a separate (but unimplemented) command
+!             call gparcdx('Font ',cline,last,1,name1,'default','?PLOT font')
+!             write(*,*)'Sorry this option not yet implemeted'
 ! monovariant and tielinecolor declared in smp2.F90
              call gparcdx('Monovariant color ',cline,last,1,&
                   name1,monovariant,'?PLOT font')
@@ -6521,8 +6539,17 @@ contains
              endif
              goto 21100
 !...............................................
-! PLOT EXTRA
+! PLOT EXTRA axis factor to plot kJ or GPa instead of J and kJ
           case(13)
+             call gparcdx('Wich axis?',cline,last,1,ch1,'Y','?PLOT misc')
+             call capson(ch1)
+             if(ch1.eq.'Y' .or. ch1.eq.'X') then
+                call gparrdx('Factor?',cline,last,xxx,1.0D-3,'?PLOT misc')
+                if(ch1.eq.'X') graphopt%scalefact(1)=abs(xxx)
+                if(ch1.eq.'Y') graphopt%scalefact(2)=abs(xxx)
+             else
+                write(*,*)'No such axis'
+             endif
              goto 21100
 !...............................................
 ! PLOT EXTRA

@@ -88,6 +88,18 @@ plot
 x(cu)
 Q(*)
 title step 2 fig 3
+
+
+
+@$ High positive  values at the edges, scale !
+@&
+plot
+
+
+title step2 fig 4
+scale y n
+-4
+4
 text
 .4
 -.2

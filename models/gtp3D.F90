@@ -389,7 +389,7 @@
       endif
    enddo
 ! no matching symbol
-   write(kou,*)'unknown parameter type, please reenter: ',&
+   write(kou,*)'3D unknown parameter type, please reenter: ',&
         name1(1:len_trim(name1))
    parname=' '; goto 10
 ! typty is the parameter symbol index
@@ -413,7 +413,7 @@
 !         write(*,*)'3D: elnam: ',kel,lk3,typty,elnam
          call find_element_by_name(elnam,iel)
          if(gx%bmperr.ne.0) then
-            write(kou,*)'Unknown element ',elnam,&
+            write(kou,*)'3D Unknown element ',elnam,&
                  ' in parameter type MQ, please reenter'
             parname=' '; gx%bmperr=0; goto 10
          endif
@@ -433,7 +433,7 @@
          loksp=species(isp)
 ! extract sublattice after #
       else
-         write(kou,*)'This property has no specifier'
+         write(kou,*)'3D This model parameter identifier has no specifier'
          gx%bmperr=4168; goto 1000
       endif
 ! this is the property type stored in property record
@@ -441,7 +441,7 @@
 ! check if there should be a specifier !!
       if(btest(propid(typty)%status,IDELSUFFIX) .or. &
            btest(propid(typty)%status,IDCONSUFFIX)) then
-         write(*,*)'Parameter specifier missing'
+         write(*,*)'3D Parameter specifier missing'
          gx%bmperr=4169; goto 1000
       endif
    endif
@@ -462,7 +462,7 @@
       if(name2.eq.'SELECT_ELEMENT_REFERENCE') then
          jph=0; ics=1
       else
-         write(kou,*)'unknown phase name, please reenter'
+         write(kou,*)'Unknown phase name, please reenter'
          kp=len(cline)
          goto 10
       endif
@@ -501,7 +501,7 @@
          endif
       enddo
 ! constituent not found
-      write(kou,*)'Parameter symbol contains unknown constituent'
+      write(kou,*)'3D Parameter symbol contains unknown constituent'
       gx%bmperr=4066; goto 1000
 ! constituent found in right sublattice
 80    continue
@@ -887,7 +887,7 @@
          call find_svfun(usymbol,istv)
 !         write(*,*)'3D uncertainty symbol: ',usymbol,istv
          if(gx%bmperr.ne.0) then
-            write(*,*)'No such symbol: ',usymbol,&
+            write(*,*)'3D No such symbol: ',usymbol,&
                  ' uncertainty set to 0.1 of value'
             xxx=0.1*new%prescribed
             new%symlink2=0
@@ -895,7 +895,7 @@
          else
 ! check that the symbol is a constant
             if(.not.btest(svflista(istv)%status,SVCONST)) then
-               write(*,*)'Experimental uncertainty symbol must be a value'
+               write(*,*)'3D Experimental uncertainty symbol must be a value'
                gx%bmperr=4399; goto 1000
             endif
             new%symlink2=istv
@@ -911,7 +911,7 @@
 !               write(*,*)'3D error is relative!'
             else
 ! the experiment is an inequality
-               write(kou,*)'*** Inequalites must have absolute uncertainty'
+               write(kou,*)'3D *** Inequalites must have absolute uncertainty'
 !            new%experimenttype=101*new%experimenttype ???
             endif
          endif
@@ -924,7 +924,7 @@
 ! any  more experiments?
 !   write(*,*)'3D exp4: ',trim(cline),ip,kp,len(cline),len_trim(cline)
    if(kp.le.ip .and. len_trim(cline).gt.ip) then
-      write(*,*)'3D more experiments',trim(cline),kp,ip
+!      write(*,*)'3D more experiments',trim(cline),kp,ip
       goto 17
    endif
 1000 continue
@@ -1010,7 +1010,8 @@
 !\end{verbatim} %+
    integer nterm,kolon,iqz,krp,jp,istv,iref,iunit,jstv,jref,junit,jl,ks
    integer linkix,norem,ics,kstv,iph,nidfirst,nidlast,nidpre,qp,firstc,lpos
-   character stvexp*80,stvrest*80,textval*32,c5*5,ch1
+! a long line with conditions can create overflow and lost values ...
+   character stvexp*128,stvrest*128,textval*32,c5*5,ch1
    character svtext*128,encoded*60,defval*18,actual_arg*24,svfuname*16
    integer indices(4),allterms(4,10),seqz,experimenttype
    integer ich,back,condvalsym,symsym,nextexp,colon
@@ -1025,6 +1026,12 @@
 !   call set_cond_or_exp_old(cline,ip,new,notcond,ceq)
 !   return
 !=========================================================================
+   if(len_trim(cline).gt.120) then
+      write(*,*)' *** Attention, a very long line with conditions:'
+      write(*,*)trim(cline)
+      write(*,*)'Some conditions may be lost!'
+   endif
+!
    nullify(temp)
    xxx=zero
    symsym=0
@@ -1172,7 +1179,7 @@
 !         call find_svfun(svfuname,symsym,ceq)
          call find_svfun(svfuname,symsym)
          if(gx%bmperr.ne.0) then
-            write(*,*)'Experimental symbol neither state variable nor symbol'
+            write(*,*)'3D Experimental symbol neither state variable nor symbol'
             goto 1000
          endif
 !         write(*,*)'3D experiment is a symbol ',symsym
@@ -1377,7 +1384,7 @@
             linkix=condvalsym
             value=evaluate_svfun_old(linkix,actual_arg,1,ceq)
          else
-            write(*,*)'Symbol must be constant or "evaluate explicit"'
+            write(*,*)'3D Symbol must be constant or "evaluate explicit"'
             gx%bmperr=4293; goto 1000
          endif
       endif
@@ -1676,7 +1683,7 @@
 ! Special below is for fix/unfix phases
 299 continue
    if(notcond.ne.0) then
-      write(kou,*)'Illegal to set a fix phase as experiment'
+      write(kou,*)'3D Illegal to set a fix phase as experiment'
       gx%bmperr=4294; goto 1000
    endif
 !   write(*,*)'3D fix phase 2: ',ip,stvexp(ip:40)
@@ -1915,7 +1922,7 @@ end subroutine get_condition
         (current%indices(j1,1),j1=1,4),current%iref,current%iunit
    if(nterm.eq.0) then
 ! why nterm=0?  Check!!!
-      if(ocv()) write(*,*)'get_condition: ',istv,ncc,nac
+      if(ocv()) write(*,*)'3D get_condition: ',istv,ncc,nac
       if(current%active.eq.0) then
 ! this call just looks for active condition istv
          nac=nac+1
@@ -2643,7 +2650,7 @@ end subroutine get_condition
 !         write(*,*)'3D: elnam: ',kel,lk3,typty,elnam
          call find_element_by_name(elnam,iel)
          if(gx%bmperr.ne.0) then
-            write(kou,*)'Unknown element ',elnam,&
+            write(kou,*)'3D Unknown element ',elnam,&
                  ' in parameter type MQ, please reenter'
             gx%bmperr=0; goto 1000
          endif
@@ -2672,7 +2679,8 @@ end subroutine get_condition
 ! check if there should be a specifier !!
       if(btest(propid(typty)%status,IDELSUFFIX) .or. &
            btest(propid(typty)%status,IDCONSUFFIX)) then
-         write(*,*)'Parameter specifier missing'
+         write(*,77)propid(typty)%symbol
+77       format('3D Missing specifier for model parameter idenifier ',a)
          gx%bmperr=4169; goto 1000
       endif
    endif

@@ -1444,6 +1444,15 @@
    nullify(proprec%nextpr)
 !   if(proptype.ge.100) write(*,*)'property type: ',proptype
    proprec%proptype=proptype
+! also save %modelparamid for unformatted files ...
+   if(proptype.gt.100) then
+! this is a property with a constituent suffix like MQ&FE
+      proprec%modelparamid=propid(proptype/100)%symbol
+!      write(*,*)'3G proptype ',propid(proptype/100)%symbol,proptype
+   else
+      proprec%modelparamid=propid(proptype)%symbol
+!      write(*,*)'3G proptype ',propid(proptype)%symbol,proptype
+   endif
    proprec%degree=degree
    do j=0,degree
       proprec%degreelink(j)=0

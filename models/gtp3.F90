@@ -560,10 +560,10 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        'Too large change on axis, terminating mapping                   ',&
        'Model parameter value not calculated                            ',&
        'New set of components are not independent                       ',&
-       '                                                                ',&
-       '                                                                ',&
-       '5                                                               ',&
-       '                                                                ',&
+       'No equilibrium, a restored phase should be stable               ',&
+       'Two phases with same composition stable at nodepoint            ',&
+       'Gridtest indicate global minimization needed                    ',&
+       'Gridtest request recalculation without gridminimizer            ',&
        '                                                                ',&
        '                                                                ',&
        '                                                                ',&
@@ -627,7 +627,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! NORECALC do not recalculate equilibria even if global test after fails
 ! OLDMAP use old map algorithm
 ! NOAUTOSP do not generate automatic start points for mapping
-! NO LONGER: HICKEL set if Hickel extrapolation check for solids
+! GSYGRID extra dense grid
 ! >>>> some of these should be moved to the gtp_equilibrium_data record
   integer, parameter :: &
        GSBEG=0,       GSOCC=1,        GSADV=2,      GSNOGLOB=3, &
@@ -635,7 +635,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
        GSNOREMCS=8,   GSNOSAVE=9,     GSVERBOSE=10, GSSETVERB=11,&
        GSSILENT=12,   GSNOAFTEREQ=13, GSXGRID=14,   GSNOPAR=15, &
        GSNOSMGLOB=16, GSNOTELCOMP=17, GSTGRID=18,   GSOGRID=19, &
-       GSNORECALC=20, GSOLDMAP=21,    GSNOAUTOSP=22
+       GSNORECALC=20, GSOLDMAP=21,    GSNOAUTOSP=22,GSYGRID=23
 !----------------------------------------------------------------
 !-Bits in ELEMENT record
   integer, parameter :: &
@@ -667,7 +667,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! SORD phase has TCP type ordering (like for sigma)
 ! MFS phase has a disordered fraction set
 ! GAS this is the gas phase (first in phase list) 
-! LIQ phase is liquid (can be several but listed first after gas)
+! LIQ phase is liquid (can be several but listed directly after gas)
 ! IONLIQ phase has ionic liquid model (I2SL)
 ! AQ1 phase has aqueous model (not implemented)
 ! DILCE phase has dilute configigurational entropy (not implemented)
@@ -1141,7 +1141,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 !-----------------------------------------------------------------
 !\begin{verbatim}
 ! this constant must be incremented when a change is made in gtp_property
-  INTEGER, parameter :: gtp_property_version=1
+  INTEGER, parameter :: gtp_property_version=2
   TYPE gtp_property
 ! This is the property record.  The end member and interaction records
 ! have pointer to this.  Severall different properties can be linked
@@ -1159,6 +1159,9 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! protect: can be used to prevent listing of the parameter
 ! antalprop: probably redundant (from the time of arrays of propery records)
      character*16 reference
+! this added to avoid problems if model param id has changed between saving
+! and reading an unformatted file
+     character*4 modelparamid
      TYPE(gtp_property), pointer :: nextpr
      integer proptype,degree,extra,protect,refix,antalprop
      integer, dimension(:), allocatable :: degreelink
@@ -1311,7 +1314,7 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
   INTEGER, parameter :: gtp_phasetuple_version=1
   TYPE gtp_phasetuple
 ! for handling a single array with phases and composition sets
-! ixphase is phase index, compset is composition set index
+! ixphase is phase index (often lokph), compset is composition set index
 ! ADDED also index in phlista (lokph) and phase_varres (lokvares) and
 ! nextcs which is nonzero if there is a higher composition set of the phase
 ! A tuplet index always refer to the same phase+compset.  New tuples with
@@ -1923,6 +1926,10 @@ MODULE GENERAL_THERMODYNAMIC_PACKAGE
 ! this is to handle EEC in the grid minimizer NOT GOOD FOR PARALLELIZATION
 !  integer :: neecgrid
   double precision :: sliqmax,sliqmin,gliqeec
+! this is for warnings about using unkown model parameter identifiers
+  integer, parameter :: mundefmpi=10
+  integer nundefmpi
+  character undefmpi(mundefmpi)*4
 !\end{verbatim}
 
 ! undocumented CPU time measuring in calcg_internal

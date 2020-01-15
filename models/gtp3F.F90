@@ -197,7 +197,7 @@
    type(gtp_state_variable), pointer :: svr
 !   logical phtupord
 ! check for character overflow, leave at least 100 at end
-   maxen=len(encoded)-100
+   maxen=len(encoded)-30
 ! calculate the NaN bit pattern
    xnan=0.0d0
 !   xnan=0.0d0/xnan
@@ -558,7 +558,7 @@
    kjj=jj
    return
 1100 continue
-   write(*,1102)'3F Overflow in array to get_state_variables',enpos,maxen,jj,mjj
+   write(*,1102)enpos,maxen,jj,mjj
 1102 format('3F Overflow using get_many_svar: ',2i6,5x,2i6)
    gx%bmperr=4317; goto 1000
  end subroutine get_many_svar
@@ -883,7 +883,8 @@
    if(btest(ceq%status,EQMIXED)) then
 ! user has different phases as reference state for the elements use SER
 !      write(*,*)'3F Mixed reference state for the elements, SER used'
-      iref=-1
+! This is only set for integral U(6), S(7), H(9), A(10), G(11) (not V(8))
+      if(is.ge.6 .and. is.le.11) iref=-1
    endif
 !---------------------------------------------------------------------
 ! extract arguments if any. If arguments then lstate(jp:jp) should be (
@@ -2581,8 +2582,9 @@
 !   if(ndefprop.ne.33) then
 ! THIS IS A VERY CRUDE CHECK! Please check also the SELECT below !!!
 ! it may need to be modified !!!
-   if(ndefprop.ne.31) then
-      write(*,*)'3F The model parameter identifiers has been changed!',31
+!   if(ndefprop.ne.31) then modified to 32 to include VS
+   if(ndefprop.ne.33) then
+      write(*,*)'3F The model parameter identifiers has been changed!',33
       write(*,*)'3F You must correct state_variable_val3 in GTP3F.F90!'
 ! you may also have to change the case indices!!
       stop
@@ -2592,6 +2594,7 @@
    case default
       write(kou,*)'Unknown parameter identifier: ',kstv
 ! I need to separate out mpi's that have constituent index ...
+! updated 2019.12.14
 !-------------------------------------------------------------------
 ! These are model_parameter_ident in June 2018:
 !   1 G     T P                                   0 Energy
@@ -2604,14 +2607,14 @@
 !   8 V0    - -                                   1 Volume at T0, P0
 !   9 VA    T -                                   4 Thermal expansion
 !  10 VB    T P                                   0 Bulk modulus
-!  11 G2    T P                                   0 Liquid two state parameter
-!  12 CBT   - P                                   2 Crystal breakdown temp
+!  11 VC    T P                                   0 Extra volume parameter
+!  12 VS    - -                                   1 Diffusion volume 
 !  13 MQ    T P &<constituent#sublattice>;       10 Mobility activation energy
 !  14 MF    T P &<constituent#sublattice>;       10 RT*ln(mobility freq.fact.)
 !  15 MG    T P &<constituent#sublattice>;       10 Magnetic mobility factor
-!  16 THT2  - P                                   2 Smooth slope function T
-!  17 DCP2  - P                                   2 Smooth slope funtion step
-!  18 VISC  T P                                   0 Viscosity
+!  16 G2    T P                                   0 Liquid two state parameter
+!  17 THT2  - P                                   2 Smooth slope function T
+!  18 DCP2  - P                                   2 Smooth slope funtion step
 !  19 LPX   T P                                   0 Lattice param X axis
 !  20 LPY   T P                                   0 Lattice param Y axis
 !  21 LPZ   T P                                   0 Lattice param Z axis
@@ -2621,15 +2624,19 @@
 !  25 EC44  T P                                   0 Elastic const C44
 !  26 UQT   T P &<constituent#sublattice>;        0 UNIQUAC residual parameter
 !  27 RHO   T P                                   0 Electric resistivity
-!  28 LAMB  T P                                   0 Thermal conductivity
-!  29 HMVA  T P                                   0 Enthalpy of vacancy form.
-!  30 TSCH  - P                                   2 Schottky anomality T
-!  31 CSCH  - P                                   2 Schottky anomality Cp/R.
+!  28 VISC  T P                                   0 Viscosity
+!  29 LAMB  T P                                   0 Thermal conductivity
+!  30 HMVA  T P                                   0 Enthalpy of vacancy form.
+!  31 TSCH  - P                                   2 Schottky anomality T
+!  32 CSCH  - P                                   2 Schottky anomality Cp/R.
 ! I am not sure how to handle changes ...
 !-------------------------------------------------------------------
 !...................................... without constituent index
-   case(1:5,7:12,16:25,27:31) 
-! with constituent index: 6, 13:15, 26
+!   case(1:5,7:12,16:25,27:31)  OLD
+   case(1:5,7:12,16:25,27:32) 
+! with constituent index: 6: individual Bohr magneton number
+! with constituent index: 13:15: Mobilities
+! with constituent index: 26: UNIQUAC 
       call get_phase_compset(indices(1),indices(2),lokph,lokcs)
       if(gx%bmperr.ne.0) goto 1000
 ! nprop is number of properties calculated.  Property 1 is always G
@@ -2665,7 +2672,9 @@
       gx%bmperr=4361
    end select
 !.......................................
-   gx%bmperr=4113; goto 1000
+! all legal case values goto somewhere else
+!   gx%bmperr=4113; goto 1000
+   goto 1000
 !-----------------------------------------------------------------
 ! chemical potentials, activites etc, istv is 3, 4 or 5 for MU, AC and LNAC
 ! there can be a reference state
@@ -2820,23 +2829,389 @@
    integer :: lokcs
    double precision value
 !\end{verbatim}
-   integer lokph,nsl
-   lokph=ceq%phase_varres(lokcs)%phlink
-   nsl=phlista(lokph)%noofsubl
+!   integer lokph,nsl
+!   lokph=ceq%phase_varres(lokcs)%phlink
+!   nsl=phlista(lokph)%noofsubl
+!   write(*,*)'3F calc_qf: ',lokph,lokcs,nsl
 !   if(nsl.eq.1) then
 ! For substitutional solutions
-      call calc_qf_old(lokcs,value,ceq)
+!      write(*,*)'3F nsl 1: ',nsl
+!      call calc_qf_old(lokcs,value,ceq)
 !   else
 ! For any onther model      
-!      value=zero
+!      write(*,*)'3F nsl 2: ',nsl
+      call calc_qf_romain(lokcs,value,ceq)
 !   endif
  end subroutine calc_qf
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+ subroutine calc_qf_romain(lokcs,value,ceq)
+! calculates eigenvalues of the second derivative matrix, stability function
+! using Romain Le Tellier proposal eliminating one dependent fraction in
+! each sublattice and also one ion if charge balance.  Also ignore sublattices
+! with a single constituent
+! lokcs is index of phase_varres
+! value calculated value returned
+! ceq is current equilibrium
+   implicit none
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+   integer :: lokcs
+   double precision value
+!\end{verbatim}
+! Algorithm: use the Hessian modified by eliminating one constituent "k_n"
+! in each sublattice and one ionic constituent (if any)
+! The terms of this "redused" Hessaian will be
+! \sum_i\ne k_n \sum_j\ne k_n d2G/dy_idy_j - 
+!        \sum_k_n( d2G/dy_idy_kn+ d2G/dy_jdy_kn - \sum_k_m d2G/dy_kndy_km)
+! 
+   integer lokph,ii,jj,nsl,ncol,jrow,lrow,subrow,jcol,lcol,subcol,tnfr,nn,info
+! skip the last constituent in each sublattice, 
+! skip sublattices with a single constituent
+! skip one charged constituent ... NOT IMPLEMENTED
+! The reduced Hessian (symmetric)
+   double precision, allocatable, dimension(:) :: hessian
+! work and result arrays. mm is needed when external charge balance
+   double precision, allocatable, dimension(:) :: work,eigenval,ionfact,mm
+! this is needed as argument but never used
+   double precision eigenvect(1)
+   type(gtp_phase_varres), pointer :: varres
+   logical debug,excb
+!
+!   debug=.true.
+   debug=.false.
+   varres=>ceq%phase_varres(lokcs)
+   lokph=varres%phlink
+   nsl=phlista(lokph)%noofsubl
+   tnfr=phlista(lokph)%tnooffr
+   ncol=tnfr-nsl
+   if(ncol.eq.0) then
+! fixed composition
+      value=one; goto 1000
+   endif
+   if(btest(phlista(lokph)%status1,PHEXCB)) then
+! external charge balance, we need mm
+!      allocate(mm(phlista(lokph)%tnooffr)
+!      excb=.TRUE.
+      write(*,*)'Stability check of charged phases not implemented'
+      value=1.0D2
+      goto 1000
+   else
+      excb=.FALSE.
+   endif
+!   write(*,*)'3F allocate: ',ncol*(ncol+1)/2,tnfr,nsl
+   allocate(hessian(ncol*(ncol+1)/2))
+! loop for all rows
+   ii=0
+   subrow=1
+   lrow=phlista(lokph)%nooffr(subrow)
+   jrow=0
+   nn=0
+   row: do while(ii.lt.tnfr)
+      ii=ii+1
+      if(ii.eq.lrow) then
+         subrow=subrow+1
+         if(subrow.gt.nsl) exit row
+         lrow=lrow+phlista(lokph)%nooffr(subrow)
+         if(phlista(lokph)%nooffr(subrow).eq.1) then
+            ii=ii+1; subrow=subrow+1
+            if(subrow.gt.nsl) exit row
+            lrow=lrow+phlista(lokph)%nooffr(subrow)
+         endif
+         cycle row
+      endif
+! loop for all columns
+      jcol=jrow
+      jrow=jrow+1
+      jj=ii-1
+      subcol=subrow
+      lcol=lrow
+      col: do while(jj.lt.tnfr)
+         jj=jj+1
+         if(jj.eq.lcol) then
+            subcol=subcol+1
+            if(subcol.gt.nsl) exit col
+            lcol=lcol+phlista(lokph)%nooffr(subcol)
+            if(phlista(lokph)%nooffr(subcol).eq.1) then
+               jj=jj+1
+               subcol=subcol+1
+               if(subcol.gt.nsl) exit col
+               lcol=lcol+phlista(lokph)%nooffr(subcol)
+            endif
+            cycle col
+         endif
+         nn=nn+1
+         jcol=jcol+1
+!         write(*,'(a,3(2i4,2x))')'3F hessian: ',jrow,jcol,ii,jj,lrow,lcol
+         hessian(ixsym(jrow,jcol))=varres%d2gval(ixsym(ii,jj),1)-&
+              varres%d2gval(ixsym(ii,lrow),1)-&
+              varres%d2gval(ixsym(jj,lcol),1)+&
+              varres%d2gval(ixsym(lrow,lcol),1)
+      enddo col
+   enddo row
+   if(debug) then
+      do ii=1,ncol
+         write(*,'("3F H: ",5(1pe12.4))')(hessian(ixsym(jj,ii)),jj=1,ncol)
+      enddo
+   endif
+   if(ncol.eq.1) then
+      value=hessian(1)
+      goto 1000
+   endif
+! use LAPACK routine, note Hessian is destroyed inside dspev
+   allocate(eigenval(ncol))
+! work is work array at least 2*ncol, info is return code
+   allocate(work(2*ncol))
+   info=0
+! 'N' means only eigenvalues, 'U' means Hessian is upper triangle
+! ncol is dimension of Hessian, eigenval is calculated, 
+! dummy values for eigenvect, 1
+   call dspev('N','U',ncol,hessian,eigenval,eigenvect,1,work,info)
+   if(info.eq.0) then
+      if(debug) write(*,120)(eigenval(ii),ii=1,ncol)
+120   format('Eigenvalues: ',6(1pe10.2))
+! return the first value, negative if unstable
+      value=eigenval(1)
+   else
+! <0 the "info" argument has illegal value
+! >0 "info" off-diagonal elements if intermediate tridiagonal did not converge 
+      value=zero
+      write(*,*)'Error calculating eigenvalues of phase matrix',info
+      gx%bmperr=4321
+   endif
+!   
+1000 continue
+! basically we are only interested if value is <0 or >0 ...
+   if(value.gt.1.0D2) then
+      value=1.0D2
+   elseif(value.lt.-1.0D2) then
+      value=-1.0D2
+   endif
+   return
+ end subroutine calc_qf_romain
+
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+ subroutine calc_qf_romain_old(lokcs,value,ceq)
+! calculates eigenvalues of the second derivative matrix, stability function
+! using Romain Le Tellier proposal eliminating one dependent fraction in
+! each sublattice and also one ion if charge balance.  Also ignore sublattices
+! with a single constituent
+! lokcs is index of phase_varres
+! value calculated value returned
+! ceq is current equilibrium
+   implicit none
+   TYPE(gtp_equilibrium_data), pointer :: ceq
+   integer :: lokcs
+   double precision value
+!\end{verbatim}
+! Algorithm: use the Hessian modified by eliminating one constituent "k_n"
+! in each sublattice and one ionic constituent (if any)
+! The terms of this "redused" Hessaian will be
+! \sum_i\ne k_n \sum_j\ne k_n d2G/dy_idy_j - 
+!        \sum_k_n( d2G/dy_idy_kn+ d2G/dy_jdy_kn - \sum_k_m d2G/dy_kndy_km)
+! 
+   integer ncol,nsl,nion,ii,jj,ll,lokph,iy,nf,kk,info,iskip,jskip,tnfr
+! kskip needed when external charge balance as one may have two skipped
+! constituents in same sublattice
+   integer icol,jrow,kskip
+! constituents that should be skipped, one per sublattice and charge, max 10
+   integer skipped(10)
+! The reduced Hessian (symmetric)
+   double precision, allocatable, dimension(:) :: hessian
+! work and result arrays. mm is needed when external charge balance
+   double precision, allocatable, dimension(:) :: work,eigenval,ionfact,mm
+! this is needed as argument but never used
+   double precision eigenvect(1)
+   type(gtp_phase_varres), pointer :: varres
+   double precision xxx,backstop,yyy
+   logical excb,debug
+   character phname*24
+!
+   write(*,*)'3F entering calc_gf_romain',lokcs
+   value=zero
+   varres=>ceq%phase_varres(lokcs)
+   lokph=phasetuple(varres%phtupx)%ixphase
+   if(btest(phlista(lokph)%status1,PHEXCB)) then
+! external charge balance, we need mm
+!      allocate(mm(phlista(lokph)%tnooffr)
+!      excb=.TRUE.
+      write(*,*)'Stability check of charged phases not implemented'
+      value=1.0D2
+      goto 1000
+   else
+      excb=.FALSE.
+   endif
+! Step 1: eliminate one constituent per sublattice (highest fraction)
+! if external charge balance we need to eliminate one ion (the first)
+! NOTE ionic liquid does not have external charge balance and d2G/dyidyj
+! include the variation of sites(?)
+   skipped=0
+   nsl=phlista(lokph)%noofsubl
+   iy=1
+   kskip=1
+   do ll=1,nsl
+!      write(*,'(a,3i3,2x,10i3)')'3F debug ',lokph,nsl,ll,skipped
+      if(phlista(lokph)%nooffr(ll).gt.1) then
+         xxx=zero
+         do nf=1,phlista(lokph)%nooffr(ll)
+            if(varres%yfr(iy).gt.xxx) then
+! skip constituent with largest fraction in each sublattice
+! this gives sometimes a cusp in the middle for binaries ... not nice
+               xxx=varres%yfr(iy)
+               if(excb) then
+                  skipped(kskip)=iy
+               else
+                  skipped(ll)=iy
+               endif
+            endif
+            iy=iy+1
+         enddo
+      else
+! totally skip sublattices with a sngle constituent
+! negative value means second derivative wrt this fraction totally skipped
+         skipped(ll)=-iy
+         iy=iy+1
+      endif
+   enddo
+! dimension of the Hessian. One more should be added if ionic (not now!)
+   tnfr=phlista(lokph)%tnooffr
+   ncol=tnfr-nsl
+   if(ncol.gt.1) then
+      call get_phase_name(lokph,1,phname)
+      write(*,*)'3F Q for ',trim(phname),' with ',ncol,' Hessian'
+      debug=.true.
+   else
+      debug=.false.
+   endif
+   allocate(hessian((ncol*(ncol+1))/2))
+!   write(*,*)'3F allocated Hessian',lokcs,ncol*(ncol+1)/2
+   nf=nsl
+!   write(*,'(a,10i4)')'3F skipped: ',skipped
+! in all terms of the Hessian we have to add the sum of all pairs of
+! fractions that are skipped
+! PROBABLY WRONG, WE MUST HAVE SEVERAL BACKSTOPS DEPENDING ON SUBLATTICES ...
+   backstop=zero
+! if we have ionic constituents nf is larger than nsl one more ...
+   back1: do ii=1,nf
+      if(skipped(ii).lt.0) cycle back1
+      back2: do jj=ii,nf
+         if(skipped(jj).lt.0) cycle back2
+! this is sum_k1 \sum_k2 d2G/dy_k1dy_k2
+         backstop=backstop+varres%d2gval(ixsym(skipped(ii),skipped(jj)),1)
+!         write(*,*)'3F backstop 1: ',skipped(ii),skipped(jj),backstop
+      enddo back2
+   enddo back1
+!   write(*,*)'3F backstop 2: ',0,0,backstop
+!   do ii=1,tnfr
+!      write(*,'(a,5(1pe12.4))')'3F d2G/dyidyj: ',&
+!           (varres%d2gval(ixsym(ii,jj),1),jj=1,phlista(lokph)%tnooffr)
+!   enddo
+! The terms of this "reduced" Hessaian will be
+! \sum_i\ne k_n \sum_j\ne k_n d2G/dy_idy_j - 
+!        \sum_k_n( d2G/dy_idy_kn+ d2G/dy_jdy_kn - \sum_k_m d2G/dy_kndy_km)
+   iskip=1
+   jskip=1
+   icol=1
+   jrow=1
+   loop1: do ii=1,tnfr
+      if(ii.eq.abs(skipped(iskip))) then
+!         write(*,*)'3F Skipping ii: ',ii,skipped(ii)
+         iskip=iskip+1
+         jskip=iskip
+         cycle loop1
+      endif
+      xxx=zero
+!      write(*,'(a,2i4,2x,10i3)')'3F bug 1: ',ii,nf,skipped
+      do kk=1,nf
+! PROBABLY WRONG, INCLUDE ONLY THOSE IN CURRENT SUBLATTICE ...
+         if(skipped(kk).gt.0) then
+            xxx=xxx+varres%d2gval(ixsym(ii,skipped(kk)),1)
+         endif
+      enddo
+!      write(*,*)'3F Calculate xxx for ii: ',ii,xxx
+! here the big loop to calculate the Hessian
+      loop2: do jj=ii,tnfr
+         if(jj.eq.abs(skipped(jskip))) then
+! PROBABLY WRONG, INCLUDE ONLY THOSE IN CURRENT SUBLATTICE ...
+!            write(*,*)'3F Skipping jj: ',jj,skipped(jj)
+            jskip=jskip+1
+            cycle loop2
+         endif
+         yyy=xxx
+!         write(*,'(a,2i4,2x,10i3)')'3F bug 2: ',ii,nf,skipped
+         do kk=1,nf
+            if(skipped(kk).gt.0) then
+               yyy=yyy+varres%d2gval(ixsym(jj,skipped(kk)),1)
+            endif
+         enddo
+!         write(*,*)'3F calculate term',ii,jj
+!         write(*,*)'3F Calculate yyy for ii and jj: ',ii,jj,yyy
+! kxysm is indexing a symmetrix matrix when jj >= ii
+! ixsym is indexing a symmetrix matrix whatever values of ii and jj
+! multiply with the fractions to avoid extrapolation to infinity 
+! at low fractions  ... meaningless
+         xxx=varres%d2gval(ixsym(ii,jj),1)-yyy+backstop
+!         if(xxx.gt.1.0d2) xxx=1.0d2
+!         write(*,*)'3F index Hessian: ',icol,jrow,ixsym(icol,jrow)
+         hessian(ixsym(icol,jrow))=xxx
+!              varres%yfr(ii)*varres%yfr(jj)*(varres%d2gval(ixsym(ii,jj),1)-&
+!              yyy+backstop)
+!         write(*,'(a,4i3,4(1pe12.4))')'3F hessian ',icol,jrow,ii,jj,&
+!              hessian(ixsym(icol,jrow)),varres%d2gval(ixsym(ii,jj),1),&
+!              -yyy,backstop
+! limit the terms in the Hession ...
+         icol=icol+1
+      enddo loop2
+      jrow=jrow+1
+      icol=jrow
+   enddo loop1
+! if ncol > 1 calculate eigenvalues
+   if(ncol.eq.1) then
+      value=hessian(1)
+      goto 1000
+   endif
+   if(debug) then
+      do ii=1,ncol
+         write(*,'("3F Hessian: ",5(1pe12.4))')(hessian(ixsym(jj,ii)),jj=1,ncol)
+      enddo
+   endif
+! use LAPACK routine, note Hessian is destroyed inside dspev
+   allocate(eigenval(ncol))
+! work is work array at least 2*ncol, info is return code
+   allocate(work(2*ncol))
+   info=0
+! 'N' means only eigenvalues, 'U' means Hessian is upper triangle
+! ncol is dimension of Hessian, eigenval is calculated, 
+! dummy values for eigenvect, 1
+   call dspev('N','U',ncol,hessian,eigenval,eigenvect,1,work,info)
+   if(info.eq.0) then
+      if(debug) write(*,120)(eigenval(ii),ii=1,ncol)
+120   format('Eigenvalues: ',6(1pe10.2))
+! return the first value, negative if unstable
+      value=eigenval(1)
+   else
+      value=zero
+      write(*,*)'Error calculating eigenvalues of phase matrix',info
+      gx%bmperr=4321
+   endif
+!   
+1000 continue
+! basically we are only interested if value is <0 or >0 ...
+   if(value.gt.1.0D2) then
+      value=1.0D2
+   elseif(value.lt.-1.0D2) then
+      value=-1.0D2
+   endif
+   return
+ end subroutine calc_qf_romain_old
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
 !\addtotable subroutine calc_qf_otis
 !\begin{verbatim}
  subroutine calc_qf_otis(lokcs,value,ceq)
+! NOT USED -----------------------------
 ! calculates eigenvalues of the second derivative matrix, stability function
 ! using Otis reduced Hessian method.  Should work indpent of model!!
 ! lokcs is index of phase_varres
@@ -2863,6 +3238,7 @@
 ! Step 1: Jacobian: ncol columns, mrow rows
    value=zero
    allocate(jac(ncol,mrow))
+   jac=zero
 !
 ! Step 2: QR factorisation, n>m
    allocate(tau(ncol))
@@ -2930,6 +3306,7 @@
 !\addtotable subroutine calc_qf_sub
 !\begin{verbatim}
  subroutine calc_qf_sub(lokcs,value,ceq)
+! NOT USED -----------------------------
 ! calculates eigenvalues of the second derivative matrix, stability function
 ! using the Darken matrix with second derivatives: OK FOR SUBSTITUTIONAL
 ! lokcs is index of phase_varres
@@ -3069,7 +3446,9 @@
 !\addtotable subroutine calc_qf_old
 !\begin{verbatim}
  subroutine calc_qf_old(lokcs,value,ceq)
+! NOT USED -----------------------------
 ! calculates eigenvalues of the second derivative matrix, stability function
+! this old version that seems to work for Ag-Cu ...
 ! lokcs is index of phase_varres
 ! value calculated value returned
 ! ceq is current equilibrium
@@ -3086,6 +3465,7 @@
    integer, allocatable :: skip(:)
 ! number of constituents
 ! ignore sublattices with single constituents ....
+!   write(*,*)'3F in calc_qf_old: '
    nofc=size(ceq%phase_varres(lokcs)%yfr)
    lokph=ceq%phase_varres(lokcs)%phlink
    nsl=phlista(lokph)%noofsubl

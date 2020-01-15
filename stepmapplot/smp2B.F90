@@ -1,4 +1,5 @@
-! included in smp2.F90
+! included in smp2.F90.  Generating graphics using GNUPLOT
+
 !\addtotable subroutine ocplot2
 !\begin{verbatim}
   subroutine ocplot2(ndx,maptop,axarr,graphopt,version,ceq)
@@ -44,15 +45,15 @@
     integer, dimension(:), allocatable :: nonzero,linzero,linesep
 !    integer, dimension(:), allocatable :: linesep
 ! encoded2 stores returned text from get_many ... 2048 is too short ...
-    character encoded2*8000
 ! selphase used when plotting data just for a selected phase like y(fcc,*)
-    character statevar*64,encoded1*1024,selphase*24
+    character statevar*64,encoded1*1024,encoded2*4096,selphase*24
     character*64, dimension(:), allocatable :: phaseline
     integer i,ic,jj,k3,kk,kkk,lokcs,nnp,np,nrv,nv,nzp,ip,nstep,nnv,nofapl
     integer nr,line,next,seqx,nlinesep,ksep,iax,anpax,notanp,appfil
     double precision xmax,xmin,ymax,ymin,value,anpmin,anpmax
 ! lhpos is last used position in lineheader
     integer giveup,nax,ikol,maxanp,lcolor,lhpos,repeat,anpdim,qp
+    integer nix,ixpos(50),stoichfix,invlines
     character date*8,mdate*12,title*128,backslash*2,lineheader*1024
     character deftitle*128,labelkey*64
     logical overflow,first,last,novalues,selectph,varofun,moretops
@@ -63,6 +64,18 @@
     character*16, dimension(:), allocatable :: lid
 !
 !    write(*,*)'In ocplot2, looking for segmentation fault 1'
+! transfer from graphics record to local variables
+! initiate lines_excluded
+    lines_excluded=0
+! create the terminal plot_line record
+    allocate(lastplotline)
+    nullify(lastplotline%nextline)
+    lastplotline%type=-1
+    plotline1=>lastplotline
+! when creating a new plotline: ??
+! 1: allocate(plotline%nextline)
+! 2: plotline%nextline%nextline=>plotline1
+! 3: ploline1=>plotline1%nextline
 ! transfer from graphics record to local variables
     pltax(1)=graphopt%pltax(1)
     pltax(2)=graphopt%pltax(2)
@@ -127,6 +140,7 @@
     nlinesep=1
     phaseline(1)=' '
     phaseline(2)=' '
+! nv is number of values to plot
     nv=0
 ! min and max not used by gnuplot but may be useful if plotpackage change
 ! or for manual scaling.
@@ -143,10 +157,12 @@
     do iax=1,2
 !       write(*,*)'Allocating for axis: ',iax
        call capson(pltax(iax))
-       if(index(pltax(iax),'*').gt.0) then
+       wildcard1: if(index(pltax(iax),'*').gt.0) then
           if(wildcard) then
              write(*,*)'in OCPLOT2 one axis variable with wildcard allowed'
              goto 1000
+!          else
+!             write(*,*)'Wildcard on axis ',iax,np,nrv
           endif
 ! wildcards allowed only on one axis, we do not know how many columns needed
 ! allocate as many array elements as columns
@@ -173,16 +189,21 @@
           nonzero=0
           wildcard=.TRUE.
           anpax=iax
+! we can have wildcards as np(*), w(fcc,*) or w(*,cr) or y(gas,*)
+! IT IS NOT ALLOWED TO HAVE y(*,*) ... only one wildcard
 ! when we plot things like y(fcc,*) we should only select equilibria
-! with fcc stable. Such state variables contain a ","
+! with fcc stable. Check if * is before or after a ,
+! NOTE that a single * without , can be phase or component:
+! MU(*) is for a component
           ikol=index(pltax(iax),',')
           if(ikol.gt.0) then
 ! if the * is after the , then extract the phase name before             
+! and set selecrph to TRUE
              if(pltax(iax)(ikol+1:ikol+1).eq.'*') then
                 nrv=index(pltax(iax),'(')
                 if(nrv.lt.ikol) then
                    selphase=pltax(iax)(nrv+1:ikol-1)
-                   write(*,*)'SMP2B wildcard selected phase: ',trim(selphase)
+!                   write(*,*)'SMP2B wildcard selected phase: ',trim(selphase)
                    selectph=.TRUE.
                 endif
              endif
@@ -190,7 +211,7 @@
 ! this is perfectly possible, for example NP(*)
 !             write(*,*)'SMP2B: Wildcard without ,!'
           endif
-       endif
+       endif wildcard1
     enddo
     if(.not.wildcard) then
        anpdim=1
@@ -256,6 +277,7 @@
 ! skip line if EXCLUDEDLINE set
        if(btest(mapline%status,EXCLUDEDLINE)) then
 !          write(*,*)'Skipping a line 3'
+          lines_excluded=lines_excluded+1
           if(line.lt.mapnode%lines) then
              line=line+1
              goto 100
@@ -280,6 +302,7 @@
 !       write(*,*)'Axis with wildcard and not: ',anpax,notanp
 !200    continue
 ! this is the loop for all equilibria in the line
+!       write(*,*)'SMP2: nr and nv: ',nr,nv
        plot1: do while(nr.gt.0)
           nv=nv+1
           if(nv.ge.maxval) then
@@ -311,11 +334,11 @@
 ! data for a specific phase like y(fcc#4,*) which is not stable??
                          if(abbr_phname_same(dummy,trim(selphase))) then
                             novalues=.FALSE.
-!                            write(*,*)'SMP2B novalues FALSE',mapline%lineid
+!                            write(*,*)'SMP2B novalues set FALSE',mapline%lineid
                             exit phloop
                          else
                             novalues=.TRUE.
-!                            write(*,*)'SMP2B novalues TRUE',mapline%lineid
+!                            write(*,*)'SMP2B novalues set TRUE',mapline%lineid
                          endif
                       endif
                       if(.not.novalues) then
@@ -357,7 +380,8 @@
 ! second axis
           statevar=pltax(anpax)
 !          varofun=.FALSE.
-!          write(*,*)'In ocplot2, segmentation fault after 4B ',wildcard
+!          write(*,*)'In ocplot2: wildcard, selectph and novalues:',&
+!               wildcard,selectph,novalues
           if(wildcard) then
 ! NEW ignore data for this equilibrium if NOVALUES is TRUE
 ! because "selphase" not equal to the stable phase found above
@@ -377,6 +401,10 @@
 ! probably because new composition set created
                 call get_many_svar(statevar,yyy,nzp,np,encoded2,curceq)
 !                write(*,*)'In ocplot2, segmentation fault search: '
+                if(gx%bmperr.ne.0) then
+                   write(*,*)'Error return from "get_many_svar',gx%bmperr
+                   goto 1000
+                endif
 ! compiling without -finit-local-zero gives a segmentation fault here
 ! running the MAP11 macro
                 qp=np
@@ -386,9 +414,34 @@
 !                   write(*,*)'SMP2B: number of values: ',trim(selphase),np,nv
 !223                format(a,i3,8F8.4)
 !                endif
-                if(gx%bmperr.ne.0) then
-                   write(*,*)'yaxis error: "',trim(statevar),'"'
-                   goto 1000
+                nix=np
+! This quite complicated IF is to handle the case when the wildcard is
+! is a phase or component
+!                write(*,*)'SMP stvarix: ',trim(statevar),selectph
+                if(statevar(1:2).EQ.'MU' .or. &
+                     statevar(1:2).EQ.'AC' .or. statevar(1:4).EQ.'LNAC' .or. &
+                     selectph.and.(&
+                     statevar(1:2).EQ.'N(' .or. statevar(1:2).EQ.'B(' .or. &
+                     statevar(1:2).EQ.'X(' .or. statevar(1:2).EQ.'X%' .or. &
+                     statevar(1:2).EQ.'W(' .or. statevar(1:2).EQ.'W%')) then
+! for the state variables MU(*), AC(*), LNAC(*), N(*), X(*), W(*) the *
+! means component, not phase, set selectph=.FALSE.
+!                   write(*,*)'SMP Wildcard means component! ',trim(statevar),np
+! not calling stvarix, all values should be included
+                   ixpos=1
+                elseif(.not.selectph) then
+!                elseif(selectph) then
+! this routine supress values for phases that are not relevant ...
+! IT SHOULD NOT BE USED FOR CASES LIKE Y(GAS,*)
+                   call stvarix(statevar,phaseline(nlinesep),encoded2,nix,ixpos)
+                   if(gx%bmperr.ne.0) then
+                      write(*,*)'yaxis error: "',trim(statevar),'"'
+                      goto 1000
+                   endif
+!                   write(*,9001)nix,(ixpos,jj=1,nix)
+!9001               format('SMP ixpos: ',i5,30i2)
+                else
+                   ixpos=1
                 endif
              endif
 !             write(*,*)'On ocplot2, segmentation fault 4D1'
@@ -413,21 +466,15 @@
                    endif
                 else
 ! trying to avoid plotting a line at zero for unstable/unused state variables 
+! now we have used stvarix to identify the relevant phases
                    if(yyy(jj).eq.zero) then
-!                      if(nax.eq.1) then
-! FOR STEP calculations try to make the ending of a property at zero ...
-! This is for STEP 1 figure 3
-! BUT it did not work, many strange lines appeared in other plots ...
-!                         if(nv.gt.1 .and. abs(anp(jj,nv-1)).ne.zero) then
-! Hm, we cannot set anp(jj,nv) to zero because then all will be zero ...
-!                            anp(jj,nv-1)=zero
-!                         else
-!                            anp(jj,nv)=rnone
-!                         endif
-!                      else
+                      if(ixpos(jj).eq.0) then
+! for STEP calculations try to make the ending a property at zero
 ! for MAP calculations just ignore the point ... also for STEP ...
                          anp(jj,nv)=rnone
-!                      endif
+                      else
+                         anp(jj,nv)=zero
+                      endif
                    else
 ! Hm, jumps from zero to finite values in step1, fig 3 plotting w(phase,cr) ..
 !                      if(nv.gt.1 .and. anp(jj,nv-1).eq.rnone) then
@@ -435,13 +482,17 @@
 !                      endif
                       anp(jj,nv)=yyy(jj)
                    endif
-                   if(abs(yyy(jj)).gt.zero) then
+! difficult ...
+!                   if(abs(yyy(jj)).gt.zero) then
+!                   write(*,9000)rnone,yyy(jj),jj,ixpos(jj),ikol
+!9000               format('SMP lid: ',e10.4,2x,e10.4,10i4)
+                   if(yyy(jj).ne.rnone .and. ixpos(jj).ne.0) then
+! ths is the trick to supress lines for phases that are never stable
                       nonzero(jj)=1
                       linzero(jj)=1
 ! save the first column with nonzero for use with invariants
                       if(ikol.eq.0) ikol=jj
                       if(anp(jj,nv).gt.anpmax) anpmax=anp(jj,nv)
-!                      if(anp(jj,nv).lt.anpmin) anpmin=anp(jj,nv)
                       if(anp(jj,nv).ne.rnone .and. &
                            anp(jj,nv).lt.anpmin) anpmin=anp(jj,nv)
 ! extract state variable jj
@@ -455,7 +506,6 @@
                       kk=len_trim(encoded1)
                       if(kk.gt.len(lid(jj))) then
                          lid(jj)(7:)='..'//encoded1(kk-6:kk)
-                      else
                       endif
                    else
 ! skip state variable
@@ -521,14 +571,15 @@
        enddo plot1
 220    continue
 ! finished one line
-!       write(*,*)'In ocplot2, segmentation fault 4F'
-       if(nax.gt.1) then
+!       write(*,*)'SMP2B at 220: nr and nv: ',nr,nv
+       invariant_lines: if(nax.gt.1) then
 !---------------------------------------------------------------
 !------------------ special for invariant lines
 !---------------------------------------------------------------
 ! for phase diagram always move to the new line 
           map1: if(nlinesep.ge.1) then
              if(linesep(nlinesep).lt.nv) then
+!             if(linesep(nlinesep).le.nv) then
 ! we should never have several linesep for the same value of nv!
                 nlinesep=nlinesep+1
                 linesep(nlinesep)=nv
@@ -546,10 +597,15 @@
                       write(*,*)'SMP equilibrium not saved, skipping'
                       goto 222
                    endif
+! This is a check for node with 2 stoichiometric phases, if so skip first line
+!                   if(invar%artxe.eq.1) then
+!                      write(*,*)'Found node with 2 stoichiomeric phases'
+!                   endif
                    curceq=>results%savedceq(invar%savednodeceq)
 !-------------------
-! get the names of stable phases
+! get the names of stable phases from the node equilibrium record
                    kk=1
+                   stoichfix=0
                    do jj=1,noph()
                       do ic=1,noofcs(jj)
                          k3=test_phase_status(jj,ic,value,curceq)
@@ -560,9 +616,15 @@
                             call get_phase_name(jj,ic,dummy)
                             phaseline(nlinesep)(kk:)=dummy
                             kk=len_trim(phaseline(nlinesep))+2
+                            stoichfix=stoichfix+1
                          endif
                       enddo
                    enddo
+                   if(stoichfix.gt.3) then
+                      write(*,*)'SMP2B too many stable phases at invariant',&
+                           stoichfix
+                      stoichfix=3
+                   endif
 !                   write(*,117)nlinesep,phaseline(nlinesep)(1:kk-1)
 !-------------------
 ! axis without wildcard
@@ -576,14 +638,18 @@
                            statevar,curceq%tpval(1),nv,0
                       goto 222
                    endif
-                   nv=nv+3
+! This is tielines inplane, normally 3 lines to generate
+! but when 2 stoichiometric phass with same composition one is not set stable
+!                   nv=nv+3
+! NOTE if not wildcard nv is decremented in next "else" statement
+                   nv=nv+stoichfix
                    if(nv.ge.maxval) then
                       write(*,*)'Too many points to plot 2',maxval
                       goto 600
                    endif
-                   xax(nv-2)=value
-                   xax(nv-1)=value
-                   xax(nv)=value
+                   do invlines=0,stoichfix-1
+                      xax(nv-invlines)=value
+                   enddo
 !                   write(*,335)'New line: ',nlinesep,nv,linesep(nlinesep),&
 !                        statevar(1:5),value
 335                format(a,3i4,' <',a,'> ',3(1pe14.6))
@@ -591,22 +657,23 @@
                    statevar=pltax(anpax)
 !                   write(*,*)'In ocplot2, segmentation fault 4H'
                    if(wildcard) then
+
 ! this cannot be a state variable derivative
 !                    write(*,*)'Getting a wildcard value 2: ',nr,statevar(1:20)
                       call get_many_svar(statevar,yyy,nzp,np,encoded2,curceq)
                       if(gx%bmperr.ne.0) goto 1000
+! we have to handle axis values that are zero what is np here???
+                      nix=np
+                      call stvarix(statevar,phaseline(nlinesep),&
+                           encoded2,nix,ixpos)
+                      if(gx%bmperr.ne.0) goto 1000
 ! save one non-zero value per line, 3 lines
                       ic=0
                       do jj=1,np
-! we have put anp to zero above ??
-!                         anp(jj,nv-2)=zero
-!                         anp(jj,nv-1)=zero
-!                         anp(jj,nv)=zero
-                         if(yyy(jj).ne.zero) then
+! np is the number of values retrieved by get_many_svar
+! only those with nonzero values in ixpos should be used, one per line.
+                         if(ixpos(jj).ne.0) then
                             anp(ikol,nv-ic)=yyy(jj)
-!                            write(*,7)nv-ic,jj,ikol,yyy(jj),anp(ikol,nv-ic)
-7                           format('Nonzero value line ',i3,' column ',i3,&
-                                 ' placed in column ',i3,2(1pe12.4))
                             ic=ic+1
                          endif
                       enddo
@@ -620,19 +687,21 @@
                    else
 ! if no wildcard there is no invariant line
 !                      write(*,*)'It can be an invariant point here!!'
-                      nv=nv-3
+                      nv=nv-stoichfix
                       goto 225
                    endif
                 endif inv
 222             continue
+!             else
+!                write(*,*)'No line as linesep(nlinesep)=nv ...
              endif
           endif map1
 ! jump here if no wildcard
 225       continue
-       endif
+       endif invariant_lines
 !---- take next node along the same line
 230    continue
-!       write(*,*)'In ocplot2, looking for segmentation fault 4L'
+!       write(*,*)'SMP2B at 230: nr and nv: ',nr,nv
        kk=seqx
        if(associated(mapline%end)) then
           seqx=mapline%end%seqx
@@ -673,6 +742,7 @@
              if(.not.btest(mapline%status,EXCLUDEDLINE)) then
                 if(mapline%done.eq.0) goto 110
              else
+                lines_excluded=lines_excluded+1
 !                write(*,*)'Skipping a line 2'
              endif
 !             if(mapline%done.eq.0) goto 110
@@ -748,11 +818,13 @@
 ! if a selected phase has been plotten np and qp may be different
 ! select the largest!
        nnp=max(np,qp)
-!       write(*,*)'wildcard 3: ',wildcard,np,qp,nnp
+!       write(*,651)'SMP wildcard, np=, qp, nnp, ic: ',wildcard,np,qp,nnp,ic
+651    format(a,l2,10i5)
 !------------------------------------------ begin loop 650
 650    ic=ic+1
 660       continue
           if(ic.gt.nnp) goto 690
+! nonzero(ic) is a column with nonzero value to plot ... redundant??
           if(nonzero(ic).eq.0) then
 ! shift all values from ic+1 to np
              if(nnp.gt.maxanp) then
@@ -790,6 +862,7 @@
 ! nnp is the number of columns to plot
 ! nv is the number of separate lines
 690 continue
+!       write(*,651)'SMP at 690:                 ',wildcard,np,qp,nnp,ic
        nrv=nv
        np=nnp
 !       goto 800
@@ -803,18 +876,6 @@
        goto 1000
     endif
 !------------------------------------------------------------
-! copy from lineheader to lid, each item separated by a space
-!    allocate(lid(np))
-! at present I have no idea what is in the lines ... just set numbers
-!    kk=1
-!    do i=1,np
-!       call wriint(lineheader,kk,i)
-!       kk=kk+1
-!    enddo
-!    kk=0
-!    do i=1,np
-!       call getext(lineheader,kk,1,lid(i),'x ',lhpos)
-!    enddo
     if(.not.allocated(lid)) then
 !       if(np.ge.1) then
 ! lid should always be allocated if np>1, but ... one never knows 
@@ -889,7 +950,7 @@
 ! title Title of the plot
 ! filename GNUPLOT file name, (also used for pdf/ps/gif file)
 ! graphopt is graphical option record
-! NOT USED: pform is output form (scree/acrobat/postscript/git)
+! NOT USED: pform is output form (screen/acrobat/postscript/gif)
 ! conditions is a character with the conditions for the diagram
     implicit none
     integer np,anpax,nlinesep
@@ -991,6 +1052,21 @@
          'set style line 8 lt 2 lc rgb "#00FFFF" lw 2 pt 8'/&
          'set style line 9 lt 2 lc rgb "#804080" lw 2 pt 9'/&
          'set style line 10 lt 2 lc rgb "#7CFF40" lw 2 pt 1')
+! add some useful things for maniplulation of graph
+    write(21,8000)
+8000 format(/'# Some useful GNUPLOT commands for editing the figure'/&
+          '# This is a dashed line (on pdf/wxt):'/&
+          '# set style line 15 lt 0 lc rgb "C8C800" lw 2 pt 2'//&
+          '# set pointsize 0.6'/&
+          '# set label "text" at 0.5, 0.5 rotate by 60 font "arial,12"'/&
+          '# set xrange [0.5 : 0.7] '/&
+          '# Adding manually a line and keep scaling:'/&
+          '# set multiplot'/&
+          '# set xrange [] writeback'/&
+          '#  ... plot someting'/&
+          '# set xrange restore'/&
+          '#  ... plot more using same axis scaling '/&
+          '# set nomultiplot'/)
 !
     if(graphopt%rangedefaults(1).ne.0) then
 ! user defined ranges for x axis
@@ -1205,12 +1281,12 @@
        if(nv.eq.linesep(ksep)) then
 ! an empty line in the dat file means a MOVE to the next point.
           if(nv.lt.nrv) then
-             write(21,3819)ksep-1
-3819         format('# end of line ',i2//)
+             write(21,3819)ksep-1,trim(phaseline(ksep-1))
+3819         format('# end of line ',i3,2x,a//)
           else
 ! try to avoid rubbish
-             write(21,3821)
-3821         format('# end of line '//)
+             write(21,3821)ksep-1,trim(phaseline(ksep-1))
+3821         format('# end of line ',i3,2x,a//)
           endif
 ! test of uninitiallized variable, ksep must not exceed nlinesep
           ksep=min(ksep+1,nlinesep)
@@ -1302,7 +1378,9 @@
     if(graphopt%gnutermsel.ne.1) then
        write(kou,*)'Graphics output file: ',pfh(1:kk+4)
     endif
-! GRWIN is set by compiler option, if 1 we are running microspft windows
+! plotonwin is set by compiler option, if 1 we are running microspft windows
+    if(lines_excluded.gt.0) write(kou,11)lines_excluded
+11  format('SMP Some calculated lines are excluded from the plot',i5)
     if(plotonwin.eq.1) then
 ! call system without initial "gnuplot " keeps the window !!!
        if(btest(graphopt%status,GRKEEP)) then
@@ -1366,13 +1444,14 @@
     double precision, allocatable :: xval(:,:),yval(:,:),zval(:,:),tieline(:,:)
     integer offset,nofeq,sumpp,last,nofinv,ntieline,mtieline,noftielineblocks
     double precision xxx,yyy
+    character*64, dimension(:), allocatable :: phaseline
 ! TO BE REPLACED BY GNUTERMSEL: pform
 !    character pform*8
     integer, allocatable :: plotkod(:),lineends(:)
     character xax1*8,xax2*24,yax1*8,yax2*24,axis1*32,axisx(2)*32,axisy(2)*32
     character phname*32,encoded*1024,axis*32
     character lid(2,maxsame)*24
-    integer nooflineends
+    integer nooflineends,ephl
 !
 ! do not change mastertop!
     maptop=>mastertop
@@ -1382,15 +1461,17 @@
 ! zval is an occational point zval(1,kk),zval(2,kk) at line ends (invariants)
 ! plotkod is a specific code for each point (not used?)
 ! lineends is the index in xval/yval for an end of line
+    if(.not.associated(maptop)) then
+       write(*,*)'No data to plot'
+       goto 1000
+    endif
     allocate(xval(2,maxval))
     allocate(yval(2,maxval))
     allocate(plotkod(maxval))
     allocate(zval(2,maxsame))
     allocate(lineends(maxsame))
-    if(.not.associated(maptop)) then
-       write(*,*)'No data to plot'
-       goto 1000
-    endif
+! phaseline is the name of the phases stable along a line
+    allocate(phaseline(maxsame))
     nooflineends=0
 !    write(*,17)
 17  format(//'Using ocplot3')
@@ -1477,6 +1558,7 @@
              cycle node
           endif
           jj=1
+          ephl=1
           equil: do jph=1,nooftups
              lokcs=phasetuple(jph)%lokvares
              call get_phasetup_name(jph,phname)
@@ -1498,6 +1580,8 @@
 ! if we save the axis text ...
                 plotkod(plotp)=same
                 call get_phasetup_name(jph,phname)
+                phaseline(same)(ephl:)=phname
+                ephl=min(len_trim(phaseline(same))+2,62)
                 if(same.gt.last) then
                    lid(jj,same)=phname
                 endif
@@ -1576,6 +1660,7 @@
        if(ntieline.gt.0) then
 ! All tielines on the same line with a space in between
           same=same+1
+          phaseline(same)='tie-line'
           do eqindex=1,ntieline
              plotp=plotp+1
              if(plotp.gt.maxval) then
@@ -1622,12 +1707,15 @@
           endif
           jj=1
           same=same+1
+          ephl=1
           nodeequil: do jph=1,nooftups
              lokcs=phasetuple(jph)%lokvares
              if(curceq%phase_varres(lokcs)%phstate.ge.PHENTSTAB) then
 ! plotkod set to -1 to indicate monovariant (not invariant)
                 plotkod(plotp)=-1
                 call get_phasetup_name(jph,phname)
+                phaseline(same)(ephl:)=phname
+                ephl=min(len_trim(phaseline(same))+2,62)
 !                write(*,*)'Stable phase ',trim(phname),jj
 !                if(jj.lt.3) lid(jj,same)='invariant'
                 if(jj.lt.3) lid(jj,same)='monovariant'
@@ -1684,7 +1772,7 @@
     if(graphopt%labeldefaults(2).ne.0) pltax(1)=graphopt%plotlabels(2)
     if(graphopt%labeldefaults(3).ne.0) pltax(2)=graphopt%plotlabels(3)
     call ocplot3B(same,nofinv,lineends,2,xval,2,yval,2,zval,plotkod,pltax,&
-         lid,filename,graphopt,version,encoded)
+         lid,phaseline,filename,graphopt,version,encoded)
     deallocate(xval)
     deallocate(yval)
     deallocate(plotkod)
@@ -1694,10 +1782,9 @@
 
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 
-!\addtotable subroutine ocplot3B
 !\begin{verbatim} %-
   subroutine ocplot3B(same,nofinv,lineends,nx1,xval,ny1,yval,nz1,zval,plotkod,&
-       pltax,lid,filename,graphopt,version,conditions)
+       pltax,lid,phaseline,filename,graphopt,version,conditions)
 ! called by ocplot3 to write the GNUPLOT file for two wildcard columns
 ! same is the number of lines to plot
 ! nofinv number of monovariants (not invariants)
@@ -1711,6 +1798,7 @@
 ! plotkod integer array indicating the type of line (-1 skip line)
 ! pltax text for axis
 ! lid array with GNUPLOT line types
+! phaseline is phase names of phase stable along the line
 ! filename is intermediary file (maybe not needed)
 ! graphopt is graphics option record
 ! maptop is map_node record with all results
@@ -1720,6 +1808,7 @@
 !    character pltax(*)*(*),filename*(*),pform*(*),lid(nx1,*)*(*),conditions*(*)
     character pltax(*)*(*),filename*(*),lid(nx1,*)*(*),conditions*(*)
     character version*(*)
+    character phaseline(*)*(*)
     type(graphics_options) :: graphopt
     integer same,plotkod(*),nx1,ny1,nz1,nofinv
     integer lineends(*)
@@ -1921,6 +2010,22 @@
          'set style line 8 lt 2 lc rgb "#00C000" lw 2 pt 8'/&
          'set style line 9 lt 2 lc rgb "#C0C0C0" lw 2 pt 1'/&
         'set style line 10 lt 2 lc rgb "#DAA520" lw 2 pt 4')
+! add some useful things for manual maniplulation of graph
+    write(21,8000)
+8000 format(/'# Some useful GNUPLOT commands for editing the figure'/&
+          '# This is a dashed line (on pdf/wxt):'/&
+          '# set style line 15 lt 0 lc rgb "C8C800" lw 2 pt 2'//&
+          '# set pointsize 0.6'/&
+          '# set label "text" at 0.5, 0.5 rotate by 60 font "arial,12"'/&
+          '# set xrange [0.5 : 0.7] '/&
+          '# Adding manually a line and keep scaling:'/&
+          '# set multiplot'/&
+          '# set xrange [] writeback'/&
+          '#  ... plot someting'/&
+          '# set xrange restore'/&
+          '#  ... plot more using same axis scaling '/&
+          '# set nomultiplot'/)
+!
 !         'set style line 10 lt 2 lc rgb "#00FFFF" lw 2 pt 10'/&
 ! orange is #FF4500
 ! goldenrod hex: DAA520"
@@ -2480,9 +2585,9 @@
              write(21,549)zval(1,foundinv),zval(2,foundinv)
              write(21,549)xval(1,sumpp),yval(1,sumpp)
 ! we are at the end of a line, write a blank line
-             write(21,548)jj
-548          format('e '//'# end of monovariant',2i5)
-!548          format('e '//'# end of invariant',2i5)
+             write(21,548)jj,trim(phaseline(jj))
+!             write(21,548)jj
+548          format('e '//'# end of monovariant',i5,2x,a/)
           else
 ! this is the beginning of a line to be plotted
              if(lcolor(jj).eq.12) then
@@ -2503,8 +2608,9 @@
 552             format(1x)
              enddo
 ! we are at the end of a line, write a blank line
-             write(21,551)jj
-551          format('e '//'# end of line',2i5)
+             write(21,551)jj,trim(phaseline(jj))
+!             write(21,551)jj
+551          format('e '//'# end of line',i5,2x,a/)
           endif
        enddo
     enddo
@@ -2561,6 +2667,8 @@
     if(graphopt%gnutermsel.ne.1) then
        write(*,*)'Graphics output file: ',trim(pfh)
     endif
+    if(lines_excluded.gt.0) write(kou,11)lines_excluded
+11  format('SMP Some calculated lines excluded from the plot',i5)
 ! plotonwin set by compiler option, 1 means windows 
     if(plotonwin.eq.1) then
        if(btest(graphopt%status,GRKEEP)) then
@@ -2739,7 +2847,7 @@
 !\addtotable subroutine get_plot_conditions
 !\begin{verbatim}
   subroutine get_plot_conditions(text,ndx,axarr,ceq)
-! extacts the conditions from ceq and replaces those that are axis variables
+! extracts the conditions from ceq and replaces those that are axis variables
     implicit none
     character text*(*)
     integer ndx
@@ -2778,6 +2886,13 @@
 !          write(*,*)'Cannot find: ',symbol(1:ip-1),' in ',trim(text)
        endif
     enddo
+! if line too long (>200) divide in middle
+    jj=len_trim(text)/2
+    if(jj.gt.100) then
+       write(*,*)'Dividing condition twxt in the middle',jj
+       text(jj+4:)=text(jj:)
+       text(jj:jj+3)=' \n '
+    endif
 1000 continue
     return
   end subroutine get_plot_conditions
@@ -2861,10 +2976,12 @@
     type(map_node), pointer :: mapnode,localtop
     type(gtp_equilibrium_data), pointer :: thisceq
     type(gtp_condition), pointer :: pcond
-    integer kl,ll,jax,nax
+    type(meq_setup), pointer :: lineeq
+    integer kl,ll,jax,nax,jj,jk,phtupix
     double precision, dimension(:), allocatable :: axxx
     type(gtp_state_variable), pointer :: svrrec
     logical once
+    character*100 phases
 !
     if(.not.associated(maptop)) then
        write(kou,*)'No stored equilibria'
@@ -2891,9 +3008,10 @@
 ! list all mapnodes for this step/map command
 100 continue
 !    mapnode=>localtop
-    write(kou,101)mapnode%seqx,mapnode%noofstph,mapnode%savednodeceq
-101 format(' Mapnode: ',i5,' with ',i2,' stable phases, ceq saved in ',i5)
-    write(*,*)'Number of exit lines: ',mapnode%lines
+    write(kou,101)mapnode%seqx,mapnode%noofstph,mapnode%savednodeceq,&
+         mapnode%lines
+101 format(' Mapnode: ',i5,' with ',i2,' stable phases, ceq saved in ',i5,&
+         ', lines exit: ',i2)
     do kl=1,mapnode%lines
        if(.not.associated(mapnode%linehead(kl)%end)) then
           if(mapnode%linehead(kl)%termerr.gt.0) then
@@ -2919,6 +3037,21 @@
           cycle
        endif
        ll=mapnode%linehead(kl)%first
+! BOS 191224 add phase names
+       lineeq=>mapnode%linehead(kl)%meqrec
+       phases=' '
+       jk=1
+       do jj=1,lineeq%nstph
+          phtupix=lineeq%phr(lineeq%stphl(jj))%phtupix
+          if(jk.lt.72) then
+             call get_phasetup_name(phtupix,phases(jk:))
+             jk=len_trim(phases)+2
+          else
+             phases(jk:)=' ... more'
+          endif
+       enddo
+       write(*,*)'Phases: ',trim(phases)
+! BOS 191224 end add phase names
 !       write(*,*)'list first equilibrium ',ll
 !       write(*,*)'axis: ',mapnode%number_ofaxis
        if(.not.allocated(results%savedceq)) then
@@ -2997,6 +3130,7 @@
     integer kl,ll,jax,last,nax
     double precision, dimension(:), allocatable :: axxx
     type(gtp_state_variable), pointer :: svrrec
+    logical all
 !
     if(.not.associated(maptop)) then
        write(kou,*)'No stored equilibria'
@@ -3016,6 +3150,13 @@
 ! return here if %plotlink is not empty
 ! each plotlink has its own results link to saveceq
 99  continue
+    last=len(cline)
+    call gparcdx('Only excluded? ',cline,last,1,ch1,'Y','?PLOT options')
+    if(ch1.eq.'Y') then
+       all=.FALSE.
+    else
+       all=.TRUE.
+    endif
 ! there can be lines associated with several maptops
 ! but I have trouble finding them.  They should be linked by plotlink
     mapnode=>localtop
@@ -3066,40 +3207,17 @@
 120       format('  Line ',i3,' with ',i5,' equilibria ending at node ',i3/&
                2x,a,' with phases: ',a)
        endif
-!       write(*,*)'mapnode%linehead%first: '
        ll=mapnode%linehead(kl)%first
-!       write(*,*)'axis conditions: ',ll,axarr(1)%seqz,axarr(2)%seqz
-!       if(.not.btest(mapnode%linehead(kl)%status,EXCLUDEDLINE)) then
-!          if(.not.allocated(results%savedceq)) then
-!             write(*,*)'Cannot find link to saved equilibria! '
-!          else
-!             write(*,*)'Loop for all equlibria'
-!             do while(ll.gt.0)
-!                thisceq=>results%savedceq(ll)
-!                write(*,*)'thisceq pointer set',ll
-!                do jax=1,nax
-!                   call locate_condition(axarr(jax)%seqz,pcond,thisceq)
-!                   if(gx%bmperr.ne.0) goto 1000
-!                   write(*,*)'local_condition NOT OK'
-!                   svrrec=>pcond%statvar(1)
-!                   call state_variable_val(svrrec,axxx(jax),thisceq)
-!                   if(gx%bmperr.ne.0) goto 1000
-!                   write(*,*)'state variable found OK'
-!                enddo
-!                write(kou,150)ll,thisceq%next,thisceq%tpval(1),axxx
-!150             format('     Saved ceq ',2i5,f8.2,5(1pe14.6))
-!                ll=thisceq%next
-!             enddo
-!          endif
-!       endif
 ! if deleted ask for Restore, else ask for Keep or Delete
        last=len(cline)
        if(btest(mapnode%linehead(kl)%status,EXCLUDEDLINE)) then
-          call gparcdx('Include this line? ',cline,last,1,ch1,'N',&
+          call gparcdx(' *** Include this line? ',cline,last,1,ch1,'N',&
                '?PLOT options')
-       else
+       elseif(all) then
           call gparcdx('Exclude this line? ',cline,last,1,ch1,'N',&
                '?PLOT options')
+       else
+          cycle lineloop
        endif
        if(biglet(ch1).eq.'Y') then
           if(btest(mapnode%linehead(kl)%status,EXCLUDEDLINE)) then
@@ -3115,12 +3233,8 @@
           goto 1000
        endif
     enddo lineloop
-!    write(kou,160)mapnode%seqx,mapnode%previous%seqx
-!160 format('Current node: ',i2,' followed by: ',i2)
     mapnode=>mapnode%previous
-!    if(.not.associated(mapnode,maptop)) goto 100
     if(.not.associated(mapnode,localtop)) then
-!       if(associated(mapnode,maptop)) write(*,*)'mapnode same as maptop'
        goto 100
     endif
 900 continue
@@ -3294,5 +3408,88 @@
     return
   end subroutine ocappfixlabels
   
+!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
+
+!\addtotable subroutine stvarix 
+!\begin{verbatim}
+  subroutine stvarix(statevar,phaseline,encoded,nix,ixpos)
+! extract the indices of corresponding wildcard state variables
+! For example X(*,O) replace "*" with phase names in phline
+! and search which index correspond to X(C1_MO2#2,O) in encoded ... suck
+! statevar: with ONE wildcard (for a phase)
+! phaseline: phase names separated by a space
+! encoded: state variables returned by get_many(...) separated by a space
+! nix: number of state variables in encoded
+! ixpos: integer array with corresponding index for values
+    implicit none
+    integer nix,ixpos(*)
+    character*(*) statevar, phaseline, encoded
+!\end{verbatim}
+    character sstring*48,phase*32,prefix*24,suffix*24,cha*1
+    integer ip,jp,kp,lp,pix,vix
+!    write(*,*)'stvarix: ',trim(statevar)
+!    write(*,*)'phases:  "',trim(phaseline),'"'
+!    write(*,*)'encoded: "',trim(encoded),'"'
+!
+!    if(statevar(1:2).EQ.'MU' .or. &
+!         statevar(1:2).EQ.'AC' .or. statevar(1:4).EQ.'LNAC' .or. &
+!         statevar(1:2).EQ.'N(' .or. statevar(1:2).EQ.'B(' .or. &
+!         statevar(1:2).EQ.'X(' .or. statevar(1:2).EQ.'X%' .or. &
+!         statevar(1:2).EQ.'W(' .or. statevar(1:2).EQ.'W%') then
+! ignore the wildcard, it is not a phase
+!       write(*,*)'We should not be here! ',trim(statevar)
+!       goto 1000
+!    endif
+! initiate ipos to zero
+    ixpos(1:nix)=0
+    ip=index(statevar,'*')
+! if no wildcard skip
+    if(ip.le.0) goto 1000
+    prefix=statevar(1:ip-1)
+    suffix=statevar(ip+1:)
+!
+    ip=1
+    jp=index(phaseline,' ')
+    outside: do while(jp.gt.ip)
+! create search string with phase name replacing wildcard
+       sstring=trim(prefix)//phaseline(ip:jp-1)//trim(suffix)
+!       write(*,*)'Seach for: "',trim(sstring),'"',jp
+       pix=0
+       kp=1
+       lp=index(encoded,' ')
+!       write(*,*)'encoded item: ',trim(encoded(kp:lp-1)),kp,lp-1
+       inside: do while(lp.gt.kp) 
+          pix=pix+1
+!          write(*,*)'Same? ',trim(sstring),' and ',trim(encoded(kp:lp-1)),pix
+!          read(*,10)cha
+10        format(a)
+          if(trim(sstring).eq.trim(encoded(kp:lp-1))) then
+             vix=vix+1
+! it seems simpler to indicate for each possible value that it is relevent
+             ixpos(pix)=1
+! than to return an array with the relevant values ...
+!             ixpos(vix)=pix
+!             write(*,*)'Found: ',trim(sstring),vix,ixpos(vix)
+! select next phase name
+             ip=jp+1
+             jp=jp+index(phaseline(jp+1:),' ')
+             cycle outside
+          endif
+! compare with next item in encoded
+          kp=lp+1
+          lp=lp+index(encoded(lp+1:),' ')
+!          write(*,*)'Next encoded item: ',trim(encoded(kp:lp-1)),kp,lp-1
+!          read(*,10)cha
+       enddo inside
+       write(*,*)'Cannot find: ',trim(sstring)
+       gx%bmperr=4399; goto 1000
+    enddo outside
+!    write(*,70)nix,(ixpos(vix),vix=1,nix)
+70  format('SMP nix: ',i3,30i2)
+!    write(*,*)'vix mm: ',vix,(ixpos(vix),vix=1,nix)
+1000 continue
+    return
+  end subroutine stvarix 
+
 !/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\!/!\
 

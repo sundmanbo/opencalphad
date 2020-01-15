@@ -6,8 +6,7 @@ set origin 0.0, 0.0
 set size   1.0000,   1.0000
 set xlabel "X(B)"
 set ylabel "T"
-set label "O" at graph -0.090, -0.100 font "Garamond bold,20"
-set label "C" at graph -0.080, -0.100 font "Garamond bold,20"
+set label "~O{.0  C}" at graph -0.1, -0.1 font "Garamond Bold,20"
 set key  off
 set style line 1 lt 2 lc rgb "#000000" lw 2 pt 10
 set style line 2 lt 2 lc rgb "#4169E1" lw 2 pt 6

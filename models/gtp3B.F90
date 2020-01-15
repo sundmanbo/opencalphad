@@ -2512,10 +2512,20 @@
       if(zz.gt.100) zz=zz/100
 ! propid is an array initiated in gtp3A.F90, zz>100 means component unique
 ! VERY SPECIAL typty=26ij, zz=26 means uniquac parameter, has no addition!!
-      if(zz.ne.26) then
+      mpiwarning: if(zz.ne.26) then
+! give warning first time only!
+         do i2=1,nundefmpi
+            if(propid(zz)%symbol.eq.undefmpi(i2)) exit mpiwarning
+         enddo
+         if(nundefmpi.lt.mundefmpi) then
+            nundefmpi=nundefmpi+1
+            undefmpi(nundefmpi)=propid(zz)%symbol
+         else
+            write(*,*)'3B too many model parameter identifier errors',mundefmpi
+         endif
          write(*,*)'3B *** Warning phase ',trim(phlista(lokph)%name),&
               ' has no addition using parameter id: ',propid(zz)%symbol
-      endif
+      endif mpiwarning
 1005  continue
    endif lastcheck
    if(allocated(intlinks)) deallocate(intlinks)
@@ -4794,7 +4804,7 @@
             intlinks(2,incperm)=cix
          enddo
       else
-         write(*,*)'3B interaction on wring sublattice',jord(1,1)
+         write(*,*)'3B interaction on wrong sublattice in BCC',jord(1,1)
          gx%bmperr=4399; goto 1000
       endif
       if(incperm.ne.intperm(2)) stop 'internal error 3B:18'
@@ -6519,6 +6529,8 @@
 !   write(*,*)'3B finished copy equilibrium',ieq
    eqlista(ieq)%eqno=ieq
    neweq=>eqlista(ieq)
+! status word is initiated to zero, no need to copy?? Maybe EQMIXED?
+!   write(*,*)'3B copy_eq: ',neweq%status,ceq%status
 !   write(*,*)'3B Assigned pointer to new equilibrium',neweq%eqno
 1000 continue
 !   write(*,*)'3B exit copy_equilibrium'

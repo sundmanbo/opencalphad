@@ -95,28 +95,18 @@ title map 13 fig 2
 
 
 @$ the melting of B2 is still missing
-@$ It has been calculated and we can use amend line to plot it
+@$ In fact it has been calculated and we can use amend line to plot it
+@&
 
 amend line
-y
+Y
+Y
+Y
+Y
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+@$ With the amend line one can restore or remove calculated lines
+@&
 
 plot
 
